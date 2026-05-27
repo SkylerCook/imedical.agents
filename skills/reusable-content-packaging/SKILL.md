@@ -83,7 +83,7 @@ description: Package validated project or conversation knowledge into a reusable
 8. 更新配套资料：
    - 需要正式说明时更新 `docs/`。
    - README 或 docs 应包含端到端最小接入示例，至少说明插件放置、配置生成、thin-index dry-run/write 和验证步骤。
-   - 如产生长期有效决策或入口，按项目记忆规则更新 `.agents/memory/project_memory.md`。
+   - 如产生长期有效决策或入口，使用 `agent-context-kit` 的 `project-context-maintenance` 流程判断是否更新 `.agents/memory/project-memory.md`。
    - memory 只写摘要和入口，不复制规则全文。
 
 ## 输出要求

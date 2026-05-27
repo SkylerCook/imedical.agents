@@ -1,0 +1,25 @@
+# Agent Context Kit
+
+用于初始化和维护 Agent 项目上下文文件的通用插件。
+
+## 能力范围
+
+本插件用于维护项目级 Agent 上下文，包括：
+
+- `AGENTS.md` 顶层入口和启动指引。
+- `.agents/rules/` 稳定项目规则。
+- `.agents/memory/project-memory.md` 当前状态和长期经验。
+- `.agents/config/` 项目差异配置。
+- 暴露插件 skills 的 thin-index 文件。
+
+不要在本插件中保存密钥、服务器凭据、一次性命令输出或源项目业务细节。
+
+## Skills
+
+- `project-context-maintenance`：判断信息应进入哪一层上下文，并维护项目规则、项目记忆、项目配置和 Agent 入口。
+
+## Scripts
+
+- `scripts/generate-plugin-thin-index.ps1`
+
+`generate-plugin-thin-index.ps1` 保持在插件内。初始化和重建索引时直接调用插件路径，不要复制到目标工程共享的 `.agents/scripts/` 目录。

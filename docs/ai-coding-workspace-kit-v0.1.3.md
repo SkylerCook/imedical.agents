@@ -234,7 +234,7 @@ v0.1.3 只要求插件 `.agents-plugin/plugin.json` 保留 `version` 字段。
 |-- config/
 |   `-- i18n_project_profile.md
 |-- memory/
-|   `-- project_memory.md
+|   `-- project-memory.md
 |-- plugins/
 |   `-- i18n-iris-plugin/
 |-- rules/

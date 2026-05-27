@@ -1,0 +1,21 @@
+{
+  "name": "agent-context-kit",
+  "version": "0.1.0",
+  "displayName": "Agent Context Kit",
+  "description": "Reusable workflows for initializing and maintaining agent project context, including AGENTS.md, rules, memory, config, and plugin thin-index entries.",
+  "entry": "AGENTS.md",
+  "skills": "skills/",
+  "scripts": "scripts/",
+  "templates": "templates/",
+  "requiresProjectFiles": [
+    "AGENTS.md",
+    ".agents/rules/",
+    ".agents/memory/"
+  ],
+  "defaultPrompt": [
+    "初始化项目规则和项目记忆",
+    "维护项目上下文",
+    "判断这条经验应该写到 rules 还是 memory",
+    "把项目约定整理成 agent 可复用上下文"
+  ]
+}

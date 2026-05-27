@@ -18,8 +18,8 @@ imedical.agents/
 主要内容：
 
 - `docs/ai-coding-workspace-kit-v0.1.3.md`：定义可迁移的 AI Coding 工作区结构、插件模式和 thin-index 约定。
-- `rules/project_memory_maintenance.md`：项目长期记忆维护规则。
 - `skills/reusable-content-packaging/`：将已验证规则、流程、模板或脚本打包为可复用插件的通用流程。
+- `plugins/agent-context-kit/`：初始化和维护 Agent 项目上下文的通用插件。
 - `plugins/coding-iris-plugin/`：面向 IRIS/ObjectScript/CSP/JavaScript/HISUI 工程的编码插件。
 - `plugins/i18n-iris-plugin/`：面向 IRIS/ObjectScript/CSP/HISUI 工程的国际化插件。
 
@@ -116,6 +116,40 @@ git add <changed-files>
 git commit -m "docs: update agent kit"
 git push
 ```
+
+## Clone 后最佳落地步骤
+
+完成 `.agents/` clone 只代表通用能力包已经进入业务项目，不代表业务项目上下文已经初始化完成。推荐继续按以下顺序落地：
+
+1. 在业务项目根目录执行一键部署脚本，确认 `.agents/` 已存在。
+2. 先读取 `.agents/plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md`。
+3. 让 Agent 使用 `project-context-maintenance` 初始化或维护业务项目上下文。
+4. 生成或维护业务项目自己的上下文文件：
+   - 如果没有 `AGENTS.md`，参考 `.agents/plugins/agent-context-kit/templates/AGENTS.template.md` 创建。
+   - 如果已有 `AGENTS.md`，不要覆盖；只合并 `.agents/plugins/agent-context-kit/templates/AGENTS.context-snippet.md` 中缺失的入口和路由。
+   - 保留已有业务规则、团队约定和项目专属指令，按需创建或维护 `.agents/rules/project.md`、`.agents/memory/project-memory.md`。
+5. 先 dry-run 生成 `agent-context-kit` 的 thin-index，确认无冲突后再 write。
+6. 如项目需要 IRIS 编码或 i18n 能力，再按需执行 `coding-iris-plugin`、`i18n-iris-plugin` 各自的初始化和 profile 流程。
+
+thin-index dry-run：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/agent-context-kit/scripts/generate-plugin-thin-index.ps1 `
+  -PluginPath .agents/plugins/agent-context-kit `
+  -ProjectRoot . `
+  -Mode DryRun
+```
+
+确认后写入：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/agent-context-kit/scripts/generate-plugin-thin-index.ps1 `
+  -PluginPath .agents/plugins/agent-context-kit `
+  -ProjectRoot . `
+  -Mode Write
+```
+
+业务项目事实应写入业务项目自己的 `AGENTS.md`、`.agents/rules/`、`.agents/memory/` 和 `.agents/config/`。不要把服务器、账号、密码、token、namespace、远程路径写入插件或项目记忆。
 
 ## 安全边界
 
