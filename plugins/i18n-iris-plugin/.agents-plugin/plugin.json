@@ -1,0 +1,22 @@
+{
+  "name": "i18n-iris-plugin",
+  "version": "0.1.0",
+  "displayName": "IRIS I18N Plugin",
+  "description": "Reusable i18n agent workflows for IRIS/ObjectScript/CSP/HISUI projects.",
+  "entry": "AGENTS.md",
+  "rules": "rules/",
+  "skills": "skills/",
+  "templates": "templates/",
+  "scripts": "scripts/",
+  "requiresProjectFiles": [
+    "AGENTS.md",
+    ".mcp.json",
+    ".agents/config/i18n_project_profile.md"
+  ],
+  "defaultPrompt": [
+    "初始化本工程 i18n 支持",
+    "提取这个页面的 i18n 文案",
+    "生成页面级翻译种子",
+    "校验服务器与本地页面翻译差异"
+  ]
+}

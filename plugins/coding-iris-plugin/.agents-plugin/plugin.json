@@ -1,0 +1,22 @@
+{
+  "name": "coding-iris-plugin",
+  "version": "0.1.0",
+  "displayName": "IRIS Coding Plugin",
+  "description": "Reusable coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
+  "entry": "AGENTS.md",
+  "rules": "rules/",
+  "skills": "skills/",
+  "templates": "templates/",
+  "requiresProjectFiles": [
+    "AGENTS.md",
+    ".mcp.json",
+    ".agents/config/iris_project_profile.md"
+  ],
+  "defaultPrompt": [
+    "Initialize IRIS coding support in this project",
+    "Modify this ObjectScript class using IRIS backend rules",
+    "Modify this CSP/HISUI page using IRIS frontend rules",
+    "Convert frontend files to GB2312 and promote them after confirmation",
+    "Check this change against IRIS coding and deployment rules"
+  ]
+}
