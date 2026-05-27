@@ -1,37 +1,133 @@
 # imedical.agents
 
-#### 介绍
-专注与 imedical 开发的 agents 文件管理
+`imedical.agents` 用于沉淀和管理 imedical 开发过程中的 AI Coding 能力，包括工程规则、可复用 skill、插件、模板和辅助脚本。
 
-#### 软件架构
-软件架构说明
+本仓库面向长期维护的 Code Agent 工作区：让不同 Agent 能快速获得正确上下文，同时避免把通用规则、项目差异、连接信息和临时经验混在一起。
 
+## 项目结构
 
-#### 安装教程
+```text
+imedical.agents/
+|-- docs/      # AI Coding 工作区规范和配套文档
+|-- rules/     # 仓库级通用规则
+|-- skills/    # 仓库级通用 skill
+|-- plugins/   # 可复用插件能力包
+`-- scripts/   # 仓库级辅助脚本，按需放置
+```
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+主要内容：
 
-#### 使用说明
+- `docs/ai-coding-workspace-kit-v0.1.3.md`：定义可迁移的 AI Coding 工作区结构、插件模式和 thin-index 约定。
+- `rules/project_memory_maintenance.md`：项目长期记忆维护规则。
+- `skills/reusable-content-packaging/`：将已验证规则、流程、模板或脚本打包为可复用插件的通用流程。
+- `plugins/coding-iris-plugin/`：面向 IRIS/ObjectScript/CSP/JavaScript/HISUI 工程的编码插件。
+- `plugins/i18n-iris-plugin/`：面向 IRIS/ObjectScript/CSP/HISUI 工程的国际化插件。
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+## 插件概览
 
-#### 参与贡献
+### coding-iris-plugin
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+`coding-iris-plugin` 提供 IRIS 工程编码相关能力：
 
+- ObjectScript 后端编码规则。
+- CSP、JavaScript、CSS、HISUI 前端编码规则。
+- 本地优先、按需 MCP/SFTP 上传或编译的工作流约束。
+- UTF-8 前端文件转换为 GB2312 的上传和提升流程。
+- HISUI 控件源码索引入口。
 
-#### 特技
+常用 skill：
 
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+- `coding-iris-init`：初始化目标工程的 IRIS 编码支持。
+- `iris-backend-coding`：处理 IRIS/ObjectScript 后端编码任务。
+- `iris-frontend-coding`：处理 CSP、JavaScript、CSS、HISUI 前端编码任务。
+- `iris-frontend-gb2312-promote`：将转换后的 `{name}.gb2312.{ext}` 文件确认提升回原文件名，并可选上传。
+
+### i18n-iris-plugin
+
+`i18n-iris-plugin` 提供 IRIS 工程国际化相关能力：
+
+- 前后端 i18n 编码改造。
+- 用户可见文本提取和翻译表生成。
+- 页面级非字典翻译种子生成。
+- 字典/表字段展示值翻译 SQL 生成。
+- XML 打印模板翻译。
+- CSP 页面翻译导出、校验和同步。
+- 新工程 i18n 初始化。
+
+常用 skill：
+
+- `i18n-project-init`：初始化目标工程的 i18n 支持。
+- `i18n-coding`：执行前后端国际化编码改造。
+- `i18n-text-extract`：提取程序文件中需要翻译的用户可见文本。
+- `i18n-page-trans-seed`：生成页面级非字典翻译种子。
+- `i18n-bdp-trans-seed`：生成字典/表字段展示值翻译 SQL。
+- `i18n-csp-trans-sync`：导出、校验和同步 CSP 页面翻译。
+- `i18n-xml-template`：翻译 XML 打印模板文本。
+
+## 推荐接入方式
+
+插件默认采用 `plugin-reference-thin-index` 模式：
+
+1. 将插件放入目标工程 `.agents/plugins/<plugin-name>/`。
+2. 首次初始化时，直接读取插件内 bootstrap skill，例如：
+   - `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`
+   - `.agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md`
+3. 根据插件模板生成目标工程 profile：
+   - `.agents/config/iris_project_profile.md`
+   - `.agents/config/i18n_project_profile.md`
+4. 目标工程 `.mcp.json` 作为 MCP、SFTP、IRIS 连接事实来源。
+5. 运行插件内置 thin-index 脚本，在目标工程 `.agents/rules/` 和 `.agents/skills/` 生成浅层入口。
+6. 日常任务通过浅层 rule/skill 入口触发，Agent 读到 thin-index 后继续读取插件真实文件。
+
+## 在业务项目中部署到 `.agents/`
+
+如果只给 Agent 本地使用，不希望 `.agents/` 进入业务项目版本库，推荐在业务项目根目录执行一键部署脚本。
+
+脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/` 目录，并通过 sparse checkout 只检出 Agent 运行需要的目录：`docs/`、`rules/`、`skills/`、`plugins/`、`scripts/`。根目录 `README.md`、`LICENSE` 等说明性文件不会被检出到业务项目 `.agents/`。
+
+快速执行：
+
+```powershell
+iwr -UseBasicParsing https://gitee.com/skyler-cook/imedical.agents/raw/master/scripts/install-agents.ps1 | iex
+```
+
+如需先审阅脚本内容，再执行：
+
+```powershell
+iwr -UseBasicParsing https://gitee.com/skyler-cook/imedical.agents/raw/master/scripts/install-agents.ps1 -OutFile install-agents.ps1
+notepad .\install-agents.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install-agents.ps1
+```
+
+脚本逻辑等价于：
+
+```text
+首次执行：clone imedical.agents 到 .agents/，并启用 sparse checkout。
+重复执行：在 .agents/ 内 fetch --prune，然后 pull --ff-only。
+业务项目存在 .git 时：自动把 .agents/ 写入业务项目 .gitignore。
+```
+
+部署后，业务项目应忽略 `.agents/`，避免把 Agent 能力包直接提交进业务项目仓库。`.agents/` 内部仍保留自己的 Git 历史；如果需要提交 Agent 能力包变更，在 `.agents/` 目录内单独提交并推送：
+
+```powershell
+cd .agents
+git status
+git add <changed-files>
+git commit -m "docs: update agent kit"
+git push
+```
+
+## 安全边界
+
+- 插件只保存通用规则、流程、模板和脚本，不保存目标工程敏感信息。
+- 服务器地址、账号、密码、token、namespace、远程路径等连接信息只能存在于目标工程 `.mcp.json`。
+- 项目差异、业务约定和非敏感语义配置写入目标工程 `.agents/config/`。
+- 不在插件中硬编码业务页面清单、项目专属类名、部署路径或环境信息。
+- 涉及文件替换、上传、编译等操作时，以对应 skill 的确认流程为准。
+
+## 维护约定
+
+- 新增长期通用能力时，优先判断应放入 `rules/`、`skills/`、`templates/`、`scripts/` 还是插件目录。
+- 已验证、可跨工程复用的能力应去工程化后再进入插件。
+- 需要面向目标工程落地的差异配置，应通过 profile 模板表达，不写入插件规则正文。
+- 更新插件入口、安装模式或长期决策时，同步更新相关 README、模板和必要的规则说明。
