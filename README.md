@@ -9,7 +9,7 @@
 ```text
 imedical.agents/
 |-- docs/      # AI Coding 工作区规范和配套文档
-|-- rules/     # 仓库级通用规则
+|-- rules/     # 预留仓库级通用规则；当前通用规则主要沉淀在插件内
 |-- skills/    # 仓库级通用 skill
 |-- plugins/   # 可复用插件能力包
 `-- scripts/   # 通用部署脚本；领域脚本放入对应插件
@@ -83,7 +83,7 @@ imedical.agents/
 
 如果只给 Agent 本地使用，不希望 `.agents/` 进入业务项目版本库，推荐在业务项目根目录执行一键部署脚本。
 
-脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/` 目录，并通过 sparse checkout 只检出 Agent 运行需要的目录：`docs/`、`rules/`、`skills/`、`plugins/`、`scripts/`。根目录 `README.md`、`LICENSE` 等说明性文件不会被检出到业务项目 `.agents/`。
+脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/` 目录，并通过 sparse checkout 只检出 Agent 运行需要的目录：`docs/`、`rules/`、`skills/`、`plugins/`、`scripts/`。其中 `rules/` 是预留入口，只有存在已跟踪规则文件时才会实际出现在目标工程 `.agents/` 中；根目录 `README.md`、`LICENSE` 等说明性文件不会被检出到业务项目 `.agents/`。
 
 快速执行：
 
@@ -133,7 +133,7 @@ git push
 /scripts/
 ```
 
-已落地过的工程如果仍看到大量 `.agents` 待提交记录，重新执行安装脚本即可补齐本地 exclude；也可以手工把上述规则写入 `.agents/.git/info/exclude`。不要写入 `.agents/.gitignore`，否则会污染 `imedical.agents` 能力包仓库的版本规则。
+这些 exclude 规则主要隐藏目标工程本地生成的未跟踪文件；如果已跟踪的能力包文件被修改，仍会正常出现在 `.agents` 仓库的 `git status` 中。已落地过的工程如果仍看到大量未跟踪的 `.agents` 生成文件，重新执行安装脚本即可补齐本地 exclude；也可以手工把上述规则写入 `.agents/.git/info/exclude`。不要写入 `.agents/.gitignore`，否则会污染 `imedical.agents` 能力包仓库的版本规则。
 
 ### 被忽略文件贡献流程
 
