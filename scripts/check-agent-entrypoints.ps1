@@ -14,6 +14,24 @@ function Resolve-FullPath {
   return [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $Path))
 }
 
+function Get-RelativePathPortable {
+  param(
+    [string]$From,
+    [string]$To
+  )
+
+  $fromFull = [System.IO.Path]::GetFullPath($From)
+  $toFull = [System.IO.Path]::GetFullPath($To)
+  if (-not $fromFull.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
+    $fromFull = $fromFull + [System.IO.Path]::DirectorySeparatorChar
+  }
+
+  $fromUri = New-Object System.Uri($fromFull)
+  $toUri = New-Object System.Uri($toFull)
+  $relativeUri = $fromUri.MakeRelativeUri($toUri).ToString()
+  return ([System.Uri]::UnescapeDataString($relativeUri) -replace "\\", "/")
+}
+
 function Get-RelativeTarget {
   param(
     [string]$LinkPath,
@@ -22,8 +40,7 @@ function Get-RelativeTarget {
 
   if ([System.IO.Path]::IsPathRooted($LinkTarget)) {
     $linkDir = Split-Path -Parent $LinkPath
-    $relative = [System.IO.Path]::GetRelativePath($linkDir, $LinkTarget)
-    return ($relative -replace "\\", "/")
+    return Get-RelativePathPortable -From $linkDir -To $LinkTarget
   }
 
   return ($LinkTarget -replace "\\", "/")

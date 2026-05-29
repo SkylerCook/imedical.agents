@@ -62,6 +62,7 @@ your-project/
 17. 对 `intent-first-on-demand-export` 工程，`AGENTS.md` 不得围绕单个或少量零散文件生成架构结论；本地已有文件最多列为“当前已导出/已存在文件”；需求处理应先确认目标页面、类、JS、CSP 或业务对象，再按需导出相关文件。
 18. `.agents` 是独立 Git 仓库时，目标工程本地生成层应写入 `.agents/.git/info/exclude`，不要写入 `.agents/.gitignore`；默认忽略 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
 19. 兼容入口不要求模型理解 symlink，只要求运行 `.agents/scripts/check-agent-entrypoints.ps1`；异常状态 `missing`、`not-symlink`、`wrong-target` 由 `.agents/scripts/repair-agent-entrypoints.ps1` 机械修复。
+20. 被 `.agents/.git/info/exclude` 忽略的通用能力修正，需要贡献回能力包时使用 `git add -f <path>` 或 `scripts/stage-ignored-agent-file.ps1` 显式暂存；不要移除生成层 ignore 规则。
 
 ## 插件体系
 
@@ -161,6 +162,26 @@ thin-index 必须明确：
 - 真实插件文件路径。
 - Agent 读取本文件后必须继续读取目标插件文件。
 - 可提醒读取 `.agents/config/` 和 `.mcp.json`，但不得保存连接信息。
+
+## 被忽略文件贡献
+
+`.agents/.git/info/exclude` 默认隐藏本地生成层，以保持 Git 列表干净。若实际使用中修正了通用脚本、通用规则或通用 skill，可在 `.agents` 仓库内显式贡献：
+
+```powershell
+git status --ignored -s scripts/<script-name>.ps1
+git diff -- scripts/<script-name>.ps1
+git add -f scripts/<script-name>.ps1
+git commit -m "fix(scripts): 修正 xxx 脚本"
+git push
+```
+
+也可以用：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stage-ignored-agent-file.ps1 -Path scripts/<script-name>.ps1
+```
+
+只允许贡献通用能力。目标项目私有脚本、profile、`project-env.json`、服务器地址、账号、namespace、远程路径等不得提交到能力包仓库。
 
 ## 从零接入一个插件
 

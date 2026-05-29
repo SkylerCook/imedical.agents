@@ -135,6 +135,30 @@ git push
 
 已落地过的工程如果仍看到大量 `.agents` 待提交记录，重新执行安装脚本即可补齐本地 exclude；也可以手工把上述规则写入 `.agents/.git/info/exclude`。不要写入 `.agents/.gitignore`，否则会污染 `imedical.agents` 能力包仓库的版本规则。
 
+### 被忽略文件贡献流程
+
+如果 `.agents/.git/info/exclude` 隐藏的脚本或规则在实际使用中修正了，先判断它是否是可跨项目复用的通用能力。目标项目私有脚本、profile、`project-env.json`、服务器地址、账号、namespace、远程路径等不要提交到能力包仓库。
+
+通用修正可以显式绕过 ignore 暂存，不要移除 `.agents/.git/info/exclude` 里的 `/scripts/`、`/rules/`、`/skills/`：
+
+```powershell
+cd .agents
+git status --ignored -s scripts/<script-name>.ps1
+git diff -- scripts/<script-name>.ps1
+git add -f scripts/<script-name>.ps1
+git commit -m "fix(scripts): 修正 xxx 脚本"
+git push
+```
+
+也可以使用辅助脚本只执行强制暂存：
+
+```powershell
+cd .agents
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stage-ignored-agent-file.ps1 -Path scripts/<script-name>.ps1
+```
+
+该脚本只检查允许路径并执行 `git add -f`，不会自动 commit 或 push。
+
 ## Clone 后最佳落地步骤
 
 完成 `.agents/` clone 只代表通用能力包已经进入业务项目，不代表业务项目上下文已经初始化完成。推荐继续按以下顺序落地：

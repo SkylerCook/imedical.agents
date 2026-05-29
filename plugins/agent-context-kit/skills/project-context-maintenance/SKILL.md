@@ -198,6 +198,16 @@ description: Use when initializing or maintaining agent project context such as 
 
 生成层忽略规则只写入 `.agents/.git/info/exclude`，不要写入 `.agents/.gitignore`。`info/exclude` 是本机 Git 私有文件，不会进入 `imedical.agents` 能力包仓库；已被 `.agents` 仓库追踪的文件仍会正常更新和显示修改。
 
+### 被忽略文件贡献流程
+
+如果被忽略的 `scripts/`、`rules/` 或 `skills/` 文件在实际使用中修正了：
+
+1. 先判断是否是通用能力。目标项目私有脚本、profile、`project-env.json`、服务器地址、账号、namespace、远程路径等禁止提交。
+2. 在 `.agents/` 仓库内查看改动：`git status --ignored -s <path>` 和 `git diff -- <path>`。
+3. 通用修正使用 `git add -f <path>` 或 `scripts/stage-ignored-agent-file.ps1 -Path <path>` 暂存。
+4. 正常 `git commit` 和 `git push` 能力包仓库。
+5. 不要为了贡献单个文件而移除 `.agents/.git/info/exclude` 中的生成层忽略规则。
+
 ## Thin-Index 格式
 
 浅层 skill 索引必须：
