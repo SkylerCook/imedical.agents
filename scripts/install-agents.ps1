@@ -39,13 +39,18 @@ function Add-LineIfMissing {
   }
 }
 
+function Set-AgentsSparseCheckout {
+  git -C $target sparse-checkout init --no-cone
+  $sparsePaths | git -C $target sparse-checkout set --stdin --no-cone
+}
+
 if (Test-Path "$target\.git") {
   git -C $target fetch --prune
   git -C $target pull --ff-only
+  Set-AgentsSparseCheckout
 } else {
   git clone --filter=blob:none --no-checkout $repo $target
-  git -C $target sparse-checkout init --no-cone
-  $sparsePaths | git -C $target sparse-checkout set --stdin --no-cone
+  Set-AgentsSparseCheckout
   git -C $target checkout
 }
 

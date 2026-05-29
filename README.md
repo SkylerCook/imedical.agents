@@ -103,7 +103,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install-agents.ps1
 
 ```text
 首次执行：clone imedical.agents 到 .agents/，并启用 sparse checkout。
-重复执行：在 .agents/ 内 fetch --prune，然后 pull --ff-only。
+重复执行：在 .agents/ 内 fetch --prune、pull --ff-only，然后刷新 sparse checkout。
 业务项目存在 .git 时：自动把 .agents/ 写入业务项目 .gitignore。
 .agents 内部：自动把本地生成层写入 .agents/.git/info/exclude。
 如业务项目已有 AGENTS.md：自动修复 CLAUDE.md、CODEBUDDY.md 到 AGENTS.md 的 symlink。
