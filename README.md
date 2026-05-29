@@ -106,6 +106,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install-agents.ps1
 重复执行：在 .agents/ 内 fetch --prune，然后 pull --ff-only。
 业务项目存在 .git 时：自动把 .agents/ 写入业务项目 .gitignore。
 .agents 内部：自动把本地生成层写入 .agents/.git/info/exclude。
+如业务项目已有 AGENTS.md：自动修复 CLAUDE.md、CODEBUDDY.md 到 AGENTS.md 的 symlink。
 ```
 
 部署后，业务项目应忽略 `.agents/`，避免把 Agent 能力包直接提交进业务项目仓库。`.agents/` 内部仍保留自己的 Git 历史；如果需要提交 Agent 能力包变更，在 `.agents/` 目录内单独提交并推送：
@@ -149,6 +150,25 @@ git push
    - 保留已有业务规则、团队约定和项目专属指令，按需创建或维护 `.agents/rules/project.md`、`.agents/memory/project-memory.md`。
 5. 先 dry-run 生成 `agent-context-kit` 的 thin-index，确认无冲突后再 write。
 6. 如项目需要 IRIS 编码或 i18n 能力，再按需执行 `coding-iris-plugin`、`i18n-iris-plugin` 各自的初始化和 profile 流程。
+
+兼容入口检查：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-agent-entrypoints.ps1 -ProjectRoot .
+```
+
+如输出 `missing`、`not-symlink` 或 `wrong-target`，执行修复：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/repair-agent-entrypoints.ps1 -ProjectRoot .
+```
+
+Windows 也可以手工修复；默认需要管理员 cmd，启用开发者模式后部分环境可免管理员：
+
+```cmd
+mklink CLAUDE.md AGENTS.md
+mklink CODEBUDDY.md AGENTS.md
+```
 
 thin-index dry-run：
 

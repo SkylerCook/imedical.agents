@@ -2,6 +2,8 @@
 
 This file provides guidance to agents when working with code in this repository.
 
+> **约束入口**：本工程的项目指引统一以 `AGENTS.md` 为准。`CODEBUDDY.md` 和 `CLAUDE.md` 均为指向本文件的符号链接，修改时只改 `AGENTS.md`，不要直接修改后两者。
+
 ## Project
 
 TODO: 用一句话说明项目业务域、技术栈和主要模块边界；如果是按需导出/需求处理工作区，只说明业务用途和工作方式，不推断完整模块边界。

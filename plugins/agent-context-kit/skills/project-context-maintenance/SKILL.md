@@ -23,10 +23,30 @@ description: Use when initializing or maintaining agent project context such as 
 编辑上下文文件前：
 
 1. 读取当前 `AGENTS.md`。
-2. 如存在项目记忆，读取当前 `.agents/memory/project-memory.md`。
-3. 如存在规则索引或相关规则文件，读取对应文件。
-4. 判断目标工程的 `contextMode`，再决定如何生成或维护上下文。
-5. 判断待写入内容是项目特定、跨项目可复用，还是临时过程。
+2. 运行 `.agents/scripts/check-agent-entrypoints.ps1` 检查兼容入口；若失败，先运行 `.agents/scripts/repair-agent-entrypoints.ps1` 修复。
+3. 如存在项目记忆，读取当前 `.agents/memory/project-memory.md`。
+4. 如存在规则索引或相关规则文件，读取对应文件。
+5. 判断目标工程的 `contextMode`，再决定如何生成或维护上下文。
+6. 判断待写入内容是项目特定、跨项目可复用，还是临时过程。
+
+## 兼容入口
+
+兼容入口清单默认包括：
+
+| 入口 | 目标 |
+|---|---|
+| `CLAUDE.md` | `AGENTS.md` |
+| `CODEBUDDY.md` | `AGENTS.md` |
+
+规则：
+
+- `AGENTS.md` 是唯一事实文件。
+- `CLAUDE.md`、`CODEBUDDY.md` 只允许是指向 `AGENTS.md` 的 symlink。
+- 不要求模型理解 symlink；维护前只要求运行检查脚本并按固定结果处理。
+- 检查脚本固定输出 `ok`、`missing`、`not-symlink`、`wrong-target`。
+- 若入口为 `missing`、`not-symlink` 或 `wrong-target`，先运行修复脚本恢复 symlink，再维护上下文。
+- Windows 手工修复可在管理员 cmd 中使用 `mklink CLAUDE.md AGENTS.md` 和 `mklink CODEBUDDY.md AGENTS.md`；启用开发者模式后部分环境可免管理员。
+- 修改规则时只允许改 `AGENTS.md`、`.agents/rules/`、`.agents/memory/`、`.agents/config/`；禁止把规则写入 `CLAUDE.md` 或 `CODEBUDDY.md`。
 
 ## 上下文模式
 
@@ -148,18 +168,19 @@ description: Use when initializing or maintaining agent project context such as 
 初始化项目上下文时：
 
 1. 先判断并记录 `contextMode`；缺少 `.agents/config/project_context_profile.md` 时，参考 `templates/project_context_profile.template.md` 创建。
-2. 创建或更新 `AGENTS.md`，只放最小启动流程和路由；新建时参考 `templates/AGENTS.template.md`。
+2. 运行 `.agents/scripts/repair-agent-entrypoints.ps1`，确保 `CLAUDE.md`、`CODEBUDDY.md` 指向 `AGENTS.md`。
+3. 创建或更新 `AGENTS.md`，只放最小启动流程和路由；新建时参考 `templates/AGENTS.template.md`。
    - `codebase-complete`：可写入已验证架构事实。
    - `intent-first-on-demand-export`：必须写明本地代码不代表完整工程，后续按需导出相关文件后再分析和修改。
-3. 如缺失 `.agents/rules/project.md`，基于项目规则模板创建。
-4. 如缺失 `.agents/memory/project-memory.md`，基于项目记忆模板创建。
-5. 使用插件内置脚本生成 plugin thin-index：
+4. 如缺失 `.agents/rules/project.md`，基于项目规则模板创建。
+5. 如缺失 `.agents/memory/project-memory.md`，基于项目记忆模板创建。
+6. 使用插件内置脚本生成 plugin thin-index：
    ```powershell
    powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/agent-context-kit/scripts/generate-plugin-thin-index.ps1 -PluginPath .agents/plugins/agent-context-kit -ProjectRoot . -Mode DryRun
    ```
-6. 检查冲突后，仅在用户要求初始化或更新索引时，用 `-Mode Write` 重新执行。
-7. 项目特定值放入 `.agents/config/`，不要写成插件默认值。
-8. 确认 `.agents/.git/info/exclude` 包含生成层忽略规则，至少包括：
+7. 检查冲突后，仅在用户要求初始化或更新索引时，用 `-Mode Write` 重新执行。
+8. 项目特定值放入 `.agents/config/`，不要写成插件默认值。
+9. 确认 `.agents/.git/info/exclude` 包含生成层忽略规则，至少包括：
    - `/config/`
    - `/memory/`
    - `/rules/`
@@ -195,4 +216,5 @@ description: Use when initializing or maintaining agent project context such as 
 - rules 只包含长期约束，不记录任务进度。
 - 插件内容可复用，且没有源项目硬编码。
 - `.agents/.git/info/exclude` 已包含生成层忽略规则。
+- 兼容入口检查结果为 `ok`；`CLAUDE.md`、`CODEBUDDY.md` 未维护第二份规则。
 - 没有新增密钥或私有连接信息。

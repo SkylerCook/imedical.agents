@@ -7,8 +7,8 @@
 ```text
 your-project/
 |-- AGENTS.md                         # 工程级唯一主入口，所有 Code Agent 优先读取
-|-- CLAUDE.md                         # 兼容入口，建议链接或转发到 AGENTS.md
-|-- CODEBUDDY.md                      # 兼容入口，建议链接或转发到 AGENTS.md
+|-- CLAUDE.md                         # 兼容入口，默认作为指向 AGENTS.md 的 symlink
+|-- CODEBUDDY.md                      # 兼容入口，默认作为指向 AGENTS.md 的 symlink
 |-- .mcp.json                         # MCP 连接事实来源，可选；环境/连接信息放这里
 |
 |-- .agents/
@@ -44,7 +44,7 @@ your-project/
 ## 核心原则
 
 1. `AGENTS.md` 是工程级唯一主入口。
-2. `CLAUDE.md`、`CODEBUDDY.md` 等只做兼容入口，不维护第二份规则。
+2. `CLAUDE.md`、`CODEBUDDY.md` 等只做兼容入口，默认是指向 `AGENTS.md` 的 symlink，不维护第二份规则。
 3. `.agents/config/` 放非敏感工程语义配置；敏感连接信息不放这里。
 4. `.mcp.json` 放 MCP、环境、连接事实。
 5. `.agents/memory/` 只放长期有效事实、决策、坑点和待办，不放规则全文。
@@ -61,6 +61,7 @@ your-project/
 16. `contextMode` 使用保守默认：用户明确说按需导出时直接选 `intent-first-on-demand-export`；无法证明本地代码代表完整工程时，也选 `intent-first-on-demand-export`。
 17. 对 `intent-first-on-demand-export` 工程，`AGENTS.md` 不得围绕单个或少量零散文件生成架构结论；本地已有文件最多列为“当前已导出/已存在文件”；需求处理应先确认目标页面、类、JS、CSP 或业务对象，再按需导出相关文件。
 18. `.agents` 是独立 Git 仓库时，目标工程本地生成层应写入 `.agents/.git/info/exclude`，不要写入 `.agents/.gitignore`；默认忽略 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
+19. 兼容入口不要求模型理解 symlink，只要求运行 `.agents/scripts/check-agent-entrypoints.ps1`；异常状态 `missing`、`not-symlink`、`wrong-target` 由 `.agents/scripts/repair-agent-entrypoints.ps1` 机械修复。
 
 ## 插件体系
 
@@ -109,7 +110,11 @@ your-project/
 
 ### symlink
 
-符号链接不作为默认模式。Windows 下通常需要管理员权限或开发者模式，且 Git、压缩包、跨平台同步和不同 Agent 对 symlink 的处理不一致。规范默认使用普通 Markdown thin-index。
+符号链接是 `CLAUDE.md`、`CODEBUDDY.md` 等兼容入口的默认模式，目标统一为 `AGENTS.md`。不同 Agent 不需要理解 symlink 语义；项目落地、上下文维护或提交前运行检查脚本即可。
+
+Windows 下创建 symlink 推荐在管理员 cmd 中使用 `mklink CLAUDE.md AGENTS.md`、`mklink CODEBUDDY.md AGENTS.md`；启用开发者模式后部分环境可免管理员。PowerShell 修复脚本会先尝试 `New-Item -ItemType SymbolicLink`，失败后回退到 `cmd /c mklink`。若环境不支持 symlink，修复脚本应明确失败并提示环境要求，不自动降级为普通转发文件。
+
+插件 rules/skills 的浅层入口仍默认使用普通 Markdown thin-index，不使用 symlink。
 
 ## Thin-Index 自动生成
 

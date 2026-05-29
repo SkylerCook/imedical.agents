@@ -56,6 +56,14 @@ if (Test-Path "$target\.git") {
   }
 }
 
+$entrypointRepairScript = Join-Path $target "scripts/repair-agent-entrypoints.ps1"
+if ((Test-Path "AGENTS.md") -and (Test-Path $entrypointRepairScript)) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File $entrypointRepairScript -ProjectRoot .
+}
+elseif (-not (Test-Path "AGENTS.md")) {
+  Write-Host "AGENTS.md not found; skip agent entrypoint symlink repair."
+}
+
 if (Test-Path ".git") {
   $ignorePattern = "^\s*\.agents/\s*$"
   $hasIgnore = $false
