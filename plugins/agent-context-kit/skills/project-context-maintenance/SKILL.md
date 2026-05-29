@@ -159,8 +159,23 @@ description: Use when initializing or maintaining agent project context such as 
    ```
 6. 检查冲突后，仅在用户要求初始化或更新索引时，用 `-Mode Write` 重新执行。
 7. 项目特定值放入 `.agents/config/`，不要写成插件默认值。
+8. 确认 `.agents/.git/info/exclude` 包含生成层忽略规则，至少包括：
+   - `/config/`
+   - `/memory/`
+   - `/rules/`
+   - `/skills/`
+   - `/scripts/`
 
 不要把 `scripts/generate-plugin-thin-index.ps1` 复制到目标工程共享的 `.agents/scripts/` 目录；应直接从插件路径调用。
+
+## Git 忽略边界
+
+目标工程应采用双层忽略：
+
+- 业务工程 `.gitignore` 忽略 `.agents/`，避免把能力包提交进业务仓库。
+- `.agents/.git/info/exclude` 忽略本地生成层，避免 VS Code 的 `.agents` Git 仓库显示 profile、memory、thin-index 和本地辅助脚本。
+
+生成层忽略规则只写入 `.agents/.git/info/exclude`，不要写入 `.agents/.gitignore`。`info/exclude` 是本机 Git 私有文件，不会进入 `imedical.agents` 能力包仓库；已被 `.agents` 仓库追踪的文件仍会正常更新和显示修改。
 
 ## Thin-Index 格式
 
@@ -179,4 +194,5 @@ description: Use when initializing or maintaining agent project context such as 
 - memory 只包含当前状态和长期经验，不复制完整规则。
 - rules 只包含长期约束，不记录任务进度。
 - 插件内容可复用，且没有源项目硬编码。
+- `.agents/.git/info/exclude` 已包含生成层忽略规则。
 - 没有新增密钥或私有连接信息。

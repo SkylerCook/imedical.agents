@@ -63,6 +63,18 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 
 7. 将 `templates/AGENTS.coding-iris-snippet.md` 合入目标工程 `AGENTS.md`。
 
+8. 确认 `.agents/.git/info/exclude` 已隐藏本地生成层：
+
+```gitignore
+/config/
+/memory/
+/rules/
+/skills/
+/scripts/
+```
+
+这些规则用于避免 VS Code 的 `.agents` Git 仓库显示 profile、project-env、thin-index 和本地辅助脚本。不要写入 `.agents/.gitignore`。
+
 ## 验证清单
 
 - 插件目录存在。
@@ -73,4 +85,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 - `node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js` 可生成 `.mcp.json`。
 - `.mcp.json` 保存实际 MCP 连接事实。
 - `.agents/rules/` 和 `.agents/skills/` 的 thin-index 指向插件真实文件。
+- `.agents/.git/info/exclude` 已包含生成层忽略规则。
 - 插件规则中没有源工程服务器、namespace、远程路径、业务类名前缀或凭据。

@@ -105,6 +105,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install-agents.ps1
 首次执行：clone imedical.agents 到 .agents/，并启用 sparse checkout。
 重复执行：在 .agents/ 内 fetch --prune，然后 pull --ff-only。
 业务项目存在 .git 时：自动把 .agents/ 写入业务项目 .gitignore。
+.agents 内部：自动把本地生成层写入 .agents/.git/info/exclude。
 ```
 
 部署后，业务项目应忽略 `.agents/`，避免把 Agent 能力包直接提交进业务项目仓库。`.agents/` 内部仍保留自己的 Git 历史；如果需要提交 Agent 能力包变更，在 `.agents/` 目录内单独提交并推送：
@@ -116,6 +117,22 @@ git add <changed-files>
 git commit -m "docs: update agent kit"
 git push
 ```
+
+### 清理 `.agents` Git 列表
+
+`.agents/` 是独立 Git 仓库，VS Code 可能把它作为第二个仓库显示。目标工程生成的 profile、project-env、memory、thin-index 和本地辅助脚本默认不应进入 `.agents` 仓库提交列表。
+
+一键部署脚本会维护 `.agents/.git/info/exclude`，默认忽略：
+
+```gitignore
+/config/
+/memory/
+/rules/
+/skills/
+/scripts/
+```
+
+已落地过的工程如果仍看到大量 `.agents` 待提交记录，重新执行安装脚本即可补齐本地 exclude；也可以手工把上述规则写入 `.agents/.git/info/exclude`。不要写入 `.agents/.gitignore`，否则会污染 `imedical.agents` 能力包仓库的版本规则。
 
 ## Clone 后最佳落地步骤
 

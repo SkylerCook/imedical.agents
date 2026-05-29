@@ -60,6 +60,7 @@ your-project/
 15. 项目上下文初始化前先判断 `contextMode`：完整工程使用 `codebase-complete`；刚新建、代码零散或后续按需从服务器导出文件的工程使用 `intent-first-on-demand-export`，并在 `.agents/config/project_context_profile.md` 记录非敏感语义配置。
 16. `contextMode` 使用保守默认：用户明确说按需导出时直接选 `intent-first-on-demand-export`；无法证明本地代码代表完整工程时，也选 `intent-first-on-demand-export`。
 17. 对 `intent-first-on-demand-export` 工程，`AGENTS.md` 不得围绕单个或少量零散文件生成架构结论；本地已有文件最多列为“当前已导出/已存在文件”；需求处理应先确认目标页面、类、JS、CSP 或业务对象，再按需导出相关文件。
+18. `.agents` 是独立 Git 仓库时，目标工程本地生成层应写入 `.agents/.git/info/exclude`，不要写入 `.agents/.gitignore`；默认忽略 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
 
 ## 插件体系
 

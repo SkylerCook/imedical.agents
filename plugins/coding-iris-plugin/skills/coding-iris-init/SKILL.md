@@ -61,7 +61,12 @@ description: Initialize coding-iris-plugin in a target IRIS project, copy bundle
    - thin-index 指向 `.agents/plugins/coding-iris-plugin/` 内真实 rules/skills。
    - 编码转换脚本已存在于目标工程 `.agents/scripts/`；thin-index 脚本仍位于插件 `scripts/`。
    - IRIS 开发主力脚本位于插件 `.agents/plugins/coding-iris-plugin/scripts/iris-tools/`，不复制到根 `.agents/scripts/`。
+   - `.agents/.git/info/exclude` 已包含生成层忽略规则：`/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
    - 插件中没有源工程服务器、namespace、远程路径、业务类名前缀。
+
+## Git 忽略边界
+
+`iris_project_profile.md`、`project-env.json`、thin-index 和复制到 `.agents/scripts/` 的本地脚本属于目标工程本地生成层。初始化或重建索引后，必须确认这些路径由 `.agents/.git/info/exclude` 隐藏，不要把生成层忽略规则写进 `.agents/.gitignore`。
 
 ## 输出
 
@@ -70,4 +75,5 @@ description: Initialize coding-iris-plugin in a target IRIS project, copy bundle
 - profile 创建或缺失项。
 - thin-index DryRun/Write 结果。
 - 被跳过或冲突的文件。
+- `.agents/.git/info/exclude` 生成层忽略规则检查结果。
 - 仍需目标工程填写的配置项。

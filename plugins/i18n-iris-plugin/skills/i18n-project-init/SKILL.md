@@ -77,6 +77,7 @@ description: Initialize the reusable IRIS i18n agent kit in a target project wit
    - 检查 thin-index 路径是否指向 `.agents/plugins/i18n-iris-plugin/`。
    - 检查插件内 `rules/`、`skills/` 无旧工程硬编码。
    - 检查 `.mcp.json` 是否提供 IRIS 命令执行、编译、类方法、SQL、SFTP 等所需能力。
+   - 检查 `.agents/.git/info/exclude` 是否包含生成层忽略规则：`/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
    - 输出仍需人工确认的 profile 项。
 
 ## 安全约束
@@ -85,6 +86,7 @@ description: Initialize the reusable IRIS i18n agent kit in a target project wit
 - 不覆盖目标工程已有 `AGENTS.md`，除非用户明确要求合入。
 - 不默认执行服务器写入、上传、编译或加载翻译。
 - 若目标工程已有不同 i18n 存储机制，只更新 profile，不修改通用 rules/skills。
+- `i18n_project_profile.md`、thin-index 和本地生成脚本属于目标工程本地生成层，应由 `.agents/.git/info/exclude` 隐藏；不要把生成层忽略规则写进 `.agents/.gitignore`。
 
 ## 输出
 
@@ -92,5 +94,6 @@ description: Initialize the reusable IRIS i18n agent kit in a target project wit
 - thin-index 脚本 `DryRun` 和 `Write` 的结果。
 - 哪些文件因已存在而跳过或需要人工合并。
 - `.agents/config/i18n_project_profile.md` 中仍需确认的项目。
+- `.agents/.git/info/exclude` 生成层忽略规则检查结果。
 - `.mcp.json` 能力检查结果。
 - 下一步建议：先执行文本提取只读验证，再生成小批量页面翻译种子，最后进行服务器 report-only 校验。
