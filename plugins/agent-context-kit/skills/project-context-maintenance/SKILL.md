@@ -25,7 +25,48 @@ description: Use when initializing or maintaining agent project context such as 
 1. 读取当前 `AGENTS.md`。
 2. 如存在项目记忆，读取当前 `.agents/memory/project-memory.md`。
 3. 如存在规则索引或相关规则文件，读取对应文件。
-4. 判断待写入内容是项目特定、跨项目可复用，还是临时过程。
+4. 判断目标工程的 `contextMode`，再决定如何生成或维护上下文。
+5. 判断待写入内容是项目特定、跨项目可复用，还是临时过程。
+
+## 上下文模式
+
+初始化或大幅维护项目上下文前，必须先判断工程成熟度和上下文置信度，并记录到 `.agents/config/project_context_profile.md` 或等价位置。
+
+### 机械判定顺序
+
+按以下顺序判定，命中即停止，不要自由发挥：
+
+1. 用户明确说“后续按需导出文件”“需求处理中再导出”“刚新建”“空工程”“只有零散文件”“需求处理工作区”时，直接设为 `intent-first-on-demand-export`。
+2. 已存在 `.agents/config/project_context_profile.md` 且写明 `contextMode` 时，沿用该值；除非用户明确更新，否则不要改。
+3. 目标工程缺少可识别构建/运行入口，且业务代码文件很少或分散时，设为 `intent-first-on-demand-export`。
+4. 只有在本地同时具备较完整源码目录、构建或运行配置、项目文档或用户确认“本地就是主要工程”时，才设为 `codebase-complete`。
+5. 如果无法判断，默认使用 `intent-first-on-demand-export`。保守默认比错误总结架构更安全。
+
+| contextMode | 适用条件 | 处理原则 |
+|---|---|---|
+| `codebase-complete` | 目标工程已有较完整代码、目录、构建配置或用户确认本地代码代表主要工程事实。 | 可以从已验证代码、配置和文档归纳架构事实；仍需区分事实、推断和待确认项。 |
+| `intent-first-on-demand-export` | 目标工程刚新建、代码很少或零散，或用户明确说明后续会按需从服务器导出文件。 | 以用户说明的项目用途和工作流为主；本地少量文件只记录为“当前本地已有文件”，不得推导完整架构、主模块或长期规则。 |
+
+若用户明确说明“后续按需导出文件”“需求处理中再导出”“当前只是需求处理工作区”等意图，即使目录中已有少量代码文件，也优先采用 `intent-first-on-demand-export`。
+
+对 `intent-first-on-demand-export` 工程：
+
+- `AGENTS.md` 保持轻量，只写项目定位、上下文状态、按需导出工作流、必读入口和安全边界。
+- 架构段落必须明确“暂无可验证完整架构；不得基于零散文件推断整体工程”。
+- 本地已有文件最多列为“当前已导出/已存在文件”，不得写“系统由这些文件组成”“核心模块是这些文件”“调用链如下”等结论。
+- `.agents/rules/project.md` 记录稳定业务定位、按需导出流程和禁止推断规则。
+- `.agents/memory/project-memory.md` 记录当前状态、已导出文件范围和仍有效决策，不把零散文件扩写成架构说明。
+- `.agents/config/project_context_profile.md` 保存非敏感语义配置，如项目用途、上下文模式、代码来源、本地文件完整性和禁止项。
+
+### 最小输出模板
+
+低上下文或不确定时，按以下最小输出落地，不要扩写：
+
+- 项目定位：使用用户给出的业务用途。
+- 上下文状态：`contextMode = intent-first-on-demand-export`；本地代码不代表全量工程事实。
+- 架构：暂无可验证完整架构；不得基于零散文件推断整体工程。
+- 工作流：每个需求先确认目标页面、类、JS、CSP 或业务对象，再导出相关文件处理。
+- 安全边界：不把服务器、账号、密码、token、namespace、远程路径写入 AGENTS、rules、memory 或插件。
 
 ## 内容归属
 
@@ -45,6 +86,7 @@ description: Use when initializing or maintaining agent project context such as 
 ### 应写入 AGENTS.md
 
 - 项目一句话定位：业务域、技术栈、主要模块边界。
+- 上下文状态：当前工程是否完整、本地代码是否代表全量事实、是否需要按需导出。
 - 新会话启动顺序：先读哪些 memory/rules/config。
 - 高频硬约束：跨任务必须遵守、遗漏会造成明显风险的规则。
 - 规则路由：不同任务类型应读取哪些 rules 或 skills。
@@ -57,6 +99,7 @@ description: Use when initializing or maintaining agent project context such as 
 - 当前进度、最近变化、待办清单；应放入 `.agents/memory/project-memory.md`。
 - 项目差异配置、路径映射、能力矩阵；应放入 `.agents/config/` 或对应规则。
 - 长示例、大段代码、完整命令输出。
+- 在空壳或按需导出工程中，基于单个或少量零散文件生成的架构结论、模块边界或调用链总结。
 - 凭据、token、服务器私有细节，或从 `.mcp.json` 复制的敏感信息。
 
 ### 推荐结构
@@ -66,13 +109,14 @@ description: Use when initializing or maintaining agent project context such as 
 建议结构：
 
 1. 项目简介。
-2. 架构或非显然事实。
-3. 关键目录。
-4. 工具和安全边界。
-5. 新会话启动流程。
-6. 编码前规则路由。
-7. 编码后上下文维护。
-8. 已接入插件入口。
+2. 上下文状态。
+3. 架构或非显然事实。
+4. 关键目录。
+5. 工具和安全边界。
+6. 新会话启动流程。
+7. 编码前规则路由。
+8. 编码后上下文维护。
+9. 已接入插件入口。
 
 ### 维护原则
 
@@ -103,15 +147,18 @@ description: Use when initializing or maintaining agent project context such as 
 
 初始化项目上下文时：
 
-1. 创建或更新 `AGENTS.md`，只放最小启动流程和路由；新建时参考 `templates/AGENTS.template.md`。
-2. 如缺失 `.agents/rules/project.md`，基于项目规则模板创建。
-3. 如缺失 `.agents/memory/project-memory.md`，基于项目记忆模板创建。
-4. 使用插件内置脚本生成 plugin thin-index：
+1. 先判断并记录 `contextMode`；缺少 `.agents/config/project_context_profile.md` 时，参考 `templates/project_context_profile.template.md` 创建。
+2. 创建或更新 `AGENTS.md`，只放最小启动流程和路由；新建时参考 `templates/AGENTS.template.md`。
+   - `codebase-complete`：可写入已验证架构事实。
+   - `intent-first-on-demand-export`：必须写明本地代码不代表完整工程，后续按需导出相关文件后再分析和修改。
+3. 如缺失 `.agents/rules/project.md`，基于项目规则模板创建。
+4. 如缺失 `.agents/memory/project-memory.md`，基于项目记忆模板创建。
+5. 使用插件内置脚本生成 plugin thin-index：
    ```powershell
    powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/agent-context-kit/scripts/generate-plugin-thin-index.ps1 -PluginPath .agents/plugins/agent-context-kit -ProjectRoot . -Mode DryRun
    ```
-5. 检查冲突后，仅在用户要求初始化或更新索引时，用 `-Mode Write` 重新执行。
-6. 项目特定值放入 `.agents/config/`，不要写成插件默认值。
+6. 检查冲突后，仅在用户要求初始化或更新索引时，用 `-Mode Write` 重新执行。
+7. 项目特定值放入 `.agents/config/`，不要写成插件默认值。
 
 不要把 `scripts/generate-plugin-thin-index.ps1` 复制到目标工程共享的 `.agents/scripts/` 目录；应直接从插件路径调用。
 
@@ -128,6 +175,7 @@ description: Use when initializing or maintaining agent project context such as 
 完成前检查：
 
 - 每类事实仍只有一个清晰事实来源。
+- 已明确 `contextMode`，且空壳/按需导出工程没有基于零散文件生成架构结论。
 - memory 只包含当前状态和长期经验，不复制完整规则。
 - rules 只包含长期约束，不记录任务进度。
 - 插件内容可复用，且没有源项目硬编码。

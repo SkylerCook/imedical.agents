@@ -127,6 +127,8 @@ git push
 4. 生成或维护业务项目自己的上下文文件：
    - 如果没有 `AGENTS.md`，参考 `.agents/plugins/agent-context-kit/templates/AGENTS.template.md` 创建。
    - 如果已有 `AGENTS.md`，不要覆盖；只合并 `.agents/plugins/agent-context-kit/templates/AGENTS.context-snippet.md` 中缺失的入口和路由。
+   - 先判断上下文模式：完整工程使用 `codebase-complete`；刚新建、代码零散或后续按需从服务器导出文件的工程使用 `intent-first-on-demand-export`。
+   - 按需创建或维护 `.agents/config/project_context_profile.md`，保存项目用途、上下文模式、代码来源和本地文件完整性等非敏感语义配置。
    - 保留已有业务规则、团队约定和项目专属指令，按需创建或维护 `.agents/rules/project.md`、`.agents/memory/project-memory.md`。
 5. 先 dry-run 生成 `agent-context-kit` 的 thin-index，确认无冲突后再 write。
 6. 如项目需要 IRIS 编码或 i18n 能力，再按需执行 `coding-iris-plugin`、`i18n-iris-plugin` 各自的初始化和 profile 流程。
@@ -150,6 +152,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/agent-contex
 ```
 
 业务项目事实应写入业务项目自己的 `AGENTS.md`、`.agents/rules/`、`.agents/memory/` 和 `.agents/config/`。不要把服务器、账号、密码、token、namespace、远程路径写入插件或项目记忆。
+
+### 按需导出/空壳工程
+
+如果业务项目刚新建、没有完整代码，或用户明确说明“后续需求处理中再按需导出文件”，应按 `intent-first-on-demand-export` 落地：
+
+- `AGENTS.md` 只记录项目定位、上下文状态、按需导出工作流、规则路由和安全边界。
+- 不得围绕单个代码文件生成长篇架构说明，也不得把零散文件推断成主模块或完整调用链。
+- 无法证明本地代码代表完整工程时，默认按 `intent-first-on-demand-export` 处理；本地已有文件最多列为“当前已导出/已存在文件”。
+- `.agents/config/project_context_profile.md` 记录本地代码不代表全量工程事实。
+- `.agents/rules/project.md` 记录需求处理前先确认目标页面、类、JS、CSP 或业务对象，再导出相关文件。
+- `.agents/memory/project-memory.md` 记录当前工作区状态和已导出文件范围；已导出文件只代表相关需求上下文。
 
 ## 安全边界
 

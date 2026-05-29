@@ -6,7 +6,18 @@
 
 - `skills/project-context-maintenance/`：初始化和维护项目上下文的主流程。
 - `scripts/generate-plugin-thin-index.ps1`：插件内置 thin-index 生成脚本。
-- `templates/`：`AGENTS.md` 完整模板和片段、项目规则、项目记忆的初始化模板。
+- `templates/`：`AGENTS.md` 完整模板和片段、项目规则、项目记忆、项目上下文配置的初始化模板。
+
+## 上下文模式
+
+初始化目标工程前先判断 `contextMode`：
+
+- `codebase-complete`：本地已有较完整代码、目录、构建配置或用户确认本地代码代表主要工程事实，可从已验证代码归纳架构。
+- `intent-first-on-demand-export`：工程刚新建、代码很少或零散，或用户明确说明后续按需从服务器导出文件；AGENTS.md 只写项目定位、上下文状态和按需导出流程，不围绕少量文件推断完整架构。
+
+判定规则采用保守默认：用户明确说按需导出时直接选 `intent-first-on-demand-export`；无法证明本地代码代表完整工程时，也选 `intent-first-on-demand-export`。
+
+推荐用 `templates/project_context_profile.template.md` 初始化 `.agents/config/project_context_profile.md`，保存项目用途、上下文模式、代码来源和本地文件完整性等非敏感语义配置。
 
 ## 安装模式
 
