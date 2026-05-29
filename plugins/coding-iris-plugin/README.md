@@ -6,10 +6,11 @@
 
 - ObjectScript 后端编码规则：BLH/DATA/SQL 分层、SQL 返回约定、ObjectScript 语法风格、Broker 接口习惯。
 - CSP/JavaScript/HISUI 前端编码规则：框架页/内容页拆分、HISUI 控件优先、JS 组织方式、前端数据回显。
-- 工作流规则：本地优先、MCP 只读补上下文、用户明确要求时再上传/编译。
+- 工作流规则：本地优先；导出、编译、Broker 调试和配置同步优先使用 IRIS 开发主力脚本；MCP 作为辅助能力补上下文、只读验证或覆盖脚本未覆盖场景。
 - 前端上传编码转换：UTF-8 源文件按需转换为 GB2312 临时文件后上传。
 - 前端 GB2312 提升：确认后删除源文件，并将 `{name}.gb2312.{ext}` 更名回原文件名，可选 MCP/SFTP 上传。
 - HISUI 控件源码索引：通过目标工程 profile 的 `HISUI_SRC` 定位源码。
+- IRIS 开发主力脚本：通过 `scripts/iris-tools/` 提供导出、编译、Broker 调试和环境配置同步。
 
 ## 标准目录
 
@@ -66,6 +67,34 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 4. 运行 thin-index dry-run，确认无冲突后再 write。
 5. 后端任务使用 `iris-backend-coding`，前端任务使用 `iris-frontend-coding`。
 6. 需要把转换后的 GB2312 文件替换源文件时，使用 `iris-frontend-gb2312-promote`。
+
+## IRIS 开发主力脚本
+
+`scripts/iris-tools/` 中的 Node.js 脚本是 IRIS 工程的首选执行路径：
+
+- `export.js`：从 IRIS 导出类、JS 或 CSP。
+- `compile.js`：上传并编译本地类文件。
+- `debugger.js`：调用 Web Broker 方法做快速调试。
+- `sync-env-config.js`：从 `.agents/config/project-env.json` 生成 `.mcp.json`、`project.code-workspace` 和 `.vscode/settings.json`。
+
+首次使用前先复制模板并填写真实环境：
+
+```powershell
+New-Item -ItemType Directory -Force .agents/config
+Copy-Item .agents/plugins/coding-iris-plugin/templates/project-env.template.json .agents/config/project-env.json
+notepad .agents/config/project-env.json
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
+```
+
+常用调用：
+
+```powershell
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <文件标识符>
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js <文件名或路径> [命名空间]
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <ClassName> --method <MethodName>
+```
+
+`.agents/config/project-env.json` 和生成的 `.mcp.json` 可能包含账号、密码、服务器地址等敏感信息，应由目标工程本地维护，不提交到业务项目版本库。
 
 ## 前端 GB2312 提升流程
 

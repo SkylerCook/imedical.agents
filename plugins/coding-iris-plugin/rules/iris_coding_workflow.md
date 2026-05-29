@@ -1,4 +1,4 @@
-# MCP 与部署工作流规则
+# IRIS 脚本、MCP 与部署工作流规则
 
 ## GB2312 Promotion Workflow
 
@@ -20,10 +20,33 @@ Required safety flow:
 
 1. 读取目标工程 `AGENTS.md`、`.agents/config/iris_project_profile.md` 和本插件规则索引。
 2. 本地搜索定位现有实现和参考代码。
-3. 本地缺少必要上下文时，用 MCP 只读读取远程内容。
-4. 在本地完成最小范围修改。
-5. 仅当用户明确要求时，执行上传、编译、远程写入或数据库变更。
-6. 需要沉淀长期经验时，按目标工程自己的记忆规则维护。
+3. 导出、编译、Broker 调试和环境配置同步优先使用 `scripts/iris-tools/` 中的 IRIS 开发主力脚本。
+4. 本地缺少必要上下文时，用 MCP 只读读取远程内容。
+5. MCP 用于补上下文、只读 SQL/远程读取、脚本未覆盖的能力，或用户明确要求使用 MCP 的场景。
+6. 在本地完成最小范围修改。
+7. 仅当用户明确要求时，执行上传、编译、远程写入、Broker 调用或数据库变更。
+8. 需要沉淀长期经验时，按目标工程自己的记忆规则维护。
+
+## IRIS 开发主力脚本
+
+目标工程应先由用户复制并填写本地私密配置：
+
+```powershell
+New-Item -ItemType Directory -Force .agents/config
+Copy-Item .agents/plugins/coding-iris-plugin/templates/project-env.template.json .agents/config/project-env.json
+notepad .agents/config/project-env.json
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
+```
+
+常用脚本：
+
+```powershell
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <文件标识符>
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js <文件名或路径> [命名空间]
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <ClassName> --method <MethodName>
+```
+
+`.agents/config/project-env.json` 和生成的 `.mcp.json` 可能包含敏感信息，必须只保留在目标工程本地，不写入插件规则、模板或项目记忆。
 
 ## 内置脚本初始化
 

@@ -1,0 +1,19 @@
+{
+  "iris": {
+    "scheme": "https",
+    "host": "TODO",
+    "port": 2443,
+    "username": "TODO",
+    "password": "TODO",
+    "namespace": "TODO",
+    "tlsVerify": false
+  },
+  "vscode": {
+    "serverName": "TODO-IRIS"
+  },
+  "mcp": {
+    "serverName": "iris-agentic-dev",
+    "serverPath": "TODO",
+    "nodeTlsRejectUnauthorized": "0"
+  }
+}

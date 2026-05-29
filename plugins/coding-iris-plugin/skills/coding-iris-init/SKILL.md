@@ -37,7 +37,15 @@ description: Initialize coding-iris-plugin in a target IRIS project, copy bundle
 3. 初始化 profile：
    - 若 `.agents/config/iris_project_profile.md` 不存在，基于 `templates/iris_project_profile.template.md` 创建或提示创建。
    - profile 中只能保存项目差异，不保存账号、密码、token。
-4. 生成 thin-index：
+4. 初始化 IRIS 开发主力脚本配置：
+   - 若 `.agents/config/project-env.json` 不存在，提示用户从 `.agents/plugins/coding-iris-plugin/templates/project-env.template.json` 复制后填写。
+   - 不要替用户生成真实 host、账号、密码、namespace 或本机 MCP 可执行文件路径。
+   - 用户填写完成后，可运行：
+     ```powershell
+     node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
+     ```
+   - `.agents/config/project-env.json` 和生成的 `.mcp.json` 可能包含敏感信息，不得提交到业务项目版本库。
+5. 生成 thin-index：
    - 先执行 DryRun：
      ```powershell
      powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-plugin/scripts/generate-plugin-thin-index.ps1 -PluginPath .agents/plugins/coding-iris-plugin -ProjectRoot . -Mode DryRun -ExcludeSkill coding-iris-init
@@ -46,12 +54,13 @@ description: Initialize coding-iris-plugin in a target IRIS project, copy bundle
      ```powershell
      powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-plugin/scripts/generate-plugin-thin-index.ps1 -PluginPath .agents/plugins/coding-iris-plugin -ProjectRoot . -Mode Write -ExcludeSkill coding-iris-init
      ```
-5. 接入入口：
+6. 接入入口：
    - 将 `templates/AGENTS.coding-iris-snippet.md` 作为目标工程 `AGENTS.md` 的建议片段。
    - 合入前保留目标工程既有业务规则和 Git 规则。
-6. 验证：
+7. 验证：
    - thin-index 指向 `.agents/plugins/coding-iris-plugin/` 内真实 rules/skills。
    - 编码转换脚本已存在于目标工程 `.agents/scripts/`；thin-index 脚本仍位于插件 `scripts/`。
+   - IRIS 开发主力脚本位于插件 `.agents/plugins/coding-iris-plugin/scripts/iris-tools/`，不复制到根 `.agents/scripts/`。
    - 插件中没有源工程服务器、namespace、远程路径、业务类名前缀。
 
 ## 输出

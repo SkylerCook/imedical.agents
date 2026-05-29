@@ -12,7 +12,7 @@ imedical.agents/
 |-- rules/     # 仓库级通用规则
 |-- skills/    # 仓库级通用 skill
 |-- plugins/   # 可复用插件能力包
-`-- scripts/   # 仓库级辅助脚本，按需放置
+`-- scripts/   # 通用部署脚本；领域脚本放入对应插件
 ```
 
 主要内容：
@@ -164,4 +164,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/agent-contex
 - 新增长期通用能力时，优先判断应放入 `rules/`、`skills/`、`templates/`、`scripts/` 还是插件目录。
 - 已验证、可跨工程复用的能力应去工程化后再进入插件。
 - 需要面向目标工程落地的差异配置，应通过 profile 模板表达，不写入插件规则正文。
+- 根 `scripts/` 只放通用体系部署脚本；IRIS、i18n 等领域脚本放到对应插件的 `scripts/` 目录。
 - 更新插件入口、安装模式或长期决策时，同步更新相关 README、模板和必要的规则说明。
