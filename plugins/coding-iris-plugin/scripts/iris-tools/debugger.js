@@ -53,6 +53,7 @@ function parseArgs() {
         else if (args[i] === '--method' && i + 1 < args.length) result.methodName = args[++i];
         else if (args[i] === '--params' && i + 1 < args.length) result.params = args[++i];
         else if (args[i] === '--url' && i + 1 < args.length) result.serverUrl = args[++i];
+        else if (args[i] === '--cookie' && i + 1 < args.length) result.cookie = args[++i];
     }
     return result;
 }
@@ -78,11 +79,19 @@ async function main() {
     }
 
     const cliArgs = parseArgs();
+    const webConfig = envConfig.web || {};
+    const webBasePath = normalizeWebPath(configValue(webConfig.basePath) || configValue(irisConfig.webBasePath) || '');
+    const configuredBrokerPath = configValue(webConfig.brokerPath);
+    const cookie = cliArgs.cookie || configValue(webConfig.cookie);
+    if (!webBasePath && !configuredBrokerPath && !cliArgs.serverUrl) {
+        console.error('\x1b[31m%s\x1b[0m', '错误: 缺少 Web 请求路径配置，请在 .agents/config/project-env.json 配置 web.basePath 或 web.brokerPath，或通过 --url 传入完整路径。');
+        process.exit(1);
+    }
 
-    // 处理 serverUrl: 用户传入则拼接 /imedical/web/，否则用默认值
-    let serverUrl = '/imedical/web/csp/websys.Broker.cls';
+    // 处理 serverUrl: 用户传入则按 web.basePath 拼接，否则用配置的 brokerPath。
+    let serverUrl = toRequestPath(configuredBrokerPath || 'csp/websys.Broker.cls', webBasePath);
     if (cliArgs.serverUrl) {
-        serverUrl = '/imedical/web/' + cliArgs.serverUrl;
+        serverUrl = toRequestPath(cliArgs.serverUrl, webBasePath);
     }
     let token, className, methodName, extraParams = {};
 
@@ -114,7 +123,7 @@ async function main() {
         }
         const pathInput = await ask(rl, `请输入 serverUrl (直接回车使用默认): `);
         if (pathInput) {
-            serverUrl = '/imedical/web/' + pathInput;
+            serverUrl = toRequestPath(pathInput, webBasePath);
         }
         const paramsStr = await ask(rl, '请输入额外参数 (格式: key1=value1&key2=value2，无参数直接回车): ');
         if (paramsStr) {
@@ -151,9 +160,11 @@ async function main() {
             'X-Requested-With': 'XMLHttpRequest',
             'Content-Type': 'application/x-www-form-urlencoded',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36 Edg/146.0.0.0',
-            "cookie": "CSPWSERVERID=FDCPNzHu; CSPSESSIONID-SP-80-UP-=000000000000mz3vMxrA4rxK2rxu$dhPg8kETBw$qs0xvXO3w_",
         }
     };
+    if (cookie) {
+        config.headers.Cookie = cookie;
+    }
 
     console.log('\x1b[36m%s\x1b[0m', `\n发送请求到: ${isHttps ? 'https' : 'http'}://${hostname}:${port}${serverUrl}`);
     console.log('\x1b[36m%s\x1b[0m', `ClassName: ${className}`);
@@ -199,6 +210,24 @@ async function main() {
 
     req.write(requestBody);
     req.end();
+}
+
+function normalizeWebPath(value) {
+    return String(value || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+}
+
+function configValue(value) {
+    const text = String(value || '').trim();
+    return text.startsWith('TODO') ? '' : text;
+}
+
+function toRequestPath(value, basePath) {
+    const normalizedValue = normalizeWebPath(value);
+    const normalizedBase = normalizeWebPath(basePath);
+    if (!normalizedBase || normalizedValue === normalizedBase || normalizedValue.startsWith(`${normalizedBase}/`)) {
+        return `/${normalizedValue}`;
+    }
+    return `/${normalizedBase}/${normalizedValue}`;
 }
 
 main();

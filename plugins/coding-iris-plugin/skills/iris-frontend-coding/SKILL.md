@@ -23,6 +23,7 @@ description: Work on CSP, JavaScript, CSS, and HISUI frontend code using coding-
 4. 若涉及上传、编码转换、远程读取或 CSP 编译，再读取 `.mcp.json` 和 `rules/iris_coding_workflow.md`。
 5. 本地搜索现有页面和同类组件，优先沿用目标工程页面结构和公共样式。
 6. 默认只做本地修改；用户明确要求部署时再运行 GB2312 转换、上传和编译。
+7. CSP 编译必须按工作流规则使用 WebApp 虚拟路径，并验证 `$system.OBJ.Load` 内层 status、生成类、`CSPFILE` 和 `CSPURL`。
 
 ## 完成检查
 

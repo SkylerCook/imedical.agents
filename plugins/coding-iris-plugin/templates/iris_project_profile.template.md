@@ -50,7 +50,7 @@
 - `.cls` 上传 MCP 能力：TODO
 - `.cls` 编译 MCP 能力：TODO
 - SFTP 上传 MCP 能力：TODO
-- CSP 编译命令模板：TODO
+- CSP 编译命令模板：`$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`，必须使用 WebApp 虚拟路径，不使用物理 Web 根路径
 
 ## 编码策略
 

@@ -1,20 +1,75 @@
 # IRIS 脚本、MCP 与部署工作流规则
 
-## GB2312 Promotion Workflow
+## IRIS 部署执行清单（机器友好）
 
-Use `iris-frontend-gb2312-promote` when the user wants converted GB2312 output to replace the original frontend source files.
+部署 IRIS 文件时优先按本清单执行。标题和字段名尽量稳定，便于低能力模型逐项检查。
 
-Required safety flow:
+### 0. 必需配置来源
 
-- Confirm every source file exists and no `{name}.gb2312{ext}` output already exists.
-- Run `.agents/scripts/convert-gb2312-upload.ps1` and display the JSON results.
-- Treat `converted=false` as already GB2312; do not delete or rename the source file.
-- For `converted=true`, ask for confirmation before deleting the source and renaming the converted output back to the original file name, unless the same user request explicitly skipped confirmation.
-- Before delete or move, verify resolved paths remain inside the current workspace or explicit target project root.
-- Use only native PowerShell `Remove-Item -LiteralPath` and `Move-Item -LiteralPath`; do not chain deletion or moving through another shell.
-- After replacement, ask separately whether to upload through MCP/SFTP.
-- Upload only the restored original file path, never the `.gb2312` temporary file.
-- Do not compile CSP automatically; compile only after a separate user request.
+- 读取目标项目 `AGENTS.md`、`.agents/config/iris_project_profile.md` 和 `.agents/config/project-env.json`。
+- namespace 从 `project-env.json -> iris.namespace` 获取。
+- Web 文档前缀从 `project-env.json -> web.basePath` 和 `web.cspBasePath` 获取。
+- 可选 Broker Cookie 从 `project-env.json -> web.cookie` 或 `debugger.js --cookie` 获取。
+- 不得臆造 namespace、Web 根、host、Cookie 或远端路径默认值。
+- 必需配置缺失时停止执行，并报告缺失字段名。
+
+### 1. 后端类部署
+
+- 持久化实体 `.cls` 如包含 `Storage Default`，执行 `iris_doc put` 前必须去掉整个 `Storage Default { ... }` 块。
+- 不得上传“只删除 `Storage Default` 行但保留裸 Storage 内容”的类。
+- 先上传完整依赖切片，再编译；不要上传一个类后立刻编译一个类。
+- 推荐顺序：
+  1. 实体类：字典、配置、业务
+  2. 公共/基类
+  3. 业务类：字典、配置、业务 SQL/DATA/BLH
+  4. 集成类
+  5. 前端文件
+- 如编译错误提示关联类或短类名不存在，先上传缺失依赖切片，再按依赖顺序重新编译。
+
+### 2. 前端上传
+
+- 仅当目标项目配置要求时，才把前端源文件转换为目标编码。
+- `*.gb2312.*` 只作为临时上传内容。
+- 远端目标名必须是原始文件名，不能是临时 `*.gb2312.*` 文件名。
+- 上传后清理本地临时 `*.gb2312.*` 文件。
+
+### 3. CSP 编译
+
+- CSP 文件通过 SFTP 上传到物理 Web 根。
+- CSP 编译必须使用 WebApp 虚拟路径，不使用物理路径：
+  `$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`
+- 不要使用：
+  `$system.OBJ.Load("<physical-web-root>/csp/<file>.csp","c")`
+- 不要把 `.gb2312.csp` 作为编译目标。
+- 不要把 `iris_execute.success=true` 当成编译成功；它只表示 ObjectScript 外层包装执行过。
+- ObjectScript 包装代码必须输出并检查：
+  `$SYSTEM.Status.IsError(sc)` and `$SYSTEM.Status.GetErrorText(sc)`.
+
+### 4. 验证
+
+- 验证后端类存在且编译无错误。
+- 验证 CSP 生成类名包含虚拟 URL 包名。虚拟 URL 含 `/csp/` 时，检查 `csp.csp.<page-name>`。
+- 验证 CSP 生成类参数：
+  - `CSPFILE` 包含 `/csp/`
+  - `CSPURL` 包含 `/csp/`
+- 验证代表性页面可加载，核心业务调用可用。
+- 以上检查通过前，不得报告部署成功。
+
+## GB2312 提升流程
+
+当用户要求把转换后的 GB2312 输出文件替换回原始前端源文件时，使用 `iris-frontend-gb2312-promote`。
+
+必需安全流程：
+
+- 确认每个源文件存在，且不存在既有 `{name}.gb2312{ext}` 输出文件。
+- 运行 `.agents/scripts/convert-gb2312-upload.ps1` 并展示 JSON 结果。
+- `converted=false` 表示源文件已是 GB2312；不要删除或重命名源文件。
+- `converted=true` 时，删除源文件并把转换结果改回原文件名前必须先征得确认；除非同一条用户请求已明确跳过确认。
+- 删除或移动前，验证解析后的路径仍位于当前工作区或明确目标项目根目录内。
+- 只使用 PowerShell 原生命令 `Remove-Item -LiteralPath` 和 `Move-Item -LiteralPath`；不要把删除或移动串到另一个 shell 中执行。
+- 替换完成后，单独询问是否通过 MCP/SFTP 上传。
+- 只上传恢复后的原始文件路径，不上传 `.gb2312` 临时文件名。
+- 不自动编译 CSP；只有用户另行要求时才编译。
 
 ## 标准流程
 
@@ -111,6 +166,23 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/convert-gb23
 - CSP 编译命令模板从目标工程 profile 读取。
 - `.cls` 编译和 CSP 编译通常不是同一 MCP 能力，执行前确认目标工程工具支持范围。
 - 用户未明确要求时，不执行远程编译。
+
+### 后端类部署可靠性
+
+- 持久化实体类如包含 `Storage Default`，通过 `iris_doc put` 上传前必须去掉整个 `Storage Default { ... }` 块，只保留类、属性、索引、Relationship、Trigger/Method 等源码；由 IRIS 编译重新生成 Storage。
+- 不要把只删除 `Storage Default` 行、保留裸 `{ ... }` 的内容上传到 IRIS；这会破坏类定义并导致解析失败。
+- 实体类按依赖层整组上传后再编译，避免父类先编译时因子表 Relationship 尚不存在而失败。
+- 业务类也先上传完整依赖切片，再按依赖顺序编译；不要边上传边逐个编译依赖链中的类。
+- 常见部署顺序：实体类（字典、配置、业务）→ 公共基类 → 业务类（字典、配置、业务主类）→ Inter → 前端资源。
+
+### CSP 编译可靠性
+
+- CSP/JS/CSS 通过 SFTP 上传到物理 Web 根；CSP 编译必须使用 WebApp 虚拟路径调用 `$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`。
+- 不要使用物理 Web 根路径调用 `$system.OBJ.Load("<physical-web-root>/csp/<file>.csp","c")`；部分环境会生成错误的 CSP 类名和错误的 `CSPFILE` / `CSPURL`。
+- `iris_execute` 外层 `success=true` 只表示 ObjectScript 执行成功，不代表 `$system.OBJ.Load` 内层编译成功；执行代码必须输出并检查 `$SYSTEM.Status.IsError(sc)` 和 `$SYSTEM.Status.GetErrorText(sc)`。
+- 不要只依赖 `$system.OBJ.Compile("<physical-path>.csp","cuk /checkuptodate=expandedonly")` 做批量部署主入口；未登记的 CSP 可能返回非错误但不生成目标类。
+- 编译后的类名应包含 CSP 运行包和虚拟 URL 段，例如虚拟路径含 `/csp/` 时通常检查 `csp.csp.<page-name>`，并确认 `CSPFILE`、`CSPURL` 都包含 `/csp/`。
+- GB2312 临时文件只用于上传内容，远端目标名必须映射回原始文件名；不要把 `*.gb2312.*` 作为 CSP 编译目标。
 
 ## 高风险操作
 

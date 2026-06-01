@@ -58,3 +58,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/agent-contex
 - 不把 `.mcp.json` 中的密钥复制到 rules、memory、templates 或插件文件。
 - 不在插件中硬编码源项目路径、服务器地址、namespace 或模块清单。
 - 项目记忆应足够短，便于快速交接；长期规则应放入 rules 文件。
+## 部署经验维护
+
+- 可跨项目复用的部署流程、排障根因和验证标准，应沉淀到对应领域插件。
+- 项目私有差异只写入目标项目 `.agents/rules/`、`.agents/memory/` 或 `.agents/config/`，并使用非敏感占位。
+- 不记录一次性命令日志；只记录长期会影响后续任务的规则、根因和可复核验证标准。
+- 若插件规则与实际结果冲突，先修正插件偏差，再更新项目侧摘要，保持单一事实来源。

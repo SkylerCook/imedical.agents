@@ -18,6 +18,7 @@
 - [MCP 与部署工作流](iris_coding_workflow.md)：本地优先、脚本复制、GB2312 转换、上传和 CSP 编译。
 - [HISUI 控件索引](hisui-widget-index.md)：控件选型、源码行号、API 确认。
 - [iris-agentic-dev 配置](iris-agentic-dev.md)：TOML 配置和诊断约束。
+- [sftp-server MCP](sftp-server.md)：SFTP 读取、上传、目录同步和远程命令约束。
 
 ## 总原则
 

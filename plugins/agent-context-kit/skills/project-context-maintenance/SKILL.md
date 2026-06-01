@@ -228,3 +228,12 @@ description: Use when initializing or maintaining agent project context such as 
 - `.agents/.git/info/exclude` 已包含生成层忽略规则。
 - 兼容入口检查结果为 `ok`；`CLAUDE.md`、`CODEBUDDY.md` 未维护第二份规则。
 - 没有新增密钥或私有连接信息。
+## 部署经验沉淀
+
+当任务产生可复用的部署、编译、上传或排障经验时，按以下边界维护上下文：
+
+- 跨项目通用流程、风险和验证标准写入对应领域插件；不得带入源项目的服务器、账号、namespace、远端绝对路径、业务页面清单或私有类名前缀。
+- 项目特定但长期有效的规则写入 `.agents/rules/`；近期状态、已验证结论和仍有效决策写入 `.agents/memory/project-memory.md`。
+- 一次性命令输出、短期失败日志和临时排障过程不写入 memory；只保留“以后会反复踩坑”的根因和验证标准。
+- 对部署成功的描述必须包含可复核标准，例如内层 status、生成物名称、关键参数或文件映射；不能只记录“执行成功”。
+- 若发现上下文或插件规则存在偏差，先修正 owner 插件，再在项目规则/记忆中保留项目差异摘要，避免同一事实分散成多份冲突来源。

@@ -11,6 +11,7 @@
 - 前端 GB2312 提升：确认后删除源文件，并将 `{name}.gb2312.{ext}` 更名回原文件名，可选 MCP/SFTP 上传。
 - HISUI 控件源码索引：通过目标工程 profile 的 `HISUI_SRC` 定位源码。
 - IRIS 开发主力脚本：通过 `scripts/iris-tools/` 提供导出、编译、Broker 调试和环境配置同步。
+- MCP 能力说明：`rules/iris-agentic-dev.md` 记录 IRIS MCP 能力矩阵，`rules/sftp-server.md` 记录 SFTP MCP 能力矩阵和安全边界。
 
 ## 标准目录
 
@@ -109,3 +110,22 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <
 ## 去项目化边界
 
 本插件不保存服务器地址、namespace、账号、密码、token、远程路径、业务页面清单、业务类名前缀或项目专属基类。这些内容只能存在于目标工程 `.agents/config/iris_project_profile.md` 或 `.mcp.json`。
+## 部署可靠性要点
+
+- 持久化实体类上传前去掉整个 `Storage Default { ... }` 块，由 IRIS 编译重新生成 Storage。
+- 类文件部署先整组上传依赖切片，再按依赖顺序编译；不要边上传边逐个编译。
+- 前端 GB2312 转换文件只作为上传临时件，远端文件名映射回原始目标文件名。
+- CSP 编译使用 WebApp 虚拟路径 `$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`，并检查内层 status、生成类、`CSPFILE`、`CSPURL`。
+- 插件不保存服务器地址、账号、namespace、token、Cookie 或远端绝对路径。
+
+## 脚本配置来源
+
+脚本运行所需环境值统一来自目标工程本地私有文件 `.agents/config/project-env.json`：
+
+- `iris.namespace`：类上传、编译、导出使用的 IRIS namespace；脚本不提供项目化默认值。
+- `web.basePath`：IRIS Atelier doc API 下的 Web 根前缀，用于 JS/CSS/Broker 路径。
+- `web.cspBasePath`：IRIS Atelier doc API 下的 CSP 前缀，通常是 `<web-root-prefix>/csp`。
+- `web.brokerPath`：Broker 请求路径；未配置时仅在 `web.basePath` 已配置时使用 `csp/websys.Broker.cls`。
+- `web.cookie`：可选 Broker 调试 Cookie；也可用 `debugger.js --cookie "<cookie>"` 临时传入。Cookie 属于敏感值，只能放在本地私有配置或命令行临时参数中。
+
+缺少必要配置时脚本应直接报错，避免静默拼出错误路径。

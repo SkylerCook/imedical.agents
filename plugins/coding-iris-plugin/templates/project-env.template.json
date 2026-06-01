@@ -8,6 +8,12 @@
     "namespace": "TODO",
     "tlsVerify": false
   },
+  "web": {
+    "basePath": "TODO: IRIS Atelier doc Web root prefix, for example <web-root-prefix>",
+    "cspBasePath": "TODO: IRIS Atelier doc CSP prefix, usually <web-root-prefix>/csp",
+    "brokerPath": "TODO: Broker request path under basePath, usually csp/<broker-class>.cls",
+    "cookie": ""
+  },
   "vscode": {
     "serverName": "TODO-IRIS"
   },

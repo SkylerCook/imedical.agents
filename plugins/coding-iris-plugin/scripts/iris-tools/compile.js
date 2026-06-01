@@ -5,7 +5,7 @@
  * 用法: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js <文件名或路径> [命名空间]
  * 示例: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js DHCDoc.Util.String
  *        node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js DHCDoc/Util/Date.cls
- *        node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js src/DHCDoc/Util/Date.cls DHC-APP
+ *        node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js src/DHCDoc/Util/Date.cls <namespace>
  */
 
 const fs = require('fs');
@@ -52,7 +52,11 @@ try {
 }
 
 const iris = config.iris;
-const ns = namespace || iris.namespace || 'DHC-APP';
+const ns = namespace || iris.namespace;
+if (!ns || ns === 'TODO') {
+    console.error('[错误] 缺少 IRIS namespace，请通过命令行参数或 .agents/config/project-env.json 的 iris.namespace 配置。');
+    process.exit(1);
+}
 
 // 将输入转换为本地路径和远程文档名
 function resolvePaths(input) {

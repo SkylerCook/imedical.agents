@@ -17,7 +17,7 @@
  *   node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js alloc.exaborroom.hui.csp
  *   
  *   # Export with custom parameters
- *   node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js imedical/web/scripts/test.js src DHC-APP --basePath ""
+ *   node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js scripts/test.js src <namespace> --basePath "<web-root-prefix>"
  */
 
 const fs = require('fs');
@@ -29,8 +29,8 @@ const http = require('http');
 const args = process.argv.slice(2);
 let fileIdentifier = args[0];
 let outputDir = 'src';
-let namespace = 'DHC-APP';
-let basePath = ''; // Will be set based on file type
+let namespace = '';
+let basePath; // undefined means use project-env web defaults; empty string disables prefixing.
 
 function findWorkspaceRoot() {
     let dir = __dirname;
@@ -68,7 +68,7 @@ if (!fileIdentifier) {
     console.error('  # 导出CSP文件');
     console.error('  node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js alloc.exaborroom.hui.csp');
     console.error('  # 自定义参数');
-    console.error('  node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js imedical/web/scripts/test.js src DHC-APP --basePath ""');
+    console.error('  node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js scripts/test.js src <namespace> --basePath "<web-root-prefix>"');
     process.exit(1);
 }
 
@@ -87,6 +87,15 @@ try {
 const iris = config.iris;
 const irisScheme = iris.scheme || 'https';
 const irisPort = iris.port || 2443;
+namespace = namespace || iris.namespace;
+if (!namespace || namespace === 'TODO') {
+    console.error('[错误] 缺少 IRIS namespace，请通过命令行参数或 .agents/config/project-env.json 的 iris.namespace 配置。');
+    process.exit(1);
+}
+
+const webConfig = config.web || {};
+const webBasePath = normalizePrefix(configValue(webConfig.basePath) || configValue(iris.webBasePath) || '');
+const cspBasePath = normalizePrefix(configValue(webConfig.cspBasePath) || (webBasePath ? `${webBasePath}/csp` : ''));
 
 // Validate password
 if (!iris.password || iris.password.trim() === '') {
@@ -135,13 +144,12 @@ function detectFileType(identifier) {
     if (ext === '.csp') {
         // It's a CSP file
         let cspPath = identifier;
+        const normalizedInput = normalizePrefix(cspPath);
+        const defaultCspPrefix = normalizedInput.startsWith('csp/') ? webBasePath : cspBasePath;
+        const effectiveBasePath = basePath !== undefined ? normalizePrefix(basePath) : defaultCspPrefix;
+        requireWebBasePath(effectiveBasePath, 'CSP', '--basePath "" 可用于传入完整 IRIS doc 路径时禁用自动前缀');
         
-        // Auto-prepend basePath if not already present
-        if (!basePath && !cspPath.includes('imedical/web/')) {
-            cspPath = `imedical/web/csp/${cspPath}`;
-        } else if (basePath && !cspPath.includes('imedical/web/')) {
-            cspPath = `${basePath}/${cspPath}`;
-        }
+        cspPath = prependBasePath(cspPath, effectiveBasePath);
         
         const localPath = cspPath.replace(/\//g, path.sep);
         const fullPath = path.join(outputDir, localPath);
@@ -158,13 +166,10 @@ function detectFileType(identifier) {
     if (ext === '.js' || identifier.includes('.hui.js')) {
         // It's a JS file
         let jsPath = identifier;
+        const effectiveBasePath = basePath !== undefined ? normalizePrefix(basePath) : webBasePath;
+        requireWebBasePath(effectiveBasePath, 'JS', '--basePath "" 可用于传入完整 IRIS doc 路径时禁用自动前缀');
         
-        // Auto-prepend basePath if not already present
-        if (!basePath && !jsPath.includes('imedical/web/')) {
-            jsPath = `imedical/web/${jsPath}`;
-        } else if (basePath && !jsPath.includes('imedical/web/')) {
-            jsPath = `${basePath}/${jsPath}`;
-        }
+        jsPath = prependBasePath(jsPath, effectiveBasePath);
         
         const localPath = jsPath.replace(/\//g, path.sep);
         const fullPath = path.join(outputDir, localPath);
@@ -183,11 +188,9 @@ function detectFileType(identifier) {
         // Assume it's a JS file if in scripts directory
         if (identifier.includes('scripts/')) {
             let jsPath = identifier;
-            if (!basePath && !jsPath.includes('imedical/web/')) {
-                jsPath = `imedical/web/${jsPath}`;
-            } else if (basePath && !jsPath.includes('imedical/web/')) {
-                jsPath = `${basePath}/${jsPath}`;
-            }
+            const effectiveBasePath = basePath !== undefined ? normalizePrefix(basePath) : webBasePath;
+            requireWebBasePath(effectiveBasePath, 'JS', '--basePath "" 可用于传入完整 IRIS doc 路径时禁用自动前缀');
+            jsPath = prependBasePath(jsPath, effectiveBasePath);
             
             const localPath = jsPath.replace(/\//g, path.sep);
             const fullPath = path.join(outputDir, localPath);
@@ -204,11 +207,9 @@ function detectFileType(identifier) {
         // Assume it's a CSP file if in csp directory
         if (identifier.includes('csp/')) {
             let cspPath = identifier;
-            if (!basePath && !cspPath.includes('imedical/web/')) {
-                cspPath = `imedical/web/${cspPath}`;
-            } else if (basePath && !cspPath.includes('imedical/web/')) {
-                cspPath = `${basePath}/${cspPath}`;
-            }
+            const effectiveBasePath = basePath !== undefined ? normalizePrefix(basePath) : webBasePath;
+            requireWebBasePath(effectiveBasePath, 'CSP', '--basePath "" 可用于传入完整 IRIS doc 路径时禁用自动前缀');
+            cspPath = prependBasePath(cspPath, effectiveBasePath);
             
             const localPath = cspPath.replace(/\//g, path.sep);
             const fullPath = path.join(outputDir, localPath);
@@ -225,6 +226,33 @@ function detectFileType(identifier) {
     
     // Unknown type
     throw new Error(`无法识别文件类型: ${identifier}\n支持的类型: 类名(如 DHCDoc.AI.KBase), JS文件(.js), CSP文件(.csp)`);
+}
+
+function normalizePrefix(prefix) {
+    return String(prefix || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+}
+
+function configValue(value) {
+    const text = String(value || '').trim();
+    return text.startsWith('TODO') ? '' : text;
+}
+
+function requireWebBasePath(prefix, fileType, hint) {
+    if (basePath === '') {
+        return;
+    }
+    if (!prefix) {
+        throw new Error(`${fileType} 导出缺少 Web 路径前缀。请在 .agents/config/project-env.json 配置 web.basePath / web.cspBasePath，或通过 --basePath 显式传入。${hint ? ` ${hint}` : ''}`);
+    }
+}
+
+function prependBasePath(filePath, prefix) {
+    const normalizedPath = String(filePath || '').replace(/\\/g, '/').replace(/^\/+/, '');
+    const normalizedPrefix = normalizePrefix(prefix);
+    if (!normalizedPrefix || normalizedPath === normalizedPrefix || normalizedPath.startsWith(`${normalizedPrefix}/`)) {
+        return normalizedPath;
+    }
+    return `${normalizedPrefix}/${normalizedPath}`;
 }
 
 /**
@@ -341,7 +369,7 @@ function requestWithRetry(apiUrl, options, maxRetries, callback) {
                     const sessionEntry = setCookie.find(c => c.startsWith('CSPSESSIONID'));
                     if (sessionEntry) {
                         sharedCookie = sessionEntry.split(';')[0];
-                        console.log(`[信息] 已获取 Session Cookie: ${sharedCookie}`);
+                        console.log('[信息] 已获取 Session Cookie，后续请求将复用该会话');
                     }
                 }
             }
