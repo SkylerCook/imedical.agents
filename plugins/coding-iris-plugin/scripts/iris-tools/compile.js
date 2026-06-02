@@ -15,6 +15,13 @@ const { spawn } = require('child_process');
 const inputFile = process.argv[2];
 const namespace = process.argv[3];
 
+if (inputFile && /\.csp$/i.test(inputFile)) {
+    console.error('[错误] compile.js 不支持 CSP 上传或编译。');
+    console.error('[说明] compile.js 仅用于 .cls/.mac/.inc 等 IRIS 文档类文件。');
+    console.error('[CSP] 请先通过项目 SFTP/上传能力把 CSP 上传到 Web 根，再用 WebApp 虚拟路径执行 $system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")。');
+    process.exit(1);
+}
+
 function findWorkspaceRoot() {
     let dir = __dirname;
     while (true) {

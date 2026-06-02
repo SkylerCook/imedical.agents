@@ -6,6 +6,13 @@
 
 所有脚本都从业务项目 `.agents/config/project-env.json` 读取连接参数。首次使用前请先从 `.agents/plugins/coding-iris-plugin/templates/project-env.template.json` 复制并填写真实环境；该文件包含敏感信息，不应提交到版本控制系统。
 
+工具优先级：
+
+1. 优先使用本目录脚本完成导出、类编译、Broker 调试和环境同步。
+2. 后端 MCP 用于补充脚本未覆盖的 introspect、只读 SQL、远端状态验证和 ObjectScript 执行。
+3. `sftp-server` MCP 是可选前端上传能力；目标项目未配置时，不应阻塞开发或臆造上传能力。
+4. CSP 编译不走 `compile.js`，上传后通过后端 MCP 执行 `$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`。
+
 ## 📁 脚本列表
 
 ### 1. export.js - 通用导出脚本（推荐）
@@ -70,6 +77,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js scripts/tes
 **功能：** 将本地文件上传到 IRIS 服务器并自动编译，实现快速开发和测试。
 
 > 注意：`compile.js` 面向 `.cls` 类文件同步编译，不作为 CSP 批量部署编译入口。CSP 应先通过 SFTP 上传到目标 Web 根，再用目标工程定义的 WebApp 虚拟路径执行 `$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`，并检查内层 status 与生成类参数。
+> 脚本会显式拒绝 `.csp` 输入，避免把 CSP 路径错误转换成 IRIS 点号文档名。
 
 **工作原理：**
 1. 读取本地文件内容
@@ -212,7 +220,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class D
 
 ### 4. sync-env-config.js - 环境配置同步脚本
 
-**功能：** 从集中配置文件生成 VSCode 工作区配置、MCP 服务器配置和 VSCode 设置文件。
+**功能：** 从集中配置文件生成 MCP 服务器配置。
 
 **使用方法：**
 ```bash
@@ -221,38 +229,27 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
 
 **生成的文件：**
 
-1. **project.code-workspace** - VSCode 工作区配置文件
-   - 配置 Intersystems 服务器连接信息
-   - 设置 ObjectScript 扩展的活跃连接
-   - 包含服务器名称、主机、端口、用户名等信息
-
-2. **.mcp.json** - MCP 服务器配置文件
+1. **.mcp.json** - MCP 服务器配置文件
    - 配置 iris-dev 或其他 MCP 服务
    - 设置环境变量（IRIS_HOST、IRIS_PORT、IRIS_USERNAME 等）
    - 供其他工具（如 compile.js）使用
 
-3. **.vscode/settings.json** - VSCode 设置文件
-   - 激活 ObjectScript 连接
-   - 配置 iris-dev 扩展的服务器路径
-
 **配置来源：**
 所有配置均从 `.agents/config/project-env.json` 读取，包括：
 - IRIS 服务器连接信息（host、port、username、password、namespace、scheme）
-- VSCode 服务器名称配置
+- Web 路径配置（`web.basePath`、`web.cspBasePath`、`web.brokerPath`、可选 `web.cookie`）
 - MCP 服务器名称和路径
+- 可选 SFTP MCP 配置（`sftp.enabled=true` 时生成 `sftp-server`）
 
 **特性：**
 - ✅ 从单一配置文件同步多个配置
-- ✅ 自动生成三个配置文件
+- ✅ 自动生成 `.mcp.json`
 - ✅ 使用标准 JSON 格式（2 空格缩进）
 - ✅ UTF-8 编码
-- ✅ 自动创建 `.vscode` 目录（如不存在）
 - ✅ 详细的日志输出
-- ✅ 完成后提示重新加载 VSCode 窗口
 
 **注意事项：**
 - 修改 `.agents/config/project-env.json` 后运行此脚本
-- 生成配置后需要重新加载 VSCode 窗口以应用更改
 - 确保 `mcp.serverPath` 指向有效的可执行文件路径
 
 ---
@@ -266,10 +263,8 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
    # 1. 配置项目环境
    # 编辑 .agents/config/project-env.json
    
-   # 2. 同步 VSCode 和 MCP 配置
+   # 2. 同步 MCP 配置
    node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
-   
-   # 3. 重新加载 VSCode 窗口
    ```
 
 2. **开发 IRIS 类文件：**
@@ -322,9 +317,6 @@ A:
 
 ### Q: 如何处理 HTTPS 自签名证书？
 A: 所有脚本默认启用 `rejectUnauthorized: false`，支持自签名证书。
-
-### Q: 配置修改后不生效？
-A: 运行 `sync-env-config.js` 后，需要重新加载 VSCode 窗口才能应用新配置。
 
 ### Q: compile.js 编译失败怎么办？
 A: 

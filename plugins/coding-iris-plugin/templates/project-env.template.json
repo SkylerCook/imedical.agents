@@ -14,12 +14,22 @@
     "brokerPath": "TODO: Broker request path under basePath, usually csp/<broker-class>.cls",
     "cookie": ""
   },
-  "vscode": {
-    "serverName": "TODO-IRIS"
-  },
   "mcp": {
     "serverName": "iris-agentic-dev",
     "serverPath": "TODO",
     "nodeTlsRejectUnauthorized": "0"
+  },
+  "sftp": {
+    "enabled": false,
+    "serverName": "sftp-server",
+    "command": "python",
+    "scriptPath": "TODO: path to sftp-server main.py",
+    "host": "TODO",
+    "port": 22,
+    "username": "TODO",
+    "password": "TODO",
+    "localPath": "TODO: local frontend root",
+    "remotePath": "TODO: remote web root",
+    "ignorePatterns": ["*.log", "node_modules/", ".git/", ".vscode/"]
   }
 }

@@ -3,9 +3,7 @@
 /**
  * Sync environment configuration from centralized config.
  * Generates:
- *   - project.code-workspace (VSCode workspace)
- *   - .mcp.json (MCP server config for iris-dev.exe)
- *   - .vscode/settings.json (iris-dev extension path)
+ *   - .mcp.json (MCP server config for iris-agentic-dev and optional sftp-server)
  *
  * Usage: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
  */
@@ -48,44 +46,33 @@ try {
   process.exit(1);
 }
 
-const { iris, vscode, mcp } = config;
+const { iris, mcp, sftp } = config;
 const irisScheme = iris.scheme || 'https';
 const irisPort = iris.port || 2443;
 const irisTlsVerify = String(iris.tlsVerify ?? false);
+const sftpEnabled = Boolean(sftp && sftp.enabled);
 
-console.log(`[INFO] IRIS: ${irisScheme}://${iris.host}:${irisPort} user=${iris.username} ns=${iris.namespace}`);
-console.log(`[INFO] MCP: ${mcp.serverName} (${mcp.serverPath})`);
+function isMissing(value) {
+  return value === undefined || value === null || String(value).trim() === '' || String(value).trim().startsWith('TODO');
+}
 
-// ===== Generate project.code-workspace =====
-
-const workspaceConfig = {
-  folders: [
-    { path: '.' }
-  ],
-  settings: {
-    'intersystems.servers': {
-      [vscode.serverName]: {
-        webServer: {
-          scheme: irisScheme,
-          host: iris.host,
-          port: irisPort
-        },
-        username: iris.username,
-        description: iris.host
-      }
-    },
-    'objectscript.conn': {
-      active: true,
-      ns: iris.namespace,
-      server: vscode.serverName
-    },
-    'objectscript.syncLocalChanges': 'vscodeOnly'
+function requireValue(section, key, value) {
+  if (isMissing(value)) {
+    console.error(`[ERROR] Missing config: ${section}.${key}`);
+    process.exit(1);
   }
-};
+}
 
-const workspacePath = path.join(workspaceRoot, 'project.code-workspace');
-fs.writeFileSync(workspacePath, JSON.stringify(workspaceConfig, null, 2) + '\n', 'utf8');
-console.log('[OK] project.code-workspace generated');
+requireValue('iris', 'host', iris && iris.host);
+requireValue('iris', 'username', iris && iris.username);
+requireValue('iris', 'password', iris && iris.password);
+requireValue('iris', 'namespace', iris && iris.namespace);
+requireValue('mcp', 'serverName', mcp && mcp.serverName);
+requireValue('mcp', 'serverPath', mcp && mcp.serverPath);
+
+console.log(`[INFO] IRIS config loaded: ${irisScheme}, port=${irisPort}, host/user/namespace redacted`);
+console.log(`[INFO] Backend MCP: ${mcp.serverName}`);
+console.log(`[INFO] SFTP MCP: ${sftpEnabled ? 'enabled' : 'disabled'}`);
 
 // ===== Generate .mcp.json =====
 
@@ -107,28 +94,42 @@ const mcpConfig = {
   }
 };
 
+if (sftpEnabled) {
+  requireValue('sftp', 'serverName', sftp.serverName);
+  requireValue('sftp', 'command', sftp.command);
+  requireValue('sftp', 'host', sftp.host);
+  requireValue('sftp', 'username', sftp.username);
+  requireValue('sftp', 'password', sftp.password);
+  requireValue('sftp', 'localPath', sftp.localPath);
+  requireValue('sftp', 'remotePath', sftp.remotePath);
+
+  const sftpArgs = Array.isArray(sftp.args)
+    ? sftp.args
+    : (sftp.scriptPath ? [sftp.scriptPath] : []);
+
+  if (sftpArgs.length === 0) {
+    requireValue('sftp', 'scriptPath', sftp.scriptPath);
+  }
+
+  mcpConfig.mcpServers[sftp.serverName] = {
+    command: sftp.command,
+    args: sftpArgs,
+    env: {
+      TARGET_HOST: sftp.host,
+      TARGET_PORT: String(sftp.port || 22),
+      TARGET_USERNAME: sftp.username,
+      TARGET_PASSWORD: sftp.password,
+      LOCAL_PATH: sftp.localPath,
+      REMOTE_PATH: sftp.remotePath,
+      IGNORE_PATTERNS: JSON.stringify(sftp.ignorePatterns || ['*.log', 'node_modules/', '.git/', '.vscode/'])
+    },
+    disabled: false
+  };
+}
+
 const mcpPath = path.join(workspaceRoot, '.mcp.json');
 fs.writeFileSync(mcpPath, JSON.stringify(mcpConfig, null, 2) + '\n', 'utf8');
 console.log('[OK] .mcp.json generated');
 
-// ===== Generate .vscode/settings.json =====
-
-const vscodeSettingsDir = path.join(workspaceRoot, '.vscode');
-if (!fs.existsSync(vscodeSettingsDir)) {
-  fs.mkdirSync(vscodeSettingsDir, { recursive: true });
-}
-
-const vscodeSettings = {
-  'objectscript.conn': {
-    active: true
-  },
-  'iris-dev.serverPath': mcp.serverPath
-};
-
-const vscodeSettingsPath = path.join(vscodeSettingsDir, 'settings.json');
-fs.writeFileSync(vscodeSettingsPath, JSON.stringify(vscodeSettings, null, 2) + '\n', 'utf8');
-console.log('[OK] .vscode/settings.json generated');
-
 console.log('');
-console.log('[DONE] All configs synced from .agents/config/project-env.json');
-console.log('[TIP] Reload VSCode window to apply changes.');
+console.log('[DONE] MCP config synced from .agents/config/project-env.json');

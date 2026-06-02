@@ -76,7 +76,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 - `export.js`：从 IRIS 导出类、JS 或 CSP。
 - `compile.js`：上传并编译本地类文件。
 - `debugger.js`：调用 Web Broker 方法做快速调试。
-- `sync-env-config.js`：从 `.agents/config/project-env.json` 生成 `.mcp.json`、`project.code-workspace` 和 `.vscode/settings.json`。
+- `sync-env-config.js`：从 `.agents/config/project-env.json` 生成 `.mcp.json`。
 
 首次使用前先复制模板并填写真实环境：
 
