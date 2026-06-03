@@ -65,7 +65,7 @@ your-project/
 19. 兼容入口不要求模型理解 symlink，只要求运行 `.agents/scripts/check-agent-entrypoints.ps1`；异常状态 `missing`、`not-symlink`、`wrong-target` 由 `.agents/scripts/repair-agent-entrypoints.ps1` 机械修复。
 20. 被 `.agents/.git/info/exclude` 忽略的通用能力修正，需要贡献回能力包时使用 `git add -f <path>` 或 `scripts/stage-ignored-agent-file.ps1` 显式暂存；不要移除生成层 ignore 规则。
 21. 新增能力文件采用统一命名：`skills/<skill-name>/SKILL.md` 使用 kebab-case，`rules/<rule_name>.md` 使用 snake_case，`references/<reference-name>.md` 使用 kebab-case，`scripts/<script-name>.<ext>` 使用 kebab-case。
-22. 已存在的历史命名不为格式统一单独重命名；只有在 thin-index canonical、stale 清理或明确迁移窗口中，才同步处理路径迁移、README、AGENTS、skill 引用和兼容清理。
+22. 历史文件命名统一已完成；未来新增历史文件如需重命名，只有在 thin-index canonical、stale 清理或明确迁移窗口中，才同步处理路径迁移、README、AGENTS、skill 引用和兼容清理。
 23. thin-index 生成逻辑以 `agent-context-kit/scripts/generate-plugin-thin-index.ps1` 为唯一 canonical 实现；其它插件同名脚本只能作为 wrapper 转发参数，不复制核心逻辑。
 
 ## 插件体系

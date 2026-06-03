@@ -48,7 +48,7 @@ description: Package validated project or conversation knowledge into a reusable
    - 插件专属脚本放 `.agents/plugins/<plugin>/scripts/`。
    - 禁止使用 `.agents/plugins/scripts` 作为共享脚本目录，避免被误识别为插件。
    - 新增命名遵循仓库约定：skill 目录用 kebab-case，rule 文件用 snake_case，reference 文件用 kebab-case，script 文件用 kebab-case。
-   - 已存在历史命名不为风格统一单独改名；只有在明确迁移窗口中才同步 thin-index stale 清理、README、AGENTS 和 skill 引用。
+   - 历史文件命名统一已完成；未来新增历史文件如需重命名，只有在明确迁移窗口中才同步 thin-index stale 清理、README、AGENTS 和 skill 引用。
 
 3. 去工程化：
    - 移除服务器编号、IP、账号、密码、token、namespace、远程路径。

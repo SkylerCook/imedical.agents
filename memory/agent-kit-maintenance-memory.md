@@ -16,7 +16,7 @@
 - `references/` 放按需查阅的参考资料，例如查找表、控件/API 目录和源码索引；默认不参与 rule thin-index 生成。
 - `skills/` 负责任务流程编排，必要时按任务类型读取对应 rules 或 references。
 - `scripts/` 放可复用自动化；插件专属脚本放在对应插件目录，不复制到共享脚本目录，除非插件初始化流程明确要求。
-- 新增命名约定：skill 目录用 kebab-case，rule 文件用 snake_case，reference 文件用 kebab-case，script 文件用 kebab-case；历史文件不为风格统一单独改名。
+- 新增命名约定：skill 目录用 kebab-case，rule 文件用 snake_case，reference 文件用 kebab-case，script 文件用 kebab-case；历史文件命名统一已完成。
 - 已部署业务工程的 `.agents/` 是独立能力包仓库；能力包更新后应先更新 `.agents`，再按启用插件重建 thin-index。
 - 维护记忆只写摘要、状态、决策和下一步，不复制完整规则、长段脚本说明或一次性命令输出。
 
