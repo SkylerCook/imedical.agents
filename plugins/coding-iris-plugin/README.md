@@ -12,7 +12,7 @@
 - 前端 GB2312 提升：确认后删除源文件，并将 `{name}.gb2312.{ext}` 更名回原文件名，可选 MCP/SFTP 上传。
 - HISUI 控件参考：按需读取 `references/hisui-widget-index.md`，再通过目标工程 profile 的 `HISUI_SRC` 定位源码。
 - IRIS 开发主力脚本：通过 `scripts/iris-tools/` 提供导出、编译、Broker 调试和环境配置同步。
-- MCP 能力说明：`rules/iris-agentic-dev.md` 记录 IRIS MCP 能力矩阵，`rules/sftp-server.md` 记录 SFTP MCP 能力矩阵和安全边界。
+- MCP 能力说明：`rules/iris_agentic_dev.md` 记录 IRIS MCP 能力矩阵，`rules/sftp_server.md` 记录 SFTP MCP 能力矩阵和安全边界。
 
 ## 标准目录
 
@@ -36,7 +36,7 @@ coding-iris-plugin/
 1. 将本插件放到目标工程 `.agents/plugins/coding-iris-plugin/`。
 2. 首次初始化时直接读取 `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`。
 3. 初始化流程复制 `convert-gb2312-upload.ps1` 到目标工程 `.agents/scripts/`。
-4. 初始化流程直接调用插件内置 `scripts/generate-plugin-thin-index.ps1`。
+4. 初始化流程直接调用插件内置 `scripts/generate-plugin-thin-index.ps1`；该脚本是 wrapper，实际委托 `agent-context-kit` 的 canonical thin-index 实现。
 5. 初始化流程根据 `templates/iris_project_profile.template.md` 生成或提示创建 `.agents/config/iris_project_profile.md`。
 6. 在浅层 `.agents/rules/` 和 `.agents/skills/` 生成 thin-index。
 
@@ -75,7 +75,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
   -Force
 ```
 
-重建脚本会移除由旧版本本插件生成、但源文件已不在插件 `rules/` 下的 stale rule thin-index，例如迁移到 `references/` 的 HISUI 控件参考入口。目标工程自定义规则不会被清理。
+重建脚本会移除由旧版本本插件生成、但源文件已不在插件 `rules/` 下或被重命名的 stale rule thin-index，例如迁移到 `references/` 的 HISUI 控件参考入口。目标工程自定义规则不会被清理。
 
 ## 接入目标工程
 

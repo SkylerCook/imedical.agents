@@ -31,7 +31,7 @@
 
 - `HISUI_SRC`：`TODO: references/hisui/hisui-0.1.0`。
 - 主源码文件：`${HISUI_SRC}/dist/js/jquery.hisui.js`。
-- 如果目标工程不使用 HISUI，可删除本节，并不复制 `i18n-hisui-widget-index.md`。
+- 如果目标工程不使用 HISUI，可删除本节，并不复制 `i18n_hisui_widget_index.md`。
 
 ## 后端 i18n 适配
 

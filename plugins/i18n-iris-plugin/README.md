@@ -36,7 +36,7 @@ i18n-iris-plugin/
 默认使用 `plugin-reference-thin-index`：
 
 - 插件保留在 `.agents/plugins/i18n-iris-plugin/`。
-- 使用插件内置脚本生成浅层 thin-index。
+- 使用插件内置脚本生成浅层 thin-index；该脚本是 wrapper，实际委托 `agent-context-kit` 的 canonical thin-index 实现。
 - 目标工程 `.agents/rules/` 和 `.agents/skills/` 只放 thin-index，指向插件内真实 rules/skills。
 - 首次初始化入口不依赖 thin-index；AI 应直接读取 `.agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md`。
 

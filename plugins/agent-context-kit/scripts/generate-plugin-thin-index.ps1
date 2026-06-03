@@ -65,6 +65,39 @@ function Convert-FromUtf8Base64 {
     return [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($Value))
 }
 
+function Test-IsUnderPath {
+    param(
+        [string]$Path,
+        [string]$ParentPath
+    )
+    $pathFull = [System.IO.Path]::GetFullPath($Path)
+    $parentFull = [System.IO.Path]::GetFullPath($ParentPath)
+    if (-not $parentFull.EndsWith([System.IO.Path]::DirectorySeparatorChar)) {
+        $parentFull = $parentFull + [System.IO.Path]::DirectorySeparatorChar
+    }
+    return $pathFull.StartsWith($parentFull, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Get-ThinIndexSourcePath {
+    param(
+        [string]$TargetFile,
+        [string]$ProjectRoot
+    )
+    $content = [System.IO.File]::ReadAllText($TargetFile, [System.Text.Encoding]::UTF8)
+    if ($content -notmatch "thin-index") {
+        return $null
+    }
+    $match = [System.Text.RegularExpressions.Regex]::Match($content, '- ``(?<source>[^`]+)``')
+    if (-not $match.Success) {
+        return $null
+    }
+    $source = $match.Groups["source"].Value.Trim()
+    if ([string]::IsNullOrWhiteSpace($source)) {
+        return $null
+    }
+    return Resolve-FullPathFromBase -BasePath $ProjectRoot -Path $source
+}
+
 $projectRootFull = Resolve-FullPath $ProjectRoot
 $pluginRootFull = Resolve-FullPathFromBase -BasePath $projectRootFull -Path $PluginPath
 
@@ -79,6 +112,26 @@ $rulesTarget = Join-Path $projectRootFull ".agents/rules"
 $skillsTarget = Join-Path $projectRootFull ".agents/skills"
 
 $results = New-Object System.Collections.Generic.List[object]
+
+if (Test-Path -LiteralPath $rulesTarget -PathType Container) {
+    Get-ChildItem -LiteralPath $rulesTarget -File -Filter "*.md" | Sort-Object Name | ForEach-Object {
+        $sourcePath = Get-ThinIndexSourcePath -TargetFile $_.FullName -ProjectRoot $projectRootFull
+        if ($null -eq $sourcePath) {
+            return
+        }
+        if ((Test-IsUnderPath -Path $sourcePath -ParentPath $rulesSource) -and (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf))) {
+            $targetRel = Get-RelativePathPortable -From $projectRootFull -To $_.FullName
+            $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourcePath
+            if ($Mode -eq "Write") {
+                Remove-Item -LiteralPath $_.FullName
+                $results.Add((Write-Result -Status "removed" -Target $targetRel -Source $sourceRel -Reason "stale plugin rule thin-index"))
+            }
+            else {
+                $results.Add((Write-Result -Status "stale" -Target $targetRel -Source $sourceRel -Reason "stale plugin rule thin-index"))
+            }
+        }
+    }
+}
 
 if (Test-Path -LiteralPath $rulesSource -PathType Container) {
     Get-ChildItem -LiteralPath $rulesSource -File -Filter "*.md" | Sort-Object Name | ForEach-Object {

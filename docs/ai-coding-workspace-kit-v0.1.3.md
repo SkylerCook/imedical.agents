@@ -64,6 +64,9 @@ your-project/
 18. `.agents` 是独立 Git 仓库时，目标工程本地生成层应写入 `.agents/.git/info/exclude`，不要写入 `.agents/.gitignore`；默认忽略 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
 19. 兼容入口不要求模型理解 symlink，只要求运行 `.agents/scripts/check-agent-entrypoints.ps1`；异常状态 `missing`、`not-symlink`、`wrong-target` 由 `.agents/scripts/repair-agent-entrypoints.ps1` 机械修复。
 20. 被 `.agents/.git/info/exclude` 忽略的通用能力修正，需要贡献回能力包时使用 `git add -f <path>` 或 `scripts/stage-ignored-agent-file.ps1` 显式暂存；不要移除生成层 ignore 规则。
+21. 新增能力文件采用统一命名：`skills/<skill-name>/SKILL.md` 使用 kebab-case，`rules/<rule_name>.md` 使用 snake_case，`references/<reference-name>.md` 使用 kebab-case，`scripts/<script-name>.<ext>` 使用 kebab-case。
+22. 已存在的历史命名不为格式统一单独重命名；只有在 thin-index canonical、stale 清理或明确迁移窗口中，才同步处理路径迁移、README、AGENTS、skill 引用和兼容清理。
+23. thin-index 生成逻辑以 `agent-context-kit/scripts/generate-plugin-thin-index.ps1` 为唯一 canonical 实现；其它插件同名脚本只能作为 wrapper 转发参数，不复制核心逻辑。
 
 ## 插件体系
 
@@ -89,6 +92,14 @@ your-project/
 ```
 
 除 `.agents-plugin/plugin.json`、`AGENTS.md`、`README.md` 外，其它目录都按实际能力形态选择；不要为了形式创建空目录。
+
+命名约定：
+
+- 插件名和 skill 目录使用 kebab-case，例如 `coding-iris-plugin`、`iris-frontend-coding`。
+- rule 文件使用 snake_case，例如 `iris_coding_frontend.md`、`i18n_extract_backend.md`。
+- reference 文件偏资料名或索引名，使用 kebab-case，例如 `hisui-widget-index.md`。
+- script 文件使用 kebab-case，例如 `install-agents.ps1`、`generate-plugin-thin-index.ps1`。
+- 历史文件如已被 thin-index、README、AGENTS 或业务工程引用，不因命名风格单独改名；迁移时必须同步 stale 清理和所有入口引用。
 
 ## 安装模式
 
@@ -126,6 +137,8 @@ Windows 下创建 symlink 推荐在管理员 cmd 中使用 `mklink CLAUDE.md AGE
 ```text
 .agents/plugins/i18n-iris-plugin/scripts/generate-plugin-thin-index.ps1
 ```
+
+各插件可以保留自己的同名脚本作为稳定调用入口，但脚本必须委托到 `agent-context-kit/scripts/generate-plugin-thin-index.ps1`。新增 stale 清理、frontmatter 传播、输出格式或冲突检测时，只修改 canonical 脚本，避免插件副本漂移。
 
 默认先 dry-run：
 

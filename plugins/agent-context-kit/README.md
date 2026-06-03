@@ -5,7 +5,7 @@
 ## 内容
 
 - `skills/project-context-maintenance/`：初始化和维护项目上下文的主流程。
-- `scripts/generate-plugin-thin-index.ps1`：插件内置 thin-index 生成脚本。
+- `scripts/generate-plugin-thin-index.ps1`：所有插件 thin-index 生成的 canonical 实现。
 - `templates/`：`AGENTS.md` 完整模板和片段、项目规则、项目记忆、项目上下文配置的初始化模板。
 
 ## 上下文模式
@@ -27,6 +27,8 @@
 2. 通过 `.agents/skills/` 下的浅层文件暴露 skill。
 3. 项目特定事实留在目标项目内，不写入本插件。
 4. 直接调用插件内置 thin-index 脚本，不复制到 `.agents/scripts/`。
+
+`agent-context-kit/scripts/generate-plugin-thin-index.ps1` 是唯一 canonical 实现。其它插件可以保留同名脚本作为稳定入口，但只能 wrapper 到本脚本，不复制核心逻辑。
 
 安装脚本会在目标工程写入双层忽略：
 

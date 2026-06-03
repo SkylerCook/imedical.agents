@@ -47,6 +47,8 @@ description: Package validated project or conversation knowledge into a reusable
    - 通用插件工具放 `.agents/scripts/`。
    - 插件专属脚本放 `.agents/plugins/<plugin>/scripts/`。
    - 禁止使用 `.agents/plugins/scripts` 作为共享脚本目录，避免被误识别为插件。
+   - 新增命名遵循仓库约定：skill 目录用 kebab-case，rule 文件用 snake_case，reference 文件用 kebab-case，script 文件用 kebab-case。
+   - 已存在历史命名不为风格统一单独改名；只有在明确迁移窗口中才同步 thin-index stale 清理、README、AGENTS 和 skill 引用。
 
 3. 去工程化：
    - 移除服务器编号、IP、账号、密码、token、namespace、远程路径。
@@ -68,7 +70,8 @@ description: Package validated project or conversation knowledge into a reusable
    - symlink 不作为默认策略；仅在团队确认 Windows 权限、Git 和 Agent 解析均可接受时作为可选优化。
 
 6. 生成 thin-index 时：
-   - 若选择 `plugin-reference-thin-index`，优先复用 `.agents/scripts/generate-plugin-thin-index.ps1`。
+   - 若选择 `plugin-reference-thin-index`，优先复用 `.agents/plugins/agent-context-kit/scripts/generate-plugin-thin-index.ps1` 作为 canonical 实现。
+   - 插件可以保留 `scripts/generate-plugin-thin-index.ps1` 作为稳定调用入口，但只能作为 wrapper 转发参数，不复制 thin-index 核心逻辑。
    - 若插件包含 bootstrap/init skill，默认通过 `-ExcludeSkill` 排除该 skill，避免用安装结果触发安装过程。
    - 不建议插件作者手写大量 thin-index。
    - rule 薄索引放 `.agents/rules/<rule-file>.md`，只指向插件真实 rule 和必要项目配置。

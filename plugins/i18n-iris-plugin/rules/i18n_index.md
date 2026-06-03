@@ -19,7 +19,7 @@
 - [目标语言翻译质量规则](i18n_translation_quality.md)：中文 HIS/医疗系统 UI 文案翻译到目标语言时的术语、正字法、长度和结构化输出安全。
 - [页面级翻译保存规则](i18n_page_translation_seed.md)：非字典页面级翻译种子与回滚。
 - [字典数据翻译保存规则](i18n_dict_translation_seed.md)：字典/表字段展示值翻译保存。
-- [HISUI i18n 自动翻译边界索引](i18n-hisui-widget-index.md)：当前项目使用 HISUI 时，用于确认框架自动翻译边界，避免重复包裹翻译 helper。
+- [HISUI i18n 自动翻译边界索引](i18n_hisui_widget_index.md)：当前项目使用 HISUI 时，用于确认框架自动翻译边界，避免重复包裹翻译 helper。
 
 ## 总原则
 

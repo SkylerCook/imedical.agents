@@ -1,5 +1,5 @@
 ---
-name: i18n-hisui-widget-index
+name: i18n_hisui_widget_index
 description: HISUI i18n 自动翻译边界与源码索引，用于判断哪些 HISUI 文案不应重复包裹翻译 helper
 tags: [i18n, HISUI, frontend, auto-translation, source-code]
 category: i18n

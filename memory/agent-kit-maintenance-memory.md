@@ -16,6 +16,7 @@
 - `references/` 放按需查阅的参考资料，例如查找表、控件/API 目录和源码索引；默认不参与 rule thin-index 生成。
 - `skills/` 负责任务流程编排，必要时按任务类型读取对应 rules 或 references。
 - `scripts/` 放可复用自动化；插件专属脚本放在对应插件目录，不复制到共享脚本目录，除非插件初始化流程明确要求。
+- 新增命名约定：skill 目录用 kebab-case，rule 文件用 snake_case，reference 文件用 kebab-case，script 文件用 kebab-case；历史文件不为风格统一单独改名。
 - 已部署业务工程的 `.agents/` 是独立能力包仓库；能力包更新后应先更新 `.agents`，再按启用插件重建 thin-index。
 - 维护记忆只写摘要、状态、决策和下一步，不复制完整规则、长段脚本说明或一次性命令输出。
 
@@ -24,30 +25,30 @@
 - 已将 coding 插件的 HISUI 控件索引从 rule 层迁移为 `references/hisui-widget-index.md`。
 - 已更新 coding 插件入口、README、前端 coding skill 和规则索引，使 HISUI 控件参考只在控件选型或 API 不确定时按需读取。
 - 已在 coding 插件 manifest 中声明 `references: references/`。
-- 已增强 coding 插件 thin-index 脚本：重建时可识别并清理由本插件旧版本生成、但源文件已从 `rules/` 移走的 stale rule thin-index。
+- 已增强 coding 和 i18n 插件 thin-index 脚本：重建时可识别并清理由本插件旧版本生成、但源文件已从 `rules/` 移走或被重命名的 stale rule thin-index。
 - 已在仓库 README 和 coding 插件 README 中补充已部署 `.agents` 的同步说明。
 - 已拆分 `iris_coding_workflow.md`，新增 `iris_deploy_checklist.md` 和 `iris_gb2312_workflow.md`，降低非部署任务加载成本。
-- 已精简 `sftp-server.md` 的通用部署重复内容，并精简 `i18n_index.md` 的总原则。
+- 已精简 `sftp_server.md` 的通用部署重复内容，并精简 `i18n_index.md` 的总原则。
 - 已在 workspace kit 文档和 reusable packaging skill 中补充插件内 `references/` 约定。
+- 已在 workspace kit 文档、reusable packaging skill、仓库 README 和本维护记忆中明确 rules/skills/references/scripts 命名约定。
+- 已将历史异常 rule 文件名统一为 snake_case：`iris_agentic_dev.md`、`sftp_server.md`、`i18n_hisui_widget_index.md`，并更新相关 AGENTS、README、rules、templates 引用。
+- 已将 thin-index 生成逻辑收敛到 `plugins/agent-context-kit/scripts/generate-plugin-thin-index.ps1`；coding 和 i18n 插件同名脚本只作为 wrapper 转发参数。
 
 ## 下一步工作队列
 
-1. 同步 thin-index 生成脚本行为。
-   - 先判断 `plugins/agent-context-kit/scripts/generate-plugin-thin-index.ps1` 是否应成为 canonical 版本。
-   - 再同步 stale rule thin-index 清理和未来 frontmatter 传播能力到 coding、i18n 插件副本。
-   - 完成后立即进入 frontmatter/task-affinity，不再穿插新的大规模 rules 拆分，除非用户明确调整优先级。
-2. frontmatter/task-affinity 是紧随其后的下一轮治理项。
-   - 排序：必须在 thin-index canonical 行为统一、stale 清理策略同步到各插件脚本之后执行。
+1. frontmatter/task-affinity 是下一轮治理项。
+   - 排序：thin-index canonical 行为统一和 stale 清理同步已完成，下一轮直接进入 frontmatter/task-affinity，除非用户明确调整优先级。
    - 内容：为 rule/reference 文件补充最小 frontmatter，并让 thin-index 传播任务亲和元数据。
-   - 禁止：不要在 canonical 脚本统一前批量添加 metadata，避免三份脚本各自漂移。
-3. 继续观察 rules 体量。
+   - 禁止：不要重新引入插件脚本副本漂移；frontmatter 解析和传播只改 canonical 脚本。
+2. 继续观察 rules 体量。
    - 若 i18n 或 coding 规则再次承载查找表、API 目录或长参考资料，优先迁入对应插件 `references/`。
 
 ## 跨插件一致性注意事项
 
-- 修改 thin-index 生成行为时，先判断是否应从 `plugins/agent-context-kit/scripts/generate-plugin-thin-index.ps1` 形成 canonical 版本，再同步到 coding 和 i18n 插件脚本。
+- 修改 thin-index 生成行为时，只改 `plugins/agent-context-kit/scripts/generate-plugin-thin-index.ps1`；其它插件同名脚本只能作为 wrapper 转发参数。
 - 修改插件目录结构时，同步检查 `.agents-plugin/plugin.json`、插件 `AGENTS.md`、插件 README、仓库 README 和相关 docs。
 - 任何新规则都要先判断是否应放入 `rules/`、`references/`、`skills/`、`templates/` 或 `scripts/`。
+- 新增文件按命名约定执行；如需重命名历史 rule/skill/reference，必须同步 thin-index stale 清理、README、AGENTS、skills 引用和已部署工程兼容说明。
 - 对已部署工程有影响的变更，必须在 README 或插件 README 中说明同步步骤和兼容清理策略。
 
 ## 已部署 .agents 同步注意事项
@@ -72,4 +73,6 @@
 - 搜索旧 HISUI rule 路径已无残留引用。
 - coding 插件 thin-index dry-run 已确认新增 `iris_deploy_checklist.md` 和 `iris_gb2312_workflow.md` 规则入口。
 - 搜索确认 `references/` 规范已写入 workspace kit 文档和 reusable packaging skill。
+- 搜索确认 rules/skills/references/scripts 命名约定已写入 workspace kit 文档、reusable packaging skill、仓库 README 和维护记忆。
+- 搜索确认 thin-index canonical/wrapper 约定已写入 workspace kit 文档、reusable packaging skill、插件 README 和维护记忆。
 - 后续完成每轮维护后，应更新本文件的近期已完成、下一步工作队列和最近验证摘要。

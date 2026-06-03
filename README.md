@@ -122,7 +122,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
   -Force
 ```
 
-重建时，插件脚本会清理由本插件旧版本生成、但源文件已从 `rules/` 移走的 stale rule thin-index。项目自己的 `.agents/rules/` 自定义规则不受影响。
+重建时，插件脚本会清理由本插件旧版本生成、但源文件已从 `rules/` 移走或被重命名的 stale rule thin-index。项目自己的 `.agents/rules/` 自定义规则不受影响。
 
 部署后，业务项目应忽略 `.agents/`，避免把 Agent 能力包直接提交进业务项目仓库。`.agents/` 内部仍保留自己的 Git 历史；如果需要提交 Agent 能力包变更，在 `.agents/` 目录内单独提交并推送：
 
@@ -255,5 +255,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/agent-contex
 - 新增长期通用能力时，优先判断应放入 `rules/`、`skills/`、`templates/`、`scripts/` 还是插件目录。
 - 已验证、可跨工程复用的能力应去工程化后再进入插件。
 - 需要面向目标工程落地的差异配置，应通过 profile 模板表达，不写入插件规则正文。
+- 新增命名遵循内部约定：`skills/<skill-name>/SKILL.md` 使用 kebab-case，`rules/<rule_name>.md` 使用 snake_case，`references/<reference-name>.md` 使用 kebab-case，`scripts/<script-name>.<ext>` 使用 kebab-case。
+- 历史文件不为风格统一单独重命名；只有在明确迁移窗口中才同步 thin-index stale 清理、README、AGENTS 和 skill 引用。
 - 根 `scripts/` 只放通用体系部署脚本；IRIS、i18n 等领域脚本放到对应插件的 `scripts/` 目录。
+- thin-index 生成逻辑只维护 `plugins/agent-context-kit/scripts/generate-plugin-thin-index.ps1`；其它插件同名脚本只能作为 wrapper 转发参数。
 - 更新插件入口、安装模式或长期决策时，同步更新相关 README、模板和必要的规则说明。

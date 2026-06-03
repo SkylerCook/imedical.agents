@@ -6,7 +6,7 @@
 
 - [IRIS 部署执行清单](iris_deploy_checklist.md)：当用户明确要求上传、编译、部署或验证远端结果时读取。
 - [GB2312 提升流程](iris_gb2312_workflow.md)：当用户要求把 `{name}.gb2312.{ext}` 替换回原始文件名时读取。
-- [sftp-server MCP](sftp-server.md)：当任务实际使用 SFTP MCP 时读取其能力边界和特有约束。
+- [sftp-server MCP](sftp_server.md)：当任务实际使用 SFTP MCP 时读取其能力边界和特有约束。
 
 ## 标准流程
 
