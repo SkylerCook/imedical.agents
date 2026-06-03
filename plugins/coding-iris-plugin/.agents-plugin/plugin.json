@@ -5,6 +5,7 @@
   "description": "Reusable coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
   "rules": "rules/",
+  "references": "references/",
   "skills": "skills/",
   "templates": "templates/",
   "scripts": "scripts/",

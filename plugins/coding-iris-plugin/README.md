@@ -9,7 +9,7 @@
 - 工作流规则：本地优先；导出、编译、Broker 调试和配置同步优先使用 IRIS 开发主力脚本；MCP 作为辅助能力补上下文、只读验证或覆盖脚本未覆盖场景。
 - 前端上传编码转换：UTF-8 源文件按需转换为 GB2312 临时文件后上传。
 - 前端 GB2312 提升：确认后删除源文件，并将 `{name}.gb2312.{ext}` 更名回原文件名，可选 MCP/SFTP 上传。
-- HISUI 控件源码索引：通过目标工程 profile 的 `HISUI_SRC` 定位源码。
+- HISUI 控件参考：按需读取 `references/hisui-widget-index.md`，再通过目标工程 profile 的 `HISUI_SRC` 定位源码。
 - IRIS 开发主力脚本：通过 `scripts/iris-tools/` 提供导出、编译、Broker 调试和环境配置同步。
 - MCP 能力说明：`rules/iris-agentic-dev.md` 记录 IRIS MCP 能力矩阵，`rules/sftp-server.md` 记录 SFTP MCP 能力矩阵和安全边界。
 
@@ -21,6 +21,7 @@ coding-iris-plugin/
 |   `-- plugin.json
 |-- AGENTS.md
 |-- README.md
+|-- references/
 |-- rules/
 |-- skills/
 |-- templates/
@@ -59,6 +60,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 ```
 
 `coding-iris-init` 是 bootstrap skill，默认从 thin-index 排除，避免安装完成后再次触发安装流程。
+
+### 更新已部署工程
+
+已部署过 `.agents/` 的业务工程，先在业务项目根目录重新执行 imedical.agents 一键部署脚本，使 `.agents/` 独立仓库拉取最新插件内容；再重建本插件 thin-index：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-plugin/scripts/generate-plugin-thin-index.ps1 `
+  -PluginPath .agents/plugins/coding-iris-plugin `
+  -ProjectRoot . `
+  -Mode Write `
+  -ExcludeSkill coding-iris-init `
+  -Force
+```
+
+重建脚本会移除由旧版本本插件生成、但源文件已不在插件 `rules/` 下的 stale rule thin-index，例如迁移到 `references/` 的 HISUI 控件参考入口。目标工程自定义规则不会被清理。
 
 ## 接入目标工程
 

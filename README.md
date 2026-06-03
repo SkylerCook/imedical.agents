@@ -109,6 +109,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install-agents.ps1
 如业务项目已有 AGENTS.md：自动修复 CLAUDE.md、CODEBUDDY.md 到 AGENTS.md 的 symlink。
 ```
 
+### 同步已部署 `.agents`
+
+能力包更新后，已部署业务工程需要在业务项目根目录重新执行一键部署脚本，让 `.agents/` 内的独立仓库拉取最新插件内容。随后按实际启用的插件重建 thin-index：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-plugin/scripts/generate-plugin-thin-index.ps1 `
+  -PluginPath .agents/plugins/coding-iris-plugin `
+  -ProjectRoot . `
+  -Mode Write `
+  -ExcludeSkill coding-iris-init `
+  -Force
+```
+
+重建时，插件脚本会清理由本插件旧版本生成、但源文件已从 `rules/` 移走的 stale rule thin-index。项目自己的 `.agents/rules/` 自定义规则不受影响。
+
 部署后，业务项目应忽略 `.agents/`，避免把 Agent 能力包直接提交进业务项目仓库。`.agents/` 内部仍保留自己的 Git 历史；如果需要提交 Agent 能力包变更，在 `.agents/` 目录内单独提交并推送：
 
 ```powershell

@@ -16,7 +16,7 @@
 - [后端 ObjectScript 编码](iris_coding_backend.md)：BLH/DATA/SQL、ObjectScript 风格、Broker、SQL 执行层。
 - [前端 CSP/JS/HISUI 编码](iris_coding_frontend.md)：CSP 结构、HISUI 控件、JS 组织、表单回显。
 - [MCP 与部署工作流](iris_coding_workflow.md)：本地优先、脚本复制、GB2312 转换、上传和 CSP 编译。
-- [HISUI 控件索引](hisui-widget-index.md)：控件选型、源码行号、API 确认。
+- [HISUI 控件参考](../references/hisui-widget-index.md)：控件选型、源码行号、API 确认；仅在前端任务涉及 HISUI 控件选型或 API 不确定时读取。
 - [iris-agentic-dev 配置](iris-agentic-dev.md)：TOML 配置和诊断约束。
 - [sftp-server MCP](sftp-server.md)：SFTP 读取、上传、目录同步和远程命令约束。
 

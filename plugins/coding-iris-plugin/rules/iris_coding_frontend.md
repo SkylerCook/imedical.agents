@@ -15,7 +15,7 @@
 ## HISUI 优先原则
 
 - 前端开发优先使用 HISUI 已有控件，不自造按钮、弹窗、面板、表单控件或布局容器。
-- 控件 API 不确定时，先读 `hisui-widget-index.md`，再根据 `HISUI_SRC` 读取源码行号确认。
+- 控件 API 不确定时，先读 `../references/hisui-widget-index.md`，再根据 `HISUI_SRC` 读取源码行号确认。
 - 新面板/分组区域使用 `hisui-panel`。
 - 弹窗使用 `hisui-dialog` / `hisui-window` / `$.messager`。
 - 表单输入使用 `hisui-combobox`、`hisui-validatebox`、`hisui-lookup`、`datebox`、`numberbox` 等标准控件。
