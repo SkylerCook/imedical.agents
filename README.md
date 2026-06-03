@@ -83,7 +83,7 @@ imedical.agents/
 
 如果只给 Agent 本地使用，不希望 `.agents/` 进入业务项目版本库，推荐在业务项目根目录执行一键部署脚本。
 
-脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/` 目录，并通过 sparse checkout 只检出 Agent 运行需要的目录：`docs/`、`rules/`、`skills/`、`plugins/`、`scripts/`。其中 `rules/` 是预留入口，只有存在已跟踪规则文件时才会实际出现在目标工程 `.agents/` 中；根目录 `README.md`、`LICENSE` 等说明性文件不会被检出到业务项目 `.agents/`。
+脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/` 目录，并通过 sparse checkout 只检出 Agent 运行需要的目录：`docs/`、`rules/`、`skills/`、`plugins/`、`scripts/`。其中 `rules/` 是预留入口，只有存在已跟踪规则文件时才会实际出现在目标工程 `.agents/` 中；根目录 `README.md`、`LICENSE` 等说明性文件不会保留在业务项目 `.agents/`。如果旧版本脚本或手工全量 clone 已经把这些根目录说明文件拉到 `.agents/`，重新执行安装脚本会刷新 sparse checkout 并清理它们。
 
 快速执行：
 
