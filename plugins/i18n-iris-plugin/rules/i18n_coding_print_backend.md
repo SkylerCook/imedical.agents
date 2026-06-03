@@ -5,6 +5,7 @@
 ## 打印模板选择
 
 - 后端取得 XML 打印模板代码后，必须通过项目 profile 指定的国际化模板匹配 helper 选择语言模板。
+- 当前 IRIS 医生站默认公共方法为 `##class(DHCDoc.Util.Translate).GetI18nXMLPrintTemplate(xptCode, patientId, sessionStr)`；目标工程 profile 有覆盖时，以 profile 为准。
 - 国际化模板 helper 必须以原模板代码作为默认返回值；未配置目标语言模板、当前语言为源语言、语言目录缺失时，都要回退原模板。
 - 业务代码禁止把模板匹配结果无保护地覆盖为空。若项目 helper 不能保证 fallback，调用侧必须显式兜底原模板。
 - 模板命名约定、语言代码大小写、语言目录来源以 project profile 为准，不得硬编码某个环境的语言 id。

@@ -38,6 +38,10 @@
 - 页面级非字典提示 helper：`%Trans(text, SessionStr, args...)`。
 - 显式页面码 helper：`%TransPage(pageCode, text, SessionStr, args...)`。
 - 字典/表字段展示值 helper：`%TranslateTableFieldValue(tClassName, fieldName, fieldValue, languageId, qTrantable)`。
+- 字典翻译公共门面类：`DHCDoc.Common.Translate`。
+- 字典翻译门面方法命名：`GetTrans{Domain?}{EntityAlias}{FieldAlias?}`。
+- 新代码数据获取推荐入口：`DHCDoc.GetData`。
+- 后端 XML 打印模板国际化 helper：`##class(DHCDoc.Util.Translate).GetI18nXMLPrintTemplate(xptCode, patientId, sessionStr)`。
 - 多入口后台接口必须追踪入口主页面；自动上下文不可靠时，使用显式页面码。
 
 ## 页面级翻译存储

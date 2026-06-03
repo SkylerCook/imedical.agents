@@ -30,12 +30,16 @@
 
 表字段展示值、字典名称、描述等不使用页面级翻译 helper，统一使用 project profile 指定的字典/表字段展示值翻译 helper。
 
+涉及字典/表字段展示值时，必须继续读取 `i18n_dict_translate_facade.md`，优先使用项目 profile 指定的公共字典翻译门面。当前 IRIS 医生站默认门面为 `DHCDoc.Common.Translate.GetTransXxx`。
+
 要求：
 
 - 只翻译展示值，不改变保存值。
 - 实体名使用运行时代码实际识别的名称。
 - 字段名使用运行时代码实际识别的属性名。
 - 输出到 HTML/JS/JSON 且存在特殊字符风险时，按场景传入转义参数或等价选项。
+- 首次遇到新的字典/表字段展示值翻译时，优先补公共 `GetTransXxx` 方法，再改业务代码调用。
+- 只有公共门面不存在且本次不适合新增时，才临时使用 `%TranslateTableFieldValue(...)`，并在输出中说明原因。
 
 ## 禁止翻译
 

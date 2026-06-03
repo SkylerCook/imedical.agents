@@ -17,8 +17,9 @@ description: Apply frontend and backend internationalization coding changes for 
 2. i18n 规则索引：优先读取目标工程 `.agents/rules/i18n_index.md`；引用插件时读取插件 `rules/i18n_index.md`
 3. 前端文件读取 `i18n_coding_frontend.md`
 4. 后端文件读取 `i18n_coding_backend.md`
-5. 后端打印链路、XML 打印模板名、打印 JSON 数据读取 `i18n_coding_print_backend.md`
-6. UI 框架行为不确定时读取 profile 指定的控件索引或源码索引
+5. 后端涉及字典/表字段展示值时读取 `i18n_dict_translate_facade.md`
+6. 后端打印链路、XML 打印模板名、打印 JSON 数据读取 `i18n_coding_print_backend.md`
+7. UI 框架行为不确定时读取 profile 指定的控件索引或源码索引
 
 ## 输入范围
 
@@ -45,6 +46,7 @@ description: Apply frontend and backend internationalization coding changes for 
 - 页面级后台提示使用 profile 指定的页面级翻译 helper。
 - 必须显式页面上下文时使用 profile 指定的显式页面码 helper。
 - 表字段/字典展示值使用 profile 指定的字典/表字段翻译 helper。
+- 首次遇到新的字典/表字段展示值翻译时，计划或实现必须包含“补公共 `GetTransXxx` 方法 + 注释 + 业务调用”。
 - 打印链路同时按打印规则处理 XML 模板名 fallback、分页/标题/标识文案、字典展示值分流和调试断点扫描。
 - 不改变业务流程、权限、校验、持久化或状态流转。
 
