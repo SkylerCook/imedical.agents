@@ -189,6 +189,37 @@ description: Use when initializing or maintaining agent project context such as 
 
 不要把 `scripts/generate-plugin-thin-index.ps1` 复制到目标工程共享的 `.agents/scripts/` 目录；应直接从插件路径调用。
 
+## 插件初始化闭环
+
+当用户要求初始化、重新部署或接入 `.agents/plugins/<plugin>/` 能力时，不要只生成 thin-index。必须按对应插件的真实 init skill 完整执行并验收；若插件提供 bootstrap/init skill，先读取该 skill，再执行落地。
+
+常见 init skill：
+
+- `project-context-maintenance`：维护 `AGENTS.md`、项目 profile、rules、memory 和插件 thin-index。
+- `coding-iris-init`：维护 IRIS 编码 profile、编码转换脚本、IRIS rules/skills thin-index。
+- `i18n-project-init`：维护 i18n profile、i18n rules/skills thin-index。
+
+完整闭环必须包含：
+
+1. 读取目标工程 `AGENTS.md` 和对应插件真实 init skill。
+2. 生成或更新 `.agents/config/*_profile.md`；profile 只保存非敏感项目差异，不保存 host、账号、密码、token、namespace 或远程路径。
+3. 生成 `.agents/rules/` 和 `.agents/skills/` thin-index；thin-index 必须指向 `.agents/plugins/<plugin>/` 内真实文件。
+4. 如插件需要本地脚本，复制到 `.agents/scripts/`；目标存在且内容不同时，默认报告 conflict，不覆盖。
+5. 更新 `AGENTS.md` 的插件能力路由；入口只写启动顺序、profile/rules/skills 路由和硬约束，不复制完整规则。
+6. 确认 `.agents/.git/info/exclude` 忽略生成层：`/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
+7. 扫描长期上下文，确认没有具体服务器地址、账号、密码、token、namespace 或远程路径。
+8. 验证 `.agents` Git 状态；生成层应被忽略，能力包源码改动必须明确区分。
+
+验收时至少检查：
+
+- `AGENTS.md`
+- `.agents/config/project_context_profile.md`
+- 插件要求的 `.agents/config/*_profile.md`
+- `.agents/rules/<plugin-index>.md` 或等价索引
+- `.agents/skills/<plugin-skill>/SKILL.md` 或等价 skill thin-index
+- 插件要求的 `.agents/scripts/*`
+- `.agents/.git/info/exclude`
+
 ## Git 忽略边界
 
 目标工程应采用双层忽略：
@@ -225,6 +256,7 @@ description: Use when initializing or maintaining agent project context such as 
 - memory 只包含当前状态和长期经验，不复制完整规则。
 - rules 只包含长期约束，不记录任务进度。
 - 插件内容可复用，且没有源项目硬编码。
+- 插件初始化不是只生成 thin-index；已完成 profile、rules/skills、scripts、AGENTS 路由、忽略规则、敏感信息扫描和 Git 状态验证。
 - `.agents/.git/info/exclude` 已包含生成层忽略规则。
 - 兼容入口检查结果为 `ok`；`CLAUDE.md`、`CODEBUDDY.md` 未维护第二份规则。
 - 没有新增密钥或私有连接信息。
