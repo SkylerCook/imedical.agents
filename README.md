@@ -33,7 +33,7 @@ imedical.agents/
 - CSP、JavaScript、CSS、HISUI 前端编码规则。
 - 本地优先、按需 MCP/SFTP 上传或编译的工作流约束。
 - UTF-8 前端文件转换为 GB2312 的上传和提升流程。
-- HISUI 控件源码索引入口。
+- HISUI 控件参考按需读取入口。
 
 常用 skill：
 

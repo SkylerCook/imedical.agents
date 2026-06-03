@@ -24,6 +24,7 @@ your-project/
 |   |       |-- AGENTS.md
 |   |       |-- README.md
 |   |       |-- rules/                # 可选：插件内通用规则
+|   |       |-- references/           # 可选：插件内按需查阅的参考资料、查找表、源码/API 索引
 |   |       |-- skills/               # 可选：插件内通用技能
 |   |       |-- templates/            # 可选：插件初始化模板
 |   |       |-- scripts/              # 可选：插件专属辅助脚本，例如 thin-index 生成器
@@ -54,7 +55,7 @@ your-project/
 9. 插件不写死工程差异；工程差异落到 `.agents/config/` 和 `.mcp.json`。
 10. 插件 bootstrap/init skill 可以直接从插件目录读取，不必先有 thin-index；thin-index 适合安装后的日常能力发现，不适合作为唯一安装入口。
 11. 插件 `templates/` 用于初始化目标工程；工程级 `templates/` 不重复维护插件模板。
-12. `references/` 放外部参考资料和源码索引，不塞进 `.agents/`。
+12. 项目根目录 `references/` 放工程外部参考资料和源码索引，是否入库按工程规则；插件内 `references/` 放随插件复用、按需查阅的查找表、源码/API 索引或长参考资料，不属于约束性 rules。
 13. `AGENTS.md` 保持轻量，只放全局适用的工程大图、关键入口、禁止事项和索引；细节下沉到 `rules/`、`skills/`、`config/`、`memory/`。
 14. 使用 `.gitignore`、`.git/info/exclude` 或 agent ignore 配置排除生成物、第三方源码、大文件和无关资料，减少 agent 搜索噪声。
 15. 项目上下文初始化前先判断 `contextMode`：完整工程使用 `codebase-complete`；刚新建、代码零散或后续按需从服务器导出文件的工程使用 `intent-first-on-demand-export`，并在 `.agents/config/project_context_profile.md` 记录非敏感语义配置。
@@ -77,6 +78,7 @@ your-project/
 |-- AGENTS.md
 |-- README.md
 |-- rules/
+|-- references/
 |-- skills/
 |-- templates/
 |-- scripts/
@@ -150,7 +152,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/i18n-iris-pl
 
 脚本行为：
 
-- 扫描插件 `rules/*.md`，生成 `.agents/rules/<rule>.md` thin-index。
+- 扫描插件 `rules/*.md`，生成 `.agents/rules/<rule>.md` thin-index；不扫描 `references/`。
 - 扫描插件 `skills/*/SKILL.md`，生成 `.agents/skills/<skill>/SKILL.md` thin-index。
 - 可通过 `-ExcludeRule` 和 `-ExcludeSkill` 排除不需要 shallow 入口的项目，例如 bootstrap/init skill。
 - 不扫描、不复制 `templates/`、`config/`、`scripts/`、`hooks/` 等目录。

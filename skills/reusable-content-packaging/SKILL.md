@@ -35,6 +35,7 @@ description: Package validated project or conversation knowledge into a reusable
 
 2. 识别能力边界和载体：
    - 规则类能力放 `rules/`。
+   - 参考资料类能力（查找表、源码索引、API 目录、长参考表）放 `references/`，不放 `rules/`。
    - 流程类能力放 `skills/`。
    - 模板类能力放 `templates/`。
    - 脚本类能力放 `scripts/`。
@@ -71,6 +72,7 @@ description: Package validated project or conversation knowledge into a reusable
    - 若插件包含 bootstrap/init skill，默认通过 `-ExcludeSkill` 排除该 skill，避免用安装结果触发安装过程。
    - 不建议插件作者手写大量 thin-index。
    - rule 薄索引放 `.agents/rules/<rule-file>.md`，只指向插件真实 rule 和必要项目配置。
+   - `references/` 默认不生成 thin-index；由 rules 或 skills 在任务需要时按路径读取。
    - skill 薄索引放 `.agents/skills/<skill-name>/SKILL.md`，保留最小 frontmatter，并指向插件真实 `SKILL.md`。
    - 薄索引不得复制规则全文、工程配置、示例长文或 MCP 连接信息。
 

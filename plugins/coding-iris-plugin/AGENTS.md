@@ -32,6 +32,8 @@
 - 后端 ObjectScript：`rules/iris_coding_backend.md`
 - 前端 CSP/JS/HISUI：`rules/iris_coding_frontend.md`
 - MCP/上传/编译工作流：`rules/iris_coding_workflow.md`
+- IRIS 部署执行清单：`rules/iris_deploy_checklist.md`
+- GB2312 提升流程：`rules/iris_gb2312_workflow.md`
 - HISUI 控件参考：`references/hisui-widget-index.md`
 - iris-agentic-dev 配置：`rules/iris-agentic-dev.md`
 

@@ -21,27 +21,27 @@
 
 ## 近期已完成
 
-- 已将 coding 插件的 HISUI 控件索引从 `rules/hisui-widget-index.md` 迁移为 `references/hisui-widget-index.md`。
+- 已将 coding 插件的 HISUI 控件索引从 rule 层迁移为 `references/hisui-widget-index.md`。
 - 已更新 coding 插件入口、README、前端 coding skill 和规则索引，使 HISUI 控件参考只在控件选型或 API 不确定时按需读取。
 - 已在 coding 插件 manifest 中声明 `references: references/`。
 - 已增强 coding 插件 thin-index 脚本：重建时可识别并清理由本插件旧版本生成、但源文件已从 `rules/` 移走的 stale rule thin-index。
 - 已在仓库 README 和 coding 插件 README 中补充已部署 `.agents` 的同步说明。
+- 已拆分 `iris_coding_workflow.md`，新增 `iris_deploy_checklist.md` 和 `iris_gb2312_workflow.md`，降低非部署任务加载成本。
+- 已精简 `sftp-server.md` 的通用部署重复内容，并精简 `i18n_index.md` 的总原则。
+- 已在 workspace kit 文档和 reusable packaging skill 中补充插件内 `references/` 约定。
 
 ## 下一步工作队列
 
-1. 拆分 `plugins/coding-iris-plugin/rules/iris_coding_workflow.md`。
-   - 新增部署检查清单规则，承载部署逐项检查。
-   - 新增 GB2312 工作流规则，承载 GB2312 提升和替换源文件流程。
-   - 保留 workflow 主文件为路由和关键边界，降低非部署任务加载成本。
-2. 清理重复内容。
-   - `sftp-server.md` 只保留 SFTP MCP 特有约束，通用上传、GB2312 和 CSP 编译规则引用 workflow。
-   - `i18n_index.md` 精简为索引和少量总原则，细节交给具体 i18n rule。
-3. 补充 references 规范。
-   - 更新 `docs/ai-coding-workspace-kit-v0.1.3.md`，明确插件可包含 `references/`。
-   - 更新 `skills/reusable-content-packaging/SKILL.md`，说明查找表、源码索引和 API 目录应放入 `references/`。
-4. 后置处理 frontmatter/task-affinity。
-   - 先统一 thin-index 生成脚本的 canonical 行为，再考虑批量为规则添加 frontmatter。
-   - 避免 coding、i18n、agent-context-kit 三份脚本各自漂移。
+1. 同步 thin-index 生成脚本行为。
+   - 先判断 `plugins/agent-context-kit/scripts/generate-plugin-thin-index.ps1` 是否应成为 canonical 版本。
+   - 再同步 stale rule thin-index 清理和未来 frontmatter 传播能力到 coding、i18n 插件副本。
+   - 完成后立即进入 frontmatter/task-affinity，不再穿插新的大规模 rules 拆分，除非用户明确调整优先级。
+2. frontmatter/task-affinity 是紧随其后的下一轮治理项。
+   - 排序：必须在 thin-index canonical 行为统一、stale 清理策略同步到各插件脚本之后执行。
+   - 内容：为 rule/reference 文件补充最小 frontmatter，并让 thin-index 传播任务亲和元数据。
+   - 禁止：不要在 canonical 脚本统一前批量添加 metadata，避免三份脚本各自漂移。
+3. 继续观察 rules 体量。
+   - 若 i18n 或 coding 规则再次承载查找表、API 目录或长参考资料，优先迁入对应插件 `references/`。
 
 ## 跨插件一致性注意事项
 
@@ -67,7 +67,9 @@
 
 ## 最近验证
 
-- coding 插件 thin-index dry-run 已确认不再生成 `.agents/rules/hisui-widget-index.md`。
+- coding 插件 thin-index dry-run 已确认不再生成 HISUI 控件索引的 rule 入口。
 - 构造旧版 HISUI rule thin-index 后，coding 插件脚本 dry-run 可标记 `stale`，Write 模式可移除旧入口。
-- 搜索旧路径 `rules/hisui-widget-index` 已无残留引用。
+- 搜索旧 HISUI rule 路径已无残留引用。
+- coding 插件 thin-index dry-run 已确认新增 `iris_deploy_checklist.md` 和 `iris_gb2312_workflow.md` 规则入口。
+- 搜索确认 `references/` 规范已写入 workspace kit 文档和 reusable packaging skill。
 - 后续完成每轮维护后，应更新本文件的近期已完成、下一步工作队列和最近验证摘要。

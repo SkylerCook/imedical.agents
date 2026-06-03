@@ -15,7 +15,9 @@
 - [通用编辑安全](iris_coding_general.md)：上下文读取、最小改动、编码与 diff 检查。
 - [后端 ObjectScript 编码](iris_coding_backend.md)：BLH/DATA/SQL、ObjectScript 风格、Broker、SQL 执行层。
 - [前端 CSP/JS/HISUI 编码](iris_coding_frontend.md)：CSP 结构、HISUI 控件、JS 组织、表单回显。
-- [MCP 与部署工作流](iris_coding_workflow.md)：本地优先、脚本复制、GB2312 转换、上传和 CSP 编译。
+- [MCP 与部署工作流](iris_coding_workflow.md)：本地优先、脚本复制、MCP 使用、上传和 CSP 编译入口。
+- [IRIS 部署执行清单](iris_deploy_checklist.md)：上传、编译、部署和远端验证的逐项检查清单；仅部署任务读取。
+- [GB2312 提升流程](iris_gb2312_workflow.md)：将 `{name}.gb2312.{ext}` 替换回原始文件名的安全流程；仅永久替换源文件时读取。
 - [HISUI 控件参考](../references/hisui-widget-index.md)：控件选型、源码行号、API 确认；仅在前端任务涉及 HISUI 控件选型或 API 不确定时读取。
 - [iris-agentic-dev 配置](iris-agentic-dev.md)：TOML 配置和诊断约束。
 - [sftp-server MCP](sftp-server.md)：SFTP 读取、上传、目录同步和远程命令约束。

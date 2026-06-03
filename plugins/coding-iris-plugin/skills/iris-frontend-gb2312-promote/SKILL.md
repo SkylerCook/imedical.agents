@@ -17,7 +17,8 @@ description: Convert IRIS frontend files such as CSP, JavaScript, and CSS to GB2
 
 1. 目标工程 `.agents/config/iris_project_profile.md`。
 2. `rules/iris_coding_workflow.md`。
-3. 仅当用户要求上传或服务器部署时，读取目标工程 `.mcp.json`。
+3. `rules/iris_gb2312_workflow.md`。
+4. 仅当用户要求上传或服务器部署时，读取目标工程 `.mcp.json`。
 
 ## 输入
 

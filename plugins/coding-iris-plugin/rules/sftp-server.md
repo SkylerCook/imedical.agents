@@ -25,9 +25,8 @@
 
 ## 部署规则
 
-- 前端上传映射必须来自目标项目配置，不得来自插件默认值。
-- GB2312 转换时，本地 `*.gb2312.*` 文件只作为临时上传内容；远端目标路径必须使用原始文件名。
-- 不要编译或引用远端 `*.gb2312.csp` 文件名。
+前端上传、GB2312 转换和 CSP 编译的完整规则见 `iris_coding_workflow.md`、`iris_deploy_checklist.md` 和 `iris_gb2312_workflow.md`。本文只补充 SFTP MCP 特有约束：
+
 - 执行 `upload_file` 前，必须显式比对源文件路径、转换后上传文件路径和远端目标路径。
 - 执行 `sync_directory` 前，必须列出本地根目录、远端根目录并确认忽略规则。窄范围部署优先使用 `upload_file`，避免目录同步。
 - 除非用户明确要求且命令范围受限，否则 `execute_remote_command` 不得用于 delete、move、chmod、service 等会改变远端状态的命令。
