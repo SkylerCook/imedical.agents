@@ -12,6 +12,7 @@
 
 - [前端国际化编码规则](i18n_coding_frontend.md)：CSP、JavaScript、CSS、UI 框架自动翻译边界、placeholder、tooltip、datagrid、messager。
 - [后端国际化编码规则](i18n_coding_backend.md)：页面级翻译 helper、显式页面码、字典/表字段展示值翻译、跨页面归属。
+- [后端打印国际化编码规则](i18n_coding_print_backend.md)：打印 JSON、XML 模板名、分页、条码数据、申请单/告知单/病理单打印链路。
 - [前端需翻译文本提取规则](i18n_extract_frontend.md)：从 CSP/JS/CSS 提取可见中文和 UI 框架自动翻译文本。
 - [后端需翻译文本提取规则](i18n_extract_backend.md)：从后端程序和 CSP 服务端代码提取后台提示与占位符语义。
 - [目标语言翻译质量规则](i18n_translation_quality.md)：中文 HIS/医疗系统 UI 文案翻译到目标语言时的术语、正字法、长度和结构化输出安全。
