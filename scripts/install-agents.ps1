@@ -2,6 +2,9 @@ $ErrorActionPreference = "Stop"
 
 $repo = "https://gitee.com/skyler-cook/imedical.agents.git"
 $target = ".agents"
+
+# Only deploy runtime capability directories into business projects.
+# Repository-maintainer memory under root /memory/ is intentionally excluded.
 $sparsePaths = @(
   "/docs/**",
   "/rules/**",
@@ -10,6 +13,8 @@ $sparsePaths = @(
   "/scripts/**"
 )
 
+# Hide project-local generated layers in the .agents Git repository.
+# This does not hide tracked files from a manual full clone; sparse checkout does that.
 $agentsLocalExcludePatterns = @(
   "/config/",
   "/memory/",

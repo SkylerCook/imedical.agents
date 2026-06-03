@@ -83,7 +83,7 @@ imedical.agents/
 
 如果只给 Agent 本地使用，不希望 `.agents/` 进入业务项目版本库，推荐在业务项目根目录执行一键部署脚本。
 
-脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/` 目录，并通过 sparse checkout 只检出 Agent 运行需要的目录：`docs/`、`rules/`、`skills/`、`plugins/`、`scripts/`。其中 `rules/` 是预留入口，只有存在已跟踪规则文件时才会实际出现在目标工程 `.agents/` 中；根目录 `README.md`、`LICENSE` 等说明性文件不会保留在业务项目 `.agents/`。如果旧版本脚本或手工全量 clone 已经把这些根目录说明文件拉到 `.agents/`，重新执行安装脚本会刷新 sparse checkout 并清理它们。
+脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/` 目录，并通过 sparse checkout 只检出 Agent 运行需要的目录：`docs/`、`rules/`、`skills/`、`plugins/`、`scripts/`。其中 `rules/` 是预留入口，只有存在已跟踪规则文件时才会实际出现在目标工程 `.agents/` 中；仓库根目录 `memory/` 是维护者记忆，不部署到业务项目 `.agents/`。根目录 `README.md`、`LICENSE` 等说明性文件也不会保留在业务项目 `.agents/`。如果旧版本脚本或手工全量 clone 已经把这些根目录说明文件或维护者记忆拉到 `.agents/`，重新执行安装脚本会刷新 sparse checkout 并清理它们。
 
 快速执行：
 
@@ -149,6 +149,8 @@ git push
 ```
 
 这些 exclude 规则主要隐藏目标工程本地生成的未跟踪文件；如果已跟踪的能力包文件被修改，仍会正常出现在 `.agents` 仓库的 `git status` 中。已落地过的工程如果仍看到大量未跟踪的 `.agents` 生成文件，重新执行安装脚本即可补齐本地 exclude；也可以手工把上述规则写入 `.agents/.git/info/exclude`。不要写入 `.agents/.gitignore`，否则会污染 `imedical.agents` 能力包仓库的版本规则。
+
+注意：`.git/info/exclude` 不能隐藏已经被 `.agents` 仓库追踪的文件。如果业务项目曾经手工 full clone 本仓库到 `.agents/`，根目录 `memory/agent-kit-maintenance-memory.md` 这类维护者记忆会作为已跟踪文件出现在工作区。处理方式不是只加 ignore，而是重新执行一键部署脚本，让 `.agents` 启用 sparse checkout；脚本会只保留运行需要的目录并移除根目录维护记忆。
 
 ### 被忽略文件贡献流程
 
