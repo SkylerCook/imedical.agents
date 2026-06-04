@@ -261,3 +261,28 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/agent-contex
 - thin-index 生成逻辑只维护 `scripts/generate-plugin-thin-index.ps1`；各插件同名脚本只能作为 wrapper 转发参数，避免插件之间产生运行时依赖。
 - 独立分发单个插件时，若仍使用 `plugin-reference-thin-index`，必须同时带上根 `scripts/generate-plugin-thin-index.ps1`；否则选择 `copy` 或手工 thin-index。
 - 更新插件入口、安装模式或长期决策时，同步更新相关 README、模板和必要的规则说明。
+
+### 展示页与双仓库同步
+
+当前仓库同时维护两个远端：
+
+- `origin`：Gitee 主仓库，日常维护、业务项目 `.agents` 部署和安装脚本仍以此为准。
+- `github`：GitHub 镜像仓库，主要用于 GitHub Pages 发布根目录 `index.html` 展示页。
+
+根目录 `index.html`、`.github/` 和 `.nojekyll` 只服务于展示页和 GitHub Pages。现有一键部署脚本通过 sparse checkout 只检出 `docs/`、`rules/`、`skills/`、`plugins/`、`scripts/`，不会把这些展示页文件部署到业务项目 `.agents/`。
+
+日常仍在 VS Code 本地修改并提交，不在 Gitee 或 GitHub 网页上直接改代码。提交后分别推送两个远端：
+
+```powershell
+git status
+git push origin master
+git push github master
+```
+
+如果只想一条命令顺序同步两个远端，可在 VS Code 终端执行：
+
+```powershell
+git push origin master; git push github master
+```
+
+若其中一个远端推送失败，先处理失败原因，不要在另一个平台手工补提交，避免两边历史分叉。
