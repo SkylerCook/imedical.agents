@@ -22,4 +22,4 @@
 
 - `scripts/generate-plugin-thin-index.ps1`
 
-`generate-plugin-thin-index.ps1` 保持在插件内。初始化和重建索引时直接调用插件路径，不要复制到目标工程共享的 `.agents/scripts/` 目录。
+插件内 `generate-plugin-thin-index.ps1` 是稳定调用入口，只 wrapper 到根 `.agents/scripts/generate-plugin-thin-index.ps1`。thin-index 生成逻辑只维护根脚本；不要把其它插件脚本实现复制到本插件。

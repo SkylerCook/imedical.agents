@@ -66,7 +66,7 @@ your-project/
 20. 被 `.agents/.git/info/exclude` 忽略的通用能力修正，需要贡献回能力包时使用 `git add -f <path>` 或 `scripts/stage-ignored-agent-file.ps1` 显式暂存；不要移除生成层 ignore 规则。
 21. 新增能力文件采用统一命名：`skills/<skill-name>/SKILL.md` 使用 kebab-case，`rules/<rule_name>.md` 使用 snake_case，`references/<reference-name>.md` 使用 kebab-case，`scripts/<script-name>.<ext>` 使用 kebab-case。
 22. 历史文件命名统一已完成；未来新增历史文件如需重命名，只有在 thin-index canonical、stale 清理或明确迁移窗口中，才同步处理路径迁移、README、AGENTS、skill 引用和兼容清理。
-23. thin-index 生成逻辑以 `agent-context-kit/scripts/generate-plugin-thin-index.ps1` 为唯一 canonical 实现；其它插件同名脚本只能作为 wrapper 转发参数，不复制核心逻辑。
+23. thin-index 生成逻辑以根 `scripts/generate-plugin-thin-index.ps1` 为唯一 canonical 实现；各插件同名脚本只能作为 wrapper 转发参数，不复制核心逻辑，也不依赖其它插件。
 
 ## 插件体系
 
@@ -138,7 +138,9 @@ Windows 下创建 symlink 推荐在管理员 cmd 中使用 `mklink CLAUDE.md AGE
 .agents/plugins/i18n-iris-plugin/scripts/generate-plugin-thin-index.ps1
 ```
 
-各插件可以保留自己的同名脚本作为稳定调用入口，但脚本必须委托到 `agent-context-kit/scripts/generate-plugin-thin-index.ps1`。新增 stale 清理、frontmatter 传播、输出格式或冲突检测时，只修改 canonical 脚本，避免插件副本漂移。
+各插件可以保留自己的同名脚本作为稳定调用入口，但脚本必须委托到根 `scripts/generate-plugin-thin-index.ps1`。新增 stale 清理、frontmatter 传播、输出格式或冲突检测时，只修改 canonical 脚本，避免插件副本漂移和插件间运行时依赖。
+
+独立分发单个插件时，不能只复制 `.agents/plugins/<plugin>/`。若仍使用 `plugin-reference-thin-index`，必须同时携带根 `scripts/generate-plugin-thin-index.ps1`；否则改用 `copy` 模式或手工创建 thin-index。插件 wrapper 缺少根 canonical 脚本时应明确失败，不静默降级为复制旧实现。
 
 默认先 dry-run：
 

@@ -187,7 +187,7 @@ description: Use when initializing or maintaining agent project context such as 
    - `/skills/`
    - `/scripts/`
 
-不要把 `scripts/generate-plugin-thin-index.ps1` 复制到目标工程共享的 `.agents/scripts/` 目录；应直接从插件路径调用。
+插件内 `scripts/generate-plugin-thin-index.ps1` 是稳定调用入口，只 wrapper 到根 `.agents/scripts/generate-plugin-thin-index.ps1`。修改 thin-index 行为时只改根脚本，不复制插件脚本实现。
 
 ## 插件初始化闭环
 

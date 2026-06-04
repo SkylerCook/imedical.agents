@@ -36,7 +36,7 @@ coding-iris-plugin/
 1. 将本插件放到目标工程 `.agents/plugins/coding-iris-plugin/`。
 2. 首次初始化时直接读取 `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`。
 3. 初始化流程复制 `convert-gb2312-upload.ps1` 到目标工程 `.agents/scripts/`。
-4. 初始化流程直接调用插件内置 `scripts/generate-plugin-thin-index.ps1`；该脚本是 wrapper，实际委托 `agent-context-kit` 的 canonical thin-index 实现。
+4. 初始化流程直接调用插件内置 `scripts/generate-plugin-thin-index.ps1`；该脚本是 wrapper，实际委托根 `scripts/generate-plugin-thin-index.ps1`。
 5. 初始化流程根据 `templates/iris_project_profile.template.md` 生成或提示创建 `.agents/config/iris_project_profile.md`。
 6. 在浅层 `.agents/rules/` 和 `.agents/skills/` 生成 thin-index。
 

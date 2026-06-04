@@ -32,7 +32,8 @@
 - 已在 workspace kit 文档和 reusable packaging skill 中补充插件内 `references/` 约定。
 - 已在 workspace kit 文档、reusable packaging skill、仓库 README 和本维护记忆中明确 rules/skills/references/scripts 命名约定。
 - 已将历史异常 rule 文件名统一为 snake_case：`iris_agentic_dev.md`、`sftp_server.md`、`i18n_hisui_widget_index.md`，并更新相关 AGENTS、README、rules、templates 引用。
-- 已将 thin-index 生成逻辑收敛到 `plugins/agent-context-kit/scripts/generate-plugin-thin-index.ps1`；coding 和 i18n 插件同名脚本只作为 wrapper 转发参数。
+- 已将 thin-index 生成逻辑收敛到根 `scripts/generate-plugin-thin-index.ps1`；各插件同名脚本只作为 wrapper 转发参数，避免插件之间运行时绑定。
+- 已确认边界：插件之间不应互相依赖；独立分发单个插件时，若使用 `plugin-reference-thin-index`，必须同时携带根 canonical 脚本，否则选择 `copy` 或手工 thin-index。
 
 ## 下一步工作队列
 
@@ -45,7 +46,7 @@
 
 ## 跨插件一致性注意事项
 
-- 修改 thin-index 生成行为时，只改 `plugins/agent-context-kit/scripts/generate-plugin-thin-index.ps1`；其它插件同名脚本只能作为 wrapper 转发参数。
+- 修改 thin-index 生成行为时，只改根 `scripts/generate-plugin-thin-index.ps1`；其它插件同名脚本只能作为 wrapper 转发参数。
 - 修改插件目录结构时，同步检查 `.agents-plugin/plugin.json`、插件 `AGENTS.md`、插件 README、仓库 README 和相关 docs。
 - 任何新规则都要先判断是否应放入 `rules/`、`references/`、`skills/`、`templates/` 或 `scripts/`。
 - 新增文件按命名约定执行；如需重命名历史 rule/skill/reference，必须同步 thin-index stale 清理、README、AGENTS、skills 引用和已部署工程兼容说明。

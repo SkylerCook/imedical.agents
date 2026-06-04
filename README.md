@@ -258,5 +258,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/agent-contex
 - 新增命名遵循内部约定：`skills/<skill-name>/SKILL.md` 使用 kebab-case，`rules/<rule_name>.md` 使用 snake_case，`references/<reference-name>.md` 使用 kebab-case，`scripts/<script-name>.<ext>` 使用 kebab-case。
 - 历史文件不为风格统一单独重命名；只有在明确迁移窗口中才同步 thin-index stale 清理、README、AGENTS 和 skill 引用。
 - 根 `scripts/` 只放通用体系部署脚本；IRIS、i18n 等领域脚本放到对应插件的 `scripts/` 目录。
-- thin-index 生成逻辑只维护 `plugins/agent-context-kit/scripts/generate-plugin-thin-index.ps1`；其它插件同名脚本只能作为 wrapper 转发参数。
+- thin-index 生成逻辑只维护 `scripts/generate-plugin-thin-index.ps1`；各插件同名脚本只能作为 wrapper 转发参数，避免插件之间产生运行时依赖。
+- 独立分发单个插件时，若仍使用 `plugin-reference-thin-index`，必须同时带上根 `scripts/generate-plugin-thin-index.ps1`；否则选择 `copy` 或手工 thin-index。
 - 更新插件入口、安装模式或长期决策时，同步更新相关 README、模板和必要的规则说明。

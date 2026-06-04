@@ -10,7 +10,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$canonicalScript = Join-Path $PSScriptRoot "..\..\agent-context-kit\scripts\generate-plugin-thin-index.ps1"
+$canonicalScript = Join-Path $PSScriptRoot "..\..\..\scripts\generate-plugin-thin-index.ps1"
 $canonicalScript = [System.IO.Path]::GetFullPath($canonicalScript)
 
 if (-not (Test-Path -LiteralPath $canonicalScript -PathType Leaf)) {
