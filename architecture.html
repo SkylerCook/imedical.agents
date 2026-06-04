@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Coding 外骨骼架构：我的实践理解与 imedical.agents 工程落地</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f6f8fb;
+            --panel: #ffffff;
+            --panel-soft: #eef4f8;
+            --text: #17212b;
+            --muted: #657282;
+            --line: #dbe4ec;
+            --primary: #145f7d;
+            --primary-dark: #0b3e54;
+            --accent: #d66f2d;
+            --accent-soft: #fff2e9;
+            --green: #2d7656;
+            --blue-soft: #e7f3f8;
+            --shadow: 0 18px 45px rgba(28, 49, 72, 0.10);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background:
+                linear-gradient(180deg, rgba(231, 243, 248, 0.85), rgba(246, 248, 251, 0.15) 460px),
+                var(--bg);
+            color: var(--text);
+            font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Arial, sans-serif;
+            line-height: 1.65;
+            overflow-x: hidden;
+        }
+
+        a {
+            color: inherit;
+        }
+
+        .page {
+            width: min(1180px, calc(100% - 40px));
+            margin: 0 auto;
+        }
+
+        .hero {
+            min-height: 92vh;
+            display: grid;
+            grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+            gap: 44px;
+            align-items: center;
+            padding: 46px 0 34px;
+        }
+
+        .hero > *,
+        .section-head > *,
+        .repo-map > *,
+        .agent-grid > *,
+        .correction > *,
+        .grid > *,
+        .arch-row > *,
+        .timeline > *,
+        .stack-item,
+        .card,
+        .hero-card,
+        .arch-node,
+        .mapping-row,
+        .agent-row,
+        .step {
+            min-width: 0;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 18px;
+            color: var(--primary-dark);
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0;
+        }
+
+        .eyebrow::before {
+            content: "";
+            width: 34px;
+            height: 2px;
+            background: var(--accent);
+        }
+
+        h1,
+        h2,
+        h3 {
+            margin: 0;
+            line-height: 1.18;
+            color: var(--primary-dark);
+            letter-spacing: 0;
+            overflow-wrap: anywhere;
+        }
+
+        h1 {
+            font-size: clamp(38px, 5vw, 72px);
+            max-width: 760px;
+        }
+
+        h2 {
+            font-size: clamp(28px, 3vw, 42px);
+        }
+
+        h3 {
+            font-size: 22px;
+        }
+
+        p {
+            margin: 0;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .lead {
+            margin-top: 24px;
+            max-width: 760px;
+            color: #354556;
+            font-size: clamp(18px, 2vw, 23px);
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 32px;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            flex: 0 1 auto;
+            min-height: 38px;
+            padding: 8px 14px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.72);
+            color: #39495a;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .hero-card {
+            position: relative;
+            padding: 24px;
+            border: 1px solid rgba(20, 95, 125, 0.18);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.78);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .hero-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(20, 95, 125, 0.08), rgba(214, 111, 45, 0.08));
+            pointer-events: none;
+        }
+
+        .stack {
+            position: relative;
+            display: grid;
+            gap: 12px;
+        }
+
+        .stack-item {
+            display: grid;
+            grid-template-columns: 64px minmax(0, 1fr);
+            gap: 14px;
+            align-items: start;
+            padding: 15px;
+            border: 1px solid rgba(20, 95, 125, 0.16);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .tag {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            justify-self: start;
+            min-height: 32px;
+            padding: 5px 9px;
+            border-radius: 8px;
+            background: var(--primary);
+            color: #fff;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .tag.accent {
+            background: var(--accent);
+        }
+
+        .stack-item strong {
+            display: block;
+            margin-bottom: 4px;
+            color: var(--primary-dark);
+            font-size: 17px;
+            overflow-wrap: anywhere;
+        }
+
+        .stack-item span {
+            display: block;
+            color: var(--muted);
+            font-size: 14px;
+            overflow-wrap: anywhere;
+        }
+
+        section {
+            padding: 78px 0;
+        }
+
+        .section-head {
+            display: grid;
+            grid-template-columns: minmax(0, 0.8fr) minmax(280px, 0.55fr);
+            gap: 36px;
+            align-items: end;
+            margin-bottom: 34px;
+        }
+
+        .section-head p {
+            color: var(--muted);
+            font-size: 17px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 18px;
+        }
+
+        .grid.two {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .grid.three {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .grid.six {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .card {
+            padding: 24px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: var(--panel);
+            box-shadow: 0 12px 28px rgba(28, 49, 72, 0.06);
+        }
+
+        .concept-card {
+            min-height: 210px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .concept-card .mark {
+            width: 48px;
+            height: 48px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 14px;
+            background: var(--blue-soft);
+            color: var(--primary);
+            font-size: 26px;
+            font-weight: 900;
+        }
+
+        .concept-card:nth-child(2n) .mark {
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .concept-card p,
+        .card p,
+        .step p {
+            color: var(--muted);
+        }
+
+        .quote {
+            margin-top: 24px;
+            padding: 22px 26px;
+            border-left: 5px solid var(--accent);
+            border-radius: 12px;
+            background: var(--accent-soft);
+            color: #5c341e;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .correction {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 18px;
+            align-items: stretch;
+        }
+
+        .correction .arrow {
+            display: flex;
+            align-items: center;
+            color: var(--accent);
+            font-size: 32px;
+            font-weight: 900;
+        }
+
+        .architecture {
+            padding: 26px;
+            border: 1px solid rgba(20, 95, 125, 0.18);
+            border-radius: 22px;
+            background: linear-gradient(180deg, #ffffff, #f0f7fa);
+            box-shadow: var(--shadow);
+        }
+
+        .arch-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+            align-items: stretch;
+        }
+
+        .arch-node {
+            position: relative;
+            padding: 22px;
+            border: 1px solid rgba(20, 95, 125, 0.18);
+            border-radius: 16px;
+            background: #fff;
+            min-height: 150px;
+        }
+
+        .arch-node.center {
+            border-color: rgba(214, 111, 45, 0.34);
+            background: #fff9f5;
+        }
+
+        .arch-node h3 {
+            margin-bottom: 8px;
+            font-size: 20px;
+        }
+
+        .arch-node p {
+            color: var(--muted);
+            font-size: 15px;
+        }
+
+        .connector {
+            margin: 18px auto;
+            width: 2px;
+            height: 34px;
+            background: var(--line);
+        }
+
+        .repo-map {
+            display: grid;
+            grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+            gap: 22px;
+            align-items: stretch;
+        }
+
+        .code-panel {
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .code-title {
+            padding: 14px 18px;
+            background: #14364a;
+            color: #fff;
+            font-weight: 800;
+        }
+
+        pre {
+            margin: 0;
+            padding: 18px;
+            overflow: auto;
+            background: #0f2533;
+            color: #d8edf6;
+            font: 14px/1.55 Consolas, "Cascadia Mono", monospace;
+        }
+
+        code {
+            padding: 2px 6px;
+            border-radius: 6px;
+            background: #e9f1f5;
+            color: #0b3e54;
+            font-family: Consolas, "Cascadia Mono", monospace;
+            font-size: 0.95em;
+            overflow-wrap: anywhere;
+        }
+
+        .mapping-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .mapping-row {
+            display: grid;
+            grid-template-columns: 150px minmax(0, 1fr);
+            gap: 16px;
+            padding: 14px 16px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #fff;
+        }
+
+        .mapping-row strong {
+            color: var(--primary-dark);
+        }
+
+        .mapping-row span {
+            color: var(--muted);
+        }
+
+        .timeline {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .step {
+            position: relative;
+            padding: 20px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: var(--panel);
+        }
+
+        .step-number {
+            width: 34px;
+            height: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 14px;
+            border-radius: 999px;
+            background: var(--primary);
+            color: #fff;
+            font-weight: 900;
+        }
+
+        .plugin-card {
+            border-top: 5px solid var(--primary);
+        }
+
+        .plugin-card:nth-child(2) {
+            border-top-color: var(--accent);
+        }
+
+        .plugin-card:nth-child(3) {
+            border-top-color: var(--green);
+        }
+
+        .agent-grid {
+            display: grid;
+            grid-template-columns: 0.95fr 1.1fr;
+            gap: 22px;
+        }
+
+        .agent-team {
+            display: grid;
+            gap: 12px;
+        }
+
+        .agent-row {
+            display: grid;
+            grid-template-columns: 120px minmax(0, 1fr);
+            gap: 14px;
+            padding: 14px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: #fff;
+        }
+
+        .final {
+            padding-bottom: 90px;
+        }
+
+        .final-card {
+            padding: 38px;
+            border-radius: 24px;
+            background: linear-gradient(135deg, var(--primary-dark), #145f7d);
+            color: #fff;
+            box-shadow: var(--shadow);
+        }
+
+        .final-card h2 {
+            color: #fff;
+        }
+
+        .final-card p {
+            margin-top: 18px;
+            color: rgba(255, 255, 255, 0.86);
+            font-size: 20px;
+        }
+
+        .final-card strong {
+            color: #ffd3b9;
+        }
+
+        @media (max-width: 980px) {
+            .hero,
+            .section-head,
+            .repo-map,
+            .agent-grid,
+            .correction {
+                grid-template-columns: 1fr;
+            }
+
+            .correction .arrow {
+                justify-content: center;
+                transform: rotate(90deg);
+            }
+
+            .grid.three,
+            .grid.six,
+            .arch-row,
+            .timeline {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .page {
+                width: calc(100% - 24px);
+                max-width: 366px;
+                margin-left: 12px;
+                margin-right: auto;
+                padding: 0;
+            }
+
+            .hero {
+                min-height: auto;
+                padding-top: 34px;
+                overflow: hidden;
+            }
+
+            .lead {
+                max-width: 100%;
+                font-size: 17px;
+                line-height: 1.75;
+            }
+
+            .hero-actions {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+                max-width: 100%;
+            }
+
+            .pill {
+                min-width: 0;
+                width: 100%;
+                justify-content: center;
+                padding: 8px 10px;
+                text-align: center;
+                font-size: 13px;
+                white-space: normal;
+            }
+
+            .hero-actions > *,
+            .stack > *,
+            .mapping-list > *,
+            .agent-team > * {
+                min-width: 0;
+            }
+
+            .hero-card {
+                width: 100%;
+                padding: 16px;
+            }
+
+            section {
+                padding: 54px 0;
+                overflow: hidden;
+            }
+
+            .grid.two,
+            .grid.three,
+            .grid.six,
+            .arch-row,
+            .timeline {
+                grid-template-columns: 1fr;
+            }
+
+            .stack-item,
+            .mapping-row,
+            .agent-row {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-card,
+            .architecture,
+            .card,
+            .final-card {
+                border-radius: 14px;
+            }
+
+            h1 {
+                font-size: 34px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="page">
+        <section class="hero" aria-labelledby="hero-title">
+            <div>
+                <div class="eyebrow">我的 AI Coding 实践理解</div>
+                <h1 id="hero-title">AI Coding 外骨骼架构</h1>
+                <p class="lead">
+                    AI Coding 不是一个聊天框，而是一套“大脑 + 手脚 + 接口 + 技能 + 规则 + 项目手册 + 多 Agent 协作”的工程化系统。
+                    核心不是只让模型更聪明，而是让模型能在正确上下文、工具、流程和边界里可靠做事。
+                </p>
+                <div class="hero-actions" aria-label="核心关键词">
+                    <span class="pill">模型与执行环境解耦</span>
+                    <span class="pill">项目上下文对齐</span>
+                    <span class="pill">能力可复用</span>
+                    <span class="pill">边界可控制</span>
+                </div>
+            </div>
+
+            <aside class="hero-card" aria-label="六层架构摘要">
+                <div class="stack">
+                    <div class="stack-item">
+                        <span class="tag">脑</span>
+                        <div><strong>大模型</strong><span>负责想：理解、推理、规划、决策。</span></div>
+                    </div>
+                    <div class="stack-item">
+                        <span class="tag accent">手</span>
+                        <div><strong>Codex / Claude Code 客户端</strong><span>负责干：读写文件、运行命令、调用工具、反馈结果。</span></div>
+                    </div>
+                    <div class="stack-item">
+                        <span class="tag">接口</span>
+                        <div><strong>MCP</strong><span>让手脚能摸到数据库、API、SFTP、IRIS 等外部系统。</span></div>
+                    </div>
+                    <div class="stack-item">
+                        <span class="tag accent">手册</span>
+                        <div><strong>Skills / Rules / AGENTS.md</strong><span>让执行过程有 SOP、有红线、有项目共识。</span></div>
+                    </div>
+                </div>
+            </aside>
+        </section>
+
+        <section aria-labelledby="concept-title">
+            <div class="section-head">
+                <div>
+                    <div class="eyebrow">Concept Model</div>
+                    <h2 id="concept-title">我如何拆解 AI 实践</h2>
+                </div>
+                <p>这套视角先把“大脑”和“手脚”拆开，再给手脚接上工具、技能、规则和项目手册。</p>
+            </div>
+
+            <div class="grid six">
+                <article class="card concept-card">
+                    <div class="mark">1</div>
+                    <h3>大模型：大脑</h3>
+                    <p>纯粹的认知引擎，负责理解意图、逻辑推理、任务规划和决策。它会想，但不能直接改变真实代码库。</p>
+                </article>
+                <article class="card concept-card">
+                    <div class="mark">2</div>
+                    <h3>客户端：手脚与躯干</h3>
+                    <p>在“剥离模型”的视角下，Codex / Claude Code 客户端是执行框架，负责把文本指令变成文件、命令和工具调用。</p>
+                </article>
+                <article class="card concept-card">
+                    <div class="mark">3</div>
+                    <h3>MCP：万能接口</h3>
+                    <p>它解决“怎么连接”的问题，让手脚能通过标准协议触达数据库、第三方服务、文件传输和专业系统。</p>
+                </article>
+                <article class="card concept-card">
+                    <div class="mark">4</div>
+                    <h3>Skills：操作手册</h3>
+                    <p>它解决“怎么做得专业”的问题，把排障、编码、国际化、测试等专家流程沉淀为可复用 SOP。</p>
+                </article>
+                <article class="card concept-card">
+                    <div class="mark">5</div>
+                    <h3>Rules：安全手套</h3>
+                    <p>它解决“什么不能做、必须怎么做”的问题，为 AI 划定代码风格、操作边界和安全红线。</p>
+                </article>
+                <article class="card concept-card">
+                    <div class="mark">6</div>
+                    <h3>AGENTS.md：项目圣经</h3>
+                    <p>它把项目背景、全局规则和导航入口打包在一起，让大脑和手脚瞬间知道“我是谁、我在哪、我要遵守什么规矩”。</p>
+                </article>
+            </div>
+        </section>
+
+        <section aria-labelledby="correction-title">
+            <div class="section-head">
+                <div>
+                    <div class="eyebrow">Clarification</div>
+                    <h2 id="correction-title">关键纠偏：我说的是“无模型客户端”</h2>
+                </div>
+                <p>如果把 Codex / Claude Code 看成包含模型的完整产品，它们像 Agent；但如果剥离模型，只看客户端执行框架，它们就是手脚、躯干和外骨骼。</p>
+            </div>
+
+            <div class="correction">
+                <article class="card">
+                    <h3>完整产品视角</h3>
+                    <p>大模型 + 客户端执行能力 + 工具调用能力组合在一起，可以被称为一个完整 Agent。</p>
+                </article>
+                <div class="arrow" aria-hidden="true">></div>
+                <article class="card">
+                    <h3>我的架构视角</h3>
+                    <p>把模型拿掉后，客户端就是执行环境：负责读写文件、运行终端、调用工具，并把结果反馈给大脑。</p>
+                </article>
+            </div>
+
+            <div class="quote">
+                大模型负责想；Codex / Claude Code 客户端负责干；MCP 让手摸到更多工具；Skills 教手怎么干得漂亮；Rules 保证手别干坏事。
+            </div>
+        </section>
+
+        <section aria-labelledby="arch-title">
+            <div class="section-head">
+                <div>
+                    <div class="eyebrow">Engineering Mapping</div>
+                    <h2 id="arch-title">从概念到工程实体</h2>
+                </div>
+                <p>《AI Coding Workspace Kit》把这个视角落成了可部署、可复用、可维护的工作区结构。</p>
+            </div>
+
+            <div class="architecture">
+                <div class="arch-row">
+                    <div class="arch-node">
+                        <h3>LLM 大脑</h3>
+                        <p>读取项目入口和规则索引，形成任务计划。</p>
+                    </div>
+                    <div class="arch-node center">
+                        <h3>AGENTS.md 项目圣经</h3>
+                        <p>工程级唯一主入口，提供项目大图、禁区、导航和全局约定。</p>
+                    </div>
+                    <div class="arch-node">
+                        <h3>Agent 客户端</h3>
+                        <p>执行文件修改、命令运行、脚本调用和结果反馈。</p>
+                    </div>
+                </div>
+                <div class="connector" aria-hidden="true"></div>
+                <div class="arch-row">
+                    <div class="arch-node">
+                        <h3>.agents/rules</h3>
+                        <p>项目规则或插件规则的浅层入口，约束行为边界。</p>
+                    </div>
+                    <div class="arch-node center">
+                        <h3>.agents/plugins</h3>
+                        <p>可迁移能力包，承载 rules、skills、templates、scripts 和 references。</p>
+                    </div>
+                    <div class="arch-node">
+                        <h3>.agents/skills</h3>
+                        <p>真实 skill 或 thin-index，指向插件内完整技能文件。</p>
+                    </div>
+                </div>
+                <div class="connector" aria-hidden="true"></div>
+                <div class="arch-row">
+                    <div class="arch-node">
+                        <h3>.mcp.json</h3>
+                        <p>MCP、SFTP、IRIS 等连接事实来源；敏感连接信息只放目标工程本地。</p>
+                    </div>
+                    <div class="arch-node center">
+                        <h3>thin-index</h3>
+                        <p>只暴露轻量入口，需要时再跳转真实文件，避免上下文过载。</p>
+                    </div>
+                    <div class="arch-node">
+                        <h3>.agents/memory</h3>
+                        <p>长期记忆，记录决策、坑点、待办和上下文状态。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section aria-labelledby="practice-title">
+            <div class="section-head">
+                <div>
+                    <div class="eyebrow">imedical.agents</div>
+                    <h2 id="practice-title">这个仓库在做什么</h2>
+                </div>
+                <p><code>imedical.agents</code> 不是业务系统本身，而是面向医疗软件开发的 AI Coding 能力包与工作区套件。</p>
+            </div>
+
+            <div class="repo-map">
+                <article class="card code-panel">
+                    <div class="code-title">业务项目部署后的典型结构</div>
+                    <pre>your-project/
+|-- AGENTS.md
+|-- .mcp.json
+|-- .agents/
+|   |-- config/
+|   |-- memory/
+|   |-- rules/
+|   |-- skills/
+|   |-- scripts/
+|   `-- plugins/
+|       |-- agent-context-kit/
+|       |-- coding-iris-plugin/
+|       `-- i18n-iris-plugin/
+`-- src/</pre>
+                </article>
+
+                <div class="mapping-list">
+                    <div class="mapping-row">
+                        <strong>能力包仓库</strong>
+                        <span>当前仓库沉淀通用规则、技能、插件、模板和脚本；部署到业务项目后才形成目标工程的 <code>.agents/</code> 工作区。</span>
+                    </div>
+                    <div class="mapping-row">
+                        <strong>连接边界</strong>
+                        <span><code>.mcp.json</code> 是连接事实来源；服务器、账号、密码、token、namespace、远程路径不写入插件。</span>
+                    </div>
+                    <div class="mapping-row">
+                        <strong>插件模式</strong>
+                        <span>默认使用 <code>plugin-reference-thin-index</code>：插件保留真实文件，浅层入口只做索引。</span>
+                    </div>
+                    <div class="mapping-row">
+                        <strong>上下文模式</strong>
+                        <span>完整工程使用 <code>codebase-complete</code>；代码不完整或按需导出时使用 <code>intent-first-on-demand-export</code>。</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section aria-labelledby="plugins-title">
+            <div class="section-head">
+                <div>
+                    <div class="eyebrow">Capability Packs</div>
+                    <h2 id="plugins-title">插件让 AI 拿到专用工具</h2>
+                </div>
+                <p>没有这些能力包，AI 像拿着通用工具的野战医生；有了这些能力包，AI 更像懂 imedical 系统的专业外科医生。</p>
+            </div>
+
+            <div class="grid three">
+                <article class="card plugin-card">
+                    <h3>agent-context-kit</h3>
+                    <p>负责初始化和维护项目上下文：生成或合并 <code>AGENTS.md</code>，维护项目 profile、rules、memory，并生成上下文入口。</p>
+                </article>
+                <article class="card plugin-card">
+                    <h3>coding-iris-plugin</h3>
+                    <p>面向 IRIS / ObjectScript / CSP / JavaScript / HISUI 的编码能力包，约束本地优先、编译、上传和 GB2312 转换流程。</p>
+                </article>
+                <article class="card plugin-card">
+                    <h3>i18n-iris-plugin</h3>
+                    <p>面向医疗系统国际化的专项能力包，覆盖文本提取、翻译 SQL、CSP 翻译同步、XML 模板翻译和质量规则。</p>
+                </article>
+            </div>
+        </section>
+
+        <section aria-labelledby="loop-title">
+            <div class="section-head">
+                <div>
+                    <div class="eyebrow">Execution Loop</div>
+                    <h2 id="loop-title">一次任务如何闭环</h2>
+                </div>
+                <p>真正的 AI Coding 不是“模型直接写代码”，而是每次都经过上下文、规则、技能、工具和验证的闭环。</p>
+            </div>
+
+            <div class="timeline">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>需求输入</h3>
+                    <p>用户提出目标、范围和约束。</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>读项目圣经</h3>
+                    <p>通过 <code>AGENTS.md</code> 对齐项目身份、禁区和导航。</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>加载规则技能</h3>
+                    <p>从 rules、skills 或 thin-index 跳转到插件真实文件。</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <h3>调用工具</h3>
+                    <p>通过 MCP 或 scripts 访问外部系统、运行检查、处理文件。</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">5</div>
+                    <h3>验证结果</h3>
+                    <p>运行测试、构建、静态检查或人工确认流程。</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">6</div>
+                    <h3>沉淀记忆</h3>
+                    <p>把长期有效的决策、坑点和上下文写入 memory。</p>
+                </div>
+            </div>
+        </section>
+
+        <section aria-labelledby="multi-agent-title">
+            <div class="section-head">
+                <div>
+                    <div class="eyebrow">Multi-Agent</div>
+                    <h2 id="multi-agent-title">从单兵作战到专家团队</h2>
+                </div>
+                <p>单 Agent 是一个“大脑 + 手脚 + 手册”的执行体；多 Agent 是多个专科执行体加一个协调器。</p>
+            </div>
+
+            <div class="agent-grid">
+                <article class="card">
+                    <h3>协调器从哪来</h3>
+                    <p>
+                        它可以是 Prompt 驱动的大模型，也可以是 LangGraph、AutoGen、CrewAI 等编排框架，
+                        还可以是事件驱动系统或群聊式调度。复杂项目通常用“代码框架保流程 + 大模型处理弹性”。
+                    </p>
+                </article>
+                <div class="agent-team">
+                    <div class="agent-row">
+                        <strong>检索 Agent</strong>
+                        <span>查资料、查术语库、补上下文。</span>
+                    </div>
+                    <div class="agent-row">
+                        <strong>编码 Agent</strong>
+                        <span>基于 coding / i18n skills 修改程序。</span>
+                    </div>
+                    <div class="agent-row">
+                        <strong>审查 Agent</strong>
+                        <span>检查规则、安全边界、隐私和代码质量。</span>
+                    </div>
+                    <div class="agent-row">
+                        <strong>测试 Agent</strong>
+                        <span>运行验证、复现问题、整理失败证据。</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="final" aria-labelledby="final-title">
+            <div class="final-card">
+                <h2 id="final-title">一句话总结</h2>
+                <p>
+                    未来 AI 应用开发，本质是为大模型这个<strong>大脑</strong>打造一套可控、可扩展、可复用的
+                    <strong>工程外骨骼</strong>：用 MCP 连接工具，用 Skills 沉淀经验，用 Rules 划定边界，
+                    用 <code>AGENTS.md</code> 建立项目共识，再用多 Agent 协作处理复杂任务。
+                </p>
+            </div>
+        </section>
+    </main>
+</body>
+
+</html>
