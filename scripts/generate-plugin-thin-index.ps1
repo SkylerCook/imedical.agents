@@ -87,15 +87,31 @@ function Get-ThinIndexSourcePath {
     if ($content -notmatch "thin-index") {
         return $null
     }
-    $match = [System.Text.RegularExpressions.Regex]::Match($content, '- `(?<source>[^`]+)`')
-    if (-not $match.Success) {
-        return $null
+
+    $candidates = New-Object System.Collections.Generic.List[string]
+    $codeSpanMatches = [System.Text.RegularExpressions.Regex]::Matches($content, '`{1,2}(?<source>[^`]+?)`{1,2}')
+    foreach ($match in $codeSpanMatches) {
+        $candidates.Add($match.Groups["source"].Value.Trim())
     }
-    $source = $match.Groups["source"].Value.Trim()
-    if ([string]::IsNullOrWhiteSpace($source)) {
-        return $null
+
+    foreach ($line in ($content -split "`r?`n")) {
+        $sourceLineMatch = [System.Text.RegularExpressions.Regex]::Match($line, '(?<source>\.agents/plugins/[^\s`]+/rules/[^\s`]+\.md)')
+        if ($sourceLineMatch.Success) {
+            $candidates.Add($sourceLineMatch.Groups["source"].Value.Trim())
+        }
     }
-    return Resolve-FullPathFromBase -BasePath $ProjectRoot -Path $source
+
+    foreach ($candidate in $candidates) {
+        if ([string]::IsNullOrWhiteSpace($candidate)) {
+            continue
+        }
+        $normalized = $candidate -replace "\\", "/"
+        if (($normalized.Contains(".agents/plugins/")) -and ($normalized.Contains("/rules/")) -and ($normalized.EndsWith(".md"))) {
+            return Resolve-FullPathFromBase -BasePath $ProjectRoot -Path $candidate
+        }
+    }
+
+    return $null
 }
 
 $projectRootFull = Resolve-FullPath $ProjectRoot
@@ -110,16 +126,17 @@ $rulesSource = Join-Path $pluginRootFull "rules"
 $skillsSource = Join-Path $pluginRootFull "skills"
 $rulesTarget = Join-Path $projectRootFull ".agents/rules"
 $skillsTarget = Join-Path $projectRootFull ".agents/skills"
+$pluginsRoot = Join-Path $projectRootFull ".agents/plugins"
 
 $results = New-Object System.Collections.Generic.List[object]
 
-if (Test-Path -LiteralPath $rulesTarget -PathType Container) {
+if ((Test-Path -LiteralPath $rulesTarget -PathType Container) -and (Test-Path -LiteralPath $pluginsRoot -PathType Container)) {
     Get-ChildItem -LiteralPath $rulesTarget -File -Filter "*.md" | Sort-Object Name | ForEach-Object {
         $sourcePath = Get-ThinIndexSourcePath -TargetFile $_.FullName -ProjectRoot $projectRootFull
         if ($null -eq $sourcePath) {
             return
         }
-        if ((Test-IsUnderPath -Path $sourcePath -ParentPath $rulesSource) -and (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf))) {
+        if ((Test-IsUnderPath -Path $sourcePath -ParentPath $pluginsRoot) -and (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf))) {
             $targetRel = Get-RelativePathPortable -From $projectRootFull -To $_.FullName
             $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourcePath
             if ($Mode -eq "Write") {

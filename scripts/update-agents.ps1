@@ -319,6 +319,12 @@ function Write-UpdateSummary {
     "config-review-required"
   )
 
+  $entrypointStatuses = @(
+    "entrypoint-missing",
+    "entrypoint-not-symlink",
+    "entrypoint-wrong-target"
+  )
+
   Write-Output "Agent kit update summary"
   Write-Output "Mode: $Mode"
   Write-Output ""
@@ -362,6 +368,15 @@ function Write-UpdateSummary {
       $missingFile = @($group.Group | Where-Object { $_.status -eq "config-missing-file" }).Count
       $first = $group.Group[0]
       Write-Output ("- {0} {1}: missing={2}, merged={3}, deprecated-candidate={4}, review-required={5}, missing-file={6}, created={7}" -f $first.plugin, $first.target, $missing, $merged, $deprecated, $review, $missingFile, $created)
+    }
+  }
+
+  $entrypointNotes = @($Results | Where-Object { $entrypointStatuses -contains $_.status })
+  if ($entrypointNotes.Count -gt 0) {
+    Write-Output ""
+    Write-Output "Optional entrypoint notes:"
+    foreach ($item in $entrypointNotes) {
+      Write-Output ("- {0} {1}: {2}; no automatic repair or copy was performed" -f $item.status, $item.target, $item.reason)
     }
   }
 
@@ -455,16 +470,10 @@ foreach ($pattern in $agentsLocalExcludePatterns) {
 }
 
 $checkEntrypoints = Join-Path $agentsRoot "scripts/check-agent-entrypoints.ps1"
-$repairEntrypoints = Join-Path $agentsRoot "scripts/repair-agent-entrypoints.ps1"
 if (Test-Path -LiteralPath (Join-Path $projectRootFull "AGENTS.md") -PathType Leaf) {
   if (Test-Path -LiteralPath $checkEntrypoints -PathType Leaf) {
     & $checkEntrypoints -ProjectRoot $projectRootFull | ForEach-Object {
       $results.Add((Write-UpdateResult -Status ("entrypoint-" + $_.status) -Target $_.entrypoint -Reason $_.reason -Phase "entrypoint"))
-    }
-    if (($LASTEXITCODE -ne 0) -and ($Mode -eq "Write") -and (Test-Path -LiteralPath $repairEntrypoints -PathType Leaf)) {
-      & $repairEntrypoints -ProjectRoot $projectRootFull | ForEach-Object {
-        $results.Add((Write-UpdateResult -Status ("entrypoint-" + $_.status) -Target $_.entrypoint -Reason $_.backup -Phase "entrypoint"))
-      }
     }
   }
   else {
@@ -472,7 +481,7 @@ if (Test-Path -LiteralPath (Join-Path $projectRootFull "AGENTS.md") -PathType Le
   }
 }
 else {
-  $results.Add((Write-UpdateResult -Status "agents-entry-missing" -Target "AGENTS.md" -Reason "AGENTS.md not found; skip entrypoint repair" -Phase "entrypoint"))
+  $results.Add((Write-UpdateResult -Status "agents-entry-missing" -Target "AGENTS.md" -Reason "AGENTS.md is required as the single primary agent entrypoint" -Phase "entrypoint"))
 }
 
 $plugins = Get-InstalledPlugins -AgentsRoot $agentsRoot -IncludeNames $Plugin -ExcludeNames $ExcludePlugin

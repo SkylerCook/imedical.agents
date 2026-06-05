@@ -75,7 +75,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
   -Force
 ```
 
-重建脚本会移除由旧版本本插件生成、但源文件已不在插件 `rules/` 下或被重命名的 stale rule thin-index，例如迁移到 `references/` 的 HISUI 控件参考入口。目标工程自定义规则不会被清理。
+重建脚本委托根 canonical thin-index 脚本执行：生成阶段只处理当前 `PluginPath`，stale 清理阶段会扫描 `.agents/rules/` 中所有指向 `.agents/plugins/*/rules/*.md` 的 thin-index，并移除源文件已不存在的旧 rule 入口，例如迁移到 `references/` 的 HISUI 控件参考入口。目标工程自定义规则不会被清理。
 
 ## 接入目标工程
 

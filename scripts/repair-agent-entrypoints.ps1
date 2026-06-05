@@ -99,7 +99,7 @@ foreach ($entryPoint in $EntryPoints) {
     $powerShellError = $_.Exception.Message
     & cmd.exe /c mklink "$entryPath" "$targetPath" | Out-Null
     if ($LASTEXITCODE -ne 0) {
-      Write-Error "Cannot create symbolic link $entryPoint -> $Target. On Windows, enable Developer Mode or run cmd/PowerShell as Administrator, then create it manually with: mklink $entryPoint $Target. PowerShell error: $powerShellError"
+      Write-Error "Cannot create symbolic link $entryPoint -> $Target. Do not copy $Target to $entryPoint or maintain a second rules file. On Windows, enable Developer Mode or run cmd/PowerShell as Administrator, then create it manually with: mklink $entryPoint $Target. PowerShell error: $powerShellError"
       exit 1
     }
   }

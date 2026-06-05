@@ -29,7 +29,7 @@ description: Use when initializing or maintaining agent project context such as 
 编辑上下文文件前：
 
 1. 读取当前 `AGENTS.md`。
-2. 运行 `.agents/scripts/check-agent-entrypoints.ps1` 检查兼容入口；若失败，先运行 `.agents/scripts/repair-agent-entrypoints.ps1` 修复。
+2. 运行 `.agents/scripts/check-agent-entrypoints.ps1` 检查兼容入口；若失败，只报告可选兼容入口状态，不自动修复。
 3. 如存在项目记忆，读取当前 `.agents/memory/project-memory.md`。
 4. 如存在规则索引或相关规则文件，读取对应文件。
 5. 判断目标工程的 `contextMode`，再决定如何生成或维护上下文。
@@ -47,11 +47,12 @@ description: Use when initializing or maintaining agent project context such as 
 规则：
 
 - `AGENTS.md` 是唯一事实文件。
-- `CLAUDE.md`、`CODEBUDDY.md` 只允许是指向 `AGENTS.md` 的 symlink。
+- `CLAUDE.md`、`CODEBUDDY.md` 是可选兼容入口；如存在，只允许是指向 `AGENTS.md` 的 symlink。
 - 不要求模型理解 symlink；维护前只要求运行检查脚本并按固定结果处理。
 - 检查脚本固定输出 `ok`、`missing`、`not-symlink`、`wrong-target`。
-- 若入口为 `missing`、`not-symlink` 或 `wrong-target`，先运行修复脚本恢复 symlink，再维护上下文。
+- 若入口为 `missing`、`not-symlink` 或 `wrong-target`，只报告状态，不阻塞上下文维护；只有用户明确要求兼容入口时，才运行修复脚本创建 symlink。
 - Windows 手工修复可在管理员 cmd 中使用 `mklink CLAUDE.md AGENTS.md` 和 `mklink CODEBUDDY.md AGENTS.md`；启用开发者模式后部分环境可免管理员。
+- 禁止把 `AGENTS.md` 复制成 `CLAUDE.md` 或 `CODEBUDDY.md`，也禁止在兼容入口维护第二份规则。
 - 修改规则时只允许改 `AGENTS.md`、`.agents/rules/`、`.agents/memory/`、`.agents/config/`；禁止把规则写入 `CLAUDE.md` 或 `CODEBUDDY.md`。
 
 ## 上下文模式
@@ -193,7 +194,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 初始化项目上下文时：
 
 1. 先判断并记录 `contextMode`；缺少 `.agents/config/project_context_profile.md` 时，参考 `templates/project_context_profile.template.md` 创建。
-2. 运行 `.agents/scripts/repair-agent-entrypoints.ps1`，确保 `CLAUDE.md`、`CODEBUDDY.md` 指向 `AGENTS.md`。
+2. 运行 `.agents/scripts/check-agent-entrypoints.ps1`，只检查 `CLAUDE.md`、`CODEBUDDY.md` 可选兼容入口；不自动创建、复制或修复。
 3. 创建或更新 `AGENTS.md`，只放最小启动流程和路由；新建时参考 `templates/AGENTS.template.md`。
    - `codebase-complete`：可写入已验证架构事实。
    - `intent-first-on-demand-export`：必须写明本地代码不代表完整工程，后续按需导出相关文件后再分析和修改。
@@ -284,7 +285,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - 插件初始化不是只生成 thin-index；已完成 profile、rules/skills、scripts、AGENTS 路由、忽略规则、敏感信息扫描和 Git 状态验证。
 - `.agents/config/` 已保留项目已有值；模板新增字段只作为待确认项合并。
 - `.agents/.git/info/exclude` 已包含生成层忽略规则。
-- 兼容入口检查结果为 `ok`；`CLAUDE.md`、`CODEBUDDY.md` 未维护第二份规则。
+- 兼容入口缺失或异常只作为可选提示；`CLAUDE.md`、`CODEBUDDY.md` 未维护第二份规则。
 - 没有新增密钥或私有连接信息。
 ## 部署经验沉淀
 

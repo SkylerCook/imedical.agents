@@ -66,12 +66,12 @@ if (Test-Path "$target\.git") {
   }
 }
 
-$entrypointRepairScript = Join-Path $target "scripts/repair-agent-entrypoints.ps1"
-if ((Test-Path "AGENTS.md") -and (Test-Path $entrypointRepairScript)) {
-  powershell -NoProfile -ExecutionPolicy Bypass -File $entrypointRepairScript -ProjectRoot .
+if (Test-Path "AGENTS.md") {
+  Write-Host "AGENTS.md found. CLAUDE.md and CODEBUDDY.md are optional compatibility symlinks; install-agents.ps1 does not create, copy, or repair them automatically."
 }
-elseif (-not (Test-Path "AGENTS.md")) {
-  Write-Host "AGENTS.md not found; skip agent entrypoint symlink repair."
+else {
+  Write-Error "AGENTS.md not found. AGENTS.md is required as the single primary agent entrypoint. Create AGENTS.md first; CLAUDE.md and CODEBUDDY.md are optional symlinks only."
+  exit 1
 }
 
 if (Test-Path ".git") {
