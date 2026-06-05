@@ -85,6 +85,8 @@ imedical.agents/
 
 脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/` 目录，并通过 sparse checkout 只检出 Agent 运行需要的目录：`docs/`、`rules/`、`skills/`、`plugins/` 和根 `scripts/*.ps1`。其中 `rules/` 是预留入口，只有存在已跟踪规则文件时才会实际出现在目标工程 `.agents/` 中；`scripts/tests/` 只服务能力包仓库自测，不部署到业务项目 `.agents/`；仓库根目录 `memory/` 是维护者记忆，也不部署到业务项目 `.agents/`。根目录 `README.md`、`LICENSE` 等说明性文件也不会保留在业务项目 `.agents/`。如果旧版本脚本或手工全量 clone 已经把这些根目录说明文件或维护者记忆拉到 `.agents/`，重新执行安装脚本会刷新 sparse checkout 并清理它们。
 
+如果希望大模型托管安装或更新，让 Agent 读取 `.agents/docs/update-agents.md` 并按 runbook 执行；例如对支持文件引用的工具可以说：`@.agents/docs/update-agents.md 帮我安装/更新 .agents`。该 runbook 是 Agent 执行入口，README 只保留人工速查命令。
+
 快速执行：
 
 ```powershell
@@ -113,6 +115,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install-agents.ps1
 
 能力包更新后，已部署业务工程优先在业务项目根目录执行统一更新脚本。脚本默认采用半自动稳妥策略：先拉取 `.agents/` 独立仓库、扫描已安装插件、dry-run 重建 thin-index，并报告兼容入口、生成层 ignore 和配置合并风险。
 
+如果由大模型托管更新，优先让 Agent 读取 `.agents/docs/update-agents.md`，由它判断 `DryRun` 输出是否可以自动进入 `Write`。
+
 推荐先 dry-run：
 
 ```powershell
@@ -136,6 +140,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - `-Plugin <name[]>`：只处理指定插件。
 - `-ExcludePlugin <name[]>`：跳过指定插件。
 - `-ForceThinIndex`：将 `-Force` 传给 thin-index 生成脚本。
+- `-Detailed`：输出每一条检查明细；日常不加该参数，只看摘要即可。
 
 `.agents/config/` 是目标项目事实和选择的承载层，更新时只允许合并，不允许直接覆盖。模板新增字段时，脚本在配置文件末尾追加待确认配置项；已存在字段以目标项目当前值为准；疑似废弃字段只报告 `config-deprecated-candidate`，不自动删除；字段语义变化只报告 `config-review-required`，由 Agent 或人工确认后再改。
 

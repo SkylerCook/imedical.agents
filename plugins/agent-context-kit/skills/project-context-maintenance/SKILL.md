@@ -20,6 +20,12 @@ description: Use when initializing or maintaining agent project context such as 
 
 ## 开始前必读
 
+如果任务是安装 `.agents`、更新 `.agents`、维护能力包或处理 `update-agents.ps1` 输出，先读取根 runbook：
+
+- `.agents/docs/update-agents.md`
+
+该 runbook 是安装和更新流程的事实来源。不要在本 skill 内自行发明安装、更新、clone 收敛或 dry-run/write 判读流程。
+
 编辑上下文文件前：
 
 1. 读取当前 `AGENTS.md`。

@@ -5,7 +5,8 @@ param(
   [string[]]$Plugin = @(),
   [string[]]$ExcludePlugin = @(),
   [switch]$ForceThinIndex,
-  [switch]$NoPull
+  [switch]$NoPull,
+  [switch]$Detailed
 )
 
 $ErrorActionPreference = "Stop"
@@ -289,6 +290,85 @@ function Convert-ThinIndexTextOutput {
   return $items
 }
 
+function Write-UpdateSummary {
+  param(
+    [object[]]$Results,
+    [string]$Mode
+  )
+
+  $actionRequiredStatuses = @(
+    "agents-missing",
+    "agents-git-missing",
+    "pull-blocked-dirty",
+    "fetch-failed",
+    "pull-failed",
+    "sparse-refresh-failed",
+    "conflict",
+    "config-review-required",
+    "thin-index-script-missing",
+    "entrypoint-check-missing",
+    "agents-entry-missing"
+  )
+
+  $configStatuses = @(
+    "config-missing-file",
+    "config-created",
+    "config-missing-key",
+    "config-merged-key",
+    "config-deprecated-candidate",
+    "config-review-required"
+  )
+
+  Write-Output "Agent kit update summary"
+  Write-Output "Mode: $Mode"
+  Write-Output ""
+
+  $pluginNames = @($Results | Where-Object { $_.phase -eq "plugin" -and $_.status -eq "plugin-found" } | Select-Object -ExpandProperty plugin -Unique)
+  if ($pluginNames.Count -gt 0) {
+    Write-Output ("Plugins: " + ($pluginNames -join ", "))
+  }
+  else {
+    Write-Output "Plugins: none"
+  }
+
+  $groups = $Results | Group-Object status | Sort-Object Name
+  foreach ($group in $groups) {
+    if ([string]::IsNullOrWhiteSpace($group.Name)) {
+      continue
+    }
+    Write-Output ("{0}: {1}" -f $group.Name, $group.Count)
+  }
+
+  $actionRequired = @($Results | Where-Object { $actionRequiredStatuses -contains $_.status })
+  if ($actionRequired.Count -gt 0) {
+    Write-Output ""
+    Write-Output "Action required:"
+    foreach ($item in $actionRequired) {
+      $pluginLabel = if ([string]::IsNullOrWhiteSpace($item.plugin)) { "-" } else { $item.plugin }
+      Write-Output ("- {0} [{1}] {2} {3}" -f $item.status, $pluginLabel, $item.target, $item.reason)
+    }
+  }
+
+  $configNotes = @($Results | Where-Object { $configStatuses -contains $_.status })
+  if ($configNotes.Count -gt 0) {
+    Write-Output ""
+    Write-Output "Config notes:"
+    foreach ($group in ($configNotes | Group-Object plugin, target | Sort-Object Name)) {
+      $missing = @($group.Group | Where-Object { $_.status -eq "config-missing-key" }).Count
+      $merged = @($group.Group | Where-Object { $_.status -eq "config-merged-key" }).Count
+      $deprecated = @($group.Group | Where-Object { $_.status -eq "config-deprecated-candidate" }).Count
+      $review = @($group.Group | Where-Object { $_.status -eq "config-review-required" }).Count
+      $created = @($group.Group | Where-Object { $_.status -eq "config-created" }).Count
+      $missingFile = @($group.Group | Where-Object { $_.status -eq "config-missing-file" }).Count
+      $first = $group.Group[0]
+      Write-Output ("- {0} {1}: missing={2}, merged={3}, deprecated-candidate={4}, review-required={5}, missing-file={6}, created={7}" -f $first.plugin, $first.target, $missing, $merged, $deprecated, $review, $missingFile, $created)
+    }
+  }
+
+  Write-Output ""
+  Write-Output "Use -Detailed to print every result item."
+}
+
 function Invoke-AgentGitUpdate {
   param(
     [string]$AgentsRoot,
@@ -438,4 +518,9 @@ if ($plugins.Count -eq 0) {
   $results.Add((Write-UpdateResult -Status "plugin-none" -Target (Get-RelativePathPortable -From $projectRootFull -To (Join-Path $agentsRoot "plugins")) -Reason "no installed plugins matched filters" -Phase "plugin"))
 }
 
-$results | Format-List status, plugin, phase, target, source, reason
+if ($Detailed) {
+  $results | Format-List status, plugin, phase, target, source, reason
+}
+else {
+  Write-UpdateSummary -Results $results -Mode $Mode
+}

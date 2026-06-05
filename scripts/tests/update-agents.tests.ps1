@@ -101,6 +101,19 @@ function New-TestProject {
 
 Assert-True (Test-Path -LiteralPath $scriptUnderTest -PathType Leaf) "scripts/update-agents.ps1 should exist"
 
+$runbookPath = Join-Path $repoRoot "docs/update-agents.md"
+$contextSkillPath = Join-Path $repoRoot "plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md"
+Assert-True (Test-Path -LiteralPath $runbookPath -PathType Leaf) "docs/update-agents.md should exist"
+$runbookContent = Get-Content -Raw -Encoding UTF8 -Path $runbookPath
+Assert-Contains $runbookContent "DryRun" "runbook should mention DryRun"
+Assert-Contains $runbookContent "Write" "runbook should mention Write"
+Assert-Contains $runbookContent "-Detailed" "runbook should mention -Detailed"
+Assert-Contains $runbookContent "config-review-required" "runbook should mention config-review-required"
+Assert-Contains $runbookContent "pull-blocked-dirty" "runbook should mention pull-blocked-dirty"
+Assert-Contains $runbookContent "git clone" "runbook should support manual clone"
+$contextSkillContent = Get-Content -Raw -Encoding UTF8 -Path $contextSkillPath
+Assert-Contains $contextSkillContent "docs/update-agents.md" "project-context-maintenance should route updates to docs/update-agents.md"
+
 $projectRoot = New-TestProject
 try {
   New-Item -ItemType Directory -Force -Path (Join-Path $projectRoot ".agents/config") | Out-Null
@@ -114,7 +127,11 @@ try {
     "- oldField: legacy-value"
   )
 
-  $dryRunOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull | Out-String
+  $summaryOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull | Out-String
+  Assert-Contains $summaryOutput "Agent kit update summary" "Default output should be summarized"
+  Assert-Contains $summaryOutput "Config notes:" "Default output should group config notes"
+
+  $dryRunOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed | Out-String
   Assert-Contains $dryRunOutput "config-missing-key" "DryRun should report missing config keys"
   Assert-Contains $dryRunOutput "config-deprecated-candidate" "DryRun should report deprecated config candidates"
 
@@ -122,7 +139,7 @@ try {
   Assert-Contains $beforeWrite "projectName: real-project" "DryRun must not overwrite existing config values"
   Assert-True (-not $beforeWrite.Contains("newField: TODO")) "DryRun must not append missing config keys"
 
-  $writeOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull | Out-String
+  $writeOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed | Out-String
   Assert-Contains $writeOutput "config-merged-key" "Write should merge missing config keys"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sample_rule.md")) "Write should generate rule thin-index before stale cleanup is tested"
 
@@ -133,7 +150,7 @@ try {
   Assert-Contains $afterWrite "newField: TODO" "Write should append missing config keys"
 
   Remove-Item -LiteralPath (Join-Path $projectRoot ".agents/plugins/sample-plugin/rules/sample_rule.md")
-  $staleOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull | Out-String
+  $staleOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed | Out-String
   if (-not $staleOutput.Contains("removed")) {
     Write-Host $staleOutput
     if (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sample_rule.md")) {
