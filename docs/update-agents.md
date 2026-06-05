@@ -7,6 +7,7 @@
 ## 使用前提
 
 - 当前目录必须是业务项目根目录。
+- `AGENTS.md` 是必须存在的工程级唯一主入口；`CLAUDE.md`、`CODEBUDDY.md` 只是可选兼容 symlink。
 - 所有命令使用 PowerShell。
 - `.agents/config/` 只允许合并，不允许覆盖已有值。
 - `.mcp.json` 是连接事实来源。不要把 host、账号、密码、token、namespace 或远程路径写入 `AGENTS.md`、rules、memory、config 或插件。
@@ -115,10 +116,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 |---|---|
 | `agents-updated` | `.agents` 已完成 fetch、pull 和 sparse checkout 刷新。 |
 | `exclude-ok` | `.agents/.git/info/exclude` 已包含生成层忽略规则。 |
-| `entrypoint-ok` | `CLAUDE.md`、`CODEBUDDY.md` 等兼容入口正常。 |
+| `entrypoint-ok` | `CLAUDE.md`、`CODEBUDDY.md` 等可选兼容入口正常。 |
+| `entrypoint-missing` / `entrypoint-not-symlink` / `entrypoint-wrong-target` | 可选兼容入口缺失或异常；不阻塞安装/更新，脚本不会自动修复或复制。 |
 | `plugin-found` | 已发现插件。 |
 | `generated` | dry-run 发现将生成 thin-index，或 write 已生成。 |
-| `removed` | write 已清理 stale thin-index。 |
+| `removed` | write 已清理 stale thin-index，包括可识别的旧命名 rule thin-index。 |
 | `skipped` 且 reason 包含 `target exists` | 目标 thin-index 已存在，默认不覆盖。 |
 | `config-missing-key` | 模板有新增字段，当前项目 config 没有；dry-run 只提示。 |
 | `config-merged-key` | write 已把缺失配置项追加到待确认区块。 |
@@ -137,6 +139,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `pull-failed` | 停止。报告无法 fast-forward。 |
 | `sparse-refresh-failed` | 停止。报告 sparse checkout 刷新失败。 |
 | `thin-index-script-missing` | 停止。报告插件缺少 thin-index 脚本。 |
+| `agents-entry-missing` | 停止。先创建 `AGENTS.md`，不要用 `CLAUDE.md` 或 `CODEBUDDY.md` 代替。 |
 
 ## config 合并规则
 
@@ -157,6 +160,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - 没有 `agents-git-missing`。
 - 没有 `fetch-failed`、`pull-failed` 或 `sparse-refresh-failed`。
 
+兼容入口提示不属于停止条件。不要为了消除 `entrypoint-missing`、`entrypoint-not-symlink` 或 `entrypoint-wrong-target` 而复制 `AGENTS.md`；只有用户明确需要时，才运行 `repair-agent-entrypoints.ps1` 创建 symlink。
+
 如果不满足，停止并汇报阻塞状态。不要猜测用户意图。
 
 ## 验收标准
@@ -171,7 +176,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 - `.agents` 是独立 Git 仓库。
 - `.agents/.git/info/exclude` 包含 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
-- 如果业务项目有 `AGENTS.md`，兼容入口检查为 `entrypoint-ok` 或已在 write 中修复。
+- 如果业务项目有 `AGENTS.md`，兼容入口可以是 `entrypoint-ok`，也可以缺失；缺失或异常只作为可选提示，不应在 write 中自动修复。
 - 插件能被扫描到。
 - 没有停止条件。
 

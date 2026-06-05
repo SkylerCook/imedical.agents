@@ -7,8 +7,8 @@
 ```text
 your-project/
 |-- AGENTS.md                         # 工程级唯一主入口，所有 Code Agent 优先读取
-|-- CLAUDE.md                         # 兼容入口，默认作为指向 AGENTS.md 的 symlink
-|-- CODEBUDDY.md                      # 兼容入口，默认作为指向 AGENTS.md 的 symlink
+|-- CLAUDE.md                         # 可选兼容入口，可作为指向 AGENTS.md 的 symlink
+|-- CODEBUDDY.md                      # 可选兼容入口，可作为指向 AGENTS.md 的 symlink
 |-- .mcp.json                         # MCP 连接事实来源，可选；环境/连接信息放这里
 |
 |-- .agents/
@@ -44,8 +44,8 @@ your-project/
 
 ## 核心原则
 
-1. `AGENTS.md` 是工程级唯一主入口。
-2. `CLAUDE.md`、`CODEBUDDY.md` 等只做兼容入口，默认是指向 `AGENTS.md` 的 symlink，不维护第二份规则。
+1. `AGENTS.md` 是工程级唯一主入口，必须存在。
+2. `CLAUDE.md`、`CODEBUDDY.md` 等只做可选兼容入口；如存在，只允许是指向 `AGENTS.md` 的 symlink，不维护第二份规则。
 3. `.agents/config/` 放非敏感工程语义配置；敏感连接信息不放这里。
 4. `.mcp.json` 放 MCP、环境、连接事实。
 5. `.agents/memory/` 只放长期有效事实、决策、坑点和待办，不放规则全文。
@@ -62,7 +62,7 @@ your-project/
 16. `contextMode` 使用保守默认：用户明确说按需导出时直接选 `intent-first-on-demand-export`；无法证明本地代码代表完整工程时，也选 `intent-first-on-demand-export`。
 17. 对 `intent-first-on-demand-export` 工程，`AGENTS.md` 不得围绕单个或少量零散文件生成架构结论；本地已有文件最多列为“当前已导出/已存在文件”；需求处理应先确认目标页面、类、JS、CSP 或业务对象，再按需导出相关文件。
 18. `.agents` 是独立 Git 仓库时，目标工程本地生成层应写入 `.agents/.git/info/exclude`，不要写入 `.agents/.gitignore`；默认忽略 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
-19. 兼容入口不要求模型理解 symlink，只要求运行 `.agents/scripts/check-agent-entrypoints.ps1`；异常状态 `missing`、`not-symlink`、`wrong-target` 由 `.agents/scripts/repair-agent-entrypoints.ps1` 机械修复。
+19. 兼容入口不要求模型理解 symlink；`.agents/scripts/check-agent-entrypoints.ps1` 只报告状态。`missing`、`not-symlink`、`wrong-target` 是可选兼容提示，不阻塞安装或更新，不自动修复。
 20. 被 `.agents/.git/info/exclude` 忽略的通用能力修正，需要贡献回能力包时使用 `git add -f <path>` 或 `scripts/stage-ignored-agent-file.ps1` 显式暂存；不要移除生成层 ignore 规则。
 21. 新增能力文件采用统一命名：`skills/<skill-name>/SKILL.md` 使用 kebab-case，`rules/<rule_name>.md` 使用 snake_case，`references/<reference-name>.md` 使用 kebab-case，`scripts/<script-name>.<ext>` 使用 kebab-case。
 22. 历史文件命名统一已完成；未来新增历史文件如需重命名，只有在 thin-index canonical、stale 清理或明确迁移窗口中，才同步处理路径迁移、README、AGENTS、skill 引用和兼容清理。
@@ -124,9 +124,9 @@ your-project/
 
 ### symlink
 
-符号链接是 `CLAUDE.md`、`CODEBUDDY.md` 等兼容入口的默认模式，目标统一为 `AGENTS.md`。不同 Agent 不需要理解 symlink 语义；项目落地、上下文维护或提交前运行检查脚本即可。
+符号链接是 `CLAUDE.md`、`CODEBUDDY.md` 等可选兼容入口的唯一允许形式，目标统一为 `AGENTS.md`。不同 Agent 不需要理解 symlink 语义；项目落地、上下文维护或提交前运行检查脚本只用于报告状态。
 
-Windows 下创建 symlink 推荐在管理员 cmd 中使用 `mklink CLAUDE.md AGENTS.md`、`mklink CODEBUDDY.md AGENTS.md`；启用开发者模式后部分环境可免管理员。PowerShell 修复脚本会先尝试 `New-Item -ItemType SymbolicLink`，失败后回退到 `cmd /c mklink`。若环境不支持 symlink，修复脚本应明确失败并提示环境要求，不自动降级为普通转发文件。
+Windows 下创建 symlink 推荐在管理员 cmd 中使用 `mklink CLAUDE.md AGENTS.md`、`mklink CODEBUDDY.md AGENTS.md`；启用开发者模式后部分环境可免管理员。PowerShell 修复脚本只在用户明确要求时运行，会先尝试 `New-Item -ItemType SymbolicLink`，失败后回退到 `cmd /c mklink`。若环境不支持 symlink，修复脚本应明确失败并提示环境要求，不自动降级为普通转发文件，也不得复制 `AGENTS.md`。
 
 插件 rules/skills 的浅层入口仍默认使用普通 Markdown thin-index，不使用 symlink。
 
@@ -275,7 +275,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 - `Check` 只检查，不拉取、不写入。
 - `DryRun` 拉取能力包并输出更新计划。
-- `Write` 只写入 thin-index、生成层 ignore、兼容入口和可机械合并的缺失 config 项。
+- `Write` 只写入 thin-index、生成层 ignore 和可机械合并的缺失 config 项；兼容入口只检查，不自动写入。
 - `.agents/config/` 永远不直接覆盖；模板新增字段只追加待确认项，已存在字段以目标项目当前值为准。
 - 疑似废弃字段只报告，不删除；字段语义变化只报告 `config-review-required`。
 

@@ -33,6 +33,7 @@ function New-TestProject {
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/scripts") | Out-Null
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/generate-plugin-thin-index.ps1") -Destination (Join-Path $root ".agents/scripts/generate-plugin-thin-index.ps1")
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-agents.ps1")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/check-agent-entrypoints.ps1") -Destination (Join-Path $root ".agents/scripts/check-agent-entrypoints.ps1")
 
   $pluginRoot = Join-Path $root ".agents/plugins/sample-plugin"
   New-Item -ItemType Directory -Force -Path (Join-Path $pluginRoot ".agents-plugin") | Out-Null
@@ -95,6 +96,7 @@ function New-TestProject {
   )
 
   Set-Content -Encoding UTF8 -Path (Join-Path $root "AGENTS.md") -Value "# Target Project"
+  Set-Content -Encoding UTF8 -Path (Join-Path $root "CLAUDE.md") -Value "# Existing Claude Entry"
 
   return $root
 }
@@ -130,6 +132,8 @@ try {
   $summaryOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull | Out-String
   Assert-Contains $summaryOutput "Agent kit update summary" "Default output should be summarized"
   Assert-Contains $summaryOutput "Config notes:" "Default output should group config notes"
+  Assert-Contains $summaryOutput "Optional entrypoint notes:" "Default output should report optional entrypoint notes"
+  Assert-True (-not $summaryOutput.Contains("Action required:")) "Missing or non-symlink optional entrypoints should not require action"
 
   $dryRunOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed | Out-String
   Assert-Contains $dryRunOutput "config-missing-key" "DryRun should report missing config keys"
@@ -142,6 +146,10 @@ try {
   $writeOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed | Out-String
   Assert-Contains $writeOutput "config-merged-key" "Write should merge missing config keys"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sample_rule.md")) "Write should generate rule thin-index before stale cleanup is tested"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "CODEBUDDY.md"))) "Write must not create missing optional entrypoints"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "CLAUDE.md.bak"))) "Write must not backup or replace existing optional entrypoints"
+  $claudeContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot "CLAUDE.md")
+  Assert-Contains $claudeContent "Existing Claude Entry" "Write must preserve existing optional entrypoint content"
 
   $afterWrite = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")
   Assert-Contains $afterWrite "projectName: real-project" "Write must preserve existing config values"
@@ -159,6 +167,58 @@ try {
   }
   Assert-Contains $staleOutput "removed" "Write should remove stale plugin thin-index files"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sample_rule.md"))) "Stale thin-index should be removed"
+
+  $codingPluginRoot = Join-Path $projectRoot ".agents/plugins/coding-iris-plugin"
+  New-Item -ItemType Directory -Force -Path (Join-Path $codingPluginRoot ".agents-plugin") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $codingPluginRoot "rules") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $codingPluginRoot "rules/sftp_server.md") -Value "# sftp_server"
+  Set-Content -Encoding UTF8 -Path (Join-Path $codingPluginRoot "rules/iris_agentic_dev.md") -Value "# iris_agentic_dev"
+  Set-Content -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/rules/sftp-server.md") -Value @(
+    "# Thin Index: sftp-server",
+    "",
+    "This file is a thin-index.",
+    "",
+    '- ``.agents/plugins/coding-iris-plugin/rules/sftp-server.md``'
+  )
+  Set-Content -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/rules/iris-agentic-dev.md") -Value @(
+    "# Thin Index: iris-agentic-dev",
+    "",
+    "This file is a thin-index.",
+    "",
+    "source: .agents/plugins/coding-iris-plugin/rules/iris-agentic-dev.md"
+  )
+  Set-Content -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/rules/project_custom.md") -Value @(
+    "# Project Custom",
+    "",
+    "This is a project rule and mentions thin-index as plain prose only."
+  )
+  $legacyCodingDryRun = & (Join-Path $projectRoot ".agents/scripts/generate-plugin-thin-index.ps1") -PluginPath ".agents/plugins/coding-iris-plugin" -ProjectRoot $projectRoot -Mode DryRun | Out-String
+  Assert-Contains $legacyCodingDryRun "sftp-server.md" "DryRun should report stale legacy sftp-server thin-index"
+  Assert-Contains $legacyCodingDryRun "iris-agentic-dev.md" "DryRun should report stale legacy iris-agentic-dev thin-index"
+  Assert-Contains $legacyCodingDryRun "sftp_server.md" "DryRun should generate current sftp_server thin-index"
+  Assert-Contains $legacyCodingDryRun "iris_agentic_dev.md" "DryRun should generate current iris_agentic_dev thin-index"
+  $legacyCodingWrite = & (Join-Path $projectRoot ".agents/scripts/generate-plugin-thin-index.ps1") -PluginPath ".agents/plugins/coding-iris-plugin" -ProjectRoot $projectRoot -Mode Write | Out-String
+  Assert-Contains $legacyCodingWrite "removed" "Write should remove stale legacy coding thin-index files"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sftp-server.md"))) "Legacy sftp-server thin-index should be removed"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/iris-agentic-dev.md"))) "Legacy iris-agentic-dev thin-index should be removed"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/project_custom.md")) "Project custom rules must not be removed"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sftp_server.md")) "Current sftp_server thin-index should be generated"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/iris_agentic_dev.md")) "Current iris_agentic_dev thin-index should be generated"
+
+  $i18nPluginRoot = Join-Path $projectRoot ".agents/plugins/i18n-iris-plugin"
+  New-Item -ItemType Directory -Force -Path (Join-Path $i18nPluginRoot "rules") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $i18nPluginRoot "rules/i18n_hisui_widget_index.md") -Value "# i18n_hisui_widget_index"
+  Set-Content -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/rules/i18n-hisui-widget-index.md") -Value @(
+    "# Thin Index: i18n-hisui-widget-index",
+    "",
+    "This file is a thin-index.",
+    "",
+    '- `.agents/plugins/i18n-iris-plugin/rules/i18n-hisui-widget-index.md`'
+  )
+  $legacyI18nWrite = & (Join-Path $projectRoot ".agents/scripts/generate-plugin-thin-index.ps1") -PluginPath ".agents/plugins/i18n-iris-plugin" -ProjectRoot $projectRoot -Mode Write | Out-String
+  Assert-Contains $legacyI18nWrite "removed" "Write should remove stale legacy i18n thin-index files"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/i18n-hisui-widget-index.md"))) "Legacy i18n HISUI thin-index should be removed"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/i18n_hisui_widget_index.md")) "Current i18n_hisui_widget_index thin-index should be generated"
 }
 finally {
   if (Test-Path -LiteralPath $projectRoot) {
