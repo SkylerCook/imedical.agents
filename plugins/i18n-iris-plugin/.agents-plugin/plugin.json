@@ -14,9 +14,11 @@
     ".agents/config/i18n_project_profile.md"
   ],
   "defaultPrompt": [
-    "初始化本工程 i18n 支持",
-    "提取这个页面的 i18n 文案",
-    "生成页面级翻译种子",
-    "校验服务器与本地页面翻译差异"
+    "Initialize i18n support for this project",
+    "Extract i18n text for this page",
+    "Generate page translation seed data",
+    "Verify server and local page translation differences",
+    "Verify XML print template EN records",
+    "Create EN XML print templates for PrintTemp values"
   ]
 }
