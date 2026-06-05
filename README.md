@@ -156,7 +156,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
   -Force
 ```
 
-重建时，插件脚本会清理由本插件旧版本生成、但源文件已从 `rules/` 移走或被重命名的 stale rule thin-index，包括 `sftp-server.md`、`iris-agentic-dev.md`、`i18n-hisui-widget-index.md` 这类旧命名残留。项目自己的 `.agents/rules/` 自定义规则不受影响。
+重建时，canonical 脚本会扫描 `.agents/rules/` 中所有指向 `.agents/plugins/*/rules/*.md` 的 thin-index，并清理源文件已从 `rules/` 移走或被重命名的 stale rule thin-index，包括 `sftp-server.md`、`iris-agentic-dev.md`、`i18n-hisui-widget-index.md` 这类旧命名残留。生成新入口仍只针对当前 `-PluginPath`；项目自己的 `.agents/rules/` 自定义规则不受影响。
 
 部署后，业务项目应忽略 `.agents/`，避免把 Agent 能力包直接提交进业务项目仓库。`.agents/` 内部仍保留自己的 Git 历史；如果需要提交 Agent 能力包变更，在 `.agents/` 目录内单独提交并推送：
 

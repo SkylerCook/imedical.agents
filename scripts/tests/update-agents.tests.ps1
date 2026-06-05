@@ -169,6 +169,8 @@ try {
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sample_rule.md"))) "Stale thin-index should be removed"
 
   $codingPluginRoot = Join-Path $projectRoot ".agents/plugins/coding-iris-plugin"
+  $agentContextPluginRoot = Join-Path $projectRoot ".agents/plugins/agent-context-kit"
+  New-Item -ItemType Directory -Force -Path $agentContextPluginRoot | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $codingPluginRoot ".agents-plugin") | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $codingPluginRoot "rules") | Out-Null
   Set-Content -Encoding UTF8 -Path (Join-Path $codingPluginRoot "rules/sftp_server.md") -Value "# sftp_server"
@@ -192,6 +194,9 @@ try {
     "",
     "This is a project rule and mentions thin-index as plain prose only."
   )
+  $allPluginCleanupDryRun = & (Join-Path $projectRoot ".agents/scripts/generate-plugin-thin-index.ps1") -PluginPath ".agents/plugins/agent-context-kit" -ProjectRoot $projectRoot -Mode DryRun | Out-String
+  Assert-Contains $allPluginCleanupDryRun "sftp-server.md" "DryRun from a plugin without rules should still report stale indexes from other plugins"
+  Assert-Contains $allPluginCleanupDryRun "iris-agentic-dev.md" "All-plugin cleanup should not depend on current PluginPath rules"
   $legacyCodingDryRun = & (Join-Path $projectRoot ".agents/scripts/generate-plugin-thin-index.ps1") -PluginPath ".agents/plugins/coding-iris-plugin" -ProjectRoot $projectRoot -Mode DryRun | Out-String
   Assert-Contains $legacyCodingDryRun "sftp-server.md" "DryRun should report stale legacy sftp-server thin-index"
   Assert-Contains $legacyCodingDryRun "iris-agentic-dev.md" "DryRun should report stale legacy iris-agentic-dev thin-index"
@@ -215,9 +220,10 @@ try {
     "",
     '- `.agents/plugins/i18n-iris-plugin/rules/i18n-hisui-widget-index.md`'
   )
-  $legacyI18nWrite = & (Join-Path $projectRoot ".agents/scripts/generate-plugin-thin-index.ps1") -PluginPath ".agents/plugins/i18n-iris-plugin" -ProjectRoot $projectRoot -Mode Write | Out-String
-  Assert-Contains $legacyI18nWrite "removed" "Write should remove stale legacy i18n thin-index files"
+  $allPluginCleanupWrite = & (Join-Path $projectRoot ".agents/scripts/generate-plugin-thin-index.ps1") -PluginPath ".agents/plugins/agent-context-kit" -ProjectRoot $projectRoot -Mode Write | Out-String
+  Assert-Contains $allPluginCleanupWrite "removed" "Write from a plugin without rules should remove stale indexes from other plugins"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/i18n-hisui-widget-index.md"))) "Legacy i18n HISUI thin-index should be removed"
+  $legacyI18nWrite = & (Join-Path $projectRoot ".agents/scripts/generate-plugin-thin-index.ps1") -PluginPath ".agents/plugins/i18n-iris-plugin" -ProjectRoot $projectRoot -Mode Write | Out-String
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/i18n_hisui_widget_index.md")) "Current i18n_hisui_widget_index thin-index should be generated"
 }
 finally {

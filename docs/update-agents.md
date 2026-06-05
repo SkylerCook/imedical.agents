@@ -120,7 +120,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `entrypoint-missing` / `entrypoint-not-symlink` / `entrypoint-wrong-target` | 可选兼容入口缺失或异常；不阻塞安装/更新，脚本不会自动修复或复制。 |
 | `plugin-found` | 已发现插件。 |
 | `generated` | dry-run 发现将生成 thin-index，或 write 已生成。 |
-| `removed` | write 已清理 stale thin-index，包括可识别的旧命名 rule thin-index。 |
+| `removed` | write 已清理 stale thin-index；清理阶段扫描所有指向 `.agents/plugins/*/rules/*.md` 的 rule thin-index，不受当前 `PluginPath` 限制。 |
 | `skipped` 且 reason 包含 `target exists` | 目标 thin-index 已存在，默认不覆盖。 |
 | `config-missing-key` | 模板有新增字段，当前项目 config 没有；dry-run 只提示。 |
 | `config-merged-key` | write 已把缺失配置项追加到待确认区块。 |

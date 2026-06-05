@@ -138,7 +138,7 @@ Windows 下创建 symlink 推荐在管理员 cmd 中使用 `mklink CLAUDE.md AGE
 .agents/plugins/i18n-iris-plugin/scripts/generate-plugin-thin-index.ps1
 ```
 
-各插件可以保留自己的同名脚本作为稳定调用入口，但脚本必须委托到根 `scripts/generate-plugin-thin-index.ps1`。新增 stale 清理、frontmatter 传播、输出格式或冲突检测时，只修改 canonical 脚本，避免插件副本漂移和插件间运行时依赖。
+各插件可以保留自己的同名脚本作为稳定调用入口，但脚本必须委托到根 `scripts/generate-plugin-thin-index.ps1`。新增 stale 清理、frontmatter 传播、输出格式或冲突检测时，只修改 canonical 脚本，避免插件副本漂移和插件间运行时依赖。canonical 脚本的生成阶段只处理当前 `PluginPath`；stale 清理阶段扫描 `.agents/rules/` 中所有指向 `.agents/plugins/*/rules/*.md` 的 thin-index，因此通过任一插件 wrapper 调用都能清理其它插件的过期 rule 入口。
 
 独立分发单个插件时，不能只复制 `.agents/plugins/<plugin>/`。若仍使用 `plugin-reference-thin-index`，必须同时携带根 `scripts/generate-plugin-thin-index.ps1`；否则改用 `copy` 模式或手工创建 thin-index。插件 wrapper 缺少根 canonical 脚本时应明确失败，不静默降级为复制旧实现。
 
