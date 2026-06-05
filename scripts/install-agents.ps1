@@ -10,7 +10,7 @@ $sparsePaths = @(
   "/rules/**",
   "/skills/**",
   "/plugins/**",
-  "/scripts/**"
+  "/scripts/*.ps1"
 )
 
 # Hide project-local generated layers in the .agents Git repository.

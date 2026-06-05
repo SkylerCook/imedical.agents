@@ -87,7 +87,7 @@ function Get-ThinIndexSourcePath {
     if ($content -notmatch "thin-index") {
         return $null
     }
-    $match = [System.Text.RegularExpressions.Regex]::Match($content, '- ``(?<source>[^`]+)``')
+    $match = [System.Text.RegularExpressions.Regex]::Match($content, '- `(?<source>[^`]+)`')
     if (-not $match.Success) {
         return $null
     }

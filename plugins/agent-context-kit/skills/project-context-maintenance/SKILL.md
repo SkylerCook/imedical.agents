@@ -161,7 +161,26 @@ description: Use when initializing or maintaining agent project context such as 
 3. 项目记忆应保持在新 Agent 约 2 分钟可读完的长度。
 4. 规则文件只保留稳定规范，不写当前进度。
 5. 如果内容属于领域插件或专项规则，优先更新对应 owner；memory 只保留入口或摘要。
-6. 编辑后检查重复内容、过期矛盾和敏感信息。
+6. `.agents/config/` 只允许合并，不允许用插件模板或默认值直接覆盖目标项目已有配置。
+7. 编辑后检查重复内容、过期矛盾和敏感信息。
+
+## 插件更新流程
+
+已部署业务工程更新 `.agents` 能力包时，优先使用统一更新脚本：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun
+```
+
+确认 dry-run 输出后，才使用 `-Mode Write`。更新脚本只负责拉取能力包、检查入口、维护生成层 ignore、重建 plugin thin-index 和合并明确缺失的 config 项；不得自动重写 `AGENTS.md`、`.agents/memory/`、`.agents/rules/project.md` 或项目已有 config 值。
+
+配置合并规则：
+
+- 目标项目已有字段值优先，插件模板不能覆盖。
+- 模板新增字段只追加到待确认配置项区块。
+- 疑似废弃字段只报告 `config-deprecated-candidate`，不删除。
+- 字段语义变化只报告 `config-review-required`，由 Agent 或人工确认后再修改。
+- host、账号、密码、token、namespace、远程路径等连接事实仍只能来自 `.mcp.json`，不得写入 config、rules、memory 或插件。
 
 ## 初始化流程
 
@@ -202,7 +221,7 @@ description: Use when initializing or maintaining agent project context such as 
 完整闭环必须包含：
 
 1. 读取目标工程 `AGENTS.md` 和对应插件真实 init skill。
-2. 生成或更新 `.agents/config/*_profile.md`；profile 只保存非敏感项目差异，不保存 host、账号、密码、token、namespace 或远程路径。
+2. 生成或更新 `.agents/config/*_profile.md`；profile 只保存非敏感项目差异，不保存 host、账号、密码、token、namespace 或远程路径；已有 profile 必须合并，不得覆盖。
 3. 生成 `.agents/rules/` 和 `.agents/skills/` thin-index；thin-index 必须指向 `.agents/plugins/<plugin>/` 内真实文件。
 4. 如插件需要本地脚本，复制到 `.agents/scripts/`；目标存在且内容不同时，默认报告 conflict，不覆盖。
 5. 更新 `AGENTS.md` 的插件能力路由；入口只写启动顺序、profile/rules/skills 路由和硬约束，不复制完整规则。
@@ -257,6 +276,7 @@ description: Use when initializing or maintaining agent project context such as 
 - rules 只包含长期约束，不记录任务进度。
 - 插件内容可复用，且没有源项目硬编码。
 - 插件初始化不是只生成 thin-index；已完成 profile、rules/skills、scripts、AGENTS 路由、忽略规则、敏感信息扫描和 Git 状态验证。
+- `.agents/config/` 已保留项目已有值；模板新增字段只作为待确认项合并。
 - `.agents/.git/info/exclude` 已包含生成层忽略规则。
 - 兼容入口检查结果为 `ok`；`CLAUDE.md`、`CODEBUDDY.md` 未维护第二份规则。
 - 没有新增密钥或私有连接信息。

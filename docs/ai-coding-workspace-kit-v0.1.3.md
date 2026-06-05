@@ -265,11 +265,22 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stage-ignored-agent-
 
 ## 版本兼容
 
-v0.1.3 只要求插件 `.agents-plugin/plugin.json` 保留 `version` 字段。
+v0.1.3 要求插件 `.agents-plugin/plugin.json` 保留 `version` 字段，并推荐已部署业务工程使用统一更新入口：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun
+```
+
+更新脚本采用半自动稳妥策略：
+
+- `Check` 只检查，不拉取、不写入。
+- `DryRun` 拉取能力包并输出更新计划。
+- `Write` 只写入 thin-index、生成层 ignore、兼容入口和可机械合并的缺失 config 项。
+- `.agents/config/` 永远不直接覆盖；模板新增字段只追加待确认项，已存在字段以目标项目当前值为准。
+- 疑似废弃字段只报告，不删除；字段语义变化只报告 `config-review-required`。
 
 以下能力留到 v0.2 设计：
 
-- 插件升级检测。
 - copy 模式漂移检测。
 - 目标工程安装记录。
 - thin-index 来源版本校验。
