@@ -112,3 +112,55 @@
 - 外部业务组返回的打印数据是否已有各自 i18n 机制。
 - XML 模板工具对更多语言和更多模板结构的适配情况。
 
+## 对照案例：6095798
+
+需求：`{多语言}检验检查申请-打印的检验\检查\病理申请单不支持多语言`。
+
+已核实提交信息：
+
+- 提交人：`xingkaile`
+- `doc-ws/backend`：
+  - `f8fcf3658551f1566f40cd439ee6a07aa0bc943b`：检验、检查、病理申请单打印增加多语言支持；固定中文标签改用 `%Trans`；打印模板调用 `GetI18nXMLPrintTemplate`。
+  - `d00ec6adbfd12531870b99a57a444ec2398b017f`：移除 `DHCDocAPPBL` 中 `GetPisPrintCon` 和 `GetPisPrintTemp` 的调试断点语句。
+- `public-mc/backend`：
+  - `8b2eb479a248205157d20b9518a8d315e022640a`：重构 `DHCDoc.Common.Translate` 翻译门面，统一支持 `qTrantable`；新增 `DHCDoc.Util.Translate.GetI18nXMLPrintTemplate`。
+  - `a47e8ff4adf69cc2874d115a3addab9134ee1efd`：修复 `GetI18nXMLPrintTemplate` 默认返回值为原始模板代码，确保源语言下模板正常返回。
+  - `0cdbc7187c998e01072dc1504cd3fd7657439f1b`：补充 `DHCDoc.Common.Translate` 标准化注释，废弃 `DocComTranslatePage`，`GetTransSexJSON` 改用门面方法。
+
+已读 diff 后的事实：
+
+- 公共模板 helper 初版在源语言下可能返回空，后续修正为默认 `i18nXPTCode=xptCode`。这说明模板 i18n helper 必须具备明确 fallback，不能只覆盖目标语言分支。
+- 公共字典门面从直接调用各 `User.*.GetTranByDesc(...)`，收敛为 `..%TranslateTableFieldValue(class, field, value, langid, qTrantable)`。
+- 门面方法补充了 `desc/class/field/source/debug` 注释，便于后续 Agent 判断字段来源和调用入口。
+- 业务打印改造覆盖了多种数据形态：
+  - JSON 打印对象，例如检验告知单里 `PrintDataAll.%ToJSON()`。
+  - 拼接字符串参数，例如病理申请单 `MyPara` 使用 `$C(2)`、`^` 组合字段。
+  - 从数据库或 Global 取展示值后写入打印数据，例如性别、科室、医院、用户、医护人员、医嘱项。
+- 固定文案使用 `%Trans`，例如 `检验告知单`、`床号`、`科研`、`元`、`急`、`加急`、`补`、`刷卡检查`、页码、标本表头。
+- 字典展示值使用公共门面或底层表字段翻译 helper，例如 `GetTransSex`、`GetTransLoc`、`GetTransHosp`、`GetTransUser`、`GetTransDoc`、`GetTransWard`、`GetTransARCIM`。
+- `DHCAPPPrintCom` 中仍可见直接调用 `..%TranslateTableFieldValue(...)` 的历史写法；作为后续通用规则，应优先收敛到公共门面，但不能在不了解上下文时强行重构历史代码。
+- 业务提交中曾引入 `b //45`、`b ;xkl 01` 调试断点，后续 fix 专门移除。这说明打印 i18n 改造完成检查必须扫描断点和临时调试输出。
+
+本对照案例能支持的候选经验：
+
+- 打印 i18n 往往同时涉及业务打印代码和公共 i18n 能力；不能只看单个业务仓库。
+- 公共翻译能力可能位于公共模块，例如 `public-mc/backend`，业务打印改造可能位于业务模块，例如 `doc-ws/backend`。
+- 固定中文标签改用 `%Trans` 是多个打印需求中重复出现的候选做法。
+- XML 模板国际化匹配是多个需求中重复出现的候选能力，但仍只适用于已确认存在 XML 模板链路的打印。
+- 公共方法支持 `qTrantable` 说明字典翻译链路需要保留底层翻译表/翻译域参数，业务代码不应绕过公共门面随意拼接 class/field。
+- 打印返回数据可能是 JSON，也可能是 string 拼接；6095798 同时出现了这两类形态。
+- 完成检查必须包含 `b //`、`b ;` 等 ObjectScript 调试断点扫描。
+
+本对照案例暂不能证明的内容：
+
+- 不能证明所有打印都走 XML 模板。
+- 不能证明所有打印都走 `GetXMLTemplateId(PrintTemp)`。
+- 不能证明所有打印返回数据都是 JSON。
+- 不能证明 6095804 的总览打印链路与 6095798 的检验检查申请链路完全相同。
+
+后续如果要把 6095798 继续用于完善通用规则，应先只读核实对应提交 diff，再把已验证事实拆分到：
+
+- `i18n_coding_print_backend.md`：打印固定文案、模板匹配、返回数据形态识别。
+- `i18n_dict_translate_facade.md`：`qTrantable`、公共门面、字典字段来源贴近原则。
+- `i18n-xml-print-template-sync`：只在确认 XML 模板链路时参与模板同步。
+- `i18n_coding_backend.md` 或打印规则完成检查：补充断点/临时调试输出扫描。
