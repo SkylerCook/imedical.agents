@@ -9,9 +9,9 @@
     "tlsVerify": false
   },
   "web": {
-    "basePath": "TODO: IRIS Atelier doc Web root prefix, for example <web-root-prefix>",
-    "cspBasePath": "TODO: IRIS Atelier doc CSP prefix, usually <web-root-prefix>/csp",
-    "brokerPath": "TODO: Broker request path under basePath, usually csp/<broker-class>.cls",
+    "basePath": "imedical/web",
+    "cspBasePath": "imedical/web/csp",
+    "brokerPath": "csp/websys.Broker.cls",
     "cookie": ""
   },
   "mcp": {

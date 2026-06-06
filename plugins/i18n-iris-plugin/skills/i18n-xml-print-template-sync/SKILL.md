@@ -125,13 +125,9 @@ XPC_FileData    = translated XML stream
 
 Existing target records are not overwritten unless `-Overwrite` is passed. Overwrite mode must back up the old target XML to `docs/xmlPrintTemp/backups/`.
 
-Language display names are resolved by the script:
+Language display names are resolved by the script. The mapping comes from `.agents/config/i18n_project_profile.md` 的语言目录（服务器 `^SS("LAN",id)` 实际数据）。不在本文件硬编码语言列表，避免两处维护。
 
-```text
-EN -> English
-FR -> French
-other -> upper-case language code
-```
+未在语言目录中找到的语言 code 使用大写形式作为 display name。
 
 If non-visible Chinese system fields such as `fontname="宋体"` become mojibake through MCP UTF-8 transport, use XML numeric entities such as `fontname="&#23435;&#20307;"` to preserve the same XML value without storing raw Chinese bytes.
 

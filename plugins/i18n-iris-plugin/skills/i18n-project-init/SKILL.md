@@ -67,6 +67,13 @@ description: Initialize the reusable IRIS i18n agent kit in a target project wit
 4. 初始化项目配置：
    - 从 `templates/i18n_project_profile.template.md` 生成 `.agents/config/i18n_project_profile.md`。
    - 默认保留当前 IRIS i18n 存储：页面级 `^websys.TranslationD("PAGE",...)`，字典级 `BDP_Translation`。
+   - **语言目录补全**：
+     - 若 `.mcp.json` 提供 IRIS 执行能力（`iris_execute`），运行以下 ObjectScript 查询服务器语言：
+       ```
+       s id="" f  s id=$o(^SS("LAN",id)) q:id=""  w id,"=",^SS("LAN",id),!
+       ```
+       输出格式（每行）：`langId=Code^Name^Active^...`，取 langId、Code、Name 写入 profile 语言目录表。
+     - 若 MCP 不可用，使用兜底：`EN -> 1`、`CH -> 20`。
    - 标记仍需目标工程确认的页面组、种子类路径、业务边界和 `HISUI_SRC`。
 
 5. 接入入口：

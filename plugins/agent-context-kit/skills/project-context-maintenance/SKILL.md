@@ -71,7 +71,7 @@ description: Use when initializing or maintaining agent project context such as 
 
 | contextMode | 适用条件 | 处理原则 |
 |---|---|---|
-| `codebase-complete` | 目标工程已有较完整代码、目录、构建配置或用户确认本地代码代表主要工程事实。 | 可以从已验证代码、配置和文档归纳架构事实；仍需区分事实、推断和待确认项。 |
+| `codebase-complete` | 目标工程已有较完整代码、目录、构建配置或用户确认本地代码代表主要工程事实。 | 可以从已验证代码、配置和文档归纳架构事实；仍需区分事实、推断和待确认项。写入 config 前必须先探索代码，用已验证值填充，只对确实无法从代码确定的字段标 TODO。 |
 | `intent-first-on-demand-export` | 目标工程刚新建、代码很少或零散，或用户明确说明后续会按需从服务器导出文件。 | 以用户说明的项目用途和工作流为主；本地少量文件只记录为“当前本地已有文件”，不得推导完整架构、主模块或长期规则。 |
 
 若用户明确说明“后续按需导出文件”“需求处理中再导出”“当前只是需求处理工作区”等意图，即使目录中已有少量代码文件，也优先采用 `intent-first-on-demand-export`。
@@ -152,6 +152,8 @@ description: Use when initializing or maintaining agent project context such as 
 - 保持稳定：任务进度只在 memory，AGENTS 只在入口或硬约束变化时更新。
 - 合并时保留目标项目已有业务规则，不覆盖用户定制。
 - 多 Agent 入口差异较大时，优先在 AGENTS 中放统一入口，再由插件或配置处理差异。
+- 配置表格不要写"同左""同上"等引用词；AI 无法解析表格中的相对引用。相同值要么每个单元格重复写，要么提升到通用配置段落。
+- 多仓库工作区中所有仓库统一的配置（如远端路径、namespace、编码策略）放在通用配置段落，不要在差异表中重复。
 
 ## 禁止写入
 
@@ -195,23 +197,30 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 1. 先判断并记录 `contextMode`；缺少 `.agents/config/project_context_profile.md` 时，参考 `templates/project_context_profile.template.md` 创建。
 2. 运行 `.agents/scripts/check-agent-entrypoints.ps1`，只检查 `CLAUDE.md`、`CODEBUDDY.md` 可选兼容入口；不自动创建、复制或修复。
-3. 创建或更新 `AGENTS.md`，只放最小启动流程和路由；新建时参考 `templates/AGENTS.template.md`。
+3. **代码探索（仅 `codebase-complete`）**：在写入任何 config/rules 之前，先探索本地代码，提取可验证的事实填入配置文件。探索范围：
+   - 目录结构：源码根目录、CSP 目录、JS/CSS 目录、构建/部署目录。
+   - 命名约定：类名前缀、分层模式（如 BLH/DATA/SQL）、文件命名模板。
+   - 基类和公共设施：Super 类、JSON 工具类、Broker 入口、公共 JS/CSS。
+   - 构建/运行入口：package.json、build 脚本、workspace 配置。
+   - 已有配置：`.mcp.json`、`.vscode/`、项目文档。
+   只对确实无法从代码确定的字段（如远端部署路径、namespace、服务器凭据）标 TODO。`intent-first-on-demand-export` 跳过此步骤。
+4. 创建或更新 `AGENTS.md`，只放最小启动流程和路由；新建时参考 `templates/AGENTS.template.md`。
    - `codebase-complete`：可写入已验证架构事实。
    - `intent-first-on-demand-export`：必须写明本地代码不代表完整工程，后续按需导出相关文件后再分析和修改。
-4. 如缺失 `.agents/rules/project.md`，基于项目规则模板创建。
-5. 如缺失 `.agents/memory/project-memory.md`，基于项目记忆模板创建。
-6. 使用插件内置脚本生成 plugin thin-index：
+5. 如缺失 `.agents/rules/project.md`，基于项目规则模板创建。
+6. 如缺失 `.agents/memory/project-memory.md`，基于项目记忆模板创建。
+7. 使用插件内置脚本生成 plugin thin-index：
    ```powershell
    powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/agent-context-kit/scripts/generate-plugin-thin-index.ps1 -PluginPath .agents/plugins/agent-context-kit -ProjectRoot . -Mode DryRun
    ```
-7. 检查冲突后，仅在用户要求初始化或更新索引时，用 `-Mode Write` 重新执行。
-8. 项目特定值放入 `.agents/config/`，不要写成插件默认值。
-9. 确认 `.agents/.git/info/exclude` 包含生成层忽略规则，至少包括：
-   - `/config/`
-   - `/memory/`
-   - `/rules/`
-   - `/skills/`
-   - `/scripts/`
+8. 检查冲突后，仅在用户要求初始化或更新索引时，用 `-Mode Write` 重新执行。
+9. 项目特定值放入 `.agents/config/`，不要写成插件默认值。
+10. 确认 `.agents/.git/info/exclude` 包含生成层忽略规则，至少包括：
+    - `/config/`
+    - `/memory/`
+    - `/rules/`
+    - `/skills/`
+    - `/scripts/`
 
 插件内 `scripts/generate-plugin-thin-index.ps1` 是稳定调用入口，只 wrapper 到根 `.agents/scripts/generate-plugin-thin-index.ps1`。修改 thin-index 行为时只改根脚本，不复制插件脚本实现。
 
@@ -277,6 +286,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 完成前检查：
 
+- `codebase-complete` 工程：config 中可从代码确定的字段已用探索结果填充，而非全部标 TODO。
 - 每类事实仍只有一个清晰事实来源。
 - 已明确 `contextMode`，且空壳/按需导出工程没有基于零散文件生成架构结论。
 - memory 只包含当前状态和长期经验，不复制完整规则。

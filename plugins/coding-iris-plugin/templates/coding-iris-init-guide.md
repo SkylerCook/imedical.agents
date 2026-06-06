@@ -1,5 +1,7 @@
 # coding-iris-plugin 初始化指南
 
+> **定位**：本文件是人类参考手册，供人工手动初始化时查阅。Agent 执行初始化时应直接读取 `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`，该文件包含判断逻辑和分支处理，是唯一权威执行指令。
+
 ## 最小接入步骤
 
 1. 将插件目录放到目标工程：
@@ -32,6 +34,12 @@
 
 5. 准备 IRIS 开发主力脚本配置：
 
+`.agents/config/project-env.json` 是人类可读的配置副本，`.mcp.json` 是 MCP 运行时事实来源。两者共存但 `.mcp.json` 优先。
+
+**若 `.mcp.json` 已存在**：从 `.mcp.json` 提取已知值填充 `project-env.json`，无需运行 `sync-env-config.js`。
+
+**若 `.mcp.json` 不存在**：
+
 ```powershell
 New-Item -ItemType Directory -Force .agents/config
 Copy-Item .agents/plugins/coding-iris-plugin/templates/project-env.template.json .agents/config/project-env.json
@@ -39,7 +47,7 @@ notepad .agents/config/project-env.json
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
 ```
 
-`.agents/config/project-env.json` 用于保存目标工程本地 IRIS/MCP/VSCode 环境配置，可能包含账号、密码、服务器地址和本机路径，不应提交到业务项目版本库。
+`.agents/config/project-env.json` 和 `.mcp.json` 可能包含敏感信息，不应提交到业务项目版本库。
 
 6. 生成 thin-index：
 
@@ -80,9 +88,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 - 插件目录存在。
 - `convert-gb2312-upload.ps1` 已复制到 `.agents/scripts/`。
 - `generate-plugin-thin-index.ps1` 保持在插件 `scripts/` 内并可直接调用。
-- `.agents/config/iris_project_profile.md` 已填写工程差异。
-- `.agents/config/project-env.json` 已由用户从模板复制并填写。
-- `node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js` 可生成 `.mcp.json`。
+- `.agents/config/iris_project_profile.md` 已填写工程差异（多仓库工作区只填通用项）。
+- `.agents/config/project-env.json` 已创建并填写（可从 `.mcp.json` 反向填充）。
 - `.mcp.json` 保存实际 MCP 连接事实。
 - `.agents/rules/` 和 `.agents/skills/` 的 thin-index 指向插件真实文件。
 - `.agents/.git/info/exclude` 已包含生成层忽略规则。
