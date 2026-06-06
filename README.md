@@ -38,6 +38,7 @@ imedical.agents/
 常用 skill：
 
 - `coding-iris-init`：初始化目标工程的 IRIS 编码支持。
+- `iris-coding`：统一处理 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码需求，并按范围路由到后端、前端、工作流或 GB2312 promote 流程。
 - `iris-backend-coding`：处理 IRIS/ObjectScript 后端编码任务。
 - `iris-frontend-coding`：处理 CSP、JavaScript、CSS、HISUI 前端编码任务。
 - `iris-frontend-gb2312-promote`：将转换后的 `{name}.gb2312.{ext}` 文件确认提升回原文件名，并可选上传。

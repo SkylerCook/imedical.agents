@@ -6,9 +6,12 @@
 - MCP 连接事实来源：`.mcp.json`
 - 编码规则索引：`.agents/rules/iris_coding_index.md`
 - 首次初始化：`.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`
+- 统一编码入口：`.agents/skills/iris-coding/SKILL.md`
 - 后端编码：`.agents/skills/iris-backend-coding/SKILL.md`
 - 前端编码：`.agents/skills/iris-frontend-coding/SKILL.md`
 - 前端 GB2312 转换后替换源文件：`.agents/skills/iris-frontend-gb2312-promote/SKILL.md`
+
+普通编码需求优先使用 `iris-coding`；明确的纯后端、纯前端或 GB2312 promote 任务可直接使用对应专项 skill。
 
 `.agents/rules/` 和 `.agents/skills/` 中的 IRIS 编码文件可以是 thin-index；thin-index 应明确指向 `.agents/plugins/coding-iris-plugin/` 内真实 rules/skills。`coding-iris-init` 是 bootstrap skill，首次初始化不依赖 thin-index。
 

@@ -13,9 +13,14 @@
 ## 命名约定
 
 - skill 目录使用 kebab-case。
-- rule 文件使用 snake_case。
+- rule 文件使用 snake_case，即单词间使用 `_`，例如 `i18n_verify.md`、`i18n_link_tracing.md`、`iris_coding_frontend.md`。
 - reference 文件使用 kebab-case。
 - script 文件使用 kebab-case。
+- 插件包目录和 manifest `name` 使用稳定能力包名，允许采用“能力/对象 + 技术域 + plugin/kit”的历史命名，例如 `agent-context-kit`、`coding-iris-plugin`、`i18n-iris-plugin`；已部署插件目录名不为风格统一重命名。
+- 插件内部 skill 名优先面向任务触发，采用“技术域/对象 + 任务”的 kebab-case，例如 `project-context-maintenance`、`iris-coding`、`iris-backend-coding`、`iris-frontend-coding`、`i18n-coding`、`i18n-page-trans-seed`。
+- bootstrap 初始化 skill 可保留历史插件名前缀，例如 `coding-iris-init`、`i18n-project-init`；如需改名，先新增兼容入口并说明迁移策略，不直接替换。
+- rule 名以规则所属技术域为前缀并使用 snake_case，例如 `iris_coding_*`、`i18n_*`；规则文件常作为规则索引、thin-index 文件名和 Markdown 链接目标，继续使用 `_`，不要为了匹配插件目录名或 skill 的 kebab-case 把已稳定 rule 改成另一套前缀。
+- 对外文档中应明确区分：插件包名是部署和能力包边界，skill 名是 Agent 触发入口，rule 名是规则路由入口；三者不要求字面顺序完全一致，但同一插件内新增项必须沿用既有主轴。
 - 历史文件不为风格统一单独重命名；只有在明确迁移窗口中才同步 thin-index stale 清理、README、AGENTS 和 skill 引用。
 
 ## Thin-Index 决策

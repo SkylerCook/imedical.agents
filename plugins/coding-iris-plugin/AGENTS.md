@@ -19,9 +19,12 @@
 ## Skill 路由
 
 - 首次初始化：`skills/coding-iris-init/SKILL.md`
+- 统一编码入口：`skills/iris-coding/SKILL.md`
 - 后端 ObjectScript 编码：`skills/iris-backend-coding/SKILL.md`
 - 前端 CSP/JS/HISUI 编码：`skills/iris-frontend-coding/SKILL.md`
 - 前端 GB2312 转换后替换源文件：`skills/iris-frontend-gb2312-promote/SKILL.md`
+
+普通编码需求优先使用 `iris-coding`。当任务边界已经明确为纯后端、纯前端或 GB2312 promote 时，可直接使用对应专项 skill。
 
 `coding-iris-init` 是 bootstrap skill。首次接入目标工程时应直接读取插件真实路径 `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`，不要依赖安装后才会生成的 thin-index。
 

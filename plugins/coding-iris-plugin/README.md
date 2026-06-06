@@ -83,8 +83,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 2. 基于 `templates/iris_project_profile.template.md` 创建 `.agents/config/iris_project_profile.md`。
 3. 检查目标工程 `.mcp.json` 是否包含实际需要的 IRIS/SFTP 能力。
 4. 运行 thin-index dry-run，确认无冲突后再 write。
-5. 后端任务使用 `iris-backend-coding`，前端任务使用 `iris-frontend-coding`。
-6. 需要把转换后的 GB2312 文件替换源文件时，使用 `iris-frontend-gb2312-promote`。
+5. 普通编码任务优先使用 `iris-coding` 统一入口，由它按任务范围路由到后端、前端、工作流或 promote 流程。
+6. 明确的纯后端任务可直接使用 `iris-backend-coding`，明确的纯前端任务可直接使用 `iris-frontend-coding`。
+7. 需要把转换后的 GB2312 文件替换源文件时，使用 `iris-frontend-gb2312-promote`。
 
 ## IRIS 开发主力脚本
 

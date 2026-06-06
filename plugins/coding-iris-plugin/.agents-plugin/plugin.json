@@ -16,6 +16,7 @@
   ],
   "defaultPrompt": [
     "Initialize IRIS coding support in this project",
+    "Handle an IRIS coding request with the unified coding workflow",
     "Modify this ObjectScript class using IRIS backend rules",
     "Modify this CSP/HISUI page using IRIS frontend rules",
     "Convert frontend files to GB2312 and promote them after confirmation",
