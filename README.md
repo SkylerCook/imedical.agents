@@ -63,6 +63,7 @@ imedical.agents/
 - `i18n-bdp-trans-seed`：生成字典/表字段展示值翻译 SQL。
 - `i18n-csp-trans-sync`：导出、校验和同步 CSP 页面翻译。
 - `i18n-xml-template`：翻译 XML 打印模板文本。
+- `i18n-xml-print-template-sync`：在已确认存在 XML 模板记录的打印链路中，导出、校验、同步目标语言 XML 打印模板。
 
 ## 推荐接入方式
 

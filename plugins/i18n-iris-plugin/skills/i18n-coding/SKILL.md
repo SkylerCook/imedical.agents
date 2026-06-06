@@ -18,8 +18,11 @@ description: Apply frontend and backend internationalization coding changes for 
 3. 前端文件读取 `i18n_coding_frontend.md`
 4. 后端文件读取 `i18n_coding_backend.md`
 5. 后端涉及字典/表字段展示值时读取 `i18n_dict_translate_facade.md`
-6. 后端打印链路、XML 打印模板名、打印 JSON 数据读取 `i18n_coding_print_backend.md`
-7. UI 框架行为不确定时读取 profile 指定的控件索引或源码索引
+6. 后端打印链路、实际打印返回数据读取 `i18n_coding_print_backend.md`
+7. 涉及打印或复杂页面链路时，先读取 `i18n_link_tracing.md` 定位实际调用链路
+8. 涉及多种数据形态时，读取 `i18n_field_classification.md` 对用户可见文本分类
+9. 验证阶段读取 `i18n_verify.md`
+10. UI 框架行为不确定时读取 profile 指定的控件索引或源码索引
 
 ## 输入范围
 
@@ -45,10 +48,22 @@ description: Apply frontend and backend internationalization coding changes for 
 
 - 页面级后台提示使用 profile 指定的页面级翻译 helper。
 - 必须显式页面上下文时使用 profile 指定的显式页面码 helper。
-- 表字段/字典展示值使用 profile 指定的字典/表字段翻译 helper。
+- 表字段/字典展示值使用 profile 指定的字典/表字段翻译 helper，分类规则见 `i18n_field_classification.md`。
 - 首次遇到新的字典/表字段展示值翻译时，计划或实现必须包含“补公共 `GetTransXxx` 方法 + 注释 + 业务调用”。
-- 打印链路同时按打印规则处理 XML 模板名 fallback、分页/标题/标识文案、字典展示值分流和调试断点扫描。
+- 打印链路按 `i18n_coding_print_backend.md` 处理模板 fallback、文案分类和调试断点扫描。XML 模板同步只在链路定位确认存在 XML 模板记录后触发。
 - 不改变业务流程、权限、校验、持久化或状态流转。
+
+## 阶段化执行（复杂需求推荐）
+
+当需求涉及多个文件、多种数据形态或打印链路时，按以下阶段执行：
+
+1. 先读 `i18n_link_tracing.md`，定位实际调用链路，输出链路事实报告。
+2. 再读 `i18n_field_classification.md`，对用户可见文本分类，输出字段分类清单。
+3. 按清单执行编码改造（前端 + 后端）。
+4. 按需执行 template/seed 技能（仅当链路定位确认需要时）。
+5. 按 `i18n_verify.md` 验证。
+
+阶段化执行是推荐模式，不强制。简单需求（单文件、明确链路）仍可直接执行编码改造。
 
 ## 产出
 
@@ -56,3 +71,4 @@ description: Apply frontend and backend internationalization coding changes for 
 - 列出需进入翻译表的文案范围。
 - 标记无法确认的主页面、占位符语义或 UI 框架自动翻译边界。
 - 提醒继续执行 `i18n-text-extract` 和对应的翻译种子 skill。
+- 复杂需求应产出链路事实报告和字段分类清单。

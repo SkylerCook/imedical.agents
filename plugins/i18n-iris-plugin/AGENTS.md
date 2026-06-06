@@ -23,6 +23,7 @@
 - 字典翻译种子：`skills/i18n-bdp-trans-seed/SKILL.md`
 - XML 模板翻译：`skills/i18n-xml-template/SKILL.md`
 - CSP 翻译同步：`skills/i18n-csp-trans-sync/SKILL.md`
+- XML 打印模板同步：`skills/i18n-xml-print-template-sync/SKILL.md`（仅用于已确认存在 XML 模板记录的打印链路）
 
 ## 规则入口
 
@@ -34,3 +35,6 @@
 - 后端提取：`rules/i18n_extract_backend.md`
 - 页面翻译种子：`rules/i18n_page_translation_seed.md`
 - 字典翻译种子：`rules/i18n_dict_translation_seed.md`
+- 链路定位：`rules/i18n_link_tracing.md`
+- 数据分类：`rules/i18n_field_classification.md`
+- 验证规则：`rules/i18n_verify.md`

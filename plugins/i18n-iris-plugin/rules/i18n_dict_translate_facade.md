@@ -69,6 +69,14 @@ ClassMethod GetTransXxx(value As %String, languageId As %String = "", qTrantable
 3. 若仍无法确认类或字段，不直接猜测；在输出中标记“需确认映射”，并列出已知 Global、节点、piece 和候选业务语义。
 4. 确认映射后，先补 `DHCDoc.Common.Translate.GetTransXxx`，再改业务代码调用。
 
+## 翻译位置贴近原则
+
+字典翻译应贴近原始字段来源，不应在最终变量上无脑套 `GetTransXxx`。
+
+当代码明确从某个数据源（如 `^ARCIM(...,1)`）取出展示值（如 `ARCIMDesc`）时，可以在该取值后立即调用翻译。若后续变量又被外部接口返回值覆盖，则不应对覆盖后的最终变量继续套同一个字典翻译方法。
+
+这种写法能避免把不同来源、不同业务含义的文本误认为同一个字典字段。详细分类规则见 `i18n_field_classification.md`。
+
 ## 与 GetData 的关系
 
 - 新写“取数据”代码优先使用 `DHCDoc.GetData`，例如通过 rowId 获取科室、性别、用户等完整对象或描述。

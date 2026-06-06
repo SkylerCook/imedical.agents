@@ -12,7 +12,10 @@
 
 - [前端国际化编码规则](i18n_coding_frontend.md)：CSP、JavaScript、CSS、UI 框架自动翻译边界、placeholder、tooltip、datagrid、messager。
 - [后端国际化编码规则](i18n_coding_backend.md)：页面级翻译 helper、显式页面码、字典/表字段展示值翻译、跨页面归属。
-- [后端打印国际化编码规则](i18n_coding_print_backend.md)：打印 JSON、XML 模板名、分页、条码数据、申请单/告知单/病理单打印链路。
+- [国际化链路定位规则](i18n_link_tracing.md)：需求处理初期的调用链路定位、数据形态判断、渲染路径识别和中文残留位置标注。
+- [国际化数据分类规则](i18n_field_classification.md)：用户可见文本的统一分类体系和处理方式映射。
+- [后端打印国际化编码规则](i18n_coding_print_backend.md)：实际打印返回数据、XML 模板名、分页、条码数据、申请单/告知单/病理单打印链路。
+- [国际化验证规则](i18n_verify.md)：编码改造、翻译表、模板、种子、调试断点和编译的通用验证检查清单。
 - [字典翻译公共门面规则](i18n_dict_translate_facade.md)：`DHCDoc.Common.Translate.GetTransXxx`、命名唯一性、Global 到类字段定位、GetData 协同。
 - [前端需翻译文本提取规则](i18n_extract_frontend.md)：从 CSP/JS/CSS 提取可见中文和 UI 框架自动翻译文本。
 - [后端需翻译文本提取规则](i18n_extract_backend.md)：从后端程序和 CSP 服务端代码提取后台提示与占位符语义。

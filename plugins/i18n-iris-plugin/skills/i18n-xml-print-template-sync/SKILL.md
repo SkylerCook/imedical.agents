@@ -35,7 +35,9 @@ Use this skill when:
 - Investigation finds `PrintTemp`, `PreviewXMLName`, `GetXMLName(PrintType)`, `GetXMLTemplateId(PrintTemp)`, or `DHCDoc.OPDoc.TreatPrint`.
 - The user provides one or more template codes manually.
 
-This skill only handles XML template records. Backend print JSON fixed Chinese text is a separate code i18n task.
+**前置约束**：必须先通过 `i18n_link_tracing.md` 的链路定位确认实际渲染路径为 XML 模板，才能触发本 skill。不要把本 skill 作为所有打印 i18n 的默认入口。
+
+This skill only handles XML template records. Backend print fixed Chinese text is a separate code i18n task.
 
 ## Script
 

@@ -13,6 +13,9 @@
    - 若 i18n 或 coding 规则再次承载查找表、API 目录或长参考资料，优先迁入对应插件 `references/`。
 
 3. 多 Agent 协作暂不落地，后续在实际业务项目出现明确协作需求时再设计。
+   - 暂不落地理由：当前仓库近期重点仍是 rules/skills/references/scripts 的职责收敛、thin-index canonical 行为和 frontmatter/task-affinity 治理；直接引入多 Agent 编排会扩大维护面，容易先产生编排复杂度而不是稳定能力。
+   - i18n 打印需求复盘表明更迫切的缺口是阶段化事实定位、数据分类和验证规则，而不是调度器本身；先把单 Agent 阶段化入口跑通，才能判断哪些阶段值得拆给子 Agent。
+   - 真实业务项目尚未沉淀稳定的任务拆分、交接文件格式、冲突合并、专项审查和失败恢复成本；在这些约束未被实际需求验证前，不把候选协作模式固化为插件能力。
    - 初始方向：采用“主 Agent 编排 + 开发闭环子 Agent + 结构化交接”的轻量方案。
    - 优先承载位置：扩展 `plugins/agent-context-kit/`，而不是先创建独立插件。
    - 首批角色可聚焦需求澄清、实现、验证和 Review；IRIS/i18n 等领域能力继续通过现有 rules/skills/plugins 路由。

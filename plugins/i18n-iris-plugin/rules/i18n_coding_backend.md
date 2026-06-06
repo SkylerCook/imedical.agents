@@ -28,7 +28,7 @@
 
 ## 表数据与字典展示值
 
-表字段展示值、字典名称、描述等不使用页面级翻译 helper，统一使用 project profile 指定的字典/表字段展示值翻译 helper。
+表字段展示值、字典名称、描述等不使用页面级翻译 helper，统一使用 project profile 指定的字典/表字段展示值翻译 helper。详细分类和处理方式映射见 `i18n_field_classification.md`。
 
 涉及字典/表字段展示值时，必须继续读取 `i18n_dict_translate_facade.md`，优先使用项目 profile 指定的公共字典翻译门面。当前 IRIS 医生站默认门面为 `DHCDoc.Common.Translate.GetTransXxx`。
 
