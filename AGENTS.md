@@ -30,6 +30,8 @@
 
 ## 目录边界
 
+- `agents/` 放厂商无关的智能体 canonical 定义；不放 Codex、Claude Code、OpenCode、CodeBuddy、WorkBuddy、Hermes 等工具专属生成物。
+- `workflows/` 放厂商无关的阶段化或多智能体协作流程；workflow 必须支持无子代理能力时的单 Agent 串行降级。
 - `plugins/` 放可复用能力包；插件内可以包含 rules、skills、references、templates、scripts、commands、agents 或 hooks。
 - `skills/` 放仓库级通用 skill。
 - `rules/` 是仓库级通用规则预留入口；当前通用规则主要沉淀在插件内。
@@ -40,7 +42,7 @@
 
 ## 部署边界
 
-业务项目通过安装或更新脚本只检出运行需要的能力包内容：`docs/`、`rules/`、`skills/`、`plugins/` 和根 `scripts/*.ps1`。
+业务项目通过安装或更新脚本只检出运行需要的能力包内容：`agents/`、`workflows/`、`docs/`、`rules/`、`skills/`、`plugins/` 和根 `scripts/*.ps1`。
 
 不要把以下内容加入业务项目 `.agents` sparse checkout：
 
@@ -54,10 +56,15 @@
 
 ## 维护约束
 
+- 维护当前工程时必须考虑不同模型能力和不同 Agent 工具的普适性；canonical 内容不得绑定单一厂商、单一模型或单一运行器。
+- `agents/`、`workflows/`、`plugins/` 是长期能力源；`.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/`、Hermes 或 WorkBuddy 入口只能作为 adapter 生成物或临时适配层。
+- canonical 中不要写死具体模型名或订阅档位；需要表达模型能力时使用 `fast`、`balanced`、`strong`、`deep-reasoning` 等抽象档位，由工具 adapter 映射到实际模型。
+- 新增 workflow 时必须说明无 subagent、无 skill 或无法解析 YAML 时的降级路径，保证弱模型或能力较少的 Agent 仍可按 Markdown 串行执行。
 - 修改 thin-index 生成行为时，只改根 `scripts/generate-plugin-thin-index.ps1`；各插件同名脚本只能作为 wrapper。
+- Agent thin-index 或工具 adapter 生成逻辑不得混入 plugin thin-index；需要时新增独立脚本。
 - 修改插件目录结构时，同步检查插件 `AGENTS.md`、README、manifest、templates、仓库 README 和相关 docs。
-- 新增长期通用能力时，先判断应放入 `rules/`、`references/`、`skills/`、`templates/`、`scripts/` 还是插件目录。
-- 新增文件遵循命名约定：skill 目录 kebab-case，rule 文件 snake_case，reference 文件 kebab-case，script 文件 kebab-case。
+- 新增长期通用能力时，先判断应放入 `agents/`、`workflows/`、`rules/`、`references/`、`skills/`、`templates/`、`scripts/` 还是插件目录。
+- 新增文件遵循命名约定：agent 目录 kebab-case + `-agent`，workflow 文件 kebab-case + `.workflow.md`，skill 目录 kebab-case，rule 文件 snake_case，reference 文件 kebab-case，script 文件 kebab-case。
 - 对已部署业务工程有影响的变更，必须说明同步步骤和兼容清理策略。
 
 ## 禁止事项

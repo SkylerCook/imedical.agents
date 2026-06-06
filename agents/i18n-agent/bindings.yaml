@@ -1,0 +1,66 @@
+name: i18n-agent
+type: domain
+description: IRIS 国际化需求处理智能体，按链路定位、字段分类、编码/模板/种子和验证阶段执行。
+defaultWorkflow: i18n-change
+plugins:
+  - i18n-iris-plugin
+  - coding-iris-plugin
+requiredProjectFiles:
+  - AGENTS.md
+  - .agents/config/i18n_project_profile.md
+optionalProjectFiles:
+  - .mcp.json
+stages:
+  explorer:
+    role: link tracing and impact discovery
+    rules:
+      - plugins/i18n-iris-plugin/rules/i18n_link_tracing.md
+    output: docs/agent-reports/{ticket-or-topic}/explorer-i18n-agent.md
+    modelHint: strong
+  classifier:
+    role: user-visible text classification
+    rules:
+      - plugins/i18n-iris-plugin/rules/i18n_field_classification.md
+      - plugins/i18n-iris-plugin/rules/i18n_dict_translate_facade.md
+    input: docs/agent-reports/{ticket-or-topic}/explorer-i18n-agent.md
+    output: docs/agent-reports/{ticket-or-topic}/classifier-i18n-agent.md
+    modelHint: strong
+  coder:
+    role: frontend/backend i18n coding changes
+    skills:
+      - plugins/i18n-iris-plugin/skills/i18n-coding/SKILL.md
+    rules:
+      - plugins/i18n-iris-plugin/rules/i18n_coding_frontend.md
+      - plugins/i18n-iris-plugin/rules/i18n_coding_backend.md
+      - plugins/i18n-iris-plugin/rules/i18n_coding_print_backend.md
+    input: docs/agent-reports/{ticket-or-topic}/classifier-i18n-agent.md
+    output: docs/agent-reports/{ticket-or-topic}/coder-i18n-agent.md
+    modelHint: balanced
+  templateSeed:
+    role: translation seed, dictionary seed, or XML template handling
+    condition: explorer or classifier output confirms page seed, dictionary seed, XML template, or CSP translation sync is required
+    skills:
+      - plugins/i18n-iris-plugin/skills/i18n-page-trans-seed/SKILL.md
+      - plugins/i18n-iris-plugin/skills/i18n-bdp-trans-seed/SKILL.md
+      - plugins/i18n-iris-plugin/skills/i18n-xml-template/SKILL.md
+      - plugins/i18n-iris-plugin/skills/i18n-xml-print-template-sync/SKILL.md
+      - plugins/i18n-iris-plugin/skills/i18n-csp-trans-sync/SKILL.md
+    output: docs/agent-reports/{ticket-or-topic}/template-seed-i18n-agent.md
+    modelHint: balanced
+  verifier:
+    role: i18n verification and residual risk report
+    rules:
+      - plugins/i18n-iris-plugin/rules/i18n_verify.md
+    output: docs/agent-reports/{ticket-or-topic}/verifier-i18n-agent.md
+    modelHint: balanced
+handoffProtocol: agents/_shared/handoff-protocol.md
+serialFallback: true
+sensitiveDataPolicy:
+  forbid:
+    - server host
+    - account
+    - password
+    - token
+    - namespace
+    - remote path
+    - patient sample

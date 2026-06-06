@@ -4,11 +4,14 @@
 
 ## 内容分层
 
+- `agents/` 放厂商无关的智能体 canonical 定义，包括 agent registry、`AGENT.md`、`bindings.yaml` 和共享交接协议；不放工具专属生成物或业务项目私有事实。
+- `workflows/` 放厂商无关的多智能体/阶段化 workflow canonical 定义，包括 workflow registry 和 `*.workflow.md`；workflow 必须支持不具备子代理能力时的单 Agent 串行降级。
 - `rules/` 只放长期约束、工作流规则和任务路由，不放大体量查找表、API 目录或源码索引。
 - `references/` 放按需查阅的参考资料，例如查找表、控件/API 目录和源码索引；默认不参与 rule thin-index 生成。
 - `skills/` 负责任务流程编排，必要时按任务类型读取对应 rules 或 references。
 - `scripts/` 放可复用自动化；插件专属脚本放在对应插件目录，不复制到共享脚本目录，除非插件初始化流程明确要求。
 - 维护记忆只写摘要、状态、决策和下一步，不复制完整规则、长段脚本说明或一次性命令输出。
+- 工具专属入口只作为 adapter 生成物，例如 `.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/` 或 Hermes/WorkBuddy 入口映射；adapter 可删除重建，不反向成为规则源。
 
 ## 命名约定
 
@@ -16,6 +19,10 @@
 - rule 文件使用 snake_case，即单词间使用 `_`，例如 `i18n_verify.md`、`i18n_link_tracing.md`、`iris_coding_frontend.md`。
 - reference 文件使用 kebab-case。
 - script 文件使用 kebab-case。
+- 智能体目录使用 kebab-case + `-agent` 后缀，例如 `coordinator-agent`、`i18n-agent`。
+- 智能体主定义固定为 `AGENT.md`，绑定索引固定为 `bindings.yaml`。
+- workflow 文件使用 kebab-case + `.workflow.md` 后缀，例如 `i18n-change.workflow.md`、`standard-change.workflow.md`。
+- 交接报告模板使用 kebab-case + `.template.md` 后缀，例如 `fact-report.template.md`。
 - 插件包目录和 manifest `name` 使用稳定能力包名，允许采用“能力/对象 + 技术域 + plugin/kit”的历史命名，例如 `agent-context-kit`、`coding-iris-plugin`、`i18n-iris-plugin`；已部署插件目录名不为风格统一重命名。
 - 插件内部 skill 名优先面向任务触发，采用“技术域/对象 + 任务”的 kebab-case，例如 `project-context-maintenance`、`iris-coding`、`iris-backend-coding`、`iris-frontend-coding`、`i18n-coding`、`i18n-page-trans-seed`。
 - bootstrap 初始化 skill 可保留历史插件名前缀，例如 `coding-iris-init`、`i18n-project-init`；如需改名，先新增兼容入口并说明迁移策略，不直接替换。
@@ -29,6 +36,8 @@
 - 各插件同名脚本只能作为 wrapper 转发参数，避免插件之间产生运行时依赖和脚本副本漂移。
 - stale 清理只应删除由插件生成、且源文件已失效的 thin-index；不得删除业务项目自定义 `.agents/rules/`。
 - 独立分发单个插件时，若仍使用 `plugin-reference-thin-index`，必须同时带上根 canonical 脚本，否则选择 `copy` 或手工 thin-index。
+- Agent thin-index 不复用 `generate-plugin-thin-index.ps1`；后续如需生成 `.agents/skills/<agent-name>/SKILL.md`，新增独立 `scripts/generate-agent-thin-index.ps1`。
+- 工具专属 agent adapter 后续由独立 `scripts/generate-agent-adapters.ps1` 生成；该脚本只翻译格式，不创造 canonical 中不存在的职责或规则。
 
 ## 部署边界
 
@@ -36,9 +45,11 @@
 - 根目录 `memory/` 是维护者记忆，不得加入 `scripts/install-agents.ps1` 或 `scripts/update-agents.ps1` 的 sparse checkout 路径。
 - `memory/plan/` 是维护者计划子目录，存放实施计划和设计文档，不部署到业务项目。
 - 根目录 `AGENTS.md` 只服务本仓库维护，不部署到业务项目 `.agents/`。
+- 根目录 `agents/` 和 `workflows/` 是能力包正式内容，后续应加入 `scripts/install-agents.ps1` 和 `scripts/update-agents.ps1` 的 sparse checkout 路径，部署到业务项目 `.agents/agents/` 和 `.agents/workflows/`。
 - 根目录 `index.html`、`.github/` 和 `.nojekyll` 只服务展示页和 GitHub Pages，不部署到业务项目 `.agents/`。
 - `scripts/tests/` 只服务能力包仓库自测，不部署到业务项目 `.agents/`。
 - `.agents/.git/info/exclude` 应继续忽略 `/config/`、`/memory/`、`/rules/`、`/skills/` 和 `/scripts/` 这些本地生成层。
+- `.agents/.git/info/exclude` 不应忽略 `/agents/` 或 `/workflows/`；业务项目私有 Agent/Workflow 差异应写入 `.agents/config/agent_*_profile.md` 或业务项目自己的规则/文档。
 - 对手工 full clone 到 `.agents/` 的工程，必须重新执行安装脚本启用 sparse checkout；仅靠 `.git/info/exclude` 不能隐藏已跟踪的维护者记忆文件。
 
 ## 入口决策

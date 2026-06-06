@@ -4,24 +4,28 @@
 
 ## 下一步工作队列
 
-1. frontmatter/task-affinity 是下一轮治理项。
-   - 排序：thin-index canonical 行为统一和 stale 清理同步已完成，下一轮直接进入 frontmatter/task-affinity，除非用户明确调整优先级。
+1. 多智能体架构配套落地。
+   - 已完成：顶层 canonical `agents/`、`workflows/` 设计和 `i18n-agent` 样板。
+   - 待做：更新 `scripts/install-agents.ps1` 和 `scripts/update-agents.ps1`，将 `agents/`、`workflows/` 加入业务项目 `.agents` sparse checkout。
+   - 待做：更新仓库 README、`docs/ai-coding-workspace-kit-v0.2.0.md`、`docs/update-agents.md` 和必要插件 README，说明顶层智能体、workflow、adapter 和同步策略。
+   - 待做：新增最小 `scripts/generate-agent-thin-index.ps1`，生成 `.agents/skills/<agent-name>/SKILL.md` 智能体入口。
+   - 待做：新增最小 `scripts/generate-agent-adapters.ps1`，从 canonical 生成 Codex、Claude Code、OpenCode、CodeBuddy 等工具适配入口，至少支持 dry-run/write 和“生成物头部声明”。
+   - 禁止：不要让 `.codex/agents/`、`.claude/agents/`、`.opencode/` 或 `.codebuddy/agents/` 成为规则源；它们只能由 canonical 生成或临时适配。
+
+2. frontmatter/task-affinity 顺延为下一轮治理项。
+   - 排序：当前用户已明确调整优先级到多智能体架构落地；完成 adapter 和部署配套后再进入 frontmatter/task-affinity。
    - 内容：为 rule/reference 文件补充最小 frontmatter，并让 thin-index 传播任务亲和元数据。
    - 禁止：不要重新引入插件脚本副本漂移；frontmatter 解析和传播只改 canonical 脚本。
 
-2. 继续观察 rules 体量。
+3. 继续观察 rules 体量。
    - 若 i18n 或 coding 规则再次承载查找表、API 目录或长参考资料，优先迁入对应插件 `references/`。
 
-3. 多 Agent 协作暂不落地，后续在实际业务项目出现明确协作需求时再设计。
-   - 暂不落地理由：当前仓库近期重点仍是 rules/skills/references/scripts 的职责收敛、thin-index canonical 行为和 frontmatter/task-affinity 治理；直接引入多 Agent 编排会扩大维护面，容易先产生编排复杂度而不是稳定能力。
-   - i18n 打印需求复盘表明更迫切的缺口是阶段化事实定位、数据分类和验证规则，而不是调度器本身；先把单 Agent 阶段化入口跑通，才能判断哪些阶段值得拆给子 Agent。
-   - 真实业务项目尚未沉淀稳定的任务拆分、交接文件格式、冲突合并、专项审查和失败恢复成本；在这些约束未被实际需求验证前，不把候选协作模式固化为插件能力。
-   - 初始方向：采用“主 Agent 编排 + 开发闭环子 Agent + 结构化交接”的轻量方案。
-   - 优先承载位置：扩展 `plugins/agent-context-kit/`，而不是先创建独立插件。
-   - 首批角色可聚焦需求澄清、实现、验证和 Review；IRIS/i18n 等领域能力继续通过现有 rules/skills/plugins 路由。
-   - 暂不引入自动并行调度器；等真实项目中出现任务拆分、交接成本、冲突合并或专项审查需求后再推进。
+4. 多智能体运行时调度器暂不实现。
+   - 当前阶段只落地 canonical 定义、workflow、交接协议和工具 adapter。
+   - 暂不实现复杂自动并行调度器；等业务项目验证 i18n 样板后，再决定是否扩展 coordinator 运行时逻辑。
+   - 后续可考虑新增 `standard-change`、`review-test-release`、`bugfix` workflow 和通用 `coordinator/explorer/planner/coding/review/testing` Agent。
 
-4. 暂不新增 `agent-kit-maintenance` 专用 skill。
+5. 暂不新增 `agent-kit-maintenance` 专用 skill。
    - 根 `AGENTS.md` 先承载本仓库维护入口、记忆路由和维护规则。
    - 若后续频繁执行“查看近期提交、归纳维护记忆、同步 README/docs、检查 sparse checkout 边界、审查敏感信息”等固定流程，再抽成专用 skill。
 

@@ -15,7 +15,7 @@
 - 本仓库是可复用 Agent 能力包仓库，根 `AGENTS.md` 只服务本仓库维护，不部署到业务项目 `.agents/`。
 - `plugins/i18n-iris-plugin/` 当前承载 i18n rules、skills、templates、scripts 和插件入口。
 - 目标工程差异仍应写入目标工程 `.agents/config/i18n_project_profile.md`，MCP 连接事实仍以目标工程 `.mcp.json` 为准。
-- 当前维护记忆中，`memory/agent-kit-maintenance-backlog.md` 明确"多 Agent 协作暂不落地"；因此本计划只落地单 Agent 阶段化入口，不实现真正多 Agent 编排。
+- 历史背景：本计划实施时，`memory/agent-kit-maintenance-backlog.md` 曾约束"多 Agent 协作暂不落地"，因此当轮只落地单 Agent 阶段化入口，不实现真正多 Agent 编排。当前状态已更新：顶层 `agents/` / `workflows/` 架构已启动，并已用 i18n 需求处理落地 `agents/i18n-agent/` 和 `workflows/i18n-change.workflow.md` 样板。
 - `memory/plan/` 是本计划新建的维护者计划子目录，不应部署到业务项目。后续维护记忆中应明确 `memory/plan/` 的定位。
 
 ### 近 3 天相关提交影响
@@ -56,7 +56,7 @@
 
 ## 多 Agent 协作设计（未来愿景，本轮不实现）
 
-> 以下设计为后续演进预留。当前 backlog 约束"多 Agent 协作暂不落地"，本轮只落地方式 1（`i18n-coding` 内嵌阶段引导）。设计内容保留在计划中，供后续业务项目出现明确协作需求时参考。
+> 以下设计在本计划实施时作为后续演进预留。当时 backlog 约束"多 Agent 协作暂不落地"，所以本轮只落地方式 1（`i18n-coding` 内嵌阶段引导）。当前多智能体 canonical 架构已启动；此处内容已被 `memory/plan/multi-agent-architecture.md`、`agents/i18n-agent/` 和 `workflows/i18n-change.workflow.md` 继承。
 
 ### Agent 角色定义
 

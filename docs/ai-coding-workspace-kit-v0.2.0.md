@@ -1,4 +1,4 @@
-# AI Coding Workspace Kit v0.1.3
+# AI Coding Workspace Kit v0.2.0
 
 本文定义一套可分享、可迁移的工程级 AI Coding 工作区结构。目标是让不同 Code Agent 在长期演进代码库中快速获得正确上下文，同时避免把规则、经验、专项流程和环境连接信息混在一起。
 
@@ -14,6 +14,8 @@ your-project/
 |-- .agents/
 |   |-- config/                       # 当前工程 AI 配置，非敏感语义配置
 |   |-- memory/                       # 项目长期记忆，不是正式项目文档
+|   |-- agents/                       # 能力包受管的智能体 canonical 定义
+|   |-- workflows/                    # 能力包受管的阶段化/多智能体 workflow
 |   |-- rules/                        # 真实规则或规则 thin-index
 |   |-- skills/                       # 真实 skill 或 skill thin-index
 |   |-- scripts/                      # 当前工程 AI 辅助脚本，供 agent/skill 主动调用
@@ -34,7 +36,6 @@ your-project/
 |   |       `-- config/               # 可选：插件自身示例配置；不存目标工程差异
 |   |-- templates/                    # 当前工程模板，可选；不要与插件 templates 重复维护
 |   |-- commands/                     # 当前工程斜杠命令，可选
-|   |-- agents/                       # 当前工程子代理定义，可选
 |   `-- hooks/                        # 当前工程钩子配置与脚本，可选
 |
 |-- docs/                             # 项目文档/生成资料，是否入库按工程规则
@@ -49,24 +50,28 @@ your-project/
 3. `.agents/config/` 放非敏感工程语义配置；敏感连接信息不放这里。
 4. `.mcp.json` 放 MCP、环境、连接事实。
 5. `.agents/memory/` 只放长期有效事实、决策、坑点和待办，不放规则全文。
-6. `.agents/rules/` 和 `.agents/skills/` 可包含真实内容或 thin-index；Agent 读到 thin-index 后必须继续读取其指向的插件真实文件。若目标 Agent 不能可靠跳转，应使用 `copy` 模式。
-7. `.agents/scripts/` 放通用工作区工具；插件专属脚本放 `.agents/plugins/<plugin>/scripts/`；不要使用 `.agents/plugins/scripts` 作为共享脚本目录。
-8. `.agents/plugins/` 放可迁移能力包。
-9. 插件不写死工程差异；工程差异落到 `.agents/config/` 和 `.mcp.json`。
-10. 插件 bootstrap/init skill 可以直接从插件目录读取，不必先有 thin-index；thin-index 适合安装后的日常能力发现，不适合作为唯一安装入口。
-11. 插件 `templates/` 用于初始化目标工程；工程级 `templates/` 不重复维护插件模板。
-12. 项目根目录 `references/` 放工程外部参考资料和源码索引，是否入库按工程规则；插件内 `references/` 放随插件复用、按需查阅的查找表、源码/API 索引或长参考资料，不属于约束性 rules。
-13. `AGENTS.md` 保持轻量，只放全局适用的工程大图、关键入口、禁止事项和索引；细节下沉到 `rules/`、`skills/`、`config/`、`memory/`。
-14. 使用 `.gitignore`、`.git/info/exclude` 或 agent ignore 配置排除生成物、第三方源码、大文件和无关资料，减少 agent 搜索噪声。
-15. 项目上下文初始化前先判断 `contextMode`：完整工程使用 `codebase-complete`；刚新建、代码零散或后续按需从服务器导出文件的工程使用 `intent-first-on-demand-export`，并在 `.agents/config/project_context_profile.md` 记录非敏感语义配置。
-16. `contextMode` 使用保守默认：用户明确说按需导出时直接选 `intent-first-on-demand-export`；无法证明本地代码代表完整工程时，也选 `intent-first-on-demand-export`。
-17. 对 `intent-first-on-demand-export` 工程，`AGENTS.md` 不得围绕单个或少量零散文件生成架构结论；本地已有文件最多列为“当前已导出/已存在文件”；需求处理应先确认目标页面、类、JS、CSP 或业务对象，再按需导出相关文件。
-18. `.agents` 是独立 Git 仓库时，目标工程本地生成层应写入 `.agents/.git/info/exclude`，不要写入 `.agents/.gitignore`；默认忽略 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
-19. 兼容入口不要求模型理解 symlink；`.agents/scripts/check-agent-entrypoints.ps1` 只报告状态。`missing`、`not-symlink`、`wrong-target` 是可选兼容提示，不阻塞安装或更新，不自动修复。
-20. 被 `.agents/.git/info/exclude` 忽略的通用能力修正，需要贡献回能力包时使用 `git add -f <path>` 或 `scripts/stage-ignored-agent-file.ps1` 显式暂存；不要移除生成层 ignore 规则。
-21. 新增能力文件采用统一命名：`skills/<skill-name>/SKILL.md` 使用 kebab-case，`rules/<rule_name>.md` 使用 snake_case，`references/<reference-name>.md` 使用 kebab-case，`scripts/<script-name>.<ext>` 使用 kebab-case。
-22. 历史文件命名统一已完成；未来新增历史文件如需重命名，只有在 thin-index canonical、stale 清理或明确迁移窗口中，才同步处理路径迁移、README、AGENTS、skill 引用和兼容清理。
-23. thin-index 生成逻辑以根 `scripts/generate-plugin-thin-index.ps1` 为唯一 canonical 实现；各插件同名脚本只能作为 wrapper 转发参数，不复制核心逻辑，也不依赖其它插件。
+6. `.agents/agents/` 放能力包受管的智能体 canonical 定义；工具专属 agent 入口只能作为 adapter 生成物。
+7. `.agents/workflows/` 放能力包受管的阶段化或多智能体 workflow；workflow 必须支持无子代理能力时的单 Agent 串行降级。
+8. `.agents/rules/` 和 `.agents/skills/` 可包含真实内容或 thin-index；Agent 读到 thin-index 后必须继续读取其指向的插件真实文件。若目标 Agent 不能可靠跳转，应使用 `copy` 模式。
+9. `.agents/scripts/` 放通用工作区工具；插件专属脚本放 `.agents/plugins/<plugin>/scripts/`；不要使用 `.agents/plugins/scripts` 作为共享脚本目录。
+10. `.agents/plugins/` 放可迁移能力包。
+11. 插件不写死工程差异；工程差异落到 `.agents/config/` 和 `.mcp.json`。
+12. 插件 bootstrap/init skill 可以直接从插件目录读取，不必先有 thin-index；thin-index 适合安装后的日常能力发现，不适合作为唯一安装入口。
+13. 插件 `templates/` 用于初始化目标工程；工程级 `templates/` 不重复维护插件模板。
+14. 项目根目录 `references/` 放工程外部参考资料和源码索引，是否入库按工程规则；插件内 `references/` 放随插件复用、按需查阅的查找表、源码/API 索引或长参考资料，不属于约束性 rules。
+15. `AGENTS.md` 保持轻量，只放全局适用的工程大图、关键入口、禁止事项和索引；细节下沉到 `agents/`、`workflows/`、`rules/`、`skills/`、`config/`、`memory/`。
+16. 使用 `.gitignore`、`.git/info/exclude` 或 agent ignore 配置排除生成物、第三方源码、大文件和无关资料，减少 agent 搜索噪声。
+17. 项目上下文初始化前先判断 `contextMode`：完整工程使用 `codebase-complete`；刚新建、代码零散或后续按需从服务器导出文件的工程使用 `intent-first-on-demand-export`，并在 `.agents/config/project_context_profile.md` 记录非敏感语义配置。
+18. `contextMode` 使用保守默认：用户明确说按需导出时直接选 `intent-first-on-demand-export`；无法证明本地代码代表完整工程时，也选 `intent-first-on-demand-export`。
+19. 对 `intent-first-on-demand-export` 工程，`AGENTS.md` 不得围绕单个或少量零散文件生成架构结论；本地已有文件最多列为“当前已导出/已存在文件”；需求处理应先确认目标页面、类、JS、CSP 或业务对象，再按需导出相关文件。
+20. `.agents` 是独立 Git 仓库时，目标工程本地生成层应写入 `.agents/.git/info/exclude`，不要写入 `.agents/.gitignore`；默认忽略 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
+21. `.agents/.git/info/exclude` 不应忽略 `/agents/` 或 `/workflows/`；它们是能力包正式内容，应随 `.agents` 更新。
+22. 兼容入口不要求模型理解 symlink；`.agents/scripts/check-agent-entrypoints.ps1` 只报告状态。`missing`、`not-symlink`、`wrong-target` 是可选兼容提示，不阻塞安装或更新，不自动修复。
+23. 被 `.agents/.git/info/exclude` 忽略的通用能力修正，需要贡献回能力包时使用 `git add -f <path>` 或 `scripts/stage-ignored-agent-file.ps1` 显式暂存；不要移除生成层 ignore 规则。
+24. 新增能力文件采用统一命名：`agents/<name>-agent/AGENT.md` 使用 kebab-case + `-agent`，`workflows/<name>.workflow.md` 使用 kebab-case，`skills/<skill-name>/SKILL.md` 使用 kebab-case，`rules/<rule_name>.md` 使用 snake_case，`references/<reference-name>.md` 使用 kebab-case，`scripts/<script-name>.<ext>` 使用 kebab-case。
+25. 历史文件命名统一已完成；未来新增历史文件如需重命名，只有在 thin-index canonical、stale 清理或明确迁移窗口中，才同步处理路径迁移、README、AGENTS、skill 引用和兼容清理。
+26. plugin thin-index 生成逻辑以根 `scripts/generate-plugin-thin-index.ps1` 为唯一 canonical 实现；各插件同名脚本只能作为 wrapper 转发参数，不复制核心逻辑，也不依赖其它插件。
+27. agent thin-index 和工具 adapter 后续使用独立脚本，不复用 plugin thin-index 逻辑。
 
 ## 插件体系
 
@@ -100,6 +105,83 @@ your-project/
 - reference 文件偏资料名或索引名，使用 kebab-case，例如 `hisui-widget-index.md`。
 - script 文件使用 kebab-case，例如 `install-agents.ps1`、`generate-plugin-thin-index.ps1`。
 - 历史文件如已被 thin-index、README、AGENTS 或业务工程引用，不因命名风格单独改名；迁移时必须同步 stale 清理和所有入口引用。
+
+## 智能体与 Workflow
+
+`agents/` 和 `workflows/` 是厂商无关的 canonical 层，用于描述“谁执行任务”和“如何协作执行”。
+
+```text
+.agents/agents/
+|-- agent-registry.md
+|-- _shared/
+|   |-- handoff-protocol.md
+|   `-- report-templates/
+|-- i18n-agent/
+|   |-- AGENT.md
+|   `-- bindings.yaml
+`-- <name>-agent/
+
+.agents/workflows/
+|-- workflow-registry.md
+|-- i18n-change.workflow.md
+`-- <name>.workflow.md
+```
+
+### agents/
+
+每个智能体目录至少包含：
+
+- `AGENT.md`：人类和 Agent 可读的 canonical 角色定义。
+- `bindings.yaml`：机器可读辅助索引，记录插件、规则、skill、阶段、输入输出和模型档位。
+
+`AGENT.md` 必须独立可读；如果工具不能解析 YAML，应仍能只靠 `AGENT.md` 和 workflow Markdown 执行。
+
+### workflows/
+
+workflow 文件必须包含：
+
+- 触发条件。
+- 必读入口。
+- 阶段列表。
+- 每阶段输入和输出。
+- 分支条件。
+- 失败或阻塞处理。
+- 不支持子代理时的串行降级路径。
+
+### adapter 边界
+
+Codex、Claude Code、OpenCode、CodeBuddy、WorkBuddy、Hermes 等工具对 agent 的发现目录不同。本规范不把任何一家工具的目录作为 canonical。
+
+推荐从 `.agents/agents/` 和 `.agents/workflows/` 生成工具专属 adapter：
+
+```text
+.codex/agents/<agent-name>.toml
+.claude/agents/<agent-name>.md
+.opencode/agents/<agent-name>.md
+.codebuddy/agents/<agent-name>.md
+.agents/skills/<agent-name>/SKILL.md
+```
+
+adapter 是生成物，可删除重建；不得反向成为规则源。
+
+### 本地差异
+
+不要直接修改 `.agents/agents/` 或 `.agents/workflows/` 来保存业务项目私有差异。
+
+项目差异放入：
+
+```text
+.agents/config/agent_model_profile.md
+.agents/config/agent_workflow_overrides.md
+```
+
+临时交接报告建议输出到业务项目：
+
+```text
+docs/agent-reports/{ticket-or-topic}/{stage}-{agent}.md
+```
+
+是否提交这些报告由业务项目规则决定。
 
 ## 安装模式
 
@@ -265,7 +347,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stage-ignored-agent-
 
 ## 版本兼容
 
-v0.1.3 要求插件 `.agents-plugin/plugin.json` 保留 `version` 字段，并推荐已部署业务工程使用统一更新入口：
+v0.2.0 在 v0.1.3 的插件、thin-index 和项目上下文规范基础上，新增顶层 `agents/`、`workflows/` 和厂商无关 adapter 边界。插件 `.agents-plugin/plugin.json` 继续保留 `version` 字段，并推荐已部署业务工程使用统一更新入口：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun
@@ -279,16 +361,24 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - `.agents/config/` 永远不直接覆盖；模板新增字段只追加待确认项，已存在字段以目标项目当前值为准。
 - 疑似废弃字段只报告，不删除；字段语义变化只报告 `config-review-required`。
 
-以下能力留到 v0.2 设计：
+以下能力后续单独设计或实现：
 
 - copy 模式漂移检测。
 - 目标工程安装记录。
 - thin-index 来源版本校验。
+- agent thin-index 生成脚本。
+- Codex、Claude Code、OpenCode、CodeBuddy 等工具 adapter 生成脚本。
 
 ## 当前工程落地示例
 
 ```text
 .agents/
+|-- agents/
+|   |-- agent-registry.md
+|   `-- i18n-agent/
+|-- workflows/
+|   |-- workflow-registry.md
+|   `-- i18n-change.workflow.md
 |-- config/
 |   `-- i18n_project_profile.md
 |-- memory/
@@ -300,4 +390,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 `-- skills/
 ```
 
-当前工程的 `AGENTS.md` 聚焦技工单需求处理；i18n 能力已沉淀为 `.agents/plugins/i18n-iris-plugin/`，工程差异由 `.agents/config/i18n_project_profile.md` 和 `.mcp.json` 承载。
+当前工程的 `AGENTS.md` 聚焦技工单需求处理；i18n 能力已沉淀为 `.agents/plugins/i18n-iris-plugin/`，i18n 领域智能体样板由 `.agents/agents/i18n-agent/` 和 `.agents/workflows/i18n-change.workflow.md` 承载，工程差异由 `.agents/config/i18n_project_profile.md` 和 `.mcp.json` 承载。
