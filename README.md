@@ -305,6 +305,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/agent-contex
 - `origin`：Gitee 主仓库，日常维护、业务项目 `.agents` 部署和安装脚本仍以此为准。
 - `github`：GitHub 镜像仓库，主要用于 GitHub Pages 发布根目录 `index.html` 展示页。
 
+展示页地址：[https://skylercook.github.io/imedical.agents/](https://skylercook.github.io/imedical.agents/)
+
 根目录 `index.html`、`.github/` 和 `.nojekyll` 只服务于展示页和 GitHub Pages。现有一键部署脚本通过 sparse checkout 只检出 `docs/`、`rules/`、`skills/`、`plugins/`、`scripts/`，不会把这些展示页文件部署到业务项目 `.agents/`。
 
 日常仍在 VS Code 本地修改并提交，不在 Gitee 或 GitHub 网页上直接改代码。提交后分别推送两个远端：
