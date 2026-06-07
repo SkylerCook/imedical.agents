@@ -36,6 +36,10 @@
 - 已更新 `project-context-maintenance`：安装或更新 `.agents` 时优先读取 `docs/update-agents.md`；更新脚本不得自动重写 `AGENTS.md`、项目 memory、项目 rules 或已有 config 值。
 - 已将 `AGENTS.md` 规范调整为必须唯一主入口；`CLAUDE.md`、`CODEBUDDY.md` 只作为可选兼容入口，缺失或异常只报告，不自动修复或复制第二份规则。
 - 已增强 canonical thin-index stale 清理：支持识别插件源规则重命名、移走或删除后遗留的浅层入口，避免目标工程 `.agents/rules/` 长期残留过期索引。
+- 已完成多 Agent v0.2.0 最小部署闭环：安装/更新 sparse checkout 包含 `agents/` 和 `workflows/`，`i18n-agent` 明确插件初始化前置，通用 Agent 和 adapter 生成器顺延为后续阶段。
+- 已实施插件状态分流：`.agents/plugins/**` 全量拉取用于能力发现，`update-agents.ps1` 按 `plugin_profile.md` 将 `available`、`enabled`、`disabled` 分流处理，默认只处理 `agent-context-kit`；旧 `initialized` 兼容读取为 `enabled`，旧 `indexed` 兼容读取为 `available`。
+- 已新增 `scripts/update-plugin-profile.ps1`，供插件 init skill 在验收通过后机械反写 `plugin_profile.md`，避免不同模型手工编辑表格。
+- 已在插件 manifest 中补充 `initSkill`，并为 `i18n-iris-plugin` 声明对 `coding-iris-plugin` 的依赖；`update-agents.ps1` 对未初始化依赖输出 `plugin-dependency-missing`。
 
 ## 近期提交索引
 
@@ -60,6 +64,8 @@
 - 搜索确认 `references/` 规范已写入 workspace kit 文档和 reusable packaging skill。
 - 搜索确认 rules/skills/references/scripts 命名约定已写入 workspace kit 文档、reusable packaging skill、仓库 README 和维护记忆。
 - 搜索确认 thin-index canonical/wrapper 约定已写入 workspace kit 文档、reusable packaging skill、插件 README 和维护记忆。
+- `scripts/tests/update-agents.tests.ps1` 已验证：默认只处理 `agent-context-kit`，未启用插件只列为 available，显式插件可处理，i18n 在 coding 未初始化时阻塞，安装/更新 sparse checkout 包含 `agents/` 和 `workflows/`。
+- 已验证三个插件 manifest 均可被 PowerShell `ConvertFrom-Json` 正常解析。
 
 ## 维护要求
 

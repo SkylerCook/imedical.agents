@@ -43,8 +43,12 @@ description: Initialize the reusable IRIS i18n agent kit in a target project wit
 1. 检查目标工程：
    - 是否存在 `AGENTS.md`。
    - 是否存在 `.mcp.json`。
+   - 是否存在 `.agents/config/plugin_profile.md`。
+   - `coding-iris-plugin` 是否已在 `plugin_profile.md` 中标记为 `enabled`。
    - 是否已有 `.agents/config/i18n_project_profile.md`。
    - 是否已有同名 rules/skills，避免覆盖用户定制。
+
+   若 `coding-iris-plugin` 未启用，停止并提示先读取 `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`；不要只因为 `.agents/plugins/coding-iris-plugin/` 目录存在就继续 i18n 初始化。
 
 2. 安装通用能力：
    - `plugin-reference-thin-index`：确保插件位于 `.agents/plugins/i18n-iris-plugin/`，先运行 thin-index 脚本 `DryRun`，确认后再 `Write`；默认排除 `i18n-project-init`，避免用安装结果触发安装过程。
@@ -87,6 +91,14 @@ description: Initialize the reusable IRIS i18n agent kit in a target project wit
    - 检查 `.agents/.git/info/exclude` 是否包含生成层忽略规则：`/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
    - 输出仍需人工确认的 profile 项。
 
+7. 更新插件状态：
+   - 初始化闭环验收通过后，运行脚本机械维护 `.agents/config/plugin_profile.md`：
+     ```powershell
+     powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin i18n-iris-plugin -Status enabled
+     ```
+   - 将 `i18n-iris-plugin` 状态标记为 `enabled`。
+   - 保留 `dependsOn = coding-iris-plugin`，且不得把该状态写入 `agents/` 或 `workflows/`。
+
 ## 安全约束
 
 - 不把 `.mcp.json` 中的 host、端口、账号、密码复制到 rules、skills 或 profile。
@@ -101,6 +113,7 @@ description: Initialize the reusable IRIS i18n agent kit in a target project wit
 - thin-index 脚本 `DryRun` 和 `Write` 的结果。
 - 哪些文件因已存在而跳过或需要人工合并。
 - `.agents/config/i18n_project_profile.md` 中仍需确认的项目。
+- `plugin_profile.md` 中 `coding-iris-plugin` 与 `i18n-iris-plugin` 的最终状态。
 - `.agents/.git/info/exclude` 生成层忽略规则检查结果。
 - `.mcp.json` 能力检查结果。
 - 下一步建议：先执行文本提取只读验证，再生成小批量页面翻译种子，最后进行服务器 report-only 校验。

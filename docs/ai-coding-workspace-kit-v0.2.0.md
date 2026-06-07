@@ -55,23 +55,24 @@ your-project/
 8. `.agents/rules/` 和 `.agents/skills/` 可包含真实内容或 thin-index；Agent 读到 thin-index 后必须继续读取其指向的插件真实文件。若目标 Agent 不能可靠跳转，应使用 `copy` 模式。
 9. `.agents/scripts/` 放通用工作区工具；插件专属脚本放 `.agents/plugins/<plugin>/scripts/`；不要使用 `.agents/plugins/scripts` 作为共享脚本目录。
 10. `.agents/plugins/` 放可迁移能力包。
-11. 插件不写死工程差异；工程差异落到 `.agents/config/` 和 `.mcp.json`。
-12. 插件 bootstrap/init skill 可以直接从插件目录读取，不必先有 thin-index；thin-index 适合安装后的日常能力发现，不适合作为唯一安装入口。
-13. 插件 `templates/` 用于初始化目标工程；工程级 `templates/` 不重复维护插件模板。
-14. 项目根目录 `references/` 放工程外部参考资料和源码索引，是否入库按工程规则；插件内 `references/` 放随插件复用、按需查阅的查找表、源码/API 索引或长参考资料，不属于约束性 rules。
-15. `AGENTS.md` 保持轻量，只放全局适用的工程大图、关键入口、禁止事项和索引；细节下沉到 `agents/`、`workflows/`、`rules/`、`skills/`、`config/`、`memory/`。
-16. 使用 `.gitignore`、`.git/info/exclude` 或 agent ignore 配置排除生成物、第三方源码、大文件和无关资料，减少 agent 搜索噪声。
-17. 项目上下文初始化前先判断 `contextMode`：完整工程使用 `codebase-complete`；刚新建、代码零散或后续按需从服务器导出文件的工程使用 `intent-first-on-demand-export`，并在 `.agents/config/project_context_profile.md` 记录非敏感语义配置。
-18. `contextMode` 使用保守默认：用户明确说按需导出时直接选 `intent-first-on-demand-export`；无法证明本地代码代表完整工程时，也选 `intent-first-on-demand-export`。
-19. 对 `intent-first-on-demand-export` 工程，`AGENTS.md` 不得围绕单个或少量零散文件生成架构结论；本地已有文件最多列为“当前已导出/已存在文件”；需求处理应先确认目标页面、类、JS、CSP 或业务对象，再按需导出相关文件。
-20. `.agents` 是独立 Git 仓库时，目标工程本地生成层应写入 `.agents/.git/info/exclude`，不要写入 `.agents/.gitignore`；默认忽略 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
-21. `.agents/.git/info/exclude` 不应忽略 `/agents/` 或 `/workflows/`；它们是能力包正式内容，应随 `.agents` 更新。
-22. 兼容入口不要求模型理解 symlink；`.agents/scripts/check-agent-entrypoints.ps1` 只报告状态。`missing`、`not-symlink`、`wrong-target` 是可选兼容提示，不阻塞安装或更新，不自动修复。
-23. 被 `.agents/.git/info/exclude` 忽略的通用能力修正，需要贡献回能力包时使用 `git add -f <path>` 或 `scripts/stage-ignored-agent-file.ps1` 显式暂存；不要移除生成层 ignore 规则。
-24. 新增能力文件采用统一命名：`agents/<name>-agent/AGENT.md` 使用 kebab-case + `-agent`，`workflows/<name>.workflow.md` 使用 kebab-case，`skills/<skill-name>/SKILL.md` 使用 kebab-case，`rules/<rule_name>.md` 使用 snake_case，`references/<reference-name>.md` 使用 kebab-case，`scripts/<script-name>.<ext>` 使用 kebab-case。
-25. 历史文件命名统一已完成；未来新增历史文件如需重命名，只有在 thin-index canonical、stale 清理或明确迁移窗口中，才同步处理路径迁移、README、AGENTS、skill 引用和兼容清理。
-26. plugin thin-index 生成逻辑以根 `scripts/generate-plugin-thin-index.ps1` 为唯一 canonical 实现；各插件同名脚本只能作为 wrapper 转发参数，不复制核心逻辑，也不依赖其它插件。
-27. agent thin-index 和工具 adapter 后续使用独立脚本，不复用 plugin thin-index 逻辑。
+11. 插件目录存在只表示能力 `available`；是否已启用以 `.agents/config/plugin_profile.md` 为准。
+12. 插件不写死工程差异；工程差异落到 `.agents/config/` 和 `.mcp.json`。
+13. 插件 bootstrap/init skill 可以直接从插件目录读取，不必先有 thin-index；thin-index 适合安装后的日常能力发现，不适合作为唯一安装入口。
+14. 插件 `templates/` 用于初始化目标工程；工程级 `templates/` 不重复维护插件模板。
+15. 项目根目录 `references/` 放工程外部参考资料和源码索引，是否入库按工程规则；插件内 `references/` 放随插件复用、按需查阅的查找表、源码/API 索引或长参考资料，不属于约束性 rules。
+16. `AGENTS.md` 保持轻量，只放全局适用的工程大图、关键入口、禁止事项和索引；细节下沉到 `agents/`、`workflows/`、`rules/`、`skills/`、`config/`、`memory/`。
+17. 使用 `.gitignore`、`.git/info/exclude` 或 agent ignore 配置排除生成物、第三方源码、大文件和无关资料，减少 agent 搜索噪声。
+18. 项目上下文初始化前先判断 `contextMode`：完整工程使用 `codebase-complete`；刚新建、代码零散或后续按需从服务器导出文件的工程使用 `intent-first-on-demand-export`，并在 `.agents/config/project_context_profile.md` 记录非敏感语义配置。
+19. `contextMode` 使用保守默认：用户明确说按需导出时直接选 `intent-first-on-demand-export`；无法证明本地代码代表完整工程时，也选 `intent-first-on-demand-export`。
+20. 对 `intent-first-on-demand-export` 工程，`AGENTS.md` 不得围绕单个或少量零散文件生成架构结论；本地已有文件最多列为“当前已导出/已存在文件”；需求处理应先确认目标页面、类、JS、CSP 或业务对象，再按需导出相关文件。
+21. `.agents` 是独立 Git 仓库时，目标工程本地生成层应写入 `.agents/.git/info/exclude`，不要写入 `.agents/.gitignore`；默认忽略 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
+22. `.agents/.git/info/exclude` 不应忽略 `/agents/` 或 `/workflows/`；它们是能力包正式内容，应随 `.agents` 更新。
+23. 兼容入口不要求模型理解 symlink；`.agents/scripts/check-agent-entrypoints.ps1` 只报告状态。`missing`、`not-symlink`、`wrong-target` 是可选兼容提示，不阻塞安装或更新，不自动修复。
+24. 被 `.agents/.git/info/exclude` 忽略的通用能力修正，需要贡献回能力包时使用 `git add -f <path>` 或 `scripts/stage-ignored-agent-file.ps1` 显式暂存；不要移除生成层 ignore 规则。
+25. 新增能力文件采用统一命名：`agents/<name>-agent/AGENT.md` 使用 kebab-case + `-agent`，`workflows/<name>.workflow.md` 使用 kebab-case，`skills/<skill-name>/SKILL.md` 使用 kebab-case，`rules/<rule_name>.md` 使用 snake_case，`references/<reference-name>.md` 使用 kebab-case，`scripts/<script-name>.<ext>` 使用 kebab-case。
+26. 历史文件命名统一已完成；未来新增历史文件如需重命名，只有在 thin-index canonical、stale 清理或明确迁移窗口中，才同步处理路径迁移、README、AGENTS、skill 引用和兼容清理。
+27. plugin thin-index 生成逻辑以根 `scripts/generate-plugin-thin-index.ps1` 为唯一 canonical 实现；各插件同名脚本只能作为 wrapper 转发参数，不复制核心逻辑，也不依赖其它插件。
+28. agent thin-index 和工具 adapter 后续使用独立脚本，不复用 plugin thin-index 逻辑。
 
 ## 插件体系
 

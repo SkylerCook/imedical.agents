@@ -10,6 +10,7 @@
 - `AGENTS.md` 是必须存在的工程级唯一主入口；`CLAUDE.md`、`CODEBUDDY.md` 只是可选兼容 symlink。
 - 所有命令使用 PowerShell。
 - `.agents/config/` 只允许合并，不允许覆盖已有值。
+- `.agents/config/plugin_profile.md` 是插件启用状态事实来源；插件目录存在只表示 `available`，不表示已启用。
 - `.mcp.json` 是连接事实来源。不要把 host、账号、密码、token、namespace 或远程路径写入 `AGENTS.md`、rules、memory、config 或插件。
 - 如果输出中出现停止条件，先停止并向用户汇报，不要继续执行破坏性操作。
 
@@ -55,6 +56,8 @@ iwr -UseBasicParsing https://gitee.com/skyler-cook/imedical.agents/raw/master/sc
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun
 ```
+
+首次安装默认只处理 `agent-context-kit`。`coding-iris-plugin`、`i18n-iris-plugin` 等插件代码会随 `.agents/plugins/` 拉取，但状态为 `available` 时不会合并配置或生成 thin-index。
 
 如果摘要没有停止条件，继续执行：
 
@@ -119,6 +122,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `entrypoint-ok` | `CLAUDE.md`、`CODEBUDDY.md` 等可选兼容入口正常。 |
 | `entrypoint-missing` / `entrypoint-not-symlink` / `entrypoint-wrong-target` | 可选兼容入口缺失或异常；不阻塞安装/更新，脚本不会自动修复或复制。 |
 | `plugin-found` | 已发现插件。 |
+| `plugin-available` | 插件代码存在但未启用；只展示能力，不合并配置、不生成 thin-index。 |
+| `plugin-init-required` | 用户显式选择了未启用插件；停止并读取真实 init skill。 |
+| `plugin-selected` | 本次通过 `-Plugin` 显式选择处理的插件。 |
+| `plugin-disabled` | 插件被项目显式禁用；默认跳过。 |
+| `plugin-profile-written` | 已写入或刷新 `.agents/config/plugin_profile.md`。 |
 | `generated` | dry-run 发现将生成 thin-index，或 write 已生成。 |
 | `removed` | write 已清理 stale thin-index；清理阶段扫描所有指向 `.agents/plugins/*/rules/*.md` 的 rule thin-index，不受当前 `PluginPath` 限制。 |
 | `skipped` 且 reason 包含 `target exists` | 目标 thin-index 已存在，默认不覆盖。 |
@@ -140,6 +148,38 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `sparse-refresh-failed` | 停止。报告 sparse checkout 刷新失败。 |
 | `thin-index-script-missing` | 停止。报告插件缺少 thin-index 脚本。 |
 | `agents-entry-missing` | 停止。先创建 `AGENTS.md`，不要用 `CLAUDE.md` 或 `CODEBUDDY.md` 代替。 |
+| `plugin-init-required` | 停止。读取该插件真实 init skill，完成初始化闭环后用脚本标记为 enabled。 |
+| `plugin-dependency-missing` | 停止。先初始化依赖插件，不要只因插件目录存在就继续。 |
+
+## 插件状态分流
+
+`.agents/plugins/**` 全量拉取用于能力发现，但更新脚本按 `.agents/config/plugin_profile.md` 分流：
+
+| 状态 | 更新行为 |
+|---|---|
+| `available` | 只报告，不合并 templates，不生成 thin-index，不修改 `AGENTS.md`。 |
+| `enabled` | 项目已接入且初始化闭环已完成，参与常规更新：合并缺失 config key，校验或重建 thin-index。 |
+| `disabled` | 默认跳过；旧 thin-index 只报告，不自动删除。 |
+
+无 `plugin_profile.md` 时，默认只把 `agent-context-kit` 视为 `enabled`，其它插件视为 `available`。
+
+启用领域插件时，不要直接运行全量 update。先读取插件真实 init skill：
+
+```text
+.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md
+.agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md
+```
+
+`i18n-iris-plugin` 依赖 `coding-iris-plugin`。若 coding 未启用，i18n 初始化和 i18n-agent workflow 都必须停止。
+
+插件 init skill 验收通过后，用统一脚本反写状态：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-plugin-profile.ps1 `
+  -ProjectRoot . `
+  -Plugin coding-iris-plugin `
+  -Status enabled
+```
 
 ## config 合并规则
 
@@ -175,9 +215,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 验收结果应满足：
 
 - `.agents` 是独立 Git 仓库。
+- `.agents/agents/agent-registry.md` 存在。
+- `.agents/workflows/workflow-registry.md` 存在。
 - `.agents/.git/info/exclude` 包含 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
+- `.agents/config/plugin_profile.md` 存在或 dry-run 明确报告默认插件状态。
 - 如果业务项目有 `AGENTS.md`，兼容入口可以是 `entrypoint-ok`，也可以缺失；缺失或异常只作为可选提示，不应在 write 中自动修复。
-- 插件能被扫描到。
+- 插件能被扫描到；未启用插件只应显示为 `available`，不应生成 thin-index。
 - 没有停止条件。
 
 最后向用户汇报：

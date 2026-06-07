@@ -12,7 +12,9 @@ param(
 $ErrorActionPreference = "Stop"
 
 $runtimeSparsePaths = @(
+  "/agents/**",
   "/docs/**",
+  "/workflows/**",
   "/rules/**",
   "/skills/**",
   "/plugins/**",
@@ -248,6 +250,255 @@ function Get-InstalledPlugins {
   return $plugins
 }
 
+function Get-PluginManifestValue {
+  param(
+    [object]$Manifest,
+    [string[]]$Names
+  )
+
+  foreach ($name in $Names) {
+    if ($Manifest.PSObject.Properties.Name -contains $name) {
+      $value = $Manifest.$name
+      if ($null -ne $value) {
+        return $value
+      }
+    }
+  }
+  return $null
+}
+
+function Get-PluginInitSkill {
+  param(
+    [object]$Plugin
+  )
+
+  $manifestValue = Get-PluginManifestValue -Manifest $Plugin.manifest -Names @("initSkill", "init_skill")
+  if ($null -ne $manifestValue) {
+    return [string]$manifestValue
+  }
+
+  $skillsRoot = Join-Path $Plugin.path "skills"
+  if (Test-Path -LiteralPath $skillsRoot -PathType Container) {
+    $candidate = Get-ChildItem -LiteralPath $skillsRoot -Directory |
+      Where-Object { $_.Name -like "*-init" -or $_.Name -like "*project-init" -or $_.Name -eq "project-context-maintenance" } |
+      Sort-Object Name |
+      Select-Object -First 1
+    if ($candidate) {
+      return $candidate.Name
+    }
+  }
+
+  return ""
+}
+
+function Get-PluginDependencies {
+  param(
+    [object]$Plugin
+  )
+
+  $manifestValue = Get-PluginManifestValue -Manifest $Plugin.manifest -Names @("dependencies", "dependsOn", "depends_on")
+  if ($null -eq $manifestValue) {
+    return @()
+  }
+  return @($manifestValue | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+}
+
+function Get-DefaultPluginStatus {
+  param([string]$PluginName)
+
+  if ($PluginName -eq "agent-context-kit") {
+    return "enabled"
+  }
+  return "available"
+}
+
+function Normalize-PluginStatus {
+  param([string]$Status)
+
+  $normalized = $Status.ToLowerInvariant()
+  if ($normalized -eq "initialized") {
+    return "enabled"
+  }
+  if ($normalized -eq "indexed") {
+    return "available"
+  }
+  if (@("available", "enabled", "disabled") -contains $normalized) {
+    return $normalized
+  }
+  return "available"
+}
+
+function Get-PluginProfilePath {
+  param([string]$AgentsRoot)
+  return (Join-Path (Join-Path $AgentsRoot "config") "plugin_profile.md")
+}
+
+function Read-PluginProfile {
+  param([string]$AgentsRoot)
+
+  $profile = @{}
+  $profilePath = Get-PluginProfilePath -AgentsRoot $AgentsRoot
+  if (-not (Test-Path -LiteralPath $profilePath -PathType Leaf)) {
+    return $profile
+  }
+
+  $validStatuses = @("available", "enabled", "indexed", "initialized", "disabled")
+  $lines = [System.IO.File]::ReadAllLines($profilePath, [System.Text.Encoding]::UTF8)
+  foreach ($line in $lines) {
+    $trimmed = $line.Trim()
+    if (-not $trimmed.StartsWith("|")) {
+      continue
+    }
+    if ($trimmed -match "^\|\s*-+\s*\|") {
+      continue
+    }
+    $cells = @($trimmed.Trim("|").Split("|") | ForEach-Object { $_.Trim() })
+    if ($cells.Count -lt 2) {
+      continue
+    }
+    if ($cells[0] -eq "plugin") {
+      continue
+    }
+    $pluginName = $cells[0]
+    $status = $cells[1].ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($pluginName) -or -not ($validStatuses -contains $status)) {
+      continue
+    }
+    $initSkill = ""
+    if ($cells.Count -gt 2) {
+      $initSkill = $cells[2]
+    }
+    $dependsOn = ""
+    if ($cells.Count -gt 3) {
+      $dependsOn = $cells[3]
+    }
+    $notes = ""
+    if ($cells.Count -gt 4) {
+      $notes = $cells[4]
+    }
+    $profile[$pluginName] = [PSCustomObject]@{
+      plugin = $pluginName
+      status = Normalize-PluginStatus -Status $status
+      initSkill = $initSkill
+      dependsOn = $dependsOn
+      notes = $notes
+    }
+  }
+
+  return $profile
+}
+
+function Get-PluginProfileEntry {
+  param(
+    [object]$Plugin,
+    [hashtable]$Profile,
+    [bool]$ExplicitlySelected
+  )
+
+  if ($Profile.ContainsKey($Plugin.name)) {
+    return $Profile[$Plugin.name]
+  }
+
+  $status = Get-DefaultPluginStatus -PluginName $Plugin.name
+
+  $dependsOn = Get-PluginDependencies -Plugin $Plugin
+  $dependsOnText = "-"
+  if ($dependsOn.Count -gt 0) {
+    $dependsOnText = $dependsOn -join ", "
+  }
+  $notesText = "default plugin state"
+  if ($status -eq "available") {
+    $notesText = "available capability; not enabled for this project"
+  }
+  [PSCustomObject]@{
+    plugin = $Plugin.name
+    status = $status
+    initSkill = Get-PluginInitSkill -Plugin $Plugin
+    dependsOn = $dependsOnText
+    notes = $notesText
+  }
+}
+
+function Write-PluginProfile {
+  param(
+    [string]$AgentsRoot,
+    [object[]]$Plugins,
+    [hashtable]$ExistingProfile,
+    [string[]]$ExplicitPluginNames
+  )
+
+  $profilePath = Get-PluginProfilePath -AgentsRoot $AgentsRoot
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $profilePath) | Out-Null
+
+  $pipe = [char]124
+  $lines = @(
+    "# Plugin Profile",
+    "",
+    "This file records plugin enablement for the target project. A plugin directory means available only, not enabled.",
+    "",
+    ($pipe + " plugin " + $pipe + " status " + $pipe + " initSkill " + $pipe + " dependsOn " + $pipe + " notes " + $pipe),
+    ($pipe + "---" + $pipe + "---" + $pipe + "---" + $pipe + "---" + $pipe + "---" + $pipe)
+  )
+
+  foreach ($plugin in ($Plugins | Sort-Object name)) {
+    $explicit = ($ExplicitPluginNames -contains $plugin.name) -or ($ExplicitPluginNames -contains $plugin.directoryName)
+    $entry = Get-PluginProfileEntry -Plugin $plugin -Profile $ExistingProfile -ExplicitlySelected $explicit
+    $initSkill = $entry.initSkill
+    if ([string]::IsNullOrWhiteSpace($initSkill)) {
+      $initSkill = "-"
+    }
+    $dependsOn = $entry.dependsOn
+    if ([string]::IsNullOrWhiteSpace($dependsOn)) {
+      $dependsOn = "-"
+    }
+    $notes = $entry.notes
+    if ([string]::IsNullOrWhiteSpace($notes)) {
+      $notes = "-"
+    }
+    $lines += ('{0} {1} {0} {2} {0} {3} {0} {4} {0} {5} {0}' -f $pipe, $plugin.name, $entry.status, $initSkill, $dependsOn, $notes)
+  }
+
+  [System.IO.File]::WriteAllLines($profilePath, $lines, [System.Text.UTF8Encoding]::new($false))
+}
+
+function Test-PluginShouldProcess {
+  param(
+    [object]$ProfileEntry,
+    [bool]$ExplicitlySelected
+  )
+
+  if ($ExplicitlySelected) {
+    return $ProfileEntry.status -eq "enabled"
+  }
+  return $ProfileEntry.status -eq "enabled"
+}
+
+function Test-PluginDependenciesInitialized {
+  param(
+    [object]$Plugin,
+    [object[]]$AllPlugins,
+    [hashtable]$Profile,
+    [string[]]$ExplicitPluginNames
+  )
+
+  $missing = New-Object System.Collections.Generic.List[string]
+  $dependencies = Get-PluginDependencies -Plugin $Plugin
+  foreach ($dependencyName in $dependencies) {
+    $dependencyPlugin = $AllPlugins | Where-Object { $_.name -eq $dependencyName -or $_.directoryName -eq $dependencyName } | Select-Object -First 1
+    if (-not $dependencyPlugin) {
+      $missing.Add($dependencyName)
+      continue
+    }
+    $dependencyExplicit = ($ExplicitPluginNames -contains $dependencyPlugin.name) -or ($ExplicitPluginNames -contains $dependencyPlugin.directoryName)
+    $dependencyEntry = Get-PluginProfileEntry -Plugin $dependencyPlugin -Profile $Profile -ExplicitlySelected $dependencyExplicit
+    if ($dependencyEntry.status -ne "enabled") {
+      $missing.Add(("{0}:{1}" -f $dependencyName, $dependencyEntry.status))
+    }
+  }
+
+  return $missing
+}
+
 function Convert-ThinIndexTextOutput {
   param(
     [string]$Text,
@@ -307,7 +558,9 @@ function Write-UpdateSummary {
     "config-review-required",
     "thin-index-script-missing",
     "entrypoint-check-missing",
-    "agents-entry-missing"
+    "agents-entry-missing",
+    "plugin-init-required",
+    "plugin-dependency-missing"
   )
 
   $configStatuses = @(
@@ -335,6 +588,21 @@ function Write-UpdateSummary {
   }
   else {
     Write-Output "Plugins: none"
+  }
+
+  $availablePlugins = @($Results | Where-Object { $_.phase -eq "plugin" -and $_.status -eq "plugin-available" } | Select-Object -ExpandProperty plugin -Unique)
+  if ($availablePlugins.Count -gt 0) {
+    Write-Output ("Available plugins: " + ($availablePlugins -join ", "))
+  }
+
+  $disabledPlugins = @($Results | Where-Object { $_.phase -eq "plugin" -and $_.status -eq "plugin-disabled" } | Select-Object -ExpandProperty plugin -Unique)
+  if ($disabledPlugins.Count -gt 0) {
+    Write-Output ("Disabled plugins: " + ($disabledPlugins -join ", "))
+  }
+
+  $selectedPlugins = @($Results | Where-Object { $_.phase -eq "plugin" -and $_.status -eq "plugin-selected" } | Select-Object -ExpandProperty plugin -Unique)
+  if ($selectedPlugins.Count -gt 0) {
+    Write-Output ("Selected plugins: " + ($selectedPlugins -join ", "))
   }
 
   $groups = $Results | Group-Object status | Sort-Object Name
@@ -484,9 +752,53 @@ else {
   $results.Add((Write-UpdateResult -Status "agents-entry-missing" -Target "AGENTS.md" -Reason "AGENTS.md is required as the single primary agent entrypoint" -Phase "entrypoint"))
 }
 
-$plugins = Get-InstalledPlugins -AgentsRoot $agentsRoot -IncludeNames $Plugin -ExcludeNames $ExcludePlugin
+$allPlugins = Get-InstalledPlugins -AgentsRoot $agentsRoot -IncludeNames @() -ExcludeNames $ExcludePlugin
+$pluginProfile = Read-PluginProfile -AgentsRoot $agentsRoot
+$plugins = New-Object System.Collections.Generic.List[object]
+$matchedPluginCount = 0
+
+foreach ($installedPlugin in $allPlugins) {
+  $explicitlySelected = (($Plugin.Count -gt 0) -and (($Plugin -contains $installedPlugin.name) -or ($Plugin -contains $installedPlugin.directoryName)))
+  if (($Plugin.Count -gt 0) -and (-not $explicitlySelected)) {
+    continue
+  }
+  $matchedPluginCount++
+
+  $profileEntry = Get-PluginProfileEntry -Plugin $installedPlugin -Profile $pluginProfile -ExplicitlySelected $explicitlySelected
+  $pluginTarget = Get-RelativePathPortable -From $projectRootFull -To $installedPlugin.path
+  if ($profileEntry.status -eq "disabled") {
+    $results.Add((Write-UpdateResult -Status "plugin-disabled" -Target $pluginTarget -Reason "plugin is disabled in plugin_profile.md" -PluginName $installedPlugin.name -Phase "plugin"))
+    continue
+  }
+
+  if (-not (Test-PluginShouldProcess -ProfileEntry $profileEntry -ExplicitlySelected $explicitlySelected)) {
+    $initSkill = if ([string]::IsNullOrWhiteSpace($profileEntry.initSkill)) { Get-PluginInitSkill -Plugin $installedPlugin } else { $profileEntry.initSkill }
+    if ($explicitlySelected) {
+      $results.Add((Write-UpdateResult -Status "plugin-init-required" -Target $pluginTarget -Reason ("read initSkill=" + $initSkill) -PluginName $installedPlugin.name -Phase "plugin"))
+    }
+    else {
+      $results.Add((Write-UpdateResult -Status "plugin-available" -Target $pluginTarget -Reason ("initSkill=" + $initSkill) -PluginName $installedPlugin.name -Phase "plugin"))
+    }
+    continue
+  }
+
+  $missingDependencies = Test-PluginDependenciesInitialized -Plugin $installedPlugin -AllPlugins $allPlugins -Profile $pluginProfile -ExplicitPluginNames $Plugin
+  if ($missingDependencies.Count -gt 0) {
+    $results.Add((Write-UpdateResult -Status "plugin-dependency-missing" -Target $pluginTarget -Reason ("requires enabled: " + ($missingDependencies -join ", ")) -PluginName $installedPlugin.name -Phase "plugin"))
+    continue
+  }
+
+  $plugins.Add($installedPlugin)
+  $status = if ($explicitlySelected) { "plugin-selected" } else { "plugin-found" }
+  $results.Add((Write-UpdateResult -Status $status -Target $pluginTarget -Reason $profileEntry.status -PluginName $installedPlugin.name -Phase "plugin"))
+}
+
+if ($Mode -eq "Write") {
+  Write-PluginProfile -AgentsRoot $agentsRoot -Plugins $allPlugins -ExistingProfile $pluginProfile -ExplicitPluginNames $Plugin
+  $results.Add((Write-UpdateResult -Status "plugin-profile-written" -Target (Get-RelativePathPortable -From $projectRootFull -To (Get-PluginProfilePath -AgentsRoot $agentsRoot)) -Reason "plugin states recorded" -Phase "plugin"))
+}
+
 foreach ($installedPlugin in $plugins) {
-  $results.Add((Write-UpdateResult -Status "plugin-found" -Target (Get-RelativePathPortable -From $projectRootFull -To $installedPlugin.path) -Reason $installedPlugin.name -PluginName $installedPlugin.name -Phase "plugin"))
 
   $templatesRoot = Join-Path $installedPlugin.path "templates"
   if (Test-Path -LiteralPath $templatesRoot -PathType Container) {
@@ -523,7 +835,7 @@ foreach ($installedPlugin in $plugins) {
   }
 }
 
-if ($plugins.Count -eq 0) {
+if (($allPlugins.Count -eq 0) -or (($Plugin.Count -gt 0) -and ($matchedPluginCount -eq 0))) {
   $results.Add((Write-UpdateResult -Status "plugin-none" -Target (Get-RelativePathPortable -From $projectRootFull -To (Join-Path $agentsRoot "plugins")) -Reason "no installed plugins matched filters" -Phase "plugin"))
 }
 

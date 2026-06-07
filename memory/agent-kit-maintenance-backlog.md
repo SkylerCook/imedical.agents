@@ -6,10 +6,11 @@
 
 1. 多智能体架构配套落地。
    - 已完成：顶层 canonical `agents/`、`workflows/` 设计和 `i18n-agent` 样板。
-   - 待做：更新 `scripts/install-agents.ps1` 和 `scripts/update-agents.ps1`，将 `agents/`、`workflows/` 加入业务项目 `.agents` sparse checkout。
-   - 待做：更新仓库 README、`docs/ai-coding-workspace-kit-v0.2.0.md`、`docs/update-agents.md` 和必要插件 README，说明顶层智能体、workflow、adapter 和同步策略。
+   - 已完成：`scripts/install-agents.ps1` 和 `scripts/update-agents.ps1` 已将 `agents/`、`workflows/` 加入业务项目 `.agents` sparse checkout。
+   - 已完成：仓库 README、workspace spec、update runbook 和相关 skill 已说明插件状态分流和 i18n-agent 依赖前置。
    - 待做：新增最小 `scripts/generate-agent-thin-index.ps1`，生成 `.agents/skills/<agent-name>/SKILL.md` 智能体入口。
    - 待做：新增最小 `scripts/generate-agent-adapters.ps1`，从 canonical 生成 Codex、Claude Code、OpenCode、CodeBuddy 等工具适配入口，至少支持 dry-run/write 和“生成物头部声明”。
+   - 待做：业务项目验证 i18n 样板后，再决定是否新增通用 `coordinator/explorer/planner/coding/review/testing` Agent。
    - 禁止：不要让 `.codex/agents/`、`.claude/agents/`、`.opencode/` 或 `.codebuddy/agents/` 成为规则源；它们只能由 canonical 生成或临时适配。
 
 2. frontmatter/task-affinity 顺延为下一轮治理项。

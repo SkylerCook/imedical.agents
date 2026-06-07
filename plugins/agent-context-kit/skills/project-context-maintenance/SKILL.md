@@ -106,6 +106,8 @@ description: Use when initializing or maintaining agent project context such as 
 | `.agents/plugins/<plugin>/` | 可跨项目复用的流程、模板、脚本或规则，不包含源项目事实。 |
 | `.agents/skills/<skill>/SKILL.md` | 仅放 thin-index，用于让只发现浅层 skill 目录的 Agent 找到插件真实 skill。 |
 
+插件启用状态以 `.agents/config/plugin_profile.md` 为事实来源。插件目录存在只表示 `available`，不表示当前业务项目已启用该插件。
+
 ## AGENTS.md 初始化/维护
 
 `AGENTS.md` 是 Agent 进入项目的顶层入口，不是完整规则手册、项目记忆或 changelog。
@@ -118,6 +120,7 @@ description: Use when initializing or maintaining agent project context such as 
 - 高频硬约束：跨任务必须遵守、遗漏会造成明显风险的规则。
 - 规则路由：不同任务类型应读取哪些 rules 或 skills。
 - 插件路由：项目已接入的插件、首次初始化入口、thin-index 入口。
+- 插件状态：哪些插件只是 `available`，哪些已经 `enabled`。
 - 外部工具边界：MCP/SFTP/编译/上传等能力的使用原则和安全边界。
 
 ### 不应写入 AGENTS.md
@@ -181,7 +184,15 @@ description: Use when initializing or maintaining agent project context such as 
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun
 ```
 
-确认 dry-run 输出后，才使用 `-Mode Write`。更新脚本只负责拉取能力包、检查入口、维护生成层 ignore、重建 plugin thin-index 和合并明确缺失的 config 项；不得自动重写 `AGENTS.md`、`.agents/memory/`、`.agents/rules/project.md` 或项目已有 config 值。
+确认 dry-run 输出后，才使用 `-Mode Write`。更新脚本只负责拉取能力包、检查入口、维护生成层 ignore、按 `plugin_profile.md` 分流插件、重建已启用插件 thin-index 和合并明确缺失的 config 项；不得自动重写 `AGENTS.md`、`.agents/memory/`、`.agents/rules/project.md` 或项目已有 config 值。
+
+插件状态规则：
+
+- `available`：插件代码已拉取，只用于能力发现；不合并配置、不生成 thin-index、不写 AGENTS 路由。
+- `enabled`：项目已接入，初始化闭环已完成，参与常规更新。
+- `disabled`：显式禁用，默认跳过；旧入口只报告，不自动删除。
+
+若 `.agents/config/plugin_profile.md` 不存在，默认只把 `agent-context-kit` 视为 `enabled`，其它插件视为 `available`。
 
 配置合并规则：
 
@@ -196,7 +207,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 初始化项目上下文时：
 
 1. 先判断并记录 `contextMode`；缺少 `.agents/config/project_context_profile.md` 时，参考 `templates/project_context_profile.template.md` 创建。
-2. 运行 `.agents/scripts/check-agent-entrypoints.ps1`，只检查 `CLAUDE.md`、`CODEBUDDY.md` 可选兼容入口；不自动创建、复制或修复。
+2. 创建或维护 `.agents/config/plugin_profile.md`；默认 `agent-context-kit` 为 `enabled`，其它已拉取插件为 `available`。
+3. 运行 `.agents/scripts/check-agent-entrypoints.ps1`，只检查 `CLAUDE.md`、`CODEBUDDY.md` 可选兼容入口；不自动创建、复制或修复。
 3. **代码探索（仅 `codebase-complete`）**：在写入任何 config/rules 之前，先探索本地代码，提取可验证的事实填入配置文件。探索范围：
    - 目录结构：源码根目录、CSP 目录、JS/CSS 目录、构建/部署目录。
    - 命名约定：类名前缀、分层模式（如 BLH/DATA/SQL）、文件命名模板。
@@ -244,6 +256,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 6. 确认 `.agents/.git/info/exclude` 忽略生成层：`/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
 7. 扫描长期上下文，确认没有具体服务器地址、账号、密码、token、namespace 或远程路径。
 8. 验证 `.agents` Git 状态；生成层应被忽略，能力包源码改动必须明确区分。
+9. 初始化闭环验收通过后，运行 `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin <plugin-name> -Status enabled`，机械反写插件状态。
 
 验收时至少检查：
 

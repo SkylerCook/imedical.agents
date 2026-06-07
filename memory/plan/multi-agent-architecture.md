@@ -871,6 +871,8 @@ plugins/doc-writing-kit/
 
 ## 第一阶段落地范围
 
+> 2026-06 更新：当前 v0.2.0 收尾范围先保证 `i18n-agent` + `i18n-change.workflow.md` 领域样板可部署、可发现、可串行降级。通用 `coordinator/explorer/planner/coding/review/testing` Agent、agent thin-index 脚本和工具 adapter 生成器调整为后续阶段，不作为当前部署闭环的完成标准。
+
 第一阶段建议控制范围，先建立顶层架构和一个领域样板。
 
 ### 新增目录
@@ -880,7 +882,7 @@ agents/
 workflows/
 ```
 
-### 新增通用智能体
+### 后续新增通用智能体
 
 ```text
 agents/coordinator-agent/
@@ -917,7 +919,7 @@ i18n 五阶段映射：
 
 `i18n-agent` 不替代通用 Agent，而是把通用 Agent 阶段和 `i18n-iris-plugin` 规则绑定起来。
 
-### 新增 workflow
+### 后续新增 workflow
 
 ```text
 workflows/standard-change.workflow.md
@@ -928,8 +930,9 @@ workflows/i18n-change.workflow.md
 ### 暂缓内容
 
 - 暂缓新增 `test-doc-agent` 和 `api-dev-agent`，等 i18n 样板验证后再扩展。
+- 暂缓新增通用 `coordinator/explorer/planner/coding/review/testing` Agent，避免在领域样板未跑稳前扩大维护面。
 - 暂缓实现自动调度脚本，只保留结构、路由和降级协议。
-- 不暂缓适配入口生成器。第一阶段应至少提供 `scripts/generate-agent-thin-index.ps1` 和 `scripts/generate-agent-adapters.ps1` 的最小 dry-run/write 能力，避免手工维护多个工具入口导致漂移。
+- 暂缓适配入口生成器。当前先保证 Markdown canonical 对多数模型可读可执行；后续再实现 `scripts/generate-agent-thin-index.ps1` 和 `scripts/generate-agent-adapters.ps1`。
 
 ## 后续实施影响面
 

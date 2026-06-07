@@ -70,7 +70,14 @@ description: Initialize coding-iris-plugin in a target IRIS project, copy bundle
    - IRIS 开发主力脚本位于插件 `.agents/plugins/coding-iris-plugin/scripts/iris-tools/`，不复制到根 `.agents/scripts/`。
    - `.agents/.git/info/exclude` 已包含生成层忽略规则：`/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
    - 插件中没有源工程服务器、namespace、远程路径、业务类名前缀。
-8. 更新项目记忆：
+8. 更新插件状态：
+   - 初始化闭环验收通过后，运行脚本机械维护 `.agents/config/plugin_profile.md`：
+     ```powershell
+     powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin coding-iris-plugin -Status enabled
+     ```
+   - 将 `coding-iris-plugin` 状态标记为 `enabled`。
+   - 若文件不存在，脚本会按 Markdown 表格创建；插件目录存在但未启用的其它插件保持 `available`。
+9. 更新项目记忆：
    - 将初始化结果写入 `.agents/memory/project-memory.md` 的"最近变化"段落，记录接入了哪些插件、关键配置路径和仍需用户填写的 TODO 项。
 
 ## Git 忽略边界
@@ -83,6 +90,7 @@ description: Initialize coding-iris-plugin in a target IRIS project, copy bundle
 - 脚本复制结果和插件内置 thin-index 脚本调用结果。
 - profile 创建或缺失项。
 - thin-index DryRun/Write 结果。
+- `plugin_profile.md` 中 `coding-iris-plugin` 的最终状态。
 - 被跳过或冲突的文件。
 - `.agents/.git/info/exclude` 生成层忽略规则检查结果。
 - 仍需目标工程填写的配置项。

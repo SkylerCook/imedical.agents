@@ -9,6 +9,7 @@
   "skills": "skills/",
   "templates": "templates/",
   "scripts": "scripts/",
+  "initSkill": "coding-iris-init",
   "requiresProjectFiles": [
     "AGENTS.md",
     ".mcp.json",

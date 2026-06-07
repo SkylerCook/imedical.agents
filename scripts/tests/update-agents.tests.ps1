@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
 $scriptUnderTest = Join-Path $repoRoot "scripts/update-agents.ps1"
+$profileScriptUnderTest = Join-Path $repoRoot "scripts/update-plugin-profile.ps1"
 
 function Assert-True {
   param(
@@ -31,9 +32,55 @@ function New-TestProject {
   git -C (Join-Path $root ".agents") init | Out-Null
 
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/scripts") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/agents") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/workflows") | Out-Null
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/generate-plugin-thin-index.ps1") -Destination (Join-Path $root ".agents/scripts/generate-plugin-thin-index.ps1")
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-agents.ps1")
+  Copy-Item -LiteralPath $profileScriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-plugin-profile.ps1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/check-agent-entrypoints.ps1") -Destination (Join-Path $root ".agents/scripts/check-agent-entrypoints.ps1")
+  Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/agent-registry.md") -Value "# Agent Registry"
+  Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/workflow-registry.md") -Value "# Workflow Registry"
+
+  $contextPluginRoot = Join-Path $root ".agents/plugins/agent-context-kit"
+  New-Item -ItemType Directory -Force -Path (Join-Path $contextPluginRoot ".agents-plugin") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $contextPluginRoot "rules") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $contextPluginRoot "skills/project-context-maintenance") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $contextPluginRoot "scripts") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $contextPluginRoot ".agents-plugin/plugin.json") -Value @(
+    "{",
+    '  "name": "agent-context-kit",',
+    '  "version": "0.1.0",',
+    '  "displayName": "Agent Context Kit",',
+    '  "rules": "rules/",',
+    '  "skills": "skills/",',
+    '  "scripts": "scripts/",',
+    '  "initSkill": "project-context-maintenance"',
+    "}"
+  )
+  Set-Content -Encoding UTF8 -Path (Join-Path $contextPluginRoot "rules/context_rule.md") -Value "# Context Rule"
+  Set-Content -Encoding UTF8 -Path (Join-Path $contextPluginRoot "skills/project-context-maintenance/SKILL.md") -Value @(
+    "---",
+    "name: project-context-maintenance",
+    "description: context",
+    "---",
+    "",
+    "# Project Context Maintenance"
+  )
+  Set-Content -Encoding UTF8 -Path (Join-Path $contextPluginRoot "scripts/generate-plugin-thin-index.ps1") -Value @(
+    "param(",
+    '    [string]$PluginPath = ".agents/plugins/agent-context-kit",',
+    '    [string]$ProjectRoot = ".",',
+    '    [ValidateSet("DryRun", "Write")]',
+    '    [string]$Mode = "DryRun",',
+    '    [string[]]$ExcludeSkill = @(),',
+    '    [string[]]$ExcludeRule = @(),',
+    '    [switch]$Force',
+    ")",
+    "",
+    '$ErrorActionPreference = "Stop"',
+    '$canonicalScript = Join-Path $PSScriptRoot "..\..\..\scripts\generate-plugin-thin-index.ps1"',
+    '& $canonicalScript -PluginPath $PluginPath -ProjectRoot $ProjectRoot -Mode $Mode -ExcludeSkill $ExcludeSkill -ExcludeRule $ExcludeRule -Force:$Force'
+  )
 
   $pluginRoot = Join-Path $root ".agents/plugins/sample-plugin"
   New-Item -ItemType Directory -Force -Path (Join-Path $pluginRoot ".agents-plugin") | Out-Null
@@ -50,7 +97,8 @@ function New-TestProject {
     '  "rules": "rules/",',
     '  "skills": "skills/",',
     '  "templates": "templates/",',
-    '  "scripts": "scripts/"',
+    '  "scripts": "scripts/",',
+    '  "initSkill": "sample-skill"',
     "}"
   )
 
@@ -102,10 +150,22 @@ function New-TestProject {
 }
 
 Assert-True (Test-Path -LiteralPath $scriptUnderTest -PathType Leaf) "scripts/update-agents.ps1 should exist"
+Assert-True (Test-Path -LiteralPath $profileScriptUnderTest -PathType Leaf) "scripts/update-plugin-profile.ps1 should exist"
 
 $runbookPath = Join-Path $repoRoot "docs/update-agents.md"
 $contextSkillPath = Join-Path $repoRoot "plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md"
+$installScriptPath = Join-Path $repoRoot "scripts/install-agents.ps1"
 Assert-True (Test-Path -LiteralPath $runbookPath -PathType Leaf) "docs/update-agents.md should exist"
+$updateScriptContent = Get-Content -Raw -Encoding UTF8 -Path $scriptUnderTest
+$profileScriptContent = Get-Content -Raw -Encoding UTF8 -Path $profileScriptUnderTest
+$installScriptContent = Get-Content -Raw -Encoding UTF8 -Path $installScriptPath
+Assert-Contains $updateScriptContent "/agents/**" "update sparse checkout should include agents"
+Assert-Contains $updateScriptContent "/workflows/**" "update sparse checkout should include workflows"
+Assert-Contains $installScriptContent "/agents/**" "install sparse checkout should include agents"
+Assert-Contains $installScriptContent "/workflows/**" "install sparse checkout should include workflows"
+Assert-Contains $profileScriptContent "available" "profile updater should support available"
+Assert-Contains $profileScriptContent "enabled" "profile updater should support enabled"
+Assert-Contains $profileScriptContent "disabled" "profile updater should support disabled"
 $runbookContent = Get-Content -Raw -Encoding UTF8 -Path $runbookPath
 Assert-Contains $runbookContent "DryRun" "runbook should mention DryRun"
 Assert-Contains $runbookContent "Write" "runbook should mention Write"
@@ -131,11 +191,26 @@ try {
 
   $summaryOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull | Out-String
   Assert-Contains $summaryOutput "Agent kit update summary" "Default output should be summarized"
-  Assert-Contains $summaryOutput "Config notes:" "Default output should group config notes"
+  Assert-Contains $summaryOutput "Available plugins:" "Default output should list available plugins"
+  Assert-Contains $summaryOutput "sample-plugin" "Default output should report sample plugin as available"
+  Assert-Contains $summaryOutput "agent-context-kit" "Default output should process the default context plugin"
   Assert-Contains $summaryOutput "Optional entrypoint notes:" "Default output should report optional entrypoint notes"
   Assert-True (-not $summaryOutput.Contains("Action required:")) "Missing or non-symlink optional entrypoints should not require action"
+  Assert-True (-not $summaryOutput.Contains("sample_profile.md")) "Available plugins must not have templates merged by default"
+  Assert-True (-not $summaryOutput.Contains("sample_rule.md")) "Available plugins must not generate thin-index by default"
 
-  $dryRunOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed | Out-String
+  $unenabledPluginOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed -Plugin sample-plugin | Out-String
+  Assert-Contains $unenabledPluginOutput "plugin-init-required" "Explicit available plugin should require init instead of being processed"
+  Assert-True (-not $unenabledPluginOutput.Contains("config-missing-key")) "Explicit available plugin must not merge config before enablement"
+  Assert-True (-not $unenabledPluginOutput.Contains("sample_rule.md")) "Explicit available plugin must not generate thin-index before enablement"
+
+  $enableSampleOutput = & (Join-Path $projectRoot ".agents/scripts/update-plugin-profile.ps1") -ProjectRoot $projectRoot -Plugin sample-plugin -Status enabled | Out-String
+  Assert-Contains $enableSampleOutput "plugin-profile-updated" "Profile updater should report updated status"
+  $pluginProfileAfterEnable = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/plugin_profile.md")
+  Assert-Contains $pluginProfileAfterEnable "sample-plugin" "Profile updater should write selected plugin"
+  Assert-Contains $pluginProfileAfterEnable "enabled" "Profile updater should mark selected plugin enabled"
+
+  $dryRunOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed -Plugin sample-plugin | Out-String
   Assert-Contains $dryRunOutput "config-missing-key" "DryRun should report missing config keys"
   Assert-Contains $dryRunOutput "config-deprecated-candidate" "DryRun should report deprecated config candidates"
 
@@ -143,8 +218,14 @@ try {
   Assert-Contains $beforeWrite "projectName: real-project" "DryRun must not overwrite existing config values"
   Assert-True (-not $beforeWrite.Contains("newField: TODO")) "DryRun must not append missing config keys"
 
-  $writeOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed | Out-String
+  $writeOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-String
   Assert-Contains $writeOutput "config-merged-key" "Write should merge missing config keys"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/config/plugin_profile.md")) "Write should create plugin profile"
+  $profileAfterWrite = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/plugin_profile.md")
+  Assert-Contains $profileAfterWrite "agent-context-kit | enabled" "Default context plugin should be enabled"
+  Assert-Contains $profileAfterWrite "sample-plugin | enabled" "Write must preserve enabled plugin state"
+  Assert-True (-not $profileAfterWrite.Contains("initialized")) "Stable plugin profile must not write initialized"
+  Assert-True (-not $profileAfterWrite.Contains("indexed")) "Stable plugin profile must not write indexed"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sample_rule.md")) "Write should generate rule thin-index before stale cleanup is tested"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "CODEBUDDY.md"))) "Write must not create missing optional entrypoints"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "CLAUDE.md.bak"))) "Write must not backup or replace existing optional entrypoints"
@@ -158,7 +239,7 @@ try {
   Assert-Contains $afterWrite "newField: TODO" "Write should append missing config keys"
 
   Remove-Item -LiteralPath (Join-Path $projectRoot ".agents/plugins/sample-plugin/rules/sample_rule.md")
-  $staleOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed | Out-String
+  $staleOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-String
   if (-not $staleOutput.Contains("removed")) {
     Write-Host $staleOutput
     if (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sample_rule.md")) {
@@ -173,6 +254,15 @@ try {
   New-Item -ItemType Directory -Force -Path $agentContextPluginRoot | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $codingPluginRoot ".agents-plugin") | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $codingPluginRoot "rules") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $codingPluginRoot ".agents-plugin/plugin.json") -Value @(
+    "{",
+    '  "name": "coding-iris-plugin",',
+    '  "version": "0.1.0",',
+    '  "displayName": "IRIS Coding Plugin",',
+    '  "rules": "rules/",',
+    '  "initSkill": "coding-iris-init"',
+    "}"
+  )
   Set-Content -Encoding UTF8 -Path (Join-Path $codingPluginRoot "rules/sftp_server.md") -Value "# sftp_server"
   Set-Content -Encoding UTF8 -Path (Join-Path $codingPluginRoot "rules/iris_agentic_dev.md") -Value "# iris_agentic_dev"
   Set-Content -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/rules/sftp-server.md") -Value @(
@@ -211,8 +301,48 @@ try {
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/iris_agentic_dev.md")) "Current iris_agentic_dev thin-index should be generated"
 
   $i18nPluginRoot = Join-Path $projectRoot ".agents/plugins/i18n-iris-plugin"
+  New-Item -ItemType Directory -Force -Path (Join-Path $i18nPluginRoot ".agents-plugin") | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $i18nPluginRoot "rules") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $i18nPluginRoot "scripts") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $i18nPluginRoot ".agents-plugin/plugin.json") -Value @(
+    "{",
+    '  "name": "i18n-iris-plugin",',
+    '  "version": "0.1.0",',
+    '  "displayName": "IRIS I18N Plugin",',
+    '  "rules": "rules/",',
+    '  "scripts": "scripts/",',
+    '  "initSkill": "i18n-project-init",',
+    '  "dependencies": ["coding-iris-plugin"]',
+    "}"
+  )
+  Set-Content -Encoding UTF8 -Path (Join-Path $i18nPluginRoot "scripts/generate-plugin-thin-index.ps1") -Value @(
+    "param(",
+    '    [string]$PluginPath = ".agents/plugins/i18n-iris-plugin",',
+    '    [string]$ProjectRoot = ".",',
+    '    [ValidateSet("DryRun", "Write")]',
+    '    [string]$Mode = "DryRun",',
+    '    [string[]]$ExcludeSkill = @(),',
+    '    [string[]]$ExcludeRule = @(),',
+    '    [switch]$Force',
+    ")",
+    "",
+    '$ErrorActionPreference = "Stop"',
+    '$canonicalScript = Join-Path $PSScriptRoot "..\..\..\scripts\generate-plugin-thin-index.ps1"',
+    '& $canonicalScript -PluginPath $PluginPath -ProjectRoot $ProjectRoot -Mode $Mode -ExcludeSkill $ExcludeSkill -ExcludeRule $ExcludeRule -Force:$Force'
+  )
   Set-Content -Encoding UTF8 -Path (Join-Path $i18nPluginRoot "rules/i18n_hisui_widget_index.md") -Value "# i18n_hisui_widget_index"
+  $i18nInitRequiredOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed -Plugin i18n-iris-plugin | Out-String
+  Assert-Contains $i18nInitRequiredOutput "plugin-init-required" "Explicit available i18n plugin should require init before dependency checks"
+
+  & (Join-Path $projectRoot ".agents/scripts/update-plugin-profile.ps1") -ProjectRoot $projectRoot -Plugin i18n-iris-plugin -Status enabled | Out-Null
+  $i18nBlockedOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed -Plugin i18n-iris-plugin | Out-String
+  Assert-Contains $i18nBlockedOutput "plugin-dependency-missing" "i18n plugin should be blocked until coding dependency is enabled"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/i18n_hisui_widget_index.md"))) "Blocked i18n plugin must not generate thin-index"
+
+  & (Join-Path $projectRoot ".agents/scripts/update-plugin-profile.ps1") -ProjectRoot $projectRoot -Plugin coding-iris-plugin -Status enabled | Out-Null
+  $i18nEnabledOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed -Plugin i18n-iris-plugin | Out-String
+  Assert-Contains $i18nEnabledOutput "generated" "Enabled i18n plugin should be allowed to generate thin-index"
+
   Set-Content -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/rules/i18n-hisui-widget-index.md") -Value @(
     "# Thin Index: i18n-hisui-widget-index",
     "",

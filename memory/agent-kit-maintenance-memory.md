@@ -52,7 +52,8 @@
 - 修改插件目录结构时，同步检查 `.agents-plugin/plugin.json`、插件 `AGENTS.md`、插件 README、仓库 README 和相关 docs。
 - 对已部署工程有影响的变更，必须在 README 或插件 README 中说明同步步骤和兼容清理策略。
 - 不把根 `AGENTS.md`、根 `memory/`、展示页文件或 `scripts/tests/` 加入业务项目 sparse checkout。
-- `agents/` 和 `workflows/` 是能力包正式内容，后续应加入业务项目 `.agents` sparse checkout；它们不属于 `.agents/.git/info/exclude` 生成层。
+- `agents/` 和 `workflows/` 是能力包正式内容，已加入业务项目 `.agents` sparse checkout；它们不属于 `.agents/.git/info/exclude` 生成层。
+- `.agents/plugins/**` 默认全量拉取用于能力发现；插件目录存在只表示 `available`，是否启用以目标项目 `.agents/config/plugin_profile.md` 为准。
 - 不写服务器地址、账号、密码、token、namespace、远程路径或任何敏感连接信息。
 - 不写完整 rules 正文、长段脚本说明、大段命令输出或一次性排障日志。
 - 不把业务项目私有事实写入本仓库插件、规则或记忆。

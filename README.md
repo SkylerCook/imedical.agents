@@ -28,8 +28,9 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
 1. 业务项目根 `AGENTS.md`。
 2. `.agents/docs/update-agents.md`，执行安装或更新 runbook。
 3. `.agents/plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md`，初始化或维护项目上下文。
-4. `.agents/agents/agent-registry.md` 和 `.agents/workflows/workflow-registry.md`，确认可用智能体和 workflow。
-5. 按项目需要读取插件初始化 skill：
+4. `.agents/config/plugin_profile.md`，确认插件是 `available`、`enabled` 还是 `disabled`。
+5. `.agents/agents/agent-registry.md` 和 `.agents/workflows/workflow-registry.md`，确认可用智能体和 workflow。
+6. 按项目需要读取插件初始化 skill：
    - `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`
    - `.agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md`
 
@@ -53,7 +54,9 @@ notepad .\install-agents.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install-agents.ps1
 ```
 
-脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/`。当前脚本需要继续同步 `agents/` 和 `workflows/` sparse checkout 配套；在配套脚本更新前，如业务项目需要使用顶层智能体样板，应确认 `.agents/agents/` 和 `.agents/workflows/` 已存在。
+脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/`，并拉取 `plugins/`、`agents/`、`workflows/` 等能力包内容，让用户和 Agent 能看到可用能力。
+
+插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认只把 `agent-context-kit` 作为基础上下文能力处理；`coding-iris-plugin`、`i18n-iris-plugin` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
 
 ### 更新已部署 `.agents`
 
@@ -214,8 +217,9 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
    - `.agents/rules/project.md`
    - `.agents/memory/project-memory.md`
 6. 先 dry-run，再 write 生成 `agent-context-kit` thin-index。
-7. 按需要初始化 `coding-iris-plugin`、`i18n-iris-plugin`。
-8. 按需要读取 `agents/agent-registry.md` 和 `workflows/workflow-registry.md` 使用顶层智能体。
+7. 查看 `.agents/config/plugin_profile.md`；未启用插件保持 `available`，不要自动生成它们的 thin-index。
+8. 按需要初始化 `coding-iris-plugin`、`i18n-iris-plugin`。
+9. 按需要读取 `agents/agent-registry.md` 和 `workflows/workflow-registry.md` 使用顶层智能体。
 
 业务项目事实写入业务项目自己的上下文层，不写入本仓库插件或维护记忆。
 
@@ -242,11 +246,13 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 ## Thin-Index
 
-插件默认采用 `plugin-reference-thin-index`：
+已启用插件默认采用 `plugin-reference-thin-index`：
 
 1. 插件保留在 `.agents/plugins/<plugin-name>/`。
 2. 在 `.agents/rules/` 和 `.agents/skills/` 生成浅层入口。
 3. Agent 读到 thin-index 后必须继续读取插件真实文件。
+
+未启用插件即使目录存在，也只作为 `available` 能力展示，不生成浅层入口。
 
 插件 thin-index 生成逻辑只维护根：
 

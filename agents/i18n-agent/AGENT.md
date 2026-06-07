@@ -13,21 +13,35 @@
 ## 不适用任务
 
 - 非 IRIS 项目的国际化。
-- 未安装或未初始化 `i18n-iris-plugin` 的业务项目。
+- 未启用 `i18n-iris-plugin` 的业务项目。
 - 没有目标项目 `.agents/config/i18n_project_profile.md` 且无法确认源语言、目标语言和 helper 的任务。
 - 需要保存服务器地址、账号、密码、token、namespace 或远程路径到规则/记忆/插件的任务。
 
 ## 必读顺序
 
 1. 目标项目 `AGENTS.md`。
-2. 目标项目 `.agents/config/i18n_project_profile.md`。
-3. 目标项目 `.mcp.json`，仅在用户明确要求服务器验证、上传、编译或同步时读取。
-4. `.agents/agents/_shared/handoff-protocol.md`。
-5. `.agents/workflows/i18n-change.workflow.md`。
-6. `.agents/plugins/i18n-iris-plugin/AGENTS.md`。
-7. `.agents/plugins/i18n-iris-plugin/rules/i18n_index.md`。
+2. 目标项目 `.agents/config/plugin_profile.md`，确认 `coding-iris-plugin` 和 `i18n-iris-plugin` 状态均为 `enabled`。
+3. 目标项目 `.agents/config/i18n_project_profile.md`。
+4. 目标项目 `.mcp.json`，仅在用户明确要求服务器验证、上传、编译或同步时读取。
+5. `.agents/agents/_shared/handoff-protocol.md`。
+6. `.agents/workflows/i18n-change.workflow.md`。
+7. `.agents/plugins/i18n-iris-plugin/AGENTS.md`。
+8. `.agents/plugins/i18n-iris-plugin/rules/i18n_index.md`。
 
 在本仓库维护时，上述 `.agents/` 路径对应仓库根目录下的 `agents/`、`workflows/` 和 `plugins/`。
+
+## 插件启用前置
+
+插件目录存在只表示能力包已拉取，不表示当前业务项目已启用该插件。
+
+执行 `i18n-change` 前必须检查 `.agents/config/plugin_profile.md`：
+
+- `coding-iris-plugin` 不是 `enabled`：停止，提示先读取 `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`。
+- `i18n-iris-plugin` 不是 `enabled`：停止，提示读取 `.agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md`。
+- 任一依赖为 `available`：只说明能力存在但未接入，不进入 workflow。
+- 任一依赖为 `disabled`：停止并要求用户确认是否重新启用。
+
+如果缺少 `plugin_profile.md`，按未启用处理；不要因为 `.agents/plugins/i18n-iris-plugin/` 目录存在就执行 i18n 任务。
 
 ## 阶段模型
 

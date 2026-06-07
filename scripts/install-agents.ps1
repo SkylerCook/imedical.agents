@@ -6,7 +6,9 @@ $target = ".agents"
 # Only deploy runtime capability directories into business projects.
 # Repository-maintainer memory under root /memory/ is intentionally excluded.
 $sparsePaths = @(
+  "/agents/**",
   "/docs/**",
+  "/workflows/**",
   "/rules/**",
   "/skills/**",
   "/plugins/**",

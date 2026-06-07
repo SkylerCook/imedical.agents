@@ -8,6 +8,10 @@
   "skills": "skills/",
   "templates": "templates/",
   "scripts": "scripts/",
+  "initSkill": "i18n-project-init",
+  "dependencies": [
+    "coding-iris-plugin"
+  ],
   "requiresProjectFiles": [
     "AGENTS.md",
     ".mcp.json",

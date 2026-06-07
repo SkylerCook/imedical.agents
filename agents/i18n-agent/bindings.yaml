@@ -5,6 +5,12 @@ defaultWorkflow: i18n-change
 plugins:
   - i18n-iris-plugin
   - coding-iris-plugin
+requiredPlugins:
+  - coding-iris-plugin
+  - i18n-iris-plugin
+initSkills:
+  coding-iris-plugin: plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md
+  i18n-iris-plugin: plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md
 requiredProjectFiles:
   - AGENTS.md
   - .agents/config/i18n_project_profile.md
