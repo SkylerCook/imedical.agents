@@ -94,9 +94,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 - `export.js`：从 IRIS 导出类、JS 或 CSP。
 - `compile.js`：上传并编译本地类文件。
 - `debugger.js`：调用 Web Broker 方法做快速调试。
-- `sync-env-config.js`：从 `.agents/config/project-env.json` 生成 `.mcp.json`。
+- `sync-env-config.js`：仅当 `.agents/config/project-env.json` 是事实来源时，从它生成 `.mcp.json`。
 
-首次使用前先复制模板并填写真实环境：
+首次使用前先确认配置事实来源：
+
+- 已有 `.mcp.json`：从 `.mcp.json` 反向生成或补齐 `.agents/config/project-env.json`，不要运行 `sync-env-config.js` 覆盖现有 `.mcp.json`。
+- 没有 `.mcp.json`：复制模板并填写真实环境，再运行 `sync-env-config.js` 生成 `.mcp.json`。
 
 ```powershell
 New-Item -ItemType Directory -Force .agents/config
@@ -113,7 +116,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js <文件名
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <ClassName> --method <MethodName>
 ```
 
-`.agents/config/project-env.json` 和生成的 `.mcp.json` 可能包含账号、密码、服务器地址等敏感信息，应由目标工程本地维护，不提交到业务项目版本库。
+`.agents/config/project-env.json` 和 `.mcp.json` 可能包含账号、密码、服务器地址等敏感信息，应由目标工程本地维护，不提交到业务项目版本库。
 
 ## 前端 GB2312 提升流程
 

@@ -39,6 +39,7 @@ description: Initialize coding-iris-plugin in a target IRIS project, copy bundle
    - 若不存在，询问用户项目类型：
      - `doctor-dev`：从 `templates/profile-defaults/doctor-dev.md` 加载默认值（后端 BLH/DATA/SQL 约定、Broker、前端 CSP/JS 命名、公共 HEAD/JS/CSS 等），再用已知信息填充其余字段。
      - `通用`（或用户未指定）：基于 `templates/iris_project_profile.template.md` 创建，按探索流程填充可确定字段，确实无法确定的标 TODO。
+   - `templates/profile-defaults/<type>.md` 只在用户显式选择对应项目类型后加载；它是领域默认值，不是通用规则。加载后仍需用代码探索或用户确认校验，不能自动套用到未确认项目。
    - profile 中只能保存项目差异，不保存账号、密码、token。
    - **多仓库工作区**：若目标工程是平铺多仓库架构（如 `corePro-flat`），工作区级别 profile 只填通用项（Web 技术、编码策略、HISUI 基础路径）；仓库特有项（namespace、包前缀、目录路径、命名模板）标注"按仓库填写"，不要填入单一仓库的值当作全局事实。
 4. 初始化 IRIS 开发主力脚本配置：

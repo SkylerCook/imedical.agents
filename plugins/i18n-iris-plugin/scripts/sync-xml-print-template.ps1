@@ -24,7 +24,8 @@ param(
     [switch]$DryRun,
     [switch]$VerifyOnly,
     [switch]$Apply,
-    [switch]$Overwrite
+    [switch]$Overwrite,
+    [string]$I18nProfilePath = ".agents/config/i18n_project_profile.md"
 )
 
 Set-StrictMode -Version 3.0
@@ -46,12 +47,38 @@ function Escape-OsString([string]$Text) {
     return ($Text -replace '"', '""')
 }
 
-function Get-LanguageDisplayName([string]$LanguageCode) {
-    switch ($LanguageCode.ToUpperInvariant()) {
-        "EN" { return "English" }
-        "FR" { return "French" }
-        default { return $LanguageCode.ToUpperInvariant() }
+function Get-I18nLanguageDisplayMap([string]$ProfilePath) {
+    $map = @{}
+    if ([string]::IsNullOrWhiteSpace($ProfilePath)) { return $map }
+
+    $resolvedPath = Resolve-RootPath $ProfilePath
+    if (-not (Test-Path -LiteralPath $resolvedPath)) { return $map }
+
+    foreach ($line in [System.IO.File]::ReadLines($resolvedPath, [System.Text.Encoding]::UTF8)) {
+        $trimmed = $line.Trim()
+        if (-not $trimmed.StartsWith("|")) { continue }
+        if ($trimmed -match '^\|\s*-+\s*\|') { continue }
+
+        $cells = @($trimmed.Trim("|").Split("|") | ForEach-Object { $_.Trim() })
+        if ($cells.Count -lt 3) { continue }
+        if ($cells[0] -eq "langId" -or $cells[1] -eq "Code") { continue }
+
+        $code = $cells[1].ToUpperInvariant()
+        $name = $cells[2]
+        if (-not [string]::IsNullOrWhiteSpace($code) -and -not [string]::IsNullOrWhiteSpace($name)) {
+            $map[$code] = $name
+        }
     }
+
+    return $map
+}
+
+function Get-LanguageDisplayName([string]$LanguageCode, [hashtable]$LanguageDisplayMap = @{}) {
+    $code = $LanguageCode.ToUpperInvariant()
+    if ($null -ne $LanguageDisplayMap -and $LanguageDisplayMap.ContainsKey($code)) {
+        return [string]$LanguageDisplayMap[$code]
+    }
+    return $code
 }
 
 function Get-NormalizedTemplateNames([string[]]$Names) {
@@ -493,11 +520,11 @@ write out.%ToJSON()
 "@
 }
 
-function New-ApplyTemplateCode([string]$SourceName, [string]$TargetName, [string]$XmlBase64, [bool]$OverwriteFlag, [string]$TargetLanguage) {
+function New-ApplyTemplateCode([string]$SourceName, [string]$TargetName, [string]$XmlBase64, [bool]$OverwriteFlag, [string]$TargetLanguage, [hashtable]$LanguageDisplayMap = @{}) {
     $source = Escape-OsString $SourceName
     $target = Escape-OsString $TargetName
     $language = Escape-OsString $TargetLanguage
-    $languageDisplayName = Escape-OsString (Get-LanguageDisplayName $TargetLanguage)
+    $languageDisplayName = Escape-OsString (Get-LanguageDisplayName $TargetLanguage $LanguageDisplayMap)
     $overwrite = if ($OverwriteFlag) { "1" } else { "0" }
     return @"
 set sourceName="$source"
@@ -602,6 +629,7 @@ Translate only user-visible defaultvalue attributes. Preserve XML structure, coo
 $mcpConfig = Resolve-RootPath $McpConfigPath
 $refDir = Resolve-RootPath $ReferencesDir
 $outDir = Resolve-RootPath $OutputDir
+$languageDisplayMap = Get-I18nLanguageDisplayMap $I18nProfilePath
 $mcpJson = Get-Content $mcpConfig -Raw | ConvertFrom-Json
 if (-not $IrisNamespace) {
     $serverCfg = $mcpJson.mcpServers.$McpServerName
@@ -771,7 +799,7 @@ try {
             }
         }
 
-        $applyJson = Invoke-IrisObjectScript $client $osTool (New-ApplyTemplateCode $rec.name $targetName $xmlBase64 ([bool]$Overwrite) $TargetLanguage)
+        $applyJson = Invoke-IrisObjectScript $client $osTool (New-ApplyTemplateCode $rec.name $targetName $xmlBase64 ([bool]$Overwrite) $TargetLanguage $languageDisplayMap)
         $applyResult = $applyJson | ConvertFrom-Json
         Write-Host "Apply $($rec.name) -> $targetName : $($applyResult.status)"
         if ($applyResult.status -eq "save-failed") { throw $applyResult.error }

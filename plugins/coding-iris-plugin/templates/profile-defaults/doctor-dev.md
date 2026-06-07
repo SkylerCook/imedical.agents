@@ -1,6 +1,6 @@
 # doctor-dev 项目类型默认值
 
-适用于医生站系列项目（DHCDoc 体系）。初始化时用户选择 `doctor-dev` 类型后，用本文件的值填充 profile，减少 TODO。
+适用于医生站系列项目（DHCDoc 体系）。初始化时只有在用户显式选择 `doctor-dev` 类型后，才用本文件的值填充 profile，减少 TODO。所有默认值仍需通过代码探索或用户确认校验；若目标工程事实不同，以目标工程 profile 为准。
 
 ## 通用配置
 
@@ -9,6 +9,9 @@
 - HISUI 主题 CSS：`${HISUI_SRC}/dist/css/hisui.pure.css`
 - 源文件编码：前端 GB2312, 后端 UTF-8
 - 上传前是否运行 `convert-gb2312-upload.ps1`：否
+- 常见 Web 根前缀：`imedical/web`（仅作为医生站项目候选值；写入 `.agents/config/project-env.json` 前必须确认）
+- 常见 CSP 前缀：`imedical/web/csp`（仅作为医生站项目候选值；写入 `.agents/config/project-env.json` 前必须确认）
+- 常见 Broker 路径：`csp/websys.Broker.cls`（仅作为医生站项目候选值；写入 `.agents/config/project-env.json` 前必须确认）
 
 ## 后端约定
 
@@ -17,7 +20,7 @@
 - SQL 类命名模板：`<Entity>SQL`（如 `ApplySQL`、`AttachSQL`）
 - 公共 Super 类：`DHCDoc.GetData.COM.Super`（提供 `GetCustomRows()` 通用 SQL-to-JSON），继承自 `DHCDoc.Util.RegisteredObject`
 - JSON 工具类：`DHCDoc.Util.FromJSON`、`DHCDoc.Util.JSONAdaptor`、`DHCDoc.Util.QueryToJSON`
-- Broker 入口或调用封装：`DHCDoc.Util.Broker`（主 Broker），另有 `DHCAnt.COM.Broker`（麻醉专用）
+- Broker 入口或调用封装：`DHCDoc.Util.Broker`（主 Broker），另有 `DHCAnt.COM.Broker`（抗菌药等专用）
 
 ## 前端约定
 

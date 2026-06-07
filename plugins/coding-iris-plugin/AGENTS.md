@@ -9,6 +9,7 @@
 ## 使用约束
 
 - 不在插件 rules/skills 中硬编码服务器、namespace、账号、密码、token、远程路径、业务页面清单、业务类名前缀或项目专属基类。
+- `templates/profile-defaults/<type>.md` 只作为用户显式选择项目类型后的领域默认值来源；它不是通用规则，加载后仍需代码探索或用户确认校验。
 - 涉及工程差异时读取目标工程 `.agents/config/iris_project_profile.md`。
 - 导出、编译、Broker 调试和环境配置同步优先使用插件内 IRIS 开发主力脚本。
 - MCP 作为辅助能力，用于补上下文、只读 SQL/远程读取、脚本未覆盖的能力，或用户明确要求用 MCP 的场景。
@@ -52,4 +53,4 @@
 
 `convert-gb2312-upload.ps1` 初始化时复制到目标工程 `.agents/scripts/`。若目标工程已有同名脚本且内容不同，初始化流程必须报告冲突，不得静默覆盖。
 
-`scripts/iris-tools/` 是 IRIS 开发主力脚本集合，包含导出、编译、Broker 调试和环境配置同步。真实连接信息由目标工程 `.agents/config/project-env.json` 提供，该文件应由用户从 `templates/project-env.template.json` 复制后填写，不得提交到版本库。
+`scripts/iris-tools/` 是 IRIS 开发主力脚本集合，包含导出、编译、Broker 调试和环境配置同步。真实连接信息由目标工程本地私有配置承载：已有 `.mcp.json` 时反向补齐 `.agents/config/project-env.json`，没有 `.mcp.json` 时才从 `templates/project-env.template.json` 创建并用 `sync-env-config.js` 生成 `.mcp.json`。这些文件不得提交到版本库。

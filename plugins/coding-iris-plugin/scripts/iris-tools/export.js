@@ -8,7 +8,7 @@
  * 
  * Examples:
  *   # Export class (detected by dot notation without path)
- *   node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js DHCDoc.AI.KBase
+ *   node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js Sample.Package.Class
  *   
  *   # Export JS file (auto-prepends basePath for JS files)
  *   node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js scripts/Alloc.ExaBorRoom.hui.js
@@ -62,7 +62,7 @@ if (!fileIdentifier) {
     console.error('\n用法: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <fileIdentifier> [outputDir] [namespace] [--basePath <prefix>]');
     console.error('\n示例:');
     console.error('  # 导出类');
-    console.error('  node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js DHCDoc.AI.KBase');
+    console.error('  node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js Sample.Package.Class');
     console.error('  # 导出JS文件');
     console.error('  node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js scripts/Alloc.ExaBorRoom.hui.js');
     console.error('  # 导出CSP文件');
@@ -118,7 +118,7 @@ function detectFileType(identifier) {
                     identifier.endsWith('.cls');
     
     if (isClass) {
-        // It's a class name like DHCDoc.AI.KBase or web.DHCExaBorDep.cls
+        // It's a class name like Sample.Package.Class or web.SamplePage.cls
         let className = identifier;
         
         // If it ends with .cls, remove the extension for API call
@@ -225,7 +225,7 @@ function detectFileType(identifier) {
     }
     
     // Unknown type
-    throw new Error(`无法识别文件类型: ${identifier}\n支持的类型: 类名(如 DHCDoc.AI.KBase), JS文件(.js), CSP文件(.csp)`);
+    throw new Error(`无法识别文件类型: ${identifier}\n支持的类型: 类名(如 Sample.Package.Class), JS文件(.js), CSP文件(.csp)`);
 }
 
 function normalizePrefix(prefix) {

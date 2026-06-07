@@ -2,9 +2,9 @@
 // 用法:
 //   交互模式: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js
 //   命令行模式: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --token <token> --class <ClassName> --method <MethodName> [--params <JSON>]
-//   示例: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --token abc123 --class DHCDoc.Util.Date --method GetDateInfo
-//         node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class DHCDoc.Util.Date --method GetDateInfo --params 'UserId=12175&ForceQuery=0'
-//         node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class DHCDoc.Util.Date --method GetDateInfo --path DHCDoc.Util.Broker.cls
+//   示例: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --token abc123 --class Sample.Util.Date --method GetDateInfo
+//         node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class Sample.Util.Date --method GetDateInfo --params 'UserId=12175&ForceQuery=0'
+//         node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class Sample.Util.Date --method GetDateInfo --path csp/custom.Broker.cls
 
 const https = require('https');
 const http = require('http');
@@ -111,7 +111,7 @@ async function main() {
         // 交互模式
         const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
         token = await ask(rl, '请输入 Token: ');
-        className = await ask(rl, '请输入 ClassName (如 DHCDoc.EPMI.SERV.PatMerge): ');
+        className = await ask(rl, '请输入 ClassName (如 Sample.Package.Service): ');
         if (!className) {
             console.error('\x1b[31m%s\x1b[0m', '错误: ClassName 不能为空');
             process.exit(1);

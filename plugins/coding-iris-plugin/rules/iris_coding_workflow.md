@@ -21,7 +21,10 @@
 
 ## IRIS 开发主力脚本
 
-目标工程应先由用户复制并填写本地私密配置：
+目标工程应先确认本地私密配置事实来源：
+
+- 已有 `.mcp.json`：从 `.mcp.json` 反向生成或补齐 `.agents/config/project-env.json`，不得运行 `sync-env-config.js` 覆盖现有 `.mcp.json`。
+- 没有 `.mcp.json`：复制模板并填写 `.agents/config/project-env.json`，再运行 `sync-env-config.js` 生成 `.mcp.json`。
 
 ```powershell
 New-Item -ItemType Directory -Force .agents/config
@@ -38,7 +41,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js <文件名
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <ClassName> --method <MethodName>
 ```
 
-`.agents/config/project-env.json` 和生成的 `.mcp.json` 可能包含敏感信息，必须只保留在目标工程本地，不写入插件规则、模板或项目记忆。
+`.agents/config/project-env.json` 和 `.mcp.json` 可能包含敏感信息，必须只保留在目标工程本地，不写入插件规则、模板或项目记忆。
 
 ## 脚本能力边界
 
@@ -46,14 +49,14 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <
 
 | 脚本 | 实际能力 | 适用场景 | 明确不能做 |
 |---|---|---|---|
-| `sync-env-config.js` | 从 `.agents/config/project-env.json` 生成 `.mcp.json`；支持可选 `sftp.enabled=true` 生成 `sftp-server` MCP | 初始化或修改本地私有环境配置后同步 MCP 配置 | 不验证远端连通性；不上传文件；不编译；不把敏感值写入插件 |
+| `sync-env-config.js` | 从 `.agents/config/project-env.json` 生成 `.mcp.json`；支持可选 `sftp.enabled=true` 生成 `sftp-server` MCP | 仅当 `project-env.json` 是事实来源时初始化或同步 MCP 配置 | 不反向读取 `.mcp.json`；不验证远端连通性；不上传文件；不编译；不把敏感值写入插件 |
 | `export.js` | 通过 IRIS Atelier API 导出 IRIS 文档；可识别类名、`.cls`、`.js`、`.csp`；JS/CSP 路径前缀来自 `web.basePath` / `web.cspBasePath` | 本地缺少类、CSP、JS 上下文时导出远端源码 | 不上传；不编译；不做 SFTP；不做 GB2312 转换 |
 | `compile.js` | 通过 MCP 调用 `iris_doc mode=put` 上传 IRIS 文档，再调用 `iris_compile` 编译 | `.cls` 等后端 IRIS 文档的小范围上传与编译 | 不支持 CSP；不支持 SFTP；不处理 GB2312；不适合持久化实体类带 Storage 原文直接上传 |
 | `debugger.js` | 通过 HTTP/HTTPS POST 调用 Broker/API；支持命令行或交互输入 Token、ClassName、MethodName、参数、URL、Cookie | 验证后端 Broker 方法、调试业务接口返回 | 不上传；不编译；不执行 SQL；不替代单元测试或页面访问验证 |
 
 脚本使用规则：
 
-- 每次修改 `.agents/config/project-env.json` 后，先运行 `sync-env-config.js`，再使用依赖 `.mcp.json` 的能力。
+- 只有当 `.agents/config/project-env.json` 是配置事实来源时，修改后才运行 `sync-env-config.js` 同步 `.mcp.json`；若 `.mcp.json` 已是事实来源，不要用脚本覆盖它。
 - 需要导出源码时优先 `export.js`，本地已有最新源码时不要从远端覆盖本地。
 - 后端类小范围验证可用 `compile.js`；批量部署、有 Storage 的实体类、复杂依赖链，按部署清单先处理源码和依赖顺序，不要盲目逐个调用 `compile.js`。
 - CSP 的正确链路是：编码转换或确认编码 -> 项目上传能力/SFTP 上传 -> `iris_execute` 执行 WebApp 虚拟路径 `$system.OBJ.Load` -> 验证生成类和 `CSPFILE/CSPURL`。

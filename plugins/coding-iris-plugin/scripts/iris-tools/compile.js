@@ -3,9 +3,9 @@
 /**
  * IRIS 文件同步编译脚本（通过 MCP 协议）
  * 用法: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js <文件名或路径> [命名空间]
- * 示例: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js DHCDoc.Util.String
- *        node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js DHCDoc/Util/Date.cls
- *        node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js src/DHCDoc/Util/Date.cls <namespace>
+ * 示例: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js Sample.Util.String
+ *        node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js Sample/Util/Date.cls
+ *        node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js src/Sample/Util/Date.cls <namespace>
  */
 
 const fs = require('fs');
@@ -40,9 +40,9 @@ if (!inputFile) {
     console.error('[错误] 请提供文件名或路径作为参数');
     console.error('用法: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js <文件名或路径> [命名空间]');
     console.error('\n示例:');
-    console.error('  node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js DHCDoc.Util.String          # 类名');
-    console.error('  node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js DHCDoc/Util/Date.cls        # 相对路径');
-    console.error('  node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js src/DHCDoc/Util/Date.cls    # 带src前缀');
+    console.error('  node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js Sample.Util.String          # 类名');
+    console.error('  node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js Sample/Util/Date.cls        # 相对路径');
+    console.error('  node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js src/Sample/Util/Date.cls    # 带src前缀');
     process.exit(1);
 }
 
