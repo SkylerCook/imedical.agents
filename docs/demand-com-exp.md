@@ -115,8 +115,50 @@
 
 ---
 
+## 五、i18n XML 打印模板同步 (i18n)
+
+### 5.1 PowerShell JsonLine framing + 中文 Windows 编码问题
+- 需求: #6096272 | 命中: 1
+- **问题**：`sync-xml-print-template.ps1` 使用 JsonLine framing 时，`ReadLine()` 按系统默认编码（中文 Windows 为 GB2312）解码 MCP 输出的 UTF-8 字节，导致含中文的 JSON 响应乱码，`ConvertFrom-Json` 失败。
+- **根因**：`StandardOutput.ReadLine()` 使用 `Console.InputEncoding`（默认跟随系统区域设置），而非 UTF-8。
+- **修复**：JsonLine 分支改用 `BaseStream` 逐字节读取 + `[System.Text.Encoding]::UTF8.GetString()` 显式解码：
+  ```powershell
+  $stream = $Client.Process.StandardOutput.BaseStream
+  $bytes = New-Object System.Collections.Generic.List[byte]
+  while ($true) {
+      $b = $stream.ReadByte()
+      if ($b -lt 0) { throw "MCP process closed stdout." }
+      if ($b -eq 10) { break }
+      if ($b -ne 13) { $bytes.Add([byte]$b) }
+  }
+  $line = [System.Text.Encoding]::UTF8.GetString($bytes.ToArray())
+  ```
+- **注意**：MCP 服务器 `iris-agentic-dev` 只支持 JsonLine framing，不支持 Content-Length framing。
+
+### 5.2 XML 模板 fontname 中文字符必须用 XML 数字实体
+- 需求: #6096272 | 命中: 1
+- **问题**：XML 打印模板中 `fontname="宋体"` 写入服务器后变成 `fontname="å®ä½"`（UTF-8 字节被当 Latin-1 解读）。
+- **根因**：MCP 传输层对非 ASCII 字符有编码风险，尤其是 GB2312 编码的 XML 内容经过 PowerShell → MCP → IRIS 多层传递时编码不一致。
+- **修复**：翻译 XML 模板时，将中文 fontname 替换为 XML 数字实体：
+  ```python
+  # 宋体 → &#23435;&#20307;  黑体 → &#40657;&#20307;
+  text = re.sub(r'fontname="([^"]*[一-鿿][^"]*?)"', fontname_to_entities, text)
+  ```
+- **引用**：`i18n-xml-print-template-sync/SKILL.md` 中已有此规则："use XML numeric entities such as `fontname="&#23435;&#20307;"` to preserve the same XML value without storing raw Chinese bytes"。
+
+### 5.3 IRIS GlobalCharacterStream 不需要编码转换
+- 需求: #6096272 | 命中: 1
+- **规则**：`%Library.GlobalCharacterStream` 在写入时已将 GB2312 转为 IRIS 内部 Unicode 存储。读取时直接 `w text` 输出即可，无需 `$zconvert` 转换。
+- **反面示例**：
+  - `$zconvert(text,"I","UTF8")` — 把已经是 Unicode 的码点当 UTF-8 字节重新解释，中文变 `??`
+  - `$system.Encryption.Base64Encode(text)` — CharacterStream 内容直接 Base64 编码会报 `<ILLEGAL VALUE>`
+- **正确做法**：直接读取、直接输出，MCP 传输层会正确处理 Unicode/UTF-8。
+
+---
+
 ## 需求索引
 
 | 需求号 | 描述 | 命中经验 |
 |---|------|----------|
 | #6990066 | 材料字典排序功能 | [1.1](#11-新增字段必须追加到末尾), [1.2](#12-sql-语句同步), [1.3](#13-查询排序中-null-值处理), [1.4](#14-getcustomrows-支持-order-by), [2.1](#21-插入列后-editor-索引偏移), [2.2](#22-可编辑列-vs-仅展示列), [3.1](#31-明确排序的作用范围), [3.2](#32-参考已有代码模式), [3.3](#33-调用链路梳理方法) |
+| #6096272 | 挂号小条打印多语言 | [5.1](#51-powershell-jsonline-framing--中文-windows-编码问题), [5.2](#52-xml-模板-fontname-中文字符必须用-xml-数字实体), [5.3](#53-iris-globalcharacterstream-不需要编码转换) |

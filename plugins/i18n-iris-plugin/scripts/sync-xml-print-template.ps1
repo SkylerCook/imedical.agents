@@ -196,8 +196,15 @@ function Read-McpLine([System.IO.Stream]$Stream) {
 
 function Read-McpMessage($Client) {
     if ($Client.Framing -eq "JsonLine") {
-        $line = $Client.Process.StandardOutput.ReadLine()
-        if ($null -eq $line) { throw "MCP process closed stdout." }
+        $stream = $Client.Process.StandardOutput.BaseStream
+        $bytes = New-Object System.Collections.Generic.List[byte]
+        while ($true) {
+            $b = $stream.ReadByte()
+            if ($b -lt 0) { throw "MCP process closed stdout." }
+            if ($b -eq 10) { break }
+            if ($b -ne 13) { $bytes.Add([byte]$b) }
+        }
+        $line = [System.Text.Encoding]::UTF8.GetString($bytes.ToArray())
         return $line | ConvertFrom-Json
     }
     $stream = $Client.Process.StandardOutput.BaseStream
