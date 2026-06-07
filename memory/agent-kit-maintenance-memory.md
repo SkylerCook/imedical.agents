@@ -30,6 +30,7 @@
 
 ## 近期关键变化
 
+- 已新增框架验证反馈机制：`docs/agent-feedback/`、`agents/_shared/feedback-protocol.md`。Agent 处理 HIS 需求时如对框架文件做了修正，自动生成反馈条目；维护者定期 diff 后应用到 master。
 - 已新增根 `AGENTS.md`，作为本仓库 AI Coding 维护入口；它不部署到业务项目 `.agents/`。
 - 维护记忆已拆分为入口摘要、长期决策、维护日志和治理队列四类文件。
 - 已新增统一更新脚本 `scripts/update-agents.ps1` 和托管更新 runbook `docs/update-agents.md`。

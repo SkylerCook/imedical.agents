@@ -173,3 +173,4 @@ docs/agent-reports/{ticket-or-topic}/verifier-i18n-agent.md
 - 代码改造只覆盖分类清单确认项。
 - XML 模板或翻译种子只在条件满足时处理。
 - 验证报告列出已执行检查、未执行原因和残余风险。
+- 如果对框架文件做了修正，按 `agents/_shared/feedback-protocol.md` 生成反馈条目。

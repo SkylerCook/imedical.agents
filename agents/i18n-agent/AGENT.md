@@ -78,6 +78,10 @@
 - 验证报告。
 - 无法确认项和需要人工确认的问题。
 
+## 框架反馈
+
+任务完成后，如果对框架文件（rules、skills、templates、references、scripts 等）做了修正，按 `agents/_shared/feedback-protocol.md` 自动生成反馈条目到 `docs/agent-feedback/`。
+
 ## 降级执行
 
 如果当前工具不支持子 Agent，单 Agent 按 `workflows/i18n-change.workflow.md` 串行执行五阶段。

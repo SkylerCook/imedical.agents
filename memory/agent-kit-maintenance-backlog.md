@@ -28,7 +28,14 @@
 
 5. 暂不新增 `agent-kit-maintenance` 专用 skill。
    - 根 `AGENTS.md` 先承载本仓库维护入口、记忆路由和维护规则。
-   - 若后续频繁执行“查看近期提交、归纳维护记忆、同步 README/docs、检查 sparse checkout 边界、审查敏感信息”等固定流程，再抽成专用 skill。
+   - 若后续频繁执行”查看近期提交、归纳维护记忆、同步 README/docs、检查 sparse checkout 边界、审查敏感信息”等固定流程，再抽成专用 skill。
+
+6. 框架验证反馈机制。
+   - 已完成：新增 `docs/agent-feedback/` 反馈目录和模板。
+   - 已完成：新增 `agents/_shared/feedback-protocol.md` Agent 反馈行为指引。
+   - 已完成：`i18n-agent` 和 `i18n-change.workflow.md` 引用反馈协议。
+   - 待做：团队成员开始使用后，观察反馈质量和处理效率。
+   - 待做：积累反馈后，评估是否需要自动化 diff 和应用工具。
 
 ## 队列维护规则
 
