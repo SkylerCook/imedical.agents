@@ -762,6 +762,113 @@ skills:
     - 适配入口只引用 canonical，不复制规则全文。
     - 不包含业务项目敏感信息或私有事实。
 
+## 扩展示例：文档编写智能体
+
+后续如果需要“编写文档的智能体”，按普通领域 Agent 扩展，不直接绑定 Codex、Claude Code 或其它工具。
+
+第一步只新增 canonical：
+
+```text
+agents/doc-writing-agent/
+|-- AGENT.md
+`-- bindings.yaml
+
+workflows/doc-writing.workflow.md
+```
+
+并同步更新：
+
+```text
+agents/agent-registry.md
+workflows/workflow-registry.md
+```
+
+### 职责边界
+
+`doc-writing-agent` 负责把已验证事实整理成文档，不负责凭空补业务事实。
+
+适用任务：
+
+- 技术设计文档。
+- README 或用户说明。
+- 安装、更新、排障 runbook。
+- 接口说明。
+- 变更说明、提测说明或发布说明。
+
+禁止事项：
+
+- 不编造业务事实、接口行为、环境配置或验证结果。
+- 不写服务器、账号、密码、token、namespace、远程路径。
+- 不把一次性排障日志、长命令输出或完整 diff 原样写进正式文档。
+- 不覆盖已有文档结构，除非用户明确要求重写。
+
+### 推荐 workflow
+
+```text
+Explorer
+  -> 收集事实：需求、代码、接口、已有文档、目标读者
+Structurer
+  -> 设计结构：文档类型、章节、信息层级、缺口
+Writer
+  -> 写初稿：按模板或既有风格生成内容
+Reviewer
+  -> 审查：准确性、遗漏、可读性、敏感信息
+Publisher
+  -> 输出：Markdown / Word / README / runbook
+```
+
+### bindings.yaml 示例
+
+```yaml
+name: doc-writing-agent
+type: domain
+description: 编写和维护技术文档、用户说明、runbook、设计文档。
+defaultWorkflow: doc-writing
+plugins:
+  - agent-context-kit
+optionalPlugins:
+  - doc-writing-kit
+stages:
+  explorer:
+    output: docs/agent-reports/{topic}/explorer-doc-writing-agent.md
+    modelHint: balanced
+  structurer:
+    output: docs/agent-reports/{topic}/structure-doc-writing-agent.md
+    modelHint: strong
+  writer:
+    output: docs/{topic}.md
+    modelHint: balanced
+  reviewer:
+    output: docs/agent-reports/{topic}/review-doc-writing-agent.md
+    modelHint: strong
+serialFallback: true
+```
+
+### 何时抽成插件
+
+仅当文档能力出现稳定复用规则、模板或脚本时，再新增：
+
+```text
+plugins/doc-writing-kit/
+|-- AGENTS.md
+|-- README.md
+|-- rules/
+|   |-- doc_writing_style.md
+|   `-- doc_review_checklist.md
+|-- skills/
+|   `-- doc-writing/
+|       `-- SKILL.md
+`-- templates/
+    |-- design-doc.template.md
+    |-- runbook.template.md
+    `-- user-guide.template.md
+```
+
+判断标准：
+
+- 只是定义“谁来写文档、按什么流程写”：放 `agents/` 和 `workflows/`。
+- 已经沉淀出可跨项目复用的写作规则、模板、审查清单或脚本：再抽 `plugins/doc-writing-kit/`。
+
 ## 第一阶段落地范围
 
 第一阶段建议控制范围，先建立顶层架构和一个领域样板。
