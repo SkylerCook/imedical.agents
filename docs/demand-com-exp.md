@@ -156,9 +156,71 @@
 
 ---
 
+## 六、i18n 前端编码与字典翻译 (i18n)
+
+### 6.1 GB2312 编码文件的正确修改流程
+- 需求: #6096272 | 命中: 1
+- **问题**：Edit 工具会破坏 GB2312 编码，导致中文乱码。
+- **正确流程**：
+  1. 先用 PowerShell 将 GB2312 文件转为 UTF-8
+  2. 在 UTF-8 编码下用 Edit 工具修改
+  3. 运行 `convert-gb2312-upload.ps1` 转回 GB2312
+  4. 用生成的 `.gb2312.js` 文件替换原文件
+- **关键代码**：
+  ```powershell
+  # GB2312 → UTF-8
+  $gb2312 = [System.Text.Encoding]::GetEncoding('GB2312')
+  $utf8 = New-Object System.Text.UTF8Encoding ($false)
+  $content = $gb2312.GetString([System.IO.File]::ReadAllBytes($file))
+  [System.IO.File]::WriteAllText($file, $content, $utf8)
+  ```
+- **注意**：用户明确要求"不要转源文件为 utf-8"时，文件保持 GB2312 编码，上传前再用脚本转换。
+
+### 6.2 i18n 打印链路改造的分层处理
+- 需求: #6096272 | 命中: 1
+- **固定文案**（金额单位、标签、状态标识）：
+  - 后端：使用 `..%Trans()` 页面级翻译
+  - 前端：使用 `$g()` 静态翻译
+- **字典展示值**（科室、医生、医院等）：
+  - 使用 `DHCDoc.Common.Translate.GetTransXxx()` 字典翻译门面
+  - 翻译位置贴近原始字段来源（贴近原则）
+- **区分标准**：固定文案是代码中硬编码的文本；字典展示值是从 Global/SQL/持久类字段取出的原文。
+
+### 6.3 新增字典翻译方法的规范
+- 需求: #6096272 | 命中: 1
+- **触发条件**：首次遇到新的字典/表字段展示值翻译时
+- **步骤**：
+  1. 在 `DHCDoc.Common.Translate` 类中新增 `GetTransXxx` 方法
+  2. 方法命名：`GetTrans{Domain?}{EntityAlias}{FieldAlias?}`
+  3. 注释规范：desc/class/field/source/debug 五项必填
+  4. 实现调用 `..%TranslateTableFieldValue(tClassName, fieldName, value, langid, qTrantable)`
+- **示例**：
+  ```objectscript
+  /// desc:   会话类型/职称描述翻译
+  /// class:  User.RBCSessionType
+  /// field:  SESSDesc
+  /// source: ^RBC("SESS",id) piece 2
+  /// debug:  w ##class(DHCDoc.Common.Translate).GetTransSessionType("主任医师", 1)
+  ClassMethod GetTransSessionType(SessionTypeDesc As %String, langid As %String = "", qTrantable As %String = "")
+  {
+      q ..%TranslateTableFieldValue("User.RBCSessionType", "SESSDesc", SessionTypeDesc, langid, qTrantable)
+  }
+  ```
+
+### 6.4 XML 打印模板代码国际化
+- 需求: #6096272 | 命中: 1
+- **问题**：前端硬编码 XML 模板代码，无法根据语言选择对应模板。
+- **解决方案**：
+  1. 后端在打印数据中返回 `PrintTemplateCode` 字段
+  2. 使用 `##class(DHCDoc.Util.Translate).GetI18nXMLPrintTemplate(xptCode, patientId)` 获取对应语言模板
+  3. 前端从返回数据获取模板代码，而非硬编码
+- **回退机制**：模板不存在时回退到原模板代码（如 `DHCOPAdmRegPrint`）
+
+---
+
 ## 需求索引
 
 | 需求号 | 描述 | 命中经验 |
 |---|------|----------|
 | #6990066 | 材料字典排序功能 | [1.1](#11-新增字段必须追加到末尾), [1.2](#12-sql-语句同步), [1.3](#13-查询排序中-null-值处理), [1.4](#14-getcustomrows-支持-order-by), [2.1](#21-插入列后-editor-索引偏移), [2.2](#22-可编辑列-vs-仅展示列), [3.1](#31-明确排序的作用范围), [3.2](#32-参考已有代码模式), [3.3](#33-调用链路梳理方法) |
-| #6096272 | 挂号小条打印多语言 | [5.1](#51-powershell-jsonline-framing--中文-windows-编码问题), [5.2](#52-xml-模板-fontname-中文字符必须用-xml-数字实体), [5.3](#53-iris-globalcharacterstream-不需要编码转换) |
+| #6096272 | 挂号小条打印多语言 | [5.1](#51-powershell-jsonline-framing--中文-windows-编码问题), [5.2](#52-xml-模板-fontname-中文字符必须用-xml-数字实体), [5.3](#53-iris-globalcharacterstream-不需要编码转换), [6.1](#61-gb2312-编码文件的正确修改流程), [6.2](#62-i18n-打印链路改造的分层处理), [6.3](#63-新增字典翻译方法的规范), [6.4](#64-xml-打印模板代码国际化) |
