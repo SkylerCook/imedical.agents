@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>imedical.agents - 统一 Agent 能力包架构</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ==================== CSS Variables ==================== */
+:root {
+  --bg: #f6f8fb;
+  --panel: #ffffff;
+  --text: #17212b;
+  --muted: #657282;
+  --line: #dbe4ec;
+  --primary: #145f7d;
+  --primary-dark: #0b3e54;
+  --accent: #d66f2d;
+  --accent-soft: #fff2e9;
+  --green: #2d7656;
+  --blue-soft: #e7f3f8;
+  --shadow: 0 18px 45px rgba(28, 49, 72, 0.10);
+}
+
+/* ==================== Reset & Base ==================== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+  overflow-y: scroll;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', 'Noto Sans SC', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ==================== Progress Bar ==================== */
+.progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 4px;
+  width: 0%;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  z-index: 1000;
+  transition: width 0.25s ease-out;
+}
+
+/* ==================== Nav Hint ==================== */
+.nav-hint {
+  position: fixed;
+  bottom: 28px;
+  right: 32px;
+  font-size: 13px;
+  color: var(--muted);
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(8px);
+  padding: 8px 16px;
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.8;
+  transition: opacity 0.3s;
+}
+
+/* ==================== Slide ==================== */
+.slide {
+  width: 100vw;
+  min-height: 100vh;
+  scroll-snap-align: start;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 80px;
+  position: relative;
+}
+
+.slide-inner {
+  max-width: 1200px;
+  width: 100%;
+}
+
+/* ==================== Chapter Cover ==================== */
+.slide.cover-dark {
+  background: linear-gradient(135deg, var(--primary-dark) 0%, #145f7d 100%);
+  color: #fff;
+}
+.slide.cover-dark .eyebrow {
+  color: rgba(255,255,255,0.6);
+}
+.slide.cover-dark .eyebrow::before {
+  background: var(--accent);
+}
+.slide.cover-dark h1 {
+  font-size: clamp(2.8rem, 5vw, 4.2rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 16px 0;
+}
+.slide.cover-dark .lead {
+  font-size: 1.15rem;
+  color: rgba(255,255,255,0.7);
+  max-width: 560px;
+}
+
+/* ==================== Typography ==================== */
+h1 { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.015em; line-height: 1.2; }
+h2 { font-size: 1.65rem; font-weight: 700; margin-bottom: 24px; line-height: 1.3; }
+h3 { font-size: 1.15rem; font-weight: 600; margin-bottom: 8px; }
+p { margin-bottom: 12px; }
+
+.lead { font-size: 1.05rem; color: var(--muted); }
+
+/* ==================== Eyebrow ==================== */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 12px;
+  padding-left: 34px;
+  position: relative;
+}
+.eyebrow::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* ==================== Card ==================== */
+.card {
+  background: var(--panel);
+  border-radius: 16px;
+  padding: 28px;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 56px rgba(28, 49, 72, 0.14);
+}
+
+/* ==================== Tag ==================== */
+.tag {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: var(--primary);
+  color: #fff;
+}
+.tag.accent { background: var(--accent); }
+.tag.green { background: var(--green); }
+
+/* ==================== Quote ==================== */
+.quote {
+  border-left: 5px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 24px 28px;
+  border-radius: 0 12px 12px 0;
+  font-style: italic;
+  color: var(--text);
+  font-size: 1.05rem;
+  line-height: 1.8;
+}
+
+/* ==================== Grid ==================== */
+.grid { display: grid; gap: 20px; }
+.grid.two { grid-template-columns: repeat(2, 1fr); }
+.grid.three { grid-template-columns: repeat(3, 1fr); }
+.grid.four { grid-template-columns: repeat(4, 1fr); }
+
+@media (max-width: 980px) {
+  .grid.four { grid-template-columns: repeat(2, 1fr); }
+  .grid.three { grid-template-columns: repeat(2, 1fr); }
+  .slide { padding: 40px 32px; }
+}
+@media (max-width: 640px) {
+  .grid.two, .grid.three, .grid.four { grid-template-columns: 1fr; }
+  .slide { padding: 28px 20px; }
+  h1 { font-size: 1.8rem; }
+  h2 { font-size: 1.3rem; }
+}
+
+/* ==================== Icon Circle ==================== */
+.icon-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+.icon-circle.blue { background: var(--blue-soft); }
+.icon-circle.orange { background: var(--accent-soft); }
+.icon-circle.green { background: #e8f5ee; }
+
+/* ==================== Folder Icon ==================== */
+.folder-icon {
+  width: 52px;
+  height: 40px;
+  background: var(--blue-soft);
+  border-radius: 4px 4px 0 0;
+  position: relative;
+  margin-bottom: 14px;
+}
+.folder-icon::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 22px;
+  height: 10px;
+  background: var(--primary);
+  border-radius: 4px 4px 0 0;
+}
+.folder-icon::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--primary);
+  border-radius: 0 0 2px 2px;
+  opacity: 0.3;
+}
+.folder-icon.orange { background: var(--accent-soft); }
+.folder-icon.orange::before { background: var(--accent); }
+.folder-icon.orange::after { background: var(--accent); opacity: 0.3; }
+.folder-icon.green { background: #e8f5ee; }
+.folder-icon.green::before { background: var(--green); }
+.folder-icon.green::after { background: var(--green); opacity: 0.3; }
+
+/* ==================== Progress Bar (inside card) ==================== */
+.bar-track {
+  width: 100%;
+  height: 10px;
+  background: #eef2f6;
+  border-radius: 5px;
+  margin: 12px 0 6px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  width: var(--width, 0%);
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  transition: width 1s ease-out;
+}
+
+/* ==================== Architecture Layers ==================== */
+.arch-layer {
+  padding: 22px 28px;
+  border-radius: 14px;
+  border: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.arch-layer.canonical { background: var(--blue-soft); border-color: #b3d7ea; }
+.arch-layer.capability { background: var(--accent-soft); border-color: #f0c9a0; }
+.arch-layer.adapter { background: #e8f5ee; border-color: #b0d9c1; }
+.arch-layer .layer-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 4px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.arch-layer.canonical .layer-badge { background: var(--primary); color: #fff; }
+.arch-layer.capability .layer-badge { background: var(--accent); color: #fff; }
+.arch-layer.adapter .layer-badge { background: var(--green); color: #fff; }
+.arch-layer .layer-text h3 { margin-bottom: 2px; }
+.arch-layer .layer-text p { margin: 0; font-size: 0.92rem; color: var(--muted); }
+.arch-arrow {
+  text-align: center;
+  font-size: 1.4rem;
+  color: var(--muted);
+  padding: 6px 0;
+}
+
+/* ==================== Number Label ==================== */
+.num-label {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--primary);
+  opacity: 0.18;
+  position: absolute;
+  top: 18px;
+  right: 22px;
+}
+
+/* ==================== Pipeline ==================== */
+.pipeline {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  overflow-x: auto;
+  padding: 10px 0;
+}
+.pipeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-width: 140px;
+  flex: 1;
+  position: relative;
+}
+.pipeline-step .step-emoji {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+.pipeline-step .step-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+.pipeline-step .step-desc {
+  font-size: 0.8rem;
+  color: var(--muted);
+  max-width: 130px;
+}
+.pipeline-arrow {
+  display: flex;
+  align-items: center;
+  padding-top: 10px;
+  font-size: 1.5rem;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ==================== Timeline ==================== */
+.timeline {
+  position: relative;
+  padding-left: 32px;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--primary), var(--accent));
+  border-radius: 2px;
+}
+.timeline-item {
+  position: relative;
+  padding: 0 0 28px 24px;
+}
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -28px;
+  top: 6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 3px solid var(--bg);
+  box-shadow: 0 0 0 3px var(--primary);
+}
+.timeline-item .t-day {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+.timeline-item h3 { margin-bottom: 4px; }
+.timeline-item p { margin: 0; font-size: 0.9rem; color: var(--muted); }
+
+/* ==================== Stat Card ==================== */
+.stat-card {
+  text-align: center;
+  padding: 32px 20px;
+}
+.stat-card .stat-num {
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: var(--primary);
+  line-height: 1.1;
+}
+.stat-card .stat-label {
+  font-size: 0.88rem;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+/* ==================== Slide Animation ==================== */
+.slide-content {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.slide-content.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ==================== Summary Quote ==================== */
+.summary-quote {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.6;
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 32px 40px;
+  border-radius: 20px;
+  background: var(--panel);
+  border: 2px solid var(--line);
+  box-shadow: var(--shadow);
+  position: relative;
+}
+.summary-quote::before {
+  content: '\201C';
+  font-size: 4rem;
+  color: var(--accent);
+  opacity: 0.3;
+  position: absolute;
+  top: -10px;
+  left: 20px;
+  line-height: 1;
+}
+
+/* ==================== Utility ==================== */
+.mt-16 { margin-top: 16px; }
+.mt-24 { margin-top: 24px; }
+.mt-32 { margin-top: 32px; }
+.mb-8 { margin-bottom: 8px; }
+.mb-16 { margin-bottom: 16px; }
+.text-center { text-align: center; }
+.text-muted { color: var(--muted); }
+.text-sm { font-size: 0.88rem; }
+</style>
+</head>
+<body>
+
+<!-- Progress Bar -->
+<div class="progress-bar" id="progressBar"></div>
+
+<!-- Nav Hint -->
+<div class="nav-hint">← → 键翻页 | 滚轮切换</div>
+
+<!-- ============================== SLIDE 1: Ch1 Cover ============================== -->
+<section class="slide cover-dark" id="slide-1">
+  <div class="slide-inner" style="text-align:center;">
+    <div class="eyebrow">第 1 章</div>
+    <h1>问题引入</h1>
+    <p class="lead" style="margin:20px auto 0;">医疗信息化场景下，AI Agent 能力碎片化的真实困境</p>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 2: 场景框 ============================== -->
+<section class="slide" id="slide-2">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">场景</div>
+      <h2>一个熟悉的场景</h2>
+      <div class="quote">
+        一个 HIS 需求下来，开发者用 Claude Code 写了一版规则，换到 Codex 又要重新配一遍；好不容易配好了，DeepSeek 模型跑不动，GLM-5 又理解错了……
+      </div>
+      <p class="lead mt-24">这不是个别现象，而是行业普遍痛点。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 3: 痛点 1 ============================== -->
+<section class="slide" id="slide-3">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">痛点</div>
+      <h2>痛点 1：散落的 Agent 配置</h2>
+      <div class="grid three mb-16">
+        <div class="card" style="position:relative;">
+          <div class="folder-icon"></div>
+          <h3>.claude/</h3>
+          <p class="text-sm text-muted">Claude Code 专属配置目录，包含 rules、memory 等</p>
+        </div>
+        <div class="card" style="position:relative;">
+          <div class="folder-icon orange"></div>
+          <h3>.codex/</h3>
+          <p class="text-sm text-muted">OpenAI Codex 适配目录，需单独维护一份规则</p>
+        </div>
+        <div class="card" style="position:relative;">
+          <div class="folder-icon green"></div>
+          <h3>.codebuddy/</h3>
+          <p class="text-sm text-muted">CodeBuddy / WorkBuddy 工具配置，又一套独立体系</p>
+        </div>
+      </div>
+      <p class="lead" style="text-align:center;">各自为政 → 规则重复、版本不一致、经验无法复用</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 4: 痛点 2 ============================== -->
+<section class="slide" id="slide-4">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">痛点</div>
+      <h2>痛点 2：模型能力偏差</h2>
+      <div class="grid two mb-16">
+        <div class="card">
+          <h3>GPT / Claude</h3>
+          <div class="bar-track"><div class="bar-fill" style="--width:90%"></div></div>
+          <p class="text-sm text-muted mb-8">指令遵循率 ~90%，复杂规则理解优秀</p>
+          <span class="tag">强模型</span>
+        </div>
+        <div class="card">
+          <h3>DeepSeek</h3>
+          <div class="bar-track"><div class="bar-fill" style="--width:70%"></div></div>
+          <p class="text-sm text-muted mb-8">指令遵循率 ~70%，部分复杂规则需简化</p>
+          <span class="tag accent">中等模型</span>
+        </div>
+        <div class="card">
+          <h3>GLM-5</h3>
+          <div class="bar-track"><div class="bar-fill" style="--width:60%"></div></div>
+          <p class="text-sm text-muted mb-8">指令遵循率 ~60%，需结构化引导</p>
+          <span class="tag accent">中等模型</span>
+        </div>
+        <div class="card">
+          <h3>MiniMax</h3>
+          <div class="bar-track"><div class="bar-fill" style="--width:50%"></div></div>
+          <p class="text-sm text-muted mb-8">指令遵循率 ~50%，需大幅降级适配</p>
+          <span class="tag" style="background:#999;">弱模型</span>
+        </div>
+      </div>
+      <p class="lead" style="text-align:center;">同一套规则，不同模型理解能力差异巨大</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 5: Ch2 Cover ============================== -->
+<section class="slide cover-dark" id="slide-5">
+  <div class="slide-inner" style="text-align:center;">
+    <div class="eyebrow">第 2 章</div>
+    <h1>解决方案</h1>
+    <p class="lead" style="margin:20px auto 0;">三层架构 + 四个关键机制，统一 Agent 能力包</p>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 6: 三层架构 ============================== -->
+<section class="slide" id="slide-6">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">架构</div>
+      <h2>三层架构</h2>
+      <div class="arch-layer canonical">
+        <span class="layer-badge">Canonical</span>
+        <div class="layer-text">
+          <h3>规范定义层</h3>
+          <p>厂商无关的 agent、rule、skill、workflow 定义，一处维护</p>
+        </div>
+      </div>
+      <div class="arch-arrow">▼</div>
+      <div class="arch-layer capability">
+        <span class="layer-badge">Capability</span>
+        <div class="layer-text">
+          <h3>能力实现层</h3>
+          <p>插件化的技能、规则、模板，按领域组织，可独立复用</p>
+        </div>
+      </div>
+      <div class="arch-arrow">▼</div>
+      <div class="arch-layer adapter">
+        <span class="layer-badge">Adapter</span>
+        <div class="layer-text">
+          <h3>工具适配层</h3>
+          <p>按目标工具（Claude Code、Codex、CodeBuddy）自动生成配置</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 6b: 插件目录结构 ============================== -->
+<section class="slide" id="slide-6b">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">实例</div>
+      <h2>插件目录结构</h2>
+      <p style="margin-bottom:20px;">以 i18n-iris-plugin 为例，展示一个插件的真实组成：</p>
+      <div class="grid two">
+        <div class="card" style="padding:0; overflow:hidden;">
+          <div style="padding:14px 18px; background:#14364a; color:#fff; font-weight:800; font-size:14px;">plugins/i18n-iris-plugin/</div>
+          <pre style="margin:0; padding:18px; background:#0f2533; color:#d8edf6; font:14px/1.6 Consolas,monospace; overflow:auto;">├── AGENTS.md          # 插件入口（说明书）
+├── README.md          # 用途说明
+├── manifest.json      # 元数据和依赖声明
+├── rules/             # 编码规则（红线）
+│   ├── i18n_coding_frontend.md
+│   ├── i18n_coding_backend.md
+│   └── i18n_verify.md
+├── skills/            # 任务流程（SOP）
+│   ├── i18n-coding/
+│   ├── i18n-text-extract/
+│   └── i18n-page-trans-seed/
+└── scripts/           # 自动化脚本（工具）
+    └── sync-xml-print-template.ps1</pre>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div class="card">
+            <h3>📄 AGENTS.md = 说明书</h3>
+            <p class="text-sm text-muted">告诉 Agent 这个插件能做什么、怎么用</p>
+          </div>
+          <div class="card">
+            <h3>🚫 rules/ = 红线</h3>
+            <p class="text-sm text-muted">必须遵守的编码约束和安全边界</p>
+          </div>
+          <div class="card">
+            <h3>📋 skills/ = SOP</h3>
+            <p class="text-sm text-muted">标准化的任务执行流程</p>
+          </div>
+          <div class="card">
+            <h3>🔧 scripts/ = 工具</h3>
+            <p class="text-sm text-muted">自动化脚本，减少手工操作</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 7: 四个关键机制 ============================== -->
+<section class="slide" id="slide-7">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">机制</div>
+      <h2>四个关键机制</h2>
+      <div class="grid two">
+        <div class="card" style="position:relative;">
+          <span class="num-label">01</span>
+          <h3>Canonical vs Adapter</h3>
+          <p class="text-sm text-muted">规范定义与工具适配分离，canonical 内容不绑定任何单一厂商或模型</p>
+        </div>
+        <div class="card" style="position:relative;">
+          <span class="num-label">02</span>
+          <h3>Thin-Index</h3>
+          <p class="text-sm text-muted">轻量索引机制，业务项目只引用需要的能力包，不引入整个仓库</p>
+        </div>
+        <div class="card" style="position:relative;">
+          <span class="num-label">03</span>
+          <h3>插件状态分流</h3>
+          <p class="text-sm text-muted">按插件成熟度（stable / beta / draft）分流，避免不稳定内容影响生产</p>
+        </div>
+        <div class="card" style="position:relative;">
+          <span class="num-label">04</span>
+          <h3>模型降级策略</h3>
+          <p class="text-sm text-muted">使用 fast / balanced / strong / deep-reasoning 抽象档位，由 adapter 映射到实际模型</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 7b: Agent 定义示例 ============================== -->
+<section class="slide" id="slide-7b">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">实例</div>
+      <h2>Agent 定义：i18n-agent</h2>
+      <p style="margin-bottom:20px;">这就是 Agent 的"岗位说明书"——明确职责、边界和工作流程：</p>
+      <div class="card" style="padding:0; overflow:hidden; margin-bottom:20px;">
+        <div style="padding:14px 18px; background:#14364a; color:#fff; font-weight:800; font-size:14px;">agents/i18n-agent/AGENT.md（片段）</div>
+        <pre style="margin:0; padding:18px; background:#0f2533; color:#d8edf6; font:13px/1.6 Consolas,monospace; overflow:auto;">## 适用任务
+- IRIS/CSP/HISUI 页面国际化改造
+- 字典翻译、打印模板翻译、XML 模板同步
+
+## 不适用任务
+- 非 IRIS 平台的国际化
+- 数据库迁移、性能优化
+
+## 五阶段模型
+| 阶段       | 职责           | 输出物         |
+|-----------|---------------|---------------|
+| Explorer  | 定位实际链路    | 事实报告       |
+| Classifier| 分类用户可见文本 | 分类清单       |
+| Coder     | 执行编码改造    | 变更摘要       |
+| Template  | 生成翻译种子    | 模板/种子文件   |
+| Verifier  | 验证完整性      | 验证报告       |</pre>
+      </div>
+      <p class="lead" style="text-align:center;">每个 Agent 都有清晰的职责边界和阶段化输出</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 7c: Workflow 示例 ============================== -->
+<section class="slide" id="slide-7c">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">实例</div>
+      <h2>Workflow：i18n-change 阶段定义</h2>
+      <p style="margin-bottom:20px;">这就是多 Agent 协作的"流程图"——每个阶段有明确的输入、执行和输出：</p>
+      <div class="card" style="padding:0; overflow:hidden;">
+        <div style="padding:14px 18px; background:#14364a; color:#fff; font-weight:800; font-size:14px;">workflows/i18n-change.workflow.md（Explorer 阶段）</div>
+        <pre style="margin:0; padding:18px; background:#0f2533; color:#d8edf6; font:13px/1.6 Consolas,monospace; overflow:auto;">## Explorer 阶段
+
+**输入**：需求工单编号和描述
+
+**执行步骤**：
+1. 读取目标项目 AGENTS.md 确认项目上下文
+2. 定位需求涉及的 CSP 页面、JS 文件、后端类
+3. 追踪数据链路：前端 → API → 后端 → 数据库
+4. 识别所有用户可见的文本来源
+
+**输出**：事实报告（docs/agent-reports/{ticket}/fact-report.md）
+- 必须区分：已验证事实 / 推断 / 待确认项
+- 不预设数据格式，按实际链路记录</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 8: 部署模型 ============================== -->
+<section class="slide" id="slide-8">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">部署</div>
+      <h2>部署模型</h2>
+      <div class="grid three">
+        <div class="card text-center">
+          <div class="icon-circle blue" style="margin:0 auto 14px;">📦</div>
+          <h3>Sparse Checkout</h3>
+          <p class="text-sm text-muted">Git 稀疏检出，业务项目只拉取需要的目录，节省空间和时间</p>
+        </div>
+        <div class="card text-center">
+          <div class="icon-circle orange" style="margin:0 auto 14px;">🔗</div>
+          <h3>独立 Git 仓库</h3>
+          <p class="text-sm text-muted">能力包独立于业务项目版本控制，升级不影响业务代码</p>
+        </div>
+        <div class="card text-center">
+          <div class="icon-circle green" style="margin:0 auto 14px;">⚡</div>
+          <h3>一键安装</h3>
+          <p class="text-sm text-muted">PowerShell 安装/更新脚本，一条命令完成部署和配置生成</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 9: Ch3 Cover ============================== -->
+<section class="slide cover-dark" id="slide-9">
+  <div class="slide-inner" style="text-align:center;">
+    <div class="eyebrow">第 3 章</div>
+    <h1>建设成果</h1>
+    <p class="lead" style="margin:20px auto 0;">14 天密集迭代，从零构建完整能力包体系</p>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 10: 数据总览 ============================== -->
+<section class="slide" id="slide-10">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">数据</div>
+      <h2>建设数据总览</h2>
+      <div class="grid four mb-16">
+        <div class="card stat-card">
+          <div class="stat-num">14</div>
+          <div class="stat-label">天</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-num">59</div>
+          <div class="stat-label">次提交</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-num">3</div>
+          <div class="stat-label">个插件</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-num">1</div>
+          <div class="stat-label">领域样板</div>
+        </div>
+      </div>
+      <div class="grid three">
+        <div class="card stat-card">
+          <div class="stat-num">8+</div>
+          <div class="stat-label">Skill</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-num">10+</div>
+          <div class="stat-label">规则</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-num">6</div>
+          <div class="stat-label">脚本</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 11: i18n 五阶段流程 ============================== -->
+<section class="slide" id="slide-11">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">亮点</div>
+      <h2>i18n 五阶段流程</h2>
+      <div class="card" style="padding:36px 24px;">
+        <div class="pipeline">
+          <div class="pipeline-step">
+            <div class="step-emoji">🔍</div>
+            <div class="step-name">Explorer</div>
+            <div class="step-desc">扫描识别需要国际化的文本</div>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="pipeline-step">
+            <div class="step-emoji">🏷️</div>
+            <div class="step-name">Classifier</div>
+            <div class="step-desc">分类标记文本类型和上下文</div>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="pipeline-step">
+            <div class="step-emoji">✏️</div>
+            <div class="step-name">Coder</div>
+            <div class="step-desc">执行代码替换和 key 注入</div>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="pipeline-step">
+            <div class="step-emoji">🌱</div>
+            <div class="step-name">Template / Seed</div>
+            <div class="step-desc">生成翻译模板和种子文件</div>
+          </div>
+          <div class="pipeline-arrow">→</div>
+          <div class="pipeline-step">
+            <div class="step-emoji">✅</div>
+            <div class="step-name">Verifier</div>
+            <div class="step-desc">校验翻译完整性和一致性</div>
+          </div>
+        </div>
+      </div>
+      <p class="lead mt-24 text-center">五阶段管线化，每个阶段可独立执行、可组合编排</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 11b: i18n 实际案例 ============================== -->
+<section class="slide" id="slide-11b">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">案例</div>
+      <h2>i18n 实际案例：打印模板国际化</h2>
+      <p style="margin-bottom:20px;">以 HIS 打印模板国际化为例，展示五阶段的实际产出：</p>
+      <div class="grid two" style="margin-bottom:16px;">
+        <div class="card">
+          <h3>🔍 Explorer 产出</h3>
+          <p class="text-sm text-muted">定位到：XML 模板文件 3 个、CSP 页面 2 个、后端类 1 个、字典表 5 张</p>
+        </div>
+        <div class="card">
+          <h3>📊 Classifier 产出</h3>
+          <p class="text-sm text-muted">分类：固定文案 12 处、字典展示值 8 处、业务输入 3 处、外部接口 2 处</p>
+        </div>
+        <div class="card">
+          <h3>💻 Coder 产出</h3>
+          <p class="text-sm text-muted">改造文件：CSP 页面 2 个、JS 文件 1 个、后端类 1 个、翻译 SQL 5 条</p>
+        </div>
+        <div class="card">
+          <h3>✅ Verifier 产出</h3>
+          <p class="text-sm text-muted">验证结果：25 处文本全部覆盖，0 处遗漏，翻译一致性通过</p>
+        </div>
+      </div>
+      <p class="lead" style="text-align:center;">从需求到交付，每一步都有明确的输入输出和可验证结果</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 12: 关键里程碑 ============================== -->
+<section class="slide" id="slide-12">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">里程碑</div>
+      <h2>关键里程碑</h2>
+      <div class="timeline">
+        <div class="timeline-item">
+          <div class="t-day">Day 1-2</div>
+          <h3>基础设施</h3>
+          <p>仓库结构搭建、部署脚本、thin-index 生成机制、基础 CI</p>
+        </div>
+        <div class="timeline-item">
+          <div class="t-day">Day 3-5</div>
+          <h3>能力沉淀</h3>
+          <p>通用 skill/rule 提取、agent-context-kit 插件成型、文档体系建立</p>
+        </div>
+        <div class="timeline-item">
+          <div class="t-day">Day 6-8</div>
+          <h3>架构升级</h3>
+          <p>三层架构确立、Canonical/Adapter 分离、模型降级策略落地</p>
+        </div>
+        <div class="timeline-item">
+          <div class="t-day">Day 9-12</div>
+          <h3>领域落地</h3>
+          <p>i18n 插件开发、五阶段流程管线、HIS 领域样板验证</p>
+        </div>
+        <div class="timeline-item">
+          <div class="t-day">Day 13-14</div>
+          <h3>治理完善</h3>
+          <p>维护记忆体系、backlog 治理、展示页上线、文档收尾</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 13: Ch4 Cover ============================== -->
+<section class="slide cover-dark" id="slide-13">
+  <div class="slide-inner" style="text-align:center;">
+    <div class="eyebrow">第 4 章</div>
+    <h1>可推广性</h1>
+    <p class="lead" style="margin:20px auto 0;">标准化、可复用、可扩展的能力包设计</p>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 14: 标准化 ============================== -->
+<section class="slide" id="slide-14">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">标准化</div>
+      <h2>三大标准化策略</h2>
+      <div class="grid three">
+        <div class="card text-center">
+          <div class="icon-circle blue" style="margin:0 auto 14px;">📐</div>
+          <h3>命名约定</h3>
+          <p class="text-sm text-muted">agent 目录 kebab-case + -agent，workflow 文件 kebab-case + .workflow.md，统一命名降低认知成本</p>
+        </div>
+        <div class="card text-center">
+          <div class="icon-circle orange" style="margin:0 auto 14px;">📂</div>
+          <h3>目录结构</h3>
+          <p class="text-sm text-muted">agents/、plugins/、rules/、skills/、workflows/ 职责清晰，每个目录有明确的边界和放置规则</p>
+        </div>
+        <div class="card text-center">
+          <div class="icon-circle green" style="margin:0 auto 14px;">📝</div>
+          <h3>文档驱动</h3>
+          <p class="text-sm text-muted">每个插件自带 AGENTS.md、README、manifest，文档即规范，新人可自主上手</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 14b: 安装脚本演示 ============================== -->
+<section class="slide" id="slide-14b">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">实例</div>
+      <h2>一键安装：install-agents.ps1 执行过程</h2>
+      <p style="margin-bottom:20px;">一条命令，5 步自动完成：</p>
+      <div class="grid two" style="margin-bottom:16px;">
+        <div class="card">
+          <h3>第 1 步：克隆仓库</h3>
+          <pre style="margin:8px 0 0; padding:12px; background:#0f2533; color:#d8edf6; font:12px/1.5 Consolas,monospace; border-radius:8px;">git clone --filter=blob:none --no-checkout ... .agents</pre>
+          <p class="text-sm text-muted" style="margin-top:8px;">延迟下载 + 先不克隆文件，等 sparse checkout 配好再拉取</p>
+        </div>
+        <div class="card">
+          <h3>第 2 步：配置 Sparse Checkout</h3>
+          <pre style="margin:8px 0 0; padding:12px; background:#0f2533; color:#d8edf6; font:12px/1.5 Consolas,monospace; border-radius:8px;">只拉取：agents/ docs/ workflows/
+rules/ skills/ plugins/ scripts/*.ps1</pre>
+          <p class="text-sm text-muted" style="margin-top:8px;">不拉取：AGENTS.md、memory/、README、LICENSE、.github/</p>
+        </div>
+        <div class="card">
+          <h3>第 3 步：配置本地生成层忽略</h3>
+          <pre style="margin:8px 0 0; padding:12px; background:#0f2533; color:#d8edf6; font:12px/1.5 Consolas,monospace; border-radius:8px;">.agents/.git/info/exclude 忽略：
+/config/ /memory/ /rules/
+/skills/ /scripts/</pre>
+          <p class="text-sm text-muted" style="margin-top:8px;">防止本地生成物被误提交到能力包仓库</p>
+        </div>
+        <div class="card">
+          <h3>第 4-5 步：校验入口 + 配置忽略</h3>
+          <pre style="margin:8px 0 0; padding:12px; background:#0f2533; color:#d8edf6; font:12px/1.5 Consolas,monospace; border-radius:8px;">校验 AGENTS.md 必须存在
+→ 不存在则报错退出
+→ 存在则在 .gitignore 添加 .agents/</pre>
+          <p class="text-sm text-muted" style="margin-top:8px;">AGENTS.md 是唯一主入口，CLAUDE.md/CODEBUDDY.md 只是可选 symlink</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 15: 可复用与可扩展 ============================== -->
+<section class="slide" id="slide-15">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">复用与扩展</div>
+      <h2>可复用与可扩展</h2>
+      <div class="grid two">
+        <div class="card">
+          <h3>🔌 插件化设计</h3>
+          <p class="text-sm text-muted">每个能力域独立为插件，包含 skill、rule、template、script，可单独安装和更新</p>
+        </div>
+        <div class="card">
+          <h3>📋 Thin-Index 机制</h3>
+          <p class="text-sm text-muted">轻量索引文件让业务项目按需引用，不引入整个能力包仓库</p>
+        </div>
+        <div class="card">
+          <h3>🧩 新增领域插件</h3>
+          <p class="text-sm text-muted">遵循统一模板即可创建新领域插件，如 HIS、LIS、PACS 等医疗子系统</p>
+        </div>
+        <div class="card">
+          <h3>🔧 工具 Adapter</h3>
+          <p class="text-sm text-muted">新增 Agent 工具只需编写 adapter 生成逻辑，canonical 内容无需修改</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 16: Ch5 Cover ============================== -->
+<section class="slide cover-dark" id="slide-16">
+  <div class="slide-inner" style="text-align:center;">
+    <div class="eyebrow">第 5 章</div>
+    <h1>总结与展望</h1>
+    <p class="lead" style="margin:20px auto 0;">核心价值回顾与未来方向</p>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 17: 核心价值 ============================== -->
+<section class="slide" id="slide-17">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">价值</div>
+      <h2>核心价值</h2>
+      <div class="grid three">
+        <div class="card text-center">
+          <div class="icon-circle blue" style="margin:0 auto 14px;">🎯</div>
+          <h3>解决配置散落</h3>
+          <p class="text-sm text-muted">统一 canonical 定义，告别多工具重复配置，一处维护处处生效</p>
+        </div>
+        <div class="card text-center">
+          <div class="icon-circle orange" style="margin:0 auto 14px;">⚖️</div>
+          <h3>解决模型偏差</h3>
+          <p class="text-sm text-muted">抽象能力档位 + adapter 映射，强弱模型各得其所，平滑降级</p>
+        </div>
+        <div class="card text-center">
+          <div class="icon-circle green" style="margin:0 auto 14px;">🏗️</div>
+          <h3>可复用基础设施</h3>
+          <p class="text-sm text-muted">插件化 + 标准化，能力包可跨项目、跨团队复用</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 18: 下一步规划 ============================== -->
+<section class="slide" id="slide-18">
+  <div class="slide-inner">
+    <div class="slide-content">
+      <div class="eyebrow">规划</div>
+      <h2>下一步规划</h2>
+      <div class="grid three">
+        <div class="card" style="position:relative;">
+          <span class="num-label">01</span>
+          <div class="icon-circle blue" style="margin-bottom:14px;">🤖</div>
+          <h3>Adapter 自动生成</h3>
+          <p class="text-sm text-muted">基于 canonical 定义自动为新工具生成适配层配置，降低接入成本</p>
+        </div>
+        <div class="card" style="position:relative;">
+          <span class="num-label">02</span>
+          <div class="icon-circle orange" style="margin-bottom:14px;">🏥</div>
+          <h3>更多领域样板</h3>
+          <p class="text-sm text-muted">扩展 LIS、PACS、EMR 等医疗子系统插件，覆盖更多业务场景</p>
+        </div>
+        <div class="card" style="position:relative;">
+          <span class="num-label">03</span>
+          <div class="icon-circle green" style="margin-bottom:14px;">👥</div>
+          <h3>团队推广</h3>
+          <p class="text-sm text-muted">完善文档和培训材料，在团队内推广统一 Agent 能力包的使用</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== SLIDE 19: 结束页 ============================== -->
+<section class="slide cover-dark" id="slide-19">
+  <div class="slide-inner" style="text-align:center;">
+    <h2 style="font-size:1.8rem; margin-bottom:28px;">一句话总结</h2>
+    <div class="summary-quote" style="color:var(--text);">
+      统一定义、分层实现、按需部署 —— 让 AI Agent 能力不再碎片化
+    </div>
+    <p style="margin-top:48px; font-size:1.6rem; font-weight:700; color:rgba(255,255,255,0.9);">感谢聆听</p>
+    <p style="margin-top:12px; font-size:0.95rem; color:rgba(255,255,255,0.5);">imedical.agents</p>
+  </div>
+</section>
+
+<!-- ==================== JavaScript ==================== -->
+<script>
+(function() {
+  'use strict';
+
+  // --- Progress Bar ---
+  const progressBar = document.getElementById('progressBar');
+
+  function updateProgress() {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+    progressBar.style.width = pct + '%';
+  }
+
+  window.addEventListener('scroll', updateProgress, { passive: true });
+  updateProgress();
+
+  // --- Keyboard Navigation ---
+  const slides = document.querySelectorAll('.slide');
+  let currentSlide = 0;
+
+  function scrollToSlide(index) {
+    if (index < 0) index = 0;
+    if (index >= slides.length) index = slides.length - 1;
+    currentSlide = index;
+    slides[index].scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // Track current slide via IntersectionObserver
+  const slideObserver = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        var idx = Array.prototype.indexOf.call(slides, entry.target);
+        if (idx !== -1) currentSlide = idx;
+      }
+    });
+  }, { threshold: 0.5 });
+
+  slides.forEach(function(s) { slideObserver.observe(s); });
+
+  document.addEventListener('keydown', function(e) {
+    // Ignore if user is typing in an input
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    switch (e.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+      case ' ':
+        e.preventDefault();
+        scrollToSlide(currentSlide + 1);
+        break;
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        e.preventDefault();
+        scrollToSlide(currentSlide - 1);
+        break;
+      case 'Home':
+        e.preventDefault();
+        scrollToSlide(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        scrollToSlide(slides.length - 1);
+        break;
+    }
+  });
+
+  // --- Entry Animation (IntersectionObserver) ---
+  const animObserver = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.15 });
+
+  document.querySelectorAll('.slide-content').forEach(function(el) {
+    animObserver.observe(el);
+  });
+
+  // --- Animate bar-fill on visibility ---
+  const barObserver = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        var bars = entry.target.querySelectorAll('.bar-fill');
+        bars.forEach(function(bar) {
+          // Trigger reflow to restart animation
+          bar.style.width = '0%';
+          requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+              bar.style.width = bar.style.getPropertyValue('--width');
+            });
+          });
+        });
+      }
+    });
+  }, { threshold: 0.3 });
+
+  document.querySelectorAll('.slide').forEach(function(s) {
+    if (s.querySelector('.bar-fill')) barObserver.observe(s);
+  });
+
+})();
+</script>
+</body>
+</html>

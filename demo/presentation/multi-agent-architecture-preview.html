@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>多Agent协作体系：当前状态 vs 设计目标</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* 浅色主题（默认） */
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f5f5f5;
+      --text-primary: #333333;
+      --text-secondary: #666666;
+      --border-color: #ddd;
+      --stage-explorer: #e3f2fd;
+      --stage-explorer-text: #1565c0;
+      --stage-classifier: #e8f5e8;
+      --stage-classifier-text: #2e7d32;
+      --stage-coder: #fff3e0;
+      --stage-coder-text: #e65100;
+      --stage-template: #fce4ec;
+      --stage-template-text: #880e4f;
+      --stage-verifier: #f3e5f5;
+      --stage-verifier-text: #6a1b9a;
+      --stage-coordinator: #ffebee;
+      --stage-coordinator-text: #c62828;
+      --stage-coordinator-border: #ef5350;
+      --stage-testing: #e8eaf6;
+      --stage-testing-text: #283593;
+    }
+
+    /* 深色主题 */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #1e1e1e;
+        --bg-secondary: #2d2d2d;
+        --text-primary: #e0e0e0;
+        --text-secondary: #aaaaaa;
+        --border-color: #444;
+        --stage-explorer: #1a3a5c;
+        --stage-explorer-text: #64b5f6;
+        --stage-classifier: #1b3a1b;
+        --stage-classifier-text: #81c784;
+        --stage-coder: #4a3000;
+        --stage-coder-text: #ffb74d;
+        --stage-template: #4a1a2e;
+        --stage-template-text: #f48fb1;
+        --stage-verifier: #3a1a4a;
+        --stage-verifier-text: #ce93d8;
+        --stage-coordinator: #4a1a1a;
+        --stage-coordinator-text: #ef9a9a;
+        --stage-coordinator-border: #ef5350;
+        --stage-testing: #1a1a4a;
+        --stage-testing-text: #9fa8da;
+      }
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    h1 {
+      font-size: 2em;
+      margin-bottom: 10px;
+      color: var(--text-primary);
+    }
+
+    h2 {
+      font-size: 1.5em;
+      margin: 30px 0 15px 0;
+      color: var(--text-primary);
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 10px;
+    }
+
+    h3 {
+      font-size: 1.2em;
+      margin: 20px 0 10px 0;
+      color: var(--text-primary);
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1em;
+      margin-bottom: 30px;
+    }
+
+    .section {
+      margin-bottom: 30px;
+    }
+
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .card-header {
+      font-weight: bold;
+      margin-bottom: 15px;
+      color: var(--text-primary);
+      font-size: 1.1em;
+    }
+
+    .stage-box {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+
+    .stage-box h4 {
+      margin: 0 0 10px 0;
+    }
+
+    .stage-box p {
+      margin: 0;
+      color: var(--text-primary);
+    }
+
+    .stage-box .output {
+      margin: 5px 0 0 0;
+      font-size: 0.9em;
+      color: var(--text-secondary);
+    }
+
+    .explorer { background: var(--stage-explorer); }
+    .explorer h4 { color: var(--stage-explorer-text); }
+
+    .classifier { background: var(--stage-classifier); }
+    .classifier h4 { color: var(--stage-classifier-text); }
+
+    .coder { background: var(--stage-coder); }
+    .coder h4 { color: var(--stage-coder-text); }
+
+    .template { background: var(--stage-template); }
+    .template h4 { color: var(--stage-template-text); }
+
+    .verifier { background: var(--stage-verifier); }
+    .verifier h4 { color: var(--stage-verifier-text); }
+
+    .coordinator {
+      background: var(--stage-coordinator);
+      border: 2px solid var(--stage-coordinator-border);
+    }
+    .coordinator h4 { color: var(--stage-coordinator-text); }
+
+    .testing { background: var(--stage-testing); }
+    .testing h4 { color: var(--stage-testing-text); }
+
+    .flow-container {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .flow-row {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .flow-arrow {
+      font-size: 24px;
+      color: var(--text-secondary);
+      text-align: center;
+      min-width: 50px;
+    }
+
+    .agent-box {
+      background: var(--stage-explorer);
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      min-width: 120px;
+    }
+
+    .agent-box strong {
+      color: var(--stage-explorer-text);
+    }
+
+    .agent-box small {
+      color: var(--text-secondary);
+    }
+
+    .stages-container {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .stage-item {
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .comparison-grid ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .comparison-grid li {
+      margin-bottom: 10px;
+      padding-left: 20px;
+      position: relative;
+      color: var(--text-primary);
+    }
+
+    .comparison-grid li:before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: var(--text-secondary);
+    }
+
+    .pros-cons-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .pros-cons-grid ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .pros-cons-grid li {
+      margin-bottom: 10px;
+      padding-left: 20px;
+      position: relative;
+      color: var(--text-primary);
+    }
+
+    .pros-cons-grid li:before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: var(--text-secondary);
+    }
+
+    .desc-text {
+      color: var(--text-secondary);
+      font-style: italic;
+      text-align: center;
+      margin: 10px 0 0 0;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    ul li {
+      margin-bottom: 10px;
+      padding-left: 20px;
+      position: relative;
+      color: var(--text-primary);
+    }
+
+    ul li:before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: var(--text-secondary);
+    }
+
+    @media (max-width: 768px) {
+      .grid-3, .grid-2, .comparison-grid, .pros-cons-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>多Agent协作体系：当前状态 vs 设计目标</h1>
+  <p class="subtitle">理解已实现的单Agent阶段化执行与设计中的多Agent协作架构</p>
+
+  <div class="section">
+    <h2>当前已实现：单Agent阶段化执行</h2>
+    <div class="card">
+      <div class="card-header">i18n-agent 内部阶段协作</div>
+      <div class="flow-container">
+        <div class="flow-row">
+          <div class="agent-box">
+            <strong>i18n-agent</strong><br>
+            <small>单智能体</small>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="stages-container">
+            <div class="stage-item" style="background: var(--stage-explorer); color: var(--stage-explorer-text);">Explorer阶段</div>
+            <div class="stage-item" style="background: var(--stage-classifier); color: var(--stage-classifier-text);">Classifier阶段</div>
+            <div class="stage-item" style="background: var(--stage-coder); color: var(--stage-coder-text);">Coder阶段</div>
+            <div class="stage-item" style="background: var(--stage-template); color: var(--stage-template-text);">Template/Seed阶段</div>
+            <div class="stage-item" style="background: var(--stage-verifier); color: var(--stage-verifier-text);">Verifier阶段</div>
+          </div>
+        </div>
+        <p class="desc-text">单Agent内部按顺序执行五个阶段，通过交接协议传递结构化报告</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>设计目标：多Agent协作架构</h2>
+    <div class="card">
+      <div class="card-header">通用多Agent协作流程（设计中）</div>
+      <div class="flow-container">
+        <!-- Coordinator -->
+        <div class="stage-box coordinator">
+          <h4>Coordinator-Agent（总控调度）</h4>
+          <p>负责任务分级、拆分协作、整合结论、冲突裁决</p>
+        </div>
+
+        <div class="flow-arrow">调度</div>
+
+        <!-- 多个Agent并行 -->
+        <div class="grid-3">
+          <div class="stage-box explorer">
+            <h4>Explorer-Agent</h4>
+            <p>读取上下文、定位事实、确认入口和影响面</p>
+            <p class="output">输出：事实报告</p>
+          </div>
+          <div class="stage-box classifier">
+            <h4>Planner-Agent</h4>
+            <p>拆解实施步骤、识别依赖和风险</p>
+            <p class="output">输出：实施计划</p>
+          </div>
+          <div class="stage-box coder">
+            <h4>Coding-Agent</h4>
+            <p>按计划执行代码修改</p>
+            <p class="output">输出：变更摘要</p>
+          </div>
+        </div>
+
+        <div class="flow-arrow">并行执行</div>
+
+        <div class="grid-2">
+          <div class="stage-box template">
+            <h4>Review-Agent</h4>
+            <p>审查缺陷、风险、规范偏差、缺测</p>
+            <p class="output">输出：审查报告</p>
+          </div>
+          <div class="stage-box testing">
+            <h4>Testing-Agent</h4>
+            <p>设计和执行验证，记录结果</p>
+            <p class="output">输出：验证报告</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>关键区别</h2>
+    <div class="comparison-grid">
+      <div class="card">
+        <h3>当前实现（单Agent阶段化）</h3>
+        <ul>
+          <li><strong>智能体数量：</strong>1个（i18n-agent）</li>
+          <li><strong>协作方式：</strong>内部阶段顺序执行</li>
+          <li><strong>交接机制：</strong>结构化报告传递</li>
+          <li><strong>适用场景：</strong>领域特定任务（如i18n）</li>
+          <li><strong>优势：</strong>简单、可靠、易于理解</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>设计目标（多Agent协作）</h3>
+        <ul>
+          <li><strong>智能体数量：</strong>多个（Explorer、Planner、Coding等）</li>
+          <li><strong>协作方式：</strong>并行执行 + Coordinator调度</li>
+          <li><strong>交接机制：</strong>结构化报告 + 冲突裁决</li>
+          <li><strong>适用场景：</strong>复杂、跨领域任务</li>
+          <li><strong>优势：</strong>专业化分工、可扩展性强</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>为什么当前只有单Agent实现？</h2>
+    <div class="pros-cons-grid">
+      <div class="card">
+        <h3>设计决策</h3>
+        <ul>
+          <li>先验证领域样板（i18n-agent）的可行性</li>
+          <li>确保交接协议、降级策略等基础机制完善</li>
+          <li>避免在基础未稳时扩大维护面</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>待实现内容</h3>
+        <ul>
+          <li>通用智能体（Explorer、Planner、Coding等）</li>
+          <li>Coordinator调度逻辑</li>
+          <li>多Agent并行执行机制</li>
+          <li>冲突裁决算法</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>扩展性设计</h2>
+    <div class="card">
+      <p>当前架构已经为多Agent协作做好了准备：</p>
+      <ul>
+        <li><strong>三层分离：</strong>agents/（智能体定义）、workflows/（协作编排）、plugins/（能力实现）</li>
+        <li><strong>交接协议：</strong>统一的结构化报告格式</li>
+        <li><strong>降级策略：</strong>所有workflow都支持单Agent串行执行</li>
+        <li><strong>注册表机制：</strong>agent-registry.md和workflow-registry.md支持动态发现</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>
