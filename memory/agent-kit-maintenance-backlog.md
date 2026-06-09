@@ -34,6 +34,7 @@
    - 已完成：新增 `docs/agent-feedback/` 反馈目录和模板。
    - 已完成：新增 `agents/_shared/feedback-protocol.md` Agent 反馈行为指引。
    - 已完成：`i18n-agent` 和 `i18n-change.workflow.md` 引用反馈协议。
+   - 已完成：新增 `skills/agent-framework-feedback/SKILL.md` 通用反馈 skill，支持 plugin 直接使用场景。
    - 待做：团队成员开始使用后，观察反馈质量和处理效率。
    - 待做：积累反馈后，评估是否需要自动化 diff 和应用工具。
 
