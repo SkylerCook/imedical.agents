@@ -61,7 +61,7 @@ description: Use when initializing or checking the reusable IRIS i18n agent kit 
    - `plugin-reference-thin-index`：确保插件位于 `.agents/plugins/i18n-iris-plugin/`，先运行 thin-index 脚本 `DryRun`，确认后再 `Write`；默认排除 `i18n-project-init`，避免用安装结果触发安装过程。
    - `copy`：复制插件 `rules/` 到 `.agents/rules/`，复制插件 `skills/` 到 `.agents/skills/`，必要时复制插件 `templates/` 到 `.agents/templates/`。
    - `plugin-reference`：只保留插件目录，不生成 `.agents/rules/` 或 `.agents/skills/` thin-index；执行前必须确认当前 Agent 能发现并读取插件内 rules/skills。
-   - HISUI 索引是否启用由 `hisuiMode` 决定；HISUI 源码路径只写入 profile 的 `HISUI_SRC`。
+   - HISUI 索引是否启用由 `hisuiMode` 决定；HISUI 源码内置在 `.agents/vendor/hisui/`。
 
 3. 生成 thin-index：
    - 默认先执行：
@@ -85,7 +85,7 @@ description: Use when initializing or checking the reusable IRIS i18n agent kit 
        ```
        输出格式（每行）：`langId=Code^Name^Active^...`，取 langId、Code、Name 写入 profile 语言目录表。
      - 若 MCP 不可用，使用兜底：`EN -> 1`、`CH -> 20`。
-   - 标记仍需目标工程确认的页面组、种子类路径、业务边界和 `HISUI_SRC`。
+   - 标记仍需目标工程确认的页面组、种子类路径和业务边界。
 
 5. 接入入口：
    - 将 `templates/AGENTS.i18n-snippet.md` 作为目标工程 `AGENTS.md` 的建议片段。

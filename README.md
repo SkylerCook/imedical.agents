@@ -94,6 +94,7 @@ imedical.agents/
 |-- agents/      # 顶层智能体 canonical 定义
 |-- workflows/   # 顶层协作流程 canonical 定义
 |-- plugins/     # 可复用能力包
+|-- vendor/      # 第三方源码资产（如 HISUI dist）
 |-- skills/      # 仓库级通用 skill
 |-- rules/       # 仓库级通用规则预留入口
 |-- docs/        # AI Coding 工作区规范、runbook 和配套文档

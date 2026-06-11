@@ -6,7 +6,7 @@
 
 - Web 技术：CSP / HISUI
 - 是否使用 HISUI：是
-- HISUI 主题 CSS：`${HISUI_SRC}/dist/css/hisui.pure.css`
+- HISUI 主题 CSS：`.agents/vendor/hisui/dist/css/hisui.pure.css`
 - 源文件编码：前端 GB2312, 后端 UTF-8
 - 上传前是否运行 `convert-gb2312-upload.ps1`：否
 - 常见 Web 根前缀：`imedical/web`（仅作为医生站项目候选值；写入 `.agents/config/project-env.json` 前必须确认）

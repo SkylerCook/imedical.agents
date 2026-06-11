@@ -13,8 +13,7 @@
 ### HISUI 配置
 
 - 是否使用 HISUI：TODO
-- `HISUI_SRC`：TODO
-- HISUI 主 JS：`${HISUI_SRC}/dist/js/jquery.hisui.js`
+- HISUI 源码路径：`.agents/vendor/hisui/dist/js/jquery.hisui.js`
 - HISUI 主题 CSS：TODO
 
 ### 编码策略

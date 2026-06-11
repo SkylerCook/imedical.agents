@@ -38,7 +38,7 @@
 - MCP/上传/编译工作流：`rules/iris_coding_workflow.md`
 - IRIS 部署执行清单：`rules/iris_deploy_checklist.md`
 - GB2312 提升流程：`rules/iris_gb2312_workflow.md`
-- HISUI 控件参考：`references/hisui-widget-index.md`
+- HISUI 控件参考：`references/hisui-widget-index.md`（源码内置在 `.agents/vendor/hisui/`）
 - iris-agentic-dev 配置：`rules/iris_agentic_dev.md`
 
 ## 内置脚本

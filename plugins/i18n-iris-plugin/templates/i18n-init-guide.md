@@ -98,7 +98,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/i18n-iris-pl
 - 源语言、源文案 key、默认目标语言。
 - 语言目录事实来源。
 - 前端/后端翻译 helper。
-- HISUI 源码路径 `HISUI_SRC`。
+- HISUI 源码路径（内置在 `.agents/vendor/hisui/`）。
 - 页面翻译种子类路径、类名、方法命名。
 - CSP 翻译同步页面组、同步方法组、备份目录。
 - 目标工程业务边界和生成文件是否入库。

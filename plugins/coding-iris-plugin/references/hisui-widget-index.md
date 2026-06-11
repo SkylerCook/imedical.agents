@@ -16,13 +16,10 @@ updatedAt: 2026-05-21
 
 | 项目 | 值 |
 |---|---|
-| **源码文件** | `jquery.hisui.js`（实际 26,164 行） |
-| **源码变量** | `${HISUI_SRC}`，从 `.agents/config/iris_project_profile.md` 的 HISUI 配置读取 |
-| **完整路径** | `${HISUI_SRC}/dist/js/jquery.hisui.js` |
+| **源码文件** | `.agents/vendor/hisui/dist/js/jquery.hisui.js` |
 | **快速跳转** | 读取源码时按行号 slice，通常 `limit=100~200` |
 | **校验日期** | 2026-05-21 |
 
-> `${HISUI_SRC}` 是项目级 HISUI 安装路径，各工程不同，不在本文写死绝对路径。
 > 源码使用局部变量别名（`v` / `c` / `a` / `f` / `r` / `h` / `n` / `d` / `o` / `s` / `l` / `u` / `p` / `b` / `Y` = jQuery），搜索时优先用 `.fn.控件名`、`$.messager` 或直接按行号跳转。
 
 ## 前端编码指南
@@ -46,7 +43,7 @@ updatedAt: 2026-05-21
 ## 源码目录结构
 
 ```text
-${HISUI_SRC}/
+.agents/vendor/hisui/
 ├── dist/
 │   ├── js/jquery.hisui.js        ← 主 JS，控件 API 定义在此，26,164 行
 │   └── css/                      ← 样式与图标资源
@@ -666,6 +663,6 @@ HISUI 内置图标通过 `iconCls` 属性引用。选型时先查本节能用的
 
 ## 维护要求
 
-- 更新本文件时，先用本地 `${HISUI_SRC}/dist/js/jquery.hisui.js` 校验关键行号。
+- 更新本文件时，先用本地 `.agents/vendor/hisui/dist/js/jquery.hisui.js` 校验关键行号。
 - 若目标工程保留多个 HISUI 索引副本，需同步更新并校验内容一致。
 - 本文件只记录通用 HISUI 前端编码经验和源码入口，不写入服务器、namespace、远程路径、业务页面清单或当前工程绝对路径。

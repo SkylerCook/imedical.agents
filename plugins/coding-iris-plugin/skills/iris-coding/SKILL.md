@@ -31,7 +31,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 
 - 后端 `.cls`、BLH/DATA/SQL、Broker、Query、ObjectScript 编译验证：读取 `iris-backend-coding` 和 `rules/iris_coding_backend.md`
 - 前端 CSP、HTML、JavaScript、CSS、HISUI、页面布局、前端数据回显：读取 `iris-frontend-coding` 和 `rules/iris_coding_frontend.md`
-- HISUI 控件选型或 API 不确定：读取 `references/hisui-widget-index.md`，再按 profile 的 `HISUI_SRC` 查看源码
+- HISUI 控件选型或 API 不确定：读取 `references/hisui-widget-index.md`，再读 `.agents/vendor/hisui/dist/js/jquery.hisui.js` 查看源码
 - 上传、编译、远程读取、只读 SQL 验证：读取目标工程 `.mcp.json` 和 `rules/iris_coding_workflow.md`
 - 上传、编译、部署和远端验证：读取 `rules/iris_deploy_checklist.md`
 - 永久替换 `{name}.gb2312.{ext}` 回源文件：切换到 `iris-frontend-gb2312-promote`

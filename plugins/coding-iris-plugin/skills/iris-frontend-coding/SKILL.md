@@ -19,7 +19,7 @@ description: Use when working on CSP, JavaScript, CSS, or HISUI frontend code wi
 
 1. 先读取目标工程 `.agents/config/iris_project_profile.md`。
 2. 再读取 `rules/iris_coding_index.md`、`rules/iris_coding_general.md`、`rules/iris_coding_frontend.md`。
-3. 仅当 HISUI 控件选型或 API 不确定时，读取 `references/hisui-widget-index.md`，再按 profile 的 `HISUI_SRC` 查看源码。
+3. 仅当 HISUI 控件选型或 API 不确定时，读取 `references/hisui-widget-index.md`，再读 `.agents/vendor/hisui/dist/js/jquery.hisui.js` 查看源码。
 4. 仅当任务涉及上传、编码转换、远程读取或 CSP 编译时，再读取 `.mcp.json` 和 `rules/iris_coding_workflow.md`。
 5. 本地搜索现有页面和同类组件，优先沿用目标工程页面结构和公共样式。
 6. 默认只做本地修改；用户明确要求部署时再运行 GB2312 转换、上传和编译。

@@ -15,22 +15,18 @@ updatedAt: 2026-05-26
 
 本文只记录 HISUI 与 i18n 相关的自动翻译边界和源码确认入口，不作为通用前端编码指南。
 
-执行前先读取 `.agents/config/i18n_project_profile.md`，确认目标工程是否使用 HISUI，以及 `HISUI_SRC` 的实际位置。
+执行前先读取 `.agents/config/i18n_project_profile.md`，确认目标工程是否使用 HISUI。
 
 | 项目 | 值 |
 |---|---|
-| **源码文件** | `jquery.hisui.js` |
-| **源码变量** | `${HISUI_SRC}`，从 `.agents/config/i18n_project_profile.md` 的 HISUI 配置读取 |
-| **完整路径** | `${HISUI_SRC}/dist/js/jquery.hisui.js` |
+| **源码文件** | `.agents/vendor/hisui/dist/js/jquery.hisui.js` |
 | **用途** | 确认 HISUI 自动翻译边界，避免重复包裹 helper |
-
-> `${HISUI_SRC}` 是项目级 HISUI 安装路径，各工程不同，不在本文写死绝对路径。
 
 ## 核心原则
 
 - HISUI 已自动翻译的文案，编码阶段不再包 `$g()`、`$trans()`、`#(..Get())#` 或其它 helper。
 - HISUI 自动翻译文本仍必须进入翻译表，通常标记为 `frontend-hisui`。
-- 是否自动翻译不确定时，先查 `${HISUI_SRC}/dist/js/jquery.hisui.js`，再决定是否改代码。
+- 是否自动翻译不确定时，先查 `.agents/vendor/hisui/dist/js/jquery.hisui.js`，再决定是否改代码。
 - 含变量、HTML、动态拼接或框架会跳过的文本，按 `i18n_coding_frontend.md` 判断是否需要额外处理。
 
 ## 常见自动翻译边界
@@ -50,7 +46,7 @@ updatedAt: 2026-05-26
 
 ## 源码确认入口
 
-以下行号只作为当前 HISUI 版本的快速定位线索。使用前应在目标工程的 `${HISUI_SRC}` 中重新搜索确认。
+以下行号只作为当前 HISUI 版本的快速定位线索。使用前应在 `.agents/vendor/hisui/dist/js/jquery.hisui.js` 中重新搜索确认。
 
 | 关注点 | 搜索建议 |
 |---|---|

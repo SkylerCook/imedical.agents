@@ -10,7 +10,7 @@
 - 部署检查清单：上传、编译、部署和远端验证按 `rules/iris_deploy_checklist.md` 逐项执行。
 - 前端上传编码转换：UTF-8 源文件按需转换为 GB2312 临时文件后上传。
 - 前端 GB2312 提升：确认后删除源文件，并将 `{name}.gb2312.{ext}` 更名回原文件名，可选 MCP/SFTP 上传。
-- HISUI 控件参考：按需读取 `references/hisui-widget-index.md`，再通过目标工程 profile 的 `HISUI_SRC` 定位源码。
+- HISUI 控件参考：按需读取 `references/hisui-widget-index.md`，源码内置在 `.agents/vendor/hisui/`。
 - IRIS 开发主力脚本：通过 `scripts/iris-tools/` 提供导出、编译、Broker 调试和环境配置同步。
 - MCP 能力说明：`rules/iris_agentic_dev.md` 记录 IRIS MCP 能力矩阵，`rules/sftp_server.md` 记录 SFTP MCP 能力矩阵和安全边界。
 
