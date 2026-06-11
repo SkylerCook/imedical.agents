@@ -31,6 +31,9 @@
 ## 近期关键变化
 
 - 已新增框架验证反馈机制：`docs/agent-feedback/`、`agents/_shared/feedback-protocol.md`。Agent 处理 HIS 需求时如对框架文件做了修正，自动生成反馈条目；维护者定期 diff 后应用到 master。
+- 已新增仓库级 `skills/agent-framework-feedback/SKILL.md`，用于在插件直接使用或无 canonical agent 场景下生成框架反馈条目。
+- 已新增 `demo/presentation/` 演示页面，作为能力包、i18n skill 和多智能体架构的可视化说明材料；它不属于业务项目运行入口。
+- 已新增部署经验沉淀入口 `docs/deploy-com-exp.md` 和首个专项部署工具目录 `docs/deploy/dental-ta-159/`；这类内容可随 `docs/` 部署，但不得把业务私有连接信息写入记忆或规则。
 - 已新增根 `AGENTS.md`，作为本仓库 AI Coding 维护入口；它不部署到业务项目 `.agents/`。
 - 维护记忆已拆分为入口摘要、长期决策、维护日志和治理队列四类文件。
 - 已新增统一更新脚本 `scripts/update-agents.ps1` 和托管更新 runbook `docs/update-agents.md`。
@@ -43,7 +46,7 @@
 ## 当前治理重点
 
 - 已新增 agent thin-index 生成链：`scripts/generate-agent-thin-index.ps1` 可从 canonical `agents/` 生成 `.agents/skills/<agent-name>/SKILL.md`，并已接入 `update-agents.ps1`。
-- 工具专属 adapter 生成器暂缓；当前只做通用 agent skill thin-index，不生成 `.codex/agents/`、`.claude/agents/`、`.opencode/` 或 `.codebuddy/agents/`。
+- 工具专属 adapter 生成器暂缓；当前只做通用 agent skill thin-index，不生成 `.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/`、WorkBuddy 或 Hermes 原生入口。
 - 继续观察 rules 体量，查找表、API 目录和长参考资料优先迁入插件 `references/`。
 - 多 Agent 协作已进入顶层 canonical 设计阶段，但暂不实现复杂运行时调度器；第一阶段以 i18n-agent 样板、workflow、交接协议和适配入口生成器为主。
 - 暂不新增 `agent-kit-maintenance` 专用 skill；根 `AGENTS.md` 先承载维护入口和规则。

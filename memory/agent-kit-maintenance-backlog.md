@@ -5,13 +5,9 @@
 ## 下一步工作队列
 
 1. 多智能体架构配套落地。
-   - 已完成：顶层 canonical `agents/`、`workflows/` 设计和 `i18n-agent` 样板。
-   - 已完成：`scripts/install-agents.ps1` 和 `scripts/update-agents.ps1` 已将 `agents/`、`workflows/` 加入业务项目 `.agents` sparse checkout。
-   - 已完成：仓库 README、workspace spec、update runbook 和相关 skill 已说明插件状态分流和 i18n-agent 依赖前置。
-   - 已完成：新增最小 `scripts/generate-agent-thin-index.ps1` 并接入 `update-agents.ps1`，生成 `.agents/skills/<agent-name>/SKILL.md` 智能体入口。
-   - 暂缓：暂不做 `scripts/generate-agent-adapters.ps1`；后续确需 Codex、Claude Code、OpenCode、CodeBuddy 等工具原生入口时再实现。
-   - 待做：业务项目验证 i18n 样板后，再决定是否新增通用 `coordinator/explorer/planner/coding/review/testing` Agent。
-   - 禁止：不要让 `.codex/agents/`、`.claude/agents/`、`.opencode/` 或 `.codebuddy/agents/` 成为规则源；它们只能由 canonical 生成或临时适配。
+   - 待做：业务项目验证 `i18n-agent` 和 `i18n-change.workflow.md` 样板后，再决定是否新增通用 `coordinator/explorer/planner/coding/review/testing` Agent。
+   - 暂缓：暂不做 `scripts/generate-agent-adapters.ps1`；后续确需 Codex、Claude Code、OpenCode、CodeBuddy、WorkBuddy、Hermes 等工具原生入口时再实现。
+   - 禁止：不要让 `.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/` 或其它工具原生入口成为规则源；它们只能由 canonical 生成或临时适配。
 
 2. frontmatter/task-affinity 顺延为下一轮治理项。
    - 排序：当前用户已明确调整优先级到多智能体架构落地；完成 agent thin-index 和部署配套后，adapter 暂缓，frontmatter/task-affinity 后续再进入。
@@ -31,12 +27,12 @@
    - 若后续频繁执行”查看近期提交、归纳维护记忆、同步 README/docs、检查 sparse checkout 边界、审查敏感信息”等固定流程，再抽成专用 skill。
 
 6. 框架验证反馈机制。
-   - 已完成：新增 `docs/agent-feedback/` 反馈目录和模板。
-   - 已完成：新增 `agents/_shared/feedback-protocol.md` Agent 反馈行为指引。
-   - 已完成：`i18n-agent` 和 `i18n-change.workflow.md` 引用反馈协议。
-   - 已完成：新增 `skills/agent-framework-feedback/SKILL.md` 通用反馈 skill，支持 plugin 直接使用场景。
    - 待做：团队成员开始使用后，观察反馈质量和处理效率。
    - 待做：积累反馈后，评估是否需要自动化 diff 和应用工具。
+
+7. 部署经验与演示材料治理。
+   - 待做：观察 `docs/deploy-com-exp.md` 与 `docs/deploy/*` 的复用频率，必要时抽象命名、敏感信息检查和部署工具模板。
+   - 待做：明确 `demo/presentation/` 是否长期作为仓库展示资产；如需部署到业务项目，必须先更新安装/更新 sparse checkout 边界说明。
 
 ## 队列维护规则
 

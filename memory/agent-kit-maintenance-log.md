@@ -5,6 +5,9 @@
 ## 近期已完成
 
 - 已新增框架验证反馈机制：`docs/agent-feedback/` 反馈目录、反馈模板、`agents/_shared/feedback-protocol.md` Agent 反馈行为指引；`i18n-agent` 和 `i18n-change.workflow.md` 在完成条件中引用反馈协议；新增 `skills/agent-framework-feedback/SKILL.md` 通用反馈 skill，支持 plugin 直接使用场景。Agent 处理 HIS 需求时如对框架文件做了修正，自动生成反馈条目；维护者定期读取反馈、diff 后应用到 master。
+- 已新增 `docs/deploy-com-exp.md` 和 `docs/deploy/dental-ta-159/` 首个部署经验/工具样例，用于沉淀全量部署流程、前后端部署脚本和专项计划；维护记忆只记录边界，不复制业务细节或连接信息。
+- 已新增 `demo/presentation/` 演示页，包括 i18n 能力摘要、多智能体架构预览和演示首页，用于展示能力包思路；该目录当前不在安装/更新 sparse checkout 运行边界说明内。
+- 已修复 `sync-xml-print-template.ps1` JsonLine framing 中文编码问题，并新增/保留相关语言测试，避免中文输出在跨进程传递时损坏。
 - 已新增多智能体架构设计 `memory/plan/multi-agent-architecture.md`，明确厂商无关 canonical `agents/` / `workflows/`、工具 adapter 边界、模型档位、生成层、本地定制、版本演进和新增智能体 checklist。
 - 已新增顶层 `agents/` 与 `workflows/` 首批 canonical 样板：`agents/agent-registry.md`、`agents/_shared/handoff-protocol.md`、`agents/i18n-agent/AGENT.md`、`agents/i18n-agent/bindings.yaml`、`workflows/workflow-registry.md`、`workflows/i18n-change.workflow.md`。
 - 已新增交接报告模板：事实报告、分类清单、变更摘要、验证报告，用于阶段化或多智能体交接。
@@ -46,6 +49,17 @@
 
 ## 近期提交索引
 
+- `4731854`：新增 agent skill thin-index 生成脚本，并集成到 `update-agents.ps1` 流水线。
+- `3cc5616`：新增首个部署经验文档和专项部署工具目录。
+- `8e4cfca`：新增 `demo/presentation/` 演示展示页面。
+- `ccc96bf`：新增 `agent-framework-feedback` 通用反馈 skill。
+- `b796f13`：补充字典翻译检查需覆盖被调用子方法经验。
+- `e1876cd`：新增 i18n 前端编码与字典翻译经验条目。
+- `ee4d08f`：为 GitHub Pages 展示页添加 inline SVG favicon。
+- `c6f2508`：升级展示页视觉体验与内容结构。
+- `9694509`：新增框架验证反馈机制。
+- `f7e14c7`：修复 XML 打印模板同步脚本 JsonLine 中文编码问题。
+- `38f0aed`：实施插件状态分流与 `plugin_profile` 机制。
 - `02d7e84`：新增 AI Coding 外骨骼架构可视化页面。
 - `d61ea96`：将架构可视化页面重命名为根目录 `index.html`。
 - `c2281ef`：新增 GitHub Pages workflow 和 `.nojekyll`。
@@ -70,6 +84,7 @@
 - `scripts/tests/update-agents.tests.ps1` 已验证：默认只处理 `agent-context-kit`，未启用插件只列为 available，显式插件可处理，i18n 在 coding 未初始化时阻塞，安装/更新 sparse checkout 包含 `agents/` 和 `workflows/`。
 - 已验证三个插件 manifest 均可被 PowerShell `ConvertFrom-Json` 正常解析。
 - `scripts/tests/update-agents.tests.ps1` 已验证：`update-agents.ps1` 可调用 agent thin-index 阶段，Write 模式生成 `.agents/skills/i18n-agent/SKILL.md`，入口指向 canonical `AGENT.md`、`bindings.yaml` 和 `i18n-change.workflow.md`，且不生成工具 adapter 内容。
+- 当前 `master` 本地 `HEAD` 为 `4731854`，较 `origin/master` / `github/master` 的 `3cc5616` 多一个本地提交；如需发布，按双远端约定分别同步。
 
 ## 维护要求
 
