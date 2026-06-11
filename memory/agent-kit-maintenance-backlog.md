@@ -8,13 +8,13 @@
    - 已完成：顶层 canonical `agents/`、`workflows/` 设计和 `i18n-agent` 样板。
    - 已完成：`scripts/install-agents.ps1` 和 `scripts/update-agents.ps1` 已将 `agents/`、`workflows/` 加入业务项目 `.agents` sparse checkout。
    - 已完成：仓库 README、workspace spec、update runbook 和相关 skill 已说明插件状态分流和 i18n-agent 依赖前置。
-   - 待做：新增最小 `scripts/generate-agent-thin-index.ps1`，生成 `.agents/skills/<agent-name>/SKILL.md` 智能体入口。
-   - 待做：新增最小 `scripts/generate-agent-adapters.ps1`，从 canonical 生成 Codex、Claude Code、OpenCode、CodeBuddy 等工具适配入口，至少支持 dry-run/write 和“生成物头部声明”。
+   - 已完成：新增最小 `scripts/generate-agent-thin-index.ps1` 并接入 `update-agents.ps1`，生成 `.agents/skills/<agent-name>/SKILL.md` 智能体入口。
+   - 暂缓：暂不做 `scripts/generate-agent-adapters.ps1`；后续确需 Codex、Claude Code、OpenCode、CodeBuddy 等工具原生入口时再实现。
    - 待做：业务项目验证 i18n 样板后，再决定是否新增通用 `coordinator/explorer/planner/coding/review/testing` Agent。
    - 禁止：不要让 `.codex/agents/`、`.claude/agents/`、`.opencode/` 或 `.codebuddy/agents/` 成为规则源；它们只能由 canonical 生成或临时适配。
 
 2. frontmatter/task-affinity 顺延为下一轮治理项。
-   - 排序：当前用户已明确调整优先级到多智能体架构落地；完成 adapter 和部署配套后再进入 frontmatter/task-affinity。
+   - 排序：当前用户已明确调整优先级到多智能体架构落地；完成 agent thin-index 和部署配套后，adapter 暂缓，frontmatter/task-affinity 后续再进入。
    - 内容：为 rule/reference 文件补充最小 frontmatter，并让 thin-index 传播任务亲和元数据。
    - 禁止：不要重新引入插件脚本副本漂移；frontmatter 解析和传播只改 canonical 脚本。
 

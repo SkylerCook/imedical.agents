@@ -72,7 +72,7 @@ your-project/
 25. 新增能力文件采用统一命名：`agents/<name>-agent/AGENT.md` 使用 kebab-case + `-agent`，`workflows/<name>.workflow.md` 使用 kebab-case，`skills/<skill-name>/SKILL.md` 使用 kebab-case，`rules/<rule_name>.md` 使用 snake_case，`references/<reference-name>.md` 使用 kebab-case，`scripts/<script-name>.<ext>` 使用 kebab-case。
 26. 历史文件命名统一已完成；未来新增历史文件如需重命名，只有在 thin-index canonical、stale 清理或明确迁移窗口中，才同步处理路径迁移、README、AGENTS、skill 引用和兼容清理。
 27. plugin thin-index 生成逻辑以根 `scripts/generate-plugin-thin-index.ps1` 为唯一 canonical 实现；各插件同名脚本只能作为 wrapper 转发参数，不复制核心逻辑，也不依赖其它插件。
-28. agent thin-index 和工具 adapter 后续使用独立脚本，不复用 plugin thin-index 逻辑。
+28. agent thin-index 使用独立 `scripts/generate-agent-thin-index.ps1`，不复用 plugin thin-index 逻辑；工具 adapter 后续再用独立脚本实现。
 
 ## 插件体系
 
@@ -149,21 +149,28 @@ workflow 文件必须包含：
 - 失败或阻塞处理。
 - 不支持子代理时的串行降级路径。
 
-### adapter 边界
+### agent thin-index 与 adapter 边界
 
 Codex、Claude Code、OpenCode、CodeBuddy、WorkBuddy、Hermes 等工具对 agent 的发现目录不同。本规范不把任何一家工具的目录作为 canonical。
 
-推荐从 `.agents/agents/` 和 `.agents/workflows/` 生成工具专属 adapter：
+当前已实现通用 agent skill thin-index：
+
+```text
+.agents/skills/<agent-name>/SKILL.md
+```
+
+它只负责让只发现浅层 `.agents/skills/` 的 Agent 继续读取 canonical `AGENT.md`、`bindings.yaml`、默认 workflow、agent registry 和 workflow registry。它不复制插件规则全文，也不是工具专属 adapter。
+
+工具专属 adapter 后续再从 `.agents/agents/` 和 `.agents/workflows/` 生成：
 
 ```text
 .codex/agents/<agent-name>.toml
 .claude/agents/<agent-name>.md
 .opencode/agents/<agent-name>.md
 .codebuddy/agents/<agent-name>.md
-.agents/skills/<agent-name>/SKILL.md
 ```
 
-adapter 是生成物，可删除重建；不得反向成为规则源。
+adapter 是生成物，可删除重建；不得反向成为规则源。当前更新链不生成这些工具专属入口。
 
 ### 本地差异
 
@@ -367,7 +374,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - copy 模式漂移检测。
 - 目标工程安装记录。
 - thin-index 来源版本校验。
-- agent thin-index 生成脚本。
 - Codex、Claude Code、OpenCode、CodeBuddy 等工具 adapter 生成脚本。
 
 ## 当前工程落地示例

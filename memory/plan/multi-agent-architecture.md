@@ -618,7 +618,7 @@ thin-index 内容只做路由：
 
 不要复用或扩展 `scripts/generate-plugin-thin-index.ps1` 来处理 agents。该脚本继续只负责插件 `rules/` 和 `skills/` 的 thin-index，避免插件生成逻辑和智能体适配逻辑耦合。
 
-如果需要为 Agent 生成 `.agents/skills/<agent-name>/SKILL.md`，新增独立脚本：
+Agent skill thin-index 由独立脚本生成：
 
 ```text
 scripts/generate-agent-thin-index.ps1
@@ -631,7 +631,7 @@ scripts/generate-agent-thin-index.ps1
 - `workflows/*.workflow.md`
 - `.agents/skills/<agent-name>/SKILL.md`
 
-`scripts/generate-agent-adapters.ps1` 可以调用 `generate-agent-thin-index.ps1`，但二者职责不同：
+后续如实现 `scripts/generate-agent-adapters.ps1`，可以调用 `generate-agent-thin-index.ps1`，但二者职责不同：
 
 | 脚本 | 职责 |
 |---|---|
@@ -932,7 +932,8 @@ workflows/i18n-change.workflow.md
 - 暂缓新增 `test-doc-agent` 和 `api-dev-agent`，等 i18n 样板验证后再扩展。
 - 暂缓新增通用 `coordinator/explorer/planner/coding/review/testing` Agent，避免在领域样板未跑稳前扩大维护面。
 - 暂缓实现自动调度脚本，只保留结构、路由和降级协议。
-- 暂缓适配入口生成器。当前先保证 Markdown canonical 对多数模型可读可执行；后续再实现 `scripts/generate-agent-thin-index.ps1` 和 `scripts/generate-agent-adapters.ps1`。
+- 已落地 `scripts/generate-agent-thin-index.ps1`，用于生成通用 `.agents/skills/<agent-name>/SKILL.md` 路由入口。
+- 暂缓适配入口生成器。当前先保证 Markdown canonical 和 agent thin-index 对多数模型可读可执行；后续确需工具原生入口时再实现 `scripts/generate-agent-adapters.ps1`。
 
 ## 后续实施影响面
 
@@ -969,7 +970,7 @@ workflows/i18n-change.workflow.md
 5. `workflows/workflow-registry.md` 能路由到每个 workflow。
 6. workflow 阶段输出符合 `handoff-protocol.md`。
 7. 业务项目安装或更新后 `.agents/agents/` 和 `.agents/workflows/` 存在。
-8. Claude Code skill thin-index 能指向真实 `AGENT.md`。
+8. agent skill thin-index 能指向真实 `AGENT.md`、`bindings.yaml` 和默认 workflow。
 9. Codex 能按 `AGENTS.md`、agent registry 和 workflow 串行执行。
 10. 不支持子代理时，单 Agent 仍能按 workflow 完成任务。
 
@@ -980,6 +981,6 @@ workflows/i18n-change.workflow.md
 3. 新增顶层 `agents/` 和 `workflows/` 骨架。
 4. 新增通用角色和交接协议。
 5. 新增 `i18n-agent` 领域样板和 `i18n-change.workflow.md`。
-6. 新增 `generate-agent-thin-index.ps1` 和 `generate-agent-adapters.ps1` 的最小实现。
+6. 新增 `generate-agent-thin-index.ps1` 的最小实现；`generate-agent-adapters.ps1` 暂缓。
 7. 修改 README、workspace spec、安装/更新脚本和维护记忆。
 8. 执行路径、引用和脚本 dry-run 验证。

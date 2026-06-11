@@ -502,7 +502,8 @@ function Test-PluginDependenciesInitialized {
 function Convert-ThinIndexTextOutput {
   param(
     [string]$Text,
-    [string]$PluginName
+    [string]$PluginName,
+    [string]$Phase = "thin-index"
   )
 
   $items = New-Object System.Collections.Generic.List[object]
@@ -531,11 +532,11 @@ function Convert-ThinIndexTextOutput {
       -Source $sourceMatch.Groups["value"].Value.Trim() `
       -Reason $reasonMatch.Groups["value"].Value.Trim() `
       -PluginName $PluginName `
-      -Phase "thin-index"))
+      -Phase $Phase))
   }
 
   if ($items.Count -eq 0) {
-    $items.Add((Write-UpdateResult -Status "thin-index-output" -Reason $Text.Trim() -PluginName $PluginName -Phase "thin-index"))
+    $items.Add((Write-UpdateResult -Status "thin-index-output" -Reason $Text.Trim() -PluginName $PluginName -Phase $Phase))
   }
 
   return $items
@@ -559,6 +560,7 @@ function Write-UpdateSummary {
     "thin-index-script-missing",
     "entrypoint-check-missing",
     "agents-entry-missing",
+    "agent-thin-index-script-missing",
     "plugin-init-required",
     "plugin-dependency-missing"
   )
@@ -833,6 +835,26 @@ foreach ($installedPlugin in $plugins) {
   else {
     $results.Add((Write-UpdateResult -Status "thin-index-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $thinIndexScript) -Reason "plugin has no thin-index script" -PluginName $installedPlugin.name -Phase "thin-index"))
   }
+}
+
+$agentThinIndexScript = Join-Path $agentsRoot "scripts/generate-agent-thin-index.ps1"
+if (Test-Path -LiteralPath $agentThinIndexScript -PathType Leaf) {
+  $agentThinIndexMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
+  $agentThinParams = @{
+    ProjectRoot = $projectRootFull
+    Mode = $agentThinIndexMode
+  }
+  if ($ForceThinIndex) {
+    $agentThinParams.Force = $true
+  }
+  $agentThinOutput = & $agentThinIndexScript @agentThinParams | Out-String
+  $agentThinResults = Convert-ThinIndexTextOutput -Text $agentThinOutput -PluginName "" -Phase "agent-thin-index"
+  foreach ($item in $agentThinResults) {
+    $results.Add($item)
+  }
+}
+else {
+  $results.Add((Write-UpdateResult -Status "agent-thin-index-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $agentThinIndexScript) -Reason "agent thin-index script missing" -Phase "agent-thin-index"))
 }
 
 if (($allPlugins.Count -eq 0) -or (($Plugin.Count -gt 0) -and ($matchedPluginCount -eq 0))) {

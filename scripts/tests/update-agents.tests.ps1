@@ -3,6 +3,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
 $scriptUnderTest = Join-Path $repoRoot "scripts/update-agents.ps1"
 $profileScriptUnderTest = Join-Path $repoRoot "scripts/update-plugin-profile.ps1"
+$agentThinIndexScriptUnderTest = Join-Path $repoRoot "scripts/generate-agent-thin-index.ps1"
 
 function Assert-True {
   param(
@@ -35,11 +36,27 @@ function New-TestProject {
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/agents") | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/workflows") | Out-Null
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/generate-plugin-thin-index.ps1") -Destination (Join-Path $root ".agents/scripts/generate-plugin-thin-index.ps1")
+  Copy-Item -LiteralPath $agentThinIndexScriptUnderTest -Destination (Join-Path $root ".agents/scripts/generate-agent-thin-index.ps1")
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-agents.ps1")
   Copy-Item -LiteralPath $profileScriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-plugin-profile.ps1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/check-agent-entrypoints.ps1") -Destination (Join-Path $root ".agents/scripts/check-agent-entrypoints.ps1")
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/agent-registry.md") -Value "# Agent Registry"
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/workflow-registry.md") -Value "# Workflow Registry"
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/agents/i18n-agent") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/i18n-agent/AGENT.md") -Value @(
+    "# i18n-agent",
+    "",
+    "IRIS i18n agent."
+  )
+  Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/i18n-agent/bindings.yaml") -Value @(
+    "name: i18n-agent",
+    "description: IRIS i18n agent.",
+    "defaultWorkflow: i18n-change",
+    "requiredPlugins:",
+    "  - coding-iris-plugin",
+    "  - i18n-iris-plugin"
+  )
+  Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/i18n-change.workflow.md") -Value "# i18n-change"
 
   $contextPluginRoot = Join-Path $root ".agents/plugins/agent-context-kit"
   New-Item -ItemType Directory -Force -Path (Join-Path $contextPluginRoot ".agents-plugin") | Out-Null
@@ -151,6 +168,7 @@ function New-TestProject {
 
 Assert-True (Test-Path -LiteralPath $scriptUnderTest -PathType Leaf) "scripts/update-agents.ps1 should exist"
 Assert-True (Test-Path -LiteralPath $profileScriptUnderTest -PathType Leaf) "scripts/update-plugin-profile.ps1 should exist"
+Assert-True (Test-Path -LiteralPath $agentThinIndexScriptUnderTest -PathType Leaf) "scripts/generate-agent-thin-index.ps1 should exist"
 
 $runbookPath = Join-Path $repoRoot "docs/update-agents.md"
 $contextSkillPath = Join-Path $repoRoot "plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md"
@@ -161,6 +179,7 @@ $profileScriptContent = Get-Content -Raw -Encoding UTF8 -Path $profileScriptUnde
 $installScriptContent = Get-Content -Raw -Encoding UTF8 -Path $installScriptPath
 Assert-Contains $updateScriptContent "/agents/**" "update sparse checkout should include agents"
 Assert-Contains $updateScriptContent "/workflows/**" "update sparse checkout should include workflows"
+Assert-Contains $updateScriptContent "generate-agent-thin-index.ps1" "update should invoke agent thin-index generation"
 Assert-Contains $installScriptContent "/agents/**" "install sparse checkout should include agents"
 Assert-Contains $installScriptContent "/workflows/**" "install sparse checkout should include workflows"
 Assert-Contains $profileScriptContent "available" "profile updater should support available"
@@ -220,7 +239,14 @@ try {
 
   $writeOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-String
   Assert-Contains $writeOutput "config-merged-key" "Write should merge missing config keys"
+  Assert-Contains $writeOutput "agent-thin-index" "Write should include agent thin-index phase"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/config/plugin_profile.md")) "Write should create plugin profile"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/i18n-agent/SKILL.md")) "Write should generate i18n-agent skill thin-index"
+  $agentSkillThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/i18n-agent/SKILL.md")
+  Assert-Contains $agentSkillThinIndex ".agents/agents/i18n-agent/AGENT.md" "Agent thin-index should point to canonical AGENT.md"
+  Assert-Contains $agentSkillThinIndex ".agents/agents/i18n-agent/bindings.yaml" "Agent thin-index should point to bindings.yaml"
+  Assert-Contains $agentSkillThinIndex ".agents/workflows/i18n-change.workflow.md" "Agent thin-index should point to default workflow"
+  Assert-True (-not $agentSkillThinIndex.Contains(".codex/agents")) "Agent thin-index must not generate tool adapter content"
   $profileAfterWrite = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/plugin_profile.md")
   Assert-Contains $profileAfterWrite "agent-context-kit | enabled" "Default context plugin should be enabled"
   Assert-Contains $profileAfterWrite "sample-plugin | enabled" "Write must preserve enabled plugin state"

@@ -36,8 +36,8 @@
 - 各插件同名脚本只能作为 wrapper 转发参数，避免插件之间产生运行时依赖和脚本副本漂移。
 - stale 清理只应删除由插件生成、且源文件已失效的 thin-index；不得删除业务项目自定义 `.agents/rules/`。
 - 独立分发单个插件时，若仍使用 `plugin-reference-thin-index`，必须同时带上根 canonical 脚本，否则选择 `copy` 或手工 thin-index。
-- Agent thin-index 不复用 `generate-plugin-thin-index.ps1`；后续如需生成 `.agents/skills/<agent-name>/SKILL.md`，新增独立 `scripts/generate-agent-thin-index.ps1`。
-- 工具专属 agent adapter 后续由独立 `scripts/generate-agent-adapters.ps1` 生成；该脚本只翻译格式，不创造 canonical 中不存在的职责或规则。
+- Agent thin-index 不复用 `generate-plugin-thin-index.ps1`；由独立 `scripts/generate-agent-thin-index.ps1` 从 `agents/*/AGENT.md` 和 `bindings.yaml` 生成 `.agents/skills/<agent-name>/SKILL.md`，只做浅层 skill 路由。
+- 工具专属 agent adapter 暂不实现；后续如需 Codex、Claude Code、OpenCode、CodeBuddy 等原生入口，再由独立 `scripts/generate-agent-adapters.ps1` 生成。该脚本只翻译格式，不创造 canonical 中不存在的职责或规则。
 
 ## 部署边界
 

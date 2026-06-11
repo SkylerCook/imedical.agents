@@ -131,17 +131,24 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - 模板/种子：i18n 相关 seed、template、sync skills
 - 验证：`plugins/i18n-iris-plugin/rules/i18n_verify.md`
 
-后续工具适配应从 canonical 生成：
+业务项目更新后会生成通用 agent skill thin-index：
 
 ```text
 .agents/skills/<agent-name>/SKILL.md
+```
+
+该入口只负责把只发现浅层 skill 的 Agent 路由到 `.agents/agents/<agent-name>/AGENT.md`、`bindings.yaml` 和默认 workflow；它不是工具专属 adapter。
+
+后续如需工具原生入口，再从 canonical 生成：
+
+```text
 .codex/agents/<agent-name>.toml
 .claude/agents/<agent-name>.md
 .opencode/agents/<agent-name>.md
 .codebuddy/agents/<agent-name>.md
 ```
 
-这些 adapter 是生成物，不是长期规则源。
+这些 adapter 暂不实现；后续生成物也不是长期规则源。
 
 ## 插件概览
 
@@ -260,7 +267,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 scripts/generate-plugin-thin-index.ps1
 ```
 
-插件内同名脚本只能作为 wrapper 转发参数。Agent thin-index 后续使用独立脚本设计，不复用 plugin thin-index 逻辑。
+插件内同名脚本只能作为 wrapper 转发参数。Agent thin-index 使用独立 `scripts/generate-agent-thin-index.ps1`，不复用 plugin thin-index 逻辑。
 
 ## 安全边界
 
