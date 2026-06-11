@@ -319,7 +319,7 @@ flowchart TD
 
 ## 部署复盘修正（2026-06-01）
 
-> 以下修正来自实际部署过程中遇到的问题，详见 `.agents/docs/deploy-com-exp.md`
+> 以下修正来自实际部署过程中遇到的问题，详见 `.agents/feedback/experience/deploy-com-exp.md`
 
 - 后端实体类部署前，需去掉整个 `Storage Default { ... }` 块，只上传无 Storage 源码，让 IRIS 编译重新生成 Storage。
 - 后端类不要"上传一个编译一个"；实体类和业务类都应先按依赖切片整组上传，再按实际依赖顺序编译。

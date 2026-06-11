@@ -27,15 +27,15 @@
 
 ## 关联经验条目
 
-以下经验条目来自 [`../deploy-com-exp.md`](../deploy-com-exp.md)，本次场景命中：
+以下经验条目来自 [`../../feedback/experience/deploy-com-exp.md`](../../feedback/experience/deploy-com-exp.md)，本次场景命中：
 
 | 经验编号 | 标题 | 分类 |
 |----------|------|------|
-| [1.1](../deploy-com-exp.md#11-实体类-storage-default-块导致编译-5559) | 实体类 Storage Default 块导致编译 #5559 | 后端编译 |
-| [1.2](../deploy-com-exp.md#12-实体类跨包依赖需先全部上传再编译) | 实体类跨包依赖需先全部上传再编译 | 后端编译 |
-| [1.3](../deploy-com-exp.md#13-windows-crlf-换行导致文本处理失败) | Windows CRLF 换行导致文本处理失败 | 后端编译 |
-| [1.4](../deploy-com-exp.md#14-实体类上传需先删除旧版本) | 实体类上传需先删除旧版本 | 后端编译 |
-| [2.1](../deploy-com-exp.md#21-sync_directory-的-ignore_patterns-在-windows-上对-git-目录模式失效) | sync_directory IGNORE_PATTERNS 在 Windows 上失效 | SFTP |
-| [2.2](../deploy-com-exp.md#22-upload_file-是全量覆盖的可靠方式) | upload_file 是全量覆盖的可靠方式 | SFTP |
-| [3.1](../deploy-com-exp.md#31-iris_execute-默认在-user-命名空间执行csp-编译必须显式传-namespace-参数) | iris_execute namespace 参数 | CSP 编译 |
-| [3.2](../deploy-com-exp.md#32-csp-文件虚拟路径格式) | CSP 文件虚拟路径格式 | CSP 编译 |
+| [1.1](../../feedback/experience/deploy-com-exp.md#11-实体类-storage-default-块导致编译-5559) | 实体类 Storage Default 块导致编译 #5559 | 后端编译 |
+| [1.2](../../feedback/experience/deploy-com-exp.md#12-实体类跨包依赖需先全部上传再编译) | 实体类跨包依赖需先全部上传再编译 | 后端编译 |
+| [1.3](../../feedback/experience/deploy-com-exp.md#13-windows-crlf-换行导致文本处理失败) | Windows CRLF 换行导致文本处理失败 | 后端编译 |
+| [1.4](../../feedback/experience/deploy-com-exp.md#14-实体类上传需先删除旧版本) | 实体类上传需先删除旧版本 | 后端编译 |
+| [2.1](../../feedback/experience/deploy-com-exp.md#21-sync_directory-的-ignore_patterns-在-windows-上对-git-目录模式失效) | sync_directory IGNORE_PATTERNS 在 Windows 上失效 | SFTP |
+| [2.2](../../feedback/experience/deploy-com-exp.md#22-upload_file-是全量覆盖的可靠方式) | upload_file 是全量覆盖的可靠方式 | SFTP |
+| [3.1](../../feedback/experience/deploy-com-exp.md#31-iris_execute-默认在-user-命名空间执行csp-编译必须显式传-namespace-参数) | iris_execute namespace 参数 | CSP 编译 |
+| [3.2](../../feedback/experience/deploy-com-exp.md#32-csp-文件虚拟路径格式) | CSP 文件虚拟路径格式 | CSP 编译 |

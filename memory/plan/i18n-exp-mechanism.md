@@ -2,7 +2,7 @@
 
 ## Context
 
-`docs/demand-com-exp.md` 是需求处理通用经验文档，当前只有 1 个需求（#6990066）的 4 类经验。随着需求积累，需要解决三个问题：自动总结、文档组织、导航效率。
+`feedback/experience/demand-com-exp.md` 是需求处理通用经验文档，当前只有 1 个需求（#6990066）的 4 类经验。随着需求积累，需要解决三个问题：自动总结、文档组织、导航效率。
 
 ## 问题分析与方案
 
@@ -13,7 +13,7 @@
 **方案**：在 `i18n-coding` 和 `coding-iris-plugin` 的 skill 中增加"需求完成后的经验沉淀"段落，作为阶段化执行的最后一步。
 
 具体做法：
-- 在 `i18n-coding/SKILL.md` 的"产出"段落末尾增加一条：需求完成后，检查本次处理中是否有新的通用经验值得沉淀到 `docs/demand-com-exp.md`。
+- 在 `i18n-coding/SKILL.md` 的"产出"段落末尾增加一条：需求完成后，检查本次处理中是否有新的通用经验值得沉淀到 `feedback/experience/demand-com-exp.md`。
 - 在 `coding-iris-plugin` 的 `iris-backend-coding` 和 `iris-frontend-coding` SKILL.md 中增加类似引导。
 - 沉淀触发条件：本次处理中遇到了规则未覆盖的坑、发现了新的判断标准、或某个已有经验命中了新需求号。
 - 不强制每次沉淀；没有新经验时不写。

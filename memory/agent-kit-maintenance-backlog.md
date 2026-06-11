@@ -26,7 +26,7 @@
    - 待做：积累反馈后，评估是否需要自动化 diff 和应用工具。
 
 6. 部署经验与演示材料治理。
-   - 待做：观察 `docs/deploy-com-exp.md` 与 `docs/deploy/*` 的复用频率，必要时抽象命名、敏感信息检查和部署工具模板。
+   - 待做：观察 `feedback/experience/deploy-com-exp.md` 与 `docs/deploy/*` 的复用频率，必要时抽象命名、敏感信息检查和部署工具模板。
    - 待做：明确 `demo/presentation/` 是否长期作为仓库展示资产；如需部署到业务项目，必须先更新安装/更新 sparse checkout 边界说明。
 
 ## 队列维护规则

@@ -2,7 +2,7 @@
 
 本文件定义 Agent 在处理 HIS 需求后，自动生成框架验证反馈的行为规范。
 
-反馈产物写入 `imedical.agents` 仓库的 `docs/agent-feedback/` 目录，不写入业务项目。
+反馈产物写入 `imedical.agents` 仓库的 `feedback/framework/` 目录，不写入业务项目。
 
 ## 触发条件
 
@@ -17,13 +17,13 @@ Agent 在任务收尾阶段，检查以下条件是否满足：
 
 ```text
 1. 记录当前仓库 git hash：git rev-parse HEAD
-2. 创建反馈目录：docs/agent-feedback/YYMMDDHHmmss/
+2. 创建反馈目录：feedback/framework/YYMMDDHHmmss/
    - YYMMDDHHmmss 为当前时间戳，精确到秒
 3. 将修正后的框架文件按原路径结构复制到反馈目录
    - 修正了 plugins/i18n-iris-plugin/rules/i18n_coding_backend.md
-     → 放入 docs/agent-feedback/YYMMDDHHmmss/plugins/i18n-iris-plugin/rules/i18n_coding_backend.md
+     → 放入 feedback/framework/YYMMDDHHmmss/plugins/i18n-iris-plugin/rules/i18n_coding_backend.md
    - 修正了 scripts/update-agents.ps1
-     → 放入 docs/agent-feedback/YYMMDDHHmmss/scripts/update-agents.ps1
+     → 放入 feedback/framework/YYMMDDHHmmss/scripts/update-agents.ps1
 4. 生成 _template.md，填写以下内容：
    - 日期、提交人、基于版本（git hash）
    - 场景描述：处理了什么需求
@@ -77,12 +77,12 @@ Agent 在任务收尾阶段，检查以下条件是否满足：
 | 产物 | 写入位置 | 用途 |
 |---|---|---|
 | 交接报告（事实报告、分类清单等） | 业务项目 `docs/agent-reports/` | 阶段化交接，属于业务项目工作产物 |
-| 框架验证反馈 | `imedical.agents` 的 `docs/agent-feedback/` | 框架改进输入，属于能力包仓库 |
+| 框架验证反馈 | `imedical.agents` 的 `feedback/framework/` | 框架改进输入，属于能力包仓库 |
 
 ## 维护者处理流程
 
 ```text
-1. 定期检查 docs/agent-feedback/ 中状态为"待处理"的反馈
+1. 定期检查 feedback/framework/ 中状态为"待处理"的反馈
 2. 读取 _template.md 和修正文件
 3. 对比修正文件与 master 对应文件的 diff
 4. 判断：

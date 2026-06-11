@@ -192,9 +192,11 @@ $profileScriptContent = Get-Content -Raw -Encoding UTF8 -Path $profileScriptUnde
 $installScriptContent = Get-Content -Raw -Encoding UTF8 -Path $installScriptPath
 Assert-Contains $updateScriptContent "/agents/**" "update sparse checkout should include agents"
 Assert-Contains $updateScriptContent "/workflows/**" "update sparse checkout should include workflows"
+Assert-Contains $updateScriptContent "/feedback/**" "update sparse checkout should include feedback"
 Assert-Contains $updateScriptContent "generate-agent-thin-index.ps1" "update should invoke agent thin-index generation"
 Assert-Contains $installScriptContent "/agents/**" "install sparse checkout should include agents"
 Assert-Contains $installScriptContent "/workflows/**" "install sparse checkout should include workflows"
+Assert-Contains $installScriptContent "/feedback/**" "install sparse checkout should include feedback"
 Assert-Contains $profileScriptContent "available" "profile updater should support available"
 Assert-Contains $profileScriptContent "enabled" "profile updater should support enabled"
 Assert-Contains $profileScriptContent "disabled" "profile updater should support disabled"

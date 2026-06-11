@@ -19,6 +19,7 @@ $runtimeSparsePaths = @(
   "/skills/**",
   "/plugins/**",
   "/vendor/**",
+  "/feedback/**",
   "/scripts/*.ps1"
 )
 

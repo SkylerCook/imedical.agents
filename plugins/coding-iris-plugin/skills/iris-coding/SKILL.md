@@ -71,7 +71,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 
 ## 需求完成后的经验沉淀
 
-需求处理完成后，检查本次是否产生可跨需求复用的经验，并按需更新 `docs/demand-com-exp.md`。
+需求处理完成后，检查本次是否产生可跨需求复用的经验，并按需更新 `feedback/experience/demand-com-exp.md`。
 
 需要沉淀的情况：
 
@@ -83,7 +83,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 沉淀要求：
 
 - 先搜索已有条目，能合并就合并，不重复新增。
-- 按 `docs/demand-com-exp.md` 的分类和条目格式记录。
+- 按 `feedback/experience/demand-com-exp.md` 的分类和条目格式记录。
 - 不写服务器、账号、namespace、远程路径、患者样本等敏感信息。
 - 不复制长段命令输出、完整 diff 或一次性排障流水。
 - 没有可复用经验时不写；不强制每次需求都沉淀。

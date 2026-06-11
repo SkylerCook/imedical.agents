@@ -13,6 +13,7 @@ $sparsePaths = @(
   "/skills/**",
   "/plugins/**",
   "/vendor/**",
+  "/feedback/**",
   "/scripts/*.ps1"
 )
 

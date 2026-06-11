@@ -80,7 +80,7 @@
 
 ## 框架反馈
 
-任务完成后，如果对框架文件（rules、skills、templates、references、scripts 等）做了修正，按 `agents/_shared/feedback-protocol.md` 自动生成反馈条目到 `docs/agent-feedback/`。
+任务完成后，如果对框架文件（rules、skills、templates、references、scripts 等）做了修正，按 `agents/_shared/feedback-protocol.md` 自动生成反馈条目到 `feedback/framework/`。
 
 ## 降级执行
 

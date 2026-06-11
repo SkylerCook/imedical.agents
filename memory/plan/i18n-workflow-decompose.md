@@ -6,7 +6,7 @@
 
 当前 `i18n-iris-plugin` 的规则和技能设计基于"全知 Agent"模型 — 假设执行者已知要改什么文件、走什么链路、用什么 helper。但实际需求处理（如 6095804 打印 i18n 案例）表明，工作流是**阶段化**的，且前一阶段输出是后一阶段输入。
 
-目标：从 `print-i18n-case-6095804.md` 和 `docs/demand-com-exp.md` 的实战经验中提炼通用五阶段模型，补全规则缺口，使 i18n 需求处理对不同模型（强弱模型）更友好，支持多 Agent 协作。
+目标：从 `print-i18n-case-6095804.md` 和 `feedback/experience/demand-com-exp.md` 的实战经验中提炼通用五阶段模型，补全规则缺口，使 i18n 需求处理对不同模型（强弱模型）更友好，支持多 Agent 协作。
 
 ## 当前工程与近期提交评估
 
@@ -42,7 +42,7 @@
 - `plugins/i18n-iris-plugin/AGENTS.md` 目前 Skill 路由未列出 `i18n-xml-print-template-sync`，本计划执行时应补齐。
 - `i18n_index.md` 和 `i18n_coding_print_backend.md` 中"打印 JSON"的描述需要扩展为"实际打印返回数据"，避免继续误导为只支持 JSON。
 - `i18n_verify.md` 应作为通用验证规则；各 skill 可以引用它，但不应机械删除自身特化检查。
-- `docs/demand-com-exp.md` 是通用经验文档，反哺时只标记被提升条目和规则引用，不写入过多 i18n 专用细节。
+- `feedback/experience/demand-com-exp.md` 是通用经验文档，反哺时只标记被提升条目和规则引用，不写入过多 i18n 专用细节。
 
 ## 五阶段模型与现有能力映射
 
@@ -257,7 +257,7 @@ Explorer 定位链路
 
 ### 步骤 5：反哺 `demand-com-exp.md` 的经验到规则 ✅
 
-**修改**：`docs/demand-com-exp.md`
+**修改**：`feedback/experience/demand-com-exp.md`
 
 **变化**：
 - 已被提炼为规则的经验条目，追加引用指向对应规则文件
@@ -287,7 +287,7 @@ Explorer 定位链路
 | 修改 | `plugins/i18n-iris-plugin/AGENTS.md` |
 | 修改 | `plugins/i18n-iris-plugin/skills/i18n-xml-print-template-sync/SKILL.md` |
 | 视情况修改 | `plugins/i18n-iris-plugin/README.md` |
-| 修改 | `docs/demand-com-exp.md` |
+| 修改 | `feedback/experience/demand-com-exp.md` |
 | 修改 | `memory/agent-kit-maintenance-log.md` |
 | 修改 | `memory/agent-kit-maintenance-decisions.md` |
 | 视情况修改 | `memory/agent-kit-maintenance-backlog.md` |

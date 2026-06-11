@@ -7,7 +7,7 @@
 每个反馈条目是一个独立目录，以时间戳命名：
 
 ```
-docs/agent-feedback/
+feedback/framework/
 ├── _template.md        # 反馈模板
 ├── YYMMDDHHmmss/       # 反馈条目（如 260607143022）
 │   ├── _template.md    # 反馈说明

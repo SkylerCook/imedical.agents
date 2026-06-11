@@ -23,7 +23,7 @@ description: Use when a completed HIS task corrected framework files such as rul
 ## 必读
 
 1. `agents/_shared/feedback-protocol.md`：反馈行为详细规范。
-2. `docs/agent-feedback/_template.md`：反馈模板格式。
+2. `feedback/framework/_template.md`：反馈模板格式。
 
 仅当确认需要生成反馈后读取这些文件。若任务只是读取框架文件、没有修正框架内容，也没有用户明确要求记录反馈，不继续加载反馈模板。
 
@@ -40,7 +40,7 @@ git rev-parse HEAD
 目录名使用当前时间戳 `YYMMDDHHmmss`（精确到秒），如 `260608143022`。
 
 ```text
-docs/agent-feedback/YYMMDDHHmmss/
+feedback/framework/YYMMDDHHmmss/
 ```
 
 ### 3. 复制修正文件
@@ -49,13 +49,13 @@ docs/agent-feedback/YYMMDDHHmmss/
 
 示例：
 - 修正了 `plugins/i18n-iris-plugin/rules/i18n_coding_backend.md`
-  → `docs/agent-feedback/YYMMDDHHmmss/plugins/i18n-iris-plugin/rules/i18n_coding_backend.md`
+  → `feedback/framework/YYMMDDHHmmss/plugins/i18n-iris-plugin/rules/i18n_coding_backend.md`
 - 修正了 `scripts/update-agents.ps1`
-  → `docs/agent-feedback/YYMMDDHHmmss/scripts/update-agents.ps1`
+  → `feedback/framework/YYMMDDHHmmss/scripts/update-agents.ps1`
 
 ### 4. 生成 _template.md
 
-按 `docs/agent-feedback/_template.md` 格式生成，必须包含以下内容：
+按 `feedback/framework/_template.md` 格式生成，必须包含以下内容：
 
 **基本信息**：日期、提交人、基于版本（git hash）、HIS 需求号。
 
@@ -82,7 +82,7 @@ docs/agent-feedback/YYMMDDHHmmss/
 ### 5. 提交
 
 ```bash
-git add docs/agent-feedback/YYMMDDHHmmss/
+git add feedback/framework/YYMMDDHHmmss/
 git commit -m "feedback: {简短标题}"
 git push origin master
 ```
