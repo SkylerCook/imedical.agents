@@ -2,6 +2,8 @@
 
 > 积累自实际部署过程的通用检验清单与踩坑记录，按分类组织。
 
+已提升通用入口：`plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md`；已提升清单脚本：`plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js`。
+
 ## 维护规则
 
 1. **去重 + 累积**：新增经验前搜索已有条目。若知识点已存在，不重复内容，仅在「需求」行追加新场景，并 `命中+1`。

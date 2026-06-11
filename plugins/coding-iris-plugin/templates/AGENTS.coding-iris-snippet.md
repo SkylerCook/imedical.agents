@@ -10,8 +10,9 @@
 - 后端编码：`.agents/skills/iris-backend-coding/SKILL.md`
 - 前端编码：`.agents/skills/iris-frontend-coding/SKILL.md`
 - 前端 GB2312 转换后替换源文件：`.agents/skills/iris-frontend-gb2312-promote/SKILL.md`
+- 远端部署、上传、编译、SFTP 同步或部署验证：`.agents/skills/iris-deploy/SKILL.md`
 
-普通编码需求优先使用 `iris-coding`；明确的纯后端、纯前端或 GB2312 promote 任务可直接使用对应专项 skill。
+普通编码需求优先使用 `iris-coding`；明确的纯后端、纯前端、GB2312 promote 或远端部署任务可直接使用对应专项 skill。
 
 `.agents/rules/` 和 `.agents/skills/` 中的 IRIS 编码文件可以是 thin-index；thin-index 应明确指向 `.agents/plugins/coding-iris-plugin/` 内真实 rules/skills。`coding-iris-init` 是 bootstrap skill，首次初始化不依赖 thin-index。
 

@@ -20,6 +20,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 - 后端 ObjectScript：`iris-backend-coding`
 - 前端 CSP/JS/HISUI：`iris-frontend-coding`
 - 永久替换 `{name}.gb2312.{ext}` 回源文件：`iris-frontend-gb2312-promote`
+- 远端部署、上传、编译、SFTP 同步或部署验证：`iris-deploy`
 
 ## 必读规则
 
@@ -43,7 +44,8 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
    - 只涉及 `.cls`、BLH/DATA/SQL、Broker、Query：走后端专项流程。
    - 只涉及 CSP/JS/CSS/HISUI：走前端专项流程。
    - 同时涉及后端接口和前端页面：先梳理调用链和文件边界，再分阶段改后端和前端。
-   - 用户要求上传、编译、远端读取或 SQL 验证：只在明确要求后进入工作流规则。
+   - 用户要求部署、上传、编译、SFTP 同步或部署验证：切换到 `iris-deploy`。
+   - 用户要求远端读取或 SQL 验证但不部署：只在明确要求后进入工作流规则。
    - 用户要求提升 GB2312 临时文件为源文件：切换到 promote skill。
 3. 本地搜索现有实现和同类代码，优先沿用目标工程模式。
 4. 按已判定的专项流程执行编码改造。

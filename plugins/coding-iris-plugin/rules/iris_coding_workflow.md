@@ -49,6 +49,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <文件标识符>
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js <文件名或路径> [命名空间]
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <ClassName> --method <MethodName>
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js --files <path...>
 ```
 
 `.agents/config/project-env.json` 和 `.mcp.json` 可能包含敏感信息，必须只保留在目标工程本地，不写入插件规则、模板或项目记忆。

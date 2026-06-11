@@ -1,6 +1,6 @@
 ﻿# IRIS 开发主力脚本集合
 
-这些 Node.js 脚本用于从 IRIS 服务器导出文件、编译类文件、调试方法调用以及同步环境配置。
+这些 Node.js 脚本用于生成部署清单、从 IRIS 服务器导出文件、编译类文件、调试方法调用以及同步环境配置。
 
 ## 配置说明
 
@@ -252,6 +252,31 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
 - 仅当 `.agents/config/project-env.json` 是事实来源时，修改后运行此脚本
 - 若 `.mcp.json` 已是事实来源，先从 `.mcp.json` 反向补齐 `project-env.json`，不要运行此脚本覆盖 `.mcp.json`
 - 确保 `mcp.serverPath` 指向有效的可执行文件路径
+
+---
+
+### 5. prepare-deploy-manifest.js - 部署清单生成脚本
+
+**功能：** 根据文件列表或 git diff 生成 IRIS 部署 JSON 清单。脚本只做本地分析，不执行上传、编译、SFTP 同步或远端写入。
+
+**使用方法：**
+```bash
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js --files <path...>
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js --from-git --base HEAD
+```
+
+**输出内容：**
+- `schema`：清单格式版本。
+- `namespace`：来自 `.agents/config/project-env.json -> iris.namespace`。
+- `items[]`：每个文件的类型、相对路径、存在性和部署路径信息。
+- `.cls/.mac/.inc`：生成 IRIS 文档名。
+- `.csp`：生成 WebApp 虚拟路径，用于后续 CSP 编译。
+- `.js/.css/.html`：生成 Web 资源路径，用于后续上传映射确认。
+
+**注意事项：**
+- 本脚本不是部署执行器，不读取或输出账号、密码、token、Cookie。
+- 清单用于部署前评审和确认；远端写入仍必须按 `iris-deploy` 和 `rules/iris_deploy_checklist.md` 执行。
+- `requiresStorageStrip=true` 表示部署前必须检查实体类或 Storage Default 风险，不代表脚本已改写源文件。
 
 ---
 

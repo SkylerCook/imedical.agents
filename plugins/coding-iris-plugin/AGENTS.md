@@ -24,8 +24,10 @@
 - 后端 ObjectScript 编码：`skills/iris-backend-coding/SKILL.md`
 - 前端 CSP/JS/HISUI 编码：`skills/iris-frontend-coding/SKILL.md`
 - 前端 GB2312 转换后替换源文件：`skills/iris-frontend-gb2312-promote/SKILL.md`
+- IRIS 远端部署编排：`skills/iris-deploy/SKILL.md`
 
 普通编码需求优先使用 `iris-coding`。当任务边界已经明确为纯后端、纯前端或 GB2312 promote 时，可直接使用对应专项 skill。
+当用户明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
 
 `coding-iris-init` 是 bootstrap skill。首次接入目标工程时应直接读取插件真实路径 `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`，不要依赖安装后才会生成的 thin-index。
 
@@ -53,4 +55,4 @@
 
 `convert-gb2312-upload.ps1` 初始化时复制到目标工程 `.agents/scripts/`。若目标工程已有同名脚本且内容不同，初始化流程必须报告冲突，不得静默覆盖。
 
-`scripts/iris-tools/` 是 IRIS 开发主力脚本集合，包含导出、编译、Broker 调试和环境配置同步。真实连接信息由目标工程本地私有配置承载：已有 `.mcp.json` 时反向补齐 `.agents/config/project-env.json`，没有 `.mcp.json` 时才从 `templates/project-env.template.json` 创建并用 `sync-env-config.js` 生成 `.mcp.json`。这些文件不得提交到版本库。
+`scripts/iris-tools/` 是 IRIS 开发主力脚本集合，包含部署清单生成、导出、编译、Broker 调试和环境配置同步。真实连接信息由目标工程本地私有配置承载：已有 `.mcp.json` 时反向补齐 `.agents/config/project-env.json`，没有 `.mcp.json` 时才从 `templates/project-env.template.json` 创建并用 `sync-env-config.js` 生成 `.mcp.json`。这些文件不得提交到版本库。

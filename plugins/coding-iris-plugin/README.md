@@ -7,12 +7,12 @@
 - ObjectScript 后端编码规则：BLH/DATA/SQL 分层、SQL 返回约定、ObjectScript 语法风格、Broker 接口习惯。
 - CSP/JavaScript/HISUI 前端编码规则：框架页/内容页拆分、HISUI 控件优先、JS 组织方式、前端数据回显。
 - 工作流规则：本地优先；导出、编译、Broker 调试和配置同步优先使用 IRIS 开发主力脚本；MCP 作为辅助能力补上下文、只读验证或覆盖脚本未覆盖场景。
-- 部署检查清单：上传、编译、部署和远端验证按 `rules/iris_deploy_checklist.md` 逐项执行。
+- 部署编排：`skills/iris-deploy/SKILL.md` 负责远端部署入口、清单生成、确认门禁和验证编排，上传、编译、部署和远端验证按 `rules/iris_deploy_checklist.md` 逐项执行。
 - 前端编码保护：检查 `.csp/.js/.css` 实际编码，防止历史 GB2312/GBK 文件被 Agent 永久改成 UTF-8。
 - 前端上传编码转换：按项目 profile 保持源文件编码，上传时按需转换为 GB2312 临时文件。
 - 前端 GB2312 提升：确认后删除源文件，并将 `{name}.gb2312.{ext}` 更名回原文件名，可选 MCP/SFTP 上传。
 - HISUI 控件参考：按需读取 `references/hisui-widget-index.md`，源码内置在 `.agents/vendor/hisui/`。
-- IRIS 开发主力脚本：通过 `scripts/iris-tools/` 提供导出、编译、Broker 调试和环境配置同步。
+- IRIS 开发主力脚本：通过 `scripts/iris-tools/` 提供部署清单生成、导出、编译、Broker 调试和环境配置同步。
 - MCP 能力说明：`rules/iris_agentic_dev.md` 记录 IRIS MCP 能力矩阵，`rules/sftp_server.md` 记录 SFTP MCP 能力矩阵和安全边界。
 
 ## 标准目录
@@ -90,7 +90,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 4. 运行 thin-index dry-run，确认无冲突后再 write。
 5. 普通编码任务优先使用 `iris-coding` 统一入口，由它按任务范围路由到后端、前端、工作流或 promote 流程。
 6. 明确的纯后端任务可直接使用 `iris-backend-coding`，明确的纯前端任务可直接使用 `iris-frontend-coding`。
-7. 需要把转换后的 GB2312 文件替换源文件时，使用 `iris-frontend-gb2312-promote`。
+7. 明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
+8. 需要把转换后的 GB2312 文件替换源文件时，使用 `iris-frontend-gb2312-promote`。
 
 ## IRIS 开发主力脚本
 
@@ -100,6 +101,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 - `compile.js`：上传并编译本地类文件。
 - `debugger.js`：调用 Web Broker 方法做快速调试。
 - `sync-env-config.js`：仅当 `.agents/config/project-env.json` 是事实来源时，从它生成 `.mcp.json`。
+- `prepare-deploy-manifest.js`：根据文件列表或 git diff 生成 IRIS 部署 JSON 清单；只做本地分析，不执行上传、编译或远端写入。
 
 首次使用前先确认配置事实来源：
 
@@ -119,6 +121,8 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <文件标识符>
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js <文件名或路径> [命名空间]
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <ClassName> --method <MethodName>
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js --files <path...>
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js --from-git --base HEAD
 ```
 
 `.agents/config/project-env.json` 和 `.mcp.json` 可能包含账号、密码、服务器地址等敏感信息，应由目标工程本地维护，不提交到业务项目版本库。
