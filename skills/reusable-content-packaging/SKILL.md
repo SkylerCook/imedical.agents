@@ -1,6 +1,6 @@
 ---
 name: reusable-content-packaging
-description: Package validated project or conversation knowledge into a reusable AI Coding plugin or capability kit without hard-coding source-project details.
+description: Use when packaging validated project or conversation knowledge into a reusable AI Coding plugin or capability kit without hard-coding source-project details.
 ---
 
 # Reusable Content Packaging
@@ -91,6 +91,13 @@ description: Package validated project or conversation knowledge into a reusable
    - README 或 docs 应包含端到端最小接入示例，至少说明插件放置、配置生成、thin-index dry-run/write 和验证步骤。
    - 如产生长期有效决策或入口，使用 `agent-context-kit` 的 `project-context-maintenance` 流程判断是否更新 `.agents/memory/project-memory.md`。
    - memory 只写摘要和入口，不复制规则全文。
+
+## 渐进式读取
+
+- 先读取用户指定来源、仓库入口和相关插件 README/AGENTS，确认能力边界。
+- 只有待打包内容实际包含规则、参考资料、模板或脚本时，才继续读取对应 `rules/`、`references/`、`templates/` 或 `scripts/`。
+- 只有选择 `plugin-reference-thin-index` 时，才读取 canonical thin-index 脚本和相关生成规则。
+- 不为补齐目录树而读取或创建无内容目录。
 
 ## 输出要求
 

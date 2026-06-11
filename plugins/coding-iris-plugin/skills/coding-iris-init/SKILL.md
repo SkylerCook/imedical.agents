@@ -1,6 +1,6 @@
 ---
 name: coding-iris-init
-description: Initialize coding-iris-plugin in a target IRIS project, copy bundled scripts, create project profile guidance, and generate thin indexes.
+description: Use when initializing coding-iris-plugin in a target IRIS project, including bundled scripts, project profile guidance, and thin indexes.
 ---
 
 # Coding IRIS Init
@@ -18,10 +18,17 @@ description: Initialize coding-iris-plugin in a target IRIS project, copy bundle
 
 ## 必读
 
+先读取：
+
 1. 插件根 `AGENTS.md`。
 2. 插件根 `README.md`。
-3. `templates/coding-iris-init-guide.md`（人类参考手册，本文件是 Agent 执行指令；两者步骤相似但定位不同，以本文件为准）。
-4. 目标工程已有 `AGENTS.md`、`.mcp.json`、`.agents/` 状态。
+3. 目标工程已有 `AGENTS.md`、`.mcp.json`、`.agents/` 状态。
+
+按条件继续读取：
+
+- 需要人工安装说明或步骤对照时，读取 `templates/coding-iris-init-guide.md`；本文件是 Agent 执行指令，两者冲突时以本文件为准。
+- 生成或重建 thin-index 前，读取插件内置 `scripts/generate-plugin-thin-index.ps1` 的调用方式，不复制脚本实现。
+- 创建或补齐 profile 时，读取 `templates/iris_project_profile.template.md`；只有用户明确选择项目类型时，才读取 `templates/profile-defaults/<type>.md`。
 
 ## 初始化流程
 

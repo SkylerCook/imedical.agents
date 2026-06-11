@@ -1,6 +1,6 @@
 ---
 name: agent-framework-feedback
-description: Generate framework validation feedback after completing a HIS task, when framework files (rules, skills, templates, etc.) were corrected during execution.
+description: Use when a completed HIS task corrected framework files such as rules, skills, templates, references, scripts, agents, or workflows during execution.
 ---
 
 # Agent Framework Feedback
@@ -24,6 +24,8 @@ description: Generate framework validation feedback after completing a HIS task,
 
 1. `agents/_shared/feedback-protocol.md`：反馈行为详细规范。
 2. `docs/agent-feedback/_template.md`：反馈模板格式。
+
+仅当确认需要生成反馈后读取这些文件。若任务只是读取框架文件、没有修正框架内容，也没有用户明确要求记录反馈，不继续加载反馈模板。
 
 ## 工作流
 

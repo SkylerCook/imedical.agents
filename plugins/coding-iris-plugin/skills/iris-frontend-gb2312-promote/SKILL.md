@@ -1,6 +1,6 @@
 ---
 name: iris-frontend-gb2312-promote
-description: Convert IRIS frontend files such as CSP, JavaScript, and CSS to GB2312 using convert-gb2312-upload.ps1, then with user confirmation replace the source files and optionally upload the replaced files through the target project's MCP/SFTP tooling.
+description: Use when converting IRIS frontend files such as CSP, JavaScript, or CSS to GB2312 and the user asks to promote converted files back to source filenames.
 ---
 
 # IRIS 前端 GB2312 提升
@@ -18,7 +18,11 @@ description: Convert IRIS frontend files such as CSP, JavaScript, and CSS to GB2
 1. 目标工程 `.agents/config/iris_project_profile.md`。
 2. `rules/iris_coding_workflow.md`。
 3. `rules/iris_gb2312_workflow.md`。
-4. 仅当用户要求上传或服务器部署时，读取目标工程 `.mcp.json`。
+
+按条件继续读取：
+
+- 仅当用户要求上传或服务器部署时，读取目标工程 `.mcp.json`。
+- 仅当转换脚本缺失或初始化状态不明时，读取 `coding-iris-init`，不要在本 skill 中重写初始化流程。
 
 ## 输入
 

@@ -1,6 +1,6 @@
 ---
 name: i18n-xml-print-template-sync
-description: Discover, export, verify, translate, and write back IRIS XML print templates for target-language variants such as EN. Use when a print i18n task involves PrintTemp, PreviewXMLName, GetXMLTemplateId, User.DHCXMLPConfig, or creating {Template}-EN XML print templates.
+description: Use when a print i18n task is confirmed to involve IRIS XML print templates such as PrintTemp, PreviewXMLName, GetXMLTemplateId, User.DHCXMLPConfig, or creating {Template}-EN variants.
 ---
 
 # XML Print Template Sync
@@ -20,9 +20,14 @@ IRIS User.DHCXMLPConfig source template
 Read these before acting:
 
 1. `.agents/config/i18n_project_profile.md`
-2. `.agents/plugins/i18n-iris-plugin/skills/i18n-xml-template/SKILL.md`
-3. `.agents/plugins/i18n-iris-plugin/rules/i18n_translation_quality.md`
-4. Target module code/config that produces `PrintTemp`, `PreviewXMLName`, or calls `GetXMLTemplateId(...)`.
+2. Target module code/config that produces `PrintTemp`, `PreviewXMLName`, or calls `GetXMLTemplateId(...)`.
+
+Read these only when the condition applies:
+
+- Before triggering this skill from a broader print i18n task, read `i18n_link_tracing.md` and confirm the actual rendering path is an XML template.
+- Before translating exported XML content, read `.agents/plugins/i18n-iris-plugin/skills/i18n-xml-template/SKILL.md`.
+- Before generating target-language text, read `.agents/plugins/i18n-iris-plugin/rules/i18n_translation_quality.md`.
+- Before server read/write, read `.mcp.json` and verify the concrete MCP capability names available in the current session.
 
 Do not store server addresses, accounts, passwords, tokens, namespaces, or remote paths in plugin files.
 

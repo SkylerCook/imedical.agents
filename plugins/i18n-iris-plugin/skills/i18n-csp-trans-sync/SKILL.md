@@ -1,6 +1,6 @@
 ---
 name: i18n-csp-trans-sync
-description: Export, verify, and optionally sync page-level translations between an IRIS server and the project-configured local page translation seed file.
+description: Use when exporting, verifying, or explicitly syncing page-level translations between an IRIS server and the project-configured local page translation seed file.
 ---
 
 # CSP Translation Sync — CSP 页面翻译导出与校验
@@ -31,6 +31,12 @@ description: Export, verify, and optionally sync page-level translations between
 4. 工程根目录 `.mcp.json`
 
 `.mcp.json` 是 MCP 连接配置唯一事实来源。Skill 不硬编码服务器、namespace、MCP server 名称或远程路径。
+
+按条件继续读取：
+
+- 只做差异报告时，不读取编码改造规则。
+- 需要生成或调整种子写入代码时，继续按 `i18n_page_translation_seed.md` 的种子类约束执行。
+- 需要部署、编译或加载时，先从 `.mcp.json` 判断可用能力，再读取目标工程对应部署规则。
 
 ## 参数
 

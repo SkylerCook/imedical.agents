@@ -1,6 +1,6 @@
 ---
 name: i18n-bdp-trans-seed
-description: Generate and verify multilingual dictionary/table-display translation term tables and SQL using the project-configured dictionary translation storage.
+description: Use when generating multilingual dictionary or table-display translation term tables and SQL for the project-configured dictionary translation storage.
 ---
 
 # BDP Translation Seed — 字典数据翻译生成与部署
@@ -16,9 +16,12 @@ description: Generate and verify multilingual dictionary/table-display translati
 1. `.agents/config/i18n_project_profile.md`
 2. 语言目录规则：优先读取目标工程 `.agents/rules/i18n_language_catalog.md`；引用插件时读取插件 `rules/i18n_language_catalog.md`
 3. 字典翻译种子规则：`i18n_dict_translation_seed.md`
-4. 目标语言翻译质量规则：`i18n_translation_quality.md`
-5. 如涉及后端代码改造，读取 `i18n_coding_backend.md`
-6. 涉及服务器查询时读取工程根目录 `.mcp.json`
+
+按条件继续读取：
+
+- 需要生成目标语言译文时，读取 `i18n_translation_quality.md`。
+- 涉及后端代码改造时，读取 `i18n_coding_backend.md`。
+- 涉及服务器查询时，读取工程根目录 `.mcp.json`。
 
 ## 参数
 

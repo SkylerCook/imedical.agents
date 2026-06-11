@@ -1,6 +1,6 @@
 ---
 name: i18n-page-trans-seed
-description: Add multilingual page-level non-dictionary translations to the project-configured page translation seed file with per-language load and rollback methods.
+description: Use when adding multilingual page-level non-dictionary translations to the project-configured page translation seed file with per-language load and rollback methods.
 ---
 
 # Page Translation Seed — 页面级非字典翻译种子
@@ -16,8 +16,12 @@ description: Add multilingual page-level non-dictionary translations to the proj
 1. `.agents/config/i18n_project_profile.md`
 2. 语言目录规则：优先读取目标工程 `.agents/rules/i18n_language_catalog.md`；引用插件时读取插件 `rules/i18n_language_catalog.md`
 3. 页面翻译种子规则：`i18n_page_translation_seed.md`
-4. 目标语言翻译质量规则：`i18n_translation_quality.md`
-5. 涉及编译、加载、服务器校验时读取工程根目录 `.mcp.json`
+
+按条件继续读取：
+
+- 需要生成或校正目标语言译文时，读取 `i18n_translation_quality.md`。
+- 涉及编译、加载、服务器校验时，读取工程根目录 `.mcp.json`。
+- 需要从服务器反向导出或对比页面翻译时，切换到 `i18n-csp-trans-sync`，不要在本 skill 中重写同步流程。
 
 ## 参数
 

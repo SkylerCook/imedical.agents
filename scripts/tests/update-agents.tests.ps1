@@ -141,7 +141,7 @@ function New-TestProject {
   Set-Content -Encoding UTF8 -Path (Join-Path $pluginRoot "skills/sample-skill/SKILL.md") -Value @(
     "---",
     "name: sample-skill",
-    "description: sample",
+    "description: Use when testing real skill description propagation.",
     "---",
     "",
     "# Sample Skill"
@@ -277,7 +277,9 @@ try {
   Assert-Contains $legacyRuleThinIndex ".agents/plugins/sample-plugin/rules/legacy_rule.md" "Legacy rule thin-index should still point to its source"
   $sampleSkillThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/sample-skill/SKILL.md")
   Assert-True (-not $sampleSkillThinIndex.Contains("task-affinity")) "Skill thin-index should not gain rule task-affinity metadata"
-  Assert-Contains $sampleSkillThinIndex "Thin index for plugin-provided sample-skill skill." "Skill thin-index description should remain unchanged"
+  Assert-Contains $sampleSkillThinIndex "description: Use when testing real skill description propagation." "Skill thin-index should propagate source skill description"
+  Assert-Contains $sampleSkillThinIndex "thin-index: true" "Skill thin-index should declare thin-index frontmatter"
+  Assert-Contains $sampleSkillThinIndex "source: .agents/plugins/sample-plugin/skills/sample-skill/SKILL.md" "Skill thin-index should declare source frontmatter"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "CODEBUDDY.md"))) "Write must not create missing optional entrypoints"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "CLAUDE.md.bak"))) "Write must not backup or replace existing optional entrypoints"
   $claudeContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot "CLAUDE.md")

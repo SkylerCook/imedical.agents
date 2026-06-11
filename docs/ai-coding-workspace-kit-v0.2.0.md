@@ -284,6 +284,8 @@ source: .agents/plugins/example-plugin/rules/example_rule.md
 
 `task-affinity` 用于浅层发现和任务亲和筛选，不表示该 rule 必须常驻加载。匹配后仍要读取 `source` 指向的真实插件 rule。插件 `references/` 可有自己的 frontmatter，供真实 rule/skill 引用时快速判断用途，但 canonical 脚本不为 `references/` 生成浅层入口。
 
+skill thin-index 应传播真实 `SKILL.md` 的 `name` 和 `description`，让只发现浅层 `.agents/skills/` 的 Agent 也能按真实触发条件选择能力。生成物同时写入 `thin-index: true` 和 `source`；Agent 匹配后仍必须继续读取插件真实 `SKILL.md`。
+
 ## 被忽略文件贡献
 
 `.agents/.git/info/exclude` 默认隐藏本地生成层，以保持 Git 列表干净。若实际使用中修正了通用脚本、通用规则或通用 skill，可在 `.agents` 仓库内显式贡献：

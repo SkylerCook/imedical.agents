@@ -1,6 +1,6 @@
 ---
 name: iris-coding
-description: Unified entry for IRIS ObjectScript, CSP, JavaScript, CSS, and HISUI coding requests, routing to backend, frontend, GB2312 promotion, and workflow rules as needed.
+description: Use when an IRIS coding request may involve ObjectScript, CSP, JavaScript, CSS, HISUI, or needs routing between backend, frontend, GB2312 promotion, and workflow rules.
 ---
 
 # IRIS Coding

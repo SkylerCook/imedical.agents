@@ -1,6 +1,6 @@
 ---
 name: i18n-text-extract
-description: Extract user-visible source-language text from frontend and backend program files into target-language i18n term tables.
+description: Use when extracting user-visible source-language text from frontend or backend program files into target-language i18n term tables.
 ---
 
 # I18N Text Extract — 程序文件需翻译文本提取
@@ -14,9 +14,13 @@ description: Extract user-visible source-language text from frontend and backend
 1. `.agents/config/i18n_project_profile.md`
 2. i18n 规则索引：优先读取目标工程 `.agents/rules/i18n_index.md`；引用插件时读取插件 `rules/i18n_index.md`
 3. 语言目录规则：`i18n_language_catalog.md`
-4. 目标语言翻译质量规则：`i18n_translation_quality.md`
-5. 前端提取读取 `i18n_extract_frontend.md`
-6. 后端提取读取 `i18n_extract_backend.md`
+
+按条件继续读取：
+
+- 需要生成目标语言译文时，读取 `i18n_translation_quality.md`。
+- 前端提取读取 `i18n_extract_frontend.md`。
+- 后端提取读取 `i18n_extract_backend.md`。
+- 涉及多种数据形态或入口归属不明时，读取 `i18n_field_classification.md`。
 
 ## 参数
 

@@ -291,12 +291,45 @@ if (Test-Path -LiteralPath $skillsSource -PathType Container) {
             $results.Add((Write-Result -Status "conflict" -Target $targetRel -Source $sourceRel -Reason "target SKILL.md path is a directory"))
             return
         }
-        $content = @(
-            "---",
-            "name: $skillName",
-            "description: Thin index for plugin-provided $skillName skill. $(Convert-FromUtf8Base64 '6K+75Y+W5ZCO5b+F6aG757un57ut6K+75Y+W5o+S5Lu25YaF55yf5a6eIFNLSUxMLm1k44CC')",
-            "---",
-            "",
+        $contentLines = New-Object System.Collections.Generic.List[string]
+        $frontmatterLines = Get-MarkdownFrontmatterLines -Path $sourceFile
+        $selectedFrontmatterLines = Select-FrontmatterFieldLines `
+            -FrontmatterLines $frontmatterLines `
+            -FieldNames @("name", "description")
+        $hasName = $false
+        $hasDescription = $false
+        foreach ($line in $selectedFrontmatterLines) {
+            if ($line -match '^name\s*:') {
+                $hasName = $true
+            }
+            if ($line -match '^description\s*:') {
+                $hasDescription = $true
+            }
+        }
+
+        $contentLines.Add("---")
+        if ($hasName) {
+            foreach ($line in $selectedFrontmatterLines) {
+                $contentLines.Add($line)
+            }
+        }
+        else {
+            $contentLines.Add("name: $skillName")
+            foreach ($line in $selectedFrontmatterLines) {
+                if ($line -notmatch '^name\s*:') {
+                    $contentLines.Add($line)
+                }
+            }
+        }
+        if (-not $hasDescription) {
+            $contentLines.Add("description: Thin index for plugin-provided $skillName skill. $(Convert-FromUtf8Base64 '6K+75Y+W5ZCO5b+F6aG757un57ut6K+75Y+W5o+S5Lu25YaF55yf5a6eIFNLSUxMLm1k44CC')")
+        }
+        $contentLines.Add("thin-index: true")
+        $contentLines.Add("source: $sourceRel")
+        $contentLines.Add("---")
+        $contentLines.Add("")
+
+        @(
             "$(Convert-FromUtf8Base64 'IyDoloTntKLlvJXvvJo=')$skillName",
             "",
             "$(Convert-FromUtf8Base64 '5pys5paH5Lu25pivIHRoaW4taW5kZXggLyDoloTntKLlvJXvvIzkuI3ljIXlkKvlrozmlbQgc2tpbGzjgII=')",
@@ -311,7 +344,8 @@ if (Test-Path -LiteralPath $skillsSource -PathType Container) {
             "- ``.mcp.json``",
             "",
             "$(Convert-FromUtf8Base64 '5LiN6KaB5oqKIE1DUCDov57mjqXkv6Hmga/lpI3liLbliLDmnKzmlofku7bjgII=')"
-        ) -join [Environment]::NewLine
+        ) | ForEach-Object { $contentLines.Add($_) }
+        $content = @($contentLines) -join [Environment]::NewLine
 
         if ((Test-Path -LiteralPath $targetFile) -and (-not $Force)) {
             $results.Add((Write-Result -Status "skipped" -Target $targetRel -Source $sourceRel -Reason "target exists; use -Force to overwrite"))

@@ -1,6 +1,6 @@
 ---
 name: i18n-project-init
-description: Initialize the reusable IRIS i18n agent kit in a target project with plugin-reference-thin-index, copy, or plugin-reference mode.
+description: Use when initializing or checking the reusable IRIS i18n agent kit in a target project with plugin-reference-thin-index, copy, or plugin-reference mode.
 ---
 
 # I18N Project Init
@@ -32,11 +32,18 @@ description: Initialize the reusable IRIS i18n agent kit in a target project wit
 
 ## 必读
 
+先读取：
+
 1. 插件根 `AGENTS.md`。
 2. 插件根 `README.md`。
-3. `templates/i18n-init-guide.md`。
-4. 目标工程已有 `AGENTS.md`、`.mcp.json` 和 `.agents/` 状态。
-5. 插件内置 thin-index 脚本：`.agents/plugins/i18n-iris-plugin/scripts/generate-plugin-thin-index.ps1`。
+3. 目标工程已有 `AGENTS.md`、`.mcp.json` 和 `.agents/` 状态。
+4. 插件内置 thin-index 脚本：`.agents/plugins/i18n-iris-plugin/scripts/generate-plugin-thin-index.ps1`。
+
+按条件继续读取：
+
+- 需要人工安装说明或步骤对照时，读取 `templates/i18n-init-guide.md`；本文件是 Agent 执行指令，两者冲突时以本文件为准。
+- 初始化 profile 时读取 `templates/i18n_project_profile.template.md`。
+- `coding-iris-plugin` 未启用时，停止并读取 `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`，不要继续 i18n 初始化。
 
 ## 初始化流程
 

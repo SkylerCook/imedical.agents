@@ -1,6 +1,6 @@
 ---
 name: i18n-coding
-description: Apply frontend and backend internationalization coding changes for one file, multiple files, directories, or project scopes while preserving source-language keys.
+description: Use when applying frontend or backend internationalization coding changes for files, directories, or project scopes while preserving source-language keys.
 ---
 
 # I18N Coding — 国际化编码改造
@@ -15,14 +15,17 @@ description: Apply frontend and backend internationalization coding changes for 
 
 1. `.agents/config/i18n_project_profile.md`
 2. i18n 规则索引：优先读取目标工程 `.agents/rules/i18n_index.md`；引用插件时读取插件 `rules/i18n_index.md`
-3. 前端文件读取 `i18n_coding_frontend.md`
-4. 后端文件读取 `i18n_coding_backend.md`
-5. 后端涉及字典/表字段展示值时读取 `i18n_dict_translate_facade.md`
-6. 后端打印链路、实际打印返回数据读取 `i18n_coding_print_backend.md`
-7. 涉及打印或复杂页面链路时，先读取 `i18n_link_tracing.md` 定位实际调用链路
-8. 涉及多种数据形态时，读取 `i18n_field_classification.md` 对用户可见文本分类
-9. 验证阶段读取 `i18n_verify.md`
-10. UI 框架行为不确定时读取 profile 指定的控件索引或源码索引
+
+按条件继续读取：
+
+- 前端文件读取 `i18n_coding_frontend.md`。
+- 后端文件读取 `i18n_coding_backend.md`。
+- 后端涉及字典/表字段展示值时读取 `i18n_dict_translate_facade.md`。
+- 后端打印链路、实际打印返回数据读取 `i18n_coding_print_backend.md`。
+- 涉及打印或复杂页面链路时，先读取 `i18n_link_tracing.md` 定位实际调用链路。
+- 涉及多种数据形态时，读取 `i18n_field_classification.md` 对用户可见文本分类。
+- 验证阶段读取 `i18n_verify.md`。
+- UI 框架行为不确定时读取 profile 指定的控件索引或源码索引。
 
 ## 输入范围
 

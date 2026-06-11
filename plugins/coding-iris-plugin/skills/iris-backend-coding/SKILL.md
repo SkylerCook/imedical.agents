@@ -1,6 +1,6 @@
 ---
 name: iris-backend-coding
-description: Work on IRIS ObjectScript backend code using coding-iris-plugin backend rules and the target project's profile.
+description: Use when working on IRIS ObjectScript backend code with coding-iris-plugin backend rules and the target project's profile.
 ---
 
 # IRIS Backend Coding
@@ -11,9 +11,9 @@ description: Work on IRIS ObjectScript backend code using coding-iris-plugin bac
 
 ## 流程
 
-1. 读取目标工程 `.agents/config/iris_project_profile.md`。
-2. 读取 `rules/iris_coding_index.md`、`rules/iris_coding_general.md`、`rules/iris_coding_backend.md`。
-3. 若涉及上传、编译、远程读取或只读 SQL，再读取 `.mcp.json` 和 `rules/iris_coding_workflow.md`。
+1. 先读取目标工程 `.agents/config/iris_project_profile.md`。
+2. 再读取 `rules/iris_coding_index.md`、`rules/iris_coding_general.md`、`rules/iris_coding_backend.md`。
+3. 仅当任务涉及上传、编译、远程读取或只读 SQL 时，再读取 `.mcp.json` 和 `rules/iris_coding_workflow.md`。
 4. 本地搜索现有实现和同类代码，优先沿用目标工程模式。
 5. 按 BLH/DATA/SQL 职责分层修改，不把项目专属类名写回插件规则。
 6. 默认只做本地修改；用户明确要求后再上传或编译。

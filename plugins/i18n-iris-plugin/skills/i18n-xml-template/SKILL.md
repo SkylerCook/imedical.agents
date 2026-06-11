@@ -1,6 +1,6 @@
 ---
 name: i18n-xml-template
-description: Translate XML print template defaultvalue text into a target language with encoding verification, layout-aware short translations, optional coordinate adjustment, and report generation. Use when Codex works on XML print template files whose visible text is stored in defaultvalue attributes.
+description: Use when translating XML print template files whose visible text is stored in defaultvalue attributes, including encoding verification and layout-aware output.
 ---
 
 # XML Template I18N - XML 打印模板翻译
@@ -12,7 +12,11 @@ description: Translate XML print template defaultvalue text into a target langua
 1. `.agents/config/i18n_project_profile.md`
 2. 语言目录规则：优先读取目标工程 `.agents/rules/i18n_language_catalog.md`；引用插件时读取插件 `rules/i18n_language_catalog.md`
 3. 翻译质量规则：`i18n_translation_quality.md`
-4. 如需同步生成页面翻译表，再读取 `i18n_page_translation_seed.md`
+
+按条件继续读取：
+
+- 如需同步生成页面翻译表，再读取 `i18n_page_translation_seed.md`。
+- 如需把 XML 模板写回 IRIS 模板配置，切换到 `i18n-xml-print-template-sync`，不要在本 skill 中重写服务器同步流程。
 
 ## 输入参数
 

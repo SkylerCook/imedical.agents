@@ -43,6 +43,8 @@ i18n-iris-plugin/
 
 规则 thin-index 会传播源 rule 的 `description` 和 `task-affinity`，用于浅层发现和任务筛选。`task-affinity` 只是路由提示；匹配后仍必须继续读取 thin-index 中 `source` 指向的插件真实 rule。`references/` 只由真实 rule/skill 按需引用，不生成浅层 `.agents/rules/` 入口。
 
+Skill thin-index 会传播真实 `SKILL.md` 的 `description`，用于浅层能力发现；匹配后仍必须继续读取 `source` 指向的插件真实 `SKILL.md`。
+
 `i18n-project-init` 是 bootstrap skill，负责安装、检查、生成 profile 和调用 thin-index 脚本。安装完成后的日常能力入口才通过浅层 thin-index 触发。
 
 生成前先 dry-run：

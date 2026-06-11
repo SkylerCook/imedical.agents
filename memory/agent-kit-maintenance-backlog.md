@@ -9,29 +9,23 @@
    - 暂缓：暂不做 `scripts/generate-agent-adapters.ps1`；后续确需 Codex、Claude Code、OpenCode、CodeBuddy、WorkBuddy、Hermes 等工具原生入口时再实现。
    - 禁止：不要让 `.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/` 或其它工具原生入口成为规则源；它们只能由 canonical 生成或临时适配。
 
-2. `SKILL.md` 渐进式披露轻量约束。
-   - 背景：rule/reference 的 frontmatter 与 task-affinity 治理已完成；本轮明确不把 `skills` 纳入 `task-affinity` 元数据体系。
-   - 待做：检查每个 `SKILL.md` 的 `description` 是否是触发条件句，而不是泛泛能力介绍。
-   - 待做：检查 skill 正文是否明确“先读哪些入口、按什么条件再继续读取哪些 rules/references”。
-   - 禁止：不要为 skill 引入完整 task-affinity 分类本体，除非后续确认现有 `description` 触发机制不足。
-
-3. 继续观察 rules 体量。
+2. 继续观察 rules 体量。
    - 若 i18n 或 coding 规则再次承载查找表、API 目录或长参考资料，优先迁入对应插件 `references/`。
 
-4. 多智能体运行时调度器暂不实现。
+3. 多智能体运行时调度器暂不实现。
    - 当前阶段只落地 canonical 定义、workflow、交接协议和工具 adapter。
    - 暂不实现复杂自动并行调度器；等业务项目验证 i18n 样板后，再决定是否扩展 coordinator 运行时逻辑。
    - 后续可考虑新增 `standard-change`、`review-test-release`、`bugfix` workflow 和通用 `coordinator/explorer/planner/coding/review/testing` Agent。
 
-5. 暂不新增 `agent-kit-maintenance` 专用 skill。
+4. 暂不新增 `agent-kit-maintenance` 专用 skill。
    - 根 `AGENTS.md` 先承载本仓库维护入口、记忆路由和维护规则。
    - 若后续频繁执行”查看近期提交、归纳维护记忆、同步 README/docs、检查 sparse checkout 边界、审查敏感信息”等固定流程，再抽成专用 skill。
 
-6. 框架验证反馈机制。
+5. 框架验证反馈机制。
    - 待做：团队成员开始使用后，观察反馈质量和处理效率。
    - 待做：积累反馈后，评估是否需要自动化 diff 和应用工具。
 
-7. 部署经验与演示材料治理。
+6. 部署经验与演示材料治理。
    - 待做：观察 `docs/deploy-com-exp.md` 与 `docs/deploy/*` 的复用频率，必要时抽象命名、敏感信息检查和部署工具模板。
    - 待做：明确 `demo/presentation/` 是否长期作为仓库展示资产；如需部署到业务项目，必须先更新安装/更新 sparse checkout 边界说明。
 

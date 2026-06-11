@@ -35,6 +35,13 @@ description: Use when initializing or maintaining agent project context such as 
 5. 判断目标工程的 `contextMode`，再决定如何生成或维护上下文。
 6. 判断待写入内容是项目特定、跨项目可复用，还是临时过程。
 
+## 渐进式读取
+
+- 先读取 `AGENTS.md`、项目记忆入口和 `.agents/config/plugin_profile.md`，确认上下文模式、插件状态和本次维护目标。
+- 仅当任务涉及安装或更新 `.agents` 时，读取 `.agents/docs/update-agents.md`，不要在本 skill 中重写 runbook。
+- 仅当需要维护某个已启用插件时，继续读取该插件真实 init skill、README、templates 或 thin-index 脚本。
+- 仅当要编辑项目规则、记忆或配置时，读取对应 `.agents/rules/`、`.agents/memory/` 或 `.agents/config/` 文件；不要为了上下文完整性一次性加载所有插件规则。
+
 ## 兼容入口
 
 兼容入口清单默认包括：

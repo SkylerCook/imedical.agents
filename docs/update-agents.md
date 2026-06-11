@@ -189,6 +189,17 @@ source: .agents/plugins/coding-iris-plugin/rules/iris_coding_frontend.md
 
 `task-affinity` 只是路由提示，不是常驻读取要求。Agent 认为任务匹配后，仍必须继续读取 `source` 指向的插件真实 rule；不匹配时不要为了“保险”加载全部规则。插件 `references/` 仍由真实 rule 或 skill 按需引用，不生成 `.agents/rules/` 浅层入口。
 
+## Skill thin-index description
+
+插件 skill thin-index 会传播真实 `SKILL.md` 的 `name` 和 `description`，并补充：
+
+```yaml
+thin-index: true
+source: .agents/plugins/<plugin>/skills/<skill>/SKILL.md
+```
+
+浅层 `.agents/skills/<skill>/SKILL.md` 的 `description` 用于能力发现和触发判断。匹配后仍必须继续读取 `source` 指向的插件真实 `SKILL.md`，因为 thin-index 不复制完整流程、规则路由或安全约束。
+
 ## 插件状态分流
 
 `.agents/plugins/**` 全量拉取用于能力发现，但更新脚本按 `.agents/config/plugin_profile.md` 分流：
