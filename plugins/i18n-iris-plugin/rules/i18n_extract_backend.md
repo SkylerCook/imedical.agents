@@ -1,3 +1,11 @@
+---
+name: i18n_extract_backend
+description: Use when extracting translatable visible text from ObjectScript backend classes or CSP server code.
+task-affinity: [i18n, iris, objectscript, backend, extract]
+related:
+  - i18n_field_classification.md
+---
+
 # 后端需翻译文本提取规则
 
 ## 适用范围

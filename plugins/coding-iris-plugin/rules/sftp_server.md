@@ -1,3 +1,11 @@
+---
+name: sftp_server
+description: Use when an IRIS task actually uses the SFTP MCP for remote read, upload, sync, or command execution.
+task-affinity: [sftp, mcp, remote, upload, deploy]
+related:
+  - iris_coding_workflow.md
+---
+
 # sftp-server MCP 使用约束
 
 本文记录通用 SFTP MCP 能力边界。不得把 `.mcp.json` 中的 host、用户名、密码、远端根目录、本地根目录或私有路径复制到本可复用插件文件。

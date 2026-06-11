@@ -1,3 +1,11 @@
+---
+name: i18n_link_tracing
+description: Use at the start of page-level or print-level i18n work to locate actual call chains and data shapes.
+task-affinity: [i18n, tracing, discovery, planning]
+related:
+  - i18n_field_classification.md
+---
+
 # 国际化链路定位规则
 
 执行本规则前必须先读取 `.agents/config/i18n_project_profile.md`。本规则用于在国际化需求处理初期定位实际调用链路和数据形态，为后续数据分类和编码改造提供事实基础。

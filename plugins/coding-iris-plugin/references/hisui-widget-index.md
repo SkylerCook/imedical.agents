@@ -1,6 +1,7 @@
 ---
 name: hisui-widget-index
 description: HISUI v0.1.0 前端编码参考与源码索引，用于确认控件选型、API 参数、框架行为和自动翻译边界
+task-affinity: [iris, frontend, hisui, reference, source-code]
 tags: [HISUI, frontend, widget, coding-reference, source-code, line-number]
 category: frontend
 related:

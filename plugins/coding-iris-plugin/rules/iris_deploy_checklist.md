@@ -1,3 +1,11 @@
+---
+name: iris_deploy_checklist
+description: Use when the user explicitly asks to upload, compile, deploy, or verify IRIS files remotely.
+task-affinity: [iris, deploy, upload, compile, verify]
+related:
+  - iris_coding_workflow.md
+---
+
 # IRIS 部署执行清单
 
 部署 IRIS 文件时优先按本清单执行。标题和字段名尽量稳定，便于低能力模型逐项检查。

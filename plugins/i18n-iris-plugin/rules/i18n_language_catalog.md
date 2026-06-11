@@ -1,3 +1,11 @@
+---
+name: i18n_language_catalog
+description: Use when an i18n task needs target language, language id, or language code resolution.
+task-affinity: [i18n, language, catalog, translation]
+related:
+  - i18n_index.md
+---
+
 # 国际化语言目录规则
 
 ## 系统事实来源

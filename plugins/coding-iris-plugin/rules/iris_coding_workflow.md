@@ -1,3 +1,13 @@
+---
+name: iris_coding_workflow
+description: Use when an IRIS task involves scripts, MCP access, upload, compile, deployment, or remote validation.
+task-affinity: [iris, workflow, mcp, deploy, coding]
+related:
+  - iris_deploy_checklist.md
+  - iris_gb2312_workflow.md
+  - sftp_server.md
+---
+
 # IRIS 脚本、MCP 与部署工作流规则
 
 本文只保留 IRIS 开发脚本、MCP 使用边界和部署主流程。部署逐项检查和 GB2312 提升细节已拆到独立规则，按任务需要读取，避免非部署任务加载过多上下文。

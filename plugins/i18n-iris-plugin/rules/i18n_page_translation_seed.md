@@ -1,3 +1,11 @@
+---
+name: i18n_page_translation_seed
+description: Use when generating, saving, loading, or rolling back page-level non-dictionary translation seed data.
+task-affinity: [i18n, page-translation, seed, objectscript]
+related:
+  - i18n_language_catalog.md
+---
+
 # 页面级非字典翻译保存规则
 
 执行本规则前必须先读取 `.agents/config/i18n_project_profile.md`。涉及服务器查询、编译、上传或加载时，还必须读取工程根目录 `.mcp.json`。

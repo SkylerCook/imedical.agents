@@ -1,3 +1,14 @@
+---
+name: iris_coding_index
+description: Use as the first coding rule index for IRIS/ObjectScript/CSP/HISUI tasks after reading the project profile.
+task-affinity: [iris, coding, routing, index]
+related:
+  - iris_coding_general.md
+  - iris_coding_backend.md
+  - iris_coding_frontend.md
+  - iris_coding_workflow.md
+---
+
 # IRIS 编码规则索引
 
 执行 IRIS/ObjectScript/CSP/HISUI 编码任务时，先读取目标工程 `.agents/config/iris_project_profile.md`，再按任务类型读取对应规则。不要把工程配置、MCP 连接和编码规则混在一起。

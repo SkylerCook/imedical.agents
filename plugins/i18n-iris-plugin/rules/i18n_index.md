@@ -1,3 +1,14 @@
+---
+name: i18n_index
+description: Use as the first rule index for IRIS i18n tasks after reading the i18n project profile.
+task-affinity: [i18n, iris, routing, index]
+related:
+  - i18n_link_tracing.md
+  - i18n_field_classification.md
+  - i18n_coding_frontend.md
+  - i18n_coding_backend.md
+---
+
 # 国际化规则索引
 
 本文件只做通用入口索引。执行国际化任务时，先读取 `.agents/config/i18n_project_profile.md` 获取当前项目适配，再按任务类型读取对应规则，避免把编码、提取、翻译数据保存和 MCP 部署流程混在一起。

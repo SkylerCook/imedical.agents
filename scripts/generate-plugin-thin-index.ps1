@@ -65,6 +65,52 @@ function Convert-FromUtf8Base64 {
     return [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($Value))
 }
 
+function Get-MarkdownFrontmatterLines {
+    param([string]$Path)
+
+    $lines = [System.IO.File]::ReadAllLines($Path, [System.Text.Encoding]::UTF8)
+    if (($lines.Count -eq 0) -or ($lines[0].Trim() -ne "---")) {
+        return @()
+    }
+
+    $frontmatter = New-Object System.Collections.Generic.List[string]
+    for ($i = 1; $i -lt $lines.Count; $i++) {
+        if ($lines[$i].Trim() -eq "---") {
+            return @($frontmatter)
+        }
+        $frontmatter.Add($lines[$i])
+    }
+
+    return @()
+}
+
+function Select-FrontmatterFieldLines {
+    param(
+        [string[]]$FrontmatterLines,
+        [string[]]$FieldNames
+    )
+
+    $selected = New-Object System.Collections.Generic.List[string]
+    $fieldSet = @{}
+    foreach ($fieldName in $FieldNames) {
+        $fieldSet[$fieldName] = $true
+    }
+
+    $capture = $false
+    foreach ($line in $FrontmatterLines) {
+        $topLevelMatch = [System.Text.RegularExpressions.Regex]::Match($line, '^(?<key>[A-Za-z0-9_-]+)\s*:')
+        if ($topLevelMatch.Success) {
+            $capture = $fieldSet.ContainsKey($topLevelMatch.Groups["key"].Value)
+        }
+
+        if ($capture) {
+            $selected.Add($line)
+        }
+    }
+
+    return @($selected)
+}
+
 function Test-IsUnderPath {
     param(
         [string]$Path,
@@ -167,7 +213,23 @@ if (Test-Path -LiteralPath $rulesSource -PathType Container) {
             $results.Add((Write-Result -Status "conflict" -Target $targetRel -Source $sourceRel -Reason "target path is a directory"))
             return
         }
-        $content = @(
+        $contentLines = New-Object System.Collections.Generic.List[string]
+        $frontmatterLines = Get-MarkdownFrontmatterLines -Path $sourceFile
+        if ($frontmatterLines.Count -gt 0) {
+            $selectedFrontmatterLines = Select-FrontmatterFieldLines `
+                -FrontmatterLines $frontmatterLines `
+                -FieldNames @("name", "description", "task-affinity", "related")
+            $contentLines.Add("---")
+            foreach ($line in $selectedFrontmatterLines) {
+                $contentLines.Add($line)
+            }
+            $contentLines.Add("thin-index: true")
+            $contentLines.Add("source: $sourceRel")
+            $contentLines.Add("---")
+            $contentLines.Add("")
+        }
+
+        @(
             "$(Convert-FromUtf8Base64 'IyDoloTntKLlvJXvvJo=')$($_.BaseName)",
             "",
             "$(Convert-FromUtf8Base64 '5pys5paH5Lu25pivIHRoaW4taW5kZXggLyDoloTntKLlvJXvvIzkuI3ljIXlkKvlrozmlbTop4TliJnjgII=')",
@@ -182,7 +244,8 @@ if (Test-Path -LiteralPath $rulesSource -PathType Container) {
             "- ``.mcp.json``",
             "",
             "$(Convert-FromUtf8Base64 '5LiN6KaB5oqKIE1DUCDov57mjqXkv6Hmga/lpI3liLbliLDmnKzmlofku7bjgII=')"
-        ) -join [Environment]::NewLine
+        ) | ForEach-Object { $contentLines.Add($_) }
+        $content = @($contentLines) -join [Environment]::NewLine
 
         if ((Test-Path -LiteralPath $targetFile) -and (-not $Force)) {
             $results.Add((Write-Result -Status "skipped" -Target $targetRel -Source $sourceRel -Reason "target exists; use -Force to overwrite"))

@@ -1,3 +1,12 @@
+---
+name: iris_coding_frontend
+description: Use when implementing or modifying CSP, JavaScript, CSS, or HISUI frontend code.
+task-affinity: [iris, csp, javascript, frontend, hisui, coding]
+related:
+  - iris_coding_general.md
+  - ../references/hisui-widget-index.md
+---
+
 # 前端 CSP/JavaScript/HISUI 编码规则
 
 ## 技术栈

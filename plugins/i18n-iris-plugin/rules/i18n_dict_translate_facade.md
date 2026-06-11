@@ -1,3 +1,12 @@
+---
+name: i18n_dict_translate_facade
+description: Use when backend code needs a shared facade for dictionary or table-field display value translation.
+task-affinity: [i18n, iris, objectscript, dictionary, facade]
+related:
+  - i18n_coding_backend.md
+  - i18n_dict_translation_seed.md
+---
+
 # 字典翻译公共门面规则
 
 执行本规则前必须先读取 `.agents/config/i18n_project_profile.md`。本规则用于约束后端字典/表字段展示值翻译的代码入口，避免业务代码反复直接拼接 `className + fieldName`。

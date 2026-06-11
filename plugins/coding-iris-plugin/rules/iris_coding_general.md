@@ -1,3 +1,9 @@
+---
+name: iris_coding_general
+description: Use when any IRIS coding task needs shared editing safety and minimal-change constraints.
+task-affinity: [iris, coding, safety, editing]
+---
+
 # 通用编辑安全规则
 
 本文保存跨语言、跨模块通用的编辑约束。前端、后端和部署任务还必须读取各自专项规则。

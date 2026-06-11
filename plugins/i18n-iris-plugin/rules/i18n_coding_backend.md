@@ -1,3 +1,12 @@
+---
+name: i18n_coding_backend
+description: Use when applying backend i18n changes to ObjectScript, server-side CSP blocks, prompts, errors, or table display values.
+task-affinity: [i18n, iris, objectscript, backend, coding]
+related:
+  - i18n_index.md
+  - i18n_dict_translate_facade.md
+---
+
 # 后端国际化编码支持规则
 
 执行本规则前必须先读取 `.agents/config/i18n_project_profile.md`，确认当前项目的后端翻译 helper、页面码来源和字典/表字段翻译方式。

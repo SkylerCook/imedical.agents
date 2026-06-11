@@ -4,6 +4,7 @@
 
 ## 近期已完成
 
+- 已完成 frontmatter/task-affinity 最小治理：为插件 `rules/` 和 `references/` Markdown 补充最小 frontmatter 与 `task-affinity`；`scripts/generate-plugin-thin-index.ps1` 可从源 rule 传播 `name`、`description`、`task-affinity`、`related`，并在 rule thin-index 中写入 `thin-index: true` 和 `source`。本轮不治理 `skills`，后续仅做 `SKILL.md` 触发描述与正文路由的轻量约束检查。
 - 已新增框架验证反馈机制：`docs/agent-feedback/` 反馈目录、反馈模板、`agents/_shared/feedback-protocol.md` Agent 反馈行为指引；`i18n-agent` 和 `i18n-change.workflow.md` 在完成条件中引用反馈协议；新增 `skills/agent-framework-feedback/SKILL.md` 通用反馈 skill，支持 plugin 直接使用场景。Agent 处理 HIS 需求时如对框架文件做了修正，自动生成反馈条目；维护者定期读取反馈、diff 后应用到 master。
 - 已新增 `docs/deploy-com-exp.md` 和 `docs/deploy/dental-ta-159/` 首个部署经验/工具样例，用于沉淀全量部署流程、前后端部署脚本和专项计划；维护记忆只记录边界，不复制业务细节或连接信息。
 - 已新增 `demo/presentation/` 演示页，包括 i18n 能力摘要、多智能体架构预览和演示首页，用于展示能力包思路；该目录当前不在安装/更新 sparse checkout 运行边界说明内。
@@ -71,6 +72,9 @@
 
 ## 最近验证
 
+- `scripts/tests/update-agents.tests.ps1` 已验证：rule thin-index 可传播源 frontmatter 中的 `task-affinity`、`description` 和 `source`，无 frontmatter 的 legacy rule 仍兼容生成，skill thin-index 不传播 rule 任务亲和元数据。
+- `scripts/generate-plugin-thin-index.ps1 -PluginPath plugins/coding-iris-plugin -ProjectRoot . -Mode DryRun` 已验证 coding 插件 rule/skill thin-index 生成计划正常。
+- `scripts/generate-plugin-thin-index.ps1 -PluginPath plugins/i18n-iris-plugin -ProjectRoot . -Mode DryRun` 已验证 i18n 插件 rule/skill thin-index 生成计划正常。
 - 已检查 `i18n-agent` / `i18n-change.workflow.md` 引用的 i18n 插件 rules 和 skills 均存在。
 - 已检查新增 `agents/`、`workflows/` 文件无 `TODO` / `TBD` 占位；`待确认` 仅作为交接协议和 config 合并策略术语出现。
 - 已确认 `memory/plan/multi-agent-architecture.md` 与实际新增报告模板命名一致。

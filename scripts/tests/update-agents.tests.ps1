@@ -120,9 +120,22 @@ function New-TestProject {
   )
 
   Set-Content -Encoding UTF8 -Path (Join-Path $pluginRoot "rules/sample_rule.md") -Value @(
+    "---",
+    "name: sample_rule",
+    "description: Use when testing rule frontmatter propagation.",
+    "task-affinity: [sample, rule, propagation]",
+    "related:",
+    "  - legacy_rule.md",
+    "---",
+    "",
     "# Sample Rule",
     "",
     "Rule body."
+  )
+  Set-Content -Encoding UTF8 -Path (Join-Path $pluginRoot "rules/legacy_rule.md") -Value @(
+    "# Legacy Rule",
+    "",
+    "Rule body without frontmatter."
   )
 
   Set-Content -Encoding UTF8 -Path (Join-Path $pluginRoot "skills/sample-skill/SKILL.md") -Value @(
@@ -253,6 +266,18 @@ try {
   Assert-True (-not $profileAfterWrite.Contains("initialized")) "Stable plugin profile must not write initialized"
   Assert-True (-not $profileAfterWrite.Contains("indexed")) "Stable plugin profile must not write indexed"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sample_rule.md")) "Write should generate rule thin-index before stale cleanup is tested"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/legacy_rule.md")) "Write should generate legacy rule thin-index without source frontmatter"
+  $sampleRuleThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/rules/sample_rule.md")
+  Assert-Contains $sampleRuleThinIndex "task-affinity: [sample, rule, propagation]" "Rule thin-index should propagate task-affinity frontmatter"
+  Assert-Contains $sampleRuleThinIndex "thin-index: true" "Rule thin-index should declare thin-index frontmatter"
+  Assert-Contains $sampleRuleThinIndex "source: .agents/plugins/sample-plugin/rules/sample_rule.md" "Rule thin-index should declare source frontmatter"
+  Assert-Contains $sampleRuleThinIndex "description: Use when testing rule frontmatter propagation." "Rule thin-index should propagate description frontmatter"
+  $legacyRuleThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/rules/legacy_rule.md")
+  Assert-True (-not $legacyRuleThinIndex.StartsWith("---")) "Legacy rule thin-index should keep existing non-frontmatter shape"
+  Assert-Contains $legacyRuleThinIndex ".agents/plugins/sample-plugin/rules/legacy_rule.md" "Legacy rule thin-index should still point to its source"
+  $sampleSkillThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/sample-skill/SKILL.md")
+  Assert-True (-not $sampleSkillThinIndex.Contains("task-affinity")) "Skill thin-index should not gain rule task-affinity metadata"
+  Assert-Contains $sampleSkillThinIndex "Thin index for plugin-provided sample-skill skill." "Skill thin-index description should remain unchanged"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "CODEBUDDY.md"))) "Write must not create missing optional entrypoints"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "CLAUDE.md.bak"))) "Write must not backup or replace existing optional entrypoints"
   $claudeContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot "CLAUDE.md")

@@ -173,6 +173,22 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/generate-age
 
 已部署项目不需要重新安装；常规 `update-agents.ps1 -Mode DryRun` 会报告缺失的 agent thin-index，确认无停止条件后执行 `-Mode Write` 即可补齐。若 canonical agent 被删除，脚本只清理带有 agent thin-index 标记且指向 `.agents/agents/*/AGENT.md` 的过期入口，不会删除插件 skill thin-index 或项目自定义 skill。
 
+## Rule task-affinity
+
+插件 rule thin-index 可带 YAML frontmatter，用于浅层发现和任务筛选：
+
+```yaml
+---
+name: iris_coding_frontend
+description: Use when implementing or modifying CSP, JavaScript, CSS, or HISUI frontend code.
+task-affinity: [iris, csp, javascript, frontend, hisui, coding]
+thin-index: true
+source: .agents/plugins/coding-iris-plugin/rules/iris_coding_frontend.md
+---
+```
+
+`task-affinity` 只是路由提示，不是常驻读取要求。Agent 认为任务匹配后，仍必须继续读取 `source` 指向的插件真实 rule；不匹配时不要为了“保险”加载全部规则。插件 `references/` 仍由真实 rule 或 skill 按需引用，不生成 `.agents/rules/` 浅层入口。
+
 ## 插件状态分流
 
 `.agents/plugins/**` 全量拉取用于能力发现，但更新脚本按 `.agents/config/plugin_profile.md` 分流：

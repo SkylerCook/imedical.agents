@@ -1,3 +1,11 @@
+---
+name: i18n_field_classification
+description: Use after i18n link tracing to classify visible text before coding, extraction, or seed generation.
+task-affinity: [i18n, classification, visible-text, planning]
+related:
+  - i18n_link_tracing.md
+---
+
 # 国际化数据分类规则
 
 执行本规则前必须先读取 `.agents/config/i18n_project_profile.md`。本规则用于在链路定位完成后，对每个用户可见文本进行分类，确定处理方式，为编码改造阶段提供结构化输入。

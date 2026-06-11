@@ -1,3 +1,11 @@
+---
+name: iris_agentic_dev
+description: Use when an IRIS coding task needs iris-agentic-dev MCP capability boundaries or diagnostics.
+task-affinity: [iris, mcp, diagnostics, coding]
+related:
+  - iris_coding_workflow.md
+---
+
 # iris-agentic-dev 使用约束
 
 ## MCP 能力矩阵

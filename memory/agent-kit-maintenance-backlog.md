@@ -9,10 +9,11 @@
    - 暂缓：暂不做 `scripts/generate-agent-adapters.ps1`；后续确需 Codex、Claude Code、OpenCode、CodeBuddy、WorkBuddy、Hermes 等工具原生入口时再实现。
    - 禁止：不要让 `.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/` 或其它工具原生入口成为规则源；它们只能由 canonical 生成或临时适配。
 
-2. frontmatter/task-affinity 顺延为下一轮治理项。
-   - 排序：当前用户已明确调整优先级到多智能体架构落地；完成 agent thin-index 和部署配套后，adapter 暂缓，frontmatter/task-affinity 后续再进入。
-   - 内容：为 rule/reference 文件补充最小 frontmatter，并让 thin-index 传播任务亲和元数据。
-   - 禁止：不要重新引入插件脚本副本漂移；frontmatter 解析和传播只改 canonical 脚本。
+2. `SKILL.md` 渐进式披露轻量约束。
+   - 背景：rule/reference 的 frontmatter 与 task-affinity 治理已完成；本轮明确不把 `skills` 纳入 `task-affinity` 元数据体系。
+   - 待做：检查每个 `SKILL.md` 的 `description` 是否是触发条件句，而不是泛泛能力介绍。
+   - 待做：检查 skill 正文是否明确“先读哪些入口、按什么条件再继续读取哪些 rules/references”。
+   - 禁止：不要为 skill 引入完整 task-affinity 分类本体，除非后续确认现有 `description` 触发机制不足。
 
 3. 继续观察 rules 体量。
    - 若 i18n 或 coding 规则再次承载查找表、API 目录或长参考资料，优先迁入对应插件 `references/`。

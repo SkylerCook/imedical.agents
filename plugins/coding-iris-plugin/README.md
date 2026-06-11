@@ -40,6 +40,8 @@ coding-iris-plugin/
 5. 初始化流程根据 `templates/iris_project_profile.template.md` 生成或提示创建 `.agents/config/iris_project_profile.md`。
 6. 在浅层 `.agents/rules/` 和 `.agents/skills/` 生成 thin-index。
 
+规则 thin-index 会传播源 rule 的 `description` 和 `task-affinity`，用于浅层发现和任务筛选。`task-affinity` 只是路由提示；匹配后仍必须继续读取 thin-index 中 `source` 指向的插件真实 rule。`references/` 只由真实 rule/skill 按需引用，不生成浅层 `.agents/rules/` 入口。
+
 默认 dry-run：
 
 ```powershell

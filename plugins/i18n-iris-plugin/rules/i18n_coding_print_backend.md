@@ -1,3 +1,12 @@
+---
+name: i18n_coding_print_backend
+description: Use when applying backend i18n changes for print data, XML template selection, or printable document outputs.
+task-affinity: [i18n, iris, objectscript, print, xml, coding]
+related:
+  - i18n_coding_backend.md
+  - i18n_link_tracing.md
+---
+
 # 后端打印国际化编码规则
 
 执行本规则前必须先读取 `.agents/config/i18n_project_profile.md` 和 `i18n_coding_backend.md`。本规则适用于后端生成实际打印返回数据、XML 打印模板名、条码数据、申请单/告知单/病理单等打印数据的多语言改造。

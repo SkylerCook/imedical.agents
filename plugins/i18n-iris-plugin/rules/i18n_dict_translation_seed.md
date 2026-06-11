@@ -1,3 +1,11 @@
+---
+name: i18n_dict_translation_seed
+description: Use when generating or saving dictionary and table-field display value translation seed data.
+task-affinity: [i18n, iris, dictionary, seed, sql]
+related:
+  - i18n_dict_translate_facade.md
+---
+
 # 字典数据翻译保存规则
 
 执行本规则前必须先读取 `.agents/config/i18n_project_profile.md`。字典翻译存储表、字段名、语言字段和部署方式均以项目 profile 为准。

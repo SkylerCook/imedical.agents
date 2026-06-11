@@ -1,3 +1,12 @@
+---
+name: i18n_extract_frontend
+description: Use when extracting translatable visible text from CSP, JavaScript, CSS, or HISUI frontend code.
+task-affinity: [i18n, iris, csp, javascript, frontend, extract]
+related:
+  - i18n_field_classification.md
+  - i18n_hisui_widget_index.md
+---
+
 # 前端需翻译文本提取规则
 
 ## 适用范围

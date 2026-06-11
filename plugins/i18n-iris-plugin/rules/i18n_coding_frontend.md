@@ -1,3 +1,12 @@
+---
+name: i18n_coding_frontend
+description: Use when applying frontend i18n changes to CSP, JavaScript, CSS, or frontend-rendered visible text.
+task-affinity: [i18n, iris, csp, javascript, frontend, coding]
+related:
+  - i18n_index.md
+  - i18n_hisui_widget_index.md
+---
+
 # 前端国际化编码支持规则
 
 执行本规则前必须先读取 `.agents/config/i18n_project_profile.md`，确认当前项目的前端框架、翻译 helper 和自动翻译边界。

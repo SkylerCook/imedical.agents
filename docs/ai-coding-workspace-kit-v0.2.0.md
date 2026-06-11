@@ -270,6 +270,20 @@ thin-index 必须明确：
 - Agent 读取本文件后必须继续读取目标插件文件。
 - 可提醒读取 `.agents/config/` 和 `.mcp.json`，但不得保存连接信息。
 
+rule thin-index 可以传播源 rule 的最小 frontmatter：
+
+```yaml
+---
+name: example_rule
+description: Use when the task matches this rule's trigger condition.
+task-affinity: [example, coding]
+thin-index: true
+source: .agents/plugins/example-plugin/rules/example_rule.md
+---
+```
+
+`task-affinity` 用于浅层发现和任务亲和筛选，不表示该 rule 必须常驻加载。匹配后仍要读取 `source` 指向的真实插件 rule。插件 `references/` 可有自己的 frontmatter，供真实 rule/skill 引用时快速判断用途，但 canonical 脚本不为 `references/` 生成浅层入口。
+
 ## 被忽略文件贡献
 
 `.agents/.git/info/exclude` 默认隐藏本地生成层，以保持 Git 列表干净。若实际使用中修正了通用脚本、通用规则或通用 skill，可在 `.agents` 仓库内显式贡献：

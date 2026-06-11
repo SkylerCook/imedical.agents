@@ -1,3 +1,12 @@
+---
+name: iris_coding_backend
+description: Use when implementing or modifying IRIS ObjectScript backend code.
+task-affinity: [iris, objectscript, backend, coding]
+related:
+  - iris_coding_general.md
+  - iris_coding_workflow.md
+---
+
 # 后端 ObjectScript 编码规则
 
 ## 技术栈

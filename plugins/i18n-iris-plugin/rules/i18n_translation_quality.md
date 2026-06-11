@@ -1,3 +1,11 @@
+---
+name: i18n_translation_quality
+description: Use before generating target-language translations for HIS or medical system UI text.
+task-affinity: [i18n, translation, quality, medical]
+related:
+  - i18n_language_catalog.md
+---
+
 # HIS/医疗系统目标语言翻译质量规则
 
 执行会生成目标语言翻译的任务前，必须先读取 `.agents/config/i18n_project_profile.md`，确认源语言、目标语言、语言代码、翻译表目录和项目术语约定。

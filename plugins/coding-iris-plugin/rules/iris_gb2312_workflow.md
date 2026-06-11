@@ -1,3 +1,12 @@
+---
+name: iris_gb2312_workflow
+description: Use when the user explicitly asks to permanently replace frontend source files with GB2312-converted output.
+task-affinity: [iris, frontend, gb2312, encoding, promote]
+related:
+  - iris_coding_frontend.md
+  - iris_coding_workflow.md
+---
+
 # GB2312 提升流程
 
 当用户要求把转换后的 GB2312 输出文件替换回原始前端源文件时，使用 `iris-frontend-gb2312-promote`，并遵守本规则。

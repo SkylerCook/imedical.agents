@@ -1,3 +1,11 @@
+---
+name: i18n_verify
+description: Use when verifying completed i18n coding, extraction, translation seed, template, or sync work.
+task-affinity: [i18n, verify, testing, review]
+related:
+  - i18n_index.md
+---
+
 # 国际化验证规则
 
 本规则用于国际化需求处理的验证阶段，提供通用验证检查清单。各 skill 可引用本规则的通用项，但应保留自身特化检查。
