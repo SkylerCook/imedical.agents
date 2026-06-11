@@ -37,8 +37,9 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
    - 是否存在 `.mcp.json`。
    - 是否存在 `.agents/config/iris_project_profile.md`。
    - 是否已有同名 rules/skills，避免覆盖用户定制。
-2. 复制编码转换脚本到 `.agents/scripts/`：
+2. 复制前端编码脚本到 `.agents/scripts/`：
    - `convert-gb2312-upload.ps1`
+   - `check-frontend-encoding.ps1`
    - 目标不存在则复制；目标存在且内容相同则跳过；目标存在且内容不同则报告 conflict，除非用户明确要求覆盖。
    - `generate-plugin-thin-index.ps1` 不复制到目标工程，只从插件内路径直接调用。
 3. 初始化 profile：
@@ -73,7 +74,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
    - 合入前保留目标工程既有业务规则和 Git 规则。
 7. 验证：
    - thin-index 指向 `.agents/plugins/coding-iris-plugin/` 内真实 rules/skills。
-   - 编码转换脚本已存在于目标工程 `.agents/scripts/`；thin-index 脚本仍位于插件 `scripts/`。
+   - 前端编码脚本 `convert-gb2312-upload.ps1` 和 `check-frontend-encoding.ps1` 已存在于目标工程 `.agents/scripts/`；thin-index 脚本仍位于插件 `scripts/`。
    - IRIS 开发主力脚本位于插件 `.agents/plugins/coding-iris-plugin/scripts/iris-tools/`，不复制到根 `.agents/scripts/`。
    - `.agents/.git/info/exclude` 已包含生成层忽略规则：`/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
    - 插件中没有源工程服务器、namespace、远程路径、业务类名前缀。

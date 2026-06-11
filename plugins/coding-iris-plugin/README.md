@@ -8,7 +8,8 @@
 - CSP/JavaScript/HISUI 前端编码规则：框架页/内容页拆分、HISUI 控件优先、JS 组织方式、前端数据回显。
 - 工作流规则：本地优先；导出、编译、Broker 调试和配置同步优先使用 IRIS 开发主力脚本；MCP 作为辅助能力补上下文、只读验证或覆盖脚本未覆盖场景。
 - 部署检查清单：上传、编译、部署和远端验证按 `rules/iris_deploy_checklist.md` 逐项执行。
-- 前端上传编码转换：UTF-8 源文件按需转换为 GB2312 临时文件后上传。
+- 前端编码保护：检查 `.csp/.js/.css` 实际编码，防止历史 GB2312/GBK 文件被 Agent 永久改成 UTF-8。
+- 前端上传编码转换：按项目 profile 保持源文件编码，上传时按需转换为 GB2312 临时文件。
 - 前端 GB2312 提升：确认后删除源文件，并将 `{name}.gb2312.{ext}` 更名回原文件名，可选 MCP/SFTP 上传。
 - HISUI 控件参考：按需读取 `references/hisui-widget-index.md`，源码内置在 `.agents/vendor/hisui/`。
 - IRIS 开发主力脚本：通过 `scripts/iris-tools/` 提供导出、编译、Broker 调试和环境配置同步。
@@ -35,7 +36,7 @@ coding-iris-plugin/
 
 1. 将本插件放到目标工程 `.agents/plugins/coding-iris-plugin/`。
 2. 首次初始化时直接读取 `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`。
-3. 初始化流程复制 `convert-gb2312-upload.ps1` 到目标工程 `.agents/scripts/`。
+3. 初始化流程复制 `convert-gb2312-upload.ps1` 和 `check-frontend-encoding.ps1` 到目标工程 `.agents/scripts/`。
 4. 初始化流程直接调用插件内置 `scripts/generate-plugin-thin-index.ps1`；该脚本是 wrapper，实际委托根 `scripts/generate-plugin-thin-index.ps1`。
 5. 初始化流程根据 `templates/iris_project_profile.template.md` 生成或提示创建 `.agents/config/iris_project_profile.md`。
 6. 在浅层 `.agents/rules/` 和 `.agents/skills/` 生成 thin-index。
@@ -132,6 +133,21 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <
 4. 用户确认后，删除源文件并将 `{name}.gb2312.{ext}` 重命名为原文件名。
 5. 用户再次确认后，才通过 MCP/SFTP 上传替换后的原文件。
 
+## 前端编码保护
+
+历史 HIS 前端 `.csp`、`.js`、`.css` 文件可能是 GB2312/GBK。普通前端修改必须保持源文件原编码，不得为了编辑方便永久保存为 UTF-8。
+
+目标工程 profile 要求前端 GB2312 时，收尾检查：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-frontend-encoding.ps1 -Files @(
+  "path/to/page.csp",
+  "path/to/page.js"
+) -ExpectedEncoding gb2312 -ErrorOnMismatch
+```
+
+上传转换脚本只生成临时上传产物，不代表源文件允许编码漂移。
+
 ## 去项目化边界
 
 本插件不保存服务器地址、namespace、账号、密码、token、远程路径、业务页面清单、业务类名前缀或项目专属基类。这些内容只能存在于目标工程 `.agents/config/iris_project_profile.md` 或 `.mcp.json`。
@@ -140,6 +156,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <
 - 持久化实体类上传前去掉整个 `Storage Default { ... }` 块，由 IRIS 编译重新生成 Storage。
 - 类文件部署先整组上传依赖切片，再按依赖顺序编译；不要边上传边逐个编译。
 - 前端 GB2312 转换文件只作为上传临时件，远端文件名映射回原始目标文件名。
+- 前端 GB2312/GBK 源文件修改后仍保持原编码；上传转换不是源文件转码许可。
 - CSP 编译使用 WebApp 虚拟路径 `$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`，并检查内层 status、生成类、`CSPFILE`、`CSPURL`。
 - 插件不保存服务器地址、账号、namespace、token、Cookie 或远端绝对路径。
 

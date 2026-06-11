@@ -19,6 +19,7 @@ description: Use when applying frontend or backend internationalization coding c
 按条件继续读取：
 
 - 前端文件读取 `i18n_coding_frontend.md`。
+- 前端文件写入 `.csp` / `.js` / `.css` 时，同时读取 `coding-iris-plugin/rules/iris_coding_frontend.md`；涉及上传、编码转换或远端验证时继续读取 `coding-iris-plugin/rules/iris_coding_workflow.md`。
 - 后端文件读取 `i18n_coding_backend.md`。
 - 后端涉及字典/表字段展示值时读取 `i18n_dict_translate_facade.md`。
 - 后端打印链路、实际打印返回数据读取 `i18n_coding_print_backend.md`。
@@ -36,11 +37,12 @@ description: Use when applying frontend or backend internationalization coding c
 - 目录。
 - 工程范围。
 
-开始前先确认实际文件编码。历史乱码文件只做最小改动。
+开始前先确认实际文件编码。历史乱码文件只做最小改动；GB2312/GBK 前端文件必须保持原编码，除非用户明确要求永久转码。
 
 ## 前端改造
 
 - 改造前先判断文本是否属于 UI 框架自动翻译；属于时不改代码，只记录到后续翻译表。
+- 改造前后确认前端文件编码；profile 要求前端 GB2312 时，收尾使用 `check-frontend-encoding.ps1 -ExpectedEncoding gb2312 -ErrorOnMismatch` 或等价方式确认未漂移为 UTF-8。
 - 静态文案使用 profile 指定的前端静态翻译 helper。
 - 带变量文案使用 profile 指定的占位符翻译 helper。
 - 已确认由 UI 框架自动翻译的文本不改代码，但记录到后续翻译表。

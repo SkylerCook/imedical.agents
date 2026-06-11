@@ -32,11 +32,13 @@
 - **原因**：ObjectScript Storage 使用 `$lg(global(id), position)` 按位置存取，中间插入会导致历史数据全部错位。
 - **Storage 块**：编译持久化类时自动重新生成，无需手动修改 `<Value>` 节点。新增字段后编译器会自动追加到 Storage。
 - **SqlColumnNumber**：新字段使用当前最大值 +1（如原最大 20，新字段用 21），但实际 SQL 映射由编译器管理，手动标注仅作文档用途。
+- **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_coding_backend.md`
 
 ### 1.2 SQL 语句同步
 - 需求: #6990066 | 命中: 1
 - 新增字段后，所有涉及该表的 `INSERT`/`UPDATE` 语句（通常在 `*SQL.cls` 文件中）都需同步添加新字段。
 - 检查清单：`Insert` 方法、`Update` 方法、`Import` 相关方法、`ImportTemplate` Query。
+- **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_coding_backend.md`
 
 ### 1.3 查询排序中 NULL 值处理
 - 需求: #6990066 | 命中: 1
@@ -67,6 +69,7 @@
   row.unitPrice = $(editors[6].target).val()
   ```
 - **建议**：保存逻辑优先使用 `editors[j].field` 匹配字段名获取值，避免硬编码索引。但改造已有代码时需评估改动范围。
+- **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_coding_frontend.md`
 
 ### 2.2 可编辑列 vs 仅展示列
 - 需求: #6990066 | 命中: 1
@@ -96,6 +99,7 @@
 2. 在 JS 文件中找到 `$cm({ ClassName, MethodName })` 调用，定位后端类和方法。
 3. 在后端类中追踪完整调用链（BLH → SQL/DATA）。
 4. 标注每层涉及的文件和修改点。
+- **已覆盖**：`plugins/i18n-iris-plugin/rules/i18n_link_tracing.md`（i18n 场景）
 
 ---
 
@@ -134,6 +138,7 @@
   $line = [System.Text.Encoding]::UTF8.GetString($bytes.ToArray())
   ```
 - **注意**：MCP 服务器 `iris-agentic-dev` 只支持 JsonLine framing，不支持 Content-Length framing。
+- **已覆盖**：`plugins/i18n-iris-plugin/scripts/sync-xml-print-template.ps1`
 
 ### 5.2 XML 模板 fontname 中文字符必须用 XML 数字实体
 - 需求: #6096272 | 命中: 1
@@ -145,6 +150,7 @@
   text = re.sub(r'fontname="([^"]*[一-鿿][^"]*?)"', fontname_to_entities, text)
   ```
 - **引用**：`i18n-xml-print-template-sync/SKILL.md` 中已有此规则："use XML numeric entities such as `fontname="&#23435;&#20307;"` to preserve the same XML value without storing raw Chinese bytes"。
+- **已覆盖**：`plugins/i18n-iris-plugin/skills/i18n-xml-print-template-sync/SKILL.md`
 
 ### 5.3 IRIS GlobalCharacterStream 不需要编码转换
 - 需求: #6096272 | 命中: 1
@@ -175,6 +181,7 @@
   [System.IO.File]::WriteAllText($file, $content, $utf8)
   ```
 - **注意**：用户明确要求"不要转源文件为 utf-8"时，文件保持 GB2312 编码，上传前再用脚本转换。
+- **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_coding_frontend.md`、`plugins/coding-iris-plugin/rules/iris_coding_workflow.md`、`plugins/coding-iris-plugin/scripts/check-frontend-encoding.ps1`、`plugins/i18n-iris-plugin/rules/i18n_coding_frontend.md`、`plugins/i18n-iris-plugin/rules/i18n_verify.md`
 
 ### 6.2 i18n 打印链路改造的分层处理
 - 需求: #6096272 | 命中: 1
@@ -185,6 +192,7 @@
   - 使用 `DHCDoc.Common.Translate.GetTransXxx()` 字典翻译门面
   - 翻译位置贴近原始字段来源（贴近原则）
 - **区分标准**：固定文案是代码中硬编码的文本；字典展示值是从 Global/SQL/持久类字段取出的原文。
+- **已覆盖**：`plugins/i18n-iris-plugin/rules/i18n_field_classification.md`、`plugins/i18n-iris-plugin/rules/i18n_coding_print_backend.md`
 
 ### 6.3 新增字典翻译方法的规范
 - 需求: #6096272 | 命中: 1
@@ -206,6 +214,7 @@
       q ..%TranslateTableFieldValue("User.RBCSessionType", "SESSDesc", SessionTypeDesc, langid, qTrantable)
   }
   ```
+- **已覆盖**：`plugins/i18n-iris-plugin/rules/i18n_dict_translate_facade.md`
 
 ### 6.4 XML 打印模板代码国际化
 - 需求: #6096272 | 命中: 1
@@ -215,6 +224,7 @@
   2. 使用 `##class(DHCDoc.Util.Translate).GetI18nXMLPrintTemplate(xptCode, patientId)` 获取对应语言模板
   3. 前端从返回数据获取模板代码，而非硬编码
 - **回退机制**：模板不存在时回退到原模板代码（如 `DHCOPAdmRegPrint`）
+- **已覆盖**：`plugins/i18n-iris-plugin/rules/i18n_coding_print_backend.md`、`plugins/i18n-iris-plugin/rules/i18n_link_tracing.md`
 
 ### 6.5 字典翻译检查需覆盖被调用子方法
 - 需求: #6096272 | 命中: 1
@@ -224,6 +234,7 @@
   1. 追踪主方法中调用的子方法
   2. 检查子方法返回值中是否包含字典展示值
   3. 子方法中的字典字段也需要翻译，翻译位置贴近原始字段来源
+- **已回归/已提升**：`plugins/i18n-iris-plugin/rules/i18n_verify.md`
 
 ---
 

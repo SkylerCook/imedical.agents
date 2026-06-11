@@ -16,10 +16,11 @@
 .agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md
 ```
 
-3. 复制编码转换脚本到目标工程：
+3. 复制前端编码脚本到目标工程：
 
 ```text
 .agents/scripts/convert-gb2312-upload.ps1
+.agents/scripts/check-frontend-encoding.ps1
 ```
 
 若目标工程已有同名脚本且内容不同，不要静默覆盖，先报告冲突。`generate-plugin-thin-index.ps1` 不复制到目标工程，保持在插件内使用。
@@ -86,7 +87,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 ## 验证清单
 
 - 插件目录存在。
-- `convert-gb2312-upload.ps1` 已复制到 `.agents/scripts/`。
+- `convert-gb2312-upload.ps1` 和 `check-frontend-encoding.ps1` 已复制到 `.agents/scripts/`。
 - `generate-plugin-thin-index.ps1` 保持在插件 `scripts/` 内并可直接调用。
 - `.agents/config/iris_project_profile.md` 已填写工程差异（多仓库工作区只填通用项）。
 - `.agents/config/project-env.json` 已创建并填写（可从 `.mcp.json` 反向填充）。

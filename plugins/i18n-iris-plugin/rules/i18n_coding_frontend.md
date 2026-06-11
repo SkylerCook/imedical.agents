@@ -5,17 +5,27 @@ task-affinity: [i18n, iris, csp, javascript, frontend, coding]
 related:
   - i18n_index.md
   - i18n_hisui_widget_index.md
+  - ../../coding-iris-plugin/rules/iris_coding_frontend.md
 ---
 
 # 前端国际化编码支持规则
 
 执行本规则前必须先读取 `.agents/config/i18n_project_profile.md`，确认当前项目的前端框架、翻译 helper 和自动翻译边界。
 
+涉及 `.csp` / `.js` / `.css` 文件写入时，还必须遵守 `coding-iris-plugin` 的前端编码规则：读取 `.agents/config/iris_project_profile.md` 和 `.agents/plugins/coding-iris-plugin/rules/iris_coding_frontend.md`。i18n 改造不得把历史 GB2312/GBK 前端源文件永久保存为 UTF-8。
+
 ## 适用范围
 
 适用于 CSP、JavaScript、CSS，以及由前端负责渲染的用户可见文本。
 
 编码改造只保留源语言文案 key，不绑定目标语言。运行时按当前语言查询翻译表。
+
+## 编码边界
+
+- i18n 前端改造会修改源语言文案，必须先确认目标文件实际编码；历史 HIS 前端文件按 GB2312/GBK 风险处理。
+- 若原文件为 GB2312/GBK，可以使用临时 UTF-8 工作副本辅助编辑，但最终写回源文件必须保持原编码。
+- 禁止因为 `$g()`、`$trans()`、模板 helper 或翻译 key 修改，把 GB2312/GBK 源文件顺手保存成 UTF-8。
+- profile 要求前端 GB2312 时，改造后使用 `.agents/scripts/check-frontend-encoding.ps1 -ExpectedEncoding gb2312 -ErrorOnMismatch` 或等价检查确认未发生编码漂移。
 
 ## CSP / 页面模板
 

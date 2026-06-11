@@ -8,6 +8,9 @@
 - 是否使用 HISUI：是
 - HISUI 主题 CSS：`.agents/vendor/hisui/dist/css/hisui.pure.css`
 - 源文件编码：前端 GB2312, 后端 UTF-8
+- 前端源文件编码策略：preserve-existing
+- 历史前端默认编码：GB2312
+- 前端编码漂移检查：GB2312 前端文件收尾运行 `check-frontend-encoding.ps1 -ExpectedEncoding gb2312 -ErrorOnMismatch`
 - 上传前是否运行 `convert-gb2312-upload.ps1`：否
 - 常见 Web 根前缀：`imedical/web`（仅作为医生站项目候选值；写入 `.agents/config/project-env.json` 前必须确认）
 - 常见 CSP 前缀：`imedical/web/csp`（仅作为医生站项目候选值；写入 `.agents/config/project-env.json` 前必须确认）

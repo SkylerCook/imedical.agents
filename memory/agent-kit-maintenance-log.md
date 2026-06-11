@@ -4,6 +4,8 @@
 
 ## 近期已完成
 
+- 已继续回归 `docs/demand-com-exp.md` 中建议提升的需求经验：`iris_coding_backend.md` 新增 `%Persistent` 字段追加、Storage 不手改和 Insert/Update/Import SQL 同步规则；`iris_coding_frontend.md` 新增 HisUI DataGrid 插列后 editor/列下标检查规则；`i18n_verify.md` 新增字典展示值验证必须覆盖主方法调用子方法的检查项。对应经验条目已追加“已回归/已提升”标记。
+- 已增强 IRIS/HIS 前端编码保护：coding-iris 前端规则不再默认 UTF-8，改为按实际检测和 `iris_project_profile.md` 保持源文件编码；新增 `check-frontend-encoding.ps1` 护栏脚本并接入初始化说明、README、profile 模板和 doctor-dev 默认值；i18n 前端编码规则、`i18n-coding` 和 `i18n_verify` 明确指向 coding-iris 的编码规则和检查脚本，防止 i18n 改造把 GB2312/GBK 前端文件永久改成 UTF-8。
 - 已将 HISUI 源码内置到仓库根 `vendor/hisui/dist/`，消除 `${HISUI_SRC}` 变量间接层；所有插件规则、skill 和模板统一指向 `.agents/vendor/hisui/`，删除两套 profile 模板中的 `HISUI_SRC` 字段。`install-agents.ps1` 和 `update-agents.ps1` 的 sparse checkout 新增 `/vendor/**`。coding-iris-plugin 和 i18n-iris-plugin 共约 12 个文件已同步更新。
 - 已增强 plugin skill thin-index：`scripts/generate-plugin-thin-index.ps1` 生成 `.agents/skills/<skill>/SKILL.md` 时会传播真实 `SKILL.md` 的 `name` 和 `description`，并写入 `thin-index: true` 与 `source`。浅层 skill description 用于能力发现，匹配后仍必须继续读取插件真实 `SKILL.md`。
 - 已完成 `SKILL.md` 渐进式披露轻量约束治理：真实 `SKILL.md` 的 frontmatter `description` 已收敛为 `Use when...` 触发条件句；正文补充基础入口优先、按条件继续读取 rules/references/config/MCP 的路由说明。本轮未给 skill 引入 `task-affinity`，仍保持 skill 发现依赖 `description` 与正文路由。
@@ -75,6 +77,8 @@
 
 ## 最近验证
 
+- `scripts/tests/frontend-encoding.tests.ps1` 已验证：GB2312 中文前端文件在 `-ExpectedEncoding gb2312` 下通过；UTF-8 中文文件在同一策略下返回错误退出码，用于拦截编码漂移。
+- `scripts/tests/update-agents.tests.ps1` 已验证：现有更新、thin-index、插件状态和 agent thin-index 流程未受前端编码护栏变更影响。
 - `scripts/tests/update-agents.tests.ps1` 已验证：skill thin-index 会传播真实 skill `description`，写入 `thin-index: true` 和 `source`，且仍不传播 rule `task-affinity`。
 - 已检查 16 个真实 `SKILL.md`：frontmatter `description` 均以 `Use when` 开头，正文均包含按条件读取或渐进式读取提示。
 - 已搜索确认 `plugins/` 和 `skills/` 下的 `SKILL.md` 未新增 `task-affinity`。

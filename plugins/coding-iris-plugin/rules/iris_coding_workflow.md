@@ -74,9 +74,10 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <
 
 ## 内置脚本初始化
 
-`coding-iris-init` 初始化时必须确保目标工程存在 `.agents/scripts/`，并从插件复制编码转换脚本：
+`coding-iris-init` 初始化时必须确保目标工程存在 `.agents/scripts/`，并从插件复制前端编码相关脚本：
 
 - `.agents/plugins/coding-iris-plugin/scripts/convert-gb2312-upload.ps1`
+- `.agents/plugins/coding-iris-plugin/scripts/check-frontend-encoding.ps1`
 
 `generate-plugin-thin-index.ps1` 不复制到目标工程。生成或重建 thin-index 时直接调用插件内脚本：
 
@@ -109,7 +110,18 @@ MCP 工具名称和连接参数以目标工程 `.mcp.json` 为准；插件只描
 
 ## 前端上传编码转换
 
-源文件默认 UTF-8；服务器若要求 GB2312，上传前运行：
+上传转换不改变源文件编码策略。源文件编码必须按修改前实际编码保持；GB2312/GBK 源文件只允许生成临时 UTF-8 工作副本或临时 GB2312 上传产物，不允许未经用户确认永久改成 UTF-8。
+
+触碰前端文件后，先按目标工程 profile 检查源文件编码。例如前端源文件要求 GB2312 时运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-frontend-encoding.ps1 -Files @(
+    "path/to/page.csp",
+    "path/to/page.js"
+) -ExpectedEncoding gb2312 -ErrorOnMismatch
+```
+
+服务器若要求 GB2312，上传前运行：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/convert-gb2312-upload.ps1 -Files @(
