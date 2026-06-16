@@ -54,6 +54,34 @@
 - `GetCustomRows` 的 `whereSQLStr` 参数支持附加 `ORDER BY` 子句。
 - 参考项目中的已有用法（如 `ApplReworkDATA`、`MainworkBLH`），确认 `ORDER BY` 可以直接拼接到 `WHERE` 子句后面。
 
+### 1.5 `while` 循环内不能 `q` + 返回值
+- 需求: #6941550 | 命中: 1
+- **错误**：在 `while` 循环内直接 `q msg` 试图同时退出循环并返回结果。
+- **后果**：IRIS ObjectScript 中 `q` 在 `while` 内只退出循环体，返回值会被忽略或导致后续代码异常执行，使得 `ts`/`tc`/`tro` 和返回逻辑混乱。
+- **正确做法**：循环内仅用 `q` 退出循环（不返回值），外层变量（如 `errMsg`）暂存错误信息，循环外统一判断：
+  ```objectscript
+  while (iterator.%GetNext(.key, .row)) {
+      s ret = ..Save(row, sessionStr)
+      if (+ret '= 0) {
+          s errMsg = ret
+          q   ; 只退出循环
+      }
+  }
+  if (errMsg '= "") {
+      tro
+      q ..GetReturnJSON(2001, errMsg)
+  }
+  tc
+  q ..GetReturnJSON(0, "success")
+  ```
+
+### 1.6 `$g()`/`$s()` 等内置函数不适用于 `%DynamicObject`
+- 需求: #6941550 | 命中: 1
+- **错误**：使用 `$g(row.remark)` 或 `$s(row.prop)` 访问 `%DynamicObject` 的属性。
+- **后果**：`$g()` 面向局部变量/多维数组节点，对 `%DynamicObject` 报 `*Class '%Library.DynamicObject' does not support MultiDimensional operations`。
+- **正确做法**：`%DynamicObject` 的属性访问直接用 `row.remark` 或 `row.%Get("remark")`，空值安全由 `%DynamicObject` 自身保证（不存在的属性返回 `""`）。
+- **例外**：`%FromJSON()` 创建的对象在 JSON 中不存在该属性时，访问不存在的属性返回 `""`（与 `$g()` 行为一致），无需额外包装。
+
 ---
 
 ## 二、前端 - HisUI DataGrid 修改
@@ -244,3 +272,4 @@
 |---|------|----------|
 | #6990066 | 材料字典排序功能 | [1.1](#11-新增字段必须追加到末尾), [1.2](#12-sql-语句同步), [1.3](#13-查询排序中-null-值处理), [1.4](#14-getcustomrows-支持-order-by), [2.1](#21-插入列后-editor-索引偏移), [2.2](#22-可编辑列-vs-仅展示列), [3.1](#31-明确排序的作用范围), [3.2](#32-参考已有代码模式), [3.3](#33-调用链路梳理方法) |
 | #6096272 | 挂号小条打印多语言 | [5.1](#51-powershell-jsonline-framing--中文-windows-编码问题), [5.2](#52-xml-模板-fontname-中文字符必须用-xml-数字实体), [5.3](#53-iris-globalcharacterstream-不需要编码转换), [6.1](#61-gb2312-编码文件的正确修改流程), [6.2](#62-i18n-打印链路改造的分层处理), [6.3](#63-新增字典翻译方法的规范), [6.4](#64-xml-打印模板代码国际化), [6.5](#65-字典翻译检查需覆盖被调用子方法) |
+| #6941550 | 技工申请关联材料牙位录入 | [1.5](#15-while-循环内不能-q--返回值), [1.6](#16-ggs-等内置函数不适用于-dynamicobject) |
