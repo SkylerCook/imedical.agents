@@ -16,7 +16,7 @@
   },
   "mcp": {
     "serverName": "iris-agentic-dev",
-    "serverPath": "TODO",
+    "serverPath": ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe",
     "nodeTlsRejectUnauthorized": "0"
   },
   "sftp": {

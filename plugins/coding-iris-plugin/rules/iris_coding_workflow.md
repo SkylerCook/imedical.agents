@@ -34,7 +34,7 @@ related:
 目标工程应先确认本地私密配置事实来源：
 
 - 已有 `.mcp.json`：从 `.mcp.json` 反向生成或补齐 `.agents/config/project-env.json`，不得运行 `sync-env-config.js` 覆盖现有 `.mcp.json`。
-- 没有 `.mcp.json`：复制模板并填写 `.agents/config/project-env.json`，再运行 `sync-env-config.js` 生成 `.mcp.json`。
+- 没有 `.mcp.json`：复制模板并填写 `.agents/config/project-env.json`，默认 `mcp.serverPath` 指向内置 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`，再运行 `sync-env-config.js` 生成 `.mcp.json`。
 
 ```powershell
 New-Item -ItemType Directory -Force .agents/config
@@ -53,6 +53,8 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 ```
 
 `.agents/config/project-env.json` 和 `.mcp.json` 可能包含敏感信息，必须只保留在目标工程本地，不写入插件规则、模板或项目记忆。
+
+内置 iris-agentic-dev 可执行文件只作为共享运行时资产分发，不代表任何目标工程连接已经配置完成。
 
 ## 脚本能力边界
 

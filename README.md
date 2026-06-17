@@ -94,7 +94,7 @@ imedical.agents/
 |-- agents/      # 顶层智能体 canonical 定义
 |-- workflows/   # 顶层协作流程 canonical 定义
 |-- plugins/     # 可复用能力包
-|-- vendor/      # 第三方源码资产（如 HISUI dist）
+|-- vendor/      # 第三方源码资产和共享运行时资产（如 HISUI dist、iris-agentic-dev）
 |-- skills/      # 仓库级通用 skill
 |-- rules/       # 仓库级通用规则预留入口
 |-- docs/        # AI Coding 工作区规范、runbook 和配套文档
@@ -176,6 +176,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - 本地优先、按需上传/编译的工作流约束。
 - UTF-8 前端文件转换为 GB2312 的 promote 流程。
 - HISUI 控件参考按需读取。
+- iris-agentic-dev MCP server Windows x64 可执行文件内置在 `.agents/vendor/iris-agentic-dev/`，目标工程 `.mcp.json` 仍保存实际连接事实。
 
 常用 skill：
 

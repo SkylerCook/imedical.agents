@@ -4,7 +4,7 @@
 
 ## 配置说明
 
-所有脚本都从业务项目 `.agents/config/project-env.json` 读取连接参数。首次使用前先确认配置事实来源：已有 `.mcp.json` 时，从 `.mcp.json` 反向生成或补齐 `project-env.json`；没有 `.mcp.json` 时，才从 `.agents/plugins/coding-iris-plugin/templates/project-env.template.json` 复制并填写真实环境，再运行 `sync-env-config.js` 生成 `.mcp.json`。这些文件包含敏感信息，不应提交到版本控制系统。
+所有脚本都从业务项目 `.agents/config/project-env.json` 读取连接参数。首次使用前先确认配置事实来源：已有 `.mcp.json` 时，从 `.mcp.json` 反向生成或补齐 `project-env.json`；没有 `.mcp.json` 时，才从 `.agents/plugins/coding-iris-plugin/templates/project-env.template.json` 复制并填写真实环境，再运行 `sync-env-config.js` 生成 `.mcp.json`。模板默认使用内置 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe` 作为后端 MCP server 路径。这些文件包含敏感信息，不应提交到版本控制系统。
 
 工具优先级：
 
@@ -142,7 +142,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js Sample.Uti
 
 **依赖：**
 - 需要配置 `project-env.json` 中的 `mcp.serverPath`
-- MCP 服务器可执行文件（如 `iris-dev.exe`）
+- MCP 服务器可执行文件；默认可使用 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`
 
 ---
 
@@ -352,7 +352,7 @@ A:
 2. 确认 IRIS 服务器可访问
 3. 查看编译输出的错误信息（包含行号和列号）
 4. 验证 `project-env.json` 中的 MCP 服务器路径是否正确
-5. 确认 MCP 服务器可执行文件存在且可运行
+5. 确认 MCP 服务器可执行文件存在且可运行；Windows x64 默认路径是 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`
 
 ### Q: debugger.js 返回 401 错误？
 A: 
@@ -400,7 +400,7 @@ A:
 
 - Node.js 14+（使用内置模块：https、http、fs、path、child_process、readline）
 - 无需安装额外的 npm 包
-- compile.js 需要 MCP 服务器可执行文件
+- compile.js 需要 MCP 服务器可执行文件；默认可使用 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`
 - debugger.js 需要有效的 IRIS Web 服务
 
 ### 编码规范

@@ -48,6 +48,8 @@ notepad .agents/config/project-env.json
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
 ```
 
+模板默认把 `mcp.serverPath` 指向内置 Windows x64 可执行文件 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`。如果目标工程使用其他平台或自定义版本，只改目标工程本地 `project-env.json` 或 `.mcp.json`。
+
 `.agents/config/project-env.json` 和 `.mcp.json` 可能包含敏感信息，不应提交到业务项目版本库。
 
 6. 生成 thin-index：

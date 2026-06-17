@@ -82,6 +82,8 @@ related:
 
 ## TOML 配置文件
 
+- Windows x64 的 `iris-agentic-dev.exe` 已内置在 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`，可作为目标工程 `.mcp.json` 的 `command` 或 `.agents/config/project-env.json` 的 `mcp.serverPath`。
+- 内置可执行文件只解决工具位置问题；host、web_port、scheme、namespace、用户名、密码、token 和 TLS 选项仍只能由目标工程 `.mcp.json`、`.iris-agentic-dev.toml` 或环境变量承载。
 - 配置文件通常位于目标工程根目录 `.iris-agentic-dev.toml`，用于声明 IRIS 连接参数，例如 host、web_port、scheme、namespace。
 - 凭据，例如用户名、密码、TLS 验证、token，不写入 TOML，由目标工程 `.mcp.json` 或环境变量承载。
 - TOML 注释必须使用 ASCII 字符；非 ASCII 注释可能导致解析器静默失败。
