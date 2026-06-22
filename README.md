@@ -33,6 +33,7 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
 6. 按项目需要读取插件初始化 skill：
    - `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`
    - `.agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md`
+   - `.agents/plugins/iris-interface-dev-plugin/skills/iris-interface-init/SKILL.md`
 
 不要把本仓库根 `AGENTS.md`、根 `memory/` 或展示页文件复制到业务项目。
 
@@ -209,6 +210,23 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - `i18n-xml-template`
 - `i18n-xml-print-template-sync`
 
+### iris-interface-dev-plugin
+
+负责 IRIS 接口开发的解析审计优先能力：
+
+- 接口 DOCX、PDF、XLSX、DOC 文档转换为 Markdown 和结构化 JSON。
+- 字段表头映射、字段抽取、字段诊断和开发计划。
+- 解析产物固定落盘到目标项目 `docs/output/iris-interface/<doc-name>/`，不默认注入会话上下文。
+- MarkItDown、python-docx、pdfplumber、openpyxl 均为可选依赖，不 vendor、不自动安装。
+- IRIS/ObjectScript 编码、审查、上传、编译、部署和远端验证复用 `coding-iris-plugin`。
+
+常用 skill：
+
+- `iris-interface-init`
+- `iris-interface-doc-ingest`
+- `iris-interface-field-match`
+- `iris-interface-dev-plan`
+
 ## 推荐接入流程
 
 完成 `.agents/` clone 只代表能力包已进入业务项目，不代表项目上下文已完成。
@@ -227,7 +245,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
    - `.agents/memory/project-memory.md`
 6. 先 dry-run，再 write 生成 `agent-context-kit` thin-index。
 7. 查看 `.agents/config/plugin_profile.md`；未启用插件保持 `available`，不要自动生成它们的 thin-index。
-8. 按需要初始化 `coding-iris-plugin`、`i18n-iris-plugin`。
+8. 按需要初始化 `coding-iris-plugin`、`i18n-iris-plugin`、`iris-interface-dev-plugin`。
 9. 按需要读取 `agents/agent-registry.md` 和 `workflows/workflow-registry.md` 使用顶层智能体。
 
 业务项目事实写入业务项目自己的上下文层，不写入本仓库插件或维护记忆。
