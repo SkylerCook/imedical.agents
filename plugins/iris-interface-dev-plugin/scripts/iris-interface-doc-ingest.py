@@ -16,8 +16,8 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-CODE_HEADERS = {"\u5b57\u6bb5\u540d", "\u5b57\u6bb5\u4ee3\u7801", "\u5b57\u6bb5\u7f16\u7801", "\u6570\u636e\u5b57\u6bb5\u540d", "\u6570\u636e\u5143\u82f1\u6587\u540d\u79f0", "\u4ee3\u7801", "field", "field name", "code"}
-NAME_HEADERS = {"\u5b57\u6bb5\u540d\u79f0", "\u4e2d\u6587\u540d", "\u6570\u636e\u9879\u540d\u79f0", "\u5b57\u6bb5\u63cf\u8ff0", "\u6570\u636e\u5143\u4e2d\u6587\u540d\u79f0", "\u540d\u79f0", "name"}
+CODE_HEADERS = {"\u53c2\u6570\u540d", "\u53c2\u6570\u540d\u79f0", "\u53c2\u6570", "\u5b57\u6bb5", "\u5b57\u6bb5\u540d", "\u5b57\u6bb5\u540d\u79f0", "\u5b57\u6bb5\u4ee3\u7801", "\u5b57\u6bb5\u7f16\u7801", "\u6570\u636e\u5b57\u6bb5\u540d", "\u6570\u636e\u5143\u82f1\u6587\u540d\u79f0", "\u4ee3\u7801", "field", "field name", "code", "parameter", "param"}
+NAME_HEADERS = {"\u63cf\u8ff0", "\u4e2d\u6587\u540d", "\u6570\u636e\u9879\u540d\u79f0", "\u5b57\u6bb5\u63cf\u8ff0", "\u6570\u636e\u5143\u4e2d\u6587\u540d\u79f0", "\u540d\u79f0", "name"}
 TYPE_HEADERS = {"\u6570\u636e\u7c7b\u578b", "\u7c7b\u578b", "\u5b57\u6bb5\u7c7b\u578b", "type", "datatype", "data type"}
 LENGTH_HEADERS = {"\u957f\u5ea6", "\u6570\u636e\u957f\u5ea6", "\u5b57\u6bb5\u957f\u5ea6", "length", "len"}
 REQUIRED_HEADERS = {"\u662f\u5426\u5fc5\u586b", "\u5fc5\u586b", "\u662f\u5426\u5fc5\u987b", "\u975e\u7a7a", "required", "mandatory", "not null"}
@@ -31,6 +31,9 @@ class Field:
     length: str = ""
     required: str = ""
     description: str = ""
+    jsonPath: str = ""
+    requiredByMarker: bool = False
+    requiredMismatch: bool = False
     sourceHeaderMap: dict[str, str] | None = None
 
 
@@ -39,6 +42,16 @@ class View:
     viewCode: str
     viewName: str
     fields: list[Field]
+
+
+
+@dataclass
+class PdfContext:
+    interfaceNumber: str = ""
+    interfaceTitle: str = ""
+    subsectionNumber: str = ""
+    subsectionTitle: str = ""
+    parameterObject: str = ""
 
 
 def normalize_header(value: Any) -> str:
@@ -85,10 +98,6 @@ def header_index(headers: list[str], choices: set[str]) -> int | None:
         normalized = normalize_header(header)
         if normalized in normalized_choices:
             return index
-    for index, header in enumerate(headers):
-        normalized = normalize_header(header)
-        if any(choice in normalized for choice in normalized_choices if choice):
-            return index
     return None
 
 
@@ -102,19 +111,32 @@ def find_header_row(rows: list[list[str]]) -> int | None:
     return None
 
 
-def parse_rows_to_fields(rows: list[list[str]]) -> tuple[list[Field], dict[str, str], list[str]]:
+def parse_rows_to_fields(rows: list[list[str]], inherited_headers: list[str] | None = None) -> tuple[list[Field], dict[str, str], list[str]]:
     diagnostics: list[str] = []
+    if is_non_field_table(rows):
+        return [], {}, ["非字段表，已跳过"]
+
     header_row = find_header_row(rows)
     if header_row is None:
-        return [], {}, ["未识别字段表头"]
+        if inherited_headers and looks_like_field_rows(rows):
+            headers = inherited_headers
+            data_rows = rows
+        else:
+            return [], {}, ["未识别字段表头"]
+    else:
+        headers = rows[header_row]
+        data_rows = rows[header_row + 1 :]
 
-    headers = rows[header_row]
     code_i = header_index(headers, CODE_HEADERS)
     name_i = header_index(headers, NAME_HEADERS)
     type_i = header_index(headers, TYPE_HEADERS)
     length_i = header_index(headers, LENGTH_HEADERS)
     required_i = header_index(headers, REQUIRED_HEADERS)
     desc_i = header_index(headers, DESC_HEADERS)
+
+    if code_i is not None and name_i == code_i:
+        name_i = alternate_name_index(headers, code_i)
+
     header_map = {
         "code": headers[code_i] if code_i is not None else "",
         "name": headers[name_i] if name_i is not None else "",
@@ -125,17 +147,23 @@ def parse_rows_to_fields(rows: list[list[str]]) -> tuple[list[Field], dict[str, 
     }
 
     fields: list[Field] = []
-    for row in rows[header_row + 1 :]:
+    for row in data_rows:
         if not any(cell_text(cell) for cell in row):
             continue
         get = lambda i: cell_text(row[i]) if i is not None and i < len(row) else ""
+        code = get(code_i)
+        if is_example_field_code(code):
+            continue
+        required = get(required_i)
         field = Field(
-            code=get(code_i),
+            code=code,
             name=get(name_i),
             fieldType=get(type_i),
             length=get(length_i),
-            required=get(required_i),
+            required=required,
             description=get(desc_i),
+            requiredByMarker=code.startswith("*"),
+            requiredMismatch=required_marker_mismatch(code, required),
             sourceHeaderMap=header_map,
         )
         if field.code or field.name:
@@ -146,11 +174,325 @@ def parse_rows_to_fields(rows: list[list[str]]) -> tuple[list[Field], dict[str, 
     return fields, header_map, diagnostics
 
 
+def is_example_field_code(code: str) -> bool:
+    text = cell_text(code)
+    if not text:
+        return False
+    if text.startswith(("{", "}", "[", "]")):
+        return True
+    if len(text) > 20 and any(marker in text for marker in ['":"', '":', "':"]):
+        return True
+    return False
+
+def clean_field_code(code: str) -> str:
+    return cell_text(code).lstrip("*")
+
+
+def required_marker_mismatch(code: str, required: str) -> bool:
+    required_text = normalize_header(required)
+    required_yes = required_text in {"y", "yes", "true", "1", "\u662f", "\u5fc5\u586b"}
+    required_no = required_text in {"n", "no", "false", "0", "\u5426", "\u975e\u5fc5\u586b"}
+    marker_yes = clean_field_code(code) != cell_text(code)
+    if marker_yes and required_no:
+        return True
+    return False
+
+
+def enrich_fields_for_context(fields: list[Field], context: PdfContext) -> None:
+    if not context.parameterObject:
+        return
+    for field in fields:
+        code = clean_field_code(field.code)
+        if code:
+            if context.parameterObject == "headers":
+                field.jsonPath = f"headers.{code}"
+            elif context.parameterObject == "request":
+                field.jsonPath = f"request.{code}"
+            elif context.parameterObject == "data":
+                field.jsonPath = f"data.{code}"
+            elif context.parameterObject == "response":
+                field.jsonPath = f"response.{code}"
+            elif context.parameterObject == "signature":
+                field.jsonPath = f"signature.{code}"
+            else:
+                field.jsonPath = f"data.{context.parameterObject}.{code}"
+
+def alternate_name_index(headers: list[str], code_i: int) -> int | None:
+    for choices in [{"\u63cf\u8ff0"}, {"\u4e2d\u6587\u540d", "\u540d\u79f0", "\u5b57\u6bb5\u63cf\u8ff0"}]:
+        index = header_index(headers, choices)
+        if index is not None and index != code_i:
+            return index
+    return None
+
+
+def is_non_field_table(rows: list[list[str]]) -> bool:
+    if not rows:
+        return True
+    header = {normalize_header(cell) for cell in rows[0] if cell_text(cell)}
+    if {"\u65e5\u671f", "\u7248\u672c\u53f7", "\u4fee\u8ba2\u8bf4\u660e"}.issubset(header):
+        return True
+    if {"code", "message"}.issubset(header):
+        return True
+    if {"\u72b6\u6001\u7801", "\u63cf\u8ff0"}.issubset(header):
+        return True
+    if {"\u9519\u8bef\u7801", "\u63cf\u8ff0"}.issubset(header):
+        return True
+    if header in ({"\u7f16\u7801", "\u63cf\u8ff0"}, {"\u4ee3\u7801", "\u540d\u79f0"}):
+        return True
+    return False
+
+
+def looks_like_field_rows(rows: list[list[str]]) -> bool:
+    non_empty_rows = [row for row in rows if any(cell_text(cell) for cell in row)]
+    if len(non_empty_rows) < 1:
+        return False
+    hits = 0
+    for row in non_empty_rows[:8]:
+        if len(row) < 2:
+            continue
+        code = cell_text(row[1])
+        required = cell_text(row[2]).upper() if len(row) > 2 else ""
+        if re.match(r"^\*?[A-Za-z_][A-Za-z0-9_]*$", code) and required in {"Y", "N", "\u662f", "\u5426", ""}:
+            hits += 1
+    return hits >= 1
+
+
+def update_pdf_context_from_text(context: PdfContext, text: str) -> PdfContext:
+    lines = [clean_section_line(line) for line in text.splitlines()]
+    lines = [line for line in lines if line]
+    for index, line in enumerate(lines):
+        if is_toc_line(line):
+            continue
+        direct_interface = re.match("^(3\\.\\d+)\\s+(.+\u63a5\u53e3)\\s*$", line)
+        if direct_interface:
+            context.interfaceNumber = direct_interface.group(1)
+            context.interfaceTitle = direct_interface.group(2).strip()
+            context.subsectionNumber = ""
+            context.subsectionTitle = ""
+            continue
+
+        number_only = re.match("^(3\\.\\d+)\\s*$", line)
+        if number_only:
+            title = nearby_interface_title(lines, index)
+            if title:
+                context.interfaceNumber = number_only.group(1)
+                context.interfaceTitle = title
+                context.subsectionNumber = ""
+                context.subsectionTitle = ""
+            continue
+
+        subsection = re.match("^(3\\.\\d+\\.\\d+)\\s*(.+?)\\s*$", line)
+        if subsection:
+            context.subsectionNumber = subsection.group(1)
+            context.subsectionTitle = subsection.group(2).strip()
+            if "\u8fd4\u56de" in context.subsectionTitle:
+                context.parameterObject = "response"
+
+        object_heading = re.match("^([A-Za-z_][A-Za-z0-9_]*)\\s*\u53c2\u6570\\s*$", line)
+        if object_heading:
+            context.parameterObject = object_heading.group(1)
+            continue
+
+        normalized = normalize_header(line).replace(" ", "")
+        if any(marker in normalized for marker in ["\u7b7e\u540d\u7b97\u6cd5", "\u53c2\u4e0e\u7b7e\u540d\u5b57\u6bb5"]):
+            context.parameterObject = "signature"
+            continue
+        if any(marker in normalized for marker in ["\u8bf7\u6c42\u5934\u516c\u5171\u53c2\u6570", "\u516c\u5171\u8bf7\u6c42\u5934", "header\u53c2\u6570"]):
+            context.parameterObject = "headers"
+            continue
+        if any(marker in normalized for marker in ["\u5165\u53c2\u683c\u5f0f\u8bf4\u660e", "\u5165\u53c2", "\u8bf7\u6c42\u53c2\u6570"]):
+            context.parameterObject = "request"
+            continue
+        if any(marker in normalized for marker in ["\u54cd\u5e94\u6d88\u606f\u8bf4\u660e", "\u54cd\u5e94\u53c2\u6570", "\u8fd4\u56de\u53c2\u6570", "\u51fa\u53c2"]):
+            context.parameterObject = "response"
+            continue
+        if "data\u53c2\u6570\u5c5e\u6027\u63cf\u8ff0\u5982\u4e0b" in normalized:
+            context.parameterObject = "data"
+    return context
+
+
+def clean_section_line(line: str) -> str:
+    text = cell_text(line)
+    text = re.sub(r"\.{3,}.*$", "", text).strip()
+    text = re.sub(r"\s+", " ", text)
+    return text
+
+
+def is_toc_line(line: str) -> bool:
+    return "..." in line or bool(re.search(r"\.{3,}\s*\d+\s*$", line))
+
+
+def nearby_interface_title(lines: list[str], index: int) -> str:
+    for candidate in reversed(lines[max(0, index - 3) : index]):
+        if candidate.endswith("\u63a5\u53e3") and not re.match(r"^\d+(\.\d+)*", candidate) and candidate != "\u63a5\u53e3\u8bf4\u660e":
+            return candidate
+    for candidate in lines[index + 1 : index + 4]:
+        if candidate.endswith("\u63a5\u53e3") and not re.match(r"^\d+(\.\d+)*", candidate) and candidate != "\u63a5\u53e3\u8bf4\u660e":
+            return candidate
+    return ""
+
+
+def pdf_context_label(context: PdfContext, fallback: str) -> str:
+    parts: list[str] = []
+    if context.interfaceNumber and context.interfaceTitle:
+        parts.append(f"{context.interfaceNumber} {context.interfaceTitle}")
+    elif context.interfaceTitle:
+        parts.append(context.interfaceTitle)
+    if context.subsectionNumber and context.subsectionTitle:
+        parts.append(f"{context.subsectionNumber} {context.subsectionTitle}")
+    if context.parameterObject:
+        if context.parameterObject == "response":
+            parts.append("response")
+        elif context.parameterObject in {"headers", "request", "data", "signature"}:
+            parts.append(context.parameterObject)
+        else:
+            parts.append(f"data.{context.parameterObject}")
+    parts.append(fallback)
+    return " / ".join(parts)
+
+
+
+def copy_pdf_context(context: PdfContext) -> PdfContext:
+    return PdfContext(
+        interfaceNumber=context.interfaceNumber,
+        interfaceTitle=context.interfaceTitle,
+        subsectionNumber=context.subsectionNumber,
+        subsectionTitle=context.subsectionTitle,
+        parameterObject=context.parameterObject,
+    )
+
+
+def row_text(row: list[str]) -> str:
+    return "".join(cell_text(cell) for cell in row)
+
+
+def normalized_row_text(row: list[str]) -> str:
+    return re.sub(r"[\s（）()]+", "", row_text(row)).lower()
+
+
+def row_context_marker(row: list[str]) -> str | None:
+    text = normalized_row_text(row)
+    if not text:
+        return None
+    if "接口名称" in text:
+        return "interface"
+    if any(marker in text for marker in ["请求参数", "请求参数加密前", "入参", "入参格式说明"]):
+        return "request"
+    if any(marker in text for marker in ["返回结果", "响应参数", "响应消息说明", "出参"]):
+        return "response"
+    return None
+
+
+def row_without_section_marker(row: list[str]) -> list[str]:
+    cleaned = list(row)
+    for index, value in enumerate(cleaned):
+        if row_context_marker([value]) is not None:
+            cleaned[index] = ""
+            break
+    return trim_trailing_empty(cleaned)
+
+
+def infer_interface_hint_from_fields(fields: list[Field]) -> str:
+    for field in fields:
+        if clean_field_code(field.code).lower() != "n_type":
+            continue
+        text = " ".join([field.name, field.description]).replace(" ", "")
+        match = re.search(r"[A-Z][A-Z0-9_]{3,}", text)
+        if match:
+            return match.group(0)
+    return ""
+
+def parse_rows_to_context_segments(rows: list[list[str]], base_context: PdfContext) -> list[tuple[PdfContext, list[Field], list[str], list[str] | None]]:
+    segments: list[tuple[PdfContext, list[list[str]]]] = []
+    current_context = copy_pdf_context(base_context)
+    current_rows: list[list[str]] = []
+    saw_marker = False
+
+    def flush() -> None:
+        nonlocal current_rows
+        useful_rows = [row for row in current_rows if any(cell_text(cell) for cell in row)]
+        if useful_rows:
+            segments.append((copy_pdf_context(current_context), useful_rows))
+        current_rows = []
+
+    for row in rows:
+        marker = row_context_marker(row)
+        if marker == "interface":
+            flush()
+            saw_marker = True
+            continue
+        if marker in {"request", "response"}:
+            flush()
+            saw_marker = True
+            current_context = copy_pdf_context(base_context)
+            current_context.parameterObject = marker
+            header_candidate = row_without_section_marker(row)
+            if any(cell_text(cell) for cell in header_candidate):
+                current_rows.append(header_candidate)
+            continue
+        current_rows.append(row)
+    flush()
+
+    if not saw_marker:
+        return []
+
+    parsed_segments: list[tuple[PdfContext, list[Field], list[str], list[str] | None]] = []
+    current_interface_hint = ""
+    for context, segment_rows in segments:
+        fields, _header_map, diagnostics = parse_rows_to_fields(segment_rows)
+        if fields:
+            interface_hint = infer_interface_hint_from_fields(fields)
+            if interface_hint:
+                current_interface_hint = interface_hint
+            if current_interface_hint:
+                context.interfaceNumber = ""
+                context.interfaceTitle = current_interface_hint
+                context.subsectionNumber = ""
+                context.subsectionTitle = ""
+            enrich_fields_for_context(fields, context)
+            header_row = find_header_row(segment_rows)
+            inherited = segment_rows[header_row] if header_row is not None else None
+            parsed_segments.append((context, fields, diagnostics, inherited))
+        elif diagnostics:
+            parsed_segments.append((context, [], diagnostics, None))
+    return parsed_segments
+
 def parse_xlsx(path: Path) -> tuple[str, list[View], list[str], str]:
     if has_module("openpyxl"):
         return parse_xlsx_openpyxl(path)
     return parse_xlsx_openxml(path)
 
+
+def parse_xls(path: Path) -> tuple[str, list[View], list[str], str]:
+    try:
+        import xlrd
+    except ImportError as exc:
+        raise RuntimeError("XLS 解析需要 xlrd；请先运行 iris-interface-env-check.py 查看安装建议，或手动另存为 XLSX") from exc
+
+    workbook = xlrd.open_workbook(str(path))
+    markdown_parts = [f"# {path.name}", ""]
+    views: list[View] = []
+    diagnostics: list[str] = []
+
+    for sheet in workbook.sheets():
+        rows: list[list[str]] = []
+        for row_index in range(sheet.nrows):
+            row = [cell_text(sheet.cell_value(row_index, col_index)) for col_index in range(sheet.ncols)]
+            row = trim_trailing_empty(row)
+            if any(cell_text(cell) for cell in row):
+                rows.append(row)
+        markdown_parts.extend([f"## {sheet.name}", ""])
+        if rows:
+            markdown_parts.append(markdown_table(rows))
+            markdown_parts.append("")
+        fields, _header_map, field_diags = parse_rows_to_fields(rows)
+        diagnostics.extend([f"{sheet.name}: {item}" for item in field_diags])
+        if fields:
+            views.append(View(viewCode=sheet.name, viewName=sheet.name, fields=fields))
+
+    if not views:
+        diagnostics.append("未从 XLS 中抽取到字段视图")
+    return "\n".join(markdown_parts).strip() + "\n", views, diagnostics, "xls-xlrd-optional"
 
 def has_module(module_name: str) -> bool:
     try:
@@ -301,7 +643,7 @@ def parse_docx(path: Path) -> tuple[str, list[View], list[str], str]:
     try:
         import docx
     except ImportError as exc:
-        raise RuntimeError("缺少 python-docx，无法解析 DOCX") from exc
+        raise RuntimeError("缺少 python-docx，无法解析 DOCX；请先运行 iris-interface-env-check.py 查看安装建议") from exc
 
     document = docx.Document(str(path))
     markdown_parts = [f"# {path.name}", ""]
@@ -330,26 +672,78 @@ def parse_pdf(path: Path) -> tuple[str, list[View], list[str], str]:
     try:
         import pdfplumber
     except ImportError as exc:
-        raise RuntimeError("缺少 pdfplumber，无法解析 PDF") from exc
+        raise RuntimeError("\u7f3a\u5c11 pdfplumber\uff0c\u65e0\u6cd5\u89e3\u6790 PDF") from exc
 
     markdown_parts = [f"# {path.name}", ""]
     views: list[View] = []
     diagnostics: list[str] = []
+    current_field_headers: list[str] | None = None
+    current_context = PdfContext()
+    current_interface_hint = ""
     with pdfplumber.open(path) as pdf:
         for page_index, page in enumerate(pdf.pages, start=1):
             text = page.extract_text() or ""
             if text.strip():
                 markdown_parts.extend([f"## Page {page_index}", "", text.strip(), ""])
-            for table_index, table in enumerate(page.extract_tables() or [], start=1):
+
+            table_objects = sorted(page.find_tables() or [], key=lambda item: (item.bbox[1], item.bbox[0]))
+            for table_index, table_object in enumerate(table_objects, start=1):
+                table = table_object.extract() or []
                 rows = [[cell_text(cell) for cell in row] for row in table]
+                rows = [trim_trailing_empty(row) for row in rows if any(cell_text(cell) for cell in row)]
                 markdown_parts.extend([f"### Page {page_index} Table {table_index}", "", markdown_table(rows), ""])
-                fields, _header_map, field_diags = parse_rows_to_fields(rows)
+
+                table_context = PdfContext(
+                    interfaceNumber=current_context.interfaceNumber,
+                    interfaceTitle=current_context.interfaceTitle,
+                    subsectionNumber=current_context.subsectionNumber,
+                    subsectionTitle=current_context.subsectionTitle,
+                
+                    parameterObject=current_context.parameterObject,
+                )
+                try:
+                    table_top = max(float(table_object.bbox[1]), 0.0)
+                    before_table = page.crop((0, 0, page.width, table_top)).extract_text() or ""
+                except Exception:
+                    before_table = text
+                update_pdf_context_from_text(table_context, before_table)
+                if current_interface_hint:
+                    table_context.interfaceNumber = ""
+                    table_context.interfaceTitle = current_interface_hint
+                    table_context.subsectionNumber = ""
+                    table_context.subsectionTitle = ""
+
+                table_name = f"Page {page_index} Table {table_index}"
+                segmented = parse_rows_to_context_segments(rows, table_context)
+                segment_with_fields = [(context, fields, diags, inherited) for context, fields, diags, inherited in segmented if fields]
+                if segment_with_fields:
+                    for segment_index, (segment_context, fields, field_diags, inherited_headers) in enumerate(segment_with_fields, start=1):
+                        diagnostics.extend([f"Page {page_index} Table {table_index} Segment {segment_index}: {item}" for item in field_diags])
+                        if inherited_headers is not None:
+                            current_field_headers = inherited_headers
+                        segment_name = f"{table_name} Segment {segment_index}"
+                        views.append(View(viewCode=f"p{page_index}-t{table_index}-s{segment_index}", viewName=pdf_context_label(segment_context, segment_name), fields=fields))
+                        interface_hint = infer_interface_hint_from_fields(fields)
+                        if interface_hint:
+                            current_interface_hint = interface_hint
+                    continue
+
+                explicit_header_row = find_header_row(rows)
+                fields, _header_map, field_diags = parse_rows_to_fields(rows, inherited_headers=current_field_headers)
                 diagnostics.extend([f"Page {page_index} Table {table_index}: {item}" for item in field_diags])
                 if fields:
-                    views.append(View(viewCode=f"p{page_index}-t{table_index}", viewName=f"Page {page_index} Table {table_index}", fields=fields))
+                    if explicit_header_row is not None:
+                        current_field_headers = rows[explicit_header_row]
+                    enrich_fields_for_context(fields, table_context)
+                    views.append(View(viewCode=f"p{page_index}-t{table_index}", viewName=pdf_context_label(table_context, table_name), fields=fields))
+                    interface_hint = infer_interface_hint_from_fields(fields)
+                    if interface_hint:
+                        current_interface_hint = interface_hint
+
+            update_pdf_context_from_text(current_context, text)
 
     if not views:
-        diagnostics.append("未从 PDF 表格中抽取到字段视图")
+        diagnostics.append("\u672a\u4ece PDF \u8868\u683c\u4e2d\u62bd\u53d6\u5230\u5b57\u6bb5\u89c6\u56fe")
     return "\n".join(markdown_parts).strip() + "\n", views, diagnostics, "pdf-built-in"
 
 
@@ -412,6 +806,8 @@ def parse_document(path: Path) -> tuple[str, list[View], list[str], str]:
     suffix = path.suffix.lower()
     if suffix == ".xlsx":
         return parse_xlsx(path)
+    if suffix == ".xls":
+        return parse_xls(path)
     if suffix == ".docx":
         return parse_docx(path)
     if suffix == ".pdf":
@@ -444,19 +840,21 @@ def artifact_json(source: Path, doc_name: str, views: list[View], diagnostics: l
 def fields_markdown(views: list[View]) -> str:
     lines = ["# Fields", ""]
     for view in views:
-        lines.extend([f"## {view.viewName}", "", "| 字段代码 | 字段名称 | 类型 | 长度 | 必填 | 备注 |", "| --- | --- | --- | --- | --- | --- |"])
+        lines.extend([f"## {view.viewName}", "", "| JSON路径 | 字段代码 | 字段名称 | 类型 | 长度 | 必填 | 必填标记 | 备注 |", "| --- | --- | --- | --- | --- | --- | --- | --- |"])
         for field in view.fields:
+            required_marker = "*" if field.requiredByMarker else ""
+            if field.requiredMismatch:
+                required_marker += " mismatch"
             lines.append(
                 "| "
                 + " | ".join(
                     escape_md(value)
-                    for value in [field.code, field.name, field.fieldType, field.length, field.required, field.description]
+                    for value in [field.jsonPath, field.code, field.name, field.fieldType, field.length, field.required, required_marker, field.description]
                 )
                 + " |"
             )
         lines.append("")
     return "\n".join(lines).strip() + "\n"
-
 
 def diagnostics_markdown(parsed: dict[str, Any]) -> str:
     lines = [
@@ -527,5 +925,15 @@ def main(argv: Iterable[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
+
+
+
+
+
+
+
+
+
+
 
 

@@ -41,6 +41,96 @@
 - 硬门禁：`iris-interface-review.py` 已能识别 `^\s*\.+\s*[A-Za-z]` 点号循环生成物并失败，阻断 `.s`、`.f`、`..d` 等风险输出。
 - 已通过验证：`scripts/tests/iris-interface-plugin.tests.ps1` 和 `scripts/tests/update-agents.tests.ps1`。
 
+## v1 真实样本文档回归记录
+
+样本文档：`tmp/iris-interface-file/综合药房 HIS 处方推送接口使用说明_5000.pdf`。
+
+v1 解析产物：`tmp/iris-interface-file/docs/output/iris-interface/综合药房-his-处方推送接口使用说明_5000/`。
+
+当前结果：PDF 可解析落盘，`parsed.json` 记录 `8` 个视图、`47` 个字段，但 `fields.md` 存在字段缺失和误抽。
+
+已确认的问题：
+
+- Page 2 修订记录被误识别为字段表，应在 v2.0 增加非接口字段表过滤。
+- Page 11 错误码表被误识别为字段表，应区分返回码/状态码表与字段表。
+- Page 17 Table 1 是处方主表跨页续表，包含 `packageCount`、`operator`、`consignee`、`consignAddress`、`consignPhone`、`expressType`、`soakWater`、`soakTime`、`labelCount`、`remark`、`doctor`、`footnote`、`decoctMethod`、`takeWay`、`remarkA`、`remarkB`、`payment`、`yizhu`、`money`、`healthCardNO` 等字段，但 v1 因首行不是标准表头而未进入 `fields.md`。
+- Page 18 Table 1 是 Page 17 续表，包含 `outpatientIndex`、`caseNO`、`outpatientNO`、`procedureJump`、`patientFile`、`fileType`、`isrepetition`、`particular`、`token`、`isUrgent`、`hospitalPNO`、`prescribeTime` 等字段，但 v1 未识别。
+- Page 19 Table 1 是 `drugs` 参数续表，包含 `dosage`、`doseCount`、`dosageTotal`、`unit`、`footnote`、`description`、`retailPrice`、`batchNO` 等字段，但 v1 未识别。
+
+v2.0 必须增加回归断言：该 PDF 样本至少应把 Page 17 Table 1、Page 18 Table 1、Page 19 Table 1 识别为字段表，且不再把 Page 2 修订记录识别为字段表。实现方向是增加“继承上一字段表表头/续表识别”和“非字段表过滤”，而不是把该文档的字段硬编码到插件规则中。
+来源工程对比结论：同一 PDF 用 `tmp/his-interface-agent/src/parsers/factory.py` 的 `DocumentParser` 解析，结果为 `4` 个视图、`18` 个字段，且缺失 `packageCount`、`operator`、`consignee`、`outpatientIndex`、`caseNO`、`isUrgent`、`dosage`、`dosageTotal`、`retailPrice`、`batchNO`、`prescriptionNo` 等字段。来源 parser 还把页面文本中的 `Base64字符串` 误识别为 view code/name，说明来源工程本身也不支持该 PDF 的跨页续表和接口表过滤。v1 当前迁移版虽然更简化，但在该样本上反而抽出 `8` 个视图、`47` 个字段；问题不是单纯迁移遗漏，而是来源工程和 v1 都缺少面向此类 PDF 的续表识别、字段表分类和非字段表过滤。
+
+v1.1 修复方向：不要直接搬来源 parser；应吸收来源的 `HeaderMapper` / `TableClassifier` 思路，但新增该样本需要的规则：`描述|字段名称|是否必填|字段说明` 表头、跨页续表继承、首行数据续表识别、修订记录/错误码/状态码过滤、view id 从章节标题而不是任意括号文本提取。
+## 接口文档普适性策略计划
+
+不同厂家接口文档差异很大，`iris-interface-dev-plugin` 不应追求“一套硬编码规则解析所有厂家”。可行目标是建立“通用解析骨架 + 可诊断置信度 + 项目本地适配 + 人工反馈复跑”的闭环：任意厂家文档都应能落盘、抽取、诊断、人工修正，并把确认可泛化的经验再沉淀为轻量规则。
+
+### 普适性目标定义
+
+- 不承诺首次解析 100% 正确；承诺输出可审计产物、错误诊断和下一步修正路径。
+- 每个字段必须尽量保留来源信息：页码、表格、原始表头、字段代码、字段名、类型、必填、说明、推断出的 `jsonPath`、推断来源和置信度。
+- 对低置信度、空字段代码、表内混合区块、跨页续表、疑似示例/错误码/目录/修订记录等情况，必须写入 `diagnostics.md` 或结构化 warning，不静默吞掉。
+- 通用插件只内置稳定、可披露、跨厂家成立的规则；厂家/项目特殊规则先进入目标项目本地反馈，不直接写入插件仓库。
+
+### 分层解析架构
+
+- 文件格式层：PDF、DOCX、XLSX、XLS、DOC 只负责转换和基础表格/段落抽取，所有输出落盘，不注入会话全文。
+- 表格分类层：区分字段表、请求头表、请求参数表、响应参数表、错误码表、状态码表、目录、修订记录、示例表和混合表。
+- 上下文识别层：提取接口标题、接口路径、请求方式、请求/响应区块、`headers`、`request`、`response`、`data.xxx` 子对象和表内分段。
+- 字段抽取层：按表头映射字段代码、中文名、类型、长度、必填、备注；支持“第一列为空、第二列是字段名”的 PDF 表格。
+- 诊断与反馈层：输出未识别表、低置信度字段、疑似误归属、缺少 `jsonPath`、跨页续表继承来源和人工确认建议。
+
+### 项目本地适配策略
+
+- 目标项目可维护本地适配文件，例如 `.agents/config/iris_interface_profile.md`、`docs/output/iris-interface/<doc>/feedback.json` 或同目录人工确认文件。
+- 本地适配只影响目标项目复跑，不直接进入插件规则；确认跨项目稳定后，再评审是否进入 `rules/iris_interface_field_semantics.md` 或 `references/wiki/`。
+- 本地反馈应支持最小修正：字段别名、表头别名、字段路径覆盖、表格类型覆盖、接口标题覆盖、忽略表格列表。
+- 插件必须把“本地反馈已应用”和“仍需人工确认”的项目写入报告，避免隐藏人工修正来源。
+
+### v2 前置任务：普适性基础设施
+
+**Files:**
+- Modify: `plugins/iris-interface-dev-plugin/scripts/iris-interface-doc-ingest.py`
+- Modify: `scripts/tests/iris-interface-plugin.tests.ps1`
+- Modify: `plugins/iris-interface-dev-plugin/skills/iris-interface-doc-ingest/SKILL.md`
+- Modify: `plugins/iris-interface-dev-plugin/README.md`
+
+- [ ] 为 `parsed.json` 增加字段级 `sourceLocation`、`classification`、`confidence`、`warnings`、`jsonPathReason` 等轻量诊断字段；保持向后兼容，已有字段不删除。
+- [ ] 为 PDF 混合表实现表内分段：同一表内出现 `接口名称`、`请求参数`、`请求参数（加密前）`、`返回结果`、`响应参数` 时，按段生成 `request.*` 与 `response.*`。
+- [ ] 为 XLSX/XLS 多 sheet 明确每个 sheet 独立 view；sheet 名进入来源信息。
+- [ ] 为 DOC/DOCX 输出“可结构化程度”诊断：只转 Markdown、表格已结构化、或需要手动转 DOCX。
+- [ ] 增加低置信度规则：字段代码为空、字段名疑似说明文本、整表上下文继承过长、表头缺失、同页后续接口标题污染前表时，都必须给 warning。
+- [ ] 在 skill 中明确不同文件类型的处理分支和验收重点，避免 Agent 临场猜测。
+
+### v2 前置任务：多厂家样本矩阵
+
+**Files:**
+- Modify: `scripts/tests/iris-interface-plugin.tests.ps1`
+- Optional output: `tmp/iris-interface-file/test-results/*.md`
+
+- [ ] 保留最小 synthetic fixture，覆盖 DOCX、XLSX 多 sheet、PDF 混合表、跨页续表、错误码/修订记录过滤。
+- [ ] 真实样本只作为手动回归输入，不把业务全文或私有事实写进插件规则。
+- [ ] 对每份真实文档输出摘要：成功/失败、converter、viewCount、totalFields、jsonPathCount、warningCount、未识别表数量、前 20 个 viewName。
+- [ ] 普适性验收不以“字段全对”为标准，而以“可落盘、可诊断、可人工修正、可复跑”为标准。
+
+### v2 前置任务：反馈复跑闭环
+
+**Files:**
+- Create or Modify: `plugins/iris-interface-dev-plugin/scripts/iris-interface-field-match.py`
+- Create or Modify: `plugins/iris-interface-dev-plugin/templates/iris_interface_feedback.template.json`
+- Modify: `plugins/iris-interface-dev-plugin/skills/iris-interface-field-match/SKILL.md`
+
+- [ ] 定义本地反馈 JSON 模板，至少支持表头别名、字段路径覆盖、字段别名、忽略表格、表格类型覆盖。
+- [ ] 字段匹配脚本读取本地反馈，但默认不写回插件仓库。
+- [ ] 输出 `field-match.md` 时区分“通用规则命中”“本地反馈命中”“低置信度候选”“未匹配”。
+- [ ] 反馈复跑后，`diagnostics.md` 应减少对应 warning，并记录应用了哪些本地反馈。
+
+### 普适性验收标准
+
+- 首次解析失败时，必须给出可执行原因：缺依赖、格式不支持、转换器缺失、表头未识别、表格非字段表或需要人工确认。
+- 对任意厂家文档，插件至少应生成落盘产物或明确的 env-check/转换建议；不能只说“我不行”。
+- 对已安装依赖且格式支持的文档，`fields.md` 必须展示接口/小节/字段归属；无法确认时显示低置信度或 warning。
+- 进入代码生成前，必须已完成字段匹配和人工确认清单；低置信度字段不得直接进入生成逻辑。
 ## v2 分期目标
 
 v2 不按来源工程目录整体搬迁，分三段并入：
