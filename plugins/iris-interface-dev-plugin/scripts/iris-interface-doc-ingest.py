@@ -278,6 +278,8 @@ def is_example_field_code(code: str) -> bool:
     normalized = normalize_header(text)
     if normalized in {"\u5165\u53c2\u8868", "\u51fa\u53c2\u8868", "\u5b57\u6bb5\u540d", "\u53c2\u6570\u540d", "\u53c2\u6570\u4ee3\u7801", "\u6570\u636e\u9879\u4ee3\u7801", "\u8fd4\u56de\u76ee\u5f55"}:
         return True
+    if "\u793a\u4f8b" in normalized and len(text) <= 12:
+        return True
     if text.startswith(("\u6ce8\uff1a", "\u6ce8:", "{", "}", "[", "]")):
         return True
     if re.search(r"[\u4e00-\u9fff]", text) and len(text) > 20 and any(marker in text for marker in ["\u4e3a", "\u76f8\u5173", "\u4fe1\u606f", "\u8bf4\u660e"]):

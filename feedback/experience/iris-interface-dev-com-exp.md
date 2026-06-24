@@ -29,6 +29,41 @@
 
 > 记录接口文档格式、表头识别、视图/字段提取和样本文档管理相关经验。
 
+### 1.1 XLS/XLSX 多 sheet 必须按业务 sheet 独立成 view
+- 需求: (通用) | 命中: 1
+- **规则**：接口工作簿中每个业务 sheet 应生成独立 view；目录、说明或索引 sheet 不得污染字段结果。
+- **做法**：解析后核对 `parsed.json` 的 `viewCount`、`totalFields` 和每个字段的 `sourceLocation.sheet`；只把识别到字段表头并抽取到字段行的 sheet 写入 `views`。
+- **适用边界**：适用于 XLS/XLSX 接口清单式文档；真实样本只保留本地摘要，通用模式用 synthetic fixture 回归。
+- 已提升: `scripts/tests/iris-interface-plugin.tests.ps1`
+
+### 1.2 DOCX 入参/出参表按上下文分段
+- 需求: (通用) | 命中: 1
+- **规则**：DOCX 中的入参表、出参表应按上下文生成 request/response 字段归属，接口名称和功能描述只用于 view 标题，不作为字段。
+- **做法**：解析后核对 `viewName`、字段代码、`nullable/primaryKey/defaultValue`、`requiredReason` 和 `rawColumns`；重复表头、注释和长说明句必须过滤。
+- **适用边界**：适用于 Word 表格结构清晰的 DOCX；legacy DOC 需先转换为 DOCX 后再结构化解析。
+- 已提升: `scripts/tests/iris-interface-plugin.tests.ps1`
+
+### 1.3 PDF 混合表必须区分 request/response 与非字段表
+- 需求: (通用) | 命中: 1
+- **规则**：PDF 表格中混排的接口名称、请求参数、返回结果、错误码表、修订记录表和 JSON 示例行不能统一当字段表处理。
+- **做法**：通过上下文标记推导 `request.*`、`response.*`、`headers.*`、`signature.*` 等 `jsonPath`；错误码、修订记录、示例行只作为说明内容或诊断跳过。
+- **适用边界**：适用于 PDF 抽表结果中保留章节文字或表内分段标记的文档；无法判定的业务语义留给后续字段匹配阶段。
+- 已提升: `scripts/tests/iris-interface-plugin.tests.ps1`
+
+### 1.4 PDF 跨页续表继承上一字段表表头
+- 需求: (通用) | 命中: 1
+- **规则**：PDF 下一页续表缺少表头但行形态仍像字段行时，应继承上一字段表表头，避免漏掉跨页字段。
+- **做法**：保留上一字段表 headers；续表行满足字段行形态时用继承 headers 解析，并核对字段 `sourceLocation.page/table/row`。
+- **适用边界**：只对字段行形态明确的续表启用；普通说明表或错误码表仍应跳过。
+- 已提升: `scripts/tests/iris-interface-plugin.tests.ps1`
+
+### 1.5 DOC 转换优先级必须先结构化 DOCX
+- 需求: (通用) | 命中: 1
+- **规则**：legacy DOC 不直接作为可靠结构化输入；应优先用 LibreOffice/Pandoc 转 DOCX，再走 DOCX 表格解析。
+- **做法**：环境自检缺转换器时返回 `missing-converter` 并提示用户安装转换器或手动另存 DOCX；MarkItDown 只作为 Markdown 降级，不声明 legacy DOC 结构化能力。
+- **适用边界**：适用于 `.doc` 旧格式；不能把 DOC 全文复制到会话上下文中人工解析。
+- 已提升: `scripts/tests/iris-interface-plugin.tests.ps1`
+
 ## 二、字段取值与规则匹配
 
 ### 2.1 项目私有字段取值不得直接提升为通用规则
@@ -90,4 +125,4 @@
 
 | 需求号 | 描述 | 命中经验 |
 |---|---|---|
-| (通用) | IRIS/HIS 接口开发插件并入与反馈分流机制 | [2.1](#21-项目私有字段取值不得直接提升为通用规则), [2.2](#22-l4-人工兜底默认写目标项目-customoverrides), [6.1](#61-iris-上传编译和真实数据测试必须由目标项目显式启用), [7.1](#71-框架文件修正走-agent-framework-feedback), [7.2](#72-通用接口开发经验先进入本文件), [7.3](#73-接口索引moc数据流资料并入前必须脱敏审查), [8.1](#81-离线试运行优先覆盖只读和-dry-run-链路) |
+| (通用) | IRIS/HIS 接口开发插件并入与反馈分流机制 | [1.1](#11-xlsxls-多-sheet-必须按业务-sheet-独立成-view), [1.2](#12-docx-入参出参表按上下文分段), [1.3](#13-pdf-混合表必须区分-requestresponse-与非字段表), [1.4](#14-pdf-跨页续表继承上一字段表表头), [1.5](#15-doc-转换优先级必须先结构化-docx), [2.1](#21-项目私有字段取值不得直接提升为通用规则), [2.2](#22-l4-人工兜底默认写目标项目-customoverrides), [6.1](#61-iris-上传编译和真实数据测试必须由目标项目显式启用), [7.1](#71-框架文件修正走-agent-framework-feedback), [7.2](#72-通用接口开发经验先进入本文件), [7.3](#73-接口索引moc数据流资料并入前必须脱敏审查), [8.1](#81-离线试运行优先覆盖只读和-dry-run-链路) |

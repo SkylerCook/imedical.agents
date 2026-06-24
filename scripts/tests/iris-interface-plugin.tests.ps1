@@ -120,6 +120,16 @@ error_code_rows = [['code', 'message', 'description'], ['-501', 'missing appID',
 error_code_fields, _, _ = mod.parse_rows_to_fields(error_code_rows)
 assert error_code_fields == [], "error code table must not be parsed as interface fields"
 
+json_example_rows = [
+    ["\u53c2\u6570\u540d", "\u7c7b\u578b", "\u5fc5\u586b", "\u8bf4\u660e"],
+    ["patientId", "String", "Y", "\u60a3\u8005\u6807\u8bc6"],
+    ["\u8bf7\u6c42\u793a\u4f8b", "JSON", "N", '{"patientId":"P001"}'],
+    ["\u8fd4\u56de\u793a\u4f8b", "JSON", "N", '{"code":"0","msg":"ok"}'],
+]
+json_example_fields, _, json_example_diags = mod.parse_rows_to_fields(json_example_rows)
+assert [field.code for field in json_example_fields] == ["patientId"], json_example_fields
+assert not json_example_diags, json_example_diags
+
 continuation_rows = [
     ["\u5305\u88c5\u91cf", "*packageCount", "Y", "\u8bf7\u586b\u5165\u6570\u5b57\u5982 200\uff0c150,100\u3002"],
     ["\u64cd\u4f5c\u4eba\u5458", "operator", "N", ""],
@@ -454,4 +464,3 @@ finally {
 }
 
 Write-Host "iris-interface-plugin tests passed"
-
