@@ -16,11 +16,14 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-CODE_HEADERS = {"\u53c2\u6570\u540d", "\u53c2\u6570\u540d\u79f0", "\u53c2\u6570", "\u5b57\u6bb5", "\u5b57\u6bb5\u540d", "\u5b57\u6bb5\u540d\u79f0", "\u5b57\u6bb5\u4ee3\u7801", "\u5b57\u6bb5\u7f16\u7801", "\u6570\u636e\u5b57\u6bb5\u540d", "\u6570\u636e\u5143\u82f1\u6587\u540d\u79f0", "\u4ee3\u7801", "field", "field name", "code", "parameter", "param"}
-NAME_HEADERS = {"\u63cf\u8ff0", "\u4e2d\u6587\u540d", "\u6570\u636e\u9879\u540d\u79f0", "\u5b57\u6bb5\u63cf\u8ff0", "\u6570\u636e\u5143\u4e2d\u6587\u540d\u79f0", "\u540d\u79f0", "name"}
-TYPE_HEADERS = {"\u6570\u636e\u7c7b\u578b", "\u7c7b\u578b", "\u5b57\u6bb5\u7c7b\u578b", "type", "datatype", "data type"}
+CODE_HEADERS = {"\u53c2\u6570\u540d", "\u53c2\u6570\u540d\u79f0", "\u53c2\u6570\u4ee3\u7801", "\u53c2\u6570", "\u5b57\u6bb5", "\u5b57\u6bb5\u540d", "\u5b57\u6bb5\u540d\u79f0", "\u5b57\u6bb5\u4ee3\u7801", "\u5b57\u6bb5\u7f16\u7801", "\u6570\u636e\u9879\u4ee3\u7801", "\u6570\u636e\u5b57\u6bb5\u540d", "\u6570\u636e\u5143\u82f1\u6587\u540d\u79f0", "\u4ee3\u7801", "field", "field name", "code", "parameter", "param"}
+NAME_HEADERS = {"\u63cf\u8ff0", "\u4e2d\u6587\u540d", "\u53c2\u6570\u540d\u79f0", "\u6570\u636e\u9879\u540d\u79f0", "\u5b57\u6bb5\u63cf\u8ff0", "\u6570\u636e\u5143\u4e2d\u6587\u540d\u79f0", "\u540d\u79f0", "name"}
+TYPE_HEADERS = {"\u6570\u636e\u7c7b\u578b", "\u6570\u636e\u9879\u7c7b\u578b", "\u53c2\u6570\u7c7b\u578b", "\u7c7b\u578b", "\u5b57\u6bb5\u7c7b\u578b", "type", "datatype", "data type"}
 LENGTH_HEADERS = {"\u957f\u5ea6", "\u6570\u636e\u957f\u5ea6", "\u5b57\u6bb5\u957f\u5ea6", "length", "len"}
 REQUIRED_HEADERS = {"\u662f\u5426\u5fc5\u586b", "\u5fc5\u586b", "\u662f\u5426\u5fc5\u987b", "\u975e\u7a7a", "required", "mandatory", "not null"}
+NULLABLE_HEADERS = {"\u5141\u8bb8\u7a7a", "\u53ef\u7a7a", "\u662f\u5426\u5141\u8bb8\u7a7a", "nullable", "allow null"}
+PRIMARY_KEY_HEADERS = {"\u4e3b\u952e", "\u662f\u5426\u4e3b\u952e", "primary key", "pk"}
+DEFAULT_HEADERS = {"\u9ed8\u8ba4\u503c", "\u7f3a\u7701\u503c", "default", "default value"}
 DESC_HEADERS = {"\u5907\u6ce8", "\u8bf4\u660e", "\u5b57\u6bb5\u8bf4\u660e", "\u63cf\u8ff0", "description", "remark", "remarks"}
 
 @dataclass
@@ -30,6 +33,9 @@ class Field:
     fieldType: str = ""
     length: str = ""
     required: str = ""
+    nullable: str = ""
+    primaryKey: str = ""
+    defaultValue: str = ""
     description: str = ""
     jsonPath: str = ""
     requiredByMarker: bool = False
@@ -132,6 +138,9 @@ def parse_rows_to_fields(rows: list[list[str]], inherited_headers: list[str] | N
     type_i = header_index(headers, TYPE_HEADERS)
     length_i = header_index(headers, LENGTH_HEADERS)
     required_i = header_index(headers, REQUIRED_HEADERS)
+    nullable_i = header_index(headers, NULLABLE_HEADERS)
+    primary_key_i = header_index(headers, PRIMARY_KEY_HEADERS)
+    default_i = header_index(headers, DEFAULT_HEADERS)
     desc_i = header_index(headers, DESC_HEADERS)
 
     if code_i is not None and name_i == code_i:
@@ -143,6 +152,9 @@ def parse_rows_to_fields(rows: list[list[str]], inherited_headers: list[str] | N
         "fieldType": headers[type_i] if type_i is not None else "",
         "length": headers[length_i] if length_i is not None else "",
         "required": headers[required_i] if required_i is not None else "",
+        "nullable": headers[nullable_i] if nullable_i is not None else "",
+        "primaryKey": headers[primary_key_i] if primary_key_i is not None else "",
+        "defaultValue": headers[default_i] if default_i is not None else "",
         "description": headers[desc_i] if desc_i is not None else "",
     }
 
@@ -154,13 +166,16 @@ def parse_rows_to_fields(rows: list[list[str]], inherited_headers: list[str] | N
         code = get(code_i)
         if is_example_field_code(code):
             continue
-        required = get(required_i)
+        required = get(required_i) or infer_required_from_nullable(get(nullable_i))
         field = Field(
             code=code,
             name=get(name_i),
             fieldType=get(type_i),
             length=get(length_i),
             required=required,
+            nullable=get(nullable_i),
+            primaryKey=get(primary_key_i),
+            defaultValue=get(default_i),
             description=get(desc_i),
             requiredByMarker=code.startswith("*"),
             requiredMismatch=required_marker_mismatch(code, required),
@@ -178,7 +193,12 @@ def is_example_field_code(code: str) -> bool:
     text = cell_text(code)
     if not text:
         return False
-    if text.startswith(("{", "}", "[", "]")):
+    normalized = normalize_header(text)
+    if normalized in {"\u5165\u53c2\u8868", "\u51fa\u53c2\u8868", "\u5b57\u6bb5\u540d", "\u53c2\u6570\u540d", "\u53c2\u6570\u4ee3\u7801", "\u6570\u636e\u9879\u4ee3\u7801", "\u8fd4\u56de\u76ee\u5f55"}:
+        return True
+    if text.startswith(("\u6ce8\uff1a", "\u6ce8:", "{", "}", "[", "]")):
+        return True
+    if re.search(r"[\u4e00-\u9fff]", text) and len(text) > 20 and any(marker in text for marker in ["\u4e3a", "\u76f8\u5173", "\u4fe1\u606f", "\u8bf4\u660e"]):
         return True
     if len(text) > 20 and any(marker in text for marker in ['":"', '":', "':"]):
         return True
@@ -187,6 +207,14 @@ def is_example_field_code(code: str) -> bool:
 def clean_field_code(code: str) -> str:
     return cell_text(code).lstrip("*")
 
+
+def infer_required_from_nullable(nullable: str) -> str:
+    nullable_text = normalize_header(nullable)
+    if nullable_text in {"\u5426", "n", "no", "false", "0", "not null"}:
+        return "Y"
+    if nullable_text in {"\u662f", "y", "yes", "true", "1", "null", "nullable"}:
+        return "N"
+    return ""
 
 def required_marker_mismatch(code: str, required: str) -> bool:
     required_text = normalize_header(required)
@@ -368,6 +396,25 @@ def row_text(row: list[str]) -> str:
 
 def normalized_row_text(row: list[str]) -> str:
     return re.sub(r"[\s（）()]+", "", row_text(row)).lower()
+
+
+def table_interface_title(rows: list[list[str]]) -> str:
+    title = ""
+    description = ""
+    for row in rows[:6]:
+        if len(row) < 2:
+            continue
+        label = normalize_header(row[0])
+        value = cell_text(row[1])
+        if not value or value == cell_text(row[0]):
+            continue
+        if label in {"\u540d\u79f0", "name"} and not title:
+            title = value
+        elif label in {"\u529f\u80fd\u63cf\u8ff0", "description"} and not description:
+            description = value
+    if title and description:
+        return f"{title}\uff08{description}\uff09"
+    return title
 
 
 def row_context_marker(row: list[str]) -> str | None:
@@ -658,6 +705,16 @@ def parse_docx(path: Path) -> tuple[str, list[View], list[str], str]:
     for index, table in enumerate(document.tables, start=1):
         rows = [[cell_text(cell.text) for cell in row.cells] for row in table.rows]
         markdown_parts.extend([f"## 表格 {index}", "", markdown_table(rows), ""])
+
+        segmented = parse_rows_to_context_segments(rows, PdfContext(interfaceTitle=table_interface_title(rows)))
+        segment_with_fields = [(context, fields, diags, _headers) for context, fields, diags, _headers in segmented if fields]
+        if segment_with_fields:
+            for segment_index, (segment_context, fields, field_diags, _headers) in enumerate(segment_with_fields, start=1):
+                diagnostics.extend([f"表格 {index} Segment {segment_index}: {item}" for item in field_diags])
+                segment_name = f"表格 {index} Segment {segment_index}"
+                all_views.append(View(viewCode=f"table-{index}-segment-{segment_index}", viewName=pdf_context_label(segment_context, segment_name), fields=fields))
+            continue
+
         fields, _header_map, field_diags = parse_rows_to_fields(rows)
         diagnostics.extend([f"表格 {index}: {item}" for item in field_diags])
         if fields:
@@ -748,15 +805,16 @@ def parse_pdf(path: Path) -> tuple[str, list[View], list[str], str]:
 
 
 def parse_doc(path: Path) -> tuple[str, list[View], list[str], str]:
+    converted = try_convert_doc(path)
+    if converted is not None:
+        return parse_document(converted)
+
     markitdown_markdown = try_markitdown(path)
     if markitdown_markdown:
         diagnostics = ["MarkItDown \u4ec5\u751f\u6210 Markdown\uff1bDOC \u7ed3\u6784\u5316\u5b57\u6bb5\u62bd\u53d6\u9700\u8981\u8f6c\u4e3a DOCX \u540e\u590d\u6838"]
         return markitdown_markdown, [], diagnostics, "markitdown-optional"
 
-    converted = try_convert_doc(path)
-    if converted is None:
-        raise RuntimeError("DOC \u89e3\u6790\u9700\u8981 MarkItDown\u3001LibreOffice \u6216 Pandoc\uff1b\u8bf7\u5b89\u88c5\u8f6c\u6362\u5668\u6216\u624b\u52a8\u8f6c\u4e3a DOCX")
-    return parse_document(converted)
+    raise RuntimeError("DOC \u89e3\u6790\u9700\u8981 LibreOffice/Pandoc \u8f6c DOCX\uff1bMarkItDown \u4ec5\u80fd\u4f5c\u4e3a Markdown \u964d\u7ea7\uff0c\u8bf7\u5b89\u88c5\u8f6c\u6362\u5668\u6216\u624b\u52a8\u8f6c\u4e3a DOCX")
 
 
 def try_markitdown(path: Path) -> str | None:
@@ -840,7 +898,7 @@ def artifact_json(source: Path, doc_name: str, views: list[View], diagnostics: l
 def fields_markdown(views: list[View]) -> str:
     lines = ["# Fields", ""]
     for view in views:
-        lines.extend([f"## {view.viewName}", "", "| JSON路径 | 字段代码 | 字段名称 | 类型 | 长度 | 必填 | 必填标记 | 备注 |", "| --- | --- | --- | --- | --- | --- | --- | --- |"])
+        lines.extend([f"## {view.viewName}", "", "| JSON路径 | 字段代码 | 字段名称 | 类型 | 长度 | 必填 | 允许空 | 主键 | 默认值 | 必填标记 | 备注 |", "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"])
         for field in view.fields:
             required_marker = "*" if field.requiredByMarker else ""
             if field.requiredMismatch:
@@ -849,7 +907,7 @@ def fields_markdown(views: list[View]) -> str:
                 "| "
                 + " | ".join(
                     escape_md(value)
-                    for value in [field.jsonPath, field.code, field.name, field.fieldType, field.length, field.required, required_marker, field.description]
+                    for value in [field.jsonPath, field.code, field.name, field.fieldType, field.length, field.required, field.nullable, field.primaryKey, field.defaultValue, required_marker, field.description]
                 )
                 + " |"
             )
@@ -925,15 +983,4 @@ def main(argv: Iterable[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
-
-
-
-
-
-
-
-
-
-
-
 

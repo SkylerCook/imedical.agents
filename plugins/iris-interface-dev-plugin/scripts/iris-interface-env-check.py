@@ -36,6 +36,19 @@ def tool_status() -> dict[str, bool]:
     return {tool: shutil.which(tool) is not None for tool in TOOLS}
 
 
+def markitdown_can_convert(path: Path) -> bool:
+    if not path.exists():
+        return False
+    try:
+        from markitdown import MarkItDown
+
+        result = MarkItDown().convert(str(path))
+        text = getattr(result, "text_content", "") or ""
+        return bool(text.strip())
+    except Exception:
+        return False
+
+
 def file_requirement(path: Path, modules: dict[str, bool], tools: dict[str, bool]) -> dict[str, Any]:
     suffix = path.suffix.lower()
     available_tools = [name for name, ok in tools.items() if ok]
@@ -66,10 +79,13 @@ def file_requirement(path: Path, modules: dict[str, bool], tools: dict[str, bool
         else:
             result.update({"ready": False, "status": "missing-dependency", "message": "XLS 解析需要 xlrd，或安装 LibreOffice 转为 XLSX", "install": ["xlrd"], "manualAction": "也可以手动另存为 XLSX 后重试"})
     elif suffix == ".doc":
-        if modules.get("markitdown", False) or available_tools:
-            result.update({"ready": True, "status": "ready", "message": "DOC 可通过 MarkItDown/LibreOffice/Pandoc 降级转换"})
+        if tools.get("soffice", False) or tools.get("libreoffice", False) or tools.get("pandoc", False):
+            result.update({"ready": True, "status": "ready", "message": "DOC 可通过 LibreOffice/Pandoc 转 DOCX 后结构化解析"})
+        elif modules.get("markitdown", False) and markitdown_can_convert(path):
+            result.update({"ready": True, "status": "markdown-only", "message": "DOC 仅可通过 MarkItDown 生成 Markdown；未结构化字段，建议转为 DOCX 复核"})
         else:
-            result.update({"ready": False, "status": "missing-converter", "message": "DOC 解析需要 MarkItDown、LibreOffice 或 Pandoc", "install": ["markitdown"], "manualAction": "也可以手动另存为 DOCX 后重试"})
+            install = [] if modules.get("markitdown", False) else ["markitdown"]
+            result.update({"ready": False, "status": "missing-converter", "message": "DOC 结构化解析需要 LibreOffice 或 Pandoc 转 DOCX；MarkItDown 仅作为可用时的 Markdown 降级", "install": install, "manualAction": "请安装 LibreOffice/Pandoc，或手动另存为 DOCX 后重试"})
     else:
         result.update({"ready": False, "status": "unsupported", "message": f"暂不支持的文件类型: {suffix or '<none>'}"})
     return result

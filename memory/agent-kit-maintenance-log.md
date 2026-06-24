@@ -4,6 +4,7 @@
 
 ## 近期已完成
 
+- 2026-06-24：已完成 `iris-interface-dev-plugin` v1.2 格式接入稳定化回归：XLS/XLSX 多 sheet、DOC 转 DOCX 降级路径、DOCX 入参/出参分段与字段契约、PDF 轻量抽查均已验证；新增长期路线图 `memory/plan/iris-interface-dev-plugin-roadmap.md`，替代旧 `iris-interface-v1-summary-v2-plan.md` 作为后续会话入口。真实样本和解析产物仍只保留在 `tmp/iris-interface-file/`，不入库。
 - 2026-06-23：根据三份样本文档验证结果，补强 `iris-interface-dev-plugin` 解析前环境引导：新增 `iris-interface-env-check.py`，把缺依赖/缺转换器从“失败告知”改为可执行安装建议；`requirements-optional.txt` 新增 `xlrd`，`.xls` 安装 `xlrd` 后可直接解析，XLSX/XLS 多 sheet 按 sheet 拆成独立字段视图。
 - 2026-06-22：已完成 `iris-interface-dev-plugin` v1.1 PDF 解析质量补丁：收紧表头匹配，过滤修订记录和错误码表，支持 PDF 跨页续表继承上一字段表表头。真实样本 `综合药房 HIS 处方推送接口使用说明_5000.pdf` 重新解析后为 9 个视图、79 个字段，Page 17/18/19 续表缺失字段已补回。
 - 2026-06-22：已完成 `iris-interface-dev-plugin` v1 基线并入，来源工程审计基线为 `https://gitee.com/soneakeko/agent-architecture.git` commit `43e12b345c58ba11a48980828503daf29ae309ec`。插件采用解析审计优先边界，提供接口文档落盘解析、字段结构化、字段诊断、开发计划和离线审查入口；IRIS/ObjectScript 编码、上传、编译、部署和远端验证继续复用 `coding-iris-plugin`。
@@ -119,4 +120,6 @@
 
 - 后续完成每轮维护后，更新本文件的近期已完成、提交索引和最近验证摘要。
 - 不记录一次性命令输出、短期失败日志或可从 Git 历史直接恢复的完整流水。
+
+
 

@@ -102,6 +102,12 @@ mod = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = mod
 spec.loader.exec_module(mod)
 
+env_script = Path(r"__PLUGIN_ROOT__") / "scripts" / "iris-interface-env-check.py"
+env_spec = importlib.util.spec_from_file_location("iris_interface_env_check", env_script)
+env_mod = importlib.util.module_from_spec(env_spec)
+sys.modules[env_spec.name] = env_mod
+env_spec.loader.exec_module(env_mod)
+
 revision_rows = [
     ["\u65e5\u671f", "\u7248\u672c\u53f7", "\u4fee\u8ba2\u8bf4\u660e", "\u4fee\u8ba2\u4eba"],
     ["2024-03-05", "1.0.3", "1\u30013.1.5\u6dfb\u52a0\u7f3a\u6f0f\u5b57\u6bb5\u63cf\u8ff0\uff0c\u4fee\u6539\u91cd\u540d\u5b57\u6bb5\u3002", "\u5f20\u4e09"],
@@ -155,6 +161,52 @@ assert header_fields[0].code == "X-GMAuth", header_fields[0]
 assert header_fields[0].name == "\u6388\u6743\u4fe1\u606f", header_fields[0]
 assert not header_diags, header_diags
 
+parameter_name_rows = [
+    ["\u53c2\u6570\u540d", "\u53c2\u6570\u540d\u79f0", "\u7c7b\u578b", "\u5fc5\u586b", "\u63cf\u8ff0"],
+    ["patientId", "\u60a3\u8005ID", "String", "Y", "\u60a3\u8005\u552f\u4e00\u6807\u8bc6"],
+]
+parameter_name_fields, _, parameter_name_diags = mod.parse_rows_to_fields(parameter_name_rows)
+assert len(parameter_name_fields) == 1, parameter_name_fields
+assert parameter_name_fields[0].code == "patientId", parameter_name_fields[0]
+assert parameter_name_fields[0].name == "\u60a3\u8005ID", parameter_name_fields[0]
+assert parameter_name_fields[0].description == "\u60a3\u8005\u552f\u4e00\u6807\u8bc6", parameter_name_fields[0]
+assert not parameter_name_diags, parameter_name_diags
+
+parameter_code_rows = [
+    ["\u5e8f\u53f7", "\u53c2\u6570\u4ee3\u7801", "\u53c2\u6570\u540d\u79f0", "\u53c2\u6570\u7c7b\u578b", "\u662f\u5426\u5fc5\u586b", "\u9700\u5fc5\u586b\u7cfb\u7edf", "\u8bf4\u660e"],
+    ["1", "mdtrt_sn", "\u4f4f\u9662\u6d41\u6c34\u53f7", "\u5b57\u7b26\u578b", "Y", "\u533b\u4fdd\u667a\u80fd\u5ba1\u6838", "\u9662\u5185\u552f\u4e00\u53f7"],
+]
+parameter_code_fields, _, parameter_code_diags = mod.parse_rows_to_fields(parameter_code_rows)
+assert len(parameter_code_fields) == 1, parameter_code_fields
+assert parameter_code_fields[0].code == "mdtrt_sn", parameter_code_fields[0]
+assert parameter_code_fields[0].name == "\u4f4f\u9662\u6d41\u6c34\u53f7", parameter_code_fields[0]
+assert parameter_code_fields[0].fieldType == "\u5b57\u7b26\u578b", parameter_code_fields[0]
+assert parameter_code_fields[0].required == "Y", parameter_code_fields[0]
+assert parameter_code_fields[0].description == "\u9662\u5185\u552f\u4e00\u53f7", parameter_code_fields[0]
+assert not parameter_code_diags, parameter_code_diags
+
+data_item_rows = [
+    ["\u6570\u636e\u9879\u4ee3\u7801", "\u6570\u636e\u9879\u540d\u79f0", "\u6570\u636e\u9879\u7c7b\u578b", "\u5907\u6ce8", "\u5fc5\u586b"],
+    ["SFXMM", "\u6536\u8d39\u9879\u76ee\u7f16\u7801", "\u5b57\u7b26\u578b", "HIS\u5185\u90e8\u7801", "\u221a"],
+]
+data_item_fields, _, data_item_diags = mod.parse_rows_to_fields(data_item_rows)
+assert len(data_item_fields) == 1, data_item_fields
+assert data_item_fields[0].code == "SFXMM", data_item_fields[0]
+assert data_item_fields[0].name == "\u6536\u8d39\u9879\u76ee\u7f16\u7801", data_item_fields[0]
+assert data_item_fields[0].fieldType == "\u5b57\u7b26\u578b", data_item_fields[0]
+assert data_item_fields[0].description == "HIS\u5185\u90e8\u7801", data_item_fields[0]
+assert data_item_fields[0].required == "\u221a", data_item_fields[0]
+assert not data_item_diags, data_item_diags
+
+return_to_toc_rows = [
+    ["\u5b57\u6bb5", "\u53c2\u6570\u7c7b\u578b", "\u662f\u5426\u5fc5\u586b", "\u63cf\u8ff0"],
+    ["RETURN_CODE", "String", "Y", "\u6b63\u5e38\u5b57\u6bb5"],
+    ["\u8fd4\u56de\u76ee\u5f55", "", "", ""],
+]
+return_to_toc_fields, _, return_to_toc_diags = mod.parse_rows_to_fields(return_to_toc_rows)
+assert [field.code for field in return_to_toc_fields] == ["RETURN_CODE"], return_to_toc_fields
+assert not return_to_toc_diags, return_to_toc_diags
+
 header_context = mod.PdfContext()
 mod.update_pdf_context_from_text(header_context, "3.2 \u8bf7\u6c42\u5934\u516c\u5171\u53c2\u6570")
 mod.enrich_fields_for_context(header_fields, header_context)
@@ -197,9 +249,93 @@ assert [field.jsonPath for field in mixed_fields] == ["request.n_type", "request
 assert [context.interfaceTitle for context, segment_fields, _diags, _headers in mixed_segments if segment_fields] == ["PUSH_CLINIC_RESERVATION", "PUSH_CLINIC_RESERVATION"]
 assert all(field.code != "/api/imessage/third/notify/" for field in mixed_fields)
 
+docx_mixed_rows = [
+    ["\u540d\u79f0", "mdc2_zy_patient_list", "mdc2_zy_patient_list"],
+    ["\u529f\u80fd\u63cf\u8ff0", "\u6839\u636e\u5165\u53c2\u83b7\u53d6\u75c5\u4eba\u5217\u8868", "\u6839\u636e\u5165\u53c2\u83b7\u53d6\u75c5\u4eba\u5217\u8868"],
+    ["\u5165\u53c2\u8868", "\u5165\u53c2\u8868", "\u5165\u53c2\u8868"],
+    ["\u5b57\u6bb5\u540d", "\u6570\u636e\u7c7b\u578b", "\u5b57\u6bb5\u63cf\u8ff0"],
+    ["startdate", "varchar(20)", "\u5f00\u59cb\u65e5\u671f"],
+    ["\u51fa\u53c2\u8868", "\u51fa\u53c2\u8868", "\u51fa\u53c2\u8868"],
+    ["\u5b57\u6bb5\u540d", "\u6570\u636e\u7c7b\u578b", "\u5141\u8bb8\u7a7a", "\u4e3b\u952e", "\u5b57\u6bb5\u63cf\u8ff0", "\u9ed8\u8ba4\u503c"],
+    ["hiscode", "varchar(128)", "\u5426", "\u662f", "\u533b\u9662\u4ee3\u7801", "'0'"],
+    ["ph\u3001taker\u3001taketime\u3001takerid\u4e3a\u9886\u53d6\u9ebb\u9189\u7cbe\u795e\u836f\u54c1\u76f8\u5173\u4fe1\u606f", "ph\u3001taker\u3001taketime\u3001takerid\u4e3a\u9886\u53d6\u9ebb\u9189\u7cbe\u795e\u836f\u54c1\u76f8\u5173\u4fe1\u606f"],
+    ["\u6ce8\uff1a\u8be5\u5b58\u50a8\u8fc7\u7a0b\u6267\u884c\u67e5\u8be2\u7ed3\u679c\u4e2d\u4ee5patientid\u548cvisitid\u6765\u786e\u5b9a\u552f\u4e00\u6027", "\u6ce8\uff1a\u8be5\u5b58\u50a8\u8fc7\u7a0b\u6267\u884c\u67e5\u8be2\u7ed3\u679c\u4e2d\u4ee5patientid\u548cvisitid\u6765\u786e\u5b9a\u552f\u4e00\u6027"],
+]
+docx_segments = mod.parse_rows_to_context_segments(docx_mixed_rows, mod.PdfContext())
+docx_fields = [field for _context, segment_fields, _diags, _headers in docx_segments for field in segment_fields]
+assert [field.code for field in docx_fields] == ["startdate", "hiscode"], docx_fields
+assert all(not field.code.startswith("\u6ce8\uff1a") for field in docx_fields), docx_fields
+assert all(field.code != "\u51fa\u53c2\u8868" and field.code != "\u5b57\u6bb5\u540d" for field in docx_fields), docx_fields
+hiscode_field = next(field for field in docx_fields if field.code == "hiscode")
+assert hiscode_field.nullable == "\u5426", hiscode_field
+assert hiscode_field.primaryKey == "\u662f", hiscode_field
+assert hiscode_field.defaultValue == "'0'", hiscode_field
+assert hiscode_field.required == "Y", hiscode_field
+
+class FakeCell:
+    def __init__(self, text):
+        self.text = text
+
+class FakeRow:
+    def __init__(self, values):
+        self.cells = [FakeCell(value) for value in values]
+
+class FakeTable:
+    def __init__(self, rows):
+        self.rows = [FakeRow(row) for row in rows]
+
+class FakeDocument:
+    paragraphs = []
+    tables = [FakeTable(docx_mixed_rows)]
+
+class FakeDocxModule:
+    @staticmethod
+    def Document(_path):
+        return FakeDocument()
+
+original_docx_module = sys.modules.get("docx")
+sys.modules["docx"] = FakeDocxModule
+try:
+    _markdown, docx_views, _docx_diags, docx_converter = mod.parse_docx(Path("fake.docx"))
+    assert docx_converter == "docx-built-in", docx_converter
+    assert [field.code for view in docx_views for field in view.fields] == ["startdate", "hiscode"], docx_views
+    assert len(docx_views) == 2, docx_views
+    assert all("mdc2_zy_patient_list" in view.viewName for view in docx_views), [view.viewName for view in docx_views]
+    assert all("\u6839\u636e\u5165\u53c2\u83b7\u53d6\u75c5\u4eba\u5217\u8868" in view.viewName for view in docx_views), [view.viewName for view in docx_views]
+finally:
+    if original_docx_module is None:
+        del sys.modules["docx"]
+    else:
+        sys.modules["docx"] = original_docx_module
+
 signature_fields = [mod.Field(code="method", name="\u7b7e\u540d\u65b9\u6cd5")]
 mod.enrich_fields_for_context(signature_fields, mod.PdfContext(parameterObject="signature"))
 assert signature_fields[0].jsonPath == "signature.method", signature_fields[0].jsonPath
+
+calls = []
+original_try_convert_doc = mod.try_convert_doc
+original_try_markitdown = mod.try_markitdown
+original_parse_document = mod.parse_document
+try:
+    mod.try_convert_doc = lambda path: calls.append("convert") or Path("converted.docx")
+    mod.try_markitdown = lambda path: calls.append("markitdown") or "# fallback\n"
+    mod.parse_document = lambda path: ("# converted\n", [mod.View(viewCode="docx", viewName="DOCX", fields=[])], [], "docx-built-in")
+    _markdown, _views, _diagnostics, converter = mod.parse_doc(Path("legacy.doc"))
+    assert converter == "docx-built-in", converter
+    assert calls == ["convert"], calls
+finally:
+    mod.try_convert_doc = original_try_convert_doc
+    mod.try_markitdown = original_try_markitdown
+    mod.parse_document = original_parse_document
+
+doc_requirement = env_mod.file_requirement(
+    Path("legacy.doc"),
+    {"markitdown": True, "python-docx": True, "pdfplumber": True, "openpyxl": True, "xlrd": True},
+    {"soffice": False, "libreoffice": False, "pandoc": False},
+)
+assert doc_requirement["ready"] is False, doc_requirement
+assert doc_requirement["status"] == "missing-converter", doc_requirement
+assert "markitdown" not in doc_requirement["install"], doc_requirement
 '@
 $parserBehaviorTest = $parserBehaviorTest.Replace("__PLUGIN_ROOT__", $pluginRoot)
 $parserBehaviorTest | python -
@@ -301,6 +437,7 @@ finally {
 }
 
 Write-Host "iris-interface-plugin tests passed"
+
 
 
 
