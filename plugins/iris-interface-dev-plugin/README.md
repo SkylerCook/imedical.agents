@@ -1,4 +1,4 @@
-﻿# iris-interface-dev-plugin
+# iris-interface-dev-plugin
 
 `iris-interface-dev-plugin` 是面向 IRIS 接口开发的文档优先能力包。v1 只做解析审计优先链路：接口文档转换为 Markdown、结构化字段抽取、字段匹配诊断、开发计划和离线审查。
 
@@ -9,6 +9,7 @@
 - 可选使用 MarkItDown 生成辅助 Markdown，不 vendor 第三方源码。
 - 所有解析产物写入 `docs/output/iris-interface/<doc-name>/`。
 - 生成 `source.md`、`parsed.json`、`fields.md`、`diagnostics.md`。
+- `parsed.json` 使用 `iris-interface-doc-ingest/v2` schema；字段除保留 v1/v1.2 规范字段外，还包含 `rawColumns`、`sourceLocation`、`classification`、`confidence`、`warnings`、`requiredReason` 和 `jsonPathReason`。
 - 通过 skill 将 IRIS 编码实现交给 `coding-iris-plugin`。
 - 审查生成物中的点号循环体，阻断 `.s`、`.f`、`..d` 等风险输出。
 
@@ -92,6 +93,3 @@ python .agents/plugins/iris-interface-dev-plugin/scripts/iris-interface-review.p
 ```
 
 本插件依赖 `coding-iris-plugin`。如果目标项目未启用 coding 插件，本插件只执行文档解析和字段诊断，不进入 IRIS 编码实现。
-
-
-

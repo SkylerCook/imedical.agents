@@ -1,6 +1,8 @@
-﻿# imedical.agents 维护日志
+# imedical.agents 维护日志
 
 本文件记录近期维护流水摘要和验证结论。长期决策见 `agent-kit-maintenance-decisions.md`，后续治理队列见 `agent-kit-maintenance-backlog.md`，入口摘要见 `agent-kit-maintenance-memory.md`。
+
+- 2026-06-24：已完成 `iris-interface-dev-plugin` v2.0 Task 0 字段契约追溯模型：`parsed.json` 升级为 `iris-interface-doc-ingest/v2`，字段新增 `rawColumns`、`sourceLocation`、`classification`、`confidence`、`warnings`、`requiredReason` 和 `jsonPathReason`；`fields.md`/`diagnostics.md` 增加追溯摘要与统计。已通过插件专项测试、仓库更新回归和真实接口文档本地回归；真实摘要保留在 `tmp/iris-interface-file/test-results/iris-interface-v2-task0-real-doc-test-summary.md`，真实文档与解析产物不入库。
 
 ## 近期已完成
 
@@ -120,6 +122,3 @@
 
 - 后续完成每轮维护后，更新本文件的近期已完成、提交索引和最近验证摘要。
 - 不记录一次性命令输出、短期失败日志或可从 Git 历史直接恢复的完整流水。
-
-
-

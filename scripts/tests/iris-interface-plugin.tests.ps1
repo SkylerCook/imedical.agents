@@ -271,6 +271,12 @@ assert hiscode_field.nullable == "\u5426", hiscode_field
 assert hiscode_field.primaryKey == "\u662f", hiscode_field
 assert hiscode_field.defaultValue == "'0'", hiscode_field
 assert hiscode_field.required == "Y", hiscode_field
+assert hiscode_field.requiredReason == "\u7531\u5141\u8bb8\u7a7a=\u5426\u63a8\u5bfc", hiscode_field.requiredReason
+assert hiscode_field.rawColumns["\u5b57\u6bb5\u540d"] == "hiscode", hiscode_field.rawColumns
+assert hiscode_field.rawColumns["\u9ed8\u8ba4\u503c"] == "'0'", hiscode_field.rawColumns
+assert hiscode_field.classification == "mapped-field", hiscode_field.classification
+assert hiscode_field.confidence == 1.0, hiscode_field.confidence
+assert any("defaultValue" in warning for warning in hiscode_field.warnings), hiscode_field.warnings
 
 class FakeCell:
     def __init__(self, text):
@@ -311,6 +317,7 @@ finally:
 signature_fields = [mod.Field(code="method", name="\u7b7e\u540d\u65b9\u6cd5")]
 mod.enrich_fields_for_context(signature_fields, mod.PdfContext(parameterObject="signature"))
 assert signature_fields[0].jsonPath == "signature.method", signature_fields[0].jsonPath
+assert signature_fields[0].jsonPathReason == "\u7531\u4e0a\u4e0b\u6587 signature \u63a8\u5bfc", signature_fields[0].jsonPathReason
 
 calls = []
 original_try_convert_doc = mod.try_convert_doc
@@ -405,9 +412,19 @@ with ZipFile(Path(r"$fixturePath"), "w", ZIP_DEFLATED) as zf:
   }
 
   $parsed = Get-Content -Raw -Encoding UTF8 -Path $parsedJson | ConvertFrom-Json
+  Assert-True ($parsed.schemaVersion -eq "iris-interface-doc-ingest/v2") "parsed.json schemaVersion should be v2"
   Assert-True ($parsed.views.Count -eq 2) "parsed.json should contain one view per XLSX sheet"
   Assert-True ($parsed.totalFields -eq 4) "parsed.json should contain fields from all XLSX sheets"
   $fieldsContent = Get-Content -Raw -Encoding UTF8 -Path $fieldsMd
+  $firstField = $parsed.views[0].fields[0]
+  Assert-True ($firstField.rawColumns."字段名" -eq "PATIENT_NAME") "field rawColumns should preserve original header values"
+  Assert-True ($firstField.sourceLocation.sheet -eq "Patient") "XLSX field sourceLocation should include sheet name"
+  Assert-True ($firstField.sourceLocation.row -eq 2) "XLSX field sourceLocation should include source row"
+  Assert-True ($firstField.classification -eq "mapped-field") "field classification should be mapped-field"
+  Assert-True ($firstField.confidence -eq 1.0) "field confidence should be deterministic for mapped rows"
+  Assert-Contains $fieldsContent "追溯提示" "fields.md should include traceability summary column"
+  $diagnosticsContent = Get-Content -Raw -Encoding UTF8 -Path $diagnosticsMd
+  Assert-Contains $diagnosticsContent "fieldWarnings" "diagnostics.md should include field warning count"
   Assert-Contains $fieldsContent "PATIENT_NAME" "fields.md should include parsed field code from first sheet"
   Assert-Contains $fieldsContent "ORDER_ID" "fields.md should include parsed field code from second sheet"
 
@@ -437,14 +454,4 @@ finally {
 }
 
 Write-Host "iris-interface-plugin tests passed"
-
-
-
-
-
-
-
-
-
-
 

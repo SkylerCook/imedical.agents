@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Parse interface documents into Markdown and structured artifacts."""
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ import subprocess
 import sys
 import zipfile
 from xml.etree import ElementTree as ET
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field as dataclass_field
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -41,7 +41,13 @@ class Field:
     requiredByMarker: bool = False
     requiredMismatch: bool = False
     sourceHeaderMap: dict[str, str] | None = None
-
+    rawColumns: dict[str, str] = dataclass_field(default_factory=dict)
+    sourceLocation: dict[str, Any] = dataclass_field(default_factory=dict)
+    classification: str = "mapped-field"
+    confidence: float = 1.0
+    warnings: list[str] = dataclass_field(default_factory=list)
+    requiredReason: str = ""
+    jsonPathReason: str = ""
 
 @dataclass
 class View:
@@ -117,16 +123,69 @@ def find_header_row(rows: list[list[str]]) -> int | None:
     return None
 
 
-def parse_rows_to_fields(rows: list[list[str]], inherited_headers: list[str] | None = None) -> tuple[list[Field], dict[str, str], list[str]]:
+def mapped_header_values(header_map: dict[str, str]) -> set[str]:
+    return {value for value in header_map.values() if value}
+
+
+def raw_columns_for_row(headers: list[str], row: list[str]) -> dict[str, str]:
+    raw: dict[str, str] = {}
+    for index, header in enumerate(headers):
+        header_text = cell_text(header) or f"column{index + 1}"
+        key = header_text
+        suffix = 2
+        while key in raw:
+            key = f"{header_text}#{suffix}"
+            suffix += 1
+        raw[key] = cell_text(row[index]) if index < len(row) else ""
+    return raw
+
+
+def duplicate_header_warnings(headers: list[str]) -> list[str]:
+    seen: dict[str, str] = {}
+    warnings: list[str] = []
+    for header in headers:
+        header_text = cell_text(header)
+        if not header_text:
+            continue
+        normalized = normalize_header(header_text)
+        if normalized in seen:
+            warnings.append(f"conflictHeader:{seen[normalized]}|{header_text}")
+        else:
+            seen[normalized] = header_text
+    return warnings
+
+
+def build_source_location(source_base: dict[str, Any] | None, row_number: int) -> dict[str, Any]:
+    location = dict(source_base or {})
+    location["row"] = row_number
+    return location
+
+
+def required_reason(required: str, required_header: str, nullable: str, nullable_header: str) -> str:
+    if required:
+        if required_header:
+            return f"由{required_header}={required}提供"
+        return "由必填列提供"
+    inferred = infer_required_from_nullable(nullable)
+    if inferred:
+        if nullable_header:
+            return f"由{nullable_header}={nullable}推导"
+        return "由允许空列推导"
+    return ""
+
+
+def parse_rows_to_fields(rows: list[list[str]], inherited_headers: list[str] | None = None, source_base: dict[str, Any] | None = None) -> tuple[list[Field], dict[str, str], list[str]]:
     diagnostics: list[str] = []
     if is_non_field_table(rows):
         return [], {}, ["非字段表，已跳过"]
 
     header_row = find_header_row(rows)
+    inherited = False
     if header_row is None:
         if inherited_headers and looks_like_field_rows(rows):
             headers = inherited_headers
             data_rows = rows
+            inherited = True
         else:
             return [], {}, ["未识别字段表头"]
     else:
@@ -145,6 +204,8 @@ def parse_rows_to_fields(rows: list[list[str]], inherited_headers: list[str] | N
 
     if code_i is not None and name_i == code_i:
         name_i = alternate_name_index(headers, code_i)
+    if desc_i is not None and desc_i in {code_i, name_i}:
+        desc_i = alternate_description_index(headers, {index for index in [code_i, name_i] if index is not None})
 
     header_map = {
         "code": headers[code_i] if code_i is not None else "",
@@ -158,28 +219,49 @@ def parse_rows_to_fields(rows: list[list[str]], inherited_headers: list[str] | N
         "description": headers[desc_i] if desc_i is not None else "",
     }
 
+    mapped_headers = mapped_header_values(header_map)
+    table_warnings = duplicate_header_warnings(headers)
+    unmapped_headers = [cell_text(header) for header in headers if cell_text(header) and cell_text(header) not in mapped_headers]
+    diagnostics.extend(table_warnings)
+
     fields: list[Field] = []
-    for row in data_rows:
+    for offset, row in enumerate(data_rows):
         if not any(cell_text(cell) for cell in row):
             continue
         get = lambda i: cell_text(row[i]) if i is not None and i < len(row) else ""
         code = get(code_i)
         if is_example_field_code(code):
             continue
-        required = get(required_i) or infer_required_from_nullable(get(nullable_i))
+        nullable = get(nullable_i)
+        explicit_required = get(required_i)
+        required = explicit_required or infer_required_from_nullable(nullable)
+        warnings = list(table_warnings)
+        warnings.extend(f"unmappedHeader:{header}" for header in unmapped_headers)
+        if get(default_i):
+            warnings.append("defaultValue:需要人工确认默认值语义")
+        if desc_i is not None and (desc_i == code_i or desc_i == name_i):
+            warnings.append("lowConfidenceDescription:说明列与代码/名称列冲突")
+
+        row_number = (offset + 1) if inherited else (header_row or 0) + offset + 2
         field = Field(
             code=code,
             name=get(name_i),
             fieldType=get(type_i),
             length=get(length_i),
             required=required,
-            nullable=get(nullable_i),
+            nullable=nullable,
             primaryKey=get(primary_key_i),
             defaultValue=get(default_i),
             description=get(desc_i),
             requiredByMarker=code.startswith("*"),
             requiredMismatch=required_marker_mismatch(code, required),
             sourceHeaderMap=header_map,
+            rawColumns=raw_columns_for_row(headers, row),
+            sourceLocation=build_source_location(source_base, row_number),
+            classification="mapped-field" if (code or get(name_i)) else "low-confidence",
+            confidence=1.0 if (code or get(name_i)) else 0.6,
+            warnings=warnings,
+            requiredReason=required_reason(explicit_required, header_map["required"], nullable, header_map["nullable"]),
         )
         if field.code or field.name:
             fields.append(field)
@@ -231,19 +313,31 @@ def enrich_fields_for_context(fields: list[Field], context: PdfContext) -> None:
         return
     for field in fields:
         code = clean_field_code(field.code)
-        if code:
-            if context.parameterObject == "headers":
-                field.jsonPath = f"headers.{code}"
-            elif context.parameterObject == "request":
-                field.jsonPath = f"request.{code}"
-            elif context.parameterObject == "data":
-                field.jsonPath = f"data.{code}"
-            elif context.parameterObject == "response":
-                field.jsonPath = f"response.{code}"
-            elif context.parameterObject == "signature":
-                field.jsonPath = f"signature.{code}"
-            else:
-                field.jsonPath = f"data.{context.parameterObject}.{code}"
+        if not code:
+            continue
+        if context.parameterObject == "headers":
+            field.jsonPath = f"headers.{code}"
+        elif context.parameterObject == "request":
+            field.jsonPath = f"request.{code}"
+        elif context.parameterObject == "data":
+            field.jsonPath = f"data.{code}"
+        elif context.parameterObject == "response":
+            field.jsonPath = f"response.{code}"
+        elif context.parameterObject == "signature":
+            field.jsonPath = f"signature.{code}"
+        else:
+            field.jsonPath = f"data.{context.parameterObject}.{code}"
+        field.jsonPathReason = f"由上下文 {context.parameterObject} 推导"
+
+def alternate_description_index(headers: list[str], occupied: set[int]) -> int | None:
+    normalized_choices = {normalize_header(choice) for choice in DESC_HEADERS}
+    for index, header in enumerate(headers):
+        if index in occupied:
+            continue
+        if normalize_header(header) in normalized_choices:
+            return index
+    return None
+
 
 def alternate_name_index(headers: list[str], code_i: int) -> int | None:
     for choices in [{"\u63cf\u8ff0"}, {"\u4e2d\u6587\u540d", "\u540d\u79f0", "\u5b57\u6bb5\u63cf\u8ff0"}]:
@@ -449,7 +543,7 @@ def infer_interface_hint_from_fields(fields: list[Field]) -> str:
             return match.group(0)
     return ""
 
-def parse_rows_to_context_segments(rows: list[list[str]], base_context: PdfContext) -> list[tuple[PdfContext, list[Field], list[str], list[str] | None]]:
+def parse_rows_to_context_segments(rows: list[list[str]], base_context: PdfContext, source_base: dict[str, Any] | None = None) -> list[tuple[PdfContext, list[Field], list[str], list[str] | None]]:
     segments: list[tuple[PdfContext, list[list[str]]]] = []
     current_context = copy_pdf_context(base_context)
     current_rows: list[list[str]] = []
@@ -486,7 +580,7 @@ def parse_rows_to_context_segments(rows: list[list[str]], base_context: PdfConte
     parsed_segments: list[tuple[PdfContext, list[Field], list[str], list[str] | None]] = []
     current_interface_hint = ""
     for context, segment_rows in segments:
-        fields, _header_map, diagnostics = parse_rows_to_fields(segment_rows)
+        fields, _header_map, diagnostics = parse_rows_to_fields(segment_rows, source_base=source_base)
         if fields:
             interface_hint = infer_interface_hint_from_fields(fields)
             if interface_hint:
@@ -532,7 +626,7 @@ def parse_xls(path: Path) -> tuple[str, list[View], list[str], str]:
         if rows:
             markdown_parts.append(markdown_table(rows))
             markdown_parts.append("")
-        fields, _header_map, field_diags = parse_rows_to_fields(rows)
+        fields, _header_map, field_diags = parse_rows_to_fields(rows, source_base={"documentType": "xls", "sheet": sheet.name})
         diagnostics.extend([f"{sheet.name}: {item}" for item in field_diags])
         if fields:
             views.append(View(viewCode=sheet.name, viewName=sheet.name, fields=fields))
@@ -564,7 +658,7 @@ def parse_xlsx_openpyxl(path: Path) -> tuple[str, list[View], list[str], str]:
         if rows:
             markdown_parts.append(markdown_table(rows))
             markdown_parts.append("")
-        fields, _header_map, field_diags = parse_rows_to_fields(rows)
+        fields, _header_map, field_diags = parse_rows_to_fields(rows, source_base={"documentType": "xlsx", "sheet": sheet.title})
         diagnostics.extend([f"{sheet.title}: {item}" for item in field_diags])
         if fields:
             views.append(View(viewCode=sheet.title, viewName=sheet.title, fields=fields))
@@ -596,7 +690,7 @@ def parse_xlsx_openxml(path: Path) -> tuple[str, list[View], list[str], str]:
             if rows:
                 markdown_parts.append(markdown_table(rows))
                 markdown_parts.append("")
-            fields, _header_map, field_diags = parse_rows_to_fields(rows)
+            fields, _header_map, field_diags = parse_rows_to_fields(rows, source_base={"documentType": "xlsx", "sheet": sheet_name})
             diagnostics.extend([f"{sheet_name}: {item}" for item in field_diags])
             if fields:
                 views.append(View(viewCode=sheet_name, viewName=sheet_name, fields=fields))
@@ -706,7 +800,7 @@ def parse_docx(path: Path) -> tuple[str, list[View], list[str], str]:
         rows = [[cell_text(cell.text) for cell in row.cells] for row in table.rows]
         markdown_parts.extend([f"## 表格 {index}", "", markdown_table(rows), ""])
 
-        segmented = parse_rows_to_context_segments(rows, PdfContext(interfaceTitle=table_interface_title(rows)))
+        segmented = parse_rows_to_context_segments(rows, PdfContext(interfaceTitle=table_interface_title(rows)), {"documentType": "docx", "table": index})
         segment_with_fields = [(context, fields, diags, _headers) for context, fields, diags, _headers in segmented if fields]
         if segment_with_fields:
             for segment_index, (segment_context, fields, field_diags, _headers) in enumerate(segment_with_fields, start=1):
@@ -715,7 +809,7 @@ def parse_docx(path: Path) -> tuple[str, list[View], list[str], str]:
                 all_views.append(View(viewCode=f"table-{index}-segment-{segment_index}", viewName=pdf_context_label(segment_context, segment_name), fields=fields))
             continue
 
-        fields, _header_map, field_diags = parse_rows_to_fields(rows)
+        fields, _header_map, field_diags = parse_rows_to_fields(rows, source_base={"documentType": "docx", "table": index})
         diagnostics.extend([f"表格 {index}: {item}" for item in field_diags])
         if fields:
             all_views.append(View(viewCode=f"table-{index}", viewName=f"表格 {index}", fields=fields))
@@ -771,7 +865,7 @@ def parse_pdf(path: Path) -> tuple[str, list[View], list[str], str]:
                     table_context.subsectionTitle = ""
 
                 table_name = f"Page {page_index} Table {table_index}"
-                segmented = parse_rows_to_context_segments(rows, table_context)
+                segmented = parse_rows_to_context_segments(rows, table_context, {"documentType": "pdf", "page": page_index, "table": table_index})
                 segment_with_fields = [(context, fields, diags, inherited) for context, fields, diags, inherited in segmented if fields]
                 if segment_with_fields:
                     for segment_index, (segment_context, fields, field_diags, inherited_headers) in enumerate(segment_with_fields, start=1):
@@ -786,7 +880,7 @@ def parse_pdf(path: Path) -> tuple[str, list[View], list[str], str]:
                     continue
 
                 explicit_header_row = find_header_row(rows)
-                fields, _header_map, field_diags = parse_rows_to_fields(rows, inherited_headers=current_field_headers)
+                fields, _header_map, field_diags = parse_rows_to_fields(rows, inherited_headers=current_field_headers, source_base={"documentType": "pdf", "page": page_index, "table": table_index})
                 diagnostics.extend([f"Page {page_index} Table {table_index}: {item}" for item in field_diags])
                 if fields:
                     if explicit_header_row is not None:
@@ -884,7 +978,7 @@ def artifact_json(source: Path, doc_name: str, views: list[View], diagnostics: l
         view_dicts.append({"viewCode": view.viewCode, "viewName": view.viewName, "fields": fields})
 
     return {
-        "schemaVersion": "iris-interface-doc-ingest/v1",
+        "schemaVersion": "iris-interface-doc-ingest/v2",
         "sourceFile": str(source),
         "documentName": doc_name,
         "converter": converter,
@@ -895,10 +989,16 @@ def artifact_json(source: Path, doc_name: str, views: list[View], diagnostics: l
     }
 
 
+def trace_summary(field: Field) -> str:
+    items = [field.requiredReason, field.jsonPathReason]
+    items.extend(field.warnings)
+    return "; ".join(item for item in items if item)
+
+
 def fields_markdown(views: list[View]) -> str:
     lines = ["# Fields", ""]
     for view in views:
-        lines.extend([f"## {view.viewName}", "", "| JSON路径 | 字段代码 | 字段名称 | 类型 | 长度 | 必填 | 允许空 | 主键 | 默认值 | 必填标记 | 备注 |", "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"])
+        lines.extend([f"## {view.viewName}", "", "| JSON路径 | 字段代码 | 字段名称 | 类型 | 长度 | 必填 | 允许空 | 主键 | 默认值 | 必填标记 | 备注 | 追溯提示 |", "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"])
         for field in view.fields:
             required_marker = "*" if field.requiredByMarker else ""
             if field.requiredMismatch:
@@ -907,20 +1007,28 @@ def fields_markdown(views: list[View]) -> str:
                 "| "
                 + " | ".join(
                     escape_md(value)
-                    for value in [field.jsonPath, field.code, field.name, field.fieldType, field.length, field.required, field.nullable, field.primaryKey, field.defaultValue, required_marker, field.description]
+                    for value in [field.jsonPath, field.code, field.name, field.fieldType, field.length, field.required, field.nullable, field.primaryKey, field.defaultValue, required_marker, field.description, trace_summary(field)]
                 )
                 + " |"
             )
         lines.append("")
     return "\n".join(lines).strip() + "\n"
 
+
 def diagnostics_markdown(parsed: dict[str, Any]) -> str:
+    fields = [field for view in parsed.get("views", []) for field in view.get("fields", [])]
+    field_warning_count = sum(len(field.get("warnings") or []) for field in fields)
+    low_confidence_count = sum(1 for field in fields if float(field.get("confidence") or 0) < 1.0)
+    inferred_required_count = sum(1 for field in fields if "推导" in str(field.get("requiredReason") or ""))
     lines = [
         "# Diagnostics",
         "",
         f"- converter: `{parsed['converter']}`",
         f"- views: `{parsed['viewCount']}`",
         f"- fields: `{parsed['totalFields']}`",
+        f"- fieldWarnings: `{field_warning_count}`",
+        f"- lowConfidenceFields: `{low_confidence_count}`",
+        f"- inferredRequiredFields: `{inferred_required_count}`",
         "",
         "## Notes",
         "",
@@ -983,4 +1091,3 @@ def main(argv: Iterable[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
-
