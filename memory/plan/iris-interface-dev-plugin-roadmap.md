@@ -1,12 +1,12 @@
-﻿# iris-interface-dev-plugin 进度与路线图
+# iris-interface-dev-plugin 进度与路线图
 
 本文是 `iris-interface-dev-plugin` 的长期进度和下一步工作入口。后续会话应先读取本文，按第一个未完成任务继续推进；每轮验证完成后同步更新本文和维护日志。
 
 ## 当前状态摘要
 
 - v1 已提交：`ab102aa feat: add iris interface dev plugin v1`。
-- v1.2 格式接入稳定化仍处于未提交工作区；进入 v2.0 前必须先复核、验证并提交。
-- 当前未提交主线集中在文档解析脚本、环境自检脚本、插件专项测试和本路线图。
+- v1.2 格式接入稳定化已提交：`eb05c01 fix(intf-plugin):稳定 iris 接口文档解析 v1.2`。
+- 当前下一步主线是 v2.0 Task 0：字段契约追溯模型；开始前先确认工作区干净。
 - 本地真实样本摘要位于 `tmp/iris-interface-file/test-results/iris-interface-v1.2-format-test-summary.md`，仅作为本地证据，不提交。
 - 真实业务文档和 `tmp/iris-interface-file/docs/output/**` 解析产物不入库。
 
@@ -27,7 +27,7 @@
 - 不回滚 v1。
 - 不复制 `tmp/his-interface-agent/`。
 - 不迁移来源大生成器或大规则库。
-- 先完成本文第一个未完成任务。
+- 先完成本文第一个未完成任务；当前第一个未完成任务是 Task 0：字段契约追溯模型。
 - 每轮完成后运行插件专项测试和仓库回归测试，通过后更新本文和 `memory/agent-kit-maintenance-log.md`。
 
 ## 已完成能力
@@ -64,33 +64,18 @@ v1.2 剩余边界：
 - 字段语义匹配阶段补业务 `jsonPath`，不属于 v1.2 格式接入范围。
 - 后续需为字段契约补 `rawColumns`、`sourceLocation`、`requiredReason` 和结构化 warning。
 
+## 已完成阶段记录
+
+### v1.2 稳定基线提交
+
+- 已把格式接入稳定化从 v2 工作中切开，形成可回滚基线。
+- 已复核提交范围，只包含 v1.2 文档解析、env-check、测试、维护日志和路线图整理。
+- 已确认真实业务文档、解析产物和 `tmp/iris-interface-file/test-results/*.md` 未入库。
+- 已通过 `scripts/tests/iris-interface-plugin.tests.ps1`、`scripts/tests/update-agents.tests.ps1` 和插件敏感词扫描。
+- 已提交：`eb05c01 fix(intf-plugin):稳定 iris 接口文档解析 v1.2`。
 ## 下一步工作计划
 
-### Task 0：提交 v1.2 稳定基线
-
-目标：把当前格式接入稳定化从 v2 工作中切开，形成可回滚基线。
-
-执行内容：
-
-- 复核当前未提交改动，只包含 v1.2 文档解析、env-check、测试和路线图整理。
-- 确认真实业务文档、解析产物和 `tmp/iris-interface-file/test-results/*.md` 不入库。
-- 更新 `memory/agent-kit-maintenance-log.md`，记录 v1.2 完成和验证结果。
-- 运行验证：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\tests\iris-interface-plugin.tests.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\tests\update-agents.tests.ps1
-rg -n "password|token|secret|namespace|server|http://|https://|[A-Z]:\\" plugins/iris-interface-dev-plugin
-```
-
-- 提交建议：
-
-```powershell
-git add memory/plan/iris-interface-dev-plugin-roadmap.md memory/agent-kit-maintenance-log.md plugins/iris-interface-dev-plugin scripts/tests/iris-interface-plugin.tests.ps1
-git commit -m "feat: stabilize iris interface document ingestion"
-```
-
-### Task 1：字段契约追溯模型
+### Task 0：字段契约追溯模型
 
 目标：让 `parsed.json` 不只保存规范字段，还能保留来源、推导和诊断信息，为 field-match 和人工确认提供可信输入。
 
@@ -103,7 +88,7 @@ git commit -m "feat: stabilize iris interface document ingestion"
 - 未映射表头、冲突表头、低置信字段说明列和默认值列必须进入 warnings 或 diagnostics。
 - 补充 synthetic fixture，不把真实字段全文写入测试。
 
-### Task 2：多厂家样本矩阵固化
+### Task 1：多厂家样本矩阵固化
 
 目标：把真实样本经验转成可维护回归体系。
 
@@ -114,7 +99,7 @@ git commit -m "feat: stabilize iris interface document ingestion"
 - 每份真实样本摘要必须记录：成功/失败、converter、viewCount、totalFields、jsonPathCount、diagnostics 数量、emptyCode、chineseCode、前 20 个 viewName。
 - 真实样本发现的问题只有归纳为通用解析规则后，才进入插件测试。
 
-### Task 3：字段匹配闭环
+### Task 2：字段匹配闭环
 
 目标：新增 `iris-interface-field-match.py`，生成可人工确认的字段匹配结果。
 
@@ -127,7 +112,7 @@ git commit -m "feat: stabilize iris interface document ingestion"
 - 控制台只输出路径和数量，不打印全部字段内容。
 - 项目反馈只读取目标项目本地文件，不写回插件仓库。
 
-### Task 4：接口开发计划闭环
+### Task 3：接口开发计划闭环
 
 目标：新增 `iris-interface-dev-plan.py`，把解析与字段匹配结果转成开发实施计划，并明确交给 `coding-iris-plugin` 的边界。
 
@@ -139,7 +124,7 @@ git commit -m "feat: stabilize iris interface document ingestion"
 - 未启用 `coding-iris-plugin` 时，计划必须停在解析/诊断阶段，不进入 ObjectScript 实现。
 - 不生成服务器、账号、密码、token、namespace、远程路径或具体包路径。
 
-### Task 5：v2.0 收口
+### Task 4：v2.0 收口
 
 - 更新 doc-ingest、field-match、dev-plan 三个 skill 和 README。
 - 更新 `memory/agent-kit-maintenance-log.md` 和本文。
