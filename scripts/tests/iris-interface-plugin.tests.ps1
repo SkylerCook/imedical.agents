@@ -438,6 +438,117 @@ with ZipFile(Path(r"$fixturePath"), "w", ZIP_DEFLATED) as zf:
   Assert-Contains $fieldsContent "PATIENT_NAME" "fields.md should include parsed field code from first sheet"
   Assert-Contains $fieldsContent "ORDER_ID" "fields.md should include parsed field code from second sheet"
 
+  $fieldMatchParsed = Join-Path $workRoot "parsed-field-match.json"
+  $fieldMatchParsedJson = @"
+{
+  "schemaVersion": "iris-interface-doc-ingest/v2",
+  "sourceFile": "docs/input/synthetic.xlsx",
+  "documentName": "synthetic",
+  "converter": "synthetic",
+  "viewCount": 1,
+  "totalFields": 5,
+  "views": [
+    {
+      "viewCode": "synthetic",
+      "viewName": "Synthetic",
+      "fields": [
+        {
+          "code": "patientId",
+          "name": "患者ID",
+          "fieldType": "String",
+          "description": "患者唯一标识",
+          "jsonPath": "request.patientId"
+        },
+        {
+          "code": "orderStatus",
+          "name": "订单状态",
+          "fieldType": "String",
+          "description": "本地反馈覆盖低置信候选",
+          "jsonPath": "request.orderStatus"
+        },
+        {
+          "code": "visitSerial",
+          "name": "就诊流水",
+          "fieldType": "String",
+          "description": "就诊流水号",
+          "jsonPath": "request.visitSerial"
+        },
+        {
+          "code": "mysteryField",
+          "name": "临时字段",
+          "fieldType": "String",
+          "description": "需要人工确认",
+          "jsonPath": "request.mysteryField"
+        },
+        {
+          "code": "RAW_DETAIL_SECRET_FIELD",
+          "name": "不应该在控制台出现",
+          "fieldType": "String",
+          "description": "控制台泄漏检查",
+          "jsonPath": "request.rawDetailSecretField"
+        }
+      ]
+    }
+  ],
+  "diagnostics": []
+}
+"@
+  Set-Content -Encoding UTF8 -Path $fieldMatchParsed -Value $fieldMatchParsedJson
+
+  $fieldMatchFeedback = Join-Path $workRoot "field-feedback.json"
+  $fieldMatchFeedbackJson = @"
+{
+  "fields": {
+    "orderStatus": {
+      "candidate": "order.status",
+      "confidence": 0.96,
+      "reason": "项目本地反馈"
+    }
+  }
+}
+"@
+  Set-Content -Encoding UTF8 -Path $fieldMatchFeedback -Value $fieldMatchFeedbackJson
+
+  $fieldMatchScript = Join-Path $pluginRoot "scripts/iris-interface-field-match.py"
+  $fieldMatchOutput = python $fieldMatchScript --parsed $fieldMatchParsed --project-root $workRoot --feedback $fieldMatchFeedback 2>&1 | Out-String
+  Assert-Contains $fieldMatchOutput "field-match completed" "field-match should report completion"
+  Assert-Contains $fieldMatchOutput "field-match.json" "field-match output should report JSON path"
+  Assert-Contains $fieldMatchOutput "field-match.md" "field-match output should report Markdown path"
+  Assert-Contains $fieldMatchOutput "totalFields: 5" "field-match output should report total field count"
+  Assert-NotContains $fieldMatchOutput "RAW_DETAIL_SECRET_FIELD" "field-match output should not dump field content to console"
+
+  $fieldMatchJson = Join-Path $workRoot "field-match.json"
+  $fieldMatchMd = Join-Path $workRoot "field-match.md"
+  Assert-True (Test-Path -LiteralPath $fieldMatchJson -PathType Leaf) "field-match.json should be created beside parsed.json"
+  Assert-True (Test-Path -LiteralPath $fieldMatchMd -PathType Leaf) "field-match.md should be created beside parsed.json"
+  $fieldMatch = Get-Content -Raw -Encoding UTF8 -Path $fieldMatchJson | ConvertFrom-Json
+  Assert-True ($fieldMatch.schemaVersion -eq "iris-interface-field-match/v1") "field-match schemaVersion should be v1"
+  Assert-True ($fieldMatch.totalFields -eq 5) "field-match should preserve totalFields"
+  Assert-True ($fieldMatch.matchedCount -eq 2) "field-match should count builtin and feedback matches"
+  Assert-True ($fieldMatch.feedbackMatchedCount -eq 1) "field-match should count local feedback matches"
+  Assert-True ($fieldMatch.lowConfidenceCount -eq 1) "field-match should count low confidence candidates"
+  Assert-True ($fieldMatch.unmatchedCount -eq 2) "field-match should count unmatched fields"
+  Assert-True ($fieldMatch.needsReviewCount -eq 3) "field-match should count manual review fields"
+  $fieldMatchResults = @($fieldMatch.views[0].fields)
+  $patientMatch = $fieldMatchResults | Where-Object { $_.code -eq "patientId" } | Select-Object -First 1
+  Assert-True ($patientMatch.matched -eq $true) "patientId should match builtin rule"
+  Assert-True ($patientMatch.matchSource -eq "builtin-rule") "patientId should use builtin-rule"
+  Assert-True ($patientMatch.needsReview -eq $false) "builtin match should not require review"
+  $feedbackMatch = $fieldMatchResults | Where-Object { $_.code -eq "orderStatus" } | Select-Object -First 1
+  Assert-True ($feedbackMatch.matched -eq $true) "orderStatus should match local feedback"
+  Assert-True ($feedbackMatch.matchSource -eq "local-feedback") "orderStatus should use local-feedback"
+  Assert-True ($feedbackMatch.candidate -eq "order.status") "local feedback should set candidate"
+  $lowMatch = $fieldMatchResults | Where-Object { $_.code -eq "visitSerial" } | Select-Object -First 1
+  Assert-True ($lowMatch.matched -eq $false) "visitSerial should be a candidate, not a confirmed match"
+  Assert-True ($lowMatch.matchSource -eq "low-confidence-candidate") "visitSerial should be low confidence"
+  Assert-True ($lowMatch.needsReview -eq $true) "low confidence candidate should require review"
+  $unmatched = $fieldMatchResults | Where-Object { $_.code -eq "mysteryField" } | Select-Object -First 1
+  Assert-True ($unmatched.matched -eq $false) "mysteryField should be unmatched"
+  Assert-True ($unmatched.matchSource -eq "unmatched") "mysteryField should be unmatched"
+  $fieldMatchMdContent = Get-Content -Raw -Encoding UTF8 -Path $fieldMatchMd
+  Assert-Contains $fieldMatchMdContent "字段匹配摘要" "field-match.md should include coverage summary"
+  Assert-Contains $fieldMatchMdContent "需人工确认" "field-match.md should include manual review section"
+  Assert-Contains $fieldMatchMdContent "未匹配字段" "field-match.md should include unmatched section"
   $badCodePath = Join-Path $workRoot "bad.cls"
   Set-Content -Encoding UTF8 -Path $badCodePath -Value @(
     "Class Demo.Bad Extends %RegisteredObject",
@@ -464,3 +575,4 @@ finally {
 }
 
 Write-Host "iris-interface-plugin tests passed"
+

@@ -8,7 +8,7 @@
 - XLSX/XLS 多 sheet 会按 sheet 拆成独立字段视图，避免只解析首个工作表。
 - 可选使用 MarkItDown 生成辅助 Markdown，不 vendor 第三方源码。
 - 所有解析产物写入 `docs/output/iris-interface/<doc-name>/`。
-- 生成 `source.md`、`parsed.json`、`fields.md`、`diagnostics.md`。
+- 生成 `source.md`、`parsed.json`、`fields.md`、`diagnostics.md`；字段匹配阶段生成 `field-match.json` 和 `field-match.md`。
 - `parsed.json` 使用 `iris-interface-doc-ingest/v2` schema；字段除保留 v1/v1.2 规范字段外，还包含 `rawColumns`、`sourceLocation`、`classification`、`confidence`、`warnings`、`requiredReason` 和 `jsonPathReason`。
 - 通过 skill 将 IRIS 编码实现交给 `coding-iris-plugin`。
 - 审查生成物中的点号循环体，阻断 `.s`、`.f`、`..d` 等风险输出。
@@ -34,7 +34,9 @@ docs/output/iris-interface/<doc-name>/
 |-- source.md
 |-- parsed.json
 |-- fields.md
-`-- diagnostics.md
+|-- diagnostics.md
+|-- field-match.json
+`-- field-match.md
 ```
 
 命令示例：
@@ -43,6 +45,11 @@ docs/output/iris-interface/<doc-name>/
 python .agents/plugins/iris-interface-dev-plugin/scripts/iris-interface-doc-ingest.py `
   --file docs/input/interface.xlsx `
   --project-root .
+
+python .agents/plugins/iris-interface-dev-plugin/scripts/iris-interface-field-match.py `
+  --parsed docs/output/iris-interface/interface/parsed.json `
+  --project-root . `
+  --feedback .agents/config/iris-interface-field-feedback.json
 ```
 
 
@@ -51,7 +58,8 @@ python .agents/plugins/iris-interface-dev-plugin/scripts/iris-interface-doc-inge
 1. 先运行环境自检，按文件类型确认缺失依赖和可用降级路径。
 2. 如提示缺少可选依赖，按 `requirements-optional.txt` 安装；插件不自动安装依赖。
 3. 再运行 `iris-interface-doc-ingest.py`，让脚本按 PDF/DOCX/XLSX/XLS/DOC 分支落盘生成结果。
-4. 只读取命令摘要、`diagnostics.md`、`parsed.json` 指标和必要的 `fields.md` 片段；不要把转换后的全文塞入会话上下文。
+4. 运行 `iris-interface-field-match.py` 生成字段匹配摘要；如有项目本地反馈，只通过 `--feedback` 读取目标项目本地 JSON。
+5. 只读取命令摘要、`diagnostics.md`、`field-match.md`、`parsed.json` 指标和必要的 `fields.md` 片段；不要把转换后的全文塞入会话上下文。
 ## 环境自检与可选依赖安装
 
 先检查当前 Python 是否能解析目标文档：

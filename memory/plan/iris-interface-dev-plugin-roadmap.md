@@ -6,7 +6,7 @@
 
 - v1 已提交：`ab102aa feat: add iris interface dev plugin v1`。
 - v1.2 格式接入稳定化已提交：`eb05c01 fix(intf-plugin):稳定 iris 接口文档解析 v1.2`。
-- 当前下一步主线是 v2.0 Task 0：字段匹配闭环。
+- v2.0 字段匹配闭环已完成；当前下一步主线是 v2.0 Task 0：接口开发计划闭环。
 - 本地真实样本摘要位于 `tmp/iris-interface-file/test-results/iris-interface-v1.2-format-test-summary.md`，仅作为本地证据，不提交。
 - 真实业务文档和 `tmp/iris-interface-file/docs/output/**` 解析产物不入库。
 
@@ -20,14 +20,15 @@
 4. `plugins/iris-interface-dev-plugin/AGENTS.md`
 5. `plugins/iris-interface-dev-plugin/README.md`
 6. `plugins/iris-interface-dev-plugin/skills/iris-interface-doc-ingest/SKILL.md`
-7. `scripts/tests/iris-interface-plugin.tests.ps1`
+7. `plugins/iris-interface-dev-plugin/skills/iris-interface-field-match/SKILL.md`
+8. `scripts/tests/iris-interface-plugin.tests.ps1`
 
 接手规则：
 
 - 不回滚 v1。
 - 不复制 `tmp/his-interface-agent/`。
 - 不迁移来源大生成器或大规则库。
-- 先完成“下一步工作计划”的第一个任务；当前第一个任务是 Task 0：字段匹配闭环。
+- 先完成“下一步工作计划”的第一个任务；当前第一个任务是 Task 0：接口开发计划闭环。
 - 每轮收口后运行插件专项测试和仓库回归测试，通过后更新本文和 `memory/agent-kit-maintenance-log.md`。
 
 ## 归档能力
@@ -88,22 +89,16 @@ v1.2 剩余边界：
 - 已将可脱敏、可稳定复现的格式问题提升到 `scripts/tests/iris-interface-plugin.tests.ps1` synthetic fixture；本轮补强 JSON 示例行过滤回归。
 - 已明确 `feedback/experience` 是经验账本，`scripts/tests` 是维护仓库自动化回归落点；`agent-framework-feedback` 只用于框架文件修正反馈，本任务不使用。
 
+### v2.0 字段匹配闭环归档
+
+- 已新增 `iris-interface-field-match.py`，从 `parsed.json` 生成同目录 `field-match.json` 和 `field-match.md`。
+- 字段匹配结果区分 `builtin-rule`、`local-feedback`、`low-confidence-candidate` 和 `unmatched`，并输出 `matched`、`candidate`、`confidence`、`reason`、`matchSource` 和 `needsReview`。
+- `--feedback` 只读取目标项目本地 JSON，不写回插件仓库，不自动提升为通用规则；控制台只输出路径和数量，不打印完整字段内容。
+- 已把 synthetic fixture 加入 `scripts/tests/iris-interface-plugin.tests.ps1`，覆盖内置规则命中、本地反馈命中、低置信候选、未匹配和控制台不泄漏字段明细。
+
 ## 下一步工作计划
 
-### Task 0：字段匹配闭环
-
-目标：新增 `iris-interface-field-match.py`，生成可人工确认的字段匹配结果。
-
-实现要求：
-
-- 输入：`--parsed <parsed.json>`、`--project-root <root>`，可选 `--feedback <path>`。
-- 输出到同一文档目录：`field-match.json` 和 `field-match.md`。
-- 匹配结果区分：通用规则命中、本地反馈命中、低置信度候选、未匹配。
-- 输出字段至少包含 `matched`、`candidate`、`confidence`、`reason`、`needsReview`。
-- 控制台只输出路径和数量，不打印全部字段内容。
-- 项目反馈只读取目标项目本地文件，不写回插件仓库。
-
-### Task 1：接口开发计划闭环
+### Task 0：接口开发计划闭环
 
 目标：新增 `iris-interface-dev-plan.py`，把解析与字段匹配结果转成开发实施计划，并明确交给 `coding-iris-plugin` 的边界。
 
@@ -115,7 +110,7 @@ v1.2 剩余边界：
 - 未启用 `coding-iris-plugin` 时，计划必须停在解析/诊断阶段，不进入 ObjectScript 实现。
 - 不生成服务器、账号、密码、token、namespace、远程路径或具体包路径。
 
-### Task 2：v2.0 收口
+### Task 1：v2.0 收口
 
 - 更新 doc-ingest、field-match、dev-plan 三个 skill 和 README。
 - 更新 `memory/agent-kit-maintenance-log.md` 和本文。

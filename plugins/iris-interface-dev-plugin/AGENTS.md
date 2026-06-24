@@ -32,5 +32,5 @@
 
 - `scripts/generate-plugin-thin-index.ps1`：thin-index wrapper，只委托根 canonical 脚本。
 - `scripts/iris-interface-doc-ingest.py`：文档转换、结构化抽取和落盘。
+- `scripts/iris-interface-field-match.py`：字段语义匹配、候选诊断和人工确认摘要。
 - `scripts/iris-interface-review.py`：字段产物和生成代码风险离线审查。
-
