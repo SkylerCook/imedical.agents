@@ -1,0 +1,22 @@
+{
+  "name": "imedicalxc-doctor-extend-engineer",
+  "version": "1.0.0",
+  "displayName": "iMedicalXC Doctor Extend Engineer",
+  "description": "HIS doctor workstation third-party system integration workflow orchestrator, covering brainstorming, design, implementation, testing, HIS validation, and CI/CD delivery.",
+  "entry": "AGENTS.md",
+  "skills": "skills/",
+  "scripts": "scripts/",
+  "initSkill": "imedicalxc-doctor-extend-engineer",
+  "requiresProjectFiles": [
+    "AGENTS.md"
+  ],
+  "defaultPrompt": [
+    "接入第三方 CDSS/SPD/医保系统",
+    "医生站需要对接外部检验/检查/处方系统",
+    "开发 DLL/OCX/ActiveX 中间件",
+    "通过 WebSocket 对接第三方服务",
+    "做 HIS 外部接口/厂商对接",
+    "集成电子病历/电子医嘱/电子处方等第三方服务",
+    "开发医生站插件或中间件"
+  ]
+}

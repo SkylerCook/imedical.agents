@@ -563,6 +563,7 @@ function Write-UpdateSummary {
     "entrypoint-check-missing",
     "agents-entry-missing",
     "agent-thin-index-script-missing",
+    "vendor-skill-sync-script-missing",
     "plugin-init-required",
     "plugin-dependency-missing"
   )
@@ -857,6 +858,19 @@ if (Test-Path -LiteralPath $agentThinIndexScript -PathType Leaf) {
 }
 else {
   $results.Add((Write-UpdateResult -Status "agent-thin-index-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $agentThinIndexScript) -Reason "agent thin-index script missing" -Phase "agent-thin-index"))
+}
+
+$syncVendorSkillsScript = Join-Path $agentsRoot "scripts/sync-vendor-skills.ps1"
+if (Test-Path -LiteralPath $syncVendorSkillsScript -PathType Leaf) {
+  $syncMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
+  $syncOutput = & $syncVendorSkillsScript -AgentsRoot $agentsRoot -Mode $syncMode | Out-String
+  $syncResults = Convert-ThinIndexTextOutput -Text $syncOutput -PluginName "" -Phase "vendor-skill-sync"
+  foreach ($item in $syncResults) {
+    $results.Add($item)
+  }
+}
+else {
+  $results.Add((Write-UpdateResult -Status "vendor-skill-sync-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $syncVendorSkillsScript) -Reason "vendor skill sync script missing" -Phase "vendor-skill-sync"))
 }
 
 if (($allPlugins.Count -eq 0) -or (($Plugin.Count -gt 0) -and ($matchedPluginCount -eq 0))) {

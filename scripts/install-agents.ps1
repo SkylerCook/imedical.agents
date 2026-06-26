@@ -90,3 +90,9 @@ if (Test-Path ".git") {
     Add-Content -Path ".gitignore" -Value ".agents/"
   }
 }
+
+$syncScript = Join-Path $target "scripts/sync-vendor-skills.ps1"
+if (Test-Path -LiteralPath $syncScript -PathType Leaf) {
+  Write-Host "Syncing vendor skills to runtime skill directory..."
+  & $syncScript -AgentsRoot $target -Mode Write
+}
