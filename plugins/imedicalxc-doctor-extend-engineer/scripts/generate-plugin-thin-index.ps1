@@ -3,7 +3,16 @@ param(
     [string]$ProjectRoot = ".",
     [ValidateSet("DryRun", "Write")]
     [string]$Mode = "DryRun",
-    [string[]]$ExcludeSkill = @(),
+    [string[]]$ExcludeSkill = @(
+        "imedical-bsp-websysaddins",
+        "imedicalxc-bsp-jenkins",
+        "imedicalxc-doctor-blh",
+        "imedicalxc-doctor-dbdata",
+        "imedicalxc-doctor-extend-architecture",
+        "imedicalxc-doctor-extend-dataformat",
+        "imedicalxc-doctor-extend-scope",
+        "imedicalxc-doctor-invoke"
+    ),
     [string[]]$ExcludeRule = @(),
     [switch]$Force
 )
