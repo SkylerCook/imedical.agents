@@ -231,6 +231,10 @@ priority: highest
 
 **医保对照数据快速参考**：若需求涉及医院/医护人员医保编码、医嘱项/诊断医保目录对照，优先查阅 `imedicalxc-doctor-dbdata` skill 中的「医保对照数据获取」章节，按已有路径复用 `DocCacheUtils`、`ArInsuOpInvokeAbstract.queryDicdataconByChargetype(...)`/`MRDiagnosInsuInvokeAbstract` 或 `ArInsuCtApi` 扩展方法。
 
+**基础数据统一对照快速参考**：若需求涉及 HIS 内部代码与第三方代码体系的映射（证件类型、性别、科室编码、诊断编码等），必须使用"基础数据统一对照"功能，查阅 `imedicalxc-doctor-dbdata` skill 中的「基础数据统一对照」章节。核心 API：`CtDicBasedatamapdetailService.convertData(systemCode, dictCode, code, "H")`。禁止在代码中硬编码映射或在扩展设定中配置 JSON 映射。`systemCode` 和 `dictCode` 从扩展设定读取。
+
+**合并查询快速参考**：若需求需要同时获取多张关联表数据（如就诊+患者、医嘱项+扩展），优先使用已有的 Merge Service，查阅 `imedicalxc-doctor-dbdata` skill 中的「合并查询（Merge Query）」章节。核心 API：`PaadmMergePatService.getPaadmIpMergePatInfo(episodeId)` 等。禁止在业务 BLH 中手动多次单表查询后组装。
+
 **第三方可变参数读取快速参考**：所有项目差异参数（`baseUrl`、`timeout`、`appKey`、`token` 等）必须通过 `com.mediway.his.hiscfsv.ipcare.doctor.blh.BusInterfaceConfigAbstract#findLinkSubValByCode` 读取。在数据源探索阶段需确认：
 1. 当前服务 `pom.xml` 已依赖 `hiscfsv-ipcare`（或对应业务模块的 hiscfsv-*）；
 2. 已知 `vendorCode`、`moduleCode` 与扩展设定参数键名的约定；

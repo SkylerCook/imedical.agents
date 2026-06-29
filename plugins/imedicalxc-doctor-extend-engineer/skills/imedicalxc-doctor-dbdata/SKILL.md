@@ -40,1917 +40,561 @@ output-format: code
 2. **配置数据（Configuration Data）** — 业务规则配置
 3. **业务数据（Business Data）** — 事务性临床数据
 
-**关键架构区分**：系统包含两种根本不同的模块类型：
-- **公共库模块（Public Library Modules）** — 如 `comoe-mediway`，提供共享的 Service 实现
-- **独立 Boot 应用（Independent Boot Applications）** — 如 `opreg-mediway-boot`、`hispa-mediway-boot`，可部署的微服务
+## 模块架构
 
-**重要查询模式区分**：
-- **业务数据查询（Business Data Query）**：使用标准 MyBatis Plus 查询模式，带分页
-- **基础字典查询（Base Dictionary Query）**：**必须使用 `DocCacheUtils` 缓存工具类** — 参见 [基础字典查询规范](#基础字典查询规范)
-- **配置数据查询（Configuration Data Query）** — 两种场景：
-  1. **系统标准配置（System Standard Config）**：**必须使用 `hiscfsv-*` 模块服务**（如 `hiscfsv-ipcare-docconfig`）
-  2. **自建配置（Custom Config）**：**必须使用 `DocCacheUtils`** — 参见 [配置数据](#2-配置数据)
+| 方面 | comoe-mediway（公共库） | Boot 模块（opcare/ipcare等） |
+|------|------------------------|----------------------------|
+| 部署方式 | JAR 依赖，不可独立部署 | 可独立部署的微服务 |
+| REST API | 无 | 有 |
+| Feign 客户端 | 无 | 有 |
+| Service Bean 名称 | `comoe.{module}.{ServiceName}` | `{服务名}.{模块名}.{ServiceName}` |
+| 业务职责 | 公共逻辑部分（Abstract 抽象类） | 实现门诊/住院差异业务（继承 Abstract，实现预留抽象方法，部分重写） |
+| 缓存策略 | 全局统一策略（@DocThreadLocalCache / DocCacheUtils） | 同左，无模块差异 |
 
-## 模块架构分析
-
-### 1. comoe-mediway — 公共库模式
-
-**模块类型**：公共库（Public Library）— **不可独立部署**
-
-**用途**：为电子医嘱系统提供共享的 Service 实现
-
-**关键特性**：
-
-| 特性 | 说明 |
-|----------------|-------------|
-| **打包方式（Packaging）** | `pom`（聚合模块） |
-| **部署方式（Deployment）** | 不可独立部署，作为 Maven 依赖使用 |
-| **服务暴露（Service Exposure）** | 仅提供 Service 接口，无 REST API 或 Feign |
-| **Bean 命名（Bean Naming）** | 必须使用全限定名：`@Service("comoe.{module}.{ServiceName}")` |
-| **使用模式（Usage Pattern）** | 其他模块依赖 comoe JAR 并注入 Services |
-
-**模块结构**：
-```
-comoe-mediway/
-├── comoe-papatservice/          # 患者域服务
-│   └── service/
-│       ├── PaPatMastService.java
-│       └── PaCardRefService.java
-├── comoe-paadmservice/          # 就诊/住院域服务
-│   └── service/
-│       ├── PaAdmService.java
-│       └── PaadmOpService.java
-├── comoe-ordservice/            # 医嘱域服务
-│   └── service/
-│       ├── OeOrderService.java
-│       └── OeOrdItemService.java
-└── ...
-```
-
-**为何将 Service 组织于此**：
-
-1. **通用 SQL 可复用性**：comoe Service 中的 SQL 查询是通用的，可在多个业务模块中复用
-2. **跨模块共享**：opcare-mediway-boot、ipcare-mediway-boot、aggcare-mediway-boot 均依赖 comoe Services
-3. **统一数据访问**：为患者、就诊、医嘱域提供一致的数据访问模式
-4. **无业务流程**：纯数据访问层，无业务工作流编排
-
-**Service 实现模式**：
-```java
-/**
- * comoe Service — 公共库模式
- * 特点：
- * 1. 需要全限定 Bean 名称
- * 2. 继承 BaseServiceImpl 实现基础 CRUD
- * 3. 使用 @DocThreadLocalCache 进行缓存
- * 4. 无 Feign 客户端，纯数据访问
- */
-@Service("comoe.papatservice.PaPatMastService")
-public class PaPatMastServiceImpl extends BaseServiceImpl<PaPatMastMapper, PaPatMastPO> 
-    implements PaPatMastService {
-    
-    /**
-     * 基础数据缓存模式
-     */
-    @Override
-    @DocThreadLocalCache(key="'comoe.paPatMastService.getPatInfoByPANo'+#patientNo")
-    public PaPatMastPO getPatInfoByPANo(String patientNo) {
-        LambdaQueryWrapper<PaPatMastPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PaPatMastPO::getNo, patientNo);
-        return this.baseMapper.selectOne(wrapper);
-    }
-    
-    /**
-     * 批量查询模式
-     */
-    @Override
-    public Map<Long, PaPatMastPO> getPatMapByIds(Collection<Long> patientIds) {
-        if (CollUtil.isEmpty(patientIds)) {
-            return Collections.emptyMap();
-        }
-        return this.listByIds(patientIds).stream()
-            .collect(Collectors.toMap(PaPatMastPO::getId, p -> p));
-    }
-}
-```
-
-**依赖关系**：
-```
-opcare-mediway-boot (门诊诊疗)
-    ├── comoe-paadmservice (JAR 依赖)
-    ├── comoe-papatservice (JAR 依赖)
-    └── comoe-ordservice (JAR 依赖)
-
-ipcare-mediway-boot (住院诊疗)
-    ├── comoe-paadmservice (JAR 依赖)
-    ├── comoe-papatservice (JAR 依赖)
-    └── comoe-ordservice (JAR 依赖)
-```
-
-### 2. 独立 Boot 模块 — 业务应用模式
-
-**模块类型**：独立 Spring Boot 应用（Independent Spring Boot Application）— **可独立部署**
-
-**模块**：
-- `opreg-mediway-boot` — 门诊挂号预约（Outpatient registration）
-- `opalloc-mediway-boot` — 门诊分诊（Triage queue management）
-- `ma-mediway-boot` — 医务管理（Medical administration）
-- `hispa-mediway-boot` — 患者主索引（Patient master index）
-
-**关键特性**：
-
-| 特性 | 说明 |
-|----------------|-------------|
-| **打包方式（Packaging）** | `pom` 带 `-runner` 子模块（可执行 JAR） |
-| **部署方式（Deployment）** | 可作为微服务独立部署 |
-| **服务暴露（Service Exposure）** | 提供 REST API + Feign 客户端 |
-| **Bean 命名（Bean Naming）** | 简单的 `@Service` 或短名称 |
-| **使用模式（Usage Pattern）** | 其他模块通过 Feign 或 REST API 调用 |
-
-**Service 实现模式**：
-```java
-/**
- * opreg-mediway-boot Service — 独立 Boot 模式
- * 特点：
- * 1. 简单的 Bean 命名
- * 2. 可能包含 Feign 客户端用于跨服务调用
- * 3. 业务流程编排
- * 4. 通过依赖注入调用 comoe Services
- */
-@Service
-public class PaadmOpAppointmentServiceImpl 
-    extends BaseServiceImpl<PaadmOpAppointmentMapper, PaadmOpAppointmentPO> 
-    implements PaadmOpAppointmentService {
-    
-    // 通过 JAR 依赖注入 comoe Service
-    @Resource(name = "comoe.papatservice.PaPatMastService")
-    private PaPatMastService paPatMastService;
-    
-    // 跨服务调用的 Feign 客户端
-    @Resource
-    private QueryPaPatClient queryPaPatClient;
-    
-    /**
-     * 带跨服务编排的业务方法
-     */
-    @Override
-    public AppointmentVO createAppointment(AppointmentDTO dto) {
-        // 1. 使用 comoe Service 获取患者数据
-        PaPatMastPO patient = paPatMastService.getPatInfoByPANo(dto.getPatientNo());
-        
-        // 2. 通过 Feign 调用其他服务
-        PatientDetailVO detail = queryPaPatClient.getPatientDetail(patient.getId());
-        
-        // 3. 业务逻辑
-        // ...
-    }
-}
-```
-
-**与 comoe 的关键差异**：
-
-| 方面 | comoe-mediway | Boot 模块（opreg/opalloc/ma/hispa） |
-|--------|---------------|--------------------------------------|
-| **部署方式（Deployment）** | 库（JAR） | 微服务（Boot JAR） |
-| **REST API** | 无 | 有 |
-| **Feign 客户端（Feign Clients）** | 无 | 有（大量使用） |
-| **Service Bean 名称（Service Bean Name）** | 全限定：`comoe.xxx.XxxService` | 简单：`xxxService` |
-| **业务逻辑（Business Logic）** | 纯数据访问 | 流程编排 |
-| **跨服务调用（Cross-Service Call）** | 直接 Service 注入 | Feign + Service 注入 |
-| **缓存策略（Cache Strategy）** | @DocThreadLocalCache | Redis/Cache 较少使用 |
-
-### 3. curc-mediway-boot — 独立产品模式
-
-**模块类型**：独立产品开发（Independent Product Development）
-
-**特殊特性**：
-
-| 方面 | curc-mediway-boot | opcare/ipcare |
-|--------|-------------------|---------------|
-| **业务域（Business Domain）** | 康复治疗（Rehabilitation/Treatment） | 门诊/住院诊疗（Outpatient/Inpatient Care） |
-| **模块结构（Module Structure）** | 简化：curc-business（单一模块） | 细粒度：opcare-oeord、opcare-adm 等 |
-| **comoe 依赖（comoe Dependency）** | 最小（使用自有数据模型） | 重度（依赖所有 comoe 服务） |
-| **代码生成器（Code Generator）** | 有 curc-generator（特有） | 无 |
-| **域前缀（Domain Prefix）** | `cu_rc_*`、`curc_*` | `oe_*`、`paadm_op/ip_*` |
-| **BLH 继承（BLH Inheritance）** | 独立的 Abstract 类 | 继承自 comoe Abstract |
-
-**为何独立**：
-1. **完整业务闭环**：覆盖治疗申请 → 预约 → 执行 → 评估
-2. **可选部署**：无康复治疗需求的医院可跳过部署
-3. **独立迭代**：可独立版本发布
-4. **选择性集成**：通过服务调用与 ipcare/opcare 集成，非紧耦合
-
-**Service 模式**：
-```java
-/**
- * curc Service — 独立产品模式
- * 特点：
- * 1. 自有数据模型（CuRcApplyPO，不使用 comoe 的）
- * 2. 独立的 Service 层
- * 3. 可能引用 ipcare 配置但业务逻辑独立
- */
-@Service(value = "curc.apply.ApplyService")
-public class RcApplyServiceImpl extends BaseServiceImpl<CuRcApplyMapper, CuRcApplyPO> 
-    implements RcApplyService {
-    
-    // 使用 curc 自己的 mapper 和 PO，非 comoe 的
-    @Override
-    public List<CuRcApplyVO> findList(GetCuRcApplyDTO dto) {
-        return this.baseMapper.findList(dto);
-    }
-}
-```
+> comoe Service 为 opcare/ipcare/aggcare 共享。comoe 通过 Abstract 抽象类定义公共逻辑，Boot 模块继承 Abstract 并实现预留的抽象方法以处理门诊/住院差异，部分场景需重写 comoe 方法。
 
 ## 数据分类与查询规范
 
 ### 1. 基础数据（Base Data）
-
-**定义**：整个系统共享的核心系统数据，相对稳定。
-
-**表**：
-| 表 | 说明 | Service 位置 |
-|-------|-------------|------------------|
-| `ss_user` | 用户/人员信息 | hisbase-mediway |
-| `ct_loc` | 科室/位置 | hisbase-mediway |
-| `ct_hospital` | 医院基本信息 | hisbase-mediway |
-
-**查询模式**：
-```java
-@Service
-public class BaseDataService {
-    @Autowired
-    private CtLocMapper ctLocMapper;
-    
-    @Cacheable(value = "base:loc", key = "#locId")
-    public CtLoc getLocationById(String locId) {
-        return ctLocMapper.selectById(locId);
-    }
-}
-```
+系统共享的核心字典数据（ICD诊断、药品、科室、用户、医院等），**必须使用 `DocCacheUtils`** 查询。详见下方"基础字典查询规范"章节。
 
 ### 2. 配置数据（Configuration Data）
 
-**定义**：可按医院/科室定制的业务规则配置。
+可按医院/科室定制的业务规则配置。配置读取封装遵循以下原则：
 
-**⚠️ 关键**：配置数据查询根据配置类型有**两种截然不同的模式**：
+**三大原则**：
+1. **类似枚举值的读取方式**：每个配置项封装为常量类的 `public static final` 字段，调用方像读枚举一样使用
+2. **内部使用本地缓存**：常量类内部自动使用线程缓存和 HOS 缓存，调用方无需关心缓存
+3. **类的命名与配置目录保持一致**：常量类路径对应配置系统中的分类代码（`stCode`）
 
-#### 2.1 系统标准配置（System Standard Configuration）
+**使用方式**：
 
-**位置**：`hiscfsv-mediway` 模块（如 `hiscfsv-ipcare-docconfig`）
-
-**必须使用**：`hiscfsv-*` 模块封装的配置服务
-
-**原因**：
-- 全系统统一的配置管理
-- 内置缓存和性能优化
-- 支持医院级和科室级定制
-- 配置继承（医院 > 科室 > 全局）
-
-**查询模式**：
 ```java
-@Service
-public class OrderConfigService {
-    
-    // 注入 hiscfsv 配置服务（非直接 mapper）
-    @Resource
-    private DocConfigService docConfigService;  // 来自 hiscfsv-ipcare-docconfig
-    
-    /**
-     * 获取系统标准配置
-     * 使用内置缓存和优先级逻辑的 hiscfsv 封装服务
-     */
-    public String getOrderConfig(String configCode, String hospitalId, String deptId) {
-        // 使用 hiscfsv 服务 — 内置缓存和优先级逻辑
-        return docConfigService.getConfigValue(configCode, hospitalId, deptId);
-    }
-    
-    /**
-     * 获取配置并带默认值
-     */
-    public boolean isOrderAutoSubmit(String hospitalId) {
-        String value = docConfigService.getConfigValue(
-            "ORDER_AUTO_SUBMIT", 
-            hospitalId, 
-            null  // 无科室特定配置
-        );
-        return "Y".equals(value);
-    }
-}
+// 直接通过常量类读取配置值，像枚举一样使用
+Boolean notCheckLab = OeEntryCheckSavingConfigConstants.NOT_CHECK_SAME_LAB_SPEC_ITEM
+    .get(BusinessEnum.busConvertEnum(businessCode), loginUserInfo);
+List<Long> catList = OeEntryCheckSavingConfigConstants.ORD_NEED_MM_DIAG_CAT
+    .getList(BusinessEnum.busConvertEnum(businessCode), loginUserInfo);
 ```
 
-**可用的 hiscfsv 模块**：
-| 模块 | 路径 | 用途 |
-|--------|------|---------|
-| hiscfsv-ipcare-docconfig | `hiscfsv-mediway/hiscfsv-ipcare/hiscfsv-ipcare-docconfig` | 住院医生站配置 |
-| hiscfsv-opcare-docconfig | `hiscfsv-mediway/hiscfsv-opcare/hiscfsv-opcare-docconfig` | 门诊医生站配置 |
-| hiscfsv-common | `hiscfsv-mediway/hiscfsv-common` | 系统通用配置 |
+**参考实现**：`com.mediway.his.hiscfsv.ipcare.docconfig.constant.oe.entry.OeEntryCheckSavingConfigConstants`
 
-#### 2.2 自建配置（Custom Configuration）
+**项目自建配置**（本地化设置）：
 
-**定义**：系统标准配置未覆盖的项目特定或自定义业务配置。
+项目自建配置也需遵守上述三大原则，在项目模块中创建对应的常量类。需特殊备注为**本地化设置**，表示该配置仅在当前项目使用，非系统标准配置。
 
-**必须使用**：`DocCacheUtils` 缓存工具类（与基础字典相同）
-
-**原因**：
-- 避免直接 Service/Mapper 调用导致性能问题
-- 与基础字典数据保持一致的缓存策略
-- 降低数据库压力
-
-**查询模式**：
-```java
-@Service
-public class CustomConfigService {
-    
-    @Autowired
-    private CustomCfgMapper customCfgMapper;
-    
-    /**
-     * 获取自建配置 — 必须使用 DocCacheUtils
-     */
-    public String getCustomConfig(String configCode, String hospitalId) {
-        // 使用 DocCacheUtils，非直接 mapper 查询
-        CustomCfgPO config = DocCacheUtils.get(
-            "cfg:custom:" + configCode + ":" + hospitalId,
-            () -> customCfgMapper.selectByCodeAndHospital(configCode, hospitalId),
-            3600  // 缓存 1 小时
-        );
-        
-        return config != null ? config.getConfigValue() : null;
-    }
-    
-    /**
-     * 按优先级获取配置：医院 > 全局
-     */
-    public String getConfigWithFallback(String configCode, String hospitalId) {
-        // 先尝试医院特定配置
-        String value = getCustomConfig(configCode, hospitalId);
-        if (StrUtil.isNotBlank(value)) {
-            return value;
-        }
-        
-        // 回退到全局配置
-        CustomCfgPO globalConfig = DocCacheUtils.get(
-            "cfg:custom:" + configCode + ":global",
-            () -> customCfgMapper.selectByCode(configCode),
-            3600
-        );
-        
-        return globalConfig != null ? globalConfig.getConfigValue() : null;
-    }
-}
-```
-
-#### 配置查询决策矩阵
-
-| 配置类型 | 位置 | 查询方法 | 缓存策略 |
-|-------------------|----------|--------------|----------------|
-| 系统标准（System Standard） | hiscfsv-* 模块 | 使用 hiscfsv Service | 内置缓存 |
-| 自建/项目特定（Custom/Project-specific） | 自定义表 | DocCacheUtils | DocCacheUtils |
-
-**反模式 — 直接 Service/Mapper 查询**：
-```java
-// 错误：直接 mapper 查询导致性能问题
-@Service
-public class BadConfigService {
-    @Autowired
-    private CfgParameterMapper cfgMapper;  // 错误！
-    
-    public String getConfig(String code) {
-        // 错误！无缓存，每次命中数据库
-        return cfgMapper.selectByCode(code);
-    }
-}
-
-// 错误：直接 Service 调用无缓存
-@Service
-public class BadConfigService {
-    @Resource
-    private CfgParameterService cfgService;  // 错误！应使用 hiscfsv
-    
-    public String getConfig(String code) {
-        // 错误！Service 调用无缓存层
-        return cfgService.getByCode(code);
-    }
-}
-
-// 正确：通过 hiscfsv 获取系统标准配置
-@Service
-public class GoodConfigService {
-    @Resource
-    private DocConfigService docConfigService;  // 正确！
-    
-    public String getConfig(String code, String hospitalId) {
-        return docConfigService.getConfigValue(code, hospitalId, null);
-    }
-}
-
-// 正确：通过 DocCacheUtils 获取自建配置
-@Service
-public class GoodCustomConfigService {
-    @Autowired
-    private CustomCfgMapper customCfgMapper;  // 自建配置可以
-    
-    public String getConfig(String code, String hospitalId) {
-        return DocCacheUtils.get(  // 正确！使用缓存
-            "cfg:custom:" + code + ":" + hospitalId,
-            () -> customCfgMapper.selectByCodeAndHospital(code, hospitalId),
-            3600
-        );
-    }
-}
-```
+**禁止**：
+- 直接调用配置 Service/Mapper 查询配置值
+- 在业务代码中硬编码配置代码字符串
 
 ### 3. 业务数据（Business Data）
+临床事务性数据（医嘱、就诊、诊断等），使用标准 MyBatis Plus 查询（分页、LambdaQueryWrapper）。
 
-**定义**：来自临床操作的事务性数据。
+业务数据查询中常见的三类专项场景：
+- **需要同时获取多张关联表数据**（如就诊+患者、医嘱项+扩展）→ 优先使用已有的 **Merge Service**，详见下方「合并查询（Merge Query）」章节
+- **需要将 HIS 代码映射为医保编码**（如科室→医保科室、诊断→医保诊断）→ 使用 **医保对照数据获取**，详见下方「医保对照数据获取」章节
+- **需要将 HIS 代码映射为非医保的第三方编码**（如证件类型→卫健委编码）→ 使用 **基础数据统一对照**，详见下方「基础数据统一对照」章节
 
-**按模块的数据**：
+## 基础字典查询规范
 
-#### 3.1 患者域（hispa-mediway-boot）
-| 表前缀 | 示例 | Service |
-|--------------|----------|---------|
-| `pa_` | pa_patient, pa_patmas | PaPatMastService (comoe) |
-| `paadm_` | paadm | PaAdmService (comoe) |
+基础字典数据（ICD诊断、药品、科室、用户、医院等）查询**必须使用 `DocCacheUtils`**，禁止直接 mapper 查询或使用 @Cacheable。`DocCacheUtils` 底层基于 Caffeine 高性能本地缓存，采用 W-TinyLFU 淘汰算法，支持并发读写。
 
-#### 3.2 门诊诊疗（opcare-mediway-boot）
-| 表前缀 | 示例 | Service |
-|--------------|----------|---------|
-| `oe_op_` | oe_op_order | 使用 comoe-ordservice |
-| `mr_op_` | mr_op_diagnosis | 使用 commr-mediway |
+**前提配置**：使用 DocCacheUtils 前，需在系统管理"代码表缓存"页面维护对应表的缓存规则（每个PO对应一条规则记录，配置表名、规则别名、规则列等）。
 
-#### 3.3 住院诊疗（ipcare-mediway-boot）
-| 表前缀 | 示例 | Service |
-|--------------|----------|---------|
-| `oe_ip_` | oe_ip_order | 使用 comoe-ordservice |
-| `mr_ip_` | mr_ip_diagnosis | 使用 commr-mediway |
+### DocCacheUtils 方法清单
 
-#### 3.4 通用医嘱（comoe-mediway）
-| 表前缀 | 示例 | Service 位置 |
-|--------------|----------|------------------|
-| `oe_` | oe_orditem, oe_ordexec | comoe-ordservice |
+#### 1. 根据唯一约束列获取单条PO（键有唯一约束）
 
-**comoe 中的查询模式**：
-```java
-@BLH(value="opcare.doctor.OrderQueryBLH", version="1.0.0")
-public class OrderQueryBLH extends OrderQueryAbstract {
-    
-    // 注入 comoe Service
-    @Resource(name = "comoe.ordservice.OeOrdItemService")
-    private OeOrdItemService oeOrdItemService;
-    
-    public IPage<OeOrditemVO> queryOrders(EsbBaseDTO<OrderQueryDTO> dto) {
-        // 参数校验
-        if (dto == null || dto.getData() == null) {
-            throw HisBusinessException.build("查询参数不能为空");
-        }
-        
-        OrderQueryDTO queryDTO = dto.getData();
-        
-        // 通过 comoe Service 构建查询
-        LambdaQueryWrapper<OeOrdItemPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(OeOrdItemPO::getEpisodeId, queryDTO.getEpisodeId());
-        
-        if (StrUtil.isNotBlank(queryDTO.getOrderType())) {
-            wrapper.eq(OeOrdItemPO::getOrderType, queryDTO.getOrderType());
-        }
-        
-        wrapper.orderByDesc(OeOrdItemPO::getOrderDate);
-        
-        // 执行查询
-        IPage<OeOrdItemPO> page = new Page<>(queryDTO.getPageNum(), queryDTO.getPageSize());
-        page = oeOrdItemService.page(page, wrapper);
-        
-        return convertToVO(page);
-    }
-}
-```
+适用场景：键与单条数据一一映射（如 id → PO）
 
-## 基础字典查询规范（Base Dictionary Query Guidelines）
-
-**⚠️ 关键**：对于基础字典数据查询（基础字典读取），**必须使用 `DocCacheUtils` 缓存工具类**，禁止直接查询数据库。
-
-### 什么是基础字典数据
-
-基础字典数据包括：
-| 字典类型 | 表示例 | 说明 |
-|----------------|----------------|-------------|
-| ICD 诊断 | `mr_icddx`、`mr_icddx_ext` | 诊断编码 |
-| 药品目录 | `phc_drug`、`phc_drugmast` | 药品信息 |
-| 检查项目 | `dhc_examitem`、`dhc_examcat` | 检查项目 |
-| 检验项目 | `dhc_labitem`、`dhc_labcat` | 检验项目 |
-| 科室 | `ct_loc`、`ct_locgroup` | 科室/位置信息 |
-| 用户/人员 | `ss_user`、`ss_group` | 用户信息 |
-| 医院 | `ct_hospital` | 医院基本信息 |
-
-### DocCacheUtils 使用模式
-
-**位置**：`com.mediway.his.base.cache.utils.DocCacheUtils`
+**配置要求**：
+- 在"代码表缓存"页面维护该表的缓存规则
+- 默认规则：按主键 ID 查询，规则列填 `id`，无需规则别名
+- 自定义列规则：按其他唯一列查询（如 code），需配置规则别名（如 `code`），规则列填 `code`
 
 ```java
-/**
- * 基础字典查询 — 必须使用 DocCacheUtils
- * 确保一致的缓存和性能
- */
-@Service
-public class DictionaryQueryService {
-    
-    /**
-     * 按编码获取字典 — 使用 DocCacheUtils
-     */
-    public MrIcddxPO getDiagnosisByCode(String icdCode) {
-        // 使用 DocCacheUtils 替代直接 mapper 查询
-        return DocCacheUtils.get(
-            "mr:icddx:code:" + icdCode,
-            () -> mrIcddxMapper.selectByCode(icdCode),
-            3600  // 缓存秒数
-        );
-    }
-    
-    /**
-     * 按 ID 获取科室 — 使用 DocCacheUtils
-     */
-    public CtLocPO getLocationById(String locId) {
-        return DocCacheUtils.get(
-            "ct:loc:id:" + locId,
-            () -> ctLocMapper.selectById(locId),
-            7200  // 缓存 2 小时
-        );
-    }
-    
-    /**
-     * 获取药品信息 — 使用 DocCacheUtils
-     */
-    public PhcDrugPO getDrugByCode(String drugCode) {
-        return DocCacheUtils.get(
-            "phc:drug:code:" + drugCode,
-            () -> phcDrugMapper.selectByCode(drugCode),
-            3600
-        );
-    }
-    
-    /**
-     * 带缓存的批量获取 — 使用 DocCacheUtils
-     */
-    public Map<String, MrIcddxPO> getDiagnosisMapByCodes(List<String> codes) {
-        Map<String, MrIcddxPO> result = new HashMap<>();
-        
-        for (String code : codes) {
-            MrIcddxPO diagnosis = DocCacheUtils.get(
-                "mr:icddx:code:" + code,
-                () -> mrIcddxMapper.selectByCode(code),
-                3600
-            );
-            if (diagnosis != null) {
-                result.put(code, diagnosis);
-            }
-        }
-        
-        return result;
-    }
-}
+// 按默认 ID 获取（无需规则别名，ID 为默认规则）
+CtOeItmmastPO itmMastPO = DocCacheUtils.getByKey(CtOeItmmastPO.class, 1);
+
+// 按指定列获取（需在代码表缓存中维护规则别名 "code"）
+CtPhFreqPO ctPhFreqPO = DocCacheUtils.getByKey("code", CtPhFreqPO.class, CtPhConstants.Freq.ONCE);
 ```
 
-### DocCacheUtils API 参考
+| 方法 | 说明 |
+|------|------|
+| `getByKey(Class<T> t, Object key)` | 按 ID 获取单条 PO（默认规则，无需额外配置） |
+| `getByKey(String ruleAlias, Class<T> t, Object... keys)` | 按指定列（规则别名）获取单条 PO（需配置规则别名） |
+
+#### 2. 根据唯一约束列批量获取PO
+
+适用场景：多个键值批量获取 PO
+
+**配置要求**：
+- 与方法1相同，需在"代码表缓存"页面维护该表的缓存规则
+- 默认按主键 ID 批量查询，规则列填 `id`，无需规则别名
 
 ```java
-/**
- * DocCacheUtils — 基础字典数据缓存工具
- */
-public class DocCacheUtils {
-    
-    /**
-     * 从缓存获取或从数据库加载
-     * @param key 缓存键
-     * @param loader 数据加载函数
-     * @param expireSeconds 缓存过期时间（秒）
-     * @return 缓存或加载的数据
-     */
-    public static <T> T get(String key, Supplier<T> loader, long expireSeconds);
-    
-    /**
-     * 从缓存获取或从数据库加载（使用默认过期时间）
-     * @param key 缓存键
-     * @param loader 数据加载函数
-     * @return 缓存或加载的数据
-     */
-    public static <T> T get(String key, Supplier<T> loader);
-    
-    /**
-     * 将数据放入缓存
-     * @param key 缓存键
-     * @param value 要缓存的数据
-     * @param expireSeconds 缓存过期时间（秒）
-     */
-    public static <T> void put(String key, T value, long expireSeconds);
-    
-    /**
-     * 从缓存移除
-     * @param key 缓存键
-     */
-    public static void evict(String key);
-    
-    /**
-     * 按模式清除缓存
-     * @param pattern 键模式（支持通配符 *）
-     */
-    public static void clear(String pattern);
-}
+// 批量获取列表
+List<HosOrgBusinessUnitPO> list = DocCacheUtils.batchByTableIdsList(
+    HosOrgBusinessUnitPO.class, locIdList);
+
+// 批量获取 Map（指定 Map 的 key 提取函数）
+Map<String, HosOrgBusinessUnitPO> map = DocCacheUtils.batchByTableIdsMap(
+    HosOrgBusinessUnitPO.class, idSet, HosOrgBusinessUnitPO::getId);
 ```
 
-### 缓存键命名规范
+| 方法 | 说明 |
+|------|------|
+| `batchByTableIdsList(Class<T> t, Collection<?> ids)` | 批量获取 PO 列表 |
+| `batchByTableIdsMap(Class<T> t, Collection<?> ids, Function keyMapper)` | 批量获取 PO Map |
 
-```
-{domain}:{entity}:{field}:{value}
+#### 3. 根据可重复键获取PO列表（键非唯一约束）
 
-示例：
-- mr:icddx:code:A01.001          # 按编码查询 ICD 诊断
-- ct:loc:id:1001                 # 按 ID 查询科室
-- phc:drug:code:DRG001           # 按编码查询药品
-- ss:user:id:5001                # 按 ID 查询用户
-```
+适用场景：一个键对应多个值（如医嘱大类 → 医嘱子类列表）
 
-### 常用字典查询示例
+**配置要求**：
+- 在"代码表缓存"页面维护该表的缓存规则
+- 规则列样式必须为 `references:表的关联字段名称`（如规则别名 `category_dr`，规则列填 `references:category_dr`）
+- 规则别名即关联字段名，用于方法调用时传入
 
 ```java
-@Service
-public class CommonDictionaryService {
-    
-    @Autowired
-    private MrIcddxMapper mrIcddxMapper;
-    @Autowired
-    private CtLocMapper ctLocMapper;
-    @Autowired
-    private PhcDrugMapper phcDrugMapper;
-    @Autowired
-    private SsUserMapper ssUserMapper;
-    
-    // ICD 诊断
-    public MrIcddxPO getIcdDiagnosis(String icdCode) {
-        return DocCacheUtils.get(
-            "mr:icddx:code:" + icdCode,
-            () -> mrIcddxMapper.selectByCode(icdCode),
-            3600
-        );
-    }
-    
-    // 科室
-    public CtLocPO getDepartment(String locId) {
-        return DocCacheUtils.get(
-            "ct:loc:id:" + locId,
-            () -> ctLocMapper.selectById(locId),
-            7200
-        );
-    }
-    
-    // 药品
-    public PhcDrugPO getDrug(String drugCode) {
-        return DocCacheUtils.get(
-            "phc:drug:code:" + drugCode,
-            () -> phcDrugMapper.selectByCode(drugCode),
-            3600
-        );
-    }
-    
-    // 用户
-    public SsUserPO getUser(String userId) {
-        return DocCacheUtils.get(
-            "ss:user:id:" + userId,
-            () -> ssUserMapper.selectById(userId),
-            1800  // 用户数据缓存时间较短
-        );
-    }
-}
+// 按关联字段批量获取列表（referencesFiled 为代码表缓存中配置的规则列字段名）
+List<CtOrgLocationMedunitCarePO> list = DocCacheUtils.batchByReferencesIdsList(
+    CtOrgLocationMedunitCarePO.class, "medunit_parref", medunitList);
+
+// 按关联字段批量获取 Map
+Map<String, CfPaadmOpIpbookLocCfgPO> map = DocCacheUtils.batchByReferencesIdsMap(
+    CfPaadmOpIpbookLocCfgPO.class, "op_loc_dr", locList, CfPaadmOpIpbookLocCfgPO::getOpLocDr);
 ```
 
-### 字典查询反模式
+| 方法 | 说明 |
+|------|------|
+| `batchByReferencesIdsList(Class<T> t, String referencesFiled, Collection<?> ids)` | 按关联字段批量获取 PO 列表 |
+| `batchByReferencesIdsMap(Class<T> t, String referencesFiled, Collection<?> ids, Function keyMapper)` | 按关联字段批量获取 PO Map |
+
+### 其他缓存注解
+
+#### @DocThreadLocalCache（业务数据缓存）
+
+与单次请求绑定的本地缓存，以 `traceId` 作为隔离标识，过期时间固定为 5 分钟。适用于单次请求内多次访问同一数据的场景。
 
 ```java
-// 错误：无缓存直接查询数据库
-@Service
-public class BadDictionaryService {
-    @Autowired
-    private MrIcddxMapper mrIcddxMapper;
-    
-    public MrIcddxPO getDiagnosis(String code) {
-        // 错误！无缓存，每次命中数据库
-        return mrIcddxMapper.selectByCode(code);
-    }
-}
-
-// 错误：使用 @Cacheable 替代 DocCacheUtils
-@Service
-public class BadDictionaryService {
-    @Cacheable(value = "icd", key = "#code")  // 错误！应使用 DocCacheUtils
-    public MrIcddxPO getDiagnosis(String code) {
-        return mrIcddxMapper.selectByCode(code);
-    }
-}
-
-// 正确：使用 DocCacheUtils（必需）
-@Service
-public class GoodDictionaryService {
-    @Autowired
-    private MrIcddxMapper mrIcddxMapper;
-    
-    public MrIcddxPO getDiagnosis(String code) {
-        return DocCacheUtils.get(
-            "mr:icddx:code:" + code,
-            () -> mrIcddxMapper.selectByCode(code),
-            3600
-        );
-    }
+@DocThreadLocalCache(key = "'" + CACHE_CODE + "convPackFac_'+#dto.arcimItemId+#dto.packUomDr")
+public ConvPackFacVO convPackFac(ConvPackFacDTO dto) {
+    // ...
 }
 ```
 
-### 何时使用 DocCacheUtils
+#### @DocLocalCache（自定义码表缓存，不推荐）
 
-**必须使用 DocCacheUtils**：
-- ICD 诊断查询
-- 药品目录查询
-- 科室/位置查询
-- 用户/人员查询
-- 医院信息查询
-- 任何基础字典表查询
+在 @HOSCacheable 基础上增加本地缓存，形成"本地+分布式"二级缓存。访问频率高、更新频率低的数据可用。通过 `DocLocalCacheUtil#clearByTableName` 清除，支持页面清除。
 
-**不要使用 DocCacheUtils**（改用标准模式）：
-- 业务数据查询（医嘱、就诊、记录）
-- 患者特定数据
-- 事务性数据
-- 实时变化的数据
+### 缓存同步机制
 
-## 代码组织规范
+- **主动更新**：数据更新操作后，通过 Mybatis 拦截自动调用缓存删除
+- **过期失效**：业务数据 5 分钟，码表数据 4 小时
+- **消息订阅**：多实例场景通过 redis pub/sub 通知刷新本地缓存
 
-### 目录结构
+### 注意事项
 
-```
-com.mediway.his.{module}.{component}/
-├── blh/                           # Business Logic Handler（业务逻辑处理器）
-│   ├── base/                      # 基础数据 BLH
-│   ├── config/                    # 配置 BLH
-│   └── {domain}/                  # 业务域 BLH
-│       ├── {Feature}Abstract.java # 抽象基类
-│       └── {Feature}BLH.java      # 具体实现
-├── service/                       # Service 层
-│   ├── base/                      # 基础数据 service
-│   ├── config/                    # 配置 service
-│   └── {domain}/                  # 业务域 service
-│       └── {Entity}Service.java
-├── mapper/                        # 数据访问层
-│   ├── base/                      # 基础数据 mapper
-│   ├── config/                    # 配置 mapper
-│   └── {domain}/                  # 业务域 mapper
-│       └── {Entity}Mapper.java
-└── model/                         # 数据模型
-    ├── dto/                       # Data Transfer Objects（数据传输对象）
-    ├── vo/                        # View Objects（视图对象）
-    └── entity/                    # Entity classes（实体类）
-```
+1. **数据量限制**：单缓存实例数据行数超过 10 万时不推荐使用本地缓存
+2. **缓存清除**：修改基础数据后需通过界面清除缓存注解加的缓存；若界面清除无效，可临时关闭缓存（改为1），待失效时间过后再打开
+3. **traceId 依赖**：`@DocThreadLocalCache` 依赖 traceId，需在请求前传递（`HisThreadContextHolder.capture()`），识别不到有效 traceId 时本地缓存不生效
 
-### Service 层模式
-
-#### 模式 1：comoe 公共库 Service
-
-**适用场景**：为患者/就诊/医嘱域创建通用、可复用的 Services
-
-```java
-/**
- * comoe Service 模板
- * - 全限定 Bean 名称
- * - 通用数据访问
- * - 缓存支持
- * - 无业务工作流
- */
-public interface PaAdmService extends BaseService<PaadmPO> {
-    List<PaadmInfoVO> getPaadmByPatId(PaadmGetByPatientIdDTO dto);
-    Map<Long, String> getAdmType(Collection<Long> episodeIds);
-}
-
-@Service("comoe.adm.paAdmService")
-public class PaAdmServiceImpl extends BaseServiceImpl<PaadmMapper, PaadmPO> 
-    implements PaAdmService {
-    
-    @Override
-    @DocThreadLocalCache(key = "'comoe.paadmservice.getAdmType'+#episodeId")
-    public String getAdmType(Long episodeId) {
-        return lambdaQuery()
-            .select(PaadmPO::getAdmtype)
-            .eq(PaadmPO::getId, episodeId)
-            .one().getAdmtype();
-    }
-}
-```
-
-#### 模式 2：Boot 模块业务 Service
-
-**适用场景**：在独立 Boot 模块中创建业务特定的 Services
-
-```java
-/**
- * Boot 模块 Service 模板
- * - 简单的 Bean 命名
- * - 业务编排
- * - Feign 客户端集成
- * - 调用 comoe Services
- */
-@Service
-public class OpregRegServiceImpl implements OpregRegService {
-    
-    // 注入 comoe Service
-    @Resource(name = "comoe.adm.paAdmService")
-    private PaAdmService paAdmService;
-    
-    // 跨服务调用的 Feign 客户端
-    @Resource
-    private QueryPaPatClient queryPaPatClient;
-    
-    // 复杂业务逻辑的 BLH
-    @Resource
-    private SchedulePortalBLH schedulePortalBLH;
-    
-    @Override
-    public RegistrationVO registerPatient(RegistrationDTO dto) {
-        // 1. 通过 comoe 获取患者
-        PaadmPO adm = paAdmService.getById(dto.getEpisodeId());
-        
-        // 2. 通过 Feign 调用其他服务
-        PatientVO patient = queryPaPatClient.getPatient(adm.getPatientId());
-        
-        // 3. 通过 BLH 执行业务逻辑
-        return schedulePortalBLH.processRegistration(dto);
-    }
-}
-```
-
-#### 模式 3：独立产品 Service（curc）
-
-**适用场景**：为 curc 等独立产品创建 Services
-
-```java
-/**
- * 独立产品 Service 模板
- * - 自有数据模型
- * - 独立于 comoe
- * - 可能引用其他配置
- */
-@Service(value = "curc.apply.ApplyService")
-public class RcApplyServiceImpl extends BaseServiceImpl<CuRcApplyMapper, CuRcApplyPO> 
-    implements RcApplyService {
-    
-    // 使用 curc 自己的 PO 和 mapper
-    @Override
-    public List<CuRcApplyVO> findList(GetCuRcApplyDTO dto) {
-        return this.baseMapper.findList(dto);
-    }
-}
-```
+### 禁止
+- 直接 mapper 查询基础字典（无缓存）
+- 使用 @Cacheable 替代 DocCacheUtils
 
 ## 查询最佳实践
 
-### 1. 模块选择规范
-
-**何时将 Service 添加到 comoe-mediway**：
-- SQL 是通用的，可在多个模块中复用
-- 属于患者/就诊/医嘱核心域
-- 无业务流程逻辑，纯数据访问
-- 被 opcare、ipcare、aggcare 使用
-
-**何时将 Service 添加到 Boot 模块**：
-- 业务特定逻辑
-- 需要 Feign 调用其他服务
-- 需要工作流编排
-- 特定于某一业务域（挂号、分诊等）
-
-### 2. 正确使用 MyBatis Plus
-
-```java
-// 正确：使用 LambdaQueryWrapper 保证类型安全
-LambdaQueryWrapper<OrderPO> wrapper = new LambdaQueryWrapper<>();
-wrapper.eq(OrderPO::getStatus, "A")
-       .ge(OrderPO::getCreateDate, startDate)
-       .orderByDesc(OrderPO::getCreateDate);
-
-// 错误：避免基于字符串的列名
-wrapper.eq("status", "A")
-       .ge("create_date", startDate);
-```
-
-### 3. 分页规则
-
-```java
-// 正确：始终使用分页
-public IPage<OrderVO> queryOrders(OrderQueryDTO dto) {
-    IPage<OrderPO> page = new Page<>(dto.getPageNum(), dto.getPageSize());
-    // 最大分页大小限制
-    if (dto.getPageSize() > 500) {
-        dto.setPageSize(500);
-    }
-    return orderMapper.selectPage(page, wrapper);
-}
-```
-
-### 4. 防止 N+1 查询
-
-```java
-// 错误：N+1 查询
-List<OrderPO> orders = orderMapper.selectList(wrapper);
-for (OrderPO order : orders) {
-    PatientPO patient = patientMapper.selectById(order.getPatientId());
-    order.setPatientName(patient.getName());
-}
-
-// 正确：批量查询
-List<OrderPO> orders = orderMapper.selectList(wrapper);
-List<String> patientIds = orders.stream()
-    .map(OrderPO::getPatientId)
-    .distinct()
-    .collect(Collectors.toList());
-Map<String, PatientPO> patientMap = patientMapper
-    .selectBatchIds(patientIds)
-    .stream()
-    .collect(Collectors.toMap(PatientPO::getId, p -> p));
-```
-
-### 5. 按模块类型的缓存策略
-
-```java
-// comoe-mediway：使用 @DocThreadLocalCache
-@Service("comoe.papatservice.PaPatMastService")
-public class PaPatMastServiceImpl implements PaPatMastService {
-    @Override
-    @DocThreadLocalCache(key="'comoe.paPatMastService.getById'+#id")
-    public PaPatMastPO getById(Long id) {
-        return super.getById(id);
-    }
-}
-
-// Boot 模块：业务数据使用 Redis 或不使用缓存
-@Service
-public class OpregRegServiceImpl implements OpregRegService {
-    @Cacheable(value = "opreg:schedule", key = "#scheduleId")
-    public ScheduleVO getSchedule(String scheduleId) {
-        // 带 Redis 缓存的业务数据
-    }
-}
-```
+- **分页**：列表查询始终分页，每页最大500
+- **LambdaWrapper**：使用 LambdaQueryWrapper 保证类型安全，禁止字符串列名
+- **防N+1**：循环中不查库，使用批量查询（`selectBatchIds` 或自定义批量Mapper方法）
+- **comoe缓存**：comoe Service 使用 `@DocThreadLocalCache`
 
 ## 跨模块数据访问
 
-### 从 Boot 模块调用 comoe Services
-
-```java
-@Service
-public class OpCareOrderServiceImpl implements OpCareOrderService {
-    
-    // 通过全限定名注入 comoe Service
-    @Resource(name = "comoe.ordservice.OeOrdItemService")
-    private OeOrdItemService oeOrdItemService;
-    
-    @Resource(name = "comoe.paadmservice.PaAdmService")
-    private PaAdmService paAdmService;
-    
-    public OrderDetailVO getOrderDetail(Long orderId) {
-        // 使用 comoe Service 进行通用数据访问
-        OeOrdItemPO order = oeOrdItemService.getById(orderId);
-        PaadmPO adm = paAdmService.getById(order.getEpisodeId());
-        
-        // 转换为 VO 并添加业务逻辑
-        return convertToVO(order, adm);
-    }
-}
-```
-
-### Feign 客户端 vs Service 注入
-
-**使用 Service 注入（comoe）**：
-- 同一 JVM 内（同一 Boot 模块）
-- 通用数据访问
-- 无网络开销
-
-**使用 Feign 客户端**：
-- 跨微服务调用
-- 不同的 Boot 模块
-- 需要网络通信
-
-```java
-@Service
-public class OpregServiceImpl {
-    // Service 注入 — 同一 JVM，无网络
-    @Resource(name = "comoe.papatservice.PaPatMastService")
-    private PaPatMastService paPatMastService;
-    
-    // Feign 客户端 — 跨服务，网络调用
-    @Resource
-    private QueryPaPatClient queryPaPatClient;
-    
-    public PatientVO getPatient(String patientNo) {
-        // 选项 1：使用 comoe Service（更快，同一 JVM）
-        PaPatMastPO patient = paPatMastService.getPatInfoByPANo(patientNo);
-        
-        // 选项 2：使用 Feign（跨服务，如需要）
-        PatientVO vo = queryPaPatClient.getPatientByNo(patientNo);
-    }
-}
-```
-
-## 常见反模式
-
-### 1. Service 放错模块
-
-```java
-// 错误：将业务特定 Service 添加到 comoe
-@Service("comoe.opreg.AppointmentService")  // 错误！opreg 是业务特定的
-public class AppointmentServiceImpl { }
-
-// 正确：业务 Services 应放在 Boot 模块
-@Service
-public class PaadmOpAppointmentServiceImpl  // 在 opreg-mediway-boot 中
-    implements PaadmOpAppointmentService { }
-```
-
-### 2. comoe 中缺少 Bean 名称
-
-```java
-// 错误：comoe Service 无全限定名
-@Service  // 缺少名称！
-public class PaAdmServiceImpl implements PaAdmService { }
-
-// 正确：全限定 Bean 名称
-@Service("comoe.adm.paAdmService")
-public class PaAdmServiceImpl implements PaAdmService { }
-```
-
-### 3. 循环中查询
-
-```java
-// 错误：N+1 查询
-for (String orderId : orderIds) {
-    OrderPO order = orderMapper.selectById(orderId);  // N 次查询
-}
-
-// 正确：批量查询
-List<OrderPO> orders = orderMapper.selectBatchIds(orderIds);  // 1 次查询
-```
-
-## 输出模板
-
-### 模板：comoe Service 创建
-
-```markdown
-## comoe Service 创建规范
-
-### 服务信息
-- **服务名称**：{ServiceName}
-- **所属模块**：comoe-{module} (papatservice/paadmservice/ordservice)
-- **数据域**：{patient/admission/order}
-- **通用性**：[是否被多个模块使用]
-
-### 代码实现
-
-#### 1. 接口定义
-```java
-public interface {Entity}Service extends BaseService<{Entity}PO> {
-    /**
-     * 批量查询方法
-     */
-    Map<Long, {Entity}PO> getMapByIds(Collection<Long> ids);
-    
-    /**
-     * 带缓存的单个查询
-     */
-    {Entity}PO getByCode(String code);
-}
-```
-
-#### 2. 实现类
-```java
-@Service("comoe.{module}.{Entity}Service")
-public class {Entity}ServiceImpl extends BaseServiceImpl<{Entity}Mapper, {Entity}PO> 
-    implements {Entity}Service {
-    
-    @Override
-    @DocThreadLocalCache(key="'comoe.{module}.{Entity}Service.getByCode'+#code")
-    public {Entity}PO getByCode(String code) {
-        LambdaQueryWrapper<{Entity}PO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq({Entity}PO::getCode, code);
-        return this.baseMapper.selectOne(wrapper);
-    }
-    
-    @Override
-    public Map<Long, {Entity}PO> getMapByIds(Collection<Long> ids) {
-        if (CollUtil.isEmpty(ids)) {
-            return Collections.emptyMap();
-        }
-        return this.listByIds(ids).stream()
-            .collect(Collectors.toMap({Entity}PO::getId, e -> e));
-    }
-}
-```
-
-### 使用说明
-- **Bean 名称**：`comoe.{module}.{Entity}Service`
-- **注入方式**：`@Resource(name = "comoe.{module}.{Entity}Service")`
-- **缓存策略**：使用 `@DocThreadLocalCache`
-- **适用场景**：基础数据查询，被 opcare/ipcare/aggcare 共用
-```
-
-### 模板：Boot 模块 Service 创建
-
-```markdown
-## Boot 模块 Service 创建规范
-
-### 服务信息
-- **服务名称**：{ServiceName}
-- **所属模块**：{module}-mediway-boot
-- **业务域**：{registration/triage/medical-admin/patient-index}
-- **是否调用 comoe**：[是/否]
-
-### 代码实现
-
-#### 1. 接口定义
-```java
-public interface {Business}Service {
-    {Business}VO process{Action}({Business}DTO dto);
-}
-```
-
-#### 2. 实现类
-```java
-@Service
-public class {Business}ServiceImpl implements {Business}Service {
-    
-    // 注入 comoe Services
-    @Resource(name = "comoe.{module}.{Entity}Service")
-    private {Entity}Service {entity}Service;
-    
-    // 跨服务调用的 Feign 客户端
-    @Resource
-    private {Other}Client {other}Client;
-    
-    // 复杂逻辑的 BLH
-    @Resource
-    private {Business}BLH {business}BLH;
-    
-    @Override
-    public {Business}VO process{Action}({Business}DTO dto) {
-        // 1. 从 comoe 获取基础数据
-        {Entity}PO entity = {entity}Service.getById(dto.getId());
-        
-        // 2. 如需要，通过 Feign 调用其他服务
-        {Other}VO other = {other}Client.getData(dto.getOtherId());
-        
-        // 3. 通过 BLH 执行业务逻辑
-        return {business}BLH.process(dto, entity, other);
-    }
-}
-```
-
-### 依赖说明
-- **comoe 依赖**：通过 Maven 引入，直接 Service 注入
-- **跨服务调用**：使用 Feign Client
-- **业务逻辑**：委托给 BLH 层处理
-```
-
-### 模板：基础字典查询（Base Dictionary Query）
-
-```markdown
-## 基础字典查询规范（使用 DocCacheUtils）
-
-### 字典信息
-- **字典类型**：[ICD/Drug/Department/User/Hospital 等]
-- **数据表**：[表名]
-- **查询场景**：[场景描述]
-
-### 代码实现
-
-#### 1. Service 层
-```java
-@Service
-public class {DictType}DictionaryService {
-    
-    @Autowired
-    private {Entity}Mapper {entity}Mapper;
-    
-    /**
-     * 按编码查询 — 使用 DocCacheUtils（必需）
-     */
-    public {Entity}PO getByCode(String code) {
-        // 必须使用 DocCacheUtils，禁止直接 mapper 查询
-        return DocCacheUtils.get(
-            "{domain}:{entity}:code:" + code,
-            () -> {entity}Mapper.selectByCode(code),
-            3600  // 缓存 1 小时
-        );
-    }
-    
-    /**
-     * 按 ID 查询 — 使用 DocCacheUtils（必需）
-     */
-    public {Entity}PO getById(String id) {
-        return DocCacheUtils.get(
-            "{domain}:{entity}:id:" + id,
-            () -> {entity}Mapper.selectById(id),
-            7200  // 缓存 2 小时
-        );
-    }
-    
-    /**
-     * 批量查询 — 使用 DocCacheUtils（必需）
-     */
-    public Map<String, {Entity}PO> getMapByCodes(List<String> codes) {
-        Map<String, {Entity}PO> result = new HashMap<>();
-        
-        for (String code : codes) {
-            {Entity}PO entity = DocCacheUtils.get(
-                "{domain}:{entity}:code:" + code,
-                () -> {entity}Mapper.selectByCode(code),
-                3600
-            );
-            if (entity != null) {
-                result.put(code, entity);
-            }
-        }
-        
-        return result;
-    }
-    
-    /**
-     * 清除缓存
-     */
-    public void clearCache(String code) {
-        DocCacheUtils.evict("{domain}:{entity}:code:" + code);
-    }
-}
-```
-
-#### 2. 使用示例
-```java
-@Service
-public class OrderService {
-    
-    @Autowired
-    private IcdDictionaryService icdDictionaryService;
-    
-    public OrderVO enrichWithDiagnosis(OrderPO order) {
-        OrderVO vo = new OrderVO();
-        BeanUtil.copyProperties(order, vo);
-        
-        // 使用 DocCacheUtils 查询基础字典
-        MrIcddxPO diagnosis = icdDictionaryService.getByCode(order.getDiagCode());
-        if (diagnosis != null) {
-            vo.setDiagName(diagnosis.getName());
-            vo.setDiagDesc(diagnosis.getDescription());
-        }
-        
-        return vo;
-    }
-}
-```
-
-### 规范要点
-1. **必须使用 DocCacheUtils**：所有基础字典查询必须通过 DocCacheUtils
-2. **缓存键格式**：使用 `{domain}:{entity}:{field}:{value}` 格式
-3. **过期时间**：根据数据变化频率设置，通常 3600-7200 秒
-4. **批量查询**：循环中每个查询都要使用 DocCacheUtils
-5. **缓存清除**：数据变更时及时清除缓存
-
-### 常见字典类型参考
-| 字典类型 | Domain | Entity | 缓存时间 |
-|---------|--------|--------|---------|
-| ICD 诊断 | mr | icddx | 3600s |
-| 药品 | phc | drug | 3600s |
-| 科室 | ct | loc | 7200s |
-| 用户 | ss | user | 1800s |
-| 医院 | ct | hospital | 7200s |
-```
-
-### 模板：配置数据查询（Configuration Data Query）
-
-```markdown
-## 配置数据查询规范
-
-### 配置类型判断
-- **配置类型**：[系统标准配置 / 自建配置]
-- **配置编码**：[configCode]
-- **使用场景**：[场景描述]
-
-### 场景 1：系统标准配置（使用 hiscfsv-* 模块）
-
-#### 1. 确定 hiscfsv 模块
-- **所属模块**：[hiscfsv-ipcare-docconfig / hiscfsv-opcare-docconfig / hiscfsv-common]
-- **配置分类**：[医生站配置 / 系统通用配置]
-
-#### 2. 代码实现
-```java
-@Service
-public class {Feature}ConfigService {
-    
-    // 注入 hiscfsv 配置服务（必需）
-    @Resource
-    private DocConfigService docConfigService;  // 来自 hiscfsv-* 模块
-    
-    /**
-     * 获取系统标准配置
-     */
-    public String get{Feature}Config(String hospitalId, String deptId) {
-        // 使用带内置缓存的 hiscfsv 服务
-        return docConfigService.getConfigValue(
-            "{CONFIG_CODE}", 
-            hospitalId, 
-            deptId
-        );
-    }
-    
-    /**
-     * 获取配置并转换为特定类型
-     */
-    public boolean is{Feature}Enabled(String hospitalId) {
-        String value = docConfigService.getConfigValue(
-            "{FEATURE_ENABLED}", 
-            hospitalId, 
-            null
-        );
-        return "Y".equalsIgnoreCase(value) || "true".equalsIgnoreCase(value);
-    }
-}
-```
-
-#### 3. 配置优先级
-系统自动处理优先级：
-1. 科室级配置（deptId）
-2. 院级配置（hospitalId）
-3. 全局默认配置
-
-### 场景 2：自建配置（使用 DocCacheUtils）
-
-#### 1. 配置信息
-- **配置表**：[custom_cfg / project_cfg]
-- **配置级别**：[医院级 / 全局]
-- **缓存策略**：[缓存时间]
-
-#### 2. 代码实现
-```java
-@Service
-public class {Project}CustomConfigService {
-    
-    @Autowired
-    private {Project}CfgMapper {project}CfgMapper;
-    
-    /**
-     * 获取自建配置 — 使用 DocCacheUtils（必需）
-     */
-    public String getCustomConfig(String configCode, String hospitalId) {
-        // 必须使用 DocCacheUtils
-        {Project}CfgPO config = DocCacheUtils.get(
-            "cfg:{project}:" + configCode + ":" + hospitalId,
-            () -> {project}CfgMapper.selectByCodeAndHospital(configCode, hospitalId),
-            3600  // 缓存 1 小时
-        );
-        
-        if (config != null && StrUtil.isNotBlank(config.getConfigValue())) {
-            return config.getConfigValue();
-        }
-        
-        // 回退到全局配置
-        {Project}CfgPO globalConfig = DocCacheUtils.get(
-            "cfg:{project}:" + configCode + ":global",
-            () -> {project}CfgMapper.selectByCode(configCode),
-            3600
-        );
-        
-        return globalConfig != null ? globalConfig.getConfigValue() : null;
-    }
-    
-    /**
-     * 清除配置缓存
-     */
-    public void clearConfigCache(String configCode, String hospitalId) {
-        DocCacheUtils.evict("cfg:{project}:" + configCode + ":" + hospitalId);
-        DocCacheUtils.evict("cfg:{project}:" + configCode + ":global");
-    }
-}
-```
-
-### 规范要点
-1. **系统标准配置**：必须使用 hiscfsv-* 模块的封装 Service
-2. **自建配置**：必须使用 DocCacheUtils，禁止直接调用 Service/Mapper
-3. **缓存键格式**：使用 `cfg:{project}:{code}:{scope}` 格式
-4. **配置优先级**：医院级 > 全局，通过代码或 hiscfsv 自动处理
-5. **缓存清除**：配置变更时必须清除缓存
-
-### 常见 hiscfsv 模块参考
-| 模块 | 路径 | 用途 |
+| 场景 | 方式 | 特点 |
 |------|------|------|
-| hiscfsv-ipcare-docconfig | hiscfsv-mediway/hiscfsv-ipcare/hiscfsv-ipcare-docconfig | 住院医生站配置 |
-| hiscfsv-opcare-docconfig | hiscfsv-mediway/hiscfsv-opcare/hiscfsv-opcare-docconfig | 门诊医生站配置 |
-| hiscfsv-common | hiscfsv-mediway/hiscfsv-common | 系统通用配置 |
-```
+| 同一JVM内（同一Boot模块） | comoe Service 注入 | 无网络开销 |
+| 跨微服务 | Feign 客户端 | 网络调用 |
+
+注入 comoe Service 时使用全限定名：`@Resource(name = "comoe.{module}.{ServiceName}")`
 
 ## 医保对照数据获取
 
-第三方医保相关集成（如医保上传、医保控费、医保支付等）经常需要把 HIS 内部标识转换为医保标准编码。以下是医生站常见医保对照数据的获取路径与代码示例。
+第三方医保相关集成经常需要把 HIS 内部标识转换为医保标准编码。HIS 中获取医保编码存在两种路径，不可混淆。
 
-> **⚠️ 两类医保数据获取路径**：HIS 中获取医保编码存在两种截然不同的路径，不可混淆：
-> - **实体直接字段**（§1–§2）：医院、医护人员的医保编码直接存储在对应实体表字段中（`CtOrgHospitalPO.insuCode`、`CtRbCareprovPO.insuCode`），通过 `DocCacheUtils.getByKey` 直接查询实体即可获取，**不走** `ct_ar_insu_dicdatacon` 字典对照流程。
-> - **字典对照映射**（§3–§6）：科室、诊断类型、医生级别、性别、票据类型、用药频次等通用字典的医保编码，存储在 `ct_ar_insu_dicdatacon` 表中，必须通过 `ArInsuOpInvokeAbstract.queryDicdataconByChargetype()` 的两步 Feign 调用（`getInsuListType` → `queryDicdataconList`）获取，不可用 `DocCacheUtils` 直接查。
+### 两类获取路径
 
-### 1. 医院医保编码 / 名称
+| 路径 | 说明 | 数据来源 |
+|------|------|---------|
+| **实体直接字段** | 医院、医护人员的医保编码直接存储在实体字段中 | `DocCacheUtils.getByKey` 查询实体 |
+| **字典对照映射** | 科室、诊断、医生级别等通用字典的医保编码 | `ct_ar_insu_dicdatacon` + Feign 调用 |
 
-- **数据实体**：`com.mediway.his.hiscore.ct.model.entity.org.CtOrgHospitalPO`
-- **字段**：`insuCode`（医保标准编码）、`insuDesc`（医保标准名称）
-- **数据类型**：基础字典
-- **获取方式**：`DocCacheUtils.getByKey`（基础字典统一缓存）
+### 1. 实体直接字段获取
 
-```java
-import com.mediway.his.hisbase.doc.utils.DocCacheUtils;
-import com.mediway.his.hiscore.ct.model.entity.org.CtOrgHospitalPO;
+| 数据 | 实体 | 字段 | 方法 |
+|------|------|------|------|
+| 医院医保编码/名称 | `CtOrgHospitalPO` | `insuCode` / `insuDesc` | `DocCacheUtils.getByKey(CtOrgHospitalPO.class, hospId)` |
+| 医护人员医保编码/名称 | `CtRbCareprovPO` | `insuCode` / `insuDesc` | `DocCacheUtils.getByKey(CtRbCareprovPO.class, docId)` |
 
-CtOrgHospitalPO hospital = DocCacheUtils.getByKey(
-    CtOrgHospitalPO.class,
-    loginUserInfo.getHospId()   // 院区/医院 ID
-);
-if (hospital != null) {
-    String hosInsuCode = hospital.getInsuCode(); // 医院医保编码
-    String hosInsuDesc = hospital.getInsuDesc(); // 医院医保名称
-}
-```
+### 2. 字典对照映射获取
 
-### 2. 医护人员医保编码 / 名称
+**方法定义位置**：`com.mediway.his.comoe.ordinvoke.blh.ar.insu.ArInsuOpInvokeAbstract`
+**可注入 BLH**：`arInsuOpInvokeBLH`（`com.mediway.his.comoe.ordinvoke.blh.ar.insu.ext.ArInsuOpInvokeBLH`，继承 `ArInsuOpInvokeAbstract`）
+**注入方式**：`@Resource(name = "arInsuOpInvokeBLH") private ArInsuOpInvokeBLH arInsuOpInvokeBLH;`
 
-- **数据实体**：`com.mediway.his.hiscore.ct.model.entity.rb.CtRbCareprovPO`
-- **字段**：`insuCode`（医保标准编码）、`insuDesc`（医保标准名称）
-- **数据类型**：基础字典
-- **获取方式**：`DocCacheUtils.getByKey`
+| 对照数据 | 方法（定义在 ArInsuOpInvokeAbstract） | 典型用途 |
+|---------|--------------------------------------|---------|
+| 医嘱项/收费项 → 医保目录 | `getArcimLinkInsuInfo(dto)` / `getArcimLinkInsuInfo(dtos)` | 医嘱项获取医保目录编码、自付比例 |
+| 诊断 ICD → 医保诊断 | `selectIcdContInfoList(icdIds, hospId, chargetypeId)`（定义在 `MRDiagnosInsuInvokeAbstract`，BLH：`mRDiagnosInsuInvokeBLH`） | 诊断获取医保诊断编码 |
+| HIS 字典编码 → 医保编码（通用，单条） | `queryDicdataconByChargetype(ArInsuDictypeConEnum, String dictCode, Long chargetypeId, Long hospitalDr)` | 单个 HIS 字典编码转医保编码 |
+| HIS 字典编码 → 医保编码（通用，批量） | `queryDicdataconByChargetype(ArInsuDictypeConEnum, List<ArInsuQueryDicdataconParamDTO> params, Long hospitalDr)` | 批量 HIS 字典编码转医保编码 |
 
-```java
-import com.mediway.his.hiscore.ct.model.entity.rb.CtRbCareprovPO;
+**queryDicdataconByChargetype 支持的对照类型**（`ArInsuDictypeConEnum`）：
 
-CtRbCareprovPO careprov = DocCacheUtils.getByKey(
-    CtRbCareprovPO.class,
-    docId   // 医护人员 ID（如就诊主表中的 admDocDr）
-);
-if (careprov != null) {
-    String drInsuCode = careprov.getInsuCode(); // 医师医保编码
-    String drInsuDesc = careprov.getInsuDesc(); // 医师医保名称
-}
-```
+| 枚举值 | 对照类型 | 典型用途 |
+|--------|---------|---------|
+| `DEPT_CON` | 科室对照 | HIS科室 → 医保科室 |
+| `DOCTOR_LEVEL_CON` | 医生职称/级别对照 | HIS医生级别 → 医保医生级别 |
+| `MED_CHRGITM_TYPE_CON` | 医疗收费项目类型对照 | HIS收费项类型 → 医保收费项类型 |
 
-### 3. 医嘱项 / 收费项与医保目录对照
+> 枚举完整清单见 `com.mediway.his.comoe.ordinvoke.constant.ArInsuDictypeConEnum`。该方法只适用于 `"baseType" + suffix` 模式的对照字典；新增枚举值前应在 `ct_ar_insu_dicdatacon` 中确认对应 `baseType` 真实存在。
 
-- **入口抽象类**：`com.mediway.his.comoe.ordinvoke.blh.ar.insu.ArInsuOpInvokeAbstract`
-- **可注入 BLH**：`arInsuOpInvokeBLH`（实现类位于 `com.mediway.his.comoe.ordinvoke.blh.ar.insu.ext.ArInsuOpInvokeBLH`）
-- **数据类型**：业务数据（医保目录对照）
-- **已封装方法**：
-  - `getArcimLinkInsuInfo(GetArcimLinkInsuInfoDTO dto)` — 单个医嘱项获取关联医保目录信息
-  - `getArcimLinkInsuInfo(List<CtOeItmmastLinkInsuDTO> dtos)` — 批量获取，返回 `Map<itmmastId, List<CtArInsuTaritemsLinkVO>>`
-  - `getItmmastLinkInsuForSpecial(GetArcimLinkInsuInfoDTO dto)` — 特殊对照项目
-- **内部调用**：通过 `ArInsuCtApi`（`com.mediway.his.insu.api`）Feign 接口访问医保服务
+**使用示例**：
 
 ```java
 @Resource(name = "arInsuOpInvokeBLH")
 private ArInsuOpInvokeBLH arInsuOpInvokeBLH;
 
-public void enrichOrderItemInsuInfo(List<OeOrdItemDTO> orderItems) {
-    List<CtOeItmmastLinkInsuDTO> dtos = orderItems.stream()
-        .map(item -> {
-            CtOeItmmastLinkInsuDTO dto = new CtOeItmmastLinkInsuDTO();
-            dto.setItmmastId(item.getItmMastDr());
-            dto.setStartDate(new Date());
-            // 按需设置 hospitalDr、chargetypeId 等
-            return dto;
-        }).collect(Collectors.toList());
+// 单条：HIS科室编码 → 医保科室编码
+List<FeginArInsuQueryDicdataconVO> result = arInsuOpInvokeBLH.queryDicdataconByChargetype(
+    ArInsuDictypeConEnum.DEPT_CON, deptCode, chargetypeId, hospitalDr);
+String insuDeptCode = result.get(0).getCodeCon();
 
-    Map<Long, List<CtArInsuTaritemsLinkVO>> insuMap =
-        arInsuOpInvokeBLH.getArcimLinkInsuInfo(dtos);
+// 批量：多个HIS科室编码 → 医保科室编码
+List<ArInsuQueryDicdataconParamDTO> params = ...; // 每项填充 dictCode + chargetypeId
+List<FeginArInsuQueryDicdataconVO> results = arInsuOpInvokeBLH.queryDicdataconByChargetype(
+    ArInsuDictypeConEnum.DEPT_CON, params, hospitalDr);
+```
 
-    orderItems.forEach(item -> {
-        List<CtArInsuTaritemsLinkVO> insuList = insuMap.get(item.getItmMastDr());
-        if (CollUtil.isNotEmpty(insuList)) {
-            CtArInsuTaritemsLinkVO vo = insuList.get(0);
-            item.setInsuItemCode(vo.getItemCode());
-            item.setInsuItemName(vo.getItemName());
+### 3. 注意事项
+
+- `dictype` 后缀由 HIS 费别（`ct_pa_chargetype`）映射而来，`queryDicdataconByChargetype` 内部自动处理，调用方只需传 `chargetypeId`
+- 只有 HIS 字典 ID 时需先解析为 code 再调用（`queryDicdataconList` 只接受 `code`）
+- 新增对照方法应在 `ArInsuOpInvokeAbstract` / `MRDiagnosInsuInvokeAbstract` 中扩展，不要在业务 BLH 直接调用 `ArInsuCtApi`
+- `ArInsuCtApi` 属于医保服务对外暴露的 Feign 接口，新增方法前必须先确认医保服务侧已提供对应实现
+
+
+## 基础数据统一对照（第三方代码映射）
+
+第三方接口开发中，HIS 内部代码与第三方代码体系不一致时（证件类型、性别、科室、诊断编码等），必须通过"基础数据统一对照"功能进行映射转换，禁止硬编码或扩展设定 JSON。
+
+> **与医保对照的区别**：医保对照走 `ct_ar_insu_dicdatacon` + `ArInsuOpInvokeAbstract`（见上方"医保对照数据获取"章节）；非医保的第三方代码映射走 `ct_dic_basedatamap` + `CtDicBasedatamapdetailService`（本章节）。
+
+### 1. 数据模型（三级结构）
+
+```
+ct_dic_basedatamap（主表/对照类别）
+  ├── parent_dr → ct_dic_basedatamap（上级目录，即 systemCode 对应的记录）
+  │
+  └── ct_dic_basedatamapdetail（明细表/对照数据）
+        ├── basedatamap_dr → ct_dic_basedatamap.id
+        ├── hiscode / hisname（HIS 内部代码/名称）
+        ├── extcode / extname（外部第三方代码/名称）
+        └── his_flag（对照方向：E=外部→HIS，H=HIS→外部，T=通用双向）
+```
+
+**主表 `ct_dic_basedatamap` 关键字段**：
+
+| 字段 | 说明 |
+|------|------|
+| `code` | 对照类别代码（对应 `dictCode` 参数） |
+| `displayname` | 对照类别名称 |
+| `parent_dr` | 上级目录ID（上级目录的 `code` 对应 `systemCode` 参数） |
+
+**明细表 `ct_dic_basedatamapdetail` 关键字段**：
+
+| 字段 | 说明 |
+|------|------|
+| `basedatamap_dr` | 关联主表ID |
+| `hiscode` / `hisname` | HIS 内部代码 / 名称 |
+| `extcode` / `extname` | 外部第三方代码 / 名称 |
+| `his_flag` | 对照方向：`E`=外部→HIS，`H`=HIS→外部，`T`=通用（双向） |
+
+### 2. 后端 API
+
+**Service 类**：`com.mediway.his.ctsv.dic.service.CtDicBasedatamapdetailService`
+**Bean 名称**：`ctDicBasedatamapdetailService`
+**Maven 依赖**：`hisctsv-dic`（comoe-external 已依赖）
+
+**核心方法**：
+
+| 方法 | 用途 | 返回类型 |
+|------|------|---------|
+| `convertData(systemCode, dictCode, code, type)` | **单条代码转换**（最常用） | `List<DictionaryVO>` |
+| `convertDataByDesc(systemCode, dictCode, desc, type)` | 按名称转换 | `List<DictionaryVO>` |
+| `getAllCodeListData(systemCode, dictCode)` | 批量获取全量对照列表 | `List<BaseDataMapDetailVO>` |
+
+**convertData 参数详解**：
+
+```java
+List<DictionaryVO> convertData(String systemCode, String dictCode, String code, String type)
+```
+
+| 参数 | 含义 | 示例 |
+|------|------|------|
+| `systemCode` | 上级目录代码（主表中 parent 记录的 `code`） | `"BeiJingWeiJianWei"` |
+| `dictCode` | 对照类别代码（主表中具体对照类别的 `code`） | `"CredType"` |
+| `code` | 待转换的代码（type=H 传HIS代码；type=E 传外部代码） | `"01"` |
+| `type` | 转换方向：`"H"`=HIS→外部，`"E"`=外部→HIS | `"H"` |
+
+**返回值 DictionaryVO**：
+
+| 字段 | type=H 时 | type=E 时 |
+|------|-----------|-----------|
+| `id` | extid | hisid |
+| `code` | **extcode**（外部代码） | **hiscode**（HIS代码） |
+| `text` | extname（外部名称） | hisname（HIS名称） |
+
+**SQL 逻辑（type=H）**：
+
+```sql
+SELECT t.extid AS id, t.extcode AS code, t.extname AS text
+FROM ct_dic_basedatamapdetail t
+  LEFT JOIN ct_dic_basedatamap con ON t.basedatamap_dr = con.id
+  LEFT JOIN ct_dic_basedatamap parent ON parent.id = con.parent_dr
+WHERE t.hiscode = #{code}           -- 传入的 HIS 代码
+  AND con.code = #{dictCode}        -- 对照类别代码
+  AND parent.code = #{systemCode}   -- 上级目录代码
+  AND t.is_deleted = 0
+```
+
+### 3. 现有调用模式
+
+#### 3.1 ExternalDriveComAbstract 封装（批量转换，推荐复用）
+
+**文件**：`comoe-external/.../blh/ExternalDriveComAbstract.java`
+
+```java
+@Resource(name = "ctDicBasedatamapdetailService")
+private CtDicBasedatamapdetailService ctDicBasedatamapdetailService;
+
+// 批量转换：HIS代码 → 外部代码
+public Map<String, List<DictionaryVO>> getBSPMapData(List<String> datas, String systemCode, String dictCode) {
+    return getBSPMapData(datas, systemCode, dictCode, "H");
+}
+
+// 批量转换：外部代码 → HIS代码
+public Map<String, List<DictionaryVO>> getBSPMapDataByExternal(List<String> datas, String systemCode, String dictCode) {
+    return getBSPMapData(datas, systemCode, dictCode, "E");
+}
+```
+
+#### 3.2 单条转换模式
+
+```java
+private String mapCredType(String hisCredTypeCode) {
+    if (StrUtil.isBlank(hisCredTypeCode)) {
+        return DEFAULT_CRED_TYPE;  // 默认值
+    }
+    String systemCode = getConfigValue("credTypeContrastSystemCode");
+    String dictCode = getConfigValue("credTypeContrastDictCode");
+    try {
+        List<DictionaryVO> result = ctDicBasedatamapdetailService.convertData(
+            systemCode, dictCode, hisCredTypeCode, "H");
+        if (ObjectUtil.isNotEmpty(result)) {
+            String extCode = result.get(0).getCode();
+            if (StrUtil.isNotBlank(extCode)) {
+                return extCode;
+            }
         }
-    });
-}
-```
-
-### 4. 诊断 ICD 与医保目录对照
-
-- **入口抽象类**：`com.mediway.his.commr.diainvoke.blh.insu.MRDiagnosInsuInvokeAbstract`
-- **可注入 BLH**：`mRDiagnosInsuInvokeBLH`（实现类位于 `commr-diainvoke/blh/insu/ext`）
-- **已封装方法**：
-  - `selectIcdContInfoList(List<Long> icdIds, Long hospId, Long chargetypeId)` — 批量获取诊断医保对照信息
-- **内部调用**：同样通过 `ArInsuCtApi` Feign 接口
-
-### 5. 新增医保对照查询方法的原则
-
-如果 `ArInsuOpInvokeAbstract`（医嘱/收费项）或 `MRDiagnosInsuInvokeAbstract`（诊断）中**不存在**需要的医保对照接口：
-
-1. **优先在对应的 Abstract 类中新增方法**，不要在 Controller/BLH 业务层直接调用 `ArInsuCtApi`。
-2. **遵循已有模式**：
-   - 将业务 DTO 转换为医保模块 DTO（`CtXxxDTO`）
-   - 调用 `arInsuCtApi.xxx(...)`
-   - 判断 `BaseResponse.isSuccess()`
-   - 成功：将结果 VO 复制到业务 VO 后返回
-   - 失败：抛出 `HisBusinessException.rpcException(...)`，错误前缀使用 `CtApplicationEnum.INSU.getErrNamePre("...")`
-3. **将方法暴露为 BLH**：在 `comoe-ordinvoke` 或 `commr-diainvoke` 的 `ext` 包下创建/使用 `@BLH` 实现类，使 opcare/ipcare 可以通过 `@Resource(name = "...")` 注入复用。
-
-示例模板（在 `ArInsuOpInvokeAbstract` 中新增方法）：
-
-```java
-public List<XxxInsuVO> getXxxLinkInsuInfo(XxxInsuDTO dto) {
-    if (dto.getStartDate() == null) {
-        dto.setStartDate(new Date());
+    } catch (Exception e) {
+        log.warn("证件类型对照查询失败: hisCode={}", hisCredTypeCode, e);
     }
-    CtXxxInsuDTO ctDto = BeanUtil.copyProperties(dto, CtXxxInsuDTO.class);
-    BaseResponse<List<CtXxxInsuVO>> response = arInsuCtApi.getXxxLinkInsuList(ctDto);
-    if (response.isSuccess()) {
-        return BeanUtil.copyToList(response.getData(), XxxInsuVO.class);
-    }
-    throw HisBusinessException.rpcException(
-        response.getCode(),
-        CtApplicationEnum.INSU.getErrNamePre("获取XXX医保对照信息") + response.getMsg()
-    );
+    return DEFAULT_CRED_TYPE;  // 映射失败返回默认值
 }
 ```
 
-> **注意**：`ArInsuCtApi` 属于医保产品组内部 Feign 接口，新增方法前应先确认医保服务侧已提供对应 API。
+### 4. 前端配置操作步骤
 
-### 6. `ArInsuCtApi` 完整方法清单与直接使用
+**菜单路径**：系统管理 → 基础数据 → 基础数据统一对照
 
-当 `ArInsuOpInvokeAbstract` / `MRDiagnosInsuInvokeAbstract` 的封装方法不能满足需求时，可以在对应 Abstract 中直接调用 `ArInsuCtApi`。本节列出该 Feign 接口的全部方法、对应数据库表及使用示例，供扩展封装时参考。
+**配置页面**：
+- 主表管理：`ct/dic/html/ct_dic_basedatamap.html`（"基础数据统一对照类别"）
+- 明细管理：`ct/dic/html/ct_dic_basedatamapdetail.html`（"基础数据统一对照"）
 
-#### 6.1 接口定位
+**配置步骤**：
 
-```java
-@FeignClient(
-    "${mediway.application.insu}",
-    path = "${server.servlet.context-path}/ar/insu/api/ct/biz/arInsuCt",
-    contextId = "ArInsuCtApi"
-)
-public interface ArInsuCtApi {
-    // ... 见下表
-}
+1. **创建上级目录（systemCode）**：主表管理页面新增记录，代码填厂商标识（如 `BeiJingWeiJianWei`），名称填描述（如 `北京市卫健委`），上级目录留空
+2. **创建对照类别（dictCode）**：主表管理页面新增记录，代码填对照类型标识（如 `CredType`），名称填描述（如 `证件类型对照`），上级目录选择步骤1的记录
+3. **维护对照数据**：明细管理页面逐条添加，填写 HIS代码/名称、外部代码/名称、对照方式选 `T`（通用双向）
+
+**systemCode 与 dictCode 的关系**：
+
+```
+上级目录（systemCode = "BeiJingWeiJianWei"）
+  └── 对照类别（dictCode = "CredType"）
+        ├── 对照数据：HIS code "01" → 外部 code "01"
+        ├── 对照数据：HIS code "02" → 外部 code "02"
+        └── ...
 ```
 
-- **完整限定名**：`com.mediway.his.insu.api.ArInsuCtApi`
-- **所属 JAR**：`insu-api`（医保服务对外暴露的 Feign API）
-- **目标服务**：`${mediway.application.insu}`（医保中心服务）
+一个上级目录下可以有多个对照类别（如证件类型、性别、科室等）。
 
-#### 6.2 方法速查表
+### 5. 第三方接口开发标准步骤
 
-| # | 方法签名 | HTTP 路径 | 数据域 | 对应数据库表 | 典型用途 |
-|---|---------|-----------|--------|-------------|---------|
-| 1 | `getItmmastLinkInsu(CtOeItmmastLinkInsuDTO)` | 默认 POST | 医嘱/收费项医保目录对照 | `ct_ar_insu_tarcontrast` + `ct_ar_insu_taritems` | 单个医嘱项获取医保目录信息 |
-| 2 | `getItmmastLinkInsuList(List<CtOeItmmastLinkInsuDTO>)` | 默认 POST | 医嘱/收费项医保目录对照 | `ct_ar_insu_tarcontrast` + `ct_ar_insu_taritems` | 批量医嘱项获取医保目录信息 |
-| 3 | `getArItemLinkInsu(CtArItemLinkInsuDTO)` | 默认 POST | 收费项医保目录对照 | `ct_ar_insu_tarcontrast` + `ct_ar_insu_taritems` | 按收费项 ID 获取医保目录信息 |
-| 4 | `getInsuListType(CtArItemLinkInsuDTO)` | `/getInsuListType` | 医保目录类型 | `ct_ar_insu_dicdatacon`（`dictype='insu_list_type'`） | **根据费别获取医保目录类型**（决定 `dictype` 后缀） |
-| 5 | `getInsuIntfType(CtArItemLinkInsuDTO)` | `/getInsuIntfType` | 医保接口类型 | `ct_ar_insu_dicdatacon`（`dictype='insu_intf_type'`） | **根据费别获取医保接口类型** |
-| 6 | `getItmmastLinkInsuForSpecial(CtOeItmmastLinkInsuDTO)` | 默认 POST | 特殊项目医保目录对照 | `ct_ar_insu_tarcontrast` + `ct_ar_insu_taritems` | 特殊对照项目查询 |
-| 7 | `queryDicDataList(CtArInsuDicdataDTO)` | `/queryDicDataList` | 医保字典主数据 | `ct_ar_insu_dicdata` | 查询医保字典主数据（返回医保侧编码/名称） |
-| 8 | `queryDicdataconList(List<FeginArInsuQueryDicdataconDTO>)` | `/queryDicdataconList` | 医保字典对照 | `ct_ar_insu_dicdatacon` | **按 HIS 字典编码查询对应的医保编码** |
-| 9 | `selectIcdContInfoList(CtArInsuIcdcontrastSelectDTO)` | `/selectIcdContInfoList` | 诊断 ICD 医保对照 | `ct_ar_insu_icdcontrast` | 批量诊断 ICD 医保对照 |
-| 10 | `queryIcdContInfoByhisIcdId(CtArInsuIcdcontrastDTO)` | `/queryIcdContInfoByhisIcdId` | 诊断 ICD 医保对照 | `ct_ar_insu_icdcontrast` | 按 HIS ICD ID 单条查询医保对照 |
-| 11 | `updateSelfpro(Map<String, Object>)` | `/updateSelfpro` | 自付比例更新 | `ct_ar_insu_tarcontrast` | 更新医保自付比例 |
+| 步骤 | 操作 | 产出 |
+|------|------|------|
+| 1. 识别映射需求 | 分析第三方接口文档，找出代码不一致的字段 | 映射字段清单 |
+| 2. 前端配置对照 | 系统管理→基础数据统一对照，创建上级目录+对照类别+对照数据 | systemCode、dictCode |
+| 3. 扩展设定配置 | 外部接口管理→扩展设定，配置 `{paramName}ContrastSystemCode` 和 `{paramName}ContrastDictCode` | 两个扩展设定参数 |
+| 4. 后端调用 | 从扩展设定读取 systemCode/dictCode，调用 `convertData` 转换 | 映射后的代码 |
+| 5. 异常处理 | 映射缺失返回默认值，配置缺失记日志返回默认值 | 健壮性保证 |
 
-#### 6.3 核心 DTO / VO 字段说明
-
-**输入 DTO**
-
-- `CtOeItmmastLinkInsuDTO`（医嘱项医保对照查询）
-  - `itmmastId` — HIS 医嘱项 ID（单条查询时必填）
-  - `itmmastIds` — HIS 医嘱项 ID 列表（批量查询时必填）
-  - `chargetypeId` — 收费类型 ID（医保类型，如职工医保、居民医保）
-  - `insuIntfType` — 医保接口类型
-  - `startDate` — 生效日期，通常传 `new Date()`
-  - `hospitalDr` — 医院/院区 ID
-
-- `CtArItemLinkInsuDTO`（收费项医保对照查询）
-  - `itemId` / `itemIds` — HIS 收费项 ID / 列表
-  - `chargetypeId` / `chargetypeCode` — 收费类型 ID 或编码
-  - `insuIntfType` — 医保接口类型
-  - `admId` — 就诊 ID（部分场景需要）
-  - `startDate` — 生效日期
-  - `hospitalDr` — 医院/院区 ID
-
-- `CtArInsuIcdcontrastSelectDTO`（诊断 ICD 批量医保对照）
-  - `icdIds` — HIS ICD ID 列表
-  - `chargetypeId` — 收费类型 ID
-  - `insuIntfType` — 医保接口类型
-  - `startDate` — 生效日期
-  - `hospitalDr` — 医院/院区 ID
-
-- `CtArInsuIcdcontrastDTO`（诊断 ICD 单条医保对照）
-  - `hisIcdId` — HIS ICD ID
-  - `icdCode` / `icdName` — HIS ICD 编码/名称
-  - `insuIntfType` — 医保接口类型
-  - `chargetypeId` — 收费类型 ID
-  - `startDate` / `endDate` — 生效/失效日期
-  - `hospitalDr` — 医院/院区 ID
-
-- `CtArInsuDicdataDTO`（医保字典查询）
-  - `dictype` — 字典类型（必填）
-  - `code` — 字典编码
-  - `displayname` — 字典显示名称
-  - `opIpFlag` — 门诊/住院标志
-  - `isActivity` — 是否有效
-  - `startDate` / `endDate` — 生效/失效日期
-  - `hospitalDr` / `hospId` — 医院/院区 ID
-
-- `FeginArInsuQueryDicdataconDTO`（医保字典对照查询）
-  - `dictype` — 字典类型
-  - `code` — 源字典编码
-  - `isActivity` — 是否有效
-  - `startDate` — 生效日期
-  - `hospitalDr` / `defHospId` — 医院/院区 ID
-
-**输出 VO**
-
-- `CtArInsuTaritemsLinkVO`（医嘱/收费项医保目录对照结果）
-  - `itmmastId` / `itemId` — HIS 医嘱项/收费项 ID
-  - `itemCode` / `itemName` — HIS 项目编码/名称
-  - `insuItemDr` — 医保目录项 ID
-  - `medListCode` / `medListName` — 医保目录编码/名称
-  - `hilistCode` / `hilistName` — 医保统一目录编码/名称
-  - `selfpayProp` — 自付比例
-  - `lmtPric` — 限价
-  - `chrgitmLv` — 收费项目等级
-  - `chrgitmType` — 收费项目类型
-  - `spItemFlag` / `lmtUsedFlag` / `injrUsedFlag` / `matnUsedFlag` — 特殊项目/限额/工伤/生育标志
-  - `conId` / `conMemo` / `conStartDate` / `conEndDate` — 对照关系信息
-  - `insuIntfType` / `chargetypeId` / `hospitalDr` — 医保接口/收费类型/医院
-
-- `CtArInsuIcdcontrastVO`（诊断 ICD 医保对照结果）
-  - `hisIcdId` / `icdCode` / `icdName` — HIS ICD ID/编码/名称
-  - `insuDiagnosisDr` — 医保诊断 ID
-  - `diagCode` / `diagName` — 医保诊断编码/名称
-  - `insuIntfType` / `hisVer` / `insuVer` — 医保接口/版本
-  - `autoconFlag` / `chkFlag` / `conType` / `grayCodeFlag` — 自动对照/校验/对照类型/灰码标志
-  - `startDate` / `endDate` / `hospitalDr` — 生效/失效/医院
-
-- `CtArInsuDicdataVO`（医保字典主数据）
-  - `id` / `dictype` / `code` / `displayname` / `memo`
-  - `opIpFlag` / `defaultFlag` / `isActivity`
-  - `startDate` / `endDate`
-  - `hospitalDr` / `hospName`
-
-- `FeginArInsuQueryDicdataconVO`（医保字典对照结果）
-  - `dictype` — 字典类型
-  - `code` / `displayname` — 源字典编码/名称
-  - `codeCon` / `displaynameCon` — 医保字典编码/名称
-  - `isActivity` / `startDate` / `endDate`
-  - `hospitalDr` / `hospitalName`
-
-#### 6.3.1 医保字典查询的两种场景（重要）
-
-`ArInsuCtApi` 提供了两个看似相近、实则职责不同的字典接口，封装时不可混淆：
-
-| 场景 | 应使用 API | 数据表 | 入参特点 | 返回内容 |
-|------|-----------|--------|---------|---------|
-| **查医保字典主数据** | `queryDicDataList` | `ct_ar_insu_dicdata` | `dictype` + `code`/`displayname` + `hospitalDr` | 医保侧编码/名称（`code` / `displayname`） |
-| **HIS 字典 ↔ 医保字典对照** | `queryDicdataconList` | `ct_ar_insu_dicdatacon` | `dictype` + `code`（HIS 源编码）+ `hospitalDr` | 源编码/名称 + 对照后的医保编码/名称（`codeCon` / `displaynameCon`） |
-
-**因此**：
-- 若需求是“根据 HIS 字典 ID/Code 查对应的医保编码”，**优先使用 `ArInsuOpInvokeAbstract.queryDicdataconByChargetype`**；如需更底层控制，可直接封装 `queryDicdataconList`。
-- `queryDicDataList` 仅用于“枚举/查询医保字典本身有哪些值”，不解决 HIS → 医保映射问题。
-
-**常见 `dictype` 示例**（从 `ct_ar_insu_dicdata` 统计，实际值随医保接口版本/地区变化， suffix `00A` 通常为国家平台，`BJ`/`GZA`/`SHC` 等为地方平台）：
-
-| 字典类型 | 典型 `dictype` | 含义 |
-|---------|---------------|------|
-| 人员类别 | `psn_type00A` / `psn_typeBJ` | 职工、居民等参保身份 |
-| 险种类型 | `insutype00A` / `insutypeBJ` | 职工基本医疗保险、城乡居民基本医疗保险等 |
-| 医疗类别 | `med_type00A` / `med_typeBJ` / `med_typeGZA` | 普通门诊、住院、急诊等 |
-| 科室 | `dept00A` / `deptBJ` | 医保标准科室 |
-| 就诊类型 | `adm_typeBJ` | 普通住院、特殊病住院等 |
-| 病种类型 | `dise_type_code00A` | 门慢门特、按病种结算等 |
-| 业务类型 | `business_type` / `business_typeBJ` | 挂号、结算、取药等 |
-| 药品剂型 | `drug_dosform00A` / `drug_dosformBJ` | 片剂、注射剂等 |
-| 用药频次 | `used_frqu00A` / `used_frquBJ` | 每日一次、每日两次等 |
-| 麻醉方式 | `anst_mtd_code00A` / `anst_mtd_codeBJ` | 全麻、局麻等 |
-| 手术操作部位 | `oprn_oper_part_code00A` | 手术部位字典 |
-| 离院方式 | `dscg_way00A` / `dscg_way00E` | 医嘱离院、转院等 |
-| 证件类型 | `psn_cert_type00A` / `id_typeBJ` | 身份证、社保卡等 |
-| 血缘关系 | `patn_rlts00A` / `patn_rltsBJ` | 配偶、子女等 |
-| 民族 | `naty00A` | 民族字典 |
-| 行政区划 | `admdvs` / `admdvs00A` | 省市县区划 |
-
-> 实际项目中 `dictype` 没有全国统一的固定编码表，必须以现场医保接口配置和 `ct_ar_insu_dicdata.dictype` 实际数据为准。上述列表仅供快速识别常见类型。
-
-#### 6.3.2 `dictype` 后缀与费别的关系（重要）
-
-`ct_ar_insu_dicdata.dictype` 的后缀（`00A` / `BJ` / `GZA` / `00E` 等）**本质上是医保接口/目录类型**，它由 HIS **费别（`ct_pa_chargetype`）** 映射而来。医保产品组已在 `ct_ar_insu_dicdatacon` 中维护好该映射关系。
-
-**映射关系表**：
-
-| 源表 | 源 ID | 字典类型 | 返回字段 | 含义 |
-|------|------|---------|---------|------|
-| `ct_pa_chargetype` | `chargetypeId` | `insu_intf_type` | `code_con` | 医保接口类型（如 `BJ`、`00A`、`GZA`） |
-| `ct_pa_chargetype` | `chargetypeId` | `insu_list_type` | `code_con` | 医保目录类型（如 `BJ`、`00A`、`00E`） |
-
-**对应 `ArInsuCtApi` 方法**：
-
-| 方法 | 输入 | 输出 | 数据表 |
-|------|------|------|--------|
-| `getInsuIntfType(CtArItemLinkInsuDTO)` | `chargetypeId` / `chargetypeCode` + `hospitalDr` | 医保接口类型 | `ct_ar_insu_dicdatacon`（`dictype='insu_intf_type'`） |
-| `getInsuListType(CtArItemLinkInsuDTO)` | `chargetypeId` / `chargetypeCode` + `hospitalDr` | 医保目录类型 | `ct_ar_insu_dicdatacon`（`dictype='insu_list_type'`） |
-
-**示例数据**（`ct_ar_insu_dicdatacon`）：
-
-| 费别 ID | 费别编码 | 费别名称 | `insu_intf_type` | `insu_list_type` |
-|---------|---------|---------|------------------|------------------|
-| 2 | 9901 | 省医保 | `BJ` | `BJ` |
-| 4 | 9903 | 市医保 | `00E` | `00A` |
-| 56 | GZA-0100 | 市医保(贵阳) | `GZA` | `00A` |
-| 52 | GSFB | 工伤 | `00E` | `00E` |
-
-**如何根据费别 + HIS 字典编码查询医保对照编码**：
-
-对于遵循 `"baseType" + suffix` 模式的医保字典对照（如 `deptConBJ`、`med_chrgitm_typeCon00A`），应优先使用 `ArInsuOpInvokeAbstract.queryDicdataconByChargetype(...)`。该方法已封装好以下流程：
-
-1. 根据入参中的每个 `chargetypeId` 调用 `getInsuListType` 获取 suffix；
-2. 将 `ArInsuDictypeConEnum.baseType` 与 suffix 拼接成完整 `dictype`；
-3. 批量调用 `queryDicdataconList`，返回 HIS 字典编码对应的医保编码。
+**后端调用代码模板**：
 
 ```java
-import com.mediway.his.comoe.ordinvoke.blh.ar.insu.ext.ArInsuOpInvokeBLH;
-import com.mediway.his.comoe.ordinvoke.constant.ArInsuDictypeConEnum;
-import com.mediway.his.comoe.ordinvoke.model.dto.ar.insu.ArInsuQueryDicdataconParamDTO;
-import com.mediway.his.insu.api.model.vo.FeginArInsuQueryDicdataconVO;
+// 1. 从扩展设定读取对照配置
+String systemCode = getConfigValue("credTypeContrastSystemCode");
+String dictCode = getConfigValue("credTypeContrastDictCode");
 
-@Resource(name = "arInsuOpInvokeBLH")
-private ArInsuOpInvokeBLH arInsuOpInvokeBLH;
+// 2. 调用 convertData 进行转换（HIS→外部）
+List<DictionaryVO> result = ctDicBasedatamapdetailService.convertData(
+    systemCode, dictCode, hisCode, "H");
 
-public List<FeginArInsuQueryDicdataconVO> queryDeptInsuCodes(
-        List<String> deptCodes, List<Long> chargetypeIds, Long hospitalDr) {
-    List<ArInsuQueryDicdataconParamDTO> params = new ArrayList<>();
-    for (Long chargetypeId : chargetypeIds) {
-        for (String deptCode : deptCodes) {
-            params.add(new ArInsuQueryDicdataconParamDTO()
-                .setDictCode(deptCode)
-                .setChargetypeId(chargetypeId));
-        }
-    }
-    return arInsuOpInvokeBLH.queryDicdataconByChargetype(
-        ArInsuDictypeConEnum.DEPT_CON, params, hospitalDr);
-    // 结果中 FeginArInsuQueryDicdataconVO.codeCon 即为医保侧编码
-}
+// 3. 取值
+String extCode = (ObjectUtil.isNotEmpty(result)) ? result.get(0).getCode() : defaultValue;
 ```
 
-单条查询可使用便捷重载：
+### 6. 注意事项
+
+1. **不要硬编码映射**：禁止 `if ("01".equals(hisCode)) return "01"` 之类的硬编码
+2. **不要用扩展设定 JSON**：禁止在扩展设定中配置 `{"01":"01"}` 格式的 JSON 映射
+3. **统一使用基础数据统一对照**：所有非医保的第三方代码映射都应通过 `convertData` 查询
+4. **缓存**：`convertData` 内部直接查库，频繁调用时考虑在业务层缓存结果
+5. **pom 依赖**：使用前确认模块 pom.xml 已依赖 `hisctsv-dic`
+6. **对照方向**：`his_flag` 字段控制对照方向，配置时选 `T`（通用）最灵活
+
+## 合并查询（Merge Query）
+
+第三方接口开发中经常需要同时获取多张表的数据（如患者信息+就诊信息、医嘱项+医嘱扩展）。comoe Service 模块提供了一批 **Merge 方法**，通过 SQL JOIN 或应用层合并，将本来需要多次查询的表合并到一次查询中，减少数据库往返。
+
+### 两类合并场景
+
+| 场景 | 说明 | 表关系 | 示例 |
+|------|------|--------|------|
+| **场景1：非1:1表合并** | 按业务场景合并查询关联表，表间为1:N或N:1关系 | pa_pat_mast(1) : paadm(N) | 一起查出来 pa_pat_mast 与 paadm |
+| **场景2：1:1表合并** | 合并查询主表与其1:1扩展表 | paadm(1) : paadm_ip(1) : paadm_op(1) | 把 paadm、paadm_ip、paadm_op 一起查出来 |
+
+### 命名规范
+
+合并查询方法统一以 **`Merge`** 作为 Service 类名和方法语义标识：
+
+- **Service 类名**：`{主表}Merge{关联表}Service`（如 `PaadmMergePatService`、`OeOrdItemMergeService`）
+- **方法名**：`get{主表}Merge{关联表}Info`（如 `getPaadmMergePatInfo`、`getPaadmIpMergePatInfo`）
+- **返回 VO 名**：`{主表}Merge{关联表}InfoVO`（如 `PaadmMergePatInfoVO`）
+
+### 已有 Merge Service 清单
+
+#### 1. PaadmMergePatService（就诊+患者合并查询）
+
+**所在模块**：`comoe-paadmservice`
+**Bean 名称**：`comoe.paadmservice.PaadmMergePatService`
+**注入方式**：`@Resource(name = "comoe.paadmservice.PaadmMergePatService")`
+
+| 方法 | 返回VO | 包含的PO | 场景 | SQL JOIN |
+|------|--------|---------|------|----------|
+| `getPaadmMergePatInfo(Long episodeId)` | `PaadmMergePatInfoVO` | paadm + pa_pat_mast | 场景1：就诊+患者基础 | `paadm INNER JOIN pa_pat_mast` |
+| `getPaadmOpMergePatInfo(Long episodeId)` | `PaadmOpMergePatInfoVO` | paadm + paadm_op + pa_pat_mast | 场景1+2：门诊就诊全量 | `paadm INNER JOIN pa_pat_mast LEFT JOIN paadm_op` |
+| `getPaadmIpMergePatInfo(Long episodeId)` | `PaadmIpMergePatInfoVO` | paadm + paadm_ip + pa_pat_mast | 场景1+2：住院就诊全量 | `paadm INNER JOIN pa_pat_mast LEFT JOIN paadm_ip` |
+| `getPaadmIPOPMergePatInfo(Long episodeId)` | `PaadmIPOPMergePatInfoVO` | paadm + paadm_op + paadm_ip + pa_pat_mast | 场景1+2：就诊全量（IP+OP） | `paadm INNER JOIN pa_pat_mast LEFT JOIN paadm_op LEFT JOIN paadm_ip` |
+| `getPaadmAgencyMergePatInfo(Long episodeId)` | `PaadmAgencyMergePatInfoVO` | paadm + paadm_op + paadm_ip + paadm_agency + pa_pat_mast | 场景1+2：就诊+代办人 | `paadm INNER JOIN pa_pat_mast LEFT JOIN paadm_op LEFT JOIN paadm_ip LEFT JOIN paadm_agency` |
+
+**使用示例**：
 
 ```java
-List<FeginArInsuQueryDicdataconVO> result =
-    arInsuOpInvokeBLH.queryDicdataconByChargetype(
-        ArInsuDictypeConEnum.DEPT_CON, deptCode, chargetypeId, hospitalDr);
+@Resource(name = "comoe.paadmservice.PaadmMergePatService")
+private PaadmMergePatService paadmMergePatService;
+
+// 获取住院就诊+患者完整信息（1次SQL替代3次）
+PaadmIpMergePatInfoVO info = paadmMergePatService.getPaadmIpMergePatInfo(episodeId);
+PaadmPO paadm = info.getPaadmPO();
+PaadmIpPO paadmIp = info.getPaadmIpPO();      // 住院扩展信息
+PaPatMastPO patMast = info.getPaPatMastPO();   // 患者基本信息
 ```
 
-**注意**：
-- `ArInsuDictypeConEnum` 位于 `com.mediway.his.comoe.ordinvoke.constant`，定义了当前支持的 `baseType`，如 `DEPT_CON`（科室对照）、`DOCTOR_LEVEL_CON`（医生职称/级别对照）、`MED_CHRGITM_TYPE_CON`（医疗收费项目类型对照）等。新增枚举值前应在 `ct_ar_insu_dicdatacon` 中确认对应 `baseType` 真实存在。
-- 该方法只适用于 `"baseType" + suffix` 模式的对照字典；特殊命名如 `business_type`、`dicTypeConBJ`、`chargeTypeToMedTypeBJ` 等不能直接使用。
-- 医保目录/项目/诊断对照类接口（`getItmmastLinkInsu*`、`selectIcdContInfoList` 等）已在内部完成费别到目录类型的转换，调用方只需传 `chargetypeId` 即可。
-- `ArInsuCtApi` 属于医保服务对外暴露的 Feign 接口，新增方法前必须先确认医保服务侧已提供对应实现。
+#### 2. PaPatMastMergeMedicalService（患者+诊疗信息合并查询）
 
-**只有 HIS 字典 ID 时的处理**：
+**所在模块**：`comoe-papatservice`
+**Bean 名称**：`comoe.papatservice.PaPatMastMergeMedicalService`
 
-`queryDicdataconList` 只接受 `code`，若只有 HIS 字典 ID，需要先在业务侧解析成编码再调用。例如：
+| 方法 | 返回VO | 包含的表 | 场景 |
+|------|--------|---------|------|
+| `selectPatMastSimpleInfoAbout(List<Long> ids)` | `List<PaPatMastMergeMedicalSimpleInfoVO>` | pa_pat_mast + pa_pat_medical_info | 场景1：患者基本信息+诊疗信息 |
 
-```java
-// 示例：根据字典 ID 获取 code（实际表名/字段按具体字典调整）
-CtArDictionaryPO dict = ctArDictionaryMapper.selectById(hisDictId);
-String hisDictCode = dict != null ? dict.getCode() : null;
-if (StrUtil.isBlank(hisDictCode)) {
-    return Collections.emptyList();
-}
-// 然后再调用 queryDicdataconByChargetype
-return arInsuOpInvokeBLH.queryDicdataconByChargetype(
-    ArInsuDictypeConEnum.DEPT_CON, hisDictCode, chargetypeId, hospitalDr);
-```
+> 注：此方法在应用层合并（分别查两张表后在内存中组装），非SQL JOIN。
 
-如果多个字典都走这种模式，建议为每种源字典表封装一个 `id -> code` 的私有方法，保持 `queryDicdataconByChargetype` 只关心医保对照逻辑。
+#### 3. PaadmMergeIpService（就诊+住院扩展合并查询）
 
-#### 6.4 数据库对照关系说明
+**所在模块**：`comoe-paadmservice`
 
-| 数据库表 | 业务含义 | 与 API 的对应关系 |
-|---------|---------|------------------|
-| `ct_ar_insu_tarcontrast` | HIS 收费项 ↔ 医保目录对照关系 | 被 `getItmmastLinkInsu*` / `getArItemLinkInsu` / `getItmmastLinkInsuForSpecial` 使用 |
-| `ct_ar_insu_taritems` | 国家/地方医保目录主数据 | 与 `tarcontrast` 联合返回 `medListCode`、`hilistCode`、`selfpayProp` 等 |
-| `ct_ar_insu_icdcontrast` | HIS ICD ↔ 医保诊断对照关系 | 被 `selectIcdContInfoList` / `queryIcdContInfoByhisIcdId` 使用 |
-| `ct_ar_insu_dicdata` | 医保字典主数据（险种、待遇类型等） | 被 `queryDicDataList` 使用 |
-| `ct_ar_insu_dicdatacon` | 源字典 ↔ 医保字典对照 | 被 `queryDicdataconList` 使用 |
-| `ct_ar_insu_opercontrast` | HIS 手术操作 ↔ 医保手术操作对照 | 当前 `ArInsuCtApi` 未直接暴露方法，如有需要需新增封装 |
+| 方法 | 返回 | 用途 | 场景 |
+|------|------|------|------|
+| `getCurrPaadmIpListExcludRunDay(dto)` | `List<Long>` | 获取当前在院就诊（过滤当日入院），用于滚医嘱 | 场景2：paadm + paadm_ip |
+| `getCurrWardAndBedPaadmList(dto)` | `List<Long>` | 获取当前在院在床就诊，用于滚床位费 | 场景2：paadm + paadm_ip |
 
-#### 6.5 直接使用 `ArInsuCtApi` 示例
+#### 4. OeOrdItemMergeService（医嘱项+扩展合并查询）
 
-在 `ArInsuOpInvokeAbstract` 或业务 BLH 中注入 `ArInsuCtApi`：
+**所在模块**：`comoe-ordservice`
 
-```java
-import com.mediway.his.insu.api.ArInsuCtApi;
-import com.mediway.his.base.common.response.BaseResponse;
-import com.mediway.his.common.exception.HisBusinessException;
-import com.mediway.his.hiscore.ct.enums.CtApplicationEnum;
+医嘱域的合并查询，将医嘱项主表与扩展表（如 `oe_orditem` + `oe_orditem_ext`）合并查询，避免分开查询医嘱项和扩展属性。
 
-public abstract class ArInsuOpInvokeAbstract {
+### 何时使用 Merge 方法
 
-    @Resource
-    protected ArInsuCtApi arInsuCtApi;
+**必须使用 Merge 方法**：
+- 第三方接口需要同时获取就诊+患者信息 → `PaadmMergePatService.getPaadmIpMergePatInfo` / `getPaadmOpMergePatInfo`
+- 第三方接口需要患者基本信息+诊疗信息 → `PaPatMastMergeMedicalService.selectPatMastSimpleInfoAbout`
+- 任何需要同时获取多张关联表数据的场景
 
-    /**
-     * 示例：查询医保字典数据
-     */
-    public List<CtArInsuDicdataVO> queryInsuDicData(CtArInsuDicdataDTO dto) {
-        BaseResponse<List<CtArInsuDicdataVO>> response = arInsuCtApi.queryDicDataList(dto);
-        if (response.isSuccess()) {
-            return response.getData();
-        }
-        throw HisBusinessException.rpcException(
-            response.getCode(),
-            CtApplicationEnum.INSU.getErrNamePre("查询医保字典数据") + response.getMsg()
-        );
-    }
+**不要使用 Merge 方法**：
+- 只需要单张表数据时，使用对应的单表 Service（如 `PaAdmService.getById`、`PaPatMastService.getById`）
+- 需要批量查询时，确认 Merge 方法是否支持批量参数
 
-    /**
-     * 示例：批量查询诊断 ICD 医保对照
-     */
-    public List<CtArInsuIcdcontrastVO> selectIcdContInfoList(List<Long> icdIds,
-                                                             Long chargetypeId,
-                                                             Long hospitalDr) {
-        CtArInsuIcdcontrastSelectDTO dto = new CtArInsuIcdcontrastSelectDTO();
-        dto.setIcdIds(icdIds);
-        dto.setChargetypeId(chargetypeId);
-        dto.setHospitalDr(hospitalDr);
-        dto.setStartDate(new Date());
+### 新增 Merge 方法的原则
 
-        BaseResponse<List<CtArInsuIcdcontrastVO>> response =
-            arInsuCtApi.selectIcdContInfoList(dto);
-        if (response.isSuccess()) {
-            return response.getData();
-        }
-        throw HisBusinessException.rpcException(
-            response.getCode(),
-            CtApplicationEnum.INSU.getErrNamePre("查询诊断医保对照") + response.getMsg()
-        );
-    }
-}
-```
+如果现有 Merge Service 不满足需求（如需要合并新的表组合）：
 
-#### 6.6 扩展封装示例（新增方法到 Abstract）
-
-当需要查询 `ArInsuCtApi` 中已存在但 `ArInsuOpInvokeAbstract` 未封装的方法时，按以下模板扩展：
-
-```java
-public List<CtArInsuDicdataVO> queryInsuDicDataByType(String dictype, Long hospitalDr) {
-    CtArInsuDicdataDTO dto = new CtArInsuDicdataDTO();
-    dto.setDictype(dictype);
-    dto.setHospitalDr(hospitalDr);
-    dto.setIsActivity("Y");
-    dto.setStartDate(new Date());
-
-    BaseResponse<List<CtArInsuDicdataVO>> response = arInsuCtApi.queryDicDataList(dto);
-    if (response.isSuccess()) {
-        return response.getData();
-    }
-    throw HisBusinessException.rpcException(
-        response.getCode(),
-        CtApplicationEnum.INSU.getErrNamePre("查询医保字典") + response.getMsg()
-    );
-}
-```
-
-**注意要点**：
-- 入参优先使用业务侧熟悉的名字，内部转换为医保模块 DTO。
-- 必须判断 `BaseResponse.isSuccess()`。
-- 失败时统一使用 `CtApplicationEnum.INSU.getErrNamePre(...)` 作为错误前缀，并抛出 `HisBusinessException.rpcException(...)`。
-- 不要在 Controller/业务 BLH 中直接调用 `ArInsuCtApi`，应通过 `comoe-ordinvoke` / `commr-diainvoke` 的 Abstract/BLH 封装后复用。
-- `queryDicDataList` 与 `queryDicdataconList` 职责不同：
-  - `queryDicDataList` 用于枚举/查询医保字典主数据本身；
-  - `queryDicdataconList` 用于 HIS 源字典编码 → 医保编码的对照；
-  - 日常“费别 + HIS 字典编码 → 医保编码”优先使用 `ArInsuOpInvokeAbstract.queryDicdataconByChargetype(...)`，不要直接混用两个底层接口。
+1. **在对应的 comoe Service 模块中新增 Merge Service**，不要在业务 BLH 中手动多次查询后组装
+2. **遵循命名规范**：`{主表}Merge{关联表}Service`
+3. **SQL 实现优先**：能用一条 SQL JOIN 完成的，不要在应用层分查后合并
+4. **返回 VO 包含完整 PO**：VO 中包含各表的完整 PO 对象（如 `PaadmIpMergePatInfoVO` 包含 `paadmPO` + `paadmIpPO` + `paPatMastPO`），而非扁平化字段
+5. **Mapper XML 放在 merge 子目录**：如 `mapper/paadm/merge/PaadmMergePatMapper.xml`
 
 ## 约束
 
 ### 必须遵守
 - **comoe Services**：必须使用全限定 Bean 名称 `@Service("comoe.{module}.{Name}")`
-- **通用 SQL**：将通用、可复用的 SQL 放在 comoe Services 中
-- **分页**：列表查询始终使用分页（每页最大 500）
-- **校验**：查询前校验参数
+- **通用 SQL**：通用可复用 SQL 放在 comoe Services 中
+- **分页**：列表查询始终分页（每页最大 500）
 - **LambdaWrapper**：使用 LambdaQueryWrapper 保证类型安全
-- **空值处理**：优雅处理空结果
-- **模块选择**：根据可复用性选择正确的模块类型（comoe vs Boot）
-- **⚠️ 基础字典查询**：所有基础字典数据查询（ICD、药品、科室、用户等）**必须使用 `DocCacheUtils`**
-- **⚠️ 配置查询 — 系统标准**：**必须使用 hiscfsv-* 模块服务**（如 `hiscfsv-ipcare-docconfig`）
-- **⚠️ 配置查询 — 自建**：自建/项目特定配置**必须使用 `DocCacheUtils`**
-- **缓存键规范**：缓存键使用 `{domain}:{entity}:{field}:{value}` 格式
+- **⚠️ 基础字典查询**：必须使用 `DocCacheUtils`，禁止直接 mapper 或 @Cacheable
+- **⚠️ 配置查询 — 系统标准**：必须使用 hiscfsv-* 模块的常量类枚举式读取
+- **⚠️ 配置查询 — 自建**：必须遵守三大原则，创建本地化设置常量类
+- **⚠️ 第三方代码映射**：必须使用基础数据统一对照（`CtDicBasedatamapdetailService.convertData`）
+- **⚠️ 合并查询优先**：多表数据优先用 Merge Service，禁止BLH中手动多次查询后组装
+- **缓存键规范**：`{domain}:{entity}:{field}:{value}`
 
 ### 禁止
-- **业务逻辑在 comoe 中**：不要在 comoe Services 中添加业务工作流
-- **Feign 在 comoe 中**：不要在 comoe-mediway 中使用 Feign 客户端
-- **缺少 Bean 名称**：comoe Services 必须有全限定名称
-- **N+1 查询**：不要在循环中查询
-- **SELECT ***：生产环境不要使用 select all columns
-- **硬编码 SQL**：避免硬编码 SQL 语句
-- **模块错误**：不要将业务特定的 Services 放在 comoe 中
-- **⚠️ 直接字典查询**：**禁止不使用 DocCacheUtils 直接查询基础字典表**
-- **⚠️ 字典缓存错误**：**禁止对基础字典查询使用 @Cacheable 或直接 mapper** — 仅使用 DocCacheUtils
-- **⚠️ 直接配置 Service 调用**：**禁止直接调用配置 Service/Mapper** — 系统配置使用 hiscfsv-*，自建配置使用 DocCacheUtils
+- 业务逻辑/Feign 在 comoe 中
+- comoe Service 缺少全限定 Bean 名称
+- N+1 查询（循环中查库）
+- SELECT *（生产环境）
+- 直接字典查询（不使用 DocCacheUtils）
+- 直接配置 Service/Mapper 调用（不经过 hiscfsv 常量类或 DocCacheUtils）
+- 第三方代码硬编码映射
+- 多表数据在BLH中手动多次查询后组装（应使用 Merge Service）
 
 ## 知识参考
 

@@ -531,7 +531,7 @@ WebSysAddins → DLL/OCX → 第三方客户端
   1. 打开计划中引用的 DTO/VO Java 文件（例如 `GridColumnsParam.java`、`OeOrdItemVO.java`），列出所有可用 getter；
   2. 与 Step 3B 三向映射表中的后端 VO setter 列逐项比对；
   3. 如果计划中的 getter/setter 不存在，立即反馈，不得用相似字段名猜测。
-- [ ] 数据库查询：基础字典用 DocCacheUtils，配置数据用 hiscfsv（详见 `imedicalxc-doctor-dbdata`）
+- [ ] 数据库查询：基础字典用 DocCacheUtils，配置数据用 hiscfsv 常量类枚举式读取（详见 `imedicalxc-doctor-dbdata`）
 - [ ] 内部产品组调用：封装在 invoke 模块中（详见 `imedicalxc-doctor-invoke`）
 - [ ] **第三方可变参数读取**：创建/复用配置读取 Service/BLH，统一通过 `com.mediway.his.hiscfsv.ipcare.doctor.blh.BusInterfaceConfigAbstract#findLinkSubValByCode`（或 `findLinkDataByCode`）读取扩展设定参数
 - [ ] **配置缓存**：使用 `DocCacheUtils` 缓存扩展设定，缓存 key = `thirdparty:{vendor}:{module}:{hospCode}:{paramKey}`
@@ -580,7 +580,9 @@ WebSysAddins → DLL/OCX → 第三方客户端
 | **前端架构** | `references/frontend-architecture.md` | 医为浏览器（CEFSharp 109）特性、JS 与本地客户端交互 |
 | **前端集成模式** | `references/frontend-integration-patterns.md` | 同步/异步调用模式、错误处理、性能优化 |
 | **外部接口管理** | `references/external-interface-management.md` | CF_Doc_Interface_Portal 注册、命名约定 |
+| **基础数据统一对照** | `imedicalxc-doctor-dbdata` → 基础数据统一对照 | HIS代码与第三方代码映射的标准方法论（convertData、前端配置操作步骤、第三方接口开发标准步骤） |
 | **医保对照数据** | `imedicalxc-doctor-dbdata` → 医保对照数据获取 | 医院/医护人员医保编码、医嘱项/诊断医保目录对照及 ArInsuCtApi 扩展方法规范 |
+| **合并查询** | `imedicalxc-doctor-dbdata` → 合并查询（Merge Query） | 多表合并查询的标准方法论（两类合并场景、Merge Service 清单、命名规范） |
 
 ## 相关技能
 - **imedicalxc-doctor-extend-engineer** — 完整集成工作流编排器
