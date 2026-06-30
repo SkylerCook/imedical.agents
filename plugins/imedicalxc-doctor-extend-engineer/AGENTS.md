@@ -23,7 +23,7 @@
 - 数据格式与 XML/JSON 生成：`skills/imedicalxc-doctor-extend-dataformat/SKILL.md`
 - BLH 编写规范：`skills/imedicalxc-doctor-blh/SKILL.md`
 - 调用与接口规范：`skills/imedicalxc-doctor-invoke/SKILL.md`
-- 医保/字典数据规范：`skills/imedicalxc-doctor-dbdata/SKILL.md`
+- 医保/字典数据规范：`skills/imedicalxc-doctor-dbdata/SKILL.md`，当前已精简为数据库查询核心规范，重点覆盖医保对照、基础数据统一对照和合并查询。
 - WebSysAddins 中间件开发：`skills/imedical-bsp-websysaddins/SKILL.md`
 - Jenkins CI/CD 验证：`skills/imedicalxc-bsp-jenkins/SKILL.md`
 
@@ -35,14 +35,19 @@
 - BLH 审查清单：`skills/imedicalxc-doctor-blh/references/blh-review-checklist.md`
 - 命名约定：`skills/imedicalxc-doctor-blh/references/naming-conventions.md`
 
+## Thin-Index 暴露范围
+
+本插件的 `scripts/generate-plugin-thin-index.ps1` 是根 canonical thin-index 脚本的 wrapper。默认只暴露 `imedicalxc-doctor-extend-engineer` 主编排器入口；`imedical-bsp-websysaddins`、`imedicalxc-bsp-jenkins`、`imedicalxc-doctor-blh`、`imedicalxc-doctor-dbdata`、`imedicalxc-doctor-extend-architecture`、`imedicalxc-doctor-extend-dataformat`、`imedicalxc-doctor-extend-scope` 和 `imedicalxc-doctor-invoke` 这 8 个子 skill 由主编排器按需读取，不单独生成浅层 skill 入口。
+
 ## 内置脚本
 
 - `scripts/install-deps.py`：多模块 Maven 依赖安装脚本，按依赖拓扑序安装 `com.mediway.his` 传递依赖。
 
 ## 依赖的 Vendor 资产
 
-本插件依赖以下 vendor 资产，部署时需确保它存在于 `.agents/vendor/`：
+本插件依赖以下 vendor 资产，部署时需确保它们存在于 `.agents/vendor/`：
 
-- `vendor/word-reader/`：用于读取 Word 格式接口文档（如厂商提供的 `.docx`/`.doc` 规格说明书）
+- `vendor/word-reader/`：用于读取 Word 格式接口文档（如厂商提供的 `.docx`/`.doc` 规格说明书）。
+- `vendor/superpowers/`：提供 `brainstorming`、`writing-plans`、`subagent-driven-development`、`finishing-a-development-branch` 等流程 skill。
 
-此外，本插件工作流依赖 superpowers 技能集（`brainstorming`、`writing-plans`、`subagent-driven-development`、`finishing-a-development-branch`）。这些 skill 由用户自行安装到运行时的 skill 发现目录；`skills/imedicalxc-doctor-extend-engineer/SKILL.md` 会在工作流启动前检测其可用性，缺失时输出安装指引。
+安装和更新流程会调用 `scripts/sync-vendor-skills.ps1`，把上述 vendor skill 同步到运行时 skill 发现目录。若运行时仍缺失 superpowers，按 `.agents/docs/update-agents.md` 的 vendor skill 同步和停止条件处理。

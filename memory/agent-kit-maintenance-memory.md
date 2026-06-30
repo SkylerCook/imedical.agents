@@ -15,6 +15,7 @@
 - `plugins/agent-context-kit/` 负责项目上下文维护，包括 AGENTS 入口、项目规则、项目记忆、项目配置和 thin-index。
 - `plugins/coding-iris-plugin/` 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力。
 - `plugins/i18n-iris-plugin/` 负责 IRIS/ObjectScript/CSP/HISUI 国际化能力。
+- `plugins/imedicalxc-doctor-extend-engineer/` 负责 HIS 医生站第三方系统集成编排，主入口为 `skills/imedicalxc-doctor-extend-engineer/SKILL.md`，子 skill 由主编排器按需读取。
 - 已落地首个领域样板 `agents/i18n-agent/` 和 `workflows/i18n-change.workflow.md`，用于 IRIS i18n 需求的链路定位、数据分类、编码/模板/种子和验证五阶段处理。
 - 当前重点维护方向是降低 rules 常驻上下文成本，并完善多 Agent 协作在已部署 `.agents` 项目中的发现、更新和验证链路。
 - 根 `AGENTS.md` 只服务本仓库维护，不部署到业务项目 `.agents/`；业务项目仍使用业务项目自己的 `AGENTS.md` 和 `.agents/` 上下文。
@@ -30,6 +31,9 @@
 
 ## 近期关键变化
 
+- 已新增 vendor skill 运行时同步链路：`vendor/superpowers/` 和 `vendor/word-reader/` 随 `/vendor/**` 部署到业务项目 `.agents/vendor/`，再由 `scripts/sync-vendor-skills.ps1` 同步到运行时 skill 发现目录；vendor 仍不参与 thin-index。
+- 已新增并重构 `imedicalxc-doctor-extend-engineer` 插件，采用标准插件结构、内置多模块 Maven 依赖安装脚本，thin-index wrapper 默认只暴露主编排器入口，医生站第三方集成子 skill 由主编排器按需加载。
+- 已精简 `imedicalxc-doctor-dbdata` skill，聚焦数据库查询核心规范，重点保留医保对照、基础数据统一对照和合并查询（Merge Query）等高价值领域知识，并同步更新医生站扩展主编排器和架构引用。
 - 已新增框架验证反馈机制：`feedback/framework/`、`agents/_shared/feedback-protocol.md`。Agent 处理 HIS 需求时如对框架文件做了修正，自动生成反馈条目；维护者定期 diff 后应用到 master。
 - 已新增仓库级 `skills/agent-framework-feedback/SKILL.md`，用于在插件直接使用或无 canonical agent 场景下生成框架反馈条目。
 - 已新增 `demo/presentation/` 演示页面，作为能力包、i18n skill 和多智能体架构的可视化说明材料；它不属于业务项目运行入口。
@@ -47,6 +51,7 @@
 ## 当前治理重点
 
 - 已新增 agent thin-index 生成链：`scripts/generate-agent-thin-index.ps1` 可从 canonical `agents/` 生成 `.agents/skills/<agent-name>/SKILL.md`，并已接入 `update-agents.ps1`。
+- 已新增 vendor skill 同步链：`install-agents.ps1` / `update-agents.ps1` 会调用 `scripts/sync-vendor-skills.ps1`，当前主要服务 `vendor/superpowers/` 和 `vendor/word-reader/`。
 - 工具专属 adapter 生成器暂缓；当前只做通用 agent skill thin-index，不生成 `.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/`、WorkBuddy 或 Hermes 原生入口。
 - 继续观察 rules 体量，查找表、API 目录和长参考资料优先迁入插件 `references/`。
 - 多 Agent 协作已进入顶层 canonical 设计阶段，但暂不实现复杂运行时调度器；第一阶段以 i18n-agent 样板、workflow、交接协议和适配入口生成器为主。

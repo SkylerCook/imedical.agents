@@ -17,9 +17,9 @@
    - 暂不实现复杂自动并行调度器；等业务项目验证 i18n 样板后，再决定是否扩展 coordinator 运行时逻辑。
    - 后续可考虑新增 `standard-change`、`review-test-release`、`bugfix` workflow 和通用 `coordinator/explorer/planner/coding/review/testing` Agent。
 
-4. 暂不新增 `agent-kit-maintenance` 专用 skill。
-   - 根 `AGENTS.md` 先承载本仓库维护入口、记忆路由和维护规则。
-   - 若后续频繁执行”查看近期提交、归纳维护记忆、同步 README/docs、检查 sparse checkout 边界、审查敏感信息”等固定流程，再抽成专用 skill。
+4. 继续评估是否新增 `agent-kit-maintenance` 专用 skill。
+   - 根 `AGENTS.md` 继续承载本仓库维护入口、记忆路由和维护规则。
+   - 若“查看近期提交、归纳维护记忆、同步 README/docs、检查 sparse checkout 边界、审查敏感信息”形成稳定高频流程，再抽成专用 skill；抽象前不得复制长篇维护记忆或脚本正文。
 
 5. 框架验证反馈机制。
    - 待做：团队成员开始使用后，观察反馈质量和处理效率。

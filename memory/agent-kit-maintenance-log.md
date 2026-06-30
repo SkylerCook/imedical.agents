@@ -9,6 +9,13 @@
 
 ## 近期已完成
 
+- 2026-06-30：已完成近期提交文档同步：维护记忆、长期决策、backlog、仓库 README、`imedicalxc-doctor-extend-engineer` README/AGENTS 和主编排器 superpowers 缺失指引已同步到当前实际内容；补齐 `scripts/tests/update-agents.tests.ps1` 对 `sync-vendor-skills.ps1` 的测试夹具复制，避免 vendor skill 同步脚本缺失误触发 Action required。
+
+- 2026-06-29：已完成 `imedicalxc-doctor-dbdata` 精简治理：`SKILL.md` 从大体量数据库查询规范收敛为核心领域知识入口，删除通用编码规范、输出模板和反模式长文，保留并强化医保对照、基础数据统一对照和合并查询（Merge Query）；医生站扩展主编排器补充合并查询快速参考，架构 skill 同步配置数据和合并查询引用。
+- 2026-06-26：已完成 vendor skill 运行时同步链路与医生站扩展插件标准化：新增 `scripts/sync-vendor-skills.ps1`，`install-agents.ps1` / `update-agents.ps1` 可把 `vendor/superpowers/`、`vendor/word-reader/` 等 vendor skill 同步到运行时 skill 目录；`imedicalxc-doctor-extend-engineer` 迁入标准插件结构并补充 `AGENTS.md`、README、manifest 和 thin-index wrapper。
+- 2026-06-26：已收敛 `imedicalxc-doctor-extend-engineer` thin-index 策略：wrapper 默认排除 8 个子 skill，只暴露 `imedicalxc-doctor-extend-engineer` 主编排器入口；子 skill 由主编排器通过插件内相对路径按需读取，避免浅层 skill 路由噪声。
+- 2026-06-25：已新增信创版本医生站第三方接口开发智能体资料，后续重构为 `imedicalxc-doctor-extend-engineer` 插件标准目录。
+- 2026-06-24：已更新内置 Windows x64 `iris-agentic-dev.exe` 到 v0.6.17，业务项目仍通过 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe` 获取可执行文件，连接事实仍只允许留在目标工程本地配置。
 - 2026-06-24：已完成 `iris-interface-dev-plugin` v1.2 格式接入稳定化回归：XLS/XLSX 多 sheet、DOC 转 DOCX 降级路径、DOCX 入参/出参分段与字段契约、PDF 轻量抽查均已验证；新增长期路线图 `memory/plan/iris-interface-dev-plugin-roadmap.md`，替代旧 `iris-interface-v1-summary-v2-plan.md` 作为后续会话入口。真实样本和解析产物仍只保留在 `tmp/iris-interface-file/`，不入库。
 - 2026-06-23：根据三份样本文档验证结果，补强 `iris-interface-dev-plugin` 解析前环境引导：新增 `iris-interface-env-check.py`，把缺依赖/缺转换器从“失败告知”改为可执行安装建议；`requirements-optional.txt` 新增 `xlrd`，`.xls` 安装 `xlrd` 后可直接解析，XLSX/XLS 多 sheet 按 sheet 拆成独立字段视图。
 - 2026-06-22：已完成 `iris-interface-dev-plugin` v1.1 PDF 解析质量补丁：收紧表头匹配，过滤修订记录和错误码表，支持 PDF 跨页续表继承上一字段表表头。真实样本 `综合药房 HIS 处方推送接口使用说明_5000.pdf` 重新解析后为 9 个视图、79 个字段，Page 17/18/19 续表缺失字段已补回。
@@ -68,6 +75,15 @@
 
 ## 近期提交索引
 
+- `5ea2910`：精简 `imedicalxc-doctor-dbdata` skill，并同步医生站扩展主编排器和架构引用。
+- `3512d7c`：迁移 superpowers skills v6.0.3 到 `vendor/superpowers/`。
+- `920e75b`：`imedicalxc-doctor-extend-engineer` thin-index 只暴露主编排器入口。
+- `9647f86`：补充 `imedicalxc-doctor-extend-engineer` 插件 thin-index wrapper。
+- `6bbb95e`：清理医生站扩展插件旧版目录文件。
+- `cd57f56`：新增 vendor skill 运行时同步脚本，并重构医生站扩展插件标准结构。
+- `045eecf`：新增信创版本医生站第三方接口开发智能体资料。
+- `16bc2d6`：更新内置 `iris-agentic-dev.exe` 到 v0.6.17。
+- `6dcccca`：完成 `iris-interface-dev-plugin` 字段匹配闭环文档归档与测试补强。
 - `4731854`：新增 agent skill thin-index 生成脚本，并集成到 `update-agents.ps1` 流水线。
 - `3cc5616`：新增首个部署经验文档和专项部署工具目录。
 - `8e4cfca`：新增 `demo/presentation/` 演示展示页面。
@@ -89,6 +105,8 @@
 - `0a932d7`：收敛唯一主入口、可选兼容入口和 stale thin-index 清理。
 
 ## 最近验证
+
+- 2026-06-30：本轮文档同步已执行一致性搜索，确认 `README.md`、`plugins/imedicalxc-doctor-extend-engineer`、`memory` 和 `docs` 下不再残留旧版 superpowers 安装方式和旧子 skill 暴露数量等过期表述；路径检查确认 `vendor/superpowers/skills/brainstorming/SKILL.md`、`vendor/word-reader/SKILL.md` 和医生站扩展插件 thin-index wrapper 均存在；`scripts/sync-vendor-skills.ps1 -AgentsRoot . -Mode DryRun` 可枚举 superpowers 与 word-reader vendor skill；`scripts/tests/update-agents.tests.ps1` 已通过。仓库根误产物 `%SystemDrive%/` 已确认位于 workspace 内并清理。
 
 - `scripts/tests/iris-interface-plugin.tests.ps1` 与 `scripts/tests/update-agents.tests.ps1` 已验证：`iris-interface-doc-ingest.py` 支持 PDF 表内请求/响应分段、嵌入表头、空首列参数名识别、签名字段 `signature.*` 归属和 JSON 示例行过滤；真实 `移动APP接口对接文档（光华口腔）v1.1.3.pdf` 回归为 `ViewCount=16`、`TotalFields=81`、`JsonPathCount=80`、`request=18`、`response=55`、`signature=4`，Page 7-14 可按 `n_type` 标识区分请求/返回视图。
 - `scripts/tests/iris-interface-plugin.tests.ps1` 已验证：环境自检脚本、可选依赖清单 `xlrd`、XLSX 多 sheet 解析、字段续表/JSON 路径回归和点号循环审查门禁正常。
@@ -119,7 +137,7 @@
 - `scripts/tests/update-agents.tests.ps1` 已验证：默认只处理 `agent-context-kit`，未启用插件只列为 available，显式插件可处理，i18n 在 coding 未初始化时阻塞，安装/更新 sparse checkout 包含 `agents/` 和 `workflows/`。
 - 已验证三个插件 manifest 均可被 PowerShell `ConvertFrom-Json` 正常解析。
 - `scripts/tests/update-agents.tests.ps1` 已验证：`update-agents.ps1` 可调用 agent thin-index 阶段，Write 模式生成 `.agents/skills/i18n-agent/SKILL.md`，入口指向 canonical `AGENT.md`、`bindings.yaml` 和 `i18n-change.workflow.md`，且不生成工具 adapter 内容。
-- 当前 `master` 本地 `HEAD` 为 `4731854`，较 `origin/master` / `github/master` 的 `3cc5616` 多一个本地提交；如需发布，按双远端约定分别同步。
+- 当前 `master` 本地 `HEAD` 为 `5ea2910`，已与 `origin/master` / `github/master` 对齐；后续提交后仍按双远端约定分别同步。
 
 ## 维护要求
 

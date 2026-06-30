@@ -66,16 +66,15 @@ priority: highest
 | `superpowers:subagent-driven-development` | Step 5 | 派发并管理并行实施子代理 |
 | `superpowers:finishing-a-development-branch` | Step 10 | 分支最终化（合并/PR/清理） |
 
-**校验方法**：逐一调用 `Skill` 工具加载上述 skill，若任一返回"未找到"或加载失败，立即中止工作流，并向用户输出以下安装指引：
+**校验方法**：逐一调用 `Skill` 工具加载上述 skill，若任一返回"未找到"或加载失败，立即中止工作流，并向用户输出以下同步指引：
 
 ```
 依赖缺失：superpowers 技能集未安装或版本不完整。
 
-安装步骤：
-1. 确保项目已引入 superpowers 技能集
-   - Claude Code 插件方式：在插件市场搜索并安装 superpowers
-   - 手动方式：将 superpowers 仓库克隆到 .claude/skills/ 目录下
-2. 重新加载会话后再次触发本 Skill
+处理步骤：
+1. 确认目标工程 `.agents/vendor/superpowers/` 存在。
+2. 按 `.agents/docs/update-agents.md` 运行 vendor skill 同步：`.agents/scripts/sync-vendor-skills.ps1 -AgentsRoot .agents -Mode DryRun|Write`，或通过常规 `update-agents.ps1` 完成同步。
+3. 重新加载会话后再次触发本 Skill。
 
 缺失清单：<列出具体缺失的 skill>
 ```

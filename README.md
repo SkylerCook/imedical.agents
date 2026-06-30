@@ -34,6 +34,7 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
    - `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`
    - `.agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md`
    - `.agents/plugins/iris-interface-dev-plugin/skills/iris-interface-init/SKILL.md`
+   - `.agents/plugins/imedicalxc-doctor-extend-engineer/skills/imedicalxc-doctor-extend-engineer/SKILL.md`
 
 不要把本仓库根 `AGENTS.md`、根 `memory/` 或展示页文件复制到业务项目。
 
@@ -57,7 +58,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install-agents.ps1
 
 脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/`，并拉取 `plugins/`、`agents/`、`workflows/` 等能力包内容，让用户和 Agent 能看到可用能力。
 
-插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认只把 `agent-context-kit` 作为基础上下文能力处理；`coding-iris-plugin`、`i18n-iris-plugin` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
+插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认只把 `agent-context-kit` 作为基础上下文能力处理；`coding-iris-plugin`、`i18n-iris-plugin`、`iris-interface-dev-plugin`、`imedicalxc-doctor-extend-engineer` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
 
 ### 更新已部署 `.agents`
 
@@ -88,6 +89,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 如果由 Agent 托管更新，让它先读取 `.agents/docs/update-agents.md`，由 runbook 判断是否可从 `DryRun` 进入 `Write`。
 
+安装和更新流程还会调用 `scripts/sync-vendor-skills.ps1`，把 `.agents/vendor/` 中带 `SKILL.md` 的 vendor skill 同步到当前运行时 skill 发现目录。当前主要用于 `vendor/superpowers/` 和 `vendor/word-reader/`；这类 vendor skill 不生成 `.agents/skills/` thin-index。
+
 ## 仓库结构
 
 ```text
@@ -95,7 +98,7 @@ imedical.agents/
 |-- agents/      # 顶层智能体 canonical 定义
 |-- workflows/   # 顶层协作流程 canonical 定义
 |-- plugins/     # 可复用能力包
-|-- vendor/      # 第三方源码资产和共享运行时资产（如 HISUI dist、iris-agentic-dev）
+|-- vendor/      # 第三方源码资产、共享运行时资产和可同步运行时 skill（如 HISUI、iris-agentic-dev、superpowers、word-reader）
 |-- skills/      # 仓库级通用 skill
 |-- rules/       # 仓库级通用规则预留入口
 |-- docs/        # AI Coding 工作区规范、runbook 和配套文档
@@ -227,6 +230,22 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - `iris-interface-field-match`
 - `iris-interface-dev-plan`
 
+### imedicalxc-doctor-extend-engineer
+
+负责 HIS 医生站第三方系统集成的全流程编排能力：
+
+- 需求头脑风暴、设计、实施、测试、HIS 域验证和 CI/CD 交付的 10 步工作流。
+- 医生站组与医院信息平台组的范围拆分。
+- 中间件入口识别、前端契约提取和后端数据装配。
+- BLH / DriverCom 分层开发、调用规范、医保/字典数据复用和 WebSysAddins 中间件开发。
+- `imedicalxc-doctor-dbdata` 已精简为数据库查询核心规范，重点覆盖医保对照、基础数据统一对照和合并查询。
+- thin-index wrapper 默认只暴露 `imedicalxc-doctor-extend-engineer` 主编排器入口，8 个子 skill 由主编排器按需读取。
+- 依赖的 `superpowers` 和 `word-reader` 通过 `.agents/vendor/` 分发，并由安装/更新脚本同步到运行时 skill 目录。
+
+常用 skill：
+
+- `imedicalxc-doctor-extend-engineer`
+
 ## 推荐接入流程
 
 完成 `.agents/` clone 只代表能力包已进入业务项目，不代表项目上下文已完成。
@@ -245,7 +264,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
    - `.agents/memory/project-memory.md`
 6. 先 dry-run，再 write 生成 `agent-context-kit` thin-index。
 7. 查看 `.agents/config/plugin_profile.md`；未启用插件保持 `available`，不要自动生成它们的 thin-index。
-8. 按需要初始化 `coding-iris-plugin`、`i18n-iris-plugin`、`iris-interface-dev-plugin`。
+8. 按需要初始化 `coding-iris-plugin`、`i18n-iris-plugin`、`iris-interface-dev-plugin`、`imedicalxc-doctor-extend-engineer`。
 9. 按需要读取 `agents/agent-registry.md` 和 `workflows/workflow-registry.md` 使用顶层智能体。
 
 业务项目事实写入业务项目自己的上下文层，不写入本仓库插件或维护记忆。

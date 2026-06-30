@@ -8,7 +8,7 @@
 - `workflows/` 放厂商无关的多智能体/阶段化 workflow canonical 定义，包括 workflow registry 和 `*.workflow.md`；workflow 必须支持不具备子代理能力时的单 Agent 串行降级。
 - `rules/` 只放长期约束、工作流规则和任务路由，不放大体量查找表、API 目录或源码索引。
 - `references/` 放按需查阅的参考资料，例如查找表、控件/API 目录和源码索引；默认不参与 rule thin-index 生成。
-- `vendor/` 放第三方源码资产和共享运行时资产（如 HISUI dist、iris-agentic-dev Windows x64 可执行文件），供 rules 和 skills 按需引用；不参与 thin-index 生成。
+- `vendor/` 放第三方源码资产、共享运行时资产和可同步运行时 vendor skill（如 HISUI dist、iris-agentic-dev Windows x64 可执行文件、superpowers、word-reader），供 rules 和 skills 按需引用；不参与 thin-index 生成。
 - `skills/` 负责任务流程编排，必要时按任务类型读取对应 rules 或 references。
 - `scripts/` 放可复用自动化；插件专属脚本放在对应插件目录，不复制到共享脚本目录，除非插件初始化流程明确要求。
 - 维护记忆只写摘要、状态、决策和下一步，不复制完整规则、长段脚本说明或一次性命令输出。
@@ -54,7 +54,7 @@
 - `.agents/.git/info/exclude` 应继续忽略 `/config/`、`/memory/`、`/rules/`、`/skills/` 和 `/scripts/` 这些本地生成层。
 - `.agents/.git/info/exclude` 不应忽略 `/agents/` 或 `/workflows/`；业务项目私有 Agent/Workflow 差异应写入 `.agents/config/agent_*_profile.md` 或业务项目自己的规则/文档。
 - 对手工 full clone 到 `.agents/` 的工程，必须重新执行安装脚本启用 sparse checkout；仅靠 `.git/info/exclude` 不能隐藏已跟踪的维护者记忆文件。
-- 根目录 `vendor/` 放第三方源码资产和共享运行时资产（如 HISUI、iris-agentic-dev），已加入 sparse checkout 路径 `/vendor/**`，部署到业务项目 `.agents/vendor/`。`vendor/` 不参与 thin-index 生成，不生成 `.agents/rules/` 或 `.agents/skills/` 入口；由 rules 和 skills 按需直接引用。
+- 根目录 `vendor/` 放第三方源码资产、共享运行时资产和可同步运行时 vendor skill（如 HISUI、iris-agentic-dev、superpowers、word-reader），已加入 sparse checkout 路径 `/vendor/**`，部署到业务项目 `.agents/vendor/`。`vendor/` 不参与 thin-index 生成，不生成 `.agents/rules/` 或 `.agents/skills/` 入口；其中 `vendor/<vendor>/skills/<skill>/SKILL.md` 和 `vendor/<vendor>/SKILL.md` 可由 `scripts/sync-vendor-skills.ps1` 同步到运行时 skill 发现目录，供工具直接加载。
 
 ## 入口决策
 
