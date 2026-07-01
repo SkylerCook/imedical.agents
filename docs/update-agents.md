@@ -8,7 +8,7 @@
 
 - 当前目录必须是业务项目根目录。
 - Git 必须是 `2.25.0` 或更新版本；`install-agents.ps1` 和 `update-agents.ps1` 使用 `git sparse-checkout` 子命令，不兼容 Git 2.21.0。
-- `AGENTS.md` 是必须存在的工程级唯一主入口；`CLAUDE.md`、`CODEBUDDY.md` 只是可选兼容 symlink。
+- `AGENTS.md` 是工程级唯一主入口，但缺失时不阻塞 `.agents` 首次安装；安装后通过 `project-context-maintenance` 补齐或维护。`CLAUDE.md`、`CODEBUDDY.md` 只是可选兼容 symlink。
 - 所有命令使用 PowerShell。
 - `.agents/config/` 只允许合并，不允许覆盖已有值。
 - `.agents/config/plugin_profile.md` 是插件启用状态事实来源；插件目录存在只表示 `available`，不表示已启用。
@@ -177,7 +177,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `thin-index-script-missing` | 停止。报告插件缺少 thin-index 脚本。 |
 | `agent-thin-index-script-missing` | 停止。报告 `.agents/scripts/generate-agent-thin-index.ps1` 缺失；先更新 `.agents` 能力包。 |
 | `vendor-skill-sync-script-missing` | 停止。报告 `.agents/scripts/sync-vendor-skills.ps1` 缺失；先更新 `.agents` 能力包。 |
-| `agents-entry-missing` | 停止。先创建 `AGENTS.md`，不要用 `CLAUDE.md` 或 `CODEBUDDY.md` 代替。 |
+| `agents-entry-missing` | 提示。项目主入口缺失；安装或更新 `.agents` 后，通过 `project-context-maintenance` 补齐或维护，不要复制本仓库根 `AGENTS.md`。 |
 | `plugin-init-required` | 停止。读取该插件真实 init skill，完成初始化闭环后用脚本标记为 enabled。 |
 | `plugin-dependency-missing` | 停止。先初始化依赖插件，不要只因插件目录存在就继续。 |
 

@@ -185,9 +185,11 @@ Assert-True (Test-Path -LiteralPath $profileScriptUnderTest -PathType Leaf) "scr
 Assert-True (Test-Path -LiteralPath $agentThinIndexScriptUnderTest -PathType Leaf) "scripts/generate-agent-thin-index.ps1 should exist"
 
 $runbookPath = Join-Path $repoRoot "docs/update-agents.md"
+$readmePath = Join-Path $repoRoot "README.md"
 $contextSkillPath = Join-Path $repoRoot "plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md"
 $installScriptPath = Join-Path $repoRoot "scripts/install-agents.ps1"
 Assert-True (Test-Path -LiteralPath $runbookPath -PathType Leaf) "docs/update-agents.md should exist"
+Assert-True (Test-Path -LiteralPath $readmePath -PathType Leaf) "README.md should exist"
 $updateScriptContent = Get-Content -Raw -Encoding UTF8 -Path $scriptUnderTest
 $profileScriptContent = Get-Content -Raw -Encoding UTF8 -Path $profileScriptUnderTest
 $installScriptContent = Get-Content -Raw -Encoding UTF8 -Path $installScriptPath
@@ -204,11 +206,15 @@ Assert-Contains $installScriptContent "/feedback/**" "install sparse checkout sh
 Assert-Contains $installScriptContent "!/skills/agent-kit-maintenance/**" "install sparse checkout should exclude maintenance-only skill"
 Assert-Contains $installScriptContent "2.25.0" "install should require Git 2.25.0 or newer for sparse-checkout subcommand"
 Assert-Contains $installScriptContent "Assert-GitSparseCheckoutSubcommandAvailable" "install should fail early when git sparse-checkout subcommand is unavailable"
+Assert-Contains $installScriptContent "Continue installing .agents" "install should not block .agents bootstrap when AGENTS.md is missing"
 Assert-Contains $installScriptContent "/project-context-maintenance" "install should guide users or their agent to run project-context-maintenance after install"
 Assert-Contains $installScriptContent ".agents/plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md" "install should point to the real project-context-maintenance skill path"
 Assert-Contains $profileScriptContent "available" "profile updater should support available"
 Assert-Contains $profileScriptContent "enabled" "profile updater should support enabled"
 Assert-Contains $profileScriptContent "disabled" "profile updater should support disabled"
+$readmeContent = Get-Content -Raw -Encoding UTF8 -Path $readmePath
+Assert-Contains $readmeContent 'Git `2.25.0`' "README should document Git 2.25.0 requirement before local runbook exists"
+Assert-Contains $readmeContent "git sparse-checkout" "README should explain sparse-checkout dependency before first install"
 $runbookContent = Get-Content -Raw -Encoding UTF8 -Path $runbookPath
 Assert-Contains $runbookContent "DryRun" "runbook should mention DryRun"
 Assert-Contains $runbookContent "Write" "runbook should mention Write"
@@ -223,6 +229,17 @@ Assert-Contains $contextSkillContent "docs/update-agents.md" "project-context-ma
 Assert-Contains $contextSkillContent "depends_on" "project-context-maintenance should guide plugin enablement after context maintenance"
 Assert-Contains $contextSkillContent "dependencies" "project-context-maintenance should read plugin manifest dependencies before enabling plugins"
 Assert-Contains $contextSkillContent "update-plugin-profile.ps1" "project-context-maintenance should use update-plugin-profile.ps1 after init validation"
+
+$missingAgentsEntryProjectRoot = New-TestProject
+try {
+  Remove-Item -LiteralPath (Join-Path $missingAgentsEntryProjectRoot "AGENTS.md")
+  $missingAgentsEntryOutput = & (Join-Path $missingAgentsEntryProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $missingAgentsEntryProjectRoot -Mode DryRun -NoPull | Out-String
+  Assert-Contains $missingAgentsEntryOutput "agents-entry-missing" "Missing AGENTS.md should be reported for later project context maintenance"
+  Assert-True (-not $missingAgentsEntryOutput.Contains("Action required:")) "Missing AGENTS.md should not block .agents update"
+}
+finally {
+  Remove-Item -Recurse -Force -LiteralPath $missingAgentsEntryProjectRoot
+}
 
 $projectRoot = New-TestProject
 try {

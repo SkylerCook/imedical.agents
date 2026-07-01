@@ -105,8 +105,7 @@ if (Test-Path "AGENTS.md") {
   Write-Host "AGENTS.md found. CLAUDE.md and CODEBUDDY.md are optional compatibility symlinks; install-agents.ps1 does not create, copy, or repair them automatically."
 }
 else {
-  Write-Error "AGENTS.md not found. AGENTS.md is required as the single primary agent entrypoint. Create AGENTS.md first; CLAUDE.md and CODEBUDDY.md are optional symlinks only."
-  exit 1
+  Write-Warning "AGENTS.md not found. Continue installing .agents; create or update the project entrypoint later through project-context-maintenance."
 }
 
 if (Test-Path ".git") {

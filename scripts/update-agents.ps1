@@ -581,7 +581,6 @@ function Write-UpdateSummary {
     "config-review-required",
     "thin-index-script-missing",
     "entrypoint-check-missing",
-    "agents-entry-missing",
     "agent-thin-index-script-missing",
     "vendor-skill-sync-script-missing",
     "plugin-init-required",
@@ -782,7 +781,7 @@ if (Test-Path -LiteralPath (Join-Path $projectRootFull "AGENTS.md") -PathType Le
   }
 }
 else {
-  $results.Add((Write-UpdateResult -Status "agents-entry-missing" -Target "AGENTS.md" -Reason "AGENTS.md is required as the single primary agent entrypoint" -Phase "entrypoint"))
+  $results.Add((Write-UpdateResult -Status "agents-entry-missing" -Target "AGENTS.md" -Reason "project entrypoint missing; maintain it through project-context-maintenance" -Phase "entrypoint"))
 }
 
 $allPlugins = Get-InstalledPlugins -AgentsRoot $agentsRoot -IncludeNames @() -ExcludeNames $ExcludePlugin
