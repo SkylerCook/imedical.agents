@@ -12,6 +12,7 @@
 
 1. `memory/agent-kit-maintenance-memory.md`：入口摘要、必读路由和当前重点。
 2. 按任务继续读取：
+   - `skills/agent-kit-maintenance/SKILL.md`：维护者专用 skill，处理插件提交同步、记忆更新、README/docs 对齐和部署边界检查；它不部署到业务项目。
    - `memory/agent-kit-maintenance-decisions.md`：长期决策和边界。
    - `memory/agent-kit-maintenance-log.md`：近期维护记录和验证摘要。
    - `memory/agent-kit-maintenance-backlog.md`：后续治理队列。
@@ -34,7 +35,7 @@
 - `agents/` 放厂商无关的智能体 canonical 定义；不放 Codex、Claude Code、OpenCode、CodeBuddy、WorkBuddy、Hermes 等工具专属生成物。
 - `workflows/` 放厂商无关的阶段化或多智能体协作流程；workflow 必须支持无子代理能力时的单 Agent 串行降级。
 - `plugins/` 放可复用能力包；插件内可以包含 rules、skills、references、templates、scripts、commands、agents 或 hooks。
-- `skills/` 放仓库级通用 skill。
+- `skills/` 放仓库级通用 skill；其中 `skills/agent-kit-maintenance/` 是维护者专用例外，只服务本仓库维护，不部署到业务项目 `.agents/`，不生成 thin-index。
 - `rules/` 是仓库级通用规则预留入口；当前通用规则主要沉淀在插件内。
 - `docs/` 放 AI Coding 工作区规范、runbook 和配套文档。
 - 根 `scripts/` 放能力包部署、更新和通用维护脚本；领域脚本放到对应插件。
@@ -51,6 +52,7 @@
 
 - 根 `AGENTS.md`
 - 根 `memory/`
+- `skills/agent-kit-maintenance/`
 - 根 `README.md`、`LICENSE`
 - 根 `index.html`
 - `.github/`
@@ -66,6 +68,8 @@
 - 修改 thin-index 生成行为时，只改根 `scripts/generate-plugin-thin-index.ps1`；各插件同名脚本只能作为 wrapper。
 - Agent thin-index 或工具 adapter 生成逻辑不得混入 plugin thin-index；需要时新增独立脚本。
 - 修改插件目录结构时，同步检查插件 `AGENTS.md`、README、manifest、templates、仓库 README 和相关 docs。
+- 提交任何插件能力变更前，必须同步检查并按需更新：插件 `AGENTS.md`、插件 README、`.agents-plugin/plugin.json`、相关 skill/rule/reference/template、仓库 README、`memory/agent-kit-maintenance-memory.md`、`memory/agent-kit-maintenance-log.md`、`memory/agent-kit-maintenance-backlog.md`、相关 docs 和测试。禁止只提交插件实现而遗漏对应说明、记忆或验证入口。
+- 若插件变更影响业务项目安装、更新、thin-index、vendor 同步、启用状态或兼容清理，必须同步更新 `docs/update-agents.md`、`scripts/tests/update-agents.tests.ps1` 或对应专项测试，并在 README 或插件 README 说明已部署项目的处理方式。
 - 新增长期通用能力时，先判断应放入 `agents/`、`workflows/`、`rules/`、`references/`、`skills/`、`templates/`、`scripts/` 还是插件目录。
 - 新增文件遵循命名约定：agent 目录 kebab-case + `-agent`，workflow 文件 kebab-case + `.workflow.md`，skill 目录 kebab-case，rule 文件 snake_case，reference 文件 kebab-case，script 文件 kebab-case。
 - 对已部署业务工程有影响的变更，必须说明同步步骤和兼容清理策略。

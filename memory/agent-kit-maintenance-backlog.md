@@ -4,22 +4,24 @@
 
 ## 下一步工作队列
 
-1. 多智能体架构配套落地。
+1. 多人协作下的仓库维护约束治理。
+   - 背景：仓库权限已放开给多位同事，需要把“改能力包必须同步维护约束”的流程前置，减少实际内容、README、插件文档、维护记忆和部署边界之间的偏移。
+   - 待做：梳理提交前检查清单，覆盖目录边界、thin-index 边界、vendor 边界、敏感信息、README/AGENTS/manifest 同步、维护记忆更新和已部署工程兼容说明。
+   - 待做：明确多人协作分工与准入规则，例如 canonical、插件、脚本、vendor、memory 分别由谁维护，哪些变更必须配套测试或文档更新。
+   - 待做：评估是否新增轻量治理文档、PR/提交检查清单或自动化脚本；先固化 Markdown 约束，再决定是否脚本化。
+
+2. 多智能体架构配套落地。
    - 待做：业务项目验证 `i18n-agent` 和 `i18n-change.workflow.md` 样板后，再决定是否新增通用 `coordinator/explorer/planner/coding/review/testing` Agent。
    - 暂缓：暂不做 `scripts/generate-agent-adapters.ps1`；后续确需 Codex、Claude Code、OpenCode、CodeBuddy、WorkBuddy、Hermes 等工具原生入口时再实现。
    - 禁止：不要让 `.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/` 或其它工具原生入口成为规则源；它们只能由 canonical 生成或临时适配。
 
-2. 继续观察 rules 体量。
+3. 继续观察 rules 体量。
    - 若 i18n 或 coding 规则再次承载查找表、API 目录或长参考资料，优先迁入对应插件 `references/`。
 
-3. 多智能体运行时调度器暂不实现。
+4. 多智能体运行时调度器暂不实现。
    - 当前阶段只落地 canonical 定义、workflow、交接协议和工具 adapter。
    - 暂不实现复杂自动并行调度器；等业务项目验证 i18n 样板后，再决定是否扩展 coordinator 运行时逻辑。
    - 后续可考虑新增 `standard-change`、`review-test-release`、`bugfix` workflow 和通用 `coordinator/explorer/planner/coding/review/testing` Agent。
-
-4. 继续评估是否新增 `agent-kit-maintenance` 专用 skill。
-   - 根 `AGENTS.md` 继续承载本仓库维护入口、记忆路由和维护规则。
-   - 若“查看近期提交、归纳维护记忆、同步 README/docs、检查 sparse checkout 边界、审查敏感信息”形成稳定高频流程，再抽成专用 skill；抽象前不得复制长篇维护记忆或脚本正文。
 
 5. 框架验证反馈机制。
    - 待做：团队成员开始使用后，观察反馈质量和处理效率。

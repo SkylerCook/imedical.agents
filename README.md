@@ -99,7 +99,7 @@ imedical.agents/
 |-- workflows/   # 顶层协作流程 canonical 定义
 |-- plugins/     # 可复用能力包
 |-- vendor/      # 第三方源码资产、共享运行时资产和可同步运行时 skill（如 HISUI、iris-agentic-dev、superpowers、word-reader）
-|-- skills/      # 仓库级通用 skill
+|-- skills/      # 仓库级通用 skill；agent-kit-maintenance 为维护专用例外，不部署业务项目
 |-- rules/       # 仓库级通用规则预留入口
 |-- docs/        # AI Coding 工作区规范、runbook 和配套文档
 |-- scripts/     # 通用部署、更新和维护脚本
@@ -318,8 +318,11 @@ scripts/generate-plugin-thin-index.ps1
 
 ## 维护约定
 
+- 维护本仓库自身时，优先读取根 `AGENTS.md` 和 `skills/agent-kit-maintenance/SKILL.md`；该 skill 位于根 `skills/` 下，但通过安装/更新 sparse checkout 排除，不部署到业务项目 `.agents/`。
 - 新增长期通用能力时，先判断应放入 `agents/`、`workflows/`、`plugins/`、`rules/`、`references/`、`skills/`、`templates/` 还是 `scripts/`。
 - 修改插件目录结构时，同步检查 `.agents-plugin/plugin.json`、插件 `AGENTS.md`、插件 README、仓库 README 和相关 docs。
+- 提交插件能力变更时，同步检查并按需更新插件 `AGENTS.md`、插件 README、manifest、相关 skill/rule/reference/template、仓库 README、维护记忆、相关 docs 和测试；不要只提交插件实现而遗漏说明、记忆或验证入口。
+- 如果插件变更影响业务项目安装、更新、thin-index、vendor 同步、启用状态或兼容清理，必须同步更新 runbook 或测试，并说明已部署项目的处理方式。
 - 对已部署业务工程有影响的变更，必须说明同步步骤和兼容清理策略。
 - 历史文件不为风格统一单独重命名；只有在明确迁移窗口中才同步 stale 清理、README、AGENTS 和引用。
 
