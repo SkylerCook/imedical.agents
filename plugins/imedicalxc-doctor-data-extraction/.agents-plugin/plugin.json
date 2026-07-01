@@ -1,0 +1,25 @@
+{
+  "name": "imedicalxc-doctor-data-extraction",
+  "version": "1.0.0",
+  "displayName": "HIS Data Extraction & API Mapping Plugin",
+  "description": "数据抽取与第三方接口对照文档生成插件。从@OpenApi Controller抽取接口数据，扫描分类现有接口并生成第三方接口与Feign标准接口的字段级对照文档（核心功能）。也可按需生成Feign标准接口代码和API文档（辅助功能）。",
+  "entry": "AGENTS.md",
+  "skills": "skills/",
+  "scripts": "scripts/",
+  "initSkill": "imedicalxc-doctor-data-extraction",
+  "requiresProjectFiles": [
+    "AGENTS.md"
+  ],
+  "defaultPrompt": [
+    "数据抽取",
+    "接口对照",
+    "字段映射",
+    "对比文档",
+    "Feign接口对照",
+    "第三方接口映射",
+    "生成Feign接口",
+    "OpenApi接口改造",
+    "Feign化",
+    "API文档"
+  ]
+}
