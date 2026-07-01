@@ -79,8 +79,8 @@ ls -d {module}-api/{module}-api-{sub} 2>/dev/null || echo "需新建API模块"
 ### Step 2.1: 提取第三方文档
 
 ```bash
-pdftotext -layout "目标文档.pdf" /tmp/content.txt
-grep -n "接口说明\|接口定义\|http.*v[0-9]/" /tmp/content.txt
+pdftotext -layout "目标文档.pdf" content.txt
+grep -n "接口说明\|接口定义\|http.*v[0-9]/" content.txt
 ```
 
 > `pdftotext` 对中文标题提取效果差，优先从 JSON 示例反推字段名和顺序；标题需人工对齐确认。
