@@ -9,6 +9,8 @@
 
 ## 近期已完成
 
+- 2026-07-01：已补齐近期医生站能力插件维护记录和仓库 README 总览：新增 `imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design` 三个插件的能力摘要、入口和部署边界说明；同步记录 install/update Git 版本前置校验。上述插件仍遵循 `.agents/plugins/**` 全量拉取但以 `plugin_profile.md` 控制启用的边界。
+
 - 2026-07-01：已新增维护者专用 `skills/agent-kit-maintenance/SKILL.md`，用于本仓库维护、插件提交同步、维护记忆更新和部署边界检查；该 skill 位于根 `skills/` 下，但安装/更新 sparse checkout 已排除 `skills/agent-kit-maintenance/`，不部署到业务项目 `.agents/`，不参与 thin-index。根 `AGENTS.md`、README、维护入口摘要和长期决策已同步说明。
 
 - 2026-06-30：已完成近期提交文档同步：维护记忆、长期决策、backlog、仓库 README、`imedicalxc-doctor-extend-engineer` README/AGENTS 和主编排器 superpowers 缺失指引已同步到当前实际内容；补齐 `scripts/tests/update-agents.tests.ps1` 对 `sync-vendor-skills.ps1` 的测试夹具复制，避免 vendor skill 同步脚本缺失误触发 Action required。
@@ -77,6 +79,12 @@
 
 ## 近期提交索引
 
+- `58339ee`：新增维护者专用 `agent-kit-maintenance` skill，并排除业务项目部署。
+- `364f594`：`install-agents.ps1` / `update-agents.ps1` 新增 Git 版本前置校验，并同步 runbook 与测试。
+- `3e0f580`：新增 `imedicalxc-doctor-print-template-design` 插件，提供打印模板设计与 `.xlsx` 模板生成工作流。
+- `b655c1a`：新增 `imedicalxc-doctor-data-extraction` 插件，提供数据抽取与第三方接口对照文档生成工作流。
+- `05bfa75`：新增 `imedicalxc-doctor-perf-analysis-engineer` 插件，提供接口性能分析、Graylog 诊断、前后端优化和报告输出能力。
+- `b802ac9`：同步 vendor skill 运行时链路与医生站扩展插件文档到当前状态。
 - `5ea2910`：精简 `imedicalxc-doctor-dbdata` skill，并同步医生站扩展主编排器和架构引用。
 - `3512d7c`：迁移 superpowers skills v6.0.3 到 `vendor/superpowers/`。
 - `920e75b`：`imedicalxc-doctor-extend-engineer` thin-index 只暴露主编排器入口。
@@ -107,6 +115,8 @@
 - `0a932d7`：收敛唯一主入口、可选兼容入口和 stale thin-index 清理。
 
 ## 最近验证
+
+- 2026-07-01：已检查近期提交 `05bfa75`、`b655c1a`、`3e0f580`、`364f594`、`58339ee` 的变更范围；确认三个新增医生站插件均包含 `.agents-plugin/plugin.json`、`AGENTS.md`、主 `SKILL.md` 和 thin-index wrapper，其中性能分析插件额外包含 README、init skill、脚本和 references。已通过 `rg` 检查 README 与维护记忆中的旧插件总览缺口，并完成摘要同步；本轮不复制大段插件正文或业务私有事实。
 
 - 2026-06-30：本轮文档同步已执行一致性搜索，确认 `README.md`、`plugins/imedicalxc-doctor-extend-engineer`、`memory` 和 `docs` 下不再残留旧版 superpowers 安装方式和旧子 skill 暴露数量等过期表述；路径检查确认 `vendor/superpowers/skills/brainstorming/SKILL.md`、`vendor/word-reader/SKILL.md` 和医生站扩展插件 thin-index wrapper 均存在；`scripts/sync-vendor-skills.ps1 -AgentsRoot . -Mode DryRun` 可枚举 superpowers 与 word-reader vendor skill；`scripts/tests/update-agents.tests.ps1` 已通过。仓库根误产物 `%SystemDrive%/` 已确认位于 workspace 内并清理。
 

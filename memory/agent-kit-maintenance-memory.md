@@ -32,6 +32,10 @@
 
 ## 近期关键变化
 
+- 已新增 `imedicalxc-doctor-perf-analysis-engineer` 插件，覆盖医生站接口性能分析与优化、前后端链路追踪、Graylog 日志分析、N+1/批量调用优化和性能报告输出；init skill 与主编排 skill 分离，thin-index wrapper 默认只暴露主编排器入口。
+- 已新增 `imedicalxc-doctor-data-extraction` 插件，用于 HIS 数据抽取、`@OpenApi` Controller 扫描、第三方接口对照文档和字段映射生成，Feign/API 文档生成作为辅助能力。
+- 已新增 `imedicalxc-doctor-print-template-design` 插件，用于 HIS 打印模板设计和 `.xlsx` 模板生成，覆盖 Word/docx 参考文档到主模板/扩展模板的工作流。
+- `scripts/install-agents.ps1` 和 `scripts/update-agents.ps1` 已新增 Git 版本前置校验；`docs/update-agents.md` 和更新脚本测试已同步覆盖。
 - 已新增 vendor skill 运行时同步链路：`vendor/superpowers/` 和 `vendor/word-reader/` 随 `/vendor/**` 部署到业务项目 `.agents/vendor/`，再由 `scripts/sync-vendor-skills.ps1` 同步到运行时 skill 发现目录；vendor 仍不参与 thin-index。
 - 已新增并重构 `imedicalxc-doctor-extend-engineer` 插件，采用标准插件结构、内置多模块 Maven 依赖安装脚本，thin-index wrapper 默认只暴露主编排器入口，医生站第三方集成子 skill 由主编排器按需加载。
 - 已精简 `imedicalxc-doctor-dbdata` skill，聚焦数据库查询核心规范，重点保留医保对照、基础数据统一对照和合并查询（Merge Query）等高价值领域知识，并同步更新医生站扩展主编排器和架构引用。
