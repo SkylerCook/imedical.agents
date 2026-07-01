@@ -204,6 +204,8 @@ Assert-Contains $installScriptContent "/feedback/**" "install sparse checkout sh
 Assert-Contains $installScriptContent "!/skills/agent-kit-maintenance/**" "install sparse checkout should exclude maintenance-only skill"
 Assert-Contains $installScriptContent "2.25.0" "install should require Git 2.25.0 or newer for sparse-checkout subcommand"
 Assert-Contains $installScriptContent "Assert-GitSparseCheckoutSubcommandAvailable" "install should fail early when git sparse-checkout subcommand is unavailable"
+Assert-Contains $installScriptContent "/project-context-maintenance" "install should guide users or their agent to run project-context-maintenance after install"
+Assert-Contains $installScriptContent ".agents/plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md" "install should point to the real project-context-maintenance skill path"
 Assert-Contains $profileScriptContent "available" "profile updater should support available"
 Assert-Contains $profileScriptContent "enabled" "profile updater should support enabled"
 Assert-Contains $profileScriptContent "disabled" "profile updater should support disabled"
@@ -214,8 +216,13 @@ Assert-Contains $runbookContent "-Detailed" "runbook should mention -Detailed"
 Assert-Contains $runbookContent "config-review-required" "runbook should mention config-review-required"
 Assert-Contains $runbookContent "pull-blocked-dirty" "runbook should mention pull-blocked-dirty"
 Assert-Contains $runbookContent "git clone" "runbook should support manual clone"
+Assert-Contains $runbookContent "/project-context-maintenance" "runbook should guide users to maintain project context after install"
+Assert-Contains $runbookContent "dependencies" "runbook should explain dependency plugin initialization order"
 $contextSkillContent = Get-Content -Raw -Encoding UTF8 -Path $contextSkillPath
 Assert-Contains $contextSkillContent "docs/update-agents.md" "project-context-maintenance should route updates to docs/update-agents.md"
+Assert-Contains $contextSkillContent "depends_on" "project-context-maintenance should guide plugin enablement after context maintenance"
+Assert-Contains $contextSkillContent "dependencies" "project-context-maintenance should read plugin manifest dependencies before enabling plugins"
+Assert-Contains $contextSkillContent "update-plugin-profile.ps1" "project-context-maintenance should use update-plugin-profile.ps1 after init validation"
 
 $projectRoot = New-TestProject
 try {

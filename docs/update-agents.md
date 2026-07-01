@@ -66,6 +66,29 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Write
 ```
 
+## 安装后的上下文维护
+
+安装或更新 `.agents` 成功后，不要直接启用领域插件。先引导用户或用户当前使用的大模型执行项目上下文维护：
+
+```text
+/project-context-maintenance
+```
+
+如果当前 Agent 工具不支持 slash command，则直接读取并执行真实 skill：
+
+```text
+.agents/plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md
+```
+
+该步骤负责维护 `AGENTS.md`、`.agents/config/project_context_profile.md`、`.agents/config/plugin_profile.md`、`.agents/rules/` 和 `.agents/memory/project-memory.md`。上下文维护完成后，再根据项目需要选择插件。选择插件时必须先读取 `.agents/plugins/<plugin>/.agents-plugin/plugin.json`：
+
+- `initSkill` 指向该插件首次接入必须读取的真实初始化 skill。
+- `dependencies`、`dependsOn` 或 `depends_on` 是依赖插件列表。
+- 若依赖插件尚未在 `plugin_profile.md` 中标记为 `enabled`，先初始化依赖插件；依赖插件验收并写入 `enabled` 后，再初始化目标插件。
+- 插件初始化闭环验收通过后，使用 `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin <plugin-name> -Status enabled` 机械维护状态。
+
+脚本不会自动把依赖插件标记为 `enabled`。`enabled` 表示该插件已经完成项目上下文、配置、thin-index、脚本和入口路由的初始化闭环，不只是插件目录已存在。
+
 ## 手工 clone 后收敛
 
 有些用户习惯先手工克隆仓库：

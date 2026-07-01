@@ -72,6 +72,16 @@ function Set-AgentsSparseCheckout {
   $sparsePaths | git -C $target sparse-checkout set --stdin --no-cone
 }
 
+function Write-PostInstallGuidance {
+  Write-Host ""
+  Write-Host "imedical.agents installed or updated."
+  Write-Host "Next step: ask the user or their agent to run /project-context-maintenance."
+  Write-Host "If the slash command is unavailable, read and follow:"
+  Write-Host ".agents/plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md"
+  Write-Host "After project context is maintained, choose required plugins from .agents/config/plugin_profile.md."
+  Write-Host "When enabling a plugin, initialize dependency plugins first, then run the selected plugin's real initSkill."
+}
+
 Assert-GitSparseCheckoutSubcommandAvailable
 
 if (Test-Path "$target\.git") {
@@ -117,3 +127,5 @@ if (Test-Path -LiteralPath $syncScript -PathType Leaf) {
   Write-Host "Syncing vendor skills to runtime skill directory..."
   & $syncScript -AgentsRoot $target -Mode Write
 }
+
+Write-PostInstallGuidance
