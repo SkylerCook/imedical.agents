@@ -23,14 +23,24 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
 
 ## 给 Agent 的落地入口
 
-如果你是正在业务项目中执行安装或更新的 Agent，优先按这个顺序读取：
+如果你是正在业务项目中执行安装或更新的 Agent，先判断 `.agents/` 状态，不要假设本地 runbook 已经存在：
 
-1. 业务项目根 `AGENTS.md`。
-2. `.agents/docs/update-agents.md`，执行安装或更新 runbook。
-3. `.agents/plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md`，初始化或维护项目上下文。
-4. `.agents/config/plugin_profile.md`，确认插件是 `available`、`enabled` 还是 `disabled`。
-5. `.agents/agents/agent-registry.md` 和 `.agents/workflows/workflow-registry.md`，确认可用智能体和 workflow。
-6. 按项目需要读取插件初始化 skill：
+安装和更新要求 Git `2.25.0` 或更新版本，因为脚本依赖 `git sparse-checkout`；低版本 Git for Windows 请先升级后再执行安装命令。
+
+| 状态 | 下一步 |
+|---|---|
+| `.agents/docs/update-agents.md` 存在 | 读取它并执行安装或更新 runbook。 |
+| `.agents/` 不存在 | 确认 Git `2.25.0+` 后，在业务项目根目录执行网络安装命令：`iwr -UseBasicParsing https://gitee.com/skyler-cook/imedical.agents/raw/master/scripts/install-agents.ps1 \| iex`。安装成功后再读取 `.agents/docs/update-agents.md`。 |
+| `.agents/` 存在但 `.agents/.git` 不存在 | 停止并报告“非标准 .agents 目录”，请用户确认是否备份或删除后重新安装。 |
+| `.agents/.git` 存在但缺少 `.agents/docs/update-agents.md` | 先执行 `.agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun`；若脚本也缺失，报告 `.agents` 部署不完整。 |
+
+安装或更新完成后，再按这个顺序继续：
+
+1. 读取业务项目根 `AGENTS.md`；若缺失，记录为项目上下文待补项，不要把本仓库根 `AGENTS.md` 复制过去。
+2. 读取 `.agents/plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md`，初始化或维护项目上下文。
+3. 读取 `.agents/config/plugin_profile.md`，确认插件是 `available`、`enabled` 还是 `disabled`。
+4. 读取 `.agents/agents/agent-registry.md` 和 `.agents/workflows/workflow-registry.md`，确认可用智能体和 workflow。
+5. 按项目需要读取插件初始化 skill：
    - `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`
    - `.agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md`
    - `.agents/plugins/iris-interface-dev-plugin/skills/iris-interface-init/SKILL.md`
@@ -42,11 +52,15 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
 
 ### 首次安装到业务项目
 
+要求本机 Git `2.25.0` 或更新版本；安装脚本会使用 `git sparse-checkout`。如果版本过低，先升级 Git for Windows。
+
 在业务项目根目录执行：
 
 ```powershell
 iwr -UseBasicParsing https://gitee.com/skyler-cook/imedical.agents/raw/master/scripts/install-agents.ps1 | iex
 ```
+
+这是首次安装时给 Agent 使用的明确入口。此时 `.agents/docs/update-agents.md` 还不存在，不能要求 Agent 先读本地 runbook。
 
 如需先审阅脚本：
 
@@ -291,9 +305,9 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 推荐顺序：
 
-1. 确认业务项目根目录存在 `AGENTS.md`。
-2. 安装或更新 `.agents/`。
-3. 读取 `project-context-maintenance`，初始化或维护项目上下文。
+1. 安装或更新 `.agents/`；首次安装时使用上文网络安装命令，已部署项目按 `.agents/docs/update-agents.md` 执行 runbook。
+2. 读取 `project-context-maintenance`，初始化或维护项目上下文。
+3. 检查业务项目根目录 `AGENTS.md`；若缺失或过期，由项目上下文维护流程补齐或更新，不作为安装 `.agents/` 的前置阻塞。
 4. 根据项目成熟度设置 `contextMode`：
    - `codebase-complete`：本地代码基本完整。
    - `intent-first-on-demand-export`：代码零散、刚新建，或后续按需导出文件。
