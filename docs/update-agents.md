@@ -7,7 +7,8 @@
 ## 使用前提
 
 - 当前目录必须是业务项目根目录。
-- `AGENTS.md` 是必须存在的工程级唯一主入口；`CLAUDE.md`、`CODEBUDDY.md` 只是可选兼容 symlink。
+- Git 必须是 `2.25.0` 或更新版本；`install-agents.ps1` 和 `update-agents.ps1` 使用 `git sparse-checkout` 子命令，不兼容 Git 2.21.0。
+- `AGENTS.md` 是工程级唯一主入口，但缺失时不阻塞 `.agents` 首次安装；安装后通过 `project-context-maintenance` 补齐或维护。`CLAUDE.md`、`CODEBUDDY.md` 只是可选兼容 symlink。
 - 所有命令使用 PowerShell。
 - `.agents/config/` 只允许合并，不允许覆盖已有值。
 - `.agents/config/plugin_profile.md` 是插件启用状态事实来源；插件目录存在只表示 `available`，不表示已启用。
@@ -64,6 +65,29 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Write
 ```
+
+## 安装后的上下文维护
+
+安装或更新 `.agents` 成功后，不要直接启用领域插件。先引导用户或用户当前使用的大模型执行项目上下文维护：
+
+```text
+/project-context-maintenance
+```
+
+如果当前 Agent 工具不支持 slash command，则直接读取并执行真实 skill：
+
+```text
+.agents/plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md
+```
+
+该步骤负责维护 `AGENTS.md`、`.agents/config/project_context_profile.md`、`.agents/config/plugin_profile.md`、`.agents/rules/` 和 `.agents/memory/project-memory.md`。上下文维护完成后，再根据项目需要选择插件。选择插件时必须先读取 `.agents/plugins/<plugin>/.agents-plugin/plugin.json`：
+
+- `initSkill` 指向该插件首次接入必须读取的真实初始化 skill。
+- `dependencies`、`dependsOn` 或 `depends_on` 是依赖插件列表。
+- 若依赖插件尚未在 `plugin_profile.md` 中标记为 `enabled`，先初始化依赖插件；依赖插件验收并写入 `enabled` 后，再初始化目标插件。
+- 插件初始化闭环验收通过后，使用 `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin <plugin-name> -Status enabled` 机械维护状态。
+
+脚本不会自动把依赖插件标记为 `enabled`。`enabled` 表示该插件已经完成项目上下文、配置、thin-index、脚本和入口路由的初始化闭环，不只是插件目录已存在。
 
 ## 手工 clone 后收敛
 
@@ -146,13 +170,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `config-review-required` | 停止。说明配置语义需要人工确认。 |
 | `pull-blocked-dirty` | 停止。说明 `.agents` 仓库存在本地改动，需要用户决定提交、暂存或放弃。 |
 | `agents-git-missing` | 停止。说明 `.agents` 不是标准独立 Git 仓库。 |
+| `git-version-unsupported` | 停止。说明当前 Git 低于 `2.25.0`，先升级 Git for Windows 后重试。 |
 | `fetch-failed` | 停止。报告网络或远端拉取失败。 |
 | `pull-failed` | 停止。报告无法 fast-forward。 |
 | `sparse-refresh-failed` | 停止。报告 sparse checkout 刷新失败。 |
 | `thin-index-script-missing` | 停止。报告插件缺少 thin-index 脚本。 |
 | `agent-thin-index-script-missing` | 停止。报告 `.agents/scripts/generate-agent-thin-index.ps1` 缺失；先更新 `.agents` 能力包。 |
 | `vendor-skill-sync-script-missing` | 停止。报告 `.agents/scripts/sync-vendor-skills.ps1` 缺失；先更新 `.agents` 能力包。 |
-| `agents-entry-missing` | 停止。先创建 `AGENTS.md`，不要用 `CLAUDE.md` 或 `CODEBUDDY.md` 代替。 |
+| `agents-entry-missing` | 提示。项目主入口缺失；安装或更新 `.agents` 后，通过 `project-context-maintenance` 补齐或维护，不要复制本仓库根 `AGENTS.md`。 |
 | `plugin-init-required` | 停止。读取该插件真实 init skill，完成初始化闭环后用脚本标记为 enabled。 |
 | `plugin-dependency-missing` | 停止。先初始化依赖插件，不要只因插件目录存在就继续。 |
 
@@ -265,6 +290,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-plugi
 - 没有 `config-review-required`。
 - 没有 `pull-blocked-dirty`。
 - 没有 `agents-git-missing`。
+- 没有 `git-version-unsupported`。
 - 没有 `fetch-failed`、`pull-failed` 或 `sparse-refresh-failed`。
 
 兼容入口提示不属于停止条件。不要为了消除 `entrypoint-missing`、`entrypoint-not-symlink` 或 `entrypoint-wrong-target` 而复制 `AGENTS.md`；只有用户明确需要时，才运行 `repair-agent-entrypoints.ps1` 创建 symlink。
@@ -285,6 +311,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - `.agents/agents/agent-registry.md` 存在。
 - `.agents/workflows/workflow-registry.md` 存在。
 - `.agents/skills/<agent-name>/SKILL.md` 中的 agent thin-index 存在或 dry-run 明确报告将生成；例如 `.agents/skills/i18n-agent/SKILL.md` 指向 `.agents/agents/i18n-agent/AGENT.md` 和 `.agents/workflows/i18n-change.workflow.md`。
+- `.agents/skills/agent-kit-maintenance/` 不存在；该维护者专用 skill 只保留在能力包仓库根 `skills/agent-kit-maintenance/`，不得部署到业务项目。
 - vendor skill 已同步到运行时 skill 目录，或 dry-run 明确报告 `vendor-missing` / `vendor-skill-synced`。
 - `.agents/.git/info/exclude` 包含 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
 - `.agents/config/plugin_profile.md` 存在或 dry-run 明确报告默认插件状态。

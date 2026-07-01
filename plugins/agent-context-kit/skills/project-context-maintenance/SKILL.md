@@ -243,6 +243,24 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 插件内 `scripts/generate-plugin-thin-index.ps1` 是稳定调用入口，只 wrapper 到根 `.agents/scripts/generate-plugin-thin-index.ps1`。修改 thin-index 行为时只改根脚本，不复制插件脚本实现。
 
+## 上下文维护完成后的插件接入引导
+
+上下文维护完成后，Agent 应引导用户选择当前项目实际需要启用的插件，而不是因为 `.agents/plugins/<plugin>/` 目录存在就自动启用。插件目录存在只表示 `available`。
+
+执行顺序：
+
+1. 读取 `.agents/config/plugin_profile.md`，确认当前插件状态。
+2. 扫描候选插件的 `.agents/plugins/<plugin>/.agents-plugin/plugin.json`，读取 `name`、`displayName`、`initSkill`、`dependencies`、`dependsOn` 或 `depends_on`。
+3. 根据项目上下文向用户说明可选插件能力和适用场景；只在用户明确选择或项目任务明确需要时继续。
+4. 对用户选择的目标插件，先处理 manifest 中声明的依赖插件：
+   - 若依赖插件状态不是 `enabled`，先读取依赖插件真实 init skill 并完成初始化闭环。
+   - 依赖插件验收通过后，运行 `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin <dependency-plugin> -Status enabled` 机械写入状态。
+   - 所有依赖插件均为 `enabled` 后，再读取目标插件真实 init skill。
+5. 目标插件初始化闭环验收通过后，运行 `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin <plugin-name> -Status enabled`。
+6. 最后运行 `.agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun`；无停止条件时再按 runbook 执行 `-Mode Write`。
+
+不得把依赖插件“自动安装”等同于直接改 `plugin_profile.md`。这里的自动安装含义是：自动按依赖顺序引导并执行依赖插件的真实 init skill、完成验收，然后再机械写入 `enabled`。如果依赖插件 init skill 需要用户确认项目事实或配置，必须停下来让用户确认。
+
 ## 插件初始化闭环
 
 当用户要求初始化、重新部署或接入 `.agents/plugins/<plugin>/` 能力时，不要只生成 thin-index。必须按对应插件的真实 init skill 完整执行并验收；若插件提供 bootstrap/init skill，先读取该 skill，再执行落地。

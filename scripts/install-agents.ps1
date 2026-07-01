@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $repo = "https://gitee.com/skyler-cook/imedical.agents.git"
 $target = ".agents"
+$minimumGitSparseCheckoutVersion = [version]"2.25.0"
 
 # Only deploy runtime capability directories into business projects.
 # Repository-maintainer memory under root /memory/ is intentionally excluded.
@@ -11,6 +12,7 @@ $sparsePaths = @(
   "/workflows/**",
   "/rules/**",
   "/skills/**",
+  "!/skills/agent-kit-maintenance/**",
   "/plugins/**",
   "/vendor/**",
   "/feedback/**",
@@ -48,10 +50,39 @@ function Add-LineIfMissing {
   }
 }
 
+function Assert-GitSparseCheckoutSubcommandAvailable {
+  $versionText = git --version
+  if ($LASTEXITCODE -ne 0) {
+    throw "git is required but could not be executed."
+  }
+
+  $match = [System.Text.RegularExpressions.Regex]::Match($versionText, "(\d+)\.(\d+)\.(\d+)")
+  if (-not $match.Success) {
+    throw "Could not parse git version from: $versionText"
+  }
+
+  $gitVersion = [version]$match.Groups[0].Value
+  if ($gitVersion -lt $minimumGitSparseCheckoutVersion) {
+    throw ("Git {0} is installed. imedical.agents install/update requires Git {1} or newer because it uses 'git sparse-checkout'. Please upgrade Git for Windows and rerun this script." -f $gitVersion, $minimumGitSparseCheckoutVersion)
+  }
+}
+
 function Set-AgentsSparseCheckout {
   git -C $target sparse-checkout init --no-cone
   $sparsePaths | git -C $target sparse-checkout set --stdin --no-cone
 }
+
+function Write-PostInstallGuidance {
+  Write-Host ""
+  Write-Host "imedical.agents installed or updated."
+  Write-Host "Next step: ask the user or their agent to run /project-context-maintenance."
+  Write-Host "If the slash command is unavailable, read and follow:"
+  Write-Host ".agents/plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md"
+  Write-Host "After project context is maintained, choose required plugins from .agents/config/plugin_profile.md."
+  Write-Host "When enabling a plugin, initialize dependency plugins first, then run the selected plugin's real initSkill."
+}
+
+Assert-GitSparseCheckoutSubcommandAvailable
 
 if (Test-Path "$target\.git") {
   git -C $target fetch --prune
@@ -74,8 +105,7 @@ if (Test-Path "AGENTS.md") {
   Write-Host "AGENTS.md found. CLAUDE.md and CODEBUDDY.md are optional compatibility symlinks; install-agents.ps1 does not create, copy, or repair them automatically."
 }
 else {
-  Write-Error "AGENTS.md not found. AGENTS.md is required as the single primary agent entrypoint. Create AGENTS.md first; CLAUDE.md and CODEBUDDY.md are optional symlinks only."
-  exit 1
+  Write-Warning "AGENTS.md not found. Continue installing .agents; create or update the project entrypoint later through project-context-maintenance."
 }
 
 if (Test-Path ".git") {
@@ -96,3 +126,5 @@ if (Test-Path -LiteralPath $syncScript -PathType Leaf) {
   Write-Host "Syncing vendor skills to runtime skill directory..."
   & $syncScript -AgentsRoot $target -Mode Write
 }
+
+Write-PostInstallGuidance
