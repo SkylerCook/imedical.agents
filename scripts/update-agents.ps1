@@ -10,6 +10,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$minimumGitSparseCheckoutVersion = [version]"2.25.0"
 
 $runtimeSparsePaths = @(
   "/agents/**",
@@ -106,6 +107,23 @@ function Add-LineIfMissing {
   $exists = Select-String -Path $Path -Pattern ("^\s*" + [regex]::Escape($Line) + "\s*$") -Quiet
   if (-not $exists) {
     Add-Content -Path $Path -Value $Line
+  }
+}
+
+function Assert-GitSparseCheckoutSubcommandAvailable {
+  $versionText = git --version
+  if ($LASTEXITCODE -ne 0) {
+    throw "git is required but could not be executed."
+  }
+
+  $match = [System.Text.RegularExpressions.Regex]::Match($versionText, "(\d+)\.(\d+)\.(\d+)")
+  if (-not $match.Success) {
+    throw "Could not parse git version from: $versionText"
+  }
+
+  $gitVersion = [version]$match.Groups[0].Value
+  if ($gitVersion -lt $minimumGitSparseCheckoutVersion) {
+    throw ("Git {0} is installed. imedical.agents install/update requires Git {1} or newer because it uses 'git sparse-checkout'. Please upgrade Git for Windows and rerun this script." -f $gitVersion, $minimumGitSparseCheckoutVersion)
   }
 }
 
@@ -553,6 +571,7 @@ function Write-UpdateSummary {
   $actionRequiredStatuses = @(
     "agents-missing",
     "agents-git-missing",
+    "git-version-unsupported",
     "pull-blocked-dirty",
     "fetch-failed",
     "pull-failed",
@@ -669,6 +688,14 @@ function Invoke-AgentGitUpdate {
     return $results
   }
 
+  try {
+    Assert-GitSparseCheckoutSubcommandAvailable
+  }
+  catch {
+    $results.Add((Write-UpdateResult -Status "git-version-unsupported" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason $_.Exception.Message -Phase "git"))
+    return $results
+  }
+
   $dirty = git -C $AgentsRoot status --porcelain
   if ($LASTEXITCODE -ne 0) {
     $results.Add((Write-UpdateResult -Status "git-status-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason "git status failed" -Phase "git"))
@@ -718,7 +745,7 @@ if ((-not $NoPull) -and ($Mode -ne "Check")) {
   foreach ($item in $gitResults) {
     $results.Add($item)
   }
-  if ($gitResults | Where-Object { $_.status -in @("pull-blocked-dirty", "fetch-failed", "pull-failed", "sparse-refresh-failed") }) {
+  if ($gitResults | Where-Object { $_.status -in @("git-version-unsupported", "pull-blocked-dirty", "fetch-failed", "pull-failed", "sparse-refresh-failed") }) {
     $results | Format-List status, plugin, phase, target, source, reason
     exit 1
   }

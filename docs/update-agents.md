@@ -7,6 +7,7 @@
 ## 使用前提
 
 - 当前目录必须是业务项目根目录。
+- Git 必须是 `2.25.0` 或更新版本；`install-agents.ps1` 和 `update-agents.ps1` 使用 `git sparse-checkout` 子命令，不兼容 Git 2.21.0。
 - `AGENTS.md` 是必须存在的工程级唯一主入口；`CLAUDE.md`、`CODEBUDDY.md` 只是可选兼容 symlink。
 - 所有命令使用 PowerShell。
 - `.agents/config/` 只允许合并，不允许覆盖已有值。
@@ -146,6 +147,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `config-review-required` | 停止。说明配置语义需要人工确认。 |
 | `pull-blocked-dirty` | 停止。说明 `.agents` 仓库存在本地改动，需要用户决定提交、暂存或放弃。 |
 | `agents-git-missing` | 停止。说明 `.agents` 不是标准独立 Git 仓库。 |
+| `git-version-unsupported` | 停止。说明当前 Git 低于 `2.25.0`，先升级 Git for Windows 后重试。 |
 | `fetch-failed` | 停止。报告网络或远端拉取失败。 |
 | `pull-failed` | 停止。报告无法 fast-forward。 |
 | `sparse-refresh-failed` | 停止。报告 sparse checkout 刷新失败。 |
@@ -265,6 +267,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-plugi
 - 没有 `config-review-required`。
 - 没有 `pull-blocked-dirty`。
 - 没有 `agents-git-missing`。
+- 没有 `git-version-unsupported`。
 - 没有 `fetch-failed`、`pull-failed` 或 `sparse-refresh-failed`。
 
 兼容入口提示不属于停止条件。不要为了消除 `entrypoint-missing`、`entrypoint-not-symlink` 或 `entrypoint-wrong-target` 而复制 `AGENTS.md`；只有用户明确需要时，才运行 `repair-agent-entrypoints.ps1` 创建 symlink。
