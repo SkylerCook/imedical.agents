@@ -1,0 +1,24 @@
+{
+  "name": "imedicalxc-doctor-perf-analysis-engineer",
+  "version": "1.0.0",
+  "displayName": "iMedicalXC Doctor Performance Analysis Engineer",
+  "description": "HIS 医生站接口性能分析与优化，覆盖前后端全链路追踪、N+1 优化、Graylog 日志分析。",
+  "entry": "AGENTS.md",
+  "skills": "skills/",
+  "scripts": "scripts/",
+  "initSkill": "imedicalxc-doctor-perf-analysis-engineer-init",
+  "dependencies": [
+    "imedicalxc-doctor-extend-engineer"
+  ],
+  "requiresProjectFiles": [
+    "AGENTS.md"
+  ],
+  "defaultPrompt": [
+    "分析接口性能/耗时",
+    "排查慢接口/traceId",
+    "优化 N+1 查询/批量调用",
+    "前端页面加载慢/卡顿",
+    "查 Graylog 日志",
+    "接口性能优化"
+  ]
+}
