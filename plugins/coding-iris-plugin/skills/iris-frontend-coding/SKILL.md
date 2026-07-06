@@ -27,7 +27,7 @@ description: Use when working on CSP, JavaScript, CSS, or HISUI frontend code wi
 
 ## 完成检查
 
-- 已报告本次触碰的 `.csp` / `.js` / `.css` 文件编码；profile 要求 GB2312/GBK 时，已用 `check-frontend-encoding.ps1 -ExpectedEncoding gb2312 -ErrorOnMismatch` 或等价方式确认未漂移为 UTF-8。
+- 已报告本次触碰的 `.csp` / `.js` / `.css` 文件编码；profile 要求前端 GB2312 时，已用 `check-frontend-encoding.ps1 -ExpectedEncoding gb2312 -ErrorOnMismatch` 或等价方式确认未漂移为 UTF-8。
 - 优先使用 HISUI 控件，不自造弹窗、按钮、面板或表单控件。
 - CSP 框架页、内容页和脚本职责清晰。
 - JS 初始化、事件、数据加载、采集和工具函数分层明确。

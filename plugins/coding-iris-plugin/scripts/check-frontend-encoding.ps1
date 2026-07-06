@@ -1,7 +1,7 @@
 <#
 Check frontend source file encoding before and after IRIS/HIS frontend edits.
 
-Use this script as a guard for legacy CSP/JS/CSS files that must remain GB2312/GBK.
+Use this script as a guard for legacy CSP/JS/CSS files that must remain GB2312.
 
 Examples:
   .agents/scripts/check-frontend-encoding.ps1 -Files @("page.csp","page.js")

@@ -37,7 +37,7 @@ description: Use when applying frontend or backend internationalization coding c
 - 目录。
 - 工程范围。
 
-开始前先确认实际文件编码。历史乱码文件只做最小改动；GB2312/GBK 前端文件必须保持原编码，除非用户明确要求永久转码。
+开始前先确认实际文件编码。历史乱码文件只做最小改动；GB2312 前端文件必须保持原编码，除非用户明确要求永久转码。
 
 ## 前端改造
 
