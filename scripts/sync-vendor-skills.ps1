@@ -32,9 +32,15 @@ function Resolve-FullPath {
 function Get-RuntimeSkillsDirectory {
   # Claude Code user-level skills directory.
   # Other runtimes (Codex, Copilot CLI, Gemini CLI) may use ~/.agents/skills/;
-  # extend this function when cross-runtime support is required.
-  $userProfile = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
-  return Join-Path $userProfile ".claude/skills"
+ # extend this function when cross-runtime support is required.
+ $userProfile = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
+  $dirs = @()
+  $claudeDir = Join-Path $userProfile ".claude/skills"
+  if (Test-Path -LiteralPath $claudeDir -PathType Container) { $dirs += $claudeDir }
+  $codexDir = Join-Path $userProfile ".codex/skills"
+  if (Test-Path -LiteralPath $codexDir -PathType Container) { $dirs += $codexDir }
+  if ($dirs.Count -eq 0) { $dirs += $claudeDir }
+  return $dirs
 }
 
 function Sync-VendorSkillDirectory {
@@ -59,7 +65,7 @@ function Sync-VendorSkillDirectory {
 
 $agentsRootFull = Resolve-FullPath $AgentsRoot
 $vendorRoot = Join-Path $agentsRootFull "vendor"
-$runtimeSkillsDir = Get-RuntimeSkillsDirectory
+$runtimeSkillsDirs = Get-RuntimeSkillsDirectory
 $results = New-Object System.Collections.Generic.List[object]
 
 if (-not (Test-Path -LiteralPath $vendorRoot -PathType Container)) {
@@ -68,8 +74,9 @@ if (-not (Test-Path -LiteralPath $vendorRoot -PathType Container)) {
   exit 0
 }
 
-# vendor/<vendor-name>/skills/<skill-name>/SKILL.md -> ~/.claude/skills/<skill-name>/
-Get-ChildItem -LiteralPath $vendorRoot -Directory | ForEach-Object {
+# vendor/<vendor-name>/skills/<skill-name>/SKILL.md
+foreach ($runtimeSkillsDir in $runtimeSkillsDirs) {
+  Get-ChildItem -LiteralPath $vendorRoot -Directory | ForEach-Object {
   $vendorName = $_.Name
   $vendorSkillsDir = Join-Path $_.FullName "skills"
   if (Test-Path -LiteralPath $vendorSkillsDir -PathType Container) {
@@ -88,6 +95,7 @@ Get-ChildItem -LiteralPath $vendorRoot -Directory | ForEach-Object {
   if (Test-Path -LiteralPath $rootSkillFile -PathType Leaf) {
     $targetPath = Join-Path $runtimeSkillsDir $vendorName
     Sync-VendorSkillDirectory -SourcePath $_.FullName -TargetPath $targetPath -Mode $Mode -Reason "vendor/$vendorName" -Results $results
+  }
   }
 }
 
