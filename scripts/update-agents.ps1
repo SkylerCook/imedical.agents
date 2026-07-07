@@ -584,8 +584,9 @@ function Write-UpdateSummary {
     "agent-thin-index-script-missing",
    "vendor-skill-sync-script-missing",
     "vendor-thin-index-script-missing",
+    "sync-claudecode-skills-script-missing",
    "plugin-init-required",
-    "plugin-dependency-missing"
+   "plugin-dependency-missing"
   )
 
   $configStatuses = @(
@@ -920,6 +921,19 @@ if (Test-Path -LiteralPath $vendorThinIndexScript -PathType Leaf) {
 }
 else {
   $results.Add((Write-UpdateResult -Status "vendor-thin-index-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $vendorThinIndexScript) -Reason "vendor thin-index script missing" -Phase "vendor-thin-index"))
+}
+
+$syncClaudeSkillsScript = Join-Path $agentsRoot "scripts/sync-claudecode-skills.ps1"
+if (Test-Path -LiteralPath $syncClaudeSkillsScript -PathType Leaf) {
+  $syncMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
+  $syncOutput = & $syncClaudeSkillsScript -ProjectRoot $projectRootFull -Mode $syncMode | Out-String
+  $syncResults = Convert-ThinIndexTextOutput -Text $syncOutput -PluginName "" -Phase "claudecode-skills"
+  foreach ($item in $syncResults) {
+    $results.Add($item)
+  }
+}
+else {
+  $results.Add((Write-UpdateResult -Status "sync-claudecode-skills-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $syncClaudeSkillsScript) -Reason "sync claudecode skills script missing" -Phase "claudecode-skills"))
 }
 
 if (($allPlugins.Count -eq 0) -or (($Plugin.Count -gt 0) -and ($matchedPluginCount -eq 0))) {
