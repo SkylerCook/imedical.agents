@@ -12,7 +12,7 @@
 - 所有命令使用 PowerShell。
 - `.agents/config/` 只允许合并，不允许覆盖已有值。
 - `.agents/config/plugin_profile.md` 是插件启用状态事实来源；插件目录存在只表示 `available`，不表示已启用。
-- `.mcp.json` 是连接事实来源。不要把 host、账号、密码、token、namespace 或远程路径写入 `AGENTS.md`、rules、memory、config 或插件。
+ - CC Switch 是 MCP 连接事实来源。不要把 host、账号、密码、token、namespace 或远程路径写入 `AGENTS.md`、rules、memory、config 或插件。
 - 如果输出中出现停止条件，先停止并向用户汇报，不要继续执行破坏性操作。
 
 ## Agent 执行原则
