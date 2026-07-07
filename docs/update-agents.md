@@ -154,6 +154,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `generated` | dry-run 发现将生成 thin-index，或 write 已生成。 |
 | `unchanged` | 生成物内容已是最新，不需要写入。 |
 | `removed` | write 已清理 stale thin-index；清理阶段扫描所有指向 `.agents/plugins/*/rules/*.md` 的 rule thin-index，不受当前 `PluginPath` 限制。 |
+|
+| `vendor-thin-index-generated` | vendor thin-index 已生成或 dry-run 报告将生成。 |
+| `vendor-thin-index-unchanged` | vendor thin-index 内容已是最新，不需要写入。 |
+| `vendor-thin-index-stale` | vendor 源 SKILL.md 已变更或被删除，thin-index 需要更新；write 时将自动重新生成或清理。 |
+| `vendor-thin-index-removed` | write 已清理过期的 stale vendor thin-index。 |
 | `vendor-skill-synced` | vendor skill 已同步到运行时 skill 目录。 |
 | `vendor-missing` | `.agents/vendor/` 不存在，跳过 vendor skill 同步。 |
 | `skipped` 且 reason 包含 `target exists` | 目标 thin-index 已存在，默认不覆盖。 |
@@ -177,6 +182,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `thin-index-script-missing` | 停止。报告插件缺少 thin-index 脚本。 |
 | `agent-thin-index-script-missing` | 停止。报告 `.agents/scripts/generate-agent-thin-index.ps1` 缺失；先更新 `.agents` 能力包。 |
 | `vendor-skill-sync-script-missing` | 停止。报告 `.agents/scripts/sync-vendor-skills.ps1` 缺失；先更新 `.agents` 能力包。 |
+| `vendor-thin-index-script-missing` | 停止。报告 `.agents/scripts/generate-vendor-thin-index.ps1` 缺失；先更新 `.agents` 能力包。 |
 | `agents-entry-missing` | 提示。项目主入口缺失；安装或更新 `.agents` 后，通过 `project-context-maintenance` 补齐或维护，不要复制本仓库根 `AGENTS.md`。 |
 | `plugin-init-required` | 停止。读取该插件真实 init skill，完成初始化闭环后用脚本标记为 enabled。 |
 | `plugin-dependency-missing` | 停止。先初始化依赖插件，不要只因插件目录存在就继续。 |
@@ -215,6 +221,28 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/generate-age
 - `vendor/<vendor-name>/SKILL.md` → `~/.claude/skills/<vendor-name>/`
 
 DryRun 只输出摘要，Write 会覆盖目标目录。同步只影响运行时目录，不会修改 `.agents/vendor/` 源码。
+
+## Vendor skill thin-index
+
+`sync-vendor-skills.ps1` 同步完成后，`update-agents.ps1` 还会调用：
+
+```powershell
+.agents/scripts/generate-vendor-thin-index.ps1 -AgentsRoot .agents -ProjectRoot . -Mode DryRun|Write
+```
+
+该脚本为 `.agents/vendor/` 下 vendor 提供的 skill 自动生成或维护 thin-index 浅层入口。扫描规则：
+
+- `vendor/<vendor-name>/skills/<skill-name>/SKILL.md` → `.agents/skills/<skill-name>/SKILL.md`
+- `vendor/<vendor-name>/SKILL.md` → `.agents/skills/<vendor-name>/SKILL.md`
+
+生成的 thin-index 保留原始 SKILL.md 的 `name` 和 `description`，补充 `thin-index: true` 和 `source` 指向 vendor 真实路径。Agent 匹配后必须继续读取 `source` 指向的真实 SKILL.md。
+
+脚本自动检测 vendor 源变更并同步 thin-index：每次运行时比较已生成的 thin-index 与源 SKILL.md 的新内容，若 name/description/source 发生变更则自动重新生成 thin-index（不需要 -Force）。同时清理过期 thin-index：如果 `source` 指向的 vendor 文件已被删除，dry-run 报告 `stale`，write 执行删除。
+
+配置生效方式：
+
+- DryRun 只输出摘要，不写入文件、不清理过期项。
+- Write 执行写入和清理。
 
 ## Rule task-affinity
 
@@ -313,6 +341,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - `.agents/skills/<agent-name>/SKILL.md` 中的 agent thin-index 存在或 dry-run 明确报告将生成；例如 `.agents/skills/i18n-agent/SKILL.md` 指向 `.agents/agents/i18n-agent/AGENT.md` 和 `.agents/workflows/i18n-change.workflow.md`。
 - `.agents/skills/agent-kit-maintenance/` 不存在；该维护者专用 skill 只保留在能力包仓库根 `skills/agent-kit-maintenance/`，不得部署到业务项目。
 - vendor skill 已同步到运行时 skill 目录，或 dry-run 明确报告 `vendor-missing` / `vendor-skill-synced`。
+- vendor skill thin-index 已存在或 dry-run 明确报告 vendor-thin-index 状态。
 - `.agents/.git/info/exclude` 包含 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
 - `.agents/config/plugin_profile.md` 存在或 dry-run 明确报告默认插件状态。
 - 如果业务项目有 `AGENTS.md`，兼容入口可以是 `entrypoint-ok`，也可以缺失；缺失或异常只作为可选提示，不应在 write 中自动修复。

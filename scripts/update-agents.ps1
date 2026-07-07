@@ -582,8 +582,9 @@ function Write-UpdateSummary {
     "thin-index-script-missing",
     "entrypoint-check-missing",
     "agent-thin-index-script-missing",
-    "vendor-skill-sync-script-missing",
-    "plugin-init-required",
+   "vendor-skill-sync-script-missing",
+    "vendor-thin-index-script-missing",
+   "plugin-init-required",
     "plugin-dependency-missing"
   )
 
@@ -898,6 +899,27 @@ if (Test-Path -LiteralPath $syncVendorSkillsScript -PathType Leaf) {
 }
 else {
   $results.Add((Write-UpdateResult -Status "vendor-skill-sync-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $syncVendorSkillsScript) -Reason "vendor skill sync script missing" -Phase "vendor-skill-sync"))
+}
+
+$vendorThinIndexScript = Join-Path $agentsRoot "scripts/generate-vendor-thin-index.ps1"
+if (Test-Path -LiteralPath $vendorThinIndexScript -PathType Leaf) {
+  $vendorThinIndexMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
+  $vendorThinParams = @{
+    AgentsRoot = $agentsRoot
+    ProjectRoot = $projectRootFull
+    Mode = $vendorThinIndexMode
+  }
+  if ($ForceThinIndex) {
+    $vendorThinParams.Force = $true
+  }
+  $vendorThinOutput = & $vendorThinIndexScript @vendorThinParams | Out-String
+  $vendorThinResults = Convert-ThinIndexTextOutput -Text $vendorThinOutput -PluginName "" -Phase "vendor-thin-index"
+  foreach ($item in $vendorThinResults) {
+    $results.Add($item)
+  }
+}
+else {
+  $results.Add((Write-UpdateResult -Status "vendor-thin-index-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $vendorThinIndexScript) -Reason "vendor thin-index script missing" -Phase "vendor-thin-index"))
 }
 
 if (($allPlugins.Count -eq 0) -or (($Plugin.Count -gt 0) -and ($matchedPluginCount -eq 0))) {
