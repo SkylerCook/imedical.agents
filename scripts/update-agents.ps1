@@ -892,7 +892,7 @@ else {
 $syncVendorSkillsScript = Join-Path $agentsRoot "scripts/sync-vendor-skills.ps1"
 if (Test-Path -LiteralPath $syncVendorSkillsScript -PathType Leaf) {
   $syncMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
-  $syncOutput = & $syncVendorSkillsScript -AgentsRoot $agentsRoot -Mode $syncMode | Out-String
+  $syncOutput = & $syncVendorSkillsScript -AgentsRoot $agentsRoot -ProjectRoot $projectRootFull -Mode $syncMode | Out-String
   $syncResults = Convert-ThinIndexTextOutput -Text $syncOutput -PluginName "" -Phase "vendor-skill-sync"
   foreach ($item in $syncResults) {
     $results.Add($item)

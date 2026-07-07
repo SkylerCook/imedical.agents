@@ -1,5 +1,6 @@
 param(
   [string]$AgentsRoot = ".agents",
+  [string]$ProjectRoot = ".",
   [ValidateSet("DryRun", "Write")]
   [string]$Mode = "DryRun"
 )
@@ -27,6 +28,28 @@ function Resolve-FullPath {
     return [System.IO.Path]::GetFullPath($Path)
   }
   return [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $Path))
+}
+
+function Get-DedupSkillNames {
+  param([string]$ProjectRootFull)
+  $skills = @{}
+  $userProfile = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
+  $pluginDir = Join-Path $userProfile ".claude/plugins"
+  if (Test-Path -LiteralPath $pluginDir -PathType Container) {
+    Get-ChildItem -Path $pluginDir -Recurse -Filter "SKILL.md" -ErrorAction SilentlyContinue | ForEach-Object {
+      $parent = $_.Directory.Parent
+      if ($null -ne $parent -and $parent.Name -eq "skills") { $skills[$_.Directory.Name] = $true }
+    }
+  }
+  $userSkillsDir = Join-Path $userProfile ".claude/skills"
+  if (Test-Path -LiteralPath $userSkillsDir -PathType Container) {
+    Get-ChildItem -Path $userSkillsDir -Directory -ErrorAction SilentlyContinue | ForEach-Object { $skills[$_.Name] = $true }
+  }
+  $projectSkillsDir = Join-Path $ProjectRootFull ".claude/skills"
+  if (Test-Path -LiteralPath $projectSkillsDir -PathType Container) {
+    Get-ChildItem -Path $projectSkillsDir -Directory -ErrorAction SilentlyContinue | ForEach-Object { $skills[$_.Name] = $true }
+  }
+  return $skills
 }
 
 function Get-RuntimeSkillsDirectory {
@@ -64,8 +87,10 @@ function Sync-VendorSkillDirectory {
 }
 
 $agentsRootFull = Resolve-FullPath $AgentsRoot
+$projectRootFull = Resolve-FullPath $ProjectRoot
 $vendorRoot = Join-Path $agentsRootFull "vendor"
 $runtimeSkillsDirs = Get-RuntimeSkillsDirectory
+$dedupSkills = Get-DedupSkillNames -ProjectRootFull $projectRootFull
 $results = New-Object System.Collections.Generic.List[object]
 
 if (-not (Test-Path -LiteralPath $vendorRoot -PathType Container)) {
@@ -84,6 +109,10 @@ foreach ($runtimeSkillsDir in $runtimeSkillsDirs) {
       $skillName = $_.Name
       $skillFile = Join-Path $_.FullName "SKILL.md"
       if (Test-Path -LiteralPath $skillFile -PathType Leaf) {
+        if ($dedupSkills.ContainsKey($skillName)) {
+          $results.Add((Write-SyncResult -Status "vendor-skill-deduped" -Target "vendor/$vendorName/skills/$skillName" -Reason "provided by plugin/user/project skill"))
+          return
+        }
         $targetPath = Join-Path $runtimeSkillsDir $skillName
         Sync-VendorSkillDirectory -SourcePath $_.FullName -TargetPath $targetPath -Mode $Mode -Reason "vendor/$vendorName/skills/$skillName" -Results $results
       }
@@ -93,7 +122,11 @@ foreach ($runtimeSkillsDir in $runtimeSkillsDirs) {
   # vendor/<vendor-name>/SKILL.md -> ~/.claude/skills/<vendor-name>/
   $rootSkillFile = Join-Path $_.FullName "SKILL.md"
   if (Test-Path -LiteralPath $rootSkillFile -PathType Leaf) {
-    $targetPath = Join-Path $runtimeSkillsDir $vendorName
+      if ($dedupSkills.ContainsKey($vendorName)) {
+        $results.Add((Write-SyncResult -Status "vendor-skill-deduped" -Target "vendor/$vendorName" -Reason "provided by plugin/user/project skill"))
+        return
+      }
+      $targetPath = Join-Path $runtimeSkillsDir $vendorName
     Sync-VendorSkillDirectory -SourcePath $_.FullName -TargetPath $targetPath -Mode $Mode -Reason "vendor/$vendorName" -Results $results
   }
   }
