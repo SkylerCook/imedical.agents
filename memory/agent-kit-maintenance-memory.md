@@ -43,6 +43,7 @@
 - 已新增仓库级 `skills/agent-framework-feedback/SKILL.md`，用于在插件直接使用或无 canonical agent 场景下生成框架反馈条目。
 - 已新增 `demo/presentation/` 演示页面，作为能力包、i18n skill 和多智能体架构的可视化说明材料；它不属于业务项目运行入口。
 - 已新增部署经验沉淀入口 `feedback/experience/deploy-com-exp.md` 和首个专项部署工具目录 `docs/deploy/dental-ta-159/`；这类内容可随 `docs/` 部署，但不得把业务私有连接信息写入记忆或规则。
+- 已新增提交前差异降噪 Git hook 分发能力：`.agents/hooks/pre-commit`、`.agents/scripts/check-functional-diff.ps1` 和 `.agents/scripts/install-git-hooks.ps1` 随 `.agents` 更新可用，但 `install-agents.ps1` / `update-agents.ps1` 不自动修改业务项目 `core.hooksPath`，只报告 hook 可用或启用状态。
 - 已新增 IRIS 部署编排入口 `plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md` 和薄清单脚本 `plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js`；默认只生成部署清单和编排验证，远端写入仍需用户明确确认。
 - 已新增根 `AGENTS.md`，作为本仓库 AI Coding 维护入口；它不部署到业务项目 `.agents/`。
 - 维护记忆已拆分为入口摘要、长期决策、维护日志和治理队列四类文件。

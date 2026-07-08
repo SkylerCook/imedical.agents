@@ -8,6 +8,8 @@
 - 2026-06-24：已完成 `iris-interface-dev-plugin` v2.0 Task 0 字段契约追溯模型：`parsed.json` 升级为 `iris-interface-doc-ingest/v2`，字段新增 `rawColumns`、`sourceLocation`、`classification`、`confidence`、`warnings`、`requiredReason` 和 `jsonPathReason`；`fields.md`/`diagnostics.md` 增加追溯摘要与统计。已通过插件专项测试、仓库更新回归和真实接口文档本地回归；真实摘要保留在 `tmp/iris-interface-file/test-results/iris-interface-v2-task0-real-doc-test-summary.md`，真实文档与解析产物不入库。
 
 ## 近期已完成
+- 2026-07-08：已新增提交前差异降噪 Git hook 分发链路：新增 `hooks/pre-commit`、`scripts/check-functional-diff.ps1` 和 `scripts/install-git-hooks.ps1`，安装/更新 sparse checkout 纳入 `/hooks/**`，`update-agents.ps1` 仅报告 `git-hooks-not-enabled` / `git-hooks-enabled` / `git-hooks-unavailable`，不自动修改业务项目 `core.hooksPath`。`docs/update-agents.md`、README、`project-context-maintenance` 和测试已同步。
+
 - 2026-07-08：已修正维护者专用 `skills/agent-kit-maintenance/` 实际部署残留问题：`install-agents.ps1` 和 `update-agents.ps1` 的 sparse checkout 同时排除目录和目录内容；`update-agents.ps1 -Mode Write` 会兼容清理已部署项目中的 `.agents/skills/agent-kit-maintenance/` 并报告 `maintenance-only-skill-removed`。`docs/update-agents.md` 和 `scripts/tests/update-agents.tests.ps1` 已同步，更新脚本回归测试已通过。
 
 - 2026-07-01：已修正 AI 落地项目安装入口闭环：README 不再要求首次安装前读取尚不存在的 `.agents/docs/update-agents.md`，而是先按 `.agents/` 状态分流并给出明确网络安装命令；`install-agents.ps1` 在业务项目缺少 `AGENTS.md` 时改为提示而非阻塞，`update-agents.ps1` 将 `agents-entry-missing` 降为后续项目上下文维护提示；`docs/update-agents.md` 和 `scripts/tests/update-agents.tests.ps1` 已同步。

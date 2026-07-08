@@ -23,6 +23,7 @@ $runtimeSparsePaths = @(
   "/plugins/**",
   "/vendor/**",
   "/feedback/**",
+  "/hooks/**",
   "/scripts/*.ps1"
 )
 
@@ -765,6 +766,44 @@ function Remove-MaintenanceOnlyRuntimeSkill {
   return $results
 }
 
+function Get-GitHooksStatus {
+  param(
+    [string]$AgentsRoot,
+    [string]$ProjectRootFull
+  )
+
+  $results = New-Object System.Collections.Generic.List[object]
+  $hookPath = Join-Path $AgentsRoot "hooks/pre-commit"
+  $installScriptPath = Join-Path $AgentsRoot "scripts/install-git-hooks.ps1"
+  $target = ".agents/hooks"
+
+  if ((-not (Test-Path -LiteralPath $hookPath -PathType Leaf)) -or (-not (Test-Path -LiteralPath $installScriptPath -PathType Leaf))) {
+    $results.Add((Write-UpdateResult -Status "git-hooks-unavailable" -Target $target -Reason "pre-commit hook or install-git-hooks.ps1 is missing" -Phase "git-hooks"))
+    return $results
+  }
+
+  $configured = git -C $ProjectRootFull config --get core.hooksPath 2>$null
+  if ($LASTEXITCODE -ne 0) {
+    $configured = ""
+  }
+  $configuredNormalized = ($configured -replace '\\', '/').Trim().TrimEnd('/')
+
+  if ($configuredNormalized -eq $target) {
+    $results.Add((Write-UpdateResult -Status "git-hooks-enabled" -Target $target -Reason "core.hooksPath points to .agents/hooks" -Phase "git-hooks"))
+  }
+  else {
+    $reason = if ([string]::IsNullOrWhiteSpace($configuredNormalized)) {
+      "hook files are available; run .agents/scripts/install-git-hooks.ps1 to enable"
+    }
+    else {
+      "core.hooksPath is '$configured'; run .agents/scripts/install-git-hooks.ps1 to use .agents/hooks"
+    }
+    $results.Add((Write-UpdateResult -Status "git-hooks-not-enabled" -Target $target -Reason $reason -Phase "git-hooks"))
+  }
+
+  return $results
+}
+
 $projectRootFull = Resolve-FullPath $ProjectRoot
 $agentsRoot = Join-Path $projectRootFull ".agents"
 $results = New-Object System.Collections.Generic.List[object]
@@ -804,6 +843,10 @@ foreach ($pattern in $agentsLocalExcludePatterns) {
 }
 
 foreach ($item in (Remove-MaintenanceOnlyRuntimeSkill -AgentsRoot $agentsRoot -ProjectRootFull $projectRootFull -Mode $Mode)) {
+  $results.Add($item)
+}
+
+foreach ($item in (Get-GitHooksStatus -AgentsRoot $agentsRoot -ProjectRootFull $projectRootFull)) {
   $results.Add($item)
 }
 

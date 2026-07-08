@@ -4,6 +4,9 @@ $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
 $scriptUnderTest = Join-Path $repoRoot "scripts/update-agents.ps1"
 $profileScriptUnderTest = Join-Path $repoRoot "scripts/update-plugin-profile.ps1"
 $agentThinIndexScriptUnderTest = Join-Path $repoRoot "scripts/generate-agent-thin-index.ps1"
+$checkFunctionalDiffScriptUnderTest = Join-Path $repoRoot "scripts/check-functional-diff.ps1"
+$installGitHooksScriptUnderTest = Join-Path $repoRoot "scripts/install-git-hooks.ps1"
+$preCommitHookUnderTest = Join-Path $repoRoot "hooks/pre-commit"
 
 function Assert-True {
   param(
@@ -29,16 +32,23 @@ function Assert-Contains {
 function New-TestProject {
   $root = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-update-test-" + [System.Guid]::NewGuid().ToString("N"))
   New-Item -ItemType Directory -Force -Path $root | Out-Null
+  git -C $root init | Out-Null
+  git -C $root config user.email "test@example.invalid" | Out-Null
+  git -C $root config user.name "Test User" | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents") | Out-Null
   git -C (Join-Path $root ".agents") init | Out-Null
 
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/scripts") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/hooks") | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/agents") | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/workflows") | Out-Null
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/generate-plugin-thin-index.ps1") -Destination (Join-Path $root ".agents/scripts/generate-plugin-thin-index.ps1")
   Copy-Item -LiteralPath $agentThinIndexScriptUnderTest -Destination (Join-Path $root ".agents/scripts/generate-agent-thin-index.ps1")
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-agents.ps1")
   Copy-Item -LiteralPath $profileScriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-plugin-profile.ps1")
+  Copy-Item -LiteralPath $checkFunctionalDiffScriptUnderTest -Destination (Join-Path $root ".agents/scripts/check-functional-diff.ps1")
+  Copy-Item -LiteralPath $installGitHooksScriptUnderTest -Destination (Join-Path $root ".agents/scripts/install-git-hooks.ps1")
+  Copy-Item -LiteralPath $preCommitHookUnderTest -Destination (Join-Path $root ".agents/hooks/pre-commit")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-vendor-skills.ps1") -Destination (Join-Path $root ".agents/scripts/sync-vendor-skills.ps1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-claudecode-skills.ps1") -Destination (Join-Path $root ".agents/scripts/sync-claudecode-skills.ps1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/check-agent-entrypoints.ps1") -Destination (Join-Path $root ".agents/scripts/check-agent-entrypoints.ps1")
@@ -194,6 +204,9 @@ function New-TestProject {
 Assert-True (Test-Path -LiteralPath $scriptUnderTest -PathType Leaf) "scripts/update-agents.ps1 should exist"
 Assert-True (Test-Path -LiteralPath $profileScriptUnderTest -PathType Leaf) "scripts/update-plugin-profile.ps1 should exist"
 Assert-True (Test-Path -LiteralPath $agentThinIndexScriptUnderTest -PathType Leaf) "scripts/generate-agent-thin-index.ps1 should exist"
+Assert-True (Test-Path -LiteralPath $checkFunctionalDiffScriptUnderTest -PathType Leaf) "scripts/check-functional-diff.ps1 should exist"
+Assert-True (Test-Path -LiteralPath $installGitHooksScriptUnderTest -PathType Leaf) "scripts/install-git-hooks.ps1 should exist"
+Assert-True (Test-Path -LiteralPath $preCommitHookUnderTest -PathType Leaf) "hooks/pre-commit should exist"
 
 $runbookPath = Join-Path $repoRoot "docs/update-agents.md"
 $readmePath = Join-Path $repoRoot "README.md"
@@ -207,6 +220,7 @@ $installScriptContent = Get-Content -Raw -Encoding UTF8 -Path $installScriptPath
 Assert-Contains $updateScriptContent "/agents/**" "update sparse checkout should include agents"
 Assert-Contains $updateScriptContent "/workflows/**" "update sparse checkout should include workflows"
 Assert-Contains $updateScriptContent "/feedback/**" "update sparse checkout should include feedback"
+Assert-Contains $updateScriptContent "/hooks/**" "update sparse checkout should include hooks"
 Assert-Contains $updateScriptContent "!/skills/agent-kit-maintenance/" "update sparse checkout should exclude maintenance-only skill directory"
 Assert-Contains $updateScriptContent "!/skills/agent-kit-maintenance/**" "update sparse checkout should exclude maintenance-only skill"
 Assert-Contains $updateScriptContent "generate-agent-thin-index.ps1" "update should invoke agent thin-index generation"
@@ -215,7 +229,11 @@ Assert-Contains $updateScriptContent "Assert-GitSparseCheckoutSubcommandAvailabl
 Assert-Contains $installScriptContent "/agents/**" "install sparse checkout should include agents"
 Assert-Contains $installScriptContent "/workflows/**" "install sparse checkout should include workflows"
 Assert-Contains $installScriptContent "/feedback/**" "install sparse checkout should include feedback"
+Assert-Contains $installScriptContent "/hooks/**" "install sparse checkout should include hooks"
 Assert-Contains $installScriptContent "!/skills/agent-kit-maintenance/" "install sparse checkout should exclude maintenance-only skill directory"
+Assert-True (-not $installScriptContent.Contains("core.hooksPath")) "install must not enable git hooks automatically"
+Assert-Contains $updateScriptContent "git-hooks-not-enabled" "update should report hook availability without enabling hooks"
+Assert-True (-not $updateScriptContent.Contains("git config core.hooksPath .agents/hooks")) "update must not enable git hooks automatically"
 Assert-Contains $installScriptContent "!/skills/agent-kit-maintenance/**" "install sparse checkout should exclude maintenance-only skill"
 Assert-Contains $installScriptContent "2.25.0" "install should require Git 2.25.0 or newer for sparse-checkout subcommand"
 Assert-Contains $installScriptContent "Assert-GitSparseCheckoutSubcommandAvailable" "install should fail early when git sparse-checkout subcommand is unavailable"
@@ -237,11 +255,14 @@ Assert-Contains $runbookContent "pull-blocked-dirty" "runbook should mention pul
 Assert-Contains $runbookContent "git clone" "runbook should support manual clone"
 Assert-Contains $runbookContent "/project-context-maintenance" "runbook should guide users to maintain project context after install"
 Assert-Contains $runbookContent "dependencies" "runbook should explain dependency plugin initialization order"
+Assert-Contains $runbookContent "install-git-hooks.ps1" "runbook should document explicit git hook enablement"
+Assert-Contains $runbookContent "git-hooks-not-enabled" "runbook should document hook status notes"
 $contextSkillContent = Get-Content -Raw -Encoding UTF8 -Path $contextSkillPath
 Assert-Contains $contextSkillContent "docs/update-agents.md" "project-context-maintenance should route updates to docs/update-agents.md"
 Assert-Contains $contextSkillContent "depends_on" "project-context-maintenance should guide plugin enablement after context maintenance"
 Assert-Contains $contextSkillContent "dependencies" "project-context-maintenance should read plugin manifest dependencies before enabling plugins"
 Assert-Contains $contextSkillContent "update-plugin-profile.ps1" "project-context-maintenance should use update-plugin-profile.ps1 after init validation"
+Assert-Contains $contextSkillContent "install-git-hooks.ps1" "project-context-maintenance should mention optional git hook enablement"
 
 $missingAgentsEntryProjectRoot = New-TestProject
 try {
@@ -274,7 +295,9 @@ try {
   Assert-Contains $summaryOutput "Available plugins:" "Default output should list available plugins"
   Assert-Contains $summaryOutput "sample-plugin" "Default output should report sample plugin as available"
   Assert-Contains $summaryOutput "agent-context-kit" "Default output should process the default context plugin"
+  Assert-Contains $summaryOutput "git-hooks-not-enabled" "Default output should report available but disabled git hooks"
   Assert-Contains $summaryOutput "Optional entrypoint notes:" "Default output should report optional entrypoint notes"
+  Assert-True ([string]::IsNullOrWhiteSpace((git -C $projectRoot config --get core.hooksPath))) "Update must not set core.hooksPath automatically"
   Assert-True (-not $summaryOutput.Contains("Action required:")) "Missing or non-symlink optional entrypoints should not require action"
   Assert-True (-not $summaryOutput.Contains("sample_profile.md")) "Available plugins must not have templates merged by default"
   Assert-True (-not $summaryOutput.Contains("sample_rule.md")) "Available plugins must not generate thin-index by default"
@@ -300,6 +323,7 @@ try {
 
   $writeOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-String
   Assert-Contains $writeOutput "config-merged-key" "Write should merge missing config keys"
+  Assert-Contains $writeOutput "git-hooks-not-enabled" "Write should report hooks are available but not enabled"
   Assert-Contains $writeOutput "agent-thin-index" "Write should include agent thin-index phase"
   Assert-Contains $writeOutput "maintenance-only-skill-removed" "Write should report removal of deployed maintenance-only skill"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/agent-kit-maintenance"))) "Write should remove deployed maintenance-only skill"
@@ -332,6 +356,13 @@ try {
   Assert-Contains $sampleSkillThinIndex "source: .agents/plugins/sample-plugin/skills/sample-skill/SKILL.md" "Skill thin-index should declare source frontmatter"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "CODEBUDDY.md"))) "Write must not create missing optional entrypoints"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "CLAUDE.md.bak"))) "Write must not backup or replace existing optional entrypoints"
+  Assert-True ([string]::IsNullOrWhiteSpace((git -C $projectRoot config --get core.hooksPath))) "Write must not enable git hooks automatically"
+
+  $installHookOutput = & (Join-Path $projectRoot ".agents/scripts/install-git-hooks.ps1") -ProjectRoot $projectRoot | Out-String
+  Assert-Contains $installHookOutput "git-hooks-enabled" "install-git-hooks should report enabled hooks"
+  Assert-Contains (git -C $projectRoot config --get core.hooksPath) ".agents/hooks" "install-git-hooks should set core.hooksPath to .agents/hooks"
+  $hooksEnabledOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed | Out-String
+  Assert-Contains $hooksEnabledOutput "git-hooks-enabled" "Update should report enabled git hooks after explicit install"
   $claudeContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot "CLAUDE.md")
   Assert-Contains $claudeContent "Existing Claude Entry" "Write must preserve existing optional entrypoint content"
 
