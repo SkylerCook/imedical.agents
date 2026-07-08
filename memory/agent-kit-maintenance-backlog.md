@@ -31,6 +31,13 @@
    - 待做：观察 `feedback/experience/deploy-com-exp.md` 与 `docs/deploy/*` 的复用频率，必要时抽象命名、敏感信息检查和部署工具模板。
    - 待做：明确 `demo/presentation/` 是否长期作为仓库展示资产；如需部署到业务项目，必须先更新安装/更新 sparse checkout 边界说明。
 
+7. 提交前检查向代码质量 review 演进。
+   - 背景：当前 `.agents/hooks/pre-commit` 和 `check-functional-diff.ps1` 只做提交卫生与差异降噪，适合保持为轻量、低误伤、可机械判断的门禁。
+   - 待做：评估新增第二层代码质量检查脚本，例如 `.agents/scripts/check-code-quality.ps1`，默认由 Agent 或用户在提交前主动运行，先输出报告，不直接作为 pre-commit 阻断。
+   - 待做：优先沉淀低误伤规则：需求无关文件变更、敏感配置/连接信息、明显硬编码路径、缺少必要验证入口、ObjectScript/JS/CSP 项目规则高风险点。
+   - 待做：与 coding/i18n/doctor 等领域插件规则联动时，只读取已启用插件和项目上下文；不得把所有领域规则塞进通用 hook 常驻检查。
+   - 暂缓：不要立即把代码质量 review 接入 `pre-commit` 强阻断；先以手动脚本或 Agent 提交前 review 报告验证误伤率，成熟后再挑少量规则进入门禁。
+
 ## 队列维护规则
 
 - 已完成事项迁入 `agent-kit-maintenance-log.md`，不要在 backlog 中长期保留已完成条目。
