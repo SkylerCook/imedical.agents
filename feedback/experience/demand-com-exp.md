@@ -289,6 +289,7 @@
   ```
   期望结果：旧提交不再是祖先，新提交是祖先。
 - **适用范围**：所有“改已有文件”的需求开发，尤其是 ObjectScript/CSP/老 JS 文件。
+- **已回归/已提升**：`hooks/pre-commit`、`scripts/check-functional-diff.ps1`、`scripts/install-git-hooks.ps1`、`docs/update-agents.md`
 
 ---
 
