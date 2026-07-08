@@ -40,7 +40,18 @@ function New-TestProject {
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-agents.ps1")
   Copy-Item -LiteralPath $profileScriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-plugin-profile.ps1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-vendor-skills.ps1") -Destination (Join-Path $root ".agents/scripts/sync-vendor-skills.ps1")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-claudecode-skills.ps1") -Destination (Join-Path $root ".agents/scripts/sync-claudecode-skills.ps1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/check-agent-entrypoints.ps1") -Destination (Join-Path $root ".agents/scripts/check-agent-entrypoints.ps1")
+  Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/scripts/generate-vendor-thin-index.ps1") -Value @(
+    "param(",
+    '  [string]$AgentsRoot = ".agents",',
+    '  [string]$ProjectRoot = ".",',
+    '  [ValidateSet("DryRun", "Write")]',
+    '  [string]$Mode = "DryRun",',
+    '  [switch]$Force',
+    ")",
+    '[PSCustomObject]@{ status = "skipped"; target = "vendor"; source = ""; reason = "test fixture"; phase = "vendor-thin-index" } | Format-List status, target, source, reason, phase'
+  )
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/agent-registry.md") -Value "# Agent Registry"
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/workflow-registry.md") -Value "# Workflow Registry"
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/agents/i18n-agent") | Out-Null
@@ -196,6 +207,7 @@ $installScriptContent = Get-Content -Raw -Encoding UTF8 -Path $installScriptPath
 Assert-Contains $updateScriptContent "/agents/**" "update sparse checkout should include agents"
 Assert-Contains $updateScriptContent "/workflows/**" "update sparse checkout should include workflows"
 Assert-Contains $updateScriptContent "/feedback/**" "update sparse checkout should include feedback"
+Assert-Contains $updateScriptContent "!/skills/agent-kit-maintenance/" "update sparse checkout should exclude maintenance-only skill directory"
 Assert-Contains $updateScriptContent "!/skills/agent-kit-maintenance/**" "update sparse checkout should exclude maintenance-only skill"
 Assert-Contains $updateScriptContent "generate-agent-thin-index.ps1" "update should invoke agent thin-index generation"
 Assert-Contains $updateScriptContent "2.25.0" "update should require Git 2.25.0 or newer for sparse-checkout subcommand"
@@ -203,6 +215,7 @@ Assert-Contains $updateScriptContent "Assert-GitSparseCheckoutSubcommandAvailabl
 Assert-Contains $installScriptContent "/agents/**" "install sparse checkout should include agents"
 Assert-Contains $installScriptContent "/workflows/**" "install sparse checkout should include workflows"
 Assert-Contains $installScriptContent "/feedback/**" "install sparse checkout should include feedback"
+Assert-Contains $installScriptContent "!/skills/agent-kit-maintenance/" "install sparse checkout should exclude maintenance-only skill directory"
 Assert-Contains $installScriptContent "!/skills/agent-kit-maintenance/**" "install sparse checkout should exclude maintenance-only skill"
 Assert-Contains $installScriptContent "2.25.0" "install should require Git 2.25.0 or newer for sparse-checkout subcommand"
 Assert-Contains $installScriptContent "Assert-GitSparseCheckoutSubcommandAvailable" "install should fail early when git sparse-checkout subcommand is unavailable"
@@ -244,6 +257,8 @@ finally {
 $projectRoot = New-TestProject
 try {
   New-Item -ItemType Directory -Force -Path (Join-Path $projectRoot ".agents/config") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $projectRoot ".agents/skills/agent-kit-maintenance") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/agent-kit-maintenance/SKILL.md") -Value "# Maintenance-only Skill"
   Set-Content -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md") -Value @(
     "# Sample Profile",
     "",
@@ -286,6 +301,8 @@ try {
   $writeOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-String
   Assert-Contains $writeOutput "config-merged-key" "Write should merge missing config keys"
   Assert-Contains $writeOutput "agent-thin-index" "Write should include agent thin-index phase"
+  Assert-Contains $writeOutput "maintenance-only-skill-removed" "Write should report removal of deployed maintenance-only skill"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/agent-kit-maintenance"))) "Write should remove deployed maintenance-only skill"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/config/plugin_profile.md")) "Write should create plugin profile"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/i18n-agent/SKILL.md")) "Write should generate i18n-agent skill thin-index"
   $agentSkillThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/i18n-agent/SKILL.md")

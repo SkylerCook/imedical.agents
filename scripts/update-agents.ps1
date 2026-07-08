@@ -18,6 +18,7 @@ $runtimeSparsePaths = @(
   "/workflows/**",
   "/rules/**",
   "/skills/**",
+  "!/skills/agent-kit-maintenance/",
   "!/skills/agent-kit-maintenance/**",
   "/plugins/**",
   "/vendor/**",
@@ -585,6 +586,7 @@ function Write-UpdateSummary {
    "vendor-skill-sync-script-missing",
     "vendor-thin-index-script-missing",
     "sync-claudecode-skills-script-missing",
+    "maintenance-only-skill-remove-failed",
    "plugin-init-required",
    "plugin-dependency-missing"
   )
@@ -733,6 +735,36 @@ function Invoke-AgentGitUpdate {
   return $results
 }
 
+function Remove-MaintenanceOnlyRuntimeSkill {
+  param(
+    [string]$AgentsRoot,
+    [string]$ProjectRootFull,
+    [string]$Mode
+  )
+
+  $results = New-Object System.Collections.Generic.List[object]
+  $maintenanceSkillPath = Join-Path $AgentsRoot "skills/agent-kit-maintenance"
+  if (-not (Test-Path -LiteralPath $maintenanceSkillPath)) {
+    return $results
+  }
+
+  $target = Get-RelativePathPortable -From $ProjectRootFull -To $maintenanceSkillPath
+  if ($Mode -eq "Write") {
+    try {
+      Remove-Item -LiteralPath $maintenanceSkillPath -Recurse -Force
+      $results.Add((Write-UpdateResult -Status "maintenance-only-skill-removed" -Target $target -Reason "maintenance-only skill is excluded from business-project deployment" -Phase "compat-cleanup"))
+    }
+    catch {
+      $results.Add((Write-UpdateResult -Status "maintenance-only-skill-remove-failed" -Target $target -Reason $_.Exception.Message -Phase "compat-cleanup"))
+    }
+  }
+  else {
+    $results.Add((Write-UpdateResult -Status "maintenance-only-skill-present" -Target $target -Reason "run Write mode to remove maintenance-only deployed residue" -Phase "compat-cleanup"))
+  }
+
+  return $results
+}
+
 $projectRootFull = Resolve-FullPath $ProjectRoot
 $agentsRoot = Join-Path $projectRootFull ".agents"
 $results = New-Object System.Collections.Generic.List[object]
@@ -769,6 +801,10 @@ foreach ($pattern in $agentsLocalExcludePatterns) {
   else {
     $results.Add((Write-UpdateResult -Status "exclude-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $agentsExcludePath) -Reason $pattern -Phase "exclude"))
   }
+}
+
+foreach ($item in (Remove-MaintenanceOnlyRuntimeSkill -AgentsRoot $agentsRoot -ProjectRootFull $projectRootFull -Mode $Mode)) {
+  $results.Add($item)
 }
 
 $checkEntrypoints = Join-Path $agentsRoot "scripts/check-agent-entrypoints.ps1"

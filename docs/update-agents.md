@@ -362,7 +362,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - `.agents/agents/agent-registry.md` 存在。
 - `.agents/workflows/workflow-registry.md` 存在。
 - `.agents/skills/<agent-name>/SKILL.md` 中的 agent thin-index 存在或 dry-run 明确报告将生成；例如 `.agents/skills/i18n-agent/SKILL.md` 指向 `.agents/agents/i18n-agent/AGENT.md` 和 `.agents/workflows/i18n-change.workflow.md`。
-- `.agents/skills/agent-kit-maintenance/` 不存在；该维护者专用 skill 只保留在能力包仓库根 `skills/agent-kit-maintenance/`，不得部署到业务项目。
+- `.agents/skills/agent-kit-maintenance/` 不存在；该维护者专用 skill 只保留在能力包仓库根 `skills/agent-kit-maintenance/`，不得部署到业务项目。若历史部署或手工 full clone 已遗留该目录，执行 `update-agents.ps1 -Mode Write` 会清理并报告 `maintenance-only-skill-removed`。
 - vendor skill 已同步到运行时 skill 目录，或 dry-run 明确报告 `vendor-missing` / `vendor-skill-synced`。
 - vendor skill thin-index 已存在或 dry-run 明确报告 vendor-thin-index 状态。
 - `.claude/skills/` 中项目 skill 已同步，或 dry-run 明确报告 `skipped`（去重源提供）/ `generated`（需要同步）。

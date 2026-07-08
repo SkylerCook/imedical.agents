@@ -371,7 +371,7 @@ scripts/generate-plugin-thin-index.ps1
 
 ## 维护约定
 
-- 维护本仓库自身时，优先读取根 `AGENTS.md` 和 `skills/agent-kit-maintenance/SKILL.md`；该 skill 位于根 `skills/` 下，但通过安装/更新 sparse checkout 排除，不部署到业务项目 `.agents/`。
+- 维护本仓库自身时，优先读取根 `AGENTS.md` 和 `skills/agent-kit-maintenance/SKILL.md`；该 skill 位于根 `skills/` 下，但通过安装/更新 sparse checkout 排除，不部署到业务项目 `.agents/`。如果历史部署已经遗留 `.agents/skills/agent-kit-maintenance/`，运行 `.agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Write` 会清理该目录。
 - 新增长期通用能力时，先判断应放入 `agents/`、`workflows/`、`plugins/`、`rules/`、`references/`、`skills/`、`templates/` 还是 `scripts/`。
 - 修改插件目录结构时，同步检查 `.agents-plugin/plugin.json`、插件 `AGENTS.md`、插件 README、仓库 README 和相关 docs。
 - 提交插件能力变更时，同步检查并按需更新插件 `AGENTS.md`、插件 README、manifest、相关 skill/rule/reference/template、仓库 README、维护记忆、相关 docs 和测试；不要只提交插件实现而遗漏说明、记忆或验证入口。

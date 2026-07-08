@@ -12,6 +12,7 @@ $sparsePaths = @(
   "/workflows/**",
   "/rules/**",
   "/skills/**",
+  "!/skills/agent-kit-maintenance/",
   "!/skills/agent-kit-maintenance/**",
   "/plugins/**",
   "/vendor/**",
@@ -72,6 +73,14 @@ function Set-AgentsSparseCheckout {
   $sparsePaths | git -C $target sparse-checkout set --stdin --no-cone
 }
 
+function Remove-MaintenanceOnlyRuntimeSkill {
+  $maintenanceSkillPath = Join-Path $target "skills/agent-kit-maintenance"
+  if (Test-Path -LiteralPath $maintenanceSkillPath) {
+    Remove-Item -LiteralPath $maintenanceSkillPath -Recurse -Force
+    Write-Host "Removed maintenance-only skill residue: .agents/skills/agent-kit-maintenance"
+  }
+}
+
 function Write-PostInstallGuidance {
   Write-Host ""
   Write-Host "imedical.agents installed or updated."
@@ -100,6 +109,8 @@ if (Test-Path "$target\.git") {
     Add-LineIfMissing -Path $agentsExcludePath -Line $pattern
   }
 }
+
+Remove-MaintenanceOnlyRuntimeSkill
 
 if (Test-Path "AGENTS.md") {
   Write-Host "AGENTS.md found. CLAUDE.md and CODEBUDDY.md are optional compatibility symlinks; install-agents.ps1 does not create, copy, or repair them automatically."
