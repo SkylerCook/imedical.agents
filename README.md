@@ -194,7 +194,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - 本地优先、按需上传/编译的工作流约束。
 - UTF-8 前端文件转换为 GB2312 的 promote 流程。
 - HISUI 控件参考按需读取。
-- iris-agentic-dev MCP server Windows x64 可执行文件内置在 `.agents/vendor/iris-agentic-dev/`，目标工程 `.mcp.json` 仍保存实际连接事实。
+- iris-agentic-dev MCP server Windows x64 可执行文件（当前 **v0.6.20**）内置在 `.agents/vendor/iris-agentic-dev/`，目标工程 `.mcp.json` 仍保存实际连接事实。
 
 常用 skill：
 
