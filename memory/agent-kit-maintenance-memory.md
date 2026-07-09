@@ -36,7 +36,7 @@
 - 已新增 `imedicalxc-doctor-data-extraction` 插件，用于 HIS 数据抽取、`@OpenApi` Controller 扫描、第三方接口对照文档和字段映射生成，Feign/API 文档生成作为辅助能力。
 - 已新增 `imedicalxc-doctor-print-template-design` 插件，用于 HIS 打印模板设计和 `.xlsx` 模板生成，覆盖 Word/docx 参考文档到主模板/扩展模板的工作流。
 - `scripts/install-agents.ps1` 和 `scripts/update-agents.ps1` 已新增 Git 版本前置校验；`docs/update-agents.md` 和更新脚本测试已同步覆盖。
-- 已新增 vendor skill 运行时同步链路：`vendor/superpowers/` 和 `vendor/word-reader/` 随 `/vendor/**` 部署到业务项目 `.agents/vendor/`，再由 `scripts/sync-vendor-skills.ps1` 同步到运行时 skill 发现目录；vendor 仍不参与 thin-index。
+- 已新增 vendor skill 发现链路：`vendor/superpowers/` 和 `vendor/word-reader/` 随 `/vendor/**` 部署到业务项目 `.agents/vendor/`；`scripts/sync-vendor-skills.ps1` 同步到运行时 skill 目录（Claude Code，存在时也覆盖 Codex），并通过 plugin/user/project 三层去重避免覆盖已有 skill；`scripts/generate-vendor-thin-index.ps1` 为 vendor skill 生成 `.agents/skills/<name>/SKILL.md` 浅层入口。
 - 已新增并重构 `imedicalxc-doctor-extend-engineer` 插件，采用标准插件结构、内置多模块 Maven 依赖安装脚本，thin-index wrapper 默认只暴露主编排器入口，医生站第三方集成子 skill 由主编排器按需加载。
 - 已精简 `imedicalxc-doctor-dbdata` skill，聚焦数据库查询核心规范，重点保留医保对照、基础数据统一对照和合并查询（Merge Query）等高价值领域知识，并同步更新医生站扩展主编排器和架构引用。
 - 已新增框架验证反馈机制：`feedback/framework/`、`agents/_shared/feedback-protocol.md`。Agent 处理 HIS 需求时如对框架文件做了修正，自动生成反馈条目；维护者定期 diff 后应用到 master。
@@ -57,8 +57,8 @@
 ## 当前治理重点
 
 - 已新增 agent thin-index 生成链：`scripts/generate-agent-thin-index.ps1` 可从 canonical `agents/` 生成 `.agents/skills/<agent-name>/SKILL.md`，并已接入 `update-agents.ps1`。
-- 已新增 vendor skill 同步链：`install-agents.ps1` / `update-agents.ps1` 会调用 `scripts/sync-vendor-skills.ps1`，当前主要服务 `vendor/superpowers/` 和 `vendor/word-reader/`。
-- 工具专属 adapter 生成器暂缓；当前只做通用 agent skill thin-index，不生成 `.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/`、WorkBuddy 或 Hermes 原生入口。
+- 已新增 vendor skill 与 Claude Code skill 同步链：`update-agents.ps1` 会调用 `scripts/sync-vendor-skills.ps1`、`scripts/generate-vendor-thin-index.ps1` 和 `scripts/sync-claudecode-skills.ps1`，当前主要服务 `vendor/superpowers/`、`vendor/word-reader/` 以及项目 `.agents/skills/` 的 Claude Code 发现。
+- 工具专属 agent adapter 生成器仍暂缓；当前已开始做 Claude Code/Codex 的 skill 发现层适配，但不生成 `.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/`、WorkBuddy 或 Hermes 原生 agent 入口。
 - 继续观察 rules 体量，查找表、API 目录和长参考资料优先迁入插件 `references/`。
 - 多 Agent 协作已进入顶层 canonical 设计阶段，但暂不实现复杂运行时调度器；第一阶段以 i18n-agent 样板、workflow、交接协议和适配入口生成器为主。
 - 已新增维护者专用 `skills/agent-kit-maintenance/SKILL.md`；它只服务本仓库维护，虽位于根 `skills/`，但不部署到业务项目 `.agents/`，根 `AGENTS.md` 仍承载最高优先级维护入口和规则。

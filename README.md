@@ -103,7 +103,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 如果由 Agent 托管更新，让它先读取 `.agents/docs/update-agents.md`，由 runbook 判断是否可从 `DryRun` 进入 `Write`。
 
-安装和更新流程还会调用 `scripts/sync-vendor-skills.ps1`，把 `.agents/vendor/` 中带 `SKILL.md` 的 vendor skill 同步到当前运行时 skill 发现目录。当前主要用于 `vendor/superpowers/` 和 `vendor/word-reader/`；这类 vendor skill 不生成 `.agents/skills/` thin-index。
+安装和更新流程还会处理三类 skill 发现层同步：`scripts/sync-vendor-skills.ps1` 把 `.agents/vendor/` 中带 `SKILL.md` 的 vendor skill 同步到运行时 skill 发现目录（Claude Code 用户级 skill 目录；若存在 Codex skill 目录也同步到 Codex）；`scripts/generate-vendor-thin-index.ps1` 为 vendor skill 生成 `.agents/skills/<name>/SKILL.md` 浅层入口；`scripts/sync-claudecode-skills.ps1` 将项目 `.agents/skills/` 同步到项目 `.claude/skills/`。这属于 skill 发现层适配，不是 `.codex/agents/`、`.claude/agents/` 等工具原生 agent adapter。
 
 ## 仓库结构
 

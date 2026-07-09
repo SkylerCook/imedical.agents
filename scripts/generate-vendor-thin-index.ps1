@@ -236,20 +236,20 @@ Get-ChildItem -LiteralPath $vendorRoot -Directory | Sort-Object Name | ForEach-O
             $contentLines.Add("")
 
             @(
-                "# 薄索引：$skillName",
+                "# Thin Index: $skillName",
                 "",
-                "本文件是 thin-index / 薄索引，不包含完整 skill。",
+                "This file is a thin-index and does not contain the full skill.",
                 "",
-                "Agent 指令：读取本文件后，必须继续读取并遵循 vendor 内真实 skill：",
+                "Agent instruction: after reading this file, continue to read and follow the real vendor skill:",
                 "",
                 "- ``$sourceRel``",
                 "",
-                "如任务涉及项目差异或服务器能力，还需要读取：",
+                "If the task depends on project-specific facts or server capabilities, also read:",
                 "",
                 "- ``.agents/config/``",
                 "- ``.mcp.json``",
                 "",
-                "不要把 MCP 连接信息复制到本文件。"
+                "Do not copy MCP connection facts into this file."
             ) | ForEach-Object { $contentLines.Add($_) }
             $content = @($contentLines) -join [Environment]::NewLine
 
@@ -321,20 +321,20 @@ Get-ChildItem -LiteralPath $vendorRoot -Directory | Sort-Object Name | ForEach-O
         $contentLines.Add("")
 
         @(
-            "# 薄索引：$skillName",
+            "# Thin Index: $skillName",
             "",
-            "本文件是 thin-index / 薄索引，不包含完整 skill。",
+            "This file is a thin-index and does not contain the full skill.",
             "",
-            "Agent 指令：读取本文件后，必须继续读取并遵循 vendor 内真实 skill：",
+            "Agent instruction: after reading this file, continue to read and follow the real vendor skill:",
             "",
             "- ``$sourceRel``",
             "",
-            "如任务涉及项目差异或服务器能力，还需要读取：",
+            "If the task depends on project-specific facts or server capabilities, also read:",
             "",
             "- ``.agents/config/``",
             "- ``.mcp.json``",
             "",
-            "不要把 MCP 连接信息复制到本文件。"
+            "Do not copy MCP connection facts into this file."
         ) | ForEach-Object { $contentLines.Add($_) }
         $content = @($contentLines) -join [Environment]::NewLine
 
