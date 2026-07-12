@@ -33,6 +33,7 @@ $agentsLocalExcludePatterns = @(
   "/rules/",
   "/skills/",
   "/scripts/"
+  "/work/"
 )
 
 function Resolve-FullPath {
@@ -229,6 +230,42 @@ function Merge-ConfigTemplate {
   }
 
   return $results
+}
+
+function Invoke-PluginConfigMigrations {
+  param(
+    [object]$Plugin,
+    [string]$ProjectRootFull,
+    [string]$AgentsRoot,
+    [string]$Mode
+  )
+
+  $items = New-Object System.Collections.Generic.List[object]
+  foreach ($migration in @($Plugin.manifest.configMigrations)) {
+    if ($null -eq $migration -or [string]::IsNullOrWhiteSpace([string]$migration.script)) {
+      continue
+    }
+    $migrationPath = Join-Path $Plugin.path ([string]$migration.script)
+    $migrationId = [string]$migration.id
+    if (-not (Test-Path -LiteralPath $migrationPath -PathType Leaf)) {
+      $items.Add((Write-UpdateResult -Status "config-migration-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $migrationPath) -Reason ("migration script missing: " + $migrationId) -PluginName $Plugin.name -Phase "config-migration"))
+      continue
+    }
+    try {
+      $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $migrationPath -ProjectRoot $ProjectRootFull -AgentsRoot $AgentsRoot -Mode $Mode | Out-String
+      if ($LASTEXITCODE -ne 0) {
+        throw "migration exited with code $LASTEXITCODE"
+      }
+      $parsed = $output.Trim() | ConvertFrom-Json
+      foreach ($entry in @($parsed)) {
+        $items.Add((Write-UpdateResult -Status ([string]$entry.status) -Target ([string]$entry.target) -Source $migrationId -Reason ([string]$entry.reason) -PluginName $Plugin.name -Phase "config-migration"))
+      }
+    }
+    catch {
+      $items.Add((Write-UpdateResult -Status "config-migration-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $migrationPath) -Source $migrationId -Reason $_.Exception.Message -PluginName $Plugin.name -Phase "config-migration"))
+    }
+  }
+  return $items
 }
 
 function Get-InstalledPlugins {
@@ -581,6 +618,11 @@ function Write-UpdateSummary {
     "sparse-refresh-failed",
     "conflict",
     "config-review-required",
+    "config-migration-review-required",
+    "config-migration-conflict",
+    "config-migration-failed",
+    "submodule-init-required",
+    "script-conflict",
     "thin-index-script-missing",
     "entrypoint-check-missing",
     "agent-thin-index-script-missing",
@@ -598,7 +640,17 @@ function Write-UpdateSummary {
     "config-missing-key",
     "config-merged-key",
     "config-deprecated-candidate",
-    "config-review-required"
+    "config-review-required",
+    "config-migration-planned",
+    "config-migration-applied",
+    "config-migration-unchanged",
+    "config-migration-review-required",
+    "config-migration-conflict",
+    "config-migration-failed",
+    "submodule-init-required",
+    "script-wrapper-planned",
+    "script-wrapper-applied",
+    "script-conflict"
   )
 
   $entrypointStatuses = @(
@@ -923,6 +975,11 @@ foreach ($installedPlugin in $plugins) {
         $results.Add($item)
       }
     }
+  }
+
+  $migrationResults = Invoke-PluginConfigMigrations -Plugin $installedPlugin -ProjectRootFull $projectRootFull -AgentsRoot $agentsRoot -Mode $Mode
+  foreach ($item in $migrationResults) {
+    $results.Add($item)
   }
 
   $thinIndexScript = Join-Path $installedPlugin.path "scripts/generate-plugin-thin-index.ps1"

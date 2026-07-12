@@ -168,6 +168,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `config-missing-key` | 模板有新增字段，当前项目 config 没有；dry-run 只提示。 |
 | `config-merged-key` | write 已把缺失配置项追加到待确认区块。 |
 | `config-deprecated-candidate` | 当前项目 config 有模板没有的字段；只提示，不删除。 |
+| `config-migration-planned` | 插件迁移脚本已通过字节校验，dry-run 计划生成新配置。 |
+| `config-migration-applied` | write 已应用插件配置迁移。 |
+| `config-migration-unchanged` | 插件迁移配置已是最新。 |
+| `script-wrapper-planned` / `script-wrapper-applied` | 编码脚本将要或已经替换为指向插件 canonical 实现的薄 wrapper。 |
 
 以下状态是停止条件：
 
@@ -176,6 +180,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `Action required` | 查看摘要下的阻塞项。必要时运行 `-Detailed` 后向用户汇报。 |
 | `conflict` | 停止。报告冲突文件和来源。 |
 | `config-review-required` | 停止。说明配置语义需要人工确认。 |
+| `config-migration-review-required` | 停止。真实文件样本不足、mixed 或 unknown，不能自动决定编码模式。 |
+| `config-migration-conflict` | 停止。目录/仓库角色提出的候选模式与文件字节检测冲突。 |
+| `config-migration-failed` | 停止。插件迁移脚本缺失、异常退出或输出无效。 |
+| `submodule-init-required` | 停止。前端 submodule 未初始化，无法做字节检测。 |
+| `script-conflict` | 停止。目标工程编码脚本是未知或用户定制版本，更新器不覆盖。 |
 | `pull-blocked-dirty` | 停止。说明 `.agents` 仓库存在本地改动，需要用户决定提交、暂存或放弃。 |
 | `agents-git-missing` | 停止。说明 `.agents` 不是标准独立 Git 仓库。 |
 | `git-version-unsupported` | 停止。说明当前 Git 低于 `2.25.0`，先升级 Git for Windows 后重试。 |
@@ -190,6 +199,23 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
  | `agents-entry-missing` | 提示。项目主入口缺失；安装或更新 `.agents` 后，通过 `project-context-maintenance` 补齐或维护，不要复制本仓库根 `AGENTS.md`。 |
 | `plugin-init-required` | 停止。读取该插件真实 init skill，完成初始化闭环后用脚本标记为 enabled。 |
 | `plugin-dependency-missing` | 停止。先初始化依赖插件，不要只因插件目录存在就继续。 |
+
+## coding-iris 前端编码 v2 迁移
+
+前端编码只允许两种模式：`standard-gb2312`（标版源码与上传均为 GB2312）和 `project-utf8`（医院项目源码与上传均为 UTF-8）。组合仓库名称不是编码模式；路径覆盖只映射这两种模式，实际文件字节检测始终是最终门禁。
+
+旧版 `update-agents.ps1` 在第一次运行过程中即使拉取了新版脚本，也不会在同一 PowerShell 进程中执行新迁移钩子。已部署工程按以下两阶段流程处理：
+
+```powershell
+# 第一阶段：拉取新版能力包和更新器
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Write
+
+# 第二阶段：用新版更新器预览并应用 coding 插件迁移
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun -NoPull -Detailed -Plugin coding-iris-plugin
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Write -NoPull -Detailed -Plugin coding-iris-plugin
+```
+
+迁移器发现 `src/imedical/web` 时提出 `project-utf8` 候选；标版前端仓库通过 gitlink、submodule、嵌套 Git 边界和前端内容发现，不依赖 `core-mod`、`all` 或固定组合路径。候选必须通过非 ASCII 文件字节抽检；任何 review-required/conflict 未处理前，Agent 不得继续前端写入或部署。
 
 ## Agent thin-index
 
@@ -404,7 +430,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - vendor skill 已同步到运行时 skill 目录，或 dry-run 明确报告 `vendor-missing` / `vendor-skill-synced`。
 - vendor skill thin-index 已存在或 dry-run 明确报告 vendor-thin-index 状态。
 - `.claude/skills/` 中项目 skill 已同步，或 dry-run 明确报告 `skipped`（去重源提供）/ `generated`（需要同步）。
-- `.agents/.git/info/exclude` 包含 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
+- `.agents/.git/info/exclude` 包含 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`、`/work/`。
 - `.agents/config/plugin_profile.md` 存在或 dry-run 明确报告默认插件状态。
 - 如果业务项目有 `AGENTS.md`，兼容入口可以是 `entrypoint-ok`，也可以缺失；缺失或异常只作为可选提示，不应在 write 中自动修复。
 - 插件能被扫描到；未启用插件只应显示为 `available`，不应生成 thin-index。

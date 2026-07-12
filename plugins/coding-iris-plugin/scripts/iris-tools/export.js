@@ -4,7 +4,7 @@
  * IRIS Universal Export Script
  * Automatically detects file type and exports from IRIS server
  * 
- * Usage: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <fileIdentifier> [outputDir] [namespace] [--basePath <prefix>]
+ * Usage: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <fileIdentifier> [outputDir] [namespace] [--basePath <prefix>] [--target-mode auto|source|staging] [--overwrite]
  * 
  * Examples:
  *   # Export class (detected by dot notation without path)
@@ -31,6 +31,8 @@ let fileIdentifier = args[0];
 let outputDir = 'src';
 let namespace = '';
 let basePath; // undefined means use project-env web defaults; empty string disables prefixing.
+let targetMode = 'auto';
+let overwrite = false;
 
 function findWorkspaceRoot() {
     let dir = __dirname;
@@ -50,11 +52,20 @@ function findWorkspaceRoot() {
 for (let i = 1; i < args.length; i++) {
     if (args[i] === '--basePath' || args[i] === '-BasePath') {
         basePath = args[++i] || '';
+    } else if (args[i] === '--target-mode') {
+        targetMode = args[++i] || 'auto';
+    } else if (args[i] === '--overwrite') {
+        overwrite = true;
     } else if (i === 1 && !args[i].startsWith('--') && !args[i].startsWith('-')) {
         outputDir = args[i];
     } else if (i === 2 && !args[i].startsWith('--') && !args[i].startsWith('-')) {
         namespace = args[i];
     }
+}
+
+if (!['auto', 'source', 'staging'].includes(targetMode)) {
+    console.error(`[错误] --target-mode 只允许 auto、source 或 staging，当前值: ${targetMode}`);
+    process.exit(1);
 }
 
 if (!fileIdentifier) {
@@ -75,6 +86,7 @@ if (!fileIdentifier) {
 // Load configuration
 const workspaceRoot = findWorkspaceRoot();
 const configPath = path.join(workspaceRoot, '.agents', 'config', 'project-env.json');
+const profilePath = path.join(workspaceRoot, '.agents', 'config', 'iris_project_profile.md');
 let config;
 try {
     const configContent = fs.readFileSync(configPath, 'utf8');
@@ -96,6 +108,57 @@ if (!namespace || namespace === 'TODO') {
 const webConfig = config.web || {};
 const webBasePath = normalizePrefix(configValue(webConfig.basePath) || configValue(iris.webBasePath) || '');
 const cspBasePath = normalizePrefix(configValue(webConfig.cspBasePath) || (webBasePath ? `${webBasePath}/csp` : ''));
+
+function readFrontendEncodingProfile() {
+    let text = '';
+    try {
+        text = fs.readFileSync(profilePath, 'utf8');
+    } catch (_) {
+        return { mode: null, overrides: [] };
+    }
+    const modeMatch = text.match(/^\s*-\s*前端编码模式\s*[：:]\s*(standard-gb2312|project-utf8)\s*$/m);
+    const overrides = [];
+    for (const line of text.split(/\r?\n/)) {
+        const match = line.match(/^\s*\|\s*`?([^|`]+?)`?\s*\|\s*(standard-gb2312|project-utf8)\s*\|\s*$/);
+        if (match) {
+            overrides.push({ root: match[1].trim().replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, ''), mode: match[2] });
+        }
+    }
+    return { mode: modeMatch ? modeMatch[1] : null, overrides };
+}
+
+function resolveFrontendMode(relativeTarget) {
+    const profile = readFrontendEncodingProfile();
+    const normalized = relativeTarget.replace(/\\/g, '/').replace(/^\.\//, '');
+    const matches = profile.overrides.filter(item => normalized === item.root || normalized.startsWith(`${item.root}/`));
+    matches.sort((a, b) => b.root.length - a.root.length);
+    return matches.length > 0 ? matches[0].mode : profile.mode;
+}
+
+function prepareOutputTarget(fileInfo) {
+    const intendedPath = path.resolve(workspaceRoot, fileInfo.fullPath);
+    const relativeTarget = path.relative(workspaceRoot, intendedPath).replace(/\\/g, '/');
+    if (relativeTarget.startsWith('../') || path.isAbsolute(relativeTarget)) {
+        throw new Error(`导出目标超出项目根目录: ${intendedPath}`);
+    }
+    const isFrontend = fileInfo.type === 'CSP' || fileInfo.type === 'JS';
+    if (!isFrontend) {
+        return Object.assign({}, fileInfo, { fullPath: intendedPath, intendedDestination: intendedPath, frontendMode: null, staging: false, conversionRequired: false });
+    }
+    const frontendMode = resolveFrontendMode(relativeTarget);
+    let useStaging = targetMode === 'staging' || (targetMode === 'auto' && frontendMode !== 'project-utf8');
+    if (targetMode === 'source' && frontendMode !== 'project-utf8') {
+        throw new Error('只有已确认的 project-utf8 前端允许直接导出到源码；standard-gb2312 或未确认模式必须使用 staging。');
+    }
+    const finalPath = useStaging ? path.join(workspaceRoot, '.agents', 'work', 'iris-export', relativeTarget) : intendedPath;
+    return Object.assign({}, fileInfo, {
+        fullPath: finalPath,
+        intendedDestination: intendedPath,
+        frontendMode,
+        staging: useStaging,
+        conversionRequired: frontendMode === 'standard-gb2312'
+    });
+}
 
 // Validate password
 if (!iris.password || iris.password.trim() === '') {
@@ -263,6 +326,11 @@ function exportFile(fileInfo) {
     console.log(`[信息] 正在导出: ${fileInfo.displayName}`);
     console.log(`[信息] 目标文件: ${fileInfo.fullPath}`);
 
+    if (fs.existsSync(fileInfo.fullPath) && !overwrite) {
+        console.error(`[错误] 目标文件已存在；如确认覆盖请显式传入 --overwrite: ${fileInfo.fullPath}`);
+        process.exit(1);
+    }
+
     // Create directory if not exists
     const dirPath = path.dirname(fileInfo.fullPath);
     if (!fs.existsSync(dirPath)) {
@@ -326,6 +394,14 @@ function exportFile(fileInfo) {
             fs.writeFileSync(fileInfo.fullPath, content, 'utf8');
 
             console.log(`[成功] ${fileInfo.type} 文件已导出到: ${fileInfo.fullPath}`);
+            console.log(JSON.stringify({
+                path: fileInfo.fullPath,
+                intendedDestination: fileInfo.intendedDestination || fileInfo.fullPath,
+                encoding: 'utf8',
+                preset: fileInfo.frontendMode,
+                staging: Boolean(fileInfo.staging),
+                conversionRequired: Boolean(fileInfo.conversionRequired)
+            }));
 
         } catch (parseError) {
             console.error(`[错误] 解析响应失败: ${parseError.message}`);
@@ -395,7 +471,7 @@ function requestWithRetry(apiUrl, options, maxRetries, callback) {
 
 // Main execution
 try {
-    const fileInfo = detectFileType(fileIdentifier);
+    const fileInfo = prepareOutputTarget(detectFileType(fileIdentifier));
     exportFile(fileInfo);
 } catch (error) {
     console.error(error.message);

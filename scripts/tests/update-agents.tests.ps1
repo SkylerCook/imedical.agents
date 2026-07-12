@@ -129,6 +129,7 @@ function New-TestProject {
     '  "skills": "skills/",',
     '  "templates": "templates/",',
     '  "scripts": "scripts/",',
+    '  "configMigrations": [{"id":"sample-v1","script":"scripts/migrate-sample.ps1"}],',
     '  "initSkill": "sample-skill"',
     "}"
   )
@@ -199,6 +200,12 @@ function New-TestProject {
     "",
     "# Vendor Test Skill"
   )
+
+  Set-Content -Encoding UTF8 -Path (Join-Path $pluginRoot "scripts/migrate-sample.ps1") -Value @(
+    'param([string]$ProjectRoot=".",[string]$AgentsRoot=".agents",[string]$Mode="DryRun")',
+    '$status = if ($Mode -eq "Write") { "config-migration-applied" } else { "config-migration-planned" }',
+    '[PSCustomObject]@{status=$status;target=".agents/config/sample_profile.md";reason="sample migration"} | ConvertTo-Json -Compress'
+  )
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/vendor/root-vendor") | Out-Null
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/vendor/root-vendor/SKILL.md") -Value @(
     "---",
@@ -237,6 +244,7 @@ Assert-Contains $updateScriptContent "/feedback/**" "update sparse checkout shou
 Assert-Contains $updateScriptContent "/hooks/**" "update sparse checkout should include hooks"
 Assert-Contains $updateScriptContent "!/skills/agent-kit-maintenance/" "update sparse checkout should exclude maintenance-only skill directory"
 Assert-Contains $updateScriptContent "!/skills/agent-kit-maintenance/**" "update sparse checkout should exclude maintenance-only skill"
+Assert-Contains $updateScriptContent '"/work/"' "update should ignore local staging work directory"
 Assert-Contains $updateScriptContent "generate-agent-thin-index.ps1" "update should invoke agent thin-index generation"
 Assert-Contains $updateScriptContent "generate-vendor-thin-index.ps1" "update should invoke vendor thin-index generation"
 Assert-Contains $updateScriptContent "sync-claudecode-skills.ps1" "update should invoke Claude Code skill sync"
@@ -251,6 +259,7 @@ Assert-True (-not $installScriptContent.Contains("core.hooksPath")) "install mus
 Assert-Contains $updateScriptContent "git-hooks-not-enabled" "update should report hook availability without enabling hooks"
 Assert-True (-not $updateScriptContent.Contains("git config core.hooksPath .agents/hooks")) "update must not enable git hooks automatically"
 Assert-Contains $installScriptContent "!/skills/agent-kit-maintenance/**" "install sparse checkout should exclude maintenance-only skill"
+Assert-Contains $installScriptContent '"/work/"' "install should ignore local staging work directory"
 Assert-Contains $installScriptContent "2.25.0" "install should require Git 2.25.0 or newer for sparse-checkout subcommand"
 Assert-Contains $installScriptContent "Assert-GitSparseCheckoutSubcommandAvailable" "install should fail early when git sparse-checkout subcommand is unavailable"
 Assert-Contains $installScriptContent "Continue installing .agents" "install should not block .agents bootstrap when AGENTS.md is missing"
@@ -336,6 +345,7 @@ try {
   $dryRunOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed -Plugin sample-plugin | Out-String
   Assert-Contains $dryRunOutput "config-missing-key" "DryRun should report missing config keys"
   Assert-Contains $dryRunOutput "config-deprecated-candidate" "DryRun should report deprecated config candidates"
+  Assert-Contains $dryRunOutput "config-migration-planned" "DryRun should invoke plugin config migration"
 
   $beforeWrite = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")
   Assert-Contains $beforeWrite "projectName: real-project" "DryRun must not overwrite existing config values"
@@ -343,6 +353,7 @@ try {
 
   $writeOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-String
   Assert-Contains $writeOutput "config-merged-key" "Write should merge missing config keys"
+  Assert-Contains $writeOutput "config-migration-applied" "Write should apply plugin config migration"
   Assert-Contains $writeOutput "git-hooks-not-enabled" "Write should report hooks are available but not enabled"
   Assert-Contains $writeOutput "agent-thin-index" "Write should include agent thin-index phase"
   Assert-Contains $writeOutput "vendor-thin-index" "Write should include vendor thin-index phase"

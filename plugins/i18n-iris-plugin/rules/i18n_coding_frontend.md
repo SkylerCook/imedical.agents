@@ -12,7 +12,7 @@ related:
 
 执行本规则前必须先读取 `.agents/config/i18n_project_profile.md`，确认当前项目的前端框架、翻译 helper 和自动翻译边界。
 
-涉及 `.csp` / `.js` / `.css` 文件写入时，还必须遵守 `coding-iris-plugin` 的前端编码规则：读取 `.agents/config/iris_project_profile.md` 和 `.agents/plugins/coding-iris-plugin/rules/iris_coding_frontend.md`。i18n 改造不得把历史 GB2312 前端源文件永久保存为 UTF-8。
+涉及 `.csp` / `.js` / `.css` 文件写入时，还必须遵守 `coding-iris-plugin` 的双编码模式：读取 `.agents/config/iris_project_profile.md` 和 `.agents/plugins/coding-iris-plugin/rules/iris_coding_frontend.md`，并以实际文件字节检测作为最终门禁。
 
 ## 适用范围
 
@@ -22,10 +22,10 @@ related:
 
 ## 编码边界
 
-- i18n 前端改造会修改源语言文案，必须先确认目标文件实际编码；历史 HIS 前端文件按 GB2312 处理。
-- 若原文件为 GB2312，可以使用临时 UTF-8 工作副本辅助编辑，但最终写回源文件必须保持原编码。
-- 禁止因为 `$g()`、`$trans()`、模板 helper 或翻译 key 修改，把 GB2312 源文件顺手保存成 UTF-8。
-- profile 要求前端 GB2312 时，改造后使用 `.agents/scripts/check-frontend-encoding.ps1 -ExpectedEncoding gb2312 -ErrorOnMismatch` 或等价检查确认未发生编码漂移。
+- `standard-gb2312` 前端文件保持 GB2312，可使用临时 UTF-8 工作副本辅助编辑，但最终必须转回并通过 GB2312 检查。
+- `project-utf8` 前端文件保持 UTF-8，禁止调用 GB2312 转换器。
+- 禁止因为 `$g()`、`$trans()`、模板 helper 或翻译 key 修改而改变目标模式要求的源码编码。
+- 每个触碰文件改造前后按模式检查；unknown、mixed、配置冲突或证据不足时停止。
 
 ## CSP / 页面模板
 

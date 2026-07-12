@@ -33,7 +33,7 @@
 安装脚本会在目标工程写入双层忽略：
 
 - 业务工程 `.gitignore` 忽略 `.agents/`。
-- `.agents/.git/info/exclude` 忽略 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/` 这些本地生成层。
+- `.agents/.git/info/exclude` 忽略 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`、`/work/` 这些本地生成层。
 
 不要把生成层忽略规则写进 `.agents/.gitignore`；它会进入能力包仓库，影响 `imedical.agents` 自身维护。
 

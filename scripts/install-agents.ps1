@@ -29,6 +29,7 @@ $agentsLocalExcludePatterns = @(
   "/rules/",
   "/skills/",
   "/scripts/"
+  "/work/"
 )
 
 function Add-LineIfMissing {

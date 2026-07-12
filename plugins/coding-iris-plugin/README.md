@@ -8,8 +8,9 @@
 - CSP/JavaScript/HISUI 前端编码规则：框架页/内容页拆分、HISUI 控件优先、JS 组织方式、前端数据回显。
 - 工作流规则：本地优先；导出、编译、Broker 调试和配置同步优先使用 IRIS 开发主力脚本；MCP 作为辅助能力补上下文、只读验证或覆盖脚本未覆盖场景。
 - 部署编排：`skills/iris-deploy/SKILL.md` 负责远端部署入口、清单生成、确认门禁和验证编排，上传、编译、部署和远端验证按 `rules/iris_deploy_checklist.md` 逐项执行。
-- 前端编码保护：检查 `.csp/.js/.css` 实际编码，防止历史 GB2312 文件被 Agent 永久改成 UTF-8。
-- 前端上传编码转换：按项目 profile 保持源文件编码，上传时按需转换为 GB2312 临时文件。
+- 前端双编码模式：`standard-gb2312` 用于标版开发，`project-utf8` 用于医院项目；路径覆盖只映射这两种模式。
+- 前端编码保护：结构负责提出候选模式，实际文件字节检测是最终门禁；正常任务静默处理，完成时只报告一行摘要。
+- 前端上传编码转换：仅 `standard-gb2312` 使用 GB2312 转换器；`project-utf8` 源码与上传均保持 UTF-8。
 - 前端 GB2312 提升：确认后删除源文件，并将 `{name}.gb2312.{ext}` 更名回原文件名，可选 MCP/SFTP 上传。
 - HISUI 控件参考：按需读取 `references/hisui-widget-index.md`，源码内置在 `.agents/vendor/hisui/`。
 - iris-agentic-dev MCP server：Windows x64 可执行文件内置在 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`，目标工程无需自行查找工具位置。
@@ -37,7 +38,7 @@ coding-iris-plugin/
 
 1. 将本插件放到目标工程 `.agents/plugins/coding-iris-plugin/`。
 2. 首次初始化时直接读取 `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`。
-3. 初始化流程复制 `convert-gb2312-upload.ps1` 和 `check-frontend-encoding.ps1` 到目标工程 `.agents/scripts/`。
+3. 初始化/迁移流程在目标工程 `.agents/scripts/` 生成编码脚本薄 wrapper，实际实现由插件 canonical 脚本维护。
 4. 初始化流程直接调用插件内置 `scripts/generate-plugin-thin-index.ps1`；该脚本是 wrapper，实际委托根 `scripts/generate-plugin-thin-index.ps1`。
 5. 初始化流程根据 `templates/iris_project_profile.template.md` 生成或提示创建 `.agents/config/iris_project_profile.md`。
 6. 在浅层 `.agents/rules/` 和 `.agents/skills/` 生成 thin-index。
@@ -144,9 +145,9 @@ node .agents/scripts/iris-mcp.js call iris_doc "{...}"
 
 ## 前端编码保护
 
-历史 HIS 前端 `.csp`、`.js`、`.css` 文件按 GB2312 处理。普通前端修改必须保持源文件原编码，不得为了编辑方便永久保存为 UTF-8。
+前端编码以目标工程 `.agents/config/iris_project_profile.md` 为准，只允许 `standard-gb2312` 和 `project-utf8`。组合仓库名称和目录形状不是编码配置值；每个文件修改前后仍必须通过实际字节检测。
 
-目标工程 profile 要求前端 GB2312 时，收尾检查：
+`standard-gb2312` 收尾检查：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-frontend-encoding.ps1 -Files @(
@@ -156,6 +157,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 ```
 
 上传转换脚本只生成临时上传产物，不代表源文件允许编码漂移。
+
+`project-utf8` 使用相同检查脚本的 `-ExpectedEncoding utf8 -ErrorOnMismatch`，并且不得运行 GB2312 转换器。正常任务最终只报告“模式、文件数、保持编码”一行；冲突时才展开诊断。
 
 ## 去项目化边界
 

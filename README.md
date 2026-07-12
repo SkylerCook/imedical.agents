@@ -190,9 +190,9 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力：
 
 - ObjectScript 后端编码规则。
-- CSP、JavaScript、CSS、HISUI 前端编码规则。
+- CSP、JavaScript、CSS、HISUI 前端双编码规则：标版使用 `standard-gb2312`，医院项目使用 `project-utf8`，实际文件字节检测是最终门禁。
 - 本地优先、按需上传/编译的工作流约束。
-- UTF-8 前端文件转换为 GB2312 的 promote 流程。
+- 标版 UTF-8 导出 staging 严格转换为 GB2312 的 promote 流程，以及医院项目 UTF-8 原样编辑/上传流程。
 - HISUI 控件参考按需读取。
 - iris-agentic-dev MCP server Windows x64 可执行文件（当前 **v0.6.20**）内置在 `.agents/vendor/iris-agentic-dev/`，目标工程 `.mcp.json` 仍保存实际连接事实。
 

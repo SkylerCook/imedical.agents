@@ -48,8 +48,9 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
    - 用户要求远端读取或 SQL 验证但不部署：只在明确要求后进入工作流规则。
    - 用户要求提升 GB2312 临时文件为源文件：切换到 promote skill。
 3. 本地搜索现有实现和同类代码，优先沿用目标工程模式。
-4. 按已判定的专项流程执行编码改造。
-5. 默认只做本地修改、只读验证和报告；上传、编译、远程写入、数据库变更必须由用户明确要求。
+4. 前端任务在内部解析“前端编码模式”和可选路径覆盖，并对每个触碰文件修改前后执行字节检测；正常时不展开诊断，冲突、unknown、mixed 或证据不足时停止。
+5. 按已判定的专项流程执行编码改造。
+6. 默认只做本地修改、只读验证和报告；上传、编译、远程写入、数据库变更必须由用户明确要求。
 
 ## 前后端混合需求
 
@@ -67,6 +68,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 - 任务路由结论：后端、前端、前后端混合、GB2312 promote 或部署验证。
 - 前后端分工和执行顺序。
 - 已执行的本地验证。
+- 前端任务正常完成时只输出一行编码摘要，例如“前端编码：project-utf8，3 个文件已保持 UTF-8”；仅异常时展开完整编码诊断。
 - 仍需用户确认的上传、编译、远程写入、数据库变更或生产环境动作。
 
 ## 需求完成后的经验沉淀
@@ -91,6 +93,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 ## 完成检查
 
 - 已读取 project profile 和通用规则索引。
+- 前端编码模式只使用 `standard-gb2312` 或 `project-utf8`；路径覆盖只是模式映射，实际文件字节检测是最终门禁。
 - 已按任务范围读取对应专项 skill/rule。
 - 未把服务器、namespace、账号、密码、token、远程路径、业务页面清单、业务类名前缀或项目专属基类写入插件。
 - 上传、编译、远程写入、数据库变更没有在用户未明确要求时执行。

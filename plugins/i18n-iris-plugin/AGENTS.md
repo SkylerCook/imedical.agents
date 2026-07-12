@@ -9,6 +9,7 @@
 ## 使用约束
 
 - 不在插件 rules/skills 中硬编码服务器、namespace、账号、密码、远程路径、业务页面清单或工程种子类。
+- 前端编码必须复用 coding-iris profile 的 `standard-gb2312` / `project-utf8` 模式；实际文件字节检测是最终门禁。
 - 涉及项目差异时读取目标工程 `.agents/config/i18n_project_profile.md`。
 - 涉及服务器操作时读取目标工程 `.mcp.json`。
 - 默认先做只读提取、生成和 report-only 校验；写入本地种子文件、上传、编译、加载翻译必须由用户明确要求。

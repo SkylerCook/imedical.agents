@@ -18,11 +18,15 @@
 
 ### 编码策略
 
-- 源文件编码：TODO（如"前端 GB2312, 后端 UTF-8"）
-- 前端源文件编码策略：preserve-existing
-- 历史前端默认编码：TODO（如 GB2312；不确定时写"按文件检测"）
-- 前端编码漂移检查：TODO（如"GB2312 前端文件收尾运行 check-frontend-encoding.ps1 -ExpectedEncoding gb2312 -ErrorOnMismatch"）
-- 上传前是否运行 `convert-gb2312-upload.ps1`：TODO
+- 后端源文件编码：UTF-8
+- 前端编码模式：TODO（只允许 `standard-gb2312` 或 `project-utf8`；无法确认时保持 TODO）
+- 前端编码冲突处理：stop-and-report
+
+可选路径覆盖只映射上述两种模式，不引入第三种模式：
+
+| 前端根目录 | 编码模式 |
+|---|---|
+| `TODO` | `standard-gb2312` 或 `project-utf8` |
 
 ### 部署能力
 

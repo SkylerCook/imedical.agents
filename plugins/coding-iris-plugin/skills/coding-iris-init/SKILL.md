@@ -37,10 +37,9 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
    - 是否存在 `.mcp.json`。
    - 是否存在 `.agents/config/iris_project_profile.md`。
    - 是否已有同名 rules/skills，避免覆盖用户定制。
-2. 复制前端编码脚本到 `.agents/scripts/`：
-   - `convert-gb2312-upload.ps1`
-   - `check-frontend-encoding.ps1`
-   - 目标不存在则复制；目标存在且内容相同则跳过；目标存在且内容不同则报告 conflict，除非用户明确要求覆盖。
+2. 初始化前端编码脚本入口：
+   - 运行插件 `scripts/migrate-frontend-encoding-profile.ps1`，为 `.agents/scripts/convert-gb2312-upload.ps1` 和 `check-frontend-encoding.ps1` 创建指向插件 canonical 实现的薄 wrapper。
+   - 已知历史复制版本可自动替换为 wrapper；用户定制或未知版本只报告 `script-conflict`，不得覆盖。
    - `generate-plugin-thin-index.ps1` 不复制到目标工程，只从插件内路径直接调用。
 3. 初始化 profile：
    - 若 `.agents/config/iris_project_profile.md` 已存在，保留已有值，只合并缺失段落。
@@ -49,6 +48,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
      - `通用`（或用户未指定）：基于 `templates/iris_project_profile.template.md` 创建，按探索流程填充可确定字段，确实无法确定的标 TODO。
    - `templates/profile-defaults/<type>.md` 只在用户显式选择对应项目类型后加载；它是领域默认值，不是通用规则。加载后仍需用代码探索或用户确认校验，不能自动套用到未确认项目。
    - profile 中只能保存项目差异，不保存账号、密码、token。
+   - 前端编码模式只允许 `standard-gb2312` 或 `project-utf8`；路径覆盖只映射这两种模式。目录/仓库角色提出候选，实际文件字节检测是最终门禁。
    - **多仓库工作区**：若目标工程是平铺多仓库架构（如 `corePro-flat`），工作区级别 profile 只填通用项（Web 技术、编码策略、HISUI 基础路径）；仓库特有项（namespace、包前缀、目录路径、命名模板）标注"按仓库填写"，不要填入单一仓库的值当作全局事实。
 4. 初始化 IRIS 开发主力脚本配置：
    - `.agents/config/project-env.json` 是人类可读的配置副本，`.mcp.json` 是 MCP 运行时事实来源；两者共存但 `.mcp.json` 优先。
@@ -74,7 +74,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
    - 合入前保留目标工程既有业务规则和 Git 规则。
 7. 验证：
    - thin-index 指向 `.agents/plugins/coding-iris-plugin/` 内真实 rules/skills。
-   - 前端编码脚本 `convert-gb2312-upload.ps1` 和 `check-frontend-encoding.ps1` 已存在于目标工程 `.agents/scripts/`；thin-index 脚本仍位于插件 `scripts/`。
+   - 前端编码 wrapper 已存在于目标工程 `.agents/scripts/`，canonical 实现与迁移/提升脚本位于插件 `scripts/`。
    - IRIS 开发主力脚本位于插件 `.agents/plugins/coding-iris-plugin/scripts/iris-tools/`，不复制到根 `.agents/scripts/`。
    - `.agents/.git/info/exclude` 已包含生成层忽略规则：`/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
    - 插件中没有源工程服务器、namespace、远程路径、业务类名前缀。

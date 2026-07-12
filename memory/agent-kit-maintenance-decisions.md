@@ -53,11 +53,16 @@
 - 根目录 `index.html`、`.github/` 和 `.nojekyll` 只服务展示页和 GitHub Pages，不部署到业务项目 `.agents/`。
 - `scripts/tests/` 只服务能力包仓库自测，不部署到业务项目 `.agents/`。
 - `.agents/.git/info/exclude` 应继续忽略 `/config/`、`/memory/`、`/rules/`、`/skills/` 和 `/scripts/` 这些本地生成层。
+- `.agents/work/` 是导出 staging 等本地临时工作层，必须由生成层 ignore 隐藏，不进入业务提交。
 - `.agents/.git/info/exclude` 不应忽略 `/agents/` 或 `/workflows/`；业务项目私有 Agent/Workflow 差异应写入 `.agents/config/agent_*_profile.md` 或业务项目自己的规则/文档。
 - 对手工 full clone 到 `.agents/` 的工程，必须重新执行安装脚本启用 sparse checkout；仅靠 `.git/info/exclude` 不能隐藏已跟踪的维护者记忆文件。
 - 根目录 `vendor/` 放第三方源码资产、共享运行时资产和可同步运行时 vendor skill（如 HISUI、iris-agentic-dev、superpowers、word-reader），已加入 sparse checkout 路径 `/vendor/**`，部署到业务项目 `.agents/vendor/`。`vendor/` 不参与 thin-index 生成，不生成 `.agents/rules/` 或 `.agents/skills/` 入口；其中 `vendor/<vendor>/skills/<skill>/SKILL.md` 和 `vendor/<vendor>/SKILL.md` 可由 `scripts/sync-vendor-skills.ps1` 同步到运行时 skill 发现目录，供工具直接加载。
 
 ## 入口决策
+
+- IRIS 前端编码模式只允许 `standard-gb2312` 和 `project-utf8`；组合仓库名称不进入通用模式值，路径覆盖只映射这两种模式。
+- 目录结构、Git 仓库角色和 profile 只用于提出候选编码模式，实际文件字节检测始终是修改与上传的最终门禁。
+- 已部署插件配置迁移由 manifest 声明、根更新器通用调用；领域推导逻辑留在插件迁移脚本，不硬编码到根更新器。
 
 - `AGENTS.md` 是工程级唯一主入口，必须存在。
 - 本仓库已新增维护者专用 `skills/agent-kit-maintenance/SKILL.md`；它只服务 `imedical.agents` 仓库维护，虽位于根 `skills/`，但必须从业务项目 sparse checkout 中排除，不部署到业务项目 `.agents/`，不参与 thin-index。根 `AGENTS.md` 仍是维护入口和最高优先级规则源；该 skill 只承载插件提交同步、记忆更新、README/docs 对齐和部署边界检查流程，不复制维护记忆全文或长规则。
