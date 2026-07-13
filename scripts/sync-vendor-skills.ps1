@@ -2,133 +2,127 @@ param(
   [string]$AgentsRoot = ".agents",
   [string]$ProjectRoot = ".",
   [ValidateSet("DryRun", "Write")]
-  [string]$Mode = "DryRun"
+  [string]$Mode = "DryRun",
+  [string[]]$Skill = @(),
+  [ValidateSet("Auto", "ClaudeCode", "Codex")]
+  [string]$Runtime = "Auto",
+  [switch]$ReportLegacy
 )
 
 $ErrorActionPreference = "Stop"
 
-function Write-SyncResult {
-  param(
-    [string]$Status,
-    [string]$Target,
-    [string]$Source,
-    [string]$Reason = ""
-  )
-  [PSCustomObject]@{
-    status = $Status
-    target = $Target
-    source = $Source
-    reason = $Reason
-  }
-}
-
 function Resolve-FullPath {
-  param([string]$Path)
-  if ([System.IO.Path]::IsPathRooted($Path)) {
-    return [System.IO.Path]::GetFullPath($Path)
-  }
-  return [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $Path))
+  param([string]$BasePath, [string]$Path)
+  if ([System.IO.Path]::IsPathRooted($Path)) { return [System.IO.Path]::GetFullPath($Path) }
+  return [System.IO.Path]::GetFullPath((Join-Path $BasePath $Path))
 }
 
-function Get-DedupSkillNames {
-  param([string]$ProjectRootFull)
-  $skills = @{}
-  $userProfile = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
-  $pluginDir = Join-Path $userProfile ".claude/plugins"
-  if (Test-Path -LiteralPath $pluginDir -PathType Container) {
-    Get-ChildItem -Path $pluginDir -Recurse -Filter "SKILL.md" -ErrorAction SilentlyContinue | ForEach-Object {
-      $parent = $_.Directory.Parent
-      if ($null -ne $parent -and $parent.Name -eq "skills") { $skills[$_.Directory.Name] = $true }
+function Write-Result {
+  param([string]$Status, [string]$Target = "", [string]$Source = "", [string]$Reason = "")
+  [PSCustomObject]@{ status=$Status; target=$Target; source=$Source; reason=$Reason }
+}
+
+function Find-VendorSkill {
+  param([string]$VendorRoot, [string]$Name)
+  foreach ($vendor in @(Get-ChildItem -LiteralPath $VendorRoot -Directory -ErrorAction SilentlyContinue)) {
+    $nested = Join-Path $vendor.FullName "skills/$Name"
+    if (Test-Path -LiteralPath (Join-Path $nested "SKILL.md") -PathType Leaf) { return $nested }
+    if (($vendor.Name -eq $Name) -and (Test-Path -LiteralPath (Join-Path $vendor.FullName "SKILL.md") -PathType Leaf)) { return $vendor.FullName }
+  }
+  return $null
+}
+
+function Find-RuntimeProvidedSkill {
+  param([object]$RuntimeTarget, [string]$Name, [string]$UserProfile, [string]$ProjectRoot)
+  $direct = Join-Path $RuntimeTarget.path $Name
+  if (Test-Path -LiteralPath (Join-Path $direct "SKILL.md") -PathType Leaf) { return $direct }
+  if ($RuntimeTarget.runtime -eq "ClaudeCode") {
+    $projectSkill = Join-Path $ProjectRoot ".claude/skills/$Name"
+    if (Test-Path -LiteralPath (Join-Path $projectSkill "SKILL.md") -PathType Leaf) { return $projectSkill }
+    $pluginRoot = Join-Path $UserProfile ".claude/plugins"
+    if (Test-Path -LiteralPath $pluginRoot -PathType Container) {
+      $match = Get-ChildItem -LiteralPath $pluginRoot -Recurse -Filter "SKILL.md" -ErrorAction SilentlyContinue | Where-Object {
+        ($_.Directory.Name -eq $Name) -and ($null -ne $_.Directory.Parent) -and ($_.Directory.Parent.Name -eq "skills")
+      } | Select-Object -First 1
+      if ($null -ne $match) { return $match.Directory.FullName }
     }
   }
-  $userSkillsDir = Join-Path $userProfile ".claude/skills"
-  if (Test-Path -LiteralPath $userSkillsDir -PathType Container) {
-    Get-ChildItem -Path $userSkillsDir -Directory -ErrorAction SilentlyContinue | ForEach-Object { $skills[$_.Name] = $true }
-  }
-  $projectSkillsDir = Join-Path $ProjectRootFull ".claude/skills"
-  if (Test-Path -LiteralPath $projectSkillsDir -PathType Container) {
-    Get-ChildItem -Path $projectSkillsDir -Directory -ErrorAction SilentlyContinue | ForEach-Object { $skills[$_.Name] = $true }
-  }
-  return $skills
+  return $null
 }
 
-function Get-RuntimeSkillsDirectory {
-  # Claude Code user-level skills directory.
-  # Other runtimes (Codex, Copilot CLI, Gemini CLI) may use ~/.agents/skills/;
- # extend this function when cross-runtime support is required.
- $userProfile = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
-  $dirs = @()
-  $claudeDir = Join-Path $userProfile ".claude/skills"
-  if (Test-Path -LiteralPath $claudeDir -PathType Container) { $dirs += $claudeDir }
-  $codexDir = Join-Path $userProfile ".codex/skills"
-  if (Test-Path -LiteralPath $codexDir -PathType Container) { $dirs += $codexDir }
-  if ($dirs.Count -eq 0) { $dirs += $claudeDir }
-  return $dirs
-}
-
-function Sync-VendorSkillDirectory {
-  param(
-    [string]$SourcePath,
-    [string]$TargetPath,
-    [string]$Mode,
-    [string]$Reason,
-    [object]$Results
-  )
-
-  if ($Mode -eq "Write") {
-    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $TargetPath) | Out-Null
-    if (Test-Path -LiteralPath $TargetPath) {
-      Remove-Item -Recurse -Force -LiteralPath $TargetPath
-    }
-    Copy-Item -Recurse -Force -LiteralPath $SourcePath -Destination $TargetPath
-  }
-
-  $Results.Add((Write-SyncResult -Status "vendor-skill-synced" -Target $TargetPath -Source $SourcePath -Reason $Reason))
-}
-
-$agentsRootFull = Resolve-FullPath $AgentsRoot
-$projectRootFull = Resolve-FullPath $ProjectRoot
+$projectRootFull = Resolve-FullPath -BasePath (Get-Location) -Path $ProjectRoot
+$agentsRootFull = Resolve-FullPath -BasePath $projectRootFull -Path $AgentsRoot
 $vendorRoot = Join-Path $agentsRootFull "vendor"
-$runtimeSkillsDirs = Get-RuntimeSkillsDirectory
-$dedupSkills = Get-DedupSkillNames -ProjectRootFull $projectRootFull
 $results = New-Object System.Collections.Generic.List[object]
 
+if (($Mode -eq "Write") -and ($Skill.Count -eq 0)) {
+  Write-Result -Status "vendor-skill-selection-required" -Target $vendorRoot -Reason "Write requires explicit -Skill; full vendor sync is disabled" | Format-List status, target, source, reason
+  exit 1
+}
 if (-not (Test-Path -LiteralPath $vendorRoot -PathType Container)) {
-  $results.Add((Write-SyncResult -Status "vendor-missing" -Target $vendorRoot -Reason "no vendor directory"))
-  $results | Format-List status, target, source, reason
+  Write-Result -Status "vendor-missing" -Target $vendorRoot -Reason "no vendor directory" | Format-List status, target, source, reason
   exit 0
 }
 
-# vendor/<vendor-name>/skills/<skill-name>/SKILL.md
-foreach ($runtimeSkillsDir in $runtimeSkillsDirs) {
-  Get-ChildItem -LiteralPath $vendorRoot -Directory | ForEach-Object {
-  $vendorName = $_.Name
-  $vendorSkillsDir = Join-Path $_.FullName "skills"
-  if (Test-Path -LiteralPath $vendorSkillsDir -PathType Container) {
-    Get-ChildItem -LiteralPath $vendorSkillsDir -Directory | ForEach-Object {
-      $skillName = $_.Name
-      $skillFile = Join-Path $_.FullName "SKILL.md"
-      if (Test-Path -LiteralPath $skillFile -PathType Leaf) {
-        if ($dedupSkills.ContainsKey($skillName)) {
-          $results.Add((Write-SyncResult -Status "vendor-skill-deduped" -Target "vendor/$vendorName/skills/$skillName" -Reason "provided by plugin/user/project skill"))
-          return
-        }
-        $targetPath = Join-Path $runtimeSkillsDir $skillName
-        Sync-VendorSkillDirectory -SourcePath $_.FullName -TargetPath $targetPath -Mode $Mode -Reason "vendor/$vendorName/skills/$skillName" -Results $results
+$userProfile = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::UserProfile)
+$runtimeTargets = @()
+if ($Runtime -in @("Auto", "ClaudeCode")) {
+  $claudeTarget = Join-Path $userProfile ".claude/skills"
+  if (($Runtime -eq "ClaudeCode") -or (Test-Path -LiteralPath (Split-Path -Parent $claudeTarget) -PathType Container)) {
+    $runtimeTargets += [PSCustomObject]@{ runtime="ClaudeCode"; path=$claudeTarget }
+  }
+}
+if ($Runtime -in @("Auto", "Codex")) {
+  $codexTarget = Join-Path $userProfile ".codex/skills"
+  if (($Runtime -eq "Codex") -or (Test-Path -LiteralPath (Split-Path -Parent $codexTarget) -PathType Container)) {
+    $runtimeTargets += [PSCustomObject]@{ runtime="Codex"; path=$codexTarget }
+  }
+}
+
+foreach ($name in @($Skill | Sort-Object -Unique)) {
+  $source = Find-VendorSkill -VendorRoot $vendorRoot -Name $name
+  if ($null -eq $source) {
+    $results.Add((Write-Result -Status "vendor-skill-source-missing" -Target $name -Reason "requested vendor skill not found"))
+    continue
+  }
+  foreach ($target in $runtimeTargets) {
+    $targetPath = Join-Path $target.path $name
+    $providedPath = Find-RuntimeProvidedSkill -RuntimeTarget $target -Name $name -UserProfile $userProfile -ProjectRoot $projectRootFull
+    if ($null -ne $providedPath) {
+      $results.Add((Write-Result -Status "vendor-skill-reused" -Target $providedPath -Source $source -Reason ($target.runtime + " already provides canonical skill")))
+      continue
+    }
+    if (Test-Path -LiteralPath $targetPath) {
+      $results.Add((Write-Result -Status "vendor-skill-conflict" -Target $targetPath -Source $source -Reason ($target.runtime + " target exists without SKILL.md; not overwritten")))
+      continue
+    }
+    if ($Mode -eq "Write") {
+      New-Item -ItemType Directory -Force -Path $target.path | Out-Null
+      Copy-Item -LiteralPath $source -Destination $targetPath -Recurse
+    }
+    $results.Add((Write-Result -Status "vendor-skill-synced" -Target $targetPath -Source $source -Reason $target.runtime))
+  }
+}
+
+if ($ReportLegacy) {
+  $vendorNames = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::OrdinalIgnoreCase)
+  foreach ($vendor in @(Get-ChildItem -LiteralPath $vendorRoot -Directory -ErrorAction SilentlyContinue)) {
+    $rootSkill = Join-Path $vendor.FullName "SKILL.md"
+    if (Test-Path -LiteralPath $rootSkill -PathType Leaf) { [void]$vendorNames.Add($vendor.Name) }
+    $nestedRoot = Join-Path $vendor.FullName "skills"
+    if (Test-Path -LiteralPath $nestedRoot -PathType Container) {
+      Get-ChildItem -LiteralPath $nestedRoot -Directory | ForEach-Object {
+        if (Test-Path -LiteralPath (Join-Path $_.FullName "SKILL.md") -PathType Leaf) { [void]$vendorNames.Add($_.Name) }
       }
     }
   }
-
-  # vendor/<vendor-name>/SKILL.md -> ~/.claude/skills/<vendor-name>/
-  $rootSkillFile = Join-Path $_.FullName "SKILL.md"
-  if (Test-Path -LiteralPath $rootSkillFile -PathType Leaf) {
-      if ($dedupSkills.ContainsKey($vendorName)) {
-        $results.Add((Write-SyncResult -Status "vendor-skill-deduped" -Target "vendor/$vendorName" -Reason "provided by plugin/user/project skill"))
-        return
+  foreach ($target in $runtimeTargets) {
+    foreach ($name in $vendorNames) {
+      $targetPath = Join-Path $target.path $name
+      if (Test-Path -LiteralPath (Join-Path $targetPath "SKILL.md") -PathType Leaf) {
+        $results.Add((Write-Result -Status "legacy-runtime-skill-detected" -Target $targetPath -Reason ($target.runtime + "; report only, never auto-delete")))
       }
-      $targetPath = Join-Path $runtimeSkillsDir $vendorName
-    Sync-VendorSkillDirectory -SourcePath $_.FullName -TargetPath $targetPath -Mode $Mode -Reason "vendor/$vendorName" -Results $results
-  }
+    }
   }
 }
 

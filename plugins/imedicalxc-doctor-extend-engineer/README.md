@@ -46,20 +46,19 @@ imedicalxc-doctor-extend-engineer/
 
 ## 依赖的 Vendor 资产
 
-本插件引用以下 vendor 资产，与 `vendor/hisui/` 采用相同管理模式：
+本插件通过 manifest 声明以下 vendor capability fallback：
 
-- `vendor/word-reader/`：读取 Word 格式接口文档。
-- `vendor/superpowers/`：提供 `brainstorming`、`writing-plans`、`subagent-driven-development`、`finishing-a-development-branch` 等流程 skill。
+- `vendor/superpowers/`：四个主流程 required skill。
+- `vendor/word-reader/`：optional；仅在收到 `.doc` / `.docx` 且工具无原生 Word 读取能力时使用。
 
-这些 vendor 资产随 `/vendor/**` 部署到目标工程 `.agents/vendor/`。安装和更新流程会调用 `scripts/sync-vendor-skills.ps1`，把带 `SKILL.md` 的 vendor skill 同步到运行时 skill 发现目录；若运行时仍缺失 superpowers，按 `.agents/docs/update-agents.md` 的 vendor skill 同步和停止条件处理。
+这些 vendor 资产随 `/vendor/**` 部署，但存在不等于启用。更新流程只为 enabled 插件的 required skill 生成 `.agents/skills` 通用入口；不再默认写入任何工具的用户级目录。
 
 ## 接入目标工程
 
 1. 将本插件放入 `.agents/plugins/imedicalxc-doctor-extend-engineer/`。
-2. 确保 `.agents/vendor/word-reader/` 和 `.agents/vendor/superpowers/` 已同步到目标工程。
-3. 运行 `.agents/scripts/sync-vendor-skills.ps1 -AgentsRoot .agents -Mode DryRun|Write`，或通过常规 `update-agents.ps1` 完成 vendor skill 同步。
-4. 运行 thin-index dry-run，确认只生成主编排器入口且无冲突后再 write。
-5. 第三方集成任务优先使用 `imedicalxc-doctor-extend-engineer` 统一入口。
+2. 通过常规 `update-agents.ps1` 解析 manifest 并生成 required vendor thin-index。
+3. 只有明确需要工具用户级副本时，才运行带 `-Skill` 和 `-Runtime` 的 `sync-vendor-skills.ps1`。
+4. 第三方集成任务优先使用 `imedicalxc-doctor-extend-engineer` 统一入口；有接口文档时先完成资料摄取。
 
 ## 去项目化边界
 

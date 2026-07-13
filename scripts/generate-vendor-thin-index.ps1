@@ -3,7 +3,9 @@ param(
     [string]$ProjectRoot = ".",
     [ValidateSet("DryRun", "Write")]
     [string]$Mode = "DryRun",
-    [switch]$Force
+    [switch]$Force,
+    [string[]]$Skill = @(),
+    [switch]$CleanupLegacyVendorSkills
 )
 
 $ErrorActionPreference = "Stop"
@@ -139,6 +141,10 @@ $agentsRootFull = Resolve-FullPathFromBase -BasePath $projectRootFull -Path $Age
 $vendorRoot = Join-Path $agentsRootFull "vendor"
 $skillsTarget = Join-Path $agentsRootFull "skills"
 $results = New-Object System.Collections.Generic.List[object]
+$requestedSkills = @{}
+foreach ($requestedSkill in $Skill) {
+    if (-not [string]::IsNullOrWhiteSpace($requestedSkill)) { $requestedSkills[$requestedSkill] = $true }
+}
 
 if (-not (Test-Path -LiteralPath $vendorRoot -PathType Container)) {
     $results.Add((Write-Result -Status "vendor-missing" -Target "" -Source $vendorRoot -Reason ".agents/vendor/ does not exist"))
@@ -146,8 +152,8 @@ if (-not (Test-Path -LiteralPath $vendorRoot -PathType Container)) {
     exit 0
 }
 
-# Clean stale vendor thin-indexes (remove .agents/skills/<name>/SKILL.md that point to lost vendor sources)
-if (Test-Path -LiteralPath $skillsTarget -PathType Container) {
+# Legacy cleanup is deliberately opt-in for deployed projects.
+if ($CleanupLegacyVendorSkills -and (Test-Path -LiteralPath $skillsTarget -PathType Container)) {
     Get-ChildItem -LiteralPath $skillsTarget -Directory | Sort-Object Name | ForEach-Object {
         $targetFile = Join-Path $_.FullName "SKILL.md"
         if (-not (Test-Path -LiteralPath $targetFile -PathType Leaf)) {
@@ -157,15 +163,16 @@ if (Test-Path -LiteralPath $skillsTarget -PathType Container) {
         if ($null -eq $sourcePath) {
             return
         }
-        if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+        $skillName = $_.Name
+        if ((-not $requestedSkills.ContainsKey($skillName)) -or (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf))) {
             $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
             $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourcePath
             if ($Mode -eq "Write") {
                Remove-Item -LiteralPath $targetFile
-                $results.Add((Write-Result -Status "removed" -Target $targetRel -Source $sourceRel -Reason "stale vendor thin-index"))
+                $results.Add((Write-Result -Status "removed" -Target $targetRel -Source $sourceRel -Reason "legacy vendor thin-index not required"))
            }
            else {
-                $results.Add((Write-Result -Status "stale" -Target $targetRel -Source $sourceRel -Reason "stale vendor thin-index"))
+                $results.Add((Write-Result -Status "stale" -Target $targetRel -Source $sourceRel -Reason "legacy vendor thin-index not required"))
             }
         }
     }
@@ -182,6 +189,7 @@ Get-ChildItem -LiteralPath $vendorRoot -Directory | Sort-Object Name | ForEach-O
     if (Test-Path -LiteralPath $vendorSkillsDir -PathType Container) {
         Get-ChildItem -LiteralPath $vendorSkillsDir -Directory | Sort-Object Name | ForEach-Object {
             $skillName = $_.Name
+            if (-not $requestedSkills.ContainsKey($skillName)) { return }
             $sourceFile = Join-Path $_.FullName "SKILL.md"
             if (-not (Test-Path -LiteralPath $sourceFile -PathType Leaf)) {
                 $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourceFile
@@ -273,6 +281,7 @@ Get-ChildItem -LiteralPath $vendorRoot -Directory | Sort-Object Name | ForEach-O
     $rootSkillFile = Join-Path $_.FullName "SKILL.md"
     if (Test-Path -LiteralPath $rootSkillFile -PathType Leaf) {
         $skillName = $vendorName
+        if (-not $requestedSkills.ContainsKey($skillName)) { return }
         $sourceFile = $rootSkillFile
         $targetFile = Join-Path (Join-Path $skillsTarget $skillName) "SKILL.md"
         $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourceFile

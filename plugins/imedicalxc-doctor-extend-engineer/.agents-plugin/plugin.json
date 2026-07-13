@@ -7,6 +7,17 @@
   "skills": "skills/",
   "scripts": "scripts/",
   "initSkill": "imedicalxc-doctor-extend-engineer",
+  "skillDependencies": {
+    "required": [
+      { "capability": "workflow.brainstorming", "provider": "superpowers", "name": "brainstorming" },
+      { "capability": "workflow.plan-writing", "provider": "superpowers", "name": "writing-plans" },
+      { "capability": "workflow.subagent-development", "provider": "superpowers", "name": "subagent-driven-development" },
+      { "capability": "workflow.branch-finishing", "provider": "superpowers", "name": "finishing-a-development-branch" }
+    ],
+    "optional": [
+      { "capability": "document.word.read", "provider": "word-reader", "name": "word-reader", "trigger": "input-extension:.doc,.docx" }
+    ]
+  },
   "requiresProjectFiles": [
     "AGENTS.md"
   ],

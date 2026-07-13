@@ -26,7 +26,7 @@ priority: highest
 
 # HIS 医生站第三方系统集成 — 全流程编排器
 
-你现在是 HIS 医生站第三方系统集成的全流程编排工程师。本 Skill 已在**主会话**中加载，你以编排器身份推进工作流。对于独立的、可并行的子任务（代码探索、中间件开发、实现者、审查者、构建验证、领域验证、Jenkins 触发），**显式使用 Agent 工具派发子代理**执行。编排决策和用户交互由你在主会话中直接完成。
+你现在是 HIS 医生站第三方系统集成的全流程编排工程师。本 Skill 已在**主会话**中加载，你以编排器身份推进工作流。对于独立的、可并行的子任务，优先使用当前 Agent 工具提供的子代理能力；若当前工具不支持子代理，则由当前 Agent 按相同步骤串行执行。编排决策和用户交互由主会话完成。
 
 你的职责是**流程编排**：定义步骤顺序、在每步加载正确的子技能、确保整个过程中加载正确的领域知识。你不包含任何 HIS 领域规则、约束或编码标准——所有领域知识必须按需从相应子技能加载。
 
@@ -54,26 +54,26 @@ priority: highest
 
 ---
 
-### 强制前置条件 2：Superpowers 依赖校验
+### 强制前置条件 2：流程能力依赖校验
 
 <HARD-GATE>
-本 Skill 的 Step 2/3/5/10 依赖以下 superpowers 技能，**开始工作流前必须确认全部可用**：
+本 Skill 的设计、计划、实施和分支完成阶段依赖以下 canonical skill，**开始工作流前必须确认全部可用**：
 
 | 依赖 Skill | 使用步骤 | 用途 |
 |-----------|---------|------|
-| `superpowers:brainstorming` | Step 2 | 需求头脑风暴与设计文档生成 |
-| `superpowers:writing-plans` | Step 3 | 生成结构化实施计划 |
-| `superpowers:subagent-driven-development` | Step 5 | 派发并管理并行实施子代理 |
-| `superpowers:finishing-a-development-branch` | Step 10 | 分支最终化（合并/PR/清理） |
+| `brainstorming` | 需求设计 | 需求头脑风暴与设计文档生成 |
+| `writing-plans` | 计划 | 生成结构化实施计划 |
+| `subagent-driven-development` | 实施 | 子代理实施；无子代理能力时读取规则后串行执行 |
+| `finishing-a-development-branch` | 完成 | 分支最终化（合并/PR/清理） |
 
-**校验方法**：逐一调用 `Skill` 工具加载上述 skill，若任一返回"未找到"或加载失败，立即中止工作流，并向用户输出以下同步指引：
+**跨工具加载顺序**：先请求当前运行时按 canonical name 加载；工具 adapter 可以映射为 `superpowers:<name>` 等原生名称；若运行时没有 skill 加载能力，则读取 `.agents/skills/<name>/SKILL.md` 并继续读取其 `source`；仍不可用时直接读取 `.agents/vendor/superpowers/skills/<name>/SKILL.md`。只有 vendor 源也缺失时才中止。
 
 ```
-依赖缺失：superpowers 技能集未安装或版本不完整。
+依赖缺失：required 流程能力及其 vendor fallback 不可用。
 
 处理步骤：
 1. 确认目标工程 `.agents/vendor/superpowers/` 存在。
-2. 按 `.agents/docs/update-agents.md` 运行 vendor skill 同步：`.agents/scripts/sync-vendor-skills.ps1 -AgentsRoot .agents -Mode DryRun|Write`，或通过常规 `update-agents.ps1` 完成同步。
+2. 按 `.agents/docs/update-agents.md` 运行常规 `update-agents.ps1` 生成项目通用 thin-index；只有需要用户级原生同步时，才显式传入 `sync-vendor-skills.ps1 -Skill <name> -Runtime <runtime>`。
 3. 重新加载会话后再次触发本 Skill。
 
 缺失清单：<列出具体缺失的 skill>
@@ -88,9 +88,20 @@ priority: highest
 
 ---
 
+### Step 0：接口资料摄取（可选输入、命中后强制完成）
+
+- 未提供接口文档：记录需求来源为用户描述，继续 Step 1。
+- 提供 `.doc` / `.docx`：优先使用当前工具原生 Word 读取能力；不可用时加载 canonical `word-reader`，再不可用时直接读取 `.agents/vendor/word-reader/SKILL.md` 并按其流程执行。
+- 提供 PDF、Markdown、网页或粘贴文本：使用当前工具对应的读取能力，不触发 `word-reader`。
+- 用户已提供文档但读取失败：停止并报告具体失败，不得忽略附件直接进入设计。
+
+**产出**：接口目标、术语、请求/响应结构、约束、错误码和待确认项摘要；后续设计必须引用该摘要。
+
+---
+
 ### Step 1：需求头脑风暴
 
-使用 `superpowers:brainstorming` skill 探索需求并生成设计文档。
+按上述跨工具加载顺序使用 canonical `brainstorming` skill 探索需求并生成设计文档。
 
 设计提案和最终设计文档必须遵循前置条件中加载的约束并对齐架构原则。
 
@@ -149,7 +160,7 @@ priority: highest
 用户批准设计文档后，在进入计划编写前执行范围分析。
 
 <MANDATORY-GATE>
-**STOP。在编写任何计划之前，必须使用 Skill 工具加载 `imedicalxc-doctor-extend-scope` skill。**
+**STOP。在编写任何计划之前，必须按当前工具的 skill 加载方式加载 `imedicalxc-doctor-extend-scope`；若工具无 skill 机制，则直接读取该 canonical `SKILL.md`。**
 
 这个门禁决定工作流是继续还是终止。不可跳过。
 - 调用：`Skill` 工具，`skill="imedicalxc-doctor-extend-scope"`
@@ -174,9 +185,9 @@ priority: highest
 ### Step 3：集成计划编写
 
 <MANDATORY>
-**生成实施计划前必须加载 `superpowers:writing-plans` skill。**
+**生成实施计划前必须加载 canonical `writing-plans` skill。**
 
-调用：`Skill` 工具，`skill="superpowers:writing-plans"`，将 Step 2 的**裁剪后设计文档**作为上下文传入。
+按跨工具加载顺序加载该 skill，并将 Step 2 的**裁剪后设计文档**作为上下文传入。
 未加载此 skill 前不得手动编写计划。该 skill 定义了计划格式、任务拆解规则和审查门禁。
 </MANDATORY>
 
@@ -287,15 +298,14 @@ priority: highest
 ### Step 4：子代理驱动实施（TDD + HIS 门禁）
 
 <MANDATORY>
-**派发任何 implementer 子代理之前，必须先加载 `superpowers:subagent-driven-development` skill。**
+**实施前必须先加载 canonical `subagent-driven-development` skill。**
 
-调用：`Skill` 工具，`skill="superpowers:subagent-driven-development"`。
-此 skill 定义了子代理的派发、审查和验证模式。未加载此 skill 前不得派发 implementer。
+按跨工具加载顺序加载该 skill。它定义子代理的派发、审查和验证模式；当前工具无子代理能力时，主 Agent 必须按同一任务和审查顺序串行执行。
 </MANDATORY>
 
 **此步完成所有编码。此步之后不再写实现代码。**
 
-> 实施过程中需要派发子代理（implementer、规格审查者、代码质量审查者），使用 Agent 工具派发。每次子代理返回后，你作为编排器检查结果并决定下一步。
+> 实施过程中优先使用当前工具的子代理能力派发 implementer、规格审查者和代码质量审查者。工具无子代理能力时，由当前 Agent 严格按相同角色顺序串行执行；每一角色完成后再进入下一角色。
 
 #### Maven 编码（强制）
 
@@ -621,9 +631,9 @@ feat({vendor}-{module}): {简要描述}
 ### Step 9：完成分支
 
 <MANDATORY>
-**必须加载 `superpowers:finishing-a-development-branch` skill 后才能最终化分支。**
+**必须加载 canonical `finishing-a-development-branch` skill 后才能最终化分支。**
 
-调用：`Skill` 工具，`skill="superpowers:finishing-a-development-branch"`。
+按跨工具加载顺序加载该 skill。
 **前提**：Step 8 Jenkins 构建 SUCCESS。
 **主代理直接执行（需用户交互）。**
 

@@ -98,12 +98,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - `-NoPull`：基于本地 `.agents` 内容检查或重建。
 - `-Plugin <name[]>`：只处理指定插件。
 - `-ExcludePlugin <name[]>`：跳过指定插件。
+- `-RuntimeAdapter ClaudeCode|Codex`：显式启用已验证的工具发现层 adapter；默认仅维护 `.agents/skills` 通用层。
 - `-ForceThinIndex`：将 `-Force` 传给 plugin thin-index 生成脚本。
+- `-CleanupLegacyVendorSkills`：显式清理不再属于 enabled 插件 required 集合的受管 vendor thin-index；普通更新不清理。
 - `-Detailed`：输出明细；日常不加，只看摘要。
 
 如果由 Agent 托管更新，让它先读取 `.agents/docs/update-agents.md`，由 runbook 判断是否可从 `DryRun` 进入 `Write`。
 
-安装和更新流程还会处理三类 skill 发现层同步：`scripts/sync-vendor-skills.ps1` 把 `.agents/vendor/` 中带 `SKILL.md` 的 vendor skill 同步到运行时 skill 发现目录（Claude Code 用户级 skill 目录；若存在 Codex skill 目录也同步到 Codex）；`scripts/generate-vendor-thin-index.ps1` 为 vendor skill 生成 `.agents/skills/<name>/SKILL.md` 浅层入口；`scripts/sync-claudecode-skills.ps1` 将项目 `.agents/skills/` 同步到项目 `.claude/skills/`。这属于 skill 发现层适配，不是 `.codex/agents/`、`.claude/agents/` 等工具原生 agent adapter。
+安装和更新先根据 enabled 插件 manifest 解析 `skillDependencies`，只为 required vendor skill 生成 `.agents/skills/<name>/SKILL.md` 项目通用入口；optional skill 由任务场景触发。常规流程不再写用户级 skill 目录；Claude Code/Codex 同步必须显式指定 runtime 和 skill。OpenCode、CodeBuddy、WorkBuddy、Hermes 等未验证 adapter 的工具使用 `.agents/skills` 或直接 vendor 源降级。
 
 ## 仓库结构
 
@@ -254,7 +256,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - BLH / DriverCom 分层开发、调用规范、医保/字典数据复用和 WebSysAddins 中间件开发。
 - `imedicalxc-doctor-dbdata` 已精简为数据库查询核心规范，重点覆盖医保对照、基础数据统一对照和合并查询。
 - thin-index wrapper 默认只暴露 `imedicalxc-doctor-extend-engineer` 主编排器入口，8 个子 skill 由主编排器按需读取。
-- 依赖的 `superpowers` 和 `word-reader` 通过 `.agents/vendor/` 分发，并由安装/更新脚本同步到运行时 skill 目录。
+- 四个 superpowers 流程 skill 是 required capability；`word-reader` 是 DOC/DOCX 输入触发的 optional fallback。它们通过 `.agents/vendor/` 分发，但只按 enabled 插件依赖进入项目发现层。
 
 常用 skill：
 

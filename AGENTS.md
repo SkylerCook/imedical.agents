@@ -39,7 +39,7 @@
 - `rules/` 是仓库级通用规则预留入口；当前通用规则主要沉淀在插件内。
 - `docs/` 放 AI Coding 工作区规范、runbook 和配套文档。
 - 根 `scripts/` 放能力包部署、更新和通用维护脚本；领域脚本放到对应插件。
-- 根 `vendor/` 放第三方源码资产和共享运行时资产（如 HISUI dist、iris-agentic-dev Windows x64 可执行文件），部署到业务项目 `.agents/vendor/`，不参与 thin-index 生成。
+- 根 `vendor/` 放第三方源码资产、共享运行时资产和 vendor skill fallback，部署到业务项目 `.agents/vendor/`；只有插件 manifest 声明的 required vendor skill 才生成 `.agents/skills` thin-index。
 - 根 `memory/` 是维护者记忆，不部署到业务项目 `.agents/`，不生成 thin-index。
 - 根 `feedback/` 放框架反馈和经验积累，部署到业务项目 `.agents/`；`feedback/framework/` 放框架验证反馈条目，`feedback/experience/` 放领域经验文档。
 - 根 `index.html`、`.github/`、`.nojekyll` 只服务 GitHub Pages 展示页。

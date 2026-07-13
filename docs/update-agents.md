@@ -163,6 +163,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `vendor-thin-index-stale` | vendor 源 SKILL.md 已变更或被删除，thin-index 需要更新；write 时将自动重新生成或清理。 |
 | `vendor-thin-index-removed` | write 已清理过期的 stale vendor thin-index。 |
 | `vendor-skill-synced` | vendor skill 已同步到运行时 skill 目录。 |
+| `skill-dependency-required` | enabled/显式插件声明的 required capability，进入项目发现层。 |
+| `skill-dependency-optional` | optional capability，仅记录 trigger，不在更新时安装。 |
+| `legacy-runtime-skill-detected` | 在已验证工具用户目录发现历史 vendor skill；只报告，不删除。 |
+| `runtime-adapter-skipped` | 未显式启用工具 adapter，继续使用 `.agents/skills` 通用层。 |
 | `vendor-missing` | `.agents/vendor/` 不存在，跳过 vendor skill 同步。 |
 | `skipped` 且 reason 包含 `target exists` | 目标 thin-index 已存在，默认不覆盖。 |
 | `config-missing-key` | 模板有新增字段，当前项目 config 没有；dry-run 只提示。 |
@@ -237,42 +241,56 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/generate-age
 
 已部署项目不需要重新安装；常规 `update-agents.ps1 -Mode DryRun` 会报告缺失的 agent thin-index，确认无停止条件后执行 `-Mode Write` 即可补齐。若 canonical agent 被删除，脚本只清理带有 agent thin-index 标记且指向 `.agents/agents/*/AGENT.md` 的过期入口，不会删除插件 skill thin-index 或项目自定义 skill。
 
-## Vendor skill 运行时同步
+## Vendor skill 按依赖发现
 
-`install-agents.ps1` 和 `update-agents.ps1` 在完成 thin-index 生成后，会调用：
+`vendor/` 是随能力包部署的 fallback 源，不是默认安装列表。`update-agents.ps1` 调用 `resolve-plugin-skill-dependencies.ps1`，递归汇总 enabled 插件、显式选择插件及其插件依赖；manifest 中 `skillDependencies.required` 自动进入项目发现层，`optional` 只在任务命中 trigger 后按需读取。
 
-```powershell
-.agents/scripts/sync-vendor-skills.ps1 -AgentsRoot .agents -Mode DryRun|Write
-```
+核心解析和 manifest 不包含 Claude Code、Codex、OpenCode、CodeBuddy、WorkBuddy 或 Hermes 的用户目录与调用语法。`.agents/skills/` 是跨工具通用层；工具不能发现 thin-index 时，按入口说明直接读取其 `source`。工具没有 skill 或 subagent 能力时，按 canonical Markdown 串行执行。
 
-该脚本把 `.agents/vendor/` 下的 vendor skill 同步到当前运行时的 skill 发现目录（Claude Code 为 `~/.claude/skills/`），以便 Agent 在任务中直接加载 vendor 提供的能力。同步规则：
-
-- `vendor/<vendor-name>/skills/<skill-name>/SKILL.md` → `~/.claude/skills/<skill-name>/`
-- `vendor/<vendor-name>/SKILL.md` → `~/.claude/skills/<vendor-name>/`
-
-DryRun 只输出摘要，Write 会覆盖目标目录。同步只影响运行时目录，不会修改 `.agents/vendor/` 源码。
-
-## Vendor skill thin-index
-
-`sync-vendor-skills.ps1` 同步完成后，`update-agents.ps1` 还会调用：
+`update-agents.ps1` 只为解析出的 required skill 调用：
 
 ```powershell
-.agents/scripts/generate-vendor-thin-index.ps1 -AgentsRoot .agents -ProjectRoot . -Mode DryRun|Write
+.agents/scripts/generate-vendor-thin-index.ps1 -AgentsRoot .agents -ProjectRoot . -Skill <required-skill[]> -Mode DryRun|Write
 ```
 
-该脚本为 `.agents/vendor/` 下 vendor 提供的 skill 自动生成或维护 thin-index 浅层入口。扫描规则：
+该脚本只为显式 `-Skill` 集合生成或维护 thin-index。普通 Write 不清理历史入口，避免把旧工程中新生成的默认 `available` 状态误判为“从未使用”。
 
 - `vendor/<vendor-name>/skills/<skill-name>/SKILL.md` → `.agents/skills/<skill-name>/SKILL.md`
 - `vendor/<vendor-name>/SKILL.md` → `.agents/skills/<vendor-name>/SKILL.md`
 
 生成的 thin-index 保留原始 SKILL.md 的 `name` 和 `description`，补充 `thin-index: true` 和 `source` 指向 vendor 真实路径。Agent 匹配后必须继续读取 `source` 指向的真实 SKILL.md。
 
-脚本自动检测 vendor 源变更并同步 thin-index：每次运行时比较已生成的 thin-index 与源 SKILL.md 的新内容，若 name/description/source 发生变更则自动重新生成 thin-index（不需要 -Force）。同时清理过期 thin-index：如果 `source` 指向的 vendor 文件已被删除，dry-run 报告 `stale`，write 执行删除。
+只有显式传入 `-CleanupLegacyVendorSkills` 时，才清理不在 required 集合中的受管 vendor thin-index。清理只识别同时包含 `thin-index: true` 且 `source` 指向 `.agents/vendor/` 的项目入口；不会删除项目自定义、插件或 agent thin-index，也不会删除任何工具的用户级 skill。
 
 配置生效方式：
 
 - DryRun 只输出摘要，不写入文件、不清理过期项。
-- Write 执行写入和清理。
+- Write 只补齐 required 入口。
+- `-CleanupLegacyVendorSkills` 的 DryRun/Write 单独报告或执行兼容清理。
+
+## 工具运行时显式同步
+
+常规安装和更新不再写入用户级 skill 目录。只有明确需要 Claude Code 或 Codex 用户级副本时才执行：
+
+```powershell
+.agents/scripts/sync-vendor-skills.ps1 -AgentsRoot .agents -ProjectRoot . -Skill brainstorming -Runtime ClaudeCode -Mode DryRun
+.agents/scripts/sync-vendor-skills.ps1 -AgentsRoot .agents -ProjectRoot . -Skill brainstorming -Runtime ClaudeCode -Mode Write
+```
+
+`Write` 必须显式提供 `-Skill`；无参数全量同步会以 `vendor-skill-selection-required` 拒绝。目标已有 canonical skill 时报告 `vendor-skill-reused`，不覆盖。OpenCode、CodeBuddy 等尚未验证原生目录的工具不生成猜测性 adapter，直接使用项目通用层。
+
+项目级 Claude Code 发现层同样改为显式启用：常规更新默认不修改 `.claude/skills`；确有需要时向 `update-agents.ps1` 传入 `-RuntimeAdapter ClaudeCode`。未指定 adapter 时报告 `runtime-adapter-skipped`。
+
+## 已部署工程迁移
+
+旧工程无需重装。更新器拉取到自身新版本时会带防循环标记自动重启新版脚本，再执行后续阶段，避免旧进程继续执行全量 vendor 同步。
+
+1. 先运行常规 DryRun；无 `plugin_profile.md` 且存在历史 vendor thin-index 时会报告 `legacy-vendor-profile-review-required`，历史入口保持不变。
+2. 使用 `update-plugin-profile.ps1` 确认实际使用插件为 `enabled`；自动发现的新插件仍保持 `available`。
+3. 普通 Write 停止继续全量扩散并补齐 required 入口，不清理历史入口或用户级副本。
+4. 验证 required skill 可加载后，单独运行带 `-CleanupLegacyVendorSkills` 的 DryRun；确认清单后再执行对应 Write。
+
+用户级历史副本可能被多个项目共享，更新器永不自动删除。项目 `AGENTS.md`、memory/rules、已有 config 值和工具配置也不因本迁移被覆盖。
 
 ## Git hook 可选启用
 
@@ -310,9 +328,9 @@ git config --unset core.hooksPath
 `check-functional-diff.ps1` 只检查 staged diff。它允许正常代码编写产生的局部缩进、空行和对齐；会阻断纯空白变更、`git diff --cached --check` 失败，以及疑似整文件格式化噪音。真实格式化需求应拆成独立提交；手动检查时可使用 `-AllowFormatting` 明确豁免，默认 pre-commit 不放行混合功能和格式化提交。
 
 
-## Claude Code skills 同步
+## Claude Code skills 显式同步
 
-`update-agents.ps1` 会将项目 `.agents/skills/` 下的 skill 同步到工作区 `.claude/skills/` 目录，使 Claude Code 能通过 `/skills` 发现和使用：
+只有向 `update-agents.ps1` 传入 `-RuntimeAdapter ClaudeCode`，才会将项目 `.agents/skills/` 下的 skill 同步到工作区 `.claude/skills/`。也可直接运行：
 
 ```powershell
 .agents/scripts/sync-claudecode-skills.ps1 -ProjectRoot . -Mode DryRun|Write
@@ -427,9 +445,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - `.agents/workflows/workflow-registry.md` 存在。
 - `.agents/skills/<agent-name>/SKILL.md` 中的 agent thin-index 存在或 dry-run 明确报告将生成；例如 `.agents/skills/i18n-agent/SKILL.md` 指向 `.agents/agents/i18n-agent/AGENT.md` 和 `.agents/workflows/i18n-change.workflow.md`。
 - `.agents/skills/agent-kit-maintenance/` 不存在；该维护者专用 skill 只保留在能力包仓库根 `skills/agent-kit-maintenance/`，不得部署到业务项目。若历史部署或手工 full clone 已遗留该目录，执行 `update-agents.ps1 -Mode Write` 会清理并报告 `maintenance-only-skill-removed`。
-- vendor skill 已同步到运行时 skill 目录，或 dry-run 明确报告 `vendor-missing` / `vendor-skill-synced`。
-- vendor skill thin-index 已存在或 dry-run 明确报告 vendor-thin-index 状态。
-- `.claude/skills/` 中项目 skill 已同步，或 dry-run 明确报告 `skipped`（去重源提供）/ `generated`（需要同步）。
+- enabled 插件 required vendor thin-index 已存在或 DryRun 明确报告生成计划；optional 只显示 trigger。
+- 普通更新没有写用户级 skill 目录；历史副本只报告 `legacy-runtime-skill-detected`。
+- 未指定工具 adapter 时报告 `runtime-adapter-skipped`；显式启用 Claude Code adapter 时，`.claude/skills/` 同步结果为 `skipped` / `generated` / `unchanged`。
 - `.agents/.git/info/exclude` 包含 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`、`/work/`。
 - `.agents/config/plugin_profile.md` 存在或 dry-run 明确报告默认插件状态。
 - 如果业务项目有 `AGENTS.md`，兼容入口可以是 `entrypoint-ok`，也可以缺失；缺失或异常只作为可选提示，不应在 write 中自动修复。

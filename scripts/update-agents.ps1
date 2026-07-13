@@ -4,9 +4,13 @@ param(
   [string]$Mode = "DryRun",
   [string[]]$Plugin = @(),
   [string[]]$ExcludePlugin = @(),
+  [ValidateSet("ClaudeCode", "Codex")]
+  [string[]]$RuntimeAdapter = @(),
   [switch]$ForceThinIndex,
+  [switch]$CleanupLegacyVendorSkills,
   [switch]$NoPull,
-  [switch]$Detailed
+  [switch]$Detailed,
+  [switch]$ResumedAfterSelfUpdate
 )
 
 $ErrorActionPreference = "Stop"
@@ -628,6 +632,9 @@ function Write-UpdateSummary {
     "agent-thin-index-script-missing",
    "vendor-skill-sync-script-missing",
     "vendor-thin-index-script-missing",
+    "skill-dependency-resolver-missing",
+    "skill-dependency-source-missing",
+    "legacy-vendor-profile-review-required",
     "sync-claudecode-skills-script-missing",
     "maintenance-only-skill-remove-failed",
    "plugin-init-required",
@@ -859,6 +866,8 @@ function Get-GitHooksStatus {
 $projectRootFull = Resolve-FullPath $ProjectRoot
 $agentsRoot = Join-Path $projectRootFull ".agents"
 $results = New-Object System.Collections.Generic.List[object]
+$runningScriptPath = $MyInvocation.MyCommand.Path
+$runningScriptHash = if (Test-Path -LiteralPath $runningScriptPath -PathType Leaf) { (Get-FileHash -LiteralPath $runningScriptPath -Algorithm SHA256).Hash } else { "" }
 
 if (-not (Test-Path -LiteralPath $agentsRoot -PathType Container)) {
   Write-UpdateResult -Status "agents-missing" -Target ".agents" -Reason ".agents directory does not exist" -Phase "preflight"
@@ -873,6 +882,23 @@ if ((-not $NoPull) -and ($Mode -ne "Check")) {
   if ($gitResults | Where-Object { $_.status -in @("git-version-unsupported", "pull-blocked-dirty", "fetch-failed", "pull-failed", "sparse-refresh-failed") }) {
     $results | Format-List status, plugin, phase, target, source, reason
     exit 1
+  }
+  $updatedScriptHash = if (Test-Path -LiteralPath $runningScriptPath -PathType Leaf) { (Get-FileHash -LiteralPath $runningScriptPath -Algorithm SHA256).Hash } else { $runningScriptHash }
+  if ((-not $ResumedAfterSelfUpdate) -and ($updatedScriptHash -ne $runningScriptHash)) {
+    $resumeParams = @{
+      ProjectRoot = $projectRootFull
+      Mode = $Mode
+      Plugin = $Plugin
+      ExcludePlugin = $ExcludePlugin
+      RuntimeAdapter = $RuntimeAdapter
+      NoPull = $true
+      ResumedAfterSelfUpdate = $true
+    }
+    if ($ForceThinIndex) { $resumeParams.ForceThinIndex = $true }
+    if ($CleanupLegacyVendorSkills) { $resumeParams.CleanupLegacyVendorSkills = $true }
+    if ($Detailed) { $resumeParams.Detailed = $true }
+    & $runningScriptPath @resumeParams
+    exit $LASTEXITCODE
   }
 }
 elseif (-not (Test-Path -LiteralPath (Join-Path $agentsRoot ".git"))) {
@@ -1025,17 +1051,42 @@ else {
   $results.Add((Write-UpdateResult -Status "agent-thin-index-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $agentThinIndexScript) -Reason "agent thin-index script missing" -Phase "agent-thin-index"))
 }
 
+$resolverScript = Join-Path $agentsRoot "scripts/resolve-plugin-skill-dependencies.ps1"
+$resolvedSkillDependencies = @()
+$dependencyPluginNames = @($plugins | ForEach-Object { $_.name }) + @($Plugin)
+if (Test-Path -LiteralPath $resolverScript -PathType Leaf) {
+  $resolverOutput = & $resolverScript -AgentsRoot $agentsRoot -ProjectRoot $projectRootFull -Plugin $dependencyPluginNames -OutputFormat Json | Out-String
+  if (-not [string]::IsNullOrWhiteSpace($resolverOutput)) {
+    $resolvedSkillDependencies = $resolverOutput | ConvertFrom-Json
+  }
+  foreach ($dependency in $resolvedSkillDependencies) {
+    $status = if (-not $dependency.sourceExists) { "skill-dependency-source-missing" } elseif ($dependency.type -eq "required") { "skill-dependency-required" } else { "skill-dependency-optional" }
+    $results.Add((Write-UpdateResult -Status $status -Target $dependency.name -Source $dependency.source -Reason $dependency.capability -PluginName $dependency.plugin -Phase "skill-dependency"))
+  }
+}
+else {
+  $results.Add((Write-UpdateResult -Status "skill-dependency-resolver-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $resolverScript) -Reason "dependency resolver missing" -Phase "skill-dependency"))
+}
+
+$profilePathBeforeWrite = Get-PluginProfilePath -AgentsRoot $agentsRoot
+if ((-not (Test-Path -LiteralPath $profilePathBeforeWrite -PathType Leaf)) -and (Test-Path -LiteralPath (Join-Path $agentsRoot "skills") -PathType Container)) {
+  $legacyVendorIndexes = @(Get-ChildItem -LiteralPath (Join-Path $agentsRoot "skills") -Recurse -Filter "SKILL.md" -ErrorAction SilentlyContinue | Where-Object {
+    (Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8) -match 'source:\s+\.agents/vendor/'
+  })
+  if ($legacyVendorIndexes.Count -gt 0) {
+    $results.Add((Write-UpdateResult -Status "legacy-vendor-profile-review-required" -Target ".agents/config/plugin_profile.md" -Reason ("profile was missing; preserving {0} legacy vendor thin-indexes until plugin states are confirmed" -f $legacyVendorIndexes.Count) -Phase "compat-migration"))
+  }
+}
+
 $syncVendorSkillsScript = Join-Path $agentsRoot "scripts/sync-vendor-skills.ps1"
 if (Test-Path -LiteralPath $syncVendorSkillsScript -PathType Leaf) {
-  $syncMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
-  $syncOutput = & $syncVendorSkillsScript -AgentsRoot $agentsRoot -ProjectRoot $projectRootFull -Mode $syncMode | Out-String
-  $syncResults = Convert-ThinIndexTextOutput -Text $syncOutput -PluginName "" -Phase "vendor-skill-sync"
-  foreach ($item in $syncResults) {
+  $legacyRuntimeOutput = & $syncVendorSkillsScript -AgentsRoot $agentsRoot -ProjectRoot $projectRootFull -Mode DryRun -ReportLegacy | Out-String
+  foreach ($item in (Convert-ThinIndexTextOutput -Text $legacyRuntimeOutput -PluginName "" -Phase "runtime-adapter")) {
     $results.Add($item)
   }
 }
 else {
-  $results.Add((Write-UpdateResult -Status "vendor-skill-sync-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $syncVendorSkillsScript) -Reason "vendor skill sync script missing" -Phase "vendor-skill-sync"))
+  $results.Add((Write-UpdateResult -Status "vendor-skill-sync-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $syncVendorSkillsScript) -Reason "runtime adapter compatibility wrapper missing" -Phase "runtime-adapter"))
 }
 
 $vendorThinIndexScript = Join-Path $agentsRoot "scripts/generate-vendor-thin-index.ps1"
@@ -1045,9 +1096,13 @@ if (Test-Path -LiteralPath $vendorThinIndexScript -PathType Leaf) {
     AgentsRoot = $agentsRoot
     ProjectRoot = $projectRootFull
     Mode = $vendorThinIndexMode
+    Skill = @($resolvedSkillDependencies | Where-Object { $_.type -eq "required" -and $_.sourceExists } | ForEach-Object { $_.name })
   }
   if ($ForceThinIndex) {
     $vendorThinParams.Force = $true
+  }
+  if ($CleanupLegacyVendorSkills) {
+    $vendorThinParams.CleanupLegacyVendorSkills = $true
   }
   $vendorThinOutput = & $vendorThinIndexScript @vendorThinParams | Out-String
   $vendorThinResults = Convert-ThinIndexTextOutput -Text $vendorThinOutput -PluginName "" -Phase "vendor-thin-index"
@@ -1060,16 +1115,22 @@ else {
 }
 
 $syncClaudeSkillsScript = Join-Path $agentsRoot "scripts/sync-claudecode-skills.ps1"
-if (Test-Path -LiteralPath $syncClaudeSkillsScript -PathType Leaf) {
+if ($RuntimeAdapter -contains "Codex") {
+  $results.Add((Write-UpdateResult -Status "runtime-adapter-reused" -Target ".agents/skills" -Reason "Codex uses the common project discovery layer; user-level copies require explicit sync-vendor-skills.ps1" -Phase "runtime-adapter"))
+}
+if (($RuntimeAdapter -contains "ClaudeCode") -and (Test-Path -LiteralPath $syncClaudeSkillsScript -PathType Leaf)) {
   $syncMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
-  $syncOutput = & $syncClaudeSkillsScript -ProjectRoot $projectRootFull -Mode $syncMode | Out-String
+  $syncOutput = & $syncClaudeSkillsScript -AgentsRoot $agentsRoot -ProjectRoot $projectRootFull -Mode $syncMode | Out-String
   $syncResults = Convert-ThinIndexTextOutput -Text $syncOutput -PluginName "" -Phase "claudecode-skills"
   foreach ($item in $syncResults) {
     $results.Add($item)
   }
 }
-else {
+elseif ($RuntimeAdapter -contains "ClaudeCode") {
   $results.Add((Write-UpdateResult -Status "sync-claudecode-skills-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $syncClaudeSkillsScript) -Reason "sync claudecode skills script missing" -Phase "claudecode-skills"))
+}
+else {
+  $results.Add((Write-UpdateResult -Status "runtime-adapter-skipped" -Target ".agents/skills" -Reason "project discovery layer is canonical; pass -RuntimeAdapter ClaudeCode only when native project sync is required" -Phase "runtime-adapter"))
 }
 
 if (($allPlugins.Count -eq 0) -or (($Plugin.Count -gt 0) -and ($matchedPluginCount -eq 0))) {
