@@ -1,0 +1,144 @@
+$ErrorActionPreference = "Stop"
+
+$validator = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\validate-agent-run.ps1"))
+$powershell = (Get-Process -Id $PID).Path
+$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agent-run-tests-" + [guid]::NewGuid().ToString("N"))
+$reportMap = [ordered]@{
+    "explorer" = "10-explorer.md"
+    "classifier" = "11-classifier.md"
+    "backend-coder" = "20-backend-coder.md"
+    "frontend-coder" = "21-frontend-coder.md"
+    "template-seed" = "22-template-seed.md"
+    "verifier" = "30-verifier.md"
+    "summary" = "40-summary.md"
+}
+
+function Write-Utf8([string]$Path, [string]$Content) {
+    [System.IO.File]::WriteAllText($Path, $Content, [System.Text.UTF8Encoding]::new($false))
+}
+
+function New-AgentRunFixture([string]$Name, [string]$Mode = "serial") {
+    $path = Join-Path $tempRoot $Name
+    New-Item -ItemType Directory -Force -Path $path | Out-Null
+    $isMulti = $Mode -eq "multi-agent"
+    $actors = @{
+        "explorer" = if ($isMulti) { "analysis-agent" } else { "single-agent" }
+        "classifier" = if ($isMulti) { "analysis-agent" } else { "single-agent" }
+        "backend-coder" = if ($isMulti) { "backend-agent" } else { "single-agent" }
+        "frontend-coder" = if ($isMulti) { "frontend-agent" } else { "single-agent" }
+        "template-seed" = if ($isMulti) { "template-agent" } else { "single-agent" }
+        "verifier" = if ($isMulti) { "verifier-agent" } else { "single-agent" }
+        "summary" = if ($isMulti) { "root-coordinator" } else { "single-agent" }
+    }
+    $times = @{
+        "explorer" = @("2026-07-14T10:00:00+08:00", "2026-07-14T10:01:00+08:00")
+        "classifier" = @("2026-07-14T10:01:00+08:00", "2026-07-14T10:02:00+08:00")
+        "backend-coder" = @("2026-07-14T10:02:00+08:00", "2026-07-14T10:04:00+08:00")
+        "frontend-coder" = @("2026-07-14T10:02:00+08:00", "2026-07-14T10:04:00+08:00")
+        "template-seed" = @("2026-07-14T10:02:00+08:00", "2026-07-14T10:04:00+08:00")
+        "verifier" = @("2026-07-14T10:04:00+08:00", "2026-07-14T10:05:00+08:00")
+        "summary" = @("2026-07-14T10:05:00+08:00", "2026-07-14T10:06:00+08:00")
+    }
+    $stages = @()
+    foreach ($entry in $reportMap.GetEnumerator()) {
+        Write-Utf8 (Join-Path $path $entry.Value) "# $($entry.Key)`n`nSanitized validation fixture."
+        $stages += [ordered]@{
+            name = $entry.Key
+            actor = $actors[$entry.Key]
+            status = "completed"
+            startedAt = $times[$entry.Key][0]
+            completedAt = $times[$entry.Key][1]
+            timingReason = ""
+            report = $entry.Value
+            reusedEvidence = $false
+        }
+    }
+    $manifest = [ordered]@{
+        schemaVersion = "1.0"
+        topic = $Name
+        runMode = $Mode
+        retrospective = $false
+        authorization = [ordered]@{ multiAgent = $isMulti; remoteWrite = $false }
+        startedAt = "2026-07-14T10:00:00+08:00"
+        completedAt = "2026-07-14T10:06:00+08:00"
+        elapsedSeconds = 360
+        timingReason = ""
+        stages = $stages
+        failures = @()
+        qualityGates = [ordered]@{
+            handoff = "pass"
+            sensitiveData = "pass"
+            objectScript = [ordered]@{ compile = "pass"; structure = "pass"; residualRisk = "" }
+            xml = [ordered]@{ triggered = $true; metadata = "pass"; parse = "pass"; residue = "pass"; fallback = "pass" }
+            parallelEfficiency = if ($isMulti) { "pass" } else { "not-applicable" }
+        }
+        remoteActions = @()
+    }
+    Write-Utf8 (Join-Path $path "00-run-manifest.json") ($manifest | ConvertTo-Json -Depth 12)
+    return $path
+}
+
+function Invoke-Validation([string]$Path, [int]$ExpectedExitCode) {
+    $output = & $powershell -NoProfile -ExecutionPolicy Bypass -File $validator -RunDirectory $Path 2>&1
+    $actual = $LASTEXITCODE
+    if ($actual -ne $ExpectedExitCode) {
+        throw "Expected exit code $ExpectedExitCode, got $actual.`n$($output -join [Environment]::NewLine)"
+    }
+}
+
+try {
+    New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+
+    $serial = New-AgentRunFixture "valid-serial" "serial"
+    Invoke-Validation $serial 0
+
+    $multi = New-AgentRunFixture "valid-multi" "multi-agent"
+    Invoke-Validation $multi 0
+
+    $unauthorizedMulti = New-AgentRunFixture "unauthorized-multi" "multi-agent"
+    $manifestPath = Join-Path $unauthorizedMulti "00-run-manifest.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest.authorization.multiAgent = $false
+    Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
+    Invoke-Validation $unauthorizedMulti 1
+
+    $missingReport = New-AgentRunFixture "missing-report" "serial"
+    Remove-Item -LiteralPath (Join-Path $missingReport "30-verifier.md")
+    Invoke-Validation $missingReport 1
+
+    $retryOverflow = New-AgentRunFixture "retry-overflow" "serial"
+    $manifestPath = Join-Path $retryOverflow "00-run-manifest.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest.failures = @([pscustomobject]@{ signature = "temporary syntax"; category = "payload-compilation"; sameSignatureRetryCount = 2; historicalViolation = $false; fallback = "none"; result = "failed" })
+    Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
+    Invoke-Validation $retryOverflow 1
+
+    $remoteWrite = New-AgentRunFixture "unauthorized-remote-write" "serial"
+    $manifestPath = Join-Path $remoteWrite "00-run-manifest.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest.remoteActions = @([pscustomobject]@{ type = "template-save"; write = $true; authorized = $false; result = "not-run" })
+    Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
+    Invoke-Validation $remoteWrite 1
+
+    $badDependency = New-AgentRunFixture "bad-stage-dependency" "serial"
+    $manifestPath = Join-Path $badDependency "00-run-manifest.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    ($manifest.stages | Where-Object name -eq "verifier").startedAt = "2026-07-14T10:03:00+08:00"
+    Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
+    Invoke-Validation $badDependency 1
+
+    $badParallelGate = New-AgentRunFixture "bad-parallel-gate" "multi-agent"
+    $manifestPath = Join-Path $badParallelGate "00-run-manifest.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest.qualityGates.parallelEfficiency = "not-applicable"
+    Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
+    Invoke-Validation $badParallelGate 1
+
+    $sensitive = New-AgentRunFixture "sensitive-payload" "serial"
+    Add-Content -LiteralPath (Join-Path $sensitive "22-template-seed.md") -Value (("A" * 300))
+    Invoke-Validation $sensitive 1
+
+    Write-Host "validate-agent-run tests passed."
+} finally {
+    if (Test-Path -LiteralPath $tempRoot) { Remove-Item -LiteralPath $tempRoot -Recurse -Force }
+}

@@ -20,6 +20,49 @@ docs/agent-reports/{ticket-or-topic}/{stage}-{agent}.md
 
 `docs/agent-reports/` 是业务项目工作产物目录，是否入库由业务项目决定；它不属于 `imedical.agents` 能力包内容。
 
+## P1 运行目录契约
+
+P1 串行或多智能体验证统一使用：
+
+```text
+docs/agent-reports/{ticket-or-topic}/
+  00-run-manifest.json
+  10-explorer.md
+  11-classifier.md
+  20-backend-coder.md
+  21-frontend-coder.md
+  22-template-seed.md
+  30-verifier.md
+  40-summary.md
+```
+
+不适用阶段也必须保留对应报告，并写明原因，确保 serial 与 multi-agent 使用同一逻辑完成条件。
+
+### `00-run-manifest.json`
+
+manifest 固定包含：
+
+- `schemaVersion`、`topic`、`runMode`、`retrospective`。
+- `authorization.multiAgent` 与 `authorization.remoteWrite`。
+- `startedAt`、`completedAt`、`elapsedSeconds`、`timingReason`。
+- `stages[]`：`name`、`actor`、`status`、起止时间、报告路径、`reusedEvidence`；状态只允许 `completed`、`not-applicable`、`blocked`。
+- `failures[]`：稳定错误签名、类别、同类重试次数、是否历史违规、降级方式和结果。
+- `qualityGates`：handoff、脱敏、ObjectScript、XML 和并行效率结果。
+- `remoteActions[]`：只记录动作类型、是否写入和是否已授权，不记录连接或载荷内容。
+
+时间使用带时区 ISO 8601。`retrospective` 无法取得阶段时间时允许 `null`，但必须填写 `timingReason`；其它模式必须填写实际时间。
+
+### 机械门禁
+
+- `multi-agent` 要求 `authorization.multiAgent=true`。
+- 任一 `remoteActions[].write=true` 要求运行级和动作级远程写入授权均为 `true`。
+- 非复盘运行中，同一载荷编译失败签名的等价重试不得超过 1 次。
+- XML 阶段触发时必须记录元数据、解析、源语言残留和 fallback 验证结果。
+- 报告禁止出现服务器地址、账号、密码、token、namespace、远程路径、长 Base64 或完整 XML 载荷。
+- 并行阶段至少有两个耗时不低于 60 秒时，并行窗口不得高于这些阶段耗时之和的 75%；否则标记 `not-applicable`。
+
+使用 `plugins/agent-context-kit/scripts/validate-agent-run.ps1 -RunDirectory <run-directory>` 执行事后只读校验。该脚本只验证产物，不负责调度 Agent 或执行远程动作。
+
 ## 事实报告
 
 Explorer 阶段输出事实报告。

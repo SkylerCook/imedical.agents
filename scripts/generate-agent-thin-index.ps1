@@ -233,6 +233,9 @@ Get-ChildItem -LiteralPath $agentsSource -Directory | Sort-Object Name | ForEach
     if (-not [string]::IsNullOrWhiteSpace($workflowRel)) {
         $contentLines.Add("- Default workflow: ``$workflowRel``")
     }
+    $contentLines.Add("")
+    $contentLines.Add("Discovery-only registries (read only when the agent or workflow has not already been selected):")
+    $contentLines.Add("")
     $contentLines.Add("- Agent registry: ``.agents/agents/agent-registry.md``")
     $contentLines.Add("- Workflow registry: ``.agents/workflows/workflow-registry.md``")
     $contentLines.Add("")
