@@ -87,7 +87,7 @@ v1.2 剩余边界：
 - 已明确真实工程解析产物默认写入目标项目 `docs/output/iris-interface/<doc-name>/`；`tmp/iris-interface-file/` 仅作为本仓库维护时的本地样本回归目录，不入库。
 - 已把 XLS/XLSX 多 sheet、DOCX 入参/出参、PDF request/response 混合表、PDF 跨页续表、错误码/修订记录/JSON 示例过滤和 DOC 转 DOCX 优先级沉淀到 `feedback/experience/iris-interface-dev-com-exp.md`。
 - 已将可脱敏、可稳定复现的格式问题提升到 `scripts/tests/iris-interface-plugin.tests.ps1` synthetic fixture；本轮补强 JSON 示例行过滤回归。
-- 已明确 `feedback/experience` 是经验账本，`scripts/tests` 是维护仓库自动化回归落点；`agent-framework-feedback` 只用于框架文件修正反馈，本任务不使用。
+- 已明确 `feedback/experience` 是经验账本，`scripts/tests` 是维护仓库自动化回归落点；`agent-framework-feedback` 是统一收尾入口，但本任务没有新增可复用经验或独立框架修正时不生成反馈材料。
 
 ### v2.0 字段匹配闭环归档
 

@@ -11,10 +11,10 @@
 - 交付 2：在现有测试入口增加低误伤的结构检查，至少覆盖 manifest 可解析、插件 README/AGENTS/manifest 齐全、thin-index wrapper 未复制 canonical 实现。
 - 交付 3：明确 canonical、插件、脚本、vendor、memory 的维护责任和必须配套的验证证据。
 
-### P1：在真实业务项目验证多智能体样板
+### P1：真实多智能体实战与样板定型
 
-- 使用一个真实但不含私有事实的验证记录，走通 `i18n-agent`、`i18n-change.workflow.md`、交接报告和单 Agent 串行降级。
-- 根据验证结果决定是否新增 `standard-change`、`review-test-release`、`bugfix` workflow，以及通用 `coordinator/explorer/planner/coding/review/testing` Agent。
+- 在下一项合适的真实 i18n 需求中明确采用 `multi-agent`，走通运行 manifest、阶段 handoff、文件所有权、独立 Verifier 和事后机械校验；远程写入另行授权。
+- 结合已完成的 `#6096150` 脱敏串行回溯与下一次真实多智能体实战，在至少两次验证后决定是否新增 `standard-change`、`review-test-release`、`bugfix` workflow，以及通用 `coordinator/explorer/planner/coding/review/testing` Agent。
 - 暂不实现复杂运行时调度器，也暂不做 `scripts/generate-agent-adapters.ps1`；工具原生入口只能由 canonical 生成或临时适配，不能成为规则源。
 
 ### P2：代码质量 review 与框架反馈演进

@@ -78,6 +78,13 @@
 - 如需重命名历史 rule/skill/reference，必须同步 thin-index stale 清理、README、AGENTS、skills 引用和已部署工程兼容说明。
 - 对已部署工程有影响的变更，必须在 README 或插件 README 中说明同步步骤和兼容清理策略。
 
+## Agent 运行与反馈边界
+
+- canonical workflow 的运行模式统一表达为 `retrospective`、`serial` 或 `multi-agent`；`multi-agent` 必须有用户明确授权，任何远程写入仍需单独授权，不能由多智能体授权隐含获得。
+- 阶段化运行以 `00-run-manifest.json` 和编号 handoff 报告保存可审计证据；`agent-context-kit/scripts/validate-agent-run.ps1` 只做事后只读机械验收，不承担运行时调度。
+- `agent-framework-feedback` 是 HIS 任务统一收尾入口：可复用需求经验进入 `feedback/experience/` 并按成熟度提升到 owner rule，独立框架修正进入 `feedback/framework/`；没有候选内容时不生成空反馈。
+- 反馈材料默认只生成和校验。提交或推送必须由用户在当前任务中明确要求，不能把“自动收尾”解释为 Git 写入授权。
+
 ## 安全边界
 
 - 不写服务器地址、账号、密码、token、namespace、远程路径或任何敏感连接信息。

@@ -69,6 +69,7 @@
 - Agent thin-index 或工具 adapter 生成逻辑不得混入 plugin thin-index；需要时新增独立脚本。
 - 修改插件目录结构时，同步检查插件 `AGENTS.md`、README、manifest、templates、仓库 README 和相关 docs。
 - 提交任何插件能力变更前，必须同步检查并按需更新：插件 `AGENTS.md`、插件 README、`.agents-plugin/plugin.json`、相关 skill/rule/reference/template、仓库 README、`memory/agent-kit-maintenance-memory.md`、`memory/agent-kit-maintenance-log.md`、`memory/agent-kit-maintenance-backlog.md`、相关 docs 和测试。禁止只提交插件实现而遗漏对应说明、记忆或验证入口。
+- 实际业务需求处理中若同时修改了 `agents/`、`workflows/`、`skills/`、`feedback/`、共享协议、插件通用能力或根脚本，必须在需求提交后按 `skills/agent-kit-maintenance/SKILL.md` 回看从上次维护记录以来的提交，补齐仓库 README、维护记忆、治理队列、owner 文档和专项测试；不得因变更源于业务需求而跳过框架维护。
 - 若插件变更影响业务项目安装、更新、thin-index、vendor 同步、启用状态或兼容清理，必须同步更新 `docs/update-agents.md`、`scripts/tests/update-agents.tests.ps1` 或对应专项测试，并在 README 或插件 README 说明已部署项目的处理方式。
 - 新增长期通用能力时，先判断应放入 `agents/`、`workflows/`、`rules/`、`references/`、`skills/`、`templates/`、`scripts/` 还是插件目录。
 - 新增文件遵循命名约定：agent 目录 kebab-case + `-agent`，workflow 文件 kebab-case + `.workflow.md`，skill 目录 kebab-case，rule 文件 snake_case，reference 文件 kebab-case，script 文件 kebab-case。
