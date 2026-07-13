@@ -1,6 +1,6 @@
 ---
 name: agent-framework-feedback
-description: Use when a completed HIS task corrected framework files such as rules, skills, templates, references, scripts, agents, or workflows during execution.
+description: Use at the end of a completed HIS task to route reusable demand experience into feedback/experience and framework corrections into feedback/framework, or when the user explicitly requests feedback recording or promotion.
 ---
 
 # Agent Framework Feedback
@@ -9,25 +9,61 @@ description: Use when a completed HIS task corrected framework files such as rul
 
 满足以下任一条件时使用本 skill：
 
-- 任务完成后，发现对 `.agents/` 下的框架文件（rules、skills、templates、references、scripts、agents、workflows 等）做了修正。
-- 用户明确要求"生成反馈"或"记录本次发现"。
+- HIS 需求完成后，由项目根 `AGENTS.md` 作为常驻收尾步骤调用。
+- 本次产生了可跨需求复用的经验、边界、判断标准、处理顺序或检查项。
+- 本次对 `.agents/` 下的框架文件（rules、skills、templates、references、scripts、agents、workflows 等）做了修正。
+- 用户明确要求“生成反馈”“记录本次发现”“沉淀经验”或“提升到 plugin rule”。
 
-如果只读取了框架文件但未做修正，不触发。
+调用本 skill 不等于必须写文件。没有可复用经验、没有框架修正且用户未明确要求记录时，直接结束，不生成空反馈。
 
 ## 目标
 
-- 将任务中发现的框架问题和修正内容结构化记录。
-- 提供足够证据，让维护者能判断问题是否值得回归框架。
-- 不干扰正常任务流程，反馈生成应快速完成。
+- 统一处理需求经验与框架修正，避免用户每次手工输入固定提示词。
+- 将可复用需求经验先去重记录，再按成熟度提升到对应 owner plugin rule。
+- 将任务中发现的框架问题和修正内容结构化记录，供维护者回归框架。
+- 不干扰正常任务流程，收尾检查应快速完成。
 
-## 必读
+## 路由与按需读取
 
-1. `agents/_shared/feedback-protocol.md`：反馈行为详细规范。
-2. `feedback/framework/_template.md`：反馈模板格式。
+先判断本次属于哪条分支，可同时命中：
 
-仅当确认需要生成反馈后读取这些文件。若任务只是读取框架文件、没有修正框架内容，也没有用户明确要求记录反馈，不继续加载反馈模板。
+1. **需求经验分支**：读取 `feedback/experience/demand-com-exp.md`；纯部署、上传、编译或部署排障经验改读 `feedback/experience/deploy-com-exp.md`。
+2. **框架修正分支**：读取 `agents/_shared/feedback-protocol.md` 和 `feedback/framework/_template.md`。
 
-## 工作流
+仅在确认命中对应分支后读取其文件。不要为了收尾形式完整而加载无关反馈材料。
+
+## 需求经验分支
+
+### 1. 判断是否值得记录
+
+满足以下任一项时可记录：
+
+- 现有 rules/skills 未覆盖的通用坑、边界或判断标准。
+- 已验证、可跨需求复用的工程模式、处理顺序或检查项。
+- 已有经验再次命中，需要追加需求号并 `命中+1`。
+
+一次性操作流水、项目私有业务事实、可低成本从代码重新发现的信息不记录。
+
+### 2. 先去重再写入
+
+- 搜索目标 experience 文件，已有同类条目时合并，不重复新增。
+- 按目标文件的分类、条目格式和需求索引规则更新。
+- 保留需求号、命中次数、可操作做法和适用边界。
+
+### 3. 按成熟度提升到 owner plugin rule
+
+同时满足以下条件时可直接提升：
+
+- 已通过本次实际问题或验证结果确认有效。
+- 规则与具体项目、服务器、患者、页面清单或私有路径无关。
+- 有明确 owner，例如 IRIS 编码、i18n、部署或项目上下文插件。
+- 能写成稳定约束或检查项，而不是本次排障流水。
+
+提升后在经验条目追加“已提升”路径。尚不成熟、owner 不明确或可能只适用于单一项目时，只记录经验候选，不修改 plugin rule。
+
+需求经验提升本身不再递归生成一份 `feedback/framework/`；只有任务独立发现并修正了框架缺陷时，才继续执行框架修正分支。
+
+## 框架修正分支
 
 ### 1. 记录版本
 
@@ -81,6 +117,8 @@ feedback/framework/YYMMDDHHmmss/
 
 ### 5. 提交
 
+默认只生成和校验反馈材料。只有用户明确要求提交或推送时，才执行：
+
 ```bash
 git add feedback/framework/YYMMDDHHmmss/
 git commit -m "feedback: {简短标题}"
@@ -98,6 +136,6 @@ git push origin master
 ## 禁止事项
 
 - 不在反馈中写入业务项目私有事实（患者数据、业务页面清单、具体业务逻辑）。
-- 不修改原始框架文件（修正内容只放在反馈目录中）。
+- 需求经验分支只有满足提升条件时才修改 owner plugin rule；框架修正分支仍只把修正副本放入反馈目录，不直接覆盖上游框架文件。
 - 不为了完整性复制未修改的文件。
 - 不生成空反馈（没有实际修正时不触发本 skill）。

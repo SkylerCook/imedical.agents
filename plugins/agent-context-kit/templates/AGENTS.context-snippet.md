@@ -11,3 +11,5 @@
 新建 `AGENTS.md` 时可参考 `.agents/plugins/agent-context-kit/templates/AGENTS.template.md`；已有 `AGENTS.md` 只合并缺失入口，不重写原文件。
 
 不要在项目上下文中保存密钥、临时命令输出或一次性调试日志。
+
+每个 HIS 需求完成后，调用 `.agents/skills/agent-framework-feedback/SKILL.md` 做一次收尾判断：可复用需求经验按现有条目去重写入 `feedback/experience/` 并按成熟度提升到 owner plugin rule；独立框架修正进入 `feedback/framework/`；没有候选内容时不写文件。
