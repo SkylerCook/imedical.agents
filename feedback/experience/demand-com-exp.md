@@ -204,6 +204,15 @@
   - `$system.Encryption.Base64Encode(text)` — CharacterStream 内容直接 Base64 编码会报 `<ILLEGAL VALUE>`
 - **正确做法**：直接读取、直接输出，MCP 传输层会正确处理 Unicode/UTF-8。
 
+### 5.4 XML/Base64 长脚本出现临时代码 `<SYNTAX>` 后立即收敛
+- 需求: #6096150 | 命中: 1
+- **问题**：XML 已查询、导出并完成本地翻译后，继续把完整 XML 或 Base64 拼入单次 `iris_execute` 临时代码，可能在临时类编译阶段连续报 `Execute+...<SYNTAX>`；重复调整同类长脚本只会增加耗时。
+- **判断**：必须检查 MCP 返回的内部 stdout/status。出现临时类 `Execute+...<SYNTAX>` 是 ObjectScript 代码载荷编译失败，不是 MCP 传输失败；已经完成的本地模板、manifest 和备份仍然有效，不应重新查询、导出或翻译。
+- **收敛策略**：确认该错误后停止继续试探长段脚本，优先调用项目现有模板保存接口；没有可复用接口时，将 Base64 拆成多个短 MCP 调用写入带唯一任务键的临时 Global，最后用一段短 `iris_execute` 合并、解码并保存，随后清理临时 Global。
+- **验收**：保存完成后只执行一次只读查询/导出，核对目标记录元数据、XML 可解析性和 `defaultvalue` 源语言残留，然后汇总结果。
+- **自动化状态**：`sync-xml-print-template.ps1` 已实现临时类 `<SYNTAX>` 识别、单次内联尝试、Base64 分块写入 `^CacheTemp`、短调用合并保存、`finally` 清理和一次只读验收；离线回归覆盖正常保存、fallback 成功及 fallback 失败清理。
+- **已回归/已提升**：`plugins/i18n-iris-plugin/skills/i18n-xml-print-template-sync/SKILL.md`、`plugins/i18n-iris-plugin/scripts/sync-xml-print-template.ps1`、`plugins/i18n-iris-plugin/scripts/tests/sync-xml-print-template.Tests.ps1`
+
 ---
 
 ## 六、i18n 前端编码与字典翻译 (i18n)
@@ -317,4 +326,4 @@
 | #6096272 | 挂号小条打印多语言 | [5.1](#51-powershell-jsonline-framing--中文-windows-编码问题), [5.2](#52-xml-模板-fontname-中文字符必须用-xml-数字实体), [5.3](#53-iris-globalcharacterstream-不需要编码转换), [6.1](#61-gb2312-编码文件的正确修改流程), [6.2](#62-i18n-打印链路改造的分层处理), [6.3](#63-新增字典翻译方法的规范), [6.4](#64-xml-打印模板代码国际化), [6.5](#65-字典翻译检查需覆盖被调用子方法) |
 | #6941550 | 技工申请关联材料牙位录入 | [1.5](#15-while-循环内不能-q--返回值), [1.6](#16-ggs-等内置函数不适用于-dynamicobject) |
 | #6950154 | 检查报告查看增加医嘱项查询（差异降噪重写） | [7.1](#71-历史重写时仅保留功能差异) |
-| #6096150 | 预约条打印多语言 | [1.7](#17-命令式-ie-与块式-ifelse-不能混用) |
+| #6096150 | 预约条打印多语言 | [1.7](#17-命令式-ie-与块式-ifelse-不能混用), [5.4](#54-xmlbase64-长脚本出现临时代码-syntax-后立即收敛) |

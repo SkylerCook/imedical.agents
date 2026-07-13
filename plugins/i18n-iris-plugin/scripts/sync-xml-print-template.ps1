@@ -25,6 +25,8 @@ param(
     [switch]$VerifyOnly,
     [switch]$Apply,
     [switch]$Overwrite,
+    [ValidateRange(512, 16000)]
+    [int]$ApplyChunkSize = 6000,
     [string]$I18nProfilePath = ".agents/config/i18n_project_profile.md"
 )
 
@@ -418,6 +420,11 @@ function Invoke-IrisObjectScript($Client, $Tool, [string]$Code) {
     return Get-McpToolText $result
 }
 
+function Test-IrisTemporarySyntaxFailure([string]$Text) {
+    if ([string]::IsNullOrWhiteSpace($Text)) { return $false }
+    return ($Text -match '(?is)Execute\+[^\r\n]*<SYNTAX>')
+}
+
 function Test-IrisMcpConnection($Client, $Tools) {
     $tool = @($Tools | Where-Object { $_.name -eq "check_config" })[0]
     if ($null -eq $tool) { return }
@@ -527,7 +534,7 @@ write out.%ToJSON()
 "@
 }
 
-function New-ApplyTemplateCode([string]$SourceName, [string]$TargetName, [string]$XmlBase64, [bool]$OverwriteFlag, [string]$TargetLanguage, [hashtable]$LanguageDisplayMap = @{}) {
+function New-ApplyTemplateCodeBody([string]$SourceName, [string]$TargetName, [string]$XmlLoadCode, [bool]$OverwriteFlag, [string]$TargetLanguage, [hashtable]$LanguageDisplayMap = @{}) {
     $source = Escape-OsString $SourceName
     $target = Escape-OsString $TargetName
     $language = Escape-OsString $TargetLanguage
@@ -585,7 +592,7 @@ try {
  set `$property(target,"XPCOriginFlag")=sourceName
 } catch ex {
 }
-set xml=`$system.Encryption.Base64Decode("$XmlBase64")
+$XmlLoadCode
 if '`$isobject(target.XPCFileData) {
  set target.XPCFileData=##class(%Stream.GlobalCharacter).%New()
 }
@@ -601,6 +608,123 @@ set ret.XPCLangCode=targetLanguage
 set ret.XPCOriginFlag=sourceName
 write ret.%ToJSON()
 "@
+}
+
+function New-ApplyTemplateCode([string]$SourceName, [string]$TargetName, [string]$XmlBase64, [bool]$OverwriteFlag, [string]$TargetLanguage, [hashtable]$LanguageDisplayMap = @{}) {
+    $xmlLoadCode = 'set xml=$system.Encryption.Base64Decode("' + $XmlBase64 + '")'
+    return New-ApplyTemplateCodeBody $SourceName $TargetName $xmlLoadCode $OverwriteFlag $TargetLanguage $LanguageDisplayMap
+}
+
+function New-InitializeTemplateChunksCode([string]$TaskToken) {
+    $token = Escape-OsString $TaskToken
+    return @"
+kill ^CacheTemp("i18nXmlPrintTemplateSync","$token")
+set ret={}
+set ret.status="initialized"
+write ret.%ToJSON()
+"@
+}
+
+function New-StageTemplateChunkCode([string]$TaskToken, [int]$ChunkIndex, [string]$Chunk) {
+    $token = Escape-OsString $TaskToken
+    $escapedChunk = Escape-OsString $Chunk
+    return @"
+set ^CacheTemp("i18nXmlPrintTemplateSync","$token",$ChunkIndex)="$escapedChunk"
+set ret={}
+set ret.status="staged"
+set ret.chunk=$ChunkIndex
+write ret.%ToJSON()
+"@
+}
+
+function New-CleanupTemplateChunksCode([string]$TaskToken) {
+    $token = Escape-OsString $TaskToken
+    return @"
+kill ^CacheTemp("i18nXmlPrintTemplateSync","$token")
+set ret={}
+set ret.status="cleaned"
+write ret.%ToJSON()
+"@
+}
+
+function New-ApplyTemplateFromChunksCode([string]$SourceName, [string]$TargetName, [string]$TaskToken, [int]$ExpectedChunkCount, [bool]$OverwriteFlag, [string]$TargetLanguage, [hashtable]$LanguageDisplayMap = @{}) {
+    $token = Escape-OsString $TaskToken
+    $xmlLoadCode = @"
+set xmlBase64=""
+set chunkIndex=0
+set chunkCount=0
+for {
+ set chunkIndex=`$order(^CacheTemp("i18nXmlPrintTemplateSync","$token",chunkIndex))
+ quit:chunkIndex=""
+ set chunkCount=chunkCount+1
+ set xmlBase64=xmlBase64_`$get(^CacheTemp("i18nXmlPrintTemplateSync","$token",chunkIndex))
+}
+if chunkCount'=$ExpectedChunkCount {
+ set ret.status="incomplete-staging"
+ set ret.expectedChunks=$ExpectedChunkCount
+ set ret.actualChunks=chunkCount
+ write ret.%ToJSON()
+ quit
+}
+set xml=`$system.Encryption.Base64Decode(xmlBase64)
+"@
+    return New-ApplyTemplateCodeBody $SourceName $TargetName $xmlLoadCode $OverwriteFlag $TargetLanguage $LanguageDisplayMap
+}
+
+function Invoke-ChunkedTemplateApply($Client, $Tool, [string]$SourceName, [string]$TargetName, [string]$XmlBase64, [bool]$OverwriteFlag, [string]$TargetLanguage, [hashtable]$LanguageDisplayMap = @{}, [int]$ChunkSize = 6000) {
+    $taskToken = [guid]::NewGuid().ToString("N")
+    $chunkCount = [int][Math]::Ceiling($XmlBase64.Length / [double]$ChunkSize)
+    try {
+        $initText = Invoke-IrisObjectScript $Client $Tool (New-InitializeTemplateChunksCode $taskToken)
+        if (Test-IrisTemporarySyntaxFailure $initText) { throw "Chunk initialization failed with temporary ObjectScript <SYNTAX>." }
+
+        for ($index = 0; $index -lt $chunkCount; $index++) {
+            $offset = $index * $ChunkSize
+            $length = [Math]::Min($ChunkSize, $XmlBase64.Length - $offset)
+            $chunk = $XmlBase64.Substring($offset, $length)
+            $stageText = Invoke-IrisObjectScript $Client $Tool (New-StageTemplateChunkCode $taskToken ($index + 1) $chunk)
+            if (Test-IrisTemporarySyntaxFailure $stageText) {
+                throw "Chunk $($index + 1)/$chunkCount failed with temporary ObjectScript <SYNTAX>."
+            }
+        }
+
+        $applyText = Invoke-IrisObjectScript $Client $Tool (New-ApplyTemplateFromChunksCode $SourceName $TargetName $taskToken $chunkCount $OverwriteFlag $TargetLanguage $LanguageDisplayMap)
+        if (Test-IrisTemporarySyntaxFailure $applyText) { throw "Chunked apply failed with temporary ObjectScript <SYNTAX>." }
+        return $applyText
+    } finally {
+        try {
+            $cleanupText = Invoke-IrisObjectScript $Client $Tool (New-CleanupTemplateChunksCode $taskToken)
+            if (Test-IrisTemporarySyntaxFailure $cleanupText) {
+                Write-Warning "Temporary XML template chunks may require manual cleanup."
+            }
+        } catch {
+            Write-Warning "Temporary XML template chunk cleanup failed: $($_.Exception.Message)"
+        }
+    }
+}
+
+function Invoke-TemplateApplyWithFallback($Client, $Tool, [string]$SourceName, [string]$TargetName, [string]$XmlBase64, [bool]$OverwriteFlag, [string]$TargetLanguage, [hashtable]$LanguageDisplayMap = @{}, [int]$ChunkSize = 6000) {
+    $inlineFailure = $null
+    try {
+        $applyText = Invoke-IrisObjectScript $Client $Tool (New-ApplyTemplateCode $SourceName $TargetName $XmlBase64 $OverwriteFlag $TargetLanguage $LanguageDisplayMap)
+        if (Test-IrisTemporarySyntaxFailure $applyText) {
+            $inlineFailure = $applyText
+        } else {
+            return [pscustomobject]@{ Json = $applyText; UsedFallback = $false }
+        }
+    } catch {
+        if (Test-IrisTemporarySyntaxFailure $_.Exception.Message) {
+            $inlineFailure = $_.Exception.Message
+        } else {
+            throw
+        }
+    }
+
+    if ($null -ne $inlineFailure) {
+        Write-Warning "Inline XML template apply hit temporary ObjectScript <SYNTAX>; switching to chunked fallback without regenerating local artifacts."
+        $fallbackText = Invoke-ChunkedTemplateApply $Client $Tool $SourceName $TargetName $XmlBase64 $OverwriteFlag $TargetLanguage $LanguageDisplayMap $ChunkSize
+        return [pscustomobject]@{ Json = $fallbackText; UsedFallback = $true }
+    }
 }
 
 function New-TranslationManifest([array]$Exported, [string]$TargetLanguage, [string]$ReferencesDir, [string]$OutputDir) {
@@ -806,10 +930,25 @@ try {
             }
         }
 
-        $applyJson = Invoke-IrisObjectScript $client $osTool (New-ApplyTemplateCode $rec.name $targetName $xmlBase64 ([bool]$Overwrite) $TargetLanguage $languageDisplayMap)
-        $applyResult = $applyJson | ConvertFrom-Json
+        $applyOutcome = Invoke-TemplateApplyWithFallback $client $osTool $rec.name $targetName $xmlBase64 ([bool]$Overwrite) $TargetLanguage $languageDisplayMap $ApplyChunkSize
+        $applyResult = $applyOutcome.Json | ConvertFrom-Json
         Write-Host "Apply $($rec.name) -> $targetName : $($applyResult.status)"
-        if ($applyResult.status -eq "save-failed") { throw $applyResult.error }
+        if ($applyResult.status -notin @("saved", "exists")) {
+            $errorText = if ($applyResult.PSObject.Properties.Name -contains "error") { [string]$applyResult.error } else { [string]$applyResult.status }
+            throw "Apply failed for $targetName`: $errorText"
+        }
+
+        if ($applyOutcome.UsedFallback -and $applyResult.status -eq "saved") {
+            $verifyJson = Invoke-IrisObjectScript $client $osTool (New-ExportTemplatesCode @($targetName))
+            $verified = @(ConvertFrom-JsonArray $verifyJson)[0]
+            if ($null -eq $verified -or $verified.exists -ne 1) { throw "Fallback verification could not read target template: $targetName" }
+            if ([string](Get-ObjectPropertyValue $verified "XPCLangCode") -ne $TargetLanguage) { throw "Fallback verification found unexpected XPCLangCode for $targetName." }
+            if ([string](Get-ObjectPropertyValue $verified "XPCOriginFlag") -ne [string]$rec.name) { throw "Fallback verification found unexpected XPCOriginFlag for $targetName." }
+            $verifiedXml = [string](Get-ObjectPropertyValue $verified "xml")
+            Assert-XmlParseable $verifiedXml $targetName
+            $residueCount = Get-ChineseDefaultValueCount $verifiedXml
+            Write-Host "Fallback verification $targetName : XML parseable, Chinese defaultvalue residue=$residueCount"
+        }
     }
 } finally {
     Stop-McpClient $client

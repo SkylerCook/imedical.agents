@@ -95,6 +95,10 @@ Useful modes:
   -Overwrite
 ```
 
+`-Apply` 默认先沿用兼容的单次内联保存。若 MCP 内层返回临时类
+`Execute+...<SYNTAX>`，脚本会自动切换为分块 fallback；可通过
+`-ApplyChunkSize` 调整 Base64 分块大小，默认每块 `6000` 个字符。
+
 ## Workflow
 
 1. Identify templates from one or more sources:
@@ -114,6 +118,25 @@ Useful modes:
    - Font names, coordinates, barcodes, variables, and printer settings are preserved.
 6. Run `-Apply` only when the user explicitly asks to write server records.
 7. Run `-VerifyOnly` again after apply.
+
+## Apply Failure Convergence
+
+When the source query, export, and local translation have succeeded but server save fails, preserve all completed local artifacts. Do not restart discovery, export, or translation.
+
+- Inspect the MCP tool's inner stdout/status, not only the outer transport result.
+- A generated temporary class error such as `Execute+...<SYNTAX>` is an ObjectScript payload compilation failure, not an MCP transport failure.
+- If the failing payload embeds a complete XML document or Base64 string, do not repeatedly retry equivalent long inline code. One retry is allowed only for an obvious, bounded quoting defect; otherwise converge immediately.
+- Prefer a project-provided template save API when one is already available and verified for the target record type.
+- Otherwise use the script's automatic chunked fallback: it splits the Base64 payload across multiple short MCP calls into `^CacheTemp`, keyed by a unique task token. One final short `iris_execute` call validates the chunk count, concatenates, decodes, and saves the target record. The script cleans the task node in `finally`, including save failures.
+- Reuse the existing translated XML, manifest, and overwrite backup. Do not regenerate them during the save fallback.
+- After a successful fallback save, perform one read-only metadata query/export and complete XML parse/residue verification. Do not repeat the earlier discovery and translation stages.
+
+Offline regression coverage is in
+`scripts/tests/sync-xml-print-template.Tests.ps1`. It verifies normal inline save,
+single-attempt convergence after temporary `<SYNTAX>`, chunk count, and cleanup on
+both successful and failed fallback saves.
+
+Do not record the temporary Global key, namespace, server details, or payload contents in reusable rules or reports.
 
 ## Write-Back Rules
 
