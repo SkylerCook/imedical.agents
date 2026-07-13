@@ -24,7 +24,7 @@
 - 字典翻译种子：`skills/i18n-bdp-trans-seed/SKILL.md`
 - XML 模板翻译：`skills/i18n-xml-template/SKILL.md`
 - CSP 翻译同步：`skills/i18n-csp-trans-sync/SKILL.md`
-- XML 打印模板同步：`skills/i18n-xml-print-template-sync/SKILL.md`（仅用于已确认存在 XML 模板记录的打印链路）
+- XML 打印模板同步：`skills/i18n-xml-print-template-sync/SKILL.md`（仅用于已确认存在 XML 模板记录的打印链路；远端保存遇到临时类 `Execute+...<SYNTAX>` 时按 skill 的分块 fallback 收敛，不重跑前序产物）
 
 ## 规则入口
 

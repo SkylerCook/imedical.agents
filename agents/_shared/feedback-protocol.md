@@ -1,6 +1,6 @@
 # Agent Feedback Protocol
 
-本文件定义 Agent 在处理 HIS 需求后，自动生成框架验证反馈的行为规范。
+本文件定义 Agent 在处理 HIS 需求后生成框架修正反馈的行为规范。统一收尾入口是 `skills/agent-framework-feedback/SKILL.md`；可复用需求经验由该 skill 路由到 `feedback/experience/`，本协议只约束独立框架修正分支。
 
 反馈产物写入 `imedical.agents` 仓库的 `feedback/framework/` 目录，不写入业务项目。
 
@@ -30,8 +30,10 @@ Agent 在任务收尾阶段，检查以下条件是否满足：
    - 发现的问题：具体描述
    - 本次修改说明：每个修正文件改了什么、为什么改
    - 验证状态：已验证 / 待验证
-5. 提交并推送到 origin master
+5. 校验反馈目录结构、内容完整性和敏感信息边界
 ```
+
+默认只生成和校验反馈材料。只有用户在当前任务中明确要求提交或推送时，才执行对应 Git 写操作；生成反馈本身不构成提交或推送授权。
 
 ## 反馈模板
 

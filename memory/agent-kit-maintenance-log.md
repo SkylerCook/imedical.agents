@@ -3,6 +3,9 @@
 本文件记录近期维护流水摘要和验证结论。长期决策见 `agent-kit-maintenance-decisions.md`，后续治理队列见 `agent-kit-maintenance-backlog.md`，入口摘要见 `agent-kit-maintenance-memory.md`。
 
 ## 近期已完成
+- 2026-07-13：`12e8539` 建立 `i18n-agent` P1 多模式运行协议：统一 `retrospective` / `serial` / `multi-agent`、编号 handoff、运行 manifest、授权和失败收敛规则；新增 `validate-agent-run.ps1` 及离线测试，并完成 `#6096150` 脱敏串行回溯。该回溯只证明串行与事后校验链路，真实多智能体实战仍留在 backlog。
+- 2026-07-13：`98b09e6` 为 XML 打印模板同步补充临时类 `Execute+...<SYNTAX>` 自动识别与 Base64 分块 fallback，复用既有本地产物并在成功或失败时清理临时节点；专项离线测试覆盖内联成功、单次收敛、分块计数和失败清理。
+- 2026-07-13：`7478f85` 将 `agent-framework-feedback` 升级为统一收尾 skill，分流需求经验与独立框架修正，并将收尾入口写入项目 AGENTS 模板；本轮维护同时修正共享反馈协议仍默认提交/推送的旧表述，统一为仅在用户明确要求时执行 Git 写操作。
 - 2026-07-13：完成全仓维护体检：8 个插件 manifest 均可解析，现有 7 组专项测试全部通过；补齐 `imedicalxc-doctor-data-extraction` 和 `imedicalxc-doctor-print-template-design` 插件 README，修正维护记忆分层，并将后续治理队列重排为 P0-P3。
 - 2026-07-13：修复 `update-agents.ps1 -Mode Check` 将不受支持的 `Check` 直接传给插件配置迁移脚本的问题；顶层 `Check` 现按只读语义映射为迁移 `DryRun`，并补充 `DryRun/Write/Check` 参数传递、unchanged 状态及 Check 不写 profile/thin-index 的回归覆盖。
 - 2026-07-13：已将 vendor skill 链路改为按 enabled 插件 capability 解析：新增通用依赖 resolver，`imedicalxc-doctor-extend-engineer` 声明四个 required superpowers skill 和 DOC/DOCX 触发的 optional `word-reader`；安装/更新停止全量写用户目录，项目层只生成 required thin-index。更新器支持自身更新后安全重启、legacy profile 保守识别和显式 cleanup；Claude/Codex 用户级同步改为必须指定 runtime/skill，其他 Agent 工具通过 `.agents/skills` 或直接 vendor 源串行降级。
@@ -88,6 +91,9 @@
 
 ## 近期提交索引
 
+- `12e8539`：建立 i18n-agent P1 多模式运行协议、运行 manifest、事后校验器和脱敏回溯产物。
+- `98b09e6`：XML 打印模板同步新增临时 `<SYNTAX>` 自动分块 fallback 与离线回归。
+- `7478f85`：升级 `agent-framework-feedback` 为统一收尾 skill，并沉淀条件分支经验。
 - `58339ee`：新增维护者专用 `agent-kit-maintenance` skill，并排除业务项目部署。
 - `364f594`：`install-agents.ps1` / `update-agents.ps1` 新增 Git 版本前置校验，并同步 runbook 与测试。
 - `3e0f580`：新增 `imedicalxc-doctor-print-template-design` 插件，提供打印模板设计与 `.xlsx` 模板生成工作流。
@@ -125,6 +131,8 @@
 
 ## 最近验证
 
+- 2026-07-13：`plugins/agent-context-kit/scripts/tests/validate-agent-run.Tests.ps1` 已覆盖合法串行/多智能体运行、未授权多智能体、缺失报告、同签名重试超限、未授权远程写入、阶段依赖、并行效率和敏感内容门禁；`docs/validation/i18n-agent-p1/retrospective-6096150` 已通过校验。
+- 2026-07-13：`plugins/i18n-iris-plugin/scripts/tests/sync-xml-print-template.Tests.ps1` 已覆盖内联保存、临时 `Execute+...<SYNTAX>` 识别、分块 fallback 和成功/失败清理。
 - 2026-07-01：已检查近期提交 `05bfa75`、`b655c1a`、`3e0f580`、`364f594`、`58339ee` 的变更范围；确认三个新增医生站插件均包含 `.agents-plugin/plugin.json`、`AGENTS.md`、主 `SKILL.md` 和 thin-index wrapper，其中性能分析插件额外包含 README、init skill、脚本和 references。已通过 `rg` 检查 README 与维护记忆中的旧插件总览缺口，并完成摘要同步；本轮不复制大段插件正文或业务私有事实。
 
 - 2026-06-30：本轮文档同步已执行一致性搜索，确认 `README.md`、`plugins/imedicalxc-doctor-extend-engineer`、`memory` 和 `docs` 下不再残留旧版 superpowers 安装方式和旧子 skill 暴露数量等过期表述；路径检查确认 `vendor/superpowers/skills/brainstorming/SKILL.md`、`vendor/word-reader/SKILL.md` 和医生站扩展插件 thin-index wrapper 均存在；`scripts/sync-vendor-skills.ps1 -AgentsRoot . -Mode DryRun` 可枚举 superpowers 与 word-reader vendor skill；`scripts/tests/update-agents.tests.ps1` 已通过。仓库根误产物 `%SystemDrive%/` 已确认位于 workspace 内并清理。
@@ -158,7 +166,6 @@
 - `scripts/tests/update-agents.tests.ps1` 已验证：默认只处理 `agent-context-kit`，未启用插件只列为 available，显式插件可处理，i18n 在 coding 未初始化时阻塞，安装/更新 sparse checkout 包含 `agents/` 和 `workflows/`。
 - 已验证三个插件 manifest 均可被 PowerShell `ConvertFrom-Json` 正常解析。
 - `scripts/tests/update-agents.tests.ps1` 已验证：`update-agents.ps1` 可调用 agent thin-index 阶段，Write 模式生成 `.agents/skills/i18n-agent/SKILL.md`，入口指向 canonical `AGENT.md`、`bindings.yaml` 和 `i18n-change.workflow.md`，且不生成工具 adapter 内容。
-- 当前 `master` 本地 `HEAD` 为 `5ea2910`，已与 `origin/master` / `github/master` 对齐；后续提交后仍按双远端约定分别同步。
 
 ## 维护要求
 

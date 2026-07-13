@@ -144,6 +144,8 @@ i18n 流程：
 Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 ```
 
+运行时必须选择 `retrospective`、`serial` 或 `multi-agent`。`multi-agent` 需要用户明确授权，远程写入仍需单独授权；各阶段通过 `00-run-manifest.json` 和编号 handoff 报告交接，结束后由 `agent-context-kit/scripts/validate-agent-run.ps1` 做只读机械验收。该校验器不承担运行时调度。
+
 对应能力：
 
 - 链路定位：`plugins/i18n-iris-plugin/rules/i18n_link_tracing.md`
