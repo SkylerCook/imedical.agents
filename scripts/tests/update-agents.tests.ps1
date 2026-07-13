@@ -208,9 +208,9 @@ function New-TestProject {
   )
 
   Set-Content -Encoding UTF8 -Path (Join-Path $pluginRoot "scripts/migrate-sample.ps1") -Value @(
-    'param([string]$ProjectRoot=".",[string]$AgentsRoot=".agents",[string]$Mode="DryRun")',
-    '$status = if ($Mode -eq "Write") { "config-migration-applied" } else { "config-migration-planned" }',
-    '[PSCustomObject]@{status=$status;target=".agents/config/sample_profile.md";reason="sample migration"} | ConvertTo-Json -Compress'
+    'param([string]$ProjectRoot=".",[string]$AgentsRoot=".agents",[ValidateSet("DryRun", "Write")][string]$Mode="DryRun")',
+    '$status = if ($Mode -eq "Write") { "config-migration-applied" } else { "config-migration-unchanged" }',
+    '[PSCustomObject]@{status=$status;target=".agents/config/sample_profile.md";reason=("sample migration received " + $Mode)} | ConvertTo-Json -Compress'
   )
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/vendor/root-vendor") | Out-Null
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/vendor/root-vendor/SKILL.md") -Value @(
@@ -356,7 +356,8 @@ try {
   $dryRunOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed -Plugin sample-plugin | Out-String
   Assert-Contains $dryRunOutput "config-missing-key" "DryRun should report missing config keys"
   Assert-Contains $dryRunOutput "config-deprecated-candidate" "DryRun should report deprecated config candidates"
-  Assert-Contains $dryRunOutput "config-migration-planned" "DryRun should invoke plugin config migration"
+  Assert-Contains $dryRunOutput "config-migration-unchanged" "DryRun should invoke plugin config migration"
+  Assert-Contains $dryRunOutput "sample migration received DryRun" "DryRun should pass DryRun to plugin config migration"
 
   $beforeWrite = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")
   Assert-Contains $beforeWrite "projectName: real-project" "DryRun must not overwrite existing config values"
@@ -365,6 +366,7 @@ try {
   $writeOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-String
   Assert-Contains $writeOutput "config-merged-key" "Write should merge missing config keys"
   Assert-Contains $writeOutput "config-migration-applied" "Write should apply plugin config migration"
+  Assert-Contains $writeOutput "sample migration received Write" "Write should pass Write to plugin config migration"
   Assert-Contains $writeOutput "git-hooks-not-enabled" "Write should report hooks are available but not enabled"
   Assert-Contains $writeOutput "agent-thin-index" "Write should include agent thin-index phase"
   Assert-Contains $writeOutput "vendor-thin-index" "Write should include vendor thin-index phase"
@@ -377,6 +379,15 @@ try {
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/i18n-agent/SKILL.md")) "Write should generate i18n-agent skill thin-index"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/vendor-test-skill/SKILL.md")) "Write should generate vendor skill thin-index"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/root-vendor/SKILL.md"))) "Write should not generate optional vendor skill thin-index"
+
+  $profileBeforeCheck = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")
+  $thinIndexBeforeCheck = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/sample-skill/SKILL.md")
+  $checkOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Check -NoPull -Detailed -Plugin sample-plugin | Out-String
+  Assert-Contains $checkOutput "config-migration-unchanged" "Check should accept an unchanged plugin config migration"
+  Assert-Contains $checkOutput "sample migration received DryRun" "Check should pass DryRun to plugin config migration"
+  Assert-True (-not $checkOutput.Contains("config-migration-failed")) "Check should not report config-migration-failed for a DryRun-only migration"
+  Assert-True ((Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")) -eq $profileBeforeCheck) "Check must not modify plugin profile files"
+  Assert-True ((Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/sample-skill/SKILL.md")) -eq $thinIndexBeforeCheck) "Check must not modify generated thin-index files"
   $agentSkillThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/i18n-agent/SKILL.md")
   Assert-Contains $agentSkillThinIndex ".agents/agents/i18n-agent/AGENT.md" "Agent thin-index should point to canonical AGENT.md"
   Assert-Contains $agentSkillThinIndex ".agents/agents/i18n-agent/bindings.yaml" "Agent thin-index should point to bindings.yaml"

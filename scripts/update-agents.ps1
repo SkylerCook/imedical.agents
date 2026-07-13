@@ -256,7 +256,8 @@ function Invoke-PluginConfigMigrations {
       continue
     }
     try {
-      $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $migrationPath -ProjectRoot $ProjectRootFull -AgentsRoot $AgentsRoot -Mode $Mode | Out-String
+      $migrationMode = if ($Mode -eq "Check") { "DryRun" } else { $Mode }
+      $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $migrationPath -ProjectRoot $ProjectRootFull -AgentsRoot $AgentsRoot -Mode $migrationMode | Out-String
       if ($LASTEXITCODE -ne 0) {
         throw "migration exited with code $LASTEXITCODE"
       }
