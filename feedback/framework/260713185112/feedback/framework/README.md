@@ -23,3 +23,4 @@
 本目录是业务项目部署态位置；`imedical.agents` 源仓态对应 `feedback/framework/`。反馈包内部按 owner 仓库路径保存，部署态源文件需去掉 `.agents/` 前缀。
 
 详见 `.agents/agents/_shared/feedback-protocol.md`。
+

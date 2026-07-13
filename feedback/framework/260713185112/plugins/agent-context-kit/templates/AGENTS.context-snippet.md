@@ -13,3 +13,4 @@
 不要在项目上下文中保存密钥、临时命令输出或一次性调试日志。
 
 每个 HIS 需求完成后，调用 `.agents/skills/agent-framework-feedback/SKILL.md` 做一次收尾判断：业务项目部署态下，可复用需求经验按现有条目去重写入 `.agents/feedback/experience/` 并按成熟度提升到 owner plugin rule；独立框架修正进入 `.agents/feedback/framework/`；没有候选内容时不写文件。
+
