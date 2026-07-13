@@ -18,7 +18,7 @@
 - `plugins/i18n-iris-plugin/` 负责 IRIS/ObjectScript/CSP/HISUI 国际化能力。
 - `plugins/imedicalxc-doctor-extend-engineer/` 负责 HIS 医生站第三方系统集成编排，主入口为 `skills/imedicalxc-doctor-extend-engineer/SKILL.md`，子 skill 由主编排器按需读取。
 - 已落地首个领域样板 `agents/i18n-agent/` 和 `workflows/i18n-change.workflow.md`，用于 IRIS i18n 需求的链路定位、数据分类、编码/模板/种子和验证五阶段处理。
-- 当前重点维护方向是降低 rules 常驻上下文成本，并完善多 Agent 协作在已部署 `.agents` 项目中的发现、更新和验证链路。
+- 当前重点维护方向是先固化多人协作提交准入和仓库一致性检查，再用真实业务项目验证 `i18n-agent` / `i18n-change.workflow.md` 样板；rules 体量与工具原生 adapter 继续观察，不抢占主线。
 - 根 `AGENTS.md` 只服务本仓库维护，不部署到业务项目 `.agents/`；业务项目仍使用业务项目自己的 `AGENTS.md` 和 `.agents/` 上下文。
 
 ## 必读路由
