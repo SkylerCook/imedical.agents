@@ -3,6 +3,8 @@
 本文件记录近期维护流水摘要和验证结论。长期决策见 `agent-kit-maintenance-decisions.md`，后续治理队列见 `agent-kit-maintenance-backlog.md`，入口摘要见 `agent-kit-maintenance-memory.md`。
 
 ## 近期已完成
+- 2026-07-14：审计最近两次 feedback 提交。确认 `3131d97` 的 `FRAMEWORK_ROOT` 部署态路径修复已同步 canonical；将 `fc50477` 仅保存在反馈包中的 i18n Step 0、manifest schema 1.1、文件所有权、stale verifier、分类远程授权和 Windows PowerShell 5 兼容规则回归 canonical，并同步 owner 文档、P1 验证说明和专项测试。
+- 2026-07-13：完成 `#6097879` 首次真实 multi-agent i18n 实战复盘。实战覆盖前后端、页面翻译、XML 模板、独立 Verifier 和运行 manifest，但发现模式中途切换、阶段时间事后重构、所有权未入 manifest、Verifier 后继续修改、远程授权询问过晚及 Windows PowerShell 5 环境变量兼容问题；P1 保持开放，不据此新增通用 workflow/Agent。
 - 2026-07-13：`12e8539` 建立 `i18n-agent` P1 多模式运行协议：统一 `retrospective` / `serial` / `multi-agent`、编号 handoff、运行 manifest、授权和失败收敛规则；新增 `validate-agent-run.ps1` 及离线测试，并完成 `#6096150` 脱敏串行回溯。该回溯只证明串行与事后校验链路，真实多智能体实战仍留在 backlog。
 - 2026-07-13：`98b09e6` 为 XML 打印模板同步补充临时类 `Execute+...<SYNTAX>` 自动识别与 Base64 分块 fallback，复用既有本地产物并在成功或失败时清理临时节点；专项离线测试覆盖内联成功、单次收敛、分块计数和失败清理。
 - 2026-07-13：`7478f85` 将 `agent-framework-feedback` 升级为统一收尾 skill，分流需求经验与独立框架修正，并将收尾入口写入项目 AGENTS 模板；本轮维护同时修正共享反馈协议仍默认提交/推送的旧表述，统一为仅在用户明确要求时执行 Git 写操作。

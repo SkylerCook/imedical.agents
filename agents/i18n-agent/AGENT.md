@@ -1,3 +1,4 @@
+
 # i18n-agent
 
 `i18n-agent` 是 IRIS 国际化需求处理的领域 Agent。它把通用阶段化协作模型绑定到 `i18n-iris-plugin` 和 `coding-iris-plugin` 的规则、skills、templates 与验证约束。
@@ -57,6 +58,18 @@
 - `multi-agent` 必须有用户或适用项目/skill 的明确授权；没有授权时使用 `serial`。
 - 每次 P1 验证按 `agents/_shared/handoff-protocol.md` 生成 `00-run-manifest.json` 和阶段报告。
 
+## 启动前置
+
+Coordinator 必须在首个 Explorer 或修改动作前完成运行契约：
+
+- 立即选择并记录运行模式；不得中途切换后重构阶段时间冒充从启动即并行。
+- 从 canonical manifest 样板创建运行清单，并预先声明 actor、互斥文件所有权和 Independent Verifier。
+- 主动列出预计远程动作并一次性请求授权，至少分开 `translation-data-write` 与 `business-code-deploy`。
+- 当前任务已有明确授权时直接消费，不重复询问；没有授权时保持 local-only/read-only。
+- 已授权 scope 内后续自动执行；覆盖冲突、删除、回滚、环境变化或范围扩大时重新确认。
+
+翻译数据不得长期、跨任务默认授权。默认行为是“开工时主动询问一次”，而不是等到 Template/Seed 阶段让用户猜测。
+
 ## 已批准计划快速路径
 
 用户输入同时具备入口、影响范围、文本分类、模板/种子策略和测试要求时，可复用为 Explorer/Classifier 初始输入：
@@ -104,6 +117,7 @@ Root Coordinator
 - Template/Seed actor 默认只生成本地产物；远程保存由 Coordinator 在明确授权后串行执行。
 - 子 Agent 只读取 handoff 指定的 profile、skill 和专项规则，不重新加载 registry 或全部 canonical 文件。
 - Verifier 必须独立于 Coder，检查代码结构、编码、XML、翻译残留、fallback 和未执行门禁。
+- Independent Verifier 必须发生在最后一次本地修改和最后一次已授权远程写入之后；验证后再修改会使结论失效，Coordinator 必须重新触发 Verifier。
 
 ## 输入
 

@@ -1,3 +1,4 @@
+
 # Agent Handoff Protocol
 
 本文件定义多智能体或阶段化单 Agent 执行时的交接协议。
@@ -40,6 +41,8 @@ docs/agent-reports/{ticket-or-topic}/
 
 ### `00-run-manifest.json`
 
+运行开始时从 `plugins/agent-context-kit/templates/agent-run-manifest.json` 复制结构并立即填写，不得凭记忆手写字段或在结束后重构阶段时间。
+
 manifest 固定包含：
 
 - `schemaVersion`、`topic`、`runMode`、`retrospective`。
@@ -50,12 +53,24 @@ manifest 固定包含：
 - `qualityGates`：handoff、脱敏、ObjectScript、XML 和并行效率结果。
 - `remoteActions[]`：只记录动作类型、是否写入和是否已授权，不记录连接或载荷内容。
 
+schema `1.1` 还必须包含：
+
+- `modeHistory[]`：模式、选择时间和原因；真实 `multi-agent` 的第一条模式必须就是 `multi-agent`。
+- `ownership[]`：actor、阶段和互斥路径；相同写路径不得分配给不同 actor。
+- `lastMutationAt`：最后一次本地或远程修改时间。
+- `verificationRevision`：Verifier 实际检查的最终版本标识，可使用最终 diff/hash 或稳定运行版本号，不记录敏感载荷。
+- 写入型 `remoteActions[]` 必须有非空 `scope` 和 `authorizationCategory`；类别至少区分 `translation-data-write` 与 `business-code-deploy`。
+
 时间使用带时区 ISO 8601。`retrospective` 无法取得阶段时间时允许 `null`，但必须填写 `timingReason`；其它模式必须填写实际时间。
 
 ### 机械门禁
 
 - `multi-agent` 要求 `authorization.multiAgent=true`。
 - 任一 `remoteActions[].write=true` 要求运行级和动作级远程写入授权均为 `true`。
+- 非复盘运行的阶段时间必须实时记录，`timingReason` 为空；禁止使用 reconstructed/approximate 时间通过门禁。
+- 真实 `multi-agent` 必须从运行开始即选择该模式，并提供无重叠的 `ownership[]`。
+- 写入动作必须有授权类别和 scope；授权 scope 不得由 Agent 自行扩大。
+- `lastMutationAt` 不得晚于 Verifier 开始时间，`verificationRevision` 不得为空。
 - 非复盘运行中，同一载荷编译失败签名的等价重试不得超过 1 次。
 - XML 阶段触发时必须记录元数据、解析、源语言残留和 fallback 验证结果。
 - 报告禁止出现服务器地址、账号、密码、token、namespace、远程路径、长 Base64 或完整 XML 载荷。

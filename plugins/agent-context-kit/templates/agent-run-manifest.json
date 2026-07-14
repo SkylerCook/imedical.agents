@@ -1,0 +1,38 @@
+
+{
+  "schemaVersion": "1.1",
+  "topic": "",
+  "runMode": "serial",
+  "retrospective": false,
+  "modeHistory": [],
+  "authorization": {
+    "multiAgent": false,
+    "remoteWrite": false
+  },
+  "startedAt": null,
+  "completedAt": null,
+  "elapsedSeconds": null,
+  "timingReason": "",
+  "ownership": [],
+  "lastMutationAt": null,
+  "verificationRevision": "",
+  "stages": [
+    {"name":"explorer","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","report":"10-explorer.md","reusedEvidence":false},
+    {"name":"classifier","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","report":"11-classifier.md","reusedEvidence":false},
+    {"name":"backend-coder","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","report":"20-backend-coder.md","reusedEvidence":false},
+    {"name":"frontend-coder","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","report":"21-frontend-coder.md","reusedEvidence":false},
+    {"name":"template-seed","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","report":"22-template-seed.md","reusedEvidence":false},
+    {"name":"verifier","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","report":"30-verifier.md","reusedEvidence":false},
+    {"name":"summary","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","report":"40-summary.md","reusedEvidence":false}
+  ],
+  "failures": [],
+  "qualityGates": {
+    "handoff": "pending",
+    "sensitiveData": "pending",
+    "objectScript": {"compile":"not-applicable","structure":"pending","residualRisk":""},
+    "xml": {"triggered":false,"metadata":"not-applicable","parse":"not-applicable","residue":"not-applicable","fallback":"not-applicable"},
+    "parallelEfficiency": "not-applicable"
+  },
+  "remoteActions": []
+}
+

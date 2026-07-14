@@ -1,3 +1,4 @@
+
 ---
 name: i18n-xml-print-template-sync
 description: Use when a print i18n task is confirmed to involve IRIS XML print templates such as PrintTemp, PreviewXMLName, GetXMLTemplateId, User.DHCXMLPConfig, or creating {Template}-EN variants.
@@ -116,7 +117,9 @@ Useful modes:
    - Only user-visible `defaultvalue` text changed.
    - `defaultvalue` source-language residue is acceptable or zero.
    - Font names, coordinates, barcodes, variables, and printer settings are preserved.
-6. Run `-Apply` only when the user explicitly asks to write server records.
+6. Run `-Apply` only with explicit authorization for the current run. The Coordinator should request this authorization at workflow startup; if the run manifest already covers the target language and template scope, consume it without asking again.
+   - New target templates may use the startup `translation-data-write` authorization.
+   - `-Overwrite`, environment changes, deletion, or rollback always require a new confirmation.
 7. Run `-VerifyOnly` again after apply.
 
 ## Apply Failure Convergence

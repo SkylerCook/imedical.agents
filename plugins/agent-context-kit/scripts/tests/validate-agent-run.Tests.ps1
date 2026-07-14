@@ -1,3 +1,4 @@
+
 $ErrorActionPreference = "Stop"
 
 $validator = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\validate-agent-run.ps1"))
@@ -54,15 +55,27 @@ function New-AgentRunFixture([string]$Name, [string]$Mode = "serial") {
         }
     }
     $manifest = [ordered]@{
-        schemaVersion = "1.0"
+        schemaVersion = "1.1"
         topic = $Name
         runMode = $Mode
         retrospective = $false
+        modeHistory = @([ordered]@{ mode = $Mode; selectedAt = "2026-07-14T10:00:00+08:00"; reason = "selected before execution" })
         authorization = [ordered]@{ multiAgent = $isMulti; remoteWrite = $false }
         startedAt = "2026-07-14T10:00:00+08:00"
         completedAt = "2026-07-14T10:06:00+08:00"
         elapsedSeconds = 360
         timingReason = ""
+        ownership = if ($isMulti) {
+            @(
+                [ordered]@{ actor = "backend-agent"; stage = "backend-coder"; paths = @("backend/**") },
+                [ordered]@{ actor = "frontend-agent"; stage = "frontend-coder"; paths = @("frontend/**") },
+                [ordered]@{ actor = "template-agent"; stage = "template-seed"; paths = @("templates/**") }
+            )
+        } else {
+            @([ordered]@{ actor = "single-agent"; stage = "all"; paths = @("task-scope/**") })
+        }
+        lastMutationAt = "2026-07-14T10:04:00+08:00"
+        verificationRevision = "fixture-final"
         stages = $stages
         failures = @()
         qualityGates = [ordered]@{
@@ -133,6 +146,45 @@ try {
     $manifest.qualityGates.parallelEfficiency = "not-applicable"
     Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
     Invoke-Validation $badParallelGate 1
+
+    $midRunPromotion = New-AgentRunFixture "mid-run-promotion" "multi-agent"
+    $manifestPath = Join-Path $midRunPromotion "00-run-manifest.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest.modeHistory = @(
+        [pscustomobject]@{ mode = "serial"; selectedAt = "2026-07-14T10:00:00+08:00"; reason = "initial" },
+        [pscustomobject]@{ mode = "multi-agent"; selectedAt = "2026-07-14T10:02:00+08:00"; reason = "promoted later" }
+    )
+    Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
+    Invoke-Validation $midRunPromotion 1
+
+    $reconstructedTime = New-AgentRunFixture "reconstructed-time" "multi-agent"
+    $manifestPath = Join-Path $reconstructedTime "00-run-manifest.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    ($manifest.stages | Where-Object name -eq "backend-coder").timingReason = "reconstructed after execution"
+    Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
+    Invoke-Validation $reconstructedTime 1
+
+    $overlappingOwnership = New-AgentRunFixture "overlapping-ownership" "multi-agent"
+    $manifestPath = Join-Path $overlappingOwnership "00-run-manifest.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest.ownership[1].paths = @("backend/**")
+    Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
+    Invoke-Validation $overlappingOwnership 1
+
+    $staleVerifier = New-AgentRunFixture "stale-verifier" "multi-agent"
+    $manifestPath = Join-Path $staleVerifier "00-run-manifest.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest.lastMutationAt = "2026-07-14T10:04:30+08:00"
+    Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
+    Invoke-Validation $staleVerifier 1
+
+    $missingRemoteScope = New-AgentRunFixture "missing-remote-scope" "serial"
+    $manifestPath = Join-Path $missingRemoteScope "00-run-manifest.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest.authorization.remoteWrite = $true
+    $manifest.remoteActions = @([pscustomobject]@{ type = "template-save"; write = $true; authorized = $true; result = "completed"; authorizationCategory = "translation-data-write" })
+    Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
+    Invoke-Validation $missingRemoteScope 1
 
     $sensitive = New-AgentRunFixture "sensitive-payload" "serial"
     Add-Content -LiteralPath (Join-Path $sensitive "22-template-seed.md") -Value (("A" * 300))

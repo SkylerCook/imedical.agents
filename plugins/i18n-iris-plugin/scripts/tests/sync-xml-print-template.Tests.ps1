@@ -1,3 +1,4 @@
+
 param(
     [string]$ScriptPath = (Join-Path $PSScriptRoot "..\sync-xml-print-template.ps1")
 )
@@ -36,6 +37,7 @@ function Import-ScriptFunctions([string]$Path, [string[]]$Names) {
 Import-ScriptFunctions $ScriptPath @(
     "Escape-OsString",
     "Get-LanguageDisplayName",
+    "Set-ProcessEnvironmentValue",
     "Test-IrisTemporarySyntaxFailure",
     "New-ApplyTemplateCodeBody",
     "New-ApplyTemplateCode",
@@ -46,6 +48,10 @@ Import-ScriptFunctions $ScriptPath @(
     "Invoke-ChunkedTemplateApply",
     "Invoke-TemplateApplyWithFallback"
 )
+
+$processStartInfo = [System.Diagnostics.ProcessStartInfo]::new()
+Set-ProcessEnvironmentValue $processStartInfo "I18N_AGENT_TEST_ENV" "ok"
+Assert-True ($processStartInfo.EnvironmentVariables["I18N_AGENT_TEST_ENV"] -eq "ok") "ProcessStartInfo environment fallback is not compatible with Windows PowerShell."
 
 Assert-True (Test-IrisTemporarySyntaxFailure 'Execute+12^MCP.Temp.1 <SYNTAX>') "Temporary Execute <SYNTAX> was not detected."
 Assert-True (-not (Test-IrisTemporarySyntaxFailure '<SYNTAX> in a business routine')) "Unrelated <SYNTAX> must not trigger the fallback."

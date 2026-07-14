@@ -18,7 +18,7 @@
 - `plugins/i18n-iris-plugin/` 负责 IRIS/ObjectScript/CSP/HISUI 国际化能力。
 - `plugins/imedicalxc-doctor-extend-engineer/` 负责 HIS 医生站第三方系统集成编排，主入口为 `skills/imedicalxc-doctor-extend-engineer/SKILL.md`，子 skill 由主编排器按需读取。
 - 已落地首个领域样板 `agents/i18n-agent/` 和 `workflows/i18n-change.workflow.md`，用于 IRIS i18n 需求的链路定位、数据分类、编码/模板/种子和验证五阶段处理。
-- 当前重点维护方向是先固化多人协作提交准入和仓库一致性检查；`i18n-agent` / `i18n-change.workflow.md` 已完成一次脱敏串行回溯，下一步是在真实需求中完成明确授权的多智能体实战。rules 体量与工具原生 adapter 继续观察，不抢占主线。
+- 当前重点维护方向是先固化多人协作提交准入和仓库一致性检查；`i18n-agent` / `i18n-change.workflow.md` 已完成一次脱敏串行回溯和一次带偏差的真实 multi-agent 实战，下一步是从 Step 0 即并行、使用真实时间/所有权/分类授权并在最终修改后验证的标准化实战。rules 体量与工具原生 adapter 继续观察，不抢占主线。
 - 根 `AGENTS.md` 只服务本仓库维护，不部署到业务项目 `.agents/`；业务项目仍使用业务项目自己的 `AGENTS.md` 和 `.agents/` 上下文。
 
 ## 必读路由
@@ -33,7 +33,7 @@
 
 ## 近期关键变化
 
-- `i18n-agent` 已建立 `retrospective` / `serial` / `multi-agent` 三种运行模式、编号 handoff 与 `00-run-manifest.json` 契约；`agent-context-kit/scripts/validate-agent-run.ps1` 提供事后只读机械验收，`#6096150` 脱敏串行回溯已完成，真实多智能体实战仍待执行。
+- `i18n-agent` 已建立 `retrospective` / `serial` / `multi-agent` 三种运行模式、Step 0 启动契约、编号 handoff 与 schema 1.1 `00-run-manifest.json`；`#6096150` 脱敏串行回溯和 `#6097879` 首次真实 multi-agent 实战已完成，后者用于暴露缺口，不作为样板定型依据。
 - `agent-framework-feedback` 已升级为 HIS 任务统一收尾入口：需求经验与独立框架修正分流处理，无候选时不生成空反馈；反馈提交和推送仍需用户明确要求。
 - XML 打印模板同步在远端保存遇到临时类 `Execute+...<SYNTAX>` 时，会复用既有 XML/manifest/备份并自动切换 Base64 分块 fallback，专项离线回归覆盖成功、收敛和清理路径。
 - 已新增 `imedicalxc-doctor-perf-analysis-engineer` 插件，覆盖医生站接口性能分析与优化、前后端链路追踪、Graylog 日志分析、N+1/批量调用优化和性能报告输出；init skill 与主编排 skill 分离，thin-index wrapper 默认只暴露主编排器入口。

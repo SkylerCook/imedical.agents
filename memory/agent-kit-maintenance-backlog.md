@@ -13,8 +13,9 @@
 
 ### P1：真实多智能体实战与样板定型
 
-- 在下一项合适的真实 i18n 需求中明确采用 `multi-agent`，走通运行 manifest、阶段 handoff、文件所有权、独立 Verifier 和事后机械校验；远程写入另行授权。
-- 结合已完成的 `#6096150` 脱敏串行回溯与下一次真实多智能体实战，在至少两次验证后决定是否新增 `standard-change`、`review-test-release`、`bugfix` workflow，以及通用 `coordinator/explorer/planner/coding/review/testing` Agent。
+- `#6097879` 已完成第一次真实 multi-agent i18n 实战，但模式在执行中途切换、阶段时间事后重构、文件所有权未进入 manifest，且 Verifier 后仍发生代码和远程翻译修改；该样本用于暴露缺口，不作为“样板已定型”。
+- 下一项合适需求必须从 Step 0 即采用 `multi-agent`：先建 manifest、记录实际时间、声明文件所有权和分类远程授权，所有最终修改后再执行独立 Verifier 与机械校验。
+- 结合 `#6096150` 脱敏串行回溯、`#6097879` 首次真实实战与下一次标准化实战后，再决定 i18n 样板是否定型；若要新增通用 `standard-change`、`review-test-release`、`bugfix` workflow 或通用 Agent，至少再补一个不同任务形态样本。
 - 暂不实现复杂运行时调度器，也暂不做 `scripts/generate-agent-adapters.ps1`；工具原生入口只能由 canonical 生成或临时适配，不能成为规则源。
 
 ### P2：代码质量 review 与框架反馈演进

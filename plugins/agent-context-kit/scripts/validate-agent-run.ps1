@@ -1,3 +1,4 @@
+
 param(
     [Parameter(Mandatory = $true)]
     [string]$RunDirectory
@@ -86,13 +87,35 @@ foreach ($name in @("schemaVersion", "topic", "runMode", "retrospective", "autho
 
 $schemaVersion = [string](Get-PropertyValue $manifest "schemaVersion")
 $topic = [string](Get-PropertyValue $manifest "topic")
-if ($schemaVersion -ne "1.0") { Add-Issue "Unsupported schemaVersion '$schemaVersion'." }
+if (@("1.0", "1.1") -notcontains $schemaVersion) { Add-Issue "Unsupported schemaVersion '$schemaVersion'." }
+$isSchema11 = $schemaVersion -eq "1.1"
+if ($isSchema11) {
+    foreach ($name in @("modeHistory", "ownership", "lastMutationAt", "verificationRevision")) {
+        if (-not (Test-PropertyExists $manifest $name)) { Add-Issue "Schema 1.1 manifest is missing '$name'." }
+    }
+}
 if ([string]::IsNullOrWhiteSpace($topic)) { Add-Issue "Manifest topic must not be empty." }
 
 $runMode = [string](Get-PropertyValue $manifest "runMode")
 $retrospective = [bool](Get-PropertyValue $manifest "retrospective")
 if ($allowedModes -notcontains $runMode) { Add-Issue "Unsupported runMode '$runMode'." }
 if (($runMode -eq "retrospective") -ne $retrospective) { Add-Issue "runMode and retrospective flag are inconsistent." }
+if ($isSchema11) {
+    $modeHistory = @((Get-PropertyValue $manifest "modeHistory"))
+    if ($modeHistory.Count -eq 0) {
+        Add-Issue "Schema 1.1 requires a non-empty modeHistory."
+    } else {
+        $firstMode = [string](Get-PropertyValue $modeHistory[0] "mode")
+        if ($runMode -eq "multi-agent" -and $firstMode -ne "multi-agent") {
+            Add-Issue "multi-agent must be selected at run start; mid-run mode promotion is not valid P1 evidence."
+        }
+        foreach ($modeEntry in $modeHistory) {
+            foreach ($name in @("mode", "selectedAt", "reason")) {
+                if (-not (Test-PropertyExists $modeEntry $name)) { Add-Issue "A modeHistory entry is missing '$name'." }
+            }
+        }
+    }
+}
 
 $authorization = Get-PropertyValue $manifest "authorization"
 $multiAgentAuthorized = [bool](Get-PropertyValue $authorization "multiAgent")
@@ -160,6 +183,9 @@ foreach ($entry in $requiredReports.GetEnumerator()) {
     } else {
         if (-not (Test-IsoTimestamp $stageStartedAt)) { Add-Issue "Stage '$($entry.Key)' startedAt is invalid." }
         if (-not (Test-IsoTimestamp $stageCompletedAt)) { Add-Issue "Stage '$($entry.Key)' completedAt is invalid." }
+        if ($isSchema11 -and -not [string]::IsNullOrWhiteSpace($stageTimingReason)) {
+            Add-Issue "Schema 1.1 non-retrospective stage '$($entry.Key)' must use actual timestamps and an empty timingReason."
+        }
     }
 }
 
@@ -205,6 +231,39 @@ if ($runMode -eq "multi-agent") {
     if ($parallelActors -contains $verifierActor) { Add-Issue "Verifier must be independent from coder/template actors." }
 }
 
+if ($isSchema11) {
+    $ownership = @((Get-PropertyValue $manifest "ownership"))
+    $pathOwners = @{}
+    foreach ($entry in $ownership) {
+        foreach ($name in @("actor", "stage", "paths")) {
+            if (-not (Test-PropertyExists $entry $name)) { Add-Issue "An ownership entry is missing '$name'." }
+        }
+        $owner = [string](Get-PropertyValue $entry "actor")
+        foreach ($path in @((Get-PropertyValue $entry "paths"))) {
+            $pathText = [string]$path
+            if ([string]::IsNullOrWhiteSpace($pathText)) {
+                Add-Issue "Ownership paths must not be empty."
+            } elseif ($pathOwners.ContainsKey($pathText) -and $pathOwners[$pathText] -ne $owner) {
+                Add-Issue "Ownership path '$pathText' is assigned to both '$($pathOwners[$pathText])' and '$owner'."
+            } else {
+                $pathOwners[$pathText] = $owner
+            }
+        }
+    }
+
+    $lastMutationAt = Get-PropertyValue $manifest "lastMutationAt"
+    $verificationRevision = [string](Get-PropertyValue $manifest "verificationRevision")
+    if (-not (Test-IsoTimestamp $lastMutationAt)) { Add-Issue "Schema 1.1 lastMutationAt must be an ISO 8601 timestamp." }
+    if ([string]::IsNullOrWhiteSpace($verificationRevision)) { Add-Issue "Schema 1.1 verificationRevision must not be empty." }
+    if ($stageMap.ContainsKey("verifier")) {
+        $mutationTime = Convert-IsoTimestamp $lastMutationAt
+        $verifierStart = Convert-IsoTimestamp (Get-PropertyValue $stageMap["verifier"] "startedAt")
+        if ($null -ne $mutationTime -and $null -ne $verifierStart -and $mutationTime -gt $verifierStart) {
+            Add-Issue "Verifier starts before lastMutationAt; verification does not cover the final state."
+        }
+    }
+}
+
 foreach ($action in @((Get-PropertyValue $manifest "remoteActions")) | Where-Object { $null -ne $_ }) {
     foreach ($name in @("type", "write", "authorized")) {
         if (-not (Test-PropertyExists $action $name)) { Add-Issue "A remote action is missing '$name'." }
@@ -213,6 +272,14 @@ foreach ($action in @((Get-PropertyValue $manifest "remoteActions")) | Where-Obj
     $isAuthorized = [bool](Get-PropertyValue $action "authorized")
     if ($isWrite -and (-not $remoteWriteAuthorized -or -not $isAuthorized)) {
         Add-Issue "Remote write action requires run-level and action-level authorization."
+    }
+    if ($isSchema11 -and $isWrite) {
+        if ([string]::IsNullOrWhiteSpace([string](Get-PropertyValue $action "scope"))) {
+            Add-Issue "Schema 1.1 remote write action requires a non-empty scope."
+        }
+        if (@("translation-data-write", "business-code-deploy") -notcontains [string](Get-PropertyValue $action "authorizationCategory")) {
+            Add-Issue "Schema 1.1 remote write action requires a valid authorizationCategory."
+        }
     }
 }
 

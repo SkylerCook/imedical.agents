@@ -1,3 +1,4 @@
+
 # i18n-change Workflow
 
 `i18n-change` 是 IRIS 国际化需求处理的领域 workflow。它把 `i18n-workflow-decompose.md` 中的五阶段愿景落地为可执行的 canonical 流程。
@@ -44,6 +45,24 @@ docs/agent-reports/{ticket-or-topic}/
 - `multi-agent` 必须有明确授权；远程写入仍需单独授权。
 - 已选定本 workflow 后，agent/workflow registry 不再重复读取。
 - 运行结束后使用 `plugins/agent-context-kit/scripts/validate-agent-run.ps1` 对目录做只读机械验收。
+
+## Step 0：启动契约
+
+任何 Explorer 或代码修改开始前，Coordinator 必须完成以下事项：
+
+1. 选择运行模式并立即创建 `00-run-manifest.json`，不得在执行中途把串行运行事后包装成 `multi-agent`。
+2. 为每个 actor 声明互斥文件所有权；Backend、Frontend、Template/Seed 和 Verifier 的边界写入 manifest。
+3. 根据需求描述列出预计远程动作，并主动一次性询问当前运行授权：
+   - `translation-data-write`：新增页面翻译、缺失字典翻译、XML 语言模板新建、已明确列出的 CSP 翻译加载动作。
+   - `business-code-deploy`：前端上传、后端上传与编译。
+4. 用户在当前任务已明确授权时直接记录，不重复询问；未回答或拒绝时继续本地生成和只读验证。
+5. 一次授权只覆盖当前运行、当前配置目标环境和已列 scope。覆盖已有不同值、XML overwrite、删除、回滚、切换环境或扩大范围必须重新确认。
+
+推荐一次性询问文案：
+
+> 本需求可能需要把新增的页面/字典翻译和 XML 语言模板写入当前配置环境。是否授权本次运行在链路确认且本地校验通过后自动写入？仅新增、相同值跳过，不覆盖冲突、不删除；业务代码上传和编译单独授权。
+
+清晰的打印 i18n 需求在用户授权 `multi-agent` 后，应从 Step 0 就启动并行：定向 Explorer/Classifier 完成后，代码与 XML/Seed 在所有权不重叠时并行，独立 Verifier 在所有最终修改和远程写入完成后执行。
 
 ## 已批准计划快速路径
 
@@ -121,6 +140,7 @@ docs/agent-reports/{ticket-or-topic}/11-classifier.md
 3. 后端文件读取 `i18n_coding_backend.md`。
 4. 打印链路读取 `i18n_coding_print_backend.md`。
 5. 按分类清单改造，不扩大范围。
+6. GB2312 前端文件需要临时 UTF-8 工作副本时默认使用 `$env:TEMP`，不得默认写 `C:\tmp`；修改后按项目编码工具转回并复核 EOF/编码。
 
 `multi-agent` 模式下，Backend Coder 与 Frontend Coder 仅在文件所有权互不重叠时并行；存在重叠时由 Coordinator 改为串行。
 
@@ -184,6 +204,7 @@ docs/agent-reports/{ticket-or-topic}/22-template-seed.md
 3. 检查翻译表、种子、XML 模板和 fallback 行为。
 4. 在用户明确要求且工具可用时，执行编译、同步或服务器只读验证。
 5. 后端获得编译授权时，在 XML 远程保存前执行 fail-fast 编译；未获授权时执行 ObjectScript 条件分支结构检查并标记编译待验证。
+6. Verifier 之后如果发生任何代码、模板、翻译数据或报告结论变更，原验证立即失效，必须重新运行独立 Verifier 并刷新 summary。
 
 输出：
 

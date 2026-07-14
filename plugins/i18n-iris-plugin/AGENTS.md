@@ -12,7 +12,7 @@
 - 前端编码必须复用 coding-iris profile 的 `standard-gb2312` / `project-utf8` 模式；实际文件字节检测是最终门禁。
 - 涉及项目差异时读取目标工程 `.agents/config/i18n_project_profile.md`。
 - 涉及服务器操作时读取目标工程 `.mcp.json`。
-- 默认先做只读提取、生成和 report-only 校验；写入本地种子文件、上传、编译、加载翻译必须由用户明确要求。
+- 默认先做只读提取、生成和 report-only 校验；远程翻译数据写入与业务代码部署必须分别获得当前运行、目标环境和明确 scope 的授权，扩大范围、覆盖、删除或回滚需重新确认。
 - 页面级翻译默认使用 `^websys.TranslationD("PAGE",...)`，字典翻译默认使用 `BDP_Translation`；只有目标工程已有不同机制时才在 profile 中覆盖。
 
 ## Skill 路由

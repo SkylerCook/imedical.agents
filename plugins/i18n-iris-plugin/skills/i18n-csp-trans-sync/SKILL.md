@@ -1,3 +1,4 @@
+
 ---
 name: i18n-csp-trans-sync
 description: Use when exporting, verifying, or explicitly syncing page-level translations between an IRIS server and the project-configured local page translation seed file.
@@ -109,7 +110,7 @@ description: Use when exporting, verifying, or explicitly syncing page-level tra
 目标：根据用户指定方向同步差异。
 
 - `server-wins`：服务器为准，更新本地种子文件。
-- `local-wins`：本地为准，生成服务器写入计划；执行写入前必须再次确认任务要求。
+- `local-wins`：本地为准，生成服务器写入计划；当前 run manifest 的 `translation-data-write` scope 已覆盖页面、语言、上传、编译和加载动作时直接执行，不重复询问，否则执行前确认。
 - `report-only`：只报告，不修改。
 
 默认不得修改本地种子文件或服务器数据，除非用户明确要求同步方向。
@@ -153,7 +154,7 @@ description: Use when exporting, verifying, or explicitly syncing page-level tra
 
 ## 部署
 
-只有用户明确要求部署时才执行：
+只有当前运行已有显式部署授权时才执行。授权应由 Coordinator 在需求启动时主动收集；manifest 已覆盖同一 scope 时不重复询问：
 
 1. 使用 `.mcp.json` 对应的 SFTP 能力上传本地种子文件。
 2. 使用 `.mcp.json` 对应的 IRIS 编译能力编译种子类。
@@ -166,4 +167,4 @@ description: Use when exporting, verifying, or explicitly syncing page-level tra
 - 若某个 MCP 工具不会自动读取 `.mcp.json` 中的 namespace，执行时必须显式传入从 `.mcp.json` 解析到的 namespace。
 - 若 global 读取工具对源语言下标不可靠，改用 `iris.executeCommand` 并输出可审查的命令。
 - 若文档加载工具存在路径映射风险，优先使用 project profile 指定的部署链路。
-- 修改本地种子文件前必须备份；部署服务器前必须说明将执行的上传、编译和加载动作。
+- 修改本地种子文件前必须备份；需求启动时必须说明可能执行的上传、编译和加载动作。已有授权不覆盖冲突覆盖、删除、回滚、环境变化或 scope 扩大。

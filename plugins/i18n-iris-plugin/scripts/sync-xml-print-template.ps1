@@ -1,3 +1,4 @@
+
 param(
     [string]$ProjectRoot = ".",
     [string[]]$TemplateNames = @(),
@@ -283,6 +284,15 @@ function Send-McpNotification($Client, [string]$Method, $Params) {
     $stdin.Flush()
 }
 
+function Set-ProcessEnvironmentValue($ProcessStartInfo, [string]$Name, [string]$Value) {
+    $environmentProperty = $ProcessStartInfo.PSObject.Properties["Environment"]
+    if ($null -ne $environmentProperty -and $null -ne $environmentProperty.Value) {
+        $environmentProperty.Value[$Name] = $Value
+        return
+    }
+    $ProcessStartInfo.EnvironmentVariables[$Name] = $Value
+}
+
 function Start-McpClient([string]$ConfigPath, [string]$ServerName) {
     $config = Get-Content $ConfigPath -Raw | ConvertFrom-Json
     $server = $config.mcpServers.$ServerName
@@ -325,10 +335,7 @@ function Start-McpClient([string]$ConfigPath, [string]$ServerName) {
     $psi.RedirectStandardInput = $true
     $psi.RedirectStandardOutput = $true
     foreach ($p in $server.env.PSObject.Properties) {
-        if ($psi.PSObject.Properties.Name -contains "Environment") {
-            $psi.Environment[$p.Name] = [string]$p.Value
-        }
-        $psi.EnvironmentVariables[$p.Name] = [string]$p.Value
+        Set-ProcessEnvironmentValue $psi $p.Name ([string]$p.Value)
     }
 
     $proc = [System.Diagnostics.Process]::Start($psi)
