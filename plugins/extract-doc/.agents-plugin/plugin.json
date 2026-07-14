@@ -1,0 +1,18 @@
+{
+  "name": "extract-doc",
+  "version": "0.1.0",
+  "displayName": "Extract Doc Plugin",
+  "description": "Reusable document ingestion workflow for converting PDF, DOC, DOCX, XLS, and XLSX files into Markdown plus structured JSON artifacts without loading full documents into conversation context.",
+  "entry": "AGENTS.md",
+  "rules": "rules/",
+  "skills": "skills/",
+  "scripts": "scripts/",
+  "initSkill": "extract-doc-ingest",
+  "requiresProjectFiles": [
+    "AGENTS.md"
+  ],
+  "defaultPrompt": [
+    "Check parser availability for this document",
+    "Extract this document into Markdown and structured JSON artifacts"
+  ]
+}

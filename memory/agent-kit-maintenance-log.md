@@ -9,6 +9,8 @@
 
 ## 近期已完成
 
+- 2026-07-13：已修正 `coding-iris-plugin` 对 ObjectScript 命令后条件的空格约束：明确命令、冒号和完整复合条件必须连续书写，新增 `continue:(cond1)&&(cond2)` 正例与 `continue:(cond1) && (cond2)` 的 `#1012` 反例，并将检查项同步到后端 skill、插件 README 和专项回归测试。
+
 - 2026-07-01：已修正 AI 落地项目安装入口闭环：README 不再要求首次安装前读取尚不存在的 `.agents/docs/update-agents.md`，而是先按 `.agents/` 状态分流并给出明确网络安装命令；`install-agents.ps1` 在业务项目缺少 `AGENTS.md` 时改为提示而非阻塞，`update-agents.ps1` 将 `agents-entry-missing` 降为后续项目上下文维护提示；`docs/update-agents.md` 和 `scripts/tests/update-agents.tests.ps1` 已同步。
 
 - 2026-07-01：已补齐近期医生站能力插件维护记录和仓库 README 总览：新增 `imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design` 三个插件的能力摘要、入口和部署边界说明；同步记录 install/update Git 版本前置校验。上述插件仍遵循 `.agents/plugins/**` 全量拉取但以 `plugin_profile.md` 控制启用的边界。

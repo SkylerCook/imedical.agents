@@ -39,6 +39,7 @@ related:
 - CSP 页面命名、JS 路径、CSS 路径以目标工程 profile 为准。
 - `<Server>` 块只处理页面渲染前必要参数，不承载复杂业务逻辑。
 - `#(variable)#` 和 `##(expression)##` 的转义语义需按 CSP 实际语义使用。
+- 开发模板参考 `./templates/csp-template.md`。
 
 ## 页面布局
 

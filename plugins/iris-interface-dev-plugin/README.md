@@ -1,13 +1,11 @@
 # iris-interface-dev-plugin
 
-`iris-interface-dev-plugin` 是面向 IRIS 接口开发的文档优先能力包。v1 只做解析审计优先链路：接口文档转换为 Markdown、结构化字段抽取、字段匹配诊断、开发计划和离线审查。
+`iris-interface-dev-plugin` 是面向 IRIS 接口开发的文档优先能力包。v1 只做解析审计优先链路：读取 `extract-doc` 生成的接口文档解析产物、字段匹配诊断、开发计划和离线审查。
 
 ## 能力范围
 
-- 支持 DOCX、PDF、XLSX 的脚本优先解析；安装 `xlrd` 后支持 XLS；`.doc` 通过可选转换器降级处理。
-- XLSX/XLS 多 sheet 会按 sheet 拆成独立字段视图，避免只解析首个工作表。
-- 可选使用 MarkItDown 生成辅助 Markdown，不 vendor 第三方源码。
-- 所有解析产物写入 `docs/output/iris-interface/<doc-name>/`。
+- 接口文档解析入口由本插件的 `iris-interface-doc-ingest` skill 承担，实际文档读取、格式转换和结构化抽取委托 `extract-doc`。
+- 接口解析产物约定写入 `docs/output/iris-interface/<doc-name>/`。
 - 生成 `source.md`、`parsed.json`、`fields.md`、`diagnostics.md`；字段匹配阶段生成 `field-match.json` 和 `field-match.md`。
 - `parsed.json` 使用 `iris-interface-doc-ingest/v2` schema；字段除保留 v1/v1.2 规范字段外，还包含 `rawColumns`、`sourceLocation`、`classification`、`confidence`、`warnings`、`requiredReason` 和 `jsonPathReason`。
 - 通过 skill 将 IRIS 编码实现交给 `coding-iris-plugin`。
@@ -39,12 +37,14 @@ docs/output/iris-interface/<doc-name>/
 `-- field-match.md
 ```
 
-命令示例：
+文档解析命令示例：
 
 ```powershell
-python .agents/plugins/iris-interface-dev-plugin/scripts/iris-interface-doc-ingest.py `
+python .agents/plugins/extract-doc/scripts/extract-doc-ingest.py `
   --file docs/input/interface.xlsx `
-  --project-root .
+  --project-root . `
+  --output-root docs/output/iris-interface `
+  --schema-version iris-interface-doc-ingest/v2
 
 python .agents/plugins/iris-interface-dev-plugin/scripts/iris-interface-field-match.py `
   --parsed docs/output/iris-interface/interface/parsed.json `
@@ -55,9 +55,9 @@ python .agents/plugins/iris-interface-dev-plugin/scripts/iris-interface-field-ma
 
 ## 推荐解析流程
 
-1. 先运行环境自检，按文件类型确认缺失依赖和可用降级路径。
-2. 如提示缺少可选依赖，按 `requirements-optional.txt` 安装；插件不自动安装依赖。
-3. 再运行 `iris-interface-doc-ingest.py`，让脚本按 PDF/DOCX/XLSX/XLS/DOC 分支落盘生成结果。
+1. 先运行 `extract-doc` 环境自检，按文件类型确认缺失依赖和可用降级路径。
+2. 如提示缺少可选依赖，按 `extract-doc/requirements-optional.txt` 安装；插件不自动安装依赖。
+3. 再运行 `extract-doc-ingest.py`，让脚本按 PDF/DOCX/XLSX/XLS/DOC 分支落盘生成结果。
 4. 运行 `iris-interface-field-match.py` 生成字段匹配摘要；如有项目本地反馈，只通过 `--feedback` 读取目标项目本地 JSON。
 5. 只读取命令摘要、`diagnostics.md`、`field-match.md`、`parsed.json` 指标和必要的 `fields.md` 片段；不要把转换后的全文塞入会话上下文。
 ## 环境自检与可选依赖安装
@@ -65,13 +65,13 @@ python .agents/plugins/iris-interface-dev-plugin/scripts/iris-interface-field-ma
 先检查当前 Python 是否能解析目标文档：
 
 ```powershell
-python .agents/plugins/iris-interface-dev-plugin/scripts/iris-interface-env-check.py --file docs/input/interface.pdf --strict
+python .agents/plugins/extract-doc/scripts/extract-doc-env-check.py --file docs/input/interface.pdf --strict
 ```
 
 如提示缺少 Python 依赖，再安装可选解析器：
 
 ```powershell
-python -m pip install -r .agents/plugins/iris-interface-dev-plugin/requirements-optional.txt
+python -m pip install -r .agents/plugins/extract-doc/requirements-optional.txt
 ```
 
 - 不安装依赖时，XLSX 仍可走标准库解析。
@@ -100,4 +100,4 @@ python .agents/plugins/iris-interface-dev-plugin/scripts/iris-interface-review.p
 .agents/plugins/iris-interface-dev-plugin/skills/iris-interface-init/SKILL.md
 ```
 
-本插件依赖 `coding-iris-plugin`。如果目标项目未启用 coding 插件，本插件只执行文档解析和字段诊断，不进入 IRIS 编码实现。
+本插件依赖 `extract-doc` 和 `coding-iris-plugin`。如果目标项目未启用 coding 插件，本插件只执行文档解析委托、解析产物读取和字段诊断，不进入 IRIS 编码实现。

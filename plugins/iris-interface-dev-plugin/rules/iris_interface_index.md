@@ -13,7 +13,7 @@ related:
 
 ## 路由
 
-- 接口文档转换、Markdown 落盘、结构化 JSON：使用 `iris-interface-doc-ingest`。
+- 接口文档转换、Markdown 落盘、结构化 JSON：使用 `iris-interface-doc-ingest`，该 skill 委托 `extract-doc` 执行实际解析。
 - 字段匹配覆盖率、未匹配字段和人工反馈草稿：使用 `iris-interface-field-match`。
 - 接口实现计划和编码交接：使用 `iris-interface-dev-plan`。
 - ObjectScript 编码、审查、上传、编译、部署：转交 `coding-iris-plugin`。

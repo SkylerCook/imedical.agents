@@ -2,7 +2,7 @@
   "name": "iris-interface-dev-plugin",
   "version": "0.1.0",
   "displayName": "IRIS Interface Dev Plugin",
-  "description": "Document-first interface development workflow for IRIS projects, focused on Markdown landing, structured extraction, field matching diagnostics, and handoff to coding-iris-plugin.",
+  "description": "Document-first interface development workflow for IRIS projects, focused on parsed document handoff, field matching diagnostics, implementation planning, and handoff to coding-iris-plugin.",
   "entry": "AGENTS.md",
   "rules": "rules/",
   "references": "references/",
@@ -11,6 +11,7 @@
   "scripts": "scripts/",
   "initSkill": "iris-interface-init",
   "dependencies": [
+    "extract-doc",
     "coding-iris-plugin"
   ],
   "requiresProjectFiles": [
@@ -20,7 +21,7 @@
   ],
   "defaultPrompt": [
     "Initialize IRIS interface document development support",
-    "Ingest this interface document and write Markdown plus parsed JSON outputs",
+    "Ingest this interface document with extract-doc and write Markdown plus parsed JSON outputs",
     "Diagnose field matching coverage for this parsed interface document",
     "Create an implementation plan for this interface and hand off coding to coding-iris-plugin",
     "Review generated interface artifacts for field coverage and dot-loop risks"

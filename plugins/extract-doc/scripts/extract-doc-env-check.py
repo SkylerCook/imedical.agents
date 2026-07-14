@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check optional parser dependencies for iris-interface-dev-plugin."""
+"""Check optional parser dependencies for extract-doc."""
 
 from __future__ import annotations
 
@@ -20,8 +20,8 @@ MODULES = {
 }
 
 TOOLS = ["soffice", "libreoffice", "pandoc"]
-INSTALL_COMMAND = "python -m pip install -r .agents/plugins/iris-interface-dev-plugin/requirements-optional.txt"
-LOCAL_INSTALL_COMMAND = "python -m pip install -r plugins/iris-interface-dev-plugin/requirements-optional.txt"
+INSTALL_COMMAND = "python -m pip install -r .agents/plugins/extract-doc/requirements-optional.txt"
+LOCAL_INSTALL_COMMAND = "python -m pip install -r plugins/extract-doc/requirements-optional.txt"
 
 
 def has_module(module_name: str) -> bool:
@@ -143,7 +143,7 @@ def markdown_report(report: dict[str, Any]) -> str:
 
 
 def parse_args(argv: Iterable[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Check optional dependencies for IRIS interface document parsing.")
+    parser = argparse.ArgumentParser(description="Check optional dependencies for document parsing.")
     parser.add_argument("--file", action="append", default=[], help="Document path to check. Can be specified multiple times.")
     parser.add_argument("--json", action="store_true", help="Print JSON instead of Markdown.")
     parser.add_argument("--strict", action="store_true", help="Exit with code 1 when any specified file is not ready.")

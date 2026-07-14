@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Parse interface documents into Markdown and structured artifacts."""
+"""Parse documents into Markdown and structured artifacts."""
 
 from __future__ import annotations
 
@@ -610,7 +610,7 @@ def parse_xls(path: Path) -> tuple[str, list[View], list[str], str]:
     try:
         import xlrd
     except ImportError as exc:
-        raise RuntimeError("XLS 解析需要 xlrd；请先运行 iris-interface-env-check.py 查看安装建议，或手动另存为 XLSX") from exc
+        raise RuntimeError("XLS 解析需要 xlrd；请先运行 extract-doc-env-check.py 查看安装建议，或手动另存为 XLSX") from exc
 
     workbook = xlrd.open_workbook(str(path))
     markdown_parts = [f"# {path.name}", ""]
@@ -786,7 +786,7 @@ def parse_docx(path: Path) -> tuple[str, list[View], list[str], str]:
     try:
         import docx
     except ImportError as exc:
-        raise RuntimeError("缺少 python-docx，无法解析 DOCX；请先运行 iris-interface-env-check.py 查看安装建议") from exc
+        raise RuntimeError("缺少 python-docx，无法解析 DOCX；请先运行 extract-doc-env-check.py 查看安装建议") from exc
 
     document = docx.Document(str(path))
     markdown_parts = [f"# {path.name}", ""]
@@ -971,7 +971,7 @@ def parse_document(path: Path) -> tuple[str, list[View], list[str], str]:
     raise RuntimeError(f"不支持的文件类型: {suffix}")
 
 
-def artifact_json(source: Path, doc_name: str, views: list[View], diagnostics: list[str], converter: str) -> dict[str, Any]:
+def artifact_json(source: Path, doc_name: str, views: list[View], diagnostics: list[str], converter: str, schema_version: str) -> dict[str, Any]:
     view_dicts = []
     total_fields = 0
     for view in views:
@@ -980,7 +980,7 @@ def artifact_json(source: Path, doc_name: str, views: list[View], diagnostics: l
         view_dicts.append({"viewCode": view.viewCode, "viewName": view.viewName, "fields": fields})
 
     return {
-        "schemaVersion": "iris-interface-doc-ingest/v2",
+        "schemaVersion": schema_version,
         "sourceFile": str(source),
         "documentName": doc_name,
         "converter": converter,
@@ -1043,13 +1043,13 @@ def diagnostics_markdown(parsed: dict[str, Any]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
-def write_artifacts(source: Path, project_root: Path, output_root: str) -> dict[str, Path]:
+def write_artifacts(source: Path, project_root: Path, output_root: str, schema_version: str) -> dict[str, Path]:
     markdown, views, diagnostics, converter = parse_document(source)
     doc_name = slugify(source)
     out_dir = project_root / output_root / doc_name
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    parsed = artifact_json(source, doc_name, views, diagnostics, converter)
+    parsed = artifact_json(source, doc_name, views, diagnostics, converter, schema_version)
     paths = {
         "source": out_dir / "source.md",
         "parsed": out_dir / "parsed.json",
@@ -1064,10 +1064,11 @@ def write_artifacts(source: Path, project_root: Path, output_root: str) -> dict[
 
 
 def parse_args(argv: Iterable[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Parse interface document artifacts to disk.")
+    parser = argparse.ArgumentParser(description="Parse document artifacts to disk.")
     parser.add_argument("--file", required=True, help="Source DOCX/PDF/XLSX/DOC file")
     parser.add_argument("--project-root", default=".", help="Target project root")
-    parser.add_argument("--output-root", default="docs/output/iris-interface", help="Output root relative to project root")
+    parser.add_argument("--output-root", default="docs/output/extract-doc", help="Output root relative to project root")
+    parser.add_argument("--schema-version", default="extract-doc/v1", help="Schema version written to parsed.json")
     return parser.parse_args(argv)
 
 
@@ -1080,12 +1081,12 @@ def main(argv: Iterable[str]) -> int:
         return 2
 
     try:
-        paths = write_artifacts(source, project_root, args.output_root)
+        paths = write_artifacts(source, project_root, args.output_root, args.schema_version)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
-    print("iris-interface-doc-ingest completed")
+    print("extract-doc-ingest completed")
     for key in ["source", "parsed", "fields", "diagnostics"]:
         print(f"{key}: {paths[key]}")
     return 0

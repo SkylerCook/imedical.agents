@@ -188,6 +188,8 @@ $runbookPath = Join-Path $repoRoot "docs/update-agents.md"
 $readmePath = Join-Path $repoRoot "README.md"
 $contextSkillPath = Join-Path $repoRoot "plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md"
 $installScriptPath = Join-Path $repoRoot "scripts/install-agents.ps1"
+$irisBackendRulePath = Join-Path $repoRoot "plugins/coding-iris-plugin/rules/iris_coding_backend.md"
+$irisBackendSkillPath = Join-Path $repoRoot "plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md"
 Assert-True (Test-Path -LiteralPath $runbookPath -PathType Leaf) "docs/update-agents.md should exist"
 Assert-True (Test-Path -LiteralPath $readmePath -PathType Leaf) "README.md should exist"
 $updateScriptContent = Get-Content -Raw -Encoding UTF8 -Path $scriptUnderTest
@@ -229,6 +231,13 @@ Assert-Contains $contextSkillContent "docs/update-agents.md" "project-context-ma
 Assert-Contains $contextSkillContent "depends_on" "project-context-maintenance should guide plugin enablement after context maintenance"
 Assert-Contains $contextSkillContent "dependencies" "project-context-maintenance should read plugin manifest dependencies before enabling plugins"
 Assert-Contains $contextSkillContent "update-plugin-profile.ps1" "project-context-maintenance should use update-plugin-profile.ps1 after init validation"
+$irisBackendRuleContent = Get-Content -Raw -Encoding UTF8 -Path $irisBackendRulePath
+$irisBackendSkillContent = Get-Content -Raw -Encoding UTF8 -Path $irisBackendSkillPath
+Assert-Contains $irisBackendRuleContent 'continue:(episodeId''="")&&(appEpisode''=episodeId)' "IRIS backend rule should show a valid compound postconditional without spaces"
+Assert-Contains $irisBackendRuleContent 'continue:(episodeId''="") && (appEpisode''=episodeId)' "IRIS backend rule should retain the invalid spaced form as a regression example"
+Assert-Contains $irisBackendRuleContent '#1012 Expected EOL or spaces' "IRIS backend rule should identify the compiler error caused by a spaced postconditional"
+Assert-Contains $irisBackendSkillContent 'continue:(cond1)&&(cond2)' "IRIS backend skill should require contiguous compound postconditionals"
+Assert-Contains $irisBackendSkillContent 'continue:(cond1) && (cond2)' "IRIS backend skill should reject spaced compound postconditionals"
 
 $missingAgentsEntryProjectRoot = New-TestProject
 try {
