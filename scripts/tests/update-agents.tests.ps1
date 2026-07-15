@@ -9,6 +9,8 @@ $skillDependencyResolverUnderTest = Join-Path $repoRoot "scripts/resolve-plugin-
 $checkFunctionalDiffScriptUnderTest = Join-Path $repoRoot "scripts/check-functional-diff.ps1"
 $installGitHooksScriptUnderTest = Join-Path $repoRoot "scripts/install-git-hooks.ps1"
 $preCommitHookUnderTest = Join-Path $repoRoot "hooks/pre-commit"
+$irisMcpHelperUnderTest = Join-Path $repoRoot "scripts/iris-mcp.js"
+$irisAgenticRuleUnderTest = Join-Path $repoRoot "plugins/coding-iris-plugin/rules/iris_agentic_dev.md"
 
 function Assert-True {
   param(
@@ -250,6 +252,7 @@ Assert-Contains $updateScriptContent "/agents/**" "update sparse checkout should
 Assert-Contains $updateScriptContent "/workflows/**" "update sparse checkout should include workflows"
 Assert-Contains $updateScriptContent "/feedback/**" "update sparse checkout should include feedback"
 Assert-Contains $updateScriptContent "/hooks/**" "update sparse checkout should include hooks"
+Assert-Contains $updateScriptContent "/scripts/iris-mcp.js" "update sparse checkout should deploy the MCP helper"
 Assert-Contains $updateScriptContent "!/skills/agent-kit-maintenance/" "update sparse checkout should exclude maintenance-only skill directory"
 Assert-Contains $updateScriptContent "!/skills/agent-kit-maintenance/**" "update sparse checkout should exclude maintenance-only skill"
 Assert-Contains $updateScriptContent '"/work/"' "update should ignore local staging work directory"
@@ -264,6 +267,13 @@ Assert-Contains $installScriptContent "/agents/**" "install sparse checkout shou
 Assert-Contains $installScriptContent "/workflows/**" "install sparse checkout should include workflows"
 Assert-Contains $installScriptContent "/feedback/**" "install sparse checkout should include feedback"
 Assert-Contains $installScriptContent "/hooks/**" "install sparse checkout should include hooks"
+Assert-Contains $installScriptContent "/scripts/iris-mcp.js" "install sparse checkout should deploy the MCP helper"
+Assert-True (Test-Path -LiteralPath $irisMcpHelperUnderTest -PathType Leaf) "iris-mcp.js helper should exist at the deployed canonical path"
+$irisAgenticRuleContent = Get-Content -Raw -Encoding UTF8 -LiteralPath $irisAgenticRuleUnderTest
+Assert-Contains $irisAgenticRuleContent 'SELECT 1 AS Probe' "MCP diagnostics should use a real query probe"
+Assert-Contains $irisAgenticRuleContent 'config_file=null' "MCP diagnostics should define the auto-discovery null-config boundary"
+Assert-Contains $irisAgenticRuleContent 'HTTP 404/405' "MCP diagnostics should not expand one endpoint failure to the whole MCP"
+Assert-Contains $irisAgenticRuleContent 'mcp__iris_agentic_dev__*' "MCP diagnostics should prefer native tools before the helper"
 Assert-Contains $installScriptContent "!/skills/agent-kit-maintenance/" "install sparse checkout should exclude maintenance-only skill directory"
 Assert-True (-not $installScriptContent.Contains("core.hooksPath")) "install must not enable git hooks automatically"
 Assert-Contains $updateScriptContent "git-hooks-not-enabled" "update should report hook availability without enabling hooks"

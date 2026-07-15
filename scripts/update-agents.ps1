@@ -28,7 +28,8 @@ $runtimeSparsePaths = @(
   "/vendor/**",
   "/feedback/**",
   "/hooks/**",
-  "/scripts/*.ps1"
+  "/scripts/*.ps1",
+  "/scripts/iris-mcp.js"
 )
 
 $agentsLocalExcludePatterns = @(

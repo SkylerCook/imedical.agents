@@ -6,7 +6,7 @@
 
 - `skills/project-context-maintenance/`：初始化和维护项目上下文的主流程。
 - `scripts/generate-plugin-thin-index.ps1`：thin-index 生成 wrapper，实际委托根 `scripts/generate-plugin-thin-index.ps1`。
-- `scripts/validate-agent-run.ps1`：事后校验 schema 1.1 Agent 运行 manifest、阶段 handoff、模式历史、文件所有权、验证新鲜度、分类远程授权、失败收敛、脱敏和并行效率；不执行调度或远程动作。
+- `scripts/validate-agent-run.ps1`：事后校验 schema 1.2 Agent 运行 manifest、阶段 attempts、capability matrix、文件所有权、远程动作终态、finalization、验证新鲜度、失败收敛、脱敏和并行效率，并兼容 1.0/1.1 历史产物；不执行调度或远程动作。
 - `templates/`：`AGENTS.md` 完整模板和片段、运行 manifest、项目规则、项目记忆、项目上下文配置的初始化模板。
 
 ## 上下文模式

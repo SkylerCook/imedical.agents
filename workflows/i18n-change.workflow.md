@@ -55,14 +55,24 @@ docs/agent-reports/{ticket-or-topic}/
 3. 根据需求描述列出预计远程动作，并主动一次性询问当前运行授权：
    - `translation-data-write`：新增页面翻译、缺失字典翻译、XML 语言模板新建、已明确列出的 CSP 翻译加载动作。
    - `business-code-deploy`：前端上传、后端上传与编译。
+   - `tool-internal-execution`：仅用于已列出的只读核验或翻译操作所需、自清理的临时执行载体；不授权上传命名业务类。
 4. 用户在当前任务已明确授权时直接记录，不重复询问；未回答或拒绝时继续本地生成和只读验证。
 5. 一次授权只覆盖当前运行、当前配置目标环境和已列 scope。覆盖已有不同值、XML overwrite、删除、回滚、切换环境或扩大范围必须重新确认。
+6. 预计存在远程动作时，在派发写入相关角色前完成 MCP capability preflight，并把 `query`、`execute`、`document` 等本次实际需要的能力写入 manifest；不需要的能力标记 `not-required`。
 
 推荐一次性询问文案：
 
 > 本需求可能需要把新增的页面/字典翻译和 XML 语言模板写入当前配置环境。是否授权本次运行在链路确认且本地校验通过后自动写入？仅新增、相同值跳过，不覆盖冲突、不删除；业务代码上传和编译单独授权。
 
 清晰的打印 i18n 需求在用户授权 `multi-agent` 后，应从 Step 0 就启动并行：定向 Explorer/Classifier 完成后，代码与 XML/Seed 在所有权不重叠时并行，独立 Verifier 在所有最终修改和远程写入完成后执行。
+
+### MCP capability preflight
+
+1. `check_config` 只核对目标定位，不作为网络连通证明。
+2. 立即执行 `iris_query("SELECT 1 AS Probe")`。探针成功时继续；`connection_source=auto_discovered` 且 `config_file=null` 不构成失败。
+3. 只有真实探针失败时才重启一次 MCP 会话并复测。单次 404/405 或单一工具失败只影响对应 capability，不得扩大为整个 MCP 不可用。
+4. 查询仍失败且本次已授权 `tool-internal-execution` 时，可使用会自清理的 `iris_execute` + `%SQL.Statement` 只读降级；否则只阻塞 SQL capability。
+5. 在编码前只读预扫描目标语言、源/目标 XML、页面翻译冲突和必要字典项。相同值记 `skipped-same`；既有不同值完成分类后记终态 `blocked`；瞬时故障记非终态 `suspended`。
 
 ## 已批准计划快速路径
 
@@ -187,6 +197,12 @@ docs/agent-reports/{ticket-or-topic}/22-template-seed.md
 - 除明确且有限的引号修正外，不重复尝试等价长脚本；立即切换为项目已有保存接口，或 Base64 短调用分块写临时 Global、短调用合并保存、清理、一次只读验收。
 - 同一失败签名的等价重试不得超过 1 次；`retrospective` 可记录历史违规，但不得在复盘中重演。
 
+### 暂停与恢复
+
+- schema 1.2 阶段使用 `attempts[]` 记录每次真实执行。瞬时网络、额度、MCP 会话或工具路由故障结束当前 attempt 为 `suspended`；恢复时追加新 attempt，不创建 `template-seed-resume` 等临时阶段。
+- `suspended` 是非终态，运行保持开放，不得启动 Verifier 或生成最终 Summary。翻译冲突、字典缺失等在只读分类完成后可记终态 `blocked`。
+- 子 Agent 进入错误模式、120 秒无心跳或未输出约定产物时只替换一次；再次失败由 Coordinator 记录阻塞，不反复创建 Agent。
+
 ## 阶段 5：Verifier
 
 目标：验证改造结果，输出通过项、问题和残余风险。
@@ -204,7 +220,8 @@ docs/agent-reports/{ticket-or-topic}/22-template-seed.md
 3. 检查翻译表、种子、XML 模板和 fallback 行为。
 4. 在用户明确要求且工具可用时，执行编译、同步或服务器只读验证。
 5. 后端获得编译授权时，在 XML 远程保存前执行 fail-fast 编译；未获授权时执行 ObjectScript 条件分支结构检查并标记编译待验证。
-6. Verifier 之后如果发生任何代码、模板、翻译数据或报告结论变更，原验证立即失效，必须重新运行独立 Verifier 并刷新 summary。
+6. 仅当 `finalization.ready=true` 时启动 Verifier：所有已授权远程动作均为终态、没有 suspended attempt，且业务代码、本地 i18n 产物和已授权远程读回均已冻结。
+7. `verification.scope` 固定覆盖 `business-code`、`local-i18n-artifacts`、`authorized-remote-readback`。这些范围在 Verifier 后发生修改会使结论失效；manifest、阶段报告、summary、feedback 和维护文档不计入业务验证版本。
 
 输出：
 
@@ -228,6 +245,7 @@ Root Coordinator
 - Template/Seed actor 默认只生成本地产物；远程保存由 Coordinator 串行执行。
 - 子 Agent 只读取 handoff 指定的 profile、skill 和专项规则；同一 actor 不重复读取同一规则。
 - Verifier 必须独立于所有 Coder。
+- Coordinator 必须先完成 finalization 门禁，再派发 Independent Verifier；不得用“稍后补远程写入”作为提前验证的理由。
 
 ## 条件分支
 
@@ -253,5 +271,6 @@ Root Coordinator
 - 代码改造只覆盖分类清单确认项。
 - XML 模板或翻译种子只在条件满足时处理。
 - 验证报告列出已执行检查、未执行原因和残余风险。
+- schema 1.2 的 attempts、capabilities、remote action 终态、finalization 和 verification scope 已完整记录。
 - `00-run-manifest.json` 与阶段报告通过事后机械校验。
 - 如果对框架文件做了修正，调用 `skills/agent-framework-feedback/SKILL.md` 生成反馈条目。

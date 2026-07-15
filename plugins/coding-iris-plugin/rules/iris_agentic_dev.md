@@ -34,7 +34,7 @@ related:
 
 - `iris_doc mode=put/delete`：写入或删除 IRIS 文档。仅在用户明确要求时使用；`put` 适用于 `.cls/.mac/.inc` 等 IRIS 文档，不用于 CSP 上传。
 - `iris_compile`：编译类、例程或包。部署冒烟检查优先使用 `flags="cuk /checkuptodate=expandedonly"`。
-- `iris_execute`：执行 ObjectScript。即使代码看似只读，工具内部也可能创建临时生成类；必须检查返回 status 和 stdout，不能只看传输成功。
+- `iris_execute`：执行 ObjectScript。即使代码看似只读，工具内部也可能创建临时生成类；必须检查返回 status 和 stdout，不能只看传输成功。已授权的只读核验或翻译操作可将这种自清理临时载体记录为 `tool-internal-execution`，它不等同于 `business-code-deploy`，也不得用于上传命名业务类。
 - `iris_source_control`：查看 SCM 状态/菜单或执行 checkout/action；checkout 和 action 属于状态变更。
 - `iris_test`：运行 `%UnitTest.Manager` 测试。
 
@@ -92,11 +92,12 @@ related:
 
 ## 诊断
 
-- `iris-mcp.js` 的定位是：一个给 Agent 用的 `iris-agentic-dev` 启动 + 健康检查 + `tools/call` 转发器。Agent 需要在未直接暴露 `mcp__iris_agentic_dev__*` 工具的环境中调用 MCP 时，优先使用目标工程本地 helper：`node .agents/scripts/iris-mcp.js check|tools|call ...`。该脚本只负责 MCP 启动、配置检测和 `tools/call` 转发，不替代 `iris_doc`、`iris_query` 等 MCP 工具自身能力。
-- 标准顺序：先运行 `node .agents/scripts/iris-mcp.js check`；如 `hostLoaded=false`、`namespaceIsDefaultUser=true`、`portIsDefault52773=true` 或 `connected=false`，停止业务调用并先处理配置加载。
+- 原生 `mcp__iris_agentic_dev__*` 工具优先。只有当前运行器没有暴露原生工具且目标工程确实存在 `.agents/scripts/iris-mcp.js` 时，才使用 `node .agents/scripts/iris-mcp.js check|tools|call ...`；helper 不存在时报告入口缺失，不得假定它已部署。
+- `check_config` 只说明配置解析结果，不发起 IRIS 网络调用。先确认目标 host、namespace 等定位是否合理，再立即执行 `iris_query("SELECT 1 AS Probe")` 作为最小无副作用网络探针。
+- 当 `connection_source=auto_discovered` 或环境变量发现已生效，且 `SELECT 1 AS Probe` 成功时，`config_file=null` 不构成配置失败，也不要求为了形式补 TOML 或强制热加载。
+- 查询成功即继续任务。只有真实探针失败时，才保留完整错误、重启一次 MCP 会话并复测；单次 HTTP 404/405 或单个工具失败不得扩大为“整个 MCP 不可用”。
+- 网络探针后按任务分别记录 `query`、`execute`、`document` 等 capability。某项失败只降级该项：`iris_query` 仍失败时，只有在 `tool-internal-execution` 已授权且临时载体自清理时，才可用 `iris_execute` + `%SQL.Statement` 只读降级；`iris_doc` 失败时可通过已验证的类或 Global 读取路径复核，不能直接断言文档不存在。
 - 只读调用示例：`node .agents/scripts/iris-mcp.js call iris_doc "{...}"`、`node .agents/scripts/iris-mcp.js call iris_query "{...}"`。写能力必须在用户明确要求后添加 `--allow-write`，并继续遵守部署/写入门禁。
-- 使用目标工程 MCP 提供的配置检查能力确认配置是否加载成功。
-- 若检查结果中配置文件为空但连接仍可用，说明工具可能回退到自动发现或环境变量，应检查 TOML 路径、编码和注释字符。
-- 若 `check_config` 返回 `config_file=null`、host 为空、namespace 为默认值或 web port 为默认 `52773`，优先判断为配置未加载或启动参数未传递，不要先按业务类缺失处理。
+- `connected=false`，或定位项明显仍是默认值且真实探针失败时，才优先处理配置加载；不要仅凭 `config_file=null` 阻塞业务调用。
 - 直接手写 JSON-RPC 或脚本调用 `iris_doc`、`iris_query`、`iris_execute` 时，显式传入目标 namespace；不要依赖工具 schema 的默认 `USER`。
 - 不把某个工程的 host、namespace 或端口写入插件规则。

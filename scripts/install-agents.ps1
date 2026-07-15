@@ -18,7 +18,8 @@ $sparsePaths = @(
   "/vendor/**",
   "/feedback/**",
   "/hooks/**",
-  "/scripts/*.ps1"
+  "/scripts/*.ps1",
+  "/scripts/iris-mcp.js"
 )
 
 # Hide project-local generated layers in the .agents Git repository.

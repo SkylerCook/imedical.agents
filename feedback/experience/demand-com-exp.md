@@ -213,6 +213,13 @@
 - **自动化状态**：`sync-xml-print-template.ps1` 已实现临时类 `<SYNTAX>` 识别、单次内联尝试、Base64 分块写入 `^CacheTemp`、短调用合并保存、`finally` 清理和一次只读验收；离线回归覆盖正常保存、fallback 成功及 fallback 失败清理。
 - **已回归/已提升**：`plugins/i18n-iris-plugin/skills/i18n-xml-print-template-sync/SKILL.md`、`plugins/i18n-iris-plugin/scripts/sync-xml-print-template.ps1`、`plugins/i18n-iris-plugin/scripts/tests/sync-xml-print-template.Tests.ps1`
 
+### 5.5 MCP 必须按当次真实能力探针判断
+- 需求: #6097891 | 命中: 1
+- **问题**：一次 `iris_query` HTTP 404 被扩大为整个 MCP 持续不可用，导致绕路排查和重复等待；后续不同运行器复测相同查询均成功。
+- **判断顺序**：先用 `check_config` 核对目标，再执行 `SELECT 1 AS Probe`。探针成功即继续；自动发现生效时 `config_file=null` 不构成失败。只有真实探针失败才重启一次会话并复测，单个 endpoint 失败只降级对应 capability。
+- **适用边界**：不弱化写入、部署或编译授权；能力降级仍必须遵守远程动作分类和敏感信息边界。
+- **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_agentic_dev.md`、`workflows/i18n-change.workflow.md`
+
 ---
 
 ## 六、i18n 前端编码与字典翻译 (i18n)
@@ -246,6 +253,13 @@
   - 翻译位置贴近原始字段来源（贴近原则）
 - **区分标准**：固定文案是代码中硬编码的文本；字典展示值是从 Global/SQL/持久类字段取出的原文。
 - **已覆盖**：`plugins/i18n-iris-plugin/rules/i18n_field_classification.md`、`plugins/i18n-iris-plugin/rules/i18n_coding_print_backend.md`
+
+### 6.6 远程动作终态前不得启动 Independent Verifier
+- 需求: #6097891 | 命中: 1
+- **问题**：Template/Seed 或远程翻译仍在恢复和冲突处理中就生成 Verifier/summary，后续修改使验证结论失效并造成整段流程重跑。
+- **规则**：瞬时故障以同一阶段的 `suspended` attempt 保持运行开放，恢复时追加 attempt；只有所有远程动作终态、无 suspended attempt 且验证范围冻结后，才设置 `finalization.ready=true` 并启动 Verifier。
+- **版本边界**：业务代码、本地 i18n 产物和授权远程读回属于 verification scope；manifest、报告、summary 和 feedback 不属于业务验证版本。
+- **已回归/已提升**：`agents/i18n-agent/AGENT.md`、`workflows/i18n-change.workflow.md`、`plugins/agent-context-kit/scripts/validate-agent-run.ps1`
 
 ### 6.3 新增字典翻译方法的规范
 - 需求: #6096272 | 命中: 1
@@ -325,7 +339,7 @@
 | #6990066 | 材料字典排序功能 | [1.1](#11-新增字段必须追加到末尾), [1.2](#12-sql-语句同步), [1.3](#13-查询排序中-null-值处理), [1.4](#14-getcustomrows-支持-order-by), [2.1](#21-插入列后-editor-索引偏移), [2.2](#22-可编辑列-vs-仅展示列), [3.1](#31-明确排序的作用范围), [3.2](#32-参考已有代码模式), [3.3](#33-调用链路梳理方法) |
 | #6096272 | 挂号小条打印多语言 | [5.1](#51-powershell-jsonline-framing--中文-windows-编码问题), [5.2](#52-xml-模板-fontname-中文字符必须用-xml-数字实体), [5.3](#53-iris-globalcharacterstream-不需要编码转换), [6.1](#61-gb2312-编码文件的正确修改流程), [6.2](#62-i18n-打印链路改造的分层处理), [6.3](#63-新增字典翻译方法的规范), [6.4](#64-xml-打印模板代码国际化), [6.5](#65-字典翻译检查需覆盖被调用子方法) |
 | #6097879 | 门诊诊断证明书打印多语言 | [6.2](#62-i18n-打印链路改造的分层处理) |
-| #6097891 | 急诊留观医嘱打印多语言 | [5.3](#53-iris-globalcharacterstream-不需要编码转换), [6.2](#62-i18n-打印链路改造的分层处理) |
+| #6097891 | 急诊留观医嘱打印多语言 | [5.3](#53-iris-globalcharacterstream-不需要编码转换), [5.5](#55-mcp-必须按当次真实能力探针判断), [6.2](#62-i18n-打印链路改造的分层处理), [6.6](#66-远程动作终态前不得启动-independent-verifier) |
 | #6941550 | 技工申请关联材料牙位录入 | [1.5](#15-while-循环内不能-q--返回值), [1.6](#16-ggs-等内置函数不适用于-dynamicobject) |
 | #6950154 | 检查报告查看增加医嘱项查询（差异降噪重写） | [7.1](#71-历史重写时仅保留功能差异) |
 | #6096150 | 预约条打印多语言 | [1.7](#17-命令式-ie-与块式-ifelse-不能混用), [5.4](#54-xmlbase64-长脚本出现临时代码-syntax-后立即收敛) |

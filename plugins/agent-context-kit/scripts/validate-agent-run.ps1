@@ -8,6 +8,9 @@ $ErrorActionPreference = "Stop"
 $issues = New-Object System.Collections.Generic.List[string]
 $allowedModes = @("retrospective", "serial", "multi-agent")
 $allowedStatuses = @("completed", "not-applicable", "blocked")
+$allowedAttemptStatuses = @("completed", "blocked", "suspended")
+$allowedRemoteStates = @("planned", "running", "suspended", "completed", "skipped", "blocked")
+$requiredVerificationScopes = @("business-code", "local-i18n-artifacts", "authorized-remote-readback")
 $requiredReports = [ordered]@{
     "explorer" = "10-explorer.md"
     "classifier" = "11-classifier.md"
@@ -87,11 +90,18 @@ foreach ($name in @("schemaVersion", "topic", "runMode", "retrospective", "autho
 
 $schemaVersion = [string](Get-PropertyValue $manifest "schemaVersion")
 $topic = [string](Get-PropertyValue $manifest "topic")
-if (@("1.0", "1.1") -notcontains $schemaVersion) { Add-Issue "Unsupported schemaVersion '$schemaVersion'." }
+if (@("1.0", "1.1", "1.2") -notcontains $schemaVersion) { Add-Issue "Unsupported schemaVersion '$schemaVersion'." }
 $isSchema11 = $schemaVersion -eq "1.1"
+$isSchema12 = $schemaVersion -eq "1.2"
+$isSchema11OrLater = $isSchema11 -or $isSchema12
 if ($isSchema11) {
     foreach ($name in @("modeHistory", "ownership", "lastMutationAt", "verificationRevision")) {
         if (-not (Test-PropertyExists $manifest $name)) { Add-Issue "Schema 1.1 manifest is missing '$name'." }
+    }
+}
+if ($isSchema12) {
+    foreach ($name in @("modeHistory", "ownership", "capabilities", "finalization", "verification")) {
+        if (-not (Test-PropertyExists $manifest $name)) { Add-Issue "Schema 1.2 manifest is missing '$name'." }
     }
 }
 if ([string]::IsNullOrWhiteSpace($topic)) { Add-Issue "Manifest topic must not be empty." }
@@ -100,10 +110,10 @@ $runMode = [string](Get-PropertyValue $manifest "runMode")
 $retrospective = [bool](Get-PropertyValue $manifest "retrospective")
 if ($allowedModes -notcontains $runMode) { Add-Issue "Unsupported runMode '$runMode'." }
 if (($runMode -eq "retrospective") -ne $retrospective) { Add-Issue "runMode and retrospective flag are inconsistent." }
-if ($isSchema11) {
+if ($isSchema11OrLater) {
     $modeHistory = @((Get-PropertyValue $manifest "modeHistory"))
     if ($modeHistory.Count -eq 0) {
-        Add-Issue "Schema 1.1 requires a non-empty modeHistory."
+        Add-Issue "Schema $schemaVersion requires a non-empty modeHistory."
     } else {
         $firstMode = [string](Get-PropertyValue $modeHistory[0] "mode")
         if ($runMode -eq "multi-agent" -and $firstMode -ne "multi-agent") {
@@ -183,8 +193,59 @@ foreach ($entry in $requiredReports.GetEnumerator()) {
     } else {
         if (-not (Test-IsoTimestamp $stageStartedAt)) { Add-Issue "Stage '$($entry.Key)' startedAt is invalid." }
         if (-not (Test-IsoTimestamp $stageCompletedAt)) { Add-Issue "Stage '$($entry.Key)' completedAt is invalid." }
-        if ($isSchema11 -and -not [string]::IsNullOrWhiteSpace($stageTimingReason)) {
-            Add-Issue "Schema 1.1 non-retrospective stage '$($entry.Key)' must use actual timestamps and an empty timingReason."
+        if ($isSchema11OrLater -and -not [string]::IsNullOrWhiteSpace($stageTimingReason)) {
+            Add-Issue "Schema $schemaVersion non-retrospective stage '$($entry.Key)' must use actual timestamps and an empty timingReason."
+        }
+    }
+
+    if ($isSchema12) {
+        if (-not (Test-PropertyExists $stage "attempts")) {
+            Add-Issue "Schema 1.2 stage '$($entry.Key)' is missing 'attempts'."
+        } else {
+            $attempts = @((Get-PropertyValue $stage "attempts"))
+            if ($status -eq "not-applicable" -and $attempts.Count -gt 0) {
+                Add-Issue "Not-applicable stage '$($entry.Key)' must not contain attempts."
+            }
+            if ($status -ne "not-applicable" -and $attempts.Count -eq 0) {
+                Add-Issue "Schema 1.2 stage '$($entry.Key)' requires at least one attempt."
+            }
+            $previousEnd = $null
+            for ($attemptIndex = 0; $attemptIndex -lt $attempts.Count; $attemptIndex++) {
+                $attempt = $attempts[$attemptIndex]
+                foreach ($name in @("attempt", "status", "startedAt", "completedAt", "activeSeconds", "reason")) {
+                    if (-not (Test-PropertyExists $attempt $name)) { Add-Issue "Stage '$($entry.Key)' attempt $($attemptIndex + 1) is missing '$name'." }
+                }
+                $attemptNumber = Get-PropertyValue $attempt "attempt"
+                $attemptStatus = [string](Get-PropertyValue $attempt "status")
+                $attemptStart = Convert-IsoTimestamp (Get-PropertyValue $attempt "startedAt")
+                $attemptEnd = Convert-IsoTimestamp (Get-PropertyValue $attempt "completedAt")
+                $activeSeconds = Get-PropertyValue $attempt "activeSeconds"
+                if ([int]$attemptNumber -ne ($attemptIndex + 1)) { Add-Issue "Stage '$($entry.Key)' attempts must be numbered sequentially from 1." }
+                if ($allowedAttemptStatuses -notcontains $attemptStatus) { Add-Issue "Stage '$($entry.Key)' attempt $attemptNumber has invalid status '$attemptStatus'." }
+                if ($null -eq $attemptStart -or $null -eq $attemptEnd -or $attemptEnd -lt $attemptStart) {
+                    Add-Issue "Stage '$($entry.Key)' attempt $attemptNumber has invalid timestamps."
+                } else {
+                    $attemptDuration = ($attemptEnd - $attemptStart).TotalSeconds
+                    if ($null -eq $activeSeconds -or [double]$activeSeconds -lt 0 -or [double]$activeSeconds -gt $attemptDuration) {
+                        Add-Issue "Stage '$($entry.Key)' attempt $attemptNumber has invalid activeSeconds."
+                    }
+                    if ($null -ne $previousEnd -and $attemptStart -lt $previousEnd) {
+                        Add-Issue "Stage '$($entry.Key)' attempts overlap or are out of order."
+                    }
+                    $previousEnd = $attemptEnd
+                }
+            }
+            if ($attempts.Count -gt 0) {
+                $firstAttemptStart = Convert-IsoTimestamp (Get-PropertyValue $attempts[0] "startedAt")
+                $lastAttempt = $attempts[$attempts.Count - 1]
+                $lastAttemptEnd = Convert-IsoTimestamp (Get-PropertyValue $lastAttempt "completedAt")
+                $lastAttemptStatus = [string](Get-PropertyValue $lastAttempt "status")
+                if ($lastAttemptStatus -eq "suspended") { Add-Issue "Finalized stage '$($entry.Key)' must not end with a suspended attempt." }
+                if ($lastAttemptStatus -ne $status) { Add-Issue "Stage '$($entry.Key)' status must match its final attempt status." }
+                if ($firstAttemptStart -ne (Convert-IsoTimestamp $stageStartedAt) -or $lastAttemptEnd -ne (Convert-IsoTimestamp $stageCompletedAt)) {
+                    Add-Issue "Stage '$($entry.Key)' timestamps must span its first and final attempts."
+                }
+            }
         }
     }
 }
@@ -231,7 +292,7 @@ if ($runMode -eq "multi-agent") {
     if ($parallelActors -contains $verifierActor) { Add-Issue "Verifier must be independent from coder/template actors." }
 }
 
-if ($isSchema11) {
+if ($isSchema11OrLater) {
     $ownership = @((Get-PropertyValue $manifest "ownership"))
     $pathOwners = @{}
     foreach ($entry in $ownership) {
@@ -251,15 +312,56 @@ if ($isSchema11) {
         }
     }
 
-    $lastMutationAt = Get-PropertyValue $manifest "lastMutationAt"
-    $verificationRevision = [string](Get-PropertyValue $manifest "verificationRevision")
-    if (-not (Test-IsoTimestamp $lastMutationAt)) { Add-Issue "Schema 1.1 lastMutationAt must be an ISO 8601 timestamp." }
-    if ([string]::IsNullOrWhiteSpace($verificationRevision)) { Add-Issue "Schema 1.1 verificationRevision must not be empty." }
+    if ($isSchema11) {
+        $lastMutationAt = Get-PropertyValue $manifest "lastMutationAt"
+        $verificationRevision = [string](Get-PropertyValue $manifest "verificationRevision")
+        if (-not (Test-IsoTimestamp $lastMutationAt)) { Add-Issue "Schema 1.1 lastMutationAt must be an ISO 8601 timestamp." }
+        if ([string]::IsNullOrWhiteSpace($verificationRevision)) { Add-Issue "Schema 1.1 verificationRevision must not be empty." }
+    } else {
+        $verification = Get-PropertyValue $manifest "verification"
+        $verificationScopes = @((Get-PropertyValue $verification "scope"))
+        $lastMutationAt = Get-PropertyValue $verification "lastMutationAt"
+        $verificationRevision = [string](Get-PropertyValue $verification "revision")
+        foreach ($scope in $requiredVerificationScopes) {
+            if ($verificationScopes -notcontains $scope) { Add-Issue "Schema 1.2 verification.scope is missing '$scope'." }
+        }
+        foreach ($scope in $verificationScopes) {
+            if ($requiredVerificationScopes -notcontains [string]$scope) { Add-Issue "Schema 1.2 verification.scope contains unsupported value '$scope'." }
+        }
+        if (-not (Test-IsoTimestamp $lastMutationAt)) { Add-Issue "Schema 1.2 verification.lastMutationAt must be an ISO 8601 timestamp." }
+        if ([string]::IsNullOrWhiteSpace($verificationRevision)) { Add-Issue "Schema 1.2 verification.revision must not be empty." }
+    }
     if ($stageMap.ContainsKey("verifier")) {
         $mutationTime = Convert-IsoTimestamp $lastMutationAt
         $verifierStart = Convert-IsoTimestamp (Get-PropertyValue $stageMap["verifier"] "startedAt")
         if ($null -ne $mutationTime -and $null -ne $verifierStart -and $mutationTime -gt $verifierStart) {
             Add-Issue "Verifier starts before lastMutationAt; verification does not cover the final state."
+        }
+    }
+}
+
+if ($isSchema12) {
+    $finalization = Get-PropertyValue $manifest "finalization"
+    foreach ($name in @("ready", "checkedAt", "blockingFailures")) {
+        if (-not (Test-PropertyExists $finalization $name)) { Add-Issue "Schema 1.2 finalization is missing '$name'." }
+    }
+    $finalizationReady = [bool](Get-PropertyValue $finalization "ready")
+    $finalizationCheckedAt = Convert-IsoTimestamp (Get-PropertyValue $finalization "checkedAt")
+    if (-not $finalizationReady) { Add-Issue "Schema 1.2 finalized runs require finalization.ready=true." }
+    if ($null -eq $finalizationCheckedAt) { Add-Issue "Schema 1.2 finalization.checkedAt must be an ISO 8601 timestamp." }
+    if ($stageMap.ContainsKey("verifier") -and [string](Get-PropertyValue $stageMap["verifier"] "status") -ne "not-applicable") {
+        $verifierStart = Convert-IsoTimestamp (Get-PropertyValue $stageMap["verifier"] "startedAt")
+        if ($null -ne $finalizationCheckedAt -and $null -ne $verifierStart -and $finalizationCheckedAt -gt $verifierStart) {
+            Add-Issue "Verifier starts before finalization readiness was checked."
+        }
+    }
+
+    foreach ($capability in @((Get-PropertyValue $manifest "capabilities")) | Where-Object { $null -ne $_ }) {
+        foreach ($name in @("name", "state", "probe", "result")) {
+            if (-not (Test-PropertyExists $capability $name)) { Add-Issue "A capability entry is missing '$name'." }
+        }
+        if (@("available", "degraded", "unavailable", "not-required") -notcontains [string](Get-PropertyValue $capability "state")) {
+            Add-Issue "A capability entry has an invalid state."
         }
     }
 }
@@ -273,12 +375,25 @@ foreach ($action in @((Get-PropertyValue $manifest "remoteActions")) | Where-Obj
     if ($isWrite -and (-not $remoteWriteAuthorized -or -not $isAuthorized)) {
         Add-Issue "Remote write action requires run-level and action-level authorization."
     }
-    if ($isSchema11 -and $isWrite) {
+    if ($isSchema11OrLater -and $isWrite) {
         if ([string]::IsNullOrWhiteSpace([string](Get-PropertyValue $action "scope"))) {
             Add-Issue "Schema 1.1 remote write action requires a non-empty scope."
         }
-        if (@("translation-data-write", "business-code-deploy") -notcontains [string](Get-PropertyValue $action "authorizationCategory")) {
-            Add-Issue "Schema 1.1 remote write action requires a valid authorizationCategory."
+        if (@("translation-data-write", "business-code-deploy", "tool-internal-execution") -notcontains [string](Get-PropertyValue $action "authorizationCategory")) {
+            Add-Issue "Schema $schemaVersion remote write action requires a valid authorizationCategory."
+        }
+    }
+    if ($isSchema12) {
+        foreach ($name in @("state", "terminal", "result")) {
+            if (-not (Test-PropertyExists $action $name)) { Add-Issue "Schema 1.2 remote action is missing '$name'." }
+        }
+        $remoteState = [string](Get-PropertyValue $action "state")
+        $remoteTerminal = [bool](Get-PropertyValue $action "terminal")
+        if ($allowedRemoteStates -notcontains $remoteState) { Add-Issue "Remote action has invalid state '$remoteState'." }
+        $expectedTerminal = @("completed", "skipped", "blocked") -contains $remoteState
+        if ($remoteTerminal -ne $expectedTerminal) { Add-Issue "Remote action state '$remoteState' has inconsistent terminal=$remoteTerminal." }
+        if ([bool](Get-PropertyValue (Get-PropertyValue $manifest "finalization") "ready") -and -not $remoteTerminal) {
+            Add-Issue "Finalization cannot be ready while a remote action is non-terminal."
         }
     }
 }
@@ -321,21 +436,51 @@ if ([bool](Get-PropertyValue $xmlGate "triggered")) {
 
 if ($runMode -eq "multi-agent") {
     $eligible = New-Object System.Collections.Generic.List[object]
+    $eligibleStageCount = 0
     foreach ($name in @("backend-coder", "frontend-coder", "template-seed")) {
         if (-not $stageMap.ContainsKey($name)) { continue }
         $stage = $stageMap[$name]
         if ([string](Get-PropertyValue $stage "status") -ne "completed") { continue }
-        $start = Convert-IsoTimestamp (Get-PropertyValue $stage "startedAt")
-        $end = Convert-IsoTimestamp (Get-PropertyValue $stage "completedAt")
-        if ($null -eq $start -or $null -eq $end) { continue }
-        $duration = ($end - $start).TotalSeconds
-        if ($duration -ge 60) { $eligible.Add([pscustomobject]@{ Start = $start; End = $end; Duration = $duration }) }
+        $stageIntervals = New-Object System.Collections.Generic.List[object]
+        if ($isSchema12) {
+            foreach ($attempt in @((Get-PropertyValue $stage "attempts"))) {
+                $start = Convert-IsoTimestamp (Get-PropertyValue $attempt "startedAt")
+                $end = Convert-IsoTimestamp (Get-PropertyValue $attempt "completedAt")
+                if ($null -ne $start -and $null -ne $end) {
+                    $stageIntervals.Add([pscustomobject]@{ Start = $start; End = $end; Duration = ($end - $start).TotalSeconds })
+                }
+            }
+        } else {
+            $start = Convert-IsoTimestamp (Get-PropertyValue $stage "startedAt")
+            $end = Convert-IsoTimestamp (Get-PropertyValue $stage "completedAt")
+            if ($null -ne $start -and $null -ne $end) {
+                $stageIntervals.Add([pscustomobject]@{ Start = $start; End = $end; Duration = ($end - $start).TotalSeconds })
+            }
+        }
+        $stageDuration = ($stageIntervals | Measure-Object -Property Duration -Sum).Sum
+        if ($stageDuration -ge 60) {
+            $eligibleStageCount++
+            foreach ($interval in $stageIntervals) { $eligible.Add($interval) }
+        }
     }
-    if ($eligible.Count -ge 2) {
+    if ($eligibleStageCount -ge 2) {
         $sum = ($eligible | Measure-Object -Property Duration -Sum).Sum
-        $windowStart = ($eligible | Sort-Object Start | Select-Object -First 1).Start
-        $windowEnd = ($eligible | Sort-Object End -Descending | Select-Object -First 1).End
-        $window = ($windowEnd - $windowStart).TotalSeconds
+        $window = 0.0
+        $currentStart = $null
+        $currentEnd = $null
+        foreach ($interval in @($eligible | Sort-Object Start, End)) {
+            if ($null -eq $currentStart) {
+                $currentStart = $interval.Start
+                $currentEnd = $interval.End
+            } elseif ($interval.Start -le $currentEnd) {
+                if ($interval.End -gt $currentEnd) { $currentEnd = $interval.End }
+            } else {
+                $window += ($currentEnd - $currentStart).TotalSeconds
+                $currentStart = $interval.Start
+                $currentEnd = $interval.End
+            }
+        }
+        if ($null -ne $currentStart) { $window += ($currentEnd - $currentStart).TotalSeconds }
         if ($window -gt ($sum * 0.75)) {
             Add-Issue "Parallel window exceeds 75% of eligible stage duration sum."
         } elseif ([string](Get-PropertyValue $qualityGates "parallelEfficiency") -ne "pass") {

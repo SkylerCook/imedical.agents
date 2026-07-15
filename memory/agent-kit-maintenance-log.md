@@ -3,6 +3,7 @@
 本文件记录近期维护流水摘要和验证结论。长期决策见 `agent-kit-maintenance-decisions.md`，后续治理队列见 `agent-kit-maintenance-backlog.md`，入口摘要见 `agent-kit-maintenance-memory.md`。
 
 ## 近期已完成
+- 2026-07-15：基于 `#6097891` 将 agent-run contract 升级到 schema 1.2：新增 stage attempts、MCP capability matrix、远程动作终态、finalization 门禁和限定 verification scope；validator 保持 1.0/1.1 兼容，并新增暂停恢复、终态冲突、非终态远程动作、attempt 重叠及验证范围回归。同步修正 MCP 判定为 `check_config` 后执行 `SELECT 1 AS Probe`，自动发现成功时不因 `config_file=null` 阻塞，单次 404 不再扩大为整个 MCP 不可用；`iris-mcp.js` 已纳入安装/更新 sparse checkout。
 - 2026-07-14：审计最近两次 feedback 提交。确认 `3131d97` 的 `FRAMEWORK_ROOT` 部署态路径修复已同步 canonical；将 `fc50477` 仅保存在反馈包中的 i18n Step 0、manifest schema 1.1、文件所有权、stale verifier、分类远程授权和 Windows PowerShell 5 兼容规则回归 canonical，并同步 owner 文档、P1 验证说明和专项测试。
 - 2026-07-13：完成 `#6097879` 首次真实 multi-agent i18n 实战复盘。实战覆盖前后端、页面翻译、XML 模板、独立 Verifier 和运行 manifest，但发现模式中途切换、阶段时间事后重构、所有权未入 manifest、Verifier 后继续修改、远程授权询问过晚及 Windows PowerShell 5 环境变量兼容问题；P1 保持开放，不据此新增通用 workflow/Agent。
 - 2026-07-13：`12e8539` 建立 `i18n-agent` P1 多模式运行协议：统一 `retrospective` / `serial` / `multi-agent`、编号 handoff、运行 manifest、授权和失败收敛规则；新增 `validate-agent-run.ps1` 及离线测试，并完成 `#6096150` 脱敏串行回溯。该回溯只证明串行与事后校验链路，真实多智能体实战仍留在 backlog。

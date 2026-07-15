@@ -1,6 +1,6 @@
 
 {
-  "schemaVersion": "1.1",
+  "schemaVersion": "1.2",
   "topic": "",
   "runMode": "serial",
   "retrospective": false,
@@ -14,16 +14,29 @@
   "elapsedSeconds": null,
   "timingReason": "",
   "ownership": [],
-  "lastMutationAt": null,
-  "verificationRevision": "",
+  "capabilities": [],
+  "finalization": {
+    "ready": false,
+    "checkedAt": null,
+    "blockingFailures": []
+  },
+  "verification": {
+    "scope": [
+      "business-code",
+      "local-i18n-artifacts",
+      "authorized-remote-readback"
+    ],
+    "lastMutationAt": null,
+    "revision": ""
+  },
   "stages": [
-    {"name":"explorer","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","report":"10-explorer.md","reusedEvidence":false},
-    {"name":"classifier","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","report":"11-classifier.md","reusedEvidence":false},
-    {"name":"backend-coder","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","report":"20-backend-coder.md","reusedEvidence":false},
-    {"name":"frontend-coder","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","report":"21-frontend-coder.md","reusedEvidence":false},
-    {"name":"template-seed","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","report":"22-template-seed.md","reusedEvidence":false},
-    {"name":"verifier","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","report":"30-verifier.md","reusedEvidence":false},
-    {"name":"summary","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","report":"40-summary.md","reusedEvidence":false}
+    {"name":"explorer","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","attempts":[],"report":"10-explorer.md","reusedEvidence":false},
+    {"name":"classifier","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","attempts":[],"report":"11-classifier.md","reusedEvidence":false},
+    {"name":"backend-coder","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","attempts":[],"report":"20-backend-coder.md","reusedEvidence":false},
+    {"name":"frontend-coder","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","attempts":[],"report":"21-frontend-coder.md","reusedEvidence":false},
+    {"name":"template-seed","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","attempts":[],"report":"22-template-seed.md","reusedEvidence":false},
+    {"name":"verifier","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","attempts":[],"report":"30-verifier.md","reusedEvidence":false},
+    {"name":"summary","actor":"","status":"not-applicable","startedAt":null,"completedAt":null,"timingReason":"","attempts":[],"report":"40-summary.md","reusedEvidence":false}
   ],
   "failures": [],
   "qualityGates": {

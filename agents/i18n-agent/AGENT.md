@@ -64,7 +64,8 @@ Coordinator 必须在首个 Explorer 或修改动作前完成运行契约：
 
 - 立即选择并记录运行模式；不得中途切换后重构阶段时间冒充从启动即并行。
 - 从 canonical manifest 样板创建运行清单，并预先声明 actor、互斥文件所有权和 Independent Verifier。
-- 主动列出预计远程动作并一次性请求授权，至少分开 `translation-data-write` 与 `business-code-deploy`。
+- 主动列出预计远程动作并一次性请求授权，分开 `translation-data-write`、`business-code-deploy` 与只允许自清理临时载体的 `tool-internal-execution`。
+- 预计存在远程动作时先完成 MCP capability preflight：`check_config` 核对目标后运行 `iris_query("SELECT 1 AS Probe")`；探针成功时不因 `config_file=null` 阻塞，单次 404/405 也不得扩大为整个 MCP 不可用。
 - 当前任务已有明确授权时直接消费，不重复询问；没有授权时保持 local-only/read-only。
 - 已授权 scope 内后续自动执行；覆盖冲突、删除、回滚、环境变化或范围扩大时重新确认。
 
@@ -118,6 +119,10 @@ Root Coordinator
 - 子 Agent 只读取 handoff 指定的 profile、skill 和专项规则，不重新加载 registry 或全部 canonical 文件。
 - Verifier 必须独立于 Coder，检查代码结构、编码、XML、翻译残留、fallback 和未执行门禁。
 - Independent Verifier 必须发生在最后一次本地修改和最后一次已授权远程写入之后；验证后再修改会使结论失效，Coordinator 必须重新触发 Verifier。
+- schema 1.2 使用 stage `attempts[]` 表达暂停和恢复；瞬时故障以 `suspended` attempt 保持运行开放，恢复时追加 attempt，不新增临时阶段名。
+- 所有远程动作达到终态、无 suspended attempt 且验证范围冻结后，Coordinator 才能设置 `finalization.ready=true` 并启动 Verifier。
+- `verification.scope` 只覆盖业务代码、本地 i18n 产物和已授权远程读回；报告、summary、manifest 和 feedback 修改不使业务验证版本失效。
+- 子 Agent 120 秒无心跳或无约定产物时最多替换一次；再次失败记录阻塞，不重复派发。
 
 ## 输入
 

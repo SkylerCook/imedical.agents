@@ -144,7 +144,7 @@ i18n 流程：
 Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 ```
 
-运行时必须选择 `retrospective`、`serial` 或 `multi-agent`。`multi-agent` 需要用户明确授权，远程写入仍需单独授权；各阶段通过 `00-run-manifest.json` 和编号 handoff 报告交接，结束后由 `agent-context-kit/scripts/validate-agent-run.ps1` 做只读机械验收。该校验器不承担运行时调度。
+运行时必须选择 `retrospective`、`serial` 或 `multi-agent`。`multi-agent` 需要用户明确授权，远程写入仍需单独授权；schema 1.2 使用 `attempts[]`、capability matrix、远程动作终态、`finalization` 和限定 verification scope 表达暂停恢复与最终验证门禁。各阶段通过 `00-run-manifest.json` 和编号 handoff 报告交接，结束后由 `agent-context-kit/scripts/validate-agent-run.ps1` 做只读机械验收。该校验器不承担运行时调度。
 
 对应能力：
 

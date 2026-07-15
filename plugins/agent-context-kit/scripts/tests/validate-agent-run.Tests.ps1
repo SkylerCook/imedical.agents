@@ -18,7 +18,7 @@ function Write-Utf8([string]$Path, [string]$Content) {
     [System.IO.File]::WriteAllText($Path, $Content, [System.Text.UTF8Encoding]::new($false))
 }
 
-function New-AgentRunFixture([string]$Name, [string]$Mode = "serial") {
+function New-AgentRunFixture([string]$Name, [string]$Mode = "serial", [string]$SchemaVersion = "1.2") {
     $path = Join-Path $tempRoot $Name
     New-Item -ItemType Directory -Force -Path $path | Out-Null
     $isMulti = $Mode -eq "multi-agent"
@@ -43,7 +43,7 @@ function New-AgentRunFixture([string]$Name, [string]$Mode = "serial") {
     $stages = @()
     foreach ($entry in $reportMap.GetEnumerator()) {
         Write-Utf8 (Join-Path $path $entry.Value) "# $($entry.Key)`n`nSanitized validation fixture."
-        $stages += [ordered]@{
+        $stage = [ordered]@{
             name = $entry.Key
             actor = $actors[$entry.Key]
             status = "completed"
@@ -53,9 +53,21 @@ function New-AgentRunFixture([string]$Name, [string]$Mode = "serial") {
             report = $entry.Value
             reusedEvidence = $false
         }
+        if ($SchemaVersion -eq "1.2") {
+            $duration = ([DateTimeOffset]::Parse($times[$entry.Key][1]) - [DateTimeOffset]::Parse($times[$entry.Key][0])).TotalSeconds
+            $stage["attempts"] = @([ordered]@{
+                attempt = 1
+                status = "completed"
+                startedAt = $times[$entry.Key][0]
+                completedAt = $times[$entry.Key][1]
+                activeSeconds = [int]$duration
+                reason = "initial execution"
+            })
+        }
+        $stages += $stage
     }
     $manifest = [ordered]@{
-        schemaVersion = "1.1"
+        schemaVersion = $SchemaVersion
         topic = $Name
         runMode = $Mode
         retrospective = $false
@@ -74,8 +86,6 @@ function New-AgentRunFixture([string]$Name, [string]$Mode = "serial") {
         } else {
             @([ordered]@{ actor = "single-agent"; stage = "all"; paths = @("task-scope/**") })
         }
-        lastMutationAt = "2026-07-14T10:04:00+08:00"
-        verificationRevision = "fixture-final"
         stages = $stages
         failures = @()
         qualityGates = [ordered]@{
@@ -86,6 +96,18 @@ function New-AgentRunFixture([string]$Name, [string]$Mode = "serial") {
             parallelEfficiency = if ($isMulti) { "pass" } else { "not-applicable" }
         }
         remoteActions = @()
+    }
+    if ($SchemaVersion -eq "1.1") {
+        $manifest["lastMutationAt"] = "2026-07-14T10:04:00+08:00"
+        $manifest["verificationRevision"] = "fixture-final"
+    } else {
+        $manifest["capabilities"] = @([ordered]@{ name = "iris-query"; state = "available"; probe = "SELECT 1 AS Probe"; result = "success" })
+        $manifest["finalization"] = [ordered]@{ ready = $true; checkedAt = "2026-07-14T10:04:00+08:00"; blockingFailures = @() }
+        $manifest["verification"] = [ordered]@{
+            scope = @("business-code", "local-i18n-artifacts", "authorized-remote-readback")
+            lastMutationAt = "2026-07-14T10:04:00+08:00"
+            revision = "fixture-final"
+        }
     }
     Write-Utf8 (Join-Path $path "00-run-manifest.json") ($manifest | ConvertTo-Json -Depth 12)
     return $path
@@ -105,8 +127,45 @@ try {
     $serial = New-AgentRunFixture "valid-serial" "serial"
     Invoke-Validation $serial 0
 
+    $legacy11 = New-AgentRunFixture "valid-schema-11" "serial" "1.1"
+    Invoke-Validation $legacy11 0
+
     $multi = New-AgentRunFixture "valid-multi" "multi-agent"
     Invoke-Validation $multi 0
+
+    $resumed = New-AgentRunFixture "valid-resumed-stage" "multi-agent"
+    $manifestPath = Join-Path $resumed "00-run-manifest.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $template = $manifest.stages | Where-Object name -eq "template-seed"
+    $template.completedAt = "2026-07-14T10:21:00+08:00"
+    $template.attempts = @(
+        [pscustomobject]@{ attempt = 1; status = "suspended"; startedAt = "2026-07-14T10:02:00+08:00"; completedAt = "2026-07-14T10:03:00+08:00"; activeSeconds = 60; reason = "temporary MCP session failure" },
+        [pscustomobject]@{ attempt = 2; status = "completed"; startedAt = "2026-07-14T10:20:00+08:00"; completedAt = "2026-07-14T10:21:00+08:00"; activeSeconds = 60; reason = "resumed after fresh probe" }
+    )
+    $verifier = $manifest.stages | Where-Object name -eq "verifier"
+    $verifier.startedAt = "2026-07-14T10:21:00+08:00"
+    $verifier.completedAt = "2026-07-14T10:22:00+08:00"
+    $verifier.attempts[0].startedAt = $verifier.startedAt
+    $verifier.attempts[0].completedAt = $verifier.completedAt
+    $summary = $manifest.stages | Where-Object name -eq "summary"
+    $summary.startedAt = "2026-07-14T10:22:00+08:00"
+    $summary.completedAt = "2026-07-14T10:23:00+08:00"
+    $summary.attempts[0].startedAt = $summary.startedAt
+    $summary.attempts[0].completedAt = $summary.completedAt
+    $manifest.completedAt = "2026-07-14T10:23:00+08:00"
+    $manifest.elapsedSeconds = 1380
+    $manifest.finalization.checkedAt = "2026-07-14T10:21:00+08:00"
+    $manifest.verification.lastMutationAt = "2026-07-14T10:21:00+08:00"
+    Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
+    Invoke-Validation $resumed 0
+
+    $terminalConflict = New-AgentRunFixture "valid-terminal-conflict" "serial"
+    $manifestPath = Join-Path $terminalConflict "00-run-manifest.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest.remoteActions = @([pscustomobject]@{ type = "translation-preflight"; write = $false; authorized = $false; state = "blocked"; terminal = $true; result = "existing conflicting value" })
+    $manifest.finalization.blockingFailures = @("translation-conflict")
+    Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
+    Invoke-Validation $terminalConflict 0
 
     $unauthorizedMulti = New-AgentRunFixture "unauthorized-multi" "multi-agent"
     $manifestPath = Join-Path $unauthorizedMulti "00-run-manifest.json"
@@ -174,7 +233,7 @@ try {
     $staleVerifier = New-AgentRunFixture "stale-verifier" "multi-agent"
     $manifestPath = Join-Path $staleVerifier "00-run-manifest.json"
     $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-    $manifest.lastMutationAt = "2026-07-14T10:04:30+08:00"
+    $manifest.verification.lastMutationAt = "2026-07-14T10:04:30+08:00"
     Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
     Invoke-Validation $staleVerifier 1
 
@@ -185,6 +244,45 @@ try {
     $manifest.remoteActions = @([pscustomobject]@{ type = "template-save"; write = $true; authorized = $true; result = "completed"; authorizationCategory = "translation-data-write" })
     Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
     Invoke-Validation $missingRemoteScope 1
+
+    $pendingRemote = New-AgentRunFixture "pending-remote-before-verifier" "serial"
+    $manifestPath = Join-Path $pendingRemote "00-run-manifest.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest.remoteActions = @([pscustomobject]@{ type = "translation-save"; write = $false; authorized = $false; state = "suspended"; terminal = $false; result = "temporary failure" })
+    Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
+    Invoke-Validation $pendingRemote 1
+
+    $overlappingAttempts = New-AgentRunFixture "overlapping-attempts" "multi-agent"
+    $manifestPath = Join-Path $overlappingAttempts "00-run-manifest.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $template = $manifest.stages | Where-Object name -eq "template-seed"
+    $template.attempts = @(
+        [pscustomobject]@{ attempt = 1; status = "suspended"; startedAt = "2026-07-14T10:02:00+08:00"; completedAt = "2026-07-14T10:03:30+08:00"; activeSeconds = 90; reason = "temporary failure" },
+        [pscustomobject]@{ attempt = 2; status = "completed"; startedAt = "2026-07-14T10:03:00+08:00"; completedAt = "2026-07-14T10:04:00+08:00"; activeSeconds = 60; reason = "invalid overlap" }
+    )
+    Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
+    Invoke-Validation $overlappingAttempts 1
+
+    $suspendedFinal = New-AgentRunFixture "suspended-final-attempt" "serial"
+    $manifestPath = Join-Path $suspendedFinal "00-run-manifest.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    ($manifest.stages | Where-Object name -eq "template-seed").attempts[0].status = "suspended"
+    Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
+    Invoke-Validation $suspendedFinal 1
+
+    $badVerificationScope = New-AgentRunFixture "bad-verification-scope" "serial"
+    $manifestPath = Join-Path $badVerificationScope "00-run-manifest.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest.verification.scope += "reports"
+    Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
+    Invoke-Validation $badVerificationScope 1
+
+    $lateFinalization = New-AgentRunFixture "late-finalization" "serial"
+    $manifestPath = Join-Path $lateFinalization "00-run-manifest.json"
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    $manifest.finalization.checkedAt = "2026-07-14T10:04:30+08:00"
+    Write-Utf8 $manifestPath ($manifest | ConvertTo-Json -Depth 12)
+    Invoke-Validation $lateFinalization 1
 
     $sensitive = New-AgentRunFixture "sensitive-payload" "serial"
     Add-Content -LiteralPath (Join-Path $sensitive "22-template-seed.md") -Value (("A" * 300))

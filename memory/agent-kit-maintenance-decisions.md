@@ -47,6 +47,7 @@
 - `memory/plan/` 是维护者计划子目录，存放实施计划和设计文档，不部署到业务项目。
 - 根目录 `AGENTS.md` 只服务本仓库维护，不部署到业务项目 `.agents/`。
 - 根目录 `agents/` 和 `workflows/` 是能力包正式内容，已加入 `scripts/install-agents.ps1` 和 `scripts/update-agents.ps1` 的 sparse checkout 路径，部署到业务项目 `.agents/agents/` 和 `.agents/workflows/`。
+- 根 `scripts/iris-mcp.js` 是无原生 MCP 工具运行器的可选 helper，必须随安装/更新部署；原生 MCP 工具仍优先，helper 不得成为 canonical 规则源。
 - 根目录 `skills/` 默认是能力包正式内容，部署到业务项目 `.agents/skills/`；`skills/agent-kit-maintenance/` 是维护者专用例外，必须通过 sparse checkout 排除，不部署到业务项目，也不参与 thin-index。
 - `.agents/plugins/**` 默认全量拉取用于能力发现；插件目录存在只表示 `available`，是否已启用以目标项目 `.agents/config/plugin_profile.md` 为准。
 - 更新脚本按插件状态分流：`available` 不合并配置、不生成 thin-index；`enabled` 参与常规更新；`disabled` 默认跳过；领域插件依赖未启用时必须停止。
@@ -60,6 +61,10 @@
 - 已部署工程的 vendor 迁移默认非破坏：普通 Write 不清历史 thin-index，用户级副本永不自动删除；只有 profile 经确认后，显式 cleanup 才能删除可证明由 `.agents/vendor/` 生成且已不需要的项目 thin-index。
 
 ## 入口决策
+
+- Agent run schema 1.2 使用阶段 `attempts[]`、capability matrix、远程动作终态、`finalization` 和限定 verification scope 表达暂停恢复及最终验证门禁；validator 继续兼容 schema 1.0/1.1。
+- `check_config` 只核对配置定位，真实连通以当次无副作用网络探针为准。自动发现生效且探针成功时，`config_file=null` 不构成配置失败；单一工具的瞬时失败只降级对应 capability。
+- Independent Verifier 只能在所有远程动作终态、无 suspended attempt 且验证范围冻结后启动。报告、summary、manifest 和 feedback 不属于业务验证版本。
 
 - IRIS 前端编码模式只允许 `standard-gb2312` 和 `project-utf8`；组合仓库名称不进入通用模式值，路径覆盖只映射这两种模式。
 - 目录结构、Git 仓库角色和 profile 只用于提出候选编码模式，实际文件字节检测始终是修改与上传的最终门禁。
