@@ -82,6 +82,21 @@
 - **正确做法**：`%DynamicObject` 的属性访问直接用 `row.remark` 或 `row.%Get("remark")`，空值安全由 `%DynamicObject` 自身保证（不存在的属性返回 `""`）。
 - **例外**：`%FromJSON()` 创建的对象在 JSON 中不存在该属性时，访问不存在的属性返回 `""`（与 `$g()` 行为一致），无需额外包装。
 
+### 1.7 命令式 `i/e` 与块式 `if/else` 不能混用
+- 需求: #6096150 | 命中: 1
+- **问题**：将原单行命令式分支 `i condition s ...` 改为花括号块后，仍保留下一行的命令式 `e s ...`，会在类编译时报 `#1026: Invalid command : 'e'`。
+- **规则**：同一条件分支必须完整采用一种结构；单行命令式使用配对的 `i ...` / `e ...`，块式统一使用 `if ... { ... } else { ... }`，不能交叉混用。
+- **正确做法**：
+  ```objectscript
+  if condition {
+      s value="A"
+  } else {
+      s value="B"
+  }
+  ```
+- **验证**：重构条件分支后检查完整分支和缩进。`git diff --check` 只能发现空白问题，不能替代 ObjectScript 语法编译；未获远端编译授权时，应明确标注“仅完成本地静态检查”。
+- **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_coding_backend.md`
+
 ---
 
 ## 二、前端 - HisUI DataGrid 修改
@@ -144,6 +159,7 @@
 | 5 | 前端 editor 索引 | 插入列后检查硬编码索引是否需要调整 |
 | 6 | 需求边界确认 | 确认每个界面是否需要排序/展示新字段 |
 | 7 | 参考已有模式 | 优先复用项目中已验证的实现方式 |
+| 8 | ObjectScript 条件分支 | 命令式 `i/e` 与块式 `if/else` 必须成对且不能混用 |
 
 ---
 
@@ -181,12 +197,28 @@
 - **已覆盖**：`plugins/i18n-iris-plugin/skills/i18n-xml-print-template-sync/SKILL.md`
 
 ### 5.3 IRIS GlobalCharacterStream 不需要编码转换
-- 需求: #6096272 | 命中: 1
+- 需求: #6096272 #6097891 | 命中: 2
 - **规则**：`%Library.GlobalCharacterStream` 在写入时已将 GB2312 转为 IRIS 内部 Unicode 存储。读取时直接 `w text` 输出即可，无需 `$zconvert` 转换。
 - **反面示例**：
   - `$zconvert(text,"I","UTF8")` — 把已经是 Unicode 的码点当 UTF-8 字节重新解释，中文变 `??`
   - `$system.Encryption.Base64Encode(text)` — CharacterStream 内容直接 Base64 编码会报 `<ILLEGAL VALUE>`
 - **正确做法**：直接读取、直接输出，MCP 传输层会正确处理 Unicode/UTF-8。
+
+### 5.4 XML/Base64 长脚本出现临时代码 `<SYNTAX>` 后立即收敛
+- 需求: #6096150 | 命中: 1
+- **问题**：XML 已查询、导出并完成本地翻译后，继续把完整 XML 或 Base64 拼入单次 `iris_execute` 临时代码，可能在临时类编译阶段连续报 `Execute+...<SYNTAX>`；重复调整同类长脚本只会增加耗时。
+- **判断**：必须检查 MCP 返回的内部 stdout/status。出现临时类 `Execute+...<SYNTAX>` 是 ObjectScript 代码载荷编译失败，不是 MCP 传输失败；已经完成的本地模板、manifest 和备份仍然有效，不应重新查询、导出或翻译。
+- **收敛策略**：确认该错误后停止继续试探长段脚本，优先调用项目现有模板保存接口；没有可复用接口时，将 Base64 拆成多个短 MCP 调用写入带唯一任务键的临时 Global，最后用一段短 `iris_execute` 合并、解码并保存，随后清理临时 Global。
+- **验收**：保存完成后只执行一次只读查询/导出，核对目标记录元数据、XML 可解析性和 `defaultvalue` 源语言残留，然后汇总结果。
+- **自动化状态**：`sync-xml-print-template.ps1` 已实现临时类 `<SYNTAX>` 识别、单次内联尝试、Base64 分块写入 `^CacheTemp`、短调用合并保存、`finally` 清理和一次只读验收；离线回归覆盖正常保存、fallback 成功及 fallback 失败清理。
+- **已回归/已提升**：`plugins/i18n-iris-plugin/skills/i18n-xml-print-template-sync/SKILL.md`、`plugins/i18n-iris-plugin/scripts/sync-xml-print-template.ps1`、`plugins/i18n-iris-plugin/scripts/tests/sync-xml-print-template.Tests.ps1`
+
+### 5.5 MCP 必须按当次真实能力探针判断
+- 需求: #6097891 | 命中: 1
+- **问题**：一次 `iris_query` HTTP 404 被扩大为整个 MCP 持续不可用，导致绕路排查和重复等待；后续不同运行器复测相同查询均成功。
+- **判断顺序**：先用 `check_config` 核对目标，再执行 `SELECT 1 AS Probe`。探针成功即继续；自动发现生效时 `config_file=null` 不构成失败。只有真实探针失败才重启一次会话并复测，单个 endpoint 失败只降级对应 capability。
+- **适用边界**：不弱化写入、部署或编译授权；能力降级仍必须遵守远程动作分类和敏感信息边界。
+- **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_agentic_dev.md`、`workflows/i18n-change.workflow.md`
 
 ---
 
@@ -212,7 +244,7 @@
 - **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_coding_frontend.md`、`plugins/coding-iris-plugin/rules/iris_coding_workflow.md`、`plugins/coding-iris-plugin/scripts/check-frontend-encoding.ps1`、`plugins/i18n-iris-plugin/rules/i18n_coding_frontend.md`、`plugins/i18n-iris-plugin/rules/i18n_verify.md`
 
 ### 6.2 i18n 打印链路改造的分层处理
-- 需求: #6096272 | 命中: 1
+- 需求: #6096272 #6097879 #6097891 | 命中: 3
 - **固定文案**（金额单位、标签、状态标识）：
   - 后端：使用 `..%Trans()` 页面级翻译
   - 前端：使用 `$g()` 静态翻译
@@ -221,6 +253,13 @@
   - 翻译位置贴近原始字段来源（贴近原则）
 - **区分标准**：固定文案是代码中硬编码的文本；字典展示值是从 Global/SQL/持久类字段取出的原文。
 - **已覆盖**：`plugins/i18n-iris-plugin/rules/i18n_field_classification.md`、`plugins/i18n-iris-plugin/rules/i18n_coding_print_backend.md`
+
+### 6.6 远程动作终态前不得启动 Independent Verifier
+- 需求: #6097891 | 命中: 1
+- **问题**：Template/Seed 或远程翻译仍在恢复和冲突处理中就生成 Verifier/summary，后续修改使验证结论失效并造成整段流程重跑。
+- **规则**：瞬时故障以同一阶段的 `suspended` attempt 保持运行开放，恢复时追加 attempt；只有所有远程动作终态、无 suspended attempt 且验证范围冻结后，才设置 `finalization.ready=true` 并启动 Verifier。
+- **版本边界**：业务代码、本地 i18n 产物和授权远程读回属于 verification scope；manifest、报告、summary 和 feedback 不属于业务验证版本。
+- **已回归/已提升**：`agents/i18n-agent/AGENT.md`、`workflows/i18n-change.workflow.md`、`plugins/agent-context-kit/scripts/validate-agent-run.ps1`
 
 ### 6.3 新增字典翻译方法的规范
 - 需求: #6096272 | 命中: 1
@@ -266,10 +305,41 @@
 
 ---
 
+## 七、代码差异治理与提交卫生
+
+### 7.1 历史重写时仅保留功能差异
+- 需求: #6950154 | 命中: 1
+- **问题**：在已有文件上做需求修改时，混入大量空格、空行、缩进抖动等无意义差异，导致评审噪音高、风险定位困难。
+- **做法**：当该噪音已进入历史提交，使用“父提交起新分支 + 最小补丁重提 + rebase --onto 替换旧提交”的方式清理，而不是在原噪音提交上继续叠加修补。
+- **最小补丁原则**：
+  1. 只改需求直接相关的函数、参数位、控件。
+  2. 禁止整文件格式化、禁止批量空白调整。
+  3. 逐文件用 `git diff` 人工确认不存在仅空白变化块。
+- **提交前检查命令**：
+  ```bash
+  git diff --check
+  git show --stat <commit>
+  git show -w <commit>
+  ```
+- **替换验证命令**：
+  ```bash
+  git merge-base --is-ancestor <old_commit> master
+  git merge-base --is-ancestor <new_commit> master
+  ```
+  期望结果：旧提交不再是祖先，新提交是祖先。
+- **适用范围**：所有“改已有文件”的需求开发，尤其是 ObjectScript/CSP/老 JS 文件。
+- **已回归/已提升**：`hooks/pre-commit`、`scripts/check-functional-diff.ps1`、`scripts/install-git-hooks.ps1`、`docs/update-agents.md`
+
+---
+
 ## 需求索引
 
 | 需求号 | 描述 | 命中经验 |
 |---|------|----------|
 | #6990066 | 材料字典排序功能 | [1.1](#11-新增字段必须追加到末尾), [1.2](#12-sql-语句同步), [1.3](#13-查询排序中-null-值处理), [1.4](#14-getcustomrows-支持-order-by), [2.1](#21-插入列后-editor-索引偏移), [2.2](#22-可编辑列-vs-仅展示列), [3.1](#31-明确排序的作用范围), [3.2](#32-参考已有代码模式), [3.3](#33-调用链路梳理方法) |
 | #6096272 | 挂号小条打印多语言 | [5.1](#51-powershell-jsonline-framing--中文-windows-编码问题), [5.2](#52-xml-模板-fontname-中文字符必须用-xml-数字实体), [5.3](#53-iris-globalcharacterstream-不需要编码转换), [6.1](#61-gb2312-编码文件的正确修改流程), [6.2](#62-i18n-打印链路改造的分层处理), [6.3](#63-新增字典翻译方法的规范), [6.4](#64-xml-打印模板代码国际化), [6.5](#65-字典翻译检查需覆盖被调用子方法) |
+| #6097879 | 门诊诊断证明书打印多语言 | [6.2](#62-i18n-打印链路改造的分层处理) |
+| #6097891 | 急诊留观医嘱打印多语言 | [5.3](#53-iris-globalcharacterstream-不需要编码转换), [5.5](#55-mcp-必须按当次真实能力探针判断), [6.2](#62-i18n-打印链路改造的分层处理), [6.6](#66-远程动作终态前不得启动-independent-verifier) |
 | #6941550 | 技工申请关联材料牙位录入 | [1.5](#15-while-循环内不能-q--返回值), [1.6](#16-ggs-等内置函数不适用于-dynamicobject) |
+| #6950154 | 检查报告查看增加医嘱项查询（差异降噪重写） | [7.1](#71-历史重写时仅保留功能差异) |
+| #6096150 | 预约条打印多语言 | [1.7](#17-命令式-ie-与块式-ifelse-不能混用), [5.4](#54-xmlbase64-长脚本出现临时代码-syntax-后立即收敛) |

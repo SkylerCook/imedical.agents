@@ -4,9 +4,13 @@ param(
   [string]$Mode = "DryRun",
   [string[]]$Plugin = @(),
   [string[]]$ExcludePlugin = @(),
+  [ValidateSet("ClaudeCode", "Codex")]
+  [string[]]$RuntimeAdapter = @(),
   [switch]$ForceThinIndex,
+  [switch]$CleanupLegacyVendorSkills,
   [switch]$NoPull,
-  [switch]$Detailed
+  [switch]$Detailed,
+  [switch]$ResumedAfterSelfUpdate
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,11 +22,14 @@ $runtimeSparsePaths = @(
   "/workflows/**",
   "/rules/**",
   "/skills/**",
+  "!/skills/agent-kit-maintenance/",
   "!/skills/agent-kit-maintenance/**",
   "/plugins/**",
   "/vendor/**",
   "/feedback/**",
-  "/scripts/*.ps1"
+  "/hooks/**",
+  "/scripts/*.ps1",
+  "/scripts/iris-mcp.js"
 )
 
 $agentsLocalExcludePatterns = @(
@@ -31,6 +38,7 @@ $agentsLocalExcludePatterns = @(
   "/rules/",
   "/skills/",
   "/scripts/"
+  "/work/"
 )
 
 function Resolve-FullPath {
@@ -227,6 +235,43 @@ function Merge-ConfigTemplate {
   }
 
   return $results
+}
+
+function Invoke-PluginConfigMigrations {
+  param(
+    [object]$Plugin,
+    [string]$ProjectRootFull,
+    [string]$AgentsRoot,
+    [string]$Mode
+  )
+
+  $items = New-Object System.Collections.Generic.List[object]
+  foreach ($migration in @($Plugin.manifest.configMigrations)) {
+    if ($null -eq $migration -or [string]::IsNullOrWhiteSpace([string]$migration.script)) {
+      continue
+    }
+    $migrationPath = Join-Path $Plugin.path ([string]$migration.script)
+    $migrationId = [string]$migration.id
+    if (-not (Test-Path -LiteralPath $migrationPath -PathType Leaf)) {
+      $items.Add((Write-UpdateResult -Status "config-migration-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $migrationPath) -Reason ("migration script missing: " + $migrationId) -PluginName $Plugin.name -Phase "config-migration"))
+      continue
+    }
+    try {
+      $migrationMode = if ($Mode -eq "Check") { "DryRun" } else { $Mode }
+      $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $migrationPath -ProjectRoot $ProjectRootFull -AgentsRoot $AgentsRoot -Mode $migrationMode | Out-String
+      if ($LASTEXITCODE -ne 0) {
+        throw "migration exited with code $LASTEXITCODE"
+      }
+      $parsed = $output.Trim() | ConvertFrom-Json
+      foreach ($entry in @($parsed)) {
+        $items.Add((Write-UpdateResult -Status ([string]$entry.status) -Target ([string]$entry.target) -Source $migrationId -Reason ([string]$entry.reason) -PluginName $Plugin.name -Phase "config-migration"))
+      }
+    }
+    catch {
+      $items.Add((Write-UpdateResult -Status "config-migration-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $migrationPath) -Source $migrationId -Reason $_.Exception.Message -PluginName $Plugin.name -Phase "config-migration"))
+    }
+  }
+  return $items
 }
 
 function Get-InstalledPlugins {
@@ -579,12 +624,23 @@ function Write-UpdateSummary {
     "sparse-refresh-failed",
     "conflict",
     "config-review-required",
+    "config-migration-review-required",
+    "config-migration-conflict",
+    "config-migration-failed",
+    "submodule-init-required",
+    "script-conflict",
     "thin-index-script-missing",
     "entrypoint-check-missing",
     "agent-thin-index-script-missing",
-    "vendor-skill-sync-script-missing",
-    "plugin-init-required",
-    "plugin-dependency-missing"
+   "vendor-skill-sync-script-missing",
+    "vendor-thin-index-script-missing",
+    "skill-dependency-resolver-missing",
+    "skill-dependency-source-missing",
+    "legacy-vendor-profile-review-required",
+    "sync-claudecode-skills-script-missing",
+    "maintenance-only-skill-remove-failed",
+   "plugin-init-required",
+   "plugin-dependency-missing"
   )
 
   $configStatuses = @(
@@ -593,7 +649,17 @@ function Write-UpdateSummary {
     "config-missing-key",
     "config-merged-key",
     "config-deprecated-candidate",
-    "config-review-required"
+    "config-review-required",
+    "config-migration-planned",
+    "config-migration-applied",
+    "config-migration-unchanged",
+    "config-migration-review-required",
+    "config-migration-conflict",
+    "config-migration-failed",
+    "submodule-init-required",
+    "script-wrapper-planned",
+    "script-wrapper-applied",
+    "script-conflict"
   )
 
   $entrypointStatuses = @(
@@ -731,9 +797,79 @@ function Invoke-AgentGitUpdate {
   return $results
 }
 
+function Remove-MaintenanceOnlyRuntimeSkill {
+  param(
+    [string]$AgentsRoot,
+    [string]$ProjectRootFull,
+    [string]$Mode
+  )
+
+  $results = New-Object System.Collections.Generic.List[object]
+  $maintenanceSkillPath = Join-Path $AgentsRoot "skills/agent-kit-maintenance"
+  if (-not (Test-Path -LiteralPath $maintenanceSkillPath)) {
+    return $results
+  }
+
+  $target = Get-RelativePathPortable -From $ProjectRootFull -To $maintenanceSkillPath
+  if ($Mode -eq "Write") {
+    try {
+      Remove-Item -LiteralPath $maintenanceSkillPath -Recurse -Force
+      $results.Add((Write-UpdateResult -Status "maintenance-only-skill-removed" -Target $target -Reason "maintenance-only skill is excluded from business-project deployment" -Phase "compat-cleanup"))
+    }
+    catch {
+      $results.Add((Write-UpdateResult -Status "maintenance-only-skill-remove-failed" -Target $target -Reason $_.Exception.Message -Phase "compat-cleanup"))
+    }
+  }
+  else {
+    $results.Add((Write-UpdateResult -Status "maintenance-only-skill-present" -Target $target -Reason "run Write mode to remove maintenance-only deployed residue" -Phase "compat-cleanup"))
+  }
+
+  return $results
+}
+
+function Get-GitHooksStatus {
+  param(
+    [string]$AgentsRoot,
+    [string]$ProjectRootFull
+  )
+
+  $results = New-Object System.Collections.Generic.List[object]
+  $hookPath = Join-Path $AgentsRoot "hooks/pre-commit"
+  $installScriptPath = Join-Path $AgentsRoot "scripts/install-git-hooks.ps1"
+  $target = ".agents/hooks"
+
+  if ((-not (Test-Path -LiteralPath $hookPath -PathType Leaf)) -or (-not (Test-Path -LiteralPath $installScriptPath -PathType Leaf))) {
+    $results.Add((Write-UpdateResult -Status "git-hooks-unavailable" -Target $target -Reason "pre-commit hook or install-git-hooks.ps1 is missing" -Phase "git-hooks"))
+    return $results
+  }
+
+  $configured = git -C $ProjectRootFull config --get core.hooksPath 2>$null
+  if ($LASTEXITCODE -ne 0) {
+    $configured = ""
+  }
+  $configuredNormalized = ($configured -replace '\\', '/').Trim().TrimEnd('/')
+
+  if ($configuredNormalized -eq $target) {
+    $results.Add((Write-UpdateResult -Status "git-hooks-enabled" -Target $target -Reason "core.hooksPath points to .agents/hooks" -Phase "git-hooks"))
+  }
+  else {
+    $reason = if ([string]::IsNullOrWhiteSpace($configuredNormalized)) {
+      "hook files are available; run .agents/scripts/install-git-hooks.ps1 to enable"
+    }
+    else {
+      "core.hooksPath is '$configured'; run .agents/scripts/install-git-hooks.ps1 to use .agents/hooks"
+    }
+    $results.Add((Write-UpdateResult -Status "git-hooks-not-enabled" -Target $target -Reason $reason -Phase "git-hooks"))
+  }
+
+  return $results
+}
+
 $projectRootFull = Resolve-FullPath $ProjectRoot
 $agentsRoot = Join-Path $projectRootFull ".agents"
 $results = New-Object System.Collections.Generic.List[object]
+$runningScriptPath = $MyInvocation.MyCommand.Path
+$runningScriptHash = if (Test-Path -LiteralPath $runningScriptPath -PathType Leaf) { (Get-FileHash -LiteralPath $runningScriptPath -Algorithm SHA256).Hash } else { "" }
 
 if (-not (Test-Path -LiteralPath $agentsRoot -PathType Container)) {
   Write-UpdateResult -Status "agents-missing" -Target ".agents" -Reason ".agents directory does not exist" -Phase "preflight"
@@ -748,6 +884,23 @@ if ((-not $NoPull) -and ($Mode -ne "Check")) {
   if ($gitResults | Where-Object { $_.status -in @("git-version-unsupported", "pull-blocked-dirty", "fetch-failed", "pull-failed", "sparse-refresh-failed") }) {
     $results | Format-List status, plugin, phase, target, source, reason
     exit 1
+  }
+  $updatedScriptHash = if (Test-Path -LiteralPath $runningScriptPath -PathType Leaf) { (Get-FileHash -LiteralPath $runningScriptPath -Algorithm SHA256).Hash } else { $runningScriptHash }
+  if ((-not $ResumedAfterSelfUpdate) -and ($updatedScriptHash -ne $runningScriptHash)) {
+    $resumeParams = @{
+      ProjectRoot = $projectRootFull
+      Mode = $Mode
+      Plugin = $Plugin
+      ExcludePlugin = $ExcludePlugin
+      RuntimeAdapter = $RuntimeAdapter
+      NoPull = $true
+      ResumedAfterSelfUpdate = $true
+    }
+    if ($ForceThinIndex) { $resumeParams.ForceThinIndex = $true }
+    if ($CleanupLegacyVendorSkills) { $resumeParams.CleanupLegacyVendorSkills = $true }
+    if ($Detailed) { $resumeParams.Detailed = $true }
+    & $runningScriptPath @resumeParams
+    exit $LASTEXITCODE
   }
 }
 elseif (-not (Test-Path -LiteralPath (Join-Path $agentsRoot ".git"))) {
@@ -767,6 +920,14 @@ foreach ($pattern in $agentsLocalExcludePatterns) {
   else {
     $results.Add((Write-UpdateResult -Status "exclude-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $agentsExcludePath) -Reason $pattern -Phase "exclude"))
   }
+}
+
+foreach ($item in (Remove-MaintenanceOnlyRuntimeSkill -AgentsRoot $agentsRoot -ProjectRootFull $projectRootFull -Mode $Mode)) {
+  $results.Add($item)
+}
+
+foreach ($item in (Get-GitHooksStatus -AgentsRoot $agentsRoot -ProjectRootFull $projectRootFull)) {
+  $results.Add($item)
 }
 
 $checkEntrypoints = Join-Path $agentsRoot "scripts/check-agent-entrypoints.ps1"
@@ -844,6 +1005,11 @@ foreach ($installedPlugin in $plugins) {
     }
   }
 
+  $migrationResults = Invoke-PluginConfigMigrations -Plugin $installedPlugin -ProjectRootFull $projectRootFull -AgentsRoot $agentsRoot -Mode $Mode
+  foreach ($item in $migrationResults) {
+    $results.Add($item)
+  }
+
   $thinIndexScript = Join-Path $installedPlugin.path "scripts/generate-plugin-thin-index.ps1"
   if (Test-Path -LiteralPath $thinIndexScript -PathType Leaf) {
     $thinIndexMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
@@ -887,17 +1053,86 @@ else {
   $results.Add((Write-UpdateResult -Status "agent-thin-index-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $agentThinIndexScript) -Reason "agent thin-index script missing" -Phase "agent-thin-index"))
 }
 
+$resolverScript = Join-Path $agentsRoot "scripts/resolve-plugin-skill-dependencies.ps1"
+$resolvedSkillDependencies = @()
+$dependencyPluginNames = @($plugins | ForEach-Object { $_.name }) + @($Plugin)
+if (Test-Path -LiteralPath $resolverScript -PathType Leaf) {
+  $resolverOutput = & $resolverScript -AgentsRoot $agentsRoot -ProjectRoot $projectRootFull -Plugin $dependencyPluginNames -OutputFormat Json | Out-String
+  if (-not [string]::IsNullOrWhiteSpace($resolverOutput)) {
+    $resolvedSkillDependencies = $resolverOutput | ConvertFrom-Json
+  }
+  foreach ($dependency in $resolvedSkillDependencies) {
+    $status = if (-not $dependency.sourceExists) { "skill-dependency-source-missing" } elseif ($dependency.type -eq "required") { "skill-dependency-required" } else { "skill-dependency-optional" }
+    $results.Add((Write-UpdateResult -Status $status -Target $dependency.name -Source $dependency.source -Reason $dependency.capability -PluginName $dependency.plugin -Phase "skill-dependency"))
+  }
+}
+else {
+  $results.Add((Write-UpdateResult -Status "skill-dependency-resolver-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $resolverScript) -Reason "dependency resolver missing" -Phase "skill-dependency"))
+}
+
+$profilePathBeforeWrite = Get-PluginProfilePath -AgentsRoot $agentsRoot
+if ((-not (Test-Path -LiteralPath $profilePathBeforeWrite -PathType Leaf)) -and (Test-Path -LiteralPath (Join-Path $agentsRoot "skills") -PathType Container)) {
+  $legacyVendorIndexes = @(Get-ChildItem -LiteralPath (Join-Path $agentsRoot "skills") -Recurse -Filter "SKILL.md" -ErrorAction SilentlyContinue | Where-Object {
+    (Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8) -match 'source:\s+\.agents/vendor/'
+  })
+  if ($legacyVendorIndexes.Count -gt 0) {
+    $results.Add((Write-UpdateResult -Status "legacy-vendor-profile-review-required" -Target ".agents/config/plugin_profile.md" -Reason ("profile was missing; preserving {0} legacy vendor thin-indexes until plugin states are confirmed" -f $legacyVendorIndexes.Count) -Phase "compat-migration"))
+  }
+}
+
 $syncVendorSkillsScript = Join-Path $agentsRoot "scripts/sync-vendor-skills.ps1"
 if (Test-Path -LiteralPath $syncVendorSkillsScript -PathType Leaf) {
-  $syncMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
-  $syncOutput = & $syncVendorSkillsScript -AgentsRoot $agentsRoot -Mode $syncMode | Out-String
-  $syncResults = Convert-ThinIndexTextOutput -Text $syncOutput -PluginName "" -Phase "vendor-skill-sync"
-  foreach ($item in $syncResults) {
+  $legacyRuntimeOutput = & $syncVendorSkillsScript -AgentsRoot $agentsRoot -ProjectRoot $projectRootFull -Mode DryRun -ReportLegacy | Out-String
+  foreach ($item in (Convert-ThinIndexTextOutput -Text $legacyRuntimeOutput -PluginName "" -Phase "runtime-adapter")) {
     $results.Add($item)
   }
 }
 else {
-  $results.Add((Write-UpdateResult -Status "vendor-skill-sync-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $syncVendorSkillsScript) -Reason "vendor skill sync script missing" -Phase "vendor-skill-sync"))
+  $results.Add((Write-UpdateResult -Status "vendor-skill-sync-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $syncVendorSkillsScript) -Reason "runtime adapter compatibility wrapper missing" -Phase "runtime-adapter"))
+}
+
+$vendorThinIndexScript = Join-Path $agentsRoot "scripts/generate-vendor-thin-index.ps1"
+if (Test-Path -LiteralPath $vendorThinIndexScript -PathType Leaf) {
+  $vendorThinIndexMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
+  $vendorThinParams = @{
+    AgentsRoot = $agentsRoot
+    ProjectRoot = $projectRootFull
+    Mode = $vendorThinIndexMode
+    Skill = @($resolvedSkillDependencies | Where-Object { $_.type -eq "required" -and $_.sourceExists } | ForEach-Object { $_.name })
+  }
+  if ($ForceThinIndex) {
+    $vendorThinParams.Force = $true
+  }
+  if ($CleanupLegacyVendorSkills) {
+    $vendorThinParams.CleanupLegacyVendorSkills = $true
+  }
+  $vendorThinOutput = & $vendorThinIndexScript @vendorThinParams | Out-String
+  $vendorThinResults = Convert-ThinIndexTextOutput -Text $vendorThinOutput -PluginName "" -Phase "vendor-thin-index"
+  foreach ($item in $vendorThinResults) {
+    $results.Add($item)
+  }
+}
+else {
+  $results.Add((Write-UpdateResult -Status "vendor-thin-index-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $vendorThinIndexScript) -Reason "vendor thin-index script missing" -Phase "vendor-thin-index"))
+}
+
+$syncClaudeSkillsScript = Join-Path $agentsRoot "scripts/sync-claudecode-skills.ps1"
+if ($RuntimeAdapter -contains "Codex") {
+  $results.Add((Write-UpdateResult -Status "runtime-adapter-reused" -Target ".agents/skills" -Reason "Codex uses the common project discovery layer; user-level copies require explicit sync-vendor-skills.ps1" -Phase "runtime-adapter"))
+}
+if (($RuntimeAdapter -contains "ClaudeCode") -and (Test-Path -LiteralPath $syncClaudeSkillsScript -PathType Leaf)) {
+  $syncMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
+  $syncOutput = & $syncClaudeSkillsScript -AgentsRoot $agentsRoot -ProjectRoot $projectRootFull -Mode $syncMode | Out-String
+  $syncResults = Convert-ThinIndexTextOutput -Text $syncOutput -PluginName "" -Phase "claudecode-skills"
+  foreach ($item in $syncResults) {
+    $results.Add($item)
+  }
+}
+elseif ($RuntimeAdapter -contains "ClaudeCode") {
+  $results.Add((Write-UpdateResult -Status "sync-claudecode-skills-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $syncClaudeSkillsScript) -Reason "sync claudecode skills script missing" -Phase "claudecode-skills"))
+}
+else {
+  $results.Add((Write-UpdateResult -Status "runtime-adapter-skipped" -Target ".agents/skills" -Reason "project discovery layer is canonical; pass -RuntimeAdapter ClaudeCode only when native project sync is required" -Phase "runtime-adapter"))
 }
 
 if (($allPlugins.Count -eq 0) -or (($Plugin.Count -gt 0) -and ($matchedPluginCount -eq 0))) {

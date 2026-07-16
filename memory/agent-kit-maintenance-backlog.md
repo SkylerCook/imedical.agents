@@ -4,32 +4,32 @@
 
 ## 下一步工作队列
 
-1. 多人协作下的仓库维护约束治理。
-   - 背景：仓库权限已放开给多位同事，需要把“改能力包必须同步维护约束”的流程前置，减少实际内容、README、插件文档、维护记忆和部署边界之间的偏移。
-   - 待做：梳理提交前检查清单，覆盖目录边界、thin-index 边界、vendor 边界、敏感信息、README/AGENTS/manifest 同步、维护记忆更新和已部署工程兼容说明。
-   - 待做：明确多人协作分工与准入规则，例如 canonical、插件、脚本、vendor、memory 分别由谁维护，哪些变更必须配套测试或文档更新。
-   - 待做：评估是否新增轻量治理文档、PR/提交检查清单或自动化脚本；先固化 Markdown 约束，再决定是否脚本化。
+### P0：多人协作提交准入与仓库一致性检查
 
-2. 多智能体架构配套落地。
-   - 待做：业务项目验证 `i18n-agent` 和 `i18n-change.workflow.md` 样板后，再决定是否新增通用 `coordinator/explorer/planner/coding/review/testing` Agent。
-   - 暂缓：暂不做 `scripts/generate-agent-adapters.ps1`；后续确需 Codex、Claude Code、OpenCode、CodeBuddy、WorkBuddy、Hermes 等工具原生入口时再实现。
-   - 禁止：不要让 `.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/` 或其它工具原生入口成为规则源；它们只能由 canonical 生成或临时适配。
+- 背景：仓库权限已放开给多位同事，需要把“改能力包必须同步维护约束”的流程前置，减少实现、README、插件文档、维护记忆和部署边界之间的偏移。
+- 交付 1：新增短小的提交/PR 检查清单，覆盖目录、thin-index、vendor、敏感信息、README/AGENTS/manifest、维护记忆、测试和已部署工程兼容说明。
+- 交付 2：在现有测试入口增加低误伤的结构检查，至少覆盖 manifest 可解析、插件 README/AGENTS/manifest 齐全、thin-index wrapper 未复制 canonical 实现。
+- 交付 3：明确 canonical、插件、脚本、vendor、memory 的维护责任和必须配套的验证证据。
 
-3. 继续观察 rules 体量。
-   - 若 i18n 或 coding 规则再次承载查找表、API 目录或长参考资料，优先迁入对应插件 `references/`。
+### P1：真实多智能体实战与样板定型
 
-4. 多智能体运行时调度器暂不实现。
-   - 当前阶段只落地 canonical 定义、workflow、交接协议和工具 adapter。
-   - 暂不实现复杂自动并行调度器；等业务项目验证 i18n 样板后，再决定是否扩展 coordinator 运行时逻辑。
-   - 后续可考虑新增 `standard-change`、`review-test-release`、`bugfix` workflow 和通用 `coordinator/explorer/planner/coding/review/testing` Agent。
+- `#6097879` 已完成第一次真实 multi-agent i18n 实战，但模式在执行中途切换、阶段时间事后重构、文件所有权未进入 manifest，且 Verifier 后仍发生代码和远程翻译修改；该样本用于暴露缺口，不作为“样板已定型”。
+- `#6097891` 已从 Step 0 采用 `multi-agent`，并暴露 MCP 瞬时失败误判、阶段暂停恢复和提前 Verifier 缺口；schema 1.2 与脱敏 fixture 已将异常恢复路径机械化。
+- i18n 主路径和异常恢复路径可作为领域样板继续使用；若要新增通用 `standard-change`、`review-test-release`、`bugfix` workflow 或通用 Agent，至少再补一个不同任务形态样本。
+- 暂不实现复杂运行时调度器，也暂不做 `scripts/generate-agent-adapters.ps1`；工具原生入口只能由 canonical 生成或临时适配，不能成为规则源。
 
-5. 框架验证反馈机制。
-   - 待做：团队成员开始使用后，观察反馈质量和处理效率。
-   - 待做：积累反馈后，评估是否需要自动化 diff 和应用工具。
+### P2：代码质量 review 与框架反馈演进
 
-6. 部署经验与演示材料治理。
-   - 待做：观察 `feedback/experience/deploy-com-exp.md` 与 `docs/deploy/*` 的复用频率，必要时抽象命名、敏感信息检查和部署工具模板。
-   - 待做：明确 `demo/presentation/` 是否长期作为仓库展示资产；如需部署到业务项目，必须先更新安装/更新 sparse checkout 边界说明。
+- 保持 `.agents/hooks/pre-commit` 和 `check-functional-diff.ps1` 为轻量、低误伤门禁。
+- 评估第二层 `check-code-quality.ps1`，先由用户或 Agent 主动运行并输出报告，不直接作为 pre-commit 强阻断。
+- 优先覆盖需求无关文件、敏感连接信息、明显硬编码路径、缺少必要验证入口及已启用领域插件中的高风险点；先验证误伤率，再决定是否提升少量规则为门禁。
+- 团队开始使用框架反馈机制后，观察反馈质量和处理效率；积累样本后再评估自动化 diff 和应用工具。
+
+### P3：持续观察与资产治理
+
+- 继续观察 rules 体量；若 i18n 或 coding 规则再次承载查找表、API 目录或长参考资料，优先迁入对应插件 `references/`。
+- 观察 `feedback/experience/deploy-com-exp.md` 与 `docs/deploy/*` 的复用频率，必要时抽象命名、敏感信息检查和部署工具模板。
+- 明确 `demo/presentation/` 是否长期作为仓库展示资产；如需部署到业务项目，必须先更新安装/更新 sparse checkout 边界说明。
 
 ## 队列维护规则
 

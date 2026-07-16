@@ -21,15 +21,15 @@ stages:
     role: link tracing and impact discovery
     rules:
       - plugins/i18n-iris-plugin/rules/i18n_link_tracing.md
-    output: docs/agent-reports/{ticket-or-topic}/explorer-i18n-agent.md
+    output: docs/agent-reports/{ticket-or-topic}/10-explorer.md
     modelHint: strong
   classifier:
     role: user-visible text classification
     rules:
       - plugins/i18n-iris-plugin/rules/i18n_field_classification.md
       - plugins/i18n-iris-plugin/rules/i18n_dict_translate_facade.md
-    input: docs/agent-reports/{ticket-or-topic}/explorer-i18n-agent.md
-    output: docs/agent-reports/{ticket-or-topic}/classifier-i18n-agent.md
+    input: docs/agent-reports/{ticket-or-topic}/10-explorer.md
+    output: docs/agent-reports/{ticket-or-topic}/11-classifier.md
     modelHint: strong
   coder:
     role: frontend/backend i18n coding changes
@@ -39,8 +39,10 @@ stages:
       - plugins/i18n-iris-plugin/rules/i18n_coding_frontend.md
       - plugins/i18n-iris-plugin/rules/i18n_coding_backend.md
       - plugins/i18n-iris-plugin/rules/i18n_coding_print_backend.md
-    input: docs/agent-reports/{ticket-or-topic}/classifier-i18n-agent.md
-    output: docs/agent-reports/{ticket-or-topic}/coder-i18n-agent.md
+    input: docs/agent-reports/{ticket-or-topic}/11-classifier.md
+    outputs:
+      backend: docs/agent-reports/{ticket-or-topic}/20-backend-coder.md
+      frontend: docs/agent-reports/{ticket-or-topic}/21-frontend-coder.md
     modelHint: balanced
   templateSeed:
     role: translation seed, dictionary seed, or XML template handling
@@ -51,16 +53,26 @@ stages:
       - plugins/i18n-iris-plugin/skills/i18n-xml-template/SKILL.md
       - plugins/i18n-iris-plugin/skills/i18n-xml-print-template-sync/SKILL.md
       - plugins/i18n-iris-plugin/skills/i18n-csp-trans-sync/SKILL.md
-    output: docs/agent-reports/{ticket-or-topic}/template-seed-i18n-agent.md
+    output: docs/agent-reports/{ticket-or-topic}/22-template-seed.md
     modelHint: balanced
   verifier:
     role: i18n verification and residual risk report
     rules:
       - plugins/i18n-iris-plugin/rules/i18n_verify.md
-    output: docs/agent-reports/{ticket-or-topic}/verifier-i18n-agent.md
+    output: docs/agent-reports/{ticket-or-topic}/30-verifier.md
     modelHint: balanced
 handoffProtocol: agents/_shared/handoff-protocol.md
 serialFallback: true
+executionModes:
+  - retrospective
+  - serial
+  - multi-agent
+multiAgentRequiresExplicitAuthorization: true
+runManifest: docs/agent-reports/{ticket-or-topic}/00-run-manifest.json
+summaryOutput: docs/agent-reports/{ticket-or-topic}/40-summary.md
+reportMode:
+  validation: per-stage
+  productionSerialFastPath: consolidated
 sensitiveDataPolicy:
   forbid:
     - server host

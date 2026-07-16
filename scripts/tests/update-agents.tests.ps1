@@ -4,6 +4,13 @@ $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
 $scriptUnderTest = Join-Path $repoRoot "scripts/update-agents.ps1"
 $profileScriptUnderTest = Join-Path $repoRoot "scripts/update-plugin-profile.ps1"
 $agentThinIndexScriptUnderTest = Join-Path $repoRoot "scripts/generate-agent-thin-index.ps1"
+$vendorThinIndexScriptUnderTest = Join-Path $repoRoot "scripts/generate-vendor-thin-index.ps1"
+$skillDependencyResolverUnderTest = Join-Path $repoRoot "scripts/resolve-plugin-skill-dependencies.ps1"
+$checkFunctionalDiffScriptUnderTest = Join-Path $repoRoot "scripts/check-functional-diff.ps1"
+$installGitHooksScriptUnderTest = Join-Path $repoRoot "scripts/install-git-hooks.ps1"
+$preCommitHookUnderTest = Join-Path $repoRoot "hooks/pre-commit"
+$irisMcpHelperUnderTest = Join-Path $repoRoot "scripts/iris-mcp.js"
+$irisAgenticRuleUnderTest = Join-Path $repoRoot "plugins/coding-iris-plugin/rules/iris_agentic_dev.md"
 
 function Assert-True {
   param(
@@ -29,18 +36,28 @@ function Assert-Contains {
 function New-TestProject {
   $root = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-update-test-" + [System.Guid]::NewGuid().ToString("N"))
   New-Item -ItemType Directory -Force -Path $root | Out-Null
+  git -C $root init | Out-Null
+  git -C $root config user.email "test@example.invalid" | Out-Null
+  git -C $root config user.name "Test User" | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents") | Out-Null
   git -C (Join-Path $root ".agents") init | Out-Null
 
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/scripts") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/hooks") | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/agents") | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/workflows") | Out-Null
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/generate-plugin-thin-index.ps1") -Destination (Join-Path $root ".agents/scripts/generate-plugin-thin-index.ps1")
   Copy-Item -LiteralPath $agentThinIndexScriptUnderTest -Destination (Join-Path $root ".agents/scripts/generate-agent-thin-index.ps1")
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-agents.ps1")
   Copy-Item -LiteralPath $profileScriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-plugin-profile.ps1")
+  Copy-Item -LiteralPath $checkFunctionalDiffScriptUnderTest -Destination (Join-Path $root ".agents/scripts/check-functional-diff.ps1")
+  Copy-Item -LiteralPath $installGitHooksScriptUnderTest -Destination (Join-Path $root ".agents/scripts/install-git-hooks.ps1")
+  Copy-Item -LiteralPath $preCommitHookUnderTest -Destination (Join-Path $root ".agents/hooks/pre-commit")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-vendor-skills.ps1") -Destination (Join-Path $root ".agents/scripts/sync-vendor-skills.ps1")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-claudecode-skills.ps1") -Destination (Join-Path $root ".agents/scripts/sync-claudecode-skills.ps1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/check-agent-entrypoints.ps1") -Destination (Join-Path $root ".agents/scripts/check-agent-entrypoints.ps1")
+  Copy-Item -LiteralPath $vendorThinIndexScriptUnderTest -Destination (Join-Path $root ".agents/scripts/generate-vendor-thin-index.ps1")
+  Copy-Item -LiteralPath $skillDependencyResolverUnderTest -Destination (Join-Path $root ".agents/scripts/resolve-plugin-skill-dependencies.ps1")
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/agent-registry.md") -Value "# Agent Registry"
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/workflow-registry.md") -Value "# Workflow Registry"
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/agents/i18n-agent") | Out-Null
@@ -116,6 +133,11 @@ function New-TestProject {
     '  "skills": "skills/",',
     '  "templates": "templates/",',
     '  "scripts": "scripts/",',
+    '  "configMigrations": [{"id":"sample-v1","script":"scripts/migrate-sample.ps1"}],',
+    '  "skillDependencies": {',
+    '    "required": [{"capability":"test.vendor.required","provider":"test-vendor","name":"vendor-test-skill"}],',
+    '    "optional": [{"capability":"test.vendor.optional","provider":"root-vendor","name":"root-vendor","trigger":"test-only"}]',
+    '  },',
     '  "initSkill": "sample-skill"',
     "}"
   )
@@ -177,12 +199,45 @@ function New-TestProject {
   Set-Content -Encoding UTF8 -Path (Join-Path $root "AGENTS.md") -Value "# Target Project"
   Set-Content -Encoding UTF8 -Path (Join-Path $root "CLAUDE.md") -Value "# Existing Claude Entry"
 
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/vendor/test-vendor/skills/vendor-test-skill") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/vendor/test-vendor/skills/vendor-test-skill/SKILL.md") -Value @(
+    "---",
+    "name: vendor-test-skill",
+    "description: Use when testing vendor thin-index generation.",
+    "---",
+    "",
+    "# Vendor Test Skill"
+  )
+
+  Set-Content -Encoding UTF8 -Path (Join-Path $pluginRoot "scripts/migrate-sample.ps1") -Value @(
+    'param([string]$ProjectRoot=".",[string]$AgentsRoot=".agents",[ValidateSet("DryRun", "Write")][string]$Mode="DryRun")',
+    '$status = if ($Mode -eq "Write") { "config-migration-applied" } else { "config-migration-unchanged" }',
+    '[PSCustomObject]@{status=$status;target=".agents/config/sample_profile.md";reason=("sample migration received " + $Mode)} | ConvertTo-Json -Compress'
+  )
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/vendor/root-vendor") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/vendor/root-vendor/SKILL.md") -Value @(
+    "---",
+    "name: root-vendor",
+    "description: Use when testing root vendor skill generation.",
+    "---",
+    "",
+    "# Root Vendor Skill"
+  )
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".claude/skills/vendor-test-skill") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".claude/skills/root-vendor") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $root ".claude/skills/vendor-test-skill/SKILL.md") -Value "# Existing user skill"
+
   return $root
 }
 
 Assert-True (Test-Path -LiteralPath $scriptUnderTest -PathType Leaf) "scripts/update-agents.ps1 should exist"
 Assert-True (Test-Path -LiteralPath $profileScriptUnderTest -PathType Leaf) "scripts/update-plugin-profile.ps1 should exist"
 Assert-True (Test-Path -LiteralPath $agentThinIndexScriptUnderTest -PathType Leaf) "scripts/generate-agent-thin-index.ps1 should exist"
+Assert-True (Test-Path -LiteralPath $vendorThinIndexScriptUnderTest -PathType Leaf) "scripts/generate-vendor-thin-index.ps1 should exist"
+Assert-True (Test-Path -LiteralPath $checkFunctionalDiffScriptUnderTest -PathType Leaf) "scripts/check-functional-diff.ps1 should exist"
+Assert-True (Test-Path -LiteralPath $installGitHooksScriptUnderTest -PathType Leaf) "scripts/install-git-hooks.ps1 should exist"
+Assert-True (Test-Path -LiteralPath $preCommitHookUnderTest -PathType Leaf) "hooks/pre-commit should exist"
+Assert-True (Test-Path -LiteralPath $skillDependencyResolverUnderTest -PathType Leaf) "skill dependency resolver should exist"
 
 $runbookPath = Join-Path $repoRoot "docs/update-agents.md"
 $readmePath = Join-Path $repoRoot "README.md"
@@ -198,18 +253,40 @@ $installScriptContent = Get-Content -Raw -Encoding UTF8 -Path $installScriptPath
 Assert-Contains $updateScriptContent "/agents/**" "update sparse checkout should include agents"
 Assert-Contains $updateScriptContent "/workflows/**" "update sparse checkout should include workflows"
 Assert-Contains $updateScriptContent "/feedback/**" "update sparse checkout should include feedback"
+Assert-Contains $updateScriptContent "/hooks/**" "update sparse checkout should include hooks"
+Assert-Contains $updateScriptContent "/scripts/iris-mcp.js" "update sparse checkout should deploy the MCP helper"
+Assert-Contains $updateScriptContent "!/skills/agent-kit-maintenance/" "update sparse checkout should exclude maintenance-only skill directory"
 Assert-Contains $updateScriptContent "!/skills/agent-kit-maintenance/**" "update sparse checkout should exclude maintenance-only skill"
+Assert-Contains $updateScriptContent '"/work/"' "update should ignore local staging work directory"
 Assert-Contains $updateScriptContent "generate-agent-thin-index.ps1" "update should invoke agent thin-index generation"
+Assert-Contains $updateScriptContent "generate-vendor-thin-index.ps1" "update should invoke vendor thin-index generation"
+Assert-Contains $updateScriptContent "resolve-plugin-skill-dependencies.ps1" "update should resolve plugin skill dependencies"
+Assert-Contains $updateScriptContent "CleanupLegacyVendorSkills" "update should support explicit legacy vendor cleanup"
+Assert-Contains $updateScriptContent "sync-claudecode-skills.ps1" "update should invoke Claude Code skill sync"
 Assert-Contains $updateScriptContent "2.25.0" "update should require Git 2.25.0 or newer for sparse-checkout subcommand"
 Assert-Contains $updateScriptContent "Assert-GitSparseCheckoutSubcommandAvailable" "update should fail early when git sparse-checkout subcommand is unavailable"
 Assert-Contains $installScriptContent "/agents/**" "install sparse checkout should include agents"
 Assert-Contains $installScriptContent "/workflows/**" "install sparse checkout should include workflows"
 Assert-Contains $installScriptContent "/feedback/**" "install sparse checkout should include feedback"
+Assert-Contains $installScriptContent "/hooks/**" "install sparse checkout should include hooks"
+Assert-Contains $installScriptContent "/scripts/iris-mcp.js" "install sparse checkout should deploy the MCP helper"
+Assert-True (Test-Path -LiteralPath $irisMcpHelperUnderTest -PathType Leaf) "iris-mcp.js helper should exist at the deployed canonical path"
+$irisAgenticRuleContent = Get-Content -Raw -Encoding UTF8 -LiteralPath $irisAgenticRuleUnderTest
+Assert-Contains $irisAgenticRuleContent 'SELECT 1 AS Probe' "MCP diagnostics should use a real query probe"
+Assert-Contains $irisAgenticRuleContent 'config_file=null' "MCP diagnostics should define the auto-discovery null-config boundary"
+Assert-Contains $irisAgenticRuleContent 'HTTP 404/405' "MCP diagnostics should not expand one endpoint failure to the whole MCP"
+Assert-Contains $irisAgenticRuleContent 'mcp__iris_agentic_dev__*' "MCP diagnostics should prefer native tools before the helper"
+Assert-Contains $installScriptContent "!/skills/agent-kit-maintenance/" "install sparse checkout should exclude maintenance-only skill directory"
+Assert-True (-not $installScriptContent.Contains("core.hooksPath")) "install must not enable git hooks automatically"
+Assert-Contains $updateScriptContent "git-hooks-not-enabled" "update should report hook availability without enabling hooks"
+Assert-True (-not $updateScriptContent.Contains("git config core.hooksPath .agents/hooks")) "update must not enable git hooks automatically"
 Assert-Contains $installScriptContent "!/skills/agent-kit-maintenance/**" "install sparse checkout should exclude maintenance-only skill"
+Assert-Contains $installScriptContent '"/work/"' "install should ignore local staging work directory"
 Assert-Contains $installScriptContent "2.25.0" "install should require Git 2.25.0 or newer for sparse-checkout subcommand"
 Assert-Contains $installScriptContent "Assert-GitSparseCheckoutSubcommandAvailable" "install should fail early when git sparse-checkout subcommand is unavailable"
 Assert-Contains $installScriptContent "Continue installing .agents" "install should not block .agents bootstrap when AGENTS.md is missing"
 Assert-Contains $installScriptContent "/project-context-maintenance" "install should guide users or their agent to run project-context-maintenance after install"
+Assert-True (-not $installScriptContent.Contains("Syncing vendor skills to runtime skill directory")) "install must not sync all vendor skills to user runtime directories"
 Assert-Contains $installScriptContent ".agents/plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md" "install should point to the real project-context-maintenance skill path"
 Assert-Contains $profileScriptContent "available" "profile updater should support available"
 Assert-Contains $profileScriptContent "enabled" "profile updater should support enabled"
@@ -226,6 +303,8 @@ Assert-Contains $runbookContent "pull-blocked-dirty" "runbook should mention pul
 Assert-Contains $runbookContent "git clone" "runbook should support manual clone"
 Assert-Contains $runbookContent "/project-context-maintenance" "runbook should guide users to maintain project context after install"
 Assert-Contains $runbookContent "dependencies" "runbook should explain dependency plugin initialization order"
+Assert-Contains $runbookContent "install-git-hooks.ps1" "runbook should document explicit git hook enablement"
+Assert-Contains $runbookContent "git-hooks-not-enabled" "runbook should document hook status notes"
 $contextSkillContent = Get-Content -Raw -Encoding UTF8 -Path $contextSkillPath
 Assert-Contains $contextSkillContent "docs/update-agents.md" "project-context-maintenance should route updates to docs/update-agents.md"
 Assert-Contains $contextSkillContent "depends_on" "project-context-maintenance should guide plugin enablement after context maintenance"
@@ -238,6 +317,7 @@ Assert-Contains $irisBackendRuleContent 'continue:(episodeId''="") && (appEpisod
 Assert-Contains $irisBackendRuleContent '#1012 Expected EOL or spaces' "IRIS backend rule should identify the compiler error caused by a spaced postconditional"
 Assert-Contains $irisBackendSkillContent 'continue:(cond1)&&(cond2)' "IRIS backend skill should require contiguous compound postconditionals"
 Assert-Contains $irisBackendSkillContent 'continue:(cond1) && (cond2)' "IRIS backend skill should reject spaced compound postconditionals"
+Assert-Contains $contextSkillContent "install-git-hooks.ps1" "project-context-maintenance should mention optional git hook enablement"
 
 $missingAgentsEntryProjectRoot = New-TestProject
 try {
@@ -253,6 +333,8 @@ finally {
 $projectRoot = New-TestProject
 try {
   New-Item -ItemType Directory -Force -Path (Join-Path $projectRoot ".agents/config") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $projectRoot ".agents/skills/agent-kit-maintenance") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/agent-kit-maintenance/SKILL.md") -Value "# Maintenance-only Skill"
   Set-Content -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md") -Value @(
     "# Sample Profile",
     "",
@@ -268,7 +350,10 @@ try {
   Assert-Contains $summaryOutput "Available plugins:" "Default output should list available plugins"
   Assert-Contains $summaryOutput "sample-plugin" "Default output should report sample plugin as available"
   Assert-Contains $summaryOutput "agent-context-kit" "Default output should process the default context plugin"
+  Assert-Contains $summaryOutput "git-hooks-not-enabled" "Default output should report available but disabled git hooks"
+  Assert-True (-not $summaryOutput.Contains("vendor-skill-synced")) "Default update must not sync vendor skills to user runtime directories"
   Assert-Contains $summaryOutput "Optional entrypoint notes:" "Default output should report optional entrypoint notes"
+  Assert-True ([string]::IsNullOrWhiteSpace((git -C $projectRoot config --get core.hooksPath))) "Update must not set core.hooksPath automatically"
   Assert-True (-not $summaryOutput.Contains("Action required:")) "Missing or non-symlink optional entrypoints should not require action"
   Assert-True (-not $summaryOutput.Contains("sample_profile.md")) "Available plugins must not have templates merged by default"
   Assert-True (-not $summaryOutput.Contains("sample_rule.md")) "Available plugins must not generate thin-index by default"
@@ -277,6 +362,9 @@ try {
   Assert-Contains $unenabledPluginOutput "plugin-init-required" "Explicit available plugin should require init instead of being processed"
   Assert-True (-not $unenabledPluginOutput.Contains("config-missing-key")) "Explicit available plugin must not merge config before enablement"
   Assert-True (-not $unenabledPluginOutput.Contains("sample_rule.md")) "Explicit available plugin must not generate thin-index before enablement"
+
+  $detailedDefaultOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed | Out-String
+  Assert-Contains $detailedDefaultOutput "runtime-adapter-skipped" "Detailed output should report that runtime adapters are opt-in"
 
   $enableSampleOutput = & (Join-Path $projectRoot ".agents/scripts/update-plugin-profile.ps1") -ProjectRoot $projectRoot -Plugin sample-plugin -Status enabled | Out-String
   Assert-Contains $enableSampleOutput "plugin-profile-updated" "Profile updater should report updated status"
@@ -287,6 +375,8 @@ try {
   $dryRunOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed -Plugin sample-plugin | Out-String
   Assert-Contains $dryRunOutput "config-missing-key" "DryRun should report missing config keys"
   Assert-Contains $dryRunOutput "config-deprecated-candidate" "DryRun should report deprecated config candidates"
+  Assert-Contains $dryRunOutput "config-migration-unchanged" "DryRun should invoke plugin config migration"
+  Assert-Contains $dryRunOutput "sample migration received DryRun" "DryRun should pass DryRun to plugin config migration"
 
   $beforeWrite = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")
   Assert-Contains $beforeWrite "projectName: real-project" "DryRun must not overwrite existing config values"
@@ -294,9 +384,29 @@ try {
 
   $writeOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-String
   Assert-Contains $writeOutput "config-merged-key" "Write should merge missing config keys"
+  Assert-Contains $writeOutput "config-migration-applied" "Write should apply plugin config migration"
+  Assert-Contains $writeOutput "sample migration received Write" "Write should pass Write to plugin config migration"
+  Assert-Contains $writeOutput "git-hooks-not-enabled" "Write should report hooks are available but not enabled"
   Assert-Contains $writeOutput "agent-thin-index" "Write should include agent thin-index phase"
+  Assert-Contains $writeOutput "vendor-thin-index" "Write should include vendor thin-index phase"
+  Assert-Contains $writeOutput "runtime-adapter-skipped" "Write should keep runtime adapters opt-in"
+  Assert-Contains $writeOutput "skill-dependency-required" "Write should report required vendor capability"
+  Assert-Contains $writeOutput "skill-dependency-optional" "Write should report optional vendor capability"
+  Assert-Contains $writeOutput "maintenance-only-skill-removed" "Write should report removal of deployed maintenance-only skill"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/agent-kit-maintenance"))) "Write should remove deployed maintenance-only skill"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/config/plugin_profile.md")) "Write should create plugin profile"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/i18n-agent/SKILL.md")) "Write should generate i18n-agent skill thin-index"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/vendor-test-skill/SKILL.md")) "Write should generate vendor skill thin-index"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/root-vendor/SKILL.md"))) "Write should not generate optional vendor skill thin-index"
+
+  $profileBeforeCheck = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")
+  $thinIndexBeforeCheck = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/sample-skill/SKILL.md")
+  $checkOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Check -NoPull -Detailed -Plugin sample-plugin | Out-String
+  Assert-Contains $checkOutput "config-migration-unchanged" "Check should accept an unchanged plugin config migration"
+  Assert-Contains $checkOutput "sample migration received DryRun" "Check should pass DryRun to plugin config migration"
+  Assert-True (-not $checkOutput.Contains("config-migration-failed")) "Check should not report config-migration-failed for a DryRun-only migration"
+  Assert-True ((Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")) -eq $profileBeforeCheck) "Check must not modify plugin profile files"
+  Assert-True ((Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/sample-skill/SKILL.md")) -eq $thinIndexBeforeCheck) "Check must not modify generated thin-index files"
   $agentSkillThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/i18n-agent/SKILL.md")
   Assert-Contains $agentSkillThinIndex ".agents/agents/i18n-agent/AGENT.md" "Agent thin-index should point to canonical AGENT.md"
   Assert-Contains $agentSkillThinIndex ".agents/agents/i18n-agent/bindings.yaml" "Agent thin-index should point to bindings.yaml"
@@ -322,8 +432,26 @@ try {
   Assert-Contains $sampleSkillThinIndex "description: Use when testing real skill description propagation." "Skill thin-index should propagate source skill description"
   Assert-Contains $sampleSkillThinIndex "thin-index: true" "Skill thin-index should declare thin-index frontmatter"
   Assert-Contains $sampleSkillThinIndex "source: .agents/plugins/sample-plugin/skills/sample-skill/SKILL.md" "Skill thin-index should declare source frontmatter"
+  $vendorSkillThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/vendor-test-skill/SKILL.md")
+  Assert-Contains $vendorSkillThinIndex "description: Use when testing vendor thin-index generation." "Vendor thin-index should propagate source skill description"
+  Assert-Contains $vendorSkillThinIndex "thin-index: true" "Vendor thin-index should declare thin-index frontmatter"
+  Assert-Contains $vendorSkillThinIndex "source: .agents/vendor/test-vendor/skills/vendor-test-skill/SKILL.md" "Vendor thin-index should point to vendor source"
+  $claudeSkillSyncDryRun = & (Join-Path $projectRoot ".agents/scripts/sync-claudecode-skills.ps1") -AgentsRoot (Join-Path $projectRoot ".agents") -ProjectRoot $projectRoot -Mode DryRun | Out-String
+  Assert-Contains $claudeSkillSyncDryRun "skipped" "Claude Code skill sync should skip project skills already provided by dedup sources"
+  Assert-Contains $claudeSkillSyncDryRun "generated" "Claude Code skill sync should report skills that need project-level sync"
+  $vendorSyncWithoutSelection = & (Join-Path $projectRoot ".agents/scripts/sync-vendor-skills.ps1") -AgentsRoot (Join-Path $projectRoot ".agents") -ProjectRoot $projectRoot -Mode Write 2>&1 | Out-String
+  Assert-Contains $vendorSyncWithoutSelection "vendor-skill-selection-required" "Vendor runtime Write should reject missing skill selection"
+  $vendorSyncReuse = & (Join-Path $projectRoot ".agents/scripts/sync-vendor-skills.ps1") -AgentsRoot (Join-Path $projectRoot ".agents") -ProjectRoot $projectRoot -Skill @("vendor-test-skill") -Runtime ClaudeCode -Mode DryRun | Out-String
+  Assert-Contains $vendorSyncReuse "vendor-skill-reused" "Explicit runtime sync should reuse an existing canonical user skill"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "CODEBUDDY.md"))) "Write must not create missing optional entrypoints"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "CLAUDE.md.bak"))) "Write must not backup or replace existing optional entrypoints"
+  Assert-True ([string]::IsNullOrWhiteSpace((git -C $projectRoot config --get core.hooksPath))) "Write must not enable git hooks automatically"
+
+  $installHookOutput = & (Join-Path $projectRoot ".agents/scripts/install-git-hooks.ps1") -ProjectRoot $projectRoot | Out-String
+  Assert-Contains $installHookOutput "git-hooks-enabled" "install-git-hooks should report enabled hooks"
+  Assert-Contains (git -C $projectRoot config --get core.hooksPath) ".agents/hooks" "install-git-hooks should set core.hooksPath to .agents/hooks"
+  $hooksEnabledOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed | Out-String
+  Assert-Contains $hooksEnabledOutput "git-hooks-enabled" "Update should report enabled git hooks after explicit install"
   $claudeContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot "CLAUDE.md")
   Assert-Contains $claudeContent "Existing Claude Entry" "Write must preserve existing optional entrypoint content"
 
@@ -343,6 +471,11 @@ try {
   }
   Assert-Contains $staleOutput "removed" "Write should remove stale plugin thin-index files"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sample_rule.md"))) "Stale thin-index should be removed"
+
+  Remove-Item -LiteralPath (Join-Path $projectRoot ".agents/vendor/test-vendor/skills/vendor-test-skill/SKILL.md")
+  $staleVendorOutput = & (Join-Path $projectRoot ".agents/scripts/generate-vendor-thin-index.ps1") -AgentsRoot ".agents" -ProjectRoot $projectRoot -Skill @("root-vendor") -CleanupLegacyVendorSkills -Mode Write | Out-String
+  Assert-Contains $staleVendorOutput "removed" "Write should remove stale vendor thin-index files"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/vendor-test-skill/SKILL.md"))) "Stale vendor thin-index should be removed"
 
   $codingPluginRoot = Join-Path $projectRoot ".agents/plugins/coding-iris-plugin"
   $agentContextPluginRoot = Join-Path $projectRoot ".agents/plugins/agent-context-kit"

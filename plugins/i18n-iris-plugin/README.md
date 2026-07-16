@@ -3,13 +3,16 @@
 `i18n-iris-plugin` 是面向 IRIS/ObjectScript/CSP/HISUI 工程的通用 i18n Agent 能力包，覆盖：
 
 - 前后端 i18n 编码改造。
+- 前端复用 coding-iris 的 `standard-gb2312` / `project-utf8` 双模式和字节检测门禁，不单独推断编码。
 - 用户可见文本提取和翻译表生成。
 - 页面级非字典翻译种子生成。
 - 字典/表字段展示值翻译 SQL 生成。
 - XML 打印模板翻译。
 - 已确认 XML 模板链路的打印模板导出、校验和同步。
+- XML 打印模板远端保存遇到临时类 `Execute+...<SYNTAX>` 时，复用既有本地产物并自动切换 Base64 分块 fallback，避免重复导出和翻译。
 - CSP 页面翻译导出、校验和同步。
 - 新工程 i18n 初始化。
+- i18n 任务 Step 0 启动契约：开工即确定运行模式、创建 manifest、声明文件所有权，并分别确认翻译数据写入与业务代码部署授权。
 
 ## 设计原则
 

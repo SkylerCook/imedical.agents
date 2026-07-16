@@ -240,6 +240,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
     - `/rules/`
     - `/skills/`
     - `/scripts/`
+11. 如果 `.agents/scripts/install-git-hooks.ps1` 存在，向用户提示可选提交前差异降噪 hook；只有用户明确要求时，才在业务项目根目录运行：
+   ```powershell
+   powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/install-git-hooks.ps1 -ProjectRoot .
+   ```
+   `.agents` 只分发 hook 模板和安装脚本，不自动修改业务项目 `core.hooksPath`。
 
 插件内 `scripts/generate-plugin-thin-index.ps1` 是稳定调用入口，只 wrapper 到根 `.agents/scripts/generate-plugin-thin-index.ps1`。修改 thin-index 行为时只改根脚本，不复制插件脚本实现。
 
@@ -278,10 +283,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 3. 生成 `.agents/rules/` 和 `.agents/skills/` thin-index；thin-index 必须指向 `.agents/plugins/<plugin>/` 内真实文件。
 4. 如插件需要本地脚本，复制到 `.agents/scripts/`；目标存在且内容不同时，默认报告 conflict，不覆盖。
 5. 更新 `AGENTS.md` 的插件能力路由；入口只写启动顺序、profile/rules/skills 路由和硬约束，不复制完整规则。
-6. 确认 `.agents/.git/info/exclude` 忽略生成层：`/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
+6. 确认 `.agents/.git/info/exclude` 忽略生成层：`/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`、`/work/`。
 7. 扫描长期上下文，确认没有具体服务器地址、账号、密码、token、namespace 或远程路径。
 8. 验证 `.agents` Git 状态；生成层应被忽略，能力包源码改动必须明确区分。
 9. 初始化闭环验收通过后，运行 `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin <plugin-name> -Status enabled`，机械反写插件状态。
+10. 提交前如项目已启用 `.agents/hooks`，Agent 应主动运行 `.agents/scripts/check-functional-diff.ps1 -ProjectRoot . -Staged`；未启用时只提示用户可选安装，不擅自执行 `git config core.hooksPath`。
 
 验收时至少检查：
 

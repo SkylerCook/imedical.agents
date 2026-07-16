@@ -14,10 +14,11 @@
 - `agents/` 是厂商无关的智能体 canonical 注册层；`workflows/` 是厂商无关的多智能体/阶段化编排层。工具专属入口只能作为 adapter 生成物。
 - `plugins/agent-context-kit/` 负责项目上下文维护，包括 AGENTS 入口、项目规则、项目记忆、项目配置和 thin-index。
 - `plugins/coding-iris-plugin/` 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力。
+- coding-iris 前端编码使用 `standard-gb2312` / `project-utf8` 双模式；路径与仓库角色只提出候选，实际文件字节检测是最终门禁，已部署项目通过插件迁移钩子更新本地 profile。
 - `plugins/i18n-iris-plugin/` 负责 IRIS/ObjectScript/CSP/HISUI 国际化能力。
 - `plugins/imedicalxc-doctor-extend-engineer/` 负责 HIS 医生站第三方系统集成编排，主入口为 `skills/imedicalxc-doctor-extend-engineer/SKILL.md`，子 skill 由主编排器按需读取。
 - 已落地首个领域样板 `agents/i18n-agent/` 和 `workflows/i18n-change.workflow.md`，用于 IRIS i18n 需求的链路定位、数据分类、编码/模板/种子和验证五阶段处理。
-- 当前重点维护方向是降低 rules 常驻上下文成本，并完善多 Agent 协作在已部署 `.agents` 项目中的发现、更新和验证链路。
+- 当前重点维护方向是先固化多人协作提交准入和仓库一致性检查；`i18n-agent` / `i18n-change.workflow.md` 已完成串行回溯、首次偏差实战和 `#6097891` 标准化实战，schema 1.2 已覆盖暂停恢复与最终验证门禁。通用 workflow/Agent 仍需不同任务形态样本，rules 体量与工具原生 adapter 继续观察，不抢占主线。
 - 根 `AGENTS.md` 只服务本仓库维护，不部署到业务项目 `.agents/`；业务项目仍使用业务项目自己的 `AGENTS.md` 和 `.agents/` 上下文。
 
 ## 必读路由
@@ -32,17 +33,19 @@
 
 ## 近期关键变化
 
+- `i18n-agent` 已建立三种运行模式、Step 0 启动契约和编号 handoff；schema 1.2 增加 attempts、capability matrix、远程动作终态、finalization 和限定 verification scope，并保留 1.0/1.1 校验兼容。`#6097891` 已形成脱敏异常恢复回归样本。
+- `agent-framework-feedback` 已升级为 HIS 任务统一收尾入口：需求经验与独立框架修正分流处理，无候选时不生成空反馈；反馈提交和推送仍需用户明确要求。
+- XML 打印模板同步在远端保存遇到临时类 `Execute+...<SYNTAX>` 时，会复用既有 XML/manifest/备份并自动切换 Base64 分块 fallback，专项离线回归覆盖成功、收敛和清理路径。
 - 已新增 `imedicalxc-doctor-perf-analysis-engineer` 插件，覆盖医生站接口性能分析与优化、前后端链路追踪、Graylog 日志分析、N+1/批量调用优化和性能报告输出；init skill 与主编排 skill 分离，thin-index wrapper 默认只暴露主编排器入口。
 - 已新增 `imedicalxc-doctor-data-extraction` 插件，用于 HIS 数据抽取、`@OpenApi` Controller 扫描、第三方接口对照文档和字段映射生成，Feign/API 文档生成作为辅助能力。
 - 已新增 `imedicalxc-doctor-print-template-design` 插件，用于 HIS 打印模板设计和 `.xlsx` 模板生成，覆盖 Word/docx 参考文档到主模板/扩展模板的工作流。
 - `scripts/install-agents.ps1` 和 `scripts/update-agents.ps1` 已新增 Git 版本前置校验；`docs/update-agents.md` 和更新脚本测试已同步覆盖。
-- 已新增 vendor skill 运行时同步链路：`vendor/superpowers/` 和 `vendor/word-reader/` 随 `/vendor/**` 部署到业务项目 `.agents/vendor/`，再由 `scripts/sync-vendor-skills.ps1` 同步到运行时 skill 发现目录；vendor 仍不参与 thin-index。
+- vendor skill 已改为按 enabled 插件 capability 发现：`vendor/superpowers/` 和 `vendor/word-reader/` 仍随 `/vendor/**` 部署作为 fallback，但常规安装/更新不再全量写用户目录；resolver 只为 required skill 生成 `.agents/skills` 通用入口，optional 按任务触发，用户级 runtime 同步必须显式指定 skill。
 - 已新增并重构 `imedicalxc-doctor-extend-engineer` 插件，采用标准插件结构、内置多模块 Maven 依赖安装脚本，thin-index wrapper 默认只暴露主编排器入口，医生站第三方集成子 skill 由主编排器按需加载。
 - 已精简 `imedicalxc-doctor-dbdata` skill，聚焦数据库查询核心规范，重点保留医保对照、基础数据统一对照和合并查询（Merge Query）等高价值领域知识，并同步更新医生站扩展主编排器和架构引用。
-- 已新增框架验证反馈机制：`feedback/framework/`、`agents/_shared/feedback-protocol.md`。Agent 处理 HIS 需求时如对框架文件做了修正，自动生成反馈条目；维护者定期 diff 后应用到 master。
-- 已新增仓库级 `skills/agent-framework-feedback/SKILL.md`，用于在插件直接使用或无 canonical agent 场景下生成框架反馈条目。
 - 已新增 `demo/presentation/` 演示页面，作为能力包、i18n skill 和多智能体架构的可视化说明材料；它不属于业务项目运行入口。
 - 已新增部署经验沉淀入口 `feedback/experience/deploy-com-exp.md` 和首个专项部署工具目录 `docs/deploy/dental-ta-159/`；这类内容可随 `docs/` 部署，但不得把业务私有连接信息写入记忆或规则。
+- 已新增提交前差异降噪 Git hook 分发能力：`.agents/hooks/pre-commit`、`.agents/scripts/check-functional-diff.ps1` 和 `.agents/scripts/install-git-hooks.ps1` 随 `.agents` 更新可用，但 `install-agents.ps1` / `update-agents.ps1` 不自动修改业务项目 `core.hooksPath`，只报告 hook 可用或启用状态。
 - 已新增 IRIS 部署编排入口 `plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md` 和薄清单脚本 `plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js`；默认只生成部署清单和编排验证，远端写入仍需用户明确确认。
 - 已新增根 `AGENTS.md`，作为本仓库 AI Coding 维护入口；它不部署到业务项目 `.agents/`。
 - 维护记忆已拆分为入口摘要、长期决策、维护日志和治理队列四类文件。
@@ -56,10 +59,10 @@
 ## 当前治理重点
 
 - 已新增 agent thin-index 生成链：`scripts/generate-agent-thin-index.ps1` 可从 canonical `agents/` 生成 `.agents/skills/<agent-name>/SKILL.md`，并已接入 `update-agents.ps1`。
-- 已新增 vendor skill 同步链：`install-agents.ps1` / `update-agents.ps1` 会调用 `scripts/sync-vendor-skills.ps1`，当前主要服务 `vendor/superpowers/` 和 `vendor/word-reader/`。
-- 工具专属 adapter 生成器暂缓；当前只做通用 agent skill thin-index，不生成 `.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/`、WorkBuddy 或 Hermes 原生入口。
+- vendor skill 核心链路已厂商无关化：manifest 声明 capability，resolver 生成 required 项目 thin-index；Claude Code/Codex 只保留显式 runtime adapter，同步不再是常规更新前置。OpenCode、CodeBuddy、WorkBuddy、Hermes 使用项目通用层或直接源文件降级。
+- 工具专属 agent adapter 生成器仍暂缓；当前已开始做 Claude Code/Codex 的 skill 发现层适配，但不生成 `.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/`、WorkBuddy 或 Hermes 原生 agent 入口。
 - 继续观察 rules 体量，查找表、API 目录和长参考资料优先迁入插件 `references/`。
-- 多 Agent 协作已进入顶层 canonical 设计阶段，但暂不实现复杂运行时调度器；第一阶段以 i18n-agent 样板、workflow、交接协议和适配入口生成器为主。
+- 多 Agent 协作已完成 i18n 样板的脱敏串行回溯、运行 manifest 和事后校验器；下一阶段是在真实需求中验证明确授权的多智能体编排，暂不实现复杂运行时调度器或工具原生 adapter。
 - 已新增维护者专用 `skills/agent-kit-maintenance/SKILL.md`；它只服务本仓库维护，虽位于根 `skills/`，但不部署到业务项目 `.agents/`，根 `AGENTS.md` 仍承载最高优先级维护入口和规则。
 
 ## 最高优先级约束

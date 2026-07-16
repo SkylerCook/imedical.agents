@@ -34,7 +34,7 @@ related:
 
 - `iris_doc mode=put/delete`：写入或删除 IRIS 文档。仅在用户明确要求时使用；`put` 适用于 `.cls/.mac/.inc` 等 IRIS 文档，不用于 CSP 上传。
 - `iris_compile`：编译类、例程或包。部署冒烟检查优先使用 `flags="cuk /checkuptodate=expandedonly"`。
-- `iris_execute`：执行 ObjectScript。即使代码看似只读，工具内部也可能创建临时生成类；必须检查返回 status 和 stdout，不能只看传输成功。
+- `iris_execute`：执行 ObjectScript。即使代码看似只读，工具内部也可能创建临时生成类；必须检查返回 status 和 stdout，不能只看传输成功。已授权的只读核验或翻译操作可将这种自清理临时载体记录为 `tool-internal-execution`，它不等同于 `business-code-deploy`，也不得用于上传命名业务类。
 - `iris_source_control`：查看 SCM 状态/菜单或执行 checkout/action；checkout 和 action 属于状态变更。
 - `iris_test`：运行 `%UnitTest.Manager` 测试。
 
@@ -85,12 +85,19 @@ related:
 - Windows x64 的 `iris-agentic-dev.exe` 已内置在 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`，可作为目标工程 `.mcp.json` 的 `command` 或 `.agents/config/project-env.json` 的 `mcp.serverPath`。
 - 内置可执行文件只解决工具位置问题；host、web_port、scheme、namespace、用户名、密码、token 和 TLS 选项仍只能由目标工程 `.mcp.json`、`.iris-agentic-dev.toml` 或环境变量承载。
 - 配置文件通常位于目标工程根目录 `.iris-agentic-dev.toml`，用于声明 IRIS 连接参数，例如 host、web_port、scheme、namespace。
-- 凭据，例如用户名、密码、TLS 验证、token，不写入 TOML，由目标工程 `.mcp.json` 或环境变量承载。
+- 凭据优先由目标工程 `.mcp.json` 或环境变量承载；若当前 `iris-agentic-dev` 版本要求 TOML 字段才能完成热加载，TOML 也只能作为目标工程本地私有配置，不得提交、复制到插件、rules、memory 或对话输出。
 - TOML 注释必须使用 ASCII 字符；非 ASCII 注释可能导致解析器静默失败。
 - 修改 TOML 后，调用任意相关 MCP 工具通常可触发热加载，无需重启会话。
+- 由脚本直接启动 MCP 进程时，应显式传入 `--config <workspace>/.iris-agentic-dev.toml`；同时可用命令行参数传入非敏感定位项 `--host`、`--web-port`、`--scheme`、`--namespace`，账号、密码、token 保持走环境变量或本地私有配置。
 
 ## 诊断
 
-- 使用目标工程 MCP 提供的配置检查能力确认配置是否加载成功。
-- 若检查结果中配置文件为空但连接仍可用，说明工具可能回退到自动发现或环境变量，应检查 TOML 路径、编码和注释字符。
+- 原生 `mcp__iris_agentic_dev__*` 工具优先。只有当前运行器没有暴露原生工具且目标工程确实存在 `.agents/scripts/iris-mcp.js` 时，才使用 `node .agents/scripts/iris-mcp.js check|tools|call ...`；helper 不存在时报告入口缺失，不得假定它已部署。
+- `check_config` 只说明配置解析结果，不发起 IRIS 网络调用。先确认目标 host、namespace 等定位是否合理，再立即执行 `iris_query("SELECT 1 AS Probe")` 作为最小无副作用网络探针。
+- 当 `connection_source=auto_discovered` 或环境变量发现已生效，且 `SELECT 1 AS Probe` 成功时，`config_file=null` 不构成配置失败，也不要求为了形式补 TOML 或强制热加载。
+- 查询成功即继续任务。只有真实探针失败时，才保留完整错误、重启一次 MCP 会话并复测；单次 HTTP 404/405 或单个工具失败不得扩大为“整个 MCP 不可用”。
+- 网络探针后按任务分别记录 `query`、`execute`、`document` 等 capability。某项失败只降级该项：`iris_query` 仍失败时，只有在 `tool-internal-execution` 已授权且临时载体自清理时，才可用 `iris_execute` + `%SQL.Statement` 只读降级；`iris_doc` 失败时可通过已验证的类或 Global 读取路径复核，不能直接断言文档不存在。
+- 只读调用示例：`node .agents/scripts/iris-mcp.js call iris_doc "{...}"`、`node .agents/scripts/iris-mcp.js call iris_query "{...}"`。写能力必须在用户明确要求后添加 `--allow-write`，并继续遵守部署/写入门禁。
+- `connected=false`，或定位项明显仍是默认值且真实探针失败时，才优先处理配置加载；不要仅凭 `config_file=null` 阻塞业务调用。
+- 直接手写 JSON-RPC 或脚本调用 `iris_doc`、`iris_query`、`iris_execute` 时，显式传入目标 namespace；不要依赖工具 schema 的默认 `USER`。
 - 不把某个工程的 host、namespace 或端口写入插件规则。

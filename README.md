@@ -98,12 +98,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - `-NoPull`：基于本地 `.agents` 内容检查或重建。
 - `-Plugin <name[]>`：只处理指定插件。
 - `-ExcludePlugin <name[]>`：跳过指定插件。
+- `-RuntimeAdapter ClaudeCode|Codex`：显式启用已验证的工具发现层 adapter；默认仅维护 `.agents/skills` 通用层。
 - `-ForceThinIndex`：将 `-Force` 传给 plugin thin-index 生成脚本。
+- `-CleanupLegacyVendorSkills`：显式清理不再属于 enabled 插件 required 集合的受管 vendor thin-index；普通更新不清理。
 - `-Detailed`：输出明细；日常不加，只看摘要。
 
 如果由 Agent 托管更新，让它先读取 `.agents/docs/update-agents.md`，由 runbook 判断是否可从 `DryRun` 进入 `Write`。
 
-安装和更新流程还会调用 `scripts/sync-vendor-skills.ps1`，把 `.agents/vendor/` 中带 `SKILL.md` 的 vendor skill 同步到当前运行时 skill 发现目录。当前主要用于 `vendor/superpowers/` 和 `vendor/word-reader/`；这类 vendor skill 不生成 `.agents/skills/` thin-index。
+安装和更新先根据 enabled 插件 manifest 解析 `skillDependencies`，只为 required vendor skill 生成 `.agents/skills/<name>/SKILL.md` 项目通用入口；optional skill 由任务场景触发。常规流程不再写用户级 skill 目录；Claude Code/Codex 同步必须显式指定 runtime 和 skill。OpenCode、CodeBuddy、WorkBuddy、Hermes 等未验证 adapter 的工具使用 `.agents/skills` 或直接 vendor 源降级。
 
 ## 仓库结构
 
@@ -141,6 +143,8 @@ i18n 流程：
 ```text
 Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 ```
+
+运行时必须选择 `retrospective`、`serial` 或 `multi-agent`。`multi-agent` 需要用户明确授权，远程写入仍需单独授权；schema 1.2 使用 `attempts[]`、capability matrix、远程动作终态、`finalization` 和限定 verification scope 表达暂停恢复与最终验证门禁。各阶段通过 `00-run-manifest.json` 和编号 handoff 报告交接，结束后由 `agent-context-kit/scripts/validate-agent-run.ps1` 做只读机械验收。该校验器不承担运行时调度。
 
 对应能力：
 
@@ -190,11 +194,11 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力：
 
 - ObjectScript 后端编码规则。
-- CSP、JavaScript、CSS、HISUI 前端编码规则。
+- CSP、JavaScript、CSS、HISUI 前端双编码规则：标版使用 `standard-gb2312`，医院项目使用 `project-utf8`，实际文件字节检测是最终门禁。
 - 本地优先、按需上传/编译的工作流约束。
-- UTF-8 前端文件转换为 GB2312 的 promote 流程。
+- 标版 UTF-8 导出 staging 严格转换为 GB2312 的 promote 流程，以及医院项目 UTF-8 原样编辑/上传流程。
 - HISUI 控件参考按需读取。
-- iris-agentic-dev MCP server Windows x64 可执行文件内置在 `.agents/vendor/iris-agentic-dev/`，目标工程 `.mcp.json` 仍保存实际连接事实。
+- iris-agentic-dev MCP server Windows x64 可执行文件（当前 **v0.6.20**）内置在 `.agents/vendor/iris-agentic-dev/`，目标工程 `.mcp.json` 仍保存实际连接事实。
 
 常用 skill：
 
@@ -254,7 +258,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - BLH / DriverCom 分层开发、调用规范、医保/字典数据复用和 WebSysAddins 中间件开发。
 - `imedicalxc-doctor-dbdata` 已精简为数据库查询核心规范，重点覆盖医保对照、基础数据统一对照和合并查询。
 - thin-index wrapper 默认只暴露 `imedicalxc-doctor-extend-engineer` 主编排器入口，8 个子 skill 由主编排器按需读取。
-- 依赖的 `superpowers` 和 `word-reader` 通过 `.agents/vendor/` 分发，并由安装/更新脚本同步到运行时 skill 目录。
+- 四个 superpowers 流程 skill 是 required capability；`word-reader` 是 DOC/DOCX 输入触发的 optional fallback。它们通过 `.agents/vendor/` 分发，但只按 enabled 插件依赖进入项目发现层。
 
 常用 skill：
 
@@ -318,7 +322,8 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 6. 先 dry-run，再 write 生成 `agent-context-kit` thin-index。
 7. 查看 `.agents/config/plugin_profile.md`；未启用插件保持 `available`，不要自动生成它们的 thin-index。
 8. 按需要初始化 `coding-iris-plugin`、`i18n-iris-plugin`、`iris-interface-dev-plugin`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`。
-9. 按需要读取 `agents/agent-registry.md` 和 `workflows/workflow-registry.md` 使用顶层智能体。
+9. 如需启用提交前差异降噪 hook，由用户在业务项目根目录显式运行 `.agents/scripts/install-git-hooks.ps1 -ProjectRoot .`；安装/更新 `.agents` 只分发 hook 模板和脚本，不自动修改 `core.hooksPath`。
+10. 按需要读取 `agents/agent-registry.md` 和 `workflows/workflow-registry.md` 使用顶层智能体。
 
 业务项目事实写入业务项目自己的上下文层，不写入本仓库插件或维护记忆。
 
@@ -371,7 +376,7 @@ scripts/generate-plugin-thin-index.ps1
 
 ## 维护约定
 
-- 维护本仓库自身时，优先读取根 `AGENTS.md` 和 `skills/agent-kit-maintenance/SKILL.md`；该 skill 位于根 `skills/` 下，但通过安装/更新 sparse checkout 排除，不部署到业务项目 `.agents/`。
+- 维护本仓库自身时，优先读取根 `AGENTS.md` 和 `skills/agent-kit-maintenance/SKILL.md`；该 skill 位于根 `skills/` 下，但通过安装/更新 sparse checkout 排除，不部署到业务项目 `.agents/`。如果历史部署已经遗留 `.agents/skills/agent-kit-maintenance/`，运行 `.agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Write` 会清理该目录。
 - 新增长期通用能力时，先判断应放入 `agents/`、`workflows/`、`plugins/`、`rules/`、`references/`、`skills/`、`templates/` 还是 `scripts/`。
 - 修改插件目录结构时，同步检查 `.agents-plugin/plugin.json`、插件 `AGENTS.md`、插件 README、仓库 README 和相关 docs。
 - 提交插件能力变更时，同步检查并按需更新插件 `AGENTS.md`、插件 README、manifest、相关 skill/rule/reference/template、仓库 README、维护记忆、相关 docs 和测试；不要只提交插件实现而遗漏说明、记忆或验证入口。

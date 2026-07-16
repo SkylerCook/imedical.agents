@@ -113,7 +113,12 @@ MCP 工具名称和连接参数以目标工程 `.mcp.json` 为准；插件只描
 
 ## 前端上传编码转换
 
-上传转换不改变源文件编码策略。前端源文件按 GB2312 保持；GB2312 源文件只允许生成临时 UTF-8 工作副本或临时 GB2312 上传产物，不允许未经用户确认永久改成 UTF-8。
+上传前先从 profile 的工程级模式和最长路径覆盖解析目标模式，再用实际文件字节检测确认。模式只允许：
+
+- `standard-gb2312`：源码与上传均为 GB2312。
+- `project-utf8`：源码与上传均为 UTF-8，禁止调用 GB2312 转换器。
+
+配置缺失、ASCII 样本不足、unknown、mixed 或字节检测与模式冲突时停止，不上传、不静默转码。
 
 触碰前端文件后，先按目标工程 profile 检查源文件编码。例如前端源文件要求 GB2312 时运行：
 
@@ -124,7 +129,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 ) -ExpectedEncoding gb2312 -ErrorOnMismatch
 ```
 
-服务器若要求 GB2312，上传前运行：
+仅 `standard-gb2312` 上传前按需运行：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/convert-gb2312-upload.ps1 -Files @(
@@ -141,9 +146,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/convert-gb23
 
 上传策略：
 
-- `converted=false`：上传源文件。
+- `converted=false`：源文件已经是 GB2312 或只有 ASCII 字节，按已确认的 `standard-gb2312` 模式上传源文件。
 - `converted=true`：上传临时 GB2312 文件，但远端文件名应映射回原始目标文件名。
 - 上传后清理本地临时 `*.gb2312.*` 文件。
+- `project-utf8` 直接上传通过 UTF-8 字节检查的源文件。
 
 ## CSP 编译
 

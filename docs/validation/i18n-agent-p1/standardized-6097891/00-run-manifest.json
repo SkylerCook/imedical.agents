@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.2",
+  "topic": "6097891-sanitized-resume-fixture",
+  "runMode": "multi-agent",
+  "retrospective": false,
+  "modeHistory": [{"mode":"multi-agent","selectedAt":"2026-07-15T10:00:00+08:00","reason":"selected before execution"}],
+  "authorization": {"multiAgent":true,"remoteWrite":true},
+  "startedAt": "2026-07-15T10:00:00+08:00",
+  "completedAt": "2026-07-15T10:23:00+08:00",
+  "elapsedSeconds": 1380,
+  "timingReason": "",
+  "ownership": [
+    {"actor":"backend-agent","stage":"backend-coder","paths":["backend-scope/**"]},
+    {"actor":"frontend-agent","stage":"frontend-coder","paths":["frontend-scope/**"]},
+    {"actor":"template-agent","stage":"template-seed","paths":["template-scope/**"]}
+  ],
+  "capabilities": [
+    {"name":"iris-query","state":"available","probe":"SELECT 1 AS Probe","result":"success after fresh session"},
+    {"name":"iris-execute","state":"not-required","probe":"not run","result":"query probe was sufficient"},
+    {"name":"iris-document","state":"not-required","probe":"not run","result":"not required by fixture"}
+  ],
+  "finalization": {"ready":true,"checkedAt":"2026-07-15T10:21:00+08:00","blockingFailures":["existing translation conflict classified as terminal"]},
+  "verification": {
+    "scope":["business-code","local-i18n-artifacts","authorized-remote-readback"],
+    "lastMutationAt":"2026-07-15T10:21:00+08:00",
+    "revision":"sanitized-final-state"
+  },
+  "stages": [
+    {"name":"explorer","actor":"analysis-agent","status":"completed","startedAt":"2026-07-15T10:00:00+08:00","completedAt":"2026-07-15T10:01:00+08:00","timingReason":"","attempts":[{"attempt":1,"status":"completed","startedAt":"2026-07-15T10:00:00+08:00","completedAt":"2026-07-15T10:01:00+08:00","activeSeconds":60,"reason":"targeted verification"}],"report":"10-explorer.md","reusedEvidence":true},
+    {"name":"classifier","actor":"analysis-agent","status":"completed","startedAt":"2026-07-15T10:01:00+08:00","completedAt":"2026-07-15T10:02:00+08:00","timingReason":"","attempts":[{"attempt":1,"status":"completed","startedAt":"2026-07-15T10:01:00+08:00","completedAt":"2026-07-15T10:02:00+08:00","activeSeconds":60,"reason":"targeted classification"}],"report":"11-classifier.md","reusedEvidence":true},
+    {"name":"backend-coder","actor":"backend-agent","status":"completed","startedAt":"2026-07-15T10:02:00+08:00","completedAt":"2026-07-15T10:04:00+08:00","timingReason":"","attempts":[{"attempt":1,"status":"completed","startedAt":"2026-07-15T10:02:00+08:00","completedAt":"2026-07-15T10:04:00+08:00","activeSeconds":120,"reason":"scoped implementation"}],"report":"20-backend-coder.md","reusedEvidence":false},
+    {"name":"frontend-coder","actor":"frontend-agent","status":"completed","startedAt":"2026-07-15T10:02:00+08:00","completedAt":"2026-07-15T10:04:00+08:00","timingReason":"","attempts":[{"attempt":1,"status":"completed","startedAt":"2026-07-15T10:02:00+08:00","completedAt":"2026-07-15T10:04:00+08:00","activeSeconds":120,"reason":"scoped implementation"}],"report":"21-frontend-coder.md","reusedEvidence":false},
+    {"name":"template-seed","actor":"template-agent","status":"completed","startedAt":"2026-07-15T10:02:00+08:00","completedAt":"2026-07-15T10:21:00+08:00","timingReason":"","attempts":[{"attempt":1,"status":"suspended","startedAt":"2026-07-15T10:02:00+08:00","completedAt":"2026-07-15T10:03:00+08:00","activeSeconds":60,"reason":"temporary MCP session failure"},{"attempt":2,"status":"completed","startedAt":"2026-07-15T10:20:00+08:00","completedAt":"2026-07-15T10:21:00+08:00","activeSeconds":60,"reason":"resumed after successful query probe"}],"report":"22-template-seed.md","reusedEvidence":false},
+    {"name":"verifier","actor":"verifier-agent","status":"completed","startedAt":"2026-07-15T10:21:00+08:00","completedAt":"2026-07-15T10:22:00+08:00","timingReason":"","attempts":[{"attempt":1,"status":"completed","startedAt":"2026-07-15T10:21:00+08:00","completedAt":"2026-07-15T10:22:00+08:00","activeSeconds":60,"reason":"final state verification"}],"report":"30-verifier.md","reusedEvidence":false},
+    {"name":"summary","actor":"root-coordinator","status":"completed","startedAt":"2026-07-15T10:22:00+08:00","completedAt":"2026-07-15T10:23:00+08:00","timingReason":"","attempts":[{"attempt":1,"status":"completed","startedAt":"2026-07-15T10:22:00+08:00","completedAt":"2026-07-15T10:23:00+08:00","activeSeconds":60,"reason":"final summary"}],"report":"40-summary.md","reusedEvidence":false}
+  ],
+  "failures": [{"signature":"temporary query failure","category":"transport-session","sameSignatureRetryCount":1,"historicalViolation":false,"fallback":"fresh session probe","result":"recovered"}],
+  "qualityGates": {
+    "handoff":"pass",
+    "sensitiveData":"pass",
+    "objectScript":{"compile":"not-applicable","structure":"pass","residualRisk":""},
+    "xml":{"triggered":true,"metadata":"pass","parse":"pass","residue":"pass","fallback":"pass"},
+    "parallelEfficiency":"pass"
+  },
+  "remoteActions": [{"type":"translation-save","write":true,"authorized":true,"authorizationCategory":"translation-data-write","scope":"sanitized translation scope","state":"blocked","terminal":true,"result":"existing conflicting value; no write performed"}]
+}

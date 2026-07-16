@@ -1,3 +1,4 @@
+
 ---
 name: i18n-bdp-trans-seed
 description: Use when generating multilingual dictionary or table-display translation term tables and SQL for the project-configured dictionary translation storage.
@@ -38,7 +39,8 @@ description: Use when generating multilingual dictionary or table-display transl
 5. 排除标准代码、人名、机构名、测量值、内部占位等非翻译项。
 6. 按 `i18n_translation_quality.md` 生成目标语言翻译。
 7. 输出翻译表和 SQL。
-8. 用户审核 SQL 后手动执行，除非用户明确要求自动写入。
+8. 默认由用户审核 SQL 后手动执行。Coordinator 应在需求启动时主动询问是否授权本次运行自动写入；run manifest 中 `translation-data-write` scope 已覆盖时直接执行，不重复询问。
+9. 自动写入仅新增缺失翻译；已有不同值、UPDATE、DELETE、DDL、回滚、环境变化或 scope 扩大必须重新确认。
 
 ## 翻译表输出
 

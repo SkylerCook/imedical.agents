@@ -21,5 +21,6 @@
 ## Scripts
 
 - `scripts/generate-plugin-thin-index.ps1`
+- `scripts/validate-agent-run.ps1`：只读校验 schema 1.2 阶段化/多智能体运行 manifest、attempts、capability matrix、文件所有权、远程动作终态、finalization、验证新鲜度、失败收敛、脱敏和并行效率，并兼容 1.0/1.1 历史产物；不承担运行时调度。
 
 插件内 `generate-plugin-thin-index.ps1` 是稳定调用入口，只 wrapper 到根 `.agents/scripts/generate-plugin-thin-index.ps1`。thin-index 生成逻辑只维护根脚本；不要把其它插件脚本实现复制到本插件。

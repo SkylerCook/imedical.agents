@@ -45,9 +45,9 @@
 
 ## 依赖的 Vendor 资产
 
-本插件依赖以下 vendor 资产，部署时需确保它们存在于 `.agents/vendor/`：
+本插件通过 manifest 声明以下 vendor capability fallback：
 
-- `vendor/word-reader/`：用于读取 Word 格式接口文档（如厂商提供的 `.docx`/`.doc` 规格说明书）。
-- `vendor/superpowers/`：提供 `brainstorming`、`writing-plans`、`subagent-driven-development`、`finishing-a-development-branch` 等流程 skill。
+- `vendor/superpowers/`：四个主流程 required skill，启用插件时生成项目通用 thin-index。
+- `vendor/word-reader/`：optional；仅收到 `.doc` / `.docx` 且当前工具没有原生 Word 读取能力时使用。
 
-安装和更新流程会调用 `scripts/sync-vendor-skills.ps1`，把上述 vendor skill 同步到运行时 skill 发现目录。若运行时仍缺失 superpowers，按 `.agents/docs/update-agents.md` 的 vendor skill 同步和停止条件处理。
+安装和更新流程不再全量写入用户级 skill 目录。所有工具优先使用 `.agents/skills` 项目发现层；需要 Claude Code 或 Codex 用户级副本时，必须按 `.agents/docs/update-agents.md` 显式指定 runtime 和 skill。OpenCode、CodeBuddy 等无已验证 adapter 的工具直接读取项目 thin-index 或 vendor 源，并在无子代理能力时串行降级。

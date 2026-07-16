@@ -16,14 +16,14 @@
 .agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md
 ```
 
-3. 复制前端编码脚本到目标工程：
+3. 初始化前端编码 wrapper：
 
 ```text
 .agents/scripts/convert-gb2312-upload.ps1
 .agents/scripts/check-frontend-encoding.ps1
 ```
 
-若目标工程已有同名脚本且内容不同，不要静默覆盖，先报告冲突。`generate-plugin-thin-index.ps1` 不复制到目标工程，保持在插件内使用。
+运行插件的 `migrate-frontend-encoding-profile.ps1`：已知历史版本自动替换为指向插件 canonical 实现的薄 wrapper，用户定制版只报告冲突。`generate-plugin-thin-index.ps1` 不复制到目标工程。
 
 4. 创建项目 profile：
 
@@ -89,7 +89,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 ## 验证清单
 
 - 插件目录存在。
-- `convert-gb2312-upload.ps1` 和 `check-frontend-encoding.ps1` 已复制到 `.agents/scripts/`。
+- `convert-gb2312-upload.ps1` 和 `check-frontend-encoding.ps1` wrapper 已生成到 `.agents/scripts/`。
+- `.agents/config/iris_project_profile.md` 的模式只使用 `standard-gb2312` 或 `project-utf8`，并已通过实际文件字节验证。
 - `generate-plugin-thin-index.ps1` 保持在插件 `scripts/` 内并可直接调用。
 - `.agents/config/iris_project_profile.md` 已填写工程差异（多仓库工作区只填通用项）。
 - `.agents/config/project-env.json` 已创建并填写（可从 `.mcp.json` 反向填充）。

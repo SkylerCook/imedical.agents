@@ -1,13 +1,23 @@
-- 2026-06-24：已完成 `iris-interface-dev-plugin` v2.0 Task 0 字段匹配闭环：新增 `iris-interface-field-match.py`，从 `parsed.json` 生成 `field-match.json` 和 `field-match.md`；匹配来源区分 `builtin-rule`、`local-feedback`、`low-confidence-candidate` 和 `unmatched`，并限制控制台只输出路径与数量。`--feedback` 只读取目标项目本地 JSON，不写回插件仓库；插件专项测试已新增 synthetic fixture 覆盖四类匹配结果和控制台不泄漏字段明细。
 # imedical.agents 维护日志
 
 本文件记录近期维护流水摘要和验证结论。长期决策见 `agent-kit-maintenance-decisions.md`，后续治理队列见 `agent-kit-maintenance-backlog.md`，入口摘要见 `agent-kit-maintenance-memory.md`。
 
-- 2026-06-24：已完成 `iris-interface-dev-plugin` v2.0 Task 0 接口文档解析经验回归提升：`feedback/experience/iris-interface-dev-com-exp.md` 新增 XLS/XLSX 多 sheet、DOCX 入参/出参、PDF 混合表、PDF 跨页续表、错误码/修订记录/JSON 示例过滤和 DOC 转 DOCX 优先级经验条目，并标记已提升到 `scripts/tests/iris-interface-plugin.tests.ps1`；解析器补强 JSON 示例行过滤 synthetic 回归。已通过插件专项测试、仓库更新回归和插件敏感词扫描；真实工程默认输出路径仍为 `docs/output/iris-interface/<doc-name>/`，本地 `tmp/iris-interface-file/` 仅作维护回归证据且不入库。
-
-- 2026-06-24：已完成 `iris-interface-dev-plugin` v2.0 Task 0 字段契约追溯模型：`parsed.json` 升级为 `iris-interface-doc-ingest/v2`，字段新增 `rawColumns`、`sourceLocation`、`classification`、`confidence`、`warnings`、`requiredReason` 和 `jsonPathReason`；`fields.md`/`diagnostics.md` 增加追溯摘要与统计。已通过插件专项测试、仓库更新回归和真实接口文档本地回归；真实摘要保留在 `tmp/iris-interface-file/test-results/iris-interface-v2-task0-real-doc-test-summary.md`，真实文档与解析产物不入库。
-
 ## 近期已完成
+- 2026-07-15：基于 `#6097891` 将 agent-run contract 升级到 schema 1.2：新增 stage attempts、MCP capability matrix、远程动作终态、finalization 门禁和限定 verification scope；validator 保持 1.0/1.1 兼容，并新增暂停恢复、终态冲突、非终态远程动作、attempt 重叠及验证范围回归。同步修正 MCP 判定为 `check_config` 后执行 `SELECT 1 AS Probe`，自动发现成功时不因 `config_file=null` 阻塞，单次 404 不再扩大为整个 MCP 不可用；`iris-mcp.js` 已纳入安装/更新 sparse checkout。
+- 2026-07-14：审计最近两次 feedback 提交。确认 `3131d97` 的 `FRAMEWORK_ROOT` 部署态路径修复已同步 canonical；将 `fc50477` 仅保存在反馈包中的 i18n Step 0、manifest schema 1.1、文件所有权、stale verifier、分类远程授权和 Windows PowerShell 5 兼容规则回归 canonical，并同步 owner 文档、P1 验证说明和专项测试。
+- 2026-07-13：完成 `#6097879` 首次真实 multi-agent i18n 实战复盘。实战覆盖前后端、页面翻译、XML 模板、独立 Verifier 和运行 manifest，但发现模式中途切换、阶段时间事后重构、所有权未入 manifest、Verifier 后继续修改、远程授权询问过晚及 Windows PowerShell 5 环境变量兼容问题；P1 保持开放，不据此新增通用 workflow/Agent。
+- 2026-07-13：`12e8539` 建立 `i18n-agent` P1 多模式运行协议：统一 `retrospective` / `serial` / `multi-agent`、编号 handoff、运行 manifest、授权和失败收敛规则；新增 `validate-agent-run.ps1` 及离线测试，并完成 `#6096150` 脱敏串行回溯。该回溯只证明串行与事后校验链路，真实多智能体实战仍留在 backlog。
+- 2026-07-13：`98b09e6` 为 XML 打印模板同步补充临时类 `Execute+...<SYNTAX>` 自动识别与 Base64 分块 fallback，复用既有本地产物并在成功或失败时清理临时节点；专项离线测试覆盖内联成功、单次收敛、分块计数和失败清理。
+- 2026-07-13：`7478f85` 将 `agent-framework-feedback` 升级为统一收尾 skill，分流需求经验与独立框架修正，并将收尾入口写入项目 AGENTS 模板；本轮维护同时修正共享反馈协议仍默认提交/推送的旧表述，统一为仅在用户明确要求时执行 Git 写操作。
+- 2026-07-13：完成全仓维护体检：8 个插件 manifest 均可解析，现有 7 组专项测试全部通过；补齐 `imedicalxc-doctor-data-extraction` 和 `imedicalxc-doctor-print-template-design` 插件 README，修正维护记忆分层，并将后续治理队列重排为 P0-P3。
+- 2026-07-13：修复 `update-agents.ps1 -Mode Check` 将不受支持的 `Check` 直接传给插件配置迁移脚本的问题；顶层 `Check` 现按只读语义映射为迁移 `DryRun`，并补充 `DryRun/Write/Check` 参数传递、unchanged 状态及 Check 不写 profile/thin-index 的回归覆盖。
+- 2026-07-13：已将 vendor skill 链路改为按 enabled 插件 capability 解析：新增通用依赖 resolver，`imedicalxc-doctor-extend-engineer` 声明四个 required superpowers skill 和 DOC/DOCX 触发的 optional `word-reader`；安装/更新停止全量写用户目录，项目层只生成 required thin-index。更新器支持自身更新后安全重启、legacy profile 保守识别和显式 cleanup；Claude/Codex 用户级同步改为必须指定 runtime/skill，其他 Agent 工具通过 `.agents/skills` 或直接 vendor 源串行降级。
+- 2026-07-11：已实现 coding-iris 前端编码 v2：新增 `standard-gb2312` / `project-utf8` 双模式和可选路径覆盖，实际文件字节检测作为最终门禁；新增 profile 自动迁移、已部署编码脚本 wrapper 迁移、严格 GB2312 转换、医院 UTF-8 直接导出与标版 staging 流程，并将插件迁移钩子接入 `update-agents.ps1`。coding/i18n rules、profile 模板、README、更新 runbook 和专项测试同步更新。
+- 2026-07-09：已同步 2026-07-07 五个提交后的 vendor/skill 发现链路维护说明：`README.md` 和入口维护记忆已将“vendor 不参与 thin-index”旧表述替换为当前真实行为，即 `sync-vendor-skills.ps1` 同步 vendor skill 到 Claude Code 运行时目录并在存在 Codex skill 目录时覆盖 Codex，`generate-vendor-thin-index.ps1` 为 vendor skill 生成 `.agents/skills/<name>/SKILL.md`，`sync-claudecode-skills.ps1` 将项目 `.agents/skills/` 同步到项目 `.claude/skills/`。本轮同时修复 `generate-vendor-thin-index.ps1` 在 Windows PowerShell 下中文字符串解析失败的问题，并将 `scripts/tests/update-agents.tests.ps1` 改为复制真实脚本、覆盖 vendor thin-index 生成与 stale 清理、vendor runtime skill 三层去重和 Claude Code skill 同步阶段。该链路属于 skill 发现层适配；完整 `.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/` 等工具原生 agent adapter 仍未实现。
+
+- 2026-07-08：已新增提交前差异降噪 Git hook 分发链路：新增 `hooks/pre-commit`、`scripts/check-functional-diff.ps1` 和 `scripts/install-git-hooks.ps1`，安装/更新 sparse checkout 纳入 `/hooks/**`，`update-agents.ps1` 仅报告 `git-hooks-not-enabled` / `git-hooks-enabled` / `git-hooks-unavailable`，不自动修改业务项目 `core.hooksPath`。`docs/update-agents.md`、README、`project-context-maintenance` 和测试已同步。
+
+- 2026-07-08：已修正维护者专用 `skills/agent-kit-maintenance/` 实际部署残留问题：`install-agents.ps1` 和 `update-agents.ps1` 的 sparse checkout 同时排除目录和目录内容；`update-agents.ps1 -Mode Write` 会兼容清理已部署项目中的 `.agents/skills/agent-kit-maintenance/` 并报告 `maintenance-only-skill-removed`。`docs/update-agents.md` 和 `scripts/tests/update-agents.tests.ps1` 已同步，更新脚本回归测试已通过。
 
 - 2026-07-13：已修正 `coding-iris-plugin` 对 ObjectScript 命令后条件的空格约束：明确命令、冒号和完整复合条件必须连续书写，新增 `continue:(cond1)&&(cond2)` 正例与 `continue:(cond1) && (cond2)` 的 `#1012` 反例，并将检查项同步到后端 skill、插件 README 和专项回归测试。
 
@@ -25,6 +35,9 @@
 - 2026-06-25：已新增信创版本医生站第三方接口开发智能体资料，后续重构为 `imedicalxc-doctor-extend-engineer` 插件标准目录。
 - 2026-06-24：已更新内置 Windows x64 `iris-agentic-dev.exe` 到 v0.6.17，业务项目仍通过 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe` 获取可执行文件，连接事实仍只允许留在目标工程本地配置。
 - 2026-06-24：已完成 `iris-interface-dev-plugin` v1.2 格式接入稳定化回归：XLS/XLSX 多 sheet、DOC 转 DOCX 降级路径、DOCX 入参/出参分段与字段契约、PDF 轻量抽查均已验证；新增长期路线图 `memory/plan/iris-interface-dev-plugin-roadmap.md`，替代旧 `iris-interface-v1-summary-v2-plan.md` 作为后续会话入口。真实样本和解析产物仍只保留在 `tmp/iris-interface-file/`，不入库。
+- 2026-06-24：已完成 `iris-interface-dev-plugin` v2.0 Task 0 字段匹配闭环：新增 `iris-interface-field-match.py`，从 `parsed.json` 生成 `field-match.json` 和 `field-match.md`；匹配来源区分 `builtin-rule`、`local-feedback`、`low-confidence-candidate` 和 `unmatched`，并限制控制台只输出路径与数量。`--feedback` 只读取目标项目本地 JSON，不写回插件仓库；插件专项测试已新增 synthetic fixture 覆盖四类匹配结果和控制台不泄漏字段明细。
+- 2026-06-24：已完成 `iris-interface-dev-plugin` v2.0 Task 0 接口文档解析经验回归提升：`feedback/experience/iris-interface-dev-com-exp.md` 新增 XLS/XLSX 多 sheet、DOCX 入参/出参、PDF 混合表、PDF 跨页续表、错误码/修订记录/JSON 示例过滤和 DOC 转 DOCX 优先级经验条目，并标记已提升到 `scripts/tests/iris-interface-plugin.tests.ps1`；解析器补强 JSON 示例行过滤 synthetic 回归。已通过插件专项测试、仓库更新回归和插件敏感词扫描；真实工程默认输出路径仍为 `docs/output/iris-interface/<doc-name>/`，本地 `tmp/iris-interface-file/` 仅作维护回归证据且不入库。
+- 2026-06-24：已完成 `iris-interface-dev-plugin` v2.0 Task 0 字段契约追溯模型：`parsed.json` 升级为 `iris-interface-doc-ingest/v2`，字段新增 `rawColumns`、`sourceLocation`、`classification`、`confidence`、`warnings`、`requiredReason` 和 `jsonPathReason`；`fields.md`/`diagnostics.md` 增加追溯摘要与统计。已通过插件专项测试、仓库更新回归和真实接口文档本地回归；真实摘要保留在 `tmp/iris-interface-file/test-results/iris-interface-v2-task0-real-doc-test-summary.md`，真实文档与解析产物不入库。
 - 2026-06-23：根据三份样本文档验证结果，补强 `iris-interface-dev-plugin` 解析前环境引导：新增 `iris-interface-env-check.py`，把缺依赖/缺转换器从“失败告知”改为可执行安装建议；`requirements-optional.txt` 新增 `xlrd`，`.xls` 安装 `xlrd` 后可直接解析，XLSX/XLS 多 sheet 按 sheet 拆成独立字段视图。
 - 2026-06-22：已完成 `iris-interface-dev-plugin` v1.1 PDF 解析质量补丁：收紧表头匹配，过滤修订记录和错误码表，支持 PDF 跨页续表继承上一字段表表头。真实样本 `综合药房 HIS 处方推送接口使用说明_5000.pdf` 重新解析后为 9 个视图、79 个字段，Page 17/18/19 续表缺失字段已补回。
 - 2026-06-22：已完成 `iris-interface-dev-plugin` v1 基线并入，来源工程审计基线为 `https://gitee.com/soneakeko/agent-architecture.git` commit `43e12b345c58ba11a48980828503daf29ae309ec`。插件采用解析审计优先边界，提供接口文档落盘解析、字段结构化、字段诊断、开发计划和离线审查入口；IRIS/ObjectScript 编码、上传、编译、部署和远端验证继续复用 `coding-iris-plugin`。
@@ -33,7 +46,7 @@
 - 已新增 IRIS 远端部署编排入口 `plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md`，将部署、上传、编译、SFTP 同步、CSP 编译和部署验证统一路由到部署 skill，并继续以 `rules/iris_deploy_checklist.md` 作为逐项执行清单。
 - 已新增薄通用脚本 `plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js`，用于根据文件列表或 git diff 生成 IRIS 部署 JSON 清单；脚本只做本地分析，不执行上传、编译或远端写入。coding 插件 README、AGENTS、目标工程 snippet、manifest prompt 和 `iris_coding_workflow.md` 已同步更新。
 - 已继续回归 `feedback/experience/demand-com-exp.md` 中建议提升的需求经验：`iris_coding_backend.md` 新增 `%Persistent` 字段追加、Storage 不手改和 Insert/Update/Import SQL 同步规则；`iris_coding_frontend.md` 新增 HisUI DataGrid 插列后 editor/列下标检查规则；`i18n_verify.md` 新增字典展示值验证必须覆盖主方法调用子方法的检查项。对应经验条目已追加“已回归/已提升”标记。
-- 已增强 IRIS/HIS 前端编码保护：coding-iris 前端规则不再默认 UTF-8，改为按实际检测和 `iris_project_profile.md` 保持源文件编码；新增 `check-frontend-encoding.ps1` 护栏脚本并接入初始化说明、README、profile 模板和 doctor-dev 默认值；i18n 前端编码规则、`i18n-coding` 和 `i18n_verify` 明确指向 coding-iris 的编码规则和检查脚本，防止 i18n 改造把 GB2312 前端文件永久改成 UTF-8。
+- IRIS/HIS 前端编码保护已升级为双模式：`standard-gb2312` 保证标版源码和上传均为 GB2312，`project-utf8` 保证医院项目源码和上传均为 UTF-8；目录/profile 只提出候选，实际文件字节检测是最终门禁。旧 doctor-dev 编码默认已取消，i18n 规则复用同一模式和检查脚本。
 - 已将 HISUI 源码内置到仓库根 `vendor/hisui/dist/`，消除 `${HISUI_SRC}` 变量间接层；所有插件规则、skill 和模板统一指向 `.agents/vendor/hisui/`，删除两套 profile 模板中的 `HISUI_SRC` 字段。`install-agents.ps1` 和 `update-agents.ps1` 的 sparse checkout 新增 `/vendor/**`。coding-iris-plugin 和 i18n-iris-plugin 共约 12 个文件已同步更新。
 - 已增强 plugin skill thin-index：`scripts/generate-plugin-thin-index.ps1` 生成 `.agents/skills/<skill>/SKILL.md` 时会传播真实 `SKILL.md` 的 `name` 和 `description`，并写入 `thin-index: true` 与 `source`。浅层 skill description 用于能力发现，匹配后仍必须继续读取插件真实 `SKILL.md`。
 - 已完成 `SKILL.md` 渐进式披露轻量约束治理：真实 `SKILL.md` 的 frontmatter `description` 已收敛为 `Use when...` 触发条件句；正文补充基础入口优先、按条件继续读取 rules/references/config/MCP 的路由说明。本轮未给 skill 引入 `task-affinity`，仍保持 skill 发现依赖 `description` 与正文路由。
@@ -83,6 +96,9 @@
 
 ## 近期提交索引
 
+- `12e8539`：建立 i18n-agent P1 多模式运行协议、运行 manifest、事后校验器和脱敏回溯产物。
+- `98b09e6`：XML 打印模板同步新增临时 `<SYNTAX>` 自动分块 fallback 与离线回归。
+- `7478f85`：升级 `agent-framework-feedback` 为统一收尾 skill，并沉淀条件分支经验。
 - `58339ee`：新增维护者专用 `agent-kit-maintenance` skill，并排除业务项目部署。
 - `364f594`：`install-agents.ps1` / `update-agents.ps1` 新增 Git 版本前置校验，并同步 runbook 与测试。
 - `3e0f580`：新增 `imedicalxc-doctor-print-template-design` 插件，提供打印模板设计与 `.xlsx` 模板生成工作流。
@@ -120,6 +136,8 @@
 
 ## 最近验证
 
+- 2026-07-13：`plugins/agent-context-kit/scripts/tests/validate-agent-run.Tests.ps1` 已覆盖合法串行/多智能体运行、未授权多智能体、缺失报告、同签名重试超限、未授权远程写入、阶段依赖、并行效率和敏感内容门禁；`docs/validation/i18n-agent-p1/retrospective-6096150` 已通过校验。
+- 2026-07-13：`plugins/i18n-iris-plugin/scripts/tests/sync-xml-print-template.Tests.ps1` 已覆盖内联保存、临时 `Execute+...<SYNTAX>` 识别、分块 fallback 和成功/失败清理。
 - 2026-07-01：已检查近期提交 `05bfa75`、`b655c1a`、`3e0f580`、`364f594`、`58339ee` 的变更范围；确认三个新增医生站插件均包含 `.agents-plugin/plugin.json`、`AGENTS.md`、主 `SKILL.md` 和 thin-index wrapper，其中性能分析插件额外包含 README、init skill、脚本和 references。已通过 `rg` 检查 README 与维护记忆中的旧插件总览缺口，并完成摘要同步；本轮不复制大段插件正文或业务私有事实。
 
 - 2026-06-30：本轮文档同步已执行一致性搜索，确认 `README.md`、`plugins/imedicalxc-doctor-extend-engineer`、`memory` 和 `docs` 下不再残留旧版 superpowers 安装方式和旧子 skill 暴露数量等过期表述；路径检查确认 `vendor/superpowers/skills/brainstorming/SKILL.md`、`vendor/word-reader/SKILL.md` 和医生站扩展插件 thin-index wrapper 均存在；`scripts/sync-vendor-skills.ps1 -AgentsRoot . -Mode DryRun` 可枚举 superpowers 与 word-reader vendor skill；`scripts/tests/update-agents.tests.ps1` 已通过。仓库根误产物 `%SystemDrive%/` 已确认位于 workspace 内并清理。
@@ -153,7 +171,6 @@
 - `scripts/tests/update-agents.tests.ps1` 已验证：默认只处理 `agent-context-kit`，未启用插件只列为 available，显式插件可处理，i18n 在 coding 未初始化时阻塞，安装/更新 sparse checkout 包含 `agents/` 和 `workflows/`。
 - 已验证三个插件 manifest 均可被 PowerShell `ConvertFrom-Json` 正常解析。
 - `scripts/tests/update-agents.tests.ps1` 已验证：`update-agents.ps1` 可调用 agent thin-index 阶段，Write 模式生成 `.agents/skills/i18n-agent/SKILL.md`，入口指向 canonical `AGENT.md`、`bindings.yaml` 和 `i18n-change.workflow.md`，且不生成工具 adapter 内容。
-- 当前 `master` 本地 `HEAD` 为 `5ea2910`，已与 `origin/master` / `github/master` 对齐；后续提交后仍按双远端约定分别同步。
 
 ## 维护要求
 

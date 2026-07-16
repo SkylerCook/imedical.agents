@@ -13,6 +13,7 @@
 - `.agents/config/` 只允许合并，不允许覆盖已有值。
 - `.agents/config/plugin_profile.md` 是插件启用状态事实来源；插件目录存在只表示 `available`，不表示已启用。
 - `.mcp.json` 是连接事实来源。不要把 host、账号、密码、token、namespace 或远程路径写入 `AGENTS.md`、rules、memory、config 或插件。
+- 安装/更新会部署 `.agents/scripts/iris-mcp.js`。原生 MCP 工具优先；只有运行器未暴露原生工具时才使用该 helper，不得把 helper 当成 canonical 规则源。
 - 如果输出中出现停止条件，先停止并向用户汇报，不要继续执行破坏性操作。
 
 ## Agent 执行原则
@@ -22,6 +23,8 @@
 3. 日常只看摘要；需要排障时再加 `-Detailed`。
 4. 普通提示不要打断用户。只有停止条件需要用户确认。
 5. 不依赖特定模型或工具的 `@文件` 语法。只要能读取本文件，就按本文件执行。
+
+`Check` 是更新器的只读验收模式。调用插件配置迁移时，更新器会把 `Check` 映射为迁移契约中的 `DryRun`；插件迁移脚本仍只需支持 `DryRun` 和 `Write`。
 
 ## 状态判定
 
@@ -145,6 +148,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `exclude-ok` | `.agents/.git/info/exclude` 已包含生成层忽略规则。 |
 | `entrypoint-ok` | `CLAUDE.md`、`CODEBUDDY.md` 等可选兼容入口正常。 |
 | `entrypoint-missing` / `entrypoint-not-symlink` / `entrypoint-wrong-target` | 可选兼容入口缺失或异常；不阻塞安装/更新，脚本不会自动修复或复制。 |
+| `git-hooks-not-enabled` | `.agents/hooks/pre-commit` 和安装脚本已可用，但业务项目尚未显式启用 Git hook；不会自动修改 `core.hooksPath`。 |
+| `git-hooks-enabled` | 业务项目已显式将 `core.hooksPath` 指向 `.agents/hooks`。 |
+| `git-hooks-unavailable` | 当前 `.agents` 中缺少 hook 模板或安装脚本；先更新 `.agents` 能力包。 |
 | `plugin-found` | 已发现插件。 |
 | `plugin-available` | 插件代码存在但未启用；只展示能力，不合并配置、不生成 thin-index。 |
 | `plugin-init-required` | 用户显式选择了未启用插件；停止并读取真实 init skill。 |
@@ -154,12 +160,25 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `generated` | dry-run 发现将生成 thin-index，或 write 已生成。 |
 | `unchanged` | 生成物内容已是最新，不需要写入。 |
 | `removed` | write 已清理 stale thin-index；清理阶段扫描所有指向 `.agents/plugins/*/rules/*.md` 的 rule thin-index，不受当前 `PluginPath` 限制。 |
+|
+| `vendor-thin-index-generated` | vendor thin-index 已生成或 dry-run 报告将生成。 |
+| `vendor-thin-index-unchanged` | vendor thin-index 内容已是最新，不需要写入。 |
+| `vendor-thin-index-stale` | vendor 源 SKILL.md 已变更或被删除，thin-index 需要更新；write 时将自动重新生成或清理。 |
+| `vendor-thin-index-removed` | write 已清理过期的 stale vendor thin-index。 |
 | `vendor-skill-synced` | vendor skill 已同步到运行时 skill 目录。 |
+| `skill-dependency-required` | enabled/显式插件声明的 required capability，进入项目发现层。 |
+| `skill-dependency-optional` | optional capability，仅记录 trigger，不在更新时安装。 |
+| `legacy-runtime-skill-detected` | 在已验证工具用户目录发现历史 vendor skill；只报告，不删除。 |
+| `runtime-adapter-skipped` | 未显式启用工具 adapter，继续使用 `.agents/skills` 通用层。 |
 | `vendor-missing` | `.agents/vendor/` 不存在，跳过 vendor skill 同步。 |
 | `skipped` 且 reason 包含 `target exists` | 目标 thin-index 已存在，默认不覆盖。 |
 | `config-missing-key` | 模板有新增字段，当前项目 config 没有；dry-run 只提示。 |
 | `config-merged-key` | write 已把缺失配置项追加到待确认区块。 |
 | `config-deprecated-candidate` | 当前项目 config 有模板没有的字段；只提示，不删除。 |
+| `config-migration-planned` | 插件迁移脚本已通过字节校验，dry-run 计划生成新配置。 |
+| `config-migration-applied` | write 已应用插件配置迁移。 |
+| `config-migration-unchanged` | 插件迁移配置已是最新。 |
+| `script-wrapper-planned` / `script-wrapper-applied` | 编码脚本将要或已经替换为指向插件 canonical 实现的薄 wrapper。 |
 
 以下状态是停止条件：
 
@@ -168,6 +187,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `Action required` | 查看摘要下的阻塞项。必要时运行 `-Detailed` 后向用户汇报。 |
 | `conflict` | 停止。报告冲突文件和来源。 |
 | `config-review-required` | 停止。说明配置语义需要人工确认。 |
+| `config-migration-review-required` | 停止。真实文件样本不足、mixed 或 unknown，不能自动决定编码模式。 |
+| `config-migration-conflict` | 停止。目录/仓库角色提出的候选模式与文件字节检测冲突。 |
+| `config-migration-failed` | 停止。插件迁移脚本缺失、异常退出或输出无效。 |
+| `submodule-init-required` | 停止。前端 submodule 未初始化，无法做字节检测。 |
+| `script-conflict` | 停止。目标工程编码脚本是未知或用户定制版本，更新器不覆盖。 |
 | `pull-blocked-dirty` | 停止。说明 `.agents` 仓库存在本地改动，需要用户决定提交、暂存或放弃。 |
 | `agents-git-missing` | 停止。说明 `.agents` 不是标准独立 Git 仓库。 |
 | `git-version-unsupported` | 停止。说明当前 Git 低于 `2.25.0`，先升级 Git for Windows 后重试。 |
@@ -177,9 +201,28 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `thin-index-script-missing` | 停止。报告插件缺少 thin-index 脚本。 |
 | `agent-thin-index-script-missing` | 停止。报告 `.agents/scripts/generate-agent-thin-index.ps1` 缺失；先更新 `.agents` 能力包。 |
 | `vendor-skill-sync-script-missing` | 停止。报告 `.agents/scripts/sync-vendor-skills.ps1` 缺失；先更新 `.agents` 能力包。 |
-| `agents-entry-missing` | 提示。项目主入口缺失；安装或更新 `.agents` 后，通过 `project-context-maintenance` 补齐或维护，不要复制本仓库根 `AGENTS.md`。 |
+ | `vendor-thin-index-script-missing` | 停止。报告 `.agents/scripts/generate-vendor-thin-index.ps1` 缺失；先更新 `.agents` 能力包。 |
+| `sync-claudecode-skills-script-missing` | 停止。报告 `.agents/scripts/sync-claudecode-skills.ps1` 缺失；先更新 `.agents` 能力包。 |
+ | `agents-entry-missing` | 提示。项目主入口缺失；安装或更新 `.agents` 后，通过 `project-context-maintenance` 补齐或维护，不要复制本仓库根 `AGENTS.md`。 |
 | `plugin-init-required` | 停止。读取该插件真实 init skill，完成初始化闭环后用脚本标记为 enabled。 |
 | `plugin-dependency-missing` | 停止。先初始化依赖插件，不要只因插件目录存在就继续。 |
+
+## coding-iris 前端编码 v2 迁移
+
+前端编码只允许两种模式：`standard-gb2312`（标版源码与上传均为 GB2312）和 `project-utf8`（医院项目源码与上传均为 UTF-8）。组合仓库名称不是编码模式；路径覆盖只映射这两种模式，实际文件字节检测始终是最终门禁。
+
+旧版 `update-agents.ps1` 在第一次运行过程中即使拉取了新版脚本，也不会在同一 PowerShell 进程中执行新迁移钩子。已部署工程按以下两阶段流程处理：
+
+```powershell
+# 第一阶段：拉取新版能力包和更新器
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Write
+
+# 第二阶段：用新版更新器预览并应用 coding 插件迁移
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun -NoPull -Detailed -Plugin coding-iris-plugin
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Write -NoPull -Detailed -Plugin coding-iris-plugin
+```
+
+迁移器发现 `src/imedical/web` 时提出 `project-utf8` 候选；标版前端仓库通过 gitlink、submodule、嵌套 Git 边界和前端内容发现，不依赖 `core-mod`、`all` 或固定组合路径。候选必须通过非 ASCII 文件字节抽检；任何 review-required/conflict 未处理前，Agent 不得继续前端写入或部署。
 
 ## Agent thin-index
 
@@ -201,20 +244,113 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/generate-age
 
 已部署项目不需要重新安装；常规 `update-agents.ps1 -Mode DryRun` 会报告缺失的 agent thin-index，确认无停止条件后执行 `-Mode Write` 即可补齐。若 canonical agent 被删除，脚本只清理带有 agent thin-index 标记且指向 `.agents/agents/*/AGENT.md` 的过期入口，不会删除插件 skill thin-index 或项目自定义 skill。
 
-## Vendor skill 运行时同步
+## Vendor skill 按依赖发现
 
-`install-agents.ps1` 和 `update-agents.ps1` 在完成 thin-index 生成后，会调用：
+`vendor/` 是随能力包部署的 fallback 源，不是默认安装列表。`update-agents.ps1` 调用 `resolve-plugin-skill-dependencies.ps1`，递归汇总 enabled 插件、显式选择插件及其插件依赖；manifest 中 `skillDependencies.required` 自动进入项目发现层，`optional` 只在任务命中 trigger 后按需读取。
+
+核心解析和 manifest 不包含 Claude Code、Codex、OpenCode、CodeBuddy、WorkBuddy 或 Hermes 的用户目录与调用语法。`.agents/skills/` 是跨工具通用层；工具不能发现 thin-index 时，按入口说明直接读取其 `source`。工具没有 skill 或 subagent 能力时，按 canonical Markdown 串行执行。
+
+`update-agents.ps1` 只为解析出的 required skill 调用：
 
 ```powershell
-.agents/scripts/sync-vendor-skills.ps1 -AgentsRoot .agents -Mode DryRun|Write
+.agents/scripts/generate-vendor-thin-index.ps1 -AgentsRoot .agents -ProjectRoot . -Skill <required-skill[]> -Mode DryRun|Write
 ```
 
-该脚本把 `.agents/vendor/` 下的 vendor skill 同步到当前运行时的 skill 发现目录（Claude Code 为 `~/.claude/skills/`），以便 Agent 在任务中直接加载 vendor 提供的能力。同步规则：
+该脚本只为显式 `-Skill` 集合生成或维护 thin-index。普通 Write 不清理历史入口，避免把旧工程中新生成的默认 `available` 状态误判为“从未使用”。
 
-- `vendor/<vendor-name>/skills/<skill-name>/SKILL.md` → `~/.claude/skills/<skill-name>/`
-- `vendor/<vendor-name>/SKILL.md` → `~/.claude/skills/<vendor-name>/`
+- `vendor/<vendor-name>/skills/<skill-name>/SKILL.md` → `.agents/skills/<skill-name>/SKILL.md`
+- `vendor/<vendor-name>/SKILL.md` → `.agents/skills/<vendor-name>/SKILL.md`
 
-DryRun 只输出摘要，Write 会覆盖目标目录。同步只影响运行时目录，不会修改 `.agents/vendor/` 源码。
+生成的 thin-index 保留原始 SKILL.md 的 `name` 和 `description`，补充 `thin-index: true` 和 `source` 指向 vendor 真实路径。Agent 匹配后必须继续读取 `source` 指向的真实 SKILL.md。
+
+只有显式传入 `-CleanupLegacyVendorSkills` 时，才清理不在 required 集合中的受管 vendor thin-index。清理只识别同时包含 `thin-index: true` 且 `source` 指向 `.agents/vendor/` 的项目入口；不会删除项目自定义、插件或 agent thin-index，也不会删除任何工具的用户级 skill。
+
+配置生效方式：
+
+- DryRun 只输出摘要，不写入文件、不清理过期项。
+- Write 只补齐 required 入口。
+- `-CleanupLegacyVendorSkills` 的 DryRun/Write 单独报告或执行兼容清理。
+
+## 工具运行时显式同步
+
+常规安装和更新不再写入用户级 skill 目录。只有明确需要 Claude Code 或 Codex 用户级副本时才执行：
+
+```powershell
+.agents/scripts/sync-vendor-skills.ps1 -AgentsRoot .agents -ProjectRoot . -Skill brainstorming -Runtime ClaudeCode -Mode DryRun
+.agents/scripts/sync-vendor-skills.ps1 -AgentsRoot .agents -ProjectRoot . -Skill brainstorming -Runtime ClaudeCode -Mode Write
+```
+
+`Write` 必须显式提供 `-Skill`；无参数全量同步会以 `vendor-skill-selection-required` 拒绝。目标已有 canonical skill 时报告 `vendor-skill-reused`，不覆盖。OpenCode、CodeBuddy 等尚未验证原生目录的工具不生成猜测性 adapter，直接使用项目通用层。
+
+项目级 Claude Code 发现层同样改为显式启用：常规更新默认不修改 `.claude/skills`；确有需要时向 `update-agents.ps1` 传入 `-RuntimeAdapter ClaudeCode`。未指定 adapter 时报告 `runtime-adapter-skipped`。
+
+## 已部署工程迁移
+
+旧工程无需重装。更新器拉取到自身新版本时会带防循环标记自动重启新版脚本，再执行后续阶段，避免旧进程继续执行全量 vendor 同步。
+
+1. 先运行常规 DryRun；无 `plugin_profile.md` 且存在历史 vendor thin-index 时会报告 `legacy-vendor-profile-review-required`，历史入口保持不变。
+2. 使用 `update-plugin-profile.ps1` 确认实际使用插件为 `enabled`；自动发现的新插件仍保持 `available`。
+3. 普通 Write 停止继续全量扩散并补齐 required 入口，不清理历史入口或用户级副本。
+4. 验证 required skill 可加载后，单独运行带 `-CleanupLegacyVendorSkills` 的 DryRun；确认清单后再执行对应 Write。
+
+用户级历史副本可能被多个项目共享，更新器永不自动删除。项目 `AGENTS.md`、memory/rules、已有 config 值和工具配置也不因本迁移被覆盖。
+
+## Git hook 可选启用
+
+`.agents` 会随安装或更新分发提交前差异降噪能力，但不会自动启用：
+
+- `.agents/hooks/pre-commit`
+- `.agents/scripts/check-functional-diff.ps1`
+- `.agents/scripts/install-git-hooks.ps1`
+
+启用必须由业务项目用户显式执行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/install-git-hooks.ps1 -ProjectRoot .
+```
+
+该命令只在当前业务项目 Git 仓库写入：
+
+```powershell
+git config core.hooksPath .agents/hooks
+```
+
+验证：
+
+```powershell
+git config --get core.hooksPath
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-functional-diff.ps1 -ProjectRoot . -Staged
+```
+
+禁用或回退：
+
+```powershell
+git config --unset core.hooksPath
+```
+
+`check-functional-diff.ps1` 只检查 staged diff。它允许正常代码编写产生的局部缩进、空行和对齐；会阻断纯空白变更、`git diff --cached --check` 失败，以及疑似整文件格式化噪音。真实格式化需求应拆成独立提交；手动检查时可使用 `-AllowFormatting` 明确豁免，默认 pre-commit 不放行混合功能和格式化提交。
+
+
+## Claude Code skills 显式同步
+
+只有向 `update-agents.ps1` 传入 `-RuntimeAdapter ClaudeCode`，才会将项目 `.agents/skills/` 下的 skill 同步到工作区 `.claude/skills/`。也可直接运行：
+
+```powershell
+.agents/scripts/sync-claudecode-skills.ps1 -ProjectRoot . -Mode DryRun|Write
+```
+
+脚本自动去重，按优先级跳过已存在的 skill：
+
+1. **用户级插件**：`~/.claude/plugins/**/skills/<skill>/SKILL.md`（插件作为 skill 提供者优先）
+2. **用户级 skill**：`~/.claude/skills/<skill>/SKILL.md`
+3. **项目级 skill**：`.claude/skills/<skill>/SKILL.md`（已同步的）
+
+对于需要同步的 skill，脚本自动将其 `source` 路径从相对路径替换为项目绝对路径，确保 Agent 能定位到真实 skill 文件。
+
+输出状态：
+- `skipped` — 已由去重源提供，不覆盖
+- `unchanged` — 内容一致，不需要写入
+- `generated` — dry-run 报告将生成，write 已同步
 
 ## Rule task-affinity
 
@@ -311,9 +447,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - `.agents/agents/agent-registry.md` 存在。
 - `.agents/workflows/workflow-registry.md` 存在。
 - `.agents/skills/<agent-name>/SKILL.md` 中的 agent thin-index 存在或 dry-run 明确报告将生成；例如 `.agents/skills/i18n-agent/SKILL.md` 指向 `.agents/agents/i18n-agent/AGENT.md` 和 `.agents/workflows/i18n-change.workflow.md`。
-- `.agents/skills/agent-kit-maintenance/` 不存在；该维护者专用 skill 只保留在能力包仓库根 `skills/agent-kit-maintenance/`，不得部署到业务项目。
-- vendor skill 已同步到运行时 skill 目录，或 dry-run 明确报告 `vendor-missing` / `vendor-skill-synced`。
-- `.agents/.git/info/exclude` 包含 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`。
+- `.agents/skills/agent-kit-maintenance/` 不存在；该维护者专用 skill 只保留在能力包仓库根 `skills/agent-kit-maintenance/`，不得部署到业务项目。若历史部署或手工 full clone 已遗留该目录，执行 `update-agents.ps1 -Mode Write` 会清理并报告 `maintenance-only-skill-removed`。
+- enabled 插件 required vendor thin-index 已存在或 DryRun 明确报告生成计划；optional 只显示 trigger。
+- 普通更新没有写用户级 skill 目录；历史副本只报告 `legacy-runtime-skill-detected`。
+- 未指定工具 adapter 时报告 `runtime-adapter-skipped`；显式启用 Claude Code adapter 时，`.claude/skills/` 同步结果为 `skipped` / `generated` / `unchanged`。
+- `.agents/.git/info/exclude` 包含 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`、`/work/`。
 - `.agents/config/plugin_profile.md` 存在或 dry-run 明确报告默认插件状态。
 - 如果业务项目有 `AGENTS.md`，兼容入口可以是 `entrypoint-ok`，也可以缺失；缺失或异常只作为可选提示，不应在 write 中自动修复。
 - 插件能被扫描到；未启用插件只应显示为 `available`，不应生成 thin-index。

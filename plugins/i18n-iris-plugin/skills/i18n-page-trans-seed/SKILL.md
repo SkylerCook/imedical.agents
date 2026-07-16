@@ -1,3 +1,4 @@
+
 ---
 name: i18n-page-trans-seed
 description: Use when adding multilingual page-level non-dictionary translations to the project-configured page translation seed file with per-language load and rollback methods.
@@ -71,6 +72,7 @@ Do ##class(<SeedClass>).<KillMethod>("<LANG>","<page>","<source>")
 
 - 本地静态检查写入/回滚数量、引号转义和方法命名。
 - 检查目标语言翻译是否符合 `i18n_translation_quality.md`，并按 ObjectScript 字符串规则正确转义。
-- 用户明确要求时，才按 `.mcp.json` 映射的 IRIS 编译能力编译种子类。默认不做服务器编译、上传或加载。
+- 服务器编译、上传或加载必须有当前运行的显式授权。该授权应由 Coordinator 在需求启动时主动收集；run manifest 已记录且 scope 覆盖本动作时直接消费，不在本阶段重复询问。
+- 未授权时只做本地生成和只读验证；覆盖冲突、删除、回滚、目标环境变化或 scope 扩大必须重新确认。
 - 从语言目录抽查目标语言映射。
 - 抽查若干页面级翻译写入语句。

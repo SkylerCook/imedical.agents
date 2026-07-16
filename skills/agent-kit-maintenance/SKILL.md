@@ -39,6 +39,16 @@ description: Use when maintaining the imedical.agents repository itself, especia
 
 禁止只提交插件实现而遗漏对应说明、记忆或验证入口。
 
+## 业务需求夹带框架变更的回看门禁
+
+实际业务需求提交中可能同时修正 `agents/`、`workflows/`、`skills/`、`feedback/`、共享协议、插件通用能力或根脚本。此类变更仍属于能力包维护，不能因为提交主题是业务需求而跳过维护同步。
+
+1. 读取 `memory/agent-kit-maintenance-log.md`，确定上次维护记录覆盖到的提交。
+2. 用 `git log` 和 `git show --name-status` 检查此后提交；按实际文件判断影响面，不只依赖 commit message。
+3. 对 canonical agent/workflow 变更，同步检查 registry、`AGENT.md`、`bindings.yaml`、workflow、共享 handoff/feedback 协议、仓库 README、验证文档和专项测试。
+4. 对需求经验或框架反馈机制变更，同步检查 `skills/agent-framework-feedback/SKILL.md`、`agents/_shared/feedback-protocol.md`、项目入口模板、owner rule、维护记忆和提交/推送授权边界。
+5. 已完成事项写入维护日志；仍未完成的真实验证或治理工作留在 backlog。不要把已完成事项继续写成“下一步”。
+
 ## 影响面判断
 
 - **新增或重构插件**：同步插件 README、插件 `AGENTS.md`、manifest、仓库 README、维护记忆、安装/更新说明和 thin-index 行为。
@@ -46,6 +56,7 @@ description: Use when maintaining the imedical.agents repository itself, especia
 - **修改 thin-index 行为**：只改根 `scripts/generate-plugin-thin-index.ps1`；插件 wrapper 只能转发参数；同步测试、README、docs 和维护记忆。
 - **修改 install/update/vendor 同步**：同步 `docs/update-agents.md`、`scripts/tests/update-agents.tests.ps1`、仓库 README 和维护日志。
 - **新增 vendor 资产或 vendor skill**：同步 `vendor/` 边界说明、安装/更新路径、vendor skill 同步说明和敏感信息边界。
+- **修改 canonical agent/workflow、handoff 或反馈协议**：同步 registry/bindings、仓库 README、维护记忆、验证样例和专项测试；多智能体与远程写入授权必须分别表达。
 - **新增长期规则或治理约束**：判断应进入根 `AGENTS.md`、`memory/agent-kit-maintenance-decisions.md`、README、docs 还是本 skill；不要复制长篇规则到多个地方。
 
 ## 验证清单

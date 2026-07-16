@@ -16,6 +16,7 @@
 - 涉及 MCP、上传、编译、远程读取或只读 SQL 验证时读取目标工程 `.mcp.json`。
 - 默认只做本地修改、只读验证和报告；上传、编译、远程写入、数据库变更必须由用户明确要求。
 - 历史 CSP/JS/CSS 文件可能存在编码和特殊 EOF，修改前先确认实际编码和尾部格式，避免整文件重写。
+- 前端编码模式只允许 `standard-gb2312` 和 `project-utf8`；组合仓库名称不是模式，实际文件字节检测始终是最终门禁。
 
 ## Skill 路由
 
@@ -49,11 +50,14 @@
 
 - `scripts/generate-plugin-thin-index.ps1`
 - `scripts/convert-gb2312-upload.ps1`
+- `scripts/check-frontend-encoding.ps1`
+- `scripts/migrate-frontend-encoding-profile.ps1`
+- `scripts/promote-frontend-export.ps1`
 - `scripts/iris-tools/`
 
 `generate-plugin-thin-index.ps1` 不复制到目标工程；初始化和重建索引时直接调用插件内脚本。
 
-`convert-gb2312-upload.ps1` 初始化时复制到目标工程 `.agents/scripts/`。若目标工程已有同名脚本且内容不同，初始化流程必须报告冲突，不得静默覆盖。
+初始化/迁移在目标工程 `.agents/scripts/` 生成薄 wrapper，转发到插件内编码脚本。已知历史复制版本可自动迁移；用户定制版本只报告冲突，不得静默覆盖。
 
 `scripts/iris-tools/` 是 IRIS 开发主力脚本集合，包含部署清单生成、导出、编译、Broker 调试和环境配置同步。真实连接信息由目标工程本地私有配置承载：已有 `.mcp.json` 时反向补齐 `.agents/config/project-env.json`，没有 `.mcp.json` 时才从 `templates/project-env.template.json` 创建并用 `sync-env-config.js` 生成 `.mcp.json`。这些文件不得提交到版本库。
 

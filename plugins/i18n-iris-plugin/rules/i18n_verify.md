@@ -18,7 +18,7 @@ related:
 
 - 扫描改造文件，确认没有新增 `b //`、`b ;`、`b ;xkl` 等 ObjectScript 调试断点。
 - 扫描前端文件，确认没有新增 `console.log` 临时调试输出。
-- 前端 `.csp` / `.js` / `.css` 文件编码必须符合 `iris_project_profile.md`；profile 要求前端 GB2312 时，使用 `coding-iris-plugin` 的 `check-frontend-encoding.ps1 -ExpectedEncoding gb2312 -ErrorOnMismatch` 或等价方式确认未被 i18n 改造永久转成 UTF-8。
+- 前端 `.csp` / `.js` / `.css` 必须符合 `iris_project_profile.md` 的 `standard-gb2312` 或 `project-utf8`；每个文件改造前后按对应编码检查，字节检测是最终门禁。
 - 扫描打印链路中的裸中文拼接，确认用户可见文本已按固定文案或字典展示值分流处理。
 - 确认 UI 框架自动翻译文本（如 datagrid 列头 `title: "中文"`）未被错误包裹 `$g()` 或 `$trans()`。
 - 确认字典展示值使用字典翻译 helper，未混用页面级翻译 helper。
@@ -61,7 +61,7 @@ related:
 ## 编译验证
 
 - 后端 `.cls` 文件编码为 UTF-8。
-- 前端文件编码按项目约定（通常 GB2312）。
+- 前端文件编码按项目模式：`standard-gb2312` 为 GB2312，`project-utf8` 为 UTF-8。
 - 用户明确要求时，才按 `.mcp.json` 映射的 IRIS 编译能力编译种子类或后端类。默认不做服务器编译、上传或加载。
 
 ## 完成报告

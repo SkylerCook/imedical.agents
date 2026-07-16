@@ -39,7 +39,7 @@
 - `rules/` 是仓库级通用规则预留入口；当前通用规则主要沉淀在插件内。
 - `docs/` 放 AI Coding 工作区规范、runbook 和配套文档。
 - 根 `scripts/` 放能力包部署、更新和通用维护脚本；领域脚本放到对应插件。
-- 根 `vendor/` 放第三方源码资产和共享运行时资产（如 HISUI dist、iris-agentic-dev Windows x64 可执行文件），部署到业务项目 `.agents/vendor/`，不参与 thin-index 生成。
+- 根 `vendor/` 放第三方源码资产、共享运行时资产和 vendor skill fallback，部署到业务项目 `.agents/vendor/`；只有插件 manifest 声明的 required vendor skill 才生成 `.agents/skills` thin-index。
 - 根 `memory/` 是维护者记忆，不部署到业务项目 `.agents/`，不生成 thin-index。
 - 根 `feedback/` 放框架反馈和经验积累，部署到业务项目 `.agents/`；`feedback/framework/` 放框架验证反馈条目，`feedback/experience/` 放领域经验文档。
 - 根 `index.html`、`.github/`、`.nojekyll` 只服务 GitHub Pages 展示页。
@@ -69,6 +69,7 @@
 - Agent thin-index 或工具 adapter 生成逻辑不得混入 plugin thin-index；需要时新增独立脚本。
 - 修改插件目录结构时，同步检查插件 `AGENTS.md`、README、manifest、templates、仓库 README 和相关 docs。
 - 提交任何插件能力变更前，必须同步检查并按需更新：插件 `AGENTS.md`、插件 README、`.agents-plugin/plugin.json`、相关 skill/rule/reference/template、仓库 README、`memory/agent-kit-maintenance-memory.md`、`memory/agent-kit-maintenance-log.md`、`memory/agent-kit-maintenance-backlog.md`、相关 docs 和测试。禁止只提交插件实现而遗漏对应说明、记忆或验证入口。
+- 实际业务需求处理中若同时修改了 `agents/`、`workflows/`、`skills/`、`feedback/`、共享协议、插件通用能力或根脚本，必须在需求提交后按 `skills/agent-kit-maintenance/SKILL.md` 回看从上次维护记录以来的提交，补齐仓库 README、维护记忆、治理队列、owner 文档和专项测试；不得因变更源于业务需求而跳过框架维护。
 - 若插件变更影响业务项目安装、更新、thin-index、vendor 同步、启用状态或兼容清理，必须同步更新 `docs/update-agents.md`、`scripts/tests/update-agents.tests.ps1` 或对应专项测试，并在 README 或插件 README 说明已部署项目的处理方式。
 - 新增长期通用能力时，先判断应放入 `agents/`、`workflows/`、`rules/`、`references/`、`skills/`、`templates/`、`scripts/` 还是插件目录。
 - 新增文件遵循命名约定：agent 目录 kebab-case + `-agent`，workflow 文件 kebab-case + `.workflow.md`，skill 目录 kebab-case，rule 文件 snake_case，reference 文件 kebab-case，script 文件 kebab-case。

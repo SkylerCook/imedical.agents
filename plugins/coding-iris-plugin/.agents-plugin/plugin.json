@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
@@ -9,6 +9,12 @@
   "skills": "skills/",
   "templates": "templates/",
   "scripts": "scripts/",
+  "configMigrations": [
+    {
+      "id": "frontend-encoding-v2",
+      "script": "scripts/migrate-frontend-encoding-profile.ps1"
+    }
+  ],
   "initSkill": "coding-iris-init",
   "requiresProjectFiles": [
     "AGENTS.md",

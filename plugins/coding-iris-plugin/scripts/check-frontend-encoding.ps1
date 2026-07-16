@@ -1,14 +1,14 @@
 <#
 Check frontend source file encoding before and after IRIS/HIS frontend edits.
 
-Use this script as a guard for legacy CSP/JS/CSS files that must remain GB2312.
+Use this script as a byte-level guard for UTF-8 and legacy GB2312/CP936 frontend files.
 
 Examples:
   .agents/scripts/check-frontend-encoding.ps1 -Files @("page.csp","page.js")
   .agents/scripts/check-frontend-encoding.ps1 -Files @("page.csp") -ExpectedEncoding gb2312 -ErrorOnMismatch
 
 Output JSON:
-  [{"file":"...","encoding":"gb2312|utf8","hasChinese":true|false,"expectedEncoding":"gb2312|utf8|any","status":"ok|warning|error","message":"..."}]
+  [{"file":"...","encoding":"gb2312|utf8|ascii|unknown","hasChinese":true|false,"expectedEncoding":"gb2312|utf8|any","status":"ok|warning|error","message":"..."}]
 #>
 
 param(
@@ -23,7 +23,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$gb2312 = [System.Text.Encoding]::GetEncoding("gb2312")
+$gb2312 = [System.Text.Encoding]::GetEncoding(936, [System.Text.EncoderFallback]::ExceptionFallback, [System.Text.DecoderFallback]::ExceptionFallback)
 $utf8Strict = [System.Text.UTF8Encoding]::new($false, $true)
 
 function Test-HasChinese {
@@ -45,8 +45,26 @@ function Get-FrontendEncodingInfo {
     param([string]$Path)
 
     $bytes = [System.IO.File]::ReadAllBytes($Path)
-    $encoding = "gb2312"
+    $encoding = "unknown"
     $text = ""
+
+    if ($bytes.Length -eq 0 -or -not ($bytes | Where-Object { $_ -gt 127 } | Select-Object -First 1)) {
+        return @{
+            encoding = "ascii"
+            hasChinese = $false
+            hasNonAscii = $false
+            suspectedMojibake = $false
+        }
+    }
+
+    if ($bytes.Length -ge 2 -and (($bytes[0] -eq 0xFF -and $bytes[1] -eq 0xFE) -or ($bytes[0] -eq 0xFE -and $bytes[1] -eq 0xFF))) {
+        return @{
+            encoding = "unknown"
+            hasChinese = $false
+            hasNonAscii = $true
+            suspectedMojibake = $false
+        }
+    }
 
     try {
         $text = $utf8Strict.GetString($bytes)
@@ -55,12 +73,17 @@ function Get-FrontendEncodingInfo {
             $encoding = "utf8"
         }
     }
-    catch {
-        $encoding = "gb2312"
-    }
+    catch {}
 
-    if ($encoding -eq "gb2312") {
-        $text = $gb2312.GetString($bytes)
+    if ($encoding -eq "unknown") {
+        try {
+            $text = $gb2312.GetString($bytes)
+            $roundTrip = $gb2312.GetBytes($text)
+            if ([Convert]::ToBase64String($roundTrip) -eq [Convert]::ToBase64String($bytes)) {
+                $encoding = "gb2312"
+            }
+        }
+        catch {}
     }
 
     return @{
@@ -80,10 +103,15 @@ foreach ($file in $Files) {
     $status = "ok"
     $message = "Encoding accepted."
 
-    if ($ExpectedEncoding -ne "any" -and $info.encoding -ne $ExpectedEncoding) {
-        if ($ExpectedEncoding -eq "gb2312" -and $info.encoding -eq "utf8" -and -not $info.hasNonAscii) {
+    if ($info.encoding -eq "unknown") {
+        $status = "error"
+        $message = "Encoding is unknown or unsupported; refusing to infer UTF-8 or GB2312."
+        $hasError = $true
+    }
+    elseif ($ExpectedEncoding -ne "any" -and $info.encoding -ne $ExpectedEncoding) {
+        if ($info.encoding -eq "ascii") {
             $status = "warning"
-            $message = "ASCII-only file is UTF-8 compatible; confirm whether this legacy frontend file must be preserved as GB2312."
+            $message = "ASCII-only file cannot prove UTF-8 or GB2312; use the confirmed frontend encoding mode before adding non-ASCII text."
         }
         else {
             $status = "error"

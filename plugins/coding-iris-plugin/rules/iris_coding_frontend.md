@@ -17,13 +17,13 @@ related:
 
 ## 编码策略
 
-- 前端 `.csp` / `.js` / `.css` 源文件编码以实际检测和目标工程 profile 为准，不得假设为 UTF-8。
-- HIS 历史前端文件按 GB2312 处理。未确认 UTF-8 前，不得按 UTF-8 整文件重写。
-- 修改前必须确认实际编码、换行和 EOF；修改后必须保持原文件编码，除非用户明确要求永久转码。
-- 若原文件为 GB2312，可以临时转为 UTF-8 工作副本辅助编辑，但交付写回源文件时必须转回原编码。
-- 禁止为了方便编辑、格式化或统一风格，把 GB2312 源文件顺手标准化为 UTF-8。
-- 目标服务器若要求 GB2312，上传前使用 `.agents/scripts/convert-gb2312-upload.ps1` 检测并按需转换。上传转换只生成临时上传产物，不改变源文件编码策略。
-- 修改前后可使用 `.agents/scripts/check-frontend-encoding.ps1` 检查触碰文件编码；profile 要求前端 GB2312 时，收尾使用 `-ExpectedEncoding gb2312 -ErrorOnMismatch` 拦截 UTF-8 漂移。
+- 目标工程只允许两种前端编码模式：`standard-gb2312`（源码和上传均为 GB2312）与 `project-utf8`（源码和上传均为 UTF-8）。
+- 路径覆盖表只映射这两种模式；最长路径匹配优先，未命中时使用工程级模式。
+- 目录结构或 Git 仓库角色只提出候选模式，实际文件字节检测是最终门禁。
+- 每个触碰文件修改前后必须检测；ASCII 不能单独证明编码，unknown、mixed、配置冲突或证据不足时停止。
+- `standard-gb2312` 使用 `check-frontend-encoding.ps1 -ExpectedEncoding gb2312 -ErrorOnMismatch`，不得整文件改写为 UTF-8。
+- `project-utf8` 使用 `check-frontend-encoding.ps1 -ExpectedEncoding utf8 -ErrorOnMismatch`，不得调用 GB2312 转换器。
+- 正常完成只输出一行编码摘要；仅异常时展开 frontendRoot、候选来源、期望编码、检测编码和冲突原因。
 
 ## HISUI 优先原则
 
@@ -70,8 +70,8 @@ related:
 ## 验证
 
 - 默认做本地结构和引用检查。
-- 前端文件变更后，报告触碰文件的实际编码；profile 要求前端 GB2312 时，确认修改后仍保持 GB2312。
+- 前端文件变更后按模式复检所有触碰文件；正常时只报告模式、文件数和保持的编码。
 - 调整 DataGrid 列定义后，检查保存、校验、行编辑和回显逻辑中的 editor/列下标是否仍对应正确字段。
-- 用户明确要求部署时，先转换编码，再上传，再按目标工程规则编译 CSP 或刷新页面验证。
+- 用户明确要求部署时，先通过目标模式字节门禁；只有 `standard-gb2312` 需要 GB2312 转换或确认，再上传并验证。
 - CSP 部署验证不能只看上传成功或外层执行成功；必须检查 `$system.OBJ.Load` 内层 status，并确认生成类、`CSPFILE`、`CSPURL` 与 WebApp 虚拟路径一致。
 - 上传时若生成 `*.gb2312.*` 临时文件，只上传其内容到原始远端文件名；验证和编译都以原始 `.csp` 文件名为准。
