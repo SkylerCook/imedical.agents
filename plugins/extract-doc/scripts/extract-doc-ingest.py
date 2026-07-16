@@ -1067,7 +1067,7 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Parse document artifacts to disk.")
     parser.add_argument("--file", required=True, help="Source DOCX/PDF/XLSX/DOC file")
     parser.add_argument("--project-root", default=".", help="Target project root")
-    parser.add_argument("--output-root", default="docs/output/extract-doc", help="Output root relative to project root")
+    parser.add_argument("--output-root", default="docs/interface", help="Output root relative to project root")
     parser.add_argument("--schema-version", default="extract-doc/v1", help="Schema version written to parsed.json")
     return parser.parse_args(argv)
 

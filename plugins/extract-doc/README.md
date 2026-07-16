@@ -7,8 +7,8 @@
 - 支持 DOCX、PDF、XLSX 的脚本优先解析；安装 `xlrd` 后支持 XLS。
 - XLSX/XLS 多 sheet 会按 sheet 拆成独立字段视图。
 - 可选使用 MarkItDown 生成辅助 Markdown，不 vendor 第三方源码。
-- 生成 `source.md`、`parsed.json`、`fields.md`、`diagnostics.md`。
-- 默认生成通用文档解析产物；业务插件可通过 adapter skill 固定输出目录和后续处理语义。
+- 默认输出到 `docs/interface/<doc-name>/`，生成 `source.md`、`parsed.json`、`fields.md`、`diagnostics.md`。
+- 默认生成通用文档解析产物；业务插件可通过 adapter skill 显式覆盖输出目录和后续处理语义。
 
 ## 命令示例
 
@@ -18,6 +18,8 @@ python .agents/plugins/extract-doc/scripts/extract-doc-ingest.py `
   --file docs/input/interface.xlsx `
   --project-root .
 ```
+
+上述命令默认写入 `docs/interface/interface/`，其中 `interface` 来自源文档文件名。
 
 如缺少可选解析器：
 

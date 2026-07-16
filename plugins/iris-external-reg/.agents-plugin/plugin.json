@@ -1,0 +1,26 @@
+{
+  "name": "iris-external-reg",
+  "version": "0.1.0",
+  "displayName": "IRIS External Registration",
+  "description": "Workflow and reference pack for developing third-party appointment registration integrations on IRIS, including document handoff through extract-doc, implementation planning, ObjectScript development guidance, RegInterface mapping, and verification.",
+  "entry": "AGENTS.md",
+  "rules": "rules/",
+  "references": "references/",
+  "skills": "skills/",
+  "scripts": "scripts/",
+  "initSkill": "iris-external-reg",
+  "dependencies": [
+    "extract-doc",
+    "coding-iris-plugin"
+  ],
+  "requiresProjectFiles": [
+    "AGENTS.md",
+    ".agents/config/iris_project_profile.md"
+  ],
+  "defaultPrompt": [
+    "Use iris-external-reg to prepare a third-party appointment registration integration plan",
+    "Ingest this appointment registration interface document with extract-doc, then generate the execution plan",
+    "Implement RegInterface methods according to the confirmed execution plan",
+    "Review this external registration implementation against RegInterface rules"
+  ]
+}

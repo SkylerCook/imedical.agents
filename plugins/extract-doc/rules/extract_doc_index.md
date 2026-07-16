@@ -17,7 +17,7 @@ task-affinity: [document, extract, markdown, json, pdf, docx, xlsx]
 
 ## 产物
 
-默认产物为：
+默认输出目录为 `docs/interface/<doc-name>/`，产物为：
 
 - `source.md`
 - `parsed.json`

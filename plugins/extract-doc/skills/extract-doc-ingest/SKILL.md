@@ -27,19 +27,19 @@ python .agents/plugins/extract-doc/scripts/extract-doc-ingest.py --file <documen
 python .agents/plugins/extract-doc/scripts/extract-doc-ingest.py `
   --file <document-path> `
   --project-root . `
-  --output-root docs/output/iris-interface
+  --output-root docs/interface
 ```
 
 业务调用方如果需要固定 `parsed.json` schema，显式传入 `--schema-version <schema>`；通用默认 schema 为 `extract-doc/v1`。
 
 ## 输出契约
 
-每个文档固定写入：
+不显式传入 `--output-root` 时，默认写入 `docs/interface/<doc-name>/`。每个文档固定产物为：
 
-- `<output-root>/<doc-name>/source.md`
-- `<output-root>/<doc-name>/parsed.json`
-- `<output-root>/<doc-name>/fields.md`
-- `<output-root>/<doc-name>/diagnostics.md`
+- `docs/interface/<doc-name>/source.md`
+- `docs/interface/<doc-name>/parsed.json`
+- `docs/interface/<doc-name>/fields.md`
+- `docs/interface/<doc-name>/diagnostics.md`
 
 对话里只汇报文件路径、视图数量、字段数量、转换器和错误摘要。不要粘贴转换后的全文，也不要把所有字段明细灌入会话上下文。
 
