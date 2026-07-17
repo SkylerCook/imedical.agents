@@ -99,7 +99,7 @@
 
 ---
 
-## 二、前端 - HisUI DataGrid 修改
+## 二、前端 - HISUI 控件与样式复用
 
 ### 2.1 插入列后 editor 索引偏移
 - 需求: #6990066 | 命中: 1
@@ -119,6 +119,24 @@
 - **字典维护页**（`ta.ct.material.js`）：列需要 `editor` 配置，用户可双击编辑。
 - **关联页的材料目录**（`ta.apply.linkmaterial.js`）：仅展示，不需要 `editor`。
 - **关联材料表**（linkMaterialTable）：视需求决定是否展示新字段。已保存数据通常不需要额外展示排序字段。
+
+### 2.3 合并单元格分割线应复用主题计算样式
+- 需求: #7079252 | 命中: 1
+- **问题**：DataGrid 使用 `mergeCells` 生成 `rowspan` 单元格后，在列 `styler` 中重新设置完整底边可能造成行高错位；写死 lightblue 等单一主题颜色又会与 pure、lite、iHOS 等风格失配。
+- **做法**：保留 `bodyCls:'table-splitline'`，在合并完成后读取单元格原生竖分割线的计算后 `border-right-color`，只将非透明颜色赋给底边；透明时保留主题原生底边。不重复声明边框宽度和样式，也不维护主题色映射表。
+  ```javascript
+  var splitLineColor = $(this).css('border-right-color');
+  $(this).css('border-bottom-color', splitLineColor);
+  ```
+- **边界**：`bodyCls:'table-splitline'` 只提供竖向分隔线；DataGrid 没有控制合并单元格横向分割线的布尔属性，横向分组边界仍需在合并完成后补充或通过页面样式处理。
+- **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_coding_frontend.md`、`plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md`、`plugins/coding-iris-plugin/references/hisui-style-index.md`
+
+### 2.4 业务布局与 HISUI 语义样式应组合复用
+- 需求: #6684541 | 命中: 1
+- **问题**：业务公共样式直接设置完整 `background` 或复制主题图片路径，会覆盖 HISUI 已有背景子属性，并绕过主题、locale CSS 对图标和插图资源的统一替换。
+- **做法**：业务 class 只承担遮罩定位、尺寸和页面差异，同时组合 `pic-sysst-nodata-msg`、`pic-sysst-nodata-region` 等 HISUI 语义 class，由 HISUI 提供视觉资源；兼容旧页面时在公共适配层保留未使用语义 class 的回退，不让业务页面维护主题资源路径。
+- **边界**：使用语义 class 前必须确认目标页面实际加载的全部主题和 locale CSS 均包含对应定义；覆盖不完整时先补公共适配层，不能只凭 class 名存在就关闭旧资源回退。
+- **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_coding_frontend.md`、`plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md`、`plugins/coding-iris-plugin/references/hisui-style-index.md`
 
 ---
 
@@ -343,3 +361,5 @@
 | #6941550 | 技工申请关联材料牙位录入 | [1.5](#15-while-循环内不能-q--返回值), [1.6](#16-ggs-等内置函数不适用于-dynamicobject) |
 | #6950154 | 检查报告查看增加医嘱项查询（差异降噪重写） | [7.1](#71-历史重写时仅保留功能差异) |
 | #6096150 | 预约条打印多语言 | [1.7](#17-命令式-ie-与块式-ifelse-不能混用), [5.4](#54-xmlbase64-长脚本出现临时代码-syntax-后立即收敛) |
+| #7079252 | 排班模板维护显示科室分组表格线 | [2.3](#23-合并单元格分割线应复用主题计算样式) |
+| #6684541 | 病历浏览检查报告/检验结果无数据插图多语言 | [2.4](#24-业务布局与-hisui-语义样式应组合复用) |
