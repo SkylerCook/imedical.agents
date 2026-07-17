@@ -72,7 +72,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install-agents.ps1
 
 脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/`，并拉取 `plugins/`、`agents/`、`workflows/` 等能力包内容，让用户和 Agent 能看到可用能力。
 
-插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认只把 `agent-context-kit` 作为基础上下文能力处理；`coding-iris-plugin`、`i18n-iris-plugin`、`iris-interface-dev-plugin`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
+插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认只把 `agent-context-kit` 作为基础上下文能力处理；`coding-iris-plugin`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev-plugin`、`iris-external-reg`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
 
 ### 更新已部署 `.agents`
 
@@ -197,7 +197,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - CSP、JavaScript、CSS、HISUI 前端双编码规则：标版使用 `standard-gb2312`，医院项目使用 `project-utf8`，实际文件字节检测是最终门禁。
 - 本地优先、按需上传/编译的工作流约束。
 - 标版 UTF-8 导出 staging 严格转换为 GB2312 的 promote 流程，以及医院项目 UTF-8 原样编辑/上传流程。
-- HISUI 控件参考按需读取。
+- HISUI 控件/API 按需读取 `references/hisui-widget-index.md`，主题 CSS、locale CSS、语义 class、图标和插图按需读取 `references/hisui-style-index.md`。
 - iris-agentic-dev MCP server Windows x64 可执行文件（当前 **v0.6.20**）内置在 `.agents/vendor/iris-agentic-dev/`，目标工程 `.mcp.json` 仍保存实际连接事实。
 
 常用 skill：
@@ -231,11 +231,23 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - `i18n-xml-template`
 - `i18n-xml-print-template-sync`
 
+### extract-doc
+
+负责本地文档读取与结构化落盘：
+
+- 将 PDF、DOC、DOCX、XLS、XLSX 转换为 Markdown、结构化 JSON、字段摘要和诊断文件。
+- 默认只在目标项目落盘产物，不把完整文档塞入会话上下文。
+- 作为 `iris-interface-dev-plugin`、`iris-external-reg` 等业务插件的通用文档解析依赖；可选解析器不 vendor、不自动安装。
+
+常用 skill：
+
+- `extract-doc-ingest`
+
 ### iris-interface-dev-plugin
 
 负责 IRIS 接口开发的解析审计优先能力：
 
-- 接口 DOCX、PDF、XLSX、DOC 文档转换为 Markdown 和结构化 JSON。
+- 接口 DOCX、PDF、XLSX、XLS、DOC 文档转换委托 `extract-doc`，本插件负责接口 schema、字段诊断和开发语义。
 - 字段表头映射、字段抽取、字段诊断和开发计划。
 - 解析产物固定落盘到目标项目 `docs/output/iris-interface/<doc-name>/`，不默认注入会话上下文。
 - MarkItDown、python-docx、pdfplumber、openpyxl 均为可选依赖，不 vendor、不自动安装。
@@ -247,6 +259,18 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - `iris-interface-doc-ingest`
 - `iris-interface-field-match`
 - `iris-interface-dev-plan`
+
+### iris-external-reg
+
+负责 IRIS 第三方预约挂号接口开发编排：
+
+- 通过 `extract-doc` 解析接口规范并生成本地结构化产物。
+- 生成并确认执行计划后，再进入 `DHCExternalService.RegInterface` 对接和 ObjectScript 实现。
+- 编码、审查、上传、编译、部署与远端验证复用 `coding-iris-plugin`；未确认的数据源、状态码和院区映射不得猜测。
+
+常用 skill：
+
+- `iris-external-reg`
 
 ### imedicalxc-doctor-extend-engineer
 
@@ -321,7 +345,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
    - `.agents/memory/project-memory.md`
 6. 先 dry-run，再 write 生成 `agent-context-kit` thin-index。
 7. 查看 `.agents/config/plugin_profile.md`；未启用插件保持 `available`，不要自动生成它们的 thin-index。
-8. 按需要初始化 `coding-iris-plugin`、`i18n-iris-plugin`、`iris-interface-dev-plugin`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`。
+8. 按依赖顺序初始化需要的领域插件，例如先启用 `coding-iris-plugin`、`extract-doc`，再启用依赖它们的 `i18n-iris-plugin`、`iris-interface-dev-plugin`、`iris-external-reg`；其它可选插件包括 `imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`。
 9. 如需启用提交前差异降噪 hook，由用户在业务项目根目录显式运行 `.agents/scripts/install-git-hooks.ps1 -ProjectRoot .`；安装/更新 `.agents` 只分发 hook 模板和脚本，不自动修改 `core.hooksPath`。
 10. 按需要读取 `agents/agent-registry.md` 和 `workflows/workflow-registry.md` 使用顶层智能体。
 

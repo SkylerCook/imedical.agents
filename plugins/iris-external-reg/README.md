@@ -56,3 +56,7 @@ python .agents/plugins/extract-doc/scripts/extract-doc-ingest.py `
 ```
 
 Only report artifact paths and extraction diagnostics in conversation. Do not paste the full converted document.
+
+## Activation and updates
+
+Existing projects receive this plugin through the normal `.agents/scripts/update-agents.ps1` flow, but the directory is only `available` until initialization is complete. Use `project-context-maintenance` to initialize and enable `extract-doc` and `coding-iris-plugin` first, then validate this plugin and run `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin iris-external-reg -Status enabled`. Re-run the updater to generate its rule and skill thin-index entries.

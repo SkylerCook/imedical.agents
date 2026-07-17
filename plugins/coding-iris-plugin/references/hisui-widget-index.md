@@ -5,7 +5,7 @@ task-affinity: [iris, frontend, hisui, reference, source-code]
 tags: [HISUI, frontend, widget, coding-reference, source-code, line-number]
 category: frontend
 related:
-  - iris_coding_frontend.md
+  - ../rules/iris_coding_frontend.md
   - hisui-style-index.md
 createdAt: 2026-04-24
 updatedAt: 2026-07-18

@@ -245,6 +245,12 @@ $contextSkillPath = Join-Path $repoRoot "plugins/agent-context-kit/skills/projec
 $installScriptPath = Join-Path $repoRoot "scripts/install-agents.ps1"
 $irisBackendRulePath = Join-Path $repoRoot "plugins/coding-iris-plugin/rules/iris_coding_backend.md"
 $irisBackendSkillPath = Join-Path $repoRoot "plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md"
+$hisuiStyleIndexPath = Join-Path $repoRoot "plugins/coding-iris-plugin/references/hisui-style-index.md"
+$hisuiWidgetIndexPath = Join-Path $repoRoot "plugins/coding-iris-plugin/references/hisui-widget-index.md"
+$feedbackTemplatePath = Join-Path $repoRoot "feedback/framework/_template.md"
+$feedbackProtocolPath = Join-Path $repoRoot "agents/_shared/feedback-protocol.md"
+$extractDocManifestPath = Join-Path $repoRoot "plugins/extract-doc/.agents-plugin/plugin.json"
+$externalRegManifestPath = Join-Path $repoRoot "plugins/iris-external-reg/.agents-plugin/plugin.json"
 Assert-True (Test-Path -LiteralPath $runbookPath -PathType Leaf) "docs/update-agents.md should exist"
 Assert-True (Test-Path -LiteralPath $readmePath -PathType Leaf) "README.md should exist"
 $updateScriptContent = Get-Content -Raw -Encoding UTF8 -Path $scriptUnderTest
@@ -294,6 +300,9 @@ Assert-Contains $profileScriptContent "disabled" "profile updater should support
 $readmeContent = Get-Content -Raw -Encoding UTF8 -Path $readmePath
 Assert-Contains $readmeContent 'Git `2.25.0`' "README should document Git 2.25.0 requirement before local runbook exists"
 Assert-Contains $readmeContent "git sparse-checkout" "README should explain sparse-checkout dependency before first install"
+Assert-Contains $readmeContent "references/hisui-style-index.md" "README should route HISUI styles separately from widget APIs"
+Assert-Contains $readmeContent "### extract-doc" "README should list the extract-doc plugin"
+Assert-Contains $readmeContent "### iris-external-reg" "README should list the iris-external-reg plugin"
 $runbookContent = Get-Content -Raw -Encoding UTF8 -Path $runbookPath
 Assert-Contains $runbookContent "DryRun" "runbook should mention DryRun"
 Assert-Contains $runbookContent "Write" "runbook should mention Write"
@@ -303,6 +312,8 @@ Assert-Contains $runbookContent "pull-blocked-dirty" "runbook should mention pul
 Assert-Contains $runbookContent "git clone" "runbook should support manual clone"
 Assert-Contains $runbookContent "/project-context-maintenance" "runbook should guide users to maintain project context after install"
 Assert-Contains $runbookContent "dependencies" "runbook should explain dependency plugin initialization order"
+Assert-Contains $runbookContent ".agents/plugins/extract-doc/skills/extract-doc-ingest/SKILL.md" "runbook should point to the extract-doc init entry"
+Assert-Contains $runbookContent ".agents/plugins/iris-external-reg/skills/iris-external-reg/SKILL.md" "runbook should point to the iris-external-reg init entry"
 Assert-Contains $runbookContent "install-git-hooks.ps1" "runbook should document explicit git hook enablement"
 Assert-Contains $runbookContent "git-hooks-not-enabled" "runbook should document hook status notes"
 $contextSkillContent = Get-Content -Raw -Encoding UTF8 -Path $contextSkillPath
@@ -317,6 +328,21 @@ Assert-Contains $irisBackendRuleContent 'continue:(episodeId''="") && (appEpisod
 Assert-Contains $irisBackendRuleContent '#1012 Expected EOL or spaces' "IRIS backend rule should identify the compiler error caused by a spaced postconditional"
 Assert-Contains $irisBackendSkillContent 'continue:(cond1)&&(cond2)' "IRIS backend skill should require contiguous compound postconditionals"
 Assert-Contains $irisBackendSkillContent 'continue:(cond1) && (cond2)' "IRIS backend skill should reject spaced compound postconditionals"
+$hisuiStyleIndexContent = Get-Content -Raw -Encoding UTF8 -Path $hisuiStyleIndexPath
+$hisuiWidgetIndexContent = Get-Content -Raw -Encoding UTF8 -Path $hisuiWidgetIndexPath
+Assert-Contains $hisuiStyleIndexContent "../rules/iris_coding_frontend.md" "HISUI style related path should resolve from references/"
+Assert-Contains $hisuiStyleIndexContent '`vendor/hisui/dist/css/`' "HISUI style maintenance should document the source-repo vendor path"
+Assert-Contains $hisuiStyleIndexContent '`.agents/vendor/hisui/dist/css/`' "HISUI style maintenance should document the deployed vendor path"
+Assert-Contains $hisuiWidgetIndexContent "../rules/iris_coding_frontend.md" "HISUI widget related path should resolve from references/"
+$feedbackTemplateContent = Get-Content -Raw -Encoding UTF8 -Path $feedbackTemplatePath
+$feedbackProtocolContent = Get-Content -Raw -Encoding UTF8 -Path $feedbackProtocolPath
+Assert-Contains $feedbackTemplateContent "<!-- discovery-process -->" "feedback template should require the discovery process"
+Assert-Contains $feedbackProtocolContent "<!-- discovery-process -->" "feedback protocol example should match the feedback skill contract"
+$extractDocManifest = Get-Content -Raw -Encoding UTF8 -Path $extractDocManifestPath | ConvertFrom-Json
+$externalRegManifest = Get-Content -Raw -Encoding UTF8 -Path $externalRegManifestPath | ConvertFrom-Json
+Assert-True ($extractDocManifest.name -eq "extract-doc") "extract-doc manifest should parse with the expected name"
+Assert-True (($externalRegManifest.dependencies -contains "extract-doc")) "iris-external-reg should declare extract-doc as a dependency"
+Assert-True (($externalRegManifest.dependencies -contains "coding-iris-plugin")) "iris-external-reg should declare coding-iris-plugin as a dependency"
 Assert-Contains $contextSkillContent "install-git-hooks.ps1" "project-context-maintenance should mention optional git hook enablement"
 
 $missingAgentsEntryProjectRoot = New-TestProject

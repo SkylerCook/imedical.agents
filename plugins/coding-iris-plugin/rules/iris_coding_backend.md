@@ -35,6 +35,7 @@ related:
 ## ObjectScript 风格
 
 - 命令后条件语法中，命令、冒号和完整条件表达式必须连续书写：`q:((cond="")&&(cond1=""))`，不要写 `q: cond=""`。
+- 复合后条件同样不能在逻辑运算符两侧拆出命令级空格。正确示例：`continue:(episodeId'="")&&(appEpisode'=episodeId)`；错误示例：`continue:(episodeId'="") && (appEpisode'=episodeId)`，后者会触发 `#1012 Expected EOL or spaces`。
 - 使用缩写：`s`、`d`、`q`、`$g`、`$p`、`$o`、`$d`。
 - 不使用长命令：`set`、`do`、`quit`、`$get`、`$piece`、`$order`。
 - 方法大括号换行显示，缩进 4 个空格。

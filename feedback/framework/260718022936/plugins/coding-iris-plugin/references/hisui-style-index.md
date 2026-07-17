@@ -5,7 +5,7 @@ task-affinity: [iris, frontend, hisui, css, theme, locale, reference]
 tags: [HISUI, frontend, css, theme, locale, style-reference, source-code]
 category: frontend
 related:
-  - iris_coding_frontend.md
+  - ../rules/iris_coding_frontend.md
   - hisui-widget-index.md
 createdAt: 2026-07-18
 updatedAt: 2026-07-18
@@ -553,7 +553,7 @@ HISUI 内置图标通过 `iconCls` 属性引用。选型时先查本节能用的
 
 ## 维护要求
 
-- 更新本文件时，使用本地 `.agents/vendor/hisui/dist/css/` 校验 selector、主题覆盖范围和关键行号。
+- 更新本文件时，源仓态使用 `vendor/hisui/dist/css/`，业务项目部署态使用 `.agents/vendor/hisui/dist/css/`，校验 selector、主题覆盖范围和关键行号。
 - 新增索引项应记录稳定语义入口和查证方法，不收录单一业务页面的私有 class。
 - 主题或 locale 文件缺失时明确标记“未验证”，不得凭其它主题推断。
 - 不写入服务器、namespace、远程路径、业务页面清单或当前工程绝对路径。

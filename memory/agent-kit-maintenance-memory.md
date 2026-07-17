@@ -14,8 +14,11 @@
 - `agents/` 是厂商无关的智能体 canonical 注册层；`workflows/` 是厂商无关的多智能体/阶段化编排层。工具专属入口只能作为 adapter 生成物。
 - `plugins/agent-context-kit/` 负责项目上下文维护，包括 AGENTS 入口、项目规则、项目记忆、项目配置和 thin-index。
 - `plugins/coding-iris-plugin/` 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力。
-- coding-iris 前端编码使用 `standard-gb2312` / `project-utf8` 双模式；路径与仓库角色只提出候选，实际文件字节检测是最终门禁，已部署项目通过插件迁移钩子更新本地 profile。
+- coding-iris 前端编码使用 `standard-gb2312` / `project-utf8` 双模式；路径与仓库角色只提出候选，实际文件字节检测是最终门禁，已部署项目通过插件迁移钩子更新本地 profile。HISUI 控件/API 与主题样式/视觉资源分别由 `hisui-widget-index.md`、`hisui-style-index.md` 按需路由。
+- `plugins/extract-doc/` 负责 PDF、DOC、DOCX、XLS、XLSX 的本地解析和结构化落盘，是接口类业务插件的通用文档依赖。
 - `plugins/i18n-iris-plugin/` 负责 IRIS/ObjectScript/CSP/HISUI 国际化能力。
+- `plugins/iris-interface-dev-plugin/` 负责接口 schema、字段诊断和开发计划，文档读取委托 `extract-doc`。
+- `plugins/iris-external-reg/` 负责编排第三方预约挂号接口开发，依赖 `extract-doc` 和 `coding-iris-plugin`。
 - `plugins/imedicalxc-doctor-extend-engineer/` 负责 HIS 医生站第三方系统集成编排，主入口为 `skills/imedicalxc-doctor-extend-engineer/SKILL.md`，子 skill 由主编排器按需读取。
 - 已落地首个领域样板 `agents/i18n-agent/` 和 `workflows/i18n-change.workflow.md`，用于 IRIS i18n 需求的链路定位、数据分类、编码/模板/种子和验证五阶段处理。
 - 当前重点维护方向是先固化多人协作提交准入和仓库一致性检查；`i18n-agent` / `i18n-change.workflow.md` 已完成串行回溯、首次偏差实战和 `#6097891` 标准化实战，schema 1.2 已覆盖暂停恢复与最终验证门禁。通用 workflow/Agent 仍需不同任务形态样本，rules 体量与工具原生 adapter 继续观察，不抢占主线。
@@ -33,6 +36,10 @@
 
 ## 近期关键变化
 
+- coding-iris 已拆分 HISUI 控件/API 与 CSS 样式/资源索引，前端规则按控件、主题、locale、语义 class、图标和插图分流读取；索引维护同时区分源仓 `vendor/` 与部署态 `.agents/vendor/`。
+- 文档解析能力已从 `iris-interface-dev-plugin` 拆分为通用 `extract-doc` 插件；接口插件保留 `iris-interface-doc-ingest` 适配入口和 `iris-interface-doc-ingest/v2` schema，专项测试直接验证新的 parser owner 路径。
+- 已新增 `iris-external-reg` 插件，覆盖第三方预约挂号接口规范解析、执行计划、ObjectScript 实现和验证，manifest 显式依赖 `extract-doc`、`coding-iris-plugin`。
+- 框架反馈模板与共享协议已统一要求记录“问题发现过程”；已应用反馈必须更新状态和处理记录，不能继续保留为无 diff 的“待处理”条目。
 - `i18n-agent` 已建立三种运行模式、Step 0 启动契约和编号 handoff；schema 1.2 增加 attempts、capability matrix、远程动作终态、finalization 和限定 verification scope，并保留 1.0/1.1 校验兼容。`#6097891` 已形成脱敏异常恢复回归样本。
 - `agent-framework-feedback` 已升级为 HIS 任务统一收尾入口：需求经验与独立框架修正分流处理，无候选时不生成空反馈；反馈提交和推送仍需用户明确要求。
 - XML 打印模板同步在远端保存遇到临时类 `Execute+...<SYNTAX>` 时，会复用既有 XML/manifest/备份并自动切换 Base64 分块 fallback，专项离线回归覆盖成功、收敛和清理路径。
@@ -58,6 +65,7 @@
 
 ## 当前治理重点
 
+- P0 一致性回归已补充本轮暴露的 targeted 检查：新插件总览、依赖 manifest、HISUI reference 路由、反馈模板字段，以及 `extract-doc` 拆分后的专项测试 owner 路径；全插件通用结构门禁仍按 backlog 继续推进。
 - 已新增 agent thin-index 生成链：`scripts/generate-agent-thin-index.ps1` 可从 canonical `agents/` 生成 `.agents/skills/<agent-name>/SKILL.md`，并已接入 `update-agents.ps1`。
 - vendor skill 核心链路已厂商无关化：manifest 声明 capability，resolver 生成 required 项目 thin-index；Claude Code/Codex 只保留显式 runtime adapter，同步不再是常规更新前置。OpenCode、CodeBuddy、WorkBuddy、Hermes 使用项目通用层或直接源文件降级。
 - 工具专属 agent adapter 生成器仍暂缓；当前已开始做 Claude Code/Codex 的 skill 发现层适配，但不生成 `.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/`、WorkBuddy 或 Hermes 原生 agent 入口。

@@ -28,3 +28,7 @@ python -m pip install -r .agents/plugins/extract-doc/requirements-optional.txt
 ```
 
 对话里只汇报输出路径、视图数、字段数、转换器和错误摘要；完整 Markdown、JSON 和字段明细保留在文件中按需读取。
+
+## 已部署项目接入
+
+已部署项目通过常规 `.agents/scripts/update-agents.ps1` 更新即可获得本插件目录；目录存在仅表示 `available`。需要进入项目发现层时，先由 `project-context-maintenance` 执行本插件真实 skill 的验收，再用 `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin extract-doc -Status enabled` 记录启用状态，最后重新运行更新脚本生成 thin-index。

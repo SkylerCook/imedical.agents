@@ -20,7 +20,7 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 
 ## 完成检查
 
-- ObjectScript 命令的完整后条件表达式无空格分隔，例如 `q:cond=""`、`continue:((cond1)&&(cond2))`；不得生成 `continue:(cond1) && (cond2)`。
+- ObjectScript 命令的完整后条件表达式无空格分隔，例如 `q:cond=""`、`continue:(cond1)&&(cond2)`；不得生成 `continue:(cond1) && (cond2)`。
 - 使用项目约定缩写命令和函数。
 - SQL 写入层返回格式稳定。
 - 参数校验避免 `<UNDEFINED>`。
