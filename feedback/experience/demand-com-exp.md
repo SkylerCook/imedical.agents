@@ -75,9 +75,9 @@
   q ..GetReturnJSON(0, "success")
   ```
 
-### 1.6 `$g()`/`$s()` 等内置函数不适用于 `%DynamicObject`
+### 1.6 `$g()` 函数不适用于 `%DynamicObject`
 - 需求: #6941550 | 命中: 1
-- **错误**：使用 `$g(row.remark)` 或 `$s(row.prop)` 访问 `%DynamicObject` 的属性。
+- **错误**：使用 `$g(row.remark)` 访问 `%DynamicObject` 的属性。
 - **后果**：`$g()` 面向局部变量/多维数组节点，对 `%DynamicObject` 报 `*Class '%Library.DynamicObject' does not support MultiDimensional operations`。
 - **正确做法**：`%DynamicObject` 的属性访问直接用 `row.remark` 或 `row.%Get("remark")`，空值安全由 `%DynamicObject` 自身保证（不存在的属性返回 `""`）。
 - **例外**：`%FromJSON()` 创建的对象在 JSON 中不存在该属性时，访问不存在的属性返回 `""`（与 `$g()` 行为一致），无需额外包装。
@@ -94,8 +94,21 @@
       s value="B"
   }
   ```
-- **验证**：重构条件分支后检查完整分支和缩进。`git diff --check` 只能发现空白问题，不能替代 ObjectScript 语法编译；未获远端编译授权时，应明确标注“仅完成本地静态检查”。
+- **验证**：重构条件分支后检查完整分支和缩进。`git diff --check` 只能发现空白问题，不能替代 ObjectScript 语法编译；未获远端编译授权时，应明确标注"仅完成本地静态检查"。
 - **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_coding_backend.md`
+
+### 1.8 列表元素类型不确定时不能用对象语法
+- 需求: #7109014 | 命中: 1
+- **问题**：对 `%Net.FtpSession.NameList()` 等返回的列表，直接用 `items.GetAt(i).Name` 访问元素属性。
+- **后果**：`NameList` 返回 `%ListOfDataTypes`，元素是**字符串而非 OREF**（字符串本身就是文件名），对字符串取 `.属性` 直接报 `<INVALID OREF>`；`$g()` 包裹也救不了——报错发生在 `.Name` 求值阶段、先于 `$g()` 执行。
+- **根因**：`%Net.FtpSession` 中 `NameList` 与 `DirList` 返回类型不同——`NameList` 返回纯文件名字符串列表，`DirList` 等返回 `%ListOfObjects`（元素含 `.Name`/`.Size` 等属性）。元素是对象还是字符串取决于调用哪个方法，**不能假设**。
+- **正确做法**：取元素后先用 `$isobject()` 判定类型，再决定访问方式：
+  ```objectscript
+  s item = items.GetAt(i)
+  s name = $s($isobject(item):item.Name, 1:item)
+  ```
+- **通用原则**：凡是从 API/集合 `GetAt(i)` 取出的元素，类型不确定时一律先 `$isobject()` 分流，不要直接用对象语法或 `$g()`。本条与 1.6（对象误用 `$g()`）是镜像问题——一个是"对象用了数组函数"，本条是"字符串用了对象语法"。
+- **出处**：`DHCDoc.FileStore.Manager.DeleteDirRecursive`。
 
 ---
 
@@ -137,6 +150,23 @@
 - **做法**：业务 class 只承担遮罩定位、尺寸和页面差异，同时组合 `pic-sysst-nodata-msg`、`pic-sysst-nodata-region` 等 HISUI 语义 class，由 HISUI 提供视觉资源；兼容旧页面时在公共适配层保留未使用语义 class 的回退，不让业务页面维护主题资源路径。
 - **边界**：使用语义 class 前必须确认目标页面实际加载的全部主题和 locale CSS 均包含对应定义；覆盖不完整时先补公共适配层，不能只凭 class 名存在就关闭旧资源回退。
 - **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_coding_frontend.md`、`plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md`、`plugins/coding-iris-plugin/references/hisui-style-index.md`
+
+### 2.5 DataGrid 行内密码框应在 onBeginEdit 后置 input type
+- 需求: FTP密码掩码(医生站代码表配置) | 命中: 1
+- **问题**：要让某列按行显示密码框（输入逐字符圆点），两条"想当然"的路都失败：① 自定义 `password` 编辑器里写 `<input type="password">`，会被 easyui/HISUI 的 textbox/validatebox 初始化包装回 `type="text"`；② 在 `onBeforeEdit` 里改 `getColumnOption(field).editor`，datagrid 不会重建该行编辑器（沿用缓存），不生效。表现为输入内容仍明文可见。
+- **正确做法**：不注册/不切换编辑器，在编辑器创建完成后的 `onBeginEdit` 里直接把输入框 `type` 置为 `password` 并按需清空：
+  ```javascript
+  onBeginEdit: function (rowIndex, rowData) {
+      if (!IsSensitiveCode(rowData.SubCode)) return;
+      var ed = $(this).datagrid('getEditor', { index: rowIndex, field: 'SubDesc' });
+      if (!ed) return;
+      var $inp = $(ed.target);
+      if ($inp.is('input')) $inp.attr('type', 'password');
+      $inp.val('');   // 留空=未修改,输入=新值
+  }
+  ```
+- **配套（页面不见明文、库存仍明文的约定）**：后端读取查询对敏感行按 `$LENGTH(明文)` 返回等长 `*` 仅用于展示；保存时若该行为空或与库中明文等长的纯 `*`，按行标识从库回填真值再 UPDATE，避免掩码/空值覆盖真值；真实功能（如 FTP 连接）直读库存明文、不走展示查询，故不受影响。约定真实密码不允许为纯 `*`（无法与占位区分）。
+- **边界**：敏感清单建议后端统一维护（如 Parameter）并对前端暴露查询接口，避免前端写死。改完前端 JS 后需提醒用户强刷(Ctrl+F5)清缓存。
 
 ---
 
@@ -363,3 +393,5 @@
 | #6096150 | 预约条打印多语言 | [1.7](#17-命令式-ie-与块式-ifelse-不能混用), [5.4](#54-xmlbase64-长脚本出现临时代码-syntax-后立即收敛) |
 | #7079252 | 排班模板维护显示科室分组表格线 | [2.3](#23-合并单元格分割线应复用主题计算样式) |
 | #6684541 | 病历浏览检查报告/检验结果无数据插图多语言 | [2.4](#24-业务布局与-hisui-语义样式应组合复用) |
+| FTP密码掩码 | 代码表配置页FTP密码不明文展示、库存仍明文 | [2.5](#25-datagrid-行内密码框应在-onbeginedit-后置-input-type) |
+| #7109014 | 提供清文件和文件中间表的方法 | [1.8](#18-列表元素类型不确定时不能用对象语法) |
