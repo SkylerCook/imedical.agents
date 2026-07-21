@@ -1,12 +1,131 @@
-# Graylog 日志查询（MCP 模式）
+# Graylog 日志查询
 
 ## 连接方式
 
-**仅使用 MCP 工具**，不直接调用 HTTP API。
+**优先级**：MCP 工具 > HTTP API > Web UI URL。
 
-可用的 Graylog MCP 服务器因环境而异，使用前通过 `list_streams` 确认可用环境。
+### MCP 模式（优先）
+
+MCP 工具可用时优先使用。可用服务器因环境而异，使用前通过 `list_streams` 确认。
 
 具体环境→MCP 服务器映射见**个人 memory**（每人的 Graylog 连接配置不同）。
+
+### HTTP API 模式（MCP 不可用时的备选）
+
+Graylog 6.0.x 认证使用 `-u "token:token"`（username 为 token 值，password 固定为 `token`）。
+
+**Agent 执行本模式 HTTP 请求前，先检查是否有执行权限**。若权限系统拦截（`Credential Leakage` 等），**不自行绕过，不自行修改 settings.json**，按以下模板提示用户：
+
+> 权限系统阻止了直接调用 Graylog API。请手动编辑 `~/.claude/settings.json`（Windows: `C:\Users\<用户名>\.claude\settings.json`），在 `permissions.allow` 中加入以下规则：
+> ```json
+> "allow": [
+>   {
+>     "tool": "Bash",
+>     "description": "Run curl commands to Graylog API server {host}:9000 with authentication token"
+>   },
+>   {
+>     "tool": "Bash",
+>     "description": "Run python scripts to analyze Graylog log data from /tmp/graylog_page*.json files — no credentials or network access"
+>   }
+> ]
+> ```
+> 赋权完成后告知 Agent，Agent 将自动执行下载和分析。
+>
+> **为什么需要两条？** 第一条允许带 token 的 curl 下载日志；第二条允许 python 解析已下载的 JSON 文件（无网络、无凭据），credential leakage classifier 需要明确区分。
+
+若用户选择手动执行，给出完整 PowerShell 命令：
+
+```powershell
+$t="{token}"
+$b="http://{host}:9000/api/search/universal/relative?query={Lucene查询}&range={秒}&limit=500&fields=*"
+$all=@(); 0..6|%{$o=$_*500; $r=curl.exe -s -u $t -H "Accept: application/json" "$b&offset=$o"|ConvertFrom-Json; $all+=$r.messages; "offset=$o : $($r.messages.Count) msgs"}
+$all|ConvertTo-Json -Depth 3|Out-File "{项目目录}\trace_{traceId}.json" -Encoding UTF8
+"Done: $($all.Count) messages"
+```
+
+> **重要**：Agent 不得自行编辑 `settings.json` 来给自己赋权。必须由用户手动操作。
+
+端点 `GET /api/search/universal/relative` 有两个变体，通过 `Accept` 头区分：
+
+| 变体 | Accept 头 | 返回格式 | 包含 total_results |
+|------|-----------|----------|-------------------|
+| `searchRelative` | `application/json` | JSON | ✅ 是 |
+| `searchRelativeChunked` | 默认（无 / `*/*`） | CSV | ❌ 否 |
+
+#### 第一步：查总量（JSON，确认日志规模）
+
+**`fields` 参数必填**。先用小 limit 确认 `total_results`，超过限制时提示用户：
+
+```bash
+curl -s -u "${TOKEN}:token" -H "Accept: application/json" \
+  "http://{host}:9000/api/search/universal/relative?query={Lucene查询}&range={秒}&limit=5&fields=*"
+```
+
+> **PowerShell 注意**：Windows CMD 中 `&` 是命令分隔符，需在 PowerShell 中执行 curl 命令。
+
+#### 第二步：分页下载全量（JSON）
+
+若 `total_results` > 限制，循环分页：
+
+```bash
+curl -s -u "${TOKEN}:token" -H "Accept: application/json" \
+  "http://{host}:9000/api/search/universal/relative?query={Lucene查询}&range={秒}&limit=500&offset=0&fields=*"
+```
+
+每次递增 `offset`（0, 500, 1000, …），直到返回消息数 < limit。
+
+#### 快速采样（CSV，简洁输出）
+
+需要快速查看日志内容时用 CSV 格式（`searchRelativeChunked`），`fields` 必填：
+
+```bash
+curl -s -u "${TOKEN}:token" \
+  "http://{host}:9000/api/search/universal/relative?query={Lucene查询}&range={秒}&limit=50&fields=timestamp,message,source,app_name,traceId"
+```
+
+#### 其他常用 API
+
+```bash
+# 获取系统信息/版本
+curl -s -u "${TOKEN}:token" "http://{host}:9000/api/system"
+
+# Swagger API 文档（查看端点完整参数列表）
+curl -s -u "${TOKEN}:token" "http://{host}:9000/api/api-docs/search/universal/relative"
+
+# 聚合统计
+curl -s -u "${TOKEN}:token" \
+  "http://{host}:9000/api/search/universal/relative/terms?query={查询}&range={秒}&field={字段}&limit=20"
+```
+
+**Graylog 6.0.x 常见报错**：
+| 错误 | 原因 | 解决 |
+|------|------|------|
+| `searchRelativeChunked.arg6 = null` | **缺少 `fields` 参数**（arg6 是 `fields`，必填） | 追加 `&fields=*` 或 `&fields=timestamp,message` |
+| `KeywordSearchResource.searchKeyword.arg0/arg1/arg2 = null` | `/keyword` 端点参数名不同 | 改用 `/relative` 端点 |
+| `AbsoluteSearchResource.searchAbsoluteChunked.arg7 = null` | `/absolute` 端点缺少必填参数 | 追加 `&fields=*` |
+
+### Web UI URL 模式（人工兜底）
+
+当 API 不可用时，可在浏览器中使用 Graylog Web UI URL 直接查看：
+
+```
+http://{host}:9000/search/{viewId}?q={Lucene查询}&rangetype=relative&from={秒}
+```
+
+| 参数 | 说明 | 示例 |
+|------|------|------|
+| `host` | Graylog 服务器地址 | `192.168.9.174` |
+| `viewId` | 视图/stream ID | `69ef2deca1e31c5c3b2bf418` |
+| `q` | Lucene 查询（空格用 `+` 或 `%20`） | `traceId%3A+9052024701361194244` |
+| `rangetype` | `relative` 或 `absolute` | `relative` |
+| `from` | 时间范围（秒）| `259200`（3 天） |
+
+示例：
+```
+http://192.168.9.174:9000/search/69ef2deca1e31c5c3b2bf418?q=traceId%3A+9052024701361194244&rangetype=relative&from=259200
+```
+
+> Web UI 返回 HTML 页面，需人工在浏览器中查看。API 返回 JSON，可由脚本或 Agent 自动解析。
 
 ## 环境选择
 
@@ -35,13 +154,56 @@
 
 ## 响应关键字段
 
-- `total_results`: 匹配总数
-- `messages[].timestamp`: ISO 8601 时间戳（UTC）
-- `messages[].traceId`: 分布式追踪 ID
-- `messages[].source`: 来源主机/pod
-- `messages[].app_name`: 应用名
-- `messages[].full_message`: 完整格式化日志行
-- `messages[].level_name`: 日志级别
+### JSON 格式（`Accept: application/json`）
+
+```json
+{
+  "query": "原始查询",
+  "built_query": "实际执行的查询",
+  "total_results": 3377,
+  "time": 1640,
+  "from": "2026-07-18T04:58:36.797Z",
+  "to": "2026-07-21T04:58:36.797Z",
+  "messages": [
+    {
+      "message": {
+        "_id": "消息ID",
+        "timestamp": "2026-07-20T00:29:35.802Z",
+        "traceId": "9052024701361194244",
+        "message": "日志内容",
+        "app_name": "应用名",
+        "source": "来源主机"
+      },
+      "index": "graylog_4423",
+      "decoration_stats": null
+    }
+  ],
+  "fields": ["timestamp", "message", "traceId"],
+  "decoration_stats": null
+}
+```
+
+### CSV 格式（默认）
+
+首行为字段名，后续为数据行：
+
+```csv
+"timestamp","message","source","app_name","traceId"
+"2026-07-20T00:29:18.441Z","===>>> 接口入参为 : ...","k8s-worker3...","his-mediway-server","9052024701361194244"
+```
+
+### 关键字段说明
+
+| 字段 | 说明 |
+|------|------|
+| `total_results` | 匹配日志总数（仅 JSON 模式有） |
+| `messages[].message.timestamp` | ISO 8601 时间戳（UTC） |
+| `messages[].message.traceId` | 分布式追踪 ID（驼峰形式） |
+| `messages[].message.app_name` | 应用名（如 `his-mediway-server`） |
+| `messages[].message.source` | 来源主机/pod |
+| `messages[].message.message` | 日志正文 |
+| `messages[].index` | 所在 Graylog 索引名 |
+| `from` / `to` | 查询时间范围 |
 
 ## 字段命名规范
 
