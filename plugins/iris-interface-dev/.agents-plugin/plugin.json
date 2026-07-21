@@ -1,5 +1,5 @@
 {
-  "name": "iris-interface-dev-plugin",
+  "name": "iris-interface-dev",
   "version": "0.1.0",
   "displayName": "IRIS Interface Dev Plugin",
   "description": "Document-first interface development workflow for IRIS projects, focused on parsed document handoff, field matching diagnostics, implementation planning, and handoff to coding-iris-plugin.",

@@ -43,7 +43,7 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
 5. 按项目需要读取插件初始化 skill：
    - `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`
    - `.agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md`
-   - `.agents/plugins/iris-interface-dev-plugin/skills/iris-interface-init/SKILL.md`
+   - `.agents/plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md`
    - `.agents/plugins/imedicalxc-doctor-extend-engineer/skills/imedicalxc-doctor-extend-engineer/SKILL.md`
 
 不要把本仓库根 `AGENTS.md`、根 `memory/` 或展示页文件复制到业务项目。
@@ -249,7 +249,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 - 接口 DOCX、PDF、XLSX、XLS、DOC 文档转换委托 `extract-doc`，本插件负责接口 schema、字段诊断和开发语义。
 - 字段表头映射、字段抽取、字段诊断和开发计划。
-- 解析产物固定落盘到目标项目 `docs/output/iris-interface/<doc-name>/`，不默认注入会话上下文。
+- 解析产物固定落盘到目标项目 `docs/interface/<doc-name>/`，不默认注入会话上下文。
 - MarkItDown、python-docx、pdfplumber、openpyxl 均为可选依赖，不 vendor、不自动安装。
 - IRIS/ObjectScript 编码、审查、上传、编译、部署和远端验证复用 `coding-iris-plugin`。
 

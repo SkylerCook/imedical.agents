@@ -5,7 +5,7 @@ description: 当需要把接口 PDF、DOC、DOCX、XLS 或 XLSX 文档转换为 
 
 # IRIS 接口文档解析
 
-这是 `iris-interface-dev-plugin` 的接口文档解析适配入口。它负责接口开发语义、规则路由和输出目录约定；实际文档读取、格式转换和结构化落盘由 `extract-doc` 插件执行。
+这是 `iris-interface-dev` 的接口文档解析适配入口。它负责接口开发语义、规则路由和输出目录约定；实际文档读取、格式转换和结构化落盘由 `extract-doc` 插件执行。
 
 ## 必读
 
@@ -17,7 +17,7 @@ description: 当需要把接口 PDF、DOC、DOCX、XLS 或 XLSX 文档转换为 
 
 ## 职责
 
-- 固定接口文档解析输出目录为 `docs/output/iris-interface/<doc-name>/`。
+- 固定接口文档解析输出目录为 `docs/interface/<doc-name>/`。
 - 调用 `extract-doc` 的解析脚本生成 Markdown、结构化 JSON、字段摘要和诊断文件。
 - 保证产物可被 `iris-interface-field-match` 和 `iris-interface-dev-plan` 继续读取。
 - 对话里只汇报文件路径、视图数量、字段数量、转换器和错误摘要，不粘贴完整文档或完整字段明细。
@@ -31,7 +31,7 @@ python .agents/plugins/extract-doc/scripts/extract-doc-env-check.py --file <docu
 python .agents/plugins/extract-doc/scripts/extract-doc-ingest.py `
   --file <document-path> `
   --project-root . `
-  --output-root docs/output/iris-interface `
+  --output-root docs/interface `
   --schema-version iris-interface-doc-ingest/v2
 ```
 
@@ -39,10 +39,10 @@ python .agents/plugins/extract-doc/scripts/extract-doc-ingest.py `
 
 固定写入：
 
-- `docs/output/iris-interface/<doc-name>/source.md`
-- `docs/output/iris-interface/<doc-name>/parsed.json`
-- `docs/output/iris-interface/<doc-name>/fields.md`
-- `docs/output/iris-interface/<doc-name>/diagnostics.md`
+- `docs/interface/<doc-name>/source.md`
+- `docs/interface/<doc-name>/parsed.json`
+- `docs/interface/<doc-name>/fields.md`
+- `docs/interface/<doc-name>/diagnostics.md`
 
 `parsed.json` 当前 schema 为 `iris-interface-doc-ingest/v2`，用于兼容 `iris-interface-field-match`。
 

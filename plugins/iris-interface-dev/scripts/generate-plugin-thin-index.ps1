@@ -1,5 +1,5 @@
 param(
-    [string]$PluginPath = ".agents/plugins/iris-interface-dev-plugin",
+    [string]$PluginPath = ".agents/plugins/iris-interface-dev",
     [string]$ProjectRoot = ".",
     [ValidateSet("DryRun", "Write")]
     [string]$Mode = "DryRun",

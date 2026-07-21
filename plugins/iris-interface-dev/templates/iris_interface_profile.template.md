@@ -2,7 +2,7 @@
 
 ## Output
 
-- outputRoot: docs/output/iris-interface
+- outputRoot: docs/interface
 - keepMarkdownOutOfContext: true
 
 ## Optional Converters
