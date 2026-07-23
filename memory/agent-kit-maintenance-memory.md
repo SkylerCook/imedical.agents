@@ -17,7 +17,7 @@
 - coding-iris 前端编码使用 `standard-gb2312` / `project-utf8` 双模式；路径与仓库角色只提出候选，实际文件字节检测是最终门禁，已部署项目通过插件迁移钩子更新本地 profile。HISUI 控件/API 与主题样式/视觉资源分别由 `hisui-widget-index.md`、`hisui-style-index.md` 按需路由。
 - `plugins/extract-doc/` 负责 PDF、DOC、DOCX、XLS、XLSX 的本地解析和结构化落盘，是接口类业务插件的通用文档依赖。
 - `plugins/i18n-iris-plugin/` 负责 IRIS/ObjectScript/CSP/HISUI 国际化能力。
-- `plugins/iris-interface-dev-plugin/` 负责接口 schema、字段诊断和开发计划，文档读取委托 `extract-doc`。
+- `plugins/iris-interface-dev/` 负责接口 schema、字段诊断、开发计划、本地接口实现和离线审查，文档读取委托 `extract-doc`，编码与部署规则复用 `coding-iris-plugin`。
 - `plugins/iris-external-reg/` 负责编排第三方预约挂号接口开发，依赖 `extract-doc` 和 `coding-iris-plugin`。
 - `plugins/imedicalxc-doctor-extend-engineer/` 负责 HIS 医生站第三方系统集成编排，主入口为 `skills/imedicalxc-doctor-extend-engineer/SKILL.md`，子 skill 由主编排器按需读取。
 - 已落地首个领域样板 `agents/i18n-agent/` 和 `workflows/i18n-change.workflow.md`，用于 IRIS i18n 需求的链路定位、数据分类、编码/模板/种子和验证五阶段处理。
@@ -38,7 +38,7 @@
 
 - 新增 `iris-mcp-lookup`，统一路由当前实例元数据、本地源码、IRIS 官方文档，并支持 DocBook `Fetch` URL；从 `iris-agentic-dev` v0.9.4 固定提交引入 7 个官方实用 skill，保持上游原文和许可证，作为 optional vendor 分发。根 `iris-mcp.js` 已按 v0.9.3 schema 精确门控 `mode` / `action`，摘要 `check_config.capabilities`，并允许断连状态下继续列出工具进行诊断。
 - coding-iris 已拆分 HISUI 控件/API 与 CSS 样式/资源索引，前端规则按控件、主题、locale、语义 class、图标和插图分流读取；索引维护同时区分源仓 `vendor/` 与部署态 `.agents/vendor/`。
-- 文档解析能力已从 `iris-interface-dev-plugin` 拆分为通用 `extract-doc` 插件；接口插件保留 `iris-interface-doc-ingest` 适配入口和 `iris-interface-doc-ingest/v2` schema，专项测试直接验证新的 parser owner 路径。
+- 文档解析能力已从 `iris-interface-dev` 拆分为通用 `extract-doc` 插件；接口插件保留 `iris-interface-doc-ingest` 适配入口和 `iris-interface-doc-ingest/v2` schema，并通过 `iris-interface-build` 承担本地实现编排。
 - 已新增 `iris-external-reg` 插件，覆盖第三方预约挂号接口规范解析、执行计划、ObjectScript 实现和验证，manifest 显式依赖 `extract-doc`、`coding-iris-plugin`。
 - 框架反馈模板与共享协议已统一要求记录“问题发现过程”；已应用反馈必须更新状态和处理记录，不能继续保留为无 diff 的“待处理”条目。
 - `i18n-agent` 已建立三种运行模式、Step 0 启动契约和编号 handoff；schema 1.2 增加 attempts、capability matrix、远程动作终态、finalization 和限定 verification scope，并保留 1.0/1.1 校验兼容。`#6097891` 已形成脱敏异常恢复回归样本。

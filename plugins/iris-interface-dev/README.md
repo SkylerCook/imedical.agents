@@ -1,6 +1,6 @@
 # iris-interface-dev
 
-`iris-interface-dev` 是面向 IRIS 接口开发的文档优先能力包。v1 只做解析审计优先链路：读取 `extract-doc` 生成的接口文档解析产物、字段匹配诊断、开发计划和离线审查。
+`iris-interface-dev` 是面向 IRIS 接口开发的文档优先能力包。它覆盖接口文档解析适配、字段匹配诊断、开发计划、IRIS 接口实现和离线审查；通用文档转换委托 `extract-doc`，编码规范与部署能力复用 `coding-iris-plugin`。
 
 ## 能力范围
 
@@ -8,7 +8,8 @@
 - 接口解析产物约定写入 `docs/interface/<doc-name>/`。
 - 生成 `source.md`、`parsed.json`、`fields.md`、`diagnostics.md`；字段匹配阶段生成 `field-match.json` 和 `field-match.md`。
 - `parsed.json` 使用 `iris-interface-doc-ingest/v2` schema；字段除保留 v1/v1.2 规范字段外，还包含 `rawColumns`、`sourceLocation`、`classification`、`confidence`、`warnings`、`requiredReason` 和 `jsonPathReason`。
-- 通过 skill 将 IRIS 编码实现交给 `coding-iris-plugin`。
+- `iris-interface-build` 负责把已确认的接口契约实现为 ObjectScript、JavaScript/CSP 和配置说明，并按接入管理、统一注册调度、只读 Query 三种机制路由。
+- 编译、上传、部署和远端验证交给 `coding-iris-plugin`，且仍需用户明确授权远端写入。
 - 审查生成物中的点号循环体，阻断 `.s`、`.f`、`..d` 等风险输出。
 
 ## 标准目录
@@ -90,3 +91,20 @@ python .agents/plugins/iris-interface-dev/scripts/iris-interface-review.py `
 ```
 
 本插件依赖 `extract-doc` 和 `coding-iris-plugin`。如果目标项目未启用 coding 插件，本插件只执行文档解析委托、解析产物读取和字段诊断，不进入 IRIS 编码实现。
+
+常用 skill：
+
+- `iris-interface-init`
+- `iris-interface-doc-ingest`
+- `iris-interface-field-match`
+- `iris-interface-dev-plan`
+- `iris-interface-build`
+
+已部署项目更新插件后，需要重新运行本插件 thin-index wrapper，才能让只发现浅层 skill 的 Agent 识别 `iris-interface-build`：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/iris-interface-dev/scripts/generate-plugin-thin-index.ps1 `
+  -PluginPath .agents/plugins/iris-interface-dev `
+  -ProjectRoot . `
+  -Mode Write
+```

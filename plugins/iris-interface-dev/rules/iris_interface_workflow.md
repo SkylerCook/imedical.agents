@@ -1,7 +1,7 @@
 ---
 name: iris_interface_workflow
-description: Use when running the eight-step IRIS interface development workflow from document ingest to coding handoff.
-task-affinity: [iris, interface, workflow, document, planning]
+description: Use when running the eight-step IRIS interface development workflow from document ingest through local implementation and deployment handoff.
+task-affinity: [iris, interface, workflow, document, planning, implementation]
 related:
   - iris_interface_index.md
   - iris_interface_review.md
@@ -15,7 +15,7 @@ related:
 4. 字段匹配诊断：使用轻量语义规则、项目本地反馈和按需 wiki 参考生成候选。
 5. 人工确认门禁：字段歧义、低置信候选、类型冲突和目标结构不明确项必须显式确认。
 6. 接口方案生成：列出接口格式、字段覆盖、待确认项、编码任务和 coding 插件交接事项。
-7. IRIS 编码实现：由 `coding-iris-plugin` 的 `iris-coding`、`iris-backend-coding` 或 `iris-frontend-coding` 执行。
+7. IRIS 编码实现：由 `iris-interface-build` 编排接口机制、配置与本地源码实现，并按实际文件加载 `coding-iris-plugin` 的 `iris-coding`、`iris-backend-coding` 或 `iris-frontend-coding` 规则。
 8. 验证与回流：接口插件审查字段覆盖和文档一致性；上传、编译、远端验证和部署交给 `coding-iris-plugin`。
 
 ## 落盘要求
@@ -34,5 +34,5 @@ related:
 - 文档解析失败或输出不完整时，不得生成开发计划。
 - 字段匹配中必须人工确认的项目，不得由 Agent 自行猜测放行。
 - 实施计划未获用户确认时，不得进入编码实现。
-- 编码实现必须复用 `coding-iris-plugin`；本插件只提供接口事实、字段映射、计划和审查上下文。
+- 编码实现必须由 `iris-interface-build` 复用 `coding-iris-plugin` 的编码与审查规则；本插件不接管编译、上传、部署和远端验证。
 

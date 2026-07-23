@@ -1,8 +1,8 @@
 {
   "name": "iris-interface-dev",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "IRIS Interface Dev Plugin",
-  "description": "Document-first interface development workflow for IRIS projects, focused on parsed document handoff, field matching diagnostics, implementation planning, and handoff to coding-iris-plugin.",
+  "description": "Document-first IRIS interface workflow covering parsed document handoff, field matching, implementation planning, local ObjectScript/JavaScript implementation, offline review, and deployment handoff to coding-iris-plugin.",
   "entry": "AGENTS.md",
   "rules": "rules/",
   "references": "references/",
@@ -24,6 +24,7 @@
     "Ingest this interface document with extract-doc and write Markdown plus parsed JSON outputs",
     "Diagnose field matching coverage for this parsed interface document",
     "Create an implementation plan for this interface and hand off coding to coding-iris-plugin",
+    "Implement this IRIS interface end-to-end: backend ObjectScript class/method plus frontend middleware JS, registered via accessmanage.csp and dhcdocinterfaceregister",
     "Review generated interface artifacts for field coverage and dot-loop risks"
   ]
 }
