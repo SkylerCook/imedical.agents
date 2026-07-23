@@ -21,6 +21,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 - 前端 CSP/JS/HISUI：`iris-frontend-coding`
 - 永久替换 `{name}.gb2312.{ext}` 回源文件：`iris-frontend-gb2312-promote`
 - 远端部署、上传、编译、SFTP 同步或部署验证：`iris-deploy`
+- IRIS 类、方法签名、宏、SQL 元数据或官方文档查询：`iris-mcp-lookup`
 
 ## 必读规则
 
@@ -35,6 +36,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 - HISUI 控件或 API 不确定：读取 `references/hisui-widget-index.md`，再读 `.agents/vendor/hisui/dist/js/jquery.hisui.js`
 - HISUI 样式、图标或多语言视觉资源不确定：读取 `references/hisui-style-index.md`，再检查对应主题 CSS、locale CSS 和页面实际引入关系
 - 上传、编译、远程读取、只读 SQL 验证：读取目标工程 `.mcp.json` 和 `rules/iris_coding_workflow.md`
+- 类/方法是否存在、签名、继承或官方文档不确定：切换到 `iris-mcp-lookup`，读取 `rules/iris_knowledge_lookup.md`
 - 上传、编译、部署和远端验证：读取 `rules/iris_deploy_checklist.md`
 - 永久替换 `{name}.gb2312.{ext}` 回源文件：切换到 `iris-frontend-gb2312-promote`
 
@@ -47,6 +49,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
    - 同时涉及后端接口和前端页面：先梳理调用链和文件边界，再分阶段改后端和前端。
    - 用户要求部署、上传、编译、SFTP 同步或部署验证：切换到 `iris-deploy`。
    - 用户要求远端读取或 SQL 验证但不部署：只在明确要求后进入工作流规则。
+   - 用户要求查询 IRIS API、签名、宏、SQL 元数据或官方文档：切换到 `iris-mcp-lookup`。
    - 用户要求提升 GB2312 临时文件为源文件：切换到 promote skill。
 3. 本地搜索现有实现和同类代码，优先沿用目标工程模式。
 4. 前端任务在内部解析“前端编码模式”和可选路径覆盖，并对每个触碰文件修改前后执行字节检测；正常时不展开诊断，冲突、unknown、mixed 或证据不足时停止。

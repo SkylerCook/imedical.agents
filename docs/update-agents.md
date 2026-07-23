@@ -248,6 +248,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/generate-age
 
 `vendor/` 是随能力包部署的 fallback 源，不是默认安装列表。`update-agents.ps1` 调用 `resolve-plugin-skill-dependencies.ps1`，递归汇总 enabled 插件、显式选择插件及其插件依赖；manifest 中 `skillDependencies.required` 自动进入项目发现层，`optional` 只在任务命中 trigger 后按需读取。
 
+`coding-iris-plugin` 引入的 `iris-agentic-dev-skills` 属于 optional vendor skill：更新脚本会把固定上游版本的 skill 快照同步到 `.agents/vendor/iris-agentic-dev-skills/`，但不会自动生成 `.agents/skills` thin-index。需要直接使用这些官方 skill 时，可从 vendor 路径读取，或由目标 runtime 的显式同步选项生成入口；`iris-mcp-lookup` 本身仍由插件 canonical skill 提供。
+
 核心解析和 manifest 不包含 Claude Code、Codex、OpenCode、CodeBuddy、WorkBuddy 或 Hermes 的用户目录与调用语法。`.agents/skills/` 是跨工具通用层；工具不能发现 thin-index 时，按入口说明直接读取其 `source`。工具没有 skill 或 subagent 能力时，按 canonical Markdown 串行执行。
 
 `update-agents.ps1` 只为解析出的 required skill 调用：

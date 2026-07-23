@@ -26,9 +26,11 @@
 - 前端 CSP/JS/HISUI 编码：`skills/iris-frontend-coding/SKILL.md`
 - 前端 GB2312 转换后替换源文件：`skills/iris-frontend-gb2312-promote/SKILL.md`
 - IRIS 远端部署编排：`skills/iris-deploy/SKILL.md`
+- IRIS 类、方法签名与官方文档查询：`skills/iris-mcp-lookup/SKILL.md`
 
 普通编码需求优先使用 `iris-coding`。当任务边界已经明确为纯后端、纯前端或 GB2312 promote 时，可直接使用对应专项 skill。
 当用户明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
+当用户要求查询 IRIS 类、方法、函数、宏、SQL 元数据或官方文档时，使用 `iris-mcp-lookup`；该 skill 默认只读，并把当前实例元数据与官方文档版本分开报告。
 
 `coding-iris-init` 是 bootstrap skill。首次接入目标工程时应直接读取插件真实路径 `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`，不要依赖安装后才会生成的 thin-index。
 
@@ -44,6 +46,8 @@
 - HISUI 控件参考：`references/hisui-widget-index.md`（源码内置在 `.agents/vendor/hisui/`）
 - HISUI 样式与资源参考：`references/hisui-style-index.md`（主题 CSS、locale CSS、语义 class、图标与插图）
 - iris-agentic-dev 配置：`rules/iris_agentic_dev.md`（Windows x64 可执行文件内置在 `.agents/vendor/iris-agentic-dev/`）
+- IRIS 知识查询与 MCP 路由：`rules/iris_knowledge_lookup.md`
+- IRIS 官方文档路由：`references/iris-official-docs-routing.md`
 
 ## 内置脚本
 
@@ -63,3 +67,5 @@
 `scripts/iris-tools/` 是 IRIS 开发主力脚本集合，包含部署清单生成、导出、编译、Broker 调试和环境配置同步。真实连接信息由目标工程本地私有配置承载：已有 `.mcp.json` 时反向补齐 `.agents/config/project-env.json`，没有 `.mcp.json` 时才从 `templates/project-env.template.json` 创建并用 `sync-env-config.js` 生成 `.mcp.json`。这些文件不得提交到版本库。
 
 默认模板将 `mcp.serverPath` 指向 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`。该路径只表示内置 MCP server 可执行文件位置，不包含 host、namespace、账号、密码或 token。
+
+官方 `iris-agentic-dev` 中通用性较高的 ObjectScript skills 固定快照位于 `.agents/vendor/iris-agentic-dev-skills/`，在 manifest 中全部声明为 optional capability。任务命中后按需读取，普通更新不生成浅层入口；上游工具名必须先按 `rules/iris_knowledge_lookup.md` 映射到当前 `tools/list` schema。

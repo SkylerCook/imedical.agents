@@ -4,18 +4,19 @@ description: Use when an IRIS coding task needs iris-agentic-dev MCP capability 
 task-affinity: [iris, mcp, diagnostics, coding]
 related:
   - iris_coding_workflow.md
+  - iris_knowledge_lookup.md
 ---
 
 # iris-agentic-dev 使用约束
 
 ## MCP 能力矩阵
 
-本矩阵基于 `tools/list` 和 2026-06-01 的冒烟测试整理。本文只记录通用能力，不得从 `.mcp.json` 复制 host、用户名、密码、namespace、token 或私有路径。
+本矩阵基于 `tools/list`、2026-06-01 的目标项目冒烟测试和 2026-07-23 对仓库内置 `iris-agentic-dev 0.9.3` 的本地 schema 复核整理。本文只记录通用能力，不得从 `.mcp.json` 复制 host、用户名、密码、namespace、token 或私有路径。
 
 ### 配置与会话
 
 - `check_config`：返回当前连接和配置状态，不发起 IRIS 网络调用。排查 MCP 问题时优先使用。
-- `agent_info`、`agent_stats`、`agent_history`：查看会话、工具调用历史和学习 Agent 状态。
+- `agent_stats`、`agent_history`、`telemetry_query`：查看学习 Agent 状态、当前会话和持久化工具调用记录。
 
 ### 安全发现与读取
 
@@ -25,9 +26,11 @@ related:
 - `iris_search`：跨 IRIS 文档全文搜索。
 - `iris_doc`：`mode=get` / `mode=head` 用于读取或检查文档存在性。
 - `docs_introspect`：查看类方法、属性和类型信息。
+- `iris_doc_search`：搜索 InterSystems 官方文档；仍需先以当前 `tools/list` 确认可用性。
 - `iris_table_info`：查看投影 SQL 表和存储元数据。
 - `iris_macro`：列出、定位、查看或展开宏。
-- `debug_get_error_logs`、`debug_capture_packet`、`debug_map_int_to_cls`、`debug_source_map`：读取诊断和调试上下文。
+- `iris_debug`：通过 `action=error_logs|capture|map_int|source_map` 读取诊断和调试上下文。
+- `iris_get_log`：工具结果被截断并返回 `log_id` 时读取完整结果。
 - `extract_message_map_routing`、`find_subclass_implementations`、`resolve_dynamic_dispatch`：解析编译后路由、多态实现和动态分发候选。
 
 ### 写入、编译与执行
@@ -35,6 +38,8 @@ related:
 - `iris_doc mode=put/delete`：写入或删除 IRIS 文档。仅在用户明确要求时使用；`put` 适用于 `.cls/.mac/.inc` 等 IRIS 文档，不用于 CSP 上传。
 - `iris_compile`：编译类、例程或包。部署冒烟检查优先使用 `flags="cuk /checkuptodate=expandedonly"`。
 - `iris_execute`：执行 ObjectScript。即使代码看似只读，工具内部也可能创建临时生成类；必须检查返回 status 和 stdout，不能只看传输成功。已授权的只读核验或翻译操作可将这种自清理临时载体记录为 `tool-internal-execution`，它不等同于 `business-code-deploy`，也不得用于上传命名业务类。
+- `iris_execute_method`：直接调用 ClassMethod；仍属于远端执行，不能因省略 ObjectScript 包装代码而视为只读查询。
+- `iris_global`：read/list 属于读取，write/kill 属于高风险写入；知识查询默认不读取业务或患者 Global。
 - `iris_source_control`：查看 SCM 状态/菜单或执行 checkout/action；checkout 和 action 属于状态变更。
 - `iris_test`：运行 `%UnitTest.Manager` 测试。
 
@@ -45,7 +50,7 @@ related:
 - `iris_credential_list`：只列出凭据 ID 和用户名，不返回密码。
 - `iris_credential_manage`：创建、更新或删除凭据，高风险写操作。
 - `iris_production`、`iris_production_item`：status/get_settings 可读；start/stop/update/recover/enable/disable/set_settings 属于高风险写操作。
-- `iris_list_containers`、`iris_select_container`、`iris_start_sandbox`：Docker/容器目标选择能力；仅在项目实际使用 IRIS 容器时使用。
+- `iris_containers`：容器发现、选择或启动能力以当前 schema 为准；仅在项目实际使用 IRIS 容器且任务明确需要时使用。
 
 ### 生成、知识库与技能
 
@@ -53,6 +58,25 @@ related:
 - `iris_generate_class`、`iris_generate_test`：依赖模型/API key 环境变量，具体是否写入取决于调用方式。
 - `kb`、`kb_index`、`kb_recall`：索引或召回知识库内容。
 - `skill*` 工具：学习 Agent 技能注册表操作；正常业务部署中不要使用写入、分享或社区安装能力。
+
+## 当前内置版本工具名复核：2026-07-23
+
+仓库内置 `iris-agentic-dev 0.9.3` 已通过本地 JSON-RPC `initialize` + `tools/list` 复核。与知识查询和官方 vendor skill 兼容相关的工具包括：
+
+- `docs_introspect`
+- `iris_symbols`
+- `iris_symbols_local`
+- `iris_doc_search`
+- `iris_search`
+- `iris_macro`
+- `iris_table_info`
+- `iris_debug`
+- `iris_containers`
+- `iris_generate_test`
+- `iris_compile`
+- `iris_test`
+
+上游 vendor skill 中的 `objectscript_iris_*`、`debug_*` 和旧容器工具名不得直接调用；按 `iris_knowledge_lookup.md` 映射后，再以当前工具 schema 为准。
 
 ## 冒烟测试结果：2026-06-01
 

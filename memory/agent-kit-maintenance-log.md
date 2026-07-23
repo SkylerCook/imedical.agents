@@ -3,6 +3,10 @@
 本文件记录近期维护流水摘要和验证结论。长期决策见 `agent-kit-maintenance-decisions.md`，后续治理队列见 `agent-kit-maintenance-backlog.md`，入口摘要见 `agent-kit-maintenance-memory.md`。
 
 ## 近期已完成
+
+- 2026-07-23：为 `coding-iris-plugin` 新增 `iris-mcp-lookup` skill、`iris_knowledge_lookup.md` rule 和官方文档路由 reference，统一当前实例元数据、本地源码、官方文档三类知识源；明确 MCP 只走 `iris-agentic-dev`、默认只读、工具可用性先以 `tools/list` 为准，并支持直接 `Fetch` DocBook URL。
+- 2026-07-23：从 `intersystems-community/iris-agentic-dev` v0.9.4 固定提交 `568a0e03cb5bdfae6870973a73d1d4d86ae42ab9` 引入 `objectscript-review`、`objectscript-guardrails`、`objectscript-sql-patterns`、`objectscript-list-patterns`、`objectscript-navigation`、`objectscript-unit-test`、`objectscript-debugging` 七个官方 skill；保留 MIT LICENSE 和上游原文，manifest 声明为 optional vendor 依赖，避免默认 thin-index 污染。官方 `iris-docs` 因内含固定 Algolia key 且与本次 URL Fetch 路由冲突未原样引入，由本地安全适配入口承接。
+- 2026-07-23：验证 `iris-mcp-lookup` canonical skill 通过 `quick_validate.py`；专项测试和 `update-agents.tests.ps1` 均通过 PowerShell 7 与 Windows PowerShell 5.1。内置 v0.9.3 本地 `tools/list` 返回 52 个工具并包含 `iris_doc_search`；给定 `GGBL_structure` DocBook URL 已实际读取到 “Formal Rules about Globals” 页面和 IRIS 2026.2 版本信息；7 个 vendor skill 逐个匹配固定上游 Git blob，敏感 key 扫描和 `git diff --check` 通过。
 - 2026-07-18：审计并闭环 `ca310db` 及其基线中的框架上下文偏差：将 HISUI 控件/API 与样式/资源索引同步到仓库总览和维护入口，修正 reference 跨目录路径及源仓/部署态 vendor 路径；反馈 `260718022936` 已标记为“已应用”并补齐问题发现过程和处理记录，根反馈模板与共享协议保持一致。
 - 2026-07-18：修复 `extract-doc` 拆分后的专项测试 owner 漂移：`iris-interface-plugin.tests.ps1` 现从 `plugins/extract-doc/` 读取 requirements、环境检查和 parser，并显式传入接口输出目录及 `iris-interface-doc-ingest/v2` schema；同时恢复 ObjectScript 复合后条件正反例，使 `update-agents.tests.ps1` 与 owner rule/skill 一致。
 - 2026-07-18：补齐 `e1e5761`、`621b633` 后遗漏的能力说明。`extract-doc` 承接通用文档解析，`iris-interface-dev-plugin` 保留接口语义适配；`iris-external-reg` 提供第三方预约挂号接口开发编排并显式依赖 `extract-doc`、`coding-iris-plugin`。README、更新 runbook、插件接入说明和 targeted 回归已同步。

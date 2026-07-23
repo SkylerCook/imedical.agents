@@ -17,6 +17,8 @@
 - iris-agentic-dev MCP server：Windows x64 可执行文件内置在 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`，目标工程无需自行查找工具位置。
 - IRIS 开发主力脚本：通过 `scripts/iris-tools/` 提供部署清单生成、导出、编译、Broker 调试和环境配置同步。
 - MCP 能力说明：`rules/iris_agentic_dev.md` 记录 IRIS MCP 能力矩阵，`rules/sftp_server.md` 记录 SFTP MCP 能力矩阵和安全边界。
+- IRIS 知识查询：`skills/iris-mcp-lookup/SKILL.md` 统一路由当前实例元数据、本地源码和官方文档，支持已知 `docs.intersystems.com` URL 的 Fetch/WebFetch/Open 等价能力。
+- 官方 ObjectScript skills：从 `iris-agentic-dev` v0.9.4 固定快照选择 7 个通用 skill，部署在 `.agents/vendor/iris-agentic-dev-skills/`，全部按 optional capability 触发，不默认生成浅层入口。
 
 ## 标准目录
 
@@ -95,6 +97,31 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 6. 明确的纯后端任务可直接使用 `iris-backend-coding`，明确的纯前端任务可直接使用 `iris-frontend-coding`。
 7. 明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
 8. 需要把转换后的 GB2312 文件替换源文件时，使用 `iris-frontend-gb2312-promote`。
+9. 查询 IRIS 类、方法签名、宏、SQL 元数据或官方文档时，使用 `iris-mcp-lookup`。
+
+## IRIS 知识查询与官方 vendor skills
+
+`iris-mcp-lookup` 默认只读，按问题选择：
+
+- `iris_symbols` / `docs_introspect`：当前实例类、方法、签名与继承关系。
+- `iris_symbols_local`：本地 `.cls/.mac/.inc`。
+- `iris_doc mode=get/head`：当前实例中的类或例程文档；它不用于查询官方文档站。
+- 当前运行器网页读取能力：已知 `docs.intersystems.com` URL；Claude Code 可显示为 `Fetch` / `WebFetch`。
+- `iris_doc_search`：只有当前 `tools/list` 实际包含该工具时才使用；内置 v0.9.3 已复核包含该工具。
+
+官方 vendor skills 来源和 commit 见 `.agents/vendor/iris-agentic-dev-skills/UPSTREAM.md`。当前选择：
+
+- `objectscript-review`
+- `objectscript-guardrails`
+- `objectscript-sql-patterns`
+- `objectscript-list-patterns`
+- `objectscript-navigation`
+- `objectscript-unit-test`
+- `objectscript-debugging`
+
+它们在 manifest 中均为 optional。任务命中后直接读取 `.agents/vendor/iris-agentic-dev-skills/skills/<name>/SKILL.md`；上游原文中的工具名可能与内置 MCP 版本不同，执行前必须读取 `rules/iris_knowledge_lookup.md` 并按当前 `tools/list` schema 映射。
+
+已部署业务工程更新 `.agents` 后，重新为 enabled `coding-iris-plugin` 生成 plugin thin-index，即可获得 `iris-mcp-lookup` 与 `iris_knowledge_lookup` 浅层入口。optional vendor skills 不会自动生成浅层入口；需要用户级运行时副本时，按 `docs/update-agents.md` 显式选择具体 skill 和 runtime。
 
 ## IRIS 开发主力脚本
 

@@ -114,7 +114,7 @@ imedical.agents/
 |-- agents/      # 顶层智能体 canonical 定义
 |-- workflows/   # 顶层协作流程 canonical 定义
 |-- plugins/     # 可复用能力包
-|-- vendor/      # 第三方源码资产、共享运行时资产和可同步运行时 skill（如 HISUI、iris-agentic-dev、superpowers、word-reader）
+|-- vendor/      # 第三方源码资产、共享运行时资产和可同步运行时 skill（如 HISUI、iris-agentic-dev、iris-agentic-dev-skills、superpowers、word-reader）
 |-- skills/      # 仓库级通用 skill；agent-kit-maintenance 为维护专用例外，不部署业务项目
 |-- rules/       # 仓库级通用规则预留入口
 |-- docs/        # AI Coding 工作区规范、runbook 和配套文档
@@ -199,12 +199,15 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - 标版 UTF-8 导出 staging 严格转换为 GB2312 的 promote 流程，以及医院项目 UTF-8 原样编辑/上传流程。
 - HISUI 控件/API 按需读取 `references/hisui-widget-index.md`，主题 CSS、locale CSS、语义 class、图标和插图按需读取 `references/hisui-style-index.md`。
 - iris-agentic-dev MCP server Windows x64 可执行文件（当前 **v0.6.20**）内置在 `.agents/vendor/iris-agentic-dev/`，目标工程 `.mcp.json` 仍保存实际连接事实。
+- `iris-mcp-lookup` 统一查询当前实例类/方法签名、本地源码和 InterSystems 官方文档，并支持已知官方 URL 的 Fetch/WebFetch/Open 等价能力。
+- 官方 `iris-agentic-dev` v0.9.4 中 7 个通用 ObjectScript skill 以固定 commit 快照进入 `.agents/vendor/iris-agentic-dev-skills/`，由 coding 插件声明为 optional capability，避免全局加载。
 
 常用 skill：
 
 - `coding-iris-init`
 - `iris-coding`
 - `iris-backend-coding`
+- `iris-mcp-lookup`
 - `iris-frontend-coding`
 - `iris-frontend-gb2312-promote`
 

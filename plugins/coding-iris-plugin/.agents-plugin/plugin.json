@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
@@ -15,6 +15,53 @@
       "script": "scripts/migrate-frontend-encoding-profile.ps1"
     }
   ],
+  "skillDependencies": {
+    "required": [],
+    "optional": [
+      {
+        "capability": "iris.objectscript.review",
+        "provider": "iris-agentic-dev-skills",
+        "name": "objectscript-review",
+        "trigger": "after-writing-objectscript"
+      },
+      {
+        "capability": "iris.objectscript.guardrails",
+        "provider": "iris-agentic-dev-skills",
+        "name": "objectscript-guardrails",
+        "trigger": "writing-or-reviewing-objectscript"
+      },
+      {
+        "capability": "iris.objectscript.sql-patterns",
+        "provider": "iris-agentic-dev-skills",
+        "name": "objectscript-sql-patterns",
+        "trigger": "objectscript-sql"
+      },
+      {
+        "capability": "iris.objectscript.list-patterns",
+        "provider": "iris-agentic-dev-skills",
+        "name": "objectscript-list-patterns",
+        "trigger": "objectscript-list"
+      },
+      {
+        "capability": "iris.objectscript.navigation",
+        "provider": "iris-agentic-dev-skills",
+        "name": "objectscript-navigation",
+        "trigger": "iris-code-navigation"
+      },
+      {
+        "capability": "iris.objectscript.unit-test",
+        "provider": "iris-agentic-dev-skills",
+        "name": "objectscript-unit-test",
+        "trigger": "iris-unit-test"
+      },
+      {
+        "capability": "iris.objectscript.debugging",
+        "provider": "iris-agentic-dev-skills",
+        "name": "objectscript-debugging",
+        "trigger": "iris-runtime-or-compile-error"
+      }
+    ]
+  },
   "initSkill": "coding-iris-init",
   "requiresProjectFiles": [
     "AGENTS.md",
@@ -26,6 +73,7 @@
     "Handle an IRIS coding request with the unified coding workflow",
     "Modify this ObjectScript class using IRIS backend rules",
     "Modify this CSP/HISUI page using IRIS frontend rules",
+    "Look up an IRIS class, method signature, or official documentation page",
     "Convert frontend files to GB2312 and promote them after confirmation",
     "Prepare an IRIS deployment manifest and deploy after confirmation",
     "Check this change against IRIS coding and deployment rules"

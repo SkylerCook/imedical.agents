@@ -13,7 +13,7 @@
 - 本仓库维护可复用 Agent 能力包，核心内容包括 `agents/`、`workflows/`、`plugins/`、`skills/`、`rules/`、`docs/`、`scripts/` 和 `memory/`。
 - `agents/` 是厂商无关的智能体 canonical 注册层；`workflows/` 是厂商无关的多智能体/阶段化编排层。工具专属入口只能作为 adapter 生成物。
 - `plugins/agent-context-kit/` 负责项目上下文维护，包括 AGENTS 入口、项目规则、项目记忆、项目配置和 thin-index。
-- `plugins/coding-iris-plugin/` 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力。
+- `plugins/coding-iris-plugin/` 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力，并提供 `iris-mcp-lookup` 知识查询 skill；7 个上游官方实用 skill 以 optional vendor 快照提供。
 - coding-iris 前端编码使用 `standard-gb2312` / `project-utf8` 双模式；路径与仓库角色只提出候选，实际文件字节检测是最终门禁，已部署项目通过插件迁移钩子更新本地 profile。HISUI 控件/API 与主题样式/视觉资源分别由 `hisui-widget-index.md`、`hisui-style-index.md` 按需路由。
 - `plugins/extract-doc/` 负责 PDF、DOC、DOCX、XLS、XLSX 的本地解析和结构化落盘，是接口类业务插件的通用文档依赖。
 - `plugins/i18n-iris-plugin/` 负责 IRIS/ObjectScript/CSP/HISUI 国际化能力。
@@ -36,6 +36,7 @@
 
 ## 近期关键变化
 
+- 新增 `iris-mcp-lookup`，统一路由当前实例元数据、本地源码、IRIS 官方文档，并支持 DocBook `Fetch` URL；从 `iris-agentic-dev` v0.9.4 固定提交引入 7 个官方实用 skill，保持上游原文和许可证，作为 optional vendor 分发。
 - coding-iris 已拆分 HISUI 控件/API 与 CSS 样式/资源索引，前端规则按控件、主题、locale、语义 class、图标和插图分流读取；索引维护同时区分源仓 `vendor/` 与部署态 `.agents/vendor/`。
 - 文档解析能力已从 `iris-interface-dev-plugin` 拆分为通用 `extract-doc` 插件；接口插件保留 `iris-interface-doc-ingest` 适配入口和 `iris-interface-doc-ingest/v2` schema，专项测试直接验证新的 parser owner 路径。
 - 已新增 `iris-external-reg` 插件，覆盖第三方预约挂号接口规范解析、执行计划、ObjectScript 实现和验证，manifest 显式依赖 `extract-doc`、`coding-iris-plugin`。
