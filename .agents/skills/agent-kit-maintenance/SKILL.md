@@ -1,6 +1,6 @@
 ---
 name: agent-kit-maintenance
-description: Use when maintaining the imedical.agents repository itself, especially after plugin, skill, rule, reference, script, vendor, README, AGENTS, memory, install/update, thin-index, or deployment-boundary changes. This maintenance-only skill lives under root skills/ but must be excluded from business-project deployment and thin-index.
+description: Use when maintaining the imedical.agents repository itself, especially after plugin, skill, rule, reference, script, vendor, README, AGENTS, memory, install/update, thin-index, or deployment-boundary changes. This repository-local skill lives under .agents/skills in the source repository and is not part of business-project deployment or thin-index generation.
 ---
 
 # Agent Kit Maintenance
@@ -9,7 +9,9 @@ description: Use when maintaining the imedical.agents repository itself, especia
 
 维护 `imedical.agents` 能力包仓库时使用本 skill，避免多人提交插件或脚本后遗漏 README、维护记忆、manifest、docs 或测试。
 
-本 skill 是维护者专用入口，位于根 `skills/agent-kit-maintenance/`。它用于维护本仓库本身，必须从业务项目 `.agents` sparse checkout 中排除，也不参与 thin-index。
+本 skill 是维护者专用入口，位于能力包源仓 `.agents/skills/agent-kit-maintenance/`，作为受版本控制的仓库本地 Agent 上下文。它不在业务项目 sparse checkout 的部署清单内，也不参与 thin-index。
+
+源仓根 `.agents/` 与业务项目中的 `.agents/` 语义不同：前者只承载维护 `imedical.agents` 本身所需的本地上下文；后者是安装到业务项目的独立能力包仓库。不要把源仓 `.agents/` 部署成业务项目 `.agents/.agents/`。
 
 ## 必读入口
 

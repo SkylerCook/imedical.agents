@@ -22,8 +22,6 @@ $runtimeSparsePaths = @(
   "/workflows/**",
   "/rules/**",
   "/skills/**",
-  "!/skills/agent-kit-maintenance/",
-  "!/skills/agent-kit-maintenance/**",
   "/plugins/**",
   "/vendor/**",
   "/feedback/**",
@@ -814,7 +812,7 @@ function Remove-MaintenanceOnlyRuntimeSkill {
   if ($Mode -eq "Write") {
     try {
       Remove-Item -LiteralPath $maintenanceSkillPath -Recurse -Force
-      $results.Add((Write-UpdateResult -Status "maintenance-only-skill-removed" -Target $target -Reason "maintenance-only skill is excluded from business-project deployment" -Phase "compat-cleanup"))
+      $results.Add((Write-UpdateResult -Status "maintenance-only-skill-removed" -Target $target -Reason "maintenance-only skill is not part of business-project deployment" -Phase "compat-cleanup"))
     }
     catch {
       $results.Add((Write-UpdateResult -Status "maintenance-only-skill-remove-failed" -Target $target -Reason $_.Exception.Message -Phase "compat-cleanup"))
@@ -922,8 +920,12 @@ foreach ($pattern in $agentsLocalExcludePatterns) {
   }
 }
 
-foreach ($item in (Remove-MaintenanceOnlyRuntimeSkill -AgentsRoot $agentsRoot -ProjectRootFull $projectRootFull -Mode $Mode)) {
-  $results.Add($item)
+$agentsRootPrefix = ([System.IO.Path]::GetFullPath($agentsRoot)).TrimEnd("\", "/") + [System.IO.Path]::DirectorySeparatorChar
+$runningFromInstalledAgents = ([System.IO.Path]::GetFullPath($runningScriptPath)).StartsWith($agentsRootPrefix, [System.StringComparison]::OrdinalIgnoreCase)
+if ($runningFromInstalledAgents) {
+  foreach ($item in (Remove-MaintenanceOnlyRuntimeSkill -AgentsRoot $agentsRoot -ProjectRootFull $projectRootFull -Mode $Mode)) {
+    $results.Add($item)
+  }
 }
 
 foreach ($item in (Get-GitHooksStatus -AgentsRoot $agentsRoot -ProjectRootFull $projectRootFull)) {

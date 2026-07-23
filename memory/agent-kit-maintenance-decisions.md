@@ -48,7 +48,8 @@
 - 根目录 `AGENTS.md` 只服务本仓库维护，不部署到业务项目 `.agents/`。
 - 根目录 `agents/` 和 `workflows/` 是能力包正式内容，已加入 `scripts/install-agents.ps1` 和 `scripts/update-agents.ps1` 的 sparse checkout 路径，部署到业务项目 `.agents/agents/` 和 `.agents/workflows/`。
 - 根 `scripts/iris-mcp.js` 是无原生 MCP 工具运行器的可选 helper，必须随安装/更新部署；原生 MCP 工具仍优先，helper 不得成为 canonical 规则源。helper 必须按当前 MCP schema 的 `mode` / `action` 区分读取与状态变更、默认拦截写入和远端执行，并把 `check_config` 风险作为诊断信号而非仅凭默认 namespace/port 阻断工具发现。
-- 根目录 `skills/` 默认是能力包正式内容，部署到业务项目 `.agents/skills/`；`skills/agent-kit-maintenance/` 是维护者专用例外，必须通过 sparse checkout 排除，不部署到业务项目，也不参与 thin-index。
+- 根目录 `skills/` 是能力包正式内容，部署到业务项目 `.agents/skills/`，不再承载维护者专用例外。
+- 源仓根 `.agents/skills/agent-kit-maintenance/` 是受版本控制的仓库本地维护上下文，不在安装/更新 sparse checkout 部署清单内，也不参与 thin-index。业务项目中的 `.agents/` 仍是独立能力包仓库，不得把源仓 `.agents/` 部署成嵌套 `.agents/.agents/`。
 - `.agents/plugins/**` 默认全量拉取用于能力发现；插件目录存在只表示 `available`，是否已启用以目标项目 `.agents/config/plugin_profile.md` 为准。
 - 更新脚本按插件状态分流：`available` 不合并配置、不生成 thin-index；`enabled` 参与常规更新；`disabled` 默认跳过；领域插件依赖未启用时必须停止。
 - 根目录 `index.html`、`.github/` 和 `.nojekyll` 只服务展示页和 GitHub Pages，不部署到业务项目 `.agents/`。
@@ -72,7 +73,7 @@
 - 已部署插件配置迁移由 manifest 声明、根更新器通用调用；领域推导逻辑留在插件迁移脚本，不硬编码到根更新器。
 
 - `AGENTS.md` 是工程级唯一主入口，必须存在。
-- 本仓库已新增维护者专用 `skills/agent-kit-maintenance/SKILL.md`；它只服务 `imedical.agents` 仓库维护，虽位于根 `skills/`，但必须从业务项目 sparse checkout 中排除，不部署到业务项目 `.agents/`，不参与 thin-index。根 `AGENTS.md` 仍是维护入口和最高优先级规则源；该 skill 只承载插件提交同步、记忆更新、README/docs 对齐和部署边界检查流程，不复制维护记忆全文或长规则。
+- 本仓库维护者专用 `.agents/skills/agent-kit-maintenance/SKILL.md` 只服务 `imedical.agents` 源仓维护，不部署到业务项目，也不参与 thin-index。根 `AGENTS.md` 仍是维护入口和最高优先级规则源；该 skill 只承载插件提交同步、记忆更新、README/docs 对齐和部署边界检查流程，不复制维护记忆全文或长规则。
 - `CLAUDE.md`、`CODEBUDDY.md` 是可选兼容入口；如存在，只允许是指向 `AGENTS.md` 的 symlink。
 - 安装和更新脚本只报告兼容入口状态，不自动创建、复制或修复兼容入口。
 - 禁止把 `AGENTS.md` 复制成 `CLAUDE.md` 或 `CODEBUDDY.md`，也禁止在兼容入口维护第二份规则。

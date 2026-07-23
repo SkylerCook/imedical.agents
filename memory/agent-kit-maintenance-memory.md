@@ -30,7 +30,7 @@
 - 修改 thin-index 行为：读取 `scripts/generate-plugin-thin-index.ps1`、相关插件 wrapper、长期决策和近期日志。
 - 修改智能体或 workflow：读取 `memory/plan/multi-agent-architecture.md`、`agents/agent-registry.md`、`workflows/workflow-registry.md` 和相关 `AGENT.md` / `.workflow.md`。
 - 修改插件能力：读取对应插件 `AGENTS.md`、README、skills、rules、templates 和 manifest。
-- 维护能力包仓库本身、检查插件提交同步或更新维护记忆：读取 `skills/agent-kit-maintenance/SKILL.md`；该维护者专用 skill 位于根 `skills/`，但安装/更新 sparse checkout 必须排除它，不部署到业务项目。
+- 维护能力包仓库本身、检查插件提交同步或更新维护记忆：读取 `.agents/skills/agent-kit-maintenance/SKILL.md`；该仓库本地 skill 不在业务项目 sparse checkout 部署清单内。
 - 维护记忆：保持本文件短摘要；细节按长期决策、维护日志、治理队列分流。
 - 处理业务项目上下文：不要使用本文件作为项目记忆；改用目标项目自己的 `AGENTS.md` 和 `project-context-maintenance`。
 
@@ -72,7 +72,7 @@
 - 工具专属 agent adapter 生成器仍暂缓；当前已开始做 Claude Code/Codex 的 skill 发现层适配，但不生成 `.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/`、WorkBuddy 或 Hermes 原生 agent 入口。
 - 继续观察 rules 体量，查找表、API 目录和长参考资料优先迁入插件 `references/`。
 - 多 Agent 协作已完成 i18n 样板的脱敏串行回溯、运行 manifest 和事后校验器；下一阶段是在真实需求中验证明确授权的多智能体编排，暂不实现复杂运行时调度器或工具原生 adapter。
-- 已新增维护者专用 `skills/agent-kit-maintenance/SKILL.md`；它只服务本仓库维护，虽位于根 `skills/`，但不部署到业务项目 `.agents/`，根 `AGENTS.md` 仍承载最高优先级维护入口和规则。
+- 维护者专用 `agent-kit-maintenance` 已迁入 `.agents/skills/agent-kit-maintenance/SKILL.md`，作为受版本控制的仓库本地上下文；根 `skills/` 只保留会部署到业务项目的通用 skill，根 `AGENTS.md` 仍承载最高优先级维护入口和规则。
 
 ## 最高优先级约束
 

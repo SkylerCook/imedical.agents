@@ -12,8 +12,6 @@ $sparsePaths = @(
   "/workflows/**",
   "/rules/**",
   "/skills/**",
-  "!/skills/agent-kit-maintenance/",
-  "!/skills/agent-kit-maintenance/**",
   "/plugins/**",
   "/vendor/**",
   "/feedback/**",

@@ -11,6 +11,8 @@ $installGitHooksScriptUnderTest = Join-Path $repoRoot "scripts/install-git-hooks
 $preCommitHookUnderTest = Join-Path $repoRoot "hooks/pre-commit"
 $irisMcpHelperUnderTest = Join-Path $repoRoot "scripts/iris-mcp.js"
 $irisAgenticRuleUnderTest = Join-Path $repoRoot "plugins/coding-iris-plugin/rules/iris_agentic_dev.md"
+$repositoryMaintenanceSkillUnderTest = Join-Path $repoRoot ".agents/skills/agent-kit-maintenance/SKILL.md"
+$legacyRepositoryMaintenanceSkillUnderTest = Join-Path $repoRoot "skills/agent-kit-maintenance/SKILL.md"
 
 function Assert-True {
   param(
@@ -261,8 +263,10 @@ Assert-Contains $updateScriptContent "/workflows/**" "update sparse checkout sho
 Assert-Contains $updateScriptContent "/feedback/**" "update sparse checkout should include feedback"
 Assert-Contains $updateScriptContent "/hooks/**" "update sparse checkout should include hooks"
 Assert-Contains $updateScriptContent "/scripts/iris-mcp.js" "update sparse checkout should deploy the MCP helper"
-Assert-Contains $updateScriptContent "!/skills/agent-kit-maintenance/" "update sparse checkout should exclude maintenance-only skill directory"
-Assert-Contains $updateScriptContent "!/skills/agent-kit-maintenance/**" "update sparse checkout should exclude maintenance-only skill"
+Assert-True (-not $updateScriptContent.Contains('"/.agents/**"')) "update sparse checkout must not deploy source-repository .agents context"
+Assert-True (-not $updateScriptContent.Contains("!/skills/agent-kit-maintenance/")) "update sparse checkout should not need a maintenance-only root skill exception"
+Assert-True (-not $updateScriptContent.Contains("!/skills/agent-kit-maintenance/**")) "update sparse checkout should not need a maintenance-only root skill content exception"
+Assert-Contains $updateScriptContent '$runningFromInstalledAgents' "update should distinguish deployed runtime cleanup from source-repository execution"
 Assert-Contains $updateScriptContent '"/work/"' "update should ignore local staging work directory"
 Assert-Contains $updateScriptContent "generate-agent-thin-index.ps1" "update should invoke agent thin-index generation"
 Assert-Contains $updateScriptContent "generate-vendor-thin-index.ps1" "update should invoke vendor thin-index generation"
@@ -276,6 +280,7 @@ Assert-Contains $installScriptContent "/workflows/**" "install sparse checkout s
 Assert-Contains $installScriptContent "/feedback/**" "install sparse checkout should include feedback"
 Assert-Contains $installScriptContent "/hooks/**" "install sparse checkout should include hooks"
 Assert-Contains $installScriptContent "/scripts/iris-mcp.js" "install sparse checkout should deploy the MCP helper"
+Assert-True (-not $installScriptContent.Contains('"/.agents/**"')) "install sparse checkout must not deploy source-repository .agents context"
 Assert-True (Test-Path -LiteralPath $irisMcpHelperUnderTest -PathType Leaf) "iris-mcp.js helper should exist at the deployed canonical path"
 $irisAgenticRuleContent = Get-Content -Raw -Encoding UTF8 -LiteralPath $irisAgenticRuleUnderTest
 Assert-Contains $irisAgenticRuleContent 'SELECT 1 AS Probe' "MCP diagnostics should use a real query probe"
@@ -288,11 +293,11 @@ $irisMcpHelperContent = Get-Content -Raw -Encoding UTF8 -LiteralPath $irisMcpHel
 Assert-Contains $irisMcpHelperContent "['get', 'head', 'fragment', 'compiled', 'list']" "MCP helper should allow only documented read-only document modes"
 Assert-Contains $irisMcpHelperContent 'iris_coverage' "MCP helper should gate coverage execution"
 Assert-Contains $irisMcpHelperContent 'compilePath' "MCP helper should summarize compile capabilities"
-Assert-Contains $installScriptContent "!/skills/agent-kit-maintenance/" "install sparse checkout should exclude maintenance-only skill directory"
+Assert-True (-not $installScriptContent.Contains("!/skills/agent-kit-maintenance/")) "install sparse checkout should not need a maintenance-only root skill exception"
 Assert-True (-not $installScriptContent.Contains("core.hooksPath")) "install must not enable git hooks automatically"
 Assert-Contains $updateScriptContent "git-hooks-not-enabled" "update should report hook availability without enabling hooks"
 Assert-True (-not $updateScriptContent.Contains("git config core.hooksPath .agents/hooks")) "update must not enable git hooks automatically"
-Assert-Contains $installScriptContent "!/skills/agent-kit-maintenance/**" "install sparse checkout should exclude maintenance-only skill"
+Assert-True (-not $installScriptContent.Contains("!/skills/agent-kit-maintenance/**")) "install sparse checkout should not need a maintenance-only root skill content exception"
 Assert-Contains $installScriptContent '"/work/"' "install should ignore local staging work directory"
 Assert-Contains $installScriptContent "2.25.0" "install should require Git 2.25.0 or newer for sparse-checkout subcommand"
 Assert-Contains $installScriptContent "Assert-GitSparseCheckoutSubcommandAvailable" "install should fail early when git sparse-checkout subcommand is unavailable"
@@ -350,6 +355,8 @@ Assert-True ($extractDocManifest.name -eq "extract-doc") "extract-doc manifest s
 Assert-True (($externalRegManifest.dependencies -contains "extract-doc")) "iris-external-reg should declare extract-doc as a dependency"
 Assert-True (($externalRegManifest.dependencies -contains "coding-iris-plugin")) "iris-external-reg should declare coding-iris-plugin as a dependency"
 Assert-Contains $contextSkillContent "install-git-hooks.ps1" "project-context-maintenance should mention optional git hook enablement"
+Assert-True (Test-Path -LiteralPath $repositoryMaintenanceSkillUnderTest -PathType Leaf) "repository-local maintenance skill should live under .agents/skills"
+Assert-True (-not (Test-Path -LiteralPath $legacyRepositoryMaintenanceSkillUnderTest)) "root skills should not retain the maintenance-only exception"
 
 $missingAgentsEntryProjectRoot = New-TestProject
 try {
@@ -360,6 +367,20 @@ try {
 }
 finally {
   Remove-Item -Recurse -Force -LiteralPath $missingAgentsEntryProjectRoot
+}
+
+$sourceRepositoryLikeRoot = New-TestProject
+try {
+  New-Item -ItemType Directory -Force -Path (Join-Path $sourceRepositoryLikeRoot "scripts") | Out-Null
+  Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $sourceRepositoryLikeRoot "scripts/update-agents.ps1")
+  New-Item -ItemType Directory -Force -Path (Join-Path $sourceRepositoryLikeRoot ".agents/skills/agent-kit-maintenance") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $sourceRepositoryLikeRoot ".agents/skills/agent-kit-maintenance/SKILL.md") -Value "# Repository-local maintenance skill"
+
+  & (Join-Path $sourceRepositoryLikeRoot "scripts/update-agents.ps1") -ProjectRoot $sourceRepositoryLikeRoot -Mode Write -NoPull | Out-Null
+  Assert-True (Test-Path -LiteralPath (Join-Path $sourceRepositoryLikeRoot ".agents/skills/agent-kit-maintenance/SKILL.md")) "source-repository execution should preserve the repository-local maintenance skill"
+}
+finally {
+  Remove-Item -Recurse -Force -LiteralPath $sourceRepositoryLikeRoot
 }
 
 $projectRoot = New-TestProject

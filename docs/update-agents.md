@@ -452,7 +452,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - `.agents/agents/agent-registry.md` 存在。
 - `.agents/workflows/workflow-registry.md` 存在。
 - `.agents/skills/<agent-name>/SKILL.md` 中的 agent thin-index 存在或 dry-run 明确报告将生成；例如 `.agents/skills/i18n-agent/SKILL.md` 指向 `.agents/agents/i18n-agent/AGENT.md` 和 `.agents/workflows/i18n-change.workflow.md`。
-- `.agents/skills/agent-kit-maintenance/` 不存在；该维护者专用 skill 只保留在能力包仓库根 `skills/agent-kit-maintenance/`，不得部署到业务项目。若历史部署或手工 full clone 已遗留该目录，执行 `update-agents.ps1 -Mode Write` 会清理并报告 `maintenance-only-skill-removed`。
+- 业务项目 `.agents/skills/agent-kit-maintenance/` 不存在；该维护者专用 skill 只保留在能力包源仓根 `.agents/skills/agent-kit-maintenance/`，源仓 `.agents/` 不在 sparse checkout 部署清单内。若历史部署或手工 full clone 已遗留该目录，执行 `update-agents.ps1 -Mode Write` 会继续清理并报告 `maintenance-only-skill-removed`。
 - enabled 插件 required vendor thin-index 已存在或 DryRun 明确报告生成计划；optional 只显示 trigger。
 - 普通更新没有写用户级 skill 目录；历史副本只报告 `legacy-runtime-skill-detected`。
 - 未指定工具 adapter 时报告 `runtime-adapter-skipped`；显式启用 Claude Code adapter 时，`.claude/skills/` 同步结果为 `skipped` / `generated` / `unchanged`。
