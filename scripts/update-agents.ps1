@@ -298,7 +298,8 @@ function Get-InstalledPlugins {
     if (($IncludeNames.Count -gt 0) -and (-not ($IncludeNames -contains $pluginName)) -and (-not ($IncludeNames -contains $_.Name))) {
       return
     }
-    if (($ExcludeNames -contains $pluginName) -or ($ExcludeNames -contains $_.Name)) {
+    $legacyNames = @((Get-PluginManifestValue -Manifest $manifest -Names @("legacyNames", "legacy_names", "aliases")) | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if (($ExcludeNames -contains $pluginName) -or ($ExcludeNames -contains $_.Name) -or (@($legacyNames | Where-Object { $ExcludeNames -contains $_ }).Count -gt 0)) {
       return
     }
 
@@ -365,6 +366,49 @@ function Get-PluginDependencies {
     return @()
   }
   return @($manifestValue | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+}
+
+function Get-PluginLegacyNames {
+  param(
+    [object]$Plugin
+  )
+
+  $manifestValue = Get-PluginManifestValue -Manifest $Plugin.manifest -Names @("legacyNames", "legacy_names", "aliases")
+  if ($null -eq $manifestValue) {
+    return @()
+  }
+  return @($manifestValue | ForEach-Object { [string]$_ } | Where-Object {
+    -not [string]::IsNullOrWhiteSpace($_) -and $_ -ne $Plugin.name -and $_ -ne $Plugin.directoryName
+  })
+}
+
+function Test-PluginNameMatches {
+  param(
+    [object]$Plugin,
+    [string]$Name
+  )
+
+  if ([string]::IsNullOrWhiteSpace($Name)) {
+    return $false
+  }
+  if ($Name -eq $Plugin.name -or $Name -eq $Plugin.directoryName) {
+    return $true
+  }
+  return (Get-PluginLegacyNames -Plugin $Plugin) -contains $Name
+}
+
+function Get-PluginProfileLegacyName {
+  param(
+    [object]$Plugin,
+    [hashtable]$Profile
+  )
+
+  foreach ($legacyName in (Get-PluginLegacyNames -Plugin $Plugin)) {
+    if ($Profile.ContainsKey($legacyName)) {
+      return $legacyName
+    }
+  }
+  return ""
 }
 
 function Get-DefaultPluginStatus {
@@ -463,6 +507,20 @@ function Get-PluginProfileEntry {
     return $Profile[$Plugin.name]
   }
 
+  $legacyName = Get-PluginProfileLegacyName -Plugin $Plugin -Profile $Profile
+  if (-not [string]::IsNullOrWhiteSpace($legacyName)) {
+    $legacyEntry = $Profile[$legacyName]
+    $dependsOn = Get-PluginDependencies -Plugin $Plugin
+    $dependsOnText = if ($dependsOn.Count -gt 0) { $dependsOn -join ", " } else { "-" }
+    return [PSCustomObject]@{
+      plugin = $Plugin.name
+      status = $legacyEntry.status
+      initSkill = Get-PluginInitSkill -Plugin $Plugin
+      dependsOn = $dependsOnText
+      notes = ("migrated from " + $legacyName)
+    }
+  }
+
   $status = Get-DefaultPluginStatus -PluginName $Plugin.name
 
   $dependsOn = Get-PluginDependencies -Plugin $Plugin
@@ -505,7 +563,7 @@ function Write-PluginProfile {
   )
 
   foreach ($plugin in ($Plugins | Sort-Object name)) {
-    $explicit = ($ExplicitPluginNames -contains $plugin.name) -or ($ExplicitPluginNames -contains $plugin.directoryName)
+    $explicit = @($ExplicitPluginNames | Where-Object { Test-PluginNameMatches -Plugin $plugin -Name $_ }).Count -gt 0
     $entry = Get-PluginProfileEntry -Plugin $plugin -Profile $ExistingProfile -ExplicitlySelected $explicit
     $initSkill = $entry.initSkill
     if ([string]::IsNullOrWhiteSpace($initSkill)) {
@@ -548,12 +606,12 @@ function Test-PluginDependenciesInitialized {
   $missing = New-Object System.Collections.Generic.List[string]
   $dependencies = Get-PluginDependencies -Plugin $Plugin
   foreach ($dependencyName in $dependencies) {
-    $dependencyPlugin = $AllPlugins | Where-Object { $_.name -eq $dependencyName -or $_.directoryName -eq $dependencyName } | Select-Object -First 1
+    $dependencyPlugin = $AllPlugins | Where-Object { Test-PluginNameMatches -Plugin $_ -Name $dependencyName } | Select-Object -First 1
     if (-not $dependencyPlugin) {
       $missing.Add($dependencyName)
       continue
     }
-    $dependencyExplicit = ($ExplicitPluginNames -contains $dependencyPlugin.name) -or ($ExplicitPluginNames -contains $dependencyPlugin.directoryName)
+    $dependencyExplicit = @($ExplicitPluginNames | Where-Object { Test-PluginNameMatches -Plugin $dependencyPlugin -Name $_ }).Count -gt 0
     $dependencyEntry = Get-PluginProfileEntry -Plugin $dependencyPlugin -Profile $Profile -ExplicitlySelected $dependencyExplicit
     if ($dependencyEntry.status -ne "enabled") {
       $missing.Add(("{0}:{1}" -f $dependencyName, $dependencyEntry.status))
@@ -953,11 +1011,17 @@ $plugins = New-Object System.Collections.Generic.List[object]
 $matchedPluginCount = 0
 
 foreach ($installedPlugin in $allPlugins) {
-  $explicitlySelected = (($Plugin.Count -gt 0) -and (($Plugin -contains $installedPlugin.name) -or ($Plugin -contains $installedPlugin.directoryName)))
+  $explicitlySelected = (($Plugin.Count -gt 0) -and (@($Plugin | Where-Object { Test-PluginNameMatches -Plugin $installedPlugin -Name $_ }).Count -gt 0))
   if (($Plugin.Count -gt 0) -and (-not $explicitlySelected)) {
     continue
   }
   $matchedPluginCount++
+
+  $legacyProfileName = Get-PluginProfileLegacyName -Plugin $installedPlugin -Profile $pluginProfile
+  if (-not [string]::IsNullOrWhiteSpace($legacyProfileName)) {
+    $migrationStatus = if ($Mode -eq "Write") { "plugin-profile-name-migrated" } else { "plugin-profile-name-migration-planned" }
+    $results.Add((Write-UpdateResult -Status $migrationStatus -Target ".agents/config/plugin_profile.md" -Source $legacyProfileName -Reason ("preserve status under " + $installedPlugin.name) -PluginName $installedPlugin.name -Phase "plugin"))
+  }
 
   $profileEntry = Get-PluginProfileEntry -Plugin $installedPlugin -Profile $pluginProfile -ExplicitlySelected $explicitlySelected
   $pluginTarget = Get-RelativePathPortable -From $projectRootFull -To $installedPlugin.path

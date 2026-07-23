@@ -127,7 +127,9 @@ function Test-IsUnderPath {
 function Get-ThinIndexSourcePath {
     param(
         [string]$TargetFile,
-        [string]$ProjectRoot
+        [string]$ProjectRoot,
+        [ValidateSet("rule", "skill")]
+        [string]$Kind
     )
     $content = [System.IO.File]::ReadAllText($TargetFile, [System.Text.Encoding]::UTF8)
     if ($content -notmatch "thin-index") {
@@ -140,8 +142,14 @@ function Get-ThinIndexSourcePath {
         $candidates.Add($match.Groups["source"].Value.Trim())
     }
 
+    $sourcePattern = if ($Kind -eq "rule") {
+        '(?<source>\.agents/plugins/[^\s`]+/rules/[^\s`]+\.md)'
+    }
+    else {
+        '(?<source>\.agents/plugins/[^\s`]+/skills/[^\s`]+/SKILL\.md)'
+    }
     foreach ($line in ($content -split "`r?`n")) {
-        $sourceLineMatch = [System.Text.RegularExpressions.Regex]::Match($line, '(?<source>\.agents/plugins/[^\s`]+/rules/[^\s`]+\.md)')
+        $sourceLineMatch = [System.Text.RegularExpressions.Regex]::Match($line, $sourcePattern)
         if ($sourceLineMatch.Success) {
             $candidates.Add($sourceLineMatch.Groups["source"].Value.Trim())
         }
@@ -152,7 +160,13 @@ function Get-ThinIndexSourcePath {
             continue
         }
         $normalized = $candidate -replace "\\", "/"
-        if (($normalized.Contains(".agents/plugins/")) -and ($normalized.Contains("/rules/")) -and ($normalized.EndsWith(".md"))) {
+        $isExpectedSource = if ($Kind -eq "rule") {
+            $normalized.Contains("/rules/") -and $normalized.EndsWith(".md")
+        }
+        else {
+            $normalized.Contains("/skills/") -and $normalized.EndsWith("/SKILL.md")
+        }
+        if ($normalized.Contains(".agents/plugins/") -and $isExpectedSource) {
             return Resolve-FullPathFromBase -BasePath $ProjectRoot -Path $candidate
         }
     }
@@ -178,7 +192,7 @@ $results = New-Object System.Collections.Generic.List[object]
 
 if ((Test-Path -LiteralPath $rulesTarget -PathType Container) -and (Test-Path -LiteralPath $pluginsRoot -PathType Container)) {
     Get-ChildItem -LiteralPath $rulesTarget -File -Filter "*.md" | Sort-Object Name | ForEach-Object {
-        $sourcePath = Get-ThinIndexSourcePath -TargetFile $_.FullName -ProjectRoot $projectRootFull
+        $sourcePath = Get-ThinIndexSourcePath -TargetFile $_.FullName -ProjectRoot $projectRootFull -Kind "rule"
         if ($null -eq $sourcePath) {
             return
         }
@@ -191,6 +205,33 @@ if ((Test-Path -LiteralPath $rulesTarget -PathType Container) -and (Test-Path -L
             }
             else {
                 $results.Add((Write-Result -Status "stale" -Target $targetRel -Source $sourceRel -Reason "stale plugin rule thin-index"))
+            }
+        }
+    }
+}
+
+if ((Test-Path -LiteralPath $skillsTarget -PathType Container) -and (Test-Path -LiteralPath $pluginsRoot -PathType Container)) {
+    Get-ChildItem -LiteralPath $skillsTarget -Directory | Sort-Object Name | ForEach-Object {
+        $targetFile = Join-Path $_.FullName "SKILL.md"
+        if (-not (Test-Path -LiteralPath $targetFile -PathType Leaf)) {
+            return
+        }
+        $sourcePath = Get-ThinIndexSourcePath -TargetFile $targetFile -ProjectRoot $projectRootFull -Kind "skill"
+        if ($null -eq $sourcePath) {
+            return
+        }
+        if ((Test-IsUnderPath -Path $sourcePath -ParentPath $pluginsRoot) -and (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf))) {
+            $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
+            $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourcePath
+            if ($Mode -eq "Write") {
+                Remove-Item -LiteralPath $targetFile
+                if (@(Get-ChildItem -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue).Count -eq 0) {
+                    Remove-Item -LiteralPath $_.FullName
+                }
+                $results.Add((Write-Result -Status "removed" -Target $targetRel -Source $sourceRel -Reason "stale plugin skill thin-index"))
+            }
+            else {
+                $results.Add((Write-Result -Status "stale" -Target $targetRel -Source $sourceRel -Reason "stale plugin skill thin-index"))
             }
         }
     }

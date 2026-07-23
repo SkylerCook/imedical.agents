@@ -1,5 +1,8 @@
 {
   "name": "iris-interface-dev",
+  "legacyNames": [
+    "iris-interface-dev-plugin"
+  ],
   "version": "0.1.0",
   "displayName": "IRIS Interface Dev Plugin",
   "description": "Document-first interface development workflow for IRIS projects, focused on parsed document handoff, field matching diagnostics, implementation planning, and handoff to coding-iris-plugin.",
@@ -9,6 +12,12 @@
   "skills": "skills/",
   "templates": "templates/",
   "scripts": "scripts/",
+  "configMigrations": [
+    {
+      "id": "interface-output-root-v1",
+      "script": "scripts/migrate-interface-profile.ps1"
+    }
+  ],
   "initSkill": "iris-interface-init",
   "dependencies": [
     "extract-doc",

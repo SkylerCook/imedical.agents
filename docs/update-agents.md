@@ -61,7 +61,7 @@ iwr -UseBasicParsing https://gitee.com/skyler-cook/imedical.agents/raw/master/sc
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun
 ```
 
-首次安装默认只处理 `agent-context-kit`。`coding-iris-plugin`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev-plugin`、`iris-external-reg` 等插件代码会随 `.agents/plugins/` 拉取，但状态为 `available` 时不会合并配置或生成 thin-index。
+首次安装默认只处理 `agent-context-kit`。`coding-iris-plugin`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-external-reg` 等插件代码会随 `.agents/plugins/` 拉取，但状态为 `available` 时不会合并配置或生成 thin-index。
 
 如果摘要没有停止条件，继续执行：
 
@@ -157,9 +157,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `plugin-selected` | 本次通过 `-Plugin` 显式选择处理的插件。 |
 | `plugin-disabled` | 插件被项目显式禁用；默认跳过。 |
 | `plugin-profile-written` | 已写入或刷新 `.agents/config/plugin_profile.md`。 |
+| `plugin-profile-name-migration-planned` | DryRun/Check 发现 manifest 声明的旧插件名；将保留原状态并写回 canonical 名称。 |
+| `plugin-profile-name-migrated` | Write 已把旧插件名的状态迁移到 canonical 名称。 |
 | `generated` | dry-run 发现将生成 thin-index，或 write 已生成。 |
 | `unchanged` | 生成物内容已是最新，不需要写入。 |
-| `removed` | write 已清理 stale thin-index；清理阶段扫描所有指向 `.agents/plugins/*/rules/*.md` 的 rule thin-index，不受当前 `PluginPath` 限制。 |
+| `removed` | write 已清理 stale thin-index；清理阶段扫描所有指向已删除 `.agents/plugins/*/rules/*.md` 或 `.agents/plugins/*/skills/*/SKILL.md` 的受管入口，不受当前 `PluginPath` 限制。 |
 |
 | `vendor-thin-index-generated` | vendor thin-index 已生成或 dry-run 报告将生成。 |
 | `vendor-thin-index-unchanged` | vendor thin-index 内容已是最新，不需要写入。 |
@@ -399,11 +401,20 @@ source: .agents/plugins/<plugin>/skills/<skill>/SKILL.md
 .agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md
 .agents/plugins/extract-doc/skills/extract-doc-ingest/SKILL.md
 .agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md
-.agents/plugins/iris-interface-dev-plugin/skills/iris-interface-init/SKILL.md
+.agents/plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md
 .agents/plugins/iris-external-reg/skills/iris-external-reg/SKILL.md
 ```
 
-按 manifest `dependencies` 顺序初始化依赖：`i18n-iris-plugin` 依赖 `coding-iris-plugin`；`iris-interface-dev-plugin` 和 `iris-external-reg` 依赖 `extract-doc`、`coding-iris-plugin`。依赖未启用时，目标插件初始化必须停止；不能只因插件目录存在就继续。
+按 manifest `dependencies` 顺序初始化依赖：`i18n-iris-plugin` 依赖 `coding-iris-plugin`；`iris-interface-dev` 和 `iris-external-reg` 依赖 `extract-doc`、`coding-iris-plugin`。依赖未启用时，目标插件初始化必须停止；不能只因插件目录存在就继续。
+
+### iris-interface-dev 名称与输出目录迁移
+
+旧版 `iris-interface-dev-plugin` 已收敛为 `iris-interface-dev`。已部署项目不需要重新初始化：
+
+1. 先运行常规 DryRun，确认出现 `plugin-profile-name-migration-planned`，且旧 `enabled` / `disabled` 状态被保留。
+2. 执行 Write，把 `plugin_profile.md` 写回 canonical 名称，并清理指向旧插件目录的 rule/skill thin-index。
+3. 插件配置迁移只把 `iris_interface_profile.md` 中的旧默认 `docs/output/iris-interface` 改为 `docs/interface`；其它自定义目录不覆盖。
+4. 最后运行 Check，确认没有旧名称、stale thin-index 或 `config-migration-*` 待处理项。
 
 插件 init skill 验收通过后，用统一脚本反写状态：
 

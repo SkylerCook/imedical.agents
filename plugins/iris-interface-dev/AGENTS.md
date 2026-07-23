@@ -9,7 +9,7 @@
 ## 使用约束
 
 - 文档解析结果必须写入目标项目 `docs/interface/<doc-name>/`，不得把完整文档内容默认塞进会话上下文。
-- MarkItDown 只是可选转换器；不可用时使用插件脚本内置的 DOCX、PDF、XLSX 解析链路。
+- MarkItDown 只是 `extract-doc` 的可选转换器；不可用时按 `extract-doc` 的 DOCX、PDF、XLSX 降级链路处理。
 - `.doc` 文件只做可选转换；缺少可用转换器时提示用户另存为 DOCX。
 - `rules/` 只承载路由、流程和审查硬约束；大体量 HIS 数据流、MOC、接口索引、历史规则库和样例进入 `references/`。
 - 来源工程的大生成器不进入 v1；任何生成物若包含点号循环体，必须在离线审查阶段失败。
@@ -17,7 +17,6 @@
 
 ## Skill 路由
 
-- 全流程编排入口：`skills/iris-interface-dev/SKILL.md`
 - 首次初始化：`skills/iris-interface-init/SKILL.md`
 - 文档落盘和结构化抽取：`skills/iris-interface-doc-ingest/SKILL.md`
 - 字段匹配诊断：`skills/iris-interface-field-match/SKILL.md`
@@ -32,6 +31,6 @@
 ## 内置脚本
 
 - `scripts/generate-plugin-thin-index.ps1`：thin-index wrapper，只委托根 canonical 脚本。
-- `scripts/iris-interface-doc-ingest.py`：文档转换、结构化抽取和落盘。
+- `scripts/migrate-interface-profile.ps1`：把旧默认输出目录 `docs/output/iris-interface` 迁移为 `docs/interface`；不覆盖其它自定义目录。
 - `scripts/iris-interface-field-match.py`：字段语义匹配、候选诊断和人工确认摘要。
 - `scripts/iris-interface-review.py`：字段产物和生成代码风险离线审查。

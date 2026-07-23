@@ -1,6 +1,6 @@
-# iris-interface-dev-plugin 进度与路线图
+# iris-interface-dev 进度与路线图
 
-本文是 `iris-interface-dev-plugin` 的长期进度和下一步工作入口。后续会话应先读取本文，按“下一步工作计划”的第一个任务继续推进；任务收口后迁入归档阶段记录，并重新编号剩余任务。
+本文是 `iris-interface-dev` 的长期进度和下一步工作入口。旧名称 `iris-interface-dev-plugin` 只作为迁移兼容标识保留。后续会话应先读取本文，按“下一步工作计划”的第一个任务继续推进；任务收口后迁入归档阶段记录，并重新编号剩余任务。
 
 ## 当前状态摘要
 
@@ -15,12 +15,12 @@
 新会话接手时先按顺序读取：
 
 1. `memory/agent-kit-maintenance-memory.md`
-2. `memory/plan/iris-interface-dev-plugin-roadmap.md`
+2. `memory/plan/iris-interface-dev-roadmap.md`
 3. `memory/plan/iris-interface-source-audit.md`
-4. `plugins/iris-interface-dev-plugin/AGENTS.md`
-5. `plugins/iris-interface-dev-plugin/README.md`
-6. `plugins/iris-interface-dev-plugin/skills/iris-interface-doc-ingest/SKILL.md`
-7. `plugins/iris-interface-dev-plugin/skills/iris-interface-field-match/SKILL.md`
+4. `plugins/iris-interface-dev/AGENTS.md`
+5. `plugins/iris-interface-dev/README.md`
+6. `plugins/iris-interface-dev/skills/iris-interface-doc-ingest/SKILL.md`
+7. `plugins/iris-interface-dev/skills/iris-interface-field-match/SKILL.md`
 8. `scripts/tests/iris-interface-plugin.tests.ps1`
 
 接手规则：
@@ -35,10 +35,10 @@
 
 ### v1 基线
 
-- 已新增 `plugins/iris-interface-dev-plugin/` 标准插件结构：manifest、AGENTS、README、4 个 skill、3 条轻量 rule、references/wiki、profile 模板、thin-index wrapper、解析脚本、审查脚本和可选依赖清单。
+- 已新增 `plugins/iris-interface-dev/` 标准插件结构：manifest、AGENTS、README、4 个 skill、3 条轻量 rule、references/wiki、profile 模板、thin-index wrapper、字段匹配/审查脚本和可选依赖清单；文档解析实现由 `extract-doc` 持有。
 - v1 能力边界：只承诺接口文档落盘解析、字段结构化、字段诊断入口、开发计划入口和离线审查门禁；不迁移来源大生成器，不承诺生成可编译 ObjectScript。
 - IRIS/ObjectScript 编码、审查、上传、编译、部署和远端验证继续复用 `coding-iris-plugin`。
-- 解析产物固定写入目标项目 `docs/output/iris-interface/<doc-name>/source.md`、`parsed.json`、`fields.md`、`diagnostics.md`，默认不把全文注入会话上下文。
+- 解析产物固定写入目标项目 `docs/interface/<doc-name>/source.md`、`parsed.json`、`fields.md`、`diagnostics.md`，默认不把全文注入会话上下文。
 - `iris-interface-review.py` 已能识别点号循环生成物并失败，阻断 `.s`、`.f`、`..d` 等风险输出。
 
 ### v1.1 / v1.2 解析增强
@@ -84,7 +84,7 @@ v1.2 剩余边界：
 
 ### v2.0 接口文档解析经验回归提升归档
 
-- 已明确真实工程解析产物默认写入目标项目 `docs/output/iris-interface/<doc-name>/`；`tmp/iris-interface-file/` 仅作为本仓库维护时的本地样本回归目录，不入库。
+- 已明确真实工程解析产物默认写入目标项目 `docs/interface/<doc-name>/`；旧默认 `docs/output/iris-interface/` 由插件配置迁移脚本兼容，`tmp/iris-interface-file/` 仅作为本仓库维护时的本地样本回归目录，不入库。
 - 已把 XLS/XLSX 多 sheet、DOCX 入参/出参、PDF request/response 混合表、PDF 跨页续表、错误码/修订记录/JSON 示例过滤和 DOC 转 DOCX 优先级沉淀到 `feedback/experience/iris-interface-dev-com-exp.md`。
 - 已将可脱敏、可稳定复现的格式问题提升到 `scripts/tests/iris-interface-plugin.tests.ps1` synthetic fixture；本轮补强 JSON 示例行过滤回归。
 - 已明确 `feedback/experience` 是经验账本，`scripts/tests` 是维护仓库自动化回归落点；`agent-framework-feedback` 是统一收尾入口，但本任务没有新增可复用经验或独立框架修正时不生成反馈材料。
@@ -118,7 +118,7 @@ v1.2 剩余边界：
 - 提交建议：
 
 ```powershell
-git add plugins/iris-interface-dev-plugin scripts/tests/iris-interface-plugin.tests.ps1 memory/agent-kit-maintenance-log.md memory/plan/iris-interface-dev-plugin-roadmap.md
+git add plugins/iris-interface-dev scripts/tests/iris-interface-plugin.tests.ps1 memory/agent-kit-maintenance-log.md memory/plan/iris-interface-dev-roadmap.md
 git commit -m "feat: complete iris interface v2 workflow"
 ```
 
@@ -150,12 +150,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\tests\update-agents.
 涉及插件内容时必须执行敏感词扫描：
 
 ```powershell
-rg -n "password|token|secret|namespace|server|http://|https://|[A-Z]:\\" plugins/iris-interface-dev-plugin
+rg -n "password|token|secret|namespace|server|http://|https://|[A-Z]:\\" plugins/iris-interface-dev
 ```
 
 通过后更新：
 
-- `memory/plan/iris-interface-dev-plugin-roadmap.md`
+- `memory/plan/iris-interface-dev-roadmap.md`
 - `memory/agent-kit-maintenance-log.md`
 
 然后再提交对应阶段。

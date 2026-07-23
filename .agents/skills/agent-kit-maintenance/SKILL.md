@@ -54,6 +54,7 @@ description: Use when maintaining the imedical.agents repository itself, especia
 ## 影响面判断
 
 - **新增或重构插件**：同步插件 README、插件 `AGENTS.md`、manifest、仓库 README、维护记忆、安装/更新说明和 thin-index 行为。
+- **重命名插件 canonical 名称**：manifest 声明 `legacyNames`；验证旧 `plugin_profile.md` 的 `enabled` / `disabled` 状态迁移、新旧名称显式选择、旧 rule/skill thin-index 清理和已部署配置兼容；禁止只移动目录。
 - **修改 skill/rule/reference/template**：同步触发条件、路由说明、相关 README/AGENTS、维护日志；若影响已部署项目，说明兼容清理策略。
 - **修改 thin-index 行为**：只改根 `scripts/generate-plugin-thin-index.ps1`；插件 wrapper 只能转发参数；同步测试、README、docs 和维护记忆。
 - **修改 install/update/vendor 同步**：同步 `docs/update-agents.md`、`scripts/tests/update-agents.tests.ps1`、仓库 README 和维护日志。

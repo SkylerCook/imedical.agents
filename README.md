@@ -72,7 +72,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install-agents.ps1
 
 脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/`，并拉取 `plugins/`、`agents/`、`workflows/` 等能力包内容，让用户和 Agent 能看到可用能力。
 
-插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认只把 `agent-context-kit` 作为基础上下文能力处理；`coding-iris-plugin`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev-plugin`、`iris-external-reg`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
+插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认只把 `agent-context-kit` 作为基础上下文能力处理；`coding-iris-plugin`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-external-reg`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
 
 ### 更新已部署 `.agents`
 
@@ -241,13 +241,13 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 - 将 PDF、DOC、DOCX、XLS、XLSX 转换为 Markdown、结构化 JSON、字段摘要和诊断文件。
 - 默认只在目标项目落盘产物，不把完整文档塞入会话上下文。
-- 作为 `iris-interface-dev-plugin`、`iris-external-reg` 等业务插件的通用文档解析依赖；可选解析器不 vendor、不自动安装。
+- 作为 `iris-interface-dev`、`iris-external-reg` 等业务插件的通用文档解析依赖；可选解析器不 vendor、不自动安装。
 
 常用 skill：
 
 - `extract-doc-ingest`
 
-### iris-interface-dev-plugin
+### iris-interface-dev
 
 负责 IRIS 接口开发的解析审计优先能力：
 
@@ -256,6 +256,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - 解析产物固定落盘到目标项目 `docs/interface/<doc-name>/`，不默认注入会话上下文。
 - MarkItDown、python-docx、pdfplumber、openpyxl 均为可选依赖，不 vendor、不自动安装。
 - IRIS/ObjectScript 编码、审查、上传、编译、部署和远端验证复用 `coding-iris-plugin`。
+- 已部署项目从旧名称 `iris-interface-dev-plugin` 更新时，更新器会保留 plugin profile 状态、清理旧 rule/skill thin-index，并把旧默认输出目录迁移到 `docs/interface/`；自定义输出目录不改写。
 
 常用 skill：
 
@@ -349,7 +350,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
    - `.agents/memory/project-memory.md`
 6. 先 dry-run，再 write 生成 `agent-context-kit` thin-index。
 7. 查看 `.agents/config/plugin_profile.md`；未启用插件保持 `available`，不要自动生成它们的 thin-index。
-8. 按依赖顺序初始化需要的领域插件，例如先启用 `coding-iris-plugin`、`extract-doc`，再启用依赖它们的 `i18n-iris-plugin`、`iris-interface-dev-plugin`、`iris-external-reg`；其它可选插件包括 `imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`。
+8. 按依赖顺序初始化需要的领域插件，例如先启用 `coding-iris-plugin`、`extract-doc`，再启用依赖它们的 `i18n-iris-plugin`、`iris-interface-dev`、`iris-external-reg`；其它可选插件包括 `imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`。
 9. 如需启用提交前差异降噪 hook，由用户在业务项目根目录显式运行 `.agents/scripts/install-git-hooks.ps1 -ProjectRoot .`；安装/更新 `.agents` 只分发 hook 模板和脚本，不自动修改 `core.hooksPath`。
 10. 按需要读取 `agents/agent-registry.md` 和 `workflows/workflow-registry.md` 使用顶层智能体。
 

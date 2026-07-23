@@ -8,7 +8,7 @@
 
 ### 场景 B：用户未指定目标（如"帮我看看有什么慢接口"）
 
-1. **询问时间范围**：使用 `AskUserQuestion` 询问用户查询时间范围；用户不指定则默认最近 3 天
+1. **询问时间范围**：向用户确认查询时间范围；用户不指定则默认最近 3 天
 2. **搜索慢接口**：参考 graylog-search.md 使用 MCP 工具搜索 `full_message:"接口响应超过15"`，用 `fields="*"` 获取 traceId 等完整字段
 3. **获取精确统计**：用 `aggregate_logs` 按接口分组获取精确次数和耗时统计
 4. **计算慢请求占比**（关键步骤，每接口 2 次 MCP 调用）：
@@ -39,7 +39,7 @@
    | 1% ~ 10% | 需关注 — 偶发但不可忽视 |
    | < 1% | 个例 — 可暂缓处理 |
 
-6. **询问用户意图**（使用 `AskUserQuestion`）：
+6. **询问用户意图**：
    - "输出报告" — 生成汇总报告（仅整理归类，不分析代码）
    - "挑一个具体分析" — 用户选择一个接口进入第一步
    - **禁止自动分析所有慢接口**
@@ -55,7 +55,7 @@
 从用户输入中提取：
 - **接口全限定名**：如 `com.mediway.his.ipcare.oeord.controller.IpCareOeOrdItemPortalController#unUseMulti`
 - **traceId**：如 `8869509280484950536`
-- **Graylog 环境**：使用 `AskUserQuestion` 询问用户选择环境（参考 graylog-search.md 的环境列表）
+- **Graylog 环境**：向用户确认目标环境；连接事实只从用户或目标项目的私有配置读取
 - **输出目录**：默认输出到当前项目目录，用户可另行指定。文件名为 `{方法名}性能分析报告.md`
 
 ## 第二步：读取代码
@@ -116,10 +116,11 @@ ext/BLH (注解实现) → Abstract (业务层) → comoe Abstract (公共库) �
 
 使用 graylog-search.md 的 JSON API 格式（`Accept: application/json` + `fields=*`），以 traceId 为关键字查询日志，limit=500，逐页下载直到返回条数 < 500。
 
-```bash
+```powershell
 # 必须用 JSON 格式（含 total_results），分页参数：limit + offset
-curl -s -u "${TOKEN}:token" -H "Accept: application/json" \
-  "http://{host}:9000/api/search/universal/relative?query=traceId:{traceId}&range={秒}&limit=500&offset=0&fields=*"
+$query = [Uri]::EscapeDataString("traceId:{trace-id}")
+curl.exe -sS -u "$($env:GRAYLOG_ACCESS_TOKEN):token" -H "Accept: application/json" `
+  "https://{graylog-host}/api/search/universal/relative?query=$query&range={seconds}&limit=500&offset=0&fields=*"
 ```
 
 > 对话模式下不下载全量日志，仅通过少量 API 采样确认关键指标。

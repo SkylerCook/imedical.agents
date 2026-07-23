@@ -52,6 +52,7 @@
 - 源仓根 `.agents/skills/agent-kit-maintenance/` 是受版本控制的仓库本地维护上下文，不在安装/更新 sparse checkout 部署清单内，也不参与 thin-index。业务项目中的 `.agents/` 仍是独立能力包仓库，不得把源仓 `.agents/` 部署成嵌套 `.agents/.agents/`。
 - `.agents/plugins/**` 默认全量拉取用于能力发现；插件目录存在只表示 `available`，是否已启用以目标项目 `.agents/config/plugin_profile.md` 为准。
 - 更新脚本按插件状态分流：`available` 不合并配置、不生成 thin-index；`enabled` 参与常规更新；`disabled` 默认跳过；领域插件依赖未启用时必须停止。
+- 插件 canonical 名称变更时，manifest 必须声明 `legacyNames`；更新器按旧名称继承 `plugin_profile.md` 状态并在 Write 时收敛为当前名称，同时清理指向已删除插件 rule/skill 源文件的受管 thin-index。不得让已启用插件因重命名静默退回 `available`。
 - 根目录 `index.html`、`.github/` 和 `.nojekyll` 只服务展示页和 GitHub Pages，不部署到业务项目 `.agents/`。
 - `scripts/tests/` 只服务能力包仓库自测，不部署到业务项目 `.agents/`。
 - `.agents/.git/info/exclude` 应继续忽略 `/config/`、`/memory/`、`/rules/`、`/skills/` 和 `/scripts/` 这些本地生成层。

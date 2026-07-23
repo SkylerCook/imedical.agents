@@ -90,3 +90,11 @@ python .agents/plugins/iris-interface-dev/scripts/iris-interface-review.py `
 ```
 
 本插件依赖 `extract-doc` 和 `coding-iris-plugin`。如果目标项目未启用 coding 插件，本插件只执行文档解析委托、解析产物读取和字段诊断，不进入 IRIS 编码实现。
+
+## 已部署项目兼容
+
+插件 canonical 名称已由 `iris-interface-dev-plugin` 收敛为 `iris-interface-dev`。常规 `update-agents.ps1` 会：
+
+- 保留旧 `plugin_profile.md` 条目的 `enabled` / `disabled` 状态，并写回新名称；
+- 清理指向已删除插件源文件的旧 rule/skill thin-index；
+- 仅把接口 profile 中的旧默认 `docs/output/iris-interface` 迁移为 `docs/interface`，其它自定义输出目录保持不变。
