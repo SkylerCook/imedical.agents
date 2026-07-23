@@ -9,6 +9,12 @@
   "skills": "skills/",
   "templates": "templates/",
   "scripts": "scripts/",
+  "configMigrations": [
+    {
+      "id": "interface-output-root-v1",
+      "script": "scripts/migrate-interface-profile.ps1"
+    }
+  ],
   "initSkill": "iris-interface-init",
   "dependencies": [
     "extract-doc",

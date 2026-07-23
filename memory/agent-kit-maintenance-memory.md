@@ -79,6 +79,7 @@
 - 修改 thin-index 生成行为时，只改根 `scripts/generate-plugin-thin-index.ps1`；其它插件同名脚本只能作为 wrapper 转发参数。
 - 修改插件目录结构时，同步检查 `.agents-plugin/plugin.json`、插件 `AGENTS.md`、插件 README、仓库 README 和相关 docs。
 - 对已部署工程有影响的变更，必须在 README 或插件 README 中说明同步步骤和兼容清理策略。
+- 插件 canonical 名称变更必须在 manifest 声明 `legacyNames`，由更新器迁移 `plugin_profile.md` 状态并清理旧 rule/skill thin-index；不得把旧 `enabled` 状态静默降级为 `available`。
 - 不把根 `AGENTS.md`、根 `memory/`、展示页文件或 `scripts/tests/` 加入业务项目 sparse checkout。
 - `agents/` 和 `workflows/` 是能力包正式内容，已加入业务项目 `.agents` sparse checkout；它们不属于 `.agents/.git/info/exclude` 生成层。
 - `.agents/plugins/**` 默认全量拉取用于能力发现；插件目录存在只表示 `available`，是否启用以目标项目 `.agents/config/plugin_profile.md` 为准。

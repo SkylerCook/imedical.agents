@@ -2,6 +2,7 @@
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
 $pluginRoot = Join-Path $repoRoot "plugins/iris-interface-dev"
+$pluginRoot = Join-Path $repoRoot "plugins/iris-interface-dev"
 $extractDocRoot = Join-Path $repoRoot "plugins/extract-doc"
 
 function Assert-True {
@@ -37,6 +38,7 @@ function Assert-NotContains {
 }
 
 Assert-True (Test-Path -LiteralPath $pluginRoot -PathType Container) "iris-interface-dev should exist"
+Assert-True (Test-Path -LiteralPath $pluginRoot -PathType Container) "iris-interface-dev should exist"
 
 $manifestPath = Join-Path $pluginRoot ".agents-plugin/plugin.json"
 Assert-True (Test-Path -LiteralPath $manifestPath -PathType Leaf) "plugin manifest should exist"
@@ -45,6 +47,9 @@ Assert-True ($manifest.name -eq "iris-interface-dev") "manifest name should be i
 Assert-True ($manifest.initSkill -eq "iris-interface-init") "manifest initSkill should be iris-interface-init"
 Assert-True (($manifest.dependencies -contains "extract-doc")) "manifest should depend on extract-doc"
 Assert-True (($manifest.dependencies -contains "coding-iris-plugin")) "manifest should depend on coding-iris-plugin"
+$profileMigration = @($manifest.configMigrations | Where-Object { $_.id -eq "interface-output-root-v1" }) | Select-Object -First 1
+Assert-True ($null -ne $profileMigration) "manifest should declare the interface output-root migration"
+Assert-True (Test-Path -LiteralPath (Join-Path $pluginRoot $profileMigration.script) -PathType Leaf) "interface output-root migration script should exist"
 
 foreach ($skillName in @(
   "iris-interface-init",
@@ -453,6 +458,32 @@ with ZipFile(Path(r"$fixturePath"), "w", ZIP_DEFLATED) as zf:
   Assert-Contains $diagnosticsContent "fieldWarnings" "diagnostics.md should include field warning count"
   Assert-Contains $fieldsContent "PATIENT_NAME" "fields.md should include parsed field code from first sheet"
   Assert-Contains $fieldsContent "ORDER_ID" "fields.md should include parsed field code from second sheet"
+
+  $agentsRoot = Join-Path $workRoot ".agents"
+  $configRoot = Join-Path $agentsRoot "config"
+  New-Item -ItemType Directory -Force -Path $configRoot | Out-Null
+  $interfaceProfile = Join-Path $configRoot "iris_interface_profile.md"
+  Set-Content -Encoding UTF8 -Path $interfaceProfile -Value @(
+    "# IRIS Interface Profile",
+    "",
+    "## Output",
+    "",
+    "- outputRoot: docs/output/iris-interface",
+    "- keepMarkdownOutOfContext: true"
+  )
+  $migrationScript = Join-Path $pluginRoot "scripts/migrate-interface-profile.ps1"
+  $migrationDryRun = & $migrationScript -ProjectRoot $workRoot -AgentsRoot $agentsRoot -Mode DryRun | Out-String
+  Assert-Contains $migrationDryRun "config-migration-planned" "legacy output root should be planned in DryRun"
+  Assert-Contains (Get-Content -Raw -Encoding UTF8 -Path $interfaceProfile) "docs/output/iris-interface" "DryRun must preserve the legacy profile"
+  $migrationWrite = & $migrationScript -ProjectRoot $workRoot -AgentsRoot $agentsRoot -Mode Write | Out-String
+  Assert-Contains $migrationWrite "config-migration-applied" "legacy output root should migrate in Write"
+  $migratedProfile = Get-Content -Raw -Encoding UTF8 -Path $interfaceProfile
+  Assert-Contains $migratedProfile "outputRoot: docs/interface" "Write should migrate the legacy default output root"
+  Assert-NotContains $migratedProfile "docs/output/iris-interface" "Write should remove the legacy default output root"
+  Set-Content -Encoding UTF8 -Path $interfaceProfile -Value "- outputRoot: docs/custom-interface"
+  $customMigration = & $migrationScript -ProjectRoot $workRoot -AgentsRoot $agentsRoot -Mode Write | Out-String
+  Assert-Contains $customMigration "config-migration-unchanged" "custom output roots should remain unchanged"
+  Assert-Contains (Get-Content -Raw -Encoding UTF8 -Path $interfaceProfile) "docs/custom-interface" "custom output root must be preserved"
 
   $fieldMatchParsed = Join-Path $workRoot "parsed-field-match.json"
   $fieldMatchParsedJson = @"

@@ -59,10 +59,26 @@ function Get-InstalledPlugins {
       name = $pluginName
       directoryName = $_.Name
       manifest = $manifest
+      legacyNames = @((Get-PluginManifestValue -Manifest $manifest -Names @("legacyNames", "legacy_names", "aliases")) | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     })
   }
 
   return $plugins
+}
+
+function Test-PluginNameMatches {
+  param([object]$Plugin, [string]$Name)
+  return $Name -eq $Plugin.name -or $Name -eq $Plugin.directoryName -or $Plugin.legacyNames -contains $Name
+}
+
+function Get-LegacyProfileName {
+  param([object]$Plugin, [hashtable]$Profile)
+  foreach ($legacyName in $Plugin.legacyNames) {
+    if ($Profile.ContainsKey($legacyName)) {
+      return $legacyName
+    }
+  }
+  return ""
 }
 
 function Get-PluginInitSkill {
@@ -181,11 +197,22 @@ function Write-PluginProfile {
       $notesValue = $entry.notes
     }
     else {
-      $statusValue = Get-DefaultStatus -PluginName $pluginItem.name
-      $initSkillValue = Get-PluginInitSkill -Plugin $pluginItem
-      $deps = Get-PluginDependencies -Plugin $pluginItem
-      $dependsOnValue = if ($deps.Count -gt 0) { $deps -join ", " } else { "-" }
-      $notesValue = if ($statusValue -eq "enabled") { "default base plugin" } else { "available capability; not enabled for this project" }
+      $legacyProfileName = Get-LegacyProfileName -Plugin $pluginItem -Profile $Profile
+      if (-not [string]::IsNullOrWhiteSpace($legacyProfileName)) {
+        $entry = $Profile[$legacyProfileName]
+        $statusValue = Normalize-PluginStatus -Value $entry.status
+        $initSkillValue = Get-PluginInitSkill -Plugin $pluginItem
+        $deps = Get-PluginDependencies -Plugin $pluginItem
+        $dependsOnValue = if ($deps.Count -gt 0) { $deps -join ", " } else { "-" }
+        $notesValue = "migrated from " + $legacyProfileName
+      }
+      else {
+        $statusValue = Get-DefaultStatus -PluginName $pluginItem.name
+        $initSkillValue = Get-PluginInitSkill -Plugin $pluginItem
+        $deps = Get-PluginDependencies -Plugin $pluginItem
+        $dependsOnValue = if ($deps.Count -gt 0) { $deps -join ", " } else { "-" }
+        $notesValue = if ($statusValue -eq "enabled") { "default base plugin" } else { "available capability; not enabled for this project" }
+      }
     }
 
     if ([string]::IsNullOrWhiteSpace($initSkillValue)) {
@@ -210,7 +237,7 @@ if (-not (Test-Path -LiteralPath $agentsRoot -PathType Container)) {
 }
 
 $plugins = Get-InstalledPlugins -AgentsRoot $agentsRoot
-$targetPlugin = $plugins | Where-Object { $_.name -eq $Plugin -or $_.directoryName -eq $Plugin } | Select-Object -First 1
+$targetPlugin = $plugins | Where-Object { Test-PluginNameMatches -Plugin $_ -Name $Plugin } | Select-Object -First 1
 if (-not $targetPlugin) {
   throw "Plugin not found: $Plugin"
 }

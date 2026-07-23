@@ -129,6 +129,7 @@ function New-TestProject {
   Set-Content -Encoding UTF8 -Path (Join-Path $pluginRoot ".agents-plugin/plugin.json") -Value @(
     "{",
     '  "name": "sample-plugin",',
+    '  "legacyNames": ["sample-plugin-legacy"],',
     '  "version": "0.1.0",',
     '  "displayName": "Sample Plugin",',
     '  "rules": "rules/",',
@@ -252,6 +253,7 @@ $hisuiWidgetIndexPath = Join-Path $repoRoot "plugins/coding-iris-plugin/referenc
 $feedbackTemplatePath = Join-Path $repoRoot "feedback/framework/_template.md"
 $feedbackProtocolPath = Join-Path $repoRoot "agents/_shared/feedback-protocol.md"
 $extractDocManifestPath = Join-Path $repoRoot "plugins/extract-doc/.agents-plugin/plugin.json"
+$interfaceDevManifestPath = Join-Path $repoRoot "plugins/iris-interface-dev/.agents-plugin/plugin.json"
 $externalRegManifestPath = Join-Path $repoRoot "plugins/iris-external-reg/.agents-plugin/plugin.json"
 Assert-True (Test-Path -LiteralPath $runbookPath -PathType Leaf) "docs/update-agents.md should exist"
 Assert-True (Test-Path -LiteralPath $readmePath -PathType Leaf) "README.md should exist"
@@ -313,6 +315,7 @@ Assert-Contains $readmeContent 'Git `2.25.0`' "README should document Git 2.25.0
 Assert-Contains $readmeContent "git sparse-checkout" "README should explain sparse-checkout dependency before first install"
 Assert-Contains $readmeContent "references/hisui-style-index.md" "README should route HISUI styles separately from widget APIs"
 Assert-Contains $readmeContent "### extract-doc" "README should list the extract-doc plugin"
+Assert-Contains $readmeContent "### iris-interface-dev" "README should list the current interface plugin name"
 Assert-Contains $readmeContent "### iris-external-reg" "README should list the iris-external-reg plugin"
 $runbookContent = Get-Content -Raw -Encoding UTF8 -Path $runbookPath
 Assert-Contains $runbookContent "DryRun" "runbook should mention DryRun"
@@ -324,6 +327,8 @@ Assert-Contains $runbookContent "git clone" "runbook should support manual clone
 Assert-Contains $runbookContent "/project-context-maintenance" "runbook should guide users to maintain project context after install"
 Assert-Contains $runbookContent "dependencies" "runbook should explain dependency plugin initialization order"
 Assert-Contains $runbookContent ".agents/plugins/extract-doc/skills/extract-doc-ingest/SKILL.md" "runbook should point to the extract-doc init entry"
+Assert-Contains $runbookContent ".agents/plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md" "runbook should point to the current interface plugin init entry"
+Assert-Contains $runbookContent "plugin-profile-name-migration-planned" "runbook should document plugin canonical-name migration"
 Assert-Contains $runbookContent ".agents/plugins/iris-external-reg/skills/iris-external-reg/SKILL.md" "runbook should point to the iris-external-reg init entry"
 Assert-Contains $runbookContent "install-git-hooks.ps1" "runbook should document explicit git hook enablement"
 Assert-Contains $runbookContent "git-hooks-not-enabled" "runbook should document hook status notes"
@@ -350,8 +355,12 @@ $feedbackProtocolContent = Get-Content -Raw -Encoding UTF8 -Path $feedbackProtoc
 Assert-Contains $feedbackTemplateContent "<!-- discovery-process -->" "feedback template should require the discovery process"
 Assert-Contains $feedbackProtocolContent "<!-- discovery-process -->" "feedback protocol example should match the feedback skill contract"
 $extractDocManifest = Get-Content -Raw -Encoding UTF8 -Path $extractDocManifestPath | ConvertFrom-Json
+$interfaceDevManifest = Get-Content -Raw -Encoding UTF8 -Path $interfaceDevManifestPath | ConvertFrom-Json
 $externalRegManifest = Get-Content -Raw -Encoding UTF8 -Path $externalRegManifestPath | ConvertFrom-Json
 Assert-True ($extractDocManifest.name -eq "extract-doc") "extract-doc manifest should parse with the expected name"
+Assert-True ($interfaceDevManifest.name -eq "iris-interface-dev") "interface plugin manifest should use the current canonical name"
+Assert-True (($interfaceDevManifest.legacyNames -contains "iris-interface-dev-plugin")) "interface plugin manifest should preserve the legacy name for updates"
+Assert-True (@($interfaceDevManifest.configMigrations | Where-Object { $_.id -eq "interface-output-root-v1" }).Count -eq 1) "interface plugin should declare the output-root migration"
 Assert-True (($externalRegManifest.dependencies -contains "extract-doc")) "iris-external-reg should declare extract-doc as a dependency"
 Assert-True (($externalRegManifest.dependencies -contains "coding-iris-plugin")) "iris-external-reg should declare coding-iris-plugin as a dependency"
 Assert-Contains $contextSkillContent "install-git-hooks.ps1" "project-context-maintenance should mention optional git hook enablement"
@@ -381,6 +390,52 @@ try {
 }
 finally {
   Remove-Item -Recurse -Force -LiteralPath $sourceRepositoryLikeRoot
+}
+
+$legacyProfileProjectRoot = New-TestProject
+try {
+  $legacyConfigRoot = Join-Path $legacyProfileProjectRoot ".agents/config"
+  New-Item -ItemType Directory -Force -Path $legacyConfigRoot | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $legacyConfigRoot "plugin_profile.md") -Value @(
+    "# Plugin Profile",
+    "",
+    "| plugin | status | initSkill | dependsOn | notes |",
+    "|---|---|---|---|---|",
+    "| agent-context-kit | enabled | project-context-maintenance | - | default plugin state |",
+    "| sample-plugin-legacy | enabled | sample-skill | - | legacy canonical name |"
+  )
+  $legacySkillRoot = Join-Path $legacyProfileProjectRoot ".agents/skills/removed-legacy-skill"
+  New-Item -ItemType Directory -Force -Path $legacySkillRoot | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $legacySkillRoot "SKILL.md") -Value @(
+    "---",
+    "name: removed-legacy-skill",
+    "description: Legacy plugin skill thin-index.",
+    "thin-index: true",
+    "source: .agents/plugins/sample-plugin-legacy/skills/removed-legacy-skill/SKILL.md",
+    "---"
+  )
+
+  $legacyDryRunOutput = & (Join-Path $legacyProfileProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $legacyProfileProjectRoot -Mode DryRun -NoPull -Detailed -Plugin sample-plugin-legacy | Out-String
+  Assert-Contains $legacyDryRunOutput "plugin-profile-name-migration-planned" "DryRun should plan migration from a manifest legacy name"
+  Assert-Contains $legacyDryRunOutput "stale plugin skill thin-index" "DryRun should report stale skill thin-indexes from the legacy plugin path"
+  Assert-True (Test-Path -LiteralPath (Join-Path $legacySkillRoot "SKILL.md")) "DryRun must preserve stale legacy skill thin-indexes"
+
+  $legacyWriteOutput = & (Join-Path $legacyProfileProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $legacyProfileProjectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin-legacy | Out-String
+  Assert-Contains $legacyWriteOutput "plugin-profile-name-migrated" "Write should migrate a manifest legacy name"
+  Assert-Contains $legacyWriteOutput "stale plugin skill thin-index" "Write should report stale legacy skill cleanup"
+  $migratedPluginProfile = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $legacyConfigRoot "plugin_profile.md")
+  Assert-Contains $migratedPluginProfile "sample-plugin | enabled" "Legacy enabled status should be preserved under the current plugin name"
+  Assert-True (-not $migratedPluginProfile.Contains("| sample-plugin-legacy |")) "Write should remove the legacy plugin profile key"
+  Assert-True (-not (Test-Path -LiteralPath $legacySkillRoot)) "Write should remove an empty stale legacy skill directory"
+  $legacyAliasProfileUpdate = & (Join-Path $legacyProfileProjectRoot ".agents/scripts/update-plugin-profile.ps1") -ProjectRoot $legacyProfileProjectRoot -Plugin sample-plugin-legacy -Status disabled | Out-String
+  Assert-Contains $legacyAliasProfileUpdate "plugin-profile-updated" "Profile updater should accept a manifest legacy name"
+  $profileAfterLegacyAliasUpdate = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $legacyConfigRoot "plugin_profile.md")
+  Assert-Contains $profileAfterLegacyAliasUpdate "sample-plugin | disabled" "Profile updater should write the current plugin name for a legacy alias"
+}
+finally {
+  if (Test-Path -LiteralPath $legacyProfileProjectRoot) {
+    Remove-Item -LiteralPath $legacyProfileProjectRoot -Recurse -Force
+  }
 }
 
 $projectRoot = New-TestProject

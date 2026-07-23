@@ -32,5 +32,6 @@
 ## 内置脚本
 
 - `scripts/generate-plugin-thin-index.ps1`：thin-index wrapper，只委托根 canonical 脚本。
+- `scripts/migrate-interface-profile.ps1`：把旧默认输出目录 `docs/output/iris-interface` 迁移为 `docs/interface`；不覆盖其它自定义目录。
 - `scripts/iris-interface-field-match.py`：字段语义匹配、候选诊断和人工确认摘要。
 - `scripts/iris-interface-review.py`：字段产物和生成代码风险离线审查。

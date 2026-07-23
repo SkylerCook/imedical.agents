@@ -62,6 +62,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 ```
 
 首次安装默认只处理 `agent-context-kit`。`coding-iris-plugin`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-external-reg` 等插件代码会随 `.agents/plugins/` 拉取，但状态为 `available` 时不会合并配置或生成 thin-index。
+首次安装默认只处理 `agent-context-kit`。`coding-iris-plugin`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-external-reg` 等插件代码会随 `.agents/plugins/` 拉取，但状态为 `available` 时不会合并配置或生成 thin-index。
 
 如果摘要没有停止条件，继续执行：
 
@@ -157,9 +158,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `plugin-selected` | 本次通过 `-Plugin` 显式选择处理的插件。 |
 | `plugin-disabled` | 插件被项目显式禁用；默认跳过。 |
 | `plugin-profile-written` | 已写入或刷新 `.agents/config/plugin_profile.md`。 |
+| `plugin-profile-name-migration-planned` | DryRun/Check 发现 manifest 声明的旧插件名；将保留原状态并写回 canonical 名称。 |
+| `plugin-profile-name-migrated` | Write 已把旧插件名的状态迁移到 canonical 名称。 |
 | `generated` | dry-run 发现将生成 thin-index，或 write 已生成。 |
 | `unchanged` | 生成物内容已是最新，不需要写入。 |
-| `removed` | write 已清理 stale thin-index；清理阶段扫描所有指向 `.agents/plugins/*/rules/*.md` 的 rule thin-index，不受当前 `PluginPath` 限制。 |
+| `removed` | write 已清理 stale thin-index；清理阶段扫描所有指向已删除 `.agents/plugins/*/rules/*.md` 或 `.agents/plugins/*/skills/*/SKILL.md` 的受管入口，不受当前 `PluginPath` 限制。 |
 |
 | `vendor-thin-index-generated` | vendor thin-index 已生成或 dry-run 报告将生成。 |
 | `vendor-thin-index-unchanged` | vendor thin-index 内容已是最新，不需要写入。 |
@@ -399,6 +402,7 @@ source: .agents/plugins/<plugin>/skills/<skill>/SKILL.md
 .agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md
 .agents/plugins/extract-doc/skills/extract-doc-ingest/SKILL.md
 .agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md
+.agents/plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md
 .agents/plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md
 .agents/plugins/iris-external-reg/skills/iris-external-reg/SKILL.md
 ```
