@@ -15,7 +15,7 @@ related:
 
 ### 配置与会话
 
-- `check_config`：返回当前连接和配置状态，不发起 IRIS 网络调用。排查 MCP 问题时优先使用。
+- `check_config`：返回当前连接和配置状态，不发起 IRIS 网络调用。v0.9.3 的 `capabilities` 包含 `private_web_server`、`atelier_rest`、`compile_path` 和 `webgateway_url`；排查 MCP 问题时优先使用，并以 `compile_path` 判断编译应走 Atelier REST 还是 `docker_exec`。
 - `agent_stats`、`agent_history`、`telemetry_query`：查看学习 Agent 状态、当前会话和持久化工具调用记录。
 
 ### 安全发现与读取
@@ -35,13 +35,14 @@ related:
 
 ### 写入、编译与执行
 
-- `iris_doc mode=put/delete`：写入或删除 IRIS 文档。仅在用户明确要求时使用；`put` 适用于 `.cls/.mac/.inc` 等 IRIS 文档，不用于 CSP 上传。
+- `iris_doc mode=put/delete/insert/delete_lines`：写入、删除或按行修改 IRIS 文档。仅在用户明确要求时使用；`insert` 和 `delete_lines` 必须遵守 `expected` stale-edit guard，`put` 适用于 `.cls/.mac/.inc` 等 IRIS 文档，不用于 CSP 上传。
 - `iris_compile`：编译类、例程或包。部署冒烟检查优先使用 `flags="cuk /checkuptodate=expandedonly"`。
 - `iris_execute`：执行 ObjectScript。即使代码看似只读，工具内部也可能创建临时生成类；必须检查返回 status 和 stdout，不能只看传输成功。已授权的只读核验或翻译操作可将这种自清理临时载体记录为 `tool-internal-execution`，它不等同于 `business-code-deploy`，也不得用于上传命名业务类。
 - `iris_execute_method`：直接调用 ClassMethod；仍属于远端执行，不能因省略 ObjectScript 包装代码而视为只读查询。
-- `iris_global`：read/list 属于读取，write/kill 属于高风险写入；知识查询默认不读取业务或患者 Global。
-- `iris_source_control`：查看 SCM 状态/菜单或执行 checkout/action；checkout 和 action 属于状态变更。
-- `iris_test`：运行 `%UnitTest.Manager` 测试。
+- `iris_global`：get/list 属于读取，set/kill 属于高风险写入；知识查询默认不读取业务或患者 Global。
+- `iris_source_control`：查看 SCM 状态/菜单或执行 checkout/action；checkout 和 action 属于状态变更。上游 `IRIS_SCM_ALLOW_CHECKIN=1` 只是额外门禁，不代替用户任务级授权。
+- `iris_test`：运行 `%UnitTest.Manager` 测试；`coverage=true` 会继续启动覆盖率采集。
+- `iris_coverage`：执行 ObjectScript 行覆盖率 `check/run/start/stop/report`。所有 mode 都可能启动或操作 `%Monitor.System.LineByLine`，使用前需明确远端测试授权；`gmheap` 需至少 256 MB。
 
 ### Interop、lookup、凭据、Production 与容器
 
@@ -72,6 +73,7 @@ related:
 - `iris_table_info`
 - `iris_debug`
 - `iris_containers`
+- `iris_coverage`
 - `iris_generate_test`
 - `iris_compile`
 - `iris_test`
@@ -113,15 +115,17 @@ related:
 - TOML 注释必须使用 ASCII 字符；非 ASCII 注释可能导致解析器静默失败。
 - 修改 TOML 后，调用任意相关 MCP 工具通常可触发热加载，无需重启会话。
 - 由脚本直接启动 MCP 进程时，应显式传入 `--config <workspace>/.iris-agentic-dev.toml`；同时可用命令行参数传入非敏感定位项 `--host`、`--web-port`、`--scheme`、`--namespace`，账号、密码、token 保持走环境变量或本地私有配置。
+- 需要减少工具噪声或从源头隐藏不应暴露的工具时，可在目标工程私有 TOML 中配置 `disabled_tools = ["iris_admin", "iris_source_control"]`，或设置 `IRIS_DISABLED_TOOLS`。该机制只控制 MCP 暴露面，不替代任务级远程写入授权。
 
 ## 诊断
 
 - 原生 `mcp__iris_agentic_dev__*` 工具优先。只有当前运行器没有暴露原生工具且目标工程确实存在 `.agents/scripts/iris-mcp.js` 时，才使用 `node .agents/scripts/iris-mcp.js check|tools|call ...`；helper 不存在时报告入口缺失，不得假定它已部署。
-- `check_config` 只说明配置解析结果，不发起 IRIS 网络调用。先确认目标 host、namespace 等定位是否合理，再立即执行 `iris_query("SELECT 1 AS Probe")` 作为最小无副作用网络探针。
+- `check_config` 只说明配置解析结果，不发起 IRIS 网络调用。先确认目标 host、namespace、`connection_source`、`fallback_warning`、`objectscript_workspace` 和 `capabilities` 是否合理，再立即执行 `iris_query("SELECT 1 AS Probe")` 作为最小无副作用网络探针。
+- `capabilities.compile_path=docker_exec` 时，允许 `iris_compile` 使用上游自动路由，不要先把 Atelier REST 不可用扩大为整个 MCP 不可用；`capabilities` 仍是连接状态推导，不替代真实工具调用验证。
 - 当 `connection_source=auto_discovered` 或环境变量发现已生效，且 `SELECT 1 AS Probe` 成功时，`config_file=null` 不构成配置失败，也不要求为了形式补 TOML 或强制热加载。
 - 查询成功即继续任务。只有真实探针失败时，才保留完整错误、重启一次 MCP 会话并复测；单次 HTTP 404/405 或单个工具失败不得扩大为“整个 MCP 不可用”。
 - 网络探针后按任务分别记录 `query`、`execute`、`document` 等 capability。某项失败只降级该项：`iris_query` 仍失败时，只有在 `tool-internal-execution` 已授权且临时载体自清理时，才可用 `iris_execute` + `%SQL.Statement` 只读降级；`iris_doc` 失败时可通过已验证的类或 Global 读取路径复核，不能直接断言文档不存在。
-- 只读调用示例：`node .agents/scripts/iris-mcp.js call iris_doc "{...}"`、`node .agents/scripts/iris-mcp.js call iris_query "{...}"`。写能力必须在用户明确要求后添加 `--allow-write`，并继续遵守部署/写入门禁。
+- 只读调用示例：`node .agents/scripts/iris-mcp.js call iris_doc "{...}"`、`node .agents/scripts/iris-mcp.js call iris_query "{...}"`。helper 按工具的 `mode` / `action` 区分读取与写入；文档行编辑、SQL write/force、Global set/kill、容器 select/start、SCM checkout/execute、测试和覆盖率等能力必须在用户明确要求后添加 `--allow-write`，并继续遵守部署/写入门禁。helper 尚未分类的未来工具也默认进入该门禁，不能因新工具名未命中旧黑名单而放行。
 - `connected=false`，或定位项明显仍是默认值且真实探针失败时，才优先处理配置加载；不要仅凭 `config_file=null` 阻塞业务调用。
 - 直接手写 JSON-RPC 或脚本调用 `iris_doc`、`iris_query`、`iris_execute` 时，显式传入目标 namespace；不要依赖工具 schema 的默认 `USER`。
 - 不把某个工程的 host、namespace 或端口写入插件规则。

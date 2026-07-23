@@ -53,7 +53,7 @@ IRIS MCP 逻辑能力按以下顺序使用：
 
 ### 4. 保持只读
 
-- 默认不调用 `iris_execute`、`iris_execute_method`、`iris_compile`、`iris_test` 或任何写入工具。
+- 默认不调用 `iris_execute`、`iris_execute_method`、`iris_compile`、`iris_test`、`iris_coverage` 或任何写入工具。
 - `iris_query` 只在确需验证系统字典元数据时使用只读 `SELECT`，不得查询患者或业务数据。
 - `iris_doc` 只允许 `get/head`；`put/delete` 必须另行取得用户明确授权。
 - 不为“验证知识”创建临时类、修改数据库、启动/停止 Production 或改变容器目标。

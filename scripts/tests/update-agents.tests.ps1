@@ -282,6 +282,12 @@ Assert-Contains $irisAgenticRuleContent 'SELECT 1 AS Probe' "MCP diagnostics sho
 Assert-Contains $irisAgenticRuleContent 'config_file=null' "MCP diagnostics should define the auto-discovery null-config boundary"
 Assert-Contains $irisAgenticRuleContent 'HTTP 404/405' "MCP diagnostics should not expand one endpoint failure to the whole MCP"
 Assert-Contains $irisAgenticRuleContent 'mcp__iris_agentic_dev__*' "MCP diagnostics should prefer native tools before the helper"
+Assert-Contains $irisAgenticRuleContent 'iris_coverage' "MCP rules should document coverage execution"
+Assert-Contains $irisAgenticRuleContent 'disabled_tools' "MCP rules should document tool suppression"
+$irisMcpHelperContent = Get-Content -Raw -Encoding UTF8 -LiteralPath $irisMcpHelperUnderTest
+Assert-Contains $irisMcpHelperContent "['get', 'head', 'fragment', 'compiled', 'list']" "MCP helper should allow only documented read-only document modes"
+Assert-Contains $irisMcpHelperContent 'iris_coverage' "MCP helper should gate coverage execution"
+Assert-Contains $irisMcpHelperContent 'compilePath' "MCP helper should summarize compile capabilities"
 Assert-Contains $installScriptContent "!/skills/agent-kit-maintenance/" "install sparse checkout should exclude maintenance-only skill directory"
 Assert-True (-not $installScriptContent.Contains("core.hooksPath")) "install must not enable git hooks automatically"
 Assert-Contains $updateScriptContent "git-hooks-not-enabled" "update should report hook availability without enabling hooks"

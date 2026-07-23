@@ -47,7 +47,7 @@
 - `memory/plan/` 是维护者计划子目录，存放实施计划和设计文档，不部署到业务项目。
 - 根目录 `AGENTS.md` 只服务本仓库维护，不部署到业务项目 `.agents/`。
 - 根目录 `agents/` 和 `workflows/` 是能力包正式内容，已加入 `scripts/install-agents.ps1` 和 `scripts/update-agents.ps1` 的 sparse checkout 路径，部署到业务项目 `.agents/agents/` 和 `.agents/workflows/`。
-- 根 `scripts/iris-mcp.js` 是无原生 MCP 工具运行器的可选 helper，必须随安装/更新部署；原生 MCP 工具仍优先，helper 不得成为 canonical 规则源。
+- 根 `scripts/iris-mcp.js` 是无原生 MCP 工具运行器的可选 helper，必须随安装/更新部署；原生 MCP 工具仍优先，helper 不得成为 canonical 规则源。helper 必须按当前 MCP schema 的 `mode` / `action` 区分读取与状态变更、默认拦截写入和远端执行，并把 `check_config` 风险作为诊断信号而非仅凭默认 namespace/port 阻断工具发现。
 - 根目录 `skills/` 默认是能力包正式内容，部署到业务项目 `.agents/skills/`；`skills/agent-kit-maintenance/` 是维护者专用例外，必须通过 sparse checkout 排除，不部署到业务项目，也不参与 thin-index。
 - `.agents/plugins/**` 默认全量拉取用于能力发现；插件目录存在只表示 `available`，是否已启用以目标项目 `.agents/config/plugin_profile.md` 为准。
 - 更新脚本按插件状态分流：`available` 不合并配置、不生成 thin-index；`enabled` 参与常规更新；`disabled` 默认跳过；领域插件依赖未启用时必须停止。

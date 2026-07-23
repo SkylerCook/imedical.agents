@@ -18,6 +18,10 @@ const { spawn } = require('child_process');
 
 const argv = process.argv.slice(2);
 const command = argv[0];
+let workspaceRoot;
+let server;
+let env = {};
+let namespace;
 
 function usage(exitCode = 1) {
   const out = exitCode === 0 ? console.log : console.error;
@@ -26,10 +30,6 @@ function usage(exitCode = 1) {
   node .agents/scripts/iris-mcp.js tools
   node .agents/scripts/iris-mcp.js call <toolName> <jsonArgs> [--allow-write]`);
   process.exit(exitCode);
-}
-
-if (!command || command === '-h' || command === '--help') {
-  usage(command ? 0 : 1);
 }
 
 function hasFlag(name) {
@@ -50,17 +50,19 @@ function findWorkspaceRoot() {
   }
 }
 
-const workspaceRoot = findWorkspaceRoot();
-const mcpConfig = JSON.parse(fs.readFileSync(path.join(workspaceRoot, '.mcp.json'), 'utf8'));
-const server = mcpConfig.mcpServers && mcpConfig.mcpServers['iris-agentic-dev'];
-if (!server) {
-  throw new Error('MCP server iris-agentic-dev not found in .mcp.json');
-}
+function loadWorkspaceContext() {
+  workspaceRoot = findWorkspaceRoot();
+  const mcpConfig = JSON.parse(fs.readFileSync(path.join(workspaceRoot, '.mcp.json'), 'utf8'));
+  server = mcpConfig.mcpServers && mcpConfig.mcpServers['iris-agentic-dev'];
+  if (!server) {
+    throw new Error('MCP server iris-agentic-dev not found in .mcp.json');
+  }
 
-const env = server.env || {};
-const namespace = env.IRIS_NAMESPACE;
-if (!namespace) {
-  throw new Error('IRIS_NAMESPACE is missing from .mcp.json env');
+  env = server.env || {};
+  namespace = env.IRIS_NAMESPACE;
+  if (!namespace) {
+    throw new Error('IRIS_NAMESPACE is missing from .mcp.json env');
+  }
 }
 
 function buildMcpArgs() {
@@ -116,49 +118,167 @@ function printJson(prefix, value) {
 }
 
 function summarizeCheck(data) {
+  data = data || {};
+  const capabilities = data.capabilities && typeof data.capabilities === 'object'
+    ? data.capabilities
+    : {};
+  const warnings = [];
+  if (typeof data.fallback_warning === 'string' && data.fallback_warning.trim()) {
+    warnings.push(data.fallback_warning.trim());
+  }
+  if (data.connected !== true) {
+    warnings.push('MCP is not connected; run a task-specific read-only probe before relying on IRIS capabilities.');
+  } else if (!data.config_file && (data.namespace === 'USER' || String(data.port) === '52773')) {
+    warnings.push('Connection uses fallback-looking defaults; verify the intended target with a read-only probe.');
+  }
+
   return {
     configFileLoaded: Boolean(data.config_file),
     hostLoaded: Boolean(data.host),
     namespaceIsDefaultUser: data.namespace === 'USER',
     portIsDefault52773: String(data.port) === '52773',
     connected: data.connected === true,
-    writeToolsEnabled: data.write_tools_enabled === true
+    connectionSource: data.connection_source || null,
+    workspaceHintLoaded: Boolean(data.objectscript_workspace),
+    writeToolsEnabled: data.write_tools_enabled === true,
+    capabilities: {
+      privateWebServer: typeof capabilities.private_web_server === 'boolean'
+        ? capabilities.private_web_server
+        : null,
+      atelierRest: typeof capabilities.atelier_rest === 'boolean'
+        ? capabilities.atelier_rest
+        : null,
+      compilePath: capabilities.compile_path || null,
+      webgatewayConfigured: Boolean(capabilities.webgateway_url)
+    },
+    warnings
   };
 }
 
-function assertConfigLoaded(summary) {
-  if (!summary.hostLoaded || summary.namespaceIsDefaultUser || summary.portIsDefault52773) {
-    throw new Error('MCP config is not loaded correctly; inspect .iris-agentic-dev.toml and .mcp.json');
-  }
-}
-
-const writeTools = new Set([
-  'iris_admin',
+const alwaysWriteLikeTools = new Set([
   'iris_compile',
   'iris_credential_manage',
-  'iris_doc',
+  'iris_coverage',
   'iris_execute',
+  'iris_execute_method',
   'iris_generate_class',
   'iris_generate_test',
-  'iris_lookup_manage',
-  'iris_lookup_transfer',
-  'iris_production',
-  'iris_production_item',
-  'iris_source_control',
   'iris_test',
-  'skill',
-  'skill_community'
+  'kb_index',
+  'skill_community_install',
+  'skill_forget',
+  'skill_optimize',
+  'skill_propose',
+  'skill_share'
 ]);
+
+const readOnlyTools = new Set([
+  'agent_history',
+  'agent_stats',
+  'check_config',
+  'docs_introspect',
+  'extract_message_map_routing',
+  'find_subclass_implementations',
+  'iris_business_rule_info',
+  'iris_credential_list',
+  'iris_debug',
+  'iris_doc_search',
+  'iris_generate',
+  'iris_get_log',
+  'iris_info',
+  'iris_interop_query',
+  'iris_macro',
+  'iris_message_body',
+  'iris_production_diff',
+  'iris_search',
+  'iris_symbols',
+  'iris_symbols_local',
+  'iris_table_info',
+  'kb_recall',
+  'resolve_dynamic_dispatch',
+  'skill_community_list',
+  'skill_describe',
+  'skill_list',
+  'skill_search',
+  'telemetry_export_trace',
+  'telemetry_query'
+]);
+
+function normalizedValue(value, fallback = '') {
+  const normalized = String(value == null ? '' : value).trim().toLowerCase();
+  return normalized || fallback;
+}
+
+function actionIsWriteLike(toolArgs, readActions) {
+  const action = normalizedValue(toolArgs.action);
+  return !readActions.has(action);
+}
 
 function isWriteLike(toolName, toolArgs) {
   if (toolName === 'iris_doc') {
-    return ['put', 'delete'].includes(String(toolArgs.mode || '').toLowerCase());
+    const mode = normalizedValue(toolArgs.mode, 'get');
+    return !new Set(['get', 'head', 'fragment', 'compiled', 'list']).has(mode);
   }
+
   if (toolName === 'iris_query') {
-    const query = String(toolArgs.query || '').trim().toLowerCase();
-    return !query.startsWith('select') && !query.startsWith('with');
+    const mode = normalizedValue(toolArgs.mode, 'read');
+    if (toolArgs.force === true || mode === 'write') return true;
+    if (mode === 'count' || mode === 'explain') return false;
+    if (mode !== 'read') return true;
+    const query = normalizedValue(toolArgs.query);
+    return query !== '' && !query.startsWith('select') && !query.startsWith('with');
   }
-  return writeTools.has(toolName);
+
+  if (toolName === 'iris_global') {
+    return actionIsWriteLike(toolArgs, new Set(['get', 'list']));
+  }
+  if (toolName === 'iris_containers') {
+    return actionIsWriteLike(toolArgs, new Set(['list']));
+  }
+  if (toolName === 'iris_admin') {
+    return actionIsWriteLike(toolArgs, new Set([
+      'list_namespaces',
+      'list_databases',
+      'list_users',
+      'list_roles',
+      'list_user_roles',
+      'check_permission',
+      'list_webapps',
+      'get_webapp',
+      'view_locks',
+      'view_processes',
+      'journal_search',
+      'namespace_mappings',
+      'database_status'
+    ]));
+  }
+  if (toolName === 'iris_source_control') {
+    return actionIsWriteLike(toolArgs, new Set(['status', 'menu']));
+  }
+  if (toolName === 'iris_lookup_manage') {
+    return actionIsWriteLike(toolArgs, new Set(['get', 'list_keys', 'list_tables']));
+  }
+  if (toolName === 'iris_lookup_transfer') {
+    return actionIsWriteLike(toolArgs, new Set(['export']));
+  }
+  if (toolName === 'iris_production') {
+    return actionIsWriteLike(toolArgs, new Set(['status', 'check']));
+  }
+  if (toolName === 'iris_production_item') {
+    return actionIsWriteLike(toolArgs, new Set(['get_settings']));
+  }
+  if (toolName === 'skill') {
+    return actionIsWriteLike(toolArgs, new Set(['list', 'describe', 'search']));
+  }
+  if (toolName === 'skill_community') {
+    return actionIsWriteLike(toolArgs, new Set(['list']));
+  }
+  if (toolName === 'kb') {
+    return actionIsWriteLike(toolArgs, new Set(['recall']));
+  }
+
+  if (alwaysWriteLikeTools.has(toolName)) return true;
+  return !readOnlyTools.has(toolName);
 }
 
 class JsonLineMcpClient {
@@ -244,7 +364,7 @@ async function callTool(client, toolName, toolArgs, options = {}) {
     toolArgs.namespace = namespace;
   }
   if (isWriteLike(toolName, toolArgs || {}) && !options.allowWrite) {
-    throw new Error(`Blocked write-capable MCP tool: ${toolName}. Re-run with --allow-write only after explicit user approval.`);
+    throw new Error(`Blocked write-capable or unclassified MCP tool: ${toolName}. Re-run with --allow-write only after explicit user approval.`);
   }
   const response = await client.request('tools/call', {
     name: toolName,
@@ -254,6 +374,11 @@ async function callTool(client, toolName, toolArgs, options = {}) {
 }
 
 async function main() {
+  if (!command || command === '-h' || command === '--help') {
+    usage(command ? 0 : 1);
+  }
+
+  loadWorkspaceContext();
   const client = new JsonLineMcpClient(server.command, buildMcpArgs(), env);
   try {
     await client.request('initialize', {
@@ -266,10 +391,6 @@ async function main() {
     const check = await callTool(client, 'check_config', {}, { allowWrite: true });
     const checkSummary = summarizeCheck(check);
     printJson('CHECK', checkSummary);
-
-    if (command !== 'check') {
-      assertConfigLoaded(checkSummary);
-    }
 
     if (command === 'check') {
       return;
@@ -298,7 +419,14 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error('ERROR=' + error.message);
-  process.exitCode = 1;
-});
+module.exports = {
+  isWriteLike,
+  summarizeCheck
+};
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error('ERROR=' + error.message);
+    process.exitCode = 1;
+  });
+}

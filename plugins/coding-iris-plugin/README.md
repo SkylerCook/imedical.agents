@@ -109,6 +109,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 - 当前运行器网页读取能力：已知 `docs.intersystems.com` URL；Claude Code 可显示为 `Fetch` / `WebFetch`。
 - `iris_doc_search`：只有当前 `tools/list` 实际包含该工具时才使用；内置 v0.9.3 已复核包含该工具。
 
+内置 v0.9.3 还提供 `iris_coverage`，并为 `iris_test` 增加 coverage 参数。它属于远端测试/监控能力，不属于知识查询默认路径；使用前必须取得任务级授权并确认 IRIS `gmheap >= 256 MB`。
+
 官方 vendor skills 来源和 commit 见 `.agents/vendor/iris-agentic-dev-skills/UPSTREAM.md`。当前选择：
 
 - `objectscript-review`
@@ -133,7 +135,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 - `sync-env-config.js`：仅当 `.agents/config/project-env.json` 是事实来源时，从它生成 `.mcp.json`。
 - `prepare-deploy-manifest.js`：根据文件列表或 git diff 生成 IRIS 部署 JSON 清单；只做本地分析，不执行上传、编译或远端写入。
 
-目标工程 `.agents/scripts/iris-mcp.js` 是通用 MCP helper，用于在 Agent 环境未直接暴露 IRIS MCP 工具时稳定启动 `iris-agentic-dev`、执行 `check_config`、列出工具和转发 `tools/call`。该脚本不实现业务能力；`iris_doc`、`iris_query`、`iris_info` 等能力仍由 MCP server 自身处理。写能力默认拦截，只有用户明确要求后才允许使用 `--allow-write`。
+目标工程 `.agents/scripts/iris-mcp.js` 是通用 MCP helper，用于在 Agent 环境未直接暴露 IRIS MCP 工具时稳定启动 `iris-agentic-dev`、执行 `check_config`、列出工具和转发 `tools/call`。该脚本不实现业务能力；`iris_doc`、`iris_query`、`iris_info` 等能力仍由 MCP server 自身处理。helper 会摘要 `check_config.capabilities` 和 fallback 风险，并按 `mode` / `action` 精确拦截文档编辑、SQL 写入、Global 写删、容器切换、SCM 变更、测试、覆盖率等远端状态变化；尚未分类的未来工具默认也进入授权门禁，只有用户明确要求后才允许使用 `--allow-write`。
+
+如需减少工具噪声或从 MCP 暴露面隐藏高风险工具，可在目标工程私有 `.iris-agentic-dev.toml` 中设置 `disabled_tools`，或通过 `.mcp.json` 的本地 `env` 设置 `IRIS_DISABLED_TOOLS`。这不会自动授予其余工具写权限，也不会修改插件 profile。
 
 首次使用前先确认配置事实来源：
 

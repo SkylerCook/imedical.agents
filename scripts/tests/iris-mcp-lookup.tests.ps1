@@ -134,5 +134,8 @@ Assert-Contains $agenticRule "iris-agentic-dev 0.9.3" "Current bundled MCP versi
 Assert-Contains $agenticRule "iris_debug" "Current merged debug tool should be documented"
 Assert-Contains $agenticRule "iris_containers" "Current container tool should be documented"
 Assert-Contains $agenticRule "iris_doc_search" "Doc search availability gate should be documented"
+Assert-Contains $agenticRule "iris_coverage" "Coverage execution boundary should be documented"
+Assert-Contains $agenticRule "capabilities.compile_path=docker_exec" "Compile capability routing should be documented"
+Assert-Contains $agenticRule "disabled_tools" "MCP tool suppression should be documented"
 
 Write-Host "iris-mcp-lookup tests passed"
