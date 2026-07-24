@@ -359,7 +359,6 @@ $interfaceDevManifest = Get-Content -Raw -Encoding UTF8 -Path $interfaceDevManif
 $externalRegManifest = Get-Content -Raw -Encoding UTF8 -Path $externalRegManifestPath | ConvertFrom-Json
 Assert-True ($extractDocManifest.name -eq "extract-doc") "extract-doc manifest should parse with the expected name"
 Assert-True ($interfaceDevManifest.name -eq "iris-interface-dev") "interface plugin manifest should use the current canonical name"
-Assert-True (($interfaceDevManifest.legacyNames -contains "iris-interface-dev-plugin")) "interface plugin manifest should preserve the legacy name for updates"
 Assert-True (@($interfaceDevManifest.configMigrations | Where-Object { $_.id -eq "interface-output-root-v1" }).Count -eq 1) "interface plugin should declare the output-root migration"
 Assert-True (($externalRegManifest.dependencies -contains "extract-doc")) "iris-external-reg should declare extract-doc as a dependency"
 Assert-True (($externalRegManifest.dependencies -contains "coding-iris-plugin")) "iris-external-reg should declare coding-iris-plugin as a dependency"

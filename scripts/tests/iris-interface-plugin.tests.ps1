@@ -2,7 +2,6 @@
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
 $pluginRoot = Join-Path $repoRoot "plugins/iris-interface-dev"
-$pluginRoot = Join-Path $repoRoot "plugins/iris-interface-dev"
 $extractDocRoot = Join-Path $repoRoot "plugins/extract-doc"
 
 function Assert-True {
@@ -37,7 +36,6 @@ function Assert-NotContains {
   }
 }
 
-Assert-True (Test-Path -LiteralPath $pluginRoot -PathType Container) "iris-interface-dev should exist"
 Assert-True (Test-Path -LiteralPath $pluginRoot -PathType Container) "iris-interface-dev should exist"
 
 $manifestPath = Join-Path $pluginRoot ".agents-plugin/plugin.json"
@@ -98,13 +96,22 @@ $buildSkillContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $pluginRoo
 Assert-Contains $buildSkillContent "../../references/iris-interface-build-conventions.md" "build skill should route to plugin conventions"
 Assert-Contains $buildSkillContent "../../references/iris-query-view-template.md" "build skill should route to plugin query template"
 Assert-NotContains $buildSkillContent ".agents/rules/iris_query_view_template.md" "build skill must not depend on a project-local query template"
+$planSkillContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $pluginRoot "skills/iris-interface-dev-plan/SKILL.md")
+$initSkillContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $pluginRoot "skills/iris-interface-init/SKILL.md")
+$profileTemplateContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $pluginRoot "templates/iris_interface_profile.template.md")
+Assert-Contains $planSkillContent '先读取 `../iris-interface-build/SKILL.md`' "dev-plan must route implementation through iris-interface-build"
+Assert-Contains $planSkillContent '不得从 `iris-interface-dev-plan` 直接转交 `coding-iris-plugin`' "dev-plan must not bypass iris-interface-build"
+Assert-Contains $initSkillContent '`iris-interface-dev-plan` 转入 `iris-interface-build`' "init skill should preserve the required implementation route"
+Assert-Contains $profileTemplateContent "planSkill: iris-interface-dev-plan" "profile should declare the planning skill"
+Assert-Contains $profileTemplateContent "implementationSkill: iris-interface-build" "profile should declare the implementation skill"
+Assert-Contains $profileTemplateContent "codingPlugin: coding-iris-plugin" "profile should declare the coding rules and deployment provider"
+Assert-Contains $profileTemplateContent "deploymentSkill: iris-deploy" "profile should declare the deployment skill"
 Assert-True (Test-Path -LiteralPath (Join-Path $extractDocRoot "scripts/extract-doc-env-check.py") -PathType Leaf) "extract-doc env-check script should exist"
 $envCheckScript = Join-Path $extractDocRoot "scripts/extract-doc-env-check.py"
 $envCheckOutput = python -B $envCheckScript --file "sample.pdf" --json | Out-String
 Assert-Contains $envCheckOutput "pdfplumber" "env-check should report pdfplumber"
 Assert-Contains $envCheckOutput "installCommand" "env-check should report install command"
 $skillContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $pluginRoot "skills/iris-interface-doc-ingest/SKILL.md")
-Assert-Contains $skillContent "extract-doc-env-check.py" "doc-ingest skill should tell users to run extract-doc env check"
 Assert-NotContains $skillContent "``r``n" "doc-ingest skill should not contain escaped newline text"
 Assert-Contains $skillContent "extract-doc-env-check.py" "doc-ingest skill should mention extract-doc env-check script"
 Assert-Contains $skillContent "skills/extract-doc-ingest/SKILL.md" "doc-ingest adapter should route format handling to extract-doc"

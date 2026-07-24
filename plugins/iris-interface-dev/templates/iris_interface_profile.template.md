@@ -13,6 +13,9 @@
 
 ## Handoff
 
+- planSkill: iris-interface-dev-plan
+- implementationSkill: iris-interface-build
 - codingPlugin: coding-iris-plugin
-- codingSkill: iris-coding
+- codingRules: iris-coding, iris-backend-coding, iris-frontend-coding
+- deploymentSkill: iris-deploy
 

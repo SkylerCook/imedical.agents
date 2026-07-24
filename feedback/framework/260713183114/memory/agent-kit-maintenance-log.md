@@ -30,14 +30,14 @@
 - 2026-06-26：已收敛 `imedicalxc-doctor-extend-engineer` thin-index 策略：wrapper 默认排除 8 个子 skill，只暴露 `imedicalxc-doctor-extend-engineer` 主编排器入口；子 skill 由主编排器通过插件内相对路径按需读取，避免浅层 skill 路由噪声。
 - 2026-06-25：已新增信创版本医生站第三方接口开发智能体资料，后续重构为 `imedicalxc-doctor-extend-engineer` 插件标准目录。
 - 2026-06-24：已更新内置 Windows x64 `iris-agentic-dev.exe` 到 v0.6.17，业务项目仍通过 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe` 获取可执行文件，连接事实仍只允许留在目标工程本地配置。
-- 2026-06-24：已完成 `iris-interface-dev-plugin` v1.2 格式接入稳定化回归：XLS/XLSX 多 sheet、DOC 转 DOCX 降级路径、DOCX 入参/出参分段与字段契约、PDF 轻量抽查均已验证；新增长期路线图 `memory/plan/iris-interface-dev-plugin-roadmap.md`，替代旧 `iris-interface-v1-summary-v2-plan.md` 作为后续会话入口。真实样本和解析产物仍只保留在 `tmp/iris-interface-file/`，不入库。
-- 2026-06-24：已完成 `iris-interface-dev-plugin` v2.0 Task 0 字段匹配闭环：新增 `iris-interface-field-match.py`，从 `parsed.json` 生成 `field-match.json` 和 `field-match.md`；匹配来源区分 `builtin-rule`、`local-feedback`、`low-confidence-candidate` 和 `unmatched`，并限制控制台只输出路径与数量。`--feedback` 只读取目标项目本地 JSON，不写回插件仓库；插件专项测试已新增 synthetic fixture 覆盖四类匹配结果和控制台不泄漏字段明细。
-- 2026-06-24：已完成 `iris-interface-dev-plugin` v2.0 Task 0 接口文档解析经验回归提升：`feedback/experience/iris-interface-dev-com-exp.md` 新增 XLS/XLSX 多 sheet、DOCX 入参/出参、PDF 混合表、PDF 跨页续表、错误码/修订记录/JSON 示例过滤和 DOC 转 DOCX 优先级经验条目，并标记已提升到 `scripts/tests/iris-interface-plugin.tests.ps1`；解析器补强 JSON 示例行过滤 synthetic 回归。已通过插件专项测试、仓库更新回归和插件敏感词扫描；真实工程默认输出路径仍为 `docs/output/iris-interface/<doc-name>/`，本地 `tmp/iris-interface-file/` 仅作维护回归证据且不入库。
-- 2026-06-24：已完成 `iris-interface-dev-plugin` v2.0 Task 0 字段契约追溯模型：`parsed.json` 升级为 `iris-interface-doc-ingest/v2`，字段新增 `rawColumns`、`sourceLocation`、`classification`、`confidence`、`warnings`、`requiredReason` 和 `jsonPathReason`；`fields.md`/`diagnostics.md` 增加追溯摘要与统计。已通过插件专项测试、仓库更新回归和真实接口文档本地回归；真实摘要保留在 `tmp/iris-interface-file/test-results/iris-interface-v2-task0-real-doc-test-summary.md`，真实文档与解析产物不入库。
-- 2026-06-23：根据三份样本文档验证结果，补强 `iris-interface-dev-plugin` 解析前环境引导：新增 `iris-interface-env-check.py`，把缺依赖/缺转换器从“失败告知”改为可执行安装建议；`requirements-optional.txt` 新增 `xlrd`，`.xls` 安装 `xlrd` 后可直接解析，XLSX/XLS 多 sheet 按 sheet 拆成独立字段视图。
-- 2026-06-22：已完成 `iris-interface-dev-plugin` v1.1 PDF 解析质量补丁：收紧表头匹配，过滤修订记录和错误码表，支持 PDF 跨页续表继承上一字段表表头。真实样本 `综合药房 HIS 处方推送接口使用说明_5000.pdf` 重新解析后为 9 个视图、79 个字段，Page 17/18/19 续表缺失字段已补回。
-- 2026-06-22：已完成 `iris-interface-dev-plugin` v1 基线并入，来源工程审计基线为 `https://gitee.com/soneakeko/agent-architecture.git` commit `43e12b345c58ba11a48980828503daf29ae309ec`。插件采用解析审计优先边界，提供接口文档落盘解析、字段结构化、字段诊断、开发计划和离线审查入口；IRIS/ObjectScript 编码、上传、编译、部署和远端验证继续复用 `coding-iris-plugin`。
-- 2026-06-22：`iris-interface-dev-plugin` v1 明确不迁移来源大生成器和大体量规则库；`rules/` 仅放路由、流程、审查门禁和轻量规则，来源规则/wiki 资产先进入审计清单或 `references/` 候选。新增 `requirements-optional.txt` 只声明 `python-docx`、`pdfplumber`、`openpyxl`、`markitdown` 可选依赖，不 vendor、不自动安装。
+- 2026-06-24：已完成 `iris-interface-dev` v1.2 格式接入稳定化回归：XLS/XLSX 多 sheet、DOC 转 DOCX 降级路径、DOCX 入参/出参分段与字段契约、PDF 轻量抽查均已验证；新增长期路线图 `memory/plan/iris-interface-dev-roadmap.md`，替代旧 `iris-interface-v1-summary-v2-plan.md` 作为后续会话入口。真实样本和解析产物仍只保留在 `tmp/iris-interface-file/`，不入库。
+- 2026-06-24：已完成 `iris-interface-dev` v2.0 Task 0 字段匹配闭环：新增 `iris-interface-field-match.py`，从 `parsed.json` 生成 `field-match.json` 和 `field-match.md`；匹配来源区分 `builtin-rule`、`local-feedback`、`low-confidence-candidate` 和 `unmatched`，并限制控制台只输出路径与数量。`--feedback` 只读取目标项目本地 JSON，不写回插件仓库；插件专项测试已新增 synthetic fixture 覆盖四类匹配结果和控制台不泄漏字段明细。
+- 2026-06-24：已完成 `iris-interface-dev` v2.0 Task 0 接口文档解析经验回归提升：`feedback/experience/iris-interface-dev-com-exp.md` 新增 XLS/XLSX 多 sheet、DOCX 入参/出参、PDF 混合表、PDF 跨页续表、错误码/修订记录/JSON 示例过滤和 DOC 转 DOCX 优先级经验条目，并标记已提升到 `scripts/tests/iris-interface-plugin.tests.ps1`；解析器补强 JSON 示例行过滤 synthetic 回归。已通过插件专项测试、仓库更新回归和插件敏感词扫描；真实工程默认输出路径仍为 `docs/output/iris-interface/<doc-name>/`，本地 `tmp/iris-interface-file/` 仅作维护回归证据且不入库。
+- 2026-06-24：已完成 `iris-interface-dev` v2.0 Task 0 字段契约追溯模型：`parsed.json` 升级为 `iris-interface-doc-ingest/v2`，字段新增 `rawColumns`、`sourceLocation`、`classification`、`confidence`、`warnings`、`requiredReason` 和 `jsonPathReason`；`fields.md`/`diagnostics.md` 增加追溯摘要与统计。已通过插件专项测试、仓库更新回归和真实接口文档本地回归；真实摘要保留在 `tmp/iris-interface-file/test-results/iris-interface-v2-task0-real-doc-test-summary.md`，真实文档与解析产物不入库。
+- 2026-06-23：根据三份样本文档验证结果，补强 `iris-interface-dev` 解析前环境引导：新增 `iris-interface-env-check.py`，把缺依赖/缺转换器从“失败告知”改为可执行安装建议；`requirements-optional.txt` 新增 `xlrd`，`.xls` 安装 `xlrd` 后可直接解析，XLSX/XLS 多 sheet 按 sheet 拆成独立字段视图。
+- 2026-06-22：已完成 `iris-interface-dev` v1.1 PDF 解析质量补丁：收紧表头匹配，过滤修订记录和错误码表，支持 PDF 跨页续表继承上一字段表表头。真实样本 `综合药房 HIS 处方推送接口使用说明_5000.pdf` 重新解析后为 9 个视图、79 个字段，Page 17/18/19 续表缺失字段已补回。
+- 2026-06-22：已完成 `iris-interface-dev` v1 基线并入，来源工程审计基线为 `https://gitee.com/soneakeko/agent-architecture.git` commit `43e12b345c58ba11a48980828503daf29ae309ec`。插件采用解析审计优先边界，提供接口文档落盘解析、字段结构化、字段诊断、开发计划和离线审查入口；IRIS/ObjectScript 编码、上传、编译、部署和远端验证继续复用 `coding-iris-plugin`。
+- 2026-06-22：`iris-interface-dev` v1 明确不迁移来源大生成器和大体量规则库；`rules/` 仅放路由、流程、审查门禁和轻量规则，来源规则/wiki 资产先进入审计清单或 `references/` 候选。新增 `requirements-optional.txt` 只声明 `python-docx`、`pdfplumber`、`openpyxl`、`markitdown` 可选依赖，不 vendor、不自动安装。
 - 2026-06-17：已将 Windows x64 `iris-agentic-dev.exe` 内置到仓库根 `vendor/iris-agentic-dev/windows-x64/`，业务项目通过既有 `/vendor/**` sparse checkout 自动获得 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`。coding-iris 插件 README、AGENTS、初始化模板、`project-env.template.json`、MCP 规则和脚本说明已同步默认路径；连接事实仍只允许留在目标工程 `.mcp.json`、`.iris-agentic-dev.toml` 或环境变量。
 - 已新增 IRIS 远端部署编排入口 `plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md`，将部署、上传、编译、SFTP 同步、CSP 编译和部署验证统一路由到部署 skill，并继续以 `rules/iris_deploy_checklist.md` 作为逐项执行清单。
 - 已新增薄通用脚本 `plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js`，用于根据文件列表或 git diff 生成 IRIS 部署 JSON 清单；脚本只做本地分析，不执行上传、编译或远端写入。coding 插件 README、AGENTS、目标工程 snippet、manifest prompt 和 `iris_coding_workflow.md` 已同步更新。
@@ -109,7 +109,7 @@
 - `cd57f56`：新增 vendor skill 运行时同步脚本，并重构医生站扩展插件标准结构。
 - `045eecf`：新增信创版本医生站第三方接口开发智能体资料。
 - `16bc2d6`：更新内置 `iris-agentic-dev.exe` 到 v0.6.17。
-- `6dcccca`：完成 `iris-interface-dev-plugin` 字段匹配闭环文档归档与测试补强。
+- `6dcccca`：完成 `iris-interface-dev` 字段匹配闭环文档归档与测试补强。
 - `4731854`：新增 agent skill thin-index 生成脚本，并集成到 `update-agents.ps1` 流水线。
 - `3cc5616`：新增首个部署经验文档和专项部署工具目录。
 - `8e4cfca`：新增 `demo/presentation/` 演示展示页面。
@@ -141,8 +141,8 @@
 - `scripts/tests/iris-interface-plugin.tests.ps1` 与 `scripts/tests/update-agents.tests.ps1` 已验证：`iris-interface-doc-ingest.py` 支持 PDF 表内请求/响应分段、嵌入表头、空首列参数名识别、签名字段 `signature.*` 归属和 JSON 示例行过滤；真实 `移动APP接口对接文档（光华口腔）v1.1.3.pdf` 回归为 `ViewCount=16`、`TotalFields=81`、`JsonPathCount=80`、`request=18`、`response=55`、`signature=4`，Page 7-14 可按 `n_type` 标识区分请求/返回视图。
 - `scripts/tests/iris-interface-plugin.tests.ps1` 已验证：环境自检脚本、可选依赖清单 `xlrd`、XLSX 多 sheet 解析、字段续表/JSON 路径回归和点号循环审查门禁正常。
 - `scripts/tests/iris-interface-plugin.tests.ps1` 已验证：v1.1 解析器回归覆盖修订记录过滤、错误码表过滤和续表继承字段表头；真实 PDF 样本手动验证 Page 17/18/19 缺失字段已补回。
-- `scripts/tests/iris-interface-plugin.tests.ps1` 已验证：`iris-interface-dev-plugin` manifest、skill/rule 入口、可选依赖清单、thin-index dry-run、XLSX 标准库解析落盘、`references/` 排除和点号循环审查门禁正常。
-- `scripts/tests/update-agents.tests.ps1` 已验证：新增 `iris-interface-dev-plugin` 未破坏现有安装/更新、thin-index、插件状态和 agent thin-index 流程。
+- `scripts/tests/iris-interface-plugin.tests.ps1` 已验证：`iris-interface-dev` manifest、skill/rule 入口、可选依赖清单、thin-index dry-run、XLSX 标准库解析落盘、`references/` 排除和点号循环审查门禁正常。
+- `scripts/tests/update-agents.tests.ps1` 已验证：新增 `iris-interface-dev` 未破坏现有安装/更新、thin-index、插件状态和 agent thin-index 流程。
 - `scripts/tests/iris-deploy-manifest.tests.ps1` 已验证：`prepare-deploy-manifest.js` 可从目标项目 `project-env.json` 读取 namespace/web 路径，按 `.cls`、`.csp`、`.js` 生成稳定 JSON 清单，并兼容 PowerShell UTF-8 BOM 配置文件。
 - `scripts/generate-plugin-thin-index.ps1 -PluginPath plugins/coding-iris-plugin -ProjectRoot . -Mode DryRun` 已验证：新增 `iris-deploy` skill 可生成 `.agents/skills/iris-deploy/SKILL.md` thin-index 计划。
 - `scripts/tests/update-agents.tests.ps1` 已验证：新增部署 skill 和脚本说明未破坏现有更新、thin-index、插件状态和 agent thin-index 流程。

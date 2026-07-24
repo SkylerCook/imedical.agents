@@ -25,7 +25,7 @@ description: 当需要为目标项目初始化 IRIS 接口开发工作区、输�
 
 - 不写入服务器地址、账号、密码、namespace、远程路径、包映射或部署事实。
 - 未启用 `coding-iris-plugin` 时，只允许读取 `extract-doc` 产物并执行字段诊断，不进入 ObjectScript 编码实现。
-- 接口插件只补接口开发配置，不接管 IRIS 编码、上传、编译、部署边界。
+- 本地接口实现必须从 `iris-interface-dev-plan` 转入 `iris-interface-build`；后者加载 `coding-iris-plugin` 编码规则，但不接管其编译、上传、部署和远端验证能力。
 
 ## 输出
 
