@@ -57,3 +57,5 @@ CodeGraph coverage is not complete IRIS coverage. ObjectScript, CSP server code,
 ## Deployed Projects
 
 Existing projects get this plugin by updating `.agents`. The directory being present means `available` only. To expose the shallow rule and skill entries, enable the plugin in `.agents/config/plugin_profile.md` and rebuild the plugin thin-index.
+
+`codegraph-query` depends on `iris-codegraph` for IRIS/ObjectScript graph coverage. If `iris-codegraph` is not enabled, keep this plugin available only.

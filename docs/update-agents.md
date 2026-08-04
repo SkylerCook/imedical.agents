@@ -417,7 +417,7 @@ source: .agents/plugins/<plugin>/skills/<skill>/SKILL.md
 .agents/plugins/iris-external-reg/skills/iris-external-reg/SKILL.md
 ```
 
-按 manifest `dependencies` 顺序初始化依赖：`iris-codegraph` 和 `i18n-iris-plugin` 依赖 `coding-iris-plugin`；`iris-interface-dev` 和 `iris-external-reg` 依赖 `extract-doc`、`coding-iris-plugin`。依赖未启用时，目标插件初始化必须停止；不能只因插件目录存在就继续。
+按 manifest `dependencies` 顺序初始化依赖：`codegraph-query` 依赖 `iris-codegraph`，`iris-codegraph` 和 `i18n-iris-plugin` 依赖 `coding-iris-plugin`；`iris-interface-dev` 和 `iris-external-reg` 依赖 `extract-doc`、`coding-iris-plugin`。依赖未启用时，目标插件初始化必须停止；不能只因插件目录存在就继续。
 
 插件 init skill 验收通过后，用统一脚本反写状态：
 

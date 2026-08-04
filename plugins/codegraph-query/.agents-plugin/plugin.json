@@ -8,6 +8,9 @@
   "skills": "skills/",
   "scripts": "scripts/",
   "initSkill": "codegraph-query",
+  "dependencies": [
+    "iris-codegraph"
+  ],
   "requiresProjectFiles": [
     "AGENTS.md",
     ".codegraph/codegraph.db"

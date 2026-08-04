@@ -368,6 +368,7 @@ $externalRegManifest = Get-Content -Raw -Encoding UTF8 -Path $externalRegManifes
 Assert-True ($extractDocManifest.name -eq "extract-doc") "extract-doc manifest should parse with the expected name"
 Assert-True ($codegraphQueryManifest.name -eq "codegraph-query") "codegraph-query manifest should parse with the expected name"
 Assert-True ($codegraphQueryManifest.initSkill -eq "codegraph-query") "codegraph-query should expose its query skill as init entry"
+Assert-True (($codegraphQueryManifest.dependencies -contains "iris-codegraph")) "codegraph-query should declare iris-codegraph as a dependency"
 Assert-True ($irisCodegraphManifest.name -eq "iris-codegraph") "iris-codegraph manifest should parse with the expected name"
 Assert-True (($irisCodegraphManifest.dependencies -contains "coding-iris-plugin")) "iris-codegraph should declare coding-iris-plugin as a dependency"
 Assert-True ($interfaceDevManifest.name -eq "iris-interface-dev") "interface plugin manifest should use the current canonical name"

@@ -11,7 +11,7 @@ Use it for frontend and script-side code location, direct caller/callee checks, 
 - This plugin does not build or modify the CodeGraph index. Use `codegraph status --json .` and `codegraph sync .` from the project root when the index is stale.
 - `.codegraph/` is local runtime data and must not be committed.
 - The query script is read-only. It reads `CG_DB` or defaults to `.codegraph/codegraph.db`.
-- The current CodeGraph index may not cover ObjectScript, CSP server code, macros, Globals, dynamic calls, or remote IRIS behavior. Use `iris-codegraph`, IRIS coding rules, MCP tools, `rg`, and source inspection for those paths.
+- `iris-codegraph` is a required dependency for IRIS/ObjectScript graph coverage. Use it, IRIS coding rules, MCP tools, `rg`, and source inspection for ObjectScript, CSP server code, macros, Globals, dynamic calls, and remote IRIS behavior.
 
 ## Entries
 
