@@ -253,6 +253,8 @@ $hisuiWidgetIndexPath = Join-Path $repoRoot "plugins/coding-iris-plugin/referenc
 $feedbackTemplatePath = Join-Path $repoRoot "feedback/framework/_template.md"
 $feedbackProtocolPath = Join-Path $repoRoot "agents/_shared/feedback-protocol.md"
 $extractDocManifestPath = Join-Path $repoRoot "plugins/extract-doc/.agents-plugin/plugin.json"
+$codegraphQueryManifestPath = Join-Path $repoRoot "plugins/codegraph-query/.agents-plugin/plugin.json"
+$irisCodegraphManifestPath = Join-Path $repoRoot "plugins/iris-codegraph/.agents-plugin/plugin.json"
 $interfaceDevManifestPath = Join-Path $repoRoot "plugins/iris-interface-dev/.agents-plugin/plugin.json"
 $externalRegManifestPath = Join-Path $repoRoot "plugins/iris-external-reg/.agents-plugin/plugin.json"
 Assert-True (Test-Path -LiteralPath $runbookPath -PathType Leaf) "docs/update-agents.md should exist"
@@ -315,6 +317,8 @@ Assert-Contains $readmeContent 'Git `2.25.0`' "README should document Git 2.25.0
 Assert-Contains $readmeContent "git sparse-checkout" "README should explain sparse-checkout dependency before first install"
 Assert-Contains $readmeContent "references/hisui-style-index.md" "README should route HISUI styles separately from widget APIs"
 Assert-Contains $readmeContent "### extract-doc" "README should list the extract-doc plugin"
+Assert-Contains $readmeContent "### codegraph-query" "README should list the codegraph-query plugin"
+Assert-Contains $readmeContent "### iris-codegraph" "README should list the iris-codegraph plugin"
 Assert-Contains $readmeContent "### iris-interface-dev" "README should list the current interface plugin name"
 Assert-Contains $readmeContent "### iris-external-reg" "README should list the iris-external-reg plugin"
 $runbookContent = Get-Content -Raw -Encoding UTF8 -Path $runbookPath
@@ -327,6 +331,8 @@ Assert-Contains $runbookContent "git clone" "runbook should support manual clone
 Assert-Contains $runbookContent "/project-context-maintenance" "runbook should guide users to maintain project context after install"
 Assert-Contains $runbookContent "dependencies" "runbook should explain dependency plugin initialization order"
 Assert-Contains $runbookContent ".agents/plugins/extract-doc/skills/extract-doc-ingest/SKILL.md" "runbook should point to the extract-doc init entry"
+Assert-Contains $runbookContent ".agents/plugins/codegraph-query/skills/codegraph-query/SKILL.md" "runbook should point to the codegraph-query init entry"
+Assert-Contains $runbookContent ".agents/plugins/iris-codegraph/skills/iris-codegraph/SKILL.md" "runbook should point to the iris-codegraph init entry"
 Assert-Contains $runbookContent ".agents/plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md" "runbook should point to the current interface plugin init entry"
 Assert-Contains $runbookContent "plugin-profile-name-migration-planned" "runbook should document plugin canonical-name migration"
 Assert-Contains $runbookContent ".agents/plugins/iris-external-reg/skills/iris-external-reg/SKILL.md" "runbook should point to the iris-external-reg init entry"
@@ -355,9 +361,15 @@ $feedbackProtocolContent = Get-Content -Raw -Encoding UTF8 -Path $feedbackProtoc
 Assert-Contains $feedbackTemplateContent "<!-- discovery-process -->" "feedback template should require the discovery process"
 Assert-Contains $feedbackProtocolContent "<!-- discovery-process -->" "feedback protocol example should match the feedback skill contract"
 $extractDocManifest = Get-Content -Raw -Encoding UTF8 -Path $extractDocManifestPath | ConvertFrom-Json
+$codegraphQueryManifest = Get-Content -Raw -Encoding UTF8 -Path $codegraphQueryManifestPath | ConvertFrom-Json
+$irisCodegraphManifest = Get-Content -Raw -Encoding UTF8 -Path $irisCodegraphManifestPath | ConvertFrom-Json
 $interfaceDevManifest = Get-Content -Raw -Encoding UTF8 -Path $interfaceDevManifestPath | ConvertFrom-Json
 $externalRegManifest = Get-Content -Raw -Encoding UTF8 -Path $externalRegManifestPath | ConvertFrom-Json
 Assert-True ($extractDocManifest.name -eq "extract-doc") "extract-doc manifest should parse with the expected name"
+Assert-True ($codegraphQueryManifest.name -eq "codegraph-query") "codegraph-query manifest should parse with the expected name"
+Assert-True ($codegraphQueryManifest.initSkill -eq "codegraph-query") "codegraph-query should expose its query skill as init entry"
+Assert-True ($irisCodegraphManifest.name -eq "iris-codegraph") "iris-codegraph manifest should parse with the expected name"
+Assert-True (($irisCodegraphManifest.dependencies -contains "coding-iris-plugin")) "iris-codegraph should declare coding-iris-plugin as a dependency"
 Assert-True ($interfaceDevManifest.name -eq "iris-interface-dev") "interface plugin manifest should use the current canonical name"
 Assert-True (@($interfaceDevManifest.configMigrations | Where-Object { $_.id -eq "interface-output-root-v1" }).Count -eq 1) "interface plugin should declare the output-root migration"
 Assert-True (($externalRegManifest.dependencies -contains "extract-doc")) "iris-external-reg should declare extract-doc as a dependency"

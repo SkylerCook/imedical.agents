@@ -61,8 +61,7 @@ iwr -UseBasicParsing https://gitee.com/skyler-cook/imedical.agents/raw/master/sc
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun
 ```
 
-首次安装默认只处理 `agent-context-kit`。`coding-iris-plugin`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-external-reg` 等插件代码会随 `.agents/plugins/` 拉取，但状态为 `available` 时不会合并配置或生成 thin-index。
-首次安装默认只处理 `agent-context-kit`。`coding-iris-plugin`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-external-reg` 等插件代码会随 `.agents/plugins/` 拉取，但状态为 `available` 时不会合并配置或生成 thin-index。
+首次安装默认只处理 `agent-context-kit`。`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-external-reg` 等插件代码会随 `.agents/plugins/` 拉取，但状态为 `available` 时不会合并配置或生成 thin-index。
 
 如果摘要没有停止条件，继续执行：
 
@@ -92,6 +91,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - 插件初始化闭环验收通过后，使用 `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin <plugin-name> -Status enabled` 机械维护状态。
 
 脚本不会自动把依赖插件标记为 `enabled`。`enabled` 表示该插件已经完成项目上下文、配置、thin-index、脚本和入口路由的初始化闭环，不只是插件目录已存在。
+
+常见插件初始化入口：
+
+```text
+.agents/plugins/codegraph-query/skills/codegraph-query/SKILL.md
+.agents/plugins/iris-codegraph/skills/iris-codegraph/SKILL.md
+.agents/plugins/extract-doc/skills/extract-doc-ingest/SKILL.md
+.agents/plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md
+.agents/plugins/iris-external-reg/skills/iris-external-reg/SKILL.md
+```
 
 ## 手工 clone 后收敛
 
@@ -400,14 +409,15 @@ source: .agents/plugins/<plugin>/skills/<skill>/SKILL.md
 
 ```text
 .agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md
+.agents/plugins/codegraph-query/skills/codegraph-query/SKILL.md
+.agents/plugins/iris-codegraph/skills/iris-codegraph/SKILL.md
 .agents/plugins/extract-doc/skills/extract-doc-ingest/SKILL.md
 .agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md
-.agents/plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md
 .agents/plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md
 .agents/plugins/iris-external-reg/skills/iris-external-reg/SKILL.md
 ```
 
-按 manifest `dependencies` 顺序初始化依赖：`i18n-iris-plugin` 依赖 `coding-iris-plugin`；`iris-interface-dev` 和 `iris-external-reg` 依赖 `extract-doc`、`coding-iris-plugin`。依赖未启用时，目标插件初始化必须停止；不能只因插件目录存在就继续。
+按 manifest `dependencies` 顺序初始化依赖：`iris-codegraph` 和 `i18n-iris-plugin` 依赖 `coding-iris-plugin`；`iris-interface-dev` 和 `iris-external-reg` 依赖 `extract-doc`、`coding-iris-plugin`。依赖未启用时，目标插件初始化必须停止；不能只因插件目录存在就继续。
 
 插件 init skill 验收通过后，用统一脚本反写状态：
 

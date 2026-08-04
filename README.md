@@ -72,7 +72,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install-agents.ps1
 
 脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/`，并拉取 `plugins/`、`agents/`、`workflows/` 等能力包内容，让用户和 Agent 能看到可用能力。
 
-插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认只把 `agent-context-kit` 作为基础上下文能力处理；`coding-iris-plugin`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-external-reg`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
+插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认只把 `agent-context-kit` 作为基础上下文能力处理；`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-external-reg`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
 
 ### 更新已部署 `.agents`
 
@@ -247,6 +247,31 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 - `extract-doc-ingest`
 
+### codegraph-query
+
+负责查询本地 CodeGraph SQLite 索引：
+
+- 读取 `.codegraph/codegraph.db`，用于 indexed 前端/脚本侧符号定位、调用方/被调用方、route 和 1-hop impact 查询。
+- 不构建或修改 `.codegraph` 索引；索引健康与同步仍使用 CodeGraph CLI。
+- 查询结果只作为候选证据，最终结论必须回到源码、配置和测试核实。
+
+常用 skill：
+
+- `codegraph-query`
+
+### iris-codegraph
+
+负责 IRIS/ObjectScript 后端代码图谱构建与查询：
+
+- 依赖 `coding-iris-plugin` 的批量导出能力和目标工程 `.mcp.json` 连接事实。
+- 从 `.iris-codegraph-cache/` 与 `%Dictionary.*Definition` 构建 `.iris-codegraph/iris-codegraph.db`。
+- 查询 class、method、callers、callees 和 impact；当前仅覆盖类/方法/属性/参数、继承和静态 `##class()` 调用。
+- 图谱结果不替代 IRIS 源码核实、MCP 事实、编译或运行时验证。
+
+常用 skill：
+
+- `iris-codegraph`
+
 ### iris-interface-dev
 
 负责 IRIS 接口开发的解析审计优先能力：
@@ -350,7 +375,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
    - `.agents/memory/project-memory.md`
 6. 先 dry-run，再 write 生成 `agent-context-kit` thin-index。
 7. 查看 `.agents/config/plugin_profile.md`；未启用插件保持 `available`，不要自动生成它们的 thin-index。
-8. 按依赖顺序初始化需要的领域插件，例如先启用 `coding-iris-plugin`、`extract-doc`，再启用依赖它们的 `i18n-iris-plugin`、`iris-interface-dev`、`iris-external-reg`；其它可选插件包括 `imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`。
+8. 按依赖顺序初始化需要的领域插件，例如先启用 `coding-iris-plugin`、`extract-doc`，再启用依赖它们的 `iris-codegraph`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-external-reg`；其它可选插件包括 `codegraph-query`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`。
 9. 如需启用提交前差异降噪 hook，由用户在业务项目根目录显式运行 `.agents/scripts/install-git-hooks.ps1 -ProjectRoot .`；安装/更新 `.agents` 只分发 hook 模板和脚本，不自动修改 `core.hooksPath`。
 10. 按需要读取 `agents/agent-registry.md` 和 `workflows/workflow-registry.md` 使用顶层智能体。
 

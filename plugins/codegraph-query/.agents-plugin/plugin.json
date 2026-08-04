@@ -1,0 +1,21 @@
+{
+  "name": "codegraph-query",
+  "version": "0.1.0",
+  "displayName": "CodeGraph Query Plugin",
+  "description": "Read-only query workflow for CodeGraph SQLite indexes under .codegraph/codegraph.db, used for code location, caller/callee checks, route lookup, and first-pass impact analysis.",
+  "entry": "AGENTS.md",
+  "rules": "rules/",
+  "skills": "skills/",
+  "scripts": "scripts/",
+  "initSkill": "codegraph-query",
+  "requiresProjectFiles": [
+    "AGENTS.md",
+    ".codegraph/codegraph.db"
+  ],
+  "defaultPrompt": [
+    "Query CodeGraph to locate a frontend function",
+    "Analyze the impact of changing an indexed frontend file",
+    "Find the indexed route or entry related to an API path",
+    "Show callers and callees for an indexed function"
+  ]
+}

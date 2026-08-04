@@ -1,0 +1,25 @@
+{
+  "name": "iris-codegraph",
+  "version": "0.1.0",
+  "displayName": "IRIS CodeGraph Plugin",
+  "description": "Build and query a local SQLite graph for IRIS/ObjectScript classes, methods, properties, parameters, inheritance, and static ##class calls.",
+  "entry": "AGENTS.md",
+  "rules": "rules/",
+  "skills": "skills/",
+  "scripts": "scripts/",
+  "references": "schema.md",
+  "initSkill": "iris-codegraph",
+  "dependencies": [
+    "coding-iris-plugin"
+  ],
+  "requiresProjectFiles": [
+    "AGENTS.md",
+    ".mcp.json"
+  ],
+  "defaultPrompt": [
+    "Build an IRIS ObjectScript graph from exported class cache",
+    "Query IRISGraph for a class or method",
+    "Find ObjectScript callers and callees in the IRIS graph",
+    "Estimate impact for changing an ObjectScript class"
+  ]
+}

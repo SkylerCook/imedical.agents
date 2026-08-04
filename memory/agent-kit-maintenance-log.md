@@ -151,6 +151,8 @@
 
 ## 最近验证
 
+- 2026-08-04：迁入 `codegraph-query` 和 `iris-codegraph` 插件；补齐 manifest、AGENTS、README、usage rule、skill 和 thin-index wrapper，并同步仓库 README、runbook、维护记忆和 update-agents 测试。已验证 `.codegraph` 状态 complete，`cg-query.js help`、`icg-query.js help`、`node --check` 均通过；`iris-codegraph` 构建因当前项目缺少 `.mcp.json` 未执行。
+
 - 2026-07-18：`scripts/tests/update-agents.tests.ps1` 与 `scripts/tests/iris-interface-plugin.tests.ps1` 已通过；后者统一使用 `python -B`，不再在 owner 脚本目录遗留 `__pycache__`。`coding-iris-plugin`、`extract-doc`、`iris-external-reg` thin-index DryRun 均成功，反馈 `260718022936` 的 8 个 owner 副本与 canonical 逐文件一致，`git diff --check` 通过。
 - 2026-07-13：`plugins/agent-context-kit/scripts/tests/validate-agent-run.Tests.ps1` 已覆盖合法串行/多智能体运行、未授权多智能体、缺失报告、同签名重试超限、未授权远程写入、阶段依赖、并行效率和敏感内容门禁；`docs/validation/i18n-agent-p1/retrospective-6096150` 已通过校验。
 - 2026-07-13：`plugins/i18n-iris-plugin/scripts/tests/sync-xml-print-template.Tests.ps1` 已覆盖内联保存、临时 `Execute+...<SYNTAX>` 识别、分块 fallback 和成功/失败清理。

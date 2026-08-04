@@ -14,6 +14,7 @@
 - `agents/` 是厂商无关的智能体 canonical 注册层；`workflows/` 是厂商无关的多智能体/阶段化编排层。工具专属入口只能作为 adapter 生成物。
 - `plugins/agent-context-kit/` 负责项目上下文维护，包括 AGENTS 入口、项目规则、项目记忆、项目配置和 thin-index。
 - `plugins/coding-iris-plugin/` 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力，并提供 `iris-mcp-lookup` 知识查询 skill；7 个上游官方实用 skill 以 optional vendor 快照提供。
+- `plugins/codegraph-query/` 负责查询本地 `.codegraph/codegraph.db`，用于 indexed 前端/脚本侧符号定位、调用链和影响分析；`plugins/iris-codegraph/` 负责 IRIS/ObjectScript 图谱构建与查询，依赖 `coding-iris-plugin` 和目标工程 `.mcp.json`。
 - coding-iris 前端编码使用 `standard-gb2312` / `project-utf8` 双模式；路径与仓库角色只提出候选，实际文件字节检测是最终门禁，已部署项目通过插件迁移钩子更新本地 profile。HISUI 控件/API 与主题样式/视觉资源分别由 `hisui-widget-index.md`、`hisui-style-index.md` 按需路由。
 - `plugins/extract-doc/` 负责 PDF、DOC、DOCX、XLS、XLSX 的本地解析和结构化落盘，是接口类业务插件的通用文档依赖。
 - `plugins/i18n-iris-plugin/` 负责 IRIS/ObjectScript/CSP/HISUI 国际化能力。
@@ -55,6 +56,7 @@
 - 已新增部署经验沉淀入口 `feedback/experience/deploy-com-exp.md` 和首个专项部署工具目录 `docs/deploy/dental-ta-159/`；这类内容可随 `docs/` 部署，但不得把业务私有连接信息写入记忆或规则。
 - 已新增提交前差异降噪 Git hook 分发能力：`.agents/hooks/pre-commit`、`.agents/scripts/check-functional-diff.ps1` 和 `.agents/scripts/install-git-hooks.ps1` 随 `.agents` 更新可用，但 `install-agents.ps1` / `update-agents.ps1` 不自动修改业务项目 `core.hooksPath`，只报告 hook 可用或启用状态。
 - 已新增 IRIS 部署编排入口 `plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md` 和薄清单脚本 `plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js`；默认只生成部署清单和编排验证，远端写入仍需用户明确确认。
+- 已新增 `codegraph-query` 和 `iris-codegraph` 插件，分别覆盖本地 CodeGraph SQLite 只读查询，以及 IRIS/ObjectScript 图谱构建与查询；两者均使用标准 manifest、rule、skill 和 thin-index wrapper。
 - 已新增根 `AGENTS.md`，作为本仓库 AI Coding 维护入口；它不部署到业务项目 `.agents/`。
 - 维护记忆已拆分为入口摘要、长期决策、维护日志和治理队列四类文件。
 - 已新增统一更新脚本 `scripts/update-agents.ps1` 和托管更新 runbook `docs/update-agents.md`。
