@@ -525,10 +525,29 @@ try {
   Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "config/sample_profile.md") -PathType Leaf) "Overlay config should be written to ContextRoot"
   Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "skills/sample-skill/SKILL.md") -PathType Leaf) "Overlay plugin thin-index should be written to ContextRoot"
   Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "skills/i18n-agent/SKILL.md") -PathType Leaf) "Overlay agent thin-index should be written to ContextRoot"
+  $overlayPluginThinIndex = [System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "skills/sample-skill/SKILL.md"), [System.Text.Encoding]::UTF8)
+  Assert-Contains $overlayPluginThinIndex "source: .agents/plugins/sample-plugin/skills/sample-skill/SKILL.md" "Overlay plugin thin-index should keep a logical capability source"
+  Assert-True (-not $overlayPluginThinIndex.Contains($overlayProject.CapabilityRoot)) "Overlay plugin thin-index must not embed an absolute CapabilityRoot"
+  $overlayVendorThinIndex = [System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "skills/vendor-test-skill/SKILL.md"), [System.Text.Encoding]::UTF8)
+  Assert-Contains $overlayVendorThinIndex "source: .agents/vendor/test-vendor/skills/vendor-test-skill/SKILL.md" "Overlay vendor thin-index should keep a logical capability source"
+  Assert-True (-not $overlayVendorThinIndex.Contains($overlayProject.CapabilityRoot)) "Overlay vendor thin-index must not embed an absolute CapabilityRoot"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot ".git"))) "Overlay update must not create ContextRoot .git"
   Assert-True ([System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "rules/project.md"), [System.Text.Encoding]::UTF8) -eq $ruleBefore) "Overlay update must preserve project rule"
   Assert-True ([System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "memory/project-memory.md"), [System.Text.Encoding]::UTF8) -eq $memoryBefore) "Overlay update must preserve project memory"
   Assert-True ((git -C $overlayProject.CapabilityRoot status --short | Out-String) -eq $capabilityStatusBefore) "Overlay update must not change capability Git status"
+
+  & (Join-Path $overlayProject.CapabilityRoot "scripts/update-plugin-profile.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Plugin sample-plugin -Status disabled | Out-Null
+  $disabledOverlayOutput = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode DryRun -NoPull -Detailed -Plugin sample-plugin | Out-String
+  Assert-Contains $disabledOverlayOutput "plugin-explicit-selection-disabled" "Explicit selection must not silently enable a disabled plugin"
+  & (Join-Path $overlayProject.CapabilityRoot "scripts/update-plugin-profile.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Plugin sample-plugin -Status enabled | Out-Null
+
+  & (Join-Path $overlayProject.CapabilityRoot "scripts/generate-plugin-thin-index.ps1") -PluginPath (Join-Path $overlayProject.CapabilityRoot "plugins/sample-plugin") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Mode DryRun | Out-Null
+  & (Join-Path $overlayProject.CapabilityRoot "scripts/generate-agent-thin-index.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Mode DryRun | Out-Null
+  & (Join-Path $overlayProject.CapabilityRoot "scripts/generate-vendor-thin-index.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Skill vendor-test-skill -Mode DryRun | Out-Null
+  $explicitDependencyOutput = & (Join-Path $overlayProject.CapabilityRoot "scripts/resolve-plugin-skill-dependencies.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Plugin sample-plugin -OutputFormat Json | Out-String
+  Assert-Contains $explicitDependencyOutput "test.vendor.required" "Explicit roots should resolve dependencies from CapabilityRoot"
+  & (Join-Path $overlayProject.CapabilityRoot "scripts/sync-claudecode-skills.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Mode DryRun | Out-Null
+  & (Join-Path $overlayProject.CapabilityRoot "scripts/sync-vendor-skills.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Skill vendor-test-skill -Runtime ClaudeCode -Mode DryRun | Out-Null
 
   $overlayNoPullOutput = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode DryRun -NoPull -Detailed | Out-String
   Assert-Contains $overlayNoPullOutput "capability-pull-skipped-overlay" "Overlay NoPull should remain explicitly idempotent"

@@ -1,6 +1,8 @@
 param(
     [string]$PluginPath = ".agents/plugins/agent-context-kit",
     [string]$ProjectRoot = ".",
+    [string]$ContextRoot = "",
+    [string]$CapabilityRoot = "",
     [ValidateSet("DryRun", "Write")]
     [string]$Mode = "DryRun",
     [string[]]$ExcludeSkill = @(),
@@ -43,6 +45,12 @@ function Get-RelativePathPortable {
     $toUri = New-Object System.Uri($toFull)
     $relativeUri = $fromUri.MakeRelativeUri($toUri).ToString()
     return [System.Uri]::UnescapeDataString($relativeUri) -replace "\\", "/"
+}
+
+function Get-CapabilityLogicalPath {
+    param([string]$Path)
+    $relative = Get-RelativePathPortable -From $capabilityRootFull -To $Path
+    return ".agents/" + $relative.TrimStart("/")
 }
 
 function Write-Result {
@@ -175,7 +183,21 @@ function Get-ThinIndexSourcePath {
 }
 
 $projectRootFull = Resolve-FullPath $ProjectRoot
-$pluginRootFull = Resolve-FullPathFromBase -BasePath $projectRootFull -Path $PluginPath
+if ([string]::IsNullOrWhiteSpace($ContextRoot) -or [string]::IsNullOrWhiteSpace($CapabilityRoot)) {
+    Import-Module (Join-Path $PSScriptRoot "lib/WorkspaceContext.psm1") -Force
+    $workspaceContext = Resolve-AgentWorkspaceContext -ProjectRoot $projectRootFull
+    if ([string]::IsNullOrWhiteSpace($ContextRoot)) { $ContextRoot = $workspaceContext.contextRoot }
+    if ([string]::IsNullOrWhiteSpace($CapabilityRoot)) { $CapabilityRoot = $workspaceContext.capabilityRoot }
+}
+$contextRootFull = Resolve-FullPathFromBase -BasePath $projectRootFull -Path $ContextRoot
+$capabilityRootFull = Resolve-FullPathFromBase -BasePath $projectRootFull -Path $CapabilityRoot
+$pluginRootFull = if ([System.IO.Path]::IsPathRooted($PluginPath)) { Resolve-FullPath $PluginPath } else {
+    $logicalPrefix = ".agents/"
+    $pluginPathNormalized = $PluginPath.Replace('\', '/')
+    if ($pluginPathNormalized.StartsWith($logicalPrefix)) {
+        Resolve-FullPathFromBase -BasePath $capabilityRootFull -Path ($pluginPathNormalized.Substring($logicalPrefix.Length))
+    } else { Resolve-FullPathFromBase -BasePath $capabilityRootFull -Path $PluginPath }
+}
 
 if (-not (Test-Path -LiteralPath $pluginRootFull -PathType Container)) {
     Write-Result -Status "missing" -Target "" -Source $pluginRootFull -Reason "PluginPath does not exist"
@@ -184,9 +206,9 @@ if (-not (Test-Path -LiteralPath $pluginRootFull -PathType Container)) {
 
 $rulesSource = Join-Path $pluginRootFull "rules"
 $skillsSource = Join-Path $pluginRootFull "skills"
-$rulesTarget = Join-Path $projectRootFull ".agents/rules"
-$skillsTarget = Join-Path $projectRootFull ".agents/skills"
-$pluginsRoot = Join-Path $projectRootFull ".agents/plugins"
+$rulesTarget = Join-Path $contextRootFull "rules"
+$skillsTarget = Join-Path $contextRootFull "skills"
+$pluginsRoot = Join-Path $capabilityRootFull "plugins"
 
 $results = New-Object System.Collections.Generic.List[object]
 
@@ -240,7 +262,7 @@ if ((Test-Path -LiteralPath $skillsTarget -PathType Container) -and (Test-Path -
 if (Test-Path -LiteralPath $rulesSource -PathType Container) {
     Get-ChildItem -LiteralPath $rulesSource -File -Filter "*.md" | Sort-Object Name | ForEach-Object {
         if ($ExcludeRule -contains $_.Name -or $ExcludeRule -contains $_.BaseName) {
-            $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $_.FullName
+            $sourceRel = Get-CapabilityLogicalPath -Path $_.FullName
             $targetRel = Get-RelativePathPortable -From $projectRootFull -To (Join-Path $rulesTarget $_.Name)
             $results.Add((Write-Result -Status "skipped" -Target $targetRel -Source $sourceRel -Reason "excluded by parameter"))
             return
@@ -248,7 +270,7 @@ if (Test-Path -LiteralPath $rulesSource -PathType Container) {
 
         $sourceFile = $_.FullName
         $targetFile = Join-Path $rulesTarget $_.Name
-        $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourceFile
+        $sourceRel = Get-CapabilityLogicalPath -Path $sourceFile
         $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
         if (Test-Path -LiteralPath $targetFile -PathType Container) {
             $results.Add((Write-Result -Status "conflict" -Target $targetRel -Source $sourceRel -Reason "target path is a directory"))
@@ -309,19 +331,19 @@ if (Test-Path -LiteralPath $skillsSource -PathType Container) {
         $skillName = $_.Name
         $sourceFile = Join-Path $_.FullName "SKILL.md"
         if ($ExcludeSkill -contains $skillName) {
-            $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourceFile
+            $sourceRel = Get-CapabilityLogicalPath -Path $sourceFile
             $targetRel = Get-RelativePathPortable -From $projectRootFull -To (Join-Path (Join-Path $skillsTarget $skillName) "SKILL.md")
             $results.Add((Write-Result -Status "skipped" -Target $targetRel -Source $sourceRel -Reason "excluded by parameter"))
             return
         }
 
         if (-not (Test-Path -LiteralPath $sourceFile -PathType Leaf)) {
-            $results.Add((Write-Result -Status "missing" -Target "" -Source (Get-RelativePathPortable -From $projectRootFull -To $sourceFile) -Reason "skill directory has no SKILL.md"))
+            $results.Add((Write-Result -Status "missing" -Target "" -Source (Get-CapabilityLogicalPath -Path $sourceFile) -Reason "skill directory has no SKILL.md"))
             return
         }
 
         $targetFile = Join-Path (Join-Path $skillsTarget $skillName) "SKILL.md"
-        $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourceFile
+        $sourceRel = Get-CapabilityLogicalPath -Path $sourceFile
         $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
         $skillTargetDir = Split-Path -Parent $targetFile
         if (Test-Path -LiteralPath $skillTargetDir -PathType Leaf) {

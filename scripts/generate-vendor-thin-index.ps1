@@ -1,6 +1,8 @@
 param(
     [string]$AgentsRoot = ".agents",
     [string]$ProjectRoot = ".",
+    [string]$ContextRoot = "",
+    [string]$CapabilityRoot = "",
     [ValidateSet("DryRun", "Write")]
     [string]$Mode = "DryRun",
     [switch]$Force,
@@ -137,9 +139,16 @@ function Get-VendorThinIndexSourcePath {
 }
 
 $projectRootFull = Resolve-FullPath $ProjectRoot
-$agentsRootFull = Resolve-FullPathFromBase -BasePath $projectRootFull -Path $AgentsRoot
-$vendorRoot = Join-Path $agentsRootFull "vendor"
-$skillsTarget = Join-Path $agentsRootFull "skills"
+if ([string]::IsNullOrWhiteSpace($ContextRoot) -or [string]::IsNullOrWhiteSpace($CapabilityRoot)) {
+    Import-Module (Join-Path $PSScriptRoot "lib/WorkspaceContext.psm1") -Force
+    $workspaceContext = Resolve-AgentWorkspaceContext -ProjectRoot $projectRootFull
+    if ([string]::IsNullOrWhiteSpace($ContextRoot)) { $ContextRoot = $workspaceContext.contextRoot }
+    if ([string]::IsNullOrWhiteSpace($CapabilityRoot)) { $CapabilityRoot = $workspaceContext.capabilityRoot }
+}
+$contextRootFull = Resolve-FullPathFromBase -BasePath $projectRootFull -Path $ContextRoot
+$capabilityRootFull = Resolve-FullPathFromBase -BasePath $projectRootFull -Path $CapabilityRoot
+$vendorRoot = Join-Path $capabilityRootFull "vendor"
+$skillsTarget = Join-Path $contextRootFull "skills"
 $results = New-Object System.Collections.Generic.List[object]
 $requestedSkills = @{}
 foreach ($requestedSkill in $Skill) {
@@ -192,13 +201,13 @@ Get-ChildItem -LiteralPath $vendorRoot -Directory | Sort-Object Name | ForEach-O
             if (-not $requestedSkills.ContainsKey($skillName)) { return }
             $sourceFile = Join-Path $_.FullName "SKILL.md"
             if (-not (Test-Path -LiteralPath $sourceFile -PathType Leaf)) {
-                $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourceFile
+                $sourceRel = ".agents/" + (Get-RelativePathPortable -From $capabilityRootFull -To $sourceFile).TrimStart("/")
                 $results.Add((Write-Result -Status "missing" -Target "" -Source $sourceRel -Reason "vendor/$vendorName/skills/$skillName has no SKILL.md"))
                 return
             }
 
             $targetFile = Join-Path (Join-Path $skillsTarget $skillName) "SKILL.md"
-            $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourceFile
+            $sourceRel = ".agents/" + (Get-RelativePathPortable -From $capabilityRootFull -To $sourceFile).TrimStart("/")
             $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
 
             $skillTargetDir = Split-Path -Parent $targetFile
@@ -284,7 +293,7 @@ Get-ChildItem -LiteralPath $vendorRoot -Directory | Sort-Object Name | ForEach-O
         if (-not $requestedSkills.ContainsKey($skillName)) { return }
         $sourceFile = $rootSkillFile
         $targetFile = Join-Path (Join-Path $skillsTarget $skillName) "SKILL.md"
-        $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourceFile
+        $sourceRel = ".agents/" + (Get-RelativePathPortable -From $capabilityRootFull -To $sourceFile).TrimStart("/")
         $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
 
         $skillTargetDir = Split-Path -Parent $targetFile

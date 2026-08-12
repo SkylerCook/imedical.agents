@@ -1,5 +1,7 @@
 param(
   [string]$ProjectRoot = ".",
+  [string]$ContextRoot = "",
+  [string]$CapabilityRoot = "",
   [Parameter(Mandatory = $true)]
   [string]$Plugin,
   [ValidateSet("available", "enabled", "disabled")]
@@ -231,18 +233,26 @@ function Write-PluginProfile {
 }
 
 $projectRootFull = Resolve-FullPath $ProjectRoot
-$agentsRoot = Join-Path $projectRootFull ".agents"
-if (-not (Test-Path -LiteralPath $agentsRoot -PathType Container)) {
+if ([string]::IsNullOrWhiteSpace($ContextRoot) -or [string]::IsNullOrWhiteSpace($CapabilityRoot)) {
+  $workspaceContextModule = Join-Path $PSScriptRoot "lib/WorkspaceContext.psm1"
+  Import-Module $workspaceContextModule -Force
+  $workspaceContext = Resolve-AgentWorkspaceContext -ProjectRoot $projectRootFull
+  if ([string]::IsNullOrWhiteSpace($ContextRoot)) { $ContextRoot = $workspaceContext.contextRoot }
+  if ([string]::IsNullOrWhiteSpace($CapabilityRoot)) { $CapabilityRoot = $workspaceContext.capabilityRoot }
+}
+$contextRootFull = Resolve-FullPath $ContextRoot
+$capabilityRootFull = Resolve-FullPath $CapabilityRoot
+if (-not (Test-Path -LiteralPath $contextRootFull -PathType Container)) {
   throw ".agents directory does not exist under ProjectRoot"
 }
 
-$plugins = Get-InstalledPlugins -AgentsRoot $agentsRoot
+$plugins = Get-InstalledPlugins -AgentsRoot $capabilityRootFull
 $targetPlugin = $plugins | Where-Object { Test-PluginNameMatches -Plugin $_ -Name $Plugin } | Select-Object -First 1
 if (-not $targetPlugin) {
   throw "Plugin not found: $Plugin"
 }
 
-$profilePath = Join-Path (Join-Path $agentsRoot "config") "plugin_profile.md"
+$profilePath = Join-Path (Join-Path $contextRootFull "config") "plugin_profile.md"
 $profile = Read-PluginProfile -ProfilePath $profilePath
 
 $targetInitSkill = $InitSkill

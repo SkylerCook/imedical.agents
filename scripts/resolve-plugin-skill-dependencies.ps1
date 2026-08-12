@@ -1,6 +1,8 @@
 param(
   [string]$AgentsRoot = ".agents",
   [string]$ProjectRoot = ".",
+  [string]$ContextRoot = "",
+  [string]$CapabilityRoot = "",
   [string[]]$Plugin = @(),
   [ValidateSet("Json", "List")]
   [string]$OutputFormat = "List"
@@ -39,10 +41,17 @@ function Get-VendorSource {
 }
 
 $projectRootFull = Resolve-FullPath -BasePath (Get-Location) -Path $ProjectRoot
-$agentsRootFull = Resolve-FullPath -BasePath $projectRootFull -Path $AgentsRoot
-$pluginsRoot = Join-Path $agentsRootFull "plugins"
-$vendorRoot = Join-Path $agentsRootFull "vendor"
-$profilePath = Join-Path $agentsRootFull "config/plugin_profile.md"
+if ([string]::IsNullOrWhiteSpace($ContextRoot) -or [string]::IsNullOrWhiteSpace($CapabilityRoot)) {
+  Import-Module (Join-Path $PSScriptRoot "lib/WorkspaceContext.psm1") -Force
+  $workspaceContext = Resolve-AgentWorkspaceContext -ProjectRoot $projectRootFull
+  if ([string]::IsNullOrWhiteSpace($ContextRoot)) { $ContextRoot = $workspaceContext.contextRoot }
+  if ([string]::IsNullOrWhiteSpace($CapabilityRoot)) { $CapabilityRoot = $workspaceContext.capabilityRoot }
+}
+$contextRootFull = Resolve-FullPath -BasePath $projectRootFull -Path $ContextRoot
+$capabilityRootFull = Resolve-FullPath -BasePath $projectRootFull -Path $CapabilityRoot
+$pluginsRoot = Join-Path $capabilityRootFull "plugins"
+$vendorRoot = Join-Path $capabilityRootFull "vendor"
+$profilePath = Join-Path $contextRootFull "config/plugin_profile.md"
 $profile = Read-PluginProfile -Path $profilePath
 $installed = @{}
 

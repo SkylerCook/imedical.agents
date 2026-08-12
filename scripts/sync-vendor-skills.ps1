@@ -1,6 +1,8 @@
 param(
   [string]$AgentsRoot = ".agents",
   [string]$ProjectRoot = ".",
+  [string]$ContextRoot = "",
+  [string]$CapabilityRoot = "",
   [ValidateSet("DryRun", "Write")]
   [string]$Mode = "DryRun",
   [string[]]$Skill = @(),
@@ -51,8 +53,14 @@ function Find-RuntimeProvidedSkill {
 }
 
 $projectRootFull = Resolve-FullPath -BasePath (Get-Location) -Path $ProjectRoot
-$agentsRootFull = Resolve-FullPath -BasePath $projectRootFull -Path $AgentsRoot
-$vendorRoot = Join-Path $agentsRootFull "vendor"
+if ([string]::IsNullOrWhiteSpace($ContextRoot) -or [string]::IsNullOrWhiteSpace($CapabilityRoot)) {
+  Import-Module (Join-Path $PSScriptRoot "lib/WorkspaceContext.psm1") -Force
+  $workspaceContext = Resolve-AgentWorkspaceContext -ProjectRoot $projectRootFull
+  if ([string]::IsNullOrWhiteSpace($ContextRoot)) { $ContextRoot = $workspaceContext.contextRoot }
+  if ([string]::IsNullOrWhiteSpace($CapabilityRoot)) { $CapabilityRoot = $workspaceContext.capabilityRoot }
+}
+$capabilityRootFull = Resolve-FullPath -BasePath $projectRootFull -Path $CapabilityRoot
+$vendorRoot = Join-Path $capabilityRootFull "vendor"
 $results = New-Object System.Collections.Generic.List[object]
 
 if (($Mode -eq "Write") -and ($Skill.Count -eq 0)) {

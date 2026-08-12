@@ -1060,7 +1060,8 @@ foreach ($installedPlugin in $allPlugins) {
   $profileEntry = Get-PluginProfileEntry -Plugin $installedPlugin -Profile $pluginProfile -ExplicitlySelected $explicitlySelected
   $pluginTarget = Get-RelativePathPortable -From $projectRootFull -To $installedPlugin.path
   if ($profileEntry.status -eq "disabled") {
-    $results.Add((Write-UpdateResult -Status "plugin-disabled" -Target $pluginTarget -Reason "plugin is disabled in plugin_profile.md" -PluginName $installedPlugin.name -Phase "plugin"))
+    $disabledStatus = if ($explicitlySelected) { "plugin-explicit-selection-disabled" } else { "plugin-disabled" }
+    $results.Add((Write-UpdateResult -Status $disabledStatus -Target $pluginTarget -Reason "plugin is disabled in plugin_profile.md" -PluginName $installedPlugin.name -Phase "plugin"))
     continue
   }
 
@@ -1110,13 +1111,15 @@ foreach ($installedPlugin in $plugins) {
     $results.Add($item)
   }
 
-  $thinIndexScript = Join-Path $installedPlugin.path "scripts/generate-plugin-thin-index.ps1"
+  $thinIndexScript = Join-Path $capabilityRoot "scripts/generate-plugin-thin-index.ps1"
   if (Test-Path -LiteralPath $thinIndexScript -PathType Leaf) {
     $thinIndexMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
     $pluginPathRel = Get-RelativePathPortable -From $projectRootFull -To $installedPlugin.path
     $thinParams = @{
-      PluginPath = $pluginPathRel
+      PluginPath = $installedPlugin.path
       ProjectRoot = $projectRootFull
+      ContextRoot = $contextRoot
+      CapabilityRoot = $capabilityRoot
       Mode = $thinIndexMode
     }
     if ($ForceThinIndex) {
@@ -1138,6 +1141,8 @@ if (Test-Path -LiteralPath $agentThinIndexScript -PathType Leaf) {
   $agentThinIndexMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
   $agentThinParams = @{
     ProjectRoot = $projectRootFull
+    ContextRoot = $contextRoot
+    CapabilityRoot = $capabilityRoot
     Mode = $agentThinIndexMode
   }
   if ($ForceThinIndex) {
@@ -1157,7 +1162,7 @@ $resolverScript = Join-Path $agentsRoot "scripts/resolve-plugin-skill-dependenci
 $resolvedSkillDependencies = @()
 $dependencyPluginNames = @($plugins | ForEach-Object { $_.name }) + @($Plugin)
 if (Test-Path -LiteralPath $resolverScript -PathType Leaf) {
-  $resolverOutput = & $resolverScript -AgentsRoot $agentsRoot -ProjectRoot $projectRootFull -Plugin $dependencyPluginNames -OutputFormat Json | Out-String
+  $resolverOutput = & $resolverScript -ProjectRoot $projectRootFull -ContextRoot $contextRoot -CapabilityRoot $capabilityRoot -Plugin $dependencyPluginNames -OutputFormat Json | Out-String
   if (-not [string]::IsNullOrWhiteSpace($resolverOutput)) {
     $resolvedSkillDependencies = $resolverOutput | ConvertFrom-Json
   }
@@ -1182,7 +1187,7 @@ if ((-not (Test-Path -LiteralPath $profilePathBeforeWrite -PathType Leaf)) -and 
 
 $syncVendorSkillsScript = Join-Path $agentsRoot "scripts/sync-vendor-skills.ps1"
 if (Test-Path -LiteralPath $syncVendorSkillsScript -PathType Leaf) {
-  $legacyRuntimeOutput = & $syncVendorSkillsScript -AgentsRoot $agentsRoot -ProjectRoot $projectRootFull -Mode DryRun -ReportLegacy | Out-String
+  $legacyRuntimeOutput = & $syncVendorSkillsScript -ProjectRoot $projectRootFull -ContextRoot $contextRoot -CapabilityRoot $capabilityRoot -Mode DryRun -ReportLegacy | Out-String
   foreach ($item in (Convert-ThinIndexTextOutput -Text $legacyRuntimeOutput -PluginName "" -Phase "runtime-adapter")) {
     $results.Add($item)
   }
@@ -1195,8 +1200,9 @@ $vendorThinIndexScript = Join-Path $agentsRoot "scripts/generate-vendor-thin-ind
 if (Test-Path -LiteralPath $vendorThinIndexScript -PathType Leaf) {
   $vendorThinIndexMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
   $vendorThinParams = @{
-    AgentsRoot = $agentsRoot
     ProjectRoot = $projectRootFull
+    ContextRoot = $contextRoot
+    CapabilityRoot = $capabilityRoot
     Mode = $vendorThinIndexMode
     Skill = @($resolvedSkillDependencies | Where-Object { $_.type -eq "required" -and $_.sourceExists } | ForEach-Object { $_.name })
   }
@@ -1222,7 +1228,7 @@ if ($RuntimeAdapter -contains "Codex") {
 }
 if (($RuntimeAdapter -contains "ClaudeCode") -and (Test-Path -LiteralPath $syncClaudeSkillsScript -PathType Leaf)) {
   $syncMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
-  $syncOutput = & $syncClaudeSkillsScript -AgentsRoot $agentsRoot -ProjectRoot $projectRootFull -Mode $syncMode | Out-String
+  $syncOutput = & $syncClaudeSkillsScript -ProjectRoot $projectRootFull -ContextRoot $contextRoot -CapabilityRoot $capabilityRoot -Mode $syncMode | Out-String
   $syncResults = Convert-ThinIndexTextOutput -Text $syncOutput -PluginName "" -Phase "claudecode-skills"
   foreach ($item in $syncResults) {
     $results.Add($item)

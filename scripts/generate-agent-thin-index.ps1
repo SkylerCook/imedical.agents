@@ -1,5 +1,7 @@
 param(
     [string]$ProjectRoot = ".",
+    [string]$ContextRoot = "",
+    [string]$CapabilityRoot = "",
     [ValidateSet("DryRun", "Write")]
     [string]$Mode = "DryRun",
     [string[]]$ExcludeAgent = @(),
@@ -119,10 +121,17 @@ function Get-AgentThinIndexSourcePath {
 }
 
 $projectRootFull = Resolve-FullPath $ProjectRoot
-$agentsRoot = Join-Path $projectRootFull ".agents"
-$agentsSource = Join-Path $agentsRoot "agents"
-$workflowsSource = Join-Path $agentsRoot "workflows"
-$skillsTarget = Join-Path $agentsRoot "skills"
+if ([string]::IsNullOrWhiteSpace($ContextRoot) -or [string]::IsNullOrWhiteSpace($CapabilityRoot)) {
+    Import-Module (Join-Path $PSScriptRoot "lib/WorkspaceContext.psm1") -Force
+    $workspaceContext = Resolve-AgentWorkspaceContext -ProjectRoot $projectRootFull
+    if ([string]::IsNullOrWhiteSpace($ContextRoot)) { $ContextRoot = $workspaceContext.contextRoot }
+    if ([string]::IsNullOrWhiteSpace($CapabilityRoot)) { $CapabilityRoot = $workspaceContext.capabilityRoot }
+}
+$contextRootFull = Resolve-FullPath $ContextRoot
+$capabilityRootFull = Resolve-FullPath $CapabilityRoot
+$agentsSource = Join-Path $capabilityRootFull "agents"
+$workflowsSource = Join-Path $capabilityRootFull "workflows"
+$skillsTarget = Join-Path $contextRootFull "skills"
 $results = New-Object System.Collections.Generic.List[object]
 
 if (-not (Test-Path -LiteralPath $agentsSource -PathType Container)) {
@@ -162,14 +171,14 @@ Get-ChildItem -LiteralPath $agentsSource -Directory | Sort-Object Name | ForEach
     if ($ExcludeAgent -contains $agentName) {
         $sourceFile = Join-Path $_.FullName "AGENT.md"
         $targetFile = Join-Path (Join-Path $skillsTarget $agentName) "SKILL.md"
-        $results.Add((Write-Result -Status "skipped" -Target (Get-RelativePathPortable -From $projectRootFull -To $targetFile) -Source (Get-RelativePathPortable -From $projectRootFull -To $sourceFile) -Reason "excluded by parameter"))
+        $results.Add((Write-Result -Status "skipped" -Target (Get-RelativePathPortable -From $projectRootFull -To $targetFile) -Source (".agents/" + (Get-RelativePathPortable -From $capabilityRootFull -To $sourceFile).TrimStart("/")) -Reason "excluded by parameter"))
         return
     }
 
     $sourceFile = Join-Path $_.FullName "AGENT.md"
     $bindingsFile = Join-Path $_.FullName "bindings.yaml"
     $targetFile = Join-Path (Join-Path $skillsTarget $agentName) "SKILL.md"
-    $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourceFile
+    $sourceRel = ".agents/" + (Get-RelativePathPortable -From $capabilityRootFull -To $sourceFile).TrimStart("/")
     $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
 
     if (-not (Test-Path -LiteralPath $sourceFile -PathType Leaf)) {
@@ -177,7 +186,7 @@ Get-ChildItem -LiteralPath $agentsSource -Directory | Sort-Object Name | ForEach
         return
     }
     if (-not (Test-Path -LiteralPath $bindingsFile -PathType Leaf)) {
-        $results.Add((Write-Result -Status "missing" -Target $targetRel -Source (Get-RelativePathPortable -From $projectRootFull -To $bindingsFile) -Reason "agent directory has no bindings.yaml"))
+        $results.Add((Write-Result -Status "missing" -Target $targetRel -Source (".agents/" + (Get-RelativePathPortable -From $capabilityRootFull -To $bindingsFile).TrimStart("/")) -Reason "agent directory has no bindings.yaml"))
         return
     }
     if (Test-Path -LiteralPath (Split-Path -Parent $targetFile) -PathType Leaf) {
@@ -204,11 +213,11 @@ Get-ChildItem -LiteralPath $agentsSource -Directory | Sort-Object Name | ForEach
         $requiredPlugins = @(Get-YamlListValues -Lines $bindingLines -Key "plugins")
     }
 
-    $bindingsRel = Get-RelativePathPortable -From $projectRootFull -To $bindingsFile
+    $bindingsRel = ".agents/" + (Get-RelativePathPortable -From $capabilityRootFull -To $bindingsFile).TrimStart("/")
     $workflowRel = ""
     if (-not [string]::IsNullOrWhiteSpace($defaultWorkflow)) {
         $workflowPath = Join-Path $workflowsSource ($defaultWorkflow + ".workflow.md")
-        $workflowRel = Get-RelativePathPortable -From $projectRootFull -To $workflowPath
+        $workflowRel = ".agents/" + (Get-RelativePathPortable -From $capabilityRootFull -To $workflowPath).TrimStart("/")
         if (-not (Test-Path -LiteralPath $workflowPath -PathType Leaf)) {
             $results.Add((Write-Result -Status "missing" -Target $targetRel -Source $workflowRel -Reason "default workflow is missing"))
             return
