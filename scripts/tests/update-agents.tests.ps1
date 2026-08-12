@@ -6,6 +6,8 @@ $profileScriptUnderTest = Join-Path $repoRoot "scripts/update-plugin-profile.ps1
 $agentThinIndexScriptUnderTest = Join-Path $repoRoot "scripts/generate-agent-thin-index.ps1"
 $vendorThinIndexScriptUnderTest = Join-Path $repoRoot "scripts/generate-vendor-thin-index.ps1"
 $skillDependencyResolverUnderTest = Join-Path $repoRoot "scripts/resolve-plugin-skill-dependencies.ps1"
+$workspaceContextModuleUnderTest = Join-Path $repoRoot "scripts/lib/WorkspaceContext.psm1"
+$overlayInitializerUnderTest = Join-Path $repoRoot "scripts/initialize-workspace-overlay.ps1"
 $checkFunctionalDiffScriptUnderTest = Join-Path $repoRoot "scripts/check-functional-diff.ps1"
 $installGitHooksScriptUnderTest = Join-Path $repoRoot "scripts/install-git-hooks.ps1"
 $preCommitHookUnderTest = Join-Path $repoRoot "hooks/pre-commit"
@@ -45,6 +47,7 @@ function New-TestProject {
   git -C (Join-Path $root ".agents") init | Out-Null
 
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/scripts") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/scripts/lib") | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/hooks") | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/agents") | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/workflows") | Out-Null
@@ -60,6 +63,8 @@ function New-TestProject {
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/check-agent-entrypoints.ps1") -Destination (Join-Path $root ".agents/scripts/check-agent-entrypoints.ps1")
   Copy-Item -LiteralPath $vendorThinIndexScriptUnderTest -Destination (Join-Path $root ".agents/scripts/generate-vendor-thin-index.ps1")
   Copy-Item -LiteralPath $skillDependencyResolverUnderTest -Destination (Join-Path $root ".agents/scripts/resolve-plugin-skill-dependencies.ps1")
+  Copy-Item -LiteralPath $workspaceContextModuleUnderTest -Destination (Join-Path $root ".agents/scripts/lib/WorkspaceContext.psm1")
+  Copy-Item -LiteralPath $overlayInitializerUnderTest -Destination (Join-Path $root ".agents/scripts/initialize-workspace-overlay.ps1")
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/agent-registry.md") -Value "# Agent Registry"
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/workflow-registry.md") -Value "# Workflow Registry"
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/agents/i18n-agent") | Out-Null
@@ -233,6 +238,56 @@ function New-TestProject {
   return $root
 }
 
+function New-OverlayTestProject {
+  param([string]$CapabilityProjectRoot)
+
+  $workspaceRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-overlay-update-test-" + [System.Guid]::NewGuid().ToString("N"))
+  $contextRoot = Join-Path $workspaceRoot ".agents"
+  $sourceTarget = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-overlay-source-" + [System.Guid]::NewGuid().ToString("N"))
+  $gitRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-overlay-git-" + [System.Guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Force -Path $contextRoot, $sourceTarget, $gitRoot | Out-Null
+  git -C $workspaceRoot init | Out-Null
+  git -C $workspaceRoot config user.email "test@example.invalid" | Out-Null
+  git -C $workspaceRoot config user.name "Test User" | Out-Null
+  New-Item -ItemType Junction -Path (Join-Path $workspaceRoot "backend") -Target $sourceTarget | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $workspaceRoot "AGENTS.md") -Value "# Overlay Test Project"
+
+  $capabilityRoot = Join-Path $CapabilityProjectRoot ".agents"
+  $manifest = [ordered]@{
+    schemaVersion = 1
+    mode = "workspace-overlay"
+    workspace = "overlay-test"
+    contextRoot = ".agents"
+    capabilityRoot = $capabilityRoot
+    sharedDirectories = @("plugins", "vendor", "agents", "workflows", "hooks")
+    localDirectories = @("config", "rules", "memory", "skills", "scripts", "work")
+    sourceRoots = @(
+      [ordered]@{ name = "backend"; path = "backend"; target = $sourceTarget; gitRoot = $gitRoot }
+    )
+  }
+  [System.IO.File]::WriteAllText((Join-Path $contextRoot "capability.json"), ($manifest | ConvertTo-Json -Depth 10), [System.Text.UTF8Encoding]::new($false))
+
+  & (Join-Path $capabilityRoot "scripts/initialize-workspace-overlay.ps1") -WorkspaceRoot $workspaceRoot -Mode Write | Out-Null
+  [System.IO.File]::WriteAllLines((Join-Path $contextRoot "config/plugin_profile.md"), @(
+    "# Plugin Profile",
+    "",
+    "| plugin | status | initSkill | dependsOn | notes |",
+    "|---|---|---|---|---|",
+    "| agent-context-kit | enabled | project-context-maintenance | - | overlay test |",
+    "| sample-plugin | enabled | sample-skill | - | overlay test |"
+  ), [System.Text.UTF8Encoding]::new($false))
+  [System.IO.File]::WriteAllText((Join-Path $contextRoot "rules/project.md"), "# Overlay project rule", [System.Text.UTF8Encoding]::new($false))
+  [System.IO.File]::WriteAllText((Join-Path $contextRoot "memory/project-memory.md"), "# Overlay project memory", [System.Text.UTF8Encoding]::new($false))
+
+  [PSCustomObject]@{
+    WorkspaceRoot = $workspaceRoot
+    ContextRoot = $contextRoot
+    CapabilityRoot = $capabilityRoot
+    SourceTarget = $sourceTarget
+    GitRoot = $gitRoot
+  }
+}
+
 Assert-True (Test-Path -LiteralPath $scriptUnderTest -PathType Leaf) "scripts/update-agents.ps1 should exist"
 Assert-True (Test-Path -LiteralPath $profileScriptUnderTest -PathType Leaf) "scripts/update-plugin-profile.ps1 should exist"
 Assert-True (Test-Path -LiteralPath $agentThinIndexScriptUnderTest -PathType Leaf) "scripts/generate-agent-thin-index.ps1 should exist"
@@ -241,6 +296,8 @@ Assert-True (Test-Path -LiteralPath $checkFunctionalDiffScriptUnderTest -PathTyp
 Assert-True (Test-Path -LiteralPath $installGitHooksScriptUnderTest -PathType Leaf) "scripts/install-git-hooks.ps1 should exist"
 Assert-True (Test-Path -LiteralPath $preCommitHookUnderTest -PathType Leaf) "hooks/pre-commit should exist"
 Assert-True (Test-Path -LiteralPath $skillDependencyResolverUnderTest -PathType Leaf) "skill dependency resolver should exist"
+Assert-True (Test-Path -LiteralPath $workspaceContextModuleUnderTest -PathType Leaf) "Workspace Context module should exist"
+Assert-True (Test-Path -LiteralPath $overlayInitializerUnderTest -PathType Leaf) "Overlay initializer should exist"
 
 $runbookPath = Join-Path $repoRoot "docs/update-agents.md"
 $readmePath = Join-Path $repoRoot "README.md"
@@ -267,6 +324,7 @@ Assert-Contains $updateScriptContent "/workflows/**" "update sparse checkout sho
 Assert-Contains $updateScriptContent "/feedback/**" "update sparse checkout should include feedback"
 Assert-Contains $updateScriptContent "/hooks/**" "update sparse checkout should include hooks"
 Assert-Contains $updateScriptContent "/scripts/iris-mcp.js" "update sparse checkout should deploy the MCP helper"
+Assert-Contains $updateScriptContent "/scripts/lib/**" "update sparse checkout should deploy Workspace Context runtime modules"
 Assert-True (-not $updateScriptContent.Contains('"/.agents/**"')) "update sparse checkout must not deploy source-repository .agents context"
 Assert-True (-not $updateScriptContent.Contains("!/skills/agent-kit-maintenance/")) "update sparse checkout should not need a maintenance-only root skill exception"
 Assert-True (-not $updateScriptContent.Contains("!/skills/agent-kit-maintenance/**")) "update sparse checkout should not need a maintenance-only root skill content exception"
@@ -284,6 +342,7 @@ Assert-Contains $installScriptContent "/workflows/**" "install sparse checkout s
 Assert-Contains $installScriptContent "/feedback/**" "install sparse checkout should include feedback"
 Assert-Contains $installScriptContent "/hooks/**" "install sparse checkout should include hooks"
 Assert-Contains $installScriptContent "/scripts/iris-mcp.js" "install sparse checkout should deploy the MCP helper"
+Assert-Contains $installScriptContent "/scripts/lib/**" "install sparse checkout should deploy Workspace Context runtime modules"
 Assert-True (-not $installScriptContent.Contains('"/.agents/**"')) "install sparse checkout must not deploy source-repository .agents context"
 Assert-True (Test-Path -LiteralPath $irisMcpHelperUnderTest -PathType Leaf) "iris-mcp.js helper should exist at the deployed canonical path"
 $irisAgenticRuleContent = Get-Content -Raw -Encoding UTF8 -LiteralPath $irisAgenticRuleUnderTest
@@ -447,6 +506,47 @@ try {
 finally {
   if (Test-Path -LiteralPath $legacyProfileProjectRoot) {
     Remove-Item -LiteralPath $legacyProfileProjectRoot -Recurse -Force
+  }
+}
+
+$overlayCapabilityProject = New-TestProject
+$overlayProject = $null
+try {
+  $overlayProject = New-OverlayTestProject -CapabilityProjectRoot $overlayCapabilityProject
+  $ruleBefore = [System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "rules/project.md"), [System.Text.Encoding]::UTF8)
+  $memoryBefore = [System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "memory/project-memory.md"), [System.Text.Encoding]::UTF8)
+  $capabilityStatusBefore = (git -C $overlayProject.CapabilityRoot status --short | Out-String)
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot ".git"))) "Overlay ContextRoot must start without .git"
+
+  $overlayWriteOutput = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode Write -Detailed | Out-String
+  Assert-Contains $overlayWriteOutput "capability-pull-skipped-overlay" "Overlay Write should skip capability fetch and pull"
+  Assert-True (-not $overlayWriteOutput.Contains("agents-git-missing")) "Overlay ContextRoot should not require .git"
+  Assert-Contains $overlayWriteOutput (Split-Path -Leaf $overlayCapabilityProject) "Overlay plugin discovery should report the CapabilityRoot source path"
+  Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "config/sample_profile.md") -PathType Leaf) "Overlay config should be written to ContextRoot"
+  Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "skills/sample-skill/SKILL.md") -PathType Leaf) "Overlay plugin thin-index should be written to ContextRoot"
+  Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "skills/i18n-agent/SKILL.md") -PathType Leaf) "Overlay agent thin-index should be written to ContextRoot"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot ".git"))) "Overlay update must not create ContextRoot .git"
+  Assert-True ([System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "rules/project.md"), [System.Text.Encoding]::UTF8) -eq $ruleBefore) "Overlay update must preserve project rule"
+  Assert-True ([System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "memory/project-memory.md"), [System.Text.Encoding]::UTF8) -eq $memoryBefore) "Overlay update must preserve project memory"
+  Assert-True ((git -C $overlayProject.CapabilityRoot status --short | Out-String) -eq $capabilityStatusBefore) "Overlay update must not change capability Git status"
+
+  $overlayNoPullOutput = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode DryRun -NoPull -Detailed | Out-String
+  Assert-Contains $overlayNoPullOutput "capability-pull-skipped-overlay" "Overlay NoPull should remain explicitly idempotent"
+  Assert-True (-not $overlayNoPullOutput.Contains("agents-git-missing")) "Overlay NoPull should not validate ContextRoot as a Git repo"
+
+  Remove-Item -LiteralPath (Join-Path $overlayProject.CapabilityRoot ".git") -Recurse -Force
+  $missingCapabilityGitOutput = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode Check -NoPull -Detailed | Out-String
+  Assert-Contains $missingCapabilityGitOutput "capability-git-missing" "Overlay should reject CapabilityRoot without .git"
+  Assert-True (-not $missingCapabilityGitOutput.Contains("agents-git-missing")) "Capability Git errors must not be reported against ContextRoot"
+}
+finally {
+  if ($null -ne $overlayProject) {
+    foreach ($path in @($overlayProject.WorkspaceRoot, $overlayProject.SourceTarget, $overlayProject.GitRoot)) {
+      if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Recurse -Force }
+    }
+  }
+  if (Test-Path -LiteralPath $overlayCapabilityProject) {
+    Remove-Item -LiteralPath $overlayCapabilityProject -Recurse -Force
   }
 }
 

@@ -17,6 +17,7 @@ $sparsePaths = @(
   "/feedback/**",
   "/hooks/**",
   "/scripts/*.ps1",
+  "/scripts/lib/**",
   "/scripts/iris-mcp.js"
 )
 

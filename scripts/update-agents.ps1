@@ -27,6 +27,7 @@ $runtimeSparsePaths = @(
   "/feedback/**",
   "/hooks/**",
   "/scripts/*.ps1",
+  "/scripts/lib/**",
   "/scripts/iris-mcp.js"
 )
 
@@ -921,18 +922,46 @@ function Get-GitHooksStatus {
   return $results
 }
 
-$projectRootFull = Resolve-FullPath $ProjectRoot
-$agentsRoot = Join-Path $projectRootFull ".agents"
+$workspaceContextModule = Join-Path $PSScriptRoot "lib/WorkspaceContext.psm1"
+if (-not (Test-Path -LiteralPath $workspaceContextModule -PathType Leaf)) {
+  Write-UpdateResult -Status "workspace-context-resolver-missing" -Target $workspaceContextModule -Reason "scripts/lib/WorkspaceContext.psm1 is required" -Phase "preflight"
+  return
+}
+Import-Module $workspaceContextModule -Force
+
+$context = Resolve-AgentWorkspaceContext -ProjectRoot $ProjectRoot
+$projectRootFull = $context.workspaceRoot
+$contextRoot = $context.contextRoot
+$capabilityRoot = $context.capabilityRoot
+$agentsRoot = $contextRoot
 $results = New-Object System.Collections.Generic.List[object]
 $runningScriptPath = $MyInvocation.MyCommand.Path
 $runningScriptHash = if (Test-Path -LiteralPath $runningScriptPath -PathType Leaf) { (Get-FileHash -LiteralPath $runningScriptPath -Algorithm SHA256).Hash } else { "" }
 
-if (-not (Test-Path -LiteralPath $agentsRoot -PathType Container)) {
+if (-not (Test-Path -LiteralPath $contextRoot -PathType Container)) {
   Write-UpdateResult -Status "agents-missing" -Target ".agents" -Reason ".agents directory does not exist" -Phase "preflight"
-  exit 1
+  return
 }
 
-if ((-not $NoPull) -and ($Mode -ne "Check")) {
+if ($context.mode -eq "workspace-overlay") {
+  $initializer = Join-Path $capabilityRoot "scripts/initialize-workspace-overlay.ps1"
+  if (-not (Test-Path -LiteralPath $initializer -PathType Leaf)) {
+    $results.Add((Write-UpdateResult -Status "workspace-overlay-initializer-missing" -Target $initializer -Reason "CapabilityRoot initializer is missing" -Phase "workspace-context"))
+  }
+  else {
+    $overlayResults = @(& $initializer -WorkspaceRoot $projectRootFull -Mode $Mode)
+    foreach ($item in $overlayResults) {
+      $results.Add((Write-UpdateResult -Status ([string]$item.status) -Target ([string]$item.path) -Source ([string]$item.expected) -Reason ([string]$item.reason) -Phase "workspace-context"))
+    }
+  }
+  $skipReason = if ($NoPull) { "Overlay context refresh explicitly requested -NoPull" } else { "Overlay context never fetches or pulls CapabilityRoot" }
+  $results.Add((Write-UpdateResult -Status "capability-pull-skipped-overlay" -Target $capabilityRoot -Reason $skipReason -Phase "git"))
+  if ($results | Where-Object { $_.status -in @("workspace-overlay-initializer-missing", "workspace-overlay-blocked", "manifest-invalid", "schema-version-unsupported", "capability-root-missing", "capability-git-missing", "source-root-missing", "git-root-missing", "source-path-missing", "source-path-not-junction", "junction-target-mismatch", "shared-path-not-junction", "local-path-is-link", "runtime-adapter-source-missing", "runtime-adapter-source-invalid") }) {
+    if ($Detailed) { $results | Format-List status, plugin, phase, target, source, reason } else { Write-UpdateSummary -Results $results -Mode $Mode }
+    return
+  }
+}
+elseif ((-not $NoPull) -and ($Mode -ne "Check")) {
   $gitResults = Invoke-AgentGitUpdate -AgentsRoot $agentsRoot -ProjectRootFull $projectRootFull
   foreach ($item in $gitResults) {
     $results.Add($item)
@@ -959,23 +988,28 @@ if ((-not $NoPull) -and ($Mode -ne "Check")) {
     exit $LASTEXITCODE
   }
 }
-elseif (-not (Test-Path -LiteralPath (Join-Path $agentsRoot ".git"))) {
+elseif (($context.mode -eq "standard") -and (-not (Test-Path -LiteralPath (Join-Path $agentsRoot ".git")))) {
   $results.Add((Write-UpdateResult -Status "agents-git-missing" -Target ".agents" -Reason ".agents is not an independent Git repository" -Phase "git"))
 }
 
-$agentsExcludePath = Join-Path $agentsRoot ".git/info/exclude"
-foreach ($pattern in $agentsLocalExcludePatterns) {
-  $exists = (Test-Path -LiteralPath $agentsExcludePath) -and (Select-String -Path $agentsExcludePath -Pattern ("^\s*" + [regex]::Escape($pattern) + "\s*$") -Quiet)
-  if ($exists) {
-    $results.Add((Write-UpdateResult -Status "exclude-ok" -Target (Get-RelativePathPortable -From $projectRootFull -To $agentsExcludePath) -Reason $pattern -Phase "exclude"))
+if ($context.mode -eq "standard") {
+  $agentsExcludePath = Join-Path $agentsRoot ".git/info/exclude"
+  foreach ($pattern in $agentsLocalExcludePatterns) {
+    $exists = (Test-Path -LiteralPath $agentsExcludePath) -and (Select-String -Path $agentsExcludePath -Pattern ("^\s*" + [regex]::Escape($pattern) + "\s*$") -Quiet)
+    if ($exists) {
+      $results.Add((Write-UpdateResult -Status "exclude-ok" -Target (Get-RelativePathPortable -From $projectRootFull -To $agentsExcludePath) -Reason $pattern -Phase "exclude"))
+    }
+    elseif ($Mode -eq "Write") {
+      Add-LineIfMissing -Path $agentsExcludePath -Line $pattern
+      $results.Add((Write-UpdateResult -Status "exclude-added" -Target (Get-RelativePathPortable -From $projectRootFull -To $agentsExcludePath) -Reason $pattern -Phase "exclude"))
+    }
+    else {
+      $results.Add((Write-UpdateResult -Status "exclude-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $agentsExcludePath) -Reason $pattern -Phase "exclude"))
+    }
   }
-  elseif ($Mode -eq "Write") {
-    Add-LineIfMissing -Path $agentsExcludePath -Line $pattern
-    $results.Add((Write-UpdateResult -Status "exclude-added" -Target (Get-RelativePathPortable -From $projectRootFull -To $agentsExcludePath) -Reason $pattern -Phase "exclude"))
-  }
-  else {
-    $results.Add((Write-UpdateResult -Status "exclude-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $agentsExcludePath) -Reason $pattern -Phase "exclude"))
-  }
+}
+else {
+  $results.Add((Write-UpdateResult -Status "context-exclude-skipped-overlay" -Target $contextRoot -Reason "ContextRoot has no independent .git" -Phase "exclude"))
 }
 
 $agentsRootPrefix = ([System.IO.Path]::GetFullPath($agentsRoot)).TrimEnd("\", "/") + [System.IO.Path]::DirectorySeparatorChar
@@ -1005,7 +1039,7 @@ else {
   $results.Add((Write-UpdateResult -Status "agents-entry-missing" -Target "AGENTS.md" -Reason "project entrypoint missing; maintain it through project-context-maintenance" -Phase "entrypoint"))
 }
 
-$allPlugins = Get-InstalledPlugins -AgentsRoot $agentsRoot -IncludeNames @() -ExcludeNames $ExcludePlugin
+$allPlugins = Get-InstalledPlugins -AgentsRoot $capabilityRoot -IncludeNames @() -ExcludeNames $ExcludePlugin
 $pluginProfile = Read-PluginProfile -AgentsRoot $agentsRoot
 $plugins = New-Object System.Collections.Generic.List[object]
 $matchedPluginCount = 0
