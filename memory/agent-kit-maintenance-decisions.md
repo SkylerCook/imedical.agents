@@ -43,6 +43,9 @@
 ## 部署边界
 
 - 已部署业务工程的 `.agents/` 是独立能力包仓库；能力包更新后应先更新 `.agents`，再按启用插件重建 thin-index。
+- standard 模式保持业务根内独立 `.agents` Git；workspace-overlay 模式允许模块 `ContextRoot` 无 `.git`，但必须由 `WorkspaceRoot/.agents/capability.json` 明确声明共享 `CapabilityRoot`、local/shared 目录和 SourceRoot/GitRoot。解析器不得扫描父目录或 sibling 推断这些根。
+- workspace-overlay 采用 capability-once/context-many：先在 canonical 标版根更新 capability，再对各模块以 `-NoPull` 刷新 ContextRoot。模块刷新不得 fetch/pull 或改写 CapabilityRoot Git，只能维护 ContextRoot 本地生成层和 manifest 受管 Junction。
+- overlay 的 shared path 与 SourceRoot 逻辑 path 必须是指向 manifest 精确目标的 Junction；local path 必须是物理目录。自动修复只允许作用于可证明受管且目标错误的 Junction，普通目录、文件或本地目录不得覆盖。
 - 根目录 `memory/` 是维护者记忆，不得加入 `scripts/install-agents.ps1` 或 `scripts/update-agents.ps1` 的 sparse checkout 路径。
 - `memory/plan/` 是维护者计划子目录，存放实施计划和设计文档，不部署到业务项目。
 - 根目录 `AGENTS.md` 只服务本仓库维护，不部署到业务项目 `.agents/`。
@@ -55,7 +58,7 @@
 - 插件 canonical 名称变更时，manifest 必须声明 `legacyNames`；更新器按旧名称继承 `plugin_profile.md` 状态并在 Write 时收敛为当前名称，同时清理指向已删除插件 rule/skill 源文件的受管 thin-index。不得让已启用插件因重命名静默退回 `available`。
 - 根目录 `index.html`、`.github/` 和 `.nojekyll` 只服务展示页和 GitHub Pages，不部署到业务项目 `.agents/`。
 - `scripts/tests/` 只服务能力包仓库自测，不部署到业务项目 `.agents/`。
-- `.agents/.git/info/exclude` 应继续忽略 `/config/`、`/memory/`、`/rules/`、`/skills/` 和 `/scripts/` 这些本地生成层。
+- standard 模式的 `.agents/.git/info/exclude` 应继续忽略 `/config/`、`/memory/`、`/rules/`、`/skills/` 和 `/scripts/` 这些本地生成层；workspace-overlay 的 ContextRoot 不要求存在 `.git/info/exclude`，由 WorkspaceRoot 所属仓库忽略本地生成层。
 - `.agents/work/` 是导出 staging 等本地临时工作层，必须由生成层 ignore 隐藏，不进入业务提交。
 - `.agents/.git/info/exclude` 不应忽略 `/agents/` 或 `/workflows/`；业务项目私有 Agent/Workflow 差异应写入 `.agents/config/agent_*_profile.md` 或业务项目自己的规则/文档。
 - 对手工 full clone 到 `.agents/` 的工程，必须重新执行安装脚本启用 sparse checkout；仅靠 `.git/info/exclude` 不能隐藏已跟踪的维护者记忆文件。
