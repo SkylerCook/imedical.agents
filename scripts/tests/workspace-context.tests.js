@@ -156,6 +156,12 @@ try {
   unsafe.sourceRoots[0].path = '../escaped-source';
   writeJson(unsafePath, unsafe);
   assert.equal(countStatus(validateWorkspaceContext(resolveWorkspaceContext(unsafeFixture.root)), 'manifest-invalid'), 1);
+
+  const junctionContextFixture = createFixture(testRoot, 'junction-context', { skipLinks: true });
+  const outsideContext = path.join(testRoot, 'junction-context-outside');
+  fs.renameSync(path.join(junctionContextFixture.root, '.agents'), outsideContext);
+  createDirectoryJunction(outsideContext, path.join(junctionContextFixture.root, '.agents'));
+  assert.equal(countStatus(validateWorkspaceContext(resolveWorkspaceContext(junctionContextFixture.root)), 'manifest-invalid'), 1);
 } finally {
   const resolved = path.resolve(testRoot);
   const temp = path.resolve(os.tmpdir());

@@ -56,6 +56,22 @@ function Test-PathWithin {
   return $pathFull.Equals($rootFull, [System.StringComparison]::OrdinalIgnoreCase) -or $pathFull.StartsWith($rootFull + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)
 }
 
+function Test-PathChainHasReparsePoint {
+  param([string]$Path, [string]$Root)
+  $pathFull = [System.IO.Path]::GetFullPath($Path).TrimEnd([char[]]@('\', '/'))
+  $rootFull = [System.IO.Path]::GetFullPath($Root).TrimEnd([char[]]@('\', '/'))
+  if (-not (Test-PathWithin -Path $pathFull -Root $rootFull) -or (Test-PathEquals -Left $pathFull -Right $rootFull)) { return $false }
+  $relative = $pathFull.Substring($rootFull.Length).TrimStart([char[]]@('\', '/'))
+  $current = $rootFull
+  foreach ($segment in @($relative -split '[\\/]' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) {
+    $current = Join-Path $current $segment
+    if (-not (Test-Path -LiteralPath $current)) { break }
+    $item = Get-Item -Force -LiteralPath $current
+    if ([bool]($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { return $true }
+  }
+  return $false
+}
+
 function Get-PathValidation {
   param([object[]]$Validation, [string]$Path)
   @($Validation | Where-Object { Test-PathEquals -Left ([string]$_.path) -Right $Path }) | Select-Object -First 1
@@ -149,6 +165,12 @@ foreach ($entry in $validation) {
     $canRepair = $isShared -and $Repair -and $Mode -eq "Write"
     if (-not $canRepair) { $blockers.Add($entry) }
   }
+}
+
+if ((Test-PathChainHasReparsePoint -Path $context.contextRoot -Root $context.workspaceRoot) -and (@($blockers | Where-Object status -eq "manifest-invalid")).Count -eq 0) {
+  $unsafeContextRoot = New-OverlayResult -Status "manifest-invalid" -Path $context.manifestPath -Actual $context.contextRoot -Reason "ContextRoot path crosses a reparse point"
+  $results.Add($unsafeContextRoot)
+  $blockers.Add($unsafeContextRoot)
 }
 
 $adapterContentByName = @{}

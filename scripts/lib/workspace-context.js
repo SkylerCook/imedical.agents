@@ -30,6 +30,19 @@ function safeRelativePath(value) {
   return typeof value === 'string' && value.trim() !== '' && !path.isAbsolute(value) && !value.split(/[\\/]/).includes('..');
 }
 
+function pathChainHasReparsePoint(itemPath, rootPath) {
+  const absolutePath = path.resolve(itemPath);
+  const absoluteRoot = path.resolve(rootPath);
+  if (!isPathWithin(absolutePath, absoluteRoot) || comparable(absolutePath) === comparable(absoluteRoot)) return false;
+  let current = absoluteRoot;
+  for (const segment of path.relative(absoluteRoot, absolutePath).split(path.sep).filter(Boolean)) {
+    current = path.join(current, segment);
+    if (!fs.existsSync(current)) break;
+    if (fs.lstatSync(current).isSymbolicLink()) return true;
+  }
+  return false;
+}
+
 function manifestProblems(manifest, workspaceRoot = '', contextRoot = '') {
   const problems = [];
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) return ['manifest is empty'];
@@ -42,7 +55,7 @@ function manifestProblems(manifest, workspaceRoot = '', contextRoot = '') {
     if (manifest[key] !== undefined && (typeof manifest[key] !== 'string' || manifest[key].trim() === '')) problems.push(`${key} must be non-empty`);
   }
   if (typeof manifest.contextRoot === 'string' && workspaceRoot) {
-    if (!safeRelativePath(manifest.contextRoot) || !isPathWithin(contextRoot, workspaceRoot) || comparable(contextRoot) === comparable(workspaceRoot)) {
+    if (!safeRelativePath(manifest.contextRoot) || !isPathWithin(contextRoot, workspaceRoot) || comparable(contextRoot) === comparable(workspaceRoot) || pathChainHasReparsePoint(contextRoot, workspaceRoot)) {
       problems.push('contextRoot must be a relative path inside WorkspaceRoot');
     }
   }

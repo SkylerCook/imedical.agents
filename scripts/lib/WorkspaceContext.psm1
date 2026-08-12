@@ -37,6 +37,22 @@ function Test-AgentPathWithin {
   return $pathFull.StartsWith($rootFull + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)
 }
 
+function Test-AgentPathChainHasReparsePoint {
+  param([string]$Path, [string]$Root)
+  $pathFull = [System.IO.Path]::GetFullPath($Path).TrimEnd([char[]]@('\', '/'))
+  $rootFull = [System.IO.Path]::GetFullPath($Root).TrimEnd([char[]]@('\', '/'))
+  if (-not (Test-AgentPathWithin -Path $pathFull -Root $rootFull) -or $pathFull.Equals($rootFull, [System.StringComparison]::OrdinalIgnoreCase)) { return $false }
+  $relative = $pathFull.Substring($rootFull.Length).TrimStart([char[]]@('\', '/'))
+  $current = $rootFull
+  foreach ($segment in @($relative -split '[\\/]' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) {
+    $current = Join-Path $current $segment
+    if (-not (Test-Path -LiteralPath $current)) { break }
+    $item = Get-Item -Force -LiteralPath $current
+    if ([bool]($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { return $true }
+  }
+  return $false
+}
+
 function New-AgentValidationResult {
   param(
     [Parameter(Mandatory = $true)][string]$Status,
@@ -93,7 +109,7 @@ function Get-AgentManifestProblems {
     }
   }
   if (($propertyNames -contains "contextRoot") -and -not [string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
-    if (-not (Test-AgentSafeRelativePath -Path ([string]$Manifest.contextRoot)) -or -not (Test-AgentPathWithin -Path $ContextRoot -Root $WorkspaceRoot) -or $ContextRoot.Equals($WorkspaceRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    if (-not (Test-AgentSafeRelativePath -Path ([string]$Manifest.contextRoot)) -or -not (Test-AgentPathWithin -Path $ContextRoot -Root $WorkspaceRoot) -or $ContextRoot.Equals($WorkspaceRoot, [System.StringComparison]::OrdinalIgnoreCase) -or (Test-AgentPathChainHasReparsePoint -Path $ContextRoot -Root $WorkspaceRoot)) {
       $problems.Add("contextRoot must be a relative path inside WorkspaceRoot")
     }
   }

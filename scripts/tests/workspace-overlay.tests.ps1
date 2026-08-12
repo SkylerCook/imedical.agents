@@ -176,6 +176,15 @@ try {
   $unsafeResults = @(& $scriptUnderTest -WorkspaceRoot $unsafe.Root -Mode Write -Repair)
   Assert-Equal @(Get-Status -Results $unsafeResults -Status "workspace-overlay-blocked").Count 1 "unsafe manifest paths must block initializer"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $testRoot "escaped-local"))) "initializer must not write outside ContextRoot"
+
+  $junctionContext = New-OverlayFixture -Parent $testRoot -Name "junction-context"
+  $outsideContext = Join-Path $testRoot "junction-context-outside"
+  Move-Item -LiteralPath $junctionContext.ContextRoot -Destination $outsideContext
+  New-Item -ItemType Junction -Path $junctionContext.ContextRoot -Target $outsideContext | Out-Null
+  $junctionContextResults = @(& $scriptUnderTest -WorkspaceRoot $junctionContext.Root -Mode Write -Repair)
+  Assert-Equal @(Get-Status -Results $junctionContextResults -Status "workspace-overlay-blocked").Count 1 "ContextRoot Junction must block initializer"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $outsideContext "config"))) "initializer must not write through a ContextRoot Junction"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $outsideContext "scripts/update-agents.ps1"))) "initializer must not generate adapters through a ContextRoot Junction"
 }
 finally {
   if (Test-Path -LiteralPath $testRoot) {

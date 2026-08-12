@@ -43,7 +43,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\CodeSpace\GIT\Gitlab\
 
 ## Manifest 与目录边界
 
-`capability.json` 必须声明 `schemaVersion: 1`、`mode: workspace-overlay`、`contextRoot`、`capabilityRoot`、`sharedDirectories`、`localDirectories` 和至少一个 `sourceRoots` 条目。`contextRoot` 和 SourceRoot `path` 必须是留在 `WorkspaceRoot` 内的相对路径；shared/local 名称必须是单个安全目录名，不允许绝对路径、路径分隔符或 `..`。shared path 必须是指向 `CapabilityRoot` 对应目录的 Junction；local path 必须是物理目录；SourceRoot 逻辑路径必须是指向声明 `target` 的 Junction。任何 manifest 契约或边界错误都会在创建目录、Junction 或 runtime adapter 前阻断，`-Repair` 也只允许处理 `ContextRoot` 内的受管 Junction。
+`capability.json` 必须声明 `schemaVersion: 1`、`mode: workspace-overlay`、`contextRoot`、`capabilityRoot`、`sharedDirectories`、`localDirectories` 和至少一个 `sourceRoots` 条目。`contextRoot` 和 SourceRoot `path` 必须是留在 `WorkspaceRoot` 内的相对路径；`WorkspaceRoot` 到 `ContextRoot` 的既有路径链不得经过 Junction 或其他 reparse point；shared/local 名称必须是单个安全目录名，不允许绝对路径、路径分隔符或 `..`。shared path 必须是指向 `CapabilityRoot` 对应目录的 Junction；local path 必须是物理目录；SourceRoot 逻辑路径必须是指向声明 `target` 的 Junction。任何 manifest 契约或边界错误都会在创建目录、Junction 或 runtime adapter 前阻断，`-Repair` 也只允许处理 `ContextRoot` 内的受管 Junction。
 
 更新器只允许：
 

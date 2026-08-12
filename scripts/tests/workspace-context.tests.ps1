@@ -204,6 +204,13 @@ try {
   Write-Utf8Json -Path (Join-Path $unsafe.Root ".agents/capability.json") -Value $unsafeManifest
   $unsafeResults = @(Test-AgentWorkspaceContext -Context (Resolve-AgentWorkspaceContext -ProjectRoot $unsafe.Root))
   Assert-Equal @(Get-Status -Results $unsafeResults -Status "manifest-invalid").Count 1 "manifest paths must stay inside their declared roots"
+
+  $junctionContext = New-OverlayFixture -Parent $testRoot -Name "junction-context" -SkipLinks
+  $outsideContext = Join-Path $testRoot "junction-context-outside"
+  Move-Item -LiteralPath (Join-Path $junctionContext.Root ".agents") -Destination $outsideContext
+  New-Item -ItemType Junction -Path (Join-Path $junctionContext.Root ".agents") -Target $outsideContext | Out-Null
+  $junctionContextResults = @(Test-AgentWorkspaceContext -Context (Resolve-AgentWorkspaceContext -ProjectRoot $junctionContext.Root))
+  Assert-Equal @(Get-Status -Results $junctionContextResults -Status "manifest-invalid").Count 1 "ContextRoot must not escape through a Junction"
 }
 finally {
   if (Test-Path -LiteralPath $testRoot) {
