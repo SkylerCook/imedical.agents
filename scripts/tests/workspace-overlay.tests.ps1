@@ -8,6 +8,7 @@ $adapterNames = @(
   "generate-plugin-thin-index.ps1",
   "generate-agent-thin-index.ps1",
   "generate-vendor-thin-index.ps1",
+  "sync-vendor-skills.ps1",
   "resolve-plugin-skill-dependencies.ps1",
   "check-agent-entrypoints.ps1",
   "check-functional-diff.ps1"
