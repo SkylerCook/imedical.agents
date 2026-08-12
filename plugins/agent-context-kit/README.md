@@ -22,6 +22,13 @@
 
 ## 安装模式
 
+支持两种 Workspace Context：
+
+- `standard`：`WorkspaceRoot/.agents` 同时作为 `CapabilityRoot` 与 `ContextRoot`，保持传统独立 Git 部署。
+- `workspace-overlay`：`WorkspaceRoot/.agents/capability.json` 声明唯一 `CapabilityRoot`、模块本地 `ContextRoot`、受限 `SourceRoot` 和真实 `GitRoot`。共享能力目录使用 Junction，本地 config/rules/memory/thin-index 使用普通目录。
+
+Overlay 初始化和维护必须先验证 manifest、shared Junction 与 local directory；源码探索禁止扫描父目录或未声明 sibling。模块刷新不 fetch/pull CapabilityRoot，也不要求 ContextRoot 存在 `.git`。
+
 推荐使用 `plugin-reference-thin-index`：
 
 1. 将本插件放在 `.agents/plugins/agent-context-kit/`。

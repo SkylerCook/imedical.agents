@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
 $scriptUnderTest = Join-Path $repoRoot "scripts/update-agents.ps1"
@@ -302,6 +302,7 @@ Assert-True (Test-Path -LiteralPath $overlayInitializerUnderTest -PathType Leaf)
 $runbookPath = Join-Path $repoRoot "docs/update-agents.md"
 $readmePath = Join-Path $repoRoot "README.md"
 $contextSkillPath = Join-Path $repoRoot "plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md"
+$contextReadmePath = Join-Path $repoRoot "plugins/agent-context-kit/README.md"
 $installScriptPath = Join-Path $repoRoot "scripts/install-agents.ps1"
 $irisBackendRulePath = Join-Path $repoRoot "plugins/coding-iris-plugin/rules/iris_coding_backend.md"
 $irisBackendSkillPath = Join-Path $repoRoot "plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md"
@@ -372,6 +373,17 @@ Assert-Contains $profileScriptContent "available" "profile updater should suppor
 Assert-Contains $profileScriptContent "enabled" "profile updater should support enabled"
 Assert-Contains $profileScriptContent "disabled" "profile updater should support disabled"
 $readmeContent = Get-Content -Raw -Encoding UTF8 -Path $readmePath
+$contextSkillContent = Get-Content -Raw -Encoding UTF8 -Path $contextSkillPath
+$contextReadmeContent = Get-Content -Raw -Encoding UTF8 -Path $contextReadmePath
+foreach ($term in @("WorkspaceRoot", "CapabilityRoot", "ContextRoot", "SourceRoot", "GitRoot", "workspace-overlay", "禁止扫描父目录")) {
+  Assert-Contains $contextSkillContent $term ("project-context-maintenance should define overlay term: " + $term)
+}
+Assert-Contains $contextSkillContent ".agents/capability.json" "Overlay maintenance should read capability manifest first"
+Assert-Contains $contextSkillContent '不要求 ContextRoot `.git/info/exclude`' "Overlay ContextRoot should not require Git excludes"
+Assert-Contains $contextSkillContent "shared Junction" "Overlay completion should validate shared Junctions"
+Assert-Contains $contextSkillContent "enabled thin-index" "Overlay completion should validate enabled thin-index outputs"
+Assert-Contains $contextSkillContent "其他模块" "Overlay completion should reject cross-module context leakage"
+Assert-Contains $contextReadmeContent "workspace-overlay" "agent-context-kit README should document overlay mode"
 Assert-Contains $readmeContent 'Git `2.25.0`' "README should document Git 2.25.0 requirement before local runbook exists"
 Assert-Contains $readmeContent "git sparse-checkout" "README should explain sparse-checkout dependency before first install"
 Assert-Contains $readmeContent "references/hisui-style-index.md" "README should route HISUI styles separately from widget APIs"

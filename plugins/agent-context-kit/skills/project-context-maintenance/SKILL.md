@@ -20,6 +20,22 @@ description: Use when initializing or maintaining agent project context such as 
 
 ## 开始前必读
 
+### Workspace Context 路由
+
+开始维护前，先检查 `WorkspaceRoot/.agents/capability.json`：
+
+- 不存在 manifest：使用 `standard`；`CapabilityRoot = ContextRoot = WorkspaceRoot/.agents`，并保持传统单工程流程。
+- 存在且 `mode = workspace-overlay`：先解析并验证 manifest，再读取其他上下文。`WorkspaceRoot` 是当前模块控制面，`CapabilityRoot` 是 canonical 能力 Git，`ContextRoot` 是当前模块本地 `.agents`，`SourceRoot` 是允许探索的源码入口，`GitRoot` 是对应真实 Git 仓库根。
+- manifest 无效、版本不支持、CapabilityRoot 无 `.git`、SourceRoot/GitRoot 缺失、Junction 或 local 目录类型异常时停止写入，先按 `.agents/docs/workspace-overlay.md` 恢复。
+
+`workspace-overlay` 下的硬边界：
+
+- 只维护 ContextRoot 的 `config/`、`rules/`、`memory/`、`skills/`、`scripts/` 和 `work/`；CapabilityRoot 只读。
+- 项目成熟度、上下文置信度、架构和编码事实只能从 manifest 声明的 SourceRoot 归纳；禁止扫描父目录，也禁止扫描 WorkspaceRoot 中未声明的 sibling 模块。
+- 文件状态、diff、提交和 hooks 必须映射到声明的 GitRoot；不得从 Junction 或 cwd 猜测 Git 根。
+- shared directory 必须是目标精确匹配 CapabilityRoot 的 NTFS Junction；local directory 必须是普通目录。
+- 不要求 ContextRoot `.git/info/exclude`，ContextRoot 不得创建 `.git`；仅 `standard` 模式维护 capability Git 的 `info/exclude`。
+
 如果任务是安装 `.agents`、更新 `.agents`、维护能力包或处理 `update-agents.ps1` 输出，先读取根 runbook：
 
 - `.agents/docs/update-agents.md`
@@ -28,12 +44,13 @@ description: Use when initializing or maintaining agent project context such as 
 
 编辑上下文文件前：
 
-1. 读取当前 `AGENTS.md`。
-2. 运行 `.agents/scripts/check-agent-entrypoints.ps1` 检查兼容入口；若失败，只报告可选兼容入口状态，不自动修复。
-3. 如存在项目记忆，读取当前 `.agents/memory/project-memory.md`。
-4. 如存在规则索引或相关规则文件，读取对应文件。
-5. 判断目标工程的 `contextMode`，再决定如何生成或维护上下文。
-6. 判断待写入内容是项目特定、跨项目可复用，还是临时过程。
+1. 解析 Workspace Context；Overlay 必须先读 `.agents/capability.json` 并通过验证。
+2. 读取当前 `AGENTS.md`。
+3. 运行 ContextRoot 的 `scripts/check-agent-entrypoints.ps1` 检查兼容入口；若失败，只报告可选兼容入口状态，不自动修复。
+4. 如存在项目记忆，读取 ContextRoot 的 `memory/project-memory.md`。
+5. 如存在规则索引或相关规则文件，读取对应文件。
+6. 判断目标工程的 `contextMode`，再决定如何生成或维护上下文。
+7. 判断待写入内容是项目特定、跨项目可复用，还是临时过程。
 
 ## 渐进式读取
 
@@ -341,6 +358,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - `.agents/.git/info/exclude` 已包含生成层忽略规则。
 - 兼容入口缺失或异常只作为可选提示；`CLAUDE.md`、`CODEBUDDY.md` 未维护第二份规则。
 - 没有新增密钥或私有连接信息。
+
+### Overlay 完成条件
+
+`workspace-overlay` 只有同时满足以下条件才算完成：
+
+- `.agents/capability.json` 可解析，WorkspaceRoot、CapabilityRoot、ContextRoot、SourceRoot、GitRoot 均与实际路径一致。
+- 所有 shared Junction 目标精确匹配 CapabilityRoot，所有 local context 目录均为普通目录，ContextRoot 无 `.git`。
+- ContextRoot 的 `config/plugin_profile.md` 保留已有值；只有 `enabled` 插件生成 enabled thin-index，`available`/`disabled` 不生成新入口。
+- `rules/project.md`、`memory/project-memory.md` 和项目已有 config 未被 updater 覆盖。
+- SourceRoot 探索没有越界，ContextRoot 中没有其他模块的规则、记忆、profile 或 thin-index。
+- 所有 Git 证据来自声明的 GitRoot；CapabilityRoot Git 状态未被模块上下文刷新改变。
 ## 部署经验沉淀
 
 当任务产生可复用的部署、编译、上传或排障经验时，按以下边界维护上下文：
