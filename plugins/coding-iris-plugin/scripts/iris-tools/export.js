@@ -24,6 +24,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const http = require('http');
+const { resolveWorkspaceContext } = require('../../../../scripts/lib/workspace-context');
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -33,20 +34,6 @@ let namespace = '';
 let basePath; // undefined means use project-env web defaults; empty string disables prefixing.
 let targetMode = 'auto';
 let overwrite = false;
-
-function findWorkspaceRoot() {
-    let dir = __dirname;
-    while (true) {
-        if (path.basename(dir).toLowerCase() === '.agents') {
-            return path.dirname(dir);
-        }
-        const parent = path.dirname(dir);
-        if (parent === dir) {
-            return process.cwd();
-        }
-        dir = parent;
-    }
-}
 
 // Parse optional arguments
 for (let i = 1; i < args.length; i++) {
@@ -84,9 +71,10 @@ if (!fileIdentifier) {
 }
 
 // Load configuration
-const workspaceRoot = findWorkspaceRoot();
-const configPath = path.join(workspaceRoot, '.agents', 'config', 'project-env.json');
-const profilePath = path.join(workspaceRoot, '.agents', 'config', 'iris_project_profile.md');
+const workspaceContext = resolveWorkspaceContext(process.cwd());
+const workspaceRoot = workspaceContext.workspaceRoot;
+const configPath = path.join(workspaceContext.contextRoot, 'config', 'project-env.json');
+const profilePath = path.join(workspaceContext.contextRoot, 'config', 'iris_project_profile.md');
 let config;
 try {
     const configContent = fs.readFileSync(configPath, 'utf8');
@@ -136,12 +124,17 @@ function resolveFrontendMode(relativeTarget) {
 }
 
 function prepareOutputTarget(fileInfo) {
-    const intendedPath = path.resolve(workspaceRoot, fileInfo.fullPath);
-    const relativeTarget = path.relative(workspaceRoot, intendedPath).replace(/\\/g, '/');
-    if (relativeTarget.startsWith('../') || path.isAbsolute(relativeTarget)) {
-        throw new Error(`导出目标超出项目根目录: ${intendedPath}`);
-    }
     const isFrontend = fileInfo.type === 'CSP' || fileInfo.type === 'JS';
+    const selectedRoot = isFrontend
+        ? (workspaceContext.sourceRoots.find(sourceRoot => sourceRoot.name === 'frontend') || workspaceContext.sourceRoots[0])
+        : (workspaceContext.sourceRoots.find(sourceRoot => sourceRoot.name === 'backend') || workspaceContext.sourceRoots[0]);
+    const intendedPath = path.resolve(selectedRoot.target, fileInfo.fullPath);
+    const sourceRelative = path.relative(selectedRoot.target, intendedPath).replace(/\\/g, '/');
+    if (sourceRelative.startsWith('../') || path.isAbsolute(sourceRelative)) {
+        throw new Error(`导出目标超出声明的 SourceRoot: ${intendedPath}`);
+    }
+    const logicalPrefix = path.relative(workspaceRoot, selectedRoot.path).replace(/\\/g, '/');
+    const relativeTarget = [logicalPrefix === '.' ? '' : logicalPrefix, sourceRelative].filter(Boolean).join('/');
     if (!isFrontend) {
         return Object.assign({}, fileInfo, { fullPath: intendedPath, intendedDestination: intendedPath, frontendMode: null, staging: false, conversionRequired: false });
     }
@@ -150,7 +143,7 @@ function prepareOutputTarget(fileInfo) {
     if (targetMode === 'source' && frontendMode !== 'project-utf8') {
         throw new Error('只有已确认的 project-utf8 前端允许直接导出到源码；standard-gb2312 或未确认模式必须使用 staging。');
     }
-    const finalPath = useStaging ? path.join(workspaceRoot, '.agents', 'work', 'iris-export', relativeTarget) : intendedPath;
+    const finalPath = useStaging ? path.join(workspaceContext.contextRoot, 'work', 'iris-export', relativeTarget) : intendedPath;
     return Object.assign({}, fileInfo, {
         fullPath: finalPath,
         intendedDestination: intendedPath,

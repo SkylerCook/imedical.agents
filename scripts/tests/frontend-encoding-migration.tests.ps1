@@ -76,6 +76,45 @@ try {
   $conflictOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -ProjectRoot $conflict -AgentsRoot ".agents" -Mode Write | Out-String
   Assert-True ($conflictOutput.Contains("config-migration-conflict")) "configured mode and byte validation mismatch should conflict"
   Assert-True ([System.IO.File]::ReadAllText((Join-Path $conflict ".agents/config/iris_project_profile.md")) -eq $conflictBefore) "conflict must not rewrite existing profile"
+
+  $overlay = Join-Path $testRoot "overlay"
+  $capability = Join-Path $testRoot "capability"
+  $backendTarget = Join-Path $testRoot "overlay-backend"
+  $frontendTarget = Join-Path $testRoot "overlay-frontend"
+  $undeclaredSibling = Join-Path $testRoot "undeclared-sibling"
+  New-TestProject -Root $overlay
+  New-Item -ItemType Directory -Force -Path $capability, $backendTarget | Out-Null
+  Write-EncodedFile -Path (Join-Path $frontendTarget "csp/page.csp") -Text '<div>患者姓名</div>' -Encoding $gb2312
+  Write-EncodedFile -Path (Join-Path $undeclaredSibling "frontend/csp/page.csp") -Text '<div>患者姓名</div>' -Encoding $utf8
+  $overlayManifest = @{
+    schemaVersion = 1
+    mode = "workspace-overlay"
+    workspace = "test-overlay"
+    contextRoot = ".agents"
+    capabilityRoot = $capability
+    sharedDirectories = @("plugins", "vendor", "skills")
+    localDirectories = @("config", "rules", "memory", "work")
+    sourceRoots = @(
+      @{ name = "backend"; path = "backend"; target = $backendTarget; gitRoot = $backendTarget },
+      @{ name = "frontend"; path = "frontend"; target = $frontendTarget; gitRoot = $frontendTarget }
+    )
+  }
+  [System.IO.File]::WriteAllText((Join-Path $overlay ".agents/capability.json"), ($overlayManifest | ConvertTo-Json -Depth 6), $utf8)
+  $overlayOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -ProjectRoot $overlay -Mode Write | Out-String
+  $overlayProfile = [System.IO.File]::ReadAllText((Join-Path $overlay ".agents/config/iris_project_profile.md"))
+  Assert-True ($overlayOutput.Contains("config-migration-applied")) "overlay should migrate the declared frontend source"
+  Assert-True ($overlayProfile.Contains("前端编码模式：standard-gb2312")) "overlay must derive mode from declared frontend only"
+  Assert-True (-not $overlayOutput.Contains("undeclared-sibling")) "overlay must not scan an undeclared sibling"
+
+  $backendOnly = Join-Path $testRoot "backend-only"
+  New-TestProject -Root $backendOnly
+  $backendOnlyManifest = $overlayManifest.Clone()
+  $backendOnlyManifest.workspace = "backend-only"
+  $backendOnlyManifest.sourceRoots = @(@{ name = "backend"; path = "backend"; target = $backendTarget; gitRoot = $backendTarget })
+  [System.IO.File]::WriteAllText((Join-Path $backendOnly ".agents/capability.json"), ($backendOnlyManifest | ConvertTo-Json -Depth 6), $utf8)
+  $backendOnlyOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -ProjectRoot $backendOnly -Mode DryRun | Out-String
+  Assert-True ($backendOnlyOutput.Contains("config-migration-review-required")) "overlay without frontend must require review"
+  Assert-True ($backendOnlyOutput.Contains("frontend SourceRoot")) "overlay without frontend must explain the missing declared source"
 }
 finally {
   if (Test-Path -LiteralPath $testRoot) { Remove-Item -LiteralPath $testRoot -Recurse -Force }

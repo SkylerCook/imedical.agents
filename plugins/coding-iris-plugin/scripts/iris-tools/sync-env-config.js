@@ -10,27 +10,15 @@
 
 const fs = require('fs');
 const path = require('path');
+const { resolveWorkspaceContext } = require('../../../../scripts/lib/workspace-context');
 
 const scriptDir = __dirname;
 
-function findWorkspaceRoot() {
-  let dir = scriptDir;
-  while (true) {
-    if (path.basename(dir).toLowerCase() === '.agents') {
-      return path.dirname(dir);
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) {
-      return process.cwd();
-    }
-    dir = parent;
-  }
-}
-
 // Paths
-const workspaceRoot = findWorkspaceRoot();
-const configPath = path.join(workspaceRoot, '.agents', 'config', 'project-env.json');
-const templatePath = path.join(workspaceRoot, '.agents', 'plugins', 'coding-iris-plugin', 'templates', 'project-env.template.json');
+const workspaceContext = resolveWorkspaceContext(process.cwd());
+const workspaceRoot = workspaceContext.workspaceRoot;
+const configPath = path.join(workspaceContext.contextRoot, 'config', 'project-env.json');
+const templatePath = path.join(workspaceContext.capabilityRoot, 'plugins', 'coding-iris-plugin', 'templates', 'project-env.template.json');
 
 console.log(`[INFO] Config source: ${configPath}`);
 console.log(`[INFO] Workspace root: ${workspaceRoot}`);

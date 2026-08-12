@@ -11,6 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const { resolveWorkspaceContext } = require('../../../../scripts/lib/workspace-context');
 
 const inputFile = process.argv[2];
 const namespace = process.argv[3];
@@ -20,20 +21,6 @@ if (inputFile && /\.csp$/i.test(inputFile)) {
     console.error('[说明] compile.js 仅用于 .cls/.mac/.inc 等 IRIS 文档类文件。');
     console.error('[CSP] 请先通过项目 SFTP/上传能力把 CSP 上传到 Web 根，再用 WebApp 虚拟路径执行 $system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")。');
     process.exit(1);
-}
-
-function findWorkspaceRoot() {
-    let dir = __dirname;
-    while (true) {
-        if (path.basename(dir).toLowerCase() === '.agents') {
-            return path.dirname(dir);
-        }
-        const parent = path.dirname(dir);
-        if (parent === dir) {
-            return process.cwd();
-        }
-        dir = parent;
-    }
 }
 
 if (!inputFile) {
@@ -47,8 +34,9 @@ if (!inputFile) {
 }
 
 // 读取配置
-const workspaceRoot = findWorkspaceRoot();
-const configPath = path.join(workspaceRoot, '.agents', 'config', 'project-env.json');
+const workspaceContext = resolveWorkspaceContext(process.cwd());
+const workspaceRoot = workspaceContext.workspaceRoot;
+const configPath = path.join(workspaceContext.contextRoot, 'config', 'project-env.json');
 let config;
 try {
     config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
@@ -115,7 +103,8 @@ function resolvePaths(input) {
 }
 
 const { localPath, docName } = resolvePaths(inputFile);
-const fullPath = path.resolve(localPath);
+const backendRoot = workspaceContext.sourceRoots.find(sourceRoot => sourceRoot.name === 'backend') || workspaceContext.sourceRoots[0];
+const fullPath = path.resolve(backendRoot.target, localPath);
 
 if (!fs.existsSync(fullPath)) {
     console.error(`[错误] 本地文件不存在: ${fullPath}`);

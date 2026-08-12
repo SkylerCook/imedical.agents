@@ -11,6 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const { resolveWorkspaceContext, resolveGitRootForPath } = require('../../../../scripts/lib/workspace-context');
 
 function usage() {
     return [
@@ -53,15 +54,12 @@ function parseArgs(argv) {
     return args;
 }
 
-function normalizeRelative(filePath, projectRoot) {
-    const absolute = path.isAbsolute(filePath)
-        ? path.normalize(filePath)
-        : path.resolve(projectRoot, filePath);
-    return path.relative(projectRoot, absolute).replace(/\\/g, '/');
+function toPosix(value) {
+    return value.replace(/\\/g, '/');
 }
 
-function readProjectEnv(projectRoot) {
-    const configPath = path.join(projectRoot, '.agents', 'config', 'project-env.json');
+function readProjectEnv(context) {
+    const configPath = path.join(context.contextRoot, 'config', 'project-env.json');
     if (!fs.existsSync(configPath)) {
         return {};
     }
@@ -69,9 +67,9 @@ function readProjectEnv(projectRoot) {
     return JSON.parse(raw);
 }
 
-function gitChangedFiles(projectRoot, base) {
+function gitChangedFiles(gitRoot, base) {
     const output = execFileSync('git', ['diff', '--name-only', base], {
-        cwd: projectRoot,
+        cwd: gitRoot,
         encoding: 'utf8'
     });
     return output.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
@@ -95,35 +93,37 @@ function joinPosix(prefix, suffix) {
     return `${cleanPrefix}/${cleanSuffix}`;
 }
 
-function classifyFile(relativePath, projectRoot, config) {
+function classifyFile(descriptor, config) {
+    const { relativePath, physicalPath, sourceRelative, sourceRoot, gitRoot } = descriptor;
     const ext = path.posix.extname(relativePath).toLowerCase();
-    const fullPath = path.join(projectRoot, ...relativePath.split('/'));
     const item = {
         relativePath,
-        exists: fs.existsSync(fullPath)
+        sourceRoot,
+        gitRoot,
+        exists: fs.existsSync(physicalPath)
     };
 
     if (ext === '.cls' || ext === '.mac' || ext === '.inc') {
-        const relWithoutSrc = relativePath.replace(/^src\//i, '');
+        const relWithoutSrc = sourceRelative.replace(/^src\//i, '');
         item.kind = 'iris-class';
         item.documentName = relWithoutSrc.replace(/\//g, '.');
         item.requiresStorageStrip = false;
         if (item.exists && ext === '.cls') {
-            const content = fs.readFileSync(fullPath, 'utf8');
+            const content = fs.readFileSync(physicalPath, 'utf8');
             item.requiresStorageStrip = /Storage\s+Default\b/i.test(content) || /Extends\s+.*%Persistent\b/i.test(content);
         }
         return item;
     }
 
     if (ext === '.csp') {
-        const cspRelative = withoutKnownRoot(relativePath, 'csp');
+        const cspRelative = withoutKnownRoot(sourceRelative, 'csp');
         item.kind = 'csp';
         item.virtualPath = joinPosix(config.web?.cspBasePath || '', cspRelative);
         return item;
     }
 
     if (['.js', '.css', '.html', '.htm'].includes(ext)) {
-        const assetRelative = withoutKnownRoot(relativePath, 'scripts');
+        const assetRelative = withoutKnownRoot(sourceRelative, 'scripts');
         item.kind = 'web-asset';
         item.webPath = joinPosix(config.web?.basePath || '', `scripts/${assetRelative}`);
         return item;
@@ -133,28 +133,80 @@ function classifyFile(relativePath, projectRoot, config) {
     return item;
 }
 
+function isWithin(candidate, root) {
+    const relative = path.relative(root, candidate);
+    return relative === '' || (!relative.startsWith('..' + path.sep) && relative !== '..' && !path.isAbsolute(relative));
+}
+
+function logicalPrefix(context, sourceRoot) {
+    return toPosix(path.relative(context.workspaceRoot, sourceRoot.path)).replace(/^\.\/$/, '');
+}
+
+function descriptorForAbsolute(context, absolutePath) {
+    const sourceRoot = resolveGitRootForPath(context, absolutePath);
+    const sourceRelative = toPosix(path.relative(sourceRoot.target, absolutePath));
+    const prefix = logicalPrefix(context, sourceRoot);
+    return {
+        relativePath: joinPosix(prefix === '.' ? '' : prefix, sourceRelative),
+        physicalPath: absolutePath,
+        sourceRelative,
+        sourceRoot: sourceRoot.name,
+        gitRoot: sourceRoot.gitRoot
+    };
+}
+
+function descriptorForInput(context, filePath) {
+    if (path.isAbsolute(filePath)) return descriptorForAbsolute(context, path.normalize(filePath));
+    const normalized = toPosix(filePath).replace(/^\.\//, '');
+    const matches = context.sourceRoots
+        .map(sourceRoot => ({ sourceRoot, prefix: logicalPrefix(context, sourceRoot) }))
+        .filter(({ prefix }) => prefix === '' || prefix === '.' || normalized === prefix || normalized.startsWith(`${prefix}/`))
+        .sort((left, right) => right.prefix.length - left.prefix.length);
+    const selected = matches[0] || { sourceRoot: context.sourceRoots[0], prefix: '' };
+    const sourceRelative = selected.prefix && selected.prefix !== '.'
+        ? normalized.slice(selected.prefix.length).replace(/^\//, '')
+        : normalized;
+    return descriptorForAbsolute(context, path.resolve(selected.sourceRoot.target, sourceRelative));
+}
+
+function descriptorsFromGit(context, base) {
+    const changedByGitRoot = new Map();
+    const descriptors = [];
+    for (const sourceRoot of context.sourceRoots) {
+        if (!changedByGitRoot.has(sourceRoot.gitRoot)) {
+            changedByGitRoot.set(sourceRoot.gitRoot, gitChangedFiles(sourceRoot.gitRoot, base));
+        }
+        for (const gitRelative of changedByGitRoot.get(sourceRoot.gitRoot)) {
+            const absolutePath = path.resolve(sourceRoot.gitRoot, gitRelative);
+            if (isWithin(absolutePath, sourceRoot.target)) descriptors.push(descriptorForAbsolute(context, absolutePath));
+        }
+    }
+    return descriptors;
+}
+
 function main() {
     const args = parseArgs(process.argv.slice(2));
     const projectRoot = path.resolve(args.projectRoot);
-    const config = readProjectEnv(projectRoot);
+    const context = resolveWorkspaceContext(projectRoot);
+    if (context.mode === 'invalid') throw new Error(`Invalid workspace context: ${context.manifestError}`);
+    const config = readProjectEnv(context);
 
-    let files = args.files;
-    if (args.fromGit) {
-        files = gitChangedFiles(projectRoot, args.base);
-    }
+    let descriptors = args.fromGit
+        ? descriptorsFromGit(context, args.base)
+        : args.files.map(file => descriptorForInput(context, file));
 
-    if (!files.length) {
+    if (!descriptors.length) {
         console.error(usage());
         process.exit(1);
     }
 
-    const uniqueFiles = Array.from(new Set(files.map(file => normalizeRelative(file, projectRoot))));
+    const uniqueFiles = Array.from(new Map(descriptors.map(item => [`${item.sourceRoot}\0${item.relativePath}`, item])).values());
     const manifest = {
         schema: 'iris-deploy-manifest/v1',
         namespace: config.iris?.namespace || '',
         projectRoot: '.',
         source: args.fromGit ? { type: 'git-diff', base: args.base } : { type: 'files' },
-        items: uniqueFiles.map(file => classifyFile(file, projectRoot, config))
+        items: uniqueFiles.map(file => classifyFile(file, config))
     };
 
     process.stdout.write(JSON.stringify(manifest, null, 2) + '\n');

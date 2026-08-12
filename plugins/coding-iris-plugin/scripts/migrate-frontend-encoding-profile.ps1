@@ -7,7 +7,16 @@
 
 $ErrorActionPreference = "Stop"
 $projectRootFull = [System.IO.Path]::GetFullPath($ProjectRoot)
-$agentsRootFull = if ([System.IO.Path]::IsPathRooted($AgentsRoot)) { [System.IO.Path]::GetFullPath($AgentsRoot) } else { [System.IO.Path]::GetFullPath((Join-Path $projectRootFull $AgentsRoot)) }
+$workspaceContextModule = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "../../../scripts/lib/WorkspaceContext.psm1"))
+Import-Module $workspaceContextModule -Force
+$workspaceContext = Resolve-AgentWorkspaceContext -ProjectRoot $projectRootFull
+$agentsRootFull = if ($workspaceContext.mode -eq "workspace-overlay") {
+  $workspaceContext.contextRoot
+} elseif ([System.IO.Path]::IsPathRooted($AgentsRoot)) {
+  [System.IO.Path]::GetFullPath($AgentsRoot)
+} else {
+  [System.IO.Path]::GetFullPath((Join-Path $projectRootFull $AgentsRoot))
+}
 $profilePath = Join-Path $agentsRootFull "config/iris_project_profile.md"
 $utf8Strict = [System.Text.UTF8Encoding]::new($false, $true)
 $cp936Strict = [System.Text.Encoding]::GetEncoding(936, [System.Text.EncoderFallback]::ExceptionFallback, [System.Text.DecoderFallback]::ExceptionFallback)
@@ -71,6 +80,18 @@ function Add-Candidate {
 
 function Get-Candidates {
   $candidates = @{}
+  if ($workspaceContext.mode -eq "workspace-overlay") {
+    $frontendRoots = @($workspaceContext.sourceRoots | Where-Object { $_.name -eq "frontend" })
+    if ($frontendRoots.Count -eq 0) {
+      Add-Result -Status "config-migration-review-required" -Target ".agents/config/iris_project_profile.md" -Reason "frontend SourceRoot is not declared; parent and sibling directories were not scanned"
+      return @()
+    }
+    foreach ($frontendRoot in $frontendRoots) {
+      Add-Candidate -Candidates $candidates -Path $frontendRoot.target -Source "manifest-frontend" -ExpectedMode "standard-gb2312"
+    }
+    return @($candidates.Values | Sort-Object path)
+  }
+
   $hospitalRoot = Join-Path $projectRootFull "src/imedical/web"
   Add-Candidate -Candidates $candidates -Path $hospitalRoot -Source "hospital-layout" -ExpectedMode "project-utf8"
 

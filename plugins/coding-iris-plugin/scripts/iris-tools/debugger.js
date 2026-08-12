@@ -11,24 +11,12 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
-
-function findWorkspaceRoot() {
-    let dir = __dirname;
-    while (true) {
-        if (path.basename(dir).toLowerCase() === '.agents') {
-            return path.dirname(dir);
-        }
-        const parent = path.dirname(dir);
-        if (parent === dir) {
-            return process.cwd();
-        }
-        dir = parent;
-    }
-}
+const { resolveWorkspaceContext } = require('../../../../scripts/lib/workspace-context');
 
 // 加载 config/project-env.json 配置
 function loadConfig() {
-    const configPath = path.join(findWorkspaceRoot(), '.agents', 'config', 'project-env.json');
+    const workspaceContext = resolveWorkspaceContext(process.cwd());
+    const configPath = path.join(workspaceContext.contextRoot, 'config', 'project-env.json');
     if (!fs.existsSync(configPath)) {
         console.error('\x1b[31m%s\x1b[0m', `错误: 未找到配置文件 ${configPath}`);
         process.exit(1);
