@@ -22,7 +22,15 @@ function result(status, itemPath = '', expected = '', actual = '', reason = '') 
   return { status, path: itemPath, expected, actual, reason };
 }
 
-function manifestProblems(manifest) {
+function safeDirectoryName(name) {
+  return typeof name === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name) && name !== '.' && name !== '..';
+}
+
+function safeRelativePath(value) {
+  return typeof value === 'string' && value.trim() !== '' && !path.isAbsolute(value) && !value.split(/[\\/]/).includes('..');
+}
+
+function manifestProblems(manifest, workspaceRoot = '', contextRoot = '') {
   const problems = [];
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) return ['manifest is empty'];
   const required = ['schemaVersion', 'mode', 'workspace', 'contextRoot', 'capabilityRoot', 'sharedDirectories', 'localDirectories', 'sourceRoots'];
@@ -32,6 +40,11 @@ function manifestProblems(manifest) {
   if (manifest.mode !== undefined && manifest.mode !== 'workspace-overlay') problems.push('mode must be workspace-overlay');
   for (const key of ['workspace', 'contextRoot', 'capabilityRoot']) {
     if (manifest[key] !== undefined && (typeof manifest[key] !== 'string' || manifest[key].trim() === '')) problems.push(`${key} must be non-empty`);
+  }
+  if (typeof manifest.contextRoot === 'string' && workspaceRoot) {
+    if (!safeRelativePath(manifest.contextRoot) || !isPathWithin(contextRoot, workspaceRoot) || comparable(contextRoot) === comparable(workspaceRoot)) {
+      problems.push('contextRoot must be a relative path inside WorkspaceRoot');
+    }
   }
   const shared = Array.isArray(manifest.sharedDirectories) ? manifest.sharedDirectories : [];
   const local = Array.isArray(manifest.localDirectories) ? manifest.localDirectories : [];
@@ -43,6 +56,7 @@ function manifestProblems(manifest) {
   if (normalizedLocal.some((entry, index) => normalizedLocal.indexOf(entry) !== index)) problems.push('localDirectories must be unique');
   if (normalizedLocal.some((entry) => normalizedShared.includes(entry))) problems.push('sharedDirectories and localDirectories must not overlap');
   if ([...shared, ...local].some((entry) => typeof entry !== 'string' || entry.trim() === '')) problems.push('directory names must be non-empty');
+  if ([...shared, ...local].some((entry) => !safeDirectoryName(entry))) problems.push('directory names must be safe single path segments');
 
   const sourceRoots = Array.isArray(manifest.sourceRoots) ? manifest.sourceRoots : [];
   if (!Array.isArray(manifest.sourceRoots) || sourceRoots.length === 0) problems.push('sourceRoots must contain at least one entry');
@@ -53,6 +67,12 @@ function manifestProblems(manifest) {
     }
     for (const key of ['name', 'path', 'target', 'gitRoot']) {
       if (typeof sourceRoot[key] !== 'string' || sourceRoot[key].trim() === '') problems.push(`sourceRoot ${key} must be non-empty`);
+    }
+    if (typeof sourceRoot.path === 'string' && workspaceRoot) {
+      const resolvedSourcePath = normalizePath(sourceRoot.path, workspaceRoot);
+      if (!safeRelativePath(sourceRoot.path) || !isPathWithin(resolvedSourcePath, workspaceRoot) || comparable(resolvedSourcePath) === comparable(workspaceRoot)) {
+        problems.push('sourceRoot path must be a relative path inside WorkspaceRoot');
+      }
     }
   }
   const names = sourceRoots.filter((entry) => entry && typeof entry.name === 'string').map((entry) => entry.name.toLowerCase());
@@ -186,11 +206,11 @@ function junctionResult(itemPath, expectedTarget, nonJunctionStatus, missingStat
 function validateWorkspaceContext(context) {
   const results = [];
   if (context.manifestError) return [result('manifest-invalid', context.manifestPath, '', context.manifestError, 'capability manifest is not valid JSON')];
-  if (context.mode === 'workspace-overlay') {
+  if (context.manifestPath) {
     if (Object.prototype.hasOwnProperty.call(context.manifest, 'schemaVersion') && context.manifest.schemaVersion !== 1) {
       return [result('schema-version-unsupported', context.manifestPath, '1', String(context.manifest.schemaVersion), 'unsupported capability manifest schema')];
     }
-    const problems = manifestProblems(context.manifest);
+    const problems = manifestProblems(context.manifest, context.workspaceRoot, context.contextRoot);
     if (problems.length) return [result('manifest-invalid', context.manifestPath, '', problems.join('; '), 'capability manifest violates schemaVersion 1 contract')];
   }
 

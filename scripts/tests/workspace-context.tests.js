@@ -139,6 +139,23 @@ try {
   duplicate.sourceRoots[1].name = 'backend';
   writeJson(duplicatePath, duplicate);
   assert.equal(countStatus(validateWorkspaceContext(resolveWorkspaceContext(duplicateFixture.root)), 'manifest-invalid'), 1);
+
+  const wrongModeFixture = createFixture(testRoot, 'wrong-mode', { skipLinks: true });
+  const wrongModePath = path.join(wrongModeFixture.root, '.agents', 'capability.json');
+  const wrongMode = JSON.parse(fs.readFileSync(wrongModePath, 'utf8'));
+  wrongMode.mode = 'standard';
+  writeJson(wrongModePath, wrongMode);
+  assert.equal(countStatus(validateWorkspaceContext(resolveWorkspaceContext(wrongModeFixture.root)), 'manifest-invalid'), 1);
+
+  const unsafeFixture = createFixture(testRoot, 'unsafe-paths', { skipLinks: true });
+  const unsafePath = path.join(unsafeFixture.root, '.agents', 'capability.json');
+  const unsafe = JSON.parse(fs.readFileSync(unsafePath, 'utf8'));
+  unsafe.contextRoot = '../../escaped-context';
+  unsafe.sharedDirectories = ['../escaped-shared'];
+  unsafe.localDirectories = ['../../escaped-local'];
+  unsafe.sourceRoots[0].path = '../escaped-source';
+  writeJson(unsafePath, unsafe);
+  assert.equal(countStatus(validateWorkspaceContext(resolveWorkspaceContext(unsafeFixture.root)), 'manifest-invalid'), 1);
 } finally {
   const resolved = path.resolve(testRoot);
   const temp = path.resolve(os.tmpdir());

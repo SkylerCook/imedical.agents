@@ -16,9 +16,12 @@ $adapterNames = @(
   "generate-agent-thin-index.ps1",
   "generate-vendor-thin-index.ps1",
   "sync-vendor-skills.ps1",
+  "sync-claudecode-skills.ps1",
   "resolve-plugin-skill-dependencies.ps1",
   "check-agent-entrypoints.ps1",
-  "check-functional-diff.ps1"
+  "check-functional-diff.ps1",
+  "install-git-hooks.ps1",
+  "repair-agent-entrypoints.ps1"
 )
 
 function New-OverlayResult {
@@ -44,6 +47,13 @@ function Test-PathEquals {
   $leftFull = [System.IO.Path]::GetFullPath($Left).TrimEnd([char[]]@('\', '/'))
   $rightFull = [System.IO.Path]::GetFullPath($Right).TrimEnd([char[]]@('\', '/'))
   return $leftFull.Equals($rightFull, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Test-PathWithin {
+  param([string]$Path, [string]$Root)
+  $pathFull = [System.IO.Path]::GetFullPath($Path).TrimEnd([char[]]@('\', '/'))
+  $rootFull = [System.IO.Path]::GetFullPath($Root).TrimEnd([char[]]@('\', '/'))
+  return $pathFull.Equals($rootFull, [System.StringComparison]::OrdinalIgnoreCase) -or $pathFull.StartsWith($rootFull + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)
 }
 
 function Get-PathValidation {
@@ -180,6 +190,9 @@ foreach ($shared in @($context.sharedDirectories)) {
   }
 
   if ($pathValidation.status -eq "junction-target-mismatch" -and $Repair) {
+    if (-not (Test-PathWithin -Path $shared.path -Root $context.contextRoot)) {
+      throw ("Repair refused path outside ContextRoot: " + $shared.path)
+    }
     if ($Mode -eq "Write") {
       $item = Get-Item -Force -LiteralPath $shared.path
       $isJunction = [bool]($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -and ([string]$item.LinkType -eq "Junction")

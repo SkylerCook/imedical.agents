@@ -9,9 +9,12 @@ $adapterNames = @(
   "generate-agent-thin-index.ps1",
   "generate-vendor-thin-index.ps1",
   "sync-vendor-skills.ps1",
+  "sync-claudecode-skills.ps1",
   "resolve-plugin-skill-dependencies.ps1",
   "check-agent-entrypoints.ps1",
-  "check-functional-diff.ps1"
+  "check-functional-diff.ps1",
+  "install-git-hooks.ps1",
+  "repair-agent-entrypoints.ps1"
 )
 
 function Assert-True {
@@ -164,6 +167,15 @@ try {
   Assert-Equal @(Get-Status -Results $invalidAdapterResults -Status "runtime-adapter-source-invalid").Count 1 "invalid canonical script should block"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $invalidAdapter.ContextRoot "plugins"))) "invalid adapter source must block shared writes"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $invalidAdapter.ContextRoot "config"))) "invalid adapter source must block local writes"
+
+  $unsafe = New-OverlayFixture -Parent $testRoot -Name "unsafe"
+  $unsafeManifestPath = Join-Path $unsafe.Root ".agents/capability.json"
+  $unsafeManifest = Get-Content -Raw -Encoding UTF8 $unsafeManifestPath | ConvertFrom-Json
+  $unsafeManifest.localDirectories = @("../../escaped-local")
+  Write-Utf8Json -Path $unsafeManifestPath -Value $unsafeManifest
+  $unsafeResults = @(& $scriptUnderTest -WorkspaceRoot $unsafe.Root -Mode Write -Repair)
+  Assert-Equal @(Get-Status -Results $unsafeResults -Status "workspace-overlay-blocked").Count 1 "unsafe manifest paths must block initializer"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $testRoot "escaped-local"))) "initializer must not write outside ContextRoot"
 }
 finally {
   if (Test-Path -LiteralPath $testRoot) {

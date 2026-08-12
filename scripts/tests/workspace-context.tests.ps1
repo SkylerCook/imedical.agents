@@ -187,6 +187,23 @@ try {
   Write-Utf8Json -Path (Join-Path $duplicate.Root ".agents/capability.json") -Value $duplicateManifest
   $duplicateResults = @(Test-AgentWorkspaceContext -Context (Resolve-AgentWorkspaceContext -ProjectRoot $duplicate.Root))
   Assert-Equal @(Get-Status -Results $duplicateResults -Status "manifest-invalid").Count 1 "duplicate source root name status"
+
+  $wrongMode = New-OverlayFixture -Parent $testRoot -Name "wrong-mode" -SkipLinks
+  $wrongModeManifest = Get-Content -Raw -Encoding UTF8 (Join-Path $wrongMode.Root ".agents/capability.json") | ConvertFrom-Json
+  $wrongModeManifest.mode = "standard"
+  Write-Utf8Json -Path (Join-Path $wrongMode.Root ".agents/capability.json") -Value $wrongModeManifest
+  $wrongModeResults = @(Test-AgentWorkspaceContext -Context (Resolve-AgentWorkspaceContext -ProjectRoot $wrongMode.Root))
+  Assert-Equal @(Get-Status -Results $wrongModeResults -Status "manifest-invalid").Count 1 "manifest file cannot bypass overlay validation with another mode"
+
+  $unsafe = New-OverlayFixture -Parent $testRoot -Name "unsafe-paths" -SkipLinks
+  $unsafeManifest = Get-Content -Raw -Encoding UTF8 (Join-Path $unsafe.Root ".agents/capability.json") | ConvertFrom-Json
+  $unsafeManifest.contextRoot = "../../escaped-context"
+  $unsafeManifest.sharedDirectories = @("../escaped-shared")
+  $unsafeManifest.localDirectories = @("../../escaped-local")
+  $unsafeManifest.sourceRoots[0].path = "../escaped-source"
+  Write-Utf8Json -Path (Join-Path $unsafe.Root ".agents/capability.json") -Value $unsafeManifest
+  $unsafeResults = @(Test-AgentWorkspaceContext -Context (Resolve-AgentWorkspaceContext -ProjectRoot $unsafe.Root))
+  Assert-Equal @(Get-Status -Results $unsafeResults -Status "manifest-invalid").Count 1 "manifest paths must stay inside their declared roots"
 }
 finally {
   if (Test-Path -LiteralPath $testRoot) {

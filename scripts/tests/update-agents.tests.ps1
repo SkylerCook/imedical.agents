@@ -10,6 +10,7 @@ $workspaceContextModuleUnderTest = Join-Path $repoRoot "scripts/lib/WorkspaceCon
 $overlayInitializerUnderTest = Join-Path $repoRoot "scripts/initialize-workspace-overlay.ps1"
 $checkFunctionalDiffScriptUnderTest = Join-Path $repoRoot "scripts/check-functional-diff.ps1"
 $installGitHooksScriptUnderTest = Join-Path $repoRoot "scripts/install-git-hooks.ps1"
+$repairAgentEntrypointsScriptUnderTest = Join-Path $repoRoot "scripts/repair-agent-entrypoints.ps1"
 $preCommitHookUnderTest = Join-Path $repoRoot "hooks/pre-commit"
 $irisMcpHelperUnderTest = Join-Path $repoRoot "scripts/iris-mcp.js"
 $irisAgenticRuleUnderTest = Join-Path $repoRoot "plugins/coding-iris-plugin/rules/iris_agentic_dev.md"
@@ -57,6 +58,7 @@ function New-TestProject {
   Copy-Item -LiteralPath $profileScriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-plugin-profile.ps1")
   Copy-Item -LiteralPath $checkFunctionalDiffScriptUnderTest -Destination (Join-Path $root ".agents/scripts/check-functional-diff.ps1")
   Copy-Item -LiteralPath $installGitHooksScriptUnderTest -Destination (Join-Path $root ".agents/scripts/install-git-hooks.ps1")
+  Copy-Item -LiteralPath $repairAgentEntrypointsScriptUnderTest -Destination (Join-Path $root ".agents/scripts/repair-agent-entrypoints.ps1")
   Copy-Item -LiteralPath $preCommitHookUnderTest -Destination (Join-Path $root ".agents/hooks/pre-commit")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-vendor-skills.ps1") -Destination (Join-Path $root ".agents/scripts/sync-vendor-skills.ps1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-claudecode-skills.ps1") -Destination (Join-Path $root ".agents/scripts/sync-claudecode-skills.ps1")

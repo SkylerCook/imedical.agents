@@ -55,8 +55,23 @@ function New-AgentValidationResult {
   }
 }
 
+function Test-AgentSafeDirectoryName {
+  param([string]$Name)
+  return -not [string]::IsNullOrWhiteSpace($Name) -and $Name -match '^[A-Za-z0-9][A-Za-z0-9._-]*$' -and $Name -notin @('.', '..')
+}
+
+function Test-AgentSafeRelativePath {
+  param([string]$Path)
+  if ([string]::IsNullOrWhiteSpace($Path) -or [System.IO.Path]::IsPathRooted($Path)) { return $false }
+  return -not (@($Path -split '[\\/]' | Where-Object { $_ -eq '..' }).Count -gt 0)
+}
+
 function Get-AgentManifestProblems {
-  param([object]$Manifest)
+  param(
+    [object]$Manifest,
+    [string]$WorkspaceRoot = "",
+    [string]$ContextRoot = ""
+  )
 
   $problems = New-Object System.Collections.Generic.List[string]
   if ($null -eq $Manifest) {
@@ -77,11 +92,17 @@ function Get-AgentManifestProblems {
       $problems.Add($requiredText + " must be non-empty")
     }
   }
+  if (($propertyNames -contains "contextRoot") -and -not [string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
+    if (-not (Test-AgentSafeRelativePath -Path ([string]$Manifest.contextRoot)) -or -not (Test-AgentPathWithin -Path $ContextRoot -Root $WorkspaceRoot) -or $ContextRoot.Equals($WorkspaceRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+      $problems.Add("contextRoot must be a relative path inside WorkspaceRoot")
+    }
+  }
 
   $shared = if ($propertyNames -contains "sharedDirectories") { @($Manifest.sharedDirectories) } else { @() }
   $local = if ($propertyNames -contains "localDirectories") { @($Manifest.localDirectories) } else { @() }
   foreach ($entry in @($shared + $local)) {
     if ([string]::IsNullOrWhiteSpace([string]$entry)) { $problems.Add("directory names must be non-empty") }
+    elseif (-not (Test-AgentSafeDirectoryName -Name ([string]$entry))) { $problems.Add("directory names must be safe single path segments") }
   }
   if ((@($shared | Group-Object { ([string]$_).ToLowerInvariant() } | Where-Object Count -gt 1)).Count -gt 0) {
     $problems.Add("sharedDirectories must be unique")
@@ -107,6 +128,13 @@ function Get-AgentManifestProblems {
     foreach ($required in @("name", "path", "target", "gitRoot")) {
       if (($sourceProperties -notcontains $required) -or [string]::IsNullOrWhiteSpace([string]$sourceRoot.$required)) {
         $problems.Add("sourceRoot " + $required + " must be non-empty")
+      }
+    }
+    if (($sourceProperties -contains "path") -and -not [string]::IsNullOrWhiteSpace($WorkspaceRoot)) {
+      $sourcePathValue = [string]$sourceRoot.path
+      $resolvedSourcePath = ConvertTo-AgentFullPath -Path $sourcePathValue -BasePath $WorkspaceRoot
+      if (-not (Test-AgentSafeRelativePath -Path $sourcePathValue) -or -not (Test-AgentPathWithin -Path $resolvedSourcePath -Root $WorkspaceRoot) -or $resolvedSourcePath.Equals($WorkspaceRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $problems.Add("sourceRoot path must be a relative path inside WorkspaceRoot")
       }
     }
   }
@@ -275,13 +303,13 @@ function Test-AgentWorkspaceContext {
     return $results.ToArray()
   }
 
-  if ($Context.mode -eq "workspace-overlay") {
+  if (-not [string]::IsNullOrWhiteSpace([string]$Context.manifestPath)) {
     $manifestProperties = @($Context.manifest.PSObject.Properties.Name)
     if (($manifestProperties -contains "schemaVersion") -and ([int]$Context.manifest.schemaVersion -ne 1)) {
       $results.Add((New-AgentValidationResult -Status "schema-version-unsupported" -Path $Context.manifestPath -Expected "1" -Actual ([string]$Context.manifest.schemaVersion) -Reason "unsupported capability manifest schema"))
       return $results.ToArray()
     }
-    $manifestProblems = @(Get-AgentManifestProblems -Manifest $Context.manifest)
+    $manifestProblems = @(Get-AgentManifestProblems -Manifest $Context.manifest -WorkspaceRoot $Context.workspaceRoot -ContextRoot $Context.contextRoot)
     if ($manifestProblems.Count -gt 0) {
       $results.Add((New-AgentValidationResult -Status "manifest-invalid" -Path $Context.manifestPath -Actual ($manifestProblems -join "; ") -Reason "capability manifest violates schemaVersion 1 contract"))
       return $results.ToArray()
