@@ -15,6 +15,7 @@
 - `.mcp.json` 是连接事实来源。不要把 host、账号、密码、token、namespace 或远程路径写入 `AGENTS.md`、rules、memory、config 或插件。
 - 安装/更新会部署 `.agents/scripts/iris-mcp.js`。原生 MCP 工具优先；只有运行器未暴露原生工具时才使用该 helper，不得把 helper 当成 canonical 规则源。更新后的 helper 会消费 `check_config.capabilities`，并按工具 `mode` / `action` 拦截远端状态变化；已有项目只需更新 `.agents`，不自动改写 `.mcp.json` 或 `.iris-agentic-dev.toml`。
 - 如果输出中出现停止条件，先停止并向用户汇报，不要继续执行破坏性操作。
+- 若 `WorkspaceRoot/.agents/capability.json` 存在，按 workspace overlay 处理；`ContextRoot` 无 `.git` 是合法状态。完整两阶段流程和恢复门禁见 `docs/workspace-overlay.md`。
 
 ## Agent 执行原则
 
@@ -43,7 +44,8 @@ Test-Path .agents/scripts/update-agents.ps1
 |---|---|
 | `.agents/` 不存在 | 执行“首次安装”。 |
 | `.agents/.git` 存在 | 执行“更新已安装 .agents”。 |
-| `.agents/` 存在但 `.agents/.git` 不存在 | 停止。报告“非标准 .agents 目录”，请用户确认是否备份或删除后重新安装。 |
+| `.agents/` 存在、`.agents/.git` 不存在且 `capability.json` 有效 | 执行 workspace overlay 刷新；不要求 ContextRoot 是 Git 仓库。 |
+| `.agents/` 存在但 `.agents/.git` 和有效 `capability.json` 都不存在 | 停止。报告“非标准 .agents 目录”，请用户确认是否备份或删除后重新安装。 |
 | 用户已经手工 `git clone` 到 `.agents/` | 视为 `.agents/.git` 存在，执行“手工 clone 后收敛”。 |
 | `.agents/` 是 full clone，包含 README、LICENSE、memory 或 scripts/tests | 执行安装脚本或更新脚本刷新 sparse checkout。 |
 
@@ -148,6 +150,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun -Detailed
 ```
 
+## Workspace overlay 两阶段更新
+
+多个模块共享 capability 时，先在 canonical 标版根执行一次标准 DryRun/Write；再从 canonical `.agents/scripts/update-agents.ps1` 对每个模块执行 `-Mode DryRun -NoPull`，无停止条件后执行 `-Mode Write -NoPull`。overlay 阶段只刷新模块 `ContextRoot`，不会 fetch/pull capability Git。
+
+不得颠倒顺序，也不得从模块 ContextRoot 猜测父目录 capability。命令、Junction/本地目录判定、停止条件和恢复步骤见 [Workspace Overlay 部署与恢复 Runbook](workspace-overlay.md)。
+
 ## 输出判读
 
 以下状态通常正常，不需要用户参与：
@@ -155,6 +163,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | 状态 | 含义 |
 |---|---|
 | `agents-updated` | `.agents` 已完成 fetch、pull 和 sparse checkout 刷新。 |
+| `capability-pull-skipped-overlay` | 当前为 workspace overlay；按契约跳过 capability fetch/pull，只刷新 ContextRoot。 |
+| `workspace-context-resolved` | 已解析 standard 或 workspace-overlay 的五类根。 |
+| `junction-ok` / `local-path-ok` | overlay 的共享/源码 Junction 与本地物理目录符合 manifest。 |
 | `exclude-ok` | `.agents/.git/info/exclude` 已包含生成层忽略规则。 |
 | `entrypoint-ok` | `CLAUDE.md`、`CODEBUDDY.md` 等可选兼容入口正常。 |
 | `entrypoint-missing` / `entrypoint-not-symlink` / `entrypoint-wrong-target` | 可选兼容入口缺失或异常；不阻塞安装/更新，脚本不会自动修复或复制。 |
@@ -206,6 +217,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `script-conflict` | 停止。目标工程编码脚本是未知或用户定制版本，更新器不覆盖。 |
 | `pull-blocked-dirty` | 停止。说明 `.agents` 仓库存在本地改动，需要用户决定提交、暂存或放弃。 |
 | `agents-git-missing` | 停止。说明 `.agents` 不是标准独立 Git 仓库。 |
+| `manifest-invalid` / `schema-version-unsupported` | 停止。修复 `capability.json` 后重新 DryRun。 |
+| `capability-root-missing` / `capability-git-missing` | 停止。共享 capability 根缺失或不是 Git 部署。 |
+| `junction-target-mismatch` / `shared-path-not-junction` / `source-path-not-junction` | 停止。只允许在确认 manifest 后显式安全修复 Junction；普通目录不得覆盖。 |
+| `local-path-is-link` / `local-path-not-directory` | 停止。ContextRoot 本地层必须是物理目录。 |
+| `source-root-missing` / `git-root-missing` | 停止。声明的业务源码或真实 Git 根不存在。 |
+| `plugin-explicit-selection-disabled` | 停止。不得绕过项目显式 disabled 状态。 |
 | `git-version-unsupported` | 停止。说明当前 Git 低于 `2.25.0`，先升级 Git for Windows 后重试。 |
 | `fetch-failed` | 停止。报告网络或远端拉取失败。 |
 | `pull-failed` | 停止。报告无法 fast-forward。 |

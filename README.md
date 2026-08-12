@@ -105,6 +105,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 如果由 Agent 托管更新，让它先读取 `.agents/docs/update-agents.md`，由 runbook 判断是否可从 `DryRun` 进入 `Write`。
 
+### 多模块 Workspace Overlay
+
+多个模块可以共享一个 canonical `CapabilityRoot`，同时把各自 `config`、`rules`、`memory` 和 `work` 保留在独立 `ContextRoot`。流程固定为 capability-once/context-many：先在标版根更新一次 capability，再对每个模块执行 `-NoPull` 的 DryRun/Write。模块 `.agents` 无须是 Git 仓库；其 `capability.json`、Junction 与 SourceRoot/GitRoot 必须通过解析和验证。
+
+完整命令、停止条件和安全恢复策略见 [docs/workspace-overlay.md](docs/workspace-overlay.md)。
+
 安装和更新先根据 enabled 插件 manifest 解析 `skillDependencies`，只为 required vendor skill 生成 `.agents/skills/<name>/SKILL.md` 项目通用入口；optional skill 由任务场景触发。常规流程不再写用户级 skill 目录；Claude Code/Codex 同步必须显式指定 runtime 和 skill。OpenCode、CodeBuddy、WorkBuddy、Hermes 等未验证 adapter 的工具使用 `.agents/skills` 或直接 vendor 源降级。
 
 ## 仓库结构
