@@ -107,7 +107,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 ### 多模块 Workspace Overlay
 
-多个模块可以共享一个 canonical `CapabilityRoot`，同时把各自 `config`、`rules`、`memory` 和 `work` 保留在独立 `ContextRoot`。流程固定为 capability-once/context-many：先在标版根更新一次 capability，再对每个模块执行 `-NoPull` 的 DryRun/Write。模块 `.agents` 无须是 Git 仓库；其 `capability.json`、Junction 与 SourceRoot/GitRoot 必须通过解析和验证。
+多个模块可以共享一个 canonical `CapabilityRoot`，同时把各自 `config`、`rules`、`memory` 和 `work` 保留在独立 `ContextRoot`。流程固定为 capability-once/context-many：先在标版根更新一次 capability，再对每个模块执行 `-NoPull` 的 DryRun/Write。模块 `.agents` 无须是 Git 仓库；其 `capability.json`、Junction 与 SourceRoot/GitRoot 必须通过解析和验证。刷新会在模块 `ContextRoot/scripts/` 生成 manifest-aware runtime adapter，包括将 `.agents/scripts/iris-mcp.js` 转发到共享 canonical helper；adapter 不写死 `CapabilityRoot` 绝对路径。
 
 完整命令、停止条件和安全恢复策略见 [docs/workspace-overlay.md](docs/workspace-overlay.md)。
 

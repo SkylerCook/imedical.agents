@@ -67,6 +67,7 @@ function New-TestProject {
   Copy-Item -LiteralPath $skillDependencyResolverUnderTest -Destination (Join-Path $root ".agents/scripts/resolve-plugin-skill-dependencies.ps1")
   Copy-Item -LiteralPath $workspaceContextModuleUnderTest -Destination (Join-Path $root ".agents/scripts/lib/WorkspaceContext.psm1")
   Copy-Item -LiteralPath $overlayInitializerUnderTest -Destination (Join-Path $root ".agents/scripts/initialize-workspace-overlay.ps1")
+  Copy-Item -LiteralPath $irisMcpHelperUnderTest -Destination (Join-Path $root ".agents/scripts/iris-mcp.js")
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/agent-registry.md") -Value "# Agent Registry"
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/workflow-registry.md") -Value "# Workflow Registry"
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/agents/i18n-agent") | Out-Null
@@ -397,6 +398,8 @@ Assert-Contains $readmeContent "### iris-external-reg" "README should list the i
 $runbookContent = Get-Content -Raw -Encoding UTF8 -Path $runbookPath
 Assert-Contains $runbookContent "DryRun" "runbook should mention DryRun"
 Assert-Contains $runbookContent "Write" "runbook should mention Write"
+Assert-Contains $runbookContent "manifest-aware JS adapter" "runbook should document iris-mcp.js deployment for overlay contexts"
+Assert-Contains $readmeContent "manifest-aware runtime adapter" "README should document generated overlay runtime adapters"
 Assert-Contains $runbookContent "-Detailed" "runbook should mention -Detailed"
 Assert-Contains $runbookContent "config-review-required" "runbook should mention config-review-required"
 Assert-Contains $runbookContent "pull-blocked-dirty" "runbook should mention pull-blocked-dirty"
@@ -531,6 +534,14 @@ try {
   $memoryBefore = [System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "memory/project-memory.md"), [System.Text.Encoding]::UTF8)
   $capabilityStatusBefore = (git -C $overlayProject.CapabilityRoot status --short | Out-String)
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot ".git"))) "Overlay ContextRoot must start without .git"
+  $overlayIrisMcpAdapter = Join-Path $overlayProject.ContextRoot "scripts/iris-mcp.js"
+  Assert-True (Test-Path -LiteralPath $overlayIrisMcpAdapter -PathType Leaf) "Overlay initializer should generate the iris-mcp.js runtime adapter"
+  $overlayIrisMcpAdapterContent = [System.IO.File]::ReadAllText($overlayIrisMcpAdapter, [System.Text.Encoding]::UTF8)
+  Assert-Contains $overlayIrisMcpAdapterContent "capability.json" "Overlay iris-mcp.js adapter should resolve CapabilityRoot from the manifest"
+  Assert-True (-not $overlayIrisMcpAdapterContent.Contains($overlayProject.CapabilityRoot)) "Overlay iris-mcp.js adapter must not embed an absolute CapabilityRoot"
+  $overlayIrisMcpHelp = (& node $overlayIrisMcpAdapter --help 2>&1 | Out-String)
+  Assert-True ($LASTEXITCODE -eq 0) "Overlay iris-mcp.js adapter should preserve the canonical helper exit code"
+  Assert-Contains $overlayIrisMcpHelp "Usage:" "Overlay iris-mcp.js adapter should forward arguments to the canonical helper"
 
   $overlayWriteOutput = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode Write -Detailed | Out-String
   Assert-Contains $overlayWriteOutput "capability-pull-skipped-overlay" "Overlay Write should skip capability fetch and pull"

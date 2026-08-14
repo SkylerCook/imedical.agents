@@ -13,7 +13,7 @@
 - `.agents/config/` 只允许合并，不允许覆盖已有值。
 - `.agents/config/plugin_profile.md` 是插件启用状态事实来源；插件目录存在只表示 `available`，不表示已启用。
 - `.mcp.json` 是连接事实来源。不要把 host、账号、密码、token、namespace 或远程路径写入 `AGENTS.md`、rules、memory、config 或插件。
-- 安装/更新会部署 `.agents/scripts/iris-mcp.js`。原生 MCP 工具优先；只有运行器未暴露原生工具时才使用该 helper，不得把 helper 当成 canonical 规则源。更新后的 helper 会消费 `check_config.capabilities`，并按工具 `mode` / `action` 拦截远端状态变化；已有项目只需更新 `.agents`，不自动改写 `.mcp.json` 或 `.iris-agentic-dev.toml`。
+- 安装/更新会部署 `.agents/scripts/iris-mcp.js`。standard 项目直接使用 sparse checkout 中的 canonical helper；workspace overlay 会在 `ContextRoot/scripts/` 生成 manifest-aware JS adapter，并转发到 `CapabilityRoot/scripts/iris-mcp.js`。原生 MCP 工具优先；只有运行器未暴露原生工具时才使用该 helper，不得把 helper 当成 canonical 规则源。更新后的 helper 会消费 `check_config.capabilities`，并按工具 `mode` / `action` 拦截远端状态变化；已有项目只需更新 `.agents`，不自动改写 `.mcp.json` 或 `.iris-agentic-dev.toml`。
 - 如果输出中出现停止条件，先停止并向用户汇报，不要继续执行破坏性操作。
 - 若 `WorkspaceRoot/.agents/capability.json` 存在，按 workspace overlay 处理；`ContextRoot` 无 `.git` 是合法状态。完整两阶段流程和恢复门禁见 `docs/workspace-overlay.md`。
 

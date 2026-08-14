@@ -23,6 +23,9 @@ $adapterNames = @(
   "install-git-hooks.ps1",
   "repair-agent-entrypoints.ps1"
 )
+$nodeAdapterNames = @(
+  "iris-mcp.js"
+)
 
 function New-OverlayResult {
   param(
@@ -135,6 +138,78 @@ if (-not (Test-Path -LiteralPath $canonicalScript -PathType Leaf)) {
   return $paramBlock + ($body.Replace("__ADAPTER_NAME__", $escapedName))
 }
 
+function Get-NodeAdapterContent {
+  param([string]$AdapterName)
+
+  $escapedName = $AdapterName.Replace('\\', '\\\\').Replace("'", "\\'")
+  $body = @'
+#!/usr/bin/env node
+
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const { spawnSync } = require('child_process');
+
+function samePath(left, right) {
+  const normalizedLeft = path.resolve(left);
+  const normalizedRight = path.resolve(right);
+  return process.platform === 'win32'
+    ? normalizedLeft.toLowerCase() === normalizedRight.toLowerCase()
+    : normalizedLeft === normalizedRight;
+}
+
+function resolveWorkspaceRoot(contextRoot, manifest) {
+  let candidate = contextRoot;
+  while (true) {
+    const contextRootValue = String(manifest.contextRoot || '.agents');
+    const resolvedContext = path.isAbsolute(contextRootValue)
+      ? path.resolve(contextRootValue)
+      : path.resolve(candidate, contextRootValue);
+    if (samePath(resolvedContext, contextRoot)) return candidate;
+    const parent = path.dirname(candidate);
+    if (parent === candidate) break;
+    candidate = parent;
+  }
+  throw new Error(`Cannot resolve WorkspaceRoot from ContextRoot: ${contextRoot}`);
+}
+
+function main() {
+  const contextRoot = path.resolve(__dirname, '..');
+  const manifestPath = path.join(contextRoot, 'capability.json');
+  if (!fs.existsSync(manifestPath)) {
+    throw new Error(`Workspace capability manifest is missing: ${manifestPath}`);
+  }
+  const manifestText = fs.readFileSync(manifestPath, 'utf8').replace(/^\uFEFF/, '');
+  const manifest = JSON.parse(manifestText);
+  const workspaceRoot = resolveWorkspaceRoot(contextRoot, manifest);
+  const capabilityRootValue = String(manifest.capabilityRoot || '.agents');
+  const capabilityRoot = path.isAbsolute(capabilityRootValue)
+    ? path.resolve(capabilityRootValue)
+    : path.resolve(workspaceRoot, capabilityRootValue);
+  const canonicalScript = path.join(capabilityRoot, 'scripts', '__ADAPTER_NAME__');
+  if (!fs.existsSync(canonicalScript) || !fs.statSync(canonicalScript).isFile()) {
+    throw new Error(`Canonical capability script is missing: ${canonicalScript}`);
+  }
+  const result = spawnSync(process.execPath, [canonicalScript, ...process.argv.slice(2)], {
+    cwd: process.cwd(),
+    env: process.env,
+    stdio: 'inherit'
+  });
+  if (result.error) throw result.error;
+  process.exitCode = typeof result.status === 'number' ? result.status : 1;
+}
+
+try {
+  main();
+} catch (error) {
+  console.error('ERROR=' + error.message);
+  process.exitCode = 1;
+}
+'@
+  return $body.Replace("__ADAPTER_NAME__", $escapedName)
+}
+
 $context = Resolve-AgentWorkspaceContext -ProjectRoot $WorkspaceRoot
 $validation = @(Test-AgentWorkspaceContext -Context $context)
 $results = New-Object System.Collections.Generic.List[object]
@@ -190,6 +265,16 @@ foreach ($adapterName in $adapterNames) {
     $results.Add($invalid)
     $blockers.Add($invalid)
   }
+}
+foreach ($adapterName in $nodeAdapterNames) {
+  $canonicalScript = Join-Path $context.capabilityRoot ("scripts/" + $adapterName)
+  if (-not (Test-Path -LiteralPath $canonicalScript -PathType Leaf)) {
+    $missing = New-OverlayResult -Status "runtime-adapter-source-missing" -Path $canonicalScript -Expected $adapterName -Reason "canonical capability script is missing"
+    $results.Add($missing)
+    $blockers.Add($missing)
+    continue
+  }
+  $adapterContentByName[$adapterName] = Get-NodeAdapterContent -AdapterName $adapterName
 }
 
 if ($blockers.Count -gt 0) {
@@ -256,6 +341,28 @@ foreach ($adapterName in $adapterNames) {
       New-Item -ItemType Directory -Force -Path $scriptsRoot | Out-Null
     }
     [System.IO.File]::WriteAllText($adapterPath, $content, [System.Text.UTF8Encoding]::new($true))
+    $results.Add((New-OverlayResult -Status "runtime-adapter-generated" -Path $adapterPath -Expected $canonicalScript -Reason "generated manifest-aware runtime adapter"))
+  }
+  elseif ($Mode -eq "DryRun") {
+    $results.Add((New-OverlayResult -Status "runtime-adapter-planned" -Path $adapterPath -Expected $canonicalScript -Reason "runtime adapter is missing or stale"))
+  }
+  else {
+    $results.Add((New-OverlayResult -Status "runtime-adapter-missing" -Path $adapterPath -Expected $canonicalScript -Reason "runtime adapter is missing or stale"))
+  }
+}
+foreach ($adapterName in $nodeAdapterNames) {
+  $canonicalScript = Join-Path $context.capabilityRoot ("scripts/" + $adapterName)
+  $adapterPath = Join-Path $scriptsRoot $adapterName
+  $content = [string]$adapterContentByName[$adapterName]
+  $existing = if (Test-Path -LiteralPath $adapterPath -PathType Leaf) { [System.IO.File]::ReadAllText($adapterPath, [System.Text.Encoding]::UTF8) } else { $null }
+  if ($existing -eq $content) {
+    $results.Add((New-OverlayResult -Status "runtime-adapter-unchanged" -Path $adapterPath -Expected $canonicalScript -Reason "runtime adapter already matches canonical parameters"))
+  }
+  elseif ($Mode -eq "Write") {
+    if (-not (Test-Path -LiteralPath $scriptsRoot -PathType Container)) {
+      New-Item -ItemType Directory -Force -Path $scriptsRoot | Out-Null
+    }
+    [System.IO.File]::WriteAllText($adapterPath, $content, [System.Text.UTF8Encoding]::new($false))
     $results.Add((New-OverlayResult -Status "runtime-adapter-generated" -Path $adapterPath -Expected $canonicalScript -Reason "generated manifest-aware runtime adapter"))
   }
   elseif ($Mode -eq "DryRun") {

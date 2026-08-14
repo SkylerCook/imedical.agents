@@ -37,7 +37,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\CodeSpace\GIT\Gitlab\
   -Detailed
 ```
 
-确认无停止条件后，仅将 `-Mode DryRun` 改为 `-Mode Write`。随后执行模块工作区自己的验证器。overlay 输出应包含 `capability-pull-skipped-overlay`；不要求 `ContextRoot` 存在 `.git` 或 `.git/info/exclude`。
+确认无停止条件后，仅将 `-Mode DryRun` 改为 `-Mode Write`。随后执行模块工作区自己的验证器。overlay 输出应包含 `capability-pull-skipped-overlay`；不要求 `ContextRoot` 存在 `.git` 或 `.git/info/exclude`。Write 还会在 `ContextRoot/scripts/` 生成 manifest-aware runtime adapter，其中 `.agents/scripts/iris-mcp.js` 在运行时读取 `capability.json` 并转发到 `CapabilityRoot/scripts/iris-mcp.js`，不会复制 helper 实现或写死 capability 绝对路径。
 
 固定顺序是：更新一次 capability → 对每个模块 DryRun → 无停止条件后 Write → 执行模块验证器。不要在每个模块中重复更新 capability。
 
@@ -47,7 +47,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\CodeSpace\GIT\Gitlab\
 
 更新器只允许：
 
-- 在 `ContextRoot` 合并缺失配置、生成 thin-index 和本地 wrapper；
+- 在 `ContextRoot` 合并缺失配置、生成 thin-index 和本地 runtime adapter；
 - 创建缺失的安全 Junction；
 - 在显式 `-Repair` 时仅修复目标不符的受管 Junction。
 
