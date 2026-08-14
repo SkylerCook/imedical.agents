@@ -47,7 +47,7 @@
 
 ## 部署边界
 
-业务项目通过安装或更新脚本只检出运行需要的能力包内容：`agents/`、`workflows/`、`docs/`、`rules/`、`skills/`、`plugins/`、`vendor/`、`feedback/` 和根 `scripts/*.ps1`。
+业务项目通过安装或更新脚本只检出运行需要的能力包内容：`agents/`、`workflows/`、`docs/`、`rules/`、`skills/`、`plugins/`、`vendor/`、`feedback/`，以及根 `scripts/*.ps1`、`scripts/*.js` 和 `scripts/lib/**`。
 
 不要把以下内容加入业务项目 `.agents` sparse checkout：
 
@@ -59,6 +59,18 @@
 - `.github/`
 - `.nojekyll`
 - `scripts/tests/`
+
+## 脚本与跨平台运行时
+
+- Node.js 是运行、安装、更新和维护 `.agents` 工具链的前置依赖，不是 HIS 或其它业务系统的生产运行依赖。面向医院内网或纯后端工程的说明、检查和错误提示必须明确这一区别。
+- 后续新增的平台无关脚本默认使用 JavaScript；文件、Git、JSON、manifest、thin-index、依赖解析、查询和编排等跨平台核心逻辑优先抽取为 JavaScript 实现。
+- JavaScript 脚本默认只使用 Node.js 内置模块，避免要求业务项目为能力包执行 `npm install`。确需第三方依赖时，必须先评估离线环境、供应链、版本锁定、分发和升级成本，并形成明确决策。
+- `.ps1` 仅保留 Windows bootstrap 或薄入口，Junction、Windows PowerShell 5.1、GB2312 等 Windows 专属能力，以及尚未迁移的存量脚本。不得为跨平台核心逻辑长期维护功能等价的成套 `.ps1` 与 `.sh` 实现。
+- 不要求一次性重写现有 `.ps1`；在实际维护需求中逐步抽取 JavaScript 核心，并保留必要的平台适配层和兼容入口。
+- 安装器和更新器必须在执行主要流程前检查 `node` 及其版本；不满足要求时明确停止，说明安装方式和用途，不得自动或静默安装 Node.js。
+- 当前最低版本基线为 Node.js `>=22.5.0`，以满足现有 `codegraph-query` 对 `node:sqlite` 的使用。正式落地跨平台工具链前，必须在完整回归后确定并记录受支持的 Node 22 版本范围，不得把未经验证的版本范围宣称为已支持。
+- 根 `scripts/*.js` 必须纳入安装和更新的 sparse checkout，并由回归测试验证，避免出现“源仓已提交、业务项目未部署”的缺口；`scripts/tests/` 仍不得部署到业务项目。
+- 跨平台脚本和工具链变更必须建立并通过 Windows、macOS、Linux 测试矩阵；涉及 Windows 专属能力时，应验证明确的 capability 降级或停止行为，不能把平台不支持表现为执行中途失败。
 
 ## 维护约束
 
