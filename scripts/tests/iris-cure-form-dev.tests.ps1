@@ -47,6 +47,10 @@ function New-PassedPreviewVerification {
                 initializedPanelCount = [int]$manifest.expectedRuntime.panelCount
                 radioCount = [int]$manifest.expectedRuntime.radioCount
                 generatedRadioLabelCount = [int]$manifest.expectedRuntime.radioCount
+                hisuiRadioTargetCount = [int]$manifest.expectedRuntime.hisuiRadioCount
+                completeHisuiRadioPairCount = [int]$manifest.expectedRuntime.semanticRadioPairCount
+                brokenHisuiRadioPairCount = 0
+                unpairedHisuiRadioCount = [int]$manifest.expectedRuntime.hisuiRadioCount - [int]$manifest.expectedRuntime.semanticRadioPairCount
                 horizontalOverflow = $false
             }
             networkErrors = @()
@@ -65,7 +69,7 @@ try {
 
     $manifest = Get-Content -LiteralPath (Join-Path $pluginRoot '.agents-plugin\plugin.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($manifest.name -eq 'iris-cure-form-dev') 'Unexpected plugin name.'
-    Assert-True ($manifest.version -eq '0.3.0') 'Unexpected plugin version.'
+    Assert-True ($manifest.version -eq '0.3.1') 'Unexpected plugin version.'
     Assert-True (($manifest.dependencies -contains 'extract-doc') -and ($manifest.dependencies -contains 'coding-iris-plugin')) 'Plugin dependencies are incomplete.'
 
     foreach ($skill in @('cure-form-init','cure-form-requirement-adapter','cure-assess-form-dev','cure-record-form-dev','cure-form-responsive','make-assess-form-responsive','cure-form-deploy','cure-form-lookup','cure-form-fragment')) {
@@ -494,6 +498,7 @@ try {
     $commonPreviewHtml = Get-Content -LiteralPath $commonPreview.html -Raw -Encoding UTF8
     Assert-True ($commonPreviewManifest.resources.Count -eq 6) 'Canonical preview must bind all six required resources.'
     Assert-True ($commonPreviewManifest.expectedRuntime.radioCount -eq 2) 'Canonical preview must bind the source radio count into its runtime gate.'
+    Assert-True (($commonPreviewManifest.expectedRuntime.hisuiRadioCount -eq 2) -and ($commonPreviewManifest.expectedRuntime.semanticRadioPairCount -eq 0)) 'Canonical preview must bind source HISUI radios while leaving radios without semantic labels unpaired.'
     Assert-True (@(Get-ChildItem -LiteralPath (Join-Path $commonPreviewRoot 'assets') -File).Count -eq 6) 'Canonical preview must copy local target resources into a self-contained asset directory.'
     Assert-True (Test-Path -LiteralPath (Join-Path $commonPreviewRoot 'assets\images\pure\checkbox_lite_v.png') -PathType Leaf) 'Canonical preview must preserve local CSS dependencies used by HISUI radio rendering.'
     Assert-True (($commonPreviewHtml -match '__cureFormPreviewCheck') -and ($commonPreviewHtml -match 'data-cure-preview-resource="hisuiCss"')) 'Canonical preview must embed the browser runtime probe and tracked resource tags.'
@@ -513,6 +518,73 @@ try {
     } | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $missingRadioResults -Encoding UTF8
     $missingRadioResult = Invoke-Cure @('preview-check','--manifest',$commonPreview.manifest,'--browser-results',$missingRadioResults,'--output',(Join-Path $commonPreviewRoot 'missing-radio-verification.json')) 1
     Assert-True ($missingRadioResult -match 'radio label generation is incomplete') 'Browser evidence must not bypass radio generation by reporting zero radios.'
+
+    $atomicChangesPath = Join-Path $scratch 'atomic-radio-changes.json'
+    @{
+        title = 'HISUI radio atomic pairing fixture'
+        templates = @(@{
+            appId = 'AtomicRadioFixture'
+            content = '<div id="AtomicRadioFixture" class="hisui-panel assess-form"><input id="AtomicI" class="hisui-radio radio-f" type="radio" name="AtomicIGroup" value="Y"><label class="i-label-box" for="AtomicI">表格选项</label><input id="AtomicM" class="hisui-radio radio-f" type="radio" name="AtomicMGroup" value="Y"><label class="m-label-box" for="AtomicM">普通选项</label><input id="HisuiWithoutSemantic" class="hisui-radio radio-f" type="radio" name="HisuiWithoutSemanticGroup" value="Y"><input id="MismatchedFor" class="hisui-radio radio-f" type="radio" name="MismatchedForGroup" value="Y"><label class="m-label-box" for="OtherRadioId">for/id 不一致</label><input id="MissingRadioF" class="hisui-radio" type="radio" name="MissingRadioFGroup" value="Y"><label class="m-label-box" for="MissingRadioF">源模板待 HISUI 添加 radio-f</label><input id="MissingHisuiRadio" class="radio-f" type="radio" name="MissingHisuiGroup" value="Y"><label class="m-label-box" for="MissingHisuiRadio">缺少 hisui-radio</label></div><div id="OutsideAssessForm"><input id="OutsideAtomicClasses" class="hisui-radio radio-f" type="radio" name="OutsideGroup" value="Y"><label class="m-label-box" for="OutsideAtomicClasses">容器外选项</label></div>'
+        })
+    } | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $atomicChangesPath -Encoding UTF8
+    $atomicPreviewRoot = Join-Path $scratch 'atomic-radio-preview'
+    $atomicPreview = Invoke-Cure @('preview','--changes',$atomicChangesPath,'--target-profile',$previewProfile,'--output-root',$atomicPreviewRoot) | ConvertFrom-Json
+    $atomicManifest = Get-Content -LiteralPath $atomicPreview.manifest -Raw -Encoding UTF8 | ConvertFrom-Json
+    $atomicPreviewHtml = Get-Content -LiteralPath $atomicPreview.html -Raw -Encoding UTF8
+    Assert-True (($atomicManifest.schema -eq 'cure-form-preview-manifest/v1') -and ($atomicManifest.expectedRuntime.radioCount -eq 7) -and ($atomicManifest.expectedRuntime.hisuiRadioCount -eq 5) -and ($atomicManifest.expectedRuntime.semanticRadioPairCount -eq 3)) 'Canonical preview must count source HISUI radios inside .assess-form while excluding mismatched for/id pairs, controls without hisui-radio, and controls outside the form.'
+    Assert-True ($atomicManifest.requiredChecks -contains 'radio-atomic-pairing') 'Canonical preview manifest must declare the atomic radio pairing gate.'
+    Assert-True (($atomicPreviewHtml -match 'completeHisuiRadioPairCount') -and ($atomicPreviewHtml -match 'brokenHisuiRadioPairCount') -and ($atomicPreviewHtml -match 'unpairedHisuiRadioCount')) 'Canonical preview probe is missing atomic radio result fields.'
+    Assert-True ($atomicPreviewHtml.Contains('.assess-form input[type="radio"].hisui-radio.radio-f') -and $atomicPreviewHtml.Contains("semanticLabel.getAttribute('for') === id")) 'Canonical preview probe must enforce the exact target classes and semantic label for/id match.'
+    $atomicPassedPayload = @{
+        schema = 'cure-form-browser-results/v1'
+        results = @($atomicManifest.widths | ForEach-Object {
+            [ordered]@{
+                schema = 'cure-form-browser-result/v1'; manifestHash = $atomicPreview.manifestHash; width = [int]$_
+                resources = @($atomicManifest.resources | ForEach-Object { [ordered]@{ role = $_.role; state = 'loaded' } })
+                checks = [ordered]@{
+                    jqueryAvailable = $true; parserAvailable = $true; panelCount = 1; initializedPanelCount = 1
+                    radioCount = 7; generatedRadioLabelCount = 7
+                    hisuiRadioTargetCount = 5; completeHisuiRadioPairCount = 3; brokenHisuiRadioPairCount = 0; unpairedHisuiRadioCount = 2
+                    horizontalOverflow = $false
+                }
+                networkErrors = @()
+                runtimeErrors = @()
+            }
+        })
+    }
+    $atomicPassedResults = Join-Path $atomicPreviewRoot 'atomic-passed-results.json'
+    $atomicPassedPayload | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $atomicPassedResults -Encoding UTF8
+    Invoke-Cure @('preview-check','--manifest',$atomicPreview.manifest,'--browser-results',$atomicPassedResults,'--output',(Join-Path $atomicPreviewRoot 'atomic-passed-verification.json')) | Out-Null
+
+    $atomicBrokenPayload = $atomicPassedPayload | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+    foreach ($result in $atomicBrokenPayload.results) {
+        $result.checks.completeHisuiRadioPairCount = 2
+        $result.checks.brokenHisuiRadioPairCount = 1
+    }
+    $atomicBrokenResults = Join-Path $atomicPreviewRoot 'atomic-broken-results.json'
+    $atomicBrokenPayload | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $atomicBrokenResults -Encoding UTF8
+    $atomicBrokenResult = Invoke-Cure @('preview-check','--manifest',$atomicPreview.manifest,'--browser-results',$atomicBrokenResults,'--output',(Join-Path $atomicPreviewRoot 'atomic-broken-verification.json')) 1
+    Assert-True ($atomicBrokenResult -match 'radio atomic pairing is broken') 'Preview-check must reject broken HISUI radio atomic pairing.'
+
+    $atomicIncompletePayload = $atomicPassedPayload | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+    foreach ($result in $atomicIncompletePayload.results) {
+        $result.checks.completeHisuiRadioPairCount = 2
+        $result.checks.unpairedHisuiRadioCount = 3
+    }
+    $atomicIncompleteResults = Join-Path $atomicPreviewRoot 'atomic-incomplete-results.json'
+    $atomicIncompletePayload | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $atomicIncompleteResults -Encoding UTF8
+    $atomicIncompleteResult = Invoke-Cure @('preview-check','--manifest',$atomicPreview.manifest,'--browser-results',$atomicIncompleteResults,'--output',(Join-Path $atomicPreviewRoot 'atomic-incomplete-verification.json')) 1
+    Assert-True ($atomicIncompleteResult -match 'radio atomic pairing is incomplete') 'Preview-check must reject incomplete HISUI radio atomic pairing.'
+
+    $atomicMissingTargetPayload = $atomicPassedPayload | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+    foreach ($result in $atomicMissingTargetPayload.results) {
+        $result.checks.hisuiRadioTargetCount = 4
+        $result.checks.unpairedHisuiRadioCount = 1
+    }
+    $atomicMissingTargetResults = Join-Path $atomicPreviewRoot 'atomic-missing-target-results.json'
+    $atomicMissingTargetPayload | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $atomicMissingTargetResults -Encoding UTF8
+    $atomicMissingTargetResult = Invoke-Cure @('preview-check','--manifest',$atomicPreview.manifest,'--browser-results',$atomicMissingTargetResults,'--output',(Join-Path $atomicPreviewRoot 'atomic-missing-target-verification.json')) 1
+    Assert-True ($atomicMissingTargetResult -match 'initialized atomic targets are incomplete') 'Preview-check must reject HISUI source radios that did not initialize into exact atomic targets.'
 
     $inventory = Join-Path $scratch 'inventory.json'
     @(

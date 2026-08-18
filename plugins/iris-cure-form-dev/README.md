@@ -101,7 +101,7 @@ node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js preview `
   --output-root .\.agents\work\cure-form\preview
 ```
 
-生成的 `preview.html` 内置浏览器探针，暴露 `window.__cureFormPreviewCheck()`。浏览器在 `360/390/430/768/810/1024/1080/1194/1280` 九档宽度分别调用该函数，将结果汇总为 `cure-form-browser-results/v1`，再由 `preview-check` 验证资源加载、`jQuery`、`$.parser`、HISUI panel、radio `label.radio`、横向溢出和运行时错误：
+生成的 `preview.html` 内置浏览器探针，暴露 `window.__cureFormPreviewCheck()`。浏览器在 `360/390/430/768/810/1024/1080/1194/1280` 九档宽度分别调用该函数，将结果汇总为 `cure-form-browser-results/v1`，再由 `preview-check` 验证资源加载、`jQuery`、`$.parser`、HISUI panel、radio `label.radio`、完整三节点配对、横向溢出和运行时错误：
 
 ```powershell
 node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js preview-check `
@@ -114,9 +114,11 @@ node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js preview-check `
 
 ## 响应式兼容门禁
 
-现有 CA/CR 模板改造必须保留 HISUI radio 的完整 DOM 组合，包括原生 `label.radio`、业务语义 `i-label-box` / `m-label-box` 与对应 `input name/value`。公共 CSS 仅可在完整配对且浏览器支持相应选择器时重绘圆圈；旧 WebView 保留 HISUI 原生渲染，不得通过无条件隐藏 `label.radio` 造成 radio 消失。普通布局与表格单元格中的 radio 都要验证点击同步、选中态和无横向溢出。详细矩阵见 `references/cure-form-responsive-compatibility.md`。
+现有 CA/CR 模板改造必须保留 HISUI radio 的完整 DOM 组合，包括原生 `label.radio`、业务语义 `i-label-box` / `m-label-box` 与对应 `input name/value`。公共 CSS 仅可在完整配对且浏览器支持相应选择器时重绘圆圈；旧 WebView 保留 HISUI 原生渲染，不得通过无条件隐藏 `label.radio` 造成 radio 消失。旧内核仍把圆圈和文字拆行时，只允许对 `for/id` 一致的完整三节点做幂等原子包装，并必须连同 input 一起移动以保持 HISUI 邻接关系。普通布局与表格单元格中的 radio 都要验证点击同步、选中态和无横向溢出；旧 WebView 另验原子布局、幂等性与未配对节点保护。详细矩阵见 `references/cure-form-responsive-compatibility.md`。
 
 插件只固化兼容契约和验证门禁，不携带或复制业务工程的公共响应式 CSS。实际文件位置、编码、上传和部署继续由目标工程配置并委托 `coding-iris-plugin`。
+
+已部署业务工程获取本门禁时，只需按既有能力包更新流程刷新 `.agents` 并为已启用插件重建 thin-index；无需复制插件中的业务 CSS，也不得自动改写现有表单 DOM。
 
 公共响应式 CSS 只允许跨表单断点、伸缩、触控和 HISUI 兼容规则；moduleId、业务根 ID、表单专属颜色、矩阵和单表 class 必须放入独立业务 CSS。`prepare` 扫描开发源，`plan` 同时扫描开发源和部署副本，发现污染即停止。
 

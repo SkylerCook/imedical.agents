@@ -20,7 +20,7 @@
 - `plugins/extract-doc/` 负责 PDF、DOC、DOCX、XLS、XLSX 的本地解析和结构化落盘，是接口类业务插件的通用文档依赖。
 - `plugins/i18n-iris-plugin/` 负责 IRIS/ObjectScript/CSP/HISUI 国际化能力。
 - `plugins/iris-interface-dev/` 负责接口 schema、字段诊断、开发计划、本地接口实现和离线审查，文档读取委托 `extract-doc`，编码与部署规则复用 `coding-iris-plugin`。
-- `plugins/iris-cure-form-dev/` 负责 CA 治疗评估与 CR 治疗记录的文档语义适配、Excel 多模板边界报告与有序生成、响应式改造及受控部署编排；Map 总入口与模板逻辑均使用运行时外部 JS 路径，部署路径单独声明，无逻辑模板保持空引用；默认由宿主管理分模板生命周期，已验证宿主不可靠时可显式启用 `aggregateTemplateInit=true`，由总入口延迟且幂等调度实际业务模块；canonical `preview`/`preview-check` 从目标 profile 或现有页面解析六类资源，并把九档浏览器结果与 snapshot、changes、资源清单哈希绑定后作为部署计划前置门禁；响应式兼容继续覆盖 HISUI `i-label-box` / `m-label-box` radio 配对和旧 WebView fallback；通用文档解析委托 `extract-doc`，IRIS/HISUI 与静态资源部署复用 `coding-iris-plugin`，空 `MapType` 病理模板不进入流程。
+- `plugins/iris-cure-form-dev/` 负责 CA 治疗评估与 CR 治疗记录的文档语义适配、Excel 多模板边界报告与有序生成、响应式改造及受控部署编排；Map 总入口与模板逻辑均使用运行时外部 JS 路径，部署路径单独声明，无逻辑模板保持空引用；默认由宿主管理分模板生命周期，已验证宿主不可靠时可显式启用 `aggregateTemplateInit=true`，由总入口延迟且幂等调度实际业务模块；canonical `preview`/`preview-check` 从目标 profile 或现有页面解析六类资源，并把九档浏览器结果与 snapshot、changes、资源清单哈希绑定后作为部署计划前置门禁；响应式兼容覆盖 HISUI `i-label-box` / `m-label-box` 完整三节点配对，以及旧 WebView 下保持 input 邻接的幂等原子布局 fallback；通用文档解析委托 `extract-doc`，IRIS/HISUI 与静态资源部署复用 `coding-iris-plugin`，空 `MapType` 病理模板不进入流程。
 - `plugins/iris-external-reg/` 负责编排第三方预约挂号接口开发，依赖 `extract-doc` 和 `coding-iris-plugin`。
 - `plugins/imedicalxc-doctor-extend-engineer/` 负责 HIS 医生站第三方系统集成编排，主入口为 `skills/imedicalxc-doctor-extend-engineer/SKILL.md`，子 skill 由主编排器按需读取。
 - 已落地首个领域样板 `agents/i18n-agent/` 和 `workflows/i18n-change.workflow.md`，用于 IRIS i18n 需求的链路定位、数据分类、编码/模板/种子和验证五阶段处理。

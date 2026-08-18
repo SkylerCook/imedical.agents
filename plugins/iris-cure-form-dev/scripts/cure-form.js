@@ -127,6 +127,29 @@ function htmlAttribute(tag, name) {
   return match ? match[2] : '';
 }
 
+function htmlHasClass(tag, className) {
+  return htmlAttribute(tag, 'class').split(/\s+/).includes(className);
+}
+
+function htmlTagsWithScope(html, scopeClass) {
+  const tokens = String(html || '').match(/<\/?[A-Za-z][^>]*>/g) || [];
+  const stack = [false];
+  const result = [];
+  const voidElements = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
+  for (const tag of tokens) {
+    if (/^<\//.test(tag)) {
+      if (stack.length > 1) stack.pop();
+      continue;
+    }
+    const nameMatch = /^<([A-Za-z][A-Za-z0-9:-]*)/.exec(tag);
+    const name = nameMatch ? nameMatch[1].toLowerCase() : '';
+    const inScope = stack[stack.length - 1] || htmlHasClass(tag, scopeClass);
+    result.push({ tag, inScope });
+    if (!voidElements.has(name) && !/\/>\s*$/.test(tag)) stack.push(inScope);
+  }
+  return result;
+}
+
 function resourceReferencesFromHtml(html) {
   const result = {};
   const tags = String(html || '').match(/<(?:link|script)\b[^>]*>/gi) || [];
@@ -1242,6 +1265,31 @@ function renderPreviewProbe(manifestHash, resources) {
       }
       return false;
     }).length;
+    var hisuiRadioTargets = Array.prototype.slice.call(document.querySelectorAll('.assess-form input[type="radio"].hisui-radio.radio-f'));
+    var completeHisuiRadioPairs = 0;
+    var brokenHisuiRadioPairs = 0;
+    var unpairedHisuiRadios = 0;
+    hisuiRadioTargets.forEach(function (radio) {
+      var id = radio.getAttribute('id');
+      var assessForm = radio.parentElement;
+      while (assessForm && !(assessForm.matches && assessForm.matches('.assess-form'))) { assessForm = assessForm.parentElement; }
+      var semanticLabels = assessForm ? Array.prototype.slice.call(assessForm.querySelectorAll('label.i-label-box[for], label.m-label-box[for]')) : [];
+      var generatedLabel = radio.nextElementSibling;
+      var semanticLabel = generatedLabel && generatedLabel.nextElementSibling;
+      var generatedIsAdjacent = Boolean(generatedLabel && generatedLabel.matches && generatedLabel.matches('label.radio'));
+      var semanticIsAdjacent = Boolean(semanticLabel && semanticLabel.matches && semanticLabel.matches('label.i-label-box, label.m-label-box'));
+      var semanticForMatches = Boolean(id && semanticIsAdjacent && semanticLabel.getAttribute('for') === id);
+      var hasMatchingSemanticLabel = Boolean(id && semanticLabels.some(function (label) {
+        return label.getAttribute('for') === id;
+      }));
+      if (generatedIsAdjacent && semanticForMatches) {
+        completeHisuiRadioPairs += 1;
+      } else if (hasMatchingSemanticLabel) {
+        brokenHisuiRadioPairs += 1;
+      } else {
+        unpairedHisuiRadios += 1;
+      }
+    });
     var resourceStates = roles.map(function (role) { return { role: role, state: states[role] || 'missing' }; });
     var networkErrors = [];
     if (window.performance && typeof window.performance.getEntriesByType === 'function') {
@@ -1263,6 +1311,10 @@ function renderPreviewProbe(manifestHash, resources) {
         initializedPanelCount: initializedPanels,
         radioCount: radios.length,
         generatedRadioLabelCount: generatedLabels,
+        hisuiRadioTargetCount: hisuiRadioTargets.length,
+        completeHisuiRadioPairCount: completeHisuiRadioPairs,
+        brokenHisuiRadioPairCount: brokenHisuiRadioPairs,
+        unpairedHisuiRadioCount: unpairedHisuiRadios,
         horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1
       },
       networkErrors: networkErrors,
@@ -1561,10 +1613,19 @@ function previewBodyFromChanges(changes) {
 
 function previewRuntimeExpectations(body) {
   const tags = String(body || '').match(/<[^>]+>/g) || [];
+  const scopedTags = htmlTagsWithScope(body, 'assess-form').filter((item) => item.inScope).map((item) => item.tag);
   const panelCount = tags.filter((tag) => /\bclass\s*=\s*(["'])[^"']*\bhisui-panel\b[^"']*\1/i.test(tag)).length;
-  const radioCount = tags.filter((tag) => /^<input\b/i.test(tag) && /\btype\s*=\s*(["'])radio\1/i.test(tag)).length;
+  const radioTags = tags.filter((tag) => /^<input\b/i.test(tag) && /\btype\s*=\s*(["'])radio\1/i.test(tag));
+  const semanticLabels = scopedTags.filter((tag) => /^<label\b/i.test(tag) && (htmlHasClass(tag, 'i-label-box') || htmlHasClass(tag, 'm-label-box')));
+  // Source templates normally gain `radio-f` only after HISUI parsing. The
+  // browser probe verifies the exact initialized `.hisui-radio.radio-f` shape.
+  const hisuiRadios = scopedTags.filter((tag) => /^<input\b/i.test(tag) && /\btype\s*=\s*(["'])radio\1/i.test(tag) && htmlHasClass(tag, 'hisui-radio'));
+  const semanticRadioPairCount = hisuiRadios.filter((tag) => {
+    const id = htmlAttribute(tag, 'id');
+    return Boolean(id && semanticLabels.some((label) => htmlAttribute(label, 'for') === id));
+  }).length;
   if (panelCount < 1) fail('Preview changes must contain at least one .hisui-panel for browser initialization verification.');
-  return { panelCount, radioCount };
+  return { panelCount, radioCount: radioTags.length, hisuiRadioCount: hisuiRadios.length, semanticRadioPairCount };
 }
 
 function commandPreview(args) {
@@ -1588,7 +1649,7 @@ function commandPreview(args) {
     resources: resources.map((resource) => ({ role: resource.role, basename: resource.basename, href: resource.href, contentHash: resource.contentHash })),
     widths: PREVIEW_WIDTHS,
     expectedRuntime,
-    requiredChecks: ['resources', 'network-errors', 'jquery', 'parser', 'panel', 'radio', 'horizontal-overflow', 'runtime-errors']
+    requiredChecks: ['resources', 'network-errors', 'jquery', 'parser', 'panel', 'radio', 'radio-atomic-pairing', 'horizontal-overflow', 'runtime-errors']
   };
   const manifestPath = writeJson(path.join(outputRoot, 'preview-manifest.json'), manifest);
   const manifestHash = sha256(manifest);
@@ -1621,6 +1682,25 @@ function validateBrowserResult(result, width, manifest, manifestHash) {
   if (Number(checks.radioCount) !== Number(expectedRuntime.radioCount) || Number(checks.generatedRadioLabelCount) < Number(expectedRuntime.radioCount)) {
     fail(`HISUI radio label generation is incomplete at width ${width}.`);
   }
+  const hasAtomicRadioExpectations = Object.prototype.hasOwnProperty.call(expectedRuntime, 'hisuiRadioCount') || Object.prototype.hasOwnProperty.call(expectedRuntime, 'semanticRadioPairCount');
+  if (hasAtomicRadioExpectations) {
+    const atomicFields = ['hisuiRadioTargetCount', 'completeHisuiRadioPairCount', 'brokenHisuiRadioPairCount', 'unpairedHisuiRadioCount'];
+    if (!atomicFields.every((field) => Number.isInteger(Number(checks[field])) && Number(checks[field]) >= 0)) {
+      fail(`HISUI radio atomic pairing counts are invalid at width ${width}.`);
+    }
+    if (Number(checks.hisuiRadioTargetCount) !== Number(checks.completeHisuiRadioPairCount) + Number(checks.brokenHisuiRadioPairCount) + Number(checks.unpairedHisuiRadioCount)) {
+      fail(`HISUI radio atomic pairing counts are inconsistent at width ${width}.`);
+    }
+    if (Number(checks.hisuiRadioTargetCount) !== Number(expectedRuntime.hisuiRadioCount)) {
+      fail(`HISUI radio initialized atomic targets are incomplete at width ${width}.`);
+    }
+    if (Number(checks.brokenHisuiRadioPairCount) !== 0) {
+      fail(`HISUI radio atomic pairing is broken at width ${width}.`);
+    }
+    if (Number(checks.completeHisuiRadioPairCount) !== Number(expectedRuntime.semanticRadioPairCount)) {
+      fail(`HISUI radio atomic pairing is incomplete at width ${width}.`);
+    }
+  }
   if (checks.horizontalOverflow !== false) fail(`Preview has horizontal overflow or no overflow evidence at width ${width}.`);
   if (!Array.isArray(result.networkErrors)) fail(`Preview network error evidence is missing at width ${width}.`);
   if (result.networkErrors.length) fail(`Preview resource requests failed at width ${width}: ${JSON.stringify(result.networkErrors)}`);
@@ -1638,6 +1718,11 @@ function commandPreviewCheck(args) {
   }
   if (!manifest.expectedRuntime || !Number.isInteger(Number(manifest.expectedRuntime.panelCount)) || Number(manifest.expectedRuntime.panelCount) < 1 || !Number.isInteger(Number(manifest.expectedRuntime.radioCount)) || Number(manifest.expectedRuntime.radioCount) < 0) {
     fail('Preview manifest does not contain valid runtime expectations.');
+  }
+  const hasHisuiRadioCount = Object.prototype.hasOwnProperty.call(manifest.expectedRuntime, 'hisuiRadioCount');
+  const hasSemanticRadioPairCount = Object.prototype.hasOwnProperty.call(manifest.expectedRuntime, 'semanticRadioPairCount');
+  if (hasHisuiRadioCount !== hasSemanticRadioPairCount || (hasHisuiRadioCount && (!Number.isInteger(Number(manifest.expectedRuntime.hisuiRadioCount)) || Number(manifest.expectedRuntime.hisuiRadioCount) < 0 || !Number.isInteger(Number(manifest.expectedRuntime.semanticRadioPairCount)) || Number(manifest.expectedRuntime.semanticRadioPairCount) < 0 || Number(manifest.expectedRuntime.semanticRadioPairCount) > Number(manifest.expectedRuntime.hisuiRadioCount)))) {
+    fail('Preview manifest does not contain valid HISUI radio atomic pairing expectations.');
   }
   const manifestResourceHash = sha256(manifest.resources.map((resource) => ({ role: resource.role, basename: resource.basename, href: resource.href, contentHash: resource.contentHash })));
   if (manifest.resourceHash !== manifestResourceHash) fail('Preview manifest resource hash is invalid.');

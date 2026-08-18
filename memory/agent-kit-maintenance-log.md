@@ -4,6 +4,8 @@
 
 ## 近期已完成
 
+- 2026-08-18：`iris-cure-form-dev` 升级为 v0.3.1，将旧 WebView radio 拆行故障回归 canonical：完整配对明确为 `input.hisui-radio.radio-f + label.radio + label.i-label-box/m-label-box` 且 `for/id` 一致；缺少 `:has()` 的旧内核可在目标工程内做包含 input 的幂等原子包装，以保持 HISUI 邻接、事件和保存协议。插件仅固化兼容契约与完整配对机器门禁，不携带业务 CSS/函数实现；现代 Chromium 与旧 WebView/真实触控证据继续分开验收。插件专项和 `update-agents` 回归均通过 PowerShell 7/Windows PowerShell 5.1，skill、Node 语法及两种宿主的 thin-index DryRun 通过。
+
 - 2026-08-18：`iris-cure-form-dev` 升级为 v0.3.0，新增 canonical `preview` 与 `preview-check`：从目标 profile 或现有页面解析并复制 HISUI CSS、jQuery、HISUI JavaScript、中文 locale、`asscom.css`、`adaptation.css` 六类资源，完整 HTML 缺资源立即停止；页面内置浏览器探针，九档结果验证资源请求、`jQuery`/`$.parser`、panel、radio、溢出和运行时错误，并形成与 snapshot、changes 和资源清单哈希绑定的凭证。任何带 changes 的 `plan` 现在必须提供通过的 `preview-verification`，最终包另校验计划 changes 哈希；README、owner 文档、profile 模板、更新 runbook 和专项测试同步。
 
 - 2026-08-18：补记根 `scripts/iris-mcp.js` 的大体积工具参数能力：`call` 支持以 `--json-file` 读取最多 8 MiB 的 UTF-8/BOM JSON，并继续复用既有默认拒绝写入与 `--allow-write` 授权门禁；`iris-mcp-helper.tests.ps1` 已覆盖文件参数解析和帮助入口。
