@@ -317,6 +317,7 @@ $extractDocManifestPath = Join-Path $repoRoot "plugins/extract-doc/.agents-plugi
 $codegraphQueryManifestPath = Join-Path $repoRoot "plugins/codegraph-query/.agents-plugin/plugin.json"
 $irisCodegraphManifestPath = Join-Path $repoRoot "plugins/iris-codegraph/.agents-plugin/plugin.json"
 $interfaceDevManifestPath = Join-Path $repoRoot "plugins/iris-interface-dev/.agents-plugin/plugin.json"
+$cureFormDevManifestPath = Join-Path $repoRoot "plugins/iris-cure-form-dev/.agents-plugin/plugin.json"
 $externalRegManifestPath = Join-Path $repoRoot "plugins/iris-external-reg/.agents-plugin/plugin.json"
 Assert-True (Test-Path -LiteralPath $runbookPath -PathType Leaf) "docs/update-agents.md should exist"
 Assert-True (Test-Path -LiteralPath $readmePath -PathType Leaf) "README.md should exist"
@@ -394,6 +395,7 @@ Assert-Contains $readmeContent "### extract-doc" "README should list the extract
 Assert-Contains $readmeContent "### codegraph-query" "README should list the codegraph-query plugin"
 Assert-Contains $readmeContent "### iris-codegraph" "README should list the iris-codegraph plugin"
 Assert-Contains $readmeContent "### iris-interface-dev" "README should list the current interface plugin name"
+Assert-Contains $readmeContent "### iris-cure-form-dev" "README should list the cure form plugin"
 Assert-Contains $readmeContent "### iris-external-reg" "README should list the iris-external-reg plugin"
 $runbookContent = Get-Content -Raw -Encoding UTF8 -Path $runbookPath
 Assert-Contains $runbookContent "DryRun" "runbook should mention DryRun"
@@ -410,6 +412,7 @@ Assert-Contains $runbookContent ".agents/plugins/extract-doc/skills/extract-doc-
 Assert-Contains $runbookContent ".agents/plugins/codegraph-query/skills/codegraph-query/SKILL.md" "runbook should point to the codegraph-query init entry"
 Assert-Contains $runbookContent ".agents/plugins/iris-codegraph/skills/iris-codegraph/SKILL.md" "runbook should point to the iris-codegraph init entry"
 Assert-Contains $runbookContent ".agents/plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md" "runbook should point to the current interface plugin init entry"
+Assert-Contains $runbookContent ".agents/plugins/iris-cure-form-dev/skills/cure-form-init/SKILL.md" "runbook should point to the cure form plugin init entry"
 Assert-Contains $runbookContent "plugin-profile-name-migration-planned" "runbook should document plugin canonical-name migration"
 Assert-Contains $runbookContent ".agents/plugins/iris-external-reg/skills/iris-external-reg/SKILL.md" "runbook should point to the iris-external-reg init entry"
 Assert-Contains $runbookContent "install-git-hooks.ps1" "runbook should document explicit git hook enablement"
@@ -440,6 +443,7 @@ $extractDocManifest = Get-Content -Raw -Encoding UTF8 -Path $extractDocManifestP
 $codegraphQueryManifest = Get-Content -Raw -Encoding UTF8 -Path $codegraphQueryManifestPath | ConvertFrom-Json
 $irisCodegraphManifest = Get-Content -Raw -Encoding UTF8 -Path $irisCodegraphManifestPath | ConvertFrom-Json
 $interfaceDevManifest = Get-Content -Raw -Encoding UTF8 -Path $interfaceDevManifestPath | ConvertFrom-Json
+$cureFormDevManifest = Get-Content -Raw -Encoding UTF8 -Path $cureFormDevManifestPath | ConvertFrom-Json
 $externalRegManifest = Get-Content -Raw -Encoding UTF8 -Path $externalRegManifestPath | ConvertFrom-Json
 Assert-True ($extractDocManifest.name -eq "extract-doc") "extract-doc manifest should parse with the expected name"
 Assert-True ($codegraphQueryManifest.name -eq "codegraph-query") "codegraph-query manifest should parse with the expected name"
@@ -449,6 +453,9 @@ Assert-True ($irisCodegraphManifest.name -eq "iris-codegraph") "iris-codegraph m
 Assert-True (($irisCodegraphManifest.dependencies -contains "coding-iris-plugin")) "iris-codegraph should declare coding-iris-plugin as a dependency"
 Assert-True ($interfaceDevManifest.name -eq "iris-interface-dev") "interface plugin manifest should use the current canonical name"
 Assert-True (@($interfaceDevManifest.configMigrations | Where-Object { $_.id -eq "interface-output-root-v1" }).Count -eq 1) "interface plugin should declare the output-root migration"
+Assert-True ($cureFormDevManifest.name -eq "iris-cure-form-dev") "cure form plugin manifest should use the canonical name"
+Assert-True (($cureFormDevManifest.dependencies -contains "extract-doc")) "cure form plugin should declare extract-doc as a dependency"
+Assert-True (($cureFormDevManifest.dependencies -contains "coding-iris-plugin")) "cure form plugin should declare coding-iris-plugin as a dependency"
 Assert-True (($externalRegManifest.dependencies -contains "extract-doc")) "iris-external-reg should declare extract-doc as a dependency"
 Assert-True (($externalRegManifest.dependencies -contains "coding-iris-plugin")) "iris-external-reg should declare coding-iris-plugin as a dependency"
 Assert-Contains $contextSkillContent "install-git-hooks.ps1" "project-context-maintenance should mention optional git hook enablement"

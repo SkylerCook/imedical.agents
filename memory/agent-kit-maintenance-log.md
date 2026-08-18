@@ -4,6 +4,19 @@
 
 ## 近期已完成
 
+- 2026-08-18：`iris-cure-form-dev` 升级为 v0.2.5，新增显式 `aggregateTemplateInit=true` 宿主兼容模式：当目标 HIS 不可靠调用分模板 `Init` 时，由 Map 总入口在 DOM ready 和宿主缓存恢复之后延迟、幂等调度实际存在的业务模板模块；默认模式仍保留宿主生命周期所有权，无逻辑模板不生成也不调用空壳 JS。专项回归覆盖仅调用业务模块、跳过空模板及延迟初始化门禁。
+
+- 2026-08-18：`iris-cure-form-dev` 升级为 v0.2.4，文档驱动的新表单默认从业务项目 `docs/` 发现医院 Word/PDF/Excel 需求，并将规格、摄取报告和生成源码写入 `docs/cure-form/<moduleId>/`，废弃插件内 `src-iris` 默认约定；多个候选文件必须显式传入 `--source`。服务器快照与部署临时数据继续隔离在 `.agents/work/`，专项测试覆盖默认目录与多候选停止门禁。
+
+- 2026-08-18：`iris-cure-form-dev` 升级为 v0.2.3，补齐表单总入口的运行时与部署双路径契约：`scriptHref` 写入 Map“引用JS”，`scriptDeploymentPath` 仅描述静态资源落盘位置，二者 basename 必须一致；`loadMode=host` 缺少任一路径时停止。模板继续仅在确有业务逻辑时保存各自 `javascriptHref`，无逻辑模板清空旧内联引用，专项测试覆盖 Map 外部入口与模板外链分离。
+
+- 2026-08-18：将真实手机/PDA 已验证的 HISUI radio 响应式兼容约束回归 `iris-cure-form-dev`：同时覆盖原生 `label.radio` 与业务 `i-label-box` / `m-label-box` 配对、普通布局和表格单元格、点击同步、选中态及旧 WebView 原生 fallback；插件只保存兼容契约与离线回归，不复制业务工程公共 CSS。专项测试继续验证响应式转换不改变 radio DOM/`name/value`，部署保持默认 dry-run，远端校验只走 `ValidatePackage`，写入仍需显式确认后调用 `ApplyPackage`。
+
+- 2026-08-17：`iris-cure-form-dev` 升级为 v0.2.2，部署计划新增 `--approved-clones` 公共模板幂等复用：按来源 RowID 将已批准版本转换为 `referenceOnly`，并记录 `commonTemplateReferences[]`，防止多个 CA/CR Map 重复克隆同一公共模板；创建流程支持获批 `fragmentHtml`/`javascript` 覆盖，强制校验根容器、响应式 class、字段 ID/缓存标签、模块接口和语法，独立预览按序加载并初始化全部子模板。专项测试覆盖上述复杂多模板生成、已批准模板复用与未批准模板继续版本化克隆。
+
+- 2026-08-17：`iris-cure-form-dev` 升级为 v0.2.1，新增 `cure-form-template-boundaries/v1` Excel 多模板摄取：保留格式化/非空范围、合并层级、公式、单位维度与规则候选，范围重叠进入 `TEMPLATE_RANGE_OVERLAP`，合并单元格被边界截断进入 `TEMPLATE_MERGE_SPLIT`；审批后按顺序生成独立 fragment、JavaScript 和 Map composition changes。同步补齐候选字段/标识符审批门禁、`common-responsive` 快照版本化克隆实现、插件文档，以及 PowerShell 7/Windows PowerShell 5.1 的插件专项、业务孵化和 `update-agents` 回归。
+
+- 2026-08-14：新增 canonical `iris-cure-form-dev` v0.1.0，限定 CA 治疗评估与 CR 治疗记录，空 `MapType`/病理模板强制排除；复用 `extract-doc/structure-v1` 和 `coding-iris-plugin`，提供规格适配、CA/CR 生成、现有与公共模板响应式改造、人工批准门禁、dry-run 部署包、验证及回滚编排。`extract-doc` v0.2.0 增加通用 `--emit-structure`，保留原 `extract-doc/v1` 输出兼容；专项测试覆盖 CA/CR、响应式契约、扫描 PDF 门禁、病理排除和 Windows PowerShell 5.1。
 - 2026-08-14：修复 workspace overlay 未生成模块本地 `.agents/scripts/iris-mcp.js` 的部署缺口。initializer 新增 manifest-aware JS runtime adapter，从 `capability.json` 解析 `CapabilityRoot`，保留调用工作目录、参数和退出码并转发到 canonical helper，不复制实现或写死绝对路径；更新 README、overlay/update Runbook、长期决策和维护摘要，并为 adapter 生成、路径独立性与 `--help` 转发补充回归测试。
 - 2026-08-12：完成 workspace overlay framework：新增 schema 与 PowerShell/Node context resolver、安全 Junction initializer、standard/overlay 双模式安装更新、ContextRoot/CapabilityRoot 分离的 plugin/agent/vendor thin-index 和 runtime adapter；manifest 强制 `workspace-overlay` 模式并限制 ContextRoot、SourceRoot、shared/local 路径边界，ContextRoot 既有父链不得经过 reparse point，`-Repair` 仅处理 ContextRoot 内受管 Junction，模块 adapter 补齐 Claude Code skill 同步、Git hooks 安装和 Agent 入口修复。coding-iris 前端编码迁移限制到声明的 frontend SourceRoot，IRIS 工具统一读取 workspace context，部署清单支持多 GitRoot 并保留逻辑路径来源。README、overlay/update Runbook、agent-context-kit、coding-iris owner 文档和专项测试同步；PowerShell 7 五组、Windows PowerShell 5.1 四组、Node 两组框架门禁均通过。
 - 2026-07-24：收敛 `iris-interface-dev` 唯一实现路径为 `iris-interface-dev-plan -> iris-interface-build -> coding-iris-plugin 编码规则/部署能力`；同步修正 dev-plan、init skill、接口 profile 模板并增加专项防回归断言。插件 canonical 名称仅使用 `iris-interface-dev`，不保留旧名称兼容契约。

@@ -72,7 +72,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install-agents.ps1
 
 脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/`，并拉取 `plugins/`、`agents/`、`workflows/` 等能力包内容，让用户和 Agent 能看到可用能力。
 
-插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认只把 `agent-context-kit` 作为基础上下文能力处理；`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-external-reg`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
+插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认只把 `agent-context-kit` 作为基础上下文能力处理；`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
 
 ### 更新已部署 `.agents`
 
@@ -296,6 +296,31 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - `iris-interface-dev-plan`
 - `iris-interface-build`
 
+### iris-cure-form-dev
+
+负责 IRIS/HISUI 的 CA 治疗评估与 CR 治疗记录表单自动化：
+
+- 医院 DOCX、PDF、XLS/XLSX 解析委托 `extract-doc/structure-v1`，本插件负责治疗语义规格和人工确认门禁。
+- 文档驱动的新表单默认从业务项目 `docs/` 读取需求，并在 `docs/cure-form/<moduleId>/` 保存规格、摄取报告和生成源码；多候选文件必须显式选择，不再使用 `src-iris` 作为插件默认目录。
+- Excel 多模板通过显式 A1 边界生成只读摄取报告，并在审批后生成有序 fragment、JavaScript 和 Map composition changes；范围重叠和合并单元格边界截断保持为审批门禁。
+- 获批规格可携带复杂模板 `fragmentHtml`/`javascript`，生成器验证根容器、响应式 class、字段 ID/缓存标签与模块接口；模板逻辑和表单入口分别以外部运行时路径写入模板/Map“引用JS”，独立预览只初始化实际存在的子模板脚本。
+- 新建 CA/CR 表单、现有服务器模板及公共模板响应式改造。
+- 响应式改造保留 HISUI `label.radio` 与 `i-label-box` / `m-label-box` 配对，并验证普通布局、表格布局和旧 WebView fallback；业务公共 CSS 不复制进插件。
+- 生成 `cure-form-package/v1`，通过专用服务端事务执行 dry-run、受控写入、回读和回滚。
+- 只允许 CA/CR；`MapType` 为空的病理模板始终排除。
+- ObjectScript/HISUI 编码、MCP 和静态资源上传编译复用 `coding-iris-plugin`。
+
+常用 skill：
+
+- `cure-form-init`
+- `cure-form-requirement-adapter`
+- `cure-assess-form-dev`
+- `cure-record-form-dev`
+- `cure-form-responsive`
+- `cure-form-deploy`
+- `cure-form-lookup`
+- `cure-form-fragment`
+
 ### iris-external-reg
 
 负责 IRIS 第三方预约挂号接口开发编排：
@@ -381,7 +406,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
    - `.agents/memory/project-memory.md`
 6. 先 dry-run，再 write 生成 `agent-context-kit` thin-index。
 7. 查看 `.agents/config/plugin_profile.md`；未启用插件保持 `available`，不要自动生成它们的 thin-index。
-8. 按依赖顺序初始化需要的领域插件，例如先启用 `coding-iris-plugin`、`extract-doc`，再启用依赖它们的 `iris-codegraph`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-external-reg`；其它可选插件包括 `codegraph-query`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`。
+8. 按依赖顺序初始化需要的领域插件，例如先启用 `coding-iris-plugin`、`extract-doc`，再启用依赖它们的 `iris-codegraph`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`；其它可选插件包括 `codegraph-query`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`。
 9. 如需启用提交前差异降噪 hook，由用户在业务项目根目录显式运行 `.agents/scripts/install-git-hooks.ps1 -ProjectRoot .`；安装/更新 `.agents` 只分发 hook 模板和脚本，不自动修改 `core.hooksPath`。
 10. 按需要读取 `agents/agent-registry.md` 和 `workflows/workflow-registry.md` 使用顶层智能体。
 
