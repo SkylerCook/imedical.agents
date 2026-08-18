@@ -14,6 +14,8 @@ task-affinity: [document, extract, markdown, json, pdf, docx, xlsx]
 - 对话里只汇报输出路径、转换器、视图数、字段数和错误摘要。
 - `.doc` 文件缺少转换器时提示用户另存为 DOCX，不在会话中尝试复制全文解析。
 - 不写入服务器地址、账号、密码、token、namespace、远程路径或项目私有连接事实。
+- `parsed.json` 继续服务接口字段类文档；不得在其识别器内混入治疗、打印或其它领域规则。
+- 业务插件需要版面事实时使用 `--emit-structure`，再在自身 adapter 中解释 `structure.json`。
 
 ## 产物
 

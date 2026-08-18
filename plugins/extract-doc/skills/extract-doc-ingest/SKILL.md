@@ -32,6 +32,16 @@ python .agents/plugins/extract-doc/scripts/extract-doc-ingest.py `
 
 业务调用方如果需要固定 `parsed.json` schema，显式传入 `--schema-version <schema>`；通用默认 schema 为 `extract-doc/v1`。
 
+业务调用方需要版面、单元格、公式、图片或扫描件判断时，增加 `--emit-structure`：
+
+```powershell
+python .agents/plugins/extract-doc/scripts/extract-doc-ingest.py `
+  --file <document-path> `
+  --project-root . `
+  --output-root docs/interface `
+  --emit-structure
+```
+
 ## 输出契约
 
 不显式传入 `--output-root` 时，默认写入 `docs/interface/<doc-name>/`。每个文档固定产物为：
@@ -40,6 +50,9 @@ python .agents/plugins/extract-doc/scripts/extract-doc-ingest.py `
 - `docs/interface/<doc-name>/parsed.json`
 - `docs/interface/<doc-name>/fields.md`
 - `docs/interface/<doc-name>/diagnostics.md`
+- 传入 `--emit-structure` 时：`docs/interface/<doc-name>/structure.json`
+
+`structure.json` 固定使用 `extract-doc/structure-v1`。它只描述领域无关的文档结构；字段语义、控件类型和业务规则由调用方插件继续处理。
 
 对话里只汇报文件路径、视图数量、字段数量、转换器和错误摘要。不要粘贴转换后的全文，也不要把所有字段明细灌入会话上下文。
 

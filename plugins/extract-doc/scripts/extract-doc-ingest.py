@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -971,6 +972,321 @@ def parse_document(path: Path) -> tuple[str, list[View], list[str], str]:
     raise RuntimeError(f"不支持的文件类型: {suffix}")
 
 
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def structure_docx(path: Path) -> dict[str, Any]:
+    try:
+        import docx
+    except ImportError as exc:
+        raise RuntimeError("缺少 python-docx，无法生成 DOCX 结构；请先运行 extract-doc-env-check.py 查看安装建议") from exc
+
+    document = docx.Document(str(path))
+    paragraphs = []
+    for index, paragraph in enumerate(document.paragraphs, start=1):
+        paragraphs.append({
+            "index": index,
+            "text": paragraph.text,
+            "style": getattr(getattr(paragraph, "style", None), "name", "") or "",
+        })
+
+    tables = []
+    for table_index, table in enumerate(document.tables, start=1):
+        groups: dict[int, dict[str, Any]] = {}
+        row_count = len(table.rows)
+        column_count = max((len(row.cells) for row in table.rows), default=0)
+        for row_index, row in enumerate(table.rows, start=1):
+            for column_index_value, cell in enumerate(row.cells, start=1):
+                key = id(cell._tc)
+                group = groups.setdefault(key, {
+                    "row": row_index,
+                    "column": column_index_value,
+                    "rowEnd": row_index,
+                    "columnEnd": column_index_value,
+                    "text": cell_text(cell.text),
+                })
+                group["row"] = min(group["row"], row_index)
+                group["column"] = min(group["column"], column_index_value)
+                group["rowEnd"] = max(group["rowEnd"], row_index)
+                group["columnEnd"] = max(group["columnEnd"], column_index_value)
+                if not group["text"]:
+                    group["text"] = cell_text(cell.text)
+
+        cells = []
+        for group in sorted(groups.values(), key=lambda item: (item["row"], item["column"])):
+            cells.append({
+                "row": group["row"],
+                "column": group["column"],
+                "rowSpan": group["rowEnd"] - group["row"] + 1,
+                "columnSpan": group["columnEnd"] - group["column"] + 1,
+                "text": group["text"],
+            })
+        tables.append({
+            "index": table_index,
+            "rowCount": row_count,
+            "columnCount": column_count,
+            "cells": cells,
+        })
+
+    images = []
+    for index, shape in enumerate(document.inline_shapes, start=1):
+        images.append({
+            "index": index,
+            "type": str(getattr(shape, "type", "")),
+            "width": int(getattr(shape, "width", 0) or 0),
+            "height": int(getattr(shape, "height", 0) or 0),
+        })
+
+    return {
+        "paragraphs": paragraphs,
+        "tables": tables,
+        "images": images,
+        "requiresVisualExtraction": False,
+        "diagnostics": [],
+    }
+
+
+def structure_xlsx_openpyxl(path: Path) -> dict[str, Any]:
+    from openpyxl import load_workbook
+
+    workbook = load_workbook(path, data_only=False, read_only=False)
+    displayed_workbook = load_workbook(path, data_only=True, read_only=False)
+    sheets = []
+    for sheet in workbook.worksheets:
+        displayed_sheet = displayed_workbook[sheet.title]
+        cells = []
+        for row in sheet.iter_rows():
+            for cell in row:
+                if cell.value is None and not cell.has_style:
+                    continue
+                displayed_value = displayed_sheet[cell.coordinate].value
+                formula = str(cell.value) if cell.data_type == "f" else ""
+                cells.append({
+                    "coordinate": cell.coordinate,
+                    "row": cell.row,
+                    "column": cell.column,
+                    "value": "" if cell.value is None else str(cell.value),
+                    "displayedValue": "" if displayed_value is None else str(displayed_value),
+                    "formula": formula,
+                    "dataType": cell.data_type,
+                })
+
+        validations = []
+        data_validations = getattr(sheet, "data_validations", None)
+        for validation in getattr(data_validations, "dataValidation", []) or []:
+            validations.append({
+                "ranges": str(validation.sqref),
+                "type": validation.type or "",
+                "formula1": validation.formula1 or "",
+                "formula2": validation.formula2 or "",
+            })
+
+        sheets.append({
+            "name": sheet.title,
+            "state": sheet.sheet_state,
+            "maxRow": sheet.max_row,
+            "maxColumn": sheet.max_column,
+            "mergedRanges": [str(item) for item in sheet.merged_cells.ranges],
+            "dataValidations": validations,
+            "cells": cells,
+        })
+    workbook.close()
+    displayed_workbook.close()
+    return {"sheets": sheets, "requiresVisualExtraction": False, "diagnostics": []}
+
+
+def structure_xlsx_openxml(path: Path) -> dict[str, Any]:
+    sheets_result = []
+    with zipfile.ZipFile(path) as archive:
+        shared_strings = read_shared_strings(archive)
+        sheets = read_workbook_sheets(archive)
+        rels = read_workbook_relationships(archive)
+        ns = {"x": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+        for sheet_index, (sheet_name, rel_id) in enumerate(sheets, start=1):
+            target = rels.get(rel_id, f"worksheets/sheet{sheet_index}.xml")
+            sheet_path = ("xl/" + target.lstrip("/")).replace("xl/xl/", "xl/")
+            if sheet_path not in archive.namelist():
+                sheets_result.append({"name": sheet_name, "missingXml": sheet_path, "cells": [], "mergedRanges": [], "dataValidations": []})
+                continue
+            root = ET.fromstring(archive.read(sheet_path))
+            cells = []
+            max_row = 0
+            max_column = 0
+            for cell in root.findall(".//x:c", ns):
+                reference = cell.attrib.get("r", "")
+                row_match = re.search(r"(\d+)$", reference)
+                row_number = int(row_match.group(1)) if row_match else 0
+                column_number = column_index(reference) + 1
+                max_row = max(max_row, row_number)
+                max_column = max(max_column, column_number)
+                formula_node = cell.find("x:f", ns)
+                cells.append({
+                    "coordinate": reference,
+                    "row": row_number,
+                    "column": column_number,
+                    "value": read_cell_value(cell, shared_strings, ns),
+                    "displayedValue": read_cell_value(cell, shared_strings, ns),
+                    "formula": formula_node.text if formula_node is not None else "",
+                    "dataType": cell.attrib.get("t", ""),
+                })
+            merged_ranges = [item.attrib.get("ref", "") for item in root.findall(".//x:mergeCell", ns) if item.attrib.get("ref")]
+            validations = []
+            for validation in root.findall(".//x:dataValidation", ns):
+                formula1 = validation.find("x:formula1", ns)
+                formula2 = validation.find("x:formula2", ns)
+                validations.append({
+                    "ranges": validation.attrib.get("sqref", ""),
+                    "type": validation.attrib.get("type", ""),
+                    "formula1": formula1.text if formula1 is not None else "",
+                    "formula2": formula2.text if formula2 is not None else "",
+                })
+            sheets_result.append({
+                "name": sheet_name,
+                "state": "visible",
+                "maxRow": max_row,
+                "maxColumn": max_column,
+                "mergedRanges": merged_ranges,
+                "dataValidations": validations,
+                "cells": cells,
+            })
+    return {"sheets": sheets_result, "requiresVisualExtraction": False, "diagnostics": []}
+
+
+def structure_xls(path: Path) -> dict[str, Any]:
+    try:
+        import xlrd
+    except ImportError as exc:
+        raise RuntimeError("XLS 结构提取需要 xlrd，或先将文件转换为 XLSX") from exc
+
+    workbook = xlrd.open_workbook(str(path), formatting_info=False)
+    sheets = []
+    for sheet in workbook.sheets():
+        cells = []
+        for row_index in range(sheet.nrows):
+            for column_index_value in range(sheet.ncols):
+                value = sheet.cell_value(row_index, column_index_value)
+                if value in (None, ""):
+                    continue
+                cells.append({
+                    "coordinate": f"R{row_index + 1}C{column_index_value + 1}",
+                    "row": row_index + 1,
+                    "column": column_index_value + 1,
+                    "value": str(value),
+                    "displayedValue": str(value),
+                    "formula": "",
+                    "dataType": str(sheet.cell_type(row_index, column_index_value)),
+                })
+        merged_ranges = [f"R{rlo + 1}C{clo + 1}:R{rhi}C{chi}" for rlo, rhi, clo, chi in sheet.merged_cells]
+        sheets.append({
+            "name": sheet.name,
+            "state": "visible",
+            "maxRow": sheet.nrows,
+            "maxColumn": sheet.ncols,
+            "mergedRanges": merged_ranges,
+            "dataValidations": [],
+            "cells": cells,
+        })
+    return {"sheets": sheets, "requiresVisualExtraction": False, "diagnostics": []}
+
+
+def structure_pdf(path: Path) -> dict[str, Any]:
+    try:
+        import pdfplumber
+    except ImportError as exc:
+        raise RuntimeError("缺少 pdfplumber，无法生成 PDF 结构") from exc
+
+    pages = []
+    total_text_chars = 0
+    total_images = 0
+    with pdfplumber.open(path) as pdf:
+        for page_index, page in enumerate(pdf.pages, start=1):
+            text = page.extract_text() or ""
+            total_text_chars += len(text.strip())
+            words = []
+            for word in page.extract_words() or []:
+                words.append({
+                    "text": word.get("text", ""),
+                    "x0": word.get("x0"),
+                    "top": word.get("top"),
+                    "x1": word.get("x1"),
+                    "bottom": word.get("bottom"),
+                })
+            images = []
+            for image in page.images or []:
+                images.append({
+                    "x0": image.get("x0"),
+                    "top": image.get("top"),
+                    "x1": image.get("x1"),
+                    "bottom": image.get("bottom"),
+                    "width": image.get("width"),
+                    "height": image.get("height"),
+                })
+            total_images += len(images)
+            tables = []
+            for table_index, table_object in enumerate(page.find_tables() or [], start=1):
+                rows = [[cell_text(cell) for cell in row] for row in (table_object.extract() or [])]
+                tables.append({
+                    "index": table_index,
+                    "bbox": list(table_object.bbox),
+                    "rows": rows,
+                })
+            pages.append({
+                "page": page_index,
+                "width": page.width,
+                "height": page.height,
+                "text": text,
+                "words": words,
+                "images": images,
+                "tables": tables,
+                "hasTextLayer": bool(text.strip()),
+            })
+
+    requires_visual = total_text_chars == 0 and total_images > 0
+    diagnostics = ["PDF 无文本层且包含页面图片，需要视觉识别或 OCR"] if requires_visual else []
+    return {
+        "pages": pages,
+        "requiresVisualExtraction": requires_visual,
+        "diagnostics": diagnostics,
+    }
+
+
+def structure_document(path: Path, converter: str) -> dict[str, Any]:
+    suffix = path.suffix.lower()
+    if suffix == ".docx":
+        content = structure_docx(path)
+    elif suffix == ".xlsx":
+        content = structure_xlsx_openpyxl(path) if has_module("openpyxl") else structure_xlsx_openxml(path)
+    elif suffix == ".xls":
+        content = structure_xls(path)
+    elif suffix == ".pdf":
+        content = structure_pdf(path)
+    elif suffix == ".doc":
+        converted = try_convert_doc(path)
+        if converted is None:
+            content = {
+                "requiresVisualExtraction": False,
+                "diagnostics": ["DOC 只能生成 Markdown；请转换为 DOCX 后生成结构"],
+            }
+        else:
+            content = structure_docx(converted)
+    else:
+        raise RuntimeError(f"不支持的结构提取文件类型: {suffix}")
+
+    return {
+        "schemaVersion": "extract-doc/structure-v1",
+        "sourceFile": str(path),
+        "sourceHash": file_sha256(path),
+        "documentType": suffix.lstrip("."),
+        "converter": converter,
+        **content,
+    }
+
+
 def artifact_json(source: Path, doc_name: str, views: list[View], diagnostics: list[str], converter: str, schema_version: str) -> dict[str, Any]:
     view_dicts = []
     total_fields = 0
@@ -1043,7 +1359,7 @@ def diagnostics_markdown(parsed: dict[str, Any]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
-def write_artifacts(source: Path, project_root: Path, output_root: str, schema_version: str) -> dict[str, Path]:
+def write_artifacts(source: Path, project_root: Path, output_root: str, schema_version: str, emit_structure: bool = False) -> dict[str, Path]:
     markdown, views, diagnostics, converter = parse_document(source)
     doc_name = slugify(source)
     out_dir = project_root / output_root / doc_name
@@ -1060,6 +1376,10 @@ def write_artifacts(source: Path, project_root: Path, output_root: str, schema_v
     paths["parsed"].write_text(json.dumps(parsed, ensure_ascii=False, indent=2), encoding="utf-8")
     paths["fields"].write_text(fields_markdown(views), encoding="utf-8")
     paths["diagnostics"].write_text(diagnostics_markdown(parsed), encoding="utf-8")
+    if emit_structure:
+        structure = structure_document(source, converter)
+        paths["structure"] = out_dir / "structure.json"
+        paths["structure"].write_text(json.dumps(structure, ensure_ascii=False, indent=2), encoding="utf-8")
     return paths
 
 
@@ -1069,6 +1389,7 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
     parser.add_argument("--project-root", default=".", help="Target project root")
     parser.add_argument("--output-root", default="docs/interface", help="Output root relative to project root")
     parser.add_argument("--schema-version", default="extract-doc/v1", help="Schema version written to parsed.json")
+    parser.add_argument("--emit-structure", action="store_true", help="Also write extract-doc/structure-v1 to structure.json")
     return parser.parse_args(argv)
 
 
@@ -1081,14 +1402,15 @@ def main(argv: Iterable[str]) -> int:
         return 2
 
     try:
-        paths = write_artifacts(source, project_root, args.output_root, args.schema_version)
+        paths = write_artifacts(source, project_root, args.output_root, args.schema_version, args.emit_structure)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
     print("extract-doc-ingest completed")
-    for key in ["source", "parsed", "fields", "diagnostics"]:
-        print(f"{key}: {paths[key]}")
+    for key in ["source", "parsed", "fields", "diagnostics", "structure"]:
+        if key in paths:
+            print(f"{key}: {paths[key]}")
     return 0
 
 

@@ -435,7 +435,7 @@ with ZipFile(Path(r"$fixturePath"), "w", ZIP_DEFLATED) as zf:
   $createFixture | python -B -
 
   $ingestScript = Join-Path $extractDocRoot "scripts/extract-doc-ingest.py"
-  $ingestOutput = python -B $ingestScript --file $fixturePath --project-root $workRoot --output-root "docs/interface" --schema-version "iris-interface-doc-ingest/v2" 2>&1 | Out-String
+  $ingestOutput = python -B $ingestScript --file $fixturePath --project-root $workRoot --output-root "docs/interface" --schema-version "iris-interface-doc-ingest/v2" --emit-structure 2>&1 | Out-String
   Assert-Contains $ingestOutput "source.md" "ingest output should report source.md path"
   Assert-Contains $ingestOutput "parsed.json" "ingest output should report parsed.json path"
   Assert-NotContains $ingestOutput "PATIENT_NAME" "ingest output should not dump field content to console"
@@ -445,7 +445,8 @@ with ZipFile(Path(r"$fixturePath"), "w", ZIP_DEFLATED) as zf:
   $parsedJson = Join-Path $outDir "parsed.json"
   $fieldsMd = Join-Path $outDir "fields.md"
   $diagnosticsMd = Join-Path $outDir "diagnostics.md"
-  foreach ($path in @($sourceMd, $parsedJson, $fieldsMd, $diagnosticsMd)) {
+  $structureJson = Join-Path $outDir "structure.json"
+  foreach ($path in @($sourceMd, $parsedJson, $fieldsMd, $diagnosticsMd, $structureJson)) {
     Assert-True (Test-Path -LiteralPath $path -PathType Leaf) "expected output file missing: $path"
   }
 
@@ -453,6 +454,11 @@ with ZipFile(Path(r"$fixturePath"), "w", ZIP_DEFLATED) as zf:
   Assert-True ($parsed.schemaVersion -eq "iris-interface-doc-ingest/v2") "parsed.json schemaVersion should be v2"
   Assert-True ($parsed.views.Count -eq 2) "parsed.json should contain one view per XLSX sheet"
   Assert-True ($parsed.totalFields -eq 4) "parsed.json should contain fields from all XLSX sheets"
+  $structure = Get-Content -Raw -Encoding UTF8 -Path $structureJson | ConvertFrom-Json
+  Assert-True ($structure.schemaVersion -eq "extract-doc/structure-v1") "structure.json should use the generic structure schema"
+  Assert-True ($structure.sourceHash.Length -eq 64) "structure.json should include a SHA-256 source hash"
+  Assert-True ($structure.sheets.Count -eq 2) "structure.json should preserve every XLSX sheet"
+  Assert-True ($structure.sheets[0].cells[0].coordinate -eq "A1") "structure.json should preserve cell coordinates"
   $fieldsContent = Get-Content -Raw -Encoding UTF8 -Path $fieldsMd
   $firstField = $parsed.views[0].fields[0]
   Assert-True ($firstField.rawColumns."字段名" -eq "PATIENT_NAME") "field rawColumns should preserve original header values"
