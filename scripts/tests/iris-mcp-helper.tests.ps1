@@ -18,7 +18,21 @@ Assert-True ($null -ne (Get-Command node -ErrorAction SilentlyContinue)) "node i
 
 $nodeTest = @'
 const assert = require("assert");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
 const helper = require(process.argv[2]);
+
+const argsDir = fs.mkdtempSync(path.join(os.tmpdir(), "iris-mcp-args-"));
+try {
+  const argsFile = path.join(argsDir, "large.json");
+  const expectedArgs = { code: "x".repeat(40000), confirmed: true };
+  fs.writeFileSync(argsFile, JSON.stringify(expectedArgs), "utf8");
+  assert.deepStrictEqual(helper.parseToolArgsInput(null, argsFile), expectedArgs);
+  assert.throws(() => helper.parseToolArgsInput("{}", argsFile), /either inline JSON or --json-file/);
+} finally {
+  fs.rmSync(argsDir, { recursive: true, force: true });
+}
 
 const readCases = [
   ["iris_doc", {}],
@@ -154,6 +168,7 @@ $helpOutput = & node $helperPath --help 2>&1 | Out-String
 Assert-True ($LASTEXITCODE -eq 0) "iris-mcp.js --help should not require .mcp.json"
 Assert-True ($helpOutput.Contains("check")) "iris-mcp.js help should list check"
 Assert-True ($helpOutput.Contains("--allow-write")) "iris-mcp.js help should explain --allow-write"
+Assert-True ($helpOutput.Contains("--json-file")) "iris-mcp.js help should explain file-based tool arguments"
 
 $exePath = Join-Path $repoRoot "vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe"
 Assert-True (Test-Path -LiteralPath $exePath -PathType Leaf) "Bundled iris-agentic-dev.exe is missing"

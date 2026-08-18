@@ -7,6 +7,7 @@
  *   node .agents/scripts/iris-mcp.js check
  *   node .agents/scripts/iris-mcp.js tools
  *   node .agents/scripts/iris-mcp.js call iris_doc "{\"mode\":\"head\",\"name\":\"Demo.Class.cls\"}"
+ *   node .agents/scripts/iris-mcp.js call iris_execute --json-file .agents/work/iris-execute.json --allow-write
  *   node .agents/scripts/iris-mcp.js call iris_compile "{\"target\":\"Demo.Class.cls\"}" --allow-write
  *
  * Write-capable tools are blocked unless --allow-write is passed.
@@ -28,12 +29,21 @@ function usage(exitCode = 1) {
   out(`Usage:
   node .agents/scripts/iris-mcp.js check
   node .agents/scripts/iris-mcp.js tools
-  node .agents/scripts/iris-mcp.js call <toolName> <jsonArgs> [--allow-write]`);
+  node .agents/scripts/iris-mcp.js call <toolName> <jsonArgs> [--allow-write]
+  node .agents/scripts/iris-mcp.js call <toolName> --json-file <path> [--allow-write]`);
   process.exit(exitCode);
 }
 
 function hasFlag(name) {
   return argv.includes(name);
+}
+
+function optionValue(name) {
+  const index = argv.indexOf(name);
+  if (index < 0) return null;
+  const value = argv[index + 1];
+  if (!value || value.startsWith('--')) throw new Error(`${name} requires a value`);
+  return value;
 }
 
 function findWorkspaceRoot() {
@@ -153,6 +163,16 @@ function summarizeCheck(data) {
     },
     warnings
   };
+}
+
+function parseToolArgsInput(inlineJson, jsonFile, cwd = process.cwd()) {
+  if (inlineJson && jsonFile) throw new Error('Use either inline JSON or --json-file, not both');
+  if (!jsonFile) return parseJsonArg(inlineJson || '{}', 'tool arguments');
+  const resolved = path.resolve(cwd, jsonFile);
+  const stat = fs.statSync(resolved);
+  if (!stat.isFile()) throw new Error(`Tool arguments file is not a regular file: ${resolved}`);
+  if (stat.size > 8 * 1024 * 1024) throw new Error(`Tool arguments file exceeds the 8 MiB limit: ${resolved}`);
+  return parseJsonArg(fs.readFileSync(resolved, 'utf8').replace(/^\uFEFF/, ''), 'tool arguments file');
 }
 
 const alwaysWriteLikeTools = new Set([
@@ -405,9 +425,10 @@ async function main() {
 
     if (command === 'call') {
       const toolName = argv[1];
-      const jsonArgs = argv[2] || '{}';
       if (!toolName) usage();
-      const toolArgs = parseJsonArg(jsonArgs, 'tool arguments');
+      const jsonFile = optionValue('--json-file');
+      const inlineJson = argv[2] && argv[2] !== '--json-file' ? argv[2] : null;
+      const toolArgs = parseToolArgsInput(inlineJson, jsonFile);
       const result = await callTool(client, toolName, toolArgs, { allowWrite: hasFlag('--allow-write'), timeoutMs: 60000 });
       printJson('RESULT', result);
       return;
@@ -421,6 +442,7 @@ async function main() {
 
 module.exports = {
   isWriteLike,
+  parseToolArgsInput,
   summarizeCheck
 };
 
