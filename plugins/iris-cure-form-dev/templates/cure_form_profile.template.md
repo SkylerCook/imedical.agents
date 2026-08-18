@@ -11,3 +11,9 @@
 - RequireDryRun: true
 - RequireWriteConfirmation: true
 - CommonTemplateStrategy: versioned-clone
+- PreviewHisuiCss: <required>
+- PreviewJqueryJs: <required>
+- PreviewHisuiJs: <required>
+- PreviewHisuiLocaleJs: <required>
+- PreviewAsscomCss: <required>
+- PreviewAdaptationCss: <required>

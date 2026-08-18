@@ -12,13 +12,14 @@ Excel 多模板需求必须通过 `cure-form-template-boundaries/v1` 显式声�
 
 ## 服务器现有模板改造
 
-读取 CA/CR Map、组成模板、HTML、JS、缓存字段及资源 → 本地快照 → 规格化 → 保持运行时契约的响应式改造 → 差异和影响报告 → dry-run 部署计划 → 明确确认后写入 → 回读验证。
+读取 CA/CR Map、组成模板、HTML、JS、缓存字段及资源 → 本地快照 → 规格化 → 保持运行时契约的响应式改造 → canonical 完整预览与九档浏览器凭证 → 差异和影响报告 → dry-run 部署计划 → 明确确认后写入 → 回读验证。
 
 公共模板使用版本化克隆，不直接原地覆盖。新表单引用最新批准版本；现有 Map 按灰度清单切换，病理 Map 永不自动切换。
 
 ## 样式职责边界
 
 - 目标工程的公共响应式样式文件由工程配置或现有页面资源引用解析；插件规则不得固化仓库路径、Web 根或文件绝对位置。
+- 完整预览统一加载目标工程解析出的 HISUI CSS、jQuery、HISUI JavaScript、中文 locale、`asscom.css` 和 `adaptation.css`；本地资源复制到受忽略的预览工作目录，预览 manifest 不保存源绝对路径。
 - 公共响应式样式只保存跨表单复用的断点布局、宽度伸缩、触控密度、溢出处理和 HISUI 兼容规则。
 - moduleId、业务根 ID、专属配色、业务矩阵、题干/规则区及仅由一个表单使用的 class 必须写入该表单独立 CSS。
 - 表单配置只能引用 JavaScript 时，`loadMode=host` 必须同时声明运行时 `scriptHref` 和落盘 `scriptDeploymentPath`，两者 basename 一致；Map“引用JS”保存 `scriptHref`，由该总入口按 `runtimeHref` 幂等加载独立 CSS。模板 JavaScript 不重复加载。没有表单级 JS 入口时才显式使用 `loadMode=template` fallback；禁止注入 `<style>` 或 CSS 文本。

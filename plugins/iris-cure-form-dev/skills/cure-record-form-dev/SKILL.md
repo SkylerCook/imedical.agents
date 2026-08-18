@@ -12,4 +12,4 @@ description: 从已批准 cure-form-spec/v1 新建或重构 CR 治疗记录表�
 5. 默认满足手机/PDA、常规 PAD、宽屏 PAD 横屏和 PC 响应式契约。
 6. 公共响应式 CSS 路径从目标工程解析且只保存跨表单规则；CR 专属样式进入独立业务 CSS。表单配置只能加载 JS 时同时声明运行时 `scriptHref` 与落盘 `scriptDeploymentPath`，Map“引用JS”保存前者并由总入口幂等加载外部文件。
 7. 模板仅在确有业务逻辑时配置独立外部 JS；“引用JS”保存路径而非源码，无逻辑模板不生成空壳脚本。新增部署静态资源 basename 必须语义明确、使用 camelCase 且不超过 24 个字符；业务标识过长时只缩短资源名，并保持引用路径与部署 basename 一致。
-8. 生成部署包前完成 CR 保存、重开、回显和打印验证。
+8. 生成部署包前先通过 `preview`/`preview-check` 的完整资源、HISUI 初始化和九档宽度门禁，再完成 CR 保存、重开、回显和打印验证。

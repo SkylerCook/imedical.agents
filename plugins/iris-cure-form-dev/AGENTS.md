@@ -18,6 +18,7 @@
 ## 安全门禁
 
 - `unresolved[]` 未清零或规格未获人工批准时，不得生成可执行部署包。
+- 任何带 `changes` 的部署计划必须先通过 canonical 完整预览和九档浏览器门禁；`preview-verification` 必须与 snapshot、changes 和资源清单哈希一致。
 - 多模板规格获批前，每个模板必须明确 `rootId` 和 `moduleName`，候选字段必须转换为唯一稳定 ID 和已确认控件类型。
 - `apply` 默认只做 `dry-run`；真实写入必须显式传入 `--confirm-write`、`--operator` 和 `--reason`。
 - 不允许通用 SQL 写入，不允许修改患者评估或治疗记录数据。
@@ -34,6 +35,8 @@
 - 表单总入口同时声明运行时 `scriptHref` 与落盘 `scriptDeploymentPath`，Map“引用JS”只保存 `scriptHref`；模板仅在确有业务逻辑时保存 `javascriptHref`，无逻辑模板保持空引用，禁止把源码或空壳脚本写回配置。
 - 模板生命周期默认由宿主管理；仅在已验证宿主不会可靠调用分模板 `Init` 时启用 `aggregateTemplateInit=true`，由 Map 总入口在 DOM ready 后延迟调度实际业务模块，并要求分模板初始化可重复调用或自行幂等。
 - 公共样式路径从目标工程配置或页面现有资源引用解析，插件规则和源码不得写死仓库路径、Web 根或服务器路径。
+- 完整预览必须从目标 profile 或现有页面解析 HISUI CSS、jQuery、HISUI JavaScript、中文 locale、`asscom.css` 和 `adaptation.css` 六类资源；缺少任一资源时停止。纯 fragment 不携带资源，但不能绕过部署前完整预览。
+- 浏览器探针必须验证资源加载成功、`jQuery`/`$.parser` 可用、HISUI panel 已初始化、存在 radio 时生成对应 `label.radio`，并输出九档宽度机器可读结果；旧 WebView 和真实触控设备仍单独验收。
 - 公共样式变更必须按目标工程实际编码模式验证，并同时扫描开发源与部署副本是否混入表单专属选择器；插件不携带业务工程的公共 CSS 副本。
 - CA 必须验证保存、重开、回显和打印。
 - CR 必须保持 `SaveCureRecord`、`CureExpJsonStr`、`MapID`、回显和打印。

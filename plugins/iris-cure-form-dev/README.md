@@ -9,6 +9,8 @@ cure-form intake
 cure-form inspect
 cure-form prepare --mode create|responsive|common-responsive
 cure-form review
+cure-form preview
+cure-form preview-check
 cure-form plan
 cure-form apply
 cure-form verify
@@ -35,7 +37,8 @@ node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js intake `
   --form-type CA --module-id ExampleForm --map-code ExampleForm
 
 node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js prepare `
-  --mode create --spec .\docs\cure-form\ExampleForm\cure-form-spec.json
+  --mode create --spec .\docs\cure-form\ExampleForm\cure-form-spec.json `
+  --target-profile .\.agents\config\cure_form_profile.md
 ```
 
 非标准项目可使用 `--project-root`、`--docs-root`、`--development-root`、`--source` 和 `--output-root` 覆盖默认值。
@@ -47,6 +50,7 @@ node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js plan `
   --spec .\form.cure-form-spec.json `
   --snapshot .\server-snapshot.json `
   --changes .\responsive-changes.json `
+  --preview-verification .\.agents\work\cure-form\preview\preview-verification.json `
   --approved-clones .\approved-clones.json `
   --output .\form.package.json
 ```
@@ -75,13 +79,38 @@ node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js intake `
 ```powershell
 node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js prepare `
   --mode create --spec .\docs\cure-form\ExampleForm\cure-form-spec.json `
+  --target-profile .\.agents\config\cure_form_profile.md `
   --public-responsive-css <目标工程公共响应式CSS>
 
 node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js plan `
   --spec .\form.cure-form-spec.json --snapshot .\server-snapshot.json `
   --changes .\cure-form-deploy-changes.json `
+  --preview-verification .\.agents\work\cure-form\preview\preview-verification.json `
   --public-responsive-css <开发源> --public-responsive-css-copy <部署副本>
 ```
+
+## Canonical 完整预览与浏览器门禁
+
+`preview` 从 `changes.templates[]` 生成统一完整页面，并从目标 `cure_form_profile.md` 或 `--page-html` 指定的现有完整页面解析六类必需资源：`hisui.pure.min.css`、`jquery-1.11.3.min.js`、`jquery.hisui.min.js`、`hisui-lang-zh_CN.js`、`asscom.css`、`adaptation.css`。本地资源复制到预览目录 `assets/`，产物不保存源绝对路径；任一资源缺失、重名、basename 不匹配或本地文件不存在时立即停止。纯 fragment 转换不要求携带这些资源，但部署前仍必须生成完整预览。
+
+```powershell
+node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js preview `
+  --snapshot .\.agents\work\cure-form\server-snapshot.json `
+  --changes .\.agents\work\cure-form\responsive-changes.json `
+  --target-profile .\.agents\config\cure_form_profile.md `
+  --output-root .\.agents\work\cure-form\preview
+```
+
+生成的 `preview.html` 内置浏览器探针，暴露 `window.__cureFormPreviewCheck()`。浏览器在 `360/390/430/768/810/1024/1080/1194/1280` 九档宽度分别调用该函数，将结果汇总为 `cure-form-browser-results/v1`，再由 `preview-check` 验证资源加载、`jQuery`、`$.parser`、HISUI panel、radio `label.radio`、横向溢出和运行时错误：
+
+```powershell
+node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js preview-check `
+  --manifest .\.agents\work\cure-form\preview\preview-manifest.json `
+  --browser-results .\.agents\work\cure-form\preview\browser-results.json `
+  --output .\.agents\work\cure-form\preview\preview-verification.json
+```
+
+只要 `plan` 提供 `--changes`，就必须同时提供通过的 `--preview-verification`。验证凭证与 snapshot、changes、资源清单和九档宽度哈希绑定；缺失、失败或内容变化都会阻止 `deploymentReady=true`。浏览器模拟仍不能替代旧 WebView 和真实触控设备验收。
 
 ## 响应式兼容门禁
 

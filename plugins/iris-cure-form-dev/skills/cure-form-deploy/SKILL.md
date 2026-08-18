@@ -6,7 +6,7 @@ description: 为 CA/CR 治疗表单生成部署包，执行 dry-run、受控事�
 # Cure Form Deploy
 
 1. 阅读 `rules/cure_form_deploy.md` 与 `references/cure-form-package-v1.md`。
-2. `plan` 前确认规格已批准、`unresolved[]` 为空、MapType 为 CA/CR，并具有服务器期望版本与哈希。
+2. `plan` 前确认规格已批准、`unresolved[]` 为空、MapType 为 CA/CR，并具有服务器期望版本与哈希；任何 `changes` 必须先取得与 snapshot、changes 和资源清单哈希一致的 `preview-verification`。
    - 若公共模板已有批准版本，提供 `--approved-clones`，确认包内对应项已转为 `referenceOnly`，且 `commonTemplateReferences[]` 完整；禁止同版本公共模板按业务 Map 重复克隆。
 3. `apply` 默认 dry-run；真实写入必须再次获得用户明确确认，并传 `--confirm-write --operator ... --reason ...`。
 4. 静态资源上传编译委托 `coding-iris-plugin/iris-deploy`；模板业务事务只调用 `web.DHCDocAPPBLDeploy` 专用方法。

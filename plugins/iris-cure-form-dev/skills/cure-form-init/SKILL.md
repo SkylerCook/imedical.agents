@@ -6,7 +6,7 @@ description: 初始化 IRIS CA/CR 治疗表单开发能力、生成本地 profil
 # Cure Form Init
 
 1. 阅读插件 `AGENTS.md` 和 `rules/cure_form_index.md`。
-2. 若 `.agents/config/cure_form_profile.md` 不存在，从 `templates/cure_form_profile.template.md` 复制并只填写本地路径。
+2. 若 `.agents/config/cure_form_profile.md` 不存在，从 `templates/cure_form_profile.template.md` 复制并只填写本地路径；补齐六个 `Preview*` 资源字段，分别指向目标工程实际 HISUI、jQuery、locale、`asscom.css` 和 `adaptation.css` 文件。
 3. 验证 `.mcp.json`、`.iris-agentic-dev.toml`、`extract-doc` 和 `coding-iris-plugin` 可发现；不得输出连接内容。
 4. 确认 `.agents/work/`、连接文件和 local config 已被 Git 忽略。
 5. 确认业务项目 `docs/` 为默认需求入口，`docs/cure-form/` 为默认新表单开发目录；如项目另有约定，在 local profile 配置 `DocsRoot` / `DevelopmentRoot` 并在命令中显式传参。

@@ -4,6 +4,10 @@
 
 ## 近期已完成
 
+- 2026-08-18：`iris-cure-form-dev` 升级为 v0.3.0，新增 canonical `preview` 与 `preview-check`：从目标 profile 或现有页面解析并复制 HISUI CSS、jQuery、HISUI JavaScript、中文 locale、`asscom.css`、`adaptation.css` 六类资源，完整 HTML 缺资源立即停止；页面内置浏览器探针，九档结果验证资源请求、`jQuery`/`$.parser`、panel、radio、溢出和运行时错误，并形成与 snapshot、changes 和资源清单哈希绑定的凭证。任何带 changes 的 `plan` 现在必须提供通过的 `preview-verification`，最终包另校验计划 changes 哈希；README、owner 文档、profile 模板、更新 runbook 和专项测试同步。
+
+- 2026-08-18：补记根 `scripts/iris-mcp.js` 的大体积工具参数能力：`call` 支持以 `--json-file` 读取最多 8 MiB 的 UTF-8/BOM JSON，并继续复用既有默认拒绝写入与 `--allow-write` 授权门禁；`iris-mcp-helper.tests.ps1` 已覆盖文件参数解析和帮助入口。
+
 - 2026-08-18：`iris-cure-form-dev` 升级为 v0.2.5，新增显式 `aggregateTemplateInit=true` 宿主兼容模式：当目标 HIS 不可靠调用分模板 `Init` 时，由 Map 总入口在 DOM ready 和宿主缓存恢复之后延迟、幂等调度实际存在的业务模板模块；默认模式仍保留宿主生命周期所有权，无逻辑模板不生成也不调用空壳 JS。专项回归覆盖仅调用业务模块、跳过空模板及延迟初始化门禁。
 
 - 2026-08-18：`iris-cure-form-dev` 升级为 v0.2.4，文档驱动的新表单默认从业务项目 `docs/` 发现医院 Word/PDF/Excel 需求，并将规格、摄取报告和生成源码写入 `docs/cure-form/<moduleId>/`，废弃插件内 `src-iris` 默认约定；多个候选文件必须显式传入 `--source`。服务器快照与部署临时数据继续隔离在 `.agents/work/`，专项测试覆盖默认目录与多候选停止门禁。

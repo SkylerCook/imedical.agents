@@ -13,9 +13,18 @@ const REMOTE_CHUNK_SIZE = 12000;
 const MAX_REMOTE_RESULT_LENGTH = 5 * 1024 * 1024;
 const MAX_INLINE_SERVER_ARGUMENT = 8000;
 const DOCUMENT_SOURCE_EXTENSIONS = new Set(['.doc', '.docx', '.pdf', '.xls', '.xlsx']);
+const PREVIEW_WIDTHS = [360, 390, 430, 768, 810, 1024, 1080, 1194, 1280];
+const PREVIEW_RESOURCE_SPECS = [
+  { role: 'hisuiCss', profileKey: 'PreviewHisuiCss', basename: 'hisui.pure.min.css', tag: 'link' },
+  { role: 'jqueryJs', profileKey: 'PreviewJqueryJs', basename: 'jquery-1.11.3.min.js', tag: 'script' },
+  { role: 'hisuiJs', profileKey: 'PreviewHisuiJs', basename: 'jquery.hisui.min.js', tag: 'script' },
+  { role: 'hisuiLocaleJs', profileKey: 'PreviewHisuiLocaleJs', basename: 'hisui-lang-zh_CN.js', tag: 'script' },
+  { role: 'asscomCss', profileKey: 'PreviewAsscomCss', basename: 'asscom.css', tag: 'link' },
+  { role: 'adaptationCss', profileKey: 'PreviewAdaptationCss', basename: 'adaptation.css', tag: 'link' }
+];
 const COMMANDS = new Set([
   'doctor', 'intake', 'inspect', 'prepare', 'review', 'plan',
-  'apply', 'verify', 'rollback', 'common-migrate'
+  'preview', 'preview-check', 'apply', 'verify', 'rollback', 'common-migrate'
 ]);
 
 function fail(message, code = 1) {
@@ -97,6 +106,160 @@ function stableValue(value) {
 function sha256(value) {
   const text = typeof value === 'string' ? value : JSON.stringify(stableValue(value));
   return crypto.createHash('sha256').update(text, 'utf8').digest('hex');
+}
+
+function resourceBasename(reference) {
+  return path.posix.basename(String(reference || '').replace(/\\/g, '/').split(/[?#]/, 1)[0]);
+}
+
+function parseMarkdownProfile(file) {
+  const result = {};
+  if (!file || !fs.existsSync(file)) return result;
+  for (const line of fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/)) {
+    const match = /^\s*-\s*([^:]+):\s*(.*?)\s*$/.exec(line);
+    if (match) result[match[1].trim()] = match[2].trim();
+  }
+  return result;
+}
+
+function htmlAttribute(tag, name) {
+  const match = new RegExp(`\\b${name}\\s*=\\s*(["'])(.*?)\\1`, 'i').exec(tag);
+  return match ? match[2] : '';
+}
+
+function resourceReferencesFromHtml(html) {
+  const result = {};
+  const tags = String(html || '').match(/<(?:link|script)\b[^>]*>/gi) || [];
+  for (const spec of PREVIEW_RESOURCE_SPECS) {
+    const attribute = spec.tag === 'link' ? 'href' : 'src';
+    const matches = tags.map((tag) => htmlAttribute(tag, attribute)).filter((value) => resourceBasename(value) === spec.basename);
+    if (matches.length > 1) fail(`Existing page declares preview resource ${spec.basename} more than once.`);
+    if (matches.length === 1) result[spec.role] = matches[0];
+  }
+  return result;
+}
+
+function pathIsWithin(candidate, root) {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function copyPreviewCssDependencies(sourceCss, targetCss, outputDir, args, visited = new Set()) {
+  const sourceKey = path.resolve(sourceCss).toLowerCase();
+  if (visited.has(sourceKey)) return;
+  visited.add(sourceKey);
+  const css = fs.readFileSync(sourceCss, 'utf8');
+  const references = [];
+  const pattern = /url\(\s*(["']?)([^"')]+)\1\s*\)/gi;
+  let match;
+  while ((match = pattern.exec(css)) !== null) references.push(match[2].trim());
+  for (const reference of [...new Set(references)]) {
+    if (!reference || /^(?:data:|https?:|\/\/|#)/i.test(reference)) continue;
+    const cleanReference = reference.split(/[?#]/, 1)[0];
+    if (!cleanReference) continue;
+    const sourceAsset = reference.startsWith('/')
+      ? path.resolve(projectRoot(args), cleanReference.replace(/^\/+/, ''))
+      : path.resolve(path.dirname(sourceCss), cleanReference);
+    const targetAsset = reference.startsWith('/')
+      ? path.resolve(outputDir, cleanReference.replace(/^\/+/, ''))
+      : path.resolve(path.dirname(targetCss), cleanReference);
+    if (!pathIsWithin(targetAsset, outputDir)) {
+      fail(`Preview CSS dependency escapes the output directory: ${reference}`);
+    }
+    if (!fs.existsSync(sourceAsset) || !fs.statSync(sourceAsset).isFile()) continue;
+    ensureDir(path.dirname(targetAsset));
+    fs.copyFileSync(sourceAsset, targetAsset);
+    if (/\.css$/i.test(cleanReference)) copyPreviewCssDependencies(sourceAsset, targetAsset, outputDir, args, visited);
+  }
+}
+
+function previewProfilePath(args) {
+  if (args.targetProfile) return projectPath(args, args.targetProfile);
+  return path.join(projectRoot(args), '.agents', 'config', 'cure_form_profile.md');
+}
+
+function resolvePreviewResource(reference, spec, baseDir, outputDir, args, copyLocal) {
+  const value = String(reference || '').trim();
+  if (!value || /^<?(?:required|unset|todo)>?$/i.test(value)) {
+    fail(`Preview resource ${spec.profileKey} is not configured.`);
+  }
+  if (resourceBasename(value) !== spec.basename) {
+    fail(`Preview resource ${spec.profileKey} must resolve to ${spec.basename}: ${value}`);
+  }
+  if (/^(?:https?:)?\/\//i.test(value)) {
+    return { role: spec.role, basename: spec.basename, tag: spec.tag, href: value, local: false, contentHash: null };
+  }
+
+  let localPath;
+  if (/^\//.test(value)) {
+    localPath = path.resolve(projectRoot(args), value.replace(/^\/+/, ''));
+  } else {
+    localPath = path.isAbsolute(value) ? path.resolve(value) : path.resolve(baseDir, value);
+  }
+  if (!fs.existsSync(localPath) || !fs.statSync(localPath).isFile()) {
+    fail(`Preview resource file does not exist: ${value}`);
+  }
+
+  let href;
+  if (copyLocal) {
+    const assetsDir = path.join(outputDir, 'assets');
+    ensureDir(assetsDir);
+    const target = path.join(assetsDir, spec.basename);
+    fs.copyFileSync(localPath, target);
+    if (spec.tag === 'link') copyPreviewCssDependencies(localPath, target, outputDir, args);
+    href = `assets/${spec.basename}`;
+  } else {
+    href = path.relative(outputDir, localPath).replace(/\\/g, '/');
+    if (!href.startsWith('.')) href = `./${href}`;
+  }
+  return {
+    role: spec.role,
+    basename: spec.basename,
+    tag: spec.tag,
+    href,
+    local: true,
+    contentHash: crypto.createHash('sha256').update(fs.readFileSync(localPath)).digest('hex')
+  };
+}
+
+function resolvePreviewResources(args, outputDir, options = {}) {
+  const profileFile = previewProfilePath(args);
+  const profile = parseMarkdownProfile(profileFile);
+  const pageFile = args.pageHtml ? projectPath(args, args.pageHtml) : null;
+  if (pageFile && (!fs.existsSync(pageFile) || !fs.statSync(pageFile).isFile())) {
+    fail(`Existing page for preview resource discovery does not exist: ${pageFile}`);
+  }
+  const pageReferences = pageFile ? resourceReferencesFromHtml(fs.readFileSync(pageFile, 'utf8')) : {};
+  const missing = [];
+  const resources = [];
+  for (const spec of PREVIEW_RESOURCE_SPECS) {
+    const pageReference = pageReferences[spec.role];
+    const profileReference = profile[spec.profileKey];
+    const reference = pageReference || profileReference;
+    if (!reference) {
+      missing.push(`${spec.profileKey} (${spec.basename})`);
+      continue;
+    }
+    resources.push(resolvePreviewResource(
+      reference,
+      spec,
+      pageReference ? path.dirname(pageFile) : projectRoot(args),
+      outputDir,
+      args,
+      options.copyLocal === true
+    ));
+  }
+  if (missing.length) {
+    fail(`Complete preview requires all target resources. Missing: ${missing.join(', ')}. Configure ${profileFile} or provide --page-html.`);
+  }
+  return resources;
+}
+
+function assertCompletePreviewResources(html) {
+  const references = resourceReferencesFromHtml(html);
+  const missing = PREVIEW_RESOURCE_SPECS.filter((spec) => !references[spec.role]).map((spec) => spec.basename);
+  if (missing.length) fail(`Complete HTML is missing required preview resources: ${missing.join(', ')}.`);
+  return references;
 }
 
 function assertFormType(value) {
@@ -1026,7 +1189,100 @@ function prependStylesheetBootstrap(script, bootstrap) {
   return `'use strict';\n${bootstrap}${withoutDirective}`;
 }
 
-function renderCreate(spec, outputRoot) {
+function renderPreviewResourceTags(resources, tracked = false) {
+  return resources.map((resource) => {
+    const state = tracked
+      ? ` data-cure-preview-resource="${resource.role}" onload="window.__curePreviewResource('${resource.role}','loaded')" onerror="window.__curePreviewResource('${resource.role}','error')"`
+      : '';
+    if (resource.tag === 'link') return `  <link rel="stylesheet" href="${htmlEscape(resource.href)}"${state}>`;
+    return `  <script src="${htmlEscape(resource.href)}"${state}></script>`;
+  }).join('\n');
+}
+
+function renderPreviewProbe(manifestHash, resources) {
+  const roles = resources.map((resource) => resource.role);
+  return `<script>
+(function () {
+  'use strict';
+  var states = {};
+  var runtimeErrors = [];
+  var roles = ${JSON.stringify(roles)};
+  roles.forEach(function (role) { states[role] = 'pending'; });
+  window.__curePreviewResource = function (role, state) { states[role] = state; };
+  window.addEventListener('error', function (event) {
+    var target = event && event.target;
+    if (target && target.getAttribute && target.getAttribute('data-cure-preview-resource')) { return; }
+    runtimeErrors.push(String(event && (event.message || event.error) || 'window error'));
+  }, true);
+  window.addEventListener('unhandledrejection', function (event) {
+    runtimeErrors.push(String(event && event.reason || 'unhandled rejection'));
+  });
+  window.__cureFormPreviewCheck = function () {
+    var jq = window.jQuery;
+    var parserAvailable = Boolean(jq && jq.parser && typeof jq.parser.parse === 'function');
+    if (parserAvailable) {
+      try { jq.parser.parse(document.body); } catch (error) { runtimeErrors.push('parser: ' + String(error && error.message || error)); }
+    }
+    var panels = Array.prototype.slice.call(document.querySelectorAll('.hisui-panel'));
+    var initializedPanels = 0;
+    panels.forEach(function (panel) {
+      try {
+        if (jq && jq.fn && typeof jq.fn.panel === 'function' && jq(panel).panel('options')) { initializedPanels += 1; }
+      } catch (error) { runtimeErrors.push('panel: ' + String(error && error.message || error)); }
+    });
+    var radios = Array.prototype.slice.call(document.querySelectorAll('input[type="radio"]'));
+    var generatedLabels = radios.filter(function (radio) {
+      var id = radio.getAttribute('id');
+      var next = radio.nextElementSibling;
+      if (next && next.matches && next.matches('label.radio')) { return true; }
+      if (!id) { return false; }
+      var labels = document.querySelectorAll('label.radio[for]');
+      for (var index = 0; index < labels.length; index += 1) {
+        if (labels[index].getAttribute('for') === id) { return true; }
+      }
+      return false;
+    }).length;
+    var resourceStates = roles.map(function (role) { return { role: role, state: states[role] || 'missing' }; });
+    var networkErrors = [];
+    if (window.performance && typeof window.performance.getEntriesByType === 'function') {
+      window.performance.getEntriesByType('resource').forEach(function (entry) {
+        if (typeof entry.responseStatus === 'number' && entry.responseStatus >= 400) {
+          networkErrors.push({ url: String(entry.name || ''), status: entry.responseStatus });
+        }
+      });
+    }
+    return {
+      schema: 'cure-form-browser-result/v1',
+      manifestHash: ${JSON.stringify(manifestHash)},
+      width: window.innerWidth,
+      resources: resourceStates,
+      checks: {
+        jqueryAvailable: Boolean(jq),
+        parserAvailable: parserAvailable,
+        panelCount: panels.length,
+        initializedPanelCount: initializedPanels,
+        radioCount: radios.length,
+        generatedRadioLabelCount: generatedLabels,
+        horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1
+      },
+      networkErrors: networkErrors,
+      runtimeErrors: runtimeErrors.slice()
+    };
+  };
+  window.addEventListener('load', function () {
+    window.setTimeout(function () { window.__cureFormPreviewLatest = window.__cureFormPreviewCheck(); }, 0);
+  });
+}());
+</script>`;
+}
+
+function renderCompletePreview(title, body, resources, manifestHash = null) {
+  const probe = manifestHash ? renderPreviewProbe(manifestHash, resources) : '';
+  const resourceTags = renderPreviewResourceTags(resources, Boolean(manifestHash));
+  return `<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <link rel="icon" href="data:,">\n  <title>${htmlEscape(title)}</title>\n${probe ? probe + '\n' : ''}${resourceTags}\n</head>\n<body>\n${body}\n</body>\n</html>\n`;
+}
+
+function renderCreate(spec, outputRoot, args) {
   const moduleDir = path.join(path.resolve(outputRoot), spec.moduleId);
   ensureDir(moduleDir);
   const isMultiTemplate = Array.isArray(spec.templates) && spec.templates.length > 0;
@@ -1036,9 +1292,11 @@ function renderCreate(spec, outputRoot) {
   const templateDir = path.join(moduleDir, 'templates');
   if (isMultiTemplate) ensureDir(templateDir);
   const stylesheets = Array.isArray(spec.stylesheets) ? spec.stylesheets : [];
+  const previewResources = resolvePreviewResources(args, moduleDir);
+  const previewByRole = Object.fromEntries(previewResources.map((resource) => [resource.role, resource]));
   const publicStylesheets = spec.publicStylesheets || {
-    baseHref: '../scripts_lib/com/css/asscom.css',
-    responsiveHref: '../scripts_lib/com/css/adaptation.css'
+    baseHref: previewByRole.asscomCss.href,
+    responsiveHref: previewByRole.adaptationCss.href
   };
   const templateStylesheetBootstrap = renderStylesheetBootstrap(spec.moduleId, stylesheets, publicStylesheets.responsiveHref);
   const hostStylesheetBootstrap = renderHostStylesheetBootstrap(spec.moduleId, stylesheets);
@@ -1072,7 +1330,9 @@ function renderCreate(spec, outputRoot) {
   const previewInitCalls = isMultiTemplate
     ? (spec.aggregateTemplateInit === true ? '' : templateArtifacts.filter((item) => item.hasBusinessScript).map((item) => `if (typeof ${item.template.moduleName} !== 'undefined' && ${item.template.moduleName}.Init) { ${item.template.moduleName}.Init(); }`).join(' '))
     : '';
-  const html = `<!doctype html>\n<html lang="zh-CN">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <title>${htmlEscape(spec.title)}</title>\n  <link rel="stylesheet" href="../scripts_lib/hisui-0.1.0/dist/css/hisui.pure.min.css">\n  <script src="../scripts_lib/hisui-0.1.0/dist/js/jquery-1.11.3.min.js"></script>\n  <script src="../scripts_lib/hisui-0.1.0/dist/js/jquery.hisui.min.js"></script>\n  <script src="../scripts_lib/hisui-0.1.0/dist/js/locale/hisui-lang-zh_CN.js"></script>\n  <link rel="stylesheet" href="${htmlEscape(publicStylesheets.baseHref)}">\n  <link rel="stylesheet" href="${htmlEscape(publicStylesheets.responsiveHref)}">\n${stylesheetLinks ? stylesheetLinks + '\n' : ''}</head>\n<body>\n${body}${templateScriptTags}  <script src="${spec.moduleId}.js"></script>\n  <script>$(function () { ${previewInitCalls} ${spec.moduleId}.Init(); });</script>\n</body>\n</html>\n`;
+  const previewBody = `${body}${templateScriptTags}  <script src="${spec.moduleId}.js"></script>\n  <script>$(function () { ${previewInitCalls} ${spec.moduleId}.Init(); });</script>`;
+  let html = renderCompletePreview(spec.title, previewBody, previewResources);
+  if (stylesheetLinks) html = html.replace('</head>', `${stylesheetLinks}\n</head>`);
   const mainScript = spec.aggregateTemplateInit === true
     ? renderMainModuleScript(spec.moduleId, templateArtifacts, spec.formType)
     : renderModuleScript(spec.moduleId, spec.formType);
@@ -1175,9 +1435,6 @@ function addResponsiveContract(html) {
   if (/<html\b/i.test(output) && !/<meta\b[^>]*name=["']viewport["']/i.test(output)) {
     output = output.replace(/<head\b[^>]*>/i, (value) => `${value}\n  <meta name="viewport" content="width=device-width, initial-scale=1">`);
   }
-  if (/<html\b/i.test(output) && !/adaptation\.css/i.test(output)) {
-    output = output.replace(/<\/head>/i, '  <link rel="stylesheet" href="../scripts_lib/com/css/adaptation.css">\n</head>');
-  }
   output = output.replace(/<div\b[^>]*>/i, (tag) => {
     const withoutMinWidth = removeFixedMinWidth(tag);
     return addTagClasses(withoutMinWidth, ['cure-form-responsive', 'assess-form', 'assess-form--responsive']);
@@ -1204,6 +1461,7 @@ function prepareResponsive(args) {
   const original = fs.readFileSync(source, 'utf8');
   const before = contractSnapshot(original);
   const responsive = addResponsiveContract(original);
+  if (/<html\b/i.test(responsive)) assertCompletePreviewResources(responsive);
   const after = contractSnapshot(responsive);
   if (JSON.stringify(before) !== JSON.stringify(after)) fail('Responsive transformation changed DOM IDs, cache tags, or radio name/value pairs.');
   const output = path.resolve(args.output || source.replace(/\.html?$/i, '.responsive.html'));
@@ -1211,7 +1469,7 @@ function prepareResponsive(args) {
   const report = {
     schema: 'cure-form-responsive-report/v1', mode: args.mode, source, output,
     sourceHash: sha256(original), outputHash: sha256(responsive), contractPreserved: true,
-    widths: [360, 390, 430, 768, 810, 1024, 1080, 1194, 1280], browserVerificationRequired: true
+    widths: PREVIEW_WIDTHS, browserVerificationRequired: true
   };
   writeJson(args.report || `${output}.report.json`, report);
   console.log(JSON.stringify(report, null, 2));
@@ -1279,12 +1537,144 @@ function prepareCommonResponsive(args) {
         ? ['Init', 'OtherInfo', 'PrintInfo', 'SaveCureRecord', 'CureExpJsonStr', 'MapID']
         : ['Init', 'OtherInfo', 'PrintInfo']
     },
-    widths: [360, 390, 430, 768, 810, 1024, 1080, 1194, 1280],
+    widths: PREVIEW_WIDTHS,
     browserVerificationRequired: true
   };
   const changesPath = writeJson(path.join(outputRoot, 'responsive-changes.json'), changes);
   const reportPath = writeJson(path.join(outputRoot, 'responsive-report.json'), report);
   console.log(JSON.stringify({ command: 'prepare', mode: 'common-responsive', changes: changesPath, report: reportPath, templates: converted.length }, null, 2));
+}
+
+function previewBodyFromChanges(changes) {
+  if (!changes || typeof changes !== 'object' || !Array.isArray(changes.templates) || !changes.templates.length) {
+    fail('Preview changes must contain templates[].');
+  }
+  const fragments = changes.templates.filter((template) => !template.referenceOnly).map((template) => {
+    const content = String(template && (template.content || template.ConT) || '').trim();
+    if (!content) fail(`Preview template ${template && (template.appId || template.name) || 'unknown'} has no HTML content.`);
+    if (/<(?:html|head|body)\b/i.test(content)) fail('Preview changes must contain template fragments rather than complete HTML pages.');
+    return content;
+  });
+  if (!fragments.length) fail('Preview changes contain no materialized template fragments.');
+  return `<main id="cure-form-preview-root">\n${fragments.join('\n')}\n</main>`;
+}
+
+function previewRuntimeExpectations(body) {
+  const tags = String(body || '').match(/<[^>]+>/g) || [];
+  const panelCount = tags.filter((tag) => /\bclass\s*=\s*(["'])[^"']*\bhisui-panel\b[^"']*\1/i.test(tag)).length;
+  const radioCount = tags.filter((tag) => /^<input\b/i.test(tag) && /\btype\s*=\s*(["'])radio\1/i.test(tag)).length;
+  if (panelCount < 1) fail('Preview changes must contain at least one .hisui-panel for browser initialization verification.');
+  return { panelCount, radioCount };
+}
+
+function commandPreview(args) {
+  const changesPath = projectPath(args, requireOption(args, 'changes'));
+  const changes = readJson(changesPath);
+  const snapshot = args.snapshot ? readJson(projectPath(args, args.snapshot)) : null;
+  if (snapshot) assertFormType(snapshot.formType || snapshot.MapType);
+  const outputRoot = args.outputRoot ? projectPath(args, args.outputRoot) : path.join(workRoot(args), 'preview');
+  ensureDir(outputRoot);
+  const resources = resolvePreviewResources(args, outputRoot, { copyLocal: true });
+  const title = cleanText(args.title || changes.title || (changes.map && (changes.map.name || changes.map.code)) || (snapshot && (snapshot.mapName || snapshot.MapName || snapshot.mapCode || snapshot.MapCode)) || 'Cure Form Preview');
+  const body = previewBodyFromChanges(changes);
+  const expectedRuntime = previewRuntimeExpectations(body);
+  const manifest = {
+    schema: 'cure-form-preview-manifest/v1',
+    title,
+    previewHtml: 'preview.html',
+    changesHash: sha256(changes),
+    snapshotHash: snapshot ? sha256(snapshot) : null,
+    resourceHash: sha256(resources.map((resource) => ({ role: resource.role, basename: resource.basename, href: resource.href, contentHash: resource.contentHash }))),
+    resources: resources.map((resource) => ({ role: resource.role, basename: resource.basename, href: resource.href, contentHash: resource.contentHash })),
+    widths: PREVIEW_WIDTHS,
+    expectedRuntime,
+    requiredChecks: ['resources', 'network-errors', 'jquery', 'parser', 'panel', 'radio', 'horizontal-overflow', 'runtime-errors']
+  };
+  const manifestPath = writeJson(path.join(outputRoot, 'preview-manifest.json'), manifest);
+  const manifestHash = sha256(manifest);
+  const html = renderCompletePreview(title, body, resources, manifestHash);
+  const htmlPath = path.join(outputRoot, 'preview.html');
+  fs.writeFileSync(htmlPath, html, 'utf8');
+  console.log(JSON.stringify({ command: 'preview', html: htmlPath, manifest: manifestPath, manifestHash, widths: PREVIEW_WIDTHS }, null, 2));
+}
+
+function validateBrowserResult(result, width, manifest, manifestHash) {
+  if (!result || result.schema !== 'cure-form-browser-result/v1') fail(`Browser result for width ${width} has an invalid schema.`);
+  if (result.manifestHash !== manifestHash) fail(`Browser result for width ${width} does not match the preview manifest.`);
+  if (Number(result.width) !== width) fail(`Browser result width mismatch: expected ${width}, received ${result.width}.`);
+  if (!Array.isArray(result.resources) || result.resources.length !== manifest.resources.length) fail(`Browser result resources are incomplete at width ${width}.`);
+  const resourceStates = new Map(result.resources.map((item) => [item.role, item.state]));
+  if (resourceStates.size !== manifest.resources.length) fail(`Browser result resources contain duplicate roles at width ${width}.`);
+  for (const resource of manifest.resources) {
+    if (resourceStates.get(resource.role) !== 'loaded') fail(`Preview resource ${resource.role} did not load at width ${width}.`);
+  }
+  const checks = result.checks || {};
+  if (checks.jqueryAvailable !== true) fail(`jQuery is unavailable at width ${width}.`);
+  if (checks.parserAvailable !== true) fail(`HISUI $.parser is unavailable at width ${width}.`);
+  const expectedRuntime = manifest.expectedRuntime || {};
+  if (!Number.isInteger(Number(checks.panelCount)) || !Number.isInteger(Number(checks.initializedPanelCount)) || Number(checks.panelCount) !== Number(expectedRuntime.panelCount) || Number(checks.initializedPanelCount) !== Number(expectedRuntime.panelCount)) {
+    fail(`HISUI panel initialization is incomplete at width ${width}.`);
+  }
+  if (!Number.isInteger(Number(checks.radioCount)) || !Number.isInteger(Number(checks.generatedRadioLabelCount)) || Number(checks.radioCount) < 0 || Number(checks.generatedRadioLabelCount) < 0) {
+    fail(`HISUI radio counts are invalid at width ${width}.`);
+  }
+  if (Number(checks.radioCount) !== Number(expectedRuntime.radioCount) || Number(checks.generatedRadioLabelCount) < Number(expectedRuntime.radioCount)) {
+    fail(`HISUI radio label generation is incomplete at width ${width}.`);
+  }
+  if (checks.horizontalOverflow !== false) fail(`Preview has horizontal overflow or no overflow evidence at width ${width}.`);
+  if (!Array.isArray(result.networkErrors)) fail(`Preview network error evidence is missing at width ${width}.`);
+  if (result.networkErrors.length) fail(`Preview resource requests failed at width ${width}: ${JSON.stringify(result.networkErrors)}`);
+  if (!Array.isArray(result.runtimeErrors)) fail(`Preview runtime error evidence is missing at width ${width}.`);
+  if (result.runtimeErrors.length) fail(`Preview runtime errors occurred at width ${width}: ${result.runtimeErrors.join('; ')}`);
+}
+
+function commandPreviewCheck(args) {
+  const manifestPath = projectPath(args, requireOption(args, 'manifest'));
+  const manifest = readJson(manifestPath);
+  if (!manifest || manifest.schema !== 'cure-form-preview-manifest/v1') fail('Expected cure-form-preview-manifest/v1.');
+  if (JSON.stringify(manifest.widths) !== JSON.stringify(PREVIEW_WIDTHS)) fail('Preview manifest does not contain the canonical nine-width matrix.');
+  if (!Array.isArray(manifest.resources) || JSON.stringify(manifest.resources.map((resource) => resource.role)) !== JSON.stringify(PREVIEW_RESOURCE_SPECS.map((spec) => spec.role))) {
+    fail('Preview manifest does not contain the canonical six-resource matrix.');
+  }
+  if (!manifest.expectedRuntime || !Number.isInteger(Number(manifest.expectedRuntime.panelCount)) || Number(manifest.expectedRuntime.panelCount) < 1 || !Number.isInteger(Number(manifest.expectedRuntime.radioCount)) || Number(manifest.expectedRuntime.radioCount) < 0) {
+    fail('Preview manifest does not contain valid runtime expectations.');
+  }
+  const manifestResourceHash = sha256(manifest.resources.map((resource) => ({ role: resource.role, basename: resource.basename, href: resource.href, contentHash: resource.contentHash })));
+  if (manifest.resourceHash !== manifestResourceHash) fail('Preview manifest resource hash is invalid.');
+  for (const resource of manifest.resources) {
+    if (/^(?:https?:)?\/\//i.test(resource.href)) continue;
+    const resourcePath = path.resolve(path.dirname(manifestPath), resource.href);
+    if (!pathIsWithin(resourcePath, path.dirname(manifestPath)) || !fs.existsSync(resourcePath) || !fs.statSync(resourcePath).isFile()) {
+      fail(`Preview manifest resource is missing: ${resource.href}`);
+    }
+    const contentHash = crypto.createHash('sha256').update(fs.readFileSync(resourcePath)).digest('hex');
+    if (contentHash !== resource.contentHash) fail(`Preview manifest resource hash mismatch: ${resource.href}`);
+  }
+  const browserPayload = readJson(projectPath(args, requireOption(args, 'browserResults')));
+  const results = Array.isArray(browserPayload) ? browserPayload : browserPayload.results;
+  if (!Array.isArray(results)) fail('Browser results must be an array or contain results[].');
+  if (results.length !== PREVIEW_WIDTHS.length) fail('Browser results must contain only the canonical nine-width matrix.');
+  const manifestHash = sha256(manifest);
+  for (const width of PREVIEW_WIDTHS) {
+    const matches = results.filter((result) => Number(result && result.width) === width);
+    if (matches.length !== 1) fail(`Browser results must contain exactly one result for width ${width}.`);
+    validateBrowserResult(matches[0], width, manifest, manifestHash);
+  }
+  const verification = {
+    schema: 'cure-form-preview-verification/v1',
+    status: 'passed',
+    manifestHash,
+    changesHash: manifest.changesHash,
+    snapshotHash: manifest.snapshotHash,
+    resourceHash: manifest.resourceHash,
+    browserResultsHash: sha256(results),
+    resultCount: results.length,
+    widths: PREVIEW_WIDTHS,
+    verifiedAt: new Date().toISOString()
+  };
+  const output = projectPath(args, args.output || path.join(workRoot(args), 'preview', 'preview-verification.json'));
+  writeJson(output, verification);
+  console.log(JSON.stringify({ command: 'preview-check', output, status: verification.status, widths: PREVIEW_WIDTHS }, null, 2));
 }
 
 function commandPrepare(args) {
@@ -1295,7 +1685,7 @@ function commandPrepare(args) {
   const spec = validateSpec(readJson(projectPath(args, requireOption(args, 'spec'))), { approved: true });
   validatePublicResponsiveBoundary(spec, args, false);
   const outputRoot = args.outputRoot ? projectPath(args, args.outputRoot) : developmentRoot(args);
-  const output = renderCreate(spec, outputRoot);
+  const output = renderCreate(spec, outputRoot, args);
   console.log(JSON.stringify({ command: 'prepare', mode, output, formType: spec.formType }, null, 2));
 }
 
@@ -1354,20 +1744,41 @@ function applyApprovedCloneReferences(changes, spec, approvedClones) {
   return { changes: output, references };
 }
 
+function validatePreviewVerification(value, changesHash, snapshotHash) {
+  if (!value || value.schema !== 'cure-form-preview-verification/v1' || value.status !== 'passed') {
+    fail('Deployable changes require a passed cure-form-preview-verification/v1 report.');
+  }
+  if (value.changesHash !== changesHash) fail('Preview verification does not match the supplied changes payload.');
+  if ((value.snapshotHash || null) !== (snapshotHash || null)) fail('Preview verification does not match the supplied snapshot.');
+  if (JSON.stringify(value.widths) !== JSON.stringify(PREVIEW_WIDTHS)) fail('Preview verification does not cover the canonical nine-width matrix.');
+  if (!/^[a-f0-9]{64}$/i.test(String(value.manifestHash || '')) || !/^[a-f0-9]{64}$/i.test(String(value.resourceHash || ''))) {
+    fail('Preview verification is missing manifest or resource hashes.');
+  }
+  if (!/^[a-f0-9]{64}$/i.test(String(value.browserResultsHash || '')) || Number(value.resultCount) !== PREVIEW_WIDTHS.length) {
+    fail('Preview verification is missing canonical browser result evidence.');
+  }
+  return value;
+}
+
 function commandPlan(args) {
-  const spec = validateSpec(readJson(requireOption(args, 'spec')), { approved: true });
+  const spec = validateSpec(readJson(projectPath(args, requireOption(args, 'spec'))), { approved: true });
   validatePublicResponsiveBoundary(spec, args, true);
-  const snapshot = args.snapshot ? readJson(args.snapshot) : null;
+  const snapshot = args.snapshot ? readJson(projectPath(args, args.snapshot)) : null;
   if (snapshot) assertFormType(snapshot.formType || snapshot.MapType);
   if (snapshot && String(snapshot.mapCode || snapshot.MapCode) !== spec.mapCode) fail('Snapshot mapCode does not match specification mapCode.');
   const snapshotVersion = snapshot ? (snapshot.version ?? snapshot.Version) : undefined;
   const snapshotContentHash = snapshot ? (snapshot.contentHash ?? snapshot.ContentHash) : undefined;
   const snapshotIsMissing = Boolean(snapshot && (snapshot.exists === false || snapshot.exists === 0));
   const hasChanges = Boolean(args.changes);
-  let changes = hasChanges ? readJson(args.changes) : {};
+  let changes = hasChanges ? readJson(projectPath(args, args.changes)) : {};
+  const previewSourceChangesHash = hasChanges ? sha256(changes) : null;
+  const snapshotHash = snapshot ? sha256(snapshot) : null;
+  const previewVerification = hasChanges
+    ? validatePreviewVerification(readJson(projectPath(args, requireOption(args, 'previewVerification'))), previewSourceChangesHash, snapshotHash)
+    : null;
   let commonTemplateReferences = [];
   if (args.approvedClones) {
-    const resolved = applyApprovedCloneReferences(changes, spec, approvedCloneMap(readJson(args.approvedClones)));
+    const resolved = applyApprovedCloneReferences(changes, spec, approvedCloneMap(readJson(projectPath(args, args.approvedClones))));
     changes = resolved.changes;
     commonTemplateReferences = resolved.references;
   }
@@ -1382,6 +1793,10 @@ function commandPlan(args) {
     approvedSpecHash: spec.approval.specHash,
     specification: spec,
     changes,
+    previewSourceChangesHash,
+    sourceSnapshotHash: snapshotHash,
+    plannedChangesHash: hasChanges ? sha256(changes) : null,
+    previewVerification,
     commonTemplateReferences,
     deploymentReady: hasChanges,
     audit: { operator: args.operator || null, reason: args.reason || null },
@@ -1399,6 +1814,8 @@ function validatePackage(value, write) {
   validateSpec(value.specification, { approved: true });
   if (value.mapCode !== value.specification.mapCode || value.formType !== value.specification.formType) fail('Package target does not match specification.');
   if (!value.deploymentReady) fail('Package is review-only because no confirmed changes payload was supplied.');
+  if (value.plannedChangesHash !== sha256(value.changes || {})) fail('Package changes do not match the planned changes hash.');
+  validatePreviewVerification(value.previewVerification, value.previewSourceChangesHash, value.sourceSnapshotHash);
   const expectedTemplateCount = Number(value.specification.expectedTemplateCount || 0);
   if (expectedTemplateCount > 0) {
     const changeTemplates = value.changes && Array.isArray(value.changes.templates) ? value.changes.templates : [];
@@ -1507,6 +1924,8 @@ function main() {
     prepare: commandPrepare,
     review: commandReview,
     plan: commandPlan,
+    preview: commandPreview,
+    'preview-check': commandPreviewCheck,
     apply: commandApply,
     verify: commandVerify,
     rollback: commandRollback,
@@ -1515,7 +1934,7 @@ function main() {
   handlers[command](args);
 }
 
-module.exports = { addResponsiveContract, assertFormType, contractSnapshot, objectScriptArgument, sha256, structureToSpec, unwrapServerResult, validatePackage, validateSpec };
+module.exports = { addResponsiveContract, assertCompletePreviewResources, assertFormType, contractSnapshot, objectScriptArgument, previewBodyFromChanges, resolvePreviewResources, sha256, structureToSpec, unwrapServerResult, validateBrowserResult, validatePackage, validatePreviewVerification, validateSpec };
 
 if (require.main === module) {
   try { main(); }

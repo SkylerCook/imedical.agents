@@ -3,6 +3,7 @@
 - 产品侧事务入口固定为 `web.DHCDocAPPBLDeploy`。
 - 只允许调用 `InspectForm`、`ValidatePackage`、`ApplyPackage`、`VerifyOperation`、`RollbackOperation`。当前 MCP 没有 `iris_execute_method` 时，客户端使用 `iris_execute` 生成固定白名单 ClassMethod 调用，所有参数 Base64 编码；不得接受外部类名、方法名或任意 ObjectScript。
 - 包内必须包含 `cure-form-package/v1`、CA/CR 类型、期望版本、期望内容哈希、操作者、原因和已批准规格哈希。
+- 带 `changes` 的包必须包含通过的 `cure-form-preview-verification/v1`；客户端必须核对 snapshot、预览源 changes、最终计划 changes、资源清单及九档宽度哈希，并将凭证放入包内供服务端审计，缺失或失配时不得进入部署就绪状态。
 - 客户端只编排；服务端重新校验类型、版本、哈希、组成关系和包内容。
 - 任一步失败时回滚整个业务事务，并记录前后快照、哈希、状态和回滚关联。
 - 禁止将服务器快照或凭据写入插件目录；快照只允许位于 `.agents/work/`。

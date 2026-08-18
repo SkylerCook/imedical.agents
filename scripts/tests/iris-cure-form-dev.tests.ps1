@@ -23,12 +23,49 @@ function Invoke-Cure {
     return $output
 }
 
+function New-PassedPreviewVerification {
+    param(
+        [string]$Changes,
+        [string]$Snapshot,
+        [string]$Name
+    )
+    $previewRoot = Join-Path $scratch ("preview-" + $Name)
+    $arguments = @('preview','--changes',$Changes,'--target-profile',$previewProfile,'--output-root',$previewRoot)
+    if ($Snapshot) { $arguments += @('--snapshot',$Snapshot) }
+    $preview = Invoke-Cure $arguments | ConvertFrom-Json
+    $manifest = Get-Content -LiteralPath $preview.manifest -Raw -Encoding UTF8 | ConvertFrom-Json
+    $results = @($manifest.widths | ForEach-Object {
+        [ordered]@{
+            schema = 'cure-form-browser-result/v1'
+            manifestHash = $preview.manifestHash
+            width = [int]$_
+            resources = @($manifest.resources | ForEach-Object { [ordered]@{ role = $_.role; state = 'loaded' } })
+            checks = [ordered]@{
+                jqueryAvailable = $true
+                parserAvailable = $true
+                panelCount = [int]$manifest.expectedRuntime.panelCount
+                initializedPanelCount = [int]$manifest.expectedRuntime.panelCount
+                radioCount = [int]$manifest.expectedRuntime.radioCount
+                generatedRadioLabelCount = [int]$manifest.expectedRuntime.radioCount
+                horizontalOverflow = $false
+            }
+            networkErrors = @()
+            runtimeErrors = @()
+        }
+    })
+    $browserResults = Join-Path $previewRoot 'browser-results.json'
+    @{ schema = 'cure-form-browser-results/v1'; results = $results } | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $browserResults -Encoding UTF8
+    $verification = Join-Path $previewRoot 'preview-verification.json'
+    Invoke-Cure @('preview-check','--manifest',$preview.manifest,'--browser-results',$browserResults,'--output',$verification) | Out-Null
+    return $verification
+}
+
 try {
     New-Item -ItemType Directory -Force -Path $scratch | Out-Null
 
     $manifest = Get-Content -LiteralPath (Join-Path $pluginRoot '.agents-plugin\plugin.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($manifest.name -eq 'iris-cure-form-dev') 'Unexpected plugin name.'
-    Assert-True ($manifest.version -eq '0.2.5') 'Unexpected plugin version.'
+    Assert-True ($manifest.version -eq '0.3.0') 'Unexpected plugin version.'
     Assert-True (($manifest.dependencies -contains 'extract-doc') -and ($manifest.dependencies -contains 'coding-iris-plugin')) 'Plugin dependencies are incomplete.'
 
     foreach ($skill in @('cure-form-init','cure-form-requirement-adapter','cure-assess-form-dev','cure-record-form-dev','cure-form-responsive','make-assess-form-responsive','cure-form-deploy','cure-form-lookup','cure-form-fragment')) {
@@ -64,6 +101,30 @@ try {
     Assert-True ($styleBoundaryText -notmatch '(?i)[A-Z]:[\\/][^\r\n`]*adaptation\.css') 'Plugin governance must not hardcode a project-specific public responsive CSS path.'
     Assert-True (($styleBoundaryText -match '已改造表单.*快照') -and ($styleBoundaryText -match '两阶段')) 'Plugin governance must require compatibility snapshots and a two-stage migration for existing forms.'
     Assert-True (($styleBoundaryText -match '24 个字符') -and ($styleBoundaryText -match 'camelCase') -and ($styleBoundaryText -match '引用路径.*basename.*一致')) 'Plugin governance must constrain deployment asset names by semantics and length.'
+    Assert-True ($cliContent -notmatch '\.\./scripts_lib/(?:hisui|com)') 'Canonical generator must not hardcode target-project preview resource paths.'
+    $profileTemplateContent = Get-Content -LiteralPath (Join-Path $pluginRoot 'templates\cure_form_profile.template.md') -Raw -Encoding UTF8
+    foreach ($profileKey in @('PreviewHisuiCss','PreviewJqueryJs','PreviewHisuiJs','PreviewHisuiLocaleJs','PreviewAsscomCss','PreviewAdaptationCss')) {
+        Assert-True ($profileTemplateContent -match [regex]::Escape($profileKey)) "Profile template is missing $profileKey."
+    }
+
+    $previewAssetRoot = Join-Path $scratch 'preview-assets'
+    New-Item -ItemType Directory -Force -Path $previewAssetRoot | Out-Null
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'vendor\hisui\dist\js\jquery-1.11.3.min.js') -Destination (Join-Path $previewAssetRoot 'jquery-1.11.3.min.js')
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'vendor\hisui\dist\js\jquery.hisui.min.js') -Destination (Join-Path $previewAssetRoot 'jquery.hisui.min.js')
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'vendor\hisui\dist\js\locale\hisui-lang-zh_CN.js') -Destination (Join-Path $previewAssetRoot 'hisui-lang-zh_CN.js')
+    '.item-table { width: 100%; }' | Set-Content -LiteralPath (Join-Path $previewAssetRoot 'asscom.css') -Encoding UTF8
+    '.assess-form { max-width: 100%; }' | Set-Content -LiteralPath (Join-Path $previewAssetRoot 'adaptation.css') -Encoding UTF8
+    $previewProfile = Join-Path $scratch 'cure_form_profile.md'
+    @(
+        '# Cure Form Profile',
+        '',
+        "- PreviewHisuiCss: $(Join-Path $repoRoot 'vendor\hisui\dist\css\hisui.pure.min.css')",
+        "- PreviewJqueryJs: $(Join-Path $previewAssetRoot 'jquery-1.11.3.min.js')",
+        "- PreviewHisuiJs: $(Join-Path $previewAssetRoot 'jquery.hisui.min.js')",
+        "- PreviewHisuiLocaleJs: $(Join-Path $previewAssetRoot 'hisui-lang-zh_CN.js')",
+        "- PreviewAsscomCss: $(Join-Path $previewAssetRoot 'asscom.css')",
+        "- PreviewAdaptationCss: $(Join-Path $previewAssetRoot 'adaptation.css')"
+    ) | Set-Content -LiteralPath $previewProfile -Encoding UTF8
 
     $structurePath = Join-Path $scratch 'structure.json'
     @{
@@ -99,7 +160,7 @@ try {
     Assert-True ($ca.approval.unresolvedCount -eq 0) 'CA approval was not recorded.'
 
     $generatedRoot = Join-Path $scratch 'generated'
-    Invoke-Cure @('prepare','--mode','create','--spec',$caSpec,'--output-root',$generatedRoot) | Out-Null
+    Invoke-Cure @('prepare','--mode','create','--spec',$caSpec,'--output-root',$generatedRoot,'--target-profile',$previewProfile) | Out-Null
     foreach ($name in @('CAForm.html','CAForm.js','CAForm.fragment.html','cure-form-spec.json','cure-form-deploy-changes.json')) {
         Assert-True (Test-Path -LiteralPath (Join-Path $generatedRoot "CAForm\$name")) "Missing generated CA artifact: $name"
     }
@@ -117,7 +178,7 @@ try {
     $docsSpecValue.unresolved = @()
     $docsSpecValue | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $docsDefaultSpec -Encoding UTF8
     Invoke-Cure @('review','--spec',$docsDefaultSpec,'--approved-by','tester') | Out-Null
-    Invoke-Cure @('prepare','--mode','create','--spec','docs\cure-form\DocsDefaultForm\cure-form-spec.json','--project-root',$docsProject) | Out-Null
+    Invoke-Cure @('prepare','--mode','create','--spec','docs\cure-form\DocsDefaultForm\cure-form-spec.json','--project-root',$docsProject,'--target-profile',$previewProfile) | Out-Null
     Assert-True (Test-Path -LiteralPath (Join-Path $docsModuleRoot 'DocsDefaultForm.html')) 'Default create output must be written under docs/cure-form/<moduleId>.'
 
     $ambiguousProject = Join-Path $scratch 'ambiguous-docs-project'
@@ -271,7 +332,7 @@ try {
     $publicResponsiveCssCopy = Join-Path $scratch 'public-responsive-copy.css'
     '.assess-form { max-width: 100%; }' | Set-Content -LiteralPath $publicResponsiveCss -Encoding UTF8
     Copy-Item -LiteralPath $publicResponsiveCss -Destination $publicResponsiveCssCopy
-    Invoke-Cure @('prepare','--mode','create','--spec',$multiSpecPath,'--output-root',$generatedRoot,'--public-responsive-css',$publicResponsiveCss,'--public-responsive-css-copy',$publicResponsiveCssCopy) | Out-Null
+    Invoke-Cure @('prepare','--mode','create','--spec',$multiSpecPath,'--output-root',$generatedRoot,'--target-profile',$previewProfile,'--public-responsive-css',$publicResponsiveCss,'--public-responsive-css-copy',$publicResponsiveCssCopy) | Out-Null
     $multiChanges = Get-Content -LiteralPath (Join-Path $generatedRoot 'MultiForm\cure-form-deploy-changes.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     $multiHtml = Get-Content -LiteralPath (Join-Path $generatedRoot 'MultiForm\MultiForm.html') -Raw -Encoding UTF8
     $overrideFragment = Get-Content -LiteralPath (Join-Path $generatedRoot 'MultiForm\templates\01-template-1.fragment.html') -Raw -Encoding UTF8
@@ -294,7 +355,7 @@ try {
     Assert-True (($generatedMainScript -match 'window\.jQuery\(deferredInit\)') -and ($generatedMainScript -match 'window\.setTimeout\(Init, 0\)')) 'Central template initialization must defer until the host DOM-ready lifecycle has restored cached values.'
     Assert-True ($generatedMainScript -notmatch 'MultiFormTemplate2\.Init') 'Central template initialization must skip templates without business JavaScript.'
     '.assess-form { max-width: 100%; } .multi-form-skin { color: red; }' | Set-Content -LiteralPath $publicResponsiveCss -Encoding UTF8
-    $pollutedPrepare = Invoke-Cure @('prepare','--mode','create','--spec',$multiSpecPath,'--output-root',$generatedRoot,'--public-responsive-css',$publicResponsiveCss) 1
+    $pollutedPrepare = Invoke-Cure @('prepare','--mode','create','--spec',$multiSpecPath,'--output-root',$generatedRoot,'--target-profile',$previewProfile,'--public-responsive-css',$publicResponsiveCss) 1
     Assert-True ($pollutedPrepare -match 'Public responsive CSS contains form-specific selectors') 'Public responsive CSS pollution must block preparation.'
     '.assess-form { max-width: 100%; }' | Set-Content -LiteralPath $publicResponsiveCss -Encoding UTF8
     $multiSnapshotPath = Join-Path $scratch 'MultiForm.snapshot.json'
@@ -306,7 +367,9 @@ try {
         contentHash = 'multi-fixture-v0'
     } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $multiSnapshotPath -Encoding UTF8
     $multiPackagePath = Join-Path $scratch 'MultiForm.package.json'
-    Invoke-Cure @('plan','--spec',$multiSpecPath,'--snapshot',$multiSnapshotPath,'--changes',(Join-Path $generatedRoot 'MultiForm\cure-form-deploy-changes.json'),'--output',$multiPackagePath,'--public-responsive-css',$publicResponsiveCss,'--public-responsive-css-copy',$publicResponsiveCssCopy) | Out-Null
+    $multiChangesPath = Join-Path $generatedRoot 'MultiForm\cure-form-deploy-changes.json'
+    $multiVerification = New-PassedPreviewVerification -Changes $multiChangesPath -Snapshot $multiSnapshotPath -Name 'multi'
+    Invoke-Cure @('plan','--spec',$multiSpecPath,'--snapshot',$multiSnapshotPath,'--changes',$multiChangesPath,'--preview-verification',$multiVerification,'--output',$multiPackagePath,'--public-responsive-css',$publicResponsiveCss,'--public-responsive-css-copy',$publicResponsiveCssCopy) | Out-Null
     $multiDryRun = Invoke-Cure @('apply','--package',$multiPackagePath)
     Assert-True ($multiDryRun -match '"dryRun": true') 'Multi-template package must pass the default offline dry-run gate.'
 
@@ -320,7 +383,10 @@ try {
         version = 0
         contentHash = 'fixture-hash-v0'
     } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $snapshotPath -Encoding UTF8
-    Invoke-Cure @('plan','--spec',$caSpec,'--snapshot',$snapshotPath,'--changes',$changesPath,'--output',$packagePath) | Out-Null
+    $caVerification = New-PassedPreviewVerification -Changes $changesPath -Snapshot $snapshotPath -Name 'ca-existing'
+    $missingPreviewGate = Invoke-Cure @('plan','--spec',$caSpec,'--snapshot',$snapshotPath,'--changes',$changesPath,'--output',(Join-Path $scratch 'CAForm.no-preview.package.json')) 1
+    Assert-True ($missingPreviewGate -match 'preview-verification') 'Deployable changes must require preview verification evidence.'
+    Invoke-Cure @('plan','--spec',$caSpec,'--snapshot',$snapshotPath,'--changes',$changesPath,'--preview-verification',$caVerification,'--output',$packagePath) | Out-Null
     $package = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($package.expectedVersion -eq 0) 'Snapshot version 0 must not be converted to NEW.'
     Assert-True ($package.expectedContentHash -eq 'fixture-hash-v0') 'Snapshot content hash was not preserved.'
@@ -334,7 +400,8 @@ try {
         contentHash = 'missing-map-placeholder-hash'
     } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $missingSnapshotPath -Encoding UTF8
     $newPackagePath = Join-Path $scratch 'CAForm.new.package.json'
-    Invoke-Cure @('plan','--spec',$caSpec,'--snapshot',$missingSnapshotPath,'--changes',$changesPath,'--output',$newPackagePath) | Out-Null
+    $newVerification = New-PassedPreviewVerification -Changes $changesPath -Snapshot $missingSnapshotPath -Name 'ca-new'
+    Invoke-Cure @('plan','--spec',$caSpec,'--snapshot',$missingSnapshotPath,'--changes',$changesPath,'--preview-verification',$newVerification,'--output',$newPackagePath) | Out-Null
     $newPackage = Get-Content -LiteralPath $newPackagePath -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($newPackage.expectedVersion -eq 'NEW') 'A missing server Map must produce expectedVersion=NEW.'
     Assert-True ($null -eq $newPackage.expectedContentHash) 'A missing server Map must not retain a placeholder content hash.'
@@ -353,14 +420,15 @@ try {
     $reuseChangesPath = Join-Path $scratch 'ReuseCommon.changes.json'
     @{
         templates = @(
-            @{ name = '治疗前图片（响应式 vtest）'; appId = 'TreatStartPig'; content = '<div id="TreatStartPig"></div>'; items = @() },
-            @{ name = '治疗后图片（响应式 vtest）'; appId = 'TreatEndPig'; content = '<div id="TreatEndPig"></div>'; items = @() }
+            @{ name = '治疗前图片（响应式 vtest）'; appId = 'TreatStartPig'; content = '<div id="TreatStartPig" class="hisui-panel"></div>'; items = @() },
+            @{ name = '治疗后图片（响应式 vtest）'; appId = 'TreatEndPig'; content = '<div id="TreatEndPig" class="hisui-panel"></div>'; items = @() }
         )
     } | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $reuseChangesPath -Encoding UTF8
     $approvedClonesPath = Join-Path $scratch 'approved-clones.json'
     @{ approvedClones = @{ '212' = '242' } } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $approvedClonesPath -Encoding UTF8
     $reusePackagePath = Join-Path $scratch 'ReuseCommon.package.json'
-    Invoke-Cure @('plan','--spec',$reuseSpecPath,'--snapshot',$snapshotPath,'--changes',$reuseChangesPath,'--approved-clones',$approvedClonesPath,'--output',$reusePackagePath) | Out-Null
+    $reuseVerification = New-PassedPreviewVerification -Changes $reuseChangesPath -Snapshot $snapshotPath -Name 'reuse'
+    Invoke-Cure @('plan','--spec',$reuseSpecPath,'--snapshot',$snapshotPath,'--changes',$reuseChangesPath,'--preview-verification',$reuseVerification,'--approved-clones',$approvedClonesPath,'--output',$reusePackagePath) | Out-Null
     $reusePackage = Get-Content -LiteralPath $reusePackagePath -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True (($reusePackage.changes.templates[0].referenceOnly -eq $true) -and ($reusePackage.changes.templates[0].rowId -eq '242')) 'Approved common template was not converted to referenceOnly.'
     Assert-True (-not $reusePackage.changes.templates[0].PSObject.Properties['content']) 'Approved common template reference must not carry duplicate template content.'
@@ -373,7 +441,7 @@ try {
     $cr.unresolved = @()
     $cr | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $crSpec -Encoding UTF8
     Invoke-Cure @('review','--spec',$crSpec,'--approved-by','tester') | Out-Null
-    Invoke-Cure @('prepare','--mode','create','--spec',$crSpec,'--output-root',$generatedRoot) | Out-Null
+    Invoke-Cure @('prepare','--mode','create','--spec',$crSpec,'--output-root',$generatedRoot,'--target-profile',$previewProfile) | Out-Null
     $crScript = Get-Content -LiteralPath (Join-Path $generatedRoot 'CRForm\CRForm.js') -Raw -Encoding UTF8
     Assert-True (($crScript -match 'SaveCureRecord') -and ($crScript -match 'CureExpJsonStr') -and ($crScript -match 'MapID')) 'Generated CR runtime contract is incomplete.'
     Assert-True (-not ($crScript -match 'function\s+SaveCureRecord|throw new Error')) 'Generated CR module must not override the host save entry.'
@@ -381,7 +449,7 @@ try {
     Invoke-Cure @('intake','--structure',$structurePath,'--form-type','','--module-id','Pathology') 1 | Out-Null
 
     $legacyHtml = Join-Path $scratch 'legacy.html'
-    '<html><head></head><body><div id="Root" style="min-width:300px"><table class="item-table"><tr><td><input id="A" data-cache-tag="A"></td><td><input id="TableRadio" type="radio" name="TableR" value="Y"><label class="radio" for="TableRadio"></label><label class="i-label-box" for="TableRadio">是</label></td></tr></table><table class="item-table-line"><tr><td>P</td><td>1</td><td>2</td><td>3</td></tr></table><input id="MobileRadio" type="radio" name="MobileR" value="1"><label class="radio" for="MobileRadio"></label><label class="m-label-box" for="MobileRadio">选项</label><input id="NativeRadio" type="radio" name="NativeR" value="N"><label class="radio" for="NativeRadio"></label><input type="checkbox" name="C" value="Y"></div></body></html>' | Set-Content -LiteralPath $legacyHtml -Encoding UTF8
+    '<html><head><link rel="stylesheet" href="hisui.pure.min.css"><script src="jquery-1.11.3.min.js"></script><script src="jquery.hisui.min.js"></script><script src="hisui-lang-zh_CN.js"></script><link rel="stylesheet" href="asscom.css"><link rel="stylesheet" href="adaptation.css"></head><body><div id="Root" style="min-width:300px"><table class="item-table"><tr><td><input id="A" data-cache-tag="A"></td><td><input id="TableRadio" type="radio" name="TableR" value="Y"><label class="radio" for="TableRadio"></label><label class="i-label-box" for="TableRadio">是</label></td></tr></table><table class="item-table-line"><tr><td>P</td><td>1</td><td>2</td><td>3</td></tr></table><input id="MobileRadio" type="radio" name="MobileR" value="1"><label class="radio" for="MobileRadio"></label><label class="m-label-box" for="MobileRadio">选项</label><input id="NativeRadio" type="radio" name="NativeR" value="N"><label class="radio" for="NativeRadio"></label><input type="checkbox" name="C" value="Y"></div></body></html>' | Set-Content -LiteralPath $legacyHtml -Encoding UTF8
     $responsiveHtml = Join-Path $scratch 'legacy.responsive.html'
     Invoke-Cure @('prepare','--mode','responsive','--html',$legacyHtml,'--output',$responsiveHtml) | Out-Null
     $responsive = Get-Content -LiteralPath $responsiveHtml -Raw -Encoding UTF8
@@ -392,6 +460,10 @@ try {
     Assert-True (($responsive -match 'name="TableR" value="Y"') -and ($responsive -match 'name="MobileR" value="1"') -and ($responsive -match 'name="NativeR" value="N"')) 'Responsive transformation changed radio name/value pairs.'
     Assert-True (([regex]::Matches($responsive, 'class="radio"')).Count -eq 3) 'Responsive transformation must preserve paired and unpaired native HISUI radio labels.'
     Assert-True (-not ($responsive -match 'label\.radio[^\{]*\{[^\}]*display\s*:\s*none')) 'Business HTML must not inject an unconditional label.radio hide rule.'
+    $missingResourceHtml = Join-Path $scratch 'missing-resource.html'
+    ($responsive -replace '<link rel="stylesheet" href="adaptation\.css">', '') | Set-Content -LiteralPath $missingResourceHtml -Encoding UTF8
+    $missingResourceResult = Invoke-Cure @('prepare','--mode','responsive','--html',$missingResourceHtml,'--output',(Join-Path $scratch 'missing-resource.responsive.html')) 1
+    Assert-True ($missingResourceResult -match 'missing required preview resources.*adaptation\.css') 'Complete HTML must fail when a canonical preview resource is missing.'
 
     $commonSnapshotPath = Join-Path $scratch 'common-snapshot.json'
     @{
@@ -403,7 +475,7 @@ try {
             name = '治疗记录通用模板'
             appId = 'CRCommon'
             lastId = '140'
-            content = '<div id="CRCommon" class="hisui-panel"><table class="item-table"><tr><th><label for="DCRTitle">治疗标题</label></th><td><input id="DCRTitle" class="textbox"/></td></tr></table></div>'
+            content = '<div id="CRCommon" class="hisui-panel"><table class="item-table"><tr><th><label for="DCRTitle">治疗标题</label></th><td><input id="DCRTitle" class="textbox"/></td></tr><tr><th>是否完成</th><td><input id="DCRDoneY" class="hisui-radio" type="radio" name="DCRDone" value="Y" label="是" checked="checked"/><input id="DCRDoneN" class="hisui-radio" type="radio" name="DCRDone" value="N" label="否"/></td></tr></table></div>'
             items = @(@{ rowId = '9001'; id = 'DCRTitle'; name = '治疗标题'; save = 'Y' })
         })
     } | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $commonSnapshotPath -Encoding UTF8
@@ -416,6 +488,31 @@ try {
     Assert-True (-not $commonChanges.templates[0].items[0].PSObject.Properties['rowId']) 'Common responsive clone must allocate new cache item rows.'
     Assert-True ($commonChanges.templates[0].content -match 'assess-form-grid') 'Common responsive clone is missing the grid contract.'
     Assert-True (($commonReport.runtimeContract.requiredInterfaces -contains 'SaveCureRecord') -and ($commonReport.runtimeContract.requiredInterfaces -contains 'CureExpJsonStr')) 'CR common responsive runtime gates are incomplete.'
+    $commonPreviewRoot = Join-Path $scratch 'common-preview'
+    $commonPreview = Invoke-Cure @('preview','--snapshot',$commonSnapshotPath,'--changes',(Join-Path $commonRoot 'responsive-changes.json'),'--target-profile',$previewProfile,'--output-root',$commonPreviewRoot) | ConvertFrom-Json
+    $commonPreviewManifest = Get-Content -LiteralPath $commonPreview.manifest -Raw -Encoding UTF8 | ConvertFrom-Json
+    $commonPreviewHtml = Get-Content -LiteralPath $commonPreview.html -Raw -Encoding UTF8
+    Assert-True ($commonPreviewManifest.resources.Count -eq 6) 'Canonical preview must bind all six required resources.'
+    Assert-True ($commonPreviewManifest.expectedRuntime.radioCount -eq 2) 'Canonical preview must bind the source radio count into its runtime gate.'
+    Assert-True (@(Get-ChildItem -LiteralPath (Join-Path $commonPreviewRoot 'assets') -File).Count -eq 6) 'Canonical preview must copy local target resources into a self-contained asset directory.'
+    Assert-True (Test-Path -LiteralPath (Join-Path $commonPreviewRoot 'assets\images\pure\checkbox_lite_v.png') -PathType Leaf) 'Canonical preview must preserve local CSS dependencies used by HISUI radio rendering.'
+    Assert-True (($commonPreviewHtml -match '__cureFormPreviewCheck') -and ($commonPreviewHtml -match 'data-cure-preview-resource="hisuiCss"')) 'Canonical preview must embed the browser runtime probe and tracked resource tags.'
+    Assert-True ($commonPreviewHtml -notmatch [regex]::Escape($previewAssetRoot)) 'Canonical preview must not persist absolute target resource paths.'
+    $missingRadioResults = Join-Path $commonPreviewRoot 'missing-radio-results.json'
+    @{
+        schema = 'cure-form-browser-results/v1'
+        results = @($commonPreviewManifest.widths | ForEach-Object {
+            [ordered]@{
+                schema = 'cure-form-browser-result/v1'; manifestHash = $commonPreview.manifestHash; width = [int]$_
+                resources = @($commonPreviewManifest.resources | ForEach-Object { [ordered]@{ role = $_.role; state = 'loaded' } })
+                checks = [ordered]@{ jqueryAvailable = $true; parserAvailable = $true; panelCount = 1; initializedPanelCount = 1; radioCount = 0; generatedRadioLabelCount = 0; horizontalOverflow = $false }
+                networkErrors = @()
+                runtimeErrors = @()
+            }
+        })
+    } | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $missingRadioResults -Encoding UTF8
+    $missingRadioResult = Invoke-Cure @('preview-check','--manifest',$commonPreview.manifest,'--browser-results',$missingRadioResults,'--output',(Join-Path $commonPreviewRoot 'missing-radio-verification.json')) 1
+    Assert-True ($missingRadioResult -match 'radio label generation is incomplete') 'Browser evidence must not bypass radio generation by reporting zero radios.'
 
     $inventory = Join-Path $scratch 'inventory.json'
     @(
@@ -443,7 +540,10 @@ try {
     Write-Host 'iris-cure-form-dev tests passed.'
 }
 finally {
-    if (Test-Path -LiteralPath $scratch) {
+    if ($env:KEEP_IRIS_CURE_FORM_TEST_ARTIFACTS -eq '1') {
+        Write-Host "iris-cure-form-dev test artifacts: $scratch"
+    }
+    elseif (Test-Path -LiteralPath $scratch) {
         Remove-Item -LiteralPath $scratch -Recurse -Force
     }
 }
