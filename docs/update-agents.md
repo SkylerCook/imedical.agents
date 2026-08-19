@@ -157,6 +157,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun -Detailed
 ```
 
+从只部署 `/scripts/*.ps1` 的旧版 sparse checkout 跨版本更新时，旧进程可能先拉取新版脚本、再以旧 sparse 清单遗漏 `scripts/lib/**`。新版更新器在自更新恢复、`Write`，或允许拉取的 `DryRun` 中发现 `WorkspaceContext.psm1` 缺失时，会先以当前完整运行时清单收敛 sparse checkout，并报告 `workspace-context-resolver-restored`；随后继续原更新流程。`Check` 与显式 `DryRun -NoPull` 不执行该修复，只报告 `workspace-context-resolver-missing`。若恢复失败则报告 `workspace-context-resolver-restore-failed`，此时停止并检查 `.agents` Git 状态、Git 版本和 sparse checkout。
+
 ## Workspace overlay 两阶段更新
 
 多个模块共享 capability 时，先在 canonical 标版根执行一次标准 DryRun/Write；再从 canonical `.agents/scripts/update-agents.ps1` 对每个模块执行 `-Mode DryRun -NoPull`，无停止条件后执行 `-Mode Write -NoPull`。overlay 阶段只刷新模块 `ContextRoot`，不会 fetch/pull capability Git。
@@ -234,6 +236,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `fetch-failed` | 停止。报告网络或远端拉取失败。 |
 | `pull-failed` | 停止。报告无法 fast-forward。 |
 | `sparse-refresh-failed` | 停止。报告 sparse checkout 刷新失败。 |
+| `workspace-context-resolver-missing` | 停止。只读模式发现 `scripts/lib/WorkspaceContext.psm1` 缺失；改用允许拉取的 DryRun 或经确认的 Write 触发旧 sparse checkout 恢复。 |
+| `workspace-context-resolver-restore-failed` | 停止。旧 sparse checkout 自动恢复失败；检查 `.agents` 是否为干净的独立 Git checkout、Git 版本和 sparse 状态。 |
 | `thin-index-script-missing` | 停止。报告插件缺少 thin-index 脚本。 |
 | `agent-thin-index-script-missing` | 停止。报告 `.agents/scripts/generate-agent-thin-index.ps1` 缺失；先更新 `.agents` 能力包。 |
 | `vendor-skill-sync-script-missing` | 停止。报告 `.agents/scripts/sync-vendor-skills.ps1` 缺失；先更新 `.agents` 能力包。 |
@@ -492,6 +496,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 验收结果应满足：
 
 - `.agents` 是独立 Git 仓库。
+- `.agents/scripts/lib/WorkspaceContext.psm1` 存在；跨旧版 sparse checkout 更新时可出现一次 `workspace-context-resolver-restored`，后续 Check 不应再报告缺失。
 - `.agents/agents/agent-registry.md` 存在。
 - `.agents/workflows/workflow-registry.md` 存在。
 - `.agents/skills/<agent-name>/SKILL.md` 中的 agent thin-index 存在或 dry-run 明确报告将生成；例如 `.agents/skills/i18n-agent/SKILL.md` 指向 `.agents/agents/i18n-agent/AGENT.md` 和 `.agents/workflows/i18n-change.workflow.md`。

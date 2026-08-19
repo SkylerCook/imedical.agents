@@ -135,6 +135,40 @@ function Assert-GitSparseCheckoutSubcommandAvailable {
   }
 }
 
+function Restore-LegacySparseRuntimeModules {
+  param(
+    [string]$AgentsRoot,
+    [string]$WorkspaceContextModule
+  )
+
+  $target = Get-RelativePathPortable -From $AgentsRoot -To $WorkspaceContextModule
+  if (-not (Test-Path -LiteralPath (Join-Path $AgentsRoot ".git"))) {
+    return (Write-UpdateResult -Status "workspace-context-resolver-restore-failed" -Target $target -Reason "Cannot restore scripts/lib/** because the updater is not running from an independent capability Git checkout" -Phase "preflight")
+  }
+
+  try {
+    Assert-GitSparseCheckoutSubcommandAvailable
+  }
+  catch {
+    return (Write-UpdateResult -Status "workspace-context-resolver-restore-failed" -Target $target -Reason $_.Exception.Message -Phase "preflight")
+  }
+
+  $dirty = git -C $AgentsRoot status --porcelain
+  if (($LASTEXITCODE -ne 0) -or $dirty) {
+    return (Write-UpdateResult -Status "workspace-context-resolver-restore-failed" -Target $target -Reason "Cannot repair a legacy sparse checkout while the capability Git checkout is dirty or unreadable" -Phase "preflight")
+  }
+
+  git -C $AgentsRoot sparse-checkout init --no-cone
+  if ($LASTEXITCODE -eq 0) {
+    $runtimeSparsePaths | git -C $AgentsRoot sparse-checkout set --stdin --no-cone
+  }
+  if (($LASTEXITCODE -ne 0) -or (-not (Test-Path -LiteralPath $WorkspaceContextModule -PathType Leaf))) {
+    return (Write-UpdateResult -Status "workspace-context-resolver-restore-failed" -Target $target -Reason "Failed to refresh the current runtime sparse paths before loading WorkspaceContext.psm1" -Phase "preflight")
+  }
+
+  return (Write-UpdateResult -Status "workspace-context-resolver-restored" -Target $target -Reason "Restored scripts/lib/** omitted by a legacy updater sparse checkout" -Phase "preflight")
+}
+
 function Get-MarkdownConfigEntries {
   param([string]$Path)
 
@@ -923,9 +957,22 @@ function Get-GitHooksStatus {
 }
 
 $workspaceContextModule = Join-Path $PSScriptRoot "lib/WorkspaceContext.psm1"
+$workspaceContextBootstrapResult = $null
 if (-not (Test-Path -LiteralPath $workspaceContextModule -PathType Leaf)) {
-  Write-UpdateResult -Status "workspace-context-resolver-missing" -Target $workspaceContextModule -Reason "scripts/lib/WorkspaceContext.psm1 is required" -Phase "preflight"
-  return
+  $canRestoreLegacySparseRuntime = $ResumedAfterSelfUpdate -or ($Mode -eq "Write") -or (($Mode -eq "DryRun") -and (-not $NoPull))
+  if ($canRestoreLegacySparseRuntime) {
+    $bootstrapAgentsRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+    $workspaceContextBootstrapResult = Restore-LegacySparseRuntimeModules -AgentsRoot $bootstrapAgentsRoot -WorkspaceContextModule $workspaceContextModule
+  }
+  if (-not (Test-Path -LiteralPath $workspaceContextModule -PathType Leaf)) {
+    if ($null -ne $workspaceContextBootstrapResult) {
+      $workspaceContextBootstrapResult
+    }
+    else {
+      Write-UpdateResult -Status "workspace-context-resolver-missing" -Target $workspaceContextModule -Reason "scripts/lib/WorkspaceContext.psm1 is required; rerun an update-capable DryRun/Write without -NoPull to repair a legacy sparse checkout" -Phase "preflight"
+    }
+    return
+  }
 }
 Import-Module $workspaceContextModule -Force
 
@@ -935,6 +982,9 @@ $contextRoot = $context.contextRoot
 $capabilityRoot = $context.capabilityRoot
 $agentsRoot = $contextRoot
 $results = New-Object System.Collections.Generic.List[object]
+if ($null -ne $workspaceContextBootstrapResult) {
+  $results.Add($workspaceContextBootstrapResult)
+}
 $runningScriptPath = $MyInvocation.MyCommand.Path
 $runningScriptHash = if (Test-Path -LiteralPath $runningScriptPath -PathType Leaf) { (Get-FileHash -LiteralPath $runningScriptPath -Algorithm SHA256).Hash } else { "" }
 

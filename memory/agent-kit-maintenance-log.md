@@ -4,6 +4,8 @@
 
 ## 近期已完成
 
+- 2026-08-19：修复 standard 工作区从旧 sparse checkout 跨版本更新时的 `WorkspaceContext.psm1` 自举死锁：旧进程即使拉取了新版脚本，仍可能用内存中的 `/scripts/*.ps1` 清单遗漏 `scripts/lib/**`；新版更新器现会在自更新恢复、`Write` 或允许拉取的 `DryRun` 中，先验证干净的独立 capability Git checkout 并收敛当前完整运行时 sparse 清单，再加载 resolver。`Check` 与显式 `DryRun -NoPull` 保持只读，失败状态明确停止。新增真实 Git sparse 回归覆盖“只读不修复、恢复后模块落盘及规则持久化”，README 与更新 Runbook 同步；`update-agents` 回归通过 PowerShell 7 和 Windows PowerShell 5.1，组件版本治理 15 项检查、16 项 Node 专项、差异格式与临时路径污染检查通过。
+
 - 2026-08-19：完成插件与根级独立 skill 的源仓版本治理基线：13 个插件保留现有严格 SemVer，2 个独立 skill 从 `0.1.0` 起步，插件内部内容统一继承 owner 版本；新增不可变 `releases/plugin|skill/<name>/<version>.md`、旁路 `dependencyVersions` 和维护者专用 Node inventory/validate/compare 工具。`iris-cure-form-dev 0.4.0` 以 `c79055e` 建立真实 breaking minor 记录，其余组件建立一次 baseline。版本工具不接入 install/update、thin-index、业务 hook 或 sparse checkout；16 项 Node 专项、真实仓库 15 组件 bootstrap 校验以及 `update-agents` PowerShell 7/Windows PowerShell 5.1 回归通过，三个现有部署/更新入口保持无差异。
 
 - 2026-08-19：`iris-cure-form-dev` 升级为 v0.4.0，新增 `interaction-prepare` / `interaction-check` 的新表单人工交互门禁：部署前清单从 numberbox、选择控件、计算与显隐规则生成必测骨架，并固定覆盖单位/左右侧去重；`user-attested` 接受用户明确总体通过，`agent-manual` 强制逐项实际结果，`automated` v1 直接拒绝。`expectedVersion=NEW` 的 package 必须携带与 approved spec、snapshot、changes、preview verification/manifest 哈希绑定的交互凭证，存量响应式改造保持兼容；部署后清单绑定 package/operation ID 并覆盖 CA/CR 保存、重开、回显、打印及 CR 运行时契约，失败不自动回滚。专项和 `update-agents` 回归通过 PowerShell 7/Windows PowerShell 5.1，Node 语法、两种宿主 thin-index DryRun 与差异检查通过；测试只验证报告和门禁，不执行自动浏览器交互。

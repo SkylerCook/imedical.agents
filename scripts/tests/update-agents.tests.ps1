@@ -424,6 +424,9 @@ Assert-Contains $runbookContent "plugin-profile-name-migration-planned" "runbook
 Assert-Contains $runbookContent ".agents/plugins/iris-external-reg/skills/iris-external-reg/SKILL.md" "runbook should point to the iris-external-reg init entry"
 Assert-Contains $runbookContent "install-git-hooks.ps1" "runbook should document explicit git hook enablement"
 Assert-Contains $runbookContent "git-hooks-not-enabled" "runbook should document hook status notes"
+Assert-Contains $runbookContent "workspace-context-resolver-restored" "runbook should document legacy sparse runtime recovery"
+Assert-Contains $runbookContent "workspace-context-resolver-restore-failed" "runbook should document legacy sparse recovery failures"
+Assert-Contains $readmeContent "旧版部署若只检出了" "README should explain legacy sparse runtime bootstrap compatibility"
 $contextSkillContent = Get-Content -Raw -Encoding UTF8 -Path $contextSkillPath
 Assert-Contains $contextSkillContent "docs/update-agents.md" "project-context-maintenance should route updates to docs/update-agents.md"
 Assert-Contains $contextSkillContent "depends_on" "project-context-maintenance should guide plugin enablement after context maintenance"
@@ -469,6 +472,35 @@ Assert-True (($externalRegManifest.dependencies -contains "coding-iris-plugin"))
 Assert-Contains $contextSkillContent "install-git-hooks.ps1" "project-context-maintenance should mention optional git hook enablement"
 Assert-True (Test-Path -LiteralPath $repositoryMaintenanceSkillUnderTest -PathType Leaf) "repository-local maintenance skill should live under .agents/skills"
 Assert-True (-not (Test-Path -LiteralPath $legacyRepositoryMaintenanceSkillUnderTest)) "root skills should not retain the maintenance-only exception"
+
+$legacySparseProjectRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-legacy-sparse-test-" + [System.Guid]::NewGuid().ToString("N"))
+try {
+  $legacySparseAgentsRoot = Join-Path $legacySparseProjectRoot ".agents"
+  New-Item -ItemType Directory -Force -Path (Join-Path $legacySparseAgentsRoot "scripts/lib") | Out-Null
+  git -C $legacySparseAgentsRoot init | Out-Null
+  git -C $legacySparseAgentsRoot config user.email "test@example.invalid" | Out-Null
+  git -C $legacySparseAgentsRoot config user.name "Test User" | Out-Null
+  Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $legacySparseAgentsRoot "scripts/update-agents.ps1")
+  Copy-Item -LiteralPath $workspaceContextModuleUnderTest -Destination (Join-Path $legacySparseAgentsRoot "scripts/lib/WorkspaceContext.psm1")
+  git -C $legacySparseAgentsRoot add scripts/update-agents.ps1 scripts/lib/WorkspaceContext.psm1
+  git -C $legacySparseAgentsRoot commit -m "test: seed legacy sparse checkout" | Out-Null
+  git -C $legacySparseAgentsRoot sparse-checkout init --no-cone
+  "/scripts/*.ps1" | git -C $legacySparseAgentsRoot sparse-checkout set --stdin --no-cone
+
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $legacySparseAgentsRoot "scripts/lib/WorkspaceContext.psm1"))) "Legacy sparse checkout should omit WorkspaceContext.psm1 before recovery"
+  $legacySparseCheckOutput = & (Join-Path $legacySparseAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $legacySparseProjectRoot -Mode Check -Detailed | Out-String
+  Assert-Contains $legacySparseCheckOutput "workspace-context-resolver-missing" "Check should report a legacy sparse runtime gap without mutating the checkout"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $legacySparseAgentsRoot "scripts/lib/WorkspaceContext.psm1"))) "Check should not repair a legacy sparse checkout"
+  $legacySparseOutput = & (Join-Path $legacySparseAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $legacySparseProjectRoot -Mode DryRun -NoPull -ResumedAfterSelfUpdate -Detailed | Out-String
+  Assert-Contains $legacySparseOutput "workspace-context-resolver-restored" "Self-updated updater should restore runtime modules omitted by a legacy sparse checkout"
+  Assert-True (Test-Path -LiteralPath (Join-Path $legacySparseAgentsRoot "scripts/lib/WorkspaceContext.psm1")) "Legacy sparse recovery should materialize WorkspaceContext.psm1"
+  Assert-Contains (Get-Content -Raw -LiteralPath (Join-Path $legacySparseAgentsRoot ".git/info/sparse-checkout")) "/scripts/lib/**" "Legacy sparse recovery should persist the current runtime sparse paths"
+}
+finally {
+  if (Test-Path -LiteralPath $legacySparseProjectRoot) {
+    Remove-Item -Recurse -Force -LiteralPath $legacySparseProjectRoot
+  }
+}
 
 $missingAgentsEntryProjectRoot = New-TestProject
 try {

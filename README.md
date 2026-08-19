@@ -92,6 +92,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
   -Mode Write
 ```
 
+旧版部署若只检出了 `/scripts/*.ps1`，新版更新器会在可执行更新的 `DryRun`/`Write` 或自更新恢复阶段先补齐当前 sparse checkout 清单中的 `scripts/lib/**`，再加载 `WorkspaceContext.psm1`；`Check` 保持只读，只报告缺失而不修复。
+
 常用参数：
 
 - `-Mode Check`：只检查，不拉取、不写入。
