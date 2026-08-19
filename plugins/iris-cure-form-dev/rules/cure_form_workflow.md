@@ -2,13 +2,17 @@
 
 ## 医院文档新建
 
-`extract-doc/structure-v1` → `cure-form-spec/v1` → 人工确认 → CA/CR 生成 → 响应式与运行时契约验证 → 部署包。
+`extract-doc/structure-v1` → `cure-form-spec/v1` → 人工确认 → CA/CR 生成 → 响应式与运行时契约验证 → 部署前人工交互验证 → 部署包 → 部署后人工交互验证。
 
 默认以业务项目根为 `--project-root`：医院需求文件从 `docs/` 发现，开发规格、摄取报告和生成源码进入 `docs/cure-form/<moduleId>/`。多个 Word/PDF/Excel 候选必须由 `--source` 明确选择；不要用文件排序或修改时间猜测。服务器快照及部署临时数据继续写入 `.agents/work/`，不得混入 `docs/`。
 
 Excel 多模板需求必须通过 `cure-form-template-boundaries/v1` 显式声明边界；摄取报告保留非空范围、格式化范围、合并层级、单位/维度、规则文字和候选字段。配置范围相交时写入 `TEMPLATE_RANGE_OVERLAP`；合并单元格未被某一个模板完整且唯一覆盖时写入 `TEMPLATE_MERGE_SPLIT`，由人工修正边界归属。
 
 扫描 PDF 必须保留 `requiresVisualExtraction=true`、页面来源和置信度；视觉提取结果必须人工确认。`unresolved[]` 不为空时停止。
+
+新建表单以人工交互验收为默认路径。部署前通过 `interaction-prepare` 生成清单，覆盖 numberbox 整数、小数、空值和已声明边界、选择状态、计算、显隐、联动以及单位/左右侧去重；业务联动从规格或目标项目补充，不得写死到 canonical。用户亲自验收并明确反馈通过时可使用总体确认；Agent 在本地完整预览自测时必须逐项记录实际结果。v1 禁止自动交互模式；任何批量脚本化点击、输入或选择必须先向用户申请明确确认。只读 `preview-run` 不属于自动交互。
+
+最终 package 的 `expectedVersion=NEW` 时，`plan` 必须具有与当前规格、snapshot、changes 和 preview 凭证绑定的 `cure-form-interaction-verification/v1`。部署后再验证 CA/CR 保存、重开、回显和打印；CR 同时验证 `SaveCureRecord`、`CureExpJsonStr`、`MapID`。失败时停止交付并报告，不自动回滚；真实服务器保存仍需写入授权。
 
 ## 服务器现有模板改造
 

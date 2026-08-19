@@ -37,6 +37,8 @@
 
 `formType` 只能为 `CA` 或 `CR`。`sourceMode` 只能为 `document` 或 `server`。每个字段应保留来源定位、置信度、所属 `templateKey` 和稳定 ID。
 
+number 字段可通过字段顶层或 `validation` 对象声明 `min`、`max`、`precision`、`required` 等交互约束。部署前清单始终生成整数、小数、空值用例，并为已声明的 `min`、`max` 增加边界用例。`calculations[]` 和 `visibilityRules[]` 应提供稳定 `id`、可读标题、输入/目标字段及预期结果，供人工交互清单生成；插件不内置 BMI、失能、SPPB 等业务字段。
+
 Excel 多模板边界输入使用 `cure-form-template-boundaries/v1`。`templates[]` 按 `order` 生成 Map 组成模板；`expectedTemplateCount` 存在时必须严格匹配。批准前每个模板必须确认唯一 `key`、`rootId`、`moduleName`，所有候选字段必须确认控件类型并清除 candidate 状态。范围重叠、合并单元格被边界截断、缺失计算规则或未确认存储语义必须保留在 `unresolved[]`。
 
 模板来源通常使用单个 `sourceRange`；一个业务模板由多个不连续区域组成时使用 `sourceRanges[]`。同一模板内部可使用多个范围，不同模板之间仍不得重叠。任一 Excel 合并区域必须被某一个模板的单个或多个范围完整覆盖，且只能存在一个完整覆盖者；否则写入 `TEMPLATE_MERGE_SPLIT`。

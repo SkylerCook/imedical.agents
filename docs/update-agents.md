@@ -109,6 +109,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 已有治疗表单部署流程还需调整为：先运行 `preview` 生成完整页面和 manifest，再运行 canonical `preview-run` 自动采集九档 Chromium Network、Console 与页面探针结果，最后运行 `preview-check` 生成 `preview-verification.json`。任何 `plan --changes` 都必须传入 `--preview-verification`；v0.3.2 的 gate v2 不接受旧 preview 凭证或人工结果，旧 changes 文件可继续使用，但必须重新生成资源、CSS 依赖、HISUI 初始化和 runner 哈希证据。
 
+`iris-cure-form-dev` v0.4.0 为 `expectedVersion=NEW` 的新建表单增加人工交互门禁。更新不会改写现有项目 profile，也不影响存量响应式改造；新建表单在 `plan` 前必须运行 `interaction-prepare --stage pre-deploy`，由用户明确确认整体通过或由 Agent 逐项记录后运行 `interaction-check`，并将生成的 `--interaction-verification` 传给 `plan`。部署后还需生成绑定 package/operation ID 的人工清单，完成保存、重开、回显、打印和 CR 运行时契约验证。v1 不接受自动交互结果；批量脚本化点击、输入或选择必须先取得用户明确确认。
+
 ## 手工 clone 后收敛
 
 有些用户习惯先手工克隆仓库：
@@ -443,6 +445,8 @@ source: .agents/plugins/<plugin>/skills/<skill>/SKILL.md
 按 manifest `dependencies` 顺序初始化依赖：`codegraph-query` 依赖 `iris-codegraph`，`iris-codegraph` 和 `i18n-iris-plugin` 依赖 `coding-iris-plugin`；`iris-interface-dev`、`iris-cure-form-dev` 和 `iris-external-reg` 依赖 `extract-doc`、`coding-iris-plugin`。依赖未启用时，目标插件初始化必须停止；不能只因插件目录存在就继续。
 
 更新到 `iris-cure-form-dev` v0.3.2 后，检查本地 `cure_form_profile.md` 的六个资源字段；按需追加 `PreviewBrowserCommand` 和 `CommonMigrationConfig`，不要覆盖既有项目配置。下一次带 changes 的部署计划前必须按 `preview` → `preview-run` → `preview-check` 重新生成 gate v2 凭证；该凭证不会跨 snapshot、changes、资源、CSS 依赖、runner 或 gate 变更复用。
+
+更新到 v0.4.0 后，存量表单流程保持兼容；只有 `expectedVersion=NEW` 的新建表单必须在 `plan` 前追加 `interaction-prepare` → 人工测试 → `interaction-check`，并传入 `--interaction-verification`。用户明确反馈测试通过可形成总体确认，Agent 自测必须逐项记录；部署后人工验证未通过时不得宣告任务完成，也不得自动回滚。
 
 插件 init skill 验收通过后，用统一脚本反写状态：
 

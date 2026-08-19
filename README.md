@@ -307,6 +307,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - 新建 CA/CR 表单、现有服务器模板及公共模板响应式改造。
 - 响应式改造保留 HISUI `label.radio` 与 `i-label-box` / `m-label-box` 配对，并验证普通布局、表格布局和旧 WebView fallback；业务公共 CSS 不复制进插件。
 - canonical `preview` 从目标 profile 或现有页面解析六类 HISUI/公共资源并生成带 CSS 依赖哈希的完整页面；`preview-run` 通过本地 Chromium CDP 自动采集九档 Network、Console 与 HISUI 初始化结果，`preview-check` 只接受当前 gate/runner 并固化与 snapshot、changes、资源及依赖哈希绑定的部署前置凭证。
+- 新建表单以 `expectedVersion=NEW` 判定，使用 `interaction-prepare`/`interaction-check` 生成部署前、部署后人工交互清单与哈希凭证；用户明确反馈整体通过即可确认，Agent 自测必须逐项记录，批量自动交互执行前必须另行获得用户明确确认。
 - `common-migrate` 的优先 MapCode 与公共模板 RowID 由目标工程 `cure-form-common-migration-config/v1` 提供，插件 canonical 不保存业务种子。
 - 生成 `cure-form-package/v1`，通过专用服务端事务执行 dry-run、受控写入、回读和回滚。
 - 只允许 CA/CR；`MapType` 为空的病理模板始终排除。

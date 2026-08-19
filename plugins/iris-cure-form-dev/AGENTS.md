@@ -19,6 +19,8 @@
 
 - `unresolved[]` 未清零或规格未获人工批准时，不得生成可执行部署包。
 - 任何带 `changes` 的部署计划必须先通过 canonical 完整预览、`preview-run` 和九档浏览器门禁；`preview-verification` 必须与当前 gate/runner、snapshot、changes、完整 HTML、六类资源及 CSS 依赖清单哈希一致，旧 gate 凭证或 manifest 后被编辑的预览页不得复用。
+- 新建表单以 package 的 `expectedVersion=NEW` 判定；`plan` 前必须通过部署前人工交互验证，凭证与 approved spec、snapshot、changes、preview verification 和 manifest 绑定。存量响应式改造不强制此凭证。
+- 人工交互优先：用户明确反馈整体通过可形成 `user-attested` 凭证；Agent 在本地完整预览逐步自测时必须逐项记录。canonical v1 不执行或接受自动点击、输入、选择；任何批量脚本化交互必须先申请用户明确确认。
 - 多模板规格获批前，每个模板必须明确 `rootId` 和 `moduleName`，候选字段必须转换为唯一稳定 ID 和已确认控件类型。
 - `apply` 默认只做 `dry-run`；真实写入必须显式传入 `--confirm-write`、`--operator` 和 `--reason`。
 - 不允许通用 SQL 写入，不允许修改患者评估或治疗记录数据。
@@ -41,4 +43,5 @@
 - 公共样式变更必须按目标工程实际编码模式验证，并同时扫描开发源与部署副本是否混入表单专属选择器；插件不携带业务工程的公共 CSS 副本。
 - CA 必须验证保存、重开、回显和打印。
 - CR 必须保持 `SaveCureRecord`、`CureExpJsonStr`、`MapID`、回显和打印。
+- 新建 CA/CR 部署后必须生成绑定 package 与 operation ID 的人工交互报告；失败时停止交付，不自动回滚。真实服务器保存仍需写入授权。
 - 新建及改造表单默认覆盖 `360/390/430/768/810/1024/1080/1194/1280`。

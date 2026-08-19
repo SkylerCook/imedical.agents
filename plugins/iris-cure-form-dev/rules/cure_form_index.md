@@ -13,3 +13,4 @@
 DOCX、PDF、XLS/XLSX 的物理解析一律路由到 `extract-doc`；ObjectScript/HISUI 和远端资源操作路由到 `coding-iris-plugin`。
 
 涉及 Map、组成模板、缓存字段或 CA/CR 宿主行为时，读取 `references/cure-form-runtime-storage.md`。
+新建表单进入交互验收时，读取 `references/cure-form-interaction-test-v1.md`。

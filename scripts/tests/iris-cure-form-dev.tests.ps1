@@ -75,12 +75,38 @@ function New-PassedPreviewVerification {
     return $verification
 }
 
+function New-PassedUserInteractionVerification {
+    param(
+        [string]$Spec,
+        [string]$Changes,
+        [string]$Snapshot,
+        [string]$PreviewVerification,
+        [string]$Name
+    )
+    $interactionRoot = Join-Path $scratch ("interaction-" + $Name)
+    New-Item -ItemType Directory -Force -Path $interactionRoot | Out-Null
+    $reportPath = Join-Path $interactionRoot 'interaction-report.json'
+    $verificationPath = Join-Path $interactionRoot 'interaction-verification.json'
+    $arguments = @('interaction-prepare','--stage','pre-deploy','--spec',$Spec,'--changes',$Changes,'--preview-verification',$PreviewVerification,'--output',$reportPath)
+    if ($Snapshot) { $arguments += @('--snapshot',$Snapshot) }
+    Invoke-Cure $arguments | Out-Null
+    $report = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $report.execution.mode = 'user-attested'
+    $report.execution.testedBy = 'fixture-user'
+    $report.execution.testedAt = '2026-01-01T00:00:00.000Z'
+    $report.execution.summary = '用户已人工完成清单范围并确认测试通过。'
+    $report.execution.overallStatus = 'passed'
+    $report | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $reportPath -Encoding UTF8
+    Invoke-Cure @('interaction-check','--report',$reportPath,'--output',$verificationPath) | Out-Null
+    return $verificationPath
+}
+
 try {
     New-Item -ItemType Directory -Force -Path $scratch | Out-Null
 
     $manifest = Get-Content -LiteralPath (Join-Path $pluginRoot '.agents-plugin\plugin.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($manifest.name -eq 'iris-cure-form-dev') 'Unexpected plugin name.'
-    Assert-True ($manifest.version -eq '0.3.2') 'Unexpected plugin version.'
+    Assert-True ($manifest.version -eq '0.4.0') 'Unexpected plugin version.'
     Assert-True (($manifest.dependencies -contains 'extract-doc') -and ($manifest.dependencies -contains 'coding-iris-plugin')) 'Plugin dependencies are incomplete.'
 
     foreach ($skill in @('cure-form-init','cure-form-requirement-adapter','cure-assess-form-dev','cure-record-form-dev','cure-form-responsive','make-assess-form-responsive','cure-form-deploy','cure-form-lookup','cure-form-fragment')) {
@@ -91,6 +117,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Node syntax check failed.' }
     $cliContent = Get-Content -LiteralPath $cli -Raw -Encoding UTF8
     Assert-True (($cliContent -match "'preview-run'") -and ($cliContent -match 'cure-form-preview-gate/2')) 'Canonical preview runner or gate v2 is missing.'
+    Assert-True (($cliContent -match "'interaction-prepare'") -and ($cliContent -match 'cure-form-interaction-verification/v1')) 'Manual interaction workflow or verification gate is missing.'
     Assert-True ($cliContent -notmatch 'LymphedemaLimb|PhysicalTherapy|CR-PTTemp') 'Canonical migration code must not contain target-project MapCode seeds.'
     Assert-True ($cliContent -notmatch "sourceTemplateRowId:\s*'(?:51|52|53|57|141)'") 'Canonical migration code must not contain target-project template RowID seeds.'
     $stagedTransport = Join-Path $pluginRoot 'scripts\cure-form-staged-transport.js'
@@ -189,6 +216,11 @@ try {
     Assert-True ($failedReview -match 'unresolved') 'Unresolved review was not blocked.'
 
     $ca.unresolved = @()
+    $ca.fields[0].control = 'number'
+    $ca.fields[0] | Add-Member -NotePropertyName min -NotePropertyValue 0
+    $ca.fields[0] | Add-Member -NotePropertyName max -NotePropertyValue 100
+    $ca.calculations = @(@{ id = 'score-total'; title = '评分计算联动'; inputs = @($ca.fields[0].id); output = $ca.fields[0].id; expected = '计算结果符合规格。' })
+    $ca.visibilityRules = @(@{ id = 'score-visibility'; title = '评分显隐联动'; inputs = @($ca.fields[0].id); targets = @($ca.fields[0].id); expected = '显隐结果符合规格。' })
     $ca | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $caSpec -Encoding UTF8
     Invoke-Cure @('review','--spec',$caSpec,'--approved-by','tester') | Out-Null
     $ca = Get-Content -LiteralPath $caSpec -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -442,10 +474,85 @@ try {
     } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $missingSnapshotPath -Encoding UTF8
     $newPackagePath = Join-Path $scratch 'CAForm.new.package.json'
     $newVerification = New-PassedPreviewVerification -Changes $changesPath -Snapshot $missingSnapshotPath -Name 'ca-new'
-    Invoke-Cure @('plan','--spec',$caSpec,'--snapshot',$missingSnapshotPath,'--changes',$changesPath,'--preview-verification',$newVerification,'--output',$newPackagePath) | Out-Null
+    $missingInteractionGate = Invoke-Cure @('plan','--spec',$caSpec,'--snapshot',$missingSnapshotPath,'--changes',$changesPath,'--preview-verification',$newVerification,'--output',$newPackagePath) 1
+    Assert-True ($missingInteractionGate -match 'interaction-verification') 'New forms must require pre-deploy manual interaction verification.'
+    $interactionReportPath = Join-Path $scratch 'CAForm.interaction-report.json'
+    Invoke-Cure @('interaction-prepare','--stage','pre-deploy','--spec',$caSpec,'--snapshot',$missingSnapshotPath,'--changes',$changesPath,'--preview-verification',$newVerification,'--output',$interactionReportPath) | Out-Null
+    $interactionReport = Get-Content -LiteralPath $interactionReportPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $requiredIds = @($interactionReport.requiredCases | ForEach-Object { $_.id })
+    Assert-True (($requiredIds -contains ("number:" + $ca.fields[0].id + ":integer")) -and ($requiredIds -contains ("number:" + $ca.fields[0].id + ":decimal")) -and ($requiredIds -contains ("number:" + $ca.fields[0].id + ":min")) -and ($requiredIds -contains ("number:" + $ca.fields[0].id + ":max"))) 'Interaction skeleton must cover numberbox integer, decimal, and declared boundaries.'
+    Assert-True (($requiredIds -contains 'calculation:score-total') -and ($requiredIds -contains 'visibility:score-visibility') -and ($requiredIds -contains 'semantic:unit-deduplication') -and ($requiredIds -contains 'semantic:side-deduplication')) 'Interaction skeleton must cover calculations, linkage, units, and side-label deduplication.'
+    $automatedReportPath = Join-Path $scratch 'CAForm.automated-interaction-report.json'
+    $automatedReport = $interactionReport | ConvertTo-Json -Depth 40 | ConvertFrom-Json
+    $automatedReport.execution.mode = 'automated'
+    $automatedReport.execution.testedBy = 'fixture-runner'
+    $automatedReport.execution.testedAt = '2026-01-01T00:00:00.000Z'
+    $automatedReport.execution.summary = 'Automated fixture'
+    $automatedReport.execution.overallStatus = 'passed'
+    $automatedReport | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $automatedReportPath -Encoding UTF8
+    $automatedResult = Invoke-Cure @('interaction-check','--report',$automatedReportPath,'--output',(Join-Path $scratch 'automated-verification.json')) 1
+    Assert-True ($automatedResult -match 'Automated interaction execution is not supported') 'Automated interaction reports must be rejected.'
+    $agentReportPath = Join-Path $scratch 'CAForm.agent-interaction-report.json'
+    $agentReport = $interactionReport | ConvertTo-Json -Depth 40 | ConvertFrom-Json
+    $agentReport.execution.mode = 'agent-manual'
+    $agentReport.execution.testedBy = 'fixture-agent'
+    $agentReport.execution.testedAt = '2026-01-01T00:00:00.000Z'
+    $agentReport.execution.environment = 'local canonical preview'
+    $agentReport.execution.summary = 'Agent manual fixture'
+    $agentReport.execution.overallStatus = 'passed'
+    $agentReport | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $agentReportPath -Encoding UTF8
+    $agentMissingResult = Invoke-Cure @('interaction-check','--report',$agentReportPath,'--output',(Join-Path $scratch 'agent-verification.json')) 1
+    Assert-True ($agentMissingResult -match 'result is missing for case') 'Agent manual testing must record every case result.'
+    $removedCaseReportPath = Join-Path $scratch 'CAForm.removed-case-interaction-report.json'
+    $removedCaseReport = $interactionReport | ConvertTo-Json -Depth 40 | ConvertFrom-Json
+    $removedCaseReport.requiredCases = @($removedCaseReport.requiredCases | Select-Object -Skip 1)
+    $removedCaseReport.execution.mode = 'user-attested'
+    $removedCaseReport.execution.testedBy = 'fixture-user'
+    $removedCaseReport.execution.testedAt = '2026-01-01T00:00:00.000Z'
+    $removedCaseReport.execution.summary = 'Fixture removed case'
+    $removedCaseReport.execution.overallStatus = 'passed'
+    $removedCaseReport | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $removedCaseReportPath -Encoding UTF8
+    $removedCaseResult = Invoke-Cure @('interaction-check','--report',$removedCaseReportPath,'--output',(Join-Path $scratch 'removed-case-verification.json')) 1
+    Assert-True ($removedCaseResult -match 'Generated interaction cases were removed or changed') 'Generated interaction cases must not be removable.'
+    $customReportPath = Join-Path $scratch 'CAForm.custom-interaction-report.json'
+    $customReport = $interactionReport | ConvertTo-Json -Depth 40 | ConvertFrom-Json
+    $customReport.customCases = @(@{ id = 'business:custom-linkage'; category = 'business-linkage'; title = '业务联动'; sourceRefs = @($ca.fields[0].id); steps = @('人工触发业务联动'); expected = '联动符合规格。'; required = $true })
+    $customReport.execution.mode = 'user-attested'
+    $customReport.execution.testedBy = 'fixture-user'
+    $customReport.execution.testedAt = '2026-01-01T00:00:00.000Z'
+    $customReport.execution.summary = '用户已人工完成含自定义业务联动的清单并确认通过。'
+    $customReport.execution.overallStatus = 'passed'
+    $customReport | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $customReportPath -Encoding UTF8
+    $newInteractionVerification = Join-Path $scratch 'CAForm.interaction-verification.json'
+    Invoke-Cure @('interaction-check','--report',$customReportPath,'--output',$newInteractionVerification) | Out-Null
+    $customVerificationValue = Get-Content -LiteralPath $newInteractionVerification -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert-True ($customVerificationValue.caseCount -eq ($interactionReport.requiredCases.Count + 1)) 'Custom interaction cases must be accepted and included in the verification count.'
+    $staleInteractionPath = Join-Path $scratch 'CAForm.stale-interaction-verification.json'
+    $staleInteraction = Get-Content -LiteralPath $newInteractionVerification -Raw -Encoding UTF8 | ConvertFrom-Json
+    $staleInteraction.bindings.changesHash = ('0' * 64)
+    $staleInteraction | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $staleInteractionPath -Encoding UTF8
+    $staleInteractionResult = Invoke-Cure @('plan','--spec',$caSpec,'--snapshot',$missingSnapshotPath,'--changes',$changesPath,'--preview-verification',$newVerification,'--interaction-verification',$staleInteractionPath,'--output',$newPackagePath) 1
+    Assert-True ($staleInteractionResult -match 'does not match changesHash') 'Stale interaction evidence must not bypass the new-form gate.'
+    Invoke-Cure @('plan','--spec',$caSpec,'--snapshot',$missingSnapshotPath,'--changes',$changesPath,'--preview-verification',$newVerification,'--interaction-verification',$newInteractionVerification,'--output',$newPackagePath) | Out-Null
     $newPackage = Get-Content -LiteralPath $newPackagePath -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($newPackage.expectedVersion -eq 'NEW') 'A missing server Map must produce expectedVersion=NEW.'
     Assert-True ($null -eq $newPackage.expectedContentHash) 'A missing server Map must not retain a placeholder content hash.'
+    Assert-True (($newPackage.interactionVerification.status -eq 'passed') -and ($newPackage.interactionVerification.mode -eq 'user-attested')) 'New package must embed the passed manual interaction verification.'
+    $postInteractionReportPath = Join-Path $scratch 'CAForm.post-interaction-report.json'
+    Invoke-Cure @('interaction-prepare','--stage','post-deploy','--package',$newPackagePath,'--operation-id','fixture-operation','--output',$postInteractionReportPath) | Out-Null
+    $postInteractionReport = Get-Content -LiteralPath $postInteractionReportPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $postIds = @($postInteractionReport.requiredCases | ForEach-Object { $_.id })
+    Assert-True (($postIds -contains 'lifecycle:save') -and ($postIds -contains 'lifecycle:reopen') -and ($postIds -contains 'lifecycle:restore') -and ($postIds -contains 'lifecycle:print')) 'CA post-deploy interaction skeleton must cover save, reopen, restore, and print.'
+    $postInteractionReport.execution.mode = 'user-attested'
+    $postInteractionReport.execution.testedBy = 'fixture-user'
+    $postInteractionReport.execution.testedAt = '2026-01-01T00:00:00.000Z'
+    $postInteractionReport.execution.summary = '用户确认部署后保存、重开、回显和打印通过。'
+    $postInteractionReport.execution.overallStatus = 'passed'
+    $postInteractionReport | ConvertTo-Json -Depth 40 | Set-Content -LiteralPath $postInteractionReportPath -Encoding UTF8
+    $postInteractionVerificationPath = Join-Path $scratch 'CAForm.post-interaction-verification.json'
+    Invoke-Cure @('interaction-check','--report',$postInteractionReportPath,'--output',$postInteractionVerificationPath) | Out-Null
+    $postInteractionVerification = Get-Content -LiteralPath $postInteractionVerificationPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert-True (($postInteractionVerification.stage -eq 'post-deploy') -and ($postInteractionVerification.bindings.operationId -eq 'fixture-operation')) 'Post-deploy interaction verification must bind the operation ID.'
     $dryRun = Invoke-Cure @('apply','--package',$packagePath)
     Assert-True ($dryRun -match '"dryRun": true') 'Apply must default to dry-run.'
 
@@ -486,6 +593,17 @@ try {
     $crScript = Get-Content -LiteralPath (Join-Path $generatedRoot 'CRForm\CRForm.js') -Raw -Encoding UTF8
     Assert-True (($crScript -match 'SaveCureRecord') -and ($crScript -match 'CureExpJsonStr') -and ($crScript -match 'MapID')) 'Generated CR runtime contract is incomplete.'
     Assert-True (-not ($crScript -match 'function\s+SaveCureRecord|throw new Error')) 'Generated CR module must not override the host save entry.'
+    $crChangesPath = Join-Path $generatedRoot 'CRForm\cure-form-deploy-changes.json'
+    $crMissingSnapshotPath = Join-Path $scratch 'CRForm.missing.snapshot.json'
+    @{ schema = 'cure-form-server-snapshot/v1'; formType = 'CR'; mapCode = 'CRForm'; exists = 0 } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $crMissingSnapshotPath -Encoding UTF8
+    $crPreviewVerification = New-PassedPreviewVerification -Changes $crChangesPath -Snapshot $crMissingSnapshotPath -Name 'cr-new'
+    $crInteractionVerification = New-PassedUserInteractionVerification -Spec $crSpec -Changes $crChangesPath -Snapshot $crMissingSnapshotPath -PreviewVerification $crPreviewVerification -Name 'cr-new'
+    $crPackagePath = Join-Path $scratch 'CRForm.new.package.json'
+    Invoke-Cure @('plan','--spec',$crSpec,'--snapshot',$crMissingSnapshotPath,'--changes',$crChangesPath,'--preview-verification',$crPreviewVerification,'--interaction-verification',$crInteractionVerification,'--output',$crPackagePath) | Out-Null
+    $crPostReportPath = Join-Path $scratch 'CRForm.post-interaction-report.json'
+    Invoke-Cure @('interaction-prepare','--stage','post-deploy','--package',$crPackagePath,'--operation-id','fixture-cr-operation','--output',$crPostReportPath) | Out-Null
+    $crPostReport = Get-Content -LiteralPath $crPostReportPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert-True (@($crPostReport.requiredCases | ForEach-Object { $_.id }) -contains 'runtime:cr-contract') 'CR post-deploy interaction skeleton must cover SaveCureRecord, CureExpJsonStr, and MapID.'
 
     Invoke-Cure @('intake','--structure',$structurePath,'--form-type','','--module-id','Pathology') 1 | Out-Null
 

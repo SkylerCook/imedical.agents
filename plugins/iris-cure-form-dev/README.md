@@ -12,6 +12,8 @@ cure-form review
 cure-form preview
 cure-form preview-run
 cure-form preview-check
+cure-form interaction-prepare
+cure-form interaction-check
 cure-form plan
 cure-form apply
 cure-form verify
@@ -117,6 +119,40 @@ node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js preview-check `
 ```
 
 只要 `plan` 提供 `--changes`，就必须同时提供通过的 `--preview-verification`。gate v1 或缺少当前 runner 元数据的旧结果不再接受；验证凭证与当前 gate、runner、snapshot、changes、完整 HTML、六类资源、CSS 依赖和九档结果哈希绑定，预览页在 manifest 生成后被编辑也会立即失败。Chromium 自动验收仍不能替代旧 WebView 和真实触控设备验收。
+
+## 新建表单人工交互门禁
+
+新建表单以最终 package 的 `expectedVersion=NEW` 判定。完成 canonical preview 门禁后，先生成部署前人工交互报告：
+
+```powershell
+node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js interaction-prepare `
+  --stage pre-deploy `
+  --spec .\docs\cure-form\ExampleForm\cure-form-spec.json `
+  --snapshot .\.agents\work\cure-form\server-snapshot.json `
+  --changes .\docs\cure-form\ExampleForm\cure-form-deploy-changes.json `
+  --preview-verification .\.agents\work\cure-form\preview\preview-verification.json `
+  --output .\.agents\work\cure-form\interaction\ExampleForm-pre-deploy.json
+```
+
+命令同时生成 Markdown 清单。numberbox 自动覆盖整数、小数、空值及规格声明的 `min`/`max` 边界；选择控件、`calculations[]`、`visibilityRules[]`、单位和左右侧去重也会进入必测项。BMI、失能、SPPB 等业务联动只从目标规格或报告 `customCases[]` 读取，不写死到插件。
+
+人工完成后填写 JSON 的 `execution`：用户亲自测试并明确告知已通过时使用 `user-attested`，只需测试人、时间、总体摘要和 `overallStatus=passed`；Agent 在本地完整预览逐步自测时使用 `agent-manual`，必须为每项填写通过状态和实际结果。截图或录像均可选。`automated` 模式会被拒绝；任何批量脚本化点击、输入或选择必须另行说明范围、状态影响和清理方式，并取得用户明确确认。只读 `preview-run` 不属于自动交互。
+
+```powershell
+node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js interaction-check `
+  --report .\.agents\work\cure-form\interaction\ExampleForm-pre-deploy.json `
+  --output .\.agents\work\cure-form\interaction\ExampleForm-pre-deploy-verification.json
+
+node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js plan `
+  --spec .\docs\cure-form\ExampleForm\cure-form-spec.json `
+  --snapshot .\.agents\work\cure-form\server-snapshot.json `
+  --changes .\docs\cure-form\ExampleForm\cure-form-deploy-changes.json `
+  --preview-verification .\.agents\work\cure-form\preview\preview-verification.json `
+  --interaction-verification .\.agents\work\cure-form\interaction\ExampleForm-pre-deploy-verification.json `
+  --output .\.agents\work\cure-form\packages\ExampleForm.json
+```
+
+存量响应式改造不强制交互凭证。新表单写入后再运行 `interaction-prepare --stage post-deploy --package <package> --operation-id <id>`，人工验证保存、重开、回显和打印；CR 另验 `SaveCureRecord`、`CureExpJsonStr`、`MapID`。部署后失败会阻断任务完成，但不会自动回滚；真实服务器保存仍需写入授权。完整 schema 见 `references/cure-form-interaction-test-v1.md`。
 
 ## 公共模板迁移配置
 

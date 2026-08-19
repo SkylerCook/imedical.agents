@@ -16,6 +16,8 @@ const DOCUMENT_SOURCE_EXTENSIONS = new Set(['.doc', '.docx', '.pdf', '.xls', '.x
 const PREVIEW_WIDTHS = [360, 390, 430, 768, 810, 1024, 1080, 1194, 1280];
 const PREVIEW_GATE_VERSION = 'cure-form-preview-gate/2';
 const PREVIEW_RUNNER_SCHEMA = 'cure-form-browser-runner/v1';
+const INTERACTION_REPORT_SCHEMA = 'cure-form-interaction-report/v1';
+const INTERACTION_VERIFICATION_SCHEMA = 'cure-form-interaction-verification/v1';
 const PREVIEW_MANIFEST_PLACEHOLDER = '__CURE_FORM_PREVIEW_MANIFEST_HASH__';
 const PREVIEW_REQUIRED_CHECKS = [
   'preview-html-integrity', 'resources', 'css-dependencies', 'network-errors', 'console-errors', 'jquery', 'parser',
@@ -31,7 +33,8 @@ const PREVIEW_RESOURCE_SPECS = [
 ];
 const COMMANDS = new Set([
   'doctor', 'intake', 'inspect', 'prepare', 'review', 'plan',
-  'preview', 'preview-run', 'preview-check', 'apply', 'verify', 'rollback', 'common-migrate'
+  'preview', 'preview-run', 'preview-check', 'interaction-prepare', 'interaction-check',
+  'apply', 'verify', 'rollback', 'common-migrate'
 ]);
 
 function fail(message, code = 1) {
@@ -1953,6 +1956,265 @@ function validatePreviewVerification(value, changesHash, snapshotHash) {
   return value;
 }
 
+function interactionCase(id, category, title, sourceRefs, steps, expected) {
+  return {
+    id,
+    category,
+    title,
+    sourceRefs: [...new Set((sourceRefs || []).map(cleanText).filter(Boolean))],
+    steps: Array.isArray(steps) ? steps.map(cleanText).filter(Boolean) : [],
+    expected: cleanText(expected),
+    required: true
+  };
+}
+
+function fieldConstraint(field, name) {
+  if (field && field.validation && field.validation[name] != null) return field.validation[name];
+  return field && field[name] != null ? field[name] : null;
+}
+
+function ruleLabel(rule, fallback) {
+  return cleanText(rule && (rule.title || rule.name || rule.id || rule.description || rule.expression)) || fallback;
+}
+
+function interactionRequiredCases(spec, stage) {
+  const cases = [];
+  if (stage === 'pre-deploy') {
+    for (const field of spec.fields || []) {
+      const id = cleanText(field && field.id);
+      const label = cleanText(field && (field.label || field.name || field.title)) || id;
+      const control = cleanText(field && field.control);
+      if (control === 'number') {
+        cases.push(interactionCase(`number:${id}:integer`, 'numberbox', `${label}整数输入`, [id], [`输入有效整数并离开控件`], '控件保留完整多位整数，联动和显示符合规格。'));
+        cases.push(interactionCase(`number:${id}:decimal`, 'numberbox', `${label}小数输入`, [id], [`输入有效小数并离开控件`], '控件按规格接受或规范化小数，不截断多位输入。'));
+        cases.push(interactionCase(`number:${id}:empty`, 'numberbox', `${label}空值处理`, [id], ['清空控件并离开控件'], '空值、默认值和必填提示符合规格。'));
+        for (const boundary of ['min', 'max']) {
+          const value = fieldConstraint(field, boundary);
+          if (value != null && String(value).trim() !== '') {
+            cases.push(interactionCase(`number:${id}:${boundary}`, 'numberbox-boundary', `${label}${boundary === 'min' ? '最小' : '最大'}边界`, [id], [`输入规格声明的${boundary}边界值 ${value}`], '边界值处理符合规格，且不会破坏相关联动。'));
+          }
+        }
+      } else if (['radio', 'checkbox', 'select'].includes(control)) {
+        cases.push(interactionCase(`selection:${id}`, 'selection', `${label}选择状态`, [id], ['逐项选择、切换并恢复目标状态'], '选中态、互斥关系、回显值和关联状态符合规格。'));
+      }
+    }
+    (spec.calculations || []).forEach((rule, index) => {
+      const label = ruleLabel(rule, `计算规则 ${index + 1}`);
+      const refs = [rule && rule.id, rule && rule.output, ...(Array.isArray(rule && rule.inputs) ? rule.inputs : [])];
+      cases.push(interactionCase(`calculation:${cleanText(rule && rule.id) || index + 1}`, 'calculation', label, refs, ['按规格组合输入计算源字段'], cleanText(rule && rule.expected) || '计算结果、精度、空值和边界行为符合已批准规格。'));
+    });
+    (spec.visibilityRules || []).forEach((rule, index) => {
+      const label = ruleLabel(rule, `显隐或联动规则 ${index + 1}`);
+      const refs = [rule && rule.id, rule && rule.target, ...(Array.isArray(rule && rule.targets) ? rule.targets : []), ...(Array.isArray(rule && rule.inputs) ? rule.inputs : [])];
+      cases.push(interactionCase(`visibility:${cleanText(rule && rule.id) || index + 1}`, 'visibility-linkage', label, refs, ['触发规则的进入、切换和恢复条件'], cleanText(rule && rule.expected) || '目标字段显隐、启用状态、值清理和恢复行为符合已批准规格。'));
+    });
+    cases.push(interactionCase('semantic:unit-deduplication', 'semantic-deduplication', '单位显示去重', [], ['检查字段标签、输入框附加文本和表格表头中的单位'], '每个业务值只显示一次正确单位，无重复拼接或遗漏。'));
+    cases.push(interactionCase('semantic:side-deduplication', 'semantic-deduplication', '左右侧显示去重', [], ['检查左右侧字段、选项、表头和回显文本'], '左右侧语义各出现一次且对应正确，无重复标签。'));
+  } else if (stage === 'post-deploy') {
+    cases.push(interactionCase('lifecycle:save', 'lifecycle', '保存', [], ['在获准的测试数据范围内填写并保存表单'], '保存成功且服务器未报告业务或运行时错误。'));
+    cases.push(interactionCase('lifecycle:reopen', 'lifecycle', '重开', [], ['关闭并重新打开已保存表单'], '表单能够重新打开，结构和控件初始化正常。'));
+    cases.push(interactionCase('lifecycle:restore', 'lifecycle', '回显', [], ['核对重新打开后的字段值和联动状态'], '保存值、计算结果、显隐和选择状态正确回显。'));
+    cases.push(interactionCase('lifecycle:print', 'lifecycle', '打印', [], ['执行目标系统打印或打印预览'], '打印内容、单位、左右侧和关键业务值正确且无重复。'));
+    if (spec.formType === 'CR') {
+      cases.push(interactionCase('runtime:cr-contract', 'runtime-contract', 'CR 保存运行时契约', ['SaveCureRecord', 'CureExpJsonStr', 'MapID'], ['通过宿主入口保存并回显治疗记录'], 'SaveCureRecord、CureExpJsonStr、MapID 及回显行为保持兼容。'));
+    }
+  } else {
+    fail('interaction-prepare --stage must be pre-deploy or post-deploy.');
+  }
+  const ids = cases.map((item) => item.id);
+  if (new Set(ids).size !== ids.length) fail('Generated interaction case IDs are not unique; make calculation and visibility rule IDs unique.');
+  return cases;
+}
+
+function interactionCaseDefinitionsHash(cases) {
+  return sha256((cases || []).map((item) => ({
+    id: item.id,
+    category: item.category,
+    title: item.title,
+    sourceRefs: item.sourceRefs || [],
+    steps: item.steps || [],
+    expected: item.expected,
+    required: item.required === true
+  })));
+}
+
+function interactionMarkdown(report) {
+  const lines = [
+    `# ${report.title}人工交互测试`,
+    '',
+    `- 阶段：${report.stage}`,
+    `- 类型：${report.formType}`,
+    `- 模块：${report.moduleId}`,
+    '- 默认优先人工操作；canonical preview-run 不执行点击、输入或选择。',
+    '- 用户亲自验收时，可向 Agent 明确告知整体测试通过；Agent 自测时必须逐项填写实际结果。',
+    '- 批量脚本化交互不属于本报告能力，执行前必须另行取得用户明确确认。',
+    '',
+    '## 必测项',
+    ''
+  ];
+  for (const item of report.requiredCases) {
+    lines.push(`- [ ] ${item.title} \`${item.id}\``);
+    if (item.steps.length) lines.push(`  - 操作：${item.steps.join('；')}`);
+    lines.push(`  - 预期：${item.expected}`);
+  }
+  lines.push('', '## 自定义业务用例', '', '- 在 JSON 的 `customCases[]` 中补充无法从规格推导的业务联动和预期结果。', '');
+  return lines.join('\n');
+}
+
+function commandInteractionPrepare(args) {
+  const stage = cleanText(args.stage || 'pre-deploy');
+  let spec;
+  let bindings;
+  if (stage === 'pre-deploy') {
+    spec = validateSpec(readJson(projectPath(args, requireOption(args, 'spec'))), { approved: true });
+    const changes = readJson(projectPath(args, requireOption(args, 'changes')));
+    const snapshot = args.snapshot ? readJson(projectPath(args, args.snapshot)) : null;
+    const changesHash = sha256(changes);
+    const snapshotHash = snapshot ? sha256(snapshot) : null;
+    const previewVerification = validatePreviewVerification(readJson(projectPath(args, requireOption(args, 'previewVerification'))), changesHash, snapshotHash);
+    bindings = {
+      approvedSpecHash: spec.approval.specHash,
+      changesHash,
+      snapshotHash,
+      previewVerificationHash: sha256(previewVerification),
+      previewManifestHash: previewVerification.manifestHash
+    };
+  } else if (stage === 'post-deploy') {
+    const packageValue = readJson(projectPath(args, requireOption(args, 'package')));
+    validatePackage(packageValue, false);
+    if (packageValue.expectedVersion !== 'NEW') fail('Post-deploy interaction reports are required only for new forms with expectedVersion=NEW.');
+    spec = packageValue.specification;
+    bindings = {
+      packageHash: sha256(packageValue),
+      approvedSpecHash: spec.approval.specHash,
+      changesHash: packageValue.previewSourceChangesHash,
+      operationId: requireOption(args, 'operationId')
+    };
+  } else {
+    fail('interaction-prepare --stage must be pre-deploy or post-deploy.');
+  }
+  const requiredCases = interactionRequiredCases(spec, stage);
+  const report = {
+    schema: INTERACTION_REPORT_SCHEMA,
+    stage,
+    formType: spec.formType,
+    moduleId: spec.moduleId,
+    mapCode: spec.mapCode,
+    title: spec.title,
+    bindings,
+    requiredCases,
+    requiredCasesHash: interactionCaseDefinitionsHash(requiredCases),
+    customCases: [],
+    execution: {
+      mode: null,
+      testedBy: null,
+      testedAt: null,
+      environment: null,
+      summary: null,
+      overallStatus: 'pending'
+    },
+    results: [],
+    createdAt: new Date().toISOString()
+  };
+  const output = projectPath(args, args.output || path.join(workRoot(args), 'interaction', `${spec.moduleId}-${stage}.json`));
+  writeJson(output, report);
+  const markdown = projectPath(args, args.markdown || output.replace(/\.json$/i, '') + '.md');
+  ensureDir(path.dirname(markdown));
+  fs.writeFileSync(markdown, interactionMarkdown(report) + '\n', 'utf8');
+  console.log(JSON.stringify({ command: 'interaction-prepare', stage, output, markdown, requiredCaseCount: requiredCases.length }, null, 2));
+}
+
+function validateInteractionCase(item, label) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) fail(`${label} must be an object.`);
+  for (const name of ['id', 'category', 'title', 'expected']) {
+    if (!cleanText(item[name])) fail(`${label}.${name} is required.`);
+  }
+  if (!Array.isArray(item.steps) || !item.steps.map(cleanText).filter(Boolean).length) fail(`${label}.steps must contain at least one operation.`);
+  if (item.sourceRefs != null && !Array.isArray(item.sourceRefs)) fail(`${label}.sourceRefs must be an array when present.`);
+}
+
+function commandInteractionCheck(args) {
+  const report = readJson(projectPath(args, requireOption(args, 'report')));
+  if (!report || report.schema !== INTERACTION_REPORT_SCHEMA) fail(`Expected schema ${INTERACTION_REPORT_SCHEMA}.`);
+  if (!['pre-deploy', 'post-deploy'].includes(report.stage)) fail('Interaction report stage must be pre-deploy or post-deploy.');
+  if (!Array.isArray(report.requiredCases) || !report.requiredCases.length) fail('Interaction report requiredCases[] must not be empty.');
+  report.requiredCases.forEach((item, index) => validateInteractionCase(item, `requiredCases[${index}]`));
+  if (interactionCaseDefinitionsHash(report.requiredCases) !== report.requiredCasesHash) fail('Generated interaction cases were removed or changed; regenerate the report and add business cases only under customCases[].');
+  if (!Array.isArray(report.customCases)) fail('Interaction report customCases[] must be an array.');
+  report.customCases.forEach((item, index) => validateInteractionCase(item, `customCases[${index}]`));
+  const allCases = [...report.requiredCases, ...report.customCases];
+  const caseIds = allCases.map((item) => cleanText(item.id));
+  if (new Set(caseIds).size !== caseIds.length) fail('Interaction case IDs must be unique across requiredCases[] and customCases[].');
+  const execution = report.execution;
+  if (!execution || typeof execution !== 'object' || Array.isArray(execution)) fail('Interaction report execution is required.');
+  const mode = cleanText(execution.mode);
+  if (mode === 'automated' || mode === 'automation') fail('Automated interaction execution is not supported; it requires separate explicit user confirmation and a future approved runner.');
+  if (!['user-attested', 'agent-manual'].includes(mode)) fail('Interaction execution mode must be user-attested or agent-manual.');
+  if (!cleanText(execution.testedBy)) fail('Interaction execution testedBy is required.');
+  if (Number.isNaN(Date.parse(execution.testedAt))) fail('Interaction execution testedAt must be a valid timestamp.');
+  if (!cleanText(execution.summary)) fail('Interaction execution summary is required.');
+  if (cleanText(execution.overallStatus) !== 'passed') fail('Interaction execution did not pass.');
+  if (!Array.isArray(report.results)) fail('Interaction report results[] must be an array.');
+  const resultById = new Map(report.results.map((item) => [cleanText(item && item.caseId), item]));
+  if (resultById.size !== report.results.length) fail('Interaction results contain empty or duplicate caseId values.');
+  for (const [caseId, result] of resultById.entries()) {
+    if (!caseIds.includes(caseId)) fail(`Interaction result references unknown case ${caseId}.`);
+    if (cleanText(result && result.status) !== 'passed') fail(`Interaction case did not pass: ${caseId}.`);
+  }
+  if (mode === 'agent-manual') {
+    if (!cleanText(execution.environment)) fail('Agent manual interaction testing requires a non-empty environment description.');
+    for (const item of allCases) {
+      const result = resultById.get(item.id);
+      if (!result) fail(`Agent manual interaction result is missing for case ${item.id}.`);
+      if (!cleanText(result.actualResult)) fail(`Agent manual interaction actualResult is required for case ${item.id}.`);
+      if (result.evidence != null && !Array.isArray(result.evidence)) fail(`Agent manual interaction evidence must be an array for case ${item.id}.`);
+    }
+  }
+  const verification = {
+    schema: INTERACTION_VERIFICATION_SCHEMA,
+    stage: report.stage,
+    status: 'passed',
+    mode,
+    formType: assertFormType(report.formType),
+    moduleId: cleanText(report.moduleId),
+    mapCode: cleanText(report.mapCode),
+    testedBy: cleanText(execution.testedBy),
+    testedAt: new Date(execution.testedAt).toISOString(),
+    summary: cleanText(execution.summary),
+    environment: cleanText(execution.environment) || null,
+    bindings: report.bindings,
+    requiredCasesHash: report.requiredCasesHash,
+    caseCount: allCases.length,
+    reportHash: sha256(report),
+    createdAt: new Date().toISOString()
+  };
+  const output = projectPath(args, args.output || path.join(workRoot(args), 'interaction', `${report.moduleId}-${report.stage}-verification.json`));
+  writeJson(output, verification);
+  console.log(JSON.stringify({ command: 'interaction-check', stage: report.stage, mode, output, status: verification.status }, null, 2));
+}
+
+function validateInteractionVerification(value, expected) {
+  if (!value || value.schema !== INTERACTION_VERIFICATION_SCHEMA || value.stage !== expected.stage || value.status !== 'passed') {
+    fail(`New forms require a passed ${INTERACTION_VERIFICATION_SCHEMA} ${expected.stage} report.`);
+  }
+  if (!['user-attested', 'agent-manual'].includes(value.mode)) fail('Interaction verification mode is invalid or automated.');
+  if (!cleanText(value.testedBy) || Number.isNaN(Date.parse(value.testedAt)) || !cleanText(value.summary)) fail('Interaction verification is missing human test attribution.');
+  for (const name of ['formType', 'moduleId', 'mapCode']) {
+    if (expected[name] != null && value[name] !== expected[name]) fail(`Interaction verification does not match ${name}.`);
+  }
+  if (!value.bindings || typeof value.bindings !== 'object' || Array.isArray(value.bindings)) fail('Interaction verification bindings are missing.');
+  for (const [name, expectedValue] of Object.entries(expected.bindings)) {
+    const actualValue = value.bindings[name] == null ? null : value.bindings[name];
+    const normalizedExpected = expectedValue == null ? null : expectedValue;
+    if (actualValue !== normalizedExpected) fail(`Interaction verification does not match ${name}.`);
+  }
+  for (const name of ['requiredCasesHash', 'reportHash']) {
+    if (!/^[a-f0-9]{64}$/i.test(String(value[name] || ''))) fail(`Interaction verification ${name} is missing or invalid.`);
+  }
+  if (!Number.isInteger(Number(value.caseCount)) || Number(value.caseCount) < 1) fail('Interaction verification caseCount is invalid.');
+  return value;
+}
+
 function commandPlan(args) {
   const spec = validateSpec(readJson(projectPath(args, requireOption(args, 'spec'))), { approved: true });
   validatePublicResponsiveBoundary(spec, args, true);
@@ -1969,6 +2231,23 @@ function commandPlan(args) {
   const previewVerification = hasChanges
     ? validatePreviewVerification(readJson(projectPath(args, requireOption(args, 'previewVerification'))), previewSourceChangesHash, snapshotHash)
     : null;
+  const expectedVersion = snapshotIsMissing ? 'NEW' : (snapshotVersion ?? args.expectedVersion ?? 'NEW');
+  const interactionExpected = hasChanges ? {
+    stage: 'pre-deploy',
+    formType: spec.formType,
+    moduleId: spec.moduleId,
+    mapCode: spec.mapCode,
+    bindings: {
+      approvedSpecHash: spec.approval.specHash,
+      changesHash: previewSourceChangesHash,
+      snapshotHash,
+      previewVerificationHash: sha256(previewVerification),
+      previewManifestHash: previewVerification.manifestHash
+    }
+  } : null;
+  const interactionVerification = hasChanges && (expectedVersion === 'NEW' || args.interactionVerification)
+    ? validateInteractionVerification(readJson(projectPath(args, requireOption(args, 'interactionVerification'))), interactionExpected)
+    : null;
   let commonTemplateReferences = [];
   if (args.approvedClones) {
     const resolved = applyApprovedCloneReferences(changes, spec, approvedCloneMap(readJson(projectPath(args, args.approvedClones))));
@@ -1981,7 +2260,7 @@ function commandPlan(args) {
     moduleId: spec.moduleId,
     mapCode: spec.mapCode,
     title: spec.title,
-    expectedVersion: snapshotIsMissing ? 'NEW' : (snapshotVersion ?? args.expectedVersion ?? 'NEW'),
+    expectedVersion,
     expectedContentHash: snapshotIsMissing ? null : (snapshotContentHash ?? args.expectedContentHash ?? null),
     approvedSpecHash: spec.approval.specHash,
     specification: spec,
@@ -1990,6 +2269,7 @@ function commandPlan(args) {
     sourceSnapshotHash: snapshotHash,
     plannedChangesHash: hasChanges ? sha256(changes) : null,
     previewVerification,
+    interactionVerification,
     commonTemplateReferences,
     deploymentReady: hasChanges,
     audit: { operator: args.operator || null, reason: args.reason || null },
@@ -2009,6 +2289,21 @@ function validatePackage(value, write) {
   if (!value.deploymentReady) fail('Package is review-only because no confirmed changes payload was supplied.');
   if (value.plannedChangesHash !== sha256(value.changes || {})) fail('Package changes do not match the planned changes hash.');
   validatePreviewVerification(value.previewVerification, value.previewSourceChangesHash, value.sourceSnapshotHash);
+  if (value.expectedVersion === 'NEW' || value.interactionVerification) {
+    validateInteractionVerification(value.interactionVerification, {
+      stage: 'pre-deploy',
+      formType: value.formType,
+      moduleId: value.moduleId,
+      mapCode: value.mapCode,
+      bindings: {
+        approvedSpecHash: value.specification.approval.specHash,
+        changesHash: value.previewSourceChangesHash,
+        snapshotHash: value.sourceSnapshotHash,
+        previewVerificationHash: sha256(value.previewVerification),
+        previewManifestHash: value.previewVerification.manifestHash
+      }
+    });
+  }
   const expectedTemplateCount = Number(value.specification.expectedTemplateCount || 0);
   if (expectedTemplateCount > 0) {
     const changeTemplates = value.changes && Array.isArray(value.changes.templates) ? value.changes.templates : [];
@@ -2156,6 +2451,8 @@ function main() {
     preview: commandPreview,
     'preview-run': commandPreviewRun,
     'preview-check': commandPreviewCheck,
+    'interaction-prepare': commandInteractionPrepare,
+    'interaction-check': commandInteractionCheck,
     apply: commandApply,
     verify: commandVerify,
     rollback: commandRollback,
@@ -2164,7 +2461,7 @@ function main() {
   handlers[command](args);
 }
 
-module.exports = { addResponsiveContract, assertCompletePreviewResources, assertFormType, contractSnapshot, objectScriptArgument, previewBodyFromChanges, resolvePreviewResources, sha256, structureToSpec, unwrapServerResult, validateBrowserResult, validatePackage, validatePreviewVerification, validateSpec };
+module.exports = { addResponsiveContract, assertCompletePreviewResources, assertFormType, contractSnapshot, interactionRequiredCases, objectScriptArgument, previewBodyFromChanges, resolvePreviewResources, sha256, structureToSpec, unwrapServerResult, validateBrowserResult, validateInteractionVerification, validatePackage, validatePreviewVerification, validateSpec };
 
 if (require.main === module) {
   try { main(); }
