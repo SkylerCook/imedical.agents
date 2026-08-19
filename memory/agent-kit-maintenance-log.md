@@ -4,6 +4,8 @@
 
 ## 近期已完成
 
+- 2026-08-19：完成插件与根级独立 skill 的源仓版本治理基线：13 个插件保留现有严格 SemVer，2 个独立 skill 从 `0.1.0` 起步，插件内部内容统一继承 owner 版本；新增不可变 `releases/plugin|skill/<name>/<version>.md`、旁路 `dependencyVersions` 和维护者专用 Node inventory/validate/compare 工具。`iris-cure-form-dev 0.4.0` 以 `c79055e` 建立真实 breaking minor 记录，其余组件建立一次 baseline。版本工具不接入 install/update、thin-index、业务 hook 或 sparse checkout；16 项 Node 专项、真实仓库 15 组件 bootstrap 校验以及 `update-agents` PowerShell 7/Windows PowerShell 5.1 回归通过，三个现有部署/更新入口保持无差异。
+
 - 2026-08-19：`iris-cure-form-dev` 升级为 v0.4.0，新增 `interaction-prepare` / `interaction-check` 的新表单人工交互门禁：部署前清单从 numberbox、选择控件、计算与显隐规则生成必测骨架，并固定覆盖单位/左右侧去重；`user-attested` 接受用户明确总体通过，`agent-manual` 强制逐项实际结果，`automated` v1 直接拒绝。`expectedVersion=NEW` 的 package 必须携带与 approved spec、snapshot、changes、preview verification/manifest 哈希绑定的交互凭证，存量响应式改造保持兼容；部署后清单绑定 package/operation ID 并覆盖 CA/CR 保存、重开、回显、打印及 CR 运行时契约，失败不自动回滚。专项和 `update-agents` 回归通过 PowerShell 7/Windows PowerShell 5.1，Node 语法、两种宿主 thin-index DryRun 与差异检查通过；测试只验证报告和门禁，不执行自动浏览器交互。
 
 - 2026-08-19：`iris-cure-form-dev` 升级为 v0.3.2，将完整预览提升为 gate v2：新增 Node 内置模块实现的跨平台 `preview-run`，通过仅绑定 `127.0.0.1` 的临时服务和 Chromium CDP 自动采集九档 Network、Console、HISUI panel/radio 与溢出结果；`preview-check` 拒绝旧 gate、缺少 canonical runner 来源或 manifest 后编辑完整 HTML 的凭证。六类资源和递归 CSS `url(...)`/`@import` 依赖现均复制、记录 SHA-256 并纳入部署凭证，新 profile 默认从 `.agents/vendor/hisui/` 解析 HISUI/jQuery/locale。`common-migrate` 的优先 MapCode 与公共模板 RowID 已迁入目标工程 `cure-form-common-migration-config/v1` 并绑定配置哈希，canonical 不再保存业务种子。插件专项与 `update-agents` 回归均通过 PowerShell 7/Windows PowerShell 5.1，五个变更 skill 通过 UTF-8 validator，两种宿主 thin-index DryRun、真实 Chrome 九档 gate 与 Playwright 独立 Network/Console/探针核验通过；macOS/Linux 实机矩阵仍留在 backlog。

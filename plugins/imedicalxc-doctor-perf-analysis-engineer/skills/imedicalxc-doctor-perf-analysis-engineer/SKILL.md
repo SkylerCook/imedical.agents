@@ -1,6 +1,5 @@
 ---
 name: imedicalxc-doctor-perf-analysis-engineer
-version: 1.0.0
 description: |
   HIS 医生站接口性能分析与优化。覆盖前后端全链路追踪（Controller → BLH → Service → Mapper）、N+1 查询与批量调用优化、Graylog 日志分析、性能报告输出。用于排查慢接口、分析 traceId、优化数据库调用和前端加载性能。
 triggers:

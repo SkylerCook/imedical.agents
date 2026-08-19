@@ -11,6 +11,12 @@
   "dependencies": [
     "iris-codegraph"
   ],
+  "dependencyVersions": {
+    "iris-codegraph": {
+      "minVersion": "0.1.0",
+      "maxVersionExclusive": "0.2.0"
+    }
+  },
   "requiresProjectFiles": [
     "AGENTS.md",
     ".codegraph/codegraph.db"

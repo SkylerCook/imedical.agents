@@ -13,6 +13,16 @@
     "extract-doc",
     "coding-iris-plugin"
   ],
+  "dependencyVersions": {
+    "extract-doc": {
+      "minVersion": "0.2.0",
+      "maxVersionExclusive": "0.3.0"
+    },
+    "coding-iris-plugin": {
+      "minVersion": "0.3.0",
+      "maxVersionExclusive": "0.4.0"
+    }
+  },
   "requiresProjectFiles": [
     "AGENTS.md",
     ".agents/config/iris_project_profile.md"

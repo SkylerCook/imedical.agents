@@ -12,6 +12,12 @@
   "dependencies": [
     "coding-iris-plugin"
   ],
+  "dependencyVersions": {
+    "coding-iris-plugin": {
+      "minVersion": "0.3.0",
+      "maxVersionExclusive": "0.4.0"
+    }
+  },
   "requiresProjectFiles": [
     "AGENTS.md",
     ".mcp.json"

@@ -1,6 +1,5 @@
 ---
 name: imedicalxc-doctor-blh
-version: 1.0.0
 description: 医生站组 BLH（Business Logic Handler）编写规范，指导区域需求和项目组个性化需求的 BLH 开发
 ---
 

@@ -1,5 +1,6 @@
 ---
 name: agent-framework-feedback
+version: 0.1.0
 description: Use at the end of a completed HIS task to route reusable demand experience and framework corrections to the context-aware feedback directory, or when the user explicitly requests feedback recording or promotion.
 ---
 

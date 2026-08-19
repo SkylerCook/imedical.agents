@@ -1,6 +1,5 @@
 ---
 name: imedicalxc-doctor-extend-dataformat
-version: 1.0.0
 description: |
   HIS 医生站第三方系统集成的后端数据格式标准。
   定义 VO/DTO 设计、Jackson 注解、XmlMapper/ObjectMapper 使用方式。

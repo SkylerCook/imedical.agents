@@ -1,6 +1,5 @@
 ---
 name: imedicalxc-doctor-invoke
-version: 1.0.0
 description: Use when the doctor station team needs to call Feign interfaces or Service interfaces from other INTERNAL product teams (收费组、护理组、手术组、药房组等东华医为内部产品组). This skill provides guidelines for invoke module organization, preventing circular dependencies, unified interface encapsulation, and standardized exception handling. Note: This applies to internal HIS product teams only, NOT third-party vendors.
 triggers:
   - 调用其他产品组

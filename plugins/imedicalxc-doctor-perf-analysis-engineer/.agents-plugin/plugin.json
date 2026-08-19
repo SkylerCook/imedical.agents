@@ -10,6 +10,12 @@
   "dependencies": [
     "imedicalxc-doctor-extend-engineer"
   ],
+  "dependencyVersions": {
+    "imedicalxc-doctor-extend-engineer": {
+      "minVersion": "1.0.0",
+      "maxVersionExclusive": "2.0.0"
+    }
+  },
   "requiresProjectFiles": [
     "AGENTS.md"
   ],

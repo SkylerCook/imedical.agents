@@ -1,6 +1,5 @@
 ---
 name: imedicalxc-bsp-jenkins
-version: 1.0.0
 description: 与 iMedical HIS Jenkins CI/CD 平台交互时使用。用于构建触发、流水线分析、部署协调以及将 Jenkins 与测试工作流集成。涵盖 HIS 微服务模块构建、流水线依赖和构建到测试的交接流程。
 triggers:
   - jenkins

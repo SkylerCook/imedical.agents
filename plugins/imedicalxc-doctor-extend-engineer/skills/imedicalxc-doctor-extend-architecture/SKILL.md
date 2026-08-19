@@ -1,6 +1,5 @@
 ---
 name: imedicalxc-doctor-extend-architecture
-version: 1.0.0
 description: |
   HIS 医生站第三方系统集成的架构蓝图与代码组织模板。
   定义系统拓扑、数据流、生命周期钩子、中间件注册表以及计划注入模板。

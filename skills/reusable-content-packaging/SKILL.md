@@ -1,5 +1,6 @@
 ---
 name: reusable-content-packaging
+version: 0.1.0
 description: Use when packaging validated project or conversation knowledge into a reusable AI Coding plugin or capability kit without hard-coding source-project details.
 ---
 

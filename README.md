@@ -126,6 +126,7 @@ imedical.agents/
 |-- rules/       # 仓库级通用规则预留入口
 |-- docs/        # AI Coding 工作区规范、runbook 和配套文档
 |-- scripts/     # 通用部署、更新和维护脚本
+|-- releases/    # 插件与根级独立 skill 的源仓发布记录，不部署业务项目
 |-- memory/      # 维护者记忆，不部署到业务项目
 |-- AGENTS.md    # 本仓库维护入口，不部署到业务项目
 `-- index.html   # GitHub Pages 展示页，不部署到业务项目
@@ -135,7 +136,23 @@ imedical.agents/
 
 - `docs/ai-coding-workspace-kit-v0.2.0.md`：工程级 AI Coding 工作区规范。
 - `docs/update-agents.md`：给 Agent 执行的 `.agents` 安装与更新 runbook。
+- `docs/component-version-management.md`：插件与根级独立 skill 的源仓版本、发布记录和兼容审计规范。
 - `memory/plan/multi-agent-architecture.md`：多智能体架构设计稿。
+
+## 源仓组件版本管理
+
+13 个插件以 `.agents-plugin/plugin.json` 为版本事实来源，根 `skills/` 下的独立 skill 在 `SKILL.md` 声明自身版本；插件内部内容统一继承 owner 插件版本。发布记录位于 `releases/plugin|skill/<name>/<version>.md`，依赖版本范围通过 manifest 的 `dependencyVersions` 审计，同时保留原 `dependencies` 名称数组供现有更新器使用。
+
+维护者在插件或独立 skill 提交前运行：
+
+```powershell
+node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js validate `
+  --repo-root . `
+  --base-ref HEAD `
+  --worktree
+```
+
+这套能力只服务源仓维护，不接入业务项目安装、更新、thin-index 或 hook；现有部署与更新流程继续以 `docs/update-agents.md` 为准。
 
 ## 智能体与 workflow
 

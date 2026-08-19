@@ -25,6 +25,7 @@
 - `plugins/imedicalxc-doctor-extend-engineer/` 负责 HIS 医生站第三方系统集成编排，主入口为 `skills/imedicalxc-doctor-extend-engineer/SKILL.md`，子 skill 由主编排器按需读取。
 - 已落地首个领域样板 `agents/i18n-agent/` 和 `workflows/i18n-change.workflow.md`，用于 IRIS i18n 需求的链路定位、数据分类、编码/模板/种子和验证五阶段处理。
 - 当前重点维护方向是先固化多人协作提交准入和仓库一致性检查；`i18n-agent` / `i18n-change.workflow.md` 已完成串行回溯、首次偏差实战和 `#6097891` 标准化实战，schema 1.2 已覆盖暂停恢复与最终验证门禁。通用 workflow/Agent 仍需不同任务形态样本，rules 体量与工具原生 adapter 继续观察，不抢占主线。
+- 插件与根级独立 skill 已建立源仓版本治理：13 个插件保留现有 SemVer、2 个独立 skill 从 `0.1.0` 建立基线，发布记录进入不部署的 `releases/`；`dependencyVersions` 只做源仓兼容审计，维护工具不接入业务安装、更新、thin-index 或 hook。
 - 根 `AGENTS.md` 只服务本仓库维护，不部署到业务项目 `.agents/`；业务项目仍使用业务项目自己的 `AGENTS.md` 和 `.agents/` 上下文。
 
 ## 必读路由
@@ -34,6 +35,7 @@
 - 修改智能体或 workflow：读取 `memory/plan/multi-agent-architecture.md`、`agents/agent-registry.md`、`workflows/workflow-registry.md` 和相关 `AGENT.md` / `.workflow.md`。
 - 修改插件能力：读取对应插件 `AGENTS.md`、README、skills、rules、templates 和 manifest。
 - 维护能力包仓库本身、检查插件提交同步或更新维护记忆：读取 `.agents/skills/agent-kit-maintenance/SKILL.md`；该仓库本地 skill 不在业务项目 sparse checkout 部署清单内。
+- 修改插件或根级独立 skill：同时读取 `docs/component-version-management.md`，递增 owner 版本、新增 release record，并运行维护者专用版本校验。
 - 维护记忆：保持本文件短摘要；细节按长期决策、维护日志、治理队列分流。
 - 处理业务项目上下文：不要使用本文件作为项目记忆；改用目标项目自己的 `AGENTS.md` 和 `project-context-maintenance`。
 

@@ -1,0 +1,48 @@
+name: Validate component versions
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run component version tests
+        run: node --test scripts/tests/component-version-management.tests.js
+
+      - name: Select comparison base
+        id: base
+        shell: bash
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BASE: ${{ github.event.before }}
+        run: |
+          if [ -n "$PR_BASE" ]; then
+            echo "ref=$PR_BASE" >> "$GITHUB_OUTPUT"
+          elif [ -n "$PUSH_BASE" ] && [ "$PUSH_BASE" != "0000000000000000000000000000000000000000" ]; then
+            echo "ref=$PUSH_BASE" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=$(git rev-parse HEAD^)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate component versions
+        run: >-
+          node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js
+          validate --repo-root . --base-ref ${{ steps.base.outputs.ref }} --head-ref HEAD

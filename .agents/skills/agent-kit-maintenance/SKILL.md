@@ -23,6 +23,7 @@ description: Use when maintaining the imedical.agents repository itself, especia
 4. 需要判断后续治理优先级时，读 `memory/agent-kit-maintenance-backlog.md`。
 5. 涉及安装、更新、sparse checkout、plugin profile、vendor skill 同步或 thin-index 生成时，读 `docs/update-agents.md` 和相关脚本。
 6. 涉及具体插件时，读该插件 `AGENTS.md`、README、`.agents-plugin/plugin.json`、相关 `skills/`、`rules/`、`references/`、`templates/`、`scripts/`。
+7. 涉及插件或根级独立 skill 变更时，读 `docs/component-version-management.md`，核对版本、依赖范围和 release record。
 
 ## 插件提交同步门禁
 
@@ -31,6 +32,7 @@ description: Use when maintaining the imedical.agents repository itself, especia
 - 插件 `AGENTS.md`
 - 插件 README
 - `.agents-plugin/plugin.json`
+- `releases/plugin/<name>/<version>.md`
 - 相关 `SKILL.md`、rule、reference、template、script
 - 仓库 README
 - `memory/agent-kit-maintenance-memory.md`
@@ -40,6 +42,12 @@ description: Use when maintaining the imedical.agents repository itself, especia
 - 对应测试，例如 `scripts/tests/update-agents.tests.ps1` 或插件专项测试
 
 禁止只提交插件实现而遗漏对应说明、记忆或验证入口。
+
+插件目录发生任何变化时必须递增插件版本；根级独立 skill 目录变化时必须递增自身版本。插件内部内容继承插件版本，不得维护第二套版本号。提交前运行：
+
+```powershell
+node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js validate --repo-root . --base-ref HEAD --worktree
+```
 
 ## 业务需求夹带框架变更的回看门禁
 
@@ -54,6 +62,7 @@ description: Use when maintaining the imedical.agents repository itself, especia
 ## 影响面判断
 
 - **新增或重构插件**：同步插件 README、插件 `AGENTS.md`、manifest、仓库 README、维护记忆、安装/更新说明和 thin-index 行为。
+- **修改插件或根级独立 skill**：按严格 SemVer 递增 owner 版本，新增不可变 release record，核对 `dependencyVersions`，运行组件版本校验；不得把版本工具接入业务项目更新流程。
 - **重命名插件 canonical 名称**：manifest 声明 `legacyNames`；验证旧 `plugin_profile.md` 的 `enabled` / `disabled` 状态迁移、新旧名称显式选择、旧 rule/skill thin-index 清理和已部署配置兼容；禁止只移动目录。
 - **修改 skill/rule/reference/template**：同步触发条件、路由说明、相关 README/AGENTS、维护日志；若影响已部署项目，说明兼容清理策略。
 - **修改 thin-index 行为**：只改根 `scripts/generate-plugin-thin-index.ps1`；插件 wrapper 只能转发参数；同步测试、README、docs 和维护记忆。
@@ -69,6 +78,8 @@ description: Use when maintaining the imedical.agents repository itself, especia
 ```powershell
 git diff -- <changed-files>
 git status --short
+node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js validate --repo-root . --base-ref HEAD --worktree
+node --test scripts/tests/component-version-management.tests.js
 ```
 
 按影响面补充：

@@ -1,6 +1,5 @@
 ---
 name: imedicalxc-doctor-extend-engineer
-version: 1.0.0
 description: |
   HIS 医生站第三方系统集成全流程编排器。将用户从需求头脑风暴 → 设计 → 实施 → 测试 → HIS域验证 → CI/CD 交付的完整 10 步工作流加载到当前会话中执行。用于任何涉及医生工作流的第三方厂商集成（诊断、医嘱、处方、病历等）。
 triggers:

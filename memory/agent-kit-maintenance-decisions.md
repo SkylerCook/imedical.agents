@@ -40,6 +40,15 @@
 - Agent thin-index 不复用 `generate-plugin-thin-index.ps1`；由独立 `scripts/generate-agent-thin-index.ps1` 从 `agents/*/AGENT.md` 和 `bindings.yaml` 生成 `.agents/skills/<agent-name>/SKILL.md`，只做浅层 skill 路由。
 - 工具专属 agent adapter 暂不实现；后续如需 Codex、Claude Code、OpenCode、CodeBuddy 等原生入口，再由独立 `scripts/generate-agent-adapters.ps1` 生成。该脚本只翻译格式，不创造 canonical 中不存在的职责或规则。
 
+## 组件版本治理
+
+- 插件是主要发布、依赖和兼容单元；根级独立 skill 单独演进。插件内部 skill、rule、reference、template 和 script 继承 owner 插件版本，不维护独立 SemVer。
+- 版本限定为严格 `MAJOR.MINOR.PATCH`。`0.x` breaking 使用下一 minor，`1.x+` breaking 使用下一 major；发布记录位于根 `releases/plugin|skill/<name>/<version>.md`，提交后不可修改或删除。
+- 原 `dependencies` 名称数组继续作为当前更新器契约；版本范围旁路写入 `dependencyVersions`，`0.x` 默认约束在同一 minor，`1.x+` 默认约束在同一 major。
+- 维护者专用 Node 工具只在源仓 `.agents/skills/agent-kit-maintenance/scripts/` 做 inventory、变更校验和 Git ref 兼容比较，不部署业务项目，不接入 install/update、thin-index 或 hook。
+- breaking 比较只接受 `plugin|skill:<name>@<version>` 精确授权；版本倒退、依赖不兼容和发布记录缺失不可绕过。v1 不创建业务项目 `component_versions.json`，也不强制 Git tag。
+- 现有部署和更新流程必须保持不变；任何 updater 集成需要新的独立决策、兼容设计和授权。
+
 ## 部署边界
 
 - 已部署业务工程的 `.agents/` 是独立能力包仓库；能力包更新后应先更新 `.agents`，再按启用插件重建 thin-index。
@@ -47,6 +56,7 @@
 - workspace-overlay 采用 capability-once/context-many：先在 canonical 标版根更新 capability，再对各模块以 `-NoPull` 刷新 ContextRoot。模块刷新不得 fetch/pull 或改写 CapabilityRoot Git，只能维护 ContextRoot 本地生成层和 manifest 受管 Junction。
 - overlay 的 shared path 与 SourceRoot 逻辑 path 必须是指向 manifest 精确目标的 Junction；local path 必须是物理目录。自动修复只允许作用于可证明受管且目标错误的 Junction，普通目录、文件或本地目录不得覆盖。
 - 根目录 `memory/` 是维护者记忆，不得加入 `scripts/install-agents.ps1` 或 `scripts/update-agents.ps1` 的 sparse checkout 路径。
+- 根目录 `releases/` 是维护者发布审计记录，不加入业务项目 sparse checkout。
 - `memory/plan/` 是维护者计划子目录，存放实施计划和设计文档，不部署到业务项目。
 - 根目录 `AGENTS.md` 只服务本仓库维护，不部署到业务项目 `.agents/`。
 - 根目录 `agents/` 和 `workflows/` 是能力包正式内容，已加入 `scripts/install-agents.ps1` 和 `scripts/update-agents.ps1` 的 sparse checkout 路径，部署到业务项目 `.agents/agents/` 和 `.agents/workflows/`。

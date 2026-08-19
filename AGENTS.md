@@ -41,6 +41,7 @@
 - `docs/` 放 AI Coding 工作区规范、runbook 和配套文档。
 - 根 `scripts/` 放能力包部署、更新和通用维护脚本；领域脚本放到对应插件。
 - 根 `vendor/` 放第三方源码资产、共享运行时资产和 vendor skill fallback，部署到业务项目 `.agents/vendor/`；只有插件 manifest 声明的 required vendor skill 才生成 `.agents/skills` thin-index。
+- 根 `releases/` 放插件和根级独立 skill 的不可变发布记录，只服务源仓版本审计，不部署到业务项目。
 - 根 `memory/` 是维护者记忆，不部署到业务项目 `.agents/`，不生成 thin-index。
 - 根 `feedback/` 放框架反馈和经验积累，部署到业务项目 `.agents/`；`feedback/framework/` 放框架验证反馈条目，`feedback/experience/` 放领域经验文档。
 - 根 `index.html`、`.github/`、`.nojekyll` 只服务 GitHub Pages 展示页。
@@ -54,6 +55,7 @@
 - 根 `AGENTS.md`
 - 根 `memory/`
 - 根 `.agents/`
+- 根 `releases/`
 - 根 `README.md`、`LICENSE`
 - 根 `index.html`
 - `.github/`
@@ -87,6 +89,15 @@
 - 新增长期通用能力时，先判断应放入 `agents/`、`workflows/`、`rules/`、`references/`、`skills/`、`templates/`、`scripts/` 还是插件目录。
 - 新增文件遵循命名约定：agent 目录 kebab-case + `-agent`，workflow 文件 kebab-case + `.workflow.md`，skill 目录 kebab-case，rule 文件 snake_case，reference 文件 kebab-case，script 文件 kebab-case。
 - 对已部署业务工程有影响的变更，必须说明同步步骤和兼容清理策略。
+
+## 组件版本治理
+
+- 插件是主要发布、依赖和兼容单元，版本事实来自 `.agents-plugin/plugin.json`；根级独立 skill 的版本来自其 `SKILL.md` frontmatter。
+- 插件内部 skill、rule、reference、template 和 script 继承 owner 插件版本，不得声明独立 `version`。
+- 版本只允许严格 `MAJOR.MINOR.PATCH`。插件目录或根级独立 skill 目录发生变化时，必须递增对应版本并新增 `releases/plugin|skill/<name>/<version>.md`。
+- 发布记录提交后不可修改或删除；breaking 变化必须声明迁移说明。依赖名称继续保留在 `dependencies`，版本范围单独写入更新器忽略的 `dependencyVersions`。
+- 提交相关改动前，必须按 `docs/component-version-management.md` 运行维护者专用 `validate-component-versions.js validate`。该工具位于源仓 `.agents/skills/agent-kit-maintenance/scripts/`，不接入业务项目安装、更新、thin-index 或 hook。
+- 不得借版本治理修改 `scripts/install-agents.ps1`、`scripts/update-agents.ps1` 或 `docs/update-agents.md`；未来接入更新器必须单独规划和授权。
 
 ## 禁止事项
 
