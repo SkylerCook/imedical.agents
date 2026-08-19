@@ -34,6 +34,16 @@ function New-PassedPreviewVerification {
     if ($Snapshot) { $arguments += @('--snapshot',$Snapshot) }
     $preview = Invoke-Cure $arguments | ConvertFrom-Json
     $manifest = Get-Content -LiteralPath $preview.manifest -Raw -Encoding UTF8 | ConvertFrom-Json
+    $runner = [ordered]@{
+        schema = 'cure-form-browser-runner/v1'
+        gateVersion = 'cure-form-preview-gate/2'
+        manifestHash = $preview.manifestHash
+        engine = 'chromium-cdp'
+        browser = 'test-fixture'
+        browserProduct = 'test-fixture'
+        protocolVersion = 'test-fixture'
+        completedAt = '2026-01-01T00:00:00.000Z'
+    }
     $results = @($manifest.widths | ForEach-Object {
         [ordered]@{
             schema = 'cure-form-browser-result/v1'
@@ -54,11 +64,12 @@ function New-PassedPreviewVerification {
                 horizontalOverflow = $false
             }
             networkErrors = @()
+            consoleErrors = @()
             runtimeErrors = @()
         }
     })
     $browserResults = Join-Path $previewRoot 'browser-results.json'
-    @{ schema = 'cure-form-browser-results/v1'; results = $results } | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $browserResults -Encoding UTF8
+    @{ schema = 'cure-form-browser-results/v1'; runner = $runner; results = $results } | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $browserResults -Encoding UTF8
     $verification = Join-Path $previewRoot 'preview-verification.json'
     Invoke-Cure @('preview-check','--manifest',$preview.manifest,'--browser-results',$browserResults,'--output',$verification) | Out-Null
     return $verification
@@ -69,7 +80,7 @@ try {
 
     $manifest = Get-Content -LiteralPath (Join-Path $pluginRoot '.agents-plugin\plugin.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($manifest.name -eq 'iris-cure-form-dev') 'Unexpected plugin name.'
-    Assert-True ($manifest.version -eq '0.3.1') 'Unexpected plugin version.'
+    Assert-True ($manifest.version -eq '0.3.2') 'Unexpected plugin version.'
     Assert-True (($manifest.dependencies -contains 'extract-doc') -and ($manifest.dependencies -contains 'coding-iris-plugin')) 'Plugin dependencies are incomplete.'
 
     foreach ($skill in @('cure-form-init','cure-form-requirement-adapter','cure-assess-form-dev','cure-record-form-dev','cure-form-responsive','make-assess-form-responsive','cure-form-deploy','cure-form-lookup','cure-form-fragment')) {
@@ -79,10 +90,17 @@ try {
     & node --check $cli
     if ($LASTEXITCODE -ne 0) { throw 'Node syntax check failed.' }
     $cliContent = Get-Content -LiteralPath $cli -Raw -Encoding UTF8
+    Assert-True (($cliContent -match "'preview-run'") -and ($cliContent -match 'cure-form-preview-gate/2')) 'Canonical preview runner or gate v2 is missing.'
+    Assert-True ($cliContent -notmatch 'LymphedemaLimb|PhysicalTherapy|CR-PTTemp') 'Canonical migration code must not contain target-project MapCode seeds.'
+    Assert-True ($cliContent -notmatch "sourceTemplateRowId:\s*'(?:51|52|53|57|141)'") 'Canonical migration code must not contain target-project template RowID seeds.'
     $stagedTransport = Join-Path $pluginRoot 'scripts\cure-form-staged-transport.js'
+    $browserRunner = Join-Path $pluginRoot 'scripts\cure-form-browser-runner.js'
     Assert-True (Test-Path -LiteralPath $stagedTransport -PathType Leaf) 'Persistent staged transport is missing.'
     & node --check $stagedTransport
     if ($LASTEXITCODE -ne 0) { throw 'Persistent staged transport syntax check failed.' }
+    Assert-True (Test-Path -LiteralPath $browserRunner -PathType Leaf) 'Canonical Chromium browser runner is missing.'
+    & node --check $browserRunner
+    if ($LASTEXITCODE -ne 0) { throw 'Canonical Chromium browser runner syntax check failed.' }
     $stagedTransportContent = Get-Content -LiteralPath $stagedTransport -Raw -Encoding UTF8
     Assert-True (($cliContent -match "'PutPackageChunk'") -and ($cliContent -match "'ValidateStagedPackage'") -and ($cliContent -match "'ApplyStagedPackage'") -and ($cliContent -match "'ClearStagedPackage'")) 'Staged package method allowlist is missing.'
     Assert-True (($cliContent -match "call', 'iris_execute'") -and ($cliContent -match 'Base64Decode') -and ($cliContent -match '\$zconvert')) 'Current MCP iris_execute UTF-8 adapter is incomplete.'
@@ -107,17 +125,29 @@ try {
     Assert-True (($styleBoundaryText -match '24 个字符') -and ($styleBoundaryText -match 'camelCase') -and ($styleBoundaryText -match '引用路径.*basename.*一致')) 'Plugin governance must constrain deployment asset names by semantics and length.'
     Assert-True ($cliContent -notmatch '\.\./scripts_lib/(?:hisui|com)') 'Canonical generator must not hardcode target-project preview resource paths.'
     $profileTemplateContent = Get-Content -LiteralPath (Join-Path $pluginRoot 'templates\cure_form_profile.template.md') -Raw -Encoding UTF8
-    foreach ($profileKey in @('PreviewHisuiCss','PreviewJqueryJs','PreviewHisuiJs','PreviewHisuiLocaleJs','PreviewAsscomCss','PreviewAdaptationCss')) {
+    foreach ($profileKey in @('PreviewHisuiCss','PreviewJqueryJs','PreviewHisuiJs','PreviewHisuiLocaleJs','PreviewAsscomCss','PreviewAdaptationCss','PreviewBrowserCommand','CommonMigrationConfig')) {
         Assert-True ($profileTemplateContent -match [regex]::Escape($profileKey)) "Profile template is missing $profileKey."
     }
+    Assert-True (([regex]::Matches($profileTemplateContent, '\.agents/vendor/hisui/')).Count -eq 4) 'New target profiles must resolve HISUI, jQuery, and locale from the deployed vendor/hisui runtime.'
 
     $previewAssetRoot = Join-Path $scratch 'preview-assets'
     New-Item -ItemType Directory -Force -Path $previewAssetRoot | Out-Null
     Copy-Item -LiteralPath (Join-Path $repoRoot 'vendor\hisui\dist\js\jquery-1.11.3.min.js') -Destination (Join-Path $previewAssetRoot 'jquery-1.11.3.min.js')
     Copy-Item -LiteralPath (Join-Path $repoRoot 'vendor\hisui\dist\js\jquery.hisui.min.js') -Destination (Join-Path $previewAssetRoot 'jquery.hisui.min.js')
     Copy-Item -LiteralPath (Join-Path $repoRoot 'vendor\hisui\dist\js\locale\hisui-lang-zh_CN.js') -Destination (Join-Path $previewAssetRoot 'hisui-lang-zh_CN.js')
-    '.item-table { width: 100%; }' | Set-Content -LiteralPath (Join-Path $previewAssetRoot 'asscom.css') -Encoding UTF8
+    New-Item -ItemType Directory -Force -Path (Join-Path $previewAssetRoot 'theme') | Out-Null
+    '.fixture-theme { display: block; }' | Set-Content -LiteralPath (Join-Path $previewAssetRoot 'theme\fixture.css') -Encoding UTF8
+    '@import "theme/fixture.css"; .item-table { width: 100%; }' | Set-Content -LiteralPath (Join-Path $previewAssetRoot 'asscom.css') -Encoding UTF8
     '.assess-form { max-width: 100%; }' | Set-Content -LiteralPath (Join-Path $previewAssetRoot 'adaptation.css') -Encoding UTF8
+    $migrationConfig = Join-Path $scratch 'common-migration-config.json'
+    @{
+        schema = 'cure-form-common-migration-config/v1'
+        priorityMapCodes = @('CanaryCA')
+        publicTemplates = @(
+            @{ sourceTemplateRowId = '901'; formTypes = @('CA','CR') },
+            @{ sourceTemplateRowId = '902'; formTypes = @('CR') }
+        )
+    } | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $migrationConfig -Encoding UTF8
     $previewProfile = Join-Path $scratch 'cure_form_profile.md'
     @(
         '# Cure Form Profile',
@@ -127,7 +157,8 @@ try {
         "- PreviewHisuiJs: $(Join-Path $previewAssetRoot 'jquery.hisui.min.js')",
         "- PreviewHisuiLocaleJs: $(Join-Path $previewAssetRoot 'hisui-lang-zh_CN.js')",
         "- PreviewAsscomCss: $(Join-Path $previewAssetRoot 'asscom.css')",
-        "- PreviewAdaptationCss: $(Join-Path $previewAssetRoot 'adaptation.css')"
+        "- PreviewAdaptationCss: $(Join-Path $previewAssetRoot 'adaptation.css')",
+        "- CommonMigrationConfig: $migrationConfig"
     ) | Set-Content -LiteralPath $previewProfile -Encoding UTF8
 
     $structurePath = Join-Path $scratch 'structure.json'
@@ -390,6 +421,12 @@ try {
     $caVerification = New-PassedPreviewVerification -Changes $changesPath -Snapshot $snapshotPath -Name 'ca-existing'
     $missingPreviewGate = Invoke-Cure @('plan','--spec',$caSpec,'--snapshot',$snapshotPath,'--changes',$changesPath,'--output',(Join-Path $scratch 'CAForm.no-preview.package.json')) 1
     Assert-True ($missingPreviewGate -match 'preview-verification') 'Deployable changes must require preview verification evidence.'
+    $oldGateVerificationPath = Join-Path $scratch 'CAForm.old-gate.preview-verification.json'
+    $oldGateVerification = Get-Content -LiteralPath $caVerification -Raw -Encoding UTF8 | ConvertFrom-Json
+    $oldGateVerification.gateVersion = 'cure-form-preview-gate/1'
+    $oldGateVerification | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $oldGateVerificationPath -Encoding UTF8
+    $oldGateResult = Invoke-Cure @('plan','--spec',$caSpec,'--snapshot',$snapshotPath,'--changes',$changesPath,'--preview-verification',$oldGateVerificationPath,'--output',(Join-Path $scratch 'CAForm.old-gate.package.json')) 1
+    Assert-True ($oldGateResult -match 'cure-form-preview-gate/2') 'Gate v1 preview credentials must not bypass the current deployment gate.'
     Invoke-Cure @('plan','--spec',$caSpec,'--snapshot',$snapshotPath,'--changes',$changesPath,'--preview-verification',$caVerification,'--output',$packagePath) | Out-Null
     $package = Get-Content -LiteralPath $packagePath -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($package.expectedVersion -eq 0) 'Snapshot version 0 must not be converted to NEW.'
@@ -497,27 +534,53 @@ try {
     $commonPreviewManifest = Get-Content -LiteralPath $commonPreview.manifest -Raw -Encoding UTF8 | ConvertFrom-Json
     $commonPreviewHtml = Get-Content -LiteralPath $commonPreview.html -Raw -Encoding UTF8
     Assert-True ($commonPreviewManifest.resources.Count -eq 6) 'Canonical preview must bind all six required resources.'
+    Assert-True (($commonPreviewManifest.gateVersion -eq 'cure-form-preview-gate/2') -and ($commonPreviewManifest.requiredChecks -contains 'css-dependencies') -and ($commonPreviewManifest.requiredChecks -contains 'console-errors')) 'Canonical preview manifest must declare gate v2 dependency and Console checks.'
+    Assert-True (($commonPreviewManifest.cssDependencies.dependencies.Count -gt 0) -and ($commonPreviewManifest.dependencyHash -match '^[a-f0-9]{64}$')) 'Canonical preview must hash copied CSS dependencies.'
     Assert-True ($commonPreviewManifest.expectedRuntime.radioCount -eq 2) 'Canonical preview must bind the source radio count into its runtime gate.'
     Assert-True (($commonPreviewManifest.expectedRuntime.hisuiRadioCount -eq 2) -and ($commonPreviewManifest.expectedRuntime.semanticRadioPairCount -eq 0)) 'Canonical preview must bind source HISUI radios while leaving radios without semantic labels unpaired.'
     Assert-True (@(Get-ChildItem -LiteralPath (Join-Path $commonPreviewRoot 'assets') -File).Count -eq 6) 'Canonical preview must copy local target resources into a self-contained asset directory.'
     Assert-True (Test-Path -LiteralPath (Join-Path $commonPreviewRoot 'assets\images\pure\checkbox_lite_v.png') -PathType Leaf) 'Canonical preview must preserve local CSS dependencies used by HISUI radio rendering.'
+    Assert-True (Test-Path -LiteralPath (Join-Path $commonPreviewRoot 'assets\theme\fixture.css') -PathType Leaf) 'Canonical preview must recursively copy CSS @import dependencies.'
     Assert-True (($commonPreviewHtml -match '__cureFormPreviewCheck') -and ($commonPreviewHtml -match 'data-cure-preview-resource="hisuiCss"')) 'Canonical preview must embed the browser runtime probe and tracked resource tags.'
     Assert-True ($commonPreviewHtml -notmatch [regex]::Escape($previewAssetRoot)) 'Canonical preview must not persist absolute target resource paths.'
+    if ($env:CURE_FORM_TEST_BROWSER_COMMAND) {
+        $realBrowserResults = Join-Path $commonPreviewRoot 'canonical-browser-results.json'
+        $realBrowserVerification = Join-Path $commonPreviewRoot 'canonical-preview-verification.json'
+        Invoke-Cure @('preview-run','--manifest',$commonPreview.manifest,'--browser-command',$env:CURE_FORM_TEST_BROWSER_COMMAND,'--target-profile',$previewProfile,'--output',$realBrowserResults) | Out-Null
+        Invoke-Cure @('preview-check','--manifest',$commonPreview.manifest,'--browser-results',$realBrowserResults,'--output',$realBrowserVerification) | Out-Null
+        $realBrowserPayload = Get-Content -LiteralPath $realBrowserResults -Raw -Encoding UTF8 | ConvertFrom-Json
+        Assert-True (($realBrowserPayload.runner.engine -eq 'chromium-cdp') -and ($realBrowserPayload.results.Count -eq 9)) 'Canonical preview-run must produce nine Chromium CDP results.'
+    }
     $missingRadioResults = Join-Path $commonPreviewRoot 'missing-radio-results.json'
     @{
         schema = 'cure-form-browser-results/v1'
+        runner = @{
+            schema = 'cure-form-browser-runner/v1'; gateVersion = 'cure-form-preview-gate/2'; manifestHash = $commonPreview.manifestHash
+            engine = 'chromium-cdp'; browser = 'test-fixture'; browserProduct = 'test-fixture'; protocolVersion = 'test-fixture'; completedAt = '2026-01-01T00:00:00.000Z'
+        }
         results = @($commonPreviewManifest.widths | ForEach-Object {
             [ordered]@{
                 schema = 'cure-form-browser-result/v1'; manifestHash = $commonPreview.manifestHash; width = [int]$_
                 resources = @($commonPreviewManifest.resources | ForEach-Object { [ordered]@{ role = $_.role; state = 'loaded' } })
                 checks = [ordered]@{ jqueryAvailable = $true; parserAvailable = $true; panelCount = 1; initializedPanelCount = 1; radioCount = 0; generatedRadioLabelCount = 0; horizontalOverflow = $false }
                 networkErrors = @()
+                consoleErrors = @()
                 runtimeErrors = @()
             }
         })
     } | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $missingRadioResults -Encoding UTF8
     $missingRadioResult = Invoke-Cure @('preview-check','--manifest',$commonPreview.manifest,'--browser-results',$missingRadioResults,'--output',(Join-Path $commonPreviewRoot 'missing-radio-verification.json')) 1
     Assert-True ($missingRadioResult -match 'radio label generation is incomplete') 'Browser evidence must not bypass radio generation by reporting zero radios.'
+    [System.IO.File]::AppendAllText($commonPreview.html, '<!-- tampered -->')
+    $tamperedHtmlResult = Invoke-Cure @('preview-check','--manifest',$commonPreview.manifest,'--browser-results',$missingRadioResults,'--output',(Join-Path $commonPreviewRoot 'tampered-html-verification.json')) 1
+    Assert-True ($tamperedHtmlResult -match 'Preview HTML does not match the manifest') 'Edited preview HTML must invalidate browser acceptance.'
+    $utf8NoBom = New-Object System.Text.UTF8Encoding -ArgumentList $false
+    [System.IO.File]::WriteAllText($commonPreview.html, $commonPreviewHtml, $utf8NoBom)
+    $copiedCssDependency = Join-Path $commonPreviewRoot 'assets\images\pure\checkbox_lite_v.png'
+    [System.IO.File]::WriteAllBytes($copiedCssDependency, [byte[]](1,2,3))
+    $tamperedDependencyResult = Invoke-Cure @('preview-check','--manifest',$commonPreview.manifest,'--browser-results',$missingRadioResults,'--output',(Join-Path $commonPreviewRoot 'tampered-dependency-verification.json')) 1
+    Assert-True ($tamperedDependencyResult -match 'resource hash mismatch') 'A changed copied CSS dependency must invalidate browser acceptance.'
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'vendor\hisui\dist\css\images\pure\checkbox_lite_v.png') -Destination $copiedCssDependency -Force
 
     $atomicChangesPath = Join-Path $scratch 'atomic-radio-changes.json'
     @{
@@ -537,6 +600,10 @@ try {
     Assert-True ($atomicPreviewHtml.Contains('.assess-form input[type="radio"].hisui-radio.radio-f') -and $atomicPreviewHtml.Contains("semanticLabel.getAttribute('for') === id")) 'Canonical preview probe must enforce the exact target classes and semantic label for/id match.'
     $atomicPassedPayload = @{
         schema = 'cure-form-browser-results/v1'
+        runner = @{
+            schema = 'cure-form-browser-runner/v1'; gateVersion = 'cure-form-preview-gate/2'; manifestHash = $atomicPreview.manifestHash
+            engine = 'chromium-cdp'; browser = 'test-fixture'; browserProduct = 'test-fixture'; protocolVersion = 'test-fixture'; completedAt = '2026-01-01T00:00:00.000Z'
+        }
         results = @($atomicManifest.widths | ForEach-Object {
             [ordered]@{
                 schema = 'cure-form-browser-result/v1'; manifestHash = $atomicPreview.manifestHash; width = [int]$_
@@ -548,6 +615,7 @@ try {
                     horizontalOverflow = $false
                 }
                 networkErrors = @()
+                consoleErrors = @()
                 runtimeErrors = @()
             }
         })
@@ -590,13 +658,15 @@ try {
     @(
         @{ mapCode = 'OtherCR'; formType = 'CR' },
         @{ mapCode = 'Pathology'; formType = '' },
-        @{ mapCode = 'LymphedemaLimb'; formType = 'CA' }
+        @{ mapCode = 'CanaryCA'; formType = 'CA' }
     ) | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $inventory -Encoding UTF8
     $migration = Join-Path $scratch 'migration.json'
-    Invoke-Cure @('common-migrate','--inventory',$inventory,'--output',$migration) | Out-Null
+    Invoke-Cure @('common-migrate','--inventory',$inventory,'--migration-config',$migrationConfig,'--output',$migration) | Out-Null
     $migrationData = Get-Content -LiteralPath $migration -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($migrationData.maps.Count -eq 2) 'Common migration did not exclude pathology.'
-    Assert-True ($migrationData.maps[0].mapCode -eq 'LymphedemaLimb') 'Common migration canary order is incorrect.'
+    Assert-True ($migrationData.maps[0].mapCode -eq 'CanaryCA') 'Common migration config priority order is incorrect.'
+    Assert-True (($migrationData.seedTemplates.CA[0] -eq '901') -and ($migrationData.seedTemplates.CR.Count -eq 2)) 'Common migration template seeds must come from target configuration.'
+    Assert-True ($migrationData.migrationConfigHash -match '^[a-f0-9]{64}$') 'Common migration plan must bind the target configuration hash.'
 
     $compatibilitySkill = Get-Content -LiteralPath (Join-Path $pluginRoot 'skills\make-assess-form-responsive\SKILL.md') -Raw -Encoding UTF8
     Assert-True ($compatibilitySkill -match 'cure-form-responsive') 'Compatibility skill must delegate to cure-form-responsive.'

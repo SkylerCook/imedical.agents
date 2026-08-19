@@ -63,6 +63,6 @@ input.hisui-radio.radio-f + label.radio + label.i-label-box/m-label-box
 | 旧 WebView | 不依赖不受支持的选择器；fallback 可见、可点、可保存；完整选项的圆圈与文字不拆行 |
 | 手机/PDA/PAD | 无横向溢出；选中态颜色、圆点和文字保持同步 |
 
-验收至少覆盖 `360/390/430/768/810/1024/1080/1194/1280`。完整预览的浏览器探针必须同时确认六类资源请求成功、`jQuery` 与 `$.parser` 可用、HISUI panel 已初始化、存在 radio 时生成对应 `label.radio`、完整三节点配对没有被破坏、无横向溢出且无运行时错误。点击圆圈和文字都要验证 `input.checked`、HISUI 选中态和同名 radio 互斥关系；旧内核分支还要验证包装幂等、未配对节点不变以及圆圈和文字不拆行。
+验收至少覆盖 `360/390/430/768/810/1024/1080/1194/1280`。完整预览必须由 canonical `preview-run` 通过 Chromium CDP 采集；浏览器探针必须同时确认六类资源及 CSS 依赖请求成功、Console 无错误、`jQuery` 与 `$.parser` 可用、HISUI panel 已初始化、存在 radio 时生成对应 `label.radio`、完整三节点配对没有被破坏、无横向溢出且无运行时错误。点击圆圈和文字都要验证 `input.checked`、HISUI 选中态和同名 radio 互斥关系；旧内核分支还要验证包装幂等、未配对节点不变以及圆圈和文字不拆行。
 
-九档结果通过 `preview-check` 汇总为哈希绑定凭证。现代 Chromium 无法证明缺少 `:has()` 的旧内核分支；旧 WebView 与真实触控设备证据必须单独记录，不得通过强改 `CSS.supports` 返回值冒充目标内核验收。
+九档结果通过 `preview-check` 汇总为绑定当前 gate、runner、完整 HTML、资源与依赖清单的哈希凭证；旧 gate、缺少 runner 元数据或 manifest 后编辑的页面不得复用。现代 Chromium 无法证明缺少 `:has()` 的旧内核分支；旧 WebView 与真实触控设备证据必须单独记录，不得通过强改 `CSS.supports` 返回值冒充目标内核验收。

@@ -1,6 +1,6 @@
 # cure-form-package/v1
 
-部署包包含目标 Map、组成模板、缓存字段、资源、公共模板引用、期望版本、期望内容哈希、规格哈希、差异摘要、回滚前置快照标识和 `cure-form-preview-verification/v1`。多模板规格的 `expectedTemplateCount`、`templates[]`、Map composition、changes templates 和 fragment 资源数量必须一致且顺序稳定。表单独立 CSS 使用 `resources[].kind=stylesheet` 声明；`stylesheets[].deploymentPath` 是目标工程静态资源根下的安全相对路径，不保存服务器绝对路径。本地预览 `path`、运行时 `runtimeHref` 和部署 `deploymentPath` 相互独立。只有带已确认 `changes` 且预览凭证与 snapshot、预览源 changes、最终计划 changes、资源清单和九档宽度一致的包才设置 `deploymentReady=true`；评审包不得执行。包本身不包含患者数据、服务器密码或任意 SQL。
+部署包包含目标 Map、组成模板、缓存字段、资源、公共模板引用、期望版本、期望内容哈希、规格哈希、差异摘要、回滚前置快照标识和 `cure-form-preview-verification/v1`。多模板规格的 `expectedTemplateCount`、`templates[]`、Map composition、changes templates 和 fragment 资源数量必须一致且顺序稳定。表单独立 CSS 使用 `resources[].kind=stylesheet` 声明；`stylesheets[].deploymentPath` 是目标工程静态资源根下的安全相对路径，不保存服务器绝对路径。本地预览 `path`、运行时 `runtimeHref` 和部署 `deploymentPath` 相互独立。只有带已确认 `changes` 且预览凭证与当前 gate/runner、snapshot、预览源 changes、最终计划 changes、完整 HTML、六类资源、CSS 依赖清单和九档宽度一致的包才设置 `deploymentReady=true`；评审包不得执行。包本身不包含患者数据、服务器密码或任意 SQL。
 
 已存在批准版本的公共模板必须以 `changes.templates[].referenceOnly=true` 和服务器 `rowId` 引用，禁止再次携带 `content/items` 创建同版本副本。客户端可通过 `plan --approved-clones` 按来源模板 RowID 机械替换，并在 `commonTemplateReferences[]` 记录来源与批准版本；未找到批准映射时继续保留版本化克隆，不得按 `appId` 猜测复用。
 

@@ -21,7 +21,7 @@ Map code 索引为 `^DHCDocAppBLMapi("MapCode",code,rowId)`。
 
 `User.DHCDocAppBLTemple` / `SQLUser.DHC_DocAppBLTemple` / `^DHCDocBLTem`：piece 1 为名称、2 为模板类型、3 为 APP ID、4 为 MapType、5 为 parent/last ID；`"ConT"` 保存 HTML，`"JSStr"` 保存 JavaScript。公共模板必须版本化克隆，不直接原地覆盖。
 
-已知公共模板种子：CA/跨类型 `51/52/53/57`，CR `141`。其他公共模板必须按 CA/CR Map 组成关系动态发现。
+公共模板种子、优先 MapCode 和适用 CA/CR 类型属于目标工程事实，必须由 `cure-form-common-migration-config/v1` 配置或当前 Map 组成关系提供；插件 canonical 不保存业务 RowID。
 
 ## 缓存字段
 

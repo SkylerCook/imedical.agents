@@ -14,6 +14,13 @@ const MAX_REMOTE_RESULT_LENGTH = 5 * 1024 * 1024;
 const MAX_INLINE_SERVER_ARGUMENT = 8000;
 const DOCUMENT_SOURCE_EXTENSIONS = new Set(['.doc', '.docx', '.pdf', '.xls', '.xlsx']);
 const PREVIEW_WIDTHS = [360, 390, 430, 768, 810, 1024, 1080, 1194, 1280];
+const PREVIEW_GATE_VERSION = 'cure-form-preview-gate/2';
+const PREVIEW_RUNNER_SCHEMA = 'cure-form-browser-runner/v1';
+const PREVIEW_MANIFEST_PLACEHOLDER = '__CURE_FORM_PREVIEW_MANIFEST_HASH__';
+const PREVIEW_REQUIRED_CHECKS = [
+  'preview-html-integrity', 'resources', 'css-dependencies', 'network-errors', 'console-errors', 'jquery', 'parser',
+  'panel', 'radio', 'radio-atomic-pairing', 'horizontal-overflow', 'runtime-errors'
+];
 const PREVIEW_RESOURCE_SPECS = [
   { role: 'hisuiCss', profileKey: 'PreviewHisuiCss', basename: 'hisui.pure.min.css', tag: 'link' },
   { role: 'jqueryJs', profileKey: 'PreviewJqueryJs', basename: 'jquery-1.11.3.min.js', tag: 'script' },
@@ -24,7 +31,7 @@ const PREVIEW_RESOURCE_SPECS = [
 ];
 const COMMANDS = new Set([
   'doctor', 'intake', 'inspect', 'prepare', 'review', 'plan',
-  'preview', 'preview-check', 'apply', 'verify', 'rollback', 'common-migrate'
+  'preview', 'preview-run', 'preview-check', 'apply', 'verify', 'rollback', 'common-migrate'
 ]);
 
 function fail(message, code = 1) {
@@ -167,17 +174,22 @@ function pathIsWithin(candidate, root) {
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
-function copyPreviewCssDependencies(sourceCss, targetCss, outputDir, args, visited = new Set()) {
+function copyPreviewCssDependencies(sourceCss, targetCss, outputDir, args, state) {
   const sourceKey = path.resolve(sourceCss).toLowerCase();
-  if (visited.has(sourceKey)) return;
-  visited.add(sourceKey);
+  if (state.visited.has(sourceKey)) return;
+  state.visited.add(sourceKey);
   const css = fs.readFileSync(sourceCss, 'utf8');
   const references = [];
   const pattern = /url\(\s*(["']?)([^"')]+)\1\s*\)/gi;
   let match;
   while ((match = pattern.exec(css)) !== null) references.push(match[2].trim());
+  const importPattern = /@import\s+(["'])([^"']+)\1/gi;
+  while ((match = importPattern.exec(css)) !== null) references.push(match[2].trim());
   for (const reference of [...new Set(references)]) {
-    if (!reference || /^(?:data:|https?:|\/\/|#)/i.test(reference)) continue;
+    if (!reference || /^(?:data:|#)/i.test(reference)) continue;
+    if (/^(?:https?:|\/\/)/i.test(reference)) {
+      fail(`Preview CSS dependency must be local and hashable: ${reference}`);
+    }
     const cleanReference = reference.split(/[?#]/, 1)[0];
     if (!cleanReference) continue;
     const sourceAsset = reference.startsWith('/')
@@ -189,11 +201,34 @@ function copyPreviewCssDependencies(sourceCss, targetCss, outputDir, args, visit
     if (!pathIsWithin(targetAsset, outputDir)) {
       fail(`Preview CSS dependency escapes the output directory: ${reference}`);
     }
-    if (!fs.existsSync(sourceAsset) || !fs.statSync(sourceAsset).isFile()) continue;
+    const href = path.relative(outputDir, targetAsset).replace(/\\/g, '/');
+    if (!fs.existsSync(sourceAsset) || !fs.statSync(sourceAsset).isFile()) {
+      state.unresolved.push({ stylesheet: path.basename(sourceCss), reference, href, reason: 'source-missing' });
+      continue;
+    }
+    const contentHash = crypto.createHash('sha256').update(fs.readFileSync(sourceAsset)).digest('hex');
+    const existing = state.targets.get(path.resolve(targetAsset).toLowerCase());
+    if (existing && existing.contentHash !== contentHash) {
+      fail(`Preview CSS dependencies collide at ${href}: ${existing.source} and ${sourceAsset}`);
+    }
     ensureDir(path.dirname(targetAsset));
     fs.copyFileSync(sourceAsset, targetAsset);
-    if (/\.css$/i.test(cleanReference)) copyPreviewCssDependencies(sourceAsset, targetAsset, outputDir, args, visited);
+    const dependency = { href, basename: path.basename(targetAsset), contentHash };
+    state.targets.set(path.resolve(targetAsset).toLowerCase(), { ...dependency, source: sourceAsset });
+    state.dependencies.set(href, dependency);
+    if (/\.css$/i.test(cleanReference)) copyPreviewCssDependencies(sourceAsset, targetAsset, outputDir, args, state);
   }
+}
+
+function createCssDependencyState() {
+  return { visited: new Set(), targets: new Map(), dependencies: new Map(), unresolved: [] };
+}
+
+function cssDependencyManifest(state) {
+  return {
+    dependencies: [...state.dependencies.values()].sort((a, b) => a.href.localeCompare(b.href)),
+    unresolved: [...state.unresolved].sort((a, b) => `${a.stylesheet}:${a.reference}`.localeCompare(`${b.stylesheet}:${b.reference}`))
+  };
 }
 
 function previewProfilePath(args) {
@@ -210,6 +245,7 @@ function resolvePreviewResource(reference, spec, baseDir, outputDir, args, copyL
     fail(`Preview resource ${spec.profileKey} must resolve to ${spec.basename}: ${value}`);
   }
   if (/^(?:https?:)?\/\//i.test(value)) {
+    if (copyLocal) fail(`Canonical preview requires a local hashable resource for ${spec.profileKey}: ${value}`);
     return { role: spec.role, basename: spec.basename, tag: spec.tag, href: value, local: false, contentHash: null };
   }
 
@@ -224,12 +260,18 @@ function resolvePreviewResource(reference, spec, baseDir, outputDir, args, copyL
   }
 
   let href;
+  const contentHash = crypto.createHash('sha256').update(fs.readFileSync(localPath)).digest('hex');
   if (copyLocal) {
     const assetsDir = path.join(outputDir, 'assets');
     ensureDir(assetsDir);
     const target = path.join(assetsDir, spec.basename);
+    const existing = args.cssDependencyState.targets.get(path.resolve(target).toLowerCase());
+    if (existing && existing.contentHash !== contentHash) {
+      fail(`Preview resource collides with CSS dependency at assets/${spec.basename}: ${existing.source} and ${localPath}`);
+    }
+    args.cssDependencyState.targets.set(path.resolve(target).toLowerCase(), { href: `assets/${spec.basename}`, basename: spec.basename, contentHash, source: localPath });
     fs.copyFileSync(localPath, target);
-    if (spec.tag === 'link') copyPreviewCssDependencies(localPath, target, outputDir, args);
+    if (spec.tag === 'link') copyPreviewCssDependencies(localPath, target, outputDir, args, args.cssDependencyState);
     href = `assets/${spec.basename}`;
   } else {
     href = path.relative(outputDir, localPath).replace(/\\/g, '/');
@@ -241,7 +283,7 @@ function resolvePreviewResource(reference, spec, baseDir, outputDir, args, copyL
     tag: spec.tag,
     href,
     local: true,
-    contentHash: crypto.createHash('sha256').update(fs.readFileSync(localPath)).digest('hex')
+    contentHash
   };
 }
 
@@ -258,7 +300,7 @@ function resolvePreviewResources(args, outputDir, options = {}) {
   for (const spec of PREVIEW_RESOURCE_SPECS) {
     const pageReference = pageReferences[spec.role];
     const profileReference = profile[spec.profileKey];
-    const reference = pageReference || profileReference;
+    const reference = profileReference || pageReference;
     if (!reference) {
       missing.push(`${spec.profileKey} (${spec.basename})`);
       continue;
@@ -266,9 +308,9 @@ function resolvePreviewResources(args, outputDir, options = {}) {
     resources.push(resolvePreviewResource(
       reference,
       spec,
-      pageReference ? path.dirname(pageFile) : projectRoot(args),
+      profileReference ? projectRoot(args) : path.dirname(pageFile),
       outputDir,
-      args,
+      { ...args, cssDependencyState: options.cssDependencyState },
       options.copyLocal === true
     ));
   }
@@ -1318,6 +1360,7 @@ function renderPreviewProbe(manifestHash, resources) {
         horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1
       },
       networkErrors: networkErrors,
+      consoleErrors: [],
       runtimeErrors: runtimeErrors.slice()
     };
   };
@@ -1635,28 +1678,56 @@ function commandPreview(args) {
   if (snapshot) assertFormType(snapshot.formType || snapshot.MapType);
   const outputRoot = args.outputRoot ? projectPath(args, args.outputRoot) : path.join(workRoot(args), 'preview');
   ensureDir(outputRoot);
-  const resources = resolvePreviewResources(args, outputRoot, { copyLocal: true });
+  const cssState = createCssDependencyState();
+  const resources = resolvePreviewResources(args, outputRoot, { copyLocal: true, cssDependencyState: cssState });
+  const cssDependencies = cssDependencyManifest(cssState);
+  const dependencyHash = sha256(cssDependencies);
   const title = cleanText(args.title || changes.title || (changes.map && (changes.map.name || changes.map.code)) || (snapshot && (snapshot.mapName || snapshot.MapName || snapshot.mapCode || snapshot.MapCode)) || 'Cure Form Preview');
   const body = previewBodyFromChanges(changes);
   const expectedRuntime = previewRuntimeExpectations(body);
+  const htmlTemplate = renderCompletePreview(title, body, resources, PREVIEW_MANIFEST_PLACEHOLDER);
   const manifest = {
     schema: 'cure-form-preview-manifest/v1',
     title,
     previewHtml: 'preview.html',
+    gateVersion: PREVIEW_GATE_VERSION,
+    requiredChecksHash: sha256(PREVIEW_REQUIRED_CHECKS),
     changesHash: sha256(changes),
     snapshotHash: snapshot ? sha256(snapshot) : null,
-    resourceHash: sha256(resources.map((resource) => ({ role: resource.role, basename: resource.basename, href: resource.href, contentHash: resource.contentHash }))),
+    previewHtmlTemplateHash: sha256(htmlTemplate),
+    resourceHash: sha256({
+      resources: resources.map((resource) => ({ role: resource.role, basename: resource.basename, href: resource.href, contentHash: resource.contentHash })),
+      dependencyHash
+    }),
     resources: resources.map((resource) => ({ role: resource.role, basename: resource.basename, href: resource.href, contentHash: resource.contentHash })),
+    cssDependencies,
+    dependencyHash,
     widths: PREVIEW_WIDTHS,
     expectedRuntime,
-    requiredChecks: ['resources', 'network-errors', 'jquery', 'parser', 'panel', 'radio', 'radio-atomic-pairing', 'horizontal-overflow', 'runtime-errors']
+    requiredChecks: PREVIEW_REQUIRED_CHECKS
   };
   const manifestPath = writeJson(path.join(outputRoot, 'preview-manifest.json'), manifest);
   const manifestHash = sha256(manifest);
-  const html = renderCompletePreview(title, body, resources, manifestHash);
+  const html = htmlTemplate.replace(PREVIEW_MANIFEST_PLACEHOLDER, manifestHash);
   const htmlPath = path.join(outputRoot, 'preview.html');
   fs.writeFileSync(htmlPath, html, 'utf8');
   console.log(JSON.stringify({ command: 'preview', html: htmlPath, manifest: manifestPath, manifestHash, widths: PREVIEW_WIDTHS }, null, 2));
+}
+
+function commandPreviewRun(args) {
+  const runner = path.join(__dirname, 'cure-form-browser-runner.js');
+  if (!fs.existsSync(runner)) fail(`Canonical browser runner is missing: ${runner}`);
+  const manifest = projectPath(args, requireOption(args, 'manifest'));
+  const output = projectPath(args, args.output || path.join(workRoot(args), 'preview', 'browser-results.json'));
+  const runnerArgs = [runner, '--manifest', manifest, '--output', output, '--project-root', projectRoot(args)];
+  if (args.browserCommand) runnerArgs.push('--browser-command', String(args.browserCommand));
+  if (args.targetProfile) runnerArgs.push('--target-profile', projectPath(args, args.targetProfile));
+  if (args.timeoutMs) runnerArgs.push('--timeout-ms', String(args.timeoutMs));
+  const result = spawnSync(process.execPath, runnerArgs, { cwd: projectRoot(args), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
+  if (result.error) fail(`Canonical browser runner failed to start: ${result.error.message}`);
+  if (result.status !== 0) fail(`Canonical browser runner failed with exit code ${result.status}.`);
 }
 
 function validateBrowserResult(result, width, manifest, manifestHash) {
@@ -1704,6 +1775,8 @@ function validateBrowserResult(result, width, manifest, manifestHash) {
   if (checks.horizontalOverflow !== false) fail(`Preview has horizontal overflow or no overflow evidence at width ${width}.`);
   if (!Array.isArray(result.networkErrors)) fail(`Preview network error evidence is missing at width ${width}.`);
   if (result.networkErrors.length) fail(`Preview resource requests failed at width ${width}: ${JSON.stringify(result.networkErrors)}`);
+  if (!Array.isArray(result.consoleErrors)) fail(`Preview console error evidence is missing at width ${width}.`);
+  if (result.consoleErrors.length) fail(`Preview console errors occurred at width ${width}: ${result.consoleErrors.join('; ')}`);
   if (!Array.isArray(result.runtimeErrors)) fail(`Preview runtime error evidence is missing at width ${width}.`);
   if (result.runtimeErrors.length) fail(`Preview runtime errors occurred at width ${width}: ${result.runtimeErrors.join('; ')}`);
 }
@@ -1712,8 +1785,19 @@ function commandPreviewCheck(args) {
   const manifestPath = projectPath(args, requireOption(args, 'manifest'));
   const manifest = readJson(manifestPath);
   if (!manifest || manifest.schema !== 'cure-form-preview-manifest/v1') fail('Expected cure-form-preview-manifest/v1.');
+  if (manifest.gateVersion !== PREVIEW_GATE_VERSION) fail(`Preview manifest must use ${PREVIEW_GATE_VERSION}; regenerate it with the current plugin.`);
+  if (JSON.stringify(manifest.requiredChecks) !== JSON.stringify(PREVIEW_REQUIRED_CHECKS) || manifest.requiredChecksHash !== sha256(PREVIEW_REQUIRED_CHECKS)) {
+    fail('Preview manifest required checks do not match the current canonical gate.');
+  }
   if (JSON.stringify(manifest.widths) !== JSON.stringify(PREVIEW_WIDTHS)) fail('Preview manifest does not contain the canonical nine-width matrix.');
-  if (!Array.isArray(manifest.resources) || JSON.stringify(manifest.resources.map((resource) => resource.role)) !== JSON.stringify(PREVIEW_RESOURCE_SPECS.map((spec) => spec.role))) {
+  const manifestHash = sha256(manifest);
+  const previewHtmlPath = path.resolve(path.dirname(manifestPath), manifest.previewHtml || 'preview.html');
+  if (!pathIsWithin(previewHtmlPath, path.dirname(manifestPath)) || !fs.existsSync(previewHtmlPath) || !fs.statSync(previewHtmlPath).isFile()) fail('Preview HTML is missing or outside the manifest directory.');
+  const previewHtml = fs.readFileSync(previewHtmlPath, 'utf8');
+  if (previewHtml.split(manifestHash).length - 1 !== 1 || sha256(previewHtml.replace(manifestHash, PREVIEW_MANIFEST_PLACEHOLDER)) !== manifest.previewHtmlTemplateHash) {
+    fail('Preview HTML does not match the manifest; regenerate browser evidence from the current changes.');
+  }
+  if (!Array.isArray(manifest.resources) || manifest.resources.length !== PREVIEW_RESOURCE_SPECS.length || manifest.resources.some((resource, index) => resource.role !== PREVIEW_RESOURCE_SPECS[index].role || resource.basename !== PREVIEW_RESOURCE_SPECS[index].basename || resourceBasename(resource.href) !== PREVIEW_RESOURCE_SPECS[index].basename)) {
     fail('Preview manifest does not contain the canonical six-resource matrix.');
   }
   if (!manifest.expectedRuntime || !Number.isInteger(Number(manifest.expectedRuntime.panelCount)) || Number(manifest.expectedRuntime.panelCount) < 1 || !Number.isInteger(Number(manifest.expectedRuntime.radioCount)) || Number(manifest.expectedRuntime.radioCount) < 0) {
@@ -1724,10 +1808,18 @@ function commandPreviewCheck(args) {
   if (hasHisuiRadioCount !== hasSemanticRadioPairCount || (hasHisuiRadioCount && (!Number.isInteger(Number(manifest.expectedRuntime.hisuiRadioCount)) || Number(manifest.expectedRuntime.hisuiRadioCount) < 0 || !Number.isInteger(Number(manifest.expectedRuntime.semanticRadioPairCount)) || Number(manifest.expectedRuntime.semanticRadioPairCount) < 0 || Number(manifest.expectedRuntime.semanticRadioPairCount) > Number(manifest.expectedRuntime.hisuiRadioCount)))) {
     fail('Preview manifest does not contain valid HISUI radio atomic pairing expectations.');
   }
-  const manifestResourceHash = sha256(manifest.resources.map((resource) => ({ role: resource.role, basename: resource.basename, href: resource.href, contentHash: resource.contentHash })));
+  if (!manifest.cssDependencies || !Array.isArray(manifest.cssDependencies.dependencies) || !Array.isArray(manifest.cssDependencies.unresolved)) {
+    fail('Preview manifest CSS dependency evidence is missing.');
+  }
+  const dependencyHash = sha256(manifest.cssDependencies);
+  if (manifest.dependencyHash !== dependencyHash) fail('Preview manifest CSS dependency hash is invalid.');
+  const manifestResourceHash = sha256({
+    resources: manifest.resources.map((resource) => ({ role: resource.role, basename: resource.basename, href: resource.href, contentHash: resource.contentHash })),
+    dependencyHash
+  });
   if (manifest.resourceHash !== manifestResourceHash) fail('Preview manifest resource hash is invalid.');
-  for (const resource of manifest.resources) {
-    if (/^(?:https?:)?\/\//i.test(resource.href)) continue;
+  for (const resource of [...manifest.resources, ...manifest.cssDependencies.dependencies]) {
+    if (/^(?:https?:)?\/\//i.test(resource.href) || !/^[a-f0-9]{64}$/i.test(String(resource.contentHash || ''))) fail(`Canonical preview resource must be local and hashable: ${resource.href}`);
     const resourcePath = path.resolve(path.dirname(manifestPath), resource.href);
     if (!pathIsWithin(resourcePath, path.dirname(manifestPath)) || !fs.existsSync(resourcePath) || !fs.statSync(resourcePath).isFile()) {
       fail(`Preview manifest resource is missing: ${resource.href}`);
@@ -1736,10 +1828,13 @@ function commandPreviewCheck(args) {
     if (contentHash !== resource.contentHash) fail(`Preview manifest resource hash mismatch: ${resource.href}`);
   }
   const browserPayload = readJson(projectPath(args, requireOption(args, 'browserResults')));
-  const results = Array.isArray(browserPayload) ? browserPayload : browserPayload.results;
-  if (!Array.isArray(results)) fail('Browser results must be an array or contain results[].');
+  if (!browserPayload || browserPayload.schema !== 'cure-form-browser-results/v1') fail('Browser results must use schema cure-form-browser-results/v1.');
+  if (!browserPayload.runner || browserPayload.runner.schema !== PREVIEW_RUNNER_SCHEMA || browserPayload.runner.gateVersion !== PREVIEW_GATE_VERSION || browserPayload.runner.engine !== 'chromium-cdp' || browserPayload.runner.manifestHash !== manifestHash || !cleanText(browserPayload.runner.browser) || !cleanText(browserPayload.runner.browserProduct) || !cleanText(browserPayload.runner.protocolVersion) || Number.isNaN(Date.parse(browserPayload.runner.completedAt))) {
+    fail('Browser results were not produced by the current canonical browser runner.');
+  }
+  const results = browserPayload.results;
+  if (!Array.isArray(results)) fail('Browser results must contain results[].');
   if (results.length !== PREVIEW_WIDTHS.length) fail('Browser results must contain only the canonical nine-width matrix.');
-  const manifestHash = sha256(manifest);
   for (const width of PREVIEW_WIDTHS) {
     const matches = results.filter((result) => Number(result && result.width) === width);
     if (matches.length !== 1) fail(`Browser results must contain exactly one result for width ${width}.`);
@@ -1748,11 +1843,16 @@ function commandPreviewCheck(args) {
   const verification = {
     schema: 'cure-form-preview-verification/v1',
     status: 'passed',
+    gateVersion: PREVIEW_GATE_VERSION,
+    requiredChecksHash: sha256(PREVIEW_REQUIRED_CHECKS),
+    runner: browserPayload.runner,
     manifestHash,
     changesHash: manifest.changesHash,
     snapshotHash: manifest.snapshotHash,
+    previewHtmlTemplateHash: manifest.previewHtmlTemplateHash,
     resourceHash: manifest.resourceHash,
-    browserResultsHash: sha256(results),
+    dependencyHash: manifest.dependencyHash,
+    browserResultsHash: sha256({ runner: browserPayload.runner, results }),
     resultCount: results.length,
     widths: PREVIEW_WIDTHS,
     verifiedAt: new Date().toISOString()
@@ -1833,6 +1933,12 @@ function validatePreviewVerification(value, changesHash, snapshotHash) {
   if (!value || value.schema !== 'cure-form-preview-verification/v1' || value.status !== 'passed') {
     fail('Deployable changes require a passed cure-form-preview-verification/v1 report.');
   }
+  if (value.gateVersion !== PREVIEW_GATE_VERSION || value.requiredChecksHash !== sha256(PREVIEW_REQUIRED_CHECKS)) {
+    fail(`Preview verification must use ${PREVIEW_GATE_VERSION}; regenerate browser evidence with the current plugin.`);
+  }
+  if (!value.runner || value.runner.schema !== PREVIEW_RUNNER_SCHEMA || value.runner.gateVersion !== PREVIEW_GATE_VERSION || value.runner.engine !== 'chromium-cdp' || value.runner.manifestHash !== value.manifestHash || !cleanText(value.runner.browser) || !cleanText(value.runner.browserProduct) || !cleanText(value.runner.protocolVersion) || Number.isNaN(Date.parse(value.runner.completedAt))) {
+    fail('Preview verification is missing current canonical browser runner evidence.');
+  }
   if (value.changesHash !== changesHash) fail('Preview verification does not match the supplied changes payload.');
   if ((value.snapshotHash || null) !== (snapshotHash || null)) fail('Preview verification does not match the supplied snapshot.');
   if (JSON.stringify(value.widths) !== JSON.stringify(PREVIEW_WIDTHS)) fail('Preview verification does not cover the canonical nine-width matrix.');
@@ -1842,6 +1948,8 @@ function validatePreviewVerification(value, changesHash, snapshotHash) {
   if (!/^[a-f0-9]{64}$/i.test(String(value.browserResultsHash || '')) || Number(value.resultCount) !== PREVIEW_WIDTHS.length) {
     fail('Preview verification is missing canonical browser result evidence.');
   }
+  if (!/^[a-f0-9]{64}$/i.test(String(value.dependencyHash || ''))) fail('Preview verification is missing the CSS dependency hash.');
+  if (!/^[a-f0-9]{64}$/i.test(String(value.previewHtmlTemplateHash || ''))) fail('Preview verification is missing the preview HTML integrity hash.');
   return value;
 }
 
@@ -1952,8 +2060,40 @@ function commandRollback(args) {
   console.log(JSON.stringify({ command: 'rollback', result }, null, 2));
 }
 
+function readCommonMigrationConfig(args) {
+  const profile = parseMarkdownProfile(previewProfilePath(args));
+  const configured = args.migrationConfig || profile.CommonMigrationConfig;
+  if (!configured || /^<?(?:required|unset|todo)>?$/i.test(String(configured).trim())) {
+    fail('common-migrate requires --migration-config or CommonMigrationConfig in the target profile.');
+  }
+  const file = projectPath(args, configured);
+  if (!fs.existsSync(file) || !fs.statSync(file).isFile()) fail(`Common migration config does not exist: ${configured}`);
+  const config = readJson(file);
+  if (!config || config.schema !== 'cure-form-common-migration-config/v1') {
+    fail('Common migration config must use schema cure-form-common-migration-config/v1.');
+  }
+  if (!Array.isArray(config.priorityMapCodes) || !config.priorityMapCodes.every((value) => cleanText(value))) {
+    fail('Common migration config priorityMapCodes must be an array of non-empty map codes.');
+  }
+  const priorityMapCodes = config.priorityMapCodes.map(cleanText);
+  if (new Set(priorityMapCodes).size !== priorityMapCodes.length) fail('Common migration config priorityMapCodes must be unique.');
+  if (!Array.isArray(config.publicTemplates)) fail('Common migration config publicTemplates[] is required.');
+  const publicTemplates = config.publicTemplates.map((template, index) => {
+    const sourceTemplateRowId = cleanText(template && template.sourceTemplateRowId);
+    if (!/^\d+$/.test(sourceTemplateRowId)) fail(`publicTemplates[${index}].sourceTemplateRowId must be numeric.`);
+    if (!Array.isArray(template.formTypes) || !template.formTypes.length) fail(`publicTemplates[${index}].formTypes[] is required.`);
+    const formTypes = template.formTypes.map(assertFormType);
+    if (new Set(formTypes).size !== formTypes.length) fail(`publicTemplates[${index}].formTypes must be unique.`);
+    return { sourceTemplateRowId, formTypes };
+  });
+  const rowIds = publicTemplates.map((template) => template.sourceTemplateRowId);
+  if (new Set(rowIds).size !== rowIds.length) fail('Common migration config publicTemplates sourceTemplateRowId values must be unique.');
+  return { file, value: { schema: config.schema, priorityMapCodes, publicTemplates } };
+}
+
 function commandCommonMigrate(args) {
-  const source = readJson(requireOption(args, 'inventory'));
+  const source = readJson(projectPath(args, requireOption(args, 'inventory')));
+  const migrationConfig = readCommonMigrationConfig(args);
   const rows = Array.isArray(source) ? source : source.maps;
   if (!Array.isArray(rows)) fail('Inventory must be an array or contain maps[].');
   const allowed = rows.filter((row) => FORM_TYPES.has(String(row.formType || row.MapType || '').toUpperCase())).map((row) => ({
@@ -1964,7 +2104,7 @@ function commandCommonMigrate(args) {
     active: row.active || row.Active || ''
   }));
   const excluded = rows.length - allowed.length;
-  const order = ['LymphedemaLimb', 'PhysicalTherapy', 'CR-PTTemp'];
+  const order = migrationConfig.value.priorityMapCodes;
   const rank = (row) => {
     const code = row.mapCode || '';
     const index = order.indexOf(code);
@@ -1972,17 +2112,21 @@ function commandCommonMigrate(args) {
     return row.formType === 'CA' ? 100 : 200;
   };
   allowed.sort((a, b) => rank(a) - rank(b));
-  const approvedClones = args.approvedClones ? readJson(args.approvedClones) : {};
-  const publicTemplates = [
-    { sourceTemplateRowId: '51', formTypes: ['CA', 'CR'] },
-    { sourceTemplateRowId: '52', formTypes: ['CA', 'CR'] },
-    { sourceTemplateRowId: '53', formTypes: ['CA', 'CR'] },
-    { sourceTemplateRowId: '57', formTypes: ['CA', 'CR'] },
-    { sourceTemplateRowId: '141', formTypes: ['CR'] }
-  ].map((template) => ({ ...template, approvedCloneRowId: approvedClones[template.sourceTemplateRowId] || null }));
+  const approvedClones = args.approvedClones
+    ? approvedCloneMap(readJson(projectPath(args, args.approvedClones)))
+    : {};
+  const publicTemplates = migrationConfig.value.publicTemplates.map((template) => ({
+    ...template,
+    approvedCloneRowId: approvedClones[template.sourceTemplateRowId] || null
+  }));
+  const seedTemplates = { CA: [], CR: [] };
+  for (const template of publicTemplates) {
+    for (const formType of template.formTypes) seedTemplates[formType].push(template.sourceTemplateRowId);
+  }
   const plan = {
     schema: 'cure-form-common-migration/v1', strategy: 'versioned-clone', dryRun: true,
-    seedTemplates: { crossType: [51, 52, 53, 57], CR: [141] },
+    migrationConfigHash: sha256(migrationConfig.value),
+    seedTemplates,
     publicTemplates,
     maps: allowed, excludedNonCureOrPathology: excluded,
     gates: ['clone', 'responsive-verify', 'approve', 'switch-canary', 'verify', 'expand', 'rollback-ready']
@@ -2010,6 +2154,7 @@ function main() {
     review: commandReview,
     plan: commandPlan,
     preview: commandPreview,
+    'preview-run': commandPreviewRun,
     'preview-check': commandPreviewCheck,
     apply: commandApply,
     verify: commandVerify,

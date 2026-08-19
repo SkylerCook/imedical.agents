@@ -10,6 +10,7 @@ cure-form inspect
 cure-form prepare --mode create|responsive|common-responsive
 cure-form review
 cure-form preview
+cure-form preview-run
 cure-form preview-check
 cure-form plan
 cure-form apply
@@ -91,7 +92,7 @@ node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js plan `
 
 ## Canonical 完整预览与浏览器门禁
 
-`preview` 从 `changes.templates[]` 生成统一完整页面，并从目标 `cure_form_profile.md` 或 `--page-html` 指定的现有完整页面解析六类必需资源：`hisui.pure.min.css`、`jquery-1.11.3.min.js`、`jquery.hisui.min.js`、`hisui-lang-zh_CN.js`、`asscom.css`、`adaptation.css`。本地资源复制到预览目录 `assets/`，产物不保存源绝对路径；任一资源缺失、重名、basename 不匹配或本地文件不存在时立即停止。纯 fragment 转换不要求携带这些资源，但部署前仍必须生成完整预览。
+`preview` 从 `changes.templates[]` 生成统一完整页面，并从目标 `cure_form_profile.md` 或 `--page-html` 指定的现有完整页面解析六类必需资源：`hisui.pure.min.css`、`jquery-1.11.3.min.js`、`jquery.hisui.min.js`、`hisui-lang-zh_CN.js`、`asscom.css`、`adaptation.css`。新建 profile 默认把前四项指向随能力包部署的 `.agents/vendor/hisui/`；现有项目配置不被更新器覆盖，仍以 target profile 为准。profile 配置优先于页面引用；路径始终由目标工程提供，插件脚本不写死业务工程路径。本地资源及 CSS `url(...)` 依赖复制到预览目录并写入 SHA-256 清单；远程资源、依赖目标冲突、越界路径、任一六类资源缺失或内容哈希变化都会停止。CSS 源中不存在的相对依赖会显式进入 manifest，随后由真实浏览器 Network 门禁判断是否被请求失败。纯 fragment 转换不要求携带这些资源，但部署前仍必须生成完整预览。
 
 ```powershell
 node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js preview `
@@ -101,16 +102,32 @@ node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js preview `
   --output-root .\.agents\work\cure-form\preview
 ```
 
-生成的 `preview.html` 内置浏览器探针，暴露 `window.__cureFormPreviewCheck()`。浏览器在 `360/390/430/768/810/1024/1080/1194/1280` 九档宽度分别调用该函数，将结果汇总为 `cure-form-browser-results/v1`，再由 `preview-check` 验证资源加载、`jQuery`、`$.parser`、HISUI panel、radio `label.radio`、完整三节点配对、横向溢出和运行时错误：
+生成的 `preview.html` 内置浏览器探针，暴露 `window.__cureFormPreviewCheck()`。`preview-run` 只在 `127.0.0.1` 启动临时服务，通过 Chromium DevTools Protocol 在 `360/390/430/768/810/1024/1080/1194/1280` 九档宽度采集 Network、Console 和页面探针结果，并写入带 runner 来源的 `cure-form-browser-results/v1`。浏览器可由 `--browser-command` 或 profile 的 `PreviewBrowserCommand` 指定；未配置时按 Windows、macOS、Linux 的常见 Chromium 安装位置发现。`preview-check` 只接受当前 canonical runner 生成的 gate v2 结果，并验证资源加载、CSS 依赖、`jQuery`、`$.parser`、HISUI panel、radio `label.radio`、完整三节点配对、横向溢出、Console 和运行时错误：
 
 ```powershell
+node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js preview-run `
+  --manifest .\.agents\work\cure-form\preview\preview-manifest.json `
+  --target-profile .\.agents\config\cure_form_profile.md `
+  --output .\.agents\work\cure-form\preview\browser-results.json
+
 node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js preview-check `
   --manifest .\.agents\work\cure-form\preview\preview-manifest.json `
   --browser-results .\.agents\work\cure-form\preview\browser-results.json `
   --output .\.agents\work\cure-form\preview\preview-verification.json
 ```
 
-只要 `plan` 提供 `--changes`，就必须同时提供通过的 `--preview-verification`。验证凭证与 snapshot、changes、资源清单和九档宽度哈希绑定；缺失、失败或内容变化都会阻止 `deploymentReady=true`。浏览器模拟仍不能替代旧 WebView 和真实触控设备验收。
+只要 `plan` 提供 `--changes`，就必须同时提供通过的 `--preview-verification`。gate v1 或缺少当前 runner 元数据的旧结果不再接受；验证凭证与当前 gate、runner、snapshot、changes、完整 HTML、六类资源、CSS 依赖和九档结果哈希绑定，预览页在 manifest 生成后被编辑也会立即失败。Chromium 自动验收仍不能替代旧 WebView 和真实触控设备验收。
+
+## 公共模板迁移配置
+
+`common-migrate` 不内置业务 MapCode 或模板 RowID。目标工程从 `templates/cure_form_common_migration.template.json` 创建本地配置，并通过 `--migration-config` 或 profile 的 `CommonMigrationConfig` 提供；生成计划绑定规范化配置哈希：
+
+```powershell
+node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js common-migrate `
+  --inventory .\.agents\work\cure-form\inventory.json `
+  --migration-config .\.agents\config\cure_form_common_migration.json `
+  --output .\.agents\work\cure-form\common-migration-plan.json
+```
 
 ## 响应式兼容门禁
 

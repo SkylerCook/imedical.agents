@@ -16,5 +16,5 @@ description: 将服务器或本地已有 CA/CR 治疗表单改造成 PC、手机
 6. 遇到 radio、表格内控件或公共 CSS 改动时，完整阅读 `../../references/cure-form-responsive-compatibility.md`；保留 `label.radio`、`i-label-box` / `m-label-box` 与对应 `input` 的完整配对，不得无条件隐藏 HISUI 原生圆圈。
 7. 旧 WebView 不支持用于条件重绘的选择器时，保留 HISUI 原生 radio 作为 fallback；若窄宽度仍把圆圈与文字拆行，仅对 `for/id` 一致的完整三节点做幂等原子包装，且必须连同 input 一起移动以保持 `input + label.radio` 邻接。具体 wrapper/class 属于目标工程，不进入插件；不得以现代浏览器视觉通过替代旧内核验证。
 8. 运行静态契约检查后，用 canonical `preview` 生成完整页面；资源必须从目标 profile 或 `--page-html` 解析，不得使用临时脚本补齐。
-9. 浏览器在九档宽度调用页面的 `window.__cureFormPreviewCheck()`，再用 `preview-check` 生成哈希绑定的验收凭证；普通布局和表格单元格都要覆盖完整配对、点击同步、选中态与横向溢出。旧内核另验包装幂等、未配对节点不变和圆圈/文字不拆行。
+9. 使用 canonical `preview-run` 通过 Chromium CDP 在九档宽度调用页面的 `window.__cureFormPreviewCheck()`，再用 `preview-check` 生成绑定当前 gate、runner、六类资源、CSS 依赖及结果哈希的验收凭证；不得用人工拼装 JSON 代替。普通布局和表格单元格都要覆盖完整配对、点击同步、选中态与横向溢出。旧内核另验包装幂等、未配对节点不变和圆圈/文字不拆行。
 10. `plan --changes` 必须传入通过的 `--preview-verification`；浏览器模拟结果与旧 WebView、真实触控设备结果分别记录。

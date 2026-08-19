@@ -105,9 +105,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 .agents/plugins/iris-external-reg/skills/iris-external-reg/SKILL.md
 ```
 
-`iris-cure-form-dev` v0.3.0 起，已初始化项目需要在本地 `.agents/config/cure_form_profile.md` 补齐 `PreviewHisuiCss`、`PreviewJqueryJs`、`PreviewHisuiJs`、`PreviewHisuiLocaleJs`、`PreviewAsscomCss`、`PreviewAdaptationCss`。这些字段只保存目标工程本地资源路径，不进入插件 canonical；也可在执行 `preview` 时通过 `--page-html` 从目标现有完整页面解析。更新脚本不会猜测或覆盖这些项目配置。
+`iris-cure-form-dev` v0.3.0 起，已初始化项目需要在本地 `.agents/config/cure_form_profile.md` 补齐 `PreviewHisuiCss`、`PreviewJqueryJs`、`PreviewHisuiJs`、`PreviewHisuiLocaleJs`、`PreviewAsscomCss`、`PreviewAdaptationCss`。v0.3.2 的新 profile 模板默认将前四项指向随能力包部署的 `.agents/vendor/hisui/`；这些字段仍是目标工程本地路径，也可在执行 `preview` 时通过 `--page-html` 从目标现有完整页面解析。更新脚本不会猜测或覆盖既有项目配置。v0.3.2 可选填写 `PreviewBrowserCommand` 固定 Chromium；使用 `common-migrate` 的项目还需从插件模板创建本地 `cure-form-common-migration-config/v1`，并填写 `CommonMigrationConfig`，业务 MapCode/RowID 不再由插件内置。
 
-已有治疗表单部署流程还需调整为：先运行 `preview` 生成完整页面和 manifest，在九档宽度采集浏览器探针结果，再运行 `preview-check` 生成 `preview-verification.json`。任何 `plan --changes` 都必须传入 `--preview-verification`；旧的 changes 文件可继续使用，但不能绕过新的资源、HISUI 初始化和哈希门禁。
+已有治疗表单部署流程还需调整为：先运行 `preview` 生成完整页面和 manifest，再运行 canonical `preview-run` 自动采集九档 Chromium Network、Console 与页面探针结果，最后运行 `preview-check` 生成 `preview-verification.json`。任何 `plan --changes` 都必须传入 `--preview-verification`；v0.3.2 的 gate v2 不接受旧 preview 凭证或人工结果，旧 changes 文件可继续使用，但必须重新生成资源、CSS 依赖、HISUI 初始化和 runner 哈希证据。
 
 ## 手工 clone 后收敛
 
@@ -442,7 +442,7 @@ source: .agents/plugins/<plugin>/skills/<skill>/SKILL.md
 
 按 manifest `dependencies` 顺序初始化依赖：`codegraph-query` 依赖 `iris-codegraph`，`iris-codegraph` 和 `i18n-iris-plugin` 依赖 `coding-iris-plugin`；`iris-interface-dev`、`iris-cure-form-dev` 和 `iris-external-reg` 依赖 `extract-doc`、`coding-iris-plugin`。依赖未启用时，目标插件初始化必须停止；不能只因插件目录存在就继续。
 
-更新到 `iris-cure-form-dev` v0.3.0 后，检查本地 `cure_form_profile.md` 的六个 `Preview*` 资源字段，并在下一次带 changes 的部署计划前重新生成 `preview-verification.json`。该凭证不会跨 snapshot、changes 或资源变更复用。
+更新到 `iris-cure-form-dev` v0.3.2 后，检查本地 `cure_form_profile.md` 的六个资源字段；按需追加 `PreviewBrowserCommand` 和 `CommonMigrationConfig`，不要覆盖既有项目配置。下一次带 changes 的部署计划前必须按 `preview` → `preview-run` → `preview-check` 重新生成 gate v2 凭证；该凭证不会跨 snapshot、changes、资源、CSS 依赖、runner 或 gate 变更复用。
 
 插件 init skill 验收通过后，用统一脚本反写状态：
 
