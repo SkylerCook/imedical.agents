@@ -4,6 +4,8 @@
 
 ## 近期已完成
 
+- 2026-08-20：`iris-cure-form-dev` 升级为 v0.5.0，将主执行链和 persistent staged transport 的固定事务类迁移到 `DHCDoc.Cure.AI.CureFormDeploy`，不新增 profile 类名配置，也不保留旧类 fallback；README、owner 文档、部署 rule/skill/reference、更新 Runbook、根总览、breaking 发布记录和类名防回归门禁同步。目标实例只读审计确认新旧类均已编译、服务器源码从方法体起完全一致，新类服务器源码与本地文件一致；`InspectInventory` 及四组无写入错误路径返回逐字相同的合法 JSON。Node 语法、插件专项和 `update-agents` 回归均通过 PowerShell 7/Windows PowerShell 5.1，组件版本治理 16 项专项与 breaking worktree validator、两种宿主 thin-index DryRun、旧类残留、差异格式和临时路径污染检查通过；删除旧类仍须等待业务项目更新到 v0.5.0 并确认无旧调用方。
+
 - 2026-08-19：修复 standard 工作区从旧 sparse checkout 跨版本更新时的 `WorkspaceContext.psm1` 自举死锁：旧进程即使拉取了新版脚本，仍可能用内存中的 `/scripts/*.ps1` 清单遗漏 `scripts/lib/**`；新版更新器现会在自更新恢复、`Write` 或允许拉取的 `DryRun` 中，先验证干净的独立 capability Git checkout 并收敛当前完整运行时 sparse 清单，再加载 resolver。`Check` 与显式 `DryRun -NoPull` 保持只读，失败状态明确停止。新增真实 Git sparse 回归覆盖“只读不修复、恢复后模块落盘及规则持久化”，README 与更新 Runbook 同步；`update-agents` 回归通过 PowerShell 7 和 Windows PowerShell 5.1，组件版本治理 15 项检查、16 项 Node 专项、差异格式与临时路径污染检查通过。
 
 - 2026-08-19：完成插件与根级独立 skill 的源仓版本治理基线：13 个插件保留现有严格 SemVer，2 个独立 skill 从 `0.1.0` 起步，插件内部内容统一继承 owner 版本；新增不可变 `releases/plugin|skill/<name>/<version>.md`、旁路 `dependencyVersions` 和维护者专用 Node inventory/validate/compare 工具。`iris-cure-form-dev 0.4.0` 以 `c79055e` 建立真实 breaking minor 记录，其余组件建立一次 baseline。版本工具不接入 install/update、thin-index、业务 hook 或 sparse checkout；16 项 Node 专项、真实仓库 15 组件 bootstrap 校验以及 `update-agents` PowerShell 7/Windows PowerShell 5.1 回归通过，三个现有部署/更新入口保持无差异。

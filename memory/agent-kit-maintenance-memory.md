@@ -58,7 +58,7 @@
 - vendor skill 已改为按 enabled 插件 capability 发现：`vendor/superpowers/` 和 `vendor/word-reader/` 仍随 `/vendor/**` 部署作为 fallback，但常规安装/更新不再全量写用户目录；resolver 只为 required skill 生成 `.agents/skills` 通用入口，optional 按任务触发，用户级 runtime 同步必须显式指定 skill。
 - 已新增并重构 `imedicalxc-doctor-extend-engineer` 插件，采用标准插件结构、内置多模块 Maven 依赖安装脚本，thin-index wrapper 默认只暴露主编排器入口，医生站第三方集成子 skill 由主编排器按需加载。
 - `iris-cure-form-dev` 文档新建流程默认以业务项目 `docs/` 为需求入口、`docs/cure-form/<moduleId>/` 为开发产物目录；插件不再使用 `src-iris` 默认目录，服务器快照与部署临时数据仍位于 `.agents/work/`，多个文档候选必须显式选择。
-- `iris-cure-form-dev` v0.4.0 保留 gate v2 与 canonical Chromium runner，并为 `expectedVersion=NEW` 的新建表单增加部署前后人工交互凭证；用户总体确认可通过，Agent 自测须逐项记录，自动交互 v1 拒绝。新 profile 默认使用 `.agents/vendor/hisui/`，现有项目更新后保留本地六资源配置；`common-migrate` 继续使用项目自有 `cure-form-common-migration-config/v1`。
+- `iris-cure-form-dev` v0.5.0 保留 gate v2、canonical Chromium runner 与新建表单部署前后人工交互凭证，并将服务端事务入口固定迁移到 `DHCDoc.Cure.AI.CureFormDeploy`；不从 profile 注入类名，也不回退旧部署类。已部署项目须先编译新类、更新能力包并确认全部调用方切换后再删除旧类。新 profile 默认使用 `.agents/vendor/hisui/`，现有项目更新后保留本地六资源配置；`common-migrate` 继续使用项目自有 `cure-form-common-migration-config/v1`。
 - 已精简 `imedicalxc-doctor-dbdata` skill，聚焦数据库查询核心规范，重点保留医保对照、基础数据统一对照和合并查询（Merge Query）等高价值领域知识，并同步更新医生站扩展主编排器和架构引用。
 - 已新增 `demo/presentation/` 演示页面，作为能力包、i18n skill 和多智能体架构的可视化说明材料；它不属于业务项目运行入口。
 - 已新增部署经验沉淀入口 `feedback/experience/deploy-com-exp.md` 和首个专项部署工具目录 `docs/deploy/dental-ta-159/`；这类内容可随 `docs/` 部署，但不得把业务私有连接信息写入记忆或规则。

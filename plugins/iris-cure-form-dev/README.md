@@ -29,6 +29,10 @@ node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js <command> [options]
 
 所有写入型部署命令默认 `dry-run`。`MapType` 为空的病理模板始终排除。
 
+## v0.5.0 部署类迁移
+
+治疗表单事务入口已固定迁移到 `DHCDoc.Cure.AI.CureFormDeploy`。插件不再调用或回退到旧部署类，也不会从 target profile 接受可变类名。升级已部署项目时，必须先在目标 IRIS namespace 上传并编译新类，再刷新 `.agents` 和已启用插件的 thin-index；确认所有调用方均已使用 v0.5.0 后，才可删除旧类。该顺序避免旧客户端报类不存在，也避免写事务在不明确的 fallback 路径中被重复执行。
+
 ## 默认开发目录
 
 文档驱动的新表单以当前业务项目为默认 `--project-root`：医院提供的 Word、PDF、Excel 文件通常放在项目 `docs/`，规格、摄取报告和生成的 HTML/JavaScript/fragment/CSS 默认写入 `docs/cure-form/<moduleId>/`。插件不再使用 `src-iris` 作为默认或推荐目录。

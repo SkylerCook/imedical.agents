@@ -9,6 +9,7 @@ const { spawnSync } = require('child_process');
 
 const MIN_NODE = [22, 5, 0];
 const FORM_TYPES = new Set(['CA', 'CR']);
+const CURE_FORM_DEPLOY_CLASS = 'DHCDoc.Cure.AI.CureFormDeploy';
 const REMOTE_CHUNK_SIZE = 12000;
 const MAX_REMOTE_RESULT_LENGTH = 5 * 1024 * 1024;
 const MAX_INLINE_SERVER_ARGUMENT = 8000;
@@ -1124,7 +1125,7 @@ function invokeServerDirect(method, methodArgs, args, write) {
   if (!fs.existsSync(helper)) fail(`iris-mcp.js was not found: ${helper}`);
   if (!args.confirmRemoteExecution) fail('Remote ClassMethod execution requires explicit --confirm-remote-execution.');
   if (!['InspectForm', 'ValidatePackage', 'ApplyPackage', 'VerifyOperation', 'RollbackOperation', 'PutPackageChunk', 'ValidateStagedPackage', 'ApplyStagedPackage', 'ClearStagedPackage'].includes(method)) fail('Server method is not in the cure deployment allowlist.');
-  const methodCall = `##class(web.DHCDocAPPBLDeploy).${method}(${methodArgs.map(objectScriptArgument).join(',')})`;
+  const methodCall = `##class(${CURE_FORM_DEPLOY_CLASS}).${method}(${methodArgs.map(objectScriptArgument).join(',')})`;
   if (write && !args.confirmWrite) fail('Server write requires explicit --confirm-write.');
   const transport = invokeIrisExecute(helper, `write ${methodCall}`);
   if (transport && typeof transport === 'object' && transport.success === true && transport.output === '') {

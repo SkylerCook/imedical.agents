@@ -1,6 +1,6 @@
 # 治疗表单部署约束
 
-- 产品侧事务入口固定为 `web.DHCDocAPPBLDeploy`。
+- 产品侧事务入口固定为 `DHCDoc.Cure.AI.CureFormDeploy`；不从 target profile 解析类名，也不回退到旧部署类。
 - 只允许调用 `InspectForm`、`ValidatePackage`、`ApplyPackage`、`VerifyOperation`、`RollbackOperation`。当前 MCP 没有 `iris_execute_method` 时，客户端使用 `iris_execute` 生成固定白名单 ClassMethod 调用，所有参数 Base64 编码；不得接受外部类名、方法名或任意 ObjectScript。
 - 包内必须包含 `cure-form-package/v1`、CA/CR 类型、期望版本、期望内容哈希、操作者、原因和已批准规格哈希。
 - 带 `changes` 的包必须包含通过的 `cure-form-preview-verification/v1`；客户端必须核对当前 gate 与 canonical Chromium runner、snapshot、预览源 changes、最终计划 changes、完整 HTML、六类资源、CSS 依赖清单及九档宽度哈希，并将凭证放入包内供服务端审计，旧 gate、缺少 runner 元数据、页面后改或任一失配凭证不得进入部署就绪状态。

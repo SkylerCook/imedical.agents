@@ -111,6 +111,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 `iris-cure-form-dev` v0.4.0 为 `expectedVersion=NEW` 的新建表单增加人工交互门禁。更新不会改写现有项目 profile，也不影响存量响应式改造；新建表单在 `plan` 前必须运行 `interaction-prepare --stage pre-deploy`，由用户明确确认整体通过或由 Agent 逐项记录后运行 `interaction-check`，并将生成的 `--interaction-verification` 传给 `plan`。部署后还需生成绑定 package/operation ID 的人工清单，完成保存、重开、回显、打印和 CR 运行时契约验证。v1 不接受自动交互结果；批量脚本化点击、输入或选择必须先取得用户明确确认。
 
+`iris-cure-form-dev` v0.5.0 将服务端事务入口固定迁移为 `DHCDoc.Cure.AI.CureFormDeploy`，不再调用或回退到旧部署类，也不新增 profile 配置项。已部署项目必须先在目标 IRIS namespace 上传并编译新类，再更新 `.agents`、重建已启用插件 thin-index，并确认所有调用方都已切换到 v0.5.0；完成这些检查后才可删除旧类。
+
 ## 手工 clone 后收敛
 
 有些用户习惯先手工克隆仓库：
@@ -451,6 +453,8 @@ source: .agents/plugins/<plugin>/skills/<skill>/SKILL.md
 更新到 `iris-cure-form-dev` v0.3.2 后，检查本地 `cure_form_profile.md` 的六个资源字段；按需追加 `PreviewBrowserCommand` 和 `CommonMigrationConfig`，不要覆盖既有项目配置。下一次带 changes 的部署计划前必须按 `preview` → `preview-run` → `preview-check` 重新生成 gate v2 凭证；该凭证不会跨 snapshot、changes、资源、CSS 依赖、runner 或 gate 变更复用。
 
 更新到 v0.4.0 后，存量表单流程保持兼容；只有 `expectedVersion=NEW` 的新建表单必须在 `plan` 前追加 `interaction-prepare` → 人工测试 → `interaction-check`，并传入 `--interaction-verification`。用户明确反馈测试通过可形成总体确认，Agent 自测必须逐项记录；部署后人工验证未通过时不得宣告任务完成，也不得自动回滚。
+
+更新到 v0.5.0 前，先确认目标 IRIS namespace 已编译 `DHCDoc.Cure.AI.CureFormDeploy`。更新和 thin-index 重建完成、全部调用方均不再使用旧插件后，才删除旧部署类；canonical 不提供旧类 fallback。
 
 插件 init skill 验收通过后，用统一脚本反写状态：
 

@@ -6,6 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
 
+const CURE_FORM_DEPLOY_CLASS = 'DHCDoc.Cure.AI.CureFormDeploy';
 const CHUNK_SIZE = 6000;
 const ALLOWED_METHODS = new Set(['InspectForm', 'ValidatePackage', 'ApplyPackage']);
 const RESULT_CHUNK_SIZE = 12000;
@@ -142,7 +143,7 @@ function buildServerArgs(workspaceRoot, server) {
 }
 
 async function callClassMethod(client, namespace, method, methodArgs) {
-  const methodCall = `##class(web.DHCDocAPPBLDeploy).${method}(${methodArgs.map(objectScriptArgument).join(',')})`;
+  const methodCall = `##class(${CURE_FORM_DEPLOY_CLASS}).${method}(${methodArgs.map(objectScriptArgument).join(',')})`;
   return unwrap(await callCode(client, namespace, `write ${methodCall}`));
 }
 
@@ -191,7 +192,7 @@ async function main() {
     if (method === 'InspectForm') {
       const formType = requireOption(args, 'formType');
       const mapCode = requireOption(args, 'mapCode');
-      const methodCall = `##class(web.DHCDocAPPBLDeploy).InspectForm(${[formType, mapCode].map(objectScriptArgument).join(',')})`;
+      const methodCall = `##class(${CURE_FORM_DEPLOY_CLASS}).InspectForm(${[formType, mapCode].map(objectScriptArgument).join(',')})`;
       const lengthText = transportText(await callCode(client, namespace, `set value=${methodCall} write $length(value)`)).trim();
       if (!/^\d+$/.test(lengthText)) fail('Remote InspectForm returned no readable result length.');
       const length = Number(lengthText);

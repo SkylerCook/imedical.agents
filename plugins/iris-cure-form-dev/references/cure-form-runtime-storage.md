@@ -33,4 +33,4 @@ Map code 索引为 `^DHCDocAppBLMapi("MapCode",code,rowId)`。
 - CR 宿主：`cure-ws/.../record.recordtemp.js`，负责 `SaveCureRecord`、`CureExpJsonStr`、`ServerObj.MapID`、回显和打印。
 - 表单模块公开 `Init/OtherInfo/PrintInfo`，不得重新定义 CR 宿主保存入口。
 
-`web.DHCDocAPPBL` 是现有维护和读取实现；自动部署只调用 `web.DHCDocAPPBLDeploy`，避免旧方法中的非事务更新与调试断点。
+`web.DHCDocAPPBL` 是现有维护和读取实现；自动部署只调用 `DHCDoc.Cure.AI.CureFormDeploy`，避免旧方法中的非事务更新与调试断点。插件不回退到旧部署类，防止写入调用因类路由不明确而被重复执行。

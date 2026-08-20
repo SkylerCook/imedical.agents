@@ -328,7 +328,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - canonical `preview` 从目标 profile 或现有页面解析六类 HISUI/公共资源并生成带 CSS 依赖哈希的完整页面；`preview-run` 通过本地 Chromium CDP 自动采集九档 Network、Console 与 HISUI 初始化结果，`preview-check` 只接受当前 gate/runner 并固化与 snapshot、changes、资源及依赖哈希绑定的部署前置凭证。
 - 新建表单以 `expectedVersion=NEW` 判定，使用 `interaction-prepare`/`interaction-check` 生成部署前、部署后人工交互清单与哈希凭证；用户明确反馈整体通过即可确认，Agent 自测必须逐项记录，批量自动交互执行前必须另行获得用户明确确认。
 - `common-migrate` 的优先 MapCode 与公共模板 RowID 由目标工程 `cure-form-common-migration-config/v1` 提供，插件 canonical 不保存业务种子。
-- 生成 `cure-form-package/v1`，通过专用服务端事务执行 dry-run、受控写入、回读和回滚。
+- 生成 `cure-form-package/v1`，通过固定服务端事务类 `DHCDoc.Cure.AI.CureFormDeploy` 执行 dry-run、受控写入、回读和回滚；v0.5.0 不再回退到旧部署类。
 - 只允许 CA/CR；`MapType` 为空的病理模板始终排除。
 - ObjectScript/HISUI 编码、MCP 和静态资源上传编译复用 `coding-iris-plugin`。
 

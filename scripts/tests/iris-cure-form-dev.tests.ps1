@@ -106,7 +106,7 @@ try {
 
     $manifest = Get-Content -LiteralPath (Join-Path $pluginRoot '.agents-plugin\plugin.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($manifest.name -eq 'iris-cure-form-dev') 'Unexpected plugin name.'
-    Assert-True ($manifest.version -eq '0.4.0') 'Unexpected plugin version.'
+    Assert-True ($manifest.version -eq '0.5.0') 'Unexpected plugin version.'
     Assert-True (($manifest.dependencies -contains 'extract-doc') -and ($manifest.dependencies -contains 'coding-iris-plugin')) 'Plugin dependencies are incomplete.'
 
     foreach ($skill in @('cure-form-init','cure-form-requirement-adapter','cure-assess-form-dev','cure-record-form-dev','cure-form-responsive','make-assess-form-responsive','cure-form-deploy','cure-form-lookup','cure-form-fragment')) {
@@ -129,6 +129,11 @@ try {
     & node --check $browserRunner
     if ($LASTEXITCODE -ne 0) { throw 'Canonical Chromium browser runner syntax check failed.' }
     $stagedTransportContent = Get-Content -LiteralPath $stagedTransport -Raw -Encoding UTF8
+    Assert-True ($cliContent -match "CURE_FORM_DEPLOY_CLASS = 'DHCDoc\.Cure\.AI\.CureFormDeploy'") 'Main transport must target the canonical cure deployment class.'
+    Assert-True ($stagedTransportContent -match "CURE_FORM_DEPLOY_CLASS = 'DHCDoc\.Cure\.AI\.CureFormDeploy'") 'Staged transport must target the canonical cure deployment class.'
+    Assert-True ($cliContent -match '##class\(\$\{CURE_FORM_DEPLOY_CLASS\}\)') 'Main transport must build calls from the fixed canonical deployment class.'
+    Assert-True (([regex]::Matches($stagedTransportContent, '##class\(\$\{CURE_FORM_DEPLOY_CLASS\}\)')).Count -eq 2) 'Staged transport must use the fixed canonical deployment class for direct and chunked calls.'
+    Assert-True (($cliContent -notmatch 'web\.DHCDocAPPBLDeploy') -and ($stagedTransportContent -notmatch 'web\.DHCDocAPPBLDeploy')) 'Runtime transports must not retain the retired deployment class or fallback.'
     Assert-True (($cliContent -match "'PutPackageChunk'") -and ($cliContent -match "'ValidateStagedPackage'") -and ($cliContent -match "'ApplyStagedPackage'") -and ($cliContent -match "'ClearStagedPackage'")) 'Staged package method allowlist is missing.'
     Assert-True (($cliContent -match "call', 'iris_execute'") -and ($cliContent -match 'Base64Decode') -and ($cliContent -match '\$zconvert')) 'Current MCP iris_execute UTF-8 adapter is incomplete.'
     Assert-True (($cliContent -match "'--json-file'") -and ($cliContent -match 'mkdtempSync')) 'Large MCP request payloads must use a temporary JSON file instead of argv.'
