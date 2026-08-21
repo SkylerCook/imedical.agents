@@ -1,12 +1,17 @@
 # 治疗表单部署约束
 
 - 产品侧事务入口固定为 `DHCDoc.Cure.AI.CureFormDeploy`；不从 target profile 解析类名，也不回退到旧部署类。
-- 只允许调用 `InspectForm`、`ValidatePackage`、`ApplyPackage`、`VerifyOperation`、`RollbackOperation`。当前 MCP 没有 `iris_execute_method` 时，客户端使用 `iris_execute` 生成固定白名单 ClassMethod 调用，所有参数 Base64 编码；不得接受外部类名、方法名或任意 ObjectScript。
+- 普通部署只允许调用 `InspectForm`、`ValidatePackage`、`ApplyPackage`、`VerifyOperation`、`RollbackOperation`；单 Map 灰度模板正式合并另允许 `InspectConsolidation`、`ValidateConsolidation`、`ApplyConsolidation`；共享公共模板合并另允许 `InspectSharedConsolidation`、`ValidateSharedConsolidation`、`ApplySharedConsolidation`；零引用旧模板清理另允许 `InspectCleanup`、`ValidateCleanup`、`ApplyCleanup`。当前 MCP 没有 `iris_execute_method` 时，客户端使用 `iris_execute` 生成固定白名单 ClassMethod 调用，所有参数 Base64 编码；不得接受外部类名、方法名或任意 ObjectScript。
 - 包内必须包含 `cure-form-package/v1`、CA/CR 类型、期望版本、期望内容哈希、操作者、原因和已批准规格哈希。
 - 带 `changes` 的包必须包含通过的 `cure-form-preview-verification/v1`；客户端必须核对当前 gate 与 canonical Chromium runner、snapshot、预览源 changes、最终计划 changes、完整 HTML、六类资源、CSS 依赖清单及九档宽度哈希，并将凭证放入包内供服务端审计，旧 gate、缺少 runner 元数据、页面后改或任一失配凭证不得进入部署就绪状态。
 - 新建表单以 package 的 `expectedVersion=NEW` 判定；必须额外包含通过的部署前 `cure-form-interaction-verification/v1`，并与当前 approved spec、snapshot、changes、preview verification 和 manifest 哈希一致。存量响应式改造不强制此凭证。
+- 新开发表单直接创建正式模板，不使用灰度，也不调用 `consolidate`、`consolidate-shared` 或 `cleanup`。只有现有模板改造才允许使用响应式灰度 RowID，并必须在验收后回归正式 RowID。
 - 客户端只编排；服务端重新校验类型、版本、哈希、组成关系和包内容。
 - 任一步失败时回滚整个业务事务，并记录前后快照、哈希、状态和回滚关联。
+- `cure-form-consolidation/v1` 仅用于把 Map 当前独占的响应式灰度模板合并回 `APP_LastID` 指向的正式 RowID：只覆盖正式 `APP_Content`，保持正式元数据和缓存项，原位切换 Map 引用后在同一事务删除灰度模板及其缓存；DOM/radio/缓存集合、RowID 一对一关系或跨 Map 引用不满足时必须停止。
+- `cure-form-cleanup/v1` 仅用于清理已完成 Map 切换且全库零引用的旧模板：检查与执行都必须绑定旧模板、已引用的响应式替代模板、双方内容和完整快照哈希；单一事务只删除旧模板及其缓存，不修改 Map 和替代模板。发现旧模板仍被引用、替代模板未引用或任一哈希漂移时整批停止。
+- `cure-form-shared-consolidation/v1` 仅用于把被多个 Map 共用的响应式灰度公共模板推广到已有正式 RowID：一次事务覆盖正式 `APP_Content`、原位切换全部引用 Map 并删除灰度模板及缓存；正式元数据和缓存项保持不变。全部受影响 Map、DOM/radio、缓存契约及模板快照必须绑定检查哈希，任一漂移时整批停止。
+- `consolidate` / `consolidate-shared` 写入后必须使用 operation ID 调用 `VerifyOperation` 并重新检查全部受影响 Map；只有正式 RowID 已生效、灰度引用数为 `0`、灰度模板及缓存均不存在时，现有模板改造才可完成。`cleanup` 不满足“回归正式 RowID”语义，只能处理已切换引用后的孤儿模板。
 - 禁止将服务器快照或凭据写入插件目录；快照只允许位于 `.agents/work/`。
 - `InspectForm` 等只读方法结果超过 MCP stdout 单次上限时，客户端先读取结果长度，再以固定大小 `$extract` 分块回读并重组；写入方法返回空结果时必须停止，禁止以分块或重试方式重复执行写事务。
 - 现有服务器模板的响应式转换必须同时添加 `assess-form assess-form--responsive` 根契约、`assess-form-grid`/`assess-measurement-table` 表格契约和四列测量表 `colgroup`，并删除业务根节点固定 `min-width`；旧 `cure-form-responsive` 类只作为兼容标记保留。

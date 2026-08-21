@@ -106,7 +106,7 @@ try {
 
     $manifest = Get-Content -LiteralPath (Join-Path $pluginRoot '.agents-plugin\plugin.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($manifest.name -eq 'iris-cure-form-dev') 'Unexpected plugin name.'
-    Assert-True ($manifest.version -eq '0.5.0') 'Unexpected plugin version.'
+    Assert-True ($manifest.version -eq '0.6.0') 'Unexpected plugin version.'
     Assert-True (($manifest.dependencies -contains 'extract-doc') -and ($manifest.dependencies -contains 'coding-iris-plugin')) 'Plugin dependencies are incomplete.'
 
     foreach ($skill in @('cure-form-init','cure-form-requirement-adapter','cure-assess-form-dev','cure-record-form-dev','cure-form-responsive','make-assess-form-responsive','cure-form-deploy','cure-form-lookup','cure-form-fragment')) {
@@ -146,6 +146,142 @@ try {
     Assert-True ($cliContent -match 'refusing to repeat a state-changing call') 'Empty write results must not trigger a repeated server write.'
     Assert-True (($cliContent -match "invokeServer\('ValidatePackage'") -and ($cliContent -match "invokeServer\('ApplyPackage'")) 'ValidatePackage and ApplyPackage must remain separate deployment paths.'
     Assert-True ($cliContent -match 'if \(!args\.confirmWrite\)') 'Apply must preserve the default dry-run branch before any remote write.'
+    Assert-True (($cliContent -match "'consolidate'") -and ($cliContent -match "invokeServer\('ValidateConsolidation'") -and ($cliContent -match "invokeServer\('ApplyConsolidation'")) 'Consolidation must expose separate dry-run and write paths.'
+    Assert-True (($stagedTransportContent -match "'InspectConsolidation'") -and ($stagedTransportContent -match "'ValidateConsolidation'") -and ($stagedTransportContent -match "'ApplyConsolidation'")) 'Persistent transport is missing consolidation methods.'
+    Assert-True (($cliContent -match "'cleanup'") -and ($cliContent -match "invokeServer\('ValidateCleanup'") -and ($cliContent -match "invokeServer\('ApplyCleanup'")) 'Cleanup must expose separate dry-run and write paths.'
+    Assert-True (($stagedTransportContent -match "'InspectCleanup'") -and ($stagedTransportContent -match "'ValidateCleanup'") -and ($stagedTransportContent -match "'ApplyCleanup'")) 'Persistent transport is missing cleanup methods.'
+    Assert-True (($cliContent -match "'consolidate-shared'") -and ($cliContent -match "invokeServer\('ValidateSharedConsolidation'") -and ($cliContent -match "invokeServer\('ApplySharedConsolidation'")) 'Shared consolidation must expose separate dry-run and write paths.'
+    Assert-True (($stagedTransportContent -match "'InspectSharedConsolidation'") -and ($stagedTransportContent -match "'ValidateSharedConsolidation'") -and ($stagedTransportContent -match "'ApplySharedConsolidation'")) 'Persistent transport is missing shared consolidation methods.'
+
+    $consolidationSnapshotPath = Join-Path $scratch 'consolidation.snapshot.json'
+    $consolidationPackagePath = Join-Path $scratch 'consolidation.package.json'
+    $sourceContent = '<div id="FormalRoot" class="hisui-panel cure-form-responsive assess-form assess-form--responsive"><table class="item-table assess-form-grid"><tr><td><input id="ChoiceA" class="hisui-radio" type="radio" name="Choice" value="A"><label class="i-label-box" for="ChoiceA">A</label></td></tr></table></div>'
+    $targetContent = '<div id="FormalRoot" class="hisui-panel"><table class="item-table"><tr><td><input id="ChoiceA" class="hisui-radio" type="radio" name="Choice" value="A"><label class="i-label-box" for="ChoiceA">A</label></td></tr></table></div>'
+    $consolidationSnapshot = [ordered]@{
+        schema = 'cure-form-consolidation-snapshot/v1'
+        formType = 'CA'
+        mapCode = 'FixtureMap'
+        version = 3
+        contentHash = 'fixture-current-hash'
+        mappings = @([ordered]@{
+            source = [ordered]@{ rowId = '900'; name = '响应式灰度'; appId = 'FormalRoot'; mapType = 'CA'; lastId = '100'; content = $sourceContent; js = ''; items = @([ordered]@{ rowId = '1900'; id = 'ChoiceA'; templateRowId = '900' }) }
+            target = [ordered]@{ rowId = '100'; name = '正式模板'; appId = 'FormalRoot'; mapType = 'CA'; lastId = '0'; content = $targetContent; js = ''; items = @([ordered]@{ rowId = '1100'; id = 'ChoiceA'; templateRowId = '100' }) }
+            sourceContentHash = 'server-source-hash'
+            targetContentHash = 'server-target-hash'
+            sourceCacheContractHash = 'server-cache-hash'
+            targetCacheContractHash = 'server-cache-hash'
+        })
+    }
+    $consolidationSnapshot | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $consolidationSnapshotPath -Encoding UTF8
+    Invoke-Cure @('consolidate','--snapshot',$consolidationSnapshotPath,'--expected-count','1','--output',$consolidationPackagePath) | Out-Null
+    $consolidationPackage = Get-Content -LiteralPath $consolidationPackagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert-True (($consolidationPackage.schema -eq 'cure-form-consolidation/v1') -and ($consolidationPackage.mappings.Count -eq 1)) 'Consolidation package generation failed.'
+    Assert-True (($consolidationPackage.mappings[0].sourceContentHash -eq 'server-source-hash') -and ($consolidationPackage.mappings[0].cacheContractHash -eq 'server-cache-hash')) 'Consolidation package must bind server-computed hashes.'
+    $consolidationDryRun = Invoke-Cure @('consolidate','--package',$consolidationPackagePath)
+    Assert-True ($consolidationDryRun -match '"dryRun": true') 'Consolidation must default to offline dry-run.'
+    $countDrift = Invoke-Cure @('consolidate','--snapshot',$consolidationSnapshotPath,'--expected-count','8','--output',(Join-Path $scratch 'count-drift.json')) 1
+    Assert-True ($countDrift -match 'mapping count changed') 'Consolidation must reject mapping-count drift.'
+    $badCacheSnapshot = $consolidationSnapshot | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+    $badCacheSnapshot.mappings[0].target.items[0].id = 'ChangedCache'
+    $badCachePath = Join-Path $scratch 'consolidation.bad-cache.json'
+    $badCacheSnapshot | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $badCachePath -Encoding UTF8
+    $badCache = Invoke-Cure @('consolidate','--snapshot',$badCachePath,'--output',(Join-Path $scratch 'bad-cache.package.json')) 1
+    Assert-True ($badCache -match 'Cache field contract differs') 'Consolidation must reject cache-contract drift.'
+    $badDomSnapshot = $consolidationSnapshot | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+    $badDomSnapshot.mappings[0].target.content = $targetContent.Replace('ChoiceA','ChoiceB')
+    $badDomPath = Join-Path $scratch 'consolidation.bad-dom.json'
+    $badDomSnapshot | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $badDomPath -Encoding UTF8
+    $badDom = Invoke-Cure @('consolidate','--snapshot',$badDomPath,'--output',(Join-Path $scratch 'bad-dom.package.json')) 1
+    Assert-True ($badDom -match 'DOM/radio contract differs') 'Consolidation must reject DOM/radio-contract drift.'
+
+    $sharedSnapshotPath = Join-Path $scratch 'shared-consolidation.snapshot.json'
+    $sharedPackagePath = Join-Path $scratch 'shared-consolidation.package.json'
+    $sharedSourceContent = '<div id="SharedRoot" class="hisui-panel assess-form assess-form--responsive"><table class="item-table assess-form-grid"><tr><td><input id="SharedChoice" class="hisui-radio" type="radio" name="Shared" value="Y"><label class="i-label-box" for="SharedChoice">Y</label></td></tr></table></div>'
+    $sharedTargetContent = '<div id="SharedRoot" class="hisui-panel"><table class="item-table"><tr><td><input id="SharedChoice" class="hisui-radio" type="radio" name="Shared" value="Y"><label class="i-label-box" for="SharedChoice">Y</label></td></tr></table></div>'
+    $sharedSnapshot = [ordered]@{
+        schema = 'cure-form-shared-consolidation-snapshot/v1'; formType = 'CA'; scopeId = 'shared-fixture'
+        sourceIds = '900'; targetIds = '100'; contentHash = 'shared-inspection-hash'; error = ''
+        mappings = @([ordered]@{ sourceRowId='900'; targetRowId='100'; appId='SharedRoot'; sourceContentHash='shared-source-content'; targetContentHash='shared-target-content'; sourceSnapshotHash='shared-source-snapshot'; targetSnapshotHash='shared-target-snapshot'; sourceReferenceCount=1; targetReferenceCount=2; sourceCacheContractHash='shared-cache'; targetCacheContractHash='shared-cache'; sourceCacheDuplicate=0; targetCacheDuplicate=0 })
+        sourceTemplates = @([ordered]@{ rowId='900'; name='共享灰度'; appId='SharedRoot'; mapType='CA'; lastId='0'; content=$sharedSourceContent; js=''; items=@([ordered]@{rowId='1900';id='SharedChoice';templateRowId='900'}) })
+        targetTemplates = @([ordered]@{ rowId='100'; name='共享正式'; appId='SharedRoot'; mapType='CA'; lastId='0'; content=$sharedTargetContent; js=''; items=@([ordered]@{rowId='1100';id='SharedChoice';templateRowId='100'}) })
+        maps = @([ordered]@{ rowId='77'; code='SharedMap'; name='共享Map'; showTemp='900||200'; active='Y'; mapType='CA' })
+    }
+    $sharedSnapshot | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $sharedSnapshotPath -Encoding UTF8
+    Invoke-Cure @('consolidate-shared','--snapshot',$sharedSnapshotPath,'--expected-count','1','--expected-map-count','1','--output',$sharedPackagePath) | Out-Null
+    $sharedPackage = Get-Content -LiteralPath $sharedPackagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert-True (($sharedPackage.schema -eq 'cure-form-shared-consolidation/v1') -and ($sharedPackage.mappings.Count -eq 1) -and ($sharedPackage.maps.Count -eq 1)) 'Shared consolidation package generation failed.'
+    Assert-True (($sharedPackage.maps[0].beforeComposition -eq '900||200') -and ($sharedPackage.maps[0].afterComposition -eq '100||200')) 'Shared consolidation must preserve Map order while replacing RowIDs.'
+    $sharedDryRun = Invoke-Cure @('consolidate-shared','--package',$sharedPackagePath)
+    Assert-True ($sharedDryRun -match '"dryRun": true') 'Shared consolidation must default to offline dry-run.'
+    $duplicateSharedPackage = $sharedPackage | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+    $duplicateSharedPackage.mappings = @($duplicateSharedPackage.mappings[0], $duplicateSharedPackage.mappings[0])
+    $duplicateSharedPackagePath = Join-Path $scratch 'shared-duplicate-mapping.package.json'
+    $duplicateSharedPackage | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $duplicateSharedPackagePath -Encoding UTF8
+    $duplicateSharedMapping = Invoke-Cure @('consolidate-shared','--package',$duplicateSharedPackagePath) 1
+    Assert-True ($duplicateSharedMapping -match 'one-to-one') 'Shared consolidation package validation must reject duplicate mappings.'
+    $driftedSharedPackage = $sharedPackage | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+    $driftedSharedPackage.maps[0].afterComposition = '200||100'
+    $driftedSharedPackagePath = Join-Path $scratch 'shared-composition-drift.package.json'
+    $driftedSharedPackage | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $driftedSharedPackagePath -Encoding UTF8
+    $driftedSharedComposition = Invoke-Cure @('consolidate-shared','--package',$driftedSharedPackagePath) 1
+    Assert-True ($driftedSharedComposition -match 'afterComposition does not match') 'Shared consolidation package validation must reject Map composition drift.'
+    $sharedMapDrift = Invoke-Cure @('consolidate-shared','--snapshot',$sharedSnapshotPath,'--expected-map-count','26','--output',(Join-Path $scratch 'shared-map-drift.json')) 1
+    Assert-True ($sharedMapDrift -match 'Map count changed') 'Shared consolidation must reject affected-Map-count drift.'
+    $duplicateSharedSnapshot = $sharedSnapshot | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+    $duplicateSharedSnapshot.maps[0].showTemp = '100||900'
+    $duplicateSharedPath = Join-Path $scratch 'shared-duplicate.json'
+    $duplicateSharedSnapshot | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $duplicateSharedPath -Encoding UTF8
+    $duplicateShared = Invoke-Cure @('consolidate-shared','--snapshot',$duplicateSharedPath,'--output',(Join-Path $scratch 'shared-duplicate.package.json')) 1
+    Assert-True ($duplicateShared -match 'duplicate template RowIDs') 'Shared consolidation must reject duplicate target RowIDs in a Map.'
+
+    $cleanupSnapshotPath = Join-Path $scratch 'cleanup.snapshot.json'
+    $cleanupPackagePath = Join-Path $scratch 'cleanup.package.json'
+    $cleanupSnapshot = [ordered]@{
+        schema = 'cure-form-cleanup-snapshot/v1'
+        formType = 'CA'
+        scopeId = 'cleanup-fixture'
+        sourceIds = @('10')
+        replacementIds = @('20')
+        contentHash = 'server-cleanup-inspection-hash'
+        entries = @([ordered]@{
+            sourceRowId = '10'; replacementRowId = '20'; appId = 'CleanupRoot'
+            sourceReferenceCount = 0; replacementReferenceCount = 1
+            sourceContentHash = 'source-content-hash'; replacementContentHash = 'replacement-content-hash'
+            sourceSnapshotHash = 'source-snapshot-hash'; replacementSnapshotHash = 'replacement-snapshot-hash'
+        })
+        sourceTemplates = @([ordered]@{
+            rowId = '10'; name = '旧模板'; appId = 'CleanupRoot'; mapType = 'CA'; lastId = '0'
+            content = '<div id="CleanupRoot" class="hisui-panel"><table class="item-table"><tr><td>旧模板</td></tr></table></div>'
+            js = ''; items = @([ordered]@{ rowId = '1010'; id = 'CleanupField'; templateRowId = '10' })
+        })
+        replacementTemplates = @([ordered]@{
+            rowId = '20'; name = '响应式模板'; appId = 'CleanupRoot'; mapType = 'CA'; lastId = '10'
+            content = '<div id="CleanupRoot" class="hisui-panel assess-form assess-form--responsive"><table class="item-table assess-form-grid"><tr><td>响应式模板</td></tr></table></div>'
+            js = ''; items = @([ordered]@{ rowId = '1020'; id = 'CleanupField'; templateRowId = '20' })
+        })
+        error = ''
+    }
+    $cleanupSnapshot | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $cleanupSnapshotPath -Encoding UTF8
+    Invoke-Cure @('cleanup','--snapshot',$cleanupSnapshotPath,'--expected-count','1','--output',$cleanupPackagePath) | Out-Null
+    $cleanupPackage = Get-Content -LiteralPath $cleanupPackagePath -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert-True (($cleanupPackage.schema -eq 'cure-form-cleanup/v1') -and ($cleanupPackage.entries.Count -eq 1)) 'Cleanup package generation failed.'
+    Assert-True (($cleanupPackage.inspectionHash -eq 'server-cleanup-inspection-hash') -and ($cleanupPackage.entries[0].sourceSnapshotHash -eq 'source-snapshot-hash')) 'Cleanup package must bind server-computed hashes.'
+    $cleanupDryRun = Invoke-Cure @('cleanup','--package',$cleanupPackagePath)
+    Assert-True ($cleanupDryRun -match '"dryRun": true') 'Cleanup must default to offline dry-run.'
+    $cleanupCountDrift = Invoke-Cure @('cleanup','--snapshot',$cleanupSnapshotPath,'--expected-count','18','--output',(Join-Path $scratch 'cleanup-count-drift.json')) 1
+    Assert-True ($cleanupCountDrift -match 'template count changed') 'Cleanup must reject template-count drift.'
+    $referencedCleanupSnapshot = $cleanupSnapshot | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+    $referencedCleanupSnapshot.entries[0].sourceReferenceCount = 1
+    $referencedCleanupPath = Join-Path $scratch 'cleanup.referenced.json'
+    $referencedCleanupSnapshot | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $referencedCleanupPath -Encoding UTF8
+    $referencedCleanup = Invoke-Cure @('cleanup','--snapshot',$referencedCleanupPath,'--output',(Join-Path $scratch 'cleanup.referenced.package.json')) 1
+    Assert-True ($referencedCleanup -match 'still referenced') 'Cleanup must reject a referenced source template.'
+    $nonresponsiveReplacementSnapshot = $cleanupSnapshot | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+    $nonresponsiveReplacementSnapshot.replacementTemplates[0].content = $nonresponsiveReplacementSnapshot.replacementTemplates[0].content.Replace(' assess-form--responsive','')
+    $nonresponsiveReplacementPath = Join-Path $scratch 'cleanup.nonresponsive-replacement.json'
+    $nonresponsiveReplacementSnapshot | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $nonresponsiveReplacementPath -Encoding UTF8
+    $nonresponsiveReplacement = Invoke-Cure @('cleanup','--snapshot',$nonresponsiveReplacementPath,'--output',(Join-Path $scratch 'cleanup.nonresponsive-replacement.package.json')) 1
+    Assert-True ($nonresponsiveReplacement -match 'is not responsive') 'Cleanup must reject a nonresponsive replacement template.'
     $styleBoundaryFiles = @(
         (Join-Path $pluginRoot 'rules\cure_form_workflow.md'),
         (Join-Path $pluginRoot 'rules\cure_form_deploy.md'),
@@ -154,6 +290,17 @@ try {
     $styleBoundaryText = ($styleBoundaryFiles | ForEach-Object { Get-Content -LiteralPath $_ -Raw -Encoding UTF8 }) -join "`n"
     Assert-True ($styleBoundaryText -notmatch '(?i)[A-Z]:[\\/][^\r\n`]*adaptation\.css') 'Plugin governance must not hardcode a project-specific public responsive CSS path.'
     Assert-True (($styleBoundaryText -match '已改造表单.*快照') -and ($styleBoundaryText -match '两阶段')) 'Plugin governance must require compatibility snapshots and a two-stage migration for existing forms.'
+    $lifecycleBoundaryFiles = @(
+        (Join-Path $pluginRoot 'AGENTS.md'),
+        (Join-Path $pluginRoot 'README.md'),
+        (Join-Path $pluginRoot 'rules\cure_form_workflow.md'),
+        (Join-Path $pluginRoot 'skills\cure-form-responsive\SKILL.md'),
+        (Join-Path $pluginRoot 'skills\cure-form-deploy\SKILL.md')
+    )
+    $lifecycleBoundaryText = ($lifecycleBoundaryFiles | ForEach-Object { Get-Content -LiteralPath $_ -Raw -Encoding UTF8 }) -join "`n"
+    Assert-True ($lifecycleBoundaryText -match '新开发表单[^\r\n]*(不使用|不进入|无需)[^\r\n]*灰度') 'New form development must remain outside the grey-template lifecycle.'
+    Assert-True (($lifecycleBoundaryText -match '现有模板改造[^\r\n]*consolidate') -and ($lifecycleBoundaryText -match 'consolidate-shared')) 'Existing template retrofit must require the appropriate consolidation command.'
+    Assert-True ($lifecycleBoundaryText -match '灰度[^\r\n]*(引用数|引用)[^\r\n]*0') 'Existing template retrofit completion must require zero grey references.'
     Assert-True (($styleBoundaryText -match '24 个字符') -and ($styleBoundaryText -match 'camelCase') -and ($styleBoundaryText -match '引用路径.*basename.*一致')) 'Plugin governance must constrain deployment asset names by semantics and length.'
     Assert-True ($cliContent -notmatch '\.\./scripts_lib/(?:hisui|com)') 'Canonical generator must not hardcode target-project preview resource paths.'
     $profileTemplateContent = Get-Content -LiteralPath (Join-Path $pluginRoot 'templates\cure_form_profile.template.md') -Raw -Encoding UTF8

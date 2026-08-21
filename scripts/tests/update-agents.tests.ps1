@@ -307,6 +307,7 @@ $readmePath = Join-Path $repoRoot "README.md"
 $contextSkillPath = Join-Path $repoRoot "plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md"
 $contextReadmePath = Join-Path $repoRoot "plugins/agent-context-kit/README.md"
 $installScriptPath = Join-Path $repoRoot "scripts/install-agents.ps1"
+$codingIrisManifestPath = Join-Path $repoRoot "plugins/coding-iris-plugin/.agents-plugin/plugin.json"
 $irisBackendRulePath = Join-Path $repoRoot "plugins/coding-iris-plugin/rules/iris_coding_backend.md"
 $irisBackendSkillPath = Join-Path $repoRoot "plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md"
 $hisuiStyleIndexPath = Join-Path $repoRoot "plugins/coding-iris-plugin/references/hisui-style-index.md"
@@ -454,6 +455,7 @@ $extractDocManifest = Get-Content -Raw -Encoding UTF8 -Path $extractDocManifestP
 $codegraphQueryManifest = Get-Content -Raw -Encoding UTF8 -Path $codegraphQueryManifestPath | ConvertFrom-Json
 $irisCodegraphManifest = Get-Content -Raw -Encoding UTF8 -Path $irisCodegraphManifestPath | ConvertFrom-Json
 $interfaceDevManifest = Get-Content -Raw -Encoding UTF8 -Path $interfaceDevManifestPath | ConvertFrom-Json
+$codingIrisManifest = Get-Content -Raw -Encoding UTF8 -Path $codingIrisManifestPath | ConvertFrom-Json
 $cureFormDevManifest = Get-Content -Raw -Encoding UTF8 -Path $cureFormDevManifestPath | ConvertFrom-Json
 $externalRegManifest = Get-Content -Raw -Encoding UTF8 -Path $externalRegManifestPath | ConvertFrom-Json
 Assert-True ($extractDocManifest.name -eq "extract-doc") "extract-doc manifest should parse with the expected name"
@@ -464,10 +466,12 @@ Assert-True ($irisCodegraphManifest.name -eq "iris-codegraph") "iris-codegraph m
 Assert-True (($irisCodegraphManifest.dependencies -contains "coding-iris-plugin")) "iris-codegraph should declare coding-iris-plugin as a dependency"
 Assert-True ($interfaceDevManifest.name -eq "iris-interface-dev") "interface plugin manifest should use the current canonical name"
 Assert-True (@($interfaceDevManifest.configMigrations | Where-Object { $_.id -eq "interface-output-root-v1" }).Count -eq 1) "interface plugin should declare the output-root migration"
+Assert-True ($codingIrisManifest.version -eq "0.3.1") "coding iris plugin manifest should expose the workspace-overlay compile path fix"
 Assert-True ($cureFormDevManifest.name -eq "iris-cure-form-dev") "cure form plugin manifest should use the canonical name"
-Assert-True ($cureFormDevManifest.version -eq "0.5.0") "cure form plugin manifest should expose the deployment class migration release"
+Assert-True ($cureFormDevManifest.version -eq "0.6.0") "cure form plugin manifest should expose the existing-template consolidation release"
 Assert-True (($cureFormDevManifest.dependencies -contains "extract-doc")) "cure form plugin should declare extract-doc as a dependency"
 Assert-True (($cureFormDevManifest.dependencies -contains "coding-iris-plugin")) "cure form plugin should declare coding-iris-plugin as a dependency"
+Assert-True ($cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.minVersion -eq "0.3.1") "cure form plugin should require the overlay-aware coding plugin patch"
 Assert-True (($externalRegManifest.dependencies -contains "extract-doc")) "iris-external-reg should declare extract-doc as a dependency"
 Assert-True (($externalRegManifest.dependencies -contains "coding-iris-plugin")) "iris-external-reg should declare coding-iris-plugin as a dependency"
 Assert-Contains $contextSkillContent "install-git-hooks.ps1" "project-context-maintenance should mention optional git hook enablement"

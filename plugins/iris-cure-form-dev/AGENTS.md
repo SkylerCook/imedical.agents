@@ -15,6 +15,7 @@
 - 流程入口为 `node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js <command>`；Node.js 最低版本为 `22.5.0`。
 - Excel 多模板新建通过 `cure-form-template-boundaries/v1` 显式声明 Sheet、模板顺序和 A1 范围；范围重叠或合并单元格被边界截断必须进入 `unresolved[]`，不得静默拆分。
 - 文档驱动的新表单开发默认以业务项目根为 `--project-root`，从 `docs/` 读取医院需求文件，并将规格、摄取报告及生成源码写入 `docs/cure-form/<moduleId>/`；显式 `--source`、`--docs-root`、`--development-root` 或 `--output-root` 可覆盖。服务器快照和部署临时数据仍只写 `.agents/work/`。
+- 新开发表单与现有模板改造必须分流：`expectedVersion=NEW` 的新开发表单直接创建正式模板，不使用灰度；只有现有模板改造才允许创建响应式灰度 RowID。
 
 ## 安全门禁
 
@@ -26,6 +27,8 @@
 - `apply` 默认只做 `dry-run`；真实写入必须显式传入 `--confirm-write`、`--operator` 和 `--reason`。
 - 不允许通用 SQL 写入，不允许修改患者评估或治疗记录数据。
 - Map、模板、缓存字段和组成关系必须作为一个业务事务处理，并通过版本与内容哈希防止并发覆盖。
+- 现有模板改造验收后必须回归正式 RowID：单 Map 独占模板执行 `consolidate`，多 Map 共用公共模板执行 `consolidate-shared`；写入后执行 `verify` 并重新检查全部 Map 引用。只有正式 RowID 已生效、灰度引用数为 `0`、灰度模板及缓存均不存在时才可宣告完成。
+- `cleanup` 仅清理已经完成引用切换且全库零引用的旧模板；它不回归正式 RowID，不得替代现有模板改造的 `consolidate` / `consolidate-shared` 收尾门禁，也不得用于新开发表单。
 - `.mcp.json`、`.iris-agentic-dev.toml`、本地路径配置、服务器快照和凭据不得提交 Git 或输出到日志。
 
 ## 兼容契约

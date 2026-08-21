@@ -35,7 +35,7 @@ const PREVIEW_RESOURCE_SPECS = [
 const COMMANDS = new Set([
   'doctor', 'intake', 'inspect', 'prepare', 'review', 'plan',
   'preview', 'preview-run', 'preview-check', 'interaction-prepare', 'interaction-check',
-  'apply', 'verify', 'rollback', 'common-migrate'
+  'apply', 'verify', 'rollback', 'consolidate', 'consolidate-shared', 'cleanup', 'common-migrate'
 ]);
 
 function fail(message, code = 1) {
@@ -117,6 +117,330 @@ function stableValue(value) {
 function sha256(value) {
   const text = typeof value === 'string' ? value : JSON.stringify(stableValue(value));
   return crypto.createHash('sha256').update(text, 'utf8').digest('hex');
+}
+
+function sha1Base64(value) {
+  return crypto.createHash('sha1').update(String(value == null ? '' : value), 'utf8').digest('base64');
+}
+
+function consolidationHtmlContract(content) {
+  const ids = [];
+  const radios = [];
+  for (const tag of String(content || '').match(/<[A-Za-z][^>]*>/g) || []) {
+    const id = htmlAttribute(tag, 'id');
+    if (id) ids.push(id);
+    if (/^<input\b/i.test(tag) && /\bhisui-radio\b/i.test(htmlAttribute(tag, 'class'))) {
+      radios.push({ id, name: htmlAttribute(tag, 'name'), value: htmlAttribute(tag, 'value') });
+    }
+  }
+  ids.sort();
+  radios.sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+  return { ids, radios };
+}
+
+function consolidationCacheContract(items, label) {
+  const ids = (Array.isArray(items) ? items : []).map((item) => cleanText(item && item.id)).filter(Boolean).sort();
+  if (new Set(ids).size !== ids.length) fail(`${label} contains duplicate cache field IDs.`);
+  return ids;
+}
+
+function buildConsolidationPackage(snapshot, expectedCount) {
+  if (!snapshot || snapshot.schema !== 'cure-form-consolidation-snapshot/v1') fail('Expected cure-form-consolidation-snapshot/v1.');
+  const formType = assertFormType(snapshot.formType);
+  const mapCode = cleanText(snapshot.mapCode);
+  if (!mapCode) fail('Consolidation snapshot mapCode is required.');
+  if (!Array.isArray(snapshot.mappings) || !snapshot.mappings.length) fail('Consolidation snapshot mappings[] is empty.');
+  if (expectedCount != null && snapshot.mappings.length !== expectedCount) {
+    fail(`Consolidation mapping count changed: expected ${expectedCount}, received ${snapshot.mappings.length}.`);
+  }
+  const mappings = snapshot.mappings.map((candidate, index) => {
+    const source = candidate && candidate.source;
+    const target = candidate && candidate.target;
+    if (!source || !target) fail(`Consolidation mapping ${index} must contain source and target snapshots.`);
+    const sourceRowId = cleanText(source.rowId);
+    const targetRowId = cleanText(target.rowId);
+    if (!/^\d+$/.test(sourceRowId) || !/^\d+$/.test(targetRowId) || sourceRowId === targetRowId) {
+      fail(`Consolidation mapping ${index} has invalid source/target RowID values.`);
+    }
+    if (cleanText(source.lastId) !== targetRowId) fail(`Grey template ${sourceRowId} APP_LastID does not point to formal RowID ${targetRowId}.`);
+    if (cleanText(source.appId) !== cleanText(target.appId)) fail(`Template APP_ID differs for ${sourceRowId} -> ${targetRowId}.`);
+    if (cleanText(source.mapType) !== formType || cleanText(target.mapType) !== formType) fail(`Template MapType differs for ${sourceRowId} -> ${targetRowId}.`);
+    if (!/\bassess-form\b/.test(source.content || '') || !/\bassess-form--responsive\b/.test(source.content || '')) {
+      fail(`Grey template ${sourceRowId} is missing the responsive root contract.`);
+    }
+    if (!/\b(?:assess-form-grid|assess-measurement-table|assess-form-block)\b/.test(source.content || '')) {
+      fail(`Grey template ${sourceRowId} is missing the responsive layout contract.`);
+    }
+    const sourceHtml = consolidationHtmlContract(source.content);
+    const targetHtml = consolidationHtmlContract(target.content);
+    if (JSON.stringify(sourceHtml) !== JSON.stringify(targetHtml)) fail(`DOM/radio contract differs for ${sourceRowId} -> ${targetRowId}.`);
+    const sourceCache = consolidationCacheContract(source.items, `Grey template ${sourceRowId}`);
+    const targetCache = consolidationCacheContract(target.items, `Formal template ${targetRowId}`);
+    if (JSON.stringify(sourceCache) !== JSON.stringify(targetCache)) fail(`Cache field contract differs for ${sourceRowId} -> ${targetRowId}.`);
+    if (candidate.sourceCacheContractHash && candidate.targetCacheContractHash && candidate.sourceCacheContractHash !== candidate.targetCacheContractHash) {
+      fail(`Server cache field contract differs for ${sourceRowId} -> ${targetRowId}.`);
+    }
+    return {
+      sourceRowId,
+      targetRowId,
+      appId: cleanText(source.appId),
+      sourceContentHash: cleanText(candidate.sourceContentHash) || sha1Base64(source.content),
+      targetContentHash: cleanText(candidate.targetContentHash) || sha1Base64(target.content),
+      htmlContractHash: sha1Base64(JSON.stringify(sourceHtml)),
+      cacheContractHash: cleanText(candidate.sourceCacheContractHash) || sha1Base64(sourceCache.join('\u001f'))
+    };
+  });
+  const sources = mappings.map((mapping) => mapping.sourceRowId);
+  const targets = mappings.map((mapping) => mapping.targetRowId);
+  if (new Set(sources).size !== sources.length || new Set(targets).size !== targets.length) fail('Consolidation RowID mappings must be one-to-one.');
+  if (sources.some((rowId) => targets.includes(rowId))) fail('Consolidation source and target RowID sets must not overlap.');
+  return {
+    schema: 'cure-form-consolidation/v1',
+    formType,
+    mapCode,
+    expectedVersion: snapshot.version,
+    expectedContentHash: snapshot.contentHash,
+    inspectionHash: sha256(snapshot),
+    mappings,
+    audit: { operator: '', reason: '' }
+  };
+}
+
+function validateConsolidationPackage(value, write) {
+  if (!value || value.schema !== 'cure-form-consolidation/v1') fail('Expected cure-form-consolidation/v1.');
+  assertFormType(value.formType);
+  if (!cleanText(value.mapCode)) fail('Consolidation package mapCode is required.');
+  if (!Number.isInteger(Number(value.expectedVersion)) || Number(value.expectedVersion) < 0) fail('Consolidation package expectedVersion must be a non-negative integer.');
+  if (!cleanText(value.expectedContentHash)) fail('Consolidation package expectedContentHash is required.');
+  if (!Array.isArray(value.mappings) || !value.mappings.length || value.mappings.length > 100) fail('Consolidation package mappings[] must contain 1-100 entries.');
+  const sources = [];
+  const targets = [];
+  for (const [index, mapping] of value.mappings.entries()) {
+    for (const key of ['sourceRowId', 'targetRowId']) {
+      if (!/^\d+$/.test(cleanText(mapping && mapping[key]))) fail(`Consolidation mapping ${index} ${key} must be numeric.`);
+    }
+    for (const key of ['appId', 'sourceContentHash', 'targetContentHash', 'htmlContractHash', 'cacheContractHash']) {
+      if (!cleanText(mapping && mapping[key])) fail(`Consolidation mapping ${index} ${key} is required.`);
+    }
+    if (mapping.sourceRowId === mapping.targetRowId) fail(`Consolidation mapping ${index} source and target RowID must differ.`);
+    sources.push(String(mapping.sourceRowId));
+    targets.push(String(mapping.targetRowId));
+  }
+  if (new Set(sources).size !== sources.length || new Set(targets).size !== targets.length) fail('Consolidation mappings must be one-to-one.');
+  if (sources.some((rowId) => targets.includes(rowId))) fail('Consolidation source and target RowID sets must not overlap.');
+  if (write && (!value.audit || !cleanText(value.audit.operator) || !cleanText(value.audit.reason))) fail('Consolidation write requires operator and reason.');
+  return value;
+}
+
+function replaceCompositionMappings(composition, mappings) {
+  const replacements = new Map(mappings.map((mapping) => [String(mapping.sourceRowId), String(mapping.targetRowId)]));
+  return String(composition || '').split('||').map((rowId) => replacements.get(rowId) || rowId).join('||');
+}
+
+function buildSharedConsolidationPackage(snapshot, expectedCount, expectedMapCount) {
+  if (!snapshot || snapshot.schema !== 'cure-form-shared-consolidation-snapshot/v1') fail('Expected cure-form-shared-consolidation-snapshot/v1.');
+  if (cleanText(snapshot.error)) fail(`Shared consolidation inspection failed: ${snapshot.error}`);
+  const formType = assertFormType(snapshot.formType);
+  const scopeId = cleanText(snapshot.scopeId);
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(scopeId)) fail('Shared consolidation snapshot scopeId is invalid.');
+  const candidates = Array.isArray(snapshot.mappings) ? snapshot.mappings : [];
+  const sources = Array.isArray(snapshot.sourceTemplates) ? snapshot.sourceTemplates : [];
+  const targets = Array.isArray(snapshot.targetTemplates) ? snapshot.targetTemplates : [];
+  const sourceMaps = Array.isArray(snapshot.maps) ? snapshot.maps : [];
+  if (!candidates.length || candidates.length !== sources.length || candidates.length !== targets.length) fail('Shared consolidation snapshot template arrays do not match mappings[].');
+  if (expectedCount != null && candidates.length !== expectedCount) fail(`Shared consolidation mapping count changed: expected ${expectedCount}, received ${candidates.length}.`);
+  if (expectedMapCount != null && sourceMaps.length !== expectedMapCount) fail(`Shared consolidation Map count changed: expected ${expectedMapCount}, received ${sourceMaps.length}.`);
+  const mappings = candidates.map((candidate, index) => {
+    const source = sources[index];
+    const target = targets[index];
+    const sourceRowId = cleanText(candidate && candidate.sourceRowId);
+    const targetRowId = cleanText(candidate && candidate.targetRowId);
+    if (!source || !target || cleanText(source.rowId) !== sourceRowId || cleanText(target.rowId) !== targetRowId) fail(`Shared consolidation mapping ${index} template snapshots do not match RowIDs.`);
+    if (!/^\d+$/.test(sourceRowId) || !/^\d+$/.test(targetRowId) || sourceRowId === targetRowId) fail(`Shared consolidation mapping ${index} has invalid RowIDs.`);
+    if (cleanText(source.appId) !== cleanText(target.appId) || cleanText(source.appId) !== cleanText(candidate.appId)) fail(`Shared template APP_ID differs for ${sourceRowId} -> ${targetRowId}.`);
+    if (cleanText(source.mapType) !== formType || cleanText(target.mapType) !== formType) fail(`Shared template MapType differs for ${sourceRowId} -> ${targetRowId}.`);
+    if (!/\bassess-form\b/.test(source.content || '') || !/\bassess-form--responsive\b/.test(source.content || '')) fail(`Shared grey template ${sourceRowId} is missing the responsive root contract.`);
+    if (Number(candidate.sourceReferenceCount) < 1 || Number(candidate.targetReferenceCount) < 1) fail(`Shared template reference contract differs for ${sourceRowId} -> ${targetRowId}.`);
+    const sourceHtml = consolidationHtmlContract(source.content);
+    const targetHtml = consolidationHtmlContract(target.content);
+    if (JSON.stringify(sourceHtml) !== JSON.stringify(targetHtml)) fail(`DOM/radio contract differs for ${sourceRowId} -> ${targetRowId}.`);
+    const sourceCache = consolidationCacheContract(source.items, `Shared grey template ${sourceRowId}`);
+    const targetCache = consolidationCacheContract(target.items, `Formal shared template ${targetRowId}`);
+    if (JSON.stringify(sourceCache) !== JSON.stringify(targetCache)) fail(`Cache field contract differs for ${sourceRowId} -> ${targetRowId}.`);
+    if (candidate.sourceCacheContractHash !== candidate.targetCacheContractHash) fail(`Server cache field contract differs for ${sourceRowId} -> ${targetRowId}.`);
+    for (const key of ['sourceContentHash', 'targetContentHash', 'sourceSnapshotHash', 'targetSnapshotHash', 'sourceCacheContractHash']) {
+      if (!cleanText(candidate[key])) fail(`Shared consolidation mapping ${index} ${key} is required.`);
+    }
+    return {
+      sourceRowId,
+      targetRowId,
+      appId: cleanText(source.appId),
+      sourceContentHash: candidate.sourceContentHash,
+      targetContentHash: candidate.targetContentHash,
+      sourceSnapshotHash: candidate.sourceSnapshotHash,
+      targetSnapshotHash: candidate.targetSnapshotHash,
+      htmlContractHash: sha1Base64(JSON.stringify(sourceHtml)),
+      cacheContractHash: candidate.sourceCacheContractHash
+    };
+  });
+  const sourceRowIds = mappings.map((item) => item.sourceRowId);
+  const targetRowIds = mappings.map((item) => item.targetRowId);
+  if (new Set(sourceRowIds).size !== mappings.length || new Set(targetRowIds).size !== mappings.length) fail('Shared consolidation mappings must be one-to-one.');
+  if (sourceRowIds.some((rowId) => targetRowIds.includes(rowId))) fail('Shared consolidation source and target RowID sets must not overlap.');
+  const maps = sourceMaps.map((map, index) => {
+    const rowId = cleanText(map && map.rowId);
+    const mapCode = cleanText(map && map.code);
+    const beforeComposition = cleanText(map && map.showTemp);
+    if (!/^\d+$/.test(rowId) || !mapCode || cleanText(map.mapType) !== formType) fail(`Shared consolidation Map ${index} is invalid.`);
+    const beforeIds = beforeComposition.split('||');
+    if (!mappings.some((mapping) => beforeIds.includes(mapping.sourceRowId))) fail(`Shared consolidation Map ${mapCode} does not reference a grey source.`);
+    const afterComposition = replaceCompositionMappings(beforeComposition, mappings);
+    const afterIds = afterComposition.split('||').filter(Boolean);
+    if (new Set(afterIds).size !== afterIds.length) fail(`Shared consolidation would create duplicate template RowIDs in Map ${mapCode}.`);
+    return { rowId, mapCode, beforeComposition, afterComposition };
+  });
+  if (!maps.length || new Set(maps.map((map) => map.rowId)).size !== maps.length) fail('Shared consolidation affected Maps must be non-empty and unique.');
+  return {
+    schema: 'cure-form-shared-consolidation/v1',
+    formType,
+    scopeId,
+    inspectionHash: cleanText(snapshot.contentHash),
+    mappings,
+    maps,
+    audit: { operator: '', reason: '' }
+  };
+}
+
+function validateSharedConsolidationPackage(value, write) {
+  if (!value || value.schema !== 'cure-form-shared-consolidation/v1') fail('Expected cure-form-shared-consolidation/v1.');
+  assertFormType(value.formType);
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(cleanText(value.scopeId))) fail('Shared consolidation package scopeId is invalid.');
+  if (!cleanText(value.inspectionHash)) fail('Shared consolidation package inspectionHash is required.');
+  if (!Array.isArray(value.mappings) || !value.mappings.length || value.mappings.length > 20) fail('Shared consolidation package mappings[] must contain 1-20 entries.');
+  if (!Array.isArray(value.maps) || !value.maps.length || value.maps.length > 500) fail('Shared consolidation package maps[] must contain 1-500 entries.');
+  const sourceRowIds = [];
+  const targetRowIds = [];
+  for (const [index, mapping] of value.mappings.entries()) {
+    for (const key of ['sourceRowId', 'targetRowId']) if (!/^\d+$/.test(cleanText(mapping && mapping[key]))) fail(`Shared consolidation mapping ${index} ${key} must be numeric.`);
+    for (const key of ['appId', 'sourceContentHash', 'targetContentHash', 'sourceSnapshotHash', 'targetSnapshotHash', 'htmlContractHash', 'cacheContractHash']) if (!cleanText(mapping && mapping[key])) fail(`Shared consolidation mapping ${index} ${key} is required.`);
+    const sourceRowId = String(mapping.sourceRowId);
+    const targetRowId = String(mapping.targetRowId);
+    if (sourceRowId === targetRowId) fail(`Shared consolidation mapping ${index} source and target RowID must differ.`);
+    sourceRowIds.push(sourceRowId);
+    targetRowIds.push(targetRowId);
+  }
+  if (new Set(sourceRowIds).size !== sourceRowIds.length || new Set(targetRowIds).size !== targetRowIds.length) fail('Shared consolidation mappings must be one-to-one.');
+  if (sourceRowIds.some((rowId) => targetRowIds.includes(rowId))) fail('Shared consolidation source and target RowID sets must not overlap.');
+  const mapRowIds = [];
+  const referencedSources = new Set();
+  for (const [index, map] of value.maps.entries()) {
+    if (!/^\d+$/.test(cleanText(map && map.rowId)) || !cleanText(map && map.mapCode) || !cleanText(map && map.beforeComposition) || !cleanText(map && map.afterComposition)) fail(`Shared consolidation Map ${index} is invalid.`);
+    const rowId = String(map.rowId);
+    mapRowIds.push(rowId);
+    const beforeIds = String(map.beforeComposition).split('||');
+    for (const sourceRowId of sourceRowIds) if (beforeIds.includes(sourceRowId)) referencedSources.add(sourceRowId);
+    const expectedAfterComposition = replaceCompositionMappings(map.beforeComposition, value.mappings);
+    if (String(map.afterComposition) !== expectedAfterComposition) fail(`Shared consolidation Map ${map.mapCode} afterComposition does not match mappings[].`);
+    const afterIds = String(map.afterComposition).split('||').filter(Boolean);
+    if (new Set(afterIds).size !== afterIds.length) fail(`Shared consolidation would create duplicate template RowIDs in Map ${map.mapCode}.`);
+  }
+  if (new Set(mapRowIds).size !== mapRowIds.length) fail('Shared consolidation affected Maps must be unique.');
+  if (referencedSources.size !== sourceRowIds.length) fail('Shared consolidation mappings contain an unreferenced grey source.');
+  if (write && (!value.audit || !cleanText(value.audit.operator) || !cleanText(value.audit.reason))) fail('Shared consolidation write requires operator and reason.');
+  return value;
+}
+
+function buildCleanupPackage(snapshot, expectedCount) {
+  if (!snapshot || snapshot.schema !== 'cure-form-cleanup-snapshot/v1') fail('Expected cure-form-cleanup-snapshot/v1.');
+  if (cleanText(snapshot.error)) fail(`Cleanup inspection failed: ${snapshot.error}`);
+  const formType = assertFormType(snapshot.formType);
+  const scopeId = cleanText(snapshot.scopeId);
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(scopeId)) fail('Cleanup snapshot scopeId is invalid.');
+  if (!Array.isArray(snapshot.entries) || !snapshot.entries.length) fail('Cleanup snapshot entries[] is empty.');
+  if (expectedCount != null && snapshot.entries.length !== expectedCount) {
+    fail(`Cleanup template count changed: expected ${expectedCount}, received ${snapshot.entries.length}.`);
+  }
+  const sources = Array.isArray(snapshot.sourceTemplates) ? snapshot.sourceTemplates : [];
+  const replacements = Array.isArray(snapshot.replacementTemplates) ? snapshot.replacementTemplates : [];
+  if (sources.length !== snapshot.entries.length || replacements.length !== snapshot.entries.length) {
+    fail('Cleanup snapshot template arrays do not match entries[].');
+  }
+  const entries = snapshot.entries.map((candidate, index) => {
+    const source = sources[index];
+    const replacement = replacements[index];
+    const sourceRowId = cleanText(candidate && candidate.sourceRowId);
+    const replacementRowId = cleanText(candidate && candidate.replacementRowId);
+    if (!/^\d+$/.test(sourceRowId) || !/^\d+$/.test(replacementRowId) || sourceRowId === replacementRowId) {
+      fail(`Cleanup entry ${index} has invalid source/replacement RowIDs.`);
+    }
+    if (!source || !replacement || cleanText(source.rowId) !== sourceRowId || cleanText(replacement.rowId) !== replacementRowId) {
+      fail(`Cleanup entry ${index} template snapshots do not match RowIDs.`);
+    }
+    const appId = cleanText(source.appId);
+    if (!appId || appId !== cleanText(replacement.appId) || appId !== cleanText(candidate.appId)) {
+      fail(`Cleanup APP_ID contract differs for ${sourceRowId} -> ${replacementRowId}.`);
+    }
+    if (cleanText(source.mapType) !== formType || cleanText(replacement.mapType) !== formType) {
+      fail(`Cleanup MapType contract differs for ${sourceRowId} -> ${replacementRowId}.`);
+    }
+    if (/\bassess-form--responsive\b/.test(source.content || '')) fail(`Cleanup source ${sourceRowId} is already responsive.`);
+    if (!/\bassess-form--responsive\b/.test(replacement.content || '')) fail(`Cleanup replacement ${replacementRowId} is not responsive.`);
+    if (Number(candidate.sourceReferenceCount) !== 0) fail(`Cleanup source ${sourceRowId} is still referenced.`);
+    if (!Number.isInteger(Number(candidate.replacementReferenceCount)) || Number(candidate.replacementReferenceCount) < 1) {
+      fail(`Cleanup replacement ${replacementRowId} is not referenced.`);
+    }
+    for (const key of ['sourceContentHash', 'replacementContentHash', 'sourceSnapshotHash', 'replacementSnapshotHash']) {
+      if (!cleanText(candidate[key])) fail(`Cleanup entry ${index} ${key} is required.`);
+    }
+    return {
+      sourceRowId,
+      replacementRowId,
+      appId,
+      sourceContentHash: candidate.sourceContentHash,
+      replacementContentHash: candidate.replacementContentHash,
+      sourceSnapshotHash: candidate.sourceSnapshotHash,
+      replacementSnapshotHash: candidate.replacementSnapshotHash
+    };
+  });
+  const sourceIds = entries.map((entry) => entry.sourceRowId);
+  const replacementIds = entries.map((entry) => entry.replacementRowId);
+  if (new Set(sourceIds).size !== sourceIds.length || new Set(replacementIds).size !== replacementIds.length) {
+    fail('Cleanup source and replacement RowIDs must be unique.');
+  }
+  if (sourceIds.some((rowId) => replacementIds.includes(rowId))) fail('Cleanup source and replacement RowID sets must not overlap.');
+  return {
+    schema: 'cure-form-cleanup/v1',
+    formType,
+    scopeId,
+    inspectionHash: cleanText(snapshot.contentHash),
+    entries,
+    audit: { operator: '', reason: '' }
+  };
+}
+
+function validateCleanupPackage(value, write) {
+  if (!value || value.schema !== 'cure-form-cleanup/v1') fail('Expected cure-form-cleanup/v1.');
+  assertFormType(value.formType);
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(cleanText(value.scopeId))) fail('Cleanup package scopeId is invalid.');
+  if (!cleanText(value.inspectionHash)) fail('Cleanup package inspectionHash is required.');
+  if (!Array.isArray(value.entries) || !value.entries.length || value.entries.length > 100) fail('Cleanup package entries[] must contain 1-100 entries.');
+  const sources = [];
+  const replacements = [];
+  for (const [index, entry] of value.entries.entries()) {
+    for (const key of ['sourceRowId', 'replacementRowId']) {
+      if (!/^\d+$/.test(cleanText(entry && entry[key]))) fail(`Cleanup entry ${index} ${key} must be numeric.`);
+    }
+    for (const key of ['appId', 'sourceContentHash', 'replacementContentHash', 'sourceSnapshotHash', 'replacementSnapshotHash']) {
+      if (!cleanText(entry && entry[key])) fail(`Cleanup entry ${index} ${key} is required.`);
+    }
+    if (String(entry.sourceRowId) === String(entry.replacementRowId)) fail(`Cleanup entry ${index} source and replacement RowID must differ.`);
+    sources.push(String(entry.sourceRowId));
+    replacements.push(String(entry.replacementRowId));
+  }
+  if (new Set(sources).size !== sources.length || new Set(replacements).size !== replacements.length) fail('Cleanup source and replacement RowIDs must be unique.');
+  if (sources.some((rowId) => replacements.includes(rowId))) fail('Cleanup source and replacement RowID sets must not overlap.');
+  if (write && (!value.audit || !cleanText(value.audit.operator) || !cleanText(value.audit.reason))) fail('Cleanup write requires operator and reason.');
+  return value;
 }
 
 function resourceBasename(reference) {
@@ -1124,7 +1448,7 @@ function invokeServerDirect(method, methodArgs, args, write) {
   const helper = path.join(capabilityRoot(args), 'scripts', 'iris-mcp.js');
   if (!fs.existsSync(helper)) fail(`iris-mcp.js was not found: ${helper}`);
   if (!args.confirmRemoteExecution) fail('Remote ClassMethod execution requires explicit --confirm-remote-execution.');
-  if (!['InspectForm', 'ValidatePackage', 'ApplyPackage', 'VerifyOperation', 'RollbackOperation', 'PutPackageChunk', 'ValidateStagedPackage', 'ApplyStagedPackage', 'ClearStagedPackage'].includes(method)) fail('Server method is not in the cure deployment allowlist.');
+  if (!['InspectForm', 'InspectConsolidation', 'InspectSharedConsolidation', 'InspectCleanup', 'ValidatePackage', 'ApplyPackage', 'ValidateConsolidation', 'ApplyConsolidation', 'ValidateSharedConsolidation', 'ApplySharedConsolidation', 'ValidateCleanup', 'ApplyCleanup', 'VerifyOperation', 'RollbackOperation', 'PutPackageChunk', 'ValidateStagedPackage', 'ApplyStagedPackage', 'ValidateStagedConsolidation', 'ApplyStagedConsolidation', 'ValidateStagedSharedConsolidation', 'ApplyStagedSharedConsolidation', 'ValidateStagedCleanup', 'ApplyStagedCleanup', 'ClearStagedPackage'].includes(method)) fail('Server method is not in the cure deployment allowlist.');
   const methodCall = `##class(${CURE_FORM_DEPLOY_CLASS}).${method}(${methodArgs.map(objectScriptArgument).join(',')})`;
   if (write && !args.confirmWrite) fail('Server write requires explicit --confirm-write.');
   const transport = invokeIrisExecute(helper, `write ${methodCall}`);
@@ -1150,7 +1474,7 @@ function invokeStagedPackage(method, methodArgs, args, write) {
     fs.writeFileSync(packageFile, packageJson, 'utf8');
     const transport = path.join(__dirname, 'cure-form-staged-transport.js');
     const transportArgs = [transport, '--method', method, '--package-file', packageFile];
-    if (method === 'ApplyPackage') transportArgs.push('--operator', String(methodArgs[1]), '--reason', String(methodArgs[2]));
+    if (method === 'ApplyPackage' || method === 'ApplyConsolidation' || method === 'ApplySharedConsolidation' || method === 'ApplyCleanup') transportArgs.push('--operator', String(methodArgs[1]), '--reason', String(methodArgs[2]));
     return extractResult(run(process.execPath, transportArgs));
   } finally {
     fs.rmSync(payloadDir, { recursive: true, force: true });
@@ -1159,7 +1483,7 @@ function invokeStagedPackage(method, methodArgs, args, write) {
 
 function invokeServer(method, methodArgs, args, write) {
   const packageJson = methodArgs[0];
-  if (['ValidatePackage', 'ApplyPackage'].includes(method) && typeof packageJson === 'string' && packageJson.length > MAX_INLINE_SERVER_ARGUMENT) {
+  if (['ValidatePackage', 'ApplyPackage', 'ValidateConsolidation', 'ApplyConsolidation', 'ValidateSharedConsolidation', 'ApplySharedConsolidation', 'ValidateCleanup', 'ApplyCleanup'].includes(method) && typeof packageJson === 'string' && packageJson.length > MAX_INLINE_SERVER_ARGUMENT) {
     return invokeStagedPackage(method, methodArgs, args, write);
   }
   return invokeServerDirect(method, methodArgs, args, write);
@@ -1188,6 +1512,143 @@ function commandInspect(args) {
   const output = path.resolve(args.output || path.join(workRoot(args), 'snapshots', `${mapCode}-${Date.now()}.json`));
   writeJson(output, snapshot);
   console.log(JSON.stringify({ command: 'inspect', output, formType: type, mapCode, contentHash: snapshot.contentHash }, null, 2));
+}
+
+function commandConsolidate(args) {
+  if (!args.package) {
+    let snapshot;
+    if (args.snapshot) snapshot = readJson(args.snapshot);
+    else {
+      if (!args.confirmRemoteExecution) fail('Remote ClassMethod execution requires explicit --confirm-remote-execution.');
+      const transport = path.join(__dirname, 'cure-form-staged-transport.js');
+      snapshot = extractResult(run(process.execPath, [
+        transport,
+        '--method', 'InspectConsolidation',
+        '--form-type', assertFormType(requireOption(args, 'formType')),
+        '--map-code', requireOption(args, 'mapCode')
+      ]));
+    }
+    const expectedCount = args.expectedCount == null ? null : Number(args.expectedCount);
+    if (expectedCount != null && (!Number.isInteger(expectedCount) || expectedCount < 1)) fail('--expected-count must be a positive integer.');
+    const packageValue = buildConsolidationPackage(snapshot, expectedCount);
+    const snapshotOutput = args.snapshotOutput ? writeJson(path.resolve(args.snapshotOutput), snapshot) : null;
+    const output = path.resolve(args.output || path.join(workRoot(args), 'consolidation', `${packageValue.mapCode}-${Date.now()}.json`));
+    writeJson(output, packageValue);
+    console.log(JSON.stringify({ command: 'consolidate', dryRun: true, generated: true, output, snapshotOutput, formType: packageValue.formType, mapCode: packageValue.mapCode, mappingCount: packageValue.mappings.length, packageHash: sha256(packageValue) }, null, 2));
+    return;
+  }
+
+  const packageValue = readJson(requireOption(args, 'package'));
+  if (args.confirmWrite) {
+    packageValue.audit = packageValue.audit || {};
+    packageValue.audit.operator = requireOption(args, 'operator');
+    packageValue.audit.reason = requireOption(args, 'reason');
+  }
+  validateConsolidationPackage(packageValue, Boolean(args.confirmWrite));
+  if (!args.confirmWrite) {
+    const serverValidation = args.confirmRemoteExecution
+      ? invokeServer('ValidateConsolidation', [JSON.stringify(packageValue)], args, false)
+      : null;
+    if (serverValidation && !resultIsOk(serverValidation)) fail(`Server validation rejected the consolidation: ${JSON.stringify(serverValidation)}`);
+    console.log(JSON.stringify({ command: 'consolidate', dryRun: true, valid: true, formType: packageValue.formType, mapCode: packageValue.mapCode, mappingCount: packageValue.mappings.length, packageHash: sha256(packageValue), serverValidation }, null, 2));
+    return;
+  }
+  const result = invokeServer('ApplyConsolidation', [JSON.stringify(packageValue), packageValue.audit.operator, packageValue.audit.reason], args, true);
+  if (!resultIsOk(result)) fail(`Server consolidation failed: ${JSON.stringify(result)}`);
+  console.log(JSON.stringify({ command: 'consolidate', dryRun: false, result }, null, 2));
+}
+
+function commandConsolidateShared(args) {
+  if (!args.package) {
+    let snapshot;
+    if (args.snapshot) snapshot = readJson(args.snapshot);
+    else {
+      if (!args.confirmRemoteExecution) fail('Remote ClassMethod execution requires explicit --confirm-remote-execution.');
+      const transport = path.join(__dirname, 'cure-form-staged-transport.js');
+      snapshot = extractResult(run(process.execPath, [
+        transport,
+        '--method', 'InspectSharedConsolidation',
+        '--form-type', assertFormType(requireOption(args, 'formType')),
+        '--scope-id', requireOption(args, 'scopeId'),
+        '--source-ids', requireOption(args, 'sourceIds'),
+        '--target-ids', requireOption(args, 'targetIds')
+      ]));
+    }
+    const expectedCount = args.expectedCount == null ? null : Number(args.expectedCount);
+    const expectedMapCount = args.expectedMapCount == null ? null : Number(args.expectedMapCount);
+    if (expectedCount != null && (!Number.isInteger(expectedCount) || expectedCount < 1)) fail('--expected-count must be a positive integer.');
+    if (expectedMapCount != null && (!Number.isInteger(expectedMapCount) || expectedMapCount < 1)) fail('--expected-map-count must be a positive integer.');
+    const packageValue = buildSharedConsolidationPackage(snapshot, expectedCount, expectedMapCount);
+    const snapshotOutput = args.snapshotOutput ? writeJson(path.resolve(args.snapshotOutput), snapshot) : null;
+    const output = path.resolve(args.output || path.join(workRoot(args), 'shared-consolidation', `${packageValue.scopeId}-${Date.now()}.json`));
+    writeJson(output, packageValue);
+    console.log(JSON.stringify({ command: 'consolidate-shared', dryRun: true, generated: true, output, snapshotOutput, formType: packageValue.formType, scopeId: packageValue.scopeId, mappingCount: packageValue.mappings.length, mapCount: packageValue.maps.length, packageHash: sha256(packageValue) }, null, 2));
+    return;
+  }
+  const packageValue = readJson(requireOption(args, 'package'));
+  if (args.confirmWrite) {
+    packageValue.audit = packageValue.audit || {};
+    packageValue.audit.operator = requireOption(args, 'operator');
+    packageValue.audit.reason = requireOption(args, 'reason');
+  }
+  validateSharedConsolidationPackage(packageValue, Boolean(args.confirmWrite));
+  if (!args.confirmWrite) {
+    const serverValidation = args.confirmRemoteExecution
+      ? invokeServer('ValidateSharedConsolidation', [JSON.stringify(packageValue)], args, false)
+      : null;
+    if (serverValidation && !resultIsOk(serverValidation)) fail(`Server validation rejected the shared consolidation: ${JSON.stringify(serverValidation)}`);
+    console.log(JSON.stringify({ command: 'consolidate-shared', dryRun: true, valid: true, formType: packageValue.formType, scopeId: packageValue.scopeId, mappingCount: packageValue.mappings.length, mapCount: packageValue.maps.length, packageHash: sha256(packageValue), serverValidation }, null, 2));
+    return;
+  }
+  const result = invokeServer('ApplySharedConsolidation', [JSON.stringify(packageValue), packageValue.audit.operator, packageValue.audit.reason], args, true);
+  if (!resultIsOk(result)) fail(`Server shared consolidation failed: ${JSON.stringify(result)}`);
+  console.log(JSON.stringify({ command: 'consolidate-shared', dryRun: false, result }, null, 2));
+}
+
+function commandCleanup(args) {
+  if (!args.package) {
+    let snapshot;
+    if (args.snapshot) snapshot = readJson(args.snapshot);
+    else {
+      if (!args.confirmRemoteExecution) fail('Remote ClassMethod execution requires explicit --confirm-remote-execution.');
+      const transport = path.join(__dirname, 'cure-form-staged-transport.js');
+      snapshot = extractResult(run(process.execPath, [
+        transport,
+        '--method', 'InspectCleanup',
+        '--form-type', assertFormType(requireOption(args, 'formType')),
+        '--scope-id', requireOption(args, 'scopeId'),
+        '--source-ids', requireOption(args, 'sourceIds'),
+        '--replacement-ids', requireOption(args, 'replacementIds')
+      ]));
+    }
+    const expectedCount = args.expectedCount == null ? null : Number(args.expectedCount);
+    if (expectedCount != null && (!Number.isInteger(expectedCount) || expectedCount < 1)) fail('--expected-count must be a positive integer.');
+    const packageValue = buildCleanupPackage(snapshot, expectedCount);
+    const snapshotOutput = args.snapshotOutput ? writeJson(path.resolve(args.snapshotOutput), snapshot) : null;
+    const output = path.resolve(args.output || path.join(workRoot(args), 'cleanup', `${packageValue.scopeId}-${Date.now()}.json`));
+    writeJson(output, packageValue);
+    console.log(JSON.stringify({ command: 'cleanup', dryRun: true, generated: true, output, snapshotOutput, formType: packageValue.formType, scopeId: packageValue.scopeId, templateCount: packageValue.entries.length, packageHash: sha256(packageValue) }, null, 2));
+    return;
+  }
+
+  const packageValue = readJson(requireOption(args, 'package'));
+  if (args.confirmWrite) {
+    packageValue.audit = packageValue.audit || {};
+    packageValue.audit.operator = requireOption(args, 'operator');
+    packageValue.audit.reason = requireOption(args, 'reason');
+  }
+  validateCleanupPackage(packageValue, Boolean(args.confirmWrite));
+  if (!args.confirmWrite) {
+    const serverValidation = args.confirmRemoteExecution
+      ? invokeServer('ValidateCleanup', [JSON.stringify(packageValue)], args, false)
+      : null;
+    if (serverValidation && !resultIsOk(serverValidation)) fail(`Server validation rejected the cleanup: ${JSON.stringify(serverValidation)}`);
+    console.log(JSON.stringify({ command: 'cleanup', dryRun: true, valid: true, formType: packageValue.formType, scopeId: packageValue.scopeId, templateCount: packageValue.entries.length, packageHash: sha256(packageValue), serverValidation }, null, 2));
+    return;
+  }
+  const result = invokeServer('ApplyCleanup', [JSON.stringify(packageValue), packageValue.audit.operator, packageValue.audit.reason], args, true);
+  if (!resultIsOk(result)) fail(`Server cleanup failed: ${JSON.stringify(result)}`);
+  console.log(JSON.stringify({ command: 'cleanup', dryRun: false, result }, null, 2));
 }
 
 function htmlEscape(value) {
@@ -2457,12 +2918,15 @@ function main() {
     apply: commandApply,
     verify: commandVerify,
     rollback: commandRollback,
+    consolidate: commandConsolidate,
+    'consolidate-shared': commandConsolidateShared,
+    cleanup: commandCleanup,
     'common-migrate': commandCommonMigrate
   };
   handlers[command](args);
 }
 
-module.exports = { addResponsiveContract, assertCompletePreviewResources, assertFormType, contractSnapshot, interactionRequiredCases, objectScriptArgument, previewBodyFromChanges, resolvePreviewResources, sha256, structureToSpec, unwrapServerResult, validateBrowserResult, validateInteractionVerification, validatePackage, validatePreviewVerification, validateSpec };
+module.exports = { addResponsiveContract, assertCompletePreviewResources, assertFormType, buildCleanupPackage, buildConsolidationPackage, buildSharedConsolidationPackage, consolidationHtmlContract, contractSnapshot, interactionRequiredCases, objectScriptArgument, previewBodyFromChanges, resolvePreviewResources, sha256, structureToSpec, unwrapServerResult, validateBrowserResult, validateCleanupPackage, validateConsolidationPackage, validateSharedConsolidationPackage, validateInteractionVerification, validatePackage, validatePreviewVerification, validateSpec };
 
 if (require.main === module) {
   try { main(); }

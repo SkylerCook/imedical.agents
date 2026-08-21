@@ -18,6 +18,9 @@ cure-form plan
 cure-form apply
 cure-form verify
 cure-form rollback
+cure-form consolidate
+cure-form consolidate-shared
+cure-form cleanup
 cure-form common-migrate
 ```
 
@@ -27,11 +30,39 @@ cure-form common-migrate
 node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js <command> [options]
 ```
 
-所有写入型部署命令默认 `dry-run`。`MapType` 为空的病理模板始终排除。
+所有写入型部署命令默认 `dry-run`。新开发表单与现有模板改造采用不同生命周期：新开发表单直接创建正式模板，不使用灰度；只有现有模板改造才使用响应式灰度模板。`MapType` 为空的病理模板始终排除。
 
 ## v0.5.0 部署类迁移
 
 治疗表单事务入口已固定迁移到 `DHCDoc.Cure.AI.CureFormDeploy`。插件不再调用或回退到旧部署类，也不会从 target profile 接受可变类名。升级已部署项目时，必须先在目标 IRIS namespace 上传并编译新类，再刷新 `.agents` 和已启用插件的 thin-index；确认所有调用方均已使用 v0.5.0 后，才可删除旧类。该顺序避免旧客户端报类不存在，也避免写事务在不明确的 fallback 路径中被重复执行。
+
+## 新开发与现有改造边界
+
+- 新开发表单以 `expectedVersion=NEW` 判定，直接走 `plan -> apply -> verify` 和部署后人工交互验证；不创建灰度模板，也不进入 `consolidate`、`consolidate-shared` 或 `cleanup`。
+- 现有模板改造先在新的响应式灰度 RowID 上完成预览、回归和用户验收。单 Map 独占模板使用 `consolidate` 回归 `APP_LastID` 指向的正式 RowID；多个 Map 共用的公共灰度模板使用 `consolidate-shared` 回归已有正式 RowID。
+- 合并写入后必须使用返回的 operation ID 执行 `verify`，并重新检查受影响 Map：全部引用正式 RowID、灰度引用数为 `0`、灰度模板及缓存均不存在，才可宣告现有模板改造完成。
+- `cleanup` 只删除完成引用切换后仍遗留的全库零引用旧模板。它保留响应式替代 RowID，不执行“回归正式 RowID”，因此不能替代 `consolidate` 或 `consolidate-shared`。
+
+上述命令依赖目标 `DHCDoc.Cure.AI.CureFormDeploy` 已实现并编译对应的 Inspect、Validate、Apply、staged、Verify 和 Rollback 方法。升级能力包不会自动上传或编译该服务端类；使用新命令前必须按目标工程部署流程单独验证服务端方法契约。
+
+单 Map 现有模板改造的典型收尾顺序如下；共享模板将 `consolidate` 替换为 `consolidate-shared`，并提供明确的 source/target RowID 与预期 Map 数量：
+
+```powershell
+# 只读检查并生成绑定快照的合并包
+node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js consolidate `
+  --form-type CA --map-code <MapCode> --expected-count <count> `
+  --confirm-remote-execution --snapshot-output <snapshot.json> --output <package.json>
+
+# 真实写入仍需当前任务的用户明确授权
+node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js consolidate `
+  --package <package.json> --confirm-remote-execution --confirm-write `
+  --operator <operator> --reason <reason>
+
+node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js verify `
+  --operation-id <operationId> --confirm-remote-execution
+```
+
+已部署业务工程获取 v0.6.0 时，按既有能力包更新流程刷新 `.agents` 并为已启用的 `coding-iris-plugin`、`iris-cure-form-dev` 重建 thin-index；本次不改变安装器、更新器或 sparse checkout。服务端类升级、编译和真实事务验证仍是独立的目标工程部署动作，必须另行授权。
 
 ## 默认开发目录
 

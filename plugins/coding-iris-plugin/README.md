@@ -132,7 +132,7 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 `scripts/iris-tools/` 中的 Node.js 脚本是 IRIS 工程的首选执行路径：
 
 - `export.js`：从 IRIS 导出类、JS 或 CSP。
-- `compile.js`：上传并编译本地类文件。
+- `compile.js`：上传并编译本地类文件；在 workspace-overlay 中同时接受 `backend/src/...` 逻辑路径，并把远端文档名规范化为不含 `backend/src` 前缀的类文档名。
 - `debugger.js`：调用 Web Broker 方法做快速调试。
 - `sync-env-config.js`：仅当 `.agents/config/project-env.json` 是事实来源时，从它生成 `.mcp.json`。
 - `prepare-deploy-manifest.js`：根据文件列表或 git diff 生成 IRIS 部署 JSON 清单；只做本地分析，不执行上传、编译或远端写入。

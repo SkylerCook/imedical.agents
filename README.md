@@ -323,12 +323,12 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - 文档驱动的新表单默认从业务项目 `docs/` 读取需求，并在 `docs/cure-form/<moduleId>/` 保存规格、摄取报告和生成源码；多候选文件必须显式选择，不再使用 `src-iris` 作为插件默认目录。
 - Excel 多模板通过显式 A1 边界生成只读摄取报告，并在审批后生成有序 fragment、JavaScript 和 Map composition changes；范围重叠和合并单元格边界截断保持为审批门禁。
 - 获批规格可携带复杂模板 `fragmentHtml`/`javascript`，生成器验证根容器、响应式 class、字段 ID/缓存标签与模块接口；模板逻辑和表单入口分别以外部运行时路径写入模板/Map“引用JS”，独立预览只初始化实际存在的子模板脚本。
-- 新建 CA/CR 表单、现有服务器模板及公共模板响应式改造。
+- 新建 CA/CR 表单直接创建正式模板，不使用灰度；现有服务器模板及公共模板响应式改造才使用灰度，验收后分别通过 `consolidate` / `consolidate-shared` 回归正式 RowID，并以零灰度引用和模板删除作为完成门禁。
 - 响应式改造保留 HISUI `label.radio` 与 `i-label-box` / `m-label-box` 配对，并验证普通布局、表格布局和旧 WebView fallback；业务公共 CSS 不复制进插件。
 - canonical `preview` 从目标 profile 或现有页面解析六类 HISUI/公共资源并生成带 CSS 依赖哈希的完整页面；`preview-run` 通过本地 Chromium CDP 自动采集九档 Network、Console 与 HISUI 初始化结果，`preview-check` 只接受当前 gate/runner 并固化与 snapshot、changes、资源及依赖哈希绑定的部署前置凭证。
 - 新建表单以 `expectedVersion=NEW` 判定，使用 `interaction-prepare`/`interaction-check` 生成部署前、部署后人工交互清单与哈希凭证；用户明确反馈整体通过即可确认，Agent 自测必须逐项记录，批量自动交互执行前必须另行获得用户明确确认。
 - `common-migrate` 的优先 MapCode 与公共模板 RowID 由目标工程 `cure-form-common-migration-config/v1` 提供，插件 canonical 不保存业务种子。
-- 生成 `cure-form-package/v1`，通过固定服务端事务类 `DHCDoc.Cure.AI.CureFormDeploy` 执行 dry-run、受控写入、回读和回滚；v0.5.0 不再回退到旧部署类。
+- 生成普通部署、单 Map 合并、共享模板合并和零引用清理包，通过固定服务端事务类 `DHCDoc.Cure.AI.CureFormDeploy` 执行 dry-run、受控写入、回读和回滚；`cleanup` 仅处理孤儿模板，不替代正式 RowID 合并。
 - 只允许 CA/CR；`MapType` 为空的病理模板始终排除。
 - ObjectScript/HISUI 编码、MCP 和静态资源上传编译复用 `coding-iris-plugin`。
 

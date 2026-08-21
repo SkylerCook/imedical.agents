@@ -20,7 +20,7 @@
 - `plugins/extract-doc/` 负责 PDF、DOC、DOCX、XLS、XLSX 的本地解析和结构化落盘，是接口类业务插件的通用文档依赖。
 - `plugins/i18n-iris-plugin/` 负责 IRIS/ObjectScript/CSP/HISUI 国际化能力。
 - `plugins/iris-interface-dev/` 负责接口 schema、字段诊断、开发计划、本地接口实现和离线审查，文档读取委托 `extract-doc`，编码与部署规则复用 `coding-iris-plugin`。
-- `plugins/iris-cure-form-dev/` 负责 CA 治疗评估与 CR 治疗记录的文档语义适配、Excel 多模板边界报告与有序生成、响应式改造及受控部署编排；Map 总入口与模板逻辑均使用运行时外部 JS 路径，部署路径单独声明，无逻辑模板保持空引用；默认由宿主管理分模板生命周期，已验证宿主不可靠时可显式启用 `aggregateTemplateInit=true`，由总入口延迟且幂等调度实际业务模块；canonical `preview` 复制并哈希六类资源与 CSS 依赖，`preview-run` 通过本地 Chromium CDP 采集九档 Network/Console/HISUI 结果，`preview-check` 只接受当前 gate/runner 并把证据与 snapshot、changes、资源及依赖哈希绑定；新建表单以 `expectedVersion=NEW` 判定，部署前后使用 `interaction-prepare`/`interaction-check` 形成人工交互凭证，用户总体确认可通过、Agent 自测须逐项记录，自动交互模式拒绝；新 profile 默认从 `.agents/vendor/hisui/` 解析 HISUI，公共迁移 MapCode/RowID 则由目标工程配置提供；响应式兼容覆盖 HISUI `i-label-box` / `m-label-box` 完整三节点配对，以及旧 WebView 下保持 input 邻接的幂等原子布局 fallback；通用文档解析委托 `extract-doc`，IRIS/HISUI 与静态资源部署复用 `coding-iris-plugin`，空 `MapType` 病理模板不进入流程。
+- `plugins/iris-cure-form-dev/` 负责 CA 治疗评估与 CR 治疗记录的文档语义适配、Excel 多模板边界报告与有序生成、响应式改造及受控部署编排；新开发表单以 `expectedVersion=NEW` 判定并直接创建正式模板，不使用灰度；只有现有模板改造才使用响应式灰度 RowID，验收后以 `consolidate` / `consolidate-shared` 回归正式 RowID 并验证零灰度引用，`cleanup` 仅处理已切换引用后的孤儿模板；Map 总入口与模板逻辑均使用运行时外部 JS 路径，部署路径单独声明，无逻辑模板保持空引用；canonical `preview`、`preview-run`、`preview-check` 绑定六类资源、CSS 依赖和九档 Network/Console/HISUI 结果；部署前后人工交互凭证保持用户总体确认/Agent 逐项记录边界；通用文档解析委托 `extract-doc`，IRIS/HISUI 与静态资源部署复用 `coding-iris-plugin`，空 `MapType` 病理模板不进入流程。
 - `plugins/iris-external-reg/` 负责编排第三方预约挂号接口开发，依赖 `extract-doc` 和 `coding-iris-plugin`。
 - `plugins/imedicalxc-doctor-extend-engineer/` 负责 HIS 医生站第三方系统集成编排，主入口为 `skills/imedicalxc-doctor-extend-engineer/SKILL.md`，子 skill 由主编排器按需读取。
 - 已落地首个领域样板 `agents/i18n-agent/` 和 `workflows/i18n-change.workflow.md`，用于 IRIS i18n 需求的链路定位、数据分类、编码/模板/种子和验证五阶段处理。
@@ -58,7 +58,7 @@
 - vendor skill 已改为按 enabled 插件 capability 发现：`vendor/superpowers/` 和 `vendor/word-reader/` 仍随 `/vendor/**` 部署作为 fallback，但常规安装/更新不再全量写用户目录；resolver 只为 required skill 生成 `.agents/skills` 通用入口，optional 按任务触发，用户级 runtime 同步必须显式指定 skill。
 - 已新增并重构 `imedicalxc-doctor-extend-engineer` 插件，采用标准插件结构、内置多模块 Maven 依赖安装脚本，thin-index wrapper 默认只暴露主编排器入口，医生站第三方集成子 skill 由主编排器按需加载。
 - `iris-cure-form-dev` 文档新建流程默认以业务项目 `docs/` 为需求入口、`docs/cure-form/<moduleId>/` 为开发产物目录；插件不再使用 `src-iris` 默认目录，服务器快照与部署临时数据仍位于 `.agents/work/`，多个文档候选必须显式选择。
-- `iris-cure-form-dev` v0.5.0 保留 gate v2、canonical Chromium runner 与新建表单部署前后人工交互凭证，并将服务端事务入口固定迁移到 `DHCDoc.Cure.AI.CureFormDeploy`；不从 profile 注入类名，也不回退旧部署类。已部署项目须先编译新类、更新能力包并确认全部调用方切换后再删除旧类。新 profile 默认使用 `.agents/vendor/hisui/`，现有项目更新后保留本地六资源配置；`common-migrate` 继续使用项目自有 `cure-form-common-migration-config/v1`。
+- `iris-cure-form-dev` v0.6.0 在 v0.5.0 固定 `DHCDoc.Cure.AI.CureFormDeploy` 事务入口基础上新增现有模板灰度收尾：单 Map 与共享公共模板分别通过 consolidation 包回归正式 RowID，零灰度引用和灰度模板/缓存删除成为完成门禁；新开发表单保持无灰度流程。`coding-iris-plugin` v0.3.1 同步修复 Overlay `backend/src/...` 编译路径与远端文档名解析。真实服务器新增方法验证仍保留在 backlog，能力包更新不会自动修改服务端类。
 - 已精简 `imedicalxc-doctor-dbdata` skill，聚焦数据库查询核心规范，重点保留医保对照、基础数据统一对照和合并查询（Merge Query）等高价值领域知识，并同步更新医生站扩展主编排器和架构引用。
 - 已新增 `demo/presentation/` 演示页面，作为能力包、i18n skill 和多智能体架构的可视化说明材料；它不属于业务项目运行入口。
 - 已新增部署经验沉淀入口 `feedback/experience/deploy-com-exp.md` 和首个专项部署工具目录 `docs/deploy/dental-ta-159/`；这类内容可随 `docs/` 部署，但不得把业务私有连接信息写入记忆或规则。

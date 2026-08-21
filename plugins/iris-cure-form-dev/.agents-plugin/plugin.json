@@ -1,6 +1,6 @@
 {
   "name": "iris-cure-form-dev",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "displayName": "IRIS Cure Form Dev Plugin",
   "description": "CA/CR treatment form ingestion, multi-template generation, responsive migration, review, deployment planning, verification, and rollback orchestration.",
   "entry": "AGENTS.md",
@@ -20,7 +20,7 @@
       "maxVersionExclusive": "0.3.0"
     },
     "coding-iris-plugin": {
-      "minVersion": "0.3.0",
+      "minVersion": "0.3.1",
       "maxVersionExclusive": "0.4.0"
     }
   },
@@ -40,6 +40,7 @@
     "Generate and verify a complete HISUI browser preview for these cure form changes",
     "Prepare and validate the required manual interaction test evidence for a new cure form",
     "Prepare a dry-run cure form deployment package and review its impact",
+    "Consolidate an accepted existing-form grey template back to its formal RowID and verify zero grey references",
     "Verify or roll back a cure form deployment operation"
   ]
 }

@@ -2,7 +2,7 @@
 
 ## 医院文档新建
 
-`extract-doc/structure-v1` → `cure-form-spec/v1` → 人工确认 → CA/CR 生成 → 响应式与运行时契约验证 → 部署前人工交互验证 → 部署包 → 部署后人工交互验证。
+`extract-doc/structure-v1` → `cure-form-spec/v1` → 人工确认 → CA/CR 生成 → 响应式与运行时契约验证 → 部署前人工交互验证 → 部署包 → 部署后人工交互验证。新开发表单直接创建正式模板，不使用灰度，也不进入灰度合并或清理流程。
 
 默认以业务项目根为 `--project-root`：医院需求文件从 `docs/` 发现，开发规格、摄取报告和生成源码进入 `docs/cure-form/<moduleId>/`。多个 Word/PDF/Excel 候选必须由 `--source` 明确选择；不要用文件排序或修改时间猜测。服务器快照及部署临时数据继续写入 `.agents/work/`，不得混入 `docs/`。
 
@@ -16,9 +16,9 @@ Excel 多模板需求必须通过 `cure-form-template-boundaries/v1` 显式声�
 
 ## 服务器现有模板改造
 
-读取 CA/CR Map、组成模板、HTML、JS、缓存字段及资源 → 本地快照 → 规格化 → 保持运行时契约的响应式改造 → canonical 完整预览与九档浏览器凭证 → 差异和影响报告 → dry-run 部署计划 → 明确确认后写入 → 回读验证。
+读取 CA/CR Map、组成模板、HTML、JS、缓存字段及资源 → 本地快照 → 创建响应式灰度 RowID → 保持运行时契约的响应式改造 → canonical 完整预览与九档浏览器凭证 → 差异和影响报告 → dry-run 部署计划 → 明确确认后写入灰度并验收 → 按引用拓扑执行 `consolidate` 或 `consolidate-shared` 回归正式 RowID → `verify` 与全量 Map 回读 → 灰度引用数为 `0` 且灰度模板/缓存不存在后完成。
 
-公共模板使用版本化克隆，不直接原地覆盖。新表单引用最新批准版本；现有 Map 按灰度清单切换，病理 Map 永不自动切换。
+公共模板使用版本化克隆，不直接原地覆盖。新表单引用最新批准版本且不视为灰度；现有 Map 改造按灰度清单切换，验收后通过 `consolidate-shared` 回归已有正式 RowID，病理 Map 永不自动切换。`cleanup` 只清理已经完成引用切换的零引用孤儿模板，不能代替正式合并。
 
 ## 样式职责边界
 

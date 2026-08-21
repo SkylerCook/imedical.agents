@@ -12,6 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { resolveWorkspaceContext } = require('../../../../scripts/lib/workspace-context');
+const { resolveCompilePaths } = require('./compile-paths');
 
 const inputFile = process.argv[2];
 const namespace = process.argv[3];
@@ -68,42 +69,9 @@ function buildIrisMcpArgs() {
     return args;
 }
 
-// 将输入转换为本地路径和远程文档名
-function resolvePaths(input) {
-    let localPath;
-    let docName;
-
-    const isClassName = !input.includes('/') && !input.includes('\\')
-        && (/^[A-Za-z][A-Za-z0-9.]*$/.test(input));
-
-    if (isClassName) {
-        const baseName = input.replace(/\.cls$/i, '');
-        localPath = path.join('src', ...baseName.split('.')) + '.cls';
-        docName = baseName + '.cls';
-    } else {
-        let relPath = input;
-        const srcPrefixes = ['src/', 'src\\'];
-        for (const prefix of srcPrefixes) {
-            if (relPath.startsWith(prefix)) {
-                relPath = relPath.slice(prefix.length);
-                break;
-            }
-        }
-
-        const lastSegment = relPath.split(/[/\\]/).pop();
-        if (!/\.\w+$/.test(lastSegment)) {
-            relPath = relPath + '.cls';
-        }
-
-        localPath = path.join('src', relPath);
-        docName = relPath.replace(/[/\\]/g, '.');
-    }
-
-    return { localPath, docName };
-}
-
-const { localPath, docName } = resolvePaths(inputFile);
 const backendRoot = workspaceContext.sourceRoots.find(sourceRoot => sourceRoot.name === 'backend') || workspaceContext.sourceRoots[0];
+
+const { localPath, docName } = resolveCompilePaths(inputFile, { workspaceRoot, sourceRoot: backendRoot });
 const fullPath = path.resolve(backendRoot.target, localPath);
 
 if (!fs.existsSync(fullPath)) {

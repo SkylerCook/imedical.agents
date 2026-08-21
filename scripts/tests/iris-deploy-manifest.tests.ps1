@@ -2,6 +2,8 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
 $scriptUnderTest = Join-Path $repoRoot "plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js"
+$compileScript = Join-Path $repoRoot "plugins/coding-iris-plugin/scripts/iris-tools/compile.js"
+$compilePathResolver = Join-Path $repoRoot "plugins/coding-iris-plugin/scripts/iris-tools/compile-paths.js"
 
 function Assert-True {
   param(
@@ -36,6 +38,10 @@ function Assert-Contains {
 }
 
 Assert-True (Test-Path -LiteralPath $scriptUnderTest -PathType Leaf) "prepare-deploy-manifest.js should exist"
+& node --check $compileScript
+Assert-Equals $LASTEXITCODE 0 "compile.js syntax should be valid"
+& node --check $compilePathResolver
+Assert-Equals $LASTEXITCODE 0 "compile path resolver syntax should be valid"
 
 $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("iris-deploy-manifest-test-" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $testRoot | Out-Null
@@ -108,6 +114,9 @@ try {
     )
   }
   [System.IO.File]::WriteAllText((Join-Path $overlayRoot ".agents/capability.json"), ($overlayManifest | ConvertTo-Json -Depth 6), [System.Text.UTF8Encoding]::new($false))
+  $resolvedCompilePath = & node -e 'const resolver=require(process.argv[1]); console.log(JSON.stringify(resolver.resolveCompilePaths(process.argv[2], {workspaceRoot:process.argv[3], sourceRoot:{name:process.argv[5], path:process.argv[4]}})))' $compilePathResolver "backend/src/Sample/Package.cls" $overlayRoot (Join-Path $overlayRoot "backend") "backend" | ConvertFrom-Json
+  Assert-Equals ($resolvedCompilePath.localPath -replace '\\','/') "src/Sample/Package.cls" "Overlay logical path must resolve inside the backend source target"
+  Assert-Equals $resolvedCompilePath.docName "Sample.Package.cls" "Overlay compile target must not retain the logical backend/src prefix"
   $overlayJson = & node $scriptUnderTest --project-root $overlayRoot --from-git | Out-String
   Assert-Equals $LASTEXITCODE 0 "Multi-GitRoot manifest generation should exit 0"
   $overlayDeploy = $overlayJson | ConvertFrom-Json

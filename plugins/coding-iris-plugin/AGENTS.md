@@ -19,6 +19,7 @@
 - 历史 CSP/JS/CSS 文件可能存在编码和特殊 EOF，修改前先确认实际编码和尾部格式，避免整文件重写。
 - 前端编码模式只允许 `standard-gb2312` 和 `project-utf8`；组合仓库名称不是模式，实际文件字节检测始终是最终门禁。
 - 在 workspace-overlay 中统一通过 capability 包的 workspace context resolver 获取 `WorkspaceRoot`、`ContextRoot`、`CapabilityRoot`、`SourceRoot` 和 `GitRoot`；配置与 profile 只从 ContextRoot 读取，插件/模板/vendor 从 CapabilityRoot 读取，源码和 Git 操作不得越过 manifest 声明边界，也不得扫描父目录或 sibling 猜测根路径。
+- `compile.js` 接受 workspace-overlay 的 `backend/src/...` WorkspaceRoot 逻辑路径时，必须在声明的 backend SourceRoot target 下解析本地文件，并移除逻辑 `backend/src` 前缀后生成 IRIS 远端文档名；不得把 `src` 误作为类包名。
 
 ## Skill 路由
 

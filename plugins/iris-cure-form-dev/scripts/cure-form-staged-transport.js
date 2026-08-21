@@ -8,7 +8,7 @@ const { spawn } = require('child_process');
 
 const CURE_FORM_DEPLOY_CLASS = 'DHCDoc.Cure.AI.CureFormDeploy';
 const CHUNK_SIZE = 6000;
-const ALLOWED_METHODS = new Set(['InspectForm', 'ValidatePackage', 'ApplyPackage']);
+const ALLOWED_METHODS = new Set(['InspectForm', 'InspectConsolidation', 'InspectSharedConsolidation', 'InspectCleanup', 'ValidatePackage', 'ApplyPackage', 'ValidateConsolidation', 'ApplyConsolidation', 'ValidateSharedConsolidation', 'ApplySharedConsolidation', 'ValidateCleanup', 'ApplyCleanup']);
 const RESULT_CHUNK_SIZE = 12000;
 
 function fail(message) { throw new Error(message); }
@@ -169,10 +169,12 @@ function transportText(value) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const method = requireOption(args, 'method');
-  if (!ALLOWED_METHODS.has(method)) fail('Persistent transport only supports InspectForm, ValidatePackage, or ApplyPackage.');
-  const packageJson = method === 'InspectForm' ? '' : fs.readFileSync(path.resolve(requireOption(args, 'packageFile')), 'utf8').replace(/^\uFEFF/, '');
-  const operator = method === 'ApplyPackage' ? requireOption(args, 'operator') : '';
-  const reason = method === 'ApplyPackage' ? requireOption(args, 'reason') : '';
+  if (!ALLOWED_METHODS.has(method)) fail('Persistent transport method is not allowed.');
+  const isInspect = method === 'InspectForm' || method === 'InspectConsolidation' || method === 'InspectSharedConsolidation' || method === 'InspectCleanup';
+  const isApply = method === 'ApplyPackage' || method === 'ApplyConsolidation' || method === 'ApplySharedConsolidation' || method === 'ApplyCleanup';
+  const packageJson = isInspect ? '' : fs.readFileSync(path.resolve(requireOption(args, 'packageFile')), 'utf8').replace(/^\uFEFF/, '');
+  const operator = isApply ? requireOption(args, 'operator') : '';
+  const reason = isApply ? requireOption(args, 'reason') : '';
   const workspaceRoot = findWorkspaceRoot();
   const mcpConfig = JSON.parse(fs.readFileSync(path.join(workspaceRoot, '.mcp.json'), 'utf8'));
   const server = mcpConfig.mcpServers && mcpConfig.mcpServers['iris-agentic-dev'];
@@ -189,22 +191,26 @@ async function main() {
       clientInfo: { name: 'cure-form-staged-transport', version: '1.0.0' }
     });
     client.notify('notifications/initialized', {});
-    if (method === 'InspectForm') {
+    if (isInspect) {
       const formType = requireOption(args, 'formType');
-      const mapCode = requireOption(args, 'mapCode');
-      const methodCall = `##class(${CURE_FORM_DEPLOY_CLASS}).InspectForm(${[formType, mapCode].map(objectScriptArgument).join(',')})`;
+      const methodArgs = method === 'InspectCleanup'
+        ? [formType, requireOption(args, 'scopeId'), requireOption(args, 'sourceIds'), requireOption(args, 'replacementIds')]
+        : (method === 'InspectSharedConsolidation'
+          ? [formType, requireOption(args, 'scopeId'), requireOption(args, 'sourceIds'), requireOption(args, 'targetIds')]
+          : [formType, requireOption(args, 'mapCode')]);
+      const methodCall = `##class(${CURE_FORM_DEPLOY_CLASS}).${method}(${methodArgs.map(objectScriptArgument).join(',')})`;
       const lengthText = transportText(await callCode(client, namespace, `set value=${methodCall} write $length(value)`)).trim();
-      if (!/^\d+$/.test(lengthText)) fail('Remote InspectForm returned no readable result length.');
+      if (!/^\d+$/.test(lengthText)) fail(`Remote ${method} returned no readable result length.`);
       const length = Number(lengthText);
       let output = '';
       for (let start = 1; start <= length; start += RESULT_CHUNK_SIZE) {
         const end = Math.min(start + RESULT_CHUNK_SIZE - 1, length);
         const chunk = transportText(await callCode(client, namespace, `set value=${methodCall} write $extract(value,${start},${end})`));
-        if (!chunk) fail(`Remote InspectForm chunk ${start}-${end} was empty.`);
+        if (!chunk) fail(`Remote ${method} chunk ${start}-${end} was empty.`);
         output += chunk;
       }
       let snapshot;
-      try { snapshot = JSON.parse(output); } catch (error) { fail(`Remote InspectForm JSON could not be reassembled: ${error.message}`); }
+      try { snapshot = JSON.parse(output); } catch (error) { fail(`Remote ${method} JSON could not be reassembled: ${error.message}`); }
       console.log(`RESULT=${JSON.stringify(snapshot)}`);
       return;
     }
@@ -216,8 +222,13 @@ async function main() {
       stageMayExist = true;
       if (!resultIsOk(staged)) fail(`Server rejected package chunk ${sequence}: ${JSON.stringify(staged)}`);
     }
-    if (method === 'ValidatePackage') {
-      const validated = await callClassMethod(client, namespace, 'ValidateStagedPackage', [stageId]);
+    if (method === 'ValidatePackage' || method === 'ValidateConsolidation' || method === 'ValidateSharedConsolidation' || method === 'ValidateCleanup') {
+      const validationMethod = method === 'ValidatePackage'
+        ? 'ValidateStagedPackage'
+        : (method === 'ValidateConsolidation'
+          ? 'ValidateStagedConsolidation'
+          : (method === 'ValidateSharedConsolidation' ? 'ValidateStagedSharedConsolidation' : 'ValidateStagedCleanup'));
+      const validated = await callClassMethod(client, namespace, validationMethod, [stageId]);
       const cleared = await callClassMethod(client, namespace, 'ClearStagedPackage', [stageId]);
       stageMayExist = false;
       if (!resultIsOk(cleared)) fail(`Server could not clear the validated package stage: ${JSON.stringify(cleared)}`);
@@ -225,7 +236,12 @@ async function main() {
       return;
     }
     appliedCallStarted = true;
-    const applied = await callClassMethod(client, namespace, 'ApplyStagedPackage', [stageId, operator, reason]);
+    const applyMethod = method === 'ApplyPackage'
+      ? 'ApplyStagedPackage'
+      : (method === 'ApplyConsolidation'
+        ? 'ApplyStagedConsolidation'
+        : (method === 'ApplySharedConsolidation' ? 'ApplyStagedSharedConsolidation' : 'ApplyStagedCleanup'));
+    const applied = await callClassMethod(client, namespace, applyMethod, [stageId, operator, reason]);
     stageMayExist = false;
     console.log(`RESULT=${JSON.stringify(applied)}`);
   } finally {

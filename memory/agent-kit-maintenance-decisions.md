@@ -95,6 +95,8 @@
 
 ## 跨插件一致性
 
+- 治疗表单生命周期必须区分新开发与现有模板改造：`expectedVersion=NEW` 的新开发表单直接创建正式模板，不使用灰度；只有现有模板改造才使用响应式灰度 RowID，并在验收后按引用拓扑通过 `consolidate` / `consolidate-shared` 回归正式 RowID。`cleanup` 只处理已完成引用切换的零引用孤儿模板，不替代正式合并。
+
 - 修改插件目录结构时，同步检查 `.agents-plugin/plugin.json`、插件 `AGENTS.md`、插件 README、仓库 README 和相关 docs。
 - 任何新规则都要先判断是否应放入 `rules/`、`references/`、`skills/`、`templates/` 或 `scripts/`。
 - 如需重命名历史 rule/skill/reference，必须同步 thin-index stale 清理、README、AGENTS、skills 引用和已部署工程兼容说明。
