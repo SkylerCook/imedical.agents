@@ -35,6 +35,12 @@ try {
 }
 
 const readCases = [
+  ["capability_matrix", {}],
+  ["compare_document", {}],
+  ["compare_namespace", {}],
+  ["global_preview", {}],
+  ["hl7_schema_inspect", {}],
+  ["hl7_schema_list", {}],
   ["iris_doc", {}],
   ["iris_doc", { mode: "fragment" }],
   ["iris_query", { mode: "read", query: "SELECT 1" }],
@@ -58,10 +64,24 @@ const readCases = [
   ["skill", { action: "search" }],
   ["skill_community", { action: "list" }],
   ["kb", { action: "recall" }],
-  ["iris_doc_search", { query: "SQLCODE -30" }]
+  ["iris_doc_search", { query: "SQLCODE -30" }],
+  ["iris_database_list", {}],
+  ["iris_database_stats", {}],
+  ["iris_namespace_list", {}],
+  ["iris_servers", {}],
+  ["iris_test_server", {}],
+  ["journal_search", {}],
+  ["mermaid_class", {}],
+  ["mermaid_production", {}],
+  ["my_access", {}],
+  ["query_audit_log", {}],
+  ["resolve_storage", {}],
+  ["stream_inspect", {}]
 ];
 
 const writeCases = [
+  ["global_kill", {}],
+  ["iris_add_server", {}],
   ["iris_doc", { mode: "put" }],
   ["iris_doc", { mode: "delete" }],
   ["iris_doc", { mode: "insert" }],
@@ -99,7 +119,13 @@ const writeCases = [
   ["iris_execute_method", {}],
   ["iris_generate_class", {}],
   ["iris_generate_test", {}],
+  ["iris_import_servers", {}],
+  ["iris_namespace_create", {}],
+  ["iris_remove_server", {}],
   ["iris_test", {}],
+  ["iris_ws_close", {}],
+  ["iris_ws_exec", {}],
+  ["iris_ws_open", {}],
   ["iris_credential_manage", {}],
   ["skill_community_install", {}],
   ["skill_forget", {}],
@@ -108,6 +134,30 @@ const writeCases = [
   ["skill_share", {}],
   ["future_unclassified_tool", {}]
 ];
+
+const bundledV126Tools = [
+  "agent_history", "agent_stats", "capability_matrix", "check_config", "compare_document",
+  "compare_namespace", "docs_introspect", "extract_message_map_routing", "find_subclass_implementations",
+  "global_kill", "global_preview", "hl7_schema_inspect", "hl7_schema_list", "iris_add_server",
+  "iris_admin", "iris_business_rule_info", "iris_compile", "iris_containers", "iris_coverage",
+  "iris_credential_list", "iris_credential_manage", "iris_database_list", "iris_database_stats",
+  "iris_debug", "iris_doc", "iris_doc_search", "iris_execute", "iris_execute_method", "iris_generate",
+  "iris_generate_class", "iris_generate_test", "iris_get_log", "iris_global", "iris_import_servers",
+  "iris_info", "iris_interop_query", "iris_lookup_manage", "iris_lookup_transfer", "iris_macro",
+  "iris_message_body", "iris_namespace_create", "iris_namespace_list", "iris_production",
+  "iris_production_diff", "iris_production_item", "iris_query", "iris_remove_server", "iris_search",
+  "iris_servers", "iris_source_control", "iris_symbols", "iris_symbols_local", "iris_table_info",
+  "iris_test", "iris_test_server", "iris_ws_close", "iris_ws_exec", "iris_ws_open", "journal_search",
+  "kb", "kb_index", "kb_recall", "mermaid_class", "mermaid_production", "my_access",
+  "query_audit_log", "resolve_dynamic_dispatch", "resolve_storage", "skill", "skill_community",
+  "skill_community_list", "skill_describe", "skill_forget", "skill_list", "skill_search",
+  "stream_inspect", "telemetry_export_trace", "telemetry_query"
+];
+assert.strictEqual(bundledV126Tools.length, 78);
+for (const tool of bundledV126Tools) {
+  assert.strictEqual(helper.isClassifiedTool(tool), true, `${tool} should have an explicit v1.2.6 policy classification`);
+}
+assert.strictEqual(helper.isClassifiedTool("future_unclassified_tool"), false);
 
 for (const [tool, args] of readCases) {
   assert.strictEqual(helper.isWriteLike(tool, args), false, `${tool} should be read-like`);
@@ -136,6 +186,8 @@ const summary = helper.summarizeCheck({
 assert.strictEqual(summary.connected, true);
 assert.strictEqual(summary.connectionSource, "config_file");
 assert.strictEqual(summary.workspaceHintLoaded, true);
+assert.strictEqual(summary.destructiveToolsEnabled, null);
+assert.strictEqual(summary.serverVersion, null);
 assert.strictEqual(summary.capabilities.privateWebServer, false);
 assert.strictEqual(summary.capabilities.atelierRest, false);
 assert.strictEqual(summary.capabilities.compilePath, "docker_exec");
@@ -205,6 +257,33 @@ try {
   Assert-True ($toolsOutput.Contains("TOOLS=")) "tools output should include the tool list"
   Assert-True ($toolsOutput.Contains("iris_coverage")) "tools output should include iris_coverage"
   Assert-True ($toolsOutput.Contains("iris_doc_search")) "tools output should include iris_doc_search"
+  Assert-True ($toolsOutput.Contains("capability_matrix")) "tools output should include v1.2.6 capability_matrix"
+  Assert-True ($toolsOutput.Contains("compare_namespace")) "tools output should include v1.2.6 compare_namespace"
+  $toolsLine = @($toolsOutput -split "`r?`n" | Where-Object { $_.StartsWith("TOOLS=") })[-1]
+  $toolNames = @()
+  foreach ($toolName in ($toolsLine.Substring(6) | ConvertFrom-Json)) { $toolNames += $toolName }
+  Assert-True ($toolNames.Count -eq 67) "default --no-skills toolset should expose 67 tools"
+  Assert-True (-not ($toolNames -contains "skill_list")) "default helper toolset should omit built-in skill tools"
+
+  $skillsEnabledConfig = $mcpConfig | ConvertFrom-Json
+  $skillsEnabledConfig.mcpServers."iris-agentic-dev".env | Add-Member -NotePropertyName IRIS_NO_SKILLS -NotePropertyValue "false"
+  [System.IO.File]::WriteAllText(
+    (Join-Path $testRoot ".mcp.json"),
+    ($skillsEnabledConfig | ConvertTo-Json -Depth 8),
+    (New-Object System.Text.UTF8Encoding($false))
+  )
+  Push-Location $testRoot
+  try {
+    $skillsEnabledOutput = & node $helperPath tools 2>&1 | Out-String
+  } finally {
+    Pop-Location
+  }
+  Assert-True ($LASTEXITCODE -eq 0) "tools should support explicit built-in skill opt-in"
+  $skillsEnabledLine = @($skillsEnabledOutput -split "`r?`n" | Where-Object { $_.StartsWith("TOOLS=") })[-1]
+  $skillsEnabledNames = @()
+  foreach ($skillToolName in ($skillsEnabledLine.Substring(6) | ConvertFrom-Json)) { $skillsEnabledNames += $skillToolName }
+  Assert-True ($skillsEnabledNames.Count -eq 78) "built-in skill opt-in should expose the full 78-tool v1.2.6 set"
+  Assert-True ($skillsEnabledNames -contains "skill_list") "built-in skill opt-in should restore skill_list"
 } finally {
   if (Test-Path -LiteralPath $testRoot) {
     Remove-Item -LiteralPath $testRoot -Recurse -Force

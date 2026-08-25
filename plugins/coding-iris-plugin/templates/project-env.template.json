@@ -17,7 +17,8 @@
   "mcp": {
     "serverName": "iris-agentic-dev",
     "serverPath": ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe",
-    "nodeTlsRejectUnauthorized": "0"
+    "nodeTlsRejectUnauthorized": "0",
+    "includeBuiltInSkills": false
   },
   "sftp": {
     "enabled": false,

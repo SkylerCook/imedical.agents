@@ -32,7 +32,7 @@ related:
 
 ## 当前内置版本兼容映射
 
-仓库内置 `iris-agentic-dev 0.9.3` 使用以下合并工具名：
+仓库内置 `iris-agentic-dev 1.2.6`。2026-08-25 的断连本地 JSON-RPC 复核中，完整合并 toolset 返回 78 个工具；helper 和新生成的 `.mcp.json` 默认加 `--no-skills` 后返回 67 个。实际任务始终以目标运行时 `tools/list` 为准。
 
 | 上游 skill 中的逻辑/旧工具名 | 当前工具 |
 |---|---|
@@ -46,6 +46,8 @@ related:
 | `iris_list_containers` / `iris_select_container` | 先检查当前 `iris_containers` schema；不得按旧参数猜测 |
 
 官方 vendor skill 保留上游原文。执行前必须以当前 `tools/list` schema 为准应用本表，不直接照抄旧工具名。
+
+跨实例比较优先使用 `compare_document` / `compare_namespace`；多实例注册状态使用 `iris_servers` / `iris_test_server`。这些工具存在不代表允许读取任意环境，仍须先确认目标 server 属于当前任务范围。
 
 ## 证据优先级
 
@@ -61,4 +63,5 @@ related:
 - 禁止以验证知识为由调用编译、执行、测试、文档写入、Global 写入、Production 生命周期、凭据、安全管理或数据库写入能力。
 - `iris_query` 仅限必要的系统字典只读查询；不要读取患者、消息正文或业务表数据。
 - 用户明确要求行为验证时，先说明 `iris_execute`、`iris_execute_method` 或 `iris_test` 可能产生的远端影响，再按任务级授权执行。
+- `objectscript-tdd` 只在任务已明确授权编译和测试时使用；它的上游 `iris session` fallback 不得绕过 MCP、目标 server 和远程动作门禁。
 - 输出只记录工具名、namespace 是否匹配、产品版本和证据摘要；不输出 host、端口、用户名、密码、token 或远程私有路径。

@@ -74,6 +74,9 @@ function buildIrisMcpArgs() {
   args.push('--web-port', String(irisPort));
   args.push('--scheme', irisScheme);
   args.push('--namespace', iris.namespace);
+  if (mcp.includeBuiltInSkills !== true) {
+    args.push('--no-skills');
+  }
   return args;
 }
 
@@ -89,7 +92,8 @@ const mcpConfig = {
         IRIS_USERNAME: iris.username,
         IRIS_PASSWORD: iris.password,
         IRIS_NAMESPACE: iris.namespace,
-        IRIS_TLS_VERIFY: irisTlsVerify
+        IRIS_TLS_VERIFY: irisTlsVerify,
+        IRIS_NO_SKILLS: String(mcp.includeBuiltInSkills !== true)
       }
     }
   }

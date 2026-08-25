@@ -18,7 +18,7 @@
 - IRIS 开发主力脚本：通过 `scripts/iris-tools/` 提供部署清单生成、导出、编译、Broker 调试和环境配置同步。
 - MCP 能力说明：`rules/iris_agentic_dev.md` 记录 IRIS MCP 能力矩阵，`rules/sftp_server.md` 记录 SFTP MCP 能力矩阵和安全边界。
 - IRIS 知识查询：`skills/iris-mcp-lookup/SKILL.md` 统一路由当前实例元数据、本地源码和官方文档，支持已知 `docs.intersystems.com` URL 的 Fetch/WebFetch/Open 等价能力。
-- 官方 ObjectScript skills：从 `iris-agentic-dev` v0.9.4 固定快照选择 7 个通用 skill，部署在 `.agents/vendor/iris-agentic-dev-skills/`，全部按 optional capability 触发，不默认生成浅层入口。
+- 官方 ObjectScript skills：从 `iris-agentic-dev` v1.2.6 固定快照选择 8 个通用 skill，部署在 `.agents/vendor/iris-agentic-dev-skills/`，全部按 optional capability 触发，不默认生成浅层入口。
 
 ## 标准目录
 
@@ -109,9 +109,9 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 - `iris_symbols_local`：本地 `.cls/.mac/.inc`。
 - `iris_doc mode=get/head`：当前实例中的类或例程文档；它不用于查询官方文档站。
 - 当前运行器网页读取能力：已知 `docs.intersystems.com` URL；Claude Code 可显示为 `Fetch` / `WebFetch`。
-- `iris_doc_search`：只有当前 `tools/list` 实际包含该工具时才使用；内置 v0.9.3 已复核包含该工具。
+- `iris_doc_search`：只有当前 `tools/list` 实际包含该工具时才使用；内置 v1.2.6 已复核包含该工具。
 
-内置 v0.9.3 还提供 `iris_coverage`，并为 `iris_test` 增加 coverage 参数。它属于远端测试/监控能力，不属于知识查询默认路径；使用前必须取得任务级授权并确认 IRIS `gmheap >= 256 MB`。
+内置 v1.2.6 的完整合并 toolset 已复核为 78 个工具；helper 与新生成的 `.mcp.json` 默认使用 `--no-skills` 后为 67 个。新增多实例、跨环境比较、持久会话、namespace/database、journal/audit、HL7、Mermaid 和 Storage 解析等能力，具体边界见 `rules/iris_agentic_dev.md`。`iris_coverage` 仍属于远端测试/监控能力，不属于知识查询默认路径；使用前必须取得任务级授权并确认 IRIS `gmheap >= 256 MB`。
 
 官方 vendor skills 来源和 commit 见 `.agents/vendor/iris-agentic-dev-skills/UPSTREAM.md`。当前选择：
 
@@ -122,8 +122,9 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 - `objectscript-navigation`
 - `objectscript-unit-test`
 - `objectscript-debugging`
+- `objectscript-tdd`
 
-它们在 manifest 中均为 optional。任务命中后直接读取 `.agents/vendor/iris-agentic-dev-skills/skills/<name>/SKILL.md`；上游原文中的工具名可能与内置 MCP 版本不同，执行前必须读取 `rules/iris_knowledge_lookup.md` 并按当前 `tools/list` schema 映射。
+它们在 manifest 中均为 optional。任务命中后直接读取 `.agents/vendor/iris-agentic-dev-skills/skills/<name>/SKILL.md`；上游原文中的工具名可能与内置 MCP 版本不同，执行前必须读取 `rules/iris_knowledge_lookup.md` 并按当前 `tools/list` schema 映射。`objectscript-tdd` 只有在任务已授权远端编译和测试时才能触发。
 
 已部署业务工程更新 `.agents` 后，重新为 enabled `coding-iris-plugin` 生成 plugin thin-index，即可获得 `iris-mcp-lookup` 与 `iris_knowledge_lookup` 浅层入口。optional vendor skills 不会自动生成浅层入口；需要用户级运行时副本时，按 `docs/update-agents.md` 显式选择具体 skill 和 runtime。
 
@@ -137,9 +138,9 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 - `sync-env-config.js`：仅当 `.agents/config/project-env.json` 是事实来源时，从它生成 `.mcp.json`。
 - `prepare-deploy-manifest.js`：根据文件列表或 git diff 生成 IRIS 部署 JSON 清单；只做本地分析，不执行上传、编译或远端写入。
 
-目标工程 `.agents/scripts/iris-mcp.js` 是通用 MCP helper，用于在 Agent 环境未直接暴露 IRIS MCP 工具时稳定启动 `iris-agentic-dev`、执行 `check_config`、列出工具和转发 `tools/call`。该脚本不实现业务能力；`iris_doc`、`iris_query`、`iris_info` 等能力仍由 MCP server 自身处理。helper 会摘要 `check_config.capabilities` 和 fallback 风险，并按 `mode` / `action` 精确拦截文档编辑、SQL 写入、Global 写删、容器切换、SCM 变更、测试、覆盖率等远端状态变化；尚未分类的未来工具默认也进入授权门禁，只有用户明确要求后才允许使用 `--allow-write`。
+目标工程 `.agents/scripts/iris-mcp.js` 是通用 MCP helper，用于在 Agent 环境未直接暴露 IRIS MCP 工具时稳定启动 `iris-agentic-dev`、执行 `check_config`、列出工具和转发 `tools/call`。该脚本不实现业务能力；`iris_doc`、`iris_query`、`iris_info` 等能力仍由 MCP server 自身处理。helper 会摘要版本、连接、`check_config.capabilities` 和 fallback 风险，显式分类 v1.2.6 的 78 个工具，并按 `mode` / `action` 精确拦截文档编辑、SQL 写入、Global 写删、namespace 创建、多实例注册变更、持久会话、容器切换、SCM 变更、测试、覆盖率等远端状态变化；尚未分类的未来工具默认也进入授权门禁，只有用户明确要求后才允许使用 `--allow-write`。
 
-如需减少工具噪声或从 MCP 暴露面隐藏高风险工具，可在目标工程私有 `.iris-agentic-dev.toml` 中设置 `disabled_tools`，或通过 `.mcp.json` 的本地 `env` 设置 `IRIS_DISABLED_TOOLS`。这不会自动授予其余工具写权限，也不会修改插件 profile。
+新生成配置默认 `mcp.includeBuiltInSkills=false`，对应 `--no-skills` / `IRIS_NO_SKILLS=true`，避免上游 skill registry、KB 和学习工具与本仓库 vendor skills 重复。确需这些内置工具时，只在目标工程本地把该字段设为 `true`。如需进一步减少工具噪声或从 MCP 暴露面隐藏高风险工具，可在目标工程私有 `.iris-agentic-dev.toml` 中设置 `disabled_tools`，或通过 `.mcp.json` 的本地 `env` 设置 `IRIS_DISABLED_TOOLS`。这不会自动授予其余工具写权限，也不会修改插件 profile。
 
 首次使用前先确认配置事实来源：
 

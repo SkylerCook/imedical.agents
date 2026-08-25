@@ -73,4 +73,4 @@
 
 默认模板将 `mcp.serverPath` 指向 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`。该路径只表示内置 MCP server 可执行文件位置，不包含 host、namespace、账号、密码或 token。
 
-官方 `iris-agentic-dev` 中通用性较高的 ObjectScript skills 固定快照位于 `.agents/vendor/iris-agentic-dev-skills/`，在 manifest 中全部声明为 optional capability。任务命中后按需读取，普通更新不生成浅层入口；上游工具名必须先按 `rules/iris_knowledge_lookup.md` 映射到当前 `tools/list` schema。
+官方 `iris-agentic-dev` v1.2.6 中通用性较高的 8 个 ObjectScript skills 固定快照位于 `.agents/vendor/iris-agentic-dev-skills/`，在 manifest 中全部声明为 optional capability。任务命中后按需读取，普通更新不生成浅层入口；上游工具名必须先按 `rules/iris_knowledge_lookup.md` 映射到当前 `tools/list` schema。`objectscript-tdd` 只有在任务已授权远端编译和测试时才能使用，其原文中的直接 session fallback 不得绕过本插件门禁。

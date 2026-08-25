@@ -83,6 +83,8 @@ function buildMcpArgs() {
   if (env.IRIS_WEB_PORT) args.push('--web-port', String(env.IRIS_WEB_PORT));
   if (env.IRIS_SCHEME) args.push('--scheme', env.IRIS_SCHEME);
   if (env.IRIS_NAMESPACE) args.push('--namespace', env.IRIS_NAMESPACE);
+  const noSkills = normalizedValue(env.IRIS_NO_SKILLS, 'true');
+  if (!new Set(['false', '0', 'no']).has(noSkills)) args.push('--no-skills');
   return args;
 }
 
@@ -150,7 +152,10 @@ function summarizeCheck(data) {
     connected: data.connected === true,
     connectionSource: data.connection_source || null,
     workspaceHintLoaded: Boolean(data.objectscript_workspace),
-    writeToolsEnabled: data.write_tools_enabled === true,
+    writeToolsEnabled: typeof data.write_tools_enabled === 'boolean' ? data.write_tools_enabled : null,
+    destructiveToolsEnabled: typeof data.destructive_tools_enabled === 'boolean' ? data.destructive_tools_enabled : null,
+    serverVersion: data.server_version || null,
+    irisVersion: data.iris_version || null,
     capabilities: {
       privateWebServer: typeof capabilities.private_web_server === 'boolean'
         ? capabilities.private_web_server
@@ -176,6 +181,8 @@ function parseToolArgsInput(inlineJson, jsonFile, cwd = process.cwd()) {
 }
 
 const alwaysWriteLikeTools = new Set([
+  'global_kill',
+  'iris_add_server',
   'iris_compile',
   'iris_credential_manage',
   'iris_coverage',
@@ -183,7 +190,13 @@ const alwaysWriteLikeTools = new Set([
   'iris_execute_method',
   'iris_generate_class',
   'iris_generate_test',
+  'iris_import_servers',
+  'iris_namespace_create',
+  'iris_remove_server',
   'iris_test',
+  'iris_ws_close',
+  'iris_ws_exec',
+  'iris_ws_open',
   'kb_index',
   'skill_community_install',
   'skill_forget',
@@ -195,12 +208,20 @@ const alwaysWriteLikeTools = new Set([
 const readOnlyTools = new Set([
   'agent_history',
   'agent_stats',
+  'capability_matrix',
   'check_config',
+  'compare_document',
+  'compare_namespace',
   'docs_introspect',
   'extract_message_map_routing',
   'find_subclass_implementations',
+  'global_preview',
+  'hl7_schema_inspect',
+  'hl7_schema_list',
   'iris_business_rule_info',
   'iris_credential_list',
+  'iris_database_list',
+  'iris_database_stats',
   'iris_debug',
   'iris_doc_search',
   'iris_generate',
@@ -209,20 +230,52 @@ const readOnlyTools = new Set([
   'iris_interop_query',
   'iris_macro',
   'iris_message_body',
+  'iris_namespace_list',
   'iris_production_diff',
   'iris_search',
+  'iris_servers',
   'iris_symbols',
   'iris_symbols_local',
   'iris_table_info',
+  'iris_test_server',
+  'journal_search',
   'kb_recall',
+  'mermaid_class',
+  'mermaid_production',
+  'my_access',
+  'query_audit_log',
   'resolve_dynamic_dispatch',
+  'resolve_storage',
   'skill_community_list',
   'skill_describe',
   'skill_list',
   'skill_search',
+  'stream_inspect',
   'telemetry_export_trace',
   'telemetry_query'
 ]);
+
+const conditionalTools = new Set([
+  'iris_admin',
+  'iris_containers',
+  'iris_doc',
+  'iris_global',
+  'iris_lookup_manage',
+  'iris_lookup_transfer',
+  'iris_production',
+  'iris_production_item',
+  'iris_query',
+  'iris_source_control',
+  'kb',
+  'skill',
+  'skill_community'
+]);
+
+function isClassifiedTool(toolName) {
+  return alwaysWriteLikeTools.has(toolName)
+    || readOnlyTools.has(toolName)
+    || conditionalTools.has(toolName);
+}
 
 function normalizedValue(value, fallback = '') {
   const normalized = String(value == null ? '' : value).trim().toLowerCase();
@@ -441,6 +494,7 @@ async function main() {
 }
 
 module.exports = {
+  isClassifiedTool,
   isWriteLike,
   parseToolArgsInput,
   summarizeCheck

@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
@@ -59,6 +59,12 @@
         "provider": "iris-agentic-dev-skills",
         "name": "objectscript-debugging",
         "trigger": "iris-runtime-or-compile-error"
+      },
+      {
+        "capability": "iris.objectscript.tdd",
+        "provider": "iris-agentic-dev-skills",
+        "name": "objectscript-tdd",
+        "trigger": "authorized-objectscript-compile-test-loop"
       }
     ]
   },

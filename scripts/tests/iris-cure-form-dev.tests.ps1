@@ -106,7 +106,7 @@ try {
 
     $manifest = Get-Content -LiteralPath (Join-Path $pluginRoot '.agents-plugin\plugin.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($manifest.name -eq 'iris-cure-form-dev') 'Unexpected plugin name.'
-    Assert-True ($manifest.version -eq '0.6.0') 'Unexpected plugin version.'
+    Assert-True ($manifest.version -eq '0.6.1') 'Unexpected plugin version.'
     Assert-True (($manifest.dependencies -contains 'extract-doc') -and ($manifest.dependencies -contains 'coding-iris-plugin')) 'Plugin dependencies are incomplete.'
 
     foreach ($skill in @('cure-form-init','cure-form-requirement-adapter','cure-assess-form-dev','cure-record-form-dev','cure-form-responsive','make-assess-form-responsive','cure-form-deploy','cure-form-lookup','cure-form-fragment')) {

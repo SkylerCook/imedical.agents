@@ -226,7 +226,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - HISUI 控件/API 按需读取 `references/hisui-widget-index.md`，主题 CSS、locale CSS、语义 class、图标和插图按需读取 `references/hisui-style-index.md`。
 - iris-agentic-dev MCP server Windows x64 可执行文件（当前 **v1.2.6**）内置在 `.agents/vendor/iris-agentic-dev/`，目标工程 `.mcp.json` 仍保存实际连接事实。
 - `iris-mcp-lookup` 统一查询当前实例类/方法签名、本地源码和 InterSystems 官方文档，并支持已知官方 URL 的 Fetch/WebFetch/Open 等价能力。
-- 官方 `iris-agentic-dev` v0.9.4 中 7 个通用 ObjectScript skill 以固定 commit 快照进入 `.agents/vendor/iris-agentic-dev-skills/`，由 coding 插件声明为 optional capability，避免全局加载。
+- 官方 `iris-agentic-dev` v1.2.6 中 8 个通用 ObjectScript skill 以固定 commit 快照进入 `.agents/vendor/iris-agentic-dev-skills/`，由 coding 插件声明为 optional capability，避免全局加载；新生成的 MCP 配置默认 `--no-skills`，由本仓库统一治理 skill 发现层。
 
 常用 skill：
 

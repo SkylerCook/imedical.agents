@@ -28,7 +28,6 @@
 
 ### P3：持续观察与资产治理
 
-- 审计 `iris-agentic-dev` v0.9.3 → v1.2.6 的完整 MCP 工具、参数 schema、连接配置与安全边界变化，并用真实 `check_config` / `tools/list` 更新 `scripts/iris-mcp.js`、coding-iris 规则和专项测试；2026-08-25 的 exe 更新只证明官方摘要、`--version`、既有 helper 与安装/更新回归通过，不等同于新能力面已完成适配。
 - 继续观察 rules 体量；若 i18n 或 coding 规则再次承载查找表、API 目录或长参考资料，优先迁入对应插件 `references/`。
 - 观察 `feedback/experience/deploy-com-exp.md` 与 `docs/deploy/*` 的复用频率，必要时抽象命名、敏感信息检查和部署工具模板。
 - 明确 `demo/presentation/` 是否长期作为仓库展示资产；如需部署到业务项目，必须先更新安装/更新 sparse checkout 边界说明。

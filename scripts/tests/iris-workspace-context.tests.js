@@ -49,6 +49,22 @@ try {
   assert.match(result.stdout, new RegExp(contextRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.match(result.stderr + result.stdout, /Workspace root:/);
   assert.ok(fs.existsSync(path.join(workspaceRoot, '.mcp.json')), 'sync-env-config must write workspace-local .mcp.json');
+  const generatedMcp = JSON.parse(fs.readFileSync(path.join(workspaceRoot, '.mcp.json'), 'utf8'));
+  assert.ok(generatedMcp.mcpServers.iris.args.includes('--no-skills'), 'generated MCP config must disable built-in skills by default');
+  assert.strictEqual(generatedMcp.mcpServers.iris.env.IRIS_NO_SKILLS, 'true');
+
+  const optInConfigPath = path.join(contextRoot, 'config', 'project-env.json');
+  const optInConfig = JSON.parse(fs.readFileSync(optInConfigPath, 'utf8'));
+  optInConfig.mcp.includeBuiltInSkills = true;
+  fs.writeFileSync(optInConfigPath, JSON.stringify(optInConfig));
+  const optInResult = spawnSync(process.execPath, [path.join(toolsRoot, 'sync-env-config.js')], {
+    cwd: workspaceRoot,
+    encoding: 'utf8',
+  });
+  assert.strictEqual(optInResult.status, 0, optInResult.stderr);
+  const optInMcp = JSON.parse(fs.readFileSync(path.join(workspaceRoot, '.mcp.json'), 'utf8'));
+  assert.ok(!optInMcp.mcpServers.iris.args.includes('--no-skills'), 'explicit opt-in must keep built-in skill tools');
+  assert.strictEqual(optInMcp.mcpServers.iris.env.IRIS_NO_SKILLS, 'false');
 } finally {
   fs.rmSync(testRoot, { recursive: true, force: true });
 }

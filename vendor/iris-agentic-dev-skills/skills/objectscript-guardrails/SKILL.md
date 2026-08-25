@@ -1,41 +1,41 @@
 ---
 author: tdyar
-benchmark_date: '2026-04-02'
-benchmark_iris_version: '2025.1'
+benchmark_date: "2026-04-02"
+benchmark_iris_version: "2025.1"
 benchmark_tasks:
-- jira-001
-- jira-002
-- jira-003
-- jira-004
-- jira-005
-- jira-006
-- jira-007
-- jira-008
-- jira-009
-- jira-010
-- jira-011
-- jira-012
-- jira-013
-- jira-014
-- jira-015
-- jira-016
-- jira-017
-- jira-018
-- jira-019
-- jira-020
-- jira-021
-- jira-056
+  - jira-001
+  - jira-002
+  - jira-003
+  - jira-004
+  - jira-005
+  - jira-006
+  - jira-007
+  - jira-008
+  - jira-009
+  - jira-010
+  - jira-011
+  - jira-012
+  - jira-013
+  - jira-014
+  - jira-015
+  - jira-016
+  - jira-017
+  - jira-018
+  - jira-019
+  - jira-020
+  - jira-021
+  - jira-056
 description: Use when writing or reviewing any ObjectScript code. Hard gate — 10-item
   checklist catches the most common AI mistakes before showing code to the user.
-iris_version: '>=2024.1'
+iris_version: ">=2024.1"
 name: objectscript-guardrails
 pass_rate: 0.8636363636363636
 state: reviewed
 tags:
-- objectscript
-- review
-- repair
-- core
+  - objectscript
+  - review
+  - repair
+  - core
 trigger: Use for tdyar/iris-light-slim
 ---
 
@@ -55,19 +55,22 @@ trigger: Use for tdyar/iris-light-slim
 - [ ] **$ListBuild()**: Empty list is `""` not `$ListBuild()` — `$ListLength($ListBuild()) = 1`
 - [ ] **%Status**: Use `$$$ISERR(sc)` / `$$$ThrowOnError(sc)`. Never return `$$$OK` after catching an error
 - [ ] **Transactions**: `If $TLevel > 0 { TROLLBACK }` — never `Return` inside TSTART without rollback
-- [ ] **Storage blocks**: NEVER write `Storage Default { ... }` in UDL — omit entirely. IRIS auto-generates storage. Writing one causes ERROR #5559 in IRIS 2025.1+.
+- [ ] **Storage blocks**: Never edit `Storage Default { ... }` — compiler auto-maps properties on compile, added or removed (orphans are fine). Rename exception: also rename its Storage entry. Reset needs explicit user confirmation.
 - [ ] **%INLIST in ObjectScript**: `%INLIST` is SQL-only. In ObjectScript method code use `$ListFind(list, value) > 0`. Writing `Return (x %INLIST list)` causes ERROR #1010.
 - [ ] **`'=` in SQL strings**: `'=` is the ObjectScript not-equal operator. Inside SQL string literals, use `<>`. `"WHERE Tags '= ''"` → parser sees `'` as start of SQL string.
 
 ## Output Format
 
 If violations found:
+
 > ⚠️ ObjectScript review flagged [N] issues — correcting:
+>
 > - [rule]: [wrong] → [correct]
 
 Then show corrected code.
 
 If clean:
+
 > ✅ ObjectScript review passed.
 
 Then show code.
@@ -85,7 +88,15 @@ celsius * 9 / 5 + 32               →  (celsius * 1.8) + 32
 Set lst = $ListBuild()             →  Set lst = ""
 
 // Storage / Operators:
-Storage Default { <Type>...</Type> }   →  (omit entirely — IRIS auto-generates)
-Return (tag %INLIST myList)            →  Return ($ListFind(myList, tag) > 0)
-"WHERE Tags '= ''"                     →  "WHERE Tags <> ''"
+Add Property + map into Storage           →  leave Storage alone (compiler auto-maps)
+Remove Property + delete Storage entry    →  leave Storage entry (orphan is fine)
+Rename Property only                      →  also rename its Storage entry
+Return (tag %INLIST myList)               →  Return ($ListFind(myList, tag) > 0)
+"WHERE Tags '= ''"                        →  "WHERE Tags <> ''"
 ```
+
+## Related skills
+
+- **objectscript-review** — more targeted checklist; use when MCP tools are available
+- **objectscript-sql-patterns** — SQL-specific guardrails for IRIS SQL quirks
+- **objectscript-tdd** — compile-test-fix loop to apply after guardrails pass

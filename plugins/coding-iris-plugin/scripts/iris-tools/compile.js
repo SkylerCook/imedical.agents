@@ -66,6 +66,9 @@ function buildIrisMcpArgs() {
     args.push('--web-port', String(iris.port || 2443));
     args.push('--scheme', iris.scheme || 'https');
     args.push('--namespace', ns);
+    if (!config.mcp || config.mcp.includeBuiltInSkills !== true) {
+        args.push('--no-skills');
+    }
     return args;
 }
 

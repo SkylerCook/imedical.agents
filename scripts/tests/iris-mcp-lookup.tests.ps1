@@ -39,7 +39,7 @@ function Assert-NotContains {
 $manifestPath = Join-Path $pluginRoot ".agents-plugin/plugin.json"
 $manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath $manifestPath | ConvertFrom-Json
 Assert-True ($manifest.name -eq "coding-iris-plugin") "Unexpected plugin name"
-Assert-True ($manifest.version -eq "0.3.0") "Plugin version should be 0.3.0"
+Assert-True ($manifest.version -eq "0.4.0") "Plugin version should be 0.4.0"
 
 $lookupSkillPath = Join-Path $pluginRoot "skills/iris-mcp-lookup/SKILL.md"
 $lookupRulePath = Join-Path $pluginRoot "rules/iris_knowledge_lookup.md"
@@ -70,17 +70,19 @@ $expectedVendorSkills = @(
   "objectscript-list-patterns",
   "objectscript-navigation",
   "objectscript-unit-test",
-  "objectscript-debugging"
+  "objectscript-debugging",
+  "objectscript-tdd"
 )
 
 $expectedVendorBlobs = @{
-  "objectscript-review" = "0d3151f2d17b25f00510778b0951819c17c33d93"
-  "objectscript-guardrails" = "1668eb5e19f748e1f91a412b65ab40b85ca31f55"
+  "objectscript-review" = "cc2c49bb96d9c08f95c570902ce72042cd2c7b00"
+  "objectscript-guardrails" = "05fef10872e435e7984a6de5afdaea9f854454c0"
   "objectscript-sql-patterns" = "015a8d5e63cea23716cafc16413cf08549cf6ca0"
   "objectscript-list-patterns" = "a12c5bcd4c5e95e08ffceec40a1b22dcdca1201d"
-  "objectscript-navigation" = "e9eb39e7b2455effa64af92c0f74ef0040ff121c"
-  "objectscript-unit-test" = "155f9ab2422f610a5aafb9e790b1c823c21b2d9b"
-  "objectscript-debugging" = "4f43ed44b8369e84b3db551e2bf74b09bd28ecf0"
+  "objectscript-navigation" = "df6fd5f2fabd1b343a7bacd42b07e735db5285b0"
+  "objectscript-unit-test" = "66790507ca0e504fbfa1d48b99f5f7e68b81fe19"
+  "objectscript-debugging" = "016bc111e2a4346be4da618fb3da2be80b69b68b"
+  "objectscript-tdd" = "1e1fd7664d16ca1c31661dba90cdd12393d04388"
 }
 
 $optionalDependencies = @($manifest.skillDependencies.optional)
@@ -102,11 +104,12 @@ $upstreamPath = Join-Path $vendorRoot "UPSTREAM.md"
 $licensePath = Join-Path $vendorRoot "LICENSE"
 Assert-True (Test-Path -LiteralPath $licensePath -PathType Leaf) "Vendor MIT license is missing"
 $upstream = Get-Content -Raw -Encoding UTF8 -LiteralPath $upstreamPath
-Assert-Contains $upstream "568a0e03cb5bdfae6870973a73d1d4d86ae42ab9" "Vendor snapshot commit is missing"
-Assert-Contains $upstream "0.9.4" "Vendor upstream version is missing"
+Assert-Contains $upstream "c54ae583eddc36350e5a155246153dadf843cfc7" "Vendor snapshot commit is missing"
+Assert-Contains $upstream "1.2.6" "Vendor upstream version is missing"
+Assert-Contains $upstream "objectscript-tdd" "Vendor TDD authorization boundary is missing"
 
 $resolverPath = Join-Path $repoRoot "scripts/resolve-plugin-skill-dependencies.ps1"
-$resolvedJson = & $resolverPath -AgentsRoot $repoRoot -ProjectRoot $repoRoot -Plugin "coding-iris-plugin" -OutputFormat Json | Out-String
+$resolvedJson = & $resolverPath -AgentsRoot $repoRoot -ProjectRoot $repoRoot -ContextRoot $repoRoot -CapabilityRoot $repoRoot -Plugin "coding-iris-plugin" -OutputFormat Json | Out-String
 $resolvedPayload = $resolvedJson | ConvertFrom-Json
 $resolved = @()
 foreach ($entry in $resolvedPayload) {
@@ -130,12 +133,16 @@ foreach ($skillName in $expectedVendorSkills) {
 
 $agenticRulePath = Join-Path $pluginRoot "rules/iris_agentic_dev.md"
 $agenticRule = Get-Content -Raw -Encoding UTF8 -LiteralPath $agenticRulePath
-Assert-Contains $agenticRule "iris-agentic-dev 0.9.3" "Current bundled MCP version should be documented"
+Assert-Contains $agenticRule "iris-agentic-dev 1.2.6" "Current bundled MCP version should be documented"
 Assert-Contains $agenticRule "iris_debug" "Current merged debug tool should be documented"
 Assert-Contains $agenticRule "iris_containers" "Current container tool should be documented"
 Assert-Contains $agenticRule "iris_doc_search" "Doc search availability gate should be documented"
 Assert-Contains $agenticRule "iris_coverage" "Coverage execution boundary should be documented"
 Assert-Contains $agenticRule "capabilities.compile_path=docker_exec" "Compile capability routing should be documented"
 Assert-Contains $agenticRule "disabled_tools" "MCP tool suppression should be documented"
+Assert-Contains $agenticRule "destructive_tools_enabled" "Destructive tool policy should be documented"
+Assert-Contains $agenticRule "write_allowed_servers" "Per-server write policy should be documented"
+Assert-Contains $agenticRule "--no-skills" "Built-in skill suppression should be documented"
+Assert-Contains $agenticRule "78" "Live v1.2.6 tool count should be documented"
 
 Write-Host "iris-mcp-lookup tests passed"

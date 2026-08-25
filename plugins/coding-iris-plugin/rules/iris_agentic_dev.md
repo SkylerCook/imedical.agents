@@ -11,12 +11,19 @@ related:
 
 ## MCP 能力矩阵
 
-本矩阵基于 `tools/list`、2026-06-01 的目标项目冒烟测试和 2026-07-23 对仓库内置 `iris-agentic-dev 0.9.3` 的本地 schema 复核整理。本文只记录通用能力，不得从 `.mcp.json` 复制 host、用户名、密码、namespace、token 或私有路径。
+本矩阵基于 `tools/list`、2026-06-01 的目标项目冒烟测试和 2026-08-25 对仓库内置 `iris-agentic-dev 1.2.6` 的断连本地 schema 复核整理。完整合并 toolset 返回 78 个工具；本仓库 helper 与新生成的 `.mcp.json` 默认使用 `--no-skills`，返回 67 个工具。本文只记录通用能力，不得从 `.mcp.json` 复制 host、用户名、密码、namespace、token 或私有路径。
 
 ### 配置与会话
 
-- `check_config`：返回当前连接和配置状态，不发起 IRIS 网络调用。v0.9.3 的 `capabilities` 包含 `private_web_server`、`atelier_rest`、`compile_path` 和 `webgateway_url`；排查 MCP 问题时优先使用，并以 `compile_path` 判断编译应走 Atelier REST 还是 `docker_exec`。
+- `check_config`：返回当前连接和配置状态，不发起 IRIS 网络调用。v1.2.6 的 `capabilities` 包含 `private_web_server`、`atelier_rest`、`compile_path` 和 `webgateway_url`，并返回 `server_version`、`iris_version`、`connection_source` 等诊断字段；排查 MCP 问题时优先使用，并以 `compile_path` 判断编译应走 Atelier REST 还是 `docker_exec`。
 - `agent_stats`、`agent_history`、`telemetry_query`：查看学习 Agent 状态、当前会话和持久化工具调用记录。
+
+### 多实例、持久会话与跨环境比较
+
+- `iris_servers`、`iris_test_server`：读取已注册 IRIS 实例及连接状态；不得把返回的连接事实写入规则、记忆或报告。
+- `iris_add_server`、`iris_remove_server`、`iris_import_servers`：修改本地 server registry 或 OS keychain，必须取得明确配置写入授权；密码不得进入命令日志或持久产物。
+- `compare_document`、`compare_namespace`：比较两个已注册实例的文档或 namespace 差异；调用前确认两个 server 都在当前任务授权范围内。
+- `iris_ws_open`、`iris_ws_exec`、`iris_ws_close`：维护持久 IRIS terminal 会话。三者统一视为远端执行能力，必须取得任务级授权，并在任务结束时关闭已打开的 session。
 
 ### 安全发现与读取
 
@@ -31,6 +38,11 @@ related:
 - `iris_macro`：列出、定位、查看或展开宏。
 - `iris_debug`：通过 `action=error_logs|capture|map_int|source_map` 读取诊断和调试上下文。
 - `iris_get_log`：工具结果被截断并返回 `log_id` 时读取完整结果。
+- `capability_matrix`、`my_access`：读取当前实例能力和当前身份授权摘要。
+- `iris_namespace_list`、`iris_database_list`、`iris_database_stats`：读取 namespace、database 和容量统计；`iris_namespace_create` 属于高风险管理写入。
+- `global_preview`：在删除前生成范围与确认 token；`global_kill` 是破坏性操作，只有用户批准精确目标且 token 匹配时才能执行。
+- `journal_search`、`query_audit_log`、`stream_inspect`：读取 journal、审计和 stream 诊断信息；仍应限制在任务需要的最小范围。
+- `hl7_schema_list`、`hl7_schema_inspect`：读取 HL7 schema；`mermaid_class`、`mermaid_production` 用于生成类和 Production 结构图，`resolve_storage` 用于解析 Storage 映射。
 - `extract_message_map_routing`、`find_subclass_implementations`、`resolve_dynamic_dispatch`：解析编译后路由、多态实现和动态分发候选。
 
 ### 写入、编译与执行
@@ -60,9 +72,9 @@ related:
 - `kb`、`kb_index`、`kb_recall`：索引或召回知识库内容。
 - `skill*` 工具：学习 Agent 技能注册表操作；正常业务部署中不要使用写入、分享或社区安装能力。
 
-## 当前内置版本工具名复核：2026-07-23
+## 当前内置版本工具名复核：2026-08-25
 
-仓库内置 `iris-agentic-dev 0.9.3` 已通过本地 JSON-RPC `initialize` + `tools/list` 复核。与知识查询和官方 vendor skill 兼容相关的工具包括：
+仓库内置 `iris-agentic-dev 1.2.6` 已通过本地 JSON-RPC `initialize` + `tools/list` 复核。完整合并 toolset 为 78 个工具；默认 `--no-skills` 为 67 个。除原有知识查询和编码工具外，已明确覆盖以下 v1.2.6 能力组：
 
 - `docs_introspect`
 - `iris_symbols`
@@ -77,6 +89,13 @@ related:
 - `iris_generate_test`
 - `iris_compile`
 - `iris_test`
+- `iris_servers` / `iris_add_server` / `iris_remove_server` / `iris_import_servers` / `iris_test_server`
+- `compare_document` / `compare_namespace`
+- `iris_ws_open` / `iris_ws_exec` / `iris_ws_close`
+- `global_preview` / `global_kill`
+- `iris_namespace_list` / `iris_namespace_create` / `iris_database_list` / `iris_database_stats`
+- `journal_search` / `query_audit_log` / `my_access` / `capability_matrix`
+- `hl7_schema_list` / `hl7_schema_inspect` / `mermaid_class` / `mermaid_production` / `resolve_storage` / `stream_inspect`
 
 上游 vendor skill 中的 `objectscript_iris_*`、`debug_*` 和旧容器工具名不得直接调用；按 `iris_knowledge_lookup.md` 映射后，再以当前工具 schema 为准。
 
@@ -114,8 +133,11 @@ related:
 - 凭据优先由目标工程 `.mcp.json` 或环境变量承载；若当前 `iris-agentic-dev` 版本要求 TOML 字段才能完成热加载，TOML 也只能作为目标工程本地私有配置，不得提交、复制到插件、rules、memory 或对话输出。
 - TOML 注释必须使用 ASCII 字符；非 ASCII 注释可能导致解析器静默失败。
 - 修改 TOML 后，调用任意相关 MCP 工具通常可触发热加载，无需重启会话。
+- 安全策略采用三层门禁：`write_tools_enabled` 控制一般写工具，`destructive_tools_enabled` 控制 Global kill、namespace 创建、凭据和其它破坏性工具，`write_allowed_servers` 把写入限制到明确命名的 server。三层都不能代替用户对当前任务的远程动作授权。
+- 本仓库默认在 helper 和新生成的 `.mcp.json` 中使用 `--no-skills` / `IRIS_NO_SKILLS=true`，由 `imedical.agents` 统一治理 vendor skills。只有明确需要上游 skill registry、KB 或学习工具时，才在目标工程本地设置 `mcp.includeBuiltInSkills=true` 或 `IRIS_NO_SKILLS=false`。
 - 由脚本直接启动 MCP 进程时，应显式传入 `--config <workspace>/.iris-agentic-dev.toml`；同时可用命令行参数传入非敏感定位项 `--host`、`--web-port`、`--scheme`、`--namespace`，账号、密码、token 保持走环境变量或本地私有配置。
 - 需要减少工具噪声或从源头隐藏不应暴露的工具时，可在目标工程私有 TOML 中配置 `disabled_tools = ["iris_admin", "iris_source_control"]`，或设置 `IRIS_DISABLED_TOOLS`。该机制只控制 MCP 暴露面，不替代任务级远程写入授权。
+- 多实例写入应同时配置 `write_allowed_servers = ["<approved-server-name>"]`；server 名必须来自本地注册表，不得在公共规则或模板中内置真实环境名称。
 
 ## 诊断
 
@@ -125,7 +147,7 @@ related:
 - 当 `connection_source=auto_discovered` 或环境变量发现已生效，且 `SELECT 1 AS Probe` 成功时，`config_file=null` 不构成配置失败，也不要求为了形式补 TOML 或强制热加载。
 - 查询成功即继续任务。只有真实探针失败时，才保留完整错误、重启一次 MCP 会话并复测；单次 HTTP 404/405 或单个工具失败不得扩大为“整个 MCP 不可用”。
 - 网络探针后按任务分别记录 `query`、`execute`、`document` 等 capability。某项失败只降级该项：`iris_query` 仍失败时，只有在 `tool-internal-execution` 已授权且临时载体自清理时，才可用 `iris_execute` + `%SQL.Statement` 只读降级；`iris_doc` 失败时可通过已验证的类或 Global 读取路径复核，不能直接断言文档不存在。
-- 只读调用示例：`node .agents/scripts/iris-mcp.js call iris_doc "{...}"`、`node .agents/scripts/iris-mcp.js call iris_query "{...}"`。helper 按工具的 `mode` / `action` 区分读取与写入；文档行编辑、SQL write/force、Global set/kill、容器 select/start、SCM checkout/execute、测试和覆盖率等能力必须在用户明确要求后添加 `--allow-write`，并继续遵守部署/写入门禁。helper 尚未分类的未来工具也默认进入该门禁，不能因新工具名未命中旧黑名单而放行。
+- 只读调用示例：`node .agents/scripts/iris-mcp.js call iris_doc "{...}"`、`node .agents/scripts/iris-mcp.js call iris_query "{...}"`。helper 按工具的 `mode` / `action` 区分读取与写入；文档行编辑、SQL write/force、Global set/kill、namespace 创建、多实例注册变更、持久会话、容器 select/start、SCM checkout/execute、测试和覆盖率等能力必须在用户明确要求后添加 `--allow-write`，并继续遵守部署/写入门禁。helper 尚未分类的未来工具也默认进入该门禁，不能因新工具名未命中旧黑名单而放行。
 - `connected=false`，或定位项明显仍是默认值且真实探针失败时，才优先处理配置加载；不要仅凭 `config_file=null` 阻塞业务调用。
 - 直接手写 JSON-RPC 或脚本调用 `iris_doc`、`iris_query`、`iris_execute` 时，显式传入目标 namespace；不要依赖工具 schema 的默认 `USER`。
 - 不把某个工程的 host、namespace 或端口写入插件规则。

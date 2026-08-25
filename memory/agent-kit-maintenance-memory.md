@@ -13,7 +13,7 @@
 - 本仓库维护可复用 Agent 能力包，核心内容包括 `agents/`、`workflows/`、`plugins/`、`skills/`、`rules/`、`docs/`、`scripts/` 和 `memory/`。
 - `agents/` 是厂商无关的智能体 canonical 注册层；`workflows/` 是厂商无关的多智能体/阶段化编排层。工具专属入口只能作为 adapter 生成物。
 - `plugins/agent-context-kit/` 负责项目上下文维护，包括 AGENTS 入口、项目规则、项目记忆、项目配置和 thin-index。
-- `plugins/coding-iris-plugin/` 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力，并提供 `iris-mcp-lookup` 知识查询 skill；7 个上游官方实用 skill 以 optional vendor 快照提供。
+- `plugins/coding-iris-plugin/` 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力，并提供 `iris-mcp-lookup` 知识查询 skill；8 个上游官方实用 skill 以 optional vendor 快照提供。
 - `plugins/codegraph-query/` 负责查询本地 `.codegraph/codegraph.db`，用于 indexed 前端/脚本侧符号定位、调用链和影响分析；`plugins/iris-codegraph/` 负责 IRIS/ObjectScript 图谱构建与查询，依赖 `coding-iris-plugin` 和目标工程 `.mcp.json`。
 - coding-iris 前端编码使用 `standard-gb2312` / `project-utf8` 双模式；路径与仓库角色只提出候选，实际文件字节检测是最终门禁，已部署项目通过插件迁移钩子更新本地 profile。HISUI 控件/API 与主题样式/视觉资源分别由 `hisui-widget-index.md`、`hisui-style-index.md` 按需路由。
 - workspace overlay 允许多个模块 Context 共享一个 canonical capability Git：resolver 明确区分 WorkspaceRoot、ContextRoot、CapabilityRoot、SourceRoot 和 GitRoot；模块更新不 pull capability，只在 ContextRoot 维护本地生成层，并以 manifest/Junction 门禁限制源码和 Git 边界。
@@ -43,7 +43,7 @@
 
 - 已新增 workspace overlay framework：capability manifest schema、PowerShell/Node resolver、安全 initializer、standard/overlay 双模式更新器和 capability-once/context-many Runbook 已落地；manifest 路径限制在声明的 WorkspaceRoot/ContextRoot 边界内，ContextRoot 既有父链不得经过 reparse point，repair 仅处理受管 Junction；thin-index、vendor/runtime adapter 与 coding-iris 工具链均显式消费 ContextRoot/CapabilityRoot/SourceRoot/GitRoot，模块本地 `iris-mcp.js` 由 manifest-aware JS adapter 转发到 canonical helper。
 - 更新器已补齐旧 sparse checkout 的跨版本自举：旧进程遗漏 `scripts/lib/**` 时，新版脚本会在可执行更新或自更新恢复阶段先收敛完整运行时 sparse 清单，再加载 `WorkspaceContext.psm1`；只读 Check 不修改 checkout，dirty 或非独立 Git 状态继续阻塞。
-- 新增 `iris-mcp-lookup`，统一路由当前实例元数据、本地源码、IRIS 官方文档，并支持 DocBook `Fetch` URL；从 `iris-agentic-dev` v0.9.4 固定提交引入 7 个官方实用 skill，保持上游原文和许可证，作为 optional vendor 分发。内置 Windows x64 exe 已更新到 v1.2.6，既有 MCP helper 与安装/更新回归通过；根 `iris-mcp.js` 仍按 v0.9.3 schema 精确门控 `mode` / `action`、摘要 `check_config.capabilities` 并允许断连诊断，v1.2.6 完整工具/参数/协议兼容审计留在治理队列。
+- `iris-mcp-lookup` 统一路由当前实例元数据、本地源码和 IRIS 官方文档，并支持 DocBook `Fetch` URL；`iris-agentic-dev` vendor skills 已刷新到 v1.2.6 固定提交，8 个 optional skill 保持上游原文和许可证，新增 `objectscript-tdd` 但仍受本仓库编译/测试授权门禁。内置 Windows x64 exe 与根 helper 均已适配 v1.2.6：完整合并 toolset 为 78 个、默认 `--no-skills` 为 67 个，新增多实例、跨环境比较、持久会话和管理观测工具均有显式安全分类。
 - coding-iris 已拆分 HISUI 控件/API 与 CSS 样式/资源索引，前端规则按控件、主题、locale、语义 class、图标和插图分流读取；索引维护同时区分源仓 `vendor/` 与部署态 `.agents/vendor/`。
 - 文档解析能力已从 `iris-interface-dev` 拆分为通用 `extract-doc` 插件；接口插件保留 `iris-interface-doc-ingest` 适配入口和 `iris-interface-doc-ingest/v2` schema，并通过 `iris-interface-build` 承担本地实现编排。
 - 已新增 `iris-external-reg` 插件，覆盖第三方预约挂号接口规范解析、执行计划、ObjectScript 实现和验证，manifest 显式依赖 `extract-doc`、`coding-iris-plugin`。
@@ -58,7 +58,7 @@
 - vendor skill 已改为按 enabled 插件 capability 发现：`vendor/superpowers/` 和 `vendor/word-reader/` 仍随 `/vendor/**` 部署作为 fallback，但常规安装/更新不再全量写用户目录；resolver 只为 required skill 生成 `.agents/skills` 通用入口，optional 按任务触发，用户级 runtime 同步必须显式指定 skill。
 - 已新增并重构 `imedicalxc-doctor-extend-engineer` 插件，采用标准插件结构、内置多模块 Maven 依赖安装脚本，thin-index wrapper 默认只暴露主编排器入口，医生站第三方集成子 skill 由主编排器按需加载。
 - `iris-cure-form-dev` 文档新建流程默认以业务项目 `docs/` 为需求入口、`docs/cure-form/<moduleId>/` 为开发产物目录；插件不再使用 `src-iris` 默认目录，服务器快照与部署临时数据仍位于 `.agents/work/`，多个文档候选必须显式选择。
-- `iris-cure-form-dev` v0.6.0 在 v0.5.0 固定 `DHCDoc.Cure.AI.CureFormDeploy` 事务入口基础上新增现有模板灰度收尾：单 Map 与共享公共模板分别通过 consolidation 包回归正式 RowID，零灰度引用和灰度模板/缓存删除成为完成门禁；新开发表单保持无灰度流程。`coding-iris-plugin` v0.3.1 同步修复 Overlay `backend/src/...` 编译路径与远端文档名解析。真实服务器新增方法验证仍保留在 backlog，能力包更新不会自动修改服务端类。
+- `iris-cure-form-dev` v0.6.1 在 v0.6.0 灰度收尾契约不变的前提下扩展 `coding-iris-plugin` v0.4.x 兼容范围；`coding-iris-plugin` v0.4.0 已完成 v1.2.6 MCP 与 vendor skill 适配。真实服务器新增方法验证仍保留在 backlog，能力包更新不会自动修改服务端类。
 - 已精简 `imedicalxc-doctor-dbdata` skill，聚焦数据库查询核心规范，重点保留医保对照、基础数据统一对照和合并查询（Merge Query）等高价值领域知识，并同步更新医生站扩展主编排器和架构引用。
 - 已新增 `demo/presentation/` 演示页面，作为能力包、i18n skill 和多智能体架构的可视化说明材料；它不属于业务项目运行入口。
 - 已新增部署经验沉淀入口 `feedback/experience/deploy-com-exp.md` 和首个专项部署工具目录 `docs/deploy/dental-ta-159/`；这类内容可随 `docs/` 部署，但不得把业务私有连接信息写入记忆或规则。

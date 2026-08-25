@@ -62,7 +62,7 @@ node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js verify `
   --operation-id <operationId> --confirm-remote-execution
 ```
 
-已部署业务工程获取 v0.6.0 时，按既有能力包更新流程刷新 `.agents` 并为已启用的 `coding-iris-plugin`、`iris-cure-form-dev` 重建 thin-index；本次不改变安装器、更新器或 sparse checkout。服务端类升级、编译和真实事务验证仍是独立的目标工程部署动作，必须另行授权。
+已部署业务工程获取 v0.6.1 时，按既有能力包更新流程刷新 `.agents` 并为已启用的 `coding-iris-plugin`、`iris-cure-form-dev` 重建 thin-index；v0.6.1 仅扩展 `coding-iris-plugin` v0.4.x 兼容范围，不改变安装器、更新器、sparse checkout 或 v0.6.0 的表单契约。服务端类升级、编译和真实事务验证仍是独立的目标工程部署动作，必须另行授权。
 
 ## 默认开发目录
 

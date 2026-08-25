@@ -59,7 +59,7 @@ https://docs.intersystems.com/iris<version>/csp/documatic/%25CSP.Documatic.cls?L
 
 - 只有当前 `tools/list` 实际包含 `iris_doc_search` 时才调用。
 - 它用于搜索 InterSystems 官方文档，不等同于 `iris_doc`。
-- 仓库内置 `iris-agentic-dev 0.9.3` 当前包含该工具；其它运行版本仍必须先检查 `tools/list`，不得仅凭仓库版本假设可用。
+- 仓库内置 `iris-agentic-dev 1.2.6` 当前包含该工具；其它运行版本仍必须先检查 `tools/list`，不得仅凭仓库版本假设可用。
 - 不在仓库中硬编码 Algolia key、临时搜索凭据或其它可能轮换的站点实现细节。
 
 ## 版本与冲突处理
