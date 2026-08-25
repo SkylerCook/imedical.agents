@@ -1,6 +1,6 @@
 # iris-agentic-dev
 
-当前版本：**0.9.3**
+当前版本：**1.2.6**
 
 This directory vendors the Windows x64 `iris-agentic-dev` MCP server used by IRIS/ObjectScript workflows.
 
@@ -13,7 +13,7 @@ Agent 自动更新请读取同级 `AGENTS.md`，按 runbook 执行版本检测 �
 在项目根目录执行以下命令下载最新版本：
 
 ```powershell
-Invoke-WebRequest -Uri "https://github.com/intersystems-community/iris-agentic-dev/releases/download/v0.9.3/iris-agentic-dev-windows-x86_64.exe" -OutFile "vendor\iris-agentic-dev\windows-x64\iris-agentic-dev.exe"
+Invoke-WebRequest -Uri "https://github.com/intersystems-community/iris-agentic-dev/releases/download/v1.2.6/iris-agentic-dev-windows-x86_64.exe" -OutFile "vendor\iris-agentic-dev\windows-x64\iris-agentic-dev.exe"
 ```
 
 更新后校验版本：

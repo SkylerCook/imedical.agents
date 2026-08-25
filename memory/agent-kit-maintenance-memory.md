@@ -43,7 +43,7 @@
 
 - 已新增 workspace overlay framework：capability manifest schema、PowerShell/Node resolver、安全 initializer、standard/overlay 双模式更新器和 capability-once/context-many Runbook 已落地；manifest 路径限制在声明的 WorkspaceRoot/ContextRoot 边界内，ContextRoot 既有父链不得经过 reparse point，repair 仅处理受管 Junction；thin-index、vendor/runtime adapter 与 coding-iris 工具链均显式消费 ContextRoot/CapabilityRoot/SourceRoot/GitRoot，模块本地 `iris-mcp.js` 由 manifest-aware JS adapter 转发到 canonical helper。
 - 更新器已补齐旧 sparse checkout 的跨版本自举：旧进程遗漏 `scripts/lib/**` 时，新版脚本会在可执行更新或自更新恢复阶段先收敛完整运行时 sparse 清单，再加载 `WorkspaceContext.psm1`；只读 Check 不修改 checkout，dirty 或非独立 Git 状态继续阻塞。
-- 新增 `iris-mcp-lookup`，统一路由当前实例元数据、本地源码、IRIS 官方文档，并支持 DocBook `Fetch` URL；从 `iris-agentic-dev` v0.9.4 固定提交引入 7 个官方实用 skill，保持上游原文和许可证，作为 optional vendor 分发。根 `iris-mcp.js` 已按 v0.9.3 schema 精确门控 `mode` / `action`，摘要 `check_config.capabilities`，并允许断连状态下继续列出工具进行诊断。
+- 新增 `iris-mcp-lookup`，统一路由当前实例元数据、本地源码、IRIS 官方文档，并支持 DocBook `Fetch` URL；从 `iris-agentic-dev` v0.9.4 固定提交引入 7 个官方实用 skill，保持上游原文和许可证，作为 optional vendor 分发。内置 Windows x64 exe 已更新到 v1.2.6，既有 MCP helper 与安装/更新回归通过；根 `iris-mcp.js` 仍按 v0.9.3 schema 精确门控 `mode` / `action`、摘要 `check_config.capabilities` 并允许断连诊断，v1.2.6 完整工具/参数/协议兼容审计留在治理队列。
 - coding-iris 已拆分 HISUI 控件/API 与 CSS 样式/资源索引，前端规则按控件、主题、locale、语义 class、图标和插图分流读取；索引维护同时区分源仓 `vendor/` 与部署态 `.agents/vendor/`。
 - 文档解析能力已从 `iris-interface-dev` 拆分为通用 `extract-doc` 插件；接口插件保留 `iris-interface-doc-ingest` 适配入口和 `iris-interface-doc-ingest/v2` schema，并通过 `iris-interface-build` 承担本地实现编排。
 - 已新增 `iris-external-reg` 插件，覆盖第三方预约挂号接口规范解析、执行计划、ObjectScript 实现和验证，manifest 显式依赖 `extract-doc`、`coding-iris-plugin`。

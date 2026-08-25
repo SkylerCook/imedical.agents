@@ -4,6 +4,8 @@
 
 ## 近期已完成
 
+- 2026-08-25：按 vendor 更新 runbook 将内置 Windows x64 `iris-agentic-dev.exe` 从 v0.9.3 更新到 v1.2.6；GitHub Release 资产大小为 `50178048` 字节，仓库目标 SHA-256 为 `BACE5848F29A6AEAE585D813669FEBDF60A4EBC5ED3FC8ADE1F60BCC6C65BB09`，与官方 digest 一致。同步更新 vendor README、根 README 和 runbook 基线示例；MCP helper 在 PowerShell 7 与 Windows PowerShell 5.1 下均通过，`update-agents` 两种宿主回归通过，组件版本治理 15 项校验与 16 项专项测试通过。v1.2.6 完整 MCP 工具/参数/协议变化不在本次 exe 更新范围内，已进入治理队列。
+
 - 2026-08-21：`iris-cure-form-dev` 升级为 v0.6.0，明确新开发表单直接创建正式模板且不进入灰度流程；只有现有模板改造使用灰度，单 Map 独占模板通过 `consolidate`、多 Map 共用模板通过 `consolidate-shared` 回归正式 RowID，完成门禁要求 `VerifyOperation`、全部 Map 回读、灰度引用数为 0 及灰度模板/缓存不存在，`cleanup` 仅处理零引用孤儿模板。客户端补齐共享合并包的一对一、RowID 集合不重叠、Map 唯一、组成精确替换和灰度来源覆盖校验。`coding-iris-plugin` 升级为 v0.3.1，将 Overlay 编译路径解析抽离为可测试模块，修复 `backend/src/...` 被错误编译为 `src.*.cls`；README、AGENTS、owner skill/rule/reference、manifest、release record、根总览和专项测试同步。治疗表单、Overlay 部署清单与 `update-agents` 回归均通过 PowerShell 7/Windows PowerShell 5.1，Node 语法、16 项组件版本专项、worktree 版本校验、两个插件 thin-index DryRun、差异格式、BOM 和临时路径污染检查通过；真实 IRIS 服务端事务与回滚验证仍需在目标工程获得单独远端授权后执行。
 
 - 2026-08-20：`iris-cure-form-dev` 升级为 v0.5.0，将主执行链和 persistent staged transport 的固定事务类迁移到 `DHCDoc.Cure.AI.CureFormDeploy`，不新增 profile 类名配置，也不保留旧类 fallback；README、owner 文档、部署 rule/skill/reference、更新 Runbook、根总览、breaking 发布记录和类名防回归门禁同步。目标实例只读审计确认新旧类均已编译、服务器源码从方法体起完全一致，新类服务器源码与本地文件一致；`InspectInventory` 及四组无写入错误路径返回逐字相同的合法 JSON。Node 语法、插件专项和 `update-agents` 回归均通过 PowerShell 7/Windows PowerShell 5.1，组件版本治理 16 项专项与 breaking worktree validator、两种宿主 thin-index DryRun、旧类残留、差异格式和临时路径污染检查通过；删除旧类仍须等待业务项目更新到 v0.5.0 并确认无旧调用方。
