@@ -225,7 +225,7 @@ Explorer 定位链路
 - 模板验证：XML 解析、defaultvalue 残留、坐标保留、fallback 行为（三种场景：源语言 / 缺少目标语言模板 / 存在目标语言模板）
 - 种子验证：写入/回滚数量、引号转义、方法命名
 - 调试断点扫描：`b //`、`b ;`、`console.log` 临时输出
-- 编译验证：后端类编译、前端文件编码（UTF-8 / GB2312）
+- 编译验证：后端类编译、当前前端 UTF-8 门禁，以及用户明确指定历史工程时的 legacy GB2312 例外
 
 **同步修改**：
 - `plugins/i18n-iris-plugin/rules/i18n_index.md`：新增 `i18n_verify.md` 入口

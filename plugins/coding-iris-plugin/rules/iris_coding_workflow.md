@@ -10,12 +10,12 @@ related:
 
 # IRIS 脚本、MCP 与部署工作流规则
 
-本文只保留 IRIS 开发脚本、MCP 使用边界和部署主流程。部署逐项检查和 GB2312 提升细节已拆到独立规则，按任务需要读取，避免非部署任务加载过多上下文。
+本文只保留 IRIS 开发脚本、MCP 使用边界和部署主流程。部署逐项检查和 legacy GB2312 提升细节已拆到独立规则，按任务需要读取，避免非部署任务加载过多上下文。
 
 ## 相关规则
 
 - [IRIS 部署执行清单](iris_deploy_checklist.md)：当用户明确要求上传、编译、部署或验证远端结果时读取。
-- [GB2312 提升流程](iris_gb2312_workflow.md)：当用户要求把 `{name}.gb2312.{ext}` 替换回原始文件名时读取。
+- [Legacy GB2312 提升流程](iris_gb2312_workflow.md)：只有用户明确处理已确认的历史 GB2312 工程，并要求把 `{name}.gb2312.{ext}` 替换回原始文件名时读取。
 - [sftp-server MCP](sftp_server.md)：当任务实际使用 SFTP MCP 时读取其能力边界和特有约束。
 
 ## 标准流程
@@ -77,10 +77,10 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 
 ## 内置脚本初始化
 
-`coding-iris-init` 初始化时必须确保目标工程存在 `.agents/scripts/`，并从插件复制前端编码相关脚本：
+`coding-iris-init` 初始化时必须确保目标工程存在 `.agents/scripts/`，并生成指向插件 canonical 实现的前端编码薄 wrapper：
 
-- `.agents/plugins/coding-iris-plugin/scripts/convert-gb2312-upload.ps1`
-- `.agents/plugins/coding-iris-plugin/scripts/check-frontend-encoding.ps1`
+- `.agents/scripts/check-frontend-encoding.ps1`：当前 UTF-8 门禁。
+- `.agents/scripts/convert-gb2312-upload.ps1`：只保留给用户明确指定的历史工程。
 
 `generate-plugin-thin-index.ps1` 不复制到目标工程。生成或重建 thin-index 时直接调用插件内脚本：
 
@@ -111,45 +111,25 @@ MCP 工具名称和连接参数以目标工程 `.mcp.json` 为准；插件只描
 - 只读读取远程 `.csp` / `.js` / `.css` 文件。
 - 用户明确要求时上传部署本地文件。
 
-## 前端上传编码转换
+## 前端 UTF-8 上传
 
-上传前先从 profile 的工程级模式和最长路径覆盖解析目标模式，再用实际文件字节检测确认。模式只允许：
+当前前端源码、上传内容和服务器运行编码统一为 canonical `utf8`。`project-utf8` 只作为兼容读取别名；`standard-gb2312` 只允许用于用户明确指定的历史工程，不得由目录或仓库角色自动推断。
 
-- `standard-gb2312`：源码与上传均为 GB2312。
-- `project-utf8`：源码与上传均为 UTF-8，禁止调用 GB2312 转换器。
-
-配置缺失、ASCII 样本不足、unknown、mixed 或字节检测与模式冲突时停止，不上传、不静默转码。
-
-触碰前端文件后，先按目标工程 profile 检查源文件编码。例如前端源文件要求 GB2312 时运行：
+触碰前端文件后，先按目标工程 profile 检查实际字节：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-frontend-encoding.ps1 -Files @(
     "path/to/page.csp",
     "path/to/page.js"
-) -ExpectedEncoding gb2312 -ErrorOnMismatch
-```
-
-仅 `standard-gb2312` 上传前按需运行：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/convert-gb2312-upload.ps1 -Files @(
-    "path/to/page.csp",
-    "path/to/page.js"
-)
-```
-
-脚本输出 JSON：
-
-```json
-[{"file":"...","encoding":"utf8|gb2312","converted":true,"uploadPath":"..."}]
+) -ExpectedEncoding utf8 -ErrorOnMismatch
 ```
 
 上传策略：
 
-- `converted=false`：源文件已经是 GB2312 或只有 ASCII 字节，按已确认的 `standard-gb2312` 模式上传源文件。
-- `converted=true`：上传临时 GB2312 文件，但远端文件名应映射回原始目标文件名。
-- 上传后清理本地临时 `*.gb2312.*` 文件。
-- `project-utf8` 直接上传通过 UTF-8 字节检查的源文件。
+- `utf8` 与兼容别名 `project-utf8`：直接上传通过 UTF-8 字节检查的原始源文件，不生成编码转换临时件。
+- ASCII 文件与 UTF-8 字节兼容，在已确认的 `utf8` profile 下可直接上传。
+- GB2312、UTF-16、unknown、mixed、配置缺失或 profile 冲突时停止，不上传、不静默转码。
+- 只有用户明确处理历史 `standard-gb2312` 工程时，才按 `iris_gb2312_workflow.md` 调用转换脚本；不得把该流程重新用作标版默认。
 
 ## CSP 编译
 
@@ -160,7 +140,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/convert-gb23
 - 不要使用物理 Web 根路径调用 `$system.OBJ.Load("<physical-web-root>/csp/<file>.csp","c")`。
 - `iris_execute` 外层 `success=true` 只表示 ObjectScript 执行成功，不代表 `$system.OBJ.Load` 内层编译成功；执行代码必须输出并检查 `$SYSTEM.Status.IsError(sc)` 和 `$SYSTEM.Status.GetErrorText(sc)`。
 - 编译后的类名应包含 CSP 运行包和虚拟 URL 段，例如虚拟路径含 `/csp/` 时通常检查 `csp.csp.<page-name>`，并确认 `CSPFILE`、`CSPURL` 都包含 `/csp/`。
-- GB2312 临时文件只用于上传内容，远端目标名必须映射回原始文件名；不要把 `*.gb2312.*` 作为 CSP 编译目标。
+- Legacy GB2312 临时文件只用于历史工程的上传内容，远端目标名必须映射回原始文件名；不要把 `*.gb2312.*` 作为 CSP 编译目标。
 
 ## 高风险操作
 

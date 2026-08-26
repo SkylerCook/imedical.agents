@@ -221,8 +221,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `Action required` | 查看摘要下的阻塞项。必要时运行 `-Detailed` 后向用户汇报。 |
 | `conflict` | 停止。报告冲突文件和来源。 |
 | `config-review-required` | 停止。说明配置语义需要人工确认。 |
-| `config-migration-review-required` | 停止。真实文件样本不足、mixed 或 unknown，不能自动决定编码模式。 |
-| `config-migration-conflict` | 停止。目录/仓库角色提出的候选模式与文件字节检测冲突。 |
+| `config-migration-review-required` | 停止。发现 mixed、UTF-16、unknown、未声明 frontend SourceRoot 或不支持的配置值，不能安全规范化。 |
+| `config-migration-conflict` | 停止。目标应为 canonical UTF-8，但实际字节仍是 GB2312 或与 UTF-8 门禁冲突。 |
 | `config-migration-failed` | 停止。插件迁移脚本缺失、异常退出或输出无效。 |
 | `submodule-init-required` | 停止。前端 submodule 未初始化，无法做字节检测。 |
 | `script-conflict` | 停止。目标工程编码脚本是未知或用户定制版本，更新器不覆盖。 |
@@ -249,9 +249,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `plugin-init-required` | 停止。读取该插件真实 init skill，完成初始化闭环后用脚本标记为 enabled。 |
 | `plugin-dependency-missing` | 停止。先初始化依赖插件，不要只因插件目录存在就继续。 |
 
-## coding-iris 前端编码 v2 迁移
+## coding-iris 前端编码 v3 迁移
 
-前端编码只允许两种模式：`standard-gb2312`（标版源码与上传均为 GB2312）和 `project-utf8`（医院项目源码与上传均为 UTF-8）。组合仓库名称不是编码模式；路径覆盖只映射这两种模式，实际文件字节检测始终是最终门禁。
+当前标版与医院项目的前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`。旧 `project-utf8` 是兼容读取别名；旧 `standard-gb2312` 只服务用户明确指定的历史工程，不再由组合仓库名称、目录结构或 Git 角色自动推断。实际文件字节检测始终是最终门禁。
 
 旧版 `update-agents.ps1` 在第一次运行过程中即使拉取了新版脚本，也不会在同一 PowerShell 进程中执行新迁移钩子。已部署工程按以下两阶段流程处理：
 
@@ -264,7 +264,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Write -NoPull -Detailed -Plugin coding-iris-plugin
 ```
 
-迁移器发现 `src/imedical/web` 时提出 `project-utf8` 候选；标版前端仓库通过 gitlink、submodule、嵌套 Git 边界和前端内容发现，不依赖 `core-mod`、`all` 或固定组合路径。候选必须通过非 ASCII 文件字节抽检；任何 review-required/conflict 未处理前，Agent 不得继续前端写入或部署。
+迁移器只在标准工作区已发现的前端根或 workspace-overlay 明确声明的 `sourceRoots[name=frontend]` 中抽检字节：UTF-8 或纯 ASCII 根可将旧 profile 安全规范化为 `utf8`；GB2312、mixed、UTF-16 或 unknown 会阻塞，不自动批量转码业务源码。任何 review-required/conflict 未处理前，Agent 不得继续前端写入或部署。
+
+迁移继续生成 `check-frontend-encoding.ps1` wrapper；`convert-gb2312-upload.ps1` wrapper 仅为历史工程兼容保留。当前 UTF-8 部署直接上传通过门禁的原始源文件，不生成 `*.gb2312.*` 临时件。
 
 ## Agent thin-index
 

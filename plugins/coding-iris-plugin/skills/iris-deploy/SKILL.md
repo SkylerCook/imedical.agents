@@ -43,7 +43,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 2. 生成部署清单，并按清单拆分后端类、CSP、Web 资源和其它文件。
 3. 说明即将发生的远端写入、编译、SFTP 上传或验证影响，等待用户确认。
 4. 后端类按 `iris_deploy_checklist.md` 执行：实体类先处理 Storage Default 风险，完整依赖切片先上传，再按依赖顺序编译。
-5. Web 资源按目标项目配置上传；GB2312 临时文件只作为上传内容，远端目标名保持原始文件名。
+5. Web 资源通过 UTF-8 字节门禁后直接上传原始源文件；只有用户明确指定历史 `standard-gb2312` 工程时，GB2312 临时文件才可作为上传内容，远端目标名仍保持原始文件名。
 6. CSP 先上传到物理 Web 根，再用 `project-env.json -> web.cspBasePath` 拼出的虚拟路径执行 `$system.OBJ.Load(..., "c")`；不得用物理路径编译。
 7. 执行远端只读验证，确认类编译状态、CSP 生成类参数、代表性页面加载和核心业务调用。
 

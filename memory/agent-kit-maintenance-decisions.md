@@ -84,8 +84,8 @@
 - `check_config` 只核对配置定位，真实连通以当次无副作用网络探针为准。自动发现生效且探针成功时，`config_file=null` 不构成配置失败；单一工具的瞬时失败只降级对应 capability。
 - Independent Verifier 只能在所有远程动作终态、无 suspended attempt 且验证范围冻结后启动。报告、summary、manifest 和 feedback 不属于业务验证版本。
 
-- IRIS 前端编码模式只允许 `standard-gb2312` 和 `project-utf8`；组合仓库名称不进入通用模式值，路径覆盖只映射这两种模式。
-- 目录结构、Git 仓库角色和 profile 只用于提出候选编码模式，实际文件字节检测始终是修改与上传的最终门禁。
+- IRIS 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`；组合仓库名称、目录结构和 Git 仓库角色不得改变当前编码默认。`project-utf8` 仅作为 `utf8` 的兼容读取别名，`standard-gb2312` 仅用于用户明确指定的历史工程。
+- 实际文件字节检测始终是修改与上传的最终门禁。UTF-8 或纯 ASCII 可安全规范化 profile；真实 GB2312、mixed、UTF-16 或 unknown 必须停止并报告，不自动批量转码业务源码。
 - 已部署插件配置迁移由 manifest 声明、根更新器通用调用；领域推导逻辑留在插件迁移脚本，不硬编码到根更新器。
 
 - `AGENTS.md` 是工程级唯一主入口，必须存在。

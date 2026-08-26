@@ -37,12 +37,12 @@ description: Use when applying frontend or backend internationalization coding c
 - 目录。
 - 工程范围。
 
-开始前先解析 coding profile 的前端编码模式并检测实际字节。历史乱码文件只做最小改动；`standard-gb2312` 保持 GB2312，`project-utf8` 保持 UTF-8。
+开始前先解析 coding profile 的前端编码模式并检测实际字节。当前前端统一保持 canonical UTF-8；历史乱码或 GB2312 文件停止并报告，只有用户明确指定旧工程时才进入 legacy 流程。
 
 ## 前端改造
 
 - 改造前先判断文本是否属于 UI 框架自动翻译；属于时不改代码，只记录到后续翻译表。
-- 每个前端文件改造前后按 `standard-gb2312` 或 `project-utf8` 执行对应字节检查；正常时只输出一行编码摘要，冲突时停止并展开诊断。
+- 每个前端文件改造前后执行 UTF-8 字节检查；正常时只输出一行编码摘要，检测到 GB2312、UTF-16、unknown、mixed 或配置冲突时停止并展开诊断。
 - 静态文案使用 profile 指定的前端静态翻译 helper。
 - 带变量文案使用 profile 指定的占位符翻译 helper。
 - 已确认由 UI 框架自动翻译的文本不改代码，但记录到后续翻译表。

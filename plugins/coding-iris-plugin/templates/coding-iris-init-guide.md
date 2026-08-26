@@ -89,8 +89,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 ## 验证清单
 
 - 插件目录存在。
-- `convert-gb2312-upload.ps1` 和 `check-frontend-encoding.ps1` wrapper 已生成到 `.agents/scripts/`。
-- `.agents/config/iris_project_profile.md` 的模式只使用 `standard-gb2312` 或 `project-utf8`，并已通过实际文件字节验证。
+- `check-frontend-encoding.ps1` wrapper 已生成到 `.agents/scripts/`；`convert-gb2312-upload.ps1` wrapper 只保留给明确的历史工程兼容流程。
+- `.agents/config/iris_project_profile.md` 使用 canonical `utf8`，并已通过实际文件字节验证；旧 `project-utf8` 会规范化，真实 GB2312/mixed/unknown 会停止迁移。
 - `generate-plugin-thin-index.ps1` 保持在插件 `scripts/` 内并可直接调用。
 - `.agents/config/iris_project_profile.md` 已填写工程差异（多仓库工作区只填通用项）。
 - `.agents/config/project-env.json` 已创建并填写（可从 `.mcp.json` 反向填充）。

@@ -104,15 +104,19 @@ function readFrontendEncodingProfile() {
     } catch (_) {
         return { mode: null, overrides: [] };
     }
-    const modeMatch = text.match(/^\s*-\s*前端编码模式\s*[：:]\s*(standard-gb2312|project-utf8)\s*$/m);
+    const modeMatch = text.match(/^\s*-\s*前端编码模式\s*[：:]\s*(utf8|standard-gb2312|project-utf8)\s*$/m);
     const overrides = [];
     for (const line of text.split(/\r?\n/)) {
-        const match = line.match(/^\s*\|\s*`?([^|`]+?)`?\s*\|\s*(standard-gb2312|project-utf8)\s*\|\s*$/);
+        const match = line.match(/^\s*\|\s*`?([^|`]+?)`?\s*\|\s*(utf8|standard-gb2312|project-utf8)\s*\|\s*$/);
         if (match) {
-            overrides.push({ root: match[1].trim().replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, ''), mode: match[2] });
+            overrides.push({ root: match[1].trim().replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, ''), mode: normalizeFrontendMode(match[2]) });
         }
     }
-    return { mode: modeMatch ? modeMatch[1] : null, overrides };
+    return { mode: modeMatch ? normalizeFrontendMode(modeMatch[1]) : null, overrides };
+}
+
+function normalizeFrontendMode(mode) {
+    return mode === 'project-utf8' ? 'utf8' : mode;
 }
 
 function resolveFrontendMode(relativeTarget) {
@@ -139,9 +143,9 @@ function prepareOutputTarget(fileInfo) {
         return Object.assign({}, fileInfo, { fullPath: intendedPath, intendedDestination: intendedPath, frontendMode: null, staging: false, conversionRequired: false });
     }
     const frontendMode = resolveFrontendMode(relativeTarget);
-    let useStaging = targetMode === 'staging' || (targetMode === 'auto' && frontendMode !== 'project-utf8');
-    if (targetMode === 'source' && frontendMode !== 'project-utf8') {
-        throw new Error('只有已确认的 project-utf8 前端允许直接导出到源码；standard-gb2312 或未确认模式必须使用 staging。');
+    let useStaging = targetMode === 'staging' || (targetMode === 'auto' && frontendMode !== 'utf8');
+    if (targetMode === 'source' && frontendMode !== 'utf8') {
+        throw new Error('只有已确认的 utf8 前端允许直接导出到源码；legacy standard-gb2312 或未确认模式必须使用 staging。');
     }
     const finalPath = useStaging ? path.join(workspaceContext.contextRoot, 'work', 'iris-export', relativeTarget) : intendedPath;
     return Object.assign({}, fileInfo, {

@@ -87,13 +87,13 @@ function Get-Candidates {
       return @()
     }
     foreach ($frontendRoot in $frontendRoots) {
-      Add-Candidate -Candidates $candidates -Path $frontendRoot.target -Source "manifest-frontend" -ExpectedMode "standard-gb2312"
+      Add-Candidate -Candidates $candidates -Path $frontendRoot.target -Source "manifest-frontend" -ExpectedMode "utf8"
     }
     return @($candidates.Values | Sort-Object path)
   }
 
   $hospitalRoot = Join-Path $projectRootFull "src/imedical/web"
-  Add-Candidate -Candidates $candidates -Path $hospitalRoot -Source "hospital-layout" -ExpectedMode "project-utf8"
+  Add-Candidate -Candidates $candidates -Path $hospitalRoot -Source "hospital-layout" -ExpectedMode "utf8"
 
   $gitLinks = @()
   try {
@@ -108,7 +108,7 @@ function Get-Candidates {
       if (-not (Test-HasFrontendContent -Root $path)) {
         Add-Result -Status "submodule-init-required" -Target $relative.Replace('\', '/') -Reason "frontend gitlink is not initialized or contains no frontend files"
       } else {
-        Add-Candidate -Candidates $candidates -Path $path -Source "git-role" -ExpectedMode "standard-gb2312"
+        Add-Candidate -Candidates $candidates -Path $path -Source "git-role" -ExpectedMode "utf8"
       }
     }
   }
@@ -119,10 +119,10 @@ function Get-Candidates {
       $frontendDir = $_.FullName
       $knownFolders = @('csp', 'scripts', 'css') | ForEach-Object { Join-Path $frontendDir $_ }
       if ($knownFolders | Where-Object { Test-Path -LiteralPath $_ -PathType Container } | Select-Object -First 1) {
-        Add-Candidate -Candidates $candidates -Path $frontendDir -Source "frontend-directory" -ExpectedMode "standard-gb2312"
+        Add-Candidate -Candidates $candidates -Path $frontendDir -Source "frontend-directory" -ExpectedMode "utf8"
       } else {
         Get-ChildItem -LiteralPath $frontendDir -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-          Add-Candidate -Candidates $candidates -Path $_.FullName -Source "frontend-directory" -ExpectedMode "standard-gb2312"
+          Add-Candidate -Candidates $candidates -Path $_.FullName -Source "frontend-directory" -ExpectedMode "utf8"
         }
       }
     }
@@ -132,7 +132,7 @@ function Get-Candidates {
     ForEach-Object {
       $repoRoot = Split-Path -Parent $_.FullName
       if ($repoRoot -ne $projectRootFull) {
-        Add-Candidate -Candidates $candidates -Path $repoRoot -Source "nested-git-content" -ExpectedMode "standard-gb2312"
+        Add-Candidate -Candidates $candidates -Path $repoRoot -Source "nested-git-content" -ExpectedMode "utf8"
       }
     }
   return @($candidates.Values | Sort-Object path)
@@ -151,8 +151,8 @@ function Get-CandidateValidation {
     if ($kind -ne 'ascii') { $sampled++ }
     if ($sampled -ge 20) { break }
   }
-  $detected = if ($counts.unknown -gt 0) { 'unknown' } elseif ($counts.utf8 -gt 0 -and $counts.gb2312 -gt 0) { 'mixed' } elseif ($counts.utf8 -gt 0) { 'utf8' } elseif ($counts.gb2312 -gt 0) { 'gb2312' } else { 'insufficient-evidence' }
-  $mode = if ($detected -eq 'utf8') { 'project-utf8' } elseif ($detected -eq 'gb2312') { 'standard-gb2312' } else { $null }
+  $detected = if ($counts.unknown -gt 0) { 'unknown' } elseif ($counts.utf8 -gt 0 -and $counts.gb2312 -gt 0) { 'mixed' } elseif ($counts.utf8 -gt 0) { 'utf8' } elseif ($counts.gb2312 -gt 0) { 'gb2312' } else { 'ascii' }
+  $mode = if ($detected -in @('utf8', 'ascii')) { 'utf8' } elseif ($detected -eq 'gb2312') { 'standard-gb2312' } else { $null }
   return [PSCustomObject]@{ candidate = $Candidate; detected = $detected; mode = $mode; counts = $counts }
 }
 
@@ -167,7 +167,7 @@ function Get-ProfileOverrides {
   param([string]$Text)
   $overrides = New-Object System.Collections.Generic.List[object]
   foreach ($line in ($Text -split "`r?`n")) {
-    $match = [regex]::Match($line, '^\s*\|\s*`?(?<root>[^|`]+?)`?\s*\|\s*(?<mode>standard-gb2312|project-utf8)\s*\|\s*$')
+    $match = [regex]::Match($line, '^\s*\|\s*`?(?<root>[^|`]+?)`?\s*\|\s*(?<mode>utf8|standard-gb2312|project-utf8)\s*\|\s*$')
     if ($match.Success) {
       $overrides.Add([PSCustomObject]@{ root = $match.Groups['root'].Value.Trim().Replace('\', '/').TrimEnd('/'); mode = $match.Groups['mode'].Value })
     }
@@ -218,9 +218,15 @@ exit `$LASTEXITCODE
 
 function Set-ProfileEncodingConfig {
   param([string]$Text, [string]$ModeValue, [array]$Validations)
-  $managedHeader = '## Frontend encoding v2 (managed)'
-  $headerIndex = $Text.IndexOf($managedHeader, [System.StringComparison]::Ordinal)
-  if ($headerIndex -ge 0) { $Text = $Text.Substring(0, $headerIndex).TrimEnd() }
+  $managedHeader = '## Frontend encoding v3 (managed)'
+  $headerIndexes = @(
+    '## Frontend encoding v2 (managed)',
+    '## Frontend encoding v3 (managed)'
+  ) | ForEach-Object { $Text.IndexOf($_, [System.StringComparison]::Ordinal) } | Where-Object { $_ -ge 0 }
+  if ($headerIndexes.Count -gt 0) {
+    $headerIndex = ($headerIndexes | Measure-Object -Minimum).Minimum
+    $Text = $Text.Substring(0, $headerIndex).TrimEnd()
+  }
 
   $modePattern = '(?m)^\s*-\s*前端编码模式\s*[：:]\s*[^\r\n]+'
   if ($ModeValue) {
@@ -234,18 +240,8 @@ function Set-ProfileEncodingConfig {
   $lines.Add('')
   $lines.Add($managedHeader)
   $lines.Add('')
-  $lines.Add('<!-- generated by frontend-encoding-v2; byte validation remains the final gate -->')
-  if ($Validations.Count -gt 1 -and (($Validations | Select-Object -ExpandProperty mode -Unique).Count -gt 1)) {
-    $lines.Add('')
-    $lines.Add('### 前端编码路径覆盖')
-    $lines.Add('')
-    $lines.Add('| 前端根目录 | 编码模式 |')
-    $lines.Add('|---|---|')
-    foreach ($validation in $Validations) {
-      $relative = Get-RelativePathPortable -From $projectRootFull -To $validation.candidate.path
-      $lines.Add("| ``$relative`` | $($validation.mode) |")
-    }
-  }
+  $lines.Add('<!-- generated by frontend-encoding-v3; UTF-8 byte validation remains the final gate -->')
+  $lines.Add('<!-- standard-gb2312 and project-utf8 are legacy read aliases and are not written by this migration -->')
   return $Text.TrimEnd() + ($lines -join [Environment]::NewLine) + [Environment]::NewLine
 }
 
@@ -274,38 +270,17 @@ if ($validations.Count -eq 0) {
   $globalMode = if ($modes.Count -eq 1) { $modes[0] } else { $null }
   $profileText = [System.IO.File]::ReadAllText($profilePath, [System.Text.Encoding]::UTF8)
   $existingMode = Get-ProfileMode -Text $profileText
-  $existingOverrides = @(Get-ProfileOverrides -Text $profileText)
-  $existingConfigValidated = $false
-  if ($existingOverrides.Count -gt 0) {
-    $existingConfigValidated = $true
-    foreach ($validation in $validations) {
-      $relative = Get-RelativePathPortable -From $projectRootFull -To $validation.candidate.path
-      $matches = @($existingOverrides | Where-Object { $relative -eq $_.root -or $relative.StartsWith($_.root + '/') } | Sort-Object { $_.root.Length } -Descending)
-      $configuredMode = if ($matches.Count -gt 0) { $matches[0].mode } else { $existingMode }
-      if ($configuredMode -notin @('standard-gb2312', 'project-utf8') -or $configuredMode -ne $validation.mode) {
-        Add-Result -Status "config-migration-conflict" -Target $relative -Reason ("configured=" + $configuredMode + "; bytes=" + $validation.mode)
-        $existingConfigValidated = $false
-      }
-    }
-  } elseif ($existingMode -in @('standard-gb2312', 'project-utf8')) {
-    $existingConfigValidated = @($validations | Where-Object { $_.mode -ne $existingMode }).Count -eq 0
-    if (-not $existingConfigValidated) {
-      Add-Result -Status "config-migration-conflict" -Target ".agents/config/iris_project_profile.md" -Reason ("configured=" + $existingMode + "; byte-validated roots disagree")
-    }
-  }
-
-  if ($existingConfigValidated) {
-    Add-Result -Status "config-migration-unchanged" -Target ".agents/config/iris_project_profile.md" -Reason "frontend encoding v2 is current"
-  } elseif (@($results | Where-Object { $_.status -eq 'config-migration-conflict' }).Count -eq 0) {
+  if ($existingMode -and $existingMode -notin @('TODO', 'utf8', 'standard-gb2312', 'project-utf8')) {
+    Add-Result -Status "config-migration-review-required" -Target ".agents/config/iris_project_profile.md" -Reason ("unsupported configured mode=" + $existingMode)
+  } elseif (@($results | Where-Object { $_.status -in @('config-migration-review-required', 'config-migration-conflict') }).Count -eq 0) {
     $newText = Set-ProfileEncodingConfig -Text $profileText -ModeValue $globalMode -Validations $validations
     if ($newText -eq $profileText) {
-      Add-Result -Status "config-migration-unchanged" -Target ".agents/config/iris_project_profile.md" -Reason "frontend encoding v2 is current"
+      Add-Result -Status "config-migration-unchanged" -Target ".agents/config/iris_project_profile.md" -Reason "frontend encoding v3 is current"
     } elseif ($Mode -eq 'Write') {
-    [System.IO.File]::WriteAllText($profilePath, $newText, [System.Text.UTF8Encoding]::new($false))
-    $reason = if ($existingMode -and $existingMode -notin @('TODO', 'standard-gb2312', 'project-utf8')) { "legacy mode preserved for review; generated byte-validated v2 config" } else { "generated byte-validated frontend encoding config" }
-    Add-Result -Status "config-migration-applied" -Target ".agents/config/iris_project_profile.md" -Reason $reason
+      [System.IO.File]::WriteAllText($profilePath, $newText, [System.Text.UTF8Encoding]::new($false))
+      Add-Result -Status "config-migration-applied" -Target ".agents/config/iris_project_profile.md" -Reason "generated canonical UTF-8 frontend encoding config"
     } else {
-      Add-Result -Status "config-migration-planned" -Target ".agents/config/iris_project_profile.md" -Reason "byte-validated frontend encoding config will be generated"
+      Add-Result -Status "config-migration-planned" -Target ".agents/config/iris_project_profile.md" -Reason "byte-validated canonical UTF-8 config will be generated"
     }
   }
 }

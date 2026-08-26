@@ -1,13 +1,13 @@
 ---
 name: iris-frontend-gb2312-promote
-description: Use when converting IRIS frontend files such as CSP, JavaScript, or CSS to GB2312 and the user asks to promote converted files back to source filenames.
+description: Use only when the user explicitly identifies a historical IRIS frontend project that still requires GB2312 and asks to promote converted files back to source filenames.
 ---
 
 # IRIS 前端 GB2312 提升
 
 ## 职责
 
-当用户要求把前端源文件转换为 GB2312，并将转换后的 `{name}.gb2312.{ext}` 文件提升回原文件名时，使用本 skill。
+本 skill 只服务用户明确指定、尚未迁移到当前 UTF-8 标准的历史工程。当用户要求把该历史工程的前端源文件转换为 GB2312，并将转换后的 `{name}.gb2312.{ext}` 文件提升回原文件名时使用；不得由标版目录、仓库角色或普通上传任务自动触发。
 
 本 skill 负责编排目标工程中已有的 `.agents/scripts/convert-gb2312-upload.ps1` 脚本。不要在 skill 内重写编码转换逻辑。
 

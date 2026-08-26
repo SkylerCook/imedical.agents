@@ -8,10 +8,10 @@
 - CSP/JavaScript/HISUI 前端编码规则：框架页/内容页拆分、HISUI 控件优先、JS 组织方式、前端数据回显。
 - 工作流规则：本地优先；导出、编译、Broker 调试和配置同步优先使用 IRIS 开发主力脚本；MCP 作为辅助能力补上下文、只读验证或覆盖脚本未覆盖场景。
 - 部署编排：`skills/iris-deploy/SKILL.md` 负责远端部署入口、清单生成、确认门禁和验证编排，上传、编译、部署和远端验证按 `rules/iris_deploy_checklist.md` 逐项执行。
-- 前端双编码模式：`standard-gb2312` 用于标版开发，`project-utf8` 用于医院项目；路径覆盖只映射这两种模式。
-- 前端编码保护：结构负责提出候选模式，实际文件字节检测是最终门禁；正常任务静默处理，完成时只报告一行摘要。
-- 前端上传编码转换：仅 `standard-gb2312` 使用 GB2312 转换器；`project-utf8` 源码与上传均保持 UTF-8。
-- 前端 GB2312 提升：确认后删除源文件，并将 `{name}.gb2312.{ext}` 更名回原文件名，可选 MCP/SFTP 上传。
+- 前端统一编码：当前标版、医院项目的源码、上传内容和服务器运行编码统一使用 canonical `utf8`。
+- 前端编码保护：实际文件字节检测是最终门禁；正常任务静默处理，完成时只报告一行摘要。
+- 兼容读取：旧 `project-utf8` 规范化为 `utf8`；旧 `standard-gb2312` 只服务用户明确指定的历史工程，不能再由目录或仓库角色推断。
+- Legacy GB2312 提升：仅在明确的历史工程中，确认后删除源文件并将 `{name}.gb2312.{ext}` 更名回原文件名，可选 MCP/SFTP 上传。
 - HISUI 控件参考：控件选型、API 和 JavaScript 行为按需读取 `references/hisui-widget-index.md`。
 - HISUI 样式与资源参考：主题 CSS、locale CSS、语义 class、图标和插图按需读取 `references/hisui-style-index.md`；源码内置在 `.agents/vendor/hisui/`。
 - iris-agentic-dev MCP server：Windows x64 可执行文件内置在 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`，目标工程无需自行查找工具位置。
@@ -98,7 +98,7 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 5. 普通编码任务优先使用 `iris-coding` 统一入口，由它按任务范围路由到后端、前端、工作流或 promote 流程。
 6. 明确的纯后端任务可直接使用 `iris-backend-coding`，明确的纯前端任务可直接使用 `iris-frontend-coding`。
 7. 明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
-8. 需要把转换后的 GB2312 文件替换源文件时，使用 `iris-frontend-gb2312-promote`。
+8. 用户明确处理历史 GB2312 工程，并要求把转换文件替换源文件时，使用 `iris-frontend-gb2312-promote`。
 9. 查询 IRIS 类、方法签名、宏、SQL 元数据或官方文档时，使用 `iris-mcp-lookup`。
 
 ## IRIS 知识查询与官方 vendor skills
@@ -168,9 +168,9 @@ node .agents/scripts/iris-mcp.js call iris_doc "{...}"
 
 `.agents/config/project-env.json` 和 `.mcp.json` 可能包含账号、密码、服务器地址等敏感信息，应由目标工程本地维护，不提交到业务项目版本库。
 
-## 前端 GB2312 提升流程
+## Legacy 前端 GB2312 提升流程
 
-当需要把 UTF-8 前端源文件永久转换为 GB2312 时：
+只有用户明确处理尚未迁移到当前 UTF-8 标准的历史工程，并要求把 UTF-8 前端源文件永久转换为 GB2312 时：
 
 1. 使用 `iris-frontend-gb2312-promote`。
 2. 该技能调用目标工程 `.agents/scripts/convert-gb2312-upload.ps1`。
@@ -180,20 +180,18 @@ node .agents/scripts/iris-mcp.js call iris_doc "{...}"
 
 ## 前端编码保护
 
-前端编码以目标工程 `.agents/config/iris_project_profile.md` 为准，只允许 `standard-gb2312` 和 `project-utf8`。组合仓库名称和目录形状不是编码配置值；每个文件修改前后仍必须通过实际字节检测。
+当前前端编码以目标工程 `.agents/config/iris_project_profile.md` 的 canonical `utf8` 为准；`project-utf8` 仅作为兼容读取别名，`standard-gb2312` 仅作为用户明确指定的历史工程状态。每个文件修改前后仍必须通过实际字节检测。
 
-`standard-gb2312` 收尾检查：
+当前 `utf8` 收尾检查：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-frontend-encoding.ps1 -Files @(
   "path/to/page.csp",
   "path/to/page.js"
-) -ExpectedEncoding gb2312 -ErrorOnMismatch
+) -ExpectedEncoding utf8 -ErrorOnMismatch
 ```
 
-上传转换脚本只生成临时上传产物，不代表源文件允许编码漂移。
-
-`project-utf8` 使用相同检查脚本的 `-ExpectedEncoding utf8 -ErrorOnMismatch`，并且不得运行 GB2312 转换器。正常任务最终只报告“模式、文件数、保持编码”一行；冲突时才展开诊断。
+通过后直接上传原始 UTF-8 源文件，不运行 GB2312 转换器。正常任务最终只报告“模式、文件数、保持编码”一行；检测到 GB2312、UTF-16、unknown、mixed 或配置冲突时停止并展开诊断。
 
 ## 去项目化边界
 
@@ -202,8 +200,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 
 - 持久化实体类上传前去掉整个 `Storage Default { ... }` 块，由 IRIS 编译重新生成 Storage。
 - 类文件部署先整组上传依赖切片，再按依赖顺序编译；不要边上传边逐个编译。
-- 前端 GB2312 转换文件只作为上传临时件，远端文件名映射回原始目标文件名。
-- 前端 GB2312 源文件修改后仍保持原编码；上传转换不是源文件转码许可。
+- 当前前端文件通过 UTF-8 门禁后直接上传原始源文件，不生成编码转换临时件。
+- Legacy GB2312 转换只用于用户明确指定的历史工程；临时件远端文件名仍映射回原始目标文件名，不能据此推断当前标版仍使用 GB2312。
 - CSP 编译使用 WebApp 虚拟路径 `$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`，并检查内层 status、生成类、`CSPFILE`、`CSPURL`。
 - 插件不保存服务器地址、账号、namespace、token、Cookie 或远端绝对路径。
 

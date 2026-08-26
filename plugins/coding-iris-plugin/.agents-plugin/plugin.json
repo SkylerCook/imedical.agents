@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
@@ -11,7 +11,7 @@
   "scripts": "scripts/",
   "configMigrations": [
     {
-      "id": "frontend-encoding-v2",
+      "id": "frontend-encoding-v3",
       "script": "scripts/migrate-frontend-encoding-profile.ps1"
     }
   ],
@@ -80,7 +80,7 @@
     "Modify this ObjectScript class using IRIS backend rules",
     "Modify this CSP/HISUI page using IRIS frontend rules",
     "Look up an IRIS class, method signature, or official documentation page",
-    "Convert frontend files to GB2312 and promote them after confirmation",
+    "Handle an explicitly identified legacy GB2312 frontend project after confirmation",
     "Prepare an IRIS deployment manifest and deploy after confirmation",
     "Check this change against IRIS coding and deployment rules"
   ]

@@ -5,10 +5,10 @@ description: Use when working on CSP, JavaScript, CSS, or HISUI frontend code wi
 
 # IRIS Frontend Coding
 
-## GB2312 Promotion Routing
+## Legacy GB2312 Promotion Routing
 
-- If GB2312 conversion is only needed as a temporary upload artifact, keep using the normal frontend workflow and `rules/iris_coding_workflow.md`.
-- If the user asks to delete the source file and rename `{name}.gb2312.{ext}` back to `{name}.{ext}`, switch to `iris-frontend-gb2312-promote`.
+- Do not route current standard frontend work to GB2312 conversion; source, upload, and server runtime encoding are UTF-8.
+- Only if the user explicitly identifies a historical GB2312 project and asks to delete the source file and rename `{name}.gb2312.{ext}` back to `{name}.{ext}`, switch to `iris-frontend-gb2312-promote`.
 - The promote workflow requires a replacement confirmation unless the same user request explicitly says to skip confirmation.
 
 ## 使用时机
@@ -22,8 +22,8 @@ description: Use when working on CSP, JavaScript, CSS, or HISUI frontend code wi
 3. HISUI 控件选型或 API 不确定时，读取 `references/hisui-widget-index.md` 并继续检查 `.agents/vendor/hisui/dist/js/jquery.hisui.js`；样式、图标或多语言资源不确定时，读取 `references/hisui-style-index.md` 并检查对应主题 CSS、locale CSS 和页面实际引入关系。
 4. 仅当任务涉及上传、编码转换、远程读取或 CSP 编译时，再读取 `.mcp.json` 和 `rules/iris_coding_workflow.md`。
 5. 本地搜索 HISUI 已有能力、现有页面和同类组件；控件、交互、状态、样式及视觉资源按“框架能力 → 目标工程公共能力 → 页面级最小实现”的顺序复用。
-6. 内部解析目标路径对应的前端编码模式；`standard-gb2312` 保持 GB2312，`project-utf8` 保持 UTF-8。每个文件修改前后均执行字节检测，正常时静默，异常时停止并报告。
-7. 默认只做本地修改；仅 `standard-gb2312` 可在部署链中使用 GB2312 转换，`project-utf8` 禁止调用转换器。
+6. 内部解析目标路径对应的前端编码模式；canonical `utf8` 与兼容别名 `project-utf8` 都保持 UTF-8。每个文件修改前后均执行字节检测，正常时静默，异常时停止并报告。
+7. 默认只做本地修改；当前部署链直接上传通过门禁的 UTF-8 源文件。只有用户明确指定历史 `standard-gb2312` 工程时才允许调用 legacy 转换器。
 8. CSP 编译必须按工作流规则使用 WebApp 虚拟路径，并验证 `$system.OBJ.Load` 内层 status、生成类、`CSPFILE` 和 `CSPURL`。
 
 ## 完成检查

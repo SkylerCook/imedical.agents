@@ -1,3 +1,8 @@
+<#
+Promote a UTF-8 staging export to its destination encoding.
+Current frontend projects use -ExpectedEncoding utf8. The gb2312 option is retained only for explicitly identified historical projects.
+#>
+
 param(
   [Parameter(Mandatory=$true)]
   [string]$StagedFile,

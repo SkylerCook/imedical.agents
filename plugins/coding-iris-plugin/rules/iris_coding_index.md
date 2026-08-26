@@ -30,7 +30,7 @@ related:
 - [MCP 与部署工作流](iris_coding_workflow.md)：本地优先、脚本复制、MCP 使用、上传和 CSP 编译入口。
 - [IRIS 知识查询与 MCP 路由](iris_knowledge_lookup.md)：IRIS 类、方法签名、宏、SQL 元数据和官方文档的数据源选择；仅查询任务读取。
 - [IRIS 部署执行清单](iris_deploy_checklist.md)：上传、编译、部署和远端验证的逐项检查清单；仅部署任务读取。
-- [GB2312 提升流程](iris_gb2312_workflow.md)：将 `{name}.gb2312.{ext}` 替换回原始文件名的安全流程；仅永久替换源文件时读取。
+- [Legacy GB2312 提升流程](iris_gb2312_workflow.md)：仅在用户明确处理已确认的历史 GB2312 工程，并要求将 `{name}.gb2312.{ext}` 替换回原始文件名时读取。
 - [HISUI 控件参考](../references/hisui-widget-index.md)：控件选型、源码行号、API 确认；仅在前端任务涉及 HISUI 控件选型或 API 不确定时读取。
 - [HISUI 样式与资源参考](../references/hisui-style-index.md)：主题 CSS、locale CSS、语义 class、状态样式、图标和插图；仅在前端任务涉及 HISUI 样式或视觉资源不确定时读取。
 - [iris-agentic-dev 配置](iris_agentic_dev.md)：TOML 配置和诊断约束。

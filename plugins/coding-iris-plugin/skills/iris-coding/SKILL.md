@@ -1,6 +1,6 @@
 ---
 name: iris-coding
-description: Use when an IRIS coding request may involve ObjectScript, CSP, JavaScript, CSS, HISUI, or needs routing between backend, frontend, GB2312 promotion, and workflow rules.
+description: Use when an IRIS coding request may involve ObjectScript, CSP, JavaScript, CSS, HISUI, or needs routing between backend, UTF-8 frontend, legacy GB2312 promotion, and workflow rules.
 ---
 
 # IRIS Coding
@@ -13,13 +13,13 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 
 - 需求同时涉及 `.cls`、CSP、JS、CSS 或 HISUI。
 - 用户只描述业务现象、页面、按钮、接口或功能目标，尚未明确前后端边界。
-- 需要先判断应走后端、前端、前后端混合、上传/编译验证或 GB2312 提升流程。
+- 需要先判断应走后端、UTF-8 前端、前后端混合、上传/编译验证或历史 GB2312 提升流程。
 
 明确的单一专项任务仍可直接使用：
 
 - 后端 ObjectScript：`iris-backend-coding`
 - 前端 CSP/JS/HISUI：`iris-frontend-coding`
-- 永久替换 `{name}.gb2312.{ext}` 回源文件：`iris-frontend-gb2312-promote`
+- 历史工程永久替换 `{name}.gb2312.{ext}` 回源文件：`iris-frontend-gb2312-promote`
 - 远端部署、上传、编译、SFTP 同步或部署验证：`iris-deploy`
 - IRIS 类、方法签名、宏、SQL 元数据或官方文档查询：`iris-mcp-lookup`
 
@@ -38,7 +38,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 - 上传、编译、远程读取、只读 SQL 验证：读取目标工程 `.mcp.json` 和 `rules/iris_coding_workflow.md`
 - 类/方法是否存在、签名、继承或官方文档不确定：切换到 `iris-mcp-lookup`，读取 `rules/iris_knowledge_lookup.md`
 - 上传、编译、部署和远端验证：读取 `rules/iris_deploy_checklist.md`
-- 永久替换 `{name}.gb2312.{ext}` 回源文件：切换到 `iris-frontend-gb2312-promote`
+- 用户明确处理历史工程并永久替换 `{name}.gb2312.{ext}` 回源文件：切换到 `iris-frontend-gb2312-promote`
 
 ## 路由流程
 
@@ -50,9 +50,9 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
    - 用户要求部署、上传、编译、SFTP 同步或部署验证：切换到 `iris-deploy`。
    - 用户要求远端读取或 SQL 验证但不部署：只在明确要求后进入工作流规则。
    - 用户要求查询 IRIS API、签名、宏、SQL 元数据或官方文档：切换到 `iris-mcp-lookup`。
-   - 用户要求提升 GB2312 临时文件为源文件：切换到 promote skill。
+- 用户明确处理历史 GB2312 工程并要求提升临时文件为源文件：切换到 promote skill。
 3. 本地搜索现有实现和同类代码，优先沿用目标工程模式。
-4. 前端任务在内部解析“前端编码模式”和可选路径覆盖，并对每个触碰文件修改前后执行字节检测；正常时不展开诊断，冲突、unknown、mixed 或证据不足时停止。
+4. 前端任务将 canonical `utf8` 作为当前模式，并对每个触碰文件修改前后执行字节检测；正常时不展开诊断，GB2312、UTF-16、冲突、unknown 或 mixed 时停止。
 5. 按已判定的专项流程执行编码改造。
 6. 默认只做本地修改、只读验证和报告；上传、编译、远程写入、数据库变更必须由用户明确要求。
 
@@ -69,10 +69,10 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 ## 产出
 
 - 改造范围和涉及文件。
-- 任务路由结论：后端、前端、前后端混合、GB2312 promote 或部署验证。
+- 任务路由结论：后端、UTF-8 前端、前后端混合、legacy GB2312 promote 或部署验证。
 - 前后端分工和执行顺序。
 - 已执行的本地验证。
-- 前端任务正常完成时只输出一行编码摘要，例如“前端编码：project-utf8，3 个文件已保持 UTF-8”；仅异常时展开完整编码诊断。
+- 前端任务正常完成时只输出一行编码摘要，例如“前端编码：utf8，3 个文件已保持 UTF-8”；仅异常时展开完整编码诊断。
 - 仍需用户确认的上传、编译、远程写入、数据库变更或生产环境动作。
 
 ## 需求完成后的经验沉淀
@@ -83,7 +83,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 
 - 本次遇到现有 rules/skills 未覆盖的坑、边界或判断标准。
 - 本次验证出可复用的工程模式、处理顺序或检查项。
-- IRIS 编码场景包括持久化类、SQL、HisUI DataGrid、CSP 页面、Broker、GB2312 编码或部署验证经验。
+- IRIS 编码场景包括持久化类、SQL、HisUI DataGrid、CSP 页面、Broker、UTF-8/legacy GB2312 编码或部署验证经验。
 - 已有经验条目再次命中本次需求：追加需求号并 `命中+1`；没有明确需求号时，记录可追溯的任务标题或不更新命中计数。
 
 沉淀要求：
@@ -97,7 +97,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 ## 完成检查
 
 - 已读取 project profile 和通用规则索引。
-- 前端编码模式只使用 `standard-gb2312` 或 `project-utf8`；路径覆盖只是模式映射，实际文件字节检测是最终门禁。
+- 当前前端编码模式只写 canonical `utf8`；`project-utf8` 和 `standard-gb2312` 仅兼容读取旧 profile，其中后者必须由用户明确指定为历史工程。实际文件字节检测是最终门禁。
 - 已按任务范围读取对应专项 skill/rule。
 - 未把服务器、namespace、账号、密码、token、远程路径、业务页面清单、业务类名前缀或项目专属基类写入插件。
 - 上传、编译、远程写入、数据库变更没有在用户未明确要求时执行。

@@ -7,8 +7,10 @@ const { spawn } = require('child_process');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
 const sourceScript = path.join(repoRoot, 'plugins', 'coding-iris-plugin', 'scripts', 'iris-tools', 'export.js');
+const sourceWorkspaceContext = path.join(repoRoot, 'scripts', 'lib', 'workspace-context.js');
 const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'iris-export-encoding-'));
 const scriptPath = path.join(testRoot, '.agents', 'plugins', 'coding-iris-plugin', 'scripts', 'iris-tools', 'export.js');
+const workspaceContextPath = path.join(testRoot, '.agents', 'scripts', 'lib', 'workspace-context.js');
 const configRoot = path.join(testRoot, '.agents', 'config');
 
 function run(args) {
@@ -24,8 +26,10 @@ function run(args) {
 
 (async () => {
   fs.mkdirSync(path.dirname(scriptPath), { recursive: true });
+  fs.mkdirSync(path.dirname(workspaceContextPath), { recursive: true });
   fs.mkdirSync(configRoot, { recursive: true });
   fs.copyFileSync(sourceScript, scriptPath);
+  fs.copyFileSync(sourceWorkspaceContext, workspaceContextPath);
 
   const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -46,14 +50,14 @@ function run(args) {
       '',
       '| 前端根目录 | 编码模式 |',
       '|---|---|',
-      '| `src/imedical/web` | project-utf8 |',
+      '| `src/imedical/web` | utf8 |',
       ''
     ].join('\n'), 'utf8');
     const projectResult = await run(['project.csp']);
     assert.strictEqual(projectResult.code, 0, projectResult.stderr || projectResult.stdout);
     const projectPath = path.join(testRoot, 'src', 'imedical', 'web', 'csp', 'project.csp');
-    assert.ok(fs.existsSync(projectPath), 'project-utf8 should export directly to source');
-    assert.ok(projectResult.stdout.includes('"staging":false'), 'project-utf8 JSON should report source output');
+    assert.ok(fs.existsSync(projectPath), 'utf8 should export directly to source');
+    assert.ok(projectResult.stdout.includes('"staging":false'), 'utf8 JSON should report source output');
 
     const overwriteResult = await run(['project.csp']);
     assert.notStrictEqual(overwriteResult.code, 0, 'existing source should require --overwrite');
@@ -67,6 +71,11 @@ function run(args) {
     assert.ok(!fs.existsSync(sourcePath), 'standard-gb2312 must not write UTF-8 directly to source');
     assert.ok(fs.existsSync(stagingPath), 'standard-gb2312 should write UTF-8 staging output');
     assert.ok(standardResult.stdout.includes('"conversionRequired":true'), 'standard JSON should require conversion');
+
+    fs.writeFileSync(path.join(configRoot, 'iris_project_profile.md'), '- 前端编码模式：project-utf8\n', 'utf8');
+    const legacyAliasResult = await run(['legacy-alias.csp']);
+    assert.strictEqual(legacyAliasResult.code, 0, legacyAliasResult.stderr || legacyAliasResult.stdout);
+    assert.ok(fs.existsSync(path.join(testRoot, 'src', 'imedical', 'web', 'csp', 'legacy-alias.csp')), 'project-utf8 alias should still export directly to source');
   } finally {
     await new Promise(resolve => server.close(resolve));
     fs.rmSync(testRoot, { recursive: true, force: true });

@@ -41,7 +41,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
    - 是否存在 `.agents/config/iris_project_profile.md`。
    - 是否已有同名 rules/skills，避免覆盖用户定制。
 3. 初始化前端编码脚本入口：
-   - 运行插件 `scripts/migrate-frontend-encoding-profile.ps1`，为 `.agents/scripts/convert-gb2312-upload.ps1` 和 `check-frontend-encoding.ps1` 创建指向插件 canonical 实现的薄 wrapper。
+   - 运行插件 `scripts/migrate-frontend-encoding-profile.ps1`，为 `.agents/scripts/check-frontend-encoding.ps1` 创建指向插件 canonical 实现的薄 wrapper；`convert-gb2312-upload.ps1` wrapper 仅为历史工程兼容保留。
    - 已知历史复制版本可自动替换为 wrapper；用户定制或未知版本只报告 `script-conflict`，不得覆盖。
    - `generate-plugin-thin-index.ps1` 不复制到目标工程，只从插件内路径直接调用。
    - workspace-overlay 模式只检测 manifest 中 `sourceRoots[name=frontend]` 的 `target`；未声明 frontend 时输出 review-required，不扫描父目录或未声明 sibling。
@@ -52,7 +52,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
      - `通用`（或用户未指定）：基于 `templates/iris_project_profile.template.md` 创建，按探索流程填充可确定字段，确实无法确定的标 TODO。
    - `templates/profile-defaults/<type>.md` 只在用户显式选择对应项目类型后加载；它是领域默认值，不是通用规则。加载后仍需用代码探索或用户确认校验，不能自动套用到未确认项目。
    - profile 中只能保存项目差异，不保存账号、密码、token。
-   - 前端编码模式只允许 `standard-gb2312` 或 `project-utf8`；路径覆盖只映射这两种模式。目录/仓库角色提出候选，实际文件字节检测是最终门禁。
+   - 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`。`project-utf8` 仅作为兼容读取别名；`standard-gb2312` 仅用于用户明确指定的历史工程。实际文件字节检测是最终门禁。
    - **多仓库工作区**：若目标工程是平铺多仓库架构（如 `corePro-flat`），工作区级别 profile 只填通用项（Web 技术、编码策略、HISUI 基础路径）；仓库特有项（namespace、包前缀、目录路径、命名模板）标注"按仓库填写"，不要填入单一仓库的值当作全局事实。
 5. 初始化 IRIS 开发主力脚本配置：
    - `.agents/config/project-env.json` 是人类可读的配置副本，`.mcp.json` 是 MCP 运行时事实来源；两者共存但 `.mcp.json` 优先。

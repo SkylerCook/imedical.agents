@@ -12,7 +12,7 @@ related:
 
 执行本规则前必须先读取 `.agents/config/i18n_project_profile.md`，确认当前项目的前端框架、翻译 helper 和自动翻译边界。
 
-涉及 `.csp` / `.js` / `.css` 文件写入时，还必须遵守 `coding-iris-plugin` 的双编码模式：读取 `.agents/config/iris_project_profile.md` 和 `.agents/plugins/coding-iris-plugin/rules/iris_coding_frontend.md`，并以实际文件字节检测作为最终门禁。
+涉及 `.csp` / `.js` / `.css` 文件写入时，还必须遵守 `coding-iris-plugin` 的 canonical UTF-8 与 legacy 兼容边界：读取 `.agents/config/iris_project_profile.md` 和 `.agents/plugins/coding-iris-plugin/rules/iris_coding_frontend.md`，并以实际文件字节检测作为最终门禁。
 
 ## 适用范围
 
@@ -22,10 +22,10 @@ related:
 
 ## 编码边界
 
-- `standard-gb2312` 前端文件保持 GB2312，可使用临时 UTF-8 工作副本辅助编辑，但最终必须转回并通过 GB2312 检查。
-- `project-utf8` 前端文件保持 UTF-8，禁止调用 GB2312 转换器。
+- 当前前端文件统一保持 canonical UTF-8，修改前后必须通过 UTF-8 字节检查，并禁止调用 GB2312 转换器。
+- `project-utf8` 仅作为 `utf8` 的兼容读取别名；只有用户明确指定的历史 `standard-gb2312` 工程才沿用 legacy 检查与转换流程。
 - 禁止因为 `$g()`、`$trans()`、模板 helper 或翻译 key 修改而改变目标模式要求的源码编码。
-- 每个触碰文件改造前后按模式检查；unknown、mixed、配置冲突或证据不足时停止。
+- 每个触碰文件改造前后按 UTF-8 检查；GB2312、UTF-16、unknown、mixed 或配置冲突时停止。
 
 ## CSP / 页面模板
 

@@ -15,7 +15,7 @@
 - `plugins/agent-context-kit/` 负责项目上下文维护，包括 AGENTS 入口、项目规则、项目记忆、项目配置和 thin-index。
 - `plugins/coding-iris-plugin/` 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力，并提供 `iris-mcp-lookup` 知识查询 skill；8 个上游官方实用 skill 以 optional vendor 快照提供。
 - `plugins/codegraph-query/` 负责查询本地 `.codegraph/codegraph.db`，用于 indexed 前端/脚本侧符号定位、调用链和影响分析；`plugins/iris-codegraph/` 负责 IRIS/ObjectScript 图谱构建与查询，依赖 `coding-iris-plugin` 和目标工程 `.mcp.json`。
-- coding-iris 前端编码使用 `standard-gb2312` / `project-utf8` 双模式；路径与仓库角色只提出候选，实际文件字节检测是最终门禁，已部署项目通过插件迁移钩子更新本地 profile。HISUI 控件/API 与主题样式/视觉资源分别由 `hisui-widget-index.md`、`hisui-style-index.md` 按需路由。
+- coding-iris 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`；旧 `project-utf8` 兼容读取并规范化，旧 `standard-gb2312` 只服务用户明确指定的历史工程。实际文件字节检测是最终门禁，已部署项目通过 frontend encoding v3 迁移钩子更新本地 profile；真实 GB2312/mixed/unknown 不自动转码。HISUI 控件/API 与主题样式/视觉资源分别由 `hisui-widget-index.md`、`hisui-style-index.md` 按需路由。
 - workspace overlay 允许多个模块 Context 共享一个 canonical capability Git：resolver 明确区分 WorkspaceRoot、ContextRoot、CapabilityRoot、SourceRoot 和 GitRoot；模块更新不 pull capability，只在 ContextRoot 维护本地生成层，并以 manifest/Junction 门禁限制源码和 Git 边界。
 - `plugins/extract-doc/` 负责 PDF、DOC、DOCX、XLS、XLSX 的本地解析和结构化落盘，是接口类业务插件的通用文档依赖。
 - `plugins/i18n-iris-plugin/` 负责 IRIS/ObjectScript/CSP/HISUI 国际化能力。

@@ -42,7 +42,7 @@ try {
 
   $gbOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -Files $gbFile -ExpectedEncoding gb2312 -ErrorOnMismatch | Out-String
   $gbResult = $gbOutput | ConvertFrom-Json
-  Assert-Equals $LASTEXITCODE 0 "GB2312 file should pass expected GB2312 guard"
+  Assert-Equals $LASTEXITCODE 0 "Legacy GB2312 file should pass an explicitly requested GB2312 guard"
   Assert-Equals $gbResult.encoding "gb2312" "GB2312 file should be detected as gb2312"
   Assert-Equals $gbResult.status "ok" "GB2312 file should report ok"
 
@@ -84,7 +84,7 @@ try {
   [System.IO.File]::WriteAllText($convertFile, 'var title = "患者姓名";', $utf8NoBom)
   $convertOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $convertScriptUnderTest -Files $convertFile | Out-String
   $convertResult = $convertOutput | ConvertFrom-Json
-  Assert-Equals $LASTEXITCODE 0 "Representable UTF-8 Chinese should convert to GB2312"
+  Assert-Equals $LASTEXITCODE 0 "Legacy conversion should convert representable UTF-8 Chinese to GB2312"
   Assert-True (Test-Path -LiteralPath $convertResult.uploadPath -PathType Leaf) "Converted GB2312 output should exist"
   $convertedCheck = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -Files $convertResult.uploadPath -ExpectedEncoding gb2312 -ErrorOnMismatch | Out-String
   Assert-Equals $LASTEXITCODE 0 "Converted output should pass GB2312 guard"
@@ -102,7 +102,13 @@ try {
   $promoteOutput = & $promoteScriptUnderTest -StagedFile $convertFile -DestinationFile $promotedFile -ExpectedEncoding gb2312 | Out-String
   Assert-True ($promoteOutput.Contains('"promoted":true')) "Staging promotion should report success"
   $promotedCheck = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -Files $promotedFile -ExpectedEncoding gb2312 -ErrorOnMismatch | Out-String
-  Assert-Equals $LASTEXITCODE 0 "Promoted standard frontend should pass GB2312 guard"
+  Assert-Equals $LASTEXITCODE 0 "Promoted legacy frontend should pass GB2312 guard"
+
+  $utf8PromotedFile = Join-Path $testRoot "promoted-utf8.js"
+  $utf8PromoteOutput = & $promoteScriptUnderTest -StagedFile $convertFile -DestinationFile $utf8PromotedFile -ExpectedEncoding utf8 | Out-String
+  Assert-True ($utf8PromoteOutput.Contains('"encoding":"utf8"')) "Current staging promotion should report canonical UTF-8"
+  $utf8PromotedCheck = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -Files $utf8PromotedFile -ExpectedEncoding utf8 -ErrorOnMismatch | Out-String
+  Assert-Equals $LASTEXITCODE 0 "Current staging promotion should preserve UTF-8"
 
   $failedDestination = Join-Path $testRoot "emoji-promoted.js"
   $promoteFailed = $false

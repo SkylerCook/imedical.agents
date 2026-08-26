@@ -47,17 +47,16 @@ related:
 
 ## 前端上传
 
-- 仅当目标项目配置要求时，才把前端源文件转换为目标编码。
-- `*.gb2312.*` 只作为临时上传内容。
-- 远端目标名必须是原始文件名，不能是临时 `*.gb2312.*` 文件名。
-- 上传后清理本地临时 `*.gb2312.*` 文件。
+- 当前前端源码、上传内容和服务器运行编码统一为 UTF-8；上传前必须通过 UTF-8 字节门禁，并直接上传原始源文件。
+- 检测到 GB2312、UTF-16、unknown、mixed 或 profile 冲突时停止，不自动转码或上传。
+- 只有已明确确认的历史 `standard-gb2312` 工程允许生成 `*.gb2312.*` 临时上传内容；远端目标名仍必须是原始文件名，上传后清理临时文件。
 
 ## CSP 编译
 
 - CSP 文件通过 SFTP 上传到物理 Web 根。
 - CSP 编译必须使用 WebApp 虚拟路径，不使用物理路径：`$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`。
 - 不要使用：`$system.OBJ.Load("<physical-web-root>/csp/<file>.csp","c")`。
-- 不要把 `.gb2312.csp` 作为编译目标。
+- Legacy 流程中不要把 `.gb2312.csp` 作为编译目标。
 - 不要把 `iris_execute.success=true` 当成编译成功；它只表示 ObjectScript 外层包装执行过。
 - ObjectScript 包装代码必须输出并检查 `$SYSTEM.Status.IsError(sc)` 和 `$SYSTEM.Status.GetErrorText(sc)`。
 

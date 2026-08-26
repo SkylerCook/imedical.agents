@@ -17,7 +17,7 @@
 - 默认只做本地修改、只读验证和报告；上传、编译、远程写入、数据库变更必须由用户明确要求。
 - `iris_test`、`iris_coverage`、`iris_execute_method`、容器切换和其它远端执行即使不直接改业务源码，也必须按远端状态变更取得任务级授权；上游 MCP 自带门禁不能代替本仓库授权边界。
 - 历史 CSP/JS/CSS 文件可能存在编码和特殊 EOF，修改前先确认实际编码和尾部格式，避免整文件重写。
-- 前端编码模式只允许 `standard-gb2312` 和 `project-utf8`；组合仓库名称不是模式，实际文件字节检测始终是最终门禁。
+- 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`；`project-utf8` 仅作为兼容读取别名，`standard-gb2312` 仅服务用户明确指定的历史工程，实际文件字节检测始终是最终门禁。
 - 在 workspace-overlay 中统一通过 capability 包的 workspace context resolver 获取 `WorkspaceRoot`、`ContextRoot`、`CapabilityRoot`、`SourceRoot` 和 `GitRoot`；配置与 profile 只从 ContextRoot 读取，插件/模板/vendor 从 CapabilityRoot 读取，源码和 Git 操作不得越过 manifest 声明边界，也不得扫描父目录或 sibling 猜测根路径。
 - `compile.js` 接受 workspace-overlay 的 `backend/src/...` WorkspaceRoot 逻辑路径时，必须在声明的 backend SourceRoot target 下解析本地文件，并移除逻辑 `backend/src` 前缀后生成 IRIS 远端文档名；不得把 `src` 误作为类包名。
 
@@ -27,11 +27,11 @@
 - 统一编码入口：`skills/iris-coding/SKILL.md`
 - 后端 ObjectScript 编码：`skills/iris-backend-coding/SKILL.md`
 - 前端 CSP/JS/HISUI 编码：`skills/iris-frontend-coding/SKILL.md`
-- 前端 GB2312 转换后替换源文件：`skills/iris-frontend-gb2312-promote/SKILL.md`
+- 历史前端 GB2312 转换后替换源文件：`skills/iris-frontend-gb2312-promote/SKILL.md`
 - IRIS 远端部署编排：`skills/iris-deploy/SKILL.md`
 - IRIS 类、方法签名与官方文档查询：`skills/iris-mcp-lookup/SKILL.md`
 
-普通编码需求优先使用 `iris-coding`。当任务边界已经明确为纯后端、纯前端或 GB2312 promote 时，可直接使用对应专项 skill。
+普通编码需求优先使用 `iris-coding`。当任务边界已经明确为纯后端、纯前端，或用户明确处理历史 GB2312 工程时，可直接使用对应专项 skill。
 当用户明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
 当用户要求查询 IRIS 类、方法、函数、宏、SQL 元数据或官方文档时，使用 `iris-mcp-lookup`；该 skill 默认只读，并把当前实例元数据与官方文档版本分开报告。
 
@@ -45,7 +45,7 @@
 - 前端 CSP/JS/HISUI：`rules/iris_coding_frontend.md`
 - MCP/上传/编译工作流：`rules/iris_coding_workflow.md`
 - IRIS 部署执行清单：`rules/iris_deploy_checklist.md`
-- GB2312 提升流程：`rules/iris_gb2312_workflow.md`
+- Legacy GB2312 提升流程：`rules/iris_gb2312_workflow.md`
 - HISUI 控件参考：`references/hisui-widget-index.md`（源码内置在 `.agents/vendor/hisui/`）
 - HISUI 样式与资源参考：`references/hisui-style-index.md`（主题 CSS、locale CSS、语义 class、图标与插图）
 - iris-agentic-dev 配置：`rules/iris_agentic_dev.md`（Windows x64 可执行文件内置在 `.agents/vendor/iris-agentic-dev/`）

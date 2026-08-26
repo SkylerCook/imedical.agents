@@ -150,7 +150,7 @@ docs/agent-reports/{ticket-or-topic}/11-classifier.md
 3. 后端文件读取 `i18n_coding_backend.md`。
 4. 打印链路读取 `i18n_coding_print_backend.md`。
 5. 按分类清单改造，不扩大范围。
-6. GB2312 前端文件需要临时 UTF-8 工作副本时默认使用 `$env:TEMP`，不得默认写 `C:\tmp`；修改后按项目编码工具转回并复核 EOF/编码。
+6. 当前前端文件统一保持 UTF-8；检测到 GB2312 时停止并报告。只有用户明确指定历史工程后，临时 UTF-8 工作副本才使用 `$env:TEMP`，不得默认写 `C:\tmp`；修改后按 legacy 编码工具转回并复核 EOF/编码。
 
 `multi-agent` 模式下，Backend Coder 与 Frontend Coder 仅在文件所有权互不重叠时并行；存在重叠时由 Coordinator 改为串行。
 

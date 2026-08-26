@@ -5,6 +5,8 @@ Use this script as a byte-level guard for UTF-8 and legacy GB2312/CP936 frontend
 
 Examples:
   .agents/scripts/check-frontend-encoding.ps1 -Files @("page.csp","page.js")
+  .agents/scripts/check-frontend-encoding.ps1 -Files @("page.csp") -ExpectedEncoding utf8 -ErrorOnMismatch
+  # Legacy projects only:
   .agents/scripts/check-frontend-encoding.ps1 -Files @("page.csp") -ExpectedEncoding gb2312 -ErrorOnMismatch
 
 Output JSON:
@@ -111,7 +113,7 @@ foreach ($file in $Files) {
     elseif ($ExpectedEncoding -ne "any" -and $info.encoding -ne $ExpectedEncoding) {
         if ($info.encoding -eq "ascii") {
             $status = "warning"
-            $message = "ASCII-only file cannot prove UTF-8 or GB2312; use the confirmed frontend encoding mode before adding non-ASCII text."
+            $message = "ASCII-only bytes are UTF-8 compatible; keep the confirmed profile mode before adding non-ASCII text."
         }
         else {
             $status = "error"

@@ -19,14 +19,10 @@
 ### 编码策略
 
 - 后端源文件编码：UTF-8
-- 前端编码模式：TODO（只允许 `standard-gb2312` 或 `project-utf8`；无法确认时保持 TODO）
+- 前端编码模式：utf8
 - 前端编码冲突处理：stop-and-report
 
-可选路径覆盖只映射上述两种模式，不引入第三种模式：
-
-| 前端根目录 | 编码模式 |
-|---|---|
-| `TODO` | `standard-gb2312` 或 `project-utf8` |
+`project-utf8` 仅作为旧 profile 的兼容读取别名；`standard-gb2312` 仅用于用户明确指定的历史工程。新项目和当前标版不得按路径或仓库角色改写 `utf8` 默认值。
 
 ### 部署能力
 

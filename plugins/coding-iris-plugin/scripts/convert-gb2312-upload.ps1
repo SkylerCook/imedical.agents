@@ -1,5 +1,6 @@
 <#
-Detect encoding and convert UTF-8 files to GB2312 for upload.
+Legacy compatibility only: detect encoding and convert UTF-8 files to GB2312 for upload.
+Current standard frontend source, upload, and server runtime encoding are UTF-8; do not call this script unless the user explicitly identifies a historical GB2312 project.
 - GB2312 files → skip, upload source directly
 - UTF-8 files → convert to {name}.gb2312{ext} in same directory
 

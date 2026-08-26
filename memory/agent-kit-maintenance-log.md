@@ -4,6 +4,8 @@
 
 ## 近期已完成
 
+- 2026-08-26：按标版前端编码正式变更，将 coding-iris 前端源码、上传内容和服务器运行编码统一为 canonical `utf8`。frontend encoding v3 迁移在实际字节为 UTF-8 或纯 ASCII 时，将旧 `project-utf8` / `standard-gb2312` profile 规范化为 `utf8`；真实 GB2312、mixed、UTF-16 或 unknown 保持阻塞，不自动转码业务源码。当前导出与部署直接使用 UTF-8 源文件，GB2312 检查、转换和 promote 仅保留为用户明确指定历史工程的兼容路径；coding/i18n rules、skills、模板、README、更新 runbook、展示页和专项测试同步更新。`coding-iris-plugin` 升级为 v0.4.1，`i18n-iris-plugin` 升级为 v0.1.2。PowerShell 7 与 Windows PowerShell 5.1 的编码、迁移、更新器和双插件 thin-index DryRun 均通过；Node 导出测试、16 项版本治理专项、15 组件 worktree 校验、manifest JSON、语法、差异格式和临时路径污染检查通过。
+
 - 2026-08-25：完成 `iris-agentic-dev` v1.2.6 体系适配。根 helper 显式分类断连 `tools/list` 复核的完整 78 工具集，默认 `--no-skills` 暴露 67 个工具，并保留 `IRIS_NO_SKILLS=false` 显式开启路径；新增多实例、跨环境比较、持久会话、Global preview/kill、namespace/database、journal/audit、HL7、Mermaid 和 Storage 等安全边界，`check_config` 摘要补齐 server/IRIS 版本和破坏性工具状态。官方 vendor skills 刷新到上游 tag v1.2.6 固定提交 `c54ae583eddc36350e5a155246153dadf843cfc7`，8 个 `SKILL.md` 与 MIT LICENSE 逐个匹配上游 Git blob，新增 optional `objectscript-tdd` 并由本地规则约束编译、测试和 session fallback。`coding-iris-plugin` 升级为 v0.4.0；5 个依赖插件只扩展 v0.4.x 兼容范围并做 patch 发布。PowerShell 7 与 Windows PowerShell 5.1 下的 MCP helper、lookup、update-agents、治疗表单和接口专项均通过；workspace 配置双向 skill 开关、16 项组件版本测试、worktree 版本校验、vendor/插件 thin-index DryRun、Node 语法、`git diff --check` 和临时路径污染检查通过。
 
 - 2026-08-25：按 vendor 更新 runbook 将内置 Windows x64 `iris-agentic-dev.exe` 从 v0.9.3 更新到 v1.2.6；GitHub Release 资产大小为 `50178048` 字节，仓库目标 SHA-256 为 `BACE5848F29A6AEAE585D813669FEBDF60A4EBC5ED3FC8ADE1F60BCC6C65BB09`，与官方 digest 一致。同步更新 vendor README、根 README 和 runbook 基线示例；MCP helper 在 PowerShell 7 与 Windows PowerShell 5.1 下均通过，`update-agents` 两种宿主回归通过，组件版本治理 15 项校验与 16 项专项测试通过。v1.2.6 完整 MCP 工具/参数/协议变化不在本次 exe 更新范围内，已进入治理队列。
@@ -95,7 +97,7 @@
 - 已新增 IRIS 远端部署编排入口 `plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md`，将部署、上传、编译、SFTP 同步、CSP 编译和部署验证统一路由到部署 skill，并继续以 `rules/iris_deploy_checklist.md` 作为逐项执行清单。
 - 已新增薄通用脚本 `plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js`，用于根据文件列表或 git diff 生成 IRIS 部署 JSON 清单；脚本只做本地分析，不执行上传、编译或远端写入。coding 插件 README、AGENTS、目标工程 snippet、manifest prompt 和 `iris_coding_workflow.md` 已同步更新。
 - 已继续回归 `feedback/experience/demand-com-exp.md` 中建议提升的需求经验：`iris_coding_backend.md` 新增 `%Persistent` 字段追加、Storage 不手改和 Insert/Update/Import SQL 同步规则；`iris_coding_frontend.md` 新增 HisUI DataGrid 插列后 editor/列下标检查规则；`i18n_verify.md` 新增字典展示值验证必须覆盖主方法调用子方法的检查项。对应经验条目已追加“已回归/已提升”标记。
-- IRIS/HIS 前端编码保护已升级为双模式：`standard-gb2312` 保证标版源码和上传均为 GB2312，`project-utf8` 保证医院项目源码和上传均为 UTF-8；目录/profile 只提出候选，实际文件字节检测是最终门禁。旧 doctor-dev 编码默认已取消，i18n 规则复用同一模式和检查脚本。
+- IRIS/HIS 前端编码保护当前统一为 canonical `utf8`；标版与医院项目源码、上传内容和服务器运行编码均为 UTF-8。旧模式仅按迁移兼容边界读取，实际文件字节检测仍是最终门禁，i18n 规则复用同一检查脚本。
 - 已将 HISUI 源码内置到仓库根 `vendor/hisui/dist/`，消除 `${HISUI_SRC}` 变量间接层；所有插件规则、skill 和模板统一指向 `.agents/vendor/hisui/`，删除两套 profile 模板中的 `HISUI_SRC` 字段。`install-agents.ps1` 和 `update-agents.ps1` 的 sparse checkout 新增 `/vendor/**`。coding-iris-plugin 和 i18n-iris-plugin 共约 12 个文件已同步更新。
 - 已增强 plugin skill thin-index：`scripts/generate-plugin-thin-index.ps1` 生成 `.agents/skills/<skill>/SKILL.md` 时会传播真实 `SKILL.md` 的 `name` 和 `description`，并写入 `thin-index: true` 与 `source`。浅层 skill description 用于能力发现，匹配后仍必须继续读取插件真实 `SKILL.md`。
 - 已完成 `SKILL.md` 渐进式披露轻量约束治理：真实 `SKILL.md` 的 frontmatter `description` 已收敛为 `Use when...` 触发条件句；正文补充基础入口优先、按条件继续读取 rules/references/config/MCP 的路由说明。本轮未给 skill 引入 `task-affinity`，仍保持 skill 发现依赖 `description` 与正文路由。
