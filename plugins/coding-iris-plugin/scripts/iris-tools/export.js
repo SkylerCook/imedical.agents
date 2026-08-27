@@ -104,7 +104,7 @@ function readFrontendEncodingProfile() {
     } catch (_) {
         return { mode: null, overrides: [] };
     }
-    const modeMatch = text.match(/^\s*-\s*前端编码模式\s*[：:]\s*(utf8|standard-gb2312|project-utf8)\s*$/m);
+    const modeMatch = text.match(/^\s*-\s*前端编码模式\s*[：:]\s*([^\r\n]+?)\s*$/m);
     const overrides = [];
     for (const line of text.split(/\r?\n/)) {
         const match = line.match(/^\s*\|\s*`?([^|`]+?)`?\s*\|\s*(utf8|standard-gb2312|project-utf8)\s*\|\s*$/);
@@ -116,7 +116,11 @@ function readFrontendEncodingProfile() {
 }
 
 function normalizeFrontendMode(mode) {
-    return mode === 'project-utf8' ? 'utf8' : mode;
+    const value = String(mode || '').trim();
+    if (value === 'project-utf8') return 'utf8';
+    if (value === 'utf8' || value === 'standard-gb2312') return value;
+    if (value === 'N/A (backend-only)' || value === 'N/A（backend-only）' || value === 'backend-only N/A') return 'backend-only';
+    return null;
 }
 
 function resolveFrontendMode(relativeTarget) {
@@ -143,6 +147,9 @@ function prepareOutputTarget(fileInfo) {
         return Object.assign({}, fileInfo, { fullPath: intendedPath, intendedDestination: intendedPath, frontendMode: null, staging: false, conversionRequired: false });
     }
     const frontendMode = resolveFrontendMode(relativeTarget);
+    if (frontendMode === 'backend-only') {
+        throw new Error('当前 profile 为 N/A (backend-only)，没有可导出的 frontend SourceRoot。');
+    }
     let useStaging = targetMode === 'staging' || (targetMode === 'auto' && frontendMode !== 'utf8');
     if (targetMode === 'source' && frontendMode !== 'utf8') {
         throw new Error('只有已确认的 utf8 前端允许直接导出到源码；legacy standard-gb2312 或未确认模式必须使用 staging。');

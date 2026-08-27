@@ -24,6 +24,8 @@
 
 `project-utf8` 仅作为旧 profile 的兼容读取别名；`standard-gb2312` 仅用于用户明确指定的历史工程。新项目和当前标版不得按路径或仓库角色改写 `utf8` 默认值。
 
+workspace-overlay 若在 `capability.json` 中明确只声明 `backend`、未声明 `frontend` SourceRoot，应将“前端编码模式”规范化为 `N/A (backend-only)`；不得保留旧 `TODO` 双模式提示，也不得扫描父目录或 sibling 猜测前端源码。若后续新增 `frontend` SourceRoot，重新运行迁移并通过实际字节门禁后再写回 `utf8`。
+
 ### 部署能力
 
 - 编码时从 `.mcp.json` 确认可用的 MCP 工具（iris_doc、iris_compile、sftp-server 等）

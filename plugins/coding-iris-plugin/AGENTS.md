@@ -17,7 +17,7 @@
 - 默认只做本地修改、只读验证和报告；上传、编译、远程写入、数据库变更必须由用户明确要求。
 - `iris_test`、`iris_coverage`、`iris_execute_method`、容器切换和其它远端执行即使不直接改业务源码，也必须按远端状态变更取得任务级授权；上游 MCP 自带门禁不能代替本仓库授权边界。
 - 历史 CSP/JS/CSS 文件可能存在编码和特殊 EOF，修改前先确认实际编码和尾部格式，避免整文件重写。
-- 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`；`project-utf8` 仅作为兼容读取别名，`standard-gb2312` 仅服务用户明确指定的历史工程，实际文件字节检测始终是最终门禁。
+- 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`；`project-utf8` 仅作为兼容读取别名，`standard-gb2312` 仅服务用户明确指定的历史工程，实际文件字节检测始终是最终门禁。Overlay manifest 明确只声明 `backend` 时，profile 使用 `N/A (backend-only)`，不得伪造前端编码结论。
 - 在 workspace-overlay 中统一通过 capability 包的 workspace context resolver 获取 `WorkspaceRoot`、`ContextRoot`、`CapabilityRoot`、`SourceRoot` 和 `GitRoot`；配置与 profile 只从 ContextRoot 读取，插件/模板/vendor 从 CapabilityRoot 读取，源码和 Git 操作不得越过 manifest 声明边界，也不得扫描父目录或 sibling 猜测根路径。
 - `compile.js` 接受 workspace-overlay 的 `backend/src/...` WorkspaceRoot 逻辑路径时，必须在声明的 backend SourceRoot target 下解析本地文件，并移除逻辑 `backend/src` 前缀后生成 IRIS 远端文档名；不得把 `src` 误作为类包名。
 
@@ -69,7 +69,7 @@
 
 `scripts/iris-tools/` 是 IRIS 开发主力脚本集合，包含部署清单生成、导出、编译、Broker 调试和环境配置同步。真实连接信息由目标工程本地私有配置承载：已有 `.mcp.json` 时反向补齐 `.agents/config/project-env.json`，没有 `.mcp.json` 时才从 `templates/project-env.template.json` 创建并用 `sync-env-config.js` 生成 `.mcp.json`。这些文件不得提交到版本库。
 
-`prepare-deploy-manifest.js --from-git` 在 workspace-overlay 中按声明的 SourceRoot/GitRoot 分组执行 Git diff，并把结果映射回 WorkspaceRoot 逻辑路径；同名仓库相对路径必须保留各自 `sourceRoot`、`gitRoot`，不得互相覆盖。前端编码迁移只扫描 `sourceRoots[name=frontend]`。
+`prepare-deploy-manifest.js --from-git` 在 workspace-overlay 中按声明的 SourceRoot/GitRoot 分组执行 Git diff，并把结果映射回 WorkspaceRoot 逻辑路径；同名仓库相对路径必须保留各自 `sourceRoot`、`gitRoot`，不得互相覆盖。前端编码迁移只扫描 `sourceRoots[name=frontend]`；manifest 明确只有 `backend` 时规范化为 `N/A (backend-only)`，其它无法判定的缺失声明继续阻断。
 
 默认模板将 `mcp.serverPath` 指向 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`。该路径只表示内置 MCP server 可执行文件位置，不包含 host、namespace、账号、密码或 token。
 

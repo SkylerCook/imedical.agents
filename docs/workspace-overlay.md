@@ -64,7 +64,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\CodeSpace\GIT\Gitlab\
 - manifest 无效、SourceRoot/GitRoot 不存在、source name 重复；
 - config 合并冲突或迁移需要人工确认；
 - 显式选择的插件状态为 `disabled`；
-- coding-iris overlay 未声明 frontend SourceRoot，却要求自动判断前端编码；
+- coding-iris overlay 未声明 frontend SourceRoot，且也没有明确的 backend SourceRoot 可证明 backend-only，却要求自动判断前端编码；
 - 任一 DryRun 对 capability Git 或业务 Git 产生状态变化。
 
 ## 恢复策略

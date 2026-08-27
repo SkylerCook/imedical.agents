@@ -85,6 +85,7 @@
 - Independent Verifier 只能在所有远程动作终态、无 suspended attempt 且验证范围冻结后启动。报告、summary、manifest 和 feedback 不属于业务验证版本。
 
 - IRIS 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`；组合仓库名称、目录结构和 Git 仓库角色不得改变当前编码默认。`project-utf8` 仅作为 `utf8` 的兼容读取别名，`standard-gb2312` 仅用于用户明确指定的历史工程。
+- Overlay manifest 明确至少声明一个 `backend` SourceRoot 且没有 `frontend` SourceRoot 时，profile 使用 canonical `N/A (backend-only)`；无法从声明证明 backend-only 时继续阻断，不扫描父目录或 sibling 猜测源码。后续新增 frontend 时必须重新通过字节门禁再规范化为 `utf8`。
 - 实际文件字节检测始终是修改与上传的最终门禁。UTF-8 或纯 ASCII 可安全规范化 profile；真实 GB2312、mixed、UTF-16 或 unknown 必须停止并报告，不自动批量转码业务源码。
 - 已部署插件配置迁移由 manifest 声明、根更新器通用调用；领域推导逻辑留在插件迁移脚本，不硬编码到根更新器。
 

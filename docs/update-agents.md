@@ -209,7 +209,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `config-missing-key` | 模板有新增字段，当前项目 config 没有；dry-run 只提示。 |
 | `config-merged-key` | write 已把缺失配置项追加到待确认区块。 |
 | `config-deprecated-candidate` | 当前项目 config 有模板没有的字段；只提示，不删除。 |
-| `config-migration-planned` | 插件迁移脚本已通过字节校验，dry-run 计划生成新配置。 |
+| `config-migration-planned` | 插件迁移脚本已通过字节校验，或已从 Overlay manifest 明确判定为 backend-only；dry-run 计划生成新配置。 |
 | `config-migration-applied` | write 已应用插件配置迁移。 |
 | `config-migration-unchanged` | 插件迁移配置已是最新。 |
 | `script-wrapper-planned` / `script-wrapper-applied` | 编码脚本将要或已经替换为指向插件 canonical 实现的薄 wrapper。 |
@@ -221,7 +221,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `Action required` | 查看摘要下的阻塞项。必要时运行 `-Detailed` 后向用户汇报。 |
 | `conflict` | 停止。报告冲突文件和来源。 |
 | `config-review-required` | 停止。说明配置语义需要人工确认。 |
-| `config-migration-review-required` | 停止。发现 mixed、UTF-16、unknown、未声明 frontend SourceRoot 或不支持的配置值，不能安全规范化。 |
+| `config-migration-review-required` | 停止。发现 mixed、UTF-16、unknown、无法从 SourceRoot 声明判定是否 backend-only，或存在不支持的配置值，不能安全规范化。 |
 | `config-migration-conflict` | 停止。目标应为 canonical UTF-8，但实际字节仍是 GB2312 或与 UTF-8 门禁冲突。 |
 | `config-migration-failed` | 停止。插件迁移脚本缺失、异常退出或输出无效。 |
 | `submodule-init-required` | 停止。前端 submodule 未初始化，无法做字节检测。 |
@@ -252,6 +252,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 ## coding-iris 前端编码 v3 迁移
 
 当前标版与医院项目的前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`。旧 `project-utf8` 是兼容读取别名；旧 `standard-gb2312` 只服务用户明确指定的历史工程，不再由组合仓库名称、目录结构或 Git 角色自动推断。实际文件字节检测始终是最终门禁。
+
+workspace-overlay 的 manifest 若明确至少声明一个 `backend` SourceRoot 且没有 `frontend` SourceRoot，迁移器将旧 `TODO`、`utf8` 或兼容模式规范化为 `N/A (backend-only)`，并写入 v3 managed marker；它不会扫描父目录或 sibling。空 SourceRoot、只有未知角色或其它无法证明 backend-only 的声明仍返回 `config-migration-review-required`。后续新增 `frontend` SourceRoot 时，重新运行迁移并通过 UTF-8 字节门禁后，N/A 会规范化为 `utf8`。
 
 旧版 `update-agents.ps1` 在第一次运行过程中即使拉取了新版脚本，也不会在同一 PowerShell 进程中执行新迁移钩子。已部署工程按以下两阶段流程处理：
 

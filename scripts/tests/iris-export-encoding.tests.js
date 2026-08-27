@@ -76,6 +76,13 @@ function run(args) {
     const legacyAliasResult = await run(['legacy-alias.csp']);
     assert.strictEqual(legacyAliasResult.code, 0, legacyAliasResult.stderr || legacyAliasResult.stdout);
     assert.ok(fs.existsSync(path.join(testRoot, 'src', 'imedical', 'web', 'csp', 'legacy-alias.csp')), 'project-utf8 alias should still export directly to source');
+
+    fs.writeFileSync(path.join(configRoot, 'iris_project_profile.md'), '- 前端编码模式：N/A (backend-only)\n', 'utf8');
+    const backendOnlyResult = await run(['backend-only.csp']);
+    assert.notStrictEqual(backendOnlyResult.code, 0, 'backend-only profile must reject frontend export');
+    assert.ok(backendOnlyResult.stderr.includes('N/A (backend-only)'), 'backend-only rejection should explain the canonical profile mode');
+    assert.ok(!fs.existsSync(path.join(testRoot, 'src', 'imedical', 'web', 'csp', 'backend-only.csp')), 'backend-only export must not write frontend source');
+    assert.ok(!fs.existsSync(path.join(testRoot, '.agents', 'work', 'iris-export', 'src', 'imedical', 'web', 'csp', 'backend-only.csp')), 'backend-only export must not write staging output');
   } finally {
     await new Promise(resolve => server.close(resolve));
     fs.rmSync(testRoot, { recursive: true, force: true });

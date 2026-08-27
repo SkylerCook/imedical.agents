@@ -138,9 +138,51 @@ try {
   $backendOnlyManifest.workspace = "backend-only"
   $backendOnlyManifest.sourceRoots = @(@{ name = "backend"; path = "backend"; target = $backendTarget; gitRoot = $backendTarget })
   [System.IO.File]::WriteAllText((Join-Path $backendOnly ".agents/capability.json"), ($backendOnlyManifest | ConvertTo-Json -Depth 6), $utf8)
+  $backendOnlyProfilePath = Join-Path $backendOnly ".agents/config/iris_project_profile.md"
+  [System.IO.File]::WriteAllText($backendOnlyProfilePath, @"
+# IRIS 项目适配配置
+
+### 编码策略
+
+- 前端编码模式：TODO（只允许 standard-gb2312 或 project-utf8）
+
+## Frontend encoding v2 (managed)
+"@, $utf8)
+  $backendOnlyBefore = [System.IO.File]::ReadAllText($backendOnlyProfilePath)
   $backendOnlyOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -ProjectRoot $backendOnly -Mode DryRun | Out-String
-  Assert-True ($backendOnlyOutput.Contains("config-migration-review-required")) "overlay without frontend must require review"
-  Assert-True ($backendOnlyOutput.Contains("frontend SourceRoot")) "overlay without frontend must explain the missing declared source"
+  Assert-True ($backendOnlyOutput.Contains("config-migration-planned")) "declared backend-only overlay should plan profile normalization"
+  Assert-True ($backendOnlyOutput.Contains("backend-only")) "backend-only migration should explain the explicit source layout"
+  Assert-True (-not $backendOnlyOutput.Contains("config-migration-review-required")) "declared backend-only overlay should not require frontend review"
+  Assert-True ([System.IO.File]::ReadAllText($backendOnlyProfilePath) -eq $backendOnlyBefore) "backend-only DryRun must not edit profile"
+  $backendOnlyWriteOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -ProjectRoot $backendOnly -Mode Write | Out-String
+  $backendOnlyProfile = [System.IO.File]::ReadAllText($backendOnlyProfilePath)
+  Assert-True ($backendOnlyWriteOutput.Contains("config-migration-applied")) "declared backend-only overlay should apply profile normalization"
+  Assert-True ($backendOnlyProfile.Contains("前端编码模式：N/A (backend-only)")) "backend-only profile should use canonical N/A mode"
+  Assert-True ($backendOnlyProfile.Contains("Frontend encoding v3 (managed)")) "backend-only profile should receive the v3 marker"
+  Assert-True (-not $backendOnlyProfile.Contains("Frontend encoding v2 (managed)")) "backend-only migration should remove the v2 marker"
+  Assert-True (-not $backendOnlyWriteOutput.Contains("undeclared-sibling")) "backend-only overlay must not scan an undeclared sibling"
+  $backendOnlySecondOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -ProjectRoot $backendOnly -Mode Write | Out-String
+  Assert-True ($backendOnlySecondOutput.Contains("config-migration-unchanged")) "canonical backend-only profile should be idempotent"
+
+  $backendOnlyManifest.sourceRoots = @(
+    @{ name = "backend"; path = "backend"; target = $backendTarget; gitRoot = $backendTarget },
+    @{ name = "frontend"; path = "frontend"; target = $frontendTarget; gitRoot = $frontendTarget }
+  )
+  [System.IO.File]::WriteAllText((Join-Path $backendOnly ".agents/capability.json"), ($backendOnlyManifest | ConvertTo-Json -Depth 6), $utf8)
+  $frontendAddedOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -ProjectRoot $backendOnly -Mode Write | Out-String
+  $frontendAddedProfile = [System.IO.File]::ReadAllText($backendOnlyProfilePath)
+  Assert-True ($frontendAddedOutput.Contains("config-migration-applied")) "adding a declared frontend should re-enable UTF-8 migration"
+  Assert-True ($frontendAddedProfile.Contains("前端编码模式：utf8")) "backend-only N/A should normalize to utf8 after a frontend SourceRoot is declared"
+
+  $undetermined = Join-Path $testRoot "undetermined-overlay"
+  New-TestProject -Root $undetermined
+  $undeterminedManifest = $overlayManifest.Clone()
+  $undeterminedManifest.workspace = "undetermined-overlay"
+  $undeterminedManifest.sourceRoots = @(@{ name = "support"; path = "support"; target = $backendTarget; gitRoot = $backendTarget })
+  [System.IO.File]::WriteAllText((Join-Path $undetermined ".agents/capability.json"), ($undeterminedManifest | ConvertTo-Json -Depth 6), $utf8)
+  $undeterminedOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -ProjectRoot $undetermined -Mode DryRun | Out-String
+  Assert-True ($undeterminedOutput.Contains("config-migration-review-required")) "overlay without explicit backend or frontend must remain review-required"
+  Assert-True ($undeterminedOutput.Contains("frontend SourceRoot")) "undetermined overlay should explain the missing frontend declaration"
 }
 finally {
   if (Test-Path -LiteralPath $testRoot) { Remove-Item -LiteralPath $testRoot -Recurse -Force }

@@ -466,7 +466,7 @@ Assert-True ($irisCodegraphManifest.name -eq "iris-codegraph") "iris-codegraph m
 Assert-True (($irisCodegraphManifest.dependencies -contains "coding-iris-plugin")) "iris-codegraph should declare coding-iris-plugin as a dependency"
 Assert-True ($interfaceDevManifest.name -eq "iris-interface-dev") "interface plugin manifest should use the current canonical name"
 Assert-True (@($interfaceDevManifest.configMigrations | Where-Object { $_.id -eq "interface-output-root-v1" }).Count -eq 1) "interface plugin should declare the output-root migration"
-Assert-True ($codingIrisManifest.version -eq "0.4.1") "coding iris plugin manifest should expose canonical UTF-8 frontend encoding"
+Assert-True ($codingIrisManifest.version -eq "0.4.2") "coding iris plugin manifest should expose backend-only-aware UTF-8 frontend encoding"
 Assert-True ($cureFormDevManifest.name -eq "iris-cure-form-dev") "cure form plugin manifest should use the canonical name"
 Assert-True ($cureFormDevManifest.version -eq "0.6.1") "cure form plugin manifest should accept the coding iris v0.4 compatibility range"
 Assert-True (($cureFormDevManifest.dependencies -contains "extract-doc")) "cure form plugin should declare extract-doc as a dependency"

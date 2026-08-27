@@ -11,6 +11,7 @@
 - 前端统一编码：当前标版、医院项目的源码、上传内容和服务器运行编码统一使用 canonical `utf8`。
 - 前端编码保护：实际文件字节检测是最终门禁；正常任务静默处理，完成时只报告一行摘要。
 - 兼容读取：旧 `project-utf8` 规范化为 `utf8`；旧 `standard-gb2312` 只服务用户明确指定的历史工程，不能再由目录或仓库角色推断。
+- Backend-only：Overlay manifest 明确只声明 `backend`、未声明 `frontend` 时，profile 规范化为 `N/A (backend-only)`，不扫描父目录或 sibling 猜测前端源码。
 - Legacy GB2312 提升：仅在明确的历史工程中，确认后删除源文件并将 `{name}.gb2312.{ext}` 更名回原文件名，可选 MCP/SFTP 上传。
 - HISUI 控件参考：控件选型、API 和 JavaScript 行为按需读取 `references/hisui-widget-index.md`。
 - HISUI 样式与资源参考：主题 CSS、locale CSS、语义 class、图标和插图按需读取 `references/hisui-style-index.md`；源码内置在 `.agents/vendor/hisui/`。
@@ -85,7 +86,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
   -Force
 ```
 
-workspace-overlay 模式不在每个模块中重复拉取插件：先更新共享 `CapabilityRoot`，再从 capability 脚本入口用 `-NoPull` 刷新模块 `ContextRoot`。IRIS 工具统一解析 workspace context：`project-env.json` 与 profile 来自 `ContextRoot`，插件/模板/vendor 来自 `CapabilityRoot`，源码操作限制在声明的 SourceRoot，`--from-git` 在各自 GitRoot 执行并映射回 WorkspaceRoot 逻辑路径。前端编码迁移只扫描 `sourceRoots[name=frontend]`；未声明时要求人工复核，不扫描父目录或 sibling。
+workspace-overlay 模式不在每个模块中重复拉取插件：先更新共享 `CapabilityRoot`，再从 capability 脚本入口用 `-NoPull` 刷新模块 `ContextRoot`。IRIS 工具统一解析 workspace context：`project-env.json` 与 profile 来自 `ContextRoot`，插件/模板/vendor 来自 `CapabilityRoot`，源码操作限制在声明的 SourceRoot，`--from-git` 在各自 GitRoot 执行并映射回 WorkspaceRoot 逻辑路径。前端编码迁移只扫描 `sourceRoots[name=frontend]`；明确只有 `backend` 时写入 `N/A (backend-only)`，无法从 manifest 判定业务类型时才要求人工复核，全程不扫描父目录或 sibling。
 
 重建脚本委托根 canonical thin-index 脚本执行：生成阶段只处理当前 `PluginPath`，stale 清理阶段会扫描 `.agents/rules/` 中所有指向 `.agents/plugins/*/rules/*.md` 的 thin-index，并移除源文件已不存在的旧 rule 入口，例如迁移到 `references/` 的 HISUI 控件参考入口。目标工程自定义规则不会被清理。
 
@@ -181,6 +182,8 @@ node .agents/scripts/iris-mcp.js call iris_doc "{...}"
 ## 前端编码保护
 
 当前前端编码以目标工程 `.agents/config/iris_project_profile.md` 的 canonical `utf8` 为准；`project-utf8` 仅作为兼容读取别名，`standard-gb2312` 仅作为用户明确指定的历史工程状态。每个文件修改前后仍必须通过实际字节检测。
+
+明确的 backend-only Overlay 不适用前端字节门禁，profile 固定使用 `N/A (backend-only)`，前端导出入口会明确停止且不写 source/staging。若 manifest 后续新增 `frontend` SourceRoot，必须重新运行迁移并通过 UTF-8 字节检测，不能手工把 N/A 直接改成 `utf8`。
 
 当前 `utf8` 收尾检查：
 
