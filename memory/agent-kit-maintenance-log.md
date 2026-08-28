@@ -4,6 +4,8 @@
 
 ## 近期已完成
 
+- 2026-08-28：安装/更新流程新增 Windows x64 `iris-agentic-dev` vendor 运行时优先收敛。`prefer-vendor-iris-mcp.ps1` 在内置 exe 存在且项目已有配置时，只更新 `.mcp.json` 中唯一识别的 IRIS MCP `command` 与既有 `project-env.json` 的 `mcp.serverPath`，保留其它 server、args、env 和全部连接字段；DryRun/Check 只报告，Write 原子替换、写后重读两份目标、失败按原始字节回滚且支持幂等，非 Windows、无配置、vendor 缺失、JSON 无效或候选歧义均保守降级。专项通过本地 Git 远端模拟已部署项目从不含收敛逻辑的旧脚本升级到新版，证明受支持更新器一次 Write 可自更新并修改两份配置、第二次 Write 字节级幂等；standard/overlay 两种部署形态均覆盖两份配置与敏感/无关字段保护。PowerShell 7 与 Windows PowerShell 5.1 完整更新回归均通过；安装器、更新器、README、更新 runbook 和长期决策已同步。
+
 - 2026-08-27：修复 frontend encoding v3 对 backend-only Overlay 的边界遗漏。manifest 明确至少声明一个 `backend` SourceRoot 且没有 `frontend` SourceRoot 时，迁移器不再返回“缺少 frontend”阻断，而是将旧 `TODO` 双模式提示及兼容值规范化为 `N/A (backend-only)`；无法证明 backend-only 的缺失声明仍保持停止，不扫描父目录或 sibling，前端导出入口识别 N/A 后也明确停止且不写 source/staging。新增 DryRun/Write、v2 marker 替换、幂等、后续新增 frontend 后回归 `utf8`、未知角色继续阻断及导出拒绝的专项样例；模板、init skill、README、Overlay/更新 runbook 和长期决策同步，`coding-iris-plugin` 升级为 v0.4.2。PowerShell 7 与 Windows PowerShell 5.1 的迁移、编码、更新器和 thin-index DryRun 均通过，16 项组件版本专项与 15 组件 worktree 校验通过。
 
 - 2026-08-26：按标版前端编码正式变更，将 coding-iris 前端源码、上传内容和服务器运行编码统一为 canonical `utf8`。frontend encoding v3 迁移在实际字节为 UTF-8 或纯 ASCII 时，将旧 `project-utf8` / `standard-gb2312` profile 规范化为 `utf8`；真实 GB2312、mixed、UTF-16 或 unknown 保持阻塞，不自动转码业务源码。当前导出与部署直接使用 UTF-8 源文件，GB2312 检查、转换和 promote 仅保留为用户明确指定历史工程的兼容路径；coding/i18n rules、skills、模板、README、更新 runbook、展示页和专项测试同步更新。`coding-iris-plugin` 升级为 v0.4.1，`i18n-iris-plugin` 升级为 v0.1.2。PowerShell 7 与 Windows PowerShell 5.1 的编码、迁移、更新器和双插件 thin-index DryRun 均通过；Node 导出测试、16 项版本治理专项、15 组件 worktree 校验、manifest JSON、语法、差异格式和临时路径污染检查通过。

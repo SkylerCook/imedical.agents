@@ -10,10 +10,10 @@
 - Git 必须是 `2.25.0` 或更新版本；`install-agents.ps1` 和 `update-agents.ps1` 使用 `git sparse-checkout` 子命令，不兼容 Git 2.21.0。
 - `AGENTS.md` 是工程级唯一主入口，但缺失时不阻塞 `.agents` 首次安装；安装后通过 `project-context-maintenance` 补齐或维护。`CLAUDE.md`、`CODEBUDDY.md` 只是可选兼容 symlink。
 - 所有命令使用 PowerShell。
-- `.agents/config/` 只允许合并，不允许覆盖已有值。
+- `.agents/config/` 默认只允许合并，不覆盖已有值；唯一的运行时路径例外是 Windows x64 上将既有 `project-env.json` 的 `mcp.serverPath` 收敛到随能力包部署的 `iris-agentic-dev.exe`，其它字段保持不变。
 - `.agents/config/plugin_profile.md` 是插件启用状态事实来源；插件目录存在只表示 `available`，不表示已启用。
 - `.mcp.json` 是连接事实来源。不要把 host、账号、密码、token、namespace 或远程路径写入 `AGENTS.md`、rules、memory、config 或插件。
-- 安装/更新会部署 `.agents/scripts/iris-mcp.js`。standard 项目直接使用 sparse checkout 中的 canonical helper；workspace overlay 会在 `ContextRoot/scripts/` 生成 manifest-aware JS adapter，并转发到 `CapabilityRoot/scripts/iris-mcp.js`。原生 MCP 工具优先；只有运行器未暴露原生工具时才使用该 helper，不得把 helper 当成 canonical 规则源。更新后的 helper 会消费 `check_config` 版本和 capabilities，显式分类 v1.2.6 工具，并按工具 `mode` / `action` 拦截远端状态变化；默认通过 `--no-skills` 避免与能力包 vendor skills 重复。已有项目只需更新 `.agents`，不会自动改写 `.mcp.json`、`.iris-agentic-dev.toml` 或既有本地配置。
+- 安装/更新会部署 `.agents/scripts/iris-mcp.js`。standard 项目直接使用 sparse checkout 中的 canonical helper；workspace overlay 会在 `ContextRoot/scripts/` 生成 manifest-aware JS adapter，并转发到 `CapabilityRoot/scripts/iris-mcp.js`。原生 MCP 工具优先；只有运行器未暴露原生工具时才使用该 helper，不得把 helper 当成 canonical 规则源。更新后的 helper 会消费 `check_config` 版本和 capabilities，显式分类 v1.2.6 工具，并按工具 `mode` / `action` 拦截远端状态变化；默认通过 `--no-skills` 避免与能力包 vendor skills 重复。Windows x64 安装/更新在确认 vendor exe 已存在后，只收敛 `.mcp.json` 的 IRIS MCP `command` 和既有 `project-env.json` 的 `mcp.serverPath`；不创建连接配置，不修改 `.iris-agentic-dev.toml`，也不改 host、账号、密码、namespace、args、env 或其它 MCP server。
 - 如果输出中出现停止条件，先停止并向用户汇报，不要继续执行破坏性操作。
 - 若 `WorkspaceRoot/.agents/capability.json` 存在，按 workspace overlay 处理；`ContextRoot` 无 `.git` 是合法状态。完整两阶段流程和恢复门禁见 `docs/workspace-overlay.md`。
 
@@ -296,7 +296,38 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/generate-age
 
 `coding-iris-plugin` 引入的 `iris-agentic-dev-skills` 属于 optional vendor skill：更新脚本会把 v1.2.6 固定提交的 8 个 skill 快照同步到 `.agents/vendor/iris-agentic-dev-skills/`，但不会自动生成 `.agents/skills` thin-index。需要直接使用这些官方 skill 时，可从 vendor 路径读取，或由目标 runtime 的显式同步选项生成入口；`objectscript-tdd` 仍受任务级编译/测试授权约束，`iris-mcp-lookup` 本身仍由插件 canonical skill 提供。
 
-新建目标工程从 `project-env.template.json` 生成 `.mcp.json` 时默认写入 `--no-skills` / `IRIS_NO_SKILLS=true`。已有工程更新能力包后保持原 `.mcp.json` 和 `project-env.json` 不变；如需采用该默认值，应人工在本地 `mcp.includeBuiltInSkills=false` 后重新生成，或在既有 MCP 配置中显式加入 `--no-skills`。确需上游 skill registry、KB 或学习工具时可本地设置 `mcp.includeBuiltInSkills=true`，不得把连接事实一并提交。
+新建目标工程从 `project-env.template.json` 生成 `.mcp.json` 时默认写入 `--no-skills` / `IRIS_NO_SKILLS=true`。已有工程更新能力包时，仅按下节规则收敛 MCP server 路径；其它 `.mcp.json` 和 `project-env.json` 字段保持不变。如需采用该默认值，应人工在本地 `mcp.includeBuiltInSkills=false` 后重新生成，或在既有 MCP 配置中显式加入 `--no-skills`。确需上游 skill registry、KB 或学习工具时可本地设置 `mcp.includeBuiltInSkills=true`，不得把连接事实一并提交。
+
+## iris-agentic-dev vendor 运行时优先
+
+Windows x64 安装或更新完成后，`scripts/prefer-vendor-iris-mcp.ps1` 优先使用：
+
+```text
+.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe
+```
+
+行为边界：
+
+- `.mcp.json` 已存在且能唯一识别 IRIS MCP server 时，只把该 server 的 `command` 改为上述项目相对路径；其它 server、`args` 和 `env` 原样保留。
+- `.agents/config/project-env.json` 已存在 `mcp` 配置时，同时收敛 `mcp.serverPath`，避免以后重新生成 `.mcp.json` 时回退到外部 exe。
+- 没有 `.mcp.json` 和 `project-env.json` 时报告 `mcp-vendor-command-not-configured`，不猜测或创建连接配置。
+- DryRun/Check 报告 `mcp-vendor-command-planned` 但不写文件；Write 成功报告 `mcp-vendor-command-applied`；已经一致报告 `mcp-vendor-command-unchanged`。
+- Write 在返回 `mcp-vendor-command-applied` 前会重新读取并校验两份实际落盘文件；任一目标未写成预期路径时返回 `mcp-vendor-command-write-failed`，并尽力按原始字节回滚本轮涉及的配置文件。
+- vendor exe 缺失、JSON 无法解析或存在多个候选时保留原配置，并分别报告 `mcp-vendor-executable-missing`、`mcp-vendor-config-invalid` 或 `mcp-vendor-command-ambiguous` 作为停止条件。
+- 非 Windows 平台保留项目现有命令并报告 `mcp-vendor-command-skipped-platform`，因为当前内置二进制仅支持 Windows x64。
+
+当前受支持的已部署更新器会在拉取到新版 `update-agents.ps1` 后自重启，因此一次 Write 即可继续执行 vendor 路径收敛。回归测试使用本地 Git 远端模拟“项目仍运行不含此能力的旧脚本、远端已发布新版脚本”的升级过程，并验证同一次 Write 更新 `.mcp.json` 和 `.agents/config/project-env.json`，第二次 Write 保持字节级不变。
+
+无法给任意历史版本的已加载 PowerShell 进程追加它启动时并不存在的逻辑。若项目中的更新器早于自重启机制，使用以下两次 Write 作为确定性兼容流程：第一轮只需确保拉取新版能力包，第二轮明确使用已落盘的新更新器完成配置收敛；第二轮不再联网。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Write
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Write -NoPull -Detailed
+```
+
+第二轮应报告 `mcp-vendor-command-applied` 或 `mcp-vendor-command-unchanged`；其它 `mcp-vendor-*` 状态必须按上面的停止条件处理，不能宣称配置已成功更新。
+
+`mcp-vendor-command-applied` 后应重启或重新加载当前 MCP session，让运行器按新 `command` 启动 vendor exe。回退时可手工恢复项目命令，但后续 Windows Write 更新仍会再次收敛到 vendor；若 vendor 不可用，更新器不会删除项目原有 fallback。
 
 核心解析和 manifest 不包含 Claude Code、Codex、OpenCode、CodeBuddy、WorkBuddy 或 Hermes 的用户目录与调用语法。`.agents/skills/` 是跨工具通用层；工具不能发现 thin-index 时，按入口说明直接读取其 `source`。工具没有 skill 或 subagent 能力时，按 canonical Markdown 串行执行。
 

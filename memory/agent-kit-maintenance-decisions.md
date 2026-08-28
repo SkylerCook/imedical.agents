@@ -74,6 +74,7 @@
 - `.agents/.git/info/exclude` 不应忽略 `/agents/` 或 `/workflows/`；业务项目私有 Agent/Workflow 差异应写入 `.agents/config/agent_*_profile.md` 或业务项目自己的规则/文档。
 - 对手工 full clone 到 `.agents/` 的工程，必须重新执行安装脚本启用 sparse checkout；仅靠 `.git/info/exclude` 不能隐藏已跟踪的维护者记忆文件。
 - 根目录 `vendor/` 放第三方源码资产、共享运行时资产和 vendor skill fallback，随 `/vendor/**` 部署，但不是默认安装列表。插件以厂商无关 `skillDependencies` 声明 capability；更新器只为 enabled 插件的 required skill 生成 `.agents/skills/` 通用入口，optional 按任务触发。用户级运行时同步必须显式指定 skill/runtime，核心 manifest 和 resolver 不写工具目录或工具专属调用名。
+- Windows x64 安装/更新在已存在 IRIS MCP 配置且 vendor exe 可用时，默认把 `.mcp.json` 对应 server 的 `command` 和既有 `project-env.json` 的 `mcp.serverPath` 收敛到 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`。该迁移只允许修改可执行文件路径，不创建连接配置、不改其它 MCP server、args、env 或连接字段；Write 必须写后重读两份目标并在失败时按原始字节回滚，DryRun/Check 只报告，缺失、无效或歧义状态必须保留原配置并停止 Write 收敛。当前受支持更新器用自重启完成同轮升级；无法假定任意历史进程具备新逻辑，因此 runbook 保留两次 Write 的确定性兼容流程。
 - 第三方 vendor skill 快照必须记录上游仓库、固定 commit/version 和许可证；vendor 内的上游 `SKILL.md` 保持原文，工具名兼容映射、路由和本仓库安全约束放在插件自己的 rule/skill/reference 中。除非插件核心流程不可缺少，否则外部 skill 默认声明为 `optional`。
 - 当底层 MCP 同时提供内置 skill/KB/学习工具，而本仓库已通过 vendor 和 manifest 治理同类能力时，新生成配置和 fallback helper 默认关闭底层 skill toolset；目标工程确有需要时只能通过本地配置显式开启，不能绕过本仓库远程动作和敏感信息门禁。
 - 已部署工程的 vendor 迁移默认非破坏：普通 Write 不清历史 thin-index，用户级副本永不自动删除；只有 profile 经确认后，显式 cleanup 才能删除可证明由 `.agents/vendor/` 生成且已不需要的项目 thin-index。

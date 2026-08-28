@@ -114,6 +114,26 @@ if (Test-Path "$target\.git") {
 
 Remove-MaintenanceOnlyRuntimeSkill
 
+$preferVendorIrisMcpScript = Join-Path $target "scripts/prefer-vendor-iris-mcp.ps1"
+if (Test-Path -LiteralPath $preferVendorIrisMcpScript -PathType Leaf) {
+  $preferenceResults = @(& $preferVendorIrisMcpScript -ProjectRoot (Get-Location).Path -ContextRoot $target -Mode Write)
+  $preferenceResults | ForEach-Object {
+    Write-Host ("{0}: {1} ({2})" -f $_.status, $_.target, $_.reason)
+  }
+  $preferenceFailures = @($preferenceResults | Where-Object { $_.status -in @(
+    "mcp-vendor-executable-missing",
+    "mcp-vendor-config-invalid",
+    "mcp-vendor-command-ambiguous",
+    "mcp-vendor-command-write-failed"
+  ) })
+  if ($preferenceFailures.Count -gt 0) {
+    throw "Bundled iris-agentic-dev preference could not be applied safely. Existing MCP configuration was preserved; resolve the reported status before retrying."
+  }
+}
+else {
+  throw "Bundled iris-agentic-dev preference script is missing; existing MCP configuration was preserved."
+}
+
 if (Test-Path "AGENTS.md") {
   Write-Host "AGENTS.md found. CLAUDE.md and CODEBUDDY.md are optional compatibility symlinks; install-agents.ps1 does not create, copy, or repair them automatically."
 }

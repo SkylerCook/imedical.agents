@@ -224,7 +224,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - 本地优先、按需上传/编译的工作流约束。
 - 当前前端 UTF-8 原样编辑、导出和上传流程，以及仅供显式历史工程使用的 legacy GB2312 promote 兼容流程。
 - HISUI 控件/API 按需读取 `references/hisui-widget-index.md`，主题 CSS、locale CSS、语义 class、图标和插图按需读取 `references/hisui-style-index.md`。
-- iris-agentic-dev MCP server Windows x64 可执行文件（当前 **v1.2.6**）内置在 `.agents/vendor/iris-agentic-dev/`，目标工程 `.mcp.json` 仍保存实际连接事实。
+- iris-agentic-dev MCP server Windows x64 可执行文件（当前 **v1.2.6**）内置在 `.agents/vendor/iris-agentic-dev/`；Windows 安装/更新在 vendor exe 存在时只把既有 IRIS MCP `command` / `mcp.serverPath` 收敛到该项目相对路径，目标工程 `.mcp.json` 仍保存实际连接事实，其它连接字段和 MCP server 不变。Write 只有在重新读取并确认 `.mcp.json` 与既有 `project-env.json` 均已落盘后才报告成功；历史更新器的确定性两阶段兼容命令见更新 runbook。
 - `iris-mcp-lookup` 统一查询当前实例类/方法签名、本地源码和 InterSystems 官方文档，并支持已知官方 URL 的 Fetch/WebFetch/Open 等价能力。
 - 官方 `iris-agentic-dev` v1.2.6 中 8 个通用 ObjectScript skill 以固定 commit 快照进入 `.agents/vendor/iris-agentic-dev-skills/`，由 coding 插件声明为 optional capability，避免全局加载；新生成的 MCP 配置默认 `--no-skills`，由本仓库统一治理 skill 发现层。
 

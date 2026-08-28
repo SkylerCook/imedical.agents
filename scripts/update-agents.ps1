@@ -730,6 +730,11 @@ function Write-UpdateSummary {
     "legacy-vendor-profile-review-required",
     "sync-claudecode-skills-script-missing",
     "maintenance-only-skill-remove-failed",
+    "mcp-vendor-preference-script-missing",
+    "mcp-vendor-executable-missing",
+    "mcp-vendor-config-invalid",
+    "mcp-vendor-command-ambiguous",
+    "mcp-vendor-command-write-failed",
    "plugin-init-required",
    "plugin-dependency-missing"
   )
@@ -1068,6 +1073,17 @@ if ($runningFromInstalledAgents) {
   foreach ($item in (Remove-MaintenanceOnlyRuntimeSkill -AgentsRoot $agentsRoot -ProjectRootFull $projectRootFull -Mode $Mode)) {
     $results.Add($item)
   }
+}
+
+$preferVendorIrisMcpScript = Join-Path $capabilityRoot "scripts/prefer-vendor-iris-mcp.ps1"
+if (Test-Path -LiteralPath $preferVendorIrisMcpScript -PathType Leaf) {
+  $preferenceMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
+  foreach ($item in @(& $preferVendorIrisMcpScript -ProjectRoot $projectRootFull -ContextRoot $contextRoot -Mode $preferenceMode)) {
+    $results.Add((Write-UpdateResult -Status ([string]$item.status) -Target ([string]$item.target) -Reason ([string]$item.reason) -Phase "mcp-runtime"))
+  }
+}
+else {
+  $results.Add((Write-UpdateResult -Status "mcp-vendor-preference-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $preferVendorIrisMcpScript) -Reason "cannot prefer the bundled iris-agentic-dev executable" -Phase "mcp-runtime"))
 }
 
 foreach ($item in (Get-GitHooksStatus -AgentsRoot $agentsRoot -ProjectRootFull $projectRootFull)) {

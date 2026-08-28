@@ -13,6 +13,7 @@ $installGitHooksScriptUnderTest = Join-Path $repoRoot "scripts/install-git-hooks
 $repairAgentEntrypointsScriptUnderTest = Join-Path $repoRoot "scripts/repair-agent-entrypoints.ps1"
 $preCommitHookUnderTest = Join-Path $repoRoot "hooks/pre-commit"
 $irisMcpHelperUnderTest = Join-Path $repoRoot "scripts/iris-mcp.js"
+$preferVendorIrisMcpScriptUnderTest = Join-Path $repoRoot "scripts/prefer-vendor-iris-mcp.ps1"
 $irisAgenticRuleUnderTest = Join-Path $repoRoot "plugins/coding-iris-plugin/rules/iris_agentic_dev.md"
 $repositoryMaintenanceSkillUnderTest = Join-Path $repoRoot ".agents/skills/agent-kit-maintenance/SKILL.md"
 $legacyRepositoryMaintenanceSkillUnderTest = Join-Path $repoRoot "skills/agent-kit-maintenance/SKILL.md"
@@ -68,6 +69,7 @@ function New-TestProject {
   Copy-Item -LiteralPath $workspaceContextModuleUnderTest -Destination (Join-Path $root ".agents/scripts/lib/WorkspaceContext.psm1")
   Copy-Item -LiteralPath $overlayInitializerUnderTest -Destination (Join-Path $root ".agents/scripts/initialize-workspace-overlay.ps1")
   Copy-Item -LiteralPath $irisMcpHelperUnderTest -Destination (Join-Path $root ".agents/scripts/iris-mcp.js")
+  Copy-Item -LiteralPath $preferVendorIrisMcpScriptUnderTest -Destination (Join-Path $root ".agents/scripts/prefer-vendor-iris-mcp.ps1")
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/agent-registry.md") -Value "# Agent Registry"
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/workflow-registry.md") -Value "# Workflow Registry"
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/agents/i18n-agent") | Out-Null
@@ -301,6 +303,7 @@ Assert-True (Test-Path -LiteralPath $preCommitHookUnderTest -PathType Leaf) "hoo
 Assert-True (Test-Path -LiteralPath $skillDependencyResolverUnderTest -PathType Leaf) "skill dependency resolver should exist"
 Assert-True (Test-Path -LiteralPath $workspaceContextModuleUnderTest -PathType Leaf) "Workspace Context module should exist"
 Assert-True (Test-Path -LiteralPath $overlayInitializerUnderTest -PathType Leaf) "Overlay initializer should exist"
+Assert-True (Test-Path -LiteralPath $preferVendorIrisMcpScriptUnderTest -PathType Leaf) "vendor MCP preference script should exist"
 
 $runbookPath = Join-Path $repoRoot "docs/update-agents.md"
 $readmePath = Join-Path $repoRoot "README.md"
@@ -330,6 +333,7 @@ Assert-Contains $updateScriptContent "/workflows/**" "update sparse checkout sho
 Assert-Contains $updateScriptContent "/feedback/**" "update sparse checkout should include feedback"
 Assert-Contains $updateScriptContent "/hooks/**" "update sparse checkout should include hooks"
 Assert-Contains $updateScriptContent "/scripts/iris-mcp.js" "update sparse checkout should deploy the MCP helper"
+Assert-Contains $updateScriptContent "prefer-vendor-iris-mcp.ps1" "update should prefer the bundled iris-agentic-dev executable"
 Assert-Contains $updateScriptContent "/scripts/lib/**" "update sparse checkout should deploy Workspace Context runtime modules"
 Assert-True (-not $updateScriptContent.Contains('"/.agents/**"')) "update sparse checkout must not deploy source-repository .agents context"
 Assert-True (-not $updateScriptContent.Contains("!/skills/agent-kit-maintenance/")) "update sparse checkout should not need a maintenance-only root skill exception"
@@ -348,6 +352,7 @@ Assert-Contains $installScriptContent "/workflows/**" "install sparse checkout s
 Assert-Contains $installScriptContent "/feedback/**" "install sparse checkout should include feedback"
 Assert-Contains $installScriptContent "/hooks/**" "install sparse checkout should include hooks"
 Assert-Contains $installScriptContent "/scripts/iris-mcp.js" "install sparse checkout should deploy the MCP helper"
+Assert-Contains $installScriptContent "prefer-vendor-iris-mcp.ps1" "install should prefer the bundled iris-agentic-dev executable"
 Assert-Contains $installScriptContent "/scripts/lib/**" "install sparse checkout should deploy Workspace Context runtime modules"
 Assert-True (-not $installScriptContent.Contains('"/.agents/**"')) "install sparse checkout must not deploy source-repository .agents context"
 Assert-True (Test-Path -LiteralPath $irisMcpHelperUnderTest -PathType Leaf) "iris-mcp.js helper should exist at the deployed canonical path"
@@ -428,6 +433,9 @@ Assert-Contains $runbookContent "install-git-hooks.ps1" "runbook should document
 Assert-Contains $runbookContent "git-hooks-not-enabled" "runbook should document hook status notes"
 Assert-Contains $runbookContent "workspace-context-resolver-restored" "runbook should document legacy sparse runtime recovery"
 Assert-Contains $runbookContent "workspace-context-resolver-restore-failed" "runbook should document legacy sparse recovery failures"
+Assert-Contains $runbookContent "mcp-vendor-command-applied" "runbook should document bundled MCP command convergence"
+Assert-Contains $runbookContent "重新读取并校验两份实际落盘文件" "runbook should require post-write verification semantics"
+Assert-Contains $runbookContent "-Mode Write -NoPull -Detailed" "runbook should document deterministic convergence for historical deployed updaters"
 Assert-Contains $readmeContent "旧版部署若只检出了" "README should explain legacy sparse runtime bootstrap compatibility"
 $contextSkillContent = Get-Content -Raw -Encoding UTF8 -Path $contextSkillPath
 Assert-Contains $contextSkillContent "docs/update-agents.md" "project-context-maintenance should route updates to docs/update-agents.md"
@@ -478,6 +486,213 @@ Assert-True (($externalRegManifest.dependencies -contains "coding-iris-plugin"))
 Assert-Contains $contextSkillContent "install-git-hooks.ps1" "project-context-maintenance should mention optional git hook enablement"
 Assert-True (Test-Path -LiteralPath $repositoryMaintenanceSkillUnderTest -PathType Leaf) "repository-local maintenance skill should live under .agents/skills"
 Assert-True (-not (Test-Path -LiteralPath $legacyRepositoryMaintenanceSkillUnderTest)) "root skills should not retain the maintenance-only exception"
+
+$mcpPreferenceProjectRoot = New-TestProject
+try {
+  $vendorExePath = Join-Path $mcpPreferenceProjectRoot ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe"
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $vendorExePath) | Out-Null
+  [System.IO.File]::WriteAllBytes($vendorExePath, [byte[]](1, 2, 3))
+  New-Item -ItemType Directory -Force -Path (Join-Path $mcpPreferenceProjectRoot ".agents/config") | Out-Null
+
+  $mcpConfigPath = Join-Path $mcpPreferenceProjectRoot ".mcp.json"
+  $projectEnvPath = Join-Path $mcpPreferenceProjectRoot ".agents/config/project-env.json"
+  Set-Content -Encoding UTF8 -Path $mcpConfigPath -Value @'
+{
+  "mcpServers": {
+    "custom-iris": {
+      "command": "D:/tools/iris-agentic-dev.exe",
+      "args": ["mcp", "--namespace", "TEST"],
+      "env": {
+        "IRIS_USERNAME": "preserve-user",
+        "IRIS_PASSWORD": "preserve-password"
+      }
+    },
+    "other-server": {
+      "command": "node",
+      "args": ["other.js"]
+    }
+  }
+}
+'@
+  Set-Content -Encoding UTF8 -Path $projectEnvPath -Value @'
+{
+  "iris": {
+    "host": "preserve-host",
+    "username": "preserve-user",
+    "password": "preserve-password",
+    "namespace": "TEST"
+  },
+  "mcp": {
+    "serverName": "custom-iris",
+    "serverPath": "D:/tools/iris-agentic-dev.exe",
+    "includeBuiltInSkills": false
+  }
+}
+'@
+
+  $mcpBeforeDryRun = [System.IO.File]::ReadAllText($mcpConfigPath, [System.Text.Encoding]::UTF8)
+  $projectEnvBeforeDryRun = [System.IO.File]::ReadAllText($projectEnvPath, [System.Text.Encoding]::UTF8)
+  $preferenceDryRun = & $preferVendorIrisMcpScriptUnderTest -ProjectRoot $mcpPreferenceProjectRoot -Mode DryRun
+  Assert-True ($preferenceDryRun.status -eq "mcp-vendor-command-planned") "DryRun should plan bundled MCP command convergence"
+  Assert-True ([System.IO.File]::ReadAllText($mcpConfigPath, [System.Text.Encoding]::UTF8) -eq $mcpBeforeDryRun) "DryRun must preserve .mcp.json bytes"
+  Assert-True ([System.IO.File]::ReadAllText($projectEnvPath, [System.Text.Encoding]::UTF8) -eq $projectEnvBeforeDryRun) "DryRun must preserve project-env.json bytes"
+
+  $preferenceWrite = & $preferVendorIrisMcpScriptUnderTest -ProjectRoot $mcpPreferenceProjectRoot -Mode Write
+  Assert-True ($preferenceWrite.status -eq "mcp-vendor-command-applied") "Write should apply bundled MCP command convergence"
+  $mcpAfterWrite = Get-Content -Raw -Encoding UTF8 -Path $mcpConfigPath | ConvertFrom-Json
+  $projectEnvAfterWrite = Get-Content -Raw -Encoding UTF8 -Path $projectEnvPath | ConvertFrom-Json
+  Assert-True ($mcpAfterWrite.mcpServers.'custom-iris'.command -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Write should point the configured MCP server to the bundled executable"
+  Assert-True ($mcpAfterWrite.mcpServers.'custom-iris'.args[2] -eq "TEST") "Write must preserve MCP args"
+  Assert-True ($mcpAfterWrite.mcpServers.'custom-iris'.env.IRIS_PASSWORD -eq "preserve-password") "Write must preserve MCP env fields"
+  Assert-True ($mcpAfterWrite.mcpServers.'other-server'.command -eq "node") "Write must preserve unrelated MCP servers"
+  Assert-True ($projectEnvAfterWrite.mcp.serverPath -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Write should keep project-env MCP path aligned"
+  Assert-True ($projectEnvAfterWrite.iris.password -eq "preserve-password") "Write must preserve project-env connection fields"
+
+  $mcpAfterFirstWrite = [System.IO.File]::ReadAllText($mcpConfigPath, [System.Text.Encoding]::UTF8)
+  $preferenceSecondWrite = & $preferVendorIrisMcpScriptUnderTest -ProjectRoot $mcpPreferenceProjectRoot -Mode Write
+  Assert-True ($preferenceSecondWrite.status -eq "mcp-vendor-command-unchanged") "Repeated Write should be idempotent"
+  Assert-True ([System.IO.File]::ReadAllText($mcpConfigPath, [System.Text.Encoding]::UTF8) -eq $mcpAfterFirstWrite) "Idempotent Write must preserve .mcp.json bytes"
+
+  $mcpAfterWrite.mcpServers.'custom-iris'.command = "D:/tools/iris-agentic-dev.exe"
+  [System.IO.File]::WriteAllText($mcpConfigPath, (($mcpAfterWrite | ConvertTo-Json -Depth 20) + [Environment]::NewLine), (New-Object System.Text.UTF8Encoding($false)))
+  Remove-Item -LiteralPath $vendorExePath
+  $mcpBeforeMissingVendor = [System.IO.File]::ReadAllText($mcpConfigPath, [System.Text.Encoding]::UTF8)
+  $missingVendorResult = & $preferVendorIrisMcpScriptUnderTest -ProjectRoot $mcpPreferenceProjectRoot -Mode Write
+  Assert-True ($missingVendorResult.status -eq "mcp-vendor-executable-missing") "Missing vendor executable should preserve the configured fallback"
+  Assert-True ([System.IO.File]::ReadAllText($mcpConfigPath, [System.Text.Encoding]::UTF8) -eq $mcpBeforeMissingVendor) "Missing vendor executable must not rewrite .mcp.json"
+}
+finally {
+  if (Test-Path -LiteralPath $mcpPreferenceProjectRoot) {
+    Remove-Item -LiteralPath $mcpPreferenceProjectRoot -Recurse -Force
+  }
+}
+
+$deployedUpgradeSourceProject = New-TestProject
+$deployedUpgradeRemote = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-upgrade-remote-" + [System.Guid]::NewGuid().ToString("N") + ".git")
+$deployedUpgradeProjectRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-deployed-upgrade-" + [System.Guid]::NewGuid().ToString("N"))
+try {
+  $upgradeSourceAgentsRoot = Join-Path $deployedUpgradeSourceProject ".agents"
+  $upgradeSourceUpdater = Join-Path $upgradeSourceAgentsRoot "scripts/update-agents.ps1"
+  $upgradeSourcePreferenceScript = Join-Path $upgradeSourceAgentsRoot "scripts/prefer-vendor-iris-mcp.ps1"
+  $upgradeSourceVendorExe = Join-Path $upgradeSourceAgentsRoot "vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe"
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $upgradeSourceVendorExe) | Out-Null
+  [System.IO.File]::WriteAllBytes($upgradeSourceVendorExe, [byte[]](1, 2, 3))
+
+  $currentUpdaterText = [System.IO.File]::ReadAllText($scriptUnderTest, [System.Text.Encoding]::UTF8)
+  $preferenceBlockStart = $currentUpdaterText.IndexOf('$preferVendorIrisMcpScript = Join-Path $capabilityRoot "scripts/prefer-vendor-iris-mcp.ps1"')
+  $preferenceBlockEnd = $currentUpdaterText.IndexOf('foreach ($item in (Get-GitHooksStatus', $preferenceBlockStart)
+  Assert-True (($preferenceBlockStart -ge 0) -and ($preferenceBlockEnd -gt $preferenceBlockStart)) "Upgrade fixture should locate the new MCP preference block"
+  $legacyUpdaterText = $currentUpdaterText.Substring(0, $preferenceBlockStart) + $currentUpdaterText.Substring($preferenceBlockEnd)
+  Assert-True (-not $legacyUpdaterText.Contains('scripts/prefer-vendor-iris-mcp.ps1')) "Upgrade fixture legacy updater must predate MCP preference"
+  [System.IO.File]::WriteAllText($upgradeSourceUpdater, $legacyUpdaterText, (New-Object System.Text.UTF8Encoding($false)))
+  Remove-Item -LiteralPath $upgradeSourcePreferenceScript
+
+  git -C $upgradeSourceAgentsRoot add -A
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should stage the legacy capability"
+  git -C $upgradeSourceAgentsRoot commit -m "test: seed deployed legacy updater" | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should commit the legacy capability"
+
+  git init --bare $deployedUpgradeRemote | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should create a local bare remote"
+  git -C $upgradeSourceAgentsRoot remote add origin $deployedUpgradeRemote
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should register the local bare remote"
+  git -C $upgradeSourceAgentsRoot push -u origin HEAD | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should publish the legacy capability"
+
+  New-Item -ItemType Directory -Force -Path $deployedUpgradeProjectRoot | Out-Null
+  $deployedAgentsRoot = Join-Path $deployedUpgradeProjectRoot ".agents"
+  git clone $deployedUpgradeRemote $deployedAgentsRoot | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should clone a deployed legacy capability"
+  Add-Content -Encoding UTF8 -Path (Join-Path $deployedAgentsRoot ".git/info/exclude") -Value @(
+    "/config/",
+    "/memory/",
+    "/rules/",
+    "/skills/",
+    "/scripts/",
+    "/work/"
+  )
+  Set-Content -Encoding UTF8 -Path (Join-Path $deployedUpgradeProjectRoot "AGENTS.md") -Value "# Deployed Upgrade Test"
+  New-Item -ItemType Directory -Force -Path (Join-Path $deployedAgentsRoot "config") | Out-Null
+  $deployedMcpPath = Join-Path $deployedUpgradeProjectRoot ".mcp.json"
+  $deployedProjectEnvPath = Join-Path $deployedAgentsRoot "config/project-env.json"
+  Set-Content -Encoding UTF8 -Path $deployedMcpPath -Value @'
+{
+  "mcpServers": {
+    "deployed-iris": {
+      "command": "D:/legacy/iris-agentic-dev.exe",
+      "args": ["mcp", "--namespace", "DEPLOYED"],
+      "env": {
+        "IRIS_USERNAME": "preserve-deployed-user",
+        "IRIS_PASSWORD": "preserve-deployed-password",
+        "IRIS_NAMESPACE": "DEPLOYED"
+      }
+    },
+    "deployed-other": {
+      "command": "node",
+      "args": ["other.js"]
+    }
+  }
+}
+'@
+  Set-Content -Encoding UTF8 -Path $deployedProjectEnvPath -Value @'
+{
+  "iris": {
+    "host": "preserve-deployed-host",
+    "username": "preserve-deployed-user",
+    "password": "preserve-deployed-password",
+    "namespace": "DEPLOYED"
+  },
+  "mcp": {
+    "serverName": "deployed-iris",
+    "serverPath": "D:/legacy/iris-agentic-dev.exe",
+    "includeBuiltInSkills": false
+  },
+  "preservedObject": {
+    "value": "keep-me"
+  }
+}
+'@
+
+  [System.IO.File]::WriteAllText($upgradeSourceUpdater, $currentUpdaterText, (New-Object System.Text.UTF8Encoding($false)))
+  Copy-Item -LiteralPath $preferVendorIrisMcpScriptUnderTest -Destination $upgradeSourcePreferenceScript
+  git -C $upgradeSourceAgentsRoot add scripts/update-agents.ps1 scripts/prefer-vendor-iris-mcp.ps1
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should stage the new updater runtime"
+  git -C $upgradeSourceAgentsRoot commit -m "test: publish vendor MCP preference" | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should commit the new updater runtime"
+  git -C $upgradeSourceAgentsRoot push | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should publish the new updater runtime"
+  $publishedUpgradeHead = (git -C $upgradeSourceAgentsRoot rev-parse HEAD).Trim()
+
+  $legacyDeployedUpdater = Join-Path $deployedAgentsRoot "scripts/update-agents.ps1"
+  Assert-True (-not ([System.IO.File]::ReadAllText($legacyDeployedUpdater, [System.Text.Encoding]::UTF8).Contains('scripts/prefer-vendor-iris-mcp.ps1'))) "Deployed fixture should start from the legacy updater"
+  $deployedUpgradeOutput = & $legacyDeployedUpdater -ProjectRoot $deployedUpgradeProjectRoot -Mode Write -Detailed | Out-String
+  Assert-Contains $deployedUpgradeOutput "mcp-vendor-command-applied" "One deployed-project Write should self-update and apply vendor MCP convergence"
+  Assert-True ((git -C $deployedAgentsRoot rev-parse HEAD).Trim() -eq $publishedUpgradeHead) "Deployed capability should fast-forward to the published updater"
+  Assert-True (Test-Path -LiteralPath (Join-Path $deployedAgentsRoot "scripts/prefer-vendor-iris-mcp.ps1") -PathType Leaf) "Deployed sparse checkout should materialize the new MCP preference script"
+
+  $deployedMcpAfterUpgrade = Get-Content -Raw -Encoding UTF8 -Path $deployedMcpPath | ConvertFrom-Json
+  $deployedProjectEnvAfterUpgrade = Get-Content -Raw -Encoding UTF8 -Path $deployedProjectEnvPath | ConvertFrom-Json
+  Assert-True ($deployedMcpAfterUpgrade.mcpServers.'deployed-iris'.command -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Deployed upgrade should update .mcp.json to the vendor executable"
+  Assert-True ($deployedProjectEnvAfterUpgrade.mcp.serverPath -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Deployed upgrade should update project-env.json to the vendor executable"
+  Assert-True ($deployedMcpAfterUpgrade.mcpServers.'deployed-iris'.env.IRIS_PASSWORD -eq "preserve-deployed-password") "Deployed upgrade must preserve MCP connection fields"
+  Assert-True ($deployedMcpAfterUpgrade.mcpServers.'deployed-other'.command -eq "node") "Deployed upgrade must preserve unrelated MCP servers"
+  Assert-True ($deployedProjectEnvAfterUpgrade.iris.password -eq "preserve-deployed-password") "Deployed upgrade must preserve project-env connection fields"
+  Assert-True ($deployedProjectEnvAfterUpgrade.preservedObject.value -eq "keep-me") "Deployed upgrade must preserve unrelated project-env objects"
+
+  $deployedMcpStable = [System.IO.File]::ReadAllText($deployedMcpPath, [System.Text.Encoding]::UTF8)
+  $deployedProjectEnvStable = [System.IO.File]::ReadAllText($deployedProjectEnvPath, [System.Text.Encoding]::UTF8)
+  $deployedSecondWrite = & (Join-Path $deployedAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $deployedUpgradeProjectRoot -Mode Write -NoPull -Detailed | Out-String
+  Assert-Contains $deployedSecondWrite "mcp-vendor-command-unchanged" "Repeated deployed-project Write should be idempotent"
+  Assert-True ([System.IO.File]::ReadAllText($deployedMcpPath, [System.Text.Encoding]::UTF8) -eq $deployedMcpStable) "Repeated deployed-project Write must preserve .mcp.json bytes"
+  Assert-True ([System.IO.File]::ReadAllText($deployedProjectEnvPath, [System.Text.Encoding]::UTF8) -eq $deployedProjectEnvStable) "Repeated deployed-project Write must preserve project-env.json bytes"
+}
+finally {
+  foreach ($path in @($deployedUpgradeProjectRoot, $deployedUpgradeRemote, $deployedUpgradeSourceProject)) {
+    if (Test-Path -LiteralPath $path) {
+      Remove-Item -LiteralPath $path -Recurse -Force
+    }
+  }
+}
 
 $legacySparseProjectRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-legacy-sparse-test-" + [System.Guid]::NewGuid().ToString("N"))
 try {
@@ -582,7 +797,36 @@ finally {
 $overlayCapabilityProject = New-TestProject
 $overlayProject = $null
 try {
+  $overlayCapabilityVendorExe = Join-Path $overlayCapabilityProject ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe"
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $overlayCapabilityVendorExe) | Out-Null
+  [System.IO.File]::WriteAllBytes($overlayCapabilityVendorExe, [byte[]](1, 2, 3))
   $overlayProject = New-OverlayTestProject -CapabilityProjectRoot $overlayCapabilityProject
+  Set-Content -Encoding UTF8 -Path (Join-Path $overlayProject.WorkspaceRoot ".mcp.json") -Value @'
+{
+  "mcpServers": {
+    "iris-agentic-dev": {
+      "command": "D:/tools/iris-agentic-dev.exe",
+      "args": ["mcp"],
+      "env": {
+        "IRIS_NAMESPACE": "OVERLAY"
+      }
+    }
+  }
+}
+'@
+  Set-Content -Encoding UTF8 -Path (Join-Path $overlayProject.ContextRoot "config/project-env.json") -Value @'
+{
+  "mcp": {
+    "serverName": "iris-agentic-dev",
+    "serverPath": "D:/tools/iris-agentic-dev.exe",
+    "namespace": "OVERLAY",
+    "password": "overlay-secret"
+  },
+  "preserved": {
+    "source": "overlay-project"
+  }
+}
+'@
   $ruleBefore = [System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "rules/project.md"), [System.Text.Encoding]::UTF8)
   $memoryBefore = [System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "memory/project-memory.md"), [System.Text.Encoding]::UTF8)
   $capabilityStatusBefore = (git -C $overlayProject.CapabilityRoot status --short | Out-String)
@@ -598,6 +842,7 @@ try {
 
   $overlayWriteOutput = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode Write -Detailed | Out-String
   Assert-Contains $overlayWriteOutput "capability-pull-skipped-overlay" "Overlay Write should skip capability fetch and pull"
+  Assert-Contains $overlayWriteOutput "mcp-vendor-command-applied" "Overlay Write should prefer the bundled MCP executable through the vendor Junction"
   Assert-True (-not $overlayWriteOutput.Contains("agents-git-missing")) "Overlay ContextRoot should not require .git"
   Assert-Contains $overlayWriteOutput (Split-Path -Leaf $overlayCapabilityProject) "Overlay plugin discovery should report the CapabilityRoot source path"
   Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "config/sample_profile.md") -PathType Leaf) "Overlay config should be written to ContextRoot"
@@ -612,6 +857,14 @@ try {
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot ".git"))) "Overlay update must not create ContextRoot .git"
   Assert-True ([System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "rules/project.md"), [System.Text.Encoding]::UTF8) -eq $ruleBefore) "Overlay update must preserve project rule"
   Assert-True ([System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "memory/project-memory.md"), [System.Text.Encoding]::UTF8) -eq $memoryBefore) "Overlay update must preserve project memory"
+  $overlayMcpConfig = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $overlayProject.WorkspaceRoot ".mcp.json") | ConvertFrom-Json
+  Assert-True ($overlayMcpConfig.mcpServers.'iris-agentic-dev'.command -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Overlay MCP command should use the workspace-relative vendor path"
+  Assert-True ($overlayMcpConfig.mcpServers.'iris-agentic-dev'.env.IRIS_NAMESPACE -eq "OVERLAY") "Overlay MCP convergence must preserve connection fields"
+  $overlayProjectEnv = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $overlayProject.ContextRoot "config/project-env.json") | ConvertFrom-Json
+  Assert-True ($overlayProjectEnv.mcp.serverPath -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Overlay project-env MCP path should use the workspace-relative vendor path"
+  Assert-True ($overlayProjectEnv.mcp.namespace -eq "OVERLAY") "Overlay project-env convergence must preserve the namespace"
+  Assert-True ($overlayProjectEnv.mcp.password -eq "overlay-secret") "Overlay project-env convergence must preserve connection credentials"
+  Assert-True ($overlayProjectEnv.preserved.source -eq "overlay-project") "Overlay project-env convergence must preserve unrelated configuration"
   Assert-True ((git -C $overlayProject.CapabilityRoot status --short | Out-String) -eq $capabilityStatusBefore) "Overlay update must not change capability Git status"
 
   & (Join-Path $overlayProject.CapabilityRoot "scripts/update-plugin-profile.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Plugin sample-plugin -Status disabled | Out-Null
@@ -650,6 +903,22 @@ finally {
 $projectRoot = New-TestProject
 try {
   New-Item -ItemType Directory -Force -Path (Join-Path $projectRoot ".agents/config") | Out-Null
+  $projectVendorExe = Join-Path $projectRoot ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe"
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $projectVendorExe) | Out-Null
+  [System.IO.File]::WriteAllBytes($projectVendorExe, [byte[]](1, 2, 3))
+  Set-Content -Encoding UTF8 -Path (Join-Path $projectRoot ".mcp.json") -Value @'
+{
+  "mcpServers": {
+    "iris-agentic-dev": {
+      "command": "D:/tools/iris-agentic-dev.exe",
+      "args": ["mcp"],
+      "env": {
+        "IRIS_NAMESPACE": "TEST"
+      }
+    }
+  }
+}
+'@
   New-Item -ItemType Directory -Force -Path (Join-Path $projectRoot ".agents/skills/agent-kit-maintenance") | Out-Null
   Set-Content -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/agent-kit-maintenance/SKILL.md") -Value "# Maintenance-only Skill"
   Set-Content -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md") -Value @(
@@ -668,6 +937,7 @@ try {
   Assert-Contains $summaryOutput "sample-plugin" "Default output should report sample plugin as available"
   Assert-Contains $summaryOutput "agent-context-kit" "Default output should process the default context plugin"
   Assert-Contains $summaryOutput "git-hooks-not-enabled" "Default output should report available but disabled git hooks"
+  Assert-Contains $summaryOutput "mcp-vendor-command-planned" "DryRun update should plan bundled MCP command convergence"
   Assert-True (-not $summaryOutput.Contains("vendor-skill-synced")) "Default update must not sync vendor skills to user runtime directories"
   Assert-Contains $summaryOutput "Optional entrypoint notes:" "Default output should report optional entrypoint notes"
   Assert-True ([string]::IsNullOrWhiteSpace((git -C $projectRoot config --get core.hooksPath))) "Update must not set core.hooksPath automatically"
@@ -709,11 +979,15 @@ try {
   Assert-Contains $writeOutput "runtime-adapter-skipped" "Write should keep runtime adapters opt-in"
   Assert-Contains $writeOutput "skill-dependency-required" "Write should report required vendor capability"
   Assert-Contains $writeOutput "skill-dependency-optional" "Write should report optional vendor capability"
+  Assert-Contains $writeOutput "mcp-vendor-command-applied" "Write update should apply bundled MCP command convergence"
   Assert-Contains $writeOutput "maintenance-only-skill-removed" "Write should report removal of deployed maintenance-only skill"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/agent-kit-maintenance"))) "Write should remove deployed maintenance-only skill"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/config/plugin_profile.md")) "Write should create plugin profile"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/i18n-agent/SKILL.md")) "Write should generate i18n-agent skill thin-index"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/vendor-test-skill/SKILL.md")) "Write should generate vendor skill thin-index"
+  $updatedMcpConfig = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".mcp.json") | ConvertFrom-Json
+  Assert-True ($updatedMcpConfig.mcpServers.'iris-agentic-dev'.command -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Update Write should prefer the bundled MCP executable"
+  Assert-True ($updatedMcpConfig.mcpServers.'iris-agentic-dev'.env.IRIS_NAMESPACE -eq "TEST") "Update Write must preserve MCP connection fields"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/root-vendor/SKILL.md"))) "Write should not generate optional vendor skill thin-index"
 
   $profileBeforeCheck = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")

@@ -41,6 +41,7 @@
 
 ## 近期关键变化
 
+- Windows x64 安装/更新已改为优先内置 `iris-agentic-dev.exe`：vendor 可用且项目已有配置时，只收敛 `.mcp.json` 的 IRIS server `command` 和既有 `project-env.json` 的 `mcp.serverPath`，其它连接字段与 MCP server 保持不变；Write 在重新读取两份文件验证后才报告成功，失败按原始字节回滚。受支持的已部署更新器可自更新并在同一轮收敛；更早历史版本使用 runbook 的两次 Write 确定性收敛。无配置不创建，非 Windows、vendor 缺失、JSON 无效或候选歧义均保留原配置并报告明确状态。
 - 已新增 workspace overlay framework：capability manifest schema、PowerShell/Node resolver、安全 initializer、standard/overlay 双模式更新器和 capability-once/context-many Runbook 已落地；manifest 路径限制在声明的 WorkspaceRoot/ContextRoot 边界内，ContextRoot 既有父链不得经过 reparse point，repair 仅处理受管 Junction；thin-index、vendor/runtime adapter 与 coding-iris 工具链均显式消费 ContextRoot/CapabilityRoot/SourceRoot/GitRoot，模块本地 `iris-mcp.js` 由 manifest-aware JS adapter 转发到 canonical helper。
 - 更新器已补齐旧 sparse checkout 的跨版本自举：旧进程遗漏 `scripts/lib/**` 时，新版脚本会在可执行更新或自更新恢复阶段先收敛完整运行时 sparse 清单，再加载 `WorkspaceContext.psm1`；只读 Check 不修改 checkout，dirty 或非独立 Git 状态继续阻塞。
 - `iris-mcp-lookup` 统一路由当前实例元数据、本地源码和 IRIS 官方文档，并支持 DocBook `Fetch` URL；`iris-agentic-dev` vendor skills 已刷新到 v1.2.6 固定提交，8 个 optional skill 保持上游原文和许可证，新增 `objectscript-tdd` 但仍受本仓库编译/测试授权门禁。内置 Windows x64 exe 与根 helper 均已适配 v1.2.6：完整合并 toolset 为 78 个、默认 `--no-skills` 为 67 个，新增多实例、跨环境比较、持久会话和管理观测工具均有显式安全分类。
