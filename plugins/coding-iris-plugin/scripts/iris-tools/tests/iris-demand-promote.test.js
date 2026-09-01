@@ -27,6 +27,22 @@ test('frontend classification is restricted to configured src/imedical/web root'
     assert.deepEqual(promote.declaredDemandIds('fix(core): contains 123 and 456'), []);
 });
 
+test('plan directories are isolated for same-named repositories', () => {
+    const first = promote.buildPlanDirectory({
+        demand: '7654300',
+        devRoot: path.join(os.tmpdir(), 'hospital-a', 'DEV'),
+        prdRoot: path.join(os.tmpdir(), 'hospital-a', 'PRD')
+    });
+    const second = promote.buildPlanDirectory({
+        demand: '7654300',
+        devRoot: path.join(os.tmpdir(), 'hospital-b', 'DEV'),
+        prdRoot: path.join(os.tmpdir(), 'hospital-b', 'PRD')
+    });
+    assert.notEqual(first, second);
+    assert.match(first, /PRD-[a-f0-9]{12}/i);
+    assert.match(second, /PRD-[a-f0-9]{12}/i);
+});
+
 test('export.js probes CSS and stages CSP through Atelier API', async t => {
     const fixture = createWorkspaceFixture();
     t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
@@ -275,6 +291,28 @@ test('three-way conflict requires staged semantic resolution and continue record
     assert.match(git(fixture.prd, ['log', '-1', '--format=%B']), /Promotion-Mode: adapted/);
 });
 
+test('continue refuses PRD HEAD drift during conflict resolution', async t => {
+    const fixture = createPromotionFixture('7654326');
+    t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
+    const server = await createAtelierServer(doc => doc === 'Demo.Sample.cls' ? 'Class Demo.Sample\n{\nParameter Value = "PRD-DIVERGED";\n}\n' : null);
+    t.after(() => server.close());
+    installExportFixture(fixture.prd, server.port);
+    const planned = await runNode(promoteScript, ['plan', '--demand', '7654326', '--dev-root', fixture.dev, '--prd-root', fixture.prd], fixture.dev);
+    assert.equal(planned.code, 0, planned.stderr);
+    const planPath = planned.stdout.match(/计划文件:\s*(.+)/)[1].trim();
+    const applied = await runNode(promoteScript, ['apply', '--plan', planPath], fixture.dev);
+    assert.equal(applied.code, 20);
+    const target = path.join(fixture.prd, 'src', 'Demo', 'Sample.cls');
+    fs.writeFileSync(target, 'Class Demo.Sample\n{\nParameter Value = "DEV";\n}\n');
+    git(fixture.prd, ['add', 'src/Demo/Sample.cls']);
+    git(fixture.prd, ['commit', '-m', 'test: unexpected conflict commit']);
+    fs.writeFileSync(target, 'Class Demo.Sample\n{\nParameter Value = "DEV-AGAIN";\n}\n');
+    git(fixture.prd, ['add', 'src/Demo/Sample.cls']);
+    const continued = await runNode(promoteScript, ['continue', '--plan', planPath], fixture.dev);
+    assert.equal(continued.code, 1);
+    assert.match(continued.stderr, /PRD HEAD 在冲突处理期间发生变化/);
+});
+
 test('apply refuses PRD HEAD drift after planning', async t => {
     const fixture = createPromotionFixture('7654325');
     t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
@@ -409,14 +447,27 @@ async function createAtelierServer(contentForDocument) {
     return { port: server.address().port, close: () => new Promise(resolve => server.close(resolve)) };
 }
 
-function runNode(script, args, cwd) {
+function runNode(script, args, cwd, timeoutMs = 60000) {
     return new Promise(resolve => {
         const child = spawn(process.execPath, [script, ...args], { cwd, windowsHide: true });
         let stdout = '';
         let stderr = '';
+        let timedOut = false;
+        const timeout = setTimeout(() => {
+            timedOut = true;
+            child.kill('SIGKILL');
+        }, timeoutMs);
         child.stdout.on('data', data => { stdout += data; });
         child.stderr.on('data', data => { stderr += data; });
-        child.on('close', code => resolve({ code, stdout, stderr }));
+        child.on('error', error => {
+            clearTimeout(timeout);
+            resolve({ code: null, stdout, stderr: `${stderr}\n[spawn-error] ${error.message}`.trim() });
+        });
+        child.on('close', code => {
+            clearTimeout(timeout);
+            if (timedOut) stderr = `${stderr}\n[timeout] child process exceeded ${timeoutMs}ms`.trim();
+            resolve({ code, stdout, stderr });
+        });
     });
 }
 

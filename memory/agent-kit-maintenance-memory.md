@@ -13,7 +13,7 @@
 - 本仓库维护可复用 Agent 能力包，核心内容包括 `agents/`、`workflows/`、`plugins/`、`skills/`、`rules/`、`docs/`、`scripts/` 和 `memory/`。
 - `agents/` 是厂商无关的智能体 canonical 注册层；`workflows/` 是厂商无关的多智能体/阶段化编排层。工具专属入口只能作为 adapter 生成物。
 - `plugins/agent-context-kit/` 负责项目上下文维护，包括 AGENTS 入口、项目规则、项目记忆、项目配置和 thin-index。
-- `plugins/coding-iris-plugin/` 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力，并提供 `iris-mcp-lookup` 知识查询 skill；8 个上游官方实用 skill 以 optional vendor 快照提供。
+- `plugins/coding-iris-plugin/` 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力，并提供 `iris-mcp-lookup` 知识查询和 `iris-demand-promote` DEV→PRD 本地需求移植 skill；8 个上游官方实用 skill 以 optional vendor 快照提供。
 - `plugins/codegraph-query/` 负责查询本地 `.codegraph/codegraph.db`，用于 indexed 前端/脚本侧符号定位、调用链和影响分析；`plugins/iris-codegraph/` 负责 IRIS/ObjectScript 图谱构建与查询，依赖 `coding-iris-plugin` 和目标工程 `.mcp.json`。
 - coding-iris 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`；旧 `project-utf8` 兼容读取并规范化，旧 `standard-gb2312` 只服务用户明确指定的历史工程。Overlay manifest 明确只有 backend SourceRoot 时规范化为 `N/A (backend-only)`，无法证明 backend-only 时继续阻断；实际文件字节检测仍是 frontend 最终门禁，真实 GB2312/mixed/unknown 不自动转码。HISUI 控件/API 与主题样式/视觉资源分别由 `hisui-widget-index.md`、`hisui-style-index.md` 按需路由。
 - workspace overlay 允许多个模块 Context 共享一个 canonical capability Git：resolver 明确区分 WorkspaceRoot、ContextRoot、CapabilityRoot、SourceRoot 和 GitRoot；模块更新不 pull capability，只在 ContextRoot 维护本地生成层，并以 manifest/Junction 门禁限制源码和 Git 边界。
@@ -40,6 +40,8 @@
 - 处理业务项目上下文：不要使用本文件作为项目记忆；改用目标项目自己的 `AGENTS.md` 和 `project-context-maintenance`。
 
 ## 近期关键变化
+
+- `coding-iris-plugin` v0.5.2 新增并加固 `iris-demand-promote`：PRD 服务器导出作为目标基线，DEV Git patch 作为需求来源；按绝对 DEV/PRD 根身份隔离计划，冲突续跑重新校验 HEAD 和暂存状态，默认只创建本地 PRD 提交，不授权生产远端写入。五个依赖插件已扩展 v0.5.x 兼容范围。
 
 - Windows x64 安装/更新已改为优先内置 `iris-agentic-dev.exe`：vendor 可用且项目已有配置时，只收敛 `.mcp.json` 的 IRIS server `command` 和既有 `project-env.json` 的 `mcp.serverPath`，其它连接字段与 MCP server 保持不变；Write 在重新读取两份文件验证后才报告成功，失败按原始字节回滚。受支持的已部署更新器可自更新并在同一轮收敛；更早历史版本使用 runbook 的两次 Write 确定性收敛。无配置不创建，非 Windows、vendor 缺失、JSON 无效或候选歧义均保留原配置并报告明确状态。
 - 已新增 workspace overlay framework：capability manifest schema、PowerShell/Node resolver、安全 initializer、standard/overlay 双模式更新器和 capability-once/context-many Runbook 已落地；manifest 路径限制在声明的 WorkspaceRoot/ContextRoot 边界内，ContextRoot 既有父链不得经过 reparse point，repair 仅处理受管 Junction；thin-index、vendor/runtime adapter 与 coding-iris 工具链均显式消费 ContextRoot/CapabilityRoot/SourceRoot/GitRoot，模块本地 `iris-mcp.js` 由 manifest-aware JS adapter 转发到 canonical helper。

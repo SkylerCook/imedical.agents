@@ -65,7 +65,7 @@
 - `scripts/promote-frontend-export.ps1`
 - `scripts/iris-tools/`
 
-`scripts/iris-tools/promote-demand.js` 提供 DEV→PRD 需求的 plan/apply/continue/verify 状态机；计划和远端基线暂存于系统临时目录，不写入 `.agents/work` 或业务源码，直到 apply 通过全部探测门禁。
+`scripts/iris-tools/promote-demand.js` 提供 DEV→PRD 需求的 plan/apply/continue/verify 状态机；计划按 DEV/PRD 绝对路径身份隔离，远端基线暂存于系统临时目录，不写入 `.agents/work` 或业务源码，直到 apply 通过全部探测门禁。冲突后的 `continue` 必须重新校验 DEV/PRD HEAD，并拒绝未暂存或未跟踪状态。
 
 `generate-plugin-thin-index.ps1` 不复制到目标工程；初始化和重建索引时直接调用插件内脚本。
 

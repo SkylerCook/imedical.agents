@@ -142,7 +142,7 @@ function createPlan(options) {
 }
 
 function basePlan(values) {
-    const planDir = path.join(os.tmpdir(), 'codex-iris-demand-promote', path.basename(values.prdRoot), values.demand.replace(/,/g, '-'));
+    const planDir = buildPlanDirectory(values);
     return Object.assign({
         version: PLAN_VERSION,
         createdAt: new Date().toISOString(),
@@ -153,6 +153,19 @@ function basePlan(values) {
         },
         execution: { mode: 'exact', nextCommitIndex: 0 }
     }, values);
+}
+
+function buildPlanDirectory(values) {
+    const normalizeIdentityPath = value => {
+        const resolved = path.resolve(value).replace(/\\/g, '/');
+        return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+    };
+    const identity = crypto.createHash('sha256')
+        .update(`${normalizeIdentityPath(values.devRoot)}\0${normalizeIdentityPath(values.prdRoot)}`)
+        .digest('hex')
+        .slice(0, 12);
+    const repositoryLabel = `${path.basename(values.prdRoot)}-${identity}`;
+    return path.join(os.tmpdir(), 'codex-iris-demand-promote', repositoryLabel, values.demand.replace(/,/g, '-'));
 }
 
 function collectFiles(devRoot, selected, frontendRoot) {
@@ -283,8 +296,13 @@ function applyPlan(plan) {
 
 function continuePlan(plan) {
     assertPlanReady(plan, 'conflict');
+    assertConflictResumeHeads(plan);
     const unmerged = gitText(plan.prdRoot, ['diff', '--name-only', '--diff-filter=U']).trim();
     if (unmerged) throw new Error(`仍有未解决冲突:\n${unmerged}`);
+    const unstaged = gitText(plan.prdRoot, ['diff', '--name-only']).trim();
+    if (unstaged) throw new Error(`冲突解决结果仍有未暂存文件:\n${unstaged}`);
+    const untracked = gitText(plan.prdRoot, ['ls-files', '--others', '--exclude-standard']).trim();
+    if (untracked) throw new Error(`冲突恢复期间出现未跟踪文件:\n${untracked}`);
     const staged = gitText(plan.prdRoot, ['diff', '--cached', '--name-only']).trim();
     if (!staged) throw new Error('冲突解决后必须先 git add 暂存结果');
     assertOnlyPlannedPaths(plan, staged.split(/\r?\n/));
@@ -295,6 +313,16 @@ function continuePlan(plan) {
     savePlan(plan);
     applyRemainingPatches(plan, next);
     return finishDemandCommit(plan);
+}
+
+function assertConflictResumeHeads(plan) {
+    assertClean(plan.devRoot, 'DEV');
+    const devHead = gitText(plan.devRoot, ['rev-parse', 'HEAD']).trim();
+    if (devHead !== plan.devHead) throw new Error('DEV HEAD 已变化，请重新 plan');
+    const expectedPrdHead = plan.execution && plan.execution.baselineHead;
+    if (!expectedPrdHead) throw new Error('冲突计划缺少 baselineHead，无法安全继续');
+    const prdHead = gitText(plan.prdRoot, ['rev-parse', 'HEAD']).trim();
+    if (prdHead !== expectedPrdHead) throw new Error('PRD HEAD 在冲突处理期间发生变化，请停止并重新 plan');
 }
 
 function applyRemainingPatches(plan, startIndex) {
@@ -536,4 +564,4 @@ function gitStatus(root, args) {
 
 if (require.main === module) main();
 
-module.exports = { classifyFile, containsDemand, collectFiles, createPlan, declaredDemandIds, main, normalizeRepoPath, patchId, readFrontendRoot, validateDemandCommitBoundary };
+module.exports = { buildPlanDirectory, classifyFile, containsDemand, collectFiles, createPlan, declaredDemandIds, main, normalizeRepoPath, patchId, readFrontendRoot, validateDemandCommitBoundary };

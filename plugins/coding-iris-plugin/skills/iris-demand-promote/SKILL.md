@@ -58,7 +58,7 @@ For a batch of independent demands, use this fixed sequence:
 4. Run `apply` with the generated plan file. For every planned document that exists on the PRD server, export it even when the corresponding PRD local file already exists. Export every baseline into the temporary staging directory first; only after all exports succeed, replace the PRD local copies.
 5. Stage the refreshed PRD baseline before applying any DEV patch. If it differs from the current PRD commit, create `export(<PRD IP>):从服务器同步最新文件`; if it is identical, do not create an empty commit.
 6. Apply the DEV requirement patches only after the baseline commit decision is complete.
-7. If the CLI reports a conflict, compare the DEV parent, DEV result, and exported PRD baseline. Resolve only the demand behavior, stage the resolution, and run `continue`.
+7. If the CLI reports a conflict, compare the DEV parent, DEV result, and exported PRD baseline. Resolve only the demand behavior, stage every resolution, and run `continue`. The CLI must revalidate DEV/PRD HEAD and reject unstaged or untracked state before resuming.
 8. Run `verify` and report the export commit, demand commit, exact/adapted mode, and remaining risks.
 
 When several demands must remain as separate PRD commits, process them oldest first. If a later demand touches a file already changed by the immediately preceding, verified promotion and that earlier change has not been deployed, create the next plan with `--prior-plan <previous-plan.json>`. The CLI must verify that PRD HEAD is exactly the prior demand commit and that the shared file's recorded PRD server baseline has not drifted. It then preserves the prior local demand layer for the shared file while still exporting every other target from PRD. Never refresh the shared file in a way that silently reverses the earlier local demand commit.
@@ -91,4 +91,4 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/promote-demand.js con
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/promote-demand.js verify --plan <plan.json>
 ```
 
-Plan files and staged exports live below the operating-system temporary directory under `codex-iris-demand-promote`; they are never written to tracked source directories during planning.
+Plan files and staged exports live below the operating-system temporary directory under `codex-iris-demand-promote`; the directory includes a stable identity derived from both absolute repository roots so same-named DEV/PRD repositories cannot overwrite one another's plan. They are never written to tracked source directories during planning.
