@@ -17,11 +17,13 @@
 
 ### 1. export.js - 通用导出脚本（推荐）
 
-**功能：** 智能检测文件类型并自动从 IRIS 服务器导出文件（支持类文件、JS 文件、CSP 文件）。
+**功能：** 智能检测文件类型并自动从 IRIS 服务器导出文件（支持 `.cls/.mac/.inc/.int/.js/.csp/.css`）。
 
 **使用方法：**
 ```bash
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <文件标识符> [输出目录] [命名空间] [--basePath <前缀>]
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <文件标识符> --probe --json
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <文件标识符> --staging-dir <临时目录> --json
 ```
 
 **示例：**
@@ -56,9 +58,11 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js scripts/tes
    - 如果不存在则自动添加 `project-env.json` 中的 `web.basePath` 前缀
    - 示例：`scripts/test.js` → `<web-root-prefix>/scripts/test.js`
 
-3. **CSP 文件**：以 `.csp` 结尾或位于 `csp/` 目录下
+3. **CSP 文件**：以 `.csp` 结尾
    - 如果不存在则自动添加 `project-env.json` 中的 `web.cspBasePath` 前缀
    - 示例：`test.csp` → `<web-root-prefix>/csp/test.csp`
+
+4. **CSS 文件**：以 `.css` 结尾，使用 `web.basePath`；其它静态资源不会按扩展名自动推断。
 
 **特性：**
 - ✅ 自动创建目录（如不存在）

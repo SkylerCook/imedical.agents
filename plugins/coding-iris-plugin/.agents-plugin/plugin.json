@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.4.2",
+  "version": "0.5.1",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
@@ -80,6 +80,7 @@
     "Modify this ObjectScript class using IRIS backend rules",
     "Modify this CSP/HISUI page using IRIS frontend rules",
     "Look up an IRIS class, method signature, or official documentation page",
+    "Promote a committed demand from a DEV on-demand-export repository into a PRD repository after refreshing the PRD server baseline",
     "Handle an explicitly identified legacy GB2312 frontend project after confirmation",
     "Prepare an IRIS deployment manifest and deploy after confirmation",
     "Check this change against IRIS coding and deployment rules"

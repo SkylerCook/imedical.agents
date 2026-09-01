@@ -8,6 +8,7 @@
 - CSP/JavaScript/HISUI 前端编码规则：框架页/内容页拆分、HISUI 控件优先、JS 组织方式、前端数据回显。
 - 工作流规则：本地优先；导出、编译、Broker 调试和配置同步优先使用 IRIS 开发主力脚本；MCP 作为辅助能力补上下文、只读验证或覆盖脚本未覆盖场景。
 - 部署编排：`skills/iris-deploy/SKILL.md` 负责远端部署入口、清单生成、确认门禁和验证编排，上传、编译、部署和远端验证按 `rules/iris_deploy_checklist.md` 逐项执行。
+- 需求移植：`skills/iris-demand-promote/SKILL.md` 将已提交的 DEV 需求补丁移植到独立 PRD 按需导出仓库；先导出 PRD 服务器基线，再做三方应用，只创建本地 PRD 提交。
 - 前端统一编码：当前标版、医院项目的源码、上传内容和服务器运行编码统一使用 canonical `utf8`。
 - 前端编码保护：实际文件字节检测是最终门禁；正常任务静默处理，完成时只报告一行摘要。
 - 兼容读取：旧 `project-utf8` 规范化为 `utf8`；旧 `standard-gb2312` 只服务用户明确指定的历史工程，不能再由目录或仓库角色推断。
@@ -133,7 +134,8 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 
 `scripts/iris-tools/` 中的 Node.js 脚本是 IRIS 工程的首选执行路径：
 
-- `export.js`：从 IRIS 导出类、JS 或 CSP。
+- `export.js`：从 IRIS 导出 `.cls/.mac/.inc/.int/.js/.csp/.css`；支持 `--probe --json` 只读探测和 `--staging-dir` 临时导出。
+- `promote-demand.js`：按需求号执行 DEV→PRD 的 plan/apply/continue/verify；不同需求号的独立 DEV 提交强制分别形成 PRD 提交，只有 `fix(123,456):...` 这类 DEV 联合需求提交才允许保留为一笔；独立需求共享文件时，用 `--prior-plan` 链接上一笔已验证计划。本脚本不上传、编译或部署远端。
 - `compile.js`：上传并编译本地类文件；在 workspace-overlay 中同时接受 `backend/src/...` 逻辑路径，并把远端文档名规范化为不含 `backend/src` 前缀的类文档名。
 - `debugger.js`：调用 Web Broker 方法做快速调试。
 - `sync-env-config.js`：仅当 `.agents/config/project-env.json` 是事实来源时，从它生成 `.mcp.json`。
@@ -163,6 +165,8 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js <文件名
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <ClassName> --method <MethodName>
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js --files <path...>
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js --from-git --base HEAD
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/promote-demand.js plan --demand <id> --dev-root <path> --prd-root <path>
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/promote-demand.js plan --demand <next-id> --dev-root <path> --prd-root <path> --prior-plan <verified-plan.json>
 node .agents/scripts/iris-mcp.js check
 node .agents/scripts/iris-mcp.js call iris_doc "{...}"
 ```
