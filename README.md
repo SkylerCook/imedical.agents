@@ -502,6 +502,8 @@ scripts/generate-plugin-thin-index.ps1
 
 展示页：[https://skylercook.github.io/imedical.agents/](https://skylercook.github.io/imedical.agents/)
 
+组内体系与部署分享文稿位于 `demo/presentation/imedical-agents-team-sharing/index.html`。该 HTML 演示仅作为源仓展示与培训资产，不属于业务项目 `.agents` sparse checkout 或运行入口。
+
 提交后分别推送：
 
 ```powershell
