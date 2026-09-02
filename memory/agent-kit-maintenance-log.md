@@ -4,6 +4,8 @@
 
 ## 近期已完成
 
+- 2026-09-02：`i18n-iris-plugin` v0.1.4 将已在医生站业务源码验证的 `DHCDoc.I18n.PageTranslationSeed` 提升为页面翻译种子 canonical 默认类，固定 `SetPageTrans` / `KillPageTrans` 单条接口与 `Load{LANG}Translation` / `Kill{LANG}Translation` 聚合命名，批次方法继续按需求编号；随插件提供 canonical ObjectScript 源模板，目标类缺失时由明确的种子实现任务创建，初始化和更新不覆盖业务源码。本地完整路径从已声明 backend SourceRoot 解析，现有兼容项目保留 profile 覆盖；旧占位值移除，字典翻译 SQL 与 XML 模板同步保持独立，远端授权边界不变。新增 canonical 默认契约专项测试通过，组件版本治理 16 项与 worktree 15 组件校验通过，i18n 插件 thin-index DryRun、JSON/Node 语法和 `git diff --check` 通过。
+
 - 2026-09-02：复核并加固 `ea5b246` 引入的 DEV→PRD 需求移植能力。`coding-iris-plugin` v0.5.2 以 PRD 服务器导出为目标基线、DEV Git patch 为需求来源，计划目录加入 DEV/PRD 绝对路径身份避免同名仓库覆盖，冲突 `continue` 重新校验双方 HEAD 并拒绝未暂存或未跟踪状态；专项 CLI 子进程增加超时与错误收敛。补齐 v0.5.1/v0.5.2 发布记录、根总览、owner 文档和维护记忆；`i18n-iris-plugin`、`iris-codegraph`、`iris-cure-form-dev`、`iris-external-reg`、`iris-interface-dev` patch 升级并扩展 `coding-iris-plugin` v0.5.x 兼容范围。该能力只读访问 PRD 基线并修改本地 PRD Git，上传、编译、SFTP、数据库和生产部署仍需单独授权。需求移植专项 15 项、既有 export/workspace-context 2 项、组件版本治理 16 项、current/worktree 版本校验、coding 插件 thin-index DryRun，以及 `update-agents` PowerShell 7 / Windows PowerShell 5.1 回归均通过。
 
 - 2026-08-28：安装/更新流程新增 Windows x64 `iris-agentic-dev` vendor 运行时优先收敛。`prefer-vendor-iris-mcp.ps1` 在内置 exe 存在且项目已有配置时，只更新 `.mcp.json` 中唯一识别的 IRIS MCP `command` 与既有 `project-env.json` 的 `mcp.serverPath`，保留其它 server、args、env 和全部连接字段；DryRun/Check 只报告，Write 原子替换、写后重读两份目标、失败按原始字节回滚且支持幂等，非 Windows、无配置、vendor 缺失、JSON 无效或候选歧义均保守降级。专项通过本地 Git 远端模拟已部署项目从不含收敛逻辑的旧脚本升级到新版，证明受支持更新器一次 Write 可自更新并修改两份配置、第二次 Write 字节级幂等；standard/overlay 两种部署形态均覆盖两份配置与敏感/无关字段保护。PowerShell 7 与 Windows PowerShell 5.1 完整更新回归均通过；安装器、更新器、README、更新 runbook 和长期决策已同步。

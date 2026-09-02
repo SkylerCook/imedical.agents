@@ -91,6 +91,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/i18n-iris-pl
 默认沿用当前 IRIS i18n 存储；只有目标工程确实不同时，才修改对应配置：
 
 - 页面级翻译存储：默认 `^websys.TranslationD("PAGE", langId, pageCode, chineseSourceText)=targetText`。
+- 页面翻译种子类：默认 `DHCDoc.I18n.PageTranslationSeed`，backend SourceRoot 内相对路径为 `DHCDoc/I18n/PageTranslationSeed.cls`；现有兼容实现可由 project profile 覆盖。
+- canonical 类模板：`.agents/plugins/i18n-iris-plugin/templates/DHCDoc/I18n/PageTranslationSeed.cls`；初始化只检查存在性，不创建或覆盖业务源码。
 - 字典翻译存储：默认 `BDP_Translation` 表及相关字段。
 
 优先核对并填写：
@@ -99,7 +101,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/i18n-iris-pl
 - 语言目录事实来源。
 - 前端/后端翻译 helper。
 - HISUI 源码路径（内置在 `.agents/vendor/hisui/`）。
-- 页面翻译种子类路径、类名、方法命名。
+- 页面翻译种子类本地完整路径能否从已声明的 backend SourceRoot 解析；默认类名与方法契约无需重新命名。
 - CSP 翻译同步页面组、同步方法组、备份目录。
 - 目标工程业务边界和生成文件是否入库。
 
@@ -155,3 +157,15 @@ rg -n "旧服务器IP|固定namespace|旧工程页面前缀|旧种子类名|旧�
 - 本地生成层由 `.agents/.git/info/exclude` 隐藏，不污染 `.agents` Git 列表。
 - `AGENTS.md` 能告诉后续 agent 如何触发 i18n 能力。
 - 至少完成一次只读提取或 report-only 校验。
+
+## 9. 已部署项目升级
+
+能力包更新不会覆盖既有 `.agents/config/i18n_project_profile.md`。旧 profile 若仍使用 `TODO: Package.UploadPageTrans.cls` 等占位值，在下一次页面翻译任务前按以下方式收敛：
+
+1. 将默认类设为 `DHCDoc.I18n.PageTranslationSeed`。
+2. 将 backend SourceRoot 内相对路径设为 `DHCDoc/I18n/PageTranslationSeed.cls`，再从项目声明解析本地完整路径。
+3. 保留 `SetPageTrans` / `KillPageTrans`、批次方法和语言聚合方法契约。
+4. 若项目已验证存在其它兼容类，则保留 profile 覆盖，不迁移业务类。
+5. 默认类缺失时，在明确的页面翻译种子实现任务中从 canonical 模板创建；已有类只增量维护，不覆盖。
+
+上述配置收敛不代表上传、编译或加载授权。

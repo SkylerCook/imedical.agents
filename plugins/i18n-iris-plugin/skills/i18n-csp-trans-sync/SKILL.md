@@ -75,6 +75,8 @@ description: Use when exporting, verifying, or explicitly syncing page-level tra
 - 条目过滤和排序规则。
 - 部署链路偏好。
 
+新接入工程的 canonical 默认种子类为 `DHCDoc.I18n.PageTranslationSeed`，backend SourceRoot 内相对路径为 `DHCDoc/I18n/PageTranslationSeed.cls`。当前初始化器会把默认契约显式写入 project profile；执行时使用 profile 中已记录的默认值或已验证覆盖值，不做静默猜测。关键配置缺失或旧 profile 仍含 TODO 占位值时必须先停止并报告迁移建议，不得把占位类用于上传或执行。
+
 缺少上述关键配置时，先报告缺失项，不进行导出或同步。
 
 ## 工作流
@@ -159,6 +161,8 @@ description: Use when exporting, verifying, or explicitly syncing page-level tra
 1. 使用 `.mcp.json` 对应的 SFTP 能力上传本地种子文件。
 2. 使用 `.mcp.json` 对应的 IRIS 编译能力编译种子类。
 3. 使用 `.mcp.json` 对应的 IRIS 类方法执行能力调用 profile 指定的加载方法。
+
+默认上传/编译对象为 `DHCDoc.I18n.PageTranslationSeed`；目标工程已有兼容 profile 覆盖时使用覆盖值。无论哪种情况，都不得把字典翻译 SQL 或 XML 模板同步混入该类部署动作。
 
 部署时 namespace、远程路径等参数从 `.mcp.json` 解析或由用户明确提供，不在 skill 中硬编码。
 

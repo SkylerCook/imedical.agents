@@ -18,7 +18,7 @@
 - coding-iris 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`；旧 `project-utf8` 兼容读取并规范化，旧 `standard-gb2312` 只服务用户明确指定的历史工程。Overlay manifest 明确只有 backend SourceRoot 时规范化为 `N/A (backend-only)`，无法证明 backend-only 时继续阻断；实际文件字节检测仍是 frontend 最终门禁，真实 GB2312/mixed/unknown 不自动转码。HISUI 控件/API 与主题样式/视觉资源分别由 `hisui-widget-index.md`、`hisui-style-index.md` 按需路由。
 - workspace overlay 允许多个模块 Context 共享一个 canonical capability Git：resolver 明确区分 WorkspaceRoot、ContextRoot、CapabilityRoot、SourceRoot 和 GitRoot；模块更新不 pull capability，只在 ContextRoot 维护本地生成层，并以 manifest/Junction 门禁限制源码和 Git 边界。
 - `plugins/extract-doc/` 负责 PDF、DOC、DOCX、XLS、XLSX 的本地解析和结构化落盘，是接口类业务插件的通用文档依赖。
-- `plugins/i18n-iris-plugin/` 负责 IRIS/ObjectScript/CSP/HISUI 国际化能力。
+- `plugins/i18n-iris-plugin/` 负责 IRIS/ObjectScript/CSP/HISUI 国际化能力；页面翻译种子默认使用 canonical `DHCDoc.I18n.PageTranslationSeed` 与稳定单条/聚合方法契约，现有兼容项目可通过 profile 覆盖。
 - `plugins/iris-interface-dev/` 负责接口 schema、字段诊断、开发计划、本地接口实现和离线审查，文档读取委托 `extract-doc`，编码与部署规则复用 `coding-iris-plugin`。
 - `plugins/iris-cure-form-dev/` 负责 CA 治疗评估与 CR 治疗记录的文档语义适配、Excel 多模板边界报告与有序生成、响应式改造及受控部署编排；新开发表单以 `expectedVersion=NEW` 判定并直接创建正式模板，不使用灰度；只有现有模板改造才使用响应式灰度 RowID，验收后以 `consolidate` / `consolidate-shared` 回归正式 RowID 并验证零灰度引用，`cleanup` 仅处理已切换引用后的孤儿模板；Map 总入口与模板逻辑均使用运行时外部 JS 路径，部署路径单独声明，无逻辑模板保持空引用；canonical `preview`、`preview-run`、`preview-check` 绑定六类资源、CSS 依赖和九档 Network/Console/HISUI 结果；部署前后人工交互凭证保持用户总体确认/Agent 逐项记录边界；通用文档解析委托 `extract-doc`，IRIS/HISUI 与静态资源部署复用 `coding-iris-plugin`，空 `MapType` 病理模板不进入流程。
 - `plugins/iris-external-reg/` 负责编排第三方预约挂号接口开发，依赖 `extract-doc` 和 `coding-iris-plugin`。

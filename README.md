@@ -246,7 +246,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - 前后端 i18n 编码改造。
 - 链路定位、字段分类和验证规则。
 - 用户可见文本提取。
-- 页面级翻译种子。
+- 页面级翻译种子；默认 canonical 类为 `DHCDoc.I18n.PageTranslationSeed`，现有兼容项目可通过 profile 覆盖。
 - 字典/表字段展示值翻译 SQL。
 - XML 打印模板翻译。
 - CSP 页面翻译导出、校验和同步。

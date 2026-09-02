@@ -78,6 +78,9 @@ description: Use when initializing or checking the reusable IRIS i18n agent kit 
 4. 初始化项目配置：
    - 从 `templates/i18n_project_profile.template.md` 生成 `.agents/config/i18n_project_profile.md`。
    - 默认保留当前 IRIS i18n 存储：页面级 `^websys.TranslationD("PAGE",...)`，字典级 `BDP_Translation`。
+   - 新 profile 默认写入页面翻译种子类 `DHCDoc.I18n.PageTranslationSeed`、相对源码路径 `DHCDoc/I18n/PageTranslationSeed.cls`、单条方法 `SetPageTrans` / `KillPageTrans` 和语言聚合方法 `Load{LANG}Translation` / `Kill{LANG}Translation`。
+   - 记录 canonical 模板源 `.agents/plugins/i18n-iris-plugin/templates/DHCDoc/I18n/PageTranslationSeed.cls`；初始化阶段只报告目标类存在性，不创建或覆盖业务源码。后续明确的页面翻译种子实现任务再按 `i18n-page-trans-seed` skill 处理。
+   - 本地完整源码路径必须由 `iris_project_profile.md` 或 workspace manifest 已声明的 backend SourceRoot 解析；不得扫描父目录或 sibling 猜测。目标工程已验证存在不同且兼容的页面翻译种子机制时保留 profile 覆盖，不为命名统一迁移业务类。
    - **语言目录补全**：
      - 若 `.mcp.json` 提供 IRIS 执行能力（`iris_execute`），运行以下 ObjectScript 查询服务器语言：
        ```
@@ -85,7 +88,7 @@ description: Use when initializing or checking the reusable IRIS i18n agent kit 
        ```
        输出格式（每行）：`langId=Code^Name^Active^...`，取 langId、Code、Name 写入 profile 语言目录表。
      - 若 MCP 不可用，使用兜底：`EN -> 1`、`CH -> 20`。
-   - 标记仍需目标工程确认的页面组、种子类路径和业务边界。
+   - 标记仍需目标工程确认的页面组、本地 backend SourceRoot 解析结果和业务边界；canonical 默认类及方法不再保留 `Package.UploadPageTrans` 占位值。
 
 5. 接入入口：
    - 将 `templates/AGENTS.i18n-snippet.md` 作为目标工程 `AGENTS.md` 的建议片段。
@@ -112,6 +115,7 @@ description: Use when initializing or checking the reusable IRIS i18n agent kit 
 - 不覆盖目标工程已有 `AGENTS.md`，除非用户明确要求合入。
 - 不默认执行服务器写入、上传、编译或加载翻译。
 - 若目标工程已有不同 i18n 存储机制，只更新 profile，不修改通用 rules/skills。
+- 不自动覆盖既有 `i18n_project_profile.md`；旧 profile 仍是 TODO 占位值时只报告迁移建议，获得目标项目配置写入授权后再收敛为 canonical 默认契约。
 - `i18n_project_profile.md`、thin-index 和本地生成脚本属于目标工程本地生成层，应由 `.agents/.git/info/exclude` 隐藏；不要把生成层忽略规则写进 `.agents/.gitignore`。
 
 ## 输出

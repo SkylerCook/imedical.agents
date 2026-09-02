@@ -6,6 +6,7 @@
 - 前端复用 coding-iris 的 canonical `utf8` 与字节检测门禁，不单独按标版、医院项目或目录角色推断编码；旧模式只按兼容边界读取。
 - 用户可见文本提取和翻译表生成。
 - 页面级非字典翻译种子生成。
+- 页面翻译种子默认收敛到 canonical `DHCDoc.I18n.PageTranslationSeed`，并保留目标工程 profile 覆盖。
 - 字典/表字段展示值翻译 SQL 生成。
 - XML 打印模板翻译。
 - 已确认 XML 模板链路的打印模板导出、校验和同步。
@@ -20,7 +21,18 @@
 - 目标工程差异写入 `.agents/config/i18n_project_profile.md`。
 - MCP 连接信息以目标工程 `.mcp.json` 为唯一事实来源。
 - 页面级翻译默认沿用 `^websys.TranslationD("PAGE",...)`。
+- 页面翻译种子默认类为 `DHCDoc.I18n.PageTranslationSeed`，默认相对源码路径为 `DHCDoc/I18n/PageTranslationSeed.cls`；本地完整路径从项目 backend SourceRoot 解析。稳定公共方法为 `SetPageTrans` / `KillPageTrans`，语言聚合方法为 `Load{LANG}Translation` / `Kill{LANG}Translation`。
+- 插件携带 `templates/DHCDoc/I18n/PageTranslationSeed.cls` canonical 源模板；页面翻译种子任务可在目标类缺失时据此创建，但初始化和能力包更新不得覆盖业务源码。
 - 字典翻译默认沿用 `BDP_Translation`。
+- 固定默认类不合并字典翻译 SQL 或 XML 模板同步；目标工程已有不同页面翻译机制时，通过 `.agents/config/i18n_project_profile.md` 覆盖，不修改通用 skill/rule。
+
+## 已部署项目兼容
+
+- 更新能力包只更新插件 canonical 内容，不覆盖目标项目已有 `.agents/config/i18n_project_profile.md`。
+- 旧 profile 若仍包含 `TODO: Package.UploadPageTrans.cls` 或其它未确认占位值，应在下一次页面翻译任务开始前改为 `DHCDoc.I18n.PageTranslationSeed`，并将相对源码路径收敛为 `DHCDoc/I18n/PageTranslationSeed.cls`。
+- 已验证存在其它兼容种子类的项目继续保留原 profile 覆盖；不得仅为命名统一迁移业务类。
+- 能力包更新、profile 调整均不授权上传、编译或加载翻译；这些远程动作仍按当前任务单独确认。
+- 已部署项目若目标类缺失，先在本地页面翻译种子任务中从 canonical 模板创建并完成 diff/依赖检查；不得把“插件已有模板”解释为已部署、已编译或已加载。
 
 ## 标准目录
 
