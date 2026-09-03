@@ -90,6 +90,20 @@
 - 新增文件遵循命名约定：agent 目录 kebab-case + `-agent`，workflow 文件 kebab-case + `.workflow.md`，skill 目录 kebab-case，rule 文件 snake_case，reference 文件 kebab-case，script 文件 kebab-case。
 - 对已部署业务工程有影响的变更，必须说明同步步骤和兼容清理策略。
 
+## Git 提交信息
+
+- Git commit message 使用 Conventional Commits：首行写简洁明确的 `type(scope): subject`，描述文字使用简体中文，代码标识符保持原样。
+- 提交信息不得只有标题；标题后空一行，必须增加以 `修改说明:` 开头的正文。
+- `修改说明:` 应聚焦本次提交的核心改动，说明真正发生变化的能力、逻辑、契约或行为；必要时补充关键结果和边界，但不要求机械罗列全部文件或逐项套用固定字段。
+- 禁止使用只有“优化代码”“修复问题”“调整逻辑”等无法识别核心改动的笼统说明，也不要用版本、文档、测试等常规同步项掩盖主要变更。
+- 推荐格式：
+
+```text
+fix(i18n): 增加前端条件路由与稳定 key 门禁
+
+修改说明: 为 iris-coding 与 iris-frontend-coding 增加基于插件启用状态和 i18n 信号的双条件门禁，并新增稳定 key 静态检查，确保普通需求不加载 i18n、命中翻译改动时阻断动态 key。
+```
+
 ## 组件版本治理
 
 - 插件是主要发布、依赖和兼容单元，版本事实来自 `.agents-plugin/plugin.json`；根级独立 skill 的版本来自其 `SKILL.md` frontmatter。
