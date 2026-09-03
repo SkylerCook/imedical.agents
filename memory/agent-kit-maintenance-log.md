@@ -4,6 +4,8 @@
 
 ## 近期已完成
 
+- 2026-09-03：`coding-iris-plugin` v0.6.0 新增 `iris-demand-commit` 标版/项目需求提交状态机，并接入 `iris-coding` 收尾路由。计划按需求文件解析受控 GitRoot，校验方案型修改说明、HEAD/upstream/diff 指纹和计划完整性；用户明确授权后先完成全部仓库 `pull --ff-only` 门禁，HEAD 快进则停止并要求重新确认，未变化才提交精确路径，保留无关暂存/未暂存/未跟踪修改且不执行 push。标版采用三行消息，项目采用两行消息并兼容纯本地仓库。新增 `demand-delivery-type-v1`，已部署工程从明确上下文填充 `standard/project`，无法确定时写 `TODO` 并提示补全。五个依赖插件扩展到 coding v0.6.x 并做 patch 发布。提交状态机 6 项、需求类型迁移 PowerShell 7/Windows PowerShell 5.1、组件治理 16 项、两宿主完整更新回归和 coding thin-index DryRun 均通过；Skill 结构、Node/JSON 语法与 `git diff --check` 通过。
+
 - 2026-09-02：`i18n-iris-plugin` v0.1.4 将已在医生站业务源码验证的 `DHCDoc.I18n.PageTranslationSeed` 提升为页面翻译种子 canonical 默认类，固定 `SetPageTrans` / `KillPageTrans` 单条接口与 `Load{LANG}Translation` / `Kill{LANG}Translation` 聚合命名，批次方法继续按需求编号；随插件提供 canonical ObjectScript 源模板，目标类缺失时由明确的种子实现任务创建，初始化和更新不覆盖业务源码。本地完整路径从已声明 backend SourceRoot 解析，现有兼容项目保留 profile 覆盖；旧占位值移除，字典翻译 SQL 与 XML 模板同步保持独立，远端授权边界不变。新增 canonical 默认契约专项测试通过，组件版本治理 16 项与 worktree 15 组件校验通过，i18n 插件 thin-index DryRun、JSON/Node 语法和 `git diff --check` 通过。
 
 - 2026-09-02：复核并加固 `ea5b246` 引入的 DEV→PRD 需求移植能力。`coding-iris-plugin` v0.5.2 以 PRD 服务器导出为目标基线、DEV Git patch 为需求来源，计划目录加入 DEV/PRD 绝对路径身份避免同名仓库覆盖，冲突 `continue` 重新校验双方 HEAD 并拒绝未暂存或未跟踪状态；专项 CLI 子进程增加超时与错误收敛。补齐 v0.5.1/v0.5.2 发布记录、根总览、owner 文档和维护记忆；`i18n-iris-plugin`、`iris-codegraph`、`iris-cure-form-dev`、`iris-external-reg`、`iris-interface-dev` patch 升级并扩展 `coding-iris-plugin` v0.5.x 兼容范围。该能力只读访问 PRD 基线并修改本地 PRD Git，上传、编译、SFTP、数据库和生产部署仍需单独授权。需求移植专项 15 项、既有 export/workspace-context 2 项、组件版本治理 16 项、current/worktree 版本校验、coding 插件 thin-index DryRun，以及 `update-agents` PowerShell 7 / Windows PowerShell 5.1 回归均通过。

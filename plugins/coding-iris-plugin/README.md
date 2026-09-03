@@ -9,6 +9,7 @@
 - 工作流规则：本地优先；导出、编译、Broker 调试和配置同步优先使用 IRIS 开发主力脚本；MCP 作为辅助能力补上下文、只读验证或覆盖脚本未覆盖场景。
 - 部署编排：`skills/iris-deploy/SKILL.md` 负责远端部署入口、清单生成、确认门禁和验证编排，上传、编译、部署和远端验证按 `rules/iris_deploy_checklist.md` 逐项执行。
 - 需求移植：`skills/iris-demand-promote/SKILL.md` 将已提交的 DEV 需求补丁移植到独立 PRD 按需导出仓库；先导出 PRD 服务器基线，再做三方应用，只创建本地 PRD 提交。
+- 需求提交：`skills/iris-demand-commit/SKILL.md` 为已完成的标版/项目需求生成方案型提交信息；标版提交前强制安全快进，项目兼容纯本地仓库，任何 commit 均需用户明确授权且不包含 push。
 - 前端统一编码：当前标版、医院项目的源码、上传内容和服务器运行编码统一使用 canonical `utf8`。
 - 前端编码保护：实际文件字节检测是最终门禁；正常任务静默处理，完成时只报告一行摘要。
 - 兼容读取：旧 `project-utf8` 规范化为 `utf8`；旧 `standard-gb2312` 只服务用户明确指定的历史工程，不能再由目录或仓库角色推断。
@@ -98,10 +99,11 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 3. 检查目标工程 `.mcp.json` 是否包含实际需要的 IRIS/SFTP 能力。
 4. 运行 thin-index dry-run，确认无冲突后再 write。
 5. 普通编码任务优先使用 `iris-coding` 统一入口，由它按任务范围路由到后端、前端、工作流或 promote 流程。
-6. 明确的纯后端任务可直接使用 `iris-backend-coding`，明确的纯前端任务可直接使用 `iris-frontend-coding`。
-7. 明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
-8. 用户明确处理历史 GB2312 工程，并要求把转换文件替换源文件时，使用 `iris-frontend-gb2312-promote`。
-9. 查询 IRIS 类、方法签名、宏、SQL 元数据或官方文档时，使用 `iris-mcp-lookup`。
+6. 需求完成后由 `iris-coding` 路由 `iris-demand-commit`：从 profile 读取 `standard/project` 默认值；`TODO` 必须提示用户补全，不能自动提交。
+7. 明确的纯后端任务可直接使用 `iris-backend-coding`，明确的纯前端任务可直接使用 `iris-frontend-coding`。
+8. 明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
+9. 用户明确处理历史 GB2312 工程，并要求把转换文件替换源文件时，使用 `iris-frontend-gb2312-promote`。
+10. 查询 IRIS 类、方法签名、宏、SQL 元数据或官方文档时，使用 `iris-mcp-lookup`。
 
 ## IRIS 知识查询与官方 vendor skills
 
@@ -128,7 +130,7 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 
 它们在 manifest 中均为 optional。任务命中后直接读取 `.agents/vendor/iris-agentic-dev-skills/skills/<name>/SKILL.md`；上游原文中的工具名可能与内置 MCP 版本不同，执行前必须读取 `rules/iris_knowledge_lookup.md` 并按当前 `tools/list` schema 映射。`objectscript-tdd` 只有在任务已授权远端编译和测试时才能触发。
 
-已部署业务工程更新 `.agents` 后，重新为 enabled `coding-iris-plugin` 生成 plugin thin-index，即可获得 `iris-mcp-lookup`、`iris-demand-promote` 与 `iris_knowledge_lookup` 浅层入口。optional vendor skills 不会自动生成浅层入口；需要用户级运行时副本时，按 `docs/update-agents.md` 显式选择具体 skill 和 runtime。
+已部署业务工程更新 `.agents` 后，重新为 enabled `coding-iris-plugin` 生成 plugin thin-index，即可获得 `iris-mcp-lookup`、`iris-demand-promote`、`iris-demand-commit` 与 `iris_knowledge_lookup` 浅层入口。更新器同时执行 `demand-delivery-type-v1`：从明确项目上下文填充 `standard/project`，无法确定时写入 `TODO` 并提示用户补全。optional vendor skills 不会自动生成浅层入口；需要用户级运行时副本时，按 `docs/update-agents.md` 显式选择具体 skill 和 runtime。
 
 ## IRIS 开发主力脚本
 
@@ -136,6 +138,7 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 
 - `export.js`：从 IRIS 导出 `.cls/.mac/.inc/.int/.js/.csp/.css`；支持 `--probe --json` 只读探测和 `--staging-dir` 临时导出。
 - `promote-demand.js`：按需求号执行 DEV→PRD 的 plan/apply/continue/verify；同名仓库按 DEV/PRD 绝对路径身份隔离临时计划，`continue` 重新校验双方 HEAD 并拒绝未暂存或未跟踪状态。不同需求号的独立 DEV 提交强制分别形成 PRD 提交，只有 `fix(123,456):...` 这类 DEV 联合需求提交才允许保留为一笔；独立需求共享文件时，用 `--prior-plan` 链接上一笔已验证计划。本脚本不上传、编译或部署远端。
+- `commit-demand.js`：按需求文件解析 GitRoot，生成标版三行或项目两行提交信息；“修改说明”必须交代修改对象、具体方案和行为结果。`apply` 仅在用户明确授权后执行，先完成全部仓库的 `pull --ff-only` 门禁，再提交精确路径，不自动 stash/rebase/merge/reset，不执行 push。
 - `compile.js`：上传并编译本地类文件；在 workspace-overlay 中同时接受 `backend/src/...` 逻辑路径，并把远端文档名规范化为不含 `backend/src` 前缀的类文档名。
 - `debugger.js`：调用 Web Broker 方法做快速调试。
 - `sync-env-config.js`：仅当 `.agents/config/project-env.json` 是事实来源时，从它生成 `.mcp.json`。
@@ -166,6 +169,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js --files <path...>
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js --from-git --base HEAD
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/promote-demand.js plan --demand <id> --dev-root <path> --prd-root <path>
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js plan --project-root <path> --kind <standard|project> --demand <id> --title <title> --type <type> --file <path> --modification <description>
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/promote-demand.js plan --demand <next-id> --dev-root <path> --prd-root <path> --prior-plan <verified-plan.json>
 node .agents/scripts/iris-mcp.js check
 node .agents/scripts/iris-mcp.js call iris_doc "{...}"

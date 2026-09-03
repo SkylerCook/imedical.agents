@@ -209,7 +209,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `config-missing-key` | 模板有新增字段，当前项目 config 没有；dry-run 只提示。 |
 | `config-merged-key` | write 已把缺失配置项追加到待确认区块。 |
 | `config-deprecated-candidate` | 当前项目 config 有模板没有的字段；只提示，不删除。 |
-| `config-migration-planned` | 插件迁移脚本已通过字节校验，或已从 Overlay manifest 明确判定为 backend-only；dry-run 计划生成新配置。 |
+| `config-migration-planned` | 插件迁移脚本已确认可安全生成新配置，例如通过字节校验、从 Overlay manifest 判定 backend-only，或从明确项目语义判定需求交付类型。 |
 | `config-migration-applied` | write 已应用插件配置迁移。 |
 | `config-migration-unchanged` | 插件迁移配置已是最新。 |
 | `script-wrapper-planned` / `script-wrapper-applied` | 编码脚本将要或已经替换为指向插件 canonical 实现的薄 wrapper。 |
@@ -221,7 +221,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `Action required` | 查看摘要下的阻塞项。必要时运行 `-Detailed` 后向用户汇报。 |
 | `conflict` | 停止。报告冲突文件和来源。 |
 | `config-review-required` | 停止。说明配置语义需要人工确认。 |
-| `config-migration-review-required` | 停止。发现 mixed、UTF-16、unknown、无法从 SourceRoot 声明判定是否 backend-only，或存在不支持的配置值，不能安全规范化。 |
+| `config-migration-review-required` | 停止。配置无法安全规范化，例如编码证据异常、无法判定 backend-only，或“默认需求交付类型”为 `TODO`/存在语义冲突；按 reason 提示人工补全。 |
 | `config-migration-conflict` | 停止。目标应为 canonical UTF-8，但实际字节仍是 GB2312 或与 UTF-8 门禁冲突。 |
 | `config-migration-failed` | 停止。插件迁移脚本缺失、异常退出或输出无效。 |
 | `submodule-init-required` | 停止。前端 submodule 未初始化，无法做字节检测。 |
@@ -269,6 +269,20 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 迁移器只在标准工作区已发现的前端根或 workspace-overlay 明确声明的 `sourceRoots[name=frontend]` 中抽检字节：UTF-8 或纯 ASCII 根可将旧 profile 安全规范化为 `utf8`；GB2312、mixed、UTF-16 或 unknown 会阻塞，不自动批量转码业务源码。任何 review-required/conflict 未处理前，Agent 不得继续前端写入或部署。
 
 迁移继续生成 `check-frontend-encoding.ps1` wrapper；`convert-gb2312-upload.ps1` wrapper 仅为历史工程兼容保留。当前 UTF-8 部署直接上传通过门禁的原始源文件，不生成 `*.gb2312.*` 临时件。
+
+## coding-iris 需求交付类型 v1 迁移
+
+`coding-iris-plugin` v0.6.0 起，`iris_project_profile.md` 使用 `默认需求交付类型：standard | project | TODO` 控制普通需求的提交收尾策略。`standard` 表示标版、标准版或通用产品需求；`project` 表示医院项目、客户定制或项目实施需求。
+
+已部署工程更新时，`demand-delivery-type-v1` 迁移器读取 `iris_project_profile.md`、`project_context_profile.md` 和项目 `AGENTS.md` 的非敏感语义：只有明确出现“标版/标准版/通用产品/通用多产品”等语义时写入 `standard`，只有明确出现“医院需求/医院项目/客户定制/项目版/项目实施”等语义时写入 `project`。合法现值始终优先；目录名、`contextMode`、remote、upstream 和代码量不作为推断依据。
+
+没有明确证据或两类语义冲突时，Write 会补入 `TODO` 并返回 `config-migration-review-required`：
+
+```text
+默认需求交付类型仍为 TODO，请确认该工程默认处理 standard（标版）还是 project（项目）需求。
+```
+
+处理该停止项时，只修改目标工程本地 `.agents/config/iris_project_profile.md` 的该字段，保留其它配置。补全前，`iris-coding` 可以继续普通编码，但 `iris-demand-commit` 不得生成可执行提交计划或执行 commit。
 
 ## Agent thin-index
 

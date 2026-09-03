@@ -53,6 +53,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
    - `templates/profile-defaults/<type>.md` 只在用户显式选择对应项目类型后加载；它是领域默认值，不是通用规则。加载后仍需用代码探索或用户确认校验，不能自动套用到未确认项目。
    - profile 中只能保存项目差异，不保存账号、密码、token。
    - 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`。`project-utf8` 仅作为兼容读取别名；`standard-gb2312` 仅用于用户明确指定的历史工程。实际文件字节检测是最终门禁。Overlay manifest 明确只声明 `backend` 时，profile 使用 `N/A (backend-only)`；若后续新增 frontend，必须重新运行迁移并通过字节门禁。
+   - 运行 `scripts/migrate-demand-delivery-profile.ps1`：从 profile、项目上下文和 `AGENTS.md` 的明确语义填充 `standard/project`；结果仍为 `TODO` 时提示用户确认工程默认需求交付类型，不按目录、`contextMode` 或 Git remote 猜测。
    - **多仓库工作区**：若目标工程是平铺多仓库架构（如 `corePro-flat`），工作区级别 profile 只填通用项（Web 技术、编码策略、HISUI 基础路径）；仓库特有项（namespace、包前缀、目录路径、命名模板）标注"按仓库填写"，不要填入单一仓库的值当作全局事实。
 5. 初始化 IRIS 开发主力脚本配置：
    - `.agents/config/project-env.json` 是人类可读的配置副本，`.mcp.json` 是 MCP 运行时事实来源；两者共存但 `.mcp.json` 优先。
