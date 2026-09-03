@@ -176,6 +176,12 @@
 - **排查顺序**：下拉为空时，先检查 DOM class、parser 自动解析、页面手工初始化次数和 `url/data` 组合，再排查后端接口。
 - **框架反馈**：`.agents/feedback/framework/` 中已生成 coding-iris-plugin 规则与 HISUI 索引修正候选。
 
+### 2.7 弹窗边缘的 ValidateBox 校验提示不宜只调整展示方向
+- 需求: #7060418 | 命中: 1
+- **问题**：HISUI `validatebox` 的 `tipPosition` 默认是 `right`。宽输入控件靠近弹窗或 iframe 右边缘时，提示会被裁切；简单改为 `left` 虽能完整显示，却可能遮挡左侧字段标签，同样不够友好。
+- **做法**：如果页面已有保存前显式校验，优先用 HISUI `required-label` 常驻标识必填，并在保存失败时使用 `$.messager.alert()` 给出完整提示、回调聚焦对应控件；避免同时保留自动校验气泡造成重复提示。只有控件周围确有充足空间时才调整 `tipPosition`。
+- **边界**：取消 `validatebox` 的 `required:true` 前必须确认保存入口均经过显式非空校验，且维护/禁用等其它能力不依赖该配置；最终需要在真实弹窗环境验证必填标识、提示和焦点回落。
+
 ---
 
 ## 三、需求分析与边界确认
@@ -241,7 +247,7 @@
 - **已覆盖**：`plugins/i18n-iris-plugin/scripts/sync-xml-print-template.ps1`
 
 ### 5.2 XML 模板 fontname 中文字符必须用 XML 数字实体
-- 需求: #6096272 | 命中: 1
+- 需求: #6096272 #6096063 | 命中: 2
 - **问题**：XML 打印模板中 `fontname="宋体"` 写入服务器后变成 `fontname="å®ä½"`（UTF-8 字节被当 Latin-1 解读）。
 - **根因**：MCP 传输层对非 ASCII 字符有编码风险，尤其是 GB2312 编码的 XML 内容经过 PowerShell → MCP → IRIS 多层传递时编码不一致。
 - **修复**：翻译 XML 模板时，将中文 fontname 替换为 XML 数字实体：
@@ -261,12 +267,12 @@
 - **正确做法**：直接读取、直接输出，MCP 传输层会正确处理 Unicode/UTF-8。
 
 ### 5.4 XML/Base64 长脚本出现临时代码 `<SYNTAX>` 后立即收敛
-- 需求: #6096150 | 命中: 1
+- 需求: #6096150 #6096063 | 命中: 2
 - **问题**：XML 已查询、导出并完成本地翻译后，继续把完整 XML 或 Base64 拼入单次 `iris_execute` 临时代码，可能在临时类编译阶段连续报 `Execute+...<SYNTAX>`；重复调整同类长脚本只会增加耗时。
 - **判断**：必须检查 MCP 返回的内部 stdout/status。出现临时类 `Execute+...<SYNTAX>` 是 ObjectScript 代码载荷编译失败，不是 MCP 传输失败；已经完成的本地模板、manifest 和备份仍然有效，不应重新查询、导出或翻译。
-- **收敛策略**：确认该错误后停止继续试探长段脚本，优先调用项目现有模板保存接口；没有可复用接口时，将 Base64 拆成多个短 MCP 调用写入带唯一任务键的临时 Global，最后用一段短 `iris_execute` 合并、解码并保存，随后清理临时 Global。
+- **收敛策略**：确认该错误后停止继续试探长段脚本，优先调用项目现有模板保存接口；没有可复用接口时，将 XML 分成多个短块，每块独立 Base64 编码后写入带唯一任务键的临时 Global，最终逐块解码并按顺序写入目标 CharacterStream，随后清理临时 Global。不要先在 ObjectScript 中合并成长 Base64/长 XML 字符串；旧实例可能发生截断或内容拼接损坏。
 - **验收**：保存完成后只执行一次只读查询/导出，核对目标记录元数据、XML 可解析性和 `defaultvalue` 源语言残留，然后汇总结果。
-- **自动化状态**：`sync-xml-print-template.ps1` 已实现临时类 `<SYNTAX>` 识别、单次内联尝试、Base64 分块写入 `^CacheTemp`、短调用合并保存、`finally` 清理和一次只读验收；离线回归覆盖正常保存、fallback 成功及 fallback 失败清理。
+- **自动化状态**：`sync-xml-print-template.ps1` 已实现临时类 `<SYNTAX>` 识别、分块暂存、`finally` 清理和只读验收；#6096063 发现“先合并再解码”的旧 fallback 仍可能损坏长流，待把实现收敛为逐块独立解码/写流并补充内容精确回读回归。
 - **已回归/已提升**：`plugins/i18n-iris-plugin/skills/i18n-xml-print-template-sync/SKILL.md`、`plugins/i18n-iris-plugin/scripts/sync-xml-print-template.ps1`、`plugins/i18n-iris-plugin/scripts/tests/sync-xml-print-template.Tests.ps1`
 
 ### 5.5 MCP 必须按当次真实能力探针判断
@@ -275,6 +281,13 @@
 - **判断顺序**：先用 `check_config` 核对目标，再执行 `SELECT 1 AS Probe`。探针成功即继续；自动发现生效时 `config_file=null` 不构成失败。只有真实探针失败才重启一次会话并复测，单个 endpoint 失败只降级对应 capability。
 - **适用边界**：不弱化写入、部署或编译授权；能力降级仍必须遵守远程动作分类和敏感信息边界。
 - **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_agentic_dev.md`、`workflows/i18n-change.workflow.md`
+
+### 5.6 动态对象 JSON 输出为空时不得判定模板不存在
+- 需求: #6096063 | 命中: 1
+- **问题**：部分旧 IRIS 实例通过临时 `iris_execute` 调用 `%DynamicArray/%DynamicObject.%ToJSON()` 时，MCP 返回 `success=true` 但 `output` 为空；同步脚本随后把空结果解释成源模板和目标模板都不存在。
+- **判断**：模板存在性必须与 JSON 序列化/传输成功分开判断。`success=true + output=""` 不是有效的“模板不存在”证据。
+- **降级**：先用只读 SQL 核对模板记录及元数据；导出内容时可按已确认记录 ID 打开 CharacterStream 并直接输出文本。写回前仍要备份旧流，写回后按 XML 语义 DOM、元数据和源语言残留做回读验证。
+- **待提升**：同步脚本应检测空 JSON 输出并自动切换到兼容导出路径，同时增加旧 IRIS 返回空 output 的离线回归。
 
 ---
 
@@ -300,7 +313,7 @@
 - **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_coding_frontend.md`、`plugins/coding-iris-plugin/rules/iris_coding_workflow.md`、`plugins/coding-iris-plugin/scripts/check-frontend-encoding.ps1`、`plugins/i18n-iris-plugin/rules/i18n_coding_frontend.md`、`plugins/i18n-iris-plugin/rules/i18n_verify.md`
 
 ### 6.2 i18n 打印链路改造的分层处理
-- 需求: #6096272 #6097879 #6097891 | 命中: 3
+- 需求: #6096272 #6097879 #6097891 #6096063 | 命中: 4
 - **固定文案**（金额单位、标签、状态标识）：
   - 后端：使用 `..%Trans()` 页面级翻译
   - 前端：使用 `$g()` 静态翻译
@@ -318,7 +331,7 @@
 - **已回归/已提升**：`agents/i18n-agent/AGENT.md`、`workflows/i18n-change.workflow.md`、`plugins/agent-context-kit/scripts/validate-agent-run.ps1`
 
 ### 6.3 新增字典翻译方法的规范
-- 需求: #6096272 | 命中: 1
+- 需求: #6096272 #6096063 | 命中: 2
 - **触发条件**：首次遇到新的字典/表字段展示值翻译时
 - **步骤**：
   1. 在 `DHCDoc.Common.Translate` 类中新增 `GetTransXxx` 方法
@@ -340,7 +353,7 @@
 - **已覆盖**：`plugins/i18n-iris-plugin/rules/i18n_dict_translate_facade.md`
 
 ### 6.4 XML 打印模板代码国际化
-- 需求: #6096272 | 命中: 1
+- 需求: #6096272 #6096063 | 命中: 2
 - **问题**：前端硬编码 XML 模板代码，无法根据语言选择对应模板。
 - **解决方案**：
   1. 后端在打印数据中返回 `PrintTemplateCode` 字段
@@ -350,7 +363,7 @@
 - **已覆盖**：`plugins/i18n-iris-plugin/rules/i18n_coding_print_backend.md`、`plugins/i18n-iris-plugin/rules/i18n_link_tracing.md`
 
 ### 6.5 字典翻译检查需覆盖被调用子方法
-- 需求: #6096272 | 命中: 1
+- 需求: #6096272 #6096063 | 命中: 2
 - **问题**：主方法中的字典字段已翻译，但被调用的子方法中的字典字段遗漏。
 - **示例**：`GetOPPrintData` 中的字典字段都已翻译，但调用的 `GetRegitems` 方法中的 `ARCIMDesc`（医嘱项描述）遗漏。
 - **检查清单**：
@@ -399,8 +412,10 @@
 | #6941550 | 技工申请关联材料牙位录入 | [1.5](#15-while-循环内不能-q--返回值), [1.6](#16-ggs-等内置函数不适用于-dynamicobject) |
 | #6950154 | 检查报告查看增加医嘱项查询（差异降噪重写） | [7.1](#71-历史重写时仅保留功能差异) |
 | #6096150 | 预约条打印多语言 | [1.7](#17-命令式-ie-与块式-ifelse-不能混用), [5.4](#54-xmlbase64-长脚本出现临时代码-syntax-后立即收敛) |
+| #6096063 | 住院证打印多语言 | [5.2](#52-xml-模板-fontname-中文字符必须用-xml-数字实体), [5.4](#54-xmlbase64-长脚本出现临时代码-syntax-后立即收敛), [5.6](#56-动态对象-json-输出为空时不得判定模板不存在), [6.2](#62-i18n-打印链路改造的分层处理), [6.3](#63-新增字典翻译方法的规范), [6.4](#64-xml-打印模板代码国际化), [6.5](#65-字典翻译检查需覆盖被调用子方法) |
 | #7079252 | 排班模板维护显示科室分组表格线 | [2.3](#23-合并单元格分割线应复用主题计算样式) |
 | #6684541 | 病历浏览检查报告/检验结果无数据插图多语言 | [2.4](#24-业务布局与-hisui-语义样式应组合复用) |
 | FTP密码掩码 | 代码表配置页FTP密码不明文展示、库存仍明文 | [2.5](#25-datagrid-行内密码框应在-onbeginedit-后置-input-type) |
 | #7040009 | 修改关联服务单增加数据变更审计日志 | [2.6](#26-hisui-控件必须明确由-parser-或页面-javascript-单方初始化) |
 | #7109014 | 提供清文件和文件中间表的方法 | [1.8](#18-列表元素类型不确定时不能用对象语法) |
+| #7060418 | 模板维护模板内容必填提示显示不全 | [2.7](#27-弹窗边缘的-validatebox-校验提示不宜只调整展示方向) |
