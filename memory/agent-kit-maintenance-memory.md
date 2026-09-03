@@ -41,6 +41,8 @@
 
 ## 近期关键变化
 
+- `coding-iris-plugin` v0.6.2 优化 `iris-demand-commit`：标版首行改用简短菜单/功能摘要，完整需求只放第三行；新计划按仓库一次性读取 porcelain v2 状态，并将 index blob、模式/状态与工作区字节共同纳入防漂移指纹。已获授权时不重复确认，`apply --verify` 可在同一进程完成提交与验证；普通业务提交不运行框架专项测试，pull 和精确文件安全门禁保持不变。
+
 - `coding-iris-plugin` v0.6.1 与 `i18n-iris-plugin` v0.1.6 新增前端条件 i18n 门禁：只在 i18n 已启用且任务或最终 diff 命中 helper/key/可见文案时加载轻量 i18n 规则，并用只读 Node.js 检查器阻断动态翻译 key；普通前端需求不进入完整 i18n workflow。
 
 - `coding-iris-plugin` v0.6.0 新增 `iris-demand-commit`：标版使用三行消息并在明确 commit 授权后强制 `pull --ff-only`，项目使用两行消息且允许无 upstream 的本地提交；修改说明必须交代修改对象、具体方案和行为结果。`demand-delivery-type-v1` 会为已部署工程从明确上下文填充 `standard/project`，证据不足或冲突时写 `TODO` 并提示用户补全。提交只处理计划内精确路径，不授权 push、部署或远程编译。

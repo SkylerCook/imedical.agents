@@ -139,7 +139,7 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 
 - `export.js`：从 IRIS 导出 `.cls/.mac/.inc/.int/.js/.csp/.css`；支持 `--probe --json` 只读探测和 `--staging-dir` 临时导出。
 - `promote-demand.js`：按需求号执行 DEV→PRD 的 plan/apply/continue/verify；同名仓库按 DEV/PRD 绝对路径身份隔离临时计划，`continue` 重新校验双方 HEAD 并拒绝未暂存或未跟踪状态。不同需求号的独立 DEV 提交强制分别形成 PRD 提交，只有 `fix(123,456):...` 这类 DEV 联合需求提交才允许保留为一笔；独立需求共享文件时，用 `--prior-plan` 链接上一笔已验证计划。本脚本不上传、编译或部署远端。
-- `commit-demand.js`：按需求文件解析 GitRoot，生成标版三行或项目两行提交信息；“修改说明”必须交代修改对象、具体方案和行为结果。`apply` 仅在用户明确授权后执行，先完成全部仓库的 `pull --ff-only` 门禁，再提交精确路径，不自动 stash/rebase/merge/reset，不执行 push。
+- `commit-demand.js`：按需求文件解析 GitRoot，标版首行使用简短菜单/功能摘要并在第三行保留完整需求，项目生成两行提交信息；“修改说明”必须交代修改对象、具体方案和行为结果。新计划每个仓库只做一次批量状态读取并同时指纹化 index blob 与工作区字节，`apply --verify` 在同一进程完成获授权的提交和校验；单轮执行达到 2 分钟即停止并报告 Git 卡点。pull、安全门禁、精确文件边界及无 push 约束保持不变。
 - `compile.js`：上传并编译本地类文件；在 workspace-overlay 中同时接受 `backend/src/...` 逻辑路径，并把远端文档名规范化为不含 `backend/src` 前缀的类文档名。
 - `debugger.js`：调用 Web Broker 方法做快速调试。
 - `sync-env-config.js`：仅当 `.agents/config/project-env.json` 是事实来源时，从它生成 `.mcp.json`。
@@ -170,7 +170,8 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js --files <path...>
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js --from-git --base HEAD
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/promote-demand.js plan --demand <id> --dev-root <path> --prd-root <path>
-node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js plan --project-root <path> --kind <standard|project> --demand <id> --title <title> --type <type> --file <path> --modification <description>
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js plan --project-root <path> --kind <standard|project> --demand <id> --subject <menu-summary> --title <full-title> --type <type> --file <path> --modification <description>
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js apply --plan <plan.json> --confirm-commit --verify
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/promote-demand.js plan --demand <next-id> --dev-root <path> --prd-root <path> --prior-plan <verified-plan.json>
 node .agents/scripts/iris-mcp.js check
 node .agents/scripts/iris-mcp.js call iris_doc "{...}"

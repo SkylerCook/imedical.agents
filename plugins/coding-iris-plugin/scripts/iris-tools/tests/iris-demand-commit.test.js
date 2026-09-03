@@ -48,17 +48,18 @@ function runCli(args, cwd, allowFailure = false) {
 function plan(repo, kind, modification = '调整模板必填校验，使用字段必填标识替代边界气泡并确保保存后重新聚焦输入框') {
   const result = runCli([
     'plan', '--project-root', repo, '--kind', kind, '--demand', '7060418', '--type', 'fix',
-    '--title', '口腔技工单-模板内容的必填提示显示不全', '--file', 'target.txt', '--modification', modification,
+    '--subject', '口腔技工单-模板维护', '--title', '口腔技工单-模板内容的必填提示显示不全',
+    '--file', 'target.txt', '--modification', modification,
   ], repo);
   return JSON.parse(result.stdout);
 }
 
 test('standard and project messages use three and two lines', () => {
   const module = require('../commit-demand');
-  const args = { type: 'fix', demand: '7060418', title: '模板内容的必填提示显示不全', kind: 'standard' };
+  const args = { type: 'fix', demand: '7060418', subject: '口腔技工单-模板维护', title: '模板内容的必填提示显示不全', kind: 'standard' };
   const modification = '优化模板内容必填提示，使用必填标识替代校验气泡并在提示关闭后聚焦输入框';
   assert.equal(module.buildMessage(args, modification).split('\n').filter(Boolean).length, 3);
-  assert.match(module.buildMessage(args, modification), /^fix\(7060418\):模板内容的必填提示显示不全\n修改说明:/);
+  assert.match(module.buildMessage(args, modification), /^fix\(7060418\):口腔技工单-模板维护\n修改说明:/);
   assert.match(module.buildMessage(args, modification), /\n需求描述:7060418 模板内容的必填提示显示不全\n$/);
   assert.equal(module.buildMessage({ ...args, kind: 'project' }, modification).split('\n').filter(Boolean).length, 2);
 });
@@ -81,14 +82,14 @@ test('project local-only apply preserves unrelated staged changes', () => {
   assert.equal(unauthorized.status, 1);
   assert.match(unauthorized.stderr, /confirm-commit/);
 
-  runCli(['apply', '--plan', planned.planPath, '--confirm-commit'], fixture.root);
+  runCli(['apply', '--plan', planned.planPath, '--confirm-commit', '--verify'], fixture.root);
   const finalPlan = JSON.parse(fs.readFileSync(planned.planPath, 'utf8'));
   assert.equal(finalPlan.repositories[0].execution.pull, 'local-only');
+  assert.equal(finalPlan.status, 'verified');
   assert.equal(git(fixture.root, ['diff', '--cached', '--name-only']).stdout.trim(), 'unrelated.txt');
   const message = git(fixture.root, ['show', '-s', '--format=%B']).stdout.trim().split(/\r?\n/);
   assert.equal(message.length, 2);
   assert.match(message[1], /^修改说明:/);
-  runCli(['verify', '--plan', planned.planPath], fixture.root);
 });
 
 test('standard repository without upstream is blocked before commit', () => {
@@ -138,8 +139,9 @@ test('standard apply pulls, commits three-line message, verifies, and does not p
   fs.writeFileSync(path.join(fixture.root, 'target.txt'), 'standard demand\n');
   const planned = plan(fixture.root, 'standard');
 
-  runCli(['apply', '--plan', planned.planPath, '--confirm-commit'], fixture.root);
-  runCli(['verify', '--plan', planned.planPath], fixture.root);
+  runCli(['apply', '--plan', planned.planPath, '--confirm-commit', '--verify'], fixture.root);
+  const finalPlan = JSON.parse(fs.readFileSync(planned.planPath, 'utf8'));
+  assert.equal(finalPlan.status, 'verified');
   const message = git(fixture.root, ['show', '-s', '--format=%B']).stdout.trim().split(/\r?\n/);
   assert.equal(message.length, 3);
   assert.equal(git(bare, ['rev-parse', 'refs/heads/main']).stdout.trim(), remoteBefore);

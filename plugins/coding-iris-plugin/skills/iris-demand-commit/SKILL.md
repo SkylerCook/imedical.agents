@@ -56,10 +56,12 @@ description: Use after an IRIS standard or project demand is implemented and ver
 标版需求使用三行格式：
 
 ```text
-<type>(<requirement-id>):<完整需求标题>
+<type>(<requirement-id>):<简短菜单或功能摘要>
 修改说明:<方案型修改说明>
 需求描述:<requirement-id> <完整需求标题>
 ```
+
+标版首行优先使用用户可识别的菜单名或“菜单-功能”摘要，保持简短，不重复完整需求标题；完整原始需求只放在 `需求描述`。例如首行使用 `fix(7060431):口腔技工单-模板维护`，而不是复制包含操作步骤和报错现象的长需求标题。
 
 项目需求使用两行格式：
 
@@ -89,13 +91,14 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js plan
   --project-root <workspace-root> `
   --kind <standard|project> `
   --demand <requirement-id> `
+  --subject <简短菜单或功能摘要> `
   --title <完整需求标题> `
   --type <type> `
   --file <path> `
   --modification <repo-root>::<方案型修改说明>
 ```
 
-单仓库时 `--modification` 可以只传说明正文。计划记录仓库 HEAD、branch、upstream、精确文件、状态/diff 指纹和拟用消息，并带完整性摘要，保存在系统临时目录。不得手工编辑或伪造计划；任何漂移都必须重新 plan。向用户展示每个仓库的文件与完整提交信息，并明确询问是否提交。
+单仓库时 `--modification` 可以只传说明正文。计划记录仓库 HEAD、branch、upstream、精确文件、状态/diff 指纹和拟用消息，并带完整性摘要，保存在系统临时目录。不得手工编辑或伪造计划；任何漂移都必须重新 plan。向用户展示每个仓库的文件与完整提交信息；用户尚未授权 commit 时明确询问，当前请求已经明确要求“提交/commit”时不重复暂停确认，plan 成功后直接进入 apply。
 
 ### 2. Apply
 
@@ -104,8 +107,13 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js plan
 ```powershell
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js apply `
   --plan <plan.json> `
-  --confirm-commit
+  --confirm-commit `
+  --verify
 ```
+
+`--verify` 在同一进程内完成提交后校验；仍保留独立 `verify` 命令用于恢复或复核。普通业务需求只运行 `plan`、获授权的 `apply --verify` 和必要业务检查，不运行本 Skill 的专项测试；只有修改 Skill 或提交脚本本身时才运行专项测试。
+
+普通提交以 2 分钟为执行上限，主要时间只允许消耗在一次必要的 `git pull --ff-only`。脚本单轮达到上限必须停止并报告当前 Git 卡点，不得继续叠加多个 60 秒等待；Agent 也不得为了 Skill 自测延迟业务提交。
 
 脚本先预检所有仓库，再执行 pull 门禁：
 

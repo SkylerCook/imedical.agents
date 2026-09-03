@@ -10,12 +10,15 @@ const { resolveWorkspaceContext } = require('../../../../scripts/lib/workspace-c
 const SCHEMA = 'iris-demand-commit-plan/v1';
 const TYPES = new Set(['feat', 'fix', 'refactor', 'docs', 'chore']);
 const KINDS = new Set(['standard', 'project']);
+const PROCESS_BUDGET_MS = 120000;
+const processStartedAt = Date.now();
 
 function parseArgs(argv) {
   const args = { command: argv[2] || '', files: [], modifications: [] };
   for (let index = 3; index < argv.length; index += 1) {
     const token = argv[index];
     if (token === '--confirm-commit') args.confirmCommit = true;
+    else if (token === '--verify') args.verify = true;
     else if (token === '--file') args.files.push(requiredValue(argv, ++index, token));
     else if (token === '--modification') args.modifications.push(requiredValue(argv, ++index, token));
     else if (token.startsWith('--')) args[toCamel(token.slice(2))] = requiredValue(argv, ++index, token);
@@ -34,12 +37,14 @@ function toCamel(value) {
 }
 
 function runGit(root, args, options = {}) {
+  const remainingBudget = PROCESS_BUDGET_MS - (Date.now() - processStartedAt);
+  if (remainingBudget <= 0) throw new Error('提交工具本轮执行已达到 2 分钟上限，请检查当前 Git 卡点后重试');
   if (process.env.IRIS_DEMAND_COMMIT_DEBUG === '1') process.stderr.write(`[git:start] ${root} :: ${args.join(' ')}\n`);
   const result = spawnSync('git', ['-C', root, ...args], {
     encoding: options.encoding || 'utf8',
     windowsHide: true,
     maxBuffer: 20 * 1024 * 1024,
-    timeout: options.timeout || 60000,
+    timeout: Math.min(options.timeout || 60000, remainingBudget),
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' },
   });
   if (process.env.IRIS_DEMAND_COMMIT_DEBUG === '1') process.stderr.write(`[git:end] status=${result.status} ${args[0]}\n`);
@@ -78,6 +83,13 @@ function existingAncestor(filePath) {
 
 function findGitRoot(filePath) {
   const start = existingAncestor(filePath);
+  let current = start;
+  while (true) {
+    if (fs.existsSync(path.join(current, '.git'))) return current;
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
   const root = gitText(start, ['rev-parse', '--show-toplevel']);
   if (!root) throw new Error(`文件不属于 Git 仓库: ${filePath}`);
   return path.resolve(root);
@@ -103,7 +115,7 @@ function hash(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
 }
 
-function fileState(repoRoot, files) {
+function legacyFileState(repoRoot, files) {
   const states = [];
   for (const file of files) {
     const status = gitText(repoRoot, ['status', '--porcelain=v1', '--untracked-files=all', '--', file], { allowFailure: false });
@@ -120,23 +132,60 @@ function fileState(repoRoot, files) {
   return states;
 }
 
-function stateFingerprint(states) {
+function legacyStateFingerprint(states) {
   return hash(JSON.stringify(states));
 }
 
+function parseStatusSnapshot(output, root, files) {
+  const records = String(output || '').split('\0').filter(Boolean);
+  const headers = new Map();
+  const statusByFile = new Map();
+  for (const record of records) {
+    if (record.startsWith('# ')) {
+      const separator = record.indexOf(' ', 2);
+      if (separator > 2) headers.set(record.slice(2, separator), record.slice(separator + 1));
+      continue;
+    }
+    if (record.startsWith('u ')) throw new Error(`计划文件存在未合并状态: ${root}`);
+    if (record.startsWith('2 ')) throw new Error(`计划文件存在重命名状态，请使用重命名后的明确路径重新 plan: ${root}`);
+    if (record.startsWith('? ')) {
+      statusByFile.set(record.slice(2).replace(/\\/g, '/'), { status: record, indexHash: '(untracked)' });
+      continue;
+    }
+    const ordinary = /^1 ([^ ]{2}) ([^ ]+) ([^ ]+) ([^ ]+) ([^ ]+) ([^ ]+) ([^ ]+) (.*)$/.exec(record);
+    if (ordinary) {
+      statusByFile.set(ordinary[8].replace(/\\/g, '/'), { status: record, indexHash: ordinary[7] });
+    }
+  }
+  const head = headers.get('branch.oid') || '';
+  const branch = headers.get('branch.head') || '';
+  const upstream = headers.get('branch.upstream') || '';
+  if (!head || head === '(initial)') throw new Error(`仓库缺少可提交的 HEAD: ${root}`);
+  if (!branch || branch === '(detached)') throw new Error(`仓库处于 detached HEAD，禁止自动提交: ${root}`);
+  const states = files.map((file) => {
+    const item = statusByFile.get(file);
+    if (!item) throw new Error(`计划文件没有 Git 变更: ${path.join(root, file)}`);
+    const absolute = path.join(root, file);
+    const worktreeHash = fs.existsSync(absolute) && fs.statSync(absolute).isFile()
+      ? hash(fs.readFileSync(absolute))
+      : '(missing)';
+    return { file, status: item.status, indexHash: item.indexHash, worktreeHash };
+  });
+  return { head, branch, upstream, states, fingerprint: hash(JSON.stringify(states)) };
+}
+
 function repositoryInfo(root, files) {
-  const branchResult = runGit(root, ['symbolic-ref', '--quiet', '--short', 'HEAD'], { allowFailure: true });
-  if (branchResult.status !== 0) throw new Error(`仓库处于 detached HEAD，禁止自动提交: ${root}`);
-  const upstreamResult = runGit(root, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}'], { allowFailure: true });
-  const states = fileState(root, files);
+  const status = runGit(root, ['status', '--porcelain=v2', '--branch', '-z', '--untracked-files=all', '--no-renames', '--', ...files]);
+  const parsed = parseStatusSnapshot(status.stdout, root, files);
   return {
     root,
-    branch: String(branchResult.stdout || '').trim(),
-    head: gitText(root, ['rev-parse', 'HEAD']),
-    upstream: upstreamResult.status === 0 ? String(upstreamResult.stdout || '').trim() : '',
+    branch: parsed.branch,
+    head: parsed.head,
+    upstream: parsed.upstream,
     files,
-    states,
-    fingerprint: stateFingerprint(states),
+    states: parsed.states,
+    stateVersion: 2,
+    fingerprint: parsed.fingerprint,
   };
 }
 
@@ -170,7 +219,8 @@ function modificationMap(values, repositories) {
 }
 
 function buildMessage(args, modification) {
-  const subject = `${args.type}(${args.demand}):${args.title.trim()}`;
+  const summary = String(args.subject || args.title).trim();
+  const subject = `${args.type}(${args.demand}):${summary}`;
   const lines = [subject, `修改说明:${modification}`];
   if (args.kind === 'standard') lines.push(`需求描述:${args.demand} ${args.title.trim()}`);
   return `${lines.join('\n')}\n`;
@@ -200,6 +250,8 @@ function planCommand(args) {
   if (!TYPES.has(args.type)) throw new Error('--type 必须是 feat/fix/refactor/docs/chore');
   if (!String(args.title || '').trim()) throw new Error('--title 不能为空');
   if (/\r|\n/.test(args.title)) throw new Error('--title 不能包含换行');
+  if (args.subject !== undefined && !String(args.subject).trim()) throw new Error('--subject 不能为空');
+  if (/\r|\n/.test(args.subject || '')) throw new Error('--subject 不能包含换行');
   if (!args.files.length) throw new Error('至少需要一个 --file');
 
   const context = resolveWorkspaceContext(projectRoot);
@@ -232,6 +284,7 @@ function planCommand(args) {
     projectRoot,
     kind: args.kind,
     demand: args.demand,
+    subject: String(args.subject || args.title).trim(),
     title: args.title.trim(),
     type: args.type,
     repositories: planned,
@@ -254,22 +307,36 @@ function readPlan(planPath) {
 }
 
 function assertRepoUnchanged(repo) {
-  const currentHead = gitText(repo.root, ['rev-parse', 'HEAD']);
-  if (currentHead !== repo.head) throw new Error(`仓库 HEAD 已变化，请重新 plan: ${repo.root}`);
-  const currentBranch = gitText(repo.root, ['symbolic-ref', '--quiet', '--short', 'HEAD'], { allowFailure: true });
-  if (currentBranch !== repo.branch) throw new Error(`仓库分支已变化，请重新 plan: ${repo.root}`);
-  const upstreamResult = runGit(repo.root, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}'], { allowFailure: true });
-  const currentUpstream = upstreamResult.status === 0 ? String(upstreamResult.stdout || '').trim() : '';
-  if (currentUpstream !== repo.upstream) throw new Error(`仓库 upstream 已变化，请重新 plan: ${repo.root}`);
-  const current = fileState(repo.root, repo.files);
-  if (stateFingerprint(current) !== repo.fingerprint) throw new Error(`计划文件状态已变化，请重新 plan: ${repo.root}`);
+  if (repo.stateVersion !== 2) {
+    const currentHead = gitText(repo.root, ['rev-parse', 'HEAD']);
+    if (currentHead !== repo.head) throw new Error(`仓库 HEAD 已变化，请重新 plan: ${repo.root}`);
+    const currentBranch = gitText(repo.root, ['symbolic-ref', '--quiet', '--short', 'HEAD'], { allowFailure: true });
+    if (currentBranch !== repo.branch) throw new Error(`仓库分支已变化，请重新 plan: ${repo.root}`);
+    const upstreamResult = runGit(repo.root, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}'], { allowFailure: true });
+    const currentUpstream = upstreamResult.status === 0 ? String(upstreamResult.stdout || '').trim() : '';
+    if (currentUpstream !== repo.upstream) throw new Error(`仓库 upstream 已变化，请重新 plan: ${repo.root}`);
+    const current = legacyFileState(repo.root, repo.files);
+    if (legacyStateFingerprint(current) !== repo.fingerprint) throw new Error(`计划文件状态已变化，请重新 plan: ${repo.root}`);
+    return { head: currentHead, branch: currentBranch, upstream: currentUpstream };
+  }
+  const current = repositoryInfo(repo.root, repo.files);
+  assertSnapshotMatches(repo, current);
+  return current;
+}
+
+function assertSnapshotMatches(repo, current) {
+  if (current.head !== repo.head) throw new Error(`仓库 HEAD 已变化，请重新 plan: ${repo.root}`);
+  if (current.branch !== repo.branch) throw new Error(`仓库分支已变化，请重新 plan: ${repo.root}`);
+  if (current.upstream !== repo.upstream) throw new Error(`仓库 upstream 已变化，请重新 plan: ${repo.root}`);
+  if (current.fingerprint !== repo.fingerprint) throw new Error(`计划文件状态已变化，请重新 plan: ${repo.root}`);
 }
 
 function applyCommand(args) {
   if (!args.confirmCommit) throw new Error('缺少 --confirm-commit；没有用户明确授权时禁止提交');
   const plan = readPlan(args.plan);
+  const checked = new Map();
   for (const repo of plan.repositories) {
-    assertRepoUnchanged(repo);
+    checked.set(comparable(repo.root), assertRepoUnchanged(repo));
     if (plan.kind === 'standard' && !repo.upstream) throw new Error(`标版仓库缺少 upstream: ${repo.root}`);
   }
 
@@ -279,11 +346,14 @@ function applyCommand(args) {
       repo.execution.pull = 'local-only';
       continue;
     }
-    const before = gitText(repo.root, ['rev-parse', 'HEAD']);
+    const before = checked.get(comparable(repo.root)).head;
     runGit(repo.root, ['pull', '--ff-only']);
-    const after = gitText(repo.root, ['rev-parse', 'HEAD']);
-    repo.execution.pull = before === after ? 'up-to-date' : 'fast-forwarded';
-    if (before !== after) refreshed = true;
+    const after = repo.stateVersion === 2
+      ? repositoryInfo(repo.root, repo.files)
+      : { head: gitText(repo.root, ['rev-parse', 'HEAD']) };
+    checked.set(comparable(repo.root), after);
+    repo.execution.pull = before === after.head ? 'up-to-date' : 'fast-forwarded';
+    if (before !== after.head) refreshed = true;
   }
   if (refreshed) {
     plan.status = 'refresh-required';
@@ -293,7 +363,10 @@ function applyCommand(args) {
     return;
   }
 
-  for (const repo of plan.repositories) assertRepoUnchanged(repo);
+  for (const repo of plan.repositories) {
+    if (repo.stateVersion === 2) assertSnapshotMatches(repo, checked.get(comparable(repo.root)));
+    else assertRepoUnchanged(repo);
+  }
   plan.status = 'committing';
   writeJson(plan.planPath, plan);
   for (const repo of plan.repositories) {
@@ -307,11 +380,11 @@ function applyCommand(args) {
   }
   plan.status = 'committed';
   writeJson(plan.planPath, plan);
+  if (args.verify) verifyPlan(plan);
   console.log(JSON.stringify(plan, null, 2));
 }
 
-function verifyCommand(args) {
-  const plan = readPlan(args.plan);
+function verifyPlan(plan) {
   if (plan.status !== 'committed') throw new Error(`计划尚未全部提交: ${plan.status}`);
   for (const repo of plan.repositories) {
     const commit = repo.execution && repo.execution.commit;
@@ -326,6 +399,11 @@ function verifyCommand(args) {
   }
   plan.status = 'verified';
   writeJson(plan.planPath, plan);
+}
+
+function verifyCommand(args) {
+  const plan = readPlan(args.plan);
+  verifyPlan(plan);
   console.log(JSON.stringify(plan, null, 2));
 }
 

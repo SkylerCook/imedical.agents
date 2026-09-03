@@ -36,7 +36,7 @@
 普通编码需求优先使用 `iris-coding`。当任务边界已经明确为纯后端、纯前端，或用户明确处理历史 GB2312 工程时，可直接使用对应专项 skill。
 当用户明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
 当用户要求把已提交的 DEV 需求更新到独立 PRD 按需导出仓库时，使用 `iris-demand-promote`；需求来源是 DEV Git 补丁，目标基线必须从 PRD 服务器导出，默认只形成本地 PRD 提交。
-当编码需求已经完成并需要生成提交信息或执行本地提交时，使用 `iris-demand-commit`；标版采用三行消息并强制 `pull --ff-only`，项目采用两行消息且兼容无 upstream 的本地仓库。任何 commit 都必须由用户明确授权，push 另行授权。
+当编码需求已经完成并需要生成提交信息或执行本地提交时，使用 `iris-demand-commit`；标版首行使用简短菜单/功能摘要、第三行保留完整需求，并强制 `pull --ff-only`，项目采用两行消息且兼容无 upstream 的本地仓库。用户已明确授权 commit 时不重复暂停确认，push 仍需另行授权。
 当用户要求查询 IRIS 类、方法、函数、宏、SQL 元数据或官方文档时，使用 `iris-mcp-lookup`；该 skill 默认只读，并把当前实例元数据与官方文档版本分开报告。
 
 前端编码还必须读取目标工程 `.agents/config/plugin_profile.md`。仅当 `i18n-iris-plugin` 为 `enabled` 且任务或最终 diff 命中翻译 helper、翻译 key 或用户可见文案时，追加 i18n profile/rules 和 helper 静态检查；普通需求不自动进入完整 i18n workflow，插件未启用时不得因目录存在而加载。
@@ -72,7 +72,7 @@
 
 `scripts/iris-tools/promote-demand.js` 提供 DEV→PRD 需求的 plan/apply/continue/verify 状态机；计划按 DEV/PRD 绝对路径身份隔离，远端基线暂存于系统临时目录，不写入 `.agents/work` 或业务源码，直到 apply 通过全部探测门禁。冲突后的 `continue` 必须重新校验 DEV/PRD HEAD，并拒绝未暂存或未跟踪状态。
 
-`scripts/iris-tools/commit-demand.js` 提供普通标版/项目需求的 plan/apply/verify 状态机；按本次需求文件解析 WorkspaceRoot 内或 overlay manifest 声明的 GitRoot，要求方案型修改说明，先完成全部仓库的安全 pull 门禁，再只提交计划内精确路径。它不扫描父目录或无关 sibling，不执行 push。
+`scripts/iris-tools/commit-demand.js` 提供普通标版/项目需求的 plan/apply/verify 状态机；新计划通过一次批量 Git 状态读取生成包含 index blob 与工作区字节哈希的防漂移指纹，`apply --verify` 在同一进程完成提交和验证。它先完成全部仓库的安全 pull 门禁，再只提交计划内精确路径，不扫描父目录或无关 sibling，不执行 push。
 
 `generate-plugin-thin-index.ps1` 不复制到目标工程；初始化和重建索引时直接调用插件内脚本。
 

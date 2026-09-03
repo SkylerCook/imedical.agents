@@ -4,6 +4,8 @@
 
 ## 近期已完成
 
+- 2026-09-03：`coding-iris-plugin` v0.6.2 优化 `iris-demand-commit` 日常提交性能与消息可读性。标版提交首行新增独立 `--subject` 菜单/功能摘要，第三行继续保留完整需求；新计划用单次 porcelain v2 状态读取获得 HEAD、branch、upstream、index blob、文件模式和状态，并结合工作区字节哈希生成防漂移指纹，避免逐文件重复调用 Git。用户已明确授权时不重复暂停，`apply --verify` 可在同一进程完成提交与验证；旧计划继续按原指纹方式兼容校验，pull、精确文件提交、无关改动保留和无 push 边界不变。同一 `project local-only` 集成场景在当前 Windows 环境由超过 60 秒降至 10 秒内。
+
 - 2026-09-03：`coding-iris-plugin` v0.6.1 与 `i18n-iris-plugin` v0.1.6 修复普通 IRIS 前端任务的跨插件 i18n 路由缺口。`iris-coding`、`iris-frontend-coding` 和前端规则以目标工程 `plugin_profile.md` 为启用事实，在修改前与最终 diff 后识别翻译 helper/key、用户可见文案及相关 HTML 属性；只有 i18n 为 `enabled` 且命中信号时才追加 i18n profile/rules，明确 i18n 需求才进入完整流程。新增只读 Node.js helper 检查器，稳定字面量 `$g` 与占位符 `$trans` 通过，动态 key、拼接与插值模板阻断；普通任务和未启用插件不额外加载 i18n。Node.js 路由/helper/i18n/组件治理 25 项、两组既有 i18n XML 专项、15 组件 worktree 版本校验、PowerShell 7 与 Windows PowerShell 5.1 完整更新回归、双插件 thin-index DryRun、JSON/Node 语法、差异格式及临时路径污染检查均通过。
 
 - 2026-09-03：`coding-iris-plugin` v0.6.0 新增 `iris-demand-commit` 标版/项目需求提交状态机，并接入 `iris-coding` 收尾路由。计划按需求文件解析受控 GitRoot，校验方案型修改说明、HEAD/upstream/diff 指纹和计划完整性；用户明确授权后先完成全部仓库 `pull --ff-only` 门禁，HEAD 快进则停止并要求重新确认，未变化才提交精确路径，保留无关暂存/未暂存/未跟踪修改且不执行 push。标版采用三行消息，项目采用两行消息并兼容纯本地仓库。新增 `demand-delivery-type-v1`，已部署工程从明确上下文填充 `standard/project`，无法确定时写 `TODO` 并提示补全。五个依赖插件扩展到 coding v0.6.x 并做 patch 发布。提交状态机 6 项、需求类型迁移 PowerShell 7/Windows PowerShell 5.1、组件治理 16 项、两宿主完整更新回归和 coding thin-index DryRun 均通过；Skill 结构、Node/JSON 语法与 `git diff --check` 通过。
