@@ -13,6 +13,8 @@ related:
 
 本文件只做通用入口索引。执行国际化任务时，先读取 `.agents/config/i18n_project_profile.md` 获取当前项目适配，再按任务类型读取对应规则，避免把编码、提取、翻译数据保存和 MCP 部署流程混在一起。
 
+普通 IRIS 前端业务需求只有在目标工程 `plugin_profile.md` 将 `i18n-iris-plugin` 标记为 `enabled`，且任务或最终 diff 命中翻译 helper、翻译 key 或用户可见文案时，才由 coding-iris 条件路由追加本索引；这类轻量门禁不自动进入完整 `i18n-change` workflow。
+
 ## 源语言与目标语言
 
 - 源语言、默认目标语言、语言目录来源以 `.agents/config/i18n_project_profile.md` 为准。

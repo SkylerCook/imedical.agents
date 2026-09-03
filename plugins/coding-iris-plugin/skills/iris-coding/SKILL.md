@@ -28,13 +28,15 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 ## 必读规则
 
 1. 目标工程 `.agents/config/iris_project_profile.md`
-2. `rules/iris_coding_index.md`
-3. `rules/iris_coding_general.md`
+2. 目标工程 `.agents/config/plugin_profile.md`
+3. `rules/iris_coding_index.md`
+4. `rules/iris_coding_general.md`
 
 按任务范围继续读取：
 
 - 后端 `.cls`、BLH/DATA/SQL、Broker、Query、ObjectScript 编译验证：读取 `iris-backend-coding` 和 `rules/iris_coding_backend.md`
 - 前端 CSP、HTML、JavaScript、CSS、HISUI、页面布局、前端数据回显：读取 `iris-frontend-coding` 和 `rules/iris_coding_frontend.md`
+- 前端任务且 `i18n-iris-plugin` 为 `enabled`：修改前和最终 diff 后按 `rules/iris_coding_frontend.md` 检查 i18n 信号；命中 `$g`、`$trans`、翻译 key、用户可见文案或 `placeholder` / `title` / `tooltip` / `alt` 时，追加读取 `.agents/config/i18n_project_profile.md`、i18n `rules/i18n_index.md` 和 `rules/i18n_coding_frontend.md`
 - HISUI 控件或 API 不确定：读取 `references/hisui-widget-index.md`，再读 `.agents/vendor/hisui/dist/js/jquery.hisui.js`
 - HISUI 样式、图标或多语言视觉资源不确定：读取 `references/hisui-style-index.md`，再检查对应主题 CSS、locale CSS 和页面实际引入关系
 - 上传、编译、远程读取、只读 SQL 验证：读取目标工程 `.mcp.json` 和 `rules/iris_coding_workflow.md`
@@ -54,12 +56,14 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
    - 需求编码和验证完成后，需要生成提交信息或用户明确要求提交：切换到 `iris-demand-commit`；未明确授权时只生成计划，不执行 commit。
    - 用户要求远端读取或 SQL 验证但不部署：只在明确要求后进入工作流规则。
    - 用户要求查询 IRIS API、签名、宏、SQL 元数据或官方文档：切换到 `iris-mcp-lookup`。
-- 用户明确处理历史 GB2312 工程并要求提升临时文件为源文件：切换到 promote skill。
-3. 本地搜索现有实现和同类代码，优先沿用目标工程模式。
-4. 前端任务将 canonical `utf8` 作为当前模式，并对每个触碰文件修改前后执行字节检测；正常时不展开诊断，GB2312、UTF-16、冲突、unknown 或 mixed 时停止。
-5. 按已判定的专项流程执行编码改造。
-6. 默认只做本地修改、只读验证和报告；上传、编译、远程写入、数据库变更必须由用户明确要求。
-7. 需求有明确需求号和标题时，完成本地验证后读取“默认需求交付类型”：合法值路由 `iris-demand-commit`，`TODO` 或缺失时提示用户补全；“处理需求”本身不授权 commit。
+   - 用户明确处理历史 GB2312 工程并要求提升临时文件为源文件：切换到 promote skill。
+3. 前端任务读取 `plugin_profile.md` 并执行条件 i18n 门禁；只有 `i18n-iris-plugin` 为 `enabled` 且任务或改动命中 i18n 信号时才追加 i18n 规则。明确 i18n 需求切换到 `i18n-coding`，普通业务需求只追加轻量规则，不自动进入完整 i18n workflow。
+4. 本地搜索现有实现和同类代码，优先沿用目标工程模式。
+5. 前端任务将 canonical `utf8` 作为当前模式，并对每个触碰文件修改前后执行字节检测；正常时不展开诊断，GB2312、UTF-16、冲突、unknown 或 mixed 时停止。
+6. 按已判定的专项流程执行编码改造。
+7. 最终 diff 再执行一次条件 i18n 门禁；命中且插件已启用时运行 i18n helper 静态检查，失败必须停止。
+8. 默认只做本地修改、只读验证和报告；上传、编译、远程写入、数据库变更必须由用户明确要求。
+9. 需求有明确需求号和标题时，完成本地验证后读取“默认需求交付类型”：合法值路由 `iris-demand-commit`，`TODO` 或缺失时提示用户补全；“处理需求”本身不授权 commit。
 
 ## 前后端混合需求
 
@@ -105,6 +109,8 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 - 已读取 project profile 和通用规则索引。
 - 当前前端编码模式只写 canonical `utf8`；`project-utf8` 和 `standard-gb2312` 仅兼容读取旧 profile，其中后者必须由用户明确指定为历史工程。实际文件字节检测是最终门禁。
 - 已按任务范围读取对应专项 skill/rule。
+- 前端任务已按 `plugin_profile.md` 在修改前和最终 diff 后执行条件 i18n 门禁；未启用插件时没有因目录存在而加载 i18n 能力。
+- i18n 门禁命中时，翻译 helper key 已通过稳定字面量静态检查；检查失败没有继续交付。
 - 未把服务器、namespace、账号、密码、token、远程路径、业务页面清单、业务类名前缀或项目专属基类写入插件。
 - 上传、编译、远程写入、数据库变更没有在用户未明确要求时执行。
 - 需求提交没有从“处理/修复”指令中推断授权；`TODO` 交付类型已停止并提示补全，合法类型已按 `iris-demand-commit` 处理。

@@ -13,7 +13,7 @@
 - 本仓库维护可复用 Agent 能力包，核心内容包括 `agents/`、`workflows/`、`plugins/`、`skills/`、`rules/`、`docs/`、`scripts/` 和 `memory/`。
 - `agents/` 是厂商无关的智能体 canonical 注册层；`workflows/` 是厂商无关的多智能体/阶段化编排层。工具专属入口只能作为 adapter 生成物。
 - `plugins/agent-context-kit/` 负责项目上下文维护，包括 AGENTS 入口、项目规则、项目记忆、项目配置和 thin-index。
-- `plugins/coding-iris-plugin/` 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力，并提供 `iris-mcp-lookup` 知识查询、`iris-demand-promote` DEV→PRD 本地需求移植和 `iris-demand-commit` 标版/项目需求提交收尾 skill；8 个上游官方实用 skill 以 optional vendor 快照提供。
+- `plugins/coding-iris-plugin/` 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力，并提供 `iris-mcp-lookup` 知识查询、`iris-demand-promote` DEV→PRD 本地需求移植和 `iris-demand-commit` 标版/项目需求提交收尾 skill；前端流程会按 `plugin_profile.md` 对 enabled i18n 执行条件路由；8 个上游官方实用 skill 以 optional vendor 快照提供。
 - `plugins/codegraph-query/` 负责查询本地 `.codegraph/codegraph.db`，用于 indexed 前端/脚本侧符号定位、调用链和影响分析；`plugins/iris-codegraph/` 负责 IRIS/ObjectScript 图谱构建与查询，依赖 `coding-iris-plugin` 和目标工程 `.mcp.json`。
 - coding-iris 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`；旧 `project-utf8` 兼容读取并规范化，旧 `standard-gb2312` 只服务用户明确指定的历史工程。Overlay manifest 明确只有 backend SourceRoot 时规范化为 `N/A (backend-only)`，无法证明 backend-only 时继续阻断；实际文件字节检测仍是 frontend 最终门禁，真实 GB2312/mixed/unknown 不自动转码。HISUI 控件/API 与主题样式/视觉资源分别由 `hisui-widget-index.md`、`hisui-style-index.md` 按需路由。
 - workspace overlay 允许多个模块 Context 共享一个 canonical capability Git：resolver 明确区分 WorkspaceRoot、ContextRoot、CapabilityRoot、SourceRoot 和 GitRoot；模块更新不 pull capability，只在 ContextRoot 维护本地生成层，并以 manifest/Junction 门禁限制源码和 Git 边界。
@@ -40,6 +40,8 @@
 - 处理业务项目上下文：不要使用本文件作为项目记忆；改用目标项目自己的 `AGENTS.md` 和 `project-context-maintenance`。
 
 ## 近期关键变化
+
+- `coding-iris-plugin` v0.6.1 与 `i18n-iris-plugin` v0.1.6 新增前端条件 i18n 门禁：只在 i18n 已启用且任务或最终 diff 命中 helper/key/可见文案时加载轻量 i18n 规则，并用只读 Node.js 检查器阻断动态翻译 key；普通前端需求不进入完整 i18n workflow。
 
 - `coding-iris-plugin` v0.6.0 新增 `iris-demand-commit`：标版使用三行消息并在明确 commit 授权后强制 `pull --ff-only`，项目使用两行消息且允许无 upstream 的本地提交；修改说明必须交代修改对象、具体方案和行为结果。`demand-delivery-type-v1` 会为已部署工程从明确上下文填充 `standard/project`，证据不足或冲突时写 `TODO` 并提示用户补全。提交只处理计划内精确路径，不授权 push、部署或远程编译。
 

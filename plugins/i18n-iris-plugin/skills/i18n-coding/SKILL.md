@@ -45,6 +45,7 @@ description: Use when applying frontend or backend internationalization coding c
 - 每个前端文件改造前后执行 UTF-8 字节检查；正常时只输出一行编码摘要，检测到 GB2312、UTF-16、unknown、mixed 或配置冲突时停止并展开诊断。
 - 静态文案使用 profile 指定的前端静态翻译 helper。
 - 带变量文案使用 profile 指定的占位符翻译 helper。
+- 翻译 helper 的 key 必须是稳定字面量，运行时值只能作为占位符参数传入；禁止 `$g(variable + "文案")`、带插值模板字符串或动态 `$trans` key。
 - 已确认由 UI 框架自动翻译的文本不改代码，但记录到后续翻译表。
 - 含变量拼接、动态文案、非 UI 框架自动处理文本必须改造。
 - datagrid / treegrid 列头 `title: "中文"` 默认属于 UI 框架自动翻译，禁止改成 `$g("中文")`。
@@ -77,6 +78,7 @@ description: Use when applying frontend or backend internationalization coding c
 - 标记无法确认的主页面、占位符语义或 UI 框架自动翻译边界。
 - 提醒继续执行 `i18n-text-extract` 和对应的翻译种子 skill。
 - 复杂需求应产出链路事实报告和字段分类清单。
+- 对全部触碰的 JS/CSP 文件，按 profile 中的 helper 名称运行 `scripts/check-i18n-helper-usage.js`；退出码 `1` 或 `2` 时停止，不能交付动态翻译 key。
 
 ## 需求完成后的经验沉淀
 

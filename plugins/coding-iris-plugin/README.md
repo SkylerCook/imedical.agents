@@ -12,6 +12,7 @@
 - 需求提交：`skills/iris-demand-commit/SKILL.md` 为已完成的标版/项目需求生成方案型提交信息；标版提交前强制安全快进，项目兼容纯本地仓库，任何 commit 均需用户明确授权且不包含 push。
 - 前端统一编码：当前标版、医院项目的源码、上传内容和服务器运行编码统一使用 canonical `utf8`。
 - 前端编码保护：实际文件字节检测是最终门禁；正常任务静默处理，完成时只报告一行摘要。
+- 前端 i18n 条件门禁：以目标工程 `plugin_profile.md` 为事实来源，只有 i18n 已启用且任务或 diff 命中翻译 helper、翻译 key 或用户可见文案时才追加 i18n 规则和稳定 key 检查；普通前端需求不加载完整 i18n workflow。
 - 兼容读取：旧 `project-utf8` 规范化为 `utf8`；旧 `standard-gb2312` 只服务用户明确指定的历史工程，不能再由目录或仓库角色推断。
 - Backend-only：Overlay manifest 明确只声明 `backend`、未声明 `frontend` 时，profile 规范化为 `N/A (backend-only)`，不扫描父目录或 sibling 猜测前端源码。
 - Legacy GB2312 提升：仅在明确的历史工程中，确认后删除源文件并将 `{name}.gb2312.{ext}` 更名回原文件名，可选 MCP/SFTP 上传。
@@ -190,6 +191,8 @@ node .agents/scripts/iris-mcp.js call iris_doc "{...}"
 ## 前端编码保护
 
 当前前端编码以目标工程 `.agents/config/iris_project_profile.md` 的 canonical `utf8` 为准；`project-utf8` 仅作为兼容读取别名，`standard-gb2312` 仅作为用户明确指定的历史工程状态。每个文件修改前后仍必须通过实际字节检测。
+
+前端流程同时读取 `.agents/config/plugin_profile.md`：只有 `i18n-iris-plugin` 状态为 `enabled` 且修改前或最终 diff 命中 `$g`、`$trans`、翻译 key、用户可见文案或 `placeholder` / `title` / `tooltip` / `alt` 时，才追加 i18n profile、规则与 helper 静态检查。明确 i18n 需求切换到 `i18n-coding`；普通业务需求只应用轻量门禁，不自动进入完整 workflow。未启用 i18n 时不猜测 helper 语义，也不因插件目录存在而加载能力。
 
 明确的 backend-only Overlay 不适用前端字节门禁，profile 固定使用 `N/A (backend-only)`，前端导出入口会明确停止且不写 source/staging。若 manifest 后续新增 `frontend` SourceRoot，必须重新运行迁移并通过 UTF-8 字节检测，不能手工把 N/A 直接改成 `utf8`。
 

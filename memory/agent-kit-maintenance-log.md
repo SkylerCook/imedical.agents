@@ -4,6 +4,8 @@
 
 ## 近期已完成
 
+- 2026-09-03：`coding-iris-plugin` v0.6.1 与 `i18n-iris-plugin` v0.1.6 修复普通 IRIS 前端任务的跨插件 i18n 路由缺口。`iris-coding`、`iris-frontend-coding` 和前端规则以目标工程 `plugin_profile.md` 为启用事实，在修改前与最终 diff 后识别翻译 helper/key、用户可见文案及相关 HTML 属性；只有 i18n 为 `enabled` 且命中信号时才追加 i18n profile/rules，明确 i18n 需求才进入完整流程。新增只读 Node.js helper 检查器，稳定字面量 `$g` 与占位符 `$trans` 通过，动态 key、拼接与插值模板阻断；普通任务和未启用插件不额外加载 i18n。Node.js 路由/helper/i18n/组件治理 25 项、两组既有 i18n XML 专项、15 组件 worktree 版本校验、PowerShell 7 与 Windows PowerShell 5.1 完整更新回归、双插件 thin-index DryRun、JSON/Node 语法、差异格式及临时路径污染检查均通过。
+
 - 2026-09-03：`coding-iris-plugin` v0.6.0 新增 `iris-demand-commit` 标版/项目需求提交状态机，并接入 `iris-coding` 收尾路由。计划按需求文件解析受控 GitRoot，校验方案型修改说明、HEAD/upstream/diff 指纹和计划完整性；用户明确授权后先完成全部仓库 `pull --ff-only` 门禁，HEAD 快进则停止并要求重新确认，未变化才提交精确路径，保留无关暂存/未暂存/未跟踪修改且不执行 push。标版采用三行消息，项目采用两行消息并兼容纯本地仓库。新增 `demand-delivery-type-v1`，已部署工程从明确上下文填充 `standard/project`，无法确定时写 `TODO` 并提示补全。五个依赖插件扩展到 coding v0.6.x 并做 patch 发布。提交状态机 6 项、需求类型迁移 PowerShell 7/Windows PowerShell 5.1、组件治理 16 项、两宿主完整更新回归和 coding thin-index DryRun 均通过；Skill 结构、Node/JSON 语法与 `git diff --check` 通过。
 
 - 2026-09-02：`i18n-iris-plugin` v0.1.4 将已在医生站业务源码验证的 `DHCDoc.I18n.PageTranslationSeed` 提升为页面翻译种子 canonical 默认类，固定 `SetPageTrans` / `KillPageTrans` 单条接口与 `Load{LANG}Translation` / `Kill{LANG}Translation` 聚合命名，批次方法继续按需求编号；随插件提供 canonical ObjectScript 源模板，目标类缺失时由明确的种子实现任务创建，初始化和更新不覆盖业务源码。本地完整路径从已声明 backend SourceRoot 解析，现有兼容项目保留 profile 覆盖；旧占位值移除，字典翻译 SQL 与 XML 模板同步保持独立，远端授权边界不变。新增 canonical 默认契约专项测试通过，组件版本治理 16 项与 worktree 15 组件校验通过，i18n 插件 thin-index DryRun、JSON/Node 语法和 `git diff --check` 通过。

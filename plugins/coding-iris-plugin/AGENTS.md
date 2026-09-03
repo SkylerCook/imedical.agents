@@ -39,6 +39,8 @@
 当编码需求已经完成并需要生成提交信息或执行本地提交时，使用 `iris-demand-commit`；标版采用三行消息并强制 `pull --ff-only`，项目采用两行消息且兼容无 upstream 的本地仓库。任何 commit 都必须由用户明确授权，push 另行授权。
 当用户要求查询 IRIS 类、方法、函数、宏、SQL 元数据或官方文档时，使用 `iris-mcp-lookup`；该 skill 默认只读，并把当前实例元数据与官方文档版本分开报告。
 
+前端编码还必须读取目标工程 `.agents/config/plugin_profile.md`。仅当 `i18n-iris-plugin` 为 `enabled` 且任务或最终 diff 命中翻译 helper、翻译 key 或用户可见文案时，追加 i18n profile/rules 和 helper 静态检查；普通需求不自动进入完整 i18n workflow，插件未启用时不得因目录存在而加载。
+
 `coding-iris-init` 是 bootstrap skill。首次接入目标工程时应直接读取插件真实路径 `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`，不要依赖安装后才会生成的 thin-index。
 
 ## 规则入口

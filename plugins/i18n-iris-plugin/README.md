@@ -4,6 +4,7 @@
 
 - 前后端 i18n 编码改造。
 - 前端复用 coding-iris 的 canonical `utf8` 与字节检测门禁，不单独按标版、医院项目或目录角色推断编码；旧模式只按兼容边界读取。
+- 前端翻译 helper 稳定 key 门禁：静态 helper 只接收字面量，运行时值通过占位符 helper 参数传入，并由只读 Node.js 检查器阻断动态 key。
 - 用户可见文本提取和翻译表生成。
 - 页面级非字典翻译种子生成。
 - 页面翻译种子默认收敛到 canonical `DHCDoc.I18n.PageTranslationSeed`，并保留目标工程 profile 覆盖。
@@ -33,6 +34,7 @@
 - 已验证存在其它兼容种子类的项目继续保留原 profile 覆盖；不得仅为命名统一迁移业务类。
 - 能力包更新、profile 调整均不授权上传、编译或加载翻译；这些远程动作仍按当前任务单独确认。
 - 已部署项目若目标类缺失，先在本地页面翻译种子任务中从 canonical 模板创建并完成 diff/依赖检查；不得把“插件已有模板”解释为已部署、已编译或已加载。
+- 更新后，只有 `plugin_profile.md` 中 `i18n-iris-plugin` 为 `enabled` 且任务或 diff 命中 i18n 信号时，coding-iris 前端路由才追加 i18n 规则；普通前端需求不会自动进入完整 i18n workflow。
 
 ## 标准目录
 
@@ -44,6 +46,7 @@ i18n-iris-plugin/
 |-- README.md
 |-- rules/
 |-- skills/
+|-- scripts/
 `-- templates/
 ```
 
@@ -100,3 +103,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/i18n-iris-pl
 7. 使用 `i18n-project-init` 或 thin-index 脚本做初始化检查。
 
 更多步骤见 `templates/i18n-init-guide.md`。
+
+## 前端 helper 静态检查
+
+根据目标工程 `.agents/config/i18n_project_profile.md` 中的 helper 名称，对本次触碰的 JS/CSP 文件执行：
+
+```powershell
+node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
+  --file path/to/page.js `
+  --file path/to/page.csp `
+  --static-helper '$g' `
+  --placeholder-helper '$trans'
+```
+
+检查器只读文件且仅使用 Node.js 内置模块。退出码 `0` 表示通过，`1` 表示发现动态翻译 key，`2` 表示参数或文件读取错误；错误包含文件、行、列和规则代码。

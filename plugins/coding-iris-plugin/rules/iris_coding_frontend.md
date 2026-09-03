@@ -16,6 +16,38 @@ related:
 - UI 框架：HISUI，除非目标工程 profile 明确关闭。
 - jQuery/HISUI 版本、主题、源码路径以 `.agents/config/iris_project_profile.md` 为准。
 
+## 条件 i18n 门禁
+
+前端任务必须读取目标工程 `.agents/config/plugin_profile.md`，并在修改前与最终 diff 后各判断一次。插件目录存在只表示 `available`，只有 `i18n-iris-plugin` 状态为 `enabled` 才能自动追加 i18n 能力。
+
+以下任一情况属于 i18n 信号：
+
+- 用户明确要求国际化、多语言、翻译提取、翻译种子或翻译同步。
+- 任务或最终 diff 修改 `$g`、`$trans`、模板翻译 helper、翻译 key，或把已有字面量文案改为运行时表达式。
+- 新增或修改用户可见文案，以及 `placeholder`、非框架自动翻译的 `title`、`tooltip`、`alt` 或 CSS `content`。
+
+路由矩阵：
+
+| i18n 状态 | 任务或 diff | 行为 |
+|---|---|---|
+| `enabled` | 无 i18n 信号 | 继续普通 IRIS 前端流程，不加载 i18n 规则 |
+| `enabled` | 普通业务需求命中 i18n 信号 | 追加读取 `.agents/config/i18n_project_profile.md`、`.agents/plugins/i18n-iris-plugin/rules/i18n_index.md` 和 `i18n_coding_frontend.md`；只应用轻量编码门禁，不自动进入完整 i18n workflow |
+| `enabled` | 明确 i18n 需求 | 切换到 `i18n-coding`；只有任务需要完整链路时才进入 `i18n-change` workflow |
+| `available`、`disabled` 或 profile 缺失 | 普通前端需求且未修改已有翻译 helper/key | 不加载 i18n 插件，继续普通前端流程 |
+| `available`、`disabled` 或 profile 缺失 | 直接修改已有翻译 helper/key | 不猜测 helper 语义；能保持原稳定 key 时保持，无法完成时停止并提示初始化插件或确认项目规则 |
+| `available`、`disabled` 或 profile 缺失 | 明确 i18n 需求 | 停止并提示读取 `.agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md` |
+
+门禁命中且插件为 `enabled` 时，最终验证必须按 i18n profile 中的 JavaScript helper 名称，对全部触碰的 JS/CSP 文件运行：
+
+```powershell
+node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
+  --file <path> `
+  --static-helper '$g' `
+  --placeholder-helper '$trans'
+```
+
+多个文件重复传入 `--file`。命令只做静态读取；退出码 `1` 表示发现动态翻译 key，退出码 `2` 表示参数或文件读取错误，两者都必须停止。不得因为原代码使用某个 helper，就跳过对重构后 key 稳定性的重新判断。
+
 ## 编码策略
 
 - 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`，不再按标版、医院项目、目录形状或 Git 仓库角色区分编码模式。

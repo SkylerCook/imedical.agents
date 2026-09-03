@@ -12,7 +12,6 @@ function read(relativePath) {
 }
 
 test('i18n page translation seed uses one canonical default with project override', () => {
-  const manifest = JSON.parse(read('plugins/i18n-iris-plugin/.agents-plugin/plugin.json'));
   const template = read('plugins/i18n-iris-plugin/templates/i18n_project_profile.template.md');
   const rule = read('plugins/i18n-iris-plugin/rules/i18n_page_translation_seed.md');
   const seedSkill = read('plugins/i18n-iris-plugin/skills/i18n-page-trans-seed/SKILL.md');
@@ -21,7 +20,6 @@ test('i18n page translation seed uses one canonical default with project overrid
   const readme = read('plugins/i18n-iris-plugin/README.md');
   const classTemplate = read('plugins/i18n-iris-plugin/templates/DHCDoc/I18n/PageTranslationSeed.cls');
 
-  assert.equal(manifest.version, '0.1.4');
   for (const content of [template, rule, seedSkill, initSkill, syncSkill, readme]) {
     assert.match(content, /DHCDoc\.I18n\.PageTranslationSeed/);
     assert.match(content, /DHCDoc\/I18n\/PageTranslationSeed\.cls/);

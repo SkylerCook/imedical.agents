@@ -474,7 +474,7 @@ Assert-True ($irisCodegraphManifest.name -eq "iris-codegraph") "iris-codegraph m
 Assert-True (($irisCodegraphManifest.dependencies -contains "coding-iris-plugin")) "iris-codegraph should declare coding-iris-plugin as a dependency"
 Assert-True ($interfaceDevManifest.name -eq "iris-interface-dev") "interface plugin manifest should use the current canonical name"
 Assert-True (@($interfaceDevManifest.configMigrations | Where-Object { $_.id -eq "interface-output-root-v1" }).Count -eq 1) "interface plugin should declare the output-root migration"
-Assert-True ($codingIrisManifest.version -eq "0.6.0") "coding iris plugin manifest should expose guarded demand commit workflow"
+Assert-True ([version]$codingIrisManifest.version -ge [version]"0.6.0") "coding iris plugin manifest should expose guarded demand commit workflow"
 Assert-True (@($codingIrisManifest.configMigrations | Where-Object { $_.id -eq "demand-delivery-type-v1" }).Count -eq 1) "coding iris plugin should declare demand delivery type migration"
 Assert-True (Test-Path -LiteralPath (Join-Path $repoRoot "plugins/coding-iris-plugin/skills/iris-demand-commit/SKILL.md") -PathType Leaf) "coding iris plugin should include iris-demand-commit"
 Assert-True ($cureFormDevManifest.name -eq "iris-cure-form-dev") "cure form plugin manifest should use the canonical name"

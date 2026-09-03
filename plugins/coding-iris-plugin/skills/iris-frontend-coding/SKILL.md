@@ -17,14 +17,16 @@ description: Use when working on CSP, JavaScript, CSS, or HISUI frontend code wi
 
 ## 流程
 
-1. 先读取目标工程 `.agents/config/iris_project_profile.md`。
+1. 先读取目标工程 `.agents/config/iris_project_profile.md` 和 `.agents/config/plugin_profile.md`。
 2. 再读取 `rules/iris_coding_index.md`、`rules/iris_coding_general.md`、`rules/iris_coding_frontend.md`。
-3. HISUI 控件选型或 API 不确定时，读取 `references/hisui-widget-index.md` 并继续检查 `.agents/vendor/hisui/dist/js/jquery.hisui.js`；样式、图标或多语言资源不确定时，读取 `references/hisui-style-index.md` 并检查对应主题 CSS、locale CSS 和页面实际引入关系。
-4. 仅当任务涉及上传、编码转换、远程读取或 CSP 编译时，再读取 `.mcp.json` 和 `rules/iris_coding_workflow.md`。
-5. 本地搜索 HISUI 已有能力、现有页面和同类组件；控件、交互、状态、样式及视觉资源按“框架能力 → 目标工程公共能力 → 页面级最小实现”的顺序复用。
-6. 内部解析目标路径对应的前端编码模式；canonical `utf8` 与兼容别名 `project-utf8` 都保持 UTF-8。每个文件修改前后均执行字节检测，正常时静默，异常时停止并报告。
-7. 默认只做本地修改；当前部署链直接上传通过门禁的 UTF-8 源文件。只有用户明确指定历史 `standard-gb2312` 工程时才允许调用 legacy 转换器。
-8. CSP 编译必须按工作流规则使用 WebApp 虚拟路径，并验证 `$system.OBJ.Load` 内层 status、生成类、`CSPFILE` 和 `CSPURL`。
+3. 修改前执行条件 i18n 门禁：只有 `i18n-iris-plugin` 为 `enabled` 且任务命中 `$g`、`$trans`、翻译 key、用户可见文案或 `placeholder` / `title` / `tooltip` / `alt` 时，追加读取 `.agents/config/i18n_project_profile.md`、i18n `rules/i18n_index.md` 和 `rules/i18n_coding_frontend.md`。明确 i18n 任务切换到 `i18n-coding`；普通业务需求不自动进入完整 i18n workflow。
+4. HISUI 控件选型或 API 不确定时，读取 `references/hisui-widget-index.md` 并继续检查 `.agents/vendor/hisui/dist/js/jquery.hisui.js`；样式、图标或多语言资源不确定时，读取 `references/hisui-style-index.md` 并检查对应主题 CSS、locale CSS 和页面实际引入关系。
+5. 仅当任务涉及上传、编码转换、远程读取或 CSP 编译时，再读取 `.mcp.json` 和 `rules/iris_coding_workflow.md`。
+6. 本地搜索 HISUI 已有能力、现有页面和同类组件；控件、交互、状态、样式及视觉资源按“框架能力 → 目标工程公共能力 → 页面级最小实现”的顺序复用。
+7. 内部解析目标路径对应的前端编码模式；canonical `utf8` 与兼容别名 `project-utf8` 都保持 UTF-8。每个文件修改前后均执行字节检测，正常时静默，异常时停止并报告。
+8. 最终 diff 再执行一次条件 i18n 门禁；命中且插件已启用时，按 profile 中的 helper 运行 `i18n-iris-plugin/scripts/check-i18n-helper-usage.js` 检查全部触碰的 JS/CSP 文件，失败必须停止。
+9. 默认只做本地修改；当前部署链直接上传通过门禁的 UTF-8 源文件。只有用户明确指定历史 `standard-gb2312` 工程时才允许调用 legacy 转换器。
+10. CSP 编译必须按工作流规则使用 WebApp 虚拟路径，并验证 `$system.OBJ.Load` 内层 status、生成类、`CSPFILE` 和 `CSPURL`。
 
 ## 完成检查
 
@@ -34,4 +36,5 @@ description: Use when working on CSP, JavaScript, CSS, or HISUI frontend code wi
 - CSP 框架页、内容页和脚本职责清晰。
 - JS 初始化、事件、数据加载、采集和工具函数分层明确。
 - 表单值使用业务值，不用显示文案作为持久化值。
+- 已在修改前和最终 diff 后按 `plugin_profile.md` 执行条件 i18n 门禁；命中时翻译 helper key 已通过稳定字面量检查。
 - 未引入源工程硬编码服务器、远程路径或业务页面清单。

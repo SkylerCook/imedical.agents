@@ -221,6 +221,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 - ObjectScript 后端编码规则。
 - CSP、JavaScript、CSS、HISUI 前端统一使用 canonical `utf8`：标版、医院项目的源码、上传内容和服务器运行编码均为 UTF-8，实际文件字节检测是最终门禁；旧 GB2312 仅保留显式历史工程兼容，明确的 backend-only Overlay 则记录 `N/A (backend-only)`。
+- 前端任务按目标工程 `plugin_profile.md` 执行条件 i18n 门禁：只有 i18n 已启用且任务或 diff 命中翻译 helper、翻译 key 或用户可见文案时，才追加 i18n 规则与稳定 key 检查；普通前端需求不进入完整 i18n workflow。
 - 本地优先、按需上传/编译的工作流约束。
 - 当前前端 UTF-8 原样编辑、导出和上传流程，以及仅供显式历史工程使用的 legacy GB2312 promote 兼容流程。
 - HISUI 控件/API 按需读取 `references/hisui-widget-index.md`，主题 CSS、locale CSS、语义 class、图标和插图按需读取 `references/hisui-style-index.md`。
@@ -246,6 +247,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 负责 IRIS/ObjectScript/CSP/HISUI 国际化能力：
 
 - 前后端 i18n 编码改造。
+- JS/CSP 翻译 helper 稳定 key 静态检查；动态值必须通过占位符参数传入，检查器只读且按任务触发。
 - 链路定位、字段分类和验证规则。
 - 用户可见文本提取。
 - 页面级翻译种子；默认 canonical 类为 `DHCDoc.I18n.PageTranslationSeed`，现有兼容项目可通过 profile 覆盖。
