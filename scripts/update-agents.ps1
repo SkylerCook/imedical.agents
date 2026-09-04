@@ -10,7 +10,12 @@ param(
   [switch]$CleanupLegacyVendorSkills,
   [switch]$NoPull,
   [switch]$Detailed,
-  [switch]$ResumedAfterSelfUpdate
+  [switch]$ResumedAfterSelfUpdate,
+  [ValidateSet("", "agents-up-to-date", "agents-updated")]
+  [string]$ResumedGitStatus = "",
+  [string]$ResumedOldHash = "",
+  [string]$ResumedNewHash = "",
+  [string]$ResumedUpstreamHash = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -85,7 +90,10 @@ function Write-UpdateResult {
     [string]$Source = "",
     [string]$Reason = "",
     [string]$PluginName = "",
-    [string]$Phase = ""
+    [string]$Phase = "",
+    [string]$OldHash = "",
+    [string]$NewHash = "",
+    [string]$UpstreamHash = ""
   )
 
   [PSCustomObject]@{
@@ -95,6 +103,9 @@ function Write-UpdateResult {
     target = $Target
     source = $Source
     reason = $Reason
+    oldHash = $OldHash
+    newHash = $NewHash
+    upstreamHash = $UpstreamHash
   }
 }
 
@@ -710,7 +721,13 @@ function Write-UpdateSummary {
     "agents-missing",
     "agents-git-missing",
     "git-version-unsupported",
+    "git-status-failed",
+    "git-head-resolve-failed",
+    "git-upstream-missing",
+    "git-divergence-check-failed",
     "pull-blocked-dirty",
+    "pull-blocked-ahead",
+    "pull-blocked-diverged",
     "fetch-failed",
     "pull-failed",
     "sparse-refresh-failed",
@@ -800,6 +817,15 @@ function Write-UpdateSummary {
     Write-Output ("{0}: {1}" -f $group.Name, $group.Count)
   }
 
+  $gitSyncResults = @($Results | Where-Object { $_.status -in @("agents-up-to-date", "agents-updated") })
+  if ($gitSyncResults.Count -gt 0) {
+    Write-Output ""
+    Write-Output "Git capability:"
+    foreach ($item in $gitSyncResults) {
+      Write-Output ("- {0} old={1} new={2} upstream={3}" -f $item.status, $item.oldHash, $item.newHash, $item.upstreamHash)
+    }
+  }
+
   $actionRequired = @($Results | Where-Object { $actionRequiredStatuses -contains $_.status })
   if ($actionRequired.Count -gt 0) {
     Write-Output ""
@@ -869,28 +895,88 @@ function Invoke-AgentGitUpdate {
     return $results
   }
 
-  git -C $AgentsRoot fetch --prune
+  $oldHashOutput = @(git -C $AgentsRoot rev-parse --verify HEAD 2>$null)
+  if (($LASTEXITCODE -ne 0) -or ($oldHashOutput.Count -eq 0)) {
+    $results.Add((Write-UpdateResult -Status "git-head-resolve-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason "cannot resolve local HEAD" -Phase "git"))
+    return $results
+  }
+  $oldHash = ([string]$oldHashOutput[0]).Trim()
+
+  git -C $AgentsRoot fetch --prune | Out-Null
   if ($LASTEXITCODE -ne 0) {
     $results.Add((Write-UpdateResult -Status "fetch-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason "git fetch --prune failed" -Phase "git"))
     return $results
   }
 
-  git -C $AgentsRoot pull --ff-only
-  if ($LASTEXITCODE -ne 0) {
-    $results.Add((Write-UpdateResult -Status "pull-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason "git pull --ff-only failed" -Phase "git"))
+  $upstreamRef = "@{upstream}"
+  $upstreamHashOutput = @(git -C $AgentsRoot rev-parse --verify $upstreamRef 2>$null)
+  if (($LASTEXITCODE -ne 0) -or ($upstreamHashOutput.Count -eq 0)) {
+    $results.Add((Write-UpdateResult -Status "git-upstream-missing" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason "current branch has no resolvable upstream after fetch" -Phase "git" -OldHash $oldHash))
+    return $results
+  }
+  $upstreamHash = ([string]$upstreamHashOutput[0]).Trim()
+
+  $divergenceOutput = @(git -C $AgentsRoot rev-list --left-right --count ("HEAD..." + $upstreamRef) 2>$null)
+  if (($LASTEXITCODE -ne 0) -or ($divergenceOutput.Count -eq 0)) {
+    $results.Add((Write-UpdateResult -Status "git-divergence-check-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason "cannot compare local HEAD with upstream" -Phase "git" -OldHash $oldHash -UpstreamHash $upstreamHash))
+    return $results
+  }
+  $divergenceParts = ([string]$divergenceOutput[0]).Trim() -split "\s+"
+  $aheadCount = 0
+  $behindCount = 0
+  $divergenceValid = ($divergenceParts.Count -eq 2) -and [int]::TryParse($divergenceParts[0], [ref]$aheadCount) -and [int]::TryParse($divergenceParts[1], [ref]$behindCount)
+  if (-not $divergenceValid) {
+    $results.Add((Write-UpdateResult -Status "git-divergence-check-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason ("unexpected rev-list output: " + ([string]$divergenceOutput[0]).Trim()) -Phase "git" -OldHash $oldHash -UpstreamHash $upstreamHash))
     return $results
   }
 
-  git -C $AgentsRoot sparse-checkout init --no-cone
+  if (($aheadCount -gt 0) -and ($behindCount -eq 0)) {
+    $results.Add((Write-UpdateResult -Status "pull-blocked-ahead" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason ("local .agents branch is ahead of upstream by {0} commit(s)" -f $aheadCount) -Phase "git" -OldHash $oldHash -NewHash $oldHash -UpstreamHash $upstreamHash))
+    return $results
+  }
+  if (($aheadCount -gt 0) -and ($behindCount -gt 0)) {
+    $results.Add((Write-UpdateResult -Status "pull-blocked-diverged" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason ("local .agents branch diverged from upstream: ahead={0}, behind={1}" -f $aheadCount, $behindCount) -Phase "git" -OldHash $oldHash -NewHash $oldHash -UpstreamHash $upstreamHash))
+    return $results
+  }
+
+  $gitStatus = "agents-up-to-date"
+  $gitReason = "upstream unchanged; pull skipped; sparse checkout refresh completed"
+  $newHash = $oldHash
+  if ($behindCount -gt 0) {
+    git -C $AgentsRoot pull --ff-only | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+      $results.Add((Write-UpdateResult -Status "pull-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason "git pull --ff-only failed" -Phase "git" -OldHash $oldHash -NewHash $oldHash -UpstreamHash $upstreamHash))
+      return $results
+    }
+
+    $newHashOutput = @(git -C $AgentsRoot rev-parse --verify HEAD 2>$null)
+    $newHashExitCode = $LASTEXITCODE
+    $refreshedUpstreamOutput = @(git -C $AgentsRoot rev-parse --verify $upstreamRef 2>$null)
+    $refreshedUpstreamExitCode = $LASTEXITCODE
+    if (($newHashExitCode -ne 0) -or ($refreshedUpstreamExitCode -ne 0) -or ($newHashOutput.Count -eq 0) -or ($refreshedUpstreamOutput.Count -eq 0)) {
+      $results.Add((Write-UpdateResult -Status "pull-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason "cannot verify HEAD and upstream after pull" -Phase "git" -OldHash $oldHash -NewHash $oldHash -UpstreamHash $upstreamHash))
+      return $results
+    }
+    $newHash = ([string]$newHashOutput[0]).Trim()
+    $upstreamHash = ([string]$refreshedUpstreamOutput[0]).Trim()
+    if ($newHash -ne $upstreamHash) {
+      $results.Add((Write-UpdateResult -Status "pull-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason "local HEAD does not match upstream after pull" -Phase "git" -OldHash $oldHash -NewHash $newHash -UpstreamHash $upstreamHash))
+      return $results
+    }
+    $gitStatus = "agents-updated"
+    $gitReason = "fast-forward pull and sparse checkout refresh completed"
+  }
+
+  git -C $AgentsRoot sparse-checkout init --no-cone | Out-Null
   if ($LASTEXITCODE -eq 0) {
-    $runtimeSparsePaths | git -C $AgentsRoot sparse-checkout set --stdin --no-cone
+    $runtimeSparsePaths | git -C $AgentsRoot sparse-checkout set --stdin --no-cone | Out-Null
   }
   if ($LASTEXITCODE -ne 0) {
-    $results.Add((Write-UpdateResult -Status "sparse-refresh-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason "sparse checkout refresh failed" -Phase "git"))
+    $results.Add((Write-UpdateResult -Status "sparse-refresh-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason "sparse checkout refresh failed" -Phase "git" -OldHash $oldHash -NewHash $newHash -UpstreamHash $upstreamHash))
     return $results
   }
 
-  $results.Add((Write-UpdateResult -Status "agents-updated" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason "fetch, pull, and sparse checkout refresh completed" -Phase "git"))
+  $results.Add((Write-UpdateResult -Status $gitStatus -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason $gitReason -Phase "git" -OldHash $oldHash -NewHash $newHash -UpstreamHash $upstreamHash))
   return $results
 }
 
@@ -991,6 +1077,9 @@ $results = New-Object System.Collections.Generic.List[object]
 if ($null -ne $workspaceContextBootstrapResult) {
   $results.Add($workspaceContextBootstrapResult)
 }
+if ($ResumedAfterSelfUpdate -and $NoPull -and (-not [string]::IsNullOrWhiteSpace($ResumedGitStatus))) {
+  $results.Add((Write-UpdateResult -Status $ResumedGitStatus -Target (Get-RelativePathPortable -From $projectRootFull -To $agentsRoot) -Reason "Git result carried forward after updater self-restart; continuing local convergence" -Phase "git" -OldHash $ResumedOldHash -NewHash $ResumedNewHash -UpstreamHash $ResumedUpstreamHash))
+}
 $runningScriptPath = $MyInvocation.MyCommand.Path
 $runningScriptHash = if (Test-Path -LiteralPath $runningScriptPath -PathType Leaf) { (Get-FileHash -LiteralPath $runningScriptPath -Algorithm SHA256).Hash } else { "" }
 
@@ -1022,8 +1111,8 @@ elseif ((-not $NoPull) -and ($Mode -ne "Check")) {
   foreach ($item in $gitResults) {
     $results.Add($item)
   }
-  if ($gitResults | Where-Object { $_.status -in @("git-version-unsupported", "pull-blocked-dirty", "fetch-failed", "pull-failed", "sparse-refresh-failed") }) {
-    $results | Format-List status, plugin, phase, target, source, reason
+  if ($gitResults | Where-Object { $_.status -in @("git-version-unsupported", "git-status-failed", "git-head-resolve-failed", "git-upstream-missing", "git-divergence-check-failed", "pull-blocked-dirty", "pull-blocked-ahead", "pull-blocked-diverged", "fetch-failed", "pull-failed", "sparse-refresh-failed") }) {
+    $results | Format-List status, plugin, phase, target, source, reason, oldHash, newHash, upstreamHash
     exit 1
   }
   $updatedScriptHash = if (Test-Path -LiteralPath $runningScriptPath -PathType Leaf) { (Get-FileHash -LiteralPath $runningScriptPath -Algorithm SHA256).Hash } else { $runningScriptHash }
@@ -1036,6 +1125,10 @@ elseif ((-not $NoPull) -and ($Mode -ne "Check")) {
       RuntimeAdapter = $RuntimeAdapter
       NoPull = $true
       ResumedAfterSelfUpdate = $true
+      ResumedGitStatus = [string]$gitResults[0].status
+      ResumedOldHash = [string]$gitResults[0].oldHash
+      ResumedNewHash = [string]$gitResults[0].newHash
+      ResumedUpstreamHash = [string]$gitResults[0].upstreamHash
     }
     if ($ForceThinIndex) { $resumeParams.ForceThinIndex = $true }
     if ($CleanupLegacyVendorSkills) { $resumeParams.CleanupLegacyVendorSkills = $true }
@@ -1313,7 +1406,7 @@ if (($allPlugins.Count -eq 0) -or (($Plugin.Count -gt 0) -and ($matchedPluginCou
 }
 
 if ($Detailed) {
-  $results | Format-List status, plugin, phase, target, source, reason
+  $results | Format-List status, plugin, phase, target, source, reason, oldHash, newHash, upstreamHash
 }
 else {
   Write-UpdateSummary -Results $results -Mode $Mode

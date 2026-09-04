@@ -433,6 +433,11 @@ Assert-Contains $readmeContent "manifest-aware runtime adapter" "README should d
 Assert-Contains $runbookContent "-Detailed" "runbook should mention -Detailed"
 Assert-Contains $runbookContent "config-review-required" "runbook should mention config-review-required"
 Assert-Contains $runbookContent "pull-blocked-dirty" "runbook should mention pull-blocked-dirty"
+Assert-Contains $runbookContent "agents-up-to-date" "runbook should document the no-update status"
+Assert-Contains $runbookContent "pull-blocked-ahead" "runbook should document local-ahead protection"
+Assert-Contains $runbookContent "pull-blocked-diverged" "runbook should document diverged-branch protection"
+Assert-Contains $runbookContent "git-upstream-missing" "runbook should document missing-upstream protection"
+Assert-Contains $runbookContent "oldHash" "runbook should document structured Git hashes"
 Assert-Contains $runbookContent "git clone" "runbook should support manual clone"
 Assert-Contains $runbookContent "/project-context-maintenance" "runbook should guide users to maintain project context after install"
 Assert-Contains $runbookContent "dependencies" "runbook should explain dependency plugin initialization order"
@@ -687,9 +692,13 @@ try {
   $publishedUpgradeHead = (git -C $upgradeSourceAgentsRoot rev-parse HEAD).Trim()
 
   $legacyDeployedUpdater = Join-Path $deployedAgentsRoot "scripts/update-agents.ps1"
+  $legacyDeployedHead = (git -C $deployedAgentsRoot rev-parse HEAD).Trim()
   Assert-True (-not ([System.IO.File]::ReadAllText($legacyDeployedUpdater, [System.Text.Encoding]::UTF8).Contains('scripts/prefer-vendor-iris-mcp.ps1'))) "Deployed fixture should start from the legacy updater"
   $deployedUpgradeOutput = & $legacyDeployedUpdater -ProjectRoot $deployedUpgradeProjectRoot -Mode Write -Detailed | Out-String
   Assert-Contains $deployedUpgradeOutput "mcp-vendor-command-applied" "One deployed-project Write should self-update and apply vendor MCP convergence"
+  Assert-Contains $deployedUpgradeOutput "agents-updated" "A self-updating Write should preserve the Git update status after restart"
+  Assert-Contains $deployedUpgradeOutput $legacyDeployedHead "A self-updating Write should preserve oldHash after restart"
+  Assert-Contains $deployedUpgradeOutput $publishedUpgradeHead "A self-updating Write should preserve newHash after restart"
   Assert-True ((git -C $deployedAgentsRoot rev-parse HEAD).Trim() -eq $publishedUpgradeHead) "Deployed capability should fast-forward to the published updater"
   Assert-True (Test-Path -LiteralPath (Join-Path $deployedAgentsRoot "scripts/prefer-vendor-iris-mcp.ps1") -PathType Leaf) "Deployed sparse checkout should materialize the new MCP preference script"
 
@@ -711,6 +720,94 @@ try {
 }
 finally {
   foreach ($path in @($deployedUpgradeProjectRoot, $deployedUpgradeRemote, $deployedUpgradeSourceProject)) {
+    if (Test-Path -LiteralPath $path) {
+      Remove-Item -LiteralPath $path -Recurse -Force
+    }
+  }
+}
+
+$gitStateProjectRoot = New-TestProject
+$gitStateRemote = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-git-state-remote-" + [System.Guid]::NewGuid().ToString("N"))
+$gitStatePublisher = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-git-state-publisher-" + [System.Guid]::NewGuid().ToString("N"))
+try {
+  $gitStateAgentsRoot = Join-Path $gitStateProjectRoot ".agents"
+  git -C $gitStateAgentsRoot config user.email "test@example.invalid"
+  git -C $gitStateAgentsRoot config user.name "Test User"
+  git -C $gitStateAgentsRoot config core.autocrlf false
+  git -C $gitStateAgentsRoot add .
+  git -C $gitStateAgentsRoot commit -m "test: seed updater Git state fixture" | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Git state fixture should commit the initial capability"
+  $gitStateBranch = (git -C $gitStateAgentsRoot branch --show-current).Trim()
+  git init --bare $gitStateRemote | Out-Null
+  git -C $gitStateAgentsRoot remote add origin $gitStateRemote
+  git -C $gitStateAgentsRoot push -u origin $gitStateBranch | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Git state fixture should publish the initial capability"
+
+  $equalHash = (git -C $gitStateAgentsRoot rev-parse HEAD).Trim()
+  $equalOutput = & (Join-Path $gitStateAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $gitStateProjectRoot -Mode DryRun -Detailed | Out-String
+  Assert-Contains $equalOutput "agents-up-to-date" ("Equal HEAD and upstream should report agents-up-to-date. Output: " + $equalOutput)
+  Assert-Contains $equalOutput $equalHash "Up-to-date detail should include the current Git hash"
+  Assert-Contains $equalOutput "plugin-available" "Up-to-date Git state should continue into local convergence checks"
+  Assert-True (-not $equalOutput.Contains("agents-updated")) "Equal HEAD and upstream must not report agents-updated"
+  Assert-Contains (Get-Content -Raw -LiteralPath (Join-Path $gitStateAgentsRoot ".git/info/sparse-checkout")) "/scripts/lib/**" "Up-to-date Git state should still refresh sparse checkout"
+
+  git clone $gitStateRemote $gitStatePublisher | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Git state fixture should clone a publisher"
+  git -C $gitStatePublisher config user.email "test@example.invalid"
+  git -C $gitStatePublisher config user.name "Test User"
+  New-Item -ItemType Directory -Force -Path (Join-Path $gitStatePublisher "docs") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $gitStatePublisher "docs/remote-update.md") -Value "remote update"
+  git -C $gitStatePublisher add docs/remote-update.md
+  git -C $gitStatePublisher commit -m "test: publish remote updater change" | Out-Null
+  git -C $gitStatePublisher push | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Git state fixture should publish a remote-only commit"
+
+  $behindOldHash = (git -C $gitStateAgentsRoot rev-parse HEAD).Trim()
+  $remoteHash = (git -C $gitStatePublisher rev-parse HEAD).Trim()
+  $behindOutput = & (Join-Path $gitStateAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $gitStateProjectRoot -Mode DryRun -Detailed | Out-String
+  Assert-Contains $behindOutput "agents-updated" "A local-behind branch should fast-forward and report agents-updated"
+  Assert-Contains $behindOutput $behindOldHash "Updated detail should include oldHash"
+  Assert-Contains $behindOutput $remoteHash "Updated detail should include newHash and upstreamHash"
+  Assert-Contains $behindOutput "plugin-available" "A completed fast-forward should continue into local convergence checks"
+  Assert-True ((git -C $gitStateAgentsRoot rev-parse HEAD).Trim() -eq $remoteHash) "A local-behind branch should fast-forward to upstream"
+
+  Set-Content -Encoding UTF8 -Path (Join-Path $gitStateAgentsRoot "docs/local-ahead.md") -Value "local ahead"
+  git -C $gitStateAgentsRoot add docs/local-ahead.md
+  git -C $gitStateAgentsRoot commit -m "test: create local-only updater commit" | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Git state fixture should create a clean local-ahead commit"
+  $localAheadHash = (git -C $gitStateAgentsRoot rev-parse HEAD).Trim()
+  $hostPowerShell = if ($PSVersionTable.PSEdition -eq "Core") { Join-Path $PSHOME "pwsh.exe" } else { Join-Path $PSHOME "powershell.exe" }
+  $previousErrorActionPreference = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try {
+    $aheadOutput = & $hostPowerShell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $gitStateAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $gitStateProjectRoot -Mode DryRun -Detailed 2>&1 | Out-String
+    $aheadExitCode = $LASTEXITCODE
+  }
+  finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+  Assert-True ($aheadExitCode -ne 0) "A local-ahead branch should stop the updater"
+  Assert-Contains $aheadOutput "pull-blocked-ahead" "A local-ahead branch should report pull-blocked-ahead"
+  Assert-Contains $aheadOutput $localAheadHash "Local-ahead detail should include the local hash"
+
+  Set-Content -Encoding UTF8 -Path (Join-Path $gitStatePublisher "docs/remote-diverged.md") -Value "remote diverged"
+  git -C $gitStatePublisher add docs/remote-diverged.md
+  git -C $gitStatePublisher commit -m "test: create remote side of divergence" | Out-Null
+  git -C $gitStatePublisher push | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Git state fixture should publish the remote side of a divergence"
+  $ErrorActionPreference = "Continue"
+  try {
+    $divergedOutput = & $hostPowerShell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $gitStateAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $gitStateProjectRoot -Mode DryRun -Detailed 2>&1 | Out-String
+    $divergedExitCode = $LASTEXITCODE
+  }
+  finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+  Assert-True ($divergedExitCode -ne 0) "A diverged branch should stop the updater"
+  Assert-Contains $divergedOutput "pull-blocked-diverged" "A diverged branch should report pull-blocked-diverged"
+}
+finally {
+  foreach ($path in @($gitStateProjectRoot, $gitStateRemote, $gitStatePublisher)) {
     if (Test-Path -LiteralPath $path) {
       Remove-Item -LiteralPath $path -Recurse -Force
     }

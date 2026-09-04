@@ -27,6 +27,8 @@
 
 `Check` 是更新器的只读验收模式。调用插件配置迁移时，更新器会把 `Check` 映射为迁移契约中的 `DryRun`；插件迁移脚本仍只需支持 `DryRun` 和 `Write`。
 
+standard 模式下，普通 `DryRun` 是“更新 capability 后预演本地生成层”：它会执行 `fetch --prune`，仅在本地落后 upstream 时执行 `pull --ff-only`，并刷新 sparse checkout；配置迁移、thin-index 和 adapter 等项目本地生成层仍只报告计划、不写入。需要保持 capability checkout 不变时，使用 `Check`，或显式使用 `DryRun -NoPull`。workspace overlay 无论是否传 `-NoPull` 都不会访问 CapabilityRoot 远端。
+
 ## 状态判定
 
 在业务项目根目录检查：
@@ -173,7 +175,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 | 状态 | 含义 |
 |---|---|
-| `agents-updated` | `.agents` 已完成 fetch、pull 和 sparse checkout 刷新。 |
+| `agents-up-to-date` | fetch 后本地 `HEAD` 与 upstream 一致；跳过 pull，但仍完成 sparse checkout 刷新并继续后续本地生成层检查。结果包含 `oldHash`、`newHash` 和 `upstreamHash`。 |
+| `agents-updated` | `.agents` 原本仅落后 upstream，已完成 fast-forward pull 和 sparse checkout 刷新；结果包含更新前后的 hash。 |
 | `capability-pull-skipped-overlay` | 当前为 workspace overlay；按契约跳过 capability fetch/pull，只刷新 ContextRoot。 |
 | `workspace-context-resolved` | 已解析 standard 或 workspace-overlay 的五类根。 |
 | `junction-ok` / `local-path-ok` | overlay 的共享/源码 Junction 与本地物理目录符合 manifest。 |
@@ -227,7 +230,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `submodule-init-required` | 停止。前端 submodule 未初始化，无法做字节检测。 |
 | `script-conflict` | 停止。目标工程编码脚本是未知或用户定制版本，更新器不覆盖。 |
 | `pull-blocked-dirty` | 停止。说明 `.agents` 仓库存在本地改动，需要用户决定提交、暂存或放弃。 |
+| `pull-blocked-ahead` | 停止。本地 `.agents` 分支含 upstream 没有的提交，不把它误报为远端可用更新。 |
+| `pull-blocked-diverged` | 停止。本地 `.agents` 与 upstream 已分叉，需要人工处理。 |
 | `agents-git-missing` | 停止。说明 `.agents` 不是标准独立 Git 仓库。 |
+| `git-status-failed` / `git-head-resolve-failed` | 停止。无法确认本地工作区或 `HEAD`，不能安全判断更新状态。 |
+| `git-upstream-missing` | 停止。当前分支没有可解析的 upstream，不能判断是否存在可用更新。 |
+| `git-divergence-check-failed` | 停止。fetch 后无法比较本地 `HEAD` 与 upstream。 |
 | `manifest-invalid` / `schema-version-unsupported` | 停止。修复 `capability.json` 后重新 DryRun。 |
 | `capability-root-missing` / `capability-git-missing` | 停止。共享 capability 根缺失或不是 Git 部署。 |
 | `junction-target-mismatch` / `shared-path-not-junction` / `source-path-not-junction` | 停止。只允许在确认 manifest 后显式安全修复 Junction；普通目录不得覆盖。 |
@@ -532,6 +540,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-plugi
 - 没有 `conflict`。
 - 没有 `config-review-required`。
 - 没有 `pull-blocked-dirty`。
+- 没有 `pull-blocked-ahead` 或 `pull-blocked-diverged`。
+- 没有 `git-status-failed`、`git-head-resolve-failed`、`git-upstream-missing` 或 `git-divergence-check-failed`。
 - 没有 `agents-git-missing`。
 - 没有 `git-version-unsupported`。
 - 没有 `fetch-failed`、`pull-failed` 或 `sparse-refresh-failed`。

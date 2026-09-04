@@ -94,6 +94,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 旧版部署若只检出了 `/scripts/*.ps1`，新版更新器会在可执行更新的 `DryRun`/`Write` 或自更新恢复阶段先补齐当前 sparse checkout 清单中的 `scripts/lib/**`，再加载 `WorkspaceContext.psm1`；`Check` 保持只读，只报告缺失而不修复。
 
+standard 模式的更新器在 fetch 后比较本地 `HEAD` 与 upstream：一致时报告 `agents-up-to-date` 并跳过 pull，仅落后时才 fast-forward 并报告带旧/新 hash 的 `agents-updated`；本地领先或分叉会明确停止。普通 `DryRun` 仍会更新 capability Git 后预演项目生成层，若需保持 capability checkout 不变请使用 `Check` 或 `DryRun -NoPull`。
+
 常用参数：
 
 - `-Mode Check`：只检查，不拉取、不写入。

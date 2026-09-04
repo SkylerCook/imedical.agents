@@ -61,6 +61,7 @@
 - 根目录 `AGENTS.md` 只服务本仓库维护，不部署到业务项目 `.agents/`。
 - 根目录 `agents/` 和 `workflows/` 是能力包正式内容，已加入 `scripts/install-agents.ps1` 和 `scripts/update-agents.ps1` 的 sparse checkout 路径，部署到业务项目 `.agents/agents/` 和 `.agents/workflows/`。
 - 更新器新增运行时依赖时必须兼容旧 sparse checkout 自举：新版脚本在加载新增运行时模块前，可在自更新恢复、`Write` 或允许拉取的 `DryRun` 中以当前完整运行时清单收敛干净的独立 capability Git checkout；`Check` 和显式 `DryRun -NoPull` 保持只读。恢复失败必须停止，不得覆盖 dirty checkout。
+- standard 更新器在 fetch 后必须按 `HEAD...@{upstream}` 区分相同、仅落后、仅领先和分叉：相同时报告 `agents-up-to-date` 并跳过 pull，仅落后时执行 `pull --ff-only` 并报告旧、新 hash；领先或分叉必须停止，不能统一误报为 `agents-updated`。无远端更新仍继续 sparse checkout 和项目本地生成层检查。普通 `DryRun` 保持“更新 capability 后预演本地生成层”的既有契约；严格不更新 capability 时使用 `Check` 或显式 `DryRun -NoPull`。
 - 根 `scripts/iris-mcp.js` 是无原生 MCP 工具运行器的可选 helper，必须随安装/更新部署；standard 项目直接使用 canonical 文件，workspace overlay 必须在本地 `ContextRoot/scripts/` 生成读取 manifest 并转发到 `CapabilityRoot` 的 JS adapter，不复制规则实现或嵌入 capability 绝对路径。原生 MCP 工具仍优先，helper 不得成为 canonical 规则源。helper 必须按当前 MCP schema 的 `mode` / `action` 区分读取与状态变更、默认拦截写入和远端执行，并把 `check_config` 风险作为诊断信号而非仅凭默认 namespace/port 阻断工具发现。
 - 根目录 `skills/` 是能力包正式内容，部署到业务项目 `.agents/skills/`，不再承载维护者专用例外。
 - 源仓根 `.agents/skills/agent-kit-maintenance/` 是受版本控制的仓库本地维护上下文，不在安装/更新 sparse checkout 部署清单内，也不参与 thin-index。业务项目中的 `.agents/` 仍是独立能力包仓库，不得把源仓 `.agents/` 部署成嵌套 `.agents/.agents/`。
