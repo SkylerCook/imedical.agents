@@ -1,11 +1,11 @@
 ---
 name: iris-demand-commit
-description: Use after an IRIS standard or project demand is implemented and verified to prepare repository-specific commit messages, enforce the standard-demand pull gate, and commit only after explicit user authorization.
+description: Use after an IRIS standard or project demand is implemented and verified. Supports explicit --plan/-plan to generate repository-specific commit messages without committing, and --commit/-commit to create verified local commits after authorization; push remains separate.
 ---
 
 # IRIS Demand Commit
 
-本 skill 只有在用户明确要求提交或确认正式提交计划时加载。commit 可以在 `acceptance-pending` 阶段独立执行，但不得把生命周期推进到 `accepted`，也不得触发 feedback 审查或写入。
+本 skill 在用户要求生成提交信息、直接提交，或显式调用 `$iris-demand-commit --plan|--commit` 时加载。commit 可以在 `acceptance-pending` 阶段独立执行，但不得把生命周期推进到 `accepted`，也不得触发 feedback 审查或写入。
 
 ## 使用时机
 
@@ -15,6 +15,22 @@ description: Use after an IRIS standard or project demand is implemented and ver
 - `project`：医院项目、客户定制或项目实施需求。
 
 “处理需求”“修复问题”“执行方案”不包含提交授权。只有用户在当前任务中明确要求“提交”或 `commit`，才允许进入 `apply`。`push`、部署、上传和远程编译始终需要独立授权。
+
+## 调用模式
+
+支持自然语言意图和显式参数两种入口。显式参数优先于自然语言；单横线作为兼容别名，执行前统一规范化为双横线：
+
+```text
+$iris-demand-commit --plan
+$iris-demand-commit --commit
+```
+
+- `--plan` / `-plan`：只生成提交计划和每个仓库的完整 commit message。只运行 `plan`，不得执行 `pull`、`git add`、`git commit` 或 `verify`，不得继续询问是否提交；完成时明确报告“未创建本地 commit”。
+- `--commit` / `-commit`：视为用户对本次精确文件范围的本地 commit 明确授权。先运行 `plan` 并展示结果，再直接运行 `apply --confirm-commit --verify`，不得重复询问；该授权不包含 push。
+- 未提供参数时，根据用户当前请求判断：只要求“生成提交信息”“生成 commit”“查看 commit message”时进入 `--plan`；明确要求“提交”“直接提交”或 `commit` 时进入 `--commit`。
+- 同时出现两种模式、出现未知模式，或显式参数与自然语言意图冲突时停止，展示上述两种合法用法，不猜测执行模式。
+
+调用参数只决定是否创建本地 commit，不改变 `standard/project` 需求类型、文件边界、pull 门禁和独立 push 授权。
 
 ## 必读上下文
 
@@ -100,7 +116,10 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js plan
   --modification <repo-root>::<方案型修改说明>
 ```
 
-单仓库时 `--modification` 可以只传说明正文。计划记录仓库 HEAD、branch、upstream、精确文件、状态/diff 指纹和拟用消息，并带完整性摘要，保存在系统临时目录。不得手工编辑或伪造计划；任何漂移都必须重新 plan。向用户展示每个仓库的文件与完整提交信息；用户尚未授权 commit 时明确询问，当前请求已经明确要求“提交/commit”时不重复暂停确认，plan 成功后直接进入 apply。
+单仓库时 `--modification` 可以只传说明正文。计划记录仓库 HEAD、branch、upstream、精确文件、状态/diff 指纹和拟用消息，并带完整性摘要，保存在系统临时目录。不得手工编辑或伪造计划；任何漂移都必须重新 plan。向用户展示每个仓库的文件与完整提交信息。
+
+- `--plan` 模式到此结束，不询问是否提交，不进入 Apply。
+- `--commit` 模式已有明确授权，plan 成功后直接进入 Apply，不重复暂停确认。
 
 ### 2. Apply
 
@@ -137,9 +156,10 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js veri
 
 ## 完成输出
 
+- 本次调用模式：`--plan` 或 `--commit`，以及自然语言或显式参数来源。
 - 当前需求类型及其来源。
 - 每个仓库的完整提交信息、精确文件和 pull 结果。
-- 用户是否授权 commit。
-- 本地 commit hash 或停止原因。
+- `--plan`：明确说明未执行 pull、未创建本地 commit，且未执行 push。
+- `--commit`：报告用户已通过明确请求或显式参数授权、本地 commit hash 或停止原因。
 - 仍保留的计划外修改。
 - 明确说明未执行 push、部署、上传或远程编译。

@@ -71,6 +71,25 @@ test('generic modification descriptions are rejected', () => {
   assert.doesNotThrow(() => module.validateModification('优化模板内容必填提示，使用必填标识替代校验气泡并在提示关闭后聚焦输入框'));
 });
 
+test('plan-only generation leaves repository and index unchanged', () => {
+  const fixture = createRepo();
+  fs.writeFileSync(path.join(fixture.root, 'target.txt'), 'planned only\n');
+  fs.writeFileSync(path.join(fixture.root, 'unrelated.txt'), 'staged but unrelated\n');
+  git(fixture.root, ['add', 'unrelated.txt']);
+  const headBefore = git(fixture.root, ['rev-parse', 'HEAD']).stdout.trim();
+  const statusBefore = git(fixture.root, ['status', '--short']).stdout;
+  const cachedBefore = git(fixture.root, ['diff', '--cached', '--binary']).stdout;
+
+  const planned = plan(fixture.root, 'project');
+
+  assert.equal(planned.status, 'planned');
+  assert.equal(planned.repositories[0].execution.pull, 'pending');
+  assert.equal(planned.repositories[0].execution.commit, '');
+  assert.equal(git(fixture.root, ['rev-parse', 'HEAD']).stdout.trim(), headBefore);
+  assert.equal(git(fixture.root, ['status', '--short']).stdout, statusBefore);
+  assert.equal(git(fixture.root, ['diff', '--cached', '--binary']).stdout, cachedBefore);
+});
+
 test('project local-only apply preserves unrelated staged changes', () => {
   const fixture = createRepo();
   fs.writeFileSync(path.join(fixture.root, 'target.txt'), 'changed\n');

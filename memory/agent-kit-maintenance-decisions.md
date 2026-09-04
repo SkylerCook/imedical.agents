@@ -90,7 +90,7 @@
 - Overlay manifest 明确至少声明一个 `backend` SourceRoot 且没有 `frontend` SourceRoot 时，profile 使用 canonical `N/A (backend-only)`；无法从声明证明 backend-only 时继续阻断，不扫描父目录或 sibling 猜测源码。后续新增 frontend 时必须重新通过字节门禁再规范化为 `utf8`。
 - 实际文件字节检测始终是修改与上传的最终门禁。UTF-8 或纯 ASCII 可安全规范化 profile；真实 GB2312、mixed、UTF-16 或 unknown 必须停止并报告，不自动批量转码业务源码。
 - 已部署插件配置迁移由 manifest 声明、根更新器通用调用；领域推导逻辑留在插件迁移脚本，不硬编码到根更新器。
-- 普通 IRIS 需求提交由 `iris-demand-commit` 统一收尾，`standard/project` 默认值来自项目 profile 或当前用户明确指定；不得从目录、`contextMode`、remote 或代码量猜测。标版 commit 前必须对全部仓库执行 `pull --ff-only`，项目仓有 upstream 时同样执行、无 upstream 时允许 `local-only`。任何 commit 需要用户明确授权，pull 改变 HEAD 后必须重新计划并再次确认，push 始终独立授权。
+- 普通 IRIS 需求提交由 `iris-demand-commit` 统一收尾，支持自然语言及显式 `$iris-demand-commit --plan|--commit`。`--plan` 只生成计划和完整 commit message，不执行 pull/commit，也不追问是否提交；`--commit` 视为本地提交明确授权并直接执行 plan/apply/verify。`standard/project` 默认值来自项目 profile 或当前用户明确指定，不得从目录、`contextMode`、remote 或代码量猜测。标版 commit 前必须对全部仓库执行 `pull --ff-only`，项目仓有 upstream 时同样执行、无 upstream 时允许 `local-only`；pull 改变 HEAD 后必须重新计划并再次确认，push 始终独立授权。
 - 需求提交的“修改说明”属于方案审计信息，必须同时表达修改对象、具体实现/交互方案和行为结果；仓库之间按实际职责分别归纳，不能用“优化功能”“修复问题”等泛化文本代替。
 
 - `AGENTS.md` 是工程级唯一主入口，必须存在。

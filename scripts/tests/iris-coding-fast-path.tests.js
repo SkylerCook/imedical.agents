@@ -7,6 +7,7 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "../..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 const skill = read("plugins/coding-iris-plugin/skills/iris-coding/SKILL.md");
+const demandCommitSkill = read("plugins/coding-iris-plugin/skills/iris-demand-commit/SKILL.md");
 const deploySkill = read("plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md");
 const i18nSkill = read("plugins/i18n-iris-plugin/skills/i18n-coding/SKILL.md");
 const lifecycle = read("agents/_shared/delivery-lifecycle.md");
@@ -27,5 +28,13 @@ for (const content of [deploySkill, i18nSkill]) {
 }
 assert(!i18nSkill.includes("需求处理完成后，检查本次是否产生可跨需求复用的经验，并按需更新"));
 for (const forbidden of ["完成本地验证后读取“默认需求交付类型”", "需求完成后由 `iris-coding` 路由 `iris-demand-commit`"]) assert(!skill.includes(forbidden));
+
+assert(skill.includes("$iris-demand-commit --plan|--commit"));
+for (const marker of ["$iris-demand-commit --plan", "$iris-demand-commit --commit"]) assert(demandCommitSkill.includes(marker));
+assert(demandCommitSkill.includes("`--plan` / `-plan`"));
+assert(demandCommitSkill.includes("`--commit` / `-commit`"));
+assert(demandCommitSkill.includes("不得继续询问是否提交"));
+assert(demandCommitSkill.includes("视为用户对本次精确文件范围的本地 commit 明确授权"));
+assert(demandCommitSkill.includes("同时出现两种模式"));
 
 console.log("iris-coding fast-path tests passed");

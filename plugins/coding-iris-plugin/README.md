@@ -9,7 +9,7 @@
 - 工作流规则：本地优先；导出、编译、Broker 调试和配置同步优先使用 IRIS 开发主力脚本；MCP 作为辅助能力补上下文、只读验证或覆盖脚本未覆盖场景。
 - 部署编排：`skills/iris-deploy/SKILL.md` 负责远端部署入口、清单生成、确认门禁和验证编排，上传、编译、部署和远端验证按 `rules/iris_deploy_checklist.md` 逐项执行。
 - 需求移植：`skills/iris-demand-promote/SKILL.md` 将已提交的 DEV 需求补丁移植到独立 PRD 按需导出仓库；先导出 PRD 服务器基线，再做三方应用，只创建本地 PRD 提交。
-- 需求提交：`skills/iris-demand-commit/SKILL.md` 为已完成的标版/项目需求生成方案型提交信息；标版提交前强制安全快进，项目兼容纯本地仓库，任何 commit 均需用户明确授权且不包含 push。
+- 需求提交：`skills/iris-demand-commit/SKILL.md` 支持 `$iris-demand-commit --plan|--commit`。`--plan` 只生成方案型提交信息且不追问是否提交；`--commit` 视为本地提交授权，标版提交前强制安全快进，项目兼容纯本地仓库；两种模式均不包含 push。
 - 前端统一编码：当前标版、医院项目的源码、上传内容和服务器运行编码统一使用 canonical `utf8`。
 - 前端编码保护：实际文件字节检测是最终门禁；正常任务静默处理，完成时只报告一行摘要。
 - 前端 i18n 条件门禁：以目标工程 `plugin_profile.md` 为事实来源，只有 i18n 已启用且任务或 diff 命中翻译 helper、翻译 key 或用户可见文案时才追加 i18n 规则和稳定 key 检查；普通前端需求不加载完整 i18n workflow。
@@ -100,7 +100,7 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 3. 检查目标工程 `.mcp.json` 是否包含实际需要的 IRIS/SFTP 能力。
 4. 运行 thin-index dry-run，确认无冲突后再 write。
 5. 普通编码任务优先使用 `iris-coding` 统一入口，由它按任务范围路由到后端、前端、工作流或 promote 流程。
-6. `iris-coding` 本地验证后进入 `acceptance-pending`，不自动加载 `iris-demand-commit`；只有用户明确要求提交或确认正式提交计划时才读取交付类型并路由，commit 不改变验收状态。
+6. `iris-coding` 本地验证后进入 `acceptance-pending`，不自动加载 `iris-demand-commit`；只有用户要求生成提交信息、明确要求提交，或显式调用 `$iris-demand-commit --plan|--commit` 时才读取交付类型并路由，commit 不改变验收状态。
 7. `fast/full/guarded` 只决定开发路径深度，不跳过项目入口、profile、通用安全规则和命中的前后端/i18n/HISUI 规则。轻量并行仅允许最多两个临时只读子 Agent，主 Agent保持唯一写入者。
 7. 明确的纯后端任务可直接使用 `iris-backend-coding`，明确的纯前端任务可直接使用 `iris-frontend-coding`。
 8. 明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
@@ -140,7 +140,7 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 
 - `export.js`：从 IRIS 导出 `.cls/.mac/.inc/.int/.js/.csp/.css`；支持 `--probe --json` 只读探测和 `--staging-dir` 临时导出。
 - `promote-demand.js`：按需求号执行 DEV→PRD 的 plan/apply/continue/verify；同名仓库按 DEV/PRD 绝对路径身份隔离临时计划，`continue` 重新校验双方 HEAD 并拒绝未暂存或未跟踪状态。不同需求号的独立 DEV 提交强制分别形成 PRD 提交，只有 `fix(123,456):...` 这类 DEV 联合需求提交才允许保留为一笔；独立需求共享文件时，用 `--prior-plan` 链接上一笔已验证计划。本脚本不上传、编译或部署远端。
-- `commit-demand.js`：按需求文件解析 GitRoot，标版首行使用简短菜单/功能摘要并在第三行保留完整需求，项目生成两行提交信息；“修改说明”必须交代修改对象、具体方案和行为结果。新计划每个仓库只做一次批量状态读取并同时指纹化 index blob 与工作区字节，`apply --verify` 在同一进程完成获授权的提交和校验；单轮执行达到 2 分钟即停止并报告 Git 卡点。pull、安全门禁、精确文件边界及无 push 约束保持不变。
+- `commit-demand.js`：为 `$iris-demand-commit --plan|--commit` 提供底层 plan/apply/verify。`--plan` 只调用脚本 `plan` 并停止；`--commit` 在明确授权后调用 `plan` 与 `apply --verify`。脚本按需求文件解析 GitRoot，标版首行使用简短菜单/功能摘要并在第三行保留完整需求，项目生成两行提交信息；pull、安全门禁、精确文件边界及无 push 约束保持不变。
 - `compile.js`：上传并编译本地类文件；在 workspace-overlay 中同时接受 `backend/src/...` 逻辑路径，并把远端文档名规范化为不含 `backend/src` 前缀的类文档名。
 - `debugger.js`：调用 Web Broker 方法做快速调试。
 - `sync-env-config.js`：仅当 `.agents/config/project-env.json` 是事实来源时，从它生成 `.mcp.json`。
@@ -165,6 +165,8 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
 常用调用：
 
 ```powershell
+$iris-demand-commit --plan
+$iris-demand-commit --commit
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <文件标识符>
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js <文件名或路径> [命名空间]
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <ClassName> --method <MethodName>

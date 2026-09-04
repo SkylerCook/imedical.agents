@@ -22,7 +22,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 - 历史工程永久替换 `{name}.gb2312.{ext}` 回源文件：`iris-frontend-gb2312-promote`
 - 远端部署、上传、编译、SFTP 同步或部署验证：`iris-deploy`
 - 独立 DEV/PRD 按需导出仓库之间按需求号移植本地提交：`iris-demand-promote`
-- 已完成标版/项目需求的提交计划、pull 门禁和本地提交：`iris-demand-commit`
+- 已完成标版/项目需求的提交信息生成、pull 门禁和本地提交：`iris-demand-commit`，支持显式 `--plan` / `--commit`
 - IRIS 类、方法签名、宏、SQL 元数据或官方文档查询：`iris-mcp-lookup`
 
 ## 必读规则
@@ -65,7 +65,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
    - 同时涉及后端接口和前端页面：先梳理调用链和文件边界，再分阶段改后端和前端。
    - 用户要求部署、上传、编译、SFTP 同步或部署验证：切换到 `iris-deploy`。
    - 用户要求把已提交 DEV 需求更新到独立 PRD 仓库：切换到 `iris-demand-promote`，不把它当远端生产部署。
-   - 只有用户明确要求提交或已确认正式提交计划时才读取并切换到 `iris-demand-commit`；本地验证完成不自动加载该 skill。
+   - 只有用户要求生成提交信息、明确要求提交，或显式调用 `$iris-demand-commit --plan|--commit` 时才读取并切换到该 skill；本地验证完成不自动加载该 skill。
    - 用户要求远端读取或 SQL 验证但不部署：只在明确要求后进入工作流规则。
    - 用户要求查询 IRIS API、签名、宏、SQL 元数据或官方文档：切换到 `iris-mcp-lookup`。
    - 用户明确处理历史 GB2312 工程并要求提升临时文件为源文件：切换到 promote skill。
@@ -75,7 +75,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 6. 按已判定的专项流程执行编码改造。
 7. 最终 diff 再执行一次条件 i18n 门禁；命中且插件已启用时运行 i18n helper 静态检查，失败必须停止。
 8. 默认只做本地修改、只读验证和报告；上传、编译、远程写入、数据库变更必须由用户明确要求。
-9. 本地验证完成后按 `agents/_shared/delivery-lifecycle.md` 进入 `acceptance-pending`，提供最短验收步骤。需求号、标题或默认交付类型均不触发 `iris-demand-commit`；只有用户明确要求提交或确认正式提交计划时才读取交付类型并路由。
+9. 本地验证完成后按 `agents/_shared/delivery-lifecycle.md` 进入 `acceptance-pending`，提供最短验收步骤。需求号、标题或默认交付类型均不触发 `iris-demand-commit`；只有用户要求生成提交信息、明确要求提交，或显式调用 `$iris-demand-commit --plan|--commit` 时才读取交付类型并路由。
 
 ## 前后端混合需求
 
@@ -95,7 +95,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 - 已执行的本地验证。
 - 前端任务正常完成时只输出一行编码摘要，例如“前端编码：utf8，3 个文件已保持 UTF-8”；仅异常时展开完整编码诊断。
 - 仍需用户确认的上传、编译、远程写入、数据库变更或生产环境动作。
-- 需求提交计划、需求类型来源和完整方案型“修改说明”；只有用户明确授权时才报告本地 commit hash，并始终单独说明未执行 push。
+- 需求提交模式、需求类型来源和完整方案型“修改说明”；`--plan` 只报告提交信息且明确未创建 commit，`--commit` 在明确授权后报告本地 commit hash，并始终单独说明未执行 push。
 
 ## 用户验收后的 feedback 审查
 

@@ -13,7 +13,7 @@
 - 历史前端 GB2312 转换后替换源文件：`.agents/skills/iris-frontend-gb2312-promote/SKILL.md`
 - 远端部署、上传、编译、SFTP 同步或部署验证：`.agents/skills/iris-deploy/SKILL.md`
 
-普通编码需求优先使用 `iris-coding`；明确的纯后端、纯前端、历史 GB2312 promote 或远端部署任务可直接使用对应专项 skill。需求编码与验证完成后，需要生成提交信息或用户明确要求 commit 时使用 `iris-demand-commit`；profile 的默认需求交付类型为 `TODO` 时必须提示用户补全。
+普通编码需求优先使用 `iris-coding`；明确的纯后端、纯前端、历史 GB2312 promote 或远端部署任务可直接使用对应专项 skill。需求编码与验证完成后，需要生成提交信息或用户明确要求 commit 时使用 `iris-demand-commit`；可显式调用 `$iris-demand-commit --plan` 只生成信息，或 `$iris-demand-commit --commit` 直接创建并验证本地 commit。profile 的默认需求交付类型为 `TODO` 时必须提示用户补全。
 
 `.agents/rules/` 和 `.agents/skills/` 中的 IRIS 编码文件可以是 thin-index；thin-index 应明确指向 `.agents/plugins/coding-iris-plugin/` 内真实 rules/skills。`coding-iris-init` 是 bootstrap skill，首次初始化不依赖 thin-index。
 
