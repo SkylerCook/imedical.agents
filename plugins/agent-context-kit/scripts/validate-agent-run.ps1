@@ -84,6 +84,16 @@ try {
     exit 1
 }
 
+if ([string]$manifest.schemaVersion -eq "2.0") {
+    $orchestrator = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "../../../scripts/agent-orchestrator.js"))
+    if (-not (Test-Path -LiteralPath $orchestrator -PathType Leaf)) {
+        Write-Error "Missing schema 2.0 validator: $orchestrator"
+        exit 1
+    }
+    & node $orchestrator validate --run-directory $runDirectoryFull --final
+    exit $LASTEXITCODE
+}
+
 foreach ($name in @("schemaVersion", "topic", "runMode", "retrospective", "authorization", "startedAt", "completedAt", "elapsedSeconds", "timingReason", "stages", "failures", "qualityGates", "remoteActions")) {
     if (-not (Test-PropertyExists $manifest $name)) { Add-Issue "Manifest is missing '$name'." }
 }

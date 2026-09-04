@@ -59,6 +59,8 @@ node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js
 4. 对需求经验或框架反馈机制变更，同步检查 `skills/agent-framework-feedback/SKILL.md`、`agents/_shared/feedback-protocol.md`、项目入口模板、owner rule、维护记忆和提交/推送授权边界。
 5. 已完成事项写入维护日志；仍未完成的真实验证或治理工作留在 backlog。不要把已完成事项继续写成“下一步”。
 
+本 skill 固定使用 `taskKind=framework-maintenance` 和 `agents/_shared/maintenance-lifecycle.md`，不创建或推进业务需求的 `acceptance` 状态。框架维护、版本升级、文档治理和 feedback 机制自身修改不触发 `agent-framework-feedback`，也不在收尾时向用户建议 feedback；它们通过版本、文档、测试、维护日志、backlog 和必要的部署副本同步进入 `maintenance-complete`。若同一对话还包含业务需求，必须建立独立业务记录，不能让两类状态相互继承。
+
 ## 影响面判断
 
 - **新增或重构插件**：同步插件 README、插件 `AGENTS.md`、manifest、仓库 README、维护记忆、安装/更新说明和 thin-index 行为。
@@ -81,6 +83,8 @@ git status --short
 node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js validate --repo-root . --base-ref HEAD --worktree
 node --test scripts/tests/component-version-management.tests.js
 ```
+
+完整回归与提交门禁分开：只要完整测试通过后，受测代码、测试、manifest、release record 和相关配置未再变化，提交阶段必须复用该结果，不得机械重复运行完整测试套件。提交前只执行尚未完成或已因后续改动失效的快速门禁：worktree 组件版本校验、`git diff --check`、暂存内容复核和 `git commit`。只有受测范围发生变化、此前无有效结果或验证失败时，才补跑对应完整测试。
 
 按影响面补充：
 

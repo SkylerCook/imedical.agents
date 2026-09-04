@@ -140,6 +140,7 @@ imedical.agents/
 - `docs/update-agents.md`：给 Agent 执行的 `.agents` 安装与更新 runbook。
 - `docs/component-version-management.md`：插件与根级独立 skill 的源仓版本、发布记录和兼容审计规范。
 - `memory/plan/multi-agent-architecture.md`：多智能体架构设计稿。
+- `docs/agent-orchestration.md`：schema 2.0 调度 CLI、adapter、授权、验收和 beta 验证运行手册。
 
 ## 源仓组件版本管理
 
@@ -156,13 +157,18 @@ node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js
 
 这套能力只服务源仓维护，不接入业务项目安装、更新、thin-index 或 hook；现有部署与更新流程继续以 `docs/update-agents.md` 为准。
 
-## 智能体与 workflow
+## 智能体、workflow 与调度
 
 当前已落地首个领域样板：
 
-- `agents/i18n-agent/AGENT.md`：IRIS 国际化需求处理智能体。
+- `agents/coordinator-agent/`、`explorer-agent/`、`planner-agent/`、`coding-agent/`、`review-agent/`、`testing-agent/`：通用角色定义。
+- `agents/iris-change-agent/AGENT.md`：IRIS 复杂变更的正式协作入口。
+- `agents/i18n-agent/AGENT.md`：IRIS 国际化需求处理智能体，复用通用调度内核和角色，保留领域阶段。
 - `agents/i18n-agent/bindings.yaml`：i18n-agent 的插件、规则、skill 和阶段绑定。
-- `workflows/i18n-change.workflow.md`：IRIS i18n 五阶段流程。
+- `workflows/standard-change.workflow.md`：通用任务图、通信、恢复、验证和验收流程。
+- `workflows/iris-change.workflow.md`：IRIS 领域协作流程。
+- `workflows/i18n-change.workflow.md`：IRIS i18n 领域流程。
+- `scripts/agent-orchestrator.js`：schema 2.0 事件驱动调度 CLI，生成统一 adapter action，不直接调用产品 API。
 
 i18n 流程：
 
@@ -170,7 +176,7 @@ i18n 流程：
 Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 ```
 
-运行时必须选择 `retrospective`、`serial` 或 `multi-agent`。`multi-agent` 需要用户明确授权，远程写入仍需单独授权；schema 1.2 使用 `attempts[]`、capability matrix、远程动作终态、`finalization` 和限定 verification scope 表达暂停恢复与最终验证门禁。各阶段通过 `00-run-manifest.json` 和编号 handoff 报告交接，结束后由 `agent-context-kit/scripts/validate-agent-run.ps1` 做只读机械验收。该校验器不承担运行时调度。
+新运行使用 schema 2.0：`taskKind` 先将 `business-demand`、`framework-maintenance` 和 `other` 分流；业务需求走用户验收与 feedback，框架维护走独立 `maintenance-complete` 状态，运行时拒绝交叉调用。`executionPath: fast|full|guarded` 与 `orchestrationMode: serial|subagent|multi-session` 相互独立，状态通过 `events.jsonl` 投影到 `00-run-manifest.json`。协作计划、远程写入、commit、merge、push、部署和 feedback 写入分别授权。旧 schema 1.0–1.2 保持只读兼容。skill 内部短时只读子 Agent 提效不创建正式 run。
 
 对应能力：
 

@@ -1,6 +1,8 @@
 # 多智能体架构设计
 
-> 状态：设计稿 | 日期：2026-06-06 | 适用仓库：`imedical.agents`
+> 状态：beta 实施基线（2026-09-03 更新） | 初稿日期：2026-06-06 | 适用仓库：`imedical.agents`
+
+> 2026-09-04 最终决策：已落地 schema 2.0 事件驱动调度器、六个通用角色、`standard-change`、`iris-change-agent` / `iris-change`，并以互斥 `taskKind` 分开业务需求验收与框架维护生命周期。以下“第一阶段不实现运行时调度器”等早期文字仅保留设计演进背景，以本段、`agents/_shared/orchestration-protocol.md` 和 canonical runtime 为准。框架仍为 beta，需完成三类真实样本后稳定化。
 
 ## 背景
 

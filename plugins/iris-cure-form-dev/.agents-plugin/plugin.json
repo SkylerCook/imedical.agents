@@ -1,6 +1,6 @@
 {
   "name": "iris-cure-form-dev",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "displayName": "IRIS Cure Form Dev Plugin",
   "description": "CA/CR treatment form ingestion, multi-template generation, responsive migration, review, deployment planning, verification, and rollback orchestration.",
   "entry": "AGENTS.md",
@@ -21,7 +21,7 @@
     },
     "coding-iris-plugin": {
       "minVersion": "0.3.1",
-      "maxVersionExclusive": "0.7.0"
+      "maxVersionExclusive": "0.8.0"
     }
   },
   "requiresProjectFiles": [

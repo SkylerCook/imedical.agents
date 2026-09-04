@@ -26,7 +26,9 @@
 
 ## 执行模式与报告契约
 
-运行开始时必须选择 `retrospective`、`serial` 或 `multi-agent`，并创建：
+新运行复用 `agents/_shared/orchestration-protocol.md`、六个通用角色和 `scripts/agent-orchestrator.js`，选择 `orchestrationMode: serial | subagent | multi-session`，并创建 schema 2.0 run。`retrospective`、`serial`、`multi-agent` 只用于既有 schema 1.0–1.2 历史 fixture，不重写其内容。
+
+i18n 领域报告仍使用：
 
 ```text
 docs/agent-reports/{ticket-or-topic}/
@@ -40,17 +42,17 @@ docs/agent-reports/{ticket-or-topic}/
   40-summary.md
 ```
 
-- P1 验证使用逐阶段报告；不适用阶段仍保留文件，并说明 `not-applicable` 原因。
-- `retrospective` 不修改业务代码、不执行远程写入；无法取得的阶段时间写 `null` 和原因，不得推测。
-- `multi-agent` 必须有明确授权；远程写入仍需单独授权。
+- 验证样本使用逐阶段 handoff；不适用 work item 保留原因。
+- 回溯只读任务使用 `serial` 且不得修改业务代码或执行远程写入；无法取得的历史时间不得推测。
+- `multi-session` 必须有当前 planHash 的协作授权；远程写入仍需单独授权。
 - 已选定本 workflow 后，agent/workflow registry 不再重复读取。
-- 运行结束后使用 `plugins/agent-context-kit/scripts/validate-agent-run.ps1` 对目录做只读机械验收。
+- 运行中使用 `agent-orchestrator.js validate`，完成前使用 `validate --final`；PowerShell 入口会对 schema 2.0 薄转发。历史 1.0–1.2 继续由原校验分支只读处理。
 
 ## Step 0：启动契约
 
 任何 Explorer 或代码修改开始前，Coordinator 必须完成以下事项：
 
-1. 选择运行模式并立即创建 `00-run-manifest.json`，不得在执行中途把串行运行事后包装成 `multi-agent`。
+1. 选择 executionPath 与 orchestrationMode，通过 `agent-orchestrator.js init` 立即创建 run，不得在执行中途把串行运行事后包装成 multi-session。
 2. 为每个 actor 声明互斥文件所有权；Backend、Frontend、Template/Seed 和 Verifier 的边界写入 manifest。
 3. 根据需求描述列出预计远程动作，并主动一次性询问当前运行授权：
    - `translation-data-write`：新增页面翻译、缺失字典翻译、XML 语言模板新建、已明确列出的 CSP 翻译加载动作。
@@ -273,4 +275,4 @@ Root Coordinator
 - 验证报告列出已执行检查、未执行原因和残余风险。
 - schema 1.2 的 attempts、capabilities、remote action 终态、finalization 和 verification scope 已完整记录。
 - `00-run-manifest.json` 与阶段报告通过事后机械校验。
-- 如果对框架文件做了修正，调用 `skills/agent-framework-feedback/SKILL.md` 生成反馈条目。
+- 本 workflow 处理业务需求时固定设置 `taskKind=business-demand`，并由此派生 `feedbackReviewApplicable=true`。技术阶段完成后进入 `acceptance-pending`；`finalization.ready` 和 Verifier 不等于用户验收。只有用户明确进入 `accepted` 后才调用 `skills/agent-framework-feedback/SKILL.md` 做只读审查，任何反馈写入仍需独立授权；纯框架维护必须使用独立维护生命周期，不使用本收尾分支。

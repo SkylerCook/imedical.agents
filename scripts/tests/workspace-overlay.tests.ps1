@@ -16,6 +16,10 @@ $adapterNames = @(
   "install-git-hooks.ps1",
   "repair-agent-entrypoints.ps1"
 )
+$nodeAdapterNames = @(
+  "iris-mcp.js",
+  "agent-orchestrator.js"
+)
 
 function Assert-True {
   param([bool]$Condition, [string]$Message)
@@ -61,6 +65,10 @@ param(
     }
     [System.IO.File]::WriteAllText((Join-Path $capabilityRoot ("scripts/" + $adapterName)), $content, [System.Text.UTF8Encoding]::new($false))
   }
+  foreach ($adapterName in $nodeAdapterNames) {
+    $content = '"use strict";' + [Environment]::NewLine + 'if (process.argv.includes("help")) console.log("Usage: fixture");'
+    [System.IO.File]::WriteAllText((Join-Path $capabilityRoot ("scripts/" + $adapterName)), $content, [System.Text.UTF8Encoding]::new($false))
+  }
 
   $manifest = [ordered]@{
     schemaVersion = 1
@@ -98,7 +106,7 @@ try {
   $dryResults = @(& $scriptUnderTest -WorkspaceRoot $dry.Root -Mode DryRun)
   Assert-Equal @(Get-Status -Results $dryResults -Status "junction-planned").Count 2 "DryRun shared Junction plans"
   Assert-Equal @(Get-Status -Results $dryResults -Status "local-directory-planned").Count 6 "DryRun local directory plans"
-  Assert-Equal @(Get-Status -Results $dryResults -Status "runtime-adapter-planned").Count $adapterNames.Count "DryRun adapter plans"
+  Assert-Equal @(Get-Status -Results $dryResults -Status "runtime-adapter-planned").Count ($adapterNames.Count + $nodeAdapterNames.Count) "DryRun adapter plans"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $dry.ContextRoot "plugins"))) "DryRun must not create shared Junction"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $dry.ContextRoot "config"))) "DryRun must not create local directory"
 
@@ -106,7 +114,7 @@ try {
   $writeResults = @(& $scriptUnderTest -WorkspaceRoot $write.Root -Mode Write)
   Assert-Equal @(Get-Status -Results $writeResults -Status "junction-created").Count 2 "Write shared Junction creation"
   Assert-Equal @(Get-Status -Results $writeResults -Status "local-directory-created").Count 6 "Write local directory creation"
-  Assert-Equal @(Get-Status -Results $writeResults -Status "runtime-adapter-generated").Count $adapterNames.Count "Write adapter generation"
+  Assert-Equal @(Get-Status -Results $writeResults -Status "runtime-adapter-generated").Count ($adapterNames.Count + $nodeAdapterNames.Count) "Write adapter generation"
   foreach ($sharedName in @("plugins", "vendor")) {
     $item = Get-Item -Force -LiteralPath (Join-Path $write.ContextRoot $sharedName)
     Assert-Equal $item.LinkType "Junction" ($sharedName + " should be a Junction")
@@ -123,6 +131,16 @@ try {
     Assert-True ($adapterContent.Contains('@PSBoundParameters')) ($adapterName + " should forward bound parameters")
     Assert-True (-not $adapterContent.Contains($write.CapabilityRoot)) ($adapterName + " must not hardcode CapabilityRoot")
   }
+  foreach ($adapterName in $nodeAdapterNames) {
+    $adapterPath = Join-Path $write.ContextRoot ("scripts/" + $adapterName)
+    Assert-True (Test-Path -LiteralPath $adapterPath -PathType Leaf) ($adapterName + " adapter should exist")
+    $adapterContent = [System.IO.File]::ReadAllText($adapterPath, [System.Text.Encoding]::UTF8)
+    Assert-True ($adapterContent.Contains("capability.json")) ($adapterName + " should resolve CapabilityRoot from the manifest")
+    Assert-True (-not $adapterContent.Contains($write.CapabilityRoot)) ($adapterName + " must not hardcode CapabilityRoot")
+    $adapterHelp = (& node $adapterPath help 2>&1 | Out-String)
+    Assert-True ($LASTEXITCODE -eq 0) ($adapterName + " should preserve the canonical exit code")
+    Assert-True $adapterHelp.Contains("Usage:") ($adapterName + " should forward arguments")
+  }
   $adapterOutput = & (Join-Path $write.ContextRoot "scripts/update-agents.ps1") -ProjectRoot "custom-root" -Mode Check -NoPull
   Assert-Equal $adapterOutput.projectRoot "custom-root" "runtime adapter ProjectRoot forwarding"
   Assert-Equal $adapterOutput.mode "Check" "runtime adapter Mode forwarding"
@@ -131,7 +149,7 @@ try {
   $secondResults = @(& $scriptUnderTest -WorkspaceRoot $write.Root -Mode Write)
   Assert-Equal @(Get-Status -Results $secondResults -Status "junction-ok").Count 3 "idempotent source and shared Junctions"
   Assert-Equal @(Get-Status -Results $secondResults -Status "local-path-ok").Count 6 "idempotent local directories"
-  Assert-Equal @(Get-Status -Results $secondResults -Status "runtime-adapter-unchanged").Count $adapterNames.Count "idempotent runtime adapters"
+  Assert-Equal @(Get-Status -Results $secondResults -Status "runtime-adapter-unchanged").Count ($adapterNames.Count + $nodeAdapterNames.Count) "idempotent runtime adapters"
 
   $wrong = New-OverlayFixture -Parent $testRoot -Name "wrong"
   $wrongTarget = Join-Path $testRoot "wrong-target"

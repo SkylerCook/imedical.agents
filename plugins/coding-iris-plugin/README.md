@@ -100,7 +100,8 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 3. 检查目标工程 `.mcp.json` 是否包含实际需要的 IRIS/SFTP 能力。
 4. 运行 thin-index dry-run，确认无冲突后再 write。
 5. 普通编码任务优先使用 `iris-coding` 统一入口，由它按任务范围路由到后端、前端、工作流或 promote 流程。
-6. 需求完成后由 `iris-coding` 路由 `iris-demand-commit`：从 profile 读取 `standard/project` 默认值；`TODO` 必须提示用户补全，不能自动提交。
+6. `iris-coding` 本地验证后进入 `acceptance-pending`，不自动加载 `iris-demand-commit`；只有用户明确要求提交或确认正式提交计划时才读取交付类型并路由，commit 不改变验收状态。
+7. `fast/full/guarded` 只决定开发路径深度，不跳过项目入口、profile、通用安全规则和命中的前后端/i18n/HISUI 规则。轻量并行仅允许最多两个临时只读子 Agent，主 Agent保持唯一写入者。
 7. 明确的纯后端任务可直接使用 `iris-backend-coding`，明确的纯前端任务可直接使用 `iris-frontend-coding`。
 8. 明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
 9. 用户明确处理历史 GB2312 工程，并要求把转换文件替换源文件时，使用 `iris-frontend-gb2312-promote`。

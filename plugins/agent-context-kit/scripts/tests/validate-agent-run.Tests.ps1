@@ -288,6 +288,33 @@ try {
     Add-Content -LiteralPath (Join-Path $sensitive "22-template-seed.md") -Value (("A" * 300))
     Invoke-Validation $sensitive 1
 
+    $schema20Run = Join-Path $tempRoot "schema-20-final"
+    $schema20Plan = Join-Path $tempRoot "schema-20-plan.json"
+    $schema20Orchestrator = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "../../../../scripts/agent-orchestrator.js"))
+    $plan = [ordered]@{
+        topic = "schema 2.0 wrapper fixture"
+        taskKind = "business-demand"
+        workflow = "standard-change"
+        executionPath = "fast"
+        orchestrationMode = "serial"
+        adapter = "serial"
+        adapterCapabilities = [ordered]@{ serial = $true; human = $true }
+        feedbackReviewApplicable = $true
+        feedbackApplicabilityReason = "business-demand"
+        coordinatorId = "coordinator"
+        participants = @([ordered]@{ id = "coordinator"; role = "coordinator"; endpoint = [ordered]@{ type = "serial" } })
+        workItems = @()
+    }
+    Write-Utf8 $schema20Plan ($plan | ConvertTo-Json -Depth 12)
+    & node $schema20Orchestrator init --run-directory $schema20Run --plan $schema20Plan --json | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "schema 2.0 init failed" }
+    & node $schema20Orchestrator transition --run-directory $schema20Run --entity acceptance --status locally-verified --json | Out-Null
+    & node $schema20Orchestrator transition --run-directory $schema20Run --entity acceptance --status acceptance-pending --json | Out-Null
+    & node $schema20Orchestrator transition --run-directory $schema20Run --entity acceptance --status accepted --actor user --evidence-ref messages/user-acceptance.md --json | Out-Null
+    & node $schema20Orchestrator transition --run-directory $schema20Run --entity verification --status passed --actor testing-agent --revision fixture --json | Out-Null
+    & node $schema20Orchestrator transition --run-directory $schema20Run --entity run --status completed --json | Out-Null
+    Invoke-Validation $schema20Run 0
+
     Write-Host "validate-agent-run tests passed."
 } finally {
     if (Test-Path -LiteralPath $tempRoot) { Remove-Item -LiteralPath $tempRoot -Recurse -Force }

@@ -69,7 +69,7 @@ TODO: 记录项目实际可用工具和安全边界。
 ### 编码后
 
 - 按 `.agents/skills/project-context-maintenance/SKILL.md` 判断是否更新 memory、rules、config 或插件入口。
-- 每个 HIS 需求完成后，调用 `.agents/skills/agent-framework-feedback/SKILL.md` 做一次收尾判断：业务项目部署态下，可复用经验进入 `.agents/feedback/experience/`，独立框架修正进入 `.agents/feedback/framework/`；没有候选内容时不写文件。
+- 开工时先设置互斥的 `taskKind`：业务需求为 `business-demand`，框架能力、版本和治理维护为 `framework-maintenance`，其它任务为 `other`。业务需求本地验证后进入 `acceptance-pending`，仅在用户明确验收后调用 `.agents/skills/agent-framework-feedback/SKILL.md` 做只读审查；框架维护走 `maintaining -> locally-verified -> maintenance-complete`，不创建需求验收状态，也不触发或提示 feedback。两类工作同时出现时必须分开记录。任何 feedback 写入或 rule 提升仍需用户逐项授权。
 - 只有用户明确要求时，才执行远端上传、编译或生产数据写入。
 
 ## Plugins

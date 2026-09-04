@@ -5,6 +5,8 @@ description: Use after an IRIS standard or project demand is implemented and ver
 
 # IRIS Demand Commit
 
+本 skill 只有在用户明确要求提交或确认正式提交计划时加载。commit 可以在 `acceptance-pending` 阶段独立执行，但不得把生命周期推进到 `accepted`，也不得触发 feedback 审查或写入。
+
 ## 使用时机
 
 当 IRIS 编码需求已经完成本地修改和必要验证，需要生成或执行 Git 提交时使用本 Skill。它同时支持：

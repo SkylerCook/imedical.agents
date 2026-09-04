@@ -15,6 +15,7 @@
 - CSP 页面翻译导出、校验和同步。
 - 新工程 i18n 初始化。
 - i18n 任务 Step 0 启动契约：开工即确定运行模式、创建 manifest、声明文件所有权，并分别确认翻译数据写入与业务代码部署授权。
+- 需求交付遵循共享生命周期：i18n 业务需求设置 `taskKind=business-demand`，本地验证后停在 `acceptance-pending`；只有用户明确验收后才做 feedback 只读审查，经验新增、命中更新和框架反馈仍需逐项授权。纯框架维护使用独立 `framework-maintenance` 生命周期，不进入需求验收或 feedback。
 
 ## 设计原则
 

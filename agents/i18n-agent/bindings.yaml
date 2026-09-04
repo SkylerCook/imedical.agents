@@ -62,6 +62,16 @@ stages:
     output: docs/agent-reports/{ticket-or-topic}/30-verifier.md
     modelHint: balanced
 handoffProtocol: agents/_shared/handoff-protocol.md
+deliveryProtocol: agents/_shared/delivery-lifecycle.md
+orchestrationProtocol: agents/_shared/orchestration-protocol.md
+runtime: scripts/agent-orchestrator.js
+genericRoles:
+  - coordinator-agent
+  - explorer-agent
+  - planner-agent
+  - coding-agent
+  - review-agent
+  - testing-agent
 serialFallback: true
 executionModes:
   - retrospective

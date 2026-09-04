@@ -46,17 +46,17 @@
 
 ## 执行模式
 
-每次运行必须先选择并记录一种模式：
+新运行使用 schema 2.0 并先选择 `orchestrationMode`：
 
 | 模式 | 用途 | 写入边界 |
 |---|---|---|
-| `retrospective` | 基于既有代码、报告和产物做脱敏复盘 | 不修改业务代码，不执行远程写入 |
 | `serial` | 当前工具不支持子 Agent，或任务没有明确授权多智能体 | 单 Agent 按相同逻辑阶段串行执行 |
-| `multi-agent` | 真实业务需求明确要求多智能体验证 | 子 Agent 可并行处理互不重叠的本地范围；远程写入仍单独授权 |
+| `subagent` | 同会话内多个独立只读阶段 | 临时参与者不直接竞争状态文件 |
+| `multi-session` | 真实业务需求明确要求多会话验证 | 写入者使用隔离 worktree 和互斥 owner；Coordinator 集成 |
 
 - 已直接选定 `i18n-agent` 和 `i18n-change` 后，agent/workflow registry 仅作发现索引，不再作为运行时必读文件。
-- `multi-agent` 必须有用户或适用项目/skill 的明确授权；没有授权时使用 `serial`。
-- 每次 P1 验证按 `agents/_shared/handoff-protocol.md` 生成 `00-run-manifest.json` 和阶段报告。
+- `multi-session` 必须有用户对当前完整计划的明确授权；没有授权时使用 `serial`。
+- 每次正式验证通过通用调度器生成 schema 2.0 manifest、events、message/handoff 和阶段报告。schema 1.0–1.2 fixture 保持历史只读，不原地改写。
 
 ## 启动前置
 
@@ -142,7 +142,7 @@ Root Coordinator
 
 ## 框架反馈
 
-任务完成后调用 `skills/agent-framework-feedback/SKILL.md` 做收尾判断：可复用需求经验进入 `feedback/experience/`；独立框架修正按 `agents/_shared/feedback-protocol.md` 生成到 `feedback/framework/`。
+业务需求 run 固定设置 `taskKind=business-demand`，由此派生 feedback 适用性。技术流程完成后按 `agents/_shared/delivery-lifecycle.md` 进入 `acceptance-pending`。只有用户明确确认验收后，才调用 `skills/agent-framework-feedback/SKILL.md` 做只读审查；任何经验或 framework feedback 写入仍需用户逐项授权。纯框架维护必须建立独立 `framework-maintenance` 记录，不得复用本 run 的验收或 feedback 状态。
 
 ## 降级执行
 

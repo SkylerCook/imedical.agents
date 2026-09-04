@@ -12,12 +12,14 @@
 - 交付 3：明确 canonical、插件、脚本、vendor、memory 的维护责任和必须配套的验证证据。
 - `iris-cure-form-dev` v0.6.0 的 consolidation/cleanup 客户端、离线包校验和传输白名单已落地；在宣称真实服务器事务链可用前，仍需在获授权的目标工程验证 `DHCDoc.Cure.AI.CureFormDeploy` 新增 Inspect/Validate/Apply/staged/Verify/Rollback 方法，覆盖正式 RowID 内容回归、全部 Map 引用切换、灰度模板/缓存删除及 operation 回滚恢复。
 
-### P1：真实多智能体实战与样板定型
+### P1：通用调度框架 beta 真实验证与稳定化
 
 - `#6097879` 已完成第一次真实 multi-agent i18n 实战，但模式在执行中途切换、阶段时间事后重构、文件所有权未进入 manifest，且 Verifier 后仍发生代码和远程翻译修改；该样本用于暴露缺口，不作为“样板已定型”。
 - `#6097891` 已从 Step 0 采用 `multi-agent`，并暴露 MCP 瞬时失败误判、阶段暂停恢复和提前 Verifier 缺口；schema 1.2 与脱敏 fixture 已将异常恢复路径机械化。
-- i18n 主路径和异常恢复路径可作为领域样板继续使用；若要新增通用 `standard-change`、`review-test-release`、`bugfix` workflow 或通用 Agent，至少再补一个不同任务形态样本。
-- 暂不实现复杂运行时调度器，也暂不做 `scripts/generate-agent-adapters.ps1`；工具原生入口只能由 canonical 生成或临时适配，不能成为规则源。
+- 通用 `standard-change`、六个角色、`iris-change-agent` / `iris-change` 和 schema 2.0 调度器已进入 beta；需完成复杂 i18n、复杂非 i18n、一个 `validationSample=true` 的简单 multi-session 样本后才标记稳定。
+- 失败样本必须修复并补跑同类；简单 multi-session 样本不计入 fast-path 性能结论。
+- skill 提效另取后续五个简单 `iris-coding` 需求，统计补丁耗时、无效 skill 加载、子 Agent 启动收益、返工和未验收 feedback 次数。
+- 工具原生配置仍不作为 canonical；当前 `codex-session` 是宿主 action adapter contract，不承诺其它工具未验证的原生 API。
 
 ### P2：代码质量 review 与框架反馈演进
 

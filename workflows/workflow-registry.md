@@ -8,6 +8,8 @@
 
 | Workflow | 职责 | 文件 | 默认 Agent | 是否允许串行降级 |
 |---|---|---|---|---|
+| `standard-change` | 通用任务图、角色、通信、恢复、验证和验收流程 | `workflows/standard-change.workflow.md` | `coordinator-agent` | 是 |
+| `iris-change` | 在通用调度之上增加 IRIS 领域路由 | `workflows/iris-change.workflow.md` | `iris-change-agent` | 是 |
 | `i18n-change` | IRIS 国际化需求处理，从链路定位到验证的领域流程 | `workflows/i18n-change.workflow.md` | `i18n-agent` | 是 |
 
 ## 扩展约定

@@ -38,7 +38,7 @@
 - stale 清理只应删除由插件生成、且源文件已失效的 thin-index；不得删除业务项目自定义 `.agents/rules/`。
 - 独立分发单个插件时，若仍使用 `plugin-reference-thin-index`，必须同时带上根 canonical 脚本，否则选择 `copy` 或手工 thin-index。
 - Agent thin-index 不复用 `generate-plugin-thin-index.ps1`；由独立 `scripts/generate-agent-thin-index.ps1` 从 `agents/*/AGENT.md` 和 `bindings.yaml` 生成 `.agents/skills/<agent-name>/SKILL.md`，只做浅层 skill 路由。
-- 工具专属 agent adapter 暂不实现；后续如需 Codex、Claude Code、OpenCode、CodeBuddy 等原生入口，再由独立 `scripts/generate-agent-adapters.ps1` 生成。该脚本只翻译格式，不创造 canonical 中不存在的职责或规则。
+- 调度内核不硬编码产品 API；`serial`、`subagent`、`codex-session`、`human` 统一使用 action/result contract，由宿主 capability probe 后执行。工具原生配置生成仍不作为 canonical 来源，能力不可用时按 workflow 串行或人工降级。
 
 ## 组件版本治理
 
@@ -110,10 +110,16 @@
 
 ## Agent 运行与反馈边界
 
-- canonical workflow 的运行模式统一表达为 `retrospective`、`serial` 或 `multi-agent`；`multi-agent` 必须有用户明确授权，任何远程写入仍需单独授权，不能由多智能体授权隐含获得。
-- 阶段化运行以 `00-run-manifest.json` 和编号 handoff 报告保存可审计证据；`agent-context-kit/scripts/validate-agent-run.ps1` 只做事后只读机械验收，不承担运行时调度。
-- `agent-framework-feedback` 是 HIS 任务统一收尾入口：可复用需求经验进入 `feedback/experience/` 并按成熟度提升到 owner rule，独立框架修正进入 `feedback/framework/`；没有候选内容时不生成空反馈。
-- 反馈材料默认只生成和校验。提交或推送必须由用户在当前任务中明确要求，不能把“自动收尾”解释为 Git 写入授权。
+- 新运行使用 schema 2.0；`executionPath: fast|full|guarded` 与 `orchestrationMode: serial|subagent|multi-session` 正交。历史 schema 1.0–1.2 只读，不原地迁移。
+- `events.jsonl` 是事件事实源，`00-run-manifest.json` 是当前投影；Coordinator 是唯一状态和集成 owner，参与者通过 action result、message 和 handoff 返回。
+- multi-session 协作计划授权只覆盖当前 planHash；远程写入、commit、merge、push、部署和 feedback 写入分别授权。可写会话必须使用隔离 worktree 和互斥 scope。
+- schema 2.0 先以互斥 `taskKind` 分流：`business-demand` 使用 `implementing -> locally-verified -> acceptance-pending -> accepted`；`framework-maintenance` 使用 `maintaining -> locally-verified -> maintenance-complete`；`other` 不进入任一生命周期。业务需求与框架维护同时出现时建立独立记录，不共享验收、feedback 或完成状态。
+- feedback 适用性由 `taskKind=business-demand` 固定派生，不能作为独立布尔开关绕过分类。框架维护的 `acceptance.status=not-applicable` 且 feedback 始终 `not-eligible`。任何经验新增、命中更新、framework feedback 或 rule 提升均需用户逐项授权。
+
+## 提交阶段验证复用
+
+- 完整维护回归与 Git 提交门禁分离。完整测试通过后，只要受测代码、测试、manifest、release record 和相关配置没有继续变化，提交阶段复用该结果，不机械重跑完整套件。
+- 提交阶段只补齐已失效或尚未执行的快速门禁：worktree 组件版本校验、`git diff --check`、暂存复核和 `git commit`。受测范围变化、缺少有效结果或已有失败时才重跑对应完整测试。
 
 ## 安全边界
 

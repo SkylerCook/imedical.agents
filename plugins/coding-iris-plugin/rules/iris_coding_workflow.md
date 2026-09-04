@@ -27,7 +27,7 @@ related:
 5. MCP 用于补上下文、只读 SQL/远程读取、脚本未覆盖的能力，或用户明确要求使用 MCP 的场景。
 6. 在本地完成最小范围修改。
 7. 仅当用户明确要求时，执行上传、编译、远程写入、Broker 调用或数据库变更。
-8. 需要沉淀长期经验时，按目标工程自己的记忆规则维护。
+8. 业务需求开工时设置 `taskKind=business-demand`；本地验证完成后按 `.agents/agents/_shared/delivery-lifecycle.md` 停在 `acceptance-pending`。只有用户明确验收后才做 feedback 只读审查，任何经验或框架反馈写入仍需用户逐项授权；纯框架维护必须建立独立 `framework-maintenance` 记录，不复用需求状态。
 
 ## IRIS 开发主力脚本
 

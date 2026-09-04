@@ -24,7 +24,8 @@ $adapterNames = @(
   "repair-agent-entrypoints.ps1"
 )
 $nodeAdapterNames = @(
-  "iris-mcp.js"
+  "iris-mcp.js",
+  "agent-orchestrator.js"
 )
 
 function New-OverlayResult {

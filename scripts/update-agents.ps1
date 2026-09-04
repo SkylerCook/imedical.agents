@@ -27,6 +27,7 @@ $runtimeSparsePaths = @(
   "/feedback/**",
   "/hooks/**",
   "/scripts/*.ps1",
+  "/scripts/*.js",
   "/scripts/lib/**",
   "/scripts/iris-mcp.js"
 )

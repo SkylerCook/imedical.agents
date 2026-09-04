@@ -1,6 +1,6 @@
 # Agent Feedback Protocol
 
-本文件定义 Agent 在处理 HIS 需求后生成框架修正反馈的行为规范。统一收尾入口是 `skills/agent-framework-feedback/SKILL.md`；可复用需求经验由该 skill 路由到 `feedback/experience/`，本协议只约束独立框架修正分支。
+本文件只定义 `taskKind=business-demand` 在用户验收后处理框架修正反馈的行为规范。需求生命周期来自 `agents/_shared/delivery-lifecycle.md`，统一入口是 `skills/agent-framework-feedback/SKILL.md`；可复用需求经验由该 skill 路由到 `feedback/experience/`，本协议只约束独立框架修正分支。`taskKind=framework-maintenance` 使用 `agents/_shared/maintenance-lifecycle.md`，不属于反馈场景。
 
 反馈产物的路径取决于运行形态：
 
@@ -13,12 +13,12 @@
 
 ## 触发条件
 
-Agent 在任务收尾阶段，检查以下条件是否满足：
+只有 `taskKind=business-demand`、由其派生的 `feedbackReviewApplicable=true`、需求处于 `accepted`，且 Agent 已完成只读反馈审查并向用户报告建议动作后，才检查以下条件：
 
 1. 本次任务是否读取了 `.agents/` 下的框架文件（rules、skills、templates、references、scripts、agents、workflows 等）？
-2. 是否对框架文件内容有修正或补充（不只是业务项目本地文件）？
+2. 是否在该业务需求的真实使用过程中发现并修正了框架问题（不只是独立维护框架本身）？
 
-**两个条件都满足时**，执行反馈生成。否则正常结束，不生成反馈。
+**两个条件都满足且用户明确授权生成该 framework feedback 时**，执行反馈生成。否则正常结束，不生成反馈。技术验证、commit、部署、Verifier 完成、框架文件已修正或纯框架维护已完成，都不等于用户验收，也不构成反馈写入授权。
 
 ## 反馈生成步骤
 

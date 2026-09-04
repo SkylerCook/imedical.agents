@@ -1,0 +1,16 @@
+{
+  "topic": "",
+  "taskKind": "other",
+  "workflow": "standard-change",
+  "executionPath": "full",
+  "orchestrationMode": "serial",
+  "adapter": "serial",
+  "fallbacks": ["serial", "human"],
+  "adapterCapabilities": {"serial":true,"human":true},
+  "validationSample": false,
+  "feedbackReviewApplicable": false,
+  "feedbackApplicabilityReason": "other",
+  "coordinatorId": "coordinator",
+  "participants": [{"id":"coordinator","role":"coordinator","endpoint":{"type":"serial","id":null},"capabilities":[],"worktree":{"mode":"none","ref":null},"readScopes":[],"writeScopes":[]}],
+  "workItems": []
+}

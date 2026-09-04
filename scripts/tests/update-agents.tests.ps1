@@ -13,6 +13,7 @@ $installGitHooksScriptUnderTest = Join-Path $repoRoot "scripts/install-git-hooks
 $repairAgentEntrypointsScriptUnderTest = Join-Path $repoRoot "scripts/repair-agent-entrypoints.ps1"
 $preCommitHookUnderTest = Join-Path $repoRoot "hooks/pre-commit"
 $irisMcpHelperUnderTest = Join-Path $repoRoot "scripts/iris-mcp.js"
+$agentOrchestratorUnderTest = Join-Path $repoRoot "scripts/agent-orchestrator.js"
 $preferVendorIrisMcpScriptUnderTest = Join-Path $repoRoot "scripts/prefer-vendor-iris-mcp.ps1"
 $irisAgenticRuleUnderTest = Join-Path $repoRoot "plugins/coding-iris-plugin/rules/iris_agentic_dev.md"
 $repositoryMaintenanceSkillUnderTest = Join-Path $repoRoot ".agents/skills/agent-kit-maintenance/SKILL.md"
@@ -69,6 +70,7 @@ function New-TestProject {
   Copy-Item -LiteralPath $workspaceContextModuleUnderTest -Destination (Join-Path $root ".agents/scripts/lib/WorkspaceContext.psm1")
   Copy-Item -LiteralPath $overlayInitializerUnderTest -Destination (Join-Path $root ".agents/scripts/initialize-workspace-overlay.ps1")
   Copy-Item -LiteralPath $irisMcpHelperUnderTest -Destination (Join-Path $root ".agents/scripts/iris-mcp.js")
+  Copy-Item -LiteralPath $agentOrchestratorUnderTest -Destination (Join-Path $root ".agents/scripts/agent-orchestrator.js")
   Copy-Item -LiteralPath $preferVendorIrisMcpScriptUnderTest -Destination (Join-Path $root ".agents/scripts/prefer-vendor-iris-mcp.ps1")
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/agent-registry.md") -Value "# Agent Registry"
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/workflow-registry.md") -Value "# Workflow Registry"
@@ -87,6 +89,20 @@ function New-TestProject {
     "  - i18n-iris-plugin"
   )
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/i18n-change.workflow.md") -Value "# i18n-change"
+  foreach ($agent in @(
+    @{ Name = "coordinator-agent"; Workflow = "standard-change"; Description = "Coordinator agent." },
+    @{ Name = "iris-change-agent"; Workflow = "iris-change"; Description = "IRIS change agent." }
+  )) {
+    New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/agents/$($agent.Name)") | Out-Null
+    Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/$($agent.Name)/AGENT.md") -Value "# $($agent.Name)"
+    Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/$($agent.Name)/bindings.yaml") -Value @(
+      "name: $($agent.Name)",
+      "description: $($agent.Description)",
+      "defaultWorkflow: $($agent.Workflow)",
+      "serialFallback: true"
+    )
+    Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/$($agent.Workflow).workflow.md") -Value "# $($agent.Workflow)"
+  }
 
   $contextPluginRoot = Join-Path $root ".agents/plugins/agent-context-kit"
   New-Item -ItemType Directory -Force -Path (Join-Path $contextPluginRoot ".agents-plugin") | Out-Null
@@ -333,6 +349,7 @@ Assert-Contains $updateScriptContent "/workflows/**" "update sparse checkout sho
 Assert-Contains $updateScriptContent "/feedback/**" "update sparse checkout should include feedback"
 Assert-Contains $updateScriptContent "/hooks/**" "update sparse checkout should include hooks"
 Assert-Contains $updateScriptContent "/scripts/iris-mcp.js" "update sparse checkout should deploy the MCP helper"
+Assert-Contains $updateScriptContent "/scripts/*.js" "update sparse checkout should deploy root JavaScript runtime files"
 Assert-Contains $updateScriptContent "prefer-vendor-iris-mcp.ps1" "update should prefer the bundled iris-agentic-dev executable"
 Assert-Contains $updateScriptContent "/scripts/lib/**" "update sparse checkout should deploy Workspace Context runtime modules"
 Assert-True (-not $updateScriptContent.Contains('"/.agents/**"')) "update sparse checkout must not deploy source-repository .agents context"
@@ -352,6 +369,7 @@ Assert-Contains $installScriptContent "/workflows/**" "install sparse checkout s
 Assert-Contains $installScriptContent "/feedback/**" "install sparse checkout should include feedback"
 Assert-Contains $installScriptContent "/hooks/**" "install sparse checkout should include hooks"
 Assert-Contains $installScriptContent "/scripts/iris-mcp.js" "install sparse checkout should deploy the MCP helper"
+Assert-Contains $installScriptContent "/scripts/*.js" "install sparse checkout should deploy root JavaScript runtime files"
 Assert-Contains $installScriptContent "prefer-vendor-iris-mcp.ps1" "install should prefer the bundled iris-agentic-dev executable"
 Assert-Contains $installScriptContent "/scripts/lib/**" "install sparse checkout should deploy Workspace Context runtime modules"
 Assert-True (-not $installScriptContent.Contains('"/.agents/**"')) "install sparse checkout must not deploy source-repository .agents context"
@@ -478,16 +496,16 @@ Assert-True ([version]$codingIrisManifest.version -ge [version]"0.6.0") "coding 
 Assert-True (@($codingIrisManifest.configMigrations | Where-Object { $_.id -eq "demand-delivery-type-v1" }).Count -eq 1) "coding iris plugin should declare demand delivery type migration"
 Assert-True (Test-Path -LiteralPath (Join-Path $repoRoot "plugins/coding-iris-plugin/skills/iris-demand-commit/SKILL.md") -PathType Leaf) "coding iris plugin should include iris-demand-commit"
 Assert-True ($cureFormDevManifest.name -eq "iris-cure-form-dev") "cure form plugin manifest should use the canonical name"
-Assert-True ($cureFormDevManifest.version -eq "0.6.3") "cure form plugin manifest should accept the coding iris v0.6 compatibility range"
+Assert-True ($cureFormDevManifest.version -eq "0.6.4") "cure form plugin manifest should accept the coding iris v0.7 compatibility range"
 Assert-True (($cureFormDevManifest.dependencies -contains "extract-doc")) "cure form plugin should declare extract-doc as a dependency"
 Assert-True (($cureFormDevManifest.dependencies -contains "coding-iris-plugin")) "cure form plugin should declare coding-iris-plugin as a dependency"
 Assert-True ($cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.minVersion -eq "0.3.1") "cure form plugin should retain the overlay-aware coding plugin minimum"
-Assert-True ($cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.7.0") "cure form plugin should accept coding iris v0.6"
-Assert-True ($irisCodegraphManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.7.0") "iris-codegraph should accept coding iris v0.6"
-Assert-True ($interfaceDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.7.0") "interface plugin should accept coding iris v0.6"
+Assert-True ($cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.8.0") "cure form plugin should accept coding iris v0.7"
+Assert-True ($irisCodegraphManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.8.0") "iris-codegraph should accept coding iris v0.7"
+Assert-True ($interfaceDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.8.0") "interface plugin should accept coding iris v0.7"
 Assert-True (($externalRegManifest.dependencies -contains "extract-doc")) "iris-external-reg should declare extract-doc as a dependency"
 Assert-True (($externalRegManifest.dependencies -contains "coding-iris-plugin")) "iris-external-reg should declare coding-iris-plugin as a dependency"
-Assert-True ($externalRegManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.7.0") "iris-external-reg should accept coding iris v0.6"
+Assert-True ($externalRegManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.8.0") "iris-external-reg should accept coding iris v0.7"
 Assert-Contains $contextSkillContent "install-git-hooks.ps1" "project-context-maintenance should mention optional git hook enablement"
 Assert-True (Test-Path -LiteralPath $repositoryMaintenanceSkillUnderTest -PathType Leaf) "repository-local maintenance skill should live under .agents/skills"
 Assert-True (-not (Test-Path -LiteralPath $legacyRepositoryMaintenanceSkillUnderTest)) "root skills should not retain the maintenance-only exception"
@@ -853,6 +871,12 @@ try {
   Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "config/sample_profile.md") -PathType Leaf) "Overlay config should be written to ContextRoot"
   Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "skills/sample-skill/SKILL.md") -PathType Leaf) "Overlay plugin thin-index should be written to ContextRoot"
   Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "skills/i18n-agent/SKILL.md") -PathType Leaf) "Overlay agent thin-index should be written to ContextRoot"
+  Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "skills/coordinator-agent/SKILL.md") -PathType Leaf) "Overlay coordinator-agent thin-index should be written to ContextRoot"
+  Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "skills/iris-change-agent/SKILL.md") -PathType Leaf) "Overlay iris-change-agent thin-index should be written to ContextRoot"
+  Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "scripts/agent-orchestrator.js") -PathType Leaf) "Overlay should generate the agent orchestrator runtime adapter"
+  $overlayOrchestratorHelp = (& node (Join-Path $overlayProject.ContextRoot "scripts/agent-orchestrator.js") help 2>&1 | Out-String)
+  Assert-True ($LASTEXITCODE -eq 0) "Overlay agent orchestrator adapter should preserve the canonical helper exit code"
+  Assert-Contains $overlayOrchestratorHelp "Commands:" "Overlay agent orchestrator adapter should forward to the canonical runtime"
   $overlayPluginThinIndex = [System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "skills/sample-skill/SKILL.md"), [System.Text.Encoding]::UTF8)
   Assert-Contains $overlayPluginThinIndex "source: .agents/plugins/sample-plugin/skills/sample-skill/SKILL.md" "Overlay plugin thin-index should keep a logical capability source"
   Assert-True (-not $overlayPluginThinIndex.Contains($overlayProject.CapabilityRoot)) "Overlay plugin thin-index must not embed an absolute CapabilityRoot"
@@ -989,6 +1013,9 @@ try {
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/agent-kit-maintenance"))) "Write should remove deployed maintenance-only skill"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/config/plugin_profile.md")) "Write should create plugin profile"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/i18n-agent/SKILL.md")) "Write should generate i18n-agent skill thin-index"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/coordinator-agent/SKILL.md")) "Write should generate coordinator-agent skill thin-index"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/iris-change-agent/SKILL.md")) "Write should generate iris-change-agent skill thin-index"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/scripts/agent-orchestrator.js")) "Write should retain the deployed agent orchestrator"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/vendor-test-skill/SKILL.md")) "Write should generate vendor skill thin-index"
   $updatedMcpConfig = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".mcp.json") | ConvertFrom-Json
   Assert-True ($updatedMcpConfig.mcpServers.'iris-agentic-dev'.command -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Update Write should prefer the bundled MCP executable"
@@ -1008,6 +1035,10 @@ try {
   Assert-Contains $agentSkillThinIndex ".agents/agents/i18n-agent/bindings.yaml" "Agent thin-index should point to bindings.yaml"
   Assert-Contains $agentSkillThinIndex ".agents/workflows/i18n-change.workflow.md" "Agent thin-index should point to default workflow"
   Assert-True (-not $agentSkillThinIndex.Contains(".codex/agents")) "Agent thin-index must not generate tool adapter content"
+  $coordinatorThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/coordinator-agent/SKILL.md")
+  Assert-Contains $coordinatorThinIndex ".agents/workflows/standard-change.workflow.md" "Coordinator thin-index should point to standard-change"
+  $irisChangeThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/iris-change-agent/SKILL.md")
+  Assert-Contains $irisChangeThinIndex ".agents/workflows/iris-change.workflow.md" "IRIS change thin-index should point to iris-change"
   $profileAfterWrite = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/plugin_profile.md")
   Assert-Contains $profileAfterWrite "agent-context-kit | enabled" "Default context plugin should be enabled"
   Assert-Contains $profileAfterWrite "sample-plugin | enabled" "Write must preserve enabled plugin state"

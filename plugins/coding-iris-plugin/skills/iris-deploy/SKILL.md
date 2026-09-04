@@ -59,4 +59,4 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 
 部署完成前必须逐项检查 `rules/iris_deploy_checklist.md` 的验证章节。没有完成验证时，只能报告“已执行上传/编译步骤，验证未完成”，不得报告部署成功。
 
-部署过程中产生可跨场景复用的新经验时，按 `feedback/experience/deploy-com-exp.md` 的维护规则沉淀；不要写入敏感连接信息、完整命令输出或一次性排障流水。
+部署和本地验证完成后仍停在 `acceptance-pending`。部署过程中产生可跨场景复用的新经验时，也必须遵循 `.agents/agents/_shared/delivery-lifecycle.md` 和 `agent-framework-feedback`：用户明确验收后先做只读审查，只有逐项授权后才按 `feedback/experience/deploy-com-exp.md` 维护；不要写入敏感连接信息、完整命令输出或一次性排障流水。

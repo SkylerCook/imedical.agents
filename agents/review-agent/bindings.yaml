@@ -1,0 +1,9 @@
+name: review-agent
+type: general-role
+description: 独立代码和契约审查角色。
+defaultWorkflow: standard-change
+plugins: []
+permissions:
+  write: false
+modelHint: deep-reasoning
+serialFallback: true

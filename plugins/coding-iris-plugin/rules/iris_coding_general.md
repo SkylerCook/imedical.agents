@@ -38,3 +38,4 @@ task-affinity: [iris, coding, safety, editing]
 - 后端变更如需验证，用户明确要求后再使用目标工程 MCP 编译相关类。
 - 前端 CSP/JS/CSS 变更如需部署，用户明确要求后再按工作流转换编码、上传并验证。
 - 无法运行必要验证时，在回复中说明原因和剩余风险。
+- 本地验证通过后状态只能进入 `acceptance-pending`；只有用户明确确认验收，才能进入 `accepted`，并且验收不隐含 feedback 写入授权。

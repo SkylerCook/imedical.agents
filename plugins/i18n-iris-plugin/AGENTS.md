@@ -17,6 +17,7 @@
 - 页面翻译种子类固定默认公共契约：`SetPageTrans` / `KillPageTrans` 负责单条写入与回滚，`Load{LANG}Translation` / `Kill{LANG}Translation` 负责语言聚合；需求批次方法继续使用带批次号的动态命名。字典翻译 SQL 与 XML 模板同步不并入该类。
 - canonical 类模板位于 `templates/DHCDoc/I18n/PageTranslationSeed.cls`。目标文件不存在时只能在明确的页面翻译种子实现任务中按模板创建；已有文件必须校验并增量修改，不得由初始化器或更新器覆盖。
 - 前端翻译 helper 的 key 必须保持稳定字面量；运行时值只能作为占位符参数传入。修改 JS/CSP helper 后使用 `scripts/check-i18n-helper-usage.js` 做只读静态检查，失败不得继续交付。
+- i18n 业务需求开工时设置 `taskKind=business-demand`；本地验证、commit、部署均不得代表用户验收，交付后停在 `acceptance-pending`。只有用户明确验收后才允许只读 feedback 审查，任何经验写入、命中次数更新、framework feedback 或 rule 提升仍需用户逐项授权。纯框架维护使用独立 `framework-maintenance` 记录，不进入需求验收或 feedback。
 
 ## Skill 路由
 

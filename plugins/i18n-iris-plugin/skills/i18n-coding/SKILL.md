@@ -80,20 +80,22 @@ description: Use when applying frontend or backend internationalization coding c
 - 复杂需求应产出链路事实报告和字段分类清单。
 - 对全部触碰的 JS/CSP 文件，按 profile 中的 helper 名称运行 `scripts/check-i18n-helper-usage.js`；退出码 `1` 或 `2` 时停止，不能交付动态翻译 key。
 
-## 需求完成后的经验沉淀
+## 用户验收后的 feedback 审查
 
-需求处理完成后，检查本次是否产生可跨需求复用的经验，并按需更新 `feedback/experience/demand-com-exp.md`。
+本 skill 处理业务需求时，在开工路由中设置 `taskKind=business-demand`，由此派生 feedback 适用性。本地验证完成后按 `.agents/agents/_shared/delivery-lifecycle.md` 停在 `acceptance-pending`。只有用户明确说“验收通过”“修改完成”“可以收尾”等同义确认后，才读取 `agent-framework-feedback` 做只读审查，报告通用经验候选、已有命中、框架问题和建议动作。纯框架维护必须建立独立 `taskKind=framework-maintenance` 记录，不得借用本需求的验收或 feedback 状态。
+
+未获得用户逐项授权前，不新增或修改经验、不更新命中次数、不生成 framework feedback、不提升 rule。用户验收只授权审查，不隐含任何 feedback 写入授权。
 
 需要沉淀的情况：
 
 - 本次遇到现有 rules/skills 未覆盖的坑、边界或判断标准。
 - 本次验证出可复用的工程模式、处理顺序或检查项。
 - i18n 场景包括链路定位、字段分类、模板 fallback、字典翻译位置、UI 自动翻译边界或翻译种子验证经验。
-- 已有经验条目再次命中本次需求：追加需求号并 `命中+1`；没有明确需求号时，记录可追溯的任务标题或不更新命中计数。
+- 已有经验条目再次命中本次需求：先报告命中和建议动作；只有用户授权后才追加需求号并 `命中+1`。没有明确需求号时，记录可追溯的任务标题或不更新命中计数。
 
 沉淀要求：
 
-- 先搜索已有条目，能合并就合并，不重复新增。
+- 审查阶段只搜索和报告已有条目，能合并时提出合并建议，不重复新增。
 - 按 `feedback/experience/demand-com-exp.md` 的分类和条目格式记录。
 - 不写服务器、账号、namespace、远程路径、患者样本等敏感信息。
 - 不复制长段命令输出、完整 diff 或一次性排障流水。

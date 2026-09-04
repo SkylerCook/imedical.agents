@@ -36,7 +36,9 @@
 普通编码需求优先使用 `iris-coding`。当任务边界已经明确为纯后端、纯前端，或用户明确处理历史 GB2312 工程时，可直接使用对应专项 skill。
 当用户明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
 当用户要求把已提交的 DEV 需求更新到独立 PRD 按需导出仓库时，使用 `iris-demand-promote`；需求来源是 DEV Git 补丁，目标基线必须从 PRD 服务器导出，默认只形成本地 PRD 提交。
-当编码需求已经完成并需要生成提交信息或执行本地提交时，使用 `iris-demand-commit`；标版首行使用简短菜单/功能摘要、第三行保留完整需求，并强制 `pull --ff-only`，项目采用两行消息且兼容无 upstream 的本地仓库。用户已明确授权 commit 时不重复暂停确认，push 仍需另行授权。
+只有用户明确要求提交或已确认正式提交计划时才使用 `iris-demand-commit`；本地验证完成不自动加载。commit 不改变 `acceptance-pending`，也不触发 feedback。标版首行使用简短菜单/功能摘要、第三行保留完整需求，并强制 `pull --ff-only`；push 仍需另行授权。
+
+`iris-coding` 使用 `fast/full/guarded` 开发路径，但所有路径都必须读取项目入口、profile、通用规则和命中的专项规则。每次执行做轻量 `parallelAssessment`，只在两个独立只读范围确有收益时自主使用最多两个临时子 Agent；主 Agent 是唯一写入者。并行写入、持续通信或跨会话协作应建议 `iris-change-agent` 正式 workflow。
 当用户要求查询 IRIS 类、方法、函数、宏、SQL 元数据或官方文档时，使用 `iris-mcp-lookup`；该 skill 默认只读，并把当前实例元数据与官方文档版本分开报告。
 
 前端编码还必须读取目标工程 `.agents/config/plugin_profile.md`。仅当 `i18n-iris-plugin` 为 `enabled` 且任务或最终 diff 命中翻译 helper、翻译 key 或用户可见文案时，追加 i18n profile/rules 和 helper 静态检查；普通需求不自动进入完整 i18n workflow，插件未启用时不得因目录存在而加载。

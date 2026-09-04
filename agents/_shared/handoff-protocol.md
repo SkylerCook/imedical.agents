@@ -21,7 +21,22 @@ docs/agent-reports/{ticket-or-topic}/{stage}-{agent}.md
 
 `docs/agent-reports/` 是业务项目工作产物目录，是否入库由业务项目决定；它不属于 `imedical.agents` 能力包内容。
 
-## P1 运行目录契约
+## schema 2.0 通用运行契约
+
+新 run 使用 `agents/_shared/orchestration-protocol.md`：Coordinator 经 `scripts/agent-orchestrator.js` 维护 `events.jsonl` 与 `00-run-manifest.json`，参与者通过 `messages/*.md`、`handoffs/*.md` 和统一 action result 交接。报告文件名由 workflow/work item 决定，不再由通用协议硬编码。
+
+轻量交接正文建议保持：
+
+```text
+scope: 检查或实现范围
+evidence: 文件、符号、测试或运行证据
+conclusion: 已确认结论
+uncertainties: 尚未确认内容
+recommendedNextStep: 建议下一步
+filesChanged: none 或受控路径
+```
+
+## schema 1.0–1.2 历史 i18n 运行目录契约
 
 P1 串行或多智能体验证统一使用：
 
@@ -63,7 +78,7 @@ schema `1.2` 还必须包含：
 - 每个适用阶段至少一个 attempt；attempt 状态允许 `completed`、`blocked`、`suspended`，恢复时递增编号，不创建临时阶段名。
 - 写入型 `remoteActions[]` 必须有非空 `scope` 和 `authorizationCategory`；类别区分 `translation-data-write`、`business-code-deploy` 与 `tool-internal-execution`。
 
-validator 继续兼容 schema `1.0` / `1.1` 历史产物；新运行必须使用模板当前 schema，不把旧字段复制到 1.2。
+validator 继续只读兼容 schema `1.0` / `1.1` / `1.2` 历史产物；新运行使用 schema 2.0，不把旧阶段字段复制到新 manifest。
 
 时间使用带时区 ISO 8601。`retrospective` 无法取得阶段时间时允许 `null`，但必须填写 `timingReason`；其它模式必须填写实际时间。
 

@@ -32,6 +32,18 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 3. `rules/iris_coding_index.md`
 4. `rules/iris_coding_general.md`
 
+`executionPath: fast | full | guarded` 只决定分析和验证深度，不决定是否遵守规则。三条路径都必须读取上述入口，并按任务信号读取命中的前端、后端、i18n、HISUI、编码和安全规则。
+
+## 执行路径
+
+- `fast`：低风险、单仓、范围清晰且通常只涉及 1–2 个文件；保留 Git 状态、修改前后编码检查、目标测试和最终 diff 门禁，只后置未命中的深查、部署、commit 与 feedback。
+- `full`：跨前后端、需要调用链定位、涉及 3 个以上文件或证据不足。
+- `guarded`：Storage、权限、迁移、生产数据、远端写入、部署、复杂编码或验证失败等高风险场景。
+
+执行中发现范围扩大、第二个仓库、第三个文件、规则信号或验证失败时，立即从 `fast` 升级到 `full` / `guarded`，不得用 fast 跳过规则。
+
+每次执行做轻量 `parallelAssessment`：只有存在两个互相独立的只读范围，且并行收益大于启动成本时，才可自主使用最多两个临时只读子 Agent。主 Agent 保持唯一写入者；临时子 Agent 不创建正式 run。需要并行写入、持续通信或跨会话协作时，建议改用 `iris-change-agent` / `iris-change` 正式 workflow。
+
 按任务范围继续读取：
 
 - 后端 `.cls`、BLH/DATA/SQL、Broker、Query、ObjectScript 编译验证：读取 `iris-backend-coding` 和 `rules/iris_coding_backend.md`
@@ -53,7 +65,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
    - 同时涉及后端接口和前端页面：先梳理调用链和文件边界，再分阶段改后端和前端。
    - 用户要求部署、上传、编译、SFTP 同步或部署验证：切换到 `iris-deploy`。
    - 用户要求把已提交 DEV 需求更新到独立 PRD 仓库：切换到 `iris-demand-promote`，不把它当远端生产部署。
-   - 需求编码和验证完成后，需要生成提交信息或用户明确要求提交：切换到 `iris-demand-commit`；未明确授权时只生成计划，不执行 commit。
+   - 只有用户明确要求提交或已确认正式提交计划时才读取并切换到 `iris-demand-commit`；本地验证完成不自动加载该 skill。
    - 用户要求远端读取或 SQL 验证但不部署：只在明确要求后进入工作流规则。
    - 用户要求查询 IRIS API、签名、宏、SQL 元数据或官方文档：切换到 `iris-mcp-lookup`。
    - 用户明确处理历史 GB2312 工程并要求提升临时文件为源文件：切换到 promote skill。
@@ -63,7 +75,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 6. 按已判定的专项流程执行编码改造。
 7. 最终 diff 再执行一次条件 i18n 门禁；命中且插件已启用时运行 i18n helper 静态检查，失败必须停止。
 8. 默认只做本地修改、只读验证和报告；上传、编译、远程写入、数据库变更必须由用户明确要求。
-9. 需求有明确需求号和标题时，完成本地验证后读取“默认需求交付类型”：合法值路由 `iris-demand-commit`，`TODO` 或缺失时提示用户补全；“处理需求”本身不授权 commit。
+9. 本地验证完成后按 `agents/_shared/delivery-lifecycle.md` 进入 `acceptance-pending`，提供最短验收步骤。需求号、标题或默认交付类型均不触发 `iris-demand-commit`；只有用户明确要求提交或确认正式提交计划时才读取交付类型并路由。
 
 ## 前后端混合需求
 
@@ -85,20 +97,20 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 - 仍需用户确认的上传、编译、远程写入、数据库变更或生产环境动作。
 - 需求提交计划、需求类型来源和完整方案型“修改说明”；只有用户明确授权时才报告本地 commit hash，并始终单独说明未执行 push。
 
-## 需求完成后的经验沉淀
+## 用户验收后的 feedback 审查
 
-需求处理完成后，检查本次是否产生可跨需求复用的经验，并按需更新 `feedback/experience/demand-com-exp.md`。
+本 skill 处理业务需求时，在开工路由中设置 `taskKind=business-demand`，由此派生 feedback 适用性。用户明确说“验收通过”“修改完成”“可以收尾”等同义确认后，读取 `agent-framework-feedback` 做只读审查，报告通用经验候选、已有命中、框架问题和建议动作。未获得用户逐项授权前，不新增/修改经验、不更新命中次数、不生成 framework feedback、不提升 rule。纯框架维护必须建立独立 `taskKind=framework-maintenance` 记录并使用 `agent-kit-maintenance`，不得借用本需求的验收或 feedback 状态。
 
 需要沉淀的情况：
 
 - 本次遇到现有 rules/skills 未覆盖的坑、边界或判断标准。
 - 本次验证出可复用的工程模式、处理顺序或检查项。
 - IRIS 编码场景包括持久化类、SQL、HisUI DataGrid、CSP 页面、Broker、UTF-8/legacy GB2312 编码或部署验证经验。
-- 已有经验条目再次命中本次需求：追加需求号并 `命中+1`；没有明确需求号时，记录可追溯的任务标题或不更新命中计数。
+- 已有经验条目再次命中本次需求：先报告命中与建议动作；只有用户授权后才追加需求号并 `命中+1`。
 
 沉淀要求：
 
-- 先搜索已有条目，能合并就合并，不重复新增。
+- 仅在 `accepted` 后搜索已有条目，能合并就合并，不重复新增。
 - 按 `feedback/experience/demand-com-exp.md` 的分类和条目格式记录。
 - 不写服务器、账号、namespace、远程路径、患者样本等敏感信息。
 - 不复制长段命令输出、完整 diff 或一次性排障流水。
@@ -114,3 +126,5 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 - 未把服务器、namespace、账号、密码、token、远程路径、业务页面清单、业务类名前缀或项目专属基类写入插件。
 - 上传、编译、远程写入、数据库变更没有在用户未明确要求时执行。
 - 需求提交没有从“处理/修复”指令中推断授权；`TODO` 交付类型已停止并提示补全，合法类型已按 `iris-demand-commit` 处理。
+- `executionPath` 与是否使用临时只读子 Agent 相互独立；fast 未跳过任何适用规则。
+- 本地验证后停在 `acceptance-pending`；用户验收前未读取或写入 feedback。

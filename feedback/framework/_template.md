@@ -4,6 +4,8 @@
 - 提交人：姓名
 - 基于版本：git commit hash（执行 `git rev-parse HEAD` 获取）
 - HIS 需求号：（可选）
+- deliveryStatus：accepted（或用户显式要求的 provisional）
+- 用户验收依据 / 提前记录请求：...
 - 状态：待处理
 
 ## 场景描述

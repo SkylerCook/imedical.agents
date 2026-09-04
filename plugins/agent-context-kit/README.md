@@ -6,7 +6,8 @@
 
 - `skills/project-context-maintenance/`：初始化和维护项目上下文的主流程。
 - `scripts/generate-plugin-thin-index.ps1`：thin-index 生成 wrapper，实际委托根 `scripts/generate-plugin-thin-index.ps1`。
-- `scripts/validate-agent-run.ps1`：事后校验 schema 1.2 Agent 运行 manifest、阶段 attempts、capability matrix、文件所有权、远程动作终态、finalization、验证新鲜度、失败收敛、脱敏和并行效率，并兼容 1.0/1.1 历史产物；不执行调度或远程动作。
+- `templates/agent-run-plan.json` / `agent-run-manifest.json`：通用 schema 2.0 任务图输入和运行投影模板；`taskKind` 将业务需求与框架维护分流到互斥生命周期，feedback 适用性由任务类型派生。
+- `scripts/validate-agent-run.ps1`：schema 2.0 时薄调用根 `scripts/agent-orchestrator.js validate --final`；schema 1.0–1.2 继续执行历史只读校验，不迁移旧产物。
 - `templates/`：`AGENTS.md` 完整模板和片段、运行 manifest、项目规则、项目记忆、项目上下文配置的初始化模板。
 
 ## 上下文模式
@@ -69,6 +70,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/agent-contex
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/agent-context-kit/scripts/validate-agent-run.ps1 `
   -RunDirectory docs/agent-reports/{ticket-or-topic}
 ```
+
+schema 2.0 的运行时命令由 `.agents/scripts/agent-orchestrator.js` 提供。该脚本只生成/确认 adapter actions，不直接调用 Codex 或其它产品 API。`business-demand` 使用 `implementing -> locally-verified -> acceptance-pending -> accepted`；`framework-maintenance` 使用 `maintaining -> locally-verified -> maintenance-complete`。运行时拒绝框架维护调用需求验收或 feedback transition。
 
 ## 安全约束
 

@@ -1,0 +1,19 @@
+name: coordinator-agent
+type: general
+description: 通用协作调度、授权、通信、恢复和集成协调角色。
+defaultWorkflow: standard-change
+plugins: []
+roles:
+  - explorer-agent
+  - planner-agent
+  - coding-agent
+  - review-agent
+  - testing-agent
+orchestrationModes:
+  - serial
+  - subagent
+  - multi-session
+serialFallback: true
+runtime: scripts/agent-orchestrator.js
+deliveryProtocol: agents/_shared/delivery-lifecycle.md
+orchestrationProtocol: agents/_shared/orchestration-protocol.md

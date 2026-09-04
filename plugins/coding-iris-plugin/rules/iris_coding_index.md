@@ -40,6 +40,8 @@ related:
 ## 总原则
 
 - 项目事实以 profile 和 `.mcp.json` 为准。
+- `executionPath: fast | full | guarded` 只调整分析和验证深度，不减少任何已命中的规则；fast 仍执行项目入口、profile、通用安全、专项规则、Git、编码、目标测试和最终 diff 门禁。
+- 本地验证后按 `.agents/agents/_shared/delivery-lifecycle.md` 停在 `acceptance-pending`；本地测试、commit、部署均不产生 `accepted`。
 - 默认不执行远程写入、上传、编译、数据库变更。
 - 查询 IRIS 知识时优先使用 `iris-mcp-lookup`，并区分当前实例元数据、本地源码和官方文档版本。
 - 历史编码文件优先局部修改，不做整文件格式化。
