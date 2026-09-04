@@ -55,7 +55,7 @@
 - 参考项目中的已有用法（如 `ApplReworkDATA`、`MainworkBLH`），确认 `ORDER BY` 可以直接拼接到 `WHERE` 子句后面。
 
 ### 1.5 `while` 循环内不能 `q` + 返回值
-- 需求: #6941550 | 命中: 1
+- 需求: #6941550 #7060457 (通用) | 命中: 2
 - **错误**：在 `while` 循环内直接 `q msg` 试图同时退出循环并返回结果。
 - **后果**：IRIS ObjectScript 中 `q` 在 `while` 内只退出循环体，返回值会被忽略或导致后续代码异常执行，使得 `ts`/`tc`/`tro` 和返回逻辑混乱。
 - **正确做法**：循环内仅用 `q` 退出循环（不返回值），外层变量（如 `errMsg`）暂存错误信息，循环外统一判断：
@@ -74,6 +74,7 @@
   tc
   q ..GetReturnJSON(0, "success")
   ```
+- **补充场景**：`try/catch` 等块级作用域内同样不能直接 `q returnValue`，否则编译报 `#1043: QUIT argument not allowed`。应在块内设置状态变量，退出块后再统一 `q returnValue`。
 
 ### 1.6 `$g()` 函数不适用于 `%DynamicObject`
 - 需求: #6941550 | 命中: 1
@@ -109,6 +110,29 @@
   ```
 - **通用原则**：凡是从 API/集合 `GetAt(i)` 取出的元素，类型不确定时一律先 `$isobject()` 分流，不要直接用对象语法或 `$g()`。本条与 1.6（对象误用 `$g()`）是镜像问题——一个是"对象用了数组函数"，本条是"字符串用了对象语法"。
 - **出处**：`DHCDoc.FileStore.Manager.DeleteDirRecursive`。
+
+### 1.9 IRIS 日期时间转换成功不等于输入合法
+- 需求: #7060457 | 命中: 1
+- **问题**：直接使用 `%ZDH()` / `%ZTH()` 转换外部日期时间后保存，非法输入可能被归一化为另一个合法值，也可能抛出异常；仅判断转换是否返回不能证明原始输入有效。
+- **做法**：先校验日期、时间片段和空格分隔结构；在 `try/catch` 中执行 `%ZDH()` / `%ZTH()`，再用 `%ZD()` / `%ZT()` 格式化回业务标准格式，与原始输入逐项比较。异常或回显不一致都返回业务校验提示，最后再判断不能早于当天。
+  ```objectscript
+  s invalidDateTimeFlag = 0
+  try {
+      s dateSys = ..%ZDH(inputDate)
+      s timeSys = ..%ZTH(inputTime)
+      s normalizedDate = ..%ZD(dateSys, 3)
+      s normalizedTime = $p(..%ZT(timeSys, 2), ":", 1, 2)
+  } catch ex {
+      s invalidDateTimeFlag = 1
+  }
+  if invalidDateTimeFlag {
+      q invalidDateTimeRet
+  }
+  if (normalizedDate'=inputDate)||(normalizedTime'=inputTime) {
+      q invalidDateTimeRet
+  }
+  ```
+- **边界**：前端日期控件只能改善交互，后端仍必须执行同样的严格校验，防止绕过页面直接调用保存接口。
 
 ---
 
@@ -177,10 +201,32 @@
 - **框架反馈**：`.agents/feedback/framework/` 中已生成 coding-iris-plugin 规则与 HISUI 索引修正候选。
 
 ### 2.7 弹窗边缘的 ValidateBox 校验提示不宜只调整展示方向
-- 需求: #7060418 | 命中: 1
+- 需求: #7060418 #7060457 (通用) | 命中: 2
 - **问题**：HISUI `validatebox` 的 `tipPosition` 默认是 `right`。宽输入控件靠近弹窗或 iframe 右边缘时，提示会被裁切；简单改为 `left` 虽能完整显示，却可能遮挡左侧字段标签，同样不够友好。
 - **做法**：如果页面已有保存前显式校验，优先用 HISUI `required-label` 常驻标识必填，并在保存失败时使用 `$.messager.alert()` 给出完整提示、回调聚焦对应控件；避免同时保留自动校验气泡造成重复提示。只有控件周围确有充足空间时才调整 `tipPosition`。
+- **聚焦方式**：必须在 `$.messager.alert()` 的关闭回调中聚焦，避免焦点被弹窗再次夺走。HISUI 包装控件通过 `$(selector)[widgetName]("textbox").focus()` 聚焦真实输入框；没有唯一对应输入框的区域校验不强行抢焦点。
 - **边界**：取消 `validatebox` 的 `required:true` 前必须确认保存入口均经过显式非空校验，且维护/禁用等其它能力不依赖该配置；最终需要在真实弹窗环境验证必填标识、提示和焦点回落。
+
+### 2.8 HISUI 日期时间手工输入必须由业务层严格复核
+- 需求: #7060457 | 命中: 1
+- **问题**：`datetimeboxq` 允许用户直接输入文本；在部分初始化链路中，`datetimeboxq("isValid")` 对明显非法值仍可能返回 `true`。此外，HISUI `validatebox` 失焦时默认只设置无效状态并隐藏 tooltip，不能等同于“失焦立即给出可见提示”。
+- **做法**：用同一个页面级函数完成严格格式、真实日历日期、时分范围和不能早于当天的校验，并同时用于 `onBlur` 和保存前校验。失焦时使用 HISUI 无效状态配合 `$.messager.popover()`；保存时使用 `$.messager.alert()` 并在关闭后聚焦对应控件。
+  ```javascript
+  var match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/.exec(value)
+  var date = new Date(Date.UTC(year, month - 1, day, hour, minute))
+  var valid = date.getUTCFullYear() == year &&
+      date.getUTCMonth() == month - 1 &&
+      date.getUTCDate() == day &&
+      date.getUTCHours() == hour &&
+      date.getUTCMinutes() == minute
+  ```
+- **边界**：失焦提示失败后不自动重新聚焦，避免形成焦点陷阱；只有用户主动保存且校验失败时才在提示关闭后聚焦。前端校验不能替代后端保存边界校验。
+
+### 2.9 列表内容与独立空态必须在所有数量变化入口统一同步
+- 需求: #7060481 | 命中: 1
+- **问题**：列表首次加载为空时会创建独立的空态 DOM；后续加入、替换或删除列表项时如果只更新内容节点、不重新同步空态，就会出现有效内容与“暂无数据”提示同时显示，或列表清空后没有空态提示。
+- **做法**：将空态判断集中到单一同步方法，以列表当前实际项目数作为状态来源；初始化加载、加入队列、移除待处理项、异步成功后的单条刷新和删除已保存项等所有可能改变列表数量的入口都调用该方法。
+- **边界**：本规则适用于空态节点与内容列表分开维护的组件；如果组件由框架 API 或纯 CSS 根据内容自动管理空态，应复用其既有机制，避免再增加一套 JavaScript 状态。验收至少覆盖首次加入、移除唯一待处理项、异步完成后刷新以及删除唯一已保存项。
 
 ---
 
@@ -419,3 +465,5 @@
 | #7040009 | 修改关联服务单增加数据变更审计日志 | [2.6](#26-hisui-控件必须明确由-parser-或页面-javascript-单方初始化) |
 | #7109014 | 提供清文件和文件中间表的方法 | [1.8](#18-列表元素类型不确定时不能用对象语法) |
 | #7060418 | 模板维护模板内容必填提示显示不全 | [2.7](#27-弹窗边缘的-validatebox-校验提示不宜只调整展示方向) |
+| #7060457 | 口腔技工单期望到件非法日期校验 | [1.5](#15-while-循环内不能-q--返回值), [1.9](#19-iris-日期时间转换成功不等于输入合法), [2.7](#27-弹窗边缘的-validatebox-校验提示不宜只调整展示方向), [2.8](#28-hisui-日期时间手工输入必须由业务层严格复核) |
+| #7060481 | 首次上传文件后空态提示未隐藏 | [2.9](#29-列表内容与独立空态必须在所有数量变化入口统一同步) |
