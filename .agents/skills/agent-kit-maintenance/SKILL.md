@@ -84,7 +84,14 @@ node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js
 node --test scripts/tests/component-version-management.tests.js
 ```
 
-完整回归与提交门禁分开：只要完整测试通过后，受测代码、测试、manifest、release record 和相关配置未再变化，提交阶段必须复用该结果，不得机械重复运行完整测试套件。提交前只执行尚未完成或已因后续改动失效的快速门禁：worktree 组件版本校验、`git diff --check`、暂存内容复核和 `git commit`。只有受测范围发生变化、此前无有效结果或验证失败时，才补跑对应完整测试。
+完整回归与提交门禁分开。完整测试通过后，用 `scripts/validation-evidence.js record` 记录 suite、原命令、受测 scope 和 worktree 指纹；提交前用 `check` 验证证据。指纹匹配时必须复用结果，不得机械重复运行完整测试套件；只有命中该 scope 的文件变化、此前无有效证据或验证失败时，才补跑对应测试并重新记录。
+
+```powershell
+node scripts/validation-evidence.js record --repo-root . --suite component-version-full --command "node --test scripts/tests/component-version-management.tests.js" --scope .agents/skills/agent-kit-maintenance/scripts --scope scripts/tests/component-version-management.tests.js --scope plugins --scope skills --scope releases
+node scripts/validation-evidence.js check --repo-root . --suite component-version-full
+```
+
+证据默认写入系统临时目录，不污染仓库；指纹包含 HEAD、scope 内相对 HEAD 的 binary diff 及未跟踪文件内容。scope 外文档变化不会使该 suite 失效。提交前只执行尚未完成或已失效的快速门禁：worktree 组件版本校验、`git diff --check`、暂存内容复核和 `git commit`。
 
 按影响面补充：
 

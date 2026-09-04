@@ -38,6 +38,8 @@ schema 2.0 先按 `taskKind` 分流，不能用 feedback 布尔开关代替任�
 
 ## Beta 验证
 
+验证与提交解耦：`scripts/validation-evidence.js` 按 suite 记录验证命令、结果、scope 和 worktree 指纹。提交阶段先 `check`；scope 指纹未变化时复用已通过证据，只有受测范围变化才补跑对应测试。证据默认保存在系统临时目录，不纳入 Git。
+
 框架转稳定前完成并分开统计：
 
 - 复杂 i18n 正式 AGENT run；

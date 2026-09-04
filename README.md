@@ -178,6 +178,8 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 新运行使用 schema 2.0：`taskKind` 先将 `business-demand`、`framework-maintenance` 和 `other` 分流；业务需求走用户验收与 feedback，框架维护走独立 `maintenance-complete` 状态，运行时拒绝交叉调用。`executionPath: fast|full|guarded` 与 `orchestrationMode: serial|subagent|multi-session` 相互独立，状态通过 `events.jsonl` 投影到 `00-run-manifest.json`。协作计划、远程写入、commit、merge、push、部署和 feedback 写入分别授权。旧 schema 1.0–1.2 保持只读兼容。skill 内部短时只读子 Agent 提效不创建正式 run。
 
+维护验证可通过 `scripts/validation-evidence.js` 记录 suite、命令、scope 和 worktree 指纹；提交前指纹匹配时复用已通过结果，只补跑受影响测试，避免把常规 `git commit` 变成重复发布验收。
+
 对应能力：
 
 - 链路定位：`plugins/i18n-iris-plugin/rules/i18n_link_tracing.md`

@@ -118,7 +118,7 @@
 
 ## 提交阶段验证复用
 
-- 完整维护回归与 Git 提交门禁分离。完整测试通过后，只要受测代码、测试、manifest、release record 和相关配置没有继续变化，提交阶段复用该结果，不机械重跑完整套件。
+- 完整维护回归与 Git 提交门禁分离。完整测试通过后，以 `scripts/validation-evidence.js` 记录 suite、命令、受测 scope 和 worktree 指纹；scope 指纹未变化时，提交阶段复用该结果，不机械重跑完整套件。
 - 提交阶段只补齐已失效或尚未执行的快速门禁：worktree 组件版本校验、`git diff --check`、暂存复核和 `git commit`。受测范围变化、缺少有效结果或已有失败时才重跑对应完整测试。
 
 ## 安全边界
