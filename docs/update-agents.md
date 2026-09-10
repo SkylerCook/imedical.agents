@@ -9,7 +9,7 @@
 - 当前目录必须是业务项目根目录。
 - Git 必须是 `2.25.0` 或更新版本；`install-agents.ps1` 和 `update-agents.ps1` 使用 `git sparse-checkout` 子命令，不兼容 Git 2.21.0。
 - `AGENTS.md` 是工程级唯一主入口，但缺失时不阻塞 `.agents` 首次安装；安装后通过 `project-context-maintenance` 补齐或维护。`CLAUDE.md`、`CODEBUDDY.md` 只是可选兼容 symlink。
-- 所有命令使用 PowerShell。
+- 所有命令示例默认从 PowerShell 执行；Windows PowerShell 5.1 创建 symlink 失败时，可在 PowerShell 中通过 `cmd.exe /c mklink` 使用 Windows 原生命令作为兼容路径。
 - `.agents/config/` 默认只允许合并，不覆盖已有值；唯一的运行时路径例外是 Windows x64 上将既有 `project-env.json` 的 `mcp.serverPath` 收敛到随能力包部署的 `iris-agentic-dev.exe`，其它字段保持不变。
 - `.agents/config/plugin_profile.md` 是插件启用状态事实来源；插件目录存在只表示 `available`，不表示已启用。
 - `.mcp.json` 是连接事实来源。不要把 host、账号、密码、token、namespace 或远程路径写入 `AGENTS.md`、rules、memory、config 或插件。
@@ -114,6 +114,40 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 `iris-cure-form-dev` v0.4.0 为 `expectedVersion=NEW` 的新建表单增加人工交互门禁。更新不会改写现有项目 profile，也不影响存量响应式改造；新建表单在 `plan` 前必须运行 `interaction-prepare --stage pre-deploy`，由用户明确确认整体通过或由 Agent 逐项记录后运行 `interaction-check`，并将生成的 `--interaction-verification` 传给 `plan`。部署后还需生成绑定 package/operation ID 的人工清单，完成保存、重开、回显、打印和 CR 运行时契约验证。v1 不接受自动交互结果；批量脚本化点击、输入或选择必须先取得用户明确确认。
 
 `iris-cure-form-dev` v0.5.0 将服务端事务入口固定迁移为 `DHCDoc.Cure.AI.CureFormDeploy`，不再调用或回退到旧部署类，也不新增 profile 配置项。已部署项目必须先在目标 IRIS namespace 上传并编译新类，再更新 `.agents`、重建已启用插件 thin-index，并确认所有调用方都已切换到 v0.5.0；完成这些检查后才可删除旧类。
+
+## Windows 可选兼容入口
+
+`CLAUDE.md`、`CODEBUDDY.md` 仅在用户明确需要对应工具兼容入口时创建。安装器和更新器只报告入口状态，不自动创建、覆盖或修复。不要复制 `AGENTS.md`，也不要直接用 `del` 或 `Remove-Item` 删除现有同名文件；现有文件可能包含尚未归并的独立规则。
+
+优先运行能力包自带修复脚本：
+
+```powershell
+& .\.agents\scripts\repair-agent-entrypoints.ps1 -ProjectRoot .
+```
+
+脚本会保留已经正确指向 `AGENTS.md` 的 symlink；遇到普通文件或错误链接时，先将其依次备份为 `.bak`、`.bak.1` 等，再创建 symlink。在 Windows 上，脚本会先尝试 `New-Item -ItemType SymbolicLink`，失败后自动回退到 `cmd.exe /c mklink`。
+
+如果需要手工创建，只能在确认同名路径不存在后，从业务项目根目录运行：
+
+```powershell
+Test-Path -LiteralPath .\CODEBUDDY.md
+Test-Path -LiteralPath .\CLAUDE.md
+
+# 仅当上面两项都返回 False 时执行
+cmd /c mklink CODEBUDDY.md AGENTS.md
+cmd /c mklink CLAUDE.md AGENTS.md
+```
+
+Windows PowerShell 5.1 即使已开启 Windows“开发人员模式”，`New-Item -ItemType SymbolicLink` 仍可能报告 `Administrator privilege required for this operation.`；这不表示开发人员模式未生效。此时优先使用上述修复脚本或 `cmd /c mklink`。如果 `mklink` 仍报告权限不足，再检查开发人员模式是否开启，或在获得用户明确许可后使用管理员终端。
+
+创建后验证链接类型和目标：
+
+```powershell
+Get-Item -Force .\CLAUDE.md, .\CODEBUDDY.md |
+  Select-Object Name, LinkType, Target
+```
+
+两项的 `LinkType` 都应为 `SymbolicLink`，`Target` 应指向 `AGENTS.md`。随后重新运行 `update-agents.ps1 -Mode Check`，对应入口应报告 `entrypoint-ok`。
 
 ## 手工 clone 后收敛
 
