@@ -5,11 +5,13 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
+const { StringDecoder } = require('string_decoder');
+const { DeploymentBudget } = require('./cure-form-deployment-policy');
 
 const CURE_FORM_DEPLOY_CLASS = 'DHCDoc.Cure.AI.CureFormDeploy';
-const CHUNK_SIZE = 6000;
+const CHUNK_BYTES = 600; // Keep the complete encoded call below conservative HTTP/legacy line limits.
 const ALLOWED_METHODS = new Set(['InspectForm', 'InspectConsolidation', 'InspectSharedConsolidation', 'InspectCleanup', 'ValidatePackage', 'ApplyPackage', 'ValidateConsolidation', 'ApplyConsolidation', 'ValidateSharedConsolidation', 'ApplySharedConsolidation', 'ValidateCleanup', 'ApplyCleanup']);
-const RESULT_CHUNK_SIZE = 12000;
+const RESULT_CHUNK_SIZE = 600;
 
 function fail(message) { throw new Error(message); }
 
@@ -44,6 +46,17 @@ function findWorkspaceRoot(start = process.cwd()) {
 function objectScriptArgument(value) {
   const encoded = Buffer.from(String(value == null ? '' : value), 'utf8').toString('base64');
   return `$zconvert(##class(%SYSTEM.Encryption).Base64Decode("${encoded}"),"I","UTF8")`;
+}
+
+function packageChunks(text) {
+  const chunks = []; let current = '', bytes = 0;
+  for (const character of text) {
+    const size = Buffer.byteLength(character, 'utf8');
+    if (bytes + size > CHUNK_BYTES) { chunks.push(current); current = ''; bytes = 0; }
+    current += character; bytes += size;
+  }
+  if (current) chunks.push(current);
+  return chunks;
 }
 
 function unwrap(value) {
@@ -83,6 +96,7 @@ class McpClient {
       windowsHide: true
     });
     this.buffer = '';
+    this.decoder = new StringDecoder('utf8');
     this.stderr = '';
     this.nextId = 1;
     this.pending = new Map();
@@ -95,7 +109,7 @@ class McpClient {
   }
 
   onData(chunk) {
-    this.buffer += chunk.toString('utf8');
+    this.buffer += this.decoder.write(chunk);
     let index;
     while ((index = this.buffer.indexOf('\n')) >= 0) {
       const line = this.buffer.slice(0, index).trim();
@@ -112,6 +126,10 @@ class McpClient {
   }
 
   request(method, params, timeoutMs = 120000) {
+    if (this.budget) {
+      this.budget.check();
+      timeoutMs = Math.min(timeoutMs, this.budget.remaining());
+    }
     const id = this.nextId++;
     this.proc.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n');
     return new Promise((resolve, reject) => {
@@ -144,7 +162,31 @@ function buildServerArgs(workspaceRoot, server) {
 
 async function callClassMethod(client, namespace, method, methodArgs) {
   const methodCall = `##class(${CURE_FORM_DEPLOY_CLASS}).${method}(${methodArgs.map(objectScriptArgument).join(',')})`;
-  return unwrap(await callCode(client, namespace, `write ${methodCall}`));
+  const result = await callCode(client, namespace, `set result=${methodCall} write "CURE_RESULT:",$translate(##class(%SYSTEM.Encryption).Base64Encode($zconvert(result,"O","UTF8")),$char(10,13),""),":CURE_END",!`);
+  const text = transportText(result).trim();
+  return decodeFramedResult(text);
+}
+
+function decodeFramedResult(text) {
+  const framed = /CURE_RESULT:([A-Za-z0-9+/=\r\n]+):CURE_END/.exec(text);
+  if (!framed) fail('Server returned no complete framed response; outcome is unknown.');
+  return JSON.parse(Buffer.from(framed[1].replace(/[\r\n]/g, ''), 'base64').toString('utf8'));
+}
+
+// Only reads may retry. Never use this for staging, Apply or Rollback.
+async function readFrame(call, expectedLength) {
+  let last;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const raw = transportText(await call());
+      const frame = /CURE_RESULT:([A-Za-z0-9+/=\r\n]*):CURE_END/.exec(raw);
+      if (!frame) fail('Read returned no complete frame.');
+      const chunk = Buffer.from(frame[1].replace(/[\r\n]/g, ''), 'base64').toString('utf8');
+      if (chunk.length !== expectedLength) fail('Read chunk length mismatch.');
+      return chunk;
+    } catch (error) { last = error; }
+  }
+  throw last;
 }
 
 async function callCode(client, namespace, code) {
@@ -182,6 +224,12 @@ async function main() {
   const namespace = server.env && server.env.IRIS_NAMESPACE;
   if (!namespace) fail('IRIS_NAMESPACE is missing from .mcp.json env');
   const client = new McpClient(server.command, buildServerArgs(workspaceRoot, server), workspaceRoot, server.env || {});
+  client.budget = new DeploymentBudget({ startedAt: args.startedAt ? Number(args.startedAt) : undefined,
+    totalMs: args.deadlineAt ? Math.max(1, Number(args.deadlineAt) - Date.now()) : 900000 });
+  const progress = (stage, details = {}) => {
+    client.budget.progress();
+    console.error(JSON.stringify({ event: 'deployment-progress', stage, elapsedMs: Date.now() - client.budget.startedAt, ...details }));
+  };
   const stageId = crypto.randomUUID();
   let stageMayExist = false;
   let appliedCallStarted = false;
@@ -191,6 +239,7 @@ async function main() {
       clientInfo: { name: 'cure-form-staged-transport', version: '1.0.0' }
     });
     client.notify('notifications/initialized', {});
+    progress('connected');
     if (isInspect) {
       const formType = requireOption(args, 'formType');
       const methodArgs = method === 'InspectCleanup'
@@ -199,28 +248,38 @@ async function main() {
           ? [formType, requireOption(args, 'scopeId'), requireOption(args, 'sourceIds'), requireOption(args, 'targetIds')]
           : [formType, requireOption(args, 'mapCode')]);
       const methodCall = `##class(${CURE_FORM_DEPLOY_CLASS}).${method}(${methodArgs.map(objectScriptArgument).join(',')})`;
-      const lengthText = transportText(await callCode(client, namespace, `set value=${methodCall} write $length(value)`)).trim();
-      if (!/^\d+$/.test(lengthText)) fail(`Remote ${method} returned no readable result length.`);
+      const fingerprintCode = `set value=${methodCall} write $length(value),":",$translate(##class(%SYSTEM.Encryption).Base64Encode(##class(%SYSTEM.Encryption).SHAHash(256,$zconvert(value,"O","UTF8"))),$char(10,13),""),!`;
+      const fingerprint = transportText(await callCode(client, namespace, fingerprintCode)).trim();
+      if (!/^\d+:[A-Za-z0-9+/=]+$/.test(fingerprint)) fail('Read returned no complete snapshot fingerprint.');
+      const [lengthText, expectedHash] = fingerprint.split(':');
       const length = Number(lengthText);
+      if (!Number.isSafeInteger(length) || length < 1 || length > 16000000) fail('Snapshot length outside allowed range.');
       let output = '';
       for (let start = 1; start <= length; start += RESULT_CHUNK_SIZE) {
         const end = Math.min(start + RESULT_CHUNK_SIZE - 1, length);
-        const chunk = transportText(await callCode(client, namespace, `set value=${methodCall} write $extract(value,${start},${end})`));
+        const chunk = await readFrame(() => callCode(client, namespace, `set value=${methodCall} write "CURE_RESULT:",$translate(##class(%SYSTEM.Encryption).Base64Encode($zconvert($extract(value,${start},${end}),"O","UTF8")),$char(10,13),""),":CURE_END",!`), end - start + 1);
         if (!chunk) fail(`Remote ${method} chunk ${start}-${end} was empty.`);
+        if (chunk.length !== end - start + 1) fail(`Remote ${method} chunk length mismatch.`);
+        progress('read-chunk-confirmed', { start, end, length });
         output += chunk;
       }
+      if (crypto.createHash('sha256').update(output, 'utf8').digest('base64') !== expectedHash ||
+          transportText(await callCode(client, namespace, fingerprintCode)).trim() !== fingerprint) fail('Snapshot changed during read or content hash mismatch.');
       let snapshot;
       try { snapshot = JSON.parse(output); } catch (error) { fail(`Remote ${method} JSON could not be reassembled: ${error.message}`); }
       console.log(`RESULT=${JSON.stringify(snapshot)}`);
       return;
     }
-    let sequence = 0;
-    for (let offset = 0; offset < packageJson.length; offset += CHUNK_SIZE) {
+    let sequence = 0, confirmedCharacters = 0;
+    for (const chunk of packageChunks(packageJson)) {
       sequence += 1;
-      const chunk = packageJson.slice(offset, offset + CHUNK_SIZE);
-      const staged = await callClassMethod(client, namespace, 'PutPackageChunk', [stageId, sequence, chunk]);
       stageMayExist = true;
+      const staged = await callClassMethod(client, namespace, 'PutPackageChunk', [stageId, sequence, chunk]);
       if (!resultIsOk(staged)) fail(`Server rejected package chunk ${sequence}: ${JSON.stringify(staged)}`);
+      if (Number(staged.sequence) !== sequence) fail(`Package chunk acknowledgment mismatch at ${sequence}.`);
+      confirmedCharacters += chunk.length;
+      if (Number(staged.total) !== confirmedCharacters) fail(`Package chunk length acknowledgment mismatch at ${sequence}.`);
+      progress('chunk-confirmed', { sequence, totalCharacters: packageJson.length, confirmedCharacters });
     }
     if (method === 'ValidatePackage' || method === 'ValidateConsolidation' || method === 'ValidateSharedConsolidation' || method === 'ValidateCleanup') {
       const validationMethod = method === 'ValidatePackage'
@@ -236,14 +295,23 @@ async function main() {
       return;
     }
     appliedCallStarted = true;
+    client.budget.check();
+    client.budget.writeStarted = true;
     const applyMethod = method === 'ApplyPackage'
       ? 'ApplyStagedPackage'
       : (method === 'ApplyConsolidation'
         ? 'ApplyStagedConsolidation'
         : (method === 'ApplySharedConsolidation' ? 'ApplyStagedSharedConsolidation' : 'ApplyStagedCleanup'));
     const applied = await callClassMethod(client, namespace, applyMethod, [stageId, operator, reason]);
+    if (!applied || typeof applied !== 'object' || !Object.prototype.hasOwnProperty.call(applied, 'ok')) {
+      fail(`write-outcome-unknown: stageId=${stageId}; do not repeat Apply`);
+    }
     stageMayExist = false;
     console.log(`RESULT=${JSON.stringify(applied)}`);
+  } catch (error) {
+    console.error(JSON.stringify({ event: appliedCallStarted ? 'write-outcome-unknown' : 'manual-handoff-required',
+      stageId, elapsedMs: Date.now() - client.budget.startedAt, reason: error.message }));
+    throw error;
   } finally {
     if (stageMayExist && !appliedCallStarted) {
       try { await callClassMethod(client, namespace, 'ClearStagedPackage', [stageId]); } catch { /* best-effort cleanup */ }
@@ -256,4 +324,4 @@ if (require.main === module) {
   main().catch((error) => { console.error(`ERROR=${error.message}`); process.exit(1); });
 }
 
-module.exports = { objectScriptArgument, resultIsOk };
+module.exports = { objectScriptArgument, resultIsOk, packageChunks, decodeFramedResult, readFrame, McpClient, buildServerArgs, findWorkspaceRoot, extractToolResult };

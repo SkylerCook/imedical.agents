@@ -76,6 +76,8 @@
 
 ## 维护约束
 
+- 治疗表单等会生成预览、交付包或部署运行态的项目集成测试，必须从目标项目工程执行，产物放目标项目 `docs/work/cure-form/`；框架仓库只保留测试代码，不在源仓 `.agents/work/` 或 `docs/work/` 生成业务测试产物。纯框架单元测试仍按各自隔离临时目录运行。
+
 - 维护当前工程时必须考虑不同模型能力和不同 Agent 工具的普适性；canonical 内容不得绑定单一厂商、单一模型或单一运行器。
 - `agents/`、`workflows/`、`plugins/` 是长期能力源；`.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/`、Hermes 或 WorkBuddy 入口只能作为 adapter 生成物或临时适配层。
 - canonical 中不要写死具体模型名或订阅档位；需要表达模型能力时使用 `fast`、`balanced`、`strong`、`deep-reasoning` 等抽象档位，由工具 adapter 映射到实际模型。

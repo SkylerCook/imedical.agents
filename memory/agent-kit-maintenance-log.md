@@ -4,6 +4,20 @@
 
 ## 近期已完成
 
+- 2026-09-10：清理源仓 `.agents/work` 中 28 个和 `docs/work/cure-form` 中 135 个模拟测试残留，共 163 个文件移入系统临时归档以便恢复。表单集成测试增加源仓执行拒绝门禁，改为从目标项目执行，运行目录归项目 `docs/work/cure-form/framework-tests`；apply 的手动交付显式绑定该测试目录。不改业务备份、其它工作树修改或 Git index。
+
+- 2026-09-09：经明确扩展授权，增加 `mcp-fixed-sql-binding` 固定 SQL 参数兼容层，修复上游 write 不传 `%Execute` 参数的问题；COUNT/UPDATE 均绑定参数并置于同一事务，非单行回滚。11 项 SQL/绑定专项通过，真实授权样本完成原内容 UPDATE、清空、恢复及多模板配置回读，约 9.94 秒，前后哈希一致。业务证据留项目，不据此宣称全部服务器或 HIS 保存/打印已验收。未提交、未同步部署副本。
+
+- 2026-09-09：明确授权的 SQL 恢复演练在清空前发现空参数映射 SQL NULL，已修复 content/Map JS 的 NULL 安全条件比较，9 项 SQL 回归通过。随后原内容 UPDATE 被 MCP `ROWS_CHECK_FAILED` 拒绝，未继续清空；独立读取验证内容和元数据未变。此结果是实写阻断，不是部署成功；MCP 修复留 owner 队列。
+
+- 2026-09-09（工作树，未提交）：新增显式 `lightweight-sql` 单模板 content 通道，与 automatic/manual 独立选择；固定参数化 SQL、备份回读、旧内容条件比较、单行限制及未知写入不重试。新增 9 项测试，连同已有门禁与组件治理共 46 项 Node 测试通过。真实 MCP 150 KB 中文参数只读往返通过（约 1.15 秒），不代表 UPDATE 性能或实写验证；本轮没有服务器写入。部署副本更新和提交仍未执行。
+
+- 2026-09-09：上述表单 v0.7.0 工作树最终门禁补记：21 项表单 Node 门禁与 16 项组件治理合计 37 项通过，PowerShell 7 / Windows PowerShell 5.1 表单专项均通过；15 组件 worktree 版本审计通过。双宿主测试已记录 scope 指纹供复用。业务三表扩展宽度凭证及人工包由工程保存，不纳入源仓；发布和部署副本更新仍未执行。
+
+- 2026-09-09（工作树，未提交）：`iris-cure-form-dev` v0.7.0 回收表单交付经验至 canonical 工具：统一项目 docs/work 产物/运行态、只读 vendor 资源挂载及哈希门禁、直接预览索引、额外断点/次数切换/几何对齐断言、运行时字段契约审计和并行独占文件集成检查；自动/手动部署与原 ID/灰度策略分离，纯 content + README 人工交付不复制工作区 JS/CSS。兼容传输改用小块、编码响应和结束标记，处理 Base64 折行、整包快照校验及有界只读重试；写入/回滚未知不重试，恢复演练单独授权并保留备份。真实授权样本曾在清空后读取失败，回滚响应丢失后经独立哈希/元数据核对确认恢复；修复后普通自动 Validate/Apply/Verify 成功，业务证据留项目目录，不以失败演练冒充一次直通恢复。21 项 Node 门禁回归通过；其余完整宿主/版本门禁以本次最终交付记录为准。未提交、未推送、不改既有用户的更新器说明。
+
+- 2026-09-04：补充 Windows 可选 Agent 兼容入口说明。实测开发人员模式开启时，PowerShell 7 可通过 `New-Item -ItemType SymbolicLink` 创建链接，Windows PowerShell 5.1 `5.1.26100.9168` 仍可能报 `Administrator privilege required for this operation.`，同环境 `cmd /c mklink` 成功；更新 Runbook 现优先引导使用会备份既有文件并自动回退 `cmd.exe` 的 `repair-agent-entrypoints.ps1`，同时给出仅适用于目标路径不存在时的手工 `mklink` 和验收命令，避免用 `del` / `Remove-Item` 误删独立规则文件。Windows PowerShell 5.1 下的普通文件备份、双入口创建与链接目标验证通过；PowerShell 7 / Windows PowerShell 5.1 更新器回归、15 组件 worktree 校验、16 项组件版本专项均通过。
+
 - 2026-09-04：修正 standard 更新器的 Git 同步状态语义。fetch 后按 `HEAD...@{upstream}` 区分无更新、仅落后、仅领先和分叉：无更新报告 `agents-up-to-date`、跳过 pull 但继续 sparse 与本地生成层检查；仅落后才 fast-forward 并以 `oldHash` / `newHash` / `upstreamHash` 报告 `agents-updated`；领先、分叉、upstream 缺失或比较失败均明确停止。普通 `DryRun` 继续保持可更新 capability、只预演项目生成层的兼容契约，`Check` 与显式 `DryRun -NoPull` 用于保持 capability 不变。同步更新 README、runbook 和 PowerShell 7 / Windows PowerShell 5.1 回归。
 
 - 2026-09-04：`coding-iris-plugin` v0.7.1 将 `iris-demand-commit` 的既有 plan/apply 能力暴露为显式 `$iris-demand-commit --plan|--commit`，并兼容 `-plan/-commit`。`--plan` 固定只生成计划和完整 commit message，不执行 pull、暂存、提交、verify 或继续追问；`--commit` 视为本地 commit 明确授权，plan 展示后直接 apply/verify，push、部署、上传和远程编译仍需独立授权。自然语言调用保持兼容，冲突或未知模式停止。同步更新 owner skill、`iris-coding` 路由、插件/根 README、AGENTS 模板、manifest 默认提示、长期决策和发布记录；未修改业务工程 `.agents`。提交状态机专项 7 项（含 plan-only HEAD/index/worktree 零修改）、组件版本专项 16 项、15 组件 worktree 校验、fast-path 静态契约、JSON/Node 语法、coding 插件 thin-index 源仓 DryRun 和 `git diff --check` 均通过。

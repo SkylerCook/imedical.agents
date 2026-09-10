@@ -6,6 +6,14 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { selectDeployment, validateOverwrite } = require('./cure-form-deployment-policy');
+const { writeHandoff } = require('./cure-form-manual-handoff');
+const { taskRoot, formRoot, privateRoot, registerPreview } = require('./cure-form-workspace');
+const { previewWidths, validWidths } = require('./cure-form-layout-checks');
+const { runnerFingerprint } = require('./cure-form-runner-fingerprint');
+const { compareContract } = require('./cure-form-contract-check');
+const { decodeFramedResult } = require('./cure-form-staged-transport');
+const { PREFIX: VENDOR_PREFIX, createMount, validateMount, mountedFile } = require('./cure-form-preview-mounts');
 
 const MIN_NODE = [22, 5, 0];
 const FORM_TYPES = new Set(['CA', 'CR']);
@@ -33,7 +41,7 @@ const PREVIEW_RESOURCE_SPECS = [
   { role: 'adaptationCss', profileKey: 'PreviewAdaptationCss', basename: 'adaptation.css', tag: 'link' }
 ];
 const COMMANDS = new Set([
-  'doctor', 'intake', 'inspect', 'prepare', 'review', 'plan',
+  'doctor', 'intake', 'inspect', 'prepare', 'review', 'plan', 'deploy', 'handoff', 'deployment-options', 'recovery-test', 'integrate-check',
   'preview', 'preview-run', 'preview-check', 'interaction-prepare', 'interaction-check',
   'apply', 'verify', 'rollback', 'consolidate', 'consolidate-shared', 'cleanup', 'common-migrate'
 ]);
@@ -520,14 +528,26 @@ function copyPreviewCssDependencies(sourceCss, targetCss, outputDir, args, state
     }
     const cleanReference = reference.split(/[?#]/, 1)[0];
     if (!cleanReference) continue;
-    const sourceAsset = reference.startsWith('/')
+    let sourceAsset = reference.startsWith('/')
       ? path.resolve(projectRoot(args), cleanReference.replace(/^\/+/, ''))
       : path.resolve(path.dirname(sourceCss), cleanReference);
-    const targetAsset = reference.startsWith('/')
+    let targetAsset = reference.startsWith('/')
       ? path.resolve(outputDir, cleanReference.replace(/^\/+/, ''))
       : path.resolve(path.dirname(targetCss), cleanReference);
+    const remap = args.dependencyRemaps && args.dependencyRemaps[reference];
+    if (remap) {
+      sourceAsset = projectPath(args, remap);
+      if (!fs.existsSync(sourceAsset) || !fs.statSync(sourceAsset).isFile()) fail('Missing explicitly mapped CSS dependency.');
+      targetAsset = path.join(outputDir, 'assets', 'dependencies', sha256(fs.readFileSync(sourceAsset).toString('base64')).slice(0, 16), path.basename(sourceAsset));
+      fs.writeFileSync(targetCss, fs.readFileSync(targetCss, 'utf8').split(reference).join(path.relative(path.dirname(targetCss), targetAsset).replace(/\\/g, '/')), 'utf8');
+    }
     if (!pathIsWithin(targetAsset, outputDir)) {
-      fail(`Preview CSS dependency escapes the output directory: ${reference}`);
+      const roots = String(args.previewDependencyRoots || '').split(';').filter(Boolean).map((root) => fs.realpathSync(projectPath(args, root)));
+      if (!fs.existsSync(sourceAsset) || !roots.some((root) => pathIsWithin(fs.realpathSync(sourceAsset), root))) fail(`Preview CSS dependency escapes the output directory: ${reference}`);
+      targetAsset = path.join(outputDir, 'assets', 'dependencies', sha256(fs.readFileSync(sourceAsset).toString('base64')).slice(0, 16), path.basename(sourceAsset));
+      const replacement = path.relative(path.dirname(targetCss), targetAsset).replace(/\\/g, '/');
+      const copied = fs.readFileSync(targetCss, 'utf8');
+      fs.writeFileSync(targetCss, copied.split(reference).join(replacement), 'utf8');
     }
     const href = path.relative(outputDir, targetAsset).replace(/\\/g, '/');
     if (!fs.existsSync(sourceAsset) || !fs.statSync(sourceAsset).isFile()) {
@@ -541,10 +561,10 @@ function copyPreviewCssDependencies(sourceCss, targetCss, outputDir, args, state
     }
     ensureDir(path.dirname(targetAsset));
     fs.copyFileSync(sourceAsset, targetAsset);
-    const dependency = { href, basename: path.basename(targetAsset), contentHash };
+    if (/\.css$/i.test(cleanReference)) copyPreviewCssDependencies(sourceAsset, targetAsset, outputDir, args, state);
+    const dependency = { href, basename: path.basename(targetAsset), contentHash: crypto.createHash('sha256').update(fs.readFileSync(targetAsset)).digest('hex') };
     state.targets.set(path.resolve(targetAsset).toLowerCase(), { ...dependency, source: sourceAsset });
     state.dependencies.set(href, dependency);
-    if (/\.css$/i.test(cleanReference)) copyPreviewCssDependencies(sourceAsset, targetAsset, outputDir, args, state);
   }
 }
 
@@ -587,8 +607,15 @@ function resolvePreviewResource(reference, spec, baseDir, outputDir, args, copyL
     fail(`Preview resource file does not exist: ${value}`);
   }
 
+  if (copyLocal && args.vendorMount && pathIsWithin(fs.realpathSync(localPath), args.vendorMount.root)) {
+    const relative = path.relative(args.vendorMount.root, fs.realpathSync(localPath)).replace(/\\/g, '/');
+    const entry = args.vendorMount.files.find((item) => item.path === relative);
+    if (!entry) fail('Vendor resource is not in the allowed mount inventory.');
+    return { role: spec.role, basename: spec.basename, tag: spec.tag, href: VENDOR_PREFIX + relative, local: true, contentHash: entry.contentHash };
+  }
+
   let href;
-  const contentHash = crypto.createHash('sha256').update(fs.readFileSync(localPath)).digest('hex');
+  let contentHash = crypto.createHash('sha256').update(fs.readFileSync(localPath)).digest('hex');
   if (copyLocal) {
     const assetsDir = path.join(outputDir, 'assets');
     ensureDir(assetsDir);
@@ -600,6 +627,7 @@ function resolvePreviewResource(reference, spec, baseDir, outputDir, args, copyL
     args.cssDependencyState.targets.set(path.resolve(target).toLowerCase(), { href: `assets/${spec.basename}`, basename: spec.basename, contentHash, source: localPath });
     fs.copyFileSync(localPath, target);
     if (spec.tag === 'link') copyPreviewCssDependencies(localPath, target, outputDir, args, args.cssDependencyState);
+    contentHash = crypto.createHash('sha256').update(fs.readFileSync(target)).digest('hex');
     href = `assets/${spec.basename}`;
   } else {
     href = path.relative(outputDir, localPath).replace(/\\/g, '/');
@@ -670,7 +698,7 @@ function projectPath(args, value) {
 }
 
 function workRoot(args) {
-  return args.workRoot ? projectPath(args, args.workRoot) : path.join(projectRoot(args), '.agents', 'work', 'cure-form');
+  return privateRoot(args);
 }
 
 function docsRoot(args) {
@@ -678,7 +706,7 @@ function docsRoot(args) {
 }
 
 function developmentRoot(args) {
-  return args.developmentRoot ? projectPath(args, args.developmentRoot) : path.join(docsRoot(args), 'cure-form');
+  return args.developmentRoot ? projectPath(args, args.developmentRoot) : taskRoot(args);
 }
 
 function discoverDocumentSource(args) {
@@ -906,7 +934,7 @@ function publicResponsiveCssPaths(args, requireDeployCopy) {
 function validatePublicResponsiveBoundary(spec, args, requireDeployCopy = false) {
   const stylesheets = Array.isArray(spec.stylesheets) ? spec.stylesheets : [];
   if (!stylesheets.length) return;
-  const frameworkClasses = /^(?:assess-form|panel|panel-body|textbox|numberbox|combo|radio|checked|i-label-box|m-label-box|hisui-[A-Za-z0-9_-]+)$/;
+  const frameworkClasses = /^(?:assess-form|panel|panel-body|textbox|textbox-text|numberbox|combo|radio|checked|i-label-box|m-label-box|hisui-[A-Za-z0-9_-]+)$/;
   const privateClasses = new Set();
   for (const stylesheet of stylesheets) {
     const css = String(stylesheet.content || '').replace(/\/\*[\s\S]*?\*\//g, '');
@@ -1257,7 +1285,7 @@ function structureToSpec(structure, args) {
 }
 
 function run(command, commandArgs, options = {}) {
-  const result = spawnSync(command, commandArgs, { cwd: options.cwd || process.cwd(), encoding: 'utf8', windowsHide: true, env: options.env || process.env });
+  const result = spawnSync(command, commandArgs, { cwd: options.cwd || process.cwd(), encoding: 'utf8', windowsHide: true, env: options.env || process.env, timeout: options.timeout, stdio: ['ignore', 'pipe', options.forwardStderr ? 'inherit' : 'pipe'] });
   if (result.error) fail(`${command} could not start: ${result.error.message}`);
   if (result.status !== 0) fail(`${command} failed (${result.status}): ${cleanText(result.stderr || result.stdout)}`);
   return result.stdout || '';
@@ -1292,7 +1320,7 @@ function commandIntake(args) {
     ? projectPath(args, args.workRoot)
     : args.output
       ? path.dirname(projectPath(args, args.output))
-      : path.join(developmentRoot(args), moduleId);
+      : path.join(developmentRoot(args), moduleId, 'source');
   ensureDir(root);
   let structureFile = args.structure && projectPath(args, args.structure);
   if (!structureFile) {
@@ -1405,14 +1433,14 @@ function unwrapServerResult(value) {
   return value;
 }
 
-function invokeIrisExecute(helper, code) {
+function invokeIrisExecute(helper, code, deadlineAt) {
   const payload = { code, confirmed: true, translate_sql: false, timeout: 120 };
   const payloadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cure-form-mcp-'));
   const payloadFile = path.join(payloadDir, 'tool-arguments.json');
   try {
     fs.writeFileSync(payloadFile, JSON.stringify(payload), 'utf8');
     const helperArgs = [helper, 'call', 'iris_execute', '--json-file', payloadFile, '--allow-write'];
-    return extractResult(run(process.execPath, helperArgs));
+    return extractResult(run(process.execPath, helperArgs, { timeout: deadlineAt ? Math.max(1, deadlineAt - Date.now()) : undefined }));
   } finally {
     fs.rmSync(payloadDir, { recursive: true, force: true });
   }
@@ -1451,7 +1479,8 @@ function invokeServerDirect(method, methodArgs, args, write) {
   if (!['InspectForm', 'InspectConsolidation', 'InspectSharedConsolidation', 'InspectCleanup', 'ValidatePackage', 'ApplyPackage', 'ValidateConsolidation', 'ApplyConsolidation', 'ValidateSharedConsolidation', 'ApplySharedConsolidation', 'ValidateCleanup', 'ApplyCleanup', 'VerifyOperation', 'RollbackOperation', 'PutPackageChunk', 'ValidateStagedPackage', 'ApplyStagedPackage', 'ValidateStagedConsolidation', 'ApplyStagedConsolidation', 'ValidateStagedSharedConsolidation', 'ApplyStagedSharedConsolidation', 'ValidateStagedCleanup', 'ApplyStagedCleanup', 'ClearStagedPackage'].includes(method)) fail('Server method is not in the cure deployment allowlist.');
   const methodCall = `##class(${CURE_FORM_DEPLOY_CLASS}).${method}(${methodArgs.map(objectScriptArgument).join(',')})`;
   if (write && !args.confirmWrite) fail('Server write requires explicit --confirm-write.');
-  const transport = invokeIrisExecute(helper, `write ${methodCall}`);
+  const transport = invokeIrisExecute(helper, 'set value=' + methodCall + ' write "CURE_RESULT:",$translate(##class(%SYSTEM.Encryption).Base64Encode($zconvert(value,"O","UTF8")),$char(10,13),""),":CURE_END",!', args.deadlineAt);
+  if (write || method === 'VerifyOperation' || transportOutput(transport).includes('CURE_RESULT:')) return decodeFramedResult(transportOutput(transport));
   if (transport && typeof transport === 'object' && transport.success === true && transport.output === '') {
     if (write) fail('Remote write ClassMethod returned an empty result; refusing to repeat a state-changing call.');
     return invokeServerChunked(helper, methodCall);
@@ -1474,8 +1503,9 @@ function invokeStagedPackage(method, methodArgs, args, write) {
     fs.writeFileSync(packageFile, packageJson, 'utf8');
     const transport = path.join(__dirname, 'cure-form-staged-transport.js');
     const transportArgs = [transport, '--method', method, '--package-file', packageFile];
+    if (args.deadlineAt) transportArgs.push('--deadline-at', String(args.deadlineAt));
     if (method === 'ApplyPackage' || method === 'ApplyConsolidation' || method === 'ApplySharedConsolidation' || method === 'ApplyCleanup') transportArgs.push('--operator', String(methodArgs[1]), '--reason', String(methodArgs[2]));
-    return extractResult(run(process.execPath, transportArgs));
+    return extractResult(run(process.execPath, transportArgs, { forwardStderr: true }));
   } finally {
     fs.rmSync(payloadDir, { recursive: true, force: true });
   }
@@ -1843,7 +1873,7 @@ function renderCompletePreview(title, body, resources, manifestHash = null) {
 }
 
 function renderCreate(spec, outputRoot, args) {
-  const moduleDir = path.join(path.resolve(outputRoot), spec.moduleId);
+  const moduleDir = args.generatedModuleDir || path.join(path.resolve(outputRoot), spec.moduleId);
   ensureDir(moduleDir);
   const isMultiTemplate = Array.isArray(spec.templates) && spec.templates.length > 0;
   const templates = isMultiTemplate
@@ -2024,7 +2054,8 @@ function prepareResponsive(args) {
   if (/<html\b/i.test(responsive)) assertCompletePreviewResources(responsive);
   const after = contractSnapshot(responsive);
   if (JSON.stringify(before) !== JSON.stringify(after)) fail('Responsive transformation changed DOM IDs, cache tags, or radio name/value pairs.');
-  const output = path.resolve(args.output || source.replace(/\.html?$/i, '.responsive.html'));
+  const output = path.resolve(args.output || path.join(formRoot(args, args.moduleId || path.parse(source).name), 'source', path.basename(source).replace(/\.html?$/i, '.responsive.html')));
+  ensureDir(path.dirname(output));
   fs.writeFileSync(output, responsive, 'utf8');
   const report = {
     schema: 'cure-form-responsive-report/v1', mode: args.mode, source, output,
@@ -2051,12 +2082,21 @@ function prepareCommonResponsive(args) {
   const snapshot = readJson(snapshotPath);
   const formType = assertFormType(snapshot.formType || snapshot.MapType);
   if (!Array.isArray(snapshot.templates) || !snapshot.templates.length) fail('Server snapshot must contain templates[].');
-  const outputRoot = path.resolve(requireOption(args, 'outputRoot'));
+  const outputRoot = args.outputRoot ? projectPath(args, args.outputRoot) : path.join(formRoot(args, snapshot.mapCode), 'source');
   ensureDir(outputRoot);
   const versionLabel = cleanText(args.versionLabel || `v${new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)}`);
   const converted = [];
+  const profile = parseMarkdownProfile(previewProfilePath(args));
+  const strategy = args.strategy || profile.ResponsiveDeploymentStrategy || 'versioned-clone';
+  selectDeployment({ strategy });
+  const targetIds = args.templateIds ? String(args.templateIds).split(',') : null;
   const contracts = [];
   for (const sourceTemplate of snapshot.templates) {
+    const sourceId = String(sourceTemplate.rowId || sourceTemplate.RowID || '');
+    if (targetIds && !targetIds.includes(sourceId)) {
+      converted.push({ rowId: sourceId, referenceOnly: true });
+      continue;
+    }
     const original = String(sourceTemplate.content || sourceTemplate.ConT || '');
     if (!original) fail(`Template ${sourceTemplate.rowId || sourceTemplate.name || 'unknown'} has no HTML content.`);
     const before = contractSnapshot(original);
@@ -2069,7 +2109,7 @@ function prepareCommonResponsive(args) {
     clone.sourceTemplateRowId = String(sourceTemplate.rowId || sourceTemplate.RowID || '');
     clone.lastId = clone.sourceTemplateRowId || String(sourceTemplate.lastId || sourceTemplate.LastId || '0');
     clone.items = Array.isArray(clone.items) ? clone.items : [];
-    converted.push(clone);
+    converted.push(strategy === 'in-place-overwrite' ? { rowId: sourceId, sourceTemplateRowId: sourceId, content } : clone);
     contracts.push({
       sourceTemplateRowId: clone.sourceTemplateRowId,
       sourceHash: sha256(original),
@@ -2081,7 +2121,7 @@ function prepareCommonResponsive(args) {
     schema: 'cure-form-responsive-changes/v1',
     formType,
     mapCode: snapshot.mapCode || snapshot.MapCode || null,
-    strategy: 'versioned-clone',
+    strategy,
     versionLabel,
     templates: converted
   };
@@ -2090,7 +2130,7 @@ function prepareCommonResponsive(args) {
     mode: 'common-responsive',
     source: snapshotPath,
     formType,
-    strategy: 'versioned-clone',
+    strategy,
     templates: contracts,
     runtimeContract: {
       requiredInterfaces: formType === 'CR'
@@ -2139,18 +2179,42 @@ function previewRuntimeExpectations(body) {
 function commandPreview(args) {
   const changesPath = projectPath(args, requireOption(args, 'changes'));
   const changes = readJson(changesPath);
+  const layout = args.layoutConfig ? readJson(projectPath(args, args.layoutConfig)) : null;
+  if (layout && layout.dependencyRemaps) args.dependencyRemaps = layout.dependencyRemaps;
+  if (layout && (!Array.isArray(layout.cases) || !layout.cases.length)) fail('Layout config requires nonempty cases.');
+  const widths = layout ? previewWidths(layout.widths || [], layout.breakpoints || []) : PREVIEW_WIDTHS;
   const snapshot = args.snapshot ? readJson(projectPath(args, args.snapshot)) : null;
   if (snapshot) assertFormType(snapshot.formType || snapshot.MapType);
-  const outputRoot = args.outputRoot ? projectPath(args, args.outputRoot) : path.join(workRoot(args), 'preview');
+  const outputRoot = args.outputRoot ? projectPath(args, args.outputRoot) : path.join(formRoot(args, changes.mapCode), 'preview');
+  const configuredVendor = args.vendorRoot || parseMarkdownProfile(previewProfilePath(args)).PreviewVendorRoot || path.join(capabilityRoot(args), 'vendor', 'hisui');
+  if (fs.existsSync(projectPath(args, configuredVendor))) args.vendorMount = createMount(projectPath(args, configuredVendor));
   ensureDir(outputRoot);
   const cssState = createCssDependencyState();
   const resources = resolvePreviewResources(args, outputRoot, { copyLocal: true, cssDependencyState: cssState });
+  const businessTags = [];
+  for (const item of layout && layout.resources || []) {
+    if (!['stylesheet', 'javascript'].includes(item.kind) || !item.href || path.isAbsolute(item.href) || item.href.split(/[\\/]/).includes('..') || !/^[A-Za-z0-9_./-]+$/.test(item.href)) fail('Invalid layout resource declaration.');
+    const source = projectPath(args, item.source);
+    const target = path.resolve(outputRoot, item.href);
+    if (!item.href.startsWith('business/') || path.extname(item.href) !== (item.kind === 'stylesheet' ? '.css' : '.js') || cssState.dependencies.has(item.href)) fail('Layout resources require unique business/*.css or business/*.js paths.');
+    if (!pathIsWithin(target, outputRoot) || !fs.existsSync(source)) fail('Missing or unsafe layout resource.');
+    ensureDir(path.dirname(target));
+    fs.copyFileSync(source, target);
+    if (item.kind === 'stylesheet') copyPreviewCssDependencies(source, target, outputRoot, args, cssState);
+    cssState.dependencies.set(item.href, { href: item.href, basename: path.basename(target), contentHash: crypto.createHash('sha256').update(fs.readFileSync(target)).digest('hex') });
+    businessTags.push(item.kind === 'stylesheet' ? `<link rel="stylesheet" href="${item.href}">` : `<script src="${item.href}"></script>`);
+  }
   const cssDependencies = cssDependencyManifest(cssState);
   const dependencyHash = sha256(cssDependencies);
   const title = cleanText(args.title || changes.title || (changes.map && (changes.map.name || changes.map.code)) || (snapshot && (snapshot.mapName || snapshot.MapName || snapshot.mapCode || snapshot.MapCode)) || 'Cure Form Preview');
   const body = previewBodyFromChanges(changes);
   const expectedRuntime = previewRuntimeExpectations(body);
-  const htmlTemplate = renderCompletePreview(title, body, resources, PREVIEW_MANIFEST_PLACEHOLDER);
+  let htmlTemplate = renderCompletePreview(title, body, resources, PREVIEW_MANIFEST_PLACEHOLDER);
+  if (businessTags.length) {
+    const anchor = layout.resourceOrder === 'business-first' ? htmlTemplate.indexOf('  <link rel="stylesheet" href="assets/asscom.css"') : htmlTemplate.indexOf('</head>');
+    if (anchor < 0) fail('Cannot place business resources in preview.');
+    htmlTemplate = htmlTemplate.slice(0, anchor) + businessTags.join('\n') + '\n' + htmlTemplate.slice(anchor);
+  }
   const manifest = {
     schema: 'cure-form-preview-manifest/v1',
     title,
@@ -2165,9 +2229,11 @@ function commandPreview(args) {
       dependencyHash
     }),
     resources: resources.map((resource) => ({ role: resource.role, basename: resource.basename, href: resource.href, contentHash: resource.contentHash })),
+    ...(args.vendorMount && resources.some((resource) => resource.href.startsWith(VENDOR_PREFIX)) ? { vendorMount: args.vendorMount } : {}),
     cssDependencies,
     dependencyHash,
-    widths: PREVIEW_WIDTHS,
+    widths,
+    ...(layout ? { layout } : {}),
     expectedRuntime,
     requiredChecks: PREVIEW_REQUIRED_CHECKS
   };
@@ -2176,18 +2242,20 @@ function commandPreview(args) {
   const html = htmlTemplate.replace(PREVIEW_MANIFEST_PLACEHOLDER, manifestHash);
   const htmlPath = path.join(outputRoot, 'preview.html');
   fs.writeFileSync(htmlPath, html, 'utf8');
-  console.log(JSON.stringify({ command: 'preview', html: htmlPath, manifest: manifestPath, manifestHash, widths: PREVIEW_WIDTHS }, null, 2));
+  const index = registerPreview(args, changes.mapCode || 'preview', htmlPath);
+  console.log(JSON.stringify({ command: 'preview', html: htmlPath, index, previews: [{ mapCode: changes.mapCode, path: htmlPath }], manifest: manifestPath, manifestHash, widths }, null, 2));
 }
 
 function commandPreviewRun(args) {
   const runner = path.join(__dirname, 'cure-form-browser-runner.js');
   if (!fs.existsSync(runner)) fail(`Canonical browser runner is missing: ${runner}`);
   const manifest = projectPath(args, requireOption(args, 'manifest'));
-  const output = projectPath(args, args.output || path.join(workRoot(args), 'preview', 'browser-results.json'));
+  const output = projectPath(args, args.output || path.join(path.dirname(manifest), '..', 'verification', 'browser-results.json'));
   const runnerArgs = [runner, '--manifest', manifest, '--output', output, '--project-root', projectRoot(args)];
   if (args.browserCommand) runnerArgs.push('--browser-command', String(args.browserCommand));
   if (args.targetProfile) runnerArgs.push('--target-profile', projectPath(args, args.targetProfile));
   if (args.timeoutMs) runnerArgs.push('--timeout-ms', String(args.timeoutMs));
+  runnerArgs.push('--vendor-root', projectPath(args, args.vendorRoot || parseMarkdownProfile(previewProfilePath(args)).PreviewVendorRoot || path.join(capabilityRoot(args), 'vendor', 'hisui')));
   const result = spawnSync(process.execPath, runnerArgs, { cwd: projectRoot(args), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);
@@ -2254,9 +2322,10 @@ function commandPreviewCheck(args) {
   if (JSON.stringify(manifest.requiredChecks) !== JSON.stringify(PREVIEW_REQUIRED_CHECKS) || manifest.requiredChecksHash !== sha256(PREVIEW_REQUIRED_CHECKS)) {
     fail('Preview manifest required checks do not match the current canonical gate.');
   }
-  if (JSON.stringify(manifest.widths) !== JSON.stringify(PREVIEW_WIDTHS)) fail('Preview manifest does not contain the canonical nine-width matrix.');
+  if (!validWidths(manifest.widths)) fail('Preview manifest does not contain the canonical nine-width matrix.');
   const manifestHash = sha256(manifest);
   const previewHtmlPath = path.resolve(path.dirname(manifestPath), manifest.previewHtml || 'preview.html');
+  if (manifest.vendorMount) validateMount(manifest.vendorMount, projectPath(args, args.vendorRoot || parseMarkdownProfile(previewProfilePath(args)).PreviewVendorRoot || path.join(capabilityRoot(args), 'vendor', 'hisui')));
   if (!pathIsWithin(previewHtmlPath, path.dirname(manifestPath)) || !fs.existsSync(previewHtmlPath) || !fs.statSync(previewHtmlPath).isFile()) fail('Preview HTML is missing or outside the manifest directory.');
   const previewHtml = fs.readFileSync(previewHtmlPath, 'utf8');
   if (previewHtml.split(manifestHash).length - 1 !== 1 || sha256(previewHtml.replace(manifestHash, PREVIEW_MANIFEST_PLACEHOLDER)) !== manifest.previewHtmlTemplateHash) {
@@ -2284,6 +2353,11 @@ function commandPreviewCheck(args) {
   });
   if (manifest.resourceHash !== manifestResourceHash) fail('Preview manifest resource hash is invalid.');
   for (const resource of [...manifest.resources, ...manifest.cssDependencies.dependencies]) {
+    if (resource.href.startsWith(VENDOR_PREFIX)) {
+      const file = mountedFile(manifest.vendorMount, resource.href);
+      if (!file || crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex') !== resource.contentHash) fail('Mounted vendor resource hash mismatch.');
+      continue;
+    }
     if (/^(?:https?:)?\/\//i.test(resource.href) || !/^[a-f0-9]{64}$/i.test(String(resource.contentHash || ''))) fail(`Canonical preview resource must be local and hashable: ${resource.href}`);
     const resourcePath = path.resolve(path.dirname(manifestPath), resource.href);
     if (!pathIsWithin(resourcePath, path.dirname(manifestPath)) || !fs.existsSync(resourcePath) || !fs.statSync(resourcePath).isFile()) {
@@ -2299,11 +2373,12 @@ function commandPreviewCheck(args) {
   }
   const results = browserPayload.results;
   if (!Array.isArray(results)) fail('Browser results must contain results[].');
-  if (results.length !== PREVIEW_WIDTHS.length) fail('Browser results must contain only the canonical nine-width matrix.');
-  for (const width of PREVIEW_WIDTHS) {
+  if (results.length !== manifest.widths.length) fail('Browser results must match the complete width matrix.');
+  for (const width of manifest.widths) {
     const matches = results.filter((result) => Number(result && result.width) === width);
     if (matches.length !== 1) fail(`Browser results must contain exactly one result for width ${width}.`);
     validateBrowserResult(matches[0], width, manifest, manifestHash);
+    if (manifest.layout && (!Array.isArray(matches[0].layoutResults) || matches[0].layoutResults.length !== (manifest.layout.cases || [{}]).length || matches[0].layoutResults.some((item) => item.passed !== true))) fail(`Layout checks failed at width ${width}.`);
   }
   const verification = {
     schema: 'cure-form-preview-verification/v1',
@@ -2319,12 +2394,13 @@ function commandPreviewCheck(args) {
     dependencyHash: manifest.dependencyHash,
     browserResultsHash: sha256({ runner: browserPayload.runner, results }),
     resultCount: results.length,
-    widths: PREVIEW_WIDTHS,
+    widths: manifest.widths,
     verifiedAt: new Date().toISOString()
   };
-  const output = projectPath(args, args.output || path.join(workRoot(args), 'preview', 'preview-verification.json'));
+  if (browserPayload.runner.implementationHash !== runnerFingerprint()) fail('Browser runner implementation changed; rerun preview-run.');
+  const output = projectPath(args, args.output || path.join(path.dirname(manifestPath), '..', 'verification', 'preview-verification.json'));
   writeJson(output, verification);
-  console.log(JSON.stringify({ command: 'preview-check', output, status: verification.status, widths: PREVIEW_WIDTHS }, null, 2));
+  console.log(JSON.stringify({ command: 'preview-check', output, status: verification.status, widths: manifest.widths }, null, 2));
 }
 
 function commandPrepare(args) {
@@ -2335,7 +2411,7 @@ function commandPrepare(args) {
   const spec = validateSpec(readJson(projectPath(args, requireOption(args, 'spec'))), { approved: true });
   validatePublicResponsiveBoundary(spec, args, false);
   const outputRoot = args.outputRoot ? projectPath(args, args.outputRoot) : developmentRoot(args);
-  const output = renderCreate(spec, outputRoot, args);
+  const output = renderCreate(spec, outputRoot, args.outputRoot || args.developmentRoot ? args : { ...args, generatedModuleDir: path.join(formRoot({ ...args, moduleId: spec.moduleId }, spec.moduleId), 'source') });
   console.log(JSON.stringify({ command: 'prepare', mode, output, formType: spec.formType }, null, 2));
 }
 
@@ -2398,6 +2474,7 @@ function validatePreviewVerification(value, changesHash, snapshotHash) {
   if (!value || value.schema !== 'cure-form-preview-verification/v1' || value.status !== 'passed') {
     fail('Deployable changes require a passed cure-form-preview-verification/v1 report.');
   }
+  if (!value.runner || value.runner.implementationHash !== runnerFingerprint()) fail('Preview runner implementation changed; regenerate browser evidence.');
   if (value.gateVersion !== PREVIEW_GATE_VERSION || value.requiredChecksHash !== sha256(PREVIEW_REQUIRED_CHECKS)) {
     fail(`Preview verification must use ${PREVIEW_GATE_VERSION}; regenerate browser evidence with the current plugin.`);
   }
@@ -2406,11 +2483,11 @@ function validatePreviewVerification(value, changesHash, snapshotHash) {
   }
   if (value.changesHash !== changesHash) fail('Preview verification does not match the supplied changes payload.');
   if ((value.snapshotHash || null) !== (snapshotHash || null)) fail('Preview verification does not match the supplied snapshot.');
-  if (JSON.stringify(value.widths) !== JSON.stringify(PREVIEW_WIDTHS)) fail('Preview verification does not cover the canonical nine-width matrix.');
+  if (!validWidths(value.widths)) fail('Preview verification does not cover the canonical nine-width matrix.');
   if (!/^[a-f0-9]{64}$/i.test(String(value.manifestHash || '')) || !/^[a-f0-9]{64}$/i.test(String(value.resourceHash || ''))) {
     fail('Preview verification is missing manifest or resource hashes.');
   }
-  if (!/^[a-f0-9]{64}$/i.test(String(value.browserResultsHash || '')) || Number(value.resultCount) !== PREVIEW_WIDTHS.length) {
+  if (!/^[a-f0-9]{64}$/i.test(String(value.browserResultsHash || '')) || Number(value.resultCount) !== value.widths.length) {
     fail('Preview verification is missing canonical browser result evidence.');
   }
   if (!/^[a-f0-9]{64}$/i.test(String(value.dependencyHash || ''))) fail('Preview verification is missing the CSS dependency hash.');
@@ -2578,7 +2655,7 @@ function commandInteractionPrepare(args) {
     results: [],
     createdAt: new Date().toISOString()
   };
-  const output = projectPath(args, args.output || path.join(workRoot(args), 'interaction', `${spec.moduleId}-${stage}.json`));
+  const output = projectPath(args, args.output || path.join(formRoot(args, spec.moduleId), 'verification', `${spec.moduleId}-${stage}.json`));
   writeJson(output, report);
   const markdown = projectPath(args, args.markdown || output.replace(/\.json$/i, '') + '.md');
   ensureDir(path.dirname(markdown));
@@ -2650,7 +2727,7 @@ function commandInteractionCheck(args) {
     reportHash: sha256(report),
     createdAt: new Date().toISOString()
   };
-  const output = projectPath(args, args.output || path.join(workRoot(args), 'interaction', `${report.moduleId}-${report.stage}-verification.json`));
+  const output = projectPath(args, args.output || path.join(formRoot(args, report.moduleId), 'verification', `${report.moduleId}-${report.stage}-verification.json`));
   writeJson(output, verification);
   console.log(JSON.stringify({ command: 'interaction-check', stage: report.stage, mode, output, status: verification.status }, null, 2));
 }
@@ -2688,6 +2765,14 @@ function commandPlan(args) {
   const snapshotIsMissing = Boolean(snapshot && (snapshot.exists === false || snapshot.exists === 0));
   const hasChanges = Boolean(args.changes);
   let changes = hasChanges ? readJson(projectPath(args, args.changes)) : {};
+  if (hasChanges) validateOverwrite(changes, snapshot);
+  if (hasChanges && snapshot && snapshot.exists) {
+    for (const template of changes.templates || []) {
+      if (template.referenceOnly) continue;
+      const original = snapshot.templates.find((item) => String(item.rowId) === String(template.sourceTemplateRowId || template.rowId));
+      if (original && compareContract(original.content, template.content).status !== 'passed') fail(`Runtime field contract changed for template ${original.rowId}.`);
+    }
+  }
   const previewSourceChangesHash = hasChanges ? sha256(changes) : null;
   const snapshotHash = snapshot ? sha256(snapshot) : null;
   const previewVerification = hasChanges
@@ -2712,6 +2797,7 @@ function commandPlan(args) {
     : null;
   let commonTemplateReferences = [];
   if (args.approvedClones) {
+    if (changes.strategy === 'in-place-overwrite') fail('In-place overwrite cannot substitute approved clone references.');
     const resolved = applyApprovedCloneReferences(changes, spec, approvedCloneMap(readJson(projectPath(args, args.approvedClones))));
     changes = resolved.changes;
     commonTemplateReferences = resolved.references;
@@ -2750,6 +2836,13 @@ function validatePackage(value, write) {
   if (value.mapCode !== value.specification.mapCode || value.formType !== value.specification.formType) fail('Package target does not match specification.');
   if (!value.deploymentReady) fail('Package is review-only because no confirmed changes payload was supplied.');
   if (value.plannedChangesHash !== sha256(value.changes || {})) fail('Package changes do not match the planned changes hash.');
+  for (const resource of value.changes.resources || []) {
+    if (!resource.sourcePath) continue;
+    if (!/^[a-f0-9]{64}$/i.test(resource.contentHash || '') || !fs.existsSync(resource.sourcePath) ||
+        crypto.createHash('sha256').update(fs.readFileSync(resource.sourcePath)).digest('hex') !== resource.contentHash) {
+      fail('Workspace resource changed after package creation: ' + resource.sourcePath);
+    }
+  }
   validatePreviewVerification(value.previewVerification, value.previewSourceChangesHash, value.sourceSnapshotHash);
   if (value.expectedVersion === 'NEW' || value.interactionVerification) {
     validateInteractionVerification(value.interactionVerification, {
@@ -2784,13 +2877,18 @@ function validatePackage(value, write) {
 }
 
 function commandApply(args) {
+  if (args.channel && args.channel !== 'transaction-package') fail('Use deploy --channel lightweight-sql for SQL coverage; apply is the transaction-package channel.');
   const packageValue = readJson(requireOption(args, 'package'));
+  if (args.deploymentMode === 'manual') return commandHandoff(args);
+  if (args.deploymentMode && args.deploymentMode !== 'automatic') fail('Deployment mode must be automatic or manual.');
   if (args.confirmWrite) {
     packageValue.audit = packageValue.audit || {};
     packageValue.audit.operator = requireOption(args, 'operator');
     packageValue.audit.reason = requireOption(args, 'reason');
   }
   validatePackage(packageValue, Boolean(args.confirmWrite));
+  const handoff = writeHandoff(packageValue, args.handoffOutput || path.join(formRoot(args, packageValue.mapCode), 'manual-deploy'));
+  console.error(JSON.stringify({ event: 'manual-handoff-ready', ...handoff }));
   if (!args.confirmWrite) {
     const serverValidation = args.confirmRemoteExecution
       ? invokeServer('ValidatePackage', [JSON.stringify(packageValue)], args, false)
@@ -2804,6 +2902,18 @@ function commandApply(args) {
   }
   const result = invokeServer('ApplyPackage', [JSON.stringify(packageValue), packageValue.audit.operator, packageValue.audit.reason], args, true);
   console.log(JSON.stringify({ command: 'apply', dryRun: false, result }, null, 2));
+}
+
+function commandHandoff(args) {
+  const packageValue = validatePackage(readJson(requireOption(args, 'package')), false);
+  console.log(JSON.stringify(writeHandoff(packageValue, args.outputRoot || path.join(formRoot(args, packageValue.mapCode), 'manual-deploy')), null, 2));
+}
+
+function commandDeploymentOptions() {
+  console.log(JSON.stringify({ modes: [{ value: 'automatic', label: '自动部署' }, { value: 'manual', label: '手动部署' }],
+    channels: [{ value: 'transaction-package', label: '完整事务包', supported: true }, { value: 'lightweight-sql', label: '轻量 SQL 覆盖', supported: true, scope: '单个已有 CA/CR 模板 content；不改 Map/缓存/组成，不清空', runtimeReadiness: 'requires-probe-and-write-permission', idleTimeoutMs: 60000, totalTimeoutMs: 120000 }],
+    strategies: ['versioned-clone', 'in-place-overwrite'], assetModes: ['automatic', 'manual'],
+    defaults: selectDeployment(), note: '静态资源自动上传由 coding-iris-plugin 编排；模板 apply 不执行 SFTP。' }, null, 2));
 }
 
 function commandVerify(args) {
@@ -2894,10 +3004,10 @@ function commandCommonMigrate(args) {
 }
 
 function usage() {
-  console.log(`Usage: cure-form <command> [options]\nCommands: ${[...COMMANDS].join(', ')}\nDocument create defaults: --project-root <cwd>, source discovery under docs/, generated files under docs/cure-form/<moduleId>/. Use --source, --docs-root, --development-root, or --output-root to override.`);
+  console.log(`Usage: cure-form <command> [options]\nCommands: ${[...COMMANDS].join(', ')}\nUse --task-id consistently. Task outputs: docs/work/cure-form/<task>/<Map>/; runtime state: <task>/private/. Project config and rules remain in .agents/. Explicit --output-root and --work-root remain supported.`);
 }
 
-function main() {
+async function main() {
   assertNodeVersion();
   const args = parseArgs(process.argv.slice(2));
   const command = args._[0];
@@ -2916,6 +3026,51 @@ function main() {
     'interaction-prepare': commandInteractionPrepare,
     'interaction-check': commandInteractionCheck,
     apply: commandApply,
+    handoff: commandHandoff,
+    'deployment-options': commandDeploymentOptions,
+    'integrate-check': (options) => {
+      const { integrationCheck } = require('./cure-form-integration-check');
+      const result = integrationCheck(readJson(projectPath(options, requireOption(options, 'deliveries'))));
+      const output = projectPath(options, options.output || path.join(taskRoot(options), 'integration-verification.json'));
+      writeJson(output, result);
+      console.log(JSON.stringify({ ...result, output }, null, 2));
+    },
+    'recovery-test': async (options) => {
+      const { recoveryTest } = require('./cure-form-recovery-test');
+      const { deploy } = require('./cure-form-deploy-runner');
+      if (!options.confirmClearContent || !options.confirmWrite || !options.confirmRemoteExecution) fail('Recovery test requires --confirm-clear-content --confirm-write --confirm-remote-execution.');
+      const outputRoot = projectPath(options, requireOption(options, 'outputRoot'));
+      const result = await recoveryTest({ packageValue: readJson(requireOption(options, 'package')), rowId: requireOption(options, 'rowId'), outputRoot,
+        confirmClear: true, operator: requireOption(options, 'operator'), reason: requireOption(options, 'reason') }, {
+        setDeadline: (deadlineAt) => { options.deadlineAt = deadlineAt; },
+        validate: (value) => validatePackage(value, false),
+        inspect: (value) => extractResult(run(process.execPath, [path.join(__dirname, 'cure-form-staged-transport.js'), '--method', 'InspectForm', '--form-type', value.formType, '--map-code', value.mapCode, '--deadline-at', String(options.deadlineAt)])),
+        validateRemote: (value) => invokeServer('ValidatePackage', [JSON.stringify(value)], { ...options, confirmStagingWrite: true }, false),
+        apply: (value, operator, reason) => invokeServer('ApplyPackage', [JSON.stringify(value), operator, reason], options, true),
+        rollback: (id, operator, reason) => invokeServer('RollbackOperation', [String(id), operator, reason], options, true),
+        deploy: (file) => deploy({ packages: [file], outputRoot: path.join(outputRoot, 'restore-run'), mode: 'automatic', confirmWrite: true, operator: options.operator, reason: options.reason, budgetOptions: { totalMs: Math.max(1, options.deadlineAt - Date.now()) } }, validatePackage)
+      });
+      console.log(JSON.stringify(result, null, 2));
+      if (result.status !== 'restored-and-verified') process.exitCode = 1;
+    },
+    deploy: async (options) => {
+      selectDeployment({ channel: options.channel || 'transaction-package' });
+      if (options.channel === 'lightweight-sql') {
+        if (options.packageList) fail('Lightweight SQL accepts one package per invocation.');
+        const { sqlCover } = require('./cure-form-sql-cover');
+        const result = await sqlCover({ packageValue: readJson(requireOption(options, 'package')), snapshot: readJson(requireOption(options, 'snapshot')),
+          outputRoot: projectPath(options, requireOption(options, 'outputRoot')), mode: options.deploymentMode || 'manual', confirmWrite: Boolean(options.confirmWrite), confirmRemoteExecution: Boolean(options.confirmRemoteExecution), operator: options.operator, reason: options.reason }, validatePackage);
+        console.log(JSON.stringify(result, null, 2));
+        if (!['verified','unchanged','manual-ready'].includes(result.status)) process.exitCode = 1;
+        return;
+      }
+      const { deploy } = require('./cure-form-deploy-runner');
+      const packages = options.packageList ? readJson(requireOption(options, 'packageList')) : [requireOption(options, 'package')];
+      const result = await deploy({ packages, outputRoot: projectPath(options, requireOption(options, 'outputRoot')),
+        mode: options.deploymentMode || 'manual', operator: options.operator, reason: options.reason, confirmWrite: Boolean(options.confirmWrite) }, validatePackage);
+      console.log(JSON.stringify(result, null, 2));
+      if (!['verified', 'manual-ready'].includes(result.status)) process.exitCode = 1;
+    },
     verify: commandVerify,
     rollback: commandRollback,
     consolidate: commandConsolidate,
@@ -2923,15 +3078,14 @@ function main() {
     cleanup: commandCleanup,
     'common-migrate': commandCommonMigrate
   };
-  handlers[command](args);
+  await handlers[command](args);
 }
 
 module.exports = { addResponsiveContract, assertCompletePreviewResources, assertFormType, buildCleanupPackage, buildConsolidationPackage, buildSharedConsolidationPackage, consolidationHtmlContract, contractSnapshot, interactionRequiredCases, objectScriptArgument, previewBodyFromChanges, resolvePreviewResources, sha256, structureToSpec, unwrapServerResult, validateBrowserResult, validateCleanupPackage, validateConsolidationPackage, validateSharedConsolidationPackage, validateInteractionVerification, validatePackage, validatePreviewVerification, validateSpec };
 
 if (require.main === module) {
-  try { main(); }
-  catch (error) {
+  main().catch((error) => {
     console.error(`ERROR=${error.message}`);
     process.exitCode = error.exitCode || 1;
-  }
+  });
 }

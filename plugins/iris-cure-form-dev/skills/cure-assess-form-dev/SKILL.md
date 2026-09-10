@@ -6,7 +6,7 @@ description: 从已批准 cure-form-spec/v1 新建或重构 CA 治疗评估表�
 # Cure Assess Form Dev
 
 1. 只接受 `formType=CA` 且已批准、`unresolved[]` 为空的规格。
-2. 默认在项目 `docs/cure-form/<moduleId>/` 生成 `<moduleId>.html`、`.js`、`.fragment.html` 和 `cure-form-spec.json`；显式 `--output-root` 可覆盖开发目录。
+2. 默认在 `docs/work/cure-form/<task>/<moduleId>/source/` 生成 HTML、JS、fragment 和规格；统一使用 --task-id，显式 --output-root 兼容原有输出布局。修改后直接列出预览链接。
    - 多模板规格按顺序生成全部 `*.fragment.html`；只有确有计算、联动或初始化逻辑的模板才生成独立 `*.js`，无逻辑模板不得生成空壳脚本。
    - 复杂业务布局可在获批模板中提供 `fragmentHtml` 与 `javascript`；生成前验证根容器、响应式 class、字段 ID/缓存标签以及模块接口，不允许用覆盖项绕过规格门禁。
    - 模板“引用JS”只保存规格声明的外部路径，不保存源码。独立预览 HTML 可初始化实际存在的子模块。默认由宿主管理分模板生命周期；仅在已验证宿主不会可靠执行分模板 `Init` 时，才在规格中设置 `aggregateTemplateInit=true`，并确保各业务模块 `Init` 可重复调用或自行幂等。
