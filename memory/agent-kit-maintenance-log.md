@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+2026-09-11：按用户明确纠正，将 CLS 优化收敛为 Agent 编码规则、模板和可选非阻断自检；撤销未提交的编译证据、回读与提交门禁、配套配置和五个依赖插件升级。保留历史格式，恢复原上传/编译/提交工具；6 项格式与 CLI 自检测试通过。
+
 本文件记录近期维护流水摘要和验证结论。长期决策见 `agent-kit-maintenance-decisions.md`，后续治理队列见 `agent-kit-maintenance-backlog.md`，入口摘要见 `agent-kit-maintenance-memory.md`。
 
 ## 近期已完成

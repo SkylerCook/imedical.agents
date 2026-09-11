@@ -5,6 +5,8 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 
 # IRIS Backend Coding
 
+编写 `.cls` 时读取 `../../references/cls-coding-format.md`。新类使用规范模板；已有类只规范需求涉及位置，保留其他历史格式。可选本地自检不阻断提交，不要求上传、回读或编译证据。
+
 ## 使用时机
 
 当任务涉及 IRIS ObjectScript、`.cls`、BLH/DATA/SQL、Broker、Query、SQL 写入层或后端 MCP 编译验证时使用本 Skill。

@@ -1,5 +1,7 @@
 # imedical.agents
 
+CLS 编码提示：`coding-iris-plugin` 保留已有类历史格式，仅规范本次新增/修改位置；可选本地自检不阻断提交，不改变手动上传编译流程。
+
 `imedical.agents` 是 imedical 的 AI Coding 能力包仓库，用于沉淀可复用的 Agent 角色、协作流程、插件规则、skills、模板和辅助脚本。
 
 目标是让 Codex、Claude Code、OpenCode、CodeBuddy、WorkBuddy、Hermes 等不同 AI 开发工具都能快速获得正确上下文，同时避免把通用能力、项目差异、连接信息和临时经验混在一起。

@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+coding-iris-plugin 0.7.2：CLS 格式能力仅服务 Agent 编码提示与最小改动，不引入编译证据、自动回读或提交门禁。
+
 本文件是 `imedical.agents` 能力包仓库维护记忆的入口摘要，帮助后续 Agent 快速接手。它不是业务项目 `.agents/memory/project-memory.md`，不部署到业务项目，不生成 thin-index。
 
 详细记忆分流如下：
