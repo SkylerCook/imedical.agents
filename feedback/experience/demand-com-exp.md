@@ -114,13 +114,13 @@
 ### 1.9 IRIS 日期时间转换成功不等于输入合法
 - 需求: #7060457 | 命中: 1
 - **问题**：直接使用 `%ZDH()` / `%ZTH()` 转换外部日期时间后保存，非法输入可能被归一化为另一个合法值，也可能抛出异常；仅判断转换是否返回不能证明原始输入有效。
-- **做法**：先校验日期、时间片段和空格分隔结构；在 `try/catch` 中执行 `%ZDH()` / `%ZTH()`，再用 `%ZD()` / `%ZT()` 格式化回业务标准格式，与原始输入逐项比较。异常或回显不一致都返回业务校验提示，最后再判断不能早于当天。
+- **做法**：先校验日期、时间片段和空格分隔结构；在 `try/catch` 中执行 `%ZDH()` / `%ZTH()`，再用 `%ZD()` / `%ZT()` 按当前系统格式回显，与原始输入逐项比较。异常或回显不一致都返回业务校验提示，最后再判断不能早于当天。
   ```objectscript
   s invalidDateTimeFlag = 0
   try {
       s dateSys = ..%ZDH(inputDate)
       s timeSys = ..%ZTH(inputTime)
-      s normalizedDate = ..%ZD(dateSys, 3)
+      s normalizedDate = ..%ZD(dateSys)
       s normalizedTime = $p(..%ZT(timeSys, 2), ":", 1, 2)
   } catch ex {
       s invalidDateTimeFlag = 1
@@ -132,7 +132,7 @@
       q invalidDateTimeRet
   }
   ```
-- **边界**：前端日期控件只能改善交互，后端仍必须执行同样的严格校验，防止绕过页面直接调用保存接口。
+- **格式配置边界**：IRIS 常用日期格式可配置时，不得给 `%ZD()` 写死格式码，也不得在前端写死 `YYYY-MM-DD`；否则 `DD/MM/YYYY` 等系统认可的日期会被业务校验误拦截。前端日期控件只能改善交互，后端仍必须执行同样的严格校验，防止绕过页面直接调用保存接口。
 
 ---
 
@@ -210,17 +210,15 @@
 ### 2.8 HISUI 日期时间手工输入必须由业务层严格复核
 - 需求: #7060457 | 命中: 1
 - **问题**：`datetimeboxq` 允许用户直接输入文本；在部分初始化链路中，`datetimeboxq("isValid")` 对明显非法值仍可能返回 `true`。此外，HISUI `validatebox` 失焦时默认只设置无效状态并隐藏 tooltip，不能等同于“失焦立即给出可见提示”。
-- **做法**：用同一个页面级函数完成严格格式、真实日历日期、时分范围和不能早于当天的校验，并同时用于 `onBlur` 和保存前校验。失焦时使用 HISUI 无效状态配合 `$.messager.popover()`；保存时使用 `$.messager.alert()` 并在关闭后聚焦对应控件。
+- **做法**：用同一个页面级函数复用目标 `datetimeboxq` 当前 options 中的 `parser/formatter`，通过“解析后按同一配置回显并与原值比较”完成严格格式、真实日历日期和时分范围校验，再判断不能早于当天；该函数同时用于 `onBlur` 和保存前校验。失焦时使用 HISUI 无效状态配合 `$.messager.popover()`；保存时使用 `$.messager.alert()` 并在关闭后聚焦对应控件。
   ```javascript
-  var match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/.exec(value)
-  var date = new Date(Date.UTC(year, month - 1, day, hour, minute))
-  var valid = date.getUTCFullYear() == year &&
-      date.getUTCMonth() == month - 1 &&
-      date.getUTCDate() == day &&
-      date.getUTCHours() == hour &&
-      date.getUTCMinutes() == minute
+  var options = $(target).datetimeboxq("options")
+  var date = options.parser.call(target, value)
+  var valid = date instanceof Date && !isNaN(date.getTime()) &&
+      options.formatter.call(target, date) == value
   ```
-- **边界**：失焦提示失败后不自动重新聚焦，避免形成焦点陷阱；只有用户主动保存且校验失败时才在提示关闭后聚焦。前端校验不能替代后端保存边界校验。
+- **配置边界**：必须取目标控件的当前 options，不能复制固定正则或假定全局默认值；系统切换为 `DD/MM/YYYY` 等常用日期格式后，合法输入仍应通过。失焦提示失败后不自动重新聚焦，避免形成焦点陷阱；只有用户主动保存且校验失败时才在提示关闭后聚焦。前端校验不能替代后端保存边界校验。
+- **提示文案**：错误提示不应要求用户理解“系统日期格式”等实现概念；采用“请输入有效的{字段名称}”这类字段明确、可行动的文案，具体格式由当前控件呈现。
 
 ### 2.9 列表内容与独立空态必须在所有数量变化入口统一同步
 - 需求: #7060481 | 命中: 1
