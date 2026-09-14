@@ -21,6 +21,7 @@
 - 架构约束与代码组织：`skills/imedicalxc-doctor-extend-architecture/SKILL.md`
 - 团队归属与范围分析：`skills/imedicalxc-doctor-extend-scope/SKILL.md`
 - 数据格式与 XML/JSON 生成：`skills/imedicalxc-doctor-extend-dataformat/SKILL.md`
+- 电子健康卡新厂家接入（镜像既有厂家生成代码/SQL/文档）：`skills/imedicalxc-doctor-elechealthcard-vendor/SKILL.md`
 - BLH 编写规范：`skills/imedicalxc-doctor-blh/SKILL.md`
 - 调用与接口规范：`skills/imedicalxc-doctor-invoke/SKILL.md`
 - 医保/字典数据规范：`skills/imedicalxc-doctor-dbdata/SKILL.md`，当前已精简为数据库查询核心规范，重点覆盖医保对照、基础数据统一对照和合并查询。
