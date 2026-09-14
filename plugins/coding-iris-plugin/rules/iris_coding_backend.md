@@ -9,6 +9,8 @@ related:
 
 # 后端 ObjectScript 编码规则
 
+Agent 编码时遵循 `../references/cls-coding-format.md`：方法间及类结束符前保留一行空白，EOF 保留一个换行。已有类仅规范本次编辑位置，历史格式不处理；可选自检只提示，不作为提交门禁。
+
 ## 技术栈
 
 - 后端语言：InterSystems IRIS ObjectScript。

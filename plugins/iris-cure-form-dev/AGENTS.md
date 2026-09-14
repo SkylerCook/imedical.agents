@@ -4,7 +4,7 @@
 
 - 本插件只处理 `MapType=CA` 的治疗评估表单和 `MapType=CR` 的治疗记录表单。
 - `MapType` 为空或其他值时必须停止，病理模板不得进入自动生成、改造或部署流程。
-- 服务器现有模板是现有表单的 canonical；本地快照只写入 `.agents/work/`。
+- 服务器现有模板是现有表单的 canonical；本地快照写入任务目录 `docs/work/cure-form/<task>/private/snapshots/`，不提交 Git。
 
 ## 依赖与职责
 
@@ -14,7 +14,7 @@
 - 服务端治疗表单事务类固定为 `DHCDoc.Cure.AI.CureFormDeploy`；canonical 不允许从 target profile 注入类名，也不保留旧部署类 fallback。
 - 流程入口为 `node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js <command>`；Node.js 最低版本为 `22.5.0`。
 - Excel 多模板新建通过 `cure-form-template-boundaries/v1` 显式声明 Sheet、模板顺序和 A1 范围；范围重叠或合并单元格被边界截断必须进入 `unresolved[]`，不得静默拆分。
-- 文档驱动的新表单开发默认以业务项目根为 `--project-root`，从 `docs/` 读取医院需求文件，并将规格、摄取报告及生成源码写入 `docs/cure-form/<moduleId>/`；显式 `--source`、`--docs-root`、`--development-root` 或 `--output-root` 可覆盖。服务器快照和部署临时数据仍只写 `.agents/work/`。
+- 表单工作产物及运行态统一遵循 [交付流程](references/cure-form-delivery-workflow.md)。项目配置/规则仍在 `.agents/`，不迁移 Overlay 契约；源码、预览、验收按任务和 Map 分目录，快照与状态放任务 private。
 - 新开发表单与现有模板改造必须分流：`expectedVersion=NEW` 的新开发表单直接创建正式模板，不使用灰度；只有现有模板改造才允许创建响应式灰度 RowID。
 
 ## 安全门禁
@@ -25,9 +25,9 @@
 - 人工交互优先：用户明确反馈整体通过可形成 `user-attested` 凭证；Agent 在本地完整预览逐步自测时必须逐项记录。canonical v1 不执行或接受自动点击、输入、选择；任何批量脚本化交互必须先申请用户明确确认。
 - 多模板规格获批前，每个模板必须明确 `rootId` 和 `moduleName`，候选字段必须转换为唯一稳定 ID 和已确认控件类型。
 - `apply` 默认只做 `dry-run`；真实写入必须显式传入 `--confirm-write`、`--operator` 和 `--reason`。
-- 不允许通用 SQL 写入，不允许修改患者评估或治疗记录数据。
+- 不允许任意 SQL 写入或修改患者评估/治疗记录数据。仅显式选择 `lightweight-sql` 时允许固定参数化单模板 content 覆盖，范围、授权、备份和回读遵循 [轻量 SQL 通道](references/cure-form-sql-cover.md)；完整事务包路径保持不变。
 - Map、模板、缓存字段和组成关系必须作为一个业务事务处理，并通过版本与内容哈希防止并发覆盖。
-- 现有模板改造验收后必须回归正式 RowID：单 Map 独占模板执行 `consolidate`，多 Map 共用公共模板执行 `consolidate-shared`；写入后执行 `verify` 并重新检查全部 Map 引用。只有正式 RowID 已生效、灰度引用数为 `0`、灰度模板及缓存均不存在时才可宣告完成。
+- 采用灰度的现有模板改造验收后必须回归正式 RowID：单 Map 用 `consolidate`，多 Map 共用公共模板用 `consolidate-shared`；原 RowID 覆盖策略不创建灰度、不执行合并，但仍必须 verify 和真实宿主验收。
 - `cleanup` 仅清理已经完成引用切换且全库零引用的旧模板；它不回归正式 RowID，不得替代现有模板改造的 `consolidate` / `consolidate-shared` 收尾门禁，也不得用于新开发表单。
 - `.mcp.json`、`.iris-agentic-dev.toml`、本地路径配置、服务器快照和凭据不得提交 Git 或输出到日志。
 

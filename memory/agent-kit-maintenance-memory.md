@@ -1,14 +1,20 @@
 # imedical.agents 维护记忆入口
 
+coding-iris-plugin 0.7.2：CLS 格式能力仅服务 Agent 编码提示与最小改动，不引入编译证据、自动回读或提交门禁。
+
 本文件是 `imedical.agents` 能力包仓库维护记忆的入口摘要，帮助后续 Agent 快速接手。它不是业务项目 `.agents/memory/project-memory.md`，不部署到业务项目，不生成 thin-index。
 
 详细记忆分流如下：
+
+- 表单部署显式提供 `transaction-package` / `lightweight-sql` 通道，独立于 automatic/manual；轻量通道仅已有独占单模板 content。上游 write 参数缺失已由明确授权的 `mcp-fixed-sql-binding` 固定绑定层兼容，事务内预检和实际影响行数必须为 1；一个真实授权样本清空/恢复验证通过。详情及验收范围见插件 `references/cure-form-sql-cover.md`，不开放任意执行或普通清空。
 
 - 长期决策和稳定边界：`agent-kit-maintenance-decisions.md`
 - 近期维护流水和验证摘要：`agent-kit-maintenance-log.md`
 - 后续计划和治理队列：`agent-kit-maintenance-backlog.md`
 
 ## 当前状态
+
+- `iris-cure-form-dev` 当前维护版本为 v0.7.0：任务产物和运行态统一使用项目 `docs/work/cure-form/<task>/`；项目配置/规则仍属 `.agents/`。已有模板支持默认版本化克隆和显式原 RowID 覆盖，部署方式独立选择自动/手动；以下旧版概览中“现有改造使用灰度”不再表示唯一策略。详情路由到插件交付工作流及本次维护日志。
 
 - 本仓库维护可复用 Agent 能力包，核心内容包括 `agents/`、`workflows/`、`plugins/`、`skills/`、`rules/`、`docs/`、`scripts/` 和 `memory/`。
 - `agents/` 是厂商无关的智能体 canonical 注册层；`workflows/` 是厂商无关的多智能体/阶段化编排层。工具专属入口只能作为 adapter 生成物。

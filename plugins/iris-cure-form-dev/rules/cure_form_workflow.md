@@ -4,7 +4,7 @@
 
 `extract-doc/structure-v1` → `cure-form-spec/v1` → 人工确认 → CA/CR 生成 → 响应式与运行时契约验证 → 部署前人工交互验证 → 部署包 → 部署后人工交互验证。新开发表单直接创建正式模板，不使用灰度，也不进入灰度合并或清理流程。
 
-默认以业务项目根为 `--project-root`：医院需求文件从 `docs/` 发现，开发规格、摄取报告和生成源码进入 `docs/cure-form/<moduleId>/`。多个 Word/PDF/Excel 候选必须由 `--source` 明确选择；不要用文件排序或修改时间猜测。服务器快照及部署临时数据继续写入 `.agents/work/`，不得混入 `docs/`。
+默认以业务项目根为 `--project-root`：医院需求从 docs/ 发现；规格、源码、预览与验收按 `docs/work/cure-form/<task>/<Map>/` 分目录；快照/部署状态放同任务 private，排除 Git/HTTP。项目配置与规则保留 .agents。多个文档候选必须显式选择；完整约束见 `../references/cure-form-delivery-workflow.md`。
 
 Excel 多模板需求必须通过 `cure-form-template-boundaries/v1` 显式声明边界；摄取报告保留非空范围、格式化范围、合并层级、单位/维度、规则文字和候选字段。配置范围相交时写入 `TEMPLATE_RANGE_OVERLAP`；合并单元格未被某一个模板完整且唯一覆盖时写入 `TEMPLATE_MERGE_SPLIT`，由人工修正边界归属。
 
@@ -16,14 +16,14 @@ Excel 多模板需求必须通过 `cure-form-template-boundaries/v1` 显式声�
 
 ## 服务器现有模板改造
 
-读取 CA/CR Map、组成模板、HTML、JS、缓存字段及资源 → 本地快照 → 创建响应式灰度 RowID → 保持运行时契约的响应式改造 → canonical 完整预览与九档浏览器凭证 → 差异和影响报告 → dry-run 部署计划 → 明确确认后写入灰度并验收 → 按引用拓扑执行 `consolidate` 或 `consolidate-shared` 回归正式 RowID → `verify` 与全量 Map 回读 → 灰度引用数为 `0` 且灰度模板/缓存不存在后完成。
+读取 CA/CR Map、组成模板、HTML、JS、缓存字段及资源 → 本地快照 → 明确 versioned-clone / in-place-overwrite 策略 → 保持运行时契约的响应式改造 → canonical 完整预览、九档基线与问题宽度凭证 → 差异和影响报告 → dry-run 部署计划 → 独立选择自动/手动部署。versioned-clone 在授权后写入灰度并验收，再按引用拓扑 consolidate；in-place-overwrite 在授权后仅覆盖批准的 content/Map showJS，保持 RowID、组成和其它元数据，不创建灰度、不 consolidate。两者都必须 verify 和回读。
 
 公共模板使用版本化克隆，不直接原地覆盖。新表单引用最新批准版本且不视为灰度；现有 Map 改造按灰度清单切换，验收后通过 `consolidate-shared` 回归已有正式 RowID，病理 Map 永不自动切换。`cleanup` 只清理已经完成引用切换的零引用孤儿模板，不能代替正式合并。
 
 ## 样式职责边界
 
 - 目标工程的公共响应式样式文件由工程配置或现有页面资源引用解析；插件规则不得固化仓库路径、Web 根或文件绝对位置。
-- 完整预览统一加载目标工程解析出的 HISUI CSS、jQuery、HISUI JavaScript、中文 locale、`asscom.css` 和 `adaptation.css`；本地资源复制到受忽略的预览工作目录，预览 manifest 不保存源绝对路径。
+- 完整预览统一加载目标工程解析出的 HISUI CSS、jQuery、HISUI JavaScript、中文 locale、`asscom.css` 和 `adaptation.css`；HISUI 使用只读 vendor 虚拟挂载，manifest 保存允许根和原文件哈希，HTML 不包含本地 Windows 路径。业务/项目公共样式使用预览副本，详细边界见交付工作流。
 - 公共响应式样式只保存跨表单复用的断点布局、宽度伸缩、触控密度、溢出处理和 HISUI 兼容规则。
 - moduleId、业务根 ID、专属配色、业务矩阵、题干/规则区及仅由一个表单使用的 class 必须写入该表单独立 CSS。
 - 表单配置只能引用 JavaScript 时，`loadMode=host` 必须同时声明运行时 `scriptHref` 和落盘 `scriptDeploymentPath`，两者 basename 一致；Map“引用JS”保存 `scriptHref`，由该总入口按 `runtimeHref` 幂等加载独立 CSS。模板 JavaScript 不重复加载。没有表单级 JS 入口时才显式使用 `loadMode=template` fallback；禁止注入 `<style>` 或 CSS 文本。

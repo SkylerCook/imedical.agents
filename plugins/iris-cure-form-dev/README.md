@@ -4,6 +4,12 @@
 
 ## 命令
 
+部署显式支持 **自动部署 / 手动部署**，以及 **完整事务包 / 轻量 SQL 覆盖** 两个独立维度。单个已有模板只改 content 时可选择 `--channel lightweight-sql`，参见 [轻量 SQL 覆盖使用说明](references/cure-form-sql-cover.md)。该通道不部署 JS/CSS、不修改 Map 配置、不清空模板。
+
+轻量通道写入使用 `mcp-fixed-sql-binding`：通过 MCP 临时执行载体正确绑定固定 SQL 参数，事务内行数预检及实际影响行数均须为 1；这是上游 write 参数缺失的兼容修复，不开放任意 SQL 或关闭保护。已完成一个明确授权样本的清空/恢复演练；服务器与 HIS 验收仍按目标单独确认。部署态需要同步本版本插件代码后才具备此修复，能力包更新不自动写服务器。
+
+v0.7.0 的统一任务目录、vendor 挂载、自动/手动部署、原 RowID 覆盖、超时收敛与并行质量约束见 [交付流程](references/cure-form-delivery-workflow.md)。下文旧命令示例中的显式历史路径仍兼容，但新任务必须使用该流程的新目录，不再向 `.agents/work/` 生成任务产物。
+
 ```text
 cure-form intake
 cure-form inspect
@@ -22,6 +28,10 @@ cure-form consolidate
 cure-form consolidate-shared
 cure-form cleanup
 cure-form common-migrate
+cure-form deployment-options
+cure-form deploy
+cure-form handoff
+cure-form recovery-test
 ```
 
 实际安装后对应：
@@ -39,7 +49,7 @@ node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js <command> [options]
 ## 新开发与现有改造边界
 
 - 新开发表单以 `expectedVersion=NEW` 判定，直接走 `plan -> apply -> verify` 和部署后人工交互验证；不创建灰度模板，也不进入 `consolidate`、`consolidate-shared` 或 `cleanup`。
-- 现有模板改造先在新的响应式灰度 RowID 上完成预览、回归和用户验收。单 Map 独占模板使用 `consolidate` 回归 `APP_LastID` 指向的正式 RowID；多个 Map 共用的公共灰度模板使用 `consolidate-shared` 回归已有正式 RowID。
+- 现有模板改造默认在灰度 RowID 上验收，之后 consolidate；用户明确选择 `in-place-overwrite` 时直接覆盖已有 RowID content，保持历史 APP_LastID 和组成不变，不创建灰度也不执行合并。
 - 合并写入后必须使用返回的 operation ID 执行 `verify`，并重新检查受影响 Map：全部引用正式 RowID、灰度引用数为 `0`、灰度模板及缓存均不存在，才可宣告现有模板改造完成。
 - `cleanup` 只删除完成引用切换后仍遗留的全库零引用旧模板。它保留响应式替代 RowID，不执行“回归正式 RowID”，因此不能替代 `consolidate` 或 `consolidate-shared`。
 
@@ -66,9 +76,9 @@ node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js verify `
 
 ## 默认开发目录
 
-文档驱动的新表单以当前业务项目为默认 `--project-root`：医院提供的 Word、PDF、Excel 文件通常放在项目 `docs/`，规格、摄取报告和生成的 HTML/JavaScript/fragment/CSS 默认写入 `docs/cure-form/<moduleId>/`。插件不再使用 `src-iris` 作为默认或推荐目录。
+文档驱动的新表单以当前业务项目为默认 `--project-root`：医院提供的 Word、PDF、Excel 文件通常放在项目 `docs/`，规格、摄取报告和生成源码默认写入 `docs/work/cure-form/<task>/<moduleId>/source/`。使用 `--task-id` 保持多个命令归属同一任务。
 
-`docs/` 下只有一个支持的需求文件时可省略 `--source`；存在多个候选时必须显式选择，插件不会猜测。服务器快照、分块传输和部署临时数据仍保留在受忽略的 `.agents/work/cure-form/`。
+`docs/` 下只有一个支持的需求文件时可省略 `--source`；多个候选必须显式选择。快照与运行态放同任务 private，排除 Git 和预览服务；`.agents/` 保留框架、项目配置与项目规则。
 
 ```powershell
 node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js intake `

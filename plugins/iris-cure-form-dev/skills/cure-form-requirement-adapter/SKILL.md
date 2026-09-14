@@ -13,4 +13,4 @@ description: 将 extract-doc/structure-v1 或服务器模板快照转换为 cure
 5. 扫描 PDF 先进行页面视觉提取并人工确认；不得以零字段成功结束。
 6. `review` 仅在人完成确认且 `unresolved[]` 为空时写入批准哈希。
 7. 多模板范围重叠、合并单元格被边界截断、模板计数口径、`rootId`、`moduleName` 或字段控件类型未确认时不得审批。
-8. 默认将规格与摄取报告写入 `docs/cure-form/<moduleId>/`；服务器快照和部署临时数据仍写 `.agents/work/`。
+8. 规格与摄取报告写入 `docs/work/cure-form/<task>/<moduleId>/source/`；快照和运行态放同任务 private，排除 Git 和 HTTP。

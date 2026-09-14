@@ -2,15 +2,17 @@
 
 - CapabilityManifest: .agents/capability.json
 - CapabilityRoot: auto
-- WorkRoot: .agents/work/cure-form
+- WorkRoot: docs/work/cure-form
 - DocsRoot: docs
-- DevelopmentRoot: docs/cure-form
+- DevelopmentRoot: docs/work/cure-form
 - DefaultEnvironment: development
 - NamespaceSource: local MCP/server profile
 - AllowedFormTypes: CA, CR
 - RequireDryRun: true
 - RequireWriteConfirmation: true
 - CommonTemplateStrategy: versioned-clone
+- ResponsiveDeploymentStrategy: versioned-clone
+- PreviewVendorRoot: .agents/vendor/hisui
 - PreviewHisuiCss: .agents/vendor/hisui/dist/css/hisui.pure.min.css
 - PreviewJqueryJs: .agents/vendor/hisui/dist/js/jquery-1.11.3.min.js
 - PreviewHisuiJs: .agents/vendor/hisui/dist/js/jquery.hisui.min.js

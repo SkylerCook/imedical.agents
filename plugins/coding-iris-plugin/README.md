@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+CLS 编码遵循 [格式提示与最小改动约定](references/cls-coding-format.md)：新增代码按约定编写，历史格式保持原样。自检仅提示，不改变上传、编译或提交流程。
+
 `coding-iris-plugin` 是面向 IRIS/ObjectScript/CSP/JavaScript/HISUI 工程的通用 Agent 编码能力包。
 
 ## 能力范围

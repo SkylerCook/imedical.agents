@@ -6,7 +6,7 @@ description: 从已批准 cure-form-spec/v1 新建或重构 CR 治疗记录表�
 # Cure Record Form Dev
 
 1. 只接受 `formType=CR` 且已批准、`unresolved[]` 为空的规格。
-2. 默认在项目 `docs/cure-form/<moduleId>/` 生成 `<moduleId>.html`、`.js`、`.fragment.html` 和 `cure-form-spec.json`；显式 `--output-root` 可覆盖开发目录。
+2. 默认在 `docs/work/cure-form/<task>/<moduleId>/source/` 生成 HTML、JS、fragment 和规格；统一使用 --task-id，显式 --output-root 兼容原有输出布局。修改后直接列出预览链接。
 3. 保持 DOM ID、缓存标签、radio `name/value`、`Init/OtherInfo/PrintInfo`。
 4. 必须保持宿主 `record.recordtemp.js` 的 `SaveCureRecord`、`CureExpJsonStr`、`MapID` 及回显和打印行为；表单模块不得重新定义这些宿主入口。
 5. 默认满足手机/PDA、常规 PAD、宽屏 PAD 横屏和 PC 响应式契约。

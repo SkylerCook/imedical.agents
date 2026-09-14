@@ -1,5 +1,7 @@
 # AGENTS.md
 
+Agent 编写 `.cls` 时遵循 `references/cls-coding-format.md`。已有类只处理需求涉及位置；可选格式自检仅提示，不作为提交门禁。
+
 ## 插件定位
 
 `coding-iris-plugin` 提供 IRIS/ObjectScript/CSP/JavaScript/HISUI 工程的通用编码规则、初始化流程和 IRIS 开发主力脚本。

@@ -4,6 +4,8 @@
 
 ## 内容分层
 
+- 治疗表单插件的项目任务产物和运行态统一归 `docs/work/cure-form/<task>/`，以 Map/source/preview/verification/manual-deploy 与 private 分层；`.agents/` 保留框架能力及项目配置/规则，不默认容纳具体需求运行态。该决策不迁移 Overlay 配置，不移动既有备份/凭证，显式旧输出路径保持兼容。预览 HTTP 只读挂载受允许的 vendor 根，并隔离 private；自动与手动部署是独立选择，原 RowID 覆盖与灰度是另一策略维度。
+
 - `agents/` 放厂商无关的智能体 canonical 定义，包括 agent registry、`AGENT.md`、`bindings.yaml` 和共享交接协议；不放工具专属生成物或业务项目私有事实。
 - `workflows/` 放厂商无关的多智能体/阶段化 workflow canonical 定义，包括 workflow registry 和 `*.workflow.md`；workflow 必须支持不具备子代理能力时的单 Agent 串行降级。
 - `rules/` 只放长期约束、工作流规则和任务路由，不放大体量查找表、API 目录或源码索引。

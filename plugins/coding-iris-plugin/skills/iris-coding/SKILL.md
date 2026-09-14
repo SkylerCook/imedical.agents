@@ -5,6 +5,8 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 
 # IRIS Coding
 
+涉及 `.cls` 编码时按 `../../references/cls-coding-format.md` 处理新增/修改位置的格式；禁止为此整理整个已有类。格式自检仅提示，上传、编译和提交沿用原流程。
+
 ## 使用时机
 
 当任务是 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码需求，且用户未明确只要求后端或前端专项 skill 时，优先使用本 Skill。

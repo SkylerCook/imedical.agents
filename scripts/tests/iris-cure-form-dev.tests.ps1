@@ -3,7 +3,13 @@
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $pluginRoot = Join-Path $repoRoot 'plugins\iris-cure-form-dev'
 $cli = Join-Path $pluginRoot 'scripts\cure-form.js'
-$scratch = Join-Path ([System.IO.Path]::GetTempPath()) ('iris-cure-form-dev-tests-' + [Guid]::NewGuid().ToString('N'))
+$testProjectRoot = [System.IO.Path]::GetFullPath((Get-Location).Path)
+$canonicalRoot = [System.IO.Path]::GetFullPath($repoRoot).TrimEnd('\', '/')
+if ($testProjectRoot -eq $canonicalRoot -or $testProjectRoot.StartsWith($canonicalRoot + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Run cure-form integration tests from the target project, not the framework repository.'
+}
+$testWorkRoot = Join-Path $testProjectRoot 'docs\work\cure-form\framework-tests'
+$scratch = Join-Path $testWorkRoot ('run-' + [Guid]::NewGuid().ToString('N'))
 
 function Assert-True {
     param([bool]$Condition, [string]$Message)
@@ -12,6 +18,12 @@ function Assert-True {
 
 function Invoke-Cure {
     param([string[]]$Arguments, [int]$ExpectedExitCode = 0)
+    if ($Arguments[0] -eq 'preview' -and $Arguments -notcontains '--work-root') {
+        $Arguments += @('--work-root', (Join-Path $scratch 'preview-task'))
+    }
+    if ($Arguments[0] -eq 'apply' -and $Arguments -notcontains '--handoff-output') {
+        $Arguments += @('--handoff-output', (Join-Path $scratch 'manual-handoff'))
+    }
     $previousErrorAction = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     $output = & node $cli @Arguments 2>&1 | Out-String
@@ -35,6 +47,7 @@ function New-PassedPreviewVerification {
     $preview = Invoke-Cure $arguments | ConvertFrom-Json
     $manifest = Get-Content -LiteralPath $preview.manifest -Raw -Encoding UTF8 | ConvertFrom-Json
     $runner = [ordered]@{
+        implementationHash = (& node -p "require('$($pluginRoot.Replace('\','/'))/scripts/cure-form-runner-fingerprint').runnerFingerprint()")
         schema = 'cure-form-browser-runner/v1'
         gateVersion = 'cure-form-preview-gate/2'
         manifestHash = $preview.manifestHash
@@ -106,7 +119,7 @@ try {
 
     $manifest = Get-Content -LiteralPath (Join-Path $pluginRoot '.agents-plugin\plugin.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-True ($manifest.name -eq 'iris-cure-form-dev') 'Unexpected plugin name.'
-    Assert-True ($manifest.version -eq '0.6.1') 'Unexpected plugin version.'
+    Assert-True ($manifest.version -eq '0.7.0') 'Unexpected plugin version.'
     Assert-True (($manifest.dependencies -contains 'extract-doc') -and ($manifest.dependencies -contains 'coding-iris-plugin')) 'Plugin dependencies are incomplete.'
 
     foreach ($skill in @('cure-form-init','cure-form-requirement-adapter','cure-assess-form-dev','cure-record-form-dev','cure-form-responsive','make-assess-form-responsive','cure-form-deploy','cure-form-lookup','cure-form-fragment')) {
@@ -389,7 +402,7 @@ try {
     New-Item -ItemType Directory -Force -Path $docsProject | Out-Null
     Copy-Item -LiteralPath $structurePath -Destination $docsStructure
     Invoke-Cure @('intake','--structure',$docsStructure,'--form-type','CA','--module-id','DocsDefaultForm','--project-root',$docsProject) | Out-Null
-    $docsModuleRoot = Join-Path $docsProject 'docs\cure-form\DocsDefaultForm'
+    $docsModuleRoot = Join-Path $docsProject 'docs\work\cure-form\DocsDefaultForm\DocsDefaultForm\source'
     $docsDefaultSpec = Join-Path $docsModuleRoot 'cure-form-spec.json'
     Assert-True (Test-Path -LiteralPath $docsDefaultSpec) 'Default intake specification must be written under docs/cure-form/<moduleId>.'
     Assert-True (Test-Path -LiteralPath (Join-Path $docsModuleRoot 'intake-report.md')) 'Default intake report must be written under docs/cure-form/<moduleId>.'
@@ -397,7 +410,7 @@ try {
     $docsSpecValue.unresolved = @()
     $docsSpecValue | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $docsDefaultSpec -Encoding UTF8
     Invoke-Cure @('review','--spec',$docsDefaultSpec,'--approved-by','tester') | Out-Null
-    Invoke-Cure @('prepare','--mode','create','--spec','docs\cure-form\DocsDefaultForm\cure-form-spec.json','--project-root',$docsProject,'--target-profile',$previewProfile) | Out-Null
+    Invoke-Cure @('prepare','--mode','create','--spec',$docsDefaultSpec,'--project-root',$docsProject,'--target-profile',$previewProfile) | Out-Null
     Assert-True (Test-Path -LiteralPath (Join-Path $docsModuleRoot 'DocsDefaultForm.html')) 'Default create output must be written under docs/cure-form/<moduleId>.'
 
     $ambiguousProject = Join-Path $scratch 'ambiguous-docs-project'
@@ -825,6 +838,7 @@ try {
     @{
         schema = 'cure-form-browser-results/v1'
         runner = @{
+            implementationHash = (& node -p "require('$($pluginRoot.Replace('\','/'))/scripts/cure-form-runner-fingerprint').runnerFingerprint()")
             schema = 'cure-form-browser-runner/v1'; gateVersion = 'cure-form-preview-gate/2'; manifestHash = $commonPreview.manifestHash
             engine = 'chromium-cdp'; browser = 'test-fixture'; browserProduct = 'test-fixture'; protocolVersion = 'test-fixture'; completedAt = '2026-01-01T00:00:00.000Z'
         }
@@ -871,6 +885,7 @@ try {
     $atomicPassedPayload = @{
         schema = 'cure-form-browser-results/v1'
         runner = @{
+            implementationHash = (& node -p "require('$($pluginRoot.Replace('\','/'))/scripts/cure-form-runner-fingerprint').runnerFingerprint()")
             schema = 'cure-form-browser-runner/v1'; gateVersion = 'cure-form-preview-gate/2'; manifestHash = $atomicPreview.manifestHash
             engine = 'chromium-cdp'; browser = 'test-fixture'; browserProduct = 'test-fixture'; protocolVersion = 'test-fixture'; completedAt = '2026-01-01T00:00:00.000Z'
         }

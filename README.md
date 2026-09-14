@@ -1,10 +1,16 @@
 # imedical.agents
 
+CLS 编码提示：`coding-iris-plugin` 保留已有类历史格式，仅规范本次新增/修改位置；可选本地自检不阻断提交，不改变手动上传编译流程。
+
 `imedical.agents` 是 imedical 的 AI Coding 能力包仓库，用于沉淀可复用的 Agent 角色、协作流程、插件规则、skills、模板和辅助脚本。
 
 目标是让 Codex、Claude Code、OpenCode、CodeBuddy、WorkBuddy、Hermes 等不同 AI 开发工具都能快速获得正确上下文，同时避免把通用能力、项目差异、连接信息和临时经验混在一起。
 
 ## 快速理解
+
+治疗表单部署支持自动/手动方式，并显式提供完整事务包与 [轻量 SQL 覆盖通道](plugins/iris-cure-form-dev/references/cure-form-sql-cover.md)；后者仅覆盖已有单模板 content，保留备份、并发检查和回读门禁。
+
+轻量 SQL 使用固定参数绑定兼容层，修复上游 write 参数遗漏；事务内预检与实际影响行数均须为 1，写入授权包含 MCP 临时执行载体。一个明确授权的清空/恢复样本已通过，不代表普通部署允许清空或所有实例已验收。
 
 本仓库分三层：
 
@@ -336,16 +342,17 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 负责 IRIS/HISUI 的 CA 治疗评估与 CR 治疗记录表单自动化：
 
 - 医院 DOCX、PDF、XLS/XLSX 解析委托 `extract-doc/structure-v1`，本插件负责治疗语义规格和人工确认门禁。
-- 文档驱动的新表单默认从业务项目 `docs/` 读取需求，并在 `docs/cure-form/<moduleId>/` 保存规格、摄取报告和生成源码；多候选文件必须显式选择，不再使用 `src-iris` 作为插件默认目录。
+- 文档驱动的新表单默认从业务项目 `docs/` 读取需求；产物统一放 `docs/work/cure-form/<task>/<Map>/`，运行态/快照放同任务 `private/`，项目配置和规则仍在 `.agents/`。多候选文件必须显式选择。
 - Excel 多模板通过显式 A1 边界生成只读摄取报告，并在审批后生成有序 fragment、JavaScript 和 Map composition changes；范围重叠和合并单元格边界截断保持为审批门禁。
 - 获批规格可携带复杂模板 `fragmentHtml`/`javascript`，生成器验证根容器、响应式 class、字段 ID/缓存标签与模块接口；模板逻辑和表单入口分别以外部运行时路径写入模板/Map“引用JS”，独立预览只初始化实际存在的子模板脚本。
-- 新建 CA/CR 表单直接创建正式模板，不使用灰度；现有服务器模板及公共模板响应式改造才使用灰度，验收后分别通过 `consolidate` / `consolidate-shared` 回归正式 RowID，并以零灰度引用和模板删除作为完成门禁。
+- 新建 CA/CR 表单直接创建正式模板；现有模板改造默认 versioned-clone，也支持明确授权的 in-place-overwrite，后者只覆盖原 content/Map showJS，保留组成和其它配置。共享模板默认版本化克隆，按引用拓扑验收合并。
 - 响应式改造保留 HISUI `label.radio` 与 `i-label-box` / `m-label-box` 配对，并验证普通布局、表格布局和旧 WebView fallback；业务公共 CSS 不复制进插件。
 - canonical `preview` 从目标 profile 或现有页面解析六类 HISUI/公共资源并生成带 CSS 依赖哈希的完整页面；`preview-run` 通过本地 Chromium CDP 自动采集九档 Network、Console 与 HISUI 初始化结果，`preview-check` 只接受当前 gate/runner 并固化与 snapshot、changes、资源及依赖哈希绑定的部署前置凭证。
 - 新建表单以 `expectedVersion=NEW` 判定，使用 `interaction-prepare`/`interaction-check` 生成部署前、部署后人工交互清单与哈希凭证；用户明确反馈整体通过即可确认，Agent 自测必须逐项记录，批量自动交互执行前必须另行获得用户明确确认。
 - `common-migrate` 的优先 MapCode 与公共模板 RowID 由目标工程 `cure-form-common-migration-config/v1` 提供，插件 canonical 不保存业务种子。
 - 生成普通部署、单 Map 合并、共享模板合并和零引用清理包，通过固定服务端事务类 `DHCDoc.Cure.AI.CureFormDeploy` 执行 dry-run、受控写入、回读和回滚；`cleanup` 仅处理孤儿模板，不替代正式 RowID 合并。
 - 只允许 CA/CR；`MapType` 为空的病理模板始终排除。
+- v0.7.0 明确自动/手动部署、5 分钟无进展/15 分钟总预算、未知写入禁止重试及纯 content + 配置 README 人工交付；预览自动列出文件链接，HISUI 使用只读 vendor 挂载，九档基线补充问题宽度/断点和切换/对齐断言，集成检查独占路径及冻结哈希。见[交付工作流](plugins/iris-cure-form-dev/references/cure-form-delivery-workflow.md)。
 - ObjectScript/HISUI 编码、MCP 和静态资源上传编译复用 `coding-iris-plugin`。
 
 常用 skill：

@@ -20,6 +20,8 @@
 
 ## cure-form-consolidation/v1
 
+以上灰度生命周期只适用于 versioned-clone。明确选择 in-place-overwrite 时保持已有 RowID/组成/元数据，仅覆盖 content 与明确授权的 Map showJS，不进入灰度合并；自动/手动交付和限时策略见 [交付流程](cure-form-delivery-workflow.md)。
+
 存量响应式灰度模板正式合并使用独立包，不复用普通 `changes`。包内按 Map 声明 `expectedVersion`、`expectedContentHash` 和 `mappings[]`；每项绑定灰度/正式 RowID、`APP_ID`、双方正文哈希、DOM/radio 契约哈希和缓存字段集合哈希。
 
 服务端必须重新确认灰度模板由目标 Map 独占、正式模板尚未被其他 Map 引用、灰度 `APP_LastID` 指向正式 RowID，且双方 `APP_ID`、MapType、DOM/radio 与缓存字段集合一致。事务只把灰度 `APP_Content` 写入正式模板，保持正式名称、JS、`APP_LastID` 与缓存 RowID，随后原位替换 Map 引用并删除灰度模板及灰度缓存。审计前快照必须同时包含灰度和正式模板，使 `RollbackOperation` 能恢复双方、缓存和原 Map 组成。

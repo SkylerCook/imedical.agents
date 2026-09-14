@@ -7,6 +7,9 @@ const os = require('os');
 const path = require('path');
 const { spawn, spawnSync } = require('child_process');
 const crypto = require('crypto');
+const { inspectLayouts } = require('./cure-form-layout-checks');
+const { runnerFingerprint } = require('./cure-form-runner-fingerprint');
+const { validateMount, mountedFile, PREFIX: VENDOR_PREFIX } = require('./cure-form-preview-mounts');
 
 const MIN_NODE = [22, 5, 0];
 const GATE_VERSION = 'cure-form-preview-gate/2';
@@ -144,13 +147,22 @@ function contentType(file) {
   })[extension] || 'application/octet-stream';
 }
 
-function startPreviewServer(root) {
+function startPreviewServer(root, vendorMount) {
   const servedRoot = fs.realpathSync(root);
   return new Promise((resolve, reject) => {
     const server = http.createServer((request, response) => {
       try {
         const requestUrl = new URL(request.url, 'http://127.0.0.1');
+        if (!['GET', 'HEAD'].includes(request.method)) { response.writeHead(405); response.end(); return; }
+        if (requestUrl.pathname.startsWith(VENDOR_PREFIX)) {
+          const file = mountedFile(vendorMount, decodeURIComponent(requestUrl.pathname));
+          if (!file) { response.writeHead(404); response.end(); return; }
+          response.writeHead(200, { 'Content-Type': contentType(file), 'Cache-Control': 'no-store' });
+          if (request.method === 'HEAD') response.end(); else fs.createReadStream(file).pipe(response);
+          return;
+        }
         const relative = decodeURIComponent(requestUrl.pathname).replace(/^\/+/, '') || 'preview.html';
+        if (relative.split(/[\\/]/).some((part) => part.toLowerCase() === 'private' || part.startsWith('.'))) { response.writeHead(404); response.end(); return; }
         const target = path.resolve(servedRoot, relative);
         const targetExists = pathIsWithin(target, servedRoot) && fs.existsSync(target) && fs.statSync(target).isFile();
         const realTarget = targetExists ? fs.realpathSync(target) : '';
@@ -160,10 +172,10 @@ function startPreviewServer(root) {
           return;
         }
         response.writeHead(200, { 'Content-Type': contentType(realTarget), 'Cache-Control': 'no-store' });
-        fs.createReadStream(realTarget).pipe(response);
+        if (request.method === 'HEAD') response.end(); else fs.createReadStream(realTarget).pipe(response);
       } catch (error) {
-        response.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
-        response.end(String(error.message || error));
+        response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+        response.end('Not found');
       }
     });
     server.once('error', reject);
@@ -368,6 +380,7 @@ async function runBrowser(args) {
   const manifestPath = path.resolve(args.manifest || fail('Missing required option --manifest'));
   const outputPath = path.resolve(args.output || fail('Missing required option --output'));
   const manifest = readJson(manifestPath);
+  if (manifest.vendorMount) validateMount(manifest.vendorMount, args.vendorRoot);
   if (manifest.schema !== 'cure-form-preview-manifest/v1' || manifest.gateVersion !== GATE_VERSION) {
     fail(`Expected a current cure-form-preview-manifest/v1 using ${GATE_VERSION}.`);
   }
@@ -389,7 +402,7 @@ async function runBrowser(args) {
   let browserLog = '';
   try {
     stage = 'start-preview-server';
-    const served = await startPreviewServer(previewRoot);
+    const served = await startPreviewServer(previewRoot, manifest.vendorMount);
     server = served.server;
     const previewUrl = `${served.origin}/${encodeURIComponent(path.basename(previewHtml))}`;
     const debuggingPort = await availablePort();
@@ -460,11 +473,25 @@ async function runBrowser(args) {
       });
       if (evaluated.exceptionDetails || !evaluated.result || !evaluated.result.value) fail(`Preview probe failed at width ${width}.`);
       const result = evaluated.result.value;
+      if (manifest.layout) {
+        const layout = await cdp.send('Runtime.evaluate', {
+          expression: `(${inspectLayouts.toString()})(${JSON.stringify(manifest.layout)})`, returnByValue: true, awaitPromise: true
+        });
+        if (layout.exceptionDetails || !layout.result || !layout.result.value) fail(`Layout probe failed at width ${width}.`);
+        result.layoutResults = layout.result.value;
+      }
+      if (manifest.layout || args.screenshots) {
+        const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png', fromSurface: true });
+        const directory = path.join(path.dirname(outputPath), 'screenshots');
+        fs.mkdirSync(directory, { recursive: true });
+        fs.writeFileSync(path.join(directory, `${width}.png`), Buffer.from(screenshot.data, 'base64'));
+      }
       result.networkErrors = uniqueErrors([...(result.networkErrors || []), ...currentNetworkErrors]);
       result.consoleErrors = uniqueErrors(currentConsoleErrors.map(String));
       results.push(result);
     }
     const runner = {
+      implementationHash: runnerFingerprint(),
       schema: RUNNER_SCHEMA,
       gateVersion: GATE_VERSION,
       manifestHash,
@@ -500,4 +527,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { browserCandidates, parseArgs, runBrowser };
+module.exports = { browserCandidates, parseArgs, runBrowser, startPreviewServer };
