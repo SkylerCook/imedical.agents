@@ -279,3 +279,5 @@
 ## 2026-09-15 前端确定性部署入口
 
 补齐 deploy-frontend.js、upload-batch.py 与显式指纹校验；固定上传回读后编译，失败不重试。专项 Node 21 项、Python 25 项通过；未执行本轮服务器写入，业务副本尚未同步。
+
+2026-09-15：更新自动刷新既有标准 SFTP 启动参数为 vendor，不要求 runtime opt-in；保留解释器、env、disabled 和其它服务。显式 custom 或自定义参数不覆盖，不创建缺失服务，不安装 Python 依赖。SFTP 迁移专项 8 项、组件版本治理 16 项和完整 `update-agents.tests.ps1` 均通过，工作区版本校验覆盖 15 个组件。

@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",

@@ -6,7 +6,7 @@
 
 `coding-iris-plugin` 的 SFTP 源码随既有 `/vendor/**` sparse 规则分发，无需扩大全局部署清单。新项目默认禁用 SFTP；依赖按 `vendor/sftp-server/requirements.lock` 安装到独立 Python 环境，更新器不安装解释器或依赖。
 
-已有项目默认保持外部工具。完成依赖检查、可信主机密钥和本地/远端路径核对后，显式设置私有 `project-env.json` 中 `sftp.enabled: true`、`sftp.runtime: vendor`，再执行正常 DryRun/Write。`sftp-vendor-v1` 只替换既有单参数 `sftp-server/src/main.py` 启动路径，保留解释器、env、凭据、disabled 状态及其它 MCP 服务；自定义参数报告 review-required。workspace-overlay 从 CapabilityRoot 定位工具，配置只属于 ContextRoot/WorkspaceRoot。
+已有项目正常更新时自动刷新可识别的 SFTP 启动路径到 vendor，无需预先设置 runtime 或 enabled；即使 project-env.json 缺失也可根据既有 .mcp.json 迁移。DryRun 仅报告，Write 执行；显式 runtime: custom 保留。`sftp-vendor-v1` 只替换既有单参数 `sftp-server/src/main.py` 启动路径，保留解释器、env、凭据、disabled 状态及其它 MCP 服务；自定义参数报告 review-required。workspace-overlay 从 CapabilityRoot 定位工具，配置只属于 ContextRoot/WorkspaceRoot。
 
 本次源仓维护不自动迁移业务副本。服务器不支持原子 `posix-rename` 时停止，不静默降级覆盖；无 SFTP 环境仍保留项目其它上传通道。详细迁移及验证见 [SFTP runtime](../vendor/sftp-server/README.md)。
 

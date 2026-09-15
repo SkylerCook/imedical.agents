@@ -20,7 +20,7 @@ function fixture(t, runtime) {
   return {root, context, mcp};
 }
 
-test('opt-in migration preserves connection fields and is idempotent', t => {
+test('migration preserves connection fields and is idempotent', t => {
   const f = fixture(t, 'vendor');
   const target = path.join(f.root, '.mcp.json');
   const before = fs.readFileSync(target);
@@ -35,14 +35,22 @@ test('opt-in migration preserves connection fields and is idempotent', t => {
   assert.deepEqual(fs.readFileSync(target), once);
 });
 
-test('legacy runtime and absent config stay unchanged', t => {
-  const f = fixture(t);
-  const target = path.join(f.root, '.mcp.json');
-  const before = fs.readFileSync(target);
-  assert.equal(migrate(f.root, f.context, capability, 'Write')[0].status, 'config-migration-unchanged');
-  assert.deepEqual(fs.readFileSync(target), before);
-  fs.unlinkSync(path.join(f.context, 'config/project-env.json'));
-  assert.equal(migrate(f.root, f.context, capability, 'Write')[0].status, 'config-migration-unchanged');
+test('legacy and absent project config migrate automatically without enabling service', t => {
+  for (const absent of [false,true]) {
+    const f=fixture(t);
+    if(absent)fs.unlinkSync(path.join(f.context,'config/project-env.json'));
+    assert.equal(migrate(f.root,f.context,capability,'Write')[0].status,'config-migration-applied');
+    const actual=JSON.parse(fs.readFileSync(path.join(f.root,'.mcp.json')));
+    assert.equal(actual.mcpServers['sftp-server'].disabled,true);
+    assert.equal(actual.mcpServers['sftp-server'].command,'custom-python');
+  }
+});
+test('explicit custom runtime and missing service remain untouched', t => {
+  const f=fixture(t,'custom');
+  assert.equal(migrate(f.root,f.context,capability,'Write')[0].status,'config-migration-unchanged');
+  fs.unlinkSync(path.join(f.context,'config/project-env.json'));
+  fs.writeFileSync(path.join(f.root,'.mcp.json'),JSON.stringify({mcpServers:{}}));
+  assert.equal(migrate(f.root,f.context,capability,'Write')[0].status,'config-migration-unchanged');
 });
 
 test('custom arguments are not overwritten', t => {
@@ -58,6 +66,8 @@ test('new config uses capability vendor and supports key auth without enabling c
   assert.equal(result.env.TARGET_KEY_FILE, 'key');
   assert.equal(result.env.ALLOW_REMOTE_COMMANDS, 'false');
   assert.deepEqual(buildSftp({args: ['custom.py']}, capability).args, ['custom.py']);
+  assert.deepEqual(buildSftp({scriptPath: '/legacy/sftp-server/src/main.py'}, capability).args, [path.join(capability, 'vendor/sftp-server/src/main.py')]);
+  assert.deepEqual(buildSftp({runtime: 'custom', scriptPath: '/legacy/sftp-server/src/main.py'}, capability).args, ['/legacy/sftp-server/src/main.py']);
 });
 
 test('installer and updater distribute vendor, manifest wires the migration', () => {
@@ -71,7 +81,7 @@ test('installer and updater distribute vendor, manifest wires the migration', ()
 test('PowerShell 5.1 and 7 migration wrappers perform DryRun then Write', {skip: process.platform !== 'win32'}, t => {
   const {spawnSync} = require('node:child_process');
   for (const shell of ['powershell.exe', 'pwsh.exe']) {
-    const f = fixture(t, 'vendor');
+    const f = fixture(t);
     const script = path.join(f.context, 'vendor/sftp-server/src/main.py');
     fs.mkdirSync(path.dirname(script), {recursive: true});
     fs.writeFileSync(script, '# fixture');

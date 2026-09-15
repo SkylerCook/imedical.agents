@@ -436,3 +436,5 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/deploy-frontend.js --
 Python 默认使用 `.mcp.json` 对应 SFTP 的 `command`，可用 `--python <interpreter>` 明确覆盖；解释器须已安装 vendor 锁定依赖。可信主机密钥使用配置或 `--known-hosts <file>`；本次明确核实的指纹可用 `--host-key-sha256 <SHA256:fingerprint>`，不写入信任库，不自动接受未知密钥。两个参数互斥。
 
 结果包含每个文件的哈希与 `uploaded`/`unchanged` 状态，以及 `uploadVerifyMs`、`compileMs`（有 CSP 时）、`commandElapsedMs`。这些是命令耗时，排除 AI 会话及审批等待。`verified` 仅证明文件回读及指定编译完成，页面功能仍按项目要求验收。仅编译时继续使用 `compile-csp.js`。该入口不转换历史 GB2312 文件。
+
+2026-09-15：更新自动刷新既有标准 SFTP 启动参数为 vendor，不要求 runtime opt-in；保留解释器、env、disabled 和其它服务。显式 custom 或自定义参数不覆盖，不创建缺失服务，不安装 Python 依赖。

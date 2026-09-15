@@ -41,9 +41,9 @@ Without a dedicated trust file, system known_hosts is used. Unknown or changed k
 
 ## Adoption and compatibility
 
-New project templates default to SFTP **disabled**, with `sftp.runtime: vendor` ready for explicit configuration. `sync-env-config.js` resolves the vendor script from CapabilityRoot, including workspace overlays. Existing runtimes remain unchanged unless the project explicitly sets `sftp.enabled: true` and `sftp.runtime: vendor`.
+New project templates default to SFTP **disabled**, with `sftp.runtime: vendor` ready for explicit configuration. `sync-env-config.js` resolves the vendor script from CapabilityRoot, including workspace overlays. Recognized existing launchers migrate automatically during update; explicit `runtime: custom` is retained.
 
-After preparing dependencies and verified host keys, set that opt-in in private `project-env.json`, then run the normal updater's DryRun/Write cycle. Its `sftp-vendor-v1` migration changes only the known single `sftp-server/src/main.py` argument in `.mcp.json`; custom arguments require manual review. Interpreter, credentials, other environment fields, disabled state and other servers are preserved. The existing `scriptPath` is ignored when runtime is vendor; set `runtime: custom` to retain an external runtime. No business project is migrated merely by updating this source repository.
+The normal updater DryRun/Write cycle detects existing launchers even without project-env.json. Dependencies and trusted host keys remain prerequisites for running the migrated service. Its `sftp-vendor-v1` migration changes only the known single `sftp-server/src/main.py` argument in `.mcp.json`; custom arguments require manual review. Interpreter, credentials, other environment fields, disabled state and other servers are preserved. The existing `scriptPath` is ignored when runtime is vendor; set `runtime: custom` to retain an external runtime. No business project is migrated merely by updating this source repository.
 
 This runtime still requires SSH/SFTP. It does not implement an HTTP/Atelier upload fallback.
 

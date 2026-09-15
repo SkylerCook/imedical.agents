@@ -9,7 +9,8 @@ function vendorScript(capabilityRoot) {
 }
 
 function buildSftp(config, capabilityRoot) {
-  const vendor = config.runtime === 'vendor';
+  const legacyArgs = Array.isArray(config.args) ? config.args : [config.scriptPath];
+  const vendor = config.runtime === 'vendor' || (!config.runtime && (!config.scriptPath && !config.args || legacyArgs.length === 1 && /[\\/]sftp-server[\\/]src[\\/]main\.py$/.test(legacyArgs[0])));
   if (config.runtime && !['vendor', 'custom'].includes(config.runtime)) throw new Error('Unsupported sftp.runtime');
   const args = vendor ? [vendorScript(capabilityRoot)] : Array.isArray(config.args) ? config.args : [config.scriptPath];
   if (!args.length || args.some(a => typeof a !== 'string' || !a || a.startsWith('TODO'))) throw new Error('Missing sftp script path');
@@ -26,27 +27,27 @@ function buildSftp(config, capabilityRoot) {
   };
 }
 
-// Explicit opt-in only; custom/legacy runtimes and absent configurations remain byte-identical.
+// Refresh recognized existing SFTP launchers during every update; preserve connection fields.
 function migrate(projectRoot, contextRoot, capabilityRoot, mode = 'DryRun') {
   const target = '.mcp.json';
   const result = (status, reason) => [{status: `config-migration-${status}`, target, reason}];
   const configPath = path.join(contextRoot, 'config', 'project-env.json');
   const mcpPath = path.join(projectRoot, target);
-  if (!fs.existsSync(configPath)) return result('unchanged', 'No project-env.json; no SFTP configuration created');
-  const config = JSON.parse(fs.readFileSync(configPath, 'utf8').replace(/^\uFEFF/, ''));
-  if (!config.sftp?.enabled || config.sftp.runtime !== 'vendor') return result('unchanged', 'SFTP vendor is opt-in; legacy/custom runtime retained');
-  if (!fs.existsSync(mcpPath)) return result('review-required', 'Initialize MCP configuration before vendor migration');
+  const config = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, 'utf8').replace(/^\uFEFF/, '')) : {};
+  if (config.sftp?.runtime === 'custom') return result('unchanged', 'Explicit custom runtime retained');
+  if (!fs.existsSync(mcpPath)) return result('unchanged', 'No MCP configuration; no SFTP service created');
   const original = fs.readFileSync(mcpPath);
   const document = JSON.parse(original.toString('utf8').replace(/^\uFEFF/, ''));
-  const name = config.sftp.serverName || 'sftp-server';
+  const name = config.sftp?.serverName || 'sftp-server';
   const entry = document.mcpServers?.[name];
-  if (!entry || !Array.isArray(entry.args) || entry.args.length !== 1 || !/[\\/]sftp-server[\\/]src[\\/]main\.py$/.test(entry.args[0])) {
+  if (!entry) return result('unchanged', 'No existing SFTP service; nothing created');
+  if (!Array.isArray(entry.args) || entry.args.length !== 1 || !/[\\/]sftp-server[\\/]src[\\/]main\.py$/.test(entry.args[0])) {
     return result('review-required', 'Missing or customized SFTP launch arguments; no automatic replacement');
   }
   const script = vendorScript(capabilityRoot);
   if (entry.args[0] === script) return result('unchanged', 'SFTP already uses vendor runtime');
   entry.args[0] = script; // Preserve command, credentials, disabled state, env, all other MCP servers.
-  if (mode === 'DryRun') return result('planned', 'Replace only explicitly opted-in SFTP script argument');
+  if (mode === 'DryRun') return result('planned', 'Refresh recognized SFTP script argument to bundled vendor');
   if (mode !== 'Write') throw new Error('Invalid migration mode');
   if (!original.equals(fs.readFileSync(mcpPath))) throw new Error('MCP configuration changed during migration');
   const temporary = mcpPath + `.sftp-${require('node:crypto').randomUUID()}.tmp`;

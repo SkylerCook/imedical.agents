@@ -66,7 +66,7 @@ Agent 编写 `.cls` 时遵循 `references/cls-coding-format.md`。已有类只�
 
 `scripts/iris-tools/compile-csp.js` 固化 CSP 的 Atelier 编译通道：默认本地计划，显式 `--execute` 一次批量编译虚拟路径列表。仅编译指定文件（含 show.csp），不自动扩展父页面或重新上传；无自动重试。
 
-SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项目保持 SFTP 默认禁用；显式 `sftp.runtime=vendor` 后才迁移启动路径，旧配置和自定义参数不静默替换。依赖安装、主机密钥核对、原子上传兼容边界见 `../../vendor/sftp-server/README.md`；无 SFTP 的服务器仍需其它上传能力。
+SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项目保持 SFTP 默认禁用；更新时自动迁移可识别的旧 SFTP 启动路径；显式 custom 和自定义参数保持不变。依赖安装、主机密钥核对、原子上传兼容边界见 `../../vendor/sftp-server/README.md`；无 SFTP 的服务器仍需其它上传能力。
 
 插件内置：
 

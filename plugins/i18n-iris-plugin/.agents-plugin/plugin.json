@@ -1,6 +1,6 @@
 {
   "name": "i18n-iris-plugin",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "displayName": "IRIS I18N Plugin",
   "description": "Reusable i18n agent workflows for IRIS/ObjectScript/CSP/HISUI projects.",
   "entry": "AGENTS.md",
@@ -15,7 +15,7 @@
   "dependencyVersions": {
     "coding-iris-plugin": {
       "minVersion": "0.3.0",
-      "maxVersionExclusive": "0.9.0"
+      "maxVersionExclusive": "0.10.0"
     }
   },
   "requiresProjectFiles": [
