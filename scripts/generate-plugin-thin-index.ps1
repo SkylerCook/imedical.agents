@@ -210,6 +210,15 @@ $rulesTarget = Join-Path $contextRootFull "rules"
 $skillsTarget = Join-Path $contextRootFull "skills"
 $pluginsRoot = Join-Path $capabilityRootFull "plugins"
 
+# The updater calls this canonical entry directly; owner policy must not depend on a wrapper.
+$pluginManifestPath = Join-Path $pluginRootFull ".agents-plugin/plugin.json"
+if (Test-Path -LiteralPath $pluginManifestPath -PathType Leaf) {
+    $pluginManifest = [System.IO.File]::ReadAllText($pluginManifestPath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+    if ($null -ne $pluginManifest.thinIndex -and $null -ne $pluginManifest.thinIndex.excludeSkills) {
+        $ExcludeSkill = @($ExcludeSkill) + @($pluginManifest.thinIndex.excludeSkills) | Select-Object -Unique
+    }
+}
+
 $results = New-Object System.Collections.Generic.List[object]
 
 if ((Test-Path -LiteralPath $rulesTarget -PathType Container) -and (Test-Path -LiteralPath $pluginsRoot -PathType Container)) {
@@ -332,7 +341,32 @@ if (Test-Path -LiteralPath $skillsSource -PathType Container) {
         $sourceFile = Join-Path $_.FullName "SKILL.md"
         if ($ExcludeSkill -contains $skillName) {
             $sourceRel = Get-CapabilityLogicalPath -Path $sourceFile
-            $targetRel = Get-RelativePathPortable -From $projectRootFull -To (Join-Path (Join-Path $skillsTarget $skillName) "SKILL.md")
+            $excludedTarget = Join-Path (Join-Path $skillsTarget $skillName) "SKILL.md"
+            $targetRel = Get-RelativePathPortable -From $projectRootFull -To $excludedTarget
+            if (Test-Path -LiteralPath $excludedTarget -PathType Leaf) {
+                $targetItem = Get-Item -LiteralPath $excludedTarget -Force
+                $isLink = ($targetItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
+                $parentPath = Split-Path -Parent $excludedTarget
+                while ($parentPath -and (Test-IsUnderPath -Path $parentPath -ParentPath $contextRootFull)) {
+                    $parentItem = Get-Item -LiteralPath $parentPath -Force
+                    if (($parentItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { $isLink = $true; break }
+                    if ($parentPath -eq $contextRootFull) { break }
+                    $parentPath = Split-Path -Parent $parentPath
+                }
+                if (-not $isLink) {
+                    $excludedContent = [System.IO.File]::ReadAllText($excludedTarget, [System.Text.Encoding]::UTF8)
+                    $headerMatch = [regex]::Match($excludedContent, '\A\uFEFF?---\r?\n(?<header>[\s\S]*?)\r?\n---(?:\r?\n|$)')
+                    $sourceMatch = [regex]::Match($headerMatch.Groups['header'].Value, '(?m)^source:\s*([^\r\n]+)\s*$')
+                    if ($headerMatch.Success -and ($headerMatch.Groups['header'].Value -match '(?m)^thin-index:\s*true\s*$') -and $sourceMatch.Success -and ($sourceMatch.Groups[1].Value.Trim().Replace('\', '/') -ceq $sourceRel.Replace('\', '/'))) {
+                        if ($Mode -eq "Write") {
+                            Remove-Item -LiteralPath $excludedTarget
+                            $results.Add((Write-Result -Status "removed" -Target $targetRel -Source $sourceRel -Reason "excluded managed plugin skill thin-index"))
+                        } else {
+                            $results.Add((Write-Result -Status "stale" -Target $targetRel -Source $sourceRel -Reason "excluded managed plugin skill thin-index"))
+                        }
+                    }
+                }
+            }
             $results.Add((Write-Result -Status "skipped" -Target $targetRel -Source $sourceRel -Reason "excluded by parameter"))
             return
         }

@@ -5,6 +5,7 @@ HIS 医生站第三方系统集成能力包，提供从需求头脑风暴到 CI/
 ## 能力范围
 
 - 第三方系统集成的全流程编排
+- 电子健康卡新厂家接入：由主编排器加载领域子 skill，从目标工程核实结构参照，按协议与方向生成映射，只修改本次授权范围。
 - 医生站组与医院信息平台组的范围拆分
 - 中间件入口识别与前端契约提取
 - HIS 架构约束与代码组织
@@ -28,6 +29,7 @@ imedicalxc-doctor-extend-engineer/
     |-- imedicalxc-bsp-jenkins/
     |-- imedicalxc-doctor-blh/
     |-- imedicalxc-doctor-dbdata/
+    |-- imedicalxc-doctor-elechealthcard-vendor/
     |-- imedicalxc-doctor-extend-architecture/
     |-- imedicalxc-doctor-extend-dataformat/
     |-- imedicalxc-doctor-extend-engineer/
@@ -42,7 +44,13 @@ imedicalxc-doctor-extend-engineer/
 1. 将本插件放到目标工程 `.agents/plugins/imedicalxc-doctor-extend-engineer/`。
 2. 首次初始化时直接读取 `.agents/plugins/imedicalxc-doctor-extend-engineer/skills/imedicalxc-doctor-extend-engineer/SKILL.md`。
 3. 运行插件 wrapper `scripts/generate-plugin-thin-index.ps1`，它会转发到根 `scripts/generate-plugin-thin-index.ps1`。
-4. wrapper 默认只生成 `.agents/skills/imedicalxc-doctor-extend-engineer/SKILL.md` 主编排器浅层索引；8 个子 skill 不单独暴露，由主编排器按需读取。
+4. wrapper 默认只生成 `.agents/skills/imedicalxc-doctor-extend-engineer/SKILL.md` 主编排器浅层索引；9 个子 skill 不单独暴露，由主编排器按需读取。
+
+### 已部署工程兼容处理
+
+v1.0.1 修正电子健康卡子 skill 的独立暴露。更新能力包后，常规更新直接调用 canonical 生成器，按 manifest 的 `thinIndex.excludeSkills` 应用与 wrapper 相同的排除策略：DryRun 报告旧受管入口，Write 仅删除 `thin-index: true` 且 `source` 与该子 skill 精确匹配的旧 `SKILL.md`；保留目录、其它文件、非受管或来源不匹配的文件和链接。后续从主编排器进入电子健康卡流程。源仓修正不代表业务副本已同步。
+
+专项验证：`node --test scripts/tests/doctor-extend-routing.tests.js`。
 
 ## 依赖的 Vendor 资产
 

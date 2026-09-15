@@ -28,7 +28,7 @@
 - WebSysAddins 中间件开发：`skills/imedical-bsp-websysaddins/SKILL.md`
 - Jenkins CI/CD 验证：`skills/imedicalxc-bsp-jenkins/SKILL.md`
 
-普通第三方集成需求优先使用 `imedicalxc-doctor-extend-engineer` 统一入口，由编排器按步骤加载上述子 skill。
+普通第三方集成需求优先使用 `imedicalxc-doctor-extend-engineer` 统一入口，由编排器按步骤加载上述子 skill。电子健康卡子 skill 在架构前置条件通过后加载；不固定参照厂家，不自动回补既有厂家，多行映射按已确认的方向与主映射处理，无法确定结果时报告歧义。
 
 ## 规则与参考入口
 
@@ -38,7 +38,7 @@
 
 ## Thin-Index 暴露范围
 
-本插件的 `scripts/generate-plugin-thin-index.ps1` 是根 canonical thin-index 脚本的 wrapper。默认只暴露 `imedicalxc-doctor-extend-engineer` 主编排器入口；`imedical-bsp-websysaddins`、`imedicalxc-bsp-jenkins`、`imedicalxc-doctor-blh`、`imedicalxc-doctor-dbdata`、`imedicalxc-doctor-extend-architecture`、`imedicalxc-doctor-extend-dataformat`、`imedicalxc-doctor-extend-scope` 和 `imedicalxc-doctor-invoke` 这 8 个子 skill 由主编排器按需读取，不单独生成浅层 skill 入口。
+本插件的 `scripts/generate-plugin-thin-index.ps1` 是根 canonical thin-index 脚本的 wrapper。默认只暴露 `imedicalxc-doctor-extend-engineer` 主编排器入口；`imedical-bsp-websysaddins`、`imedicalxc-bsp-jenkins`、`imedicalxc-doctor-blh`、`imedicalxc-doctor-dbdata`、`imedicalxc-doctor-elechealthcard-vendor`、`imedicalxc-doctor-extend-architecture`、`imedicalxc-doctor-extend-dataformat`、`imedicalxc-doctor-extend-scope` 和 `imedicalxc-doctor-invoke` 这 9 个子 skill 由主编排器按需读取，不单独生成浅层 skill 入口。已生成的受管电子健康卡入口通过canonical 生成器按 manifest 策略精准清理，兼容边界见 README。
 
 ## 内置脚本
 

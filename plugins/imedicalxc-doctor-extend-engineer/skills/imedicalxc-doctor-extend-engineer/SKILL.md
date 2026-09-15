@@ -6,6 +6,8 @@ triggers:
   - 第三方集成
   - 厂商对接
   - 外部接口
+  - 电子健康卡
+  - 健康卡新厂家
   - 系统集成
   - CDSS
   - SPD
@@ -89,6 +91,7 @@ priority: highest
 
 ### Step 0：接口资料摄取（可选输入、命中后强制完成）
 
+- 命中电子健康卡新厂家接入时，在上述架构前置条件通过后读取 `../imedicalxc-doctor-elechealthcard-vendor/SKILL.md`，作为本流程的领域补充；其资料门禁、代码/SQL/文档清单和收尾检查分别并入对应步骤，不跳过设计、计划或验证。该子 skill 不独立启动另一套流程。
 - 未提供接口文档：记录需求来源为用户描述，继续 Step 1。
 - 提供 `.doc` / `.docx`：优先使用当前工具原生 Word 读取能力；不可用时加载 canonical `word-reader`，再不可用时直接读取 `.agents/vendor/word-reader/SKILL.md` 并按其流程执行。
 - 提供 PDF、Markdown、网页或粘贴文本：使用当前工具对应的读取能力，不触发 `word-reader`。

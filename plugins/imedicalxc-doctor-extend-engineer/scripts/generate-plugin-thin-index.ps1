@@ -8,6 +8,7 @@ param(
         "imedicalxc-bsp-jenkins",
         "imedicalxc-doctor-blh",
         "imedicalxc-doctor-dbdata",
+        "imedicalxc-doctor-elechealthcard-vendor",
         "imedicalxc-doctor-extend-architecture",
         "imedicalxc-doctor-extend-dataformat",
         "imedicalxc-doctor-extend-scope",

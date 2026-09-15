@@ -2,7 +2,7 @@
 
 CSP 部署编译统一使用 `coding-iris-plugin/scripts/iris-tools/compile-csp.js`：上传后直接调用 Atelier 编译接口，支持一次批量请求、错误检查和耗时输出，避免反复探测 MCP 编译路径。
 
-SFTP 工具纳入 [vendor/sftp-server](vendor/sftp-server/README.md)：保留五个 MCP 工具名，补齐路径约束、内容比较、原子替换和 SHA-256 校验。`coding-iris-plugin` 提供默认禁用、显式选择的配置接入及迁移；不依赖个人目录、不自动安装 Python 依赖，也不替代无 SFTP 环境的上传通道。
+SFTP 工具纳入 [vendor/sftp-server](vendor/sftp-server/README.md)：保留五个 MCP 工具名，补齐路径约束、内容比较、原子替换和 SHA-256 校验。`coding-iris-plugin` v0.9.0 为新项目提供默认禁用的配置；更新时自动迁移可识别的既有标准启动参数，显式 custom 或自定义参数保留，不要求 runtime opt-in，也不自动安装 Python 依赖。
 
 CLS 编码提示：`coding-iris-plugin` 保留已有类历史格式，仅规范本次新增/修改位置；可选本地自检不阻断提交，不改变手动上传编译流程。
 
@@ -400,7 +400,8 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - 中间件入口识别、前端契约提取和后端数据装配。
 - BLH / DriverCom 分层开发、调用规范、医保/字典数据复用和 WebSysAddins 中间件开发。
 - `imedicalxc-doctor-dbdata` 已精简为数据库查询核心规范，重点覆盖医保对照、基础数据统一对照和合并查询。
-- thin-index wrapper 默认只暴露 `imedicalxc-doctor-extend-engineer` 主编排器入口，8 个子 skill 由主编排器按需读取。
+- 电子健康卡新厂家接入由主编排器按需加载，参照、映射方向和范围在目标工程核实，不批量回补既有厂家。
+- thin-index wrapper 默认只暴露 `imedicalxc-doctor-extend-engineer` 主编排器入口，9 个子 skill 由主编排器按需读取；v1.0.1 精准清理旧受管电子健康卡入口，兼容步骤见[插件 README](plugins/imedicalxc-doctor-extend-engineer/README.md)。
 - 四个 superpowers 流程 skill 是 required capability；`word-reader` 是 DOC/DOCX 输入触发的 optional fallback。它们通过 `.agents/vendor/` 分发，但只按 enabled 插件依赖进入项目发现层。
 
 常用 skill：
@@ -547,6 +548,4 @@ git push github master
 
 如果其中一个远端失败，先处理失败原因，不要在另一个平台手工补提交，避免历史分叉。
 
-同一待发布 0.8.0 增加 `deploy-frontend.js` 统一前端部署入口及 vendor `upload-batch.py`，固化上传、回读和 Atelier 编译，默认本地计划、显式执行，不生成临时脚本。用法见 `plugins/coding-iris-plugin/scripts/iris-tools/README.md`；源仓变化不代表业务项目副本已更新。
-
-2026-09-15：更新自动刷新既有标准 SFTP 启动参数为 vendor，不要求 runtime opt-in；保留解释器、env、disabled 和其它服务。显式 custom 或自定义参数不覆盖，不创建缺失服务，不安装 Python 依赖。
+`coding-iris-plugin` 当前 v0.9.0 包含 v0.8.0 引入的 `deploy-frontend.js` 与 vendor `upload-batch.py`，统一上传、哈希回读和指定 CSP 的 Atelier 编译，默认本地计划、显式执行。用法见[工具说明](plugins/coding-iris-plugin/scripts/iris-tools/README.md)；源仓变化不代表业务项目副本已更新。

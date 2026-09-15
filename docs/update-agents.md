@@ -630,4 +630,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - 是否存在需要人工确认的配置项。
 - 是否存在未处理的阻塞项。
 
-同一待发布 0.8.0 增加 `deploy-frontend.js` 统一前端部署入口及 vendor `upload-batch.py`，固化上传、回读和 Atelier 编译，默认本地计划、显式执行，不生成临时脚本。用法见 `plugins/coding-iris-plugin/scripts/iris-tools/README.md`；源仓变化不代表业务项目副本已更新。
+## 电子健康卡入口兼容修复
+
+`imedicalxc-doctor-extend-engineer` v1.0.1 恢复只暴露主编排器的约定。常规更新直接调用 canonical 生成器，读取 manifest 的 `thinIndex.excludeSkills` 后，电子健康卡领域子 skill 不再独立生成浅层入口。canonical 生成器对被排除 skill 的旧文件执行精准清理：仅处理 `thin-index: true` 且来源与当前子 skill 精确匹配的受管 `SKILL.md`，DryRun 报告 stale，Write 删除该文件；自定义文件、其它文件、目录与链接保留。后续从主编排器加载该子 skill，架构前置条件仍须通过。
+
+专项验证：`node --test scripts/tests/doctor-extend-routing.tests.js`，覆盖 Windows PowerShell 5.1 / PowerShell 7 的生成、旧入口清理、幂等和自定义文件保护。源仓更新不代表业务项目副本已同步。
+
+`coding-iris-plugin` 当前 v0.9.0 包含 v0.8.0 引入的统一前端部署入口，默认本地计划、显式执行。用法见 `plugins/coding-iris-plugin/scripts/iris-tools/README.md`。

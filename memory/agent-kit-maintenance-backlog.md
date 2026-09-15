@@ -45,15 +45,8 @@
 - 暂缓 macOS/Linux 跨平台支持，当前优先级为低。后续按“标准模式基础能力可用”的边界评估实施：优先覆盖安装、更新、plugin profile、thin-index 和通用 skill/agent；workspace overlay、Windows x64 IRIS MCP 等平台专属能力允许明确降级，不要求首阶段与 Windows 完全等价。已确认采用“JS-first、Node.js 为 `.agents` 工具链必装环境、OS 专属脚本例外”的策略；Node.js 不是 HIS 生产运行依赖，不整体重写现有 `.ps1`。正式启动时需完成安装器 Node.js 前置检查、经过完整回归的 Node 22 支持范围、根级 `scripts/*.js` sparse checkout、平台能力降级，以及 Windows/macOS/Linux 测试矩阵。
 - `iris-cure-form-dev` 的 `preview-run` 已按 Windows/macOS/Linux Chromium 路径发现和 Linux root capability 降级实现，但当前只取得 Windows Chrome 实机证据；正式宣称 macOS/Linux 支持前，仍需在对应 runner 上执行九档 Network/Console/HISUI 集成矩阵。
 
-## 队列维护规则
-
-- 已完成事项迁入 `agent-kit-maintenance-log.md`，不要在 backlog 中长期保留已完成条目。
-- 已固化为长期约束的事项迁入 `agent-kit-maintenance-decisions.md`。
-- 不记录短期个人提醒；只保留会影响后续 Agent 决策的治理任务。
-
-- 统一前端部署入口本地回归已完成；发布/同步后仍需验证业务副本实际单命令部署及非 Windows CI。
-
-2026-09-15：更新自动刷新既有标准 SFTP 启动参数为 vendor，不要求 runtime opt-in；保留解释器、env、disabled 和其它服务。显式 custom 或自定义参数不覆盖，不创建缺失服务，不安装 Python 依赖。
+- 业务副本同步后仍需验证统一前端入口的实际单命令部署及非 Windows CI；提交状态见维护日志，源仓提交不等于副本生效。
+- 电子健康卡 v1.0.1 修复在源仓验证后，已部署工程仍需按更新指南同步并确认旧受管子入口清理；真实厂家协议和双向映射验收留目标工程。
 
 ## AI 工作站插件后续验证
 
@@ -64,3 +57,9 @@
 
 - 先评估菜单数据与 Qoder wiki 的诊断领域样本，验证业务功能到页面、服务及源码的关联价值；不默认全量迁移。
 - 若试点有效，优先复用 agent-context-kit 与现有代码图谱能力，补来源版本、按需读取和变更后待复核机制；工程资料留目标工程，领域插件仅沉淀使用方法，不绑定 Qoder。
+
+## 队列维护规则
+
+- 已完成事项迁入 `agent-kit-maintenance-log.md`，不要在 backlog 中长期保留已完成条目。
+- 已固化为长期约束的事项迁入 `agent-kit-maintenance-decisions.md`。
+- 不记录短期个人提醒；只保留会影响后续 Agent 决策的治理任务。

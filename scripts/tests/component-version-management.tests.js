@@ -12,8 +12,17 @@ const tool = require(TOOL_PATH);
 
 const BASE_COMMIT = 'c79055e';
 
+const TEMP_BASE = path.join(os.tmpdir(), 'codex');
+fs.mkdirSync(TEMP_BASE, { recursive: true });
+const SUITE_ROOT = fs.mkdtempSync(path.join(TEMP_BASE, 'component-version-tests-'));
+test.after(() => {
+  assert.equal(path.dirname(SUITE_ROOT), TEMP_BASE);
+  fs.rmSync(SUITE_ROOT, { recursive: true, force: true });
+  assert.equal(fs.existsSync(SUITE_ROOT), false);
+});
+
 function tempRoot() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'imedical-component-version-'));
+  return fs.mkdtempSync(path.join(SUITE_ROOT, 'fixture-'));
 }
 
 function writeFile(root, relative, content) {

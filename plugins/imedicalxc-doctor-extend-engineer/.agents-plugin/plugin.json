@@ -1,11 +1,24 @@
 {
   "name": "imedicalxc-doctor-extend-engineer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "displayName": "iMedicalXC Doctor Extend Engineer",
   "description": "HIS doctor workstation third-party system integration workflow orchestrator, covering brainstorming, design, implementation, testing, HIS validation, and CI/CD delivery.",
   "entry": "AGENTS.md",
   "skills": "skills/",
   "scripts": "scripts/",
+  "thinIndex": {
+    "excludeSkills": [
+      "imedical-bsp-websysaddins",
+      "imedicalxc-bsp-jenkins",
+      "imedicalxc-doctor-blh",
+      "imedicalxc-doctor-dbdata",
+      "imedicalxc-doctor-elechealthcard-vendor",
+      "imedicalxc-doctor-extend-architecture",
+      "imedicalxc-doctor-extend-dataformat",
+      "imedicalxc-doctor-extend-scope",
+      "imedicalxc-doctor-invoke"
+    ]
+  },
   "initSkill": "imedicalxc-doctor-extend-engineer",
   "skillDependencies": {
     "required": [

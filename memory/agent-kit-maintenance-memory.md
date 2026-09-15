@@ -1,127 +1,31 @@
 # imedical.agents 维护记忆入口
 
-CSP 编译已固定到 compile-csp.js 的 Atelier 通道：默认本地计划，上传后显式执行，批量目标不扩展父页面；不再逐次探测 iris_execute/iris_compile 对 CSP 的兼容性。
-
-coding-iris-plugin 0.8.0：SFTP 共享运行时纳入 vendor，显式选择 vendor 后迁移旧启动参数；默认禁用、严格主机密钥、SHA-256 原子上传。依赖锁、安装兼容及验证入口见 vendor/sftp-server/README.md。
-
-CLS 格式能力仅服务 Agent 编码提示与最小改动，不引入编译证据、自动回读或提交门禁。
-
-本文件是 `imedical.agents` 能力包仓库维护记忆的入口摘要，帮助后续 Agent 快速接手。它不是业务项目 `.agents/memory/project-memory.md`，不部署到业务项目，不生成 thin-index。
-
-详细记忆分流如下：
-
-- 表单部署显式提供 `transaction-package` / `lightweight-sql` 通道，独立于 automatic/manual；轻量通道仅已有独占单模板 content。上游 write 参数缺失已由明确授权的 `mcp-fixed-sql-binding` 固定绑定层兼容，事务内预检和实际影响行数必须为 1；一个真实授权样本清空/恢复验证通过。详情及验收范围见插件 `references/cure-form-sql-cover.md`，不开放任意执行或普通清空。
-
-- 长期决策和稳定边界：`agent-kit-maintenance-decisions.md`
-- 近期维护流水和验证摘要：`agent-kit-maintenance-log.md`
-- 后续计划和治理队列：`agent-kit-maintenance-backlog.md`
+本文件只服务能力包源仓维护，不部署到业务项目，不生成 thin-index。规则以根 `AGENTS.md` 为准；本文件保留接手摘要，历史过程不作为当前状态。
 
 ## 当前状态
 
-- `iris-cure-form-dev` 当前维护版本为 v0.7.0：任务产物和运行态统一使用项目 `docs/work/cure-form/<task>/`；项目配置/规则仍属 `.agents/`。已有模板支持默认版本化克隆和显式原 RowID 覆盖，部署方式独立选择自动/手动；以下旧版概览中“现有改造使用灰度”不再表示唯一策略。详情路由到插件交付工作流及本次维护日志。
-
-- 本仓库维护可复用 Agent 能力包，核心内容包括 `agents/`、`workflows/`、`plugins/`、`skills/`、`rules/`、`docs/`、`scripts/` 和 `memory/`。
-- `agents/` 是厂商无关的智能体 canonical 注册层；`workflows/` 是厂商无关的多智能体/阶段化编排层。工具专属入口只能作为 adapter 生成物。
-- `plugins/agent-context-kit/` 负责项目上下文维护，包括 AGENTS 入口、项目规则、项目记忆、项目配置和 thin-index。
-- `plugins/coding-iris-plugin/` 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力，并提供 `iris-mcp-lookup` 知识查询、`iris-demand-promote` DEV→PRD 本地需求移植和 `iris-demand-commit` 标版/项目需求提交收尾 skill；前端流程会按 `plugin_profile.md` 对 enabled i18n 执行条件路由；8 个上游官方实用 skill 以 optional vendor 快照提供。
-- `plugins/codegraph-query/` 负责查询本地 `.codegraph/codegraph.db`，用于 indexed 前端/脚本侧符号定位、调用链和影响分析；`plugins/iris-codegraph/` 负责 IRIS/ObjectScript 图谱构建与查询，依赖 `coding-iris-plugin` 和目标工程 `.mcp.json`。
-- coding-iris 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`；旧 `project-utf8` 兼容读取并规范化，旧 `standard-gb2312` 只服务用户明确指定的历史工程。Overlay manifest 明确只有 backend SourceRoot 时规范化为 `N/A (backend-only)`，无法证明 backend-only 时继续阻断；实际文件字节检测仍是 frontend 最终门禁，真实 GB2312/mixed/unknown 不自动转码。HISUI 控件/API 与主题样式/视觉资源分别由 `hisui-widget-index.md`、`hisui-style-index.md` 按需路由。
-- workspace overlay 允许多个模块 Context 共享一个 canonical capability Git：resolver 明确区分 WorkspaceRoot、ContextRoot、CapabilityRoot、SourceRoot 和 GitRoot；模块更新不 pull capability，只在 ContextRoot 维护本地生成层，并以 manifest/Junction 门禁限制源码和 Git 边界。
-- `plugins/extract-doc/` 负责 PDF、DOC、DOCX、XLS、XLSX 的本地解析和结构化落盘，是接口类业务插件的通用文档依赖。
-- `plugins/i18n-iris-plugin/` 负责 IRIS/ObjectScript/CSP/HISUI 国际化能力；页面翻译种子默认使用 canonical `DHCDoc.I18n.PageTranslationSeed` 与稳定单条/聚合方法契约，现有兼容项目可通过 profile 覆盖。
-- `plugins/iris-interface-dev/` 负责接口 schema、字段诊断、开发计划、本地接口实现和离线审查，文档读取委托 `extract-doc`，编码与部署规则复用 `coding-iris-plugin`。
-- `plugins/iris-cure-form-dev/` 负责 CA 治疗评估与 CR 治疗记录的文档语义适配、Excel 多模板边界报告与有序生成、响应式改造及受控部署编排；新开发表单以 `expectedVersion=NEW` 判定并直接创建正式模板，不使用灰度；只有现有模板改造才使用响应式灰度 RowID，验收后以 `consolidate` / `consolidate-shared` 回归正式 RowID 并验证零灰度引用，`cleanup` 仅处理已切换引用后的孤儿模板；Map 总入口与模板逻辑均使用运行时外部 JS 路径，部署路径单独声明，无逻辑模板保持空引用；canonical `preview`、`preview-run`、`preview-check` 绑定六类资源、CSS 依赖和九档 Network/Console/HISUI 结果；部署前后人工交互凭证保持用户总体确认/Agent 逐项记录边界；通用文档解析委托 `extract-doc`，IRIS/HISUI 与静态资源部署复用 `coding-iris-plugin`，空 `MapType` 病理模板不进入流程。
-- `plugins/iris-imedical-doctor-ai/` v0.1.0 提供医生站 AI 集成开发，复用 IRIS 能力；工程、原型与框架接口按任务核实。接入见 `docs/iris-imedical-doctor-ai.md`；本地提交 `e88ea62`，业务副本尚未初始化。菜单数据与 wiki 接入仅为待评估项，见 backlog。
-- `plugins/iris-external-reg/` 负责编排第三方预约挂号接口开发，依赖 `extract-doc` 和 `coding-iris-plugin`。
-- `plugins/imedicalxc-doctor-extend-engineer/` 负责 HIS 医生站第三方系统集成编排，主入口为 `skills/imedicalxc-doctor-extend-engineer/SKILL.md`，子 skill 由主编排器按需读取。
-- 已落地首个领域样板 `agents/i18n-agent/` 和 `workflows/i18n-change.workflow.md`，用于 IRIS i18n 需求的链路定位、数据分类、编码/模板/种子和验证五阶段处理。
-- 通用 AGENT 协作框架已进入 beta：schema 2.0 以任务图、事件、投影、actions、messages 和独立授权运行，并以互斥 `taskKind` 分开业务需求验收生命周期与框架维护生命周期；运行时阻断跨生命周期 transition。六个通用角色、`standard-change`、`iris-change-agent` / `iris-change` 已落地。schema 1.0–1.2 保持只读，稳定标记仍需三类真实样本。
-- 插件与根级独立 skill 已建立源仓版本治理：当前覆盖 14 个插件、2 个根级独立 skill，发布记录进入不部署的 `releases/`；`dependencyVersions` 只做源仓兼容审计，维护工具不接入业务安装、更新、thin-index 或 hook。
-- 根 `AGENTS.md` 只服务本仓库维护，不部署到业务项目 `.agents/`；业务项目仍使用业务项目自己的 `AGENTS.md` 和 `.agents/` 上下文。
+- 能力源分为厂商无关的 `agents/`、`workflows/`、可复用 `plugins/` 与根级 `skills/`；工具专属配置只作为 adapter。源仓 `.agents/skills/agent-kit-maintenance/` 是维护者专用入口。
+- 当前有 14 个插件、2 个根级独立 skill。插件版本以 manifest 为准，独立 skill 版本以 frontmatter 为准；内部内容继承 owner 版本。发布记录不可变且不部署，版本 validator 不接入业务安装/更新/hook。
+- `coding-iris-plugin` 当前 v0.9.0：前端 canonical 编码为 `utf8`，实际字节检测是最终门禁；真实 GB2312/mixed/unknown 不自动转码，明确 backend-only Overlay 为 `N/A (backend-only)`。CLS 仅提供最小改动提示与可选自检，不增加编译证据或提交门禁。
+- CSP 编译固定到 `compile-csp.js` 的 Atelier 通道；`deploy-frontend.js` 统一上传、哈希回读与指定 CSP 编译，默认本地计划、显式执行，不自动重试或扩展父页面。SFTP vendor 新项目默认禁用，更新自动迁移可识别的既有标准启动参数，显式 custom/自定义参数保留，不创建服务或安装 Python 依赖。
+- `iris-cure-form-dev` 当前 v0.7.2：任务产物与运行态统一归目标项目 `docs/work/cure-form/<task>/`，快照/敏感证据归同任务 private；配置/规则仍在 `.agents/`。自动/手动部署与版本化克隆/显式原 RowID 覆盖分别选择。新模板不使用灰度，采用克隆的既有模板按引用拓扑收尾，原 ID 覆盖不调用 consolidate。显式旧输出路径保持兼容，不迁移既有备份。
+- 表单部署的 `transaction-package` / `lightweight-sql` 通道独立于 automatic/manual；轻量通道只服务已有独占单模板 content。固定 SQL 绑定兼容层保留单行事务门禁，授权样本验证不代表全部服务器/HIS 验收。
+- `imedicalxc-doctor-extend-engineer` 本轮修复版本 v1.0.1：电子健康卡子 skill 经主编排器架构门禁加载，不固定参照厂家，不自动回补既有厂家；映射按协议语义、方向和明确主映射取值。wrapper 只暴露主入口，旧受管子入口精准清理，自定义文件和链接保留。
+- `iris-imedical-doctor-ai` v0.1.0 提供医生站 AI 开发方法；工程、原型与接口按任务核实，菜单/wiki 接入尚未实现。其余插件职责与入口见仓库 README，不在本摘要重复目录清单。
+- 通用 AGENT 框架仍为 beta。schema 2.0 用互斥 `taskKind` 分开业务验收与框架维护生命周期；旧 schema 1.0–1.2 只读。业务验收后才执行只读 feedback 审查，任何写入逐项授权；框架维护不触发或提示 feedback。
+- standard 更新器只对落后状态 fast-forward，领先/分叉停止；普通 DryRun 可更新 capability，严格不更新用 Check 或 DryRun -NoPull。Overlay 区分 Workspace/Context/Capability/Source/GitRoot，共享 capability 只更新一次，不扩大源码/Git 边界。
 
 ## 必读路由
 
-- 修改安装、更新、sparse checkout 或托管更新流程：读取 `docs/update-agents.md`、`scripts/install-agents.ps1`、`scripts/update-agents.ps1` 和长期决策。
-- 修改 thin-index 行为：读取 `scripts/generate-plugin-thin-index.ps1`、相关插件 wrapper、长期决策和近期日志。
-- 修改智能体或 workflow：读取 `memory/plan/multi-agent-architecture.md`、`agents/agent-registry.md`、`workflows/workflow-registry.md` 和相关 `AGENT.md` / `.workflow.md`。
-- 修改插件能力：读取对应插件 `AGENTS.md`、README、skills、rules、templates 和 manifest。
-- 维护能力包仓库本身、检查插件提交同步或更新维护记忆：读取 `.agents/skills/agent-kit-maintenance/SKILL.md`；该仓库本地 skill 不在业务项目 sparse checkout 部署清单内。
-- 修改插件或根级独立 skill：同时读取 `docs/component-version-management.md`，递增 owner 版本、新增 release record，并运行维护者专用版本校验。
-- 维护记忆：保持本文件短摘要；细节按长期决策、维护日志、治理队列分流。
-- 处理业务项目上下文：不要使用本文件作为项目记忆；改用目标项目自己的 `AGENTS.md` 和 `project-context-maintenance`。
-
-## 近期关键变化
-
-- standard 更新器会在 fetch 后区分 capability Git 的相同、仅落后、仅领先和分叉状态：相同报告 `agents-up-to-date` 并跳过 pull，仅落后才 fast-forward 且输出旧、新、upstream hash，领先或分叉明确停止；无远端更新仍继续 sparse 和项目本地生成层检查。普通 `DryRun` 仍是“更新 capability 后预演本地生成层”，严格不更新 capability 使用 `Check` 或 `DryRun -NoPull`。
-
-- `coding-iris-plugin` v0.7.1 为 `iris-demand-commit` 增加显式 `$iris-demand-commit --plan|--commit` 调用契约并兼容单横线别名。`--plan` 只生成提交计划和完整 commit message，不执行 pull/commit 或继续追问；`--commit` 视为本地提交授权并直接完成 plan/apply/verify。自然语言路由、pull 后重新确认及独立 push 授权保持兼容。
-
-- `coding-iris-plugin` v0.6.2 优化 `iris-demand-commit`：标版首行改用简短菜单/功能摘要，完整需求只放第三行；新计划按仓库一次性读取 porcelain v2 状态，并将 index blob、模式/状态与工作区字节共同纳入防漂移指纹。已获授权时不重复确认，`apply --verify` 可在同一进程完成提交与验证；普通业务提交不运行框架专项测试，pull 和精确文件安全门禁保持不变。
-
-- `coding-iris-plugin` v0.6.1 与 `i18n-iris-plugin` v0.1.6 新增前端条件 i18n 门禁：只在 i18n 已启用且任务或最终 diff 命中 helper/key/可见文案时加载轻量 i18n 规则，并用只读 Node.js 检查器阻断动态翻译 key；普通前端需求不进入完整 i18n workflow。
-
-- `coding-iris-plugin` v0.6.0 新增 `iris-demand-commit`：标版使用三行消息并在明确 commit 授权后强制 `pull --ff-only`，项目使用两行消息且允许无 upstream 的本地提交；修改说明必须交代修改对象、具体方案和行为结果。`demand-delivery-type-v1` 会为已部署工程从明确上下文填充 `standard/project`，证据不足或冲突时写 `TODO` 并提示用户补全。提交只处理计划内精确路径，不授权 push、部署或远程编译。
-
-- `coding-iris-plugin` v0.5.2 新增并加固 `iris-demand-promote`：PRD 服务器导出作为目标基线，DEV Git patch 作为需求来源；按绝对 DEV/PRD 根身份隔离计划，冲突续跑重新校验 HEAD 和暂存状态，默认只创建本地 PRD 提交，不授权生产远端写入。五个依赖插件已扩展 v0.5.x 兼容范围。
-
-- Windows x64 安装/更新已改为优先内置 `iris-agentic-dev.exe`：vendor 可用且项目已有配置时，只收敛 `.mcp.json` 的 IRIS server `command` 和既有 `project-env.json` 的 `mcp.serverPath`，其它连接字段与 MCP server 保持不变；Write 在重新读取两份文件验证后才报告成功，失败按原始字节回滚。受支持的已部署更新器可自更新并在同一轮收敛；更早历史版本使用 runbook 的两次 Write 确定性收敛。无配置不创建，非 Windows、vendor 缺失、JSON 无效或候选歧义均保留原配置并报告明确状态。
-- 已新增 workspace overlay framework：capability manifest schema、PowerShell/Node resolver、安全 initializer、standard/overlay 双模式更新器和 capability-once/context-many Runbook 已落地；manifest 路径限制在声明的 WorkspaceRoot/ContextRoot 边界内，ContextRoot 既有父链不得经过 reparse point，repair 仅处理受管 Junction；thin-index、vendor/runtime adapter 与 coding-iris 工具链均显式消费 ContextRoot/CapabilityRoot/SourceRoot/GitRoot，模块本地 `iris-mcp.js` 由 manifest-aware JS adapter 转发到 canonical helper。
-- 更新器已补齐旧 sparse checkout 的跨版本自举：旧进程遗漏 `scripts/lib/**` 时，新版脚本会在可执行更新或自更新恢复阶段先收敛完整运行时 sparse 清单，再加载 `WorkspaceContext.psm1`；只读 Check 不修改 checkout，dirty 或非独立 Git 状态继续阻塞。
-- `iris-mcp-lookup` 统一路由当前实例元数据、本地源码和 IRIS 官方文档，并支持 DocBook `Fetch` URL；`iris-agentic-dev` vendor skills 已刷新到 v1.2.6 固定提交，8 个 optional skill 保持上游原文和许可证，新增 `objectscript-tdd` 但仍受本仓库编译/测试授权门禁。内置 Windows x64 exe 与根 helper 均已适配 v1.2.6：完整合并 toolset 为 78 个、默认 `--no-skills` 为 67 个，新增多实例、跨环境比较、持久会话和管理观测工具均有显式安全分类。
-- coding-iris 已拆分 HISUI 控件/API 与 CSS 样式/资源索引，前端规则按控件、主题、locale、语义 class、图标和插图分流读取；索引维护同时区分源仓 `vendor/` 与部署态 `.agents/vendor/`。
-- 文档解析能力已从 `iris-interface-dev` 拆分为通用 `extract-doc` 插件；接口插件保留 `iris-interface-doc-ingest` 适配入口和 `iris-interface-doc-ingest/v2` schema，并通过 `iris-interface-build` 承担本地实现编排。
-- 已新增 `iris-external-reg` 插件，覆盖第三方预约挂号接口规范解析、执行计划、ObjectScript 实现和验证，manifest 显式依赖 `extract-doc`、`coding-iris-plugin`。
-- 框架反馈模板与共享协议已统一要求记录“问题发现过程”；已应用反馈必须更新状态和处理记录，不能继续保留为无 diff 的“待处理”条目。
-- `i18n-agent` 已建立三种运行模式、Step 0 启动契约和编号 handoff；schema 1.2 增加 attempts、capability matrix、远程动作终态、finalization 和限定 verification scope，并保留 1.0/1.1 校验兼容。`#6097891` 已形成脱敏异常恢复回归样本。
-- `agent-framework-feedback` v0.2.0 只适用于 `taskKind=business-demand` 并在用户验收后执行只读候选/命中/框架问题审查；`framework-maintenance` 使用独立维护生命周期，不进入需求验收且不触发或提示 feedback。任何经验写入、命中更新、framework feedback 或 rule 提升仍需用户逐项授权。
-- XML 打印模板同步在远端保存遇到临时类 `Execute+...<SYNTAX>` 时，会复用既有 XML/manifest/备份并自动切换 Base64 分块 fallback，专项离线回归覆盖成功、收敛和清理路径。
-- 已新增 `imedicalxc-doctor-perf-analysis-engineer` 插件，覆盖医生站接口性能分析与优化、前后端链路追踪、Graylog 日志分析、N+1/批量调用优化和性能报告输出；init skill 与主编排 skill 分离，thin-index wrapper 默认只暴露主编排器入口。
-- 已新增 `imedicalxc-doctor-data-extraction` 插件，用于 HIS 数据抽取、`@OpenApi` Controller 扫描、第三方接口对照文档和字段映射生成，Feign/API 文档生成作为辅助能力。
-- 已新增 `imedicalxc-doctor-print-template-design` 插件，用于 HIS 打印模板设计和 `.xlsx` 模板生成，覆盖 Word/docx 参考文档到主模板/扩展模板的工作流。
-- `scripts/install-agents.ps1` 和 `scripts/update-agents.ps1` 已新增 Git 版本前置校验；`docs/update-agents.md` 和更新脚本测试已同步覆盖。
-- vendor skill 已改为按 enabled 插件 capability 发现：`vendor/superpowers/` 和 `vendor/word-reader/` 仍随 `/vendor/**` 部署作为 fallback，但常规安装/更新不再全量写用户目录；resolver 只为 required skill 生成 `.agents/skills` 通用入口，optional 按任务触发，用户级 runtime 同步必须显式指定 skill。
-- 已新增并重构 `imedicalxc-doctor-extend-engineer` 插件，采用标准插件结构、内置多模块 Maven 依赖安装脚本，thin-index wrapper 默认只暴露主编排器入口，医生站第三方集成子 skill 由主编排器按需加载。
-- `iris-cure-form-dev` 文档新建流程默认以业务项目 `docs/` 为需求入口、`docs/cure-form/<moduleId>/` 为开发产物目录；插件不再使用 `src-iris` 默认目录，服务器快照与部署临时数据仍位于 `.agents/work/`，多个文档候选必须显式选择。
-- `iris-cure-form-dev` v0.6.1 在 v0.6.0 灰度收尾契约不变的前提下扩展 `coding-iris-plugin` v0.4.x 兼容范围；`coding-iris-plugin` v0.4.0 已完成 v1.2.6 MCP 与 vendor skill 适配。真实服务器新增方法验证仍保留在 backlog，能力包更新不会自动修改服务端类。
-- 已精简 `imedicalxc-doctor-dbdata` skill，聚焦数据库查询核心规范，重点保留医保对照、基础数据统一对照和合并查询（Merge Query）等高价值领域知识，并同步更新医生站扩展主编排器和架构引用。
-- 已新增 `demo/presentation/` 演示页面，作为能力包、i18n skill 和多智能体架构的可视化说明材料；它不属于业务项目运行入口。
-- 已新增部署经验沉淀入口 `feedback/experience/deploy-com-exp.md` 和首个专项部署工具目录 `docs/deploy/dental-ta-159/`；这类内容可随 `docs/` 部署，但不得把业务私有连接信息写入记忆或规则。
-- 已新增提交前差异降噪 Git hook 分发能力：`.agents/hooks/pre-commit`、`.agents/scripts/check-functional-diff.ps1` 和 `.agents/scripts/install-git-hooks.ps1` 随 `.agents` 更新可用，但 `install-agents.ps1` / `update-agents.ps1` 不自动修改业务项目 `core.hooksPath`，只报告 hook 可用或启用状态。
-- 已新增 IRIS 部署编排入口 `plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md` 和薄清单脚本 `plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js`；默认只生成部署清单和编排验证，远端写入仍需用户明确确认。
-- 已新增 `codegraph-query` 和 `iris-codegraph` 插件，分别覆盖本地 CodeGraph SQLite 只读查询，以及 IRIS/ObjectScript 图谱构建与查询；两者均使用标准 manifest、rule、skill 和 thin-index wrapper。
-- 已新增根 `AGENTS.md`，作为本仓库 AI Coding 维护入口；它不部署到业务项目 `.agents/`。
-- 维护记忆已拆分为入口摘要、长期决策、维护日志和治理队列四类文件。
-- 已新增统一更新脚本 `scripts/update-agents.ps1` 和托管更新 runbook `docs/update-agents.md`。
-- 已将业务项目 `AGENTS.md` 规范调整为必须唯一主入口；`CLAUDE.md`、`CODEBUDDY.md` 改为可选兼容 symlink。
-- 已增强 canonical thin-index stale 清理，支持识别插件源规则重命名、移走或删除后的遗留浅层入口。
-- 已明确 GitHub Pages 展示页和双远端维护链路；展示页文件不部署到业务项目 `.agents/`。
-- 已新增多智能体架构设计 `memory/plan/multi-agent-architecture.md`，明确 canonical `agents/` / `workflows/` 与 Codex、Claude Code、OpenCode、CodeBuddy、WorkBuddy、Hermes 等 adapter 边界。
-- 已新增 `agents/`、`workflows/` 首批 canonical 文件和 i18n 领域 Agent 样板。
+- 仓库维护：`.agents/skills/agent-kit-maintenance/SKILL.md`。
+- 长期决策：`agent-kit-maintenance-decisions.md`；近期提交与验证：`agent-kit-maintenance-log.md`；未完成事项：`agent-kit-maintenance-backlog.md`。
+- 安装、更新、vendor、sparse 或 thin-index：`docs/update-agents.md` 与相关 canonical 脚本；plugin thin-index 只修改根生成器，插件脚本只转发。
+- 插件变更：owner AGENTS、README、manifest、相关内容、专项测试及 `docs/component-version-management.md`。
+- Agent/workflow：`memory/plan/multi-agent-architecture.md`、两份 registry、共享协议及相关定义。
+- 业务项目上下文：目标项目自己的入口与 `project-context-maintenance`，不用维护者记忆代替项目记忆。
 
 ## 当前治理重点
 
-- P0 一致性回归已补充本轮暴露的 targeted 检查：新插件总览、依赖 manifest、HISUI reference 路由、反馈模板字段，以及 `extract-doc` 拆分后的专项测试 owner 路径；全插件通用结构门禁仍按 backlog 继续推进。
-- 已新增 agent thin-index 生成链：`scripts/generate-agent-thin-index.ps1` 可从 canonical `agents/` 生成 `.agents/skills/<agent-name>/SKILL.md`，并已接入 `update-agents.ps1`。
-- vendor skill 核心链路已厂商无关化：manifest 声明 capability，resolver 生成 required 项目 thin-index；Claude Code/Codex 只保留显式 runtime adapter，同步不再是常规更新前置。OpenCode、CodeBuddy、WorkBuddy、Hermes 使用项目通用层或直接源文件降级。
-- 工具专属 agent adapter 生成器仍暂缓；当前已开始做 Claude Code/Codex 的 skill 发现层适配，但不生成 `.codex/agents/`、`.claude/agents/`、`.opencode/`、`.codebuddy/agents/`、WorkBuddy 或 Hermes 原生 agent 入口。
-- 继续观察 rules 体量，查找表、API 目录和长参考资料优先迁入插件 `references/`。
-- 通用事件驱动调度器 `scripts/agent-orchestrator.js` 已实现 `init/next/ack/message/transition/status/validate`；它只生成统一 adapter action，不直接调用产品 API。下一阶段按三类真实需求样本验证 beta，并单独观察五个简单 `iris-coding` fast-path 样本。
-- 维护者专用 `agent-kit-maintenance` 已迁入 `.agents/skills/agent-kit-maintenance/SKILL.md`，作为受版本控制的仓库本地上下文；根 `skills/` 只保留会部署到业务项目的通用 skill，根 `AGENTS.md` 仍承载最高优先级维护入口和规则。
-
-## 最高优先级约束
-
-- 修改 thin-index 生成行为时，只改根 `scripts/generate-plugin-thin-index.ps1`；其它插件同名脚本只能作为 wrapper 转发参数。
-- 修改插件目录结构时，同步检查 `.agents-plugin/plugin.json`、插件 `AGENTS.md`、插件 README、仓库 README 和相关 docs。
-- 对已部署工程有影响的变更，必须在 README 或插件 README 中说明同步步骤和兼容清理策略。
-- 插件 canonical 名称变更必须在 manifest 声明 `legacyNames`，由更新器迁移 `plugin_profile.md` 状态并清理旧 rule/skill thin-index；不得把旧 `enabled` 状态静默降级为 `available`。
-- 不把根 `AGENTS.md`、根 `memory/`、展示页文件或 `scripts/tests/` 加入业务项目 sparse checkout。
-- `agents/` 和 `workflows/` 是能力包正式内容，已加入业务项目 `.agents` sparse checkout；它们不属于 `.agents/.git/info/exclude` 生成层。
-- `.agents/plugins/**` 默认全量拉取用于能力发现；插件目录存在只表示 `available`，是否启用以目标项目 `.agents/config/plugin_profile.md` 为准。
-- 不写服务器地址、账号、密码、token、namespace、远程路径或任何敏感连接信息。
-- 不写完整 rules 正文、长段脚本说明、大段命令输出或一次性排障日志。
-- 不把业务项目私有事实写入本仓库插件、规则或记忆。
-- 不把短期待办无限追加到 memory；完成后应合并、替换或删除过期条目。
-
-同一待发布 0.8.0 增加 `deploy-frontend.js` 统一前端部署入口及 vendor `upload-batch.py`，固化上传、回读和 Atelier 编译，默认本地计划、显式执行，不生成临时脚本。用法见 `plugins/coding-iris-plugin/scripts/iris-tools/README.md`；源仓变化不代表业务项目副本已更新。
-
-2026-09-15：更新自动刷新既有标准 SFTP 启动参数为 vendor，不要求 runtime opt-in；保留解释器、env、disabled 和其它服务。显式 custom 或自定义参数不覆盖，不创建缺失服务，不安装 Python 依赖。
+- 多人提交准入与通用结构检查；三类真实 AGENT 样本、五个简单 iris-coding 样本仍待验证。
+- 非 Windows CI、真实 HIS/移动 WebView/PAD 与业务副本同步按具体任务取证；矩阵声明、源仓提交不等于平台验证或副本生效。
+- 已完成事项移入维护日志；长期约束进入 decisions；本摘要合并替换过期状态，不无限追加历史版本。
