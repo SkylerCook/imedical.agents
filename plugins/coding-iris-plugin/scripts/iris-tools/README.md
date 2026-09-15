@@ -11,7 +11,7 @@
 1. 优先使用本目录脚本完成导出、类编译、Broker 调试和环境同步。
 2. 后端 MCP 用于补充脚本未覆盖的 introspect、只读 SQL、远端状态验证和 ObjectScript 执行。
 3. `sftp-server` MCP 是可选前端上传能力；目标项目未配置时，不应阻塞开发或臆造上传能力。
-4. CSP 编译不走 `compile.js`，上传后通过后端 MCP 执行 `$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`。
+4. CSP 编译使用 `compile-csp.js`，上传后按明确的 WebApp 虚拟路径通过 Atelier 编译，不走 `compile.js` 或任意代码执行。
 
 ## 📁 脚本列表
 
@@ -80,7 +80,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js scripts/tes
 
 **功能：** 将本地文件上传到 IRIS 服务器并自动编译，实现快速开发和测试。
 
-> 注意：`compile.js` 面向 `.cls` 类文件同步编译，不作为 CSP 批量部署编译入口。CSP 应先通过 SFTP 上传到目标 Web 根，再用目标工程定义的 WebApp 虚拟路径执行 `$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`，并检查内层 status 与生成类参数。
+> 注意：`compile.js` 面向 IRIS 类文件。CSP 上传后使用 `compile-csp.js --documents <虚拟路径.csp> --execute`；检查编译结果及生成类参数。
 > 脚本会显式拒绝 `.csp` 输入，避免把 CSP 路径错误转换成 IRIS 点号文档名。
 
 **工作原理：**
@@ -422,3 +422,17 @@ A:
 - ⚠️ 生产环境请使用强密码和 HTTPS
 - ⚠️ 定期更新和轮换凭据
 
+
+## 前端固定部署入口
+
+前端上传加编译统一调用 `scripts/iris-tools/deploy-frontend.js`。默认生成本地计划；已有明确部署授权后加 `--execute`，无需逐步骤重复确认。禁止为常规部署临时生成上传脚本或逐次探索编译工具。
+
+```bash
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/deploy-frontend.js --source-root <frontend-root> --files <project-relative-file...> --execute
+```
+
+`--source-root` 对应包含 `csp/`、`scripts/`、`css/` 的目录，映射到私有配置 `REMOTE_PATH`；省略时读取 SFTP 的 `LOCAL_PATH`。文件列表必须明确，CSP 虚拟路径取 `web.cspBasePath`。固定顺序：本地 UTF-8/路径/配置校验 → 单条 SFTP 连接比较 SHA-256 → 差异文件原子上传并回读 → 全部证据通过后一次 Atelier 编译指定 CSP。未变化 CSP 仍执行编译；JS/CSS 不触发编译。不自动扩展父页面，不重试、不切换通道；部分上传成功后失败不自动回滚。
+
+Python 默认使用 `.mcp.json` 对应 SFTP 的 `command`，可用 `--python <interpreter>` 明确覆盖；解释器须已安装 vendor 锁定依赖。可信主机密钥使用配置或 `--known-hosts <file>`；本次明确核实的指纹可用 `--host-key-sha256 <SHA256:fingerprint>`，不写入信任库，不自动接受未知密钥。两个参数互斥。
+
+结果包含每个文件的哈希与 `uploaded`/`unchanged` 状态，以及 `uploadVerifyMs`、`compileMs`（有 CSP 时）、`commandElapsedMs`。这些是命令耗时，排除 AI 会话及审批等待。`verified` 仅证明文件回读及指定编译完成，页面功能仍按项目要求验收。仅编译时继续使用 `compile-csp.js`。该入口不转换历史 GB2312 文件。

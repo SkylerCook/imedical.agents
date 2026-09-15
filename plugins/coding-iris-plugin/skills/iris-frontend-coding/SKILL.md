@@ -26,7 +26,7 @@ description: Use when working on CSP, JavaScript, CSS, or HISUI frontend code wi
 7. 内部解析目标路径对应的前端编码模式；canonical `utf8` 与兼容别名 `project-utf8` 都保持 UTF-8。每个文件修改前后均执行字节检测，正常时静默，异常时停止并报告。
 8. 最终 diff 再执行一次条件 i18n 门禁；命中且插件已启用时，按 profile 中的 helper 运行 `i18n-iris-plugin/scripts/check-i18n-helper-usage.js` 检查全部触碰的 JS/CSP 文件，失败必须停止。
 9. 默认只做本地修改；当前部署链直接上传通过门禁的 UTF-8 源文件。只有用户明确指定历史 `standard-gb2312` 工程时才允许调用 legacy 转换器。
-10. CSP 编译必须按工作流规则使用 WebApp 虚拟路径，并验证 `$system.OBJ.Load` 内层 status、生成类、`CSPFILE` 和 `CSPURL`。
+10. CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 
 ## 完成检查
 

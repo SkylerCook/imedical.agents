@@ -121,7 +121,7 @@ related:
 
 ## 部署注意
 
-- CSP 文件不通过 `iris_doc` 部署。应先通过 SFTP 上传，再用 WebApp 虚拟路径 `$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")` 编译。
+- CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 - `iris_execute` 传输成功不等于部署成功。必须检查 ObjectScript 内层 status 和生成物。
 - 带 `Storage Default` 的持久化实体类应上传去掉完整 Storage 块后的源码，让 IRIS 在编译时重新生成 Storage。
 

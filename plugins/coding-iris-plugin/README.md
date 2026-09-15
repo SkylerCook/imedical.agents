@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+前端 SFTP 工具已纳入 `.agents/vendor/sftp-server/`：修复路径/忽略规则、原子上传与 SHA-256 回读校验、超时及结构化错误。新项目默认禁用 SFTP；旧项目显式选择 `sftp.runtime: vendor` 后迁移，保留连接参数。Python 依赖按带哈希锁文件单独安装，升级器不自动安装依赖。主机密钥与服务器原子替换兼容要求见 [SFTP runtime](../../vendor/sftp-server/README.md)。这不提供无 SFTP 服务器的上传替代通道。
+
 CLS 编码遵循 [格式提示与最小改动约定](references/cls-coding-format.md)：新增代码按约定编写，历史格式保持原样。自检仅提示，不改变上传、编译或提交流程。
 
 `coding-iris-plugin` 是面向 IRIS/ObjectScript/CSP/JavaScript/HISUI 工程的通用 Agent 编码能力包。
@@ -222,7 +224,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 - 类文件部署先整组上传依赖切片，再按依赖顺序编译；不要边上传边逐个编译。
 - 当前前端文件通过 UTF-8 门禁后直接上传原始源文件，不生成编码转换临时件。
 - Legacy GB2312 转换只用于用户明确指定的历史工程；临时件远端文件名仍映射回原始目标文件名，不能据此推断当前标版仍使用 GB2312。
-- CSP 编译使用 WebApp 虚拟路径 `$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`，并检查内层 status、生成类、`CSPFILE`、`CSPURL`。
+- CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 - 插件不保存服务器地址、账号、namespace、token、Cookie 或远端绝对路径。
 
 ## 脚本配置来源
@@ -236,3 +238,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 - `web.cookie`：可选 Broker 调试 Cookie；也可用 `debugger.js --cookie "<cookie>"` 临时传入。Cookie 属于敏感值，只能放在本地私有配置或命令行临时参数中。
 
 缺少必要配置时脚本应直接报错，避免静默拼出错误路径。
+
+前端上传加编译固定使用 `scripts/iris-tools/deploy-frontend.js`：单连接差异上传、哈希回读后批量 Atelier 编译；失败停止，不临时生成脚本或自动换通道。参数及耗时口径见 `scripts/iris-tools/README.md`。

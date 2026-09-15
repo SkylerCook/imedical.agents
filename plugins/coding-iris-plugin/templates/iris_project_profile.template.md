@@ -32,7 +32,7 @@ workspace-overlay 若在 `capability.json` 中明确只声明 `backend`、未声
 ### 部署能力
 
 - 编码时从 `.mcp.json` 确认可用的 MCP 工具（iris_doc、iris_compile、sftp-server 等）
-- CSP 编译命令模板：`$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`，必须使用 WebApp 虚拟路径，不使用物理 Web 根路径
+- CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 
 ### 远端部署路径
 

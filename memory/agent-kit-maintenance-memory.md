@@ -1,6 +1,10 @@
 # imedical.agents 维护记忆入口
 
-coding-iris-plugin 0.7.2：CLS 格式能力仅服务 Agent 编码提示与最小改动，不引入编译证据、自动回读或提交门禁。
+CSP 编译已固定到 compile-csp.js 的 Atelier 通道：默认本地计划，上传后显式执行，批量目标不扩展父页面；不再逐次探测 iris_execute/iris_compile 对 CSP 的兼容性。
+
+coding-iris-plugin 0.8.0：SFTP 共享运行时纳入 vendor，显式选择 vendor 后迁移旧启动参数；默认禁用、严格主机密钥、SHA-256 原子上传。依赖锁、安装兼容及验证入口见 vendor/sftp-server/README.md。
+
+CLS 格式能力仅服务 Agent 编码提示与最小改动，不引入编译证据、自动回读或提交门禁。
 
 本文件是 `imedical.agents` 能力包仓库维护记忆的入口摘要，帮助后续 Agent 快速接手。它不是业务项目 `.agents/memory/project-memory.md`，不部署到业务项目，不生成 thin-index。
 
@@ -116,3 +120,5 @@ coding-iris-plugin 0.7.2：CLS 格式能力仅服务 Agent 编码提示与最小
 - 不写完整 rules 正文、长段脚本说明、大段命令输出或一次性排障日志。
 - 不把业务项目私有事实写入本仓库插件、规则或记忆。
 - 不把短期待办无限追加到 memory；完成后应合并、替换或删除过期条目。
+
+同一待发布 0.8.0 增加 `deploy-frontend.js` 统一前端部署入口及 vendor `upload-batch.py`，固化上传、回读和 Atelier 编译，默认本地计划、显式执行，不生成临时脚本。用法见 `plugins/coding-iris-plugin/scripts/iris-tools/README.md`；源仓变化不代表业务项目副本已更新。

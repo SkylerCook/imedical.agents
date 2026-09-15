@@ -37,17 +37,33 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 - `.js/.css/.html` 对应 Web 资源路径。
 - 是否存在无法分类或本地不存在的文件。
 
+## 前端上传加编译
+
+优先直接调用 `scripts/iris-tools/deploy-frontend.js --source-root <frontend-root> --files <project-relative-file...> --execute`，参数与失败语义见 `scripts/iris-tools/README.md`。已有明确授权、目标和有效配置时使用一条命令，不再单独生成临时脚本、重复预检或逐工具确认。固定完成上传、哈希回读和指定 CSP 编译；无 `--execute` 只生成本地计划。失败停止，不自动重试或扩大文件范围。
+
 ## 执行顺序
+
+仅编译 CSP 的固定入口（路径取部署清单中的 virtualPath）：
+
+```bash
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js --documents <virtualPath.csp...>
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js --documents <virtualPath.csp...> --execute
+```
+
+第一条仅本地计划；第二条在上传完成且用户已明确授权部署后执行一次批量编译。直接编译明确指定的 show.csp，不自动编译父页面。禁止把已授权部署机械拆成逐工具重复确认。输出 `elapsedMs` 为编译请求及回包耗时，不能当作包含检查/上传/验收的总耗时。失败或结果不明时不自动重试，也不回退到 `iris_execute`。
 
 1. 读取配置和项目规则，确认目标环境事实来源。
 2. 生成部署清单，并按清单拆分后端类、CSP、Web 资源和其它文件。
 3. 说明即将发生的远端写入、编译、SFTP 上传或验证影响，等待用户确认。
 4. 后端类按 `iris_deploy_checklist.md` 执行：实体类先处理 Storage Default 风险，完整依赖切片先上传，再按依赖顺序编译。
 5. Web 资源通过 UTF-8 字节门禁后直接上传原始源文件；只有用户明确指定历史 `standard-gb2312` 工程时，GB2312 临时文件才可作为上传内容，远端目标名仍保持原始文件名。
-6. CSP 先上传到物理 Web 根，再用 `project-env.json -> web.cspBasePath` 拼出的虚拟路径执行 `$system.OBJ.Load(..., "c")`；不得用物理路径编译。
+6. CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 7. 执行远端只读验证，确认类编译状态、CSP 生成类参数、代表性页面加载和核心业务调用。
 
 ## 工具优先级
+
+- 项目选择 `sftp.runtime=vendor` 时，使用 CapabilityRoot 下的 `vendor/sftp-server/src/main.py`；运行前按 vendor README 检查解释器依赖、可信主机密钥、LOCAL_PATH/REMOTE_PATH 映射。旧的个人目录工具不视为 vendor 实现。
+- vendor 单文件上传先回读 SHA-256 再原子替换；不支持 `posix-rename` 时停止，不降级为直接覆盖。目录同步先用 `dry_run: true` 生成实际差异，再按明确授权范围执行。MCP `isError` 或结果 `partial-failure` 均不是成功。
 
 - 本地源码、项目规则和 `scripts/iris-tools/` 优先。
 - `prepare-deploy-manifest.js` 用于清单生成。

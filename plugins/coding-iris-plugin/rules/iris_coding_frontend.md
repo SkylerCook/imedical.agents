@@ -112,5 +112,5 @@ node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
 - 前端文件变更后按 `utf8` 复检所有触碰文件；正常时只报告模式、文件数和保持的编码。
 - 调整 DataGrid 列定义后，检查保存、校验、行编辑和回显逻辑中的 editor/列下标是否仍对应正确字段。
 - 用户明确要求部署时，先通过 UTF-8 字节门禁，再直接上传原始源文件并验证。
-- CSP 部署验证不能只看上传成功或外层执行成功；必须检查 `$system.OBJ.Load` 内层 status，并确认生成类、`CSPFILE`、`CSPURL` 与 WebApp 虚拟路径一致。
+- CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 - 只有任务明确指定已确认的历史 `standard-gb2312` 工程时，才允许进入 legacy GB2312 转换流程；若生成 `*.gb2312.*` 临时文件，只上传其内容到原始远端文件名，验证和编译仍以原始 `.csp` 文件名为准。

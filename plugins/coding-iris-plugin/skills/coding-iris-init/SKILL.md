@@ -58,6 +58,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
 5. 初始化 IRIS 开发主力脚本配置：
    - `.agents/config/project-env.json` 是人类可读的配置副本，`.mcp.json` 是 MCP 运行时事实来源；两者共存但 `.mcp.json` 优先。
    - **若 `.mcp.json` 已存在**：从 `.mcp.json` 反向填充 `project-env.json`（Agent 直接读取 `.mcp.json` 提取 iris/sftp/mcp 字段），web.* 部分无法从 `.mcp.json` 推导的标注 TODO。无需运行 `sync-env-config.js`。
+   - SFTP 默认禁用。新建配置可选择 `sftp.runtime: vendor`，使用 CapabilityRoot 内置运行时；先按 `vendor/sftp-server/README.md` 准备 Python 依赖及可信主机密钥。已有配置反向填充时保留 custom/legacy 语义，不自动选择 vendor；确认迁移后才设置 runtime。`knownHosts`、`keyFile`、`allowRemoteCommands` 分别映射对应私有环境字段，不写入可复用文档。
    - **若 `.mcp.json` 不存在**：提示用户从 `.agents/plugins/coding-iris-plugin/templates/project-env.template.json` 复制后填写，填写完成后运行：
      ```powershell
      node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js

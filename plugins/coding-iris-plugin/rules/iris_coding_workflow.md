@@ -72,7 +72,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 - 只有当 `.agents/config/project-env.json` 是配置事实来源时，修改后才运行 `sync-env-config.js` 同步 `.mcp.json`；若 `.mcp.json` 已是事实来源，不要用脚本覆盖它。
 - 需要导出源码时优先 `export.js`，本地已有最新源码时不要从远端覆盖本地。
 - 后端类小范围验证可用 `compile.js`；批量部署、有 Storage 的实体类、复杂依赖链，按部署清单先处理源码和依赖顺序，不要盲目逐个调用 `compile.js`。
-- CSP 的正确链路是：编码转换或确认编码 -> 项目上传能力/SFTP 上传 -> `iris_execute` 执行 WebApp 虚拟路径 `$system.OBJ.Load` -> 验证生成类和 `CSPFILE/CSPURL`。
+- CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 - 如果目标项目没有 `sftp-server` MCP，脚本体系仍可用于后端导出、编译、Broker 调试和环境同步；前端上传交给项目既有工具或用户手工处理。
 
 ## 内置脚本初始化
@@ -136,9 +136,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 - CSP 编译命令模板从目标工程 profile 读取。
 - `.cls` 编译和 CSP 编译通常不是同一 MCP 能力，执行前确认目标工程工具支持范围。
 - 用户未明确要求时，不执行远程编译。
-- CSP/JS/CSS 通过 SFTP 上传到物理 Web 根；CSP 编译必须使用 WebApp 虚拟路径调用 `$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`。
-- 不要使用物理 Web 根路径调用 `$system.OBJ.Load("<physical-web-root>/csp/<file>.csp","c")`。
-- `iris_execute` 外层 `success=true` 只表示 ObjectScript 执行成功，不代表 `$system.OBJ.Load` 内层编译成功；执行代码必须输出并检查 `$SYSTEM.Status.IsError(sc)` 和 `$SYSTEM.Status.GetErrorText(sc)`。
+- CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 - 编译后的类名应包含 CSP 运行包和虚拟 URL 段，例如虚拟路径含 `/csp/` 时通常检查 `csp.csp.<page-name>`，并确认 `CSPFILE`、`CSPURL` 都包含 `/csp/`。
 - Legacy GB2312 临时文件只用于历史工程的上传内容，远端目标名必须映射回原始文件名；不要把 `*.gb2312.*` 作为 CSP 编译目标。
 

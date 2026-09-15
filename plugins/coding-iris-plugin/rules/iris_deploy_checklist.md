@@ -28,7 +28,7 @@ related:
 5. `debugger.js` 用于 Broker/API 调试；Token、Cookie、Broker 路径从运行参数或 `project-env.json` 获取。
 6. 后端 MCP `iris-agentic-dev` 用于脚本未覆盖的能力，例如 `check_config`、只读 SQL、类/宏/表结构 introspect、文档 head/get、低风险 compile 验证和 `iris_execute`。
 7. 前端 MCP `sftp-server` 是可选能力。只有目标项目 `.mcp.json` 或 `project-env.json` 明确启用时才使用。
-8. CSP 编译通过后端 MCP 的 `iris_execute` 调用 `$system.OBJ.Load`，但 CSP 文件上传本身走 SFTP/项目上传能力；不要用 `iris_doc` 上传 CSP。
+8. CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 
 决策规则：
 
@@ -54,8 +54,7 @@ related:
 ## CSP 编译
 
 - CSP 文件通过 SFTP 上传到物理 Web 根。
-- CSP 编译必须使用 WebApp 虚拟路径，不使用物理路径：`$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`。
-- 不要使用：`$system.OBJ.Load("<physical-web-root>/csp/<file>.csp","c")`。
+- CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 - Legacy 流程中不要把 `.gb2312.csp` 作为编译目标。
 - 不要把 `iris_execute.success=true` 当成编译成功；它只表示 ObjectScript 外层包装执行过。
 - ObjectScript 包装代码必须输出并检查 `$SYSTEM.Status.IsError(sc)` 和 `$SYSTEM.Status.GetErrorText(sc)`。
@@ -67,3 +66,5 @@ related:
 - 验证 CSP 生成类参数：`CSPFILE` 包含 `/csp/`，`CSPURL` 包含 `/csp/`。
 - 验证代表性页面可加载，核心业务调用可用。
 - 以上检查通过前，不得报告部署成功。
+
+前端上传加编译固定使用 `scripts/iris-tools/deploy-frontend.js`：单连接差异上传、哈希回读后批量 Atelier 编译；失败停止，不临时生成脚本或自动换通道。参数及耗时口径见 `scripts/iris-tools/README.md`。

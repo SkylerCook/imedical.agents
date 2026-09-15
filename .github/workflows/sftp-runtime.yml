@@ -1,0 +1,27 @@
+name: SFTP runtime
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        python: ['3.10', '3.13']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python -m pip install --require-hashes -r vendor/sftp-server/requirements.lock
+      - run: python -B -m unittest discover -s vendor/sftp-server/tests -v
+      - run: node --test plugins/coding-iris-plugin/scripts/iris-tools/tests/sftp-config.test.js
+      - run: node --test plugins/coding-iris-plugin/scripts/iris-tools/tests/compile-csp.test.js
+      - run: node --test plugins/coding-iris-plugin/scripts/iris-tools/tests/deploy-frontend.test.js

@@ -11,6 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const { resolveWorkspaceContext } = require('../../../../scripts/lib/workspace-context');
+const { buildSftp } = require('./sftp-config');
 
 const scriptDir = __dirname;
 
@@ -104,32 +105,11 @@ if (sftpEnabled) {
   requireValue('sftp', 'command', sftp.command);
   requireValue('sftp', 'host', sftp.host);
   requireValue('sftp', 'username', sftp.username);
-  requireValue('sftp', 'password', sftp.password);
+  if (isMissing(sftp.keyFile)) requireValue('sftp', 'password', sftp.password);
   requireValue('sftp', 'localPath', sftp.localPath);
   requireValue('sftp', 'remotePath', sftp.remotePath);
 
-  const sftpArgs = Array.isArray(sftp.args)
-    ? sftp.args
-    : (sftp.scriptPath ? [sftp.scriptPath] : []);
-
-  if (sftpArgs.length === 0) {
-    requireValue('sftp', 'scriptPath', sftp.scriptPath);
-  }
-
-  mcpConfig.mcpServers[sftp.serverName] = {
-    command: sftp.command,
-    args: sftpArgs,
-    env: {
-      TARGET_HOST: sftp.host,
-      TARGET_PORT: String(sftp.port || 22),
-      TARGET_USERNAME: sftp.username,
-      TARGET_PASSWORD: sftp.password,
-      LOCAL_PATH: sftp.localPath,
-      REMOTE_PATH: sftp.remotePath,
-      IGNORE_PATTERNS: JSON.stringify(sftp.ignorePatterns || ['*.log', 'node_modules/', '.git/', '.vscode/'])
-    },
-    disabled: false
-  };
+  mcpConfig.mcpServers[sftp.serverName] = buildSftp(sftp, workspaceContext.capabilityRoot);
 }
 
 const mcpPath = path.join(workspaceRoot, '.mcp.json');

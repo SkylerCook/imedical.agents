@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
@@ -10,6 +10,10 @@
   "templates": "templates/",
   "scripts": "scripts/",
   "configMigrations": [
+    {
+      "id": "sftp-vendor-v1",
+      "script": "scripts/migrate-sftp-vendor.ps1"
+    },
     {
       "id": "frontend-encoding-v3",
       "script": "scripts/migrate-frontend-encoding-profile.ps1"

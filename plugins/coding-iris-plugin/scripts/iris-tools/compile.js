@@ -20,7 +20,7 @@ const namespace = process.argv[3];
 if (inputFile && /\.csp$/i.test(inputFile)) {
     console.error('[错误] compile.js 不支持 CSP 上传或编译。');
     console.error('[说明] compile.js 仅用于 .cls/.mac/.inc 等 IRIS 文档类文件。');
-    console.error('[CSP] 请先通过项目 SFTP/上传能力把 CSP 上传到 Web 根，再用 WebApp 虚拟路径执行 $system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")。');
+    console.error('[CSP] 上传后使用 compile-csp.js --documents <WebApp虚拟路径.csp> --execute，通过 Atelier 编译。');
     process.exit(1);
 }
 

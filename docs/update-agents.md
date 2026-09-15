@@ -1,5 +1,15 @@
 # .agents 安装与更新 Runbook
 
+`compile-csp.js` 随 coding-iris-plugin 既有 scripts 路径分发，无新增依赖或配置迁移。CSP 编译的连接来自项目 `.mcp.json`，虚拟根取 `project-env.json` 的 `web.cspBasePath`；更新后使用部署技能的新入口。源仓实现不代表业务副本已更新。
+
+## SFTP vendor 运行时接入
+
+`coding-iris-plugin` 的 SFTP 源码随既有 `/vendor/**` sparse 规则分发，无需扩大全局部署清单。新项目默认禁用 SFTP；依赖按 `vendor/sftp-server/requirements.lock` 安装到独立 Python 环境，更新器不安装解释器或依赖。
+
+已有项目默认保持外部工具。完成依赖检查、可信主机密钥和本地/远端路径核对后，显式设置私有 `project-env.json` 中 `sftp.enabled: true`、`sftp.runtime: vendor`，再执行正常 DryRun/Write。`sftp-vendor-v1` 只替换既有单参数 `sftp-server/src/main.py` 启动路径，保留解释器、env、凭据、disabled 状态及其它 MCP 服务；自定义参数报告 review-required。workspace-overlay 从 CapabilityRoot 定位工具，配置只属于 ContextRoot/WorkspaceRoot。
+
+本次源仓维护不自动迁移业务副本。服务器不支持原子 `posix-rename` 时停止，不静默降级覆盖；无 SFTP 环境仍保留项目其它上传通道。详细迁移及验证见 [SFTP runtime](../vendor/sftp-server/README.md)。
+
 本文是给大模型 Agent 执行的操作手册。目标是在业务项目中安装或更新 `.agents` 能力包，尽量减少人工参与。
 
 本文件必须按步骤执行。不要凭经验改流程。不要覆盖业务项目已有上下文。
@@ -616,3 +626,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - 是否执行了 `Write`。
 - 是否存在需要人工确认的配置项。
 - 是否存在未处理的阻塞项。
+
+同一待发布 0.8.0 增加 `deploy-frontend.js` 统一前端部署入口及 vendor `upload-batch.py`，固化上传、回读和 Atelier 编译，默认本地计划、显式执行，不生成临时脚本。用法见 `plugins/coding-iris-plugin/scripts/iris-tools/README.md`；源仓变化不代表业务项目副本已更新。
