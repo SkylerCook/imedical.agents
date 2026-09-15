@@ -31,11 +31,12 @@ CLS 格式能力仅服务 Agent 编码提示与最小改动，不引入编译证
 - `plugins/i18n-iris-plugin/` 负责 IRIS/ObjectScript/CSP/HISUI 国际化能力；页面翻译种子默认使用 canonical `DHCDoc.I18n.PageTranslationSeed` 与稳定单条/聚合方法契约，现有兼容项目可通过 profile 覆盖。
 - `plugins/iris-interface-dev/` 负责接口 schema、字段诊断、开发计划、本地接口实现和离线审查，文档读取委托 `extract-doc`，编码与部署规则复用 `coding-iris-plugin`。
 - `plugins/iris-cure-form-dev/` 负责 CA 治疗评估与 CR 治疗记录的文档语义适配、Excel 多模板边界报告与有序生成、响应式改造及受控部署编排；新开发表单以 `expectedVersion=NEW` 判定并直接创建正式模板，不使用灰度；只有现有模板改造才使用响应式灰度 RowID，验收后以 `consolidate` / `consolidate-shared` 回归正式 RowID 并验证零灰度引用，`cleanup` 仅处理已切换引用后的孤儿模板；Map 总入口与模板逻辑均使用运行时外部 JS 路径，部署路径单独声明，无逻辑模板保持空引用；canonical `preview`、`preview-run`、`preview-check` 绑定六类资源、CSS 依赖和九档 Network/Console/HISUI 结果；部署前后人工交互凭证保持用户总体确认/Agent 逐项记录边界；通用文档解析委托 `extract-doc`，IRIS/HISUI 与静态资源部署复用 `coding-iris-plugin`，空 `MapType` 病理模板不进入流程。
+- `plugins/iris-imedical-doctor-ai/` v0.1.0 提供医生站 AI 集成开发，复用 IRIS 能力；工程、原型与框架接口按任务核实。接入见 `docs/iris-imedical-doctor-ai.md`；本地提交 `e88ea62`，业务副本尚未初始化。菜单数据与 wiki 接入仅为待评估项，见 backlog。
 - `plugins/iris-external-reg/` 负责编排第三方预约挂号接口开发，依赖 `extract-doc` 和 `coding-iris-plugin`。
 - `plugins/imedicalxc-doctor-extend-engineer/` 负责 HIS 医生站第三方系统集成编排，主入口为 `skills/imedicalxc-doctor-extend-engineer/SKILL.md`，子 skill 由主编排器按需读取。
 - 已落地首个领域样板 `agents/i18n-agent/` 和 `workflows/i18n-change.workflow.md`，用于 IRIS i18n 需求的链路定位、数据分类、编码/模板/种子和验证五阶段处理。
 - 通用 AGENT 协作框架已进入 beta：schema 2.0 以任务图、事件、投影、actions、messages 和独立授权运行，并以互斥 `taskKind` 分开业务需求验收生命周期与框架维护生命周期；运行时阻断跨生命周期 transition。六个通用角色、`standard-change`、`iris-change-agent` / `iris-change` 已落地。schema 1.0–1.2 保持只读，稳定标记仍需三类真实样本。
-- 插件与根级独立 skill 已建立源仓版本治理：13 个插件保留现有 SemVer、2 个独立 skill 从 `0.1.0` 建立基线，发布记录进入不部署的 `releases/`；`dependencyVersions` 只做源仓兼容审计，维护工具不接入业务安装、更新、thin-index 或 hook。
+- 插件与根级独立 skill 已建立源仓版本治理：当前覆盖 14 个插件、2 个根级独立 skill，发布记录进入不部署的 `releases/`；`dependencyVersions` 只做源仓兼容审计，维护工具不接入业务安装、更新、thin-index 或 hook。
 - 根 `AGENTS.md` 只服务本仓库维护，不部署到业务项目 `.agents/`；业务项目仍使用业务项目自己的 `AGENTS.md` 和 `.agents/` 上下文。
 
 ## 必读路由
@@ -124,7 +125,3 @@ CLS 格式能力仅服务 Agent 编码提示与最小改动，不引入编译证
 同一待发布 0.8.0 增加 `deploy-frontend.js` 统一前端部署入口及 vendor `upload-batch.py`，固化上传、回读和 Atelier 编译，默认本地计划、显式执行，不生成临时脚本。用法见 `plugins/coding-iris-plugin/scripts/iris-tools/README.md`；源仓变化不代表业务项目副本已更新。
 
 2026-09-15：更新自动刷新既有标准 SFTP 启动参数为 vendor，不要求 runtime opt-in；保留解释器、env、disabled 和其它服务。显式 custom 或自定义参数不覆盖，不创建缺失服务，不安装 Python 依赖。
-
-- 2026-09-15：新增 iris-imedical-doctor-ai 0.1.0，诊断主线与 AI 卡片开发；复用 IRIS 配置和编码能力，不引入全工程治理或新运行时。入口见插件 README。
-
-AI 插件只保存领域方法：工程事实、当前原型与框架接口在目标任务中核对，不冻结为通用契约。

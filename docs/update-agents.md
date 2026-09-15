@@ -106,6 +106,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 脚本不会自动把依赖插件标记为 `enabled`。`enabled` 表示该插件已经完成项目上下文、配置、thin-index、脚本和入口路由的初始化闭环，不只是插件目录已存在。
 
+医生站 AI 集成插件 `iris-imedical-doctor-ai` 复用已启用的 `coding-iris-plugin`；同步代码后仍须执行初始化，不会因更新自动启用。接入、兼容边界与专项验证见 [AI 工作站插件接入](iris-imedical-doctor-ai.md)。
+
 常见插件初始化入口：
 
 ```text
@@ -115,6 +117,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 .agents/plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md
 .agents/plugins/iris-cure-form-dev/skills/cure-form-init/SKILL.md
 .agents/plugins/iris-external-reg/skills/iris-external-reg/SKILL.md
+.agents/plugins/iris-imedical-doctor-ai/skills/iris-imedical-doctor-ai-init/SKILL.md
 ```
 
 `iris-cure-form-dev` v0.3.0 起，已初始化项目需要在本地 `.agents/config/cure_form_profile.md` 补齐 `PreviewHisuiCss`、`PreviewJqueryJs`、`PreviewHisuiJs`、`PreviewHisuiLocaleJs`、`PreviewAsscomCss`、`PreviewAdaptationCss`。v0.3.2 的新 profile 模板默认将前四项指向随能力包部署的 `.agents/vendor/hisui/`；这些字段仍是目标工程本地路径，也可在执行 `preview` 时通过 `--page-html` 从目标现有完整页面解析。更新脚本不会猜测或覆盖既有项目配置。v0.3.2 可选填写 `PreviewBrowserCommand` 固定 Chromium；使用 `common-migrate` 的项目还需从插件模板创建本地 `cure-form-common-migration-config/v1`，并填写 `CommonMigrationConfig`，业务 MapCode/RowID 不再由插件内置。

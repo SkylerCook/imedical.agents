@@ -54,6 +54,7 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
    - `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`
    - `.agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md`
    - `.agents/plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md`
+   - `.agents/plugins/iris-imedical-doctor-ai/skills/iris-imedical-doctor-ai-init/SKILL.md`
    - `.agents/plugins/imedicalxc-doctor-extend-engineer/skills/imedicalxc-doctor-extend-engineer/SKILL.md`
 
 不要把本仓库根 `AGENTS.md`、根 `memory/` 或展示页文件复制到业务项目。
@@ -82,7 +83,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install-agents.ps1
 
 脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/`，并拉取 `plugins/`、`agents/`、`workflows/` 等能力包内容，让用户和 Agent 能看到可用能力。
 
-插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认只把 `agent-context-kit` 作为基础上下文能力处理；`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
+插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认只把 `agent-context-kit` 作为基础上下文能力处理；`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`、`iris-imedical-doctor-ai`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
 
 ### 更新已部署 `.agents`
 
@@ -382,6 +383,14 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 - `iris-external-reg`
 
+### iris-imedical-doctor-ai
+
+面向 IRIS imedical 医生站的 AI 集成开发，支持嵌入、外挂及旁路接入，覆盖诊断服务复用、交互卡片、流式对话和病历联动。
+
+- 复用 `coding-iris-plugin`；工程、原型和框架接口以当次任务核实结果为准。
+- 初始化：`iris-imedical-doctor-ai-init`；开发：`iris-imedical-doctor-ai`。
+- [插件说明](plugins/iris-imedical-doctor-ai/README.md) 与 [接入及验证](docs/iris-imedical-doctor-ai.md)。
+
 ### imedicalxc-doctor-extend-engineer
 
 负责 HIS 医生站第三方系统集成的全流程编排能力：
@@ -455,7 +464,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
    - `.agents/memory/project-memory.md`
 6. 先 dry-run，再 write 生成 `agent-context-kit` thin-index。
 7. 查看 `.agents/config/plugin_profile.md`；未启用插件保持 `available`，不要自动生成它们的 thin-index。
-8. 按依赖顺序初始化需要的领域插件，例如先启用 `coding-iris-plugin`、`extract-doc`，再启用依赖它们的 `iris-codegraph`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`；其它可选插件包括 `codegraph-query`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`。
+8. 按依赖顺序初始化需要的领域插件，例如先启用 `coding-iris-plugin`、`extract-doc`，再启用依赖它们的 `iris-codegraph`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`、`iris-imedical-doctor-ai`；其它可选插件包括 `codegraph-query`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`。
 9. 如需启用提交前差异降噪 hook，由用户在业务项目根目录显式运行 `.agents/scripts/install-git-hooks.ps1 -ProjectRoot .`；安装/更新 `.agents` 只分发 hook 模板和脚本，不自动修改 `core.hooksPath`。
 10. 按需要读取 `agents/agent-registry.md` 和 `workflows/workflow-registry.md` 使用顶层智能体。
 
@@ -541,7 +550,3 @@ git push github master
 同一待发布 0.8.0 增加 `deploy-frontend.js` 统一前端部署入口及 vendor `upload-batch.py`，固化上传、回读和 Atelier 编译，默认本地计划、显式执行，不生成临时脚本。用法见 `plugins/coding-iris-plugin/scripts/iris-tools/README.md`；源仓变化不代表业务项目副本已更新。
 
 2026-09-15：更新自动刷新既有标准 SFTP 启动参数为 vendor，不要求 runtime opt-in；保留解释器、env、disabled 和其它服务。显式 custom 或自定义参数不覆盖，不创建缺失服务，不安装 Python 依赖。
-
-## iris-imedical-doctor-ai
-
-新增 [IRIS imedical AI 工作站开发插件](plugins/iris-imedical-doctor-ai/README.md)，以诊断卡与诊断公共服务为主线，覆盖卡片、SSE、存储和病历联动；复用 coding-iris-plugin。初始化与验证见 [接入说明](docs/iris-imedical-doctor-ai.md)。
