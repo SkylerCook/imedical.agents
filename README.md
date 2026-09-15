@@ -156,7 +156,7 @@ imedical.agents/
 
 ## 源仓组件版本管理
 
-13 个插件以 `.agents-plugin/plugin.json` 为版本事实来源，根 `skills/` 下的独立 skill 在 `SKILL.md` 声明自身版本；插件内部内容统一继承 owner 插件版本。发布记录位于 `releases/plugin|skill/<name>/<version>.md`，依赖版本范围通过 manifest 的 `dependencyVersions` 审计，同时保留原 `dependencies` 名称数组供现有更新器使用。
+14 个插件以 `.agents-plugin/plugin.json` 为版本事实来源，根 `skills/` 下的独立 skill 在 `SKILL.md` 声明自身版本；插件内部内容统一继承 owner 插件版本。发布记录位于 `releases/plugin|skill/<name>/<version>.md`，依赖版本范围通过 manifest 的 `dependencyVersions` 审计，同时保留原 `dependencies` 名称数组供现有更新器使用。
 
 维护者在插件或独立 skill 提交前运行：
 
@@ -541,3 +541,7 @@ git push github master
 同一待发布 0.8.0 增加 `deploy-frontend.js` 统一前端部署入口及 vendor `upload-batch.py`，固化上传、回读和 Atelier 编译，默认本地计划、显式执行，不生成临时脚本。用法见 `plugins/coding-iris-plugin/scripts/iris-tools/README.md`；源仓变化不代表业务项目副本已更新。
 
 2026-09-15：更新自动刷新既有标准 SFTP 启动参数为 vendor，不要求 runtime opt-in；保留解释器、env、disabled 和其它服务。显式 custom 或自定义参数不覆盖，不创建缺失服务，不安装 Python 依赖。
+
+## iris-imedical-doctor-ai
+
+新增 [IRIS imedical AI 工作站开发插件](plugins/iris-imedical-doctor-ai/README.md)，以诊断卡与诊断公共服务为主线，覆盖卡片、SSE、存储和病历联动；复用 coding-iris-plugin。初始化与验证见 [接入说明](docs/iris-imedical-doctor-ai.md)。

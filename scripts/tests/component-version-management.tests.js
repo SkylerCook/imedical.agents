@@ -101,10 +101,10 @@ function git(root, ...args) {
   return result.stdout.trim();
 }
 
-test('real repository exposes 13 plugins and 2 independent skills with valid governance metadata', () => {
+test('real repository exposes 14 plugins and 2 independent skills with valid governance metadata', () => {
   const repoRoot = path.resolve(__dirname, '../..');
   const snapshot = tool.buildSnapshot(repoRoot);
-  assert.equal([...snapshot.components.values()].filter((item) => item.type === 'plugin').length, 13);
+  assert.equal([...snapshot.components.values()].filter((item) => item.type === 'plugin').length, 14);
   assert.equal([...snapshot.components.values()].filter((item) => item.type === 'skill').length, 2);
   assert.deepEqual(tool.validateSnapshot(snapshot), []);
 });

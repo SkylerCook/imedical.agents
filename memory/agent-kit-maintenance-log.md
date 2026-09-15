@@ -281,3 +281,9 @@
 补齐 deploy-frontend.js、upload-batch.py 与显式指纹校验；固定上传回读后编译，失败不重试。专项 Node 21 项、Python 25 项通过；未执行本轮服务器写入，业务副本尚未同步。
 
 2026-09-15：更新自动刷新既有标准 SFTP 启动参数为 vendor，不要求 runtime opt-in；保留解释器、env、disabled 和其它服务。显式 custom 或自定义参数不覆盖，不创建缺失服务，不安装 Python 依赖。SFTP 迁移专项 8 项、组件版本治理 16 项和完整 `update-agents.tests.ps1` 均通过，工作区版本校验覆盖 15 个组件。
+
+## 2026-09-15 医生站 AI 集成插件
+
+新增 iris-imedical-doctor-ai 0.1.0，提供初始化/开发入口、现行能力发现、诊断与共享业务服务集成方法、可变原型映射、集成分析模板及可选只读元数据检查。复用 coding-iris-plugin，不固定工程路径、框架接口、持久化枚举或原型流程。
+
+专项测试 10 项、组件版本测试 16 项通过，专项包含 PS7/PS5.1 thin-index；两份 skill 与引用检查通过。非本机平台 CI 和真实 HIS 联动验收仍待执行。未安装或部署业务副本。

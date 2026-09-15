@@ -124,3 +124,7 @@ CLS 格式能力仅服务 Agent 编码提示与最小改动，不引入编译证
 同一待发布 0.8.0 增加 `deploy-frontend.js` 统一前端部署入口及 vendor `upload-batch.py`，固化上传、回读和 Atelier 编译，默认本地计划、显式执行，不生成临时脚本。用法见 `plugins/coding-iris-plugin/scripts/iris-tools/README.md`；源仓变化不代表业务项目副本已更新。
 
 2026-09-15：更新自动刷新既有标准 SFTP 启动参数为 vendor，不要求 runtime opt-in；保留解释器、env、disabled 和其它服务。显式 custom 或自定义参数不覆盖，不创建缺失服务，不安装 Python 依赖。
+
+- 2026-09-15：新增 iris-imedical-doctor-ai 0.1.0，诊断主线与 AI 卡片开发；复用 IRIS 配置和编码能力，不引入全工程治理或新运行时。入口见插件 README。
+
+AI 插件只保存领域方法：工程事实、当前原型与框架接口在目标任务中核对，不冻结为通用契约。
