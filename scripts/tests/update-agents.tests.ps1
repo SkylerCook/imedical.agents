@@ -56,6 +56,7 @@ function New-TestProject {
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/workflows") | Out-Null
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/generate-plugin-thin-index.ps1") -Destination (Join-Path $root ".agents/scripts/generate-plugin-thin-index.ps1")
   Copy-Item -LiteralPath $agentThinIndexScriptUnderTest -Destination (Join-Path $root ".agents/scripts/generate-agent-thin-index.ps1")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/refresh-agents-sparse.js") -Destination (Join-Path $root ".agents/scripts/refresh-agents-sparse.js")
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-agents.ps1")
   Copy-Item -LiteralPath $profileScriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-plugin-profile.ps1")
   Copy-Item -LiteralPath $checkFunctionalDiffScriptUnderTest -Destination (Join-Path $root ".agents/scripts/check-functional-diff.ps1")
@@ -505,12 +506,12 @@ Assert-True ([version]$cureFormDevManifest.version -ge [version]"0.7.2") "cure f
 Assert-True (($cureFormDevManifest.dependencies -contains "extract-doc")) "cure form plugin should declare extract-doc as a dependency"
 Assert-True (($cureFormDevManifest.dependencies -contains "coding-iris-plugin")) "cure form plugin should declare coding-iris-plugin as a dependency"
 Assert-True ($cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.minVersion -eq "0.3.1") "cure form plugin should retain the overlay-aware coding plugin minimum"
-Assert-True ($cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.10.0") "cure form plugin should accept coding iris v0.9"
-Assert-True ($irisCodegraphManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.10.0") "iris-codegraph should accept coding iris v0.9"
-Assert-True ($interfaceDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.10.0") "interface plugin should accept coding iris v0.9"
+Assert-True ($cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.11.0") "cure form plugin should accept coding iris v0.10"
+Assert-True ($irisCodegraphManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.11.0") "iris-codegraph should accept coding iris v0.10"
+Assert-True ($interfaceDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.11.0") "interface plugin should accept coding iris v0.10"
 Assert-True (($externalRegManifest.dependencies -contains "extract-doc")) "iris-external-reg should declare extract-doc as a dependency"
 Assert-True (($externalRegManifest.dependencies -contains "coding-iris-plugin")) "iris-external-reg should declare coding-iris-plugin as a dependency"
-Assert-True ($externalRegManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.10.0") "iris-external-reg should accept coding iris v0.9"
+Assert-True ($externalRegManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.11.0") "iris-external-reg should accept coding iris v0.10"
 Assert-Contains $contextSkillContent "install-git-hooks.ps1" "project-context-maintenance should mention optional git hook enablement"
 Assert-True (Test-Path -LiteralPath $repositoryMaintenanceSkillUnderTest -PathType Leaf) "repository-local maintenance skill should live under .agents/skills"
 Assert-True (-not (Test-Path -LiteralPath $legacyRepositoryMaintenanceSkillUnderTest)) "root skills should not retain the maintenance-only exception"
@@ -822,8 +823,9 @@ try {
   git -C $legacySparseAgentsRoot config user.email "test@example.invalid" | Out-Null
   git -C $legacySparseAgentsRoot config user.name "Test User" | Out-Null
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $legacySparseAgentsRoot "scripts/update-agents.ps1")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/refresh-agents-sparse.js") -Destination (Join-Path $legacySparseAgentsRoot "scripts/refresh-agents-sparse.js")
   Copy-Item -LiteralPath $workspaceContextModuleUnderTest -Destination (Join-Path $legacySparseAgentsRoot "scripts/lib/WorkspaceContext.psm1")
-  git -C $legacySparseAgentsRoot add scripts/update-agents.ps1 scripts/lib/WorkspaceContext.psm1
+  git -C $legacySparseAgentsRoot add scripts/update-agents.ps1 scripts/lib/WorkspaceContext.psm1 scripts/refresh-agents-sparse.js
   git -C $legacySparseAgentsRoot commit -m "test: seed legacy sparse checkout" | Out-Null
   git -C $legacySparseAgentsRoot sparse-checkout init --no-cone
   "/scripts/*.ps1" | git -C $legacySparseAgentsRoot sparse-checkout set --stdin --no-cone

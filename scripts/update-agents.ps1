@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$ProjectRoot = ".",
   [ValidateSet("Check", "DryRun", "Write")]
   [string]$Mode = "DryRun",
@@ -130,6 +130,28 @@ function Add-LineIfMissing {
   }
 }
 
+function Assert-AgentsNodeRuntime {
+  if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+    throw "Install Node.js >=22.5.0 for the .agents toolchain; it is not a business server dependency."
+  }
+  $nodeVersion = & node -p "process.versions.node"
+  if (($LASTEXITCODE -ne 0) -or ([version]$nodeVersion -lt [version]"22.5.0")) {
+    throw "Node.js >=22.5.0 is required for the .agents toolchain (not the business server). Install Node.js and retry."
+  }
+}
+
+function Invoke-AgentsSparseRefresh {
+  param([string]$Root, [string[]]$Patterns, [switch]$Initial)
+  # Read from HEAD: the helper itself may be excluded by legacy sparse rules.
+  $source = git -C $Root show HEAD:scripts/refresh-agents-sparse.js
+  if ($LASTEXITCODE -ne 0) { throw "Sparse refresh runtime missing from HEAD" }
+  Assert-AgentsNodeRuntime
+  $extra = @()
+  if ($Initial) { $extra += "--initial" }
+  & node -e ($source -join "`n") -- --sparse-bootstrap $Root @Patterns @extra
+  if ($LASTEXITCODE -ne 0) { throw "Sparse refresh or runtime materialization validation failed" }
+}
+
 function Assert-GitSparseCheckoutSubcommandAvailable {
   $versionText = git --version
   if ($LASTEXITCODE -ne 0) {
@@ -170,11 +192,10 @@ function Restore-LegacySparseRuntimeModules {
     return (Write-UpdateResult -Status "workspace-context-resolver-restore-failed" -Target $target -Reason "Cannot repair a legacy sparse checkout while the capability Git checkout is dirty or unreadable" -Phase "preflight")
   }
 
-  git -C $AgentsRoot sparse-checkout init --no-cone
-  if ($LASTEXITCODE -eq 0) {
-    $runtimeSparsePaths | git -C $AgentsRoot sparse-checkout set --stdin --no-cone
-  }
-  if (($LASTEXITCODE -ne 0) -or (-not (Test-Path -LiteralPath $WorkspaceContextModule -PathType Leaf))) {
+  try {
+    Invoke-AgentsSparseRefresh -Root $AgentsRoot -Patterns $runtimeSparsePaths
+    if (-not (Test-Path -LiteralPath $WorkspaceContextModule -PathType Leaf)) { throw "WorkspaceContext.psm1 is missing" }
+  } catch {
     return (Write-UpdateResult -Status "workspace-context-resolver-restore-failed" -Target $target -Reason "Failed to refresh the current runtime sparse paths before loading WorkspaceContext.psm1" -Phase "preflight")
   }
 
@@ -885,6 +906,11 @@ function Invoke-AgentGitUpdate {
     return $results
   }
 
+  try { Assert-AgentsNodeRuntime } catch {
+    $results.Add((Write-UpdateResult -Status "sparse-refresh-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason $_.Exception.Message -Phase "git"))
+    return $results
+  }
+
   $dirty = git -C $AgentsRoot status --porcelain
   if ($LASTEXITCODE -ne 0) {
     $results.Add((Write-UpdateResult -Status "git-status-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason "git status failed" -Phase "git"))
@@ -967,12 +993,10 @@ function Invoke-AgentGitUpdate {
     $gitReason = "fast-forward pull and sparse checkout refresh completed"
   }
 
-  git -C $AgentsRoot sparse-checkout init --no-cone | Out-Null
-  if ($LASTEXITCODE -eq 0) {
-    $runtimeSparsePaths | git -C $AgentsRoot sparse-checkout set --stdin --no-cone | Out-Null
-  }
-  if ($LASTEXITCODE -ne 0) {
-    $results.Add((Write-UpdateResult -Status "sparse-refresh-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason "sparse checkout refresh failed" -Phase "git" -OldHash $oldHash -NewHash $newHash -UpstreamHash $upstreamHash))
+  try {
+    Invoke-AgentsSparseRefresh -Root $AgentsRoot -Patterns $runtimeSparsePaths
+  } catch {
+    $results.Add((Write-UpdateResult -Status "sparse-refresh-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason $_.Exception.Message -Phase "git" -OldHash $oldHash -NewHash $newHash -UpstreamHash $upstreamHash))
     return $results
   }
 

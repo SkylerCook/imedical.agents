@@ -5,6 +5,14 @@ coding-iris-plugin 0.10.0 的部署保护随既有 plugins 与 vendor 分发。�
 
 `compile-csp.js` 随 coding-iris-plugin 既有 scripts 路径分发，无新增依赖或配置迁移。CSP 编译的连接来自项目 `.mcp.json`，虚拟根取 `project-env.json` 的 `web.cspBasePath`；更新后使用部署技能的新入口。源仓实现不代表业务副本已更新。
 
+## Sparse 刷新与落盘验证
+
+安装、standard 更新及旧版 runtime 恢复共用 `scripts/refresh-agents-sparse.js`。PowerShell bootstrap 从当前 `HEAD` 读取 helper，因此旧 sparse 清单未检出根 JavaScript 时也能执行；helper 随 `/scripts/*.js` 正常部署，不下载额外依赖。Node.js >=22.5.0 必须在 Git 更新前就绪，仅用于能力包工具链，不自动安装。
+
+规则以命令参数传递，不经过 `$OutputEncoding` 管道。Windows PowerShell 5.1 + UTF-8 BOM 的 stdin 在本机 Git 2.54.0 下可复现首项路径遗漏；不能据此声称 Git `set` 不更新工作区。刷新后检查正向规则覆盖的所有 index 文件是否存在、是否仍带 skip-worktree；失败返回 `sparse-refresh-failed`，旧版恢复沿用 `workspace-context-resolver-restore-failed`。不以追加 `reapply` 掩盖输入问题。
+
+已有部署发布后按原 DryRun/Write 流程升级，不需清理用户配置或手改 sparse 文件。安装器更新现有副本时也拒绝 dirty checkout，fetch/pull/clone 或刷新失败立即停止。`Check`、`DryRun -NoPull` 与 Overlay 的只读/不拉取边界保持原样。本机 Windows PS5.1/PS7 验证结果见维护日志；非 Windows 矩阵由 `.github/workflows/sparse-refresh.yml` 执行，配置存在不代表已通过。
+
 ## SFTP vendor 运行时接入
 
 `coding-iris-plugin` 的 SFTP 源码随既有 `/vendor/**` sparse 规则分发，无需扩大全局部署清单。新项目默认禁用 SFTP；依赖按 `vendor/sftp-server/requirements.lock` 安装到独立 Python 环境，更新器不安装解释器或依赖。

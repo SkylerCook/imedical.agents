@@ -4,6 +4,8 @@
 
 ## 近期已完成
 
+- 2026-09-16（sparse 刷新修复）：定位 Windows PowerShell 5.1 UTF-8 BOM stdin 首项模式遗漏；PS7 与 PS5.1 无 BOM 对照正常。安装、更新、旧 runtime 恢复共用 JavaScript 参数输入与落盘校验，安装器补齐 dirty 和 Git 失败停止。9 项 sparse 专项、PS7/Windows PowerShell 5.1 更新器完整回归通过并记录复用证据；同步修正 4 条过期依赖范围断言，16 组件版本校验与差异检查通过，临时文件已清理。非 Windows CI 待运行。本次提交仅包含框架修复，未推送或同步业务副本。
+
 - 2026-09-16（维护 skill 对齐）：优化仓库本地 `agent-kit-maintenance`，按影响面选择验证，补齐脚本运行时/跨平台矩阵、canonical 降级和目标项目集成测试产物归属检查；临时清理须证明任务归属，提交须沿用明确授权并检查提交正文。同步入口摘要与长期决策；README 和 backlog 已复核，无需变更。现有 `agent-framework-contract.tests.js` 与差异格式检查通过；skill frontmatter 未改，通用 `quick_validate.py` 因本机及 bundled Python 均缺少 PyYAML 未运行成功。此次仅维护文案，不涉及组件版本、部署副本或运行逻辑，未运行完整组件测试，未提交或推送。
 
 - 2026-09-16（本轮维护）：经用户授权直接维护 canonical：Doctor AI v0.1.2 补充入口分层、旧页面复用边界、运行时加载与控件事件、摘要语义及十类脱敏回归场景（含配置获取、生效过滤、加载与注册分层）；Coding IRIS v0.10.2 补充旧请求迁移契约检查。仅更新指导资料，不新增固定业务接口或通用测试执行器。26 项既有专项通过（含 PS7/PS5.1 thin-index），场景清单不是目标工程运行验收证据；16 组件版本校验、15 文件 UTF-8、20 相对链接与差异检查通过。本轮仅提交 canonical，未推送或同步业务副本，发布后沿既有更新流程取得资料，无配置迁移。
