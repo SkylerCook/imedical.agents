@@ -130,3 +130,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 - 需求提交没有从“处理/修复”指令中推断授权；`TODO` 交付类型已停止并提示补全，合法类型已按 `iris-demand-commit` 处理。
 - `executionPath` 与是否使用临时只读子 Agent 相互独立；fast 未跳过任何适用规则。
 - 本地验证后停在 `acceptance-pending`；用户验收前未读取或写入 feedback。
+
+## 需求修改前的 Git 基线
+
+需要部署的业务需求，在所属仓库第一次修改前，按插件 references/deployment-protection.md 用 deploy-guard.js init 同步 upstream（pull --ff-only）并记录固定基线。已有修改、需求号缺失或基线不明时通过 Question 确认；不猜 HEAD、不自动 stash/rebase。已有会话复用，不能为部署重建历史。仅分析或明确不部署的任务不额外建立会话。

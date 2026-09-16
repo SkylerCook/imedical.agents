@@ -101,7 +101,8 @@ async function execute(plan, upload, compile) {
 }
 
 async function main(argv) {
-  if(argv.includes('--help')) {console.log('Usage: node deploy-frontend.js --project-root <project> [--source-root <frontend-root>] --files <project-relative-files...> [--python <interpreter>] [--known-hosts <file> | --host-key-sha256 <trusted-SHA256:fingerprint>] [--execute]\nDefault: local plan. Execute: one SFTP connection, hash comparison/upload/readback, then one Atelier CSP compilation. No temporary scripts; no retries.');return;}
+  if (argv.includes('--execute') || argv.includes('--demand')) return require('./deploy-protected').main('frontend', argv);
+  if(argv.includes('--help')) {console.log('Usage: node deploy-frontend.js --project-root <project> [--source-root <frontend-root>] --files <project-relative-files...> [--python <interpreter>] [--known-hosts <file> | --host-key-sha256 <trusted-SHA256:fingerprint>] [--execute]\nDefault: local plan. Execute requires --demand and a Git baseline session; isolated merge, upload/readback, then CSP compilation. No temporary scripts; no retries.');return;}
   const args=parse(argv), context=resolveWorkspaceContext(args.projectRoot);
   if(validateWorkspaceContext(context).some(r=>['manifest-invalid','schema-version-unsupported'].includes(r.status)))throw new Error('Invalid workspace context');
   const config=readJson(path.join(context.contextRoot,'config/project-env.json'));
@@ -110,21 +111,9 @@ async function main(argv) {
   if(!server || server.disabled===true)throw new Error('SFTP configuration missing or disabled');
   const env={...server.env};
   const plan=buildPlan(args,config,env,context);
-  if(!args.execute){console.log(JSON.stringify(plan));return;}
-  // Resolve compiler configuration before any upload, so missing settings cannot cause partial deployment.
-  const connection=plan.documents.length?csp.connection(config,mcp):null;
-  const worker=path.resolve(__dirname,'../../../../vendor/sftp-server/src/upload-batch.py');
-  if(!fs.existsSync(worker))throw new Error('Bundled upload worker missing');
-  env.LOCAL_PATH=plan.sourceRoot;
-  env.CODEX_WORKSPACE=context.workspaceRoot;
-  if(args.knownHosts){env.TARGET_KNOWN_HOSTS=path.resolve(context.workspaceRoot,args.knownHosts);delete env.TARGET_HOST_KEY_SHA256;}
-  if(args.fingerprint){env.TARGET_HOST_KEY_SHA256=args.fingerprint;delete env.TARGET_KNOWN_HOSTS;}
-  const result=await execute(plan,p=>uploadBatch(args.python || server.command,worker,env,p),documents=>csp.compile(connection,csp.plan(documents,config.web.cspBasePath)));
-  result.timings.commandElapsedMs=Math.round(performance.now());
-  result.timings.scope='command-only; excludes conversation and approval wait';
-  const passwords=[env.TARGET_PASSWORD,connection?.auth?.slice(connection.auth.indexOf(':')+1)].filter(Boolean);
-  console.log(JSON.stringify(result,(_,value)=>typeof value==='string'?passwords.reduce((s,p)=>s.split(p).join('[redacted]'),value):value));
-  if(result.status!=='verified')process.exitCode=1;
+  // This branch is plan-only; execution returned through deploy-protected above.
+  console.log(JSON.stringify(plan));
+  return;
 }
 module.exports={parse,buildPlan,execute,uploadBatch};
 if(require.main===module)main(process.argv.slice(2)).catch(()=>{

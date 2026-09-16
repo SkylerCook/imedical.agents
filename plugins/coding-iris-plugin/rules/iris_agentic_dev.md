@@ -123,7 +123,7 @@ related:
 
 - CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 - `iris_execute` 传输成功不等于部署成功。必须检查 ObjectScript 内层 status 和生成物。
-- 带 `Storage Default` 的持久化实体类应上传去掉完整 Storage 块后的源码，让 IRIS 在编译时重新生成 Storage。
+- 共享部署保护保留 Storage 原文；B/L/R 的 Storage 有差异或无法可靠解析时停止并 Question。不得为通过上传而自动删除或重新生成 Storage，不能回退直接 iris_doc put 绕过保护。
 
 ## TOML 配置文件
 

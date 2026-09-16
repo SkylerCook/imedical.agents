@@ -549,3 +549,5 @@ git push github master
 如果其中一个远端失败，先处理失败原因，不要在另一个平台手工补提交，避免历史分叉。
 
 `coding-iris-plugin` 当前 v0.9.0 包含 v0.8.0 引入的 `deploy-frontend.js` 与 vendor `upload-batch.py`，统一上传、哈希回读和指定 CSP 的 Atelier 编译，默认本地计划、显式执行。用法见[工具说明](plugins/coding-iris-plugin/scripts/iris-tools/README.md)；源仓变化不代表业务项目副本已更新。
+
+部署保护：coding-iris-plugin 0.10.0 使用 Git 固定基线、隔离合并产物及再次覆盖人工处理；前后端入口迁移见 plugins/coding-iris-plugin/references/deployment-protection.md。
