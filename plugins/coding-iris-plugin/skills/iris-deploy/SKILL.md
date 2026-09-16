@@ -80,3 +80,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js --docu
 ## Git 主线部署保护（0.10.0）
 
 上传使用需求基线和独立合并产物；首次服务器差异可合并，再次覆盖必须 Question。源码与暂存区不接收服务器差异。前端 deploy-frontend.js 和后端 compile.js 均须提供 --demand 与 --files，并先建立 deploy-guard.js 会话。详见 references/deployment-protection.md（从 skill/rule 入口按插件根解析）。原位置参数后端上传停止，不允许回退绕过。
+
+## 提问工具的兼容与降级
+
+needs-user-input 的 question 是工具无关协议；必须按 references/deployment-protection.md 的“Question 能力兼容”处理。优先使用当前模式允许且适合此类确认的工具；不支持选项则文本提问，工具不可用或禁止授权确认则使用普通对话，非交互环境保持停止。选项 code 与显示文案分离；无回复、取消、超时及默认选中都不构成授权。不可把工具输出直接作为写入授权，需关联用户明确决定和当前 token。

@@ -244,3 +244,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 ## Git 主线部署保护（0.10.0）
 
 上传使用需求基线和独立合并产物；首次服务器差异可合并，再次覆盖必须 Question。源码与暂存区不接收服务器差异。前端 deploy-frontend.js 和后端 compile.js 均须提供 --demand 与 --files，并先建立 deploy-guard.js 会话。详见 references/deployment-protection.md（从 skill/rule 入口按插件根解析）。原位置参数后端上传停止，不允许回退绕过。
+
+部署 Question 兼容：停止结果提供工具无关 question 协议，固定决定代码；Agent 按能力采用选项或文字确认。暂停/查看/无效决定不写入。详见 references/deployment-protection.md。

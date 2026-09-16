@@ -2,6 +2,7 @@
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),http=require('node:http'),https=require('node:https');
 const {spawn,spawnSync}=require('node:child_process');
 const guard=require('./deploy-guard'),csp=require('./compile-csp');
+const {needsInput}=require('./deploy-question');
 const {resolveWorkspaceContext,validateWorkspaceContext}=require('../../../../scripts/lib/workspace-context');
 function parse(argv){
  const a={projectRoot:process.cwd(),files:[]};
@@ -112,7 +113,7 @@ async function main(kind,argv){
   const decision=a.decision?guard.read(path.resolve(a.decision)):null;
   const result=await guard.run({repo:roots[0],demand:a.demand,files,target:kind+':'+target,adapter,decision});
   console.log(JSON.stringify(result));if(result.status!=='verified')process.exitCode=1;
- }catch(e){console.log(JSON.stringify({status:'needs-user-input',reason:e.reason||'configuration-or-transport-failed',details:e.details||{}}));process.exitCode=1;}
+ }catch(e){console.log(JSON.stringify(needsInput(e.reason||'configuration-or-transport-failed',e.details||{})));process.exitCode=1;}
  finally{adapter?.close?.();}
 }
 module.exports={main,parse,request,backendAdapter};

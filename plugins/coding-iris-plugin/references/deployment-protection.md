@@ -44,3 +44,25 @@ Git 提交只依据业务工作区；合并服务器内容后的运行结果应�
 `node --test plugins/coding-iris-plugin/scripts/iris-tools/tests/deploy-guard.test.cjs` 使用临时 Git 仓库与模拟远端。真实服务验证仅限另行授权的独立测试文件/类，不自动上传业务文件。
 
 后端更新携带导出结果 ts 的 IF-NONE-MATCH 条件，不设置 ignoreConflict；实现依据 [InterSystems VS Code ObjectScript 客户端](https://github.com/intersystems-community/vscode-objectscript/blob/master/src/api/index.ts)。前端采用上传前哈希复核及原子替换；两者仍不能阻止随后发生的其它工具写入。
+
+## Question 能力兼容
+
+部署脚本不调用任何厂商的提问 API。所有停止结果保留 status / reason / details，并增加 question（iris-deploy-question/v1）；choices 使用固定 code、可显示的 label / description，以及 recommendedAction=pause。recommendedAction 仅用于安全建议，不能作为已收到的回答。
+
+| 当前能力 | Agent 行为 |
+|---|---|
+| 支持选项并允许本类确认 | 按返回 choices 展示。保留 code 与本次工具请求中选项的映射，不把显示序号作为决定代码。 |
+| 仅支持文本，或工具禁止授权确认 | 在允许的文本通道说明文件、原因、影响和可选决定，请用户明确回答。 |
+| 工具暂不可用 | 使用普通对话提问，不伪造工具结果。 |
+| 异步提问 | 让部署保持停止，收到关联本次请求的真实回复后再继续；期间可做独立只读工作。 |
+| 非交互任务 | 输出 needs-user-input 后退出，交由调用方展示与恢复。 |
+
+工具的选项上限不足时，只展示本问题相关的选项，或先只读查看再提出具体写入决定；不要为了凑数量把不同后果合并成同一个选项。选项与自由文本冲突、范围含糊或无法判断回复对应哪次问题时，继续澄清。
+
+固定代码：pause（暂停）、inspect（只读查看）、merge（重新合并）、overwrite（覆盖指定文件）、resume（核实未知结果后恢复）。脚本不解析自然语言。Agent 依据本轮明确用户回复生成机器决定，不按关键词、默认项、超时或笼统的“继续”自动推断覆盖授权；具体写入动作及文件已明确的确认可沿用，不反复询问。
+
+pause / inspect 不生成写入授权；即使误传给部署入口也立即停止。写入决定仍使用 {action, token}，可选 schema=iris-deploy-decision/v1；旧格式兼容。token 必须来自本次停止结果，不能按按钮文本生成或复用其他问题的 token。label 可翻译或调整，code 不变。过期或无效决定不回退为自动部署。
+
+没有回复、取消或工具超时，均保持停止。Agent 不自动创建决定文件、不重复调用部署“试试看”；用户完成处理后重新检查。question 不包含工具名称，私有会话也不依赖某个提问工具的会话 ID。兼容性由该协议和 Agent 的能力选择实现，本期不新增厂商 SDK 或工具适配插件。
+
+可用写入选项按停止原因收敛：再次覆盖可重新合并/覆盖；合并冲突只提供查看处理或明确覆盖；未知部署结果只提供核实后的 resume；Git、Storage、编码等问题不提供绕过选项。

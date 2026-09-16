@@ -1,6 +1,7 @@
 'use strict';
 const fs=require('node:fs'), path=require('node:path'), os=require('node:os'), crypto=require('node:crypto');
 const {spawnSync}=require('node:child_process');
+const {needsInput,decisionError}=require('./deploy-question');
 const digest=x=>crypto.createHash('sha256').update(x).digest('hex');
 const hash=x=>x===null?null:digest(x);
 class Attention extends Error { constructor(reason,details={}) {super(reason); this.reason=reason; this.details=details;} }
@@ -137,6 +138,8 @@ function validate(file,content,base,remote) {
  }
 }
 async function run({repo,demand,files,target,adapter,decision,checkUpdates=checkGit}) {
+ const invalid=decisionError(decision);
+ if(invalid)return needsInput(invalid);
  const loc=location(repo,demand);
  fs.mkdirSync(loc.dir,{recursive:true,mode:0o700});
  const lock=path.join(loc.dir,'lock'); let fd;
@@ -149,11 +152,12 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
   const key=digest(target);
   targetState=state.targets[key] ||= {files:{},status:'ready'};
   const recovering=['writing','failed-or-unknown'].includes(targetState.status);
+  if(decision?.action==='resume'&&!recovering)stop('decision-expired');
   if(recovering){
    const observations=[];
    for(const f of files)observations.push([f.remotePath,hash(await adapter.read(f)),hash(fs.readFileSync(f.localPath))]);
    const token=digest(JSON.stringify({repo:loc.repo,demand,key,base:state.base,observations,files:targetState.files}));
-   if(decision?.action!=='resume'||decision.token!==token)stop('previous-result-unknown',{token,options:['pause','inspect-server','resume']});
+   if(decision?.action!=='resume'||decision.token!==token)stop('previous-result-unknown',{token});
    recoveryObservations=observations;
   }
   checkUpdates(repo);
@@ -174,20 +178,22 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
    }
   }
   before=snapshot(repo,files);
-  const prepared=[];
+  const prepared=[];let decisionApplied=false;
   for(const f of files) {
    const raw=await adapter.read(f), remote=text(raw), local=text(fs.readFileSync(f.localPath));
    if(recoveryObservations){const observed=recoveryObservations.find(x=>x[0]===f.remotePath);if(observed[1]!==hash(raw)||observed[2]!==hash(fs.readFileSync(f.localPath)))stop('recovery-confirmation-expired',{file:f.relative});}
    const base=baseline(repo,state.base,f.relative), previous=targetState.files[f.remotePath];
    const token=digest(JSON.stringify({repo:loc.repo,demand,base:state.base,local,remote,previous:previous||null,target:key,file:f.remotePath}));
    const allowed=decision?.token===token && ['merge','overwrite'].includes(decision.action)?decision.action:null;
+   if(allowed)decisionApplied=true;
    targetState.pending={file:f.relative,token,base,local,remote};
    try {
     const selected=choose(base,local,remote,previous,allowed);
     validate(f.relative,selected.content,base,remote);
     prepared.push({...f,...selected,local,expected:hash(raw),skip:remote===selected.content,bytes:remote===selected.content?raw:selected.content===local?fs.readFileSync(f.localPath):Buffer.from(selected.content),token});
-   }catch(e){if(e instanceof Attention)e.details={...e.details,file:f.relative,token,localHash:hash(local),remoteHash:hash(raw),base:state.base,options:['pause','review-diff','merge','overwrite']};throw e;}
+   }catch(e){if(e instanceof Attention)e.details={...e.details,file:f.relative,token,localHash:hash(local),remoteHash:hash(raw),base:state.base};throw e;}
   }
+  if(['merge','overwrite'].includes(decision?.action)&&!decisionApplied)stop('decision-expired');
   // Preflight the complete batch before the first write.
   for(const f of prepared)if(hash(await adapter.read(f))!==f.expected)stop('remote-changed-before-upload',{file:f.relative});
   if(JSON.stringify(snapshot(repo,files))!==JSON.stringify(before))stop('local-source-changed');
@@ -208,7 +214,7 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
  }catch(e){
   let sourceUnchanged;
   if(before){try{sourceUnchanged=JSON.stringify(snapshot(repo,files))===JSON.stringify(before);}catch{sourceUnchanged=false;}}
-  const result={status:'needs-user-input',sourceUnchanged,reason:e instanceof Attention?e.reason:'transport-or-compile-failed',details:e instanceof Attention?e.details:{},partialOrUnknown:attempt,stateFile:loc.file};
+  const result=needsInput(e instanceof Attention?e.reason:'transport-or-compile-failed',e instanceof Attention?e.details:{},{sourceUnchanged,partialOrUnknown:attempt,stateFile:loc.file});
   if(state&&targetState){targetState.status=attempt||['writing','failed-or-unknown'].includes(targetState.status)?'failed-or-unknown':'needs-user-input';targetState.attention=result;write(loc.file,state);}
   return result;
  }finally{fs.closeSync(fd);fs.unlinkSync(lock);}
@@ -220,5 +226,5 @@ if(require.main===module){
   if(['rebase','close'].includes(command)){console.log(JSON.stringify(maintain(command,repo,demand,base,confirmation)));process.exit(0);}
   if(command!=='init')stop('usage',{usage:'deploy-guard.js init <repo> <demand> [base-ref --confirm-baseline]'});
   console.log(JSON.stringify(initialize(repo,demand,base,confirmation==='--confirm-baseline')));
- }catch(e){console.log(JSON.stringify({status:'needs-user-input',reason:e.reason||'initialization-failed',details:e.details||{}}));process.exitCode=1;}
+ }catch(e){console.log(JSON.stringify(needsInput(e.reason||'initialization-failed',e.details||{})));process.exitCode=1;}
 }

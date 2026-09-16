@@ -551,3 +551,5 @@ git push github master
 `coding-iris-plugin` 当前 v0.9.0 包含 v0.8.0 引入的 `deploy-frontend.js` 与 vendor `upload-batch.py`，统一上传、哈希回读和指定 CSP 的 Atelier 编译，默认本地计划、显式执行。用法见[工具说明](plugins/coding-iris-plugin/scripts/iris-tools/README.md)；源仓变化不代表业务项目副本已更新。
 
 部署保护：coding-iris-plugin 0.10.0 使用 Git 固定基线、隔离合并产物及再次覆盖人工处理；前后端入口迁移见 plugins/coding-iris-plugin/references/deployment-protection.md。
+
+部署保护的 Question 使用固定决定代码和工具无关结果；不同交互能力按选项/文本降级，无回复保持停止。
