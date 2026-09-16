@@ -32,9 +32,14 @@
 
 ## 规则与参考入口
 
+- 规则索引：`rules/elechealthcard_index.md`
+- 电子健康卡编码规约（A~AM）：`rules/elechealthcard_coding_conventions.md`
+- 第三方集成通用约束：`rules/elechealthcard_integration.md`
 - 架构约束：`skills/imedicalxc-doctor-extend-architecture/references/domain-constraints.md`
 - BLH 审查清单：`skills/imedicalxc-doctor-blh/references/blh-review-checklist.md`
 - 命名约定：`skills/imedicalxc-doctor-blh/references/naming-conventions.md`
+- 电子健康卡建卡数据流：`skills/imedicalxc-doctor-elechealthcard-vendor/references/register-elechealthcard-dataflow.md`
+- 广东省信封结构示例：`skills/imedicalxc-doctor-elechealthcard-vendor/references/guangdong-envelope-structure.md`
 
 ## Thin-Index 暴露范围
 

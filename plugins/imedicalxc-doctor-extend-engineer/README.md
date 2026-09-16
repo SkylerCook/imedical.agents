@@ -22,6 +22,10 @@ imedicalxc-doctor-extend-engineer/
 |   `-- plugin.json
 |-- AGENTS.md
 |-- README.md
+|-- rules/
+|   |-- elechealthcard_index.md
+|   |-- elechealthcard_coding_conventions.md
+|   `-- elechealthcard_integration.md
 |-- scripts/
 |   `-- install-deps.py
 `-- skills/
@@ -47,6 +51,8 @@ imedicalxc-doctor-extend-engineer/
 4. wrapper 默认只生成 `.agents/skills/imedicalxc-doctor-extend-engineer/SKILL.md` 主编排器浅层索引；9 个子 skill 不单独暴露，由主编排器按需读取。
 
 ### 已部署工程兼容处理
+
+v1.0.2 新增 `rules/` 目录（电子健康卡规则索引、编码规约、集成约束），电子健康卡子 skill 引用改为指向规则索引。更新能力包后，常规更新直接调用 canonical 生成器，按 manifest 的 `thinIndex.excludeSkills` 应用与 wrapper 相同的排除策略。
 
 v1.0.1 修正电子健康卡子 skill 的独立暴露。更新能力包后，常规更新直接调用 canonical 生成器，按 manifest 的 `thinIndex.excludeSkills` 应用与 wrapper 相同的排除策略：DryRun 报告旧受管入口，Write 仅删除 `thin-index: true` 且 `source` 与该子 skill 精确匹配的旧 `SKILL.md`；保留目录、其它文件、非受管或来源不匹配的文件和链接。后续从主编排器进入电子健康卡流程。源仓修正不代表业务副本已同步。
 
