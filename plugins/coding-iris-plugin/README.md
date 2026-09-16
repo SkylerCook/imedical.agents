@@ -246,3 +246,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 上传使用需求基线和独立合并产物；首次服务器差异可合并，再次覆盖必须 Question。源码与暂存区不接收服务器差异。前端 deploy-frontend.js 和后端 compile.js 均须提供 --demand 与 --files，并先建立 deploy-guard.js 会话。详见 references/deployment-protection.md（从 skill/rule 入口按插件根解析）。原位置参数后端上传停止，不允许回退绕过。
 
 部署 Question 兼容：停止结果提供工具无关 question 协议，固定决定代码；Agent 按能力采用选项或文字确认。暂停/查看/无效决定不写入。详见 references/deployment-protection.md。
+
+前端规则补充旧调用迁移的接口契约检查：参数大小写、命名/位置绑定、Broker 传输与响应结构按接口核实，失败不得伪装为空集合或自动换通道重试。此次指导资料更新不修改请求运行时；已部署项目通过既有更新流程取得规则，无业务配置迁移。

@@ -1,6 +1,6 @@
 {
   "name": "iris-imedical-doctor-ai",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "displayName": "IRIS iMedical Doctor AI",
   "description": "面向 IRIS imedical 医生站的 AI 集成开发。用于嵌入式助手、外挂或旁路 AI 接入，以及诊断推荐与采纳、交互卡片、流式对话、病历联动和诊疗数据衔接；复用既有业务服务并验证集成链路。",
   "entry": "AGENTS.md",

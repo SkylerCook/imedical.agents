@@ -389,6 +389,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 - 复用 `coding-iris-plugin`；工程、原型和框架接口以当次任务核实结果为准。
 - 初始化：`iris-imedical-doctor-ai-init`；开发：`iris-imedical-doctor-ai`。
+- 快捷入口与业务校验分层、共享页面等价性、运行时接入及摘要语义按现有参考核对，提供脱敏回归场景。
 - [插件说明](plugins/iris-imedical-doctor-ai/README.md) 与 [接入及验证](docs/iris-imedical-doctor-ai.md)。
 
 ### imedicalxc-doctor-extend-engineer
