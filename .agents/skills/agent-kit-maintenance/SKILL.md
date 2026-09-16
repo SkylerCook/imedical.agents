@@ -25,6 +25,8 @@ description: Use when maintaining the imedical.agents repository itself, especia
 6. 涉及具体插件时，读该插件 `AGENTS.md`、README、`.agents-plugin/plugin.json`、相关 `skills/`、`rules/`、`references/`、`templates/`、`scripts/`。
 7. 涉及插件或根级独立 skill 变更时，读 `docs/component-version-management.md`，核对版本、依赖范围和 release record。
 
+根 `AGENTS.md` 是维护约束的事实来源；本 skill 将约束转为检查流程，不维护第二套规则。开始时区分只读审计与实施范围，检查工作区已有修改；审计只交付发现，不自动修复、提交或同步业务副本。
+
 ## 插件提交同步门禁
 
 提交任何插件能力变更前，必须检查并按需更新：
@@ -71,17 +73,28 @@ node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js
 - **修改 install/update/vendor 同步**：同步 `docs/update-agents.md`、`scripts/tests/update-agents.tests.ps1`、仓库 README 和维护日志。
 - **新增 vendor 资产或 vendor skill**：同步 `vendor/` 边界说明、安装/更新路径、vendor skill 同步说明和敏感信息边界。
 - **修改 canonical agent/workflow、handoff 或反馈协议**：同步 registry/bindings、仓库 README、维护记忆、验证样例和专项测试；多智能体与远程写入授权必须分别表达。
+- **新增或修改脚本与运行时**：按根 `AGENTS.md` 的“脚本与跨平台运行时”检查 JavaScript/Node 内置模块优先、Node 基线及前置检查、PowerShell 适配边界；新增根运行时文件须核对 sparse checkout 覆盖。跨平台变更必须验证 Windows/macOS/Linux 矩阵及不支持能力的降级或停止行为，不能把 CI 配置存在当成矩阵通过。
+- **新增或修改 canonical agent/workflow**：检查模型与厂商无关性、抽象能力档位，以及无 subagent、无 skill、无法解析 YAML 时的 Markdown 串行降级路径。
 - **新增长期规则或治理约束**：判断应进入根 `AGENTS.md`、`memory/agent-kit-maintenance-decisions.md`、README、docs 还是本 skill；不要复制长篇规则到多个地方。
 
 ## 验证清单
 
-完成维护后至少执行：
+按实际改动选择验证，不以维护任务为由固定运行完整套件。只读审计不触发构建、部署或产物生成。实施后先复核差异与工作区状态：
 
 ```powershell
 git diff -- <changed-files>
 git status --short
+git diff --check
+```
+
+- **纯文档或维护 skill 文案**：检查引用路径、规则一致性和相关契约；未改变组件内容或验证器时，不运行组件版本完整测试。插件或根级独立 skill 目录内的文档变化仍受组件版本治理约束。
+- **插件或根级独立 skill 目录变化**：必须运行下列 worktree 组件版本校验，并按改动补充 owner 专项测试。
+- **组件版本工具或治理逻辑变化**：补充 `node --test scripts/tests/component-version-management.tests.js`；其它任务仅在影响该行为或有回归证据时运行。
+- **PowerShell 与跨平台工具链变化**：按根规则验证支持的宿主和平台；通用 `.ps1` 验证 Windows PowerShell 5.1，跨平台矩阵尚未完成时明确列出缺口，不宣称全部通过。
+- **生成预览、交付包或部署运行态的项目集成测试**：从目标项目执行，产物放目标项目约定目录（治疗表单为 `docs/work/cure-form/`）；不在源仓生成业务测试产物。纯框架单元测试使用隔离临时目录。
+
+```powershell
 node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js validate --repo-root . --base-ref HEAD --worktree
-node --test scripts/tests/component-version-management.tests.js
 ```
 
 完整回归与提交门禁分开。完整测试通过后，用 `scripts/validation-evidence.js record` 记录 suite、原命令、受测 scope 和 worktree 指纹；提交前用 `check` 验证证据。指纹匹配时必须复用结果，不得机械重复运行完整测试套件；只有命中该 scope 的文件变化、此前无有效证据或验证失败时，才补跑对应测试并重新记录。
@@ -91,7 +104,9 @@ node scripts/validation-evidence.js record --repo-root . --suite component-versi
 node scripts/validation-evidence.js check --repo-root . --suite component-version-full
 ```
 
-证据默认写入系统临时目录，不污染仓库；指纹包含 HEAD、scope 内相对 HEAD 的 binary diff 及未跟踪文件内容。scope 外文档变化不会使该 suite 失效。提交前只执行尚未完成或已失效的快速门禁：worktree 组件版本校验、`git diff --check`、暂存内容复核和 `git commit`。
+证据默认写入系统临时目录，不污染仓库；指纹包含 HEAD、scope 内相对 HEAD 的 binary diff 及未跟踪文件内容。scope 外文档变化不会使该 suite 失效。提交前只补齐适用于本次改动且尚未完成或已失效的快速门禁：worktree 组件版本校验、`git diff --check` 和暂存内容复核。
+
+只有已有明确提交授权时才执行 `git commit`；按根 `AGENTS.md` 检查中文 Conventional Commits 标题和以 `修改说明:` 开头的正文。维护完成不隐含 commit、merge、push、远程写入或业务副本部署授权；沿用已有授权，不重复确认，也不扩大操作范围。
 
 按影响面补充：
 
@@ -101,7 +116,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync-vendor-skills.p
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-plugin-thin-index.ps1 -PluginPath plugins/<plugin-name> -ProjectRoot . -Mode DryRun
 ```
 
-如果任务涉及脚本、测试、文档解析、Office/PDF 转换或 Windows 子进程调用，收尾时检查仓库根是否出现字面量 `%SystemDrive%/` 目录；若存在，只能在确认解析路径位于当前 workspace 内后删除。
+临时产物按当前工作区约定放入任务专属目录，并记录本任务创建的路径。收尾只清理能够证明由本任务创建、且不再用于交付、验收或恢复的内容；删除前核实绝对路径、内容归属和链接边界，删除后确认成功。若发现字面量 `%SystemDrive%/` 等异常目录，同样适用这些条件，不能仅因它位于工作区就删除。仍需保留的文件说明路径和原因。
 
 ## 维护记忆写法
 

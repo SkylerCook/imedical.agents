@@ -19,7 +19,7 @@
 
 ## 必读路由
 
-- 仓库维护：`.agents/skills/agent-kit-maintenance/SKILL.md`。
+- 仓库维护：`.agents/skills/agent-kit-maintenance/SKILL.md`；按影响面选择验证，脚本变更核对平台矩阵，项目集成测试在目标工程执行，清理先确认任务归属，提交沿用明确授权。
 - 长期决策：`agent-kit-maintenance-decisions.md`；近期提交与验证：`agent-kit-maintenance-log.md`；未完成事项：`agent-kit-maintenance-backlog.md`。
 - 安装、更新、vendor、sparse 或 thin-index：`docs/update-agents.md` 与相关 canonical 脚本；plugin thin-index 只修改根生成器，插件脚本只转发。
 - 插件变更：owner AGENTS、README、manifest、相关内容、专项测试及 `docs/component-version-management.md`。
