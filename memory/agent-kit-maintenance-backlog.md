@@ -16,6 +16,8 @@
 
 - 上游 MCP 原生 write 参数支持跟踪：固定 SQL 兼容层的授权样本已通过，不再列为本轮实写阻断。后续上游补齐参数绑定后须重新验证，不能静默切换；新增实例和正常 deploy 改内容全链路另按具体任务验收。服务器 operation 审计仍由完整事务通道提供。
 
+- `iris-agentic-dev` v1.4.2 工具体系跟进：本轮 exe 更新后 `--no-skills` 从 67 增至 70 个工具，新增 `iris_mirror_status`、`iris_reload_pool`、`iris_system_performance`。helper 对未分类工具保持 fail-closed，三者当前均需 `--allow-write`；后续单独审计 schema、读写语义、`web_prefix` 与 v1.4.2 之前 `iris_ws_exec` 门禁缺口的体系影响，再按组件版本治理更新 coding-iris-plugin。
+
 ### 治疗表单后续协议演进（不阻断 v0.7.0 保守模式）
 
 - 旧服务端没有 request-id 幂等查询时继续采用未知写入停止、只读核实；未来服务端增加稳定只读快照会话和 request-id 查询接口后，单独版本化升级，不以客户端重试冒充幂等。

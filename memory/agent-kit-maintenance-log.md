@@ -4,6 +4,8 @@
 
 ## 近期已完成
 
+- 2026-09-16（`iris-agentic-dev` exe 更新）：按 vendor runbook 将内置 Windows x64 可执行文件从 v1.2.6 更新到 v1.4.2；上游稳定 tag、Release 元数据、`--version`、资产长度 `51398656` 和官方 SHA-256 `BC7F41C7D0675EB8B2F481A2D276AFD98F620CDF4C409F9CB53BA7882BC90D52` 一致。同步 vendor/root README 和更新 runbook 基线；断连 `tools/list` 复核为默认 70、开启内置 skill 81 个工具，新增的 3 个未分类工具由 helper fail-closed 门禁保护，完整体系适配留入 backlog。helper 与 update-agents 回归均通过 PowerShell 7 / Windows PowerShell 5.1，版本文档一致性和 `git diff --check` 通过；组件版本校验被 HEAD 中既有 `imedicalxc-doctor-extend-engineer` v1.0.2 release record 缺少合法 `commit` 字段阻断，本轮未修改任何组件目录或 release record。
+
 - 2026-09-16（sparse 刷新修复）：定位 Windows PowerShell 5.1 UTF-8 BOM stdin 首项模式遗漏；PS7 与 PS5.1 无 BOM 对照正常。安装、更新、旧 runtime 恢复共用 JavaScript 参数输入与落盘校验，安装器补齐 dirty 和 Git 失败停止。9 项 sparse 专项、PS7/Windows PowerShell 5.1 更新器完整回归通过并记录复用证据；同步修正 4 条过期依赖范围断言，16 组件版本校验与差异检查通过，临时文件已清理。非 Windows CI 待运行。本次提交仅包含框架修复，未推送或同步业务副本。
 
 - 2026-09-16（维护 skill 对齐）：优化仓库本地 `agent-kit-maintenance`，按影响面选择验证，补齐脚本运行时/跨平台矩阵、canonical 降级和目标项目集成测试产物归属检查；临时清理须证明任务归属，提交须沿用明确授权并检查提交正文。同步入口摘要与长期决策；README 和 backlog 已复核，无需变更。现有 `agent-framework-contract.tests.js` 与差异格式检查通过；skill frontmatter 未改，通用 `quick_validate.py` 因本机及 bundled Python 均缺少 PyYAML 未运行成功。此次仅维护文案，不涉及组件版本、部署副本或运行逻辑，未运行完整组件测试，未提交或推送。

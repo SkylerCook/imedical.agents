@@ -252,11 +252,11 @@ echo "验证通过: $new_version_output"
 更新两处文件中的版本号：
 
 1. **`vendor/iris-agentic-dev/README.md`**：
-   - `当前版本：**1.2.6**` → 替换为 `当前版本：**{new_version}**`
-   - 下载 URL 中 `v1.2.6` → `v{new_version}`
+   - `当前版本：**1.4.2**` → 替换为 `当前版本：**{new_version}**`
+   - 下载 URL 中 `v1.4.2` → `v{new_version}`
 
 2. **根 `README.md`**（`coding-iris-plugin` 段落）：
-   - `（当前 **v1.2.6**）` → 替换为 `（当前 **v{new_version}**）`
+   - `（当前 **v1.4.2**）` → 替换为 `（当前 **v{new_version}**）`
 
 使用文本替换完成，不引入额外脚本。
 
