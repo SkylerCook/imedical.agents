@@ -28,6 +28,10 @@ description: Use when applying frontend or backend internationalization coding c
 - 验证阶段读取 `i18n_verify.md`。
 - UI 框架行为不确定时读取 profile 指定的控件索引或源码索引。
 
+## 统一分流
+
+读取 coding-iris-plugin/rules/iris_coding_general.md，统一 executionPath 与正式 run 判定；guidanceMode 遵循共享 execution-guidance 协议。简单本地 i18n 使用本 skill，不自动创建正式 run。阶段顺序属于默认方法，可以合并和调整，领域规则、字节检测和 helper 检查仍必须执行。
+
 ## 输入范围
 
 支持：
@@ -82,21 +86,4 @@ description: Use when applying frontend or backend internationalization coding c
 
 ## 用户验收后的 feedback 审查
 
-本 skill 处理业务需求时，在开工路由中设置 `taskKind=business-demand`，由此派生 feedback 适用性。本地验证完成后按 `.agents/agents/_shared/delivery-lifecycle.md` 停在 `acceptance-pending`。只有用户明确说“验收通过”“修改完成”“可以收尾”等同义确认后，才读取 `agent-framework-feedback` 做只读审查，报告通用经验候选、已有命中、框架问题和建议动作。纯框架维护必须建立独立 `taskKind=framework-maintenance` 记录，不得借用本需求的验收或 feedback 状态。
-
-未获得用户逐项授权前，不新增或修改经验、不更新命中次数、不生成 framework feedback、不提升 rule。用户验收只授权审查，不隐含任何 feedback 写入授权。
-
-需要沉淀的情况：
-
-- 本次遇到现有 rules/skills 未覆盖的坑、边界或判断标准。
-- 本次验证出可复用的工程模式、处理顺序或检查项。
-- i18n 场景包括链路定位、字段分类、模板 fallback、字典翻译位置、UI 自动翻译边界或翻译种子验证经验。
-- 已有经验条目再次命中本次需求：先报告命中和建议动作；只有用户授权后才追加需求号并 `命中+1`。没有明确需求号时，记录可追溯的任务标题或不更新命中计数。
-
-沉淀要求：
-
-- 审查阶段只搜索和报告已有条目，能合并时提出合并建议，不重复新增。
-- 按 `feedback/experience/demand-com-exp.md` 的分类和条目格式记录。
-- 不写服务器、账号、namespace、远程路径、患者样本等敏感信息。
-- 不复制长段命令输出、完整 diff 或一次性排障流水。
-- 没有可复用经验时不写；不强制每次需求都沉淀。
+业务需求使用 taskKind=business-demand，本地验证后停在 acceptance-pending。用户明确验收且发现框架缺陷、规则冲突、可复用新经验或明确要求时，才加载 agent-framework-feedback 做只读审查。无信号不加载、不例行报告；写入仍需逐项授权。纯框架维护走独立 framework-maintenance 生命周期。详见 agents/_shared/delivery-lifecycle.md。

@@ -72,6 +72,7 @@ function New-TestProject {
   Copy-Item -LiteralPath $overlayInitializerUnderTest -Destination (Join-Path $root ".agents/scripts/initialize-workspace-overlay.ps1")
   Copy-Item -LiteralPath $irisMcpHelperUnderTest -Destination (Join-Path $root ".agents/scripts/iris-mcp.js")
   Copy-Item -LiteralPath $agentOrchestratorUnderTest -Destination (Join-Path $root ".agents/scripts/agent-orchestrator.js")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/validation-evidence.js") -Destination (Join-Path $root ".agents/scripts/validation-evidence.js")
   Copy-Item -LiteralPath $preferVendorIrisMcpScriptUnderTest -Destination (Join-Path $root ".agents/scripts/prefer-vendor-iris-mcp.ps1")
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/agent-registry.md") -Value "# Agent Registry"
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/workflow-registry.md") -Value "# Workflow Registry"
@@ -506,12 +507,12 @@ Assert-True ([version]$cureFormDevManifest.version -ge [version]"0.7.2") "cure f
 Assert-True (($cureFormDevManifest.dependencies -contains "extract-doc")) "cure form plugin should declare extract-doc as a dependency"
 Assert-True (($cureFormDevManifest.dependencies -contains "coding-iris-plugin")) "cure form plugin should declare coding-iris-plugin as a dependency"
 Assert-True ($cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.minVersion -eq "0.3.1") "cure form plugin should retain the overlay-aware coding plugin minimum"
-Assert-True ($cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.11.0") "cure form plugin should accept coding iris v0.10"
-Assert-True ($irisCodegraphManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.11.0") "iris-codegraph should accept coding iris v0.10"
-Assert-True ($interfaceDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.11.0") "interface plugin should accept coding iris v0.10"
+Assert-True ([version]$cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.minVersion -le [version]$codingIrisManifest.version -and [version]$cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -gt [version]$codingIrisManifest.version) "cure form plugin should accept current coding iris version"
+Assert-True ([version]$irisCodegraphManifest.dependencyVersions.'coding-iris-plugin'.minVersion -le [version]$codingIrisManifest.version -and [version]$irisCodegraphManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -gt [version]$codingIrisManifest.version) "iris-codegraph should accept current coding iris version"
+Assert-True ([version]$interfaceDevManifest.dependencyVersions.'coding-iris-plugin'.minVersion -le [version]$codingIrisManifest.version -and [version]$interfaceDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -gt [version]$codingIrisManifest.version) "interface plugin should accept current coding iris version"
 Assert-True (($externalRegManifest.dependencies -contains "extract-doc")) "iris-external-reg should declare extract-doc as a dependency"
 Assert-True (($externalRegManifest.dependencies -contains "coding-iris-plugin")) "iris-external-reg should declare coding-iris-plugin as a dependency"
-Assert-True ($externalRegManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.11.0") "iris-external-reg should accept coding iris v0.10"
+Assert-True ([version]$externalRegManifest.dependencyVersions.'coding-iris-plugin'.minVersion -le [version]$codingIrisManifest.version -and [version]$externalRegManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -gt [version]$codingIrisManifest.version) "iris-external-reg should accept current coding iris version"
 Assert-Contains $contextSkillContent "install-git-hooks.ps1" "project-context-maintenance should mention optional git hook enablement"
 Assert-True (Test-Path -LiteralPath $repositoryMaintenanceSkillUnderTest -PathType Leaf) "repository-local maintenance skill should live under .agents/skills"
 Assert-True (-not (Test-Path -LiteralPath $legacyRepositoryMaintenanceSkillUnderTest)) "root skills should not retain the maintenance-only exception"

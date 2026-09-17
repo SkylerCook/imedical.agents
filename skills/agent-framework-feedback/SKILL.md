@@ -1,6 +1,6 @@
 ---
 name: agent-framework-feedback
-version: 0.2.0
+version: 0.3.0
 description: Use only when feedback review is applicable and the user has explicitly accepted the business demand; review read-only, then write or promote only separately authorized actions.
 ---
 
@@ -8,7 +8,7 @@ description: Use only when feedback review is applicable and the user has explic
 
 ## 触发条件
 
-自动调用本 skill 前必须先读取 `agents/_shared/delivery-lifecycle.md`，依次确认 `taskKind=business-demand`、由其派生的 `feedbackReviewApplicable=true`，以及需求已由用户明确进入 `accepted`。三个条件缺一不可。
+自动调用本 skill 前必须先读取 `agents/_shared/delivery-lifecycle.md`，依次确认 `taskKind=business-demand`、由其派生的 `feedbackReviewApplicable=true`，以及需求已由用户明确进入 `accepted`。三个条件缺一不可；还需命中框架缺陷、规则冲突、可复用新经验或用户明确要求。普通 skill 无信号不加载；正式 run 的 always 策略保留例行只读审查。
 
 适用性分类：
 
@@ -25,7 +25,7 @@ description: Use only when feedback review is applicable and the user has explic
 - 本次在业务需求真实使用过程中发现并修正了 `.agents/` 下的框架文件（rules、skills、templates、references、scripts、agents、workflows 等）。
 - 用户明确要求“生成反馈”“记录本次发现”“沉淀经验”或“提升到 plugin rule”。
 
-调用本 skill 的默认动作仅为只读审查，不等于写文件。先固定报告：通用经验候选、已有经验命中、框架问题和建议动作。任何新增条目、命中次数更新、framework feedback 或 rule 提升，必须由用户逐项授权后执行。没有候选时报告 `no-reusable-experience`，不生成空反馈。
+调用本 skill 的默认动作仅为只读审查，不等于写文件。先固定报告：通用经验候选、已有经验命中、框架问题和建议动作。任何新增条目、命中次数更新、framework feedback 或 rule 提升，必须由用户逐项授权后执行。on-signal 无候选时正常收尾，不生成空反馈、不例行报告；正式 run 可记录 skipped/no-signal，不能冒充 completed 审查。
 
 用户显式要求在 `accepted` 前记录观察是唯一例外：只能形成 `provisional` 候选，不得更新命中次数、生成正式 framework feedback 或提升 rule。
 

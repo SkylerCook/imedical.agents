@@ -14,7 +14,7 @@
 4. Review Agent 独立审查冻结 diff。
 5. Testing Agent 在最终修改后验证；后续修改使验证过期。
 6. 按 `taskKind` 进入互斥收尾分支：
-   - `business-demand`：进入 `acceptance-pending`，等待用户验收；进入 `accepted` 后做只读 feedback 审查，具体写入仍需独立授权。
+   - `business-demand`：进入 `acceptance-pending`，等待用户验收；进入 `accepted` 且有框架缺陷、规则冲突、可复用新经验或用户要求时做只读 feedback 审查，具体写入仍需独立授权。
    - `framework-maintenance`：进入 `locally-verified`，完成版本、文档、测试和必要同步后进入 `maintenance-complete`；不进入需求验收，不触发或提示 feedback。
    - `other`：只按任务自身完成条件收尾，不进入上述两个生命周期。
 
@@ -29,3 +29,5 @@
 ## 串行降级与完成条件
 
 无 subagent、无多会话 API、无 skill 或无法解析 YAML 时，单 Agent 直接读取本 Markdown，按相同阶段和门禁串行执行。任务图终态、最终验证新鲜、无未决 action，且业务需求已验收或框架维护已进入 `maintenance-complete` 后才可完成。commit、merge、push、部署和 feedback 写入仍需各自授权。
+
+阶段顺序是默认方法，可按 execution-guidance.md 合并或重排；普通 skill 不因本 workflow 存在而创建 run。安全、授权、领域规则和最终验证不变。反馈按 delivery-lifecycle.md 的 on-signal/always 策略执行。

@@ -53,5 +53,12 @@ test('plugin manifests remain compatible after the conditional gate release', ()
   assert.match(codingManifest.version, /^\d+\.\d+\.\d+$/);
   assert.match(i18nManifest.version, /^\d+\.\d+\.\d+$/);
   assert.ok(i18nManifest.dependencies.includes('coding-iris-plugin'));
-  assert.equal(i18nManifest.dependencyVersions['coding-iris-plugin'].maxVersionExclusive, '0.8.0');
+  const range = i18nManifest.dependencyVersions['coding-iris-plugin'];
+  const compare = (a, b) => {
+    const left = a.split('.').map(Number), right = b.split('.').map(Number);
+    for (let i = 0; i < 3; i++) if (left[i] !== right[i]) return left[i] - right[i];
+    return 0;
+  };
+  assert(compare(codingManifest.version, range.minVersion) >= 0);
+  assert(compare(codingManifest.version, range.maxVersionExclusive) < 0);
 });

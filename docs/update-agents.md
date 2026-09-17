@@ -648,3 +648,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 专项验证：`node --test scripts/tests/doctor-extend-routing.tests.js`，覆盖 Windows PowerShell 5.1 / PowerShell 7 的生成、旧入口清理、幂等和自定义文件保护。源仓更新不代表业务项目副本已同步。
 
 `coding-iris-plugin` 当前 v0.9.0 包含 v0.8.0 引入的统一前端部署入口，默认本地计划、显式执行。用法见 `plugins/coding-iris-plugin/scripts/iris-tools/README.md`。
+
+## 框架演进的项目入口迁移
+
+能力包更新会带来新的 shared 协议、规则和模板，不会自动重写项目自有 AGENTS.md、rules/project.md 或 project_context_profile.md。不要把源仓维护者 AGENTS.md 部署到项目。
+
+在已授权目标项目执行既有更新流程后，用 project-context-maintenance 定点合并：
+
+1. 保留项目业务事实、自定义约束和用户修改；将第三个文件强制 full 改为引用 iris_coding_general 的风险判断。
+2. 将每次编码后加载上下文维护改为：稳定项目事实变化、入口失效、配置变化或用户要求时才加载。
+3. 保留 acceptance-pending 与用户验收，将验收后无条件 feedback 改为发现框架缺陷、规则冲突、可复用新经验或用户要求时只读审查；写入仍需逐项授权。
+4. 增加 .agents/agents/_shared/execution-guidance.md 路由。profile 缺少 guidanceMode 按 auto 读取，只有用户明确选择时才落盘 auto/concise/assisted；不按模型名称自动改配置。
+5. 检查共享协议和 thin-index source 实际存在；通用/前端/后端/i18n 入口均引用同一分流。无关项目内容逐字保留，有自定义冲突时列明差异，不整体替换。
+
+迁移辅助脚本位于 agent-context-kit/scripts/migrate-execution-entry.js，默认只报告精确已知句子的替换，--write 仅在授权目标项目使用；无法识别的自定义表述报告人工检查。它不接入安装器/更新器，不写 profile，不删除文件，不扫描其它工程。项目入口迁移与能力包更新分别验收。真实业务副本本次不自动同步。

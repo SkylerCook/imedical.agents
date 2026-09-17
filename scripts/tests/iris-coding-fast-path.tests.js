@@ -37,4 +37,17 @@ assert(demandCommitSkill.includes("不得继续询问是否提交"));
 assert(demandCommitSkill.includes("视为用户对本次精确文件范围的本地 commit 明确授权"));
 assert(demandCommitSkill.includes("同时出现两种模式"));
 
+const general = read("plugins/coding-iris-plugin/rules/iris_coding_general.md");
+assert(general.includes("文件数量仅触发重新评估"));
+assert(!skill.includes("第三个文件"));
+for (const entry of [skill, read("plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md"), read("plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md"), i18nSkill]) {
+  assert(entry.includes("iris_coding_general.md"));
+  assert(entry.includes("guidanceMode"));
+  assert(!entry.includes("涉及 3 个以上文件"));
+}
+const guidance = read("agents/_shared/execution-guidance.md");
+for (const marker of ["auto", "concise", "assisted", "硬约束", "不自动写回配置", "内容未变化", "按需加载"]) assert(guidance.includes(marker));
+assert(fs.existsSync(path.join(root, "plugins/coding-iris-plugin/references/coding-assistance.md")));
+// These assertions check routing contracts only; actual model behavior needs execution traces.
+
 console.log("iris-coding fast-path tests passed");

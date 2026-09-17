@@ -16,4 +16,6 @@
 1. 读取项目入口、plugin profile、共享调度协议和 `iris-change` workflow。
 2. 展示任务图、参与者、worktree、scope 与未包含外部动作。
 3. 获得协作计划授权后，由 Coordinator 使用 `scripts/agent-orchestrator.js` 推进。
-4. 本 Agent 的业务需求 run 固定设置 `taskKind=business-demand`；等待用户验收后才进行只读 feedback 审查。纯框架维护必须建立独立 `framework-maintenance` 记录，不得复用本 run 的验收或 feedback 状态。
+4. 本 Agent 的业务需求 run 固定设置 `taskKind=business-demand`；等待用户验收且命中反馈信号后才进行只读 feedback 审查。纯框架维护必须建立独立 `framework-maintenance` 记录，不得复用本 run 的验收或 feedback 状态。
+
+阶段顺序是默认方法，可按 execution-guidance.md 合并或重排；普通 skill 不因本 workflow 存在而创建 run。安全、授权、领域规则和最终验证不变。反馈按 delivery-lifecycle.md 的 on-signal/always 策略执行。

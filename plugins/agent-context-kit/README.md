@@ -84,3 +84,7 @@ schema 2.0 的运行时命令由 `.agents/scripts/agent-orchestrator.js` 提供�
 - 项目私有差异只写入目标项目 `.agents/rules/`、`.agents/memory/` 或 `.agents/config/`，并使用非敏感占位。
 - 不记录一次性命令日志；只记录长期会影响后续任务的规则、根因和可复核验证标准。
 - 若插件规则与实际结果冲突，先修正插件偏差，再更新项目侧摘要，保持单一事实来源。
+
+## 按需辅助与收尾
+
+遵循 agents/_shared/execution-guidance.md（源仓根；部署态为 .agents/agents/_shared/）。guidanceMode 默认 auto，可选 concise/assisted；辅助程度不改变授权、编码及领域契约。方法允许合并或重排，IRIS 编码共用 iris_coding_general 的风险分流。业务验收后按信号加载 feedback，无信号不例行报告。现有工程按 docs/update-agents.md 定点合并项目入口，普通能力包更新不重写用户 AGENTS/profile。

@@ -28,4 +28,8 @@
 
 插件内 `generate-plugin-thin-index.ps1` 是稳定调用入口，只 wrapper 到根 `.agents/scripts/generate-plugin-thin-index.ps1`。thin-index 生成逻辑只维护根脚本；不要把其它插件脚本实现复制到本插件。
 
-运行入口必须先设置互斥的 `taskKind`。`business-demand` 使用需求验收生命周期并在 `accepted` 后进入只读 feedback 审查；`framework-maintenance` 使用独立维护生命周期，`acceptance` 固定为 `not-applicable`，不触发或提示 feedback。两者不得共享状态。
+运行入口必须先设置互斥的 `taskKind`。`business-demand` 使用需求验收生命周期并在 `accepted` 且命中反馈信号后进入只读 feedback 审查；`framework-maintenance` 使用独立维护生命周期，`acceptance` 固定为 `not-applicable`，不触发或提示 feedback。两者不得共享状态。
+
+## 按需辅助与收尾
+
+遵循 agents/_shared/execution-guidance.md（源仓根；部署态为 .agents/agents/_shared/）。guidanceMode 默认 auto，可选 concise/assisted；辅助程度不改变授权、编码及领域契约。方法允许合并或重排，IRIS 编码共用 iris_coding_general 的风险分流。业务验收后按信号加载 feedback，无信号不例行报告。现有工程按 docs/update-agents.md 定点合并项目入口，普通能力包更新不重写用户 AGENTS/profile。

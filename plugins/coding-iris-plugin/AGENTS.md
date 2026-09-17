@@ -40,7 +40,7 @@ Agent 编写 `.cls` 时遵循 `references/cls-coding-format.md`。已有类只�
 当用户要求把已提交的 DEV 需求更新到独立 PRD 按需导出仓库时，使用 `iris-demand-promote`；需求来源是 DEV Git 补丁，目标基线必须从 PRD 服务器导出，默认只形成本地 PRD 提交。
 只有用户要求生成提交信息、明确要求提交，或显式调用 `$iris-demand-commit --plan|--commit` 时才使用 `iris-demand-commit`；本地验证完成不自动加载。`--plan` 只生成提交计划和完整 commit message，不执行 pull 或 commit，也不追问是否提交；`--commit` 视为本地提交授权，直接执行 plan/apply/verify。commit 不改变 `acceptance-pending`，也不触发 feedback；push 仍需另行授权。
 
-`iris-coding` 使用 `fast/full/guarded` 开发路径，但所有路径都必须读取项目入口、profile、通用规则和命中的专项规则。每次执行做轻量 `parallelAssessment`，只在两个独立只读范围确有收益时自主使用最多两个临时子 Agent；主 Agent 是唯一写入者。并行写入、持续通信或跨会话协作应建议 `iris-change-agent` 正式 workflow。
+`iris-coding` 使用 `fast/full/guarded` 开发路径，但所有路径都必须读取项目入口、profile、通用规则和命中的专项规则。存在独立范围时做轻量 `parallelAssessment`，只在两个独立只读范围确有收益时自主使用最多两个临时子 Agent；主 Agent 是唯一写入者。并行写入、持续通信或跨会话协作应建议 `iris-change-agent` 正式 workflow。
 当用户要求查询 IRIS 类、方法、函数、宏、SQL 元数据或官方文档时，使用 `iris-mcp-lookup`；该 skill 默认只读，并把当前实例元数据与官方文档版本分开报告。
 
 前端编码还必须读取目标工程 `.agents/config/plugin_profile.md`。仅当 `i18n-iris-plugin` 为 `enabled` 且任务或最终 diff 命中翻译 helper、翻译 key 或用户可见文案时，追加 i18n profile/rules 和 helper 静态检查；普通需求不自动进入完整 i18n workflow，插件未启用时不得因目录存在而加载。
@@ -101,3 +101,7 @@ SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项�
 上传使用需求基线和独立合并产物；首次服务器差异可合并，再次覆盖必须 Question。源码与暂存区不接收服务器差异。前端 deploy-frontend.js 和后端 compile.js 均须提供 --demand 与 --files，并先建立 deploy-guard.js 会话。详见 references/deployment-protection.md（从 skill/rule 入口按插件根解析）。原位置参数后端上传停止，不允许回退绕过。
 
 部署 Question 兼容：停止结果提供工具无关 question 协议，固定决定代码；Agent 按能力采用选项或文字确认。暂停/查看/无效决定不写入。详见 references/deployment-protection.md。
+
+## 按需辅助与收尾
+
+遵循 agents/_shared/execution-guidance.md（源仓根；部署态为 .agents/agents/_shared/）。guidanceMode 默认 auto，可选 concise/assisted；辅助程度不改变授权、编码及领域契约。方法允许合并或重排，IRIS 编码共用 iris_coding_general 的风险分流。业务验收后按信号加载 feedback，无信号不例行报告。现有工程按 docs/update-agents.md 定点合并项目入口，普通能力包更新不重写用户 AGENTS/profile。

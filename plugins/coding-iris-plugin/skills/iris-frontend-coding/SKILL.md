@@ -15,6 +15,10 @@ description: Use when working on CSP, JavaScript, CSS, or HISUI frontend code wi
 
 当任务涉及 CSP、HTML、JavaScript、CSS、HISUI 控件、页面布局、前端数据回显或前端 SFTP 上传时使用本 Skill。
 
+## 路由与默认方法
+
+执行路径统一由 rules/iris_coding_general.md 判定；guidanceMode 按共享 execution-guidance 协议解析。步骤可合并、重排，硬约束不变；不因文件数自动升级、不因 full/guarded 自动建 run。
+
 ## 流程
 
 1. 先读取目标工程 `.agents/config/iris_project_profile.md` 和 `.agents/config/plugin_profile.md`。

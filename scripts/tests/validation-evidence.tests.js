@@ -24,6 +24,7 @@ try {
 
   record(temporary, { suite: "unit", command: "node --test", status: "passed", scopes: ["src"], evidenceFile });
   assert.equal(check(temporary, { suite: "unit", evidenceFile }).reusable, true);
+  assert.equal(check(path.join(temporary, "src"), { suite: "unit", evidenceFile }).reason, "repository-mismatch");
 
   fs.writeFileSync(path.join(temporary, "docs", "note.md"), "out-of-scope\n");
   assert.equal(check(temporary, { suite: "unit", evidenceFile }).reusable, true);
@@ -36,6 +37,12 @@ try {
   fs.writeFileSync(path.join(temporary, "src", "new.js"), "new file\n");
   assert.equal(check(temporary, { suite: "unit", evidenceFile }).reusable, false);
   assert.throws(() => record(temporary, { suite: "bad", command: "x", scopes: [".."], evidenceFile }), /escapes repository/);
+  fs.writeFileSync(path.join(temporary, ".gitignore"), "private/\n");
+  fs.mkdirSync(path.join(temporary, "private"));
+  fs.writeFileSync(path.join(temporary, "private", "readback.json"), "before");
+  record(temporary, { suite: "readback", command: "readback fixture assertion", scopes: ["private/readback.json"], evidenceFile });
+  fs.writeFileSync(path.join(temporary, "private", "readback.json"), "after");
+  assert.equal(check(temporary, { suite: "readback", evidenceFile }).reusable, false);
   console.log("validation evidence tests passed");
 } finally {
   fs.rmSync(temporary, { recursive: true, force: true });

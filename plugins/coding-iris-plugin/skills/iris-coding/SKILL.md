@@ -38,13 +38,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 
 ## 执行路径
 
-- `fast`：低风险、单仓、范围清晰且通常只涉及 1–2 个文件；保留 Git 状态、修改前后编码检查、目标测试和最终 diff 门禁，只后置未命中的深查、部署、commit 与 feedback。
-- `full`：跨前后端、需要调用链定位、涉及 3 个以上文件或证据不足。
-- `guarded`：Storage、权限、迁移、生产数据、远端写入、部署、复杂编码或验证失败等高风险场景。
-
-执行中发现范围扩大、第二个仓库、第三个文件、规则信号或验证失败时，立即从 `fast` 升级到 `full` / `guarded`，不得用 fast 跳过规则。
-
-每次执行做轻量 `parallelAssessment`：只有存在两个互相独立的只读范围，且并行收益大于启动成本时，才可自主使用最多两个临时只读子 Agent。主 Agent 保持唯一写入者；临时子 Agent 不创建正式 run。需要并行写入、持续通信或跨会话协作时，建议改用 `iris-change-agent` / `iris-change` 正式 workflow。
+统一使用 rules/iris_coding_general.md 的 executionPath、parallelAssessment 和正式 run 判定。guidanceMode 按共享 execution-guidance 协议解析，辅助程度不改变安全底线。主 Agent 保持唯一写入者；允许时最多两个临时只读子 Agent。
 
 按任务范围继续读取：
 
@@ -97,26 +91,11 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 - 已执行的本地验证。
 - 前端任务正常完成时只输出一行编码摘要，例如“前端编码：utf8，3 个文件已保持 UTF-8”；仅异常时展开完整编码诊断。
 - 仍需用户确认的上传、编译、远程写入、数据库变更或生产环境动作。
-- 需求提交模式、需求类型来源和完整方案型“修改说明”；`--plan` 只报告提交信息且明确未创建 commit，`--commit` 在明确授权后报告本地 commit hash，并始终单独说明未执行 push。
+- 仅在用户要求提交或生成提交计划时报告需求提交模式、需求类型来源和完整方案型“修改说明”；`--plan` 只报告提交信息且明确未创建 commit，`--commit` 在明确授权后报告本地 commit hash，并始终单独说明未执行 push。
 
 ## 用户验收后的 feedback 审查
 
-本 skill 处理业务需求时，在开工路由中设置 `taskKind=business-demand`，由此派生 feedback 适用性。用户明确说“验收通过”“修改完成”“可以收尾”等同义确认后，读取 `agent-framework-feedback` 做只读审查，报告通用经验候选、已有命中、框架问题和建议动作。未获得用户逐项授权前，不新增/修改经验、不更新命中次数、不生成 framework feedback、不提升 rule。纯框架维护必须建立独立 `taskKind=framework-maintenance` 记录并使用 `agent-kit-maintenance`，不得借用本需求的验收或 feedback 状态。
-
-需要沉淀的情况：
-
-- 本次遇到现有 rules/skills 未覆盖的坑、边界或判断标准。
-- 本次验证出可复用的工程模式、处理顺序或检查项。
-- IRIS 编码场景包括持久化类、SQL、HisUI DataGrid、CSP 页面、Broker、UTF-8/legacy GB2312 编码或部署验证经验。
-- 已有经验条目再次命中本次需求：先报告命中与建议动作；只有用户授权后才追加需求号并 `命中+1`。
-
-沉淀要求：
-
-- 仅在 `accepted` 后搜索已有条目，能合并就合并，不重复新增。
-- 按 `feedback/experience/demand-com-exp.md` 的分类和条目格式记录。
-- 不写服务器、账号、namespace、远程路径、患者样本等敏感信息。
-- 不复制长段命令输出、完整 diff 或一次性排障流水。
-- 没有可复用经验时不写；不强制每次需求都沉淀。
+业务需求设置 taskKind=business-demand，纯框架维护使用独立 taskKind=framework-maintenance。本地验证后停在 acceptance-pending。用户明确验收后，仅发现框架缺陷、规则冲突、可复用新经验或用户要求时加载 agent-framework-feedback 做只读审查；没有信号不加载、不例行报告。任何 feedback 写入仍需逐项授权。完整生命周期见 agents/_shared/delivery-lifecycle.md。
 
 ## 完成检查
 
@@ -127,7 +106,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 - i18n 门禁命中时，翻译 helper key 已通过稳定字面量静态检查；检查失败没有继续交付。
 - 未把服务器、namespace、账号、密码、token、远程路径、业务页面清单、业务类名前缀或项目专属基类写入插件。
 - 上传、编译、远程写入、数据库变更没有在用户未明确要求时执行。
-- 需求提交没有从“处理/修复”指令中推断授权；`TODO` 交付类型已停止并提示补全，合法类型已按 `iris-demand-commit` 处理。
+- 只有明确提交/提交计划请求才检查交付类型并加载 iris-demand-commit；其它任务不检查 TODO 交付类型、不追问提交。
 - `executionPath` 与是否使用临时只读子 Agent 相互独立；fast 未跳过任何适用规则。
 - 本地验证后停在 `acceptance-pending`；用户验收前未读取或写入 feedback。
 

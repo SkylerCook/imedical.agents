@@ -1,8 +1,12 @@
 # imedical.agents 维护日志
 
+- 治疗表单入口补充优化：按任务加载交付章节，复用范围内已有明确部署授权；服务端原子回滚与客户端 rollback 分开表达，运行时门禁不变。演进行为补充回归通过，迁移拒写保护、文档引用与 diff 检查通过；版本检查仍仅有既有 xc 发布字段阻塞。
+
 本文件记录近期维护流水摘要和验证结论。长期决策见 `agent-kit-maintenance-decisions.md`，后续治理队列见 `agent-kit-maintenance-backlog.md`，入口摘要见 `agent-kit-maintenance-memory.md`。
 
 ## 近期已完成
+
+- 2026-09-17（按需辅助与开放方法，本地未提交）：IRIS 入口统一按风险分流，新增 guidanceMode 的共享底线/默认方法/按需辅助；反馈 on-signal 保留用户验收和独立写入授权。调度器完成与 --final 共用门禁，写入验证绑定既有 scope 指纹和计划仓库身份；补 session 别名、未知 adapter 降级和 blocked 结果恢复。i18n 新运行协议与 bindings 对齐 2.0，旧 fixture 只读。项目入口提供默认只报告的精确句子迁移，保留用户内容与 profile；未改安装/更新算法。Node 主回归 8 项及新增恢复补测通过，PS5.1/PS7 新旧 run 回归通过；PS5.1 更新器完整回归补齐 fixture 依赖后通过，显式私有快照指纹补测通过。详见 docs/validation/agent-evolution.md。九项组件版本/依赖变更已记录，版本校验仅被既有 1.0.2 发布记录缺失 commit 阻断，不修改不可变记录。Claude 只读路由冒烟 API unknown 重试后停止，未取得模型结果；弱模型、跨宿主性能和非 Windows 矩阵未验证。未提交、推送、部署或同步业务副本。
 
 - 2026-09-17（提交效率约定）：根 `AGENTS.md` 补充提交阶段复用审查与有效测试证据、批量独立只读检查、避免重复加载规范及按原因处理钩子失败的规则。与维护 skill 既有证据复用要求一致；仅文档改动，差异和规则一致性检查通过，不运行完整测试；本次仅本地提交，未推送。
 

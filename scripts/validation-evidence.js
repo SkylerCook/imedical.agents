@@ -61,6 +61,14 @@ function worktreeFingerprint(repoRoot, scopes) {
   const untrackedOutput = git(repoRoot, ["ls-files", "--others", "--exclude-standard", "-z", ...pathspec], null);
   const untracked = untrackedOutput.toString("utf8").split("\0").filter(Boolean).sort();
   const parts = [Buffer.from(`${head}\0${normalized.join("\0")}\0`), diff];
+  // Explicit files can be private ignored readback artifacts. Include their bytes,
+  // rather than silently treating an ignored snapshot as unchanged.
+  for (const relative of normalized.filter(value => value !== ".")) {
+    const absolute = path.join(repoRoot, relative);
+    if (fs.existsSync(absolute) && fs.lstatSync(absolute).isFile()) {
+      parts.push(Buffer.from(`explicit-file:${relative}\0`), fs.readFileSync(absolute));
+    }
+  }
   for (const relative of untracked) {
     const absolute = path.join(repoRoot, relative);
     parts.push(Buffer.from(`${relative}\0`));
@@ -115,8 +123,10 @@ function record(repoRoot, options) {
 function check(repoRoot, options) {
   if (!options.suite) fail("check requires --suite");
   const file = evidenceLocation(repoRoot, options);
-  const saved = readEvidence(file).suites[options.suite];
+  const evidence = readEvidence(file);
+  const saved = evidence.suites[options.suite];
   if (!saved) return { reusable: false, reason: "missing-evidence", evidenceFile: file, suite: options.suite };
+  if (!evidence.repository || path.resolve(evidence.repository) !== path.resolve(repoRoot)) return { reusable: false, reason: "repository-mismatch", evidenceFile: file, suite: options.suite };
   const current = worktreeFingerprint(repoRoot, saved.scopes || []);
   const reusable = saved.status === "passed" && saved.head === current.head && saved.fingerprint === current.fingerprint;
   return { reusable, reason: reusable ? "fingerprint-match" : "fingerprint-changed", evidenceFile: file, suite: options.suite, saved, current };

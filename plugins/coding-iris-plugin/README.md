@@ -248,3 +248,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 部署 Question 兼容：停止结果提供工具无关 question 协议，固定决定代码；Agent 按能力采用选项或文字确认。暂停/查看/无效决定不写入。详见 references/deployment-protection.md。
 
 前端规则补充旧调用迁移的接口契约检查：参数大小写、命名/位置绑定、Broker 传输与响应结构按接口核实，失败不得伪装为空集合或自动换通道重试。此次指导资料更新不修改请求运行时；已部署项目通过既有更新流程取得规则，无业务配置迁移。
+
+## 按需辅助与收尾
+
+遵循 agents/_shared/execution-guidance.md（源仓根；部署态为 .agents/agents/_shared/）。guidanceMode 默认 auto，可选 concise/assisted；辅助程度不改变授权、编码及领域契约。方法允许合并或重排，IRIS 编码共用 iris_coding_general 的风险分流。业务验收后按信号加载 feedback，无信号不例行报告。现有工程按 docs/update-agents.md 定点合并项目入口，普通能力包更新不重写用户 AGENTS/profile。

@@ -556,3 +556,9 @@ git push github master
 部署保护：coding-iris-plugin 0.10.0 使用 Git 固定基线、隔离合并产物及再次覆盖人工处理；前后端入口迁移见 plugins/coding-iris-plugin/references/deployment-protection.md。
 
 部署保护的 Question 使用固定决定代码和工具无关结果；不同交互能力按选项/文本降级，无回复保持停止。
+
+## 按需辅助与自主执行
+
+guidanceMode（auto/concise/assisted）、executionPath 和 orchestrationMode 相互独立。硬约束保留，方法可调整，辅助按信号读取；普通编码不例行加载维护或反馈。通用 session adapter 与 codex-session 兼容，正式 run 完成要求新鲜指纹证据。项目入口需按 docs/update-agents.md 定点迁移。
+
+实现与验证边界见 docs/validation/agent-evolution.md；真实跨模型/跨宿主提效及非本机平台仍待取证，不能用静态规则检查替代。

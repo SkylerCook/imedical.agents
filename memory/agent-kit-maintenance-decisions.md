@@ -84,7 +84,7 @@
 
 ## 入口决策
 
-- Agent run schema 1.2 使用阶段 `attempts[]`、capability matrix、远程动作终态、`finalization` 和限定 verification scope 表达暂停恢复及最终验证门禁；validator 继续兼容 schema 1.0/1.1。
+- 历史只读 Agent run schema 1.2 使用阶段 `attempts[]`、capability matrix、远程动作终态、`finalization` 和限定 verification scope 表达暂停恢复及最终验证门禁；validator 继续兼容 schema 1.0/1.1。
 - `check_config` 只核对配置定位，真实连通以当次无副作用网络探针为准。自动发现生效且探针成功时，`config_file=null` 不构成配置失败；单一工具的瞬时失败只降级对应 capability。
 - Independent Verifier 只能在所有远程动作终态、无 suspended attempt 且验证范围冻结后启动。报告、summary、manifest 和 feedback 不属于业务验证版本。
 - i18n 页面翻译种子默认使用 `DHCDoc.I18n.PageTranslationSeed`，backend SourceRoot 内 canonical 相对路径为 `DHCDoc/I18n/PageTranslationSeed.cls`；`SetPageTrans` / `KillPageTrans` 是稳定单条接口，语言聚合使用 `Load{LANG}Translation` / `Kill{LANG}Translation`，带批次号的方法继续按需求生成。目标工程已验证存在兼容实现时允许 profile 覆盖，字典翻译 SQL 与 XML 模板同步不并入该类。
@@ -134,3 +134,5 @@
 - 不写服务器地址、账号、密码、token、namespace、远程路径或任何敏感连接信息。
 - 不把业务项目私有事实写入本仓库插件、规则或记忆。
 - `.mcp.json` 是连接事实来源；不要把其中的 host、账号、密码、token、namespace 或远程路径复制到 rules、memory、config 或插件。
+
+- 执行辅助、风险深度和协作形态独立。硬约束集中、默认方法可调整、辅助资料按信号读取；不按模型品牌判断能力。新业务 run 默认 on-signal 反馈，旧记录缺省 always，用户验收及反馈写入授权不变。

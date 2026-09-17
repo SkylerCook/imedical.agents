@@ -1,0 +1,20 @@
+name: Agent evolution contracts
+on:
+  push:
+    paths: ['agents/**', 'workflows/**', 'plugins/agent-context-kit/**', 'plugins/coding-iris-plugin/**', 'plugins/i18n-iris-plugin/**', 'skills/agent-framework-feedback/**', 'scripts/**', '.github/workflows/agent-evolution.yml']
+  pull_request:
+  workflow_dispatch:
+jobs:
+  contracts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        node: ['22', '24']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node --test scripts/tests/agent-evolution.tests.js scripts/tests/agent-orchestrator.tests.js scripts/tests/agent-framework-contract.tests.js scripts/tests/iris-coding-fast-path.tests.js scripts/tests/i18n-frontend-routing.tests.js scripts/tests/validation-evidence.tests.js

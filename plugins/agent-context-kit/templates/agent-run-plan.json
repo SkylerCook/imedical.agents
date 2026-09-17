@@ -1,6 +1,7 @@
 {
   "topic": "",
   "taskKind": "other",
+  "feedbackReviewPolicy": "on-signal",
   "workflow": "standard-change",
   "executionPath": "full",
   "orchestrationMode": "serial",

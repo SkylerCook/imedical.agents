@@ -118,3 +118,7 @@ node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
 ```
 
 检查器只读文件且仅使用 Node.js 内置模块。退出码 `0` 表示通过，`1` 表示发现动态翻译 key，`2` 表示参数或文件读取错误；错误包含文件、行、列和规则代码。
+
+## 按需辅助与收尾
+
+遵循 agents/_shared/execution-guidance.md（源仓根；部署态为 .agents/agents/_shared/）。guidanceMode 默认 auto，可选 concise/assisted；辅助程度不改变授权、编码及领域契约。方法允许合并或重排，IRIS 编码共用 iris_coding_general 的风险分流。业务验收后按信号加载 feedback，无信号不例行报告。现有工程按 docs/update-agents.md 定点合并项目入口，普通能力包更新不重写用户 AGENTS/profile。

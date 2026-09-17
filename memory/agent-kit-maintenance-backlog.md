@@ -4,6 +4,10 @@
 
 ## 下一步工作队列
 
+- 版本治理既有阻塞：已提交 imedicalxc-doctor-extend-engineer/1.0.2 发布记录缺少 commit，当前清单与 HEAD/worktree 比较均失败。记录不可变；需单独确定历史记录纠错机制，本轮不篡改或绕过门禁。
+
+- 框架演进实测：按 docs/validation/agent-evolution.md 固定五类简单任务与复杂/部署离线场景，获取前沿/较弱模型及两种宿主的前后真实轨迹。Claude CLI 可登录但路由冒烟 API unknown 重试后停止，未取得模型行为证据；非 Windows/Node 22 矩阵及真实业务入口迁移待取证。无需重复实现已落地的辅助模式、分流和完成门禁。
+
 - sparse 刷新：Windows/macOS/Linux、Node 22/24 专项矩阵已配置，非本机平台结果待 CI；发布后业务副本沿既有流程更新，本轮不执行副本同步。
 
 - Question 兼容使用厂商无关协议与能力降级指引，未引入厂商 SDK；专项测试覆盖协议与写入门禁，不代表已在所有 Agent 产品交互界面实测。不同工具的权限、模式及选项上限以当前调用契约为准。

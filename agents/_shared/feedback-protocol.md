@@ -13,7 +13,7 @@
 
 ## 触发条件
 
-只有 `taskKind=business-demand`、由其派生的 `feedbackReviewApplicable=true`、需求处于 `accepted`，且 Agent 已完成只读反馈审查并向用户报告建议动作后，才检查以下条件：
+只有 `taskKind=business-demand`、由其派生的 `feedbackReviewApplicable=true`、需求处于 `accepted`，且命中反馈信号（框架缺陷、规则冲突、可复用新经验或用户要求）、Agent 已完成只读反馈审查并向用户报告建议动作后，才检查以下条件：
 
 1. 本次任务是否读取了 `.agents/` 下的框架文件（rules、skills、templates、references、scripts、agents、workflows 等）？
 2. 是否在该业务需求的真实使用过程中发现并修正了框架问题（不只是独立维护框架本身）？

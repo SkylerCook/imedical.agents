@@ -3,6 +3,7 @@
   "runId": "",
   "topic": "",
   "taskKind": "other",
+  "feedbackReviewPolicy": "on-signal",
   "workflow": {"id":"standard-change","source":"workflows/standard-change.workflow.md"},
   "executionPath": "full",
   "orchestration": {"mode":"serial","adapter":"serial","fallbacks":["serial","human"],"adapterCapabilities":{"serial":true,"human":true},"validationSample":false,"planHash":""},

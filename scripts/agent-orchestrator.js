@@ -4,6 +4,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
+const { check: checkEvidence, worktreeFingerprint } = require("./validation-evidence.js");
 
 const SCHEMA_VERSION = "2.0";
 const MANIFEST_NAME = "00-run-manifest.json";
@@ -13,6 +14,61 @@ const MUTATING_COMMANDS = new Set(["init", "next", "ack", "message", "transition
 const TERMINAL_WORK = new Set(["completed", "failed", "skipped"]);
 const AUTHORIZATION_KEYS = ["collaborationPlan", "remoteWrite", "commit", "merge", "push", "deploy", "feedbackWrite"];
 const TASK_KINDS = new Set(["business-demand", "framework-maintenance", "other"]);
+const ADAPTER_ACTIONS = { serial: "run-serial", subagent: "spawn-subagent", session: "create-session", "codex-session": "create-session", human: "request-human" };
+function hasWrites(manifest) {
+  return [...manifest.workItems, ...manifest.participants].some(item => item.writeScopes.length);
+}
+
+function verificationIssues(manifest) {
+  const issues = [];
+  const verification = manifest.verification;
+  if (verification.status !== "passed" || verification.verifiedThroughSequence < verification.lastMutationSequence) issues.push("stale or missing verification");
+  const snapshots = verification.evidenceSnapshots || [];
+  if (hasWrites(manifest) && !snapshots.length) issues.push("write scopes require verification fingerprint evidence");
+  for (const saved of snapshots) {
+    try {
+      const current = worktreeFingerprint(saved.repoRoot, saved.scopes);
+      if (current.fingerprint !== saved.fingerprint) issues.push(`verification fingerprint changed: ${saved.repoRoot}`);
+    } catch (error) { issues.push(`verification fingerprint unavailable: ${error.message}`); }
+  }
+  return issues;
+}
+
+function completionIssues(manifest) {
+  const issues = verificationIssues(manifest);
+  if (manifest.workItems.some(item => !TERMINAL_WORK.has(item.status))) issues.push("unfinished work items");
+  if (manifest.workItems.some(item => item.status === "failed")) issues.push("failed work items cannot complete successfully");
+  if (manifest.actions.some(item => !["acknowledged", "failed", "cancelled"].includes(item.status))) issues.push("pending or blocked actions");
+  if (manifest.taskKind === "business-demand" && manifest.acceptance.status !== "accepted") issues.push("business-demand requires accepted state");
+  if (manifest.taskKind === "business-demand" && !["completed", "skipped"].includes(manifest.feedbackDecision.reviewState)) issues.push("feedback decision is pending");
+  if (manifest.taskKind === "framework-maintenance" && manifest.maintenance.status !== "maintenance-complete") issues.push("framework-maintenance requires maintenance-complete state");
+  return issues;
+}
+
+function captureVerification(manifest, options) {
+  if (!options.verificationFile) {
+    if (hasWrites(manifest)) fail("write scopes require --verification-file <evidence bindings json>");
+    return [];
+  }
+  const bindings = readJson(path.resolve(options.verificationFile));
+  if (!Array.isArray(bindings) || !bindings.length) fail("verification bindings must be a nonempty array");
+  const snapshots = bindings.map(binding => {
+    if (!binding.repoRoot || !binding.suite || !binding.evidenceFile) fail("verification binding requires repoRoot, suite and evidenceFile");
+    const repoRoot = path.resolve(binding.repoRoot);
+    const result = checkEvidence(repoRoot, binding);
+    if (!result.reusable) fail(`verification evidence is not reusable: ${result.reason}`);
+    return { repoRoot, suite: binding.suite, command: result.saved.command, ...result.current };
+  });
+  for (const item of [...manifest.workItems, ...manifest.participants.map(value => ({ ...value, ownerId: value.id }))]) {
+    const participant = manifest.participants.find(value => value.id === item.ownerId);
+    for (const scope of item.writeScopes) {
+      const root = participant?.worktree?.mode === "isolated" ? participant.worktree.ref : manifest.repositoryRoot;
+      if (!root || !path.isAbsolute(root)) fail("verification requires an absolute repositoryRoot or isolated worktree ref in the plan");
+      if (!snapshots.some(saved => path.resolve(root) === saved.repoRoot && saved.scopes.some(parent => parent === "." || scope === parent || scope.startsWith(`${parent}/`)))) fail(`verification evidence does not cover ${item.id}:${scope}`);
+    }
+  }
+  return snapshots;
+}
 
 function fail(message, code = 1) {
   const error = new Error(message);
@@ -200,6 +256,10 @@ function eventPayload(manifest, type, actorId, entityId, payload, idempotencyKey
 }
 
 function persist(runDirectory, manifest, type, actorId, entityId, payload, idempotencyKey) {
+  if (manifest.status === "completed" && !(type === "run.transitioned" && payload?.status === "completed")) {
+    manifest.status = "running";
+    manifest.completedAt = null;
+  }
   const previous = fs.existsSync(manifestPath(runDirectory)) ? readManifestRaw(runDirectory) : undefined;
   const event = eventPayload(manifest, type, actorId, entityId, payload, idempotencyKey);
   manifest.eventLog.lastSequence = event.sequence;
@@ -284,6 +344,7 @@ function resetTaskLifecycle(manifest) {
 
 function planMaterial(manifest) {
   return {
+    ...(manifest.repositoryRoot ? { repositoryRoot: manifest.repositoryRoot } : {}),
     taskKind: manifest.taskKind,
     workflow: manifest.workflow,
     orchestrationMode: manifest.orchestration.mode,
@@ -316,9 +377,11 @@ function createManifest(options) {
   }
   const manifest = {
     schemaVersion: SCHEMA_VERSION,
+    ...(plan.repositoryRoot ? { repositoryRoot: path.resolve(plan.repositoryRoot) } : {}),
     runId: options.runId || plan.runId || path.basename(path.resolve(options.runDirectory || options.runDir)),
     topic: options.topic || plan.topic || "",
     taskKind,
+    feedbackReviewPolicy: plan.feedbackReviewPolicy || "on-signal",
     workflow: { id: options.workflow || plan.workflow || "standard-change", source: plan.workflowSource || `workflows/${options.workflow || plan.workflow || "standard-change"}.workflow.md` },
     executionPath: options.executionPath || plan.executionPath || "full",
     orchestration: {
@@ -356,18 +419,18 @@ function dependenciesComplete(item, workMap) {
 
 function selectAdapter(manifest) {
   const candidates = [manifest.orchestration.adapter, ...manifest.orchestration.fallbacks];
-  return candidates.find((name) => manifest.orchestration.adapterCapabilities[name]) || null;
+  return candidates.find((name) => Object.hasOwn(ADAPTER_ACTIONS, name) && manifest.orchestration.adapterCapabilities[name]) || null;
 }
 
 function actionType(adapter) {
-  return ({ serial: "run-serial", subagent: "spawn-subagent", "codex-session": "create-session", human: "request-human" })[adapter] || "request-human";
+  return ADAPTER_ACTIONS[adapter] || "request-human";
 }
 
 function createAction(manifest, workItem, adapter, typeOverride, authorizationCategory) {
   const targetId = workItem?.ownerId || manifest.coordinatorId;
   const type = typeOverride || actionType(adapter);
   const participant = manifest.participants.find((item) => item.id === targetId);
-  const previousFailures = workItem ? manifest.actions.filter((item) => item.workItemId === workItem.id && item.status === "failed").length : 0;
+  const previousFailures = workItem ? manifest.actions.filter((item) => item.workItemId === workItem.id && (item.status === "failed" || (item.status === "cancelled" && item.type !== "request-authorization"))).length : 0;
   const material = { runId: manifest.runId, workItemId: workItem?.id || null, adapter, targetId, type, planHash: manifest.orchestration.planHash, attempt: previousFailures + 1 };
   const idempotencyKey = hash(material);
   const existing = manifest.actions.find((item) => item.idempotencyKey === idempotencyKey && !["failed", "cancelled"].includes(item.status));
@@ -428,6 +491,9 @@ function commandNext(options) {
       persist(runDirectory, manifest, "run.blocked", manifest.coordinatorId, manifest.runId, { reason: "no-adapter", actionIds: [action.id] });
       return created;
     }
+    if (adapter !== manifest.orchestration.adapter && manifest.participants.some(item => item.writeScopes.length && item.worktree?.mode === "isolated")) {
+      fail("Adapter fallback cannot preserve isolated write endpoints; use an explicitly revised plan");
+    }
     const workMap = new Map(manifest.workItems.map((item) => [item.id, item]));
     for (const item of manifest.workItems) {
       if ((item.status === "pending" || item.status === "ready") && dependenciesComplete(item, workMap)) {
@@ -438,6 +504,7 @@ function commandNext(options) {
         const action = authorized
           ? createAction(manifest, item, adapter, null, requiredAuthorization)
           : createAction(manifest, item, "human", "request-authorization", requiredAuthorization);
+        if (adapter !== manifest.orchestration.adapter) action.fallbackReason = `adapter-unavailable-or-unknown:${manifest.orchestration.adapter}`;
         created.push(action);
       }
     }
@@ -477,7 +544,7 @@ function commandAck(options) {
     action.result = normalized;
     action.status = normalized.status === "succeeded" ? "acknowledged" : normalized.status;
     const work = manifest.workItems.find((item) => item.id === action.workItemId);
-    if (work) {
+    if (work && !["request-authorization", "prepare-integration"].includes(action.type)) {
       work.attempts.push({ actionId, status: normalized.status, at: now(), artifactRefs: normalized.artifactRefs, error: normalized.error });
       if (normalized.status === "succeeded") {
         work.status = "completed";
@@ -491,10 +558,11 @@ function commandAck(options) {
           manifest.feedbackDecision.reviewState = "not-eligible";
           manifest.feedbackDecision.candidatesRef = null;
           manifest.feedbackDecision.decisions = [];
+          delete manifest.feedbackDecision.skipReason;
           manifest.verification.status = "stale";
           manifest.verification.lastMutationSequence = manifest.eventLog.lastSequence + 1;
         }
-      } else if (work.attempts.length < work.maxAttempts) work.status = "pending";
+      } else if (normalized.status === "failed" && work.attempts.length < work.maxAttempts) work.status = "pending";
       else work.status = normalized.status;
     }
     if (action.type === "deliver-message" && normalized.status === "succeeded") {
@@ -587,6 +655,9 @@ function commandTransition(options) {
         grantedBy: status === "granted" ? (options.actor || "user") : null
       };
       if (key === "collaborationPlan" && status === "granted") manifest.status = "planned";
+      if (status === "granted") for (const action of manifest.actions) {
+        if (action.type === "request-authorization" && action.authorizationCategory === key && action.scopeHash === manifest.orchestration.planHash && action.status === "pending") action.status = "acknowledged";
+      }
     } else if (entity === "plan") {
       if (!options.patchFile) fail("plan transition requires --patch-file");
       const patch = readJson(path.resolve(options.patchFile));
@@ -600,10 +671,15 @@ function commandTransition(options) {
         fail(`feedbackApplicabilityReason must match taskKind ${nextTaskKind}`);
       }
       manifest.taskKind = nextTaskKind;
+      if (patch.repositoryRoot) manifest.repositoryRoot = path.resolve(patch.repositoryRoot);
       if (patch.participants) manifest.participants = patch.participants.map(normalizeParticipant);
       if (patch.workItems) manifest.workItems = patch.workItems.map((item, index) => normalizeWorkItem(item, index, manifest.coordinatorId));
       if (patch.orchestrationMode) manifest.orchestration.mode = patch.orchestrationMode;
       if (patch.adapter) manifest.orchestration.adapter = patch.adapter;
+      if (patch.feedbackReviewPolicy) {
+        if (!["always", "on-signal"].includes(patch.feedbackReviewPolicy)) fail("Invalid feedbackReviewPolicy");
+        manifest.feedbackReviewPolicy = patch.feedbackReviewPolicy;
+      }
       resetTaskLifecycle(manifest);
       manifest.orchestration.planHash = hash(planMaterial(manifest));
       manifest.authorizations.collaborationPlan = { state: "revoked", scopeHash: null, grantedAt: null, grantedBy: null };
@@ -624,6 +700,11 @@ function commandTransition(options) {
         manifest.feedbackDecision.reviewState = "not-eligible";
         manifest.feedbackDecision.candidatesRef = null;
         manifest.feedbackDecision.decisions = [];
+        delete manifest.feedbackDecision.skipReason;
+        if (status === "implementing") {
+          manifest.verification.status = "stale";
+          manifest.verification.lastMutationSequence = manifest.eventLog.lastSequence + 1;
+        }
       }
       if (status === "accepted" && manifest.feedbackDecision.applicable) manifest.feedbackDecision.reviewState = "pending";
       if (status === "accepted" && !manifest.feedbackDecision.applicable) manifest.feedbackDecision.reviewState = "not-eligible";
@@ -633,6 +714,10 @@ function commandTransition(options) {
       if (!(TRANSITIONS.maintenance[current] || []).includes(status)) fail(`Invalid maintenance transition: ${current} -> ${status}`);
       if (["locally-verified", "maintenance-complete"].includes(status) && !options.evidenceRef) fail(`${status} requires --evidence-ref`);
       manifest.maintenance.status = status;
+      if (status === "maintaining") {
+        manifest.verification.status = "stale";
+        manifest.verification.lastMutationSequence = manifest.eventLog.lastSequence + 1;
+      }
       if (options.evidenceRef) manifest.maintenance.evidenceRefs = [...new Set([...manifest.maintenance.evidenceRefs, options.evidenceRef])];
       manifest.maintenance.completedAt = status === "maintenance-complete" ? now() : null;
       manifest.maintenance.completedBy = status === "maintenance-complete" ? (options.actor || manifest.coordinatorId) : null;
@@ -640,11 +725,18 @@ function commandTransition(options) {
       if (manifest.taskKind !== "business-demand") fail("Feedback review is only available for business-demand tasks");
       if (!manifest.feedbackDecision.applicable) fail("Feedback review is not applicable to this task");
       if (manifest.acceptance.status !== "accepted") fail("Feedback review is not eligible before accepted");
-      if (!["pending", "completed"].includes(status)) fail(`Invalid feedback review state: ${status}`);
+      if (!["pending", "completed", "skipped"].includes(status)) fail(`Invalid feedback review state: ${status}`);
+      if (status === "skipped" && ((manifest.feedbackReviewPolicy || "always") !== "on-signal" || options.reason !== "no-signal" || manifest.feedbackDecision.candidatesRef || manifest.feedbackDecision.decisions.length)) fail("skipped requires on-signal, no-signal and no candidates");
+      delete manifest.feedbackDecision.skipReason;
+      if (status === "skipped") manifest.feedbackDecision.skipReason = "no-signal";
       manifest.feedbackDecision.reviewState = status;
       manifest.feedbackDecision.candidatesRef = options.evidenceRef || manifest.feedbackDecision.candidatesRef;
     } else if (entity === "verification") {
       if (!["not-run", "passed", "failed", "stale"].includes(status)) fail(`Invalid verification status: ${status}`);
+      if (status === "passed") {
+        manifest.verification.evidenceSnapshots = captureVerification(manifest, options);
+        manifest.verification.scopes = manifest.verification.evidenceSnapshots.map(value => ({ repoRoot: value.repoRoot, scopes: value.scopes }));
+      }
       manifest.verification.status = status;
       manifest.verification.verifierId = options.actor || manifest.verification.verifierId;
       manifest.verification.verifiedThroughSequence = status === "passed" ? manifest.eventLog.lastSequence + 1 : manifest.verification.verifiedThroughSequence;
@@ -654,6 +746,15 @@ function commandTransition(options) {
       if (!item) fail(`Unknown work item: ${options.id}`);
       if (!["pending", "ready", "dispatched", "running", "blocked", "completed", "failed", "skipped"].includes(status)) fail(`Invalid work item status: ${status}`);
       item.status = status;
+      if (item.writeScopes.length) {
+        resetTaskLifecycle(manifest);
+        manifest.verification.status = "stale";
+        manifest.verification.lastMutationSequence = manifest.eventLog.lastSequence + 1;
+      }
+    } else if (entity === "action") {
+      const action = manifest.actions.find(item => item.id === options.id);
+      if (!action || !["pending", "blocked"].includes(action.status) || status !== "cancelled" || options.actor !== "user" || !options.evidenceRef) fail("action cancellation requires pending/blocked action, --actor user and --evidence-ref resolving its outcome");
+      action.status = "cancelled";
     } else if (entity === "message") {
       const message = manifest.messages.find((value) => value.id === options.id);
       if (!message) fail(`Unknown message: ${options.id}`);
@@ -663,10 +764,8 @@ function commandTransition(options) {
       if (status === "acknowledged") message.ackedAt = now();
     } else if (entity === "run") {
       if (status === "completed") {
-        if (manifest.taskKind === "business-demand" && manifest.acceptance.status !== "accepted") fail("Business-demand run cannot complete before accepted");
-        if (manifest.taskKind === "framework-maintenance" && manifest.maintenance.status !== "maintenance-complete") fail("Framework-maintenance run cannot complete before maintenance-complete");
-        if (manifest.workItems.some((item) => !TERMINAL_WORK.has(item.status))) fail("Run cannot complete with unfinished work items");
-        if (manifest.verification.status !== "passed" || manifest.verification.verifiedThroughSequence < manifest.verification.lastMutationSequence) fail("Run cannot complete with stale or missing verification");
+        const issues = validateV2(manifest, runDirectory, true);
+        if (issues.length) fail(`Run cannot complete: ${issues.join("; ")}`);
         manifest.completedAt = now();
       }
       manifest.status = status;
@@ -704,10 +803,13 @@ function validateV2(manifest, runDirectory, finalOnly, settings = {}) {
   const issues = [];
   if (manifest.schemaVersion !== SCHEMA_VERSION) issues.push(`schemaVersion must be ${SCHEMA_VERSION}`);
   if (!TASK_KINDS.has(manifest.taskKind)) issues.push("taskKind must be business-demand, framework-maintenance, or other");
+  if (!["always", "on-signal"].includes(manifest.feedbackReviewPolicy || "always")) issues.push("Invalid feedbackReviewPolicy");
+  if (manifest.feedbackDecision?.reviewState === "skipped" && ((manifest.feedbackReviewPolicy || "always") !== "on-signal" || manifest.feedbackDecision.skipReason !== "no-signal" || manifest.feedbackDecision.candidatesRef || manifest.feedbackDecision.decisions.length)) issues.push("invalid skipped feedback review");
   if (!manifest.runId) issues.push("runId is required");
   if (!manifest.workflow?.id) issues.push("workflow.id is required");
   if (!["fast", "full", "guarded"].includes(manifest.executionPath)) issues.push("executionPath must be fast, full, or guarded");
   if (!["serial", "subagent", "multi-session"].includes(manifest.orchestration?.mode)) issues.push("orchestration.mode must be serial, subagent, or multi-session");
+  if ([manifest.orchestration.adapter, ...manifest.orchestration.fallbacks].some(name => ["session", "codex-session"].includes(name)) && manifest.orchestration.mode !== "multi-session") issues.push("session adapters require multi-session authorization and isolation");
   const coordinators = manifest.participants.filter((item) => item.id === manifest.coordinatorId && item.role === "coordinator");
   if (coordinators.length !== 1) issues.push("exactly one coordinator participant is required");
   const participantIds = new Set(manifest.participants.map((item) => item.id));
@@ -760,11 +862,7 @@ function validateV2(manifest, runDirectory, finalOnly, settings = {}) {
   if (manifest.authorizations.feedbackWrite.state === "granted" && (!manifest.feedbackDecision.applicable || manifest.acceptance.status !== "accepted")) issues.push("feedbackWrite requires applicable feedback review and accepted state");
   if (manifest.verification.status === "passed" && manifest.verification.verifiedThroughSequence < manifest.verification.lastMutationSequence) issues.push("verification is stale after final mutation");
   if (finalOnly) {
-    if (manifest.workItems.some((item) => !TERMINAL_WORK.has(item.status))) issues.push("final validation requires terminal work items");
-    if (manifest.actions.some((item) => item.status === "pending")) issues.push("final validation requires no pending actions");
-    if (manifest.verification.status !== "passed") issues.push("final validation requires passed verification");
-    if (manifest.taskKind === "business-demand" && manifest.acceptance.status !== "accepted") issues.push("final business-demand validation requires accepted state");
-    if (manifest.taskKind === "framework-maintenance" && manifest.maintenance.status !== "maintenance-complete") issues.push("final framework-maintenance validation requires maintenance-complete state");
+    issues.push(...completionIssues(manifest));
   }
   if (!settings.skipProjection && manifest.eventLog?.projectionHash !== projectionHash(manifest)) issues.push("manifest projectionHash mismatch");
   if (runDirectory) {
@@ -829,7 +927,7 @@ function commandStatus(options) {
 }
 
 function usage() {
-  return `agent-orchestrator.js <command> --run-directory <path> [options]\n\nCommands:\n  init        Create a schema 2.0 run from --plan <json>\n  next        Emit currently executable idempotent actions\n  ack         Record adapter result from --result <json>\n  message     Persist coordinator-routed communication\n  transition  Advance authorization, work, verification, demand acceptance, maintenance, feedback, or run state\n  status      Print current projection\n  validate    Validate consistency; add --final for completion gates\n`;
+  return `agent-orchestrator.js <command> --run-directory <path> [options]\n\nCommands:\n  init        Create a schema 2.0 run from --plan <json>\n  next        Emit currently executable idempotent actions\n  ack         Record adapter result from --result <json>\n  message     Persist coordinator-routed communication\n  transition  Advance authorization, work, verification, demand acceptance, maintenance, feedback, or run state\n  status      Print current projection\n  validate    Validate consistency; add --final for completion gates\n\nVerification: transition --entity verification --status passed --verification-file <bindings.json>\nBindings: [{repoRoot, suite, evidenceFile}] from validation-evidence.js; required for writes.\nFeedback: transition --entity feedback-decision --status skipped --reason no-signal (on-signal only).\nRecovery: transition --entity action --id <id> --status cancelled --actor user --evidence-ref <resolution>.\n`;
 }
 
 function main(argv = process.argv.slice(2)) {

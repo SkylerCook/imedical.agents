@@ -2,6 +2,12 @@
 
 本规范只管理 `imedical.agents` 源仓中的插件和根级独立 skill。它不接入业务项目安装器、更新器、thin-index 或 Git hook，不改变 `docs/update-agents.md` 规定的部署与更新流程。
 
+## 同步内容的事实来源
+
+同步检查不要求每份文档都产生修改。版本事实只写 manifest（根级独立 skill 用 frontmatter）；操作约束由 owner 的 rule/reference 维护，skill 与 README 保留触发条件和引用；项目迁移说明归 docs/update-agents.md，发布记录描述本次兼容影响。维护摘要只留当前状态与入口，日志记录本轮结果，backlog 只留未完成事项。
+
+变更时核对这些入口是否仍准确：事实变化才改正文，路径变化检查引用可达；不要为满足同步清单复制同一段规则。已提交发布记录保持不可变，未提交的本轮发布草稿随最终范围更新。
+
 ## 版本单元
 
 - 插件以 `plugins/<name>/.agents-plugin/plugin.json` 的 `version` 为事实来源。

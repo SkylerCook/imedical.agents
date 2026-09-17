@@ -36,9 +36,9 @@ recommendedNextStep: 建议下一步
 filesChanged: none 或受控路径
 ```
 
-## schema 1.0–1.2 历史 i18n 运行目录契约
+## i18n 阶段报告约定
 
-P1 串行或多智能体验证统一使用：
+历史 fixture 与专项验证样本可使用以下命名；新运行实际报告由 workflow/work item 决定：
 
 ```text
 docs/agent-reports/{ticket-or-topic}/
@@ -52,51 +52,18 @@ docs/agent-reports/{ticket-or-topic}/
   40-summary.md
 ```
 
-不适用阶段也必须保留对应报告，并写明原因，确保 serial 与 multi-agent 使用同一逻辑完成条件。
+验证样本保留逐阶段报告；普通运行允许合并报告，不适用阶段只记录原因，完成条件不减少。
 
 ### `00-run-manifest.json`
 
-运行开始时从 `plugins/agent-context-kit/templates/agent-run-manifest.json` 复制结构并立即填写，不得凭记忆手写字段或在结束后重构阶段时间。
+新运行通过 agent-orchestrator.js init --plan 创建 schema 2.0，不手写投影。字段、授权、恢复、反馈与最终验证以 orchestration-protocol.md 和 docs/agent-orchestration.md 为准。
 
-manifest 固定包含：
-
-- `schemaVersion`、`topic`、`runMode`、`retrospective`。
-- `authorization.multiAgent` 与 `authorization.remoteWrite`。
-- `startedAt`、`completedAt`、`elapsedSeconds`、`timingReason`。
-- `stages[]`：`name`、`actor`、`status`、起止时间、`attempts[]`、报告路径、`reusedEvidence`；阶段状态只允许 `completed`、`not-applicable`、`blocked`。
-- `failures[]`：稳定错误签名、类别、同类重试次数、是否历史违规、降级方式和结果。
-- `qualityGates`：handoff、脱敏、ObjectScript、XML 和并行效率结果。
-- `remoteActions[]`：记录动作类型、是否写入、授权、`state`、`terminal` 和脱敏结果，不记录连接或载荷内容。
-
-schema `1.2` 还必须包含：
-
-- `modeHistory[]`：模式、选择时间和原因；真实 `multi-agent` 的第一条模式必须就是 `multi-agent`。
-- `ownership[]`：actor、阶段和互斥路径；相同写路径不得分配给不同 actor。
-- `capabilities[]`：本次任务实际需要能力的探针、状态和脱敏结果。
-- `finalization`：是否已满足最终验证条件、检查时间和终态阻塞。
-- `verification`：固定 scope、scope 内最后修改时间和 Verifier 实际检查的版本标识。
-- 每个适用阶段至少一个 attempt；attempt 状态允许 `completed`、`blocked`、`suspended`，恢复时递增编号，不创建临时阶段名。
-- 写入型 `remoteActions[]` 必须有非空 `scope` 和 `authorizationCategory`；类别区分 `translation-data-write`、`business-code-deploy` 与 `tool-internal-execution`。
-
-validator 继续只读兼容 schema `1.0` / `1.1` / `1.2` 历史产物；新运行使用 schema 2.0，不把旧阶段字段复制到新 manifest。
-
-时间使用带时区 ISO 8601。`retrospective` 无法取得阶段时间时允许 `null`，但必须填写 `timingReason`；其它模式必须填写实际时间。
-
-### 机械门禁
-
-- `multi-agent` 要求 `authorization.multiAgent=true`。
-- 任一 `remoteActions[].write=true` 要求运行级和动作级远程写入授权均为 `true`。
-- 非复盘运行的阶段时间必须实时记录，`timingReason` 为空；禁止使用 reconstructed/approximate 时间通过门禁。
-- 真实 `multi-agent` 必须从运行开始即选择该模式，并提供无重叠的 `ownership[]`。
-- 写入动作必须有授权类别和 scope；授权 scope 不得由 Agent 自行扩大。
-- `verification.lastMutationAt` 不得晚于 Verifier 开始时间，`verification.revision` 不得为空；scope 只包含业务代码、本地 i18n 产物和授权远程读回。
-- 所有远程动作必须为终态、无 suspended attempt 且 `finalization.ready=true` 后，才能启动 Verifier。
-- 非复盘运行中，同一载荷编译失败签名的等价重试不得超过 1 次。
-- XML 阶段触发时必须记录元数据、解析、源语言残留和 fallback 验证结果。
-- 报告禁止出现服务器地址、账号、密码、token、namespace、远程路径、长 Base64 或完整 XML 载荷。
-- 并行阶段至少有两个活动耗时不低于 60 秒时，attempt 活动区间并集不得高于这些活动耗时之和的 75%；暂停间隔不计入活动窗口，否则标记 `not-applicable`。
-
-使用 `plugins/agent-context-kit/scripts/validate-agent-run.ps1 -RunDirectory <run-directory>` 执行事后只读校验。该脚本只验证产物，不负责调度 Agent 或执行远程动作。
+- participants/workItems 声明 owner、依赖、读写范围；events.jsonl 是追加事实源。
+- actions 的 pending/blocked 不能成功完成；workItems[].attempts 记录真实尝试，未知结果先核实。
+- verification.scopes/evidenceSnapshots 覆盖实际业务代码、本地产物和已授权远端读回；完成时复核指纹。
+- 阶段报告属于交接证据，不能代替实际源码、授权、执行和验收结果。不同角色不是必须启动不同会话。
+- schema 1.0–1.2 历史样本保持只读，其 stages/remoteActions/finalization 字段不复制到新 manifest；旧样本规范由对应 fixture 与 legacy validator 保存。
+- 不记录凭据、患者信息或完整远程载荷；跨模型性能只能来自真实轨迹，不设机械并行耗时达标比例。
 
 ## 事实报告
 

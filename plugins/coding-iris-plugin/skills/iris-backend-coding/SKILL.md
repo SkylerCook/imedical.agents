@@ -11,6 +11,10 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 
 当任务涉及 IRIS ObjectScript、`.cls`、BLH/DATA/SQL、Broker、Query、SQL 写入层或后端 MCP 编译验证时使用本 Skill。
 
+## 路由与默认方法
+
+执行路径统一由 rules/iris_coding_general.md 判定；guidanceMode 按共享 execution-guidance 协议解析。步骤可合并、重排，硬约束不变；不因文件数自动升级、不因 full/guarded 自动建 run。
+
 ## 流程
 
 1. 先读取目标工程 `.agents/config/iris_project_profile.md`。
