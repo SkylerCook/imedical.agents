@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+迁移 `scripts/migrate-execution-entry.js` 默认报告，显式 `--write` 才替换已知旧句并补齐缺失的辅助协议路由；不写 profile。guidanceMode 是可选配置，未配置按 auto 处理；模板只声明 optional-key，不提供可自动合并的默认配置行。
+
 用于初始化和维护 Agent 项目上下文文件的通用插件。
 
 ## 能力范围

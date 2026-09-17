@@ -123,7 +123,7 @@ try {
     assert.equal(result.status, 0, result.stderr);
     return JSON.parse(result.stdout);
   }
-  assert.equal(migrate().changes.length, 1);
+  assert.equal(migrate().changes.length, 2);
   assert.equal(fs.readFileSync(path.join(project, "AGENTS.md"), "utf8"), entry);
   migrate(["--write"]);
   const updated = fs.readFileSync(path.join(project, "AGENTS.md"), "utf8");
@@ -131,6 +131,15 @@ try {
   assert(updated.includes('普通修改不例行生成维护材料'));
   assert.equal(migrate(["--write"]).changes.length, 0);
   assert(!fs.existsSync(path.join(project, ".agents/config/project_context_profile.md")));
+  assert(updated.includes('.agents/agents/_shared/execution-guidance.md'));
+  const { migrateText } = require('../../plugins/agent-context-kit/scripts/migrate-execution-entry.js');
+  for (const text of ['# Custom\nUser text', '\ufeff# Custom\r\nUser text\r\n', '<!-- .agents/agents/_shared/execution-guidance.md -->\n']) {
+    const planned = migrateText(text);
+    assert.equal(planned.changes.length, 1);
+    assert(planned.content.startsWith(text));
+    assert.equal(migrateText(planned.content).changes.length, 0);
+    if (text.includes('\r\n')) assert(!/(?<!\r)\n/.test(planned.content));
+  }
   // Unknown custom clauses must block writes without damaging project-owned content.
   fs.mkdirSync(path.join(project, ".agents/config"), { recursive: true });
   const profile = path.join(project, ".agents/config/project_context_profile.md");
@@ -150,6 +159,43 @@ try {
   assert.notEqual(missing.status, 0);
   assert.equal(fs.readFileSync(path.join(project, "AGENTS.md"), "utf8"), entry);
   assert.deepEqual(fs.readFileSync(profile), profileBefore);
+
+  // Execute the actual updater merge functions under both supported Windows shells.
+  if (process.platform === 'win32') {
+    const updater = path.join(root, 'scripts/update-agents.ps1').replace(/'/g, "''");
+    const template = path.join(root, 'plugins/agent-context-kit/templates/project_context_profile.template.md').replace(/'/g, "''");
+    const fixture = path.join(temporary, 'config-merge').replace(/'/g, "''");
+    const ps = `$ErrorActionPreference='Stop'
+$ast=[System.Management.Automation.Language.Parser]::ParseFile('${updater}',[ref]$null,[ref]$null)
+$names=@('Get-RelativePathPortable','Write-UpdateResult','Get-MarkdownConfigEntries','Merge-ConfigTemplate')
+foreach($name in $names){$fn=$ast.Find({param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name},$true);Invoke-Expression $fn.Extent.Text}
+$dir='${fixture}'
+New-Item -ItemType Directory -Force -Path $dir | Out-Null
+$template='${template}'
+foreach($choice in @('unset','auto','concise','assisted')){
+ $target=Join-Path $dir ($choice+'.md')
+ Copy-Item -LiteralPath $template -Destination $target -Force
+ if($choice -ne 'unset'){Add-Content -LiteralPath $target -Encoding UTF8 -Value ('- guidanceMode: '+$choice)}
+ $before=[Convert]::ToBase64String([IO.File]::ReadAllBytes($target))
+ foreach($mode in @('DryRun','Write','Write','Check')){
+  $results=@(Merge-ConfigTemplate -TemplatePath $template -TargetPath $target -ProjectRootFull $dir -PluginName agent-context-kit -Mode $mode)
+  if(@($results | Where-Object {$_.reason -eq 'guidanceMode'}).Count){throw 'Optional choice incorrectly reported as missing or deprecated'}
+ }
+ if([Convert]::ToBase64String([IO.File]::ReadAllBytes($target)) -ne $before){throw 'User configuration changed'}
+ if($choice -eq 'unset' -and (Get-MarkdownConfigEntries $target).ContainsKey('guidanceMode')){throw 'Default was written'}
+}
+$newTarget=Join-Path $dir 'new.md'
+Remove-Item -LiteralPath $newTarget -ErrorAction SilentlyContinue
+$null=Merge-ConfigTemplate -TemplatePath $template -TargetPath $newTarget -ProjectRootFull $dir -PluginName agent-context-kit -Mode Write
+if((Get-MarkdownConfigEntries $newTarget).ContainsKey('guidanceMode')){throw 'New project default was written'}
+Write-Output 'optional guidance merge passed'
+`;
+    for (const shell of ['powershell.exe','pwsh.exe']) {
+      const result = spawnSync(shell, ['-NoProfile','-EncodedCommand',Buffer.from(ps,'utf16le').toString('base64')], {encoding:'utf8', windowsHide:true});
+      assert.equal(result.status,0,result.stdout + result.stderr);
+      console.log(shell + ': optional guidance merge passed');
+    }
+  }
   console.log("agent evolution behavior tests passed");
 } finally {
   fs.rmSync(temporary, { recursive: true, force: true });

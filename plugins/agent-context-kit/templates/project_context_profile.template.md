@@ -11,8 +11,8 @@
 
 ## 辅助模式
 
-- guidanceMode: auto
-- 可选 auto | concise | assisted；缺省 auto，当前用户明确选择优先。此项只控制辅助资料，不改变权限、领域规则和验证要求；Agent 不自动修改此配置。
+<!-- agents-update:optional-key guidanceMode -->
+`guidanceMode` 可选 auto | concise | assisted；未配置时按 auto 处理。仅在用户明确选择后增加配置项，当前用户明确选择优先。此项只控制辅助资料，不改变权限、领域规则和验证要求；普通更新不自动写入默认值。
 
 ## 判断规则
 

@@ -74,3 +74,15 @@ agent-evolution 专项结果已由 validation-evidence.js record 保存到工具
 写入验证现要求计划中的 repositoryRoot 或参与者绝对 worktree.ref 与证据仓库一致，不能只靠相同路径名匹配另一仓库的验证；新增未声明仓库身份的拒绝用例。agent-evolution 与 agent-orchestrator 两套回归再次通过。新增可选 repositoryRoot 才进入 planHash，旧记录未声明字段时哈希不变。
 
 用户已确认本轮 IRIS 相关插件可优化；xc（信创）插件不在授权维护范围，源码与历史发布记录保持不动。待转交材料见 agent-evolution-maintainer-handoff.md。
+
+## 普通更新实测及 0.3.1 修复
+
+真实主工程与 10 个 Overlay 完成 DryRun → Write → Check，两个 Node adapter 均通过；MCP 可执行文件占用导致首次拉取部分失败，经用户授权停止进程、核对更新文件后恢复，重试成功。运行时离线版本为 1.4.2，未连接业务服务器。
+
+实测发现默认 guidanceMode 被模板合并器写入待确认区、入口迁移未补缺失路由。0.3.1 将模板默认值改为 optional-key 声明，更新器保留合法显式配置且不误报废弃；迁移器增加缺失路由，默认报告、显式写入并检查引用存在。
+
+补充回归通过（agent-evolution，约 136 秒），实际调用 PowerShell 5.1 和 7 的配置合并函数，覆盖缺省、新配置和显式 auto/concise/assisted 的 DryRun/Write/Check 与幂等；迁移覆盖 BOM、换行、自定义内容、缺失共享文件及未知条款拒写。已记录证据指纹并核对匹配。
+
+11 份真实项目 profile 的误追加块按更新前哈希和完整后缀校验后精确移除，原始字节恢复；11 个项目入口各新增 1 条辅助协议路由，二次运行零变更，原文保持。共享能力副本仍为已发布 a529e78；源仓 0.3.1 补丁尚待提交发布，发布前不要用旧模板重复 Write。此验证不代表跨模型提效或非 Windows 平台实测通过。
+
+本补丁 HEAD/worktree 版本比较确认唯一组件升级为 agent-context-kit 0.3.0 → 0.3.1，无新增版本问题；整体仍因既有信创 1.0.2 发布记录缺少 commit 而失败。源仓 diff 检查通过。

@@ -1,6 +1,6 @@
 {
   "name": "agent-context-kit",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "displayName": "Agent Context Kit",
   "description": "Reusable project context plus schema 2.0 agent run templates, validation, orchestration entrypoints, and separate demand and framework-maintenance lifecycles.",
   "entry": "AGENTS.md",

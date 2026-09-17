@@ -244,6 +244,7 @@ function Merge-ConfigTemplate {
   $results = New-Object System.Collections.Generic.List[object]
 
   $templateText = [System.IO.File]::ReadAllText($TemplatePath, [System.Text.Encoding]::UTF8)
+  $optionalKeys = @([regex]::Matches($templateText, '<!--\s*agents-update:optional-key\s+([A-Za-z][A-Za-z0-9_-]*)\s*-->') | ForEach-Object { $_.Groups[1].Value })
   if ($templateText -match "agents-update:review-required") {
     $results.Add((Write-UpdateResult -Status "config-review-required" -Target $targetRel -Source $templateRel -Reason "template requests manual review" -PluginName $PluginName -Phase "config"))
   }
@@ -278,7 +279,7 @@ function Merge-ConfigTemplate {
   }
 
   foreach ($key in ($targetEntries.Keys | Sort-Object)) {
-    if (-not $templateEntries.ContainsKey($key)) {
+    if ((-not $templateEntries.ContainsKey($key)) -and ($optionalKeys -notcontains $key)) {
       $results.Add((Write-UpdateResult -Status "config-deprecated-candidate" -Target $targetRel -Source $templateRel -Reason $key -PluginName $PluginName -Phase "config"))
     }
   }

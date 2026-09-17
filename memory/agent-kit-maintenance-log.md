@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+- 2026-09-17 实测修复：profile 的 guidanceMode 改为合法可选键且不自动生成默认配置，入口迁移补齐缺失路由并保留 BOM/换行与自定义正文；agent-context-kit 0.3.1。验证结果见 docs/validation/agent-evolution.md。
+
 - 治疗表单入口补充优化：按任务加载交付章节，复用范围内已有明确部署授权；服务端原子回滚与客户端 rollback 分开表达，运行时门禁不变。演进行为补充回归通过，迁移拒写保护、文档引用与 diff 检查通过；版本检查仍仅有既有 xc 发布字段阻塞。
 
 本文件记录近期维护流水摘要和验证结论。长期决策见 `agent-kit-maintenance-decisions.md`，后续治理队列见 `agent-kit-maintenance-backlog.md`，入口摘要见 `agent-kit-maintenance-memory.md`。

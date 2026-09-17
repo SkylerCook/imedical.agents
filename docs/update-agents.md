@@ -1,5 +1,7 @@
 # .agents 安装与更新 Runbook
 
+agent-context-kit v0.3.1 修复普通更新把 guidanceMode 默认值追加到待确认区的问题：模板使用 `agents-update:optional-key` 声明合法可选键，缺省不写入，已有明确配置保留且不误报废弃。项目入口迁移脚本现会报告并补齐缺失的执行辅助路由；仍需显式 `--write`，普通更新不改 AGENTS。历史误追加项只有能确认由本次更新生成且未被用户修改时才定点移除，不按字段值 auto 批量删除。
+
 coding-iris-plugin 0.10.0 的部署保护随既有 plugins 与 vendor 分发。必须一并更新 deploy-guard.js、deploy-protected.js、前后端入口与 protected-file.py；不新增连接配置。用户私有 .iris-deploy-state 不属于更新/清理范围。旧后端位置参数须迁移为 --demand/--files/--execute，先建立 Git 基线会话。未提交的 canonical 开发版可在核对目标无分歧后同步精确运行时文件，再用更新器 -NoPull 刷新生成层；此状态是本地待发布副本，不能声称已从远端发布。
 
 
@@ -661,4 +663,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 4. 增加 .agents/agents/_shared/execution-guidance.md 路由。profile 缺少 guidanceMode 按 auto 读取，只有用户明确选择时才落盘 auto/concise/assisted；不按模型名称自动改配置。
 5. 检查共享协议和 thin-index source 实际存在；通用/前端/后端/i18n 入口均引用同一分流。无关项目内容逐字保留，有自定义冲突时列明差异，不整体替换。
 
-迁移辅助脚本位于 agent-context-kit/scripts/migrate-execution-entry.js，默认只报告精确已知句子的替换，--write 仅在授权目标项目使用；无法识别的自定义表述报告人工检查。它不接入安装器/更新器，不写 profile，不删除文件，不扫描其它工程。项目入口迁移与能力包更新分别验收。真实业务副本本次不自动同步。
+迁移辅助脚本位于 agent-context-kit/scripts/migrate-execution-entry.js，默认报告精确已知句子的替换和缺失的辅助协议路由，--write 仅在授权目标项目使用；无法识别的自定义表述报告人工检查。它不接入安装器/更新器，不写 profile，不删除文件，不扫描其它工程。项目入口迁移与能力包更新分别验收。真实业务副本本次不自动同步。

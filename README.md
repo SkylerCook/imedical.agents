@@ -1,5 +1,7 @@
 # imedical.agents
 
+上下文迁移补丁：agent-context-kit v0.3.1 避免默认辅助模式自动落盘，补齐项目入口的执行辅助协议路由；现有配置和入口迁移见 docs/update-agents.md。
+
 CSP 部署编译统一使用 `coding-iris-plugin/scripts/iris-tools/compile-csp.js`：上传后直接调用 Atelier 编译接口，支持一次批量请求、错误检查和耗时输出，避免反复探测 MCP 编译路径。
 
 SFTP 工具纳入 [vendor/sftp-server](vendor/sftp-server/README.md)：保留五个 MCP 工具名，补齐路径约束、内容比较、原子替换和 SHA-256 校验。`coding-iris-plugin` v0.9.0 为新项目提供默认禁用的配置；更新时自动迁移可识别的既有标准启动参数，显式 custom 或自定义参数保留，不要求 runtime opt-in，也不自动安装 Python 依赖。

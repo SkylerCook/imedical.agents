@@ -18,12 +18,21 @@ function migrateText(text) {
   }
   const warnings = [];
   if (/第三个文件|每次.*feedback|验收后.*固定报告/.test(content)) warnings.push("Unrecognized custom routing/wrap-up text: review manually; retained unchanged.");
+  const guidancePath = ".agents/agents/_shared/execution-guidance.md";
+  // A commented-out or fenced example is not an active project route.
+  const active = content.replace(/<!--[\s\S]*?-->/g, "").replace(/^\s*(`{3,}|~{3,})[^\r\n]*\r?\n[\s\S]*?^\s*\1\s*$/gm, "");
+  if (!active.includes(guidancePath)) {
+    const newline = content.includes("\r\n") ? "\r\n" : "\n";
+    const addition = "## 执行辅助" + newline + newline + "按任务遵循 [执行辅助协议](" + guidancePath + ")；辅助程度不改变权限、领域契约和验证要求。未配置 guidanceMode 时按 auto 处理，不自动写入项目配置。" + newline;
+    content += (content.endsWith(newline) ? newline : newline + newline) + addition;
+    changes.push({ kind: "guidance-route", after: addition });
+  }
   return { content, changes, warnings };
 }
 
 function main(argv) {
   if (!argv.length || argv.includes("--help")) {
-    process.stdout.write("migrate-execution-entry.js --project-root <path> [--write]\nOnly replaces known sentences in AGENTS.md; preserves profile and custom content.\n");
+    process.stdout.write("migrate-execution-entry.js --project-root <path> [--write]\nReplaces known sentences and adds a missing guidance route in AGENTS.md; preserves profile and custom content.\n");
     return;
   }
   let projectRoot;

@@ -4,6 +4,8 @@
 
 ## 下一步工作队列
 
+- agent-context-kit 0.3.1 普通更新实测修复已通过专项并定点修复项目入口/profile；尚待提交发布后重新普通更新，确认旧模板不再追加 guidanceMode。业务能力副本当前保持已发布版本，不复制未提交补丁。
+
 - 版本治理既有阻塞：已提交 imedicalxc-doctor-extend-engineer/1.0.2 发布记录缺少 commit，当前清单与 HEAD/worktree 比较均失败。记录不可变；需单独确定历史记录纠错机制，本轮不篡改或绕过门禁。
 
 - 框架演进实测：按 docs/validation/agent-evolution.md 固定五类简单任务与复杂/部署离线场景，获取前沿/较弱模型及两种宿主的前后真实轨迹。Claude CLI 可登录但路由冒烟 API unknown 重试后停止，未取得模型行为证据；非 Windows/Node 22 矩阵及真实业务入口迁移待取证。无需重复实现已落地的辅助模式、分流和完成门禁。
