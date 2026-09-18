@@ -232,7 +232,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 ### agent-context-kit
 
-负责初始化和维护业务项目上下文：
+负责初始化、维护及日常优化业务项目上下文；围绕工程实际的定位、修改和验证路径改善编程体验，按目标读取流程，去重时保留约束和已有配置，普通维护不自动启动插件接入：
 
 - `AGENTS.md` 主入口。
 - `.agents/config/project_context_profile.md`。

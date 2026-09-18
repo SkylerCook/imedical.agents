@@ -1,13 +1,13 @@
 ---
 name: project-context-maintenance
-description: Use when initializing or maintaining agent project context such as AGENTS.md, project rules, project memory, project config, plugin thin-index files, or deciding where durable project knowledge should be recorded. 用于初始化或维护项目规则、项目记忆、AGENTS 入口、项目配置和插件 thin-index。
+description: Initialize, maintain, or optimize project context including AGENTS.md, rules, memory, profiles and skill routes. Use for context setup, factual updates, duplicate or stale guidance, and reading-cost reviews; ordinary coding does not trigger routine context maintenance. 用于初始化、维护及日常优化项目上下文。
 ---
 
 # 项目上下文维护
 
 ## 用途
 
-维护 Agent 面向项目的上下文，让后续 Agent 能快速接手，同时避免读取过期、重复或敏感信息。
+维护有利于目标工程编程的上下文：让后续 Agent 更快定位实现、沿用正确模式、执行有效验证并保持工程边界。精简服务于编程体验，不以最短文本、固定文件数或统一模板为目标。
 
 当需要创建、更新、压缩或判断以下内容归属时，使用本 skill：
 
@@ -17,6 +17,24 @@ description: Use when initializing or maintaining agent project context such as 
 - `.agents/config/`
 - `.agents/plugins/`
 - `.agents/skills/` thin-index files
+
+## 场景选择
+
+按本次目标选择，不要求依次执行，也不增加必须落盘的模式字段：
+
+| 场景 | 触发与处理 | 条件资料 |
+|---|---|---|
+| 初始化 | 新建上下文或明确接入插件；判断 contextMode，按证据填充最小入口，保留已有值，完成对应初始化闭环 | [初始化与插件接入](references/initialization.md)；仅选用相关模板 |
+| 维护 | 已有事实、配置、入口或约定变化；定点更新 owner 及引用，缺什么补什么 | 下文内容归属和维护流程；仅插件接入/更新时读初始化资料 |
+| 日常优化 | 用户要求精简、审查效率，或当前授权维护中已发现重复、过时、歧义；按语义去重、分层和澄清 | [上下文优化](references/context-optimization.md) |
+
+只读审计只交付问题与建议；明确要求优化时可直接在授权范围内重组已有上下文。普通业务修改不例行触发本 skill。维护后无新问题就结束，不自动再次初始化、扫描候选插件、生成报告或创建周期任务。
+
+## 面向项目编程
+
+先从允许读取的源码、配置、README 和用户目标了解项目实际工作方式，按当前维护范围取证，不为补齐表格全仓扫描。识别高频开发任务需要的定位入口、可复用模式、工具命令、验证路径和边界；已在专项文档维护的内容只链接。小工程可集中在短入口，多领域工程按任务拆分，不强制相同目录层级。
+
+初始化建立最小可用开发路线；维护随真实变化校正；日常优化围绕反复搜索、错误路由、过时命令、无效确认或漏检等具体摩擦改善。检查资料是否能支持“定位 → 修改 → 验证 → 交付”，而不只是检查长度；详细方法见 [上下文优化](references/context-optimization.md)。
 
 ## 开始前必读
 
@@ -46,15 +64,15 @@ description: Use when initializing or maintaining agent project context such as 
 
 1. 解析 Workspace Context；Overlay 必须先读 `.agents/capability.json` 并通过验证。
 2. 读取当前 `AGENTS.md`。
-3. 运行 ContextRoot 的 `scripts/check-agent-entrypoints.ps1` 检查兼容入口；若失败，只报告可选兼容入口状态，不自动修复。
+3. 仅初始化、入口/链接变化或排查发现问题时，运行 ContextRoot 的 `scripts/check-agent-entrypoints.ps1`；兼容入口异常不阻塞其它维护，不自动修复。
 4. 如存在项目记忆，读取 ContextRoot 的 `memory/project-memory.md`。
 5. 如存在规则索引或相关规则文件，读取对应文件。
-6. 判断目标工程的 `contextMode`，再决定如何生成或维护上下文。
+6. 从既有配置确认 `contextMode`；初始化、模式缺失或用户明确变更工程定位时才重新判定。
 7. 判断待写入内容是项目特定、跨项目可复用，还是临时过程。
 
 ## 渐进式读取
 
-- 先读取 `AGENTS.md`、项目记忆入口和 `.agents/config/plugin_profile.md`，确认上下文模式、插件状态和本次维护目标。
+- 先读取 `AGENTS.md` 和项目记忆入口，确定维护范围；插件状态影响本次操作时读取 `plugin_profile.md`。已持有且未变化的资料复用，不反复打开。
 - 仅当任务涉及安装或更新 `.agents` 时，读取 `.agents/docs/update-agents.md`，不要在本 skill 中重写 runbook。
 - 仅当需要维护某个已启用插件时，继续读取该插件真实 init skill、README、templates 或 thin-index 脚本。
 - 仅当要编辑项目规则、记忆或配置时，读取对应 `.agents/rules/`、`.agents/memory/` 或 `.agents/config/` 文件；不要为了上下文完整性一次性加载所有插件规则。
@@ -72,7 +90,7 @@ description: Use when initializing or maintaining agent project context such as 
 
 - `AGENTS.md` 是唯一事实文件。
 - `CLAUDE.md`、`CODEBUDDY.md` 是可选兼容入口；如存在，只允许是指向 `AGENTS.md` 的 symlink。
-- 不要求模型理解 symlink；维护前只要求运行检查脚本并按固定结果处理。
+- 检查兼容入口时用检查脚本及实际链接目标核对；不得把历史状态当作当前结果。
 - 检查脚本固定输出 `ok`、`missing`、`not-symlink`、`wrong-target`。
 - 若入口为 `missing`、`not-symlink` 或 `wrong-target`，只报告状态，不阻塞上下文维护；只有用户明确要求兼容入口时，才运行修复脚本创建 symlink。
 - Windows 手工修复可在管理员 cmd 中使用 `mklink CLAUDE.md AGENTS.md` 和 `mklink CODEBUDDY.md AGENTS.md`；启用开发者模式后部分环境可免管理员。
@@ -144,7 +162,7 @@ description: Use when initializing or maintaining agent project context such as 
 - 高频硬约束：跨任务必须遵守、遗漏会造成明显风险的规则。
 - 规则路由：不同任务类型应读取哪些 rules 或 skills。
 - 插件路由：项目已接入的插件、首次初始化入口、thin-index 入口。
-- 插件状态：哪些插件只是 `available`，哪些已经 `enabled`。
+- 插件状态引用 `plugin_profile.md`，不维护第二份状态清单。
 - 外部工具边界：MCP/SFTP/编译/上传等能力的使用原则和安全边界。
 
 ### 不应写入 AGENTS.md
@@ -158,7 +176,7 @@ description: Use when initializing or maintaining agent project context such as 
 
 ### 推荐结构
 
-初始化新项目时，优先使用 `templates/AGENTS.template.md`。已有 `AGENTS.md` 则只合并缺失段落，不重写原文件。
+初始化时参考插件根 `templates/AGENTS.template.md`，只保留适用段落并替换占位内容。已有入口按本次授权定点维护；优化可合并、移动和删除重复内容，但须保留约束语义、已有配置值及可达路由，不用模板覆盖用户定制。
 
 建议结构：
 
@@ -179,8 +197,8 @@ description: Use when initializing or maintaining agent project context such as 
 - 保持稳定：任务进度只在 memory，AGENTS 只在入口或硬约束变化时更新。
 - 合并时保留目标项目已有业务规则，不覆盖用户定制。
 - 多 Agent 入口差异较大时，优先在 AGENTS 中放统一入口，再由插件或配置处理差异。
-- 配置表格不要写"同左""同上"等引用词；AI 无法解析表格中的相对引用。相同值要么每个单元格重复写，要么提升到通用配置段落。
-- 多仓库工作区中所有仓库统一的配置（如远端路径、namespace、编码策略）放在通用配置段落，不要在差异表中重复。
+- 配置表格避免“同左”“同上”等易失效引用；共用值提升到通用配置段落，差异表只保留例外。
+- 多仓库共用的非敏感配置集中维护；远端路径、namespace 等连接事实仍只保留在私有连接配置。
 
 ## 禁止写入
 
@@ -194,127 +212,15 @@ description: Use when initializing or maintaining agent project context such as 
 
 1. 按“内容归属”表判断每条信息的目标位置。
 2. 优先更新、替换、合并旧内容，不无限追加。
-3. 项目记忆应保持在新 Agent 约 2 分钟可读完的长度。
+3. 项目记忆入口应便于快速接手；领域细节有明显独立读取场景时再拆分，并提供触发条件与链接，不以固定行数为验收目标。
 4. 规则文件只保留稳定规范，不写当前进度。
-5. 如果内容属于领域插件或专项规则，优先更新对应 owner；memory 只保留入口或摘要。
-6. `.agents/config/` 只允许合并，不允许用插件模板或默认值直接覆盖目标项目已有配置。
+5. 内容属于领域插件或专项规则时先定位 owner；仅在授权范围内更新，memory 只保留入口或摘要。项目维护不自动授权修改 canonical 能力源。
+6. 配置保留已有有效值；授权优化可清理确认无语义的模板占位与重复说明，不删除未知配置或用默认值覆盖现值。
 7. 编辑后检查重复内容、过期矛盾和敏感信息。
 
-## 插件更新流程
+## 初始化与插件接入
 
-已部署业务工程更新 `.agents` 能力包时，优先使用统一更新脚本：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun
-```
-
-确认 dry-run 输出后，才使用 `-Mode Write`。更新脚本只负责拉取能力包、检查入口、维护生成层 ignore、按 `plugin_profile.md` 分流插件、重建已启用插件 thin-index 和合并明确缺失的 config 项；不得自动重写 `AGENTS.md`、`.agents/memory/`、`.agents/rules/project.md` 或项目已有 config 值。
-
-插件状态规则：
-
-- `available`：插件代码已拉取，只用于能力发现；不合并配置、不生成 thin-index、不写 AGENTS 路由。
-- `enabled`：项目已接入，初始化闭环已完成，参与常规更新。
-- `disabled`：显式禁用，默认跳过；旧入口只报告，不自动删除。
-
-若 `.agents/config/plugin_profile.md` 不存在，默认把 `agent-context-kit` 和 `agent-framework-evolution` 视为基础 `enabled` 插件，其它插件视为 `available`。
-
-配置合并规则：
-
-- 目标项目已有字段值优先，插件模板不能覆盖。
-- 模板新增字段只追加到待确认配置项区块。
-- 疑似废弃字段只报告 `config-deprecated-candidate`，不删除。
-- 字段语义变化只报告 `config-review-required`，由 Agent 或人工确认后再修改。
-- host、账号、密码、token、namespace、远程路径等连接事实仍只能来自 `.mcp.json`，不得写入 config、rules、memory 或插件。
-
-## 初始化流程
-
-初始化项目上下文时：
-
-1. 先判断并记录 `contextMode`；缺少 `.agents/config/project_context_profile.md` 时，参考 `templates/project_context_profile.template.md` 创建。
-2. 创建或维护 `.agents/config/plugin_profile.md`；默认 `agent-context-kit` 和 `agent-framework-evolution` 为 `enabled`，其它已拉取插件为 `available`。
-3. 运行 `.agents/scripts/check-agent-entrypoints.ps1`，只检查 `CLAUDE.md`、`CODEBUDDY.md` 可选兼容入口；不自动创建、复制或修复。
-3. **代码探索（仅 `codebase-complete`）**：在写入任何 config/rules 之前，先探索本地代码，提取可验证的事实填入配置文件。探索范围：
-   - 目录结构：源码根目录、CSP 目录、JS/CSS 目录、构建/部署目录。
-   - 命名约定：类名前缀、分层模式（如 BLH/DATA/SQL）、文件命名模板。
-   - 基类和公共设施：Super 类、JSON 工具类、Broker 入口、公共 JS/CSS。
-   - 构建/运行入口：package.json、build 脚本、workspace 配置。
-   - 已有配置：`.mcp.json`、`.vscode/`、项目文档。
-   只对确实无法从代码确定的字段（如远端部署路径、namespace、服务器凭据）标 TODO。`intent-first-on-demand-export` 跳过此步骤。
-4. 创建或更新 `AGENTS.md`，只放最小启动流程和路由；新建时参考 `templates/AGENTS.template.md`。
-   - `codebase-complete`：可写入已验证架构事实。
-   - `intent-first-on-demand-export`：必须写明本地代码不代表完整工程，后续按需导出相关文件后再分析和修改。
-5. 如缺失 `.agents/rules/project.md`，基于项目规则模板创建。
-6. 如缺失 `.agents/memory/project-memory.md`，基于项目记忆模板创建。
-7. 使用插件内置脚本生成 plugin thin-index：
-   ```powershell
-   powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/agent-context-kit/scripts/generate-plugin-thin-index.ps1 -PluginPath .agents/plugins/agent-context-kit -ProjectRoot . -Mode DryRun
-   ```
-8. 检查冲突后，仅在用户要求初始化或更新索引时，用 `-Mode Write` 重新执行。
-9. 项目特定值放入 `.agents/config/`，不要写成插件默认值。
-10. 确认 `.agents/.git/info/exclude` 包含生成层忽略规则，至少包括：
-    - `/config/`
-    - `/memory/`
-    - `/rules/`
-    - `/skills/`
-    - `/scripts/`
-11. 如果 `.agents/scripts/install-git-hooks.ps1` 存在，向用户提示可选提交前差异降噪 hook；只有用户明确要求时，才在业务项目根目录运行：
-   ```powershell
-   powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/install-git-hooks.ps1 -ProjectRoot .
-   ```
-   `.agents` 只分发 hook 模板和安装脚本，不自动修改业务项目 `core.hooksPath`。
-
-插件内 `scripts/generate-plugin-thin-index.ps1` 是稳定调用入口，只 wrapper 到根 `.agents/scripts/generate-plugin-thin-index.ps1`。修改 thin-index 行为时只改根脚本，不复制插件脚本实现。
-
-## 上下文维护完成后的插件接入引导
-
-上下文维护完成后，Agent 应引导用户选择当前项目实际需要启用的插件，而不是因为 `.agents/plugins/<plugin>/` 目录存在就自动启用。插件目录存在只表示 `available`。
-
-执行顺序：
-
-1. 读取 `.agents/config/plugin_profile.md`，确认当前插件状态。
-2. 扫描候选插件的 `.agents/plugins/<plugin>/.agents-plugin/plugin.json`，读取 `name`、`displayName`、`initSkill`、`dependencies`、`dependsOn` 或 `depends_on`。
-3. 根据项目上下文向用户说明可选插件能力和适用场景；只在用户明确选择或项目任务明确需要时继续。
-4. 对用户选择的目标插件，先处理 manifest 中声明的依赖插件：
-   - 若依赖插件状态不是 `enabled`，先读取依赖插件真实 init skill 并完成初始化闭环。
-   - 依赖插件验收通过后，运行 `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin <dependency-plugin> -Status enabled` 机械写入状态。
-   - 所有依赖插件均为 `enabled` 后，再读取目标插件真实 init skill。
-5. 目标插件初始化闭环验收通过后，运行 `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin <plugin-name> -Status enabled`。
-6. 最后运行 `.agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun`；无停止条件时再按 runbook 执行 `-Mode Write`。
-
-不得把依赖插件“自动安装”等同于直接改 `plugin_profile.md`。这里的自动安装含义是：自动按依赖顺序引导并执行依赖插件的真实 init skill、完成验收，然后再机械写入 `enabled`。如果依赖插件 init skill 需要用户确认项目事实或配置，必须停下来让用户确认。
-
-## 插件初始化闭环
-
-当用户要求初始化、重新部署或接入 `.agents/plugins/<plugin>/` 能力时，不要只生成 thin-index。必须按对应插件的真实 init skill 完整执行并验收；若插件提供 bootstrap/init skill，先读取该 skill，再执行落地。
-
-常见 init skill：
-
-- `project-context-maintenance`：维护 `AGENTS.md`、项目 profile、rules、memory 和插件 thin-index。
-- `coding-iris-init`：维护 IRIS 编码 profile、编码转换脚本、IRIS rules/skills thin-index。
-- `i18n-project-init`：维护 i18n profile、i18n rules/skills thin-index。
-
-完整闭环必须包含：
-
-1. 读取目标工程 `AGENTS.md` 和对应插件真实 init skill。
-2. 生成或更新 `.agents/config/*_profile.md`；profile 只保存非敏感项目差异，不保存 host、账号、密码、token、namespace 或远程路径；已有 profile 必须合并，不得覆盖。
-3. 生成 `.agents/rules/` 和 `.agents/skills/` thin-index；thin-index 必须指向 `.agents/plugins/<plugin>/` 内真实文件。
-4. 如插件需要本地脚本，复制到 `.agents/scripts/`；目标存在且内容不同时，默认报告 conflict，不覆盖。
-5. 更新 `AGENTS.md` 的插件能力路由；入口只写启动顺序、profile/rules/skills 路由和硬约束，不复制完整规则。
-6. 确认 `.agents/.git/info/exclude` 忽略生成层：`/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`、`/work/`。
-7. 扫描长期上下文，确认没有具体服务器地址、账号、密码、token、namespace 或远程路径。
-8. 验证 `.agents` Git 状态；生成层应被忽略，能力包源码改动必须明确区分。
-9. 初始化闭环验收通过后，运行 `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin <plugin-name> -Status enabled`，机械反写插件状态。
-10. 提交前如项目已启用 `.agents/hooks`，Agent 应主动运行 `.agents/scripts/check-functional-diff.ps1 -ProjectRoot . -Staged`；未启用时只提示用户可选安装，不擅自执行 `git config core.hooksPath`。
-
-验收时至少检查：
-
-- `AGENTS.md`
-- `.agents/config/project_context_profile.md`
-- 插件要求的 `.agents/config/*_profile.md`
-- `.agents/rules/<plugin-index>.md` 或等价索引
-- `.agents/skills/<plugin-skill>/SKILL.md` 或等价 skill thin-index
-- 插件要求的 `.agents/scripts/*`
-- `.agents/.git/info/exclude`
+仅命中对应场景时读取 [初始化与插件接入](references/initialization.md)，完成所选插件的 profile、索引、脚本、忽略边界与启用状态闭环。能力包更新不等于项目上下文已优化。
 
 ## Git 忽略边界
 
@@ -332,7 +238,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 1. 先判断是否是通用能力。目标项目私有脚本、profile、`project-env.json`、服务器地址、账号、namespace、远程路径等禁止提交。
 2. 在 `.agents/` 仓库内查看改动：`git status --ignored -s <path>` 和 `git diff -- <path>`。
 3. 通用修正使用 `git add -f <path>` 或 `scripts/stage-ignored-agent-file.ps1 -Path <path>` 暂存。
-4. 正常 `git commit` 和 `git push` 能力包仓库。
+4. 只有已明确授权对应动作时，才提交或推送能力包仓库。
 5. 不要为了贡献单个文件而移除 `.agents/.git/info/exclude` 中的生成层忽略规则。
 
 ## Thin-Index 格式
@@ -353,9 +259,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - memory 只包含当前状态和长期经验，不复制完整规则。
 - rules 只包含长期约束，不记录任务进度。
 - 插件内容可复用，且没有源项目硬编码。
-- 插件初始化不是只生成 thin-index；已完成 profile、rules/skills、scripts、AGENTS 路由、忽略规则、敏感信息扫描和 Git 状态验证。
+- 仅初始化/接入场景检查完整闭环；维护和优化检查实际改动、约束保留和引用，不重复初始化。
 - `.agents/config/` 已保留项目已有值；模板新增字段只作为待确认项合并。
-- `.agents/.git/info/exclude` 已包含生成层忽略规则。
+- 涉及 standard 安装或忽略边界变化时检查 `.agents/.git/info/exclude`；Overlay 不创建该文件。
 - 兼容入口缺失或异常只作为可选提示；`CLAUDE.md`、`CODEBUDDY.md` 未维护第二份规则。
 - 没有新增密钥或私有连接信息。
 
@@ -377,7 +283,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - 项目特定但长期有效的规则写入 `.agents/rules/`；近期状态、已验证结论和仍有效决策写入 `.agents/memory/project-memory.md`。
 - 一次性命令输出、短期失败日志和临时排障过程不写入 memory；只保留“以后会反复踩坑”的根因和验证标准。
 - 对部署成功的描述必须包含可复核标准，例如内层 status、生成物名称、关键参数或文件映射；不能只记录“执行成功”。
-- 若发现上下文或插件规则存在偏差，先修正 owner 插件，再在项目规则/记忆中保留项目差异摘要，避免同一事实分散成多份冲突来源。
+- 若发现上下文或插件规则存在偏差，定位 owner 并在授权范围内修正；未授权的 canonical 变更只报告。项目规则/记忆保留差异摘要，不复制通用规则。
 
 ## 条件维护与入口迁移
 

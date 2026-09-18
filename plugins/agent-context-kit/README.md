@@ -1,10 +1,12 @@
 # Agent Context Kit
 
+项目上下文支持初始化、事实维护与日常优化，按目标选择流程。入口去重、领域记忆分层和旧快照标记保留用户约束；普通维护不自动扫描或启用插件。主入口见 `skills/project-context-maintenance/SKILL.md`，初始化/优化细节按其中 references 条件读取。已部署项目只有在授权维护时定点调整，能力包更新不覆盖业务上下文。
+
 技能归属迁移（0.3.2）：`coding-agent-adaptation` 由本插件承接，执行器仍在根 scripts。项目 `.agents/skills/coding-agent-adaptation/SKILL.md` 路径保持不变，由插件薄索引提供。旧版原文仅在历史内容哈希匹配时转换，自定义内容保留并报告冲突。迁移说明见 `docs/skill-plugin-migration.md`（能力包根）。
 
 v0.3.1 修复实测迁移：辅助模式缺省不落盘，显式配置不误报废弃；迁移脚本报告并补齐缺失的执行辅助路由，保留自定义内容、BOM 与换行，重复执行无变更。
 
-`agent-context-kit` 提供可复用流程，用于让 Agent 面向项目的上下文保持清晰、短小、可维护。
+`agent-context-kit` 面向实际编程体验维护上下文：帮助定位实现、沿用项目模式、找到有效验证路径，减少无关读取与无效确认。资料长短和分层服从项目任务，不追求统一模板或最少行数。
 
 ## 内容
 

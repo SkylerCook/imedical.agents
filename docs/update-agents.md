@@ -676,3 +676,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 ## 根级技能归属迁移
 
 三个原根级技能迁入 owner 插件，项目原名路径不变。普通 Write 会生成薄索引；已知历史原文（BOM/CRLF 归一化后 SHA-256）自动转换，自定义文件或链接报告 `skill-owner-migration-conflict` 并以失败结束。禁用状态不覆盖；CodeBuddy/Claude Code 的技能目录链接不重建。完整步骤、标准/Overlay 边界与验证见 [技能归属迁移](skill-plugin-migration.md)。
+
+## 已有上下文的日常优化
+
+能力包更新与项目内容优化分别执行。用户授权目标项目优化后，用 `project-context-maintenance` 的日常优化路径，按实际内容合并重复入口、按需拆分领域记忆、标记旧快照及清理无信息占位；保留自定义约束、有效配置与技能路由。初始化仍完成对应闭环，事实维护只更新相关 owner。无需重新初始化、扫描候选插件或生成新的模式字段；更新器不自动重写业务 AGENTS/rules/memory。仅授权 canonical 更新时不处理任何业务副本。

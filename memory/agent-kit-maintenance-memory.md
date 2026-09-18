@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- project-context-maintenance 区分初始化、事实维护和日常优化；去重保留约束，初始化与优化资料按需读取，普通维护不自动接入插件。模板与旧项目迁移说明已对齐，业务副本不自动同步。
+
 - 标版需求闭环新增 iris-demand-entry，用户模式 --text/--bind/--plan/--commit/--help：实际 Git 补丁 → 默认文本/可选 Excel → 用户录 BOSS → 编号回填 → 复用需求提交。历史提交不自动改写，工作区漂移需复核；协议见 coding-iris-plugin/references/standard-demand-entry.md，业务副本未自动同步。
 
 - 实测迁移修复：agent-context-kit 0.3.1 的 guidanceMode 缺省不落盘，显式值保留；迁移脚本补齐缺失辅助协议路由。普通更新与显式入口迁移仍分开。
