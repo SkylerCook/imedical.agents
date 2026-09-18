@@ -8,6 +8,8 @@ CLS 编码遵循 [格式提示与最小改动约定](references/cls-coding-forma
 
 ## 能力范围
 
+编码入口使用规则指针和可检查的完成条件，完整 i18n 矩阵、编码策略及部署会话协议各由原 owner 维护。已部署工程通过常规能力包更新及 thin-index 刷新取得新描述与正文；无需配置迁移或额外兼容清理，不自动改写项目 AGENTS 或同步业务源码。
+
 - iMedical 知识检索：[iris-imedical-knowledge](skills/iris-imedical-knowledge/SKILL.md) 使用共享 vendor 参考与项目当前菜单。模型根据任务信息缺口自主决定是否查询，无需用户点名，不固定为开发前置步骤；源码核实优先。指定来源但菜单快照缺失时返回警告并继续查询共享参考，不要求先同步菜单；损坏快照仍报错。
 - 菜单资料同步：[iris-menu-sync](skills/iris-menu-sync/SKILL.md) 通过已有 MCP 采集，sync-menu.js 提供离线 plan/apply、差异、完整性校验与原子快照切换；支持全量及指定组。更新后重建 enabled 插件 thin-index；无需新连接或 npm，项目快照不会被 vendor 更新覆盖。协议见 [menu-knowledge-sync](references/menu-knowledge-sync.md)。
 
@@ -107,7 +109,7 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 2. 基于 `templates/iris_project_profile.template.md` 创建 `.agents/config/iris_project_profile.md`。
 3. 检查目标工程 `.mcp.json` 是否包含实际需要的 IRIS/SFTP 能力。
 4. 运行 thin-index dry-run，确认无冲突后再 write。
-5. 普通编码任务优先使用 `iris-coding` 统一入口，由它按任务范围路由到后端、前端、工作流或 promote 流程。
+5. 前后端边界不明或混合编码任务使用 `iris-coding`；明确前端/后端任务直接使用专项 skill。需要部署时在首次修改前完成或复用 Git 基线；i18n 条件矩阵和检查命令统一由前端规则维护，入口保留修改前与最终 diff 后两个检查时点。
 6. `iris-coding` 本地验证后进入 `acceptance-pending`，不自动加载 `iris-demand-commit`；只有用户要求生成提交信息、明确要求提交，或显式调用 `$iris-demand-commit --plan|--commit` 时才读取交付类型并路由，commit 不改变验收状态。
 7. `fast/full/guarded` 只决定开发路径深度，不跳过项目入口、profile、通用安全规则和命中的前后端/i18n/HISUI 规则。轻量并行仅允许最多两个临时只读子 Agent，主 Agent保持唯一写入者。
 7. 明确的纯后端任务可直接使用 `iris-backend-coding`，明确的纯前端任务可直接使用 `iris-frontend-coding`。

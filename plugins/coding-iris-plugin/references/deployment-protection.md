@@ -4,6 +4,8 @@
 
 ## 建立会话
 
+需要部署的业务需求才建立会话；仅分析或明确不部署的任务不额外建立。已有会话复用，不能为部署重建历史；需求号缺失或基线不明时先通过 Question 确认，不自动 stash/rebase。
+
 在需求修改前执行 `node deploy-guard.js init <GitRoot> <需求号>`：工作区须干净、有 upstream，pull --ff-only 成功后固定基线。已有修改必须由用户确认修改前提交，执行 `init <GitRoot> <需求号> <base-ref> --confirm-baseline`。不得自行把 HEAD 当成修改前版本。
 
 执行部署时自动 fetch；upstream 有未集成更新则停止。用户完成集成并确认后执行 `rebase <GitRoot> <需求号> <新基线> --confirm`。该操作保留首次合并记录及部署快照。

@@ -12,22 +12,22 @@ related:
 
 # IRIS 编码规则索引
 
-执行 IRIS/ObjectScript/CSP/HISUI 编码任务时，先读取目标工程 `.agents/config/iris_project_profile.md`，再按任务类型读取对应规则。不要把工程配置、MCP 连接和编码规则混在一起。
+本索引只负责按任务找到规则；完整门禁由对应 owner 维护。仍持有且未变化的资料可复用。
 
 ## 必读顺序
 
 1. 目标工程 `AGENTS.md`
 2. `.agents/config/iris_project_profile.md`
-3. 目标工程 `.mcp.json`，仅当任务涉及 MCP、上传、编译、远程读取或 SQL 验证
-4. 本索引
-5. 任务对应规则文件
+3. 本索引、通用编辑安全和任务对应规则文件
+4. 目标工程 `.mcp.json`，仅当任务涉及 MCP、上传、编译、远程读取或 SQL 验证
 
 ## 规则入口
 
-- [通用编辑安全](iris_coding_general.md)：上下文读取、最小改动、编码与 diff 检查。
+- [通用编辑安全](iris_coding_general.md)：所有编码任务必读，包含风险分流、授权、最小改动与 diff 检查；业务知识资料按其“自主使用知识资料”查询。
 - [后端 ObjectScript 编码](iris_coding_backend.md)：BLH/DATA/SQL、ObjectScript 风格、Broker、SQL 执行层。
-- [前端 CSP/JS/HISUI 编码](iris_coding_frontend.md)：CSP 结构、HISUI 控件、JS 组织、表单回显。
-- [MCP 与部署工作流](iris_coding_workflow.md)：本地优先、脚本复制、MCP 使用、上传和 CSP 编译入口。
+- [前端 CSP/JS/HISUI 编码](iris_coding_frontend.md)：前端任务必读，包含修改前与最终 diff 后的条件 i18n 门禁、字节检测、HISUI 复用和页面验证。
+- [MCP 与部署工作流](iris_coding_workflow.md)：仅使用 MCP、上传、编译、远程读取或 SQL 验证时读取。
+- [Git 基线与部署保护](../references/deployment-protection.md#建立会话)：需要部署的业务需求在第一次修改前读取，部署时复用会话。
 - [IRIS 知识查询与 MCP 路由](iris_knowledge_lookup.md)：IRIS 类、方法签名、宏、SQL 元数据和官方文档的数据源选择；仅查询任务读取。
 - [IRIS 部署执行清单](iris_deploy_checklist.md)：上传、编译、部署和远端验证的逐项检查清单；仅部署任务读取。
 - [Legacy GB2312 提升流程](iris_gb2312_workflow.md)：仅在用户明确处理已确认的历史 GB2312 工程，并要求将 `{name}.gb2312.{ext}` 替换回原始文件名时读取。
@@ -37,12 +37,6 @@ related:
 - [IRIS 官方文档路由](../references/iris-official-docs-routing.md)：DocBook、Documatic、已知 URL Fetch 和版本冲突处理。
 - [sftp-server MCP](sftp_server.md)：SFTP 读取、上传、目录同步和远程命令约束。
 
-## 总原则
+## 收尾路由
 
-- 项目事实以 profile 和 `.mcp.json` 为准。
-- `executionPath: fast | full | guarded` 只调整分析和验证深度，不减少任何已命中的规则；fast 仍执行项目入口、profile、通用安全、专项规则、Git、编码、目标测试和最终 diff 门禁。
-- 本地验证后按 `.agents/agents/_shared/delivery-lifecycle.md` 停在 `acceptance-pending`；本地测试、commit、部署均不产生 `accepted`。
-- 默认不执行远程写入、上传、编译、数据库变更。
-- 查询 IRIS 平台 API、实例元数据及官方文档时使用 `iris-mcp-lookup`；业务背景、菜单和实现参考可由模型按通用规则自主使用 `iris-imedical-knowledge`，无需用户点名。两类资料均与当前源码交叉核实。
-- 历史编码文件优先局部修改，不做整文件格式化。
-- HISUI 控件/API 不确定时先查 widget 索引和 JavaScript 源码；样式或视觉资源不确定时先查 style 索引和目标页面实际加载的主题/locale CSS。
+业务需求按[交付生命周期](../../../agents/_shared/delivery-lifecycle.md)进入 `acceptance-pending`；框架维护按[维护生命周期](../../../agents/_shared/maintenance-lifecycle.md)处理。验收、提交与 feedback 授权均沿用对应协议。

@@ -12,18 +12,24 @@ function read(relativePath) {
 }
 
 test('unified and direct frontend routes share the conditional i18n gate', () => {
-  const unified = read('plugins/coding-iris-plugin/skills/iris-coding/SKILL.md');
-  const frontend = read('plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md');
+  const rulePath = 'plugins/coding-iris-plugin/rules/iris_coding_frontend.md';
   const rule = read('plugins/coding-iris-plugin/rules/iris_coding_frontend.md');
 
-  for (const content of [unified, frontend, rule]) {
-    assert.match(content, /\.agents\/config\/plugin_profile\.md/);
-    assert.match(content, /i18n-iris-plugin/);
-    assert.match(content, /enabled/);
-    assert.match(content, /\$g/);
-    assert.match(content, /\$trans/);
-    assert.match(content, /i18n_project_profile\.md/);
-    assert.match(content, /i18n_coding_frontend\.md/);
+  for (const name of ['iris-coding', 'iris-frontend-coding']) {
+    const entryPath = `plugins/coding-iris-plugin/skills/${name}/SKILL.md`;
+    const content = read(entryPath);
+    const pointer = content.match(/\]\(([^)]+)#条件-i18n-门禁\)/);
+    assert(pointer, `${name} must link to the conditional gate before editing`);
+    assert.equal(path.resolve(repoRoot, path.dirname(entryPath), pointer[1]), path.resolve(repoRoot, rulePath));
+    assert(content.indexOf(pointer[0]) < content.indexOf('最终 diff'), `${name} must check before editing and again after diff`);
+    assert.match(content, /修改前/);
+    assert.match(content, /最终 diff 后再次执行/);
+    assert.match(content, /失败.*停止/);
+  }
+  for (const marker of ['.agents/config/plugin_profile.md', 'i18n-iris-plugin', 'enabled', '$g', '$trans',
+    'i18n_project_profile.md', 'i18n_coding_frontend.md', 'check-i18n-helper-usage.js', '--file',
+    '全部触碰', '退出码 `1`', '退出码 `2`', '两者都必须停止']) {
+    assert(rule.includes(marker), `owner gate must retain ${marker}`);
   }
 
   assert.match(rule, /修改前/);

@@ -56,6 +56,6 @@ task-affinity: [iris, coding, safety, editing]
 
 - 检查改动范围，确认没有无关换行、编码、空白或格式化变更。
 - 后端变更如需验证，用户明确要求后再使用目标工程 MCP 编译相关类。
-- 前端 CSP/JS/CSS 变更如需部署，用户明确要求后再按工作流转换编码、上传并验证。
+- 前端 CSP/JS/CSS 变更如需部署，用户明确要求后按[前端验证规则](iris_coding_frontend.md#验证)通过字节门禁，直接上传 UTF-8 源文件并验证；legacy 转换仅用于用户明确指定的历史工程。
 - 无法运行必要验证时，在回复中说明原因和剩余风险。
 - 本地验证通过后状态只能进入 `acceptance-pending`；只有用户明确确认验收，才能进入 `accepted`，并且验收不隐含 feedback 写入授权。

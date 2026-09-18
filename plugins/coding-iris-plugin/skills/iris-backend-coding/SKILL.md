@@ -15,6 +15,10 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 
 执行路径统一由 rules/iris_coding_general.md 判定；guidanceMode 按共享 execution-guidance 协议解析。步骤可合并、重排，硬约束不变；不因文件数自动升级、不因 full/guarded 自动建 run。
 
+## 需求修改前的 Git 基线
+
+需要部署的业务需求，在所属仓库第一次修改前读取[部署保护的建立会话要求](../../references/deployment-protection.md#建立会话)，完成或复用固定 Git 基线。已有修改、需求号缺失或基线不明时先通过 Question 确认；仅分析或明确不部署的任务不额外建立会话。
+
 ## 流程
 
 1. 先读取目标工程 `.agents/config/iris_project_profile.md`。
@@ -31,7 +35,3 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 - SQL 写入层返回格式稳定。
 - 参数校验避免 `<UNDEFINED>`。
 - 未引入源工程硬编码服务器、namespace 或业务前缀。
-
-## 需求修改前的 Git 基线
-
-需要部署的业务需求，在所属仓库第一次修改前，按插件 references/deployment-protection.md 用 deploy-guard.js init 同步 upstream（pull --ff-only）并记录固定基线。已有修改、需求号缺失或基线不明时通过 Question 确认；不猜 HEAD、不自动 stash/rebase。已有会话复用，不能为部署重建历史。仅分析或明确不部署的任务不额外建立会话。

@@ -1,5 +1,17 @@
 # 框架演进验证记录与真实行为基准
 
+## 2026-09-19 IRIS 编码入口定点优化
+
+基线 `e92a5c6`，仅修改非信创编码入口、规则指针和配套契约测试；部署脚本、i18n helper、thin-index 生成器及其它插件保持原样。明确前端/后端任务直接进入专项 skill，混合或边界不明进入统一路由；三个入口均在实现前提示部署基线，完整会话约束归原部署保护协议。
+
+统一 LF 的字符数：iris-coding 5580 → 2693，iris-frontend-coding 3003 → 2589，规则索引 2198 → 1916，通用规则 2013 → 2083，前端规则 5834 → 5834。上述混合入口到前端的五份材料合计 18628 → 15115，减少 3513 字符（18.9%）；不包含 profile、thin-index、共享协议或其它条件资料，不代表实际 token、总读取量或耗时降幅。
+
+Windows / Node 24.14.1：`node --test scripts/tests/iris-coding-fast-path.tests.js scripts/tests/i18n-frontend-routing.tests.js scripts/tests/agent-framework-contract.tests.js` 5 项通过。检查实际引用文件与章节、前置基线位置、两次 i18n 检查时点、owner 的 enabled/available/disabled 与失败停止矩阵，并含缺失文件、缺失章节、错误顺序的反例；这些仍是文档契约证据，不证明模型行为。
+
+真实收益复用下文 S1–S5、C1、G1 的同模型/同宿主对照；本轮未运行真实模型、远端部署或业务副本更新，无新增跨平台支持声明。
+
+工作区版本比较识别唯一组件变化 coding-iris-plugin 0.13.4 → 0.13.5，无本次新增版本或依赖问题；全仓校验仍保留已登记历史问题，未将结果表述为全仓通过。65 个信创文件相对开工哈希一致。专项证据已记录为 `iris-entry-contracts` 并检查 `fingerprint-match`，供后续提交复用；未暂存本轮修改。
+
 建议书基线：`2be3e56fb9e3ad46cb8ac00254ac4e17172c1ce3`；实施 HEAD：`d8f8b909922686dff9b2ba3ec8358c24553740d5`，其增量仅为根 AGENTS 的提交效率约定与对应维护日志，已保留。本轮仅源仓本地修改，无 commit/push 或业务副本同步。
 
 ## 已落地的行为与兼容边界

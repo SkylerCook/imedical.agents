@@ -39,7 +39,7 @@ Agent 编写 `.cls` 时遵循 `references/cls-coding-format.md`。已有类只�
 - 标版需求闭环：`skills/iris-demand-entry/SKILL.md`，用户模式 `--text / --bind / --plan / --commit / --help`，可选 `--excel` / `--Excel`；历史来源用 `--rev`，不与提交授权混用。
 - IRIS 类、方法签名与官方文档查询：`skills/iris-mcp-lookup/SKILL.md`
 
-普通编码需求优先使用 `iris-coding`。当任务边界已经明确为纯后端、纯前端，或用户明确处理历史 GB2312 工程时，可直接使用对应专项 skill。
+前后端边界不明或混合编码需求使用 `iris-coding`；明确的纯后端、纯前端任务直接使用对应专项 skill。各编码入口在修改前提示部署基线条件，完整会话规则由 `references/deployment-protection.md` 维护。
 当用户明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
 当用户要求把已提交的 DEV 需求更新到独立 PRD 按需导出仓库时，使用 `iris-demand-promote`；需求来源是 DEV Git 补丁，目标基线必须从 PRD 服务器导出，默认只形成本地 PRD 提交。
 只有用户要求生成提交信息、明确要求提交，或显式调用 `$iris-demand-commit --plan|--commit` 时才使用 `iris-demand-commit`；本地验证完成不自动加载。`--plan` 只生成提交计划和完整 commit message，不执行 pull 或 commit，也不追问是否提交；`--commit` 视为本地提交授权，直接执行 plan/apply/verify。commit 不改变 `acceptance-pending`，也不触发 feedback；push 仍需另行授权。
@@ -47,7 +47,7 @@ Agent 编写 `.cls` 时遵循 `references/cls-coding-format.md`。已有类只�
 `iris-coding` 使用 `fast/full/guarded` 开发路径，但所有路径都必须读取项目入口、profile、通用规则和命中的专项规则。存在独立范围时做轻量 `parallelAssessment`，只在两个独立只读范围确有收益时自主使用最多两个临时子 Agent；主 Agent 是唯一写入者。并行写入、持续通信或跨会话协作应建议 `iris-change-agent` 正式 workflow。
 当用户要求查询 IRIS 类、方法、函数、宏、SQL 元数据或官方文档时，使用 `iris-mcp-lookup`；该 skill 默认只读，并把当前实例元数据与官方文档版本分开报告。
 
-前端编码还必须读取目标工程 `.agents/config/plugin_profile.md`。仅当 `i18n-iris-plugin` 为 `enabled` 且任务或最终 diff 命中翻译 helper、翻译 key 或用户可见文案时，追加 i18n profile/rules 和 helper 静态检查；普通需求不自动进入完整 i18n workflow，插件未启用时不得因目录存在而加载。
+前端编码在修改前和最终 diff 后执行 `rules/iris_coding_frontend.md` 的“条件 i18n 门禁”；该节统一维护启用状态、信号、缺失配置处理和 helper 静态检查，skill 只保留触发与检查时点。
 
 `coding-iris-init` 是 bootstrap skill。首次接入目标工程时应直接读取插件真实路径 `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`，不要依赖安装后才会生成的 thin-index。
 
