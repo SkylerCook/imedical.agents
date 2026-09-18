@@ -269,6 +269,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - `iris-mcp-lookup`
 - `iris-demand-promote`
 - `iris-demand-commit`
+- `iris-demand-entry`：仅 standard，支持 `--text / --bind / --plan / --commit / --help` 模式，从实际 Git 改动/提交生成需求文本，可选 `--excel` / `--Excel`，由用户录入 BOSS 后回填编号并衔接标准提交消息；[操作协议](plugins/coding-iris-plugin/references/standard-demand-entry.md)。
 - `iris-frontend-coding`
 - `iris-frontend-gb2312-promote`
 

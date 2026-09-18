@@ -4,6 +4,8 @@
 
 ## P2 技能链接适配待验证
 
+- 标版需求录入：standard-demand-entry 的 Windows/macOS/Linux × Node 22/24 CI 实跑，以及用户侧 BOSS 文本/Excel 真实录入验证；结构与本地 Git 测试不代表业务系统已验收。
+
 - Windows/macOS/Linux × Node 22/24 的 runtime-skills / skill-plugin-migration CI 实跑，以及 Claude Code 和非 Windows 宿主实际发现验证；CodeBuddy 的 Windows 项目 Skills 页面已有用户确认样本，实际任务调用仍独立取证。
 
 ## 治理优先级与执行顺序

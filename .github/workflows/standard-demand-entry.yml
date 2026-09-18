@@ -1,0 +1,20 @@
+name: Standard demand entry
+on:
+  push:
+    paths: ['plugins/coding-iris-plugin/scripts/iris-tools/demand-entry*.js', 'plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js', 'scripts/lib/workspace-context.js', 'scripts/tests/standard-demand-entry.tests.js', '.github/workflows/standard-demand-entry.yml']
+  pull_request:
+  workflow_dispatch:
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        node: ['22', '24']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node --test scripts/tests/standard-demand-entry.tests.js

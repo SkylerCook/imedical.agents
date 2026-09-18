@@ -33,6 +33,7 @@ Agent 编写 `.cls` 时遵循 `references/cls-coding-format.md`。已有类只�
 - IRIS 远端部署编排：`skills/iris-deploy/SKILL.md`
 - DEV→PRD 需求移植：`skills/iris-demand-promote/SKILL.md`
 - 标版/项目需求提交：`skills/iris-demand-commit/SKILL.md`
+- 标版需求闭环：`skills/iris-demand-entry/SKILL.md`，用户模式 `--text / --bind / --plan / --commit / --help`，可选 `--excel` / `--Excel`；历史来源用 `--rev`，不与提交授权混用。
 - IRIS 类、方法签名与官方文档查询：`skills/iris-mcp-lookup/SKILL.md`
 
 普通编码需求优先使用 `iris-coding`。当任务边界已经明确为纯后端、纯前端，或用户明确处理历史 GB2312 工程时，可直接使用对应专项 skill。
@@ -63,6 +64,8 @@ Agent 编写 `.cls` 时遵循 `references/cls-coding-format.md`。已有类只�
 - IRIS 官方文档路由：`references/iris-official-docs-routing.md`
 
 ## 内置脚本
+
+`scripts/iris-tools/demand-entry.js` 为 standard 提供 Git 实际补丁取证、可恢复草稿、文本/Excel 输出、BOSS 编号回填与提交消息；`plan` 转交现有 commit-demand.js。历史提交只生成消息，不改写历史；Excel 可选，BOSS 由用户录入。协议见 `references/standard-demand-entry.md`，无新增 npm/Python 依赖。
 
 `scripts/iris-tools/compile-csp.js` 固化 CSP 的 Atelier 编译通道：默认本地计划，显式 `--execute` 一次批量编译虚拟路径列表。仅编译指定文件（含 show.csp），不自动扩展父页面或重新上传；无自动重试。
 

@@ -25,6 +25,7 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 - 远端部署、上传、编译、SFTP 同步或部署验证：`iris-deploy`
 - 独立 DEV/PRD 按需导出仓库之间按需求号移植本地提交：`iris-demand-promote`
 - 已完成标版/项目需求的提交信息生成、pull 门禁和本地提交：`iris-demand-commit`，支持显式 `--plan` / `--commit`
+- 标版从代码改动/提交记录补录 BOSS 需求、可选 Excel 导入与编号回填：`iris-demand-entry`，仅在用户要求整理需求或闭环时加载；不因开发完成自动提交。
 - IRIS 类、方法签名、宏、SQL 元数据或官方文档查询：`iris-mcp-lookup`
 
 ## 必读规则

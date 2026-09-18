@@ -14,6 +14,7 @@ CLS 编码遵循 [格式提示与最小改动约定](references/cls-coding-forma
 - 部署编排：`skills/iris-deploy/SKILL.md` 负责远端部署入口、清单生成、确认门禁和验证编排，上传、编译、部署和远端验证按 `rules/iris_deploy_checklist.md` 逐项执行。
 - 需求移植：`skills/iris-demand-promote/SKILL.md` 将已提交的 DEV 需求补丁移植到独立 PRD 按需导出仓库；先导出 PRD 服务器基线，再做三方应用，只创建本地 PRD 提交。
 - 需求提交：`skills/iris-demand-commit/SKILL.md` 支持 `$iris-demand-commit --plan|--commit`。`--plan` 只生成方案型提交信息且不追问是否提交；`--commit` 视为本地提交授权，标版提交前强制安全快进，项目兼容纯本地仓库；两种模式均不包含 push。
+- 标版需求闭环：`skills/iris-demand-entry/SKILL.md` 从工作区或指定提交实际 diff 生成可复制需求文本，可选 `--excel`（兼容 `--Excel`）生成 29 列 BOSS 导入表。用户录入并回填编号/最终标题后生成提交消息，待提交代码复用 iris-demand-commit；历史提交不自动改写。用户模式为 `--text / --bind / --plan / --commit / --help`，历史来源使用 `--rev` 或 `--range`。命令与草稿见 [操作协议](references/standard-demand-entry.md)。已部署工程更新能力包并重建 enabled 插件 thin-index 后使用，无配置迁移或旧入口删除。
 - 前端统一编码：当前标版、医院项目的源码、上传内容和服务器运行编码统一使用 canonical `utf8`。
 - 前端编码保护：实际文件字节检测是最终门禁；正常任务静默处理，完成时只报告一行摘要。
 - 前端 i18n 条件门禁：以目标工程 `plugin_profile.md` 为事实来源，只有 i18n 已启用且任务或 diff 命中翻译 helper、翻译 key 或用户可见文案时才追加 i18n 规则和稳定 key 检查；普通前端需求不加载完整 i18n workflow。

@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
@@ -83,6 +83,7 @@
     ".agents/config/iris_project_profile.md"
   ],
   "defaultPrompt": [
+    "Use iris-demand-entry --text, --bind, --plan, --commit or --help for standard demands; optionally add --excel/--Excel to --text",
     "Initialize IRIS coding support in this project",
     "Handle an IRIS coding request with the unified coding workflow",
     "Modify this ObjectScript class using IRIS backend rules",
