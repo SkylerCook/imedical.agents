@@ -1,8 +1,8 @@
 {
   "name": "agent-context-kit",
-  "version": "0.3.5",
+  "version": "0.4.0",
   "displayName": "Agent Context Kit",
-  "description": "Reusable project context plus schema 2.0 agent run templates, validation, orchestration entrypoints, and separate demand and framework-maintenance lifecycles.",
+  "description": "Reusable project context, local task handoff and cross-session continuation, plus schema 2.0 agent run templates and separate demand and framework-maintenance lifecycles.",
   "entry": "AGENTS.md",
   "skills": "skills/",
   "scripts": "scripts/",
@@ -19,7 +19,8 @@
     "优化已有上下文中的重复、过时和宽泛约束",
     "判断这条经验应该写到 rules 还是 memory",
     "把项目约定整理成 agent 可复用上下文",
-    "初始化或验证 schema 2.0 AGENT 协作 run"
+    "初始化或验证 schema 2.0 AGENT 协作 run",
+    "为需求启用交接、生成交接快照或继续已有需求"
   ],
   "legacyRootSkillHashes": {
     "coding-agent-adaptation": [

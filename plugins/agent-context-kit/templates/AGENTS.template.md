@@ -22,6 +22,8 @@ TODO: 只保留项目实际需要的高频保护，如所属 Git 仓库、用户
 
 ## 按任务读取
 
+- 需求交接：确认 `agent-context-kit` 为 enabled（无 profile 时沿用基础 enabled）且入口可用后，启用交接、生成交接或接续已有需求时读取 `.agents/skills/task-handoff/SKILL.md`；从项目 `docs/handoff/` 定位任务，启用后关键节点持续维护，普通需求不自动建档。
+
 - 工程任务读取 `.agents/memory/project-memory.md` 的简短入口，仅跟进相关领域链接；自包含的措辞/翻译等问题不额外加载工程资料。
 - 任务路由统一放 `.agents/rules/index.md`，按场景读取专项 rules、skills 和 profile；此处不复制完整路由表。
 - 上下文模式不明或维护配置时读 `project_context_profile.md`；使用项目插件前查 `plugin_profile.md`，目录存在不代表 enabled。私有连接配置仅在连接、远端能力或实际配置问题时读取。

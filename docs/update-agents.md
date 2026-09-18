@@ -694,3 +694,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 ### 知识库工程入口迁移
 
 agent-context-kit 0.3.4 补齐 AGENTS 模板与定点维护流程。更新能力包并重建已启用插件 thin-index 后，在授权的项目上下文维护中核对 coding-iris-plugin 为 enabled、`.agents/skills/iris-imedical-knowledge/SKILL.md` 可达，再将模板“知识资料”一条合并到工程 AGENTS 的按任务读取部分；已有等价入口不重复添加。未启用则跳过，standard/Overlay 使用相同本地入口。保留自定义内容，不复制完整知识索引；普通 update-agents 不自动重写业务 AGENTS。
+
+## task-handoff 0.4 接入补充
+
+`agent-context-kit` 0.4.0 增加通用需求接续入口，具体使用见 [task-handoff](task-handoff.md)。能力包更新沿用现有流程，enabled 插件刷新薄索引后可显式调用；available/disabled 保留，不因目录存在自动启用。无需更改安装器、更新器或 sparse 规则：实现和模板属于既有 plugins 范围，共享 helper 属于既有 scripts/lib 与根 scripts/*.js 范围。
+
+项目自然语言发现路由仅在已授权初始化/上下文维护中按模板定点合并，普通更新不重写 AGENTS。具体需求首次启用时才建立项目 docs/handoff，并在管理该目录的业务 Git 仓库本地 exclude 精确排除；不是能力仓库生成层，不加入 `.agents` sparse。旧交接、正式 run 与个人 skill 不迁移、不清理，业务工程不自动同步。

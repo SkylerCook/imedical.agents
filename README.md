@@ -245,6 +245,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 - `plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md`
 - `plugins/agent-context-kit/skills/coding-agent-adaptation/SKILL.md`（原根级技能迁入，项目入口不变）
+- `plugins/agent-context-kit/skills/task-handoff/SKILL.md`：通用需求交接与同机跨会话接续，按需启用、关键节点维护；本机材料在项目 `docs/handoff/`，轻量脚本检查工作现场，不强制正式 run。接入与兼容见 [交接运行说明](docs/task-handoff.md)。
 
 ### coding-iris-plugin
 

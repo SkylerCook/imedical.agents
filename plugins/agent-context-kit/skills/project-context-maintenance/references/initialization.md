@@ -43,6 +43,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
    - 已有配置及项目文档；仅涉及连接、远端能力或配置问题时读取 `.mcp.json`。
    探索仅覆盖当前初始化需要，不为模板全仓扫描；无法确定的非敏感配置标真实待确认项，连接字段只在私有配置处理。`intent-first-on-demand-export` 跳过全工程归纳。
 5. 创建或更新 `AGENTS.md`，只放最小启动流程和路由；新建时参考 `templates/AGENTS.template.md`。
+   - `agent-context-kit` 为 enabled 且 task-handoff 入口可用时，在本次已授权初始化/维护范围内定点合并模板的“需求交接”路由；已有等价路由复用，available/disabled 不加入。只加入入口，不创建 docs/handoff 任务，不复制完整流程。普通能力包更新不执行此合并。
    - `codebase-complete`：可写入已验证架构事实。
    - `intent-first-on-demand-export`：必须写明本地代码不代表完整工程，后续按需导出相关文件后再分析和修改。
 6. 如缺失 `.agents/rules/project.md`，基于项目规则模板创建。

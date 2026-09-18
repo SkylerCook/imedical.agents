@@ -1,5 +1,7 @@
 ## 项目上下文维护
 
+需求交接：确认 `agent-context-kit` 为 enabled（无 profile 时沿用基础 enabled）且入口可用后，启用交接、生成交接或接续已有需求时读取 `.agents/skills/task-handoff/SKILL.md`；从项目 `docs/handoff/` 定位任务，启用后关键节点持续维护，普通需求不自动建档。
+
 初始化、维护或日常优化 Agent 面向项目的上下文时，使用 `.agents/skills/project-context-maintenance/SKILL.md`。
 
 - 启动路由和硬约束放入 `AGENTS.md`。

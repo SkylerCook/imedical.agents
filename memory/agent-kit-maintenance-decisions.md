@@ -149,3 +149,9 @@
 
 - coding-agent-adaptation 归 agent-context-kit，反馈审查与能力打包归 agent-framework-evolution。原项目技能名作为薄索引保持稳定；根级独立组件退役并保留 tombstone。新基础插件默认 enabled 只延续原默认技能分发，已有 available/disabled 不覆盖，不自动触发反馈或写入。
 - 旧技能原文只按归一化 SHA-256 白名单转换，用户修改和链接保留并报告冲突；项目 AGENTS 与运行时技能目录链接不重写。标准项目完成整轮 Write 后验收，Overlay capability-once/context-many。
+
+## 需求接续补充决策（2026-09-19）
+
+- 通用 task-handoff 归 agent-context-kit；项目 docs/handoff/<首次毫秒时间戳>-<需求ID或00000>/ 保留最新正文、机器现场与显式交接历史。后补编号不改稳定目录，默认本机 exclude，不自动提交或取消跟踪。
+- 接续沿用范围明确的授权，先核实现场和证据再继续；记录不产生新授权。直接接手不检测旧会话或锁定 owner，用户负责避免并发；真实内容冲突仍需处理。
+- 轻量工具维护可复核事实，不判定业务完成；业务/框架生命周期复用现有契约，正式 run 只引用。标准 Markdown 不依赖产品 API 或 Obsidian；无脚本能力时人工核查并明确未执行项。

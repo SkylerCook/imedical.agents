@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+需求启用交接、明确交接、发现或接续已有任务时使用 `skills/task-handoff/SKILL.md`。材料在项目 `docs/handoff/`，本机保留；普通需求不为交接建立正式 run。脚本只管理记录与检查现场，不调度会话或授予业务操作权限。
+
 项目上下文支持初始化、事实维护与日常优化，按目标选择流程。入口去重、领域记忆分层和旧快照标记保留用户约束；普通维护不自动扫描或启用插件。主入口见 `skills/project-context-maintenance/SKILL.md`，初始化/优化细节按其中 references 条件读取。已部署项目只有在授权维护时定点调整，能力包更新不覆盖业务上下文。
 
 技能归属迁移（0.3.2）：`coding-agent-adaptation` 由本插件承接，执行器仍在根 scripts。项目 `.agents/skills/coding-agent-adaptation/SKILL.md` 路径保持不变，由插件薄索引提供。旧版原文仅在历史内容哈希匹配时转换，自定义内容保留并报告冲突。迁移说明见 `docs/skill-plugin-migration.md`（能力包根）。
