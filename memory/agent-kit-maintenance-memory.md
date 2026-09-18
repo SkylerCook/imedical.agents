@@ -1,6 +1,6 @@
 # imedical.agents 维护记忆入口
 
-- agent-context-kit 0.4.0 新增 task-handoff：同机同工作区需求按需启用、关键节点维护；docs/handoff 本地保存，正文与机器现场分离，明确交接追加历史快照。直接接手不检查旧会话，用户避免并发写入。普通需求不建正式 run；接入与验证见 docs/task-handoff.md，真实新会话接续和完整平台矩阵仍待验收。
+- agent-context-kit 0.4.0 新增 task-handoff：同机同工作区需求按需启用、关键节点维护；docs/handoff 本地保存，正文与机器现场分离，明确交接追加历史快照。直接接手不检查旧会话，用户避免并发写入。普通需求不建正式 run；当前 Codex 宿主的真实新会话接续已于 2026-09-19 经用户验收通过，其它 Agent 宿主和平台矩阵仍待验证；接入与验证见 docs/task-handoff.md。
 
 - 提交性能：`validate --staged` 只校验暂存组件与直接依赖，批量读取 Git 对象并独立缓存版本证据；功能证据按实际内容复用，不绑定 HEAD。信创 1.0.2 缺少 commit 已登记为 `version-debt-xc-1.0.2-commit`，用户要求后续普通提交不重复处理或提醒；见 backlog 与 docs/component-version-management.md。
 
