@@ -6,6 +6,8 @@
 
 standard 的 ContextRoot 通常为项目 `.agents`；workspace-overlay 使用 capability.json 和现有 resolver，资料从 CapabilityRoot 获取，快照仅写 ContextRoot/work/menu-sync。不得写 shared vendor、插件目录或能力包源仓。项目快照不进入 Git/公共 vendor，也不由能力包更新器清理。旧 `.agents/data` 保持原状，新读取入口使用 current.json，缺失时明确使用上游参考。
 
+本地检索指定来源但没有 current.json 时，返回 `warnings` 中的 `project-menu-missing`（含 sourceId），继续检索共享参考；不触发菜单同步，也不将共享结果标为当前工程菜单。已有快照损坏、完整性校验失败或链接越界仍报错，不作为缺失快照降级。
+
 ## 服务端采集
 
 复用项目现有 IRIS MCP，工具名称和入参以运行时 schema 为准。先读表结构/方法签名，再只读查询，不猜列名。已核对的产品线索是 `SQLUser.SS_Group` 的组 ID/描述、`websys.Menu` 菜单目录，以及 `DHCDoc.Common.Menu.getGroupData(groupId)` 的菜单树；这些标识是可核实的适配线索，不要求所有项目存在。

@@ -99,7 +99,7 @@ description: Initialize, maintain, or optimize project context including AGENTS.
 
 ## 上下文模式
 
-初始化或大幅维护项目上下文前，必须先判断工程成熟度和上下文置信度，并记录到 `.agents/config/project_context_profile.md` 或等价位置。
+仅在初始化、模式缺失或用户明确变更工程定位时，按下列顺序判定上下文模式，并在授权范围内记录到 `.agents/config/project_context_profile.md` 或等价位置。已有模式的维护与优化沿用既有值，不因重组范围较大而重新判定或重复落盘。
 
 ### 机械判定顺序
 

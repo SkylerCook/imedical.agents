@@ -54,6 +54,21 @@ test('import redacts connections and credentials while retaining relative resour
  assert.doesNotMatch(data.text,/unsafe|10\.2|private|dthealth|namespace: app/);assert.match(data.text,/diag.csp/);assert.match(data.text,/docs.intersystems.com/);
  const menu=sanitize('| 1 | 修改密码 | settings.csp?token=unsafe |',{menuData:true});assert.match(menu.text,/修改密码/);assert.doesNotMatch(menu.text,/unsafe/);assert.equal(menu.text.split('|').length,5);
 });
+test('missing project menu falls back to shared references without writing',t=>{
+ const contextRoot=path.join(fixture(t),'absent'),context={contextRoot,capabilityRoot:repo};
+ const expected=search({context,query:'诊断',limit:2});
+ const actual=search({context,sourceId:'demo',query:'诊断',limit:2});
+ assert.deepEqual(actual.matches,expected.matches);assert.equal(actual.matches.length,2);
+ assert.equal(actual.warnings[0].code,'project-menu-missing');assert.equal(actual.warnings[0].sourceId,'demo');
+ assert.ok(actual.matches.every(m=>m.kind==='upstream-reference'));assert.equal(fs.existsSync(contextRoot),false);
+ const empty=search({context,sourceId:'demo',query:'__missing_reference_923456__',limit:1});
+ assert.equal(empty.matches.length,0);assert.equal(empty.warnings[0].code,'project-menu-missing');
+});
+test('query rejects corrupted project snapshots instead of falling back',t=>{
+ const contextRoot=fixture(t),root=path.join(contextRoot,'work/menu-sync/demo');
+ const first=apply(root,input());fs.writeFileSync(path.join(root,first.generation,'snapshot.json'),'{}');
+ assert.throws(()=>search({context:{contextRoot,capabilityRoot:repo},sourceId:'demo',query:'诊断'}),/integrity/);
+});
 function install(root){const context=path.join(root,'.agents');fs.mkdirSync(path.join(context,'scripts/lib'),{recursive:true});fs.mkdirSync(path.join(context,'.git'),{recursive:true});
  for(const folder of ['plugins/coding-iris-plugin','vendor/imedical-knowledge'])fs.cpSync(path.join(repo,folder),path.join(context,folder),{recursive:true});
  fs.copyFileSync(path.join(repo,'scripts/lib/workspace-context.js'),path.join(context,'scripts/lib/workspace-context.js'));return context;}
