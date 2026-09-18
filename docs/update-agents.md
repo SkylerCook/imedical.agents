@@ -1,5 +1,9 @@
 # .agents 安装与更新 Runbook
 
+## 标版需求录入入口
+
+新增 `iris-demand-entry` 随 coding-iris-plugin 既有 plugins 路径分发。已部署工程更新能力包后，按本 runbook 为 enabled coding-iris-plugin 重建 thin-index，即可使用默认需求文本及可选 `--excel` / `--Excel`；直接读取插件真实 skill 也可进入。无需配置迁移、额外 npm/Python 安装或旧文件清理，个人 requirement-entry 副本不自动替换。运行草稿与 BOSS 编号属于目标工程私有产物，不进入能力包更新/清理范围；源仓实现不代表业务副本已生效。操作见 `plugins/coding-iris-plugin/references/standard-demand-entry.md`。
+
 agent-context-kit v0.3.1 修复普通更新把 guidanceMode 默认值追加到待确认区的问题：模板使用 `agents-update:optional-key` 声明合法可选键，缺省不写入，已有明确配置保留且不误报废弃。项目入口迁移脚本现会报告并补齐缺失的执行辅助路由；仍需显式 `--write`，普通更新不改 AGENTS。历史误追加项只有能确认由本次更新生成且未被用户修改时才定点移除，不按字段值 auto 批量删除。
 
 coding-iris-plugin 0.10.0 的部署保护随既有 plugins 与 vendor 分发。必须一并更新 deploy-guard.js、deploy-protected.js、前后端入口与 protected-file.py；不新增连接配置。用户私有 .iris-deploy-state 不属于更新/清理范围。旧后端位置参数须迁移为 --demand/--files/--execute，先建立 Git 基线会话。未提交的 canonical 开发版可在核对目标无分歧后同步精确运行时文件，再用更新器 -NoPull 刷新生成层；此状态是本地待发布副本，不能声称已从远端发布。
@@ -88,7 +92,7 @@ iwr -UseBasicParsing https://gitee.com/skyler-cook/imedical.agents/raw/master/sc
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun
 ```
 
-首次安装默认只处理 `agent-context-kit`。`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg` 等插件代码会随 `.agents/plugins/` 拉取，但状态为 `available` 时不会合并配置或生成 thin-index。
+首次安装后的更新默认处理两个基础插件 `agent-context-kit` 和 `agent-framework-evolution`；后者承接原默认根级反馈与打包技能，不自动执行反馈。`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg` 等插件代码会随 `.agents/plugins/` 拉取，但状态为 `available` 时不会合并配置或生成 thin-index。
 
 如果摘要没有停止条件，继续执行：
 
@@ -556,7 +560,7 @@ source: .agents/plugins/<plugin>/skills/<skill>/SKILL.md
 | `enabled` | 项目已接入且初始化闭环已完成，参与常规更新：合并缺失 config key，校验或重建 thin-index。 |
 | `disabled` | 默认跳过；旧 thin-index 只报告，不自动删除。 |
 
-无 `plugin_profile.md` 时，默认只把 `agent-context-kit` 视为 `enabled`，其它插件视为 `available`。
+无 `plugin_profile.md` 时，默认把 `agent-context-kit` 和 `agent-framework-evolution` 视为基础 `enabled` 插件，其它插件视为 `available`。
 
 启用领域插件时，不要直接运行全量 update。先读取插件真实 init skill：
 
@@ -668,3 +672,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 5. 检查共享协议和 thin-index source 实际存在；通用/前端/后端/i18n 入口均引用同一分流。无关项目内容逐字保留，有自定义冲突时列明差异，不整体替换。
 
 迁移辅助脚本位于 agent-context-kit/scripts/migrate-execution-entry.js，默认报告精确已知句子的替换和缺失的辅助协议路由，--write 仅在授权目标项目使用；无法识别的自定义表述报告人工检查。它不接入安装器/更新器，不写 profile，不删除文件，不扫描其它工程。项目入口迁移与能力包更新分别验收。真实业务副本本次不自动同步。
+
+## 根级技能归属迁移
+
+三个原根级技能迁入 owner 插件，项目原名路径不变。普通 Write 会生成薄索引；已知历史原文（BOM/CRLF 归一化后 SHA-256）自动转换，自定义文件或链接报告 `skill-owner-migration-conflict` 并以失败结束。禁用状态不覆盖；CodeBuddy/Claude Code 的技能目录链接不重建。完整步骤、标准/Overlay 边界与验证见 [技能归属迁移](skill-plugin-migration.md)。

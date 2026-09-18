@@ -1,6 +1,5 @@
 ---
 name: coding-agent-adaptation
-version: 0.1.0
 description: Connect an installed project's shared skills to CodeBuddy, Claude Code or Codex using links; use for cross-agent skill discovery, synchronization and broken-link diagnosis.
 ---
 

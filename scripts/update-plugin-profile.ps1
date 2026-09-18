@@ -166,7 +166,7 @@ function Read-PluginProfile {
 
 function Get-DefaultStatus {
   param([string]$PluginName)
-  if ($PluginName -eq "agent-context-kit") {
+  if ($PluginName -in @("agent-context-kit", "agent-framework-evolution")) {
     return "enabled"
   }
   return "available"

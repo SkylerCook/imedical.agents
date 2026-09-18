@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+技能归属迁移（0.3.2）：`coding-agent-adaptation` 由本插件承接，执行器仍在根 scripts。项目 `.agents/skills/coding-agent-adaptation/SKILL.md` 路径保持不变，由插件薄索引提供。旧版原文仅在历史内容哈希匹配时转换，自定义内容保留并报告冲突。迁移说明见 `docs/skill-plugin-migration.md`（能力包根）。
+
 迁移 `scripts/migrate-execution-entry.js` 默认报告，显式 `--write` 才替换已知旧句并补齐缺失的辅助协议路由；不写 profile。guidanceMode 是可选配置，未配置按 auto 处理；模板只声明 optional-key，不提供可自动合并的默认配置行。
 
 用于初始化和维护 Agent 项目上下文文件的通用插件。

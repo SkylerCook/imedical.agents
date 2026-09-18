@@ -73,7 +73,7 @@ foreach ($name in $Plugin) {
 if ($selected.Count -eq 0) {
   foreach ($name in $installed.Keys) {
     $item = $installed[$name]
-    if (($profile[$name] -eq "enabled") -or ($profile[$item.directoryName] -eq "enabled") -or (($profile.Count -eq 0) -and ($name -eq "agent-context-kit"))) {
+    if (($profile[$name] -eq "enabled") -or ($profile[$item.directoryName] -eq "enabled") -or ((-not $profile.ContainsKey($name)) -and (-not $profile.ContainsKey($item.directoryName)) -and ($name -in @("agent-context-kit", "agent-framework-evolution")))) {
       [void]$selected.Add($name)
     }
   }

@@ -15,7 +15,7 @@ const manifest = JSON.parse(read("plugins/agent-context-kit/templates/agent-run-
 const plan = JSON.parse(read("plugins/agent-context-kit/templates/agent-run-plan.json"));
 const lifecycle = read("agents/_shared/delivery-lifecycle.md");
 const maintenanceLifecycle = read("agents/_shared/maintenance-lifecycle.md");
-const feedback = read("skills/agent-framework-feedback/SKILL.md");
+const feedback = read("plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md");
 const maintenance = read(".agents/skills/agent-kit-maintenance/SKILL.md");
 
 for (const role of ["coordinator", "explorer", "planner", "coding", "review", "testing"]) {

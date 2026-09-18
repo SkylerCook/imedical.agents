@@ -1,6 +1,6 @@
 # Coding agent 技能适配
 
-统一入口为 `skills/coding-agent-adaptation/SKILL.md`，执行器为 `scripts/sync-runtime-skills.js`。Node.js >=22.5.0 是能力包工具链前置依赖，不是业务系统生产依赖。
+统一入口为 `plugins/agent-context-kit/skills/coding-agent-adaptation/SKILL.md`，执行器为 `scripts/sync-runtime-skills.js`。Node.js >=22.5.0 是能力包工具链前置依赖，不是业务系统生产依赖。
 
 ## 支持与边界
 

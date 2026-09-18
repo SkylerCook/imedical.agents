@@ -277,4 +277,4 @@ Root Coordinator
 - 验证报告列出已执行检查、未执行原因和残余风险。
 - schema 2.0 的 workItems[].attempts、adapterCapabilities、actions 终态、verification.scopes 与验证指纹已完整记录。
 - `00-run-manifest.json` 与阶段报告通过事后机械校验。
-- 本 workflow 处理业务需求时固定设置 `taskKind=business-demand`，并由此派生 `feedbackReviewApplicable=true`。技术阶段完成后进入 `acceptance-pending`；验证冻结和 Verifier 不等于用户验收。只有用户明确进入 `accepted` 且发现框架缺陷、规则冲突、可复用新经验或用户要求时才调用 `skills/agent-framework-feedback/SKILL.md` 做只读审查，任何反馈写入仍需独立授权；纯框架维护必须使用独立维护生命周期，不使用本收尾分支。
+- 本 workflow 处理业务需求时固定设置 `taskKind=business-demand`，并由此派生 `feedbackReviewApplicable=true`。技术阶段完成后进入 `acceptance-pending`；验证冻结和 Verifier 不等于用户验收。只有用户明确进入 `accepted` 且发现框架缺陷、规则冲突、可复用新经验或用户要求时才调用 `plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md` 做只读审查，任何反馈写入仍需独立授权；纯框架维护必须使用独立维护生命周期，不使用本收尾分支。

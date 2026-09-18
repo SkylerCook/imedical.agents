@@ -1,13 +1,13 @@
 # Agent Feedback Protocol
 
-本文件只定义 `taskKind=business-demand` 在用户验收后处理框架修正反馈的行为规范。需求生命周期来自 `agents/_shared/delivery-lifecycle.md`，统一入口是 `skills/agent-framework-feedback/SKILL.md`；可复用需求经验由该 skill 路由到 `feedback/experience/`，本协议只约束独立框架修正分支。`taskKind=framework-maintenance` 使用 `agents/_shared/maintenance-lifecycle.md`，不属于反馈场景。
+本文件只定义 `taskKind=business-demand` 在用户验收后处理框架修正反馈的行为规范。需求生命周期来自 `agents/_shared/delivery-lifecycle.md`，统一入口是 `plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md`；可复用需求经验由该 skill 路由到 `feedback/experience/`，本协议只约束独立框架修正分支。`taskKind=framework-maintenance` 使用 `agents/_shared/maintenance-lifecycle.md`，不属于反馈场景。
 
 反馈产物的路径取决于运行形态：
 
 | 运行形态 | 判断条件 | 框架根目录 | 反馈目录 |
 |---|---|---|---|
 | 业务项目部署态 | 项目根存在 `.agents/skills/agent-framework-feedback/SKILL.md` | `.agents/` | `.agents/feedback/framework/` |
-| `imedical.agents` 源仓态 | 仓库根存在 `skills/agent-framework-feedback/SKILL.md`、`agents/`、`feedback/` | 仓库根 | `feedback/framework/` |
+| `imedical.agents` 源仓态 | 仓库根存在 `plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md`、`agents/`、`feedback/` | 仓库根 | `feedback/framework/` |
 
 优先遵循当前项目根 `AGENTS.md` 的明确路径约定。不得把源仓相对路径 `feedback/...` 按业务项目工作目录解析为根级目录。
 

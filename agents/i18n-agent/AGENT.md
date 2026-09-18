@@ -142,7 +142,7 @@ Root Coordinator
 
 ## 框架反馈
 
-业务需求 run 固定设置 `taskKind=business-demand`，由此派生 feedback 适用性。技术流程完成后按 `agents/_shared/delivery-lifecycle.md` 进入 `acceptance-pending`。只有用户明确确认验收且命中反馈信号后，才调用 `skills/agent-framework-feedback/SKILL.md` 做只读审查；任何经验或 framework feedback 写入仍需用户逐项授权。纯框架维护必须建立独立 `framework-maintenance` 记录，不得复用本 run 的验收或 feedback 状态。
+业务需求 run 固定设置 `taskKind=business-demand`，由此派生 feedback 适用性。技术流程完成后按 `agents/_shared/delivery-lifecycle.md` 进入 `acceptance-pending`。只有用户明确确认验收且命中反馈信号后，才调用 `plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md` 做只读审查；任何经验或 framework feedback 写入仍需用户逐项授权。纯框架维护必须建立独立 `framework-maintenance` 记录，不得复用本 run 的验收或 feedback 状态。
 
 ## 降级执行
 

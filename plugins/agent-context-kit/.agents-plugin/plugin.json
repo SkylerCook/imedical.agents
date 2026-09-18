@@ -1,6 +1,6 @@
 {
   "name": "agent-context-kit",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "displayName": "Agent Context Kit",
   "description": "Reusable project context plus schema 2.0 agent run templates, validation, orchestration entrypoints, and separate demand and framework-maintenance lifecycles.",
   "entry": "AGENTS.md",
@@ -19,5 +19,10 @@
     "判断这条经验应该写到 rules 还是 memory",
     "把项目约定整理成 agent 可复用上下文",
     "初始化或验证 schema 2.0 AGENT 协作 run"
-  ]
+  ],
+  "legacyRootSkillHashes": {
+    "coding-agent-adaptation": [
+      "c74b680eb4b4f556226a4a252b3d038f326c57c6b5e853d053c736274ad23489"
+    ]
+  }
 }

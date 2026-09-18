@@ -12,10 +12,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: node --test scripts/tests/runtime-skills.tests.js
+      - run: node --test scripts/tests/runtime-skills.tests.js scripts/tests/skill-plugin-migration.tests.js
   windows-integration:
     strategy:
       fail-fast: false
@@ -24,6 +26,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -32,3 +36,5 @@ jobs:
         run: |
           & ./scripts/tests/workspace-overlay.tests.ps1
           & ./scripts/tests/update-agents.tests.ps1
+          $env:TEST_POWERSHELL = "${{ matrix.shell }}"
+          node --test scripts/tests/skill-plugin-migration.tests.js

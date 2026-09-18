@@ -1,7 +1,7 @@
 name: Agent evolution contracts
 on:
   push:
-    paths: ['agents/**', 'workflows/**', 'plugins/agent-context-kit/**', 'plugins/coding-iris-plugin/**', 'plugins/i18n-iris-plugin/**', 'skills/agent-framework-feedback/**', 'scripts/**', '.github/workflows/agent-evolution.yml']
+    paths: ['agents/**', 'workflows/**', 'plugins/agent-context-kit/**', 'plugins/coding-iris-plugin/**', 'plugins/i18n-iris-plugin/**', 'plugins/agent-framework-evolution/**', 'scripts/**', '.github/workflows/agent-evolution.yml']
   pull_request:
   workflow_dispatch:
 jobs:

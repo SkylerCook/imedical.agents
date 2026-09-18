@@ -11,7 +11,7 @@ const demandCommitSkill = read("plugins/coding-iris-plugin/skills/iris-demand-co
 const deploySkill = read("plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md");
 const i18nSkill = read("plugins/i18n-iris-plugin/skills/i18n-coding/SKILL.md");
 const lifecycle = read("agents/_shared/delivery-lifecycle.md");
-const feedback = read("skills/agent-framework-feedback/SKILL.md");
+const feedback = read("plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md");
 
 for (const marker of ["fast", "full", "guarded", "parallelAssessment", "最多两个临时只读子 Agent", "主 Agent 保持唯一写入者", "taskKind=business-demand", "taskKind=framework-maintenance", "纯框架维护"]) assert(skill.includes(marker), marker);
 for (const marker of ["iris_project_profile.md", "plugin_profile.md", "iris_coding_index.md", "iris_coding_general.md", "修改前后执行字节检测", "最终 diff"]) assert(skill.includes(marker), marker);

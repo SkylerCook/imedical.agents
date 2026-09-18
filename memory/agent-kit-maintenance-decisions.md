@@ -140,3 +140,8 @@
 - `.mcp.json` 是连接事实来源；不要把其中的 host、账号、密码、token、namespace 或远程路径复制到 rules、memory、config 或插件。
 
 - 执行辅助、风险深度和协作形态独立。硬约束集中、默认方法可调整、辅助资料按信号读取；不按模型品牌判断能力。新业务 run 默认 on-signal 反馈，旧记录缺省 always，用户验收及反馈写入授权不变。
+
+## 根级技能的 owner 迁移
+
+- coding-agent-adaptation 归 agent-context-kit，反馈审查与能力打包归 agent-framework-evolution。原项目技能名作为薄索引保持稳定；根级独立组件退役并保留 tombstone。新基础插件默认 enabled 只延续原默认技能分发，已有 available/disabled 不覆盖，不自动触发反馈或写入。
+- 旧技能原文只按归一化 SHA-256 白名单转换，用户修改和链接保留并报告冲突；项目 AGENTS 与运行时技能目录链接不重写。标准项目完成整轮 Write 后验收，Overlay capability-once/context-many。

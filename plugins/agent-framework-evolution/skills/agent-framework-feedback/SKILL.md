@@ -1,6 +1,5 @@
 ---
 name: agent-framework-feedback
-version: 0.3.0
 description: Use only when feedback review is applicable and the user has explicitly accepted the business demand; review read-only, then write or promote only separately authorized actions.
 ---
 
@@ -43,7 +42,7 @@ description: Use only when feedback review is applicable and the user has explic
 执行任何读取或写入前，先按当前项目的实际部署形态确定 `FRAMEWORK_ROOT`：
 
 - **业务项目部署态**：项目根存在 `.agents/skills/agent-framework-feedback/SKILL.md` 时，`FRAMEWORK_ROOT=.agents`。
-- **imedical.agents 源仓态**：仓库根存在 `skills/agent-framework-feedback/SKILL.md`、`agents/` 和 `feedback/` 时，`FRAMEWORK_ROOT=.`。
+- **imedical.agents 源仓态**：仓库根存在 `plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md`、`agents/` 和 `feedback/` 时，`FRAMEWORK_ROOT=.`。
 
 优先遵循当前项目根 `AGENTS.md` 的明确路径约定。不要把 `feedback/...` 或 `agents/...` 直接按 shell 当前工作目录解析，也不要因为源仓说明而把部署态反馈写到业务项目根级 `feedback/`。
 

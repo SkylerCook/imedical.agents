@@ -221,6 +221,18 @@ if (Test-Path -LiteralPath $pluginManifestPath -PathType Leaf) {
 
 $results = New-Object System.Collections.Generic.List[object]
 
+# Owner migrations, including disabled owners, must not lose user content during global stale cleanup.
+$migratedSkillNames = @()
+if (Test-Path -LiteralPath $pluginsRoot -PathType Container) {
+    Get-ChildItem -LiteralPath $pluginsRoot -Directory | ForEach-Object {
+        $ownerManifestPath = Join-Path $_.FullName ".agents-plugin/plugin.json"
+        if (Test-Path -LiteralPath $ownerManifestPath -PathType Leaf) {
+            $ownerManifest = [System.IO.File]::ReadAllText($ownerManifestPath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+            if ($null -ne $ownerManifest.legacyRootSkillHashes) { $migratedSkillNames += @($ownerManifest.legacyRootSkillHashes.PSObject.Properties.Name) }
+        }
+    }
+}
+
 if ((Test-Path -LiteralPath $rulesTarget -PathType Container) -and (Test-Path -LiteralPath $pluginsRoot -PathType Container)) {
     Get-ChildItem -LiteralPath $rulesTarget -File -Filter "*.md" | Sort-Object Name | ForEach-Object {
         $sourcePath = Get-ThinIndexSourcePath -TargetFile $_.FullName -ProjectRoot $projectRootFull -Kind "rule"
@@ -243,7 +255,10 @@ if ((Test-Path -LiteralPath $rulesTarget -PathType Container) -and (Test-Path -L
 
 if ((Test-Path -LiteralPath $skillsTarget -PathType Container) -and (Test-Path -LiteralPath $pluginsRoot -PathType Container)) {
     Get-ChildItem -LiteralPath $skillsTarget -Directory | Sort-Object Name | ForEach-Object {
+        if (($migratedSkillNames -contains $_.Name) -or ($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -or ((Get-Item -LiteralPath $skillsTarget -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { return }
         $targetFile = Join-Path $_.FullName "SKILL.md"
+        $targetEntry = Get-Item -LiteralPath $targetFile -Force -ErrorAction SilentlyContinue
+        if ($null -ne $targetEntry -and ($targetEntry.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { return }
         if (-not (Test-Path -LiteralPath $targetFile -PathType Leaf)) {
             return
         }
@@ -380,6 +395,24 @@ if (Test-Path -LiteralPath $skillsSource -PathType Container) {
         $sourceRel = Get-CapabilityLogicalPath -Path $sourceFile
         $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
         $skillTargetDir = Split-Path -Parent $targetFile
+        $legacyHashes = @()
+        if ($null -ne $pluginManifest -and $null -ne $pluginManifest.legacyRootSkillHashes) {
+            $legacyProperty = $pluginManifest.legacyRootSkillHashes.PSObject.Properties[$skillName]
+            if ($null -ne $legacyProperty) { $legacyHashes = @($legacyProperty.Value) }
+        }
+        if ($legacyHashes.Count -gt 0) {
+            # Migration never follows target links or overwrites custom files, even with -Force.
+            $cursor = $targetFile
+            while ($cursor -and (($cursor -eq $contextRootFull) -or (Test-IsUnderPath -Path $cursor -ParentPath $contextRootFull))) {
+                $entry = Get-Item -LiteralPath $cursor -Force -ErrorAction SilentlyContinue
+                if ($null -ne $entry -and (($entry.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -or (($cursor -ne $targetFile) -and (-not $entry.PSIsContainer)) -or (($cursor -eq $targetFile) -and $entry.PSIsContainer))) {
+                    $results.Add((Write-Result -Status "skill-owner-migration-conflict" -Target $targetRel -Source $sourceRel -Reason "linked or invalid target preserved"))
+                    return
+                }
+                if ($cursor -eq $contextRootFull) { break }
+                $cursor = Split-Path -Parent $cursor
+            }
+        }
         if (Test-Path -LiteralPath $skillTargetDir -PathType Leaf) {
             $results.Add((Write-Result -Status "conflict" -Target (Get-RelativePathPortable -From $projectRootFull -To $skillTargetDir) -Source $sourceRel -Reason "skill target directory path is a file"))
             return
@@ -444,6 +477,25 @@ if (Test-Path -LiteralPath $skillsSource -PathType Container) {
         ) | ForEach-Object { $contentLines.Add($_) }
         $content = @($contentLines) -join [Environment]::NewLine
 
+        if (($legacyHashes.Count -gt 0) -and (Test-Path -LiteralPath $targetFile -PathType Leaf)) {
+            $existing = [System.IO.File]::ReadAllText($targetFile, [System.Text.Encoding]::UTF8).Replace("`r`n", "`n")
+            if ($existing -ceq $content.Replace("`r`n", "`n")) {
+                $results.Add((Write-Result -Status "unchanged" -Target $targetRel -Source $sourceRel -Reason "owner skill thin-index is current"))
+                return
+            }
+            $sha = [System.Security.Cryptography.SHA256]::Create()
+            try { $hash = ([System.BitConverter]::ToString($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($existing)))).Replace("-", "").ToLowerInvariant() }
+            finally { $sha.Dispose() }
+            if ($legacyHashes -notcontains $hash) {
+                $results.Add((Write-Result -Status "skill-owner-migration-conflict" -Target $targetRel -Source $sourceRel -Reason "unrecognized/custom skill content preserved"))
+                return
+            }
+            if ($Mode -eq "Write") {
+                [System.IO.File]::WriteAllText($targetFile, $content, [System.Text.UTF8Encoding]::new($false))
+            }
+            $results.Add((Write-Result -Status "skill-owner-migrated" -Target $targetRel -Source $sourceRel -Reason $Mode))
+            return
+        }
         if ((Test-Path -LiteralPath $targetFile) -and (-not $Force)) {
             $results.Add((Write-Result -Status "skipped" -Target $targetRel -Source $sourceRel -Reason "target exists; use -Force to overwrite"))
             return

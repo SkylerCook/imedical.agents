@@ -1,6 +1,6 @@
 # imedical.agents
 
-上下文迁移补丁：agent-context-kit v0.3.1 避免默认辅助模式自动落盘，补齐项目入口的执行辅助协议路由；现有配置和入口迁移见 docs/update-agents.md。
+技能插件化：agent-context-kit v0.3.2 接管跨 Agent 适配，新增 agent-framework-evolution v0.1.0 管理反馈与可复用内容打包。已部署项目保持原技能入口和运行时链接，首次更新步骤见 [迁移指南](docs/skill-plugin-migration.md)。
 
 CSP 部署编译统一使用 `coding-iris-plugin/scripts/iris-tools/compile-csp.js`：上传后直接调用 Atelier 编译接口，支持一次批量请求、错误检查和耗时输出，避免反复探测 MCP 编译路径。
 
@@ -85,7 +85,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install-agents.ps1
 
 脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/`，并拉取 `plugins/`、`agents/`、`workflows/` 等能力包内容，让用户和 Agent 能看到可用能力。
 
-插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认只把 `agent-context-kit` 作为基础上下文能力处理；`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`、`iris-imedical-doctor-ai`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
+插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认把 `agent-context-kit` 和承接原根级技能的 `agent-framework-evolution` 作为基础能力处理（显式 available/disabled 保留）；`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`、`iris-imedical-doctor-ai`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
 
 ### 更新已部署 `.agents`
 
@@ -141,7 +141,7 @@ imedical.agents/
 |-- .agents/     # 本仓库维护所需的本地 Agent 上下文，不部署业务项目
 |-- plugins/     # 可复用能力包
 |-- vendor/      # 第三方源码资产、共享运行时资产和可同步运行时 skill（如 HISUI、iris-agentic-dev、iris-agentic-dev-skills、superpowers、word-reader）
-|-- skills/      # 仓库级通用 skill，部署到业务项目
+|-- skills/      # 根级独立 skill 预留位置，目前为 0；项目入口由更新器生成
 |-- rules/       # 仓库级通用规则预留入口
 |-- docs/        # AI Coding 工作区规范、runbook 和配套文档
 |-- scripts/     # 通用部署、更新和维护脚本
@@ -161,7 +161,7 @@ imedical.agents/
 
 ## 源仓组件版本管理
 
-14 个插件以 `.agents-plugin/plugin.json` 为版本事实来源，根 `skills/` 下的独立 skill 在 `SKILL.md` 声明自身版本；插件内部内容统一继承 owner 插件版本。发布记录位于 `releases/plugin|skill/<name>/<version>.md`，依赖版本范围通过 manifest 的 `dependencyVersions` 审计，同时保留原 `dependencies` 名称数组供现有更新器使用。
+15 个插件以 `.agents-plugin/plugin.json` 为版本事实来源，目前没有根级独立 skill；以后新增的独立 skill 在 `SKILL.md` 声明自身版本，插件内部内容统一继承 owner 插件版本。发布记录位于 `releases/plugin|skill/<name>/<version>.md`，依赖版本范围通过 manifest 的 `dependencyVersions` 审计，同时保留原 `dependencies` 名称数组供现有更新器使用。
 
 维护者在插件或独立 skill 提交前运行：
 
@@ -226,6 +226,10 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 ## 插件概览
 
+### agent-framework-evolution
+
+承接原根级 `agent-framework-feedback` 与 `reusable-content-packaging`，负责验收后的反馈审查及可复用能力打包；保持原技能名项目入口，不自动触发反馈或写入。插件说明见 [README](plugins/agent-framework-evolution/README.md)，新旧项目更新步骤见 [技能归属迁移](docs/skill-plugin-migration.md)。
+
 ### agent-context-kit
 
 负责初始化和维护业务项目上下文：
@@ -239,6 +243,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 常用入口：
 
 - `plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md`
+- `plugins/agent-context-kit/skills/coding-agent-adaptation/SKILL.md`（原根级技能迁入，项目入口不变）
 
 ### coding-iris-plugin
 

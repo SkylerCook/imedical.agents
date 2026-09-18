@@ -483,7 +483,7 @@ function Get-PluginProfileLegacyName {
 function Get-DefaultPluginStatus {
   param([string]$PluginName)
 
-  if ($PluginName -eq "agent-context-kit") {
+  if ($PluginName -in @("agent-context-kit", "agent-framework-evolution")) {
     return "enabled"
   }
   return "available"
@@ -769,6 +769,7 @@ function Write-UpdateSummary {
     "skill-dependency-source-missing",
     "legacy-vendor-profile-review-required",
     "sync-claudecode-skills-script-missing",
+    "skill-owner-migration-conflict",
     "runtime-adapter-conflict",
     "runtime-adapter-blocked",
     "maintenance-only-skill-remove-failed",
@@ -1439,3 +1440,5 @@ else {
   Write-UpdateSummary -Results $results -Mode $Mode
 }
 if ($runtimeAdapterFailed) { throw "Runtime skill adaptation incomplete; resolve the reported status before retrying." }
+
+if (@($results | Where-Object { $_.status -eq "skill-owner-migration-conflict" }).Count -gt 0) { throw "Skill owner migration blocked; custom or linked targets were preserved." }

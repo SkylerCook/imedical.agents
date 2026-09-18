@@ -1,0 +1,35 @@
+{
+  "name": "agent-framework-evolution",
+  "version": "0.1.0",
+  "displayName": "Agent Framework Evolution",
+  "description": "Preserve bundled feedback review and reusable capability packaging through plugin-owned skills.",
+  "entry": "AGENTS.md",
+  "skills": "skills/",
+  "initSkill": "agent-framework-evolution-init",
+  "defaultPrompt": [
+    "审查已验收需求的反馈候选",
+    "把已验证经验整理成可复用能力"
+  ],
+  "legacyRootSkillHashes": {
+    "reusable-content-packaging": [
+      "9862e2aa419030915e3008c6b142e5282f9e4f4fc3dea3a9aacb214e90a9d5a0",
+      "2704b53b42d151e0e4ecff107bdf006cea4ba9bc7d560c8bf057c95471d5fb3b",
+      "941cda7b35903dd03f29d88fcf2806ea4157c3b04befc7a2a180621360cf7cc2",
+      "0b1525292676774a4d587aaa92f4eed686c74ff0492613de2c6bf82cd5441c82",
+      "41bced59a50d3aba11a03f331d835db502cbfd771851ff1b8387bf1acdbcffd3",
+      "e0c01bca693fbf6c14721dae2cc13597d1b1a3a79abeb99f887f622a467d255c",
+      "bee12970573dd663a9e27d8e9cf2946ba1242baa3f243d030ecb8ac27cb2027b",
+      "d8c484910d22ea301c4827672d5217e68577d4556f333d80f4596b795b3c1f25"
+    ],
+    "agent-framework-feedback": [
+      "513ad28e53173dffa7e734561227eb2372de75bec5dabc6d2325ee77cc7ee545",
+      "a2df3f16154999409daf24824006d7e8d9534cd98c3d179e86169b9a90cd1f7e",
+      "70e556415be0d594e7cae0e3466a7ee78ad54a8a1992b8c55911f8d953ac6454",
+      "dc4633f8cc000f2888572d845ef1d9b2cad7e3c4d5dd2e4a75d308abc37c4476",
+      "0d5b7d2812de645bd3c10b0013c8f861ff81d60e2661a4514e7c04e2303be4d9",
+      "753514bea88f9a0f034d62ed65e6d84a3babda383720347c495d881534688ade",
+      "d1b99686df9147ccf615573e17f8c95e2431b30110ced40c78a9d2e5c392f1d7",
+      "0941cb857b0301a7ae314998beed17af6d3748f3c3bebb34325ce078ddb4c503"
+    ]
+  }
+}

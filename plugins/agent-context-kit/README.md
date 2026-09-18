@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+技能归属迁移（0.3.2）：`coding-agent-adaptation` 由本插件承接，执行器仍在根 scripts。项目 `.agents/skills/coding-agent-adaptation/SKILL.md` 路径保持不变，由插件薄索引提供。旧版原文仅在历史内容哈希匹配时转换，自定义内容保留并报告冲突。迁移说明见 `docs/skill-plugin-migration.md`（能力包根）。
+
 v0.3.1 修复实测迁移：辅助模式缺省不落盘，显式配置不误报废弃；迁移脚本报告并补齐缺失的执行辅助路由，保留自定义内容、BOM 与换行，重复执行无变更。
 
 `agent-context-kit` 提供可复用流程，用于让 Agent 面向项目的上下文保持清晰、短小、可维护。

@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+- 技能归属迁移：coding-agent-adaptation 归 agent-context-kit 0.3.2；反馈与打包归新基础插件 agent-framework-evolution 0.1.0。项目旧技能名由薄索引保持，历史原文按哈希安全转换，显式插件状态保留。详见 docs/skill-plugin-migration.md。
+
 - 跨 Agent 项目技能接入采用链接优先：coding-agent-adaptation 与独立 JS 执行器支持 CodeBuddy/ClaudeCode/Codex，安装/更新显式选择；旧目录和错误链接不覆盖。详见 docs/coding-agent-adaptation.md，非 Windows 与更多宿主验证仍待补齐。
 
 - 框架演进：guidanceMode 与风险/协作独立，IRIS 入口共用风险分流；新 run 默认 on-signal 反馈，session 通用 adapter 保留旧别名。写入 run 最终验证绑定 scope 指纹，完成与 --final 共用门禁。项目入口须定点迁移，真实模型/宿主收益见 docs/validation/agent-evolution.md，未宣称实测通过。
@@ -15,7 +17,7 @@
 - 部署保护固定 Git 基线，服务器差异仅合入隔离产物；首次合并后再次覆盖、冲突、未知结果必须人工决定。状态保存在用户私有目录，更新基线保留历史。Question 使用固定 code 和工具无关协议，按能力降级为文本；暂停/查看/无效决定不写入。详见 coding-iris-plugin/references/deployment-protection.md。
 
 - 能力源分为厂商无关的 `agents/`、`workflows/`、可复用 `plugins/` 与根级 `skills/`；工具专属配置只作为 adapter。源仓 `.agents/skills/agent-kit-maintenance/` 是维护者专用入口。
-- 当前有 14 个插件、3 个根级独立 skill。插件版本以 manifest 为准，独立 skill 版本以 frontmatter 为准；内部内容继承 owner 版本。发布记录不可变且不部署，版本 validator 不接入业务安装/更新/hook。
+- 当前有 15 个插件、0 个根级独立 skill。插件版本以 manifest 为准，独立 skill 版本以 frontmatter 为准；内部内容继承 owner 版本。发布记录不可变且不部署，版本 validator 不接入业务安装/更新/hook。
 - `coding-iris-plugin` 当前 v0.11.0：前端 canonical 编码为 `utf8`，实际字节检测是最终门禁；真实 GB2312/mixed/unknown 不自动转码，明确 backend-only Overlay 为 `N/A (backend-only)`。CLS 仅提供最小改动提示与可选自检，不增加编译证据或提交门禁。
 - CSP 编译固定到 `compile-csp.js` 的 Atelier 通道；`deploy-frontend.js` 统一上传、哈希回读与指定 CSP 编译，默认本地计划、显式执行，不自动重试或扩展父页面。SFTP vendor 新项目默认禁用，更新自动迁移可识别的既有标准启动参数，显式 custom/自定义参数保留，不创建服务或安装 Python 依赖。
 - `iris-cure-form-dev` 当前 v0.7.4：任务产物与运行态统一归目标项目 `docs/work/cure-form/<task>/`，快照/敏感证据归同任务 private；配置/规则仍在 `.agents/`。自动/手动部署与版本化克隆/显式原 RowID 覆盖分别选择。新模板不使用灰度，采用克隆的既有模板按引用拓扑收尾，原 ID 覆盖不调用 consolidate。显式旧输出路径保持兼容，不迁移既有备份。

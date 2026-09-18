@@ -216,7 +216,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - `enabled`：项目已接入，初始化闭环已完成，参与常规更新。
 - `disabled`：显式禁用，默认跳过；旧入口只报告，不自动删除。
 
-若 `.agents/config/plugin_profile.md` 不存在，默认只把 `agent-context-kit` 视为 `enabled`，其它插件视为 `available`。
+若 `.agents/config/plugin_profile.md` 不存在，默认把 `agent-context-kit` 和 `agent-framework-evolution` 视为基础 `enabled` 插件，其它插件视为 `available`。
 
 配置合并规则：
 
@@ -231,7 +231,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 初始化项目上下文时：
 
 1. 先判断并记录 `contextMode`；缺少 `.agents/config/project_context_profile.md` 时，参考 `templates/project_context_profile.template.md` 创建。
-2. 创建或维护 `.agents/config/plugin_profile.md`；默认 `agent-context-kit` 为 `enabled`，其它已拉取插件为 `available`。
+2. 创建或维护 `.agents/config/plugin_profile.md`；默认 `agent-context-kit` 和 `agent-framework-evolution` 为 `enabled`，其它已拉取插件为 `available`。
 3. 运行 `.agents/scripts/check-agent-entrypoints.ps1`，只检查 `CLAUDE.md`、`CODEBUDDY.md` 可选兼容入口；不自动创建、复制或修复。
 3. **代码探索（仅 `codebase-complete`）**：在写入任何 config/rules 之前，先探索本地代码，提取可验证的事实填入配置文件。探索范围：
    - 目录结构：源码根目录、CSP 目录、JS/CSS 目录、构建/部署目录。

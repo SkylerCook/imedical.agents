@@ -58,7 +58,7 @@ node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js
 1. 读取 `memory/agent-kit-maintenance-log.md`，确定上次维护记录覆盖到的提交。
 2. 用 `git log` 和 `git show --name-status` 检查此后提交；按实际文件判断影响面，不只依赖 commit message。
 3. 对 canonical agent/workflow 变更，同步检查 registry、`AGENT.md`、`bindings.yaml`、workflow、共享 handoff/feedback 协议、仓库 README、验证文档和专项测试。
-4. 对需求经验或框架反馈机制变更，同步检查 `skills/agent-framework-feedback/SKILL.md`、`agents/_shared/feedback-protocol.md`、项目入口模板、owner rule、维护记忆和提交/推送授权边界。
+4. 对需求经验或框架反馈机制变更，同步检查 `plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md`、`agents/_shared/feedback-protocol.md`、项目入口模板、owner rule、维护记忆和提交/推送授权边界。
 5. 已完成事项写入维护日志；仍未完成的真实验证或治理工作留在 backlog。不要把已完成事项继续写成“下一步”。
 
 本 skill 固定使用 `taskKind=framework-maintenance` 和 `agents/_shared/maintenance-lifecycle.md`，不创建或推进业务需求的 `acceptance` 状态。框架维护、版本升级、文档治理和 feedback 机制自身修改不触发 `agent-framework-feedback`，也不在收尾时向用户建议 feedback；它们通过版本、文档、测试、维护日志、backlog 和必要的部署副本同步进入 `maintenance-complete`。若同一对话还包含业务需求，必须建立独立业务记录，不能让两类状态相互继承。
