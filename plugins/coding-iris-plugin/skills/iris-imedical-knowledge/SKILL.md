@@ -1,9 +1,11 @@
 ---
 name: iris-imedical-knowledge
-description: 查询 imedical 知识库、Qoder wiki、菜单及安全组资料，按业务功能定位 CSP、JS、业务服务和源码；需要理解已有能力或复用实现时使用，菜单资料刷新交给 iris-menu-sync。
+description: 为 imedical 开发、分析和排查提供 wiki、菜单与技术参考。模型在业务背景、实现复用、跨模块关系或疑点核对需要资料时自主使用，无需用户点名知识库；当前信息足够时可跳过。菜单资料刷新交给 iris-menu-sync。
 ---
 
 # iMedical 知识检索
+
+选择是否查询遵循 [通用规则的自主使用知识资料原则](../../rules/iris_coding_general.md#自主使用知识资料)。本 skill 是可选的本地只读能力；任何使用本插件的 Agent 或领域 skill 都可按需读取，不要求先切换完整开发流程。
 
 - 读取目标项目入口，按现有 resolver 解析 ContextRoot 与 CapabilityRoot。共享资料位于 CapabilityRoot/vendor/imedical-knowledge；项目当前菜单位于 ContextRoot/work/menu-sync/<sourceId>/current.json 指向的 generation。
 - 从业务名称、安全组、菜单路径或类名提取关键词，调用 `query-knowledge.js --project-root <workspace> --query <关键词> [--source-id <项目来源别名>]`。工具位于 `../../scripts/iris-tools/`；默认最多 20 条结果。也可以先读 vendor 的 index.md 后用 rg 精确查询，禁止默认整库加载。

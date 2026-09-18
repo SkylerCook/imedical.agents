@@ -2,6 +2,8 @@
 
 ## iMedical 知识资料与菜单同步
 
+0.13.1 将知识检索的选择统一到 IRIS 通用规则，由模型自主决定是否查询，不要求用户点名或每次必查。已部署工程正常更新并重建 coding-iris-plugin thin-index，刷新后的 skill 描述与通用规则即可生效；不新增连接、迁移资料或自动刷新菜单。具体模型实际选用行为仍需任务观察。
+
 coding-iris-plugin 0.13 提供 iris-imedical-knowledge / iris-menu-sync；共享资料随已有 `/vendor/**`、入口与工具随 `/plugins/**` 分发，未改变安装/更新 sparse 范围。不把普通资料声明成 vendor skill，不自动安装 Qoder 或新增连接。
 
 新装项目启用 coding-iris-plugin 后由 canonical thin-index 生成两个入口。已有工程按本 runbook 正常更新能力包并刷新 enabled 插件入口；coding-iris wrapper 支持 ContextRoot/CapabilityRoot，Overlay 仍只更新共享 capability 一次，在每个项目 ContextRoot 重建入口。维护者导入脚本在源仓 `.agents/skills`，不部署业务工程。
@@ -688,3 +690,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 ## 已有上下文的日常优化
 
 能力包更新与项目内容优化分别执行。用户授权目标项目优化后，用 `project-context-maintenance` 的日常优化路径，按实际内容合并重复入口、按需拆分领域记忆、标记旧快照及清理无信息占位；保留自定义约束、有效配置与技能路由。初始化仍完成对应闭环，事实维护只更新相关 owner。无需重新初始化、扫描候选插件或生成新的模式字段；更新器不自动重写业务 AGENTS/rules/memory。仅授权 canonical 更新时不处理任何业务副本。
+
+### 知识库工程入口迁移
+
+agent-context-kit 0.3.4 补齐 AGENTS 模板与定点维护流程。更新能力包并重建已启用插件 thin-index 后，在授权的项目上下文维护中核对 coding-iris-plugin 为 enabled、`.agents/skills/iris-imedical-knowledge/SKILL.md` 可达，再将模板“知识资料”一条合并到工程 AGENTS 的按任务读取部分；已有等价入口不重复添加。未启用则跳过，standard/Overlay 使用相同本地入口。保留自定义内容，不复制完整知识索引；普通 update-agents 不自动重写业务 AGENTS。

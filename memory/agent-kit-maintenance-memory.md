@@ -24,7 +24,7 @@
 
 - 能力源分为厂商无关的 `agents/`、`workflows/`、可复用 `plugins/` 与根级 `skills/`；工具专属配置只作为 adapter。源仓 `.agents/skills/agent-kit-maintenance/` 是维护者专用入口。
 - 当前有 15 个插件、0 个根级独立 skill。插件版本以 manifest 为准，独立 skill 版本以 frontmatter 为准；内部内容继承 owner 版本。发布记录不可变且不部署，版本 validator 不接入业务安装/更新/hook。
-- `coding-iris-plugin` 当前 v0.13.0：新增共享知识检索、项目菜单同步及部署兼容；保留 standard 需求录入与提交衔接；前端 canonical 编码为 `utf8`，实际字节检测是最终门禁；真实 GB2312/mixed/unknown 不自动转码，明确 backend-only Overlay 为 `N/A (backend-only)`。CLS 仅提供最小改动提示与可选自检，不增加编译证据或提交门禁。
+- `coding-iris-plugin` 当前 v0.13.1：新增共享知识检索、项目菜单同步及部署兼容；保留 standard 需求录入与提交衔接；前端 canonical 编码为 `utf8`，实际字节检测是最终门禁；真实 GB2312/mixed/unknown 不自动转码，明确 backend-only Overlay 为 `N/A (backend-only)`。CLS 仅提供最小改动提示与可选自检，不增加编译证据或提交门禁。
 - CSP 编译固定到 `compile-csp.js` 的 Atelier 通道；`deploy-frontend.js` 统一上传、哈希回读与指定 CSP 编译，默认本地计划、显式执行，不自动重试或扩展父页面。SFTP vendor 新项目默认禁用，更新自动迁移可识别的既有标准启动参数，显式 custom/自定义参数保留，不创建服务或安装 Python 依赖。
 - `iris-cure-form-dev` 当前 v0.7.6：兼容 coding-iris-plugin 0.13；任务产物与运行态统一归目标项目 `docs/work/cure-form/<task>/`，快照/敏感证据归同任务 private；配置/规则仍在 `.agents/`。自动/手动部署与版本化克隆/显式原 RowID 覆盖分别选择。新模板不使用灰度，采用克隆的既有模板按引用拓扑收尾，原 ID 覆盖不调用 consolidate。显式旧输出路径保持兼容，不迁移既有备份。
 - 表单部署的 `transaction-package` / `lightweight-sql` 通道独立于 automatic/manual；轻量通道只服务已有独占单模板 content。固定 SQL 绑定兼容层保留单行事务门禁，授权样本验证不代表全部服务器/HIS 验收。
@@ -49,3 +49,5 @@
 - 多人提交准入与通用结构检查；三类真实 AGENT 样本、五个简单 iris-coding 样本仍待验证。
 - 非 Windows CI、真实 HIS/移动 WebView/PAD 与业务副本同步按具体任务取证；矩阵声明、源仓提交不等于平台验证或副本生效。
 - 已完成事项移入维护日志；长期约束进入 decisions；本摘要合并替换过期状态，不无限追加历史版本。
+
+- 知识库入口：agent-context-kit 0.3.4 在初始化/授权维护时按启用状态定点合并工程 AGENTS 简短路由；coding-iris-plugin 0.13.1 由模型自主选择查询。普通能力包更新不覆盖业务入口，迁移见 docs/update-agents.md。

@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+- 2026-09-18（知识检索自主选择）：coding-iris-plugin 0.13.1 将查询选择集中到通用规则，skill 描述支持模型按信息缺口自主使用，不要求用户点名、不局限菜单定位、不固定每次必查；现有 Agent/前后端入口复用，平台 API 查询和业务知识参考分开。更新后刷新薄索引，不自动改写项目 AGENTS.md，不扩大远端授权。本轮仅修改路由文案与版本，未部署业务副本。
+
 - 2026-09-18（知识资料并入与菜单刷新）：coding-iris-plugin 0.13.0 接收 218 份脱敏上游参考（164 份 wiki/目录、40 份菜单/安全组、14 份技术文档），记录固定来源与双 hash，排除生成器缓存。新增 iris-imedical-knowledge / iris-menu-sync，MCP 采集与离线 plan/apply 分离，项目快照原子发布、全量/部分刷新、指纹漂移阻断和历史恢复；AI 0.2.0 按需路由，五个其它依赖插件仅扩展兼容范围。资料短 ID 与 vendor .gitattributes 解决 Windows 长路径及换行校验问题。14 项专项通过，包含真实 sparse 初装/快进刷新、项目快照保留、standard/Overlay、PS7/PS5.1 thin-index；入口链接及简单 frontmatter 检查通过，通用 Python validator 缺 PyYAML。真实 IRIS 采集与非 Windows CI 待验证；未部署真实业务副本，未提交或推送。
 
 - 2026-09-18（项目上下文编程体验优化）：agent-context-kit 0.3.3 修正 project-context-maintenance 的初始化/维护/日常优化混用，允许授权范围内语义去重与重组，初始化及优化细节改为按需 references；按工程实际开发入口、参考实现和有效验证路径选择信息，保留维护分工及配置值。同步五份上下文模板、owner 文档、更新说明与发布记录，不自动扫描插件或同步业务副本。契约检查、演进行为测试（含 Windows PowerShell 5.1 / PowerShell 7 配置合并）、薄索引 DryRun、UTF-8/引用/差异检查通过。通用 quick_validate 缺 PyYAML，使用静态 frontmatter 与实际薄索引解析检查；这不证明模型效率收益。组件版本校验识别本次 0.3.2 → 0.3.3，失败项仅为既有信创插件 1.0.2 发布记录缺少合法 commit，未改历史记录；未提交、推送或处理业务工程。
@@ -323,3 +325,5 @@
 
 本次复核：文档入口链接与差异格式检查通过，组件版本快照校验覆盖 16 个组件，组件治理 16 项测试通过并记录可复用证据；本轮生成的 30 个测试目录已核实内容并清理。
 相对 HEAD 的 worktree 版本差异校验通过（16 个组件）。
+
+- 2026-09-18 知识库发现入口补齐：agent-context-kit 0.3.4 模板与维护流程按 enabled/入口可达条件合并工程 AGENTS 简短指引；与 coding-iris-plugin 0.13.1 自主查询规则一同交付。普通更新不覆盖业务入口，本轮未部署业务副本。

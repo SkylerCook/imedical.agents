@@ -117,3 +117,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - `.agents/skills/<plugin-skill>/SKILL.md` 或等价 skill thin-index
 - 插件要求的 `.agents/scripts/*`
 - `.agents/.git/info/exclude`
+
+
+### 知识库简短入口
+
+初始化或授权维护工程入口时，若 `coding-iris-plugin` 为 enabled 且知识 skill 可用，在工程 `AGENTS.md` 的按任务读取部分合并模板中的“知识资料”一条；已有等价入口则复用，不重复追加。未启用或入口缺失时不加入该条，不自动启用插件。完整资料目录留在能力包，AGENTS 不复制索引、菜单或 wiki 内容。已有工程定点合并并保留自定义规则；普通能力包更新不改写工程 AGENTS。standard 与 Overlay 均使用项目本地 thin-index 路径，检查入口可达后再交付。

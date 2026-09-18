@@ -285,6 +285,10 @@ description: Initialize, maintain, or optimize project context including AGENTS.
 - 对部署成功的描述必须包含可复核标准，例如内层 status、生成物名称、关键参数或文件映射；不能只记录“执行成功”。
 - 若发现上下文或插件规则存在偏差，定位 owner 并在授权范围内修正；未授权的 canonical 变更只报告。项目规则/记忆保留差异摘要，不复制通用规则。
 
+## 知识库入口维护
+
+需要新增或修复知识库路由时，按 [初始化与插件接入](references/initialization.md) 的“知识库简短入口”执行：核对 enabled 状态与本地入口，合并一条自主查询指引，不复制完整索引。
+
 ## 条件维护与入口迁移
 
 只在稳定项目事实变化、入口失效、配置变化或用户要求时加载；普通编码不例行维护。已部署工程定点合并 AGENTS 中旧分流和无条件收尾条款，保留全部自定义约束；缺少 guidanceMode 按 auto 读取，不自动写 profile。能力包更新不等于项目入口已迁移。按 docs/update-agents.md 的演进迁移清单处理。

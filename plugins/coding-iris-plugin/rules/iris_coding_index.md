@@ -43,6 +43,6 @@ related:
 - `executionPath: fast | full | guarded` 只调整分析和验证深度，不减少任何已命中的规则；fast 仍执行项目入口、profile、通用安全、专项规则、Git、编码、目标测试和最终 diff 门禁。
 - 本地验证后按 `.agents/agents/_shared/delivery-lifecycle.md` 停在 `acceptance-pending`；本地测试、commit、部署均不产生 `accepted`。
 - 默认不执行远程写入、上传、编译、数据库变更。
-- 查询 IRIS 知识时优先使用 `iris-mcp-lookup`，并区分当前实例元数据、本地源码和官方文档版本。
+- 查询 IRIS 平台 API、实例元数据及官方文档时使用 `iris-mcp-lookup`；业务背景、菜单和实现参考可由模型按通用规则自主使用 `iris-imedical-knowledge`，无需用户点名。两类资料均与当前源码交叉核实。
 - 历史编码文件优先局部修改，不做整文件格式化。
 - HISUI 控件/API 不确定时先查 widget 索引和 JavaScript 源码；样式或视觉资源不确定时先查 style 索引和目标页面实际加载的主题/locale CSS。

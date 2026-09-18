@@ -27,6 +27,8 @@ TODO: 只保留项目实际需要的高频保护，如所属 Git 仓库、用户
 - 上下文模式不明或维护配置时读 `project_context_profile.md`；使用项目插件前查 `plugin_profile.md`，目录存在不代表 enabled。私有连接配置仅在连接、远端能力或实际配置问题时读取。
 - 按 `.agents/agents/_shared/execution-guidance.md` 执行，guidanceMode 缺省 auto；复用仍持有且未变化的资料，动态状态按当前操作核对。
 
+- 知识资料：按 `.agents/config/plugin_profile.md` 确认 `coding-iris-plugin` 已启用且入口可用后，可通过 `.agents/skills/iris-imedical-knowledge/SKILL.md` 查询业务、菜单与实现参考；由模型根据当前任务自主决定是否查询，已有证据足够时可跳过。资料索引随能力包维护，结论以当前工程代码与配置为准。
+
 ## 收尾
 
 - 仅稳定事实变化、入口失效、配置变化或用户要求初始化/维护/优化时加载 `.agents/skills/project-context-maintenance/SKILL.md`，普通修改不例行维护或推荐插件。

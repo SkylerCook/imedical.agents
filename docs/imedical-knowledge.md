@@ -4,7 +4,7 @@
 
 ## 使用
 
-- 查询：调用 `iris-imedical-knowledge`，给出业务名、菜单路径或类名。默认按需搜索共享参考；指定来源别名后优先查项目当前菜单。
+- 查询：模型自主决定是否使用 `iris-imedical-knowledge`，用户也可显式调用。业务背景、实现复用、跨模块理解等存在信息缺口时按需检索，已有证据足够就继续；无需用户为本地读取另行确认。默认搜索共享参考，指定来源别名后优先查项目当前菜单。
 - 刷新：调用 `iris-menu-sync`，指定当前工程与全部/安全组范围。Agent 复用现有 MCP，确认类/方法及表结构、完整读取后生成规范 JSON，再由离线工具 plan/apply 原子切换本地快照。
 - 脱机：已有导出可进入相同校验/发布流程；保留导出时间，不声称已联网刷新。
 
@@ -23,3 +23,7 @@
 ## 验证
 
 `node --test scripts/tests/iris-knowledge-menu.tests.js` 覆盖完整/部分刷新、输入与基线漂移、失败保留、链接边界、检索、共享资料 hash、standard/Overlay 及 PS7/PS5.1 thin-index。Windows/macOS/Linux × Node22/24 的 CI 配置见 knowledge-menu-validation.yml；只声明矩阵不等于已执行。真实 MCP 采集、目标实例菜单范围和页面定位需独立验证，本轮不自动访问医院环境。
+
+## 工程发现入口
+
+新工程初始化与已有工程授权维护时，由 project-context-maintenance 将 AGENTS 模板的“知识资料”一条合并到工程入口；仅适用于已启用 coding-iris-plugin 且 thin-index 可达的工程。已有等价指引复用，完整索引不复制到 AGENTS。模型仍自主决定是否查询。

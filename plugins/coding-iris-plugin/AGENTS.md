@@ -25,7 +25,7 @@ Agent 编写 `.cls` 时遵循 `references/cls-coding-format.md`。已有类只�
 
 ## Skill 路由
 
-- iMedical wiki、菜单及业务实现线索：`skills/iris-imedical-knowledge/SKILL.md`，只按任务读取 vendor 参考，当前项目源码优先。
+- iMedical wiki、菜单及业务实现线索：`skills/iris-imedical-knowledge/SKILL.md`。Agent 按通用规则自主判断查询收益，无需用户点名或为本地检索确认；当前项目源码优先。
 - 菜单资料刷新：`skills/iris-menu-sync/SKILL.md`，复用 MCP 采集，离线工具校验和原子发布项目快照。
 
 - 首次初始化：`skills/coding-iris-init/SKILL.md`
