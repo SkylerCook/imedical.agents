@@ -28,12 +28,16 @@ try {
 
   fs.writeFileSync(path.join(temporary, "docs", "note.md"), "out-of-scope\n");
   assert.equal(check(temporary, { suite: "unit", evidenceFile }).reusable, true);
+  git(["add", "docs"]); git(["commit", "-m", "unrelated HEAD"]);
+  assert.equal(check(temporary, { suite: "unit", evidenceFile }).reusable, true, "unrelated HEAD must preserve evidence");
 
   fs.writeFileSync(path.join(temporary, "src", "app.js"), "module.exports = 2;\n");
   assert.equal(check(temporary, { suite: "unit", evidenceFile }).reusable, false);
 
   record(temporary, { suite: "unit", command: "node --test", status: "passed", scopes: ["src"], evidenceFile });
   assert.equal(check(temporary, { suite: "unit", evidenceFile }).reusable, true);
+  git(["add", "src"]); git(["commit", "-m", "tested content committed"]);
+  assert.equal(check(temporary, { suite: "unit", evidenceFile }).reusable, true, "committing identical tested bytes preserves evidence");
   fs.writeFileSync(path.join(temporary, "src", "new.js"), "new file\n");
   assert.equal(check(temporary, { suite: "unit", evidenceFile }).reusable, false);
   assert.throws(() => record(temporary, { suite: "bad", command: "x", scopes: [".."], evidenceFile }), /escapes repository/);
@@ -43,6 +47,8 @@ try {
   record(temporary, { suite: "readback", command: "readback fixture assertion", scopes: ["private/readback.json"], evidenceFile });
   fs.writeFileSync(path.join(temporary, "private", "readback.json"), "after");
   assert.equal(check(temporary, { suite: "readback", evidenceFile }).reusable, false);
+  record(temporary, { suite: "failed", command: "false", status: "failed", scopes: ["src"], evidenceFile });
+  assert.equal(check(temporary, { suite: "failed", evidenceFile }).reusable, false);
   console.log("validation evidence tests passed");
 } finally {
   fs.rmSync(temporary, { recursive: true, force: true });

@@ -4,6 +4,8 @@
 
 ## P2 技能链接适配待验证
 
+- 提交校验工具：Windows/macOS/Linux × Node 22/24 的组件版本与内容证据 CI 矩阵实跑待完成；本轮 Windows Node 24 与隔离提交重放已验证，矩阵配置不等于平台通过。
+
 - 标版需求录入：standard-demand-entry 的 Windows/macOS/Linux × Node 22/24 CI 实跑，以及用户侧 BOSS 文本/Excel 真实录入验证；结构与本地 Git 测试不代表业务系统已验收。
 
 - Windows/macOS/Linux × Node 22/24 的 runtime-skills / skill-plugin-migration CI 实跑，以及 Claude Code 和非 Windows 宿主实际发现验证；CodeBuddy 的 Windows 项目 Skills 页面已有用户确认样本，实际任务调用仍独立取证。
@@ -34,6 +36,12 @@
 | 13 | P3 | 新增跨平台能力、知识接入与资产治理 | 平台需求或领域样本证明收益 | 明确边界后小范围试点；有证据才扩大平台能力、知识接入或公共资产 |
 
 ## 治理事项与验收细节
+
+### 已登记技术债：信创 1.0.2 发布记录
+
+- 标识：`version-debt-xc-1.0.2-commit`。`releases/plugin/imedicalxc-doctor-extend-engineer/1.0.2.md` 缺少 `commit`，对应 `release-field-missing`、`release-commit-invalid`；已确认在 `078867b` 之前存在，本次需求闭环未新增该问题。
+- 2026-09-18 用户明确要求登记后普通提交不再处理：不为此重复排查、反复提醒、请求确认或阻断无关提交。提交使用暂存组件门禁，保留不可变记录；涉及该记录的新变化仍按新增问题检查。
+- 仅在明确开展该项技术债治理或完整发布审计时处理，由信创维护人与版本治理负责人确定不篡改历史的纠错方案。完整审计保留问题，不将普通提交通过表述为全仓无债务。
 
 ### 框架演进后续验收
 

@@ -84,11 +84,14 @@ commit: 0123456
 node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js inventory --repo-root .
 node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js validate --repo-root .
 
-# 提交前比较工作区
+# 提交前只检查暂存组件（先精确暂存本次文件）
 node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js validate `
   --repo-root . `
-  --base-ref HEAD `
-  --worktree
+  --staged --budget-ms 60000
+
+# CI、发布或明确要求的完整工作区审计
+node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js validate `
+  --repo-root . --base-ref HEAD --worktree
 
 # 两个 Git ref 的只读兼容审计
 node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js compare `
@@ -104,6 +107,22 @@ breaking 比较默认失败。仅在明确批准目标组件和版本后追加�
 ```
 
 不接受通配符，错误版本和未消费授权同样失败。版本倒退、依赖不兼容和发布记录缺失不能通过 breaking 授权绕过。`--format json` 输出 `imedical-component-version-result/v1`；退出码 `0` 表示通过，`1` 表示治理失败，`2` 表示参数或运行错误。
+
+## 提交证据与耗时
+
+提交固定使用 `validate --staged`：一次取得暂存变更清单，校验这些 owner 的版本递增、发布记录不可变性，并检查直接依赖及直接反向依赖。全部 manifest 只作为依赖图输入；不会逐文件调用 `git show`，历史对象通过 `git cat-file --batch` 批量读取并在本次调用内缓存。只认 index，未暂存修复不能使错误的暂存内容通过。组件外文件不会触发全仓发布记录扫描。
+
+版本证据自动独立保存到系统临时目录 `imedical-agent-validation/*-versions.json`（可用 `--evidence-file` 指定）。指纹绑定校验器、变更组件文件名、前后版本元数据、发布记录和依赖图；不绑定 HEAD 标识，也不绑定与版本规则无关的文案正文。同一变更集的纯文案编辑、无关提交可复用；新增组件路径、版本、发布记录或依赖元数据变化则重新校验。失败、超时不记录通过证据；命中缓存仍输出原有历史问题。
+
+功能证据用 `scripts/validation-evidence.js record|check` 单独管理，内容指纹只绑定明确受测的 scope、文件内容、文件类型和可执行位；HEAD 仅作来源信息。scope 应覆盖实现、测试、运行配置及测试实际读取的协议文件，普通说明文案不混入功能 scope。不能仅凭 `.md` 后缀排除运行协议。旧版 HEAD 指纹不自动升级为有效证据；首次需重新验证。`record` 是维护者对成功测试的记录，不代替执行测试，也不能用来覆盖失败。
+
+暂存门禁在 stderr 输出阶段、组件数、耗时，JSON 留在 stdout；默认总预算 60 秒，`--budget-ms` 可调整。Git 子进程共享剩余预算，超时返回 2 并停止，不视为通过。全仓审计仍使用原命令，CI 在 Windows/macOS/Linux × Node 22/24 执行工具测试和完整版本检查。
+
+## 历史问题规则
+
+已登记的 `version-debt-xc-1.0.2-commit`（信创 1.0.2 缺少 commit）见 `memory/agent-kit-maintenance-backlog.md`。按用户约定，后续普通提交不重复排查、提醒或请求确认；仅相关记录发生新变化或明确开展治理/发布审计时处理。
+
+暂存门禁只将以下发现列为 `historicalIssues`：基线中已经存在、问题完全相同、对应已提交发布记录内容未变的结构问题。它们明确报告并保留在治理队列，不阻断无新增问题的局部提交；新增或修改的错误、依赖不兼容、版本未递增、历史记录被篡改始终阻断。未涉及组件的历史记录不扫描，不能据局部门禁通过宣称全仓无问题。CI、发布和完整审计继续报告并阻断所有历史问题；历史发布记录纠错仍按 owner 治理方案处理，不修改不可变记录。
 
 ## 明确边界
 

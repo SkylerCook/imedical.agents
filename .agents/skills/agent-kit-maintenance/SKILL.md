@@ -48,7 +48,7 @@ description: Use when maintaining the imedical.agents repository itself, especia
 插件目录发生任何变化时必须递增插件版本；根级独立 skill 目录变化时必须递增自身版本。插件内部内容继承插件版本，不得维护第二套版本号。提交前运行：
 
 ```powershell
-node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js validate --repo-root . --base-ref HEAD --worktree
+node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js validate --repo-root . --staged --budget-ms 60000
 ```
 
 ## 业务需求夹带框架变更的回看门禁
@@ -88,23 +88,25 @@ git diff --check
 ```
 
 - **纯文档或维护 skill 文案**：检查引用路径、规则一致性和相关契约；未改变组件内容或验证器时，不运行组件版本完整测试。插件或根级独立 skill 目录内的文档变化仍受组件版本治理约束。
-- **插件或根级独立 skill 目录变化**：必须运行下列 worktree 组件版本校验，并按改动补充 owner 专项测试。
+- **插件或根级独立 skill 目录变化**：先精确暂存本次文件，提交前运行下列 staged 组件版本校验，并按改动补充 owner 专项测试。完整审计保留给 CI、发布或明确审计。
 - **组件版本工具或治理逻辑变化**：补充 `node --test scripts/tests/component-version-management.tests.js`；其它任务仅在影响该行为或有回归证据时运行。
 - **PowerShell 与跨平台工具链变化**：按根规则验证支持的宿主和平台；通用 `.ps1` 验证 Windows PowerShell 5.1，跨平台矩阵尚未完成时明确列出缺口，不宣称全部通过。
 - **生成预览、交付包或部署运行态的项目集成测试**：从目标项目执行，产物放目标项目约定目录（治疗表单为 `docs/work/cure-form/`）；不在源仓生成业务测试产物。纯框架单元测试使用隔离临时目录。
 
 ```powershell
-node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js validate --repo-root . --base-ref HEAD --worktree
+node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js validate --repo-root . --staged --budget-ms 60000
 ```
 
 完整回归与提交门禁分开。完整测试通过后，用 `scripts/validation-evidence.js record` 记录 suite、原命令、受测 scope 和 worktree 指纹；提交前用 `check` 验证证据。指纹匹配时必须复用结果，不得机械重复运行完整测试套件；只有命中该 scope 的文件变化、此前无有效证据或验证失败时，才补跑对应测试并重新记录。
 
 ```powershell
-node scripts/validation-evidence.js record --repo-root . --suite component-version-full --command "node --test scripts/tests/component-version-management.tests.js" --scope .agents/skills/agent-kit-maintenance/scripts --scope scripts/tests/component-version-management.tests.js --scope plugins --scope skills --scope releases
+node scripts/validation-evidence.js record --repo-root . --suite component-version-full --command "node --test scripts/tests/component-version-management.tests.js" --scope .agents/skills/agent-kit-maintenance/scripts --scope scripts/tests/component-version-management.tests.js
 node scripts/validation-evidence.js check --repo-root . --suite component-version-full
 ```
 
-证据默认写入系统临时目录，不污染仓库；指纹包含 HEAD、scope 内相对 HEAD 的 binary diff 及未跟踪文件内容。scope 外文档变化不会使该 suite 失效。提交前只补齐适用于本次改动且尚未完成或已失效的快速门禁：worktree 组件版本校验、`git diff --check` 和暂存内容复核。
+功能证据绑定 scope 内实际内容、文件类型和可执行位，HEAD 仅作来源信息；无关提交与 scope 外文案变化可复用。scope 必须覆盖实现、测试、配置及实际读取的协议，不能仅凭后缀排除运行输入。版本门禁自动保存独立指纹，绑定暂存变更路径、前后元数据、依赖图和校验器；命中缓存复用结果，失败或超时不得记为通过。旧版证据不能直接升级为有效证据。提交只补齐失效的对应功能测试、`validate --staged`、`git diff --cached --check` 和暂存复核，未暂存修复不能替代暂存内容的验证。
+
+版本门禁只检查暂存 owner 与直接依赖兼容，输出阶段、组件数和耗时，默认 60 秒预算。未变化的既有发布记录问题单列报告，新增问题阻断；完整审计仍阻断历史问题。规则及范围见 `docs/component-version-management.md`，不在提交阶段重新扫描无关历史。
 
 只有已有明确提交授权时才执行 `git commit`；按根 `AGENTS.md` 检查中文 Conventional Commits 标题和以 `修改说明:` 开头的正文。维护完成不隐含 commit、merge、push、远程写入或业务副本部署授权；沿用已有授权，不重复确认，也不扩大操作范围。
 

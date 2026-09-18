@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- 提交性能：`validate --staged` 只校验暂存组件与直接依赖，批量读取 Git 对象并独立缓存版本证据；功能证据按实际内容复用，不绑定 HEAD。信创 1.0.2 缺少 commit 已登记为 `version-debt-xc-1.0.2-commit`，用户要求后续普通提交不重复处理或提醒；见 backlog 与 docs/component-version-management.md。
+
 - project-context-maintenance 区分初始化、事实维护和日常优化；去重保留约束，初始化与优化资料按需读取，普通维护不自动接入插件。模板与旧项目迁移说明已对齐，业务副本不自动同步。
 
 - 标版需求闭环新增 iris-demand-entry，用户模式 --text/--bind/--plan/--commit/--help：实际 Git 补丁 → 默认文本/可选 Excel → 用户录 BOSS → 编号回填 → 复用需求提交。历史提交不自动改写，工作区漂移需复核；协议见 coding-iris-plugin/references/standard-demand-entry.md，业务副本未自动同步。

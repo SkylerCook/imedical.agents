@@ -3,12 +3,20 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
+const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 
 const RESULT_SCHEMA = 'imedical-component-version-result/v1';
 const RELEASE_SCHEMA = 'imedical-component-release/v1';
 const SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const RELEASE_PATH_RE = /^releases\/(plugin|skill)\/([^/]+)\/([^/]+)\.md$/;
+let deadline = Infinity;
+let gitProcesses = 0;
+function budget() {
+  if (Date.now() >= deadline) throw new Error('Validation time budget exceeded; no passing evidence recorded.');
+  return Number.isFinite(deadline) ? Math.max(1, deadline - Date.now()) : 60000;
+}
 
 function normalizePath(value) {
   return String(value || '').replace(/\\/g, '/').replace(/^\.\//, '');
@@ -46,7 +54,8 @@ function inRange(version, minVersion, maxVersionExclusive) {
 }
 
 function runGit(repoRoot, args, allowFailure = false) {
-  const result = spawnSync('git', ['-C', repoRoot, ...args], { encoding: 'utf8' });
+  gitProcesses += 1;
+  const result = spawnSync('git', ['-C', repoRoot, ...args], { encoding: 'utf8', timeout: budget(), windowsHide: true, maxBuffer: 64 * 1024 * 1024 });
   if (result.error) throw result.error;
   if (result.status !== 0 && !allowFailure) {
     throw new Error(`git ${args.join(' ')} failed: ${(result.stderr || result.stdout || '').trim()}`);
@@ -96,14 +105,48 @@ function walkFiles(root, relative = '') {
 function createSource(repoRoot, ref = null) {
   const root = path.resolve(repoRoot);
   if (ref) {
-    const files = runGit(root, ['ls-tree', '-r', '--name-only', ref]).stdout.split(/\r?\n/).map(normalizePath).filter(Boolean);
+    const staged = ref === ':index';
+    const listing = runGit(root, staged ? ['ls-files', '--stage', '-z'] : ['ls-tree', '-r', '-z', ref]).stdout;
+    const objects = new Map();
+    for (const entry of listing.split('\0').filter(Boolean)) {
+      const separator = entry.indexOf('\t');
+      const fields = entry.slice(0, separator).split(' ');
+      if (staged && fields[2] !== '0') throw new Error('Unmerged index; resolve conflicts before validation.');
+      objects.set(entry.slice(separator + 1), fields[staged ? 1 : 2]);
+    }
+    const files = [...objects.keys()];
     const fileSet = new Set(files);
+    const contents = new Map();
     return {
       root,
       ref,
       files,
       has(file) { return fileSet.has(normalizePath(file)); },
-      read(file) { return runGit(root, ['show', `${ref}:${normalizePath(file)}`]).stdout; }
+      prepare(paths) {
+        const ids = [...new Set(paths.map(file => objects.get(file)).filter(id => !contents.has(id)))];
+        if (!ids.length) return;
+        gitProcesses += 1;
+        const result = spawnSync('git', ['-C', root, 'cat-file', '--batch'], {
+          input: ids.join('\n') + '\n', timeout: budget(), windowsHide: true, maxBuffer: 64 * 1024 * 1024
+        });
+        if (result.error) throw result.error;
+        if (result.status !== 0) throw new Error(`git cat-file failed: ${result.stderr}`);
+        let offset = 0;
+        for (const id of ids) {
+          const end = result.stdout.indexOf(10, offset);
+          const header = result.stdout.subarray(offset, end).toString('utf8').split(' ');
+          const size = Number(header[2]);
+          if (end < 0 || header[0] !== id || header[1] !== 'blob' || !Number.isSafeInteger(size)) throw new Error('Invalid cat-file batch response.');
+          offset = end + 1;
+          contents.set(id, result.stdout.subarray(offset, offset + size).toString('utf8'));
+          offset += size + 1;
+        }
+      },
+      read(file) {
+        const id = objects.get(normalizePath(file));
+        if (!contents.has(id)) this.prepare([normalizePath(file)]);
+        return contents.get(id);
+      }
     };
   }
   const prefixes = ['plugins', 'skills', 'releases'];
@@ -126,8 +169,8 @@ function releasePath(type, name, version) {
   return `releases/${type}/${name}/${version}.md`;
 }
 
-function buildSnapshot(repoRoot, ref = null) {
-  const source = createSource(repoRoot, ref);
+function buildSnapshot(repoRoot, ref = null, scope = null, existingSource = null) {
+  const source = existingSource || createSource(repoRoot, ref);
   const components = new Map();
   const releases = new Map();
   const internalSkillVersions = [];
@@ -142,7 +185,14 @@ function buildSnapshot(repoRoot, ref = null) {
     components.set(key, component);
   }
 
-  for (const file of source.files) {
+  const selected = source.files.filter(file => {
+    if (/^plugins\/[^/]+\/\.agents-plugin\/plugin\.json$/.test(file) || /^skills\/[^/]+\/SKILL\.md$/.test(file)) return true;
+    const owner = ownerOf(file);
+    return (!scope || scope.has(owner)) && (RELEASE_PATH_RE.test(file) || /^plugins\/[^/]+\/skills\/.+\/SKILL\.md$/.test(file));
+  });
+  if (source.prepare) source.prepare(selected);
+  for (const file of selected) {
+    budget();
     let match = /^plugins\/([^/]+)\/\.agents-plugin\/plugin\.json$/.exec(file);
     if (match) {
       const directoryName = match[1];
@@ -204,7 +254,14 @@ function buildSnapshot(repoRoot, ref = null) {
       });
     }
   }
-  return { repoRoot: path.resolve(repoRoot), ref, source, components, releases, internalSkillVersions, componentCollisions };
+  return { repoRoot: path.resolve(repoRoot), ref, source, components, releases, internalSkillVersions, componentCollisions, scope };
+}
+
+function ownerOf(file) {
+  const match = /^(plugins|skills)\/([^/]+)\//.exec(file);
+  if (match) return `${match[1] === 'plugins' ? 'plugin' : 'skill'}:${match[2]}`;
+  const release = RELEASE_PATH_RE.exec(file);
+  return release ? `${release[1]}:${release[2]}` : null;
 }
 
 function validateRelease(record, issues) {
@@ -298,7 +355,7 @@ function validateSnapshot(snapshot) {
   const visited = new Set();
   function visit(name, stack) {
     if (visiting.has(name)) {
-      issues.push(issue('dependency-cycle', `Plugin dependency cycle: ${[...stack, name].join(' -> ')}.`, { component: `plugin:${name}` }));
+      issues.push(issue('dependency-cycle', `Plugin dependency cycle: ${[...stack, name].join(' -> ')}.`, { component: `plugin:${name}`, cycle: [...stack, name].map(value => `plugin:${value}`) }));
       return;
     }
     if (visited.has(name)) return;
@@ -309,7 +366,7 @@ function validateSnapshot(snapshot) {
     visited.add(name);
   }
   for (const component of snapshot.components.values()) if (component.type === 'plugin') visit(component.name, []);
-  return issues;
+  return snapshot.scope ? issues.filter(item => snapshot.scope.has(item.component || ownerOf(item.path || '')) || (item.cycle || []).some(key => snapshot.scope.has(key))) : issues;
 }
 
 function validateTransition(previous, next, record, issues) {
@@ -407,10 +464,11 @@ function compareSnapshots(previous, next, options = {}) {
 }
 
 function changedFiles(repoRoot, baseRef, headRef) {
-  const args = ['diff', '--name-status', baseRef];
-  if (headRef) args.push(headRef);
+  const args = ['diff', '--no-renames', '--name-only', '-z', baseRef];
+  if (headRef === ':index') args.push('--cached');
+  else if (headRef) args.push(headRef);
   args.push('--');
-  const output = runGit(repoRoot, args).stdout.split(/\r?\n/).filter(Boolean).map((line) => normalizePath(line.split('\t').at(-1)));
+  const output = runGit(repoRoot, args).stdout.split('\0').filter(Boolean);
   if (!headRef) {
     const untracked = runGit(repoRoot, ['ls-files', '--others', '--exclude-standard']).stdout.split(/\r?\n/).map(normalizePath).filter(Boolean);
     output.push(...untracked);
@@ -445,16 +503,93 @@ function validateChanges(previous, next, files) {
   return { issues, changes: result.changes, bootstrap: false };
 }
 
+// Commit validation reads the index, never unstaged repairs. All manifests are
+// cheap graph inputs; skill bodies and release history are limited to owners.
+function validateStaged(repoRoot, options, progress) {
+  const files = changedFiles(repoRoot, 'HEAD', ':index');
+  const touched = new Set(files.map(ownerOf).filter(Boolean));
+  if (!touched.size) return resultPayload('validate', null, [], {
+    componentCount: 0, checkedComponents: [], touchedComponents: [], historicalIssues: [],
+    evidence: 'not-needed', scope: 'staged', changes: []
+  });
+  const previousSource = createSource(repoRoot, 'HEAD');
+  const nextSource = createSource(repoRoot, ':index');
+  const oldGraph = buildSnapshot(repoRoot, 'HEAD', new Set(), previousSource);
+  const newGraph = buildSnapshot(repoRoot, ':index', new Set(), nextSource);
+  const checked = new Set(touched);
+  for (const graph of [oldGraph, newGraph]) {
+    for (const [key, component] of graph.components) {
+      if (touched.has(key)) for (const name of component.dependencies) checked.add(`plugin:${name}`);
+      if (component.dependencies.some(name => touched.has(`plugin:${name}`))) checked.add(key);
+    }
+  }
+  progress(`Loading ${checked.size} affected component(s), ${touched.size} changed owner(s)`);
+  const previous = buildSnapshot(repoRoot, 'HEAD', checked, previousSource);
+  const next = buildSnapshot(repoRoot, ':index', checked, nextSource);
+  const digest = crypto.createHash('sha256');
+  digest.update(fs.readFileSync(__filename));
+  digest.update(JSON.stringify({ files: files.filter(ownerOf).sort(), checked: [...checked].sort() }));
+  for (const snapshot of [previous, next]) {
+    digest.update(JSON.stringify([...snapshot.components]));
+    digest.update(JSON.stringify([...snapshot.releases]));
+    digest.update(JSON.stringify(snapshot.internalSkillVersions));
+    digest.update(JSON.stringify(snapshot.componentCollisions));
+  }
+  const fingerprint = digest.digest('hex');
+  const repository = path.resolve(repoRoot);
+  const cacheKey = crypto.createHash('sha256').update(repository).digest('hex').slice(0, 20);
+  const evidenceFile = options.evidenceFile || path.join(os.tmpdir(), 'imedical-agent-validation', `${cacheKey}-versions.json`);
+  let saved;
+  try { saved = JSON.parse(fs.readFileSync(evidenceFile, 'utf8')); }
+  catch (error) { if (error.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error; }
+  if (saved && saved.schema === 'component-version-evidence/v1' && saved.repository === repository && saved.fingerprint === fingerprint && saved.payload.ok) {
+    progress(`Reusing version evidence for ${checked.size} component(s)`);
+    return { ...saved.payload, evidence: 'reused' };
+  }
+  progress(`Checking ${checked.size} component(s): versions, releases, direct dependencies`);
+  const validation = validateChanges(previous, next, files);
+  const baseline = new Set(validateSnapshot(previous).map(item => JSON.stringify(item)));
+  const historicalIssues = [];
+  const issues = validation.issues.filter(item => {
+    // Only byte-identical committed records may remain historical. Transition,
+    // dependency and immutable-record violations always block the new commit.
+    const unchanged = item.path && RELEASE_PATH_RE.test(item.path) &&
+      previous.releases.has(item.path) && next.releases.has(item.path) &&
+      previous.releases.get(item.path).content === next.releases.get(item.path).content;
+    if (unchanged && baseline.has(JSON.stringify(item))) { historicalIssues.push(item); return false; }
+    return true;
+  });
+  const payload = resultPayload('validate', next, issues, {
+    componentCount: checked.size,
+    changes: validation.changes, historicalIssues, checkedComponents: [...checked].sort(),
+    touchedComponents: [...touched].sort(), evidence: 'fresh', scope: 'staged',
+    historyPolicy: 'unchanged-release-findings-report-only; full-audit-blocks'
+  });
+  budget();
+  if (payload.ok) {
+    fs.mkdirSync(path.dirname(evidenceFile), { recursive: true });
+    const temporary = `${evidenceFile}.${process.pid}.tmp`;
+    try {
+      fs.writeFileSync(temporary, JSON.stringify({ schema: 'component-version-evidence/v1', repository, fingerprint, payload }));
+      budget();
+      fs.renameSync(temporary, evidenceFile);
+    } finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); }
+  }
+  return payload;
+}
+
 function parseCli(argv) {
   const command = argv[0];
   const options = { repoRoot: '.', format: 'text', acceptBreaking: [] };
   const names = {
     '--repo-root': 'repoRoot', '--ref': 'ref', '--base-ref': 'baseRef', '--head-ref': 'headRef',
-    '--from-ref': 'fromRef', '--to-ref': 'toRef', '--format': 'format', '--accept-breaking': 'acceptBreaking'
+    '--from-ref': 'fromRef', '--to-ref': 'toRef', '--format': 'format', '--accept-breaking': 'acceptBreaking',
+    '--budget-ms': 'budgetMs', '--evidence-file': 'evidenceFile'
   };
   for (let index = 1; index < argv.length; index += 1) {
     const token = argv[index];
     if (token === '--worktree') { options.worktree = true; continue; }
+    if (token === '--staged') { options.staged = true; continue; }
     const name = names[token];
     if (!name) throw new Error(`Unknown option: ${token}`);
     const value = argv[index + 1];
@@ -494,6 +629,8 @@ function printResult(payload, format) {
     }
   }
   if (payload.changes && payload.changes.length) for (const change of payload.changes) process.stdout.write(`change ${change.component} ${change.from || '<none>'} -> ${change.to || '<removed>'}${change.breaking ? ' breaking' : ''}\n`);
+  for (const item of payload.historicalIssues || []) process.stdout.write(`historical ${item.code}: ${item.message}\n`);
+  if (payload.evidence) process.stdout.write(`version-evidence: ${payload.evidence}\n`);
   if (payload.ok) process.stdout.write(`component-version-ok: ${payload.componentCount == null ? '' : `${payload.componentCount} component(s)`}`.trimEnd() + '\n');
   else for (const item of payload.issues) process.stdout.write(`${item.code}: ${item.message}\n`);
 }
@@ -503,9 +640,19 @@ function main(argv = process.argv.slice(2)) {
   try {
     parsed = parseCli(argv);
     const { command, options } = parsed;
+    const started = Date.now();
+    const limit = Number(options.budgetMs || 60000);
+    if (!Number.isFinite(limit) || limit <= 0) throw new Error('--budget-ms must be positive.');
+    deadline = started + limit;
+    gitProcesses = 0;
     const repoRoot = path.resolve(options.repoRoot);
     let payload;
-    if (command === 'inventory') {
+    if (options.staged) {
+      if (command !== 'validate' || options.worktree || options.headRef || options.baseRef || options.ref) throw new Error('--staged requires validate and cannot be combined with ref/worktree options.');
+      const progress = message => process.stderr.write(`[component-version ${Date.now() - started}ms] ${message}\n`);
+      progress('Reading staged change list');
+      payload = validateStaged(repoRoot, options, progress);
+    } else if (command === 'inventory') {
       const snapshot = buildSnapshot(repoRoot, options.ref || null);
       payload = resultPayload(command, snapshot, validateSnapshot(snapshot));
     } else if (command === 'validate') {
@@ -526,12 +673,18 @@ function main(argv = process.argv.slice(2)) {
     } else {
       throw new Error('Command must be inventory, validate, or compare.');
     }
+    budget();
+    payload.elapsedMs = Date.now() - started;
+    payload.gitProcesses = gitProcesses;
     printResult(payload, options.format);
+    if (options.staged) process.stderr.write(`[component-version ${payload.elapsedMs}ms] completed ${payload.checkedComponents.length} component(s), ${gitProcesses} Git process(es)\n`);
     return payload.ok ? 0 : 1;
   } catch (error) {
     const payload = { schema: RESULT_SCHEMA, command: parsed ? parsed.command : null, ok: false, issues: [issue('component-version-runtime-error', error.message)] };
     printResult(payload, parsed ? parsed.options.format : 'text');
     return 2;
+  } finally {
+    deadline = Infinity;
   }
 }
 

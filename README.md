@@ -163,13 +163,12 @@ imedical.agents/
 
 15 个插件以 `.agents-plugin/plugin.json` 为版本事实来源，目前没有根级独立 skill；以后新增的独立 skill 在 `SKILL.md` 声明自身版本，插件内部内容统一继承 owner 插件版本。发布记录位于 `releases/plugin|skill/<name>/<version>.md`，依赖版本范围通过 manifest 的 `dependencyVersions` 审计，同时保留原 `dependencies` 名称数组供现有更新器使用。
 
-维护者在插件或独立 skill 提交前运行：
+维护者精确暂存插件或独立 skill 的本次文件后运行：
 
 ```powershell
 node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js validate `
   --repo-root . `
-  --base-ref HEAD `
-  --worktree
+  --staged --budget-ms 60000
 ```
 
 这套能力只服务源仓维护，不接入业务项目安装、更新、thin-index 或 hook；现有部署与更新流程继续以 `docs/update-agents.md` 为准。
@@ -195,7 +194,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 新运行使用 schema 2.0：`taskKind` 先将 `business-demand`、`framework-maintenance` 和 `other` 分流；业务需求走用户验收与 feedback，框架维护走独立 `maintenance-complete` 状态，运行时拒绝交叉调用。`executionPath: fast|full|guarded` 与 `orchestrationMode: serial|subagent|multi-session` 相互独立，状态通过 `events.jsonl` 投影到 `00-run-manifest.json`。协作计划、远程写入、commit、merge、push、部署和 feedback 写入分别授权。旧 schema 1.0–1.2 保持只读兼容。skill 内部短时只读子 Agent 提效不创建正式 run。
 
-维护验证可通过 `scripts/validation-evidence.js` 记录 suite、命令、scope 和 worktree 指纹；提交前指纹匹配时复用已通过结果，只补跑受影响测试，避免把常规 `git commit` 变成重复发布验收。
+功能验证通过 `scripts/validation-evidence.js` 记录 suite、命令与受测内容指纹，无关 HEAD 变化仍可复用；版本门禁独立缓存，只检查暂存组件及直接依赖，Git 历史对象批量读取。默认 60 秒预算并输出阶段与耗时；未变化的历史发布问题单列，全仓检查保留给 CI、发布与明确审计。详见 [组件版本规范](docs/component-version-management.md)。
 
 对应能力：
 
