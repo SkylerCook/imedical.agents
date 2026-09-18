@@ -25,6 +25,7 @@ $adapterNames = @(
 )
 $nodeAdapterNames = @(
   "iris-mcp.js",
+  "sync-runtime-skills.js",
   "agent-orchestrator.js"
 )
 

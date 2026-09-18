@@ -2,6 +2,10 @@
 
 本文件记录 `imedical.agents` 能力包仓库的后续计划、暂缓事项和治理优先级。入口摘要见 `agent-kit-maintenance-memory.md`，长期决策见 `agent-kit-maintenance-decisions.md`，近期维护流水见 `agent-kit-maintenance-log.md`。
 
+## P2 技能链接适配待验证
+
+- Windows/macOS/Linux × Node 22/24 的 runtime-skills CI 实跑，以及 Claude Code 和非 Windows 宿主实际发现验证；CodeBuddy 的 Windows 项目 Skills 页面已有用户确认样本，实际任务调用仍独立取证。
+
 ## 治理优先级与执行顺序
 
 优先级按当前阻塞、潜在写入风险和依赖关系确定，不以文档排列历史决定。下表是全队列的排序入口；同级按序号推进。外部条件未满足时标记等待，继续下一项可执行工作，不绕过授权或门禁。本轮框架交付已完成，下列均为独立后续治理。

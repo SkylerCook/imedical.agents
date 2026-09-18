@@ -4,7 +4,7 @@
   [string]$Mode = "DryRun",
   [string[]]$Plugin = @(),
   [string[]]$ExcludePlugin = @(),
-  [ValidateSet("ClaudeCode", "Codex")]
+  [ValidateSet("ClaudeCode", "Codex", "CodeBuddy")]
   [string[]]$RuntimeAdapter = @(),
   [switch]$ForceThinIndex,
   [switch]$CleanupLegacyVendorSkills,
@@ -769,6 +769,8 @@ function Write-UpdateSummary {
     "skill-dependency-source-missing",
     "legacy-vendor-profile-review-required",
     "sync-claudecode-skills-script-missing",
+    "runtime-adapter-conflict",
+    "runtime-adapter-blocked",
     "maintenance-only-skill-remove-failed",
     "mcp-vendor-preference-script-missing",
     "mcp-vendor-executable-missing",
@@ -1407,23 +1409,23 @@ else {
   $results.Add((Write-UpdateResult -Status "vendor-thin-index-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $vendorThinIndexScript) -Reason "vendor thin-index script missing" -Phase "vendor-thin-index"))
 }
 
-$syncClaudeSkillsScript = Join-Path $agentsRoot "scripts/sync-claudecode-skills.ps1"
-if ($RuntimeAdapter -contains "Codex") {
-  $results.Add((Write-UpdateResult -Status "runtime-adapter-reused" -Target ".agents/skills" -Reason "Codex uses the common project discovery layer; user-level copies require explicit sync-vendor-skills.ps1" -Phase "runtime-adapter"))
-}
-if (($RuntimeAdapter -contains "ClaudeCode") -and (Test-Path -LiteralPath $syncClaudeSkillsScript -PathType Leaf)) {
-  $syncMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
-  $syncOutput = & $syncClaudeSkillsScript -ProjectRoot $projectRootFull -ContextRoot $contextRoot -CapabilityRoot $capabilityRoot -Mode $syncMode | Out-String
-  $syncResults = Convert-ThinIndexTextOutput -Text $syncOutput -PluginName "" -Phase "claudecode-skills"
-  foreach ($item in $syncResults) {
-    $results.Add($item)
+$runtimeAdapterFailed = $false
+$runtimeSkillsScript = Join-Path $capabilityRoot "scripts/sync-runtime-skills.js"
+foreach ($runtime in @($RuntimeAdapter | Select-Object -Unique)) {
+  if (-not (Test-Path -LiteralPath $runtimeSkillsScript -PathType Leaf)) {
+    $results.Add((Write-UpdateResult -Status "runtime-adapter-blocked" -Target $runtimeSkillsScript -Reason "runtime skills adapter missing; update capability first" -Phase "runtime-adapter"))
+    $runtimeAdapterFailed = $true
+    continue
   }
+  Assert-AgentsNodeRuntime
+  $runtimeOutput = & node $runtimeSkillsScript --project-root $projectRootFull --runtime $runtime --mode $Mode
+  $runtimeExit = $LASTEXITCODE
+  $runtimeResult = ($runtimeOutput -join "`n") | ConvertFrom-Json
+  $results.Add((Write-UpdateResult -Status $runtimeResult.status -Target $runtimeResult.target -Source $runtimeResult.source -Reason $runtimeResult.reason -Phase "runtime-adapter"))
+  if ($runtimeExit -ne 0) { $runtimeAdapterFailed = $true }
 }
-elseif ($RuntimeAdapter -contains "ClaudeCode") {
-  $results.Add((Write-UpdateResult -Status "sync-claudecode-skills-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $syncClaudeSkillsScript) -Reason "sync claudecode skills script missing" -Phase "claudecode-skills"))
-}
-else {
-  $results.Add((Write-UpdateResult -Status "runtime-adapter-skipped" -Target ".agents/skills" -Reason "project discovery layer is canonical; pass -RuntimeAdapter ClaudeCode only when native project sync is required" -Phase "runtime-adapter"))
+if ($RuntimeAdapter.Count -eq 0) {
+  $results.Add((Write-UpdateResult -Status "runtime-adapter-skipped" -Target ".agents/skills" -Reason "project discovery layer is canonical; adapters are opt-in via -RuntimeAdapter" -Phase "runtime-adapter"))
 }
 
 if (($allPlugins.Count -eq 0) -or (($Plugin.Count -gt 0) -and ($matchedPluginCount -eq 0))) {
@@ -1436,3 +1438,4 @@ if ($Detailed) {
 else {
   Write-UpdateSummary -Results $results -Mode $Mode
 }
+if ($runtimeAdapterFailed) { throw "Runtime skill adaptation incomplete; resolve the reported status before retrying." }

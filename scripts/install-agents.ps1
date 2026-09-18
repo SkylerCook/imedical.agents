@@ -1,4 +1,9 @@
-﻿$ErrorActionPreference = "Stop"
+﻿param(
+  [ValidateSet("ClaudeCode", "Codex", "CodeBuddy")]
+  [string[]]$RuntimeAdapter = @()
+)
+
+$ErrorActionPreference = "Stop"
 
 $repo = "https://gitee.com/skyler-cook/imedical.agents.git"
 $target = ".agents"
@@ -183,3 +188,7 @@ if (Test-Path ".git") {
 }
 
 Write-PostInstallGuidance
+
+if ($RuntimeAdapter.Count -gt 0) {
+  & (Join-Path $target "scripts/update-agents.ps1") -ProjectRoot (Get-Location).Path -Mode Write -NoPull -RuntimeAdapter $RuntimeAdapter
+}

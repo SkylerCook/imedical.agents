@@ -117,7 +117,7 @@ standard 模式的更新器在 fetch 后比较本地 `HEAD` 与 upstream：一�
 - `-NoPull`：基于本地 `.agents` 内容检查或重建。
 - `-Plugin <name[]>`：只处理指定插件。
 - `-ExcludePlugin <name[]>`：跳过指定插件。
-- `-RuntimeAdapter ClaudeCode|Codex`：显式启用已验证的工具发现层 adapter；默认仅维护 `.agents/skills` 通用层。
+- `-RuntimeAdapter CodeBuddy|ClaudeCode|Codex`：显式接入链接优先的项目技能发现层；默认仅维护 `.agents/skills` 通用层。CodeBuddy/Claude Code 使用目录链接，Codex 直接复用；已有目录冲突保留。接入 skill 为 `coding-agent-adaptation`，命令、迁移与验证范围见 [技能适配](docs/coding-agent-adaptation.md)。
 - `-ForceThinIndex`：将 `-Force` 传给 plugin thin-index 生成脚本。
 - `-CleanupLegacyVendorSkills`：显式清理不再属于 enabled 插件 required 集合的受管 vendor thin-index；普通更新不清理。
 - `-Detailed`：输出明细；日常不加，只看摘要。
@@ -130,7 +130,7 @@ standard 模式的更新器在 fetch 后比较本地 `HEAD` 与 upstream：一�
 
 完整命令、停止条件和安全恢复策略见 [docs/workspace-overlay.md](docs/workspace-overlay.md)。
 
-安装和更新先根据 enabled 插件 manifest 解析 `skillDependencies`，只为 required vendor skill 生成 `.agents/skills/<name>/SKILL.md` 项目通用入口；optional skill 由任务场景触发。常规流程不再写用户级 skill 目录；Claude Code/Codex 同步必须显式指定 runtime 和 skill。OpenCode、CodeBuddy、WorkBuddy、Hermes 等未验证 adapter 的工具使用 `.agents/skills` 或直接 vendor 源降级。
+安装和更新先根据 enabled 插件 manifest 解析 `skillDependencies`，只为 required vendor skill 生成 `.agents/skills/<name>/SKILL.md` 项目通用入口；optional skill 由任务场景触发。常规流程不再写用户级 skill 目录；用户级 Claude Code/Codex vendor 同步必须显式指定 runtime 和 skill。CodeBuddy/Claude Code 的项目技能采用链接接入；OpenCode、WorkBuddy、Hermes 等未实现 adapter 的工具使用 `.agents/skills` 或直接 vendor 源降级。
 
 ## 仓库结构
 

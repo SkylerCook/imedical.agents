@@ -1,0 +1,34 @@
+name: Runtime skill links
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  links:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        node: ['22', '24']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node --test scripts/tests/runtime-skills.tests.js
+  windows-integration:
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [powershell, pwsh]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Update and overlay integration
+        shell: ${{ matrix.shell }}
+        run: |
+          & ./scripts/tests/workspace-overlay.tests.ps1
+          & ./scripts/tests/update-agents.tests.ps1

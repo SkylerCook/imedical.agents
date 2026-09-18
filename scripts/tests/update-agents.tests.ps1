@@ -58,6 +58,8 @@ function New-TestProject {
   Copy-Item -LiteralPath $agentThinIndexScriptUnderTest -Destination (Join-Path $root ".agents/scripts/generate-agent-thin-index.ps1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/refresh-agents-sparse.js") -Destination (Join-Path $root ".agents/scripts/refresh-agents-sparse.js")
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-agents.ps1")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-runtime-skills.js") -Destination (Join-Path $root ".agents/scripts/sync-runtime-skills.js")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/workspace-context.js") -Destination (Join-Path $root ".agents/scripts/lib/workspace-context.js")
   Copy-Item -LiteralPath $profileScriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-plugin-profile.ps1")
   Copy-Item -LiteralPath $checkFunctionalDiffScriptUnderTest -Destination (Join-Path $root ".agents/scripts/check-functional-diff.ps1")
   Copy-Item -LiteralPath $installGitHooksScriptUnderTest -Destination (Join-Path $root ".agents/scripts/install-git-hooks.ps1")
@@ -363,7 +365,7 @@ Assert-Contains $updateScriptContent "generate-agent-thin-index.ps1" "update sho
 Assert-Contains $updateScriptContent "generate-vendor-thin-index.ps1" "update should invoke vendor thin-index generation"
 Assert-Contains $updateScriptContent "resolve-plugin-skill-dependencies.ps1" "update should resolve plugin skill dependencies"
 Assert-Contains $updateScriptContent "CleanupLegacyVendorSkills" "update should support explicit legacy vendor cleanup"
-Assert-Contains $updateScriptContent "sync-claudecode-skills.ps1" "update should invoke Claude Code skill sync"
+Assert-Contains $updateScriptContent "sync-runtime-skills.js" "update should invoke link-first runtime skill adapter"
 Assert-Contains $updateScriptContent "2.25.0" "update should require Git 2.25.0 or newer for sparse-checkout subcommand"
 Assert-Contains $updateScriptContent "Assert-GitSparseCheckoutSubcommandAvailable" "update should fail early when git sparse-checkout subcommand is unavailable"
 Assert-Contains $installScriptContent "/agents/**" "install sparse checkout should include agents"
@@ -1130,6 +1132,18 @@ try {
   Assert-True (-not $checkOutput.Contains("config-migration-failed")) "Check should not report config-migration-failed for a DryRun-only migration"
   Assert-True ((Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")) -eq $profileBeforeCheck) "Check must not modify plugin profile files"
   Assert-True ((Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/sample-skill/SKILL.md")) -eq $thinIndexBeforeCheck) "Check must not modify generated thin-index files"
+  $runtimeDry = & $scriptUnderTest -ProjectRoot $projectRoot -Mode DryRun -NoPull -RuntimeAdapter CodeBuddy -Detailed | Out-String
+  Assert-Contains $runtimeDry "runtime-adapter-planned" "Runtime DryRun should plan a link"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".codebuddy"))) "Runtime DryRun must not create a directory"
+  $runtimeWrite = & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -RuntimeAdapter CodeBuddy -Detailed | Out-String
+  Assert-Contains $runtimeWrite "runtime-adapter-linked" "Runtime Write should create a link"
+  $runtimeCheck = & $scriptUnderTest -ProjectRoot $projectRoot -Mode Check -RuntimeAdapter CodeBuddy -Detailed | Out-String
+  Assert-Contains $runtimeCheck "runtime-adapter-unchanged" "Runtime Check should verify the existing link"
+  $runtimeConflict = $false
+  try { & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -RuntimeAdapter ClaudeCode -Detailed | Out-Null }
+  catch { $runtimeConflict = $_.Exception.Message.Contains("Runtime skill adaptation incomplete") }
+  Assert-True $runtimeConflict "Runtime Write must fail on a pre-existing Claude skill directory"
+  Assert-True ((Get-Content -Raw (Join-Path $projectRoot ".claude/skills/vendor-test-skill/SKILL.md")).Contains("Existing user skill")) "Runtime conflict must preserve custom skills"
   $agentSkillThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/i18n-agent/SKILL.md")
   Assert-Contains $agentSkillThinIndex ".agents/agents/i18n-agent/AGENT.md" "Agent thin-index should point to canonical AGENT.md"
   Assert-Contains $agentSkillThinIndex ".agents/agents/i18n-agent/bindings.yaml" "Agent thin-index should point to bindings.yaml"
