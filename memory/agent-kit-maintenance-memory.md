@@ -29,7 +29,7 @@
 - `iris-cure-form-dev` 当前 v0.7.6：兼容 coding-iris-plugin 0.13；任务产物与运行态统一归目标项目 `docs/work/cure-form/<task>/`，快照/敏感证据归同任务 private；配置/规则仍在 `.agents/`。自动/手动部署与版本化克隆/显式原 RowID 覆盖分别选择。新模板不使用灰度，采用克隆的既有模板按引用拓扑收尾，原 ID 覆盖不调用 consolidate。显式旧输出路径保持兼容，不迁移既有备份。
 - 表单部署的 `transaction-package` / `lightweight-sql` 通道独立于 automatic/manual；轻量通道只服务已有独占单模板 content。固定 SQL 绑定兼容层保留单行事务门禁，授权样本验证不代表全部服务器/HIS 验收。
 - `imedicalxc-doctor-extend-engineer` 本轮修复版本 v1.0.1：电子健康卡子 skill 经主编排器架构门禁加载，不固定参照厂家，不自动回补既有厂家；映射按协议语义、方向和明确主映射取值。wrapper 只暴露主入口，旧受管子入口精准清理，自定义文件和链接保留。
-- `iris-imedical-doctor-ai` v0.2.0 依赖 coding-iris-plugin 0.13，提供医生站 AI 开发方法，补齐入口分层、共享页面等价性、运行时接入及摘要检查；工程、原型与接口按任务核实，菜单/wiki 按需使用 vendor 参考，项目菜单刷新复用 iris-menu-sync。其余插件职责与入口见仓库 README，不在本摘要重复目录清单。
+- `iris-imedical-doctor-ai` v0.2.1 依赖 coding-iris-plugin 0.13，提供医生站 AI 开发方法，补齐入口分层、共享页面等价性、运行时接入、摘要检查及 UI/状态交互验证；工程、原型与接口按任务核实，菜单/wiki 按需使用 vendor 参考，项目菜单刷新复用 iris-menu-sync。其余插件职责与入口见仓库 README，不在本摘要重复目录清单。
 - 通用 AGENT 框架仍为 beta。schema 2.0 用互斥 `taskKind` 分开业务验收与框架维护生命周期；旧 schema 1.0–1.2 只读。业务验收后才执行只读 feedback 审查，任何写入逐项授权；框架维护不触发或提示 feedback。
 - standard 更新器只对落后状态 fast-forward，领先/分叉停止；普通 DryRun 可更新 capability，严格不更新用 Check 或 DryRun -NoPull。Overlay 区分 Workspace/Context/Capability/Source/GitRoot，共享 capability 只更新一次，不扩大源码/Git 边界。
 
