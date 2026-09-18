@@ -12,7 +12,7 @@ CLS 编码遵循 [格式提示与最小改动约定](references/cls-coding-forma
 - 菜单资料同步：[iris-menu-sync](skills/iris-menu-sync/SKILL.md) 通过已有 MCP 采集，sync-menu.js 提供离线 plan/apply、差异、完整性校验与原子快照切换；支持全量及指定组。更新后重建 enabled 插件 thin-index；无需新连接或 npm，项目快照不会被 vendor 更新覆盖。协议见 [menu-knowledge-sync](references/menu-knowledge-sync.md)。
 
 - ObjectScript 后端编码规则：BLH/DATA/SQL 分层、SQL 返回约定、ObjectScript 语法风格、Broker 接口习惯。
-- CSP/JavaScript/HISUI 前端编码规则：框架页/内容页拆分、HISUI 控件优先、JS 组织方式、前端数据回显。
+- CSP/JavaScript/HISUI 前端编码规则：框架页/内容页拆分、HISUI 控件及原生视觉状态优先（含悬浮/焦点/禁用/等待）、JS 组织方式、前端数据回显。
 - 工作流规则：本地优先；导出、编译、Broker 调试和配置同步优先使用 IRIS 开发主力脚本；MCP 作为辅助能力补上下文、只读验证或覆盖脚本未覆盖场景。
 - 部署编排：`skills/iris-deploy/SKILL.md` 负责远端部署入口、清单生成、确认门禁和验证编排，上传、编译、部署和远端验证按 `rules/iris_deploy_checklist.md` 逐项执行。
 - 需求移植：`skills/iris-demand-promote/SKILL.md` 将已提交的 DEV 需求补丁移植到独立 PRD 按需导出仓库；先导出 PRD 服务器基线，再做三方应用，只创建本地 PRD 提交。
