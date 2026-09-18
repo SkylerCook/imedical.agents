@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+- 2026-09-18（待治理项优先级）：根 AGENTS 与本地维护 skill 明确每个待治理项必须标注 P0–P3，复用 backlog 既有定义，新增或调整事项时核对执行顺序、排序入口与详情一致性。本次仅补充维护规则，不调整既有事项优先级或业务部署内容。
+
 - 2026-09-18（知识检索自主选择）：coding-iris-plugin 0.13.1 将查询选择集中到通用规则，skill 描述支持模型按信息缺口自主使用，不要求用户点名、不局限菜单定位、不固定每次必查；现有 Agent/前后端入口复用，平台 API 查询和业务知识参考分开。更新后刷新薄索引，不自动改写项目 AGENTS.md，不扩大远端授权。本轮仅修改路由文案与版本，未部署业务副本。
 
 - 2026-09-18（知识资料并入与菜单刷新）：coding-iris-plugin 0.13.0 接收 218 份脱敏上游参考（164 份 wiki/目录、40 份菜单/安全组、14 份技术文档），记录固定来源与双 hash，排除生成器缓存。新增 iris-imedical-knowledge / iris-menu-sync，MCP 采集与离线 plan/apply 分离，项目快照原子发布、全量/部分刷新、指纹漂移阻断和历史恢复；AI 0.2.0 按需路由，五个其它依赖插件仅扩展兼容范围。资料短 ID 与 vendor .gitattributes 解决 Windows 长路径及换行校验问题。14 项专项通过，包含真实 sparse 初装/快进刷新、项目快照保留、standard/Overlay、PS7/PS5.1 thin-index；入口链接及简单 frontmatter 检查通过，通用 Python validator 缺 PyYAML。真实 IRIS 采集与非 Windows CI 待验证；未部署真实业务副本，未提交或推送。

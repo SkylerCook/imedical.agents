@@ -126,6 +126,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-plugin-thin
 - `agent-kit-maintenance-decisions.md` 写长期稳定决策。
 - `agent-kit-maintenance-log.md` 写近期完成、提交索引和验证摘要。
 - `agent-kit-maintenance-backlog.md` 写未完成治理队列。
+- 维护待治理项时，按根 `AGENTS.md` 要求逐项检查明确的 P0–P3 优先级；复用 backlog 的优先级定义，新增或调整事项时同步更新排序入口与对应详情，避免优先级缺失或两处不一致。
 - 不写完整规则正文、大段脚本说明、大段命令输出、一次性失败流水或业务私有事实。
 
 ## 禁止事项
