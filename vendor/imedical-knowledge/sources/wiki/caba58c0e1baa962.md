@@ -1,0 +1,1 @@
+Meta-repo orchestrating a multi-product HIS system with two Git submodules (backend ObjectScript, frontend jQuery/HISUI) and Node.js scripts that unify Git workflow, SFTP deployment, and IRIS compilation across all products.

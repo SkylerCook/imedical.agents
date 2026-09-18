@@ -8,6 +8,8 @@
 
 ## 内容
 
+- 菜单/wiki 查询与刷新复用 coding-iris-plugin 的 iris-imedical-knowledge / iris-menu-sync。资料位于共享 vendor，实际项目快照留 ContextRoot；更新后由依赖插件 thin-index 暴露入口，不重复维护工具。
+
 - [开发入口](skills/iris-imedical-doctor-ai/SKILL.md)：发现现行能力、补充缺口与验证。
 - [原型集成方法](references/prototype-integration.md)：提取当次设计意图，不固定原型流程。
 - [框架演进](references/workstation-contracts.md)：按当前代码识别扩展点，允许改进框架。

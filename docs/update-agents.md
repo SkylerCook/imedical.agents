@@ -1,5 +1,13 @@
 # .agents 安装与更新 Runbook
 
+## iMedical 知识资料与菜单同步
+
+coding-iris-plugin 0.13 提供 iris-imedical-knowledge / iris-menu-sync；共享资料随已有 `/vendor/**`、入口与工具随 `/plugins/**` 分发，未改变安装/更新 sparse 范围。不把普通资料声明成 vendor skill，不自动安装 Qoder 或新增连接。
+
+新装项目启用 coding-iris-plugin 后由 canonical thin-index 生成两个入口。已有工程按本 runbook 正常更新能力包并刷新 enabled 插件入口；coding-iris wrapper 支持 ContextRoot/CapabilityRoot，Overlay 仍只更新共享 capability 一次，在每个项目 ContextRoot 重建入口。维护者导入脚本在源仓 `.agents/skills`，不部署业务工程。
+
+项目菜单写入 `ContextRoot/work/menu-sync/<sourceId>`，与 vendor 参考隔离；更新和索引重建不得覆盖、清理或重新生成它。旧 `.agents/data` 不自动迁移或删除。当前资料读取跟随 current.json，历史 generation 有意保留用于恢复。首次同步需按项目工具/服务实际能力采集，缺失不自动部署服务。完整用法与验证范围见 [知识接入](imedical-knowledge.md)。
+
 ## 标版需求录入入口
 
 新增 `iris-demand-entry` 随 coding-iris-plugin 既有 plugins 路径分发。已部署工程更新能力包后，按本 runbook 为 enabled coding-iris-plugin 重建 thin-index，即可使用默认需求文本及可选 `--excel` / `--Excel`；直接读取插件真实 skill 也可进入。无需配置迁移、额外 npm/Python 安装或旧文件清理，个人 requirement-entry 副本不自动替换。运行草稿与 BOSS 编号属于目标工程私有产物，不进入能力包更新/清理范围；源仓实现不代表业务副本已生效。操作见 `plugins/coding-iris-plugin/references/standard-demand-entry.md`。

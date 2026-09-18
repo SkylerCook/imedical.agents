@@ -9,6 +9,8 @@ description: Use when an IRIS coding request may involve ObjectScript, CSP, Java
 
 ## 使用时机
 
+需求只有业务名称或菜单路径、尚未找到实现时，可用 `../iris-imedical-knowledge/SKILL.md` 检索参考并核对当前源码；用户要求刷新菜单资料时转 `../iris-menu-sync/SKILL.md`。不为普通编码默认加载知识库。
+
 当任务是 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码需求，且用户未明确只要求后端或前端专项 skill 时，优先使用本 Skill。
 
 适用场景：

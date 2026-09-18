@@ -17,6 +17,8 @@ description: 面向 IRIS imedical 医生站的 AI 集成开发。接入或扩展
 
 ## 按需参考
 
+- 业务功能、菜单或历史实现定位：复用 coding-iris-plugin 的 [iris-imedical-knowledge](../../../coding-iris-plugin/skills/iris-imedical-knowledge/SKILL.md)。刷新目标项目菜单资料使用 [iris-menu-sync](../../../coding-iris-plugin/skills/iris-menu-sync/SKILL.md)，本插件不复制同步实现或工程快照。
+
 - 原型、截图与设计落地：[prototype-integration.md](../../references/prototype-integration.md)。
 - 框架扩展、卡片、对话、存储与接入方式：[workstation-contracts.md](../../references/workstation-contracts.md)。
 - 诊断与共享业务服务：[diagnosis-flow.md](../../references/diagnosis-flow.md)。

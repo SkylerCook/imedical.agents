@@ -1,0 +1,17 @@
+schema_version: 1
+module_path: ""
+title: HIS 多产品 Monorepo 元仓库
+scope:
+    - README.md
+    - CONTRIBUTING.md
+    - AGENTS.md
+    - .gitignore
+    - .gitmodules
+    - .qoderignore
+    - .qtz-clirc.json
+    - .agents/
+    - .qoder-cn/
+    - prototype/
+source_files: []
+depends_on: []
+related_to: []
