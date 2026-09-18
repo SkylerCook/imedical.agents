@@ -122,3 +122,5 @@ node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
 ## 按需辅助与收尾
 
 遵循 agents/_shared/execution-guidance.md（源仓根；部署态为 .agents/agents/_shared/）。guidanceMode 默认 auto，可选 concise/assisted；辅助程度不改变授权、编码及领域契约。方法允许合并或重排，IRIS 编码共用 iris_coding_general 的风险分流。业务验收后按信号加载 feedback，无信号不例行报告。现有工程按 docs/update-agents.md 定点合并项目入口，普通能力包更新不重写用户 AGENTS/profile。
+
+纯初始化入口 `i18n-project-init` 直接读取插件内真实 SKILL.md，manifest 的 `thinIndex.excludeSkills` 将其排除出浅层技能列表。已启用项目常规更新时，Check/DryRun 只报告旧受管索引，Write 精准删除；自定义文件和链接保留。迁移边界见能力包 [更新说明](../../docs/update-agents.md#纯初始化-skill-薄索引迁移)。

@@ -700,3 +700,13 @@ agent-context-kit 0.3.4 补齐 AGENTS 模板与定点维护流程。更新能力
 `agent-context-kit` 0.4.0 增加通用需求接续入口，具体使用见 [task-handoff](task-handoff.md)。能力包更新沿用现有流程，enabled 插件刷新薄索引后可显式调用；available/disabled 保留，不因目录存在自动启用。无需更改安装器、更新器或 sparse 规则：实现和模板属于既有 plugins 范围，共享 helper 属于既有 scripts/lib 与根 scripts/*.js 范围。
 
 项目自然语言发现路由仅在已授权初始化/上下文维护中按模板定点合并，普通更新不重写 AGENTS。具体需求首次启用时才建立项目 docs/handoff，并在管理该目录的业务 Git 仓库本地 exclude 精确排除；不是能力仓库生成层，不加入 `.agents` sparse。旧交接、正式 run 与个人 skill 不迁移、不清理，业务工程不自动同步。
+
+## 纯初始化 skill 薄索引迁移
+
+纯 bootstrap/init skill 由 owner manifest 的 `thinIndex.excludeSkills` 显式排除，初始化 wrapper 与常规更新均复用根生成器。`initSkill` 仍用于发现真实初始化入口；不能据此字段或技能名后缀自动排除：project-context-maintenance、codegraph-query、extract-doc-ingest 等兼任日常能力的入口继续生成薄索引。
+
+本次覆盖 coding-iris-init、i18n-project-init、cure-form-init、iris-interface-init、iris-imedical-doctor-ai-init、imedicalxc-doctor-perf-analysis-engineer-init、agent-framework-evolution-init。
+
+已部署项目先取得本次能力包版本，再沿原更新入口执行 Check 或 DryRun -NoPull 检查，随后 Write -NoPull 应用；无需 Force 或另加清理开关。对 enabled 插件，Check/DryRun 报告 stale 且不改文件，Write 仅删除 YAML frontmatter 中 thin-index: true、source 与当前排除 skill 精确匹配的 SKILL.md，重复更新不再生成。目录、其它文件、非受管文件、来源不匹配文件及链接均保留；保留项如仍需移除须单独核实归属。available/disabled 插件继续按原状态跳过，不借迁移自动启用或删除其入口。
+
+standard 与 Overlay 均在目标 ContextRoot 清理，不删除 CapabilityRoot 的真实 init skill。后续初始化或检查直接读取 manifest 指向的插件真实 SKILL.md。运行时技能目录采用链接接入时随之生效；历史独立复制到工具目录或用户目录的文件不在本次自动清理范围。

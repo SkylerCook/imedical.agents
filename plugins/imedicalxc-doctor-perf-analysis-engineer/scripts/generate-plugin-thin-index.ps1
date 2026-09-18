@@ -3,9 +3,7 @@ param(
     [string]$ProjectRoot = ".",
     [ValidateSet("DryRun", "Write")]
     [string]$Mode = "DryRun",
-    [string[]]$ExcludeSkill = @(
-        "imedicalxc-doctor-perf-analysis-engineer-init"
-    ),
+    [string[]]$ExcludeSkill = @(),
     [string[]]$ExcludeRule = @(),
     [switch]$Force
 )

@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- 纯 init 薄索引：7 个插件通过 manifest 统一排除，enabled 项目常规 Write 精准清理旧受管入口；真实 init 和日常入口保留，available/disabled 不变。迁移见 docs/update-agents.md。
+
 - agent-context-kit 0.4.0 新增 task-handoff：同机同工作区需求按需启用、关键节点维护；docs/handoff 本地保存，正文与机器现场分离，明确交接追加历史快照。直接接手不检查旧会话，用户避免并发写入。普通需求不建正式 run；当前 Codex 宿主的真实新会话接续已于 2026-09-19 经用户验收通过，其它 Agent 宿主和平台矩阵仍待验证；接入与验证见 docs/task-handoff.md。
 
 - 提交性能：`validate --staged` 只校验暂存组件与直接依赖，批量读取 Git 对象并独立缓存版本证据；功能证据按实际内容复用，不绑定 HEAD。信创 1.0.2 缺少 commit 已登记为 `version-debt-xc-1.0.2-commit`，用户要求后续普通提交不重复处理或提醒；见 backlog 与 docs/component-version-management.md。
@@ -26,12 +28,12 @@
 
 - 能力源分为厂商无关的 `agents/`、`workflows/`、可复用 `plugins/` 与根级 `skills/`；工具专属配置只作为 adapter。源仓 `.agents/skills/agent-kit-maintenance/` 是维护者专用入口。
 - 当前有 15 个插件、0 个根级独立 skill。插件版本以 manifest 为准，独立 skill 版本以 frontmatter 为准；内部内容继承 owner 版本。发布记录不可变且不部署，版本 validator 不接入业务安装/更新/hook。
-- `coding-iris-plugin` 当前 v0.13.3：新增共享知识检索、项目菜单同步及部署兼容；保留 standard 需求录入与提交衔接；前端 canonical 编码为 `utf8`，实际字节检测是最终门禁；真实 GB2312/mixed/unknown 不自动转码，明确 backend-only Overlay 为 `N/A (backend-only)`。CLS 仅提供最小改动提示与可选自检，不增加编译证据或提交门禁。
+- `coding-iris-plugin` 当前 v0.13.4：新增共享知识检索、项目菜单同步及部署兼容；保留 standard 需求录入与提交衔接；前端 canonical 编码为 `utf8`，实际字节检测是最终门禁；真实 GB2312/mixed/unknown 不自动转码，明确 backend-only Overlay 为 `N/A (backend-only)`。CLS 仅提供最小改动提示与可选自检，不增加编译证据或提交门禁。
 - CSP 编译固定到 `compile-csp.js` 的 Atelier 通道；`deploy-frontend.js` 统一上传、哈希回读与指定 CSP 编译，默认本地计划、显式执行，不自动重试或扩展父页面。SFTP vendor 新项目默认禁用，更新自动迁移可识别的既有标准启动参数，显式 custom/自定义参数保留，不创建服务或安装 Python 依赖。
-- `iris-cure-form-dev` 当前 v0.7.6：兼容 coding-iris-plugin 0.13；任务产物与运行态统一归目标项目 `docs/work/cure-form/<task>/`，快照/敏感证据归同任务 private；配置/规则仍在 `.agents/`。自动/手动部署与版本化克隆/显式原 RowID 覆盖分别选择。新模板不使用灰度，采用克隆的既有模板按引用拓扑收尾，原 ID 覆盖不调用 consolidate。显式旧输出路径保持兼容，不迁移既有备份。
+- `iris-cure-form-dev` 当前 v0.7.7：兼容 coding-iris-plugin 0.13；任务产物与运行态统一归目标项目 `docs/work/cure-form/<task>/`，快照/敏感证据归同任务 private；配置/规则仍在 `.agents/`。自动/手动部署与版本化克隆/显式原 RowID 覆盖分别选择。新模板不使用灰度，采用克隆的既有模板按引用拓扑收尾，原 ID 覆盖不调用 consolidate。显式旧输出路径保持兼容，不迁移既有备份。
 - 表单部署的 `transaction-package` / `lightweight-sql` 通道独立于 automatic/manual；轻量通道只服务已有独占单模板 content。固定 SQL 绑定兼容层保留单行事务门禁，授权样本验证不代表全部服务器/HIS 验收。
 - `imedicalxc-doctor-extend-engineer` 本轮修复版本 v1.0.1：电子健康卡子 skill 经主编排器架构门禁加载，不固定参照厂家，不自动回补既有厂家；映射按协议语义、方向和明确主映射取值。wrapper 只暴露主入口，旧受管子入口精准清理，自定义文件和链接保留。
-- `iris-imedical-doctor-ai` v0.2.1 依赖 coding-iris-plugin 0.13，提供医生站 AI 开发方法，补齐入口分层、共享页面等价性、运行时接入、摘要检查及 UI/状态交互验证；工程、原型与接口按任务核实，菜单/wiki 按需使用 vendor 参考，项目菜单刷新复用 iris-menu-sync。其余插件职责与入口见仓库 README，不在本摘要重复目录清单。
+- `iris-imedical-doctor-ai` v0.2.2 依赖 coding-iris-plugin 0.13，提供医生站 AI 开发方法，补齐入口分层、共享页面等价性、运行时接入、摘要检查及 UI/状态交互验证；工程、原型与接口按任务核实，菜单/wiki 按需使用 vendor 参考，项目菜单刷新复用 iris-menu-sync。其余插件职责与入口见仓库 README，不在本摘要重复目录清单。
 - 通用 AGENT 框架仍为 beta。schema 2.0 用互斥 `taskKind` 分开业务验收与框架维护生命周期；旧 schema 1.0–1.2 只读。业务验收后才执行只读 feedback 审查，任何写入逐项授权；框架维护不触发或提示 feedback。
 - standard 更新器只对落后状态 fast-forward，领先/分叉停止；普通 DryRun 可更新 capability，严格不更新用 Check 或 DryRun -NoPull。Overlay 区分 Workspace/Context/Capability/Source/GitRoot，共享 capability 只更新一次，不扩大源码/Git 边界。
 

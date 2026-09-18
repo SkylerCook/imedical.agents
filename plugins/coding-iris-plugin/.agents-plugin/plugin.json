@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.13.3",
+  "version": "0.13.4",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
@@ -77,6 +77,9 @@
     ]
   },
   "initSkill": "coding-iris-init",
+  "thinIndex": {
+    "excludeSkills": ["coding-iris-init"]
+  },
   "requiresProjectFiles": [
     "AGENTS.md",
     ".mcp.json",

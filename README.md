@@ -572,3 +572,5 @@ git push github master
 guidanceMode（auto/concise/assisted）、executionPath 和 orchestrationMode 相互独立。硬约束保留，方法可调整，辅助按信号读取；普通编码不例行加载维护或反馈。通用 session adapter 与 codex-session 兼容，正式 run 完成要求新鲜指纹证据。项目入口需按 docs/update-agents.md 定点迁移。
 
 实现与验证边界见 docs/validation/agent-evolution.md；真实跨模型/跨宿主提效及非本机平台仍待取证，不能用静态规则检查替代。
+
+纯初始化 skill 由插件 manifest 的 `thinIndex.excludeSkills` 排除；已启用项目更新会精准清理旧受管 init 薄索引，日常入口继续保留。详见 [迁移说明](docs/update-agents.md#纯初始化-skill-薄索引迁移)。

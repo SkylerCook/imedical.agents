@@ -131,7 +131,54 @@ test('Overlay generates module-local owner indexes without modifying shared capa
   write(path.join(root, '.agents/capability.json'), JSON.stringify({ schemaVersion: 1, mode: 'workspace-overlay', workspace: 'module', contextRoot: '.agents', capabilityRoot: path.join(capability, '.agents'), sharedDirectories: ['plugins', 'agents', 'workflows', 'hooks', 'vendor'], localDirectories: ['skills', 'config', 'rules', 'memory', 'scripts', 'work'], sourceRoots: [{ name: 'source', path: 'source', target: capability, gitRoot: path.join(capability, '.agents') }] }));
   const before = git(path.join(capability, '.agents'), 'status', '--porcelain');
   ps(path.join(capability, '.agents/scripts/initialize-workspace-overlay.ps1'), ['-WorkspaceRoot', root, '-Mode', 'Write']);
+  const initName = 'agent-framework-evolution-init';
+  const legacyInit = '---\nthin-index: true\nsource: .agents/plugins/agent-framework-evolution/skills/' + initName + '/SKILL.md\n---\n';
+  write(skill(root, initName), legacyInit);
+  assert.match(update(root, 'Check'), /excluded managed plugin skill thin-index/);
+  assert.equal(fs.readFileSync(skill(root, initName), 'utf8'), legacyInit);
   update(root); assertRoutes(root);
+  assert.equal(fs.existsSync(skill(root, initName)), false);
+  assert.ok(fs.existsSync(path.join(capability, '.agents/plugins/agent-framework-evolution/skills', initName, 'SKILL.md')));
   assert.equal(git(path.join(capability, '.agents'), 'status', '--porcelain'), before);
   assert.ok(!fs.existsSync(path.join(root, '.agents/.git')));
+});
+
+
+test('pure init policy is explicit while daily initSkill entries remain discoverable', () => {
+  const pure = ['agent-framework-evolution', 'coding-iris-plugin', 'i18n-iris-plugin', 'imedicalxc-doctor-perf-analysis-engineer', 'iris-cure-form-dev', 'iris-imedical-doctor-ai', 'iris-interface-dev'];
+  for (const owner of fs.readdirSync(path.join(repo, 'plugins'))) {
+    const manifest = path.join(repo, 'plugins', owner, '.agents-plugin/plugin.json');
+    if (!fs.existsSync(manifest)) continue;
+    const m = JSON.parse(fs.readFileSync(manifest, 'utf8'));
+    assert.equal((m.thinIndex?.excludeSkills || []).includes(m.initSkill), pure.includes(owner), owner);
+    if (m.initSkill) assert.ok(fs.existsSync(path.join(repo, 'plugins', owner, 'skills', m.initSkill, 'SKILL.md')));
+  }
+});
+
+test('excluded init cleanup protects custom content, other sources, companions and directory links', () => {
+  const root = fixture('init cleanup boundaries');
+  const name = 'agent-framework-evolution-init';
+  const file = skill(root, name);
+  const managed = '---\nname: ' + name + '\nthin-index: true\nsource: .agents/plugins/agent-framework-evolution/skills/' + name + '/SKILL.md\n---\n';
+  write(file, '\uFEFF' + managed.replace(/\n/g, '\r\n'));
+  const before = fs.readFileSync(file);
+  write(path.join(path.dirname(file), 'notes.txt'), 'user notes');
+  assert.match(thin(root, 'agent-framework-evolution', 'DryRun'), /excluded managed plugin skill thin-index/);
+  assert.deepEqual(fs.readFileSync(file), before);
+  thin(root, 'agent-framework-evolution');
+  assert.equal(fs.existsSync(file), false);
+  assert.equal(fs.readFileSync(path.join(path.dirname(file), 'notes.txt'), 'utf8'), 'user notes');
+  thin(root, 'agent-framework-evolution');
+  assert.equal(fs.existsSync(file), false);
+  for (const content of ['# User init', managed.replace('plugins/agent-framework-evolution/skills/' + name, 'plugins/agent-context-kit/skills/project-context-maintenance'), managed.replace('thin-index: true', 'thin-index: false')]) {
+    write(file, content); thin(root, 'agent-framework-evolution', 'Write', true);
+    assert.equal(fs.readFileSync(file, 'utf8'), content);
+  }
+  // A linked skill directory may belong to a user or another workspace.
+  fs.unlinkSync(file); fs.unlinkSync(path.join(path.dirname(file), 'notes.txt')); fs.rmdirSync(path.dirname(file));
+  const linked = path.join(root, 'user-linked-init'); write(path.join(linked, 'SKILL.md'), managed);
+  fs.symlinkSync(linked, path.dirname(file), process.platform === 'win32' ? 'junction' : 'dir');
+  thin(root, 'agent-framework-evolution', 'Write', true);
+  assert.ok(fs.lstatSync(path.dirname(file)).isSymbolicLink());
+  assert.equal(fs.readFileSync(file, 'utf8'), managed);
 });

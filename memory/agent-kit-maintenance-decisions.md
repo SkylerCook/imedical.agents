@@ -155,3 +155,5 @@
 - 通用 task-handoff 归 agent-context-kit；项目 docs/handoff/<首次毫秒时间戳>-<需求ID或00000>/ 保留最新正文、机器现场与显式交接历史。后补编号不改稳定目录，默认本机 exclude，不自动提交或取消跟踪。
 - 接续沿用范围明确的授权，先核实现场和证据再继续；记录不产生新授权。直接接手不检测旧会话或锁定 owner，用户负责避免并发；真实内容冲突仍需处理。
 - 轻量工具维护可复核事实，不判定业务完成；业务/框架生命周期复用现有契约，正式 run 只引用。标准 Markdown 不依赖产品 API 或 Obsidian；无脚本能力时人工核查并明确未执行项。
+
+- 纯初始化 skill 使用 owner manifest 的 thinIndex.excludeSkills，统一初始化与常规更新的排除和旧受管索引清理；initSkill 只声明初始化入口，不代表应隐藏，兼任日常能力的入口保留。清理边界与状态策略见 docs/update-agents.md。

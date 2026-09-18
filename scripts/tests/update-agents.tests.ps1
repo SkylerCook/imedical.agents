@@ -466,9 +466,11 @@ Assert-Contains $runbookContent "-Mode Write -NoPull -Detailed" "runbook should 
 Assert-Contains $readmeContent "旧版部署若只检出了" "README should explain legacy sparse runtime bootstrap compatibility"
 $contextSkillContent = Get-Content -Raw -Encoding UTF8 -Path $contextSkillPath
 Assert-Contains $contextSkillContent "docs/update-agents.md" "project-context-maintenance should route updates to docs/update-agents.md"
-Assert-Contains $contextSkillContent "depends_on" "project-context-maintenance should guide plugin enablement after context maintenance"
-Assert-Contains $contextSkillContent "dependencies" "project-context-maintenance should read plugin manifest dependencies before enabling plugins"
-Assert-Contains $contextSkillContent "update-plugin-profile.ps1" "project-context-maintenance should use update-plugin-profile.ps1 after init validation"
+Assert-Contains $contextSkillContent "references/initialization.md" "project-context-maintenance should route initialization to its reference"
+$contextInitContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path (Split-Path -Parent $contextSkillPath) "references/initialization.md")
+Assert-Contains $contextInitContent "depends_on" "Initialization should guide plugin enablement"
+Assert-Contains $contextInitContent "dependencies" "Initialization should read plugin manifest dependencies before enabling plugins"
+Assert-Contains $contextInitContent "update-plugin-profile.ps1" "Initialization should use update-plugin-profile.ps1 after init validation"
 $irisBackendRuleContent = Get-Content -Raw -Encoding UTF8 -Path $irisBackendRulePath
 $irisBackendSkillContent = Get-Content -Raw -Encoding UTF8 -Path $irisBackendSkillPath
 Assert-Contains $irisBackendRuleContent 'continue:(episodeId''="")&&(appEpisode''=episodeId)' "IRIS backend rule should show a valid compound postconditional without spaces"
@@ -515,7 +517,7 @@ Assert-True ([version]$interfaceDevManifest.dependencyVersions.'coding-iris-plug
 Assert-True (($externalRegManifest.dependencies -contains "extract-doc")) "iris-external-reg should declare extract-doc as a dependency"
 Assert-True (($externalRegManifest.dependencies -contains "coding-iris-plugin")) "iris-external-reg should declare coding-iris-plugin as a dependency"
 Assert-True ([version]$externalRegManifest.dependencyVersions.'coding-iris-plugin'.minVersion -le [version]$codingIrisManifest.version -and [version]$externalRegManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -gt [version]$codingIrisManifest.version) "iris-external-reg should accept current coding iris version"
-Assert-Contains $contextSkillContent "install-git-hooks.ps1" "project-context-maintenance should mention optional git hook enablement"
+Assert-Contains $contextInitContent "install-git-hooks.ps1" "project-context-maintenance should mention optional git hook enablement"
 Assert-True (Test-Path -LiteralPath $repositoryMaintenanceSkillUnderTest -PathType Leaf) "repository-local maintenance skill should live under .agents/skills"
 Assert-True (-not (Test-Path -LiteralPath $legacyRepositoryMaintenanceSkillUnderTest)) "root skills should not retain the maintenance-only exception"
 
@@ -1173,6 +1175,40 @@ try {
   Assert-Contains $sampleSkillThinIndex "description: Use when testing real skill description propagation." "Skill thin-index should propagate source skill description"
   Assert-Contains $sampleSkillThinIndex "thin-index: true" "Skill thin-index should declare thin-index frontmatter"
   Assert-Contains $sampleSkillThinIndex "source: .agents/plugins/sample-plugin/skills/sample-skill/SKILL.md" "Skill thin-index should declare source frontmatter"
+  # Simulate an already deployed pure init entry, then upgrade its owner policy.
+  $initName = "sample-plugin-init"
+  $initSource = Join-Path $projectRoot ".agents/plugins/sample-plugin/skills/$initName/SKILL.md"
+  $initTarget = Join-Path $projectRoot ".agents/skills/$initName/SKILL.md"
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $initSource) | Out-Null
+  Set-Content -Encoding UTF8 -LiteralPath $initSource -Value "# Init source retained"
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $initTarget) | Out-Null
+  $oldInit = "---" + [Environment]::NewLine + "thin-index: true" + [Environment]::NewLine + "source: .agents/plugins/sample-plugin/skills/$initName/SKILL.md" + [Environment]::NewLine + "---"
+  Set-Content -Encoding UTF8 -LiteralPath $initTarget -Value $oldInit
+  $initBefore = Get-Content -Raw -Encoding UTF8 -LiteralPath $initTarget
+  $ownerManifestPath = Join-Path $projectRoot ".agents/plugins/sample-plugin/.agents-plugin/plugin.json"
+  $ownerManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath $ownerManifestPath | ConvertFrom-Json
+  $ownerManifest | Add-Member -NotePropertyName thinIndex -NotePropertyValue ([pscustomobject]@{ excludeSkills = @($initName) })
+  $ownerManifest | ConvertTo-Json -Depth 20 | Set-Content -Encoding UTF8 -LiteralPath $ownerManifestPath
+  foreach ($previewMode in @("Check", "DryRun")) {
+    $initPreview = & $scriptUnderTest -ProjectRoot $projectRoot -Mode $previewMode -NoPull -Detailed -Plugin sample-plugin | Out-String
+    Assert-Contains $initPreview "excluded managed plugin skill thin-index" "Updater preview should identify deployed pure init cleanup"
+    Assert-True ((Get-Content -Raw -Encoding UTF8 -LiteralPath $initTarget) -eq $initBefore) "Updater preview must preserve old init bytes"
+  }
+  $keepFile = Join-Path (Split-Path -Parent $initTarget) "user-notes.txt"
+  Set-Content -Encoding UTF8 -LiteralPath $keepFile -Value "Keep user notes"
+  $initWrite = & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-String
+  Assert-Contains $initWrite "excluded managed plugin skill thin-index" "Updater Write should remove deployed pure init"
+  Assert-True (-not (Test-Path -LiteralPath $initTarget)) "Updater must delete the old managed init entry"
+  Assert-True (Test-Path -LiteralPath $keepFile) "Updater must preserve other files in the skill directory"
+  Assert-True (Test-Path -LiteralPath $initSource) "Updater must retain canonical init source"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/sample-skill/SKILL.md")) "Daily initSkill must remain discoverable"
+  & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-Null
+  Assert-True (-not (Test-Path -LiteralPath $initTarget)) "Repeat updater must not recreate excluded init"
+  Set-Content -Encoding UTF8 -LiteralPath $initTarget -Value "# User custom init"
+  $customInit = Get-Content -Raw -Encoding UTF8 -LiteralPath $initTarget
+  & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-Null
+  Assert-True ((Get-Content -Raw -Encoding UTF8 -LiteralPath $initTarget) -eq $customInit) "Updater must preserve custom init files"
+
   $vendorSkillThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/vendor-test-skill/SKILL.md")
   Assert-Contains $vendorSkillThinIndex "description: Use when testing vendor thin-index generation." "Vendor thin-index should propagate source skill description"
   Assert-Contains $vendorSkillThinIndex "thin-index: true" "Vendor thin-index should declare thin-index frontmatter"

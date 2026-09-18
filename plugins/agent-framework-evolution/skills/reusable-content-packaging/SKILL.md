@@ -73,7 +73,7 @@ description: Use when packaging validated project or conversation knowledge into
    - 若选择 `plugin-reference-thin-index`，优先复用 `.agents/scripts/generate-plugin-thin-index.ps1` 作为 canonical 实现。
    - 插件可以保留 `scripts/generate-plugin-thin-index.ps1` 作为稳定调用入口，但只能作为 wrapper 转发参数，不复制 thin-index 核心逻辑。
    - 独立分发单个插件时，如果仍选择 `plugin-reference-thin-index`，必须把根 `scripts/generate-plugin-thin-index.ps1` 一并纳入交付；否则选择 `copy` 或手工 thin-index。
-   - 若插件包含 bootstrap/init skill，默认通过 `-ExcludeSkill` 排除该 skill，避免用安装结果触发安装过程。
+   - 纯 bootstrap/init skill 在 manifest 的 `thinIndex.excludeSkills` 中声明，由初始化和常规更新统一排除并清理旧受管索引；兼任日常能力入口的 initSkill 保留薄索引。
    - 不建议插件作者手写大量 thin-index。
    - rule 薄索引放 `.agents/rules/<rule-file>.md`，只指向插件真实 rule 和必要项目配置。
    - `references/` 默认不生成 thin-index；由 rules 或 skills 在任务需要时按路径读取。

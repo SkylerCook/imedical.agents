@@ -16,6 +16,6 @@ description: Initialize or inspect the framework feedback and reusable-content p
 .agents/scripts/generate-plugin-thin-index.ps1 -ProjectRoot . -PluginPath .agents/plugins/agent-framework-evolution -Mode Write
 ```
 
-发生 skill-owner-migration-conflict 时停止；保留用户内容，不以 Force 绕过。验证两个旧技能名的薄索引 source 指向本插件，init 索引可读，再用 update-plugin-profile.ps1 -ProjectRoot . -Plugin agent-framework-evolution -Status enabled 记录。已 enabled 则只检查，不重复初始化。
+发生 skill-owner-migration-conflict 时停止；保留用户内容，不以 Force 绕过。验证两个旧技能名的薄索引 source 指向本插件，纯 init 的旧受管索引已清理（自定义文件或链接保留并说明），真实 init SKILL.md 可读，再用 update-plugin-profile.ps1 -ProjectRoot . -Plugin agent-framework-evolution -Status enabled 记录。已 enabled 则只检查，不重复初始化。
 
 Overlay 只写模块 ContextRoot，本地入口脚本转发到 CapabilityRoot。详细迁移见能力包 docs/skill-plugin-migration.md。不要自动调用 feedback skill 或更改用户 AGENTS。

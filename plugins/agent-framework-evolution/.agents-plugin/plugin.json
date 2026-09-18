@@ -1,11 +1,14 @@
 {
   "name": "agent-framework-evolution",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "displayName": "Agent Framework Evolution",
   "description": "Preserve bundled feedback review and reusable capability packaging through plugin-owned skills.",
   "entry": "AGENTS.md",
   "skills": "skills/",
   "initSkill": "agent-framework-evolution-init",
+  "thinIndex": {
+    "excludeSkills": ["agent-framework-evolution-init"]
+  },
   "defaultPrompt": [
     "审查已验收需求的反馈候选",
     "把已验证经验整理成可复用能力"

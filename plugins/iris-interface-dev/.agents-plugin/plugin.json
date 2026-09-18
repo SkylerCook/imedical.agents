@@ -1,6 +1,6 @@
 {
   "name": "iris-interface-dev",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "displayName": "IRIS Interface Dev Plugin",
   "description": "Document-first IRIS interface workflow covering parsed document handoff, field matching, implementation planning, local ObjectScript/JavaScript implementation, offline review.",
   "entry": "AGENTS.md",
@@ -16,6 +16,9 @@
     }
   ],
   "initSkill": "iris-interface-init",
+  "thinIndex": {
+    "excludeSkills": ["iris-interface-init"]
+  },
   "dependencies": [
     "extract-doc",
     "coding-iris-plugin"
