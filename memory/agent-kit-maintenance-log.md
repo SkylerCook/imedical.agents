@@ -38,6 +38,8 @@
 
 ## 近期已完成
 
+- 2026-09-20（工作区待提交）：imedicalxc-doctor-extend-engineer v1.0.4 编码规约新增 AO：必填项必须有值（来源缺失立即抛 rpcException，不允许空值上送，空值常被平台以"数据签名不正确"等不直观原因拒绝）；多值逗号分隔且无对照的扩展设定取值（如备案设备码）每次调用随机取一个。源于冠新科技 getPersonInfoByQrCode 的 terminalCode 必填未赋值问题（文档 6.5，识读终端编码 Y 必填）。字母范围引用同步 A~AN→A~AO（4 处）；plugin.json 递增 1.0.3→1.0.4（patch，非 breaking），新增 releases 1.0.4.md。本轮未提交、未推送；HIS 业务工程 `.agents` 副本经 `git pull` 同步（待推送后）。
+
 - 2026-09-20（工作区待提交）：imedicalxc-doctor-extend-engineer v1.0.3 编码规约新增 AN：响应各节点类型按第三方文档逐一确认，JSON 对象单独处理（声明 Object/专用 VO 并写专属解析），禁止未确认文档就把对象节点声明为 String（Jackson 对象→String 抛 MismatchedInputException 被上游吞后表现为"接口成功但数据未落库"）。插件 AGENTS.md、elechealthcard_index.md、子 skill SKILL.md 及规约 frontmatter 字母范围同步 A~AM→A~AN；新增 releases/plugin/imedicalxc-doctor-extend-engineer/1.0.3.md，plugin.json 递增 1.0.2→1.0.3（patch，非 breaking）。worktree 组件版本校验识别 1.0.2→1.0.3 变更；release record 的 commit 字段沿用仓内既有惯例待提交后回填（1.0.2.md 同样缺该字段，属存量缺口）。本轮未提交、未推送；5 个变更文件已按精确文件同步至 HIS 业务工程 `.agents/plugins/` 副本。
 
 - 2026-09-18（提交检查提速）：定位 078867b 提交轮次中版本校验耗时 548.6 秒、实际 commit 含钩子 22.9 秒。维护工具新增 `validate --staged`、独立版本证据、60 秒共享预算和阶段输出；按暂存 owner 与直接依赖校验，Git 对象改为 cat-file 批量读取并缓存。功能指纹改为 scope 实际内容，不再绑定 HEAD；隔离样本覆盖无关 HEAD、文案、实现、依赖和历史问题，以及未暂存修复与超时不放行。18/18 专项及 agent-evolution 兼容测试通过（含 PS5.1/PS7 分支），语法和差异检查通过，已记录可复用功能证据。隔离 index 重放原提交的七个 owner，加直接依赖共九个组件，首次 16.2 秒、复用 17.7 秒，均为 7 个 Git 进程；完整 ref 审计降至 13.2 秒、5 个 Git 进程，仍准确报告已登记的信创历史问题。原版耗时来自原任务日志，与本轮负载不同，不作为严格性能基准。已知问题登记为 version-debt-xc-1.0.2-commit，按用户要求普通提交不重复处理；未改历史记录和提交钩子。隔离测试及性能样本已清理，证据缓存按用途保留。Windows Node 24 已验证；三平台 Node 22/24 CI 矩阵已配置但未实跑。本轮仅本地提交，未推送或部署业务副本；agent-context-kit 变更由独立提交 e464b07 承载。

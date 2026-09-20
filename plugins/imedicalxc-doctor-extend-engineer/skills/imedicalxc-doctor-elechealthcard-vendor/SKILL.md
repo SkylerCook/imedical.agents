@@ -187,7 +187,7 @@ WHERE NOT EXISTS (
 ### 规则（rules/）
 
 - `rules/elechealthcard_index.md` — 规则路由入口
-- `rules/elechealthcard_coding_conventions.md` — 编码规约（A~AN），**每次生成代码前必读**
+- `rules/elechealthcard_coding_conventions.md` — 编码规约（A~AO），**每次生成代码前必读**
 - `rules/elechealthcard_integration.md` — 第三方集成通用约束
 
 ### 参考资料（references/）

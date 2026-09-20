@@ -1,7 +1,7 @@
 ---
 name: elechealthcard_coding_conventions
 description: |
-  电子健康卡模块既定编码规约（A~AN）。
+  电子健康卡模块既定编码规约（A~AO）。
   适用于所有电子健康卡厂家接入与既有厂家维护，涵盖异常处理、命名、DTO/VO 结构、
   数据对照、Javadoc、校验、加密决策等约束。
 task-affinity: [elechealthcard, coding, vendor-integration]
@@ -170,3 +170,9 @@ task-affinity: [elechealthcard, coding, vendor-integration]
   **禁止未确认文档就把对象节点声明为 String**：Jackson 只支持标量→String 隐式转换，
   JSON 对象→String 字段直接抛 `MismatchedInputException`，被上游建卡链路 catch 吞掉后
   表现为"接口返回成功但数据未落库"，极难排查。
+- **AO. 必填项必须有值，多值配置随机取值**：文档标注 Y（必填）的字段，组装报文时必须保证非空——
+  业务数据、字典对照或扩展设定均取不到时立即抛
+  `HisBusinessException.rpcException(HispaInvokeCardConstants.BUSINESS_CODE + "2000", msg)`，
+  **不允许空值上送**（空值上送常被平台以"数据签名不正确"等不直观原因拒绝，排障成本高）。
+  扩展设定中"多值逗号分隔"且无对照规则的取值（如备案设备码/终端流水号），
+  每次调用随机取一个（split 去空白后 `ThreadLocalRandom` 随机选择），不固定取第一个。

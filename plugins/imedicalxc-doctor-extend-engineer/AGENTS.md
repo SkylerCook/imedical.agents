@@ -33,7 +33,7 @@
 ## 规则与参考入口
 
 - 规则索引：`rules/elechealthcard_index.md`
-- 电子健康卡编码规约（A~AN）：`rules/elechealthcard_coding_conventions.md`
+- 电子健康卡编码规约（A~AO）：`rules/elechealthcard_coding_conventions.md`
 - 第三方集成通用约束：`rules/elechealthcard_integration.md`
 - 架构约束：`skills/imedicalxc-doctor-extend-architecture/references/domain-constraints.md`
 - BLH 审查清单：`skills/imedicalxc-doctor-blh/references/blh-review-checklist.md`
