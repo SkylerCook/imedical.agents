@@ -34,6 +34,8 @@ $iris-demand-commit --commit
 
 ## 必读上下文
 
+标版代码已完成但尚无 BOSS 需求号时，用户要求补需求/闭环则先使用 `../iris-demand-entry/SKILL.md`：默认需求文本，可选 `--excel` / `--Excel`，由用户录入 BOSS。回填编号后复用草稿生成消息；worktree 来源通过 `demand-entry.js plan` 转交本脚本标准计划。历史提交来源只生成消息，不进入 Apply、不自动改写历史。此衔接不改变 project 流程及提交授权。
+
 1. 目标工程 `AGENTS.md`。
 2. `.agents/config/iris_project_profile.md`。
 3. `iris-coding` 已确认的需求号、需求标题、需求描述、修改文件和验证结果。

@@ -56,7 +56,10 @@ function New-TestProject {
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/workflows") | Out-Null
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/generate-plugin-thin-index.ps1") -Destination (Join-Path $root ".agents/scripts/generate-plugin-thin-index.ps1")
   Copy-Item -LiteralPath $agentThinIndexScriptUnderTest -Destination (Join-Path $root ".agents/scripts/generate-agent-thin-index.ps1")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/refresh-agents-sparse.js") -Destination (Join-Path $root ".agents/scripts/refresh-agents-sparse.js")
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-agents.ps1")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-runtime-skills.js") -Destination (Join-Path $root ".agents/scripts/sync-runtime-skills.js")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/workspace-context.js") -Destination (Join-Path $root ".agents/scripts/lib/workspace-context.js")
   Copy-Item -LiteralPath $profileScriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-plugin-profile.ps1")
   Copy-Item -LiteralPath $checkFunctionalDiffScriptUnderTest -Destination (Join-Path $root ".agents/scripts/check-functional-diff.ps1")
   Copy-Item -LiteralPath $installGitHooksScriptUnderTest -Destination (Join-Path $root ".agents/scripts/install-git-hooks.ps1")
@@ -71,6 +74,7 @@ function New-TestProject {
   Copy-Item -LiteralPath $overlayInitializerUnderTest -Destination (Join-Path $root ".agents/scripts/initialize-workspace-overlay.ps1")
   Copy-Item -LiteralPath $irisMcpHelperUnderTest -Destination (Join-Path $root ".agents/scripts/iris-mcp.js")
   Copy-Item -LiteralPath $agentOrchestratorUnderTest -Destination (Join-Path $root ".agents/scripts/agent-orchestrator.js")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/validation-evidence.js") -Destination (Join-Path $root ".agents/scripts/validation-evidence.js")
   Copy-Item -LiteralPath $preferVendorIrisMcpScriptUnderTest -Destination (Join-Path $root ".agents/scripts/prefer-vendor-iris-mcp.ps1")
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/agent-registry.md") -Value "# Agent Registry"
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/workflow-registry.md") -Value "# Workflow Registry"
@@ -361,7 +365,7 @@ Assert-Contains $updateScriptContent "generate-agent-thin-index.ps1" "update sho
 Assert-Contains $updateScriptContent "generate-vendor-thin-index.ps1" "update should invoke vendor thin-index generation"
 Assert-Contains $updateScriptContent "resolve-plugin-skill-dependencies.ps1" "update should resolve plugin skill dependencies"
 Assert-Contains $updateScriptContent "CleanupLegacyVendorSkills" "update should support explicit legacy vendor cleanup"
-Assert-Contains $updateScriptContent "sync-claudecode-skills.ps1" "update should invoke Claude Code skill sync"
+Assert-Contains $updateScriptContent "sync-runtime-skills.js" "update should invoke link-first runtime skill adapter"
 Assert-Contains $updateScriptContent "2.25.0" "update should require Git 2.25.0 or newer for sparse-checkout subcommand"
 Assert-Contains $updateScriptContent "Assert-GitSparseCheckoutSubcommandAvailable" "update should fail early when git sparse-checkout subcommand is unavailable"
 Assert-Contains $installScriptContent "/agents/**" "install sparse checkout should include agents"
@@ -462,9 +466,11 @@ Assert-Contains $runbookContent "-Mode Write -NoPull -Detailed" "runbook should 
 Assert-Contains $readmeContent "旧版部署若只检出了" "README should explain legacy sparse runtime bootstrap compatibility"
 $contextSkillContent = Get-Content -Raw -Encoding UTF8 -Path $contextSkillPath
 Assert-Contains $contextSkillContent "docs/update-agents.md" "project-context-maintenance should route updates to docs/update-agents.md"
-Assert-Contains $contextSkillContent "depends_on" "project-context-maintenance should guide plugin enablement after context maintenance"
-Assert-Contains $contextSkillContent "dependencies" "project-context-maintenance should read plugin manifest dependencies before enabling plugins"
-Assert-Contains $contextSkillContent "update-plugin-profile.ps1" "project-context-maintenance should use update-plugin-profile.ps1 after init validation"
+Assert-Contains $contextSkillContent "references/initialization.md" "project-context-maintenance should route initialization to its reference"
+$contextInitContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path (Split-Path -Parent $contextSkillPath) "references/initialization.md")
+Assert-Contains $contextInitContent "depends_on" "Initialization should guide plugin enablement"
+Assert-Contains $contextInitContent "dependencies" "Initialization should read plugin manifest dependencies before enabling plugins"
+Assert-Contains $contextInitContent "update-plugin-profile.ps1" "Initialization should use update-plugin-profile.ps1 after init validation"
 $irisBackendRuleContent = Get-Content -Raw -Encoding UTF8 -Path $irisBackendRulePath
 $irisBackendSkillContent = Get-Content -Raw -Encoding UTF8 -Path $irisBackendSkillPath
 Assert-Contains $irisBackendRuleContent 'continue:(episodeId''="")&&(appEpisode''=episodeId)' "IRIS backend rule should show a valid compound postconditional without spaces"
@@ -505,13 +511,13 @@ Assert-True ([version]$cureFormDevManifest.version -ge [version]"0.7.2") "cure f
 Assert-True (($cureFormDevManifest.dependencies -contains "extract-doc")) "cure form plugin should declare extract-doc as a dependency"
 Assert-True (($cureFormDevManifest.dependencies -contains "coding-iris-plugin")) "cure form plugin should declare coding-iris-plugin as a dependency"
 Assert-True ($cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.minVersion -eq "0.3.1") "cure form plugin should retain the overlay-aware coding plugin minimum"
-Assert-True ($cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.10.0") "cure form plugin should accept coding iris v0.9"
-Assert-True ($irisCodegraphManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.10.0") "iris-codegraph should accept coding iris v0.9"
-Assert-True ($interfaceDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.10.0") "interface plugin should accept coding iris v0.9"
+Assert-True ([version]$cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.minVersion -le [version]$codingIrisManifest.version -and [version]$cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -gt [version]$codingIrisManifest.version) "cure form plugin should accept current coding iris version"
+Assert-True ([version]$irisCodegraphManifest.dependencyVersions.'coding-iris-plugin'.minVersion -le [version]$codingIrisManifest.version -and [version]$irisCodegraphManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -gt [version]$codingIrisManifest.version) "iris-codegraph should accept current coding iris version"
+Assert-True ([version]$interfaceDevManifest.dependencyVersions.'coding-iris-plugin'.minVersion -le [version]$codingIrisManifest.version -and [version]$interfaceDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -gt [version]$codingIrisManifest.version) "interface plugin should accept current coding iris version"
 Assert-True (($externalRegManifest.dependencies -contains "extract-doc")) "iris-external-reg should declare extract-doc as a dependency"
 Assert-True (($externalRegManifest.dependencies -contains "coding-iris-plugin")) "iris-external-reg should declare coding-iris-plugin as a dependency"
-Assert-True ($externalRegManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -eq "0.10.0") "iris-external-reg should accept coding iris v0.9"
-Assert-Contains $contextSkillContent "install-git-hooks.ps1" "project-context-maintenance should mention optional git hook enablement"
+Assert-True ([version]$externalRegManifest.dependencyVersions.'coding-iris-plugin'.minVersion -le [version]$codingIrisManifest.version -and [version]$externalRegManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -gt [version]$codingIrisManifest.version) "iris-external-reg should accept current coding iris version"
+Assert-Contains $contextInitContent "install-git-hooks.ps1" "project-context-maintenance should mention optional git hook enablement"
 Assert-True (Test-Path -LiteralPath $repositoryMaintenanceSkillUnderTest -PathType Leaf) "repository-local maintenance skill should live under .agents/skills"
 Assert-True (-not (Test-Path -LiteralPath $legacyRepositoryMaintenanceSkillUnderTest)) "root skills should not retain the maintenance-only exception"
 
@@ -734,6 +740,12 @@ try {
   git -C $gitStateAgentsRoot config user.email "test@example.invalid"
   git -C $gitStateAgentsRoot config user.name "Test User"
   git -C $gitStateAgentsRoot config core.autocrlf false
+  # Seed old tracked documentation before publishing the capability.
+  foreach ($relative in @("docs/imedical-knowledge.md", "docs/component-version-management.md", "docs/validation/old/report.md", "docs/deploy/old/sample.md")) {
+    $oldDoc = Join-Path $gitStateAgentsRoot $relative
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $oldDoc) | Out-Null
+    Set-Content -Encoding UTF8 -LiteralPath $oldDoc -Value "old managed documentation"
+  }
   git -C $gitStateAgentsRoot add .
   git -C $gitStateAgentsRoot commit -m "test: seed updater Git state fixture" | Out-Null
   Assert-True ($LASTEXITCODE -eq 0) "Git state fixture should commit the initial capability"
@@ -757,19 +769,40 @@ try {
   git -C $gitStatePublisher config user.name "Test User"
   New-Item -ItemType Directory -Force -Path (Join-Path $gitStatePublisher "docs") | Out-Null
   Set-Content -Encoding UTF8 -Path (Join-Path $gitStatePublisher "docs/remote-update.md") -Value "remote update"
-  git -C $gitStatePublisher add docs/remote-update.md
+  New-Item -ItemType Directory -Force -Path (Join-Path $gitStatePublisher "docs/guides") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $gitStatePublisher "maintenance/governance") | Out-Null
+  Move-Item -LiteralPath (Join-Path $gitStatePublisher "docs/imedical-knowledge.md") -Destination (Join-Path $gitStatePublisher "docs/guides/imedical-knowledge.md")
+  Move-Item -LiteralPath (Join-Path $gitStatePublisher "docs/component-version-management.md") -Destination (Join-Path $gitStatePublisher "maintenance/governance/component-version-management.md")
+  Remove-Item -LiteralPath (Join-Path $gitStatePublisher "docs/validation/old/report.md")
+  Remove-Item -LiteralPath (Join-Path $gitStatePublisher "docs/deploy/old/sample.md")
+  git -C $gitStatePublisher add -A docs maintenance
   git -C $gitStatePublisher commit -m "test: publish remote updater change" | Out-Null
   git -C $gitStatePublisher push | Out-Null
   Assert-True ($LASTEXITCODE -eq 0) "Git state fixture should publish a remote-only commit"
 
   $behindOldHash = (git -C $gitStateAgentsRoot rev-parse HEAD).Trim()
   $remoteHash = (git -C $gitStatePublisher rev-parse HEAD).Trim()
+  # Strict read-only modes must leave old managed paths until an updating run.
+  $null = & (Join-Path $gitStateAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $gitStateProjectRoot -Mode Check -NoPull
+  $null = & (Join-Path $gitStateAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $gitStateProjectRoot -Mode DryRun -NoPull
+  Assert-True ((git -C $gitStateAgentsRoot rev-parse HEAD).Trim() -eq $behindOldHash) "Read-only modes must not migrate docs"
+  Assert-True (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/imedical-knowledge.md")) "Read-only modes must keep old docs"
+  Add-Content -Encoding UTF8 -LiteralPath (Join-Path $gitStateAgentsRoot ".git/info/exclude") -Value "/docs/validation/custom.md"
+  Set-Content -Encoding UTF8 -LiteralPath (Join-Path $gitStateAgentsRoot "docs/validation/custom.md") -Value "user-owned documentation"
   $behindOutput = & (Join-Path $gitStateAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $gitStateProjectRoot -Mode DryRun -Detailed | Out-String
   Assert-Contains $behindOutput "agents-updated" "A local-behind branch should fast-forward and report agents-updated"
   Assert-Contains $behindOutput $behindOldHash "Updated detail should include oldHash"
   Assert-Contains $behindOutput $remoteHash "Updated detail should include newHash and upstreamHash"
   Assert-Contains $behindOutput "plugin-available" "A completed fast-forward should continue into local convergence checks"
   Assert-True ((git -C $gitStateAgentsRoot rev-parse HEAD).Trim() -eq $remoteHash) "A local-behind branch should fast-forward to upstream"
+
+  Assert-True (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/guides/imedical-knowledge.md")) "Updater should materialize the new documentation path"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/imedical-knowledge.md"))) "Updater should remove the old tracked documentation path"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/component-version-management.md"))) "Updater should remove old source-only docs"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "maintenance"))) "Updater sparse refresh must exclude maintenance docs"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/deploy"))) "Updater should remove emptied historical directories"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/validation/old"))) "Updater should remove empty nested directories"
+  Assert-Contains (Get-Content -Raw -LiteralPath (Join-Path $gitStateAgentsRoot "docs/validation/custom.md")) "user-owned documentation" "Updater must preserve ignored custom remnants"
 
   Set-Content -Encoding UTF8 -Path (Join-Path $gitStateAgentsRoot "docs/local-ahead.md") -Value "local ahead"
   git -C $gitStateAgentsRoot add docs/local-ahead.md
@@ -822,8 +855,9 @@ try {
   git -C $legacySparseAgentsRoot config user.email "test@example.invalid" | Out-Null
   git -C $legacySparseAgentsRoot config user.name "Test User" | Out-Null
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $legacySparseAgentsRoot "scripts/update-agents.ps1")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/refresh-agents-sparse.js") -Destination (Join-Path $legacySparseAgentsRoot "scripts/refresh-agents-sparse.js")
   Copy-Item -LiteralPath $workspaceContextModuleUnderTest -Destination (Join-Path $legacySparseAgentsRoot "scripts/lib/WorkspaceContext.psm1")
-  git -C $legacySparseAgentsRoot add scripts/update-agents.ps1 scripts/lib/WorkspaceContext.psm1
+  git -C $legacySparseAgentsRoot add scripts/update-agents.ps1 scripts/lib/WorkspaceContext.psm1 scripts/refresh-agents-sparse.js
   git -C $legacySparseAgentsRoot commit -m "test: seed legacy sparse checkout" | Out-Null
   git -C $legacySparseAgentsRoot sparse-checkout init --no-cone
   "/scripts/*.ps1" | git -C $legacySparseAgentsRoot sparse-checkout set --stdin --no-cone
@@ -1127,6 +1161,18 @@ try {
   Assert-True (-not $checkOutput.Contains("config-migration-failed")) "Check should not report config-migration-failed for a DryRun-only migration"
   Assert-True ((Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")) -eq $profileBeforeCheck) "Check must not modify plugin profile files"
   Assert-True ((Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/sample-skill/SKILL.md")) -eq $thinIndexBeforeCheck) "Check must not modify generated thin-index files"
+  $runtimeDry = & $scriptUnderTest -ProjectRoot $projectRoot -Mode DryRun -NoPull -RuntimeAdapter CodeBuddy -Detailed | Out-String
+  Assert-Contains $runtimeDry "runtime-adapter-planned" "Runtime DryRun should plan a link"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".codebuddy"))) "Runtime DryRun must not create a directory"
+  $runtimeWrite = & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -RuntimeAdapter CodeBuddy -Detailed | Out-String
+  Assert-Contains $runtimeWrite "runtime-adapter-linked" "Runtime Write should create a link"
+  $runtimeCheck = & $scriptUnderTest -ProjectRoot $projectRoot -Mode Check -RuntimeAdapter CodeBuddy -Detailed | Out-String
+  Assert-Contains $runtimeCheck "runtime-adapter-unchanged" "Runtime Check should verify the existing link"
+  $runtimeConflict = $false
+  try { & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -RuntimeAdapter ClaudeCode -Detailed | Out-Null }
+  catch { $runtimeConflict = $_.Exception.Message.Contains("Runtime skill adaptation incomplete") }
+  Assert-True $runtimeConflict "Runtime Write must fail on a pre-existing Claude skill directory"
+  Assert-True ((Get-Content -Raw (Join-Path $projectRoot ".claude/skills/vendor-test-skill/SKILL.md")).Contains("Existing user skill")) "Runtime conflict must preserve custom skills"
   $agentSkillThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/i18n-agent/SKILL.md")
   Assert-Contains $agentSkillThinIndex ".agents/agents/i18n-agent/AGENT.md" "Agent thin-index should point to canonical AGENT.md"
   Assert-Contains $agentSkillThinIndex ".agents/agents/i18n-agent/bindings.yaml" "Agent thin-index should point to bindings.yaml"
@@ -1156,6 +1202,50 @@ try {
   Assert-Contains $sampleSkillThinIndex "description: Use when testing real skill description propagation." "Skill thin-index should propagate source skill description"
   Assert-Contains $sampleSkillThinIndex "thin-index: true" "Skill thin-index should declare thin-index frontmatter"
   Assert-Contains $sampleSkillThinIndex "source: .agents/plugins/sample-plugin/skills/sample-skill/SKILL.md" "Skill thin-index should declare source frontmatter"
+  # Simulate an already deployed pure init entry, then upgrade its owner policy.
+  $initName = "sample-plugin-init"
+  $initSource = Join-Path $projectRoot ".agents/plugins/sample-plugin/skills/$initName/SKILL.md"
+  $initTarget = Join-Path $projectRoot ".agents/skills/$initName/SKILL.md"
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $initSource) | Out-Null
+  Set-Content -Encoding UTF8 -LiteralPath $initSource -Value "# Init source retained"
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $initTarget) | Out-Null
+  $oldInit = "---" + [Environment]::NewLine + "thin-index: true" + [Environment]::NewLine + "source: .agents/plugins/sample-plugin/skills/$initName/SKILL.md" + [Environment]::NewLine + "---"
+  Set-Content -Encoding UTF8 -LiteralPath $initTarget -Value $oldInit
+  $initBefore = Get-Content -Raw -Encoding UTF8 -LiteralPath $initTarget
+  $ownerManifestPath = Join-Path $projectRoot ".agents/plugins/sample-plugin/.agents-plugin/plugin.json"
+  $ownerManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath $ownerManifestPath | ConvertFrom-Json
+  $ownerManifest | Add-Member -NotePropertyName thinIndex -NotePropertyValue ([pscustomobject]@{ excludeSkills = @($initName) })
+  $ownerManifest | ConvertTo-Json -Depth 20 | Set-Content -Encoding UTF8 -LiteralPath $ownerManifestPath
+  foreach ($previewMode in @("Check", "DryRun")) {
+    $initPreview = & $scriptUnderTest -ProjectRoot $projectRoot -Mode $previewMode -NoPull -Detailed -Plugin sample-plugin | Out-String
+    Assert-Contains $initPreview "excluded managed plugin skill thin-index" "Updater preview should identify deployed pure init cleanup"
+    Assert-True ((Get-Content -Raw -Encoding UTF8 -LiteralPath $initTarget) -eq $initBefore) "Updater preview must preserve old init bytes"
+  }
+  $keepFile = Join-Path (Split-Path -Parent $initTarget) "user-notes.txt"
+  Set-Content -Encoding UTF8 -LiteralPath $keepFile -Value "Keep user notes"
+  $initWrite = & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-String
+  Assert-Contains $initWrite "excluded managed plugin skill thin-index" "Updater Write should remove deployed pure init"
+  Assert-True (-not (Test-Path -LiteralPath $initTarget)) "Updater must delete the old managed init entry"
+  Assert-True (Test-Path -LiteralPath $keepFile) "Updater must preserve other files in the skill directory"
+  Assert-True (Test-Path -LiteralPath $initSource) "Updater must retain canonical init source"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/sample-skill/SKILL.md")) "Daily initSkill must remain discoverable"
+  & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-Null
+  Assert-True (-not (Test-Path -LiteralPath $initTarget)) "Repeat updater must not recreate excluded init"
+  Remove-Item -LiteralPath $keepFile
+  $initDirectory = Split-Path -Parent $initTarget
+  foreach ($previewMode in @("Check", "DryRun")) {
+    $emptyPreview = & $scriptUnderTest -ProjectRoot $projectRoot -Mode $previewMode -NoPull -Detailed -Plugin sample-plugin | Out-String
+    Assert-Contains $emptyPreview "excluded empty plugin skill directory" "Updater preview should identify historical empty init directories"
+    Assert-True (Test-Path -LiteralPath $initDirectory) "Updater preview must retain the empty directory"
+  }
+  & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-Null
+  Assert-True (-not (Test-Path -LiteralPath $initDirectory)) "Updater must remove historical empty init directories"
+  New-Item -ItemType Directory -Path $initDirectory | Out-Null
+  Set-Content -Encoding UTF8 -LiteralPath $initTarget -Value "# User custom init"
+  $customInit = Get-Content -Raw -Encoding UTF8 -LiteralPath $initTarget
+  & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-Null
+  Assert-True ((Get-Content -Raw -Encoding UTF8 -LiteralPath $initTarget) -eq $customInit) "Updater must preserve custom init files"
+
   $vendorSkillThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/vendor-test-skill/SKILL.md")
   Assert-Contains $vendorSkillThinIndex "description: Use when testing vendor thin-index generation." "Vendor thin-index should propagate source skill description"
   Assert-Contains $vendorSkillThinIndex "thin-index: true" "Vendor thin-index should declare thin-index frontmatter"

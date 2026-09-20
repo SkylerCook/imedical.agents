@@ -157,6 +157,10 @@ assert.strictEqual(bundledV126Tools.length, 78);
 for (const tool of bundledV126Tools) {
   assert.strictEqual(helper.isClassifiedTool(tool), true, `${tool} should have an explicit v1.2.6 policy classification`);
 }
+for (const tool of ["iris_mirror_status", "iris_reload_pool", "iris_system_performance"]) {
+  assert.strictEqual(helper.isClassifiedTool(tool), false, `${tool} should remain fail-closed until the v1.4.2 policy follow-up`);
+  assert.strictEqual(helper.isWriteLike(tool, {}), true, `${tool} should require --allow-write while unclassified`);
+}
 assert.strictEqual(helper.isClassifiedTool("future_unclassified_tool"), false);
 
 for (const [tool, args] of readCases) {
@@ -262,7 +266,10 @@ try {
   $toolsLine = @($toolsOutput -split "`r?`n" | Where-Object { $_.StartsWith("TOOLS=") })[-1]
   $toolNames = @()
   foreach ($toolName in ($toolsLine.Substring(6) | ConvertFrom-Json)) { $toolNames += $toolName }
-  Assert-True ($toolNames.Count -eq 67) "default --no-skills toolset should expose 67 tools"
+  Assert-True ($toolNames.Count -eq 70) "default --no-skills v1.4.2 toolset should expose 70 tools"
+  Assert-True ($toolNames -contains "iris_mirror_status") "v1.4.2 toolset should expose iris_mirror_status"
+  Assert-True ($toolNames -contains "iris_reload_pool") "v1.4.2 toolset should expose iris_reload_pool"
+  Assert-True ($toolNames -contains "iris_system_performance") "v1.4.2 toolset should expose iris_system_performance"
   Assert-True (-not ($toolNames -contains "skill_list")) "default helper toolset should omit built-in skill tools"
 
   $skillsEnabledConfig = $mcpConfig | ConvertFrom-Json
@@ -282,7 +289,7 @@ try {
   $skillsEnabledLine = @($skillsEnabledOutput -split "`r?`n" | Where-Object { $_.StartsWith("TOOLS=") })[-1]
   $skillsEnabledNames = @()
   foreach ($skillToolName in ($skillsEnabledLine.Substring(6) | ConvertFrom-Json)) { $skillsEnabledNames += $skillToolName }
-  Assert-True ($skillsEnabledNames.Count -eq 78) "built-in skill opt-in should expose the full 78-tool v1.2.6 set"
+  Assert-True ($skillsEnabledNames.Count -eq 81) "built-in skill opt-in should expose the full 81-tool v1.4.2 set"
   Assert-True ($skillsEnabledNames -contains "skill_list") "built-in skill opt-in should restore skill_list"
 } finally {
   if (Test-Path -LiteralPath $testRoot) {

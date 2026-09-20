@@ -61,7 +61,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/i18n-iris-pl
 
 如果脚本不可用，才手工创建 thin-index。手工 thin-index 不复制规则全文，只写真实插件文件路径和“继续读取目标插件文件”的指令。
 
-如需后续通过 shallow skill 重新检查、升级或重建索引，可以去掉 `-ExcludeSkill i18n-project-init`，为 bootstrap skill 也生成 thin-index。
+后续重新检查或初始化时仍直接读取插件内真实 init skill。manifest 固定排除该纯初始化入口；省略 `-ExcludeSkill` 也不会生成其薄索引。
 
 当 `PluginPath` 使用相对路径时，脚本按 `ProjectRoot` 解析插件位置；如需引用工程外插件，应传入绝对路径。
 

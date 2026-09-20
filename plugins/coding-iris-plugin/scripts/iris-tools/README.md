@@ -15,6 +15,9 @@
 
 ## 📁 脚本列表
 
+- `query-knowledge.js`：从 CapabilityRoot 的共享参考库与指定 sourceId 的当前项目菜单中按字面量检索，返回来源、行号和有界片段。
+- `sync-menu.js`：接受完整采集 JSON，plan 只读比较，apply 校验指纹后写入 ContextRoot/work/menu-sync。采集由 iris-menu-sync skill 复用原生 MCP，脚本自身不联网。用法与输入见 [菜单同步](../../references/menu-knowledge-sync.md)。
+
 ### 1. export.js - 通用导出脚本（推荐）
 
 **功能：** 智能检测文件类型并自动从 IRIS 服务器导出文件（支持 `.cls/.mac/.inc/.int/.js/.csp/.css`）。

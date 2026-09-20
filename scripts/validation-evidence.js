@@ -57,16 +57,26 @@ function worktreeFingerprint(repoRoot, scopes) {
   const normalized = normalizeScopes(repoRoot, scopes);
   const pathspec = ["--", ...normalized];
   const head = String(git(repoRoot, ["rev-parse", "HEAD"])).trim();
-  const diff = git(repoRoot, ["diff", "--binary", "HEAD", ...pathspec], null);
-  const untrackedOutput = git(repoRoot, ["ls-files", "--others", "--exclude-standard", "-z", ...pathspec], null);
-  const untracked = untrackedOutput.toString("utf8").split("\0").filter(Boolean).sort();
-  const parts = [Buffer.from(`${head}\0${normalized.join("\0")}\0`), diff];
-  for (const relative of untracked) {
+  const listed = git(repoRoot, ["ls-files", "--cached", "--others", "--exclude-standard", "-z", ...pathspec], null);
+  const files = new Set(listed.toString("utf8").split("\0").filter(Boolean));
+  const parts = [Buffer.from(`content-v2\0${normalized.join("\0")}\0`)];
+  // Explicit files can be private ignored readback artifacts. Include their bytes,
+  // rather than silently treating an ignored snapshot as unchanged.
+  for (const relative of normalized.filter(value => value !== ".")) {
     const absolute = path.join(repoRoot, relative);
-    parts.push(Buffer.from(`${relative}\0`));
-    parts.push(fs.readFileSync(absolute));
+    if (fs.existsSync(absolute) && fs.lstatSync(absolute).isFile()) {
+      files.add(relative);
+    }
   }
-  return { head, scopes: normalized, fingerprint: sha256(parts) };
+  for (const relative of [...files].sort()) {
+    const absolute = path.join(repoRoot, relative);
+    if (!fs.existsSync(absolute)) continue;
+    const stat = fs.lstatSync(absolute);
+    if (!stat.isFile() && !stat.isSymbolicLink()) fail(`Unsupported fingerprint input: ${relative}`);
+    const content = stat.isSymbolicLink() ? Buffer.from(fs.readlinkSync(absolute)) : fs.readFileSync(absolute);
+    parts.push(Buffer.from(`${relative}\0${stat.isSymbolicLink() ? "link" : "file"}\0${stat.mode & 0o111}\0${content.length}\0`), content);
+  }
+  return { algorithm: "content-v2", head, scopes: normalized, fingerprint: sha256(parts) };
 }
 
 function defaultEvidenceFile(repoRoot) {
@@ -115,10 +125,12 @@ function record(repoRoot, options) {
 function check(repoRoot, options) {
   if (!options.suite) fail("check requires --suite");
   const file = evidenceLocation(repoRoot, options);
-  const saved = readEvidence(file).suites[options.suite];
+  const evidence = readEvidence(file);
+  const saved = evidence.suites[options.suite];
   if (!saved) return { reusable: false, reason: "missing-evidence", evidenceFile: file, suite: options.suite };
+  if (!evidence.repository || path.resolve(evidence.repository) !== path.resolve(repoRoot)) return { reusable: false, reason: "repository-mismatch", evidenceFile: file, suite: options.suite };
   const current = worktreeFingerprint(repoRoot, saved.scopes || []);
-  const reusable = saved.status === "passed" && saved.head === current.head && saved.fingerprint === current.fingerprint;
+  const reusable = saved.status === "passed" && saved.algorithm === current.algorithm && saved.fingerprint === current.fingerprint;
   return { reusable, reason: reusable ? "fingerprint-match" : "fingerprint-changed", evidenceFile: file, suite: options.suite, saved, current };
 }
 

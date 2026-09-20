@@ -14,7 +14,7 @@
 - 服务端治疗表单事务类固定为 `DHCDoc.Cure.AI.CureFormDeploy`；canonical 不允许从 target profile 注入类名，也不保留旧部署类 fallback。
 - 流程入口为 `node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js <command>`；Node.js 最低版本为 `22.5.0`。
 - Excel 多模板新建通过 `cure-form-template-boundaries/v1` 显式声明 Sheet、模板顺序和 A1 范围；范围重叠或合并单元格被边界截断必须进入 `unresolved[]`，不得静默拆分。
-- 表单工作产物及运行态统一遵循 [交付流程](references/cure-form-delivery-workflow.md)。项目配置/规则仍在 `.agents/`，不迁移 Overlay 契约；源码、预览、验收按任务和 Map 分目录，快照与状态放任务 private。
+- 表单工作产物及运行态统一遵循 [交付流程](references/cure-form-delivery-workflow.md)，按其任务路由加载章节；本入口的适用硬约束始终有效。部署选择与已有授权的复用以该流程为唯一说明。项目配置/规则仍在 `.agents/`，不迁移 Overlay 契约；源码、预览、验收按任务和 Map 分目录，快照与状态放任务 private。
 - 新开发表单与现有模板改造必须分流：`expectedVersion=NEW` 的新开发表单直接创建正式模板，不使用灰度；只有现有模板改造才允许创建响应式灰度 RowID。
 
 ## 安全门禁

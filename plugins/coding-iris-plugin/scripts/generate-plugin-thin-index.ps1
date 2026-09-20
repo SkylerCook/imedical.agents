@@ -1,6 +1,8 @@
 param(
     [string]$PluginPath = ".agents/plugins/coding-iris-plugin",
     [string]$ProjectRoot = ".",
+    [string]$ContextRoot = "",
+    [string]$CapabilityRoot = "",
     [ValidateSet("DryRun", "Write")]
     [string]$Mode = "DryRun",
     [string[]]$ExcludeSkill = @(),
@@ -20,6 +22,8 @@ if (-not (Test-Path -LiteralPath $canonicalScript -PathType Leaf)) {
 $invokeParams = @{
     PluginPath = $PluginPath
     ProjectRoot = $ProjectRoot
+    ContextRoot = $ContextRoot
+    CapabilityRoot = $CapabilityRoot
     Mode = $Mode
     ExcludeSkill = $ExcludeSkill
     ExcludeRule = $ExcludeRule

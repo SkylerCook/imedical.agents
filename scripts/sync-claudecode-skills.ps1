@@ -56,6 +56,11 @@ if ([string]::IsNullOrWhiteSpace($ContextRoot) -or [string]::IsNullOrWhiteSpace(
 $contextRootFull = Resolve-FullPath $ContextRoot
 $skillsSource = Join-Path $contextRootFull "skills"
 $targetDir = Join-Path $projectRootFull ".claude/skills"
+# Legacy copy entrypoint must not write through a link into canonical project skills.
+if ((Test-Path -LiteralPath $targetDir) -and ((Get-Item -LiteralPath $targetDir -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+    throw "Linked runtime skills must use sync-runtime-skills.js; legacy copying is disabled for this target."
+}
+
 $results = New-Object System.Collections.Generic.List[object]
 
 if (-not (Test-Path -LiteralPath $skillsSource -PathType Container)) {

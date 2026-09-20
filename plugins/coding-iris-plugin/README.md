@@ -8,12 +8,18 @@ CLS 编码遵循 [格式提示与最小改动约定](references/cls-coding-forma
 
 ## 能力范围
 
+编码入口使用规则指针和可检查的完成条件，完整 i18n 矩阵、编码策略及部署会话协议各由原 owner 维护。已部署工程通过常规能力包更新及 thin-index 刷新取得新描述与正文；无需配置迁移或额外兼容清理，不自动改写项目 AGENTS 或同步业务源码。
+
+- iMedical 知识检索：[iris-imedical-knowledge](skills/iris-imedical-knowledge/SKILL.md) 使用共享 vendor 参考与项目当前菜单。模型根据任务信息缺口自主决定是否查询，无需用户点名，不固定为开发前置步骤；源码核实优先。指定来源但菜单快照缺失时返回警告并继续查询共享参考，不要求先同步菜单；损坏快照仍报错。
+- 菜单资料同步：[iris-menu-sync](skills/iris-menu-sync/SKILL.md) 通过已有 MCP 采集，sync-menu.js 提供离线 plan/apply、差异、完整性校验与原子快照切换；支持全量及指定组。更新后重建 enabled 插件 thin-index；无需新连接或 npm，项目快照不会被 vendor 更新覆盖。协议见 [menu-knowledge-sync](references/menu-knowledge-sync.md)。
+
 - ObjectScript 后端编码规则：BLH/DATA/SQL 分层、SQL 返回约定、ObjectScript 语法风格、Broker 接口习惯。
-- CSP/JavaScript/HISUI 前端编码规则：框架页/内容页拆分、HISUI 控件优先、JS 组织方式、前端数据回显。
+- CSP/JavaScript/HISUI 前端编码规则：框架页/内容页拆分、HISUI 控件及原生视觉状态优先（含悬浮/焦点/禁用/等待）、JS 组织方式、前端数据回显。
 - 工作流规则：本地优先；导出、编译、Broker 调试和配置同步优先使用 IRIS 开发主力脚本；MCP 作为辅助能力补上下文、只读验证或覆盖脚本未覆盖场景。
 - 部署编排：`skills/iris-deploy/SKILL.md` 负责远端部署入口、清单生成、确认门禁和验证编排，上传、编译、部署和远端验证按 `rules/iris_deploy_checklist.md` 逐项执行。
 - 需求移植：`skills/iris-demand-promote/SKILL.md` 将已提交的 DEV 需求补丁移植到独立 PRD 按需导出仓库；先导出 PRD 服务器基线，再做三方应用，只创建本地 PRD 提交。
 - 需求提交：`skills/iris-demand-commit/SKILL.md` 支持 `$iris-demand-commit --plan|--commit`。`--plan` 只生成方案型提交信息且不追问是否提交；`--commit` 视为本地提交授权，标版提交前强制安全快进，项目兼容纯本地仓库；两种模式均不包含 push。
+- 标版需求闭环：`skills/iris-demand-entry/SKILL.md` 从工作区或指定提交实际 diff 生成可复制需求文本，可选 `--excel`（兼容 `--Excel`）生成 29 列 BOSS 导入表。用户录入并回填编号/最终标题后生成提交消息，待提交代码复用 iris-demand-commit；历史提交不自动改写。用户模式为 `--text / --bind / --plan / --commit / --help`，历史来源使用 `--rev` 或 `--range`。命令与草稿见 [操作协议](references/standard-demand-entry.md)。已部署工程更新能力包并重建 enabled 插件 thin-index 后使用，无配置迁移或旧入口删除。
 - 前端统一编码：当前标版、医院项目的源码、上传内容和服务器运行编码统一使用 canonical `utf8`。
 - 前端编码保护：实际文件字节检测是最终门禁；正常任务静默处理，完成时只报告一行摘要。
 - 前端 i18n 条件门禁：以目标工程 `plugin_profile.md` 为事实来源，只有 i18n 已启用且任务或 diff 命中翻译 helper、翻译 key 或用户可见文案时才追加 i18n 规则和稳定 key 检查；普通前端需求不加载完整 i18n workflow。
@@ -103,7 +109,7 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 2. 基于 `templates/iris_project_profile.template.md` 创建 `.agents/config/iris_project_profile.md`。
 3. 检查目标工程 `.mcp.json` 是否包含实际需要的 IRIS/SFTP 能力。
 4. 运行 thin-index dry-run，确认无冲突后再 write。
-5. 普通编码任务优先使用 `iris-coding` 统一入口，由它按任务范围路由到后端、前端、工作流或 promote 流程。
+5. 前后端边界不明或混合编码任务使用 `iris-coding`；明确前端/后端任务直接使用专项 skill。需要部署时在首次修改前完成或复用 Git 基线；i18n 条件矩阵和检查命令统一由前端规则维护，入口保留修改前与最终 diff 后两个检查时点。
 6. `iris-coding` 本地验证后进入 `acceptance-pending`，不自动加载 `iris-demand-commit`；只有用户要求生成提交信息、明确要求提交，或显式调用 `$iris-demand-commit --plan|--commit` 时才读取交付类型并路由，commit 不改变验收状态。
 7. `fast/full/guarded` 只决定开发路径深度，不跳过项目入口、profile、通用安全规则和命中的前后端/i18n/HISUI 规则。轻量并行仅允许最多两个临时只读子 Agent，主 Agent保持唯一写入者。
 7. 明确的纯后端任务可直接使用 `iris-backend-coding`，明确的纯前端任务可直接使用 `iris-frontend-coding`。
@@ -248,3 +254,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 部署 Question 兼容：停止结果提供工具无关 question 协议，固定决定代码；Agent 按能力采用选项或文字确认。暂停/查看/无效决定不写入。详见 references/deployment-protection.md。
 
 前端规则补充旧调用迁移的接口契约检查：参数大小写、命名/位置绑定、Broker 传输与响应结构按接口核实，失败不得伪装为空集合或自动换通道重试。此次指导资料更新不修改请求运行时；已部署项目通过既有更新流程取得规则，无业务配置迁移。
+
+## 按需辅助与收尾
+
+遵循 agents/_shared/execution-guidance.md（源仓根；部署态为 .agents/agents/_shared/）。guidanceMode 默认 auto，可选 concise/assisted；辅助程度不改变授权、编码及领域契约。方法允许合并或重排，IRIS 编码共用 iris_coding_general 的风险分流。业务验收后按信号加载 feedback，无信号不例行报告。现有工程按 docs/update-agents.md 定点合并项目入口，普通能力包更新不重写用户 AGENTS/profile。
+
+纯初始化入口 `coding-iris-init` 直接读取插件内真实 SKILL.md，manifest 的 `thinIndex.excludeSkills` 将其排除出浅层技能列表。已启用项目常规更新时，Check/DryRun 只报告旧受管索引，Write 精准删除；自定义文件和链接保留。迁移边界见能力包 [更新说明](../../docs/update-agents.md#纯初始化-skill-薄索引迁移)。

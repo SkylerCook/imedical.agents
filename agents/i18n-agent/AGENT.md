@@ -103,7 +103,7 @@ Coordinator 必须在首个 Explorer 或修改动作前完成运行契约：
 
 ## 多智能体物理编排
 
-`multi-agent` 模式使用以下固定编排，不在 P1 阶段引入通用调度器：
+新运行使用 schema 2.0 调度器，以下为可按能力串行降级的默认角色关系：
 
 ```text
 Root Coordinator
@@ -119,10 +119,10 @@ Root Coordinator
 - 子 Agent 只读取 handoff 指定的 profile、skill 和专项规则，不重新加载 registry 或全部 canonical 文件。
 - Verifier 必须独立于 Coder，检查代码结构、编码、XML、翻译残留、fallback 和未执行门禁。
 - Independent Verifier 必须发生在最后一次本地修改和最后一次已授权远程写入之后；验证后再修改会使结论失效，Coordinator 必须重新触发 Verifier。
-- schema 1.2 使用 stage `attempts[]` 表达暂停和恢复；瞬时故障以 `suspended` attempt 保持运行开放，恢复时追加 attempt，不新增临时阶段名。
-- 所有远程动作达到终态、无 suspended attempt 且验证范围冻结后，Coordinator 才能设置 `finalization.ready=true` 并启动 Verifier。
-- `verification.scope` 只覆盖业务代码、本地 i18n 产物和已授权远程读回；报告、summary、manifest 和 feedback 修改不使业务验证版本失效。
-- 子 Agent 120 秒无心跳或无约定产物时最多替换一次；再次失败记录阻塞，不重复派发。
+- schema 2.0 使用 workItems[].attempts 与 actions[]；未知结果 ACK blocked，已确认失败才按 maxAttempts 重试。不新增临时 resume 阶段，历史 1.2 只读。
+- 所有实现与远程动作已终态、无 pending/blocked action 且验证范围冻结后才启动 Verifier；不使用旧 finalization.ready。
+- `verification.scopes` 只覆盖业务代码、本地 i18n 产物和已授权远程读回；报告、summary、manifest 和 feedback 修改不使业务验证版本失效。
+- 等待依据宿主状态与实际进度；观察超时不等于失败，不按固定心跳时限重建会话。
 
 ## 输入
 
@@ -142,7 +142,7 @@ Root Coordinator
 
 ## 框架反馈
 
-业务需求 run 固定设置 `taskKind=business-demand`，由此派生 feedback 适用性。技术流程完成后按 `agents/_shared/delivery-lifecycle.md` 进入 `acceptance-pending`。只有用户明确确认验收后，才调用 `skills/agent-framework-feedback/SKILL.md` 做只读审查；任何经验或 framework feedback 写入仍需用户逐项授权。纯框架维护必须建立独立 `framework-maintenance` 记录，不得复用本 run 的验收或 feedback 状态。
+业务需求 run 固定设置 `taskKind=business-demand`，由此派生 feedback 适用性。技术流程完成后按 `agents/_shared/delivery-lifecycle.md` 进入 `acceptance-pending`。只有用户明确确认验收且命中反馈信号后，才调用 `plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md` 做只读审查；任何经验或 framework feedback 写入仍需用户逐项授权。纯框架维护必须建立独立 `framework-maintenance` 记录，不得复用本 run 的验收或 feedback 状态。
 
 ## 降级执行
 
@@ -159,3 +159,5 @@ Root Coordinator
 - 不在未确认链路时直接执行 XML 模板同步。
 - 不把业务输入、病人录入、医生备注等自由文本当作固定文案翻译。
 - 不改变业务流程、权限、校验、持久化或状态流转。
+
+阶段顺序是默认方法，可按 execution-guidance.md 合并或重排；普通 skill 不因本 workflow 存在而创建 run。安全、授权、领域规则和最终验证不变。反馈按 delivery-lifecycle.md 的 on-signal/always 策略执行。

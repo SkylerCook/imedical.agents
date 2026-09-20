@@ -110,11 +110,63 @@ function git(root, ...args) {
   return result.stdout.trim();
 }
 
-test('real repository exposes 14 plugins and 2 independent skills with valid governance metadata', () => {
-  const repoRoot = path.resolve(__dirname, '../..');
-  const snapshot = tool.buildSnapshot(repoRoot);
-  assert.equal([...snapshot.components.values()].filter((item) => item.type === 'plugin').length, 14);
-  assert.equal([...snapshot.components.values()].filter((item) => item.type === 'skill').length, 2);
+test('staged gate reuses version evidence and separates unchanged history from new failures', () => {
+  const root = makeBasicRoot({ withSkill: false });
+  writePlugin(root, 'consumer', '0.1.0', { dependencies: ['sample-plugin'], dependencyVersions: { 'sample-plugin': { minVersion: '0.1.0', maxVersionExclusive: '0.2.0' } } });
+  writeRelease(root, 'plugin', 'consumer', '0.1.0');
+  const historical = 'releases/plugin/sample-plugin/0.1.0.md';
+  writeFile(root, historical, fs.readFileSync(path.join(root, historical), 'utf8').replace(`commit: ${BASE_COMMIT}`, 'commit: invalid'));
+  git(root, 'init');
+  git(root, 'config', 'user.email', 'fixture@example.invalid');
+  git(root, 'config', 'user.name', 'Fixture');
+  git(root, 'add', '.'); git(root, 'commit', '-m', 'baseline');
+  const evidence = path.join(SUITE_ROOT, 'staged-evidence.json');
+  const run = (...args) => {
+    const result = spawnSync(process.execPath, [TOOL_PATH, 'validate', '--repo-root', root, '--staged', '--evidence-file', evidence, '--format', 'json', ...args], { encoding: 'utf8' });
+    const payload = JSON.parse(result.stdout);
+    assert.notEqual(result.status, 2, result.stderr + result.stdout);
+    return payload;
+  };
+  writeFile(root, 'plugins/sample-plugin/README.md', 'documentation only');
+  git(root, 'add', '.');
+  assert(codes(run().issues).has('component-version-not-bumped'));
+  writePlugin(root, 'sample-plugin', '0.1.1');
+  writeRelease(root, 'plugin', 'sample-plugin', '0.1.1', { previousVersion: '0.1.0', level: 'patch' });
+  // Unstaged fixes cannot make an invalid index pass.
+  assert(codes(run().issues).has('component-version-not-bumped'));
+  git(root, 'add', '.');
+  const first = run();
+  assert.equal(first.ok, true);
+  assert.equal(first.evidence, 'fresh');
+  assert.deepEqual(first.checkedComponents, ['plugin:consumer', 'plugin:sample-plugin']);
+  assert(first.historicalIssues.some(item => item.code === 'release-commit-invalid'));
+  assert(first.gitProcesses <= 9, `expected bounded Git calls, got ${first.gitProcesses}`);
+  assert.equal(run().evidence, 'reused');
+  writeFile(root, 'note.md', 'unrelated HEAD change');
+  git(root, 'add', 'note.md'); git(root, 'commit', '--only', 'note.md', '-m', 'unrelated');
+  assert.equal(run().evidence, 'reused');
+  writeFile(root, 'plugins/sample-plugin/README.md', 'edited documentation');
+  git(root, 'add', '.');
+  assert.equal(run().evidence, 'reused', 'version rules depend on changed paths and metadata, not prose');
+  writePlugin(root, 'consumer', '0.1.0', { dependencies: ['sample-plugin'], dependencyVersions: { 'sample-plugin': { minVersion: '0.2.0', maxVersionExclusive: '0.3.0' } } });
+  git(root, 'add', '.');
+  assert(codes(run().issues).has('dependency-version-incompatible'));
+  const badRelease = path.join(root, 'releases/plugin/sample-plugin/0.1.1.md');
+  fs.writeFileSync(badRelease, fs.readFileSync(badRelease, 'utf8').replace(`commit: ${BASE_COMMIT}`, 'commit: invalid'));
+  git(root, 'add', '.');
+  assert(codes(run().issues).has('release-commit-invalid'), 'new invalid record must block');
+  const full = spawnSync(process.execPath, [TOOL_PATH, 'validate', '--repo-root', root, '--format', 'json'], { encoding: 'utf8' });
+  assert.equal(full.status, 1, 'full audit still blocks historical issues');
+  const timeoutEvidence = path.join(SUITE_ROOT, 'timeout-evidence.json');
+  const timeout = spawnSync(process.execPath, [TOOL_PATH, 'validate', '--repo-root', root, '--staged', '--budget-ms', '0.001', '--evidence-file', timeoutEvidence], { encoding: 'utf8' });
+  assert.equal(timeout.status, 2);
+  assert.equal(fs.existsSync(timeoutEvidence), false);
+});
+
+test('valid fixture inventories plugins and independent skills', () => {
+  const snapshot = tool.buildSnapshot(makeBasicRoot());
+  assert.equal([...snapshot.components.values()].filter((item) => item.type === 'plugin').length, 1);
+  assert.equal([...snapshot.components.values()].filter((item) => item.type === 'skill').length, 1);
   assert.deepEqual(tool.validateSnapshot(snapshot), []);
 });
 

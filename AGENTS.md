@@ -26,6 +26,7 @@
 - 长期稳定决策写入 `agent-kit-maintenance-decisions.md`。
 - 近期提交、验证结果和维护流水摘要写入 `agent-kit-maintenance-log.md`。
 - 后续计划、治理队列和暂缓事项写入 `agent-kit-maintenance-backlog.md`。
+- 每个待治理项必须明确标注优先级，沿用 backlog 的 P0–P3 定义，依据当前阻塞、潜在写入风险和依赖关系维护执行顺序；新增或调整事项时同步检查优先级与排序。
 - 完成一轮维护后，合并或替换过期内容，不无限追加。
 - 维护路线图或计划类文档时，`下一步工作计划` 只保留未完成任务；任务完成后迁入归档阶段记录或维护日志，并从第一个未完成任务重新编号，避免在计划区保留“已完成”任务。
 - 不写完整 rules 正文、长段脚本说明、大段命令输出或一次性排障日志。
@@ -38,7 +39,8 @@
 - `skills/` 放仓库级通用 skill，属于能力包正式内容并部署到业务项目 `.agents/skills/`。
 - `.agents/skills/agent-kit-maintenance/` 是受版本控制的仓库本地维护 skill，只服务本仓库维护；源仓根 `.agents/` 不加入业务项目 sparse checkout，也不生成 thin-index。
 - `rules/` 是仓库级通用规则预留入口；当前通用规则主要沉淀在插件内。
-- `docs/` 放 AI Coding 工作区规范、runbook 和配套文档。
+- `docs/` 放随业务项目部署的接入、使用、运行协议及通用参考；入口为 `docs/README.md`。
+- `maintenance/` 放仅源仓使用的治理、设计历史与验证证据；入口为 `maintenance/README.md`。文档迁移按 `maintenance/governance/documentation-layout.md` 核对分发与旧副本收敛。
 - 根 `scripts/` 放能力包部署、更新和通用维护脚本；领域脚本放到对应插件。
 - 根 `vendor/` 放第三方源码资产、共享运行时资产和 vendor skill fallback，部署到业务项目 `.agents/vendor/`；只有插件 manifest 声明的 required vendor skill 才生成 `.agents/skills` thin-index。
 - 根 `releases/` 放插件和根级独立 skill 的不可变发布记录，只服务源仓版本审计，不部署到业务项目。
@@ -54,6 +56,7 @@
 
 - 根 `AGENTS.md`
 - 根 `memory/`
+- 根 `maintenance/`
 - 根 `.agents/`
 - 根 `releases/`
 - 根 `README.md`、`LICENSE`
@@ -94,6 +97,7 @@
 
 ## Git 提交信息
 
+- 用户要求提交时，复用当前任务已有的差异审查和有效测试证据；仅补查新增变化、暂存范围及必要门禁。批量执行独立只读检查，不重复读取已加载且未变化的规范，不机械重跑完整测试。提交钩子失败后按具体原因处理，不绕过钩子。
 - Git commit message 使用 Conventional Commits：首行写简洁明确的 `type(scope): subject`，描述文字使用简体中文，代码标识符保持原样。
 - 提交信息不得只有标题；标题后空一行，必须增加以 `修改说明:` 开头的正文。
 - `修改说明:` 应聚焦本次提交的核心改动，说明真正发生变化的能力、逻辑、契约或行为；必要时补充关键结果和边界，但不要求机械罗列全部文件或逐项套用固定字段。
@@ -112,7 +116,7 @@ fix(i18n): 增加前端条件路由与稳定 key 门禁
 - 插件内部 skill、rule、reference、template 和 script 继承 owner 插件版本，不得声明独立 `version`。
 - 版本只允许严格 `MAJOR.MINOR.PATCH`。插件目录或根级独立 skill 目录发生变化时，必须递增对应版本并新增 `releases/plugin|skill/<name>/<version>.md`。
 - 发布记录提交后不可修改或删除；breaking 变化必须声明迁移说明。依赖名称继续保留在 `dependencies`，版本范围单独写入更新器忽略的 `dependencyVersions`。
-- 提交相关改动前，必须按 `docs/component-version-management.md` 运行维护者专用 `validate-component-versions.js validate`。该工具位于源仓 `.agents/skills/agent-kit-maintenance/scripts/`，不接入业务项目安装、更新、thin-index 或 hook。
+- 提交相关改动前，必须按 `maintenance/governance/component-version-management.md` 运行维护者专用 `validate-component-versions.js validate`。该工具位于源仓 `.agents/skills/agent-kit-maintenance/scripts/`，不接入业务项目安装、更新、thin-index 或 hook。
 - 不得借版本治理修改 `scripts/install-agents.ps1`、`scripts/update-agents.ps1` 或 `docs/update-agents.md`；未来接入更新器必须单独规划和授权。
 
 ## 禁止事项

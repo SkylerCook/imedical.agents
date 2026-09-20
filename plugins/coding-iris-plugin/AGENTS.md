@@ -25,6 +25,9 @@ Agent 编写 `.cls` 时遵循 `references/cls-coding-format.md`。已有类只�
 
 ## Skill 路由
 
+- iMedical wiki、菜单及业务实现线索：`skills/iris-imedical-knowledge/SKILL.md`。Agent 按通用规则自主判断查询收益，无需用户点名或为本地检索确认；当前项目源码优先。
+- 菜单资料刷新：`skills/iris-menu-sync/SKILL.md`，复用 MCP 采集，离线工具校验和原子发布项目快照。
+
 - 首次初始化：`skills/coding-iris-init/SKILL.md`
 - 统一编码入口：`skills/iris-coding/SKILL.md`
 - 后端 ObjectScript 编码：`skills/iris-backend-coding/SKILL.md`
@@ -33,17 +36,18 @@ Agent 编写 `.cls` 时遵循 `references/cls-coding-format.md`。已有类只�
 - IRIS 远端部署编排：`skills/iris-deploy/SKILL.md`
 - DEV→PRD 需求移植：`skills/iris-demand-promote/SKILL.md`
 - 标版/项目需求提交：`skills/iris-demand-commit/SKILL.md`
+- 标版需求闭环：`skills/iris-demand-entry/SKILL.md`，用户模式 `--text / --bind / --plan / --commit / --help`，可选 `--excel` / `--Excel`；历史来源用 `--rev`，不与提交授权混用。
 - IRIS 类、方法签名与官方文档查询：`skills/iris-mcp-lookup/SKILL.md`
 
-普通编码需求优先使用 `iris-coding`。当任务边界已经明确为纯后端、纯前端，或用户明确处理历史 GB2312 工程时，可直接使用对应专项 skill。
+前后端边界不明或混合编码需求使用 `iris-coding`；明确的纯后端、纯前端任务直接使用对应专项 skill。各编码入口在修改前提示部署基线条件，完整会话规则由 `references/deployment-protection.md` 维护。
 当用户明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
 当用户要求把已提交的 DEV 需求更新到独立 PRD 按需导出仓库时，使用 `iris-demand-promote`；需求来源是 DEV Git 补丁，目标基线必须从 PRD 服务器导出，默认只形成本地 PRD 提交。
 只有用户要求生成提交信息、明确要求提交，或显式调用 `$iris-demand-commit --plan|--commit` 时才使用 `iris-demand-commit`；本地验证完成不自动加载。`--plan` 只生成提交计划和完整 commit message，不执行 pull 或 commit，也不追问是否提交；`--commit` 视为本地提交授权，直接执行 plan/apply/verify。commit 不改变 `acceptance-pending`，也不触发 feedback；push 仍需另行授权。
 
-`iris-coding` 使用 `fast/full/guarded` 开发路径，但所有路径都必须读取项目入口、profile、通用规则和命中的专项规则。每次执行做轻量 `parallelAssessment`，只在两个独立只读范围确有收益时自主使用最多两个临时子 Agent；主 Agent 是唯一写入者。并行写入、持续通信或跨会话协作应建议 `iris-change-agent` 正式 workflow。
+`iris-coding` 使用 `fast/full/guarded` 开发路径，但所有路径都必须读取项目入口、profile、通用规则和命中的专项规则。存在独立范围时做轻量 `parallelAssessment`，只在两个独立只读范围确有收益时自主使用最多两个临时子 Agent；主 Agent 是唯一写入者。并行写入、持续通信或跨会话协作应建议 `iris-change-agent` 正式 workflow。
 当用户要求查询 IRIS 类、方法、函数、宏、SQL 元数据或官方文档时，使用 `iris-mcp-lookup`；该 skill 默认只读，并把当前实例元数据与官方文档版本分开报告。
 
-前端编码还必须读取目标工程 `.agents/config/plugin_profile.md`。仅当 `i18n-iris-plugin` 为 `enabled` 且任务或最终 diff 命中翻译 helper、翻译 key 或用户可见文案时，追加 i18n profile/rules 和 helper 静态检查；普通需求不自动进入完整 i18n workflow，插件未启用时不得因目录存在而加载。
+前端编码在修改前和最终 diff 后执行 `rules/iris_coding_frontend.md` 的“条件 i18n 门禁”；该节统一维护启用状态、信号、缺失配置处理和 helper 静态检查，skill 只保留触发与检查时点。
 
 `coding-iris-init` 是 bootstrap skill。首次接入目标工程时应直接读取插件真实路径 `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`，不要依赖安装后才会生成的 thin-index。
 
@@ -63,6 +67,8 @@ Agent 编写 `.cls` 时遵循 `references/cls-coding-format.md`。已有类只�
 - IRIS 官方文档路由：`references/iris-official-docs-routing.md`
 
 ## 内置脚本
+
+`scripts/iris-tools/demand-entry.js` 为 standard 提供 Git 实际补丁取证、可恢复草稿、文本/Excel 输出、BOSS 编号回填与提交消息；`plan` 转交现有 commit-demand.js。历史提交只生成消息，不改写历史；Excel 可选，BOSS 由用户录入。协议见 `references/standard-demand-entry.md`，无新增 npm/Python 依赖。
 
 `scripts/iris-tools/compile-csp.js` 固化 CSP 的 Atelier 编译通道：默认本地计划，显式 `--execute` 一次批量编译虚拟路径列表。仅编译指定文件（含 show.csp），不自动扩展父页面或重新上传；无自动重试。
 
@@ -101,3 +107,7 @@ SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项�
 上传使用需求基线和独立合并产物；首次服务器差异可合并，再次覆盖必须 Question。源码与暂存区不接收服务器差异。前端 deploy-frontend.js 和后端 compile.js 均须提供 --demand 与 --files，并先建立 deploy-guard.js 会话。详见 references/deployment-protection.md（从 skill/rule 入口按插件根解析）。原位置参数后端上传停止，不允许回退绕过。
 
 部署 Question 兼容：停止结果提供工具无关 question 协议，固定决定代码；Agent 按能力采用选项或文字确认。暂停/查看/无效决定不写入。详见 references/deployment-protection.md。
+
+## 按需辅助与收尾
+
+遵循 agents/_shared/execution-guidance.md（源仓根；部署态为 .agents/agents/_shared/）。guidanceMode 默认 auto，可选 concise/assisted；辅助程度不改变授权、编码及领域契约。方法允许合并或重排，IRIS 编码共用 iris_coding_general 的风险分流。业务验收后按信号加载 feedback，无信号不例行报告。现有工程按 docs/update-agents.md 定点合并项目入口，普通能力包更新不重写用户 AGENTS/profile。

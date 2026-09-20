@@ -74,8 +74,11 @@ genericRoles:
   - testing-agent
 serialFallback: true
 executionModes:
-  - retrospective
   - serial
+  - subagent
+  - multi-session
+legacyReadOnlyModes:
+  - retrospective
   - multi-agent
 multiAgentRequiresExplicitAuthorization: true
 runManifest: docs/agent-reports/{ticket-or-topic}/00-run-manifest.json

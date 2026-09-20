@@ -1,10 +1,10 @@
-param(
+﻿param(
   [string]$ProjectRoot = ".",
   [ValidateSet("Check", "DryRun", "Write")]
   [string]$Mode = "DryRun",
   [string[]]$Plugin = @(),
   [string[]]$ExcludePlugin = @(),
-  [ValidateSet("ClaudeCode", "Codex")]
+  [ValidateSet("ClaudeCode", "Codex", "CodeBuddy")]
   [string[]]$RuntimeAdapter = @(),
   [switch]$ForceThinIndex,
   [switch]$CleanupLegacyVendorSkills,
@@ -130,6 +130,28 @@ function Add-LineIfMissing {
   }
 }
 
+function Assert-AgentsNodeRuntime {
+  if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+    throw "Install Node.js >=22.5.0 for the .agents toolchain; it is not a business server dependency."
+  }
+  $nodeVersion = & node -p "process.versions.node"
+  if (($LASTEXITCODE -ne 0) -or ([version]$nodeVersion -lt [version]"22.5.0")) {
+    throw "Node.js >=22.5.0 is required for the .agents toolchain (not the business server). Install Node.js and retry."
+  }
+}
+
+function Invoke-AgentsSparseRefresh {
+  param([string]$Root, [string[]]$Patterns, [switch]$Initial)
+  # Read from HEAD: the helper itself may be excluded by legacy sparse rules.
+  $source = git -C $Root show HEAD:scripts/refresh-agents-sparse.js
+  if ($LASTEXITCODE -ne 0) { throw "Sparse refresh runtime missing from HEAD" }
+  Assert-AgentsNodeRuntime
+  $extra = @()
+  if ($Initial) { $extra += "--initial" }
+  & node -e ($source -join "`n") -- --sparse-bootstrap $Root @Patterns @extra
+  if ($LASTEXITCODE -ne 0) { throw "Sparse refresh or runtime materialization validation failed" }
+}
+
 function Assert-GitSparseCheckoutSubcommandAvailable {
   $versionText = git --version
   if ($LASTEXITCODE -ne 0) {
@@ -170,11 +192,10 @@ function Restore-LegacySparseRuntimeModules {
     return (Write-UpdateResult -Status "workspace-context-resolver-restore-failed" -Target $target -Reason "Cannot repair a legacy sparse checkout while the capability Git checkout is dirty or unreadable" -Phase "preflight")
   }
 
-  git -C $AgentsRoot sparse-checkout init --no-cone
-  if ($LASTEXITCODE -eq 0) {
-    $runtimeSparsePaths | git -C $AgentsRoot sparse-checkout set --stdin --no-cone
-  }
-  if (($LASTEXITCODE -ne 0) -or (-not (Test-Path -LiteralPath $WorkspaceContextModule -PathType Leaf))) {
+  try {
+    Invoke-AgentsSparseRefresh -Root $AgentsRoot -Patterns $runtimeSparsePaths
+    if (-not (Test-Path -LiteralPath $WorkspaceContextModule -PathType Leaf)) { throw "WorkspaceContext.psm1 is missing" }
+  } catch {
     return (Write-UpdateResult -Status "workspace-context-resolver-restore-failed" -Target $target -Reason "Failed to refresh the current runtime sparse paths before loading WorkspaceContext.psm1" -Phase "preflight")
   }
 
@@ -223,6 +244,7 @@ function Merge-ConfigTemplate {
   $results = New-Object System.Collections.Generic.List[object]
 
   $templateText = [System.IO.File]::ReadAllText($TemplatePath, [System.Text.Encoding]::UTF8)
+  $optionalKeys = @([regex]::Matches($templateText, '<!--\s*agents-update:optional-key\s+([A-Za-z][A-Za-z0-9_-]*)\s*-->') | ForEach-Object { $_.Groups[1].Value })
   if ($templateText -match "agents-update:review-required") {
     $results.Add((Write-UpdateResult -Status "config-review-required" -Target $targetRel -Source $templateRel -Reason "template requests manual review" -PluginName $PluginName -Phase "config"))
   }
@@ -257,7 +279,7 @@ function Merge-ConfigTemplate {
   }
 
   foreach ($key in ($targetEntries.Keys | Sort-Object)) {
-    if (-not $templateEntries.ContainsKey($key)) {
+    if ((-not $templateEntries.ContainsKey($key)) -and ($optionalKeys -notcontains $key)) {
       $results.Add((Write-UpdateResult -Status "config-deprecated-candidate" -Target $targetRel -Source $templateRel -Reason $key -PluginName $PluginName -Phase "config"))
     }
   }
@@ -461,7 +483,7 @@ function Get-PluginProfileLegacyName {
 function Get-DefaultPluginStatus {
   param([string]$PluginName)
 
-  if ($PluginName -eq "agent-context-kit") {
+  if ($PluginName -in @("agent-context-kit", "agent-framework-evolution")) {
     return "enabled"
   }
   return "available"
@@ -747,6 +769,9 @@ function Write-UpdateSummary {
     "skill-dependency-source-missing",
     "legacy-vendor-profile-review-required",
     "sync-claudecode-skills-script-missing",
+    "skill-owner-migration-conflict",
+    "runtime-adapter-conflict",
+    "runtime-adapter-blocked",
     "maintenance-only-skill-remove-failed",
     "mcp-vendor-preference-script-missing",
     "mcp-vendor-executable-missing",
@@ -885,6 +910,11 @@ function Invoke-AgentGitUpdate {
     return $results
   }
 
+  try { Assert-AgentsNodeRuntime } catch {
+    $results.Add((Write-UpdateResult -Status "sparse-refresh-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason $_.Exception.Message -Phase "git"))
+    return $results
+  }
+
   $dirty = git -C $AgentsRoot status --porcelain
   if ($LASTEXITCODE -ne 0) {
     $results.Add((Write-UpdateResult -Status "git-status-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason "git status failed" -Phase "git"))
@@ -967,12 +997,10 @@ function Invoke-AgentGitUpdate {
     $gitReason = "fast-forward pull and sparse checkout refresh completed"
   }
 
-  git -C $AgentsRoot sparse-checkout init --no-cone | Out-Null
-  if ($LASTEXITCODE -eq 0) {
-    $runtimeSparsePaths | git -C $AgentsRoot sparse-checkout set --stdin --no-cone | Out-Null
-  }
-  if ($LASTEXITCODE -ne 0) {
-    $results.Add((Write-UpdateResult -Status "sparse-refresh-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason "sparse checkout refresh failed" -Phase "git" -OldHash $oldHash -NewHash $newHash -UpstreamHash $upstreamHash))
+  try {
+    Invoke-AgentsSparseRefresh -Root $AgentsRoot -Patterns $runtimeSparsePaths
+  } catch {
+    $results.Add((Write-UpdateResult -Status "sparse-refresh-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason $_.Exception.Message -Phase "git" -OldHash $oldHash -NewHash $newHash -UpstreamHash $upstreamHash))
     return $results
   }
 
@@ -1382,23 +1410,23 @@ else {
   $results.Add((Write-UpdateResult -Status "vendor-thin-index-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $vendorThinIndexScript) -Reason "vendor thin-index script missing" -Phase "vendor-thin-index"))
 }
 
-$syncClaudeSkillsScript = Join-Path $agentsRoot "scripts/sync-claudecode-skills.ps1"
-if ($RuntimeAdapter -contains "Codex") {
-  $results.Add((Write-UpdateResult -Status "runtime-adapter-reused" -Target ".agents/skills" -Reason "Codex uses the common project discovery layer; user-level copies require explicit sync-vendor-skills.ps1" -Phase "runtime-adapter"))
-}
-if (($RuntimeAdapter -contains "ClaudeCode") -and (Test-Path -LiteralPath $syncClaudeSkillsScript -PathType Leaf)) {
-  $syncMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
-  $syncOutput = & $syncClaudeSkillsScript -ProjectRoot $projectRootFull -ContextRoot $contextRoot -CapabilityRoot $capabilityRoot -Mode $syncMode | Out-String
-  $syncResults = Convert-ThinIndexTextOutput -Text $syncOutput -PluginName "" -Phase "claudecode-skills"
-  foreach ($item in $syncResults) {
-    $results.Add($item)
+$runtimeAdapterFailed = $false
+$runtimeSkillsScript = Join-Path $capabilityRoot "scripts/sync-runtime-skills.js"
+foreach ($runtime in @($RuntimeAdapter | Select-Object -Unique)) {
+  if (-not (Test-Path -LiteralPath $runtimeSkillsScript -PathType Leaf)) {
+    $results.Add((Write-UpdateResult -Status "runtime-adapter-blocked" -Target $runtimeSkillsScript -Reason "runtime skills adapter missing; update capability first" -Phase "runtime-adapter"))
+    $runtimeAdapterFailed = $true
+    continue
   }
+  Assert-AgentsNodeRuntime
+  $runtimeOutput = & node $runtimeSkillsScript --project-root $projectRootFull --runtime $runtime --mode $Mode
+  $runtimeExit = $LASTEXITCODE
+  $runtimeResult = ($runtimeOutput -join "`n") | ConvertFrom-Json
+  $results.Add((Write-UpdateResult -Status $runtimeResult.status -Target $runtimeResult.target -Source $runtimeResult.source -Reason $runtimeResult.reason -Phase "runtime-adapter"))
+  if ($runtimeExit -ne 0) { $runtimeAdapterFailed = $true }
 }
-elseif ($RuntimeAdapter -contains "ClaudeCode") {
-  $results.Add((Write-UpdateResult -Status "sync-claudecode-skills-script-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $syncClaudeSkillsScript) -Reason "sync claudecode skills script missing" -Phase "claudecode-skills"))
-}
-else {
-  $results.Add((Write-UpdateResult -Status "runtime-adapter-skipped" -Target ".agents/skills" -Reason "project discovery layer is canonical; pass -RuntimeAdapter ClaudeCode only when native project sync is required" -Phase "runtime-adapter"))
+if ($RuntimeAdapter.Count -eq 0) {
+  $results.Add((Write-UpdateResult -Status "runtime-adapter-skipped" -Target ".agents/skills" -Reason "project discovery layer is canonical; adapters are opt-in via -RuntimeAdapter" -Phase "runtime-adapter"))
 }
 
 if (($allPlugins.Count -eq 0) -or (($Plugin.Count -gt 0) -and ($matchedPluginCount -eq 0))) {
@@ -1411,3 +1439,6 @@ if ($Detailed) {
 else {
   Write-UpdateSummary -Results $results -Mode $Mode
 }
+if ($runtimeAdapterFailed) { throw "Runtime skill adaptation incomplete; resolve the reported status before retrying." }
+
+if (@($results | Where-Object { $_.status -eq "skill-owner-migration-conflict" }).Count -gt 0) { throw "Skill owner migration blocked; custom or linked targets were preserved." }

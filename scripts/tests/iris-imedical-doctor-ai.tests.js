@@ -54,7 +54,8 @@ for (const shell of (process.platform === 'win32' ? ['pwsh.exe', 'powershell.exe
             run('DryRun');
             assert.equal(fs.existsSync(context), false);
             run('Write');
-            const skills = ['iris-imedical-doctor-ai', 'iris-imedical-doctor-ai-init'];
+            const skills = ['iris-imedical-doctor-ai'];
+            assert.equal(fs.existsSync(path.join(context, 'skills/iris-imedical-doctor-ai-init/SKILL.md')), false);
             const files = skills.map(name => path.join(context, 'skills', name, 'SKILL.md'));
             const before = files.map(file => fs.readFileSync(file, 'utf8'));
             before.forEach((text, i) => {

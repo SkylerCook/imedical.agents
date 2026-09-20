@@ -8,6 +8,8 @@
 
 轻量通道写入使用 `mcp-fixed-sql-binding`：通过 MCP 临时执行载体正确绑定固定 SQL 参数，事务内行数预检及实际影响行数均须为 1；这是上游 write 参数缺失的兼容修复，不开放任意 SQL 或关闭保护。已完成一个明确授权样本的清空/恢复演练；服务器与 HIS 验收仍按目标单独确认。部署态需要同步本版本插件代码后才具备此修复，能力包更新不自动写服务器。
 
+v0.7.4 增加按任务读取路由，沿用范围内已有明确部署授权，区分服务端事务回滚与客户端 rollback；运行时写入和验证门禁不变。
+
 v0.7.0 的统一任务目录、vendor 挂载、自动/手动部署、原 RowID 覆盖、超时收敛与并行质量约束见 [交付流程](references/cure-form-delivery-workflow.md)。下文旧命令示例中的显式历史路径仍兼容，但新任务必须使用该流程的新目录，不再向 `.agents/work/` 生成任务产物。
 
 ```text
@@ -221,3 +223,5 @@ node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js common-migrate `
 公共响应式 CSS 只允许跨表单断点、伸缩、触控和 HISUI 兼容规则；moduleId、业务根 ID、表单专属颜色、矩阵和单表 class 必须放入独立业务 CSS。`prepare` 扫描开发源，`plan` 同时扫描开发源和部署副本，发现污染即停止。
 
 新增部署静态资源的 basename 必须语义明确、使用 camelCase 且不超过 24 个字符。业务 `moduleId` / `moduleName` 超长时，保留这些稳定业务标识，另行在规格中声明短资源名；引用路径和部署文件 basename 必须一致。允许 `Struct`、`Func`、`Assess` 以及公认临床缩写，禁止点分命名和 `ass` 等含糊缩写。
+
+纯初始化入口 `cure-form-init` 直接读取插件内真实 SKILL.md，manifest 的 `thinIndex.excludeSkills` 将其排除出浅层技能列表。已启用项目常规更新时，Check/DryRun 只报告旧受管索引，Write 精准删除；自定义文件和链接保留。迁移边界见能力包 [更新说明](../../docs/update-agents.md#纯初始化-skill-薄索引迁移)。

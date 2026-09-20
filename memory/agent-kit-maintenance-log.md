@@ -1,10 +1,60 @@
 # imedical.agents 维护日志
 
+- 2026-09-20（文档目录与部署边界）：docs/README.md 作为项目使用入口，maintenance/README.md 作为源仓维护入口；31 项准确路径迁移，稳定 runbook/schema 保留原位。分离医生站 AI、知识接入、交接等文档中的源仓验证说明；按用户授权删除旧部署样本四个文件，不留副本。安装/更新继续复用 /docs/** 和 Git 安全快进，不新增清理脚本。新增文档专项覆盖新装、旧文件/空目录收敛、维护区排除、自定义残留及 dirty 保护；六项已分批验证，首次链接检查误含 Git 忽略的本机交接，限定分发文件后通过。导出 XML 与历史 run JSON 的 checkout 字节保持一致，原本机交接和历史 feedback 保留。PowerShell 7/Windows PowerShell 5.1 更新器完整回归均通过，覆盖实际安全快进、Check/DryRun -NoPull、旧路径/空目录清除、维护区不落盘、自定义保留及既有 Overlay 流程；PS5.1 使用原生模块环境启动。证据已记录，任务测试目录已清理。非 Windows 矩阵已接入既有 CI，未实跑。未提交、推送或更新真实业务副本。
+
+- 2026-09-20（非 xc 能力手册）：新增 docs/guides/capability-catalog.md 与 docs/guides/capability-guide.md，README 提供统一入口；按当前 manifest 与源文件核对 11 插件、46 skill、35 rule，提供逐技能请求示例、前提、产物和主要使用路线，明确初始化/日常/兼容入口、插件状态、条件加载及操作范围。按用户要求将四个 xc 插件手册补齐登记为 P2，并同步队列排序与验收标准。仅根文档与维护记忆变更，无插件内容或版本变更；清单覆盖、源链接与章节锚点检查通过，最终差异检查见本轮验证；未提交、推送或同步业务副本。
+
+- 2026-09-20（纯 init 空目录清理）：根生成器补齐删除受管索引后的空目录清理，并兼容上一版本仅删除文件后留下的空目录；限定排除项和 ContextRoot/skills，检查隐藏项与祖先链接，使用非递归删除防止误删新增内容。PowerShell 7/Windows PowerShell 5.1 各 8 项迁移专项和 update-agents 完整回归通过，覆盖历史空目录、删除索引后空目录、隐藏文件、空子目录、目录/祖先链接、standard/Overlay 及 Check/DryRun 只读。真实工程 DryRun 已识别截图对应两个空目录，未执行写入。验证证据已记录；非 Windows 矩阵沿用 P2 待验收，未同步业务副本；提交与推送状态以 Git 记录为准。
+
+- 2026-09-19（IRIS 编码入口优化）：coding-iris-plugin 0.13.5 收窄统一入口触发，明确专项直达；部署基线前移，i18n 矩阵归前端规则，修正默认转换编码表述。路由/引用/前置顺序及既有框架契约 5 项通过，含坏路径、坏章节和错误顺序反例。五份主链文档静态字符减少 18.9%，不是模型提效结论；真实对照沿既有 P1 队列。基线 e92a5c6，信创内容保持，源仓改动未提交、推送或同步业务副本；验证详情见 maintenance/validation/agent-evolution.md。
+
+- 2026-09-19（纯 init 薄索引清理）：7 个插件以 manifest excludeSkills 统一初始化与更新策略，复用根生成器精准删除历史受管入口；同步初始化验收、README 与迁移说明。PowerShell 7/Windows PowerShell 5.1 的 update-agents 全量回归、各 7 项迁移专项及性能分析专项通过，医生站 AI 10 项专项通过；覆盖 Check/DryRun 只读、Write 删除、幂等、standard/Overlay、旧更新器升级、状态保留及自定义/链接保护。7 个真实 manifest 排除与 canonical 可达检查通过，版本校验无本次新增问题；quick_validate 因缺 PyYAML 不可运行，改用 frontmatter 静态检查与真实生成器验证。非 Windows 矩阵仍列 P2。验证证据已记录；未同步真实业务副本或推送，提交状态以 Git 历史为准。
+
+- 2026-09-19（task-handoff 新会话验收）：无原聊天历史的新会话仅依据项目规则、交接入口和仓库材料恢复目标、授权、现场、证据及下一步；先执行 inspect，确认 master/178da9f、工作区无改动、交接无漂移且 task-handoff-v1 证据指纹匹配，再维护本机交接记录。用户明确确认本次当前 Codex 宿主的新会话接续验收通过。其它 Agent 宿主以及 macOS/Linux、Node 22/24 矩阵继续保留为 P2 待验证；本次未扩大到实现修改、提交、推送、业务副本同步、远程 CI 或服务器访问。
+
+- 2026-09-19（通用需求接续）：agent-context-kit 0.4.0 新增 task-handoff skill、Markdown 模板和 Node 内置模块工具，项目 docs/handoff 按需启用、关键节点更新、显式交接留历史；正文摘要绑定现场，检查工作区/暂存内容变化与既有证据，默认本机 exclude，不扩展授权或调度会话。自然语言路由仅在授权初始化/维护时定点合并，普通更新不覆盖项目入口，旧 run/个人 handoff 不迁移。Windows Node 24 的 21 个专项场景分批通过：首轮 16/18，通过修正测试调用到 canonical 生成器补齐 PS7/PS5.1 两项；新增 3 项和路径补测通过，覆盖 sparse 依赖、链接快照和入口条件。框架契约/演进行为两组通过，语法与差异检查通过。工作区版本校验识别 0.3.5→0.4.0，无本次新增问题；全量仍保留已登记历史债务。框架源仓生成仅本机保留的交接样本，真实无历史新会话、其它宿主及完整三平台 Node22/24 矩阵转入 P2；业务副本未同步；提交与推送状态以 Git 记录为准。
+
+- 2026-09-18（主流程入口配置，未提交）：按用户授权补充卡片加载、主流程导航、辅助快捷按钮的职责与映射检查；快捷入口规则仅在入口存在或明确新增时适用，不硬编码补回已移除按钮，不将显示顺序当业务门槛。纳入现有待发布 AI v0.2.1，保留其它未提交修改；仅文档，未改业务公共框架、工程副本或服务器配置。
+
+- 2026-09-18（医生站 AI 多宿主兼容，未提交）：主 skill 引用 workstation-contracts 的无 Chat 兼容约束；共享业务不依赖 Chat，刷新通知可选且失败不改变提交结果，传统回调保留，跨窗口按同源与就诊归属核对。verification 增补无 Chat、跨窗口和共享调用方隔离场景。仅指导文档变更，合入当前未提交的插件更新；未发布或同步业务副本。
+
+- 2026-09-18（上下文偏差修复）：agent-context-kit 0.3.5 统一 contextMode 判定触发条件，已有模式的维护与优化不重复判定或落盘；coding-iris-plugin 0.13.2 在指定来源无菜单快照时返回 project-menu-missing 警告并回退共享参考，损坏/链接/完整性失败仍阻断，不触发同步。Windows Node 24 专项 16/16 通过（含新增缺失/空结果/损坏快照、standard/Overlay、sparse 和 PS7/PS5.1 thin-index），文案一致性及差异检查通过；工作区版本校验识别两项 PATCH，无新增版本问题。非 Windows/Node22 验证沿用 backlog 的 P2 矩阵事项，未宣称通过；正常更新取得修复，无配置迁移或兼容清理，未提交、推送或部署业务副本。
+
+- 2026-09-18（待治理项优先级）：根 AGENTS 与本地维护 skill 明确每个待治理项必须标注 P0–P3，复用 backlog 既有定义，新增或调整事项时核对执行顺序、排序入口与详情一致性。本次仅补充维护规则，不调整既有事项优先级或业务部署内容。
+
+- 2026-09-18（知识检索自主选择）：coding-iris-plugin 0.13.1 将查询选择集中到通用规则，skill 描述支持模型按信息缺口自主使用，不要求用户点名、不局限菜单定位、不固定每次必查；现有 Agent/前后端入口复用，平台 API 查询和业务知识参考分开。更新后刷新薄索引，不自动改写项目 AGENTS.md，不扩大远端授权。本轮仅修改路由文案与版本，未部署业务副本。
+
+- 2026-09-18（知识资料并入与菜单刷新）：coding-iris-plugin 0.13.0 接收 218 份脱敏上游参考（164 份 wiki/目录、40 份菜单/安全组、14 份技术文档），记录固定来源与双 hash，排除生成器缓存。新增 iris-imedical-knowledge / iris-menu-sync，MCP 采集与离线 plan/apply 分离，项目快照原子发布、全量/部分刷新、指纹漂移阻断和历史恢复；AI 0.2.0 按需路由，五个其它依赖插件仅扩展兼容范围。资料短 ID 与 vendor .gitattributes 解决 Windows 长路径及换行校验问题。14 项专项通过，包含真实 sparse 初装/快进刷新、项目快照保留、standard/Overlay、PS7/PS5.1 thin-index；入口链接及简单 frontmatter 检查通过，通用 Python validator 缺 PyYAML。真实 IRIS 采集与非 Windows CI 待验证；未部署真实业务副本，未提交或推送。
+
+- 2026-09-18（项目上下文编程体验优化）：agent-context-kit 0.3.3 修正 project-context-maintenance 的初始化/维护/日常优化混用，允许授权范围内语义去重与重组，初始化及优化细节改为按需 references；按工程实际开发入口、参考实现和有效验证路径选择信息，保留维护分工及配置值。同步五份上下文模板、owner 文档、更新说明与发布记录，不自动扫描插件或同步业务副本。契约检查、演进行为测试（含 Windows PowerShell 5.1 / PowerShell 7 配置合并）、薄索引 DryRun、UTF-8/引用/差异检查通过。通用 quick_validate 缺 PyYAML，使用静态 frontmatter 与实际薄索引解析检查；这不证明模型效率收益。组件版本校验识别本次 0.3.2 → 0.3.3，失败项仅为既有信创插件 1.0.2 发布记录缺少合法 commit，未改历史记录；未提交、推送或处理业务工程。
+
+- 2026-09-17 本轮框架演进交付完成：a529e78 与 6128127 已推送；0.3.1 补丁通过真实主工程及 10 个模块普通更新复测，guidanceMode 不再追加，11 个入口迁移零变更，50 个受保护文件与 37 份配置哈希不变。用户确认本次目标完成；跨模型/宿主对照、非 Windows 矩阵及信创历史版本门禁转入独立待治理事项，不宣称这些验收已经通过。
+
+- 2026-09-17 实测修复：profile 的 guidanceMode 改为合法可选键且不自动生成默认配置，入口迁移补齐缺失路由并保留 BOM/换行与自定义正文；agent-context-kit 0.3.1。验证结果见 maintenance/validation/agent-evolution.md。
+
+- 治疗表单入口补充优化：按任务加载交付章节，复用范围内已有明确部署授权；服务端原子回滚与客户端 rollback 分开表达，运行时门禁不变。演进行为补充回归通过，迁移拒写保护、文档引用与 diff 检查通过；版本检查仍仅有既有 xc 发布字段阻塞。
+
 本文件记录近期维护流水摘要和验证结论。长期决策见 `agent-kit-maintenance-decisions.md`，后续治理队列见 `agent-kit-maintenance-backlog.md`，入口摘要见 `agent-kit-maintenance-memory.md`。
 
 ## 近期已完成
 
 - 2026-09-20（工作区待提交）：imedicalxc-doctor-extend-engineer v1.0.3 编码规约新增 AN：响应各节点类型按第三方文档逐一确认，JSON 对象单独处理（声明 Object/专用 VO 并写专属解析），禁止未确认文档就把对象节点声明为 String（Jackson 对象→String 抛 MismatchedInputException 被上游吞后表现为"接口成功但数据未落库"）。插件 AGENTS.md、elechealthcard_index.md、子 skill SKILL.md 及规约 frontmatter 字母范围同步 A~AM→A~AN；新增 releases/plugin/imedicalxc-doctor-extend-engineer/1.0.3.md，plugin.json 递增 1.0.2→1.0.3（patch，非 breaking）。worktree 组件版本校验识别 1.0.2→1.0.3 变更；release record 的 commit 字段沿用仓内既有惯例待提交后回填（1.0.2.md 同样缺该字段，属存量缺口）。本轮未提交、未推送；5 个变更文件已按精确文件同步至 HIS 业务工程 `.agents/plugins/` 副本。
+
+- 2026-09-18（提交检查提速）：定位 078867b 提交轮次中版本校验耗时 548.6 秒、实际 commit 含钩子 22.9 秒。维护工具新增 `validate --staged`、独立版本证据、60 秒共享预算和阶段输出；按暂存 owner 与直接依赖校验，Git 对象改为 cat-file 批量读取并缓存。功能指纹改为 scope 实际内容，不再绑定 HEAD；隔离样本覆盖无关 HEAD、文案、实现、依赖和历史问题，以及未暂存修复与超时不放行。18/18 专项及 agent-evolution 兼容测试通过（含 PS5.1/PS7 分支），语法和差异检查通过，已记录可复用功能证据。隔离 index 重放原提交的七个 owner，加直接依赖共九个组件，首次 16.2 秒、复用 17.7 秒，均为 7 个 Git 进程；完整 ref 审计降至 13.2 秒、5 个 Git 进程，仍准确报告已登记的信创历史问题。原版耗时来自原任务日志，与本轮负载不同，不作为严格性能基准。已知问题登记为 version-debt-xc-1.0.2-commit，按用户要求普通提交不重复处理；未改历史记录和提交钩子。隔离测试及性能样本已清理，证据缓存按用途保留。Windows Node 24 已验证；三平台 Node 22/24 CI 矩阵已配置但未实跑。本轮仅本地提交，未推送或部署业务副本；agent-context-kit 变更由独立提交 e464b07 承载。
+
+- 2026-09-18（标版需求录入闭环）：coding-iris-plugin 0.12.0 新增 iris-demand-entry 与 Node 内置模块脚本，支持实际 Git 补丁取证、默认文本、可选 --excel/--Excel、BOSS 需求号/最终标题回填及复用需求提交计划。补齐用户模式 --text/--bind/--plan/--commit/--help，--rev 区分历史来源，--same-title 显式确认原题；纳入 0.12.0 发布记录。历史来源不改写历史；不同历史提交可分别提报同一文件，工作区漂移和重复范围阻断。六个依赖插件仅递增补丁版本并扩展兼容上限至 <0.13.0。Windows Node 24 完整专项 12/12 与历史归属定向补测 2/2 通过；CLI 转交原 plan 后 HEAD/index 不变。Excel 经独立 openpyxl 读取核对原模板 29 个表头、正文、指派人对齐、文字公式安全和 ZIP CRC；thin-index DryRun、仓库 frontmatter/引用检查与 diff 检查通过。隔离测试及中断测试的遗留临时目录均已核实清理。通用 skill 校验器缺 PyYAML，未安装全局依赖。版本门禁已识别本次七个组件变更，剩余问题仅为既有信创 1.0.2 发布记录缺少合法 commit。非 Windows CI 与 BOSS 实际导入待验证；提交阶段已确认测试指纹匹配并复用，不重复运行完整回归。未推送、更新业务副本或修改个人 requirement-entry。
+
+- 2026-09-18（技能插件化，工作区未提交）：coding-agent-adaptation 迁入 agent-context-kit 0.3.2；agent-framework-feedback 与 reusable-content-packaging 迁入新基础插件 agent-framework-evolution 0.1.0。三个原技能名的项目薄索引及运行时目录链接保持稳定，历史原文按归一化哈希迁移，自定义内容、链接及显式 available/disabled 保留；首次须执行不带插件筛选的完整 Write/Check。PS5.1 迁移专项 5/5、PS7 迁移专项 5/5 及后续自定义失效索引保护补测通过，两宿主更新器完整回归通过，运行时/演进专项 12/12、框架/编码路由专项 2/2 通过。隔离 Git fixture 验证旧更新器拉取并续跑、干净工作树、CodeBuddy 链接保留和 Overlay 本地索引；非 Windows CI 与真实宿主任务尚未验收。版本门禁识别本轮 5 个组件迁移，仍受历史 imedicalxc-doctor-extend-engineer 1.0.2 缺少 commit，以及工作区其它任务的 coding-iris-plugin 新增文件未升版本阻断；未修改这些内容，未改历史发布记录。更新说明、版本记录和维护入口同步，未提交、推送或写入业务副本。
+
+- 2026-09-18（链接优先的技能适配）：新增根级 coding-agent-adaptation 0.1.0 与 sync-runtime-skills.js；CodeBuddy/Claude Code 项目目录链接到 ContextRoot/skills，Codex 复用通用层。安装/更新显式 RuntimeAdapter 接入，Overlay 转发到 canonical 脚本；普通目录、错误链接和越界父链均保留并阻断，legacy Claude 复制入口拒绝写入已链接目标。11 项 Node 专项、PS5.1/PS7 更新器完整回归及 Overlay 回归通过，已记录可复用指纹证据；现有项目链接只读 Check 返回 unchanged。源码、runbook、版本记录与迁移边界同步；非 Windows CI 与更多真实宿主验证仍待补齐。版本差异检查已识别新增 skill，修正本轮 release 草稿后当前清单仅剩既有 imedicalxc-doctor-extend-engineer 1.0.2 缺少 commit 的门禁，不修改不可变记录。通用 skill-creator 校验器缺少 PyYAML，且不接受本仓必需 version 字段，已改用仓库 frontmatter 与版本校验。未推送或批量部署业务副本。
+
+- 2026-09-17（按需辅助与开放方法，本地未提交）：IRIS 入口统一按风险分流，新增 guidanceMode 的共享底线/默认方法/按需辅助；反馈 on-signal 保留用户验收和独立写入授权。调度器完成与 --final 共用门禁，写入验证绑定既有 scope 指纹和计划仓库身份；补 session 别名、未知 adapter 降级和 blocked 结果恢复。i18n 新运行协议与 bindings 对齐 2.0，旧 fixture 只读。项目入口提供默认只报告的精确句子迁移，保留用户内容与 profile；未改安装/更新算法。Node 主回归 8 项及新增恢复补测通过，PS5.1/PS7 新旧 run 回归通过；PS5.1 更新器完整回归补齐 fixture 依赖后通过，显式私有快照指纹补测通过。详见 maintenance/validation/agent-evolution.md。九项组件版本/依赖变更已记录，版本校验仅被既有 1.0.2 发布记录缺失 commit 阻断，不修改不可变记录。Claude 只读路由冒烟 API unknown 重试后停止，未取得模型结果；弱模型、跨宿主性能和非 Windows 矩阵未验证。未提交、推送、部署或同步业务副本。
+
+- 2026-09-17（提交效率约定）：根 `AGENTS.md` 补充提交阶段复用审查与有效测试证据、批量独立只读检查、避免重复加载规范及按原因处理钩子失败的规则。与维护 skill 既有证据复用要求一致；仅文档改动，差异和规则一致性检查通过，不运行完整测试；本次仅本地提交，未推送。
+
+- 2026-09-16（`iris-agentic-dev` exe 更新）：按 vendor runbook 将内置 Windows x64 可执行文件从 v1.2.6 更新到 v1.4.2；上游稳定 tag、Release 元数据、`--version`、资产长度 `51398656` 和官方 SHA-256 `BC7F41C7D0675EB8B2F481A2D276AFD98F620CDF4C409F9CB53BA7882BC90D52` 一致。同步 vendor/root README 和更新 runbook 基线；断连 `tools/list` 复核为默认 70、开启内置 skill 81 个工具，新增的 3 个未分类工具由 helper fail-closed 门禁保护，完整体系适配留入 backlog。helper 与 update-agents 回归均通过 PowerShell 7 / Windows PowerShell 5.1，版本文档一致性和 `git diff --check` 通过；组件版本校验被 HEAD 中既有 `imedicalxc-doctor-extend-engineer` v1.0.2 release record 缺少合法 `commit` 字段阻断，本轮未修改任何组件目录或 release record。
+
+- 2026-09-16（sparse 刷新修复）：定位 Windows PowerShell 5.1 UTF-8 BOM stdin 首项模式遗漏；PS7 与 PS5.1 无 BOM 对照正常。安装、更新、旧 runtime 恢复共用 JavaScript 参数输入与落盘校验，安装器补齐 dirty 和 Git 失败停止。9 项 sparse 专项、PS7/Windows PowerShell 5.1 更新器完整回归通过并记录复用证据；同步修正 4 条过期依赖范围断言，16 组件版本校验与差异检查通过，临时文件已清理。非 Windows CI 待运行。本次提交仅包含框架修复，未推送或同步业务副本。
 
 - 2026-09-16（维护 skill 对齐）：优化仓库本地 `agent-kit-maintenance`，按影响面选择验证，补齐脚本运行时/跨平台矩阵、canonical 降级和目标项目集成测试产物归属检查；临时清理须证明任务归属，提交须沿用明确授权并检查提交正文。同步入口摘要与长期决策；README 和 backlog 已复核，无需变更。现有 `agent-framework-contract.tests.js` 与差异格式检查通过；skill frontmatter 未改，通用 `quick_validate.py` 因本机及 bundled Python 均缺少 PyYAML 未运行成功。此次仅维护文案，不涉及组件版本、部署副本或运行逻辑，未运行完整组件测试，未提交或推送。
 
@@ -240,7 +290,7 @@
 - 2026-08-04：迁入 `codegraph-query` 和 `iris-codegraph` 插件；补齐 manifest、AGENTS、README、usage rule、skill 和 thin-index wrapper，并同步仓库 README、runbook、维护记忆和 update-agents 测试。已验证 `.codegraph` 状态 complete，`cg-query.js help`、`icg-query.js help`、`node --check` 均通过；`iris-codegraph` 构建因当前项目缺少 `.mcp.json` 未执行。后续确认 `codegraph-query` 依赖 `iris-codegraph`，并把该前置关系写回 manifest、plugin_profile 和回归断言。
 
 - 2026-07-18：`scripts/tests/update-agents.tests.ps1` 与 `scripts/tests/iris-interface-plugin.tests.ps1` 已通过；后者统一使用 `python -B`，不再在 owner 脚本目录遗留 `__pycache__`。`coding-iris-plugin`、`extract-doc`、`iris-external-reg` thin-index DryRun 均成功，反馈 `260718022936` 的 8 个 owner 副本与 canonical 逐文件一致，`git diff --check` 通过。
-- 2026-07-13：`plugins/agent-context-kit/scripts/tests/validate-agent-run.Tests.ps1` 已覆盖合法串行/多智能体运行、未授权多智能体、缺失报告、同签名重试超限、未授权远程写入、阶段依赖、并行效率和敏感内容门禁；`docs/validation/i18n-agent-p1/retrospective-6096150` 已通过校验。
+- 2026-07-13：`plugins/agent-context-kit/scripts/tests/validate-agent-run.Tests.ps1` 已覆盖合法串行/多智能体运行、未授权多智能体、缺失报告、同签名重试超限、未授权远程写入、阶段依赖、并行效率和敏感内容门禁；`maintenance/validation/i18n-agent-p1/retrospective-6096150` 已通过校验。
 - 2026-07-13：`plugins/i18n-iris-plugin/scripts/tests/sync-xml-print-template.Tests.ps1` 已覆盖内联保存、临时 `Execute+...<SYNTAX>` 识别、分块 fallback 和成功/失败清理。
 - 2026-07-01：已检查近期提交 `05bfa75`、`b655c1a`、`3e0f580`、`364f594`、`58339ee` 的变更范围；确认三个新增医生站插件均包含 `.agents-plugin/plugin.json`、`AGENTS.md`、主 `SKILL.md` 和 thin-index wrapper，其中性能分析插件额外包含 README、init skill、脚本和 references。已通过 `rg` 检查 README 与维护记忆中的旧插件总览缺口，并完成摘要同步；本轮不复制大段插件正文或业务私有事实。
 
@@ -299,3 +349,9 @@
 
 本次复核：文档入口链接与差异格式检查通过，组件版本快照校验覆盖 16 个组件，组件治理 16 项测试通过并记录可复用证据；本轮生成的 30 个测试目录已核实内容并清理。
 相对 HEAD 的 worktree 版本差异校验通过（16 个组件）。
+
+- 2026-09-18 知识库发现入口补齐：agent-context-kit 0.3.4 模板与维护流程按 enabled/入口可达条件合并工程 AGENTS 简短指引；与 coding-iris-plugin 0.13.1 自主查询规则一同交付。普通更新不覆盖业务入口，本轮未部署业务副本。
+
+- 2026-09-18：iris-imedical-doctor-ai 0.2.1 补充通用 UI 布局、图标对齐、状态按钮与组合动作语义，扩充运行态验证矩阵；项目动作码、具体布局和业务决定不进入插件。文档变更，无运行器或安装机制变化，业务副本未同步。
+
+- 2026-09-18：coding-iris-plugin 0.13.3 将 HISUI 原生控件状态复用细化为通用前端约束，覆盖冲突排查与状态组合验证；同步 frontend skill、README 和发布说明。纯指导资料变化，业务副本未同步。

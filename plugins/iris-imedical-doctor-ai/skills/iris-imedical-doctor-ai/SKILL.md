@@ -17,7 +17,9 @@ description: 面向 IRIS imedical 医生站的 AI 集成开发。接入或扩展
 
 ## 按需参考
 
-- 原型、截图与设计落地：[prototype-integration.md](../../references/prototype-integration.md)。
+- 业务功能、菜单或历史实现定位：复用 coding-iris-plugin 的 [iris-imedical-knowledge](../../../coding-iris-plugin/skills/iris-imedical-knowledge/SKILL.md)。刷新目标项目菜单资料使用 [iris-menu-sync](../../../coding-iris-plugin/skills/iris-menu-sync/SKILL.md)，本插件不复制同步实现或工程快照。
+
+- 原型、截图、视觉层次与容器布局：[prototype-integration.md](../../references/prototype-integration.md)。
 - 框架扩展、卡片、对话、存储与接入方式：[workstation-contracts.md](../../references/workstation-contracts.md)。
 - 诊断与共享业务服务：[diagnosis-flow.md](../../references/diagnosis-flow.md)。
 - 验证：[verification.md](../../references/verification.md)。
@@ -31,6 +33,8 @@ description: 面向 IRIS imedical 医生站的 AI 集成开发。接入或扩展
 IRIS 编码、HISUI、i18n、部署和提交继续复用原 owner，按其当前契约及启用状态处理。保留无关改动，区分建议、确认、执行与业务结果，检查上下文一致性及共享调用方影响。
 
 只读元数据工具是可选辅助：只有目标代码采用其支持的字面量字段时才使用；不兼容表示工具不适用，不表示框架必须改回旧写法。
+
+共享传统页面或业务服务时，必须兼容未启用 Chat 的宿主；AI 刷新通知是可选联动，缺失或失败不能阻断原业务。实施与验证按 [多宿主与无 Chat 兼容](../../references/workstation-contracts.md#多宿主与无-chat-兼容) 执行。
 
 ## 交付
 

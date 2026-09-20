@@ -5,7 +5,7 @@ description: 将服务器或本地已有 CA/CR 治疗表单改造成 PC、手机
 
 # Cure Form Responsive
 
-先完整读取 `../../references/cure-form-delivery-workflow.md`：统一任务目录、直接预览列表、vendor 挂载、布局案例、自动/手动部署、原 RowID 覆盖和并行交付以该流程为准。
+先读取插件 `../../AGENTS.md` 的适用硬约束；按 `../../references/cure-form-delivery-workflow.md` 的“按任务读取”表加载工作目录和预览相关章节。已持有且未变化的内容可复用。以下是默认方法，允许合并或重排；部署、灰度收尾只在任务包含该阶段时执行。
 
 1. 先通过 `inspect` 或本地文件建立完整快照，确认 MapType 是 CA/CR。
 2. 列出 DOM ID、缓存标签、radio `name/value`、函数入口、模板组成和公共模板引用基线。

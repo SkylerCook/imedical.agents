@@ -1,4 +1,4 @@
-
+﻿
 $ErrorActionPreference = "Stop"
 
 $validator = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\validate-agent-run.ps1"))
@@ -311,6 +311,7 @@ try {
     & node $schema20Orchestrator transition --run-directory $schema20Run --entity acceptance --status locally-verified --json | Out-Null
     & node $schema20Orchestrator transition --run-directory $schema20Run --entity acceptance --status acceptance-pending --json | Out-Null
     & node $schema20Orchestrator transition --run-directory $schema20Run --entity acceptance --status accepted --actor user --evidence-ref messages/user-acceptance.md --json | Out-Null
+    & node $schema20Orchestrator transition --run-directory $schema20Run --entity feedback-decision --status skipped --reason no-signal --json | Out-Null
     & node $schema20Orchestrator transition --run-directory $schema20Run --entity verification --status passed --actor testing-agent --revision fixture --json | Out-Null
     & node $schema20Orchestrator transition --run-directory $schema20Run --entity run --status completed --json | Out-Null
     Invoke-Validation $schema20Run 0

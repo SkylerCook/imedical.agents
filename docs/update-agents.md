@@ -1,9 +1,44 @@
 # .agents 安装与更新 Runbook
 
+## 文档目录迁移与旧文件清理
+
+项目文档从 [docs/README.md](README.md) 按用途阅读；新增指南归 guides/，导出参考归 reference/。源仓维护材料已移出 docs，沿现有 /docs/** 分发规则不会下发。稳定 runbook 路径保持。
+
+维护者提交发布后，已有工程正常更新 capability：安全快进删除旧受管文件、生成新路径，并刷新 sparse；旧目录为空时由 Git 清除，不保留旧文档跳转壳。具体业务部署样本已获源仓用户授权删除，项目自己的部署材料不属于清理范围。
+
+更新前核对能力包 Git 状态。受管旧文件有本地修改时停止；未忽略自定义文件会触发 dirty 保护。已忽略的自定义文件可能保留在旧目录中，此时保留并报告路径，不能递归删除目录。新路径冲突、无远端或手工复制的历史文件均先核实归属，不按同名判断可删除。Git 历史不在本次清理范围。
+
+Check 和 DryRun -NoPull 保持只读；普通 DryRun 允许更新 capability，遵循下文原语义。Overlay 只迁移共享 CapabilityRoot 中的受管文档，随后按原流程刷新各 ContextRoot；不扫描模块业务 docs 或相邻工程。源仓整理完成不等于业务工程已更新。
+
+
+## iMedical 知识资料与菜单同步
+
+0.13.1 将知识检索的选择统一到 IRIS 通用规则，由模型自主决定是否查询，不要求用户点名或每次必查。已部署工程正常更新并重建 coding-iris-plugin thin-index，刷新后的 skill 描述与通用规则即可生效；不新增连接、迁移资料或自动刷新菜单。具体模型实际选用行为仍需任务观察。
+
+coding-iris-plugin 0.13 提供 iris-imedical-knowledge / iris-menu-sync；共享资料随已有 `/vendor/**`、入口与工具随 `/plugins/**` 分发，未改变安装/更新 sparse 范围。不把普通资料声明成 vendor skill，不自动安装 Qoder 或新增连接。
+
+新装项目启用 coding-iris-plugin 后由 canonical thin-index 生成两个入口。已有工程按本 runbook 正常更新能力包并刷新 enabled 插件入口；coding-iris wrapper 支持 ContextRoot/CapabilityRoot，Overlay 仍只更新共享 capability 一次，在每个项目 ContextRoot 重建入口。维护者导入脚本在源仓 `.agents/skills`，不部署业务工程。
+
+项目菜单写入 `ContextRoot/work/menu-sync/<sourceId>`，与 vendor 参考隔离；更新和索引重建不得覆盖、清理或重新生成它。旧 `.agents/data` 不自动迁移或删除。当前资料读取跟随 current.json，历史 generation 有意保留用于恢复。首次同步需按项目工具/服务实际能力采集，缺失不自动部署服务。完整用法与验证范围见 [知识接入](guides/imedical-knowledge.md)。
+
+## 标版需求录入入口
+
+新增 `iris-demand-entry` 随 coding-iris-plugin 既有 plugins 路径分发。已部署工程更新能力包后，按本 runbook 为 enabled coding-iris-plugin 重建 thin-index，即可使用默认需求文本及可选 `--excel` / `--Excel`；直接读取插件真实 skill 也可进入。无需配置迁移、额外 npm/Python 安装或旧文件清理，个人 requirement-entry 副本不自动替换。运行草稿与 BOSS 编号属于目标工程私有产物，不进入能力包更新/清理范围；源仓实现不代表业务副本已生效。操作见 `plugins/coding-iris-plugin/references/standard-demand-entry.md`。
+
+agent-context-kit v0.3.1 修复普通更新把 guidanceMode 默认值追加到待确认区的问题：模板使用 `agents-update:optional-key` 声明合法可选键，缺省不写入，已有明确配置保留且不误报废弃。项目入口迁移脚本现会报告并补齐缺失的执行辅助路由；仍需显式 `--write`，普通更新不改 AGENTS。历史误追加项只有能确认由本次更新生成且未被用户修改时才定点移除，不按字段值 auto 批量删除。
+
 coding-iris-plugin 0.10.0 的部署保护随既有 plugins 与 vendor 分发。必须一并更新 deploy-guard.js、deploy-protected.js、前后端入口与 protected-file.py；不新增连接配置。用户私有 .iris-deploy-state 不属于更新/清理范围。旧后端位置参数须迁移为 --demand/--files/--execute，先建立 Git 基线会话。未提交的 canonical 开发版可在核对目标无分歧后同步精确运行时文件，再用更新器 -NoPull 刷新生成层；此状态是本地待发布副本，不能声称已从远端发布。
 
 
 `compile-csp.js` 随 coding-iris-plugin 既有 scripts 路径分发，无新增依赖或配置迁移。CSP 编译的连接来自项目 `.mcp.json`，虚拟根取 `project-env.json` 的 `web.cspBasePath`；更新后使用部署技能的新入口。源仓实现不代表业务副本已更新。
+
+## Sparse 刷新与落盘验证
+
+安装、standard 更新及旧版 runtime 恢复共用 `scripts/refresh-agents-sparse.js`。PowerShell bootstrap 从当前 `HEAD` 读取 helper，因此旧 sparse 清单未检出根 JavaScript 时也能执行；helper 随 `/scripts/*.js` 正常部署，不下载额外依赖。Node.js >=22.5.0 必须在 Git 更新前就绪，仅用于能力包工具链，不自动安装。
+
+规则以命令参数传递，不经过 `$OutputEncoding` 管道。Windows PowerShell 5.1 + UTF-8 BOM 的 stdin 在本机 Git 2.54.0 下可复现首项路径遗漏；不能据此声称 Git `set` 不更新工作区。刷新后检查正向规则覆盖的所有 index 文件是否存在、是否仍带 skip-worktree；失败返回 `sparse-refresh-failed`，旧版恢复沿用 `workspace-context-resolver-restore-failed`。不以追加 `reapply` 掩盖输入问题。
+
+已有部署发布后按原 DryRun/Write 流程升级，不需清理用户配置或手改 sparse 文件。安装器更新现有副本时也拒绝 dirty checkout，fetch/pull/clone 或刷新失败立即停止。`Check`、`DryRun -NoPull` 与 Overlay 的只读/不拉取边界保持原样。本机 Windows PS5.1/PS7 验证结果见维护日志；非 Windows 矩阵由 `.github/workflows/sparse-refresh.yml` 执行，配置存在不代表已通过。
 
 ## SFTP vendor 运行时接入
 
@@ -26,7 +61,7 @@ coding-iris-plugin 0.10.0 的部署保护随既有 plugins 与 vendor 分发。�
 - `.agents/config/` 默认只允许合并，不覆盖已有值；唯一的运行时路径例外是 Windows x64 上将既有 `project-env.json` 的 `mcp.serverPath` 收敛到随能力包部署的 `iris-agentic-dev.exe`，其它字段保持不变。
 - `.agents/config/plugin_profile.md` 是插件启用状态事实来源；插件目录存在只表示 `available`，不表示已启用。
 - `.mcp.json` 是连接事实来源。不要把 host、账号、密码、token、namespace 或远程路径写入 `AGENTS.md`、rules、memory、config 或插件。
-- 安装/更新会部署 `.agents/scripts/iris-mcp.js`。standard 项目直接使用 sparse checkout 中的 canonical helper；workspace overlay 会在 `ContextRoot/scripts/` 生成 manifest-aware JS adapter，并转发到 `CapabilityRoot/scripts/iris-mcp.js`。原生 MCP 工具优先；只有运行器未暴露原生工具时才使用该 helper，不得把 helper 当成 canonical 规则源。更新后的 helper 会消费 `check_config` 版本和 capabilities，显式分类 v1.2.6 工具，并按工具 `mode` / `action` 拦截远端状态变化；默认通过 `--no-skills` 避免与能力包 vendor skills 重复。Windows x64 安装/更新在确认 vendor exe 已存在后，只收敛 `.mcp.json` 的 IRIS MCP `command` 和既有 `project-env.json` 的 `mcp.serverPath`；不创建连接配置，不修改 `.iris-agentic-dev.toml`，也不改 host、账号、密码、namespace、args、env 或其它 MCP server。
+- 安装/更新会部署 `.agents/scripts/iris-mcp.js`。standard 项目直接使用 sparse checkout 中的 canonical helper；workspace overlay 会在 `ContextRoot/scripts/` 生成 manifest-aware JS adapter，并转发到 `CapabilityRoot/scripts/iris-mcp.js`。原生 MCP 工具优先；只有运行器未暴露原生工具时才使用该 helper，不得把 helper 当成 canonical 规则源。更新后的 helper 会消费 `check_config` 版本和 capabilities，显式分类 v1.2.6 基线工具，尚未分类的后续版本工具默认进入 `--allow-write` 授权门禁，并按已知工具的 `mode` / `action` 拦截远端状态变化；默认通过 `--no-skills` 避免与能力包 vendor skills 重复。Windows x64 安装/更新在确认 vendor exe 已存在后，只收敛 `.mcp.json` 的 IRIS MCP `command` 和既有 `project-env.json` 的 `mcp.serverPath`；不创建连接配置，不修改 `.iris-agentic-dev.toml`，也不改 host、账号、密码、namespace、args、env 或其它 MCP server。
 - 如果输出中出现停止条件，先停止并向用户汇报，不要继续执行破坏性操作。
 - 若 `WorkspaceRoot/.agents/capability.json` 存在，按 workspace overlay 处理；`ContextRoot` 无 `.git` 是合法状态。完整两阶段流程和恢复门禁见 `docs/workspace-overlay.md`。
 
@@ -78,7 +113,7 @@ iwr -UseBasicParsing https://gitee.com/skyler-cook/imedical.agents/raw/master/sc
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun
 ```
 
-首次安装默认只处理 `agent-context-kit`。`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg` 等插件代码会随 `.agents/plugins/` 拉取，但状态为 `available` 时不会合并配置或生成 thin-index。
+首次安装后的更新默认处理两个基础插件 `agent-context-kit` 和 `agent-framework-evolution`；后者承接原默认根级反馈与打包技能，不自动执行反馈。`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg` 等插件代码会随 `.agents/plugins/` 拉取，但状态为 `available` 时不会合并配置或生成 thin-index。
 
 如果摘要没有停止条件，继续执行：
 
@@ -109,7 +144,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 脚本不会自动把依赖插件标记为 `enabled`。`enabled` 表示该插件已经完成项目上下文、配置、thin-index、脚本和入口路由的初始化闭环，不只是插件目录已存在。
 
-医生站 AI 集成插件 `iris-imedical-doctor-ai` 复用已启用的 `coding-iris-plugin`；同步代码后仍须执行初始化，不会因更新自动启用。接入、兼容边界与专项验证见 [AI 工作站插件接入](iris-imedical-doctor-ai.md)。
+医生站 AI 集成插件 `iris-imedical-doctor-ai` 复用已启用的 `coding-iris-plugin`；同步代码后仍须执行初始化，不会因更新自动启用。接入、兼容边界与专项验证见 [AI 工作站插件接入](guides/iris-imedical-doctor-ai.md)。
 
 常见插件初始化入口：
 
@@ -433,7 +468,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 .agents/scripts/sync-vendor-skills.ps1 -AgentsRoot .agents -ProjectRoot . -Skill brainstorming -Runtime ClaudeCode -Mode Write
 ```
 
-`Write` 必须显式提供 `-Skill`；无参数全量同步会以 `vendor-skill-selection-required` 拒绝。目标已有 canonical skill 时报告 `vendor-skill-reused`，不覆盖。OpenCode、CodeBuddy 等尚未验证原生目录的工具不生成猜测性 adapter，直接使用项目通用层。
+`Write` 必须显式提供 `-Skill`；无参数全量同步会以 `vendor-skill-selection-required` 拒绝。目标已有 canonical skill 时报告 `vendor-skill-reused`，不覆盖。用户级 vendor 同步不为 CodeBuddy、OpenCode 等工具生成额外目录；CodeBuddy 的项目级链接接入见下文。
 
 项目级 Claude Code 发现层同样改为显式启用：常规更新默认不修改 `.claude/skills`；确有需要时向 `update-agents.ps1` 传入 `-RuntimeAdapter ClaudeCode`。未指定 adapter 时报告 `runtime-adapter-skipped`。
 
@@ -484,9 +519,13 @@ git config --unset core.hooksPath
 `check-functional-diff.ps1` 只检查 staged diff。它允许正常代码编写产生的局部缩进、空行和对齐；会阻断纯空白变更、`git diff --cached --check` 失败，以及疑似整文件格式化噪音。真实格式化需求应拆成独立提交；手动检查时可使用 `-AllowFormatting` 明确豁免，默认 pre-commit 不放行混合功能和格式化提交。
 
 
-## Claude Code skills 显式同步
+## 跨 Agent skills 链接适配
 
-只有向 `update-agents.ps1` 传入 `-RuntimeAdapter ClaudeCode`，才会将项目 `.agents/skills/` 下的 skill 同步到工作区 `.claude/skills/`。也可直接运行：
+`-RuntimeAdapter CodeBuddy|ClaudeCode|Codex` 统一调用 `sync-runtime-skills.js`。CodeBuddy/Claude Code 链接到项目 ContextRoot/skills；Codex 复用通用层。普通目录、错误或失效链接保留并阻断适配，更新器以失败结束，已完成的其它更新步骤不回滚。Check 只读，缺失链接不算验收通过。首次安装脚本也支持同名参数；完整命令、平台证据与旧目录迁移见 [技能适配](coding-agent-adaptation.md)。
+
+## Claude Code legacy 复制入口
+
+以下旧复制入口仅为历史调用保留；统一更新器已使用链接，不再调用它。旧目录不会自动迁移，已有链接拒绝复制。只有明确需要旧复制模式时运行：
 
 ```powershell
 .agents/scripts/sync-claudecode-skills.ps1 -ProjectRoot . -Mode DryRun|Write
@@ -542,7 +581,7 @@ source: .agents/plugins/<plugin>/skills/<skill>/SKILL.md
 | `enabled` | 项目已接入且初始化闭环已完成，参与常规更新：合并缺失 config key，校验或重建 thin-index。 |
 | `disabled` | 默认跳过；旧 thin-index 只报告，不自动删除。 |
 
-无 `plugin_profile.md` 时，默认只把 `agent-context-kit` 视为 `enabled`，其它插件视为 `available`。
+无 `plugin_profile.md` 时，默认把 `agent-context-kit` 和 `agent-framework-evolution` 视为基础 `enabled` 插件，其它插件视为 `available`。
 
 启用领域插件时，不要直接运行全量 update。先读取插件真实 init skill：
 
@@ -619,7 +658,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - 业务项目 `.agents/skills/agent-kit-maintenance/` 不存在；该维护者专用 skill 只保留在能力包源仓根 `.agents/skills/agent-kit-maintenance/`，源仓 `.agents/` 不在 sparse checkout 部署清单内。若历史部署或手工 full clone 已遗留该目录，执行 `update-agents.ps1 -Mode Write` 会继续清理并报告 `maintenance-only-skill-removed`。
 - enabled 插件 required vendor thin-index 已存在或 DryRun 明确报告生成计划；optional 只显示 trigger。
 - 普通更新没有写用户级 skill 目录；历史副本只报告 `legacy-runtime-skill-detected`。
-- 未指定工具 adapter 时报告 `runtime-adapter-skipped`；显式启用 Claude Code adapter 时，`.claude/skills/` 同步结果为 `skipped` / `generated` / `unchanged`。
+- 未指定工具 adapter 时报告 `runtime-adapter-skipped`；显式启用 CodeBuddy/Claude Code adapter 时，目录链接结果为 `runtime-adapter-planned` / `runtime-adapter-linked` / `runtime-adapter-unchanged`；冲突保留并停止。
 - `.agents/.git/info/exclude` 包含 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`、`/work/`。
 - `.agents/config/plugin_profile.md` 存在或 dry-run 明确报告默认插件状态。
 - 如果业务项目有 `AGENTS.md`，兼容入口可以是 `entrypoint-ok`，也可以缺失；缺失或异常只作为可选提示，不应在 write 中自动修复。
@@ -635,8 +674,50 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 ## 电子健康卡入口兼容修复
 
-`imedicalxc-doctor-extend-engineer` v1.0.1 恢复只暴露主编排器的约定。常规更新直接调用 canonical 生成器，读取 manifest 的 `thinIndex.excludeSkills` 后，电子健康卡领域子 skill 不再独立生成浅层入口。canonical 生成器对被排除 skill 的旧文件执行精准清理：仅处理 `thin-index: true` 且来源与当前子 skill 精确匹配的受管 `SKILL.md`，DryRun 报告 stale，Write 删除该文件；自定义文件、其它文件、目录与链接保留。后续从主编排器加载该子 skill，架构前置条件仍须通过。
+`imedicalxc-doctor-extend-engineer` v1.0.1 恢复只暴露主编排器的约定。常规更新直接调用 canonical 生成器，读取 manifest 的 `thinIndex.excludeSkills` 后，电子健康卡领域子 skill 不再独立生成浅层入口。canonical 生成器对被排除 skill 的旧文件执行精准清理：仅处理 `thin-index: true` 且来源与当前子 skill 精确匹配的受管 `SKILL.md`，DryRun 报告 stale，Write 删除该文件；自定义文件、其它文件、非空目录与链接保留；当前生成器也清理排除项的历史空目录，详见下文纯初始化 skill 薄索引迁移。后续从主编排器加载该子 skill，架构前置条件仍须通过。
 
-专项验证：`node --test scripts/tests/doctor-extend-routing.tests.js`，覆盖 Windows PowerShell 5.1 / PowerShell 7 的生成、旧入口清理、幂等和自定义文件保护。源仓更新不代表业务项目副本已同步。
+项目侧检查技能发现、旧入口清理及自定义内容保留；源仓专项测试由框架维护者执行。源仓更新不代表业务项目副本已同步。
 
 `coding-iris-plugin` 当前 v0.9.0 包含 v0.8.0 引入的统一前端部署入口，默认本地计划、显式执行。用法见 `plugins/coding-iris-plugin/scripts/iris-tools/README.md`。
+
+## 框架演进的项目入口迁移
+
+能力包更新会带来新的 shared 协议、规则和模板，不会自动重写项目自有 AGENTS.md、rules/project.md 或 project_context_profile.md。不要把源仓维护者 AGENTS.md 部署到项目。
+
+在已授权目标项目执行既有更新流程后，用 project-context-maintenance 定点合并：
+
+1. 保留项目业务事实、自定义约束和用户修改；将第三个文件强制 full 改为引用 iris_coding_general 的风险判断。
+2. 将每次编码后加载上下文维护改为：稳定项目事实变化、入口失效、配置变化或用户要求时才加载。
+3. 保留 acceptance-pending 与用户验收，将验收后无条件 feedback 改为发现框架缺陷、规则冲突、可复用新经验或用户要求时只读审查；写入仍需逐项授权。
+4. 增加 .agents/agents/_shared/execution-guidance.md 路由。profile 缺少 guidanceMode 按 auto 读取，只有用户明确选择时才落盘 auto/concise/assisted；不按模型名称自动改配置。
+5. 检查共享协议和 thin-index source 实际存在；通用/前端/后端/i18n 入口均引用同一分流。无关项目内容逐字保留，有自定义冲突时列明差异，不整体替换。
+
+迁移辅助脚本位于 agent-context-kit/scripts/migrate-execution-entry.js，默认报告精确已知句子的替换和缺失的辅助协议路由，--write 仅在授权目标项目使用；无法识别的自定义表述报告人工检查。它不接入安装器/更新器，不写 profile，不删除文件，不扫描其它工程。项目入口迁移与能力包更新分别验收。真实业务副本本次不自动同步。
+
+## 根级技能归属迁移
+
+三个原根级技能迁入 owner 插件，项目原名路径不变。普通 Write 会生成薄索引；已知历史原文（BOM/CRLF 归一化后 SHA-256）自动转换，自定义文件或链接报告 `skill-owner-migration-conflict` 并以失败结束。禁用状态不覆盖；CodeBuddy/Claude Code 的技能目录链接不重建。完整步骤、标准/Overlay 边界与验证见 [技能归属迁移](skill-plugin-migration.md)。
+
+## 已有上下文的日常优化
+
+能力包更新与项目内容优化分别执行。用户授权目标项目优化后，用 `project-context-maintenance` 的日常优化路径，按实际内容合并重复入口、按需拆分领域记忆、标记旧快照及清理无信息占位；保留自定义约束、有效配置与技能路由。初始化仍完成对应闭环，事实维护只更新相关 owner。无需重新初始化、扫描候选插件或生成新的模式字段；更新器不自动重写业务 AGENTS/rules/memory。仅授权 canonical 更新时不处理任何业务副本。
+
+### 知识库工程入口迁移
+
+agent-context-kit 0.3.4 补齐 AGENTS 模板与定点维护流程。更新能力包并重建已启用插件 thin-index 后，在授权的项目上下文维护中核对 coding-iris-plugin 为 enabled、`.agents/skills/iris-imedical-knowledge/SKILL.md` 可达，再将模板“知识资料”一条合并到工程 AGENTS 的按任务读取部分；已有等价入口不重复添加。未启用则跳过，standard/Overlay 使用相同本地入口。保留自定义内容，不复制完整知识索引；普通 update-agents 不自动重写业务 AGENTS。
+
+## task-handoff 0.4 接入补充
+
+`agent-context-kit` 0.4.0 增加通用需求接续入口，具体使用见 [task-handoff](task-handoff.md)。能力包更新沿用现有流程，enabled 插件刷新薄索引后可显式调用；available/disabled 保留，不因目录存在自动启用。无需更改安装器、更新器或 sparse 规则：实现和模板属于既有 plugins 范围，共享 helper 属于既有 scripts/lib 与根 scripts/*.js 范围。
+
+项目自然语言发现路由仅在已授权初始化/上下文维护中按模板定点合并，普通更新不重写 AGENTS。具体需求首次启用时才建立项目 docs/handoff，并在管理该目录的业务 Git 仓库本地 exclude 精确排除；不是能力仓库生成层，不加入 `.agents` sparse。旧交接、正式 run 与个人 skill 不迁移、不清理，业务工程不自动同步。
+
+## 纯初始化 skill 薄索引迁移
+
+纯 bootstrap/init skill 由 owner manifest 的 `thinIndex.excludeSkills` 显式排除，初始化 wrapper 与常规更新均复用根生成器。`initSkill` 仍用于发现真实初始化入口；不能据此字段或技能名后缀自动排除：project-context-maintenance、codegraph-query、extract-doc-ingest 等兼任日常能力的入口继续生成薄索引。
+
+本次覆盖 coding-iris-init、i18n-project-init、cure-form-init、iris-interface-init、iris-imedical-doctor-ai-init、imedicalxc-doctor-perf-analysis-engineer-init、agent-framework-evolution-init。
+
+已部署项目先取得本次能力包版本，再沿原更新入口执行 Check 或 DryRun -NoPull 检查，随后 Write -NoPull 应用；无需 Force 或另加清理开关。对 enabled 插件，Check/DryRun 报告 stale 且不改文件，Write 删除 YAML frontmatter 中 thin-index: true、source 与当前排除 skill 精确匹配的受管 SKILL.md，重复更新不再生成。删除受管索引后若目录完全为空（含隐藏项检查），同时删除该目录；上次更新已留下的空目录也按排除清单定点清理。仅删除目标 ContextRoot/skills 下的排除项空目录，不递归删除；非空目录、其它文件、非受管文件、来源不匹配文件及链接均保留；保留项如仍需移除须单独核实归属。available/disabled 插件继续按原状态跳过，不借迁移自动启用或删除其入口。
+
+standard 与 Overlay 均在目标 ContextRoot 清理，不删除 CapabilityRoot 的真实 init skill。后续初始化或检查直接读取 manifest 指向的插件真实 SKILL.md。运行时技能目录采用链接接入时随之生效；历史独立复制到工具目录或用户目录的文件不在本次自动清理范围。

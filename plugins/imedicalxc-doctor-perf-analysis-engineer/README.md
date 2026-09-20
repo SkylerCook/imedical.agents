@@ -48,3 +48,5 @@ imedicalxc-doctor-perf-analysis-engineer/
 ## 去项目化边界
 
 本插件不保存服务器地址、namespace、账号、密码、token、远程路径、业务页面清单、业务类名前缀或项目专属基类。性能数据从用户授权的日志查询结果提取；MCP 不可用时，HTTP 降级仍须单独确认目标、只读范围和凭据来源。报告默认输出到当前项目目录，用户也可另行指定。
+
+纯初始化入口 `imedicalxc-doctor-perf-analysis-engineer-init` 直接读取插件内真实 SKILL.md，manifest 的 `thinIndex.excludeSkills` 将其排除出浅层技能列表。已启用项目常规更新时，Check/DryRun 只报告旧受管索引，Write 精准删除；自定义文件和链接保留。迁移边界见能力包 [更新说明](../../docs/update-agents.md#纯初始化-skill-薄索引迁移)。

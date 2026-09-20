@@ -1,6 +1,6 @@
 # 治疗表单部署约束
 
-- 显式支持 `transaction-package`（完整事务包）和 `lightweight-sql`（轻量 SQL 覆盖），并独立展示 automatic/manual。以下事务类规则适用于完整事务包；轻量通道严格遵循 `../references/cure-form-sql-cover.md`，不接受任意 SQL，也不伪造服务器 operation ID。
+- 显式支持 `transaction-package`（完整事务包）和 `lightweight-sql`（轻量 SQL 覆盖），与 automatic/manual 独立选择；选择与授权沿用 `../references/cure-form-delivery-workflow.md` 的“自动部署 / 手动部署”约定，已有有效选择不重复询问。以下事务类规则适用于完整事务包；轻量通道严格遵循 `../references/cure-form-sql-cover.md`，不接受任意 SQL，也不伪造服务器 operation ID。
 
 - 产品侧事务入口固定为 `DHCDoc.Cure.AI.CureFormDeploy`；不从 target profile 解析类名，也不回退到旧部署类。
 - 普通部署只允许调用 `InspectForm`、`ValidatePackage`、`ApplyPackage`、`VerifyOperation`、`RollbackOperation`；单 Map 灰度模板正式合并另允许 `InspectConsolidation`、`ValidateConsolidation`、`ApplyConsolidation`；共享公共模板合并另允许 `InspectSharedConsolidation`、`ValidateSharedConsolidation`、`ApplySharedConsolidation`；零引用旧模板清理另允许 `InspectCleanup`、`ValidateCleanup`、`ApplyCleanup`。当前 MCP 没有 `iris_execute_method` 时，客户端使用 `iris_execute` 生成固定白名单 ClassMethod 调用，所有参数 Base64 编码；不得接受外部类名、方法名或任意 ObjectScript。
@@ -9,7 +9,7 @@
 - 新建表单以 package 的 `expectedVersion=NEW` 判定；必须额外包含通过的部署前 `cure-form-interaction-verification/v1`，并与当前 approved spec、snapshot、changes、preview verification 和 manifest 哈希一致。存量响应式改造不强制此凭证。
 - 新开发表单直接创建正式模板，不使用灰度，也不调用 `consolidate`、`consolidate-shared` 或 `cleanup`。只有现有模板改造才允许使用响应式灰度 RowID，并必须在验收后回归正式 RowID。
 - 客户端只编排；服务端重新校验类型、版本、哈希、组成关系和包内容。
-- 任一步失败时回滚整个业务事务，并记录前后快照、哈希、状态和回滚关联。
+- 服务端单次业务事务内部失败时应原子回滚，并记录前后快照、哈希与状态；这不授权客户端对已成功的 operation 自动调用 rollback。客户端编排失败时停止，显式回滚需用户明确要求；结果未知时先只读核实，不重试或并发回滚。
 - `cure-form-consolidation/v1` 仅用于把 Map 当前独占的响应式灰度模板合并回 `APP_LastID` 指向的正式 RowID：只覆盖正式 `APP_Content`，保持正式元数据和缓存项，原位切换 Map 引用后在同一事务删除灰度模板及其缓存；DOM/radio/缓存集合、RowID 一对一关系或跨 Map 引用不满足时必须停止。
 - `cure-form-cleanup/v1` 仅用于清理已完成 Map 切换且全库零引用的旧模板：检查与执行都必须绑定旧模板、已引用的响应式替代模板、双方内容和完整快照哈希；单一事务只删除旧模板及其缓存，不修改 Map 和替代模板。发现旧模板仍被引用、替代模板未引用或任一哈希漂移时整批停止。
 - `cure-form-shared-consolidation/v1` 仅用于把被多个 Map 共用的响应式灰度公共模板推广到已有正式 RowID：一次事务覆盖正式 `APP_Content`、原位切换全部引用 Map 并删除灰度模板及缓存；正式元数据和缓存项保持不变。全部受影响 Map、DOM/radio、缓存契约及模板快照必须绑定检查哈希，任一漂移时整批停止。

@@ -4,6 +4,10 @@
 
 ## 内容分层
 
+- 项目使用文档统一放 docs/ 并随能力包部署；源仓治理、设计历史和验证证据归 maintenance/，不进入 sparse。稳定操作入口保留，新增指南/参考分组。文档迁移优先依赖 Git 安全快进清除旧受管路径与空目录；自定义文件保留，本地改动停止，不新增宽泛删除。
+
+- 源仓普通提交采用暂存组件版本门禁，功能测试与版本校验独立取证；无关 HEAD 变化不使内容证据失效。已登记且未变化的历史发布结构问题保留技术债，不重复人工处理，不阻断无新增问题的局部提交；完整审计继续保留历史问题。规则唯一正文见 maintenance/governance/component-version-management.md。
+
 - 治疗表单插件的项目任务产物和运行态统一归 `docs/work/cure-form/<task>/`，以 Map/source/preview/verification/manual-deploy 与 private 分层；`.agents/` 保留框架能力及项目配置/规则，不默认容纳具体需求运行态。该决策不迁移 Overlay 配置，不移动既有备份/凭证，显式旧输出路径保持兼容。预览 HTTP 只读挂载受允许的 vendor 根，并隔离 private；自动与手动部署是独立选择，原 RowID 覆盖与灰度是另一策略维度。
 
 - `agents/` 放厂商无关的智能体 canonical 定义，包括 agent registry、`AGENT.md`、`bindings.yaml` 和共享交接协议；不放工具专属生成物或业务项目私有事实。
@@ -84,7 +88,7 @@
 
 ## 入口决策
 
-- Agent run schema 1.2 使用阶段 `attempts[]`、capability matrix、远程动作终态、`finalization` 和限定 verification scope 表达暂停恢复及最终验证门禁；validator 继续兼容 schema 1.0/1.1。
+- 历史只读 Agent run schema 1.2 使用阶段 `attempts[]`、capability matrix、远程动作终态、`finalization` 和限定 verification scope 表达暂停恢复及最终验证门禁；validator 继续兼容 schema 1.0/1.1。
 - `check_config` 只核对配置定位，真实连通以当次无副作用网络探针为准。自动发现生效且探针成功时，`config_file=null` 不构成配置失败；单一工具的瞬时失败只降级对应 capability。
 - Independent Verifier 只能在所有远程动作终态、无 suspended attempt 且验证范围冻结后启动。报告、summary、manifest 和 feedback 不属于业务验证版本。
 - i18n 页面翻译种子默认使用 `DHCDoc.I18n.PageTranslationSeed`，backend SourceRoot 内 canonical 相对路径为 `DHCDoc/I18n/PageTranslationSeed.cls`；`SetPageTrans` / `KillPageTrans` 是稳定单条接口，语言聚合使用 `Load{LANG}Translation` / `Kill{LANG}Translation`，带批次号的方法继续按需求生成。目标工程已验证存在兼容实现时允许 profile 覆盖，字典翻译 SQL 与 XML 模板同步不并入该类。
@@ -126,11 +130,32 @@
 
 ## 领域插件与项目资料边界
 
+- 用户明确接收的上游知识资料可作为脱敏、带来源 hash 的共享 vendor 参考，来源快照不代表目标工程事实。普通知识文档不作为 skill 执行；领域插件按需检索并以当前源码核实。目标环境的菜单刷新输出归 ContextRoot/work/menu-sync，绝不回写共享参考。
+
 - 医生站 AI 等领域插件保存可复用开发方法，工程路径、菜单快照、框架接口快照及原型版本留在目标工程，不固化为插件通用契约。
 - 原型用于理解当次设计意图，生成式 wiki 和历史资料用于定位线索；关键结论须用当前代码及相应验证核实。资料内容不构成执行授权。
+
+## 项目技能适配
+
+- 项目 ContextRoot/skills 为通用技能入口；CodeBuddy/Claude Code 项目发现目录采用链接，Codex 直接复用。适配器只负责发现，不管理插件启用、MCP、hooks 或原生子代理。已有普通目录、自定义内容与错误链接均保留；不静默复制，不用递归删除修复链接。
 
 ## 安全边界
 
 - 不写服务器地址、账号、密码、token、namespace、远程路径或任何敏感连接信息。
 - 不把业务项目私有事实写入本仓库插件、规则或记忆。
 - `.mcp.json` 是连接事实来源；不要把其中的 host、账号、密码、token、namespace 或远程路径复制到 rules、memory、config 或插件。
+
+- 执行辅助、风险深度和协作形态独立。硬约束集中、默认方法可调整、辅助资料按信号读取；不按模型品牌判断能力。新业务 run 默认 on-signal 反馈，旧记录缺省 always，用户验收及反馈写入授权不变。
+
+## 根级技能的 owner 迁移
+
+- coding-agent-adaptation 归 agent-context-kit，反馈审查与能力打包归 agent-framework-evolution。原项目技能名作为薄索引保持稳定；根级独立组件退役并保留 tombstone。新基础插件默认 enabled 只延续原默认技能分发，已有 available/disabled 不覆盖，不自动触发反馈或写入。
+- 旧技能原文只按归一化 SHA-256 白名单转换，用户修改和链接保留并报告冲突；项目 AGENTS 与运行时技能目录链接不重写。标准项目完成整轮 Write 后验收，Overlay capability-once/context-many。
+
+## 需求接续补充决策（2026-09-19）
+
+- 通用 task-handoff 归 agent-context-kit；项目 docs/handoff/<首次毫秒时间戳>-<需求ID或00000>/ 保留最新正文、机器现场与显式交接历史。后补编号不改稳定目录，默认本机 exclude，不自动提交或取消跟踪。
+- 接续沿用范围明确的授权，先核实现场和证据再继续；记录不产生新授权。直接接手不检测旧会话或锁定 owner，用户负责避免并发；真实内容冲突仍需处理。
+- 轻量工具维护可复核事实，不判定业务完成；业务/框架生命周期复用现有契约，正式 run 只引用。标准 Markdown 不依赖产品 API 或 Obsidian；无脚本能力时人工核查并明确未执行项。
+
+- 纯初始化 skill 使用 owner manifest 的 thinIndex.excludeSkills，统一初始化与常规更新的排除和旧受管索引清理；排除项空目录（含历史残留）非递归清理，非空目录和链接保留；initSkill 只声明初始化入口，不代表应隐藏，兼任日常能力的入口保留。清理边界与状态策略见 docs/update-agents.md。

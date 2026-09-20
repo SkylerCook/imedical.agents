@@ -3,6 +3,7 @@
 本插件提供 imedical 医生站 AI 工作站开发能力，以诊断推荐到诊断录入公共服务的链路为首要场景。
 
 - 主入口：`skills/iris-imedical-doctor-ai/SKILL.md`。
+- 菜单/wiki 定位及菜单资料刷新复用 coding-iris-plugin 的 iris-imedical-knowledge / iris-menu-sync；共享知识为上游参考，当前工程事实仍在项目内。
 - 初始化：`skills/iris-imedical-doctor-ai-init/SKILL.md`。
 - IRIS/ObjectScript/CSP/HISUI 编码、编码检测、部署与提交复用 `coding-iris-plugin`；i18n 按现有启用状态与触发条件路由。
 - 不覆盖全 HIS 工程治理，不复制批量 Git、SFTP、MCP 或 BOS 工具。

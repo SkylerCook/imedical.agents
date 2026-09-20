@@ -1,3 +1,8 @@
+﻿param(
+  [ValidateSet("ClaudeCode", "Codex", "CodeBuddy")]
+  [string[]]$RuntimeAdapter = @()
+)
+
 $ErrorActionPreference = "Stop"
 
 $repo = "https://gitee.com/skyler-cook/imedical.agents.git"
@@ -54,6 +59,28 @@ function Add-LineIfMissing {
   }
 }
 
+function Assert-AgentsNodeRuntime {
+  if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+    throw "Install Node.js >=22.5.0 for the .agents toolchain; it is not a business server dependency."
+  }
+  $nodeVersion = & node -p "process.versions.node"
+  if (($LASTEXITCODE -ne 0) -or ([version]$nodeVersion -lt [version]"22.5.0")) {
+    throw "Node.js >=22.5.0 is required for the .agents toolchain (not the business server). Install Node.js and retry."
+  }
+}
+
+function Invoke-AgentsSparseRefresh {
+  param([string]$Root, [string[]]$Patterns, [switch]$Initial)
+  # Read from HEAD: the helper itself may be excluded by legacy sparse rules.
+  $source = git -C $Root show HEAD:scripts/refresh-agents-sparse.js
+  if ($LASTEXITCODE -ne 0) { throw "Sparse refresh runtime missing from HEAD" }
+  Assert-AgentsNodeRuntime
+  $extra = @()
+  if ($Initial) { $extra += "--initial" }
+  & node -e ($source -join "`n") -- --sparse-bootstrap $Root @Patterns @extra
+  if ($LASTEXITCODE -ne 0) { throw "Sparse refresh or runtime materialization validation failed" }
+}
+
 function Assert-GitSparseCheckoutSubcommandAvailable {
   $versionText = git --version
   if ($LASTEXITCODE -ne 0) {
@@ -72,8 +99,8 @@ function Assert-GitSparseCheckoutSubcommandAvailable {
 }
 
 function Set-AgentsSparseCheckout {
-  git -C $target sparse-checkout init --no-cone
-  $sparsePaths | git -C $target sparse-checkout set --stdin --no-cone
+  param([switch]$Initial)
+  Invoke-AgentsSparseRefresh -Root $target -Patterns $sparsePaths -Initial:$Initial
 }
 
 function Remove-MaintenanceOnlyRuntimeSkill {
@@ -94,16 +121,21 @@ function Write-PostInstallGuidance {
   Write-Host "When enabling a plugin, initialize dependency plugins first, then run the selected plugin's real initSkill."
 }
 
+Assert-AgentsNodeRuntime
 Assert-GitSparseCheckoutSubcommandAvailable
 
 if (Test-Path "$target\.git") {
+  $dirty = git -C $target status --porcelain
+  if (($LASTEXITCODE -ne 0) -or $dirty) { throw "Cannot update a dirty or unreadable capability checkout" }
   git -C $target fetch --prune
+  if ($LASTEXITCODE -ne 0) { throw "Capability fetch failed" }
   git -C $target pull --ff-only
+  if ($LASTEXITCODE -ne 0) { throw "Capability pull failed" }
   Set-AgentsSparseCheckout
 } else {
   git clone --filter=blob:none --no-checkout $repo $target
-  Set-AgentsSparseCheckout
-  git -C $target checkout
+  if ($LASTEXITCODE -ne 0) { throw "Capability clone failed" }
+  Set-AgentsSparseCheckout -Initial
 }
 
 if (Test-Path "$target\.git") {
@@ -156,3 +188,7 @@ if (Test-Path ".git") {
 }
 
 Write-PostInstallGuidance
+
+if ($RuntimeAdapter.Count -gt 0) {
+  & (Join-Path $target "scripts/update-agents.ps1") -ProjectRoot (Get-Location).Path -Mode Write -NoPull -RuntimeAdapter $RuntimeAdapter
+}
