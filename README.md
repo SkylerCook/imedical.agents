@@ -1,6 +1,10 @@
 # imedical.agents
 
-iMedical 知识资料已接入 [共享参考库](vendor/imedical-knowledge/README.md)：通过 coding-iris-plugin 的 `iris-imedical-knowledge` 按需检索 wiki、菜单与技术资料，`iris-menu-sync` 刷新项目菜单快照。新装/更新沿现有 plugins/vendor 分发，项目资料保留在 ContextRoot；详见 [部署与使用](docs/imedical-knowledge.md)。
+文档入口：[项目使用文档](docs/README.md) · [框架维护资料](maintenance/README.md)。
+
+使用入口：[能力目录（插件 / skill / rule）](docs/guides/capability-catalog.md) · [使用指南（场景选择 / 接入 / 全部技能示例）](docs/guides/capability-guide.md)。当前覆盖非 xc 能力；xc 手册列入后续治理。详细执行契约仍由各插件源文件维护。
+
+iMedical 知识资料已接入 [共享参考库](vendor/imedical-knowledge/README.md)：通过 coding-iris-plugin 的 `iris-imedical-knowledge` 按需检索 wiki、菜单与技术资料，`iris-menu-sync` 刷新项目菜单快照。新装/更新沿现有 plugins/vendor 分发，项目资料保留在 ContextRoot；详见 [部署与使用](docs/guides/imedical-knowledge.md)。
 
 技能插件化：agent-context-kit v0.3.2 接管跨 Agent 适配，新增 agent-framework-evolution v0.1.0 管理反馈与可复用内容打包。已部署项目保持原技能入口和运行时链接，首次更新步骤见 [迁移指南](docs/skill-plugin-migration.md)。
 
@@ -10,7 +14,7 @@ SFTP 工具纳入 [vendor/sftp-server](vendor/sftp-server/README.md)：保留五
 
 CLS 编码提示：`coding-iris-plugin` 保留已有类历史格式，仅规范本次新增/修改位置；可选本地自检不阻断提交，不改变手动上传编译流程。
 
-IRIS 编码入口按边界选择：明确前端/后端任务直达专项 skill，混合或边界不明时使用 [iris-coding](plugins/coding-iris-plugin/skills/iris-coding/SKILL.md)。部署基线条件在修改前处理，i18n 条件矩阵由前端规则统一维护；静态读取体量与真实提效分别验证，见[验证记录](docs/validation/agent-evolution.md)。
+IRIS 编码入口按边界选择：明确前端/后端任务直达专项 skill，混合或边界不明时使用 [iris-coding](plugins/coding-iris-plugin/skills/iris-coding/SKILL.md)。部署基线条件在修改前处理，i18n 条件矩阵由前端规则统一维护；静态读取体量与真实提效分别验证，见[验证记录](maintenance/validation/agent-evolution.md)。
 
 `imedical.agents` 是 imedical 的 AI Coding 能力包仓库，用于沉淀可复用的 Agent 角色、协作流程、插件规则、skills、模板和辅助脚本。
 
@@ -147,7 +151,8 @@ imedical.agents/
 |-- vendor/      # 第三方源码资产、共享运行时资产和可同步运行时 skill（如 HISUI、iris-agentic-dev、iris-agentic-dev-skills、superpowers、word-reader）
 |-- skills/      # 根级独立 skill 预留位置，目前为 0；项目入口由更新器生成
 |-- rules/       # 仓库级通用规则预留入口
-|-- docs/        # AI Coding 工作区规范、runbook 和配套文档
+|-- docs/        # 随包部署的项目使用文档、稳定 runbook 与参考
+|-- maintenance/ # 源仓治理、设计历史与验证证据，不部署
 |-- scripts/     # 通用部署、更新和维护脚本
 |-- releases/    # 插件与根级独立 skill 的源仓发布记录，不部署业务项目
 |-- memory/      # 维护者记忆，不部署到业务项目
@@ -157,11 +162,13 @@ imedical.agents/
 
 主要文档：
 
-- `docs/ai-coding-workspace-kit-v0.2.0.md`：工程级 AI Coding 工作区规范。
+- `maintenance/design/ai-coding-workspace-kit-v0.2.0.md`：早期工作区设计，留在源仓供维护回看。
 - `docs/update-agents.md`：给 Agent 执行的 `.agents` 安装与更新 runbook。
-- `docs/component-version-management.md`：插件与根级独立 skill 的源仓版本、发布记录和兼容审计规范。
+- `maintenance/governance/component-version-management.md`：插件与根级独立 skill 的源仓版本、发布记录和兼容审计规范。
 - `memory/plan/multi-agent-architecture.md`：多智能体架构设计稿。
 - `docs/agent-orchestration.md`：schema 2.0 调度 CLI、adapter、授权、验收和 beta 验证运行手册。
+
+`docs/` 随能力包部署，`maintenance/` 与 `memory/` 仅留源仓；目录整理与旧工程更新行为见[文档迁移](maintenance/governance/documentation-layout.md)。已有工程通过正常安全快进删除旧受管文档并取得新路径，保留自定义内容；无需手工递归清理。
 
 ## 源仓组件版本管理
 
@@ -198,7 +205,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 新运行使用 schema 2.0：`taskKind` 先将 `business-demand`、`framework-maintenance` 和 `other` 分流；业务需求走用户验收与 feedback，框架维护走独立 `maintenance-complete` 状态，运行时拒绝交叉调用。`executionPath: fast|full|guarded` 与 `orchestrationMode: serial|subagent|multi-session` 相互独立，状态通过 `events.jsonl` 投影到 `00-run-manifest.json`。协作计划、远程写入、commit、merge、push、部署和 feedback 写入分别授权。旧 schema 1.0–1.2 保持只读兼容。skill 内部短时只读子 Agent 提效不创建正式 run。
 
-功能验证通过 `scripts/validation-evidence.js` 记录 suite、命令与受测内容指纹，无关 HEAD 变化仍可复用；版本门禁独立缓存，只检查暂存组件及直接依赖，Git 历史对象批量读取。默认 60 秒预算并输出阶段与耗时；未变化的历史发布问题单列，全仓检查保留给 CI、发布与明确审计。详见 [组件版本规范](docs/component-version-management.md)。
+功能验证通过 `scripts/validation-evidence.js` 记录 suite、命令与受测内容指纹，无关 HEAD 变化仍可复用；版本门禁独立缓存，只检查暂存组件及直接依赖，Git 历史对象批量读取。默认 60 秒预算并输出阶段与耗时；未变化的历史发布问题单列，全仓检查保留给 CI、发布与明确审计。详见 [组件版本规范](maintenance/governance/component-version-management.md)。
 
 对应能力：
 
@@ -404,7 +411,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - 复用 `coding-iris-plugin`；工程、原型和框架接口以当次任务核实结果为准。
 - 初始化：`iris-imedical-doctor-ai-init`；开发：`iris-imedical-doctor-ai`。
 - 快捷入口与业务校验分层、共享页面等价性、运行时接入、摘要语义及卡片 UI/状态交互按现有参考核对，提供脱敏回归场景。
-- [插件说明](plugins/iris-imedical-doctor-ai/README.md) 与 [接入及验证](docs/iris-imedical-doctor-ai.md)。
+- [插件说明](plugins/iris-imedical-doctor-ai/README.md) 与 [接入及验证](docs/guides/iris-imedical-doctor-ai.md)。
 
 ### imedicalxc-doctor-extend-engineer
 
@@ -573,6 +580,6 @@ git push github master
 
 guidanceMode（auto/concise/assisted）、executionPath 和 orchestrationMode 相互独立。硬约束保留，方法可调整，辅助按信号读取；普通编码不例行加载维护或反馈。通用 session adapter 与 codex-session 兼容，正式 run 完成要求新鲜指纹证据。项目入口需按 docs/update-agents.md 定点迁移。
 
-实现与验证边界见 docs/validation/agent-evolution.md；真实跨模型/跨宿主提效及非本机平台仍待取证，不能用静态规则检查替代。
+实现与验证边界见 maintenance/validation/agent-evolution.md；真实跨模型/跨宿主提效及非本机平台仍待取证，不能用静态规则检查替代。
 
 纯初始化 skill 由插件 manifest 的 `thinIndex.excludeSkills` 排除；已启用项目更新会精准清理旧受管 init 薄索引及历史遗留空目录，日常入口继续保留。详见 [迁移说明](docs/update-agents.md#纯初始化-skill-薄索引迁移)。

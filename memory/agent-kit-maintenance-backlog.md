@@ -27,13 +27,21 @@
 | 4 | P1 | 治疗表单事务链、统一前端部署及真实宿主验收 | 指定目标工程、测试数据和明确远程授权 | 写入、回读、引用切换及回滚恢复有真实证据；HIS/WebView/设备结果分别记录 |
 | 5 | P1 | 跨模型、跨宿主的前后真实对照 | 可用前沿/较弱模型及两种宿主 | 固定样本、真实轨迹和同模型对照齐全；包含上下文初始化/维护/优化后的编程定位与验证路径、重复搜索及澄清往返；安全通过且无新增必需步骤遗漏 |
 | 6 | P1 | 通用调度框架 beta 稳定化 | 复杂 i18n、非 i18n 和 multi-session 任务样本 | 三类样本完成；异常恢复、所有权和验证失效闭环，失败样本补测 |
-| 7 | P2 | 已实现能力的非 Windows / 运行时矩阵及 task-handoff 其它宿主验收 | CI runner、目标运行时和其它 Agent 宿主可用 | 框架演进、sparse、纯 init 薄索引迁移、部署保护、SFTP、表单预览及 AI 插件取得相应矩阵实跑结果；task-handoff 在其它 Agent 宿主核实现场并执行正确下一步 |
+| 7 | P2 | 已实现能力的非 Windows / 运行时矩阵及 task-handoff 其它宿主验收 | CI runner、目标运行时和其它 Agent 宿主可用 | 框架演进、sparse、文档目录迁移、纯 init 薄索引迁移、部署保护、SFTP、表单预览及 AI 插件取得相应矩阵实跑结果；task-handoff 在其它 Agent 宿主核实现场并执行正确下一步 |
 | 8 | P2 | Question 宿主交互兼容验证 | 对应宿主及权限模式可用 | 选项限制、降级与写入授权实际验证，不仅通过协议测试 |
 | 9 | P2 | AI 工作站真实业务集成验证 | 明确工程、获授权的 HIS 联动场景 | 诊断卡、取消/重试、历史恢复和传统录入兼容通过 |
 | 10 | P2 | 代码质量 review 与反馈机制评估 | 有真实改动和团队反馈样本 | 报告模式验证误伤率和处理效果，再决定哪些规则适合门禁 |
 | 11 | P2 | 电子健康卡项目侧验收 | 对应维护人与目标工程负责；本仓不代改信创插件 | 已部署入口清理和厂家协议、双向映射取得项目证据 |
-| 12 | P3 | 新通道与上游协议演进 | 实际需求或上游能力变化 | 分别评估无 SFTP 上传、原生 write 参数、快照会话与 request-id；未验证前保持现有保守路径 |
-| 13 | P3 | 新增跨平台能力、知识接入与资产治理 | 平台需求或领域样本证明收益 | 明确边界后小范围试点；有证据才扩大平台能力、知识接入或公共资产 |
+| 12 | P2 | xc 能力目录与使用手册 | 后续明确安排 xc 文档治理，按各插件当前源文件核实 | 四个 imedicalxc 插件的 skill/rule 清单、接入条件、请求示例和操作边界齐全，链接与覆盖检查通过 |
+| 13 | P3 | 新通道与上游协议演进 | 实际需求或上游能力变化 | 分别评估无 SFTP 上传、原生 write 参数、快照会话与 request-id；未验证前保持现有保守路径 |
+| 14 | P3 | 新增跨平台能力、知识接入与资产治理 | 平台需求或领域样本证明收益 | 明确边界后小范围试点；有证据才扩大平台能力、知识接入或公共资产 |
+
+## P2 xc 能力目录与使用手册
+
+- 本轮非 xc 目录和使用指南已交付；按用户要求将 xc 补齐工作留在治理队列，本轮不修改 xc 插件内容。
+- 范围：`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`。
+- 后续复用 `docs/guides/capability-catalog.md`、`docs/guides/capability-guide.md` 的入口与组织方式，先核实各插件 manifest、skills 和 rules，再补充中文用途、初始化/日常/内部入口区别、请求示例、前提和预期结果；不得把子技能一律作为独立公开入口。
+- 完成标准：四个插件范围内清单无遗漏、源链接有效、示例符合实际契约，并同步文档范围说明和统计。该项仅补齐使用文档，不隐含插件实现、版本历史纠错、项目接入或服务器操作。
 
 ## 治理事项与验收细节
 
@@ -45,9 +53,9 @@
 
 ### 框架演进后续验收
 
-1. **P1 · 跨模型与跨宿主真实对照**：按 docs/validation/agent-evolution.md 的固定样本，在相同代码、需求与权限下，覆盖前沿模型、实际较弱模型及两种宿主，保留前后真实执行轨迹；核对正确性、遗漏、返工、读取量与重复流程。获得同模型对照证据后才报告提效，不能用关键词测试替代。
-2. **P2 · 非 Windows 平台与运行时矩阵及交接接续**：执行 macOS/Linux、Node 22/24 的框架演进、task-handoff、纯 init 薄索引迁移和 sparse 更新矩阵，保留实际 CI 结果及不支持能力的降级证据；矩阵文件存在不等于验证通过。当前 Codex 宿主的无原聊天历史新会话已于 2026-09-19 完成现场核实并经用户验收通过；task-handoff 仍需其它 Agent 宿主真实接续，只给项目入口和交接路径，验证授权、现场、证据与第一步正确，保留无关修改。Windows 项目普通更新已经完成，不再作为待办。
-3. **P0 · 信创历史发布记录纠错**：由信创插件维护人与版本治理负责人处理 imedicalxc-doctor-extend-engineer/1.0.2 缺少 commit 的既有问题，明确不可变发布记录的纠错机制，再运行当前清单及版本比较校验。不得擅自改写历史记录或绕过门禁；交接材料见 docs/validation/agent-evolution-maintainer-handoff.md。
+1. **P1 · 跨模型与跨宿主真实对照**：按 maintenance/validation/agent-evolution.md 的固定样本，在相同代码、需求与权限下，覆盖前沿模型、实际较弱模型及两种宿主，保留前后真实执行轨迹；核对正确性、遗漏、返工、读取量与重复流程。获得同模型对照证据后才报告提效，不能用关键词测试替代。
+2. **P2 · 非 Windows 平台与运行时矩阵及交接接续**：执行 macOS/Linux、Node 22/24 的框架演进、task-handoff、文档目录迁移、纯 init 薄索引迁移和 sparse 更新矩阵，保留实际 CI 结果及不支持能力的降级证据；矩阵文件存在不等于验证通过。当前 Codex 宿主的无原聊天历史新会话已于 2026-09-19 完成现场核实并经用户验收通过；task-handoff 仍需其它 Agent 宿主真实接续，只给项目入口和交接路径，验证授权、现场、证据与第一步正确，保留无关修改。Windows 项目普通更新已经完成，不再作为待办。
+3. **P0 · 信创历史发布记录纠错**：由信创插件维护人与版本治理负责人处理 imedicalxc-doctor-extend-engineer/1.0.2 缺少 commit 的既有问题，明确不可变发布记录的纠错机制，再运行当前清单及版本比较校验。不得擅自改写历史记录或绕过门禁；交接材料见 maintenance/validation/agent-evolution-maintainer-handoff.md。
 
 - **P2 · Question 兼容**使用厂商无关协议与能力降级指引，未引入厂商 SDK；专项测试覆盖协议与写入门禁，不代表已在所有 Agent 产品交互界面实测。不同工具的权限、模式及选项上限以当前调用契约为准。
 
@@ -94,7 +102,7 @@
 ### 持续观察与资产治理（按优先级索引执行）
 
 - 继续观察 rules 体量；若 i18n 或 coding 规则再次承载查找表、API 目录或长参考资料，优先迁入对应插件 `references/`。
-- 观察 `feedback/experience/deploy-com-exp.md` 与 `docs/deploy/*` 的复用频率，必要时抽象命名、敏感信息检查和部署工具模板。
+- 观察 `feedback/experience/deploy-com-exp.md` 的复用频率，必要时抽象命名、敏感信息检查和部署工具模板；旧 docs/deploy 具体项目样本已按用户授权删除，新业务部署材料归目标项目。
 - 明确 `demo/presentation/` 是否长期作为仓库展示资产；如需部署到业务项目，必须先更新安装/更新 sparse checkout 边界说明。
 - **P3 · 新增跨平台能力**：暂缓扩大 macOS/Linux 能力覆盖；已实现能力的矩阵取证按 P2 执行，两者不混为同一事项。后续按“标准模式基础能力可用”的边界评估实施：优先覆盖安装、更新、plugin profile、thin-index 和通用 skill/agent；workspace overlay、Windows x64 IRIS MCP 等平台专属能力允许明确降级，不要求首阶段与 Windows 完全等价。已确认采用“JS-first、Node.js 为 `.agents` 工具链必装环境、OS 专属脚本例外”的策略；Node.js 不是 HIS 生产运行依赖，不整体重写现有 `.ps1`。正式启动时需完成安装器 Node.js 前置检查、经过完整回归的 Node 22 支持范围、根级 `scripts/*.js` sparse checkout、平台能力降级，以及 Windows/macOS/Linux 测试矩阵。
 - **P2 · 表单预览平台验证**：`iris-cure-form-dev` 的 `preview-run` 已按 Windows/macOS/Linux Chromium 路径发现和 Linux root capability 降级实现，但当前只取得 Windows Chrome 实机证据；正式宣称 macOS/Linux 支持前，仍需在对应 runner 上执行九档 Network/Console/HISUI 集成矩阵。

@@ -1,12 +1,16 @@
 # imedical.agents 维护记忆入口
 
+- 文档分发已分层：docs/README.md 为项目入口，maintenance/README.md 为仅源仓入口；31 项路径迁移与旧工程收敛规则见 maintenance/governance/documentation-layout.md。旧受管文件随 Git 更新删除，私有残留保留、dirty 停止；不自动同步真实工程。
+
+- 非 xc 能力目录与使用指南：docs/guides/capability-catalog.md、docs/guides/capability-guide.md，覆盖插件、skill、rule、接入和逐技能示例；README 提供入口。清单与行为变更同步核对，xc 手册列入 backlog P2；不改变插件、版本或部署行为。
+
 - IRIS 编码入口按明确专项直达、混合/边界不明路由；部署基线前移，i18n 条件矩阵由前端规则维护。契约测试核对引用与执行时点，真实提效仍按既有基准验证。信创内容不在本轮变更范围。
 
 - 纯 init 薄索引：7 个插件通过 manifest 统一排除，enabled 项目常规 Write 精准清理旧受管入口及历史遗留空目录，非空目录和链接保留；真实 init 和日常入口保留，available/disabled 不变。迁移见 docs/update-agents.md。
 
 - agent-context-kit 0.4.0 新增 task-handoff：同机同工作区需求按需启用、关键节点维护；docs/handoff 本地保存，正文与机器现场分离，明确交接追加历史快照。直接接手不检查旧会话，用户避免并发写入。普通需求不建正式 run；当前 Codex 宿主的真实新会话接续已于 2026-09-19 经用户验收通过，其它 Agent 宿主和平台矩阵仍待验证；接入与验证见 docs/task-handoff.md。
 
-- 提交性能：`validate --staged` 只校验暂存组件与直接依赖，批量读取 Git 对象并独立缓存版本证据；功能证据按实际内容复用，不绑定 HEAD。信创 1.0.2 缺少 commit 已登记为 `version-debt-xc-1.0.2-commit`，用户要求后续普通提交不重复处理或提醒；见 backlog 与 docs/component-version-management.md。
+- 提交性能：`validate --staged` 只校验暂存组件与直接依赖，批量读取 Git 对象并独立缓存版本证据；功能证据按实际内容复用，不绑定 HEAD。信创 1.0.2 缺少 commit 已登记为 `version-debt-xc-1.0.2-commit`，用户要求后续普通提交不重复处理或提醒；见 backlog 与 maintenance/governance/component-version-management.md。
 
 - project-context-maintenance 区分初始化、事实维护和日常优化；去重保留约束，初始化与优化资料按需读取，普通维护不自动接入插件。模板与旧项目迁移说明已对齐，业务副本不自动同步。
 
@@ -24,7 +28,7 @@
 
 - 跨 Agent 项目技能接入采用链接优先：coding-agent-adaptation 与独立 JS 执行器支持 CodeBuddy/ClaudeCode/Codex，安装/更新显式选择；旧目录和错误链接不覆盖。详见 docs/coding-agent-adaptation.md，非 Windows 与更多宿主验证仍待补齐。
 
-- 框架演进：guidanceMode 与风险/协作独立，IRIS 入口共用风险分流；新 run 默认 on-signal 反馈，session 通用 adapter 保留旧别名。写入 run 最终验证绑定 scope 指纹，完成与 --final 共用门禁。项目入口须定点迁移，真实模型/宿主收益见 docs/validation/agent-evolution.md，未宣称实测通过。
+- 框架演进：guidanceMode 与风险/协作独立，IRIS 入口共用风险分流；新 run 默认 on-signal 反馈，session 通用 adapter 保留旧别名。写入 run 最终验证绑定 scope 指纹，完成与 --final 共用门禁。项目入口须定点迁移，真实模型/宿主收益见 maintenance/validation/agent-evolution.md，未宣称实测通过。
 
 - 部署保护固定 Git 基线，服务器差异仅合入隔离产物；首次合并后再次覆盖、冲突、未知结果必须人工决定。状态保存在用户私有目录，更新基线保留历史。Question 使用固定 code 和工具无关协议，按能力降级为文本；暂停/查看/无效决定不写入。详见 coding-iris-plugin/references/deployment-protection.md。
 
@@ -46,7 +50,7 @@
 - 仓库维护：`.agents/skills/agent-kit-maintenance/SKILL.md`；按影响面选择验证，脚本变更核对平台矩阵，项目集成测试在目标工程执行，清理先确认任务归属，提交沿用明确授权。
 - 长期决策：`agent-kit-maintenance-decisions.md`；近期提交与验证：`agent-kit-maintenance-log.md`；未完成事项：`agent-kit-maintenance-backlog.md`。
 - 安装、更新、vendor、sparse 或 thin-index：`docs/update-agents.md` 与相关 canonical 脚本；plugin thin-index 只修改根生成器，插件脚本只转发。
-- 插件变更：owner AGENTS、README、manifest、相关内容、专项测试及 `docs/component-version-management.md`。
+- 插件变更：owner AGENTS、README、manifest、相关内容、专项测试及 `maintenance/governance/component-version-management.md`。
 - Agent/workflow：`memory/plan/multi-agent-architecture.md`、两份 registry、共享协议及相关定义。
 - 业务项目上下文：目标项目自己的入口与 `project-context-maintenance`，不用维护者记忆代替项目记忆。
 

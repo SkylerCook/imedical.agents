@@ -25,12 +25,14 @@
 
 ## 验证入口
 
+从框架源仓根执行。以下是历史 schema 的只读复核，不代表当前运行流程；机器记录保留原现场路径。
+
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File `
-  .agents/plugins/agent-context-kit/scripts/validate-agent-run.ps1 `
-  -RunDirectory .agents/docs/validation/i18n-agent-p1/retrospective-6096150
+  plugins/agent-context-kit/scripts/validate-agent-run.ps1 `
+  -RunDirectory maintenance/validation/i18n-agent-p1/retrospective-6096150
 
 powershell -NoProfile -ExecutionPolicy Bypass -File `
-  .agents/plugins/agent-context-kit/scripts/validate-agent-run.ps1 `
-  -RunDirectory .agents/docs/validation/i18n-agent-p1/standardized-6097891
+  plugins/agent-context-kit/scripts/validate-agent-run.ps1 `
+  -RunDirectory maintenance/validation/i18n-agent-p1/standardized-6097891
 ```

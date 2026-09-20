@@ -1,8 +1,12 @@
 # imedical.agents 维护日志
 
+- 2026-09-20（文档目录与部署边界）：docs/README.md 作为项目使用入口，maintenance/README.md 作为源仓维护入口；31 项准确路径迁移，稳定 runbook/schema 保留原位。分离医生站 AI、知识接入、交接等文档中的源仓验证说明；按用户授权删除旧部署样本四个文件，不留副本。安装/更新继续复用 /docs/** 和 Git 安全快进，不新增清理脚本。新增文档专项覆盖新装、旧文件/空目录收敛、维护区排除、自定义残留及 dirty 保护；六项已分批验证，首次链接检查误含 Git 忽略的本机交接，限定分发文件后通过。导出 XML 与历史 run JSON 的 checkout 字节保持一致，原本机交接和历史 feedback 保留。PowerShell 7/Windows PowerShell 5.1 更新器完整回归均通过，覆盖实际安全快进、Check/DryRun -NoPull、旧路径/空目录清除、维护区不落盘、自定义保留及既有 Overlay 流程；PS5.1 使用原生模块环境启动。证据已记录，任务测试目录已清理。非 Windows 矩阵已接入既有 CI，未实跑。未提交、推送或更新真实业务副本。
+
+- 2026-09-20（非 xc 能力手册）：新增 docs/guides/capability-catalog.md 与 docs/guides/capability-guide.md，README 提供统一入口；按当前 manifest 与源文件核对 11 插件、46 skill、35 rule，提供逐技能请求示例、前提、产物和主要使用路线，明确初始化/日常/兼容入口、插件状态、条件加载及操作范围。按用户要求将四个 xc 插件手册补齐登记为 P2，并同步队列排序与验收标准。仅根文档与维护记忆变更，无插件内容或版本变更；清单覆盖、源链接与章节锚点检查通过，最终差异检查见本轮验证；未提交、推送或同步业务副本。
+
 - 2026-09-20（纯 init 空目录清理）：根生成器补齐删除受管索引后的空目录清理，并兼容上一版本仅删除文件后留下的空目录；限定排除项和 ContextRoot/skills，检查隐藏项与祖先链接，使用非递归删除防止误删新增内容。PowerShell 7/Windows PowerShell 5.1 各 8 项迁移专项和 update-agents 完整回归通过，覆盖历史空目录、删除索引后空目录、隐藏文件、空子目录、目录/祖先链接、standard/Overlay 及 Check/DryRun 只读。真实工程 DryRun 已识别截图对应两个空目录，未执行写入。验证证据已记录；非 Windows 矩阵沿用 P2 待验收，未同步业务副本；提交与推送状态以 Git 记录为准。
 
-- 2026-09-19（IRIS 编码入口优化）：coding-iris-plugin 0.13.5 收窄统一入口触发，明确专项直达；部署基线前移，i18n 矩阵归前端规则，修正默认转换编码表述。路由/引用/前置顺序及既有框架契约 5 项通过，含坏路径、坏章节和错误顺序反例。五份主链文档静态字符减少 18.9%，不是模型提效结论；真实对照沿既有 P1 队列。基线 e92a5c6，信创内容保持，源仓改动未提交、推送或同步业务副本；验证详情见 docs/validation/agent-evolution.md。
+- 2026-09-19（IRIS 编码入口优化）：coding-iris-plugin 0.13.5 收窄统一入口触发，明确专项直达；部署基线前移，i18n 矩阵归前端规则，修正默认转换编码表述。路由/引用/前置顺序及既有框架契约 5 项通过，含坏路径、坏章节和错误顺序反例。五份主链文档静态字符减少 18.9%，不是模型提效结论；真实对照沿既有 P1 队列。基线 e92a5c6，信创内容保持，源仓改动未提交、推送或同步业务副本；验证详情见 maintenance/validation/agent-evolution.md。
 
 - 2026-09-19（纯 init 薄索引清理）：7 个插件以 manifest excludeSkills 统一初始化与更新策略，复用根生成器精准删除历史受管入口；同步初始化验收、README 与迁移说明。PowerShell 7/Windows PowerShell 5.1 的 update-agents 全量回归、各 7 项迁移专项及性能分析专项通过，医生站 AI 10 项专项通过；覆盖 Check/DryRun 只读、Write 删除、幂等、standard/Overlay、旧更新器升级、状态保留及自定义/链接保护。7 个真实 manifest 排除与 canonical 可达检查通过，版本校验无本次新增问题；quick_validate 因缺 PyYAML 不可运行，改用 frontmatter 静态检查与真实生成器验证。非 Windows 矩阵仍列 P2。验证证据已记录；未同步真实业务副本或推送，提交状态以 Git 历史为准。
 
@@ -26,7 +30,7 @@
 
 - 2026-09-17 本轮框架演进交付完成：a529e78 与 6128127 已推送；0.3.1 补丁通过真实主工程及 10 个模块普通更新复测，guidanceMode 不再追加，11 个入口迁移零变更，50 个受保护文件与 37 份配置哈希不变。用户确认本次目标完成；跨模型/宿主对照、非 Windows 矩阵及信创历史版本门禁转入独立待治理事项，不宣称这些验收已经通过。
 
-- 2026-09-17 实测修复：profile 的 guidanceMode 改为合法可选键且不自动生成默认配置，入口迁移补齐缺失路由并保留 BOM/换行与自定义正文；agent-context-kit 0.3.1。验证结果见 docs/validation/agent-evolution.md。
+- 2026-09-17 实测修复：profile 的 guidanceMode 改为合法可选键且不自动生成默认配置，入口迁移补齐缺失路由并保留 BOM/换行与自定义正文；agent-context-kit 0.3.1。验证结果见 maintenance/validation/agent-evolution.md。
 
 - 治疗表单入口补充优化：按任务加载交付章节，复用范围内已有明确部署授权；服务端原子回滚与客户端 rollback 分开表达，运行时门禁不变。演进行为补充回归通过，迁移拒写保护、文档引用与 diff 检查通过；版本检查仍仅有既有 xc 发布字段阻塞。
 
@@ -42,7 +46,7 @@
 
 - 2026-09-18（链接优先的技能适配）：新增根级 coding-agent-adaptation 0.1.0 与 sync-runtime-skills.js；CodeBuddy/Claude Code 项目目录链接到 ContextRoot/skills，Codex 复用通用层。安装/更新显式 RuntimeAdapter 接入，Overlay 转发到 canonical 脚本；普通目录、错误链接和越界父链均保留并阻断，legacy Claude 复制入口拒绝写入已链接目标。11 项 Node 专项、PS5.1/PS7 更新器完整回归及 Overlay 回归通过，已记录可复用指纹证据；现有项目链接只读 Check 返回 unchanged。源码、runbook、版本记录与迁移边界同步；非 Windows CI 与更多真实宿主验证仍待补齐。版本差异检查已识别新增 skill，修正本轮 release 草稿后当前清单仅剩既有 imedicalxc-doctor-extend-engineer 1.0.2 缺少 commit 的门禁，不修改不可变记录。通用 skill-creator 校验器缺少 PyYAML，且不接受本仓必需 version 字段，已改用仓库 frontmatter 与版本校验。未推送或批量部署业务副本。
 
-- 2026-09-17（按需辅助与开放方法，本地未提交）：IRIS 入口统一按风险分流，新增 guidanceMode 的共享底线/默认方法/按需辅助；反馈 on-signal 保留用户验收和独立写入授权。调度器完成与 --final 共用门禁，写入验证绑定既有 scope 指纹和计划仓库身份；补 session 别名、未知 adapter 降级和 blocked 结果恢复。i18n 新运行协议与 bindings 对齐 2.0，旧 fixture 只读。项目入口提供默认只报告的精确句子迁移，保留用户内容与 profile；未改安装/更新算法。Node 主回归 8 项及新增恢复补测通过，PS5.1/PS7 新旧 run 回归通过；PS5.1 更新器完整回归补齐 fixture 依赖后通过，显式私有快照指纹补测通过。详见 docs/validation/agent-evolution.md。九项组件版本/依赖变更已记录，版本校验仅被既有 1.0.2 发布记录缺失 commit 阻断，不修改不可变记录。Claude 只读路由冒烟 API unknown 重试后停止，未取得模型结果；弱模型、跨宿主性能和非 Windows 矩阵未验证。未提交、推送、部署或同步业务副本。
+- 2026-09-17（按需辅助与开放方法，本地未提交）：IRIS 入口统一按风险分流，新增 guidanceMode 的共享底线/默认方法/按需辅助；反馈 on-signal 保留用户验收和独立写入授权。调度器完成与 --final 共用门禁，写入验证绑定既有 scope 指纹和计划仓库身份；补 session 别名、未知 adapter 降级和 blocked 结果恢复。i18n 新运行协议与 bindings 对齐 2.0，旧 fixture 只读。项目入口提供默认只报告的精确句子迁移，保留用户内容与 profile；未改安装/更新算法。Node 主回归 8 项及新增恢复补测通过，PS5.1/PS7 新旧 run 回归通过；PS5.1 更新器完整回归补齐 fixture 依赖后通过，显式私有快照指纹补测通过。详见 maintenance/validation/agent-evolution.md。九项组件版本/依赖变更已记录，版本校验仅被既有 1.0.2 发布记录缺失 commit 阻断，不修改不可变记录。Claude 只读路由冒烟 API unknown 重试后停止，未取得模型结果；弱模型、跨宿主性能和非 Windows 矩阵未验证。未提交、推送、部署或同步业务副本。
 
 - 2026-09-17（提交效率约定）：根 `AGENTS.md` 补充提交阶段复用审查与有效测试证据、批量独立只读检查、避免重复加载规范及按原因处理钩子失败的规则。与维护 skill 既有证据复用要求一致；仅文档改动，差异和规则一致性检查通过，不运行完整测试；本次仅本地提交，未推送。
 
@@ -284,7 +288,7 @@
 - 2026-08-04：迁入 `codegraph-query` 和 `iris-codegraph` 插件；补齐 manifest、AGENTS、README、usage rule、skill 和 thin-index wrapper，并同步仓库 README、runbook、维护记忆和 update-agents 测试。已验证 `.codegraph` 状态 complete，`cg-query.js help`、`icg-query.js help`、`node --check` 均通过；`iris-codegraph` 构建因当前项目缺少 `.mcp.json` 未执行。后续确认 `codegraph-query` 依赖 `iris-codegraph`，并把该前置关系写回 manifest、plugin_profile 和回归断言。
 
 - 2026-07-18：`scripts/tests/update-agents.tests.ps1` 与 `scripts/tests/iris-interface-plugin.tests.ps1` 已通过；后者统一使用 `python -B`，不再在 owner 脚本目录遗留 `__pycache__`。`coding-iris-plugin`、`extract-doc`、`iris-external-reg` thin-index DryRun 均成功，反馈 `260718022936` 的 8 个 owner 副本与 canonical 逐文件一致，`git diff --check` 通过。
-- 2026-07-13：`plugins/agent-context-kit/scripts/tests/validate-agent-run.Tests.ps1` 已覆盖合法串行/多智能体运行、未授权多智能体、缺失报告、同签名重试超限、未授权远程写入、阶段依赖、并行效率和敏感内容门禁；`docs/validation/i18n-agent-p1/retrospective-6096150` 已通过校验。
+- 2026-07-13：`plugins/agent-context-kit/scripts/tests/validate-agent-run.Tests.ps1` 已覆盖合法串行/多智能体运行、未授权多智能体、缺失报告、同签名重试超限、未授权远程写入、阶段依赖、并行效率和敏感内容门禁；`maintenance/validation/i18n-agent-p1/retrospective-6096150` 已通过校验。
 - 2026-07-13：`plugins/i18n-iris-plugin/scripts/tests/sync-xml-print-template.Tests.ps1` 已覆盖内联保存、临时 `Execute+...<SYNTAX>` 识别、分块 fallback 和成功/失败清理。
 - 2026-07-01：已检查近期提交 `05bfa75`、`b655c1a`、`3e0f580`、`364f594`、`58339ee` 的变更范围；确认三个新增医生站插件均包含 `.agents-plugin/plugin.json`、`AGENTS.md`、主 `SKILL.md` 和 thin-index wrapper，其中性能分析插件额外包含 README、init skill、脚本和 references。已通过 `rg` 检查 README 与维护记忆中的旧插件总览缺口，并完成摘要同步；本轮不复制大段插件正文或业务私有事实。
 

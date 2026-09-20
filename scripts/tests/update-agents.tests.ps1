@@ -740,6 +740,12 @@ try {
   git -C $gitStateAgentsRoot config user.email "test@example.invalid"
   git -C $gitStateAgentsRoot config user.name "Test User"
   git -C $gitStateAgentsRoot config core.autocrlf false
+  # Seed old tracked documentation before publishing the capability.
+  foreach ($relative in @("docs/imedical-knowledge.md", "docs/component-version-management.md", "docs/validation/old/report.md", "docs/deploy/old/sample.md")) {
+    $oldDoc = Join-Path $gitStateAgentsRoot $relative
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $oldDoc) | Out-Null
+    Set-Content -Encoding UTF8 -LiteralPath $oldDoc -Value "old managed documentation"
+  }
   git -C $gitStateAgentsRoot add .
   git -C $gitStateAgentsRoot commit -m "test: seed updater Git state fixture" | Out-Null
   Assert-True ($LASTEXITCODE -eq 0) "Git state fixture should commit the initial capability"
@@ -763,19 +769,40 @@ try {
   git -C $gitStatePublisher config user.name "Test User"
   New-Item -ItemType Directory -Force -Path (Join-Path $gitStatePublisher "docs") | Out-Null
   Set-Content -Encoding UTF8 -Path (Join-Path $gitStatePublisher "docs/remote-update.md") -Value "remote update"
-  git -C $gitStatePublisher add docs/remote-update.md
+  New-Item -ItemType Directory -Force -Path (Join-Path $gitStatePublisher "docs/guides") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $gitStatePublisher "maintenance/governance") | Out-Null
+  Move-Item -LiteralPath (Join-Path $gitStatePublisher "docs/imedical-knowledge.md") -Destination (Join-Path $gitStatePublisher "docs/guides/imedical-knowledge.md")
+  Move-Item -LiteralPath (Join-Path $gitStatePublisher "docs/component-version-management.md") -Destination (Join-Path $gitStatePublisher "maintenance/governance/component-version-management.md")
+  Remove-Item -LiteralPath (Join-Path $gitStatePublisher "docs/validation/old/report.md")
+  Remove-Item -LiteralPath (Join-Path $gitStatePublisher "docs/deploy/old/sample.md")
+  git -C $gitStatePublisher add -A docs maintenance
   git -C $gitStatePublisher commit -m "test: publish remote updater change" | Out-Null
   git -C $gitStatePublisher push | Out-Null
   Assert-True ($LASTEXITCODE -eq 0) "Git state fixture should publish a remote-only commit"
 
   $behindOldHash = (git -C $gitStateAgentsRoot rev-parse HEAD).Trim()
   $remoteHash = (git -C $gitStatePublisher rev-parse HEAD).Trim()
+  # Strict read-only modes must leave old managed paths until an updating run.
+  $null = & (Join-Path $gitStateAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $gitStateProjectRoot -Mode Check -NoPull
+  $null = & (Join-Path $gitStateAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $gitStateProjectRoot -Mode DryRun -NoPull
+  Assert-True ((git -C $gitStateAgentsRoot rev-parse HEAD).Trim() -eq $behindOldHash) "Read-only modes must not migrate docs"
+  Assert-True (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/imedical-knowledge.md")) "Read-only modes must keep old docs"
+  Add-Content -Encoding UTF8 -LiteralPath (Join-Path $gitStateAgentsRoot ".git/info/exclude") -Value "/docs/validation/custom.md"
+  Set-Content -Encoding UTF8 -LiteralPath (Join-Path $gitStateAgentsRoot "docs/validation/custom.md") -Value "user-owned documentation"
   $behindOutput = & (Join-Path $gitStateAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $gitStateProjectRoot -Mode DryRun -Detailed | Out-String
   Assert-Contains $behindOutput "agents-updated" "A local-behind branch should fast-forward and report agents-updated"
   Assert-Contains $behindOutput $behindOldHash "Updated detail should include oldHash"
   Assert-Contains $behindOutput $remoteHash "Updated detail should include newHash and upstreamHash"
   Assert-Contains $behindOutput "plugin-available" "A completed fast-forward should continue into local convergence checks"
   Assert-True ((git -C $gitStateAgentsRoot rev-parse HEAD).Trim() -eq $remoteHash) "A local-behind branch should fast-forward to upstream"
+
+  Assert-True (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/guides/imedical-knowledge.md")) "Updater should materialize the new documentation path"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/imedical-knowledge.md"))) "Updater should remove the old tracked documentation path"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/component-version-management.md"))) "Updater should remove old source-only docs"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "maintenance"))) "Updater sparse refresh must exclude maintenance docs"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/deploy"))) "Updater should remove emptied historical directories"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/validation/old"))) "Updater should remove empty nested directories"
+  Assert-Contains (Get-Content -Raw -LiteralPath (Join-Path $gitStateAgentsRoot "docs/validation/custom.md")) "user-owned documentation" "Updater must preserve ignored custom remnants"
 
   Set-Content -Encoding UTF8 -Path (Join-Path $gitStateAgentsRoot "docs/local-ahead.md") -Value "local ahead"
   git -C $gitStateAgentsRoot add docs/local-ahead.md

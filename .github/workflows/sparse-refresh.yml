@@ -14,4 +14,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: node --test scripts/tests/refresh-agents-sparse.tests.js
+      - run: node --test scripts/tests/refresh-agents-sparse.tests.js scripts/tests/documentation-layout.tests.js

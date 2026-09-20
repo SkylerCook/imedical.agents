@@ -1,5 +1,16 @@
 # .agents 安装与更新 Runbook
 
+## 文档目录迁移与旧文件清理
+
+项目文档从 [docs/README.md](README.md) 按用途阅读；新增指南归 guides/，导出参考归 reference/。源仓维护材料已移出 docs，沿现有 /docs/** 分发规则不会下发。稳定 runbook 路径保持。
+
+维护者提交发布后，已有工程正常更新 capability：安全快进删除旧受管文件、生成新路径，并刷新 sparse；旧目录为空时由 Git 清除，不保留旧文档跳转壳。具体业务部署样本已获源仓用户授权删除，项目自己的部署材料不属于清理范围。
+
+更新前核对能力包 Git 状态。受管旧文件有本地修改时停止；未忽略自定义文件会触发 dirty 保护。已忽略的自定义文件可能保留在旧目录中，此时保留并报告路径，不能递归删除目录。新路径冲突、无远端或手工复制的历史文件均先核实归属，不按同名判断可删除。Git 历史不在本次清理范围。
+
+Check 和 DryRun -NoPull 保持只读；普通 DryRun 允许更新 capability，遵循下文原语义。Overlay 只迁移共享 CapabilityRoot 中的受管文档，随后按原流程刷新各 ContextRoot；不扫描模块业务 docs 或相邻工程。源仓整理完成不等于业务工程已更新。
+
+
 ## iMedical 知识资料与菜单同步
 
 0.13.1 将知识检索的选择统一到 IRIS 通用规则，由模型自主决定是否查询，不要求用户点名或每次必查。已部署工程正常更新并重建 coding-iris-plugin thin-index，刷新后的 skill 描述与通用规则即可生效；不新增连接、迁移资料或自动刷新菜单。具体模型实际选用行为仍需任务观察。
@@ -8,7 +19,7 @@ coding-iris-plugin 0.13 提供 iris-imedical-knowledge / iris-menu-sync；共享
 
 新装项目启用 coding-iris-plugin 后由 canonical thin-index 生成两个入口。已有工程按本 runbook 正常更新能力包并刷新 enabled 插件入口；coding-iris wrapper 支持 ContextRoot/CapabilityRoot，Overlay 仍只更新共享 capability 一次，在每个项目 ContextRoot 重建入口。维护者导入脚本在源仓 `.agents/skills`，不部署业务工程。
 
-项目菜单写入 `ContextRoot/work/menu-sync/<sourceId>`，与 vendor 参考隔离；更新和索引重建不得覆盖、清理或重新生成它。旧 `.agents/data` 不自动迁移或删除。当前资料读取跟随 current.json，历史 generation 有意保留用于恢复。首次同步需按项目工具/服务实际能力采集，缺失不自动部署服务。完整用法与验证范围见 [知识接入](imedical-knowledge.md)。
+项目菜单写入 `ContextRoot/work/menu-sync/<sourceId>`，与 vendor 参考隔离；更新和索引重建不得覆盖、清理或重新生成它。旧 `.agents/data` 不自动迁移或删除。当前资料读取跟随 current.json，历史 generation 有意保留用于恢复。首次同步需按项目工具/服务实际能力采集，缺失不自动部署服务。完整用法与验证范围见 [知识接入](guides/imedical-knowledge.md)。
 
 ## 标版需求录入入口
 
@@ -133,7 +144,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 脚本不会自动把依赖插件标记为 `enabled`。`enabled` 表示该插件已经完成项目上下文、配置、thin-index、脚本和入口路由的初始化闭环，不只是插件目录已存在。
 
-医生站 AI 集成插件 `iris-imedical-doctor-ai` 复用已启用的 `coding-iris-plugin`；同步代码后仍须执行初始化，不会因更新自动启用。接入、兼容边界与专项验证见 [AI 工作站插件接入](iris-imedical-doctor-ai.md)。
+医生站 AI 集成插件 `iris-imedical-doctor-ai` 复用已启用的 `coding-iris-plugin`；同步代码后仍须执行初始化，不会因更新自动启用。接入、兼容边界与专项验证见 [AI 工作站插件接入](guides/iris-imedical-doctor-ai.md)。
 
 常见插件初始化入口：
 
@@ -665,7 +676,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 `imedicalxc-doctor-extend-engineer` v1.0.1 恢复只暴露主编排器的约定。常规更新直接调用 canonical 生成器，读取 manifest 的 `thinIndex.excludeSkills` 后，电子健康卡领域子 skill 不再独立生成浅层入口。canonical 生成器对被排除 skill 的旧文件执行精准清理：仅处理 `thin-index: true` 且来源与当前子 skill 精确匹配的受管 `SKILL.md`，DryRun 报告 stale，Write 删除该文件；自定义文件、其它文件、非空目录与链接保留；当前生成器也清理排除项的历史空目录，详见下文纯初始化 skill 薄索引迁移。后续从主编排器加载该子 skill，架构前置条件仍须通过。
 
-专项验证：`node --test scripts/tests/doctor-extend-routing.tests.js`，覆盖 Windows PowerShell 5.1 / PowerShell 7 的生成、旧入口清理、幂等和自定义文件保护。源仓更新不代表业务项目副本已同步。
+项目侧检查技能发现、旧入口清理及自定义内容保留；源仓专项测试由框架维护者执行。源仓更新不代表业务项目副本已同步。
 
 `coding-iris-plugin` 当前 v0.9.0 包含 v0.8.0 引入的统一前端部署入口，默认本地计划、显式执行。用法见 `plugins/coding-iris-plugin/scripts/iris-tools/README.md`。
 

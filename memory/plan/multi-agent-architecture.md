@@ -942,7 +942,7 @@ workflows/i18n-change.workflow.md
 落地顶层 `agents/` 和 `workflows/` 时，需要同步修改：
 
 - `README.md`：说明顶层智能体和 workflow。
-- `docs/ai-coding-workspace-kit-v0.2.0.md`：补充顶层 `agents/`、`workflows/` 规范。
+- `maintenance/design/ai-coding-workspace-kit-v0.2.0.md`：补充顶层 `agents/`、`workflows/` 规范。
 - `scripts/install-agents.ps1`：sparse checkout 增加 `agents/`、`workflows/`。
 - `scripts/update-agents.ps1`：刷新和检查逻辑覆盖 `agents/`、`workflows/`。
 - `memory/agent-kit-maintenance-decisions.md`：记录长期架构决策。

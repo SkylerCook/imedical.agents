@@ -23,7 +23,7 @@ description: Use when maintaining the imedical.agents repository itself, especia
 4. 需要判断后续治理优先级时，读 `memory/agent-kit-maintenance-backlog.md`。
 5. 涉及安装、更新、sparse checkout、plugin profile、vendor skill 同步或 thin-index 生成时，读 `docs/update-agents.md` 和相关脚本。
 6. 涉及具体插件时，读该插件 `AGENTS.md`、README、`.agents-plugin/plugin.json`、相关 `skills/`、`rules/`、`references/`、`templates/`、`scripts/`。
-7. 涉及插件或根级独立 skill 变更时，读 `docs/component-version-management.md`，核对版本、依赖范围和 release record。
+7. 涉及插件或根级独立 skill 变更时，读 `maintenance/governance/component-version-management.md`，核对版本、依赖范围和 release record。
 
 根 `AGENTS.md` 是维护约束的事实来源；本 skill 将约束转为检查流程，不维护第二套规则。开始时区分只读审计与实施范围，检查工作区已有修改；审计只交付发现，不自动修复、提交或同步业务副本。
 
@@ -106,7 +106,7 @@ node scripts/validation-evidence.js check --repo-root . --suite component-versio
 
 功能证据绑定 scope 内实际内容、文件类型和可执行位，HEAD 仅作来源信息；无关提交与 scope 外文案变化可复用。scope 必须覆盖实现、测试、配置及实际读取的协议，不能仅凭后缀排除运行输入。版本门禁自动保存独立指纹，绑定暂存变更路径、前后元数据、依赖图和校验器；命中缓存复用结果，失败或超时不得记为通过。旧版证据不能直接升级为有效证据。提交只补齐失效的对应功能测试、`validate --staged`、`git diff --cached --check` 和暂存复核，未暂存修复不能替代暂存内容的验证。
 
-版本门禁只检查暂存 owner 与直接依赖兼容，输出阶段、组件数和耗时，默认 60 秒预算。未变化的既有发布记录问题单列报告，新增问题阻断；完整审计仍阻断历史问题。规则及范围见 `docs/component-version-management.md`，不在提交阶段重新扫描无关历史。
+版本门禁只检查暂存 owner 与直接依赖兼容，输出阶段、组件数和耗时，默认 60 秒预算。未变化的既有发布记录问题单列报告，新增问题阻断；完整审计仍阻断历史问题。规则及范围见 `maintenance/governance/component-version-management.md`，不在提交阶段重新扫描无关历史。
 
 只有已有明确提交授权时才执行 `git commit`；按根 `AGENTS.md` 检查中文 Conventional Commits 标题和以 `修改说明:` 开头的正文。维护完成不隐含 commit、merge、push、远程写入或业务副本部署授权；沿用已有授权，不重复确认，也不扩大操作范围。
 
