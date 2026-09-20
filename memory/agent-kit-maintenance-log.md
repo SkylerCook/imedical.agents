@@ -4,6 +4,8 @@
 
 ## 近期已完成
 
+- 2026-09-20（工作区待提交）：imedicalxc-doctor-extend-engineer v1.0.3 编码规约新增 AN：响应各节点类型按第三方文档逐一确认，JSON 对象单独处理（声明 Object/专用 VO 并写专属解析），禁止未确认文档就把对象节点声明为 String（Jackson 对象→String 抛 MismatchedInputException 被上游吞后表现为"接口成功但数据未落库"）。插件 AGENTS.md、elechealthcard_index.md、子 skill SKILL.md 及规约 frontmatter 字母范围同步 A~AM→A~AN；新增 releases/plugin/imedicalxc-doctor-extend-engineer/1.0.3.md，plugin.json 递增 1.0.2→1.0.3（patch，非 breaking）。worktree 组件版本校验识别 1.0.2→1.0.3 变更；release record 的 commit 字段沿用仓内既有惯例待提交后回填（1.0.2.md 同样缺该字段，属存量缺口）。本轮未提交、未推送；5 个变更文件已按精确文件同步至 HIS 业务工程 `.agents/plugins/` 副本。
+
 - 2026-09-16（维护 skill 对齐）：优化仓库本地 `agent-kit-maintenance`，按影响面选择验证，补齐脚本运行时/跨平台矩阵、canonical 降级和目标项目集成测试产物归属检查；临时清理须证明任务归属，提交须沿用明确授权并检查提交正文。同步入口摘要与长期决策；README 和 backlog 已复核，无需变更。现有 `agent-framework-contract.tests.js` 与差异格式检查通过；skill frontmatter 未改，通用 `quick_validate.py` 因本机及 bundled Python 均缺少 PyYAML 未运行成功。此次仅维护文案，不涉及组件版本、部署副本或运行逻辑，未运行完整组件测试，未提交或推送。
 
 - 2026-09-16（本轮维护）：经用户授权直接维护 canonical：Doctor AI v0.1.2 补充入口分层、旧页面复用边界、运行时加载与控件事件、摘要语义及十类脱敏回归场景（含配置获取、生效过滤、加载与注册分层）；Coding IRIS v0.10.2 补充旧请求迁移契约检查。仅更新指导资料，不新增固定业务接口或通用测试执行器。26 项既有专项通过（含 PS7/PS5.1 thin-index），场景清单不是目标工程运行验收证据；16 组件版本校验、15 文件 UTF-8、20 相对链接与差异检查通过。本轮仅提交 canonical，未推送或同步业务副本，发布后沿既有更新流程取得资料，无配置迁移。

@@ -1,6 +1,6 @@
 {
   "name": "imedicalxc-doctor-extend-engineer",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "displayName": "iMedicalXC Doctor Extend Engineer",
   "description": "HIS doctor workstation third-party system integration workflow orchestrator, covering brainstorming, design, implementation, testing, HIS validation, and CI/CD delivery.",
   "entry": "AGENTS.md",

@@ -1,7 +1,7 @@
 ---
 name: elechealthcard_coding_conventions
 description: |
-  电子健康卡模块既定编码规约（A~AM）。
+  电子健康卡模块既定编码规约（A~AN）。
   适用于所有电子健康卡厂家接入与既有厂家维护，涵盖异常处理、命名、DTO/VO 结构、
   数据对照、Javadoc、校验、加密决策等约束。
 task-affinity: [elechealthcard, coding, vendor-integration]
@@ -161,3 +161,12 @@ task-affinity: [elechealthcard, coding, vendor-integration]
   而非假设 HIS code=1 一定对应 ext code=1。
 - **AM. 诊疗环节对照方向**：诊疗环节 `medStepCode` 对照要求**每个 HIS 数据都能对照一个 ext 数据**
   （正向全覆盖），反向（ext→HIS）不要求。
+- **AN. 响应各节点类型按第三方文档逐一确认，JSON 对象单独处理**：不要想当然按字符串声明
+  响应字段——同一信封里不同节点类型可能不同（如 returnCode 是数字、数据载荷节点是嵌套对象或
+  加密密文字符串），且载荷节点的名称各厂家文档未必一致。以本厂家文档的报文示例为准，
+  逐一确认每个返回节点的 JSON 类型：标量（数字/布尔）可声明 String（Jackson 隐式转换）；
+  字符串声明 String 按原样消费；**JSON 对象单独处理**——声明 `Object` 或专用 VO，
+  按该节点的实际结构编写专属的解析/加工逻辑，不与字符串节点混用同一套处理。
+  **禁止未确认文档就把对象节点声明为 String**：Jackson 只支持标量→String 隐式转换，
+  JSON 对象→String 字段直接抛 `MismatchedInputException`，被上游建卡链路 catch 吞掉后
+  表现为"接口返回成功但数据未落库"，极难排查。

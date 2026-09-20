@@ -13,7 +13,7 @@ related:
 
 ## 规则入口
 
-- [编码规约（A~AM）](elechealthcard_coding_conventions.md)：异常处理、命名、DTO/VO 结构、数据对照、Javadoc、校验、加密决策等约束。**每次生成或修改电子健康卡代码前必读**。
+- [编码规约（A~AN）](elechealthcard_coding_conventions.md)：异常处理、命名、DTO/VO 结构、数据对照、Javadoc、校验、加密决策等约束。**每次生成或修改电子健康卡代码前必读**。
 - [第三方集成通用约束](elechealthcard_integration.md)：请求结构、字段来源严格性、数据对照 SQL 规范。适用于所有外部平台接口对接场景。
 
 ## 参考资料
