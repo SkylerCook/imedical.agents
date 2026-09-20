@@ -1204,6 +1204,16 @@ try {
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/sample-skill/SKILL.md")) "Daily initSkill must remain discoverable"
   & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-Null
   Assert-True (-not (Test-Path -LiteralPath $initTarget)) "Repeat updater must not recreate excluded init"
+  Remove-Item -LiteralPath $keepFile
+  $initDirectory = Split-Path -Parent $initTarget
+  foreach ($previewMode in @("Check", "DryRun")) {
+    $emptyPreview = & $scriptUnderTest -ProjectRoot $projectRoot -Mode $previewMode -NoPull -Detailed -Plugin sample-plugin | Out-String
+    Assert-Contains $emptyPreview "excluded empty plugin skill directory" "Updater preview should identify historical empty init directories"
+    Assert-True (Test-Path -LiteralPath $initDirectory) "Updater preview must retain the empty directory"
+  }
+  & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-Null
+  Assert-True (-not (Test-Path -LiteralPath $initDirectory)) "Updater must remove historical empty init directories"
+  New-Item -ItemType Directory -Path $initDirectory | Out-Null
   Set-Content -Encoding UTF8 -LiteralPath $initTarget -Value "# User custom init"
   $customInit = Get-Content -Raw -Encoding UTF8 -LiteralPath $initTarget
   & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-Null

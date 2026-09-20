@@ -663,7 +663,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 ## 电子健康卡入口兼容修复
 
-`imedicalxc-doctor-extend-engineer` v1.0.1 恢复只暴露主编排器的约定。常规更新直接调用 canonical 生成器，读取 manifest 的 `thinIndex.excludeSkills` 后，电子健康卡领域子 skill 不再独立生成浅层入口。canonical 生成器对被排除 skill 的旧文件执行精准清理：仅处理 `thin-index: true` 且来源与当前子 skill 精确匹配的受管 `SKILL.md`，DryRun 报告 stale，Write 删除该文件；自定义文件、其它文件、目录与链接保留。后续从主编排器加载该子 skill，架构前置条件仍须通过。
+`imedicalxc-doctor-extend-engineer` v1.0.1 恢复只暴露主编排器的约定。常规更新直接调用 canonical 生成器，读取 manifest 的 `thinIndex.excludeSkills` 后，电子健康卡领域子 skill 不再独立生成浅层入口。canonical 生成器对被排除 skill 的旧文件执行精准清理：仅处理 `thin-index: true` 且来源与当前子 skill 精确匹配的受管 `SKILL.md`，DryRun 报告 stale，Write 删除该文件；自定义文件、其它文件、非空目录与链接保留；当前生成器也清理排除项的历史空目录，详见下文纯初始化 skill 薄索引迁移。后续从主编排器加载该子 skill，架构前置条件仍须通过。
 
 专项验证：`node --test scripts/tests/doctor-extend-routing.tests.js`，覆盖 Windows PowerShell 5.1 / PowerShell 7 的生成、旧入口清理、幂等和自定义文件保护。源仓更新不代表业务项目副本已同步。
 
@@ -707,6 +707,6 @@ agent-context-kit 0.3.4 补齐 AGENTS 模板与定点维护流程。更新能力
 
 本次覆盖 coding-iris-init、i18n-project-init、cure-form-init、iris-interface-init、iris-imedical-doctor-ai-init、imedicalxc-doctor-perf-analysis-engineer-init、agent-framework-evolution-init。
 
-已部署项目先取得本次能力包版本，再沿原更新入口执行 Check 或 DryRun -NoPull 检查，随后 Write -NoPull 应用；无需 Force 或另加清理开关。对 enabled 插件，Check/DryRun 报告 stale 且不改文件，Write 仅删除 YAML frontmatter 中 thin-index: true、source 与当前排除 skill 精确匹配的 SKILL.md，重复更新不再生成。目录、其它文件、非受管文件、来源不匹配文件及链接均保留；保留项如仍需移除须单独核实归属。available/disabled 插件继续按原状态跳过，不借迁移自动启用或删除其入口。
+已部署项目先取得本次能力包版本，再沿原更新入口执行 Check 或 DryRun -NoPull 检查，随后 Write -NoPull 应用；无需 Force 或另加清理开关。对 enabled 插件，Check/DryRun 报告 stale 且不改文件，Write 删除 YAML frontmatter 中 thin-index: true、source 与当前排除 skill 精确匹配的受管 SKILL.md，重复更新不再生成。删除受管索引后若目录完全为空（含隐藏项检查），同时删除该目录；上次更新已留下的空目录也按排除清单定点清理。仅删除目标 ContextRoot/skills 下的排除项空目录，不递归删除；非空目录、其它文件、非受管文件、来源不匹配文件及链接均保留；保留项如仍需移除须单独核实归属。available/disabled 插件继续按原状态跳过，不借迁移自动启用或删除其入口。
 
 standard 与 Overlay 均在目标 ContextRoot 清理，不删除 CapabilityRoot 的真实 init skill。后续初始化或检查直接读取 manifest 指向的插件真实 SKILL.md。运行时技能目录采用链接接入时随之生效；历史独立复制到工具目录或用户目录的文件不在本次自动清理范围。

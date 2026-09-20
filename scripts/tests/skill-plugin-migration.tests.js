@@ -138,6 +138,7 @@ test('Overlay generates module-local owner indexes without modifying shared capa
   assert.equal(fs.readFileSync(skill(root, initName), 'utf8'), legacyInit);
   update(root); assertRoutes(root);
   assert.equal(fs.existsSync(skill(root, initName)), false);
+  assert.equal(fs.existsSync(path.dirname(skill(root, initName))), false);
   assert.ok(fs.existsSync(path.join(capability, '.agents/plugins/agent-framework-evolution/skills', initName, 'SKILL.md')));
   assert.equal(git(path.join(capability, '.agents'), 'status', '--porcelain'), before);
   assert.ok(!fs.existsSync(path.join(root, '.agents/.git')));
@@ -181,4 +182,47 @@ test('excluded init cleanup protects custom content, other sources, companions a
   thin(root, 'agent-framework-evolution', 'Write', true);
   assert.ok(fs.lstatSync(path.dirname(file)).isSymbolicLink());
   assert.equal(fs.readFileSync(file, 'utf8'), managed);
+});
+
+test('excluded init removes only empty directories including leftovers from earlier updates', () => {
+  const root = fixture('empty init leftovers');
+  const name = 'agent-framework-evolution-init';
+  const file = skill(root, name), dir = path.dirname(file);
+  const managed = '---\nthin-index: true\nsource: .agents/plugins/agent-framework-evolution/skills/' + name + '/SKILL.md\n---\n';
+  write(file, managed);
+  assert.match(thin(root, 'agent-framework-evolution', 'DryRun'), /excluded empty plugin skill directory/);
+  assert.equal(fs.readFileSync(file, 'utf8'), managed);
+  thin(root, 'agent-framework-evolution');
+  assert.equal(fs.existsSync(dir), false);
+  // Simulate the preceding updater which deleted SKILL.md but left its directory.
+  fs.mkdirSync(dir);
+  assert.match(thin(root, 'agent-framework-evolution', 'DryRun'), /excluded empty plugin skill directory/);
+  assert.ok(fs.existsSync(dir));
+  thin(root, 'agent-framework-evolution');
+  assert.equal(fs.existsSync(dir), false);
+  thin(root, 'agent-framework-evolution');
+  assert.equal(fs.existsSync(dir), false);
+  write(path.join(dir, '.keep'), 'hidden user file');
+  if (process.platform === 'win32') command('attrib', ['+H', path.join(dir, '.keep')]);
+  thin(root, 'agent-framework-evolution');
+  assert.equal(fs.readFileSync(path.join(dir, '.keep'), 'utf8'), 'hidden user file');
+  if (process.platform === 'win32') command('attrib', ['-H', path.join(dir, '.keep')]);
+  fs.unlinkSync(path.join(dir, '.keep'));
+  fs.mkdirSync(path.join(dir, 'user-folder'));
+  thin(root, 'agent-framework-evolution');
+  assert.ok(fs.existsSync(path.join(dir, 'user-folder')));
+  fs.rmdirSync(path.join(dir, 'user-folder')); fs.rmdirSync(dir);
+  const linked = path.join(root, 'empty linked directory'); fs.mkdirSync(linked);
+  fs.symlinkSync(linked, dir, process.platform === 'win32' ? 'junction' : 'dir');
+  thin(root, 'agent-framework-evolution');
+  assert.ok(fs.lstatSync(dir).isSymbolicLink());
+  assert.ok(fs.existsSync(linked));
+  fs.unlinkSync(dir);
+  // An ancestor link is protected even when the skill directory itself is ordinary.
+  const skillsDir = path.dirname(dir), movedSkills = path.join(root, 'linked skills root');
+  fs.renameSync(skillsDir, movedSkills);
+  fs.symlinkSync(movedSkills, skillsDir, process.platform === 'win32' ? 'junction' : 'dir');
+  fs.mkdirSync(dir);
+  thin(root, 'agent-framework-evolution');
+  assert.ok(fs.existsSync(dir));
 });

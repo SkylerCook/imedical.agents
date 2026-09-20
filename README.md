@@ -575,4 +575,4 @@ guidanceMode（auto/concise/assisted）、executionPath 和 orchestrationMode �
 
 实现与验证边界见 docs/validation/agent-evolution.md；真实跨模型/跨宿主提效及非本机平台仍待取证，不能用静态规则检查替代。
 
-纯初始化 skill 由插件 manifest 的 `thinIndex.excludeSkills` 排除；已启用项目更新会精准清理旧受管 init 薄索引，日常入口继续保留。详见 [迁移说明](docs/update-agents.md#纯初始化-skill-薄索引迁移)。
+纯初始化 skill 由插件 manifest 的 `thinIndex.excludeSkills` 排除；已启用项目更新会精准清理旧受管 init 薄索引及历史遗留空目录，日常入口继续保留。详见 [迁移说明](docs/update-agents.md#纯初始化-skill-薄索引迁移)。

@@ -2,7 +2,7 @@
 
 - IRIS 编码入口按明确专项直达、混合/边界不明路由；部署基线前移，i18n 条件矩阵由前端规则维护。契约测试核对引用与执行时点，真实提效仍按既有基准验证。信创内容不在本轮变更范围。
 
-- 纯 init 薄索引：7 个插件通过 manifest 统一排除，enabled 项目常规 Write 精准清理旧受管入口；真实 init 和日常入口保留，available/disabled 不变。迁移见 docs/update-agents.md。
+- 纯 init 薄索引：7 个插件通过 manifest 统一排除，enabled 项目常规 Write 精准清理旧受管入口及历史遗留空目录，非空目录和链接保留；真实 init 和日常入口保留，available/disabled 不变。迁移见 docs/update-agents.md。
 
 - agent-context-kit 0.4.0 新增 task-handoff：同机同工作区需求按需启用、关键节点维护；docs/handoff 本地保存，正文与机器现场分离，明确交接追加历史快照。直接接手不检查旧会话，用户避免并发写入。普通需求不建正式 run；当前 Codex 宿主的真实新会话接续已于 2026-09-19 经用户验收通过，其它 Agent 宿主和平台矩阵仍待验证；接入与验证见 docs/task-handoff.md。
 

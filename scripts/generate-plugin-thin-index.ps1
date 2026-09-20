@@ -358,6 +358,7 @@ if (Test-Path -LiteralPath $skillsSource -PathType Container) {
             $sourceRel = Get-CapabilityLogicalPath -Path $sourceFile
             $excludedTarget = Join-Path (Join-Path $skillsTarget $skillName) "SKILL.md"
             $targetRel = Get-RelativePathPortable -From $projectRootFull -To $excludedTarget
+            $removeManagedIndex = $false
             if (Test-Path -LiteralPath $excludedTarget -PathType Leaf) {
                 $targetItem = Get-Item -LiteralPath $excludedTarget -Force
                 $isLink = ($targetItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
@@ -373,11 +374,37 @@ if (Test-Path -LiteralPath $skillsSource -PathType Container) {
                     $headerMatch = [regex]::Match($excludedContent, '\A\uFEFF?---\r?\n(?<header>[\s\S]*?)\r?\n---(?:\r?\n|$)')
                     $sourceMatch = [regex]::Match($headerMatch.Groups['header'].Value, '(?m)^source:\s*([^\r\n]+)\s*$')
                     if ($headerMatch.Success -and ($headerMatch.Groups['header'].Value -match '(?m)^thin-index:\s*true\s*$') -and $sourceMatch.Success -and ($sourceMatch.Groups[1].Value.Trim().Replace('\', '/') -ceq $sourceRel.Replace('\', '/'))) {
+                        $removeManagedIndex = $true
                         if ($Mode -eq "Write") {
                             Remove-Item -LiteralPath $excludedTarget
                             $results.Add((Write-Result -Status "removed" -Target $targetRel -Source $sourceRel -Reason "excluded managed plugin skill thin-index"))
                         } else {
                             $results.Add((Write-Result -Status "stale" -Target $targetRel -Source $sourceRel -Reason "excluded managed plugin skill thin-index"))
+                        }
+                    }
+                }
+            }
+            # Also recover empty directories left by earlier versions. Never recurse or follow links.
+            $excludedDirectory = Split-Path -Parent $excludedTarget
+            if ((Test-IsUnderPath -Path $excludedDirectory -ParentPath $skillsTarget) -and (Test-Path -LiteralPath $excludedDirectory -PathType Container)) {
+                $directoryIsLink = $false
+                $cursor = $excludedDirectory
+                while ($cursor -and (($cursor -eq $contextRootFull) -or (Test-IsUnderPath -Path $cursor -ParentPath $contextRootFull))) {
+                    $entry = Get-Item -LiteralPath $cursor -Force
+                    if (($entry.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { $directoryIsLink = $true; break }
+                    if ($cursor -eq $contextRootFull) { break }
+                    $cursor = Split-Path -Parent $cursor
+                }
+                if (-not $directoryIsLink) {
+                    $children = @(Get-ChildItem -LiteralPath $excludedDirectory -Force)
+                    $emptyAfterPreview = ($Mode -ne "Write") -and $removeManagedIndex -and ($children.Count -eq 1) -and ($children[0].Name -eq "SKILL.md")
+                    if (($children.Count -eq 0) -or $emptyAfterPreview) {
+                        $directoryRel = Get-RelativePathPortable -From $projectRootFull -To $excludedDirectory
+                        if ($Mode -eq "Write") {
+                            [System.IO.Directory]::Delete($excludedDirectory, $false)
+                            $results.Add((Write-Result -Status "removed" -Target $directoryRel -Source $sourceRel -Reason "excluded empty plugin skill directory"))
+                        } else {
+                            $results.Add((Write-Result -Status "stale" -Target $directoryRel -Source $sourceRel -Reason "excluded empty plugin skill directory"))
                         }
                     }
                 }

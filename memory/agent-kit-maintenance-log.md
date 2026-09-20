@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+- 2026-09-20（纯 init 空目录清理）：根生成器补齐删除受管索引后的空目录清理，并兼容上一版本仅删除文件后留下的空目录；限定排除项和 ContextRoot/skills，检查隐藏项与祖先链接，使用非递归删除防止误删新增内容。PowerShell 7/Windows PowerShell 5.1 各 8 项迁移专项和 update-agents 完整回归通过，覆盖历史空目录、删除索引后空目录、隐藏文件、空子目录、目录/祖先链接、standard/Overlay 及 Check/DryRun 只读。真实工程 DryRun 已识别截图对应两个空目录，未执行写入。验证证据已记录；非 Windows 矩阵沿用 P2 待验收，未同步业务副本；提交与推送状态以 Git 记录为准。
+
 - 2026-09-19（IRIS 编码入口优化）：coding-iris-plugin 0.13.5 收窄统一入口触发，明确专项直达；部署基线前移，i18n 矩阵归前端规则，修正默认转换编码表述。路由/引用/前置顺序及既有框架契约 5 项通过，含坏路径、坏章节和错误顺序反例。五份主链文档静态字符减少 18.9%，不是模型提效结论；真实对照沿既有 P1 队列。基线 e92a5c6，信创内容保持，源仓改动未提交、推送或同步业务副本；验证详情见 docs/validation/agent-evolution.md。
 
 - 2026-09-19（纯 init 薄索引清理）：7 个插件以 manifest excludeSkills 统一初始化与更新策略，复用根生成器精准删除历史受管入口；同步初始化验收、README 与迁移说明。PowerShell 7/Windows PowerShell 5.1 的 update-agents 全量回归、各 7 项迁移专项及性能分析专项通过，医生站 AI 10 项专项通过；覆盖 Check/DryRun 只读、Write 删除、幂等、standard/Overlay、旧更新器升级、状态保留及自定义/链接保护。7 个真实 manifest 排除与 canonical 可达检查通过，版本校验无本次新增问题；quick_validate 因缺 PyYAML 不可运行，改用 frontmatter 静态检查与真实生成器验证。非 Windows 矩阵仍列 P2。验证证据已记录；未同步真实业务副本或推送，提交状态以 Git 历史为准。
