@@ -87,6 +87,9 @@ xml += "<ROOT><NAME>" + name + "</NAME></ROOT>";  // 禁止！
 
 ### 必须遵守（MUST DO）
 
+- **跨模块方法调用必须先读源文件**：调用任何非本项目编写的类的构造器、getter、setter 或普通方法前，必须先读取该类源文件确认方法真实存在。**禁止凭命名惯例猜测方法名**（如假设 `getDiagName()` 存在而实际是 `getDiagDesc()`，假设 `setEpisodeId()` 存在而实际是 `setPatDr()` 或 `setAdmId()`）。此规则同等适用于 import 语句——禁止凭类名猜测包路径，必须读取源文件确认 package 声明
+- **Feign 客户端返回类型必须验证**：调用任何 `@FeignClient` 接口的方法前，必须读取该接口源文件确认返回类型。**所有 Feign 客户端（包括 `hispa`、`hiscfsv`、`himspha` 等包）的查询方法返回类型均为 `BaseResponse<T>`（而非裸 `T`），必须通过 `.getData()` 或 `.isSuccess()` + `.getData()` 提取实际数据，禁止直接赋值给裸类型变量。** 典型错误示例：`List<T> list = xxxClient.getXxx(ids)`（缺少 `.getData()`），正确写法 `List<T> list = xxxClient.getXxx(ids).getData()`。此规则适用于所有 `@FeignClient` 接口——调用前未读源文件确认返回类型 = 违反 MUST DO
+- **IP/OP 公共逻辑必须提取到共享抽象类**：当 IP 和 OP 模块包含相同业务逻辑时，必须将公共方法提取到 `comoe-external/blh/{platform}/` 下的共享抽象类中。使用公共模块类型（hiscore/hispa/comoe/commr/hiscfsv）的方法可以直接提取；使用 IP/OP 特有 Feign 客户端类型的方法（不同包路径但 API 相同）保留在模块抽象类中。模块差异通过 `protected abstract` 钩子方法实现，不得为微小差异复制整个方法
 - **后端格式转换**：所有 XML/JSON 转换在后端通过 VO + Jackson 注解完成 — 详见规则 5
 - **标准字段命名**：VO/DTO 使用 HIS 标准英文字段名 — 详见 `imedicalxc-doctor-extend-dataformat`
 - **注册外部接口**：必须在外部接口管理（CF_Doc_Interface_Portal）中注册
@@ -97,7 +100,9 @@ xml += "<ROOT><NAME>" + name + "</NAME></ROOT>";  // 禁止！
   - WebSocket 连接在触发点由前端管理，报文内容不经解析（主 skill §1.2）
 - **使用业务中间件生命周期钩子**：前端通过 `Init` / `BeforeUpdate` 等生命周期钩子嵌入
 - **模块级类名前缀**：ipcare 模块中的类（Controller/BLH/Service/Model）必须以 `IpCare` 开头，opcare 模块中的类必须以 `OpCare` 开头。例如：ipcare 中的 `IpCareAdmController`，opcare 中的 `OpCareMrdiaBLH`。此规则确保类名即可标识归属模块，避免跨模块命名冲突
+- **厂商级类名标识**：当同一模块中存在来自不同厂商的同功能域集成时，类名必须包含厂商/平台标识以避免命名冲突。命名格式：`{ModulePrefix}{VendorName}{Feature}{Type}`。例如：`OpCareGuangDongExamLabHRController`（广东检查检验互认平台）、`IpCareGuangDongExamLabHRAbstract`（广东住院抽象类）。厂商包路径（如 `guangDongShengPingTai`）中的关键标识（如 `GuangDong`）必须出现在类名中。即使当前只有一个同功能域集成，新创建的类也必须遵循此规则，为后续多厂商扩展预留空间
 - **前后端按 admtype 路由**：前端页面必须根据就诊类型（admtype）调用对应模块的后端服务。门急诊（OP/EM）→ 调用 `opcare` 服务，住院（IP）→ 调用 `ipcare` 服务。禁止在门急诊页面中调用 ipcare 接口，也禁止在住院页面中调用 opcare 接口。融合层（aggcare）不区分 admtype，可同时调用两者
+- **Git 提交后必须推送到远端**：每次 `git commit` 完成后，必须立即执行 `git push` 推送到远端仓库。提交不是完成——推送才是。多仓库场景按依赖拓扑序推送（被依赖者优先：comoe-mediway → opcare/ipcare-mediway-boot → hisfront）。**禁止先推送依赖方（opcare/ipcare）再推送被依赖方（comoe-mediway）**——这会导致 CI 编译依赖方时拉取到被依赖方的旧版 jar，因缺少新增的接口/方法/类而编译失败。提交完所有仓库后，先统一拉取（`git pull --rebase`）同步远端更新，再按拓扑序依次推送。每推送完一个被依赖仓库后，确认其 CI 构建通过，再推送下一个依赖方
 
 ### 禁止事项（MUST NOT DO）
 
@@ -108,6 +113,7 @@ xml += "<ROOT><NAME>" + name + "</NAME></ROOT>";  // 禁止！
 - **WebSocket 绕过**：禁止未经后端数据组装直接发往 WebSocket
 - **将其他接口 JS 或 .history 文件作为主要参考**：编写外部接口层 JS 时，禁止以其他已存在的接口 JS 文件或 IDE 本地历史文件（`.history/`）为主要参考来源。必须首先以中间件 JS 文件中的 JSDoc `@typedef` + `@example` 为权威契约，再以主 skill §3.4 外部接口对象结构模板为代码骨架。其他接口 JS 仅可作为补充参考，不得直接复制其实现模式
 - **将复杂钩子参数不透明地透传给后端**：禁止在不理解复杂参数内部结构的情况下将其原样透传给后端。当钩子入参是 `Object`/`Array` 等复杂类型时，必须先提取其内部字段结构（字段名、类型、含义），再根据后端 DTO 需要选择性传递。全量透传一个内容未知的复杂对象给后端，导致后端被迫使用 `Map<String, Object>` 接收入参 = FAIL
+- **在被依赖仓库推送前先推送依赖方**：禁止在 comoe-mediway 推送前先推送 opcare/ipcare-mediway-boot。当修改了 comoe-external 中的共享抽象类（新增方法签名、修改接口、调整继承链）时，opcare/ipcare 的子类依赖这些变更才能通过编译。错误操作顺序：先推送 opcare/ipcare → CI 拉取旧版 comoe-external jar → 编译失败。正确顺序：先推送 comoe-mediway → 等待 CI 构建通过 → 再推送 opcare/ipcare。一旦发现推送顺序错误已发生且 CI 编译失败，立即推送被依赖仓库（comoe-mediway）并重新触发依赖方的 CI 构建
 
 ---
 
@@ -184,12 +190,13 @@ xml += "<ROOT><NAME>" + name + "</NAME></ROOT>";  // 禁止！
 - [ ] Jackson 注解正确（XML 用 @JacksonXmlProperty，JSON 用 @JsonProperty）
 - [ ] 后端任务未在前端契约任务完成前开始
 - [ ] 外部接口已在外部接口管理（CF_Doc_Interface_Portal）中注册
+- [ ] 前端 JS 文件名使用首字母大写的驼峰命名（PascalCase），如 `ExamLabHR.js`，禁止 `examLabHR.js`
 - [ ] 前端页面 admtype 路由正确：门急诊（OP/EM）页面调 opcare 后端，住院（IP）页面调 ipcare 后端，无跨 admtype 调用
 
 ### 清单 7：架构合规
 - [ ] 已从主 skill §3.1 确认所有需嵌入的中间件入口（不限于 OEOrd）
 - [ ] 已从主 skill §3.2 确认所有 Required 标记的钩子已实现
-- [ ] 前端 JS 文件路径：`{hisfront}/static/comoe/interface/{Vendor}/{Module}.js`（`{hisfront}` 为前端独立根目录，**禁止**放在 `his/hisfront/` 下，**禁止**缺少厂商子目录直接放 `comoe/interface/` 根下）
+- [ ] 前端 JS 文件路径：`{hisfront}/static/comoe/interface/{Vendor}/{Module}.js`（`{hisfront}` 为前端独立根目录，**禁止**放在 `his/hisfront/` 下，**禁止**缺少厂商子目录直接放 `comoe/interface/` 根下）。`{Module}.js` 文件名必须使用**首字母大写的驼峰命名（PascalCase）**，如 `ExamLabHR.js`、`DrugAssist.js`，禁止使用 `examLabHR.js`、`drugAssist.js` 等小写开头命名
 - [ ] 后端 Controller 属于主 skill §4.1 规定的业务模块（opcare/ipcare）
 - [ ] WebSocket 实现遵循主 skill §1.2 WebSocket 模式
 - [ ] ESB 实现遵循主 skill §1.2 ESB/集成平台模式
@@ -238,13 +245,51 @@ xml += "<ROOT><NAME>" + name + "</NAME></ROOT>";  // 禁止！
 - [ ] 不存在 null 返回、空集合/映射、空对象、`UnsupportedOperationException`、空方法体、仅日志方法或透传返回
 - [ ] 计划中的每个功能点都有对应实现方法，且包含真实业务逻辑
 - [ ] 未赋值的 VO/DTO 字段有单行注释说明原因
-- [ ] 声称“不可用”的注释已对照 `LoginUserInfo` getter 验证
+- [ ] `fillDoctorIdInfo` 等方法未留空字符串占位（`request.setYssfzh(“”)`）；已按”常用数据查询链路”实现完整 DocCacheUtils 查询链
+- [ ] 声称”不可用”的注释已对照 `LoginUserInfo` getter 验证
 
 ### 清单 14：单元测试质量
 - [ ] 每个 `@Test` 至少包含一个 `assert*` / `verify` / `assertEquals`
 - [ ] 每个新增 public/protected 方法都有正常路径测试和异常/边界路径测试
 - [ ] 断言验证业务含义，而非仅 `assertNotNull`
 - [ ] Mock 仅用于外部依赖（Feign、Mapper、文件系统）；核心逻辑不被 Mock
+
+### 清单 15：跨模块依赖导入路径校验
+- [ ] 每个 import 语句引用的类文件在声明路径上真实存在（通过 `glob` 或 `grep` 验证 `package` 声明与 import 路径一致）
+- [ ] Feign 客户端 DTO/VO 的 import 路径包含完整子包路径（如 `model.dto.queryOeOrdItem.FeignQueryOeOrdDTO`，非 `model.dto.FeignQueryOeOrdDTO`）
+- [ ] 未使用通配符 import（`import com.xxx.*`），每个类单独 import
+- [ ] 跨模块 import 路径与目标模块 pom.xml 中的依赖声明一致（模块 artifactId 决定基础包路径）
+- [ ] 同模块内 import 通过本模块目录结构验证
+
+### 清单 17：IP/OP 共享抽象类提取验证
+
+**当实现同时涉及 IP 和 OP 模块时，必须按以下清单逐项检查共享逻辑是否正确提取。**
+
+- [ ] **公共模块方法已提取**：使用纯公共类型（hiscore/hispa/comoe/commr/hiscfsv/hisbase）的通用方法已提取到 `comoe-external/blh/{platform}/` 共享抽象类中。典型可提取方法：`buildVisitsByEpisodeId`（含抽象钩子）、`buildAllergs`、`buildDiags`、`getConfigVal`、`fillBaseReq`、`callDrugAssist`
+- [ ] **Feign 类型方法保留在模块**：使用 IP/OP 特有 Feign 客户端类型的方法（`buildRecipes` 中使用 `QueryOeOrdItemClient` / `FeignOeOrdDTO` / `FeignOeOrdItemVO` 等）保留在模块抽象类（opcare/ipcare）中。即使 IP 和 OP 的 Feign 类型 API 完全相同，它们来自不同包路径（`opcare.api.oeord.*` vs `ipcare.api.oeord.*`），**无法在同一 Java 文件中同时 import**
+- [ ] **模块差异使用抽象钩子**：方法中少量 IP/OP 差异部分通过 `protected abstract` 钩子方法实现（如 `fillVisitsExt` 区分门诊设 `outpatientNo`、住院设 `hospitalizationNo`），禁止为微小差异复制整个方法
+- [ ] **共享字段已上移**：公共 `@Resource` 注入字段（`paadmMergePatService`、`mrDiagnosService`、`queryPaAllergyInfoClient` 等）已声明在共享抽象类中。模块特有 Feign 客户端（`queryOeOrdItemClient`）保留在模块抽象类中
+- [ ] **共享服务使用 setter 注入**：当 `@Resource` 注入的共享服务（如 `PapatExternalPortalAbstract`、`MrdiaExternalPortalAbstract`）同时存在 OP 和 IP 两个实现 Bean 时，**禁止**在 Shared Abstract 中用 `@Resource` 按类型注入。应采用三层 setter 注入 + 抽象钩子模式：Shared Abstract 声明 `protected abstract void setXxx(XxxAbstract xxx)` → Module Abstract 覆写为纯赋值（不加 `@Resource`，因为抽象类上的 `@Resource` 被子类覆写遮蔽后会触发类型解析）→ **Concrete BLH Shell（ext 子包）再次覆写并标注 `@Resource(name = "具体的OP/IP Bean名")`**，方法体调用 `super.setXxx(xxx)`。参考：`huNanShengPingTai/examLabHR/behave/DriveCommonAbstract.java`
+- [ ] **BLH Shell 继承链正确**：Controller → BLH Shell（ext，`@BLH` 注解）→ 模块抽象类（opcare/ipcare）→ 共享抽象类（comoe-external），每层职责清晰
+- [ ] **参考模式已验证**：共享抽象类的结构与 `PublicHealthReportAbstract`（纯抽象入口模式）或 `DrugAssistAbstract`（共享工具方法 + 抽象钩子模式）一致
+
+**典型反例**：
+- IP 和 OP 的 `buildRecipes` 方法代码完全相同（仅 `bizType` 不同），但因为使用各自模块的 Feign 类型无法共享 → 保留在各自模块抽象类中，不算违规
+- `buildAllergs` 在 IP 和 OP 中完全重复但未提取 → 违规，因为 `QueryPaAllergyInfoClient` 来自公共模块 `hispa`，可以直接共享
+- `buildVisitsByEpisodeId` 因 IP/OP 3 行差异而整体复制两份 → 违规，应使用抽象钩子 `fillVisitsExt` 处理差异
+
+### 清单 16：跨模块 VO/PO 字段与方法调用验证
+
+**铁律：不对任何未读取源文件的类调用方法。每层 getter 链的每个方法名都必须通过读源文件确认。**
+
+- [ ] **嵌套 VO 结构已展开**：读取外层 VO 源文件后，如发现其字段是嵌套 VO（非 String/Long/Date 等基本类型），需继续读取嵌套 VO 源文件，确认完整链路。示例：`FeignOeOrdItemVO` 内部只有 `oeOrdItemMastData`/`oeOrdItemMainData` 两个嵌套 VO，药品字段在 `getOeOrdItemMastData().getXxx()` 中
+- [ ] **字段名大小写精确匹配**：Lombok getter 名由字段名字面生成——`episodeID` → `getEpisodeID()`，`episodeId` → `getEpisodeId()`。二者不可互换
+- [ ] **字段名与业务概念名不一致时以源文件为准**：HIS 内部字段名可能异于业务概念（如 `itmMastCode` 非 `arcimCode`，`instrCode` 非 `usageCode`，`orderSpec` 非 `spec`）。禁止按概念名反推字段名，必须读源文件确认
+- [ ] 对 Merge VO（如 `PaadmIPOPMergePatInfoVO`）已确认其内部只含 PO 对象，需通过 PO 链访问数据（如 `vo.getPaPatMastPO().getName()`），而非假设 VO 有扁平便捷 getter
+- [ ] 所有嵌套对象链访问都有中间空值保护（LEFT JOIN 的 PO、可选的嵌套 VO 都可能为 null）
+- [ ] **Feign 客户端返回值已解包**：所有 Feign 客户端方法调用（如 `queryPaPatClient.getPaPatAddressStandard()`、`queryPaPatClient.getPaPatContacterStandard()` 等）已通过读源文件确认返回 `BaseResponse<T>` 类型，并通过 `.getData()` 或 `.isSuccess()` + `.getData()` 正确解包，未直接赋值给裸 `T` 类型变量
+- [ ] 枚举/字典外键字段（如 `sexDr`）的使用语义符合第三方接口期望（传 code 还是需要查描述）
+- [ ] 日期字段类型已确认（`LocalDate` vs `LocalDateTime`），格式化方式与类型匹配
 
 ### 常用 LoginUserInfo 字段参考
 
@@ -266,6 +311,58 @@ xml += "<ROOT><NAME>" + name + "</NAME></ROOT>";  // 禁止！
 | 角色列表 | `getRoleIdList()` | roleIds |
 
 若声称缺失的字段在上表中存在，则该注释无效 = FAIL。
+
+### 常用数据查询链路
+
+以下为标准 DocCacheUtils 数据查询链路，实现 `fillDoctorIdInfo` 或类似方法时直接使用，**禁止留空字符串占位**。
+
+#### 医生身份证号查询
+
+```java
+// admdocDr → ct_rb_careprov → person_dr → hos_org_person → identityId
+if (paadmPO.getAdmdocDr() != null) {
+    CtRbCareprovPO careprovPO = DocCacheUtils.getByKey(CtRbCareprovPO.class, paadmPO.getAdmdocDr());
+    if (careprovPO != null) {
+        String identityId = Optional.ofNullable(
+                DocCacheUtils.getByKey(HosOrgPersonPO.class, careprovPO.getPersonDr()))
+                .map(HosOrgPersonPO::getIdentityId).orElse("");
+        request.setYssfzh(identityId);
+    }
+}
+```
+
+**涉及的类**：
+
+| 类 | 完整路径 | 表 |
+|---|---------|-----|
+| `CtRbCareprovPO` | `com.mediway.his.hiscore.ct.model.entity.rb.CtRbCareprovPO` | `ct_rb_careprov` |
+| `HosOrgPersonPO` | `com.mediway.his.hiscore.ct.model.entity.org.HosOrgPersonPO` | `hos_org_person` |
+| `DocCacheUtils` | `com.mediway.his.hisbase.doc.utils.DocCacheUtils` | — |
+
+**关键字段**：
+
+| PO | 字段 | Getter | 用途 |
+|----|------|--------|------|
+| `CtRbCareprovPO` | `person_dr` | `getPersonDr()` | 关联 `hos_org_person.id` |
+| `HosOrgPersonPO` | `identity_id` | `getIdentityId()` | 身份证号（目标值） |
+
+#### 证件类型代码查询
+
+```java
+// credTypeDr → hos_ct_identity_type_dict.id → code
+if (StrUtil.isNotBlank(patMastPO.getCredTypeDr())) {
+    HosCtIdentityTypeDictPO credTypePO = DocCacheUtils.getByKey(HosCtIdentityTypeDictPO.class, patMastPO.getCredTypeDr());
+    if (credTypePO != null) {
+        request.setZjlxdm(credTypePO.getCode());
+    }
+}
+```
+
+| 类 | 完整路径 | 表 |
+|---|---------|-----|
+| `HosCtIdentityTypeDictPO` | `com.mediway.his.hiscore.ct.model.entity.dic.HosCtIdentityTypeDictPO` | `hos_ct_identity_type_dict` |
+
+**关键字段**：`credTypeDr` 是 `hos_ct_identity_type_dict.id` 的外键（UUID），**不是**代码值。必须通过 `DocCacheUtils.getByKey` 查出 PO 后取 `getCode()` 才能得到第三方系统需要的证件类型代码。
 
 ---
 

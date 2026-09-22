@@ -1,6 +1,5 @@
 ---
 name: imedicalxc-doctor-extend-engineer
-version: 1.0.0
 description: |
   HIS 医生站第三方系统集成全流程编排器。将用户从需求头脑风暴 → 设计 → 实施 → 测试 → HIS域验证 → CI/CD 交付的完整 10 步工作流加载到当前会话中执行。用于任何涉及医生工作流的第三方厂商集成（诊断、医嘱、处方、病历等）。
 triggers:
@@ -26,7 +25,7 @@ priority: highest
 
 # HIS 医生站第三方系统集成 — 全流程编排器
 
-你现在是 HIS 医生站第三方系统集成的全流程编排工程师。本 Skill 已在**主会话**中加载，你以编排器身份推进工作流。对于独立的、可并行的子任务（代码探索、中间件开发、实现者、审查者、构建验证、领域验证、Jenkins 触发），**显式使用 Agent 工具派发子代理**执行。编排决策和用户交互由你在主会话中直接完成。
+你现在是 HIS 医生站第三方系统集成的全流程编排工程师。本 Skill 已在**主会话**中加载，你以编排器身份推进工作流。对于独立的、可并行的子任务，优先使用当前 Agent 工具提供的子代理能力；若当前工具不支持子代理，则由当前 Agent 按相同步骤串行执行。编排决策和用户交互由主会话完成。
 
 你的职责是**流程编排**：定义步骤顺序、在每步加载正确的子技能、确保整个过程中加载正确的领域知识。你不包含任何 HIS 领域规则、约束或编码标准——所有领域知识必须按需从相应子技能加载。
 
@@ -54,26 +53,26 @@ priority: highest
 
 ---
 
-### 强制前置条件 2：Superpowers 依赖校验
+### 强制前置条件 2：流程能力依赖校验
 
 <HARD-GATE>
-本 Skill 的 Step 2/3/5/10 依赖以下 superpowers 技能，**开始工作流前必须确认全部可用**：
+本 Skill 的设计、计划、实施和分支完成阶段依赖以下 canonical skill，**开始工作流前必须确认全部可用**：
 
 | 依赖 Skill | 使用步骤 | 用途 |
 |-----------|---------|------|
-| `superpowers:brainstorming` | Step 2 | 需求头脑风暴与设计文档生成 |
-| `superpowers:writing-plans` | Step 3 | 生成结构化实施计划 |
-| `superpowers:subagent-driven-development` | Step 5 | 派发并管理并行实施子代理 |
-| `superpowers:finishing-a-development-branch` | Step 10 | 分支最终化（合并/PR/清理） |
+| `brainstorming` | 需求设计 | 需求头脑风暴与设计文档生成 |
+| `writing-plans` | 计划 | 生成结构化实施计划 |
+| `subagent-driven-development` | 实施 | 子代理实施；无子代理能力时读取规则后串行执行 |
+| `finishing-a-development-branch` | 完成 | 分支最终化（合并/PR/清理） |
 
-**校验方法**：逐一调用 `Skill` 工具加载上述 skill，若任一返回"未找到"或加载失败，立即中止工作流，并向用户输出以下同步指引：
+**跨工具加载顺序**：先请求当前运行时按 canonical name 加载；工具 adapter 可以映射为 `superpowers:<name>` 等原生名称；若运行时没有 skill 加载能力，则读取 `.agents/skills/<name>/SKILL.md` 并继续读取其 `source`；仍不可用时直接读取 `.agents/vendor/superpowers/skills/<name>/SKILL.md`。只有 vendor 源也缺失时才中止。
 
 ```
-依赖缺失：superpowers 技能集未安装或版本不完整。
+依赖缺失：required 流程能力及其 vendor fallback 不可用。
 
 处理步骤：
 1. 确认目标工程 `.agents/vendor/superpowers/` 存在。
-2. 按 `.agents/docs/update-agents.md` 运行 vendor skill 同步：`.agents/scripts/sync-vendor-skills.ps1 -AgentsRoot .agents -Mode DryRun|Write`，或通过常规 `update-agents.ps1` 完成同步。
+2. 按 `.agents/docs/update-agents.md` 运行常规 `update-agents.ps1` 生成项目通用 thin-index；只有需要用户级原生同步时，才显式传入 `sync-vendor-skills.ps1 -Skill <name> -Runtime <runtime>`。
 3. 重新加载会话后再次触发本 Skill。
 
 缺失清单：<列出具体缺失的 skill>
@@ -88,9 +87,20 @@ priority: highest
 
 ---
 
+### Step 0：接口资料摄取（可选输入、命中后强制完成）
+
+- 未提供接口文档：记录需求来源为用户描述，继续 Step 1。
+- 提供 `.doc` / `.docx`：优先使用当前工具原生 Word 读取能力；不可用时加载 canonical `word-reader`，再不可用时直接读取 `.agents/vendor/word-reader/SKILL.md` 并按其流程执行。
+- 提供 PDF、Markdown、网页或粘贴文本：使用当前工具对应的读取能力，不触发 `word-reader`。
+- 用户已提供文档但读取失败：停止并报告具体失败，不得忽略附件直接进入设计。
+
+**产出**：接口目标、术语、请求/响应结构、约束、错误码和待确认项摘要；后续设计必须引用该摘要。
+
+---
+
 ### Step 1：需求头脑风暴
 
-使用 `superpowers:brainstorming` skill 探索需求并生成设计文档。
+按上述跨工具加载顺序使用 canonical `brainstorming` skill 探索需求并生成设计文档。
 
 设计提案和最终设计文档必须遵循前置条件中加载的约束并对齐架构原则。
 
@@ -149,7 +159,7 @@ priority: highest
 用户批准设计文档后，在进入计划编写前执行范围分析。
 
 <MANDATORY-GATE>
-**STOP。在编写任何计划之前，必须使用 Skill 工具加载 `imedicalxc-doctor-extend-scope` skill。**
+**STOP。在编写任何计划之前，必须按当前工具的 skill 加载方式加载 `imedicalxc-doctor-extend-scope`；若工具无 skill 机制，则直接读取该 canonical `SKILL.md`。**
 
 这个门禁决定工作流是继续还是终止。不可跳过。
 - 调用：`Skill` 工具，`skill="imedicalxc-doctor-extend-scope"`
@@ -174,9 +184,9 @@ priority: highest
 ### Step 3：集成计划编写
 
 <MANDATORY>
-**生成实施计划前必须加载 `superpowers:writing-plans` skill。**
+**生成实施计划前必须加载 canonical `writing-plans` skill。**
 
-调用：`Skill` 工具，`skill="superpowers:writing-plans"`，将 Step 2 的**裁剪后设计文档**作为上下文传入。
+按跨工具加载顺序加载该 skill，并将 Step 2 的**裁剪后设计文档**作为上下文传入。
 未加载此 skill 前不得手动编写计划。该 skill 定义了计划格式、任务拆解规则和审查门禁。
 </MANDATORY>
 
@@ -240,9 +250,17 @@ priority: highest
 3. 已规划 `DocCacheUtils` 缓存 key 与过期时间。
 
 **探索发现必须反映到任务拆解中：**
-- 接口已存在 → 复用，不为它创建任务
+- 接口已存在 → 复用，不为它创建任务。**记录完整的全限定类名（包路径 + 类名），通过读取源文件确认 package 声明，禁止凭经验猜测包路径**
 - 无现有查询路径 → 创建 TODO 任务，明确包含建议的表、映射和查询结构
 - Feign 依赖不在 pom → 在数据源清单中包含二次验证结果（采用或拒绝，含理由）
+
+**全限定类名记录规范（强制）**：每个发现的可复用数据源，必须在报告中包含：
+```
+类名: FeignQueryOeOrdDTO
+完整包路径: com.mediway.his.opcare.api.oeord.model.dto.queryOeOrdItem
+验证方式: 已读取源文件确认 package 声明
+```
+禁止仅记录短类名（如 `FeignQueryOeOrdDTO (model.dto 下)`），禁止凭类名反推包路径。
 
 **任务合并优化**：数据源清单完成后，审查计划任务是否有合并机会。如果多个方法从同一数据源查询同一数据实体，合并为单一方法减少数据库往返。原则：更少的方法调用、更少的数据库查询、更高的请求效率。合并后的任务列表仍需保持每个方法单一职责清晰。
 
@@ -287,15 +305,14 @@ priority: highest
 ### Step 4：子代理驱动实施（TDD + HIS 门禁）
 
 <MANDATORY>
-**派发任何 implementer 子代理之前，必须先加载 `superpowers:subagent-driven-development` skill。**
+**实施前必须先加载 canonical `subagent-driven-development` skill。**
 
-调用：`Skill` 工具，`skill="superpowers:subagent-driven-development"`。
-此 skill 定义了子代理的派发、审查和验证模式。未加载此 skill 前不得派发 implementer。
+按跨工具加载顺序加载该 skill。它定义子代理的派发、审查和验证模式；当前工具无子代理能力时，主 Agent 必须按同一任务和审查顺序串行执行。
 </MANDATORY>
 
 **此步完成所有编码。此步之后不再写实现代码。**
 
-> 实施过程中需要派发子代理（implementer、规格审查者、代码质量审查者），使用 Agent 工具派发。每次子代理返回后，你作为编排器检查结果并决定下一步。
+> 实施过程中优先使用当前工具的子代理能力派发 implementer、规格审查者和代码质量审查者。工具无子代理能力时，由当前 Agent 严格按相同角色顺序串行执行；每一角色完成后再进入下一角色。
 
 #### Maven 编码（强制）
 
@@ -367,7 +384,24 @@ mvn compile -DskipTests -o
 3. 处理返回值：“前置信息不完整”→补充并重发；“DLL文件未找到”→确认路径并重发；“编译失败”→skill 自行诊断；成功→记录产物路径
 4. 将中间件交付物（jar 路径 + 文档）注入后续任务上下文
 
-如果没有中间件任务，跳到 TDD 强制执行。
+如果没有中间件任务，跳到编码前源文件验证。
+
+#### 编码前源文件验证（强制门禁 — 所有后端任务）
+
+<HARD-GATE>
+**implementer 在编写任何 Java 代码前，必须先读取所有将使用的跨模块类的源文件，验证以下内容：**
+
+1. **Import 路径**：读取每个将 import 的类源文件，确认 `package` 声明与 import 路径完全一致（含所有子包层级）
+2. **Getter/Setter**：读取每个 DTO/VO/PO 类源文件，列出所有字段，确认 Lombok `@Data` 生成的 getter/setter 名称与字段名精确对应。**特别注意大小写**：`episodeID` → `getEpisodeID()`，`episodeId` → `getEpisodeId()`——Lombok 不修正大小写
+3. **嵌套 VO/Merge VO 结构展开**：读取每个 VO 类源文件，如字段类型是另一个 VO 而非基本类型，**必须递归读取嵌套 VO 源文件**，构建完整调用链。示例：`FeignOeOrdItemVO` → `getOeOrdItemMastData()` → `FeignQueryOrdItmMastVO` → `getItmMastCode()`。禁止在看到嵌套 VO 的第一层就停止
+4. **字段名与业务概念对照**：HIS 内部字段名常异于业务概念（`itmMastCode` 非 `arcimCode`，`instrCode` 非 `usageCode`），以源文件中的字段名和 `@ApiModelProperty` 描述为准，禁止按概念反推
+5. **DTO 字段语义**：阅读每个 DTO 字段的 `@ApiModelProperty` 注释，确认字段业务含义与调用意图匹配
+6. **Feign 返回类型确认**：读取每个将调用的 `@FeignClient` 接口源文件，确认返回类型是 `BaseResponse<T>` 还是裸 `T`。**所有 Feign 客户端查询方法返回 `BaseResponse<T>`，必须调用 `.getData()` 解包后赋值，禁止直接赋值给裸类型变量。** 典型错误：`List<T> list = xxxClient.getXxx(ids)` 漏写 `.getData()`。正确写法：`List<T> list = xxxClient.getXxx(ids).getData()`
+
+**验证产出**：在 implementer 子代理 prompt 的数据源清单中，每个类必须附带已验证的完整类路径和关键方法名列表。
+
+**自检**：如果 implementer 子代理声称完成但未在 prompt 中包含上述验证产出，说明跳过了此门禁。
+</HARD-GATE>
 
 #### TDD 强制执行（铁律）
 
@@ -403,7 +437,7 @@ mvn compile -DskipTests -o
 - BLH-4：包路径
 - BLH-5：配置
 
-**适用范围**：前端任务 → 清单 2、3、4、6、7。后端任务 → 清单 2、3、4、5、6、7。后端+BLH → 增加 BLH-1 至 BLH-5。中间件任务 → 增加清单 1、7。WebSocket 任务 → 增加清单 7。
+**适用范围**：前端任务 → 清单 2、3、4、6、7。后端任务 → 清单 2、3、4、5、6、7。后端+BLH → 增加 BLH-1 至 BLH-5。中间件任务 → 增加清单 1、7。WebSocket 任务 → 增加清单 7。IP/OP 双模块任务 → 增加清单 17。
 
 **自检**：如果某任务完成第一次审查但尚未派发 HIS 领域审查，说明跳过了此门禁。
 
@@ -432,6 +466,14 @@ mvn compile -DskipTests -o
 7. `imedical-bsp-websysaddins`（中间件参考，仅按需）
 
 **数据源注入（后端任务强制）**：每个后端 implementer 子代理必须收到 Step 3 的数据源清单。直接放入子代理 prompt。
+
+**跨模块 import 路径验证（后端任务强制）**：implementer 在编写跨模块 import 语句时，必须通过读取目标类源文件确认其完整包路径（package 声明），禁止凭类名或经验猜测包路径。写入 import 后，必须使用 `grep` 或 `glob` 验证目标文件存在于声明的路径下。未经路径验证的代码不得提交编译。
+
+**跨模块 VO/PO 方法调用验证（后端任务强制）**：implementer 在调用任何跨模块类的 getter/setter 或其他方法前，必须读取目标类源文件确认方法真实存在。关键规则：
+- Merge VO 类（如 `XxxMergePatInfoVO`）通常只含 PO 对象，数据通过 PO 链访问（`vo.getXxxPO().getField()`），不要假设 VO 有扁平便捷 getter
+- Lombok `@Data` PO 类的 getter 名由实际字段名决定（`birthDay` → `getBirthDay()`），不能按命名惯例猜测
+- 所有 PO 链访问需做中间空值保护（LEFT JOIN 的 PO 可能为 null）
+- 未经源文件验证的方法调用不得提交编译
 
 **编译门禁注入（所有任务 — 强制）**：每个 implementer 子代理 prompt 中必须包含以下编译门禁指令：
 
@@ -567,6 +609,12 @@ SQL 复用与性能分析：验证每个数据实体通过现有可复用接口�
 
 **单元测试质量审查**：执行 `domain-constraints.md` → **清单 14：单元测试质量**。
 
+**跨模块依赖导入路径校验**：执行 `domain-constraints.md` → **清单 15：跨模块依赖导入路径校验**。
+
+**跨模块 VO/PO 字段与方法调用验证**：执行 `domain-constraints.md` → **清单 16：跨模块 VO/PO 字段与方法调用验证**。
+
+**IP/OP 共享抽象类提取验证**：执行 `domain-constraints.md` → **清单 17：IP/OP 共享抽象类提取验证**（仅当实现同时涉及 IP 和 OP 模块时执行）。
+
 **铁律**：未得到新验证证据之前不得声称完成。运行验证，读取输出，然后再声称结果。
 
 **人工确认铁律**：以下类型的 FAIL 禁止代理自行判定“可豁免”或“已修正”，必须输出到主会话等待人工确认：
@@ -602,6 +650,23 @@ feat({vendor}-{module}): {简要描述}
 
 多仓库检测：每个已改变文件运行 `git rev-parse --show-toplevel`，按仓库分组，每仓库单独提交。
 
+#### 7.X：推送到远端（强制）
+
+每个仓库提交完成后，必须执行以下推送流程：
+
+1. **拉取远端更新**：`git pull`（或 `git pull --rebase`），确保本地包含远端最新提交
+2. **解决冲突**：如有冲突，分析冲突内容并合理解决，保留双方的完整功能
+3. **推送到远端 master**：`git push` 推送到远端 master 分支（或当前分支对应的远端跟踪分支）
+4. **验证推送结果**：确认所有仓库 push 成功，远端分支已包含本地提交
+
+**推送顺序**：严格按依赖拓扑序（被依赖的仓库优先推送），通常顺序为 comoe-mediway → opcare/ipcare-mediway-boot → hisfront → root。
+
+**关键约束**：当修改了 comoe-external 中的共享抽象类（新增方法签名、修改接口、调整继承链）时，**必须先推送 comoe-mediway 并等待其 CI 构建通过**，然后才能推送 opcare/ipcare-mediway-boot。因为 opcare/ipcare 的子类编译需要 comoe-external 新 jar。违反此顺序会导致 CI 编译失败（如 `method does not override or implement a method from a supertype`）。
+
+若推送后发现 CI 编译失败并确认是依赖顺序问题，立即推送被依赖仓库并重新触发 CI。
+
+**冲突解决原则**：新增文件直接保留；同文件修改时保留双方新增逻辑，避免删除他人的功能代码。如有无法自动合并的复杂冲突，输出冲突内容到主会话等待人工确认。
+
 ---
 
 ### Step 8：Jenkins CI/CD 验证
@@ -621,9 +686,9 @@ feat({vendor}-{module}): {简要描述}
 ### Step 9：完成分支
 
 <MANDATORY>
-**必须加载 `superpowers:finishing-a-development-branch` skill 后才能最终化分支。**
+**必须加载 canonical `finishing-a-development-branch` skill 后才能最终化分支。**
 
-调用：`Skill` 工具，`skill="superpowers:finishing-a-development-branch"`。
+按跨工具加载顺序加载该 skill。
 **前提**：Step 8 Jenkins 构建 SUCCESS。
 **主代理直接执行（需用户交互）。**
 
@@ -651,6 +716,7 @@ feat({vendor}-{module}): {简要描述}
 | 门禁 | 位置 | 失败处理 |
 |------|------|---------|
 | TDD 绿灯 | Step 4（每任务） | 回 RED，重新实现 |
+| 编码前源文件验证 | Step 4（每后端任务） | 读取源文件，修正方法名/路径后重写 |
 | HIS 领域审查 | Step 4（每任务） | 返回 implementer 修复 |
 | 构建与测试 | Step 5 | 缺依赖模块→安装后重试 / 代码错误→返回 Step 4 / 环境→报告用户并进入 Step 10 |
 | HIS 验证 | Step 6 | 返回 Step 4 |
@@ -666,5 +732,8 @@ feat({vendor}-{module}): {简要描述}
 - Step 5 构建/测试失败（环境） → 报告用户，进入 Step 10 输出已完成工作状态和失败原因后终止
 - Step 6 验证失败 → 返回 Step 4
 - Step 7 提交失败 → 修复提交前问题，重试
+- Step 7 推送失败（顺序错误导致 CI 编译失败） → 立即推送被依赖仓库（comoe-mediway），重新触发 CI 构建
+- Step 7 推送失败（冲突） → 重新拉取、解决冲突、合并后重试推送
+- Step 7 推送失败（权限/网络） → 报告用户，检查远端权限和网络连接
 - Step 8 Jenkins 失败（代码错误） → 返回 Step 4
 - Step 8 Jenkins 失败（配置/环境） → 报告用户，进入 Step 10 输出已完成工作状态和失败原因后终止
