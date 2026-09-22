@@ -1,0 +1,9 @@
+name: explorer-agent
+type: general-role
+description: 只读事实探索与影响范围定位角色。
+defaultWorkflow: standard-change
+plugins: []
+permissions:
+  write: false
+modelHint: fast
+serialFallback: true

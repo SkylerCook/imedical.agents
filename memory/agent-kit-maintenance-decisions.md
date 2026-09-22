@@ -4,11 +4,17 @@
 
 ## 内容分层
 
+- 项目使用文档统一放 docs/ 并随能力包部署；源仓治理、设计历史和验证证据归 maintenance/，不进入 sparse。稳定操作入口保留，新增指南/参考分组。文档迁移优先依赖 Git 安全快进清除旧受管路径与空目录；自定义文件保留，本地改动停止，不新增宽泛删除。
+
+- 源仓普通提交采用暂存组件版本门禁，功能测试与版本校验独立取证；无关 HEAD 变化不使内容证据失效。已登记且未变化的历史发布结构问题保留技术债，不重复人工处理，不阻断无新增问题的局部提交；完整审计继续保留历史问题。规则唯一正文见 maintenance/governance/component-version-management.md。
+
+- 治疗表单插件的项目任务产物和运行态统一归 `docs/work/cure-form/<task>/`，以 Map/source/preview/verification/manual-deploy 与 private 分层；`.agents/` 保留框架能力及项目配置/规则，不默认容纳具体需求运行态。该决策不迁移 Overlay 配置，不移动既有备份/凭证，显式旧输出路径保持兼容。预览 HTTP 只读挂载受允许的 vendor 根，并隔离 private；自动与手动部署是独立选择，原 RowID 覆盖与灰度是另一策略维度。
+
 - `agents/` 放厂商无关的智能体 canonical 定义，包括 agent registry、`AGENT.md`、`bindings.yaml` 和共享交接协议；不放工具专属生成物或业务项目私有事实。
 - `workflows/` 放厂商无关的多智能体/阶段化 workflow canonical 定义，包括 workflow registry 和 `*.workflow.md`；workflow 必须支持不具备子代理能力时的单 Agent 串行降级。
 - `rules/` 只放长期约束、工作流规则和任务路由，不放大体量查找表、API 目录或源码索引。
 - `references/` 放按需查阅的参考资料，例如查找表、控件/API 目录和源码索引；默认不参与 rule thin-index 生成。
-- `vendor/` 放第三方源码资产、共享运行时资产和可同步运行时 vendor skill（如 HISUI dist、iris-agentic-dev Windows x64 可执行文件、superpowers、word-reader），供 rules 和 skills 按需引用；不参与 thin-index 生成。
+- `vendor/` 放第三方源码资产、共享运行时资产和 vendor skill fallback（如 HISUI dist、iris-agentic-dev Windows x64 可执行文件、superpowers、word-reader）；只为 enabled 插件声明的 required vendor skill 生成项目 thin-index。
 - `skills/` 负责任务流程编排，必要时按任务类型读取对应 rules 或 references。
 - `scripts/` 放可复用自动化；插件专属脚本放在对应插件目录，不复制到共享脚本目录，除非插件初始化流程明确要求。
 - 维护记忆只写摘要、状态、决策和下一步，不复制完整规则、长段脚本说明或一次性命令输出。
@@ -38,42 +44,118 @@
 - stale 清理只应删除由插件生成、且源文件已失效的 thin-index；不得删除业务项目自定义 `.agents/rules/`。
 - 独立分发单个插件时，若仍使用 `plugin-reference-thin-index`，必须同时带上根 canonical 脚本，否则选择 `copy` 或手工 thin-index。
 - Agent thin-index 不复用 `generate-plugin-thin-index.ps1`；由独立 `scripts/generate-agent-thin-index.ps1` 从 `agents/*/AGENT.md` 和 `bindings.yaml` 生成 `.agents/skills/<agent-name>/SKILL.md`，只做浅层 skill 路由。
-- 工具专属 agent adapter 暂不实现；后续如需 Codex、Claude Code、OpenCode、CodeBuddy 等原生入口，再由独立 `scripts/generate-agent-adapters.ps1` 生成。该脚本只翻译格式，不创造 canonical 中不存在的职责或规则。
+- 调度内核不硬编码产品 API；`serial`、`subagent`、`codex-session`、`human` 统一使用 action/result contract，由宿主 capability probe 后执行。工具原生配置生成仍不作为 canonical 来源，能力不可用时按 workflow 串行或人工降级。
+
+## 组件版本治理
+
+- 插件是主要发布、依赖和兼容单元；根级独立 skill 单独演进。插件内部 skill、rule、reference、template 和 script 继承 owner 插件版本，不维护独立 SemVer。
+- 版本限定为严格 `MAJOR.MINOR.PATCH`。`0.x` breaking 使用下一 minor，`1.x+` breaking 使用下一 major；发布记录位于根 `releases/plugin|skill/<name>/<version>.md`，提交后不可修改或删除。
+- 原 `dependencies` 名称数组继续作为当前更新器契约；版本范围旁路写入 `dependencyVersions`，`0.x` 默认约束在同一 minor，`1.x+` 默认约束在同一 major。
+- 维护者专用 Node 工具只在源仓 `.agents/skills/agent-kit-maintenance/scripts/` 做 inventory、变更校验和 Git ref 兼容比较，不部署业务项目，不接入 install/update、thin-index 或 hook。
+- breaking 比较只接受 `plugin|skill:<name>@<version>` 精确授权；版本倒退、依赖不兼容和发布记录缺失不可绕过。v1 不创建业务项目 `component_versions.json`，也不强制 Git tag。
+- 现有部署和更新流程必须保持不变；任何 updater 集成需要新的独立决策、兼容设计和授权。
 
 ## 部署边界
 
 - 已部署业务工程的 `.agents/` 是独立能力包仓库；能力包更新后应先更新 `.agents`，再按启用插件重建 thin-index。
+- standard 模式保持业务根内独立 `.agents` Git；workspace-overlay 模式允许模块 `ContextRoot` 无 `.git`，但必须由 `WorkspaceRoot/.agents/capability.json` 明确声明共享 `CapabilityRoot`、local/shared 目录和 SourceRoot/GitRoot。解析器不得扫描父目录或 sibling 推断这些根。
+- workspace-overlay 采用 capability-once/context-many：先在 canonical 标版根更新 capability，再对各模块以 `-NoPull` 刷新 ContextRoot。模块刷新不得 fetch/pull 或改写 CapabilityRoot Git，只能维护 ContextRoot 本地生成层和 manifest 受管 Junction。
+- overlay 的 shared path 与 SourceRoot 逻辑 path 必须是指向 manifest 精确目标的 Junction；local path 必须是物理目录。自动修复只允许作用于可证明受管且目标错误的 Junction，普通目录、文件或本地目录不得覆盖。
 - 根目录 `memory/` 是维护者记忆，不得加入 `scripts/install-agents.ps1` 或 `scripts/update-agents.ps1` 的 sparse checkout 路径。
+- 根目录 `releases/` 是维护者发布审计记录，不加入业务项目 sparse checkout。
 - `memory/plan/` 是维护者计划子目录，存放实施计划和设计文档，不部署到业务项目。
 - 根目录 `AGENTS.md` 只服务本仓库维护，不部署到业务项目 `.agents/`。
 - 根目录 `agents/` 和 `workflows/` 是能力包正式内容，已加入 `scripts/install-agents.ps1` 和 `scripts/update-agents.ps1` 的 sparse checkout 路径，部署到业务项目 `.agents/agents/` 和 `.agents/workflows/`。
-- 根目录 `skills/` 默认是能力包正式内容，部署到业务项目 `.agents/skills/`；`skills/agent-kit-maintenance/` 是维护者专用例外，必须通过 sparse checkout 排除，不部署到业务项目，也不参与 thin-index。
+- 更新器新增运行时依赖时必须兼容旧 sparse checkout 自举：新版脚本在加载新增运行时模块前，可在自更新恢复、`Write` 或允许拉取的 `DryRun` 中以当前完整运行时清单收敛干净的独立 capability Git checkout；`Check` 和显式 `DryRun -NoPull` 保持只读。恢复失败必须停止，不得覆盖 dirty checkout。
+- standard 更新器在 fetch 后必须按 `HEAD...@{upstream}` 区分相同、仅落后、仅领先和分叉：相同时报告 `agents-up-to-date` 并跳过 pull，仅落后时执行 `pull --ff-only` 并报告旧、新 hash；领先或分叉必须停止，不能统一误报为 `agents-updated`。无远端更新仍继续 sparse checkout 和项目本地生成层检查。普通 `DryRun` 保持“更新 capability 后预演本地生成层”的既有契约；严格不更新 capability 时使用 `Check` 或显式 `DryRun -NoPull`。
+- 根 `scripts/iris-mcp.js` 是无原生 MCP 工具运行器的可选 helper，必须随安装/更新部署；standard 项目直接使用 canonical 文件，workspace overlay 必须在本地 `ContextRoot/scripts/` 生成读取 manifest 并转发到 `CapabilityRoot` 的 JS adapter，不复制规则实现或嵌入 capability 绝对路径。原生 MCP 工具仍优先，helper 不得成为 canonical 规则源。helper 必须按当前 MCP schema 的 `mode` / `action` 区分读取与状态变更、默认拦截写入和远端执行，并把 `check_config` 风险作为诊断信号而非仅凭默认 namespace/port 阻断工具发现。
+- 根目录 `skills/` 是能力包正式内容，部署到业务项目 `.agents/skills/`，不再承载维护者专用例外。
+- 源仓根 `.agents/skills/agent-kit-maintenance/` 是受版本控制的仓库本地维护上下文，不在安装/更新 sparse checkout 部署清单内，也不参与 thin-index。业务项目中的 `.agents/` 仍是独立能力包仓库，不得把源仓 `.agents/` 部署成嵌套 `.agents/.agents/`。
 - `.agents/plugins/**` 默认全量拉取用于能力发现；插件目录存在只表示 `available`，是否已启用以目标项目 `.agents/config/plugin_profile.md` 为准。
 - 更新脚本按插件状态分流：`available` 不合并配置、不生成 thin-index；`enabled` 参与常规更新；`disabled` 默认跳过；领域插件依赖未启用时必须停止。
+- 插件 canonical 名称变更时，manifest 必须声明 `legacyNames`；更新器按旧名称继承 `plugin_profile.md` 状态并在 Write 时收敛为当前名称，同时清理指向已删除插件 rule/skill 源文件的受管 thin-index。不得让已启用插件因重命名静默退回 `available`。
 - 根目录 `index.html`、`.github/` 和 `.nojekyll` 只服务展示页和 GitHub Pages，不部署到业务项目 `.agents/`。
 - `scripts/tests/` 只服务能力包仓库自测，不部署到业务项目 `.agents/`。
-- `.agents/.git/info/exclude` 应继续忽略 `/config/`、`/memory/`、`/rules/`、`/skills/` 和 `/scripts/` 这些本地生成层。
+- standard 模式的 `.agents/.git/info/exclude` 应继续忽略 `/config/`、`/memory/`、`/rules/`、`/skills/` 和 `/scripts/` 这些本地生成层；workspace-overlay 的 ContextRoot 不要求存在 `.git/info/exclude`，由 WorkspaceRoot 所属仓库忽略本地生成层。
+- `.agents/work/` 是导出 staging 等本地临时工作层，必须由生成层 ignore 隐藏，不进入业务提交。
 - `.agents/.git/info/exclude` 不应忽略 `/agents/` 或 `/workflows/`；业务项目私有 Agent/Workflow 差异应写入 `.agents/config/agent_*_profile.md` 或业务项目自己的规则/文档。
 - 对手工 full clone 到 `.agents/` 的工程，必须重新执行安装脚本启用 sparse checkout；仅靠 `.git/info/exclude` 不能隐藏已跟踪的维护者记忆文件。
-- 根目录 `vendor/` 放第三方源码资产、共享运行时资产和可同步运行时 vendor skill（如 HISUI、iris-agentic-dev、superpowers、word-reader），已加入 sparse checkout 路径 `/vendor/**`，部署到业务项目 `.agents/vendor/`。`vendor/` 不参与 thin-index 生成，不生成 `.agents/rules/` 或 `.agents/skills/` 入口；其中 `vendor/<vendor>/skills/<skill>/SKILL.md` 和 `vendor/<vendor>/SKILL.md` 可由 `scripts/sync-vendor-skills.ps1` 同步到运行时 skill 发现目录，供工具直接加载。
+- 根目录 `vendor/` 放第三方源码资产、共享运行时资产和 vendor skill fallback，随 `/vendor/**` 部署，但不是默认安装列表。插件以厂商无关 `skillDependencies` 声明 capability；更新器只为 enabled 插件的 required skill 生成 `.agents/skills/` 通用入口，optional 按任务触发。用户级运行时同步必须显式指定 skill/runtime，核心 manifest 和 resolver 不写工具目录或工具专属调用名。
+- Windows x64 安装/更新在已存在 IRIS MCP 配置且 vendor exe 可用时，默认把 `.mcp.json` 对应 server 的 `command` 和既有 `project-env.json` 的 `mcp.serverPath` 收敛到 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`。该迁移只允许修改可执行文件路径，不创建连接配置、不改其它 MCP server、args、env 或连接字段；Write 必须写后重读两份目标并在失败时按原始字节回滚，DryRun/Check 只报告，缺失、无效或歧义状态必须保留原配置并停止 Write 收敛。当前受支持更新器用自重启完成同轮升级；无法假定任意历史进程具备新逻辑，因此 runbook 保留两次 Write 的确定性兼容流程。
+- 第三方 vendor skill 快照必须记录上游仓库、固定 commit/version 和许可证；vendor 内的上游 `SKILL.md` 保持原文，工具名兼容映射、路由和本仓库安全约束放在插件自己的 rule/skill/reference 中。除非插件核心流程不可缺少，否则外部 skill 默认声明为 `optional`。
+- 当底层 MCP 同时提供内置 skill/KB/学习工具，而本仓库已通过 vendor 和 manifest 治理同类能力时，新生成配置和 fallback helper 默认关闭底层 skill toolset；目标工程确有需要时只能通过本地配置显式开启，不能绕过本仓库远程动作和敏感信息门禁。
+- 已部署工程的 vendor 迁移默认非破坏：普通 Write 不清历史 thin-index，用户级副本永不自动删除；只有 profile 经确认后，显式 cleanup 才能删除可证明由 `.agents/vendor/` 生成且已不需要的项目 thin-index。
 
 ## 入口决策
 
+- 历史只读 Agent run schema 1.2 使用阶段 `attempts[]`、capability matrix、远程动作终态、`finalization` 和限定 verification scope 表达暂停恢复及最终验证门禁；validator 继续兼容 schema 1.0/1.1。
+- `check_config` 只核对配置定位，真实连通以当次无副作用网络探针为准。自动发现生效且探针成功时，`config_file=null` 不构成配置失败；单一工具的瞬时失败只降级对应 capability。
+- Independent Verifier 只能在所有远程动作终态、无 suspended attempt 且验证范围冻结后启动。报告、summary、manifest 和 feedback 不属于业务验证版本。
+- i18n 页面翻译种子默认使用 `DHCDoc.I18n.PageTranslationSeed`，backend SourceRoot 内 canonical 相对路径为 `DHCDoc/I18n/PageTranslationSeed.cls`；`SetPageTrans` / `KillPageTrans` 是稳定单条接口，语言聚合使用 `Load{LANG}Translation` / `Kill{LANG}Translation`，带批次号的方法继续按需求生成。目标工程已验证存在兼容实现时允许 profile 覆盖，字典翻译 SQL 与 XML 模板同步不并入该类。
+
+- IRIS 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`；组合仓库名称、目录结构和 Git 仓库角色不得改变当前编码默认。`project-utf8` 仅作为 `utf8` 的兼容读取别名，`standard-gb2312` 仅用于用户明确指定的历史工程。
+- Overlay manifest 明确至少声明一个 `backend` SourceRoot 且没有 `frontend` SourceRoot 时，profile 使用 canonical `N/A (backend-only)`；无法从声明证明 backend-only 时继续阻断，不扫描父目录或 sibling 猜测源码。后续新增 frontend 时必须重新通过字节门禁再规范化为 `utf8`。
+- 实际文件字节检测始终是修改与上传的最终门禁。UTF-8 或纯 ASCII 可安全规范化 profile；真实 GB2312、mixed、UTF-16 或 unknown 必须停止并报告，不自动批量转码业务源码。
+- 已部署插件配置迁移由 manifest 声明、根更新器通用调用；领域推导逻辑留在插件迁移脚本，不硬编码到根更新器。
+- 普通 IRIS 需求提交由 `iris-demand-commit` 统一收尾，支持自然语言及显式 `$iris-demand-commit --plan|--commit`。`--plan` 只生成计划和完整 commit message，不执行 pull/commit，也不追问是否提交；`--commit` 视为本地提交明确授权并直接执行 plan/apply/verify。`standard/project` 默认值来自项目 profile 或当前用户明确指定，不得从目录、`contextMode`、remote 或代码量猜测。标版 commit 前必须对全部仓库执行 `pull --ff-only`，项目仓有 upstream 时同样执行、无 upstream 时允许 `local-only`；pull 改变 HEAD 后必须重新计划并再次确认，push 始终独立授权。
+- 需求提交的“修改说明”属于方案审计信息，必须同时表达修改对象、具体实现/交互方案和行为结果；仓库之间按实际职责分别归纳，不能用“优化功能”“修复问题”等泛化文本代替。
+
 - `AGENTS.md` 是工程级唯一主入口，必须存在。
-- 本仓库已新增维护者专用 `skills/agent-kit-maintenance/SKILL.md`；它只服务 `imedical.agents` 仓库维护，虽位于根 `skills/`，但必须从业务项目 sparse checkout 中排除，不部署到业务项目 `.agents/`，不参与 thin-index。根 `AGENTS.md` 仍是维护入口和最高优先级规则源；该 skill 只承载插件提交同步、记忆更新、README/docs 对齐和部署边界检查流程，不复制维护记忆全文或长规则。
+- 本仓库维护者专用 `.agents/skills/agent-kit-maintenance/SKILL.md` 只服务 `imedical.agents` 源仓维护，不部署到业务项目，也不参与 thin-index。根 `AGENTS.md` 仍是维护入口和最高优先级规则源；该 skill 只承载插件提交同步、记忆更新、README/docs 对齐和部署边界检查流程，不复制维护记忆全文或长规则。
 - `CLAUDE.md`、`CODEBUDDY.md` 是可选兼容入口；如存在，只允许是指向 `AGENTS.md` 的 symlink。
 - 安装和更新脚本只报告兼容入口状态，不自动创建、复制或修复兼容入口。
 - 禁止把 `AGENTS.md` 复制成 `CLAUDE.md` 或 `CODEBUDDY.md`，也禁止在兼容入口维护第二份规则。
 
 ## 跨插件一致性
 
+- 治疗表单生命周期必须区分新开发与现有模板改造：`expectedVersion=NEW` 的新开发表单直接创建正式模板，不使用灰度；已有模板默认版本化克隆，也可按明确授权绑定当前快照执行 `in-place-overwrite`。原 RowID 覆盖不创建灰度或调用 consolidate；克隆策略在验收后按引用拓扑通过 `consolidate` / `consolidate-shared` 收尾。`cleanup` 只处理已完成引用切换的零引用孤儿模板，不替代正式合并。
+
 - 修改插件目录结构时，同步检查 `.agents-plugin/plugin.json`、插件 `AGENTS.md`、插件 README、仓库 README 和相关 docs。
 - 任何新规则都要先判断是否应放入 `rules/`、`references/`、`skills/`、`templates/` 或 `scripts/`。
 - 如需重命名历史 rule/skill/reference，必须同步 thin-index stale 清理、README、AGENTS、skills 引用和已部署工程兼容说明。
 - 对已部署工程有影响的变更，必须在 README 或插件 README 中说明同步步骤和兼容清理策略。
+
+## Agent 运行与反馈边界
+
+- 新运行使用 schema 2.0；`executionPath: fast|full|guarded` 与 `orchestrationMode: serial|subagent|multi-session` 正交。历史 schema 1.0–1.2 只读，不原地迁移。
+- `events.jsonl` 是事件事实源，`00-run-manifest.json` 是当前投影；Coordinator 是唯一状态和集成 owner，参与者通过 action result、message 和 handoff 返回。
+- multi-session 协作计划授权只覆盖当前 planHash；远程写入、commit、merge、push、部署和 feedback 写入分别授权。可写会话必须使用隔离 worktree 和互斥 scope。
+- schema 2.0 先以互斥 `taskKind` 分流：`business-demand` 使用 `implementing -> locally-verified -> acceptance-pending -> accepted`；`framework-maintenance` 使用 `maintaining -> locally-verified -> maintenance-complete`；`other` 不进入任一生命周期。业务需求与框架维护同时出现时建立独立记录，不共享验收、feedback 或完成状态。
+- feedback 适用性由 `taskKind=business-demand` 固定派生，不能作为独立布尔开关绕过分类。框架维护的 `acceptance.status=not-applicable` 且 feedback 始终 `not-eligible`。任何经验新增、命中更新、framework feedback 或 rule 提升均需用户逐项授权。
+
+## 提交阶段验证复用
+
+- 完整维护回归与 Git 提交门禁分离。完整测试通过后，以 `scripts/validation-evidence.js` 记录 suite、命令、受测 scope 和 worktree 指纹；scope 指纹未变化时，提交阶段复用该结果，不机械重跑完整套件。
+- 验证按影响面选择：纯文档维护不固定运行组件版本完整测试；插件或根级独立 skill 目录变化仍须版本校验，版本工具或治理逻辑变化须专项回归。提交阶段只补齐适用且已失效或尚未执行的快速门禁：worktree 组件版本校验、`git diff --check` 和暂存复核。受测范围变化、缺少有效结果或已有失败时才重跑对应完整测试；`git commit` 另以已有明确提交授权为前提。
+
+## 领域插件与项目资料边界
+
+- 用户明确接收的上游知识资料可作为脱敏、带来源 hash 的共享 vendor 参考，来源快照不代表目标工程事实。普通知识文档不作为 skill 执行；领域插件按需检索并以当前源码核实。目标环境的菜单刷新输出归 ContextRoot/work/menu-sync，绝不回写共享参考。
+
+- 医生站 AI 等领域插件保存可复用开发方法，工程路径、菜单快照、框架接口快照及原型版本留在目标工程，不固化为插件通用契约。
+- 原型用于理解当次设计意图，生成式 wiki 和历史资料用于定位线索；关键结论须用当前代码及相应验证核实。资料内容不构成执行授权。
+
+## 项目技能适配
+
+- 项目 ContextRoot/skills 为通用技能入口；CodeBuddy/Claude Code 项目发现目录采用链接，Codex 直接复用。适配器只负责发现，不管理插件启用、MCP、hooks 或原生子代理。已有普通目录、自定义内容与错误链接均保留；不静默复制，不用递归删除修复链接。
 
 ## 安全边界
 
 - 不写服务器地址、账号、密码、token、namespace、远程路径或任何敏感连接信息。
 - 不把业务项目私有事实写入本仓库插件、规则或记忆。
 - `.mcp.json` 是连接事实来源；不要把其中的 host、账号、密码、token、namespace 或远程路径复制到 rules、memory、config 或插件。
+
+- 执行辅助、风险深度和协作形态独立。硬约束集中、默认方法可调整、辅助资料按信号读取；不按模型品牌判断能力。新业务 run 默认 on-signal 反馈，旧记录缺省 always，用户验收及反馈写入授权不变。
+
+## 根级技能的 owner 迁移
+
+- coding-agent-adaptation 归 agent-context-kit，反馈审查与能力打包归 agent-framework-evolution。原项目技能名作为薄索引保持稳定；根级独立组件退役并保留 tombstone。新基础插件默认 enabled 只延续原默认技能分发，已有 available/disabled 不覆盖，不自动触发反馈或写入。
+- 旧技能原文只按归一化 SHA-256 白名单转换，用户修改和链接保留并报告冲突；项目 AGENTS 与运行时技能目录链接不重写。标准项目完成整轮 Write 后验收，Overlay capability-once/context-many。
+
+## 需求接续补充决策（2026-09-19）
+
+- 通用 task-handoff 归 agent-context-kit；项目 docs/handoff/<首次毫秒时间戳>-<需求ID或00000>/ 保留最新正文、机器现场与显式交接历史。后补编号不改稳定目录，默认本机 exclude，不自动提交或取消跟踪。
+- 接续沿用范围明确的授权，先核实现场和证据再继续；记录不产生新授权。直接接手不检测旧会话或锁定 owner，用户负责避免并发；真实内容冲突仍需处理。
+- 轻量工具维护可复核事实，不判定业务完成；业务/框架生命周期复用现有契约，正式 run 只引用。标准 Markdown 不依赖产品 API 或 Obsidian；无脚本能力时人工核查并明确未执行项。
+
+- 纯初始化 skill 使用 owner manifest 的 thinIndex.excludeSkills，统一初始化与常规更新的排除和旧受管索引清理；排除项空目录（含历史残留）非递归清理，非空目录和链接保留；initSkill 只声明初始化入口，不代表应隐藏，兼任日常能力的入口保留。清理边界与状态策略见 docs/update-agents.md。

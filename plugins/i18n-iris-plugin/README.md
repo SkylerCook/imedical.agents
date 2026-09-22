@@ -3,13 +3,19 @@
 `i18n-iris-plugin` 是面向 IRIS/ObjectScript/CSP/HISUI 工程的通用 i18n Agent 能力包，覆盖：
 
 - 前后端 i18n 编码改造。
+- 前端复用 coding-iris 的 canonical `utf8` 与字节检测门禁，不单独按标版、医院项目或目录角色推断编码；旧模式只按兼容边界读取。
+- 前端翻译 helper 稳定 key 门禁：静态 helper 只接收字面量，运行时值通过占位符 helper 参数传入，并由只读 Node.js 检查器阻断动态 key。
 - 用户可见文本提取和翻译表生成。
 - 页面级非字典翻译种子生成。
+- 页面翻译种子默认收敛到 canonical `DHCDoc.I18n.PageTranslationSeed`，并保留目标工程 profile 覆盖。
 - 字典/表字段展示值翻译 SQL 生成。
 - XML 打印模板翻译。
 - 已确认 XML 模板链路的打印模板导出、校验和同步。
+- XML 打印模板远端保存遇到临时类 `Execute+...<SYNTAX>` 时，复用既有本地产物并自动切换 Base64 分块 fallback，避免重复导出和翻译。
 - CSP 页面翻译导出、校验和同步。
 - 新工程 i18n 初始化。
+- i18n 任务 Step 0 启动契约：开工即确定运行模式、创建 manifest、声明文件所有权，并分别确认翻译数据写入与业务代码部署授权。
+- 需求交付遵循共享生命周期：i18n 业务需求设置 `taskKind=business-demand`，本地验证后停在 `acceptance-pending`；只有用户明确验收后才做 feedback 只读审查，经验新增、命中更新和框架反馈仍需逐项授权。纯框架维护使用独立 `framework-maintenance` 生命周期，不进入需求验收或 feedback。
 
 ## 设计原则
 
@@ -17,7 +23,19 @@
 - 目标工程差异写入 `.agents/config/i18n_project_profile.md`。
 - MCP 连接信息以目标工程 `.mcp.json` 为唯一事实来源。
 - 页面级翻译默认沿用 `^websys.TranslationD("PAGE",...)`。
+- 页面翻译种子默认类为 `DHCDoc.I18n.PageTranslationSeed`，默认相对源码路径为 `DHCDoc/I18n/PageTranslationSeed.cls`；本地完整路径从项目 backend SourceRoot 解析。稳定公共方法为 `SetPageTrans` / `KillPageTrans`，语言聚合方法为 `Load{LANG}Translation` / `Kill{LANG}Translation`。
+- 插件携带 `templates/DHCDoc/I18n/PageTranslationSeed.cls` canonical 源模板；页面翻译种子任务可在目标类缺失时据此创建，但初始化和能力包更新不得覆盖业务源码。
 - 字典翻译默认沿用 `BDP_Translation`。
+- 固定默认类不合并字典翻译 SQL 或 XML 模板同步；目标工程已有不同页面翻译机制时，通过 `.agents/config/i18n_project_profile.md` 覆盖，不修改通用 skill/rule。
+
+## 已部署项目兼容
+
+- 更新能力包只更新插件 canonical 内容，不覆盖目标项目已有 `.agents/config/i18n_project_profile.md`。
+- 旧 profile 若仍包含 `TODO: Package.UploadPageTrans.cls` 或其它未确认占位值，应在下一次页面翻译任务开始前改为 `DHCDoc.I18n.PageTranslationSeed`，并将相对源码路径收敛为 `DHCDoc/I18n/PageTranslationSeed.cls`。
+- 已验证存在其它兼容种子类的项目继续保留原 profile 覆盖；不得仅为命名统一迁移业务类。
+- 能力包更新、profile 调整均不授权上传、编译或加载翻译；这些远程动作仍按当前任务单独确认。
+- 已部署项目若目标类缺失，先在本地页面翻译种子任务中从 canonical 模板创建并完成 diff/依赖检查；不得把“插件已有模板”解释为已部署、已编译或已加载。
+- 更新后，只有 `plugin_profile.md` 中 `i18n-iris-plugin` 为 `enabled` 且任务或 diff 命中 i18n 信号时，coding-iris 前端路由才追加 i18n 规则；普通前端需求不会自动进入完整 i18n workflow。
 
 ## 标准目录
 
@@ -29,6 +47,7 @@ i18n-iris-plugin/
 |-- README.md
 |-- rules/
 |-- skills/
+|-- scripts/
 `-- templates/
 ```
 
@@ -85,3 +104,23 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/i18n-iris-pl
 7. 使用 `i18n-project-init` 或 thin-index 脚本做初始化检查。
 
 更多步骤见 `templates/i18n-init-guide.md`。
+
+## 前端 helper 静态检查
+
+根据目标工程 `.agents/config/i18n_project_profile.md` 中的 helper 名称，对本次触碰的 JS/CSP 文件执行：
+
+```powershell
+node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
+  --file path/to/page.js `
+  --file path/to/page.csp `
+  --static-helper '$g' `
+  --placeholder-helper '$trans'
+```
+
+检查器只读文件且仅使用 Node.js 内置模块。退出码 `0` 表示通过，`1` 表示发现动态翻译 key，`2` 表示参数或文件读取错误；错误包含文件、行、列和规则代码。
+
+## 按需辅助与收尾
+
+遵循 agents/_shared/execution-guidance.md（源仓根；部署态为 .agents/agents/_shared/）。guidanceMode 默认 auto，可选 concise/assisted；辅助程度不改变授权、编码及领域契约。方法允许合并或重排，IRIS 编码共用 iris_coding_general 的风险分流。业务验收后按信号加载 feedback，无信号不例行报告。现有工程按 docs/update-agents.md 定点合并项目入口，普通能力包更新不重写用户 AGENTS/profile。
+
+纯初始化入口 `i18n-project-init` 直接读取插件内真实 SKILL.md，manifest 的 `thinIndex.excludeSkills` 将其排除出浅层技能列表。已启用项目常规更新时，Check/DryRun 只报告旧受管索引，Write 精准删除；自定义文件和链接保留。迁移边界见能力包 [更新说明](../../docs/update-agents.md#纯初始化-skill-薄索引迁移)。

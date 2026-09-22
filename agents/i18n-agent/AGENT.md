@@ -1,3 +1,4 @@
+
 # i18n-agent
 
 `i18n-agent` 是 IRIS 国际化需求处理的领域 Agent。它把通用阶段化协作模型绑定到 `i18n-iris-plugin` 和 `coding-iris-plugin` 的规则、skills、templates 与验证约束。
@@ -43,6 +44,42 @@
 
 如果缺少 `plugin_profile.md`，按未启用处理；不要因为 `.agents/plugins/i18n-iris-plugin/` 目录存在就执行 i18n 任务。
 
+## 执行模式
+
+新运行使用 schema 2.0 并先选择 `orchestrationMode`：
+
+| 模式 | 用途 | 写入边界 |
+|---|---|---|
+| `serial` | 当前工具不支持子 Agent，或任务没有明确授权多智能体 | 单 Agent 按相同逻辑阶段串行执行 |
+| `subagent` | 同会话内多个独立只读阶段 | 临时参与者不直接竞争状态文件 |
+| `multi-session` | 真实业务需求明确要求多会话验证 | 写入者使用隔离 worktree 和互斥 owner；Coordinator 集成 |
+
+- 已直接选定 `i18n-agent` 和 `i18n-change` 后，agent/workflow registry 仅作发现索引，不再作为运行时必读文件。
+- `multi-session` 必须有用户对当前完整计划的明确授权；没有授权时使用 `serial`。
+- 每次正式验证通过通用调度器生成 schema 2.0 manifest、events、message/handoff 和阶段报告。schema 1.0–1.2 fixture 保持历史只读，不原地改写。
+
+## 启动前置
+
+Coordinator 必须在首个 Explorer 或修改动作前完成运行契约：
+
+- 立即选择并记录运行模式；不得中途切换后重构阶段时间冒充从启动即并行。
+- 从 canonical manifest 样板创建运行清单，并预先声明 actor、互斥文件所有权和 Independent Verifier。
+- 主动列出预计远程动作并一次性请求授权，分开 `translation-data-write`、`business-code-deploy` 与只允许自清理临时载体的 `tool-internal-execution`。
+- 预计存在远程动作时先完成 MCP capability preflight：`check_config` 核对目标后运行 `iris_query("SELECT 1 AS Probe")`；探针成功时不因 `config_file=null` 阻塞，单次 404/405 也不得扩大为整个 MCP 不可用。
+- 当前任务已有明确授权时直接消费，不重复询问；没有授权时保持 local-only/read-only。
+- 已授权 scope 内后续自动执行；覆盖冲突、删除、回滚、环境变化或范围扩大时重新确认。
+
+翻译数据不得长期、跨任务默认授权。默认行为是“开工时主动询问一次”，而不是等到 Template/Seed 阶段让用户猜测。
+
+## 已批准计划快速路径
+
+用户输入同时具备入口、影响范围、文本分类、模板/种子策略和测试要求时，可复用为 Explorer/Classifier 初始输入：
+
+1. 只对关键入口、数据来源和渲染路径做针对性核验，不重复完整探索。
+2. Explorer 与 Classifier 仍是两个逻辑阶段，但可由同一 actor 连续完成。
+3. 复用内容、核验证据和仍待确认项必须写入 handoff；未验证事实不得直接进入编码。
+4. 快速路径不降低编码、XML、前端编码和远程写入门禁。
+
 ## 阶段模型
 
 | 阶段 | 职责 | 主要规则/skill | 输出 |
@@ -62,6 +99,30 @@
 - 外部接口返回或当前工程无法确认来源的文案，标记为“不改代码/待转交”，不得猜测改造。
 - 字典/表字段展示值翻译应贴近原始字段来源，不在最终拼接变量上无脑套翻译 helper。
 - 简单需求可按 `i18n-coding` skill 直接执行，但仍必须遵守 profile、规则索引和验证规则。
+- 同一 actor 对同一规则文件最多读取一次；后续阶段优先消费 handoff 中的已验证事实和 scoped rule 列表。
+
+## 多智能体物理编排
+
+新运行使用 schema 2.0 调度器，以下为可按能力串行降级的默认角色关系：
+
+```text
+Root Coordinator
+  -> Explorer + Classifier actor
+  -> Backend Coder / Frontend Coder / Template-Seed actor（范围不重叠时并行）
+  -> Independent Verifier
+  -> Root 汇总
+```
+
+- Coordinator 负责范围、授权、文件所有权、handoff 和最终汇总，不重复子 Agent 已完成的检索。
+- 并行 actor 的文件所有权必须互斥；发现重叠时改为串行。
+- Template/Seed actor 默认只生成本地产物；远程保存由 Coordinator 在明确授权后串行执行。
+- 子 Agent 只读取 handoff 指定的 profile、skill 和专项规则，不重新加载 registry 或全部 canonical 文件。
+- Verifier 必须独立于 Coder，检查代码结构、编码、XML、翻译残留、fallback 和未执行门禁。
+- Independent Verifier 必须发生在最后一次本地修改和最后一次已授权远程写入之后；验证后再修改会使结论失效，Coordinator 必须重新触发 Verifier。
+- schema 2.0 使用 workItems[].attempts 与 actions[]；未知结果 ACK blocked，已确认失败才按 maxAttempts 重试。不新增临时 resume 阶段，历史 1.2 只读。
+- 所有实现与远程动作已终态、无 pending/blocked action 且验证范围冻结后才启动 Verifier；不使用旧 finalization.ready。
+- `verification.scopes` 只覆盖业务代码、本地 i18n 产物和已授权远程读回；报告、summary、manifest 和 feedback 修改不使业务验证版本失效。
+- 等待依据宿主状态与实际进度；观察超时不等于失败，不按固定心跳时限重建会话。
 
 ## 输入
 
@@ -77,10 +138,11 @@
 - 翻译种子、SQL、XML 模板处理摘要。
 - 验证报告。
 - 无法确认项和需要人工确认的问题。
+- P1 验证运行的 manifest、阶段 handoff、性能和失败收敛结果。
 
 ## 框架反馈
 
-任务完成后，如果对框架文件（rules、skills、templates、references、scripts 等）做了修正，按 `agents/_shared/feedback-protocol.md` 自动生成反馈条目到 `feedback/framework/`。
+业务需求 run 固定设置 `taskKind=business-demand`，由此派生 feedback 适用性。技术流程完成后按 `agents/_shared/delivery-lifecycle.md` 进入 `acceptance-pending`。只有用户明确确认验收且命中反馈信号后，才调用 `plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md` 做只读审查；任何经验或 framework feedback 写入仍需用户逐项授权。纯框架维护必须建立独立 `framework-maintenance` 记录，不得复用本 run 的验收或 feedback 状态。
 
 ## 降级执行
 
@@ -97,3 +159,5 @@
 - 不在未确认链路时直接执行 XML 模板同步。
 - 不把业务输入、病人录入、医生备注等自由文本当作固定文案翻译。
 - 不改变业务流程、权限、校验、持久化或状态流转。
+
+阶段顺序是默认方法，可按 execution-guidance.md 合并或重排；普通 skill 不因本 workflow 存在而创建 run。安全、授权、领域规则和最终验证不变。反馈按 delivery-lifecycle.md 的 on-signal/always 策略执行。

@@ -1,20 +1,38 @@
 # coding-iris-plugin
 
+前端 SFTP 工具已纳入 `.agents/vendor/sftp-server/`：修复路径/忽略规则、原子上传与 SHA-256 回读校验、超时及结构化错误。新项目默认禁用 SFTP；旧项目更新时自动迁移可识别的 SFTP 启动路径（显式 custom 除外），保留连接参数。Python 依赖按带哈希锁文件单独安装，升级器不自动安装依赖。主机密钥与服务器原子替换兼容要求见 [SFTP runtime](../../vendor/sftp-server/README.md)。这不提供无 SFTP 服务器的上传替代通道。
+
+CLS 编码遵循 [格式提示与最小改动约定](references/cls-coding-format.md)：新增代码按约定编写，历史格式保持原样。自检仅提示，不改变上传、编译或提交流程。
+
 `coding-iris-plugin` 是面向 IRIS/ObjectScript/CSP/JavaScript/HISUI 工程的通用 Agent 编码能力包。
 
 ## 能力范围
 
+编码入口使用规则指针和可检查的完成条件，完整 i18n 矩阵、编码策略及部署会话协议各由原 owner 维护。已部署工程通过常规能力包更新及 thin-index 刷新取得新描述与正文；无需配置迁移或额外兼容清理，不自动改写项目 AGENTS 或同步业务源码。
+
+- iMedical 知识检索：[iris-imedical-knowledge](skills/iris-imedical-knowledge/SKILL.md) 使用共享 vendor 参考与项目当前菜单。模型根据任务信息缺口自主决定是否查询，无需用户点名，不固定为开发前置步骤；源码核实优先。指定来源但菜单快照缺失时返回警告并继续查询共享参考，不要求先同步菜单；损坏快照仍报错。
+- 菜单资料同步：[iris-menu-sync](skills/iris-menu-sync/SKILL.md) 通过已有 MCP 采集，sync-menu.js 提供离线 plan/apply、差异、完整性校验与原子快照切换；支持全量及指定组。更新后重建 enabled 插件 thin-index；无需新连接或 npm，项目快照不会被 vendor 更新覆盖。协议见 [menu-knowledge-sync](references/menu-knowledge-sync.md)。
+
 - ObjectScript 后端编码规则：BLH/DATA/SQL 分层、SQL 返回约定、ObjectScript 语法风格、Broker 接口习惯。
-- CSP/JavaScript/HISUI 前端编码规则：框架页/内容页拆分、HISUI 控件优先、JS 组织方式、前端数据回显。
+- CSP/JavaScript/HISUI 前端编码规则：框架页/内容页拆分、HISUI 控件及原生视觉状态优先（含悬浮/焦点/禁用/等待）、JS 组织方式、前端数据回显。
 - 工作流规则：本地优先；导出、编译、Broker 调试和配置同步优先使用 IRIS 开发主力脚本；MCP 作为辅助能力补上下文、只读验证或覆盖脚本未覆盖场景。
 - 部署编排：`skills/iris-deploy/SKILL.md` 负责远端部署入口、清单生成、确认门禁和验证编排，上传、编译、部署和远端验证按 `rules/iris_deploy_checklist.md` 逐项执行。
-- 前端编码保护：检查 `.csp/.js/.css` 实际编码，防止历史 GB2312 文件被 Agent 永久改成 UTF-8。
-- 前端上传编码转换：按项目 profile 保持源文件编码，上传时按需转换为 GB2312 临时文件。
-- 前端 GB2312 提升：确认后删除源文件，并将 `{name}.gb2312.{ext}` 更名回原文件名，可选 MCP/SFTP 上传。
-- HISUI 控件参考：按需读取 `references/hisui-widget-index.md`，源码内置在 `.agents/vendor/hisui/`。
+- 需求移植：`skills/iris-demand-promote/SKILL.md` 将已提交的 DEV 需求补丁移植到独立 PRD 按需导出仓库；先导出 PRD 服务器基线，再做三方应用，只创建本地 PRD 提交。
+- 需求提交：`skills/iris-demand-commit/SKILL.md` 支持 `$iris-demand-commit --plan|--commit`。`--plan` 只生成方案型提交信息且不追问是否提交；`--commit` 视为本地提交授权，标版提交前强制安全快进，项目兼容纯本地仓库；两种模式均不包含 push。
+- 标版需求闭环：`skills/iris-demand-entry/SKILL.md` 从工作区或指定提交实际 diff 生成可复制需求文本，可选 `--excel`（兼容 `--Excel`）生成 29 列 BOSS 导入表。用户录入并回填编号/最终标题后生成提交消息，待提交代码复用 iris-demand-commit；历史提交不自动改写。用户模式为 `--text / --bind / --plan / --commit / --help`，历史来源使用 `--rev` 或 `--range`。命令与草稿见 [操作协议](references/standard-demand-entry.md)。已部署工程更新能力包并重建 enabled 插件 thin-index 后使用，无配置迁移或旧入口删除。
+- 前端统一编码：当前标版、医院项目的源码、上传内容和服务器运行编码统一使用 canonical `utf8`。
+- 前端编码保护：实际文件字节检测是最终门禁；正常任务静默处理，完成时只报告一行摘要。
+- 前端 i18n 条件门禁：以目标工程 `plugin_profile.md` 为事实来源，只有 i18n 已启用且任务或 diff 命中翻译 helper、翻译 key 或用户可见文案时才追加 i18n 规则和稳定 key 检查；普通前端需求不加载完整 i18n workflow。
+- 兼容读取：旧 `project-utf8` 规范化为 `utf8`；旧 `standard-gb2312` 只服务用户明确指定的历史工程，不能再由目录或仓库角色推断。
+- Backend-only：Overlay manifest 明确只声明 `backend`、未声明 `frontend` 时，profile 规范化为 `N/A (backend-only)`，不扫描父目录或 sibling 猜测前端源码。
+- Legacy GB2312 提升：仅在明确的历史工程中，确认后删除源文件并将 `{name}.gb2312.{ext}` 更名回原文件名，可选 MCP/SFTP 上传。
+- HISUI 控件参考：控件选型、API 和 JavaScript 行为按需读取 `references/hisui-widget-index.md`。
+- HISUI 样式与资源参考：主题 CSS、locale CSS、语义 class、图标和插图按需读取 `references/hisui-style-index.md`；源码内置在 `.agents/vendor/hisui/`。
 - iris-agentic-dev MCP server：Windows x64 可执行文件内置在 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`，目标工程无需自行查找工具位置。
 - IRIS 开发主力脚本：通过 `scripts/iris-tools/` 提供部署清单生成、导出、编译、Broker 调试和环境配置同步。
 - MCP 能力说明：`rules/iris_agentic_dev.md` 记录 IRIS MCP 能力矩阵，`rules/sftp_server.md` 记录 SFTP MCP 能力矩阵和安全边界。
+- IRIS 知识查询：`skills/iris-mcp-lookup/SKILL.md` 统一路由当前实例元数据、本地源码和官方文档，支持已知 `docs.intersystems.com` URL 的 Fetch/WebFetch/Open 等价能力。
+- 官方 ObjectScript skills：从 `iris-agentic-dev` v1.2.6 固定快照选择 8 个通用 skill，部署在 `.agents/vendor/iris-agentic-dev-skills/`，全部按 optional capability 触发，不默认生成浅层入口。
 
 ## 标准目录
 
@@ -37,7 +55,7 @@ coding-iris-plugin/
 
 1. 将本插件放到目标工程 `.agents/plugins/coding-iris-plugin/`。
 2. 首次初始化时直接读取 `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`。
-3. 初始化流程复制 `convert-gb2312-upload.ps1` 和 `check-frontend-encoding.ps1` 到目标工程 `.agents/scripts/`。
+3. 初始化/迁移流程在目标工程 `.agents/scripts/` 生成编码脚本薄 wrapper，实际实现由插件 canonical 脚本维护。
 4. 初始化流程直接调用插件内置 `scripts/generate-plugin-thin-index.ps1`；该脚本是 wrapper，实际委托根 `scripts/generate-plugin-thin-index.ps1`。
 5. 初始化流程根据 `templates/iris_project_profile.template.md` 生成或提示创建 `.agents/config/iris_project_profile.md`。
 6. 在浅层 `.agents/rules/` 和 `.agents/skills/` 生成 thin-index。
@@ -81,6 +99,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
   -Force
 ```
 
+workspace-overlay 模式不在每个模块中重复拉取插件：先更新共享 `CapabilityRoot`，再从 capability 脚本入口用 `-NoPull` 刷新模块 `ContextRoot`。IRIS 工具统一解析 workspace context：`project-env.json` 与 profile 来自 `ContextRoot`，插件/模板/vendor 来自 `CapabilityRoot`，源码操作限制在声明的 SourceRoot，`--from-git` 在各自 GitRoot 执行并映射回 WorkspaceRoot 逻辑路径。前端编码迁移只扫描 `sourceRoots[name=frontend]`；明确只有 `backend` 时写入 `N/A (backend-only)`，无法从 manifest 判定业务类型时才要求人工复核，全程不扫描父目录或 sibling。
+
 重建脚本委托根 canonical thin-index 脚本执行：生成阶段只处理当前 `PluginPath`，stale 清理阶段会扫描 `.agents/rules/` 中所有指向 `.agents/plugins/*/rules/*.md` 的 thin-index，并移除源文件已不存在的旧 rule 入口，例如迁移到 `references/` 的 HISUI 控件参考入口。目标工程自定义规则不会被清理。
 
 ## 接入目标工程
@@ -89,20 +109,56 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 2. 基于 `templates/iris_project_profile.template.md` 创建 `.agents/config/iris_project_profile.md`。
 3. 检查目标工程 `.mcp.json` 是否包含实际需要的 IRIS/SFTP 能力。
 4. 运行 thin-index dry-run，确认无冲突后再 write。
-5. 普通编码任务优先使用 `iris-coding` 统一入口，由它按任务范围路由到后端、前端、工作流或 promote 流程。
-6. 明确的纯后端任务可直接使用 `iris-backend-coding`，明确的纯前端任务可直接使用 `iris-frontend-coding`。
-7. 明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
-8. 需要把转换后的 GB2312 文件替换源文件时，使用 `iris-frontend-gb2312-promote`。
+5. 前后端边界不明或混合编码任务使用 `iris-coding`；明确前端/后端任务直接使用专项 skill。需要部署时在首次修改前完成或复用 Git 基线；i18n 条件矩阵和检查命令统一由前端规则维护，入口保留修改前与最终 diff 后两个检查时点。
+6. `iris-coding` 本地验证后进入 `acceptance-pending`，不自动加载 `iris-demand-commit`；只有用户要求生成提交信息、明确要求提交，或显式调用 `$iris-demand-commit --plan|--commit` 时才读取交付类型并路由，commit 不改变验收状态。
+7. `fast/full/guarded` 只决定开发路径深度，不跳过项目入口、profile、通用安全规则和命中的前后端/i18n/HISUI 规则。轻量并行仅允许最多两个临时只读子 Agent，主 Agent保持唯一写入者。
+7. 明确的纯后端任务可直接使用 `iris-backend-coding`，明确的纯前端任务可直接使用 `iris-frontend-coding`。
+8. 明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
+9. 用户明确处理历史 GB2312 工程，并要求把转换文件替换源文件时，使用 `iris-frontend-gb2312-promote`。
+10. 查询 IRIS 类、方法签名、宏、SQL 元数据或官方文档时，使用 `iris-mcp-lookup`。
+
+## IRIS 知识查询与官方 vendor skills
+
+`iris-mcp-lookup` 默认只读，按问题选择：
+
+- `iris_symbols` / `docs_introspect`：当前实例类、方法、签名与继承关系。
+- `iris_symbols_local`：本地 `.cls/.mac/.inc`。
+- `iris_doc mode=get/head`：当前实例中的类或例程文档；它不用于查询官方文档站。
+- 当前运行器网页读取能力：已知 `docs.intersystems.com` URL；Claude Code 可显示为 `Fetch` / `WebFetch`。
+- `iris_doc_search`：只有当前 `tools/list` 实际包含该工具时才使用；内置 v1.2.6 已复核包含该工具。
+
+内置 v1.2.6 的完整合并 toolset 已复核为 78 个工具；helper 与新生成的 `.mcp.json` 默认使用 `--no-skills` 后为 67 个。新增多实例、跨环境比较、持久会话、namespace/database、journal/audit、HL7、Mermaid 和 Storage 解析等能力，具体边界见 `rules/iris_agentic_dev.md`。`iris_coverage` 仍属于远端测试/监控能力，不属于知识查询默认路径；使用前必须取得任务级授权并确认 IRIS `gmheap >= 256 MB`。
+
+官方 vendor skills 来源和 commit 见 `.agents/vendor/iris-agentic-dev-skills/UPSTREAM.md`。当前选择：
+
+- `objectscript-review`
+- `objectscript-guardrails`
+- `objectscript-sql-patterns`
+- `objectscript-list-patterns`
+- `objectscript-navigation`
+- `objectscript-unit-test`
+- `objectscript-debugging`
+- `objectscript-tdd`
+
+它们在 manifest 中均为 optional。任务命中后直接读取 `.agents/vendor/iris-agentic-dev-skills/skills/<name>/SKILL.md`；上游原文中的工具名可能与内置 MCP 版本不同，执行前必须读取 `rules/iris_knowledge_lookup.md` 并按当前 `tools/list` schema 映射。`objectscript-tdd` 只有在任务已授权远端编译和测试时才能触发。
+
+已部署业务工程更新 `.agents` 后，重新为 enabled `coding-iris-plugin` 生成 plugin thin-index，即可获得 `iris-mcp-lookup`、`iris-demand-promote`、`iris-demand-commit` 与 `iris_knowledge_lookup` 浅层入口。更新器同时执行 `demand-delivery-type-v1`：从明确项目上下文填充 `standard/project`，无法确定时写入 `TODO` 并提示用户补全。optional vendor skills 不会自动生成浅层入口；需要用户级运行时副本时，按 `docs/update-agents.md` 显式选择具体 skill 和 runtime。
 
 ## IRIS 开发主力脚本
 
 `scripts/iris-tools/` 中的 Node.js 脚本是 IRIS 工程的首选执行路径：
 
-- `export.js`：从 IRIS 导出类、JS 或 CSP。
-- `compile.js`：上传并编译本地类文件。
+- `export.js`：从 IRIS 导出 `.cls/.mac/.inc/.int/.js/.csp/.css`；支持 `--probe --json` 只读探测和 `--staging-dir` 临时导出。
+- `promote-demand.js`：按需求号执行 DEV→PRD 的 plan/apply/continue/verify；同名仓库按 DEV/PRD 绝对路径身份隔离临时计划，`continue` 重新校验双方 HEAD 并拒绝未暂存或未跟踪状态。不同需求号的独立 DEV 提交强制分别形成 PRD 提交，只有 `fix(123,456):...` 这类 DEV 联合需求提交才允许保留为一笔；独立需求共享文件时，用 `--prior-plan` 链接上一笔已验证计划。本脚本不上传、编译或部署远端。
+- `commit-demand.js`：为 `$iris-demand-commit --plan|--commit` 提供底层 plan/apply/verify。`--plan` 只调用脚本 `plan` 并停止；`--commit` 在明确授权后调用 `plan` 与 `apply --verify`。脚本按需求文件解析 GitRoot，标版首行使用简短菜单/功能摘要并在第三行保留完整需求，项目生成两行提交信息；pull、安全门禁、精确文件边界及无 push 约束保持不变。
+- `compile.js`：上传并编译本地类文件；在 workspace-overlay 中同时接受 `backend/src/...` 逻辑路径，并把远端文档名规范化为不含 `backend/src` 前缀的类文档名。
 - `debugger.js`：调用 Web Broker 方法做快速调试。
 - `sync-env-config.js`：仅当 `.agents/config/project-env.json` 是事实来源时，从它生成 `.mcp.json`。
 - `prepare-deploy-manifest.js`：根据文件列表或 git diff 生成 IRIS 部署 JSON 清单；只做本地分析，不执行上传、编译或远端写入。
+
+目标工程 `.agents/scripts/iris-mcp.js` 是通用 MCP helper，用于在 Agent 环境未直接暴露 IRIS MCP 工具时稳定启动 `iris-agentic-dev`、执行 `check_config`、列出工具和转发 `tools/call`。该脚本不实现业务能力；`iris_doc`、`iris_query`、`iris_info` 等能力仍由 MCP server 自身处理。helper 会摘要版本、连接、`check_config.capabilities` 和 fallback 风险，显式分类 v1.2.6 的 78 个工具，并按 `mode` / `action` 精确拦截文档编辑、SQL 写入、Global 写删、namespace 创建、多实例注册变更、持久会话、容器切换、SCM 变更、测试、覆盖率等远端状态变化；尚未分类的未来工具默认也进入授权门禁，只有用户明确要求后才允许使用 `--allow-write`。
+
+新生成配置默认 `mcp.includeBuiltInSkills=false`，对应 `--no-skills` / `IRIS_NO_SKILLS=true`，避免上游 skill registry、KB 和学习工具与本仓库 vendor skills 重复。确需这些内置工具时，只在目标工程本地把该字段设为 `true`。如需进一步减少工具噪声或从 MCP 暴露面隐藏高风险工具，可在目标工程私有 `.iris-agentic-dev.toml` 中设置 `disabled_tools`，或通过 `.mcp.json` 的本地 `env` 设置 `IRIS_DISABLED_TOOLS`。这不会自动授予其余工具写权限，也不会修改插件 profile。
 
 首次使用前先确认配置事实来源：
 
@@ -119,18 +175,26 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
 常用调用：
 
 ```powershell
+$iris-demand-commit --plan
+$iris-demand-commit --commit
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <文件标识符>
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js <文件名或路径> [命名空间]
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <ClassName> --method <MethodName>
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js --files <path...>
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js --from-git --base HEAD
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/promote-demand.js plan --demand <id> --dev-root <path> --prd-root <path>
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js plan --project-root <path> --kind <standard|project> --demand <id> --subject <menu-summary> --title <full-title> --type <type> --file <path> --modification <description>
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js apply --plan <plan.json> --confirm-commit --verify
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/promote-demand.js plan --demand <next-id> --dev-root <path> --prd-root <path> --prior-plan <verified-plan.json>
+node .agents/scripts/iris-mcp.js check
+node .agents/scripts/iris-mcp.js call iris_doc "{...}"
 ```
 
 `.agents/config/project-env.json` 和 `.mcp.json` 可能包含账号、密码、服务器地址等敏感信息，应由目标工程本地维护，不提交到业务项目版本库。
 
-## 前端 GB2312 提升流程
+## Legacy 前端 GB2312 提升流程
 
-当需要把 UTF-8 前端源文件永久转换为 GB2312 时：
+只有用户明确处理尚未迁移到当前 UTF-8 标准的历史工程，并要求把 UTF-8 前端源文件永久转换为 GB2312 时：
 
 1. 使用 `iris-frontend-gb2312-promote`。
 2. 该技能调用目标工程 `.agents/scripts/convert-gb2312-upload.ps1`。
@@ -140,29 +204,33 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 
 ## 前端编码保护
 
-历史 HIS 前端 `.csp`、`.js`、`.css` 文件按 GB2312 处理。普通前端修改必须保持源文件原编码，不得为了编辑方便永久保存为 UTF-8。
+当前前端编码以目标工程 `.agents/config/iris_project_profile.md` 的 canonical `utf8` 为准；`project-utf8` 仅作为兼容读取别名，`standard-gb2312` 仅作为用户明确指定的历史工程状态。每个文件修改前后仍必须通过实际字节检测。
 
-目标工程 profile 要求前端 GB2312 时，收尾检查：
+前端流程同时读取 `.agents/config/plugin_profile.md`：只有 `i18n-iris-plugin` 状态为 `enabled` 且修改前或最终 diff 命中 `$g`、`$trans`、翻译 key、用户可见文案或 `placeholder` / `title` / `tooltip` / `alt` 时，才追加 i18n profile、规则与 helper 静态检查。明确 i18n 需求切换到 `i18n-coding`；普通业务需求只应用轻量门禁，不自动进入完整 workflow。未启用 i18n 时不猜测 helper 语义，也不因插件目录存在而加载能力。
+
+明确的 backend-only Overlay 不适用前端字节门禁，profile 固定使用 `N/A (backend-only)`，前端导出入口会明确停止且不写 source/staging。若 manifest 后续新增 `frontend` SourceRoot，必须重新运行迁移并通过 UTF-8 字节检测，不能手工把 N/A 直接改成 `utf8`。
+
+当前 `utf8` 收尾检查：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-frontend-encoding.ps1 -Files @(
   "path/to/page.csp",
   "path/to/page.js"
-) -ExpectedEncoding gb2312 -ErrorOnMismatch
+) -ExpectedEncoding utf8 -ErrorOnMismatch
 ```
 
-上传转换脚本只生成临时上传产物，不代表源文件允许编码漂移。
+通过后直接上传原始 UTF-8 源文件，不运行 GB2312 转换器。正常任务最终只报告“模式、文件数、保持编码”一行；检测到 GB2312、UTF-16、unknown、mixed 或配置冲突时停止并展开诊断。
 
 ## 去项目化边界
 
 本插件不保存服务器地址、namespace、账号、密码、token、远程路径、业务页面清单、业务类名前缀或项目专属基类。这些内容只能存在于目标工程 `.agents/config/iris_project_profile.md` 或 `.mcp.json`。
 ## 部署可靠性要点
 
-- 持久化实体类上传前去掉整个 `Storage Default { ... }` 块，由 IRIS 编译重新生成 Storage。
+- 共享部署保护保留 Storage 原文；B/L/R 的 Storage 有差异或无法可靠解析时停止并 Question。不得为通过上传而自动删除或重新生成 Storage，不能回退直接 iris_doc put 绕过保护。
 - 类文件部署先整组上传依赖切片，再按依赖顺序编译；不要边上传边逐个编译。
-- 前端 GB2312 转换文件只作为上传临时件，远端文件名映射回原始目标文件名。
-- 前端 GB2312 源文件修改后仍保持原编码；上传转换不是源文件转码许可。
-- CSP 编译使用 WebApp 虚拟路径 `$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`，并检查内层 status、生成类、`CSPFILE`、`CSPURL`。
+- 当前前端文件通过 UTF-8 门禁后直接上传原始源文件，不生成编码转换临时件。
+- Legacy GB2312 转换只用于用户明确指定的历史工程；临时件远端文件名仍映射回原始目标文件名，不能据此推断当前标版仍使用 GB2312。
+- CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 - 插件不保存服务器地址、账号、namespace、token、Cookie 或远端绝对路径。
 
 ## 脚本配置来源
@@ -176,3 +244,19 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 - `web.cookie`：可选 Broker 调试 Cookie；也可用 `debugger.js --cookie "<cookie>"` 临时传入。Cookie 属于敏感值，只能放在本地私有配置或命令行临时参数中。
 
 缺少必要配置时脚本应直接报错，避免静默拼出错误路径。
+
+前端上传加编译固定使用 `scripts/iris-tools/deploy-frontend.js`：单连接差异上传、哈希回读后批量 Atelier 编译；失败停止，不临时生成脚本或自动换通道。参数及耗时口径见 `scripts/iris-tools/README.md`。
+
+## Git 主线部署保护（0.10.0）
+
+上传使用需求基线和独立合并产物；首次服务器差异可合并，再次覆盖必须 Question。源码与暂存区不接收服务器差异。前端 deploy-frontend.js 和后端 compile.js 均须提供 --demand 与 --files，并先建立 deploy-guard.js 会话。详见 references/deployment-protection.md（从 skill/rule 入口按插件根解析）。原位置参数后端上传停止，不允许回退绕过。
+
+部署 Question 兼容：停止结果提供工具无关 question 协议，固定决定代码；Agent 按能力采用选项或文字确认。暂停/查看/无效决定不写入。详见 references/deployment-protection.md。
+
+前端规则补充旧调用迁移的接口契约检查：参数大小写、命名/位置绑定、Broker 传输与响应结构按接口核实，失败不得伪装为空集合或自动换通道重试。此次指导资料更新不修改请求运行时；已部署项目通过既有更新流程取得规则，无业务配置迁移。
+
+## 按需辅助与收尾
+
+遵循 agents/_shared/execution-guidance.md（源仓根；部署态为 .agents/agents/_shared/）。guidanceMode 默认 auto，可选 concise/assisted；辅助程度不改变授权、编码及领域契约。方法允许合并或重排，IRIS 编码共用 iris_coding_general 的风险分流。业务验收后按信号加载 feedback，无信号不例行报告。现有工程按 docs/update-agents.md 定点合并项目入口，普通能力包更新不重写用户 AGENTS/profile。
+
+纯初始化入口 `coding-iris-init` 直接读取插件内真实 SKILL.md，manifest 的 `thinIndex.excludeSkills` 将其排除出浅层技能列表。已启用项目常规更新时，Check/DryRun 只报告旧受管索引，Write 精准删除；自定义文件和链接保留。迁移边界见能力包 [更新说明](../../docs/update-agents.md#纯初始化-skill-薄索引迁移)。

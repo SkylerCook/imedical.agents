@@ -12,7 +12,7 @@ related:
 
 执行本规则前必须先读取 `.agents/config/i18n_project_profile.md`，确认当前项目的前端框架、翻译 helper 和自动翻译边界。
 
-涉及 `.csp` / `.js` / `.css` 文件写入时，还必须遵守 `coding-iris-plugin` 的前端编码规则：读取 `.agents/config/iris_project_profile.md` 和 `.agents/plugins/coding-iris-plugin/rules/iris_coding_frontend.md`。i18n 改造不得把历史 GB2312 前端源文件永久保存为 UTF-8。
+涉及 `.csp` / `.js` / `.css` 文件写入时，还必须遵守 `coding-iris-plugin` 的 canonical UTF-8 与 legacy 兼容边界：读取 `.agents/config/iris_project_profile.md` 和 `.agents/plugins/coding-iris-plugin/rules/iris_coding_frontend.md`，并以实际文件字节检测作为最终门禁。
 
 ## 适用范围
 
@@ -22,10 +22,10 @@ related:
 
 ## 编码边界
 
-- i18n 前端改造会修改源语言文案，必须先确认目标文件实际编码；历史 HIS 前端文件按 GB2312 处理。
-- 若原文件为 GB2312，可以使用临时 UTF-8 工作副本辅助编辑，但最终写回源文件必须保持原编码。
-- 禁止因为 `$g()`、`$trans()`、模板 helper 或翻译 key 修改，把 GB2312 源文件顺手保存成 UTF-8。
-- profile 要求前端 GB2312 时，改造后使用 `.agents/scripts/check-frontend-encoding.ps1 -ExpectedEncoding gb2312 -ErrorOnMismatch` 或等价检查确认未发生编码漂移。
+- 当前前端文件统一保持 canonical UTF-8，修改前后必须通过 UTF-8 字节检查，并禁止调用 GB2312 转换器。
+- `project-utf8` 仅作为 `utf8` 的兼容读取别名；只有用户明确指定的历史 `standard-gb2312` 工程才沿用 legacy 检查与转换流程。
+- 禁止因为 `$g()`、`$trans()`、模板 helper 或翻译 key 修改而改变目标模式要求的源码编码。
+- 每个触碰文件改造前后按 UTF-8 检查；GB2312、UTF-16、unknown、mixed 或配置冲突时停止。
 
 ## CSP / 页面模板
 
@@ -47,6 +47,27 @@ related:
 - 带变量文本使用 project profile 指定的 JS 占位符翻译 helper。
 - 不要新增裸源语言拼接提示，应改为占位符翻译。
 - 消息标题若确认由 UI 框架自动翻译，可保持源语言标题，但必须进入翻译表。
+
+翻译 helper 的 key 必须是稳定字面量。静态 helper 只接收静态文案；运行时值必须通过占位符 helper 的后续参数传入，不能拼进 key，也不能使用带插值的模板字符串作为 key。
+
+```javascript
+// 错误：key 随运行时快捷键变化，翻译条目无法稳定匹配
+$g(PageLogicObj.shortcutKey + " 键打开模板维护")
+
+// 正确：key 稳定，运行时值作为占位符参数传入
+$trans("{0} 键打开模板维护", PageLogicObj.shortcutKey)
+```
+
+修改前和最终 diff 后，对全部触碰的 JS/CSP 文件运行只读检查器；helper 名称取自 `.agents/config/i18n_project_profile.md`：
+
+```powershell
+node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
+  --file <path> `
+  --static-helper '$g' `
+  --placeholder-helper '$trans'
+```
+
+多个文件重复传入 `--file`。退出码 `1` 表示动态翻译 key，退出码 `2` 表示参数或文件读取错误，两者都必须停止；不得以“沿用原代码 helper”为理由忽略。
 
 ## UI 框架边界
 
@@ -103,3 +124,5 @@ datagrid / treegrid 列头规则：
 ## 输出要求
 
 前端改造后必须配合文本提取规则生成翻译表。UI 框架自动翻译文本即使代码未改，也必须进入翻译表。
+
+最终输出必须说明 helper 稳定 key 静态检查是否执行及结果；未命中任何 JS/CSP helper 时说明不适用。

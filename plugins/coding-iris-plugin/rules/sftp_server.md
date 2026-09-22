@@ -12,6 +12,13 @@ related:
 
 ## 能力矩阵
 
+框架实现位于 `.agents/vendor/sftp-server/`；启用、依赖锁、主机密钥与兼容迁移见 vendor README。已有项目须显式选择 vendor，不默认替换外部工具。
+
+- vendor 默认拒绝未知/变化主机密钥，显式 `TARGET_KNOWN_HOSTS` 优先于系统信任库；不得自动信任或覆盖全局密钥。
+- vendor 上传使用同目录临时文件、SHA-256 回读和 `posix-rename`；不支持原子替换就停止。路径越界和远端符号链接被拒绝。服务器树须避免并发不可信写入；既有 ACL/owner 不自动复制。
+- vendor 目录同步默认 SHA-256，支持 `compare: mtime-size|always` 和 `dry_run: true`；不删除远端多余文件，逐文件失败以 `isError` 和 `partial-failure` 报告。
+- vendor SSH 命令默认禁用，只有私有配置 `ALLOW_REMOTE_COMMANDS=true` 才开放；此开关不替代单次操作授权。
+
 - `list_remote_directory`：只读列出远端目录。优先用于确认已配置远端根目录和目标子目录。
 - `read_remote_file`：只读读取远端文件。大文件需使用 `max_size`、`offset`、`limit` 控制范围。
 - `upload_file`：上传单个本地文件到单个远端路径。可能覆盖目标文件，必须先确认路径映射。
@@ -33,8 +40,8 @@ related:
 
 ## 部署规则
 
-前端上传、GB2312 转换和 CSP 编译的完整规则见 `iris_coding_workflow.md`、`iris_deploy_checklist.md` 和 `iris_gb2312_workflow.md`。本文只补充 SFTP MCP 特有约束：
+前端 UTF-8 上传和 CSP 编译的完整规则见 `iris_coding_workflow.md` 与 `iris_deploy_checklist.md`；只有已确认的历史 GB2312 工程才继续读取 `iris_gb2312_workflow.md`。本文只补充 SFTP MCP 特有约束：
 
-- 执行 `upload_file` 前，必须显式比对源文件路径、转换后上传文件路径和远端目标路径。
+- 执行 `upload_file` 前，必须显式比对源文件路径和远端目标路径；legacy GB2312 流程还要核对转换后的临时上传路径。
 - 执行 `sync_directory` 前，必须列出本地根目录、远端根目录并确认忽略规则。窄范围部署优先使用 `upload_file`，避免目录同步。
 - 除非用户明确要求且命令范围受限，否则 `execute_remote_command` 不得用于 delete、move、chmod、service 等会改变远端状态的命令。

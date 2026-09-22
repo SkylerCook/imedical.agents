@@ -17,13 +17,18 @@
   "mcp": {
     "serverName": "iris-agentic-dev",
     "serverPath": ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe",
-    "nodeTlsRejectUnauthorized": "0"
+    "nodeTlsRejectUnauthorized": "0",
+    "includeBuiltInSkills": false
   },
   "sftp": {
     "enabled": false,
+    "runtime": "vendor",
     "serverName": "sftp-server",
     "command": "python",
-    "scriptPath": "TODO: path to sftp-server main.py",
+    "scriptPath": ".agents/vendor/sftp-server/src/main.py",
+    "keyFile": "",
+    "knownHosts": "",
+    "allowRemoteCommands": false,
     "host": "TODO",
     "port": 22,
     "username": "TODO",

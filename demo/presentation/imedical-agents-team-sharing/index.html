@@ -1,0 +1,1529 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#0b3e54">
+  <title>AI Coding 外骨骼架构与 imedical.agents 工程实践</title>
+  <style>
+    :root {
+      --primary: #145f7d;
+      --primary-dark: #0b3e54;
+      --primary-soft: #e7f3f8;
+      --accent: #d66f2d;
+      --accent-soft: #fff2e9;
+      --green: #2f7d68;
+      --green-soft: #eaf6f1;
+      --ink: #132a36;
+      --muted: #55717f;
+      --line: #c9dae2;
+      --paper: #f6f8fb;
+      --panel: #ffffff;
+      --shadow: 0 24px 60px rgba(11, 62, 84, 0.14);
+      --slide-pad-x: clamp(46px, 6.2vw, 116px);
+      --slide-pad-y: clamp(34px, 5vh, 72px);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #dfeaf0;
+      color: var(--ink);
+      font-family: "Plus Jakarta Sans", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    button, code, pre { font: inherit; }
+    button { color: inherit; }
+    a { color: var(--primary); }
+
+    .skip-link {
+      position: fixed;
+      z-index: 100;
+      left: 12px;
+      top: -80px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: var(--primary-dark);
+      color: #fff;
+      transition: top .2s ease;
+    }
+
+    .skip-link:focus { top: 12px; }
+
+    .deck {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background:
+        radial-gradient(circle at 12% 10%, rgba(20, 95, 125, .12), transparent 30%),
+        radial-gradient(circle at 91% 88%, rgba(214, 111, 45, .10), transparent 32%),
+        #dfeaf0;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: none;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgba(231, 243, 248, .88), rgba(246, 248, 251, .18) 48%),
+        var(--paper);
+    }
+
+    .slide::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: .34;
+      background-image:
+        linear-gradient(rgba(20, 95, 125, .025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(20, 95, 125, .025) 1px, transparent 1px);
+      background-size: 34px 34px;
+    }
+
+    .slide.active {
+      display: block;
+      animation: slide-in .28s ease-out both;
+    }
+
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .slide-inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      padding: var(--slide-pad-y) var(--slide-pad-x) calc(var(--slide-pad-y) + 18px);
+    }
+
+    .slide-top {
+      position: absolute;
+      top: 24px;
+      left: var(--slide-pad-x);
+      right: var(--slide-pad-x);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: clamp(12px, 1vw, 16px);
+      color: var(--muted);
+      letter-spacing: .04em;
+    }
+
+    .brand-mark { font-weight: 800; color: var(--primary-dark); }
+    .brand-mark span { color: var(--accent); }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      color: var(--accent);
+      font-size: clamp(14px, 1.25vw, 20px);
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 34px;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 1100px;
+      margin-bottom: 20px;
+      color: var(--primary-dark);
+      font-size: clamp(44px, 6.5vw, 92px);
+      line-height: 1.05;
+      letter-spacing: -.035em;
+    }
+
+    h2 {
+      max-width: 1160px;
+      margin-bottom: clamp(20px, 3.6vh, 42px);
+      color: var(--primary-dark);
+      font-size: clamp(34px, 4.1vw, 62px);
+      line-height: 1.12;
+      letter-spacing: -.025em;
+    }
+
+    h3 {
+      margin-bottom: 8px;
+      color: var(--primary-dark);
+      font-size: clamp(20px, 1.8vw, 29px);
+      line-height: 1.25;
+    }
+
+    p, li {
+      font-size: clamp(17px, 1.4vw, 23px);
+      line-height: 1.62;
+    }
+
+    .lead {
+      max-width: 980px;
+      margin-bottom: 28px;
+      color: var(--muted);
+      font-size: clamp(22px, 2.25vw, 34px);
+      line-height: 1.5;
+    }
+
+    .muted { color: var(--muted); }
+    .accent { color: var(--accent); }
+    .primary { color: var(--primary); }
+    .strong { font-weight: 800; }
+    .mono { font-family: Consolas, "Cascadia Mono", monospace; }
+
+    .highlight {
+      padding: 0 .04em;
+      background: none;
+      text-decoration: underline;
+      text-decoration-color: rgba(214, 111, 45, .58);
+      text-decoration-thickness: .08em;
+      text-underline-offset: .1em;
+      text-decoration-skip-ink: none;
+    }
+
+    .hero-layout,
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
+      gap: clamp(34px, 5vw, 80px);
+      align-items: center;
+    }
+
+    .hero-panel,
+    .panel {
+      border: 1px solid rgba(20, 95, 125, .15);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, .82);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-panel { padding: clamp(26px, 3vw, 46px); }
+    .panel { padding: clamp(20px, 2.3vw, 34px); }
+
+    .hero-panel::before {
+      content: "";
+      display: block;
+      width: 72px;
+      height: 7px;
+      margin-bottom: 28px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+    }
+
+    .hero-keywords {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 28px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 7px 13px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: var(--primary-dark);
+      font-size: clamp(13px, 1vw, 16px);
+      font-weight: 750;
+    }
+
+    .chip.orange { background: var(--accent-soft); color: #9d4b18; }
+    .chip.green { background: var(--green-soft); color: var(--green); }
+
+    .term-note {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: clamp(12px, .82vw, 15px);
+      font-weight: 700;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    .three-lines {
+      display: grid;
+      gap: 18px;
+    }
+
+    .problem-line,
+    .capability-line,
+    .action-line {
+      display: grid;
+      grid-template-columns: 78px 1fr;
+      gap: 20px;
+      align-items: start;
+      padding: 18px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .problem-line:last-child,
+    .capability-line:last-child,
+    .action-line:last-child { border-bottom: 0; }
+
+    .line-no {
+      color: var(--accent);
+      font-size: clamp(28px, 3vw, 44px);
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .big-statement {
+      max-width: 1240px;
+      color: var(--primary-dark);
+      font-size: clamp(31px, 4.4vw, 66px);
+      font-weight: 820;
+      line-height: 1.32;
+      letter-spacing: -.025em;
+    }
+
+    .definition-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 36px;
+    }
+
+    .definition-strip span {
+      padding: 12px 18px;
+      border-left: 4px solid var(--accent);
+      background: rgba(255,255,255,.8);
+      color: var(--primary-dark);
+      font-size: clamp(16px, 1.3vw, 21px);
+      font-weight: 720;
+    }
+
+    .architecture {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: clamp(14px, 1.6vw, 26px);
+      align-items: stretch;
+      margin-top: 6px;
+    }
+
+    .arch-node {
+      position: relative;
+      min-height: 230px;
+      padding: clamp(18px, 2vw, 28px);
+      border-top: 6px solid var(--primary);
+      border-radius: 18px;
+      background: rgba(255,255,255,.9);
+      box-shadow: 0 14px 30px rgba(11, 62, 84, .10);
+    }
+
+    .arch-node:nth-child(2n) { border-top-color: var(--accent); }
+    .arch-node:last-child { border-top-color: var(--green); }
+
+    .arch-node:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      z-index: 2;
+      top: 50%;
+      right: calc(clamp(14px, 1.6vw, 26px) * -.72);
+      transform: translate(50%, -50%);
+      color: var(--accent);
+      font-size: clamp(22px, 2.5vw, 40px);
+      font-weight: 900;
+    }
+
+    .arch-node small {
+      display: block;
+      margin-bottom: 16px;
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 850;
+      letter-spacing: .1em;
+    }
+
+    .arch-node ul {
+      margin: 12px 0 0;
+      padding-left: 20px;
+    }
+
+    .arch-node li { font-size: clamp(14px, 1.05vw, 18px); line-height: 1.48; }
+
+    .columns-3,
+    .columns-4 {
+      display: grid;
+      gap: clamp(18px, 2vw, 30px);
+    }
+
+    .columns-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .columns-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .feature {
+      padding: 24px 22px;
+      border-top: 5px solid var(--primary);
+      background: rgba(255,255,255,.76);
+    }
+
+    .feature.orange { border-top-color: var(--accent); }
+    .feature.green { border-top-color: var(--green); }
+    .feature p { margin-bottom: 0; color: var(--muted); font-size: clamp(15px, 1.2vw, 20px); }
+
+    .state-list {
+      display: grid;
+      gap: 16px;
+    }
+
+    .state {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      gap: 18px;
+      align-items: center;
+      padding: 15px 18px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.84);
+    }
+
+    .state-name {
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: var(--primary-soft);
+      color: var(--primary-dark);
+      text-align: center;
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .state-name small {
+      display: block;
+      margin-top: 2px;
+      font-family: "Plus Jakarta Sans", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .state.enabled .state-name { background: var(--green-soft); color: var(--green); }
+    .state.disabled .state-name { background: #f1f2f4; color: #69747a; }
+    .state p { margin: 0; font-size: clamp(15px, 1.2vw, 20px); }
+
+    .route-line {
+      margin-top: 18px;
+      padding: 18px 22px;
+      border-left: 5px solid var(--accent);
+      background: var(--accent-soft);
+      color: #7b3d18;
+      font-size: clamp(16px, 1.35vw, 22px);
+      font-weight: 720;
+    }
+
+    .role-stack { display: grid; gap: 12px; }
+
+    .role-row {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 24px;
+      align-items: baseline;
+      padding: 15px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .role-row:last-child { border-bottom: 0; }
+    .role-row strong { color: var(--primary-dark); font-size: clamp(19px, 1.6vw, 26px); }
+    .role-row span { color: var(--muted); font-size: clamp(15px, 1.25vw, 20px); line-height: 1.5; }
+
+    .mode-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .mode-strip div {
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: var(--primary-soft);
+      text-align: center;
+      font-size: clamp(14px, 1.15vw, 18px);
+      font-weight: 800;
+    }
+
+    .mode-strip strong,
+    .mode-strip span { display: block; }
+    .mode-strip span { margin-top: 3px; color: var(--muted); font-size: 12px; font-weight: 700; }
+
+    .compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(26px, 3.6vw, 58px);
+    }
+
+    .compare-col {
+      padding: clamp(24px, 3vw, 42px);
+      border-radius: 22px;
+      background: rgba(255,255,255,.82);
+      box-shadow: 0 15px 36px rgba(11, 62, 84, .10);
+    }
+
+    .compare-col h3 { padding-bottom: 14px; border-bottom: 4px solid var(--primary); }
+    .compare-col.orange h3 { border-bottom-color: var(--accent); }
+    .compare-col ul { margin-bottom: 0; padding-left: 24px; }
+    .compare-col li { margin: 9px 0; font-size: clamp(16px, 1.25vw, 21px); }
+
+    .loop {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .loop-step {
+      position: relative;
+      padding: 22px 16px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.88);
+      text-align: center;
+      box-shadow: 0 10px 24px rgba(11, 62, 84, .09);
+    }
+
+    .loop-step:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      top: 50%;
+      right: -12px;
+      transform: translate(50%, -50%);
+      color: var(--accent);
+      font-size: 24px;
+      font-weight: 900;
+    }
+
+    .loop-step b { display: block; margin-bottom: 8px; color: var(--accent); font-size: 14px; }
+    .loop-step span { color: var(--primary-dark); font-size: clamp(15px, 1.2vw, 20px); font-weight: 800; }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: clamp(24px, 4vw, 64px);
+      margin: 14px 0 34px;
+    }
+
+    .metric {
+      padding: 20px 0 26px;
+      border-bottom: 5px solid var(--accent);
+    }
+
+    .metric:nth-child(2) { border-color: var(--primary); }
+    .metric:nth-child(3) { border-color: var(--green); }
+    .metric strong { display: block; color: var(--primary-dark); font-size: clamp(56px, 8vw, 112px); line-height: 1; }
+    .metric span { color: var(--muted); font-size: clamp(17px, 1.45vw, 24px); font-weight: 750; }
+
+    .group-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px 34px;
+    }
+
+    .group-list div {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 12px;
+      align-items: baseline;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .group-list strong { color: var(--primary-dark); }
+    .group-list span { color: var(--muted); font-size: clamp(14px, 1.1vw, 18px); }
+
+    .capability-line { grid-template-columns: 210px 1fr; }
+    .capability-line .cap-name { color: var(--primary-dark); font-size: clamp(18px, 1.55vw, 25px); font-weight: 820; }
+    .capability-line p { margin: 0; color: var(--muted); font-size: clamp(15px, 1.2vw, 20px); }
+
+    .workflow {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .workflow-step {
+      min-height: 150px;
+      padding: 18px 16px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: rgba(255,255,255,.86);
+    }
+
+    .workflow-step b { display: block; margin-bottom: 12px; color: var(--accent); font-size: 13px; letter-spacing: .06em; }
+    .workflow-step strong { display: block; color: var(--primary-dark); font-size: clamp(17px, 1.35vw, 22px); }
+    .workflow-step p { margin: 8px 0 0; color: var(--muted); font-size: clamp(13px, 1vw, 17px); line-height: 1.45; }
+
+    .safety-banner {
+      margin-top: 22px;
+      padding: 16px 20px;
+      border-radius: 12px;
+      background: var(--green-soft);
+      color: #215b4d;
+      font-size: clamp(15px, 1.2vw, 20px);
+      font-weight: 720;
+    }
+
+    .check-list {
+      display: grid;
+      gap: 13px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .check-list li {
+      position: relative;
+      padding-left: 38px;
+    }
+
+    .check-list li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      top: 2px;
+      display: grid;
+      place-items: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--green-soft);
+      color: var(--green);
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .terminal {
+      position: relative;
+      overflow: hidden;
+      border-radius: 18px;
+      background: #0f2533;
+      color: #e9f1f5;
+      box-shadow: 0 20px 45px rgba(11, 62, 84, .22);
+    }
+
+    .terminal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 42px;
+      padding: 8px 12px 8px 18px;
+      background: #14364a;
+      color: #c9dae2;
+      font-size: 13px;
+    }
+
+    .terminal-dots { letter-spacing: 5px; color: #ffb27d; }
+
+    pre {
+      margin: 0;
+      padding: clamp(18px, 2.1vw, 30px);
+      overflow: auto;
+      white-space: pre-wrap;
+      color: #e9f1f5;
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: clamp(13px, 1.12vw, 18px);
+      line-height: 1.55;
+    }
+
+    .copy-btn {
+      min-width: 74px;
+      padding: 7px 10px;
+      border: 1px solid rgba(255,255,255,.22);
+      border-radius: 8px;
+      background: rgba(255,255,255,.08);
+      color: #fff;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .copy-btn:hover,
+    .copy-btn:focus-visible { background: rgba(255,255,255,.16); outline: 2px solid #7fc5df; }
+
+    .terminal .comment { color: #8db4c3; }
+    .terminal .ok { color: #7cd4b5; }
+    .terminal .warn { color: #ffb27d; }
+
+    .demo-flow {
+      display: grid;
+      grid-template-columns: 1fr 36px 1fr 36px 1fr;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .demo-flow .arrow { color: var(--accent); font-size: 32px; font-weight: 900; text-align: center; }
+    .demo-node { min-height: 180px; padding: 24px; border-radius: 18px; background: rgba(255,255,255,.88); }
+    .demo-node b { display: block; margin-bottom: 12px; color: var(--accent); font-size: 14px; letter-spacing: .08em; }
+    .demo-node p { margin-bottom: 0; color: var(--muted); font-size: clamp(15px, 1.15vw, 19px); }
+
+    .prompt-box {
+      padding: clamp(24px, 3vw, 42px);
+      border-left: 8px solid var(--accent);
+      border-radius: 0 20px 20px 0;
+      background: rgba(255,255,255,.9);
+      color: var(--primary-dark);
+      font-size: clamp(21px, 2.15vw, 33px);
+      font-weight: 760;
+      line-height: 1.55;
+      box-shadow: 0 16px 38px rgba(11, 62, 84, .11);
+    }
+
+    .action-line { grid-template-columns: 96px 1fr 230px; align-items: center; }
+    .action-line .action-word { color: var(--primary-dark); font-size: clamp(22px, 2vw, 32px); font-weight: 900; }
+    .action-line p { margin: 0; color: var(--muted); }
+    .action-line code { color: var(--primary); font-size: clamp(13px, 1vw, 16px); font-weight: 750; }
+
+    .appendix .slide-inner { justify-content: flex-start; padding-top: clamp(72px, 9vh, 110px); }
+    .appendix h2 { margin-bottom: 24px; font-size: clamp(31px, 3.6vw, 54px); }
+
+    .source-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 34px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .source-list li {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: clamp(13px, 1vw, 17px);
+    }
+
+    .glossary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 34px;
+      margin: 0;
+    }
+
+    .glossary-item {
+      display: grid;
+      grid-template-columns: 132px 1fr;
+      gap: 14px;
+      align-items: baseline;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .glossary-item dt {
+      color: var(--primary-dark);
+      font-size: clamp(16px, 1.22vw, 21px);
+      font-weight: 850;
+    }
+
+    .glossary-item dd { margin: 0; color: var(--muted); font-size: clamp(14px, 1vw, 17px); line-height: 1.45; }
+
+    .source-strip {
+      margin-top: 18px;
+      padding: 12px 16px;
+      border-left: 4px solid var(--accent);
+      background: rgba(255,255,255,.72);
+      color: var(--muted);
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: clamp(11px, .82vw, 14px);
+      line-height: 1.5;
+    }
+
+    .slide-footer-note {
+      position: absolute;
+      z-index: 2;
+      left: var(--slide-pad-x);
+      bottom: 22px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .speaker-note { display: none; }
+
+    .controls {
+      position: fixed;
+      z-index: 40;
+      right: 20px;
+      bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px;
+      border: 1px solid rgba(20,95,125,.14);
+      border-radius: 14px;
+      background: rgba(255,255,255,.88);
+      box-shadow: 0 12px 30px rgba(11,62,84,.15);
+      backdrop-filter: blur(10px);
+    }
+
+    .control-btn {
+      display: grid;
+      place-items: center;
+      min-width: 38px;
+      height: 38px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--primary-dark);
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .control-btn:hover,
+    .control-btn:focus-visible { background: var(--primary-soft); outline: 2px solid var(--primary); }
+
+    .counter {
+      min-width: 64px;
+      text-align: center;
+      color: var(--primary-dark);
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .progress-track {
+      position: fixed;
+      z-index: 50;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 5px;
+      background: rgba(255,255,255,.22);
+    }
+
+    .progress-bar {
+      width: 0;
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      transition: width .22s ease;
+    }
+
+    .overview {
+      position: fixed;
+      z-index: 70;
+      inset: 0;
+      display: none;
+      overflow: auto;
+      padding: 50px;
+      background: rgba(11, 43, 58, .96);
+      color: #fff;
+    }
+
+    .overview.open { display: block; }
+    .overview-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; }
+    .overview h2 { margin: 0; color: #fff; font-size: 38px; }
+
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 16px;
+    }
+
+    .overview-item {
+      min-height: 138px;
+      padding: 18px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 14px;
+      background: rgba(255,255,255,.07);
+      color: #fff;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .overview-item:hover,
+    .overview-item:focus-visible { border-color: #7fc5df; background: rgba(255,255,255,.13); outline: 2px solid #7fc5df; }
+    .overview-item b { display: block; margin-bottom: 8px; color: #ffb27d; }
+    .overview-item span { font-size: 16px; line-height: 1.45; }
+
+    .notes-panel {
+      position: fixed;
+      z-index: 65;
+      top: 18px;
+      right: 18px;
+      bottom: 70px;
+      display: none;
+      width: min(430px, calc(100vw - 36px));
+      overflow: auto;
+      padding: 24px;
+      border: 1px solid rgba(20,95,125,.18);
+      border-radius: 18px;
+      background: rgba(255,255,255,.97);
+      box-shadow: 0 24px 58px rgba(11,62,84,.25);
+    }
+
+    .notes-panel.open { display: block; }
+    .notes-panel h3 { padding-right: 40px; }
+    .notes-panel p,
+    .notes-panel li { font-size: 16px; line-height: 1.6; }
+    .notes-panel .sources { padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+
+    .toast {
+      position: fixed;
+      z-index: 90;
+      left: 50%;
+      bottom: 76px;
+      transform: translate(-50%, 14px);
+      padding: 10px 16px;
+      border-radius: 10px;
+      background: var(--primary-dark);
+      color: #fff;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s ease, transform .18s ease;
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 980px), (max-height: 650px) {
+      :root { --slide-pad-x: clamp(30px, 5vw, 64px); --slide-pad-y: clamp(28px, 4vh, 48px); }
+      .hero-layout, .split { grid-template-columns: 1fr 1fr; gap: 28px; }
+      .columns-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .feature { padding: 16px; }
+      .architecture { gap: 10px; }
+      .arch-node { min-height: 190px; padding: 16px 13px; }
+      .arch-node:not(:last-child)::after { right: -7px; font-size: 24px; }
+      .loop, .workflow { gap: 8px; }
+      .loop-step, .workflow-step { padding: 14px 10px; }
+      .problem-line, .capability-line, .action-line { padding: 10px 0; }
+      .controls { right: 10px; bottom: 10px; }
+      .slide-top { top: 14px; }
+      .slide-footer-note { bottom: 12px; }
+      .glossary-grid { gap: 6px 24px; }
+      .glossary-item { grid-template-columns: 112px 1fr; padding: 9px 0; }
+    }
+
+    @media (max-width: 760px) {
+      .hero-layout, .split, .compare { grid-template-columns: 1fr; }
+      .hero-panel { display: none; }
+      .columns-3, .columns-4 { grid-template-columns: 1fr 1fr; }
+      .architecture { grid-template-columns: 1fr; }
+      .arch-node { min-height: auto; }
+      .arch-node:not(:last-child)::after { display: none; }
+      .architecture .arch-node:nth-child(n+4) { display: none; }
+      .metrics { gap: 20px; }
+      .group-list, .source-list, .glossary-grid { grid-template-columns: 1fr; }
+      .loop { grid-template-columns: repeat(3, 1fr); }
+      .loop-step:nth-child(n+4) { display: none; }
+      .workflow { grid-template-columns: repeat(3, 1fr); }
+      .workflow-step:nth-child(n+4) { display: none; }
+      .demo-flow { grid-template-columns: 1fr; }
+      .demo-flow .arrow { display: none; }
+      .action-line { grid-template-columns: 68px 1fr; }
+      .action-line code { display: none; }
+      .control-btn.optional { display: none; }
+      .overview { padding: 24px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+
+    @media print {
+      html, body { overflow: visible; height: auto; background: #fff; }
+      .deck { height: auto; }
+      .slide { position: relative; display: block !important; width: 100vw; height: 56.25vw; page-break-after: always; }
+      .controls, .progress-track, .overview, .notes-panel, .toast { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+<a class="skip-link" href="#slide-01">跳到演示正文</a>
+<main class="deck" id="deck" aria-live="polite">
+  <section class="slide active" id="slide-01" data-title="AI Coding 外骨骼架构">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>组内分享 · 2026-08-28</div></div>
+      <div class="hero-layout">
+        <div>
+          <div class="eyebrow">AI Coding Practice</div>
+          <h1>AI Coding<br>外骨骼架构</h1>
+          <p class="lead">imedical.agents 的体系、能力与部署实战</p>
+          <div class="hero-keywords">
+            <span class="chip">Plugin · 插件包</span><span class="chip">Thin-Index · 浅层索引</span><span class="chip orange">Agent · 专项角色</span><span class="chip orange">Workflow · 阶段流程</span><span class="chip green">Deploy · 部署使用</span>
+          </div>
+        </div>
+        <aside class="hero-panel">
+          <h3>今天要解决三个问题</h3>
+          <div class="three-lines">
+            <p><span class="accent strong">01</span> 它到底是一套什么体系？</p>
+            <p><span class="accent strong">02</span> 目前能解决哪些真实工作？</p>
+            <p><span class="accent strong">03</span> 怎么部署并正确使用？</p>
+          </div>
+        </aside>
+      </div>
+      <div class="slide-footer-note">方向键 / 空格翻页 · O 总览 · N 备注 · F 全屏</div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>开场先明确：这不是一份插件目录说明，而是一条“从团队经验到可部署执行能力”的完整链路。今天最重要的是让大家会接入、会选、会验证。</p><p class="sources">[Sources] README.md；index.html（视觉参考）</p></aside>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-02" data-title="为什么需要统一能力包">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>01 · 问题</div></div>
+      <div class="eyebrow">Why</div>
+      <h2>不是模型不够强，<br>是工程知识没有形成系统</h2>
+      <div class="three-lines">
+        <div class="problem-line"><div class="line-no">01</div><div><h3>配置散落</h3><p class="muted">不同工具各维护一套入口，规则、脚本和项目事实逐渐漂移。</p></div></div>
+        <div class="problem-line"><div class="line-no">02</div><div><h3>能力偏差</h3><p class="muted">强模型能猜到的步骤，弱模型或新会话不一定知道。</p></div></div>
+        <div class="problem-line"><div class="line-no">03</div><div><h3>经验失忆</h3><p class="muted">一次需求解决了，但下个项目仍要重新探索、重新踩坑。</p></div></div>
+      </div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>不要把问题归结为“换一个更强模型”。真正缺的是稳定的上下文、清晰的执行路径和可重复验证的工具链。</p><p class="sources">[Sources] README.md：快速理解；根 index.html：AI Coding 外骨骼架构</p></aside>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-03" data-title="一句话理解 imedical.agents">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>02 · 定义</div></div>
+      <div class="eyebrow">Definition</div>
+      <div class="big-statement">把团队的<span class="highlight">规则、流程、工具与领域经验</span>，<br>变成可部署、可发现、可验证、可迭代的 AI Coding 能力包。</div>
+      <div class="definition-strip">
+        <span>不是 Prompt 合集</span>
+        <span>不是单一工具配置</span>
+        <span>不是自动部署生产系统</span>
+        <span>是工程能力的 canonical（唯一能力源）</span>
+      </div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>强调 canonical：通用能力只维护一份；工具只负责发现或适配。业务项目自己的事实仍保留在自己的 AGENTS.md、config、rules 和 memory 中。</p><p class="sources">[Sources] README.md：快速理解、仓库结构、安全边界</p></aside>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-04" data-title="体系全景">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>03 · 体系全景</div></div>
+      <div class="eyebrow">Architecture</div>
+      <h2>五层串起能力的生产、发现与反馈</h2>
+      <div class="architecture" aria-label="imedical.agents 五层体系关系图">
+        <div class="arch-node"><small>01 · 能力源</small><h3>Canonical<span class="term-note">唯一维护的真实能力源</span></h3><ul><li>plugins · 领域能力包</li><li>agents · 专项角色</li><li>workflows · 阶段流程</li><li>vendor · 第三方资产</li></ul></div>
+        <div class="arch-node"><small>02 · 发现层</small><h3>Thin-Index<span class="term-note">指向真实能力的浅层索引</span></h3><ul><li>rules · 规则红线</li><li>skills · 操作流程</li><li>agent entry · 角色入口</li><li>runtime adapter · 工具适配入口</li></ul></div>
+        <div class="arch-node"><small>03 · 项目上下文</small><h3>Project Facts<span class="term-note">当前项目的本地事实</span></h3><ul><li>AGENTS.md · 总入口</li><li>config · 项目配置</li><li>memory · 维护记忆</li><li>plugin profile · 插件状态</li></ul></div>
+        <div class="arch-node"><small>04 · 执行验证</small><h3>Agent Work<span class="term-note">按任务执行并核验</span></h3><ul><li>skill / rule · 做法与边界</li><li>scripts / MCP · 执行工具</li><li>handoff · 阶段交接</li><li>verification · 结果验证</li></ul></div>
+        <div class="arch-node"><small>05 · 反馈迭代</small><h3>Feedback<span class="term-note">经验与框架问题回流</span></h3><ul><li>experience · 可复用经验</li><li>framework issue · 框架问题</li><li>SemVer · 语义化版本</li><li>release record · 发布记录</li></ul></div>
+      </div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>这张图是全场唯一需要记住的架构图。后面的 Plugin、thin-index、Agent、Workflow 都是这五层中的具体构件。</p><p class="sources">[Sources] README.md；AGENTS.md；agents/_shared/feedback-protocol.md</p></aside>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-05" data-title="Plugin 与 Thin-Index">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>04 · 发现机制</div></div>
+      <div class="eyebrow">Plugin &amp; Thin-Index</div>
+      <h2>能力源完整部署，发现入口保持轻量</h2>
+      <div class="split">
+        <div class="panel">
+          <h3>Plugin（插件能力包）保存真实能力</h3>
+          <p class="muted"><span class="mono">rules / skills / references / templates / scripts</span></p>
+          <div class="route-line mono">.agents/skills/i18n-coding/SKILL.md<br>→ .agents/plugins/i18n-iris-plugin/skills/i18n-coding/SKILL.md</div>
+          <p class="muted" style="margin:18px 0 0;">thin-index 只做浅层路由，不复制完整正文，也不缩减安全约束。</p>
+        </div>
+        <div class="state-list">
+          <div class="state"><div class="state-name">available<small>可发现</small></div><p>能力已拉取；不合并配置、不生成插件 thin-index。</p></div>
+          <div class="state enabled"><div class="state-name">enabled<small>已启用</small></div><p>真实 init（初始化）已闭环；参与更新、配置合并与索引维护。</p></div>
+          <div class="state disabled"><div class="state-name">disabled<small>已停用</small></div><p>默认跳过；历史入口只报告，不擅自删除。</p></div>
+        </div>
+      </div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>目录存在不等于已经启用，这是最容易误解的地方。plugin_profile.md 才是状态事实来源；enabled 也不是手工改一个词，而是 init 闭环完成后的结果。</p><p class="sources">[Sources] docs/update-agents.md：插件状态分流、Skill thin-index description；README.md：Thin-Index</p></aside>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-06" data-title="Agent、Workflow、Skill 与 Rule">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>05 · 执行模型</div></div>
+      <div class="eyebrow">Execution Model</div>
+      <h2>角色、流程、SOP 与红线各自负责一件事</h2>
+      <div class="split">
+        <div class="role-stack">
+          <div class="role-row"><strong>Agent</strong><span>谁来负责：角色、职责、输入输出与禁止事项。</span></div>
+          <div class="role-row"><strong>Workflow</strong><span>按什么顺序：阶段、交接、并行边界与完成条件。</span></div>
+          <div class="role-row"><strong>Skill</strong><span>具体怎么做：可触发、可执行、可复用的 SOP。</span></div>
+          <div class="role-row"><strong>Rule</strong><span>哪些不能错：领域约束、安全边界与验证标准。</span></div>
+        </div>
+        <div class="panel">
+          <h3>能力较少时仍可降级</h3>
+          <p class="muted">没有 subagent（子 Agent）、没有 skill 发现、甚至不能解析 YAML，也可以直接按 canonical Markdown 串行执行。</p>
+          <div class="mode-strip"><div><strong>retrospective</strong><span>只读复盘</span></div><div><strong>serial</strong><span>单 Agent 串行</span></div><div><strong>multi-agent</strong><span>多 Agent 协作</span></div></div>
+        </div>
+      </div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>这四者不是层层套娃。Agent 解决责任归属，Workflow 解决执行秩序，Skill 解决做法，Rule 解决不能违反的边界。</p><p class="sources">[Sources] agents/i18n-agent/AGENT.md；workflows/i18n-change.workflow.md；AGENTS.md</p></aside>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-07" data-title="两种部署模型">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>06 · 部署模型</div></div>
+      <div class="eyebrow">Deployment</div>
+      <h2>一个项目一份能力，或多个模块共享一份能力</h2>
+      <div class="compare">
+        <div class="compare-col">
+          <h3>Standard<span class="term-note">单项目标准部署</span></h3>
+          <ul><li>业务项目中 `.agents` 是独立 Git 仓库</li><li>sparse checkout（稀疏检出）只拉取运行所需内容</li><li>项目本地 config / memory / rules 保持独立</li><li>适合单一业务工程</li></ul>
+        </div>
+        <div class="compare-col orange">
+          <h3>Workspace Overlay<span class="term-note">多模块共享能力</span></h3>
+          <ul><li>多个模块共享 canonical `CapabilityRoot`（能力根）</li><li>每个模块保留独立 `ContextRoot`（上下文根）</li><li>`capability-once / context-many`（能力一份、上下文多份）</li><li>通过 manifest（能力清单）、Junction（目录联接）与根边界验证</li></ul>
+        </div>
+      </div>
+      <div class="safety-banner">现场演示 Standard；Overlay 只讲设计，不临时搭建、不触碰真实模块。</div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>Standard 最容易理解，也是今天实演路径。Overlay 解决模块工作区重复能力的问题，但它有严格的路径与 reparse-point 安全边界，不适合临时现场搭建。</p><p class="sources">[Sources] README.md：多模块 Workspace Overlay；docs/workspace-overlay.md</p></aside>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-08" data-title="迭代闭环">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>07 · 迭代</div></div>
+      <div class="eyebrow">Iteration</div>
+      <h2>需求交付不是终点，而是下一轮能力的证据</h2>
+      <div class="loop">
+        <div class="loop-step"><b>01</b><span>业务需求</span></div>
+        <div class="loop-step"><b>02</b><span>发现经验 / 缺口</span></div>
+        <div class="loop-step"><b>03</b><span>反馈分流</span></div>
+        <div class="loop-step"><b>04</b><span>Canonical<br>能力源修正</span></div>
+        <div class="loop-step"><b>05</b><span>版本 + 回归</span></div>
+      </div>
+      <div class="columns-3" style="margin-top:30px;">
+        <div class="feature"><h3>experience<span class="term-note">可复用经验</span></h3><p>供后续相似需求检索和复用。</p></div>
+        <div class="feature orange"><h3>framework<span class="term-note">框架问题</span></h3><p>独立评审后再修 canonical。</p></div>
+        <div class="feature green"><h3>release<span class="term-note">版本发布</span></h3><p>严格 SemVer（语义化版本）、依赖范围和不可变记录。</p></div>
+      </div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>强调“反馈不是自动把业务事实写回仓库”。经验和框架问题要分流，敏感信息和项目私有事实永不进入 canonical。</p><p class="sources">[Sources] feedback/README.md；agents/_shared/feedback-protocol.md；docs/component-version-management.md</p></aside>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-09" data-title="当前能力规模">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>08 · 能力总览</div></div>
+      <div class="eyebrow">Inventory</div>
+      <h2>能力已经从样板走向可复用组合</h2>
+      <div class="metrics">
+        <div class="metric"><strong>13</strong><span>个插件</span></div>
+        <div class="metric"><strong>47</strong><span>个插件 Skill</span></div>
+        <div class="metric"><strong>15</strong><span>个受治理组件</span></div>
+      </div>
+      <div class="group-list">
+        <div><strong>基础底座</strong><span>上下文、IRIS 编码、文档解析</span></div>
+        <div><strong>检索分析</strong><span>CodeGraph（代码关系图谱）与影响分析</span></div>
+        <div><strong>IRIS 交付</strong><span>i18n、接口、治疗表单、预约</span></div>
+        <div><strong>医生站专项</strong><span>集成、性能、抽取、打印模板</span></div>
+      </div>
+      <div class="slide-footer-note">统计快照：2026-08-28 当前 master 工作树</div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>数字只用于说明规模，不以数量代替质量。15 个受治理组件 = 13 个插件 + 2 个根级独立 Skill；仓库本地维护 Skill 不部署到业务项目。</p><p class="sources">[Sources] plugins/*/.agents-plugin/plugin.json；releases/plugin；releases/skill；组件版本 inventory</p></aside>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-10" data-title="基础底座与 IRIS 通用能力">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>09 · 现有能力</div></div>
+      <div class="eyebrow">Foundation</div>
+      <h2>先解决上下文、编码、文档和检索，再谈领域自动化</h2>
+      <div class="capability-line"><div class="cap-name">agent-context-kit</div><p>维护 AGENTS.md、项目配置、规则、记忆和插件状态，是接入后的第一站。</p></div>
+      <div class="capability-line"><div class="cap-name">coding-iris-plugin</div><p>ObjectScript / CSP / JavaScript / HISUI、UTF-8、MCP（模型工具调用协议）查询与受控部署边界。</p></div>
+      <div class="capability-line"><div class="cap-name">extract-doc</div><p>本地解析 PDF、DOC、DOCX、XLS、XLSX，结构化落盘，不把完整文档塞进上下文。</p></div>
+      <div class="capability-line"><div class="cap-name">CodeGraph<span class="term-note">代码关系图谱</span></div><p>前端索引只读查询 + IRIS/ObjectScript 图谱构建与影响分析，结论仍回到源码验证。</p></div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>这些是其他领域能力的公共底座。特别强调 coding-iris 的“本地优先、远端单独授权”，以及 extract-doc 的“产物落盘、上下文不爆炸”。</p><p class="sources">[Sources] README.md：agent-context-kit、coding-iris-plugin、extract-doc、codegraph-query、iris-codegraph</p></aside>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-11" data-title="IRIS 领域交付能力">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>10 · 现有能力</div></div>
+      <div class="eyebrow">IRIS Delivery</div>
+      <h2>领域能力覆盖“理解需求”到“验证交付”</h2>
+      <div class="columns-4">
+        <div class="feature"><h3>i18n<span class="term-note">国际化</span></h3><p>链路定位、字段分类、编码、种子、XML/CSP 同步与独立验证。</p></div>
+        <div class="feature orange"><h3>接口开发</h3><p>文档解析、字段匹配、开发计划、本地实现与审查。</p></div>
+        <div class="feature green"><h3>治疗表单</h3><p>CA/CR 文档摄取、多模板生成、响应式、预览门禁、部署与回滚。</p></div>
+        <div class="feature"><h3>预约挂号</h3><p>第三方规范解析、执行计划、ObjectScript 实现与验证。</p></div>
+      </div>
+      <div class="route-line">重点不是“自动生成代码”，而是把审批、验证、授权和回滚一起纳入流程。</div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>治疗表单最能体现完整工程链路，但不在现场连接真实 IRIS。i18n 则最适合展示 Agent + Workflow 的组合，所以作为主演示。</p><p class="sources">[Sources] plugins/i18n-iris-plugin/README.md；plugins/iris-interface-dev/README.md；plugins/iris-cure-form-dev/README.md；plugins/iris-external-reg/README.md</p></aside>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-12" data-title="医生站专项能力">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>11 · 现有能力</div></div>
+      <div class="eyebrow">Doctor Workstation</div>
+      <h2>专项能力按业务结果组织，而不是堆规则</h2>
+      <div class="capability-line"><div class="cap-name">第三方集成</div><p>十步工作流、范围拆分、BLH / DriverCom、WebSysAddins 与 CI/CD 交付。</p></div>
+      <div class="capability-line"><div class="cap-name">性能分析</div><p>Controller → BLH → Service → Mapper，全链路定位 N+1、重复和批量调用问题。</p></div>
+      <div class="capability-line"><div class="cap-name">数据抽取</div><p>扫描 `@OpenApi` Controller，生成接口对照文档、字段映射和差异说明。</p></div>
+      <div class="capability-line"><div class="cap-name">打印模板</div><p>从 Word / DOCX 生成可导入 XLSX，处理主模板、扩展模板与返回参数。</p></div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>这里不展开每个子 Skill。主编排器对外暴露，子 Skill 按需加载，正是 thin-index 降噪的实际应用。</p><p class="sources">[Sources] README.md：四个 imedicalxc-doctor 插件；对应插件 README</p></aside>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-13" data-title="i18n Agent 与 Workflow 样板">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>12 · 领域样板</div></div>
+      <div class="eyebrow">i18n Agent + Workflow</div>
+      <h2>先定位、再分类、再编码，最后独立验证</h2>
+      <div class="workflow">
+        <div class="workflow-step"><b>01</b><strong>Explorer<span class="term-note">链路定位</span></strong><p>入口、调用链、数据形态、渲染路径</p></div>
+        <div class="workflow-step"><b>02</b><strong>Classifier<span class="term-note">文本分类</span></strong><p>固定文案、字典值、业务输入、外部来源</p></div>
+        <div class="workflow-step"><b>03</b><strong>Coder<span class="term-note">编码执行</span></strong><p>按清单做最小前后端改造</p></div>
+        <div class="workflow-step"><b>04</b><strong>Template / Seed<span class="term-note">模板与翻译种子</span></strong><p>只在条件满足时处理对应产物</p></div>
+        <div class="workflow-step"><b>05</b><strong>Verifier<span class="term-note">独立验证者</span></strong><p>最后一次修改后独立验证</p></div>
+      </div>
+      <div class="safety-banner">三种模式共享同一完成条件：retrospective（只读复盘） · serial（单 Agent 串行） · multi-agent（多 Agent 协作）</div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>multi-agent 已经不是“未来设计”：它有 Step 0、文件所有权、远程授权、暂停恢复和 Independent Verifier。没有明确授权时仍使用 serial。</p><p class="sources">[Sources] agents/i18n-agent/AGENT.md；workflows/i18n-change.workflow.md；docs/validation/i18n-agent-p1/README.md</p></aside>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-14" data-title="现场演示环境与安全边界">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>13 · Demo</div></div>
+      <div class="eyebrow">Demo Setup</div>
+      <h2>两个一次性环境，把真实性和稳定性分开</h2>
+      <div class="demo-flow">
+        <div class="demo-node"><b>A · 空白项目</b><h3>完整联网安装</h3><p>验证安装入口、独立 Git 与 sparse checkout（稀疏检出）。</p></div>
+        <div class="arrow">→</div>
+        <div class="demo-node"><b>B · 预配置项目</b><h3>状态与路由</h3><p>展示 plugin profile（插件状态）、manifest（能力声明）、thin-index（浅层索引）。</p></div>
+        <div class="arrow">→</div>
+        <div class="demo-node"><b>C · Codex</b><h3>只读复盘</h3><p>在脱敏样例上执行 i18n retrospective（只读复盘）。</p></div>
+      </div>
+      <div class="safety-banner">不展示真实连接、namespace、账号、患者数据；不执行 IRIS 上传、编译、部署或删除。</div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>现场演示不是拿真实业务仓库冒险。安装用空目录，能力使用切到预配置脱敏项目；二者都可以随时丢弃。</p><p class="sources">[Sources] docs/update-agents.md；AGENTS.md：安全与授权边界</p></aside>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-15" data-title="完整联网安装">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>14 · Demo A</div></div>
+      <div class="eyebrow">Live Install</div>
+      <h2>从空目录完成一次真实安装</h2>
+      <div class="split">
+        <div class="terminal">
+          <div class="terminal-head"><span><span class="terminal-dots">● ● ●</span> PowerShell</span><button class="copy-btn" data-copy="install-command">复制</button></div>
+          <pre id="install-command"><span class="comment"># 预检</span>
+git --version       <span class="comment"># 需要 2.25.0+</span>
+node --version      <span class="comment"># 团队基线 22.5.0+</span>
+
+<span class="comment"># 在空白临时项目中安装</span>
+iwr -UseBasicParsing https://gitee.com/skyler-cook/imedical.agents/raw/master/scripts/install-agents.ps1 | iex</pre>
+        </div>
+        <div>
+          <h3>安装完成后先看三件事</h3>
+          <ul class="check-list"><li><span class="mono">.agents/.git</span> 存在</li><li><span class="mono">agents / workflows / plugins</span> 已拉取</li><li>输出提示下一步维护项目上下文</li></ul>
+          <div class="route-line mono">imedical.agents installed or updated.<br>Next step: ... /project-context-maintenance</div>
+        </div>
+      </div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>安装命令会联网并写入当前空白项目。Node 版本是当前工具链团队基线；安装器的 sparse checkout 依赖 Git 2.25.0+。如果网络失败，立即切换附录中的预装环境，不现场修代理。</p><p class="sources">[Sources] scripts/install-agents.ps1；docs/update-agents.md：首次安装；AGENTS.md：Node.js 基线</p></aside>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-16" data-title="插件状态与 Thin-Index 路由">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>15 · Demo B</div></div>
+      <div class="eyebrow">Inspect &amp; Route</div>
+      <h2>从项目状态追到真实能力文件</h2>
+      <div class="split">
+        <div class="terminal">
+          <div class="terminal-head"><span><span class="terminal-dots">● ● ●</span> PowerShell</span><button class="copy-btn" data-copy="route-command">复制</button></div>
+          <pre id="route-command">Get-Content .agents\config\plugin_profile.md
+Get-Content .agents\plugins\i18n-iris-plugin\.agents-plugin\plugin.json
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents\scripts\update-agents.ps1 `
+  -ProjectRoot . -Mode DryRun -NoPull -Detailed</pre>
+        </div>
+        <div class="state-list">
+          <div class="state enabled"><div class="state-name">enabled<small>已启用</small></div><p>先确认 coding-iris 与 i18n 均完成 init（初始化）闭环。</p></div>
+          <div class="state"><div class="state-name">shallow<small>浅入口</small></div><p>打开 `.agents/skills/i18n-agent/SKILL.md`。</p></div>
+          <div class="state"><div class="state-name">canonical<small>真实能力源</small></div><p>继续读取 AGENT.md、workflow 与插件真实 Skill。</p></div>
+        </div>
+      </div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>先展示状态事实，再展示 manifest 的 initSkill/dependencies，最后打开 shallow entry 和 canonical 文件。让大家亲眼看到 thin-index 只是路由。</p><p class="sources">[Sources] docs/update-agents.md：插件状态分流；scripts/generate-plugin-thin-index.ps1；scripts/generate-agent-thin-index.ps1</p></aside>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-17" data-title="Codex 只读执行 i18n retrospective">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>16 · Demo C</div></div>
+      <div class="eyebrow">Codex Run</div>
+      <h2>让 Agent 自己找到正确的执行路径</h2>
+      <div class="prompt-box" id="codex-prompt">使用 i18n-agent 的 retrospective（只读复盘）模式，分析脱敏演示页面的国际化处理链路，输出 Explorer（链路定位）、Classifier（文本分类）和 Independent Verifier（独立验证者）建议。只分析演示范围，不修改业务代码、不访问远端；报告仅写入演示项目的 docs/agent-reports/share-demo/。</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:24px; gap:20px;">
+        <div class="hero-keywords" style="margin:0;"><span class="chip">选择模式</span><span class="chip">读取上下文</span><span class="chip orange">阶段化报告</span><span class="chip green">独立验证</span></div>
+        <button class="copy-btn" data-copy="codex-prompt" style="background:var(--primary); border-color:var(--primary); min-width:110px;">复制提示词</button>
+      </div>
+      <div class="safety-banner">成功标准：路由正确、事实与推断分开、未授权动作保持未执行。</div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>观察 Codex 是否先检查 plugin_profile 和 i18n profile，是否选择 retrospective，是否读到 Agent/Workflow，以及是否保持远端动作未执行。不要只看最后文字是否“像答案”。</p><p class="sources">[Sources] agents/i18n-agent/AGENT.md；workflows/i18n-change.workflow.md</p></aside>
+    </div>
+  </section>
+
+  <section class="slide" id="slide-18" data-title="行动清单">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>17 · Takeaway</div></div>
+      <div class="eyebrow">Start Today</div>
+      <h2>把能力接入项目，只需要守住四个动作</h2>
+      <div class="action-line"><div class="line-no">01</div><div class="action-word">安装</div><code>install-agents.ps1</code></div>
+      <div class="action-line"><div class="line-no">02</div><div class="action-word">选择</div><code>plugin_profile.md</code></div>
+      <div class="action-line"><div class="line-no">03</div><div class="action-word">路由</div><code>thin-index（浅层索引）→ canonical（真实能力源）</code></div>
+      <div class="action-line"><div class="line-no">04</div><div class="action-word">验证</div><code>Check（只读检查）/ tests（专项测试）/ verifier（独立验证）</code></div>
+      <p class="lead" style="margin-top:28px;">目录可见不等于已启用，Agent 输出不等于已经验证。</p>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>用这四个词收束前面的体系。下一步不是要求每个人理解所有插件，而是先在一个合适项目完成一次正确接入。</p><p class="sources">[Sources] README.md：推荐接入流程；docs/update-agents.md：验收标准</p></aside>
+    </div>
+  </section>
+
+  <section class="slide appendix" id="slide-19" data-title="附录：完整演示命令">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>附录 A</div></div>
+      <div class="eyebrow">Appendix</div>
+      <h2>完整演示命令</h2>
+      <div class="terminal">
+        <div class="terminal-head"><span><span class="terminal-dots">● ● ●</span> PowerShell</span><button class="copy-btn" data-copy="all-commands">复制全部</button></div>
+        <pre id="all-commands"><span class="comment"># 安装</span>
+iwr -UseBasicParsing https://gitee.com/skyler-cook/imedical.agents/raw/master/scripts/install-agents.ps1 | iex
+
+<span class="comment"># DryRun（只读预演）：不拉远端、不写项目</span>
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents\scripts\update-agents.ps1 `
+  -ProjectRoot . -Mode DryRun -NoPull -Detailed
+
+<span class="comment"># Check（只读检查）：验收当前部署状态</span>
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents\scripts\update-agents.ps1 `
+  -ProjectRoot . -Mode Check -NoPull
+
+<span class="comment"># 查看状态与 manifest</span>
+Get-Content .agents\config\plugin_profile.md
+Get-Content .agents\plugins\i18n-iris-plugin\.agents-plugin\plugin.json</pre>
+      </div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>这是备查页，正常主线不逐行解释。注意 `DryRun -NoPull` 才是明确的现场无拉取预演。</p><p class="sources">[Sources] docs/update-agents.md；scripts/update-agents.ps1</p></aside>
+    </div>
+  </section>
+
+  <section class="slide appendix" id="slide-20" data-title="附录：故障切换">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>附录 B</div></div>
+      <div class="eyebrow">Fallback</div>
+      <h2>现场失败时，只切换，不扩大战线</h2>
+      <div class="columns-3">
+        <div class="feature orange"><h3>网络失败</h3><p>停止联网安装，切到预装项目与终端输出快照；不现场修代理和凭据。</p></div>
+        <div class="feature"><h3>状态阻断</h3><p>保留 DryRun（只读预演）输出，解释 dirty（存在未提交修改）、非独立 Git、配置冲突等停止条件。</p></div>
+        <div class="feature green"><h3>Codex 偏航</h3><p>回到预生成报告，检查是否漏读 profile、Agent、Workflow 或授权边界。</p></div>
+      </div>
+      <div class="terminal" style="margin-top:26px;">
+        <div class="terminal-head"><span><span class="terminal-dots">● ● ●</span> 安装成功输出快照</span></div>
+        <pre><span class="ok">imedical.agents installed or updated.</span>
+Next step: ask the user or their agent to run /project-context-maintenance.
+After project context is maintained, choose required plugins from .agents/config/plugin_profile.md.</pre>
+      </div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>准备好的 fallback 是专业演示的一部分。切换后继续讲解目标，不把会议变成环境排障。</p><p class="sources">[Sources] scripts/install-agents.ps1：Write-PostInstallGuidance；docs/update-agents.md：输出判读</p></aside>
+    </div>
+  </section>
+
+  <section class="slide appendix" id="slide-21" data-title="附录：术语与来源">
+    <div class="slide-inner">
+      <div class="slide-top"><div class="brand-mark">imedical<span>.agents</span></div><div>附录 C</div></div>
+      <div class="eyebrow">Glossary</div>
+      <h2>术语表：先把抽象名词翻译成职责</h2>
+      <dl class="glossary-grid">
+        <div class="glossary-item"><dt>Canonical</dt><dd>唯一维护、用于校准其他入口的真实能力源。</dd></div>
+        <div class="glossary-item"><dt>Plugin</dt><dd>把规则、Skill、脚本和模板装在一起的领域能力包。</dd></div>
+        <div class="glossary-item"><dt>Thin-Index</dt><dd>只负责发现与跳转、不复制完整能力正文的浅层索引。</dd></div>
+        <div class="glossary-item"><dt>Agent</dt><dd>面向一类任务的专项角色，明确职责、输入输出与禁区。</dd></div>
+        <div class="glossary-item"><dt>Workflow</dt><dd>规定阶段顺序、交接关系和完成条件的执行流程。</dd></div>
+        <div class="glossary-item"><dt>Manifest</dt><dd>声明插件能力、依赖与初始化入口的清单文件。</dd></div>
+        <div class="glossary-item"><dt>Adapter</dt><dd>把通用能力映射到具体 Agent 工具的适配入口。</dd></div>
+        <div class="glossary-item"><dt>Verifier</dt><dd>在最后一次修改后独立核验结果的验证角色。</dd></div>
+      </dl>
+      <div class="source-strip"><strong>主要事实来源：</strong> README.md · docs/update-agents.md · docs/workspace-overlay.md · agents/i18n-agent/AGENT.md · workflows/i18n-change.workflow.md · plugins/*/.agents-plugin/plugin.json</div>
+      <div class="slide-footer-note">当前事实快照：2026-08-28；部署前仍以目标项目本地 runbook 与状态为准。</div>
+      <aside class="speaker-note"><h3>讲者备注</h3><p>如果现场有人追问细节，从这些 canonical 文件继续展开。演示文稿不替代安装 runbook，也不替代目标项目自己的 AGENTS.md。</p><p class="sources">[Sources] 本页列出的仓库本地 canonical 文件</p></aside>
+    </div>
+  </section>
+</main>
+
+<div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progressBar"></div></div>
+
+<nav class="controls" aria-label="幻灯片控制">
+  <button class="control-btn" id="prevBtn" title="上一页（← / PageUp）" aria-label="上一页">←</button>
+  <span class="counter" id="counter" aria-label="当前页码">01 / 21</span>
+  <button class="control-btn" id="nextBtn" title="下一页（→ / 空格 / PageDown）" aria-label="下一页">→</button>
+  <button class="control-btn optional" id="overviewBtn" title="总览（O）" aria-label="打开总览">O</button>
+  <button class="control-btn optional" id="notesBtn" title="讲者备注（N）" aria-label="显示讲者备注">N</button>
+  <button class="control-btn optional" id="fullscreenBtn" title="全屏（F）" aria-label="进入全屏">F</button>
+</nav>
+
+<aside class="overview" id="overview" aria-hidden="true" aria-label="幻灯片总览">
+  <div class="overview-head"><h2>演示总览</h2><button class="control-btn" id="closeOverviewBtn" aria-label="关闭总览" style="color:#fff;">Esc</button></div>
+  <div class="overview-grid" id="overviewGrid"></div>
+</aside>
+
+<aside class="notes-panel" id="notesPanel" aria-hidden="true" aria-label="讲者备注"></aside>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var current = 0;
+  var progressBar = document.getElementById('progressBar');
+  var counter = document.getElementById('counter');
+  var overview = document.getElementById('overview');
+  var overviewGrid = document.getElementById('overviewGrid');
+  var notesPanel = document.getElementById('notesPanel');
+  var toast = document.getElementById('toast');
+  var touchStartX = null;
+  var toastTimer = null;
+
+  function pad(value) { return String(value).padStart(2, '0'); }
+
+  function indexFromHash() {
+    var match = window.location.hash.match(/^#slide-(\d{2})$/);
+    if (!match) return 0;
+    return Math.min(slides.length - 1, Math.max(0, Number(match[1]) - 1));
+  }
+
+  function updateNotes() {
+    var note = slides[current].querySelector('.speaker-note');
+    notesPanel.innerHTML = note ? note.innerHTML : '<h3>讲者备注</h3><p>本页没有备注。</p>';
+  }
+
+  function showSlide(index, options) {
+    options = options || {};
+    current = Math.min(slides.length - 1, Math.max(0, index));
+    slides.forEach(function (slide, i) {
+      var active = i === current;
+      slide.classList.toggle('active', active);
+      slide.setAttribute('aria-hidden', active ? 'false' : 'true');
+    });
+    counter.textContent = pad(current + 1) + ' / ' + pad(slides.length);
+    progressBar.style.width = (((current + 1) / slides.length) * 100).toFixed(2) + '%';
+    updateNotes();
+    var nextHash = '#slide-' + pad(current + 1);
+    if (window.location.hash !== nextHash) {
+      if (options.replace) history.replaceState(null, '', nextHash);
+      else history.pushState(null, '', nextHash);
+    }
+    document.title = slides[current].dataset.title + ' · imedical.agents';
+  }
+
+  function next() { showSlide(current + 1); }
+  function prev() { showSlide(current - 1); }
+
+  function toggleOverview(force) {
+    var open = typeof force === 'boolean' ? force : !overview.classList.contains('open');
+    overview.classList.toggle('open', open);
+    overview.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if (open) overview.querySelector('.overview-item').focus();
+  }
+
+  function toggleNotes(force) {
+    var open = typeof force === 'boolean' ? force : !notesPanel.classList.contains('open');
+    notesPanel.classList.toggle('open', open);
+    notesPanel.setAttribute('aria-hidden', open ? 'false' : 'true');
+  }
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(function () { showToast('浏览器未允许全屏'); });
+    } else {
+      document.exitFullscreen();
+    }
+  }
+
+  function showToast(message) {
+    window.clearTimeout(toastTimer);
+    toast.textContent = message;
+    toast.classList.add('show');
+    toastTimer = window.setTimeout(function () { toast.classList.remove('show'); }, 1600);
+  }
+
+  function copyText(id) {
+    var source = document.getElementById(id);
+    if (!source) return;
+    var text = source.innerText;
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(function () { showToast('已复制'); }).catch(function () { fallbackCopy(text); });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    try { document.execCommand('copy'); showToast('已复制'); }
+    catch (error) { showToast('复制失败，请手动选择'); }
+    document.body.removeChild(area);
+  }
+
+  slides.forEach(function (slide, index) {
+    var item = document.createElement('button');
+    item.className = 'overview-item';
+    item.innerHTML = '<b>' + pad(index + 1) + '</b><span>' + slide.dataset.title + '</span>';
+    item.addEventListener('click', function () { toggleOverview(false); showSlide(index); });
+    overviewGrid.appendChild(item);
+  });
+
+  document.getElementById('prevBtn').addEventListener('click', prev);
+  document.getElementById('nextBtn').addEventListener('click', next);
+  document.getElementById('overviewBtn').addEventListener('click', function () { toggleOverview(); });
+  document.getElementById('closeOverviewBtn').addEventListener('click', function () { toggleOverview(false); });
+  document.getElementById('notesBtn').addEventListener('click', function () { toggleNotes(); });
+  document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
+
+  document.querySelectorAll('[data-copy]').forEach(function (button) {
+    button.addEventListener('click', function () { copyText(button.dataset.copy); });
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.target.matches('input, textarea')) return;
+    if (event.key === 'Escape') {
+      if (overview.classList.contains('open')) toggleOverview(false);
+      else if (notesPanel.classList.contains('open')) toggleNotes(false);
+      return;
+    }
+    if (overview.classList.contains('open')) return;
+    switch (event.key) {
+      case 'ArrowRight': case 'ArrowDown': case ' ': case 'PageDown': event.preventDefault(); next(); break;
+      case 'ArrowLeft': case 'ArrowUp': case 'PageUp': event.preventDefault(); prev(); break;
+      case 'Home': event.preventDefault(); showSlide(0); break;
+      case 'End': event.preventDefault(); showSlide(slides.length - 1); break;
+      case 'o': case 'O': event.preventDefault(); toggleOverview(); break;
+      case 'n': case 'N': event.preventDefault(); toggleNotes(); break;
+      case 'f': case 'F': event.preventDefault(); toggleFullscreen(); break;
+    }
+  });
+
+  window.addEventListener('hashchange', function () { showSlide(indexFromHash(), { replace: true }); });
+
+  document.addEventListener('touchstart', function (event) {
+    touchStartX = event.changedTouches[0].clientX;
+  }, { passive: true });
+
+  document.addEventListener('touchend', function (event) {
+    if (touchStartX === null || overview.classList.contains('open')) return;
+    var delta = event.changedTouches[0].clientX - touchStartX;
+    touchStartX = null;
+    if (Math.abs(delta) < 54) return;
+    if (delta < 0) next(); else prev();
+  }, { passive: true });
+
+  showSlide(indexFromHash(), { replace: true });
+})();
+</script>
+</body>
+</html>

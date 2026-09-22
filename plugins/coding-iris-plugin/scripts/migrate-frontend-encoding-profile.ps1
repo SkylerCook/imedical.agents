@@ -1,0 +1,325 @@
+﻿param(
+  [string]$ProjectRoot = ".",
+  [string]$AgentsRoot = ".agents",
+  [ValidateSet("DryRun", "Write")]
+  [string]$Mode = "DryRun"
+)
+
+$ErrorActionPreference = "Stop"
+$projectRootFull = [System.IO.Path]::GetFullPath($ProjectRoot)
+$workspaceContextModule = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "../../../scripts/lib/WorkspaceContext.psm1"))
+Import-Module $workspaceContextModule -Force
+$workspaceContext = Resolve-AgentWorkspaceContext -ProjectRoot $projectRootFull
+$agentsRootFull = if ($workspaceContext.mode -eq "workspace-overlay") {
+  $workspaceContext.contextRoot
+} elseif ([System.IO.Path]::IsPathRooted($AgentsRoot)) {
+  [System.IO.Path]::GetFullPath($AgentsRoot)
+} else {
+  [System.IO.Path]::GetFullPath((Join-Path $projectRootFull $AgentsRoot))
+}
+$profilePath = Join-Path $agentsRootFull "config/iris_project_profile.md"
+$utf8Strict = [System.Text.UTF8Encoding]::new($false, $true)
+$cp936Strict = [System.Text.Encoding]::GetEncoding(936, [System.Text.EncoderFallback]::ExceptionFallback, [System.Text.DecoderFallback]::ExceptionFallback)
+$results = New-Object System.Collections.Generic.List[object]
+$backendOnlyMode = 'N/A (backend-only)'
+$isBackendOnly = $false
+
+function Add-Result {
+  param([string]$Status, [string]$Target, [string]$Reason)
+  $results.Add([PSCustomObject]@{ status = $Status; target = $Target; reason = $Reason })
+}
+
+function Get-RelativePathPortable {
+  param([string]$From, [string]$To)
+  $fromUri = [Uri](([System.IO.Path]::GetFullPath($From).TrimEnd('\') + '\'))
+  $toUri = [Uri][System.IO.Path]::GetFullPath($To)
+  return [Uri]::UnescapeDataString($fromUri.MakeRelativeUri($toUri).ToString()).Replace('\', '/').TrimEnd('/')
+}
+
+function Test-IsFrontendFile {
+  param([System.IO.FileInfo]$File)
+  return @('.csp', '.js', '.css') -contains $File.Extension.ToLowerInvariant()
+}
+
+function Get-EncodingKind {
+  param([string]$Path)
+  $bytes = [System.IO.File]::ReadAllBytes($Path)
+  if ($bytes.Length -eq 0 -or -not ($bytes | Where-Object { $_ -gt 127 } | Select-Object -First 1)) { return "ascii" }
+  if ($bytes.Length -ge 2 -and (($bytes[0] -eq 0xFF -and $bytes[1] -eq 0xFE) -or ($bytes[0] -eq 0xFE -and $bytes[1] -eq 0xFF))) { return "unknown" }
+  try {
+    $text = $utf8Strict.GetString($bytes)
+    if ([Convert]::ToBase64String($utf8Strict.GetBytes($text)) -eq [Convert]::ToBase64String($bytes)) { return "utf8" }
+  } catch {}
+  try {
+    $text = $cp936Strict.GetString($bytes)
+    if ([Convert]::ToBase64String($cp936Strict.GetBytes($text)) -eq [Convert]::ToBase64String($bytes)) { return "gb2312" }
+  } catch {}
+  return "unknown"
+}
+
+function Test-ExcludedPath {
+  param([string]$Path)
+  $relative = (Get-RelativePathPortable -From $projectRootFull -To $Path).ToLowerInvariant()
+  return $relative -match '(^|/)(\.agents|\.git|node_modules|vendor|dist|build|target)(/|$)'
+}
+
+function Test-HasFrontendContent {
+  param([string]$Root)
+  if (-not (Test-Path -LiteralPath $Root -PathType Container)) { return $false }
+  return $null -ne (Get-ChildItem -LiteralPath $Root -Recurse -File -ErrorAction SilentlyContinue | Where-Object { Test-IsFrontendFile $_ } | Select-Object -First 1)
+}
+
+function Add-Candidate {
+  param([hashtable]$Candidates, [string]$Path, [string]$Source, [string]$ExpectedMode)
+  if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return }
+  $full = [System.IO.Path]::GetFullPath($Path)
+  if (Test-ExcludedPath -Path $full) { return }
+  if (-not (Test-HasFrontendContent -Root $full)) { return }
+  if (-not $Candidates.ContainsKey($full.ToLowerInvariant())) {
+    $Candidates[$full.ToLowerInvariant()] = [PSCustomObject]@{ path = $full; source = $Source; expectedMode = $ExpectedMode }
+  }
+}
+
+function Get-Candidates {
+  $candidates = @{}
+  if ($workspaceContext.mode -eq "workspace-overlay") {
+    $frontendRoots = @($workspaceContext.sourceRoots | Where-Object { $_.name -eq "frontend" })
+    if ($frontendRoots.Count -eq 0) {
+      $backendRoots = @($workspaceContext.sourceRoots | Where-Object { $_.name -eq "backend" })
+      if ($backendRoots.Count -gt 0) {
+        $script:isBackendOnly = $true
+        return @()
+      }
+      Add-Result -Status "config-migration-review-required" -Target ".agents/config/iris_project_profile.md" -Reason "frontend SourceRoot is not declared; parent and sibling directories were not scanned"
+      return @()
+    }
+    foreach ($frontendRoot in $frontendRoots) {
+      Add-Candidate -Candidates $candidates -Path $frontendRoot.target -Source "manifest-frontend" -ExpectedMode "utf8"
+    }
+    return @($candidates.Values | Sort-Object path)
+  }
+
+  $hospitalRoot = Join-Path $projectRootFull "src/imedical/web"
+  Add-Candidate -Candidates $candidates -Path $hospitalRoot -Source "hospital-layout" -ExpectedMode "utf8"
+
+  $gitLinks = @()
+  try {
+    $stageLines = @(git -C $projectRootFull ls-files --stage 2>$null)
+    foreach ($line in $stageLines) {
+      if ($line -match '^160000\s+[0-9a-f]+\s+\d+\t(.+)$') { $gitLinks += $Matches[1] }
+    }
+  } catch {}
+  foreach ($relative in $gitLinks) {
+    $path = Join-Path $projectRootFull $relative
+    if ($relative.Replace('\', '/') -match '(^|/)frontend(/|$)') {
+      if (-not (Test-HasFrontendContent -Root $path)) {
+        Add-Result -Status "submodule-init-required" -Target $relative.Replace('\', '/') -Reason "frontend gitlink is not initialized or contains no frontend files"
+      } else {
+        Add-Candidate -Candidates $candidates -Path $path -Source "git-role" -ExpectedMode "utf8"
+      }
+    }
+  }
+
+  Get-ChildItem -LiteralPath $projectRootFull -Recurse -Depth 5 -Directory -Force -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -eq 'frontend' -and -not (Test-ExcludedPath -Path $_.FullName) } |
+    ForEach-Object {
+      $frontendDir = $_.FullName
+      $knownFolders = @('csp', 'scripts', 'css') | ForEach-Object { Join-Path $frontendDir $_ }
+      if ($knownFolders | Where-Object { Test-Path -LiteralPath $_ -PathType Container } | Select-Object -First 1) {
+        Add-Candidate -Candidates $candidates -Path $frontendDir -Source "frontend-directory" -ExpectedMode "utf8"
+      } else {
+        Get-ChildItem -LiteralPath $frontendDir -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+          Add-Candidate -Candidates $candidates -Path $_.FullName -Source "frontend-directory" -ExpectedMode "utf8"
+        }
+      }
+    }
+
+  Get-ChildItem -LiteralPath $projectRootFull -Recurse -Depth 5 -Force -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -eq '.git' -and -not (Test-ExcludedPath -Path $_.FullName) } |
+    ForEach-Object {
+      $repoRoot = Split-Path -Parent $_.FullName
+      if ($repoRoot -ne $projectRootFull) {
+        Add-Candidate -Candidates $candidates -Path $repoRoot -Source "nested-git-content" -ExpectedMode "utf8"
+      }
+    }
+  return @($candidates.Values | Sort-Object path)
+}
+
+function Get-CandidateValidation {
+  param($Candidate)
+  $counts = @{ utf8 = 0; gb2312 = 0; unknown = 0; ascii = 0 }
+  $sampled = 0
+  $files = Get-ChildItem -LiteralPath $Candidate.path -Recurse -File -ErrorAction SilentlyContinue |
+    Where-Object { (Test-IsFrontendFile $_) -and -not (Test-ExcludedPath -Path $_.FullName) } |
+    Sort-Object FullName
+  foreach ($file in $files) {
+    $kind = Get-EncodingKind -Path $file.FullName
+    $counts[$kind]++
+    if ($kind -ne 'ascii') { $sampled++ }
+    if ($sampled -ge 20) { break }
+  }
+  $detected = if ($counts.unknown -gt 0) { 'unknown' } elseif ($counts.utf8 -gt 0 -and $counts.gb2312 -gt 0) { 'mixed' } elseif ($counts.utf8 -gt 0) { 'utf8' } elseif ($counts.gb2312 -gt 0) { 'gb2312' } else { 'ascii' }
+  $mode = if ($detected -in @('utf8', 'ascii')) { 'utf8' } elseif ($detected -eq 'gb2312') { 'standard-gb2312' } else { $null }
+  return [PSCustomObject]@{ candidate = $Candidate; detected = $detected; mode = $mode; counts = $counts }
+}
+
+function Get-ProfileMode {
+  param([string]$Text)
+  $match = [regex]::Match($Text, '(?m)^\s*-\s*前端编码模式\s*[：:]\s*(?<value>[^\r\n]+)')
+  if ($match.Success) { return $match.Groups['value'].Value.Trim() }
+  return $null
+}
+
+function Test-IsKnownProfileMode {
+  param([string]$Value)
+  if ([string]::IsNullOrWhiteSpace($Value)) { return $true }
+  if ($Value -in @('utf8', 'standard-gb2312', 'project-utf8', 'N/A (backend-only)', 'N/A（backend-only）', 'backend-only N/A')) { return $true }
+  return $Value -match '^TODO(?:$|\s|[（(])'
+}
+
+function Get-ProfileOverrides {
+  param([string]$Text)
+  $overrides = New-Object System.Collections.Generic.List[object]
+  foreach ($line in ($Text -split "`r?`n")) {
+    $match = [regex]::Match($line, '^\s*\|\s*`?(?<root>[^|`]+?)`?\s*\|\s*(?<mode>utf8|standard-gb2312|project-utf8)\s*\|\s*$')
+    if ($match.Success) {
+      $overrides.Add([PSCustomObject]@{ root = $match.Groups['root'].Value.Trim().Replace('\', '/').TrimEnd('/'); mode = $match.Groups['mode'].Value })
+    }
+  }
+  return @($overrides | ForEach-Object { $_ })
+}
+
+function Get-NormalizedTextHash {
+  param([string]$Path)
+  $text = [System.IO.File]::ReadAllText($Path, [System.Text.Encoding]::UTF8).TrimStart([char]0xFEFF).Replace("`r`n", "`n").TrimEnd("`n") + "`n"
+  $bytes = [System.Text.Encoding]::UTF8.GetBytes($text)
+  $hash = [System.Security.Cryptography.SHA256]::Create().ComputeHash($bytes)
+  return ([BitConverter]::ToString($hash) -replace '-', '').ToLowerInvariant()
+}
+
+function Sync-EncodingWrapper {
+  param([string]$Name, [string[]]$LegacyHashes)
+  $target = Join-Path $agentsRootFull "scripts/$Name"
+  $relativeTarget = Get-RelativePathPortable -From $projectRootFull -To $target
+  $canonicalRelative = "../plugins/coding-iris-plugin/scripts/$Name"
+  $wrapper = @"
+# coding-iris-plugin managed wrapper
+`$canonical = Join-Path `$PSScriptRoot '$canonicalRelative'
+& `$canonical @args
+exit `$LASTEXITCODE
+"@
+  $canWrite = $false
+  if (-not (Test-Path -LiteralPath $target -PathType Leaf)) {
+    $canWrite = $true
+  } else {
+    $existing = [System.IO.File]::ReadAllText($target, [System.Text.Encoding]::UTF8)
+    if ($existing -match 'coding-iris-plugin managed wrapper') { return }
+    $hash = Get-NormalizedTextHash -Path $target
+    if ($LegacyHashes -contains $hash) { $canWrite = $true }
+    else {
+      Add-Result -Status "script-conflict" -Target $relativeTarget -Reason "existing encoding script is customized or unknown; not overwritten"
+      return
+    }
+  }
+  if ($Mode -eq 'Write' -and $canWrite) {
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $target) | Out-Null
+    [System.IO.File]::WriteAllText($target, $wrapper.TrimStart() , [System.Text.UTF8Encoding]::new($false))
+    Add-Result -Status "script-wrapper-applied" -Target $relativeTarget -Reason "now forwards to plugin canonical script"
+  } elseif ($canWrite) {
+    Add-Result -Status "script-wrapper-planned" -Target $relativeTarget -Reason "will forward to plugin canonical script"
+  }
+}
+
+function Set-ProfileEncodingConfig {
+  param([string]$Text, [string]$ModeValue, [switch]$BackendOnly)
+  $managedHeader = '## Frontend encoding v3 (managed)'
+  $headerIndexes = @(
+    '## Frontend encoding v2 (managed)',
+    '## Frontend encoding v3 (managed)'
+  ) | ForEach-Object { $Text.IndexOf($_, [System.StringComparison]::Ordinal) } | Where-Object { $_ -ge 0 }
+  if ($headerIndexes.Count -gt 0) {
+    $headerIndex = ($headerIndexes | Measure-Object -Minimum).Minimum
+    $Text = $Text.Substring(0, $headerIndex).TrimEnd()
+  }
+
+  $modePattern = '(?m)^\s*-\s*前端编码模式\s*[：:]\s*[^\r\n]+'
+  if ($ModeValue) {
+    $modeLine = "- 前端编码模式：$ModeValue"
+    if ([regex]::IsMatch($Text, $modePattern)) { $Text = [regex]::Replace($Text, $modePattern, $modeLine, 1) }
+    else { $Text = $Text.TrimEnd() + [Environment]::NewLine + [Environment]::NewLine + $modeLine }
+  }
+
+  $lines = New-Object System.Collections.Generic.List[string]
+  $lines.Add('')
+  $lines.Add('')
+  $lines.Add($managedHeader)
+  $lines.Add('')
+  if ($BackendOnly) {
+    $lines.Add('<!-- generated by frontend-encoding-v3; no frontend SourceRoot is declared for this backend-only workspace -->')
+    $lines.Add('<!-- declare a frontend SourceRoot before changing this value to utf8 -->')
+  } else {
+    $lines.Add('<!-- generated by frontend-encoding-v3; UTF-8 byte validation remains the final gate -->')
+    $lines.Add('<!-- standard-gb2312 and project-utf8 are legacy read aliases and are not written by this migration -->')
+  }
+  return $Text.TrimEnd() + ($lines -join [Environment]::NewLine) + [Environment]::NewLine
+}
+
+if (-not (Test-Path -LiteralPath $profilePath -PathType Leaf)) {
+  Add-Result -Status "config-migration-review-required" -Target ".agents/config/iris_project_profile.md" -Reason "profile is missing"
+  Sync-EncodingWrapper -Name "check-frontend-encoding.ps1" -LegacyHashes @('ec06244786350d3bab90e579eb305517eb93b7516192f22b3ed319fd605c3ed3')
+  Sync-EncodingWrapper -Name "convert-gb2312-upload.ps1" -LegacyHashes @('7f7a07ca0b599f382f890f14ee0c0bbfbb591dab5530b78da3112d6b408fd56b')
+  Write-Output (ConvertTo-Json @($results | ForEach-Object { $_ }) -Depth 5 -Compress)
+  exit 0
+}
+
+$validations = @(Get-Candidates | ForEach-Object { Get-CandidateValidation -Candidate $_ })
+foreach ($validation in $validations) {
+  $relative = Get-RelativePathPortable -From $projectRootFull -To $validation.candidate.path
+  if (-not $validation.mode) {
+    Add-Result -Status "config-migration-review-required" -Target $relative -Reason ("byte validation=" + $validation.detected)
+  } elseif ($validation.candidate.expectedMode -and $validation.candidate.expectedMode -ne $validation.mode) {
+    Add-Result -Status "config-migration-conflict" -Target $relative -Reason ("candidate=" + $validation.candidate.expectedMode + "; bytes=" + $validation.mode)
+  }
+}
+
+if ($isBackendOnly) {
+  $profileText = [System.IO.File]::ReadAllText($profilePath, [System.Text.Encoding]::UTF8)
+  $existingMode = Get-ProfileMode -Text $profileText
+  if (-not (Test-IsKnownProfileMode -Value $existingMode)) {
+    Add-Result -Status "config-migration-review-required" -Target ".agents/config/iris_project_profile.md" -Reason ("unsupported configured mode=" + $existingMode)
+  } else {
+    $newText = Set-ProfileEncodingConfig -Text $profileText -ModeValue $backendOnlyMode -BackendOnly
+    if ($newText -eq $profileText) {
+      Add-Result -Status "config-migration-unchanged" -Target ".agents/config/iris_project_profile.md" -Reason "frontend encoding is N/A for the declared backend-only workspace"
+    } elseif ($Mode -eq 'Write') {
+      [System.IO.File]::WriteAllText($profilePath, $newText, [System.Text.UTF8Encoding]::new($false))
+      Add-Result -Status "config-migration-applied" -Target ".agents/config/iris_project_profile.md" -Reason "normalized declared backend-only workspace to N/A"
+    } else {
+      Add-Result -Status "config-migration-planned" -Target ".agents/config/iris_project_profile.md" -Reason "declared backend-only workspace will be normalized to N/A"
+    }
+  }
+} elseif ($validations.Count -eq 0) {
+  Add-Result -Status "config-migration-review-required" -Target ".agents/config/iris_project_profile.md" -Reason "no frontend roots were discovered"
+} elseif (@($results | Where-Object { $_.status -in @('config-migration-review-required', 'config-migration-conflict', 'submodule-init-required') }).Count -eq 0) {
+  $modes = @($validations | Select-Object -ExpandProperty mode -Unique)
+  $globalMode = if ($modes.Count -eq 1) { $modes[0] } else { $null }
+  $profileText = [System.IO.File]::ReadAllText($profilePath, [System.Text.Encoding]::UTF8)
+  $existingMode = Get-ProfileMode -Text $profileText
+  if (-not (Test-IsKnownProfileMode -Value $existingMode)) {
+    Add-Result -Status "config-migration-review-required" -Target ".agents/config/iris_project_profile.md" -Reason ("unsupported configured mode=" + $existingMode)
+  } elseif (@($results | Where-Object { $_.status -in @('config-migration-review-required', 'config-migration-conflict') }).Count -eq 0) {
+    $newText = Set-ProfileEncodingConfig -Text $profileText -ModeValue $globalMode
+    if ($newText -eq $profileText) {
+      Add-Result -Status "config-migration-unchanged" -Target ".agents/config/iris_project_profile.md" -Reason "frontend encoding v3 is current"
+    } elseif ($Mode -eq 'Write') {
+      [System.IO.File]::WriteAllText($profilePath, $newText, [System.Text.UTF8Encoding]::new($false))
+      Add-Result -Status "config-migration-applied" -Target ".agents/config/iris_project_profile.md" -Reason "generated canonical UTF-8 frontend encoding config"
+    } else {
+      Add-Result -Status "config-migration-planned" -Target ".agents/config/iris_project_profile.md" -Reason "byte-validated canonical UTF-8 config will be generated"
+    }
+  }
+}
+
+Sync-EncodingWrapper -Name "check-frontend-encoding.ps1" -LegacyHashes @('ec06244786350d3bab90e579eb305517eb93b7516192f22b3ed319fd605c3ed3')
+Sync-EncodingWrapper -Name "convert-gb2312-upload.ps1" -LegacyHashes @('7f7a07ca0b599f382f890f14ee0c0bbfbb591dab5530b78da3112d6b408fd56b')
+Write-Output (ConvertTo-Json @($results | ForEach-Object { $_ }) -Depth 6 -Compress)

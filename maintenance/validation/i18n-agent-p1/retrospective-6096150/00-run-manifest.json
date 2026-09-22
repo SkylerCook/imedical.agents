@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "1.0",
+  "topic": "6096150-i18n-agent-retrospective",
+  "runMode": "retrospective",
+  "retrospective": true,
+  "authorization": {
+    "multiAgent": false,
+    "remoteWrite": false
+  },
+  "startedAt": null,
+  "completedAt": null,
+  "elapsedSeconds": 1480,
+  "timingReason": "历史执行只保留总耗时，未记录准确起止时间和阶段时间。",
+  "stages": [
+    {
+      "name": "explorer",
+      "actor": "single-agent",
+      "status": "completed",
+      "startedAt": null,
+      "completedAt": null,
+      "timingReason": "历史执行未记录阶段时间。",
+      "report": "10-explorer.md",
+      "reusedEvidence": true
+    },
+    {
+      "name": "classifier",
+      "actor": "single-agent",
+      "status": "completed",
+      "startedAt": null,
+      "completedAt": null,
+      "timingReason": "历史执行未记录阶段时间。",
+      "report": "11-classifier.md",
+      "reusedEvidence": true
+    },
+    {
+      "name": "backend-coder",
+      "actor": "single-agent",
+      "status": "completed",
+      "startedAt": null,
+      "completedAt": null,
+      "timingReason": "历史执行未记录阶段时间。",
+      "report": "20-backend-coder.md",
+      "reusedEvidence": true
+    },
+    {
+      "name": "frontend-coder",
+      "actor": "single-agent",
+      "status": "completed",
+      "startedAt": null,
+      "completedAt": null,
+      "timingReason": "历史执行未记录阶段时间。",
+      "report": "21-frontend-coder.md",
+      "reusedEvidence": true
+    },
+    {
+      "name": "template-seed",
+      "actor": "single-agent",
+      "status": "completed",
+      "startedAt": null,
+      "completedAt": null,
+      "timingReason": "历史执行未记录阶段时间。",
+      "report": "22-template-seed.md",
+      "reusedEvidence": true
+    },
+    {
+      "name": "verifier",
+      "actor": "single-agent",
+      "status": "completed",
+      "startedAt": null,
+      "completedAt": null,
+      "timingReason": "历史执行未记录阶段时间。",
+      "report": "30-verifier.md",
+      "reusedEvidence": true
+    },
+    {
+      "name": "summary",
+      "actor": "single-agent",
+      "status": "completed",
+      "startedAt": null,
+      "completedAt": null,
+      "timingReason": "历史执行未记录阶段时间。",
+      "report": "40-summary.md",
+      "reusedEvidence": true
+    }
+  ],
+  "failures": [
+    {
+      "signature": "Execute+...<SYNTAX>",
+      "category": "payload-compilation",
+      "sameSignatureRetryCount": null,
+      "historicalViolation": true,
+      "unknownReason": "历史过程确认发生多次同类尝试，但未记录精确次数。",
+      "fallback": "停止长载荷试探并切换短调用保存路径。",
+      "result": "resolved"
+    },
+    {
+      "signature": "Invalid command e",
+      "category": "business-objectscript",
+      "sameSignatureRetryCount": 0,
+      "historicalViolation": false,
+      "unknownReason": "",
+      "fallback": "将混合条件分支改为完整块式结构。",
+      "result": "local-fix-applied"
+    }
+  ],
+  "qualityGates": {
+    "handoff": "pass",
+    "sensitiveData": "pass",
+    "objectScript": {
+      "compile": "not-authorized",
+      "structure": "pass",
+      "residualRisk": "最终本地结构修复后未取得再次服务器编译结果。"
+    },
+    "xml": {
+      "triggered": true,
+      "metadata": "pass",
+      "parse": "pass",
+      "residue": "pass",
+      "fallback": "pass"
+    },
+    "parallelEfficiency": "not-applicable"
+  },
+  "remoteActions": []
+}

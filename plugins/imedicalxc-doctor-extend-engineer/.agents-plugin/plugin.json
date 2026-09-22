@@ -1,12 +1,36 @@
 {
   "name": "imedicalxc-doctor-extend-engineer",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "displayName": "iMedicalXC Doctor Extend Engineer",
   "description": "HIS doctor workstation third-party system integration workflow orchestrator, covering brainstorming, design, implementation, testing, HIS validation, and CI/CD delivery.",
   "entry": "AGENTS.md",
   "skills": "skills/",
   "scripts": "scripts/",
+  "thinIndex": {
+    "excludeSkills": [
+      "imedical-bsp-websysaddins",
+      "imedicalxc-bsp-jenkins",
+      "imedicalxc-doctor-blh",
+      "imedicalxc-doctor-dbdata",
+      "imedicalxc-doctor-elechealthcard-vendor",
+      "imedicalxc-doctor-extend-architecture",
+      "imedicalxc-doctor-extend-dataformat",
+      "imedicalxc-doctor-extend-scope",
+      "imedicalxc-doctor-invoke"
+    ]
+  },
   "initSkill": "imedicalxc-doctor-extend-engineer",
+  "skillDependencies": {
+    "required": [
+      { "capability": "workflow.brainstorming", "provider": "superpowers", "name": "brainstorming" },
+      { "capability": "workflow.plan-writing", "provider": "superpowers", "name": "writing-plans" },
+      { "capability": "workflow.subagent-development", "provider": "superpowers", "name": "subagent-driven-development" },
+      { "capability": "workflow.branch-finishing", "provider": "superpowers", "name": "finishing-a-development-branch" }
+    ],
+    "optional": [
+      { "capability": "document.word.read", "provider": "word-reader", "name": "word-reader", "trigger": "input-extension:.doc,.docx" }
+    ]
+  },
   "requiresProjectFiles": [
     "AGENTS.md"
   ],

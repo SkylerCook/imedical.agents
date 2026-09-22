@@ -57,13 +57,17 @@
 
 ## 页面翻译种子类
 
-- 本地源码路径：`TODO: src/.../UploadPageTrans.cls`。
-- ObjectScript 类名：`TODO: Package.UploadPageTrans.cls`。
+- 默认适用：使用本插件标准页面翻译存储的新接入工程；目标工程已有不同且兼容的种子类时可覆盖本节。
+- canonical 相对源码路径：`DHCDoc/I18n/PageTranslationSeed.cls`。
+- canonical 模板源：`.agents/plugins/i18n-iris-plugin/templates/DHCDoc/I18n/PageTranslationSeed.cls`。
+- 本地源码路径：从 `iris_project_profile.md` 或 workspace manifest 的 backend SourceRoot 解析 canonical 相对源码路径；不得扫描父目录或 sibling 猜测。
+- ObjectScript 类名：`DHCDoc.I18n.PageTranslationSeed`。
 - 单条写入方法：`SetPageTrans(languageCode,page,item,translation)`。
 - 单条回滚方法：`KillPageTrans(languageCode,page,item)`。
 - 增量批次方法命名：`Save{LANG}Translate{YYYYMMDDNN}()` / `Kill{LANG}Translate{YYYYMMDDNN}()`。
 - 语言聚合方法命名：`Load{LANG}Translation()` / `Kill{LANG}Translation()`。
 - 生成种子调用时使用全类名：`##class(<seedClass>).<method>(...)`。
+- 字典翻译 SQL 和 XML 模板同步不进入本类。
 
 ## CSP 翻译同步配置
 

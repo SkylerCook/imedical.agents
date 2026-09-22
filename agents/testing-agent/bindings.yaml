@@ -1,0 +1,9 @@
+name: testing-agent
+type: general-role
+description: 最终修改后的独立验证与残余风险报告角色。
+defaultWorkflow: standard-change
+plugins: []
+permissions:
+  write: test-artifacts-only
+modelHint: balanced
+serialFallback: true

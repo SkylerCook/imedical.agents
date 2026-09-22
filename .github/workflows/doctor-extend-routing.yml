@@ -1,0 +1,29 @@
+name: Doctor extend routing
+
+on:
+  pull_request:
+    paths:
+      - 'plugins/imedicalxc-doctor-extend-engineer/**'
+      - 'scripts/generate-plugin-thin-index.ps1'
+      - 'scripts/tests/doctor-extend-routing.tests.js'
+      - '.github/workflows/doctor-extend-routing.yml'
+  push:
+    branches: [master, main]
+    paths:
+      - 'plugins/imedicalxc-doctor-extend-engineer/**'
+      - 'scripts/generate-plugin-thin-index.ps1'
+      - 'scripts/tests/doctor-extend-routing.tests.js'
+      - '.github/workflows/doctor-extend-routing.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test scripts/tests/doctor-extend-routing.tests.js

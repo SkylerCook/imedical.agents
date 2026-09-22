@@ -37,17 +37,33 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 - `.js/.css/.html` 对应 Web 资源路径。
 - 是否存在无法分类或本地不存在的文件。
 
+## 前端上传加编译
+
+优先直接调用 `scripts/iris-tools/deploy-frontend.js --demand <需求号> --source-root <frontend-root> --files <project-relative-file...> --execute`，参数与失败语义见 `scripts/iris-tools/README.md`。已有明确授权、目标和有效配置时使用一条命令，不再单独生成临时脚本、重复预检或逐工具确认。固定完成上传、哈希回读和指定 CSP 编译；无 `--execute` 只生成本地计划。失败停止，不自动重试或扩大文件范围。
+
 ## 执行顺序
+
+仅编译 CSP 的固定入口（路径取部署清单中的 virtualPath）：
+
+```bash
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js --documents <virtualPath.csp...>
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js --documents <virtualPath.csp...> --execute
+```
+
+第一条仅本地计划；第二条在上传完成且用户已明确授权部署后执行一次批量编译。直接编译明确指定的 show.csp，不自动编译父页面。禁止把已授权部署机械拆成逐工具重复确认。输出 `elapsedMs` 为编译请求及回包耗时，不能当作包含检查/上传/验收的总耗时。失败或结果不明时不自动重试，也不回退到 `iris_execute`。
 
 1. 读取配置和项目规则，确认目标环境事实来源。
 2. 生成部署清单，并按清单拆分后端类、CSP、Web 资源和其它文件。
 3. 说明即将发生的远端写入、编译、SFTP 上传或验证影响，等待用户确认。
 4. 后端类按 `iris_deploy_checklist.md` 执行：实体类先处理 Storage Default 风险，完整依赖切片先上传，再按依赖顺序编译。
-5. Web 资源按目标项目配置上传；GB2312 临时文件只作为上传内容，远端目标名保持原始文件名。
-6. CSP 先上传到物理 Web 根，再用 `project-env.json -> web.cspBasePath` 拼出的虚拟路径执行 `$system.OBJ.Load(..., "c")`；不得用物理路径编译。
+5. Web 资源通过 UTF-8 字节门禁后，使用共享保护生成独立部署产物并上传；只有用户明确指定历史 `standard-gb2312` 工程时，GB2312 临时文件才可作为上传内容，远端目标名仍保持原始文件名。
+6. CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 7. 执行远端只读验证，确认类编译状态、CSP 生成类参数、代表性页面加载和核心业务调用。
 
 ## 工具优先级
+
+- 项目选择 `sftp.runtime=vendor` 时，使用 CapabilityRoot 下的 `vendor/sftp-server/src/main.py`；运行前按 vendor README 检查解释器依赖、可信主机密钥、LOCAL_PATH/REMOTE_PATH 映射。旧的个人目录工具不视为 vendor 实现。
+- vendor 单文件上传先回读 SHA-256 再原子替换；不支持 `posix-rename` 时停止，不降级为直接覆盖。目录同步先用 `dry_run: true` 生成实际差异，再按明确授权范围执行。MCP `isError` 或结果 `partial-failure` 均不是成功。
 
 - 本地源码、项目规则和 `scripts/iris-tools/` 优先。
 - `prepare-deploy-manifest.js` 用于清单生成。
@@ -59,4 +75,12 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 
 部署完成前必须逐项检查 `rules/iris_deploy_checklist.md` 的验证章节。没有完成验证时，只能报告“已执行上传/编译步骤，验证未完成”，不得报告部署成功。
 
-部署过程中产生可跨场景复用的新经验时，按 `feedback/experience/deploy-com-exp.md` 的维护规则沉淀；不要写入敏感连接信息、完整命令输出或一次性排障流水。
+部署和本地验证完成后仍停在 `acceptance-pending`。部署过程中产生可跨场景复用的新经验时，也必须遵循 `.agents/agents/_shared/delivery-lifecycle.md` 和 `agent-framework-feedback`：用户明确验收后先做只读审查，只有逐项授权后才按 `feedback/experience/deploy-com-exp.md` 维护；不要写入敏感连接信息、完整命令输出或一次性排障流水。
+
+## Git 主线部署保护（0.10.0）
+
+上传使用需求基线和独立合并产物；首次服务器差异可合并，再次覆盖必须 Question。源码与暂存区不接收服务器差异。前端 deploy-frontend.js 和后端 compile.js 均须提供 --demand 与 --files，并先建立 deploy-guard.js 会话。详见 references/deployment-protection.md（从 skill/rule 入口按插件根解析）。原位置参数后端上传停止，不允许回退绕过。
+
+## 提问工具的兼容与降级
+
+needs-user-input 的 question 是工具无关协议；必须按 references/deployment-protection.md 的“Question 能力兼容”处理。优先使用当前模式允许且适合此类确认的工具；不支持选项则文本提问，工具不可用或禁止授权确认则使用普通对话，非交互环境保持停止。选项 code 与显示文案分离；无回复、取消、超时及默认选中都不构成授权。不可把工具输出直接作为写入授权，需关联用户明确决定和当前 token。

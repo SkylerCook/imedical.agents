@@ -1,96 +1,44 @@
 ---
 name: iris-coding
-description: Use when an IRIS coding request may involve ObjectScript, CSP, JavaScript, CSS, HISUI, or needs routing between backend, frontend, GB2312 promotion, and workflow rules.
+description: Route IRIS coding requests with unclear frontend/backend boundaries or mixed ObjectScript and CSP/JavaScript/HISUI changes. For a clearly scoped frontend or backend task, use its specialist skill directly.
 ---
 
 # IRIS Coding
 
 ## 使用时机
 
-当任务是 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码需求，且用户未明确只要求后端或前端专项 skill 时，优先使用本 Skill。
+前后端边界不明或同时涉及两端时使用本入口；明确的单一专项任务直接读取下表命中的 skill，无需先经过本入口。
 
-适用场景：
+| 任务 | 入口 |
+|---|---|
+| ObjectScript、BLH/DATA/SQL、Broker、Query | [iris-backend-coding](../iris-backend-coding/SKILL.md) |
+| CSP、HTML、JavaScript、CSS、HISUI | [iris-frontend-coding](../iris-frontend-coding/SKILL.md) |
+| 用户要求部署、上传、编译、SFTP 同步或部署验证 | [iris-deploy](../iris-deploy/SKILL.md) |
+| 已提交 DEV 需求移植到独立 PRD 按需导出仓库 | [iris-demand-promote](../iris-demand-promote/SKILL.md)，区别于远端生产部署 |
+| 用户明确处理历史 GB2312 工程并要求将临时文件替换回源文件 | [iris-frontend-gb2312-promote](../iris-frontend-gb2312-promote/SKILL.md) |
+| IRIS 类、方法签名、宏、SQL 元数据或官方文档查询 | [iris-mcp-lookup](../iris-mcp-lookup/SKILL.md) |
+| 用户要求从补丁补录 BOSS 需求、可选 Excel 或编号回填 | [iris-demand-entry](../iris-demand-entry/SKILL.md) |
+| 用户要求生成提交信息、明确要求提交，或显式调用 iris-demand-commit 的 --plan / --commit | [iris-demand-commit](../iris-demand-commit/SKILL.md)；本地验证完成不自动加载该 skill |
 
-- 需求同时涉及 `.cls`、CSP、JS、CSS 或 HISUI。
-- 用户只描述业务现象、页面、按钮、接口或功能目标，尚未明确前后端边界。
-- 需要先判断应走后端、前端、前后端混合、上传/编译验证或 GB2312 提升流程。
+## 修改前
 
-明确的单一专项任务仍可直接使用：
+1. 读取目标工程 `.agents/config/iris_project_profile.md`、`.agents/config/plugin_profile.md`、[规则索引](../../rules/iris_coding_index.md)和[通用规则](../../rules/iris_coding_general.md)。复用仍持有且未变化的内容。
+2. 按通用规则判定 executionPath、parallelAssessment 和正式 run；guidanceMode 使用共享辅助协议。风险分流不减少命中的硬约束。
+3. **需要部署的业务需求，在所属仓库第一次修改前**读取[部署保护的建立会话要求](../../references/deployment-protection.md#建立会话)，完成或复用固定 Git 基线；已有修改、需求号缺失或基线不明时先通过 Question 确认。仅分析或明确不部署的任务不额外建立会话。
+4. 定位页面、按钮、JS 调用和后端方法，确认调用链及文件边界；按上表读取命中的专项 skill 和规则。前端修改前执行[条件 i18n 门禁](../../rules/iris_coding_frontend.md#条件-i18n-门禁)，启用状态、信号、规则加载和失败处理均以该节为准。
 
-- 后端 ObjectScript：`iris-backend-coding`
-- 前端 CSP/JS/HISUI：`iris-frontend-coding`
-- 永久替换 `{name}.gb2312.{ext}` 回源文件：`iris-frontend-gb2312-promote`
-- 远端部署、上传、编译、SFTP 同步或部署验证：`iris-deploy`
+业务背景、菜单与实现参考按通用规则“自主使用知识资料”按需查询；用户要求刷新菜单资料时转 [iris-menu-sync](../iris-menu-sync/SKILL.md)。涉及远端读取或 SQL 验证时按规则索引读取工作流和目标工程私有连接配置，遵守对应授权边界。
 
-## 必读规则
+## 实现与验证
 
-1. 目标工程 `.agents/config/iris_project_profile.md`
-2. `rules/iris_coding_index.md`
-3. `rules/iris_coding_general.md`
+1. 沿用现有实现；混合任务先明确前端展示/采集与后端处理/返回契约，再分阶段执行各自专项流程。
+2. 前端每个触碰文件修改前后执行字节检测，按[编码策略](../../rules/iris_coding_frontend.md#编码策略)保持 canonical `utf8`，异常停止；HISUI 复用、控件状态和 CSP 验证沿用前端规则。
+3. 最终 diff 后再次执行条件 i18n 门禁；命中时完成 owner 规则要求的 helper 静态检查，失败停止。核对接口契约、改动范围与目标验证结果。
+4. 默认只做本地修改、只读验证和报告；上传、编译、远程写入、数据库变更必须由用户明确要求。部署执行转 iris-deploy，已有基线不代替部署授权。
 
-按任务范围继续读取：
+## 完成条件与交付
 
-- 后端 `.cls`、BLH/DATA/SQL、Broker、Query、ObjectScript 编译验证：读取 `iris-backend-coding` 和 `rules/iris_coding_backend.md`
-- 前端 CSP、HTML、JavaScript、CSS、HISUI、页面布局、前端数据回显：读取 `iris-frontend-coding` 和 `rules/iris_coding_frontend.md`
-- HISUI 控件选型或 API 不确定：读取 `references/hisui-widget-index.md`，再读 `.agents/vendor/hisui/dist/js/jquery.hisui.js` 查看源码
-- 上传、编译、远程读取、只读 SQL 验证：读取目标工程 `.mcp.json` 和 `rules/iris_coding_workflow.md`
-- 上传、编译、部署和远端验证：读取 `rules/iris_deploy_checklist.md`
-- 永久替换 `{name}.gb2312.{ext}` 回源文件：切换到 `iris-frontend-gb2312-promote`
-
-## 路由流程
-
-1. 读取需求描述，列出已知入口、涉及文件、页面、类、方法和用户可见现象。
-2. 判断任务边界：
-   - 只涉及 `.cls`、BLH/DATA/SQL、Broker、Query：走后端专项流程。
-   - 只涉及 CSP/JS/CSS/HISUI：走前端专项流程。
-   - 同时涉及后端接口和前端页面：先梳理调用链和文件边界，再分阶段改后端和前端。
-   - 用户要求部署、上传、编译、SFTP 同步或部署验证：切换到 `iris-deploy`。
-   - 用户要求远端读取或 SQL 验证但不部署：只在明确要求后进入工作流规则。
-   - 用户要求提升 GB2312 临时文件为源文件：切换到 promote skill。
-3. 本地搜索现有实现和同类代码，优先沿用目标工程模式。
-4. 按已判定的专项流程执行编码改造。
-5. 默认只做本地修改、只读验证和报告；上传、编译、远程写入、数据库变更必须由用户明确要求。
-
-## 前后端混合需求
-
-混合需求按阶段执行：
-
-1. 定位入口：页面、按钮、JS 调用、Broker 方法或后端类方法。
-2. 划分边界：明确前端负责展示/交互/采集，后端负责业务处理/数据读写/返回结构。
-3. 后端改造：按 `iris-backend-coding` 和 `iris_coding_backend.md` 处理。
-4. 前端改造：按 `iris-frontend-coding` 和 `iris_coding_frontend.md` 处理。
-5. 验证：本地结构检查优先；用户明确要求后再上传、编译或远端验证。
-
-## 产出
-
-- 改造范围和涉及文件。
-- 任务路由结论：后端、前端、前后端混合、GB2312 promote 或部署验证。
-- 前后端分工和执行顺序。
-- 已执行的本地验证。
-- 仍需用户确认的上传、编译、远程写入、数据库变更或生产环境动作。
-
-## 需求完成后的经验沉淀
-
-需求处理完成后，检查本次是否产生可跨需求复用的经验，并按需更新 `feedback/experience/demand-com-exp.md`。
-
-需要沉淀的情况：
-
-- 本次遇到现有 rules/skills 未覆盖的坑、边界或判断标准。
-- 本次验证出可复用的工程模式、处理顺序或检查项。
-- IRIS 编码场景包括持久化类、SQL、HisUI DataGrid、CSP 页面、Broker、GB2312 编码或部署验证经验。
-- 已有经验条目再次命中本次需求：追加需求号并 `命中+1`；没有明确需求号时，记录可追溯的任务标题或不更新命中计数。
-
-沉淀要求：
-
-- 先搜索已有条目，能合并就合并，不重复新增。
-- 按 `feedback/experience/demand-com-exp.md` 的分类和条目格式记录。
-- 不写服务器、账号、namespace、远程路径、患者样本等敏感信息。
-- 不复制长段命令输出、完整 diff 或一次性排障流水。
-- 没有可复用经验时不写；不强制每次需求都沉淀。
-
-## 完成检查
-
-- 已读取 project profile 和通用规则索引。
-- 已按任务范围读取对应专项 skill/rule。
-- 未把服务器、namespace、账号、密码、token、远程路径、业务页面清单、业务类名前缀或项目专属基类写入插件。
-- 上传、编译、远程写入、数据库变更没有在用户未明确要求时执行。
+- 命中的专项规则、字节检查、i18n 门禁和必要验证已完成；缺失验证明确说明限制，未通过的门禁不能报告完成。
+- 报告改动范围、验证结果及必要的混合任务接口分工；前端正常时只给一行编码摘要。提交计划与 commit 结果仅在用户要求时按 iris-demand-commit 输出，需求号、标题和默认交付类型不触发提交或追问。
+- 业务需求设置 taskKind=business-demand，按[交付生命周期](../../../../agents/_shared/delivery-lifecycle.md)进入 acceptance-pending 并给出最短验收步骤。仅在用户验收后且存在框架缺陷、规则冲突、可复用经验或用户要求时做只读 feedback 审查；任何写入逐项授权。
+- 纯框架维护使用 taskKind=framework-maintenance 和[维护生命周期](../../../../agents/_shared/maintenance-lifecycle.md)，不进入业务验收或 feedback 流程。

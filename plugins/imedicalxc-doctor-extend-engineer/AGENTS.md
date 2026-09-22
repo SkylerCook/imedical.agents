@@ -21,23 +21,29 @@
 - 架构约束与代码组织：`skills/imedicalxc-doctor-extend-architecture/SKILL.md`
 - 团队归属与范围分析：`skills/imedicalxc-doctor-extend-scope/SKILL.md`
 - 数据格式与 XML/JSON 生成：`skills/imedicalxc-doctor-extend-dataformat/SKILL.md`
+- 电子健康卡新厂家接入（镜像既有厂家生成代码/SQL/文档）：`skills/imedicalxc-doctor-elechealthcard-vendor/SKILL.md`
 - BLH 编写规范：`skills/imedicalxc-doctor-blh/SKILL.md`
 - 调用与接口规范：`skills/imedicalxc-doctor-invoke/SKILL.md`
 - 医保/字典数据规范：`skills/imedicalxc-doctor-dbdata/SKILL.md`，当前已精简为数据库查询核心规范，重点覆盖医保对照、基础数据统一对照和合并查询。
 - WebSysAddins 中间件开发：`skills/imedical-bsp-websysaddins/SKILL.md`
 - Jenkins CI/CD 验证：`skills/imedicalxc-bsp-jenkins/SKILL.md`
 
-普通第三方集成需求优先使用 `imedicalxc-doctor-extend-engineer` 统一入口，由编排器按步骤加载上述子 skill。
+普通第三方集成需求优先使用 `imedicalxc-doctor-extend-engineer` 统一入口，由编排器按步骤加载上述子 skill。电子健康卡子 skill 在架构前置条件通过后加载；不固定参照厂家，不自动回补既有厂家，多行映射按已确认的方向与主映射处理，无法确定结果时报告歧义。
 
 ## 规则与参考入口
 
+- 规则索引：`rules/elechealthcard_index.md`
+- 电子健康卡编码规约（A~AO）：`rules/elechealthcard_coding_conventions.md`
+- 第三方集成通用约束：`rules/elechealthcard_integration.md`
 - 架构约束：`skills/imedicalxc-doctor-extend-architecture/references/domain-constraints.md`
 - BLH 审查清单：`skills/imedicalxc-doctor-blh/references/blh-review-checklist.md`
 - 命名约定：`skills/imedicalxc-doctor-blh/references/naming-conventions.md`
+- 电子健康卡建卡数据流：`skills/imedicalxc-doctor-elechealthcard-vendor/references/register-elechealthcard-dataflow.md`
+- 广东省信封结构示例：`skills/imedicalxc-doctor-elechealthcard-vendor/references/guangdong-envelope-structure.md`
 
 ## Thin-Index 暴露范围
 
-本插件的 `scripts/generate-plugin-thin-index.ps1` 是根 canonical thin-index 脚本的 wrapper。默认只暴露 `imedicalxc-doctor-extend-engineer` 主编排器入口；`imedical-bsp-websysaddins`、`imedicalxc-bsp-jenkins`、`imedicalxc-doctor-blh`、`imedicalxc-doctor-dbdata`、`imedicalxc-doctor-extend-architecture`、`imedicalxc-doctor-extend-dataformat`、`imedicalxc-doctor-extend-scope` 和 `imedicalxc-doctor-invoke` 这 8 个子 skill 由主编排器按需读取，不单独生成浅层 skill 入口。
+本插件的 `scripts/generate-plugin-thin-index.ps1` 是根 canonical thin-index 脚本的 wrapper。默认只暴露 `imedicalxc-doctor-extend-engineer` 主编排器入口；`imedical-bsp-websysaddins`、`imedicalxc-bsp-jenkins`、`imedicalxc-doctor-blh`、`imedicalxc-doctor-dbdata`、`imedicalxc-doctor-elechealthcard-vendor`、`imedicalxc-doctor-extend-architecture`、`imedicalxc-doctor-extend-dataformat`、`imedicalxc-doctor-extend-scope` 和 `imedicalxc-doctor-invoke` 这 9 个子 skill 由主编排器按需读取，不单独生成浅层 skill 入口。已生成的受管电子健康卡入口通过canonical 生成器按 manifest 策略精准清理，兼容边界见 README。
 
 ## 内置脚本
 
@@ -45,9 +51,9 @@
 
 ## 依赖的 Vendor 资产
 
-本插件依赖以下 vendor 资产，部署时需确保它们存在于 `.agents/vendor/`：
+本插件通过 manifest 声明以下 vendor capability fallback：
 
-- `vendor/word-reader/`：用于读取 Word 格式接口文档（如厂商提供的 `.docx`/`.doc` 规格说明书）。
-- `vendor/superpowers/`：提供 `brainstorming`、`writing-plans`、`subagent-driven-development`、`finishing-a-development-branch` 等流程 skill。
+- `vendor/superpowers/`：四个主流程 required skill，启用插件时生成项目通用 thin-index。
+- `vendor/word-reader/`：optional；仅收到 `.doc` / `.docx` 且当前工具没有原生 Word 读取能力时使用。
 
-安装和更新流程会调用 `scripts/sync-vendor-skills.ps1`，把上述 vendor skill 同步到运行时 skill 发现目录。若运行时仍缺失 superpowers，按 `.agents/docs/update-agents.md` 的 vendor skill 同步和停止条件处理。
+安装和更新流程不再全量写入用户级 skill 目录。所有工具优先使用 `.agents/skills` 项目发现层；需要 Claude Code 或 Codex 用户级副本时，必须按 `.agents/docs/update-agents.md` 显式指定 runtime 和 skill。OpenCode、CodeBuddy 等无已验证 adapter 的工具直接读取项目 thin-index 或 vendor 源，并在无子代理能力时串行降级。

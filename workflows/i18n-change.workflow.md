@@ -1,3 +1,4 @@
+
 # i18n-change Workflow
 
 `i18n-change` 是 IRIS 国际化需求处理的领域 workflow。它把 `i18n-workflow-decompose.md` 中的五阶段愿景落地为可执行的 canonical 流程。
@@ -6,7 +7,7 @@
 
 ## 触发条件
 
-用户需求满足任一条件时使用：
+先按 coding-iris-plugin/rules/iris_coding_general.md 分流。简单本地 i18n 使用 i18n-coding；只有需要正式任务图、持久恢复、并行写入、跨会话协作或用户明确指定 workflow 时进入本流程。以下为领域适用范围：
 
 - 要求对 IRIS/ObjectScript/CSP/HISUI 页面或后端逻辑做国际化改造。
 - 要求处理打印链路国际化。
@@ -22,6 +23,69 @@
 5. `.agents/plugins/i18n-iris-plugin/rules/i18n_index.md`。
 
 在本仓库维护时，上述 `.agents/` 路径对应仓库根目录。
+
+## 执行模式与报告契约
+
+新运行复用 `agents/_shared/orchestration-protocol.md`，按需要选择通用角色和 `scripts/agent-orchestrator.js`，选择 `orchestrationMode: serial | subagent | multi-session`，并创建 schema 2.0 run。旧 runMode 的 `retrospective` / `multi-agent` 只用于既有 schema 1.0–1.2 历史 fixture（serial 在新旧协议均可用），不重写其内容。
+
+i18n 领域报告仍使用：
+
+```text
+docs/agent-reports/{ticket-or-topic}/
+  00-run-manifest.json
+  10-explorer.md
+  11-classifier.md
+  20-backend-coder.md
+  21-frontend-coder.md
+  22-template-seed.md
+  30-verifier.md
+  40-summary.md
+```
+
+- 验证样本使用逐阶段 handoff；不适用 work item 保留原因。
+- 回溯只读任务使用 `serial` 且不得修改业务代码或执行远程写入；无法取得的历史时间不得推测。
+- `multi-session` 必须有当前 planHash 的协作授权；远程写入仍需单独授权。
+- 已选定本 workflow 后，agent/workflow registry 不再重复读取。
+- 运行中使用 `agent-orchestrator.js validate`，完成前使用 `validate --final`；PowerShell 入口会对 schema 2.0 薄转发。历史 1.0–1.2 继续由原校验分支只读处理。
+
+## Step 0：启动契约
+
+任何 Explorer 或代码修改开始前，Coordinator 必须完成以下事项：
+
+1. 选择 executionPath 与 orchestrationMode，通过 `agent-orchestrator.js init` 立即创建 run，不得在执行中途把串行运行事后包装成 multi-session。
+2. 为每个 actor 声明互斥文件所有权；Backend、Frontend、Template/Seed 和 Verifier 的边界写入 manifest。
+3. 根据需求描述列出预计远程动作，并主动一次性询问当前运行授权：
+   - `translation-data-write`：新增页面翻译、缺失字典翻译、XML 语言模板新建、已明确列出的 CSP 翻译加载动作。
+   - `business-code-deploy`：前端上传、后端上传与编译。
+   - `tool-internal-execution`：仅用于已列出的只读核验或翻译操作所需、自清理的临时执行载体；不授权上传命名业务类。
+4. 用户在当前任务已明确授权时直接记录，不重复询问；未回答或拒绝时继续本地生成和只读验证。
+5. 一次授权只覆盖当前运行、当前配置目标环境和已列 scope。覆盖已有不同值、XML overwrite、删除、回滚、切换环境或扩大范围必须重新确认。
+6. 预计存在远程动作时，在派发写入相关角色前完成 MCP capability preflight，将 query/execute/document 等能力标签写入 participants[].capabilities，探针事实写入该 work item 的 inputRefs 报告；不需要的能力不探测。
+
+2.0 CLI 授权映射：translation-data-write 与 tool-internal-execution 对应 workItems[].authorizationCategory=remoteWrite，business-code-deploy 对应 deploy；分别 transition authorization --key remoteWrite|deploy --status granted --actor user。领域子类型、当前目标环境的非敏感标识、覆盖/删除范围写入 completionCriteria 与交接报告，属于计划范围，不能以一次授权扩展动作。
+
+推荐一次性询问文案：
+
+> 本需求可能需要把新增的页面/字典翻译和 XML 语言模板写入当前配置环境。是否授权本次运行在链路确认且本地校验通过后自动写入？仅新增、相同值跳过，不覆盖冲突、不删除；业务代码上传和编译单独授权。
+
+清晰的打印 i18n 需求在用户授权当前 multi-session 计划且并行确有收益后，从 Step 0 选择相应执行形态：定向 Explorer/Classifier 完成后，代码与 XML/Seed 在所有权不重叠时并行，独立 Verifier 在所有最终修改和远程写入完成后执行。
+
+### MCP capability preflight
+
+1. `check_config` 只核对目标定位，不作为网络连通证明。
+2. 立即执行 `iris_query("SELECT 1 AS Probe")`。探针成功时继续；`connection_source=auto_discovered` 且 `config_file=null` 不构成失败。
+3. 只有真实探针失败时才重启一次 MCP 会话并复测。单次 404/405 或单一工具失败只影响对应 capability，不得扩大为整个 MCP 不可用。
+4. 查询仍失败且本次已授权 `tool-internal-execution` 时，可使用会自清理的 `iris_execute` + `%SQL.Statement` 只读降级；否则只阻塞 SQL capability。
+5. 在编码前只读预扫描目标语言、源/目标 XML、页面翻译冲突和必要字典项。相同值记 `skipped-same`；既有不同值完成分类后记终态 `blocked`；瞬时故障记非终态 `suspended`。
+
+## 已批准计划快速路径
+
+用户计划同时明确入口、影响范围、文本分类、模板/种子策略和测试要求时：
+
+1. 将计划作为 Explorer/Classifier 初始输入并在 manifest 标记 `reusedEvidence=true`。
+2. 只核验入口、数据来源、实际渲染路径和未确认项，不重新做全量链路探索。
+3. Explorer 与 Classifier 可由同一 actor 连续执行，但必须分别输出 `10-explorer.md` 和 `11-classifier.md`。
+4. 任一关键事实与计划不符时，停止快速路径并回到标准 Explorer。
 
 ## 阶段 1：Explorer
 
@@ -44,7 +108,7 @@
 输出：
 
 ```text
-docs/agent-reports/{ticket-or-topic}/explorer-i18n-agent.md
+docs/agent-reports/{ticket-or-topic}/10-explorer.md
 ```
 
 该报告必须区分已验证事实、推断和待确认项。
@@ -68,7 +132,7 @@ docs/agent-reports/{ticket-or-topic}/explorer-i18n-agent.md
 输出：
 
 ```text
-docs/agent-reports/{ticket-or-topic}/classifier-i18n-agent.md
+docs/agent-reports/{ticket-or-topic}/11-classifier.md
 ```
 
 分类清单是 Coder 阶段的主要输入。未确认来源不得进入编码改造。
@@ -90,11 +154,15 @@ docs/agent-reports/{ticket-or-topic}/classifier-i18n-agent.md
 3. 后端文件读取 `i18n_coding_backend.md`。
 4. 打印链路读取 `i18n_coding_print_backend.md`。
 5. 按分类清单改造，不扩大范围。
+6. 当前前端文件统一保持 UTF-8；检测到 GB2312 时停止并报告。只有用户明确指定历史工程后，临时 UTF-8 工作副本才使用 `$env:TEMP`，不得默认写 `C:\tmp`；修改后按 legacy 编码工具转回并复核 EOF/编码。
+
+subagent/multi-session 模式下，Backend Coder 与 Frontend Coder 仅在文件所有权互不重叠时并行；存在重叠时由 Coordinator 改为串行。
 
 输出：
 
 ```text
-docs/agent-reports/{ticket-or-topic}/coder-i18n-agent.md
+docs/agent-reports/{ticket-or-topic}/20-backend-coder.md
+docs/agent-reports/{ticket-or-topic}/21-frontend-coder.md
 ```
 
 同时输出代码 diff 摘要和后续需要生成的翻译表、种子或模板事项。
@@ -121,10 +189,23 @@ docs/agent-reports/{ticket-or-topic}/coder-i18n-agent.md
 输出：
 
 ```text
-docs/agent-reports/{ticket-or-topic}/template-seed-i18n-agent.md
+docs/agent-reports/{ticket-or-topic}/22-template-seed.md
 ```
 
 如果不满足触发条件，本阶段输出“不触发原因”，不得默认执行 XML 模板同步。
+
+### XML 保存失败收敛
+
+- 查询、导出和本地翻译成功后必须复用现有 XML、manifest 和备份，不重新执行前序阶段。
+- `iris_execute` 内部 stdout/status 出现临时类 `Execute+...<SYNTAX>` 时，按 ObjectScript 载荷编译失败处理，不按 MCP 传输失败处理。
+- 除明确且有限的引号修正外，不重复尝试等价长脚本；立即切换为项目已有保存接口，或 Base64 短调用分块写临时 Global、短调用合并保存、清理、一次只读验收。
+- 同一失败签名的等价重试不得超过 1 次；`retrospective` 可记录历史违规，但不得在复盘中重演。
+
+### 暂停与恢复
+
+- schema 2.0 使用 workItems[].attempts[] 和 actions[] 记录执行。ACK failed 只在已确认失败且允许重试时生成新 attempt；未知远程结果 ACK blocked，不自动重试。核实结果后按调度协议关闭 blocked action，再恢复同一 work item，不新建 resume 阶段。
+- pending/blocked action 和 blocked work item 均不能成功完成。保持 run blocked，解决后恢复；旧 1.2 suspended 只存在于只读历史 fixture。
+- 依据宿主状态和实际进度判断等待；观察超时不等于失败，不按固定心跳时限重建会话。
 
 ## 阶段 5：Verifier
 
@@ -142,12 +223,33 @@ docs/agent-reports/{ticket-or-topic}/template-seed-i18n-agent.md
 2. 扫描源语言残留、helper 使用、占位符、调试输出。
 3. 检查翻译表、种子、XML 模板和 fallback 行为。
 4. 在用户明确要求且工具可用时，执行编译、同步或服务器只读验证。
+5. 后端获得编译授权时，在 XML 远程保存前执行 fail-fast 编译；未获授权时执行 ObjectScript 条件分支结构检查并标记编译待验证。
+6. 启动 Verifier 前确认所有实现/远程动作已终态、没有 pending/blocked action，业务代码、本地 i18n 产物和已授权远程读回已冻结；2.0 不使用 finalization.ready。
+7. `verification.scopes` 和 evidenceSnapshots 对应的实际路径覆盖 `business-code`、`local-i18n-artifacts`、`authorized-remote-readback`。这些范围在 Verifier 后发生修改会使结论失效；manifest、阶段报告、summary、feedback 和维护文档不计入业务验证版本。
 
 输出：
 
 ```text
-docs/agent-reports/{ticket-or-topic}/verifier-i18n-agent.md
+docs/agent-reports/{ticket-or-topic}/30-verifier.md
 ```
+
+Root 根据全部 handoff 生成 `40-summary.md`；不得重新执行子 Agent 已完成的检索。
+
+## 多智能体编排
+
+```text
+Root Coordinator
+  -> Explorer + Classifier actor
+  -> Backend Coder / Frontend Coder / Template-Seed actor（范围不重叠时并行）
+  -> Independent Verifier
+  -> Root 汇总
+```
+
+- Coordinator 在并行前声明每个 actor 的文件所有权和远程动作边界。
+- Template/Seed actor 默认只生成本地产物；远程保存由 Coordinator 串行执行。
+- 子 Agent 只读取 handoff 指定的 profile、skill 和专项规则；同一 actor 不重复读取同一规则。
+- 有独立执行者时 Verifier 与 Coder 分离；无 subagent 时按同一验证清单串行自检并如实标记非独立验证，若项目要求独立验收则停在待人工验证。
+- Coordinator 必须先完成实现与远程动作冻结检查，再派发 Independent Verifier；不得用“稍后补远程写入”作为提前验证的理由。
 
 ## 条件分支
 
@@ -162,7 +264,7 @@ docs/agent-reports/{ticket-or-topic}/verifier-i18n-agent.md
 
 ## 串行降级
 
-如果当前工具不支持子 Agent，单 Agent 按五阶段顺序执行。每个阶段仍需输出交接产物，避免直接跳到编码。
+如果当前工具不支持子 Agent，或任务未明确授权多智能体，选择 `serial`。单 Agent 按同样逻辑阶段顺序执行，P1 验证仍输出全部交接文件；普通快速路径可输出一份合并报告，但完成条件不得减少。
 
 如果上下文不足以完成所有阶段，优先完成 Explorer 和 Classifier，停止在明确阻塞点，不猜测实现。
 
@@ -173,4 +275,6 @@ docs/agent-reports/{ticket-or-topic}/verifier-i18n-agent.md
 - 代码改造只覆盖分类清单确认项。
 - XML 模板或翻译种子只在条件满足时处理。
 - 验证报告列出已执行检查、未执行原因和残余风险。
-- 如果对框架文件做了修正，按 `agents/_shared/feedback-protocol.md` 生成反馈条目。
+- schema 2.0 的 workItems[].attempts、adapterCapabilities、actions 终态、verification.scopes 与验证指纹已完整记录。
+- `00-run-manifest.json` 与阶段报告通过事后机械校验。
+- 本 workflow 处理业务需求时固定设置 `taskKind=business-demand`，并由此派生 `feedbackReviewApplicable=true`。技术阶段完成后进入 `acceptance-pending`；验证冻结和 Verifier 不等于用户验收。只有用户明确进入 `accepted` 且发现框架缺陷、规则冲突、可复用新经验或用户要求时才调用 `plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md` 做只读审查，任何反馈写入仍需独立授权；纯框架维护必须使用独立维护生命周期，不使用本收尾分支。

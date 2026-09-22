@@ -34,7 +34,17 @@ related:
 
 ## 种子类
 
-种子类路径、ObjectScript 类名、写入方法、回滚方法、聚合方法命名均从项目 profile 读取。
+页面翻译种子采用以下 canonical 默认契约：
+
+- ObjectScript 类名：`DHCDoc.I18n.PageTranslationSeed`。
+- backend SourceRoot 内相对路径：`DHCDoc/I18n/PageTranslationSeed.cls`。
+- canonical 模板：`.agents/plugins/i18n-iris-plugin/templates/DHCDoc/I18n/PageTranslationSeed.cls`。
+- 单条写入/回滚：`SetPageTrans(languageCode,page,item,translation)` / `KillPageTrans(languageCode,page,item)`。
+- 语言聚合：`Load{LANG}Translation()` / `Kill{LANG}Translation()`。
+
+初始化器应把这些默认值写入项目 profile。目标工程已验证存在不同且兼容的页面翻译种子机制时，允许由 profile 覆盖；不得使用 `Package.UploadPageTrans` 等未确认占位类。最终种子类路径、ObjectScript 类名、写入方法、回滚方法和聚合方法仍以项目 profile 为执行事实来源。
+
+目标类不存在时，页面翻译种子实现任务可从 canonical 模板创建本地类；创建前必须确认 backend SourceRoot、目标 Git 仓库和依赖类存在。目标类已存在时只校验稳定接口并增量追加批次/聚合调用，不得用模板覆盖。
 
 生成单条调用时使用 profile 指定的全类名格式，避免依赖当前类上下文。示例形态：
 
@@ -71,6 +81,7 @@ Kill <pageTranslationStore>(..., language, pageCode, sourceText)
 
 - `.mcp.json` 是 MCP 连接配置唯一事实来源。
 - skill 不硬编码 MCP server 名称、IRIS namespace、远程路径或服务器编号。
+- 本地源码完整路径必须由项目声明的 backend SourceRoot 与 profile 中的相对路径解析，不得扫描父目录或 sibling 猜测。
 - 如果某些 MCP 工具不会自动读取 `.mcp.json` 中的 namespace，执行时必须从 `.mcp.json` 解析并显式传入。
 - 如果某个读取 global 的工具对中文下标不可靠，应使用项目 profile 或经验记录中指定的替代抽象能力，例如命令执行并 `Write $Get(...)`。
 - 如果文档加载工具存在路径映射风险，应优先使用 profile 指定的部署链路，例如 SFTP 上传后再编译。

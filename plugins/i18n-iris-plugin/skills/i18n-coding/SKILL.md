@@ -28,6 +28,10 @@ description: Use when applying frontend or backend internationalization coding c
 - 验证阶段读取 `i18n_verify.md`。
 - UI 框架行为不确定时读取 profile 指定的控件索引或源码索引。
 
+## 统一分流
+
+读取 coding-iris-plugin/rules/iris_coding_general.md，统一 executionPath 与正式 run 判定；guidanceMode 遵循共享 execution-guidance 协议。简单本地 i18n 使用本 skill，不自动创建正式 run。阶段顺序属于默认方法，可以合并和调整，领域规则、字节检测和 helper 检查仍必须执行。
+
 ## 输入范围
 
 支持：
@@ -37,14 +41,15 @@ description: Use when applying frontend or backend internationalization coding c
 - 目录。
 - 工程范围。
 
-开始前先确认实际文件编码。历史乱码文件只做最小改动；GB2312 前端文件必须保持原编码，除非用户明确要求永久转码。
+开始前先解析 coding profile 的前端编码模式并检测实际字节。当前前端统一保持 canonical UTF-8；历史乱码或 GB2312 文件停止并报告，只有用户明确指定旧工程时才进入 legacy 流程。
 
 ## 前端改造
 
 - 改造前先判断文本是否属于 UI 框架自动翻译；属于时不改代码，只记录到后续翻译表。
-- 改造前后确认前端文件编码；profile 要求前端 GB2312 时，收尾使用 `check-frontend-encoding.ps1 -ExpectedEncoding gb2312 -ErrorOnMismatch` 或等价方式确认未漂移为 UTF-8。
+- 每个前端文件改造前后执行 UTF-8 字节检查；正常时只输出一行编码摘要，检测到 GB2312、UTF-16、unknown、mixed 或配置冲突时停止并展开诊断。
 - 静态文案使用 profile 指定的前端静态翻译 helper。
 - 带变量文案使用 profile 指定的占位符翻译 helper。
+- 翻译 helper 的 key 必须是稳定字面量，运行时值只能作为占位符参数传入；禁止 `$g(variable + "文案")`、带插值模板字符串或动态 `$trans` key。
 - 已确认由 UI 框架自动翻译的文本不改代码，但记录到后续翻译表。
 - 含变量拼接、动态文案、非 UI 框架自动处理文本必须改造。
 - datagrid / treegrid 列头 `title: "中文"` 默认属于 UI 框架自动翻译，禁止改成 `$g("中文")`。
@@ -77,22 +82,8 @@ description: Use when applying frontend or backend internationalization coding c
 - 标记无法确认的主页面、占位符语义或 UI 框架自动翻译边界。
 - 提醒继续执行 `i18n-text-extract` 和对应的翻译种子 skill。
 - 复杂需求应产出链路事实报告和字段分类清单。
+- 对全部触碰的 JS/CSP 文件，按 profile 中的 helper 名称运行 `scripts/check-i18n-helper-usage.js`；退出码 `1` 或 `2` 时停止，不能交付动态翻译 key。
 
-## 需求完成后的经验沉淀
+## 用户验收后的 feedback 审查
 
-需求处理完成后，检查本次是否产生可跨需求复用的经验，并按需更新 `feedback/experience/demand-com-exp.md`。
-
-需要沉淀的情况：
-
-- 本次遇到现有 rules/skills 未覆盖的坑、边界或判断标准。
-- 本次验证出可复用的工程模式、处理顺序或检查项。
-- i18n 场景包括链路定位、字段分类、模板 fallback、字典翻译位置、UI 自动翻译边界或翻译种子验证经验。
-- 已有经验条目再次命中本次需求：追加需求号并 `命中+1`；没有明确需求号时，记录可追溯的任务标题或不更新命中计数。
-
-沉淀要求：
-
-- 先搜索已有条目，能合并就合并，不重复新增。
-- 按 `feedback/experience/demand-com-exp.md` 的分类和条目格式记录。
-- 不写服务器、账号、namespace、远程路径、患者样本等敏感信息。
-- 不复制长段命令输出、完整 diff 或一次性排障流水。
-- 没有可复用经验时不写；不强制每次需求都沉淀。
+业务需求使用 taskKind=business-demand，本地验证后停在 acceptance-pending。用户明确验收且发现框架缺陷、规则冲突、可复用新经验或明确要求时，才加载 agent-framework-feedback 做只读审查。无信号不加载、不例行报告；写入仍需逐项授权。纯框架维护走独立 framework-maintenance 生命周期。详见 agents/_shared/delivery-lifecycle.md。

@@ -1,0 +1,49 @@
+{
+  "name": "iris-cure-form-dev",
+  "version": "0.7.7",
+  "displayName": "IRIS Cure Form Dev Plugin",
+  "description": "CA/CR treatment form ingestion, multi-template generation, responsive migration, review, deployment planning, verification, and rollback orchestration.",
+  "entry": "AGENTS.md",
+  "rules": "rules/",
+  "references": "references/",
+  "skills": "skills/",
+  "templates": "templates/",
+  "scripts": "scripts/",
+  "initSkill": "cure-form-init",
+  "thinIndex": {
+    "excludeSkills": ["cure-form-init"]
+  },
+  "dependencies": [
+    "extract-doc",
+    "coding-iris-plugin"
+  ],
+  "dependencyVersions": {
+    "extract-doc": {
+      "minVersion": "0.2.0",
+      "maxVersionExclusive": "0.3.0"
+    },
+    "coding-iris-plugin": {
+      "minVersion": "0.3.1",
+      "maxVersionExclusive": "0.14.0"
+    }
+  },
+  "requiresProjectFiles": [
+    "AGENTS.md",
+    ".mcp.json",
+    ".iris-agentic-dev.toml",
+    ".agents/config/cure_form_profile.md"
+  ],
+  "defaultPrompt": [
+    "Initialize CA/CR cure form development support",
+    "Ingest this hospital Word, PDF, or Excel form requirement",
+    "Split this Excel requirement into approved template boundaries and generate a read-only intake report",
+    "Create a CA treatment assessment form from the approved cure form specification",
+    "Create a CR treatment record form from the approved cure form specification",
+    "Make this existing CA/CR server form responsive without breaking its runtime contract",
+    "Generate and verify a complete HISUI browser preview for these cure form changes",
+    "Prepare and validate the required manual interaction test evidence for a new cure form",
+    "Prepare a dry-run cure form deployment package and review its impact",
+    "Consolidate an accepted existing-form grey template back to its formal RowID and verify zero grey references",
+    "Verify or roll back a cure form deployment operation"
+  ]
+}

@@ -1,7 +1,8 @@
 ﻿$ErrorActionPreference = "Stop"
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
-$pluginRoot = Join-Path $repoRoot "plugins/iris-interface-dev-plugin"
+$pluginRoot = Join-Path $repoRoot "plugins/iris-interface-dev"
+$extractDocRoot = Join-Path $repoRoot "plugins/extract-doc"
 
 function Assert-True {
   param(
@@ -35,20 +36,25 @@ function Assert-NotContains {
   }
 }
 
-Assert-True (Test-Path -LiteralPath $pluginRoot -PathType Container) "iris-interface-dev-plugin should exist"
+Assert-True (Test-Path -LiteralPath $pluginRoot -PathType Container) "iris-interface-dev should exist"
 
 $manifestPath = Join-Path $pluginRoot ".agents-plugin/plugin.json"
 Assert-True (Test-Path -LiteralPath $manifestPath -PathType Leaf) "plugin manifest should exist"
 $manifest = Get-Content -Raw -Encoding UTF8 -Path $manifestPath | ConvertFrom-Json
-Assert-True ($manifest.name -eq "iris-interface-dev-plugin") "manifest name should be iris-interface-dev-plugin"
+Assert-True ($manifest.name -eq "iris-interface-dev") "manifest name should be iris-interface-dev"
 Assert-True ($manifest.initSkill -eq "iris-interface-init") "manifest initSkill should be iris-interface-init"
+Assert-True (($manifest.dependencies -contains "extract-doc")) "manifest should depend on extract-doc"
 Assert-True (($manifest.dependencies -contains "coding-iris-plugin")) "manifest should depend on coding-iris-plugin"
+$profileMigration = @($manifest.configMigrations | Where-Object { $_.id -eq "interface-output-root-v1" }) | Select-Object -First 1
+Assert-True ($null -ne $profileMigration) "manifest should declare the interface output-root migration"
+Assert-True (Test-Path -LiteralPath (Join-Path $pluginRoot $profileMigration.script) -PathType Leaf) "interface output-root migration script should exist"
 
 foreach ($skillName in @(
   "iris-interface-init",
   "iris-interface-doc-ingest",
   "iris-interface-field-match",
-  "iris-interface-dev-plan"
+  "iris-interface-dev-plan",
+  "iris-interface-build"
 )) {
   Assert-True (Test-Path -LiteralPath (Join-Path $pluginRoot "skills/$skillName/SKILL.md") -PathType Leaf) "missing skill $skillName"
 }
@@ -60,11 +66,16 @@ foreach ($ruleName in @(
 )) {
   Assert-True (Test-Path -LiteralPath (Join-Path $pluginRoot "rules/$ruleName") -PathType Leaf) "missing rule $ruleName"
 }
+$indexRuleContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $pluginRoot "rules/iris_interface_index.md")
+$workflowRuleContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $pluginRoot "rules/iris_interface_workflow.md")
+Assert-Contains $indexRuleContent "iris-interface-build" "interface index should route local implementation to build skill"
+Assert-Contains $workflowRuleContent "iris-interface-build" "interface workflow should route coding step to build skill"
+Assert-NotContains $workflowRuleContent "本插件只提供接口事实、字段映射、计划和审查上下文" "workflow must not retain the pre-build capability boundary"
 
 $largeRule = Get-ChildItem -LiteralPath (Join-Path $pluginRoot "rules") -File | Where-Object { $_.Length -gt 20000 } | Select-Object -First 1
 Assert-True ($null -eq $largeRule) "rules/ should not contain large wiki-like files"
 
-$optionalRequirementsPath = Join-Path $pluginRoot "requirements-optional.txt"
+$optionalRequirementsPath = Join-Path $extractDocRoot "requirements-optional.txt"
 Assert-True (Test-Path -LiteralPath $optionalRequirementsPath -PathType Leaf) "requirements-optional.txt should exist"
 $optionalRequirements = Get-Content -Raw -Encoding UTF8 -Path $optionalRequirementsPath
 foreach ($packageName in @("python-docx", "pdfplumber", "openpyxl", "markitdown", "xlrd")) {
@@ -75,35 +86,52 @@ Assert-True (Test-Path -LiteralPath $thinIndexScript -PathType Leaf) "thin-index
 $thinIndexOutput = & $thinIndexScript -PluginPath $pluginRoot -ProjectRoot $repoRoot -Mode DryRun | Out-String
 Assert-Contains $thinIndexOutput "iris_interface_index.md" "thin-index dry-run should include interface index rule"
 Assert-Contains $thinIndexOutput "iris-interface-doc-ingest" "thin-index dry-run should include doc ingest skill"
+Assert-Contains $thinIndexOutput "iris-interface-build" "thin-index dry-run should include interface build skill"
 Assert-NotContains $thinIndexOutput "candidate-assets.md" "references must not generate thin-index"
 Assert-NotContains $thinIndexOutput "references/wiki" "wiki references must not generate thin-index"
-Assert-True (Test-Path -LiteralPath (Join-Path $pluginRoot "scripts/iris-interface-env-check.py") -PathType Leaf) "env-check script should exist"
-$envCheckScript = Join-Path $pluginRoot "scripts/iris-interface-env-check.py"
-$envCheckOutput = python $envCheckScript --file "sample.pdf" --json | Out-String
+Assert-True (Test-Path -LiteralPath (Join-Path $pluginRoot "references/iris-interface-build-conventions.md") -PathType Leaf) "build conventions reference should exist"
+Assert-True (Test-Path -LiteralPath (Join-Path $pluginRoot "references/medstepcode-values.md") -PathType Leaf) "medStepCode reference should exist"
+Assert-True (Test-Path -LiteralPath (Join-Path $pluginRoot "references/iris-query-view-template.md") -PathType Leaf) "query view template reference should exist"
+$buildSkillContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $pluginRoot "skills/iris-interface-build/SKILL.md")
+Assert-Contains $buildSkillContent "../../references/iris-interface-build-conventions.md" "build skill should route to plugin conventions"
+Assert-Contains $buildSkillContent "../../references/iris-query-view-template.md" "build skill should route to plugin query template"
+Assert-NotContains $buildSkillContent ".agents/rules/iris_query_view_template.md" "build skill must not depend on a project-local query template"
+$planSkillContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $pluginRoot "skills/iris-interface-dev-plan/SKILL.md")
+$initSkillContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $pluginRoot "skills/iris-interface-init/SKILL.md")
+$profileTemplateContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $pluginRoot "templates/iris_interface_profile.template.md")
+Assert-Contains $planSkillContent '先读取 `../iris-interface-build/SKILL.md`' "dev-plan must route implementation through iris-interface-build"
+Assert-Contains $planSkillContent '不得从 `iris-interface-dev-plan` 直接转交 `coding-iris-plugin`' "dev-plan must not bypass iris-interface-build"
+Assert-Contains $initSkillContent '`iris-interface-dev-plan` 转入 `iris-interface-build`' "init skill should preserve the required implementation route"
+Assert-Contains $profileTemplateContent "planSkill: iris-interface-dev-plan" "profile should declare the planning skill"
+Assert-Contains $profileTemplateContent "implementationSkill: iris-interface-build" "profile should declare the implementation skill"
+Assert-Contains $profileTemplateContent "codingPlugin: coding-iris-plugin" "profile should declare the coding rules and deployment provider"
+Assert-Contains $profileTemplateContent "deploymentSkill: iris-deploy" "profile should declare the deployment skill"
+Assert-True (Test-Path -LiteralPath (Join-Path $extractDocRoot "scripts/extract-doc-env-check.py") -PathType Leaf) "extract-doc env-check script should exist"
+$envCheckScript = Join-Path $extractDocRoot "scripts/extract-doc-env-check.py"
+$envCheckOutput = python -B $envCheckScript --file "sample.pdf" --json | Out-String
 Assert-Contains $envCheckOutput "pdfplumber" "env-check should report pdfplumber"
 Assert-Contains $envCheckOutput "installCommand" "env-check should report install command"
 $skillContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $pluginRoot "skills/iris-interface-doc-ingest/SKILL.md")
-Assert-Contains $skillContent "iris-interface-env-check.py" "doc-ingest skill should tell users to run env check"
 Assert-NotContains $skillContent "``r``n" "doc-ingest skill should not contain escaped newline text"
-foreach ($fileTypeLabel in @("PDF：", "DOCX：", "XLSX：", "XLS：", "DOC：")) {
-  Assert-Contains $skillContent $fileTypeLabel "doc-ingest skill should describe $fileTypeLabel handling"
-}
-Assert-Contains $skillContent "iris-interface-env-check.py" "doc-ingest skill should mention env-check script"
-Assert-Contains $skillContent "多 sheet" "doc-ingest skill should mention XLSX multi-sheet handling"
+Assert-Contains $skillContent "extract-doc-env-check.py" "doc-ingest skill should mention extract-doc env-check script"
+Assert-Contains $skillContent "skills/extract-doc-ingest/SKILL.md" "doc-ingest adapter should route format handling to extract-doc"
+Assert-Contains $skillContent ".agents/plugins/extract-doc/scripts/extract-doc-ingest.py" "doc-ingest adapter should invoke the extract-doc parser"
+Assert-Contains $skillContent "--output-root docs/interface" "doc-ingest adapter should preserve the interface output root"
+Assert-Contains $skillContent "--schema-version iris-interface-doc-ingest/v2" "doc-ingest adapter should preserve the interface schema"
 Assert-NotContains $skillContent "把文档全文复制到会话上下文" "doc-ingest skill must not require copying full document text into context"
 $parserBehaviorTest = @'
 import importlib.util
 import sys
 from pathlib import Path
 
-script = Path(r"__PLUGIN_ROOT__") / "scripts" / "iris-interface-doc-ingest.py"
-spec = importlib.util.spec_from_file_location("iris_interface_doc_ingest", script)
+script = Path(r"__EXTRACT_DOC_ROOT__") / "scripts" / "extract-doc-ingest.py"
+spec = importlib.util.spec_from_file_location("extract_doc_ingest", script)
 mod = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = mod
 spec.loader.exec_module(mod)
 
-env_script = Path(r"__PLUGIN_ROOT__") / "scripts" / "iris-interface-env-check.py"
-env_spec = importlib.util.spec_from_file_location("iris_interface_env_check", env_script)
+env_script = Path(r"__EXTRACT_DOC_ROOT__") / "scripts" / "extract-doc-env-check.py"
+env_spec = importlib.util.spec_from_file_location("extract_doc_env_check", env_script)
 env_mod = importlib.util.module_from_spec(env_spec)
 sys.modules[env_spec.name] = env_mod
 env_spec.loader.exec_module(env_mod)
@@ -354,8 +382,8 @@ assert doc_requirement["ready"] is False, doc_requirement
 assert doc_requirement["status"] == "missing-converter", doc_requirement
 assert "markitdown" not in doc_requirement["install"], doc_requirement
 '@
-$parserBehaviorTest = $parserBehaviorTest.Replace("__PLUGIN_ROOT__", $pluginRoot)
-$parserBehaviorTest | python -
+$parserBehaviorTest = $parserBehaviorTest.Replace("__EXTRACT_DOC_ROOT__", $extractDocRoot)
+$parserBehaviorTest | python -B -
 if ($LASTEXITCODE -ne 0) { throw "parser behavior regression test failed" }
 $workRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("iris-interface-plugin-test-" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $workRoot | Out-Null
@@ -404,20 +432,21 @@ with ZipFile(Path(r"$fixturePath"), "w", ZIP_DEFLATED) as zf:
     for index, (_name, rows) in enumerate(sheets, start=1):
         zf.writestr(f"xl/worksheets/sheet{index}.xml", sheet_xml(rows))
 "@
-  $createFixture | python -
+  $createFixture | python -B -
 
-  $ingestScript = Join-Path $pluginRoot "scripts/iris-interface-doc-ingest.py"
-  $ingestOutput = python $ingestScript --file $fixturePath --project-root $workRoot 2>&1 | Out-String
+  $ingestScript = Join-Path $extractDocRoot "scripts/extract-doc-ingest.py"
+  $ingestOutput = python -B $ingestScript --file $fixturePath --project-root $workRoot --output-root "docs/interface" --schema-version "iris-interface-doc-ingest/v2" --emit-structure 2>&1 | Out-String
   Assert-Contains $ingestOutput "source.md" "ingest output should report source.md path"
   Assert-Contains $ingestOutput "parsed.json" "ingest output should report parsed.json path"
   Assert-NotContains $ingestOutput "PATIENT_NAME" "ingest output should not dump field content to console"
 
-  $outDir = Join-Path $workRoot "docs/output/iris-interface/sample-interface"
+  $outDir = Join-Path $workRoot "docs/interface/sample-interface"
   $sourceMd = Join-Path $outDir "source.md"
   $parsedJson = Join-Path $outDir "parsed.json"
   $fieldsMd = Join-Path $outDir "fields.md"
   $diagnosticsMd = Join-Path $outDir "diagnostics.md"
-  foreach ($path in @($sourceMd, $parsedJson, $fieldsMd, $diagnosticsMd)) {
+  $structureJson = Join-Path $outDir "structure.json"
+  foreach ($path in @($sourceMd, $parsedJson, $fieldsMd, $diagnosticsMd, $structureJson)) {
     Assert-True (Test-Path -LiteralPath $path -PathType Leaf) "expected output file missing: $path"
   }
 
@@ -425,6 +454,11 @@ with ZipFile(Path(r"$fixturePath"), "w", ZIP_DEFLATED) as zf:
   Assert-True ($parsed.schemaVersion -eq "iris-interface-doc-ingest/v2") "parsed.json schemaVersion should be v2"
   Assert-True ($parsed.views.Count -eq 2) "parsed.json should contain one view per XLSX sheet"
   Assert-True ($parsed.totalFields -eq 4) "parsed.json should contain fields from all XLSX sheets"
+  $structure = Get-Content -Raw -Encoding UTF8 -Path $structureJson | ConvertFrom-Json
+  Assert-True ($structure.schemaVersion -eq "extract-doc/structure-v1") "structure.json should use the generic structure schema"
+  Assert-True ($structure.sourceHash.Length -eq 64) "structure.json should include a SHA-256 source hash"
+  Assert-True ($structure.sheets.Count -eq 2) "structure.json should preserve every XLSX sheet"
+  Assert-True ($structure.sheets[0].cells[0].coordinate -eq "A1") "structure.json should preserve cell coordinates"
   $fieldsContent = Get-Content -Raw -Encoding UTF8 -Path $fieldsMd
   $firstField = $parsed.views[0].fields[0]
   Assert-True ($firstField.rawColumns."字段名" -eq "PATIENT_NAME") "field rawColumns should preserve original header values"
@@ -437,6 +471,32 @@ with ZipFile(Path(r"$fixturePath"), "w", ZIP_DEFLATED) as zf:
   Assert-Contains $diagnosticsContent "fieldWarnings" "diagnostics.md should include field warning count"
   Assert-Contains $fieldsContent "PATIENT_NAME" "fields.md should include parsed field code from first sheet"
   Assert-Contains $fieldsContent "ORDER_ID" "fields.md should include parsed field code from second sheet"
+
+  $agentsRoot = Join-Path $workRoot ".agents"
+  $configRoot = Join-Path $agentsRoot "config"
+  New-Item -ItemType Directory -Force -Path $configRoot | Out-Null
+  $interfaceProfile = Join-Path $configRoot "iris_interface_profile.md"
+  Set-Content -Encoding UTF8 -Path $interfaceProfile -Value @(
+    "# IRIS Interface Profile",
+    "",
+    "## Output",
+    "",
+    "- outputRoot: docs/output/iris-interface",
+    "- keepMarkdownOutOfContext: true"
+  )
+  $migrationScript = Join-Path $pluginRoot "scripts/migrate-interface-profile.ps1"
+  $migrationDryRun = & $migrationScript -ProjectRoot $workRoot -AgentsRoot $agentsRoot -Mode DryRun | Out-String
+  Assert-Contains $migrationDryRun "config-migration-planned" "legacy output root should be planned in DryRun"
+  Assert-Contains (Get-Content -Raw -Encoding UTF8 -Path $interfaceProfile) "docs/output/iris-interface" "DryRun must preserve the legacy profile"
+  $migrationWrite = & $migrationScript -ProjectRoot $workRoot -AgentsRoot $agentsRoot -Mode Write | Out-String
+  Assert-Contains $migrationWrite "config-migration-applied" "legacy output root should migrate in Write"
+  $migratedProfile = Get-Content -Raw -Encoding UTF8 -Path $interfaceProfile
+  Assert-Contains $migratedProfile "outputRoot: docs/interface" "Write should migrate the legacy default output root"
+  Assert-NotContains $migratedProfile "docs/output/iris-interface" "Write should remove the legacy default output root"
+  Set-Content -Encoding UTF8 -Path $interfaceProfile -Value "- outputRoot: docs/custom-interface"
+  $customMigration = & $migrationScript -ProjectRoot $workRoot -AgentsRoot $agentsRoot -Mode Write | Out-String
+  Assert-Contains $customMigration "config-migration-unchanged" "custom output roots should remain unchanged"
+  Assert-Contains (Get-Content -Raw -Encoding UTF8 -Path $interfaceProfile) "docs/custom-interface" "custom output root must be preserved"
 
   $fieldMatchParsed = Join-Path $workRoot "parsed-field-match.json"
   $fieldMatchParsedJson = @"
@@ -510,7 +570,7 @@ with ZipFile(Path(r"$fixturePath"), "w", ZIP_DEFLATED) as zf:
   Set-Content -Encoding UTF8 -Path $fieldMatchFeedback -Value $fieldMatchFeedbackJson
 
   $fieldMatchScript = Join-Path $pluginRoot "scripts/iris-interface-field-match.py"
-  $fieldMatchOutput = python $fieldMatchScript --parsed $fieldMatchParsed --project-root $workRoot --feedback $fieldMatchFeedback 2>&1 | Out-String
+  $fieldMatchOutput = python -B $fieldMatchScript --parsed $fieldMatchParsed --project-root $workRoot --feedback $fieldMatchFeedback 2>&1 | Out-String
   Assert-Contains $fieldMatchOutput "field-match completed" "field-match should report completion"
   Assert-Contains $fieldMatchOutput "field-match.json" "field-match output should report JSON path"
   Assert-Contains $fieldMatchOutput "field-match.md" "field-match output should report Markdown path"
@@ -563,7 +623,7 @@ with ZipFile(Path(r"$fixturePath"), "w", ZIP_DEFLATED) as zf:
     "}"
   )
   $reviewScript = Join-Path $pluginRoot "scripts/iris-interface-review.py"
-  $reviewOutput = python $reviewScript --file $badCodePath 2>&1 | Out-String
+  $reviewOutput = python -B $reviewScript --file $badCodePath 2>&1 | Out-String
   Assert-Contains $reviewOutput "dot-loop" "review should identify dot-loop output"
   $reviewExit = $LASTEXITCODE
   Assert-True ($reviewExit -ne 0) "review should fail when dot-loop output exists"

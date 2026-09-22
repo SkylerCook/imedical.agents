@@ -1,0 +1,48 @@
+{
+  "name": "iris-interface-dev",
+  "version": "0.2.11",
+  "displayName": "IRIS Interface Dev Plugin",
+  "description": "Document-first IRIS interface workflow covering parsed document handoff, field matching, implementation planning, local ObjectScript/JavaScript implementation, offline review.",
+  "entry": "AGENTS.md",
+  "rules": "rules/",
+  "references": "references/",
+  "skills": "skills/",
+  "templates": "templates/",
+  "scripts": "scripts/",
+  "configMigrations": [
+    {
+      "id": "interface-output-root-v1",
+      "script": "scripts/migrate-interface-profile.ps1"
+    }
+  ],
+  "initSkill": "iris-interface-init",
+  "thinIndex": {
+    "excludeSkills": ["iris-interface-init"]
+  },
+  "dependencies": [
+    "extract-doc",
+    "coding-iris-plugin"
+  ],
+  "dependencyVersions": {
+    "extract-doc": {
+      "minVersion": "0.2.0",
+      "maxVersionExclusive": "0.3.0"
+    },
+    "coding-iris-plugin": {
+      "minVersion": "0.3.0",
+      "maxVersionExclusive": "0.14.0"
+    }
+  },
+  "requiresProjectFiles": [
+    "AGENTS.md",
+    ".agents/config/iris_interface_profile.md",
+    ".agents/config/iris_project_profile.md"
+  ],
+  "defaultPrompt": [
+    "Initialize IRIS interface document development support",
+    "Ingest this interface document with extract-doc and write Markdown plus parsed JSON outputs",
+    "Diagnose field matching coverage for this parsed interface document",
+    "Implement this IRIS interface end-to-end: backend ObjectScript class/method plus frontend middleware JS, registered via accessmanage.csp and dhcdocinterfaceregister",
+    "Review generated interface artifacts for field coverage and dot-loop risks"
+  ]
+}

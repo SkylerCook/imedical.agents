@@ -1,0 +1,17 @@
+name: Deployment protection
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        node: ['22', '24']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node --test plugins/coding-iris-plugin/scripts/iris-tools/tests/deploy-question.test.cjs plugins/coding-iris-plugin/scripts/iris-tools/tests/deploy-guard.test.cjs plugins/coding-iris-plugin/scripts/iris-tools/tests/deploy-frontend.test.js plugins/coding-iris-plugin/scripts/iris-tools/tests/compile-csp.test.js

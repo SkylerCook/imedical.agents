@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "2.0",
+  "runId": "",
+  "topic": "",
+  "taskKind": "other",
+  "feedbackReviewPolicy": "on-signal",
+  "workflow": {"id":"standard-change","source":"workflows/standard-change.workflow.md"},
+  "executionPath": "full",
+  "orchestration": {"mode":"serial","adapter":"serial","fallbacks":["serial","human"],"adapterCapabilities":{"serial":true,"human":true},"validationSample":false,"planHash":""},
+  "status": "planned",
+  "coordinatorId": "coordinator",
+  "createdAt": null,
+  "updatedAt": null,
+  "completedAt": null,
+  "participants": [],
+  "workItems": [],
+  "actions": [],
+  "messages": [],
+  "authorizations": {
+    "collaborationPlan":{"state":"not-granted","scopeHash":null,"grantedAt":null,"grantedBy":null},
+    "remoteWrite":{"state":"not-granted","scopeHash":null,"grantedAt":null,"grantedBy":null},
+    "commit":{"state":"not-granted","scopeHash":null,"grantedAt":null,"grantedBy":null},
+    "merge":{"state":"not-granted","scopeHash":null,"grantedAt":null,"grantedBy":null},
+    "push":{"state":"not-granted","scopeHash":null,"grantedAt":null,"grantedBy":null},
+    "deploy":{"state":"not-granted","scopeHash":null,"grantedAt":null,"grantedBy":null},
+    "feedbackWrite":{"state":"not-granted","scopeHash":null,"grantedAt":null,"grantedBy":null}
+  },
+  "acceptance":{"status":"not-applicable","evidenceRef":null,"acceptedAt":null,"acceptedBy":null},
+  "maintenance":{"status":"not-applicable","evidenceRefs":[],"completedAt":null,"completedBy":null},
+  "feedbackDecision":{"applicable":false,"applicabilityReason":"other","reviewState":"not-eligible","candidatesRef":null,"decisions":[]},
+  "verification":{"status":"not-run","verifierId":null,"scopes":[],"lastMutationSequence":0,"verifiedThroughSequence":0,"revision":null},
+  "eventLog":{"path":"events.jsonl","lastSequence":0,"projectionHash":""}
+}

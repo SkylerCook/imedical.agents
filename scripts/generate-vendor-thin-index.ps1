@@ -1,9 +1,13 @@
 param(
     [string]$AgentsRoot = ".agents",
     [string]$ProjectRoot = ".",
+    [string]$ContextRoot = "",
+    [string]$CapabilityRoot = "",
     [ValidateSet("DryRun", "Write")]
     [string]$Mode = "DryRun",
-    [switch]$Force
+    [switch]$Force,
+    [string[]]$Skill = @(),
+    [switch]$CleanupLegacyVendorSkills
 )
 
 $ErrorActionPreference = "Stop"
@@ -135,10 +139,21 @@ function Get-VendorThinIndexSourcePath {
 }
 
 $projectRootFull = Resolve-FullPath $ProjectRoot
-$agentsRootFull = Resolve-FullPathFromBase -BasePath $projectRootFull -Path $AgentsRoot
-$vendorRoot = Join-Path $agentsRootFull "vendor"
-$skillsTarget = Join-Path $agentsRootFull "skills"
+if ([string]::IsNullOrWhiteSpace($ContextRoot) -or [string]::IsNullOrWhiteSpace($CapabilityRoot)) {
+    Import-Module (Join-Path $PSScriptRoot "lib/WorkspaceContext.psm1") -Force
+    $workspaceContext = Resolve-AgentWorkspaceContext -ProjectRoot $projectRootFull
+    if ([string]::IsNullOrWhiteSpace($ContextRoot)) { $ContextRoot = $workspaceContext.contextRoot }
+    if ([string]::IsNullOrWhiteSpace($CapabilityRoot)) { $CapabilityRoot = $workspaceContext.capabilityRoot }
+}
+$contextRootFull = Resolve-FullPathFromBase -BasePath $projectRootFull -Path $ContextRoot
+$capabilityRootFull = Resolve-FullPathFromBase -BasePath $projectRootFull -Path $CapabilityRoot
+$vendorRoot = Join-Path $capabilityRootFull "vendor"
+$skillsTarget = Join-Path $contextRootFull "skills"
 $results = New-Object System.Collections.Generic.List[object]
+$requestedSkills = @{}
+foreach ($requestedSkill in $Skill) {
+    if (-not [string]::IsNullOrWhiteSpace($requestedSkill)) { $requestedSkills[$requestedSkill] = $true }
+}
 
 if (-not (Test-Path -LiteralPath $vendorRoot -PathType Container)) {
     $results.Add((Write-Result -Status "vendor-missing" -Target "" -Source $vendorRoot -Reason ".agents/vendor/ does not exist"))
@@ -146,8 +161,8 @@ if (-not (Test-Path -LiteralPath $vendorRoot -PathType Container)) {
     exit 0
 }
 
-# Clean stale vendor thin-indexes (remove .agents/skills/<name>/SKILL.md that point to lost vendor sources)
-if (Test-Path -LiteralPath $skillsTarget -PathType Container) {
+# Legacy cleanup is deliberately opt-in for deployed projects.
+if ($CleanupLegacyVendorSkills -and (Test-Path -LiteralPath $skillsTarget -PathType Container)) {
     Get-ChildItem -LiteralPath $skillsTarget -Directory | Sort-Object Name | ForEach-Object {
         $targetFile = Join-Path $_.FullName "SKILL.md"
         if (-not (Test-Path -LiteralPath $targetFile -PathType Leaf)) {
@@ -157,15 +172,16 @@ if (Test-Path -LiteralPath $skillsTarget -PathType Container) {
         if ($null -eq $sourcePath) {
             return
         }
-        if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+        $skillName = $_.Name
+        if ((-not $requestedSkills.ContainsKey($skillName)) -or (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf))) {
             $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
             $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourcePath
             if ($Mode -eq "Write") {
                Remove-Item -LiteralPath $targetFile
-                $results.Add((Write-Result -Status "removed" -Target $targetRel -Source $sourceRel -Reason "stale vendor thin-index"))
+                $results.Add((Write-Result -Status "removed" -Target $targetRel -Source $sourceRel -Reason "legacy vendor thin-index not required"))
            }
            else {
-                $results.Add((Write-Result -Status "stale" -Target $targetRel -Source $sourceRel -Reason "stale vendor thin-index"))
+                $results.Add((Write-Result -Status "stale" -Target $targetRel -Source $sourceRel -Reason "legacy vendor thin-index not required"))
             }
         }
     }
@@ -182,15 +198,16 @@ Get-ChildItem -LiteralPath $vendorRoot -Directory | Sort-Object Name | ForEach-O
     if (Test-Path -LiteralPath $vendorSkillsDir -PathType Container) {
         Get-ChildItem -LiteralPath $vendorSkillsDir -Directory | Sort-Object Name | ForEach-Object {
             $skillName = $_.Name
+            if (-not $requestedSkills.ContainsKey($skillName)) { return }
             $sourceFile = Join-Path $_.FullName "SKILL.md"
             if (-not (Test-Path -LiteralPath $sourceFile -PathType Leaf)) {
-                $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourceFile
+                $sourceRel = ".agents/" + (Get-RelativePathPortable -From $capabilityRootFull -To $sourceFile).TrimStart("/")
                 $results.Add((Write-Result -Status "missing" -Target "" -Source $sourceRel -Reason "vendor/$vendorName/skills/$skillName has no SKILL.md"))
                 return
             }
 
             $targetFile = Join-Path (Join-Path $skillsTarget $skillName) "SKILL.md"
-            $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourceFile
+            $sourceRel = ".agents/" + (Get-RelativePathPortable -From $capabilityRootFull -To $sourceFile).TrimStart("/")
             $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
 
             $skillTargetDir = Split-Path -Parent $targetFile
@@ -236,20 +253,20 @@ Get-ChildItem -LiteralPath $vendorRoot -Directory | Sort-Object Name | ForEach-O
             $contentLines.Add("")
 
             @(
-                "# 薄索引：$skillName",
+                "# Thin Index: $skillName",
                 "",
-                "本文件是 thin-index / 薄索引，不包含完整 skill。",
+                "This file is a thin-index and does not contain the full skill.",
                 "",
-                "Agent 指令：读取本文件后，必须继续读取并遵循 vendor 内真实 skill：",
+                "Agent instruction: after reading this file, continue to read and follow the real vendor skill:",
                 "",
                 "- ``$sourceRel``",
                 "",
-                "如任务涉及项目差异或服务器能力，还需要读取：",
+                "If the task depends on project-specific facts or server capabilities, also read:",
                 "",
                 "- ``.agents/config/``",
                 "- ``.mcp.json``",
                 "",
-                "不要把 MCP 连接信息复制到本文件。"
+                "Do not copy MCP connection facts into this file."
             ) | ForEach-Object { $contentLines.Add($_) }
             $content = @($contentLines) -join [Environment]::NewLine
 
@@ -273,9 +290,10 @@ Get-ChildItem -LiteralPath $vendorRoot -Directory | Sort-Object Name | ForEach-O
     $rootSkillFile = Join-Path $_.FullName "SKILL.md"
     if (Test-Path -LiteralPath $rootSkillFile -PathType Leaf) {
         $skillName = $vendorName
+        if (-not $requestedSkills.ContainsKey($skillName)) { return }
         $sourceFile = $rootSkillFile
         $targetFile = Join-Path (Join-Path $skillsTarget $skillName) "SKILL.md"
-        $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourceFile
+        $sourceRel = ".agents/" + (Get-RelativePathPortable -From $capabilityRootFull -To $sourceFile).TrimStart("/")
         $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
 
         $skillTargetDir = Split-Path -Parent $targetFile
@@ -321,20 +339,20 @@ Get-ChildItem -LiteralPath $vendorRoot -Directory | Sort-Object Name | ForEach-O
         $contentLines.Add("")
 
         @(
-            "# 薄索引：$skillName",
+            "# Thin Index: $skillName",
             "",
-            "本文件是 thin-index / 薄索引，不包含完整 skill。",
+            "This file is a thin-index and does not contain the full skill.",
             "",
-            "Agent 指令：读取本文件后，必须继续读取并遵循 vendor 内真实 skill：",
+            "Agent instruction: after reading this file, continue to read and follow the real vendor skill:",
             "",
             "- ``$sourceRel``",
             "",
-            "如任务涉及项目差异或服务器能力，还需要读取：",
+            "If the task depends on project-specific facts or server capabilities, also read:",
             "",
             "- ``.agents/config/``",
             "- ``.mcp.json``",
             "",
-            "不要把 MCP 连接信息复制到本文件。"
+            "Do not copy MCP connection facts into this file."
         ) | ForEach-Object { $contentLines.Add($_) }
         $content = @($contentLines) -join [Environment]::NewLine
 

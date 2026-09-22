@@ -5,6 +5,7 @@ HIS 医生站第三方系统集成能力包，提供从需求头脑风暴到 CI/
 ## 能力范围
 
 - 第三方系统集成的全流程编排
+- 电子健康卡新厂家接入：由主编排器加载领域子 skill，从目标工程核实结构参照，按协议与方向生成映射，只修改本次授权范围。
 - 医生站组与医院信息平台组的范围拆分
 - 中间件入口识别与前端契约提取
 - HIS 架构约束与代码组织
@@ -21,6 +22,10 @@ imedicalxc-doctor-extend-engineer/
 |   `-- plugin.json
 |-- AGENTS.md
 |-- README.md
+|-- rules/
+|   |-- elechealthcard_index.md
+|   |-- elechealthcard_coding_conventions.md
+|   `-- elechealthcard_integration.md
 |-- scripts/
 |   `-- install-deps.py
 `-- skills/
@@ -28,6 +33,7 @@ imedicalxc-doctor-extend-engineer/
     |-- imedicalxc-bsp-jenkins/
     |-- imedicalxc-doctor-blh/
     |-- imedicalxc-doctor-dbdata/
+    |-- imedicalxc-doctor-elechealthcard-vendor/
     |-- imedicalxc-doctor-extend-architecture/
     |-- imedicalxc-doctor-extend-dataformat/
     |-- imedicalxc-doctor-extend-engineer/
@@ -42,24 +48,31 @@ imedicalxc-doctor-extend-engineer/
 1. 将本插件放到目标工程 `.agents/plugins/imedicalxc-doctor-extend-engineer/`。
 2. 首次初始化时直接读取 `.agents/plugins/imedicalxc-doctor-extend-engineer/skills/imedicalxc-doctor-extend-engineer/SKILL.md`。
 3. 运行插件 wrapper `scripts/generate-plugin-thin-index.ps1`，它会转发到根 `scripts/generate-plugin-thin-index.ps1`。
-4. wrapper 默认只生成 `.agents/skills/imedicalxc-doctor-extend-engineer/SKILL.md` 主编排器浅层索引；8 个子 skill 不单独暴露，由主编排器按需读取。
+4. wrapper 默认只生成 `.agents/skills/imedicalxc-doctor-extend-engineer/SKILL.md` 主编排器浅层索引；9 个子 skill 不单独暴露，由主编排器按需读取。
+
+### 已部署工程兼容处理
+
+v1.0.2 新增 `rules/` 目录（电子健康卡规则索引、编码规约、集成约束），电子健康卡子 skill 引用改为指向规则索引。更新能力包后，常规更新直接调用 canonical 生成器，按 manifest 的 `thinIndex.excludeSkills` 应用与 wrapper 相同的排除策略。
+
+v1.0.1 修正电子健康卡子 skill 的独立暴露。更新能力包后，常规更新直接调用 canonical 生成器，按 manifest 的 `thinIndex.excludeSkills` 应用与 wrapper 相同的排除策略：DryRun 报告旧受管入口，Write 仅删除 `thin-index: true` 且 `source` 与该子 skill 精确匹配的旧 `SKILL.md`；保留目录、其它文件、非受管或来源不匹配的文件和链接。后续从主编排器进入电子健康卡流程。源仓修正不代表业务副本已同步。
+
+专项验证：`node --test scripts/tests/doctor-extend-routing.tests.js`。
 
 ## 依赖的 Vendor 资产
 
-本插件引用以下 vendor 资产，与 `vendor/hisui/` 采用相同管理模式：
+本插件通过 manifest 声明以下 vendor capability fallback：
 
-- `vendor/word-reader/`：读取 Word 格式接口文档。
-- `vendor/superpowers/`：提供 `brainstorming`、`writing-plans`、`subagent-driven-development`、`finishing-a-development-branch` 等流程 skill。
+- `vendor/superpowers/`：四个主流程 required skill。
+- `vendor/word-reader/`：optional；仅在收到 `.doc` / `.docx` 且工具无原生 Word 读取能力时使用。
 
-这些 vendor 资产随 `/vendor/**` 部署到目标工程 `.agents/vendor/`。安装和更新流程会调用 `scripts/sync-vendor-skills.ps1`，把带 `SKILL.md` 的 vendor skill 同步到运行时 skill 发现目录；若运行时仍缺失 superpowers，按 `.agents/docs/update-agents.md` 的 vendor skill 同步和停止条件处理。
+这些 vendor 资产随 `/vendor/**` 部署，但存在不等于启用。更新流程只为 enabled 插件的 required skill 生成 `.agents/skills` 通用入口；不再默认写入任何工具的用户级目录。
 
 ## 接入目标工程
 
 1. 将本插件放入 `.agents/plugins/imedicalxc-doctor-extend-engineer/`。
-2. 确保 `.agents/vendor/word-reader/` 和 `.agents/vendor/superpowers/` 已同步到目标工程。
-3. 运行 `.agents/scripts/sync-vendor-skills.ps1 -AgentsRoot .agents -Mode DryRun|Write`，或通过常规 `update-agents.ps1` 完成 vendor skill 同步。
-4. 运行 thin-index dry-run，确认只生成主编排器入口且无冲突后再 write。
-5. 第三方集成任务优先使用 `imedicalxc-doctor-extend-engineer` 统一入口。
+2. 通过常规 `update-agents.ps1` 解析 manifest 并生成 required vendor thin-index。
+3. 只有明确需要工具用户级副本时，才运行带 `-Skill` 和 `-Runtime` 的 `sync-vendor-skills.ps1`。
+4. 第三方集成任务优先使用 `imedicalxc-doctor-extend-engineer` 统一入口；有接口文档时先完成资料摄取。
 
 ## 去项目化边界
 

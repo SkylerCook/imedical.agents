@@ -1,0 +1,17 @@
+schema_version: 1
+module_path: ""
+title: IRIS HIS Monorepo (Multi-Product Hospital Information System)
+scope:
+    - README.md
+    - CONTRIBUTING.md
+    - .gitignore
+    - .gitmodules
+    - .qoder-cn/
+    - .agents/
+    - prototype/
+    - .qoderignore
+    - .qtz-clirc.json
+    - AGENTS.md
+source_files: []
+depends_on: []
+related_to: []

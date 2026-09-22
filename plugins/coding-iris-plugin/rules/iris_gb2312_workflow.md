@@ -1,6 +1,6 @@
 ---
 name: iris_gb2312_workflow
-description: Use when the user explicitly asks to permanently replace frontend source files with GB2312-converted output.
+description: Use only when the user explicitly identifies a historical frontend project that still requires GB2312 and asks to permanently replace source files with converted output.
 task-affinity: [iris, frontend, gb2312, encoding, promote]
 related:
   - iris_coding_frontend.md
@@ -9,12 +9,12 @@ related:
 
 # GB2312 提升流程
 
-当用户要求把转换后的 GB2312 输出文件替换回原始前端源文件时，使用 `iris-frontend-gb2312-promote`，并遵守本规则。
+本规则只服务用户明确指定、尚未迁移到当前 UTF-8 标准的历史工程。当用户要求把转换后的 GB2312 输出文件替换回原始前端源文件时，使用 `iris-frontend-gb2312-promote`，并遵守本规则；不得由标版目录、仓库角色或普通上传任务自动触发。
 
 ## 适用条件
 
 - 只适用于用户明确要求永久替换源文件的场景。
-- 如果 GB2312 转换只是上传临时产物，继续使用 `iris_coding_workflow.md` 的前端上传编码转换规则。
+- 如果历史工程只需要 GB2312 临时上传产物，仍按 `iris_coding_workflow.md` 的 legacy 例外边界执行；当前 UTF-8 工程不得调用转换器。
 - `converted=false` 表示源文件已是 GB2312；不要删除或重命名源文件。
 
 ## 必需安全流程

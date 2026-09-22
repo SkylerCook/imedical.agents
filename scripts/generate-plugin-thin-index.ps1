@@ -1,6 +1,8 @@
 param(
     [string]$PluginPath = ".agents/plugins/agent-context-kit",
     [string]$ProjectRoot = ".",
+    [string]$ContextRoot = "",
+    [string]$CapabilityRoot = "",
     [ValidateSet("DryRun", "Write")]
     [string]$Mode = "DryRun",
     [string[]]$ExcludeSkill = @(),
@@ -43,6 +45,12 @@ function Get-RelativePathPortable {
     $toUri = New-Object System.Uri($toFull)
     $relativeUri = $fromUri.MakeRelativeUri($toUri).ToString()
     return [System.Uri]::UnescapeDataString($relativeUri) -replace "\\", "/"
+}
+
+function Get-CapabilityLogicalPath {
+    param([string]$Path)
+    $relative = Get-RelativePathPortable -From $capabilityRootFull -To $Path
+    return ".agents/" + $relative.TrimStart("/")
 }
 
 function Write-Result {
@@ -127,7 +135,9 @@ function Test-IsUnderPath {
 function Get-ThinIndexSourcePath {
     param(
         [string]$TargetFile,
-        [string]$ProjectRoot
+        [string]$ProjectRoot,
+        [ValidateSet("rule", "skill")]
+        [string]$Kind
     )
     $content = [System.IO.File]::ReadAllText($TargetFile, [System.Text.Encoding]::UTF8)
     if ($content -notmatch "thin-index") {
@@ -140,8 +150,14 @@ function Get-ThinIndexSourcePath {
         $candidates.Add($match.Groups["source"].Value.Trim())
     }
 
+    $sourcePattern = if ($Kind -eq "rule") {
+        '(?<source>\.agents/plugins/[^\s`]+/rules/[^\s`]+\.md)'
+    }
+    else {
+        '(?<source>\.agents/plugins/[^\s`]+/skills/[^\s`]+/SKILL\.md)'
+    }
     foreach ($line in ($content -split "`r?`n")) {
-        $sourceLineMatch = [System.Text.RegularExpressions.Regex]::Match($line, '(?<source>\.agents/plugins/[^\s`]+/rules/[^\s`]+\.md)')
+        $sourceLineMatch = [System.Text.RegularExpressions.Regex]::Match($line, $sourcePattern)
         if ($sourceLineMatch.Success) {
             $candidates.Add($sourceLineMatch.Groups["source"].Value.Trim())
         }
@@ -152,7 +168,13 @@ function Get-ThinIndexSourcePath {
             continue
         }
         $normalized = $candidate -replace "\\", "/"
-        if (($normalized.Contains(".agents/plugins/")) -and ($normalized.Contains("/rules/")) -and ($normalized.EndsWith(".md"))) {
+        $isExpectedSource = if ($Kind -eq "rule") {
+            $normalized.Contains("/rules/") -and $normalized.EndsWith(".md")
+        }
+        else {
+            $normalized.Contains("/skills/") -and $normalized.EndsWith("/SKILL.md")
+        }
+        if ($normalized.Contains(".agents/plugins/") -and $isExpectedSource) {
             return Resolve-FullPathFromBase -BasePath $ProjectRoot -Path $candidate
         }
     }
@@ -161,7 +183,21 @@ function Get-ThinIndexSourcePath {
 }
 
 $projectRootFull = Resolve-FullPath $ProjectRoot
-$pluginRootFull = Resolve-FullPathFromBase -BasePath $projectRootFull -Path $PluginPath
+if ([string]::IsNullOrWhiteSpace($ContextRoot) -or [string]::IsNullOrWhiteSpace($CapabilityRoot)) {
+    Import-Module (Join-Path $PSScriptRoot "lib/WorkspaceContext.psm1") -Force
+    $workspaceContext = Resolve-AgentWorkspaceContext -ProjectRoot $projectRootFull
+    if ([string]::IsNullOrWhiteSpace($ContextRoot)) { $ContextRoot = $workspaceContext.contextRoot }
+    if ([string]::IsNullOrWhiteSpace($CapabilityRoot)) { $CapabilityRoot = $workspaceContext.capabilityRoot }
+}
+$contextRootFull = Resolve-FullPathFromBase -BasePath $projectRootFull -Path $ContextRoot
+$capabilityRootFull = Resolve-FullPathFromBase -BasePath $projectRootFull -Path $CapabilityRoot
+$pluginRootFull = if ([System.IO.Path]::IsPathRooted($PluginPath)) { Resolve-FullPath $PluginPath } else {
+    $logicalPrefix = ".agents/"
+    $pluginPathNormalized = $PluginPath.Replace('\', '/')
+    if ($pluginPathNormalized.StartsWith($logicalPrefix)) {
+        Resolve-FullPathFromBase -BasePath $capabilityRootFull -Path ($pluginPathNormalized.Substring($logicalPrefix.Length))
+    } else { Resolve-FullPathFromBase -BasePath $capabilityRootFull -Path $PluginPath }
+}
 
 if (-not (Test-Path -LiteralPath $pluginRootFull -PathType Container)) {
     Write-Result -Status "missing" -Target "" -Source $pluginRootFull -Reason "PluginPath does not exist"
@@ -170,15 +206,36 @@ if (-not (Test-Path -LiteralPath $pluginRootFull -PathType Container)) {
 
 $rulesSource = Join-Path $pluginRootFull "rules"
 $skillsSource = Join-Path $pluginRootFull "skills"
-$rulesTarget = Join-Path $projectRootFull ".agents/rules"
-$skillsTarget = Join-Path $projectRootFull ".agents/skills"
-$pluginsRoot = Join-Path $projectRootFull ".agents/plugins"
+$rulesTarget = Join-Path $contextRootFull "rules"
+$skillsTarget = Join-Path $contextRootFull "skills"
+$pluginsRoot = Join-Path $capabilityRootFull "plugins"
+
+# The updater calls this canonical entry directly; owner policy must not depend on a wrapper.
+$pluginManifestPath = Join-Path $pluginRootFull ".agents-plugin/plugin.json"
+if (Test-Path -LiteralPath $pluginManifestPath -PathType Leaf) {
+    $pluginManifest = [System.IO.File]::ReadAllText($pluginManifestPath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+    if ($null -ne $pluginManifest.thinIndex -and $null -ne $pluginManifest.thinIndex.excludeSkills) {
+        $ExcludeSkill = @($ExcludeSkill) + @($pluginManifest.thinIndex.excludeSkills) | Select-Object -Unique
+    }
+}
 
 $results = New-Object System.Collections.Generic.List[object]
 
+# Owner migrations, including disabled owners, must not lose user content during global stale cleanup.
+$migratedSkillNames = @()
+if (Test-Path -LiteralPath $pluginsRoot -PathType Container) {
+    Get-ChildItem -LiteralPath $pluginsRoot -Directory | ForEach-Object {
+        $ownerManifestPath = Join-Path $_.FullName ".agents-plugin/plugin.json"
+        if (Test-Path -LiteralPath $ownerManifestPath -PathType Leaf) {
+            $ownerManifest = [System.IO.File]::ReadAllText($ownerManifestPath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
+            if ($null -ne $ownerManifest.legacyRootSkillHashes) { $migratedSkillNames += @($ownerManifest.legacyRootSkillHashes.PSObject.Properties.Name) }
+        }
+    }
+}
+
 if ((Test-Path -LiteralPath $rulesTarget -PathType Container) -and (Test-Path -LiteralPath $pluginsRoot -PathType Container)) {
     Get-ChildItem -LiteralPath $rulesTarget -File -Filter "*.md" | Sort-Object Name | ForEach-Object {
-        $sourcePath = Get-ThinIndexSourcePath -TargetFile $_.FullName -ProjectRoot $projectRootFull
+        $sourcePath = Get-ThinIndexSourcePath -TargetFile $_.FullName -ProjectRoot $projectRootFull -Kind "rule"
         if ($null -eq $sourcePath) {
             return
         }
@@ -196,10 +253,40 @@ if ((Test-Path -LiteralPath $rulesTarget -PathType Container) -and (Test-Path -L
     }
 }
 
+if ((Test-Path -LiteralPath $skillsTarget -PathType Container) -and (Test-Path -LiteralPath $pluginsRoot -PathType Container)) {
+    Get-ChildItem -LiteralPath $skillsTarget -Directory | Sort-Object Name | ForEach-Object {
+        if (($migratedSkillNames -contains $_.Name) -or ($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -or ((Get-Item -LiteralPath $skillsTarget -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { return }
+        $targetFile = Join-Path $_.FullName "SKILL.md"
+        $targetEntry = Get-Item -LiteralPath $targetFile -Force -ErrorAction SilentlyContinue
+        if ($null -ne $targetEntry -and ($targetEntry.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { return }
+        if (-not (Test-Path -LiteralPath $targetFile -PathType Leaf)) {
+            return
+        }
+        $sourcePath = Get-ThinIndexSourcePath -TargetFile $targetFile -ProjectRoot $projectRootFull -Kind "skill"
+        if ($null -eq $sourcePath) {
+            return
+        }
+        if ((Test-IsUnderPath -Path $sourcePath -ParentPath $pluginsRoot) -and (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf))) {
+            $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
+            $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourcePath
+            if ($Mode -eq "Write") {
+                Remove-Item -LiteralPath $targetFile
+                if (@(Get-ChildItem -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue).Count -eq 0) {
+                    Remove-Item -LiteralPath $_.FullName
+                }
+                $results.Add((Write-Result -Status "removed" -Target $targetRel -Source $sourceRel -Reason "stale plugin skill thin-index"))
+            }
+            else {
+                $results.Add((Write-Result -Status "stale" -Target $targetRel -Source $sourceRel -Reason "stale plugin skill thin-index"))
+            }
+        }
+    }
+}
+
 if (Test-Path -LiteralPath $rulesSource -PathType Container) {
     Get-ChildItem -LiteralPath $rulesSource -File -Filter "*.md" | Sort-Object Name | ForEach-Object {
         if ($ExcludeRule -contains $_.Name -or $ExcludeRule -contains $_.BaseName) {
-            $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $_.FullName
+            $sourceRel = Get-CapabilityLogicalPath -Path $_.FullName
             $targetRel = Get-RelativePathPortable -From $projectRootFull -To (Join-Path $rulesTarget $_.Name)
             $results.Add((Write-Result -Status "skipped" -Target $targetRel -Source $sourceRel -Reason "excluded by parameter"))
             return
@@ -207,7 +294,7 @@ if (Test-Path -LiteralPath $rulesSource -PathType Container) {
 
         $sourceFile = $_.FullName
         $targetFile = Join-Path $rulesTarget $_.Name
-        $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourceFile
+        $sourceRel = Get-CapabilityLogicalPath -Path $sourceFile
         $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
         if (Test-Path -LiteralPath $targetFile -PathType Container) {
             $results.Add((Write-Result -Status "conflict" -Target $targetRel -Source $sourceRel -Reason "target path is a directory"))
@@ -268,21 +355,91 @@ if (Test-Path -LiteralPath $skillsSource -PathType Container) {
         $skillName = $_.Name
         $sourceFile = Join-Path $_.FullName "SKILL.md"
         if ($ExcludeSkill -contains $skillName) {
-            $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourceFile
-            $targetRel = Get-RelativePathPortable -From $projectRootFull -To (Join-Path (Join-Path $skillsTarget $skillName) "SKILL.md")
+            $sourceRel = Get-CapabilityLogicalPath -Path $sourceFile
+            $excludedTarget = Join-Path (Join-Path $skillsTarget $skillName) "SKILL.md"
+            $targetRel = Get-RelativePathPortable -From $projectRootFull -To $excludedTarget
+            $removeManagedIndex = $false
+            if (Test-Path -LiteralPath $excludedTarget -PathType Leaf) {
+                $targetItem = Get-Item -LiteralPath $excludedTarget -Force
+                $isLink = ($targetItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
+                $parentPath = Split-Path -Parent $excludedTarget
+                while ($parentPath -and (Test-IsUnderPath -Path $parentPath -ParentPath $contextRootFull)) {
+                    $parentItem = Get-Item -LiteralPath $parentPath -Force
+                    if (($parentItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { $isLink = $true; break }
+                    if ($parentPath -eq $contextRootFull) { break }
+                    $parentPath = Split-Path -Parent $parentPath
+                }
+                if (-not $isLink) {
+                    $excludedContent = [System.IO.File]::ReadAllText($excludedTarget, [System.Text.Encoding]::UTF8)
+                    $headerMatch = [regex]::Match($excludedContent, '\A\uFEFF?---\r?\n(?<header>[\s\S]*?)\r?\n---(?:\r?\n|$)')
+                    $sourceMatch = [regex]::Match($headerMatch.Groups['header'].Value, '(?m)^source:\s*([^\r\n]+)\s*$')
+                    if ($headerMatch.Success -and ($headerMatch.Groups['header'].Value -match '(?m)^thin-index:\s*true\s*$') -and $sourceMatch.Success -and ($sourceMatch.Groups[1].Value.Trim().Replace('\', '/') -ceq $sourceRel.Replace('\', '/'))) {
+                        $removeManagedIndex = $true
+                        if ($Mode -eq "Write") {
+                            Remove-Item -LiteralPath $excludedTarget
+                            $results.Add((Write-Result -Status "removed" -Target $targetRel -Source $sourceRel -Reason "excluded managed plugin skill thin-index"))
+                        } else {
+                            $results.Add((Write-Result -Status "stale" -Target $targetRel -Source $sourceRel -Reason "excluded managed plugin skill thin-index"))
+                        }
+                    }
+                }
+            }
+            # Also recover empty directories left by earlier versions. Never recurse or follow links.
+            $excludedDirectory = Split-Path -Parent $excludedTarget
+            if ((Test-IsUnderPath -Path $excludedDirectory -ParentPath $skillsTarget) -and (Test-Path -LiteralPath $excludedDirectory -PathType Container)) {
+                $directoryIsLink = $false
+                $cursor = $excludedDirectory
+                while ($cursor -and (($cursor -eq $contextRootFull) -or (Test-IsUnderPath -Path $cursor -ParentPath $contextRootFull))) {
+                    $entry = Get-Item -LiteralPath $cursor -Force
+                    if (($entry.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { $directoryIsLink = $true; break }
+                    if ($cursor -eq $contextRootFull) { break }
+                    $cursor = Split-Path -Parent $cursor
+                }
+                if (-not $directoryIsLink) {
+                    $children = @(Get-ChildItem -LiteralPath $excludedDirectory -Force)
+                    $emptyAfterPreview = ($Mode -ne "Write") -and $removeManagedIndex -and ($children.Count -eq 1) -and ($children[0].Name -eq "SKILL.md")
+                    if (($children.Count -eq 0) -or $emptyAfterPreview) {
+                        $directoryRel = Get-RelativePathPortable -From $projectRootFull -To $excludedDirectory
+                        if ($Mode -eq "Write") {
+                            [System.IO.Directory]::Delete($excludedDirectory, $false)
+                            $results.Add((Write-Result -Status "removed" -Target $directoryRel -Source $sourceRel -Reason "excluded empty plugin skill directory"))
+                        } else {
+                            $results.Add((Write-Result -Status "stale" -Target $directoryRel -Source $sourceRel -Reason "excluded empty plugin skill directory"))
+                        }
+                    }
+                }
+            }
             $results.Add((Write-Result -Status "skipped" -Target $targetRel -Source $sourceRel -Reason "excluded by parameter"))
             return
         }
 
         if (-not (Test-Path -LiteralPath $sourceFile -PathType Leaf)) {
-            $results.Add((Write-Result -Status "missing" -Target "" -Source (Get-RelativePathPortable -From $projectRootFull -To $sourceFile) -Reason "skill directory has no SKILL.md"))
+            $results.Add((Write-Result -Status "missing" -Target "" -Source (Get-CapabilityLogicalPath -Path $sourceFile) -Reason "skill directory has no SKILL.md"))
             return
         }
 
         $targetFile = Join-Path (Join-Path $skillsTarget $skillName) "SKILL.md"
-        $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourceFile
+        $sourceRel = Get-CapabilityLogicalPath -Path $sourceFile
         $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
         $skillTargetDir = Split-Path -Parent $targetFile
+        $legacyHashes = @()
+        if ($null -ne $pluginManifest -and $null -ne $pluginManifest.legacyRootSkillHashes) {
+            $legacyProperty = $pluginManifest.legacyRootSkillHashes.PSObject.Properties[$skillName]
+            if ($null -ne $legacyProperty) { $legacyHashes = @($legacyProperty.Value) }
+        }
+        if ($legacyHashes.Count -gt 0) {
+            # Migration never follows target links or overwrites custom files, even with -Force.
+            $cursor = $targetFile
+            while ($cursor -and (($cursor -eq $contextRootFull) -or (Test-IsUnderPath -Path $cursor -ParentPath $contextRootFull))) {
+                $entry = Get-Item -LiteralPath $cursor -Force -ErrorAction SilentlyContinue
+                if ($null -ne $entry -and (($entry.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -or (($cursor -ne $targetFile) -and (-not $entry.PSIsContainer)) -or (($cursor -eq $targetFile) -and $entry.PSIsContainer))) {
+                    $results.Add((Write-Result -Status "skill-owner-migration-conflict" -Target $targetRel -Source $sourceRel -Reason "linked or invalid target preserved"))
+                    return
+                }
+                if ($cursor -eq $contextRootFull) { break }
+                $cursor = Split-Path -Parent $cursor
+            }
+        }
         if (Test-Path -LiteralPath $skillTargetDir -PathType Leaf) {
             $results.Add((Write-Result -Status "conflict" -Target (Get-RelativePathPortable -From $projectRootFull -To $skillTargetDir) -Source $sourceRel -Reason "skill target directory path is a file"))
             return
@@ -347,6 +504,25 @@ if (Test-Path -LiteralPath $skillsSource -PathType Container) {
         ) | ForEach-Object { $contentLines.Add($_) }
         $content = @($contentLines) -join [Environment]::NewLine
 
+        if (($legacyHashes.Count -gt 0) -and (Test-Path -LiteralPath $targetFile -PathType Leaf)) {
+            $existing = [System.IO.File]::ReadAllText($targetFile, [System.Text.Encoding]::UTF8).Replace("`r`n", "`n")
+            if ($existing -ceq $content.Replace("`r`n", "`n")) {
+                $results.Add((Write-Result -Status "unchanged" -Target $targetRel -Source $sourceRel -Reason "owner skill thin-index is current"))
+                return
+            }
+            $sha = [System.Security.Cryptography.SHA256]::Create()
+            try { $hash = ([System.BitConverter]::ToString($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($existing)))).Replace("-", "").ToLowerInvariant() }
+            finally { $sha.Dispose() }
+            if ($legacyHashes -notcontains $hash) {
+                $results.Add((Write-Result -Status "skill-owner-migration-conflict" -Target $targetRel -Source $sourceRel -Reason "unrecognized/custom skill content preserved"))
+                return
+            }
+            if ($Mode -eq "Write") {
+                [System.IO.File]::WriteAllText($targetFile, $content, [System.Text.UTF8Encoding]::new($false))
+            }
+            $results.Add((Write-Result -Status "skill-owner-migrated" -Target $targetRel -Source $sourceRel -Reason $Mode))
+            return
+        }
         if ((Test-Path -LiteralPath $targetFile) -and (-not $Force)) {
             $results.Add((Write-Result -Status "skipped" -Target $targetRel -Source $sourceRel -Reason "target exists; use -Force to overwrite"))
             return

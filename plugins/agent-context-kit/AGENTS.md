@@ -1,5 +1,13 @@
 # Agent Context Kit
 
+需求启用交接、明确交接、发现或接续已有任务时使用 `skills/task-handoff/SKILL.md`。材料在项目 `docs/handoff/`，本机保留；普通需求不为交接建立正式 run。脚本只管理记录与检查现场，不调度会话或授予业务操作权限。
+
+项目上下文支持初始化、事实维护与日常优化，按目标选择流程。入口去重、领域记忆分层和旧快照标记保留用户约束；普通维护不自动扫描或启用插件。主入口见 `skills/project-context-maintenance/SKILL.md`，初始化/优化细节按其中 references 条件读取。已部署项目只有在授权维护时定点调整，能力包更新不覆盖业务上下文。
+
+技能归属迁移（0.3.2）：`coding-agent-adaptation` 由本插件承接，执行器仍在根 scripts。项目 `.agents/skills/coding-agent-adaptation/SKILL.md` 路径保持不变，由插件薄索引提供。旧版原文仅在历史内容哈希匹配时转换，自定义内容保留并报告冲突。迁移说明见 `docs/skill-plugin-migration.md`（能力包根）。
+
+迁移 `scripts/migrate-execution-entry.js` 默认报告，显式 `--write` 才替换已知旧句并补齐缺失的辅助协议路由；不写 profile。guidanceMode 是可选配置，未配置按 auto 处理；模板只声明 optional-key，不提供可自动合并的默认配置行。
+
 用于初始化和维护 Agent 项目上下文文件的通用插件。
 
 ## 能力范围
@@ -12,6 +20,8 @@
 - `.agents/config/` 项目差异配置。
 - 暴露插件 skills 的 thin-index 文件。
 
+同时支持传统 `standard` 工程与 `workspace-overlay` 模块工作区。Overlay 必须先解析 `.agents/capability.json`，只写本地 `ContextRoot`，只扫描声明的 `SourceRoot`，Git 操作使用声明的真实 `GitRoot`；共享 `CapabilityRoot` 在模块维护流程中只读。
+
 不要在本插件中保存密钥、服务器凭据、一次性命令输出或源项目业务细节。
 
 ## Skills
@@ -21,5 +31,15 @@
 ## Scripts
 
 - `scripts/generate-plugin-thin-index.ps1`
+- `templates/agent-run-plan.json` / `agent-run-manifest.json`：schema 2.0 通用任务图输入与运行投影；`taskKind` 显式区分业务需求、框架维护和其它任务，feedback 适用性由任务类型派生。
+- `scripts/validate-agent-run.ps1`：schema 2.0 薄调用根 Node 调度器完成最终校验；schema 1.0–1.2 继续只读兼容，不迁移历史产物。
 
 插件内 `generate-plugin-thin-index.ps1` 是稳定调用入口，只 wrapper 到根 `.agents/scripts/generate-plugin-thin-index.ps1`。thin-index 生成逻辑只维护根脚本；不要把其它插件脚本实现复制到本插件。
+
+运行入口必须先设置互斥的 `taskKind`。`business-demand` 使用需求验收生命周期并在 `accepted` 且命中反馈信号后进入只读 feedback 审查；`framework-maintenance` 使用独立维护生命周期，`acceptance` 固定为 `not-applicable`，不触发或提示 feedback。两者不得共享状态。
+
+## 按需辅助与收尾
+
+遵循 agents/_shared/execution-guidance.md（源仓根；部署态为 .agents/agents/_shared/）。guidanceMode 默认 auto，可选 concise/assisted；辅助程度不改变授权、编码及领域契约。方法允许合并或重排，IRIS 编码共用 iris_coding_general 的风险分流。业务验收后按信号加载 feedback，无信号不例行报告。现有工程按 docs/update-agents.md 定点合并项目入口，普通能力包更新不重写用户 AGENTS/profile。
+
+知识库入口：初始化或授权维护时，为已启用 coding-iris-plugin 的工程在 AGENTS.md 合并一条自主查询指引；具体条件见 project-context-maintenance 的 initialization.md。完整索引随能力包更新，普通更新不覆盖工程入口。

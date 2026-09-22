@@ -1,6 +1,8 @@
 param(
     [string]$AgentsRoot = ".agents",
     [string]$ProjectRoot = ".",
+    [string]$ContextRoot = "",
+    [string]$CapabilityRoot = "",
     [ValidateSet("DryRun", "Write")]
     [string]$Mode = "DryRun"
 )
@@ -45,9 +47,20 @@ function Get-PluginSkillNames {
 }
 
 $projectRootFull = Resolve-FullPath $ProjectRoot
-$agentsRootFull = Resolve-FullPath $AgentsRoot
-$skillsSource = Join-Path $agentsRootFull "skills"
+if ([string]::IsNullOrWhiteSpace($ContextRoot) -or [string]::IsNullOrWhiteSpace($CapabilityRoot)) {
+    Import-Module (Join-Path $PSScriptRoot "lib/WorkspaceContext.psm1") -Force
+    $workspaceContext = Resolve-AgentWorkspaceContext -ProjectRoot $projectRootFull
+    if ([string]::IsNullOrWhiteSpace($ContextRoot)) { $ContextRoot = $workspaceContext.contextRoot }
+    if ([string]::IsNullOrWhiteSpace($CapabilityRoot)) { $CapabilityRoot = $workspaceContext.capabilityRoot }
+}
+$contextRootFull = Resolve-FullPath $ContextRoot
+$skillsSource = Join-Path $contextRootFull "skills"
 $targetDir = Join-Path $projectRootFull ".claude/skills"
+# Legacy copy entrypoint must not write through a link into canonical project skills.
+if ((Test-Path -LiteralPath $targetDir) -and ((Get-Item -LiteralPath $targetDir -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+    throw "Linked runtime skills must use sync-runtime-skills.js; legacy copying is disabled for this target."
+}
+
 $results = New-Object System.Collections.Generic.List[object]
 
 if (-not (Test-Path -LiteralPath $skillsSource -PathType Container)) {

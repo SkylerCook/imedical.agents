@@ -7,7 +7,7 @@
 每个反馈条目是一个独立目录，以时间戳命名：
 
 ```
-feedback/framework/
+.agents/feedback/framework/
 ├── _template.md        # 反馈模板
 ├── YYMMDDHHmmss/       # 反馈条目（如 260607143022）
 │   ├── _template.md    # 反馈说明
@@ -20,4 +20,6 @@ feedback/framework/
 1. Agent 处理需求 → 发现框架问题 → 修正 → 自动生成反馈目录
 2. 维护者定期检查 → AI 读取并 diff → 确认后应用到 master
 
-详见 `agents/_shared/feedback-protocol.md`。
+本目录是业务项目部署态位置；`imedical.agents` 源仓态对应 `feedback/framework/`。反馈包内部按 owner 仓库路径保存，部署态源文件需去掉 `.agents/` 前缀。
+
+详见 `.agents/agents/_shared/feedback-protocol.md`。

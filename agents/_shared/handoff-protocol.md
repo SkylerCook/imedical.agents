@@ -1,6 +1,9 @@
+
 # Agent Handoff Protocol
 
 本文件定义多智能体或阶段化单 Agent 执行时的交接协议。
+
+普通需求的同机跨会话接续使用 `plugins/agent-context-kit/skills/task-handoff/SKILL.md`（相对能力根），材料归目标项目 `docs/handoff/`，不强制创建正式 run。已存在正式 run 时只引用其状态与证据，以下阶段报告目录和 schema 契约保持不变。
 
 协议目标是让上一阶段只交付结构化事实和结论，避免把大量检索日志、命令输出或中间推理污染下一阶段上下文。
 
@@ -19,6 +22,50 @@ docs/agent-reports/{ticket-or-topic}/{stage}-{agent}.md
 ```
 
 `docs/agent-reports/` 是业务项目工作产物目录，是否入库由业务项目决定；它不属于 `imedical.agents` 能力包内容。
+
+## schema 2.0 通用运行契约
+
+新 run 使用 `agents/_shared/orchestration-protocol.md`：Coordinator 经 `scripts/agent-orchestrator.js` 维护 `events.jsonl` 与 `00-run-manifest.json`，参与者通过 `messages/*.md`、`handoffs/*.md` 和统一 action result 交接。报告文件名由 workflow/work item 决定，不再由通用协议硬编码。
+
+轻量交接正文建议保持：
+
+```text
+scope: 检查或实现范围
+evidence: 文件、符号、测试或运行证据
+conclusion: 已确认结论
+uncertainties: 尚未确认内容
+recommendedNextStep: 建议下一步
+filesChanged: none 或受控路径
+```
+
+## i18n 阶段报告约定
+
+历史 fixture 与专项验证样本可使用以下命名；新运行实际报告由 workflow/work item 决定：
+
+```text
+docs/agent-reports/{ticket-or-topic}/
+  00-run-manifest.json
+  10-explorer.md
+  11-classifier.md
+  20-backend-coder.md
+  21-frontend-coder.md
+  22-template-seed.md
+  30-verifier.md
+  40-summary.md
+```
+
+验证样本保留逐阶段报告；普通运行允许合并报告，不适用阶段只记录原因，完成条件不减少。
+
+### `00-run-manifest.json`
+
+新运行通过 agent-orchestrator.js init --plan 创建 schema 2.0，不手写投影。字段、授权、恢复、反馈与最终验证以 orchestration-protocol.md 和 docs/agent-orchestration.md 为准。
+
+- participants/workItems 声明 owner、依赖、读写范围；events.jsonl 是追加事实源。
+- actions 的 pending/blocked 不能成功完成；workItems[].attempts 记录真实尝试，未知结果先核实。
+- verification.scopes/evidenceSnapshots 覆盖实际业务代码、本地产物和已授权远端读回；完成时复核指纹。
+- 阶段报告属于交接证据，不能代替实际源码、授权、执行和验收结果。不同角色不是必须启动不同会话。
+- schema 1.0–1.2 历史样本保持只读，其 stages/remoteActions/finalization 字段不复制到新 manifest；旧样本规范由对应 fixture 与 legacy validator 保存。
+- 不记录凭据、患者信息或完整远程载荷；跨模型性能只能来自真实轨迹，不设机械并行耗时达标比例。
 
 ## 事实报告
 

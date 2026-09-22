@@ -1,6 +1,5 @@
 ---
 name: imedical-bsp-websysaddins
-version: 2.0.0
 description: >
   iMedical 插件管理中间件综合开发 Skill，覆盖编码→测试→交付全流程。
   同时也覆盖 WebSys Add-ins (医为插件) 前端插件架构开发知识，包括：

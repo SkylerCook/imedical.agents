@@ -8,11 +8,16 @@
 
 ## 使用约束
 
-- 不在插件 rules/skills 中硬编码服务器、namespace、账号、密码、远程路径、业务页面清单或工程种子类。
+- 不在插件 rules/skills 中硬编码服务器、namespace、账号、密码、远程路径或业务页面清单。页面翻译种子默认使用 canonical `DHCDoc.I18n.PageTranslationSeed`；目标工程已有兼容机制时才在 profile 中覆盖类名、相对源码路径或方法名。
+- 前端编码必须复用 coding-iris profile 的 canonical `utf8` 模式；`project-utf8` 仅兼容读取，`standard-gb2312` 仅用于用户明确指定的历史工程，实际文件字节检测是最终门禁。
 - 涉及项目差异时读取目标工程 `.agents/config/i18n_project_profile.md`。
 - 涉及服务器操作时读取目标工程 `.mcp.json`。
-- 默认先做只读提取、生成和 report-only 校验；写入本地种子文件、上传、编译、加载翻译必须由用户明确要求。
+- 默认先做只读提取、生成和 report-only 校验；远程翻译数据写入与业务代码部署必须分别获得当前运行、目标环境和明确 scope 的授权，扩大范围、覆盖、删除或回滚需重新确认。
 - 页面级翻译默认使用 `^websys.TranslationD("PAGE",...)`，字典翻译默认使用 `BDP_Translation`；只有目标工程已有不同机制时才在 profile 中覆盖。
+- 页面翻译种子类固定默认公共契约：`SetPageTrans` / `KillPageTrans` 负责单条写入与回滚，`Load{LANG}Translation` / `Kill{LANG}Translation` 负责语言聚合；需求批次方法继续使用带批次号的动态命名。字典翻译 SQL 与 XML 模板同步不并入该类。
+- canonical 类模板位于 `templates/DHCDoc/I18n/PageTranslationSeed.cls`。目标文件不存在时只能在明确的页面翻译种子实现任务中按模板创建；已有文件必须校验并增量修改，不得由初始化器或更新器覆盖。
+- 前端翻译 helper 的 key 必须保持稳定字面量；运行时值只能作为占位符参数传入。修改 JS/CSP helper 后使用 `scripts/check-i18n-helper-usage.js` 做只读静态检查，失败不得继续交付。
+- i18n 业务需求开工时设置 `taskKind=business-demand`；本地验证、commit、部署均不得代表用户验收，交付后停在 `acceptance-pending`。只有用户明确验收后才允许只读 feedback 审查，任何经验写入、命中次数更新、framework feedback 或 rule 提升仍需用户逐项授权。纯框架维护使用独立 `framework-maintenance` 记录，不进入需求验收或 feedback。
 
 ## Skill 路由
 
@@ -23,7 +28,7 @@
 - 字典翻译种子：`skills/i18n-bdp-trans-seed/SKILL.md`
 - XML 模板翻译：`skills/i18n-xml-template/SKILL.md`
 - CSP 翻译同步：`skills/i18n-csp-trans-sync/SKILL.md`
-- XML 打印模板同步：`skills/i18n-xml-print-template-sync/SKILL.md`（仅用于已确认存在 XML 模板记录的打印链路）
+- XML 打印模板同步：`skills/i18n-xml-print-template-sync/SKILL.md`（仅用于已确认存在 XML 模板记录的打印链路；远端保存遇到临时类 `Execute+...<SYNTAX>` 时按 skill 的分块 fallback 收敛，不重跑前序产物）
 
 ## 规则入口
 
@@ -38,3 +43,13 @@
 - 链路定位：`rules/i18n_link_tracing.md`
 - 数据分类：`rules/i18n_field_classification.md`
 - 验证规则：`rules/i18n_verify.md`
+
+## 内置脚本
+
+- `scripts/check-i18n-helper-usage.js`：只读扫描指定 JS/CSP 文件，阻断动态翻译 key；支持从项目 profile 传入静态 helper 与占位符 helper 名称。
+- `scripts/generate-plugin-thin-index.ps1`：转发根 canonical thin-index 生成器。
+- `scripts/sync-xml-print-template.ps1`：XML 打印模板同步与受控 fallback。
+
+## 按需辅助与收尾
+
+遵循 agents/_shared/execution-guidance.md（源仓根；部署态为 .agents/agents/_shared/）。guidanceMode 默认 auto，可选 concise/assisted；辅助程度不改变授权、编码及领域契约。方法允许合并或重排，IRIS 编码共用 iris_coding_general 的风险分流。业务验收后按信号加载 feedback，无信号不例行报告。现有工程按 docs/update-agents.md 定点合并项目入口，普通能力包更新不重写用户 AGENTS/profile。

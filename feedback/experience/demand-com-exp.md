@@ -55,7 +55,7 @@
 - 参考项目中的已有用法（如 `ApplReworkDATA`、`MainworkBLH`），确认 `ORDER BY` 可以直接拼接到 `WHERE` 子句后面。
 
 ### 1.5 `while` 循环内不能 `q` + 返回值
-- 需求: #6941550 | 命中: 1
+- 需求: #6941550 #7060457 (通用) | 命中: 2
 - **错误**：在 `while` 循环内直接 `q msg` 试图同时退出循环并返回结果。
 - **后果**：IRIS ObjectScript 中 `q` 在 `while` 内只退出循环体，返回值会被忽略或导致后续代码异常执行，使得 `ts`/`tc`/`tro` 和返回逻辑混乱。
 - **正确做法**：循环内仅用 `q` 退出循环（不返回值），外层变量（如 `errMsg`）暂存错误信息，循环外统一判断：
@@ -74,17 +74,69 @@
   tc
   q ..GetReturnJSON(0, "success")
   ```
+- **补充场景**：`try/catch` 等块级作用域内同样不能直接 `q returnValue`，否则编译报 `#1043: QUIT argument not allowed`。应在块内设置状态变量，退出块后再统一 `q returnValue`。
 
-### 1.6 `$g()`/`$s()` 等内置函数不适用于 `%DynamicObject`
+### 1.6 `$g()` 函数不适用于 `%DynamicObject`
 - 需求: #6941550 | 命中: 1
-- **错误**：使用 `$g(row.remark)` 或 `$s(row.prop)` 访问 `%DynamicObject` 的属性。
+- **错误**：使用 `$g(row.remark)` 访问 `%DynamicObject` 的属性。
 - **后果**：`$g()` 面向局部变量/多维数组节点，对 `%DynamicObject` 报 `*Class '%Library.DynamicObject' does not support MultiDimensional operations`。
 - **正确做法**：`%DynamicObject` 的属性访问直接用 `row.remark` 或 `row.%Get("remark")`，空值安全由 `%DynamicObject` 自身保证（不存在的属性返回 `""`）。
 - **例外**：`%FromJSON()` 创建的对象在 JSON 中不存在该属性时，访问不存在的属性返回 `""`（与 `$g()` 行为一致），无需额外包装。
 
+### 1.7 命令式 `i/e` 与块式 `if/else` 不能混用
+- 需求: #6096150 | 命中: 1
+- **问题**：将原单行命令式分支 `i condition s ...` 改为花括号块后，仍保留下一行的命令式 `e s ...`，会在类编译时报 `#1026: Invalid command : 'e'`。
+- **规则**：同一条件分支必须完整采用一种结构；单行命令式使用配对的 `i ...` / `e ...`，块式统一使用 `if ... { ... } else { ... }`，不能交叉混用。
+- **正确做法**：
+  ```objectscript
+  if condition {
+      s value="A"
+  } else {
+      s value="B"
+  }
+  ```
+- **验证**：重构条件分支后检查完整分支和缩进。`git diff --check` 只能发现空白问题，不能替代 ObjectScript 语法编译；未获远端编译授权时，应明确标注"仅完成本地静态检查"。
+- **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_coding_backend.md`
+
+### 1.8 列表元素类型不确定时不能用对象语法
+- 需求: #7109014 | 命中: 1
+- **问题**：对 `%Net.FtpSession.NameList()` 等返回的列表，直接用 `items.GetAt(i).Name` 访问元素属性。
+- **后果**：`NameList` 返回 `%ListOfDataTypes`，元素是**字符串而非 OREF**（字符串本身就是文件名），对字符串取 `.属性` 直接报 `<INVALID OREF>`；`$g()` 包裹也救不了——报错发生在 `.Name` 求值阶段、先于 `$g()` 执行。
+- **根因**：`%Net.FtpSession` 中 `NameList` 与 `DirList` 返回类型不同——`NameList` 返回纯文件名字符串列表，`DirList` 等返回 `%ListOfObjects`（元素含 `.Name`/`.Size` 等属性）。元素是对象还是字符串取决于调用哪个方法，**不能假设**。
+- **正确做法**：取元素后先用 `$isobject()` 判定类型，再决定访问方式：
+  ```objectscript
+  s item = items.GetAt(i)
+  s name = $s($isobject(item):item.Name, 1:item)
+  ```
+- **通用原则**：凡是从 API/集合 `GetAt(i)` 取出的元素，类型不确定时一律先 `$isobject()` 分流，不要直接用对象语法或 `$g()`。本条与 1.6（对象误用 `$g()`）是镜像问题——一个是"对象用了数组函数"，本条是"字符串用了对象语法"。
+- **出处**：`DHCDoc.FileStore.Manager.DeleteDirRecursive`。
+
+### 1.9 IRIS 日期时间转换成功不等于输入合法
+- 需求: #7060457 | 命中: 1
+- **问题**：直接使用 `%ZDH()` / `%ZTH()` 转换外部日期时间后保存，非法输入可能被归一化为另一个合法值，也可能抛出异常；仅判断转换是否返回不能证明原始输入有效。
+- **做法**：先校验日期、时间片段和空格分隔结构；在 `try/catch` 中执行 `%ZDH()` / `%ZTH()`，再用 `%ZD()` / `%ZT()` 按当前系统格式回显，与原始输入逐项比较。异常或回显不一致都返回业务校验提示，最后再判断不能早于当天。
+  ```objectscript
+  s invalidDateTimeFlag = 0
+  try {
+      s dateSys = ..%ZDH(inputDate)
+      s timeSys = ..%ZTH(inputTime)
+      s normalizedDate = ..%ZD(dateSys)
+      s normalizedTime = $p(..%ZT(timeSys, 2), ":", 1, 2)
+  } catch ex {
+      s invalidDateTimeFlag = 1
+  }
+  if invalidDateTimeFlag {
+      q invalidDateTimeRet
+  }
+  if (normalizedDate'=inputDate)||(normalizedTime'=inputTime) {
+      q invalidDateTimeRet
+  }
+  ```
+- **格式配置边界**：IRIS 常用日期格式可配置时，不得给 `%ZD()` 写死格式码，也不得在前端写死 `YYYY-MM-DD`；否则 `DD/MM/YYYY` 等系统认可的日期会被业务校验误拦截。前端日期控件只能改善交互，后端仍必须执行同样的严格校验，防止绕过页面直接调用保存接口。
+
 ---
 
-## 二、前端 - HisUI DataGrid 修改
+## 二、前端 - HISUI 控件与样式复用
 
 ### 2.1 插入列后 editor 索引偏移
 - 需求: #6990066 | 命中: 1
@@ -104,6 +156,88 @@
 - **字典维护页**（`ta.ct.material.js`）：列需要 `editor` 配置，用户可双击编辑。
 - **关联页的材料目录**（`ta.apply.linkmaterial.js`）：仅展示，不需要 `editor`。
 - **关联材料表**（linkMaterialTable）：视需求决定是否展示新字段。已保存数据通常不需要额外展示排序字段。
+
+### 2.3 合并单元格分割线应复用主题计算样式
+- 需求: #7079252 | 命中: 1
+- **问题**：DataGrid 使用 `mergeCells` 生成 `rowspan` 单元格后，在列 `styler` 中重新设置完整底边可能造成行高错位；写死 lightblue 等单一主题颜色又会与 pure、lite、iHOS 等风格失配。
+- **做法**：保留 `bodyCls:'table-splitline'`，在合并完成后读取单元格原生竖分割线的计算后 `border-right-color`，只将非透明颜色赋给底边；透明时保留主题原生底边。不重复声明边框宽度和样式，也不维护主题色映射表。
+  ```javascript
+  var splitLineColor = $(this).css('border-right-color');
+  $(this).css('border-bottom-color', splitLineColor);
+  ```
+- **边界**：`bodyCls:'table-splitline'` 只提供竖向分隔线；DataGrid 没有控制合并单元格横向分割线的布尔属性，横向分组边界仍需在合并完成后补充或通过页面样式处理。
+- **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_coding_frontend.md`、`plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md`、`plugins/coding-iris-plugin/references/hisui-style-index.md`
+
+### 2.4 业务布局与 HISUI 语义样式应组合复用
+- 需求: #6684541 | 命中: 1
+- **问题**：业务公共样式直接设置完整 `background` 或复制主题图片路径，会覆盖 HISUI 已有背景子属性，并绕过主题、locale CSS 对图标和插图资源的统一替换。
+- **做法**：业务 class 只承担遮罩定位、尺寸和页面差异，同时组合 `pic-sysst-nodata-msg`、`pic-sysst-nodata-region` 等 HISUI 语义 class，由 HISUI 提供视觉资源；兼容旧页面时在公共适配层保留未使用语义 class 的回退，不让业务页面维护主题资源路径。
+- **边界**：使用语义 class 前必须确认目标页面实际加载的全部主题和 locale CSS 均包含对应定义；覆盖不完整时先补公共适配层，不能只凭 class 名存在就关闭旧资源回退。
+- **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_coding_frontend.md`、`plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md`、`plugins/coding-iris-plugin/references/hisui-style-index.md`
+
+### 2.5 DataGrid 行内密码框应在 onBeginEdit 后置 input type
+- 需求: FTP密码掩码(医生站代码表配置) | 命中: 1
+- **问题**：要让某列按行显示密码框（输入逐字符圆点），两条"想当然"的路都失败：① 自定义 `password` 编辑器里写 `<input type="password">`，会被 easyui/HISUI 的 textbox/validatebox 初始化包装回 `type="text"`；② 在 `onBeforeEdit` 里改 `getColumnOption(field).editor`，datagrid 不会重建该行编辑器（沿用缓存），不生效。表现为输入内容仍明文可见。
+- **正确做法**：不注册/不切换编辑器，在编辑器创建完成后的 `onBeginEdit` 里直接把输入框 `type` 置为 `password` 并按需清空：
+  ```javascript
+  onBeginEdit: function (rowIndex, rowData) {
+      if (!IsSensitiveCode(rowData.SubCode)) return;
+      var ed = $(this).datagrid('getEditor', { index: rowIndex, field: 'SubDesc' });
+      if (!ed) return;
+      var $inp = $(ed.target);
+      if ($inp.is('input')) $inp.attr('type', 'password');
+      $inp.val('');   // 留空=未修改,输入=新值
+  }
+  ```
+- **配套（页面不见明文、库存仍明文的约定）**：后端读取查询对敏感行按 `$LENGTH(明文)` 返回等长 `*` 仅用于展示；保存时若该行为空或与库中明文等长的纯 `*`，按行标识从库回填真值再 UPDATE，避免掩码/空值覆盖真值；真实功能（如 FTP 连接）直读库存明文、不走展示查询，故不受影响。约定真实密码不允许为纯 `*`（无法与占位区分）。
+- **边界**：敏感清单建议后端统一维护（如 Parameter）并对前端暴露查询接口，避免前端写死。改完前端 JS 后需提醒用户强刷(Ctrl+F5)清缓存。
+
+### 2.6 HISUI 控件必须明确由 parser 或页面 JavaScript 单方初始化
+- 需求: #7040009 | 命中: 1
+- **问题**：原始 `<input>` 使用 `class="hisui-combobox"` 时，HISUI parser 会自动调用一次 `.combobox()`；页面就绪后再次手工调用 `.combobox(options)` 会形成重复初始化，可能导致静态 `data` 被清空、下拉无选项或状态异常。
+- **做法**：声明式初始化使用 `hisui-combobox` + `data-options`，不要再手工初始化；由 JavaScript 负责配置和加载数据时，原始输入使用普通 `textbox`，只在页面初始化函数中调用一次 `.combobox(options)`。
+- **本地数据边界**：在本次目标 HISUI 运行版本中，静态本地数据需同时提供 `url: ""` 与 `data: [...]`；接口返回后的异步字典仍使用 `loadData`。不同项目版本可能有扩展覆盖，最终以目标页面实测和实际加载的 HISUI 源码为准。
+- **排查顺序**：下拉为空时，先检查 DOM class、parser 自动解析、页面手工初始化次数和 `url/data` 组合，再排查后端接口。
+- **框架反馈**：`.agents/feedback/framework/` 中已生成 coding-iris-plugin 规则与 HISUI 索引修正候选。
+
+### 2.7 弹窗边缘的 ValidateBox 校验提示不宜只调整展示方向
+- 需求: #7060418 #7060457 (通用) | 命中: 2
+- **问题**：HISUI `validatebox` 的 `tipPosition` 默认是 `right`。宽输入控件靠近弹窗或 iframe 右边缘时，提示会被裁切；简单改为 `left` 虽能完整显示，却可能遮挡左侧字段标签，同样不够友好。
+- **做法**：如果页面已有保存前显式校验，优先用 HISUI `required-label` 常驻标识必填，并在保存失败时使用 `$.messager.alert()` 给出完整提示、回调聚焦对应控件；避免同时保留自动校验气泡造成重复提示。只有控件周围确有充足空间时才调整 `tipPosition`。
+- **聚焦方式**：必须在 `$.messager.alert()` 的关闭回调中聚焦，避免焦点被弹窗再次夺走。HISUI 包装控件通过 `$(selector)[widgetName]("textbox").focus()` 聚焦真实输入框；没有唯一对应输入框的区域校验不强行抢焦点。
+- **边界**：取消 `validatebox` 的 `required:true` 前必须确认保存入口均经过显式非空校验，且维护/禁用等其它能力不依赖该配置；最终需要在真实弹窗环境验证必填标识、提示和焦点回落。
+
+### 2.8 HISUI 日期时间手工输入必须由业务层严格复核
+- 需求: #7060457 | 命中: 1
+- **问题**：`datetimeboxq` 允许用户直接输入文本；在部分初始化链路中，`datetimeboxq("isValid")` 对明显非法值仍可能返回 `true`。此外，HISUI `validatebox` 失焦时默认只设置无效状态并隐藏 tooltip，不能等同于“失焦立即给出可见提示”。
+- **做法**：用同一个页面级函数复用目标 `datetimeboxq` 当前 options 中的 `parser/formatter`，通过“解析后按同一配置回显并与原值比较”完成严格格式、真实日历日期和时分范围校验，再判断不能早于当天；该函数同时用于 `onBlur` 和保存前校验。失焦时使用 HISUI 无效状态配合 `$.messager.popover()`；保存时使用 `$.messager.alert()` 并在关闭后聚焦对应控件。
+  ```javascript
+  var options = $(target).datetimeboxq("options")
+  var date = options.parser.call(target, value)
+  var valid = date instanceof Date && !isNaN(date.getTime()) &&
+      options.formatter.call(target, date) == value
+  ```
+- **配置边界**：必须取目标控件的当前 options，不能复制固定正则或假定全局默认值；系统切换为 `DD/MM/YYYY` 等常用日期格式后，合法输入仍应通过。失焦提示失败后不自动重新聚焦，避免形成焦点陷阱；只有用户主动保存且校验失败时才在提示关闭后聚焦。前端校验不能替代后端保存边界校验。
+- **提示文案**：错误提示不应要求用户理解“系统日期格式”等实现概念；采用“请输入有效的{字段名称}”这类字段明确、可行动的文案，具体格式由当前控件呈现。
+
+### 2.9 列表内容与独立空态必须在所有数量变化入口统一同步
+- 需求: #7060481 | 命中: 1
+- **问题**：列表首次加载为空时会创建独立的空态 DOM；后续加入、替换或删除列表项时如果只更新内容节点、不重新同步空态，就会出现有效内容与“暂无数据”提示同时显示，或列表清空后没有空态提示。
+- **做法**：将空态判断集中到单一同步方法，以列表当前实际项目数作为状态来源；初始化加载、加入队列、移除待处理项、异步成功后的单条刷新和删除已保存项等所有可能改变列表数量的入口都调用该方法。
+- **边界**：本规则适用于空态节点与内容列表分开维护的组件；如果组件由框架 API 或纯 CSS 根据内容自动管理空态，应复用其既有机制，避免再增加一套 JavaScript 状态。验收至少覆盖首次加入、移除唯一待处理项、异步完成后刷新以及删除唯一已保存项。
+
+### 2.10 WebUploader 删除文件时必须同步清理内部队列
+- 需求: #7060499 | 命中: 1
+- **问题**：WebUploader 的 `removeFile(file)` 默认只把文件状态标记为已取消，并未从内部 queue 中移除；启用 `duplicate: false` 时，即使界面节点和服务器附件已经删除，再次选择同一文件仍会触发 `F_DUPLICATE`。
+- **做法**：删除待上传文件时调用 `uploader.removeFile(file, true)`；上传成功后如果界面把 `WU_FILE_*` 节点替换成业务附件节点，应保留原 uploader file 或其 ID，在业务附件删除成功后再调用 `uploader.removeFile(originalFileId, true)`。
+- **边界**：已从服务器加载、并非本次 uploader 会话加入队列的历史附件没有对应 queue 项，应跳过队列移除；业务附件删除失败时不能提前清理 queue 状态，以免界面与服务器状态不一致。
+
+### 2.11 嵌套异步回调不能依赖外层的 `this` 绑定
+- 需求: #7060499 | 命中: 1
+- **问题**：给外层事件处理函数使用 `.bind(this)`，不会自动把相同上下文传递给内部的确认框、请求或定时器回调；嵌套普通函数中的 `this` 可能变为 `Window`、DOM 节点或框架指定对象，导致 `this.loader` 等成员为 `undefined`。
+- **做法**：需要沿用对象上下文时，给实际使用 `this` 的内层回调显式 `.bind(this)`，或在进入异步调用前保存稳定引用，例如 `var loader = this.loader`；不要仅凭外层已经绑定就假定嵌套回调也已绑定。
+- **验证**：除语法和静态检查外，应在实际回调断点中确认 `this`/稳定引用和目标对象；至少覆盖用户确认后的成功分支，因为只有运行到内层回调才能暴露作用域错误。
+- **边界**：如果框架约定回调 `this` 指向触发控件或请求对象，应保留该语义并使用闭包变量，不要强行绑定成业务对象。
 
 ---
 
@@ -144,6 +278,7 @@
 | 5 | 前端 editor 索引 | 插入列后检查硬编码索引是否需要调整 |
 | 6 | 需求边界确认 | 确认每个界面是否需要排序/展示新字段 |
 | 7 | 参考已有模式 | 优先复用项目中已验证的实现方式 |
+| 8 | ObjectScript 条件分支 | 命令式 `i/e` 与块式 `if/else` 必须成对且不能混用 |
 
 ---
 
@@ -169,7 +304,7 @@
 - **已覆盖**：`plugins/i18n-iris-plugin/scripts/sync-xml-print-template.ps1`
 
 ### 5.2 XML 模板 fontname 中文字符必须用 XML 数字实体
-- 需求: #6096272 | 命中: 1
+- 需求: #6096272 #6096063 | 命中: 2
 - **问题**：XML 打印模板中 `fontname="宋体"` 写入服务器后变成 `fontname="å®ä½"`（UTF-8 字节被当 Latin-1 解读）。
 - **根因**：MCP 传输层对非 ASCII 字符有编码风险，尤其是 GB2312 编码的 XML 内容经过 PowerShell → MCP → IRIS 多层传递时编码不一致。
 - **修复**：翻译 XML 模板时，将中文 fontname 替换为 XML 数字实体：
@@ -181,12 +316,35 @@
 - **已覆盖**：`plugins/i18n-iris-plugin/skills/i18n-xml-print-template-sync/SKILL.md`
 
 ### 5.3 IRIS GlobalCharacterStream 不需要编码转换
-- 需求: #6096272 | 命中: 1
+- 需求: #6096272 #6097891 | 命中: 2
 - **规则**：`%Library.GlobalCharacterStream` 在写入时已将 GB2312 转为 IRIS 内部 Unicode 存储。读取时直接 `w text` 输出即可，无需 `$zconvert` 转换。
 - **反面示例**：
   - `$zconvert(text,"I","UTF8")` — 把已经是 Unicode 的码点当 UTF-8 字节重新解释，中文变 `??`
   - `$system.Encryption.Base64Encode(text)` — CharacterStream 内容直接 Base64 编码会报 `<ILLEGAL VALUE>`
 - **正确做法**：直接读取、直接输出，MCP 传输层会正确处理 Unicode/UTF-8。
+
+### 5.4 XML/Base64 长脚本出现临时代码 `<SYNTAX>` 后立即收敛
+- 需求: #6096150 #6096063 | 命中: 2
+- **问题**：XML 已查询、导出并完成本地翻译后，继续把完整 XML 或 Base64 拼入单次 `iris_execute` 临时代码，可能在临时类编译阶段连续报 `Execute+...<SYNTAX>`；重复调整同类长脚本只会增加耗时。
+- **判断**：必须检查 MCP 返回的内部 stdout/status。出现临时类 `Execute+...<SYNTAX>` 是 ObjectScript 代码载荷编译失败，不是 MCP 传输失败；已经完成的本地模板、manifest 和备份仍然有效，不应重新查询、导出或翻译。
+- **收敛策略**：确认该错误后停止继续试探长段脚本，优先调用项目现有模板保存接口；没有可复用接口时，将 XML 分成多个短块，每块独立 Base64 编码后写入带唯一任务键的临时 Global，最终逐块解码并按顺序写入目标 CharacterStream，随后清理临时 Global。不要先在 ObjectScript 中合并成长 Base64/长 XML 字符串；旧实例可能发生截断或内容拼接损坏。
+- **验收**：保存完成后只执行一次只读查询/导出，核对目标记录元数据、XML 可解析性和 `defaultvalue` 源语言残留，然后汇总结果。
+- **自动化状态**：`sync-xml-print-template.ps1` 已实现临时类 `<SYNTAX>` 识别、分块暂存、`finally` 清理和只读验收；#6096063 发现“先合并再解码”的旧 fallback 仍可能损坏长流，待把实现收敛为逐块独立解码/写流并补充内容精确回读回归。
+- **已回归/已提升**：`plugins/i18n-iris-plugin/skills/i18n-xml-print-template-sync/SKILL.md`、`plugins/i18n-iris-plugin/scripts/sync-xml-print-template.ps1`、`plugins/i18n-iris-plugin/scripts/tests/sync-xml-print-template.Tests.ps1`
+
+### 5.5 MCP 必须按当次真实能力探针判断
+- 需求: #6097891 | 命中: 1
+- **问题**：一次 `iris_query` HTTP 404 被扩大为整个 MCP 持续不可用，导致绕路排查和重复等待；后续不同运行器复测相同查询均成功。
+- **判断顺序**：先用 `check_config` 核对目标，再执行 `SELECT 1 AS Probe`。探针成功即继续；自动发现生效时 `config_file=null` 不构成失败。只有真实探针失败才重启一次会话并复测，单个 endpoint 失败只降级对应 capability。
+- **适用边界**：不弱化写入、部署或编译授权；能力降级仍必须遵守远程动作分类和敏感信息边界。
+- **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_agentic_dev.md`、`workflows/i18n-change.workflow.md`
+
+### 5.6 动态对象 JSON 输出为空时不得判定模板不存在
+- 需求: #6096063 | 命中: 1
+- **问题**：部分旧 IRIS 实例通过临时 `iris_execute` 调用 `%DynamicArray/%DynamicObject.%ToJSON()` 时，MCP 返回 `success=true` 但 `output` 为空；同步脚本随后把空结果解释成源模板和目标模板都不存在。
+- **判断**：模板存在性必须与 JSON 序列化/传输成功分开判断。`success=true + output=""` 不是有效的“模板不存在”证据。
+- **降级**：先用只读 SQL 核对模板记录及元数据；导出内容时可按已确认记录 ID 打开 CharacterStream 并直接输出文本。写回前仍要备份旧流，写回后按 XML 语义 DOM、元数据和源语言残留做回读验证。
+- **待提升**：同步脚本应检测空 JSON 输出并自动切换到兼容导出路径，同时增加旧 IRIS 返回空 output 的离线回归。
 
 ---
 
@@ -212,7 +370,7 @@
 - **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_coding_frontend.md`、`plugins/coding-iris-plugin/rules/iris_coding_workflow.md`、`plugins/coding-iris-plugin/scripts/check-frontend-encoding.ps1`、`plugins/i18n-iris-plugin/rules/i18n_coding_frontend.md`、`plugins/i18n-iris-plugin/rules/i18n_verify.md`
 
 ### 6.2 i18n 打印链路改造的分层处理
-- 需求: #6096272 | 命中: 1
+- 需求: #6096272 #6097879 #6097891 #6096063 | 命中: 4
 - **固定文案**（金额单位、标签、状态标识）：
   - 后端：使用 `..%Trans()` 页面级翻译
   - 前端：使用 `$g()` 静态翻译
@@ -222,8 +380,15 @@
 - **区分标准**：固定文案是代码中硬编码的文本；字典展示值是从 Global/SQL/持久类字段取出的原文。
 - **已覆盖**：`plugins/i18n-iris-plugin/rules/i18n_field_classification.md`、`plugins/i18n-iris-plugin/rules/i18n_coding_print_backend.md`
 
+### 6.6 远程动作终态前不得启动 Independent Verifier
+- 需求: #6097891 | 命中: 1
+- **问题**：Template/Seed 或远程翻译仍在恢复和冲突处理中就生成 Verifier/summary，后续修改使验证结论失效并造成整段流程重跑。
+- **规则**：瞬时故障以同一阶段的 `suspended` attempt 保持运行开放，恢复时追加 attempt；只有所有远程动作终态、无 suspended attempt 且验证范围冻结后，才设置 `finalization.ready=true` 并启动 Verifier。
+- **版本边界**：业务代码、本地 i18n 产物和授权远程读回属于 verification scope；manifest、报告、summary 和 feedback 不属于业务验证版本。
+- **已回归/已提升**：`agents/i18n-agent/AGENT.md`、`workflows/i18n-change.workflow.md`、`plugins/agent-context-kit/scripts/validate-agent-run.ps1`
+
 ### 6.3 新增字典翻译方法的规范
-- 需求: #6096272 | 命中: 1
+- 需求: #6096272 #6096063 | 命中: 2
 - **触发条件**：首次遇到新的字典/表字段展示值翻译时
 - **步骤**：
   1. 在 `DHCDoc.Common.Translate` 类中新增 `GetTransXxx` 方法
@@ -245,7 +410,7 @@
 - **已覆盖**：`plugins/i18n-iris-plugin/rules/i18n_dict_translate_facade.md`
 
 ### 6.4 XML 打印模板代码国际化
-- 需求: #6096272 | 命中: 1
+- 需求: #6096272 #6096063 | 命中: 2
 - **问题**：前端硬编码 XML 模板代码，无法根据语言选择对应模板。
 - **解决方案**：
   1. 后端在打印数据中返回 `PrintTemplateCode` 字段
@@ -255,7 +420,7 @@
 - **已覆盖**：`plugins/i18n-iris-plugin/rules/i18n_coding_print_backend.md`、`plugins/i18n-iris-plugin/rules/i18n_link_tracing.md`
 
 ### 6.5 字典翻译检查需覆盖被调用子方法
-- 需求: #6096272 | 命中: 1
+- 需求: #6096272 #6096063 | 命中: 2
 - **问题**：主方法中的字典字段已翻译，但被调用的子方法中的字典字段遗漏。
 - **示例**：`GetOPPrintData` 中的字典字段都已翻译，但调用的 `GetRegitems` 方法中的 `ARCIMDesc`（医嘱项描述）遗漏。
 - **检查清单**：
@@ -266,10 +431,51 @@
 
 ---
 
+## 七、代码差异治理与提交卫生
+
+### 7.1 历史重写时仅保留功能差异
+- 需求: #6950154 | 命中: 1
+- **问题**：在已有文件上做需求修改时，混入大量空格、空行、缩进抖动等无意义差异，导致评审噪音高、风险定位困难。
+- **做法**：当该噪音已进入历史提交，使用“父提交起新分支 + 最小补丁重提 + rebase --onto 替换旧提交”的方式清理，而不是在原噪音提交上继续叠加修补。
+- **最小补丁原则**：
+  1. 只改需求直接相关的函数、参数位、控件。
+  2. 禁止整文件格式化、禁止批量空白调整。
+  3. 逐文件用 `git diff` 人工确认不存在仅空白变化块。
+- **提交前检查命令**：
+  ```bash
+  git diff --check
+  git show --stat <commit>
+  git show -w <commit>
+  ```
+- **替换验证命令**：
+  ```bash
+  git merge-base --is-ancestor <old_commit> master
+  git merge-base --is-ancestor <new_commit> master
+  ```
+  期望结果：旧提交不再是祖先，新提交是祖先。
+- **适用范围**：所有“改已有文件”的需求开发，尤其是 ObjectScript/CSP/老 JS 文件。
+- **已回归/已提升**：`hooks/pre-commit`、`scripts/check-functional-diff.ps1`、`scripts/install-git-hooks.ps1`、`docs/update-agents.md`
+
+---
+
 ## 需求索引
 
 | 需求号 | 描述 | 命中经验 |
 |---|------|----------|
 | #6990066 | 材料字典排序功能 | [1.1](#11-新增字段必须追加到末尾), [1.2](#12-sql-语句同步), [1.3](#13-查询排序中-null-值处理), [1.4](#14-getcustomrows-支持-order-by), [2.1](#21-插入列后-editor-索引偏移), [2.2](#22-可编辑列-vs-仅展示列), [3.1](#31-明确排序的作用范围), [3.2](#32-参考已有代码模式), [3.3](#33-调用链路梳理方法) |
 | #6096272 | 挂号小条打印多语言 | [5.1](#51-powershell-jsonline-framing--中文-windows-编码问题), [5.2](#52-xml-模板-fontname-中文字符必须用-xml-数字实体), [5.3](#53-iris-globalcharacterstream-不需要编码转换), [6.1](#61-gb2312-编码文件的正确修改流程), [6.2](#62-i18n-打印链路改造的分层处理), [6.3](#63-新增字典翻译方法的规范), [6.4](#64-xml-打印模板代码国际化), [6.5](#65-字典翻译检查需覆盖被调用子方法) |
+| #6097879 | 门诊诊断证明书打印多语言 | [6.2](#62-i18n-打印链路改造的分层处理) |
+| #6097891 | 急诊留观医嘱打印多语言 | [5.3](#53-iris-globalcharacterstream-不需要编码转换), [5.5](#55-mcp-必须按当次真实能力探针判断), [6.2](#62-i18n-打印链路改造的分层处理), [6.6](#66-远程动作终态前不得启动-independent-verifier) |
 | #6941550 | 技工申请关联材料牙位录入 | [1.5](#15-while-循环内不能-q--返回值), [1.6](#16-ggs-等内置函数不适用于-dynamicobject) |
+| #6950154 | 检查报告查看增加医嘱项查询（差异降噪重写） | [7.1](#71-历史重写时仅保留功能差异) |
+| #6096150 | 预约条打印多语言 | [1.7](#17-命令式-ie-与块式-ifelse-不能混用), [5.4](#54-xmlbase64-长脚本出现临时代码-syntax-后立即收敛) |
+| #6096063 | 住院证打印多语言 | [5.2](#52-xml-模板-fontname-中文字符必须用-xml-数字实体), [5.4](#54-xmlbase64-长脚本出现临时代码-syntax-后立即收敛), [5.6](#56-动态对象-json-输出为空时不得判定模板不存在), [6.2](#62-i18n-打印链路改造的分层处理), [6.3](#63-新增字典翻译方法的规范), [6.4](#64-xml-打印模板代码国际化), [6.5](#65-字典翻译检查需覆盖被调用子方法) |
+| #7079252 | 排班模板维护显示科室分组表格线 | [2.3](#23-合并单元格分割线应复用主题计算样式) |
+| #6684541 | 病历浏览检查报告/检验结果无数据插图多语言 | [2.4](#24-业务布局与-hisui-语义样式应组合复用) |
+| FTP密码掩码 | 代码表配置页FTP密码不明文展示、库存仍明文 | [2.5](#25-datagrid-行内密码框应在-onbeginedit-后置-input-type) |
+| #7040009 | 修改关联服务单增加数据变更审计日志 | [2.6](#26-hisui-控件必须明确由-parser-或页面-javascript-单方初始化) |
+| #7109014 | 提供清文件和文件中间表的方法 | [1.8](#18-列表元素类型不确定时不能用对象语法) |
+| #7060418 | 模板维护模板内容必填提示显示不全 | [2.7](#27-弹窗边缘的-validatebox-校验提示不宜只调整展示方向) |
+| #7060457 | 口腔技工单期望到件非法日期校验 | [1.5](#15-while-循环内不能-q--返回值), [1.9](#19-iris-日期时间转换成功不等于输入合法), [2.7](#27-弹窗边缘的-validatebox-校验提示不宜只调整展示方向), [2.8](#28-hisui-日期时间手工输入必须由业务层严格复核) |
+| #7060481 | 首次上传文件后空态提示未隐藏 | [2.9](#29-列表内容与独立空态必须在所有数量变化入口统一同步) |
+| #7060499 | 删除上传文件后再次选择同一文件 | [2.10](#210-webuploader-删除文件时必须同步清理内部队列), [2.11](#211-嵌套异步回调不能依赖外层的-this-绑定) |

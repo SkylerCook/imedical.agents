@@ -5,6 +5,7 @@ task-affinity: [iris, csp, javascript, frontend, hisui, coding]
 related:
   - iris_coding_general.md
   - ../references/hisui-widget-index.md
+  - ../references/hisui-style-index.md
 ---
 
 # 前端 CSP/JavaScript/HISUI 编码规则
@@ -15,20 +16,67 @@ related:
 - UI 框架：HISUI，除非目标工程 profile 明确关闭。
 - jQuery/HISUI 版本、主题、源码路径以 `.agents/config/iris_project_profile.md` 为准。
 
+## 条件 i18n 门禁
+
+前端任务必须读取目标工程 `.agents/config/plugin_profile.md`，并在修改前与最终 diff 后各判断一次。插件目录存在只表示 `available`，只有 `i18n-iris-plugin` 状态为 `enabled` 才能自动追加 i18n 能力。
+
+以下任一情况属于 i18n 信号：
+
+- 用户明确要求国际化、多语言、翻译提取、翻译种子或翻译同步。
+- 任务或最终 diff 修改 `$g`、`$trans`、模板翻译 helper、翻译 key，或把已有字面量文案改为运行时表达式。
+- 新增或修改用户可见文案，以及 `placeholder`、非框架自动翻译的 `title`、`tooltip`、`alt` 或 CSS `content`。
+
+路由矩阵：
+
+| i18n 状态 | 任务或 diff | 行为 |
+|---|---|---|
+| `enabled` | 无 i18n 信号 | 继续普通 IRIS 前端流程，不加载 i18n 规则 |
+| `enabled` | 普通业务需求命中 i18n 信号 | 追加读取 `.agents/config/i18n_project_profile.md`、`.agents/plugins/i18n-iris-plugin/rules/i18n_index.md` 和 `i18n_coding_frontend.md`；只应用轻量编码门禁，不自动进入完整 i18n workflow |
+| `enabled` | 明确 i18n 需求 | 切换到 `i18n-coding`；只有任务需要完整链路时才进入 `i18n-change` workflow |
+| `available`、`disabled` 或 profile 缺失 | 普通前端需求且未修改已有翻译 helper/key | 不加载 i18n 插件，继续普通前端流程 |
+| `available`、`disabled` 或 profile 缺失 | 直接修改已有翻译 helper/key | 不猜测 helper 语义；能保持原稳定 key 时保持，无法完成时停止并提示初始化插件或确认项目规则 |
+| `available`、`disabled` 或 profile 缺失 | 明确 i18n 需求 | 停止并提示读取 `.agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md` |
+
+门禁命中且插件为 `enabled` 时，最终验证必须按 i18n profile 中的 JavaScript helper 名称，对全部触碰的 JS/CSP 文件运行：
+
+```powershell
+node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
+  --file <path> `
+  --static-helper '$g' `
+  --placeholder-helper '$trans'
+```
+
+多个文件重复传入 `--file`。命令只做静态读取；退出码 `1` 表示发现动态翻译 key，退出码 `2` 表示参数或文件读取错误，两者都必须停止。不得因为原代码使用某个 helper，就跳过对重构后 key 稳定性的重新判断。
+
 ## 编码策略
 
-- 前端 `.csp` / `.js` / `.css` 源文件编码以实际检测和目标工程 profile 为准，不得假设为 UTF-8。
-- HIS 历史前端文件按 GB2312 处理。未确认 UTF-8 前，不得按 UTF-8 整文件重写。
-- 修改前必须确认实际编码、换行和 EOF；修改后必须保持原文件编码，除非用户明确要求永久转码。
-- 若原文件为 GB2312，可以临时转为 UTF-8 工作副本辅助编辑，但交付写回源文件时必须转回原编码。
-- 禁止为了方便编辑、格式化或统一风格，把 GB2312 源文件顺手标准化为 UTF-8。
-- 目标服务器若要求 GB2312，上传前使用 `.agents/scripts/convert-gb2312-upload.ps1` 检测并按需转换。上传转换只生成临时上传产物，不改变源文件编码策略。
-- 修改前后可使用 `.agents/scripts/check-frontend-encoding.ps1` 检查触碰文件编码；profile 要求前端 GB2312 时，收尾使用 `-ExpectedEncoding gb2312 -ErrorOnMismatch` 拦截 UTF-8 漂移。
+- 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`，不再按标版、医院项目、目录形状或 Git 仓库角色区分编码模式。
+- `project-utf8` 是 `utf8` 的兼容读取别名；`standard-gb2312` 只服务已明确确认的历史分支或旧工程，不得作为新任务或标版目录的默认候选。
+- 每个触碰文件修改前后必须运行 `check-frontend-encoding.ps1 -ExpectedEncoding utf8 -ErrorOnMismatch`；ASCII 与 UTF-8 字节兼容，可以按已确认的 `utf8` profile 继续。
+- 检测到 GB2312、UTF-16、unknown、mixed 或 profile 冲突时停止并报告，不得自动批量转码业务源码。
+- canonical `utf8` 源文件直接以 UTF-8 上传，禁止调用 GB2312 转换器。
+- 正常完成只输出一行编码摘要；仅异常时展开 frontendRoot、候选来源、期望编码、检测编码和冲突原因。
 
 ## HISUI 优先原则
 
-- 前端开发优先使用 HISUI 已有控件，不自造按钮、弹窗、面板、表单控件或布局容器。
-- 控件 API 不确定时，先读 `../references/hisui-widget-index.md`，再读 `.agents/vendor/hisui/dist/js/jquery.hisui.js` 源码行号确认。
+### 控件视觉与状态归属
+
+- 按钮的普通、主操作、悬浮、焦点、禁用及等待状态，由 HISUI 控件 API 和当前主题提供的语义 class 管理。优先组合现有 class，不为修复某个状态另写业务版 hover/disabled 配色、透明度、滤镜或文字颜色。
+- 出现悬浮文字消失、禁用对比异常等问题时，先核对实际主题、控件初始化、语义 class 和业务选择器优先级；优先移除冲突覆盖，恢复完整的原生状态组合，而非继续叠加更高优先级或 `!important`。
+- 业务 CSS 主要负责间距、分组、尺寸和对齐；状态标签也先查框架现有能力。只有确认现有能力不足时才做局部最小适配，说明缺口，遵循下列主题复用原则，不更改控件的禁用语义。
+- 修改控件样式后，在实际主题和控件中核对普通、hover、键盘焦点、disabled、waiting（适用时）及其组合，检查文字可读性和禁用点击行为。静态 CSS 检查不能代替运行态验证。
+
+### 通用复用顺序
+
+- 所有前端编码，包括控件、通用布局、交互行为、状态效果、图标、插图和视觉样式，均优先复用 HISUI 已有能力。
+- 复用优先级为：HISUI 控件/API → HISUI 语义 class、状态 class 和主题/多语言资源 → 目标工程公共组件及公共样式 → 页面级最小样式。
+- 样式复用应引用 HISUI 提供的 API、语义 class 或稳定样式入口，不复制其颜色、边框、背景、图片路径或其它主题实现值，也不为多套主题维护页面级值映射。
+- 业务 class 负责业务布局和页面差异，HISUI class 负责框架已有的视觉与状态能力；可组合使用两类 class，不通过业务 CSS 重新实现 HISUI 已有样式。
+- HISUI 已管理背景、边框、字体或布局时，自定义样式只覆盖必要的单项属性，避免使用 `background`、`border`、`font` 等简写属性整体重置框架样式或改变盒模型。
+- HISUI 没有稳定 API、语义 class 或 CSS 变量时，才增加最小兼容样式；如需跟随当前主题，优先读取并复用计算后样式，只赋必要的单项属性，不写死主题值。
+- 使用 HISUI 样式或资源前，确认目标页面实际加载的全部主题和 locale CSS 均提供该能力；覆盖不完整时通过目标工程公共适配层保留兼容回退。
+- 控件 API 不确定时，先读 `../references/hisui-widget-index.md`，再读 `.agents/vendor/hisui/dist/js/jquery.hisui.js` 源码确认；样式、图标或多语言资源不确定时，先读 `../references/hisui-style-index.md`，再检查对应主题 CSS、locale CSS 和页面实际引入关系。
+- 不自造 HISUI 已有的按钮、弹窗、面板、表单控件、布局容器、状态效果或通用视觉资源。
 - 新面板/分组区域使用 `hisui-panel`。
 - 弹窗使用 `hisui-dialog` / `hisui-window` / `$.messager`。
 - 表单输入使用 `hisui-combobox`、`hisui-validatebox`、`hisui-lookup`、`datebox`、`numberbox` 等标准控件。
@@ -39,6 +87,7 @@ related:
 - CSP 页面命名、JS 路径、CSS 路径以目标工程 profile 为准。
 - `<Server>` 块只处理页面渲染前必要参数，不承载复杂业务逻辑。
 - `#(variable)#` 和 `##(expression)##` 的转义语义需按 CSP 实际语义使用。
+- 开发模板参考 `./templates/csp-template.md`。
 
 ## 页面布局
 
@@ -69,8 +118,16 @@ related:
 ## 验证
 
 - 默认做本地结构和引用检查。
-- 前端文件变更后，报告触碰文件的实际编码；profile 要求前端 GB2312 时，确认修改后仍保持 GB2312。
+- 前端文件变更后按 `utf8` 复检所有触碰文件；正常时只报告模式、文件数和保持的编码。
 - 调整 DataGrid 列定义后，检查保存、校验、行编辑和回显逻辑中的 editor/列下标是否仍对应正确字段。
-- 用户明确要求部署时，先转换编码，再上传，再按目标工程规则编译 CSP 或刷新页面验证。
-- CSP 部署验证不能只看上传成功或外层执行成功；必须检查 `$system.OBJ.Load` 内层 status，并确认生成类、`CSPFILE`、`CSPURL` 与 WebApp 虚拟路径一致。
-- 上传时若生成 `*.gb2312.*` 临时文件，只上传其内容到原始远端文件名；验证和编译都以原始 `.csp` 文件名为准。
+- 用户明确要求部署时，先通过 UTF-8 字节门禁，再直接上传原始源文件并验证。
+- CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
+- 只有任务明确指定已确认的历史 `standard-gb2312` 工程时，才允许进入 legacy GB2312 转换流程；若生成 `*.gb2312.*` 临时文件，只上传其内容到原始远端文件名，验证和编译仍以原始 `.csp` 文件名为准。
+
+## 前后端接口契约与旧调用迁移
+
+抽取共享 service 或替换请求封装前，对照现行后端签名、既有调用者及可用请求证据，逐个确认参数名的精确大小写、必填项、位置顺序或命名绑定、序列化与返回结构。不同接口可能使用不同拼写，不得统一改名后假定服务端兼容。
+
+旧 Broker 与 Promise 请求封装是否等价须核对实际传输和错误语义；需要适配时按接口显式选择，不通过失败后换一种方式自动重试可能有副作用的请求。包装响应中的数组、状态和错误必须按真实契约读取；只有契约认可的缺省值才能转为空集合，不能用兜底空数组掩盖请求失败或结构不符。
+
+模拟测试应断言实际请求键名、顺序或传输方式，并包含缺参、大小写错误、包装响应与服务错误；mock 一律返回成功不能证明兼容。缺失类、控件资源或环境配置时，分别记录环境证据与改动证据，不凭报错时间归因于重构。

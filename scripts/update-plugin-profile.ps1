@@ -1,5 +1,7 @@
 param(
   [string]$ProjectRoot = ".",
+  [string]$ContextRoot = "",
+  [string]$CapabilityRoot = "",
   [Parameter(Mandatory = $true)]
   [string]$Plugin,
   [ValidateSet("available", "enabled", "disabled")]
@@ -59,10 +61,26 @@ function Get-InstalledPlugins {
       name = $pluginName
       directoryName = $_.Name
       manifest = $manifest
+      legacyNames = @((Get-PluginManifestValue -Manifest $manifest -Names @("legacyNames", "legacy_names", "aliases")) | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     })
   }
 
   return $plugins
+}
+
+function Test-PluginNameMatches {
+  param([object]$Plugin, [string]$Name)
+  return $Name -eq $Plugin.name -or $Name -eq $Plugin.directoryName -or $Plugin.legacyNames -contains $Name
+}
+
+function Get-LegacyProfileName {
+  param([object]$Plugin, [hashtable]$Profile)
+  foreach ($legacyName in $Plugin.legacyNames) {
+    if ($Profile.ContainsKey($legacyName)) {
+      return $legacyName
+    }
+  }
+  return ""
 }
 
 function Get-PluginInitSkill {
@@ -148,7 +166,7 @@ function Read-PluginProfile {
 
 function Get-DefaultStatus {
   param([string]$PluginName)
-  if ($PluginName -eq "agent-context-kit") {
+  if ($PluginName -in @("agent-context-kit", "agent-framework-evolution")) {
     return "enabled"
   }
   return "available"
@@ -181,11 +199,22 @@ function Write-PluginProfile {
       $notesValue = $entry.notes
     }
     else {
-      $statusValue = Get-DefaultStatus -PluginName $pluginItem.name
-      $initSkillValue = Get-PluginInitSkill -Plugin $pluginItem
-      $deps = Get-PluginDependencies -Plugin $pluginItem
-      $dependsOnValue = if ($deps.Count -gt 0) { $deps -join ", " } else { "-" }
-      $notesValue = if ($statusValue -eq "enabled") { "default base plugin" } else { "available capability; not enabled for this project" }
+      $legacyProfileName = Get-LegacyProfileName -Plugin $pluginItem -Profile $Profile
+      if (-not [string]::IsNullOrWhiteSpace($legacyProfileName)) {
+        $entry = $Profile[$legacyProfileName]
+        $statusValue = Normalize-PluginStatus -Value $entry.status
+        $initSkillValue = Get-PluginInitSkill -Plugin $pluginItem
+        $deps = Get-PluginDependencies -Plugin $pluginItem
+        $dependsOnValue = if ($deps.Count -gt 0) { $deps -join ", " } else { "-" }
+        $notesValue = "migrated from " + $legacyProfileName
+      }
+      else {
+        $statusValue = Get-DefaultStatus -PluginName $pluginItem.name
+        $initSkillValue = Get-PluginInitSkill -Plugin $pluginItem
+        $deps = Get-PluginDependencies -Plugin $pluginItem
+        $dependsOnValue = if ($deps.Count -gt 0) { $deps -join ", " } else { "-" }
+        $notesValue = if ($statusValue -eq "enabled") { "default base plugin" } else { "available capability; not enabled for this project" }
+      }
     }
 
     if ([string]::IsNullOrWhiteSpace($initSkillValue)) {
@@ -204,18 +233,26 @@ function Write-PluginProfile {
 }
 
 $projectRootFull = Resolve-FullPath $ProjectRoot
-$agentsRoot = Join-Path $projectRootFull ".agents"
-if (-not (Test-Path -LiteralPath $agentsRoot -PathType Container)) {
+if ([string]::IsNullOrWhiteSpace($ContextRoot) -or [string]::IsNullOrWhiteSpace($CapabilityRoot)) {
+  $workspaceContextModule = Join-Path $PSScriptRoot "lib/WorkspaceContext.psm1"
+  Import-Module $workspaceContextModule -Force
+  $workspaceContext = Resolve-AgentWorkspaceContext -ProjectRoot $projectRootFull
+  if ([string]::IsNullOrWhiteSpace($ContextRoot)) { $ContextRoot = $workspaceContext.contextRoot }
+  if ([string]::IsNullOrWhiteSpace($CapabilityRoot)) { $CapabilityRoot = $workspaceContext.capabilityRoot }
+}
+$contextRootFull = Resolve-FullPath $ContextRoot
+$capabilityRootFull = Resolve-FullPath $CapabilityRoot
+if (-not (Test-Path -LiteralPath $contextRootFull -PathType Container)) {
   throw ".agents directory does not exist under ProjectRoot"
 }
 
-$plugins = Get-InstalledPlugins -AgentsRoot $agentsRoot
-$targetPlugin = $plugins | Where-Object { $_.name -eq $Plugin -or $_.directoryName -eq $Plugin } | Select-Object -First 1
+$plugins = Get-InstalledPlugins -AgentsRoot $capabilityRootFull
+$targetPlugin = $plugins | Where-Object { Test-PluginNameMatches -Plugin $_ -Name $Plugin } | Select-Object -First 1
 if (-not $targetPlugin) {
   throw "Plugin not found: $Plugin"
 }
 
-$profilePath = Join-Path (Join-Path $agentsRoot "config") "plugin_profile.md"
+$profilePath = Join-Path (Join-Path $contextRootFull "config") "plugin_profile.md"
 $profile = Read-PluginProfile -ProfilePath $profilePath
 
 $targetInitSkill = $InitSkill

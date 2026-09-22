@@ -11,17 +11,22 @@
 1. 优先使用本目录脚本完成导出、类编译、Broker 调试和环境同步。
 2. 后端 MCP 用于补充脚本未覆盖的 introspect、只读 SQL、远端状态验证和 ObjectScript 执行。
 3. `sftp-server` MCP 是可选前端上传能力；目标项目未配置时，不应阻塞开发或臆造上传能力。
-4. CSP 编译不走 `compile.js`，上传后通过后端 MCP 执行 `$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`。
+4. CSP 编译使用 `compile-csp.js`，上传后按明确的 WebApp 虚拟路径通过 Atelier 编译，不走 `compile.js` 或任意代码执行。
 
 ## 📁 脚本列表
 
+- `query-knowledge.js`：从 CapabilityRoot 的共享参考库与指定 sourceId 的当前项目菜单中按字面量检索，返回来源、行号和有界片段。
+- `sync-menu.js`：接受完整采集 JSON，plan 只读比较，apply 校验指纹后写入 ContextRoot/work/menu-sync。采集由 iris-menu-sync skill 复用原生 MCP，脚本自身不联网。用法与输入见 [菜单同步](../../references/menu-knowledge-sync.md)。
+
 ### 1. export.js - 通用导出脚本（推荐）
 
-**功能：** 智能检测文件类型并自动从 IRIS 服务器导出文件（支持类文件、JS 文件、CSP 文件）。
+**功能：** 智能检测文件类型并自动从 IRIS 服务器导出文件（支持 `.cls/.mac/.inc/.int/.js/.csp/.css`）。
 
 **使用方法：**
 ```bash
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <文件标识符> [输出目录] [命名空间] [--basePath <前缀>]
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <文件标识符> --probe --json
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <文件标识符> --staging-dir <临时目录> --json
 ```
 
 **示例：**
@@ -56,9 +61,11 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js scripts/tes
    - 如果不存在则自动添加 `project-env.json` 中的 `web.basePath` 前缀
    - 示例：`scripts/test.js` → `<web-root-prefix>/scripts/test.js`
 
-3. **CSP 文件**：以 `.csp` 结尾或位于 `csp/` 目录下
+3. **CSP 文件**：以 `.csp` 结尾
    - 如果不存在则自动添加 `project-env.json` 中的 `web.cspBasePath` 前缀
    - 示例：`test.csp` → `<web-root-prefix>/csp/test.csp`
+
+4. **CSS 文件**：以 `.css` 结尾，使用 `web.basePath`；其它静态资源不会按扩展名自动推断。
 
 **特性：**
 - ✅ 自动创建目录（如不存在）
@@ -72,77 +79,16 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js scripts/tes
 
 ---
 
-### 2. compile.js - 文件同步编译脚本
+### 2. compile.js - 受保护的后端上传与编译
 
-**功能：** 将本地文件上传到 IRIS 服务器并自动编译，实现快速开发和测试。
+复用项目 Atelier 连接，精确读取 .cls/.mac/.inc 文件，在隔离产物中完成三方合并、条件上传、回读和编译。源码及暂存区保持不变。
 
-> 注意：`compile.js` 面向 `.cls` 类文件同步编译，不作为 CSP 批量部署编译入口。CSP 应先通过 SFTP 上传到目标 Web 根，再用目标工程定义的 WebApp 虚拟路径执行 `$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`，并检查内层 status 与生成类参数。
-> 脚本会显式拒绝 `.csp` 输入，避免把 CSP 路径错误转换成 IRIS 点号文档名。
+    node .agents/plugins/coding-iris-plugin/scripts/iris-tools/deploy-guard.js init <GitRoot> <需求号>
+    node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js --project-root . --demand <需求号> --files src/Sample/Util/Date.cls --execute
 
-**工作原理：**
-1. 读取本地文件内容
-2. 通过 MCP 协议连接到 IRIS 服务器
-3. 上传文件到指定命名空间
-4. 执行编译操作
-5. 返回编译结果（包括错误、警告信息）
+需求开始前 init；已有修改按用户确认的修改前 SHA 建立会话。原类名/位置参数调用被拒绝。环境来自私有配置，不能通过位置参数切换 namespace。没有 --execute 只生成计划。
 
-**使用方法：**
-```bash
-node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js <文件名或路径> [命名空间]
-```
-
-**示例：**
-```bash
-# 通过类名编译（自动转换为路径）
-node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js Sample.Util.String
-
-# 通过相对路径编译
-node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js Sample/Util/Date.cls
-
-# 带 src 前缀的路径
-node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js src/Sample/Util/Date.cls
-
-# 指定命名空间
-node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js Sample.Util.String <namespace>
-```
-
-**支持的输入格式：**
-
-1. **类名格式**：`Sample.Util.String`
-   - 自动转换为：`src/Sample/Util/String.cls`
-   - 远程文档名：`Sample.Util.String.cls`
-
-2. **相对路径**：`Sample/Util/Date.cls`
-   - 自动添加 `src/` 前缀
-   - 本地路径：`src/Sample/Util/Date.cls`
-   - 远程文档名：`Sample.Util.Date.cls`
-
-3. **完整路径**：`src/Sample/Util/Date.cls`
-   - 直接使用指定路径
-   - 远程文档名：`Sample.Util.Date.cls`
-
-**输出信息：**
-- 本地文件路径
-- 远程文档名称
-- 目标命名空间
-- 上传状态
-- 编译控制台日志
-- 编译错误（含行号和列号）
-- 编译警告
-- 最终编译结果
-
-**特性：**
-- ✅ 通过 MCP 协议与 IRIS 通信
-- ✅ 智能路径转换（类名 ↔ 文件路径）
-- ✅ 详细的编译反馈（错误、警告、控制台输出）
-- ✅ 自动检测文件扩展名
-- ✅ 支持自定义命名空间
-- ✅ 本地文件存在性验证
-- ✅ 完善的错误处理
-
-**依赖：**
-- 需要配置 `project-env.json` 中的 `mcp.serverPath`
-- MCP 服务器可执行文件；默认可使用 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`
+输出 verified 或 needs-user-input；具体文件、哈希、人工决定及恢复流程见 [部署保护](../../references/deployment-protection.md)。CSP 沿用 compile-csp.js，不进入后端文档入口。
 
 ---
 
@@ -300,7 +246,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
    # 编辑本地 src/ 目录下的 .cls 文件
    
    # 上传并编译到 IRIS 服务器
-   node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js Sample.Util.MyClass
+   node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js --demand <需求号> --files src/Sample/Util/MyClass.cls --execute
    
    # 查看编译结果，如有错误则修复后重新编译
    ```
@@ -367,7 +313,7 @@ A:
 2. 确认 IRIS 服务器可访问
 3. 查看控制台输出的错误信息
 4. 验证网络连接和防火墙设置
-5. 对于 compile.js，确认 MCP 服务器路径正确且可执行
+5. 对于 compile.js，核对基线会话、Atelier 连接及 needs-user-input 原因
 
 ---
 
@@ -380,11 +326,9 @@ A:
    - RESTful 接口，支持 HTTPS
    - 基于 InterSystems IRIS 内置的 Atelier 服务
 
-2. **MCP 协议**（compile.js）
-   - Model Context Protocol，用于与 IRIS 工具通信
-   - 通过 stdio 传输 JSON-RPC 消息
-   - 支持 `iris_doc` 和 `iris_compile` 工具调用
-   - 提供详细的编译反馈
+2. **Atelier API**（compile.js）
+   - 文档导出、携带版本时间戳的上传、回读和现有 action/compile 编译
+   - 不设置 ignoreConflict，不自动重试
 
 3. **HTTP/HTTPS 请求**（debugger.js）
    - 直接向 IRIS Web Broker 发送 POST 请求
@@ -398,9 +342,9 @@ A:
 
 ### 依赖项
 
-- Node.js 14+（使用内置模块：https、http、fs、path、child_process、readline）
+- Node.js 22.5.0+（使用内置模块：https、http、fs、path、child_process、readline）
 - 无需安装额外的 npm 包
-- compile.js 需要 MCP 服务器可执行文件；默认可使用 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`
+- compile.js 使用 .mcp.json 中已配置的 Atelier 连接
 - debugger.js 需要有效的 IRIS Web 服务
 
 ### 编码规范
@@ -418,3 +362,25 @@ A:
 - ⚠️ 生产环境请使用强密码和 HTTPS
 - ⚠️ 定期更新和轮换凭据
 
+
+## 前端固定部署入口
+
+前端上传加编译统一调用 `scripts/iris-tools/deploy-frontend.js`。默认生成本地计划；已有明确部署授权后加 `--execute`，无需逐步骤重复确认。禁止为常规部署临时生成上传脚本或逐次探索编译工具。
+
+```bash
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/deploy-frontend.js --demand <需求号> --source-root <frontend-root> --files <project-relative-file...> --execute
+```
+
+`--source-root` 对应包含 `csp/`、`scripts/`、`css/` 的目录，映射到私有配置 `REMOTE_PATH`；省略时读取 SFTP 的 `LOCAL_PATH`。文件列表必须明确，CSP 虚拟路径取 `web.cspBasePath`。固定顺序：本地 UTF-8/路径/配置校验 → 按批次比较 SHA-256 并准备隔离产物 → 差异文件原子上传并回读 → 全部证据通过后一次 Atelier 编译指定 CSP。未变化 CSP 仍执行编译；JS/CSS 不触发编译。不自动扩展父页面，不重试、不切换通道；部分上传成功后失败不自动回滚。
+
+Python 默认使用 `.mcp.json` 对应 SFTP 的 `command`，可用 `--python <interpreter>` 明确覆盖；解释器须已安装 vendor 锁定依赖。可信主机密钥使用配置或 `--known-hosts <file>`；本次明确核实的指纹可用 `--host-key-sha256 <SHA256:fingerprint>`，不写入信任库，不自动接受未知密钥。两个参数互斥。
+
+结果包含文件哈希、merged 和 sourceUnchanged；needs-user-input 携带原因及私有证据位置。verified 仅证明回读及指定编译完成，页面功能另行验收；混合产物不能视为纯 Git 版本验收。仅编译继续使用 compile-csp.js，不转换历史 GB2312。
+
+2026-09-15：更新自动刷新既有标准 SFTP 启动参数为 vendor，不要求 runtime opt-in；保留解释器、env、disabled 和其它服务。显式 custom 或自定义参数不覆盖，不创建缺失服务，不安装 Python 依赖。
+
+## Git 主线部署保护（0.10.0）
+
+上传使用需求基线和独立合并产物；首次服务器差异可合并，再次覆盖必须 Question。源码与暂存区不接收服务器差异。前端 deploy-frontend.js 和后端 compile.js 均须提供 --demand 与 --files，并先建立 deploy-guard.js 会话。详见 references/deployment-protection.md（从 skill/rule 入口按插件根解析）。原位置参数后端上传停止，不允许回退绕过。
+
+部署 Question 兼容：停止结果提供工具无关 question 协议，固定决定代码；Agent 按能力采用选项或文字确认。暂停/查看/无效决定不写入。详见 references/deployment-protection.md。

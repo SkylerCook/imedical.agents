@@ -1,0 +1,24 @@
+# 治疗表单部署约束
+
+- 显式支持 `transaction-package`（完整事务包）和 `lightweight-sql`（轻量 SQL 覆盖），与 automatic/manual 独立选择；选择与授权沿用 `../references/cure-form-delivery-workflow.md` 的“自动部署 / 手动部署”约定，已有有效选择不重复询问。以下事务类规则适用于完整事务包；轻量通道严格遵循 `../references/cure-form-sql-cover.md`，不接受任意 SQL，也不伪造服务器 operation ID。
+
+- 产品侧事务入口固定为 `DHCDoc.Cure.AI.CureFormDeploy`；不从 target profile 解析类名，也不回退到旧部署类。
+- 普通部署只允许调用 `InspectForm`、`ValidatePackage`、`ApplyPackage`、`VerifyOperation`、`RollbackOperation`；单 Map 灰度模板正式合并另允许 `InspectConsolidation`、`ValidateConsolidation`、`ApplyConsolidation`；共享公共模板合并另允许 `InspectSharedConsolidation`、`ValidateSharedConsolidation`、`ApplySharedConsolidation`；零引用旧模板清理另允许 `InspectCleanup`、`ValidateCleanup`、`ApplyCleanup`。当前 MCP 没有 `iris_execute_method` 时，客户端使用 `iris_execute` 生成固定白名单 ClassMethod 调用，所有参数 Base64 编码；不得接受外部类名、方法名或任意 ObjectScript。
+- 包内必须包含 `cure-form-package/v1`、CA/CR 类型、期望版本、期望内容哈希、操作者、原因和已批准规格哈希。
+- 带 `changes` 的包必须包含通过的 `cure-form-preview-verification/v1`；客户端必须核对当前 gate 与 canonical Chromium runner、snapshot、预览源 changes、最终计划 changes、完整 HTML、六类资源、CSS 依赖清单及九档宽度哈希，并将凭证放入包内供服务端审计，旧 gate、缺少 runner 元数据、页面后改或任一失配凭证不得进入部署就绪状态。
+- 新建表单以 package 的 `expectedVersion=NEW` 判定；必须额外包含通过的部署前 `cure-form-interaction-verification/v1`，并与当前 approved spec、snapshot、changes、preview verification 和 manifest 哈希一致。存量响应式改造不强制此凭证。
+- 新开发表单直接创建正式模板，不使用灰度，也不调用 `consolidate`、`consolidate-shared` 或 `cleanup`。只有现有模板改造才允许使用响应式灰度 RowID，并必须在验收后回归正式 RowID。
+- 客户端只编排；服务端重新校验类型、版本、哈希、组成关系和包内容。
+- 服务端单次业务事务内部失败时应原子回滚，并记录前后快照、哈希与状态；这不授权客户端对已成功的 operation 自动调用 rollback。客户端编排失败时停止，显式回滚需用户明确要求；结果未知时先只读核实，不重试或并发回滚。
+- `cure-form-consolidation/v1` 仅用于把 Map 当前独占的响应式灰度模板合并回 `APP_LastID` 指向的正式 RowID：只覆盖正式 `APP_Content`，保持正式元数据和缓存项，原位切换 Map 引用后在同一事务删除灰度模板及其缓存；DOM/radio/缓存集合、RowID 一对一关系或跨 Map 引用不满足时必须停止。
+- `cure-form-cleanup/v1` 仅用于清理已完成 Map 切换且全库零引用的旧模板：检查与执行都必须绑定旧模板、已引用的响应式替代模板、双方内容和完整快照哈希；单一事务只删除旧模板及其缓存，不修改 Map 和替代模板。发现旧模板仍被引用、替代模板未引用或任一哈希漂移时整批停止。
+- `cure-form-shared-consolidation/v1` 仅用于把被多个 Map 共用的响应式灰度公共模板推广到已有正式 RowID：一次事务覆盖正式 `APP_Content`、原位切换全部引用 Map 并删除灰度模板及缓存；正式元数据和缓存项保持不变。全部受影响 Map、DOM/radio、缓存契约及模板快照必须绑定检查哈希，任一漂移时整批停止。
+- `consolidate` / `consolidate-shared` 写入后必须使用 operation ID 调用 `VerifyOperation` 并重新检查全部受影响 Map；只有正式 RowID 已生效、灰度引用数为 `0`、灰度模板及缓存均不存在时，现有模板改造才可完成。`cleanup` 不满足“回归正式 RowID”语义，只能处理已切换引用后的孤儿模板。
+- 禁止将服务器快照或凭据写入插件目录；快照放任务 `private/snapshots/` 并排除 Git 和预览 HTTP。完整目录、超时和人工交付约束见 `../references/cure-form-delivery-workflow.md`。
+- `InspectForm` 等只读方法结果超过 MCP stdout 单次上限时，客户端先读取结果长度，再以固定大小 `$extract` 分块回读并重组；写入方法返回空结果时必须停止，禁止以分块或重试方式重复执行写事务。
+- 现有服务器模板的响应式转换必须同时添加 `assess-form assess-form--responsive` 根契约、`assess-form-grid`/`assess-measurement-table` 表格契约和四列测量表 `colgroup`，并删除业务根节点固定 `min-width`；旧 `cure-form-responsive` 类只作为兼容标记保留。
+- 响应式差异报告必须确认普通布局和表格单元格中的 HISUI radio DOM 配对未变：`input name/value`、原生 `label.radio`、`i-label-box` / `m-label-box` 均保留。公共 CSS 不得无条件隐藏 `label.radio`；不支持条件选择器的旧 WebView 必须回退到原生 HISUI 渲染。
+- 公共响应式 CSS 与表单独立 CSS 都属于静态资源，实际路径从目标工程配置或页面资源引用解析，编码、上传和编译委托 `coding-iris-plugin`；治疗插件只携带部署资源声明和内容，不保存业务工程路径或服务器路径。
+- 部署前必须验证公共响应式 CSS 不包含 moduleId、业务根 ID 或单表专属 class；表单独立 CSS 必须在 `resources[]` 中以 `kind=stylesheet` 声明，并由完整 HTML 或表单 JS 加载。
+- 公共 CSS 含删除或 selector 迁移时，部署验收必须使用目标工程提供的已改造表单快照做依赖扫描。命中私有 selector 时停止，按“先独立 CSS/loader，后删除公共规则”的两阶段方案处理。
+- 新建表单写入后必须完成部署后人工交互验证，覆盖保存、重开、回显和打印；CR 另验宿主保存运行时契约。失败时停止交付，回滚仍需用户明确要求。批量脚本化交互在执行前必须取得用户明确确认。

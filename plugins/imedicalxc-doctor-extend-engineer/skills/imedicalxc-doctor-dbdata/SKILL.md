@@ -1,6 +1,5 @@
 ---
 name: imedicalxc-doctor-dbdata
-version: 1.0.0
 description: 当医生站团队需要查询数据库数据时使用。提供基础数据查询（必须使用 DocCacheUtils）、配置数据查询（系统标准配置通过 hiscfsv-* 模块或自建配置通过 DocCacheUtils）以及业务数据查询的规范，包括 HIS（Hospital Information System，医院信息系统）中数据库查询的代码组织和最佳实践。特别关注 comoe-mediway Service 模式与独立 Boot 模块的差异。
 triggers:
   - database query

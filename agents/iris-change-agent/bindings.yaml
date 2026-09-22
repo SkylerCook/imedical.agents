@@ -1,0 +1,18 @@
+name: iris-change-agent
+type: domain
+description: 复用通用角色和调度内核的 IRIS 复杂变更协作入口。
+defaultWorkflow: iris-change
+plugins:
+  - coding-iris-plugin
+requiredPlugins:
+  - coding-iris-plugin
+roles:
+  - coordinator-agent
+  - explorer-agent
+  - planner-agent
+  - coding-agent
+  - review-agent
+  - testing-agent
+runtime: scripts/agent-orchestrator.js
+serialFallback: true
+multiSessionRequiresExplicitAuthorization: true

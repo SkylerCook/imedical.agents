@@ -1,3 +1,4 @@
+
 ---
 name: i18n-csp-trans-sync
 description: Use when exporting, verifying, or explicitly syncing page-level translations between an IRIS server and the project-configured local page translation seed file.
@@ -74,6 +75,8 @@ description: Use when exporting, verifying, or explicitly syncing page-level tra
 - 条目过滤和排序规则。
 - 部署链路偏好。
 
+新接入工程的 canonical 默认种子类为 `DHCDoc.I18n.PageTranslationSeed`，backend SourceRoot 内相对路径为 `DHCDoc/I18n/PageTranslationSeed.cls`。当前初始化器会把默认契约显式写入 project profile；执行时使用 profile 中已记录的默认值或已验证覆盖值，不做静默猜测。关键配置缺失或旧 profile 仍含 TODO 占位值时必须先停止并报告迁移建议，不得把占位类用于上传或执行。
+
 缺少上述关键配置时，先报告缺失项，不进行导出或同步。
 
 ## 工作流
@@ -109,7 +112,7 @@ description: Use when exporting, verifying, or explicitly syncing page-level tra
 目标：根据用户指定方向同步差异。
 
 - `server-wins`：服务器为准，更新本地种子文件。
-- `local-wins`：本地为准，生成服务器写入计划；执行写入前必须再次确认任务要求。
+- `local-wins`：本地为准，生成服务器写入计划；当前 run manifest 的 `translation-data-write` scope 已覆盖页面、语言、上传、编译和加载动作时直接执行，不重复询问，否则执行前确认。
 - `report-only`：只报告，不修改。
 
 默认不得修改本地种子文件或服务器数据，除非用户明确要求同步方向。
@@ -153,11 +156,13 @@ description: Use when exporting, verifying, or explicitly syncing page-level tra
 
 ## 部署
 
-只有用户明确要求部署时才执行：
+只有当前运行已有显式部署授权时才执行。授权应由 Coordinator 在需求启动时主动收集；manifest 已覆盖同一 scope 时不重复询问：
 
 1. 使用 `.mcp.json` 对应的 SFTP 能力上传本地种子文件。
 2. 使用 `.mcp.json` 对应的 IRIS 编译能力编译种子类。
 3. 使用 `.mcp.json` 对应的 IRIS 类方法执行能力调用 profile 指定的加载方法。
+
+默认上传/编译对象为 `DHCDoc.I18n.PageTranslationSeed`；目标工程已有兼容 profile 覆盖时使用覆盖值。无论哪种情况，都不得把字典翻译 SQL 或 XML 模板同步混入该类部署动作。
 
 部署时 namespace、远程路径等参数从 `.mcp.json` 解析或由用户明确提供，不在 skill 中硬编码。
 
@@ -166,4 +171,4 @@ description: Use when exporting, verifying, or explicitly syncing page-level tra
 - 若某个 MCP 工具不会自动读取 `.mcp.json` 中的 namespace，执行时必须显式传入从 `.mcp.json` 解析到的 namespace。
 - 若 global 读取工具对源语言下标不可靠，改用 `iris.executeCommand` 并输出可审查的命令。
 - 若文档加载工具存在路径映射风险，优先使用 project profile 指定的部署链路。
-- 修改本地种子文件前必须备份；部署服务器前必须说明将执行的上传、编译和加载动作。
+- 修改本地种子文件前必须备份；需求启动时必须说明可能执行的上传、编译和加载动作。已有授权不覆盖冲突覆盖、删除、回滚、环境变化或 scope 扩大。

@@ -1,0 +1,9 @@
+name: planner-agent
+type: general-role
+description: 任务图、依赖、完成条件和风险规划角色。
+defaultWorkflow: standard-change
+plugins: []
+permissions:
+  write: false
+modelHint: strong
+serialFallback: true

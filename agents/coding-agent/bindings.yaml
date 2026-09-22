@@ -1,0 +1,9 @@
+name: coding-agent
+type: general-role
+description: 在受控 owner 和 scope 内实现代码变更的角色。
+defaultWorkflow: standard-change
+plugins: []
+permissions:
+  write: scoped
+modelHint: balanced
+serialFallback: true

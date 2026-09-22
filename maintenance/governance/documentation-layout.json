@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 1,
+  "moves": [
+    {
+      "from": "docs/capability-catalog.md",
+      "to": "docs/guides/capability-catalog.md"
+    },
+    {
+      "from": "docs/capability-guide.md",
+      "to": "docs/guides/capability-guide.md"
+    },
+    {
+      "from": "docs/imedical-knowledge.md",
+      "to": "docs/guides/imedical-knowledge.md"
+    },
+    {
+      "from": "docs/iris-imedical-doctor-ai.md",
+      "to": "docs/guides/iris-imedical-doctor-ai.md"
+    },
+    {
+      "from": "docs/ai-coding-workspace-kit-v0.2.0.md",
+      "to": "maintenance/design/ai-coding-workspace-kit-v0.2.0.md"
+    },
+    {
+      "from": "docs/component-version-management.md",
+      "to": "maintenance/governance/component-version-management.md"
+    },
+    {
+      "from": "docs/print-i18n-case.md",
+      "to": "maintenance/validation/cases/print-i18n-case.md"
+    },
+    {
+      "from": "docs/project-export-map/doctor/README.md",
+      "to": "docs/reference/project-export-map/doctor/README.md"
+    },
+    {
+      "from": "docs/project-export-map/doctor/prj_v8.4.xml",
+      "to": "docs/reference/project-export-map/doctor/prj_v8.4.xml"
+    },
+    {
+      "from": "docs/project-export-map/doctor/prj_v8.5.xml",
+      "to": "docs/reference/project-export-map/doctor/prj_v8.5.xml"
+    },
+    {
+      "from": "docs/project-export-map/doctor/prj_v9.0.xml",
+      "to": "docs/reference/project-export-map/doctor/prj_v9.0.xml"
+    },
+    {
+      "from": "docs/project-export-map/doctor/prj_v9.1.xml",
+      "to": "docs/reference/project-export-map/doctor/prj_v9.1.xml"
+    },
+    {
+      "from": "docs/validation/agent-evolution-maintainer-handoff.md",
+      "to": "maintenance/validation/agent-evolution-maintainer-handoff.md"
+    },
+    {
+      "from": "docs/validation/agent-evolution.md",
+      "to": "maintenance/validation/agent-evolution.md"
+    },
+    {
+      "from": "docs/validation/i18n-agent-p1/README.md",
+      "to": "maintenance/validation/i18n-agent-p1/README.md"
+    },
+    {
+      "from": "docs/validation/i18n-agent-p1/retrospective-6096150/00-run-manifest.json",
+      "to": "maintenance/validation/i18n-agent-p1/retrospective-6096150/00-run-manifest.json"
+    },
+    {
+      "from": "docs/validation/i18n-agent-p1/retrospective-6096150/10-explorer.md",
+      "to": "maintenance/validation/i18n-agent-p1/retrospective-6096150/10-explorer.md"
+    },
+    {
+      "from": "docs/validation/i18n-agent-p1/retrospective-6096150/11-classifier.md",
+      "to": "maintenance/validation/i18n-agent-p1/retrospective-6096150/11-classifier.md"
+    },
+    {
+      "from": "docs/validation/i18n-agent-p1/retrospective-6096150/20-backend-coder.md",
+      "to": "maintenance/validation/i18n-agent-p1/retrospective-6096150/20-backend-coder.md"
+    },
+    {
+      "from": "docs/validation/i18n-agent-p1/retrospective-6096150/21-frontend-coder.md",
+      "to": "maintenance/validation/i18n-agent-p1/retrospective-6096150/21-frontend-coder.md"
+    },
+    {
+      "from": "docs/validation/i18n-agent-p1/retrospective-6096150/22-template-seed.md",
+      "to": "maintenance/validation/i18n-agent-p1/retrospective-6096150/22-template-seed.md"
+    },
+    {
+      "from": "docs/validation/i18n-agent-p1/retrospective-6096150/30-verifier.md",
+      "to": "maintenance/validation/i18n-agent-p1/retrospective-6096150/30-verifier.md"
+    },
+    {
+      "from": "docs/validation/i18n-agent-p1/retrospective-6096150/40-summary.md",
+      "to": "maintenance/validation/i18n-agent-p1/retrospective-6096150/40-summary.md"
+    },
+    {
+      "from": "docs/validation/i18n-agent-p1/standardized-6097891/00-run-manifest.json",
+      "to": "maintenance/validation/i18n-agent-p1/standardized-6097891/00-run-manifest.json"
+    },
+    {
+      "from": "docs/validation/i18n-agent-p1/standardized-6097891/10-explorer.md",
+      "to": "maintenance/validation/i18n-agent-p1/standardized-6097891/10-explorer.md"
+    },
+    {
+      "from": "docs/validation/i18n-agent-p1/standardized-6097891/11-classifier.md",
+      "to": "maintenance/validation/i18n-agent-p1/standardized-6097891/11-classifier.md"
+    },
+    {
+      "from": "docs/validation/i18n-agent-p1/standardized-6097891/20-backend-coder.md",
+      "to": "maintenance/validation/i18n-agent-p1/standardized-6097891/20-backend-coder.md"
+    },
+    {
+      "from": "docs/validation/i18n-agent-p1/standardized-6097891/21-frontend-coder.md",
+      "to": "maintenance/validation/i18n-agent-p1/standardized-6097891/21-frontend-coder.md"
+    },
+    {
+      "from": "docs/validation/i18n-agent-p1/standardized-6097891/22-template-seed.md",
+      "to": "maintenance/validation/i18n-agent-p1/standardized-6097891/22-template-seed.md"
+    },
+    {
+      "from": "docs/validation/i18n-agent-p1/standardized-6097891/30-verifier.md",
+      "to": "maintenance/validation/i18n-agent-p1/standardized-6097891/30-verifier.md"
+    },
+    {
+      "from": "docs/validation/i18n-agent-p1/standardized-6097891/40-summary.md",
+      "to": "maintenance/validation/i18n-agent-p1/standardized-6097891/40-summary.md"
+    }
+  ],
+  "deleted": [
+    "docs/deploy/dental-ta-159/README.md",
+    "docs/deploy/dental-ta-159/deploy-plan-159.md",
+    "docs/deploy/dental-ta-159/deploy-frontend.js",
+    "docs/deploy/dental-ta-159/deploy-backend.js"
+  ],
+  "stableDocs": [
+    "docs/update-agents.md",
+    "docs/workspace-overlay.md",
+    "docs/coding-agent-adaptation.md",
+    "docs/task-handoff.md",
+    "docs/skill-plugin-migration.md",
+    "docs/agent-orchestration.md",
+    "docs/schemas/workspace-capability.schema.json"
+  ]
+}

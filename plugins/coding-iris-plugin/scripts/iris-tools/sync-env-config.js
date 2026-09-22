@@ -10,27 +10,16 @@
 
 const fs = require('fs');
 const path = require('path');
+const { resolveWorkspaceContext } = require('../../../../scripts/lib/workspace-context');
+const { buildSftp } = require('./sftp-config');
 
 const scriptDir = __dirname;
 
-function findWorkspaceRoot() {
-  let dir = scriptDir;
-  while (true) {
-    if (path.basename(dir).toLowerCase() === '.agents') {
-      return path.dirname(dir);
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) {
-      return process.cwd();
-    }
-    dir = parent;
-  }
-}
-
 // Paths
-const workspaceRoot = findWorkspaceRoot();
-const configPath = path.join(workspaceRoot, '.agents', 'config', 'project-env.json');
-const templatePath = path.join(workspaceRoot, '.agents', 'plugins', 'coding-iris-plugin', 'templates', 'project-env.template.json');
+const workspaceContext = resolveWorkspaceContext(process.cwd());
+const workspaceRoot = workspaceContext.workspaceRoot;
+const configPath = path.join(workspaceContext.contextRoot, 'config', 'project-env.json');
+const templatePath = path.join(workspaceContext.capabilityRoot, 'plugins', 'coding-iris-plugin', 'templates', 'project-env.template.json');
 
 console.log(`[INFO] Config source: ${configPath}`);
 console.log(`[INFO] Workspace root: ${workspaceRoot}`);
@@ -76,11 +65,27 @@ console.log(`[INFO] SFTP MCP: ${sftpEnabled ? 'enabled' : 'disabled'}`);
 
 // ===== Generate .mcp.json =====
 
+function buildIrisMcpArgs() {
+  const args = ['mcp'];
+  const tomlPath = path.join(workspaceRoot, '.iris-agentic-dev.toml');
+  if (fs.existsSync(tomlPath)) {
+    args.push('--config', tomlPath);
+  }
+  args.push('--host', iris.host);
+  args.push('--web-port', String(irisPort));
+  args.push('--scheme', irisScheme);
+  args.push('--namespace', iris.namespace);
+  if (mcp.includeBuiltInSkills !== true) {
+    args.push('--no-skills');
+  }
+  return args;
+}
+
 const mcpConfig = {
   mcpServers: {
     [mcp.serverName]: {
       command: mcp.serverPath,
-      args: ['mcp'],
+      args: buildIrisMcpArgs(),
       env: {
         IRIS_HOST: iris.host,
         IRIS_WEB_PORT: String(irisPort),
@@ -88,7 +93,8 @@ const mcpConfig = {
         IRIS_USERNAME: iris.username,
         IRIS_PASSWORD: iris.password,
         IRIS_NAMESPACE: iris.namespace,
-        IRIS_TLS_VERIFY: irisTlsVerify
+        IRIS_TLS_VERIFY: irisTlsVerify,
+        IRIS_NO_SKILLS: String(mcp.includeBuiltInSkills !== true)
       }
     }
   }
@@ -99,32 +105,11 @@ if (sftpEnabled) {
   requireValue('sftp', 'command', sftp.command);
   requireValue('sftp', 'host', sftp.host);
   requireValue('sftp', 'username', sftp.username);
-  requireValue('sftp', 'password', sftp.password);
+  if (isMissing(sftp.keyFile)) requireValue('sftp', 'password', sftp.password);
   requireValue('sftp', 'localPath', sftp.localPath);
   requireValue('sftp', 'remotePath', sftp.remotePath);
 
-  const sftpArgs = Array.isArray(sftp.args)
-    ? sftp.args
-    : (sftp.scriptPath ? [sftp.scriptPath] : []);
-
-  if (sftpArgs.length === 0) {
-    requireValue('sftp', 'scriptPath', sftp.scriptPath);
-  }
-
-  mcpConfig.mcpServers[sftp.serverName] = {
-    command: sftp.command,
-    args: sftpArgs,
-    env: {
-      TARGET_HOST: sftp.host,
-      TARGET_PORT: String(sftp.port || 22),
-      TARGET_USERNAME: sftp.username,
-      TARGET_PASSWORD: sftp.password,
-      LOCAL_PATH: sftp.localPath,
-      REMOTE_PATH: sftp.remotePath,
-      IGNORE_PATTERNS: JSON.stringify(sftp.ignorePatterns || ['*.log', 'node_modules/', '.git/', '.vscode/'])
-    },
-    disabled: false
-  };
+  mcpConfig.mcpServers[sftp.serverName] = buildSftp(sftp, workspaceContext.capabilityRoot);
 }
 
 const mcpPath = path.join(workspaceRoot, '.mcp.json');

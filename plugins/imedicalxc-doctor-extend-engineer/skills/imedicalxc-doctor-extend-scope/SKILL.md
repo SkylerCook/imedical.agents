@@ -1,6 +1,5 @@
 ---
 name: imedicalxc-doctor-extend-scope
-version: 1.0.0
 description: |
   HIS 医生站第三方系统集成的范围分析。
   判断集成需求属于医生站组、医院信息平台组还是基础平台组。

@@ -1,0 +1,35 @@
+# 知识卡导出索引文件
+schema_version: 1
+locale: zh-CN
+branch: dev
+nodes_managed: true
+exported_at: "2026-09-07T08:19:21Z"
+modules:
+    "":
+        dir_name: HIS 多产品 Monorepo 元仓库
+        title: HIS 多产品 Monorepo 元仓库
+        scope:
+            - README.md
+            - CONTRIBUTING.md
+            - AGENTS.md
+            - .gitignore
+            - .gitmodules
+            - .qoderignore
+            - .qtz-clirc.json
+            - .agents/
+            - .qoder-cn/
+            - prototype/
+        source_files: []
+        children:
+            - scripts
+        depends_on: []
+        related_to: []
+    scripts:
+        dir_name: Monorepo 开发期辅助脚本集
+        title: Monorepo 开发期辅助脚本集
+        scope:
+            - scripts/
+        source_files: []
+        children: []
+        depends_on: []
+        related_to: []

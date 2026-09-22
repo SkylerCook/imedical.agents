@@ -1,6 +1,5 @@
 ---
 name: imedicalxc-doctor-perf-analysis-engineer
-version: 1.0.0
 description: |
   HIS 医生站接口性能分析与优化。覆盖前后端全链路追踪（Controller → BLH → Service → Mapper）、N+1 查询与批量调用优化、Graylog 日志分析、性能报告输出。用于排查慢接口、分析 traceId、优化数据库调用和前端加载性能。
 triggers:
@@ -55,7 +54,7 @@ If you were dispatched as a subagent, skip this skill. It is for the primary age
 - **先读代码再判断** — 分析前读当前代码确认问题仍存在，禁止凭旧报告复述
 - **建议前验证可行性** — 检查依赖链和架构约束，不可行就标"架构约束"
 - **区分调用性质** — 读方法实现确认 Feign/本地缓存/DB，不得猜测
-- **Graylog 仅用 MCP** — `mcp__graylog__*`，禁止 curl/http
+- **Graylog 优先 MCP** — MCP 可用时使用只读 Graylog MCP；MCP 不可用时，只有用户明确授权目标、只读范围和凭据来源后才允许 HTTP API。认证信息不写入仓库、报告或对话。若运行器拦截请求，说明所需动作并请求用户授权或让用户手动执行；**禁止 Agent 自行编辑任何运行器权限配置**
 - **未指定目标不自动全量分析** — 先列出让用户选
 - **msup 目录 JS 属药房模块** — 只标注调用关系，不深入分析修改
 - **位置精确到 `文件名:行号`**
@@ -144,6 +143,9 @@ if (dto.getPrescNo() == null) {
 | **没追踪到底层就标"查 DB"** | 把缓存命中的调用当 DB 查询 | 每个 Service 调用追踪到底：`DocCacheUtils`(L1+L2)/`DocLocalCacheUtil`(L1 Caffeine)/`@DocLocalCache` |
 | **循环内重复调用没检查缓存** | 报告 N+1 冗余，实际 L1 覆盖 | 追踪方法内部是否有 `DocLocalCacheUtil.get()` → 首次 DB，后续 < 0.01ms |
 | **分析完伪问题不立即标记关闭** | 反复讨论已排除的问题 | 确认无问题后立即在报告中标记 `✅ 无需优化`，汇总表同步更新 |
+| **Graylog HTTP 被拦截后自行赋权** | 违规修改运行器权限配置 | 按 `references/graylog-search.md` 说明请求用户授权或提供手动命令，不准 Agent 自行编辑运行器配置 |
+| **Graylog API 返回 `arg6=null`** | 无法获取数据 | `fields` 参数必填，追加 `&fields=*`；详见 `graylog-search.md` |
+| **CSV 格式无 total_results** | 不知道日志总量，盲分析 | 用 `Accept: application/json` 先确认总量再决定是否分页 |
 
 ## 何时不用
 

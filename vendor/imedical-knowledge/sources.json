@@ -1,0 +1,1801 @@
+{
+  "schema": "imedical-knowledge-source/v1",
+  "repository": "https://gitee.com/wangqingyongyl/iris-imedical",
+  "commit": "0610ed5fee77e1ef25957bd6464cb4912356b2e6",
+  "importedAt": "2026-09-18T05:29:15.310Z",
+  "license": "No LICENSE file found in the inspected source tree; no new license is granted by this import.",
+  "status": "reference-only-unverified",
+  "files": [
+    {
+      "path": "sources/wiki/db054bcb20689c57.md",
+      "sourcePath": ".qoder/repowiki/knowledge/en/DHCDoc Data Change & Business Logging System/DHCDoc Data Change & Business Logging System.md",
+      "sourceSha256": "1a37758f0f80cd58a31d0661e2858b834bc629a8f832f4ef584a7f2074516303",
+      "sha256": "1a37758f0f80cd58a31d0661e2858b834bc629a8f832f4ef584a7f2074516303",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/ad3792af94ad3164.md",
+      "sourcePath": ".qoder/repowiki/knowledge/en/HISUI + jQuery EasyUI Frontend Styling with CSS Variables and Per-Product Scheme/HISUI + jQuery EasyUI Frontend Styling with CSS Variables and Per-Product Scheme.md",
+      "sourceSha256": "398da4ddfb2211dc617ab39a0624dcaddcc9cba3615cf5cf5d4b48dd72a61ca5",
+      "sha256": "28ec3810036ee8f10d3a58c2af82fa68c117a591778a39beb7e5a109556e3376",
+      "redactions": 2,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/b7d1740536d8fff2.yaml",
+      "sourcePath": ".qoder/repowiki/knowledge/en/IRIS HIS Monorepo (Multi-Product Hospital Information System)/_module.yaml",
+      "sourceSha256": "145b7b855af65c9b97ea5b5c1091161e44c9a6b939b43f073ce768f83fc0c0e9",
+      "sha256": "145b7b855af65c9b97ea5b5c1091161e44c9a6b939b43f073ce768f83fc0c0e9",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/7a4226529e0600f7.md",
+      "sourcePath": ".qoder/repowiki/knowledge/en/IRIS HIS Monorepo (Multi-Product Hospital Information System)/architecture_design.md",
+      "sourceSha256": "9bc334e5a9434294cfa9f68b9df5dd5a0fa27d3a68844a20b0e40f97c04a40bc",
+      "sha256": "1a4dda45e7d0e63c6f27b59448c303fca095649924ebf16fbcc3f9a5ce3b51eb",
+      "redactions": 1,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/0f2db4739bb11acf.md",
+      "sourcePath": ".qoder/repowiki/knowledge/en/IRIS HIS Monorepo (Multi-Product Hospital Information System)/coding_conventions.md",
+      "sourceSha256": "f206621afeb1c0edec99767f4dcdba721b37c2b00e3237ee78dd2b62883933b4",
+      "sha256": "f206621afeb1c0edec99767f4dcdba721b37c2b00e3237ee78dd2b62883933b4",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/caba58c0e1baa962.md",
+      "sourcePath": ".qoder/repowiki/knowledge/en/IRIS HIS Monorepo (Multi-Product Hospital Information System)/overview.md",
+      "sourceSha256": "f77020aa8e00b1b87f363b6482128c46ae96696446afeb786878300a0c7b810b",
+      "sha256": "f77020aa8e00b1b87f363b6482128c46ae96696446afeb786878300a0c7b810b",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/1362b3f27175853a.yaml",
+      "sourcePath": ".qoder/repowiki/knowledge/en/IRIS HIS Monorepo (Multi-Product Hospital Information System)/Project Dev & Deployment Scripts/_module.yaml",
+      "sourceSha256": "c693791586c66b01874beaed6cf44f2b34043b5b1aa6c1b8d0eb217b0db104ad",
+      "sha256": "c693791586c66b01874beaed6cf44f2b34043b5b1aa6c1b8d0eb217b0db104ad",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/1be4da972df4af30.md",
+      "sourcePath": ".qoder/repowiki/knowledge/en/IRIS HIS Monorepo (Multi-Product Hospital Information System)/Project Dev & Deployment Scripts/architecture_design.md",
+      "sourceSha256": "694853871e84e9aeff4ff0e7a7dfbfca3aebcfb14db571ae9004405c6e673007",
+      "sha256": "694853871e84e9aeff4ff0e7a7dfbfca3aebcfb14db571ae9004405c6e673007",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/f85895ba9e1d1554.md",
+      "sourcePath": ".qoder/repowiki/knowledge/en/IRIS HIS Monorepo (Multi-Product Hospital Information System)/Project Dev & Deployment Scripts/coding_conventions.md",
+      "sourceSha256": "c7f993c2cec2185fc0c1500a7d94923f7181e5a55330d007b62da9100588cc32",
+      "sha256": "c7f993c2cec2185fc0c1500a7d94923f7181e5a55330d007b62da9100588cc32",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/1f188dd80afa9383.md",
+      "sourcePath": ".qoder/repowiki/knowledge/en/IRIS HIS Monorepo (Multi-Product Hospital Information System)/Project Dev & Deployment Scripts/overview.md",
+      "sourceSha256": "697b0da8a8e283b5d84736b26d597e6ab10c409e22080af6ed715e2ce4413aed",
+      "sha256": "697b0da8a8e283b5d84736b26d597e6ab10c409e22080af6ed715e2ce4413aed",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/9c7e065aa41efa99.md",
+      "sourcePath": ".qoder/repowiki/knowledge/en/IRIS HIS Monorepo (Multi-Product Hospital Information System)/Project Dev & Deployment Scripts/tech_stack.md",
+      "sourceSha256": "78716459d1c2f5bc4389606978087b7c8bc4c43d38a4b9fc991ea00fe578ff99",
+      "sha256": "78716459d1c2f5bc4389606978087b7c8bc4c43d38a4b9fc991ea00fe578ff99",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/87366513a1d85855.md",
+      "sourcePath": ".qoder/repowiki/knowledge/en/IRIS HIS Monorepo (Multi-Product Hospital Information System)/Project Dev & Deployment Scripts/unique_setup_and_commands.md",
+      "sourceSha256": "b0bc5b00c6b703ec11d7f1122d7f4e850d8383e85001a15bb73b843482aef443",
+      "sha256": "b0bc5b00c6b703ec11d7f1122d7f4e850d8383e85001a15bb73b843482aef443",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/3925dc9f7979638c.md",
+      "sourcePath": ".qoder/repowiki/knowledge/en/IRIS HIS Monorepo (Multi-Product Hospital Information System)/tech_stack.md",
+      "sourceSha256": "7cbcb1b4ac02a7ae6356ea77c765dba4dacad1bc5a9127ff65550f5b420d1832",
+      "sha256": "7cbcb1b4ac02a7ae6356ea77c765dba4dacad1bc5a9127ff65550f5b420d1832",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/a97bbee2f0188322.md",
+      "sourcePath": ".qoder/repowiki/knowledge/en/IRIS HIS Monorepo (Multi-Product Hospital Information System)/unique_setup_and_commands.md",
+      "sourceSha256": "deebeb8d5ab0becbdd47a1edd5ca383f5f43141953d2c6678138ad76a1d008b2",
+      "sha256": "deebeb8d5ab0becbdd47a1edd5ca383f5f43141953d2c6678138ad76a1d008b2",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/d258d1794a0ba0f9.md",
+      "sourcePath": ".qoder/repowiki/knowledge/en/IRIS ObjectScript Error Handling Business Exceptions, Status Codes, and Sanitize/IRIS ObjectScript Error Handling Business Exceptions, Status Codes, and Sanitize.md",
+      "sourceSha256": "0cd2e1857c3e4fa92bf9f958dd63e2c69196b118ab0e2968b4c85e12c067de4c",
+      "sha256": "0cd2e1857c3e4fa92bf9f958dd63e2c69196b118ab0e2968b4c85e12c067de4c",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/67f82a9752a06d9c.yaml",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/_index.yaml",
+      "sourceSha256": "d06711d889d6e4a265e5d344e0bbf8463da8fcca35a87801012c5a6bd0c674bd",
+      "sha256": "d06711d889d6e4a265e5d344e0bbf8463da8fcca35a87801012c5a6bd0c674bd",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/647c24f6296ca7ed.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/基于 CSS 变量与多主题覆盖的 HIS 前端样式体系/基于 CSS 变量与多主题覆盖的 HIS 前端样式体系.md",
+      "sourceSha256": "1479586ea390142966c834fb5a5340b7025a2baaa1c4d648acf4fa3d466e0bda",
+      "sha256": "1479586ea390142966c834fb5a5340b7025a2baaa1c4d648acf4fa3d466e0bda",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/a3a683846fbfb91b.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/基于 DHCDoc.Log. 与 web.DHCDocDataChangeLog 的多层日志体系/基于 DHCDoc.Log. 与 web.DHCDocDataChangeLog 的多层日志体系.md",
+      "sourceSha256": "b5ed7f5369e201a2a5350abfc84bf04b4b9b47d24884087e85476dc43224997e",
+      "sha256": "b5ed7f5369e201a2a5350abfc84bf04b4b9b47d24884087e85476dc43224997e",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/b6649f6e98558502.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/基于 Git Submodule + Node 脚本的 IRIS HIS 多产品构建与部署体系/基于 Git Submodule + Node 脚本的 IRIS HIS 多产品构建与部署体系.md",
+      "sourceSha256": "96ede26defb602bef754eb6d01e51dec5aa6abf217e8bcd7a157998277a315c9",
+      "sha256": "85e146d723bf99086e9a9e7b596bc89f484dddb901d34e7cac627897c1de1b18",
+      "redactions": 8,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/33d146595d447375.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/基于 Git Submodule + Node scripts 的 IRIS HIS 多仓库依赖管理/基于 Git Submodule + Node scripts 的 IRIS HIS 多仓库依赖管理.md",
+      "sourceSha256": "4b3d11a7fb74ac19cc72df4203f139645dc9b47dd534fd45c442e02e4478de1a",
+      "sha256": "714a545b9be20efdcd2bfb160cb6290ef35423932b9d4ee0c6382390811c0599",
+      "redactions": 4,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/66f1dd0d6a85518f.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/基于 Git Submodule + scripts 子包的最小化依赖管理/基于 Git Submodule + scripts 子包的最小化依赖管理.md",
+      "sourceSha256": "cfc54bfed2e152f71d11c457f61b7187d13a71aa7b61beb4e983c81cdb27440c",
+      "sha256": "390f74cbc36bc8b424845258baf50ea018432beb18f5e9a30da208a7b13df8cf",
+      "redactions": 1,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/e5ea82419476f0df.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/基于 IRIS Global ^DHCDocConfig 的多院区配置系统/基于 IRIS Global ^DHCDocConfig 的多院区配置系统.md",
+      "sourceSha256": "c9f53e89a136111bd0102fc45c9fa67e01bd66b40611c48fb191bcdd2ce398d3",
+      "sha256": "dea2f8f9f1339086faec1c732cd653e40f476313b630693181171a26c97295b1",
+      "redactions": 1,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/2d3bd1e054e40ebf.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/基于 IRIS Global 的多院区配置系统（web.DHCDocConfig）/基于 IRIS Global 的多院区配置系统（web.DHCDocConfig）.md",
+      "sourceSha256": "200ea4f942074b73cb0624fdeff016b79944862c0fd79d1fe9c9fd7503c3a6ee",
+      "sha256": "a84773994f75949993c6579925755c2927373d8902eed9c2dda38ff3a9adc858",
+      "redactions": 2,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/ab45db8a5074de21.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/DHCDoc 日志系统：基于 DHCDoc.Log.Common 的持久化业务日志与 DTS 埋点/DHCDoc 日志系统：基于 DHCDoc.Log.Common 的持久化业务日志与 DTS 埋点.md",
+      "sourceSha256": "505970bce164dc22d6644a580d0895d2fe94922d225fd03e37f5f1ac8612440e",
+      "sha256": "505970bce164dc22d6644a580d0895d2fe94922d225fd03e37f5f1ac8612440e",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/6f3d1726844f731f.yaml",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/HIS 多产品 Monorepo 元仓库/_module.yaml",
+      "sourceSha256": "fff63c1544a279cbb8b56a15ee1c76793afcb57748889a33079d01a7c7e797a2",
+      "sha256": "fff63c1544a279cbb8b56a15ee1c76793afcb57748889a33079d01a7c7e797a2",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/4ea5c92fc1a652ab.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/HIS 多产品 Monorepo 元仓库/编码规范.md",
+      "sourceSha256": "ca55e526312efdcf996c75a66081faae7e6a753444fbe631c85aef7dd92753f3",
+      "sha256": "ca55e526312efdcf996c75a66081faae7e6a753444fbe631c85aef7dd92753f3",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/0d59477255872eb6.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/HIS 多产品 Monorepo 元仓库/概述.md",
+      "sourceSha256": "cbad0463b51935bc2d115ce1f02dedc4ab52577f4e7559a5a7b3a2ab6fb957c6",
+      "sha256": "cbad0463b51935bc2d115ce1f02dedc4ab52577f4e7559a5a7b3a2ab6fb957c6",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/fb6758148696fe68.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/HIS 多产品 Monorepo 元仓库/技术栈.md",
+      "sourceSha256": "5ed182714a5e9ca91368474ccd4967696fd4cdb18d03e3c993160af5e4d78b11",
+      "sha256": "5ed182714a5e9ca91368474ccd4967696fd4cdb18d03e3c993160af5e4d78b11",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/4b231560935df20c.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/HIS 多产品 Monorepo 元仓库/架构设计.md",
+      "sourceSha256": "6b143365634fd3d62dac50785ca412b76bb80de94985dc309c39fe39594ecefd",
+      "sha256": "6b143365634fd3d62dac50785ca412b76bb80de94985dc309c39fe39594ecefd",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/a3d9a411ed991342.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/HIS 多产品 Monorepo 元仓库/特殊配置与命令.md",
+      "sourceSha256": "2dabf124ef018d08e101de3eb6aca7d1d961dfcabb9e5a11cbfa2c56e3b1c915",
+      "sha256": "5170f2635c47bb09d5fdd9a396dbf7565d85aba34a625a5cd0f9ad652f2466c5",
+      "redactions": 1,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/9743bfccde8a051b.yaml",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/HIS 多产品 Monorepo 元仓库/Monorepo 开发期辅助脚本集/_module.yaml",
+      "sourceSha256": "591ecf44c9014c6e5316c4a46e0b36b6a229a4391b4c1af033b475762bdd9c32",
+      "sha256": "591ecf44c9014c6e5316c4a46e0b36b6a229a4391b4c1af033b475762bdd9c32",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/7e115accfc55e5a7.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/HIS 多产品 Monorepo 元仓库/Monorepo 开发期辅助脚本集/编码规范.md",
+      "sourceSha256": "f14f642ef95b557cf635a83c67db16e4038c9c107acf420bb6e46096245e4726",
+      "sha256": "f14f642ef95b557cf635a83c67db16e4038c9c107acf420bb6e46096245e4726",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/416e6796baa50ca0.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/HIS 多产品 Monorepo 元仓库/Monorepo 开发期辅助脚本集/概述.md",
+      "sourceSha256": "5759974630877564b8fe188f990a508fbb630ae1a1141e9fe41dc8fb8c21329f",
+      "sha256": "5759974630877564b8fe188f990a508fbb630ae1a1141e9fe41dc8fb8c21329f",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/c70e39e022cc0798.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/HIS 多产品 Monorepo 元仓库/Monorepo 开发期辅助脚本集/技术栈.md",
+      "sourceSha256": "f69a15d6339204eeb637224cf673e377dac1f26f96ee40f9c90465c0972e987e",
+      "sha256": "f69a15d6339204eeb637224cf673e377dac1f26f96ee40f9c90465c0972e987e",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/c050cf2705716fd0.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/HIS 多产品 Monorepo 元仓库/Monorepo 开发期辅助脚本集/架构设计.md",
+      "sourceSha256": "c5384120f1166df58b1f2319d525d20093b3bc870ce55e5ba8543366c65919e3",
+      "sha256": "c5384120f1166df58b1f2319d525d20093b3bc870ce55e5ba8543366c65919e3",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/c257557620f468e3.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/HIS 多产品 Monorepo 元仓库/Monorepo 开发期辅助脚本集/特殊配置与命令.md",
+      "sourceSha256": "cec5333995694f71d1738e760eaeeae9a8c0e3f946c6ab75c46ad9de2ab7038c",
+      "sha256": "cec5333995694f71d1738e760eaeeae9a8c0e3f946c6ab75c46ad9de2ab7038c",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/69ff0f613057d324.md",
+      "sourcePath": ".qoder/repowiki/knowledge/zh/IRIS HIS 后端错误处理体系：Broker 统一网关 + 业务异常_系统异常分层 + CSP_Mac 双轨返回/IRIS HIS 后端错误处理体系：Broker 统一网关 + 业务异常_系统异常分层 + CSP_Mac 双轨返回.md",
+      "sourceSha256": "be458779380f156a3ce35aedd43a5ec89b6684ca5720f13b4369371690750ec7",
+      "sha256": "be458779380f156a3ce35aedd43a5ec89b6684ca5720f13b4369371690750ec7",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/64fb23079280df07.md",
+      "sourcePath": ".qoder/repowiki/zh/content/安全考虑/安全考虑.md",
+      "sourceSha256": "6757ecc0afccce3ba6eddbc08aaf07a339c47957e704e08ec5d4f84f6f9494e8",
+      "sha256": "eaade5369fae636f381650a090f76499ae9d9ebcd6594ccba88c53e16cf76756",
+      "redactions": 1,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/61ae930f89c0601b.md",
+      "sourcePath": ".qoder/repowiki/zh/content/安全考虑/合规性与隐私保护.md",
+      "sourceSha256": "de5f09385bb63bc55dc5f2b93b23af66a24bd13c1b9554db58f22494d6ffbe08",
+      "sha256": "de5f09385bb63bc55dc5f2b93b23af66a24bd13c1b9554db58f22494d6ffbe08",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/756d6f28f8cabaf8.md",
+      "sourcePath": ".qoder/repowiki/zh/content/安全考虑/身份认证与授权.md",
+      "sourceSha256": "0aed99a39cef500401ede91f07c7120538d8b4976a21aaa670801505eaaf7900",
+      "sha256": "0aed99a39cef500401ede91f07c7120538d8b4976a21aaa670801505eaaf7900",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/54aac4e1bf3eaa0a.md",
+      "sourcePath": ".qoder/repowiki/zh/content/安全考虑/审计日志记录.md",
+      "sourceSha256": "1078c46710cc1021727f60eaac65a4ece23224be4f8399ad3a979290c2400831",
+      "sha256": "1078c46710cc1021727f60eaac65a4ece23224be4f8399ad3a979290c2400831",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/0a29976224f51b66.md",
+      "sourcePath": ".qoder/repowiki/zh/content/安全考虑/数据安全保护.md",
+      "sourceSha256": "a83b7a447d3681243714f71bb1b10703d5d2c575eb84686d04f0c02d15f64259",
+      "sha256": "a83b7a447d3681243714f71bb1b10703d5d2c575eb84686d04f0c02d15f64259",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/172d8aa79c5c7bf1.md",
+      "sourcePath": ".qoder/repowiki/zh/content/安全考虑/网络安全防护.md",
+      "sourceSha256": "dc791802254ee802afde2372bf97884b8a76a60f91561979c245b1b32c9d280f",
+      "sha256": "dc791802254ee802afde2372bf97884b8a76a60f91561979c245b1b32c9d280f",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/a67ee5f72e1a4d26.md",
+      "sourcePath": ".qoder/repowiki/zh/content/部署运维/部署流程.md",
+      "sourceSha256": "68abf73a8abdc91ee968bb798a9c526feedb716b625ebe4a97a67e6133522471",
+      "sha256": "257c41ef3152ad6b9f80fe98496531a658c6a285dc1c3dec11e138c584889c08",
+      "redactions": 14,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/461db58bccd5b7f2.md",
+      "sourcePath": ".qoder/repowiki/zh/content/部署运维/部署运维.md",
+      "sourceSha256": "05137e4ba4d688473184a3f1091921300d3e93424e3beb09fe329143d0afee55",
+      "sha256": "1998b1bbae6fd99fcaa68cb78ad2b6f686e42b17a616b87ef2ab85e65b53e7ce",
+      "redactions": 8,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/e8125244545d7479.md",
+      "sourcePath": ".qoder/repowiki/zh/content/部署运维/故障排查.md",
+      "sourceSha256": "e1e8240dce8b6f99eadb62ba72ff64852f11350ab1796ff4d133ce4a2baaca49",
+      "sha256": "e1e8240dce8b6f99eadb62ba72ff64852f11350ab1796ff4d133ce4a2baaca49",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/6eb1265e7da82611.md",
+      "sourcePath": ".qoder/repowiki/zh/content/部署运维/监控告警.md",
+      "sourceSha256": "c6ccc7e51fca55f8ccaa290e8872e560669f3ccdad51a2549ec6625a1b590584",
+      "sha256": "0a0da3e64c9d658c715cc1c835cf0f4288d78be0a0a5f2b56f467758aa381ea9",
+      "redactions": 1,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/1d909b5e9121192b.md",
+      "sourcePath": ".qoder/repowiki/zh/content/部署运维/自动化脚本.md",
+      "sourceSha256": "f95a55384c19c1dacf24964cc0dd3fcb4d8d9b5ebafaf1c1394be888ea5c1643",
+      "sha256": "f95a55384c19c1dacf24964cc0dd3fcb4d8d9b5ebafaf1c1394be888ea5c1643",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/3371f3b1fe04aace.md",
+      "sourcePath": ".qoder/repowiki/zh/content/测试策略.md",
+      "sourceSha256": "726147dbe332e2574edd7094b9323bfb11b249b5f53dcd598949999ea47b33ba",
+      "sha256": "81a4cac59f4f0e129c9f2e76b7f278f0b239e76905cacc5b4d239039e0d670bc",
+      "redactions": 1,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/76bb952e5d42cfc1.md",
+      "sourcePath": ".qoder/repowiki/zh/content/更新日志.md",
+      "sourceSha256": "759b1e2c0cc12bc41e069398b76d2e5454948b31b79bb41c60b13f630bb17410",
+      "sha256": "a6bc7fd2f6907394e7377a87ca3b93c47069033b3c054047b607b9e86b5020b6",
+      "redactions": 1,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/ad60c7dce5e9b990.md",
+      "sourcePath": ".qoder/repowiki/zh/content/公共模块.md",
+      "sourceSha256": "2f0e46c3e4b968997a1f34f5e2c921641e5d8315acf8599e7888e2ceabea129d",
+      "sha256": "2f0e46c3e4b968997a1f34f5e2c921641e5d8315acf8599e7888e2ceabea129d",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/b05c486481e36dde.md",
+      "sourcePath": ".qoder/repowiki/zh/content/贡献指南.md",
+      "sourceSha256": "504854441ae77538cc033a848d0900131d4c9f03035742b9a182fc1aa56020d3",
+      "sha256": "504854441ae77538cc033a848d0900131d4c9f03035742b9a182fc1aa56020d3",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/02f41e4ae2ccca32.md",
+      "sourcePath": ".qoder/repowiki/zh/content/故障排除.md",
+      "sourceSha256": "a9fd6e4da4560c90440d231b9d170a9e90821125b570c4dea9873de1526f02e8",
+      "sha256": "a9fd6e4da4560c90440d231b9d170a9e90821125b570c4dea9873de1526f02e8",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/5d7185a5a26cdfe2.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/分诊系统 (triage-ws).md",
+      "sourceSha256": "4af5bbff9769a691fce227266a0248ee341670ad130bb49a89974abf5c5ae966",
+      "sha256": "4af5bbff9769a691fce227266a0248ee341670ad130bb49a89974abf5c5ae966",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/0a9aa03300fddf81.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/核心模块.md",
+      "sourceSha256": "6ed3b27ad16b414ab6f11591f0698b423c2ab27a45ed380730c04356d5168f73",
+      "sha256": "6ed3b27ad16b414ab6f11591f0698b423c2ab27a45ed380730c04356d5168f73",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/b006bb32bfae169e.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/患者主索引 (epmi-mc).md",
+      "sourceSha256": "11efef233091136af4427d30fd9c71374ae3f51ab41e9021f1a91049621c06ac",
+      "sha256": "11efef233091136af4427d30fd9c71374ae3f51ab41e9021f1a91049621c06ac",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/ac051657639eda7f.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/临床决策支持系统原型.md",
+      "sourceSha256": "1816aee2243757fdc5a1e68727ab1e54e61d72fa6b1e96205741729eac414f45",
+      "sha256": "1816aee2243757fdc5a1e68727ab1e54e61d72fa6b1e96205741729eac414f45",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/babc840370805810.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/门诊挂号系统 (opadm-mc).md",
+      "sourceSha256": "2c44de76b11d10cac61014d85b47b64cae6414f45e5a5ef80df2c91686d4d02b",
+      "sha256": "2c44de76b11d10cac61014d85b47b64cae6414f45e5a5ef80df2c91686d4d02b",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/1cb856e35c1ace6c.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/牙科系统 (dental-ws)/工作台管理.md",
+      "sourceSha256": "dbcee2651351dccb6406b5169f0daa8797aaf00039f7c71a390701453fb842e3",
+      "sha256": "dbcee2651351dccb6406b5169f0daa8797aaf00039f7c71a390701453fb842e3",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/da5f6e07d8f27e28.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/牙科系统 (dental-ws)/技工流程管理.md",
+      "sourceSha256": "f3b12d3f80d64b2108caa971cdfbb7044785830a13b3339e498bb3516080923a",
+      "sha256": "f3b12d3f80d64b2108caa971cdfbb7044785830a13b3339e498bb3516080923a",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/e7e2e9225ce8f137.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/牙科系统 (dental-ws)/统计分析.md",
+      "sourceSha256": "646c1bba6db703d481154029465bbf2d378276a38dea56e8579b250e2e15c2b1",
+      "sha256": "646c1bba6db703d481154029465bbf2d378276a38dea56e8579b250e2e15c2b1",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/3fbe2e4ee5e823aa.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/牙科系统 (dental-ws)/牙齿定位图.md",
+      "sourceSha256": "085ab87848c337c314fb46117605a4f722b4eb6e09da7fb08401570b0f37b794",
+      "sha256": "085ab87848c337c314fb46117605a4f722b4eb6e09da7fb08401570b0f37b794",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/85ba4a46e7b17016.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/牙科系统 (dental-ws)/牙科材料管理.md",
+      "sourceSha256": "1ad014c6c2e994c717044ebd883afea92696ff5410863d2aa0cd3e71dde0344c",
+      "sha256": "1ad014c6c2e994c717044ebd883afea92696ff5410863d2aa0cd3e71dde0344c",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/2251089f0d7abcbe.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/牙科系统 (dental-ws)/牙科申请管理.md",
+      "sourceSha256": "912f98deb86676ffb256f3703c67bfe9f011fbdf57aac198b337aa32e633c2d9",
+      "sha256": "912f98deb86676ffb256f3703c67bfe9f011fbdf57aac198b337aa32e633c2d9",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/ffd04a6cab91ab8f.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/牙科系统 (dental-ws)/牙科系统 (dental-ws).md",
+      "sourceSha256": "a2a425db0e4961f95345c3702cd8a4b88a21b19313b14405865d4ed2b764e43f",
+      "sha256": "a2a425db0e4961f95345c3702cd8a4b88a21b19313b14405865d4ed2b764e43f",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/938ca1a4e28253e7.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/医生工作站 (doc-ws)/处方管理.md",
+      "sourceSha256": "94b55ae1db16cb4235c48a004c84b3fbe029a75639b38898902c0a5c9f9841e5",
+      "sha256": "94b55ae1db16cb4235c48a004c84b3fbe029a75639b38898902c0a5c9f9841e5",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/d1b7d682cc50f732.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/医生工作站 (doc-ws)/门诊医生工作流.md",
+      "sourceSha256": "e0fbec5fb8fc1b991da28148496851cbcb9f23f7512160cdb8666449ebe7fc9b",
+      "sha256": "e0fbec5fb8fc1b991da28148496851cbcb9f23f7512160cdb8666449ebe7fc9b",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/9c559e93e6c9475c.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/医生工作站 (doc-ws)/医生工作站 (doc-ws).md",
+      "sourceSha256": "1609aa18ad7a557b825f1a2576d12817c9d6ba2f257d7dfaa0cfa15ae46ada24",
+      "sha256": "1609aa18ad7a557b825f1a2576d12817c9d6ba2f257d7dfaa0cfa15ae46ada24",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/0b74b49661a1512d.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/医生工作站 (doc-ws)/医嘱管理.md",
+      "sourceSha256": "ac3a77affd5d6b23e2ba7b57ce8d26f971c467df881164df630fa6e4a0098568",
+      "sha256": "ac3a77affd5d6b23e2ba7b57ce8d26f971c467df881164df630fa6e4a0098568",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/44cb7ce1ce863a43.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/医生工作站 (doc-ws)/诊断管理.md",
+      "sourceSha256": "abd05e49acf5f42b69209c840aca949d7aafc9949bbea8cd72bed188212d1fe0",
+      "sha256": "abd05e49acf5f42b69209c840aca949d7aafc9949bbea8cd72bed188212d1fe0",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/04a539e63c25c0bf.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/医生工作站 (doc-ws)/主控制器架构.md",
+      "sourceSha256": "08b94d3dca482a021e92e74411794641fab2fab6a9691aa90335a6a4aba2fefc",
+      "sha256": "08b94d3dca482a021e92e74411794641fab2fab6a9691aa90335a6a4aba2fefc",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/78a51021f0ab6939.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/医生工作站 (doc-ws)/住院医生工作流.md",
+      "sourceSha256": "d5b3ca7849326c1f53fe8b4d02bb8853fdc769e0afc92c65afaf84ed11de395d",
+      "sha256": "d5b3ca7849326c1f53fe8b4d02bb8853fdc769e0afc92c65afaf84ed11de395d",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/f135add813ede11b.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/治疗系统 (cure-ws)/报表分析.md",
+      "sourceSha256": "5e9ccc55177135a54fb04ce1e26df2950052e486b99a9f1342a34af3e934cfdd",
+      "sha256": "5e9ccc55177135a54fb04ce1e26df2950052e486b99a9f1342a34af3e934cfdd",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/f547058b0386594d.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/治疗系统 (cure-ws)/工作列表管理.md",
+      "sourceSha256": "c3ad0bdfa6e64df997fc0ee83d09dcd6062bcc6750aa3141e9d2c2b4ecce0715",
+      "sha256": "2023b61ba21bcdcaaa7bfc3c8d47757554b90bb2572884e4a8e85967bde65132",
+      "redactions": 1,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/709cc68f23c52cb2.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/治疗系统 (cure-ws)/评估量表管理.md",
+      "sourceSha256": "f911e98b8a99665668357e045b37b4ffa03a50dc05b74fe2a29b8980b1687cb4",
+      "sha256": "f911e98b8a99665668357e045b37b4ffa03a50dc05b74fe2a29b8980b1687cb4",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/c459ee6ee5a1427a.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/治疗系统 (cure-ws)/治疗计划管理.md",
+      "sourceSha256": "aff113db03b13f653c1c6595ed2d937a3da62fc9d5e70a7a950078d6f2eb2823",
+      "sha256": "aff113db03b13f653c1c6595ed2d937a3da62fc9d5e70a7a950078d6f2eb2823",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/39f8bff810fe8e65.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/治疗系统 (cure-ws)/治疗系统 (cure-ws).md",
+      "sourceSha256": "d37b10e77b0cc3d44275364bc30dcefef21391a2df114cb31a414234752b262d",
+      "sha256": "d37b10e77b0cc3d44275364bc30dcefef21391a2df114cb31a414234752b262d",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/f6ebf4d8f844a6f5.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/治疗系统 (cure-ws)/治疗执行跟踪.md",
+      "sourceSha256": "ed3366b674179f77856eaec7dbc71c3601340370af754d63aa70f5598f67e889",
+      "sha256": "ed3366b674179f77856eaec7dbc71c3601340370af754d63aa70f5598f67e889",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/5d791c7470d0a4f5.md",
+      "sourcePath": ".qoder/repowiki/zh/content/核心模块/治疗系统 (cure-ws)/资源配置管理.md",
+      "sourceSha256": "2b27cf896ef0b880fea53ecca42de8268b1a0642dded058accad86abb63cb119",
+      "sha256": "2b27cf896ef0b880fea53ecca42de8268b1a0642dded058accad86abb63cb119",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/62163f3d68697aaf.md",
+      "sourcePath": ".qoder/repowiki/zh/content/开发工具/部署工具.md",
+      "sourceSha256": "1d676d6b5aec64c2eef3b97d2330314531db9e6aac1f7e2ffe686c7c81b358e8",
+      "sha256": "1d676d6b5aec64c2eef3b97d2330314531db9e6aac1f7e2ffe686c7c81b358e8",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/0e907371edc2ca25.md",
+      "sourcePath": ".qoder/repowiki/zh/content/开发工具/开发工具.md",
+      "sourceSha256": "1320e41b664fb494e6a0bf3391ec589b376c86a486f69685fc64e14e1d7b4f0f",
+      "sha256": "2f38480d78d9d96df589fcbebeaaee29993affb946f0a30ed6520de2903c5eeb",
+      "redactions": 3,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/37e76ec91f68b16a.md",
+      "sourcePath": ".qoder/repowiki/zh/content/开发工具/开发工作流.md",
+      "sourceSha256": "580346f295918dec531df6ca53cc54250777a3afc6e9d31f50958061b7b410f1",
+      "sha256": "62f39a3f57cc8e3f91545592e961b59ac7996d4b0b31d1d38e5c6584253776c5",
+      "redactions": 6,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/a7d03b227a91e51f.md",
+      "sourcePath": ".qoder/repowiki/zh/content/开发工具/Git管理脚本.md",
+      "sourceSha256": "015e5ca8abba354fcc1bf20797d9cdc75fa49d8a9ecf6170b72b08b2dd709be1",
+      "sha256": "5e3b1634fe4065e390b0517dcbcbb1f2bc5669cf3a762f8f134db2069774e09b",
+      "redactions": 4,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/bfc610a5d16b6e77.md",
+      "sourcePath": ".qoder/repowiki/zh/content/开发工具/VS Code配置.md",
+      "sourceSha256": "8df69816435086ba68ec290e58afacf4aa18ee1ede9399b21cfbc4aee86c1253",
+      "sha256": "b040381c269f5ac4717aa4e510f24ef3bbf27b8567e07e36c9901c494ef65fa4",
+      "redactions": 14,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/180e2fc2e9fec21d.md",
+      "sourcePath": ".qoder/repowiki/zh/content/快速开始.md",
+      "sourceSha256": "2e931c4fb56e82b95ee5ea0f2593ac5961e7793c3b3b44202565f1e3958c8298",
+      "sha256": "f37f5a4ef472a226ddd3d5f0e164f375ca88a988e5bfb2d069c166f4a0a5de8f",
+      "redactions": 8,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/a880c2be2dc7b59f.md",
+      "sourcePath": ".qoder/repowiki/zh/content/前端架构/前端架构.md",
+      "sourceSha256": "b3359961ee1c697437ad25ca5dd548c49bc5f44e68a0aff788c78d9a13045cf9",
+      "sha256": "b3359961ee1c697437ad25ca5dd548c49bc5f44e68a0aff788c78d9a13045cf9",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/a42c67f3d7fadab8.md",
+      "sourcePath": ".qoder/repowiki/zh/content/前端架构/前后端集成.md",
+      "sourceSha256": "37c2ed8b4b6f0e7dd4cb1d8cbd15f8d76c4b4f99f882166e1bdf387aa1d6b1c5",
+      "sha256": "37c2ed8b4b6f0e7dd4cb1d8cbd15f8d76c4b4f99f882166e1bdf387aa1d6b1c5",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/55c6f07a0238ee15.md",
+      "sourcePath": ".qoder/repowiki/zh/content/前端架构/样式与主题.md",
+      "sourceSha256": "70b92bd90abbcedff31dea341e1c50d41a1f655e47bdcb36fac76b2d15a34462",
+      "sha256": "70b92bd90abbcedff31dea341e1c50d41a1f655e47bdcb36fac76b2d15a34462",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/f5510561eaa0f9d2.md",
+      "sourcePath": ".qoder/repowiki/zh/content/前端架构/CSP页面结构.md",
+      "sourceSha256": "007206a380e73f6f105804ca8af66a3d156da1d8896d47eadbb6b39ef67fc23e",
+      "sha256": "007206a380e73f6f105804ca8af66a3d156da1d8896d47eadbb6b39ef67fc23e",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/fa3cdb470845a194.md",
+      "sourcePath": ".qoder/repowiki/zh/content/前端架构/JavaScript逻辑层.md",
+      "sourceSha256": "8b1614c6a6a767f1d5ab349381e9f5c068e8f902f4730d93a22484d4672fac8a",
+      "sha256": "8b1614c6a6a767f1d5ab349381e9f5c068e8f902f4730d93a22484d4672fac8a",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/2241da67582a7823.md",
+      "sourcePath": ".qoder/repowiki/zh/content/前端架构/UI组件库.md",
+      "sourceSha256": "16b2c1809258131a39cd233d39df779e739e233689c6a0df854a5326f56c65b9",
+      "sha256": "16b2c1809258131a39cd233d39df779e739e233689c6a0df854a5326f56c65b9",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/3757f7670427fdf2.md",
+      "sourcePath": ".qoder/repowiki/zh/content/数据库设计/核心业务表结构/核心业务表结构.md",
+      "sourceSha256": "369becce2a9a43ff0ac18d605d66a56962a0d6fa6b07b120cd16c40550f3a1f0",
+      "sha256": "369becce2a9a43ff0ac18d605d66a56962a0d6fa6b07b120cd16c40550f3a1f0",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/76b2c07ddadfddba.md",
+      "sourcePath": ".qoder/repowiki/zh/content/数据库设计/核心业务表结构/患者管理表.md",
+      "sourceSha256": "7f87ea5c559cb86d6580e9f500e09c746434d582f6d6d06a2466335e1c0105ab",
+      "sha256": "7f87ea5c559cb86d6580e9f500e09c746434d582f6d6d06a2466335e1c0105ab",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/c1690c749b12f77d.md",
+      "sourcePath": ".qoder/repowiki/zh/content/数据库设计/核心业务表结构/医嘱管理表.md",
+      "sourceSha256": "d53eb8a9d0dc29114d272da26398290b2ac8c4efca5333f51f14f9fd3b90d46f",
+      "sha256": "d53eb8a9d0dc29114d272da26398290b2ac8c4efca5333f51f14f9fd3b90d46f",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/efd32ec438f30f32.md",
+      "sourcePath": ".qoder/repowiki/zh/content/数据库设计/核心业务表结构/诊断管理表.md",
+      "sourceSha256": "c44d34292fa5db040da87c3d637d8c645726312a0a19d9cfd7a6e3e35b1af3d3",
+      "sha256": "c44d34292fa5db040da87c3d637d8c645726312a0a19d9cfd7a6e3e35b1af3d3",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/56e51f11998f568d.md",
+      "sourcePath": ".qoder/repowiki/zh/content/数据库设计/配置管理表.md",
+      "sourceSha256": "e2fd94aba7d2a32c8a402c7ea55b245ff3c3817720eacfad123ab6f01cdddeda",
+      "sha256": "e2fd94aba7d2a32c8a402c7ea55b245ff3c3817720eacfad123ab6f01cdddeda",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/65fb825120c02c0d.md",
+      "sourcePath": ".qoder/repowiki/zh/content/数据库设计/数据库架构概述.md",
+      "sourceSha256": "4b1f7c2ba5ba6b6d82d02c9856b8b4a39fc49d5d53849e7277ed54ca28fe2384",
+      "sha256": "4b1f7c2ba5ba6b6d82d02c9856b8b4a39fc49d5d53849e7277ed54ca28fe2384",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/7bc246c4c412c59a.md",
+      "sourcePath": ".qoder/repowiki/zh/content/数据库设计/数据库设计.md",
+      "sourceSha256": "dff38ba50933387cc1cb7b727ae1b75d1848e58ea0df1b5600383e85d367a2a8",
+      "sha256": "dff38ba50933387cc1cb7b727ae1b75d1848e58ea0df1b5600383e85d367a2a8",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/0b9d66866067e9ab.md",
+      "sourcePath": ".qoder/repowiki/zh/content/数据库设计/数据生命周期管理.md",
+      "sourceSha256": "f8f7572818e2d872cdc820d43544e2a3f3a7ff50e1876fa5f0173e656b4ebb82",
+      "sha256": "f8f7572818e2d872cdc820d43544e2a3f3a7ff50e1876fa5f0173e656b4ebb82",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/88cd741fbcd75a7a.md",
+      "sourcePath": ".qoder/repowiki/zh/content/数据库设计/Global变量设计.md",
+      "sourceSha256": "70504ae829a1704b3eaa1e929f6745c4f2fd2368e91d403fb2ae6e7ff13a86c8",
+      "sha256": "70504ae829a1704b3eaa1e929f6745c4f2fd2368e91d403fb2ae6e7ff13a86c8",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/64ae27ad5792bfda.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/安全架构设计.md",
+      "sourceSha256": "073081686a351c3951fdf13b078a4a8d39df8f3d3c2050d231b2082c2abc8c3d",
+      "sha256": "073081686a351c3951fdf13b078a4a8d39df8f3d3c2050d231b2082c2abc8c3d",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/e3b7a59db1105c52.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/部署拓扑设计.md",
+      "sourceSha256": "5ecf2163cac38436dc99268c66e0f2f3fa63d8ed974195520cae7eb6a74214ed",
+      "sha256": "41ed7b56f77d22b7c7145011da417fea2706ea7eb91de36c2668363d26b760ab",
+      "redactions": 3,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/ec928fb7f31aaa4d.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/模块架构设计/分诊系统模块架构.md",
+      "sourceSha256": "ddbac2c4d2119c0712d175be37b23ab750234664bc669853ec4782f897b0fd3f",
+      "sha256": "ddbac2c4d2119c0712d175be37b23ab750234664bc669853ec4782f897b0fd3f",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/854e664817612c24.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/模块架构设计/公共模块架构.md",
+      "sourceSha256": "a6bf5e6dd21b1b24127b0346695b5b08add5d879be99d015a4d6c835e37981c6",
+      "sha256": "a6bf5e6dd21b1b24127b0346695b5b08add5d879be99d015a4d6c835e37981c6",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/8dd32f40fa35f08d.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/模块架构设计/患者主索引模块架构.md",
+      "sourceSha256": "3e64667b25a49d6c22b06cb9d30ff4696a531de581159ddfa34d20b6b81486cd",
+      "sha256": "3e64667b25a49d6c22b06cb9d30ff4696a531de581159ddfa34d20b6b81486cd",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/0aa11497fa6de6f0.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/模块架构设计/门诊挂号系统模块架构.md",
+      "sourceSha256": "db8b5a55848461b64ddf32a2c361f1a37705ec33119d114bbb907da0045d6a88",
+      "sha256": "db8b5a55848461b64ddf32a2c361f1a37705ec33119d114bbb907da0045d6a88",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/713e95f06323d77c.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/模块架构设计/模块架构设计.md",
+      "sourceSha256": "f72fb95108517ce6456c0ae9b624c414527a845b032c100f7cdb067212764908",
+      "sha256": "0be8485d58fa70a14c44af8b6999ded7832237376782a06eabd4841b3658194c",
+      "redactions": 4,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/1610d35c02b594f5.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/模块架构设计/牙科系统模块架构.md",
+      "sourceSha256": "2ee0b5da6a0474ca1f2623d64e2312464565325347b3ed8c5e7d7dcb7db91694",
+      "sha256": "2ee0b5da6a0474ca1f2623d64e2312464565325347b3ed8c5e7d7dcb7db91694",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/c47646fa17e777c4.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/模块架构设计/医生工作站模块架构/处方管理系统.md",
+      "sourceSha256": "40cf736a202ac9fb36cfbb83f79055cc4178e4b3598717c800cb79532049d975",
+      "sha256": "40cf736a202ac9fb36cfbb83f79055cc4178e4b3598717c800cb79532049d975",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/109fbba5c6c8a46a.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/模块架构设计/医生工作站模块架构/门诊医生工作流.md",
+      "sourceSha256": "20ff056a9e15fab78f01a9e953840408b9006bc56d3061a67c7d7a63a1817736",
+      "sha256": "20ff056a9e15fab78f01a9e953840408b9006bc56d3061a67c7d7a63a1817736",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/463fe8274cf46461.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/模块架构设计/医生工作站模块架构/医生工作站模块架构.md",
+      "sourceSha256": "822d452c11fe69b98700013df6a1b4a1535c5df5aea9f83485756e7687a2e1d8",
+      "sha256": "822d452c11fe69b98700013df6a1b4a1535c5df5aea9f83485756e7687a2e1d8",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/e1eb830b8363f55c.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/模块架构设计/医生工作站模块架构/医嘱管理系统.md",
+      "sourceSha256": "25ea9259356219a9cd872ac9aec1d6b9eab2149a415fc1e5f4798f0300b6f48f",
+      "sha256": "25ea9259356219a9cd872ac9aec1d6b9eab2149a415fc1e5f4798f0300b6f48f",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/d8022cea39568811.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/模块架构设计/医生工作站模块架构/诊断管理系统.md",
+      "sourceSha256": "288feaca913158f92314b5f7ab76ab6cd3f30ffe5d09b360f67bd69d1876b602",
+      "sha256": "288feaca913158f92314b5f7ab76ab6cd3f30ffe5d09b360f67bd69d1876b602",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/f280cd021994f640.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/模块架构设计/医生工作站模块架构/住院医生工作流.md",
+      "sourceSha256": "f2ccc297b289a060cf735fd873411350ee8114d7b1d1d93c20480290b5880d17",
+      "sha256": "f2ccc297b289a060cf735fd873411350ee8114d7b1d1d93c20480290b5880d17",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/a598cba12ed32271.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/模块架构设计/治疗系统模块架构.md",
+      "sourceSha256": "dde1037f3463cf19df33926ecb7e36335b8533aa4209ebcd571e2a9251c3a63f",
+      "sha256": "dde1037f3463cf19df33926ecb7e36335b8533aa4209ebcd571e2a9251c3a63f",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/e0df5b84c1687204.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/数据流设计.md",
+      "sourceSha256": "7675eeebb7a2e07f7de6a31c276949a5a3d4977b3001d51a052ba784ec537155",
+      "sha256": "7675eeebb7a2e07f7de6a31c276949a5a3d4977b3001d51a052ba784ec537155",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/7ede01ee24d17aba.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/系统架构.md",
+      "sourceSha256": "8e271d40e04c70aa86cd95719f704dd53042fcffdf4d2fa331dd797b705ef841",
+      "sha256": "7260ffacae1228267a06710ef1e3d6698c4f368bd4fbee6ae4865d2d7bf12d4c",
+      "redactions": 5,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/fb3c02464493c778.md",
+      "sourcePath": ".qoder/repowiki/zh/content/系统架构/整体架构设计.md",
+      "sourceSha256": "7e3b801ea76e1f966b50f1b54bd80d8f438928020f795b129f819d8c6553d23f",
+      "sha256": "7e3b801ea76e1f966b50f1b54bd80d8f438928020f795b129f819d8c6553d23f",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/247968d21994c886.md",
+      "sourcePath": ".qoder/repowiki/zh/content/项目概述.md",
+      "sourceSha256": "9be4371a35b08a527dbddf6bc06a65c4306b14e2d140124760a1e6f4cff236a3",
+      "sha256": "fd8597f55767d10774b2b57313bceb7bce8f27d3c5d1020807a79f461924d0d8",
+      "redactions": 1,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/746ee0894b632ba5.md",
+      "sourcePath": ".qoder/repowiki/zh/content/性能优化/后端性能优化.md",
+      "sourceSha256": "08a1301849d975e5e23ab576b4a041534c17d990b1d3f448e11954e553cc959e",
+      "sha256": "08a1301849d975e5e23ab576b4a041534c17d990b1d3f448e11954e553cc959e",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/844d46a8200d1cae.md",
+      "sourcePath": ".qoder/repowiki/zh/content/性能优化/前端性能优化.md",
+      "sourceSha256": "fd59f36558a52de302467b33c33a513a38de0859ea1479973dae0bc9ba4c70cf",
+      "sha256": "fd59f36558a52de302467b33c33a513a38de0859ea1479973dae0bc9ba4c70cf",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/10377551d176372c.md",
+      "sourcePath": ".qoder/repowiki/zh/content/性能优化/数据库优化.md",
+      "sourceSha256": "63c0671ac0999b426e650df8c6a1feeeb5bd2dd37fa963fc4d3b732e30e94065",
+      "sha256": "63c0671ac0999b426e650df8c6a1feeeb5bd2dd37fa963fc4d3b732e30e94065",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/0cea59e0a77ca2c9.md",
+      "sourcePath": ".qoder/repowiki/zh/content/性能优化/性能监控与测试.md",
+      "sourceSha256": "f4d64a09d7f0edbcf57a803a977a992349bc8bd134a1e714599df315fe198139",
+      "sha256": "cbd51ff5a785ab3ce8e89461f99bde58ddd0829b19aeb5a104e7ada8cf3811e9",
+      "redactions": 1,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/6534abe9c700b73b.md",
+      "sourcePath": ".qoder/repowiki/zh/content/性能优化/性能优化.md",
+      "sourceSha256": "16d1d3c79fa13d6b2ce2b4b50aaa0b5ff54b5509c96393c9b0a9ffc05aa742d1",
+      "sha256": "16d1d3c79fa13d6b2ce2b4b50aaa0b5ff54b5509c96393c9b0a9ffc05aa742d1",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/d7e2ed84372d0a12.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/错误处理机制.md",
+      "sourceSha256": "ca521bf072482293246b345418dabcfdf73acced167a424352dcd84d53d9fe28",
+      "sha256": "ca521bf072482293246b345418dabcfdf73acced167a424352dcd84d53d9fe28",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/33c9403febe35ad7.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/认证授权机制.md",
+      "sourceSha256": "75982e41e4869ad26499ea506b6603b7104fec36b71e53dc44f1ecf62babc8d7",
+      "sha256": "75982e41e4869ad26499ea506b6603b7104fec36b71e53dc44f1ecf62babc8d7",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/c7953ff3b014016f.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/数据交换格式.md",
+      "sourceSha256": "7b332137e2ed9fcfdc610ce08c4106478f6c4f760e7053242e74e57561209fb8",
+      "sha256": "7b332137e2ed9fcfdc610ce08c4106478f6c4f760e7053242e74e57561209fb8",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/64d7885da7fe1543.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/第三方服务集成/第三方服务集成.md",
+      "sourceSha256": "b0034950d7a3ee24e77a48bf16b40e5dddf68e09d6c70d459ec9fccacf1a87c0",
+      "sha256": "b0034950d7a3ee24e77a48bf16b40e5dddf68e09d6c70d459ec9fccacf1a87c0",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/f3492f60425e3f7d.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/第三方服务集成/挂号接口集成.md",
+      "sourceSha256": "c43b95370e319664230d5b2a2a70168e703cda7287f6baf802852fcd065cd09c",
+      "sha256": "c43b95370e319664230d5b2a2a70168e703cda7287f6baf802852fcd065cd09c",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/11363bb683d33cfe.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/第三方服务集成/互联网服务集成.md",
+      "sourceSha256": "0bb7b374174b52da0b4a689ddfbfd2f02511119fd56918e98439fd8469dc89d8",
+      "sha256": "0bb7b374174b52da0b4a689ddfbfd2f02511119fd56918e98439fd8469dc89d8",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/d19214962bb16db0.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/第三方服务集成/门诊分诊调度集成.md",
+      "sourceSha256": "864fdf6fef89ea4d30c8550e8e3ff6d647f96c2c800b5a14259f7453fa5e0fba",
+      "sha256": "864fdf6fef89ea4d30c8550e8e3ff6d647f96c2c800b5a14259f7453fa5e0fba",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/b02a15af60f81cc5.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/第三方服务集成/医保卡接口集成.md",
+      "sourceSha256": "5662eb914cd68070fb1113b8337341e30a5efe36b7457561e43250ff8a6c8bbe",
+      "sha256": "5662eb914cd68070fb1113b8337341e30a5efe36b7457561e43250ff8a6c8bbe",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/10a08b28a148679c.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/第三方服务集成/医疗EPMI服务集成.md",
+      "sourceSha256": "6b9d238f54afc810978c8e72852d7073456910d099f58dc8d0c25eb3899b090d",
+      "sha256": "6b9d238f54afc810978c8e72852d7073456910d099f58dc8d0c25eb3899b090d",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/b4b2d819b8617b9c.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/第三方服务集成/应用服务集成.md",
+      "sourceSha256": "26c719f5637022af28f5be8dddfd3a714538b73d520f58cdb93613fbe3a2d90c",
+      "sha256": "26c719f5637022af28f5be8dddfd3a714538b73d520f58cdb93613fbe3a2d90c",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/e846b83e858526ac.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/数据交换标准/批量数据处理.md",
+      "sourceSha256": "b406ad45297b59afd0e10777b5962e45afa3a9b5e30ac33eea2493cd8da0e080",
+      "sha256": "b406ad45297b59afd0e10777b5962e45afa3a9b5e30ac33eea2493cd8da0e080",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/db2f74b5ceb60f31.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/数据交换标准/数据交换标准.md",
+      "sourceSha256": "686156810d2a5e0f115ce5529189fd74df422963b8453782b288c330e5ba982d",
+      "sha256": "686156810d2a5e0f115ce5529189fd74df422963b8453782b288c330e5ba982d",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/137c3de9740e98e9.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/数据交换标准/数据模型定义.md",
+      "sourceSha256": "870424797b5c200d221fd577114df33c97b65a897f6d41fb97b947e901a4e10d",
+      "sha256": "870424797b5c200d221fd577114df33c97b65a897f6d41fb97b947e901a4e10d",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/5ec68b1dc54386fb.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/数据交换标准/数据验证规则.md",
+      "sourceSha256": "dcfaaffdea8ffdbb0ca8a41fcd83d44c4dcada06e9b8ba4f2fbc8fa146024cd7",
+      "sha256": "dcfaaffdea8ffdbb0ca8a41fcd83d44c4dcada06e9b8ba4f2fbc8fa146024cd7",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/f85300cc16f5ba1f.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/数据交换标准/数据转换工具.md",
+      "sourceSha256": "f218f203820a83711db5547548da87a8b070559f7899f74899c3b2e3093c07dc",
+      "sha256": "f218f203820a83711db5547548da87a8b070559f7899f74899c3b2e3093c07dc",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/0979daf572c5aafa.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/数据交换标准/消息格式规范.md",
+      "sourceSha256": "5952a8c888d0388a8459fd50ce3da5a282f47849baa1dbbf1fcc5bbc847265f0",
+      "sha256": "d120ce01419b9db6dce8f6e6832bbb02c11e48137e27f1c14bc2dbf08944d99e",
+      "redactions": 2,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/70b8503bd934f4e6.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/数据交换标准/HL7标准支持.md",
+      "sourceSha256": "621f6bb40b33093653ad9f01d73f1add2f1c29201f34af71a1a9e005ec011a64",
+      "sha256": "621f6bb40b33093653ad9f01d73f1add2f1c29201f34af71a1a9e005ec011a64",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/36602b991e0e2ee2.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/系统集成接口.md",
+      "sourceSha256": "eedc505f13aec29fcc2aa2fba92d2e161741173d25ca53897f1186d32f5f8a0e",
+      "sha256": "eedc505f13aec29fcc2aa2fba92d2e161741173d25ca53897f1186d32f5f8a0e",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/50b97094ae0ac09f.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/医疗设备集成接口.md",
+      "sourceSha256": "0ba068e48b92d9058feda329faf57bf69a9dfd37ecc7163a574dbc1cc00b9968",
+      "sha256": "0ba068e48b92d9058feda329faf57bf69a9dfd37ecc7163a574dbc1cc00b9968",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/5f9ffac80af3f991.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/HIS系统集成接口/挂号接口.md",
+      "sourceSha256": "fdef55388d239ac88288914fc6255f296e766623e6f0b437f0dc38c2903db844",
+      "sha256": "fdef55388d239ac88288914fc6255f296e766623e6f0b437f0dc38c2903db844",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/772c27b63da825cd.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/HIS系统集成接口/患者主索引集成.md",
+      "sourceSha256": "90b22b41f2dcdf8692e011e898b88d62c364a6bfd94c095bd84b1eaa1745f11e",
+      "sha256": "90b22b41f2dcdf8692e011e898b88d62c364a6bfd94c095bd84b1eaa1745f11e",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/0717d12cbfd69dce.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/HIS系统集成接口/检验检查集成.md",
+      "sourceSha256": "dd407d830e93ce7e6c30198188599a0e658013f0bbaa67a281b7d2415aa80460",
+      "sha256": "dd407d830e93ce7e6c30198188599a0e658013f0bbaa67a281b7d2415aa80460",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/f6f87d14ca83d365.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/HIS系统集成接口/医嘱数据交换.md",
+      "sourceSha256": "6b7b8ad41fe09c64002ffe8f02f5d805b1e8399cd5a40158908a0e7f6c2e1687",
+      "sha256": "6b7b8ad41fe09c64002ffe8f02f5d805b1e8399cd5a40158908a0e7f6c2e1687",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/ce1bfa1e9fc0f7f7.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/HIS系统集成接口/诊断信息同步.md",
+      "sourceSha256": "441be1bec5d195542596f573e4a1e736e7d0b4934ac7b2b990757e305f7ee2a6",
+      "sha256": "441be1bec5d195542596f573e4a1e736e7d0b4934ac7b2b990757e305f7ee2a6",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/16dcdb8a1e575118.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/HIS系统集成接口/支付集成.md",
+      "sourceSha256": "622ebda4b1157da1be9dc006b5ebbdb82059a230d2fe650a69f699f137d0dcba",
+      "sha256": "622ebda4b1157da1be9dc006b5ebbdb82059a230d2fe650a69f699f137d0dcba",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/751fa64f281083ba.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/系统集成接口/HIS系统集成接口/HIS系统集成接口.md",
+      "sourceSha256": "d65e41596a03d791d713291e90f0d5001a95a4205a98fa1b495c199d7de5e9b5",
+      "sha256": "9b669605e69174ab2be771f8b0c0ac7600f547613647a0bd769565a339e7fdae",
+      "redactions": 2,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/f03626cf9cc3a070.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/API接口文档.md",
+      "sourceSha256": "3d92f89fb9dd7cebed54d3cfc0a7940163a55e5d48e14552d810804f33a68534",
+      "sha256": "e00f1c8831483b047cbddb34a0360c5666f3ae24cd0280642d5df84f8733861e",
+      "redactions": 1,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/144a783bfcf748c7.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/Web服务接口/分诊系统接口.md",
+      "sourceSha256": "dd622be85524d5de94b8534b3112a875b6d9e356584e96b44a7b1dd75d72e1c3",
+      "sha256": "dd622be85524d5de94b8534b3112a875b6d9e356584e96b44a7b1dd75d72e1c3",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/71ffd20dcec1c37b.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/Web服务接口/公共通用接口.md",
+      "sourceSha256": "62eecf40dd11afebb38f517d39a665fedee6588a6052cb8b926a82ece7f2e8ca",
+      "sha256": "62eecf40dd11afebb38f517d39a665fedee6588a6052cb8b926a82ece7f2e8ca",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/9653aa0d60be6fe9.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/Web服务接口/患者主索引接口.md",
+      "sourceSha256": "3382d289d2f2574499fb1fc71f5a889e8f09c2f61ff6f68f4ccfb95ee6484fca",
+      "sha256": "3382d289d2f2574499fb1fc71f5a889e8f09c2f61ff6f68f4ccfb95ee6484fca",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/6f24fc23441d56a7.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/Web服务接口/门诊挂号接口.md",
+      "sourceSha256": "117b608037c39aaa1b9bbddc8f4e7b12d5e01297baa201ef87a7160c36f1f07f",
+      "sha256": "117b608037c39aaa1b9bbddc8f4e7b12d5e01297baa201ef87a7160c36f1f07f",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/904175073afc191f.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/Web服务接口/牙科系统接口.md",
+      "sourceSha256": "391808d44401df07018316bee0a08b541be6bb8c19f0a185a773d72177ccb9c5",
+      "sha256": "391808d44401df07018316bee0a08b541be6bb8c19f0a185a773d72177ccb9c5",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/20f2246ea319920f.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/Web服务接口/医生工作站接口/处方管理接口.md",
+      "sourceSha256": "e0b751d68a874428553982b72dda6a945a57e82610e401ae63e92675a357f673",
+      "sha256": "e0b751d68a874428553982b72dda6a945a57e82610e401ae63e92675a357f673",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/0107c540cac933a1.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/Web服务接口/医生工作站接口/工作列表接口.md",
+      "sourceSha256": "e93f2168f2dedc75304edef06eeff215dd409336255e46abe1de47270083e8ee",
+      "sha256": "e93f2168f2dedc75304edef06eeff215dd409336255e46abe1de47270083e8ee",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/4898a610151fd2a1.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/Web服务接口/医生工作站接口/患者管理接口.md",
+      "sourceSha256": "f02f4d40195a698cf93cba1bb6e115c877fef25809889cdcc1263f56f0663270",
+      "sha256": "f02f4d40195a698cf93cba1bb6e115c877fef25809889cdcc1263f56f0663270",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/aed956e61d9afb38.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/Web服务接口/医生工作站接口/医生工作站接口.md",
+      "sourceSha256": "dc3fbc219c4ba34078bb571e7ec7a9b620fef833a0d7ee17d8b1ce40b009b0f8",
+      "sha256": "dc3fbc219c4ba34078bb571e7ec7a9b620fef833a0d7ee17d8b1ce40b009b0f8",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/219e53fe1d1de5f1.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/Web服务接口/医生工作站接口/医嘱管理接口.md",
+      "sourceSha256": "7962cb9c4f58ad7b9cf56b8ed2193bcd7c59d8961073ce10f0e612b5a2d89de1",
+      "sha256": "7962cb9c4f58ad7b9cf56b8ed2193bcd7c59d8961073ce10f0e612b5a2d89de1",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/e3acc23d614787a1.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/Web服务接口/医生工作站接口/诊断管理接口.md",
+      "sourceSha256": "55601395f8604d6b598be5061eb601cbd2f0b19ccfc60446933fe6ffad9cebc9",
+      "sha256": "55601395f8604d6b598be5061eb601cbd2f0b19ccfc60446933fe6ffad9cebc9",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/d823305fd28c8c27.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/Web服务接口/治疗系统接口.md",
+      "sourceSha256": "d3f8a6b7511b04c3c9162342822b5d96dfe5866e61539ef3df09c4bfa4d46698",
+      "sha256": "d3f8a6b7511b04c3c9162342822b5d96dfe5866e61539ef3df09c4bfa4d46698",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/wiki/03b6003fcdb9f484.md",
+      "sourcePath": ".qoder/repowiki/zh/content/API接口文档/Web服务接口/Web服务接口.md",
+      "sourceSha256": "ae22f9e8b319074c779616f3b6920e5a1751011a358493f62c1828a5fc2b9dfb",
+      "sha256": "ae22f9e8b319074c779616f3b6920e5a1751011a358493f62c1828a5fc2b9dfb",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/menus/6528a3b004175477.md",
+      "sourcePath": ".agents/data/group-menu/产房医生.md",
+      "sourceSha256": "0ce3ce4de4437347ec79e82adc4c641861f653c4f54bb52e1ee06ec1dca4b256",
+      "sha256": "0ce3ce4de4437347ec79e82adc4c641861f653c4f54bb52e1ee06ec1dca4b256",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 34
+    },
+    {
+      "path": "sources/menus/31b8aa8bb00884b1.md",
+      "sourcePath": ".agents/data/group-menu/产科护士.md",
+      "sourceSha256": "fb86a19e4d14413f75b9d18314435b1c8229e50664b36dbe6e3037b79758e094",
+      "sha256": "0d2acf5bece2557da241054a31cca42f113d6529c4fec539fc4b1a2c1a38fe89",
+      "redactions": 2,
+      "rewrittenLinks": 0,
+      "sourceRows": 170
+    },
+    {
+      "path": "sources/menus/1ac3d1788e09124b.md",
+      "sourcePath": ".agents/data/group-menu/产科护士长.md",
+      "sourceSha256": "f2be787ab3beb1309207fd8cc137477f629489531f7ede1324a6201df751a2a4",
+      "sha256": "6c85f1cfe9d26154aea1b6d60343e3328903a9ceeeec15b5aba1e9d77a97fe5a",
+      "redactions": 2,
+      "rewrittenLinks": 0,
+      "sourceRows": 176
+    },
+    {
+      "path": "sources/menus/9048e87b1b2b9c81.md",
+      "sourcePath": ".agents/data/group-menu/方便门诊医生.md",
+      "sourceSha256": "caac6c4014670351e66dca73a982622a25605d5ec9415548dc011f865e508c0f",
+      "sha256": "5fd6f84d989d671ac449dcf6729f1b75e31a13e5cc07cd244664052f7e48aff9",
+      "redactions": 2,
+      "rewrittenLinks": 0,
+      "sourceRows": 35
+    },
+    {
+      "path": "sources/menus/0433384a25629ffd.md",
+      "sourcePath": ".agents/data/group-menu/急诊挂号收费.md",
+      "sourceSha256": "aa602f1b882c33f0a536e6ed70254669d9b7562267f4668854a70af4f746e533",
+      "sha256": "aa602f1b882c33f0a536e6ed70254669d9b7562267f4668854a70af4f746e533",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 56
+    },
+    {
+      "path": "sources/menus/36de77e3cfb65cd2.md",
+      "sourcePath": ".agents/data/group-menu/急诊留观抢救护士.md",
+      "sourceSha256": "dc31fdc9ecf10a842aa1d20fc090a49e9ebfdd8b2898ca77d733eae70ed6fe22",
+      "sha256": "dc31fdc9ecf10a842aa1d20fc090a49e9ebfdd8b2898ca77d733eae70ed6fe22",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 73
+    },
+    {
+      "path": "sources/menus/0a92694f7e3cc767.md",
+      "sourcePath": ".agents/data/group-menu/急诊医生.md",
+      "sourceSha256": "eab661550de560d6e3bb8f6e0a083b9a457c34d8bdbcacc1661fd2e24e64f5ab",
+      "sha256": "2a718f1f54b6e1668a7da9809ab006549fa631881d1bf14bcceea9cfaed6909a",
+      "redactions": 2,
+      "rewrittenLinks": 0,
+      "sourceRows": 182
+    },
+    {
+      "path": "sources/menus/c3616769ee46abf4.md",
+      "sourcePath": ".agents/data/group-menu/麻醉医生.md",
+      "sourceSha256": "13ad2d4f1f67b08b65a6dfe9424dca12aa4b61c2a000c48a667740bafb47a3bc",
+      "sha256": "13ad2d4f1f67b08b65a6dfe9424dca12aa4b61c2a000c48a667740bafb47a3bc",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 36
+    },
+    {
+      "path": "sources/menus/c93a720e0c556146.md",
+      "sourcePath": ".agents/data/group-menu/门诊部.md",
+      "sourceSha256": "b47973549d3d351ef8c0a428d81da10b2041d5af746d032071461e6561395fb1",
+      "sha256": "b47973549d3d351ef8c0a428d81da10b2041d5af746d032071461e6561395fb1",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 25
+    },
+    {
+      "path": "sources/menus/2c5cf82fff5c36d9.md",
+      "sourcePath": ".agents/data/group-menu/门诊分诊护士.md",
+      "sourceSha256": "0673460302757f9ed55010d6c210e71ea4f253c9d399f37e3ff7fa1b63c93473",
+      "sha256": "0673460302757f9ed55010d6c210e71ea4f253c9d399f37e3ff7fa1b63c93473",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 10
+    },
+    {
+      "path": "sources/menus/6e6b0fc80c16beae.md",
+      "sourcePath": ".agents/data/group-menu/门诊挂号收费.md",
+      "sourceSha256": "f63bf6a7b6f1cffb94ac851ed740ce5b217071da523a659b6e60e42b32d8319f",
+      "sha256": "f63bf6a7b6f1cffb94ac851ed740ce5b217071da523a659b6e60e42b32d8319f",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 57
+    },
+    {
+      "path": "sources/menus/db5346cfc8bd6d9d.md",
+      "sourcePath": ".agents/data/group-menu/门诊挂号收费组长.md",
+      "sourceSha256": "80637294d3c47e2023bbfe534ec50f3f2c283e40eafd113ed4574e18d341990c",
+      "sha256": "80637294d3c47e2023bbfe534ec50f3f2c283e40eafd113ed4574e18d341990c",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 66
+    },
+    {
+      "path": "sources/menus/8b7826f80f1eb4f6.md",
+      "sourcePath": ".agents/data/group-menu/门诊化疗护士.md",
+      "sourceSha256": "58ffb6d36b86379eb611ca34629c7cbcb5b941e3a55fe3a95acd69aa699e31fe",
+      "sha256": "58ffb6d36b86379eb611ca34629c7cbcb5b941e3a55fe3a95acd69aa699e31fe",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 6
+    },
+    {
+      "path": "sources/menus/54ceb2c4966ceec3.md",
+      "sourcePath": ".agents/data/group-menu/门诊医生.md",
+      "sourceSha256": "b9f05cf040d997b36c36e632dc1b833d33c90f4d05379fd80d8a5664dfa99621",
+      "sha256": "ab764a5a8f6504173d422370d70483addb2c60781622b45899390a0f2c01c351",
+      "redactions": 2,
+      "rewrittenLinks": 0,
+      "sourceRows": 56
+    },
+    {
+      "path": "sources/menus/8e372815e3d0420d.md",
+      "sourcePath": ".agents/data/group-menu/门诊医生主任.md",
+      "sourceSha256": "6a5b70e42cea9f94ff7b825d5b3e72bf61e38825be987be902f70072ef90bbf1",
+      "sha256": "412a1479646c945b5f6a4ce938196393ac2beaaa2c9796ba2a48de745a775925",
+      "redactions": 2,
+      "rewrittenLinks": 0,
+      "sourceRows": 57
+    },
+    {
+      "path": "sources/menus/cf63b39074f4ed90.md",
+      "sourcePath": ".agents/data/group-menu/入院办理.md",
+      "sourceSha256": "84a95e91bfd78d3b3cabe2cfa037b97b88a73d83ee118aef6ec7fc837a2ec71c",
+      "sha256": "84a95e91bfd78d3b3cabe2cfa037b97b88a73d83ee118aef6ec7fc837a2ec71c",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 17
+    },
+    {
+      "path": "sources/menus/71f15b072e3f0c7e.md",
+      "sourcePath": ".agents/data/group-menu/手术室护士.md",
+      "sourceSha256": "0f753af4de600e7176066f4671121d148962bc9cf692b77fbb813e90365d75f7",
+      "sha256": "0f753af4de600e7176066f4671121d148962bc9cf692b77fbb813e90365d75f7",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 18
+    },
+    {
+      "path": "sources/menus/aa0bf968a5926efc.md",
+      "sourcePath": ".agents/data/group-menu/手术室护士长.md",
+      "sourceSha256": "0e3711ed8d5e52c94d2afa037251f6fc76ec77690e017adb881bc31a1e873df5",
+      "sha256": "0e3711ed8d5e52c94d2afa037251f6fc76ec77690e017adb881bc31a1e873df5",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 18
+    },
+    {
+      "path": "sources/menus/0271ee5729efeacb.md",
+      "sourcePath": ".agents/data/group-menu/透析医生.md",
+      "sourceSha256": "17fa8b8f11f89f30255a968a50ba76349c947d8ec01424c90a848696c8bca2e1",
+      "sha256": "17fa8b8f11f89f30255a968a50ba76349c947d8ec01424c90a848696c8bca2e1",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 21
+    },
+    {
+      "path": "sources/menus/dd0b398ae7fb33c2.md",
+      "sourcePath": ".agents/data/group-menu/系统维护.md",
+      "sourceSha256": "db614d2e6ed7b543406691a303a80e4955a542fdc2fe9270a70204a806706f51",
+      "sha256": "db614d2e6ed7b543406691a303a80e4955a542fdc2fe9270a70204a806706f51",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 341
+    },
+    {
+      "path": "sources/menus/2a866f17a447aa88.md",
+      "sourcePath": ".agents/data/group-menu/血液透析护士.md",
+      "sourceSha256": "866b41b84341ee5d99c49c39dc46dc6707a06a948eb9154f018cdeb364e60f88",
+      "sha256": "866b41b84341ee5d99c49c39dc46dc6707a06a948eb9154f018cdeb364e60f88",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 9
+    },
+    {
+      "path": "sources/menus/3515dadc734413f9.md",
+      "sourcePath": ".agents/data/group-menu/治疗科室护士.md",
+      "sourceSha256": "978f7efdf8a7b3ddd7011cb90ebe28ecc7c1f715f81016e0c2342d26b121eccb",
+      "sha256": "978f7efdf8a7b3ddd7011cb90ebe28ecc7c1f715f81016e0c2342d26b121eccb",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 10
+    },
+    {
+      "path": "sources/menus/635a0498e0f8298a.md",
+      "sourcePath": ".agents/data/group-menu/治疗师.md",
+      "sourceSha256": "7f5eddf4f1d6db999f9931c27b7e6342e80545f5c645cf7872db771693902037",
+      "sha256": "7f5eddf4f1d6db999f9931c27b7e6342e80545f5c645cf7872db771693902037",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 21
+    },
+    {
+      "path": "sources/menus/222dc0284a4e6c04.md",
+      "sourcePath": ".agents/data/group-menu/住院护士.md",
+      "sourceSha256": "4c08400cefb727454cc6770d0e89d12dcef5ef4213cbb8bb40064433f5a56f04",
+      "sha256": "6b6ff00ca7ad7246419dcdc321709dc5a929f00a1d5b21c1ea46b6949e7213ee",
+      "redactions": 2,
+      "rewrittenLinks": 0,
+      "sourceRows": 174
+    },
+    {
+      "path": "sources/menus/d1a30b65d42e4554.md",
+      "sourcePath": ".agents/data/group-menu/住院护士长.md",
+      "sourceSha256": "1664111b498c19fd06ec680f6418e924e5ebb8027d49b62d0debe2442f08ad44",
+      "sha256": "43f653b7806fcf07684aa0115d9e79269920d5aa586d70f21e944e9dd2313b37",
+      "redactions": 2,
+      "rewrittenLinks": 0,
+      "sourceRows": 184
+    },
+    {
+      "path": "sources/menus/c27434181644a166.md",
+      "sourcePath": ".agents/data/group-menu/住院医生.md",
+      "sourceSha256": "ff2f1f32f0883c7ab0835cad0e3397c60348b5f82db6bf0feb02e8fca93a5553",
+      "sha256": "479def9e74a706719f67ce9941e864bc4fc99c15c146a26ca9006c8d41a18f52",
+      "redactions": 2,
+      "rewrittenLinks": 0,
+      "sourceRows": 150
+    },
+    {
+      "path": "sources/menus/def02f6789ff805b.md",
+      "sourcePath": ".agents/data/group-menu/住院医生主任.md",
+      "sourceSha256": "c1b2b4a6180d6bb10c342c4c049459cc31e45226ad57cc415eb6ae1f7e4fe808",
+      "sha256": "50f330160edccbf81af5ad13a29998778417d1d0bbf236e04ad86c4e4a3e45b7",
+      "redactions": 2,
+      "rewrittenLinks": 0,
+      "sourceRows": 153
+    },
+    {
+      "path": "sources/menus/ea6b5094a06ec878.md",
+      "sourcePath": ".agents/data/group-menu/Demo Group.md",
+      "sourceSha256": "1829a962dcd782c1d34beee33ba90330aed86b6ed08464595151ebffb0ad3aa3",
+      "sha256": "1829a962dcd782c1d34beee33ba90330aed86b6ed08464595151ebffb0ad3aa3",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 341
+    },
+    {
+      "path": "sources/menus/015b8dac9e186025.md",
+      "sourcePath": ".agents/data/group-menu/Emergency Doctor.md",
+      "sourceSha256": "d4e09697f0d42564c204b7edd547361618a5db35e60b36eb0c38e77b94decd95",
+      "sha256": "baddb3bd5aa566c6faa37d44efeeafb9ba406ea4fac406dc804e16295e73f744",
+      "redactions": 1,
+      "rewrittenLinks": 0,
+      "sourceRows": 98
+    },
+    {
+      "path": "sources/menus/7d5a10b77eafa61e.md",
+      "sourcePath": ".agents/data/group-menu/Emergency Nurse.md",
+      "sourceSha256": "d5e74d9ec037086b50188a027adde127d270bda7e4120fa263b10f89285de558",
+      "sha256": "d5e74d9ec037086b50188a027adde127d270bda7e4120fa263b10f89285de558",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 20
+    },
+    {
+      "path": "sources/menus/d76bf1020f9650d6.md",
+      "sourcePath": ".agents/data/group-menu/ICU护士.md",
+      "sourceSha256": "8392a176e22541e1b55e571f8250c0eb9434591de834b754eb7c6e13ba492af0",
+      "sha256": "6cac7734d340bda359133526b09b88801857cd50b94fdddfb33536da2b8078cb",
+      "redactions": 2,
+      "rewrittenLinks": 0,
+      "sourceRows": 159
+    },
+    {
+      "path": "sources/menus/24d702c7c89d2cae.md",
+      "sourcePath": ".agents/data/group-menu/ICU护士长.md",
+      "sourceSha256": "a0aa44defa2c9762258cd0a65949a52e4db7c5149458e86ec36866c15a5b0191",
+      "sha256": "6174d4ea504335f0ab41a885d77ff09d651b8a1009830f16b8543a0b8f620515",
+      "redactions": 2,
+      "rewrittenLinks": 0,
+      "sourceRows": 166
+    },
+    {
+      "path": "sources/menus/f229a3c1bb854568.md",
+      "sourcePath": ".agents/data/group-menu/ICU医生.md",
+      "sourceSha256": "07519d2f7535b0d80584f6c466dd1fbfcb72d484e311812004f70049e529f457",
+      "sha256": "445b5937739b0ffd36874d8896689d77b095cf5b141200c944550d58ae5ee809",
+      "redactions": 2,
+      "rewrittenLinks": 0,
+      "sourceRows": 128
+    },
+    {
+      "path": "sources/menus/df8f42680e38ae7e.md",
+      "sourcePath": ".agents/data/group-menu/Inpatient Doctor.md",
+      "sourceSha256": "2ca82d391bcd706ff8f6f5b85cdbe659dcf9b6b204e68557402640815f69cd87",
+      "sha256": "01c7eaa138a1958bb060c2206b9f454ef6f02910c856e9d10583cc2504b57503",
+      "redactions": 2,
+      "rewrittenLinks": 0,
+      "sourceRows": 208
+    },
+    {
+      "path": "sources/menus/536c43a20cbeb9c1.md",
+      "sourcePath": ".agents/data/group-menu/Outpatient Doctor.md",
+      "sourceSha256": "3775013c012e1185094f3ff8f7a2454d6012de128c3f9ced32dbaec283572695",
+      "sha256": "029b40a1d6e2cb15cb11423aec90f4d752f99c0d68af0ecb5865695f5beb1b6d",
+      "redactions": 1,
+      "rewrittenLinks": 0,
+      "sourceRows": 70
+    },
+    {
+      "path": "sources/menus/5201492a7b6b9efa.md",
+      "sourcePath": ".agents/data/group-menu/Outpatient Transfuse Nurse.md",
+      "sourceSha256": "5f4c6228a0fd171341fc98101dcb41380ec49805f85e676c45887fa4507b5782",
+      "sha256": "5f4c6228a0fd171341fc98101dcb41380ec49805f85e676c45887fa4507b5782",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 16
+    },
+    {
+      "path": "sources/menus/9fc14e7928421b81.md",
+      "sourcePath": ".agents/data/group-menu/Registration Manager.md",
+      "sourceSha256": "8ba6c20cd9a871073e3647a5f20b0b6d2892939330ab6165be54a53df9364542",
+      "sha256": "8ba6c20cd9a871073e3647a5f20b0b6d2892939330ab6165be54a53df9364542",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 30
+    },
+    {
+      "path": "sources/menus/1c58441e9767dc63.md",
+      "sourcePath": ".agents/data/group-menu/Triage Nurse.md",
+      "sourceSha256": "beca5b70977394c9df7f5861a5715a9787aa40d3f0fdcaf9ccbbd1cfc24f1647",
+      "sha256": "beca5b70977394c9df7f5861a5715a9787aa40d3f0fdcaf9ccbbd1cfc24f1647",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 6
+    },
+    {
+      "path": "sources/menus/d82071e77fc1038a.md",
+      "sourcePath": ".agents/data/Group.md",
+      "sourceSha256": "3c25c8b218a1d8e79962426628c7bcd40ab06dbcef4c1449765178810f1c1558",
+      "sha256": "3c25c8b218a1d8e79962426628c7bcd40ab06dbcef4c1449765178810f1c1558",
+      "redactions": 0,
+      "rewrittenLinks": 0,
+      "sourceRows": 44
+    },
+    {
+      "path": "sources/menus/21d788caad8a2569.md",
+      "sourcePath": ".agents/data/Menu.md",
+      "sourceSha256": "7da4f389dd8ec4a30302096f1f4ccba94fe8686a241481fa35e4c70bd8bc5381",
+      "sha256": "8efa93789e002ce2debfc93fe9261111bd8435561288b33c820e13711e78529e",
+      "redactions": 21,
+      "rewrittenLinks": 0,
+      "sourceRows": 9047
+    },
+    {
+      "path": "sources/docs/974e478089179ed4.md",
+      "sourcePath": ".agents/docs/编译与部署指南.md",
+      "sourceSha256": "b0f2a0e20b3babc1385c1c91523f08fc31c96aaa1bb6ac6d453e476aa1f432d0",
+      "sha256": "d6ac635703da0eeac5632a725277deaffd9fa7bb163d017e9afdaa57100c6e1f",
+      "redactions": 8,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/docs/9ec2b9909471faaa.md",
+      "sourcePath": ".agents/docs/代码架构详解.md",
+      "sourceSha256": "3495614f78fa2e4c324eea488124f994d12498ec3c1df11cbff1ab44f91bbefa",
+      "sha256": "3495614f78fa2e4c324eea488124f994d12498ec3c1df11cbff1ab44f91bbefa",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/docs/d2349402be04d0da.md",
+      "sourcePath": ".agents/docs/多语言翻译指南.md",
+      "sourceSha256": "494b508459d37eaee384db7254c1351219cf8ec662d64930ca35d48ea3abb85a",
+      "sha256": "494b508459d37eaee384db7254c1351219cf8ec662d64930ca35d48ea3abb85a",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/docs/dc65d4c4d6911579.md",
+      "sourcePath": ".agents/docs/门诊医生AI工作站-对话卡片开发对接文档.md",
+      "sourceSha256": "0f5c5bcaa88c85e618ff85baf94d529c26c46b2be49171f04b7c53348c48c8da",
+      "sha256": "9a505a59458e1c1cc26a9758387cba7bbbd18dd48c169983cc02e41802a5ff8b",
+      "redactions": 1,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/docs/ed22c21129dee042.md",
+      "sourcePath": ".agents/docs/命名规范.md",
+      "sourceSha256": "68ed3fe4e77d4269725879b1099749711f720389479a3d9845fd368bdb3f461b",
+      "sha256": "68ed3fe4e77d4269725879b1099749711f720389479a3d9845fd368bdb3f461b",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/docs/5d9153777a1e308d.md",
+      "sourcePath": ".agents/docs/前端控件与样式开发注意事项.md",
+      "sourceSha256": "1af7938c9bfb162da021e0e683fc63d2f521ee35bfde6e4c9e01e1f411e29891",
+      "sha256": "1af7938c9bfb162da021e0e683fc63d2f521ee35bfde6e4c9e01e1f411e29891",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/docs/b42ed5fcf5f16ada.md",
+      "sourcePath": ".agents/docs/Git工作流.md",
+      "sourceSha256": "ae957240841fc41786032a30d0152e7ab0fc0e97830a496bdbc90463e03c318f",
+      "sha256": "ae957240841fc41786032a30d0152e7ab0fc0e97830a496bdbc90463e03c318f",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/docs/4389d91042099e51.md",
+      "sourcePath": ".agents/docs/iris-dev-mcp使用说明.md",
+      "sourceSha256": "6323419a0e5c1f759faf9ecf1bdcf55bea49e65a0d66683baf874aa8fa0a0ac0",
+      "sha256": "34ef605086c48e001236efa523ae64ee1199fd0700691edadd7cde0ec06650a5",
+      "redactions": 69,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/docs/e62361bd57cb91cd.md",
+      "sourcePath": ".agents/docs/JavaScript编码规范.md",
+      "sourceSha256": "afa77480a5bdeb93eb1148fe9e521f978506de26f869264d99f5ea2aec1d9a25",
+      "sha256": "afa77480a5bdeb93eb1148fe9e521f978506de26f869264d99f5ea2aec1d9a25",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/docs/e59af3ca4f0d0df4.md",
+      "sourcePath": ".agents/docs/ObjectScript编码规范.md",
+      "sourceSha256": "abb767ec7eb0d6c9680ef14d0d310bc516143fa74ebb6a84e1628324389bf72d",
+      "sha256": "abb767ec7eb0d6c9680ef14d0d310bc516143fa74ebb6a84e1628324389bf72d",
+      "redactions": 0,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/docs/059104d5a000401e.md",
+      "sourcePath": ".agents/docs/Playwright-CLI使用说明.md",
+      "sourceSha256": "134f1c884fa6ee038c9c2e45a9c31c9245ef1e09441090e2182d866939b94a48",
+      "sha256": "2483a8601d7bcfeb9e54d858b61232ffecf2ca2a43666f55930e18dc50b20383",
+      "redactions": 24,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/docs/2dea44f641b3fdc5.md",
+      "sourcePath": ".agents/docs/Playwright-MCP参考文档.md",
+      "sourceSha256": "9940ccc83e8835c1f9a196d6332aa11f1d8e80a34698e8b011bc4c0eccc13b5f",
+      "sha256": "b9cccc25d513b2c0196c29486ef24a3b264bd8fd2188fb19257a1a80b10abaae",
+      "redactions": 13,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/docs/a26cfb25d71f026e.md",
+      "sourcePath": ".agents/docs/public-css.md",
+      "sourceSha256": "80943c7d40ee7b7d738606fd07c80121e4f99b996e4b772d9eed093669461a1f",
+      "sha256": "4bcb7e20fc614467ccb275dadb79fa0558714825da69825b75b04b45eec2498b",
+      "redactions": 1,
+      "rewrittenLinks": 0
+    },
+    {
+      "path": "sources/docs/dba0e2f642975907.md",
+      "sourcePath": ".agents/docs/public-js.md",
+      "sourceSha256": "acd70d660c8d7eaf964ddb6c0f958ad5df82a8ab217b19e3382bf90e205af7d9",
+      "sha256": "346a07eaf4d31825f1c31854749794ec9eff6b98c6cac9df9533beb7066794c0",
+      "redactions": 1,
+      "rewrittenLinks": 0
+    }
+  ],
+  "omitted": [
+    {
+      "path": ".qoder/repowiki/zh/meta/repowiki-metadata.json",
+      "sha256": "75251921368f57c1846f6fc80979e80b342162e50f0a9c3097a01d27f9c6d32d",
+      "reason": "generator cache or non-document metadata"
+    }
+  ]
+}

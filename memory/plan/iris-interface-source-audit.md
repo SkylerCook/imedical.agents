@@ -84,7 +84,7 @@ CLI 子命令：
 
 | 分类 | 来源资产 | 处理方式 | 目标位置建议 |
 |---|---|---|---|
-| 保留 | 文档解析入口、表头映射、解析结果数据结构 | 改写为插件运行时能力 | `plugins/iris-interface-dev-plugin/src` 或后续独立包 |
+| 保留 | 文档解析入口、表头映射、解析结果数据结构 | 改写为插件运行时能力 | `plugins/iris-interface-dev/` 的领域适配层或 `extract-doc` 通用解析层 |
 | 保留 | 字段归一化、多轮匹配、域推断思路 | 改写并补测试 | 插件 src + 小型规则/参考 |
 | 保留 | 接口生成编排流程 | 改写为 workflow/skill 说明，不直接绑定子 Agent | 插件 skills/references |
 | 保留 | 离线字段覆盖率、TODO、匹配诊断检查 | 改写为验收脚本 | 插件 scripts |
@@ -101,7 +101,7 @@ CLI 子命令：
 
 ## 新插件边界建议
 
-`iris-interface-dev-plugin` 只承载接口开发领域能力：
+`iris-interface-dev` 只承载接口开发领域能力：
 
 - 文档转换与结构化抽取。
 - 字段语义归一化和字段匹配诊断。

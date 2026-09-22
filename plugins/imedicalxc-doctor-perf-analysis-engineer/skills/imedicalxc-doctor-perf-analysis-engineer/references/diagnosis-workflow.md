@@ -8,7 +8,7 @@
 
 ### 场景 B：用户未指定目标（如"帮我看看有什么慢接口"）
 
-1. **询问时间范围**：使用 `AskUserQuestion` 询问用户查询时间范围；用户不指定则默认最近 3 天
+1. **询问时间范围**：向用户确认查询时间范围；用户不指定则默认最近 3 天
 2. **搜索慢接口**：参考 graylog-search.md 使用 MCP 工具搜索 `full_message:"接口响应超过15"`，用 `fields="*"` 获取 traceId 等完整字段
 3. **获取精确统计**：用 `aggregate_logs` 按接口分组获取精确次数和耗时统计
 4. **计算慢请求占比**（关键步骤，每接口 2 次 MCP 调用）：
@@ -39,7 +39,7 @@
    | 1% ~ 10% | 需关注 — 偶发但不可忽视 |
    | < 1% | 个例 — 可暂缓处理 |
 
-6. **询问用户意图**（使用 `AskUserQuestion`）：
+6. **询问用户意图**：
    - "输出报告" — 生成汇总报告（仅整理归类，不分析代码）
    - "挑一个具体分析" — 用户选择一个接口进入第一步
    - **禁止自动分析所有慢接口**
@@ -55,7 +55,7 @@
 从用户输入中提取：
 - **接口全限定名**：如 `com.mediway.his.ipcare.oeord.controller.IpCareOeOrdItemPortalController#unUseMulti`
 - **traceId**：如 `8869509280484950536`
-- **Graylog 环境**：使用 `AskUserQuestion` 询问用户选择环境（参考 graylog-search.md 的环境列表）
+- **Graylog 环境**：向用户确认目标环境；连接事实只从用户或目标项目的私有配置读取
 - **输出目录**：默认输出到当前项目目录，用户可另行指定。文件名为 `{方法名}性能分析报告.md`
 
 ## 第二步：读取代码
@@ -114,7 +114,14 @@ ext/BLH (注解实现) → Abstract (业务层) → comoe Abstract (公共库) �
 
 ### 3.1 分页下载日志
 
-使用 graylog-search.md 的 API 格式，以 traceId 为关键字查询日志，limit=500，逐页下载直到返回条数 < 500。
+使用 graylog-search.md 的 JSON API 格式（`Accept: application/json` + `fields=*`），以 traceId 为关键字查询日志，limit=500，逐页下载直到返回条数 < 500。
+
+```powershell
+# 必须用 JSON 格式（含 total_results），分页参数：limit + offset
+$query = [Uri]::EscapeDataString("traceId:{trace-id}")
+curl.exe -sS -u "$($env:GRAYLOG_ACCESS_TOKEN):token" -H "Accept: application/json" `
+  "https://{graylog-host}/api/search/universal/relative?query=$query&range={seconds}&limit=500&offset=0&fields=*"
+```
 
 > 对话模式下不下载全量日志，仅通过少量 API 采样确认关键指标。
 
@@ -177,7 +184,7 @@ ext/BLH (注解实现) → Abstract (业务层) → comoe Abstract (公共库) �
 
 ### 3.7 关键诊断规则
 
-**traceId 查询先看总量、确认后再查全量**：用 traceId 过滤时，先用默认 limit 查一次，看 `total_results` 是否超出限制。如果超出，必须提示用户"共 X 条日志，当前只取了 Y 条，是否查询全部？"，由用户确认后再用 `limit: 1000` 查全量。**禁止在未确认的情况下截取部分数据做分析**，否则会导致耗时归因严重错位。
+**traceId 查询先看总量、确认后再查全量**：用 traceId 过滤时，先发一次 JSON 查询（`Accept: application/json` + `fields=*` + `limit=5`），从 `total_results` 确认日志总量。**CSV 格式不含 `total_results`**，不能用于此步骤。如果总量超出限制，必须提示用户"共 X 条日志，当前只取了 Y 条，是否查询全部？"，由用户确认后再用分页（`limit=500&offset=N`）下载全量。**禁止在未确认的情况下截取部分数据做分析**，否则会导致耗时归因严重错位。
 
 **按线程+时间戳精确分解**：拿到全量日志后，必须按 `thread_name` 分组、按毫秒级时间戳排序，精确计算每个阶段的耗时，不能凭 StopWatch 总耗时就把子调用归因到一个组件上。
 
@@ -216,7 +223,18 @@ ext/BLH (注解实现) → Abstract (业务层) → comoe Abstract (公共库) �
 
 **对话模式（默认）**：展示基本信息、Top 10 耗时排名、核心问题分析（代码位置+代码片段+影响+优化方向）、优化汇总表。
 
-**文件模式**：当用户明确要求输出文件时，按 [[report-template.md]] 生成完整 MD 报告。
+**文件模式**：当用户明确要求输出文件时，按 [[report-template.md]] 生成完整 MD 报告，**必须覆盖以下全部章节**：
+
+1. **基本信息** — 产品组、模块、接口路径、traceId、入参、总耗时、严重程度
+2. **调用链路** — 树形文本图，标注 Controller→BLH→Service→Mapper，精确到 `文件名:行号`
+3. **耗时分解（瀑布图）** — 时间轴分阶段，标注占比和关键操作
+4. **操作次数统计** — 表格：操作类型、次数、表/接口
+5. **接口耗时排名（Top 10）** — 单次耗时、调用次数、估算总耗时、占比
+6. **核心问题分析** — 每个问题：代码位置+代码片段+影响+Graylog 证据
+7. **优化方案** — 每个方案标注**优先级+预期收益**，含**优化前/后代码对比**
+8. **总结** — 汇总表（方案、收益、实施位置、难度、优先级）+ 根因 + 执行建议
+
+> **质量门禁**：输出文件前自检是否缺失以上任一章节。缺失则补齐后再写入。
 
 对话模式下不下载全量日志，仅通过少量 API 采样确认关键指标。
 

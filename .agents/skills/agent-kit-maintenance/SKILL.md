@@ -1,0 +1,138 @@
+---
+name: agent-kit-maintenance
+description: Use when maintaining the imedical.agents repository itself, especially after plugin, skill, rule, reference, script, vendor, README, AGENTS, memory, install/update, thin-index, or deployment-boundary changes. This repository-local skill lives under .agents/skills in the source repository and is not part of business-project deployment or thin-index generation.
+---
+
+# Agent Kit Maintenance
+
+## 目标
+
+维护 `imedical.agents` 能力包仓库时使用本 skill，避免多人提交插件或脚本后遗漏 README、维护记忆、manifest、docs 或测试。
+
+本 skill 是维护者专用入口，位于能力包源仓 `.agents/skills/agent-kit-maintenance/`，作为受版本控制的仓库本地 Agent 上下文。它不在业务项目 sparse checkout 的部署清单内，也不参与 thin-index。
+
+源仓根 `.agents/` 与业务项目中的 `.agents/` 语义不同：前者只承载维护 `imedical.agents` 本身所需的本地上下文；后者是安装到业务项目的独立能力包仓库。不要把源仓 `.agents/` 部署成业务项目 `.agents/.agents/`。
+
+## 必读入口
+
+按任务读取，避免一次性加载过多上下文：
+
+1. 总是先读根 `AGENTS.md` 和 `memory/agent-kit-maintenance-memory.md`。
+2. 涉及长期边界、目录分层、thin-index、vendor、adapter 或部署范围时，读 `memory/agent-kit-maintenance-decisions.md`。
+3. 需要了解近期提交和验证状态时，读 `memory/agent-kit-maintenance-log.md`。
+4. 需要判断后续治理优先级时，读 `memory/agent-kit-maintenance-backlog.md`。
+5. 涉及安装、更新、sparse checkout、plugin profile、vendor skill 同步或 thin-index 生成时，读 `docs/update-agents.md` 和相关脚本。
+6. 涉及具体插件时，读该插件 `AGENTS.md`、README、`.agents-plugin/plugin.json`、相关 `skills/`、`rules/`、`references/`、`templates/`、`scripts/`。
+7. 涉及插件或根级独立 skill 变更时，读 `maintenance/governance/component-version-management.md`，核对版本、依赖范围和 release record。
+
+根 `AGENTS.md` 是维护约束的事实来源；本 skill 将约束转为检查流程，不维护第二套规则。开始时区分只读审计与实施范围，检查工作区已有修改；审计只交付发现，不自动修复、提交或同步业务副本。
+
+## 插件提交同步门禁
+
+提交任何插件能力变更前，必须检查并按需更新：
+
+- 插件 `AGENTS.md`
+- 插件 README
+- `.agents-plugin/plugin.json`
+- `releases/plugin/<name>/<version>.md`
+- 相关 `SKILL.md`、rule、reference、template、script
+- 仓库 README
+- `memory/agent-kit-maintenance-memory.md`
+- `memory/agent-kit-maintenance-log.md`
+- `memory/agent-kit-maintenance-backlog.md`
+- 相关 `docs/`
+- 对应测试，例如 `scripts/tests/update-agents.tests.ps1` 或插件专项测试
+
+禁止只提交插件实现而遗漏对应说明、记忆或验证入口。
+
+插件目录发生任何变化时必须递增插件版本；根级独立 skill 目录变化时必须递增自身版本。插件内部内容继承插件版本，不得维护第二套版本号。提交前运行：
+
+```powershell
+node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js validate --repo-root . --staged --budget-ms 60000
+```
+
+## 业务需求夹带框架变更的回看门禁
+
+实际业务需求提交中可能同时修正 `agents/`、`workflows/`、`skills/`、`feedback/`、共享协议、插件通用能力或根脚本。此类变更仍属于能力包维护，不能因为提交主题是业务需求而跳过维护同步。
+
+1. 读取 `memory/agent-kit-maintenance-log.md`，确定上次维护记录覆盖到的提交。
+2. 用 `git log` 和 `git show --name-status` 检查此后提交；按实际文件判断影响面，不只依赖 commit message。
+3. 对 canonical agent/workflow 变更，同步检查 registry、`AGENT.md`、`bindings.yaml`、workflow、共享 handoff/feedback 协议、仓库 README、验证文档和专项测试。
+4. 对需求经验或框架反馈机制变更，同步检查 `plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md`、`agents/_shared/feedback-protocol.md`、项目入口模板、owner rule、维护记忆和提交/推送授权边界。
+5. 已完成事项写入维护日志；仍未完成的真实验证或治理工作留在 backlog。不要把已完成事项继续写成“下一步”。
+
+本 skill 固定使用 `taskKind=framework-maintenance` 和 `agents/_shared/maintenance-lifecycle.md`，不创建或推进业务需求的 `acceptance` 状态。框架维护、版本升级、文档治理和 feedback 机制自身修改不触发 `agent-framework-feedback`，也不在收尾时向用户建议 feedback；它们通过版本、文档、测试、维护日志、backlog 和必要的部署副本同步进入 `maintenance-complete`。若同一对话还包含业务需求，必须建立独立业务记录，不能让两类状态相互继承。
+
+## 影响面判断
+
+- **新增或重构插件**：同步插件 README、插件 `AGENTS.md`、manifest、仓库 README、维护记忆、安装/更新说明和 thin-index 行为。
+- **修改插件或根级独立 skill**：按严格 SemVer 递增 owner 版本，新增不可变 release record，核对 `dependencyVersions`，运行组件版本校验；不得把版本工具接入业务项目更新流程。
+- **重命名插件 canonical 名称**：manifest 声明 `legacyNames`；验证旧 `plugin_profile.md` 的 `enabled` / `disabled` 状态迁移、新旧名称显式选择、旧 rule/skill thin-index 清理和已部署配置兼容；禁止只移动目录。
+- **修改 skill/rule/reference/template**：同步触发条件、路由说明、相关 README/AGENTS、维护日志；若影响已部署项目，说明兼容清理策略。
+- **修改 thin-index 行为**：只改根 `scripts/generate-plugin-thin-index.ps1`；插件 wrapper 只能转发参数；同步测试、README、docs 和维护记忆。
+- **修改 install/update/vendor 同步**：同步 `docs/update-agents.md`、`scripts/tests/update-agents.tests.ps1`、仓库 README 和维护日志。
+- **新增 vendor 资产或 vendor skill**：同步 `vendor/` 边界说明、安装/更新路径、vendor skill 同步说明和敏感信息边界。
+- **修改 canonical agent/workflow、handoff 或反馈协议**：同步 registry/bindings、仓库 README、维护记忆、验证样例和专项测试；多智能体与远程写入授权必须分别表达。
+- **新增或修改脚本与运行时**：按根 `AGENTS.md` 的“脚本与跨平台运行时”检查 JavaScript/Node 内置模块优先、Node 基线及前置检查、PowerShell 适配边界；新增根运行时文件须核对 sparse checkout 覆盖。跨平台变更必须验证 Windows/macOS/Linux 矩阵及不支持能力的降级或停止行为，不能把 CI 配置存在当成矩阵通过。
+- **新增或修改 canonical agent/workflow**：检查模型与厂商无关性、抽象能力档位，以及无 subagent、无 skill、无法解析 YAML 时的 Markdown 串行降级路径。
+- **新增长期规则或治理约束**：判断应进入根 `AGENTS.md`、`memory/agent-kit-maintenance-decisions.md`、README、docs 还是本 skill；不要复制长篇规则到多个地方。
+
+## 验证清单
+
+按实际改动选择验证，不以维护任务为由固定运行完整套件。只读审计不触发构建、部署或产物生成。实施后先复核差异与工作区状态：
+
+```powershell
+git diff -- <changed-files>
+git status --short
+git diff --check
+```
+
+- **纯文档或维护 skill 文案**：检查引用路径、规则一致性和相关契约；未改变组件内容或验证器时，不运行组件版本完整测试。插件或根级独立 skill 目录内的文档变化仍受组件版本治理约束。
+- **插件或根级独立 skill 目录变化**：先精确暂存本次文件，提交前运行下列 staged 组件版本校验，并按改动补充 owner 专项测试。完整审计保留给 CI、发布或明确审计。
+- **组件版本工具或治理逻辑变化**：补充 `node --test scripts/tests/component-version-management.tests.js`；其它任务仅在影响该行为或有回归证据时运行。
+- **PowerShell 与跨平台工具链变化**：按根规则验证支持的宿主和平台；通用 `.ps1` 验证 Windows PowerShell 5.1，跨平台矩阵尚未完成时明确列出缺口，不宣称全部通过。
+- **生成预览、交付包或部署运行态的项目集成测试**：从目标项目执行，产物放目标项目约定目录（治疗表单为 `docs/work/cure-form/`）；不在源仓生成业务测试产物。纯框架单元测试使用隔离临时目录。
+
+```powershell
+node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js validate --repo-root . --staged --budget-ms 60000
+```
+
+完整回归与提交门禁分开。完整测试通过后，用 `scripts/validation-evidence.js record` 记录 suite、原命令、受测 scope 和 worktree 指纹；提交前用 `check` 验证证据。指纹匹配时必须复用结果，不得机械重复运行完整测试套件；只有命中该 scope 的文件变化、此前无有效证据或验证失败时，才补跑对应测试并重新记录。
+
+```powershell
+node scripts/validation-evidence.js record --repo-root . --suite component-version-full --command "node --test scripts/tests/component-version-management.tests.js" --scope .agents/skills/agent-kit-maintenance/scripts --scope scripts/tests/component-version-management.tests.js
+node scripts/validation-evidence.js check --repo-root . --suite component-version-full
+```
+
+功能证据绑定 scope 内实际内容、文件类型和可执行位，HEAD 仅作来源信息；无关提交与 scope 外文案变化可复用。scope 必须覆盖实现、测试、配置及实际读取的协议，不能仅凭后缀排除运行输入。版本门禁自动保存独立指纹，绑定暂存变更路径、前后元数据、依赖图和校验器；命中缓存复用结果，失败或超时不得记为通过。旧版证据不能直接升级为有效证据。提交只补齐失效的对应功能测试、`validate --staged`、`git diff --cached --check` 和暂存复核，未暂存修复不能替代暂存内容的验证。
+
+版本门禁只检查暂存 owner 与直接依赖兼容，输出阶段、组件数和耗时，默认 60 秒预算。未变化的既有发布记录问题单列报告，新增问题阻断；完整审计仍阻断历史问题。规则及范围见 `maintenance/governance/component-version-management.md`，不在提交阶段重新扫描无关历史。
+
+只有已有明确提交授权时才执行 `git commit`；按根 `AGENTS.md` 检查中文 Conventional Commits 标题和以 `修改说明:` 开头的正文。维护完成不隐含 commit、merge、push、远程写入或业务副本部署授权；沿用已有授权，不重复确认，也不扩大操作范围。
+
+按影响面补充：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/tests/update-agents.tests.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync-vendor-skills.ps1 -AgentsRoot . -Mode DryRun
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-plugin-thin-index.ps1 -PluginPath plugins/<plugin-name> -ProjectRoot . -Mode DryRun
+```
+
+临时产物按当前工作区约定放入任务专属目录，并记录本任务创建的路径。收尾只清理能够证明由本任务创建、且不再用于交付、验收或恢复的内容；删除前核实绝对路径、内容归属和链接边界，删除后确认成功。若发现字面量 `%SystemDrive%/` 等异常目录，同样适用这些条件，不能仅因它位于工作区就删除。仍需保留的文件说明路径和原因。
+
+## 维护记忆写法
+
+- `agent-kit-maintenance-memory.md` 只写短摘要、当前重点和路由。
+- `agent-kit-maintenance-decisions.md` 写长期稳定决策。
+- `agent-kit-maintenance-log.md` 写近期完成、提交索引和验证摘要。
+- `agent-kit-maintenance-backlog.md` 写未完成治理队列。
+- 维护待治理项时，按根 `AGENTS.md` 要求逐项检查明确的 P0–P3 优先级；复用 backlog 的优先级定义，新增或调整事项时同步更新排序入口与对应详情，避免优先级缺失或两处不一致。
+- 不写完整规则正文、大段脚本说明、大段命令输出、一次性失败流水或业务私有事实。
+
+## 禁止事项
+
+- 不写服务器地址、账号、密码、token、namespace、远程路径或敏感连接信息。
+- 不把业务项目私有事实写入本仓库插件、规则、模板或维护记忆。
+- 不把根 `AGENTS.md` 复制成 `CLAUDE.md` 或 `CODEBUDDY.md`。
+- 不把工具专属 adapter 当成 canonical 源。
+- 不把 plugin thin-index、agent thin-index 和工具 adapter 生成逻辑混在同一脚本中。

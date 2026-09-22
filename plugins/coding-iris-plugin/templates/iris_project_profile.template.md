@@ -8,7 +8,10 @@
 
 以下配置在工程级别统一。单仓库工程直接填写；多仓库工作区所有仓库共享。
 
+- 默认需求交付类型：TODO
 - Web 技术：CSP / HISUI / TODO
+
+`standard` 表示标版、标准版或通用产品需求；`project` 表示医院项目、客户定制或项目实施需求。初始化或更新时只根据项目上下文中的明确语义填充，不能根据目录名、`contextMode`、remote、upstream 或代码量推断。保留 `TODO` 时，需求提交前必须提示用户补全。
 
 ### HISUI 配置
 
@@ -18,16 +21,18 @@
 
 ### 编码策略
 
-- 源文件编码：TODO（如"前端 GB2312, 后端 UTF-8"）
-- 前端源文件编码策略：preserve-existing
-- 历史前端默认编码：TODO（如 GB2312；不确定时写"按文件检测"）
-- 前端编码漂移检查：TODO（如"GB2312 前端文件收尾运行 check-frontend-encoding.ps1 -ExpectedEncoding gb2312 -ErrorOnMismatch"）
-- 上传前是否运行 `convert-gb2312-upload.ps1`：TODO
+- 后端源文件编码：UTF-8
+- 前端编码模式：utf8
+- 前端编码冲突处理：stop-and-report
+
+`project-utf8` 仅作为旧 profile 的兼容读取别名；`standard-gb2312` 仅用于用户明确指定的历史工程。新项目和当前标版不得按路径或仓库角色改写 `utf8` 默认值。
+
+workspace-overlay 若在 `capability.json` 中明确只声明 `backend`、未声明 `frontend` SourceRoot，应将“前端编码模式”规范化为 `N/A (backend-only)`；不得保留旧 `TODO` 双模式提示，也不得扫描父目录或 sibling 猜测前端源码。若后续新增 `frontend` SourceRoot，重新运行迁移并通过实际字节门禁后再写回 `utf8`。
 
 ### 部署能力
 
 - 编码时从 `.mcp.json` 确认可用的 MCP 工具（iris_doc、iris_compile、sftp-server 等）
-- CSP 编译命令模板：`$system.OBJ.Load("<web-app-virtual-root>/csp/<file>.csp","c")`，必须使用 WebApp 虚拟路径，不使用物理 Web 根路径
+- CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 
 ### 远端部署路径
 

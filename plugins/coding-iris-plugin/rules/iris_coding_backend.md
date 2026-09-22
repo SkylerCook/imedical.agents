@@ -9,6 +9,8 @@ related:
 
 # 后端 ObjectScript 编码规则
 
+Agent 编码时遵循 `../references/cls-coding-format.md`：方法间及类结束符前保留一行空白，EOF 保留一个换行。已有类仅规范本次编辑位置，历史格式不处理；可选自检只提示，不作为提交门禁。
+
 ## 技术栈
 
 - 后端语言：InterSystems IRIS ObjectScript。
@@ -34,10 +36,12 @@ related:
 
 ## ObjectScript 风格
 
-- 命令条件语法中命令和条件之间不能有空格：`q:cond=""`，不要写 `q: cond=""`。
+- 命令后条件语法中，命令、冒号和完整条件表达式必须连续书写：`q:((cond="")&&(cond1=""))`，不要写 `q: cond=""`。
+- 复合后条件同样不能在逻辑运算符两侧拆出命令级空格。正确示例：`continue:(episodeId'="")&&(appEpisode'=episodeId)`；错误示例：`continue:(episodeId'="") && (appEpisode'=episodeId)`，后者会触发 `#1012 Expected EOL or spaces`。
 - 使用缩写：`s`、`d`、`q`、`$g`、`$p`、`$o`、`$d`。
 - 不使用长命令：`set`、`do`、`quit`、`$get`、`$piece`、`$order`。
 - 方法大括号换行显示，缩进 4 个空格。
+- 条件分支必须保持同一种语法结构：单行命令式使用配对的 `i ...` / `e ...`；花括号块统一使用 `if ... { ... } else { ... }`。不要在 `i condition { ... }` 块结束后继续使用独立的 `e s ...`。
 - 必填参数校验优先用 `$g(param)=""`，避免未传参时报 `<UNDEFINED>`。
 - `%DynamicObject` 属性不能用 `$g()`，直接点号访问并按对象语义判断。
 
@@ -81,6 +85,8 @@ related:
 ## 验证
 
 - 修改 `.cls` 后，默认只做本地检查。
+- 检查 `q:`、`d:`、`s:`、`continue:` 等命令的完整后条件表达式，确认冒号后直到条件结束没有空格分隔；尤其禁止 `continue:(cond1) && (cond2)` 这类写法。
+- 新增或重构条件分支后，检查完整 `if/else` 结构和缩进，避免命令式 `i/e` 与花括号块混用；`git diff --check` 只检查空白问题，不能作为 ObjectScript 语法编译结果。
 - `%Persistent` 新增字段时，检查新属性位于末尾，Storage 未被手工重排，相关 Insert/Update/Import 写入路径已同步。
 - 用户明确要求编译时，按 `.mcp.json` 选择 IRIS 上传/编译 MCP。
 - 上传 `.cls` 时使用完整包路径文件名，不只传短名。

@@ -1,9 +1,23 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
 $scriptUnderTest = Join-Path $repoRoot "scripts/update-agents.ps1"
 $profileScriptUnderTest = Join-Path $repoRoot "scripts/update-plugin-profile.ps1"
 $agentThinIndexScriptUnderTest = Join-Path $repoRoot "scripts/generate-agent-thin-index.ps1"
+$vendorThinIndexScriptUnderTest = Join-Path $repoRoot "scripts/generate-vendor-thin-index.ps1"
+$skillDependencyResolverUnderTest = Join-Path $repoRoot "scripts/resolve-plugin-skill-dependencies.ps1"
+$workspaceContextModuleUnderTest = Join-Path $repoRoot "scripts/lib/WorkspaceContext.psm1"
+$overlayInitializerUnderTest = Join-Path $repoRoot "scripts/initialize-workspace-overlay.ps1"
+$checkFunctionalDiffScriptUnderTest = Join-Path $repoRoot "scripts/check-functional-diff.ps1"
+$installGitHooksScriptUnderTest = Join-Path $repoRoot "scripts/install-git-hooks.ps1"
+$repairAgentEntrypointsScriptUnderTest = Join-Path $repoRoot "scripts/repair-agent-entrypoints.ps1"
+$preCommitHookUnderTest = Join-Path $repoRoot "hooks/pre-commit"
+$irisMcpHelperUnderTest = Join-Path $repoRoot "scripts/iris-mcp.js"
+$agentOrchestratorUnderTest = Join-Path $repoRoot "scripts/agent-orchestrator.js"
+$preferVendorIrisMcpScriptUnderTest = Join-Path $repoRoot "scripts/prefer-vendor-iris-mcp.ps1"
+$irisAgenticRuleUnderTest = Join-Path $repoRoot "plugins/coding-iris-plugin/rules/iris_agentic_dev.md"
+$repositoryMaintenanceSkillUnderTest = Join-Path $repoRoot ".agents/skills/agent-kit-maintenance/SKILL.md"
+$legacyRepositoryMaintenanceSkillUnderTest = Join-Path $repoRoot "skills/agent-kit-maintenance/SKILL.md"
 
 function Assert-True {
   param(
@@ -29,18 +43,39 @@ function Assert-Contains {
 function New-TestProject {
   $root = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-update-test-" + [System.Guid]::NewGuid().ToString("N"))
   New-Item -ItemType Directory -Force -Path $root | Out-Null
+  git -C $root init | Out-Null
+  git -C $root config user.email "test@example.invalid" | Out-Null
+  git -C $root config user.name "Test User" | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents") | Out-Null
   git -C (Join-Path $root ".agents") init | Out-Null
 
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/scripts") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/scripts/lib") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/hooks") | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/agents") | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/workflows") | Out-Null
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/generate-plugin-thin-index.ps1") -Destination (Join-Path $root ".agents/scripts/generate-plugin-thin-index.ps1")
   Copy-Item -LiteralPath $agentThinIndexScriptUnderTest -Destination (Join-Path $root ".agents/scripts/generate-agent-thin-index.ps1")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/refresh-agents-sparse.js") -Destination (Join-Path $root ".agents/scripts/refresh-agents-sparse.js")
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-agents.ps1")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-runtime-skills.js") -Destination (Join-Path $root ".agents/scripts/sync-runtime-skills.js")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/workspace-context.js") -Destination (Join-Path $root ".agents/scripts/lib/workspace-context.js")
   Copy-Item -LiteralPath $profileScriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-plugin-profile.ps1")
+  Copy-Item -LiteralPath $checkFunctionalDiffScriptUnderTest -Destination (Join-Path $root ".agents/scripts/check-functional-diff.ps1")
+  Copy-Item -LiteralPath $installGitHooksScriptUnderTest -Destination (Join-Path $root ".agents/scripts/install-git-hooks.ps1")
+  Copy-Item -LiteralPath $repairAgentEntrypointsScriptUnderTest -Destination (Join-Path $root ".agents/scripts/repair-agent-entrypoints.ps1")
+  Copy-Item -LiteralPath $preCommitHookUnderTest -Destination (Join-Path $root ".agents/hooks/pre-commit")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-vendor-skills.ps1") -Destination (Join-Path $root ".agents/scripts/sync-vendor-skills.ps1")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-claudecode-skills.ps1") -Destination (Join-Path $root ".agents/scripts/sync-claudecode-skills.ps1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/check-agent-entrypoints.ps1") -Destination (Join-Path $root ".agents/scripts/check-agent-entrypoints.ps1")
+  Copy-Item -LiteralPath $vendorThinIndexScriptUnderTest -Destination (Join-Path $root ".agents/scripts/generate-vendor-thin-index.ps1")
+  Copy-Item -LiteralPath $skillDependencyResolverUnderTest -Destination (Join-Path $root ".agents/scripts/resolve-plugin-skill-dependencies.ps1")
+  Copy-Item -LiteralPath $workspaceContextModuleUnderTest -Destination (Join-Path $root ".agents/scripts/lib/WorkspaceContext.psm1")
+  Copy-Item -LiteralPath $overlayInitializerUnderTest -Destination (Join-Path $root ".agents/scripts/initialize-workspace-overlay.ps1")
+  Copy-Item -LiteralPath $irisMcpHelperUnderTest -Destination (Join-Path $root ".agents/scripts/iris-mcp.js")
+  Copy-Item -LiteralPath $agentOrchestratorUnderTest -Destination (Join-Path $root ".agents/scripts/agent-orchestrator.js")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/validation-evidence.js") -Destination (Join-Path $root ".agents/scripts/validation-evidence.js")
+  Copy-Item -LiteralPath $preferVendorIrisMcpScriptUnderTest -Destination (Join-Path $root ".agents/scripts/prefer-vendor-iris-mcp.ps1")
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/agent-registry.md") -Value "# Agent Registry"
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/workflow-registry.md") -Value "# Workflow Registry"
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/agents/i18n-agent") | Out-Null
@@ -58,6 +93,20 @@ function New-TestProject {
     "  - i18n-iris-plugin"
   )
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/i18n-change.workflow.md") -Value "# i18n-change"
+  foreach ($agent in @(
+    @{ Name = "coordinator-agent"; Workflow = "standard-change"; Description = "Coordinator agent." },
+    @{ Name = "iris-change-agent"; Workflow = "iris-change"; Description = "IRIS change agent." }
+  )) {
+    New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/agents/$($agent.Name)") | Out-Null
+    Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/$($agent.Name)/AGENT.md") -Value "# $($agent.Name)"
+    Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/$($agent.Name)/bindings.yaml") -Value @(
+      "name: $($agent.Name)",
+      "description: $($agent.Description)",
+      "defaultWorkflow: $($agent.Workflow)",
+      "serialFallback: true"
+    )
+    Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/$($agent.Workflow).workflow.md") -Value "# $($agent.Workflow)"
+  }
 
   $contextPluginRoot = Join-Path $root ".agents/plugins/agent-context-kit"
   New-Item -ItemType Directory -Force -Path (Join-Path $contextPluginRoot ".agents-plugin") | Out-Null
@@ -110,12 +159,18 @@ function New-TestProject {
   Set-Content -Encoding UTF8 -Path (Join-Path $pluginRoot ".agents-plugin/plugin.json") -Value @(
     "{",
     '  "name": "sample-plugin",',
+    '  "legacyNames": ["sample-plugin-legacy"],',
     '  "version": "0.1.0",',
     '  "displayName": "Sample Plugin",',
     '  "rules": "rules/",',
     '  "skills": "skills/",',
     '  "templates": "templates/",',
     '  "scripts": "scripts/",',
+    '  "configMigrations": [{"id":"sample-v1","script":"scripts/migrate-sample.ps1"}],',
+    '  "skillDependencies": {',
+    '    "required": [{"capability":"test.vendor.required","provider":"test-vendor","name":"vendor-test-skill"}],',
+    '    "optional": [{"capability":"test.vendor.optional","provider":"root-vendor","name":"root-vendor","trigger":"test-only"}]',
+    '  },',
     '  "initSkill": "sample-skill"',
     "}"
   )
@@ -177,17 +232,117 @@ function New-TestProject {
   Set-Content -Encoding UTF8 -Path (Join-Path $root "AGENTS.md") -Value "# Target Project"
   Set-Content -Encoding UTF8 -Path (Join-Path $root "CLAUDE.md") -Value "# Existing Claude Entry"
 
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/vendor/test-vendor/skills/vendor-test-skill") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/vendor/test-vendor/skills/vendor-test-skill/SKILL.md") -Value @(
+    "---",
+    "name: vendor-test-skill",
+    "description: Use when testing vendor thin-index generation.",
+    "---",
+    "",
+    "# Vendor Test Skill"
+  )
+
+  Set-Content -Encoding UTF8 -Path (Join-Path $pluginRoot "scripts/migrate-sample.ps1") -Value @(
+    'param([string]$ProjectRoot=".",[string]$AgentsRoot=".agents",[ValidateSet("DryRun", "Write")][string]$Mode="DryRun")',
+    '$status = if ($Mode -eq "Write") { "config-migration-applied" } else { "config-migration-unchanged" }',
+    '[PSCustomObject]@{status=$status;target=".agents/config/sample_profile.md";reason=("sample migration received " + $Mode)} | ConvertTo-Json -Compress'
+  )
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/vendor/root-vendor") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/vendor/root-vendor/SKILL.md") -Value @(
+    "---",
+    "name: root-vendor",
+    "description: Use when testing root vendor skill generation.",
+    "---",
+    "",
+    "# Root Vendor Skill"
+  )
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".claude/skills/vendor-test-skill") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".claude/skills/root-vendor") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $root ".claude/skills/vendor-test-skill/SKILL.md") -Value "# Existing user skill"
+
   return $root
+}
+
+function New-OverlayTestProject {
+  param([string]$CapabilityProjectRoot)
+
+  $workspaceRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-overlay-update-test-" + [System.Guid]::NewGuid().ToString("N"))
+  $contextRoot = Join-Path $workspaceRoot ".agents"
+  $sourceTarget = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-overlay-source-" + [System.Guid]::NewGuid().ToString("N"))
+  $gitRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-overlay-git-" + [System.Guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Force -Path $contextRoot, $sourceTarget, $gitRoot | Out-Null
+  git -C $workspaceRoot init | Out-Null
+  git -C $workspaceRoot config user.email "test@example.invalid" | Out-Null
+  git -C $workspaceRoot config user.name "Test User" | Out-Null
+  New-Item -ItemType Junction -Path (Join-Path $workspaceRoot "backend") -Target $sourceTarget | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $workspaceRoot "AGENTS.md") -Value "# Overlay Test Project"
+
+  $capabilityRoot = Join-Path $CapabilityProjectRoot ".agents"
+  $manifest = [ordered]@{
+    schemaVersion = 1
+    mode = "workspace-overlay"
+    workspace = "overlay-test"
+    contextRoot = ".agents"
+    capabilityRoot = $capabilityRoot
+    sharedDirectories = @("plugins", "vendor", "agents", "workflows", "hooks")
+    localDirectories = @("config", "rules", "memory", "skills", "scripts", "work")
+    sourceRoots = @(
+      [ordered]@{ name = "backend"; path = "backend"; target = $sourceTarget; gitRoot = $gitRoot }
+    )
+  }
+  [System.IO.File]::WriteAllText((Join-Path $contextRoot "capability.json"), ($manifest | ConvertTo-Json -Depth 10), [System.Text.UTF8Encoding]::new($false))
+
+  & (Join-Path $capabilityRoot "scripts/initialize-workspace-overlay.ps1") -WorkspaceRoot $workspaceRoot -Mode Write | Out-Null
+  [System.IO.File]::WriteAllLines((Join-Path $contextRoot "config/plugin_profile.md"), @(
+    "# Plugin Profile",
+    "",
+    "| plugin | status | initSkill | dependsOn | notes |",
+    "|---|---|---|---|---|",
+    "| agent-context-kit | enabled | project-context-maintenance | - | overlay test |",
+    "| sample-plugin | enabled | sample-skill | - | overlay test |"
+  ), [System.Text.UTF8Encoding]::new($false))
+  [System.IO.File]::WriteAllText((Join-Path $contextRoot "rules/project.md"), "# Overlay project rule", [System.Text.UTF8Encoding]::new($false))
+  [System.IO.File]::WriteAllText((Join-Path $contextRoot "memory/project-memory.md"), "# Overlay project memory", [System.Text.UTF8Encoding]::new($false))
+
+  [PSCustomObject]@{
+    WorkspaceRoot = $workspaceRoot
+    ContextRoot = $contextRoot
+    CapabilityRoot = $capabilityRoot
+    SourceTarget = $sourceTarget
+    GitRoot = $gitRoot
+  }
 }
 
 Assert-True (Test-Path -LiteralPath $scriptUnderTest -PathType Leaf) "scripts/update-agents.ps1 should exist"
 Assert-True (Test-Path -LiteralPath $profileScriptUnderTest -PathType Leaf) "scripts/update-plugin-profile.ps1 should exist"
 Assert-True (Test-Path -LiteralPath $agentThinIndexScriptUnderTest -PathType Leaf) "scripts/generate-agent-thin-index.ps1 should exist"
+Assert-True (Test-Path -LiteralPath $vendorThinIndexScriptUnderTest -PathType Leaf) "scripts/generate-vendor-thin-index.ps1 should exist"
+Assert-True (Test-Path -LiteralPath $checkFunctionalDiffScriptUnderTest -PathType Leaf) "scripts/check-functional-diff.ps1 should exist"
+Assert-True (Test-Path -LiteralPath $installGitHooksScriptUnderTest -PathType Leaf) "scripts/install-git-hooks.ps1 should exist"
+Assert-True (Test-Path -LiteralPath $preCommitHookUnderTest -PathType Leaf) "hooks/pre-commit should exist"
+Assert-True (Test-Path -LiteralPath $skillDependencyResolverUnderTest -PathType Leaf) "skill dependency resolver should exist"
+Assert-True (Test-Path -LiteralPath $workspaceContextModuleUnderTest -PathType Leaf) "Workspace Context module should exist"
+Assert-True (Test-Path -LiteralPath $overlayInitializerUnderTest -PathType Leaf) "Overlay initializer should exist"
+Assert-True (Test-Path -LiteralPath $preferVendorIrisMcpScriptUnderTest -PathType Leaf) "vendor MCP preference script should exist"
 
 $runbookPath = Join-Path $repoRoot "docs/update-agents.md"
 $readmePath = Join-Path $repoRoot "README.md"
 $contextSkillPath = Join-Path $repoRoot "plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md"
+$contextReadmePath = Join-Path $repoRoot "plugins/agent-context-kit/README.md"
 $installScriptPath = Join-Path $repoRoot "scripts/install-agents.ps1"
+$codingIrisManifestPath = Join-Path $repoRoot "plugins/coding-iris-plugin/.agents-plugin/plugin.json"
+$irisBackendRulePath = Join-Path $repoRoot "plugins/coding-iris-plugin/rules/iris_coding_backend.md"
+$irisBackendSkillPath = Join-Path $repoRoot "plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md"
+$hisuiStyleIndexPath = Join-Path $repoRoot "plugins/coding-iris-plugin/references/hisui-style-index.md"
+$hisuiWidgetIndexPath = Join-Path $repoRoot "plugins/coding-iris-plugin/references/hisui-widget-index.md"
+$feedbackTemplatePath = Join-Path $repoRoot "feedback/framework/_template.md"
+$feedbackProtocolPath = Join-Path $repoRoot "agents/_shared/feedback-protocol.md"
+$extractDocManifestPath = Join-Path $repoRoot "plugins/extract-doc/.agents-plugin/plugin.json"
+$codegraphQueryManifestPath = Join-Path $repoRoot "plugins/codegraph-query/.agents-plugin/plugin.json"
+$irisCodegraphManifestPath = Join-Path $repoRoot "plugins/iris-codegraph/.agents-plugin/plugin.json"
+$interfaceDevManifestPath = Join-Path $repoRoot "plugins/iris-interface-dev/.agents-plugin/plugin.json"
+$cureFormDevManifestPath = Join-Path $repoRoot "plugins/iris-cure-form-dev/.agents-plugin/plugin.json"
+$externalRegManifestPath = Join-Path $repoRoot "plugins/iris-external-reg/.agents-plugin/plugin.json"
 Assert-True (Test-Path -LiteralPath $runbookPath -PathType Leaf) "docs/update-agents.md should exist"
 Assert-True (Test-Path -LiteralPath $readmePath -PathType Leaf) "README.md should exist"
 $updateScriptContent = Get-Content -Raw -Encoding UTF8 -Path $scriptUnderTest
@@ -196,39 +351,531 @@ $installScriptContent = Get-Content -Raw -Encoding UTF8 -Path $installScriptPath
 Assert-Contains $updateScriptContent "/agents/**" "update sparse checkout should include agents"
 Assert-Contains $updateScriptContent "/workflows/**" "update sparse checkout should include workflows"
 Assert-Contains $updateScriptContent "/feedback/**" "update sparse checkout should include feedback"
-Assert-Contains $updateScriptContent "!/skills/agent-kit-maintenance/**" "update sparse checkout should exclude maintenance-only skill"
+Assert-Contains $updateScriptContent "/hooks/**" "update sparse checkout should include hooks"
+Assert-Contains $updateScriptContent "/scripts/iris-mcp.js" "update sparse checkout should deploy the MCP helper"
+Assert-Contains $updateScriptContent "/scripts/*.js" "update sparse checkout should deploy root JavaScript runtime files"
+Assert-Contains $updateScriptContent "prefer-vendor-iris-mcp.ps1" "update should prefer the bundled iris-agentic-dev executable"
+Assert-Contains $updateScriptContent "/scripts/lib/**" "update sparse checkout should deploy Workspace Context runtime modules"
+Assert-True (-not $updateScriptContent.Contains('"/.agents/**"')) "update sparse checkout must not deploy source-repository .agents context"
+Assert-True (-not $updateScriptContent.Contains("!/skills/agent-kit-maintenance/")) "update sparse checkout should not need a maintenance-only root skill exception"
+Assert-True (-not $updateScriptContent.Contains("!/skills/agent-kit-maintenance/**")) "update sparse checkout should not need a maintenance-only root skill content exception"
+Assert-Contains $updateScriptContent '$runningFromInstalledAgents' "update should distinguish deployed runtime cleanup from source-repository execution"
+Assert-Contains $updateScriptContent '"/work/"' "update should ignore local staging work directory"
 Assert-Contains $updateScriptContent "generate-agent-thin-index.ps1" "update should invoke agent thin-index generation"
+Assert-Contains $updateScriptContent "generate-vendor-thin-index.ps1" "update should invoke vendor thin-index generation"
+Assert-Contains $updateScriptContent "resolve-plugin-skill-dependencies.ps1" "update should resolve plugin skill dependencies"
+Assert-Contains $updateScriptContent "CleanupLegacyVendorSkills" "update should support explicit legacy vendor cleanup"
+Assert-Contains $updateScriptContent "sync-runtime-skills.js" "update should invoke link-first runtime skill adapter"
 Assert-Contains $updateScriptContent "2.25.0" "update should require Git 2.25.0 or newer for sparse-checkout subcommand"
 Assert-Contains $updateScriptContent "Assert-GitSparseCheckoutSubcommandAvailable" "update should fail early when git sparse-checkout subcommand is unavailable"
 Assert-Contains $installScriptContent "/agents/**" "install sparse checkout should include agents"
 Assert-Contains $installScriptContent "/workflows/**" "install sparse checkout should include workflows"
 Assert-Contains $installScriptContent "/feedback/**" "install sparse checkout should include feedback"
-Assert-Contains $installScriptContent "!/skills/agent-kit-maintenance/**" "install sparse checkout should exclude maintenance-only skill"
+Assert-Contains $installScriptContent "/hooks/**" "install sparse checkout should include hooks"
+Assert-Contains $installScriptContent "/scripts/iris-mcp.js" "install sparse checkout should deploy the MCP helper"
+Assert-Contains $installScriptContent "/scripts/*.js" "install sparse checkout should deploy root JavaScript runtime files"
+Assert-Contains $installScriptContent "prefer-vendor-iris-mcp.ps1" "install should prefer the bundled iris-agentic-dev executable"
+Assert-Contains $installScriptContent "/scripts/lib/**" "install sparse checkout should deploy Workspace Context runtime modules"
+Assert-True (-not $installScriptContent.Contains('"/.agents/**"')) "install sparse checkout must not deploy source-repository .agents context"
+Assert-True (Test-Path -LiteralPath $irisMcpHelperUnderTest -PathType Leaf) "iris-mcp.js helper should exist at the deployed canonical path"
+$irisAgenticRuleContent = Get-Content -Raw -Encoding UTF8 -LiteralPath $irisAgenticRuleUnderTest
+Assert-Contains $irisAgenticRuleContent 'SELECT 1 AS Probe' "MCP diagnostics should use a real query probe"
+Assert-Contains $irisAgenticRuleContent 'config_file=null' "MCP diagnostics should define the auto-discovery null-config boundary"
+Assert-Contains $irisAgenticRuleContent 'HTTP 404/405' "MCP diagnostics should not expand one endpoint failure to the whole MCP"
+Assert-Contains $irisAgenticRuleContent 'mcp__iris_agentic_dev__*' "MCP diagnostics should prefer native tools before the helper"
+Assert-Contains $irisAgenticRuleContent 'iris_coverage' "MCP rules should document coverage execution"
+Assert-Contains $irisAgenticRuleContent 'disabled_tools' "MCP rules should document tool suppression"
+$irisMcpHelperContent = Get-Content -Raw -Encoding UTF8 -LiteralPath $irisMcpHelperUnderTest
+Assert-Contains $irisMcpHelperContent "['get', 'head', 'fragment', 'compiled', 'list']" "MCP helper should allow only documented read-only document modes"
+Assert-Contains $irisMcpHelperContent 'iris_coverage' "MCP helper should gate coverage execution"
+Assert-Contains $irisMcpHelperContent 'compilePath' "MCP helper should summarize compile capabilities"
+Assert-True (-not $installScriptContent.Contains("!/skills/agent-kit-maintenance/")) "install sparse checkout should not need a maintenance-only root skill exception"
+Assert-True (-not $installScriptContent.Contains("core.hooksPath")) "install must not enable git hooks automatically"
+Assert-Contains $updateScriptContent "git-hooks-not-enabled" "update should report hook availability without enabling hooks"
+Assert-True (-not $updateScriptContent.Contains("git config core.hooksPath .agents/hooks")) "update must not enable git hooks automatically"
+Assert-True (-not $installScriptContent.Contains("!/skills/agent-kit-maintenance/**")) "install sparse checkout should not need a maintenance-only root skill content exception"
+Assert-Contains $installScriptContent '"/work/"' "install should ignore local staging work directory"
 Assert-Contains $installScriptContent "2.25.0" "install should require Git 2.25.0 or newer for sparse-checkout subcommand"
 Assert-Contains $installScriptContent "Assert-GitSparseCheckoutSubcommandAvailable" "install should fail early when git sparse-checkout subcommand is unavailable"
 Assert-Contains $installScriptContent "Continue installing .agents" "install should not block .agents bootstrap when AGENTS.md is missing"
 Assert-Contains $installScriptContent "/project-context-maintenance" "install should guide users or their agent to run project-context-maintenance after install"
+Assert-True (-not $installScriptContent.Contains("Syncing vendor skills to runtime skill directory")) "install must not sync all vendor skills to user runtime directories"
 Assert-Contains $installScriptContent ".agents/plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md" "install should point to the real project-context-maintenance skill path"
 Assert-Contains $profileScriptContent "available" "profile updater should support available"
 Assert-Contains $profileScriptContent "enabled" "profile updater should support enabled"
 Assert-Contains $profileScriptContent "disabled" "profile updater should support disabled"
 $readmeContent = Get-Content -Raw -Encoding UTF8 -Path $readmePath
+$contextSkillContent = Get-Content -Raw -Encoding UTF8 -Path $contextSkillPath
+$contextReadmeContent = Get-Content -Raw -Encoding UTF8 -Path $contextReadmePath
+foreach ($term in @("WorkspaceRoot", "CapabilityRoot", "ContextRoot", "SourceRoot", "GitRoot", "workspace-overlay", "禁止扫描父目录")) {
+  Assert-Contains $contextSkillContent $term ("project-context-maintenance should define overlay term: " + $term)
+}
+Assert-Contains $contextSkillContent ".agents/capability.json" "Overlay maintenance should read capability manifest first"
+Assert-Contains $contextSkillContent '不要求 ContextRoot `.git/info/exclude`' "Overlay ContextRoot should not require Git excludes"
+Assert-Contains $contextSkillContent "shared Junction" "Overlay completion should validate shared Junctions"
+Assert-Contains $contextSkillContent "enabled thin-index" "Overlay completion should validate enabled thin-index outputs"
+Assert-Contains $contextSkillContent "其他模块" "Overlay completion should reject cross-module context leakage"
+Assert-Contains $contextReadmeContent "workspace-overlay" "agent-context-kit README should document overlay mode"
 Assert-Contains $readmeContent 'Git `2.25.0`' "README should document Git 2.25.0 requirement before local runbook exists"
 Assert-Contains $readmeContent "git sparse-checkout" "README should explain sparse-checkout dependency before first install"
+Assert-Contains $readmeContent "references/hisui-style-index.md" "README should route HISUI styles separately from widget APIs"
+Assert-Contains $readmeContent "### extract-doc" "README should list the extract-doc plugin"
+Assert-Contains $readmeContent "### codegraph-query" "README should list the codegraph-query plugin"
+Assert-Contains $readmeContent "### iris-codegraph" "README should list the iris-codegraph plugin"
+Assert-Contains $readmeContent "### iris-interface-dev" "README should list the current interface plugin name"
+Assert-Contains $readmeContent "### iris-cure-form-dev" "README should list the cure form plugin"
+Assert-Contains $readmeContent 'canonical `preview`' "README should document the cure form canonical preview gate"
+Assert-Contains $readmeContent '`preview-run`' "README should document the canonical cure form browser runner"
+Assert-Contains $readmeContent '`interaction-prepare`/`interaction-check`' "README should document the cure form manual interaction gate"
+Assert-Contains $readmeContent 'cure-form-common-migration-config/v1' "README should document project-owned common migration configuration"
+Assert-Contains $readmeContent "### iris-external-reg" "README should list the iris-external-reg plugin"
 $runbookContent = Get-Content -Raw -Encoding UTF8 -Path $runbookPath
 Assert-Contains $runbookContent "DryRun" "runbook should mention DryRun"
 Assert-Contains $runbookContent "Write" "runbook should mention Write"
+Assert-Contains $runbookContent "manifest-aware JS adapter" "runbook should document iris-mcp.js deployment for overlay contexts"
+Assert-Contains $readmeContent "manifest-aware runtime adapter" "README should document generated overlay runtime adapters"
 Assert-Contains $runbookContent "-Detailed" "runbook should mention -Detailed"
 Assert-Contains $runbookContent "config-review-required" "runbook should mention config-review-required"
 Assert-Contains $runbookContent "pull-blocked-dirty" "runbook should mention pull-blocked-dirty"
+Assert-Contains $runbookContent "agents-up-to-date" "runbook should document the no-update status"
+Assert-Contains $runbookContent "pull-blocked-ahead" "runbook should document local-ahead protection"
+Assert-Contains $runbookContent "pull-blocked-diverged" "runbook should document diverged-branch protection"
+Assert-Contains $runbookContent "git-upstream-missing" "runbook should document missing-upstream protection"
+Assert-Contains $runbookContent "oldHash" "runbook should document structured Git hashes"
 Assert-Contains $runbookContent "git clone" "runbook should support manual clone"
 Assert-Contains $runbookContent "/project-context-maintenance" "runbook should guide users to maintain project context after install"
 Assert-Contains $runbookContent "dependencies" "runbook should explain dependency plugin initialization order"
+Assert-Contains $runbookContent ".agents/plugins/extract-doc/skills/extract-doc-ingest/SKILL.md" "runbook should point to the extract-doc init entry"
+Assert-Contains $runbookContent ".agents/plugins/codegraph-query/skills/codegraph-query/SKILL.md" "runbook should point to the codegraph-query init entry"
+Assert-Contains $runbookContent ".agents/plugins/iris-codegraph/skills/iris-codegraph/SKILL.md" "runbook should point to the iris-codegraph init entry"
+Assert-Contains $runbookContent ".agents/plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md" "runbook should point to the current interface plugin init entry"
+Assert-Contains $runbookContent ".agents/plugins/iris-cure-form-dev/skills/cure-form-init/SKILL.md" "runbook should point to the cure form plugin init entry"
+Assert-Contains $runbookContent "PreviewHisuiCss" "runbook should document the cure form preview resource profile migration"
+Assert-Contains $runbookContent "--preview-verification" "runbook should document the cure form deployment preview gate"
+Assert-Contains $runbookContent "--interaction-verification" "runbook should document the new-form manual interaction gate"
+Assert-Contains $runbookContent "DHCDoc.Cure.AI.CureFormDeploy" "runbook should document the cure form deployment class migration"
+Assert-Contains $runbookContent "plugin-profile-name-migration-planned" "runbook should document plugin canonical-name migration"
+Assert-Contains $runbookContent ".agents/plugins/iris-external-reg/skills/iris-external-reg/SKILL.md" "runbook should point to the iris-external-reg init entry"
+Assert-Contains $runbookContent "install-git-hooks.ps1" "runbook should document explicit git hook enablement"
+Assert-Contains $runbookContent "git-hooks-not-enabled" "runbook should document hook status notes"
+Assert-Contains $runbookContent "workspace-context-resolver-restored" "runbook should document legacy sparse runtime recovery"
+Assert-Contains $runbookContent "workspace-context-resolver-restore-failed" "runbook should document legacy sparse recovery failures"
+Assert-Contains $runbookContent "mcp-vendor-command-applied" "runbook should document bundled MCP command convergence"
+Assert-Contains $runbookContent "重新读取并校验两份实际落盘文件" "runbook should require post-write verification semantics"
+Assert-Contains $runbookContent "-Mode Write -NoPull -Detailed" "runbook should document deterministic convergence for historical deployed updaters"
+Assert-Contains $readmeContent "旧版部署若只检出了" "README should explain legacy sparse runtime bootstrap compatibility"
 $contextSkillContent = Get-Content -Raw -Encoding UTF8 -Path $contextSkillPath
 Assert-Contains $contextSkillContent "docs/update-agents.md" "project-context-maintenance should route updates to docs/update-agents.md"
-Assert-Contains $contextSkillContent "depends_on" "project-context-maintenance should guide plugin enablement after context maintenance"
-Assert-Contains $contextSkillContent "dependencies" "project-context-maintenance should read plugin manifest dependencies before enabling plugins"
-Assert-Contains $contextSkillContent "update-plugin-profile.ps1" "project-context-maintenance should use update-plugin-profile.ps1 after init validation"
+Assert-Contains $contextSkillContent "references/initialization.md" "project-context-maintenance should route initialization to its reference"
+$contextInitContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path (Split-Path -Parent $contextSkillPath) "references/initialization.md")
+Assert-Contains $contextInitContent "depends_on" "Initialization should guide plugin enablement"
+Assert-Contains $contextInitContent "dependencies" "Initialization should read plugin manifest dependencies before enabling plugins"
+Assert-Contains $contextInitContent "update-plugin-profile.ps1" "Initialization should use update-plugin-profile.ps1 after init validation"
+$irisBackendRuleContent = Get-Content -Raw -Encoding UTF8 -Path $irisBackendRulePath
+$irisBackendSkillContent = Get-Content -Raw -Encoding UTF8 -Path $irisBackendSkillPath
+Assert-Contains $irisBackendRuleContent 'continue:(episodeId''="")&&(appEpisode''=episodeId)' "IRIS backend rule should show a valid compound postconditional without spaces"
+Assert-Contains $irisBackendRuleContent 'continue:(episodeId''="") && (appEpisode''=episodeId)' "IRIS backend rule should retain the invalid spaced form as a regression example"
+Assert-Contains $irisBackendRuleContent '#1012 Expected EOL or spaces' "IRIS backend rule should identify the compiler error caused by a spaced postconditional"
+Assert-Contains $irisBackendSkillContent 'continue:(cond1)&&(cond2)' "IRIS backend skill should require contiguous compound postconditionals"
+Assert-Contains $irisBackendSkillContent 'continue:(cond1) && (cond2)' "IRIS backend skill should reject spaced compound postconditionals"
+$hisuiStyleIndexContent = Get-Content -Raw -Encoding UTF8 -Path $hisuiStyleIndexPath
+$hisuiWidgetIndexContent = Get-Content -Raw -Encoding UTF8 -Path $hisuiWidgetIndexPath
+Assert-Contains $hisuiStyleIndexContent "../rules/iris_coding_frontend.md" "HISUI style related path should resolve from references/"
+Assert-Contains $hisuiStyleIndexContent '`vendor/hisui/dist/css/`' "HISUI style maintenance should document the source-repo vendor path"
+Assert-Contains $hisuiStyleIndexContent '`.agents/vendor/hisui/dist/css/`' "HISUI style maintenance should document the deployed vendor path"
+Assert-Contains $hisuiWidgetIndexContent "../rules/iris_coding_frontend.md" "HISUI widget related path should resolve from references/"
+$feedbackTemplateContent = Get-Content -Raw -Encoding UTF8 -Path $feedbackTemplatePath
+$feedbackProtocolContent = Get-Content -Raw -Encoding UTF8 -Path $feedbackProtocolPath
+Assert-Contains $feedbackTemplateContent "<!-- discovery-process -->" "feedback template should require the discovery process"
+Assert-Contains $feedbackProtocolContent "<!-- discovery-process -->" "feedback protocol example should match the feedback skill contract"
+$extractDocManifest = Get-Content -Raw -Encoding UTF8 -Path $extractDocManifestPath | ConvertFrom-Json
+$codegraphQueryManifest = Get-Content -Raw -Encoding UTF8 -Path $codegraphQueryManifestPath | ConvertFrom-Json
+$irisCodegraphManifest = Get-Content -Raw -Encoding UTF8 -Path $irisCodegraphManifestPath | ConvertFrom-Json
+$interfaceDevManifest = Get-Content -Raw -Encoding UTF8 -Path $interfaceDevManifestPath | ConvertFrom-Json
+$codingIrisManifest = Get-Content -Raw -Encoding UTF8 -Path $codingIrisManifestPath | ConvertFrom-Json
+$cureFormDevManifest = Get-Content -Raw -Encoding UTF8 -Path $cureFormDevManifestPath | ConvertFrom-Json
+$externalRegManifest = Get-Content -Raw -Encoding UTF8 -Path $externalRegManifestPath | ConvertFrom-Json
+Assert-True ($extractDocManifest.name -eq "extract-doc") "extract-doc manifest should parse with the expected name"
+Assert-True ($codegraphQueryManifest.name -eq "codegraph-query") "codegraph-query manifest should parse with the expected name"
+Assert-True ($codegraphQueryManifest.initSkill -eq "codegraph-query") "codegraph-query should expose its query skill as init entry"
+Assert-True (($codegraphQueryManifest.dependencies -contains "iris-codegraph")) "codegraph-query should declare iris-codegraph as a dependency"
+Assert-True ($irisCodegraphManifest.name -eq "iris-codegraph") "iris-codegraph manifest should parse with the expected name"
+Assert-True (($irisCodegraphManifest.dependencies -contains "coding-iris-plugin")) "iris-codegraph should declare coding-iris-plugin as a dependency"
+Assert-True ($interfaceDevManifest.name -eq "iris-interface-dev") "interface plugin manifest should use the current canonical name"
+Assert-True (@($interfaceDevManifest.configMigrations | Where-Object { $_.id -eq "interface-output-root-v1" }).Count -eq 1) "interface plugin should declare the output-root migration"
+Assert-True ([version]$codingIrisManifest.version -ge [version]"0.6.0") "coding iris plugin manifest should expose guarded demand commit workflow"
+Assert-True (@($codingIrisManifest.configMigrations | Where-Object { $_.id -eq "demand-delivery-type-v1" }).Count -eq 1) "coding iris plugin should declare demand delivery type migration"
+Assert-True (Test-Path -LiteralPath (Join-Path $repoRoot "plugins/coding-iris-plugin/skills/iris-demand-commit/SKILL.md") -PathType Leaf) "coding iris plugin should include iris-demand-commit"
+Assert-True ($cureFormDevManifest.name -eq "iris-cure-form-dev") "cure form plugin manifest should use the canonical name"
+Assert-True ([version]$cureFormDevManifest.version -ge [version]"0.7.2") "cure form plugin manifest should accept the coding iris v0.9 compatibility range"
+Assert-True (($cureFormDevManifest.dependencies -contains "extract-doc")) "cure form plugin should declare extract-doc as a dependency"
+Assert-True (($cureFormDevManifest.dependencies -contains "coding-iris-plugin")) "cure form plugin should declare coding-iris-plugin as a dependency"
+Assert-True ($cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.minVersion -eq "0.3.1") "cure form plugin should retain the overlay-aware coding plugin minimum"
+Assert-True ([version]$cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.minVersion -le [version]$codingIrisManifest.version -and [version]$cureFormDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -gt [version]$codingIrisManifest.version) "cure form plugin should accept current coding iris version"
+Assert-True ([version]$irisCodegraphManifest.dependencyVersions.'coding-iris-plugin'.minVersion -le [version]$codingIrisManifest.version -and [version]$irisCodegraphManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -gt [version]$codingIrisManifest.version) "iris-codegraph should accept current coding iris version"
+Assert-True ([version]$interfaceDevManifest.dependencyVersions.'coding-iris-plugin'.minVersion -le [version]$codingIrisManifest.version -and [version]$interfaceDevManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -gt [version]$codingIrisManifest.version) "interface plugin should accept current coding iris version"
+Assert-True (($externalRegManifest.dependencies -contains "extract-doc")) "iris-external-reg should declare extract-doc as a dependency"
+Assert-True (($externalRegManifest.dependencies -contains "coding-iris-plugin")) "iris-external-reg should declare coding-iris-plugin as a dependency"
+Assert-True ([version]$externalRegManifest.dependencyVersions.'coding-iris-plugin'.minVersion -le [version]$codingIrisManifest.version -and [version]$externalRegManifest.dependencyVersions.'coding-iris-plugin'.maxVersionExclusive -gt [version]$codingIrisManifest.version) "iris-external-reg should accept current coding iris version"
+Assert-Contains $contextInitContent "install-git-hooks.ps1" "project-context-maintenance should mention optional git hook enablement"
+Assert-True (Test-Path -LiteralPath $repositoryMaintenanceSkillUnderTest -PathType Leaf) "repository-local maintenance skill should live under .agents/skills"
+Assert-True (-not (Test-Path -LiteralPath $legacyRepositoryMaintenanceSkillUnderTest)) "root skills should not retain the maintenance-only exception"
+
+$mcpPreferenceProjectRoot = New-TestProject
+try {
+  $vendorExePath = Join-Path $mcpPreferenceProjectRoot ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe"
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $vendorExePath) | Out-Null
+  [System.IO.File]::WriteAllBytes($vendorExePath, [byte[]](1, 2, 3))
+  New-Item -ItemType Directory -Force -Path (Join-Path $mcpPreferenceProjectRoot ".agents/config") | Out-Null
+
+  $mcpConfigPath = Join-Path $mcpPreferenceProjectRoot ".mcp.json"
+  $projectEnvPath = Join-Path $mcpPreferenceProjectRoot ".agents/config/project-env.json"
+  Set-Content -Encoding UTF8 -Path $mcpConfigPath -Value @'
+{
+  "mcpServers": {
+    "custom-iris": {
+      "command": "D:/tools/iris-agentic-dev.exe",
+      "args": ["mcp", "--namespace", "TEST"],
+      "env": {
+        "IRIS_USERNAME": "preserve-user",
+        "IRIS_PASSWORD": "preserve-password"
+      }
+    },
+    "other-server": {
+      "command": "node",
+      "args": ["other.js"]
+    }
+  }
+}
+'@
+  Set-Content -Encoding UTF8 -Path $projectEnvPath -Value @'
+{
+  "iris": {
+    "host": "preserve-host",
+    "username": "preserve-user",
+    "password": "preserve-password",
+    "namespace": "TEST"
+  },
+  "mcp": {
+    "serverName": "custom-iris",
+    "serverPath": "D:/tools/iris-agentic-dev.exe",
+    "includeBuiltInSkills": false
+  }
+}
+'@
+
+  $mcpBeforeDryRun = [System.IO.File]::ReadAllText($mcpConfigPath, [System.Text.Encoding]::UTF8)
+  $projectEnvBeforeDryRun = [System.IO.File]::ReadAllText($projectEnvPath, [System.Text.Encoding]::UTF8)
+  $preferenceDryRun = & $preferVendorIrisMcpScriptUnderTest -ProjectRoot $mcpPreferenceProjectRoot -Mode DryRun
+  Assert-True ($preferenceDryRun.status -eq "mcp-vendor-command-planned") "DryRun should plan bundled MCP command convergence"
+  Assert-True ([System.IO.File]::ReadAllText($mcpConfigPath, [System.Text.Encoding]::UTF8) -eq $mcpBeforeDryRun) "DryRun must preserve .mcp.json bytes"
+  Assert-True ([System.IO.File]::ReadAllText($projectEnvPath, [System.Text.Encoding]::UTF8) -eq $projectEnvBeforeDryRun) "DryRun must preserve project-env.json bytes"
+
+  $preferenceWrite = & $preferVendorIrisMcpScriptUnderTest -ProjectRoot $mcpPreferenceProjectRoot -Mode Write
+  Assert-True ($preferenceWrite.status -eq "mcp-vendor-command-applied") "Write should apply bundled MCP command convergence"
+  $mcpAfterWrite = Get-Content -Raw -Encoding UTF8 -Path $mcpConfigPath | ConvertFrom-Json
+  $projectEnvAfterWrite = Get-Content -Raw -Encoding UTF8 -Path $projectEnvPath | ConvertFrom-Json
+  Assert-True ($mcpAfterWrite.mcpServers.'custom-iris'.command -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Write should point the configured MCP server to the bundled executable"
+  Assert-True ($mcpAfterWrite.mcpServers.'custom-iris'.args[2] -eq "TEST") "Write must preserve MCP args"
+  Assert-True ($mcpAfterWrite.mcpServers.'custom-iris'.env.IRIS_PASSWORD -eq "preserve-password") "Write must preserve MCP env fields"
+  Assert-True ($mcpAfterWrite.mcpServers.'other-server'.command -eq "node") "Write must preserve unrelated MCP servers"
+  Assert-True ($projectEnvAfterWrite.mcp.serverPath -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Write should keep project-env MCP path aligned"
+  Assert-True ($projectEnvAfterWrite.iris.password -eq "preserve-password") "Write must preserve project-env connection fields"
+
+  $mcpAfterFirstWrite = [System.IO.File]::ReadAllText($mcpConfigPath, [System.Text.Encoding]::UTF8)
+  $preferenceSecondWrite = & $preferVendorIrisMcpScriptUnderTest -ProjectRoot $mcpPreferenceProjectRoot -Mode Write
+  Assert-True ($preferenceSecondWrite.status -eq "mcp-vendor-command-unchanged") "Repeated Write should be idempotent"
+  Assert-True ([System.IO.File]::ReadAllText($mcpConfigPath, [System.Text.Encoding]::UTF8) -eq $mcpAfterFirstWrite) "Idempotent Write must preserve .mcp.json bytes"
+
+  $mcpAfterWrite.mcpServers.'custom-iris'.command = "D:/tools/iris-agentic-dev.exe"
+  [System.IO.File]::WriteAllText($mcpConfigPath, (($mcpAfterWrite | ConvertTo-Json -Depth 20) + [Environment]::NewLine), (New-Object System.Text.UTF8Encoding($false)))
+  Remove-Item -LiteralPath $vendorExePath
+  $mcpBeforeMissingVendor = [System.IO.File]::ReadAllText($mcpConfigPath, [System.Text.Encoding]::UTF8)
+  $missingVendorResult = & $preferVendorIrisMcpScriptUnderTest -ProjectRoot $mcpPreferenceProjectRoot -Mode Write
+  Assert-True ($missingVendorResult.status -eq "mcp-vendor-executable-missing") "Missing vendor executable should preserve the configured fallback"
+  Assert-True ([System.IO.File]::ReadAllText($mcpConfigPath, [System.Text.Encoding]::UTF8) -eq $mcpBeforeMissingVendor) "Missing vendor executable must not rewrite .mcp.json"
+}
+finally {
+  if (Test-Path -LiteralPath $mcpPreferenceProjectRoot) {
+    Remove-Item -LiteralPath $mcpPreferenceProjectRoot -Recurse -Force
+  }
+}
+
+$deployedUpgradeSourceProject = New-TestProject
+$deployedUpgradeRemote = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-upgrade-remote-" + [System.Guid]::NewGuid().ToString("N") + ".git")
+$deployedUpgradeProjectRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-deployed-upgrade-" + [System.Guid]::NewGuid().ToString("N"))
+try {
+  $upgradeSourceAgentsRoot = Join-Path $deployedUpgradeSourceProject ".agents"
+  $upgradeSourceUpdater = Join-Path $upgradeSourceAgentsRoot "scripts/update-agents.ps1"
+  $upgradeSourcePreferenceScript = Join-Path $upgradeSourceAgentsRoot "scripts/prefer-vendor-iris-mcp.ps1"
+  $upgradeSourceVendorExe = Join-Path $upgradeSourceAgentsRoot "vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe"
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $upgradeSourceVendorExe) | Out-Null
+  [System.IO.File]::WriteAllBytes($upgradeSourceVendorExe, [byte[]](1, 2, 3))
+
+  $currentUpdaterText = [System.IO.File]::ReadAllText($scriptUnderTest, [System.Text.Encoding]::UTF8)
+  $preferenceBlockStart = $currentUpdaterText.IndexOf('$preferVendorIrisMcpScript = Join-Path $capabilityRoot "scripts/prefer-vendor-iris-mcp.ps1"')
+  $preferenceBlockEnd = $currentUpdaterText.IndexOf('foreach ($item in (Get-GitHooksStatus', $preferenceBlockStart)
+  Assert-True (($preferenceBlockStart -ge 0) -and ($preferenceBlockEnd -gt $preferenceBlockStart)) "Upgrade fixture should locate the new MCP preference block"
+  $legacyUpdaterText = $currentUpdaterText.Substring(0, $preferenceBlockStart) + $currentUpdaterText.Substring($preferenceBlockEnd)
+  Assert-True (-not $legacyUpdaterText.Contains('scripts/prefer-vendor-iris-mcp.ps1')) "Upgrade fixture legacy updater must predate MCP preference"
+  [System.IO.File]::WriteAllText($upgradeSourceUpdater, $legacyUpdaterText, (New-Object System.Text.UTF8Encoding($false)))
+  Remove-Item -LiteralPath $upgradeSourcePreferenceScript
+
+  git -C $upgradeSourceAgentsRoot add -A
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should stage the legacy capability"
+  git -C $upgradeSourceAgentsRoot commit -m "test: seed deployed legacy updater" | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should commit the legacy capability"
+
+  git init --bare $deployedUpgradeRemote | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should create a local bare remote"
+  git -C $upgradeSourceAgentsRoot remote add origin $deployedUpgradeRemote
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should register the local bare remote"
+  git -C $upgradeSourceAgentsRoot push -u origin HEAD | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should publish the legacy capability"
+
+  New-Item -ItemType Directory -Force -Path $deployedUpgradeProjectRoot | Out-Null
+  $deployedAgentsRoot = Join-Path $deployedUpgradeProjectRoot ".agents"
+  git clone $deployedUpgradeRemote $deployedAgentsRoot | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should clone a deployed legacy capability"
+  Add-Content -Encoding UTF8 -Path (Join-Path $deployedAgentsRoot ".git/info/exclude") -Value @(
+    "/config/",
+    "/memory/",
+    "/rules/",
+    "/skills/",
+    "/scripts/",
+    "/work/"
+  )
+  Set-Content -Encoding UTF8 -Path (Join-Path $deployedUpgradeProjectRoot "AGENTS.md") -Value "# Deployed Upgrade Test"
+  New-Item -ItemType Directory -Force -Path (Join-Path $deployedAgentsRoot "config") | Out-Null
+  $deployedMcpPath = Join-Path $deployedUpgradeProjectRoot ".mcp.json"
+  $deployedProjectEnvPath = Join-Path $deployedAgentsRoot "config/project-env.json"
+  Set-Content -Encoding UTF8 -Path $deployedMcpPath -Value @'
+{
+  "mcpServers": {
+    "deployed-iris": {
+      "command": "D:/legacy/iris-agentic-dev.exe",
+      "args": ["mcp", "--namespace", "DEPLOYED"],
+      "env": {
+        "IRIS_USERNAME": "preserve-deployed-user",
+        "IRIS_PASSWORD": "preserve-deployed-password",
+        "IRIS_NAMESPACE": "DEPLOYED"
+      }
+    },
+    "deployed-other": {
+      "command": "node",
+      "args": ["other.js"]
+    }
+  }
+}
+'@
+  Set-Content -Encoding UTF8 -Path $deployedProjectEnvPath -Value @'
+{
+  "iris": {
+    "host": "preserve-deployed-host",
+    "username": "preserve-deployed-user",
+    "password": "preserve-deployed-password",
+    "namespace": "DEPLOYED"
+  },
+  "mcp": {
+    "serverName": "deployed-iris",
+    "serverPath": "D:/legacy/iris-agentic-dev.exe",
+    "includeBuiltInSkills": false
+  },
+  "preservedObject": {
+    "value": "keep-me"
+  }
+}
+'@
+
+  [System.IO.File]::WriteAllText($upgradeSourceUpdater, $currentUpdaterText, (New-Object System.Text.UTF8Encoding($false)))
+  Copy-Item -LiteralPath $preferVendorIrisMcpScriptUnderTest -Destination $upgradeSourcePreferenceScript
+  git -C $upgradeSourceAgentsRoot add scripts/update-agents.ps1 scripts/prefer-vendor-iris-mcp.ps1
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should stage the new updater runtime"
+  git -C $upgradeSourceAgentsRoot commit -m "test: publish vendor MCP preference" | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should commit the new updater runtime"
+  git -C $upgradeSourceAgentsRoot push | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should publish the new updater runtime"
+  $publishedUpgradeHead = (git -C $upgradeSourceAgentsRoot rev-parse HEAD).Trim()
+
+  $legacyDeployedUpdater = Join-Path $deployedAgentsRoot "scripts/update-agents.ps1"
+  $legacyDeployedHead = (git -C $deployedAgentsRoot rev-parse HEAD).Trim()
+  Assert-True (-not ([System.IO.File]::ReadAllText($legacyDeployedUpdater, [System.Text.Encoding]::UTF8).Contains('scripts/prefer-vendor-iris-mcp.ps1'))) "Deployed fixture should start from the legacy updater"
+  $deployedUpgradeOutput = & $legacyDeployedUpdater -ProjectRoot $deployedUpgradeProjectRoot -Mode Write -Detailed | Out-String
+  Assert-Contains $deployedUpgradeOutput "mcp-vendor-command-applied" "One deployed-project Write should self-update and apply vendor MCP convergence"
+  Assert-Contains $deployedUpgradeOutput "agents-updated" "A self-updating Write should preserve the Git update status after restart"
+  Assert-Contains $deployedUpgradeOutput $legacyDeployedHead "A self-updating Write should preserve oldHash after restart"
+  Assert-Contains $deployedUpgradeOutput $publishedUpgradeHead "A self-updating Write should preserve newHash after restart"
+  Assert-True ((git -C $deployedAgentsRoot rev-parse HEAD).Trim() -eq $publishedUpgradeHead) "Deployed capability should fast-forward to the published updater"
+  Assert-True (Test-Path -LiteralPath (Join-Path $deployedAgentsRoot "scripts/prefer-vendor-iris-mcp.ps1") -PathType Leaf) "Deployed sparse checkout should materialize the new MCP preference script"
+
+  $deployedMcpAfterUpgrade = Get-Content -Raw -Encoding UTF8 -Path $deployedMcpPath | ConvertFrom-Json
+  $deployedProjectEnvAfterUpgrade = Get-Content -Raw -Encoding UTF8 -Path $deployedProjectEnvPath | ConvertFrom-Json
+  Assert-True ($deployedMcpAfterUpgrade.mcpServers.'deployed-iris'.command -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Deployed upgrade should update .mcp.json to the vendor executable"
+  Assert-True ($deployedProjectEnvAfterUpgrade.mcp.serverPath -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Deployed upgrade should update project-env.json to the vendor executable"
+  Assert-True ($deployedMcpAfterUpgrade.mcpServers.'deployed-iris'.env.IRIS_PASSWORD -eq "preserve-deployed-password") "Deployed upgrade must preserve MCP connection fields"
+  Assert-True ($deployedMcpAfterUpgrade.mcpServers.'deployed-other'.command -eq "node") "Deployed upgrade must preserve unrelated MCP servers"
+  Assert-True ($deployedProjectEnvAfterUpgrade.iris.password -eq "preserve-deployed-password") "Deployed upgrade must preserve project-env connection fields"
+  Assert-True ($deployedProjectEnvAfterUpgrade.preservedObject.value -eq "keep-me") "Deployed upgrade must preserve unrelated project-env objects"
+
+  $deployedMcpStable = [System.IO.File]::ReadAllText($deployedMcpPath, [System.Text.Encoding]::UTF8)
+  $deployedProjectEnvStable = [System.IO.File]::ReadAllText($deployedProjectEnvPath, [System.Text.Encoding]::UTF8)
+  $deployedSecondWrite = & (Join-Path $deployedAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $deployedUpgradeProjectRoot -Mode Write -NoPull -Detailed | Out-String
+  Assert-Contains $deployedSecondWrite "mcp-vendor-command-unchanged" "Repeated deployed-project Write should be idempotent"
+  Assert-True ([System.IO.File]::ReadAllText($deployedMcpPath, [System.Text.Encoding]::UTF8) -eq $deployedMcpStable) "Repeated deployed-project Write must preserve .mcp.json bytes"
+  Assert-True ([System.IO.File]::ReadAllText($deployedProjectEnvPath, [System.Text.Encoding]::UTF8) -eq $deployedProjectEnvStable) "Repeated deployed-project Write must preserve project-env.json bytes"
+}
+finally {
+  foreach ($path in @($deployedUpgradeProjectRoot, $deployedUpgradeRemote, $deployedUpgradeSourceProject)) {
+    if (Test-Path -LiteralPath $path) {
+      Remove-Item -LiteralPath $path -Recurse -Force
+    }
+  }
+}
+
+$gitStateProjectRoot = New-TestProject
+$gitStateRemote = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-git-state-remote-" + [System.Guid]::NewGuid().ToString("N"))
+$gitStatePublisher = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-git-state-publisher-" + [System.Guid]::NewGuid().ToString("N"))
+try {
+  $gitStateAgentsRoot = Join-Path $gitStateProjectRoot ".agents"
+  git -C $gitStateAgentsRoot config user.email "test@example.invalid"
+  git -C $gitStateAgentsRoot config user.name "Test User"
+  git -C $gitStateAgentsRoot config core.autocrlf false
+  # Seed old tracked documentation before publishing the capability.
+  foreach ($relative in @("docs/imedical-knowledge.md", "docs/component-version-management.md", "docs/validation/old/report.md", "docs/deploy/old/sample.md")) {
+    $oldDoc = Join-Path $gitStateAgentsRoot $relative
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $oldDoc) | Out-Null
+    Set-Content -Encoding UTF8 -LiteralPath $oldDoc -Value "old managed documentation"
+  }
+  git -C $gitStateAgentsRoot add .
+  git -C $gitStateAgentsRoot commit -m "test: seed updater Git state fixture" | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Git state fixture should commit the initial capability"
+  $gitStateBranch = (git -C $gitStateAgentsRoot branch --show-current).Trim()
+  git init --bare $gitStateRemote | Out-Null
+  git -C $gitStateAgentsRoot remote add origin $gitStateRemote
+  git -C $gitStateAgentsRoot push -u origin $gitStateBranch | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Git state fixture should publish the initial capability"
+
+  $equalHash = (git -C $gitStateAgentsRoot rev-parse HEAD).Trim()
+  $equalOutput = & (Join-Path $gitStateAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $gitStateProjectRoot -Mode DryRun -Detailed | Out-String
+  Assert-Contains $equalOutput "agents-up-to-date" ("Equal HEAD and upstream should report agents-up-to-date. Output: " + $equalOutput)
+  Assert-Contains $equalOutput $equalHash "Up-to-date detail should include the current Git hash"
+  Assert-Contains $equalOutput "plugin-available" "Up-to-date Git state should continue into local convergence checks"
+  Assert-True (-not $equalOutput.Contains("agents-updated")) "Equal HEAD and upstream must not report agents-updated"
+  Assert-Contains (Get-Content -Raw -LiteralPath (Join-Path $gitStateAgentsRoot ".git/info/sparse-checkout")) "/scripts/lib/**" "Up-to-date Git state should still refresh sparse checkout"
+
+  git clone $gitStateRemote $gitStatePublisher | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Git state fixture should clone a publisher"
+  git -C $gitStatePublisher config user.email "test@example.invalid"
+  git -C $gitStatePublisher config user.name "Test User"
+  New-Item -ItemType Directory -Force -Path (Join-Path $gitStatePublisher "docs") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $gitStatePublisher "docs/remote-update.md") -Value "remote update"
+  New-Item -ItemType Directory -Force -Path (Join-Path $gitStatePublisher "docs/guides") | Out-Null
+  New-Item -ItemType Directory -Force -Path (Join-Path $gitStatePublisher "maintenance/governance") | Out-Null
+  Move-Item -LiteralPath (Join-Path $gitStatePublisher "docs/imedical-knowledge.md") -Destination (Join-Path $gitStatePublisher "docs/guides/imedical-knowledge.md")
+  Move-Item -LiteralPath (Join-Path $gitStatePublisher "docs/component-version-management.md") -Destination (Join-Path $gitStatePublisher "maintenance/governance/component-version-management.md")
+  Remove-Item -LiteralPath (Join-Path $gitStatePublisher "docs/validation/old/report.md")
+  Remove-Item -LiteralPath (Join-Path $gitStatePublisher "docs/deploy/old/sample.md")
+  git -C $gitStatePublisher add -A docs maintenance
+  git -C $gitStatePublisher commit -m "test: publish remote updater change" | Out-Null
+  git -C $gitStatePublisher push | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Git state fixture should publish a remote-only commit"
+
+  $behindOldHash = (git -C $gitStateAgentsRoot rev-parse HEAD).Trim()
+  $remoteHash = (git -C $gitStatePublisher rev-parse HEAD).Trim()
+  # Strict read-only modes must leave old managed paths until an updating run.
+  $null = & (Join-Path $gitStateAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $gitStateProjectRoot -Mode Check -NoPull
+  $null = & (Join-Path $gitStateAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $gitStateProjectRoot -Mode DryRun -NoPull
+  Assert-True ((git -C $gitStateAgentsRoot rev-parse HEAD).Trim() -eq $behindOldHash) "Read-only modes must not migrate docs"
+  Assert-True (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/imedical-knowledge.md")) "Read-only modes must keep old docs"
+  Add-Content -Encoding UTF8 -LiteralPath (Join-Path $gitStateAgentsRoot ".git/info/exclude") -Value "/docs/validation/custom.md"
+  Set-Content -Encoding UTF8 -LiteralPath (Join-Path $gitStateAgentsRoot "docs/validation/custom.md") -Value "user-owned documentation"
+  $behindOutput = & (Join-Path $gitStateAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $gitStateProjectRoot -Mode DryRun -Detailed | Out-String
+  Assert-Contains $behindOutput "agents-updated" "A local-behind branch should fast-forward and report agents-updated"
+  Assert-Contains $behindOutput $behindOldHash "Updated detail should include oldHash"
+  Assert-Contains $behindOutput $remoteHash "Updated detail should include newHash and upstreamHash"
+  Assert-Contains $behindOutput "plugin-available" "A completed fast-forward should continue into local convergence checks"
+  Assert-True ((git -C $gitStateAgentsRoot rev-parse HEAD).Trim() -eq $remoteHash) "A local-behind branch should fast-forward to upstream"
+
+  Assert-True (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/guides/imedical-knowledge.md")) "Updater should materialize the new documentation path"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/imedical-knowledge.md"))) "Updater should remove the old tracked documentation path"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/component-version-management.md"))) "Updater should remove old source-only docs"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "maintenance"))) "Updater sparse refresh must exclude maintenance docs"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/deploy"))) "Updater should remove emptied historical directories"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $gitStateAgentsRoot "docs/validation/old"))) "Updater should remove empty nested directories"
+  Assert-Contains (Get-Content -Raw -LiteralPath (Join-Path $gitStateAgentsRoot "docs/validation/custom.md")) "user-owned documentation" "Updater must preserve ignored custom remnants"
+
+  Set-Content -Encoding UTF8 -Path (Join-Path $gitStateAgentsRoot "docs/local-ahead.md") -Value "local ahead"
+  git -C $gitStateAgentsRoot add docs/local-ahead.md
+  git -C $gitStateAgentsRoot commit -m "test: create local-only updater commit" | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Git state fixture should create a clean local-ahead commit"
+  $localAheadHash = (git -C $gitStateAgentsRoot rev-parse HEAD).Trim()
+  $hostPowerShell = if ($PSVersionTable.PSEdition -eq "Core") { Join-Path $PSHOME "pwsh.exe" } else { Join-Path $PSHOME "powershell.exe" }
+  $previousErrorActionPreference = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try {
+    $aheadOutput = & $hostPowerShell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $gitStateAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $gitStateProjectRoot -Mode DryRun -Detailed 2>&1 | Out-String
+    $aheadExitCode = $LASTEXITCODE
+  }
+  finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+  Assert-True ($aheadExitCode -ne 0) "A local-ahead branch should stop the updater"
+  Assert-Contains $aheadOutput "pull-blocked-ahead" "A local-ahead branch should report pull-blocked-ahead"
+  Assert-Contains $aheadOutput $localAheadHash "Local-ahead detail should include the local hash"
+
+  Set-Content -Encoding UTF8 -Path (Join-Path $gitStatePublisher "docs/remote-diverged.md") -Value "remote diverged"
+  git -C $gitStatePublisher add docs/remote-diverged.md
+  git -C $gitStatePublisher commit -m "test: create remote side of divergence" | Out-Null
+  git -C $gitStatePublisher push | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "Git state fixture should publish the remote side of a divergence"
+  $ErrorActionPreference = "Continue"
+  try {
+    $divergedOutput = & $hostPowerShell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $gitStateAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $gitStateProjectRoot -Mode DryRun -Detailed 2>&1 | Out-String
+    $divergedExitCode = $LASTEXITCODE
+  }
+  finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+  Assert-True ($divergedExitCode -ne 0) "A diverged branch should stop the updater"
+  Assert-Contains $divergedOutput "pull-blocked-diverged" "A diverged branch should report pull-blocked-diverged"
+}
+finally {
+  foreach ($path in @($gitStateProjectRoot, $gitStateRemote, $gitStatePublisher)) {
+    if (Test-Path -LiteralPath $path) {
+      Remove-Item -LiteralPath $path -Recurse -Force
+    }
+  }
+}
+
+$legacySparseProjectRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-legacy-sparse-test-" + [System.Guid]::NewGuid().ToString("N"))
+try {
+  $legacySparseAgentsRoot = Join-Path $legacySparseProjectRoot ".agents"
+  New-Item -ItemType Directory -Force -Path (Join-Path $legacySparseAgentsRoot "scripts/lib") | Out-Null
+  git -C $legacySparseAgentsRoot init | Out-Null
+  git -C $legacySparseAgentsRoot config user.email "test@example.invalid" | Out-Null
+  git -C $legacySparseAgentsRoot config user.name "Test User" | Out-Null
+  Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $legacySparseAgentsRoot "scripts/update-agents.ps1")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/refresh-agents-sparse.js") -Destination (Join-Path $legacySparseAgentsRoot "scripts/refresh-agents-sparse.js")
+  Copy-Item -LiteralPath $workspaceContextModuleUnderTest -Destination (Join-Path $legacySparseAgentsRoot "scripts/lib/WorkspaceContext.psm1")
+  git -C $legacySparseAgentsRoot add scripts/update-agents.ps1 scripts/lib/WorkspaceContext.psm1 scripts/refresh-agents-sparse.js
+  git -C $legacySparseAgentsRoot commit -m "test: seed legacy sparse checkout" | Out-Null
+  git -C $legacySparseAgentsRoot sparse-checkout init --no-cone
+  "/scripts/*.ps1" | git -C $legacySparseAgentsRoot sparse-checkout set --stdin --no-cone
+
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $legacySparseAgentsRoot "scripts/lib/WorkspaceContext.psm1"))) "Legacy sparse checkout should omit WorkspaceContext.psm1 before recovery"
+  $legacySparseCheckOutput = & (Join-Path $legacySparseAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $legacySparseProjectRoot -Mode Check -Detailed | Out-String
+  Assert-Contains $legacySparseCheckOutput "workspace-context-resolver-missing" "Check should report a legacy sparse runtime gap without mutating the checkout"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $legacySparseAgentsRoot "scripts/lib/WorkspaceContext.psm1"))) "Check should not repair a legacy sparse checkout"
+  $legacySparseOutput = & (Join-Path $legacySparseAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $legacySparseProjectRoot -Mode DryRun -NoPull -ResumedAfterSelfUpdate -Detailed | Out-String
+  Assert-Contains $legacySparseOutput "workspace-context-resolver-restored" "Self-updated updater should restore runtime modules omitted by a legacy sparse checkout"
+  Assert-True (Test-Path -LiteralPath (Join-Path $legacySparseAgentsRoot "scripts/lib/WorkspaceContext.psm1")) "Legacy sparse recovery should materialize WorkspaceContext.psm1"
+  Assert-Contains (Get-Content -Raw -LiteralPath (Join-Path $legacySparseAgentsRoot ".git/info/sparse-checkout")) "/scripts/lib/**" "Legacy sparse recovery should persist the current runtime sparse paths"
+}
+finally {
+  if (Test-Path -LiteralPath $legacySparseProjectRoot) {
+    Remove-Item -Recurse -Force -LiteralPath $legacySparseProjectRoot
+  }
+}
 
 $missingAgentsEntryProjectRoot = New-TestProject
 try {
@@ -241,9 +888,199 @@ finally {
   Remove-Item -Recurse -Force -LiteralPath $missingAgentsEntryProjectRoot
 }
 
+$sourceRepositoryLikeRoot = New-TestProject
+try {
+  New-Item -ItemType Directory -Force -Path (Join-Path $sourceRepositoryLikeRoot "scripts") | Out-Null
+  Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $sourceRepositoryLikeRoot "scripts/update-agents.ps1")
+  New-Item -ItemType Directory -Force -Path (Join-Path $sourceRepositoryLikeRoot ".agents/skills/agent-kit-maintenance") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $sourceRepositoryLikeRoot ".agents/skills/agent-kit-maintenance/SKILL.md") -Value "# Repository-local maintenance skill"
+
+  & (Join-Path $sourceRepositoryLikeRoot "scripts/update-agents.ps1") -ProjectRoot $sourceRepositoryLikeRoot -Mode Write -NoPull | Out-Null
+  Assert-True (Test-Path -LiteralPath (Join-Path $sourceRepositoryLikeRoot ".agents/skills/agent-kit-maintenance/SKILL.md")) "source-repository execution should preserve the repository-local maintenance skill"
+}
+finally {
+  Remove-Item -Recurse -Force -LiteralPath $sourceRepositoryLikeRoot
+}
+
+$legacyProfileProjectRoot = New-TestProject
+try {
+  $legacyConfigRoot = Join-Path $legacyProfileProjectRoot ".agents/config"
+  New-Item -ItemType Directory -Force -Path $legacyConfigRoot | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $legacyConfigRoot "plugin_profile.md") -Value @(
+    "# Plugin Profile",
+    "",
+    "| plugin | status | initSkill | dependsOn | notes |",
+    "|---|---|---|---|---|",
+    "| agent-context-kit | enabled | project-context-maintenance | - | default plugin state |",
+    "| sample-plugin-legacy | enabled | sample-skill | - | legacy canonical name |"
+  )
+  $legacySkillRoot = Join-Path $legacyProfileProjectRoot ".agents/skills/removed-legacy-skill"
+  New-Item -ItemType Directory -Force -Path $legacySkillRoot | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $legacySkillRoot "SKILL.md") -Value @(
+    "---",
+    "name: removed-legacy-skill",
+    "description: Legacy plugin skill thin-index.",
+    "thin-index: true",
+    "source: .agents/plugins/sample-plugin-legacy/skills/removed-legacy-skill/SKILL.md",
+    "---"
+  )
+
+  $legacyDryRunOutput = & (Join-Path $legacyProfileProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $legacyProfileProjectRoot -Mode DryRun -NoPull -Detailed -Plugin sample-plugin-legacy | Out-String
+  Assert-Contains $legacyDryRunOutput "plugin-profile-name-migration-planned" "DryRun should plan migration from a manifest legacy name"
+  Assert-Contains $legacyDryRunOutput "stale plugin skill thin-index" "DryRun should report stale skill thin-indexes from the legacy plugin path"
+  Assert-True (Test-Path -LiteralPath (Join-Path $legacySkillRoot "SKILL.md")) "DryRun must preserve stale legacy skill thin-indexes"
+
+  $legacyWriteOutput = & (Join-Path $legacyProfileProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $legacyProfileProjectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin-legacy | Out-String
+  Assert-Contains $legacyWriteOutput "plugin-profile-name-migrated" "Write should migrate a manifest legacy name"
+  Assert-Contains $legacyWriteOutput "stale plugin skill thin-index" "Write should report stale legacy skill cleanup"
+  $migratedPluginProfile = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $legacyConfigRoot "plugin_profile.md")
+  Assert-Contains $migratedPluginProfile "sample-plugin | enabled" "Legacy enabled status should be preserved under the current plugin name"
+  Assert-True (-not $migratedPluginProfile.Contains("| sample-plugin-legacy |")) "Write should remove the legacy plugin profile key"
+  Assert-True (-not (Test-Path -LiteralPath $legacySkillRoot)) "Write should remove an empty stale legacy skill directory"
+  $legacyAliasProfileUpdate = & (Join-Path $legacyProfileProjectRoot ".agents/scripts/update-plugin-profile.ps1") -ProjectRoot $legacyProfileProjectRoot -Plugin sample-plugin-legacy -Status disabled | Out-String
+  Assert-Contains $legacyAliasProfileUpdate "plugin-profile-updated" "Profile updater should accept a manifest legacy name"
+  $profileAfterLegacyAliasUpdate = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $legacyConfigRoot "plugin_profile.md")
+  Assert-Contains $profileAfterLegacyAliasUpdate "sample-plugin | disabled" "Profile updater should write the current plugin name for a legacy alias"
+}
+finally {
+  if (Test-Path -LiteralPath $legacyProfileProjectRoot) {
+    Remove-Item -LiteralPath $legacyProfileProjectRoot -Recurse -Force
+  }
+}
+
+$overlayCapabilityProject = New-TestProject
+$overlayProject = $null
+try {
+  $overlayCapabilityVendorExe = Join-Path $overlayCapabilityProject ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe"
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $overlayCapabilityVendorExe) | Out-Null
+  [System.IO.File]::WriteAllBytes($overlayCapabilityVendorExe, [byte[]](1, 2, 3))
+  $overlayProject = New-OverlayTestProject -CapabilityProjectRoot $overlayCapabilityProject
+  Set-Content -Encoding UTF8 -Path (Join-Path $overlayProject.WorkspaceRoot ".mcp.json") -Value @'
+{
+  "mcpServers": {
+    "iris-agentic-dev": {
+      "command": "D:/tools/iris-agentic-dev.exe",
+      "args": ["mcp"],
+      "env": {
+        "IRIS_NAMESPACE": "OVERLAY"
+      }
+    }
+  }
+}
+'@
+  Set-Content -Encoding UTF8 -Path (Join-Path $overlayProject.ContextRoot "config/project-env.json") -Value @'
+{
+  "mcp": {
+    "serverName": "iris-agentic-dev",
+    "serverPath": "D:/tools/iris-agentic-dev.exe",
+    "namespace": "OVERLAY",
+    "password": "overlay-secret"
+  },
+  "preserved": {
+    "source": "overlay-project"
+  }
+}
+'@
+  $ruleBefore = [System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "rules/project.md"), [System.Text.Encoding]::UTF8)
+  $memoryBefore = [System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "memory/project-memory.md"), [System.Text.Encoding]::UTF8)
+  $capabilityStatusBefore = (git -C $overlayProject.CapabilityRoot status --short | Out-String)
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot ".git"))) "Overlay ContextRoot must start without .git"
+  $overlayIrisMcpAdapter = Join-Path $overlayProject.ContextRoot "scripts/iris-mcp.js"
+  Assert-True (Test-Path -LiteralPath $overlayIrisMcpAdapter -PathType Leaf) "Overlay initializer should generate the iris-mcp.js runtime adapter"
+  $overlayIrisMcpAdapterContent = [System.IO.File]::ReadAllText($overlayIrisMcpAdapter, [System.Text.Encoding]::UTF8)
+  Assert-Contains $overlayIrisMcpAdapterContent "capability.json" "Overlay iris-mcp.js adapter should resolve CapabilityRoot from the manifest"
+  Assert-True (-not $overlayIrisMcpAdapterContent.Contains($overlayProject.CapabilityRoot)) "Overlay iris-mcp.js adapter must not embed an absolute CapabilityRoot"
+  $overlayIrisMcpHelp = (& node $overlayIrisMcpAdapter --help 2>&1 | Out-String)
+  Assert-True ($LASTEXITCODE -eq 0) "Overlay iris-mcp.js adapter should preserve the canonical helper exit code"
+  Assert-Contains $overlayIrisMcpHelp "Usage:" "Overlay iris-mcp.js adapter should forward arguments to the canonical helper"
+
+  $overlayWriteOutput = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode Write -Detailed | Out-String
+  Assert-Contains $overlayWriteOutput "capability-pull-skipped-overlay" "Overlay Write should skip capability fetch and pull"
+  Assert-Contains $overlayWriteOutput "mcp-vendor-command-applied" "Overlay Write should prefer the bundled MCP executable through the vendor Junction"
+  Assert-True (-not $overlayWriteOutput.Contains("agents-git-missing")) "Overlay ContextRoot should not require .git"
+  Assert-Contains $overlayWriteOutput (Split-Path -Leaf $overlayCapabilityProject) "Overlay plugin discovery should report the CapabilityRoot source path"
+  Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "config/sample_profile.md") -PathType Leaf) "Overlay config should be written to ContextRoot"
+  Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "skills/sample-skill/SKILL.md") -PathType Leaf) "Overlay plugin thin-index should be written to ContextRoot"
+  Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "skills/i18n-agent/SKILL.md") -PathType Leaf) "Overlay agent thin-index should be written to ContextRoot"
+  Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "skills/coordinator-agent/SKILL.md") -PathType Leaf) "Overlay coordinator-agent thin-index should be written to ContextRoot"
+  Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "skills/iris-change-agent/SKILL.md") -PathType Leaf) "Overlay iris-change-agent thin-index should be written to ContextRoot"
+  Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "scripts/agent-orchestrator.js") -PathType Leaf) "Overlay should generate the agent orchestrator runtime adapter"
+  $overlayOrchestratorHelp = (& node (Join-Path $overlayProject.ContextRoot "scripts/agent-orchestrator.js") help 2>&1 | Out-String)
+  Assert-True ($LASTEXITCODE -eq 0) "Overlay agent orchestrator adapter should preserve the canonical helper exit code"
+  Assert-Contains $overlayOrchestratorHelp "Commands:" "Overlay agent orchestrator adapter should forward to the canonical runtime"
+  $overlayPluginThinIndex = [System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "skills/sample-skill/SKILL.md"), [System.Text.Encoding]::UTF8)
+  Assert-Contains $overlayPluginThinIndex "source: .agents/plugins/sample-plugin/skills/sample-skill/SKILL.md" "Overlay plugin thin-index should keep a logical capability source"
+  Assert-True (-not $overlayPluginThinIndex.Contains($overlayProject.CapabilityRoot)) "Overlay plugin thin-index must not embed an absolute CapabilityRoot"
+  $overlayVendorThinIndex = [System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "skills/vendor-test-skill/SKILL.md"), [System.Text.Encoding]::UTF8)
+  Assert-Contains $overlayVendorThinIndex "source: .agents/vendor/test-vendor/skills/vendor-test-skill/SKILL.md" "Overlay vendor thin-index should keep a logical capability source"
+  Assert-True (-not $overlayVendorThinIndex.Contains($overlayProject.CapabilityRoot)) "Overlay vendor thin-index must not embed an absolute CapabilityRoot"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot ".git"))) "Overlay update must not create ContextRoot .git"
+  Assert-True ([System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "rules/project.md"), [System.Text.Encoding]::UTF8) -eq $ruleBefore) "Overlay update must preserve project rule"
+  Assert-True ([System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "memory/project-memory.md"), [System.Text.Encoding]::UTF8) -eq $memoryBefore) "Overlay update must preserve project memory"
+  $overlayMcpConfig = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $overlayProject.WorkspaceRoot ".mcp.json") | ConvertFrom-Json
+  Assert-True ($overlayMcpConfig.mcpServers.'iris-agentic-dev'.command -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Overlay MCP command should use the workspace-relative vendor path"
+  Assert-True ($overlayMcpConfig.mcpServers.'iris-agentic-dev'.env.IRIS_NAMESPACE -eq "OVERLAY") "Overlay MCP convergence must preserve connection fields"
+  $overlayProjectEnv = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $overlayProject.ContextRoot "config/project-env.json") | ConvertFrom-Json
+  Assert-True ($overlayProjectEnv.mcp.serverPath -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Overlay project-env MCP path should use the workspace-relative vendor path"
+  Assert-True ($overlayProjectEnv.mcp.namespace -eq "OVERLAY") "Overlay project-env convergence must preserve the namespace"
+  Assert-True ($overlayProjectEnv.mcp.password -eq "overlay-secret") "Overlay project-env convergence must preserve connection credentials"
+  Assert-True ($overlayProjectEnv.preserved.source -eq "overlay-project") "Overlay project-env convergence must preserve unrelated configuration"
+  Assert-True ((git -C $overlayProject.CapabilityRoot status --short | Out-String) -eq $capabilityStatusBefore) "Overlay update must not change capability Git status"
+
+  & (Join-Path $overlayProject.CapabilityRoot "scripts/update-plugin-profile.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Plugin sample-plugin -Status disabled | Out-Null
+  $disabledOverlayOutput = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode DryRun -NoPull -Detailed -Plugin sample-plugin | Out-String
+  Assert-Contains $disabledOverlayOutput "plugin-explicit-selection-disabled" "Explicit selection must not silently enable a disabled plugin"
+  & (Join-Path $overlayProject.CapabilityRoot "scripts/update-plugin-profile.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Plugin sample-plugin -Status enabled | Out-Null
+
+  & (Join-Path $overlayProject.CapabilityRoot "scripts/generate-plugin-thin-index.ps1") -PluginPath (Join-Path $overlayProject.CapabilityRoot "plugins/sample-plugin") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Mode DryRun | Out-Null
+  & (Join-Path $overlayProject.CapabilityRoot "scripts/generate-agent-thin-index.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Mode DryRun | Out-Null
+  & (Join-Path $overlayProject.CapabilityRoot "scripts/generate-vendor-thin-index.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Skill vendor-test-skill -Mode DryRun | Out-Null
+  $explicitDependencyOutput = & (Join-Path $overlayProject.CapabilityRoot "scripts/resolve-plugin-skill-dependencies.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Plugin sample-plugin -OutputFormat Json | Out-String
+  Assert-Contains $explicitDependencyOutput "test.vendor.required" "Explicit roots should resolve dependencies from CapabilityRoot"
+  & (Join-Path $overlayProject.CapabilityRoot "scripts/sync-claudecode-skills.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Mode DryRun | Out-Null
+  & (Join-Path $overlayProject.CapabilityRoot "scripts/sync-vendor-skills.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Skill vendor-test-skill -Runtime ClaudeCode -Mode DryRun | Out-Null
+
+  $overlayNoPullOutput = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode DryRun -NoPull -Detailed | Out-String
+  Assert-Contains $overlayNoPullOutput "capability-pull-skipped-overlay" "Overlay NoPull should remain explicitly idempotent"
+  Assert-True (-not $overlayNoPullOutput.Contains("agents-git-missing")) "Overlay NoPull should not validate ContextRoot as a Git repo"
+
+  Remove-Item -LiteralPath (Join-Path $overlayProject.CapabilityRoot ".git") -Recurse -Force
+  $missingCapabilityGitOutput = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode Check -NoPull -Detailed | Out-String
+  Assert-Contains $missingCapabilityGitOutput "capability-git-missing" "Overlay should reject CapabilityRoot without .git"
+  Assert-True (-not $missingCapabilityGitOutput.Contains("agents-git-missing")) "Capability Git errors must not be reported against ContextRoot"
+}
+finally {
+  if ($null -ne $overlayProject) {
+    foreach ($path in @($overlayProject.WorkspaceRoot, $overlayProject.SourceTarget, $overlayProject.GitRoot)) {
+      if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Recurse -Force }
+    }
+  }
+  if (Test-Path -LiteralPath $overlayCapabilityProject) {
+    Remove-Item -LiteralPath $overlayCapabilityProject -Recurse -Force
+  }
+}
+
 $projectRoot = New-TestProject
 try {
   New-Item -ItemType Directory -Force -Path (Join-Path $projectRoot ".agents/config") | Out-Null
+  $projectVendorExe = Join-Path $projectRoot ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe"
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $projectVendorExe) | Out-Null
+  [System.IO.File]::WriteAllBytes($projectVendorExe, [byte[]](1, 2, 3))
+  Set-Content -Encoding UTF8 -Path (Join-Path $projectRoot ".mcp.json") -Value @'
+{
+  "mcpServers": {
+    "iris-agentic-dev": {
+      "command": "D:/tools/iris-agentic-dev.exe",
+      "args": ["mcp"],
+      "env": {
+        "IRIS_NAMESPACE": "TEST"
+      }
+    }
+  }
+}
+'@
+  New-Item -ItemType Directory -Force -Path (Join-Path $projectRoot ".agents/skills/agent-kit-maintenance") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/agent-kit-maintenance/SKILL.md") -Value "# Maintenance-only Skill"
   Set-Content -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md") -Value @(
     "# Sample Profile",
     "",
@@ -259,7 +1096,11 @@ try {
   Assert-Contains $summaryOutput "Available plugins:" "Default output should list available plugins"
   Assert-Contains $summaryOutput "sample-plugin" "Default output should report sample plugin as available"
   Assert-Contains $summaryOutput "agent-context-kit" "Default output should process the default context plugin"
+  Assert-Contains $summaryOutput "git-hooks-not-enabled" "Default output should report available but disabled git hooks"
+  Assert-Contains $summaryOutput "mcp-vendor-command-planned" "DryRun update should plan bundled MCP command convergence"
+  Assert-True (-not $summaryOutput.Contains("vendor-skill-synced")) "Default update must not sync vendor skills to user runtime directories"
   Assert-Contains $summaryOutput "Optional entrypoint notes:" "Default output should report optional entrypoint notes"
+  Assert-True ([string]::IsNullOrWhiteSpace((git -C $projectRoot config --get core.hooksPath))) "Update must not set core.hooksPath automatically"
   Assert-True (-not $summaryOutput.Contains("Action required:")) "Missing or non-symlink optional entrypoints should not require action"
   Assert-True (-not $summaryOutput.Contains("sample_profile.md")) "Available plugins must not have templates merged by default"
   Assert-True (-not $summaryOutput.Contains("sample_rule.md")) "Available plugins must not generate thin-index by default"
@@ -268,6 +1109,9 @@ try {
   Assert-Contains $unenabledPluginOutput "plugin-init-required" "Explicit available plugin should require init instead of being processed"
   Assert-True (-not $unenabledPluginOutput.Contains("config-missing-key")) "Explicit available plugin must not merge config before enablement"
   Assert-True (-not $unenabledPluginOutput.Contains("sample_rule.md")) "Explicit available plugin must not generate thin-index before enablement"
+
+  $detailedDefaultOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed | Out-String
+  Assert-Contains $detailedDefaultOutput "runtime-adapter-skipped" "Detailed output should report that runtime adapters are opt-in"
 
   $enableSampleOutput = & (Join-Path $projectRoot ".agents/scripts/update-plugin-profile.ps1") -ProjectRoot $projectRoot -Plugin sample-plugin -Status enabled | Out-String
   Assert-Contains $enableSampleOutput "plugin-profile-updated" "Profile updater should report updated status"
@@ -278,6 +1122,8 @@ try {
   $dryRunOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed -Plugin sample-plugin | Out-String
   Assert-Contains $dryRunOutput "config-missing-key" "DryRun should report missing config keys"
   Assert-Contains $dryRunOutput "config-deprecated-candidate" "DryRun should report deprecated config candidates"
+  Assert-Contains $dryRunOutput "config-migration-unchanged" "DryRun should invoke plugin config migration"
+  Assert-Contains $dryRunOutput "sample migration received DryRun" "DryRun should pass DryRun to plugin config migration"
 
   $beforeWrite = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")
   Assert-Contains $beforeWrite "projectName: real-project" "DryRun must not overwrite existing config values"
@@ -285,14 +1131,57 @@ try {
 
   $writeOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-String
   Assert-Contains $writeOutput "config-merged-key" "Write should merge missing config keys"
+  Assert-Contains $writeOutput "config-migration-applied" "Write should apply plugin config migration"
+  Assert-Contains $writeOutput "sample migration received Write" "Write should pass Write to plugin config migration"
+  Assert-Contains $writeOutput "git-hooks-not-enabled" "Write should report hooks are available but not enabled"
   Assert-Contains $writeOutput "agent-thin-index" "Write should include agent thin-index phase"
+  Assert-Contains $writeOutput "vendor-thin-index" "Write should include vendor thin-index phase"
+  Assert-Contains $writeOutput "runtime-adapter-skipped" "Write should keep runtime adapters opt-in"
+  Assert-Contains $writeOutput "skill-dependency-required" "Write should report required vendor capability"
+  Assert-Contains $writeOutput "skill-dependency-optional" "Write should report optional vendor capability"
+  Assert-Contains $writeOutput "mcp-vendor-command-applied" "Write update should apply bundled MCP command convergence"
+  Assert-Contains $writeOutput "maintenance-only-skill-removed" "Write should report removal of deployed maintenance-only skill"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/agent-kit-maintenance"))) "Write should remove deployed maintenance-only skill"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/config/plugin_profile.md")) "Write should create plugin profile"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/i18n-agent/SKILL.md")) "Write should generate i18n-agent skill thin-index"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/coordinator-agent/SKILL.md")) "Write should generate coordinator-agent skill thin-index"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/iris-change-agent/SKILL.md")) "Write should generate iris-change-agent skill thin-index"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/scripts/agent-orchestrator.js")) "Write should retain the deployed agent orchestrator"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/vendor-test-skill/SKILL.md")) "Write should generate vendor skill thin-index"
+  $updatedMcpConfig = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".mcp.json") | ConvertFrom-Json
+  Assert-True ($updatedMcpConfig.mcpServers.'iris-agentic-dev'.command -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Update Write should prefer the bundled MCP executable"
+  Assert-True ($updatedMcpConfig.mcpServers.'iris-agentic-dev'.env.IRIS_NAMESPACE -eq "TEST") "Update Write must preserve MCP connection fields"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/root-vendor/SKILL.md"))) "Write should not generate optional vendor skill thin-index"
+
+  $profileBeforeCheck = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")
+  $thinIndexBeforeCheck = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/sample-skill/SKILL.md")
+  $checkOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Check -NoPull -Detailed -Plugin sample-plugin | Out-String
+  Assert-Contains $checkOutput "config-migration-unchanged" "Check should accept an unchanged plugin config migration"
+  Assert-Contains $checkOutput "sample migration received DryRun" "Check should pass DryRun to plugin config migration"
+  Assert-True (-not $checkOutput.Contains("config-migration-failed")) "Check should not report config-migration-failed for a DryRun-only migration"
+  Assert-True ((Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")) -eq $profileBeforeCheck) "Check must not modify plugin profile files"
+  Assert-True ((Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/sample-skill/SKILL.md")) -eq $thinIndexBeforeCheck) "Check must not modify generated thin-index files"
+  $runtimeDry = & $scriptUnderTest -ProjectRoot $projectRoot -Mode DryRun -NoPull -RuntimeAdapter CodeBuddy -Detailed | Out-String
+  Assert-Contains $runtimeDry "runtime-adapter-planned" "Runtime DryRun should plan a link"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".codebuddy"))) "Runtime DryRun must not create a directory"
+  $runtimeWrite = & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -RuntimeAdapter CodeBuddy -Detailed | Out-String
+  Assert-Contains $runtimeWrite "runtime-adapter-linked" "Runtime Write should create a link"
+  $runtimeCheck = & $scriptUnderTest -ProjectRoot $projectRoot -Mode Check -RuntimeAdapter CodeBuddy -Detailed | Out-String
+  Assert-Contains $runtimeCheck "runtime-adapter-unchanged" "Runtime Check should verify the existing link"
+  $runtimeConflict = $false
+  try { & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -RuntimeAdapter ClaudeCode -Detailed | Out-Null }
+  catch { $runtimeConflict = $_.Exception.Message.Contains("Runtime skill adaptation incomplete") }
+  Assert-True $runtimeConflict "Runtime Write must fail on a pre-existing Claude skill directory"
+  Assert-True ((Get-Content -Raw (Join-Path $projectRoot ".claude/skills/vendor-test-skill/SKILL.md")).Contains("Existing user skill")) "Runtime conflict must preserve custom skills"
   $agentSkillThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/i18n-agent/SKILL.md")
   Assert-Contains $agentSkillThinIndex ".agents/agents/i18n-agent/AGENT.md" "Agent thin-index should point to canonical AGENT.md"
   Assert-Contains $agentSkillThinIndex ".agents/agents/i18n-agent/bindings.yaml" "Agent thin-index should point to bindings.yaml"
   Assert-Contains $agentSkillThinIndex ".agents/workflows/i18n-change.workflow.md" "Agent thin-index should point to default workflow"
   Assert-True (-not $agentSkillThinIndex.Contains(".codex/agents")) "Agent thin-index must not generate tool adapter content"
+  $coordinatorThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/coordinator-agent/SKILL.md")
+  Assert-Contains $coordinatorThinIndex ".agents/workflows/standard-change.workflow.md" "Coordinator thin-index should point to standard-change"
+  $irisChangeThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/iris-change-agent/SKILL.md")
+  Assert-Contains $irisChangeThinIndex ".agents/workflows/iris-change.workflow.md" "IRIS change thin-index should point to iris-change"
   $profileAfterWrite = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/plugin_profile.md")
   Assert-Contains $profileAfterWrite "agent-context-kit | enabled" "Default context plugin should be enabled"
   Assert-Contains $profileAfterWrite "sample-plugin | enabled" "Write must preserve enabled plugin state"
@@ -313,8 +1202,70 @@ try {
   Assert-Contains $sampleSkillThinIndex "description: Use when testing real skill description propagation." "Skill thin-index should propagate source skill description"
   Assert-Contains $sampleSkillThinIndex "thin-index: true" "Skill thin-index should declare thin-index frontmatter"
   Assert-Contains $sampleSkillThinIndex "source: .agents/plugins/sample-plugin/skills/sample-skill/SKILL.md" "Skill thin-index should declare source frontmatter"
+  # Simulate an already deployed pure init entry, then upgrade its owner policy.
+  $initName = "sample-plugin-init"
+  $initSource = Join-Path $projectRoot ".agents/plugins/sample-plugin/skills/$initName/SKILL.md"
+  $initTarget = Join-Path $projectRoot ".agents/skills/$initName/SKILL.md"
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $initSource) | Out-Null
+  Set-Content -Encoding UTF8 -LiteralPath $initSource -Value "# Init source retained"
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $initTarget) | Out-Null
+  $oldInit = "---" + [Environment]::NewLine + "thin-index: true" + [Environment]::NewLine + "source: .agents/plugins/sample-plugin/skills/$initName/SKILL.md" + [Environment]::NewLine + "---"
+  Set-Content -Encoding UTF8 -LiteralPath $initTarget -Value $oldInit
+  $initBefore = Get-Content -Raw -Encoding UTF8 -LiteralPath $initTarget
+  $ownerManifestPath = Join-Path $projectRoot ".agents/plugins/sample-plugin/.agents-plugin/plugin.json"
+  $ownerManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath $ownerManifestPath | ConvertFrom-Json
+  $ownerManifest | Add-Member -NotePropertyName thinIndex -NotePropertyValue ([pscustomobject]@{ excludeSkills = @($initName) })
+  $ownerManifest | ConvertTo-Json -Depth 20 | Set-Content -Encoding UTF8 -LiteralPath $ownerManifestPath
+  foreach ($previewMode in @("Check", "DryRun")) {
+    $initPreview = & $scriptUnderTest -ProjectRoot $projectRoot -Mode $previewMode -NoPull -Detailed -Plugin sample-plugin | Out-String
+    Assert-Contains $initPreview "excluded managed plugin skill thin-index" "Updater preview should identify deployed pure init cleanup"
+    Assert-True ((Get-Content -Raw -Encoding UTF8 -LiteralPath $initTarget) -eq $initBefore) "Updater preview must preserve old init bytes"
+  }
+  $keepFile = Join-Path (Split-Path -Parent $initTarget) "user-notes.txt"
+  Set-Content -Encoding UTF8 -LiteralPath $keepFile -Value "Keep user notes"
+  $initWrite = & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-String
+  Assert-Contains $initWrite "excluded managed plugin skill thin-index" "Updater Write should remove deployed pure init"
+  Assert-True (-not (Test-Path -LiteralPath $initTarget)) "Updater must delete the old managed init entry"
+  Assert-True (Test-Path -LiteralPath $keepFile) "Updater must preserve other files in the skill directory"
+  Assert-True (Test-Path -LiteralPath $initSource) "Updater must retain canonical init source"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/sample-skill/SKILL.md")) "Daily initSkill must remain discoverable"
+  & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-Null
+  Assert-True (-not (Test-Path -LiteralPath $initTarget)) "Repeat updater must not recreate excluded init"
+  Remove-Item -LiteralPath $keepFile
+  $initDirectory = Split-Path -Parent $initTarget
+  foreach ($previewMode in @("Check", "DryRun")) {
+    $emptyPreview = & $scriptUnderTest -ProjectRoot $projectRoot -Mode $previewMode -NoPull -Detailed -Plugin sample-plugin | Out-String
+    Assert-Contains $emptyPreview "excluded empty plugin skill directory" "Updater preview should identify historical empty init directories"
+    Assert-True (Test-Path -LiteralPath $initDirectory) "Updater preview must retain the empty directory"
+  }
+  & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-Null
+  Assert-True (-not (Test-Path -LiteralPath $initDirectory)) "Updater must remove historical empty init directories"
+  New-Item -ItemType Directory -Path $initDirectory | Out-Null
+  Set-Content -Encoding UTF8 -LiteralPath $initTarget -Value "# User custom init"
+  $customInit = Get-Content -Raw -Encoding UTF8 -LiteralPath $initTarget
+  & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-Null
+  Assert-True ((Get-Content -Raw -Encoding UTF8 -LiteralPath $initTarget) -eq $customInit) "Updater must preserve custom init files"
+
+  $vendorSkillThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/vendor-test-skill/SKILL.md")
+  Assert-Contains $vendorSkillThinIndex "description: Use when testing vendor thin-index generation." "Vendor thin-index should propagate source skill description"
+  Assert-Contains $vendorSkillThinIndex "thin-index: true" "Vendor thin-index should declare thin-index frontmatter"
+  Assert-Contains $vendorSkillThinIndex "source: .agents/vendor/test-vendor/skills/vendor-test-skill/SKILL.md" "Vendor thin-index should point to vendor source"
+  $claudeSkillSyncDryRun = & (Join-Path $projectRoot ".agents/scripts/sync-claudecode-skills.ps1") -AgentsRoot (Join-Path $projectRoot ".agents") -ProjectRoot $projectRoot -Mode DryRun | Out-String
+  Assert-Contains $claudeSkillSyncDryRun "skipped" "Claude Code skill sync should skip project skills already provided by dedup sources"
+  Assert-Contains $claudeSkillSyncDryRun "generated" "Claude Code skill sync should report skills that need project-level sync"
+  $vendorSyncWithoutSelection = & (Join-Path $projectRoot ".agents/scripts/sync-vendor-skills.ps1") -AgentsRoot (Join-Path $projectRoot ".agents") -ProjectRoot $projectRoot -Mode Write 2>&1 | Out-String
+  Assert-Contains $vendorSyncWithoutSelection "vendor-skill-selection-required" "Vendor runtime Write should reject missing skill selection"
+  $vendorSyncReuse = & (Join-Path $projectRoot ".agents/scripts/sync-vendor-skills.ps1") -AgentsRoot (Join-Path $projectRoot ".agents") -ProjectRoot $projectRoot -Skill @("vendor-test-skill") -Runtime ClaudeCode -Mode DryRun | Out-String
+  Assert-Contains $vendorSyncReuse "vendor-skill-reused" "Explicit runtime sync should reuse an existing canonical user skill"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "CODEBUDDY.md"))) "Write must not create missing optional entrypoints"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "CLAUDE.md.bak"))) "Write must not backup or replace existing optional entrypoints"
+  Assert-True ([string]::IsNullOrWhiteSpace((git -C $projectRoot config --get core.hooksPath))) "Write must not enable git hooks automatically"
+
+  $installHookOutput = & (Join-Path $projectRoot ".agents/scripts/install-git-hooks.ps1") -ProjectRoot $projectRoot | Out-String
+  Assert-Contains $installHookOutput "git-hooks-enabled" "install-git-hooks should report enabled hooks"
+  Assert-Contains (git -C $projectRoot config --get core.hooksPath) ".agents/hooks" "install-git-hooks should set core.hooksPath to .agents/hooks"
+  $hooksEnabledOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed | Out-String
+  Assert-Contains $hooksEnabledOutput "git-hooks-enabled" "Update should report enabled git hooks after explicit install"
   $claudeContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot "CLAUDE.md")
   Assert-Contains $claudeContent "Existing Claude Entry" "Write must preserve existing optional entrypoint content"
 
@@ -334,6 +1285,11 @@ try {
   }
   Assert-Contains $staleOutput "removed" "Write should remove stale plugin thin-index files"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sample_rule.md"))) "Stale thin-index should be removed"
+
+  Remove-Item -LiteralPath (Join-Path $projectRoot ".agents/vendor/test-vendor/skills/vendor-test-skill/SKILL.md")
+  $staleVendorOutput = & (Join-Path $projectRoot ".agents/scripts/generate-vendor-thin-index.ps1") -AgentsRoot ".agents" -ProjectRoot $projectRoot -Skill @("root-vendor") -CleanupLegacyVendorSkills -Mode Write | Out-String
+  Assert-Contains $staleVendorOutput "removed" "Write should remove stale vendor thin-index files"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/vendor-test-skill/SKILL.md"))) "Stale vendor thin-index should be removed"
 
   $codingPluginRoot = Join-Path $projectRoot ".agents/plugins/coding-iris-plugin"
   $agentContextPluginRoot = Join-Path $projectRoot ".agents/plugins/agent-context-kit"
