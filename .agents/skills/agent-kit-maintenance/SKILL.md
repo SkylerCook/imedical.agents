@@ -40,7 +40,7 @@ description: Use when maintaining the imedical.agents repository itself, especia
 - `memory/agent-kit-maintenance-memory.md`
 - `memory/agent-kit-maintenance-log.md`
 - `memory/agent-kit-maintenance-backlog.md`
-- 相关 `docs/`
+- 相关 `docs/`；能力目录与使用指南按下文“能力手册同步”检查
 - 对应测试，例如 `scripts/tests/update-agents.tests.ps1` 或插件专项测试
 
 禁止只提交插件实现而遗漏对应说明、记忆或验证入口。
@@ -50,6 +50,20 @@ description: Use when maintaining the imedical.agents repository itself, especia
 ```powershell
 node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js validate --repo-root . --staged --budget-ms 60000
 ```
+
+## 能力手册同步
+
+能力新增、删除、改名，或用途、触发条件、调用方式、依赖、输入输出、启用及部署行为变化时，按本次差异同步手册；业务需求提交后的框架回看也适用。只更新受影响条目，未影响使用方式的内部修改无需改写手册。
+
+1. 读取 `docs/guides/capability-catalog.md` 与 `docs/guides/capability-guide.md` 的相关章节。以 owner manifest、SKILL、rule 和实际脚本为事实来源，核对目录中的名称、职责、入口、依赖和源链接，以及指南中的场景、前提、请求示例、预期结果和操作范围；发现事实来源冲突时先查明，不用手册反向定义能力。
+2. 新增能力补齐条目；删除或改名时清理失效条目、链接及示例，并按真实兼容策略说明旧入口。涉及文档入口或分发路径时，同步 `docs/README.md`，按 `maintenance/governance/documentation-layout.md` 核对项目分发、源仓保留和已部署旧路径收敛。
+3. 复用 `scripts/tests/documentation-layout.tests.js` 的清单与链接检查，再逐项核对本次变更的说明和示例。自动检查只证明其覆盖的结构一致性，不能替代语义核对。纯手册同步使用以下定向检查；部署布局或更新行为变化时再扩展对应迁移测试。
+
+```powershell
+node --test --test-name-pattern="project links resolve" scripts/tests/documentation-layout.tests.js
+```
+
+完成条件：受影响条目与源事实一致、相关检查通过；无需修改手册时在维护记录中简述依据。xc 手册仍按 backlog 的 P2 事项治理，当前同步范围沿用两份手册的非 xc 边界。
 
 ## 业务需求夹带框架变更的回看门禁
 
