@@ -200,6 +200,8 @@
 | [iris-imedical-doctor-ai](../../plugins/iris-imedical-doctor-ai/skills/iris-imedical-doctor-ai/SKILL.md) | 在现有医生站 AI 中增加诊断推荐采纳，先核对宿主和业务服务。 | 已有或拟新增的医生站接入位置；产出集成代码和兼容验证，普通 HIS 开发与独立 AI 应用不触发。 |
 | [iris-imedical-doctor-ai-init](../../plugins/iris-imedical-doctor-ai/skills/iris-imedical-doctor-ai-init/SKILL.md) | 启用医生站 AI 开发插件，复用现有 IRIS 配置。 | coding-iris 已启用且依赖兼容；产出插件状态和日常技能入口，不复制固定原型或连接配置。 |
 
+迁移请求示例：将现有业务界面改为 AI Card，先对照各入口有效参数与完成/取消契约，再用插件 async-contract-probe 辅助测试真实业务适配层。工具使用与证据边界见 [验证参考](../../plugins/iris-imedical-doctor-ai/references/verification.md#异步迁移故障注入)。
+
 ## iris-interface-dev
 
 [查看该插件清单](capability-catalog.md#iris-interface-dev)。下面的示例发给 Agent，不在终端执行；路径、对象和范围替换为当前工程实际值。

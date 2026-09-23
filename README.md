@@ -406,6 +406,8 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 ### iris-imedical-doctor-ai
 
+传统页面迁移提供行为对照模板和可控异步测试辅助，覆盖完成信号、资源释放与混合任务；见插件验证参考。
+
 面向 IRIS imedical 医生站的 AI 集成开发，支持嵌入、外挂及旁路接入，覆盖诊断服务复用、交互卡片、流式对话和病历联动。
 
 - 复用 `coding-iris-plugin`；工程、原型和框架接口以当次任务核实结果为准。

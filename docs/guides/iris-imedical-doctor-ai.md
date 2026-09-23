@@ -14,3 +14,7 @@
 按[验证说明](../../plugins/iris-imedical-doctor-ai/references/verification.md)检查入口权限、参数、数据范围、控件事件与运行依赖。共享页面还要覆盖未启用 Chat 的传统入口，AI 通知缺失或失败不能阻断原业务。编译、部署与远端验证沿用 IRIS owner 和既有授权范围。
 
 业务产物遵循目标工程约定。插件不自动复制原型、覆盖项目 docs 或同步业务源码；本地检查与目标工程实际验收分别报告。
+
+## 传统页面迁移验证
+
+按插件 [迁移行为契约](../../plugins/iris-imedical-doctor-ai/references/workstation-contracts.md#传统页面迁移到卡片的行为契约) 填写入口与生命周期对照。可选 async-contract-probe 测试辅助不进入生产运行时；故障注入用法见 [verification](../../plugins/iris-imedical-doctor-ai/references/verification.md#异步迁移故障注入)。项目测试需加载真实业务实现，模拟通过与设备验收分别报告。

@@ -26,6 +26,8 @@ description: 面向 IRIS imedical 医生站的 AI 集成开发。接入或扩展
 - 资料与代码冲突：[source-baseline.md](../../references/source-baseline.md)。
 - 需要落盘方案时使用 [集成分析模板](../../templates/integration-plan.md)，不生成固定基类代码。
 
+迁移传统页面、抽取共享业务或调整等待/销毁时，先执行 [迁移行为契约](../../references/workstation-contracts.md#传统页面迁移到卡片的行为契约)，用分析模板记录受影响入口，并按 verification 做异步故障注入。
+
 ## 实施与演进
 
 先说明本次目标、当前能力、缺口和修改层，再执行授权范围内的实现。复用现有业务服务与必要校验；不足时可以改进框架并同步调用者、协议和测试，不以插件旧示例阻止合理修改。
