@@ -68,7 +68,7 @@ Agent 编写 `.cls` 时遵循 `references/cls-coding-format.md`。已有类只�
 
 ## 内置脚本
 
-`scripts/iris-tools/demand-entry.js` 为 standard 提供 Git 实际补丁取证、可恢复草稿、文本/Excel 输出、BOSS 编号回填与提交消息；`plan` 转交现有 commit-demand.js。历史提交只生成消息，不改写历史；Excel 可选，BOSS 由用户录入。协议见 `references/standard-demand-entry.md`，无新增 npm/Python 依赖。
+`scripts/iris-tools/demand-entry.js` 为 standard 提供 Git 实际补丁取证、可恢复草稿、文本/Excel 输出、BOSS 编号回填与提交消息；`plan` 转交现有 commit-demand.js。历史提交只生成消息，不改写历史；Excel 可选，BOSS 由用户录入。所有写入入口拒绝 `.agents/` 与能力包源码路径，含目录链接别名；旧位置仍可只读作为输入。协议见 `references/standard-demand-entry.md`，无新增 npm/Python 依赖。
 
 `scripts/iris-tools/compile-csp.js` 固化 CSP 的 Atelier 编译通道：默认本地计划，显式 `--execute` 一次批量编译虚拟路径列表。仅编译指定文件（含 show.csp），不自动扩展父页面或重新上传；无自动重试。
 

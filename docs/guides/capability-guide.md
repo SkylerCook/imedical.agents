@@ -119,7 +119,7 @@
 | [iris-backend-coding](../../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md) | 修改指定类方法以满足这份需求，沿用当前分层和返回约定。 | 提供类方法、需求及验证范围；产出本地源码和验证结果，编译与运行结果分开报告。 |
 | [iris-coding](../../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md) | 修改这个功能，先查明前后端调用链，再完成范围内实现。 | 提供功能入口和需求；产出任务路由、相关前后端变更及验证说明。 |
 | [iris-demand-commit](../../plugins/coding-iris-plugin/skills/iris-demand-commit/SKILL.md) | 使用 iris-demand-commit --plan，为已验证改动生成提交方案。 | 实现已验证；--plan 不提交，明确 --commit 才执行本地提交；push 独立授权。 |
-| [iris-demand-entry](../../plugins/coding-iris-plugin/skills/iris-demand-entry/SKILL.md) | 使用 iris-demand-entry --text，根据当前改动整理标版需求录入文本。 | 仅 standard；产出文本或可选 Excel，人工录 BOSS 后回填编号，再衔接提交。 |
+| [iris-demand-entry](../../plugins/coding-iris-plugin/skills/iris-demand-entry/SKILL.md) | 使用 iris-demand-entry --text，根据当前改动整理标版需求录入文本。 | 仅 standard；产出文本或可选 Excel，人工录 BOSS 后回填编号，再衔接提交。输出限工程临时目录或正式需求目录，不写入 `.agents/` 或能力包源码。 |
 | [iris-demand-promote](../../plugins/coding-iris-plugin/skills/iris-demand-promote/SKILL.md) | 先评估将 DEV 的指定提交移植到指定 PRD 仓库的范围和基线。 | 明确两个仓库、提交及服务器基线读取范围；授权实施后形成 PRD 本地提交，不部署。 |
 | [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 为这几个已确认文件生成部署计划，列明上传、编译与验证步骤。 | 明确目标、文件和授权范围；先给清单，远端执行后分别报告上传、编译、回读结果。 |
 | [iris-frontend-coding](../../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md) | 调整指定 HISUI 页面的交互，保留现有数据和调用契约。 | 提供页面与行为要求；产出本地前端变更及交互验证，按条件加载 i18n。 |

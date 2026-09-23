@@ -25,6 +25,8 @@ coding-iris-plugin 0.13 提供 iris-imedical-knowledge / iris-menu-sync；共享
 
 新增 `iris-demand-entry` 随 coding-iris-plugin 既有 plugins 路径分发。已部署工程更新能力包后，按本 runbook 为 enabled coding-iris-plugin 重建 thin-index，即可使用默认需求文本及可选 `--excel` / `--Excel`；直接读取插件真实 skill 也可进入。无需配置迁移、额外 npm/Python 安装或旧文件清理，个人 requirement-entry 副本不自动替换。运行草稿与 BOSS 编号属于目标工程私有产物，不进入能力包更新/清理范围；源仓实现不代表业务副本已生效。操作见 `plugins/coding-iris-plugin/references/standard-demand-entry.md`。
 
+coding-iris-plugin 0.13.6 起，需求录入输出路径拒绝 `.agents/`、能力包源码和指向它们的目录链接。更新器不会自动移动此前误放的私有 `facts.json`、`spec.json` 或草稿；先核对准确文件与内容，将它们迁到工程任务临时目录或正式需求目录，再处理 `.agents` dirty checkout 并更新。旧输入仍可只读访问，不能为了通过更新而直接删除用户产物。
+
 agent-context-kit v0.3.1 修复普通更新把 guidanceMode 默认值追加到待确认区的问题：模板使用 `agents-update:optional-key` 声明合法可选键，缺省不写入，已有明确配置保留且不误报废弃。项目入口迁移脚本现会报告并补齐缺失的执行辅助路由；仍需显式 `--write`，普通更新不改 AGENTS。历史误追加项只有能确认由本次更新生成且未被用户修改时才定点移除，不按字段值 auto 批量删除。
 
 coding-iris-plugin 0.10.0 的部署保护随既有 plugins 与 vendor 分发。必须一并更新 deploy-guard.js、deploy-protected.js、前后端入口与 protected-file.py；不新增连接配置。用户私有 .iris-deploy-state 不属于更新/清理范围。旧后端位置参数须迁移为 --demand/--files/--execute，先建立 Git 基线会话。未提交的 canonical 开发版可在核对目标无分歧后同步精确运行时文件，再用更新器 -NoPull 刷新生成层；此状态是本地待发布副本，不能声称已从远端发布。

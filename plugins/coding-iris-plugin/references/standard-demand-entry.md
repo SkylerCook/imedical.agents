@@ -1,6 +1,6 @@
 # Standard 需求草稿与工具协议
 
-入口：`skills/iris-demand-entry/SKILL.md`。所有命令使用插件内 `scripts/iris-tools/demand-entry.js`（下文简写）；只用 Node 内置模块，无需 npm install、Python 或个人运行器路径。工具不调用 BOSS，也不修改 Git。
+入口：`skills/iris-demand-entry/SKILL.md`。所有命令使用插件内 `scripts/iris-tools/demand-entry.js`（下文简写）；只用 Node 内置模块，无需 npm install、Python 或个人运行器路径。工具不调用 BOSS，也不修改 Git。`collect`、`prepare`、`bind`、`render` 的输出路径若落在 `.agents/` 或能力包源码中（包括通过目录链接到达），会在写入前停止；输入文件可从旧位置读取，以便迁出既有产物。
 
 ## 1. 读取代码事实
 

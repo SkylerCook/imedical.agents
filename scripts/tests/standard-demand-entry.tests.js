@@ -134,6 +134,38 @@ test('deliver excludes imported requirements and refuses overwriting files', (t)
   assert.equal(fs.existsSync(path.join(output, 'requirements.xlsx')), false);
   assert.throws(() => entry.deliver(draft, output, false), /已存在/);
 });
+test('all demand output commands reject .agents and capability source without creating artifacts', (t) => {
+  const { repo, temp } = fixture(t); const { draft, spec } = draftFor(repo, temp);
+  const specPath = path.join(temp, 'spec.json'); fs.writeFileSync(specPath, JSON.stringify(spec));
+  const draftPath = path.join(temp, 'draft.json'); fs.writeFileSync(draftPath, JSON.stringify(draft));
+  const forbidden = path.join(temp, '.agents', 'tmp');
+  for (const [command, args, target] of [
+    ['collect', ['--repo', repo, '--file', '页面.js'], path.join(forbidden, 'facts.json')],
+    ['prepare', ['--spec', specPath], path.join(forbidden, 'delivery')],
+    ['bind', ['--draft', draftPath, '--item', 'r1', '--demand', '123', '--title', '标题'], path.join(forbidden, 'bound.json')],
+    ['render', ['--draft', draftPath], path.join(forbidden, 'rendered')],
+  ]) {
+    const result = spawnSync(process.execPath, [script, command, ...args, '--output', target], { encoding: 'utf8', windowsHide: true });
+    assert.equal(result.status, 1, `${command}: ${result.stdout}`);
+    assert.match(result.stderr, /不能写入 \.agents 或能力包源码/);
+    assert.equal(fs.existsSync(target), false);
+  }
+  assert.equal(fs.existsSync(forbidden), false);
+  const sourceTarget = path.resolve(__dirname, '../../docs/forbidden-demand-test.json');
+  assert.throws(() => entry.main(['collect', '--repo', repo, '--file', '页面.js', '--output', sourceTarget]), /能力包源码/);
+  assert.equal(fs.existsSync(sourceTarget), false);
+});
+test('demand output guard resolves existing directory aliases and allows project paths', (t) => {
+  const { repo, temp } = fixture(t); const { draft } = draftFor(repo, temp);
+  const forbidden = path.join(temp, '.agents'); fs.mkdirSync(forbidden);
+  const alias = path.join(temp, 'alias');
+  fs.symlinkSync(forbidden, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  assert.throws(() => entry.deliver(draft, path.join(alias, 'delivery'), false), /不能写入 \.agents/);
+  assert.equal(fs.existsSync(path.join(forbidden, 'delivery')), false);
+  const output = path.join(repo, 'docs', 'work', 'standard-demand', 'task');
+  assert.doesNotThrow(() => entry.deliver(draft, output, false));
+  assert.equal(fs.existsSync(path.join(output, 'draft.json')), true);
+});
 test('CLI bridge creates canonical standard plan without changing HEAD or index', (t) => {
   const { repo, temp } = fixture(t); const { draft } = draftFor(repo, temp); entry.bind(draft, 'r1', '98765', 'BOSS 最终标题');
   const draftPath = path.join(temp, 'bound.json'); fs.writeFileSync(draftPath, JSON.stringify(draft));

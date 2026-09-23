@@ -206,8 +206,29 @@ function planArguments(draft, key, projectRoot) {
   return args;
 }
 
+function safeOutputPath(file) {
+  const resolved = path.resolve(file);
+  let ancestor = resolved;
+  while (!fs.existsSync(ancestor)) {
+    const parent = path.dirname(ancestor);
+    if (parent === ancestor) break;
+    ancestor = parent;
+  }
+  const canonical = path.resolve(fs.realpathSync.native(ancestor), path.relative(ancestor, resolved));
+  const capabilityRoot = fs.realpathSync.native(path.resolve(__dirname, '..', '..', '..', '..'));
+  const insideCapability = (candidate) => {
+    const relative = path.relative(capabilityRoot, candidate);
+    return !relative || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
+  };
+  if ([resolved, canonical].some((candidate) => candidate.split(path.sep).some((part) => part.toLowerCase() === '.agents')) || insideCapability(canonical)) {
+    throw new Error('需求产物不能写入 .agents 或能力包源码；请使用工程临时目录或目标工程 docs/work/standard-demand/');
+  }
+  return resolved;
+}
+
 function writeNew(file, value) {
-  fs.mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
+  file = safeOutputPath(file);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, value, { flag: 'wx' });
 }
 
@@ -239,7 +260,7 @@ function parseArgs(argv) {
 
 function deliver(draft, directory, excel) {
   if (!directory) throw new Error('需要 --output，指定新的交付目录');
-  directory = path.resolve(directory);
+  directory = safeOutputPath(directory);
   if (fs.existsSync(directory)) throw new Error('交付目录已存在，请指定新目录以保留已有产物');
   const active = draft.requirements.filter((item) => !item.imported && !item.boss);
   if (!active.length) throw new Error('没有未录入 BOSS 的条目，不重复导出');
