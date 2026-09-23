@@ -67,7 +67,7 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
    - `.agents/plugins/iris-imedical-doctor-ai/skills/iris-imedical-doctor-ai-init/SKILL.md`
    - `.agents/plugins/imedicalxc-doctor-extend-engineer/skills/imedicalxc-doctor-extend-engineer/SKILL.md`
 
-不要把本仓库根 `AGENTS.md`、根 `memory/` 或展示页文件复制到业务项目。
+不要把本仓库根 `AGENTS.md`、根 `memory/` 或展示页文件复制到业务项目。可选的 `CLAUDE.md`、`CODEBUDDY.md` 兼容入口只需链接到项目自己的 `AGENTS.md`；检查器按解析后的目标判断，现有等价链接不应被重建，操作边界见[更新说明](docs/update-agents.md#windows-可选兼容入口)。
 
 ## 给人的手工操作
 

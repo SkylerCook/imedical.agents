@@ -56,12 +56,14 @@ function Get-RelativeTarget {
     [string]$LinkTarget
   )
 
+  $linkDir = Split-Path -Parent $LinkPath
   if ([System.IO.Path]::IsPathRooted($LinkTarget)) {
-    $linkDir = Split-Path -Parent $LinkPath
-    return Get-RelativePathPortable -From $linkDir -To $LinkTarget
+    $resolved = [System.IO.Path]::GetFullPath($LinkTarget)
   }
-
-  return ($LinkTarget -replace "\\", "/")
+  else {
+    $resolved = [System.IO.Path]::GetFullPath((Join-Path $linkDir $LinkTarget))
+  }
+  return Get-RelativePathPortable -From $linkDir -To $resolved
 }
 
 $projectRootFull = Resolve-FullPath $ProjectRoot

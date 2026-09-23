@@ -34,6 +34,7 @@ jobs:
       - name: Update and overlay integration
         shell: ${{ matrix.shell }}
         run: |
+          & ./scripts/tests/agent-entrypoints.tests.ps1
           & ./scripts/tests/workspace-overlay.tests.ps1
           & ./scripts/tests/update-agents.tests.ps1
           $env:TEST_POWERSHELL = "${{ matrix.shell }}"

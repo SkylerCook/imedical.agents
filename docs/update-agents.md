@@ -178,7 +178,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 & .\.agents\scripts\repair-agent-entrypoints.ps1 -ProjectRoot .
 ```
 
-脚本会保留已经正确指向 `AGENTS.md` 的 symlink；遇到普通文件或错误链接时，先将其依次备份为 `.bak`、`.bak.1` 等，再创建 symlink。在 Windows 上，脚本会先尝试 `New-Item -ItemType SymbolicLink`，失败后自动回退到 `cmd.exe /c mklink`。
+脚本会按链接解析后的路径判断目标，保留已经正确指向 `AGENTS.md` 的 symlink；`AGENTS.md` 与 `.\AGENTS.md` 等价，不会因写法不同而备份重建。遇到普通文件或真正指向其他文件的链接时，先将其依次备份为 `.bak`、`.bak.1` 等，再创建 symlink。在 Windows 上，脚本会先尝试 `New-Item -ItemType SymbolicLink`，失败后自动回退到 `cmd.exe /c mklink`。
 
 如果需要手工创建，只能在确认同名路径不存在后，从业务项目根目录运行：
 
