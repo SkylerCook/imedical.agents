@@ -1,6 +1,6 @@
 {
   "name": "agent-framework-evolution",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "displayName": "Agent Framework Evolution",
   "description": "Preserve bundled feedback review and reusable capability packaging through plugin-owned skills.",
   "entry": "AGENTS.md",

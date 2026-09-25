@@ -1,6 +1,6 @@
 # Agent Feedback Protocol
 
-本文件只定义 `taskKind=business-demand` 在用户验收后处理框架修正反馈的行为规范。需求生命周期来自 `agents/_shared/delivery-lifecycle.md`，统一入口是 `plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md`；可复用需求经验由该 skill 路由到 `feedback/experience/`，本协议只约束独立框架修正分支。`taskKind=framework-maintenance` 使用 `agents/_shared/maintenance-lifecycle.md`，不属于反馈场景。
+本文件只定义 `taskKind=business-demand` 在用户验收后处理框架修正反馈的行为规范。需求生命周期来自 `agents/_shared/delivery-lifecycle.md`，统一入口是 `plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md`；可复用需求经验先通过该 skill 的共享准入，再路由到 `feedback/experience/`，本协议只约束独立框架修正分支。`taskKind=framework-maintenance` 使用 `agents/_shared/maintenance-lifecycle.md`，不属于反馈场景。
 
 反馈产物的路径取决于运行形态：
 

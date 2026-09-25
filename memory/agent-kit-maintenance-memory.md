@@ -24,7 +24,7 @@
 
 ## 当前状态
 
-- 技能归属迁移：coding-agent-adaptation 归 agent-context-kit 0.3.2；反馈与打包归新基础插件 agent-framework-evolution 0.1.0。项目旧技能名由薄索引保持，历史原文按哈希安全转换，显式插件状态保留。详见 docs/skill-plugin-migration.md。
+- 技能归属迁移：coding-agent-adaptation 归 agent-context-kit 0.3.2；反馈与打包归基础插件 agent-framework-evolution；当前 0.1.2 收紧共享经验四项准入，局部观察留项目内，无合格项正常结束。项目旧技能名由薄索引保持，历史原文按哈希安全转换，显式插件状态保留。详见 docs/skill-plugin-migration.md。
 
 - 跨 Agent 项目技能接入采用链接优先：coding-agent-adaptation 与独立 JS 执行器支持 CodeBuddy/ClaudeCode/Codex，安装/更新显式选择；旧目录和错误链接不覆盖。详见 docs/coding-agent-adaptation.md，非 Windows 与更多宿主验证仍待补齐。
 

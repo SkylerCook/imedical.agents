@@ -238,7 +238,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 ### agent-framework-evolution
 
-承接原根级 `agent-framework-feedback` 与 `reusable-content-packaging`，负责验收后的反馈审查及可复用能力打包；保持原技能名项目入口，不自动触发反馈或写入。插件说明见 [README](plugins/agent-framework-evolution/README.md)，新旧项目更新步骤见 [技能归属迁移](docs/skill-plugin-migration.md)。
+承接原根级 `agent-framework-feedback` 与 `reusable-content-packaging`，负责验收后的反馈审查及可复用能力打包；共享经验须通过新增价值、复用依据、验证边界和收益准入，无合格项正常结束；保持原技能名项目入口，不自动触发反馈或写入。插件说明见 [README](plugins/agent-framework-evolution/README.md)，新旧项目更新步骤见 [技能归属迁移](docs/skill-plugin-migration.md)。
 
 ### agent-context-kit
 

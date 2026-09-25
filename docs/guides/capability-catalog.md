@@ -51,7 +51,7 @@
 | 入口 | 中文用途 | 入口类型 |
 |---|---|---|
 | [agent-framework-evolution-init](../../plugins/agent-framework-evolution/skills/agent-framework-evolution-init/SKILL.md) | 接入反馈与能力打包入口 | 纯初始化，直接读取源文件 |
-| [agent-framework-feedback](../../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md) | 审查已验收业务需求的框架反馈 | 日常入口 |
+| [agent-framework-feedback](../../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md) | 按共享准入筛选已验收业务需求的经验与框架反馈 | 日常入口 |
 | [reusable-content-packaging](../../plugins/agent-framework-evolution/skills/reusable-content-packaging/SKILL.md) | 将已验证经验打包为可复用能力 | 日常入口 |
 
 ### Rules

@@ -106,7 +106,7 @@
 | Skill | 请求示例 | 前提与预期结果 |
 |---|---|---|
 | [agent-framework-evolution-init](../../plugins/agent-framework-evolution/skills/agent-framework-evolution-init/SKILL.md) | 在当前工程启用 agent-framework-evolution，检查技能入口。 | 保留显式插件状态；只接入入口，不执行反馈或打包。 |
-| [agent-framework-feedback](../../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md) | 这个业务需求已验收，请只读审查本次框架反馈候选。 | 业务需求已明确验收且反馈适用；先给候选，写入和提升另按授权执行；框架维护不触发。 |
+| [agent-framework-feedback](../../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md) | 这个业务需求已验收，请只读审查本次框架反馈候选。 | 业务需求已明确验收且反馈适用；仅给通过 skill 共享准入的候选，无合格项正常结束；局部经验留项目内，写入和提升另按授权执行；框架维护不触发。 |
 | [reusable-content-packaging](../../plugins/agent-framework-evolution/skills/reusable-content-packaging/SKILL.md) | 把这份已验证的通用流程整理成能力包，去掉项目私有信息。 | 提供经验来源、验证证据与目标范围；产出通用能力文件及接入说明。 |
 
 ## coding-iris-plugin
