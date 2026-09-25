@@ -9,10 +9,20 @@ Workspace overlay 用于让多个模块工作区共享一份 canonical capabilit
 | `WorkspaceRoot` | 当前模块工作区根 | 只承载模块入口和 SourceRoot 逻辑路径 |
 | `ContextRoot` | 当前模块的 `.agents` | 本地 config、rules、memory、work 和生成索引 |
 | `CapabilityRoot` | 共享的 canonical `.agents` Git | plugins、vendor、skills、agents、workflows、scripts 等能力源 |
-| `SourceRoot` | manifest 声明的业务源码根 | 业务文件读取和写入必须限制在声明范围内 |
+| `SourceRoot` | manifest 声明的业务源码根 | 默认修改范围；源码调查从这里开始 |
 | `GitRoot` | SourceRoot 所属真实 Git 仓库根 | Git diff/status/commit 在这里执行 |
 
 解析器只读取 `WorkspaceRoot/.agents/capability.json`。不得通过扫描父目录或 sibling 猜测 capability、源码或 Git 根。
+
+### 源码读取与修改范围
+
+源码调查先从 SourceRoot 开始，允许按当前需求在已声明 GitRoot 中只读搜索和查看公共实现、基类、接口及调用方；目标项目注册表明确提供其他相关源码仓库时，也可按该映射只读调查。只读调查无需另行授权，不要求切换工作区。按符号和调用链缩小检索范围，不默认通读全仓，不扫描父目录猜测根路径。
+
+默认修改、暂存、提交和部署范围仍限定为 SourceRoot 与当前任务授权；读取外部代码不扩大写入权限。修复点位于模块外时，继续完成只读取证，报告目标文件、原因和影响，停止模块外写入，待用户明确授权目标和范围后按项目约定处理。
+
+backend-only 工作区可按项目注册表查看相关前端实现，但不新增 frontend SourceRoot、工作区入口或前端配置，不改变其 backend-only 身份。外部参考也不改变当前项目的 contextMode、配置来源及上下文归属；引用事实时注明真实仓库和路径。
+
+已部署项目需先更新共享 CapabilityRoot，再在授权的项目上下文维护中定点合并模块入口的读写边界；普通更新保留自定义 AGENTS，不自动替换旧条款。保持 manifest、Junction、工具写入门禁和启用状态不变，无文件清理。
 
 ## 阶段一：更新 canonical capability 与标版 Context
 

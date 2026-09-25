@@ -43,13 +43,13 @@ description: Initialize, maintain, or optimize project context including AGENTS.
 开始维护前，先检查 `WorkspaceRoot/.agents/capability.json`：
 
 - 不存在 manifest：使用 `standard`；`CapabilityRoot = ContextRoot = WorkspaceRoot/.agents`，并保持传统单工程流程。
-- 存在且 `mode = workspace-overlay`：先解析并验证 manifest，再读取其他上下文。`WorkspaceRoot` 是当前模块控制面，`CapabilityRoot` 是 canonical 能力 Git，`ContextRoot` 是当前模块本地 `.agents`，`SourceRoot` 是允许探索的源码入口，`GitRoot` 是对应真实 Git 仓库根。
+- 存在且 `mode = workspace-overlay`：先解析并验证 manifest，再读取其他上下文。`WorkspaceRoot` 是当前模块控制面，`CapabilityRoot` 是 canonical 能力 Git，`ContextRoot` 是当前模块本地 `.agents`，`SourceRoot` 是源码调查起点和默认修改范围，`GitRoot` 是对应真实 Git 仓库根。
 - manifest 无效、版本不支持、CapabilityRoot 无 `.git`、SourceRoot/GitRoot 缺失、Junction 或 local 目录类型异常时停止写入，先按 `.agents/docs/workspace-overlay.md` 恢复。
 
 `workspace-overlay` 下的硬边界：
 
 - 只维护 ContextRoot 的 `config/`、`rules/`、`memory/`、`skills/`、`scripts/` 和 `work/`；CapabilityRoot 只读。
-- 项目成熟度、上下文置信度、架构和编码事实只能从 manifest 声明的 SourceRoot 归纳；禁止扫描父目录，也禁止扫描 WorkspaceRoot 中未声明的 sibling 模块。
+- 源码调查允许按当前需求只读查看已声明 GitRoot 或项目注册表明确映射的相关仓库，遵循能力包根 `docs/workspace-overlay.md` 的“源码读取与修改范围”；只读调查无需另行授权，不通过扫描父目录或 sibling 猜测根路径。项目成熟度和完整性仍按当前 SourceRoot 判断，外部参考注明真实仓库和路径，不将其他模块的配置、规则或上下文身份并入当前模块。
 - 文件状态、diff、提交和 hooks 必须映射到声明的 GitRoot；不得从 Junction 或 cwd 猜测 Git 根。
 - shared directory 必须是目标精确匹配 CapabilityRoot 的 NTFS Junction；local directory 必须是普通目录。
 - 不要求 ContextRoot `.git/info/exclude`，ContextRoot 不得创建 `.git`；仅 `standard` 模式维护 capability Git 的 `info/exclude`。
@@ -273,7 +273,7 @@ description: Initialize, maintain, or optimize project context including AGENTS.
 - 所有 shared Junction 目标精确匹配 CapabilityRoot，所有 local context 目录均为普通目录，ContextRoot 无 `.git`。
 - ContextRoot 的 `config/plugin_profile.md` 保留已有值；只有 `enabled` 插件生成 enabled thin-index，`available`/`disabled` 不生成新入口。
 - `rules/project.md`、`memory/project-memory.md` 和项目已有 config 未被 updater 覆盖。
-- SourceRoot 探索没有越界，ContextRoot 中没有其他模块的规则、记忆、profile 或 thin-index。
+- 源码只读调查使用已声明或注册表明确映射的仓库；模块外写入已取得明确授权，ContextRoot 中没有混入其他模块的规则、记忆、profile 或 thin-index。
 - 所有 Git 证据来自声明的 GitRoot；CapabilityRoot Git 状态未被模块上下文刷新改变。
 ## 部署经验沉淀
 

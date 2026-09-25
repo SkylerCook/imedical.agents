@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- Overlay 读写范围分离：agent-context-kit 0.4.1 / coding-iris-plugin 0.13.7 允许按需只读调查已声明或项目注册表映射的源码仓库；默认写入仍受 SourceRoot 和任务授权约束。路径解析、工具写入门禁与 backend-only 身份不变；旧模块入口需授权定点迁移，见 docs/workspace-overlay.md。
+
 - 文档分发已分层：docs/README.md 为项目入口，maintenance/README.md 为仅源仓入口；31 项路径迁移与旧工程收敛规则见 maintenance/governance/documentation-layout.md。旧受管文件随 Git 更新删除，私有残留保留、dirty 停止；不自动同步真实工程。
 
 - 非 xc 能力目录与使用指南：docs/guides/capability-catalog.md、docs/guides/capability-guide.md，覆盖插件、skill、rule、接入和逐技能示例；README 提供入口。清单与行为变更同步核对，xc 手册列入 backlog P2；不改变插件、版本或部署行为。

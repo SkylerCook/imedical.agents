@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+- 2026-09-25（Overlay 只读调查）：agent-context-kit 0.4.1 / coding-iris-plugin 0.13.7 分离真实仓库只读参考和模块默认写入范围，同步 owner、技能、README、共同契约与发布记录。旧项目入口按授权定点迁移，manifest、工具写入门禁和 backend-only 身份不变；能力手册已引用 Overlay 契约，无需复制规则。workspace-read-scope、workspace-context Node 测试及文档链接检查通过；两项版本迁移对比 HEAD 无新增问题，全量版本校验保留既有发布记录字段问题。iris-workspace-context.tests.js 仍以 compile.js 直接包含 resolveWorkspaceContext 为断言，当前 HEAD 已改为转发 deploy-protected；这两个文件与 HEAD 一致，本轮未调整该既有测试。源仓变更经校验后原样同步授权的共享部署副本，模块通过既有共享链接读取；未提交或推送。
+
 - 2026-09-25（共享经验准入）：agent-framework-evolution 0.1.2 将经验筛选收紧为新增价值、复用依据、验证与边界、沉淀收益四项同时满足；局部观察留项目内，单次有机制证据的高价值发现可准入，有效命中按独立场景去重，提升要求成熟证据。同步 owner、共享协议、经验维护规则、能力手册和发布记录；项目模板已有按信号只读路由，无需改动，安装/更新行为不变。框架契约、IRIS fast-path、部署文档链接检查通过；版本全量检查仅报告既有 xc 发布记录字段问题，本轮无新增报错。正反例已人工核对，真实模型执行效果沿既有 P2 反馈评估跟踪，不以静态测试代替；未改历史经验正文、未提交或同步业务副本。
 
 - 2026-09-23（兼容入口误报修复）：根 `check-agent-entrypoints.ps1` 与 `repair-agent-entrypoints.ps1` 统一按链接解析后的目标比较，`AGENTS.md` 与 `.\AGENTS.md` 等价；正确链接不再误报或被备份重建，真正指向其他文件的链接仍报告并在显式修复时备份。新增隔离回归并接入 Windows CI；定向回归在 PowerShell 7/5.1 通过，完整 `update-agents.tests.ps1` 在 PowerShell 7/5.1 通过，文档链接定向检查 1/1，通过真实 imedical 链接核对。源仓修复不自动更新业务 `.agents`，提交、推送与部署状态以当次 Git/更新结果为准。

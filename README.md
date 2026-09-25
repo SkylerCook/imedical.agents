@@ -136,7 +136,7 @@ standard 模式的更新器在 fetch 后比较本地 `HEAD` 与 upstream：一�
 
 多个模块可以共享一个 canonical `CapabilityRoot`，同时把各自 `config`、`rules`、`memory` 和 `work` 保留在独立 `ContextRoot`。流程固定为 capability-once/context-many：先在标版根更新一次 capability，再对每个模块执行 `-NoPull` 的 DryRun/Write。模块 `.agents` 无须是 Git 仓库；其 `capability.json`、Junction 与 SourceRoot/GitRoot 必须通过解析和验证。刷新会在模块 `ContextRoot/scripts/` 生成 manifest-aware runtime adapter，包括将 `.agents/scripts/iris-mcp.js` 转发到共享 canonical helper；adapter 不写死 `CapabilityRoot` 绝对路径。
 
-完整命令、停止条件和安全恢复策略见 [docs/workspace-overlay.md](docs/workspace-overlay.md)。
+模块默认修改范围为 SourceRoot；理解依赖和调用链时可按需只读查看已声明 GitRoot 或项目注册表映射的相关仓库，读取不扩大写入授权。完整命令、读写边界、旧入口迁移和安全恢复策略见 [docs/workspace-overlay.md](docs/workspace-overlay.md)。
 
 安装和更新先根据 enabled 插件 manifest 解析 `skillDependencies`，只为 required vendor skill 生成 `.agents/skills/<name>/SKILL.md` 项目通用入口；optional skill 由任务场景触发。常规流程不再写用户级 skill 目录；用户级 Claude Code/Codex vendor 同步必须显式指定 runtime 和 skill。CodeBuddy/Claude Code 的项目技能采用链接接入；OpenCode、WorkBuddy、Hermes 等未实现 adapter 的工具使用 `.agents/skills` 或直接 vendor 源降级。
 

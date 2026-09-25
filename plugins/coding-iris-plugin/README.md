@@ -99,7 +99,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
   -Force
 ```
 
-workspace-overlay 模式不在每个模块中重复拉取插件：先更新共享 `CapabilityRoot`，再从 capability 脚本入口用 `-NoPull` 刷新模块 `ContextRoot`。IRIS 工具统一解析 workspace context：`project-env.json` 与 profile 来自 `ContextRoot`，插件/模板/vendor 来自 `CapabilityRoot`，源码操作限制在声明的 SourceRoot，`--from-git` 在各自 GitRoot 执行并映射回 WorkspaceRoot 逻辑路径。前端编码迁移只扫描 `sourceRoots[name=frontend]`；明确只有 `backend` 时写入 `N/A (backend-only)`，无法从 manifest 判定业务类型时才要求人工复核，全程不扫描父目录或 sibling。
+workspace-overlay 模式不在每个模块中重复拉取插件：先更新共享 `CapabilityRoot`，再从 capability 脚本入口用 `-NoPull` 刷新模块 `ContextRoot`。IRIS 工具统一解析 workspace context：`project-env.json` 与 profile 来自 `ContextRoot`，插件/模板/vendor 来自 `CapabilityRoot`，工具源码写入限制在声明的 SourceRoot，`--from-git` 在各自 GitRoot 执行并映射回 WorkspaceRoot 逻辑路径。Agent 可按当前需求只读搜索和查看已声明 GitRoot 或项目注册表明确映射的相关仓库，读取不扩大修改或部署权限；边界与旧项目入口迁移见能力包根 `docs/workspace-overlay.md`。前端编码迁移只扫描 `sourceRoots[name=frontend]`；明确只有 `backend` 时写入 `N/A (backend-only)`，无法从 manifest 判定业务类型时才要求人工复核，不通过扫描父目录或 sibling 猜测源码根。
 
 重建脚本委托根 canonical thin-index 脚本执行：生成阶段只处理当前 `PluginPath`，stale 清理阶段会扫描 `.agents/rules/` 中所有指向 `.agents/plugins/*/rules/*.md` 的 thin-index，并移除源文件已不存在的旧 rule 入口，例如迁移到 `references/` 的 HISUI 控件参考入口。目标工程自定义规则不会被清理。
 

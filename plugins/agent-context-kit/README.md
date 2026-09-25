@@ -39,7 +39,7 @@ v0.3.1 修复实测迁移：辅助模式缺省不落盘，显式配置不误报�
 - `standard`：`WorkspaceRoot/.agents` 同时作为 `CapabilityRoot` 与 `ContextRoot`，保持传统独立 Git 部署。
 - `workspace-overlay`：`WorkspaceRoot/.agents/capability.json` 声明唯一 `CapabilityRoot`、模块本地 `ContextRoot`、受限 `SourceRoot` 和真实 `GitRoot`。共享能力目录使用 Junction，本地 config/rules/memory/thin-index 使用普通目录。
 
-Overlay 初始化和维护必须先验证 manifest、shared Junction 与 local directory；源码探索禁止扫描父目录或未声明 sibling。模块刷新不 fetch/pull CapabilityRoot，也不要求 ContextRoot 存在 `.git`。
+Overlay 初始化和维护必须先验证 manifest、shared Junction 与 local directory；默认修改范围为 SourceRoot，允许按当前需求只读调查已声明 GitRoot 或项目注册表明确映射的相关仓库。读取不扩大写入权限，也不通过扫描父目录猜测路径；具体边界及旧项目入口迁移见能力包根 `docs/workspace-overlay.md`。模块刷新不 fetch/pull CapabilityRoot，也不要求 ContextRoot 存在 `.git`。
 
 推荐使用 `plugin-reference-thin-index`：
 

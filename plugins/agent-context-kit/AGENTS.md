@@ -20,7 +20,7 @@
 - `.agents/config/` 项目差异配置。
 - 暴露插件 skills 的 thin-index 文件。
 
-同时支持传统 `standard` 工程与 `workspace-overlay` 模块工作区。Overlay 必须先解析 `.agents/capability.json`，只写本地 `ContextRoot`，只扫描声明的 `SourceRoot`，Git 操作使用声明的真实 `GitRoot`；共享 `CapabilityRoot` 在模块维护流程中只读。
+同时支持传统 `standard` 工程与 `workspace-overlay` 模块工作区。Overlay 必须先解析 `.agents/capability.json`，上下文只写本地 `ContextRoot`，源码从 `SourceRoot` 开始调查；按需读取真实仓库与模块外写入授权遵循能力包根 `docs/workspace-overlay.md` 的“源码读取与修改范围”。Git 操作使用声明的真实 `GitRoot`；共享 `CapabilityRoot` 在模块维护流程中只读。
 
 不要在本插件中保存密钥、服务器凭据、一次性命令输出或源项目业务细节。
 
