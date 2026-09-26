@@ -1,5 +1,11 @@
 # imedical.agents
 
+> **让 AI Coding 的最佳实践成为团队共享的基础设施。**
+
+`imedical.agents` 是 imedical 的 AI Coding 能力包仓库，将实践中验证有效的 Agent 角色、协作流程、插件规则、skills、模板和辅助脚本沉淀为可治理、可一键分发、可持续演进的团队能力。它帮助团队成员缩小对 AI Coding 的认知与使用差异，让优秀经验被整个团队稳定复用。
+
+仓库同时帮助 Codex、Claude Code、OpenCode、CodeBuddy、WorkBuddy、Hermes 等不同 AI 开发工具快速获得正确上下文，并区分通用能力、项目差异、连接信息和临时经验。
+
 文档入口：[项目使用文档](docs/README.md) · [框架维护资料](maintenance/README.md)。
 
 使用入口：[能力目录（插件 / skill / rule）](docs/guides/capability-catalog.md) · [使用指南（场景选择 / 接入 / 全部技能示例）](docs/guides/capability-guide.md)。当前覆盖非 xc 能力；xc 手册列入后续治理。详细执行契约仍由各插件源文件维护。
@@ -15,10 +21,6 @@ SFTP 工具纳入 [vendor/sftp-server](vendor/sftp-server/README.md)：保留五
 CLS 编码提示：`coding-iris-plugin` 保留已有类历史格式，仅规范本次新增/修改位置；可选本地自检不阻断提交，不改变手动上传编译流程。
 
 IRIS 编码入口按边界选择：明确前端/后端任务直达专项 skill，混合或边界不明时使用 [iris-coding](plugins/coding-iris-plugin/skills/iris-coding/SKILL.md)。部署基线条件在修改前处理，i18n 条件矩阵由前端规则统一维护；静态读取体量与真实提效分别验证，见[验证记录](maintenance/validation/agent-evolution.md)。
-
-`imedical.agents` 是 imedical 的 AI Coding 能力包仓库，用于沉淀可复用的 Agent 角色、协作流程、插件规则、skills、模板和辅助脚本。
-
-目标是让 Codex、Claude Code、OpenCode、CodeBuddy、WorkBuddy、Hermes 等不同 AI 开发工具都能快速获得正确上下文，同时避免把通用能力、项目差异、连接信息和临时经验混在一起。
 
 ## 快速理解
 

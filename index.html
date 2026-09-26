@@ -5,13 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
-    <title>AI Coding 外骨骼架构：我的实践理解与 imedical.agents 工程落地</title>
+    <title>让 AI Coding 的进步成为团队的进步 | imedical.agents</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
             color-scheme: light;
+            --type-body: 1.125rem;
+            --type-small: 1rem;
+            --type-card: 1.5rem;
+            --type-section: clamp(2rem, 2.5vw, 2.5rem);
             --bg: #f6f8fb;
             --panel: #ffffff;
             --panel-soft: #eef4f8;
@@ -31,6 +35,10 @@
             scroll-behavior: smooth;
         }
 
+        h1[id], h2[id] {
+            scroll-margin-top: 64px;
+        }
+
         * {
             box-sizing: border-box;
         }
@@ -42,7 +50,8 @@
                 var(--bg);
             color: var(--text);
             font-family: "Plus Jakarta Sans", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-            line-height: 1.65;
+            font-size: var(--type-body);
+            line-height: 1.75;
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
@@ -59,6 +68,18 @@
 
         a {
             color: inherit;
+        }
+
+        .text-link {
+            color: var(--primary);
+            font-weight: 700;
+            text-decoration-thickness: 2px;
+            text-underline-offset: 3px;
+        }
+
+        .text-link:hover,
+        .text-link:focus-visible {
+            color: var(--accent);
         }
 
         .page {
@@ -99,7 +120,7 @@
             gap: 10px;
             margin-bottom: 18px;
             color: var(--primary-dark);
-            font-size: 14px;
+            font-size: var(--type-small);
             font-weight: 700;
             letter-spacing: 0;
         }
@@ -154,11 +175,60 @@
             font-size: clamp(18px, 2vw, 23px);
         }
 
+        .hero-mission {
+            margin-top: 24px;
+            max-width: 760px;
+            padding: 12px 16px;
+            border-left: 3px solid var(--accent);
+            background: rgba(255, 255, 255, 0.72);
+            color: #354556;
+        }
+
         .hero-actions {
             display: flex;
             flex-wrap: wrap;
             gap: 12px;
-            margin-top: 32px;
+            margin-top: 24px;
+        }
+
+        .hero-cta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .hero-cta a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 48px;
+            padding: 11px 20px;
+            border-radius: 10px;
+            font-weight: 800;
+            text-decoration: none;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .hero-cta a:hover {
+            transform: translateY(-2px);
+        }
+
+        .hero-cta .primary {
+            background: var(--primary-dark);
+            color: #fff;
+            box-shadow: 0 10px 24px rgba(11, 62, 84, 0.22);
+        }
+
+        .hero-cta .secondary {
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.76);
+            color: var(--primary-dark);
+        }
+
+        .hero-cta a:focus-visible {
+            outline: 3px solid var(--accent);
+            outline-offset: 3px;
         }
 
         .pill {
@@ -171,7 +241,7 @@
             border-radius: 999px;
             background: rgba(255, 255, 255, 0.72);
             color: #39495a;
-            font-size: 14px;
+            font-size: var(--type-small);
             font-weight: 700;
         }
 
@@ -220,7 +290,7 @@
             border-radius: 8px;
             background: var(--primary);
             color: #fff !important;
-            font-size: 12px;
+            font-size: var(--type-small);
             font-weight: 800;
             letter-spacing: 0.04em;
             font-family: "Plus Jakarta Sans", "Noto Sans SC", sans-serif;
@@ -234,19 +304,264 @@
             display: block;
             margin-bottom: 4px;
             color: var(--primary-dark);
-            font-size: 17px;
+            font-size: var(--type-body);
             overflow-wrap: anywhere;
         }
 
         .stack-item span {
             display: block;
             color: var(--muted);
-            font-size: 14px;
+            font-size: var(--type-small);
             overflow-wrap: anywhere;
         }
 
         section {
             padding: 78px 0;
+        }
+
+        .growth-section {
+            padding-top: 18px;
+        }
+
+        .growth-shell {
+            overflow: hidden;
+            padding: clamp(28px, 5vw, 60px);
+            border-radius: 28px;
+            background:
+                radial-gradient(circle at 85% 5%, rgba(214, 111, 45, 0.25), transparent 32%),
+                radial-gradient(circle at 5% 95%, rgba(57, 153, 176, 0.24), transparent 38%),
+                #0b2939;
+            color: #d5e7ee;
+            box-shadow: 0 28px 60px rgba(11, 41, 57, 0.25);
+        }
+
+        .growth-head {
+            display: grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.65fr);
+            gap: 30px;
+            align-items: end;
+        }
+
+        .growth-kicker {
+            display: block;
+            margin-bottom: 16px;
+            color: #ffbb8d;
+            font-size: var(--type-small);
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+
+        .growth-head h2 {
+            max-width: 720px;
+            color: #fff;
+            font-size: clamp(34px, 5vw, 62px);
+            scroll-margin-top: 64px;
+        }
+
+        .growth-head p {
+            max-width: 350px;
+            color: #b9d0db;
+            font-size: var(--type-body);
+        }
+
+        .growth-periods {
+            display: flex;
+            gap: 10px;
+            margin: 34px 0 24px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            scrollbar-color: #7f9dab transparent;
+        }
+
+        .growth-periods[hidden] {
+            display: none;
+        }
+
+        .growth-period {
+            flex: 1 0 116px;
+            min-width: 0;
+            padding: 11px 14px;
+            border: 1px solid rgba(173, 211, 226, 0.25);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #a9c5d1;
+            font: inherit;
+            font-size: var(--type-small);
+            font-weight: 800;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+        }
+
+        .growth-period[aria-pressed="true"] {
+            border-color: #ffb577;
+            background: #d66f2d;
+            color: #fff;
+        }
+
+        .growth-period:hover,
+        .growth-period:focus-visible {
+            border-color: #ffb577;
+            color: #fff;
+        }
+
+        .growth-period:focus-visible {
+            outline: 2px solid #ffb577;
+            outline-offset: 3px;
+        }
+
+        .growth-metrics {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .growth-metric {
+            --metric-color: #ffad73;
+            min-width: 0;
+            padding: 20px;
+            border: 1px solid rgba(189, 223, 236, 0.2);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        .growth-metric:nth-child(2) { --metric-color: #71d8c1; }
+        .growth-metric:nth-child(3) { --metric-color: #a8c9ff; }
+        .growth-metric:nth-child(4) { --metric-color: #d7b2f0; }
+
+        .growth-metric-label {
+            display: block;
+            min-height: 42px;
+            color: #b9d0db;
+            font-size: var(--type-small);
+            font-weight: 700;
+        }
+
+        .growth-metric-value {
+            display: block;
+            color: #fff;
+            font-size: clamp(44px, 5vw, 68px);
+            font-weight: 800;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .growth-metric-range {
+            display: block;
+            margin-top: 8px;
+            color: #b9d0db;
+            font-size: var(--type-small);
+        }
+
+        .growth-chart {
+            display: block;
+            width: 100%;
+            height: 90px;
+            margin-top: 14px;
+            overflow: visible;
+        }
+
+        .growth-chart .area {
+            fill: var(--metric-color);
+            opacity: 0.13;
+        }
+
+        .growth-chart .line {
+            fill: none;
+            stroke: var(--metric-color);
+            stroke-width: 3;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .growth-chart .point {
+            fill: #0b2939;
+            stroke: var(--metric-color);
+            stroke-width: 2;
+        }
+
+        .growth-chart .point.active {
+            fill: var(--metric-color);
+            stroke: #fff;
+            stroke-width: 2;
+        }
+
+        .growth-story {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 24px;
+            align-items: end;
+            min-height: 145px;
+            margin-top: 20px;
+            padding: 24px 28px;
+            border-left: 4px solid #ffad73;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .growth-story[hidden] {
+            display: none;
+        }
+
+        .growth-story time {
+            display: block;
+            margin-bottom: 7px;
+            color: #ffbb8d;
+            font-size: var(--type-small);
+            font-weight: 800;
+        }
+
+        .growth-story h3 {
+            margin-bottom: 7px;
+            color: #fff;
+            font-size: 24px;
+        }
+
+        .growth-story p {
+            color: #c7dde6;
+        }
+
+        .growth-story a {
+            color: #ffcbab;
+            font-size: var(--type-small);
+            font-weight: 700;
+            text-underline-offset: 3px;
+            white-space: nowrap;
+        }
+
+        .growth-story a:hover,
+        .growth-story a:focus-visible {
+            color: #fff;
+        }
+
+        .growth-method {
+            margin-top: 18px;
+            color: #a9c5d1;
+            font-size: var(--type-small);
+        }
+
+        .growth-method summary {
+            width: fit-content;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .growth-method p {
+            max-width: 900px;
+            margin-top: 8px;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
         }
 
         .section-head {
@@ -259,7 +574,7 @@
 
         .section-head p {
             color: var(--muted);
-            font-size: 17px;
+            font-size: var(--type-body);
         }
 
         .grid {
@@ -380,7 +695,7 @@
 
         .arch-node p {
             color: var(--muted);
-            font-size: 15px;
+            font-size: var(--type-small);
         }
 
         .connector {
@@ -561,8 +876,8 @@
         .hero > div:first-child { animation: fadeUp 0.6s ease-out both; }
         .hero-card { animation: fadeUp 0.6s 0.15s ease-out both; }
 
-        section .section-head,
         section .grid,
+        section .growth-shell,
         section .architecture,
         section .repo-map,
         section .agent-grid,
@@ -575,8 +890,8 @@
             transition: opacity 0.6s ease-out, transform 0.6s ease-out;
         }
 
-        section .section-head.visible,
         section .grid.visible,
+        section .growth-shell.visible,
         section .architecture.visible,
         section .repo-map.visible,
         section .agent-grid.visible,
@@ -637,6 +952,15 @@
             .timeline {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
+
+            .growth-head,
+            .growth-story {
+                grid-template-columns: 1fr;
+            }
+
+            .growth-metrics {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
         }
 
         @media (max-width: 640px) {
@@ -656,7 +980,7 @@
 
             .lead {
                 max-width: 100%;
-                font-size: 17px;
+                font-size: var(--type-body);
                 line-height: 1.75;
             }
 
@@ -667,13 +991,54 @@
                 max-width: 100%;
             }
 
+            .hero-cta a {
+                flex: 1 1 100%;
+            }
+
+            .growth-shell {
+                padding: 28px 16px;
+                border-radius: 16px;
+            }
+
+            .growth-head h2 {
+                font-size: 36px;
+            }
+
+            .growth-period {
+                flex-basis: 106px;
+            }
+
+            .growth-metrics {
+                gap: 10px;
+            }
+
+            .growth-metric {
+                padding: 14px;
+            }
+
+            .growth-metric-value {
+                font-size: 42px;
+            }
+
+            .growth-chart {
+                height: 64px;
+            }
+
+            .growth-story {
+                padding: 20px;
+            }
+
+            .growth-story a {
+                white-space: normal;
+            }
+
             .pill {
                 min-width: 0;
                 width: 100%;
                 justify-content: center;
                 padding: 8px 10px;
                 text-align: center;
-                font-size: 13px;
+                font-size: var(--type-small);
                 white-space: normal;
             }
 
@@ -719,413 +1084,712 @@
                 font-size: 34px;
             }
         }
+
+        @media (prefers-reduced-motion: reduce) {
+            .hero > div:first-child,
+            .hero-card {
+                animation: none;
+            }
+
+            section .section-head,
+            section .grid,
+            section .growth-shell,
+            section .architecture,
+            section .repo-map,
+            section .agent-grid,
+            section .timeline,
+            section .correction,
+            section .quote,
+            section .final-card {
+                opacity: 1;
+                transform: none;
+                transition: none;
+            }
+        }
+
+        /* Growth is the first-screen narrative; implementation details stay secondary. */
+        .page { width: min(1280px, calc(100% - 48px)); }
+        .masthead { display: flex; align-items: center; justify-content: space-between; min-height: 78px; gap: 24px; }
+        .masthead a { text-decoration: none; }
+        .brand { font-size: 22px; font-weight: 800; letter-spacing: -1px; }
+        .brand span { color: var(--accent); }
+        .masthead > div { display: flex; gap: 28px; font-size: var(--type-small); font-weight: 700; }
+        .growth-section { padding: 0 0 36px; }
+        section .growth-shell { opacity: 1; transform: none; }
+        .growth-shell { padding: 38px 48px 22px; border-radius: 24px; background: radial-gradient(ellipse at 98% 0%, #694b343d, transparent 55%), linear-gradient(130deg, #092a3b, #0a202d); }
+        .growth-head { grid-template-columns: minmax(0, 1fr) 210px; gap: 24px; align-items: center; }
+        .growth-kicker { font-size: var(--type-small); letter-spacing: .12em; margin-bottom: 16px; }
+        .growth-head h1 { margin: 0; color: #fff; font-size: clamp(32px, 4.6vw, 60px); line-height: 1.24; letter-spacing: -.04em; scroll-margin-top: 64px; }
+        .growth-head h1 span { color: #ffb278; }
+        .growth-head .stage-intro { max-width: 690px; font-size: var(--type-body); margin: 18px 0 0; color: #abc4ce; }
+        .stage-date { border-left: 1px solid #ffffff24; padding-left: 30px; color: #92aebd; }
+        .stage-date > span { display: block; font-size: var(--type-small); letter-spacing: .05em; }
+        .stage-date strong { display: block; font-size: 90px; font-weight: 500; line-height: 1.2; color: #ffffff24; font-variant-numeric: tabular-nums; letter-spacing: -.06em; }
+        .stage-date strong span { font-size: var(--type-small); letter-spacing: 0; padding-left: 6px; color: #92aebd; }
+        .snapshot-label { margin: 28px 0 12px; color: #b5cbd4; font-size: var(--type-small); display: flex; align-items: center; gap: 12px; }
+        .snapshot-label > span:last-child { margin-left: auto; color: #8aa5b3; }
+        .growth-metrics { gap: 0; border-top: 1px solid #ffffff26; border-bottom: 1px solid #ffffff26; }
+        .growth-metric { background: none; border: 0; border-radius: 0; padding: 19px 24px 8px; border-right: 1px solid #ffffff1c; }
+        .growth-metric:first-child { padding-left: 0; }
+        .growth-metric:last-child { border-right: 0; padding-right: 0; }
+        .growth-metric-label { min-height: 0; font-size: var(--type-small); margin-bottom: 10px; }
+        .growth-metric-value { font-size: clamp(50px, 6vw, 82px); color: var(--metric-color); letter-spacing: -.05em; }
+        .growth-metric-range { font-size: var(--type-small); }
+        .growth-chart { height: 45px; margin-top: 5px; }
+        .growth-chart rect { transition: width 550ms ease; }
+        .growth-controls[hidden] { display: none; }
+        .growth-controls { display: grid; grid-template-columns: 160px minmax(0, 1fr); column-gap: 24px; margin-top: 20px; align-items: center; }
+        .playback-row { display: contents; }
+        #growth-play { border: 0; background: #ffb278; color: #142a34; border-radius: 7px; font: inherit; font-size: var(--type-small); font-weight: 800; padding: 10px 16px; min-width: 145px; cursor: pointer; }
+        #growth-play:hover { background: #ffcaa3; }
+        #growth-play:focus-visible, #growth-scrubber:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+        #growth-play { grid-column: 1; grid-row: 1 / 3; }
+        .scrubber-label, .playback-hint { display: none; }
+        #growth-scrubber { grid-column: 2; grid-row: 1; min-width: 0; width: 80%; margin: 0 10%; accent-color: #ffb278; cursor: pointer; }
+        .growth-periods { grid-column: 2; grid-row: 2; position: relative; margin: 7px 0 0; gap: 0; overflow: visible; padding: 0; }
+        .growth-period { position: relative; flex: 1 1 0; border: 0; border-radius: 0; background: none; padding: 0; font-size: var(--type-small); min-width: 0; }
+        .growth-period span { font-size: var(--type-small); margin-right: 7px; font-variant-numeric: tabular-nums; }
+        .growth-period[aria-pressed='true'], .growth-period:hover { background: none; color: #ffb278; box-shadow: none; transform: none; }
+        .growth-story { margin-top: 17px; padding: 16px 20px; gap: 18px; min-height: 146px; border-left-width: 2px; border-radius: 0 10px 10px 0; background: #ffffff05; }
+        .growth-story time { font-size: var(--type-small); margin-bottom: 4px; }
+        .growth-story h3 { font-size: 20px; margin: 0 0 4px; }
+        .growth-story p { font-size: var(--type-body); margin: 0; }
+        .growth-story a { font-size: var(--type-small); white-space: nowrap; }
+        .chapter-assets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+        .chapter-assets > span { display: flex; gap: 7px; align-items: baseline; border: 1px solid #ffffff1c; border-radius: 4px; padding: 3px 7px; }
+        .chapter-assets b { font-size: var(--type-small); color: #dce8ed; font-weight: 500; }
+        .chapter-assets small { font-size: var(--type-small); color: #91aebd; overflow-wrap: anywhere; }
+        .growth-method { margin-top: 13px; }
+        .capability-section, section[aria-labelledby='sharing-title'] { padding: 64px 10px; }
+        .capability-map { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-block: 1px solid var(--line); }
+        .capability-map article { padding: 28px; border-right: 1px solid var(--line); }
+        .capability-map article:first-child { padding-left: 0; }
+        .capability-map article:last-child { border-right: 0; }
+        .map-index { font-size: var(--type-small); color: var(--accent); font-weight: 800; }
+        .capability-map h3 { margin: 12px 0; font-size: 23px; }
+        .capability-map p { font-size: var(--type-body); color: var(--muted); }
+        .capability-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+        .capability-tags span { font-size: var(--type-small); padding: 4px 9px; background: #e6eef3; border-radius: 4px; }
+        .catalog-link { display: flex; justify-content: space-between; padding: 16px 0; text-decoration: none; color: var(--primary); font-size: var(--type-body); font-weight: 700; }
+        .engineering-details { margin: 24px 10px 0; border-block: 1px solid var(--line); }
+        .engineering-details > summary { display: flex; justify-content: space-between; align-items: center; gap: 20px; cursor: pointer; padding: 25px 0; list-style: none; }
+        .engineering-details > summary::-webkit-details-marker { display: none; }
+        .engineering-details summary small { display: block; color: var(--muted); font-size: var(--type-small); margin-bottom: 6px; }
+        .engineering-details summary strong { font-size: 22px; }
+        .detail-action { color: var(--primary); font-size: var(--type-small); }
+        .engineering-details[open] .detail-action { font-size: 0; }
+        .engineering-details[open] .detail-action::after { content: '收起 −'; font-size: var(--type-small); }
+        .engineering-content section { padding: 38px 0; }
+        .final { padding: 70px 0; }
+        .final-card h2 { font-size: clamp(25px, 3vw, 40px); }
+        @media (min-width: 1500px) { .growth-shell { padding: 48px 60px 28px; } }
+        @media (max-width: 760px) {
+            .page { width: calc(100% - 24px); }
+            .masthead { min-height: 64px; gap: 12px; }
+            .brand { font-size: 18px; }
+            .masthead > div { gap: 14px; font-size: var(--type-small); }
+            .masthead > div a:first-child { display: none; }
+            .growth-shell { padding: 26px 22px 18px; border-radius: 18px; }
+            .growth-head { grid-template-columns: 1fr; }
+            .stage-date { display: none; }
+            .growth-head h1 { font-size: clamp(30px, 6vw, 45px); }
+            .growth-head h1 span { display: block; white-space: nowrap; }
+            .growth-head .stage-intro { font-size: var(--type-body); }
+            .growth-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .growth-metric { padding: 16px 16px 8px; }
+            .growth-metric:nth-child(odd) { padding-left: 0; }
+            .growth-metric:nth-child(even) { border-right: 0; padding-right: 0; }
+            .growth-metric:nth-child(-n+2) { border-bottom: 1px solid #ffffff1c; }
+            .growth-metric-value { font-size: 58px; }
+            .snapshot-label > span:last-child { display: none; }
+            .growth-controls { grid-template-columns: minmax(0, 1fr); row-gap: 10px; }
+            .scrubber-label, .playback-hint { display: none; }
+            #growth-play { grid-column: 1; grid-row: 1; justify-self: start; min-width: 130px; padding: 10px; font-size: var(--type-small); }
+            #growth-scrubber { grid-column: 1; grid-row: 2; }
+            .growth-periods { grid-column: 1; grid-row: 3; margin-top: 0; }
+            .growth-period span { display: block; margin: 0; }
+            .growth-story { display: block; min-height: 220px; padding: 14px; }
+            .growth-story h3 { font-size: 18px; }
+            .growth-story a { display: inline-block; margin-top: 10px; }
+            .chapter-assets > span { flex-wrap: wrap; gap: 0 6px; }
+            .capability-section, section[aria-labelledby='sharing-title'] { padding: 45px 8px; }
+            .capability-map { grid-template-columns: 1fr; }
+            .capability-map article, .capability-map article:first-child { padding: 22px 0; border-right: 0; border-bottom: 1px solid var(--line); }
+            .capability-map article:last-child { border-bottom: 0; }
+            .engineering-details summary strong { font-size: 18px; }
+        }
+        @media (prefers-reduced-motion: reduce) { .growth-chart rect { transition: none; } }
+
+        .engineering-content { padding-bottom: 20px; }
+        .engineering-content section + section { border-top: 1px solid var(--line); }
+        .mechanism-heading { max-width: 850px; margin-bottom: 28px; }
+        .mechanism-heading > span { color: var(--accent); font-size: var(--type-small); font-weight: 700; }
+        .mechanism-heading h2 { font-size: clamp(23px, 2.5vw, 32px); margin: 12px 0; line-height: 1.4; }
+        .mechanism-heading p, .execution-flow p, .ownership-map p, .evolution-flow p { color: var(--muted); font-size: var(--type-body); line-height: 1.8; margin: 10px 0 0; }
+        .execution-flow { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin: 0; padding: 0; }
+        .execution-flow li { position: relative; border-top: 2px solid #b6cbd5; padding: 22px 22px 18px 0; min-width: 0; }
+        .execution-flow li::before { content: ''; position: absolute; top: -5px; left: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
+        .flow-number { font-size: var(--type-small); color: var(--primary); font-weight: 800; }
+        .execution-flow h3 { font-size: 19px; margin-top: 8px; }
+        .execution-flow small { display: block; color: var(--primary); font-size: var(--type-small); margin-top: 16px; }
+        .mechanism-note { border-left: 3px solid #abc3ce; background: #eaf1f5; padding: 14px 18px; color: #526777; font-size: var(--type-body); line-height: 1.9; margin-top: 18px; }
+        .mechanism-note strong { color: var(--primary-dark); }
+        .ownership-map { display: grid; grid-template-columns: minmax(0, 1fr) 110px minmax(0, 1fr); align-items: stretch; }
+        .ownership-map article { padding: 24px; background: #fff; border: 1px solid var(--line); border-radius: 14px; min-width: 0; }
+        .ownership-label { font-size: var(--type-small); color: var(--muted); }
+        .ownership-map h3 { font-size: 22px; margin-top: 9px; }
+        .distribution-bridge { align-self: center; text-align: center; color: var(--primary); font-size: var(--type-small); }
+        .distribution-bridge b { display: block; font-size: 30px; }
+        .evolution-flow { list-style: none; counter-reset: evolution; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; padding: 0; margin: 0; }
+        .evolution-flow li { counter-increment: evolution; border-top: 1px solid var(--line); padding-top: 18px; }
+        .evolution-flow strong { color: var(--primary-dark); font-size: 18px; }
+        .evolution-flow strong::before { content: '0' counter(evolution) ' / '; color: var(--accent); font-size: var(--type-small); }
+        .mechanism-link { display: inline-block; color: var(--primary); font-size: var(--type-body); margin-top: 18px; text-underline-offset: 4px; }
+        .mechanism-links { display: flex; flex-wrap: wrap; gap: 0 24px; }
+        @media (max-width: 760px) {
+            .execution-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 0; }
+            .ownership-map { grid-template-columns: 1fr; }
+            .distribution-bridge { display: flex; align-items: center; justify-content: center; gap: 15px; padding: 12px 0; }
+            .distribution-bridge b { transform: rotate(90deg); }
+            .evolution-flow { grid-template-columns: 1fr; gap: 18px; }
+        }
+        @media (max-width: 420px) {
+            .execution-flow { grid-template-columns: 1fr; gap: 0; }
+            .execution-flow li { border-top: 0; border-left: 2px solid #b6cbd5; padding: 0 0 24px 22px; }
+            .execution-flow li::before { top: 6px; left: -5px; }
+            .execution-flow li:last-child { padding-bottom: 0; }
+            .execution-flow small { margin-top: 8px; }
+        }
+
+        .exoskeleton-diagram { max-width: 1000px; margin: 0 auto; }
+        .cognitive-engine { width: min(100%, 470px); margin: 0 auto; text-align: center; padding: 24px; background: #103b50; color: #d8eaf1; border-radius: 16px; }
+        .cognitive-engine > span { color: #ffbb8d; font-size: var(--type-small); letter-spacing: .12em; }
+        .cognitive-engine h3 { color: #fff; font-size: 24px; margin: 8px 0; }
+        .cognitive-engine p { margin: 0; font-size: var(--type-body); }
+        .brain-exchange { display: flex; justify-content: center; gap: 24px; padding: 16px 0; color: var(--primary); font-size: var(--type-small); }
+        .exoskeleton-frame { padding: 24px; border: 2px solid #91b6c6; border-radius: 20px; background: linear-gradient(135deg, #eef5f8, #fff8f1); }
+        .frame-title { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 20px; }
+        .frame-title strong { font-size: 20px; color: var(--primary-dark); }
+        .frame-title span { font-size: var(--type-small); color: var(--muted); }
+        .project-context { padding: 14px 18px; background: #fff; border-left: 3px solid var(--primary); border-radius: 4px; }
+        .project-context strong, .orchestration strong { color: var(--primary-dark); font-size: var(--type-small); }
+        .project-context p, .orchestration p { margin: 5px 0 0; font-size: var(--type-body); line-height: 1.8; color: var(--muted); }
+        .executor { text-align: center; padding: 24px 12px; }
+        .executor > span { color: var(--accent); font-size: var(--type-small); }
+        .executor h3 { font-size: 24px; margin: 9px 0; }
+        .executor p { color: var(--muted); font-size: var(--type-body); margin: 0; }
+        .exoskeleton-supports { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+        .exoskeleton-supports article { padding: 20px; border: 1px solid var(--line); background: #fff; border-radius: 12px; }
+        .exoskeleton-supports article > span { font-size: var(--type-small); color: var(--muted); }
+        .exoskeleton-supports h3 { font-size: 21px; margin: 8px 0; }
+        .exoskeleton-supports p { font-size: var(--type-body); line-height: 1.8; color: var(--muted); margin: 0 0 12px; }
+        .exoskeleton-supports strong { color: var(--primary); font-size: var(--type-small); }
+        .orchestration { border-top: 1px dashed #abc3ce; margin-top: 20px; padding-top: 16px; }
+        @media (max-width: 760px) {
+            .exoskeleton-frame { padding: 16px; }
+            .frame-title { display: block; }
+            .frame-title span { display: block; margin-top: 4px; }
+            .exoskeleton-supports { grid-template-columns: 1fr; }
+            .exoskeleton-supports article { padding: 16px; }
+            .brain-exchange { font-size: var(--type-small); gap: 16px; }
+            .executor h3 { font-size: 20px; line-height: 1.4; }
+        }
+
+        .context-state-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+        .architecture-caption { display: block; font-size: var(--type-small); color: var(--primary); margin-top: 10px; }
+        .runtime-guard { margin-top: 18px; padding: 18px; border: 1px solid #d6bb9d; border-radius: 10px; background: #fff9f2; }
+        .runtime-guard strong { color: #79502d; font-size: var(--type-body); }
+        .runtime-guard p { margin: 8px 0 0; color: #635b52; font-size: var(--type-body); line-height: 1.8; }
+        .feedback-return { display: flex; align-items: center; gap: 18px; padding: 18px 22px; border: 1px solid #abc3ce; border-radius: 12px; background: #f1f7fa; }
+        .feedback-return > span { color: var(--primary); font-size: 32px; }
+        .feedback-return strong { color: var(--primary-dark); font-size: var(--type-body); }
+        .feedback-return p { margin: 6px 0 0; font-size: var(--type-body); color: var(--muted); }
+        .evaluation-panel { margin-top: 28px; padding: 24px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+        .evaluation-panel h3 { font-size: 23px; margin: 12px 0; line-height: 1.4; }
+        .evaluation-panel p { font-size: var(--type-body); color: var(--muted); line-height: 1.8; }
+        .evaluation-signals { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 18px 0; padding: 0; }
+        .evaluation-signals li { font-size: var(--type-small); padding: 6px 12px; background: #eaf1f5; color: var(--primary-dark); border-radius: 5px; }
+        .evaluation-panel .evaluation-status { border-top: 1px solid var(--line); padding-top: 16px; margin-bottom: 0; }
+        .evaluation-status a { color: var(--primary); text-underline-offset: 4px; }
+        .foundation-list { list-style: none; padding: 0; margin: 0; }
+        .foundation-list li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; padding: 20px 0; border-top: 1px solid var(--line); }
+        .foundation-list span { display: block; color: var(--muted); font-size: var(--type-small); margin-bottom: 6px; }
+        .foundation-list a { color: var(--primary); font-size: var(--type-body); font-weight: 700; text-underline-offset: 4px; overflow-wrap: anywhere; }
+        .foundation-list p { color: var(--muted); font-size: var(--type-body); line-height: 1.8; margin: 0; }
+        @media (max-width: 760px) {
+            .context-state-grid, .foundation-list li { grid-template-columns: 1fr; }
+            .foundation-list li { gap: 12px; }
+            .evaluation-panel { padding: 18px; }
+            .feedback-return { padding: 16px; gap: 12px; }
+        }
+
+        /* Blueprint treatment: structure carries the visual emphasis. */
+        .exoskeleton-diagram { --circuit: #62dbeb; max-width: none; padding: 30px; border-radius: 22px; color: #c0d4e2; background: radial-gradient(ellipse at 50% 35%, #16415380, transparent 60%), repeating-linear-gradient(0deg, transparent, transparent 39px, #81bed409 39px, #81bed409 40px), repeating-linear-gradient(90deg, transparent, transparent 39px, #81bed409 39px, #81bed409 40px), #081a28; border: 1px solid #20475b; box-shadow: 0 20px 50px #09263826; }
+        .blueprint-top { display: flex; justify-content: space-between; gap: 18px; color: #9cbacb; font-size: var(--type-small); letter-spacing: .08em; border-bottom: 1px solid #487d933f; padding-bottom: 20px; margin-bottom: 30px; }
+        .blueprint-top > span:first-child { color: var(--circuit); font-weight: 700; }
+        .cognitive-engine { position: relative; width: min(100%, 530px); padding: 26px; border: 1px solid #62dbeb88; border-radius: 12px; background: linear-gradient(135deg, #164052, #0e293e); box-shadow: 0 0 36px #62dbeb12, inset 0 1px #a5edff26; }
+        .cognitive-engine h3 { font-size: 30px; }
+        .cognitive-engine > span { color: var(--circuit); }
+        .brain-exchange { color: #a9d6e7; padding: 20px 0; }
+        .exoskeleton-frame { position: relative; padding: 30px; border: 1px solid #4d9dbb; border-radius: 14px; background: #0b2434db; box-shadow: inset 0 0 40px #4eb5d30a; }
+        .exoskeleton-frame::before, .exoskeleton-frame::after { content: ''; position: absolute; width: 28px; height: 28px; pointer-events: none; border-color: var(--circuit); border-style: solid; }
+        .exoskeleton-frame::before { left: -2px; top: -2px; border-width: 3px 0 0 3px; border-radius: 14px 0 0; }
+        .exoskeleton-frame::after { right: -2px; bottom: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 14px; }
+        .frame-title { margin-bottom: 26px; }
+        .frame-title strong { color: #fff; font-size: 28px; }
+        .frame-title span { color: #8fb5c9; letter-spacing: .06em; }
+        .exoskeleton-frame .project-context { background: #102f43; border: 1px solid #356078; border-left: 3px solid #62dbeb; border-radius: 8px; padding: 20px; }
+        .exoskeleton-frame .project-context strong { color: #e0f8ff; font-size: var(--type-body); }
+        .exoskeleton-frame .project-context p { color: #b4ccdb; }
+        .exoskeleton-frame .architecture-caption { color: #7cd3e3; }
+        .executor { position: relative; margin: 35px auto; width: min(100%, 720px); padding: 26px; border: 1px solid #66d3e775; border-radius: 14px; background: linear-gradient(110deg, #194456, #123045); box-shadow: 0 0 34px #60dcef14; }
+        .executor::before, .executor::after { content: ''; position: absolute; left: 50%; width: 2px; height: 35px; background: linear-gradient(#62dbeb55, #62dbeb); }
+        .executor::before { top: -36px; }
+        .executor::after { bottom: -36px; }
+        .executor > .core-symbol { display: flex; width: 50px; height: 50px; align-items: center; justify-content: center; margin: 0 auto 16px; border: 1px solid var(--circuit); color: var(--circuit); font-size: 32px; border-radius: 12px; box-shadow: 0 0 22px #62dbeb30; }
+        .executor > span { color: #7fe2ef; }
+        .executor h3 { color: #fff; font-size: clamp(22px, 2.5vw, 32px); line-height: 1.4; }
+        .executor p { color: #c0d8e6; line-height: 1.8; }
+        .exoskeleton-supports { position: relative; gap: 18px; }
+        .exoskeleton-supports article { border: 1px solid #365c73; border-top: 3px solid #65d7e5; background: #102a3e; border-radius: 9px; padding: 22px; }
+        .exoskeleton-supports article:nth-child(2) { border-top-color: #8fbdff; }
+        .exoskeleton-supports article:nth-child(3) { border-top-color: #ffc28a; }
+        .exoskeleton-supports article > span { color: #99b8cb; }
+        .exoskeleton-supports h3 { color: #fff; font-size: 25px; }
+        .exoskeleton-supports p { color: #b8cddd; }
+        .exoskeleton-supports strong { color: #94e4ee; }
+        .exoskeleton-frame .runtime-guard { background: #392e234d; border: 1px solid #b886526e; border-left: 3px solid #ffb774; margin-top: 24px; padding: 22px; }
+        .exoskeleton-frame .runtime-guard strong { color: #ffd0a4; font-size: 18px; }
+        .exoskeleton-frame .runtime-guard p { color: #dfcebd; }
+        .exoskeleton-frame .orchestration { border-color: #365c73; padding-top: 22px; margin-top: 24px; }
+        .exoskeleton-frame .orchestration strong { color: #d5f2ff; font-size: var(--type-body); }
+        .exoskeleton-frame .orchestration p { color: #b4ccdb; }
+        .client-adaptation { padding: 28px; border: 1px solid #c5d8e2; border-radius: 18px; background: #edf4f8; }
+        .shared-skill-source { max-width: 580px; margin: 0 auto; text-align: center; background: #103b50; color: #c7dee9; border: 1px solid #42869e; border-radius: 12px; padding: 24px; }
+        .shared-skill-source > span { font-size: var(--type-small); color: #8edfe7; }
+        .shared-skill-source h3 { color: #fff; font-size: 25px; margin: 9px 0 14px; }
+        .shared-skill-source code { background: #ffffff14; color: #c8faff; padding: 5px 10px; }
+        .shared-skill-source p { font-size: var(--type-body); margin: 18px 0 0; }
+        .adapter-branches { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; padding-top: 52px; }
+        .adapter-branches::before { content: ''; position: absolute; top: 26px; left: calc((100% - 40px) / 6); right: calc((100% - 40px) / 6); height: 1px; background: #6397af; }
+        .adapter-branches::after { content: ''; position: absolute; top: 0; left: 50%; width: 1px; height: 26px; background: #6397af; }
+        .adapter-branches article { position: relative; padding: 24px; border: 1px solid #bed1dc; border-radius: 12px; background: #fff; min-width: 0; }
+        .adapter-branches article::before { content: ''; position: absolute; top: -26px; left: 50%; width: 1px; height: 26px; background: #6397af; }
+        .adapter-mode { display: inline-block; font-size: var(--type-small); color: var(--primary); border-bottom: 2px solid #83c3d4; padding-bottom: 4px; }
+        .adapter-branches h3 { font-size: 25px; margin: 16px 0; }
+        .adapter-branches code { font-size: var(--type-small); overflow-wrap: anywhere; }
+        .adapter-branches p, .adapter-evidence { color: var(--muted); font-size: var(--type-body); line-height: 1.8; }
+        .adapter-evidence { margin: 18px 0 0; }
+        @media (max-width: 760px) {
+            .exoskeleton-diagram, .client-adaptation { padding: 18px; }
+            .blueprint-top { flex-direction: column; gap: 6px; font-size: var(--type-small); margin-bottom: 24px; }
+            .exoskeleton-frame { padding: 18px; }
+            .frame-title strong { font-size: 25px; }
+            .frame-title span { line-height: 1.8; }
+            .executor { padding: 22px 16px; }
+            .exoskeleton-supports { gap: 14px; }
+            .exoskeleton-supports article { padding: 18px; }
+            .cognitive-engine { padding: 22px 16px; }
+            .cognitive-engine h3 { font-size: 25px; }
+            .adapter-branches { grid-template-columns: 1fr; gap: 20px; padding: 26px 0 0 18px; }
+            .adapter-branches::before { left: 0; top: 0; bottom: 0; width: 1px; height: auto; right: auto; }
+            .adapter-branches::after { top: 0; left: 0; width: 50%; height: 1px; }
+            .adapter-branches article::before { left: -18px; top: 50%; width: 18px; height: 1px; }
+            .adapter-branches article { padding: 20px; }
+        }
+
+        /* Readable at browser default zoom; smaller screens trade columns for space. */
+        .how-it-works { padding: 64px 10px 24px; }
+        .mechanism-heading h2, .section-head h2, .final-card h2 { font-size: var(--type-section); line-height: 1.35; }
+        .capability-map h3, .ownership-map h3, .adapter-branches h3, .execution-flow h3, .growth-story h3 { font-size: var(--type-card); line-height: 1.4; }
+        .mechanism-heading p, .mechanism-note, .section-head p, .foundation-list p { line-height: 1.75; }
+        .mechanism-heading { max-width: 52rem; }
+        .mechanism-note { max-width: 68rem; }
+        .mechanism-note, .adapter-evidence, .evaluation-panel p { text-wrap: pretty; }
+        .growth-head .stage-intro { max-width: 46rem; }
+        .growth-kicker, .blueprint-top { letter-spacing: .06em; }
+        .masthead { flex-wrap: wrap; padding-block: 16px; }
+        .masthead > div { flex-wrap: wrap; row-gap: 10px; }
+        .engineering-details > summary > span:first-child { min-width: 0; }
+        .detail-action { flex-shrink: 0; }
+        .engineering-details summary strong { line-height: 1.5; }
+        @media (max-width: 980px) {
+            .context-state-grid, .exoskeleton-supports { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 760px) {
+            :root { --type-body: 1.0625rem; --type-small: .9375rem; --type-card: 1.375rem; --type-section: clamp(1.625rem, 4.5vw, 1.875rem); }
+            .masthead { gap: 12px; padding-block: 16px; }
+            .masthead > div { width: 100%; gap: 12px 20px; }
+            .masthead > div a:first-child { display: inline; }
+            .how-it-works { padding: 42px 0 20px; }
+            .how-it-works > .mechanism-heading { padding-inline: 8px; }
+            .engineering-details { margin-inline: 0; }
+            .exoskeleton-diagram { padding: 14px 10px; }
+            .exoskeleton-frame { padding: 18px 10px; }
+            .exoskeleton-frame .project-context, .exoskeleton-supports article { padding: 16px 12px; }
+            .executor { padding: 22px 12px; }
+            .exoskeleton-frame .runtime-guard { padding: 16px 12px; }
+            .client-adaptation { padding: 18px 12px; }
+            .adapter-branches article, .ownership-map article { padding: 18px 14px; }
+            .shared-skill-source { padding: 22px 14px; }
+            .blueprint-top { overflow-wrap: anywhere; }
+            .frame-title span { letter-spacing: 0; }
+            .brain-exchange { gap: 12px; flex-wrap: wrap; }
+            .growth-period span { margin: 0; }
+            .engineering-details > summary { align-items: flex-start; gap: 12px; }
+            .engineering-details summary strong { font-size: var(--type-card); }
+        }
     </style>
 </head>
 
 <body>
     <main class="page">
-        <section class="hero" aria-labelledby="hero-title">
-            <div>
-                <div class="eyebrow">我的 AI Coding 实践理解</div>
-                <h1 id="hero-title">AI Coding 外骨骼架构</h1>
-                <p class="lead">
-                    AI Coding 不是一个聊天框，而是一套"大脑 + 手脚 + 接口 + 技能 + 规则 + 项目手册 + 多 Agent 协作"的工程化系统。
-                    核心不是只让模型更聪明，而是让模型能在正确上下文、工具、流程和边界里可靠做事。
-                </p>
-                <div class="hero-actions" aria-label="核心关键词">
-                    <span class="pill">模型与执行环境解耦</span>
-                    <span class="pill">项目上下文对齐</span>
-                    <span class="pill">能力可复用</span>
-                    <span class="pill">边界可控制</span>
+        <nav class="masthead" aria-label="页面导航">
+            <a class="brand" href="#growth-title">imedical<span>.agents</span></a>
+            <div><a href="#capability-title">能力全景</a><a href="#sharing-title">团队共享</a><a href="#exoskeleton-title">How it works</a><a href="https://gitee.com/skyler-cook/imedical.agents">查看源码 ↗</a></div>
+        </nav>
+        <section class="growth-section" aria-labelledby="growth-title">
+            <div class="growth-shell">
+                <div class="growth-head">
+                    <div>
+                        <span class="growth-kicker">Built together. Growing together.</span>
+                        <h1 id="growth-title">每一次实践，<br>都在长成<span>团队的能力。</span></h1>
+                        <p class="stage-intro">把经过验证的 AI Coding 方法沉淀为共享能力，让每一次改进，都能被团队复用。</p>
+                    </div>
+                    <div class="stage-date" aria-hidden="true"><span>工程成长记录 / 2026</span><strong id="stage-month">09<span>月</span></strong><span id="stage-chapter">05 / 05 · 持续汇聚</span></div>
                 </div>
-            </div>
+                <p class="snapshot-label">仓库资产快照 <span id="snapshot-date">2026.09.25</span><span>从 2026 年 5 月开始的积累</span></p>
+                <p class="sr-only" id="growth-live" aria-live="polite"></p>
 
-            <aside class="hero-card" aria-label="五层架构摘要">
-                <div class="stack">
-                    <div class="stack-item">
-                        <span class="tag">脑</span>
-                        <div><strong>大模型</strong><span>负责想：理解、推理、规划、决策。</span></div>
+                <div class="growth-metrics" aria-label="按月统计的共享资产">
+                    <article class="growth-metric" data-values="3,5,10,13,15">
+                        <span class="growth-metric-label">插件</span>
+                        <strong class="growth-metric-value">15</strong>
+                        <span class="growth-metric-range">5 月 3 → 9 月 15</span>
+                        <svg class="growth-chart" viewBox="0 0 240 80" role="img" aria-label="插件从 5 月的 3 个增长到 9 月的 15 个"></svg>
+                    </article>
+                    <article class="growth-metric" data-values="13,30,38,49,60">
+                        <span class="growth-metric-label">Skill</span>
+                        <strong class="growth-metric-value">60</strong>
+                        <span class="growth-metric-range">5 月 13 → 9 月 60</span>
+                        <svg class="growth-chart" viewBox="0 0 240 80" role="img" aria-label="Skill 从 5 月的 13 个增长到 9 月的 60 个"></svg>
+                    </article>
+                    <article class="growth-metric" data-values="0,0,0,0,218">
+                        <span class="growth-metric-label">知识参考资料</span>
+                        <strong class="growth-metric-value">218</strong>
+                        <span class="growth-metric-range">9 月纳入共享参考快照</span>
+                        <svg class="growth-chart" viewBox="0 0 240 80" role="img" aria-label="知识参考资料在 9 月纳入 218 份"></svg>
+                    </article>
+                    <article class="growth-metric" data-values="0,4,5,5,7">
+                        <span class="growth-metric-label">Vendor 资产组</span>
+                        <strong class="growth-metric-value">7</strong>
+                        <span class="growth-metric-range">5 月 0 → 9 月 7</span>
+                        <svg class="growth-chart" viewBox="0 0 240 80" role="img" aria-label="vendor 顶层资产组从 5 月的 0 个增长到 9 月的 7 个"></svg>
+                    </article>
+                </div>
+
+                <div class="growth-controls" hidden>
+                    <div class="playback-row">
+                        <button id="growth-play" type="button" aria-label="播放成长过程">▶ 播放成长过程</button>
+                        <label class="scrubber-label" for="growth-scrubber">探索时间</label>
+                        <input id="growth-scrubber" type="range" min="0" max="4" step="1" value="4" aria-label="成长月份" aria-valuetext="2026 年 9 月">
+                        <span class="playback-hint">拖动或选择月份</span>
                     </div>
-                    <div class="stack-item">
-                        <span class="tag accent">手</span>
-                        <div><strong>Codex / Claude Code 客户端</strong><span>负责干：读写文件、运行命令、调用工具、反馈结果。</span></div>
-                    </div>
-                    <div class="stack-item">
-                        <span class="tag">接口</span>
-                        <div><strong>MCP</strong><span>让手脚能摸到数据库、API、SFTP、IRIS 等外部系统。</span></div>
-                    </div>
-                    <div class="stack-item">
-                        <span class="tag accent">手册</span>
-                        <div><strong>Skills / Rules / AGENTS.md</strong><span>让执行过程有 SOP、有红线、有项目共识。</span></div>
-                    </div>
-                    <div class="stack-item">
-                        <span class="tag">编排</span>
-                        <div><strong>Agents / Workflows</strong><span>让多个专家协同：角色分工、阶段交接、串行降级。</span></div>
+                    <div class="growth-periods" aria-label="选择仓库快照月份">
+                        <button class="growth-period" type="button" data-period="0" aria-pressed="false"><span>05</span>起步</button>
+                        <button class="growth-period" type="button" data-period="1" aria-pressed="false"><span>06</span>成形</button>
+                        <button class="growth-period" type="button" data-period="2" aria-pressed="false"><span>07</span>扩展</button>
+                        <button class="growth-period" type="button" data-period="3" aria-pressed="false"><span>08</span>共享</button>
+                        <button class="growth-period" type="button" data-period="4" aria-pressed="true"><span>09</span>汇聚</button>
                     </div>
                 </div>
-            </aside>
-        </section>
-
-        <section aria-labelledby="concept-title">
-            <div class="section-head">
-                <div>
-                    <div class="eyebrow">Concept Model</div>
-                    <h2 id="concept-title">我如何拆解 AI 实践</h2>
+                <div class="growth-stories">
+                    <article class="growth-story" data-period="0" hidden>
+                        <div><time datetime="2026-05-29">2026.05 · 截至 05-29</time><h3>共享能力有了起点</h3><p>工作区基础设施与首批插件进入仓库，插件和 Skill 开始成为可复用的工程资产。</p><div class="chapter-assets"><span><b>项目上下文</b><small>agent-context-kit</small></span><span><b>IRIS 编码</b><small>coding-iris-plugin</small></span><span><b>国际化</b><small>i18n-iris-plugin</small></span></div></div>
+                        <a href="https://gitee.com/skyler-cook/imedical.agents/commit/c3d4338">查看快照 c3d4338 ↗</a>
+                    </article>
+                    <article class="growth-story" data-period="1" hidden>
+                        <div><time datetime="2026-06-30">2026.06 · 截至 06-30</time><h3>从能力文件走向分发流程</h3><p>统一更新、角色与 workflow、vendor 资产逐步加入，团队开始共享可更新的能力包。</p><div class="chapter-assets"><span><b>接口开发</b><small>iris-interface-dev-plugin</small></span><span><b>第三方资产接入</b><small>vendor</small></span></div></div>
+                        <a href="https://gitee.com/skyler-cook/imedical.agents/commit/b802ac9">查看快照 b802ac9 ↗</a>
+                    </article>
+                    <article class="growth-story" data-period="2" hidden>
+                        <div><time datetime="2026-07-24">2026.07 · 截至 07-24</time><h3>领域能力持续扩展</h3><p>插件覆盖更多开发场景，Skill 通过项目启用状态和薄索引按需进入使用入口。</p><div class="chapter-assets"><span><b>文档提取</b><small>extract-doc</small></span><span><b>外部注册</b><small>iris-external-reg</small></span></div></div>
+                        <a href="https://gitee.com/skyler-cook/imedical.agents/commit/4b0f478">查看快照 4b0f478 ↗</a>
+                    </article>
+                    <article class="growth-story" data-period="3" hidden>
+                        <div><time datetime="2026-08-28">2026.08 · 截至 08-28</time><h3>一份能力服务更多工程</h3><p>Workspace Overlay 支持多模块共享能力源，组件版本治理让扩展过程更可追溯。</p><div class="chapter-assets"><span><b>治疗表单</b><small>iris-cure-form-dev</small></span><span><b>代码关系查询</b><small>codegraph-query</small></span><span><b>IRIS 代码图谱</b><small>iris-codegraph</small></span></div></div>
+                        <a href="https://gitee.com/skyler-cook/imedical.agents/commit/50b05b6">查看快照 50b05b6 ↗</a>
+                    </article>
+                    <article class="growth-story" data-period="4">
+                        <div><time datetime="2026-09-25">2026.09 · 截至 09-25</time><h3>能力继续汇聚，使用链路继续完善</h3><p>知识参考快照、跨宿主技能接入与任务交接进入体系。图中是仓库资产规模，不代表每个业务项目都已启用。</p><div class="chapter-assets"><span><b>框架演进</b><small>agent-framework-evolution</small></span><span><b>医生站 AI</b><small>iris-imedical-doctor-ai</small></span><span><b>知识参考资料</b><small>imedical-knowledge</small></span></div></div>
+                        <a href="https://gitee.com/skyler-cook/imedical.agents/commit/50b1c2c">查看快照 50b1c2c ↗</a>
+                    </article>
                 </div>
-                <p>这套视角先把"大脑"和"手脚"拆开，再给手脚接上工具、技能、规则和项目手册。</p>
-            </div>
 
-            <div class="grid six">
-                <article class="card concept-card">
-                    <div class="mark">1</div>
-                    <h3>大模型：大脑</h3>
-                    <p>纯粹的认知引擎，负责理解意图、逻辑推理、任务规划和决策。它会想，但不能直接改变真实代码库。</p>
-                </article>
-                <article class="card concept-card">
-                    <div class="mark">2</div>
-                    <h3>客户端：手脚与躯干</h3>
-                    <p>在"剥离模型"的视角下，Codex / Claude Code 客户端是执行框架，负责把文本指令变成文件、命令和工具调用。</p>
-                </article>
-                <article class="card concept-card">
-                    <div class="mark">3</div>
-                    <h3>MCP：万能接口</h3>
-                    <p>它解决"怎么连接"的问题，让手脚能通过标准协议触达数据库、第三方服务、文件传输和专业系统。</p>
-                </article>
-                <article class="card concept-card">
-                    <div class="mark">4</div>
-                    <h3>Skills：操作手册</h3>
-                    <p>它解决"怎么做得专业"的问题，把排障、编码、国际化、测试等专家流程沉淀为可复用 SOP。</p>
-                </article>
-                <article class="card concept-card">
-                    <div class="mark">5</div>
-                    <h3>Rules：安全手套</h3>
-                    <p>它解决"什么不能做、必须怎么做"的问题，为 AI 划定代码风格、操作边界和安全红线。</p>
-                </article>
-                <article class="card concept-card">
-                    <div class="mark">6</div>
-                    <h3>AGENTS.md：项目圣经</h3>
-                    <p>它把项目背景、全局规则、导航入口和智能体路由打包在一起，让大脑和手脚瞬间知道"我是谁、我在哪、我要遵守什么规矩、谁来做什么"。</p>
-                </article>
-            </div>
-        </section>
-
-        <section aria-labelledby="correction-title">
-            <div class="section-head">
-                <div>
-                    <div class="eyebrow">Clarification</div>
-                    <h2 id="correction-title">关键纠偏：我说的是"无模型客户端"</h2>
-                </div>
-                <p>如果把 Codex / Claude Code 看成包含模型的完整产品，它们像 Agent；但如果剥离模型，只看客户端执行框架，它们就是手脚、躯干和外骨骼。</p>
-            </div>
-
-            <div class="correction">
-                <article class="card">
-                    <h3>完整产品视角</h3>
-                    <p>大模型 + 客户端执行能力 + 工具调用能力组合在一起，可以被称为一个完整 Agent。</p>
-                </article>
-                <div class="arrow" aria-hidden="true">></div>
-                <article class="card">
-                    <h3>我的架构视角</h3>
-                    <p>把模型拿掉后，客户端就是执行环境：负责读写文件、运行终端、调用工具，并把结果反馈给大脑。</p>
-                </article>
-            </div>
-
-            <div class="quote">
-                大模型负责想；Codex / Claude Code 客户端负责干；MCP 让手摸到更多工具；Skills 教手怎么干得漂亮；Rules 保证手别干坏事。
+                <details class="growth-method">
+                    <summary>数据口径与边界</summary>
+                    <p>从截至各月末的 Git 可达提交取样。插件按 <code>plugins/*/.agents-plugin/plugin.json</code> 计数；Skill 只计插件及根级独立 <code>SKILL.md</code>，不计 vendor 或生成的 thin-index；知识参考资料计 <code>vendor/imedical-knowledge/sources/</code> 中的受管源文件；Vendor 资产组计 <code>vendor/</code> 顶层目录。知识参考仍需与当前工程事实交叉核对。</p>
+                </details>
             </div>
         </section>
 
-        <section aria-labelledby="arch-title">
-            <div class="section-head">
-                <div>
-                    <div class="eyebrow">Engineering Mapping</div>
-                    <h2 id="arch-title">从概念到工程实体</h2>
-                </div>
-                <p>《AI Coding Workspace Kit》把这个视角落成了可部署、可复用、可维护的工作区结构。</p>
+        <section aria-labelledby="capability-title" class="capability-section">
+            <div class="section-head"><div><div class="eyebrow">01 / Capability landscape</div><h2 id="capability-title">积累下来的，都是可复用的能力。</h2></div><p>这些能力共同组成 AI Coding 的工程外骨骼：从理解项目，到执行任务，再到验证与沉淀。</p></div>
+            <div class="capability-map">
+                <article><span class="map-index">01</span><h3>理解与协作</h3><p>让 Agent 知道项目是什么、任务交给谁、阶段如何衔接。</p><div class="capability-tags"><span>项目上下文</span><span>Agents / Workflows</span><span>任务交接</span></div></article>
+                <article><span class="map-index">02</span><h3>执行与连接</h3><p>把专业做法写成可调用的技能，让工具连接真实工程。</p><div class="capability-tags"><span>Plugins / Skills</span><span>MCP / Scripts</span><span>Vendor / 知识参考</span></div></article>
+                <article><span class="map-index">03</span><h3>验证与演进</h3><p>用规则和检查约束执行，经过审查后把有效经验继续沉淀。</p><div class="capability-tags"><span>Rules / 检查</span><span>版本治理</span><span>反馈与经验</span></div></article>
             </div>
-
-            <div class="architecture">
-                <div class="arch-row">
-                    <div class="arch-node">
-                        <h3>LLM 大脑</h3>
-                        <p>读取项目入口和规则索引，形成任务计划。</p>
-                    </div>
-                    <div class="arch-node center">
-                        <h3>AGENTS.md 项目圣经</h3>
-                        <p>工程级唯一主入口，提供项目大图、禁区、导航和全局约定。</p>
-                    </div>
-                    <div class="arch-node">
-                        <h3>Agent 客户端</h3>
-                        <p>执行文件修改、命令运行、脚本调用和结果反馈。</p>
-                    </div>
-                </div>
-                <div class="connector" aria-hidden="true"></div>
-                <div class="arch-row">
-                    <div class="arch-node">
-                        <h3>.agents/agents</h3>
-                        <p>智能体注册层，定义角色、职责、权限和交接协议。</p>
-                    </div>
-                    <div class="arch-node center">
-                        <h3>.agents/workflows</h3>
-                        <p>协作编排层，定义阶段顺序、交接产物和串行降级策略。</p>
-                    </div>
-                    <div class="arch-node">
-                        <h3>交接协议</h3>
-                        <p>结构化产物：事实报告、分类清单、变更摘要、验证报告。</p>
-                    </div>
-                </div>
-                <div class="connector" aria-hidden="true"></div>
-                <div class="arch-row">
-                    <div class="arch-node">
-                        <h3>.agents/rules</h3>
-                        <p>项目规则或插件规则的浅层入口，约束行为边界。</p>
-                    </div>
-                    <div class="arch-node center">
-                        <h3>.agents/plugins</h3>
-                        <p>可迁移能力包，承载 rules、skills、templates、scripts 和 references。</p>
-                    </div>
-                    <div class="arch-node">
-                        <h3>.agents/skills</h3>
-                        <p>真实 skill 或 thin-index，指向插件内完整技能文件。</p>
-                    </div>
-                </div>
-                <div class="connector" aria-hidden="true"></div>
-                <div class="arch-row">
-                    <div class="arch-node">
-                        <h3>.mcp.json</h3>
-                        <p>MCP、SFTP、IRIS 等连接事实来源；敏感连接信息只放目标工程本地。</p>
-                    </div>
-                    <div class="arch-node center">
-                        <h3>thin-index</h3>
-                        <p>只暴露轻量入口，需要时再跳转真实文件，避免上下文过载。</p>
-                    </div>
-                    <div class="arch-node">
-                        <h3>.agents/memory</h3>
-                        <p>长期记忆，记录决策、坑点、待办和上下文状态。</p>
-                    </div>
-                </div>
-            </div>
+            <a class="catalog-link" href="https://gitee.com/skyler-cook/imedical.agents/blob/master/docs/guides/capability-catalog.md">浏览完整能力目录 <span>↗</span></a>
         </section>
-
-        <section aria-labelledby="practice-title">
+        <section aria-labelledby="sharing-title">
             <div class="section-head">
                 <div>
-                    <div class="eyebrow">imedical.agents</div>
-                    <h2 id="practice-title">这个仓库在做什么</h2>
+                    <div class="eyebrow">02 / Shared with the team</div>
+                    <h2 id="sharing-title">让一次改进，在更多工程中生效。</h2>
                 </div>
-                <p><code>imedical.agents</code> 不是业务系统本身，而是面向医疗软件开发的 AI Coding 能力包与工作区套件。</p>
-            </div>
-
-            <div class="repo-map">
-                <article class="card code-panel">
-                    <div class="code-title">业务项目部署后的典型结构</div>
-                    <pre>your-project/
-|-- AGENTS.md
-|-- .mcp.json
-|-- .agents/
-|   |-- agents/            # 智能体注册层
-|   |-- workflows/         # 协作编排层
-|   |-- config/
-|   |-- memory/
-|   |-- rules/
-|   |-- skills/
-|   |-- scripts/
-|   `-- plugins/
-|       |-- agent-context-kit/
-|       |-- coding-iris-plugin/
-|       `-- i18n-iris-plugin/
-`-- src/</pre>
-                </article>
-
-                <div class="mapping-list">
-                    <div class="mapping-row">
-                        <strong>能力包仓库</strong>
-                        <span>当前仓库沉淀通用规则、技能、插件、模板和脚本；部署到业务项目后才形成目标工程的 <code>.agents/</code> 工作区。</span>
-                    </div>
-                    <div class="mapping-row">
-                        <strong>连接边界</strong>
-                        <span><code>.mcp.json</code> 是连接事实来源；服务器、账号、密码、token、namespace、远程路径不写入插件。</span>
-                    </div>
-                    <div class="mapping-row">
-                        <strong>插件模式</strong>
-                        <span>默认使用 <code>plugin-reference-thin-index</code>：插件保留真实文件，浅层入口只做索引。</span>
-                    </div>
-                    <div class="mapping-row">
-                        <strong>上下文模式</strong>
-                        <span>完整工程使用 <code>codebase-complete</code>；代码不完整或按需导出时使用 <code>intent-first-on-demand-export</code>。</span>
-                    </div>
-                    <div class="mapping-row">
-                        <strong>智能体与编排</strong>
-                        <span><code>agents/</code> 定义角色边界，<code>workflows/</code> 定义协作边界，<code>plugins/</code> 定义能力边界。三层分离，串行降级可选。</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section aria-labelledby="plugins-title">
-            <div class="section-head">
-                <div>
-                    <div class="eyebrow">Capability Packs</div>
-                    <h2 id="plugins-title">插件让 AI 拿到专用工具</h2>
-                </div>
-                <p>没有这些能力包，AI 像拿着通用工具的野战医生；有了这些能力包，AI 更像懂 imedical 系统的专业外科医生。</p>
+                <p>把经过验证的做法收敛到一份能力源，再按项目需要接入和更新，让团队复用同一套方法与工具。</p>
             </div>
 
             <div class="grid three">
-                <article class="card plugin-card">
-                    <h3>agent-context-kit</h3>
-                    <p>负责初始化和维护项目上下文：生成或合并 <code>AGENTS.md</code>，维护项目 profile、rules、memory，并生成上下文入口。</p>
-                </article>
-                <article class="card plugin-card">
-                    <h3>coding-iris-plugin</h3>
-                    <p>面向 IRIS / ObjectScript / CSP / JavaScript / HISUI 的编码能力包，约束本地优先、UTF-8 前端、编译、上传和历史编码兼容流程。</p>
-                </article>
-                <article class="card plugin-card">
-                    <h3>i18n-iris-plugin</h3>
-                    <p>面向医疗系统国际化的专项能力包，覆盖文本提取、翻译 SQL、CSP 翻译同步、XML 模板翻译和质量规则。</p>
-                </article>
-            </div>
-        </section>
-
-        <section aria-labelledby="loop-title">
-            <div class="section-head">
-                <div>
-                    <div class="eyebrow">Execution Loop</div>
-                    <h2 id="loop-title">一次任务如何闭环</h2>
-                </div>
-                <p>真正的 AI Coding 不是"模型直接写代码"，而是每次都经过上下文、规则、技能、工具和验证的闭环。</p>
-            </div>
-
-            <div class="timeline">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <h3>需求输入</h3>
-                    <p>用户提出目标、范围和约束。</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <h3>读项目圣经</h3>
-                    <p>通过 <code>AGENTS.md</code> 对齐项目身份、禁区和导航。</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <h3>加载规则技能</h3>
-                    <p>从 agents/workflows 路由、rules、skills 或 thin-index 跳转到插件真实文件。</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">4</div>
-                    <h3>调用工具</h3>
-                    <p>通过 MCP 或 scripts 访问外部系统、运行检查、处理文件。</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">5</div>
-                    <h3>验证结果</h3>
-                    <p>运行测试、构建、静态检查或人工确认流程。</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">6</div>
-                    <h3>沉淀记忆</h3>
-                    <p>把长期有效的决策、坑点和上下文写入 memory；如修正了框架文件，自动生成反馈条目。</p>
-                </div>
-            </div>
-        </section>
-
-        <section aria-labelledby="multi-agent-title">
-            <div class="section-head">
-                <div>
-                    <div class="eyebrow">Multi-Agent</div>
-                    <h2 id="multi-agent-title">从单兵作战到专家团队</h2>
-                </div>
-                <p>单 Agent 是一个"大脑 + 手脚 + 手册"的执行体；多 Agent 是多个专科执行体，通过结构化产物交接协作，弱工具自动降级为单 Agent 串行。</p>
-            </div>
-
-            <div class="agent-grid">
                 <article class="card">
-                    <h3>怎么协作</h3>
-                    <p>
-                        角色边界在 <code>agents/</code>，协作流程在 <code>workflows/</code>，能力实现在 <code>plugins/</code>。
-                        阶段之间用事实报告、分类清单、变更摘要和验证报告交接，不共享一大段自由上下文。
-                    </p>
+                    <h3>沉淀与治理</h3>
+                    <p>可复用的角色、流程、规则、技能和脚本进入统一能力源，经过文档、版本与验证约束后成为团队能力。</p>
                 </article>
-                <div class="agent-team">
-                    <div class="agent-row">
-                        <span class="tag">探</span>
-                        <div><strong>Explorer</strong><span>查资料、定位链路、确认入口和影响面，输出事实报告。</span></div>
-                    </div>
-                    <div class="agent-row">
-                        <span class="tag accent">码</span>
-                        <div><strong>Coder</strong><span>基于 coding / i18n skills 按清单改造代码，输出变更摘要。</span></div>
-                    </div>
-                    <div class="agent-row">
-                        <span class="tag">审</span>
-                        <div><strong>审查 Agent</strong><span>检查规则、安全边界、残留和代码质量，输出审查报告。</span></div>
-                    </div>
-                    <div class="agent-row">
-                        <span class="tag accent">测</span>
-                        <div><strong>测试 Agent</strong><span>运行验证、复现问题、整理失败证据，输出验证报告。</span></div>
-                    </div>
-                </div>
+                <article class="card">
+                    <h3>安装与更新</h3>
+                    <p>业务工程通过<a class="text-link" href="https://gitee.com/skyler-cook/imedical.agents/blob/master/docs/update-agents.md">安装与更新</a>获得能力包；插件按项目状态启用。多模块工程可共享一份能力源，各自保留本地上下文。</p>
+                </article>
+                <article class="card">
+                    <h3>按需复用</h3>
+                    <p>成员从项目 <code>AGENTS.md</code> 和已启用的技能入口出发，按真实任务调用能力；新经验经验证和授权后再回流。</p>
+                </article>
             </div>
         </section>
 
-        <section aria-labelledby="practice-agent-title">
-            <div class="section-head">
-                <div>
-                    <div class="eyebrow">Agent in Practice</div>
-                    <h2 id="practice-agent-title">从样板到扩展</h2>
-                </div>
-                <p>以 i18n-agent 为例展示实际落地；接入新 Agent 只需一个目录、两个文件、一次 registry 更新。</p>
+                <section class="how-it-works" aria-labelledby="exoskeleton-title">
+                    <div class="mechanism-heading"><span>03 / How it works · 工程外骨骼</span><h2 id="exoskeleton-title">为大模型，构建一套可靠做事的外骨骼。</h2><p>围绕大模型，组织上下文、专业能力、执行工具与约束，通过可验证、可恢复的任务闭环，把实践转化为团队可复用的工程能力。</p></div>
+                    <div class="exoskeleton-diagram" aria-label="AI Coding 外骨骼架构：认知引擎、执行框架及其支撑能力">
+                        <div class="blueprint-top"><span>ENGINEERING EXOSKELETON</span><span>架构视图 / ARCHITECTURE</span></div>
+                        <div class="cognitive-engine"><span>大脑 / LLM</span><h3>大模型 · 认知引擎</h3><p>理解意图、推理判断、规划任务</p></div>
+                        <div class="brain-exchange"><span>↓ 计划与指令</span><span>↑ 执行结果与验证反馈</span></div>
+                        <div class="exoskeleton-frame">
+                            <div class="frame-title"><strong>工程外骨骼</strong><span>CONTEXT · CONTROL · ACTION · VERIFY</span></div>
+                            <div class="context-state-grid">
+                                <div class="project-context"><strong>上下文 · 此刻需要知道什么</strong><p>从 AGENTS.md 进入项目约定，按需加载 Skill、知识与参考资料；用轻量索引组织信息。</p><span class="architecture-caption">项目事实与按需检索</span></div>
+                                <div class="project-context"><strong>任务状态 · 现在进行到哪里</strong><p>保留目标、验收标准、有效决定、断点和验证证据；接续时结合代码现场重新核实。</p><span class="architecture-caption">状态与交接，不依赖单次聊天记忆</span></div>
+                            </div>
+                            <div class="executor"><span class="core-symbol" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="8" y="8" width="16" height="16" rx="2"/><rect x="12" y="12" width="8" height="8"/><path d="M12 3v5m8-5v5M12 24v5m8-5v5M3 12h5m-5 8h5m16-8h5m-5 8h5"/></svg></span><span>手脚与运行控制 / Agent Harness</span><h3>Agent 客户端 · 执行与控制框架</h3><p>组织上下文、调用模型、调度工具与观察结果，管理继续、停止和恢复。<br>具体执行由工具与运行环境完成，能力由宿主和工程共同提供。</p></div>
+                            <div class="exoskeleton-supports">
+                                <article><span>操作手册</span><h3>Skills</h3><p>沉淀专业步骤，按需查阅知识、模板与参考资料。</p><strong>怎么做</strong></article>
+                                <article><span>工具接口</span><h3>MCP / Scripts</h3><p>连接工具与工程系统，在授权范围内执行具体操作。</p><strong>用什么做</strong></article>
+                                <article><span>执行边界</span><h3>Rules</h3><p>表达代码规范、验证要求与操作边界，指导模型选择做法。</p><strong>按什么要求做</strong></article>
+                            </div>
+                            <div class="runtime-guard"><strong>执行约束与验证 · 将要求落实为检查</strong><p>规则说明预期行为；宿主权限与工程检查在操作或完成判定时实施约束。已接入的路径、范围与验证证据检查各自负责其覆盖的边界。</p></div>
+                            <div class="orchestration"><strong>Agents / Workflows · 按收益选择协作方式</strong><p>复杂任务按角色和阶段交接；无子 Agent 能力时可串行执行。随模型与任务变化评估分工收益，减少无效步骤。</p></div>
+                        </div>
+                    </div>
+                    <aside class="mechanism-note"><strong>这是本工程的架构表达。</strong> 借鉴 Agent Harness、上下文工程与工具接口设计实践；不同研究的职责划分并不完全相同。宿主提供模型运行与部分控制能力，<code>imedical.agents</code> 提供可复用能力、协议与工程检查。下方文献支持设计思路，不代表本工程效果已经得到外部验证。</aside>
+                </section>
+        <details class="engineering-details">
+            <summary><span><small>Execution &amp; integration / 深入了解</small><strong>执行流程、客户端适配与设计依据</strong></span><span class="detail-action">展开了解 ＋</span></summary>
+            <div class="engineering-content">
+
+                <section aria-labelledby="execution-title">
+                    <div class="mechanism-heading"><span>01 / 从任务到结果</span><h2 id="execution-title">带着项目上下文，调用合适的能力。</h2><p>借鉴 ReAct 的推理—行动—观察循环：以“优化一个已有页面”为例，边执行、边观察现场，并据此调整下一步。</p></div>
+                    <ol class="execution-flow">
+                        <li><span class="flow-number">01</span><h3>对齐上下文</h3><p>读取项目入口，明确目标、验收标准、必须保留的设计意图与允许修改的范围。</p><small>知道在哪做、做到哪里</small></li>
+                        <li><span class="flow-number">02</span><h3>选择能力</h3><p>从已启用的能力中选择相关 Skill，按需读取规则与参考资料。</p><small>例如：前端编码技能</small></li>
+                        <li><span class="flow-number">03</span><h3>执行与观察</h3><p>在授权范围内修改代码、调用工具，读取实际输出与错误，更新对现场的判断。</p><small>用环境反馈修正判断</small></li>
+                        <li><span class="flow-number">04</span><h3>验证与决策</h3><p>同时检查“是否正常运行”和“是否符合原目标”，据此继续修正、请求必要输入或交付。</p><small>以证据判断是否完成</small></li>
+                    </ol>
+                    <div class="feedback-return"><span aria-hidden="true">↶</span><div><strong>未达标 → 带着证据回到判断与行动</strong><p>保留原目标，根据新证据调整下一步；遇到权限、依赖或未知结果阻塞时停止盲目重试。</p></div></div>
+                    <aside class="mechanism-note"><strong>复杂任务可以分工协作。</strong> 探索、编码、审查和测试角色通过明确产物交接；不具备子 Agent 能力时，同一流程也可由单 Agent 串行完成。</aside>
+                </section>
+                <section aria-labelledby="distribution-title">
+                    <div class="mechanism-heading"><span>02 / 从能力源到项目</span><h2 id="distribution-title">共享同一套方法，保留各自的工程事实。</h2><p>项目接入能力包后，按实际需要启用插件、发现技能。后续改进通过安装与更新流程进入项目。</p></div>
+                    <div class="ownership-map">
+                        <article><span class="ownership-label">团队共同维护</span><h3>共享能力源</h3><p>可复用的规则、技能、工具、角色和协作流程，在源仓统一维护与版本治理。</p><div class="capability-tags"><span>Plugins / Skills</span><span>Rules / Scripts</span><span>Agents / Workflows</span></div></article>
+                        <div class="distribution-bridge"><span>安装 / 更新</span><b aria-hidden="true">→</b><span>按项目启用</span></div>
+                        <article><span class="ownership-label">各工程独立维护</span><h3>项目本地上下文</h3><p>项目入口、业务约定、配置和记忆留在本工程；连接信息与凭据不进入共享能力包。</p><div class="capability-tags"><span>项目入口</span><span>本地规则与记忆</span><span>配置与连接</span></div></article>
+                    </div>
+                    <aside class="mechanism-note"><strong>多个模块也能共享一份能力源。</strong> Workspace Overlay 让模块复用能力，同时保留各自上下文。能力已进入仓库，并不代表每个项目都已启用。</aside>
+                    <a class="mechanism-link" href="https://gitee.com/skyler-cook/imedical.agents/blob/master/docs/update-agents.md">查看安装与更新说明 ↗</a>
+                </section>
+                <section aria-labelledby="adaptation-title">
+                    <div class="mechanism-heading"><span>03 / 跨客户端适配</span><h2 id="adaptation-title">一份能力源，接入不同的 Agent 客户端。</h2><p>团队可以使用不同客户端，共享同一套技能内容。工程统一维护能力与项目入口，再按宿主的发现约定接入。</p></div>
+                    <div class="client-adaptation">
+                        <div class="shared-skill-source"><span>统一维护 / 按项目选择</span><h3>项目通用技能入口</h3><code>.agents/skills</code><p>项目技能与已生成的薄索引，指向当前项目可用的技能内容。</p></div>
+                        <div class="adapter-branches" aria-label="三个客户端的技能入口">
+                            <article><span class="adapter-mode">直接复用</span><h3>Codex</h3><code>.agents/skills</code><p>使用项目通用入口，无需创建另一份技能目录。</p></article>
+                            <article><span class="adapter-mode">链接接入</span><h3>Claude Code</h3><code>.claude/skills</code><p>链接到项目技能入口，内容随源目录同步变化。</p></article>
+                            <article><span class="adapter-mode">链接接入</span><h3>CodeBuddy</h3><code>.codebuddy/skills</code><p>链接到项目技能入口，保留统一维护的事实源。</p></article>
+                        </div>
+                    </div>
+                    <aside class="mechanism-note"><strong>统一的是技能发现入口。</strong> Windows 使用 Junction，macOS/Linux 实现为相对符号链接；Overlay 指向模块自己的技能集合。MCP、hooks、原生子 Agent 等独立管理，不因技能接入而自动完成适配。</aside>
+                    <p class="adapter-evidence">当前证据：已有 Windows 文件系统回归与 CodeBuddy 技能发现样本；其它平台、宿主发现和真实任务调用仍需分别验证。链接建立成功不等于所有客户端执行效果一致。</p>
+                    <a class="mechanism-link" href="https://gitee.com/skyler-cook/imedical.agents/blob/master/docs/coding-agent-adaptation.md">查看适配方式与验证边界 ↗</a>
+                </section>
+                <section aria-labelledby="evolution-title">
+                    <div class="mechanism-heading"><span>04 / 从实践到下一次改进</span><h2 id="evolution-title">经过验证的经验，才值得继续共享。</h2><p>任务完成后，有复用价值的经验可以进入审查；适合共享的部分，经授权后沉淀为能力包的下一次改进。</p></div>
+                    <ol class="evolution-flow">
+                        <li><strong>发现经验</strong><p>从已验收的实践中识别可复用方法，区分通用做法和项目特例。</p></li>
+                        <li><strong>审查与沉淀</strong><p>核对新增价值、复用依据和验证边界，经授权后更新技能、规则或工具。</p></li>
+                        <li><strong>更新与复用</strong><p>完成相应文档、版本和检查，让适用项目通过既有更新流程获得改进。</p></li>
+                    </ol>
+                    <aside class="mechanism-note"><strong>回流按需发生。</strong> 普通任务不会自动改写共享能力；只适用于本项目的经验保留在本项目，没有合格的沉淀项也可以正常结束。</aside>
+                    <div class="evaluation-panel">
+                        <div><span class="architecture-caption">Evaluation / 用对照验证成长</span><h3>资产规模看积累，任务表现看效果。</h3><p>固定任务、初始代码、权限与模型设置，对比改进前后的结果；跨模型和宿主分别记录，不预设提效比例。</p></div>
+                        <ul class="evaluation-signals"><li>任务正确性与遗漏</li><li>返工与人工干预</li><li>耗时与读取成本</li><li>边界遵守情况</li></ul>
+                        <p class="evaluation-status"><strong>当前进展：</strong>已定义真实行为对照方案，完整模型／宿主矩阵仍待运行；已有机械测试不能替代实际提效证据。<a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/maintenance/validation/agent-evolution.md">查看验证计划 ↗</a></p>
+                    </div>
+                    <div class="mechanism-links"><a class="mechanism-link" href="https://gitee.com/skyler-cook/imedical.agents/blob/master/docs/guides/capability-guide.md">查看具体任务的使用路线 ↗</a><a class="mechanism-link" href="https://gitee.com/skyler-cook/imedical.agents/blob/master/plugins/agent-framework-evolution/README.md">了解经验沉淀机制 ↗</a></div>
+                </section>
+                <section aria-labelledby="foundations-title" class="research-foundations">
+                    <div class="mechanism-heading"><span>Design foundations / 设计依据</span><h2 id="foundations-title">外骨骼设想，与这些研究和实践相呼应。</h2><p>这里区分研究结论、工程经验与本工程的采用方式；采用相关思路后，仍需在实际任务中验证收益。</p></div>
+                    <ul class="foundation-list">
+                        <li><div><span>研究 · 2022</span><a href="https://react-lm.github.io/">ReAct：推理与行动协同 ↗</a></div><p>行动产生观察，观察帮助更新判断。对应本工程的执行、验证与调整闭环。</p></li>
+                        <li><div><span>研究 · 2024</span><a href="https://arxiv.org/abs/2405.15793">SWE-agent：Agent–Computer Interface ↗</a></div><p>工具接口的设计会影响编码任务表现。对应面向 Agent 组织可理解、可调用的工程工具。</p></li>
+                        <li><div><span>工程实践 · 2025</span><a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents">Context Engineering：上下文工程 ↗</a></div><p>在有限上下文中按需引入有效信息。对应轻量索引、按需加载，以及项目事实与任务状态的区分。</p></li>
+                        <li><div><span>工程实践 · 2026</span><a href="https://www.anthropic.com/engineering/managed-agents">Agent Harness：运行控制与状态解耦 ↗</a></div><p>区分运行控制、执行环境和持久化会话，并重新评估随模型能力变化而过时的流程。</p></li>
+                        <li><div><span>工程实践 · 2026</span><a href="https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents">Agent Evals：评估实际任务表现 ↗</a></div><p>用任务、执行轨迹和结果评价系统。对应固定样本的对照验证，不用能力数量代替效果。</p></li>
+                    </ul>
+                </section>
             </div>
-
-            <div class="repo-map">
-                <article class="card code-panel">
-                    <div class="code-title">i18n-agent 实际结构</div>
-                    <pre>.agents/agents/i18n-agent/
-|-- AGENT.md              # 角色、职责、禁止事项
-`-- bindings.yaml         # 插件、规则、skill 绑定
-
-.agents/workflows/
-|-- workflow-registry.md
-`-- i18n-change.workflow.md</pre>
-                </article>
-
-                <div class="mapping-list">
-                    <div class="mapping-row">
-                        <strong>已有样板</strong>
-                        <span><code>AGENT.md</code> 定义角色和禁止事项，<code>bindings.yaml</code> 绑定插件和规则，workflow 定义阶段顺序和交接产物。</span>
-                    </div>
-                    <div class="mapping-row">
-                        <strong>接入新 Agent</strong>
-                        <span>创建 <code>agents/&lt;name&gt;-agent/</code>，写 AGENT.md + bindings.yaml，选或建 workflow，更新 agent-registry 和 workflow-registry。</span>
-                    </div>
-                    <div class="mapping-row">
-                        <strong>adapter 自动生成</strong>
-                        <span>从 canonical 生成 <code>.claude/agents/</code>、<code>.codex/agents/</code>、<code>.agents/skills/</code> 等工具入口；adapter 可删除重建，不维护第二份规则。</span>
-                    </div>
-                    <div class="mapping-row">
-                        <strong>能力沉淀为插件</strong>
-                        <span>规则、模板、脚本稳定复用时，从 agent 抽离为 <code>plugins/&lt;name&gt;/</code>；agent 只声明可调用能力，不复制插件规则。</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-
+        </details>
         <section class="final" aria-labelledby="final-title">
             <div class="final-card">
-                <h2 id="final-title">一句话总结</h2>
+                <h2 id="final-title">能力持续成长，团队共享进步。</h2>
                 <p>
-                    未来 AI 应用开发，本质是为大模型这个<strong>大脑</strong>打造一套可控、可扩展、可复用的
-                    <strong>工程外骨骼</strong>：用 MCP 连接工具，用 Skills 沉淀经验，用 Rules 划定边界，
-                    用 <code>AGENTS.md</code> 建立项目共识，用 <strong>Agents / Workflows</strong> 实现多专家协作与阶段化编排。
+                    <strong>让 AI Coding 的最佳实践成为团队共享的基础设施。</strong>
+                    <code>imedical.agents</code> 将经过验证的做法沉淀为可治理的能力包，按项目接入并持续更新；
+                    以项目手册建立上下文，用 Skills 沉淀方法、MCP 连接工具、Rules 划定边界，再由 Agents / Workflows 按需组织协作。
                 </p>
             </div>
         </section>
     </main>
     <script>
+        const growthSection = document.querySelector('.growth-section');
+        const growthPeriodButtons = [...growthSection.querySelectorAll('.growth-period')];
+        const growthStories = [...growthSection.querySelectorAll('.growth-story')];
+        const growthMonthNames = ['2026 年 5 月', '2026 年 6 月', '2026 年 7 月', '2026 年 8 月', '2026 年 9 月'];
+        const growthDates = ['2026.05.29', '2026.06.30', '2026.07.24', '2026.08.28', '2026.09.25'];
+        const growthChapters = ['共享起步', '能力成形', '领域扩展', '跨工程共享', '持续汇聚'];
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const playButton = document.querySelector('#growth-play');
+        const scrubber = document.querySelector('#growth-scrubber');
+        let selectedPeriod = 4;
+        let playbackTimer = null;
+        const svgNs = 'http://www.w3.org/2000/svg';
+
+        function svgElement(name, attributes) {
+            const element = document.createElementNS(svgNs, name);
+            for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
+            return element;
+        }
+
+        const growthSeries = [...growthSection.querySelectorAll('.growth-metric')].map((card, seriesIndex) => {
+            const values = card.dataset.values.split(',').map(Number);
+            const max = Math.max(...values, 1);
+            const coords = values.map((value, index) => ({ x: 10 + index * 55, y: 66 - value / max * 52 }));
+            const line = coords.map(({ x, y }, index) => `${index ? 'L' : 'M'} ${x} ${y}`).join(' ');
+            const svg = card.querySelector('.growth-chart');
+            const defs = svgElement('defs', {});
+            const clip = svgElement('clipPath', { id: `growth-clip-${seriesIndex}` });
+            const clipRect = svgElement('rect', { x: 0, y: 0, width: 240, height: 80 });
+            clip.append(clipRect); defs.append(clip); svg.append(defs);
+            const plot = svgElement('g', { 'clip-path': `url(#growth-clip-${seriesIndex})` });
+            plot.append(svgElement('path', { class: 'area', d: `${line} L 230 66 L 10 66 Z` }));
+            plot.append(svgElement('path', { class: 'line', d: line }));
+            svg.append(plot);
+            const points = coords.map(({ x, y }, index) => {
+                const point = svgElement('circle', { class: 'point', cx: x, cy: y, r: 5 });
+                const title = svgElement('title', {});
+                title.textContent = `${growthMonthNames[index]}：${values[index]}`;
+                point.append(title);
+                plot.append(point);
+                return point;
+            });
+            return { card, values, points, clipRect, frame: null };
+        });
+
+        function selectGrowthPeriod(index, animate = true) {
+            selectedPeriod = index;
+            scrubber.value = index;
+            scrubber.setAttribute('aria-valuetext', growthMonthNames[index]);
+            document.querySelector('#stage-month').innerHTML = `${String(index + 5).padStart(2, '0')}<span>月</span>`;
+            document.querySelector('#stage-chapter').textContent = `0${index + 1} / 05 · ${growthChapters[index]}`;
+            document.querySelector('#snapshot-date').textContent = growthDates[index];
+            growthPeriodButtons.forEach((button, current) => button.setAttribute('aria-pressed', String(current === index)));
+            growthStories.forEach((story, current) => { story.hidden = current !== index; });
+            growthSeries.forEach(series => {
+                const { card, values, points, clipRect } = series;
+                cancelAnimationFrame(series.frame);
+                const output = card.querySelector('.growth-metric-value');
+                const from = Number(output.textContent);
+                const target = values[index];
+                output.setAttribute('aria-label', String(target));
+                const started = performance.now();
+                function tick(now) {
+                    const progress = Math.min((now - started) / 550, 1);
+                    output.textContent = Math.round(from + (target - from) * (1 - Math.pow(1 - progress, 3)));
+                    if (progress < 1) series.frame = requestAnimationFrame(tick);
+                }
+                if (animate && !reducedMotion.matches) series.frame = requestAnimationFrame(tick);
+                else output.textContent = target;
+                clipRect.setAttribute('width', 17 + index * 55);
+                points.forEach((point, current) => point.classList.toggle('active', current === index));
+            });
+            if (!playbackTimer) {
+                playButton.textContent = index === 4 ? '↻ 播放成长过程' : '▶ 继续播放';
+                playButton.setAttribute('aria-label', index === 4 ? '播放成长过程' : '继续播放');
+                playButton.setAttribute('aria-pressed', 'false');
+            }
+            document.querySelector('#growth-live').textContent = `${growthMonthNames[index]}：插件 ${growthSeries[0].values[index]}，Skill ${growthSeries[1].values[index]}，知识参考资料 ${growthSeries[2].values[index]}，Vendor 资产组 ${growthSeries[3].values[index]}`;
+        }
+
+        growthPeriodButtons.forEach((button, index) => {
+            button.addEventListener('click', () => { pauseGrowth(); selectGrowthPeriod(index); });
+            button.addEventListener('keydown', event => {
+                let next = index;
+                if (event.key === 'ArrowRight') next = Math.min(index + 1, growthPeriodButtons.length - 1);
+                else if (event.key === 'ArrowLeft') next = Math.max(index - 1, 0);
+                else if (event.key === 'Home') next = 0;
+                else if (event.key === 'End') next = growthPeriodButtons.length - 1;
+                else return;
+                event.preventDefault();
+                growthPeriodButtons[next].focus();
+                pauseGrowth();
+                selectGrowthPeriod(next);
+            });
+        });
+        function pauseGrowth() {
+            clearInterval(playbackTimer);
+            playbackTimer = null;
+            playButton.textContent = selectedPeriod === 4 ? '↻ 播放成长过程' : '▶ 继续播放';
+            playButton.setAttribute('aria-label', selectedPeriod === 4 ? '播放成长过程' : '继续播放');
+            playButton.setAttribute('aria-pressed', 'false');
+        }
+        playButton.addEventListener('click', () => {
+            if (playbackTimer) { pauseGrowth(); return; }
+            if (selectedPeriod === 4) selectGrowthPeriod(0);
+            playbackTimer = setInterval(() => {
+                selectGrowthPeriod(Math.min(selectedPeriod + 1, 4));
+                if (selectedPeriod === 4) pauseGrowth();
+            }, 2200);
+            playButton.textContent = 'Ⅱ 暂停播放';
+            playButton.setAttribute('aria-label', '暂停播放');
+            playButton.setAttribute('aria-pressed', 'true');
+        });
+        scrubber.addEventListener('input', () => { pauseGrowth(); selectGrowthPeriod(Number(scrubber.value)); });
+        document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGrowth(); });
+        growthSection.querySelector('.growth-controls').hidden = false;
+        selectGrowthPeriod(4, false);
+
         const io = new IntersectionObserver((entries) => {
             entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } });
         }, { threshold: 0.15 });
-        document.querySelectorAll('section .section-head, section .grid, section .architecture, section .repo-map, section .agent-grid, section .timeline, section .correction, section .quote, section .final-card').forEach(el => io.observe(el));
+        document.querySelectorAll('section .grid, section .growth-shell, section .architecture, section .repo-map, section .agent-grid, section .timeline, section .correction, section .quote, section .final-card').forEach(el => io.observe(el));
     </script>
 </body>
 
