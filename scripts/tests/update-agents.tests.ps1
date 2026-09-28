@@ -48,6 +48,8 @@ function New-TestProject {
   git -C $root config user.name "Test User" | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents") | Out-Null
   git -C (Join-Path $root ".agents") init | Out-Null
+  git -C (Join-Path $root ".agents") config user.email "test@example.invalid" | Out-Null
+  git -C (Join-Path $root ".agents") config user.name "Test User" | Out-Null
 
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/scripts") | Out-Null
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/scripts/lib") | Out-Null

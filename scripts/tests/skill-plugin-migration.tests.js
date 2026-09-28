@@ -130,7 +130,8 @@ test('Overlay generates module-local owner indexes without modifying shared capa
   write(path.join(root, 'AGENTS.md'), '# Module entry');
   write(path.join(root, '.agents/capability.json'), JSON.stringify({ schemaVersion: 1, mode: 'workspace-overlay', workspace: 'module', contextRoot: '.agents', capabilityRoot: path.join(capability, '.agents'), sharedDirectories: ['plugins', 'agents', 'workflows', 'hooks', 'vendor'], localDirectories: ['skills', 'config', 'rules', 'memory', 'scripts', 'work'], sourceRoots: [{ name: 'source', path: 'source', target: capability, gitRoot: path.join(capability, '.agents') }] }));
   const before = git(path.join(capability, '.agents'), 'status', '--porcelain');
-  ps(path.join(capability, '.agents/scripts/initialize-workspace-overlay.ps1'), ['-WorkspaceRoot', root, '-Mode', 'Write']);
+  const initialization = ps(path.join(capability, '.agents/scripts/initialize-workspace-overlay.ps1'), ['-WorkspaceRoot', root, '-Mode', 'Write']);
+  assert.ok(fs.existsSync(path.join(root, '.agents/scripts/update-agents.ps1')), `Overlay initializer did not create the update adapter:\n${initialization}`);
   const initName = 'agent-framework-evolution-init';
   const legacyInit = '---\nthin-index: true\nsource: .agents/plugins/agent-framework-evolution/skills/' + initName + '/SKILL.md\n---\n';
   write(skill(root, initName), legacyInit);
