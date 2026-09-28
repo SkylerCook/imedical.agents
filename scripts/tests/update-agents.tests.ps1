@@ -862,8 +862,10 @@ try {
   git -C $legacySparseAgentsRoot add scripts/update-agents.ps1 scripts/lib/WorkspaceContext.psm1 scripts/refresh-agents-sparse.js
   git -C $legacySparseAgentsRoot commit -m "test: seed legacy sparse checkout" | Out-Null
   git -C $legacySparseAgentsRoot sparse-checkout init --no-cone
-  "/scripts/*.ps1" | git -C $legacySparseAgentsRoot sparse-checkout set --stdin --no-cone
+  git -C $legacySparseAgentsRoot sparse-checkout set --no-cone "/scripts/*.ps1"
+  Assert-True ($LASTEXITCODE -eq 0) "Legacy sparse checkout should accept the runtime script pattern"
 
+  Assert-True (Test-Path -LiteralPath (Join-Path $legacySparseAgentsRoot "scripts/update-agents.ps1") -PathType Leaf) "Legacy sparse checkout should keep update-agents.ps1"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $legacySparseAgentsRoot "scripts/lib/WorkspaceContext.psm1"))) "Legacy sparse checkout should omit WorkspaceContext.psm1 before recovery"
   $legacySparseCheckOutput = & (Join-Path $legacySparseAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $legacySparseProjectRoot -Mode Check -Detailed | Out-String
   Assert-Contains $legacySparseCheckOutput "workspace-context-resolver-missing" "Check should report a legacy sparse runtime gap without mutating the checkout"
@@ -1102,7 +1104,7 @@ try {
   Assert-Contains $summaryOutput "mcp-vendor-command-planned" "DryRun update should plan bundled MCP command convergence"
   Assert-True (-not $summaryOutput.Contains("vendor-skill-synced")) "Default update must not sync vendor skills to user runtime directories"
   Assert-Contains $summaryOutput "Optional entrypoint notes:" "Default output should report optional entrypoint notes"
-  Assert-True ([string]::IsNullOrWhiteSpace((git -C $projectRoot config --get core.hooksPath))) "Update must not set core.hooksPath automatically"
+  Assert-True ([string]::IsNullOrWhiteSpace((git -C $projectRoot config --local --get core.hooksPath))) "Update must not set core.hooksPath automatically"
   Assert-True (-not $summaryOutput.Contains("Action required:")) "Missing or non-symlink optional entrypoints should not require action"
   Assert-True (-not $summaryOutput.Contains("sample_profile.md")) "Available plugins must not have templates merged by default"
   Assert-True (-not $summaryOutput.Contains("sample_rule.md")) "Available plugins must not generate thin-index by default"
@@ -1261,7 +1263,7 @@ try {
   Assert-Contains $vendorSyncReuse "vendor-skill-reused" "Explicit runtime sync should reuse an existing canonical user skill"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "CODEBUDDY.md"))) "Write must not create missing optional entrypoints"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "CLAUDE.md.bak"))) "Write must not backup or replace existing optional entrypoints"
-  Assert-True ([string]::IsNullOrWhiteSpace((git -C $projectRoot config --get core.hooksPath))) "Write must not enable git hooks automatically"
+  Assert-True ([string]::IsNullOrWhiteSpace((git -C $projectRoot config --local --get core.hooksPath))) "Write must not enable git hooks automatically"
 
   $installHookOutput = & (Join-Path $projectRoot ".agents/scripts/install-git-hooks.ps1") -ProjectRoot $projectRoot | Out-String
   Assert-Contains $installHookOutput "git-hooks-enabled" "install-git-hooks should report enabled hooks"

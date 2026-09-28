@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+- 2026-09-28（Windows Runtime skill links 收敛）：CI 诊断确认 `check-functional-diff.ps1` 含中文但无 UTF-8 BOM，Windows PowerShell 5.1 在 Overlay 初始化读取时解析失败，因而未生成更新适配脚本；补 BOM 后保留正文不变。更新器测试的旧式稀疏检出改为直接传模式并检查更新脚本保留，Git hook 断言只看仓库本地配置，避免把用户全局 `core.hooksPath` 误判为自动启用。Windows Overlay 定向回归 1/1、PowerShell 5.1 完整 `update-agents` 回归通过；三平台 CI 结果以本次推送后运行记录为准。未修改业务工程或用户全局 Git 配置。
+
 - 2026-09-28（Runtime skill links Windows 回归）：工作流恢复启动后，Windows job 暴露技能迁移测试用 8.3 临时路径调用 PowerShell 5.1 脚本失败，以及更新器测试断言的固定词句已与 owner 当前正文不一致。迁移样本改从真实临时目录建立，断言改为现行「不通过扫描父目录」表述；Windows Overlay 定向回归 1/1。后续 CI 显示 Overlay 初始化未生成更新适配脚本，测试在调用前增加状态断言以报告实际阻断原因；升级样本的嵌套 `.agents` 仓库补齐独立 Git 身份。三平台 CI 最终结果以推送后的运行记录为准。未改变技能、更新器和业务副本。
 
 - 2026-09-28（跨平台路径别名回归）：coding-iris-plugin 0.14.1 修复 deploy-guard 初始化时 Windows Git 根目录长路径与系统短路径误判，保留既有会话状态位置；macOS 文档布局与菜单同步测试从物理临时目录创建隔离样本，不削弱菜单快照的链接拒绝门禁。插件 README 和发布记录同步，使用入口、依赖范围和业务部署流程不变；定向测试与三平台 Node 22/24 CI 结果以本轮实际运行记录为准。源仓更新不自动同步业务工程；历史 xc 发布记录的版本门禁问题仍独立存在。
