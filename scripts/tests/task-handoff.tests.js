@@ -54,7 +54,8 @@ function create(root, input, options = {}) {
 function finish(ws, directory, input) {
   const file = path.join(directory, 'handoff.md');
   let text = fs.readFileSync(file, 'utf8').replaceAll('TODO:', '已确认：').replaceAll('TODO', '已确认');
-  text = text.replace(/## 下一步\n[\s\S]*?(?=\n## )/, '## 下一步\n\n检查 src/main.js 的待实现行为，并沿用已有授权。\n');
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  text = text.replace(/## 下一步\r?\n[\s\S]*?(?=\r?\n## )/, `## 下一步${eol}${eol}检查 src/main.js 的待实现行为，并沿用已有授权。${eol}`);
   fs.writeFileSync(file, text);
   return handoff.checkpoint(ws, directory, input);
 }
@@ -156,6 +157,8 @@ test('missing or damaged state requires explicit recovery inputs; interrupted do
 test('list preserves healthy candidates alongside corrupt records and excludes closed by default', t => {
   const root = repository(fixture(t));
   const one = create(root), two = create(root);
+  const firstDocument = path.join(one.directory, 'handoff.md');
+  write(firstDocument, fs.readFileSync(firstDocument, 'utf8').replace(/\r?\n/g, '\r\n'));
   finish(one.ws, one.directory);
   finish(two.ws, two.directory);
   const file = path.join(two.directory, 'handoff.md');
@@ -202,7 +205,7 @@ test('actual Git worktree uses its own checkout and Git-resolved exclude path', 
   const { ws, directory } = create(worktree); finish(ws, directory);
   const observed = handoff.inspect(ws, directory).current.repositories[0];
   assert.equal(observed.branch, 'handoff-fixture');
-  assert.equal(path.resolve(observed.gitRoot), path.resolve(worktree));
+  assert.equal(fs.realpathSync.native(observed.gitRoot), fs.realpathSync.native(worktree));
   assert.equal(git(worktree, ['status', '--porcelain']), '');
 });
 
