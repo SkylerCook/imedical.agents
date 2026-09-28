@@ -7,7 +7,7 @@ const { test, after } = require('node:test');
 const { spawnSync } = require('node:child_process');
 const repo = path.resolve(__dirname, '../..');
 const shell = process.env.TEST_POWERSHELL || (process.platform === 'win32' ? 'powershell.exe' : 'pwsh');
-const base = path.join(os.tmpdir(), 'codex'); fs.mkdirSync(base, { recursive: true });
+const base = path.join(fs.realpathSync.native(os.tmpdir()), 'codex'); fs.mkdirSync(base, { recursive: true });
 const temp = fs.mkdtempSync(path.join(base, 'skill-owner-migration-'));
 const owners = { 'coding-agent-adaptation': 'agent-context-kit', 'agent-framework-feedback': 'agent-framework-evolution', 'reusable-content-packaging': 'agent-framework-evolution' };
 const old = Object.fromEntries(Object.keys(owners).map(name => [name, command('git', ['-C', repo, 'show', `f01bf0e:skills/${name}/SKILL.md`])]));

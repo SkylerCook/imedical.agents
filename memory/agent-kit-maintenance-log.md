@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+- 2026-09-28（Runtime skill links Windows 回归）：工作流恢复启动后，Windows job 暴露技能迁移测试用 8.3 临时路径调用 PowerShell 5.1 脚本失败，以及更新器测试断言的固定词句已与 owner 当前正文不一致。迁移样本改从真实临时目录建立，断言改为现行「不通过扫描父目录」表述；Windows Overlay 定向回归 1/1，本轮三平台 CI 以推送结果为准。未改变技能、更新器和业务副本。
+
 - 2026-09-28（跨平台路径别名回归）：coding-iris-plugin 0.14.1 修复 deploy-guard 初始化时 Windows Git 根目录长路径与系统短路径误判，保留既有会话状态位置；macOS 文档布局与菜单同步测试从物理临时目录创建隔离样本，不削弱菜单快照的链接拒绝门禁。插件 README 和发布记录同步，使用入口、依赖范围和业务部署流程不变；定向测试与三平台 Node 22/24 CI 结果以本轮实际运行记录为准。源仓更新不自动同步业务工程；历史 xc 发布记录的版本门禁问题仍独立存在。
 
 - 2026-09-28（Windows 路径别名修复）：agent-context-kit 0.4.2 修复 task-handoff 在 Git 返回长路径、Node 使用 8.3 短路径时误算 `docs/handoff` 仓库相对位置；Git status 过滤和 Overlay GitRoot、共享 Junction 比较按各自协议统一路径表示。增加嵌套项目排除规则与状态回归，workspace-context 测试复用短路径临时目录。Windows 本地首轮交接与 workspace-context 专项 22/22，后续定向回归 4/4，语法与差异检查通过。组件版本工作区校验识别 0.4.1 → 0.4.2，仅报告其他插件既有发布记录 `commit` 字段问题；新版本三平台 Node 22/24 CI 以推送后的实际运行结果为准。使用入口、安装/更新和薄索引行为未变，现有交接不迁移；提交与推送状态以 Git 记录为准；未同步业务副本。

@@ -407,7 +407,7 @@ Assert-Contains $profileScriptContent "disabled" "profile updater should support
 $readmeContent = Get-Content -Raw -Encoding UTF8 -Path $readmePath
 $contextSkillContent = Get-Content -Raw -Encoding UTF8 -Path $contextSkillPath
 $contextReadmeContent = Get-Content -Raw -Encoding UTF8 -Path $contextReadmePath
-foreach ($term in @("WorkspaceRoot", "CapabilityRoot", "ContextRoot", "SourceRoot", "GitRoot", "workspace-overlay", "禁止扫描父目录")) {
+foreach ($term in @("WorkspaceRoot", "CapabilityRoot", "ContextRoot", "SourceRoot", "GitRoot", "workspace-overlay", "不通过扫描父目录")) {
   Assert-Contains $contextSkillContent $term ("project-context-maintenance should define overlay term: " + $term)
 }
 Assert-Contains $contextSkillContent ".agents/capability.json" "Overlay maintenance should read capability manifest first"
