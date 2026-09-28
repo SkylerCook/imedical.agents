@@ -84,7 +84,7 @@ function countStatus(results, status) {
   return results.filter((entry) => entry.status === status).length;
 }
 
-const testRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agents-workspace-context-'));
+const testRoot = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'agents-workspace-context-'));
 try {
   const standardRoot = path.join(testRoot, 'standard');
   fs.mkdirSync(standardRoot);

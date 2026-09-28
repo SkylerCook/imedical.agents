@@ -206,13 +206,15 @@ function junctionResult(itemPath, expectedTarget, nonJunctionStatus, missingStat
   const stats = fs.lstatSync(itemPath);
   if (!stats.isSymbolicLink()) return result(nonJunctionStatus, itemPath, expectedTarget, '', 'path is not a Junction');
   let actualTarget;
+  let resolvedExpected;
   try {
     actualTarget = normalizePath(fs.realpathSync.native(itemPath));
+    resolvedExpected = normalizePath(fs.realpathSync.native(expectedTarget));
   } catch (error) {
     return result('junction-target-mismatch', itemPath, expectedTarget, '', error.message);
   }
   const expected = normalizePath(expectedTarget);
-  if (comparable(actualTarget) !== comparable(expected)) return result('junction-target-mismatch', itemPath, expected, actualTarget, 'Junction target does not match manifest');
+  if (comparable(actualTarget) !== comparable(resolvedExpected)) return result('junction-target-mismatch', itemPath, expected, actualTarget, 'Junction target does not match manifest');
   return result('junction-ok', itemPath, expected, actualTarget, 'Junction target matches manifest');
 }
 

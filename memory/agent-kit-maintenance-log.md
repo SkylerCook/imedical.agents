@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+- 2026-09-28（Windows 路径别名修复）：agent-context-kit 0.4.2 修复 task-handoff 在 Git 返回长路径、Node 使用 8.3 短路径时误算 `docs/handoff` 仓库相对位置；Git status 过滤和 Overlay GitRoot、共享 Junction 比较按各自协议统一路径表示。增加嵌套项目排除规则与状态回归，workspace-context 测试复用短路径临时目录。Windows 本地首轮交接与 workspace-context 专项 22/22，后续定向回归 4/4，语法与差异检查通过。组件版本工作区校验识别 0.4.1 → 0.4.2，仅报告其他插件既有发布记录 `commit` 字段问题；新版本三平台 Node 22/24 CI 以推送后的实际运行结果为准。使用入口、安装/更新和薄索引行为未变，现有交接不迁移；提交与推送状态以 Git 记录为准；未同步业务副本。
+
 - 2026-09-28（标版需求简洁模板）：coding-iris-plugin 0.14.0 将 iris-demand-entry 改为 `{IRIS}` 名称和三段式描述，缺陷按操作/预期/实际、功能改进按说明/操作/预期；用户、安全组、科室可选，仅问题依赖时补齐，备注仅保留验收限制。渲染器与文本/Excel 同源，草稿使用 v2，按用户决定直接替换旧格式，不保留旧草稿兼容。六个依赖插件仅递增 patch 并扩展范围至 0.14.x，未使用需求草稿接口；其 AGENTS/README 职责与调用未变，无需复制模板规则。同步 owner、协议、能力手册、摘要、P2 验收队列与发布记录；安装/更新与 thin-index 行为未变，部署方式在 owner README 和协议说明，无需修改更新器。skill 格式、文档链接与差异检查通过，版本比较无新增问题；Windows Node 24 专项回归 18/18 通过，覆盖两种模板、文本/Excel 同源、缺失字段、取证、回填和提交计划；macOS/Linux 与 Node 22 矩阵、BOSS 真实录入及测试交接继续沿 P2 跟踪。提交与推送状态以 Git 记录为准；未同步业务副本。
 
 - 2026-09-25（Overlay 只读调查）：agent-context-kit 0.4.1 / coding-iris-plugin 0.13.7 分离真实仓库只读参考和模块默认写入范围，同步 owner、技能、README、共同契约与发布记录。旧项目入口按授权定点迁移，manifest、工具写入门禁和 backend-only 身份不变；能力手册已引用 Overlay 契约，无需复制规则。workspace-read-scope、workspace-context Node 测试及文档链接检查通过；两项版本迁移对比 HEAD 无新增问题，全量版本校验保留既有发布记录字段问题。iris-workspace-context.tests.js 仍以 compile.js 直接包含 resolveWorkspaceContext 为断言，当前 HEAD 已改为转发 deploy-protected；这两个文件与 HEAD 一致，本轮未调整该既有测试。源仓变更经校验后原样同步授权的共享部署副本，模块通过既有共享链接读取；未提交或推送。

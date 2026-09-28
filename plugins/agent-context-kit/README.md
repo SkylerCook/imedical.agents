@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+v0.4.2 修复 Windows 短路径与 Git 长路径混用导致的 task-handoff 初始化、状态检查和 Overlay Junction 误判；现有交接内容与项目入口无需迁移，更新能力包后生效。
+
 v0.4.0 新增通用 `task-handoff`：按需启用后，在关键节点维护项目 `docs/handoff/<首次时间戳>-<需求ID>/handoff.md`；明确交接保存历史快照，新 Agent 核实现场后沿用范围内授权继续。无编号使用 `00000`，默认本机保存、不入 Git；跨会话直接接手，用户负责停止旧写入者。标准 Markdown 可独立阅读，暂不接入 Obsidian。
 
 工具 `scripts/task-handoff.js` 提供 init/list/inspect/checkpoint/snapshot/validate；机器现场与正文摘要分开保存，检查源码、index 和证据变化，不产生业务通过或授权结论。入口见 [task-handoff](skills/task-handoff/SKILL.md)，命令与恢复边界见其 references。正常更新后刷新 enabled 插件薄索引即可显式调用；自然语言发现路由通过初始化/授权维护定点加入项目 AGENTS，普通更新不覆盖旧入口。既有交接、个人 handoff 和正式 run 不迁移。

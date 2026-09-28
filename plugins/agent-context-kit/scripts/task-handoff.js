@@ -12,10 +12,12 @@ const SCHEMA = 'imedical-task-handoff/v1';
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const comparable = p => process.platform === 'win32' ? path.resolve(p).toLowerCase() : path.resolve(p);
+const sameExistingPath = (a, b) => comparable(fs.realpathSync.native(a)) === comparable(fs.realpathSync.native(b));
 const within = (p, root) => {
   const relative = path.relative(comparable(root), comparable(p));
   return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
 };
+const withinExistingPath = (p, root) => within(fs.realpathSync.native(p), fs.realpathSync.native(root));
 function fail(message) { throw new Error(message); }
 function noLinks(file) {
   let current = path.resolve(file);
@@ -154,7 +156,7 @@ function fileRecords(root, scopes, excluded) {
   for (const scope of scopes) visit(path.resolve(root, scope));
   return [...records.values()].sort((a, b) => a.path.localeCompare(b.path));
 }
-function statusRecords(raw, gitRoot, checkout, excluded) {
+function statusRecords(raw, checkoutPrefix, excluded) {
   const chunks = raw.split('\0');
   const entries = [];
   for (let i = 0; i < chunks.length; i++) {
@@ -162,8 +164,8 @@ function statusRecords(raw, gitRoot, checkout, excluded) {
     if (!chunk) continue;
     const entry = { index: chunk[0], worktree: chunk[1], path: chunk.slice(3) };
     if (/[RC]/.test(chunk.slice(0, 2))) entry.originalPath = chunks[++i];
-    const file = path.join(gitRoot, entry.path);
-    if (within(file, checkout) && !within(file, excluded)) entries.push(entry);
+    if ((!checkoutPrefix || entry.path.startsWith(checkoutPrefix)) &&
+        (!excluded || (entry.path !== excluded && !entry.path.startsWith(`${excluded}/`)))) entries.push(entry);
   }
   return entries;
 }
@@ -180,13 +182,19 @@ function collect(ws, inputs) {
       return result;
     }
     const gitRoot = noLinks(probe.stdout.trim());
-    if (ws.context.mode === 'workspace-overlay' && !ws.context.sourceRoots.some(s => within(repo.root, s.target) && comparable(gitRoot) === comparable(s.gitRoot))) fail('Actual Git root differs from declared GitRoot');
+    if (ws.context.mode === 'workspace-overlay' && !ws.context.sourceRoots.some(s => withinExistingPath(repo.root, s.target) && sameExistingPath(gitRoot, s.gitRoot))) fail('Actual Git root differs from declared GitRoot');
     const head = git(repo.root, ['rev-parse', '--verify', 'HEAD']);
     const branch = git(repo.root, ['symbolic-ref', '--quiet', '--short', 'HEAD']);
     result.git = 'available'; result.gitRoot = gitRoot;
     result.head = head.status === 0 ? head.stdout.trim() : null;
     result.branch = branch.status === 0 ? branch.stdout.trim() : null;
-    result.changes = statusRecords(gitText(repo.root, ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--', '.']), gitRoot, repo.root, ws.base);
+    const prefix = gitText(repo.root, ['rev-parse', '--show-prefix']).trim();
+    const physicalRepo = fs.realpathSync.native(repo.root);
+    const physicalProject = fs.realpathSync.native(ws.root);
+    const excluded = within(physicalProject, physicalRepo)
+      ? path.posix.join(prefix, path.relative(physicalRepo, path.join(physicalProject, 'docs/handoff')).replaceAll(path.sep, '/'))
+      : null;
+    result.changes = statusRecords(gitText(repo.root, ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--', '.']), prefix, excluded);
     result.indexFingerprint = repo.scopes.length ? hash(gitText(repo.root, ['ls-files', '--stage', '-z', '--', ...repo.scopes])) : null;
     return result;
   });
@@ -227,12 +235,13 @@ function ignoreLocal(ws) {
     if (/not a git repository/i.test(probe.stderr || '')) return { status: 'not-a-repository' };
     fail('Cannot determine project Git exclusion; no handoff created');
   }
-  const root = probe.stdout.trim();
-  const relative = path.relative(root, ws.base).replaceAll(path.sep, '/');
-  if (gitText(root, ['ls-files', '-z', '--', relative]).trim()) fail('Handoff material is already tracked; preserve it and resolve tracking explicitly before init');
-  const file = noLinks(gitText(root, ['rev-parse', '--path-format=absolute', '--git-path', 'info/exclude']).trim());
+  const relative = path.relative(ws.root, ws.base).replaceAll(path.sep, '/');
+  if (gitText(ws.root, ['ls-files', '-z', '--', relative]).trim()) fail('Handoff material is already tracked; preserve it and resolve tracking explicitly before init');
+  const prefix = gitText(ws.root, ['rev-parse', '--show-prefix']).trim();
+  const gitRelative = `${prefix}${relative}`;
+  const file = noLinks(gitText(ws.root, ['rev-parse', '--path-format=absolute', '--git-path', 'info/exclude']).trim());
   const old = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
-  const rule = `/${relative.replace(/([\\*?\[\]#! ])/g, '\\$1')}/`;
+  const rule = `/${gitRelative.replace(/([\\*?\[\]#! ])/g, '\\$1')}/`;
   if (!old.split(/\r?\n/).includes(rule)) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.appendFileSync(file, `${old && !old.endsWith('\n') ? '\n' : ''}${rule}\n`);

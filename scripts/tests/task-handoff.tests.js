@@ -74,6 +74,22 @@ test('init is local-only, preserves exclusions and rejects unfinished snapshots'
   assert.equal(handoff.validate(ws, directory).valid, true);
 });
 
+test('nested project uses Git-relative paths for exclusions and status', t => {
+  const gitRoot = repository(fixture(t));
+  const project = path.join(gitRoot, 'module');
+  write(path.join(project, 'AGENTS.md'), '# Nested project\n');
+  write(path.join(project, 'src/main.js'), 'one\n');
+  git(gitRoot, ['add', 'module']);
+  git(gitRoot, ['-c', 'core.hooksPath=', 'commit', '-qm', 'nested fixture']);
+  const { ws, directory } = create(project);
+  const exclude = fs.readFileSync(path.join(gitRoot, '.git/info/exclude'), 'utf8');
+  assert.match(exclude, /\/module\/docs\/handoff\//);
+  assert.equal(git(gitRoot, ['status', '--porcelain']), '');
+  write(path.join(project, 'src/main.js'), 'two\n');
+  const changes = handoff.inspect(ws, directory).current.repositories[0].changes;
+  assert.deepEqual(changes.map(change => change.path), ['module/src/main.js']);
+});
+
 test('stable identity survives later demand ID; snapshots are immutable and unique', t => {
   const root = repository(fixture(t));
   const { ws, directory } = create(root);
