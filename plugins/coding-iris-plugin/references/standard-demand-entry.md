@@ -21,14 +21,17 @@ node demand-entry.js collect --repo <GitRoot> --range <base>..<head> --output <�
 ```json
 {
   "kind": "standard",
-  "common": { "需求类型": "功能改进", "模块编码": "用户提供的编码" },
+  "common": { "需求类型": "产品BUG", "模块编码": "用户提供的编码" },
   "requirements": [{
     "key": "r1",
-    "name": "{PC} 模板维护支持空内容提示",
+    "name": "{IRIS} 模板维护-空内容暂存时仍提示成功",
     "title": "模板维护支持空内容提示",
-    "background": "空内容提交时缺少明确反馈。",
-    "content": ["保存前检查模板内容，空内容时提示并定位输入框。"],
-    "remarks": "本地检查通过，业务验收待进行。",
+    "description": {
+      "format": "bug",
+      "steps": ["进入模板维护界面，新增模板。", "填写其它必填项，保持模板内容为空，点击【暂存】。"],
+      "expected": "提示模板内容必填并定位输入框，不保存空内容模板。",
+      "actual": "模板内容为空时仍提示暂存成功。"
+    },
     "type": "fix",
     "subject": "模板维护",
     "verification": "填写实际执行的验证与结果，不编造通过状态",
@@ -41,7 +44,29 @@ node demand-entry.js collect --repo <GitRoot> --range <base>..<head> --output <�
 }
 ```
 
-`evidence` 相对 spec 目录解析；prepare 将证据嵌入 draft，后续不依赖该临时文件。`key` 为稳定映射键，名称/标题可调整。每个 change 对应一个仓库的事实与修改说明。背景/内容/备注支持字符串或段落数组。`imported: true` 表示已录 BOSS，文本/Excel 不重复输出；bind 后也自动排除。`common`、`fields` 仅供 Excel，不改变默认文本流程。
+`evidence` 相对 spec 目录解析；prepare 将证据嵌入 draft，后续不依赖该临时文件。`key` 为稳定映射键；`name` 是 BOSS 需求名称，新模板须以 `{IRIS} ` 开头。`title` 留作编号回填与提交衔接，不在新描述中重复输出；缺省取 name 去除前缀后的文字。每个 change 对应一个仓库的事实与修改说明。
+
+新 spec 使用 `description`，`format` 按业务目的选择，与 Git 提交 `type` 分开：
+
+| format | 必填字段 | 描述顺序 |
+|---|---|---|
+| `bug` | `steps`、`expected`、`actual` | 操作步骤、预期结果、实际结果 |
+| `change` | `summary`、`steps`、`expected` | 需求说明、操作步骤、预期结果 |
+
+`steps` 是非空字符串数组，每项不预写序号，渲染时自动编号；其它正文支持字符串或段落数组。`bug` 不接受 `summary`，`change` 不接受 `actual`，避免正文被静默遗漏。功能/改进的 description 示例：
+
+```json
+{
+  "format": "change",
+  "summary": "模板列表支持按名称筛选，便于定位所需模板。",
+  "steps": ["进入模板列表，输入已存在模板的名称并查询。", "清空查询条件并重新查询。"],
+  "expected": ["按名称返回匹配模板。", "清空条件后恢复完整列表。"]
+}
+```
+
+用户、安全组、科室按 skill 的可选规则处理，不设必填字段或空占位。必要条件直接融入步骤。`remarks` 可省略，仅影响复现或验收的限制才填写；实际验证记录存 `verification`，不会自动进入 BOSS 正文。示例是合成场景，真实现象、控件和结论须按当前需求取证。
+
+`imported: true` 表示已录 BOSS，文本/Excel 不重复输出；bind 后也自动排除。`common`、`fields` 仅供 Excel，不改变默认文本流程。
 
 ```text
 node demand-entry.js prepare --spec <spec.json> --output <新交付目录>
@@ -51,7 +76,9 @@ node demand-entry.js render --draft <draft.json> --output <新交付目录> --Ex
 
 输出 `draft.json`、逐条 `r1.txt`，可选 `requirements.xlsx`。输出目录必须尚不存在，脚本不覆盖旧产物。文本默认不要求模块编码；Excel 缺字段时先不带标志生成文本，再补充 draft.common/requirements[].fields 并 render 到新目录。草稿正文允许人工编辑，证据不能编辑，代码变化必须重新 collect/prepare。回填后的草稿和旧草稿区分保存，向用户说明最新路径。
 
-文本版式保持原 requirement-entry：名称顶格、正文四空格缩进、字段间空行；Excel 需求描述只有标题/背景/内容/备注，不重复名称。原工作流中“所有修复不算需求”的规则不继承，标版修复可以独立提报。
+新文本分为“需求名称”和“需求描述”两个填写块，正文使用 `【小标题】`、编号步骤和段落间空行；Excel 需求名称列与文本同源，需求描述列仅包含同一三段式正文及可选备注。Agent 在聊天交付时分别展示两块内容，不再次改写生成文本。标版修复可以独立提报。
+
+草稿使用 `iris-standard-demand/v2`，仅接受上述三段式 description；旧草稿不兼容，需根据当前需求重新生成，不提供迁移分支。已有 Git 提交记录不受影响。
 
 ## 3. 回填及提交衔接
 

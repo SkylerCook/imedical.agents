@@ -7,7 +7,7 @@ const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { buildMessage, validateModification } = require('./commit-demand');
 const { buildWorkbook } = require('./demand-entry-xlsx');
-const SCHEMA = 'iris-standard-demand/v1';
+const SCHEMA = 'iris-standard-demand/v2';
 const FACTS = 'iris-standard-demand-facts/v1';
 const hash = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
@@ -111,13 +111,36 @@ function oneLine(value, name) {
   return value.trim();
 }
 
-function renderText(item, withName = true) {
-  const parts = withName ? [`名称：\n\n${item.name}`] : [];
-  for (const [label, value] of [['标题', item.title], ['需求背景', item.background], ['需求内容', item.content], ['备注', item.remarks]]) {
-    const body = text(value);
-    if (body) parts.push(`${label}：\n\n${body.split('\n').map((line) => line ? `    ${line}` : '').join('\n')}`);
+function normalizeDescription(raw, name) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !['bug', 'change'].includes(raw.format)) {
+    throw new Error('description.format 必须为 bug（缺陷）或 change（功能/改进）');
   }
-  return parts.join('\n\n');
+  if (!/^\{IRIS\} \S/.test(oneLine(name, 'name'))) throw new Error('需求名称须使用 {IRIS} 前缀并以空格分隔');
+  const detail = raw.format === 'bug' ? 'actual' : 'summary';
+  const allowed = ['format', 'steps', 'expected', detail];
+  for (const key of Object.keys(raw)) {
+    if (!allowed.includes(key)) throw new Error(`description.${key} 不适用于 ${raw.format} 模板`);
+  }
+  if (!Array.isArray(raw.steps) || !raw.steps.length) throw new Error('description.steps 必须为非空操作步骤数组');
+  const steps = raw.steps.map((step) => {
+    if (typeof step !== 'string' || !step.trim()) throw new Error('操作步骤必须为非空文字');
+    return step.trim();
+  });
+  const expected = text(raw.expected), body = text(raw[detail]);
+  if (!expected || !body) throw new Error(`description.expected 和 description.${detail} 不能为空`);
+  return { format: raw.format, steps, expected, [detail]: body };
+}
+
+function renderText(item, withName = true) {
+  const description = normalizeDescription(item.description, item.name);
+  const steps = description.steps.map((step, i) => `${i + 1}. ${step}`).join('\n');
+  const sections = description.format === 'bug'
+    ? [['操作步骤', steps], ['预期结果', description.expected], ['实际结果', description.actual]]
+    : [['需求说明', description.summary], ['操作步骤', steps], ['预期结果', description.expected]];
+  const remarks = text(item.remarks);
+  if (remarks) sections.push(['备注', remarks]);
+  const body = sections.map(([label, value]) => `【${label}】\n${value}`).join('\n\n');
+  return withName ? `需求名称：\n\n${item.name}\n\n需求描述：\n\n${body}` : body;
 }
 
 function prepare(spec, baseDirectory) {
@@ -131,12 +154,11 @@ function prepare(spec, baseDirectory) {
     keys.add(key);
     const item = {
       key, name: oneLine(raw.name, 'name'), title: oneLine(raw.title || raw.name.replace(/^\{[^}]+\}\s*/, ''), 'title'),
-      background: text(raw.background), content: text(raw.content), remarks: text(raw.remarks),
+      description: normalizeDescription(raw.description, raw.name), remarks: text(raw.remarks),
       type: raw.type, subject: oneLine(raw.subject, 'subject'), fields: raw.fields || {},
       verification: text(raw.verification), imported: raw.imported === true,
     };
     if (!['feat', 'fix', 'refactor', 'docs', 'chore'].includes(item.type)) throw new Error('无效提交 type');
-    if (!item.background || !item.content) throw new Error('需求背景和内容不能为空；未知业务事实应明确待确认');
     if (!Array.isArray(raw.changes) || !raw.changes.length) throw new Error('每条需求必须关联取证文件');
     const repos = new Set();
     item.changes = raw.changes.map((change) => {
@@ -264,10 +286,11 @@ function deliver(draft, directory, excel) {
   if (fs.existsSync(directory)) throw new Error('交付目录已存在，请指定新目录以保留已有产物');
   const active = draft.requirements.filter((item) => !item.imported && !item.boss);
   if (!active.length) throw new Error('没有未录入 BOSS 的条目，不重复导出');
+  const texts = active.map((item) => renderText(item));
   const workbook = excel ? buildWorkbook(active, draft.common, renderText) : null;
   fs.mkdirSync(directory, { recursive: true });
   writeNew(path.join(directory, 'draft.json'), `${JSON.stringify(draft, null, 2)}\n`);
-  for (const item of active) writeNew(path.join(directory, `${item.key}.txt`), `${renderText(item)}\n`);
+  for (const [index, item] of active.entries()) writeNew(path.join(directory, `${item.key}.txt`), `${texts[index]}\n`);
   if (workbook) writeNew(path.join(directory, 'requirements.xlsx'), workbook);
   return { directory, items: active.map((item) => item.key), excel: !!workbook };
 }

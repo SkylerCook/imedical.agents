@@ -36,7 +36,7 @@ Agent 编写 `.cls` 时遵循 `references/cls-coding-format.md`。已有类只�
 - IRIS 远端部署编排：`skills/iris-deploy/SKILL.md`
 - DEV→PRD 需求移植：`skills/iris-demand-promote/SKILL.md`
 - 标版/项目需求提交：`skills/iris-demand-commit/SKILL.md`
-- 标版需求闭环：`skills/iris-demand-entry/SKILL.md`，用户模式 `--text / --bind / --plan / --commit / --help`，可选 `--excel` / `--Excel`；历史来源用 `--rev`，不与提交授权混用。
+- 标版需求闭环：`skills/iris-demand-entry/SKILL.md`，用户模式 `--text / --bind / --plan / --commit / --help`，可选 `--excel` / `--Excel`；名称带 `{IRIS}`，描述按缺陷或功能/改进使用简洁三段式，草稿仅支持 v2。历史来源用 `--rev`，不与提交授权混用。
 - IRIS 类、方法签名与官方文档查询：`skills/iris-mcp-lookup/SKILL.md`
 
 前后端边界不明或混合编码需求使用 `iris-coding`；明确的纯后端、纯前端任务直接使用对应专项 skill。各编码入口在修改前提示部署基线条件，完整会话规则由 `references/deployment-protection.md` 维护。

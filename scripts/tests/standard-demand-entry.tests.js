@@ -9,6 +9,7 @@ const entry = require('../../plugins/coding-iris-plugin/scripts/iris-tools/deman
 const { buildWorkbook, HEADERS } = require('../../plugins/coding-iris-plugin/scripts/iris-tools/demand-entry-xlsx');
 const script = path.resolve(__dirname, '../../plugins/coding-iris-plugin/scripts/iris-tools/demand-entry.js');
 const modification = '增加模板内容必填校验，在空内容保存时显示提示并聚焦输入框，避免提交无效模板';
+const bugDescription = { format: 'bug', steps: ['进入模板维护界面。', '保持内容为空，点击【暂存】。'], expected: '提示必填，不保存空模板。', actual: '空内容仍提示暂存成功。' };
 function git(repo, ...args) {
   const result = spawnSync('git', ['-c', 'core.autocrlf=false', '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', '-C', repo, ...args], { encoding: 'utf8', windowsHide: true, timeout: 15000, env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: path.join(path.dirname(repo), 'empty-gitconfig') } });
   assert.equal(result.status, 0, result.error?.message || result.stderr);
@@ -34,7 +35,7 @@ function fixture(t) {
 function draftFor(repo, temp, options = {}) {
   const evidence = entry.collect({ repo, files: ['页面.js'], ...options });
   fs.writeFileSync(path.join(temp, 'facts.json'), JSON.stringify(evidence));
-  const spec = { kind: 'standard', common: {}, requirements: [{ key: 'r1', name: '{PC} 模板校验', background: '空内容未提示', content: ['保存时校验内容', '提示后聚焦输入框'], subject: '模板维护', type: 'fix', changes: [{ evidence: 'facts.json', modification }] }] };
+  const spec = { kind: 'standard', common: {}, requirements: [{ key: 'r1', name: '{IRIS} 模板校验', description: { ...bugDescription }, subject: '模板维护', type: 'fix', changes: [{ evidence: 'facts.json', modification }] }] };
   return { evidence, spec, draft: entry.prepare(spec, temp) };
 }
 test('worktree evidence captures staged, unstaged, untracked and preserves unrelated index', (t) => {
@@ -50,7 +51,7 @@ test('worktree evidence captures staged, unstaged, untracked and preserves unrel
 });
 test('text requires no module code; bind reuses final BOSS title and canonical message', (t) => {
   const { repo, temp } = fixture(t); const { draft } = draftFor(repo, temp);
-  assert.match(entry.renderText(draft.requirements[0]), /^名称：\n\n\{PC\} 模板校验/);
+  assert.match(entry.renderText(draft.requirements[0]), /^需求名称：\n\n\{IRIS\} 模板校验/);
   assert.throws(() => entry.messages(draft, 'r1'), /回填/);
   entry.bind(draft, 'r1', '1234567', 'BOSS 最终标题');
   const result = entry.messages(draft, 'r1');
@@ -105,12 +106,12 @@ function unzipStored(buffer) {
   return entries;
 }
 test('Excel has 29 columns, shared prose, safe literal strings, no centered assignee or example', (t) => {
-  const { repo, temp } = fixture(t); const { draft } = draftFor(repo, temp); const item = draft.requirements[0]; item.name = '=SUM(A1)&<名称>';
+  const { repo, temp } = fixture(t); const { draft } = draftFor(repo, temp); const item = draft.requirements[0]; item.name = '{IRIS} =SUM(A1)&<名称>';
   const archive = unzipStored(buildWorkbook([item], { 模块编码: 'TEST', 指派人: '=1+1', 创建日期: '2026-09-18' }, entry.renderText));
   const sheet = archive['xl/worksheets/sheet1.xml'];
   assert.equal(HEADERS.length, 29); assert.match(sheet, /A1:AC4/); assert.match(sheet, /需求截图1/);
   assert.match(sheet, /=SUM\(A1\)&amp;&lt;名称&gt;/); assert.match(sheet, /r="H2"[^>]*t="inlineStr"/);
-  assert.match(sheet, /标题：/); assert.match(sheet, /注：/); assert.doesNotMatch(sheet, /模板示例|<f>/);
+  assert.match(sheet, /【操作步骤】/); assert.match(sheet, /注：/); assert.doesNotMatch(sheet, /标题：|模板示例|<f>/);
   assert.doesNotMatch(archive['xl/styles.xml'], /horizontal="center"/);
   assert.equal(entry.renderText(item, false).includes('名称：'), false);
 });
@@ -188,7 +189,7 @@ test('different historical commits of one file can map to separate BOSS demands'
   const second = entry.collect({ repo, files: ['页面.js'], commits: ['HEAD'] });
   fs.writeFileSync(path.join(temp, 'first.json'), JSON.stringify(first));
   fs.writeFileSync(path.join(temp, 'second.json'), JSON.stringify(second));
-  const raw = { name: '功能', background: '原行为', content: '新行为', type: 'feat', subject: '功能' };
+  const raw = { name: '{IRIS} 功能', description: { format: 'change', summary: '支持功能查询。', steps: ['输入条件查询。'], expected: '展示匹配结果。' }, type: 'feat', subject: '功能' };
   const spec = { kind: 'standard', requirements: [
     { ...raw, key: 'r1', changes: [{ evidence: 'first.json', modification }] },
     { ...raw, key: 'r2', changes: [{ evidence: 'second.json', modification }] },
@@ -198,4 +199,52 @@ test('different historical commits of one file can map to separate BOSS demands'
   assert.equal(draft.requirements[0].boss.demand, '111'); assert.equal(draft.requirements[1].boss.demand, '222');
   spec.requirements[1].changes[0].evidence = 'first.json';
   assert.throws(() => entry.prepare(spec, temp), /共用文件范围/);
+});
+
+test('bug prose is directly copyable without optional user context or internal verification', () => {
+  const item = { name: '{IRIS} 模板校验', title: '内部标题', description: bugDescription, verification: '内部验证记录' };
+  const body = '【操作步骤】\n1. 进入模板维护界面。\n2. 保持内容为空，点击【暂存】。\n\n【预期结果】\n提示必填，不保存空模板。\n\n【实际结果】\n空内容仍提示暂存成功。';
+  assert.equal(entry.renderText(item, false), body);
+  assert.equal(entry.renderText(item), `需求名称：\n\n{IRIS} 模板校验\n\n需求描述：\n\n${body}`);
+  assert.equal(entry.renderText({ ...item, remarks: '仅对新建模板生效。' }, false), `${body}\n\n【备注】\n仅对新建模板生效。`);
+});
+
+test('change description survives CLI prepare/render and matches the Excel description cell', (t) => {
+  const { repo, temp } = fixture(t); const { spec } = draftFor(repo, temp);
+  spec.common = { 模块编码: 'TEST' };
+  spec.requirements[0].description = { format: 'change', summary: '支持按名称查询。', steps: ['输入名称查询。', '清空条件查询。'], expected: ['返回匹配模板。', '恢复完整列表。'] };
+  const specPath = path.join(temp, 'new-spec.json'); fs.writeFileSync(specPath, JSON.stringify(spec));
+  const output = path.join(temp, 'prepared');
+  const result = spawnSync(process.execPath, [script, 'prepare', '--spec', specPath, '--output', output, '--excel'], { encoding: 'utf8', windowsHide: true });
+  assert.equal(result.status, 0, result.stderr);
+  const draftPath = path.join(output, 'draft.json');
+  const draft = JSON.parse(fs.readFileSync(draftPath, 'utf8'));
+  assert.equal(draft.schema, 'iris-standard-demand/v2');
+  assert.equal(Object.hasOwn(draft.requirements[0], 'background'), false);
+  assert.equal(Object.hasOwn(draft.requirements[0], 'content'), false);
+  const body = '【需求说明】\n支持按名称查询。\n\n【操作步骤】\n1. 输入名称查询。\n2. 清空条件查询。\n\n【预期结果】\n返回匹配模板。\n\n恢复完整列表。';
+  assert.equal(entry.renderText(draft.requirements[0], false), body);
+  const sheet = unzipStored(fs.readFileSync(path.join(output, 'requirements.xlsx')))['xl/worksheets/sheet1.xml'];
+  assert.equal(sheet.match(/<c r="Q2"[^>]*><is><t[^>]*>([\s\S]*?)<\/t><\/is><\/c>/)[1], body);
+  const rendered = path.join(temp, 'rendered');
+  const rerender = spawnSync(process.execPath, [script, 'render', '--draft', draftPath, '--output', rendered], { encoding: 'utf8', windowsHide: true });
+  assert.equal(rerender.status, 0, rerender.stderr);
+  assert.equal(fs.readFileSync(path.join(output, 'r1.txt'), 'utf8'), fs.readFileSync(path.join(rendered, 'r1.txt'), 'utf8'));
+});
+
+test('incomplete descriptions and missing technology prefix fail before output is created', (t) => {
+  const { repo, temp } = fixture(t); const { spec, draft } = draftFor(repo, temp);
+  for (const description of [undefined, null, {}, { ...bugDescription, steps: [] }, { ...bugDescription, steps: [' '] }, { ...bugDescription, expected: '' }, { ...bugDescription, actual: '' }, { ...bugDescription, summary: 'wrong branch' }, { format: 'change', steps: ['操作'], expected: '结果' }]) {
+    spec.requirements[0].description = description;
+    assert.throws(() => entry.prepare(spec, temp), /description|操作步骤/);
+  }
+  spec.requirements[0].description = bugDescription;
+  spec.requirements[0].name = '模板校验';
+  assert.throws(() => entry.prepare(spec, temp), /IRIS/);
+  delete draft.requirements[0].description.expected;
+  const output = path.join(temp, 'invalid-description');
+  assert.throws(() => entry.deliver(draft, output, false), /description.expected/);
+  assert.equal(fs.existsSync(output), false);
+  draft.schema = 'iris-standard-demand/v1';
+  assert.throws(() => entry.bind(draft, 'r1', '123', '标题'), /不支持的需求草稿/);
 });

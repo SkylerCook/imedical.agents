@@ -70,7 +70,7 @@ IRIS 前后端开发、知识查询、需求提交与部署。详见[插件说�
 | [iris-backend-coding](../../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md) | 实现或修改 ObjectScript 后端 | 日常入口 |
 | [iris-coding](../../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md) | 路由混合或边界不明的 IRIS 开发 | 日常入口 |
 | [iris-demand-commit](../../plugins/coding-iris-plugin/skills/iris-demand-commit/SKILL.md) | 生成需求提交方案或执行本地提交 | 日常入口 |
-| [iris-demand-entry](../../plugins/coding-iris-plugin/skills/iris-demand-entry/SKILL.md) | 从标版 Git 改动生成需求录入材料 | 日常入口 |
+| [iris-demand-entry](../../plugins/coding-iris-plugin/skills/iris-demand-entry/SKILL.md) | 从标版 Git 改动生成 `{IRIS}` 名称与三段式需求描述 | 日常入口 |
 | [iris-demand-promote](../../plugins/coding-iris-plugin/skills/iris-demand-promote/SKILL.md) | 将 DEV 已提交需求移植到 PRD 本地仓库 | 日常入口 |
 | [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 规划和执行 IRIS 远端部署 | 日常入口 |
 | [iris-frontend-coding](../../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md) | 实现 CSP、JavaScript、CSS、HISUI 前端 | 日常入口 |
