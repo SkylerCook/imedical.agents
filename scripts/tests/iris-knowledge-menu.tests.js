@@ -6,7 +6,7 @@ const repo=path.resolve(__dirname,'../..');
 const tool=require('../../plugins/coding-iris-plugin/scripts/iris-tools/sync-menu');
 const {search}=require('../../plugins/coding-iris-plugin/scripts/iris-tools/query-knowledge');
 const {sanitize}=require('../../.agents/skills/agent-kit-maintenance/scripts/import-imedical-knowledge');
-function fixture(t){const parent=path.join(os.tmpdir(),'codex');fs.mkdirSync(parent,{recursive:true});const dir=fs.mkdtempSync(path.join(parent,'knowledge-menu-'));t.after(()=>{assert.equal(path.dirname(dir),parent);fs.rmSync(dir,{recursive:true,force:true});});return dir;}
+function fixture(t){const parent=path.join(fs.realpathSync.native(os.tmpdir()),'codex');fs.mkdirSync(parent,{recursive:true});const dir=fs.mkdtempSync(path.join(parent,'knowledge-menu-'));t.after(()=>{assert.equal(path.dirname(dir),parent);fs.rmSync(dir,{recursive:true,force:true});});return dir;}
 function input(){return {schema:'iris-menu-snapshot/v1',sourceId:'demo',complete:true,scope:'all',capturedAt:'2026-09-18T00:00:00Z',catalog:[{id:'1',text:'Diagnosis',url:'diag.csp'}],groups:[{id:'10',name:'Doctor',menus:[{id:'1',text:'Diagnosis',url:'diag.csp',children:[]}]},{id:'20',name:'Other',menus:[]}]};}
 function apply(root,data){const plan=tool.sync({root,input:data});return tool.sync({root,input:data,write:true,expectHash:plan.revision,expectInput:plan.inputHash});}
 test('plan is read-only; apply, readback and repeat are deterministic',t=>{

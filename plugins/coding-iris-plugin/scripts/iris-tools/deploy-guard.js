@@ -87,7 +87,9 @@ function initialize(repo,demand,baseRef,confirm) {
  try{fd=fs.openSync(lock,'wx',0o600);}catch{stop('session-busy-or-interrupted');}
  try{
  if(fs.existsSync(loc.file))stop('session-already-exists');
- if(fs.realpathSync(git(repo,['rev-parse','--show-toplevel']))!==loc.repo)stop('repository-root-required');
+ const gitRoot=fs.realpathSync.native(git(repo,['rev-parse','--show-toplevel']));
+ const requestedRoot=fs.realpathSync.native(loc.repo);
+ if((process.platform==='win32'?gitRoot.toLowerCase():gitRoot)!==(process.platform==='win32'?requestedRoot.toLowerCase():requestedRoot))stop('repository-root-required');
  if(baseRef) {if(!confirm)stop('baseline-confirmation-required');}
  else {
   if(git(repo,['status','--porcelain']))stop('dirty-worktree-baseline-unknown');

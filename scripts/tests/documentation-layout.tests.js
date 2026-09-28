@@ -64,7 +64,7 @@ test('project links resolve within deployment and skill/rule inventory remains c
   }
 });
 function fixture(run) {
-  const parent = path.join(os.tmpdir(), 'codex'); fs.mkdirSync(parent, { recursive: true });
+  const parent = path.join(fs.realpathSync.native(os.tmpdir()), 'codex'); fs.mkdirSync(parent, { recursive: true });
   const root = fs.mkdtempSync(path.join(parent, 'documentation-layout-'));
   const source = path.join(root, 'source'), checkout = path.join(root, 'checkout');
   const git = (at, ...args) => execFileSync('git', ['-C', at, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
