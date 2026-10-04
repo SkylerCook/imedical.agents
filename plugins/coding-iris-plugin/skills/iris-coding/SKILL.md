@@ -24,7 +24,7 @@ description: Route IRIS coding requests with unclear frontend/backend boundaries
 
 1. 读取目标工程 `.agents/config/iris_project_profile.md`、`.agents/config/plugin_profile.md`、[规则索引](../../rules/iris_coding_index.md)和[通用规则](../../rules/iris_coding_general.md)。复用仍持有且未变化的内容。
 2. 按通用规则判定 executionPath、parallelAssessment 和正式 run；guidanceMode 使用共享辅助协议。风险分流不减少命中的硬约束。
-3. **需要部署的业务需求，在所属仓库第一次修改前**读取[部署保护的建立会话要求](../../references/deployment-protection.md#建立会话)，完成或复用固定 Git 基线；已有修改、需求号缺失或基线不明时先通过 Question 确认。仅分析或明确不部署的任务不额外建立会话。
+3. 日常开发部署默认 direct，不要求需求号或 Git 基线会话；已有修改不触发基线确认。仅在用户或项目要求 guarded 时，在第一次修改前读取[建立会话要求](../../references/deployment-protection.md#建立会话)。上传、编译仍需明确授权。
 4. 定位页面、按钮、JS 调用和后端方法，确认调用链及文件边界；按上表读取命中的专项 skill 和规则。前端修改前执行[条件 i18n 门禁](../../rules/iris_coding_frontend.md#条件-i18n-门禁)，启用状态、信号、规则加载和失败处理均以该节为准。
 
 业务背景、菜单与实现参考按通用规则“自主使用知识资料”按需查询；用户要求刷新菜单资料时转 [iris-menu-sync](../iris-menu-sync/SKILL.md)。涉及远端读取或 SQL 验证时按规则索引读取工作流和目标工程私有连接配置，遵守对应授权边界。

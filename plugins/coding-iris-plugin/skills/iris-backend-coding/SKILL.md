@@ -15,9 +15,9 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 
 执行路径统一由 rules/iris_coding_general.md 判定；guidanceMode 按共享 execution-guidance 协议解析。步骤可合并、重排，硬约束不变；不因文件数自动升级、不因 full/guarded 自动建 run。
 
-## 需求修改前的 Git 基线
+## 部署方式
 
-需要部署的业务需求，在所属仓库第一次修改前读取[部署保护的建立会话要求](../../references/deployment-protection.md#建立会话)，完成或复用固定 Git 基线。已有修改、需求号缺失或基线不明时先通过 Question 确认；仅分析或明确不部署的任务不额外建立会话。
+日常开发部署默认 direct，不要求需求号或 Git 基线会话；已有修改不触发基线确认。仅在用户或项目要求 guarded 时，在第一次修改前读取[建立会话要求](../../references/deployment-protection.md#建立会话)。完整模式与保护范围见[部署契约](../../references/deployment-protection.md)。上传、编译仍需明确授权。
 
 ## 流程
 

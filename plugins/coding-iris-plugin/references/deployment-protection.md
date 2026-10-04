@@ -1,10 +1,27 @@
-# Git 主线与部署保护
+# 开发部署与可选基线保护
 
-前后端上传共用 deploy-guard.js。服务器内容只进入用户私有状态目录和临时部署产物，不能复制回源码或暂存区。Git 提交工具不读取这些内容。
+## 默认开发部署（direct）
+
+明确目标环境、文件范围并取得部署授权后，直接使用本地文件更新目标。不要求需求号、Git 基线会话、干净工作区或 fetch/pull；已有明确授权不重复确认。部署不会修改本地源码、暂存区或 Git 历史。
+
+- 后端：`node compile.js --project-root <workspace> --files <project-relative.cls|mac|inc...> --execute`。
+- 前端：`node deploy-frontend.js --project-root <workspace> --source-root <frontend> --files <project-relative-files...> --execute`，SSH 信任参数沿用。
+- 无 `--execute` 只输出本地计划，不连接服务器。计划输出不代表远端检查已通过。
+- 默认 `direct`；显式 `--mode guarded --demand <id>` 启用下文的基线会话和三方合并。兼容旧命令：仅带 `--demand` 或 `--decision` 时仍选择 `guarded`；`--mode direct --demand <id>` 可显式使用 direct。`--decision` 仅限 guarded。
+
+执行前对整批文件完成路径、重复目标、UTF-8、NUL、冲突标记、JS 语法与 Storage 检查，失败不写入。direct 按本地文件更新，不合并部署开始前已有的服务器代码差异；需要保留或合并此类差异时选择 guarded。本地类未包含 Storage 时，仅在上传产物中保留服务器 Storage；已有本地 Storage 与服务器不同则停止人工核对，不用命令参数绕过。
+
+每文件上传前复核本地字节和远端快照，发现检查期间变化立即停止。后端使用 Atelier 时间戳条件上传；前端使用预期哈希检查和原子替换。上传后回读验证，整批成功后编译；内容未变的后端/CSP 也执行编译以确认当前结果。并发保护不能阻止其它工具在本次部署结束后写入。
+
+输出 `iris-direct-deploy/v1`，包含逐文件状态和编译诊断；只有 `verified` 表示工具验证通过。预检失败为 `blocked`，编译失败为 `compile-failed`，写入开始后的错误为 `failed-or-unknown`，携带失败阶段和已处理文件。批次不保证远端事务性，不自动重试或回滚，也不创建持久会话；失败后先核对受影响的服务器文件再继续，不把重新执行当作自动恢复。业务功能仍需对应验证。
+
+## 可选基线保护（guarded）
+
+以下会话、三方合并、人工决定及状态管理仅适用于 guarded。前后端上传共用 deploy-guard.js。服务器内容只进入用户私有状态目录和临时部署产物，不能复制回源码或暂存区。Git 提交工具不读取这些内容。
 
 ## 建立会话
 
-需要部署的业务需求才建立会话；仅分析或明确不部署的任务不额外建立。已有会话复用，不能为部署重建历史；需求号缺失或基线不明时先通过 Question 确认，不自动 stash/rebase。
+仅在用户或项目要求 guarded 时建立会话；direct、仅分析或明确不部署的任务不额外建立。已有会话复用，不能为部署重建历史；需求号缺失或基线不明时先通过 Question 确认，不自动 stash/rebase。
 
 在需求修改前执行 `node deploy-guard.js init <GitRoot> <需求号>`：工作区须干净、有 upstream，pull --ff-only 成功后固定基线。已有修改必须由用户确认修改前提交，执行 `init <GitRoot> <需求号> <base-ref> --confirm-baseline`。不得自行把 HEAD 当成修改前版本。
 
@@ -12,14 +29,14 @@
 
 ## 部署入口
 
-- 前端：`node deploy-frontend.js --project-root <workspace> --source-root <frontend> --demand <id> --files <project-relative-files...> --execute`，SSH 信任参数沿用。
-- 后端：`node compile.js --project-root <workspace> --demand <id> --files <project-relative.cls|mac|inc...> --execute`。
+- 前端：`node deploy-frontend.js --project-root <workspace> --source-root <frontend> --mode guarded --demand <id> --files <project-relative-files...> --execute`，SSH 信任参数沿用。
+- 后端：`node compile.js --project-root <workspace> --mode guarded --demand <id> --files <project-relative.cls|mac|inc...> --execute`。
 - 一个批次限一个 GitRoot。后端文件顺序为调用方已核实的依赖编译顺序。
 - 后端使用既有 Atelier 连接配置及编译能力，源码接口为 doc；未知导出格式停止。宏和 include 必须有可确认的 ROUTINE 声明。
 - 原 compile.js 位置参数上传被阻止；缺少需求会话不能回退旧上传路径。
 - 无 --execute 不连接服务器。部署之前仍须已有明确用户授权。
 
-服务器等于本地时跳过；等于基线时上传本地；首次其它差异执行三方文本合并。后续以最近成功本地快照和部署产物应用增量。首次合并后远端再次变化停止。每文件上传前再次读取，上传后回读；这不是远端原子条件写入，不能阻止其它账号并发覆盖。
+服务器等于本地时跳过；等于基线时上传本地；首次其它差异执行三方文本合并。后续以最近成功本地快照和部署产物应用增量。首次合并后远端再次变化停止。每文件上传前再次读取，上传后回读；条件上传能力见下方验证说明，不能阻止其它工具随后写入。
 
 全批合并检查完成后才写入。UTF-8、NUL、冲突标记、JS 语法检查内置；检查不代替调用方的业务验证。Storage 差异、远端删除、新增碰撞及无法确定的后端格式进入人工处理。不得用 --decision 绕过 Storage 或语法检查。
 

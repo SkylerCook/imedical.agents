@@ -6,7 +6,7 @@
 
 - 非 xc 能力目录与使用指南：docs/guides/capability-catalog.md、docs/guides/capability-guide.md，覆盖插件、skill、rule、接入和逐技能示例；README 提供入口。清单与行为变更同步核对，xc 手册列入 backlog P2；不改变插件、版本或部署行为。
 
-- IRIS 编码入口按明确专项直达、混合/边界不明路由；部署基线前移，i18n 条件矩阵由前端规则维护。契约测试核对引用与执行时点，真实提效仍按既有基准验证。信创内容不在本轮变更范围。
+- IRIS 编码入口按明确专项直达、混合/边界不明路由；开发部署默认 direct、guarded 基线按需建立，i18n 条件矩阵由前端规则维护。契约测试核对引用与执行时点，真实提效仍按既有基准验证。信创内容不在本轮变更范围。
 
 - 纯 init 薄索引：7 个插件通过 manifest 统一排除，enabled 项目常规 Write 精准清理旧受管入口及历史遗留空目录，非空目录和链接保留；真实 init 和日常入口保留，available/disabled 不变。迁移见 docs/update-agents.md。
 
@@ -32,7 +32,7 @@
 
 - 框架演进：guidanceMode 与风险/协作独立，IRIS 入口共用风险分流；新 run 默认 on-signal 反馈，session 通用 adapter 保留旧别名。写入 run 最终验证绑定 scope 指纹，完成与 --final 共用门禁。项目入口须定点迁移，真实模型/宿主收益见 maintenance/validation/agent-evolution.md，未宣称实测通过。
 
-- 部署保护固定 Git 基线，服务器差异仅合入隔离产物；首次合并后再次覆盖、冲突、未知结果必须人工决定。状态保存在用户私有目录，更新基线保留历史。Question 使用固定 code 和工具无关协议，按能力降级为文本；暂停/查看/无效决定不写入。详见 coding-iris-plugin/references/deployment-protection.md。
+- 开发部署默认 direct，不要求需求号或 Git 会话，保留 Storage、并发变化、回读和编译检查。显式 guarded 或旧 --demand 命令使用固定 Git 基线，服务器差异仅合入隔离产物；首次合并后再次覆盖、冲突、未知结果必须人工决定。状态保存在用户私有目录，更新基线保留历史。Question 使用固定 code 和工具无关协议，按能力降级为文本；暂停/查看/无效决定不写入。详见 coding-iris-plugin/references/deployment-protection.md。
 
 - 能力源分为厂商无关的 `agents/`、`workflows/`、可复用 `plugins/` 与根级 `skills/`；工具专属配置只作为 adapter。源仓 `.agents/skills/agent-kit-maintenance/` 是维护者专用入口。
 - 当前有 15 个插件、0 个根级独立 skill。插件版本以 manifest 为准，独立 skill 版本以 frontmatter 为准；内部内容继承 owner 版本。发布记录不可变且不部署，版本 validator 不接入业务安装/更新/hook。

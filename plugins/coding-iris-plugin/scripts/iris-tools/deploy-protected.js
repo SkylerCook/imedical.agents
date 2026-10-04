@@ -6,14 +6,19 @@ const {needsInput}=require('./deploy-question');
 const {resolveWorkspaceContext,validateWorkspaceContext}=require('../../../../scripts/lib/workspace-context');
 function parse(argv){
  const a={projectRoot:process.cwd(),files:[]};
- const keys={'--project-root':'projectRoot','--source-root':'sourceRoot','--demand':'demand','--decision':'decision','--python':'python','--known-hosts':'knownHosts','--host-key-sha256':'fingerprint'};
+ const keys={'--project-root':'projectRoot','--source-root':'sourceRoot','--mode':'mode','--demand':'demand','--decision':'decision','--python':'python','--known-hosts':'knownHosts','--host-key-sha256':'fingerprint'};
  for(let i=0;i<argv.length;i++){
   if(argv[i]==='--execute')a.execute=true;
   else if(argv[i]==='--files'){while(argv[i+1]&&!argv[i+1].startsWith('--'))a.files.push(argv[++i]);}
   else if(keys[argv[i]]){const key=keys[argv[i]]; a[key]=argv[++i];if(!a[key]||a[key].startsWith('--'))guard.stop('missing-argument');}
   else guard.stop('unsupported-argument');
  }
- if(!a.files.length||!/^\d+$/.test(a.demand||''))guard.stop('demand-and-files-required');
+ // Existing --demand invocations retain the original guarded semantics.
+ a.mode ||= (a.demand || a.decision) ? 'guarded' : 'direct';
+ if(!a.files.length)guard.stop('files-required');
+ if(!['direct','guarded'].includes(a.mode))guard.stop('unsupported-deploy-mode');
+ if((a.mode==='guarded'||a.demand!==undefined)&&!/^\d+$/.test(a.demand||''))guard.stop('demand-required');
+ if(a.mode==='direct'&&a.decision)guard.stop('decision-requires-guarded-mode');
  return a;
 }
 function request(conn,method,suffix,body,headers={}){
@@ -52,7 +57,7 @@ function backendAdapter(conn){
    await request(conn,'PUT','doc/'+encodeURIComponent(f.remotePath),{enc:false,content:f.content.split('\n')},ts?{'IF-NONE-MATCH':ts}:{});
    versions.delete(f.remotePath);
   },
-  async compile(files){const r=await csp.compile(conn,{documents:files.map(f=>f.remotePath)});if(r.status!=='compiled')guard.stop('compile-failed');}
+  async compile(files){const r=await csp.compile(conn,{documents:files.map(f=>f.remotePath)});if(r.status!=='compiled')guard.stop('compile-failed',{compilation:r});return r;}
  };
 }
 function worker(command,workerPath,env,payload){
@@ -82,7 +87,7 @@ function frontendAdapter(a,config,mcp,context){
   async read(f){const r=await call({mode:'read',remotePath:f.remotePath});return r.content===null?null:Buffer.from(r.content,'base64');},
   async put(f){const localPath=path.join(dir,guard.digest(f.remotePath));fs.writeFileSync(localPath,f.bytes,{mode:0o600});
    await call({mode:'put',remotePath:f.remotePath,localPath,expected:f.expected,sha256:guard.hash(f.bytes)});},
-  async compile(){if(conn){const r=await csp.compile(conn,{documents:plan.documents});if(r.status!=='compiled')guard.stop('compile-failed');}},
+  async compile(){if(conn){const r=await csp.compile(conn,{documents:plan.documents});if(r.status!=='compiled')guard.stop('compile-failed',{compilation:r});return r;}},
   close(){fs.rmSync(dir,{recursive:true,force:true});}
  };
 }
@@ -92,7 +97,7 @@ async function main(kind,argv){
   const a=parse(argv),context=resolveWorkspaceContext(a.projectRoot);
   if(validateWorkspaceContext(context).some(r=>['manifest-invalid','schema-version-unsupported'].includes(r.status)))guard.stop('invalid-workspace-context');
   const config=guard.read(path.join(context.contextRoot,'config/project-env.json')),mcp=guard.read(path.join(context.workspaceRoot,'.mcp.json'));
-  if(!a.execute){console.log(JSON.stringify({status:'planned',kind,files:a.files,demand:a.demand}));return;}
+  if(!a.execute){console.log(JSON.stringify({status:'planned',mode:a.mode,kind,files:a.files,demand:a.demand}));return;}
   let files,target;
   if(kind==='frontend'){adapter=frontendAdapter(a,config,mcp,context);files=adapter.files;target=adapter.target;}
   else {
@@ -107,6 +112,13 @@ async function main(kind,argv){
     return {localPath,remotePath:match[1]+ext};
    });
    target=JSON.stringify([conn.protocol,conn.hostname,conn.port,conn.path.replace(/action\/compile.*$/,'')]);
+  }
+  if(a.mode==='direct'){
+   const result=await require('./deploy-direct').run({files,adapter,kind});
+   let output=JSON.stringify(result);
+   for(const secret of [config.iris?.password,...Object.values(mcp.mcpServers||{}).map(s=>s.env?.IRIS_PASSWORD)])if(secret)output=output.split(JSON.stringify(secret).slice(1,-1)).join('[redacted]');
+   console.log(output);if(result.status!=='verified')process.exitCode=1;
+   return;
   }
   const roots=files.map(f=>{const r=spawnSync('git',['-C',path.dirname(f.localPath),'rev-parse','--show-toplevel'],{encoding:'utf8',windowsHide:true});if(r.status!==0)guard.stop('repository-unknown');return fs.realpathSync(r.stdout.trim());});
   if(new Set(roots).size!==1)guard.stop('split-batch-by-repository');

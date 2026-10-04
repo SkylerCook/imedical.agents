@@ -65,25 +65,28 @@ function checkLocalPointers(relative, content) {
     }
   }
 }
-function checkBaselineBeforeImplementation(content, implementationHeading) {
+function checkDeploymentRouting(content, implementationHeading) {
   const baseline = content.indexOf("../../references/deployment-protection.md#建立会话");
   const implementation = content.indexOf(implementationHeading);
-  assert(baseline >= 0 && implementation > baseline, "deployment baseline must precede implementation");
-  assert(content.slice(0, implementation).includes("第一次修改前"));
-  assert(content.includes("仅分析或明确不部署"));
+  assert(baseline >= 0 && implementation > baseline, "deployment routing must precede implementation");
+  const routing = content.slice(0, implementation);
+  assert(routing.includes("日常开发部署默认 direct"));
+  assert(routing.includes("不要求需求号或 Git 基线会话"));
+  assert(routing.includes("仅在用户或项目要求 guarded 时"));
+  assert(routing.includes("已有修改不触发基线确认"));
 }
 for (const name of ["iris-coding", "iris-frontend-coding", "iris-backend-coding"]) {
   const relative = `plugins/coding-iris-plugin/skills/${name}/SKILL.md`;
   const content = read(relative);
   checkLocalPointers(relative, content);
-  checkBaselineBeforeImplementation(content, name === "iris-coding" ? "## 实现与验证" : "## 流程");
+  checkDeploymentRouting(content, name === "iris-coding" ? "## 实现与验证" : "## 流程");
 }
 const indexPath = "plugins/coding-iris-plugin/rules/iris_coding_index.md";
 checkLocalPointers(indexPath, read(indexPath));
 checkLocalPointers("plugins/coding-iris-plugin/rules/iris_coding_general.md", general);
 assert.throws(() => checkLocalPointers(indexPath, "[gate](missing-gate.md)"), /missing/);
 assert.throws(() => checkLocalPointers(indexPath, "[gate](iris_coding_frontend.md#missing-gate)"), /missing heading/);
-assert.throws(() => checkBaselineBeforeImplementation("## 实现与验证\n" + skill, "## 实现与验证"), /baseline/);
+assert.throws(() => checkDeploymentRouting("## 实现与验证\n" + skill, "## 实现与验证"), /routing/);
 const protection = read("plugins/coding-iris-plugin/references/deployment-protection.md");
 for (const marker of ["已有会话复用", "Question", "不自动 stash/rebase", "pull --ff-only", "--confirm-baseline", "不得自行把 HEAD"]) {
   assert(protection.includes(marker), marker);

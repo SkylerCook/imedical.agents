@@ -7,7 +7,7 @@ description: Use when an IRIS project needs remote deployment planning, upload, 
 
 ## 核心边界
 
-本 Skill 是 IRIS 项目部署编排入口。默认只做本地分析、部署清单生成和只读验证；上传、编译、SFTP 同步、远端命令、数据库变更或生产环境动作必须先说明影响并取得用户明确确认。
+本 Skill 是 IRIS 项目部署编排入口。仅分析或未获写入授权时只做本地计划和只读验证；用户明确要求部署且目标、文件范围已清楚时直接执行，不再重复确认。上传、编译、SFTP 同步、远端命令、数据库变更或生产环境动作须有覆盖当前范围的明确授权。
 
 不要在插件内容中写入服务器地址、namespace、账号、密码、token、Cookie、远端绝对路径、业务页面清单、业务类名前缀或项目专属基类。这些事实只能来自目标工程本地配置和用户当次确认。
 
@@ -23,7 +23,7 @@ description: Use when an IRIS project needs remote deployment planning, upload, 
 
 ## 部署清单
 
-先生成或手工维护部署清单，再讨论执行动作。优先使用插件脚本：
+先核实文件与远端目标映射；已有明确文件清单可直接执行部署入口，不额外要求清单文件或审批。需要整理混合文件时使用插件脚本：
 
 ```bash
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js --files <path...>
@@ -39,7 +39,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 
 ## 前端上传加编译
 
-优先直接调用 `scripts/iris-tools/deploy-frontend.js --demand <需求号> --source-root <frontend-root> --files <project-relative-file...> --execute`，参数与失败语义见 `scripts/iris-tools/README.md`。已有明确授权、目标和有效配置时使用一条命令，不再单独生成临时脚本、重复预检或逐工具确认。固定完成上传、哈希回读和指定 CSP 编译；无 `--execute` 只生成本地计划。失败停止，不自动重试或扩大文件范围。
+优先直接调用 `scripts/iris-tools/deploy-frontend.js --source-root <frontend-root> --files <project-relative-file...> --execute`，默认 direct，参数与失败语义见 `scripts/iris-tools/README.md`。已有明确授权、目标和有效配置时使用一条命令，不再单独生成临时脚本、重复预检或逐工具确认。固定完成上传、哈希回读和指定 CSP 编译；无 `--execute` 只生成本地计划。失败停止，不自动重试或扩大文件范围。
 
 ## 执行顺序
 
@@ -53,8 +53,8 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js --docu
 第一条仅本地计划；第二条在上传完成且用户已明确授权部署后执行一次批量编译。直接编译明确指定的 show.csp，不自动编译父页面。禁止把已授权部署机械拆成逐工具重复确认。输出 `elapsedMs` 为编译请求及回包耗时，不能当作包含检查/上传/验收的总耗时。失败或结果不明时不自动重试，也不回退到 `iris_execute`。
 
 1. 读取配置和项目规则，确认目标环境事实来源。
-2. 生成部署清单，并按清单拆分后端类、CSP、Web 资源和其它文件。
-3. 说明即将发生的远端写入、编译、SFTP 上传或验证影响，等待用户确认。
+2. 核实文件清单，拆分后端类、CSP、Web 资源和其它文件；不强制另建清单产物。
+3. 核对当前授权；仅当目标、范围或授权缺失时补充确认，已有授权直接沿用。
 4. 后端类按 `iris_deploy_checklist.md` 执行：实体类先处理 Storage Default 风险，完整依赖切片先上传，再按依赖顺序编译。
 5. Web 资源通过 UTF-8 字节门禁后，使用共享保护生成独立部署产物并上传；只有用户明确指定历史 `standard-gb2312` 工程时，GB2312 临时文件才可作为上传内容，远端目标名仍保持原始文件名。
 6. CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
@@ -77,9 +77,9 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js --docu
 
 部署和本地验证完成后仍停在 `acceptance-pending`。部署过程中产生可跨场景复用的新经验时，也必须遵循 `.agents/agents/_shared/delivery-lifecycle.md` 和 `agent-framework-feedback`：用户明确验收后先做只读审查，只有逐项授权后才按 `feedback/experience/deploy-com-exp.md` 维护；不要写入敏感连接信息、完整命令输出或一次性排障流水。
 
-## Git 主线部署保护（0.10.0）
+## 开发部署与可选基线保护
 
-上传使用需求基线和独立合并产物；首次服务器差异可合并，再次覆盖必须 Question。源码与暂存区不接收服务器差异。前端 deploy-frontend.js 和后端 compile.js 均须提供 --demand 与 --files，并先建立 deploy-guard.js 会话。详见 references/deployment-protection.md（从 skill/rule 入口按插件根解析）。原位置参数后端上传停止，不允许回退绕过。
+日常开发部署默认使用 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留路径、编码、Storage、并发变化、回读和编译检查。需要跨版本三方合并时显式选择 `--mode guarded --demand <id>` 并建立保护会话。旧命令仅带 `--demand` 时继续按 guarded 执行，不静默降低已有保护。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 始终只生成本地计划。
 
 ## 提问工具的兼容与降级
 

@@ -107,7 +107,7 @@
 - **P3 · 新增跨平台能力**：暂缓扩大 macOS/Linux 能力覆盖；已实现能力的矩阵取证按 P2 执行，两者不混为同一事项。后续按“标准模式基础能力可用”的边界评估实施：优先覆盖安装、更新、plugin profile、thin-index 和通用 skill/agent；workspace overlay、Windows x64 IRIS MCP 等平台专属能力允许明确降级，不要求首阶段与 Windows 完全等价。已确认采用“JS-first、Node.js 为 `.agents` 工具链必装环境、OS 专属脚本例外”的策略；Node.js 不是 HIS 生产运行依赖，不整体重写现有 `.ps1`。正式启动时需完成安装器 Node.js 前置检查、经过完整回归的 Node 22 支持范围、根级 `scripts/*.js` sparse checkout、平台能力降级，以及 Windows/macOS/Linux 测试矩阵。
 - **P2 · 表单预览平台验证**：`iris-cure-form-dev` 的 `preview-run` 已按 Windows/macOS/Linux Chromium 路径发现和 Linux root capability 降级实现，但当前只取得 Windows Chrome 实机证据；正式宣称 macOS/Linux 支持前，仍需在对应 runner 上执行九档 Network/Console/HISUI 集成矩阵。
 
-- **P1 · 前端部署链路**：业务副本同步后仍需验证统一前端入口的实际单命令部署及非 Windows CI；提交状态见维护日志，源仓提交不等于副本生效。
+- **P1 · 开发部署链路**：默认 direct 已取得 Windows 本地模拟及 CLI 证据；业务副本按授权同步后仍需验证前后端真实单命令部署及 Windows/macOS/Linux × Node22/24 CI。guarded 兼容命令及领域专项授权保持原行为；提交状态见维护日志，源仓变化不等于副本生效。
 - **P2 · 电子健康卡项目验收**：电子健康卡 v1.0.1 修复在源仓验证后，已部署工程仍需按更新指南同步并确认旧受管子入口清理；真实厂家协议和双向映射验收留目标工程。
 
 ## P2：AI 工作站插件后续验证

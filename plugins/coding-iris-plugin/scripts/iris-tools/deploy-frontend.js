@@ -101,8 +101,8 @@ async function execute(plan, upload, compile) {
 }
 
 async function main(argv) {
-  if (argv.includes('--execute') || argv.includes('--demand')) return require('./deploy-protected').main('frontend', argv);
-  if(argv.includes('--help')) {console.log('Usage: node deploy-frontend.js --project-root <project> [--source-root <frontend-root>] --files <project-relative-files...> [--python <interpreter>] [--known-hosts <file> | --host-key-sha256 <trusted-SHA256:fingerprint>] [--execute]\nDefault: local plan. Execute requires --demand and a Git baseline session; isolated merge, upload/readback, then CSP compilation. No temporary scripts; no retries.');return;}
+  if(argv.includes('--help')) {console.log('Usage: node deploy-frontend.js --project-root <project> [--source-root <frontend-root>] --files <project-relative-files...> [--python <interpreter>] [--known-hosts <file> | --host-key-sha256 <trusted-SHA256:fingerprint>] [--execute] [--mode direct|guarded] [--demand <id>]\nDefault: local plan; authorized execution uses direct mode without a Git session. --demand without --mode retains guarded behavior. Upload/readback precedes CSP compilation. No automatic retries.');return;}
+  if (argv.includes('--execute') || argv.includes('--demand') || argv.includes('--mode') || argv.includes('--decision')) return require('./deploy-protected').main('frontend', argv);
   const args=parse(argv), context=resolveWorkspaceContext(args.projectRoot);
   if(validateWorkspaceContext(context).some(r=>['manifest-invalid','schema-version-unsupported'].includes(r.status)))throw new Error('Invalid workspace context');
   const config=readJson(path.join(context.contextRoot,'config/project-env.json'));

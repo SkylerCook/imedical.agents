@@ -47,7 +47,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
 
 ```powershell
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <文件标识符>
-node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js --demand <需求号> --files <文件路径...> --execute
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js --files <文件路径...> --execute
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <ClassName> --method <MethodName>
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js --files <path...>
 ```
@@ -64,7 +64,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 |---|---|---|---|
 | `sync-env-config.js` | 从 `.agents/config/project-env.json` 生成 `.mcp.json`；支持可选 `sftp.enabled=true` 生成 `sftp-server` MCP | 仅当 `project-env.json` 是事实来源时初始化或同步 MCP 配置 | 不反向读取 `.mcp.json`；不验证远端连通性；不上传文件；不编译；不把敏感值写入插件 |
 | `export.js` | 通过 IRIS Atelier API 导出 IRIS 文档；可识别类名、`.cls`、`.js`、`.csp`；JS/CSP 路径前缀来自 `web.basePath` / `web.cspBasePath` | 本地缺少类、CSP、JS 上下文时导出远端源码 | 不上传；不编译；不做 SFTP；不做 GB2312 转换 |
-| `compile.js` | 固定 Git 基线、隔离合并、Atelier 条件上传、回读与编译 | `.cls` 等后端 IRIS 文档的小范围上传与编译 | 不支持 CSP；不支持 SFTP；不处理 GB2312；Storage 有差异或格式无法可靠比较时停止 |
+| `compile.js` | 默认 direct 本地文件上传，保留 Atelier 条件上传、回读与编译；可选 guarded 基线合并 | `.cls` 等后端 IRIS 文档的小范围上传与编译 | 不支持 CSP；不支持 SFTP；不处理 GB2312；Storage 有差异或格式无法可靠比较时停止 |
 | `debugger.js` | 通过 HTTP/HTTPS POST 调用 Broker/API；支持命令行或交互输入 Token、ClassName、MethodName、参数、URL、Cookie | 验证后端 Broker 方法、调试业务接口返回 | 不上传；不编译；不执行 SQL；不替代单元测试或页面访问验证 |
 
 脚本使用规则：
@@ -150,6 +150,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 - 修改 IRIS 安全资源、用户、角色、WebApp。
 - 执行会改变远程状态的 shell 命令。
 
-## Git 主线部署保护（0.10.0）
+## 开发部署与可选基线保护
 
-上传使用需求基线和独立合并产物；首次服务器差异可合并，再次覆盖必须 Question。源码与暂存区不接收服务器差异。前端 deploy-frontend.js 和后端 compile.js 均须提供 --demand 与 --files，并先建立 deploy-guard.js 会话。详见 references/deployment-protection.md（从 skill/rule 入口按插件根解析）。原位置参数后端上传停止，不允许回退绕过。
+日常开发部署默认 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留编码、Storage、并发变化、回读和编译检查。需要三方合并时显式使用 `--mode guarded --demand <id>` 并建立会话。旧命令仅带 `--demand` 继续使用 guarded。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 只生成本地计划。

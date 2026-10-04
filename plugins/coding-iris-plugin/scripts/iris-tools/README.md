@@ -79,16 +79,15 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js scripts/tes
 
 ---
 
-### 2. compile.js - 受保护的后端上传与编译
+### 2. compile.js - 后端上传与编译
 
-复用项目 Atelier 连接，精确读取 .cls/.mac/.inc 文件，在隔离产物中完成三方合并、条件上传、回读和编译。源码及暂存区保持不变。
+复用项目 Atelier 连接，默认 direct 按指定 .cls/.mac/.inc 本地文件完成条件上传、回读和编译。源码及暂存区保持不变。
 
-    node .agents/plugins/coding-iris-plugin/scripts/iris-tools/deploy-guard.js init <GitRoot> <需求号>
-    node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js --project-root . --demand <需求号> --files src/Sample/Util/Date.cls --execute
+    node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js --project-root . --files src/Sample/Util/Date.cls --execute
 
-需求开始前 init；已有修改按用户确认的修改前 SHA 建立会话。原类名/位置参数调用被拒绝。环境来自私有配置，不能通过位置参数切换 namespace。没有 --execute 只生成计划。
+direct 无需需求号或 Git 会话。需要三方合并时先按部署契约建立会话，再使用 `--mode guarded --demand <需求号>`；旧命令仅带 `--demand` 保持 guarded。原类名/位置参数调用被拒绝，环境来自私有配置。没有 --execute 只生成计划。
 
-输出 verified 或 needs-user-input；具体文件、哈希、人工决定及恢复流程见 [部署保护](../../references/deployment-protection.md)。CSP 沿用 compile-csp.js，不进入后端文档入口。
+direct 输出 verified、blocked、compile-failed 或 failed-or-unknown；guarded 可返回 needs-user-input。具体文件、哈希、人工决定及恢复流程见 [部署保护](../../references/deployment-protection.md)。CSP 沿用 compile-csp.js，不进入后端文档入口。
 
 ---
 
@@ -246,7 +245,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
    # 编辑本地 src/ 目录下的 .cls 文件
    
    # 上传并编译到 IRIS 服务器
-   node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js --demand <需求号> --files src/Sample/Util/MyClass.cls --execute
+   node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js --files src/Sample/Util/MyClass.cls --execute
    
    # 查看编译结果，如有错误则修复后重新编译
    ```
@@ -313,7 +312,7 @@ A:
 2. 确认 IRIS 服务器可访问
 3. 查看控制台输出的错误信息
 4. 验证网络连接和防火墙设置
-5. 对于 compile.js，核对基线会话、Atelier 连接及 needs-user-input 原因
+5. 对于 compile.js，核对模式、Atelier 连接与失败阶段；仅 guarded 检查基线会话及 needs-user-input 原因
 
 ---
 
@@ -368,19 +367,19 @@ A:
 前端上传加编译统一调用 `scripts/iris-tools/deploy-frontend.js`。默认生成本地计划；已有明确部署授权后加 `--execute`，无需逐步骤重复确认。禁止为常规部署临时生成上传脚本或逐次探索编译工具。
 
 ```bash
-node .agents/plugins/coding-iris-plugin/scripts/iris-tools/deploy-frontend.js --demand <需求号> --source-root <frontend-root> --files <project-relative-file...> --execute
+node .agents/plugins/coding-iris-plugin/scripts/iris-tools/deploy-frontend.js --source-root <frontend-root> --files <project-relative-file...> --execute
 ```
 
 `--source-root` 对应包含 `csp/`、`scripts/`、`css/` 的目录，映射到私有配置 `REMOTE_PATH`；省略时读取 SFTP 的 `LOCAL_PATH`。文件列表必须明确，CSP 虚拟路径取 `web.cspBasePath`。固定顺序：本地 UTF-8/路径/配置校验 → 按批次比较 SHA-256 并准备隔离产物 → 差异文件原子上传并回读 → 全部证据通过后一次 Atelier 编译指定 CSP。未变化 CSP 仍执行编译；JS/CSS 不触发编译。不自动扩展父页面，不重试、不切换通道；部分上传成功后失败不自动回滚。
 
 Python 默认使用 `.mcp.json` 对应 SFTP 的 `command`，可用 `--python <interpreter>` 明确覆盖；解释器须已安装 vendor 锁定依赖。可信主机密钥使用配置或 `--known-hosts <file>`；本次明确核实的指纹可用 `--host-key-sha256 <SHA256:fingerprint>`，不写入信任库，不自动接受未知密钥。两个参数互斥。
 
-结果包含文件哈希、merged 和 sourceUnchanged；needs-user-input 携带原因及私有证据位置。verified 仅证明回读及指定编译完成，页面功能另行验收；混合产物不能视为纯 Git 版本验收。仅编译继续使用 compile-csp.js，不转换历史 GB2312。
+默认 direct 返回文件哈希、逐文件状态和编译诊断；guarded 另提供 merged、sourceUnchanged 及 needs-user-input 的私有证据。verified 仅证明回读及指定编译完成，页面功能另行验收；混合产物不能视为纯 Git 版本验收。仅编译继续使用 compile-csp.js，不转换历史 GB2312。
 
 2026-09-15：更新自动刷新既有标准 SFTP 启动参数为 vendor，不要求 runtime opt-in；保留解释器、env、disabled 和其它服务。显式 custom 或自定义参数不覆盖，不创建缺失服务，不安装 Python 依赖。
 
-## Git 主线部署保护（0.10.0）
+## 开发部署与可选基线保护
 
-上传使用需求基线和独立合并产物；首次服务器差异可合并，再次覆盖必须 Question。源码与暂存区不接收服务器差异。前端 deploy-frontend.js 和后端 compile.js 均须提供 --demand 与 --files，并先建立 deploy-guard.js 会话。详见 references/deployment-protection.md（从 skill/rule 入口按插件根解析）。原位置参数后端上传停止，不允许回退绕过。
+日常开发部署默认 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留编码、Storage、并发变化、回读和编译检查。需要三方合并时显式使用 `--mode guarded --demand <id>` 并建立会话。旧命令仅带 `--demand` 继续使用 guarded。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 只生成本地计划。
 
 部署 Question 兼容：停止结果提供工具无关 question 协议，固定决定代码；Agent 按能力采用选项或文字确认。暂停/查看/无效决定不写入。详见 references/deployment-protection.md。

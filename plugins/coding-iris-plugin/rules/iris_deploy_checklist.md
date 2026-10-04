@@ -35,11 +35,11 @@ related:
 - 能用脚本稳定完成的，不优先调用 MCP。
 - MCP 只补脚本能力缺口、做远端只读验证，或在用户明确要求部署时执行上传/编译。
 - 任何项目缺少 `sftp-server` 时，不得臆造 ftp 能力；只记录“前端上传能力不可用”，并输出待上传文件清单和目标映射。
-- 涉及远端写入、批量同步、远端命令、Production、凭据或数据库变更时，必须先说明影响并取得明确确认。
+- 涉及远端写入、批量同步、远端命令、Production、凭据或数据库变更时，须有覆盖当前目标和范围的明确授权；已有授权不重复确认。
 
 ## 后端类部署
 
-- 共享部署保护保留 Storage 原文；B/L/R 的 Storage 有差异或无法可靠解析时停止并 Question。不得为通过上传而自动删除或重新生成 Storage，不能回退直接 iris_doc put 绕过保护。
+- direct 在本地未声明 Storage 时仅向上传产物补入服务器 Storage；本地显式 Storage 与服务器不同或无法可靠解析时停止核对。guarded 检查 B/L/R 的 Storage 差异。两种模式均不得自动删除或重新生成 Storage 来绕过保护。
 - 不得上传“只删除 `Storage Default` 行但保留裸 Storage 内容”的类。
 - 先上传完整依赖切片，再编译；不要上传一个类后立刻编译一个类。
 - 推荐顺序：实体类（字典、配置、业务） -> 公共/基类 -> 业务类（字典、配置、业务 SQL/DATA/BLH） -> 集成类 -> 前端文件。
@@ -69,6 +69,6 @@ related:
 
 前端上传加编译固定使用 `scripts/iris-tools/deploy-frontend.js`：全批差异预检、隔离产物上传、哈希回读后批量 Atelier 编译；失败停止，不临时生成脚本或自动换通道。参数及耗时口径见 `scripts/iris-tools/README.md`。
 
-## Git 主线部署保护（0.10.0）
+## 开发部署与可选基线保护
 
-上传使用需求基线和独立合并产物；首次服务器差异可合并，再次覆盖必须 Question。源码与暂存区不接收服务器差异。前端 deploy-frontend.js 和后端 compile.js 均须提供 --demand 与 --files，并先建立 deploy-guard.js 会话。详见 references/deployment-protection.md（从 skill/rule 入口按插件根解析）。原位置参数后端上传停止，不允许回退绕过。
+日常开发部署默认使用 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留路径、编码、Storage、并发变化、回读和编译检查。需要跨版本三方合并时显式选择 `--mode guarded --demand <id>` 并建立保护会话。旧命令仅带 `--demand` 时继续按 guarded 执行，不静默降低已有保护。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 始终只生成本地计划。

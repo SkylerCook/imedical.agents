@@ -20,7 +20,7 @@ SFTP 工具纳入 [vendor/sftp-server](vendor/sftp-server/README.md)：保留五
 
 CLS 编码提示：`coding-iris-plugin` 保留已有类历史格式，仅规范本次新增/修改位置；可选本地自检不阻断提交，不改变手动上传编译流程。
 
-IRIS 编码入口按边界选择：明确前端/后端任务直达专项 skill，混合或边界不明时使用 [iris-coding](plugins/coding-iris-plugin/skills/iris-coding/SKILL.md)。部署基线条件在修改前处理，i18n 条件矩阵由前端规则统一维护；静态读取体量与真实提效分别验证，见[验证记录](maintenance/validation/agent-evolution.md)。
+IRIS 编码入口按边界选择：明确前端/后端任务直达专项 skill，混合或边界不明时使用 [iris-coding](plugins/coding-iris-plugin/skills/iris-coding/SKILL.md)。开发部署默认 direct，仅 guarded 模式在修改前处理基线，i18n 条件矩阵由前端规则统一维护；静态读取体量与真实提效分别验证，见[验证记录](maintenance/validation/agent-evolution.md)。
 
 ## 快速理解
 
@@ -574,9 +574,9 @@ git push github master
 
 如果其中一个远端失败，先处理失败原因，不要在另一个平台手工补提交，避免历史分叉。
 
-`coding-iris-plugin` 当前 v0.9.0 包含 v0.8.0 引入的 `deploy-frontend.js` 与 vendor `upload-batch.py`，统一上传、哈希回读和指定 CSP 的 Atelier 编译，默认本地计划、显式执行。用法见[工具说明](plugins/coding-iris-plugin/scripts/iris-tools/README.md)；源仓变化不代表业务项目副本已更新。
+`coding-iris-plugin` 当前 v0.15.0 包含 `deploy-frontend.js` 与 vendor `upload-batch.py`，统一上传、哈希回读和指定 CSP 的 Atelier 编译，默认本地计划、显式执行。用法见[工具说明](plugins/coding-iris-plugin/scripts/iris-tools/README.md)；源仓变化不代表业务项目副本已更新。
 
-部署保护：coding-iris-plugin 0.10.0 使用 Git 固定基线、隔离合并产物及再次覆盖人工处理；前后端入口迁移见 plugins/coding-iris-plugin/references/deployment-protection.md。
+开发部署默认 direct，无需需求号或 Git 基线会话，保留并发变化检查、Storage 保护、回读及编译。`--mode guarded --demand <id>` 保留 Git 基线与三方合并；旧命令仅带 `--demand` 仍为 guarded。详见 [部署契约](plugins/coding-iris-plugin/references/deployment-protection.md)。
 
 部署保护的 Question 使用固定决定代码和工具无关结果；不同交互能力按选项/文本降级，无回复保持停止。
 

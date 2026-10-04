@@ -221,7 +221,7 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
   return result;
  }finally{fs.closeSync(fd);fs.unlinkSync(lock);}
 }
-module.exports={Attention,stop,digest,hash,text,merge,choose,initialize,run,checkGit,validate,read,write,location};
+module.exports={Attention,stop,digest,hash,text,storage,merge,choose,initialize,run,checkGit,validate,read,write,location};
 if(require.main===module){
  const [command,repo,demand,base,confirmation]=process.argv.slice(2);
  try {
