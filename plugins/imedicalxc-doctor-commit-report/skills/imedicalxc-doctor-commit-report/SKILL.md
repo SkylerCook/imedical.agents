@@ -1,0 +1,161 @@
+---
+name: imedicalxc-doctor-commit-report
+description: |
+  HIS 医生站提交记录定时汇总报告。采集 src/ 下 20 个子仓库在指定时间窗内 11 位医生站同事的 git 提交，输出五要素汇总（岗位工作站 / 需求类型 / 优先级 / 提交人 / 改造内容总结），对【流程修改 / 业务调整】类提交做混合式评估（轻量全覆盖 + 高风险三类自动升级深度评估，1-5 星评级，1-2★ 必须给出至少一条具体问题评价），归档 Markdown 报告并按配置尝试推送。用于月度定时汇总或按需汇总提交记录。
+triggers:
+  - 提交汇总
+  - 提交记录汇总
+  - 月度提交报告
+  - 提交报告
+  - 汇总提交记录
+role: workflow
+scope: local
+priority: high
+---
+
+# 提交记录定时汇总报告 — 工作流
+
+五步串行执行：① 采集 → ② 分类 → ③ 评估 → ④ 归档 → ⑤ 推送。每步完成后再进入下一步。
+
+**开始前必读**：`.agents/config/commit-report.json` —— 人员白名单（reporters）、岗位工作站清单（workstations）、时间窗（window）、输出目录（outputDir）。
+
+## 步骤 ①：采集（确定性脚本）
+
+时间窗默认近 1 个完整自然月：
+
+```bash
+node .agents/plugins/imedicalxc-doctor-commit-report/scripts/collect-commits.js --months 1
+```
+
+自定义窗口（尽量对齐自然月）：`--since 2026-09-01 --until 2026-10-01`。
+
+产出 `<outputDir>/<YYYY-MM>/raw-commits-<YYYY-MM>.json`，每条提交含 repo / hash / author（映射后中文名）/ authorRaw / date / subject / files / additions / deletions。检查 `meta.errors`：非空时先向用户报告错误仓库（错误不阻断整体），再继续。
+
+## 步骤 ②：分类（五要素，逐条）
+
+对 JSON 中每条提交判定。依据：subject + files 路径为主，必要时 `git -C <repo> show <hash> --stat`。
+
+| 字段 | 规则 |
+|---|---|
+| 岗位工作站 | 从 config `workstations` 清单中选一项，**以改动文件路径为主、仓库为辅**判定；匹配不到填"其他" |
+| 需求类型 | BUG修复（修缺陷）/ 新功能提交（新增功能点）/ 流程修改（改变原有交互或操作走向）/ 业务调整（调整业务规则、数据口径） |
+| 优先级 | P0 全院阻断或数据错误；P1 核心流程不可用；P2 功能缺陷但有绕行方案；P3 体验优化 / 边缘场景 |
+| 提交人 | 采集结果的 author 字段（中文名） |
+| 改造内容总结 | 1-3 句：做了什么 + 改了哪里 |
+
+工作站判定对照（同步维护于 config `workstations`）：
+
+| 工作站 | 归属仓库 | 前端目录（hisfront static/） |
+|---|---|---|
+| 门诊医生站 | opcare-mediway-boot | opcare |
+| 住院医生站 | ipcare-mediway-boot | ipcare |
+| 电子医嘱 | comoe-mediway、cfoe-mediway | comoe |
+| 电子诊断 | commr-mediway、cfmr-mediway | opcare/mrdia、ipcare/mrdia |
+| 治疗工作站 | curc-mediway-boot | curc |
+| 门诊挂号与排班 | opreg-mediway-boot | opreg |
+| 分诊与资源分配 | opalloc-mediway-boot | opalloc |
+| 患者管理 | hispa-mediway-boot | hispa |
+| 抗菌药物管理 | ma-mediway-boot（ma-ant） | ma |
+| 临床试验药理 | ma-mediway-boot（tr-pilot） | tr-pilot |
+| 模块化医生站 | —（前端为主） | doctor |
+| 综合诊疗服务 | aggcare-mediway-boot | — |
+| 基础平台 | his、hisbase、hiscore、hiscf/hiscfsv、hisct/hisctsv 等 public 层 | base、hiscf、cf、ct |
+| 其他 | 兜底项：无法归入以上任何一项 | — |
+
+## 步骤 ③：评估（仅【流程修改 / 业务调整】类提交，混合式）
+
+**第一层：高风险三类判定**（先做）。命中任一类 → 调用 `imedicalxc-doctor-business-understanding` skill 做完整链路分析（前端入口 → 前端逻辑 → 后端 Controller→BLH→Service→Mapper），评估段标注命中类别，摘要写入报告附录：
+
+| 类别 | 判定 |
+|---|---|
+| 一类：重点业务的流程改造 | ① 医嘱状态、执行记录状态扭转（保存、停止、撤销、执行、停止执行等）；② 预约、挂号核心流程（挂号、号源、排班等）；③ 接诊流程（门诊、住院患者扭转：接诊、诊断录入、单据打印、病人列表等） |
+| 二类：通用接口的改造 | ① 跨仓库或跨工作站对接改造；② 标准接口的修改或新增是否符合当前通用接口的设计规范；③ 新增表结构（PO）是否合理、是否与现有设计冲突、是否有性能问题 |
+| 三类：其他 | 提交内容过多、影响范围过大等 |
+
+**第二层：轻量评估全覆盖**（每条都做）。用 `git -C <repo> show <hash>` 读 diff，对照模块现有实现，产出：
+
+1. **影响范围**：受影响的工作站 / 页面入口 / 上下游功能
+2. **业务设计流程符合性**：符合 / 部分符合 / 不符合，附理由
+3. **星级（1-5★）**：
+
+| 星级 | 标准 |
+|---|---|
+| 5★ | 完全符合业务设计，影响面清晰可控，无风险 |
+| 4★ | 符合设计，影响面基本可控，有轻微注意点 |
+| 3★ | 基本符合，存在需关注点但不阻断 |
+| 2★ | 存在明显问题（破坏既有流程、边界未处理） |
+| 1★ | 严重问题（与业务设计冲突、可能引发数据错误） |
+
+4. **评价描述**（1-3 句）
+5. **低星强制补充**：1-2★ 必须给出**至少一条具体问题评价**——引用文件:行号或 diff 片段，指明与业务设计冲突或遗漏之处
+
+## 步骤 ④：归档
+
+写入 `<outputDir>/<YYYY-MM>/commit-report-<YYYY-MM>.md`，结构：
+
+```markdown
+# 提交记录汇总报告 — {label}
+
+> 时间窗：{since} ~ {until} · 生成时间：{generatedAt} · 扫描仓库：{reposScanned} 个（有提交：{reposWithCommits}）· 提交总数：{totalCommits}
+
+## 一、概览
+
+- 按提交人分布：…
+- 按工作站分布：…
+- 按需求类型分布：…
+- 按优先级分布：…
+
+## 二、提交明细
+
+| # | 工作站 | 需求类型 | 优先级 | 提交人 | 日期 | 仓库 | 改造内容总结 | 评级 |
+|---|---|---|---|---|---|---|---|---|
+
+（BUG修复 / 新功能提交不评级，评级列填 —）
+
+## 三、评估详情（流程修改 / 业务调整）
+
+### {hash 前 8 位} {subject} — {author} · {date} · {repo}
+
+- **命中高风险类别**：{一类：重点业务的流程改造 / 二类：通用接口的改造 / 三类：其他 / 无}
+- **影响范围**：…
+- **业务设计流程符合性**：{符合 / 部分符合 / 不符合} —— 理由
+- **评级**：{N}★ —— 评价：…
+
+## 四、低星问题清单（1-2★）
+
+| 提交 | 星级 | 具体问题（文件:行号 / diff 片段） |
+|---|---|---|
+
+## 五、附录：深度评估摘要
+
+### {hash} {subject}（命中：{类别}）
+
+- 调用链要点：…
+- 结论：…
+```
+
+追加索引 `<outputDir>/index.md`（首次创建，之后追加一行）：
+
+```markdown
+| {label} | {since} ~ {until} | [commit-report-{label}.md](./{label}/commit-report-{label}.md) | {totalCommits} |
+```
+
+归档后在父仓库本地提交（**不推送远端**）：
+
+```bash
+git add docs/commit-reports/
+git commit -m "docs: 新增 {label} 提交记录汇总报告"
+```
+
+## 步骤 ⑤：推送（本期占位）
+
+读取 `.agents/config/commit-report-push.json`（不存在则视为未配置）：
+
+- `enabled` 为 `false` 或文件不存在 → 输出「推送未配置，跳过」，流程结束
+- `enabled` 为 `true` → 本期未实现，输出「推送适配器未实现（规划中：SSH 邮件转发 / NapCat）」
+
+## 约束
+
+- 全程只读 git（log / show）；不推送远端、不编译、不写数据库。
+- 11 人白名单过滤在采集脚本内完成，评估阶段不再扩大范围。
+- 名单外作者（cuixy、Codex 等）的提交不纳入报告。
