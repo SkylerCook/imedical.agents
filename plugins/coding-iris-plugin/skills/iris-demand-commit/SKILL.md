@@ -165,3 +165,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js veri
 - `--commit`：报告用户已通过明确请求或显式参数授权、本地 commit hash 或停止原因。
 - 仍保留的计划外修改。
 - 明确说明未执行 push、部署、上传或远程编译。
+
+## upstream 钩子去重
+
+见 [同步检查协议](../../references/commit-upstream-check.md)。成功 pull 且快照校验通过后，仅对 commit 使用临时 hooks.requireUpToDate=false，复用全局钩子的既有开关。其他钩子检查保持执行；无 upstream 时不设置，不改全局或仓库配置，不使用 --no-verify。

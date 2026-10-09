@@ -373,7 +373,10 @@ function applyCommand(args) {
     runGit(repo.root, ['add', '--all', '--', ...repo.files]);
     const messageFile = path.join(path.dirname(plan.planPath), `${hash(repo.root).slice(0, 12)}.message.txt`);
     fs.writeFileSync(messageFile, repo.message, 'utf8');
-    runGit(repo.root, ['commit', '--only', '-F', messageFile, '--', ...repo.files]);
+    // Reuse the global hook's opt-in gate; all other hook checks still run.
+    const commitArgs = ['commit', '--only', '-F', messageFile, '--', ...repo.files];
+    if (repo.execution.pull === 'up-to-date') commitArgs.unshift('-c', 'hooks.requireUpToDate=false');
+    runGit(repo.root, commitArgs);
     repo.execution.commit = gitText(repo.root, ['rev-parse', 'HEAD']);
     repo.execution.status = 'committed';
     writeJson(plan.planPath, plan);

@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- coding-iris-plugin 0.15.2：成功 pull 后仅对 commit 临时关闭全局钩子的重复 upstream 检查，保留其他检查；先核对实际 hooksPath，协议见插件 references/commit-upstream-check.md。
+
 - coding-iris-plugin 0.15.1 补齐弹窗内 panel 宽度、留白与滚动指导：前端规则按症状路由到 hisui-style-index，区分框架尺寸与局部盒模型，禁滚动须验证内容可达性；普通更新分发，无配置迁移或业务页面自动修改。
 
 - Overlay 读写范围分离：agent-context-kit 0.4.1 / coding-iris-plugin 0.13.7 允许按需只读调查已声明或项目注册表映射的源码仓库；默认写入仍受 SourceRoot 和任务授权约束。路径解析、工具写入门禁与 backend-only 身份不变；旧模块入口需授权定点迁移，见 docs/workspace-overlay.md。

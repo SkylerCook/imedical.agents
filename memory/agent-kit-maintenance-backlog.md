@@ -126,3 +126,5 @@
 - 已完成事项迁入 `agent-kit-maintenance-log.md`，不要在 backlog 中长期保留已完成条目。
 - 已固化为长期约束的事项迁入 `agent-kit-maintenance-decisions.md`。
 - 不记录短期个人提醒；只保留会影响后续 Agent 决策的治理任务。
+
+- P2：在 macOS/Linux 执行 commit-upstream-check.test.js，补齐 coding-iris-plugin 0.15.2 跨平台验证；Windows 5项定向检查已通过。
