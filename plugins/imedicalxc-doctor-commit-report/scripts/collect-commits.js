@@ -1,0 +1,140 @@
+#!/usr/bin/env node
+'use strict';
+
+/*
+ * collect-commits.js — 提交记录定时汇总报告 · 确定性采集脚本
+ *
+ * 遍历 src/ 下全部子仓库（19 后端 + 1 前端），按时间窗 + 人员白名单过滤并排除
+ * merge 提交，输出结构化 JSON（UTF-8 无 BOM）。
+ *
+ * 用法：
+ *   node collect-commits.js [--months N | --since YYYY-MM-DD [--until YYYY-MM-DD]]
+ *
+ * 配置：.agents/config/commit-report.json
+ */
+
+const fs = require('node:fs');
+const path = require('node:path');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
+
+const execFileAsync = promisify(execFile);
+
+const SEP = '\u001f'; // git pretty 格式字段分隔符（避免与 message 中的字符冲突）
+
+const USAGE = `用法: node collect-commits.js [--months N | --since YYYY-MM-DD [--until YYYY-MM-DD]]
+  --months N   汇总最近 N 个完整自然月（默认取配置 window.value）
+  --since      自定义起始日 YYYY-MM-DD（--until 缺省为今天）
+  --until      自定义结束日 YYYY-MM-DD（不含，缺省为今天）
+输出: <outputDir>/<YYYY-MM>/raw-commits-<YYYY-MM>.json（UTF-8 无 BOM）+ 控制台摘要`;
+
+// ---------- 时间窗 ----------
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+function toLocalYMD(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+// 最近 N 个完整自然月：[N 个月前月初, 本月月初)
+function monthWindow(monthsBack, now = new Date()) {
+  let y = now.getFullYear();
+  let m = now.getMonth() - monthsBack;
+  while (m < 0) {
+    m += 12;
+    y -= 1;
+  }
+  return {
+    since: toLocalYMD(new Date(y, m, 1)),
+    until: toLocalYMD(new Date(now.getFullYear(), now.getMonth(), 1)),
+    label: `${y}-${pad2(m + 1)}`
+  };
+}
+
+// ---------- 身份匹配（大小写不敏感：name ∈ aliases 或 email ∈ emails） ----------
+
+function buildAuthorIndex(reporters) {
+  const index = new Map();
+  for (const r of reporters) {
+    for (const alias of r.aliases || []) index.set(String(alias).toLowerCase(), r.name);
+    for (const email of r.emails || []) index.set(String(email).toLowerCase(), r.name);
+  }
+  return index;
+}
+
+function matchReporter(index, name, email) {
+  if (name) {
+    const hit = index.get(String(name).toLowerCase());
+    if (hit) return hit;
+  }
+  if (email) {
+    const hit = index.get(String(email).toLowerCase());
+    if (hit) return hit;
+  }
+  return null;
+}
+
+// ---------- git log 输出解析 ----------
+
+const HASH_RE = /^[0-9a-f]{7,40}$/;
+const NUMSTAT_RE = /^(\d+|-)\t(\d+|-)\t(.+)$/;
+
+function parseGitLog(stdout) {
+  const commits = [];
+  let current = null;
+  for (const rawLine of stdout.split('\n')) {
+    const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
+    if (!line) continue;
+    const fields = line.split(SEP);
+    if (fields.length >= 5 && HASH_RE.test(fields[0])) {
+      current = {
+        hash: fields[0],
+        authorName: fields[1],
+        authorEmail: fields[2],
+        date: fields[3],
+        subject: fields.slice(4).join(SEP),
+        files: []
+      };
+      commits.push(current);
+    } else if (current && NUMSTAT_RE.test(line)) {
+      const m = line.match(NUMSTAT_RE);
+      current.files.push({
+        path: m[3],
+        additions: m[1] === '-' ? null : Number(m[1]),
+        deletions: m[2] === '-' ? null : Number(m[2])
+      });
+    }
+  }
+  return commits;
+}
+
+// ---------- 命令行参数 ----------
+
+function parseArgs(argv) {
+  const opts = { months: null, since: null, until: null, help: false };
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === '--help' || arg === '-h') {
+      opts.help = true;
+    } else if (arg === '--months') {
+      const v = argv[++i];
+      opts.months = Number(v);
+      if (!Number.isInteger(opts.months) || opts.months < 1) {
+        throw new Error(`--months 需为正整数，收到: ${v}`);
+      }
+    } else if (arg === '--since' || arg === '--until') {
+      const v = argv[++i];
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        throw new Error(`${arg} 需为 YYYY-MM-DD 格式，收到: ${v}`);
+      }
+      opts[arg === '--since' ? 'since' : 'until'] = v;
+    } else {
+      throw new Error(`未知参数: ${arg}`);
+    }
+  }
+  return opts;
+}
+
+module.exports = { pad2, toLocalYMD, monthWindow, buildAuthorIndex, matchReporter, parseGitLog, parseArgs };
