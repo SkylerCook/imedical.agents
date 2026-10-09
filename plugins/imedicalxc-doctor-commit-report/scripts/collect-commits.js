@@ -137,4 +137,170 @@ function parseArgs(argv) {
   return opts;
 }
 
-module.exports = { pad2, toLocalYMD, monthWindow, buildAuthorIndex, matchReporter, parseGitLog, parseArgs };
+// ---------- 仓库发现（src/backend 递归 + src/frontend/hisfront） ----------
+
+function discoverRepos(repoRoot) {
+  const found = [];
+  const walk = (dir, depth) => {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+      const full = path.join(dir, entry.name);
+      if (fs.existsSync(path.join(full, '.git'))) {
+        found.push(full);
+        continue;
+      }
+      if (depth < 2) walk(full, depth + 1);
+    }
+  };
+  walk(path.join(repoRoot, 'src', 'backend'), 0);
+  const frontend = path.join(repoRoot, 'src', 'frontend', 'hisfront');
+  if (fs.existsSync(path.join(frontend, '.git'))) found.push(frontend);
+  return found.map((p) => path.relative(repoRoot, p).replace(/\\/g, '/')).sort();
+}
+
+// ---------- 单仓库采集 ----------
+
+async function collectRepo(repoRel, repoRoot, since, until) {
+  const format = `%H${SEP}%an${SEP}%ae${SEP}%ad${SEP}%s`;
+  const args = [
+    'log', '--no-merges',
+    `--since=${since}`,
+    `--until=${until}`,
+    '--date=iso-strict',
+    `--pretty=format:${format}`,
+    '--numstat'
+  ];
+  const { stdout } = await execFileAsync('git', args, {
+    cwd: path.join(repoRoot, repoRel),
+    maxBuffer: 64 * 1024 * 1024,
+    encoding: 'utf8'
+  });
+  return parseGitLog(stdout);
+}
+
+function loadConfig(repoRoot) {
+  const configPath = path.join(repoRoot, '.agents', 'config', 'commit-report.json');
+  if (!fs.existsSync(configPath)) {
+    throw new Error(`配置不存在: ${configPath}`);
+  }
+  return JSON.parse(fs.readFileSync(configPath, 'utf8'));
+}
+
+// ---------- 主流程 ----------
+
+async function main() {
+  const repoRoot = path.resolve(__dirname, '..', '..', '..', '..');
+  const config = loadConfig(repoRoot);
+
+  const opts = parseArgs(process.argv.slice(2));
+  if (opts.help) {
+    console.log(USAGE);
+    return;
+  }
+
+  let win;
+  if (opts.since || opts.until) {
+    const since = opts.since;
+    const until = opts.until || toLocalYMD(new Date());
+    if (since >= until) throw new Error(`--since (${since}) 必须早于 --until (${until})`);
+    win = { since, until, label: since.slice(0, 7) };
+  } else {
+    const months = opts.months ?? (config.window && config.window.value) ?? 1;
+    win = monthWindow(months);
+  }
+
+  const reporters = config.reporters || [];
+  const authorIndex = buildAuthorIndex(reporters);
+  const repos = discoverRepos(repoRoot);
+
+  const commits = [];
+  const errors = [];
+  let reposWithCommits = 0;
+  for (const repo of repos) {
+    try {
+      const raw = await collectRepo(repo, repoRoot, win.since, win.until);
+      const matched = [];
+      for (const c of raw) {
+        const author = matchReporter(authorIndex, c.authorName, c.authorEmail);
+        if (!author) continue;
+        const additions = c.files.reduce((s, f) => s + (f.additions || 0), 0);
+        const deletions = c.files.reduce((s, f) => s + (f.deletions || 0), 0);
+        matched.push({
+          repo,
+          hash: c.hash,
+          author,
+          authorRaw: { name: c.authorName, email: c.authorEmail },
+          date: c.date,
+          subject: c.subject,
+          files: c.files,
+          fileCount: c.files.length,
+          additions,
+          deletions
+        });
+      }
+      if (matched.length > 0) {
+        reposWithCommits += 1;
+        commits.push(...matched);
+      }
+    } catch (err) {
+      errors.push({ repo, error: String((err && err.message) || err) });
+    }
+  }
+
+  commits.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+
+  const byPerson = {};
+  const byRepo = {};
+  for (const c of commits) {
+    byPerson[c.author] = (byPerson[c.author] || 0) + 1;
+    byRepo[c.repo] = (byRepo[c.repo] || 0) + 1;
+  }
+
+  const output = {
+    meta: {
+      generatedAt: new Date().toISOString(),
+      window: { since: win.since, until: win.until, label: win.label },
+      reposScanned: repos.length,
+      reposWithCommits,
+      totalCommits: commits.length,
+      byPerson,
+      byRepo,
+      excludeMerges: config.excludeMerges !== false
+    },
+    commits,
+    errors
+  };
+
+  const outDirAbs = path.join(repoRoot, config.outputDir || 'docs/commit-reports', win.label);
+  fs.mkdirSync(outDirAbs, { recursive: true });
+  const outFile = path.join(outDirAbs, `raw-commits-${win.label}.json`);
+  fs.writeFileSync(outFile, JSON.stringify(output, null, 2) + '\n', 'utf8');
+
+  console.log(`时间窗: ${win.since} ~ ${win.until}`);
+  console.log(`扫描仓库: ${repos.length} 个（有名单内提交: ${reposWithCommits}）`);
+  console.log(`提交总数: ${commits.length}（已排除 merge，仅限名单内 ${reporters.length} 人）`);
+  for (const [person, count] of Object.entries(byPerson)) {
+    console.log(`  ${person}: ${count}`);
+  }
+  if (errors.length > 0) {
+    console.log(`采集错误: ${errors.length} 个仓库`);
+    for (const e of errors) console.log(`  ${e.repo}: ${e.error}`);
+  }
+  console.log(`原始数据: ${outFile}`);
+}
+
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(`[collect-commits] 失败: ${err.message}`);
+    process.exit(1);
+  });
+}
+
+module.exports = { pad2, toLocalYMD, monthWindow, buildAuthorIndex, matchReporter, parseGitLog, parseArgs, discoverRepos };
