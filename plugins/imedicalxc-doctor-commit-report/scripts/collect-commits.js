@@ -53,6 +53,18 @@ function monthWindow(monthsBack, now = new Date()) {
   };
 }
 
+// 精确时间窗过滤：[since, until)（含起点、不含终点）。
+// git 的 --since/--until 是遍历近似而非精确过滤，真实窗口边界必须由此函数按作者日期裁决。
+// c.date 为 iso-strict 格式（含显式时区偏移），Date.parse 归一为 epoch 后比较；since/until 为本地日期。
+function filterWindow(commits, since, until) {
+  const lo = Date.parse(since + 'T00:00:00');
+  const hi = Date.parse(until + 'T00:00:00');
+  return commits.filter((c) => {
+    const t = Date.parse(c.date);
+    return t >= lo && t < hi;
+  });
+}
+
 // ---------- 身份匹配（大小写不敏感：name ∈ aliases 或 email ∈ emails） ----------
 
 function buildAuthorIndex(reporters) {
@@ -168,11 +180,13 @@ function discoverRepos(repoRoot) {
 // ---------- 单仓库采集 ----------
 
 async function collectRepo(repoRel, repoRoot, since, until) {
+  // 遍历起点放宽 45 天（远低于真实窗口起点），且不传 --until：
+  // 让 git 遍历终止的近似误差发生在真实窗口之外，窗口边界由 filterWindow 按作者日期精确裁决。
+  const walkSince = toLocalYMD(new Date(Date.parse(since + 'T00:00:00') - 45 * 86400000));
   const format = `%H${SEP}%an${SEP}%ae${SEP}%ad${SEP}%s`;
   const args = [
     'log', '--no-merges',
-    `--since=${since}`,
-    `--until=${until}`,
+    `--since=${walkSince}`,
     '--date=iso-strict',
     `--pretty=format:${format}`,
     '--numstat'
@@ -182,7 +196,7 @@ async function collectRepo(repoRel, repoRoot, since, until) {
     maxBuffer: 64 * 1024 * 1024,
     encoding: 'utf8'
   });
-  return parseGitLog(stdout);
+  return filterWindow(parseGitLog(stdout), since, until);
 }
 
 function loadConfig(repoRoot) {
@@ -303,4 +317,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { pad2, toLocalYMD, monthWindow, buildAuthorIndex, matchReporter, parseGitLog, parseArgs, discoverRepos };
+module.exports = { pad2, toLocalYMD, monthWindow, filterWindow, buildAuthorIndex, matchReporter, parseGitLog, parseArgs, discoverRepos };
