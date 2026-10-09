@@ -122,7 +122,7 @@
 | [iris-demand-entry](../../plugins/coding-iris-plugin/skills/iris-demand-entry/SKILL.md) | 使用 iris-demand-entry --text，根据当前改动整理标版需求录入文本。 | 仅 standard；输出 `{IRIS}` 名称和三段式描述，缺陷为操作/预期/实际，功能改进为说明/操作/预期；用户、安全组、科室按需补充。文本或可选 Excel，人工录 BOSS 后回填编号，再衔接提交。草稿仅支持 v2；输出限工程临时目录或正式需求目录，不写入 `.agents/` 或能力包源码。 |
 | [iris-demand-promote](../../plugins/coding-iris-plugin/skills/iris-demand-promote/SKILL.md) | 先评估将 DEV 的指定提交移植到指定 PRD 仓库的范围和基线。 | 明确两个仓库、提交及服务器基线读取范围；授权实施后形成 PRD 本地提交，不部署。 |
 | [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 将这些文件部署到已指定环境并检查编译。 | 明确目标、文件和授权范围后直接执行，默认 direct，无需 Git 基线会话；需要三方合并时选 guarded，分别报告上传、回读、编译及业务验证。 |
-| [iris-frontend-coding](../../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md) | 调整指定 HISUI 页面的交互，保留现有数据和调用契约。 | 提供页面与行为要求；产出本地前端变更及交互验证，按条件加载 i18n。 |
+| [iris-frontend-coding](../../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md) | 调整指定 HISUI 页面的交互，或排查弹窗面板留白、裁切与滚动异常，保留现有数据和调用契约。 | 提供页面与行为要求；产出本地前端变更及交互验证，按条件加载 i18n；尺寸问题按前端规则路由到 HISUI 样式参考。 |
 | [iris-frontend-gb2312-promote](../../plugins/coding-iris-plugin/skills/iris-frontend-gb2312-promote/SKILL.md) | 这是仍需 GB2312 的历史工程，请先检查转换文件与源文件的替换范围。 | 必须明确历史编码要求及文件替换授权；产出源名提升结果，普通 UTF-8 工程不使用。 |
 | [iris-imedical-knowledge](../../plugins/coding-iris-plugin/skills/iris-imedical-knowledge/SKILL.md) | 查询这个业务概念的相关参考，再结合当前源码核实。 | 给出业务词或疑点；产出来源和适用性说明，现有信息足够时无需查询。 |
 | [iris-mcp-lookup](../../plugins/coding-iris-plugin/skills/iris-mcp-lookup/SKILL.md) | 核实这个 IRIS 类方法的签名和当前可用能力，注明来源。 | 给出类方法或文档线索；依当前 MCP、本地源码或官方文档返回证据，不猜签名。 |

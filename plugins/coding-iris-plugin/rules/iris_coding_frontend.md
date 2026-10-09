@@ -95,6 +95,8 @@ node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
 - 表单排版优先复用目标工程公共样式，例如 label/value 表格布局。
 - 自定义 CSS 仅限页面级微调，不覆盖公共框架样式。
 - 固定格式控件应有稳定尺寸，避免 hover、加载文本或动态内容造成布局跳动。
+- 弹窗内 panel 的留白优先由容器统一表达；子元素填满时核算 padding、border 和 margin，仅对需要的表单元素局部设置盒模型。
+- 出现留白不对称、裁切或多层滚动条时，按[宽度、留白与滚动排查](../references/hisui-style-index.md#弹窗内面板的宽度留白与滚动)检查实际尺寸和初始化时机，再决定尺寸及滚动策略。
 
 ## JavaScript 组织
 

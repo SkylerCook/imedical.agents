@@ -27,7 +27,7 @@ CLS 编码遵循 [格式提示与最小改动约定](references/cls-coding-forma
 - Backend-only：Overlay manifest 明确只声明 `backend`、未声明 `frontend` 时，profile 规范化为 `N/A (backend-only)`，不扫描父目录或 sibling 猜测前端源码。
 - Legacy GB2312 提升：仅在明确的历史工程中，确认后删除源文件并将 `{name}.gb2312.{ext}` 更名回原文件名，可选 MCP/SFTP 上传。
 - HISUI 控件参考：控件选型、API 和 JavaScript 行为按需读取 `references/hisui-widget-index.md`。
-- HISUI 样式与资源参考：主题 CSS、locale CSS、语义 class、图标和插图按需读取 `references/hisui-style-index.md`；源码内置在 `.agents/vendor/hisui/`。
+- HISUI 样式与资源参考：主题 CSS、locale CSS、语义 class、图标和插图按需读取 `references/hisui-style-index.md`；弹窗内 panel 的留白、裁切或滚动异常按其中[宽度排查](references/hisui-style-index.md#弹窗内面板的宽度留白与滚动)处理。源码内置在 `.agents/vendor/hisui/`。此指导随正常能力包更新分发，无配置迁移或兼容清理，不自动修改业务页面。
 - iris-agentic-dev MCP server：Windows x64 可执行文件内置在 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`，目标工程无需自行查找工具位置。
 - IRIS 开发主力脚本：通过 `scripts/iris-tools/` 提供部署清单生成、导出、编译、Broker 调试和环境配置同步。
 - MCP 能力说明：`rules/iris_agentic_dev.md` 记录 IRIS MCP 能力矩阵，`rules/sftp_server.md` 记录 SFTP MCP 能力矩阵和安全边界。

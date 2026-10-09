@@ -542,6 +542,51 @@ HISUI 内置图标通过 `iconCls` 属性引用。选型时先查本节能用的
 - 框架没有稳定 API、语义 class 或 CSS 变量时，如需跟随主题可读取计算后样式并只复用必要属性；不要维护页面级主题颜色表。
 - 对 DataGrid 合并单元格、rowspan、冻结列等结构补样式时，不重复声明会改变盒模型的边框宽度、边框样式、高度或 padding；修改后检查行高、滚动和冻结列对齐。
 
+## 弹窗内面板的宽度、留白与滚动
+
+用于 dialog/window 内 panel 出现横向滚动、左右留白不一致或内容裁切时。以下是排查方法与布局示例；尺寸由目标页面决定，本地 vendor 的行为不能替代真实客户端验收。
+
+### 留白与子元素宽度
+
+存量块级布局优先由内容容器的 padding 表达左右留白，子元素负责填满内容区。带 padding/border 的原生输入元素局部使用 `box-sizing:border-box`；margin 不包含在 border-box 内，仍须单独核算。百分比、固定 margin 和 `calc()` 可以合理组合，但每份留白只补偿一次。
+
+下面的内容层放在已按目标页面尺寸初始化的 panel 内，不改 panel 的宽度或盒模型；若已有合适内容层，直接复用。class 名称仅作示例，沿用项目样式组织方式：
+
+```html
+<div class="form-content">
+    <table class="form-fields"><!-- 表单行 --></table>
+    <textarea class="form-note"></textarea>
+</div>
+```
+
+```css
+.form-content { padding: 0 10px; }
+.form-content > .form-fields { width: 100%; margin: 5px 0; }
+.form-content > .form-note {
+    box-sizing: border-box;
+    width: 100%;
+    margin: 5px 0;
+}
+```
+
+当前 vendor 默认主题对 `input[type=text]`、`textarea` 和部分 `.textbox` selector 设置 `width:148px`；需要填满时须由适当优先级的局部规则覆盖，并检查 computed style。HISUI 生成包装层的复合控件先查其尺寸 API，不将上述 textarea 写法或 `> *` 盒模型规则套到所有子元素。
+
+父容器留白不能调整时，可按实际水平 margin 使用 `width:calc(100% - 20px)` 配合左右各 `10px` margin；表单元素仍须核算 border/padding。新内容布局可在目标浏览器支持并验证后使用纵向 flex + gap；gap 与子元素 margin 会叠加，实测间距不等于声明值时先检查默认 margin、行盒及包装层，不直接归因于 gap。
+
+### 框架尺寸与滚动边界
+
+- panel 的显式尺寸、百分比或 `fit` 取舍按实际父容器与生命周期决定；修改前核对初始化 options、生成的外层 panel 和 panel-body，不能由一个固定宽度案例推广出通用像素值或安全余量。
+- `fit:true` 是尺寸适配选项，不是滚动条修复开关。按[控件参考](hisui-widget-index.md#一布局与容器)检查当前 JS 的 `_fit` 和 panel resize 路径：当前 vendor 普通分支取父元素 `.width()` / `.height()`，window/dialog 有不同分支，不能笼统认定均包含父 padding。隐藏初始化后还要验证首次打开与后续 resize。
+- 框架使用 `_boxModel`、`_outerWidth` / `_outerHeight` 计算尺寸；保留框架容器的盒模型，只对明确需要的原生元素局部调整。是否出现补偿偏差须结合实际 jQuery/HISUI 构建验证，不由源码片段断言所有控件必然偏小。
+- 当前默认主题 `.panel-body.panel-noscroll` 设置 `overflow:hidden`。只有确认该层无需滚动、内容完整可达且真实溢出已解决后，才使用 `bodyCls:'panel-noscroll'`；目标主题须提供此规则。内容可能增长时保留合适的滚动层，隐藏滚动条不能作为修复溢出的证据。
+
+### 验证收口
+
+1. 确认页面实际加载的 jQuery/HISUI 构建、主题、公共 CSS 及加载顺序，区分原始元素与框架生成包装层。
+2. 逐层检查 dialog 内容区、panel 外层、panel-body 和子元素的 computed width、box-sizing、padding、border、margin，并比较 `scrollWidth/clientWidth` 与 `scrollHeight/clientHeight`；结合边界位置确认有无裁切。
+3. 验证首次打开、关闭后重开、相关 resize、长文本与动态内容，按任务覆盖目标窗口宽度、缩放及主题；确认留白符合设计、滚动层合理、内容完整可达，并检查 Console/Network。
+4. 报告实际验证的构建与场景；本地预览未覆盖的真实客户端行为明确列为待验收，不将单次像素测量提升为跨版本规则。
+
 ## 查证流程
 
 1. 确认目标页面实际加载的 HISUI 主题 CSS、locale CSS 及加载顺序。
