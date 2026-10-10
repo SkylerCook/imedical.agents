@@ -21,7 +21,7 @@ test('unified and direct frontend routes share the conditional i18n gate', () =>
     const pointer = content.match(/\]\(([^)]+)#条件-i18n-门禁\)/);
     assert(pointer, `${name} must link to the conditional gate before editing`);
     assert.equal(path.resolve(repoRoot, path.dirname(entryPath), pointer[1]), path.resolve(repoRoot, rulePath));
-    assert(content.indexOf(pointer[0]) < content.indexOf('最终 diff'), `${name} must check before editing and again after diff`);
+    assert(content.indexOf(pointer[0]) < content.indexOf('最终 diff 后再次执行'), `${name} must check before editing and again after diff`);
     assert.match(content, /修改前/);
     assert.match(content, /最终 diff 后再次执行/);
     assert.match(content, /失败.*停止/);

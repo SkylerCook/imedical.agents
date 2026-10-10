@@ -1,5 +1,75 @@
 # 框架演进验证记录与真实行为基准
 
+## 2026-10-10 前端规范串行样例
+
+基线 abe2a1f，coding-iris-plugin 0.15.4。以下是当前 Agent 按新规范生成并串行自审的合成样例，不是独立 Reviewer、真实业务页面或跨宿主验收。
+
+| 样例 | 输入与自审结果 |
+|---|---|
+| 新建 CSP/JS/CSS | 采用 csp-template.md 的三段通用示例；4 空格、双引号、ES5 普通函数、DOM 与 CSS 命名符合默认值，无未定义业务参数 |
+| 历史 JS | 仅为既有参数增加局部别名；PatientID、LoadPatient、OnLoaded、接口键及字符串双空格保留；逆向移除新增行和替换点后与输入逐字一致 |
+| CSP 混合区域 | 服务端 ObjectScript、HTML 转义表达式、CSS 和客户端 JS 分区检查；不把服务端片段交给 JS 解析器 |
+| 项目覆盖 | 输入明确 ES2015、2 空格、单引号；新 const 与单引号合规，不按默认 ES5 误报 |
+| CSS 兼容 | 仅新增 margin-top；历史选择器、HISUI class、两条 display 回退及顺序保留；去掉新增声明后与输入逐字一致 |
+| i18n enabled | 假定 profile 的静态 helper 为 $g 且命中文案；稳定字面量通过，动态 key 反例被现有 checker 拒绝，不绕过原门禁 |
+
+除通用模板外，本轮输出如下，供后续按相同输入复核。历史样例以保留契约为前提；其历史大写和紧凑对象键不提升为默认格式。
+
+### legacy.js
+
+```javascript
+function LoadPatient(PatientID) {
+    var Label = "A  B";
+    var patientId = PatientID;
+    return Send({PatientID: patientId, Label: Label}, OnLoaded);
+}
+```
+
+### mixed.csp
+
+```csp
+<script language="cache" runat="server">
+    s displayName = "示例名称"
+</script>
+<p>#(..EscapeHTML(displayName))#</p>
+<style>
+    .patient-summary {
+        margin: 0;
+    }
+</style>
+<script>
+    var summaryText = "A  B";
+</script>
+```
+
+### project-override.js
+
+```javascript
+function getName(patientName) {
+  const displayName = patientName || 'unknown';
+  return displayName;
+}
+```
+
+### legacy.css
+
+```css
+.LegacyPanel .hisui-panel {
+    display: -ms-flexbox;
+    display: flex;
+    padding: 4px;
+    margin-top: 8px;
+}
+```
+
+### translated.js
+
+```javascript
+var summaryText = $g("查询结果");
+```
+
+JS 的 Node --check 已通过，字符串/接口/回退保留断言通过；ES5 约束由本 Agent 审查，Node 语法检查不证明旧浏览器兼容。i18n 正例退出 0、动态 key 反例退出 1。编码和入口回归结果见同日维护日志；未做真实浏览器或 IRIS 编译验证。
+
 ## 2026-10-10 CLS 规范与 Review 串行样例
 
 基线 `1f5a12c`，coding-iris-plugin 0.15.3。以下为当前 Agent 读取 CLS 规范后生成的合成输出，并按 review-agent 协议串行复核；不是独立 Reviewer、真实业务项目、跨模型或跨宿主验收。无需服务器，未做 IRIS 编译。

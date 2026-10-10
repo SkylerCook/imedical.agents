@@ -31,6 +31,8 @@ description: Route IRIS coding requests with unclear frontend/backend boundaries
 
 ## 实现与验证
 
+涉及前端时，修改前加载[前端命名与格式规范](../../references/frontend-coding-format.md)，最终 diff 后复核；混合 CSP 的服务端 ObjectScript 引用其中的 CLS 规范。Review 随 diff 传递适用规范、项目覆盖与兼容基线。
+
 1. 复用现有业务实现与兼容契约，编码风格按各自专项规范执行；混合任务先明确前端展示/采集与后端处理/返回契约，再分阶段执行各自专项流程。
 2. 前端每个触碰文件修改前后执行字节检测，按[编码策略](../../rules/iris_coding_frontend.md#编码策略)保持 canonical `utf8`，异常停止；HISUI 复用、控件状态和 CSP 验证沿用前端规则。
 3. 最终 diff 后再次执行条件 i18n 门禁；命中时完成 owner 规则要求的 helper 静态检查，失败停止。核对接口契约、改动范围与目标验证结果。

@@ -10,6 +10,8 @@ related:
 
 # 前端 CSP/JavaScript/HISUI 编码规则
 
+修改前读取[前端命名与格式规范](../references/frontend-coding-format.md)，最终 diff 后按其清单复核。编码与 Review 共用规范，历史代码只提供业务和兼容证据；项目显式规范可覆盖默认值，脚本通过不代表完整规范通过。
+
 ## 技术栈
 
 - 页面技术：CSP + HTML + CSS + JavaScript。
@@ -83,11 +85,11 @@ node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
 
 ## CSP 结构
 
-- 采用框架页 + 内容页拆分：框架页负责 `<DOC:HEAD>`、公共参数、脚本引入；内容页负责主体 DOM。
+- 采用框架页 + 内容页拆分：框架页负责项目所需的公共头部、参数和脚本引入（`<DOC:HEAD>` 仅适用于已接入该标签的工程）；内容页负责主体 DOM。
 - CSP 页面命名、JS 路径、CSS 路径以目标工程 profile 为准。
-- `<Server>` 块只处理页面渲染前必要参数，不承载复杂业务逻辑。
-- `#(variable)#` 和 `##(expression)##` 的转义语义需按 CSP 实际语义使用。
-- 开发模板参考 `./templates/csp-template.md`。
+- 服务端代码只处理页面渲染前必要参数，不承载复杂业务逻辑；`<Server>` 等项目标签需先确认实现与注册情况。
+- 运行期/编译期表达式和输出转义按[混合语言边界](../references/frontend-coding-format.md#html-与-csp)分别处理，不对 CSP 整文件套用 JS 或 HTML 格式化。
+- 新建页面参考 [CSP 模板](../templates/csp-template.md)，项目路径按 profile 选择；自定义 HEAD 标签按模板的[项目专属接入](../templates/csp-template.md#项目专属接入)核对 CSR 匹配规则及依赖，不根据版本或项目类型推断支持。
 
 ## 页面布局
 
@@ -100,7 +102,7 @@ node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
 
 ## JavaScript 组织
 
-- 页面脚本按闭包或目标工程既有模式组织。
+- 页面脚本按闭包或目标工程已确认的组织与生命周期契约实现；命名和格式按前端规范，不从历史写法推断风格。
 - 推荐顺序：常量配置、初始化入口、事件绑定、数据加载、数据采集、业务动作、工具函数。
 - 一个函数只承担一个职责：初始化控件、发请求、转换数据、采集表单值应拆开。
 - 后端调用使用目标工程 profile 指定的调用封装；若使用 `$cm(className, methodName, params, callback)`，类名和方法名不得硬编码为源工程专属值。
@@ -120,6 +122,7 @@ node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
 ## 验证
 
 - 默认做本地结构和引用检查。
+- 最终 diff 按前端规范检查命名、格式、兼容基线及范围；独立 Review 传递规范路径、用户/项目覆盖与已有检查结果，无独立 Agent 时明确报告串行自审。
 - 前端文件变更后按 `utf8` 复检所有触碰文件；正常时只报告模式、文件数和保持的编码。
 - 调整 DataGrid 列定义后，检查保存、校验、行编辑和回显逻辑中的 editor/列下标是否仍对应正确字段。
 - 用户明确要求部署时，先通过 UTF-8 字节门禁，再直接上传原始源文件并验证。

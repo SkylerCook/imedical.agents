@@ -60,7 +60,7 @@ function checkLocalPointers(relative, content) {
     assert(fs.existsSync(resolved), `${relative}: missing ${target}`);
     if (anchor) {
       const headings = [...fs.readFileSync(resolved, "utf8").matchAll(/^#{1,6} (.+)$/gm)]
-        .map(x => x[1].trim().toLowerCase().replace(/ /g, "-"));
+        .map(x => x[1].trim().toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/\s/g, '-'));
       assert(headings.includes(anchor), `${relative}: missing heading ${anchor}`);
     }
   }
@@ -109,4 +109,20 @@ for (const relative of [
   assert.equal(path.resolve(root, path.dirname(relative), pointer[1]), path.join(root, 'plugins/coding-iris-plugin/references/cls-coding-format.md'));
 }
 checkLocalPointers('plugins/coding-iris-plugin/references/cls-coding-format.md', read('plugins/coding-iris-plugin/references/cls-coding-format.md'));
+// Frontend routing includes mixed tasks and the template; follow the actual links.
+for (const relative of [
+  'plugins/coding-iris-plugin/AGENTS.md',
+  'plugins/coding-iris-plugin/rules/iris_coding_frontend.md',
+  'plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md',
+  'plugins/coding-iris-plugin/skills/iris-coding/SKILL.md',
+  'plugins/coding-iris-plugin/references/coding-assistance.md',
+  'plugins/coding-iris-plugin/templates/csp-template.md',
+]) {
+  const content = read(relative);
+  checkLocalPointers(relative, content);
+  const pointer = [...content.matchAll(/\]\(([^)]*frontend-coding-format\.md)\)/g)][0];
+  assert(pointer, relative + ': missing canonical frontend format link');
+  assert.equal(path.resolve(root, path.dirname(relative), pointer[1]), path.join(root, 'plugins/coding-iris-plugin/references/frontend-coding-format.md'));
+}
+checkLocalPointers('plugins/coding-iris-plugin/references/frontend-coding-format.md', read('plugins/coding-iris-plugin/references/frontend-coding-format.md'));
 console.log("iris-coding fast-path tests passed");

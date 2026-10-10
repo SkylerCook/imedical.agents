@@ -5,6 +5,8 @@ description: Implement or modify IRIS CSP, JavaScript, CSS, or HISUI frontend co
 
 # IRIS Frontend Coding
 
+修改 CSP、HTML、JS、CSS 前读取[前端命名与格式规范](../../references/frontend-coding-format.md)，最终 diff 后按同一规范复核。明确项目覆盖与 JS 兼容基线，历史代码不自动成为风格标准。
+
 ## Legacy GB2312 Promotion Routing
 
 - Do not route current standard frontend work to GB2312 conversion; source, upload, and server runtime encoding are UTF-8.
@@ -37,6 +39,8 @@ description: Implement or modify IRIS CSP, JavaScript, CSS, or HISUI frontend co
 10. 用户已授权的 CSP 上传后，按[前端验证规则](../../rules/iris_coding_frontend.md#验证)执行指定目标编译及页面验证。
 
 ## 完成检查
+
+- 最终 diff 的命名、格式、混合语言边界及历史契约已按前端规范复核；新文件检查完整内容。调用 review-agent 时传入冻结 diff、需求、范围、规范路径、项目覆盖、兼容基线和已有检查结果及覆盖项；无独立 Agent 时报告串行自审。
 
 - 每个触碰的 `.csp` / `.js` / `.css` 修改前后均已通过目标模式对应的字节检查；正常完成只报告一行编码摘要。
 - 控件、通用布局、交互、状态、图标、插图和视觉样式均已优先检查并复用 HISUI；没有框架能力时才使用目标工程公共能力或页面级最小实现。

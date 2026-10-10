@@ -94,7 +94,7 @@
 
 ### P2：代码质量 review 与框架反馈演进
 
-- 2026-10-10 已接入通用规范 Review 与 IRIS 统一格式规范；后续以真实团队需求和跨宿主样本观察漏报、误伤及项目覆盖执行情况，本轮串行样例不替代独立 Reviewer 验收。
+- 2026-10-10 已接入通用规范 Review、CLS 与前端统一格式规范；后续以真实团队需求和跨宿主样本观察漏报、误伤及项目覆盖执行情况，本轮 CLS 四类、前端六类串行样例不替代独立 Reviewer、浏览器兼容或 IRIS 编译验收。
 
 - 保持 `.agents/hooks/pre-commit` 和 `check-functional-diff.ps1` 为轻量、低误伤门禁。
 - 评估第二层 `check-code-quality.ps1`，先由用户或 Agent 主动运行并输出报告，不直接作为 pre-commit 强阻断。

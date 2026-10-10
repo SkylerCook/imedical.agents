@@ -12,6 +12,8 @@
 
 ## HISUI 与编码
 
+修改 CSP、HTML、JS、CSS 前加载[前端命名与格式规范](frontend-coding-format.md)，最终 diff 后复核；项目覆盖和兼容基线随 Review 输入传递，CSP 按语言区域处理。
+
 先看页面已使用的控件和实际加载资源，API 不明再查 hisui-widget-index.md 和对应源码。触碰文件修改前后检测实际字节；UTF-8 正常时无需展开编码报告，异常沿领域门禁停止，不自动转码。
 
 ## i18n

@@ -4,6 +4,8 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 
 ## 插件定位
 
+修改或 Review CSP、HTML、JavaScript、CSS 前读取[前端命名与格式规范](references/frontend-coding-format.md)，最终 diff 后复核；传递项目覆盖和兼容基线，CSP 内服务端代码按 CLS 规范处理。
+
 `coding-iris-plugin` 提供 IRIS/ObjectScript/CSP/JavaScript/HISUI 工程的通用编码规则、初始化流程和 IRIS 开发主力脚本。
 
 插件只承载可复用能力；目标工程差异必须写入目标工程 `.agents/config/iris_project_profile.md`，MCP 连接事实必须以目标工程 `.mcp.json` 为准。

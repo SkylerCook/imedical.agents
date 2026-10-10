@@ -1,83 +1,80 @@
 # CSP 页面开发
 
-> 适合创建或修改 CSP 页面时阅读。
+新建 CSP/HTML、JS、CSS 前读取[前端命名与格式规范](../references/frontend-coding-format.md)。以下是通用结构示例，不含特定工程的主题加载器、Broker 或生命周期封装。实际页面拆分、路径、控件和请求 API 按项目 profile 与[前端规则](../rules/iris_coding_frontend.md)选择；HISUI 项目优先复用其能力。
 
-## 标准 CSP 结构
+## 通用页面示例
+
+示例使用同目录文件展示引用关系；落地时按 profile 的 CSP、JS、CSS 路径调整，不据此移动历史文件。页面内脚本位于主体之后，示例 JS 的 DOM 查询在元素创建后执行。
 
 ```csp
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head>
-    <DOC:HEAD></DOC:HEAD>
-    <!--此处引入页面所需js、css-->
-    <Server>
-        // 服务端代码块 — 页面渲染前执行
-        set Param1 = %request.Get("Param1")
-    </Server>
-</head>
-<!--docBodyAttr为医生站增加属性,将默认带上主题样式，解决界面初始化样式闪烁问题-->
-<body #($G(docBodyAttr))#>
-    <!--布局csp引入-->
-    <csp:Include Page="dhcdoc.template.show.csp">
-</body>
-<script language='javascript'>
-    //1.绑定js全局变量
-    var ServerObj = {
-        EpisodeID:'#(EpisodeID)#',
-        //...
-    };
-    //2.闭包业务js时,初始化调用、暴露xhrRefresh、onBeforeCloseTab、chartOnBlur等方法为全局方法
-    cspInitClosure(rep.exam.view, opts);    //rep.exam.view页面闭包对象, opts未初始化参数
-</script>
-<!--业务js引入-->
-<script type="text/javascript" src="../scripts/dhcdoc/产品线/业务.js"></script>
+    <head>
+        <meta charset="utf-8">
+        <title>页面示例</title>
+        <link rel="stylesheet" href="patient-search.css">
+    </head>
+    <body>
+        <div id="patientSearch" class="patient-search">
+            <p id="patientSummary" class="patient-search-summary"></p>
+        </div>
+        <script src="patient-search.js"></script>
+    </body>
 </html>
 ```
 
-## 关键 CSP 指令
+```javascript
+(function () {
+    var summaryElement = document.getElementById("patientSummary");
 
-| 指令 | 说明 |
+    function showSummary(displayName) {
+        if (summaryElement !== null) {
+            summaryElement.appendChild(document.createTextNode(displayName));
+        }
+    }
+
+    showSummary("查询结果");
+}());
+```
+
+```css
+.patient-search {
+    padding: 8px;
+}
+
+.patient-search-summary {
+    margin: 0;
+}
+```
+
+示例仅展示格式，文字进入实际项目时仍执行条件 i18n 门禁；不根据示例假设所有工程都已启用翻译 helper。DOM API、库与目标浏览器的兼容性仍需验证，不把 ES5 语法当作兼容性证据。
+
+## CSP 混合区域
+
+标准服务端脚本可使用 `<script language="cache" runat="server">`，内部按 [CLS 规范](../references/cls-coding-format.md)编写。下面只展示服务端定义与 HTML 文本上下文的输出，不把动态值直接拼入客户端 JS。
+
+```csp
+<script language="cache" runat="server">
+    s displayName = "示例名称"
+</script>
+<p>#(..EscapeHTML(displayName))#</p>
+```
+
+| 语法 | 含义与边界 |
 |---|---|
-| `<Server>...</Server>` | 服务端 ObjectScript 代码块 |
-| `#(variable)#` | 将服务端变量嵌入 HTML/JS |
-| `##(expression)##` | 转义 HTML 特殊字符后嵌入 |
-| `<csp:if>` / `<csp:elseif>` / `<csp:else>` | 条件服务端包含 |
-| `<csp:Include Page="...">` | 服务端包含另一个 CSP 页面 |
-| `%request.Get("name")` | 获取 HTTP 请求参数 |
-| `%session.Data("key")` | 获取会话数据 |
+| `#(expression)#` | 运行期表达式；输出需按所在上下文处理 |
+| `##(expression)##` | 编译期表达式，不是 HTML 转义 |
+| `<csp:if>` / `<csp:elseif>` / `<csp:else>` | CSP 服务端条件结构，属性按目标版本核对 |
+| `<csp:Include Page="...">` | 包含页面，路径和执行顺序按项目契约 |
 
+HTML 文本、属性、JS 字符串和 URL 的转义不同；上例的 `EscapeHTML` 不作为其它上下文的通用编码器。语法依据及 Review 边界见[前端规范](../references/frontend-coding-format.md#html-与-csp)，未编译示例不得称为目标 IRIS 验证通过。
 
-## CSP 命名模式
+## 项目专属接入
 
-`{子系统}.{模块}.{功能}.csp`
-
-示例：`chemo.aform.main.csp`、`dhcant.aform.audit.csp`、`dhcant.cfg.docauth.csp`
-
-## Broker 调用
-
-前端通过 `DHCDoc.Util.Broker.cls` 与后端通信：
-
-```
-DHCDoc.Util.Broker.cls?ClassName=DHCAnt.AForm.Api&MethodName=GetAntApplyData&Parameters=...
-```
-
-流程：接收请求 → 实例化 ClassName → 调用 MethodName → 返回 JSON。
-
-## CSP 参数说明
-
-### DOC:HEAD 参数说明
-
-```
-    <!--基础平台验证、HISUI、医生站公共js、样式引入,支持打印、读卡、接口中间层相关环境引入-->
-    <!--如无需默认combobox、datagrid等请求url，请增加属性 notdefurl=1 <DOC:HEAD notdefurl=1></DOC:HEAD> -->
-    <!--如需打印，请增加属性 needprint=1 <DOC:HEAD needprint=1></DOC:HEAD> -->
-    <!--如需引入接口中间层，请增加属性 productdomain="业务域" <DOC:HEAD productdomain="AdmReg"></DOC:HEAD> -->
-    <!--如需读卡,请增加属性 medStepCode="业务节点" <DOC:HEAD medStepCode="OPAdmReg"></DOC:HEAD> -->
-    <!--如需引入css文件 css="产品线/业务.css" 多个文件逗号分割 <DOC:HEAD css="opadm/regist.css"></DOC:HEAD> -->
-```	
-如：需要引用 `ant/aform/main.css` 样式文件时，则属性需增加 css="ant.css" `<DOC:HEAD css="ant/aform/main.css"></DOC:HEAD>`
-
-## CSP 存放位置
-
-**CSP 存放位置：`src/imedical/web/csp/`**
-**CSS 存放位置：`src/imedical/web/css/`**
+- 框架页与内容页的拆分、文件命名和存放位置以 profile 为准，不固定某个子系统前缀或源码目录。
+- `<DOC:HEAD>` 按目标工程实际 CSR 能力选用，不按新旧版本或 doctor-dev 类型推断。先在 profile 指向的 CSP 源码中查找 `DHCDOC.csr`，定位 `<csr:rule name="DOC.HEAD" match="DOC:HEAD">`；文件名只是定位线索，实际以匹配规则及 action 为准。
+- 找到规则后核对 action 调用的后端实现及资源依赖，确认目标工程源码具备接入能力即可按该契约编写；本地存在不代表目标服务器已注册或编译生效，不要求为本地编码新增远程探测。部署获授权后再验证编译和运行结果。
+- 规则缺失时，继续在目标工程相关 CSR 中查找相同 match；仍无实现时保留基础 HTML 骨架，按项目现有方式引入公共 JS/CSS，不插入未定义标签，也不为套模板自行升级框架。源码范围不完整时标记待确认，不断言项目一定不支持。
+- `DOC:HEAD` 与 `DHCDOC:HEAD` 是不同的 match，不能因名字相近互换。参数与 `docBodyAttr` 等输出变量以命中的 action 及调用实现为准；`<server>` 等其它项目标签独立核对，不能由 HEAD 规则存在推断全部标签或生命周期均可用。
+- `cspInitClosure`、`xhrRefresh`、`onBeforeCloseTab`、`chartOnBlur` 等生命周期入口仅在项目确有该契约时使用。先加载依赖、定义所需对象和参数，再初始化；不复制未定义的占位变量。
+- 后端请求复用 profile 指定封装，逐项核对参数名、顺序、传输方式与响应结构，不固定 Broker 类名或服务器路径。
