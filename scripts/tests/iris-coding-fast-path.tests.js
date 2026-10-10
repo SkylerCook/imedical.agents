@@ -117,6 +117,7 @@ for (const relative of [
   'plugins/coding-iris-plugin/skills/iris-coding/SKILL.md',
   'plugins/coding-iris-plugin/references/coding-assistance.md',
   'plugins/coding-iris-plugin/templates/csp-template.md',
+  'plugins/coding-iris-plugin/templates/javascript-page-template.md',
 ]) {
   const content = read(relative);
   checkLocalPointers(relative, content);

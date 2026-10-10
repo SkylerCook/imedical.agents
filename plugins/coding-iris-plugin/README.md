@@ -6,7 +6,9 @@ CLS 编码与 Review 共用[命名与格式规范](references/cls-coding-format.
 
 CSP、HTML、JS、CSS 编码与 Review 共用[前端规范](references/frontend-coding-format.md)，默认 ES5、4 空格和双引号；CSP 按语言区域审查，模板区分通用语法与项目专属接入。复用现有 HISUI、编码、i18n 和接口规则，不新增格式化器或门禁。
 
-0.15.4 通过普通能力包更新分发，无配置迁移、业务代码迁移或旧文件清理。无需安装全局 formatter；不自动同步真实业务工程。独立 Review 由调用方传入统一规范及项目覆盖，无子 Agent 时串行复核。
+[可选 JS 页面模板](templates/javascript-page-template.md)分别说明普通页面与闭包页面的适用条件、唯一初始化入口和可选生命周期；不将医生站 helper 作为所有前端的依赖。
+
+0.15.5 通过普通能力包更新分发，无配置迁移、业务代码迁移或旧文件清理。无需安装全局 formatter；不自动同步真实业务工程。独立 Review 由调用方传入统一规范及项目覆盖，无子 Agent 时串行复核。
 
 `coding-iris-plugin` 是面向 IRIS/ObjectScript/CSP/JavaScript/HISUI 工程的通用 Agent 编码能力包。
 

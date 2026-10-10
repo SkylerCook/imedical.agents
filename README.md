@@ -18,7 +18,7 @@ CSP 部署编译统一使用 `coding-iris-plugin/scripts/iris-tools/compile-csp.
 
 SFTP 工具纳入 [vendor/sftp-server](vendor/sftp-server/README.md)：保留五个 MCP 工具名，补齐路径约束、内容比较、原子替换和 SHA-256 校验。`coding-iris-plugin` v0.9.0 为新项目提供默认禁用的配置；更新时自动迁移可识别的既有标准启动参数，显式 custom 或自定义参数保留，不要求 runtime opt-in，也不自动安装 Python 依赖。
 
-前端 CSP、HTML、JS、CSS 共用[前端命名与格式规范](plugins/coding-iris-plugin/references/frontend-coding-format.md)：默认 ES5、4 空格与双引号，混合语言分区审查，保留历史接口和主题契约。复用现有 Review、编码及 i18n 检查，不引入格式化器。
+前端 CSP、HTML、JS、CSS 共用[前端命名与格式规范](plugins/coding-iris-plugin/references/frontend-coding-format.md)：默认 ES5、4 空格与双引号，混合语言分区审查，保留历史接口和主题契约。复用现有 Review、编码及 i18n 检查，不引入格式化器。[JS 页面组织模板](plugins/coding-iris-plugin/templates/javascript-page-template.md)按实际依赖和生命周期选择，不要求所有前端统一架构。
 
 CLS 编码与 Review 共用 [命名与格式规范](plugins/coding-iris-plugin/references/cls-coding-format.md)：仅规范新增/修改位置，项目显式规范可覆盖默认值。Agent 审查命名与表达式，可选脚本检查成员边界和 EOF，不增加提交门禁。普通能力包更新分发，无业务代码迁移。
 
