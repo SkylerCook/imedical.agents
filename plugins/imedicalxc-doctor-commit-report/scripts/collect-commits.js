@@ -8,9 +8,9 @@
  * merge 提交，输出结构化 JSON（UTF-8 无 BOM）。
  *
  * 用法：
- *   node collect-commits.js [--months N | --since YYYY-MM-DD [--until YYYY-MM-DD]]
+ *   node collect-commits.js [--months N | --since DATETIME [--until DATETIME]]
  *
- * 配置：.agents/config/commit-report.json
+ * 配置：.agents/plugins/imedicalxc-doctor-commit-report/config/commit-report.json
  */
 
 const fs = require('node:fs');
@@ -24,8 +24,8 @@ const SEP = '\u001f'; // git pretty 格式字段分隔符（避免与 message �
 
 const USAGE = `用法: node collect-commits.js [--months N | --since YYYY-MM-DD [--until YYYY-MM-DD]]
   --months N   汇总最近 N 个完整自然月（默认取配置 window.value）
-  --since      自定义起始日 YYYY-MM-DD（--until 缺省为今天）
-  --until      自定义结束日 YYYY-MM-DD（不含，缺省为今天）
+  --since      自定义起始时间 YYYY-MM-DD 或 YYYY-MM-DDTHH:MM（--until 缺省为现在）
+  --until      自定义结束时间 YYYY-MM-DD 或 YYYY-MM-DDTHH:MM（不含，缺省为现在）
 输出: <outputDir>/<YYYY-MM>/raw-commits-<YYYY-MM>.json（UTF-8 无 BOM）+ 控制台摘要`;
 
 // ---------- 时间窗 ----------
@@ -36,6 +36,10 @@ function pad2(n) {
 
 function toLocalYMD(d) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function toLocalISO(d) {
+  return `${toLocalYMD(d)}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
 // 最近 N 个完整自然月：[N 个月前月初, 本月月初)
@@ -55,10 +59,16 @@ function monthWindow(monthsBack, now = new Date()) {
 
 // 精确时间窗过滤：[since, until)（含起点、不含终点）。
 // git 的 --since/--until 是遍历近似而非精确过滤，真实窗口边界必须由此函数按作者日期裁决。
-// c.date 为 iso-strict 格式（含显式时区偏移），Date.parse 归一为 epoch 后比较；since/until 为本地日期。
+// c.date 为 iso-strict 格式（含显式时区偏移），Date.parse 归一为 epoch 后比较。
+// since/until 支持 YYYY-MM-DD（按当日 00:00 解析）或 YYYY-MM-DDTHH:MM（精确到分钟）。
+function parseTimestamp(s) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return Date.parse(s + 'T00:00:00');
+  return Date.parse(s);
+}
+
 function filterWindow(commits, since, until) {
-  const lo = Date.parse(since + 'T00:00:00');
-  const hi = Date.parse(until + 'T00:00:00');
+  const lo = parseTimestamp(since);
+  const hi = parseTimestamp(until);
   return commits.filter((c) => {
     const t = Date.parse(c.date);
     return t >= lo && t < hi;
@@ -138,8 +148,8 @@ function parseArgs(argv) {
       }
     } else if (arg === '--since' || arg === '--until') {
       const v = argv[++i];
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) {
-        throw new Error(`${arg} 需为 YYYY-MM-DD 格式，收到: ${v}`);
+      if (!/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/.test(v)) {
+        throw new Error(`${arg} 需为 YYYY-MM-DD 或 YYYY-MM-DDTHH:MM 格式，收到: ${v}`);
       }
       opts[arg === '--since' ? 'since' : 'until'] = v;
     } else {
@@ -182,7 +192,7 @@ function discoverRepos(repoRoot) {
 async function collectRepo(repoRel, repoRoot, since, until) {
   // 遍历起点放宽 45 天（远低于真实窗口起点），且不传 --until：
   // 让 git 遍历终止的近似误差发生在真实窗口之外，窗口边界由 filterWindow 按作者日期精确裁决。
-  const walkSince = toLocalYMD(new Date(Date.parse(since + 'T00:00:00') - 45 * 86400000));
+  const walkSince = toLocalYMD(new Date(parseTimestamp(since) - 45 * 86400000));
   const format = `%H${SEP}%an${SEP}%ae${SEP}%ad${SEP}%s`;
   const args = [
     'log', '--no-merges',
@@ -200,7 +210,7 @@ async function collectRepo(repoRel, repoRoot, since, until) {
 }
 
 function loadConfig(repoRoot) {
-  const configPath = path.join(repoRoot, '.agents', 'config', 'commit-report.json');
+  const configPath = path.join(repoRoot, '.agents', 'plugins', 'imedicalxc-doctor-commit-report', 'config', 'commit-report.json');
   if (!fs.existsSync(configPath)) {
     throw new Error(`配置不存在: ${configPath}`);
   }
@@ -222,8 +232,10 @@ async function main() {
   let win;
   if (opts.since || opts.until) {
     const since = opts.since;
-    const until = opts.until || toLocalYMD(new Date());
-    if (since >= until) throw new Error(`--since (${since}) 必须早于 --until (${until})`);
+    const until = opts.until || toLocalISO(new Date());
+    if (parseTimestamp(since) >= parseTimestamp(until)) {
+      throw new Error(`--since (${since}) 必须早于 --until (${until})`);
+    }
     win = { since, until, label: since.slice(0, 7) };
   } else {
     const months = opts.months ?? (config.window && config.window.value) ?? 1;
@@ -317,4 +329,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { pad2, toLocalYMD, monthWindow, filterWindow, buildAuthorIndex, matchReporter, parseGitLog, parseArgs, discoverRepos };
+module.exports = { pad2, toLocalYMD, toLocalISO, parseTimestamp, monthWindow, filterWindow, buildAuthorIndex, matchReporter, parseGitLog, parseArgs, discoverRepos };
