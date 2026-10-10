@@ -21,4 +21,4 @@
 
 - `scripts/collect-commits.js`：遍历 src/ 下 20 个子仓库，按时间窗 + 11 人白名单过滤并排除 merge，输出 `raw-commits-<YYYY-MM>.json`（UTF-8 无 BOM）。
 - `scripts/detect-db-changes.js`：扫描 Java 提交 diff，检测四类数据库脚本执行提醒——PO 数据结构修改、新增系统标准配置（ST_CODE + 配置项）、新增系统标准提醒（HisBusinessException 字典表提醒码，含跨仓库常量链解析）、新增代码表缓存配置（DocCacheUtils PO 首次使用），输出 `db-changes-<YYYY-MM>.json`。
-- `scripts/push-qq-bot.js`：QQ 机器人推送适配器（NapCat/OneBot HTTP API）。读取报告 Markdown 与同目录 `db-changes-<label>.json`，发送开场、提交人分布、数据库脚本执行提醒、低星问题清单（@提交人）后上传报告文件。配置见 `config/commit-report-push.json`。
+- `scripts/push-qq-bot.js`：QQ 机器人推送适配器（NapCat/OneBot HTTP API）。读取报告 Markdown 与同目录 `db-changes-<label>.json`，发送开场、提交人分布、数据库脚本执行提醒（四类计数 + 明细 + 执行方案推荐，PO 改走腾讯文档 DDL 登记表格、其余三类经公司标准库 demo 维护）、低星问题清单（@提交人）后上传报告文件。配置见 `config/commit-report-push.json`。
