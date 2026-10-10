@@ -1,7 +1,7 @@
 ---
 name: imedicalxc-doctor-commit-report
 description: |
-  HIS 医生站提交记录定时汇总报告。采集 src/ 下 20 个子仓库在指定时间窗内 11 位医生站同事的 git 提交，输出五要素汇总（岗位工作站 / 需求类型 / 优先级 / 提交人 / 改造内容总结），对【流程修改 / 业务调整】类提交做混合式评估（轻量全覆盖 + 高风险三类自动升级深度评估，1-5 星评级，1-2★ 必须给出至少一条具体问题评价），归档 Markdown 报告并按配置尝试推送。用于月度定时汇总或按需汇总提交记录。
+  HIS 医生站提交记录定时汇总报告。采集 src/ 下 20 个子仓库在指定时间窗内 11 位医生站同事的 git 提交，输出五要素汇总（岗位工作站 / 需求类型 / 优先级 / 提交人 / 改造内容总结），对【流程修改 / 业务调整】类提交做混合式评估（轻量全覆盖 + 高风险三类自动升级深度评估，1-5 星评级，1-2★ 必须给出至少一条具体问题评价），并自动检测数据库脚本执行提醒（PO 数据结构修改 / 新增系统标准配置 / 新增系统标准提醒 / 新增代码表缓存配置），归档 Markdown 报告并按配置尝试推送。用于月度定时汇总或按需汇总提交记录。
 triggers:
   - 提交汇总
   - 提交记录汇总
@@ -15,9 +15,9 @@ priority: high
 
 # 提交记录定时汇总报告 — 工作流
 
-五步串行执行：① 采集 → ② 分类 → ③ 评估 → ④ 归档 → ⑤ 推送。每步完成后再进入下一步。
+六步串行执行：① 采集 → ② 数据库变更检测 → ③ 分类 → ④ 评估 → ⑤ 归档 → ⑥ 推送。每步完成后再进入下一步。
 
-**开始前必读**：`.agents/config/commit-report.json` —— 人员白名单（reporters）、岗位工作站清单（workstations）、时间窗（window）、输出目录（outputDir）。
+**开始前必读**：`.agents/plugins/imedicalxc-doctor-commit-report/config/commit-report.json` —— 人员白名单（reporters）、岗位工作站清单（workstations）、时间窗（window）、输出目录（outputDir）。
 
 ## 步骤 ①：采集（确定性脚本）
 
@@ -31,7 +31,27 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/collect-commits.js 
 
 产出 `<outputDir>/<YYYY-MM>/raw-commits-<YYYY-MM>.json`，每条提交含 repo / hash / author（映射后中文名）/ authorRaw / date / subject / files / additions / deletions。检查 `meta.errors`：非空时先向用户报告错误仓库（错误不阻断整体），再继续。
 
-## 步骤 ②：分类（五要素，逐条）
+## 步骤 ②：数据库变更检测（确定性脚本）
+
+对步骤 ① 的产出做数据库脚本执行提醒检测：
+
+```bash
+node .agents/plugins/imedicalxc-doctor-commit-report/scripts/detect-db-changes.js <outputDir>/<YYYY-MM>/raw-commits-<YYYY-MM>.json
+```
+
+产出同目录 `db-changes-<YYYY-MM>.json`，五类检测结果（章节五的数据源，评估阶段可直接引用，不必重查 git）：
+
+| 键 | 含义 | 检测方式 |
+|---|---|---|
+| poChanges | 数据结构修改 | `*PO.java` 文件新增/删除 `@TableField` 字段或 `@TableName` |
+| newStCodes | 新增配置大类 | 新增 `String xxxST_CODE = "..."` 常量声明 |
+| configItems | 新增系统标准配置 | docconfig 模块 `*ConfigConstants.java` 新增配置读取方法，或以 ST_CODE 字面量直接构造 ConfigItemUtil |
+| reminders | 新增系统标准提醒 | `HisBusinessException.build/rpcException(XxxConstants.BUSINESS_CODE + "NNN", ...)`（字典表标准提醒；硬编码错误码不计入） |
+| cacheConfigs | 新增代码表缓存配置 | 新增 `DocCacheUtils.getByKey/batchByXXX(XxxPO.class, ...)` 调用，含 PO 首用判定 |
+
+检查 `meta.errors`（错误不阻断整体）与控制台摘要，然后继续。
+
+## 步骤 ③：分类（五要素，逐条）
 
 对 JSON 中每条提交判定。依据：subject + files 路径为主，必要时 `git -C <repo> show <hash> --stat`。
 
@@ -62,7 +82,7 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/collect-commits.js 
 | 基础平台 | his、hisbase、hiscore、hiscf/hiscfsv、hisct/hisctsv 等 public 层 | base、hiscf、cf、ct |
 | 其他 | 兜底项：无法归入以上任何一项 | — |
 
-## 步骤 ③：评估（仅【流程修改 / 业务调整】类提交，混合式）
+## 步骤 ④：评估（仅【流程修改 / 业务调整】类提交，混合式）
 
 **第一层：高风险三类判定**（先做）。命中任一类 → 调用 `imedicalxc-doctor-business-understanding` skill 做完整链路分析（前端入口 → 前端逻辑 → 后端 Controller→BLH→Service→Mapper），评估段标注命中类别，摘要写入报告附录：
 
@@ -89,7 +109,7 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/collect-commits.js 
 4. **评价描述**（1-3 句）
 5. **低星强制补充**：1-2★ 必须给出**至少一条具体问题评价**——引用文件:行号或 diff 片段，指明与业务设计冲突或遗漏之处
 
-## 步骤 ④：归档
+## 步骤 ⑤：归档
 
 写入 `<outputDir>/<YYYY-MM>/commit-report-<YYYY-MM>.md`，结构：
 
@@ -126,7 +146,39 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/collect-commits.js 
 | 提交 | 星级 | 具体问题（文件:行号 / diff 片段） |
 |---|---|---|
 
-## 五、附录：深度评估摘要
+## 五、数据库脚本执行提醒
+
+> 由步骤 ② `db-changes-<label>.json` 渲染。开头一行汇总：`本期检测：数据结构修改 N 处 · 新增系统标准配置 N 项 · 新增系统标准提醒 N 条 · 新增代码表缓存配置 N 项（PO 首用 N）`。四小节全为空时整章写「本期无数据库脚本执行提醒」。
+
+### 5.1 数据结构修改（PO）
+
+| 提交 | 提交人 | 表名 | 文件 | 字段变更 |
+|---|---|---|---|---|
+
+（字段变更写法：`新增 name(Type, 列)` / `删除 name(Type, 列)`，多项用 `；` 分隔；新建 PO 标注 `新建`）
+
+### 5.2 新增系统标准配置
+
+| 提交 | 提交人 | 配置大类（ST_CODE） | 常量名 | 配置项 | 检测依据 |
+|---|---|---|---|---|---|
+
+（检测依据：`docconfig 新增配置读取` / `行内 ST_CODE 字面量`；新增 ST_CODE 大类单列一行，常量名/配置项填 —）
+
+### 5.3 新增系统标准提醒
+
+| 提交 | 提交人 | 提醒码 | 提醒内容 | 文件:行号 |
+|---|---|---|---|---|
+
+（提醒码用 resolvedCode；为空时写 `expr + codeSuffix`。提醒内容为动态取值时写 `（动态）`）
+
+### 5.4 新增代码表缓存配置
+
+| 提交 | 提交人 | PO 类 | 方法 | PO 首次使用 | 文件:行号 |
+|---|---|---|---|---|---|
+
+（PO 首次使用：是 / 否；重点核对「是」的行——需要确认代码表缓存配置）
+
+## 六、附录：深度评估摘要
 
 ### {hash} {subject}（命中：{类别}）
 
@@ -147,12 +199,23 @@ git add docs/commit-reports/
 git commit -m "docs: 新增 {label} 提交记录汇总报告"
 ```
 
-## 步骤 ⑤：推送（本期占位）
+## 步骤 ⑥：推送
 
-读取 `.agents/config/commit-report-push.json`（不存在则视为未配置）：
+读取 `.agents/plugins/imedicalxc-doctor-commit-report/config/commit-report-push.json`（不存在则视为未配置）：
 
 - `enabled` 为 `false` 或文件不存在 → 输出「推送未配置，跳过」，流程结束
-- `enabled` 为 `true` → 本期未实现，输出「推送适配器未实现（规划中：SSH 邮件转发 / NapCat）」
+- `enabled` 为 `true` 且 `channel` 为 `qqbot` → 执行推送脚本：
+
+```bash
+node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <outputDir>/<YYYY-MM>/commit-report-<YYYY-MM>.md
+```
+
+推送内容（QQ 群消息）：
+1. 【按提交人分布】—— 一条文本消息，含日期范围和各提交人占比
+2. 【数据库脚本执行提醒】—— 一条文本消息（自动读取同目录 `db-changes-<label>.json`）：四类计数 + 明细摘要（新增配置的 ST_CODE/配置项、提醒码、首用 PO），@ 涉及提交人；四类全为 0 时发「本期无数据库脚本执行提醒」
+3. 【低星问题清单】—— 每条低星问题单独一条文本消息，@ 对应提交人（通过群成员列表匹配群昵称）；匹配不到则提示「未找到「XXX」群成员」并 @ 群管理员
+4. 低星问题 > 5 条时，补充一条「低星问题过多，详情参考报告」
+5. 报告 Markdown 文件 —— 以群文件方式上传（base64 编码）
 
 ## 约束
 
