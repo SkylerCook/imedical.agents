@@ -278,6 +278,19 @@ function formatDbReminder(db, dateRange, memberMap, admins) {
   const DETAIL_CAP = 15;
   lines.push(...details.slice(0, DETAIL_CAP).map((d) => d.text));
   if (details.length > DETAIL_CAP) lines.push(`  … 其余 ${details.length - DETAIL_CAP} 条详见报告`);
+  lines.push('—— 执行方案推荐 ——');
+  if (counts.poChanges > 0) {
+    lines.push('  · 数据结构修改：通过【腾讯文档】his 版本升级脚本汇总表格登记 DDL 执行 https://docs.qq.com/sheet/DSnJ5V0tYRG9jT1VL?tab=BB08J2');
+  }
+  if (counts.newStCodes + counts.configItems > 0) {
+    lines.push('  · 新增系统标准配置：公司标准库 demo → 系统标准配置菜单，筛选指定配置项导出，导入项目现场');
+  }
+  if (counts.reminders > 0) {
+    lines.push('  · 新增系统标准提醒：公司标准库 demo → 系统标准提醒信息，参照代码信息进行数据维护');
+  }
+  if (counts.cacheConfigs > 0) {
+    lines.push('  · 新增代码表缓存配置：公司标准库 demo → 代码表缓存管理，参照代码信息进行数据维护');
+  }
   const atParts = [];
   const atSeen = new Set();
   const pushAt = (qq) => {
