@@ -5,7 +5,7 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 
 # IRIS Backend Coding
 
-编写 `.cls` 时读取 `../../references/cls-coding-format.md`。新类使用规范模板；已有类只规范需求涉及位置，保留其他历史格式。可选本地自检不阻断提交，不要求上传、回读或编译证据。
+编写 `.cls` 前读取[CLS 命名与格式规范](../../references/cls-coding-format.md)，最终 diff 后按同一规范检查。新类使用规范模板；已有类只规范需求涉及位置。可选本地自检不阻断提交，不要求上传、回读或编译证据。
 
 ## 使用时机
 
@@ -24,14 +24,14 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 1. 先读取目标工程 `.agents/config/iris_project_profile.md`。
 2. 再读取 `rules/iris_coding_index.md`、`rules/iris_coding_general.md`、`rules/iris_coding_backend.md`。
 3. 仅当任务涉及上传、编译、远程读取或只读 SQL 时，再读取 `.mcp.json` 和 `rules/iris_coding_workflow.md`。
-4. 本地搜索现有实现和同类代码，优先沿用目标工程模式。
+4. 本地搜索现有实现和同类代码，复用业务实现与接口契约；命名与格式按 CLS 规范的适用顺序执行，不从历史代码推断默认风格。
 5. 按 BLH/DATA/SQL 职责分层修改，不把项目专属类名写回插件规则。
 6. 默认只做本地修改；用户明确要求后再上传或编译。
 
 ## 完成检查
 
-- ObjectScript 命令的完整后条件表达式无空格分隔，例如 `q:cond=""`、`continue:(cond1)&&(cond2)`；不得生成 `continue:(cond1) && (cond2)`。
-- 使用项目约定缩写命令和函数。
+- 最终 diff 已按 CLS 规范检查命名、格式、改动范围和兼容性；脚本检查与 Agent 审查结果分别说明。
+- 调用独立 review-agent 时传入冻结 diff、需求、范围、项目显式规范和 CLS 规范路径；不要求额外安装 formatter skill，无子 Agent 时按同一清单串行复核。
 - SQL 写入层返回格式稳定。
 - 参数校验避免 `<UNDEFINED>`。
 - 未引入源工程硬编码服务器、namespace 或业务前缀。

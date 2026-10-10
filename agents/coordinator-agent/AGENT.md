@@ -9,6 +9,7 @@
 - 独占 schema 2.0 run 状态写入。
 - 不从协作授权推导代码写入、commit、merge、push、部署或 feedback 写入授权。
 - multi-session 可写参与者必须使用隔离 worktree 和互斥 scope。
+- 交付 Review 时，随冻结 diff 提供需求、变更范围、已启用领域的适用规范路径及用户/项目显式覆盖；已有检查结果须注明覆盖范围，不以工具通过代替完整审查。
 
 ## 输入与输出
 

@@ -1,5 +1,55 @@
 # 框架演进验证记录与真实行为基准
 
+## 2026-10-10 CLS 规范与 Review 串行样例
+
+基线 `1f5a12c`，coding-iris-plugin 0.15.3。以下为当前 Agent 读取 CLS 规范后生成的合成输出，并按 review-agent 协议串行复核；不是独立 Reviewer、真实业务项目、跨模型或跨宿主验收。无需服务器，未做 IRIS 编译。
+
+1. **从零生成新类**：输出采用 `plugins/coding-iris-plugin/templates/class.template.cls`。`GetDisplayName(patientName As %String)`、局部 `displayName`、4 空格、赋值空格、`q displayName` 和声明文档满足默认值；LF/CRLF 均由既有检查器验收。脚本只证明结构和空行，不证明命名或编译。
+2. **历史大驼峰方法新增局部变量**：输入只要求为返回值增加局部变量，输出补丁如下。串行复核：保留方法、形参、历史行的名称和紧凑风格，只将新变量按 lowerCamelCase 命名；没有改动无关行。
+
+```diff
+ ClassMethod GetName(PatientName As %String) As %String
+ {
+     s OldName=PatientName
+-    q OldName
++    s displayName = OldName
++    q displayName
+ }
+```
+
+3. **外部接口、字符串和嵌入 SQL**：输入要求增加返回值局部变量；输出只修改尾部两行，外部方法/形参、SQL 字段与绑定、字符串内双空格和宏均原样保留。串行复核未发现范围外变更；检查器不解析 SQL 或展开宏，不将其结果宣称为 SQL 或宏语法验证。含 `#define`、Storage、XData 等不支持结构的降级行为由既有专项测试覆盖。
+
+```diff
+ ClassMethod ExternalLookup(PatientID As %String) As %String
+ {
+     s Label="A  B"
+     &sql(SELECT Display_Name INTO :Label FROM Example.Patient WHERE Patient_ID = :PatientID)
+     s Label=$$$Normalize(Label)
+-    q Label
++    s displayName = Label
++    q displayName
+ }
+```
+
+4. **项目显式覆盖缩进**：输入明确本项目使用 2 空格。输出如下；串行复核采用项目覆盖，不将 2 空格报为违反框架默认值。新类命名、方法名和局部变量仍适用其余默认规则。
+
+```objectscript
+Class Example.Display Extends %RegisteredObject
+{
+
+ClassMethod GetName(patientName As %String) As %String
+{
+  s displayName = patientName
+  q displayName
+}
+
+}
+```
+
+Review 结论：上述四类当前 Agent 输出符合其明确输入和适用规则，未观察到改动范围扩大。此样本仅验证本次串行执行，不能推断其它模型或宿主自动加载生效。真实团队样本与独立审查效果继续归 backlog 的 P2 代码质量 Review 项。
+
+静态回归与样例结果分别记录：CLS 专项覆盖模板 LF/CRLF、历史范围、字符串、opaque/manual-review 和只读 CLI；编码入口契约检查统一规范链接；角色/工作流契约与文档部署链接另行检查。版本 worktree 校验仅识别本次 coding 插件 0.15.2 → 0.15.3，既有其他组件发布记录债务不属于本次变更。
+
 ## 2026-09-19 IRIS 编码入口定点优化
 
 基线 `e92a5c6`，仅修改非信创编码入口、规则指针和配套契约测试；部署脚本、i18n helper、thin-index 生成器及其它插件保持原样。明确前端/后端任务直接进入专项 skill，混合或边界不明进入统一路由；三个入口均在实现前提示部署基线，完整会话约束归原部署保护协议。

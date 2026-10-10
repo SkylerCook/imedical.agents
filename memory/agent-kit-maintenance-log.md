@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+- 2026-10-10（CLS 规范与 Review 接入）：以 `1f5a12c` 为基线，coding-iris-plugin 0.15.2 → 0.15.3；扩展 cls-coding-format 为命名与格式唯一事实源，编码入口改为业务/契约复用、明确规范优先，修正后条件空白断言并更新模板。参考 iris-code-formatter 3.1.0，以自有表述整理，不 vendor、不依赖全局 skill。删除 `1f5a12c` 引入的 provisional §3.4，撤回反复询问风格和内部一律无空格要求；通用 review-agent、Coordinator 与 standard-change 传递规范及覆盖范围，区分功能缺陷、规范项和可选建议，不新增门禁。Windows Node 24.14.1：CLS 专项 7/7、角色/工作流契约 1/1、编码入口契约 1/1、文档部署链接 1/1 通过；入口测试初次正则遗漏同目录链接，修正后定向复跑通过。四类当前 Agent 合成输出及串行复核见 maintenance/validation/agent-evolution.md，不声称独立 Agent 或 IRIS 编译通过。版本 worktree 校验仅识别本次 coding 插件变化，无新增版本/依赖问题；退出非零来自已登记的其它组件历史发布记录问题。普通更新分发，无业务迁移或旧文件清理，未同步真实工程；未暂存、提交或推送。
+
 - 2026-10-09（HISUI 弹窗布局指导）：coding-iris-plugin 0.15.1 在现有前端规则及样式参考补充留白、宽度、局部盒模型、fit/resize 和滚动层排查；保留构建、主题及真实客户端验证边界，不收录业务案例清单或固定尺寸。同步 owner/仓库 README、使用指南与发布记录；AGENTS、skill、能力目录、backlog 和更新器入口核对后保持不变：归属、调用方式、部署机制未变，无新增治理项。文档链接定向检查 1/1、diff 检查通过；工作区版本校验识别 0.15.0 → 0.15.1，仅报告已登记的其它组件历史发布记录缺少 commit，未新增依赖或发布问题。未运行真实客户端布局验收；未同步业务工程，提交与推送状态以 Git 记录为准。
 
 - 2026-10-04（默认精简开发部署）：经用户明确授权，coding-iris-plugin 0.15.0 的后端/前端入口默认 direct，无需需求号、Git 会话、fetch/pull 或三方合并；复用既有 Atelier/SFTP 适配器，保留整批预检、Storage、并发变化、回读及编译诊断，失败不自动重试。guarded 显式可选，旧 --demand 命令保留原行为。同步 skill、规则、指南、发布记录及 6 个依赖插件的兼容上限与 patch 版本；未同步业务工程副本；提交与推送状态以 Git 记录为准。Windows Node 24 的 direct 12 项测试（含真实 CLI + 本地模拟 Atelier）、Question 7 项、编码路由及文档链接检查通过；既有部署回归首次有 1 项临时 Git 目录清理 EPERM，清理该目录后定向重跑通过。版本工作区校验无新增依赖/发布问题，仍报告已登记的 xc 插件 1.0.2–1.0.4 缺失 commit 历史问题。三平台 CI 配置已纳入 direct 测试，尚未取得远端矩阵和真实环境的 direct 部署证据。

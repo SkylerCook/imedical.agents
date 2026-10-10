@@ -95,4 +95,18 @@ assert(general.includes("直接上传 UTF-8 源文件"));
 assert(!general.includes("按工作流转换编码"));
 // These assertions check routing contracts only; actual model behavior needs execution traces.
 
+// Check that the backend entry points resolve to one canonical standard.
+for (const relative of [
+  'plugins/coding-iris-plugin/AGENTS.md',
+  'plugins/coding-iris-plugin/rules/iris_coding_backend.md',
+  'plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md',
+  'plugins/coding-iris-plugin/references/coding-assistance.md',
+]) {
+  const content = read(relative);
+  checkLocalPointers(relative, content);
+  const pointer = [...content.matchAll(/\]\(([^)]*cls-coding-format\.md)\)/g)][0];
+  assert(pointer, relative + ': missing canonical format link');
+  assert.equal(path.resolve(root, path.dirname(relative), pointer[1]), path.join(root, 'plugins/coding-iris-plugin/references/cls-coding-format.md'));
+}
+checkLocalPointers('plugins/coding-iris-plugin/references/cls-coding-format.md', read('plugins/coding-iris-plugin/references/cls-coding-format.md'));
 console.log("iris-coding fast-path tests passed");

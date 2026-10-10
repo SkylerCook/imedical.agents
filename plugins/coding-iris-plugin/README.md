@@ -2,7 +2,9 @@
 
 前端 SFTP 工具已纳入 `.agents/vendor/sftp-server/`：修复路径/忽略规则、原子上传与 SHA-256 回读校验、超时及结构化错误。新项目默认禁用 SFTP；旧项目更新时自动迁移可识别的 SFTP 启动路径（显式 custom 除外），保留连接参数。Python 依赖按带哈希锁文件单独安装，升级器不自动安装依赖。主机密钥与服务器原子替换兼容要求见 [SFTP runtime](../../vendor/sftp-server/README.md)。这不提供无 SFTP 服务器的上传替代通道。
 
-CLS 编码遵循 [格式提示与最小改动约定](references/cls-coding-format.md)：新增代码按约定编写，历史格式保持原样。自检仅提示，不改变上传、编译或提交流程。
+CLS 编码与 Review 共用[命名与格式规范](references/cls-coding-format.md)：用户明确要求、项目显式规范、框架默认值依次适用；历史代码只提供业务与兼容证据。Agent 检查命名和表达式，可选脚本只检查成员边界和 EOF，不作为提交门禁。
+
+0.15.3 通过普通能力包更新分发，无配置迁移、业务代码迁移或旧文件清理。无需安装全局 formatter；不自动同步真实业务工程。独立 Review 由调用方传入统一规范及项目覆盖，无子 Agent 时串行复核。
 
 `coding-iris-plugin` 是面向 IRIS/ObjectScript/CSP/JavaScript/HISUI 工程的通用 Agent 编码能力包。
 

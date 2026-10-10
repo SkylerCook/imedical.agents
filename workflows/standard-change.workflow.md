@@ -11,7 +11,7 @@
 1. Coordinator 建立事实范围和任务图。
 2. Explorer / Planner 可并行只读；无并行收益时串行。
 3. Coding Agent 在唯一 owner 或隔离 worktree 的互斥 scope 中实现。
-4. Review Agent 独立审查冻结 diff。
+4. Coordinator 随冻结 diff 交付需求、变更范围、已启用领域的适用规范路径、用户/项目显式覆盖和已有检查结果；Review Agent 按自身协议审查功能、契约与格式，不把检查器通过当作完整审查。
 5. Testing Agent 在最终修改后验证；后续修改使验证过期。
 6. 按 `taskKind` 进入互斥收尾分支：
    - `business-demand`：进入 `acceptance-pending`，等待用户验收；进入 `accepted` 且有框架缺陷、规则冲突、可复用新经验或用户要求时做只读 feedback 审查，具体写入仍需独立授权。

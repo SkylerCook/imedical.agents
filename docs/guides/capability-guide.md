@@ -116,7 +116,7 @@
 | Skill | 请求示例 | 前提与预期结果 |
 |---|---|---|
 | [coding-iris-init](../../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md) | 为当前 IRIS 工程接入 coding-iris-plugin，检查现有配置和脚本入口。 | 目标工程与实际配置可核实；产出 profile、脚本及薄索引检查结果，保留已有值。 |
-| [iris-backend-coding](../../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md) | 修改指定类方法以满足这份需求，沿用当前分层和返回约定。 | 提供类方法、需求及验证范围；产出本地源码和验证结果，编译与运行结果分开报告。 |
+| [iris-backend-coding](../../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md) | 修改指定类方法以满足这份需求，保留分层和返回契约，按框架规范检查新增代码。 | 提供类方法、需求及范围，有项目显式规范时一并提供；编码与 Review 共用 CLS 规范。产出本地源码，分别报告 Agent 审查、脚本覆盖项及编译/运行证据。 |
 | [iris-coding](../../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md) | 修改这个功能，先查明前后端调用链，再完成范围内实现。 | 提供功能入口和需求；产出任务路由、相关前后端变更及验证说明。 |
 | [iris-demand-commit](../../plugins/coding-iris-plugin/skills/iris-demand-commit/SKILL.md) | 使用 iris-demand-commit --plan，为已验证改动生成提交方案。 | 实现已验证；--plan 不提交，明确 --commit 才执行本地提交；push 独立授权。 |
 | [iris-demand-entry](../../plugins/coding-iris-plugin/skills/iris-demand-entry/SKILL.md) | 使用 iris-demand-entry --text，根据当前改动整理标版需求录入文本。 | 仅 standard；输出 `{IRIS}` 名称和三段式描述，缺陷为操作/预期/实际，功能改进为说明/操作/预期；用户、安全组、科室按需补充。文本或可选 Excel，人工录 BOSS 后回填编号，再衔接提交。草稿仅支持 v2；输出限工程临时目录或正式需求目录，不写入 `.agents/` 或能力包源码。 |

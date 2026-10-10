@@ -1,9 +1,11 @@
 Class Example.Utility Extends %RegisteredObject
 {
 
-ClassMethod Example()
+/// Return the display name; the caller validates business requirements.
+ClassMethod GetDisplayName(patientName As %String) As %String
 {
-    q
+    s displayName = patientName
+    q displayName
 }
 
 }

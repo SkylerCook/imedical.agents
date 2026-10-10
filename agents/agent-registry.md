@@ -20,7 +20,7 @@
 | `explorer-agent` | 通用角色 | 只读事实探索和影响定位 | `agents/explorer-agent/AGENT.md` | `standard-change` | 无 |
 | `planner-agent` | 通用角色 | 任务图、依赖和完成条件规划 | `agents/planner-agent/AGENT.md` | `standard-change` | 无 |
 | `coding-agent` | 通用角色 | 在受控 owner/scope 内实现变更 | `agents/coding-agent/AGENT.md` | `standard-change` | 按 workflow 绑定 |
-| `review-agent` | 通用角色 | 独立 diff 与契约审查 | `agents/review-agent/AGENT.md` | `standard-change` | 无 |
+| `review-agent` | 通用角色 | 独立 diff、契约与适用规范审查 | `agents/review-agent/AGENT.md` | `standard-change` | 无 |
 | `testing-agent` | 通用角色 | 最终修改后的验证与风险报告 | `agents/testing-agent/AGENT.md` | `standard-change` | 无 |
 | `iris-change-agent` | 领域 Agent | IRIS 复杂变更的正式协作入口 | `agents/iris-change-agent/AGENT.md` | `iris-change` | `coding-iris-plugin` |
 | `i18n-agent` | 领域 Agent | IRIS 国际化需求处理，按链路定位、字段分类、编码/模板/种子、验证阶段执行 | `agents/i18n-agent/AGENT.md` | `i18n-change` | `i18n-iris-plugin`, `coding-iris-plugin` |

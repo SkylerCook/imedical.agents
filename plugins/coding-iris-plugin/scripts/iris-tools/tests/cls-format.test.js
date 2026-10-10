@@ -7,6 +7,11 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { check } = require('../cls-format');
 const sample = 'Class Demo.Test\n{\n\nClassMethod A()\n{\n    q "a  b"\n}\n\n}\n';
+test('shipped class template passes with LF and CRLF', () => {
+  const template = fs.readFileSync(path.resolve(__dirname, '../../../templates/class.template.cls'), 'utf8').replace(/\r\n/g, '\n');
+  assert.deepEqual(check(template), []);
+  assert.deepEqual(check(template.replace(/\n/g, '\r\n')), []);
+});
 test('new class follows member separators and EOF convention', () => {
   assert.deepEqual(check(sample), []);
   assert.deepEqual(check(sample.replace(/\n/g, '\r\n')), []);

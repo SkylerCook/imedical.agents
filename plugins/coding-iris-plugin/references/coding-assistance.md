@@ -8,7 +8,7 @@
 
 ## ObjectScript
 
-正确后条件示例：`continue:(cond1)&&(cond2)`；错误示例：`continue:(cond1) && (cond2)`。修改已有类只改需求涉及位置；参数缺失需防止 `<UNDEFINED>`。签名不确定时走 iris-mcp-lookup，不猜 API，不因查语法就扩大到远程执行。细节见 cls-coding-format.md 与 iris_coding_backend.md。
+命名、格式、后条件语法边界和最终 diff 检查统一读取 [CLS 规范](cls-coding-format.md)，不从历史写法推断风格。参数缺失需防止 `<UNDEFINED>`；签名不确定时走 iris-mcp-lookup，不猜 API，不因查语法就扩大到远程执行。业务规则见 [后端规则](../rules/iris_coding_backend.md)。
 
 ## HISUI 与编码
 
