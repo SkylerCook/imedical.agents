@@ -22,4 +22,4 @@
 - `scripts/collect-commits.js`：遍历 src/ 下 20 个子仓库，按时间窗 + 11 人白名单过滤并排除 merge，输出 `raw-commits-<YYYY-MM>.json`（UTF-8 无 BOM）。
 - `scripts/detect-db-changes.js`：扫描 Java 提交 diff，检测四类数据库脚本执行提醒——PO 数据结构修改、新增系统标准配置（ST_CODE + 配置项）、新增系统标准提醒（HisBusinessException 字典表提醒码，含跨仓库常量链解析）、新增代码表缓存配置（DocCacheUtils PO 首次使用），输出 `db-changes-<YYYY-MM>.json`。
 - `scripts/push-qq-bot.js`：QQ 机器人推送适配器（NapCat/OneBot HTTP API）。读取报告 Markdown 与同目录 `db-changes-<label>.json`，发送开场、提交人分布、数据库脚本执行提醒（四类计数 + 明细 + 执行方案推荐，PO 改走腾讯文档 DDL 登记表格、其余三类经公司标准库 demo 维护）、低星问题清单（@提交人）后上传报告文件。配置见 `config/commit-report-push.json`。
-- `scripts/build-db-email.js`：从 `db-changes-<label>.json` 生成数据变更通知邮件正文 `db-change-email-<label>.md`（第一章变更明细表：变更类型/变更内容/变更负责人；第二章固定操作说明四子章节）。邮件经邮箱 MCP `send_email` 发送（标题固定「信创版数据变更通知-医生站」，markdown 原文），接收人见 `config/commit-report-push.json` 的 `email` 段。
+- `scripts/build-db-email.js`：从 `db-changes-<label>.json` 生成数据变更通知邮件正文，双份输出——`db-change-email-<label>.html`（发送用正式排版 HTML，全部内联样式）与 `db-change-email-<label>.md`（Markdown 存档）。正文含第一章变更明细表（变更类型/变更内容/变更负责人）与第二章固定操作说明四子章节。邮件经邮箱 MCP `send_email` 发送（标题固定「信创版数据变更通知-医生站」，`body` 取 html 文件全文、`html` 为 `true`），接收人见 `config/commit-report-push.json` 的 `email` 段。
