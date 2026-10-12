@@ -288,6 +288,7 @@ function formatDbReminder(db, dateRange, memberMap, admins) {
   if (counts.cacheConfigs > 0) {
     lines.push('  · 新增代码表缓存配置：公司标准库 demo → 代码表缓存管理，参照代码信息进行数据维护');
   }
+  lines.push('说明：当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。');
   const atParts = [];
   const atSeen = new Set();
   const pushAt = (qq) => {

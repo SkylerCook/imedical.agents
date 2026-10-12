@@ -63,6 +63,8 @@ function buildEmailMd(db) {
     lines.push(`> 检测时间窗：${range}`);
     lines.push('');
   }
+  lines.push('说明：当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。');
+  lines.push('');
   lines.push('## 一、变更明细');
   lines.push('');
   if (rows.length === 0) {
@@ -157,6 +159,7 @@ function buildEmailHtml(db) {
   }
   lines.push(`    <p style="${metaStyle}">生成时间：${cstNow()}</p>`);
   lines.push('    <p style="margin: 14px 0 18px;">本期医生站开发提交中检测到以下数据库相关变更，请相关负责人参照第二章操作说明进行处理。</p>');
+  lines.push('    <p style="margin: 0 0 18px;"><strong>说明：</strong>当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。</p>');
   lines.push('');
   lines.push(`    <h3 style="${h3Style}">一、变更明细</h3>`);
   lines.push(`  ${tableBlock}`);

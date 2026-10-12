@@ -222,7 +222,7 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <out
 
 推送内容（QQ 群消息）：
 1. 【按提交人分布】—— 一条文本消息，含日期范围和各提交人占比
-2. 【数据库脚本执行提醒】—— 一条文本消息（自动读取同目录 `db-changes-<label>.json`）：四类计数 + 明细摘要（新增配置的 ST_CODE/配置项、提醒码、首用 PO）+ 执行方案推荐，@ 涉及提交人；四类全为 0 时发「本期无数据库脚本执行提醒」
+2. 【数据库脚本执行提醒】—— 一条文本消息（自动读取同目录 `db-changes-<label>.json`）：四类计数 + 明细摘要（新增配置的 ST_CODE/配置项、提醒码、首用 PO）+ 执行方案推荐 + 试用阶段说明（「说明：当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。」），@ 涉及提交人；四类全为 0 时发「本期无数据库脚本执行提醒」
 3. 【低星问题清单】—— 每条低星问题单独一条文本消息，@ 对应提交人（通过群成员列表匹配群昵称）；匹配不到则提示「未找到「XXX」群成员」并 @ 群管理员
 4. 低星问题 > 5 条时，补充一条「低星问题过多，详情参考报告」
 5. 报告 Markdown 文件 —— 以群文件方式上传（base64 编码）
@@ -231,7 +231,7 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <out
 
 数据变更通知邮件（正文为正式排版的 HTML，另存 Markdown 存档），流程：
 
-1. 生成邮件正文：`node .agents/plugins/imedicalxc-doctor-commit-report/scripts/build-db-email.js <outputDir>/<YYYY-MM>/db-changes-<label>.json`，输出同目录 `db-change-email-<label>.md`（Markdown 存档）与 `db-change-email-<label>.html`（发送用 HTML 正文：标题 + 检测时间窗/生成时间 + 第一章变更明细表（变更类型/变更内容/变更负责人）+ 第二章固定操作说明四子章节：DDL 参考【腾讯文档】信创版HIS数据库升级脚本汇总表格、系统提醒信息维护、系统标准配置导出导入、代码表缓存管理维护 + 自动生成页脚，全部内联样式）。
+1. 生成邮件正文：`node .agents/plugins/imedicalxc-doctor-commit-report/scripts/build-db-email.js <outputDir>/<YYYY-MM>/db-changes-<label>.json`，输出同目录 `db-change-email-<label>.md`（Markdown 存档）与 `db-change-email-<label>.html`（发送用 HTML 正文：标题 + 检测时间窗/生成时间 + 试用阶段说明（「说明：当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。」）+ 第一章变更明细表（变更类型/变更内容/变更负责人）+ 第二章固定操作说明四子章节：DDL 参考【腾讯文档】信创版HIS数据库升级脚本汇总表格、系统提醒信息维护、系统标准配置导出导入、代码表缓存管理维护 + 自动生成页脚，全部内联样式）。
 2. 通过邮箱 MCP 调用 `send_email` 工具发送：`account_name` = `email.accountName`（默认 `default`）、`recipients` = `email.recipients`（列表）、`subject` = `email.subject`（统一「信创版数据变更通知-医生站」）、`body` = 生成的 html 文件全文、`html` = `true`（HTML 渲染推送，避免客户端显示 markdown 源码）。
 3. 发送成功后把 `db-change-email-<label>.md` 与 `db-change-email-<label>.html` 一并提交入库（父仓库本地提交，不推送远端）。
 4. 邮箱 MCP 不可用（工具列表无 `send_email`）或发送失败 → 输出告警并继续，不影响 QQ 渠道结果。
