@@ -47,8 +47,8 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/detect-db-changes.j
 | newStCodes | 新增配置大类 | 新增 `String xxxST_CODE = "..."` 常量声明 |
 | configItems | 新增系统标准配置 | docconfig 模块 `*ConfigConstants.java` 新增配置读取方法，或以 ST_CODE 字面量直接构造 ConfigItemUtil |
 | reminders | 新增系统标准提醒 | `HisBusinessException.build/rpcException(XxxConstants.BUSINESS_CODE + "NNN", ...)`（字典表标准提醒；硬编码错误码不计入） |
-| cacheConfigs | 新增代码表缓存配置 | 新增 `DocCacheUtils.getByKey/batchByXXX(XxxPO.class, ...)` 调用**且该 PO 首次使用**（缓存按 PO 维护，同 PO 其他方法共享既有配置） |
-| cacheReuses | 既有缓存复用（存档） | 窗口内 DocCacheUtils 调用但 PO 已有历史用法——**不列入提醒**，仅存档备查 |
+| cacheConfigs | 新增代码表缓存配置 | 新增 `DocCacheUtils.getByKey/batchByXXX(XxxPO.class, ...)` 调用**且该 PO 首次使用**（缓存按 PO 维护，同 PO 其他方法共享既有配置）；记录含 PO 的 `@TableName` 表名（缓存配置按表名维护） |
+| cacheReuses | 既有缓存复用（存档） | 窗口内 DocCacheUtils 调用但 PO 已有历史用法——**不列入提醒**，仅存档备查（同样含 `@TableName` 表名） |
 
 检查 `meta.errors`（错误不阻断整体）与控制台摘要，然后继续。
 
@@ -174,10 +174,10 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/detect-db-changes.j
 
 ### 5.4 新增代码表缓存配置
 
-| 提交 | 提交人 | PO 类 | 方法 | 文件:行号 |
-|---|---|---|---|---|
+| 提交 | 提交人 | PO 类 | 表名 | 方法 | 文件:行号 |
+|---|---|---|---|---|---|
 
-（仅列 PO 首次使用的行——需要确认代码表缓存配置；缓存按 PO 维护，同一 PO 其他方法共享既有配置。既有缓存的复用调用存于 JSON `cacheReuses`，不列入本章。本节为空写「本期无新增代码表缓存配置。」）
+（表名为 PO 的 `@TableName` 值——代码表缓存管理按表名维护；仅列 PO 首次使用的行——需要确认代码表缓存配置。缓存按 PO 维护，同一 PO 其他方法共享既有配置；既有缓存的复用调用存于 JSON `cacheReuses`，不列入本章。本节为空写「本期无新增代码表缓存配置。」）
 
 ### 5.5 执行方案推荐
 

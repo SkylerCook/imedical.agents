@@ -35,7 +35,7 @@ function buildRows(db) {
     rows.push(['新增系统标准提醒', r.message ? `${code}（${r.message}）` : code, r.author]);
   }
   for (const cc of db.cacheConfigs || []) {
-    rows.push(['新增代码表缓存配置', `${cc.poClass}.${cc.method}${cc.firstUse ? '（首次使用）' : ''}`, cc.author]);
+    rows.push(['新增代码表缓存配置', `${cc.poClass}.${cc.method}${cc.tableName ? `（表 ${cc.tableName}）` : ''}`, cc.author]);
   }
   return rows;
 }

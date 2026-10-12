@@ -17,7 +17,8 @@
  *   5. cacheConfigs 新增代码表缓存配置：新增 DocCacheUtils.getByKey/batchByXXX(XxxPO.class)
  *                   调用，且该 PO 首次作为缓存读取对象使用（缓存按 PO 维护，同一 PO 的
  *                   其他方法调用共享既有配置）；已有历史用法（父提交/其他仓库）的复用调用
- *                   归入 cacheReuses，仅存档、不列入提醒
+ *                   归入 cacheReuses，仅存档、不列入提醒。两类记录均解析 PO 的 @TableName
+ *                   表名——代码表缓存管理按表名维护
  *
  * 用法：node detect-db-changes.js <raw-commits-YYYY-MM.json>
  * 输出：同目录 db-changes-<label>.json（UTF-8 无 BOM）+ 控制台摘要
@@ -244,6 +245,47 @@ async function checkFirstUse(commit, poClass, createdHere, ctx) {
     return { firstUse: false, priorUsage: { otherRepos: otherHits }, basis: 'other-repos@HEAD' };
   }
   return { firstUse: true, priorUsage: null, basis: 'no-prior-usage' };
+}
+
+// 代码表缓存管理按表名维护：解析缓存调用入参 PO 的 @TableName 表名。
+// 优先用使用文件的 import 取全限定名（findClassFile：同仓库提交时点 → 其他仓库 HEAD），
+// 无显式 import（通配/同包）时按 "<包路径>/XxxPO.java" 后缀在各仓库 HEAD 兜底。
+async function resolveCacheTableName(rec, ctx) {
+  const repoAbs = path.join(ctx.repoRoot, rec.repo);
+  const usage = await ctx.gitShowFile(repoAbs, rec.hash, rec.file);
+  let fq = null;
+  if (usage) {
+    const imp = new RegExp(`import\\s+((?:[\\w.]+\\.)${rec.poClass})\\s*;`).exec(usage);
+    if (imp) fq = imp[1];
+  }
+  let content = null;
+  if (fq) {
+    const found = await findClassFile(repoAbs, rec.hash, fq, ctx, rec.file);
+    if (found) {
+      content = found.content;
+    } else {
+      for (const r of ctx.repos) {
+        const other = path.join(ctx.repoRoot, r);
+        if (other === repoAbs) continue;
+        const f2 = await findClassFile(other, 'HEAD', fq, ctx, null);
+        if (f2) { content = f2.content; break; }
+      }
+    }
+  }
+  if (!content) {
+    for (const r of ctx.repos) {
+      const other = path.join(ctx.repoRoot, r);
+      const tree = await ctx.lsTree(other, 'HEAD');
+      const hit = tree.split('\n').find((p) => p.endsWith(`/${rec.poClass}.java`));
+      if (hit) {
+        content = await ctx.gitShowFile(other, 'HEAD', hit);
+        if (content) break;
+      }
+    }
+  }
+  if (!content) return null;
+  const m = TABLE_NAME_RE.exec(content);
+  return m ? m[1] : null;
 }
 
 // 常量声明名位于 new 行的同行前缀（单行声明）或上一行行尾（两行声明，形如
@@ -539,6 +581,14 @@ async function main() {
   }
   const byDate = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.hash < b.hash ? -1 : 1);
   for (const k of Object.keys(agg)) agg[k].sort(byDate);
+
+  // 缓存配置按表名维护：为各缓存记录解析 PO 的 @TableName 表名（同一使用文件内去重）
+  const cacheTableMemo = new Map();
+  for (const rec of [...agg.cacheConfigs, ...agg.cacheReuses]) {
+    const key = `${rec.repo}\n${rec.file}\n${rec.poClass}`;
+    if (!cacheTableMemo.has(key)) cacheTableMemo.set(key, resolveCacheTableName(rec, ctx));
+    rec.tableName = (await cacheTableMemo.get(key)) || null;
+  }
 
   const output = {
     meta: {

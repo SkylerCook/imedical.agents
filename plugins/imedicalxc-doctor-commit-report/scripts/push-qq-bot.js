@@ -269,7 +269,7 @@ function formatDbReminder(db, dateRange, memberMap, admins) {
     details.push({ text: `  · 配置 ${it.stCode || it.stCodeRaw} / ${it.itemCode}`, author: it.author });
   }
   for (const cc of db.cacheConfigs || []) {
-    details.push({ text: `  · 缓存首用 ${cc.poClass}（${cc.method}）`, author: cc.author });
+    details.push({ text: `  · 缓存 ${cc.poClass}.${cc.method}${cc.tableName ? `（表 ${cc.tableName}）` : ''}`, author: cc.author });
   }
   lines.push('—— 明细 ——');
   const DETAIL_CAP = 15;
