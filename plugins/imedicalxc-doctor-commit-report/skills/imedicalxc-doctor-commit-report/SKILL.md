@@ -232,9 +232,14 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <out
 数据变更通知邮件（正文为正式排版的 HTML，另存 Markdown 存档），流程：
 
 1. 生成邮件正文：`node .agents/plugins/imedicalxc-doctor-commit-report/scripts/build-db-email.js <outputDir>/<YYYY-MM>/db-changes-<label>.json`，输出同目录 `db-change-email-<label>.md`（Markdown 存档）与 `db-change-email-<label>.html`（发送用 HTML 正文：标题 + 检测时间窗/生成时间 + 试用阶段说明（「说明：当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。」）+ 第一章变更明细表（变更类型/变更内容/变更负责人）+ 第二章固定操作说明四子章节：DDL 参考【腾讯文档】信创版HIS数据库升级脚本汇总表格、系统提醒信息维护、系统标准配置导出导入、代码表缓存管理维护 + 自动生成页脚，全部内联样式）。
-2. 通过邮箱 MCP 调用 `send_email` 工具发送：`account_name` = `email.accountName`（默认 `default`）、`recipients` = `email.recipients`（列表）、`subject` = `email.subject`（统一「信创版数据变更通知-医生站」）、`body` = 生成的 html 文件全文、`html` = `true`（HTML 渲染推送，避免客户端显示 markdown 源码）。
-3. 发送成功后把 `db-change-email-<label>.md` 与 `db-change-email-<label>.html` 一并提交入库（父仓库本地提交，不推送远端）。
-4. 邮箱 MCP 不可用（工具列表无 `send_email`）或发送失败 → 输出告警并继续，不影响 QQ 渠道结果。
+2. 解析收件人/抄送人：`PYTHONIOENCODING=utf-8 python .agents/plugins/imedicalxc-doctor-commit-report/scripts/resolve-email-recipients.py`。
+   - 收件人 = 腾讯文档【信创版HIS数据库升级脚本汇总表格】「脚本执行负责人」页签「负责人邮箱」列去重（`email.recipientSource`：bookId/sheetId/emailColumn）
+   - 抄送人 = 通讯录分组「信创-研发-医生站」「信创-研发-监督人」成员邮箱去重（`email.ccSource.groups`）
+   - 脚本把结果写回 `email.recipients` / `email.cc`（含 `recipientsResolvedAt`）并输出 JSON 摘要；解析失败（如腾讯文档凭证过期、通讯录不可达）→ 输出告警，沿用 config 中上次解析结果继续发送。
+   - 地址白名单：收件人/抄送人须已在邮箱 MCP 的 `MCP_EMAIL_SERVER_ALLOWED_RECIPIENTS`（`.qoder/settings.local.json`）内；新增执行负责人或分组调整后需同步更新白名单并重载 MCP。
+3. 通过邮箱 MCP 调用 `send_email` 工具发送：`account_name` = `email.accountName`（默认 `default`）、`recipients` = `email.recipients`（列表）、`cc` = `email.cc`（列表）、`subject` = `email.subject`（统一「信创版数据变更通知-医生站」）、`body` = 生成的 html 文件全文、`html` = `true`（HTML 渲染推送，避免客户端显示 markdown 源码）。
+4. 发送成功后把 `db-change-email-<label>.md` 与 `db-change-email-<label>.html` 一并提交入库（父仓库本地提交，不推送远端）。
+5. 邮箱 MCP 不可用（工具列表无 `send_email`）或发送失败 → 输出告警并继续，不影响 QQ 渠道结果。
 
 ## 约束
 
