@@ -327,7 +327,7 @@ function extractTotalCommits(md) {
 }
 
 function formatDateRangeFileName(dateRange) {
-  if (!dateRange) return '信创提交分析报告.md';
+  if (!dateRange) return '医生站信创产品迭代周报.md';
   const since = dateRange.since;
   const until = dateRange.until;
   const sinceParts = since.split('-');
@@ -336,13 +336,13 @@ function formatDateRangeFileName(dateRange) {
   const sinceDay = parseInt(sinceParts[2], 10);
   const untilMonth = parseInt(untilParts[1], 10);
   const untilDay = parseInt(untilParts[2], 10);
-  return `${sinceMonth}月${sinceDay}日-${untilMonth}月${untilDay}日信创提交分析报告.md`;
+  return `${sinceMonth}月${sinceDay}日-${untilMonth}月${untilDay}日医生站信创产品迭代周报.md`;
 }
 
 function formatOpening(dateRange, totalCommits) {
   const range = dateRange ? `${dateRange.since} ~ ${dateRange.until}` : '';
   const count = totalCommits != null ? `，共采集 ${totalCommits} 条提交` : '';
-  return `📋 ${range} 信创迭代分析报告已生成${count}，以下是摘要：`;
+  return `📋 ${range} 医生站信创产品迭代周报已生成${count}，以下是摘要：`;
 }
 
 function formatClosing() {

@@ -1,19 +1,21 @@
 ---
 name: imedicalxc-doctor-commit-report
 description: |
-  HIS 医生站提交记录定时汇总报告。采集 src/ 下 20 个子仓库在指定时间窗内 11 位医生站同事的 git 提交，输出五要素汇总（岗位工作站 / 需求类型 / 优先级 / 提交人 / 改造内容总结），对【流程修改 / 业务调整】类提交做混合式评估（轻量全覆盖 + 高风险三类自动升级深度评估，1-5 星评级，1-2★ 必须给出至少一条具体问题评价），并自动检测数据库脚本执行提醒（PO 数据结构修改 / 新增系统标准配置 / 新增系统标准提醒 / 新增代码表缓存配置），归档 Markdown 报告并按配置尝试推送。用于月度定时汇总或按需汇总提交记录。
+  HIS 医生站信创产品迭代周报。采集 src/ 下 20 个子仓库在指定时间窗内 11 位医生站同事的 git 提交，输出五要素汇总（岗位工作站 / 需求类型 / 优先级 / 提交人 / 改造内容总结），对【流程修改 / 业务调整】类提交做混合式评估（轻量全覆盖 + 高风险三类自动升级深度评估，1-5 星评级，1-2★ 必须给出至少一条具体问题评价），并自动检测数据库脚本执行提醒（PO 数据结构修改 / 新增系统标准配置 / 新增系统标准提醒 / 新增代码表缓存配置），归档 Markdown 报告并按配置尝试推送。用于周度定时汇总或按需汇总提交记录。
 triggers:
   - 提交汇总
   - 提交记录汇总
   - 月度提交报告
   - 提交报告
   - 汇总提交记录
+  - 信创产品迭代周报
+  - 迭代周报
 role: workflow
 scope: local
 priority: high
 ---
 
-# 提交记录定时汇总报告 — 工作流
+# 医生站信创产品迭代周报 — 工作流
 
 六步串行执行：① 采集 → ② 数据库变更检测 → ③ 分类 → ④ 评估 → ⑤ 归档 → ⑥ 推送。每步完成后再进入下一步。
 
@@ -115,7 +117,7 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/detect-db-changes.j
 写入 `<outputDir>/<YYYY-MM>/commit-report-<YYYY-MM>.md`，结构：
 
 ```markdown
-# 提交记录汇总报告 — {label}
+# 医生站信创产品迭代周报 — {label}
 
 > 时间窗：{since} ~ {until} · 生成时间：{generatedAt} · 扫描仓库：{reposScanned} 个（有提交：{reposWithCommits}）· 提交总数：{totalCommits}
 
@@ -206,7 +208,7 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/detect-db-changes.j
 
 ```bash
 git add docs/commit-reports/
-git commit -m "docs: 新增 {label} 提交记录汇总报告"
+git commit -m "docs: 新增 {label} 医生站信创产品迭代周报"
 ```
 
 ## 步骤 ⑥：推送

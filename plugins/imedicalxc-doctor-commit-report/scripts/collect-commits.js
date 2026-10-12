@@ -2,7 +2,7 @@
 'use strict';
 
 /*
- * collect-commits.js — 提交记录定时汇总报告 · 确定性采集脚本
+ * collect-commits.js — 医生站信创产品迭代周报 · 确定性采集脚本
  *
  * 遍历 src/ 下全部子仓库（19 后端 + 1 前端），按时间窗 + 人员白名单过滤并排除
  * merge 提交，输出结构化 JSON（UTF-8 无 BOM）。

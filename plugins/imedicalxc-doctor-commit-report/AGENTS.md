@@ -1,6 +1,6 @@
 # iMedicalXC Doctor Commit Report
 
-`imedicalxc-doctor-commit-report` 是提交记录定时汇总报告插件：确定性采集 + 数据库变更检测 + LLM 语义分析，产出医生站团队的周度提交汇总、变更影响评估与数据库脚本执行提醒报告。
+`imedicalxc-doctor-commit-report` 是医生站信创产品迭代周报插件：确定性采集 + 数据库变更检测 + LLM 语义分析，产出医生站团队的周度提交汇总、变更影响评估与数据库脚本执行提醒报告。
 
 ## 插件定位
 
