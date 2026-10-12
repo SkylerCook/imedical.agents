@@ -2,13 +2,13 @@
 
 前端 SFTP 工具已纳入 `.agents/vendor/sftp-server/`：修复路径/忽略规则、原子上传与 SHA-256 回读校验、超时及结构化错误。新项目默认禁用 SFTP；旧项目更新时自动迁移可识别的 SFTP 启动路径（显式 custom 除外），保留连接参数。Python 依赖按带哈希锁文件单独安装，升级器不自动安装依赖。主机密钥与服务器原子替换兼容要求见 [SFTP runtime](../../vendor/sftp-server/README.md)。这不提供无 SFTP 服务器的上传替代通道。
 
-CLS 编码与 Review 共用[命名与格式规范](references/cls-coding-format.md)：用户明确要求、项目显式规范、框架默认值依次适用；历史代码只提供业务与兼容证据。Agent 检查命名和表达式，可选脚本只检查成员边界和 EOF，不作为提交门禁。
+CLS 编码与 Review 共用[命名与格式规范](references/cls-coding-format.md)：用户明确要求、项目显式规范、框架默认值依次适用；历史代码只提供业务与兼容证据。格式化仅处理本次真正新增代码，原有代码的功能修改不附带风格调整；diff 的 + 行不自动等同新增代码。Agent 检查命名和表达式，可选脚本只检查成员边界和 EOF，不作为提交门禁。
 
 CSP、HTML、JS、CSS 编码与 Review 共用[前端规范](references/frontend-coding-format.md)，默认 ES5、4 空格和双引号；CSP 按语言区域审查，模板区分通用语法与项目专属接入。复用现有 HISUI、编码、i18n 和接口规则，不新增格式化器或门禁。
 
 [可选 JS 页面模板](templates/javascript-page-template.md)分别说明普通页面与闭包页面的适用条件、唯一初始化入口和可选生命周期；不将医生站 helper 作为所有前端的依赖。
 
-0.15.5 通过普通能力包更新分发，无配置迁移、业务代码迁移或旧文件清理。无需安装全局 formatter；不自动同步真实业务工程。独立 Review 由调用方传入统一规范及项目覆盖，无子 Agent 时串行复核。
+0.15.6 通过普通能力包更新分发，无配置迁移、业务代码迁移或旧文件清理。无需安装全局 formatter；不自动同步真实业务工程。独立 Review 由调用方传入统一规范及项目覆盖，无子 Agent 时串行复核。
 
 `coding-iris-plugin` 是面向 IRIS/ObjectScript/CSP/JavaScript/HISUI 工程的通用 Agent 编码能力包。
 

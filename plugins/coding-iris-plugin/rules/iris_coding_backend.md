@@ -9,7 +9,7 @@ related:
 
 # 后端 ObjectScript 编码规则
 
-修改前读取[CLS 命名与格式规范](../references/cls-coding-format.md)，最终 diff 后按其中清单复核；编码与 Review 共用该事实源。已有类仅规范本次编辑位置，可选自检只提示，不作为提交门禁。
+修改前读取[CLS 命名与格式规范](../references/cls-coding-format.md)，最终 diff 后按其中清单复核；编码与 Review 共用该事实源。已有类仅规范本次新增代码，原有代码的功能修改不附带格式化，可选自检只提示，不作为提交门禁。
 
 ## 技术栈
 

@@ -5,7 +5,7 @@ description: Implement or modify IRIS CSP, JavaScript, CSS, or HISUI frontend co
 
 # IRIS Frontend Coding
 
-修改 CSP、HTML、JS、CSS 前读取[前端命名与格式规范](../../references/frontend-coding-format.md)，最终 diff 后按同一规范复核。明确项目覆盖与 JS 兼容基线，历史代码不自动成为风格标准。
+修改 CSP、HTML、JS、CSS 前读取[前端命名与格式规范](../../references/frontend-coding-format.md)，最终 diff 后按同一规范复核。明确项目覆盖与 JS 兼容基线；格式规范只用于本次新增代码，原有代码的功能修改不附带格式化，历史代码不自动成为风格标准。
 
 ## Legacy GB2312 Promotion Routing
 
