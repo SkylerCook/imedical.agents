@@ -237,8 +237,7 @@ function formatDbReminder(db, dateRange, memberMap, admins) {
     newStCodes: c.newStCodes || 0,
     configItems: c.configItems || 0,
     reminders: c.reminders || 0,
-    cacheConfigs: c.cacheConfigs || 0,
-    cacheFirstUse: c.cacheFirstUse || 0
+    cacheConfigs: c.cacheConfigs || 0
   };
   const total = counts.poChanges + counts.newStCodes + counts.configItems + counts.reminders + counts.cacheConfigs;
   const range = dateRange ? `（${dateRange.label}）` : '';
@@ -249,7 +248,7 @@ function formatDbReminder(db, dateRange, memberMap, admins) {
   lines.push(`  数据结构修改（PO）：${counts.poChanges} 处`);
   lines.push(`  新增系统标准配置：${counts.newStCodes + counts.configItems} 项（新增 ST_CODE ${counts.newStCodes} / 配置项 ${counts.configItems}）`);
   lines.push(`  新增系统标准提醒：${counts.reminders} 条`);
-  lines.push(`  新增代码表缓存配置：${counts.cacheConfigs} 项（PO 首用 ${counts.cacheFirstUse}）`);
+  lines.push(`  新增代码表缓存配置：${counts.cacheConfigs} 项`);
   const details = [];
   for (const r of db.reminders || []) {
     const code = r.resolvedCode || `${r.expr}+${r.codeSuffix}`;
@@ -270,9 +269,7 @@ function formatDbReminder(db, dateRange, memberMap, admins) {
     details.push({ text: `  · 配置 ${it.stCode || it.stCodeRaw} / ${it.itemCode}`, author: it.author });
   }
   for (const cc of db.cacheConfigs || []) {
-    if (cc.firstUse) {
-      details.push({ text: `  · 缓存首用 ${cc.poClass}（${cc.method}）`, author: cc.author });
-    }
+    details.push({ text: `  · 缓存首用 ${cc.poClass}（${cc.method}）`, author: cc.author });
   }
   lines.push('—— 明细 ——');
   const DETAIL_CAP = 15;

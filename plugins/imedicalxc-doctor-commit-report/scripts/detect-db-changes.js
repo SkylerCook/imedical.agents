@@ -15,7 +15,9 @@
  *                   XxxConstants.BUSINESS_CODE + "NNN"或字母数字后缀, "msg")；
  *                   硬编码错误码（"500"/"-1000"）与 e.getCode() 透传不属于字典表标准提醒
  *   5. cacheConfigs 新增代码表缓存配置：新增 DocCacheUtils.getByKey/batchByXXX(XxxPO.class)
- *                   调用，并检查该 PO 是否首次作为缓存读取对象使用
+ *                   调用，且该 PO 首次作为缓存读取对象使用（缓存按 PO 维护，同一 PO 的
+ *                   其他方法调用共享既有配置）；已有历史用法（父提交/其他仓库）的复用调用
+ *                   归入 cacheReuses，仅存档、不列入提醒
  *
  * 用法：node detect-db-changes.js <raw-commits-YYYY-MM.json>
  * 输出：同目录 db-changes-<label>.json（UTF-8 无 BOM）+ 控制台摘要
@@ -527,12 +529,13 @@ async function main() {
   });
   await Promise.all(workers);
 
-  const agg = { poChanges: [], newStCodes: [], configItems: [], reminders: [], cacheConfigs: [] };
+  const agg = { poChanges: [], newStCodes: [], configItems: [], reminders: [], cacheConfigs: [], cacheReuses: [] };
   let javaCommits = 0;
   for (const r of results) {
     if (!r) continue;
     javaCommits += 1;
-    for (const k of Object.keys(agg)) agg[k].push(...r[k]);
+    for (const k of ['poChanges', 'newStCodes', 'configItems', 'reminders']) agg[k].push(...r[k]);
+    for (const c of r.cacheConfigs) (c.firstUse ? agg.cacheConfigs : agg.cacheReuses).push(c);
   }
   const byDate = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.hash < b.hash ? -1 : 1);
   for (const k of Object.keys(agg)) agg[k].sort(byDate);
@@ -550,7 +553,7 @@ async function main() {
         configItems: agg.configItems.length,
         reminders: agg.reminders.length,
         cacheConfigs: agg.cacheConfigs.length,
-        cacheFirstUse: agg.cacheConfigs.filter((c) => c.firstUse).length
+        cacheReuses: agg.cacheReuses.length
       }
     },
     ...agg,
@@ -566,7 +569,7 @@ async function main() {
   console.log(`新增 ST_CODE: ${agg.newStCodes.length} 条`);
   console.log(`新增配置项: ${agg.configItems.length} 条`);
   console.log(`新增系统标准提醒: ${agg.reminders.length} 条`);
-  console.log(`新增缓存配置: ${agg.cacheConfigs.length} 条（其中 PO 首次使用: ${output.meta.counts.cacheFirstUse} 条）`);
+  console.log(`新增缓存配置: ${agg.cacheConfigs.length} 条（仅 PO 首次使用；既有缓存复用 ${agg.cacheReuses.length} 条不计入提醒）`);
   if (errors.length > 0) {
     console.log(`检测错误: ${errors.length} 条`);
     for (const e of errors) console.log(`  ${e.repo} ${e.hash}: ${e.error}`);
