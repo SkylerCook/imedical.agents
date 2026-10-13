@@ -2,6 +2,7 @@
 const fs=require('node:fs'), path=require('node:path'), os=require('node:os'), crypto=require('node:crypto');
 const {spawnSync}=require('node:child_process');
 const {needsInput,decisionError}=require('./deploy-question');
+const {verifiedPut}=require('./sftp-worker');
 const digest=x=>crypto.createHash('sha256').update(x).digest('hex');
 const hash=x=>x===null?null:digest(x);
 class Attention extends Error { constructor(reason,details={}) {super(reason); this.reason=reason; this.details=details;} }
@@ -146,7 +147,7 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
  fs.mkdirSync(loc.dir,{recursive:true,mode:0o700});
  const lock=path.join(loc.dir,'lock'); let fd;
  try{fd=fs.openSync(lock,'wx',0o600);}catch{stop('session-busy-or-interrupted');}
- let state,targetState,before,attempt=false,recoveryObservations;
+ let state,targetState,before,attempt=false,recoveryObservations,activeFile;
  try {
   state=read(loc.file);
   if(state.closed)stop('session-closed');
@@ -182,6 +183,7 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
   before=snapshot(repo,files);
   const prepared=[];let decisionApplied=false;
   for(const f of files) {
+   activeFile=f;
    const raw=await adapter.read(f), remote=text(raw), local=text(fs.readFileSync(f.localPath));
    if(recoveryObservations){const observed=recoveryObservations.find(x=>x[0]===f.remotePath);if(observed[1]!==hash(raw)||observed[2]!==hash(fs.readFileSync(f.localPath)))stop('recovery-confirmation-expired',{file:f.relative});}
    const base=baseline(repo,state.base,f.relative), previous=targetState.files[f.remotePath];
@@ -197,23 +199,29 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
   }
   if(['merge','overwrite'].includes(decision?.action)&&!decisionApplied)stop('decision-expired');
   // Preflight the complete batch before the first write.
-  for(const f of prepared)if(hash(await adapter.read(f))!==f.expected)stop('remote-changed-before-upload',{file:f.relative});
+  for(const f of prepared){activeFile=f;if(hash(await adapter.read(f))!==f.expected)stop('remote-changed-before-upload',{file:f.relative});}
+  activeFile=undefined;
   if(JSON.stringify(snapshot(repo,files))!==JSON.stringify(before))stop('local-source-changed');
   targetState.status='writing'; write(loc.file,state); attempt=true;
   for(const f of prepared) {
+   activeFile=f;
    if(hash(await adapter.read(f))!==f.expected)stop('remote-changed-before-upload',{file:f.relative});
-   if(!f.skip)await adapter.put(f);
-   if(text(await adapter.read(f))!==f.content)stop('readback-mismatch',{file:f.relative});
+   const evidence=f.skip?undefined:await adapter.put(f);
+   if(!verifiedPut(evidence,f,hash) && text(await adapter.read(f))!==f.content)stop('readback-mismatch',{file:f.relative});
+   adapter.record?.(f,f.skip?'unchanged':'uploaded');
    // Persist each successful write; failure cannot silently reset merge history.
    targetState.files[f.remotePath]={local:f.local,deployed:f.content,merged:f.merged};
    write(loc.file,state);
   }
+  activeFile=undefined;
   await adapter.compile(prepared);
-  for(const f of prepared)if(text(await adapter.read(f))!==f.content)stop('post-compile-source-changed',{file:f.relative});
+  for(const f of prepared){activeFile=f;if(text(await adapter.read(f))!==f.content)stop('post-compile-source-changed',{file:f.relative});}
+  activeFile=undefined;
   if(JSON.stringify(snapshot(repo,files))!==JSON.stringify(before))stop('local-source-changed');
   targetState.status='verified'; delete targetState.attention; delete targetState.pending; write(loc.file,state);
   return {status:'verified',files:prepared.map(f=>({file:f.relative,sha256:hash(f.bytes),merged:f.merged,status:f.skip?'unchanged':'uploaded'})),sourceUnchanged:true};
  }catch(e){
+  adapter.recordFailure?.(activeFile,e);
   let sourceUnchanged;
   if(before){try{sourceUnchanged=JSON.stringify(snapshot(repo,files))===JSON.stringify(before);}catch{sourceUnchanged=false;}}
   const result=needsInput(e instanceof Attention?e.reason:'transport-or-compile-failed',e instanceof Attention?e.details:{},{sourceUnchanged,partialOrUnknown:attempt,stateFile:loc.file});

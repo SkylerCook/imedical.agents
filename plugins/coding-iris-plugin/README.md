@@ -253,7 +253,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 
 缺少必要配置时脚本应直接报错，避免静默拼出错误路径。
 
-前端上传加编译固定使用 `scripts/iris-tools/deploy-frontend.js`：单连接差异上传、哈希回读后批量 Atelier 编译；失败停止，不临时生成脚本或自动换通道。参数及耗时口径见 `scripts/iris-tools/README.md`。
+前端上传加编译固定使用 `scripts/iris-tools/deploy-frontend.js`：direct/guarded 共用单连接传输，逐文件最终目标校验通过后批量 Atelier 编译；失败停止，不临时生成脚本或自动换通道。参数及耗时口径见 `scripts/iris-tools/README.md`。
 
 ## 开发部署与可选基线保护
 

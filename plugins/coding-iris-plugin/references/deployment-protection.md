@@ -62,7 +62,7 @@ Git 提交只依据业务工作区；合并服务器内容后的运行结果应�
 
 `node --test plugins/coding-iris-plugin/scripts/iris-tools/tests/deploy-guard.test.cjs` 使用临时 Git 仓库与模拟远端。真实服务验证仅限另行授权的独立测试文件/类，不自动上传业务文件。
 
-后端更新携带导出结果 ts 的 IF-NONE-MATCH 条件，不设置 ignoreConflict；实现依据 [InterSystems VS Code ObjectScript 客户端](https://github.com/intersystems-community/vscode-objectscript/blob/master/src/api/index.ts)。前端采用上传前哈希复核及原子替换；两者仍不能阻止随后发生的其它工具写入。
+后端更新携带导出结果 ts 的 IF-NONE-MATCH 条件，不设置 ignoreConflict；实现依据 [InterSystems VS Code ObjectScript 客户端](https://github.com/intersystems-community/vscode-objectscript/blob/master/src/api/index.ts)。前端采用上传前及临时文件上传完成后的目标哈希复核，再原子替换并立即校验最终目标。direct/guarded 共用传输实现，每次执行一条连接；guarded 保留编译后检查。哈希检查与 rename 之间仍有竞争窗口，不能宣称原子条件写入；两者仍不能阻止随后发生的其它工具写入。逐文件结果、耗时和强杀清理边界见[工具说明](../scripts/iris-tools/README.md)。
 
 ## Question 能力兼容
 

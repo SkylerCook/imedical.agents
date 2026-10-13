@@ -46,3 +46,33 @@ test('execution and trust must be explicit',()=>{
  assert.throws(()=>parse(['--files','a.js','--host-key-sha256','invalid']));
  assert.throws(()=>parse(['--files','a.js','--known-hosts','hosts','--host-key-sha256','SHA256:'+'A'.repeat(43)]));
 });
+
+test('direct frontend adapter batches once through the existing worker',async()=>{
+ const frontend=require('../deploy-frontend');
+ const {frontendAdapter}=require('../deploy-protected');
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'frontend-routing-'));
+ const original=frontend.uploadBatch;
+ try {
+  fs.mkdirSync(path.join(root,'css'));fs.writeFileSync(path.join(root,'css/page.css'),'body{}');
+  let calls=0;
+  frontend.uploadBatch=async(command,worker,env,plan)=>{
+   calls++;assert.match(worker,/upload-batch\.py$/);assert.equal(env.LOCAL_PATH,root);
+   return {status:'verified',files:plan.files.map(f=>({file:f.file,sha256:f.sha256,status:'unchanged'}))};
+  };
+  const adapter=frontendAdapter({mode:'direct',sourceRoot:root,files:['css/page.css']}, {},
+   {mcpServers:{'sftp-server':{command:'python',env:{REMOTE_PATH:'/web'}}}},
+   {workspaceRoot:root,sourceRoots:[{target:root}]});
+  assert.equal((await adapter.batch()).status,'verified');assert.equal(calls,1);assert.equal(adapter.read,undefined);
+ }finally{frontend.uploadBatch=original;fs.rmSync(root,{recursive:true,force:true});}
+});
+
+test('batch routing preserves JavaScript syntax preflight before connecting',()=>{
+ const {frontendAdapter}=require('../deploy-protected');
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'frontend-syntax-'));
+ try {
+  fs.mkdirSync(path.join(root,'scripts'));fs.writeFileSync(path.join(root,'scripts/page.js'),'const = ;');
+  assert.throws(()=>frontendAdapter({mode:'direct',sourceRoot:root,files:['scripts/page.js']},{},
+   {mcpServers:{'sftp-server':{command:'python',env:{REMOTE_PATH:'/web'}}}},
+   {workspaceRoot:root,sourceRoots:[{target:root}]}),e=>e.reason==='javascript-syntax-failed');
+ }finally{fs.rmSync(root,{recursive:true,force:true});}
+});

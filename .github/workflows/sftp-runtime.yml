@@ -25,3 +25,6 @@ jobs:
       - run: node --test plugins/coding-iris-plugin/scripts/iris-tools/tests/sftp-config.test.js
       - run: node --test plugins/coding-iris-plugin/scripts/iris-tools/tests/compile-csp.test.js
       - run: node --test plugins/coding-iris-plugin/scripts/iris-tools/tests/deploy-frontend.test.js
+      - run: node --test plugins/coding-iris-plugin/scripts/iris-tools/tests/sftp-cli.test.cjs plugins/coding-iris-plugin/scripts/iris-tools/tests/sftp-worker.test.cjs
+        env:
+          SFTP_TEST_PYTHON: python

@@ -7,6 +7,7 @@ import shlex
 import stat
 import time
 import uuid
+from contextlib import nullcontext
 
 
 def ignored(relative, patterns):
@@ -110,7 +111,9 @@ class Operations:
             result.update(chunk)
         return result.hexdigest()
 
-    def transfer(self, sftp, source, target):
+    def transfer(self, sftp, source, target, *, before_replace=None, expected_sha256=None,
+                 phase=None, replacing=None, temporary_event=None):
+        phase = phase or (lambda name: nullcontext())
         self.check_remote(sftp, target)
         try:
             previous = sftp.lstat(target)
@@ -123,8 +126,10 @@ class Operations:
         try:
             before = os.stat(source)
             # Exclusive creation prevents overwriting someone else's temporary file.
-            with sftp.file(temporary, "wx") as output:
+            with phase('upload'), sftp.file(temporary, "wx") as output:
                 owned = True
+                if temporary_event:
+                    temporary_event(temporary, True)
                 with open(source, "rb") as data:
                     digest = hashlib.sha256()
                     while chunk := data.read(1024 * 1024):
@@ -133,24 +138,39 @@ class Operations:
             after = os.stat(source)
             if (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
                 raise ValueError("Local file changed during upload")
-            with sftp.file(temporary, "rb") as data:
+            if expected_sha256 is not None and digest.hexdigest() != expected_sha256:
+                raise ValueError("Artifact changed before replacement")
+            with phase('temporary-verify'), sftp.file(temporary, "rb") as data:
                 if self.digest(data) != digest.hexdigest():
                     raise ValueError("Remote SHA-256 verification failed")
             sftp.utime(temporary, (int(before.st_atime), int(before.st_mtime)))
             if previous:
                 sftp.chmod(temporary, stat.S_IMODE(previous.st_mode))
             self.check_remote(sftp, target)
+            if before_replace:
+                before_replace()
             # Requires OpenSSH posix-rename; no delete-then-rename/direct-write fallback.
+            if replacing:
+                replacing()
             sftp.posix_rename(temporary, target)
             owned = False
+            if temporary_event:
+                temporary_event(temporary, False)
             return {"status": "uploaded", "size": before.st_size, "sha256": digest.hexdigest()}
         finally:
             if owned:
                 # Remove only this call's exclusively created temporary path.
                 try:
                     sftp.remove(temporary)
+                    if temporary_event:
+                        temporary_event(temporary, False)
                 except FileNotFoundError:
-                    pass  # A completed rename may have lost its response; never retry the write.
+                    if temporary_event:
+                        temporary_event(temporary, False)
+                except OSError:
+                    if not temporary_event:
+                        raise
+                    # Keep the owned path in private recovery evidence; never reconnect for cleanup.
 
     def upload(self, args):
         source = self.local(args["local_file_path"])

@@ -3,7 +3,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const {spawn} = require('node:child_process');
 const {performance} = require('node:perf_hooks');
 const {resolveWorkspaceContext, validateWorkspaceContext} = require('../../../../scripts/lib/workspace-context');
 const csp = require('./compile-csp');
@@ -56,25 +55,19 @@ function buildPlan(args, config, env, context) {
   return {schema:'iris-frontend-deploy/v1',status:'planned',sourceRoot:root,files,documents:files.map(f=>f.document).filter(Boolean)};
 }
 
-function uploadBatch(python, worker, env, plan) {
-  return new Promise((resolve,reject)=>{
-    const child=spawn(python,['-B',worker],{cwd:env.CODEX_WORKSPACE,env:{...process.env,...env,PYTHONDONTWRITEBYTECODE:'1',ALLOW_REMOTE_COMMANDS:'false'},stdio:['pipe','pipe','pipe'],windowsHide:true});
-    let output='',errorBytes=0;
-    const deadline=setTimeout(()=>{child.kill();reject(new Error('Upload deadline exceeded; outcome unknown'));},300000);
-    child.stdout.on('data',chunk=>{output+=chunk;if(Buffer.byteLength(output)>4*1024*1024){child.kill();reject(new Error('Worker output too large'));}});
-    child.stderr.on('data',chunk=>{errorBytes+=chunk.length;}); // Never print credentials from third-party diagnostics.
-    child.stdin.on('error',()=>{});
-    child.on('error',error=>{clearTimeout(deadline);reject(error);});
-    child.on('close',code=>{
-      clearTimeout(deadline);
-      try {
-        const result=JSON.parse(output);
-        if(code!==0 && result.status==='verified')throw new Error('Worker failed after upload');
-        resolve(result);
-      } catch {reject(new Error(errorBytes?'Upload worker failed; check interpreter/dependencies and server state':'Invalid worker response'));}
-    });
-    child.stdin.end(JSON.stringify({files:plan.files}));
-  });
+async function uploadBatch(python, worker, env, plan) {
+    const session = require('./sftp-worker').createSession(python, worker, env, {timeoutMs: 300000});
+    try {
+        const result = await session.request({files: plan.files});
+        return {...result, transport: session.stats};
+    } catch (error) {
+        return {status: 'upload-failed', failedStage: 'worker', transport: error.transport || session.stats,
+            files: plan.files.map((file, index) => error.fileResults?.get(index) || {
+                file: file.file, status: index === error.activeIndex ? 'failed-or-unknown' : 'not-executed'
+            })};
+    } finally {
+        await session.close();
+    }
 }
 
 async function execute(plan, upload, compile) {
@@ -84,7 +77,8 @@ async function execute(plan, upload, compile) {
     const sent=await upload(plan);
     result.timings.uploadVerifyMs=Math.round(performance.now()-tick);
     result.files=sent.files || [];
-    if(sent.status!=='verified')return {...result,status:'upload-failed',errorType:sent.errorType};
+    if (sent.transport) result.transport = sent.transport;
+    if(sent.status!=='verified')return {...result,status:'upload-failed',failedStage:sent.failedStage,failedFile:sent.failedFile,errorType:sent.errorType};
     // Only complete, ordered evidence for every planned file permits compilation.
     if(result.files.length!==plan.files.length || result.files.some((f,i)=>f.file!==plan.files[i].file || f.sha256!==plan.files[i].sha256 || !['uploaded','unchanged'].includes(f.status)))throw new Error('Incomplete upload verification');
     if(plan.documents.length) {

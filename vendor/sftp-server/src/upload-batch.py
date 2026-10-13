@@ -1,59 +1,66 @@
-"""Private stdio worker for deploy-frontend.js; not an independent deployment API."""
+"""Private batch adapter; shared protected transport owns writes and verification."""
 import json
 import sys
 import time
-from main import operations
+from main import operations, connection
+from deployment import Deployment, serve
 
 
-def run(payload, ops):
+def run(payload, ops, transport=None):
     items = payload['files']
     if not isinstance(items, list) or not items:
         raise ValueError('A nonempty file plan is required')
-    # All local validation precedes network writes.
-    for item in items:
-        source = ops.local(item['localPath'])
-        ops.remote(item['remotePath'])
-        with open(source, 'rb') as stream:
-            if ops.digest(stream) != item['sha256']:
-                raise ValueError('Local source changed since planning')
-    sftp = ops.get_sftp()
-    for item in items:
-        ops.check_remote(sftp, item['remotePath'])
-    result = {'status': 'verified', 'files': []}
-    for item in items:
-        start = time.monotonic()
-        try:
-            unchanged = False
-            try:
-                with sftp.file(item['remotePath'], 'rb') as stream:
-                    unchanged = ops.digest(stream) == item['sha256']
-            except FileNotFoundError:
-                pass
-            if not unchanged:
-                uploaded = ops.upload({'local_file_path': item['localPath'], 'remote_file_path': item['remotePath']})
-                if uploaded['sha256'] != item['sha256']:
-                    raise ValueError('Local source changed during deployment')
-                with sftp.file(item['remotePath'], 'rb') as stream:
-                    if ops.digest(stream) != item['sha256']:
-                        raise ValueError('Final remote readback mismatch')
-            result['files'].append({'file': item['file'], 'status': 'unchanged' if unchanged else 'uploaded',
-                                    'sha256': item['sha256'], 'elapsedMs': round((time.monotonic()-start)*1000)})
-        except Exception as error:
-            result['status'] = 'upload-failed'
-            result['files'].append({'file': item['file'], 'status': 'failed-or-unknown', 'errorType': type(error).__name__})
-            break
+    transport = transport or Deployment(ops)
+    transport.total = len(items)
+    result = {'status': 'verified', 'files': [dict(file=item['file'], status='not-executed') for item in items]}
+    started = time.monotonic()
+    index, stage = 0, 'local-check'
+    try:
+        destinations = set()
+        for index, item in enumerate(items):
+            transport.index = index + 1
+            target = ops.remote(item['remotePath'])
+            if target in destinations:
+                raise ValueError('Duplicate destination')
+            destinations.add(target)
+            transport.check_local(item)
+        stage = 'compare'
+        baseline = []
+        for index, item in enumerate(items):
+            transport.index = index + 1
+            baseline.append(transport.read(item['remotePath'], validate_text=True))
+        for index, item in enumerate(items):
+            transport.index = index + 1
+            stage = 'upload-verify'
+            unchanged = baseline[index] == item['sha256']
+            if unchanged:
+                transport.check_local(item)
+                if transport.read(item['remotePath'], 'final-verify') != item['sha256']:
+                    raise ValueError('Unchanged file changed since comparison')
+            else:
+                transport.put(item, baseline[index])
+            result['files'][index] = dict(file=item['file'], status='unchanged' if unchanged else 'uploaded',
+                                         sha256=item['sha256'], verified=True)
+            transport.emit(dict(type='file-result', index=index, result=result['files'][index]))
+    except Exception as error:
+        result.update(status='upload-failed', failedStage=stage, failedFile=items[index]['file'],
+                      errorType=type(error).__name__)
+        result['files'][index] = dict(file=items[index]['file'], status=getattr(error, 'status', 'failed'),
+                                     reason=getattr(error, 'reason', 'preflight-or-verification-failed'))
+    result['elapsedMs'] = round((time.monotonic() - started) * 1000)
+    result['transport'] = transport.evidence()
     return result
 
 
 if __name__ == '__main__':
-    # operations() uses the same lazy, bounded Connection as the MCP server.
-    from main import connection
     try:
-        result = run(json.load(sys.stdin), operations())
-    except Exception as error:
-        result = {'status': 'upload-failed', 'errorType': type(error).__name__,
-                  'message': 'Check source paths, Python dependencies, configured roots and trusted SSH key; no retry made'}
+        ops = operations()
+        transport = Deployment(ops)
+        if '--session' in sys.argv:
+            serve(lambda payload: run(payload, ops, transport), transport, connection, sys.stdin, sys.stdout)
+        else:
+            result = run(json.load(sys.stdin), ops, transport)
+            print(json.dumps(result, ensure_ascii=True))
+            sys.exit(0 if result['status'] == 'verified' else 1)
     finally:
         connection.close()
-    print(json.dumps(result, ensure_ascii=False))
-    sys.exit(0 if result['status'] == 'verified' else 1)

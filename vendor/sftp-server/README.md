@@ -58,4 +58,4 @@ Offline tests cover failed atomic writes, cleanup, path boundaries, Windows igno
 
 ## 固定部署工作进程
 
-`src/upload-batch.py` 是插件 `deploy-frontend.js` 的私有 stdio 工作进程，复用同一连接，按清单比较/上传/回读，失败停止。调用方不应直接生成替代脚本。`TARGET_HOST_KEY_SHA256` 支持显式 SHA256 指纹校验，不持久化；与 `TARGET_KNOWN_HOSTS` 互斥。指纹模式不读取系统信任库，匹配失败在认证前拒绝连接。
+`src/upload-batch.py` 是 direct 批处理入口；`src/protected-file.py --session` 服务 guarded 持续会话，两者复用 `src/deployment.py`，每次执行只取一次 SFTP 连接。每文件上传后立即回读最终目标，失败停止后续文件，最后汇总证据。临时文件上传完毕、rename 前再查目标摘要；检查与 rename 之间仍有竞争窗口。单请求输入保持兼容，不自动重连或重试。耗时、状态和断线清理边界见[部署工具说明](../../plugins/coding-iris-plugin/scripts/iris-tools/README.md)。调用方不应直接生成替代脚本。`TARGET_HOST_KEY_SHA256` 支持显式 SHA256 指纹校验，不持久化；与 `TARGET_KNOWN_HOSTS` 互斥。指纹模式不读取系统信任库，匹配失败在认证前拒绝连接。

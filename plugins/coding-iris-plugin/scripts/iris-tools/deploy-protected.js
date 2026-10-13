@@ -1,6 +1,8 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),http=require('node:http'),https=require('node:https');
-const {spawn,spawnSync}=require('node:child_process');
+const {spawnSync}=require('node:child_process');
+const {performance}=require('node:perf_hooks');
+const {createSession}=require('./sftp-worker');
 const guard=require('./deploy-guard'),csp=require('./compile-csp');
 const {needsInput}=require('./deploy-question');
 const {resolveWorkspaceContext,validateWorkspaceContext}=require('../../../../scripts/lib/workspace-context');
@@ -60,17 +62,8 @@ function backendAdapter(conn){
   async compile(files){const r=await csp.compile(conn,{documents:files.map(f=>f.remotePath)});if(r.status!=='compiled')guard.stop('compile-failed',{compilation:r});return r;}
  };
 }
-function worker(command,workerPath,env,payload){
- return new Promise((resolve,reject)=>{
-  const child=spawn(command,['-B',workerPath],{env:{...process.env,...env},windowsHide:true,stdio:['pipe','pipe','pipe']});
-  let data=''; const timer=setTimeout(()=>{child.kill();reject(new Error('worker-deadline'));},60000);
-  child.stdout.on('data',x=>{data+=x;if(data.length>24*1024*1024)child.kill();});
-  child.stderr.resume();child.stdin.on('error',()=>{});
-  child.on('error',reject);child.on('close',code=>{clearTimeout(timer);try{const r=JSON.parse(data);if(code||r.status!=='verified')throw new Error();resolve(r);}catch{reject(new Error('worker-failed'));}});
-  child.stdin.end(JSON.stringify(payload));
- });
-}
 function frontendAdapter(a,config,mcp,context){
+ const preflightStarted=performance.now();
  const server=mcp.mcpServers?.[config.sftp?.serverName||'sftp-server'];
  if(!server||server.disabled)guard.stop('sftp-unavailable');
  const env={...server.env,CODEX_WORKSPACE:context.workspaceRoot,PYTHONDONTWRITEBYTECODE:'1',ALLOW_REMOTE_COMMANDS:'false'};
@@ -78,21 +71,71 @@ function frontendAdapter(a,config,mcp,context){
  if(a.knownHosts){if(a.fingerprint)guard.stop('conflicting-ssh-trust');env.TARGET_KNOWN_HOSTS=path.resolve(context.workspaceRoot,a.knownHosts);delete env.TARGET_HOST_KEY_SHA256;}
  const build=require('./deploy-frontend').buildPlan;
  const plan=build(a,config,env,context);
+ if(a.mode==='direct'){
+  for(const file of plan.files){
+   const content=guard.text(fs.readFileSync(file.localPath));
+   require('./deploy-direct').prepare(file.remotePath,content,null);
+  }
+  const frontend=require('./deploy-frontend');
+  env.LOCAL_PATH=plan.sourceRoot;
+  const batchPath=path.resolve(__dirname,'../../../../vendor/sftp-server/src/upload-batch.py');
+  const conn=plan.documents.length?csp.connection(config,mcp):null;
+  const localPreflightMs=Math.round(performance.now()-preflightStarted);
+  return {files:plan.files, async batch(){
+   const result=await frontend.execute(plan,p=>frontend.uploadBatch(a.python||server.command,batchPath,env,p),
+    documents=>csp.compile(conn,{documents}));
+   result.timings.localPreflightMs=localPreflightMs;
+   return result;
+  }};
+ }
+ const conn=plan.documents.length?csp.connection(config,mcp):null;
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'iris-deploy-artifacts-'));
  env.LOCAL_PATH=dir;
  const workerPath=path.resolve(__dirname,'../../../../vendor/sftp-server/src/protected-file.py');
- const call=payload=>worker(a.python||server.command,workerPath,env,payload);
- const conn=plan.documents.length?csp.connection(config,mcp):null;
- return {files:plan.files,target:JSON.stringify([env.TARGET_HOST,env.TARGET_PORT,env.REMOTE_PATH]),
+ const session=createSession(a.python||server.command,workerPath,env);
+ const timings={localPreflightMs:Math.round(performance.now()-preflightStarted)};
+ const results=plan.files.map(f=>({file:f.remotePath,status:'not-executed'}));
+ const call=async payload=>{
+     const index=plan.files.findIndex(f=>f.remotePath===payload.remotePath);
+     try {
+         const result=await session.request({...payload,fileIndex:index+1,total:plan.files.length});
+         if(result.status!=='verified') {
+             const error=new Error('SFTP operation failed');
+             error.fileStatus=result.fileStatus;
+             throw error;
+         }
+         return result;
+     } catch(error) {
+         error.fileStatus ||= 'failed-or-unknown';
+         if(results[index].status==='not-executed') results[index]={file:payload.remotePath,status:error.fileStatus||'failed-or-unknown'};
+         throw error;
+     }
+ };
+ return {files:plan.files,metrics:session.stats,timings,results,record(f,status){
+     const index=plan.files.findIndex(item=>item.remotePath===f.remotePath);
+     results[index]={file:f.remotePath,status,sha256:guard.hash(f.bytes),verified:true};
+ },recordFailure(f,error){
+     if(!f)return;
+     const index=plan.files.findIndex(item=>item.remotePath===f.remotePath);
+     if(index<0)return;
+     const previous=results[index];
+     if(previous.verified || previous.status==='not-executed')results[index]={file:f.remotePath,status:error.fileStatus||'failed',
+         reason:error.reason||'validation-failed',...(previous.verified?{previousVerification:previous}:{})};
+ },target:JSON.stringify([env.TARGET_HOST,env.TARGET_PORT,env.REMOTE_PATH]),
   async read(f){const r=await call({mode:'read',remotePath:f.remotePath});return r.content===null?null:Buffer.from(r.content,'base64');},
   async put(f){const localPath=path.join(dir,guard.digest(f.remotePath));fs.writeFileSync(localPath,f.bytes,{mode:0o600});
-   await call({mode:'put',remotePath:f.remotePath,localPath,expected:f.expected,sha256:guard.hash(f.bytes)});},
-  async compile(){if(conn){const r=await csp.compile(conn,{documents:plan.documents});if(r.status!=='compiled')guard.stop('compile-failed',{compilation:r});return r;}},
-  close(){fs.rmSync(dir,{recursive:true,force:true});}
+   return await call({mode:'put',remotePath:f.remotePath,localPath,expected:f.expected,sha256:guard.hash(f.bytes)});},
+  async compile(){
+      const started=performance.now();
+      try{if(conn){const r=await csp.compile(conn,{documents:plan.documents});if(r.status!=='compiled')guard.stop('compile-failed',{compilation:r});return r;}}
+      finally{timings.compileMs=Math.round(performance.now()-started);}
+  },
+  async close(){try{await session.close();}finally{fs.rmSync(dir,{recursive:true,force:true});}}
  };
 }
 async function main(kind,argv){
  let adapter;
+ const started=performance.now();
  try{
   const a=parse(argv),context=resolveWorkspaceContext(a.projectRoot);
   if(validateWorkspaceContext(context).some(r=>['manifest-invalid','schema-version-unsupported'].includes(r.status)))guard.stop('invalid-workspace-context');
@@ -114,7 +157,9 @@ async function main(kind,argv){
    target=JSON.stringify([conn.protocol,conn.hostname,conn.port,conn.path.replace(/action\/compile.*$/,'')]);
   }
   if(a.mode==='direct'){
-   const result=await require('./deploy-direct').run({files,adapter,kind});
+   const result=adapter.batch?await adapter.batch():await require('./deploy-direct').run({files,adapter,kind});
+   await adapter.close?.();
+   result.timings={...result.timings,totalMs:Math.round(performance.now()-started)};
    let output=JSON.stringify(result);
    for(const secret of [config.iris?.password,...Object.values(mcp.mcpServers||{}).map(s=>s.env?.IRIS_PASSWORD)])if(secret)output=output.split(JSON.stringify(secret).slice(1,-1)).join('[redacted]');
    console.log(output);if(result.status!=='verified')process.exitCode=1;
@@ -124,9 +169,13 @@ async function main(kind,argv){
   if(new Set(roots).size!==1)guard.stop('split-batch-by-repository');
   const decision=a.decision?guard.read(path.resolve(a.decision)):null;
   const result=await guard.run({repo:roots[0],demand:a.demand,files,target:kind+':'+target,adapter,decision});
+  await adapter.close?.();
+  if(adapter.metrics)result.transport=adapter.metrics;
+  if(adapter.results && !result.files)result.files=adapter.results;
+  result.timings={...result.timings,...adapter.timings,totalMs:Math.round(performance.now()-started)};
   console.log(JSON.stringify(result));if(result.status!=='verified')process.exitCode=1;
  }catch(e){console.log(JSON.stringify(needsInput(e.reason||'configuration-or-transport-failed',e.details||{})));process.exitCode=1;}
- finally{adapter?.close?.();}
+ finally{await adapter?.close?.();}
 }
-module.exports={main,parse,request,backendAdapter};
+module.exports={main,parse,request,backendAdapter,frontendAdapter};
 if(require.main===module)main('backend',process.argv.slice(2));

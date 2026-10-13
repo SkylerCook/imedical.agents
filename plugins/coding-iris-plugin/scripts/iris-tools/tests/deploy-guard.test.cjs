@@ -86,18 +86,19 @@ test('Atelier adapter uses isolated content and checks compile errors',async()=>
 test('Git update stops before remote access and batch conflict stops all writes',async()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'guard-batch-')),repo=path.join(dir,'repo');
  fs.mkdirSync(repo);const home=os.homedir;os.homedir=()=>dir;
- const git=(...a)=>{const r=spawnSync('git',['-C',repo,...a],{encoding:'utf8',timeout:5000});assert.equal(r.status,0,r.stderr);};
+ const git=(...a)=>{const r=spawnSync('git',['-C',repo,...a],{encoding:'utf8',timeout:60000,windowsHide:true});assert.ifError(r.error);assert.equal(r.status,0,r.stderr);};
  try{
   git('init');git('config','user.name','Test');git('config','user.email','test@example.invalid');
   for(const n of ['a.js','b.js'])fs.writeFileSync(path.join(repo,n),'// base\n');
   git('add','.');git('commit','-m','base');g.initialize(repo,'456','HEAD',true);
   const files=['a.js','b.js'].map(n=>({localPath:path.join(repo,n),remotePath:n}));
   for(const f of files)fs.writeFileSync(f.localPath,'// local\n');
-  let reads=0,writes=0;
-  const adapter={read:async f=>{reads++;return Buffer.from(f.remotePath==='b.js'?'// remote\n':'// base\n');},put:async()=>{writes++;},compile:async()=>{}};
+  let reads=0,writes=0;const failures=[];
+  const adapter={read:async f=>{reads++;return Buffer.from(f.remotePath==='b.js'?'// remote\n':'// base\n');},put:async()=>{writes++;},compile:async()=>{},recordFailure:f=>failures.push(f?.remotePath)};
   const opts={repo,demand:'456',files,target:'mock',adapter};
   assert.equal((await g.run({...opts,checkUpdates:()=>g.stop('git-upstream-update')})).reason,'git-upstream-update');assert.equal(reads,0);
   assert.equal((await g.run({...opts,checkUpdates:()=>{}})).reason,'merge-conflict');assert.equal(writes,0);
+  assert.deepEqual(failures,[undefined,'b.js']);
  }finally{os.homedir=home;fs.rmSync(dir,{recursive:true,force:true});}
 });
 

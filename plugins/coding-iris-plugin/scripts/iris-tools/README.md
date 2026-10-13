@@ -370,7 +370,7 @@ A:
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/deploy-frontend.js --source-root <frontend-root> --files <project-relative-file...> --execute
 ```
 
-`--source-root` 对应包含 `csp/`、`scripts/`、`css/` 的目录，映射到私有配置 `REMOTE_PATH`；省略时读取 SFTP 的 `LOCAL_PATH`。文件列表必须明确，CSP 虚拟路径取 `web.cspBasePath`。固定顺序：本地 UTF-8/路径/配置校验 → 按批次比较 SHA-256 并准备隔离产物 → 差异文件原子上传并回读 → 全部证据通过后一次 Atelier 编译指定 CSP。未变化 CSP 仍执行编译；JS/CSS 不触发编译。不自动扩展父页面，不重试、不切换通道；部分上传成功后失败不自动回滚。
+`--source-root` 对应包含 `csp/`、`scripts/`、`css/` 的目录，映射到私有配置 `REMOTE_PATH`；省略时读取 SFTP 的 `LOCAL_PATH`。文件列表必须明确，CSP 虚拟路径取 `web.cspBasePath`。direct 固定顺序：本地 UTF-8/语法/路径/配置校验 → 一次 SFTP 连接整批比较 SHA-256 → 仅差异文件原子上传并立即校验最终目标 → 汇总全部逐文件证据 → 一次 Atelier 编译指定 CSP。保留上传前本地与远端变化检查，并在临时文件上传完成、替换前再次检查远端摘要；连接中断即停止，不重新连接。未变化 CSP 仍执行编译；JS/CSS 不触发编译。不自动扩展父页面，不重试、不切换通道；部分上传成功后失败不自动回滚。
 
 Python 默认使用 `.mcp.json` 对应 SFTP 的 `command`，可用 `--python <interpreter>` 明确覆盖；解释器须已安装 vendor 锁定依赖。可信主机密钥使用配置或 `--known-hosts <file>`；本次明确核实的指纹可用 `--host-key-sha256 <SHA256:fingerprint>`，不写入信任库，不自动接受未知密钥。两个参数互斥。
 
@@ -383,3 +383,15 @@ Python 默认使用 `.mcp.json` 对应 SFTP 的 `command`，可用 `--python <in
 日常开发部署默认 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留编码、Storage、并发变化、回读和编译检查。需要三方合并时显式使用 `--mode guarded --demand <id>` 并建立会话。旧命令仅带 `--demand` 继续使用 guarded。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 只生成本地计划。
 
 部署 Question 兼容：停止结果提供工具无关 question 协议，固定决定代码；Agent 按能力采用选项或文字确认。暂停/查看/无效决定不写入。详见 references/deployment-protection.md。
+
+部署传输治理（0.15.8）：direct 保留批处理，guarded 保留 Git 基线、三方合并、逐文件持久化和编译后检查；两者共用 vendor `deployment.py` 与 `Operations.transfer`。guarded 在一次执行内保持一个 Python 会话和一条 SFTP 连接，最终目标摘要由 worker 返回供外层复用，不再为同阶段验证启动进程回读。旧单请求 worker 输入仍可用；不新增 Python 依赖或远端 Shell 权限。
+
+结果中 `uploaded` 表示最终目标已校验，`unchanged` 表示本次摘要确认相同且零写入；`failed` 表示已确认的失败，`failed-or-unknown` 表示替换可能发生但结果无法确认，`not-executed` 表示未执行。每个计划文件仅一条结果，保留已成功取得的证据；这不是服务器持续不变的承诺。失败停止，不自动重试或回滚。guarded 编译后检查继续独立执行。
+
+耗时先看 `timings.totalMs`（本次 CLI main 入口至连接/本地临时文件清理结束），再看 `localPreflightMs`、`uploadVerifyMs`、`compileMs` 及 `transport.startupMs`、`transport.timings`。worker-start 包含 Python 启动与模块导入；connect 包含 SSH 握手/认证和 SFTP 打开；compare、before-upload、before-replace、upload、temporary-verify、final-verify 分别计时。各字段存在包含关系，不可简单相加。用户等待、工具修复及多次命令累计另计，不能用单批上传时间替代。
+
+`transport.counts` 记录连接尝试数、文件读/写打开尝试数和应用层成功读取/写入字节数（不含协议开销；中断时可能只是已确认下界）。stderr 逐行 JSON 进度只包含文件序号、总数、阶段及耗时；stdout 保持单个最终 JSON，不输出源码和凭据。强杀时保留已收到的逐文件证据和本次已知临时路径，未完成结果保守标为不明。
+
+替换前摘要检查与 rename 之间仍有竞争窗口，不是原子条件写入。正常及可处理异常会关闭连接、清理本次临时文件；断线或强杀不能保证 finally 执行。`transport.cleanupPending` 是需要人工核实的本次远端临时路径；恢复先检查最终目标和临时文件实际状态，不能依据名字批量删除或盲目补传。
+
+已部署工程通过正常能力包更新同时取得插件脚本及完整 `vendor/sftp-server/src/`，不可只复制一个入口；无配置/状态迁移和旧文件清理。源仓修改不会自动更新业务副本，也不要求重新部署已完成的业务文件。
