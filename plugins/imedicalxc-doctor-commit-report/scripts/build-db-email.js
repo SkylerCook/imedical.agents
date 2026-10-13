@@ -89,7 +89,7 @@ function buildEmailMd(db) {
   lines.push('');
   lines.push('### 3. 新增系统标准配置');
   lines.push('');
-  lines.push('公司标准库 demo → 打开【系统标准配置】菜单，筛选指定配置项导出，导入项目现场。');
+  lines.push('公司标准库 demo → 打开【系统标准配置】菜单，筛选指定配置项导出，导入项目现场。请勿直接维护，请使用导入功能，防止出现维护错误。');
   lines.push('');
   lines.push('### 4. 新增代码表缓存配置');
   lines.push('');
@@ -170,11 +170,11 @@ function buildEmailHtml(db) {
   lines.push(`    <h4 style="${h4Style}">2. 新增系统标准提醒</h4>`);
   lines.push('    <p style="margin: 0 0 10px;">公司标准库 demo → 打开菜单【系统提醒信息】，参照代码信息进行数据维护。</p>');
   lines.push(`    <h4 style="${h4Style}">3. 新增系统标准配置</h4>`);
-  lines.push('    <p style="margin: 0 0 10px;">公司标准库 demo → 打开【系统标准配置】菜单，筛选指定配置项导出，导入项目现场。</p>');
+  lines.push('    <p style="margin: 0 0 10px;">公司标准库 demo → 打开【系统标准配置】菜单，筛选指定配置项导出，导入项目现场。请勿直接维护，请使用导入功能，防止出现维护错误。</p>');
   lines.push(`    <h4 style="${h4Style}">4. 新增代码表缓存配置</h4>`);
   lines.push('    <p style="margin: 0 0 10px;">公司标准库 demo → 打开【代码表缓存管理】，参照代码信息进行数据维护。</p>');
   lines.push('');
-  lines.push('    <p style="margin: 26px 0 0; padding-top: 12px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #999999;">本邮件由医生站提交记录汇总流程自动生成，请勿直接回复。</p>');
+  lines.push('    <p style="margin: 26px 0 0; padding-top: 12px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #999999;">本邮件由医生站信创产品迭代周报流程自动生成，请勿直接回复。</p>');
   lines.push('  </div>');
   lines.push('</body>');
   lines.push('</html>');
