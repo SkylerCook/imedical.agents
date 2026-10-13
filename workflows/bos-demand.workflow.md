@@ -10,15 +10,17 @@
 
 ## 调查、领域路由与实现
 
+简单局部需求由当前 Agent 连续完成定位、修改、最终 diff 自查和目标验证，可合并步骤。风险深度沿用目标项目或领域规则；跨边界、根因不明或高风险时补充对应调查与验证，正式协作另按下节触发条件选择。
+
 1. 检查真实 GitRoot 的 staged/unstaged/untracked 和路径边界；SourceRoot、Junction 或 manifest 不符时停止写入。确认修复点在范围外则完成只读取证并报告目标、原因和影响，获得具体范围授权后再写。
 2. 定位入口、调用链、复用能力和根因，明确修改范围、实现方案与验收条件。资料不足时补充调查；简单局部修复可直接实现，不强制设计文档或新抽象。
-3. 根据项目技术栈路由。IRIS 且 coding-iris-plugin 已启用时读取 [iris-coding](../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md)，需要正式 IRIS 协作时复用 iris-change；standard/project 来自用户或项目 profile，不能由 BOS 来源、模块名或目录名推断。先改代码补需求仍走 iris-demand-entry。
+3. 根据项目技术栈路由。IRIS 且 coding-iris-plugin 已启用时，明确前端任务直达 [iris-frontend-coding](../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md)，明确后端任务直达 [iris-backend-coding](../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md)；混合或边界不明时才读取 [iris-coding](../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md)。专项技能负责加载其适用规则，复用仍持有且未变化的资料。standard/project 来自用户或项目 profile，不能由 BOS 来源、模块名或目录名推断。先改代码补需求仍走 iris-demand-entry。
 4. 非 IRIS 使用本项目开发、测试、审查和提交规则，不加载 IRIS 规范。领域插件缺失时只阻塞依赖该能力的阶段，不私自安装、启用或假称检查通过。
-5. Coding 在受控范围实施；Review 接收最终 diff、需求、适用规范和现有证据，检查行为、契约及真正新增代码。Testing 在最终修改后验证，后续相关变化使证据过期。
+5. 在受控范围实施；对照需求、适用规范和现有证据审查最终 diff，检查行为、契约及真正新增代码。必要验证覆盖最终修改，后续相关变化使证据过期。普通任务由当前 Agent 完成这些职责，正式协作时再交给对应角色。
 
 ## 协作与恢复
 
-复用 [standard-change](standard-change.workflow.md) 的角色和 [协作协议](../agents/_shared/orchestration-protocol.md)。简单需求默认 serial；职责不要求不同会话。只有存在独立范围、实际收益且宿主允许时使用临时只读子 Agent。正式任务图、并行写入、持续通信或跨会话协作按现有协议建立 run，由 Coordinator 唯一维护状态；不因选中本 workflow 自动建 run。
+简单需求默认 serial。仅需正式任务图、并行写入、持续通信或跨会话协作时，加载 [standard-change](standard-change.workflow.md) 和 [协作协议](../agents/_shared/orchestration-protocol.md)，由 Coordinator 唯一维护 run；正式 IRIS 协作复用 iris-change。只有存在独立范围、实际收益且用户及宿主允许时使用临时只读子 Agent，这类短时协助不创建正式 run。
 
 并行写入使用隔离 worktree 和互斥 scope，协作计划与外部动作分别授权。无 subagent、adapter、skill 或无法解析 YAML 时读取 Markdown 串行执行；必要人工动作通过 human 交接。失败先核实结果再重试，不重复执行已确认动作。
 
@@ -26,7 +28,7 @@
 
 ## 验证与交付
 
-证据区分：静态检查、本地行为测试、远端编译、部署回读、页面/真实设备验收、用户验收。逐项报告实际覆盖与缺口，格式或链接检查不能替代行为验证。用根因和受影响调用链选择回归，检查临界值、空结果和共享调用方；把已证实工具缺陷变为回归，不把一次操作失败推广成常驻限制。
+证据区分：静态检查、本地行为测试、远端编译、部署回读、页面/真实设备验收、用户验收。简要报告实际覆盖与影响完成判断的缺口，格式或链接检查不能替代行为验证。按本次行为变化、根因和受影响调用链选择回归：条件判断检查相关边界，集合处理检查空结果，共享逻辑检查受影响调用方；纯文案或局部样式核对对应可见状态及受影响交互。项目和领域硬性检查仍执行，把已证实工具缺陷变为相关回归，不把一次操作失败推广成常驻限制。
 
 按 [业务交付生命周期](../agents/_shared/delivery-lifecycle.md)进入 acceptance-pending，提供最短验收步骤；用户明确验收后进入 accepted。远端操作必须有专项授权，未执行则标为未验证。反馈只在 accepted 且有信号时只读审查，写入仍独立授权。
 

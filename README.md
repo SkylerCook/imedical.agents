@@ -595,4 +595,4 @@ guidanceMode（auto/concise/assisted）、executionPath 和 orchestrationMode �
 
 ## BOS 需求处理
 
-[独立 BOS 插件](plugins/bos-plugin/README.md) 提供 bos-init、bos-demand-query 和 bos-demand-handle，使用 [bos-demand workflow](workflows/bos-demand.workflow.md) 复用通用角色、领域规则、验收和授权提交。查询只读、配置显式，首期接通 IRIS 标版且不绑定 IRIS；插件默认 available。项目接入及后续本机迁移见插件说明，更新源仓不自动修改业务工程或客户端。
+[独立 BOS 插件](plugins/bos-plugin/README.md) 提供 bos-init、bos-demand-query 和 bos-demand-handle，使用 [bos-demand workflow](workflows/bos-demand.workflow.md) 按范围直达领域技能，简单需求由当前 Agent 连续实现、自查和目标验证，正式协作按条件启用。沿用验收和授权提交边界。查询只读、配置显式，首期接通 IRIS 标版且不绑定 IRIS；插件默认 available。项目接入及后续本机迁移见插件说明，更新源仓不自动修改业务工程或客户端。

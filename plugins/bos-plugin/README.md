@@ -8,7 +8,9 @@
 | [bos-demand-query](skills/bos-demand-query/SKILL.md) | 查询待办、历史或指定编号详情 |
 | [bos-demand-handle](skills/bos-demand-handle/SKILL.md) | 核对需求后使用项目领域能力实施、验证和交付 |
 
-插件无 IRIS 强依赖。IRIS 项目按需复用 coding-iris-plugin；其它项目沿用自己的规范。简单任务单 Agent 串行，正式协作复用通用 Coordinator 和 [bos-demand workflow](../../workflows/bos-demand.workflow.md)，不创建专属调度器。
+插件无 IRIS 强依赖。IRIS 项目按范围直达前端/后端技能，混合或边界不明时使用 iris-coding；其它项目沿用自己的规范。简单任务由当前 Agent 连续修改、自查和目标验证，正式协作资料按条件加载，具体分流见 [bos-demand workflow](../../workflows/bos-demand.workflow.md)。
+
+已部署项目通过普通能力包更新取得本次流程修正，无配置迁移或旧文件清理；源仓修改不会自动同步业务工程。
 
 首次接入从 bos-init 真实路径开始。查询必须配置 BOS_MCP_CONFIG 或已有连接环境变量；[使用说明](references/usage.md)定义优先级和错误行为。[接入与迁移](references/adoption.md)包含项目与用户级接入步骤。普通框架更新只分发能力，不启用插件、不修改个人配置或客户端。
 

@@ -222,4 +222,4 @@
 - [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：请求“查看 BOS 12345 详情”或“查询我的待办”。结果区分正文、图片与附件链接，不改业务代码或 BOS 状态。
 - [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：请求“处理 BOS 12345”，按项目技术栈实现与验证；“验收后提交”可提前授权本需求提交，单独验收不会自动提交。完整正文可在 BOS 不可用时继续本地工作。
 
-简单任务串行，正式协作复用已有 Coordinator；只有明确要求交接才建记录。IRIS 标版使用已有编码及提交技能，非 IRIS 不加载其规则。新进程可读入口与真实宿主已发现分别验证，见 [场景](../../plugins/bos-plugin/references/scenarios.md)。
+简单任务由当前 Agent 连续修改、自查和目标验证；IRIS 前端/后端范围明确时直达专项技能，混合或边界不明时进入 iris-coding，非 IRIS 沿用项目规范。回归按实际改动选择，正式协作按条件加载已有协议；只有明确要求交接才建交接记录。提交仍按原授权执行。新进程可读入口、真实宿主发现及简单需求提效分别验证，见 [场景](../../plugins/bos-plugin/references/scenarios.md)。
