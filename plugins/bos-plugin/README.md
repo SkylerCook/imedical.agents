@@ -1,10 +1,10 @@
 # BOS Plugin
 
-为不同技术栈提供 BOS 查询和需求处理入口。查询采用 Node.js 内置模块，需要 Node.js >=22.5.0；这是 Agent 工具链依赖，不是业务系统生产运行依赖。框架首次发布为 0.1.0，版本以 manifest 为准。
+为不同技术栈提供 BOS 查询和需求处理入口。查询采用 Node.js 内置模块，需要 Node.js >=22.5.0；这是 Agent 工具链依赖，不是业务系统生产运行依赖。版本以 manifest 为准。
 
 | 入口 | 用途 |
 |---|---|
-| [bos-init](skills/bos-init/SKILL.md) | 明确接入项目，检查配置与生成发现入口 |
+| [bos-init](skills/bos-init/SKILL.md) | 初始化个人身份，或接入项目并生成发现入口 |
 | [bos-demand-query](skills/bos-demand-query/SKILL.md) | 查询待办、历史或指定编号详情 |
 | [bos-demand-handle](skills/bos-demand-handle/SKILL.md) | 核对需求后使用项目领域能力实施、验证和交付 |
 
@@ -19,3 +19,7 @@
 ## 验证
 
 运行 node --test plugins/bos-plugin/tests/*.tests.js；发现/流程集成见 scripts/tests/bos-plugin.tests.js，场景验收见 [需求场景](references/scenarios.md)。测试使用合成数据与隔离仓库，不连接真实 BOS。CI 配置不等于跨平台通过，真实宿主及项目试点另行取证。
+
+框架是查询能力的唯一维护源，适用于组织统一分发、个人独立配置。新使用者从 [私有配置初始化](references/usage.md)开始；实例仅在仓外生成，真实凭据不进入框架。待办、项目待办、历史模式由脚本统一处理。已有本机技能按 [迁移步骤](references/adoption.md)改为引用，不维护第二份实现。
+
+客户端原生工具是可选接入方式，服务来源、stdio 注册示例与验收见 [客户端 MCP](references/client-mcp.md)。

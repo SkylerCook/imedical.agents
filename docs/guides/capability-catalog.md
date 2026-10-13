@@ -31,7 +31,7 @@
 
 | 入口 | 中文用途 | 入口类型 |
 |---|---|---|
-| [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md) | 明确接入、配置检查和项目发现 | 初始化入口 |
+| [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md) | 个人身份初始化、明确接入和项目发现 | 初始化入口 |
 | [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md) | 列表、详情和附件元数据只读查询 | 日常入口 |
 | [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md) | 需求分流、实施验证与验收提交衔接 | 日常入口 |
 

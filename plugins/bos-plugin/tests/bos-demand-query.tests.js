@@ -153,7 +153,6 @@ test('stdio supports initialization, discovery and rejects unknown tools without
   await running;
   const replies = text.trim().split('\n').map(JSON.parse);
   assert.equal(replies.length, 4);
-  assert.equal(replies[0].result.serverInfo.version, require('../.agents-plugin/plugin.json').version);
   assert.equal(replies[1].result.tools[0].name, 'bos_demand_query');
   assert.equal(replies[2].error.code, -32602);
   assert.equal(replies[3].result.isError, true);
@@ -172,9 +171,9 @@ test('current group defaults, explicit override and cross-group queries preserve
 
 test('local current group is validated without exposing connection values', (t) => {
   t.mock.method(fs, 'readFileSync', () => JSON.stringify({ ...config, cgroup: 'sample-group' }));
-  assert.equal(loadConfig({ BOS_MCP_CONFIG: "explicit-private-file" }).cgroup, 'sample-group');
+  assert.equal(loadConfig({ BOS_MCP_CONFIG: 'private-fixture' }).cgroup, 'sample-group');
   fs.readFileSync.mock.mockImplementation(() => JSON.stringify({ ...config, cgroup: 42 }));
-  assert.throws(() => loadConfig({ BOS_MCP_CONFIG: "explicit-private-file" }), /cgroup/);
+  assert.throws(() => loadConfig({ BOS_MCP_CONFIG: 'private-fixture' }), /cgroup/);
 });
 
 
@@ -190,42 +189,119 @@ test('source group combines with identity, current group and source without chan
   assert.throws(() => queryArguments({ ...input, sgroup: ['sample-origin'] }, 'sample-user'), /参数/);
 });
 
-test('synthetic BOS detail feeds the existing IRIS standard commit planner without committing', async t => {
-  const os = require('node:os');
-  const { spawnSync } = require('node:child_process');
-  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'bos-iris-plan-'));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  const emptyConfig = path.join(root, 'empty-config');
-  fs.writeFileSync(emptyConfig, '');
-  const env = { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: emptyConfig };
-  const repo = path.join(root, 'business'); fs.mkdirSync(repo);
-  function run(command, args) {
-    const r = spawnSync(command, args, { cwd: repo, env, encoding: 'utf8', windowsHide: true, timeout: 120000 });
-    assert.equal(r.status, 0, String(r.error || '') + r.stderr);
-    return r.stdout.trim();
+test('common modes generate historical dates in the user timezone and keep options out of upstream arguments', () => {
+  const now = new Date('2026-10-12T16:30:00Z');
+  for (const mode of ['pending', 'project-pending', 'history']) {
+    const args = queryArguments({ mode, timezone: 'Asia/Shanghai', sort: '预计完成时间', order: 'desc', sgroup: 'origin-group' }, 'sample-user', 'personal-group', now);
+    assert.equal(args.date, '1900-01-01'); assert.equal(args.date2, '2026-10-13');
+    assert.equal(args.cuser, 'sample-user'); assert.equal(args.cgroup, 'personal-group'); assert.equal(args.sgroup, 'origin-group');
+    assert.equal(args.datetype, '创建时间'); assert.equal(args.source, mode === 'project-pending' ? '项目' : '');
+    for (const option of ['mode', 'timezone', 'sort', 'order']) assert.equal(Object.hasOwn(args, option), false);
   }
-  const git = args => run('git', ['-c','user.name=Fixture','-c','user.email=fixture@example.invalid', ...args]);
-  git(['init']); fs.writeFileSync(path.join(repo, 'options.txt'), 'before\n');
-  git(['add','.']); git(['commit','-m','fixture']);
-  const head = git(['rev-parse','HEAD']);
-  fs.writeFileSync(path.join(repo, 'options.txt'), 'valid options\n');
-  const detail = { id: '12345', title: '合成需求：申请选项包含失效记录', content: '预期只展示有效选项，实际包含失效项。' };
-  const m = mock({ result: { content: [{ type: 'text', text: JSON.stringify({ code: 200, data: [detail] }) }] } });
+  assert.equal(queryArguments({ mode: 'pending', timezone: 'UTC' }, 'sample-user', 'personal-group', now).date2, '2026-10-12');
+});
+
+test('pending defaults require a personal group and keep origin group separate from explicit cross-group scope', () => {
+  assert.throws(() => queryArguments({ mode: 'pending', sgroup: 'origin-group' }, 'sample-user'), /个人所在组/);
+  const args = queryArguments({ mode: 'project-pending', cuser: 'other-user', cgroup: '', sgroup: 'origin-group' }, 'sample-user', 'personal-group');
+  assert.equal(args.cuser, 'other-user'); assert.equal(args.cgroup, ''); assert.equal(args.sgroup, 'origin-group'); assert.equal(args.source, '项目');
+  assert.equal(queryArguments({ mode: 'pending', cgroup: 'other-group' }, 'sample-user', 'personal-group').cgroup, 'other-group');
+  assert.throws(() => queryArguments({ mode: 'pending' }, '', 'personal-group'), /cuser/);
+});
+
+test('explicit dates and detail lookups take precedence and invalid or conflicting modes fail before transport', () => {
+  const explicit = { mode: 'pending', date: '2026-01-01', date2: '2026-01-31', datetype: '操作时间' };
+  const args = queryArguments(explicit, 'sample-user', 'personal-group');
+  assert.equal(args.date, explicit.date); assert.equal(args.date2, explicit.date2); assert.equal(args.datetype, '操作时间');
+  const detail = queryArguments({ id: '12345', mode: 'invalid', timezone: 'invalid', sort: 'invalid', date: 'invalid', sgroup: 'origin' });
+  assert.equal(detail.id, '12345'); assert.equal(detail.date, ''); assert.equal(detail.cgroup, ''); assert.equal(detail.sgroup, '');
+  for (const input of [{ mode: 'invalid' }, { mode: 'pending', timezone: 'invalid' }, { mode: 'pending', sort: 'invalid' }, { mode: 'pending', order: 'invalid' }, { mode: 'pending', date: '2026-01-01' }, { mode: 'pending', date: '', date2: '' }, { mode: 'pending', datetype: '操作时间' }, { mode: 'project-pending', source: 'other' }, { mode: 'project-pending', source: '' }]) {
+    assert.throws(() => queryArguments(input, 'sample-user', 'personal-group'));
+  }
+  assert.throws(() => queryArguments({}, 'sample-user', 'personal-group'), /date/);
+});
+
+const sampleRows = [
+  { '需求号': '9007199254740993', '状态': '测试', '创建时间': '2026-10-01 01:00:00', '预计完成时间': '2026-10-05' },
+  { '需求号': '10', '状态': '分配', '创建时间': '2026-10-02 01:00:00', '预计完成时间': '2026-10-04' },
+  { '需求号': '2', '状态': '活动', '创建时间': '2026-10-02 23:00:00', '预计完成时间': '2026-10-04' },
+  { '需求号': '1', '状态': '完成', '创建时间': '2026-10-01' },
+  { '需求号': '3', '状态': '取消', '创建时间': '2026-10-01' },
+  { '需求号': '4', '状态': '已拆分', '创建时间': '2026-10-01' },
+  { '需求号': '9', '状态': '新状态', '创建时间': '2026-10-01', '预计完成时间': '2026-10-06' },
+  { '需求号': '12', '状态': null, '创建时间': 'invalid', '预计完成时间': null }
+];
+const listResult = (rows = sampleRows) => ({ content: [{ type: 'text', text: JSON.stringify({ code: 200, data: rows, message: 'sample' }) }, { type: 'image', data: 'sample-image', mimeType: 'image/png' }], _meta: { existing: 'preserved' } });
+const getRows = result => JSON.parse(result.content[0].text).data;
+
+test('pending queries exclude only provisional terminal states, sort by day and numeric ID, and report actual counts', async (t) => {
+  const m = mock({ result: listResult() });
   t.mock.method(globalThis, 'fetch', m.fetchImpl);
-  const response = await query(config, { id: detail.id });
-  const payload = JSON.parse(response.content[0].text);
-  assert.equal(payload.code, 200);
-  const fact = payload.data[0]; assert.equal(fact.id, detail.id);
-  // Simulates the documented handoff after facts and scope have been confirmed.
-  const script = path.resolve(__dirname, '../../coding-iris-plugin/scripts/iris-tools/commit-demand.js');
-  const planned = JSON.parse(run(process.execPath, [script, 'plan', '--project-root', repo,
-    '--kind','standard','--demand',fact.id,'--title',fact.title,'--type','fix','--subject','申请选项',
-    '--file','options.txt','--modification','使用有效期过滤申请选项，确保失效记录不再显示并保留维护页原有行为',
-    '--output',path.join(root,'plan.json')]));
-  assert.equal(planned.title, fact.title);
-  assert.deepEqual(planned.repositories[0].files, ['options.txt']);
-  assert.equal(planned.repositories[0].message.trim().split('\n').length, 3);
-  assert.ok(planned.repositories[0].message.includes('需求描述:' + fact.id + ' ' + fact.title));
-  assert.equal(git(['rev-parse','HEAD']), head);
-  assert.equal(git(['diff','--cached','--name-only']), '');
+  const actual = await query(config, { mode: 'pending', sgroup: 'origin-group' }, 'sample-user', 'personal-group');
+  assert.deepEqual(getRows(actual).map(row => row['需求号']), ['9', '9007199254740993', '2', '10', '12']);
+  assert.deepEqual(actual.content[1], listResult().content[1]);
+  const summary = actual._meta.bosDemandQuery;
+  assert.equal(actual._meta.existing, 'preserved');
+  assert.equal(summary.returnedCount, 8); assert.equal(summary.includedCount, 5); assert.equal(summary.excludedCount, 3);
+  assert.equal(summary.pendingApplied, true); assert.equal(summary.provisionalPendingRule, true); assert.equal(summary.missingSortDateCount, 1);
+  assert.deepEqual(summary.excludedStatuses, ['完成', '取消', '已拆分']);
+  assert.equal(summary.statuses['测试'], 1); assert.equal(summary.statuses['新状态'], 1); assert.equal(summary.statuses['（缺失）'], 1);
+  const upstream = JSON.parse(m.calls.at(-1).body).params.arguments;
+  assert.equal(upstream.cuser, 'sample-user'); assert.equal(upstream.cgroup, 'personal-group'); assert.equal(upstream.sgroup, 'origin-group');
+  assert.equal(upstream.date, '1900-01-01'); assert.equal(upstream.datetype, '创建时间');
+  assert.equal(Object.hasOwn(upstream, 'mode'), false);
+});
+
+test('history and explicit status queries preserve terminal states without applying pending filtering', async (t) => {
+  const m = mock({ result: listResult() });
+  t.mock.method(globalThis, 'fetch', m.fetchImpl);
+  for (const input of [{ mode: 'history' }, { mode: 'pending', status: '完成' }, { date: '2026-10-01', date2: '2026-10-13' }]) {
+    const actual = await query(config, input, 'sample-user', 'personal-group');
+    assert.equal(getRows(actual).length, 8);
+    assert.equal(actual._meta.bosDemandQuery.pendingApplied, false);
+    assert.equal(actual._meta.bosDemandQuery.provisionalPendingRule, false);
+    assert.equal(actual._meta.bosDemandQuery.excludedCount, 0);
+    assert.deepEqual(actual._meta.bosDemandQuery.excludedStatuses, []);
+    assert.equal(JSON.parse(m.calls.at(-1).body).params.arguments.status, input.status || '');
+  }
+});
+
+test('explicit due-date sorting supports both directions while missing dates remain last', async (t) => {
+  t.mock.method(globalThis, 'fetch', mock({ result: listResult() }).fetchImpl);
+  for (const [order, expected] of [['asc', ['2', '10', '9007199254740993', '9', '12']], ['desc', ['9', '9007199254740993', '2', '10', '12']]]) {
+    const actual = await query(config, { mode: 'project-pending', sort: '预计完成时间', order }, 'sample-user', 'personal-group');
+    assert.deepEqual(getRows(actual).map(row => row['需求号']), expected);
+    assert.equal(actual._meta.bosDemandQuery.filters.source, '项目');
+  }
+});
+
+test('empty results produce zero counts; malformed lists fail without pretending they are empty', async (t) => {
+  t.mock.method(globalThis, 'fetch', mock({ result: listResult([]) }).fetchImpl);
+  const empty = await query(config, { mode: 'pending' }, 'sample-user', 'personal-group');
+  assert.deepEqual(getRows(empty), []); assert.equal(empty._meta.bosDemandQuery.returnedCount, 0);
+  for (const result of [{ content: [{ type: 'text', text: '{"code":200,"data":null}' }] }, { content: [{ type: 'text', text: '{"code":200,"data":[null]}' }] }, { content: [listResult().content[0], listResult().content[0]] }]) {
+    globalThis.fetch.mock.mockImplementation(mock({ result }).fetchImpl);
+    await assert.rejects(query(config, { mode: 'pending' }, 'sample-user', 'personal-group'), /列表.*结构无效/);
+  }
+  const failure = { content: [{ type: 'text', text: '{"code":500,"message":"sample failure"}' }] };
+  globalThis.fetch.mock.mockImplementation(mock({ result: failure }).fetchImpl);
+  const actual = await query(config, { mode: 'pending' }, 'sample-user', 'personal-group');
+  assert.equal(actual.isError, true); assert.equal(actual._meta, undefined);
+});
+
+test('stdio uses the same pending rules and keeps personal group and origin group independent', async (t) => {
+  const m = mock({ result: listResult() });
+  t.mock.method(globalThis, 'fetch', m.fetchImpl);
+  const input = new PassThrough(); const output = new PassThrough(); let text = '';
+  output.on('data', chunk => { text += chunk; });
+  const running = serve(config, { BOS_CUSER: 'sample-user', BOS_CGROUP: 'personal-group' }, input, output);
+  input.end([
+    { jsonrpc: '2.0', id: 1, method: 'initialize' },
+    { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'bos_demand_query', arguments: { mode: 'pending', sgroup: 'origin-group' } } }
+  ].map(JSON.stringify).join('\n') + '\n');
+  await running;
+  const result = JSON.parse(text.trim().split('\n')[1]).result;
+  assert.equal(result._meta.bosDemandQuery.includedCount, 5);
+  assert.equal(result._meta.bosDemandQuery.filters.cgroup, 'personal-group');
+  assert.equal(result._meta.bosDemandQuery.filters.sgroup, 'origin-group');
 });

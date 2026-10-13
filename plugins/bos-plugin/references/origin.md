@@ -1,10 +1,14 @@
-# 来源与迁移
+# 来源与维护
 
-来源为用户授权引入的自建 bos-demand-query 技能，登记版本 2026-10-13.4。下列 SHA-256 固定本次读取的来源字节，不包含个人配置或连接信息。
+框架 bos-plugin 是正式且唯一的代码维护源；插件内技能继承 manifest 版本。用户级入口引用框架，项目通过既有框架更新流程获取已发布版本。
 
-- SKILL.md: c1b6f4e0f2cfc6bccf063271ee185de69994d38ed9e94f68bd459da7a79498d0
-- scripts/bos-demand-query.js: 6748fdb14b041c2d8cbd4cc3e8bdeb6487f3810478d62bd7421abdc7239c545e
-- references/usage.md: f28e9a691f669c4644b1479d4210501d4c417754d5b23480f3f4595ce7a6baf1
-- tests/bos-demand-query.tests.js: fcdfa06c923d9d047c119d70536ee69f571f6d3f045a64de150f8aa0f5324a96
+本轮合并授权自建来源 bos-demand-query 1.0.0，来源字节 SHA-256：
 
-保留原有查询、SSE/stdio 与脱敏实现。框架改动：显式配置取代代码相对配置路径，引用调整为插件布局，服务版本来自 manifest，删除个人账户验证样本，扩展配置及分发回归。原维护源本次未修改。协议依据与实现边界见 usage.md。
+- SKILL.md: c9f29278c8abc67ea1772bf7caa39a9dd25c3cfe6d4ab106caf3638c12c94155
+- scripts/bos-demand-query.js: c1d6dc36492e788c1217f191a58c241b13fab00ba879a933d05ff511aa1bd31c
+- references/usage.md: 9679727c098f45eb0e9fb4e6d29275631df658d6558d825103396b85d56f4a3a
+- tests/bos-demand-query.tests.js: 00438f983c6b9b7510c86c156518dbbd3a7ac168d8881b2143ec9327ae1efb53
+
+保留查询模式、日期生成、过滤、排序、计数、SSE/stdio 与脱敏；框架适配为显式配置、私有配置初始化、TODO 门禁、插件相对引用及 manifest 版本。配置与真实账户样本未引入。
+
+后续修改直接进入框架，通过插件回归、评审及版本发布。过渡期间旧维护源出现新变化时，比较固定版本、哈希、实现、测试与规则，定向合并并保留适配；不整目录覆盖，不反向同步，不让项目更新器读取个人机器。用户级引用见 [接入与迁移](adoption.md)。

@@ -1,12 +1,26 @@
 # 使用与配置
 
-## 本机配置
+## Windows 首次使用
 
-不提供隐式配置文件路径。使用 BOS_MCP_CONFIG 指定用户选定的仓外私有配置，或提供连接环境变量。跨项目复用建议使用绝对路径；显式相对路径按进程当前目录解析，不按脚本位置解析。配置文件由脚本读取，不作为 Agent 的参考正文加载。
+请求“初始化 BOS”即可。bos-init 执行 `node <插件脚本绝对路径> init-config`，自动创建 `%LOCALAPPDATA%/imedical-agents/bos/config.json`，并将 Windows 用户级 BOS_MCP_CONFIG 绑定到该文件绝对路径。命令返回 configPath，Agent 展示或打开此文件，使用者只补全其中 TODO：access_key、headers.X-Gateway-Upstream-BOS-MCP-TOKEN、cuser 和 cgroup。凭据由公司服务维护方提供，不发到聊天、不写入工程或框架。
 
-连接优先级：BOS_MCP_CONFIG 指定文件 → BOS_MCP_URL 与 BOS_MCP_TOKEN 环境变量；两者均缺失时报错。显式配置错误时停止，不回退到另一身份。支持顶层 url、headers、enabled、cuser、cgroup；也兼容既有 mcpServers 包装，服务名默认 bos-demand-query，可由 BOS_MCP_SERVER 指定。个人身份优先级：调用参数 cuser → BOS_CUSER → 配置 cuser。当前组优先级：显式 cgroup（包括空字符串）→ BOS_CGROUP → 配置 cgroup；显式空字符串表示全部组。配置中不设默认组时脚本不限制组，常用当前组待办须先确认组。
+脚本内置的是 MCP 客户端协议，不包含访问凭据。公司不含鉴权参数的默认服务地址来自 [公司默认值](company-defaults.json)，初始化自动设置 BOS_MCP_URL；请求时将私有 access_key 拼接到 URL。无需使用者打开系统环境变量界面。
 
-headers 中的 X-Gateway-Upstream-BOS-MCP-TOKEN 用于个人鉴权，URL 可含网关鉴权参数；实例文件必须先确认 Git 忽略且未被跟踪，再保存凭据。不提供可填真实凭据的共享模板。
+初始化需在正常 Windows 用户环境执行。工具提权不等于脱离应用包重定向；检测到 LOCALAPPDATA 或目标物理路径落入 Packages 下的 AC / LocalCache 时，应在写入前停止。由正常桌面 PowerShell 初始化，并以物理路径及桌面访问验证；同一工具环境中的 Test-Path 或变量回读不能单独证明成功。
+
+新文件使用 connection: company；实例只在仓外生成，仓内不保存可供填写真实凭据的完整模板。已存在的配置不覆盖，显式 BOS_MCP_CONFIG 路径继续使用，配置缺失/损坏/禁用时不会切换身份。生成和绑定分别验证，绑定失败保留文件，修复后重试。非 Windows 自动初始化明确停止；其它平台仍可显式提供私有配置或连接环境变量。
+
+Windows 子进程不能改变已运行客户端的环境：初始化后，Agent 根据返回的 configPath 为当前验证命令设置 BOS_MCP_CONFIG，并读取已回写的用户级 BOS_MCP_URL / BOS_MANAGED_MCP_URL；之后重启客户端，使后续进程继承用户环境。先运行 defaults 离线检查；只有已有查询/连接验证授权才执行 check 或 query。不要回显完整配置。
+
+## 公司地址更新与个人配置
+
+维护者只修改 company-defaults.json 的无凭据 HTTPS 地址并按框架流程发布。已有使用者更新插件后再次运行 bos-init，自动刷新 BOS_MCP_URL；BOS_MANAGED_MCP_URL 记录上次框架设置的地址，仅当前值与其相同才允许覆盖，个人自定义地址保留。查询遇到框架管理的旧地址时使用当前插件默认值，不依赖重启才能取得新公司地址。更新操作不重写个人文件或凭据。
+
+旧完整私有配置（url/headers，或 mcpServers 包装）继续兼容且优先，不与环境连接混用。需要显式迁移到标准目录时运行 `migrate-config <旧私有文件绝对路径>`：核对旧服务与公司默认一致，将 access_key 和 headers/身份转入新文件并绑定新路径，旧文件保留；新目标已存在时停止覆盖。旧文件仍由用户管理，不自动删除。
+
+未指定私有文件时仍支持 BOS_MCP_URL + BOS_MCP_TOKEN；之前的仅身份文件也兼容环境连接。这些是兼容/自动化方式，不是普通用户首次接入流程。完整配置错误不回退。显式服务名由 BOS_MCP_SERVER 选择，默认 bos-demand-query。
+
+人员优先级：调用参数 → BOS_CUSER → 文件 cuser；组优先级：显式 cgroup（含空字符串）→ BOS_CGROUP → 文件 cgroup。TODO 表示未填写；access_key/Token 未完成时停止连接，身份 TODO 阻止列表，按编号不要求身份。缺少所在组的待办查询停止；只有用户主动传 cgroup: "" 才视为跨组。sgroup 是另一个发起组筛选，不是个人所在组。
 
 ## 命令
 
@@ -19,9 +33,20 @@ headers 中的 X-Gateway-Upstream-BOS-MCP-TOKEN 用于个人鉴权，URL 可含�
 - query '{"date":"2026-01-01","date2":"2026-01-02","sgroup":"测试"}'：默认当前人、当前组下，筛选发起组为“测试”的需求；需要项目来源时同时传 source: "项目"。sgroup 省略或传空字符串不限制发起组，不改变 cgroup；多选组的上游语法尚未验证，不猜分隔符。
 - serve：可选 stdio MCP，暴露 bos_demand_query；不需要原生工具注册时直接由 skill 调用 CLI。
 
-可选字段：title、content、source、status、type、cuser、cgroup、sgroup、datetype、date、date2、product、mod。datetype 可为创建时间、预计完成时间、执行时间、分配时间或操作时间。id 有值时清空其它筛选条件。日期端点包含规则和服务端总量限制尚未确认。
+可选字段：mode、timezone、sort、order、title、content、source、status、type、cuser、cgroup、sgroup、datetype、date、date2、product、mod。datetype 可为创建时间、预计完成时间、执行时间、分配时间或操作时间。id 有值时清空其它筛选条件。日期端点包含规则和服务端总量限制尚未确认。
 
-如需原生 MCP 工具，可在目标客户端用户级配置中注册 node + 本脚本绝对路径 + serve；无需每项目配置。本 skill 不自动改宿主 MCP 设置，也不认为文件链接成功等于宿主已加载。
+如需原生 MCP 工具，按 [客户端 MCP 注册](client-mcp.md)获取无凭据配置示例和验收步骤；无需每项目配置。本 skill 不自动改宿主 MCP 设置，也不认为文件链接成功等于宿主已加载。
+
+## 查询模式
+
+- `query '{"mode":"pending"}'`：本人所在组待办。
+- `query '{"mode":"project-pending"}'`：另限来源为“项目”。
+- `query '{"mode":"history"}'`：历史列表，不过滤待办状态。
+- `list` 或省略 mode：明确提供完整日期范围。
+
+前三种未给日期时生成创建时间 1900-01-01 至当前日；timezone 默认 Asia/Shanghai，可显式覆盖。非创建时间及显式日期需提供完整范围。sort 支持创建时间、预计完成时间，order 支持 asc/desc；默认创建时间升序，同日需求号升序，无效日期置后。显式 status 时不额外套待办过滤。
+
+脚本处理筛选、排序和计数；读取 `_meta.bosDemandQuery` 核对条件、returnedCount、includedCount、excludedCount 与状态分布，不再次过滤。上游总量和分页限制未知，返回数不能证明全量。
 
 ## 待办筛选与核对
 

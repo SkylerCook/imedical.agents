@@ -218,7 +218,7 @@
 
 前提：Node.js >=22.5.0，项目明确启用插件；在线查询使用显式私有配置或连接环境变量。
 
-- [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md)：请求“为当前项目接入 BOS 查询与需求处理”。结果为项目 profile 和两个日常发现入口；不配置个人凭据或用户级客户端。
+- [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md)：请求“为当前项目接入 BOS 查询与需求处理”。项目接入生成 profile 和两个日常发现入口；也可单独初始化仓外本机私有配置。Windows 自动生成标准私有配置并绑定路径，用户只填写 TODO，详见插件 usage；不自动配置凭据或客户端。
 - [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：请求“查看 BOS 12345 详情”或“查询我的待办”。结果区分正文、图片与附件链接，不改业务代码或 BOS 状态。
 - [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：请求“处理 BOS 12345”，按项目技术栈实现与验证；“验收后提交”可提前授权本需求提交，单独验收不会自动提交。完整正文可在 BOS 不可用时继续本地工作。
 

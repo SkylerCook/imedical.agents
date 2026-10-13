@@ -729,3 +729,7 @@ standard 与 Overlay 均在目标 ContextRoot 清理，不删除 CapabilityRoot 
 bos-plugin 随既有 /plugins/** 与 workflow 分发，默认 available；仅明确接入后通过 [bos-init](../plugins/bos-plugin/skills/bos-init/SKILL.md) 启用。enabled 生成 bos-demand-query 与 bos-demand-handle 的项目 thin-index，bos-init 按 manifest 排除；available/disabled 不生成新入口。已有用户定制入口不强行覆盖或自动删除。
 
 查询采用 BOS_MCP_CONFIG 或连接环境变量，不再按代码位置寻找个人配置，也不读取 IRIS .mcp.json。无需更新安装/更新器核心。Overlay 只在 canonical 更新一次，模块按 -NoPull 刷新。用户级原技能、客户端链接和私有配置保持原状；其独立迁移按 [迁移说明](../plugins/bos-plugin/references/adoption.md)执行。
+
+BOS 个人初始化在仓外生成私有实例，框架不携带真实凭据；完整旧配置继续有效。公司推广由组织提供服务接入渠道，每位使用者独立配置。可选客户端原生工具按 [注册说明](../plugins/bos-plugin/references/client-mcp.md)增量注册；普通更新不写个人配置或客户端设置。
+
+Windows BOS 更新后运行 bos-init 复核个人配置并同步框架管理的公司地址；标准配置位于 LOCALAPPDATA/imedical-agents/bos/config.json，自动绑定 BOS_MCP_CONFIG。既有文件与自定义地址保留，用户只补全 TODO。完整步骤见插件 usage。

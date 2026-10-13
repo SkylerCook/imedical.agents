@@ -6,7 +6,7 @@ BOS 能力独立于技术栈。目录存在仅表示 available；项目使用前
 
 - 只读需求列表、详情、图片及附件元数据：[bos-demand-query](skills/bos-demand-query/SKILL.md)。
 - 已有需求号或正文，需要调查、实施、验证：[bos-demand-handle](skills/bos-demand-handle/SKILL.md)。
-- 查询配置和 CLI：[使用说明](references/usage.md)。
+- 本机私有配置、初始化与查询 CLI：[使用说明](references/usage.md)。
 - 后续用户级技能迁移：[接入与迁移](references/adoption.md)。
 
 ## 边界
