@@ -85,7 +85,7 @@ function buildEmailMd(db) {
   lines.push('');
   lines.push('### 2. 新增系统标准提醒');
   lines.push('');
-  lines.push('公司标准库 demo → 打开菜单【系统提醒信息】，参照代码信息进行数据维护。');
+  lines.push('公司标准库 demo → 打开菜单【系统提示信息】，参照代码信息进行数据维护。');
   lines.push('');
   lines.push('### 3. 新增系统标准配置');
   lines.push('');
@@ -168,7 +168,7 @@ function buildEmailHtml(db) {
   lines.push(`    <h4 style="${h4Style}">1. 数据库 DDL 脚本</h4>`);
   lines.push(`    <p style="margin: 0 0 10px;">建议参考 <a href="${DDL_URL}" style="color: #1f4e79;">${escapeHtml(DDL_DOC_NAME)}</a> 的描述进行执行。</p>`);
   lines.push(`    <h4 style="${h4Style}">2. 新增系统标准提醒</h4>`);
-  lines.push('    <p style="margin: 0 0 10px;">公司标准库 demo → 打开菜单【系统提醒信息】，参照代码信息进行数据维护。</p>');
+  lines.push('    <p style="margin: 0 0 10px;">公司标准库 demo → 打开菜单【系统提示信息】，参照代码信息进行数据维护。</p>');
   lines.push(`    <h4 style="${h4Style}">3. 新增系统标准配置</h4>`);
   lines.push('    <p style="margin: 0 0 10px;">公司标准库 demo → 打开【系统标准配置】菜单，筛选指定配置项导出，导入项目现场。请勿直接维护，请使用导入功能，防止出现维护错误。</p>');
   lines.push(`    <h4 style="${h4Style}">4. 新增代码表缓存配置</h4>`);

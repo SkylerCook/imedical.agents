@@ -283,7 +283,7 @@ function formatDbReminder(db, dateRange, memberMap, admins) {
     lines.push('  · 新增系统标准配置：公司标准库 demo → 系统标准配置菜单，筛选指定配置项导出，导入项目现场（请勿直接维护，请使用导入功能，防止出现维护错误）');
   }
   if (counts.reminders > 0) {
-    lines.push('  · 新增系统标准提醒：公司标准库 demo → 系统标准提醒信息，参照代码信息进行数据维护');
+    lines.push('  · 新增系统标准提醒：公司标准库 demo → 系统提示信息，参照代码信息进行数据维护');
   }
   if (counts.cacheConfigs > 0) {
     lines.push('  · 新增代码表缓存配置：公司标准库 demo → 代码表缓存管理，参照代码信息进行数据维护');

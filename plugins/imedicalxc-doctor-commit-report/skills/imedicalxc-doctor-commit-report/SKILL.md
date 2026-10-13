@@ -187,7 +187,7 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/detect-db-changes.j
 
 - **数据结构修改（PO）**：建议通过【腾讯文档】his 版本升级脚本汇总表格 https://docs.qq.com/sheet/DSnJ5V0tYRG9jT1VL?tab=BB08J2 的登记 DDL 进行执行。
 - **新增系统标准配置**：建议打开公司标准库，登录 demo，打开系统标准配置菜单，筛选出指定的配置项进行导出，并导入到项目现场。请勿直接维护，请使用导入功能，防止出现维护错误。
-- **新增系统标准提醒**：建议打开公司标准库，登录 demo，打开系统标准提醒信息，参照代码信息进行数据维护。
+- **新增系统标准提醒**：建议打开公司标准库，登录 demo，打开系统提示信息，参照代码信息进行数据维护。
 - **新增代码表缓存配置**：建议打开公司标准库，登录 demo，打开代码表缓存管理，参照代码信息进行数据维护。
 
 ## 六、附录：深度评估摘要
@@ -233,7 +233,7 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <out
 
 数据变更通知邮件（正文为正式排版的 HTML，另存 Markdown 存档），流程：
 
-1. 生成邮件正文：`node .agents/plugins/imedicalxc-doctor-commit-report/scripts/build-db-email.js <outputDir>/<YYYY-MM>/db-changes-<label>.json`，输出同目录 `db-change-email-<label>.md`（Markdown 存档）与 `db-change-email-<label>.html`（发送用 HTML 正文：标题 + 检测时间窗/生成时间 + 试用阶段说明（「说明：当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。」）+ 第一章变更明细表（变更类型/变更内容/变更负责人）+ 第二章固定操作说明四子章节：DDL 参考【腾讯文档】信创版HIS数据库升级脚本汇总表格、系统提醒信息维护、系统标准配置导出导入、代码表缓存管理维护 + 自动生成页脚，全部内联样式）。
+1. 生成邮件正文：`node .agents/plugins/imedicalxc-doctor-commit-report/scripts/build-db-email.js <outputDir>/<YYYY-MM>/db-changes-<label>.json`，输出同目录 `db-change-email-<label>.md`（Markdown 存档）与 `db-change-email-<label>.html`（发送用 HTML 正文：标题 + 检测时间窗/生成时间 + 试用阶段说明（「说明：当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。」）+ 第一章变更明细表（变更类型/变更内容/变更负责人）+ 第二章固定操作说明四子章节：DDL 参考【腾讯文档】信创版HIS数据库升级脚本汇总表格、系统提示信息维护、系统标准配置导出导入、代码表缓存管理维护 + 自动生成页脚，全部内联样式）。
 2. 解析收件人/抄送人：`PYTHONIOENCODING=utf-8 python .agents/plugins/imedicalxc-doctor-commit-report/scripts/resolve-email-recipients.py`。
    - 收件人 = 腾讯文档【信创版HIS数据库升级脚本汇总表格】「脚本执行负责人」页签「负责人邮箱」列去重（`email.recipientSource`：bookId/sheetId/emailColumn）
    - 抄送人 = 通讯录分组「信创-研发-医生站」「信创-研发-监督人」成员邮箱去重（`email.ccSource.groups`）
