@@ -1,40 +1,14 @@
 # imedical.agents 维护记忆入口
 
-- BOS 框架能力：独立 bos-plugin 0.2.0 提供个人身份初始化、查询模式与需求处理，框架为唯一维护源；简单需求连续实施、自查和目标验证，IRIS 专项直达，正式协作条件加载，回归按行为变化选择。配置显式提供，本机迁移和业务部署独立执行。coding-iris-plugin 0.15.7 修复提交 Junction/SourceRoot 边界并明确预授权提交；验证详情见维护日志。
-
-- coding-iris-plugin 0.15.6：格式规范仅用于本次真正新增代码，原有代码的功能修改不附带格式化；Review 对照修改前源码判断范围，diff 的 + 行不等同新增。CLS 检查器继续只读提示，历史格式提示不触发修正。
-
-- coding-iris-plugin 0.15.5：新增可选 JS 页面组织模板，普通页面由 ready 初始化，闭包由调用方初始化并在 init 内绑定事件；生命周期按容器能力选用，不作为全局风格。普通更新分发，无业务迁移。
-
-- coding-iris-plugin 0.15.4：前端命名与格式归 references/frontend-coding-format.md，默认 ES5、4 空格与双引号；编码和 Review 共用，项目显式规范可覆盖。CSP 分区检查，模板修正编译期表达式与转义混淆；复用 HISUI、编码及 i18n 检查，无新工具依赖或业务迁移。
-
-- coding-iris-plugin 0.15.3：CLS 命名与格式归 references/cls-coding-format.md；编码与 Review 共用，用户/项目显式规范优先。通用 review-agent 接收规范路径和检查覆盖范围；无需全局 formatter，普通更新分发，无业务迁移。
-
-- coding-iris-plugin 0.15.2：成功 pull 后仅对 commit 临时关闭全局钩子的重复 upstream 检查，保留其他检查；先核对实际 hooksPath，协议见插件 references/commit-upstream-check.md。
-
-- coding-iris-plugin 0.15.1 补齐弹窗内 panel 宽度、留白与滚动指导：前端规则按症状路由到 hisui-style-index，区分框架尺寸与局部盒模型，禁滚动须验证内容可达性；普通更新分发，无配置迁移或业务页面自动修改。
-
-- Overlay 读写范围分离：agent-context-kit 0.4.1 / coding-iris-plugin 0.13.7 允许按需只读调查已声明或项目注册表映射的源码仓库；默认写入仍受 SourceRoot 和任务授权约束。路径解析、工具写入门禁与 backend-only 身份不变；旧模块入口需授权定点迁移，见 docs/workspace-overlay.md。
-
-- 文档分发已分层：docs/README.md 为项目入口，maintenance/README.md 为仅源仓入口；31 项路径迁移与旧工程收敛规则见 maintenance/governance/documentation-layout.md。旧受管文件随 Git 更新删除，私有残留保留、dirty 停止；不自动同步真实工程。
-
-- 非 xc 能力目录与使用指南：docs/guides/capability-catalog.md、docs/guides/capability-guide.md，覆盖插件、skill、rule、接入和逐技能示例；README 提供入口。清单与行为变更同步核对，xc 手册列入 backlog P2；不改变插件、版本或部署行为。
-
-- IRIS 编码入口按明确专项直达、混合/边界不明路由；开发部署默认 direct、guarded 基线按需建立，i18n 条件矩阵由前端规则维护。契约测试核对引用与执行时点，真实提效仍按既有基准验证。信创内容不在本轮变更范围。
-
-- 纯 init 薄索引：7 个插件通过 manifest 统一排除，enabled 项目常规 Write 精准清理旧受管入口及历史遗留空目录，非空目录和链接保留；真实 init 和日常入口保留，available/disabled 不变。迁移见 docs/update-agents.md。
-
-- agent-context-kit 0.4.0 新增 task-handoff：同机同工作区需求按需启用、关键节点维护；docs/handoff 本地保存，正文与机器现场分离，明确交接追加历史快照。0.4.2 修复 Windows 短路径与 Git 长路径混用时的初始化、状态和 Overlay Junction 误判；已有交接无需迁移。直接接手不检查旧会话，用户避免并发写入。普通需求不建正式 run；当前 Codex 宿主的真实新会话接续已于 2026-09-19 经用户验收通过，其它 Agent 宿主和新版本平台矩阵仍待验证；接入与验证见 docs/task-handoff.md。
-
-- 提交性能：`validate --staged` 只校验暂存组件与直接依赖，批量读取 Git 对象并独立缓存版本证据；功能证据按实际内容复用，不绑定 HEAD。信创 1.0.2 缺少 commit 已登记为 `version-debt-xc-1.0.2-commit`，用户要求后续普通提交不重复处理或提醒；见 backlog 与 maintenance/governance/component-version-management.md。
-
-- project-context-maintenance 区分初始化、事实维护和日常优化；去重保留约束，初始化与优化资料按需读取，普通维护不自动接入插件。模板与旧项目迁移说明已对齐，业务副本不自动同步。
-
-- 标版需求闭环 iris-demand-entry：实际 Git 补丁 → `{IRIS}` 名称与三段式描述 → 用户录 BOSS → 编号回填 → 复用需求提交，可选 Excel。缺陷为操作/预期/实际，功能改进为说明/操作/预期；用户、安全组、科室按需。草稿仅支持 v2，旧格式重新生成。输出拒绝 `.agents/`、能力包源码及目录链接别名；历史提交不自动改写，漂移需复核。协议见 coding-iris-plugin/references/standard-demand-entry.md。
-
-- 实测迁移修复：agent-context-kit 0.3.1 的 guidanceMode 缺省不落盘，显式值保留；迁移脚本补齐缺失辅助协议路由。普通更新与显式入口迁移仍分开。
-
-- 治疗表单入口补充优化：按任务加载交付章节，复用范围内已有明确部署授权；服务端原子回滚与客户端 rollback 分开表达，运行时门禁不变。
+- 最近维护回看覆盖至 `d81fa6f`（2026-10-13）：BOS 组织分发与简单需求流程、SFTP 单连接部署、提交路径边界；提交索引和验证范围见维护日志。
+- `bos-plugin` 0.2.0：查询、个人配置初始化与跨技术栈需求处理归框架统一维护。简单需求连续实施、自查和目标验证，IRIS 专项直达，正式协作条件加载；普通更新不修改个人配置或客户端，接入见插件 usage/adoption。
+- 编码规范：CLS 与前端分别以 coding-iris-plugin 的 `references/cls-coding-format.md`、`references/frontend-coding-format.md` 为事实源；只约束真正新增代码，原有代码的功能修改不附带格式化。JS 页面组织模板可选，按实际容器能力选用；Review 对照修改前源码，不把 diff 的 + 行等同新增。
+- 提交：成功 pull 后仅对 commit 临时关闭重复 upstream 检查，其余钩子保留；Junction/SourceRoot 物理归属及预授权规则见提交 skill。版本与功能证据按内容复用；已登记历史债务沿 backlog 处理，不重复阻断无关提交。
+- 文档与能力手册：项目入口 `docs/README.md`，源仓入口 `maintenance/README.md`；非 xc 能力见 `docs/guides/capability-catalog.md`、`capability-guide.md`，xc 手册列入 P2。迁移与旧受管副本收敛见 `maintenance/governance/documentation-layout.md`。
+- 项目上下文：Overlay 允许按需只读调查已声明或注册表映射的源码仓库，写入仍受 SourceRoot 和授权约束。初始化、事实维护、日常优化分别路由，普通更新不覆盖项目入口；知识库路由及旧入口迁移见 `docs/update-agents.md`。
+- task-handoff：agent-context-kit 0.4.2 修复 Windows 长短路径身份判断；同机同工作区按需交接，正文与机器现场分离。当前 Codex 宿主的新会话接续于 2026-09-19 经用户验收，其它宿主仍待验证；见 `docs/task-handoff.md`。
+- 标版需求录入：`iris-demand-entry` 从实际 Git 补丁生成 `{IRIS}` 名称与三段式描述，人工录 BOSS 后回填编号并复用需求提交，可选 Excel；仅支持 v2 草稿，输出拒绝能力包及其链接别名，详见 `references/standard-demand-entry.md`。
+- 纯 init 薄索引按 manifest 排除；enabled 常规 Write 精准清理旧受管入口，保留自定义文件、非空目录与链接。稀疏检出由根 JS helper 统一刷新并验证实际落盘；失败停止，不自动同步真实工程。
 
 本文件只服务能力包源仓维护，不部署到业务项目，不生成 thin-index。规则以根 `AGENTS.md` 为准；本文件保留接手摘要，历史过程不作为当前状态。
 
