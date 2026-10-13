@@ -4,6 +4,8 @@
 
 ## 第一次使用
 
+下面是业务项目接入路线。仅查询个人 BOS 待办时，可从 [bos-init](#bos-plugin) 初始化个人配置并使用已有用户级入口，无需为此启用业务项目；配置、用户级入口与客户端 MCP 注册分别处理。
+
 1. 在目标业务工程中工作，先让 Agent 读取该工程的 `AGENTS.md`。本仓库是能力源，业务需求不在本仓执行。
 2. 尚未安装 `.agents` 时，按[安装与更新手册](../update-agents.md)接入；已有能力包也从该手册检查。Node.js 是能力包工具链依赖，不是业务系统生产依赖；文档转换、浏览器预览等专项依赖由对应技能检查。
 3. 查看目标工程 `.agents/config/plugin_profile.md`：`available` 表示可发现但尚未接入，`enabled` 表示参与常规更新和使用，`disabled` 表示禁用。目录存在或手册列出该插件不代表已启用。基础插件缺省策略也不能覆盖已有显式状态。
@@ -16,6 +18,9 @@
 
 | 我想做什么 | 推荐入口 | 应提供的信息 |
 |---|---|---|
+| 初始化 BOS 个人配置或接入项目 | [bos-init](#bos-plugin) | 明确个人初始化或目标项目接入；凭据只在仓外配置中填写 |
+| 查询 BOS 待办、历史或详情 | [bos-demand-query](#bos-plugin) | 查询模式或需求编号，按需补充日期和筛选条件 |
+| 处理已有 BOS 需求 | [bos-demand-handle](#bos-plugin) | 需求编号或充分正文、目标工程和操作范围 |
 | 初始化、修正或精简项目上下文 | [project-context-maintenance](#agent-context-kit) | 目标工程、初始化或维护范围 |
 | 在另一种 Agent 工具中发现已有技能 | [coding-agent-adaptation](#agent-context-kit) | 已安装的工程、目标宿主 |
 | 给当前需求留交接、下次继续 | [task-handoff](#agent-context-kit) | 当前需求或明确交接路径 |
@@ -69,6 +74,7 @@
 | 现有表单响应式 | `cure-form-responsive` 检查模板并保留契约 → 完整预览与验证 → 需要发布时进入部署流程；新任务不必使用旧名称 |
 | 页面国际化 | 定位链路和分类 → `i18n-coding` / `i18n-text-extract` → 页面非字典文案用 `i18n-page-trans-seed`，字典项用 `i18n-bdp-trans-seed` → 核验；已有服务器翻译迁移用 `i18n-csp-trans-sync` |
 | 标版需求录入 | `iris-demand-entry --text`（按需加 `--excel`）→ 用户录入 BOSS → 回填编号与标题 → `--bind` / `--plan` → 明确提交时 `--commit`；完整参数见[需求录入协议](../../plugins/coding-iris-plugin/references/standard-demand-entry.md) |
+| 已有 BOS 需求处理 | `bos-demand-handle` → 有编号时只读获取详情，已有充分正文则复用 → 按技术栈实施、自查和目标验证 → 用户验收 → 执行已明确授权的提交；不自动回写 BOS |
 | 跨会话继续需求 | 启用 `task-handoff` → 执行 Agent 在关键节点维护 → 明确交接时保存快照 → 新会话读取记录、inspect 核实现场 → 继续已授权范围；详见[交接说明](../task-handoff.md) |
 
 这些路线允许在已有可信产物处接续，不要求重复完成前置工作。表单的规格批准、交互验证、版本哈希及部署门禁仍按[交付协议](../../plugins/iris-cure-form-dev/references/cure-form-delivery-workflow.md)执行；批量脚本化表单交互的授权要求见其[交互测试协议](../../plugins/iris-cure-form-dev/references/cure-form-interaction-test-v1.md)。
@@ -216,9 +222,9 @@
 
 ## bos-plugin
 
-前提：Node.js >=22.5.0，项目明确启用插件；在线查询使用显式私有配置或连接环境变量。
+前提：Node.js >=22.5.0；项目内使用时明确启用插件，个人查询可使用已接入的用户级入口。在线查询使用显式私有配置或连接环境变量，已有充分需求正文的本地处理不依赖在线查询。
 
-- [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md)：请求“为当前项目接入 BOS 查询与需求处理”。项目接入生成 profile 和两个日常发现入口；也可单独初始化仓外本机私有配置。Windows 自动生成标准私有配置并绑定路径，用户只填写 TODO，详见插件 usage；不自动配置凭据或客户端。
+- [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md)：请求“初始化 BOS 个人配置”，Windows 创建或复用仓外私有配置并绑定用户环境，用户补全 TODO 后离线核对；这不启用项目。请求“为当前项目接入 BOS 查询与需求处理”才更新 profile 并生成两个日常发现入口。详见[配置说明](../../plugins/bos-plugin/references/usage.md)；非 Windows 使用显式配置，不自动注册客户端 MCP。
 - [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：请求“查看 BOS 12345 详情”或“查询我的待办”。结果区分正文、图片与附件链接，不改业务代码或 BOS 状态。
 - [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：请求“处理 BOS 12345”，按项目技术栈实现与验证；“验收后提交”可提前授权本需求提交，单独验收不会自动提交。完整正文可在 BOS 不可用时继续本地工作。
 

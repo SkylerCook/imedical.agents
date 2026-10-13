@@ -10,7 +10,7 @@
 
 新文件使用 connection: company；实例只在仓外生成，仓内不保存可供填写真实凭据的完整模板。已存在的配置不覆盖，显式 BOS_MCP_CONFIG 路径继续使用，配置缺失/损坏/禁用时不会切换身份。生成和绑定分别验证，绑定失败保留文件，修复后重试。非 Windows 自动初始化明确停止；其它平台仍可显式提供私有配置或连接环境变量。
 
-Windows 子进程不能改变已运行客户端的环境：初始化后，Agent 根据返回的 configPath 为当前验证命令设置 BOS_MCP_CONFIG，并读取已回写的用户级 BOS_MCP_URL / BOS_MANAGED_MCP_URL；之后重启客户端，使后续进程继承用户环境。先运行 defaults 离线检查；只有已有查询/连接验证授权才执行 check 或 query。不要回显完整配置。
+Windows 子进程不能改变已运行客户端的环境：初始化后，Agent 根据返回的 configPath 为当前验证命令设置 BOS_MCP_CONFIG，并读取已回写的用户级 BOS_MCP_URL / BOS_MANAGED_MCP_URL；之后重启客户端，使后续进程继承用户环境。用户补全凭据后运行 defaults 离线校验配置，并核对返回的 cuser、cgroup 已填写且不是 TODO；命令成功本身不证明身份完整。只有已有查询/连接验证授权才执行 check 或 query。不要回显完整配置。
 
 ## 公司地址更新与个人配置
 
@@ -26,7 +26,7 @@ Windows 子进程不能改变已运行客户端的环境：初始化后，Agent 
 
 从已加载技能的真实目录解析 ../../scripts/bos-demand-query.js 的绝对路径：
 
-- defaults：只读取默认 cuser、cgroup，不联网，不输出 URL、headers 或 Token。
+- defaults：先离线读取并校验连接配置，再只输出默认 cuser、cgroup；凭据仍为 TODO 时失败，身份 TODO 可能原样返回，须另外核对。不联网，不输出 URL、headers 或 Token，也不证明真实连接可用。
 - check：SSE 握手与查询工具发现，不取需求数据。
 - query '{"id":"12345"}'：精确编号查询。
 - query '{"date":"2026-01-01","date2":"2026-01-02"}'：以默认当前人、默认当前组查询指定创建日期范围。项目来源另传 source: "项目"，跨组另传 cgroup: ""。

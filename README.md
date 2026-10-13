@@ -43,7 +43,7 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
 - `agents/` 和 `workflows/` 是唯一 canonical 源。
 - Codex、Claude Code、OpenCode、CodeBuddy 等工具专属入口只是 adapter，可删除重建。
 - 业务项目差异写入业务项目自己的 `AGENTS.md`、`.agents/config/`、`.agents/rules/`、`.agents/memory/`。
-- 服务器、账号、密码、token、namespace、远程路径只允许存在于目标工程 `.mcp.json`。
+- 连接配置遵循各能力的私有配置契约：IRIS 使用目标工程被忽略的 `.mcp.json`；BOS 使用仓外个人配置或环境变量。真实连接信息与凭据不进入能力包或 Git 历史。
 
 ## 给 Agent 的落地入口
 
@@ -240,6 +240,16 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 这些 adapter 暂不实现；后续生成物也不是长期规则源。
 
 ## 插件概览
+
+### bos-plugin
+
+提供跨技术栈的 BOS 只读查询与已有需求处理，无 IRIS 插件强依赖：
+
+- [bos-init](plugins/bos-plugin/skills/bos-init/SKILL.md)：个人配置初始化与项目接入分别执行；Windows 可生成仓外私有配置并绑定用户环境变量，用户填写 TODO。项目接入才启用插件并生成两个日常入口。
+- [bos-demand-query](plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：查询我的待办、项目待办、历史或编号详情，区分正文、描述图片和附件；不写回 BOS。
+- [bos-demand-handle](plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：处理已有需求号或充分正文，按项目技术栈实施、自查和验证；IRIS 专项直达，正式协作按条件加载，提交沿用明确授权。
+
+插件默认 available。个人查询可使用用户级入口，不要求启用业务项目；项目使用按 profile 接入。普通更新不修改私有配置、用户级入口或客户端设置。首次使用与已有用户迁移见 [配置说明](plugins/bos-plugin/references/usage.md)和[接入说明](plugins/bos-plugin/references/adoption.md)，流程见 [bos-demand workflow](workflows/bos-demand.workflow.md)。
 
 ### agent-framework-evolution
 
@@ -542,7 +552,7 @@ scripts/generate-plugin-thin-index.ps1
 ## 安全边界
 
 - 不写服务器地址、账号、密码、token、namespace、远程路径或任何敏感连接信息。
-- 连接事实只放目标工程 `.mcp.json`。
+- IRIS 连接事实保存在目标工程被忽略的 `.mcp.json`；BOS 个人身份与连接配置按[配置说明](plugins/bos-plugin/references/usage.md)使用仓外私有文件或环境变量，普通框架更新不写入这些配置。
 - 非敏感项目差异写目标工程 `.agents/config/`。
 - 插件、agents、workflows 只保存通用规则、流程、模板和脚本。
 - 不把业务项目私有事实写入本仓库维护记忆。
@@ -592,7 +602,3 @@ guidanceMode（auto/concise/assisted）、executionPath 和 orchestrationMode �
 纯初始化 skill 由插件 manifest 的 `thinIndex.excludeSkills` 排除；已启用项目更新会精准清理旧受管 init 薄索引及历史遗留空目录，日常入口继续保留。详见 [迁移说明](docs/update-agents.md#纯初始化-skill-薄索引迁移)。
 
 提交同步去重：coding-iris-plugin 支持已校验 pull 与 upstream 钩子协作，见 [接入协议](plugins/coding-iris-plugin/references/commit-upstream-check.md)。
-
-## BOS 需求处理
-
-[独立 BOS 插件](plugins/bos-plugin/README.md) 提供 bos-init、bos-demand-query 和 bos-demand-handle，使用 [bos-demand workflow](workflows/bos-demand.workflow.md) 按范围直达领域技能，简单需求由当前 Agent 连续实现、自查和目标验证，正式协作按条件启用。沿用验收和授权提交边界。查询只读、配置显式，首期接通 IRIS 标版且不绑定 IRIS；插件默认 available。面向组织分发，本机私有配置与用户级引用见插件说明，更新源仓不自动修改业务工程或客户端。
