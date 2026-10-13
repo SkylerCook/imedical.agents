@@ -27,3 +27,9 @@
 - 根目录保留已被插件和既有工程引用的稳定操作入口；新增一般指南归入 guides/。
 
 框架治理、设计历史和测试证据仅保存在能力源仓的 maintenance/，不随本目录部署。项目使用文档不依赖维护区链接。xc 的能力手册后续补齐。
+
+## BOS 需求
+
+- [BOS 插件](../plugins/bos-plugin/README.md)：跨技术栈查询与处理入口。
+- [接入与迁移](../plugins/bos-plugin/references/adoption.md)：项目启用、显式私有配置及独立用户级迁移。
+- [需求场景验收](../plugins/bos-plugin/references/scenarios.md)：自动检查和真实宿主证据的边界。

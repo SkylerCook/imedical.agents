@@ -65,6 +65,7 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
 3. 读取 `.agents/config/plugin_profile.md`，确认插件是 `available`、`enabled` 还是 `disabled`。
 4. 读取 `.agents/agents/agent-registry.md` 和 `.agents/workflows/workflow-registry.md`，确认可用智能体和 workflow。
 5. 按项目需要读取插件初始化 skill：
+   - `.agents/plugins/bos-plugin/skills/bos-init/SKILL.md`
    - `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`
    - `.agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md`
    - `.agents/plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md`
@@ -97,7 +98,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install-agents.ps1
 
 脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/`，并拉取 `plugins/`、`agents/`、`workflows/` 等能力包内容，让用户和 Agent 能看到可用能力。
 
-插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认把 `agent-context-kit` 和承接原根级技能的 `agent-framework-evolution` 作为基础能力处理（显式 available/disabled 保留）；`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`、`iris-imedical-doctor-ai`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
+插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认把 `agent-context-kit` 和承接原根级技能的 `agent-framework-evolution` 作为基础能力处理（显式 available/disabled 保留）；`bos-plugin`、`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`、`iris-imedical-doctor-ai`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
 
 ### 更新已部署 `.agents`
 
@@ -176,7 +177,7 @@ imedical.agents/
 
 ## 源仓组件版本管理
 
-15 个插件以 `.agents-plugin/plugin.json` 为版本事实来源，目前没有根级独立 skill；以后新增的独立 skill 在 `SKILL.md` 声明自身版本，插件内部内容统一继承 owner 插件版本。发布记录位于 `releases/plugin|skill/<name>/<version>.md`，依赖版本范围通过 manifest 的 `dependencyVersions` 审计，同时保留原 `dependencies` 名称数组供现有更新器使用。
+16 个插件以 `.agents-plugin/plugin.json` 为版本事实来源，目前没有根级独立 skill；以后新增的独立 skill 在 `SKILL.md` 声明自身版本，插件内部内容统一继承 owner 插件版本。发布记录位于 `releases/plugin|skill/<name>/<version>.md`，依赖版本范围通过 manifest 的 `dependencyVersions` 审计，同时保留原 `dependencies` 名称数组供现有更新器使用。
 
 维护者精确暂存插件或独立 skill 的本次文件后运行：
 
@@ -591,3 +592,7 @@ guidanceMode（auto/concise/assisted）、executionPath 和 orchestrationMode �
 纯初始化 skill 由插件 manifest 的 `thinIndex.excludeSkills` 排除；已启用项目更新会精准清理旧受管 init 薄索引及历史遗留空目录，日常入口继续保留。详见 [迁移说明](docs/update-agents.md#纯初始化-skill-薄索引迁移)。
 
 提交同步去重：coding-iris-plugin 支持已校验 pull 与 upstream 钩子协作，见 [接入协议](plugins/coding-iris-plugin/references/commit-upstream-check.md)。
+
+## BOS 需求处理
+
+[独立 BOS 插件](plugins/bos-plugin/README.md) 提供 bos-init、bos-demand-query 和 bos-demand-handle，使用 [bos-demand workflow](workflows/bos-demand.workflow.md) 复用通用角色、领域规则、验收和授权提交。查询只读、配置显式，首期接通 IRIS 标版且不绑定 IRIS；插件默认 available。项目接入及后续本机迁移见插件说明，更新源仓不自动修改业务工程或客户端。

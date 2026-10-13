@@ -34,6 +34,9 @@ function createRepo(name = 'repo') {
   git(root, ['config', 'user.email', 'codex@example.invalid']);
   git(root, ['config', 'user.name', 'Codex Test']);
   git(root, ['config', 'commit.gpgSign', 'false']);
+  // Isolate fixture commits from personal hooks; product hook behavior has its own suite.
+  const hooks = path.join(parent, 'empty-hooks'); fs.mkdirSync(hooks);
+  git(root, ['config', 'core.hooksPath', hooks]);
   fs.writeFileSync(path.join(root, 'target.txt'), 'initial\n');
   fs.writeFileSync(path.join(root, 'unrelated.txt'), 'initial\n');
   git(root, ['add', '.']);
@@ -134,6 +137,7 @@ test('fast-forwarded upstream requires a new plan and creates no demand commit',
   run('git', ['clone', '-b', 'main', bare, actor], fixture.parent);
   git(actor, ['config', 'user.email', 'actor@example.invalid']);
   git(actor, ['config', 'user.name', 'Actor']);
+  git(actor, ['config', 'core.hooksPath', path.join(fixture.parent, 'empty-hooks')]);
   fs.writeFileSync(path.join(actor, 'remote.txt'), 'remote\n');
   git(actor, ['add', 'remote.txt']);
   git(actor, ['commit', '-m', 'remote advance']);
@@ -165,4 +169,115 @@ test('standard apply pulls, commits three-line message, verifies, and does not p
   assert.equal(message.length, 3);
   assert.equal(git(bare, ['rev-parse', 'refs/heads/main']).stdout.trim(), remoteBefore);
   assert.notEqual(git(fixture.root, ['rev-parse', 'HEAD']).stdout.trim(), remoteBefore);
+});
+
+function overlayFixture() {
+  const fixture = createRepo('business');
+  const workspace = path.join(fixture.parent, 'manager', 'module');
+  fs.mkdirSync(path.join(workspace, '.agents'), { recursive: true });
+  git(path.dirname(workspace), ['init', '-b', 'main']);
+  fs.symlinkSync(fixture.root, path.join(workspace, 'backend'), process.platform === 'win32' ? 'junction' : 'dir');
+  fs.writeFileSync(path.join(workspace, '.agents', 'capability.json'), JSON.stringify({
+    schemaVersion: 1, mode: 'workspace-overlay', workspace: 'module', contextRoot: '.agents',
+    capabilityRoot: '.agents', sharedDirectories: [], localDirectories: [],
+    sourceRoots: [{ name: 'backend', path: 'backend', target: fixture.root, gitRoot: fixture.root }]
+  }));
+  return { ...fixture, workspace };
+}
+
+function overlayPlan(f, files, failure = false) {
+  const result = runCli(['plan', '--project-root', f.workspace, '--kind', 'project',
+    '--demand', '12345', '--type', 'fix', '--title', '合成需求', '--subject', '字典有效期',
+    '--modification', '使用字典有效期过滤申请选项，确保失效品牌不再显示并保留维护页原有行为',
+    ...files.flatMap(file => ['--file', file])], f.workspace, failure);
+  return failure ? result : JSON.parse(result.stdout);
+}
+
+test('overlay aliases resolve to one real repository for modified, new and deleted files', () => {
+  const f = overlayFixture();
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'modified\n');
+  fs.writeFileSync(path.join(f.root, 'new.txt'), 'new\n');
+  fs.unlinkSync(path.join(f.root, 'unrelated.txt'));
+  const names = ['target.txt', 'new.txt', 'unrelated.txt'];
+  const alias = overlayPlan(f, names.map(n => path.join('backend', n)));
+  const physical = overlayPlan(f, names.map(n => path.join(f.root, n)));
+  assert.deepEqual(alias.repositories, physical.repositories);
+  const duplicate = overlayPlan(f, ['backend/target.txt', path.join(f.root, 'target.txt')]);
+  assert.deepEqual(duplicate.repositories[0].files, ['target.txt']);
+  overlayPlan(f, names.map(n => path.join('backend', n)));
+  runCli(['apply', '--plan', alias.planPath, '--confirm-commit', '--verify'], f.workspace);
+  assert.equal(git(f.root, ['status', '--short']).stdout.trim(), '');
+});
+
+test('overlay rejects wrong Junction targets, physical directories and undeclared source files', () => {
+  const f = overlayFixture();
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'modified\n');
+  const other = path.join(f.parent, 'outside');
+  fs.mkdirSync(other);
+  const alias = path.join(f.workspace, 'backend');
+  fs.unlinkSync(alias);
+  fs.symlinkSync(other, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  assert.notEqual(overlayPlan(f, [path.join(f.root, 'target.txt')], true).status, 0);
+  fs.unlinkSync(alias); fs.mkdirSync(alias);
+  assert.notEqual(overlayPlan(f, ['backend/new.txt'], true).status, 0);
+  const manifestPath = path.join(f.workspace, '.agents/capability.json');
+  const manifest = JSON.parse(fs.readFileSync(manifestPath));
+  const source = path.join(f.root, 'module'); fs.mkdirSync(source);
+  fs.rmdirSync(alias);
+  fs.symlinkSync(source, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  manifest.sourceRoots[0].target = source;
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+  assert.notEqual(overlayPlan(f, [path.join(f.root, 'target.txt')], true).status, 0);
+});
+
+test('overlay rejects nested escaping links and rechecks links before apply', () => {
+  const f = overlayFixture();
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'modified\n');
+  const other = path.join(f.parent, 'outside'); fs.mkdirSync(other);
+  fs.symlinkSync(other, path.join(f.root, 'escape'), process.platform === 'win32' ? 'junction' : 'dir');
+  assert.notEqual(overlayPlan(f, ['backend/escape/new.txt'], true).status, 0);
+  fs.unlinkSync(path.join(f.root, 'escape'));
+  const planned = overlayPlan(f, ['backend/target.txt']);
+  const head = git(f.root, ['rev-parse', 'HEAD']).stdout;
+  fs.unlinkSync(path.join(f.workspace, 'backend'));
+  fs.symlinkSync(other, path.join(f.workspace, 'backend'), process.platform === 'win32' ? 'junction' : 'dir');
+  assert.notEqual(runCli(['apply', '--plan', planned.planPath, '--confirm-commit'], f.workspace, true).status, 0);
+  assert.equal(git(f.root, ['rev-parse', 'HEAD']).stdout, head);
+});
+
+test('failed pull preserves planned changes and creates no commit', () => {
+  const f = createRepo();
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'local change\n');
+  git(f.root, ['config', 'remote.origin.url', path.join(f.parent, 'missing.git')]);
+  git(f.root, ['config', 'remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*']);
+  git(f.root, ['update-ref', 'refs/remotes/origin/main', 'HEAD']);
+  git(f.root, ['config', 'branch.main.remote', 'origin']);
+  git(f.root, ['config', 'branch.main.merge', 'refs/heads/main']);
+  const before = git(f.root, ['rev-parse', 'HEAD']).stdout;
+  const planned = plan(f.root, 'standard');
+  const applied = runCli(['apply','--plan',planned.planPath,'--confirm-commit','--verify'], f.root, true);
+  assert.equal(applied.status, 1);
+  assert.match(applied.stderr, /pull --ff-only/);
+  assert.equal(git(f.root, ['rev-parse', 'HEAD']).stdout, before);
+  assert.equal(git(f.root, ['diff','--cached','--name-only']).stdout.trim(), '');
+});
+
+for (const overlay of [false, true]) test('linked workspace ancestors retain physical repository ownership: ' + (overlay ? 'overlay' : 'standard'), () => {
+  const f = overlay ? overlayFixture() : createRepo();
+  const alias = path.join(f.parent, 'source-alias');
+  fs.symlinkSync(f.root, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'linked workspace change\n');
+  let planned;
+  if (overlay) {
+    const manifestPath = path.join(f.workspace, '.agents/capability.json');
+    const manifest = JSON.parse(fs.readFileSync(manifestPath));
+    manifest.sourceRoots[0].target = alias;
+    manifest.sourceRoots[0].gitRoot = alias;
+    fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+    planned = overlayPlan(f, ['backend/target.txt']);
+  } else planned = plan(alias, 'project');
+  assert.equal(fs.realpathSync.native(planned.repositories[0].root), fs.realpathSync.native(f.root));
+  runCli(['apply','--plan',planned.planPath,'--confirm-commit','--verify'], f.workspace || alias);
+  assert.equal(git(f.root, ['status','--short']).stdout.trim(), '');
+  fs.unlinkSync(alias);
 });

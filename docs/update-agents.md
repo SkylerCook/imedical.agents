@@ -723,3 +723,9 @@ agent-context-kit 0.3.4 补齐 AGENTS 模板与定点维护流程。更新能力
 已部署项目先取得本次能力包版本，再沿原更新入口执行 Check 或 DryRun -NoPull 检查，随后 Write -NoPull 应用；无需 Force 或另加清理开关。对 enabled 插件，Check/DryRun 报告 stale 且不改文件，Write 删除 YAML frontmatter 中 thin-index: true、source 与当前排除 skill 精确匹配的受管 SKILL.md，重复更新不再生成。删除受管索引后若目录完全为空（含隐藏项检查），同时删除该目录；上次更新已留下的空目录也按排除清单定点清理。仅删除目标 ContextRoot/skills 下的排除项空目录，不递归删除；非空目录、其它文件、非受管文件、来源不匹配文件及链接均保留；保留项如仍需移除须单独核实归属。available/disabled 插件继续按原状态跳过，不借迁移自动启用或删除其入口。
 
 standard 与 Overlay 均在目标 ContextRoot 清理，不删除 CapabilityRoot 的真实 init skill。后续初始化或检查直接读取 manifest 指向的插件真实 SKILL.md。运行时技能目录采用链接接入时随之生效；历史独立复制到工具目录或用户目录的文件不在本次自动清理范围。
+
+## BOS 插件接入
+
+bos-plugin 随既有 /plugins/** 与 workflow 分发，默认 available；仅明确接入后通过 [bos-init](../plugins/bos-plugin/skills/bos-init/SKILL.md) 启用。enabled 生成 bos-demand-query 与 bos-demand-handle 的项目 thin-index，bos-init 按 manifest 排除；available/disabled 不生成新入口。已有用户定制入口不强行覆盖或自动删除。
+
+查询采用 BOS_MCP_CONFIG 或连接环境变量，不再按代码位置寻找个人配置，也不读取 IRIS .mcp.json。无需更新安装/更新器核心。Overlay 只在 canonical 更新一次，模块按 -NoPull 刷新。用户级原技能、客户端链接和私有配置保持原状；其独立迁移按 [迁移说明](../plugins/bos-plugin/references/adoption.md)执行。

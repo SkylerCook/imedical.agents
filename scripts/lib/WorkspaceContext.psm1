@@ -114,8 +114,10 @@ function Get-AgentManifestProblems {
     }
   }
 
-  $shared = if ($propertyNames -contains "sharedDirectories") { @($Manifest.sharedDirectories) } else { @() }
-  $local = if ($propertyNames -contains "localDirectories") { @($Manifest.localDirectories) } else { @() }
+  $shared = @()
+  $local = @()
+  if ($propertyNames -contains "sharedDirectories") { $shared = @($Manifest.sharedDirectories) }
+  if ($propertyNames -contains "localDirectories") { $local = @($Manifest.localDirectories) }
   foreach ($entry in @($shared + $local)) {
     if ([string]::IsNullOrWhiteSpace([string]$entry)) { $problems.Add("directory names must be non-empty") }
     elseif (-not (Test-AgentSafeDirectoryName -Name ([string]$entry))) { $problems.Add("directory names must be safe single path segments") }

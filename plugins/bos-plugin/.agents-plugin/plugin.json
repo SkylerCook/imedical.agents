@@ -1,0 +1,23 @@
+{
+  "name": "bos-plugin",
+  "version": "0.1.0",
+  "displayName": "BOS Demand Plugin",
+  "description": "跨技术栈的 BOS 只读查询、需求处理与现有领域开发流程衔接。",
+  "entry": "AGENTS.md",
+  "skills": "skills/",
+  "scripts": "scripts/",
+  "references": "references/",
+  "initSkill": "bos-init",
+  "dependencies": [],
+  "thinIndex": {
+    "excludeSkills": [
+      "bos-init"
+    ]
+  },
+  "defaultPrompt": [
+    "查询 BOS 我的待办或按编号查看需求",
+    "处理 BOS 需求，使用当前项目开发规范",
+    "处理这个需求，验收通过后提交",
+    "为当前项目接入 BOS 查询与需求处理"
+  ]
+}

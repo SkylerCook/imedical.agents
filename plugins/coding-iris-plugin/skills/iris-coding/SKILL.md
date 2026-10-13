@@ -44,3 +44,7 @@ description: Route IRIS coding requests with unclear frontend/backend boundaries
 - 报告改动范围、验证结果及必要的混合任务接口分工；前端正常时只给一行编码摘要。提交计划与 commit 结果仅在用户要求时按 iris-demand-commit 输出，需求号、标题和默认交付类型不触发提交或追问。
 - 业务需求设置 taskKind=business-demand，按[交付生命周期](../../../../agents/_shared/delivery-lifecycle.md)进入 acceptance-pending 并给出最短验收步骤。仅在用户验收后且存在框架缺陷、规则冲突、可复用经验或用户要求时做只读 feedback 审查；任何写入逐项授权。
 - 纯框架维护使用 taskKind=framework-maintenance 和[维护生命周期](../../../../agents/_shared/maintenance-lifecycle.md)，不进入业务验收或 feedback 流程。
+
+## BOS 需求衔接
+
+从已启用 bos-plugin 的 bos-demand-handle 进入时，复用已核对的编号、完整标题、预期行为、范围及用户原始授权，不重复查询或让用户再次输入。仍按本技能决定领域规则与风险深度。验证结论区分静态、本地行为、远端编译、部署回读及用户验收，未执行的检查不得标为通过。BOS 查询归独立插件，本插件不依赖其安装；直接给正文的开发流程保持可用。

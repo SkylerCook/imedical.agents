@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { resolveWorkspaceContext } = require('../../../../scripts/lib/workspace-context');
+const { resolveWorkspaceContext, resolveSourceFilePath, resolveGitRootForPath } = require('../../../../scripts/lib/workspace-context');
 
 const SCHEMA = 'iris-demand-commit-plan/v1';
 const TYPES = new Set(['feat', 'fix', 'refactor', 'docs', 'chore']);
@@ -97,12 +97,25 @@ function findGitRoot(filePath) {
 
 function assertAllowedRepo(context, repoRoot) {
   if (context.mode === 'workspace-overlay') {
-    if (!context.gitRoots.some((root) => comparable(root) === comparable(repoRoot))) {
+    if (!context.gitRoots.some((root) => comparable(fs.realpathSync.native(root)) === comparable(repoRoot))) {
       throw new Error(`仓库不在 workspace-overlay 声明的 GitRoot 中: ${repoRoot}`);
     }
     return;
   }
-  if (!isWithin(repoRoot, context.workspaceRoot)) throw new Error(`仓库超出 WorkspaceRoot: ${repoRoot}`);
+  if (!isWithin(repoRoot, fs.realpathSync.native(context.workspaceRoot))) throw new Error(`仓库超出 WorkspaceRoot: ${repoRoot}`);
+}
+
+function assertSourceRepo(context, filePath, repoRoot) {
+  assertAllowedRepo(context, repoRoot);
+  if (context.mode === 'workspace-overlay') {
+    const physicalContext = { ...context, sourceRoots: context.sourceRoots.map(source => ({
+      ...source, target: fs.realpathSync.native(source.target),
+    })) };
+    const source = resolveGitRootForPath(physicalContext, filePath);
+    if (comparable(fs.realpathSync.native(source.gitRoot)) !== comparable(repoRoot)) {
+      throw new Error('SourceRoot GitRoot does not match actual repository: ' + filePath);
+    }
+  }
 }
 
 function relativeGitPath(repoRoot, filePath) {
@@ -258,9 +271,9 @@ function planCommand(args) {
   if (!['standard', 'workspace-overlay'].includes(context.mode)) throw new Error(`无效 workspace context: ${context.mode}`);
   const grouped = new Map();
   for (const supplied of args.files) {
-    const absolute = path.resolve(projectRoot, supplied);
+    const absolute = resolveSourceFilePath(context, supplied);
     const repoRoot = findGitRoot(absolute);
-    assertAllowedRepo(context, repoRoot);
+    assertSourceRepo(context, absolute, repoRoot);
     const key = comparable(repoRoot);
     if (!grouped.has(key)) grouped.set(key, { root: repoRoot, files: [] });
     const relative = relativeGitPath(repoRoot, absolute);
@@ -331,9 +344,25 @@ function assertSnapshotMatches(repo, current) {
   if (current.fingerprint !== repo.fingerprint) throw new Error(`计划文件状态已变化，请重新 plan: ${repo.root}`);
 }
 
+function assertPlanScope(plan) {
+  const context = resolveWorkspaceContext(plan.projectRoot);
+  for (const repo of plan.repositories) {
+    assertAllowedRepo(context, repo.root);
+    for (const file of repo.files) {
+      const absolute = path.resolve(repo.root, file);
+      const resolved = resolveSourceFilePath(context, absolute);
+      assertSourceRepo(context, resolved, repo.root);
+      if (comparable(resolved) !== comparable(absolute) || comparable(findGitRoot(resolved)) !== comparable(repo.root)) {
+        throw new Error('计划路径归属已变化，请重新 plan: ' + file);
+      }
+    }
+  }
+}
+
 function applyCommand(args) {
   if (!args.confirmCommit) throw new Error('缺少 --confirm-commit；没有用户明确授权时禁止提交');
   const plan = readPlan(args.plan);
+  assertPlanScope(plan);
   const checked = new Map();
   for (const repo of plan.repositories) {
     checked.set(comparable(repo.root), assertRepoUnchanged(repo));
@@ -367,6 +396,7 @@ function applyCommand(args) {
     if (repo.stateVersion === 2) assertSnapshotMatches(repo, checked.get(comparable(repo.root)));
     else assertRepoUnchanged(repo);
   }
+  assertPlanScope(plan);
   plan.status = 'committing';
   writeJson(plan.planPath, plan);
   for (const repo of plan.repositories) {

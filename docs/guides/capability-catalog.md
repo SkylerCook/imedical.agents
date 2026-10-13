@@ -2,7 +2,7 @@
 
 面向使用者的插件、skill 与 rule 清单。先读[使用指南](capability-guide.md)，或按下面的插件定位具体入口。
 
-范围：当前非 `imedicalxc-*` 插件，共 **11 个插件、46 个 skill、35 个 rule**；skill 数包含初始化和兼容入口，不包含 vendor skills、Agent 生成入口或源仓维护 skill。xc 本轮未编入，后续单独补齐。清单按当前文件快照核对；版本和依赖范围以各插件 manifest 为准。
+范围：当前非 `imedicalxc-*` 插件，共 **12 个插件、49 个 skill、35 个 rule**；skill 数包含初始化和兼容入口，不包含 vendor skills、Agent 生成入口或源仓维护 skill。xc 本轮未编入，后续单独补齐。清单按当前文件快照核对；版本和依赖范围以各插件 manifest 为准。
 
 ## 插件一览
 
@@ -10,6 +10,7 @@
 
 | 插件 | 用途 | 接入入口 | 直接依赖 |
 |---|---|---|---|
+| [bos-plugin](#bos-plugin) | BOS 查询与跨技术栈需求处理 | [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md) | 无插件依赖 |
 | [agent-context-kit](#agent-context-kit) | 项目上下文、宿主技能接入、需求交接 | [project-context-maintenance](../../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md) | 无插件依赖 |
 | [agent-framework-evolution](#agent-framework-evolution) | 已验收业务需求反馈与通用能力打包 | [agent-framework-evolution-init](../../plugins/agent-framework-evolution/skills/agent-framework-evolution-init/SKILL.md) | 无插件依赖 |
 | [coding-iris-plugin](#coding-iris-plugin) | IRIS 前后端开发、知识查询、需求提交与部署 | [coding-iris-init](../../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md) | 无插件依赖 |
@@ -23,6 +24,18 @@
 | [iris-interface-dev](#iris-interface-dev) | 通用接口文档解析、字段匹配与实现 | [iris-interface-init](../../plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md) | extract-doc、coding-iris-plugin |
 
 接入入口不一定是纯初始化 skill：例如 project-context-maintenance、extract-doc-ingest 和两个图谱入口也承担日常任务。是否生成薄索引以 manifest 的 thinIndex.excludeSkills 为准；不能仅按 initSkill 字段排除。
+
+## bos-plugin
+
+跨技术栈的 BOS 只读查询与已有需求处理，无 IRIS 插件强依赖。详见 [插件说明](../../plugins/bos-plugin/README.md)。
+
+| 入口 | 中文用途 | 入口类型 |
+|---|---|---|
+| [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md) | 明确接入、配置检查和项目发现 | 初始化入口 |
+| [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md) | 列表、详情和附件元数据只读查询 | 日常入口 |
+| [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md) | 需求分流、实施验证与验收提交衔接 | 日常入口 |
+
+无独立 rules；执行流程见 bos-demand workflow，配置与 CLI 见插件 references。示例与边界见 [使用指南](capability-guide.md#bos-plugin)。
 
 ## agent-context-kit
 

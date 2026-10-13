@@ -270,3 +270,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 纯初始化入口 `coding-iris-init` 直接读取插件内真实 SKILL.md，manifest 的 `thinIndex.excludeSkills` 将其排除出浅层技能列表。已启用项目常规更新时，Check/DryRun 只报告旧受管索引，Write 精准删除；自定义文件和链接保留。迁移边界见能力包 [更新说明](../../docs/update-agents.md#纯初始化-skill-薄索引迁移)。
 
 - 提交与全局 upstream 检查去重：见 [协议](references/commit-upstream-check.md)，复用进程级 hooks.requireUpToDate 配置，手动提交保持原检查。
+
+## BOS 需求衔接
+
+已启用 [bos-plugin](../bos-plugin/README.md) 的工程可从 bos-demand-handle 进入 IRIS 开发，复用已核对需求事实与原始授权；BOS 不是本插件硬依赖。提交仍使用 iris-demand-commit：有效“验收后提交”预授权在验收后直接执行，裸调用缺少模式时一次提示 --plan / --commit。
+
+提交计划支持 Overlay SourceRoot 的 Junction 入口和真实路径，并在 Apply 前重新核验归属；新增、删除文件沿最近现存父目录解析，逃逸链接或声明范围不符时停止。无需业务配置迁移，普通框架更新分发修复。

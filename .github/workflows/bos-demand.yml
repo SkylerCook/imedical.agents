@@ -1,0 +1,36 @@
+name: BOS demand framework
+on:
+  push:
+    paths:
+      - 'plugins/bos-plugin/**'
+      - 'plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js'
+      - 'plugins/coding-iris-plugin/scripts/iris-tools/tests/iris-demand-commit.test.js'
+      - 'scripts/lib/workspace-context.js'
+      - 'scripts/lib/WorkspaceContext.psm1'
+      - 'scripts/tests/bos-plugin.tests.js'
+      - 'workflows/bos-demand.workflow.md'
+      - '.github/workflows/bos-demand.yml'
+  pull_request:
+  workflow_dispatch:
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        node: ['22', '24']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node --test plugins/bos-plugin/tests/bos-demand-query.tests.js plugins/bos-plugin/tests/configuration.tests.js scripts/tests/bos-plugin.tests.js plugins/coding-iris-plugin/scripts/iris-tools/tests/iris-demand-commit.test.js plugins/coding-iris-plugin/scripts/iris-tools/tests/commit-upstream-check.test.js
+      - run: node --test scripts/tests/workspace-context.tests.js scripts/tests/standard-demand-entry.tests.js
+      - run: node --test --test-name-pattern="project links resolve" scripts/tests/documentation-layout.tests.js
+      - if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          & ./scripts/tests/workspace-context.tests.ps1
+          $env:BOS_TEST_POWERSHELL = 'powershell.exe'
+          node --test scripts/tests/bos-plugin.tests.js

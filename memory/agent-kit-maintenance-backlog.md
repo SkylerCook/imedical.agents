@@ -4,6 +4,8 @@
 
 ## P2 技能链接适配待验证
 
+- BOS：三平台 Node 22/24 CI 实跑、真实宿主发现与合成需求的 Agent 场景轨迹待验；本机 .agent-config 切换及业务试点须另行安排。框架自动测试不代表真实 BOS 或客户端验收。纳入下表第 7 项兼容/宿主验证，无新增前置门禁。
+
 - 提交校验工具：Windows/macOS/Linux × Node 22/24 的组件版本与内容证据 CI 矩阵实跑待完成；本轮 Windows Node 24 与隔离提交重放已验证，矩阵配置不等于平台通过。
 
 - 标版需求录入：standard-demand-entry 的 Windows/macOS/Linux × Node 22/24 CI 实跑，以及新版三段式描述在用户侧 BOSS 文本/Excel 的真实录入与测试交接验证；结构与本地 Git 测试不代表业务系统已验收。

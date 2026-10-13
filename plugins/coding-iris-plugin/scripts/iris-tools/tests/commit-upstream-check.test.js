@@ -15,6 +15,9 @@ for (const mode of ['success', 'pull-failed', 'head-changed', 'snapshot-changed'
       const fakeRepo = {root: '.', upstream: mode === 'local-only' ? '' : 'origin/dev', head: 'abc', stateVersion: 2,
         files: ['target'], execution: {}, message: 'test'};
       readPlan = () => ({repositories:[fakeRepo], kind: mode === 'local-only' ? 'project' : 'standard', planPath:'test-plan'});
+      // File ownership is covered by the real-repository suite; isolate hook ordering here.
+      let scopeChecks = 0;
+      assertPlanScope = () => { scopeChecks++; };
       assertRepoUnchanged = () => ({head:'abc'});
       repositoryInfo = () => ({head:mode === 'head-changed' ? 'def' : 'abc'});
       assertSnapshotMatches = () => {if(mode === 'snapshot-changed') throw Error('snapshot changed');};
@@ -27,6 +30,7 @@ for (const mode of ['success', 'pull-failed', 'head-changed', 'snapshot-changed'
     `,ctx);
     if(mode === 'pull-failed' || mode === 'snapshot-changed') assert.throws(()=>vm.runInContext('applyCommand({confirmCommit:true})',ctx));
     else vm.runInContext('applyCommand({confirmCommit:true})',ctx);
+    assert.equal(vm.runInContext('scopeChecks', ctx), ['success','local-only'].includes(mode) ? 2 : 1);
     const commits = calls.filter(args=>args.includes('commit'));
     assert.equal(commits.length, ['success','local-only'].includes(mode) ? 1 : 0);
     if(commits.length) {

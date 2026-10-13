@@ -213,3 +213,13 @@
 | [iris-interface-doc-ingest](../../plugins/iris-interface-dev/skills/iris-interface-doc-ingest/SKILL.md) | 解析指定厂家接口文档，生成后续字段匹配所需产物。 | 提供文档并可用 extract-doc；产出 docs/interface 下的解析文件，使用接口专用 schema。 |
 | [iris-interface-field-match](../../plugins/iris-interface-dev/skills/iris-interface-field-match/SKILL.md) | 对已解析接口字段做匹配，列出低置信候选和人工确认项。 | 提供 parsed.json、fields.md 和可选本地反馈；产出 field-match.json、field-match.md，不擅自确认歧义。 |
 | [iris-interface-init](../../plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md) | 为当前工程接入接口开发能力，检查解析和编码依赖。 | 依赖 extract-doc 与 coding-iris；产出 profile、输出目录和薄索引状态。 |
+
+## bos-plugin
+
+前提：Node.js >=22.5.0，项目明确启用插件；在线查询使用显式私有配置或连接环境变量。
+
+- [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md)：请求“为当前项目接入 BOS 查询与需求处理”。结果为项目 profile 和两个日常发现入口；不配置个人凭据或用户级客户端。
+- [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：请求“查看 BOS 12345 详情”或“查询我的待办”。结果区分正文、图片与附件链接，不改业务代码或 BOS 状态。
+- [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：请求“处理 BOS 12345”，按项目技术栈实现与验证；“验收后提交”可提前授权本需求提交，单独验收不会自动提交。完整正文可在 BOS 不可用时继续本地工作。
+
+简单任务串行，正式协作复用已有 Coordinator；只有明确要求交接才建记录。IRIS 标版使用已有编码及提交技能，非 IRIS 不加载其规则。新进程可读入口与真实宿主已发现分别验证，见 [场景](../../plugins/bos-plugin/references/scenarios.md)。

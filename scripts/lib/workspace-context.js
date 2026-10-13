@@ -266,7 +266,65 @@ function resolveGitRootForPath(context, filePath) {
   return matches[0];
 }
 
+
+// Resolve the nearest existing ancestor so new/deleted files retain their path.
+function physicalPath(filePath) {
+  let ancestor = normalizePath(filePath);
+  const suffix = [];
+  for (;;) {
+    try {
+      fs.lstatSync(ancestor);
+      return normalizePath(path.join(fs.realpathSync.native(ancestor), ...suffix));
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      // A dangling link must not be treated as a missing ordinary path.
+      try {
+        if (fs.lstatSync(ancestor).isSymbolicLink()) throw new Error('Dangling source link: ' + ancestor);
+      } catch (statError) {
+        if (statError.code !== 'ENOENT') throw statError;
+      }
+      const parent = path.dirname(ancestor);
+      if (parent === ancestor) throw error;
+      suffix.unshift(path.basename(ancestor));
+      ancestor = parent;
+    }
+  }
+}
+
+function resolveSourceFilePath(context, filePath) {
+  const file = normalizePath(filePath, context.workspaceRoot);
+  if (context.mode !== 'workspace-overlay') {
+    if (context.mode !== 'standard') throw new Error('Invalid workspace context');
+    const root = physicalPath(context.workspaceRoot);
+    const resolved = physicalPath(file);
+    if ((!isPathWithin(file, context.workspaceRoot) && !isPathWithin(file, root)) || !isPathWithin(resolved, root)) {
+      throw new Error('Path escapes WorkspaceRoot: ' + file);
+    }
+    return resolved;
+  }
+  const problems = manifestProblems(context.manifest, context.workspaceRoot, context.contextRoot);
+  if (context.manifest.schemaVersion !== 1 || problems.length) throw new Error('Invalid overlay manifest: ' + problems.join('; '));
+  const matches = context.sourceRoots.flatMap(source => [...new Set([source.path, source.target,
+    fs.existsSync(source.target) ? fs.realpathSync.native(source.target) : source.target])]
+    .filter(root => isPathWithin(file, root)).map(root => ({ source, root })))
+    .sort((a, b) => b.root.length - a.root.length);
+  if (!matches.length) throw new Error('Path is not inside a declared SourceRoot: ' + file);
+  const { source, root } = matches[0];
+  const check = junctionResult(source.path, source.target, 'source-path-not-junction', 'source-path-missing');
+  if (check.status !== 'junction-ok') throw new Error(check.status + ': ' + source.path);
+  const physicalRoot = fs.realpathSync.native(source.target);
+  const physicalGit = fs.realpathSync.native(source.gitRoot);
+  if (!isPathWithin(source.target, source.gitRoot) || !isPathWithin(physicalRoot, physicalGit)) {
+    throw new Error('SourceRoot escapes declared GitRoot: ' + source.target);
+  }
+  const mapped = path.join(source.target, path.relative(root, file));
+  const resolved = physicalPath(mapped);
+  if (!isPathWithin(resolved, physicalRoot)) throw new Error('Source link escapes declared SourceRoot: ' + file);
+  return resolved;
+}
+
 module.exports = {
+  resolveSourceFilePath,
   resolveWorkspaceContext,
   validateWorkspaceContext,
   resolveGitRootForPath,
