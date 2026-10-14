@@ -739,6 +739,8 @@ bos-plugin 随既有 /plugins/** 与 workflow 分发，默认 available；仅明
 
 项目主动执行既有更新流程取得能力。Overlay 共享 CapabilityRoot 只更新一次，各 ContextRoot 用 -NoPull 刷新生成层。不需要更改安装器/更新器核心；源仓维护不自动同步工程或用户级入口。
 
+0.5.0 的需求处理流程在全部本地提交校验成功后自动准备代码日志计划，BOS 写入仍需当前需求与提交范围的明确授权。已有工程按上述更新步骤取得 workflow 与刷新后的 handle 索引；配置格式沿用 0.4.0，无新增迁移或旧文件清理。日志配置未完成只保留补录待办，不撤销本地提交；具体流程见 [提交后日志编排](../workflows/bos-demand.workflow.md#提交后的-bos-代码更新日志)。
+
 ### BOS 0.4.0 共享配置迁移（breaking）
 
 查询与日志共用 BOS_MCP_CONFIG 指向的仓外 JSON，顶层按 bos-demand-query 与 bos-code-update-log 分段，凭据分别填写。新版本不再读取旧平铺/mcpServers/仅身份配置、连接环境变量回退或编辑器设置；查询参数与人员/组显式覆盖不变，客户端 stdio 注册仍只需传共享文件路径。

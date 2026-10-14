@@ -8,7 +8,7 @@ BOS 能力独立于技术栈。目录存在仅表示 available；项目使用前
 
 - 从实际 Git 补丁生成标版需求文本/Excel并回填编号：[bos-demand-entry](skills/bos-demand-entry/SKILL.md)。
 - 只读需求列表、详情、图片及附件元数据：[bos-demand-query](skills/bos-demand-query/SKILL.md)。
-- 已有需求号或正文，需要调查、实施、验证：[bos-demand-handle](skills/bos-demand-handle/SKILL.md)。
+- 已有需求号或正文，需要调查、实施、验证，以及提交后的日志衔接：[bos-demand-handle](skills/bos-demand-handle/SKILL.md)。
 - 已有本地提交补录为 BOS 代码更新日志：[bos-code-update-log](skills/bos-code-update-log/SKILL.md)。
 - 按技能分段的共享私有配置、初始化与查询 CLI：[使用说明](references/usage.md)。
 - 后续用户级技能迁移：[接入与迁移](references/adoption.md)。
@@ -19,4 +19,4 @@ BOS 能力独立于技术栈。目录存在仅表示 available；项目使用前
 
 开发规则、交付类型、测试与提交策略由目标工程及相应领域能力决定。验收、提交、部署和 BOS 状态互不替代。业务处理使用共享交付生命周期；维护本插件遵循源仓维护协议。
 
-代码更新日志的 plan 只读本地 Git；submit 是独立 BOS 写入，需明确授权与 --confirm，不代替本地 commit/push 或需求状态。
+代码更新日志的 plan 只读本地 Git；submit 是独立 BOS 写入，需明确授权与 --confirm，不代替本地 commit/push 或需求状态。需求处理的全部提交校验成功后自动准备日志计划，复用精确 repo/hash，再按已有授权执行或请求授权；失败恢复与去重由 [bos-demand workflow](../../workflows/bos-demand.workflow.md#提交后的-bos-代码更新日志) 定义。

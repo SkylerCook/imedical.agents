@@ -35,6 +35,8 @@ node <脚本绝对路径> submit '{"select":[{"repo":"<仓库路径>","hash":"<�
 
 一次选择明确的 repo/hash，解析为完整 commit hash；同需求号组成一条 payload，同需求的仓库/提交进入 `Repository`。菜单名称和修改说明按选择顺序分别去重、换行合并，不丢弃后续仓库的说明。重复选择同一仓库提交只处理一次。`UserCode` 来自 `--user` 或首个仓库的当前 Git user.name。
 
+需求处理在全部提交 verified 后自动准备日志，选择映射、独立授权、失败恢复与已确认结果去重以 [bos-demand workflow](../../../workflows/bos-demand.workflow.md#提交后的-bos-代码更新日志) 为准。CLI 的选择内去重只作用于单次调用，不提供服务端幂等或跨次提交去重；不得据此自动重试。plan 与 submit 复用同一选择及明确的提交用户，期间配置或选择变化须重新核对计划。
+
 ## 请求与结果
 
 向已配置地址 POST JSON **数组**。每项字段为：

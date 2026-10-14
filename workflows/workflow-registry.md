@@ -11,7 +11,7 @@
 | `standard-change` | 通用任务图、角色、规范 Review、通信、恢复、验证和验收流程 | `workflows/standard-change.workflow.md` | `coordinator-agent` | 是 |
 | `iris-change` | 在通用调度之上增加 IRIS 领域路由 | `workflows/iris-change.workflow.md` | `iris-change-agent` | 是 |
 | `i18n-change` | IRIS 国际化需求处理，从链路定位到验证的领域流程 | `workflows/i18n-change.workflow.md` | `i18n-agent` | 是 |
-| `bos-demand` | 跨技术栈 BOS 需求事实、领域分流、验收与授权提交 | `workflows/bos-demand.workflow.md` | `coordinator-agent` | 是 |
+| `bos-demand` | 跨技术栈 BOS 需求处理、验收与授权提交，提交后准备并按授权补录代码日志 | `workflows/bos-demand.workflow.md` | `coordinator-agent` | 是 |
 
 ## 扩展约定
 

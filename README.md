@@ -254,7 +254,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - [bos-demand-query](plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：查询我的待办、项目待办、历史或编号详情，区分正文、描述图片和附件；不写回 BOS。
 - [bos-demand-entry](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md)：从实际 Git 补丁生成标版文本/Excel，使用项目确认的产品标识，回填 BOS 编号后衔接通用提交；无需查询凭据。
 - [bos-code-update-log](plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)：从已有 Git 提交生成预览，并按明确授权补录 BOS 代码更新日志；独立凭据与需求查询共用私有文件。
-- [bos-demand-handle](plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：处理已有需求号或充分正文，主动读取影响理解的截图和附件，按项目技术栈实施、自查和验证；IRIS 专项直达，正式协作按条件加载，提交沿用明确授权。
+- [bos-demand-handle](plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：处理已有需求号或充分正文，主动读取相关媒体并按技术栈实施、自查和验证；全部提交校验成功后复用本次仓库/hash 准备日志计划，再按明确 BOS 授权补录。IRIS 专项直达，正式协作按条件加载。
 
 0.4.0 统一按 skill 分段的私有配置，旧平铺文件须明确迁移，运行时不回退旧连接来源；见插件配置说明。插件默认 available。个人查询可使用用户级入口，不要求启用业务项目；项目使用按 profile 接入。普通更新不修改私有配置、用户级入口或客户端设置。首次使用与已有用户迁移见 [配置说明](plugins/bos-plugin/references/usage.md)和[接入说明](plugins/bos-plugin/references/adoption.md)，流程见 [bos-demand workflow](workflows/bos-demand.workflow.md)。
 

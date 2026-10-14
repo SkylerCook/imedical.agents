@@ -7,7 +7,7 @@
 | [bos-init](skills/bos-init/SKILL.md) | 初始化个人身份，或接入项目并生成发现入口 |
 | [bos-demand-entry](skills/bos-demand-entry/SKILL.md) | 从 Git 补丁生成标版文本/Excel，回填编号并衔接 demand-commit |
 | [bos-demand-query](skills/bos-demand-query/SKILL.md) | 查询待办、历史或指定编号详情 |
-| [bos-demand-handle](skills/bos-demand-handle/SKILL.md) | 核对需求后使用项目领域能力实施、验证和交付 |
+| [bos-demand-handle](skills/bos-demand-handle/SKILL.md) | 实施、验证和交付需求，提交校验成功后准备并按授权补录日志 |
 | [bos-code-update-log](skills/bos-code-update-log/SKILL.md) | 预览并按授权将已有 Git 提交补录为代码更新日志 |
 
 插件无 IRIS 强依赖。IRIS 项目按范围直达前端/后端技能，混合或边界不明时使用 iris-coding；其它项目沿用自己的规范。简单任务由当前 Agent 连续修改、自查和目标验证，正式协作资料按条件加载，具体分流见 [bos-demand workflow](../../workflows/bos-demand.workflow.md)。
@@ -19,6 +19,8 @@
 首次接入从 bos-init 真实路径开始。个人初始化不启用项目；项目接入也不代替个人凭据填写。查询与代码更新日志共用 BOS_MCP_CONFIG 指向的仓外文件，按 skill 名分段且凭据独立；[使用说明](references/usage.md)定义优先级、TODO 填写与离线核对，defaults 成功不等于身份完整或真实连接可用。[接入与迁移](references/adoption.md)包含项目与用户级接入步骤。普通框架更新只分发能力，不启用插件、不修改个人配置或客户端。
 
 示例：“查看 BOS 12345 的详情”“处理 BOS 12345”“处理 BOS 12345，验收通过后提交”。只要求查询时不会改代码；只说验收通过不会自动授权提交。
+
+0.5.0 在需求处理的全部本地提交校验成功后，直接复用本次仓库与完整 hash 自动准备 BOS 日志计划；展示具体计划后复用明确的 BOS 补录预授权或请求一次授权。“验收后提交并把本次提交补录到 BOS 代码更新日志”可同时明确两个动作。缺少日志配置、拒绝或接口失败时保留本地已提交结果；未知结果先核对，已确认成功不重复写入。编排见 workflow，不改变通用 demand-commit 或需求状态；业务工程主动更新后生效，无新增配置迁移或旧文件清理。
 
 0.4.0 统一分段配置，运行时不保留旧格式或编辑器设置回退；旧平铺配置须明确运行 migrate-config 原地转换，详见[配置与迁移](references/usage.md)。个人配置不会被项目更新器自动修改，日志缺失只阻塞日志技能。代码更新日志的 plan 不联网，submit 需明确 BOS 写入授权，字段与结果判定见[接口说明](references/code-update-log.md)。
 

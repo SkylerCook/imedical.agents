@@ -56,7 +56,15 @@ for (const mode of ['standard', 'overlay', 'overlay-single-shared']) test('plugi
     assert.equal(fs.existsSync(queryEntry), status === 'enabled', updateOutput);
     assert.equal(fs.existsSync(logEntry), status === 'enabled', updateOutput);
   }
-  assert.ok(fs.existsSync(path.join(f.context, 'skills/bos-demand-handle/SKILL.md')));
+  const handleEntry = path.join(f.context, 'skills/bos-demand-handle/SKILL.md');
+  const handleIndex = fs.readFileSync(handleEntry, 'utf8');
+  assert.ok(handleIndex.includes('校验成功后准备并按授权补录 BOS 代码更新日志'));
+  const handlePointer = handleIndex.match(/^source:\s*(.+)$/m)[1].trim();
+  const handleSkill = fs.realpathSync(path.resolve(f.project, handlePointer));
+  const handleText = fs.readFileSync(handleSkill, 'utf8');
+  assert.ok(handleText.includes('bos-code-update-log/SKILL.md'));
+  const workflowPointer = handleText.match(/\]\(([^)]+bos-demand\.workflow\.md)\)/)[1];
+  assert.ok(fs.readFileSync(path.resolve(path.dirname(handleSkill), workflowPointer), 'utf8').includes('## 提交后的 BOS 代码更新日志'));
   assert.ok(fs.existsSync(path.join(f.context, 'skills/bos-demand-entry/SKILL.md')));
   assert.equal(fs.existsSync(path.join(f.context, 'skills/bos-init/SKILL.md')), false);
   // A fresh process resolves the generated pointer and invokes its real script.
@@ -96,6 +104,19 @@ test('BOS workflow delegates lifecycle, domains and authorization without a seco
   assert.deepEqual(manifest.dependencies, []);
   assert.deepEqual(manifest.thinIndex.excludeSkills, ['bos-init']);
   assert.ok(read('workflows/workflow-registry.md').includes('bos-demand'));
+});
+
+test('BOS workflow routes verified commits to scoped, separately authorized log submission', () => {
+  const workflow = read('workflows/bos-demand.workflow.md');
+  const phase = workflow.slice(workflow.indexOf('## 提交后的 BOS 代码更新日志'));
+  for (const marker of ['bos-code-update-log/SKILL.md', 'status=verified', 'repositories[].root',
+    'repositories[].execution.commit', 'select[].repo', 'select[].hash', 'BOS 补录预授权',
+    'submit --confirm', '结果未知', '不回滚', '已确认接口成功', '任一仓提交失败', '仅要求预览时交付计划']) {
+    assert.ok(phase.includes(marker), marker);
+  }
+  assert.ok(read('plugins/bos-plugin/skills/bos-demand-handle/SKILL.md').includes('bos-code-update-log/SKILL.md'));
+  assert.ok(read('plugins/bos-plugin/skills/bos-code-update-log/SKILL.md').includes('bos-demand.workflow.md#提交后的-bos-代码更新日志'));
+  assert.ok(!workflow.includes('本插件仅提供 BOS 只读工具'));
 });
 
 for (const overlay of [false, true]) test('updater retires deployed demand names and enables successors: ' + overlay, t => {

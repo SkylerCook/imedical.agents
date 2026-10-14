@@ -1,5 +1,9 @@
 # imedical.agents 维护日志
 
+- 2026-10-14（BOS 提交后日志编排，framework-maintenance）：bos-plugin 0.5.0 将 bos-code-update-log 衔接到 bos-demand-handle 的共享 workflow；全部提交 verified 后精确复用 root/完整 hash，自动准备计划，再复用明确 BOS 预授权或请求一次授权。配置缺失、拒绝及接口失败保留本地提交，未知结果先核对，已确认成功不重复写入；通用提交脚本和配置结构不变，不另建普通需求状态库。同步 owner、路由、指南、workflow registry、场景、版本与发布记录；业务工程通过既有更新取得，无新增迁移或旧文件清理。
+  - 验证：Windows Node 24 插件全套 51/51 通过，新增四项覆盖单仓/多仓 verified 结果到日志计划与模拟提交、HEAD 后续变化不扩选、配置缺失及后续仓提交失败的结果边界。PowerShell 7 与 Windows PowerShell 5.1 的标准/Overlay/单共享目录发现及 workflow 契约分别 5/5 通过；部署文档链接/清单 1/1 通过。工具检查与静态契约不替代真实 Agent 的预授权/拒绝、部分失败阶段选择及交接去重轨迹，沿既有 BOS P2 队列取证；现有三平台 Node 22/24 CI 自动纳入新增测试，未取得非 Windows/Node 22 实跑。
+  - 收尾：组件 owner 定向比较确认非 breaking 的 0.4.0→0.5.0 minor 递增，无问题；diff check 通过，隔离夹具自清理后本任务临时目录已删除并复核。功能证据存于源仓 Git 本地元数据，可按内容指纹复用，不部署。本轮不修改个人配置，不同步业务副本或用户级入口，不执行真实 BOS；提交与推送按本轮后续授权执行，结果以 Git 记录为准。
+
 - 2026-10-14（BOS 日志回归与共享配置，framework-maintenance）：bos-plugin 0.4.0 新增 bos-code-update-log，已有 Git 提交先预览、明确授权后补录，跨仓聚合保留不同菜单和说明。查询与日志共用 BOS_MCP_CONFIG，按 skill 名分段且凭据独立；移除运行时旧格式/连接变量/编辑器回退，显式 migrate-config 原地保留查询字段并增加日志 TODO。沿用更新器按启用状态分发四个日常索引，未修改安装/更新核心，未自动同步业务工程或新增用户级入口。
   - 验证：Windows Node 24 最终插件回归 47/47 通过；PowerShell 7 与 Windows PowerShell 5.1 的 standard/Overlay/单共享目录发现及 workflow 各 4/4 通过，文档部署链接/技能清单 1/1 通过。组件 owner 定向比较接受已授权 breaking 0.3.0→0.4.0，无问题；完整 worktree 审计仅保留已登记 xc 1.0.2–1.0.4 发布记录缺 commit 的 6 项历史问题。现有三平台 Node 22/24 CI 纳入新增测试，未取得非 Windows/Node 22 实跑，不声称真实 BOS 验收。
   - 本机配置：正常 Windows 宿主完成显式迁移，查询字段等值、既有入口新进程离线校验、路径绑定与重复迁移均验证；日志字段待使用者独立填写。补充临时文件落盘后物理路径检查，阻止 MSIX 将新文件写入隔离层，对应模拟回归通过。任务生成的隔离副本已按归属核实并删除，不在共享资料记录个人值或路径。功能证据记录于源仓 Git 本地元数据，不部署；提交与推送按本轮后续授权执行，结果以 Git 记录为准；真实 BOS 写入未执行。

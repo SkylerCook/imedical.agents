@@ -7,7 +7,7 @@
 - Overlay 部署配置解析由 coding-iris-plugin/scripts/iris-tools/project-env.js 维护；模块本地优先、manifest.projectEnvFallback 显式回退，MCP 与源码边界仍归模块。
 
 - 最近维护回看覆盖至 `d81fa6f`（2026-10-13）：BOS 组织分发与简单需求流程、SFTP 单连接部署、提交路径边界；提交索引和验证范围见维护日志。
-- `bos-plugin` 0.4.0：新增代码更新日志预览与授权补录；个人配置统一 BOS_MCP_CONFIG 指向的仓外文件，按 skill 分段、凭据独立，旧平铺格式仅通过显式 migrate-config 转换。Windows 分发与配置结果见维护日志，真实 BOS 写入和非 Windows 矩阵分开取证。处理时主动读取相关截图和附件，关键资料缺失先澄清依赖部分；查询、个人配置初始化与跨技术栈需求处理归框架统一维护。简单需求连续实施、自查和目标验证，IRIS 专项直达，正式协作条件加载；普通更新不修改个人配置或客户端，接入见插件 usage/adoption；个人初始化、项目启用与其它领域接入分开，defaults 成功还须核对身份非 TODO。
+- `bos-plugin` 0.5.0：需求处理的全部本地提交 verified 后，workflow 精确复用 repo/hash 自动准备代码日志计划，再复用明确 BOS 预授权或请求一次授权；失败保留本地提交，未知结果先核对，已确认成功不重复写入。个人配置沿用 BOS_MCP_CONFIG 的仓外文件，按 skill 分段、凭据独立，旧平铺格式仅显式 migrate-config 转换。处理时主动读取相关媒体；简单需求连续实施、自查和目标验证，IRIS 专项直达，正式协作条件加载。普通更新不修改个人配置或客户端；接入与配置核对见插件 usage/adoption，Windows 验证见维护日志，真实宿主/BOS 及非 Windows 矩阵分开取证。
 - 编码规范：CLS 与前端分别以 coding-iris-plugin 的 `references/cls-coding-format.md`、`references/frontend-coding-format.md` 为事实源；只约束真正新增代码，原有代码的功能修改不附带格式化。JS 页面组织模板可选，按实际容器能力选用；Review 对照修改前源码，不把 diff 的 + 行等同新增。
 - 提交：成功 pull 后仅对 commit 临时关闭重复 upstream 检查，其余钩子保留；Junction/SourceRoot 物理归属及预授权规则见提交 skill。版本与功能证据按内容复用；已登记历史债务沿 backlog 处理，不重复阻断无关提交。
 - 文档与能力手册：项目入口 `docs/README.md`，源仓入口 `maintenance/README.md`；非 xc 能力见 `docs/guides/capability-catalog.md`、`capability-guide.md`，xc 手册列入 P2。迁移与旧受管副本收敛见 `maintenance/governance/documentation-layout.md`。
