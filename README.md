@@ -273,6 +273,8 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 ### coding-iris-plugin
 
+当前维护修复统一 direct/guarded 索引路由、提交 verify 的重复执行及精确路径集合，并将 workspace 异常前置阻断。更新器在缺少独立 .agents Git 时以非零退出码停止生成；i18n 恢复真实技能描述并按混合 CSP 语言区域检查 helper。同步方式见 [更新说明](docs/update-agents.md)。
+
 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力：
 
 - ObjectScript 后端编码规则。

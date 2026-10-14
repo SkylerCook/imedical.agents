@@ -475,11 +475,11 @@ Assert-Contains $contextInitContent "dependencies" "Initialization should read p
 Assert-Contains $contextInitContent "update-plugin-profile.ps1" "Initialization should use update-plugin-profile.ps1 after init validation"
 $irisBackendRuleContent = Get-Content -Raw -Encoding UTF8 -Path $irisBackendRulePath
 $irisBackendSkillContent = Get-Content -Raw -Encoding UTF8 -Path $irisBackendSkillPath
-Assert-Contains $irisBackendRuleContent 'continue:(episodeId''="")&&(appEpisode''=episodeId)' "IRIS backend rule should show a valid compound postconditional without spaces"
-Assert-Contains $irisBackendRuleContent 'continue:(episodeId''="") && (appEpisode''=episodeId)' "IRIS backend rule should retain the invalid spaced form as a regression example"
-Assert-Contains $irisBackendRuleContent '#1012 Expected EOL or spaces' "IRIS backend rule should identify the compiler error caused by a spaced postconditional"
-Assert-Contains $irisBackendSkillContent 'continue:(cond1)&&(cond2)' "IRIS backend skill should require contiguous compound postconditionals"
-Assert-Contains $irisBackendSkillContent 'continue:(cond1) && (cond2)' "IRIS backend skill should reject spaced compound postconditionals"
+Assert-Contains $irisBackendRuleContent 'references/cls-coding-format.md' "Backend rule should route to the canonical CLS format"
+Assert-Contains $irisBackendSkillContent 'references/cls-coding-format.md' "Backend skill should route to the canonical CLS format"
+$clsFormatContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $repoRoot 'plugins/coding-iris-plugin/references/cls-coding-format.md')
+Assert-Contains $clsFormatContent 'continue:(cond1)&&(cond2)' "CLS reference should retain the contiguous postconditional example"
+Assert-Contains $clsFormatContent 'continue:(cond1) && (cond2)' "CLS reference should explain why outer whitespace ends a postconditional"
 $hisuiStyleIndexContent = Get-Content -Raw -Encoding UTF8 -Path $hisuiStyleIndexPath
 $hisuiWidgetIndexContent = Get-Content -Raw -Encoding UTF8 -Path $hisuiWidgetIndexPath
 Assert-Contains $hisuiStyleIndexContent "../rules/iris_coding_frontend.md" "HISUI style related path should resolve from references/"
@@ -523,6 +523,7 @@ Assert-Contains $contextInitContent "install-git-hooks.ps1" "project-context-mai
 Assert-True (Test-Path -LiteralPath $repositoryMaintenanceSkillUnderTest -PathType Leaf) "repository-local maintenance skill should live under .agents/skills"
 Assert-True (-not (Test-Path -LiteralPath $legacyRepositoryMaintenanceSkillUnderTest)) "root skills should not retain the maintenance-only exception"
 
+$syntheticCredential = [guid]::NewGuid().ToString("N")
 $mcpPreferenceProjectRoot = New-TestProject
 try {
   $vendorExePath = Join-Path $mcpPreferenceProjectRoot ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe"
@@ -532,7 +533,7 @@ try {
 
   $mcpConfigPath = Join-Path $mcpPreferenceProjectRoot ".mcp.json"
   $projectEnvPath = Join-Path $mcpPreferenceProjectRoot ".agents/config/project-env.json"
-  Set-Content -Encoding UTF8 -Path $mcpConfigPath -Value @'
+  Set-Content -Encoding UTF8 -Path $mcpConfigPath -Value @"
 {
   "mcpServers": {
     "custom-iris": {
@@ -540,7 +541,7 @@ try {
       "args": ["mcp", "--namespace", "TEST"],
       "env": {
         "IRIS_USERNAME": "preserve-user",
-        "IRIS_PASSWORD": "preserve-password"
+        "IRIS_PASSWORD": "$syntheticCredential"
       }
     },
     "other-server": {
@@ -549,13 +550,13 @@ try {
     }
   }
 }
-'@
-  Set-Content -Encoding UTF8 -Path $projectEnvPath -Value @'
+"@
+  Set-Content -Encoding UTF8 -Path $projectEnvPath -Value @"
 {
   "iris": {
     "host": "preserve-host",
     "username": "preserve-user",
-    "password": "preserve-password",
+    "password": "$syntheticCredential",
     "namespace": "TEST"
   },
   "mcp": {
@@ -564,7 +565,7 @@ try {
     "includeBuiltInSkills": false
   }
 }
-'@
+"@
 
   $mcpBeforeDryRun = [System.IO.File]::ReadAllText($mcpConfigPath, [System.Text.Encoding]::UTF8)
   $projectEnvBeforeDryRun = [System.IO.File]::ReadAllText($projectEnvPath, [System.Text.Encoding]::UTF8)
@@ -579,10 +580,10 @@ try {
   $projectEnvAfterWrite = Get-Content -Raw -Encoding UTF8 -Path $projectEnvPath | ConvertFrom-Json
   Assert-True ($mcpAfterWrite.mcpServers.'custom-iris'.command -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Write should point the configured MCP server to the bundled executable"
   Assert-True ($mcpAfterWrite.mcpServers.'custom-iris'.args[2] -eq "TEST") "Write must preserve MCP args"
-  Assert-True ($mcpAfterWrite.mcpServers.'custom-iris'.env.IRIS_PASSWORD -eq "preserve-password") "Write must preserve MCP env fields"
+  Assert-True ($mcpAfterWrite.mcpServers.'custom-iris'.env.IRIS_PASSWORD -eq $syntheticCredential) "Write must preserve MCP env fields"
   Assert-True ($mcpAfterWrite.mcpServers.'other-server'.command -eq "node") "Write must preserve unrelated MCP servers"
   Assert-True ($projectEnvAfterWrite.mcp.serverPath -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Write should keep project-env MCP path aligned"
-  Assert-True ($projectEnvAfterWrite.iris.password -eq "preserve-password") "Write must preserve project-env connection fields"
+  Assert-True ($projectEnvAfterWrite.iris.password -eq $syntheticCredential) "Write must preserve project-env connection fields"
 
   $mcpAfterFirstWrite = [System.IO.File]::ReadAllText($mcpConfigPath, [System.Text.Encoding]::UTF8)
   $preferenceSecondWrite = & $preferVendorIrisMcpScriptUnderTest -ProjectRoot $mcpPreferenceProjectRoot -Mode Write
@@ -603,6 +604,7 @@ finally {
   }
 }
 
+$deployedSyntheticCredential = [guid]::NewGuid().ToString("N")
 $deployedUpgradeSourceProject = New-TestProject
 $deployedUpgradeRemote = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-upgrade-remote-" + [System.Guid]::NewGuid().ToString("N") + ".git")
 $deployedUpgradeProjectRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-deployed-upgrade-" + [System.Guid]::NewGuid().ToString("N"))
@@ -651,7 +653,7 @@ try {
   New-Item -ItemType Directory -Force -Path (Join-Path $deployedAgentsRoot "config") | Out-Null
   $deployedMcpPath = Join-Path $deployedUpgradeProjectRoot ".mcp.json"
   $deployedProjectEnvPath = Join-Path $deployedAgentsRoot "config/project-env.json"
-  Set-Content -Encoding UTF8 -Path $deployedMcpPath -Value @'
+  Set-Content -Encoding UTF8 -Path $deployedMcpPath -Value @"
 {
   "mcpServers": {
     "deployed-iris": {
@@ -659,7 +661,7 @@ try {
       "args": ["mcp", "--namespace", "DEPLOYED"],
       "env": {
         "IRIS_USERNAME": "preserve-deployed-user",
-        "IRIS_PASSWORD": "preserve-deployed-password",
+        "IRIS_PASSWORD": "$deployedSyntheticCredential",
         "IRIS_NAMESPACE": "DEPLOYED"
       }
     },
@@ -669,13 +671,13 @@ try {
     }
   }
 }
-'@
-  Set-Content -Encoding UTF8 -Path $deployedProjectEnvPath -Value @'
+"@
+  Set-Content -Encoding UTF8 -Path $deployedProjectEnvPath -Value @"
 {
   "iris": {
     "host": "preserve-deployed-host",
     "username": "preserve-deployed-user",
-    "password": "preserve-deployed-password",
+    "password": "$deployedSyntheticCredential",
     "namespace": "DEPLOYED"
   },
   "mcp": {
@@ -687,7 +689,7 @@ try {
     "value": "keep-me"
   }
 }
-'@
+"@
 
   [System.IO.File]::WriteAllText($upgradeSourceUpdater, $currentUpdaterText, (New-Object System.Text.UTF8Encoding($false)))
   Copy-Item -LiteralPath $preferVendorIrisMcpScriptUnderTest -Destination $upgradeSourcePreferenceScript
@@ -714,9 +716,9 @@ try {
   $deployedProjectEnvAfterUpgrade = Get-Content -Raw -Encoding UTF8 -Path $deployedProjectEnvPath | ConvertFrom-Json
   Assert-True ($deployedMcpAfterUpgrade.mcpServers.'deployed-iris'.command -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Deployed upgrade should update .mcp.json to the vendor executable"
   Assert-True ($deployedProjectEnvAfterUpgrade.mcp.serverPath -eq ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") "Deployed upgrade should update project-env.json to the vendor executable"
-  Assert-True ($deployedMcpAfterUpgrade.mcpServers.'deployed-iris'.env.IRIS_PASSWORD -eq "preserve-deployed-password") "Deployed upgrade must preserve MCP connection fields"
+  Assert-True ($deployedMcpAfterUpgrade.mcpServers.'deployed-iris'.env.IRIS_PASSWORD -eq $deployedSyntheticCredential) "Deployed upgrade must preserve MCP connection fields"
   Assert-True ($deployedMcpAfterUpgrade.mcpServers.'deployed-other'.command -eq "node") "Deployed upgrade must preserve unrelated MCP servers"
-  Assert-True ($deployedProjectEnvAfterUpgrade.iris.password -eq "preserve-deployed-password") "Deployed upgrade must preserve project-env connection fields"
+  Assert-True ($deployedProjectEnvAfterUpgrade.iris.password -eq $deployedSyntheticCredential) "Deployed upgrade must preserve project-env connection fields"
   Assert-True ($deployedProjectEnvAfterUpgrade.preservedObject.value -eq "keep-me") "Deployed upgrade must preserve unrelated project-env objects"
 
   $deployedMcpStable = [System.IO.File]::ReadAllText($deployedMcpPath, [System.Text.Encoding]::UTF8)
@@ -1407,5 +1409,36 @@ finally {
     Remove-Item -LiteralPath $projectRoot -Recurse -Force
   }
 }
+
+
+# Real owner skills must retain their descriptions through the canonical generator.
+$discoveryRoot = Join-Path ([IO.Path]::GetTempPath()) ('iris-discovery-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $discoveryRoot | Out-Null
+try {
+  & (Join-Path $repoRoot 'scripts/generate-plugin-thin-index.ps1') -PluginPath (Join-Path $repoRoot 'plugins/i18n-iris-plugin') -ProjectRoot $discoveryRoot -ContextRoot (Join-Path $discoveryRoot '.agents') -CapabilityRoot $repoRoot -Mode Write | Out-Null
+  foreach ($name in @('i18n-bdp-trans-seed', 'i18n-csp-trans-sync', 'i18n-page-trans-seed', 'i18n-xml-print-template-sync')) {
+    $source = [IO.File]::ReadAllText((Join-Path $repoRoot ('plugins/i18n-iris-plugin/skills/' + $name + '/SKILL.md')), [Text.Encoding]::UTF8)
+    Assert-True ($source.StartsWith('---')) ('Frontmatter must start on the first line: ' + $name)
+    $description = [regex]::Match($source, '(?m)^description:.*').Value.TrimEnd()
+    $generated = [IO.File]::ReadAllText((Join-Path $discoveryRoot ('.agents/skills/' + $name + '/SKILL.md')), [Text.Encoding]::UTF8)
+    Assert-True (-not [string]::IsNullOrWhiteSpace($description)) ('Source description is required: ' + $name)
+    Assert-Contains $generated $description ('Thin index must preserve real description: ' + $name)
+  }
+} finally { Remove-Item -LiteralPath $discoveryRoot -Recurse -Force }
+
+# Invoke a child host to assert exit codes without terminating this test suite.
+$invalidRoot = Join-Path ([IO.Path]::GetTempPath()) ('agents-no-git-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path (Join-Path $invalidRoot '.agents') -Force | Out-Null
+try {
+  $testHost = (Get-Process -Id $PID).Path
+  foreach ($case in @(@('Check', '-NoPull'), @('DryRun'), @('Write'), @('Write', '-NoPull'))) {
+    $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $scriptUnderTest, '-ProjectRoot', $invalidRoot, '-Mode', $case[0], '-Detailed') + @($case | Select-Object -Skip 1)
+    $output = & $testHost @arguments | Out-String
+    Assert-True ($LASTEXITCODE -eq 1) 'Missing .agents Git must fail with exit code 1'
+    Assert-Contains $output 'agents-git-missing' 'Missing .agents Git must be reported'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $invalidRoot '.agents/.git'))) 'Write must not create a fake .git directory'
+    Assert-True (@(Get-ChildItem -LiteralPath (Join-Path $invalidRoot '.agents') -Force).Count -eq 0) 'Preflight failure must prevent later generation'
+  }
+} finally { Remove-Item -LiteralPath $invalidRoot -Recurse -Force }
 
 Write-Host "update-agents tests passed"

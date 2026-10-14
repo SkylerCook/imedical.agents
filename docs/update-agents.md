@@ -319,7 +319,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `pull-blocked-dirty` | 停止。说明 `.agents` 仓库存在本地改动，需要用户决定提交、暂存或放弃。 |
 | `pull-blocked-ahead` | 停止。本地 `.agents` 分支含 upstream 没有的提交，不把它误报为远端可用更新。 |
 | `pull-blocked-diverged` | 停止。本地 `.agents` 与 upstream 已分叉，需要人工处理。 |
-| `agents-git-missing` | 停止。说明 `.agents` 不是标准独立 Git 仓库。 |
+| `agents-git-missing` | 返回非零退出码并停止。Check、DryRun、Write（含 -NoPull）均不进入 exclude 写入或后续生成；先恢复标准独立 Git 部署，不能靠创建空 .git 目录修复。 |
 | `git-status-failed` / `git-head-resolve-failed` | 停止。无法确认本地工作区或 `HEAD`，不能安全判断更新状态。 |
 | `git-upstream-missing` | 停止。当前分支没有可解析的 upstream，不能判断是否存在可用更新。 |
 | `git-divergence-check-failed` | 停止。fetch 后无法比较本地 `HEAD` 与 upstream。 |
@@ -733,3 +733,7 @@ bos-plugin 随既有 /plugins/** 与 workflow 分发，默认 available；仅明
 BOS 个人初始化在仓外生成私有实例，框架不携带真实凭据；完整旧配置继续有效。公司推广由组织提供服务接入渠道，每位使用者独立配置。可选客户端原生工具按 [注册说明](../plugins/bos-plugin/references/client-mcp.md)增量注册；普通更新不写个人配置或客户端设置。
 
 Windows BOS 更新后运行 bos-init 复核个人配置并同步框架管理的公司地址；标准配置位于 LOCALAPPDATA/imedical-agents/bos/config.json，自动绑定 BOS_MCP_CONFIG。既有文件与自定义地址保留，用户只补全 TODO。完整步骤见插件 usage。
+
+### 2026-10-14 路由与工作区预检收敛
+
+正常更新能力包后先 Check，再 Write 刷新已启用插件索引；四个 i18n 技能恢复真实 description。Overlay 先更新共享 CapabilityRoot，再逐 ContextRoot 用原有 -NoPull 流程刷新。无需配置/会话迁移或额外清理，用户自定义入口按既有冲突机制处理。部署入口将 workspace 校验失败前置；异常目录先修复部署结构，direct 不新增业务 Git 基线要求。

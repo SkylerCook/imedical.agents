@@ -108,10 +108,39 @@ test('project local-only apply preserves unrelated staged changes', () => {
   const finalPlan = JSON.parse(fs.readFileSync(planned.planPath, 'utf8'));
   assert.equal(finalPlan.repositories[0].execution.pull, 'local-only');
   assert.equal(finalPlan.status, 'verified');
+  runCli(['verify', '--plan', planned.planPath], fixture.root);
+  runCli(['verify', '--plan', planned.planPath], fixture.root);
   assert.equal(git(fixture.root, ['diff', '--cached', '--name-only']).stdout.trim(), 'unrelated.txt');
   const message = git(fixture.root, ['show', '-s', '--format=%B']).stdout.trim().split(/\r?\n/);
   assert.equal(message.length, 2);
   assert.match(message[1], /^修改说明:/);
+});
+
+test('verify rejects unexpected and missing paths even after a prior verification', () => {
+  const f = createRepo();
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'changed\n');
+  const planned = plan(f.root, 'project');
+  runCli(['apply', '--plan', planned.planPath, '--confirm-commit', '--verify'], f.root);
+  const saved = JSON.parse(fs.readFileSync(planned.planPath, 'utf8'));
+  const extra = structuredClone(saved);
+  extra.repositories[0].files = [];
+  delete extra.integrity;
+  extra.integrity = require('node:crypto').createHash('sha256').update(JSON.stringify(extra)).digest('hex');
+  fs.writeFileSync(planned.planPath, JSON.stringify(extra));
+  assert.match(runCli(['verify', '--plan', planned.planPath], f.root, true).stderr, /计划外文件/);
+  saved.repositories[0].files.push('missing.txt');
+  delete saved.integrity;
+  saved.integrity = require('node:crypto').createHash('sha256').update(JSON.stringify(saved)).digest('hex');
+  fs.writeFileSync(planned.planPath, JSON.stringify(saved));
+  assert.match(runCli(['verify', '--plan', planned.planPath], f.root, true).stderr, /缺少计划文件/);
+});
+
+test('verify preserves Unicode paths and both sides of a rename', () => {
+  const f = overlayFixture();
+  fs.renameSync(path.join(f.root, 'target.txt'), path.join(f.root, '中文 文件.txt'));
+  const planned = overlayPlan(f, ['backend/target.txt', 'backend/中文 文件.txt']);
+  runCli(['apply', '--plan', planned.planPath, '--confirm-commit', '--verify'], f.workspace);
+  runCli(['verify', '--plan', planned.planPath], f.workspace);
 });
 
 test('standard repository without upstream is blocked before commit', () => {

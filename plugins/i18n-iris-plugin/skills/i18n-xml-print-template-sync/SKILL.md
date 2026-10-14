@@ -1,4 +1,3 @@
-
 ---
 name: i18n-xml-print-template-sync
 description: Use when a print i18n task is confirmed to involve IRIS XML print templates such as PrintTemp, PreviewXMLName, GetXMLTemplateId, User.DHCXMLPConfig, or creating {Template}-EN variants.

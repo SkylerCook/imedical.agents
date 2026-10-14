@@ -1,4 +1,3 @@
-
 ---
 name: i18n-page-trans-seed
 description: Use when adding multilingual page-level non-dictionary translations to the project-configured page translation seed file with per-language load and rollback methods.

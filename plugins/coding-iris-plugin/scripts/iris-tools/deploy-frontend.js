@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const {performance} = require('node:perf_hooks');
-const {resolveWorkspaceContext, validateWorkspaceContext} = require('../../../../scripts/lib/workspace-context');
+const {resolveWorkspaceContext, workspaceContextBlockers} = require('../../../../scripts/lib/workspace-context');
 const csp = require('./compile-csp');
 
 const inside = (file, root) => {const rel=path.relative(root,file); return !path.isAbsolute(rel) && rel !== '..' && !rel.startsWith('..'+path.sep);};
@@ -98,7 +98,7 @@ async function main(argv) {
   if(argv.includes('--help')) {console.log('Usage: node deploy-frontend.js --project-root <project> [--source-root <frontend-root>] --files <project-relative-files...> [--python <interpreter>] [--known-hosts <file> | --host-key-sha256 <trusted-SHA256:fingerprint>] [--execute] [--mode direct|guarded] [--demand <id>]\nDefault: local plan; authorized execution uses direct mode without a Git session. --demand without --mode retains guarded behavior. Upload/readback precedes CSP compilation. No automatic retries.');return;}
   if (argv.includes('--execute') || argv.includes('--demand') || argv.includes('--mode') || argv.includes('--decision')) return require('./deploy-protected').main('frontend', argv);
   const args=parse(argv), context=resolveWorkspaceContext(args.projectRoot);
-  if(validateWorkspaceContext(context).some(r=>['manifest-invalid','schema-version-unsupported'].includes(r.status)))throw new Error('Invalid workspace context');
+  if(workspaceContextBlockers(context).length)throw new Error('Invalid workspace context');
   const config=readJson(path.join(context.contextRoot,'config/project-env.json'));
   const mcp=readJson(path.join(context.workspaceRoot,'.mcp.json'));
   const server=mcp.mcpServers?.[config.sftp?.serverName || 'sftp-server'];

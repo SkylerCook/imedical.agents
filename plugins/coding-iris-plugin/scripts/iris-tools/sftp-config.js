@@ -65,9 +65,9 @@ module.exports = {buildSftp, migrate};
 if (require.main === module) {
   try {
     const [projectRoot, contextRoot, mode] = process.argv.slice(2);
-    const {resolveWorkspaceContext, validateWorkspaceContext} = require('../../../../scripts/lib/workspace-context');
+    const {resolveWorkspaceContext, workspaceContextBlockers} = require('../../../../scripts/lib/workspace-context');
     const resolved = resolveWorkspaceContext(projectRoot);
-    const issues = validateWorkspaceContext(resolved).filter(item => ['manifest-invalid', 'schema-version-unsupported'].includes(item.status));
+    const issues = workspaceContextBlockers(resolved);
     if (issues.length) throw new Error('Invalid workspace context');
     console.log(JSON.stringify(migrate(projectRoot, path.resolve(projectRoot, contextRoot), resolved.capabilityRoot, mode)));
   } catch (error) {

@@ -79,9 +79,36 @@ test('supports project-specific helper names', () => {
   assert.equal(violations[0].helper, 'translateStatic');
 });
 
+test('mixed CSP ignores server ObjectScript and checks client scripts and inline events', () => {
+  const source = [
+    '<script language="cache" runat="server">',
+    ' set label=$g(variable)',
+    '</script>',
+    '<% set label=$g(variable) %>',
+    '<!-- <button onclick="$g(commentKey)"> -->',
+    '<div title="$g(example)">$g(text)</div>',
+    '<script type="application/json">{"example":"$g(data)"}</script>',
+    '<button onclick="$g(eventKey)">Translate</button>',
+    "<button onclick='$g(&quot;fixed.key&quot;)' />",
+    '<script>const label = $g(scriptKey);</script>',
+  ].join('\n');
+  const violations = checker.scanSource(source, {filePath: 'mixed.csp'});
+  assert.deepEqual(violations.map(v => [v.line, v.column]), [[8, 18], [10, 23]]);
+});
+
+test('template expressions are executable, including nested templates and object literals', () => {
+  const source = [
+    'const ignored = `example $g(text)`;',
+    'const first = `value: ${$g(dynamicKey)}`;',
+    'const nested = `${({a: `inner ${$trans(otherKey, value)}`}).a}`;',
+    'const valid = `value: ${$g("fixed.key")}`;',
+  ].join('\n');
+  assert.deepEqual(checker.scanSource(source).map(v => v.line), [2, 3]);
+});
+
 test('CLI checks multiple files and returns 0, 1, and 2 as specified', () => {
   const valid = createFixture('valid.js', '$trans("{0} 键打开模板维护", key);\n');
-  const invalid = createFixture('invalid.csp', '$g(PageLogicObj.shortcutKey + " 键打开模板维护");\n');
+  const invalid = createFixture('invalid.csp', '<script>\n$g(PageLogicObj.shortcutKey + " 键打开模板维护");\n</script>');
 
   const passed = runCli(['--file', valid]);
   assert.equal(passed.status, 0);
@@ -89,7 +116,7 @@ test('CLI checks multiple files and returns 0, 1, and 2 as specified', () => {
 
   const failed = runCli(['--file', valid, '--file', invalid]);
   assert.equal(failed.status, 1);
-  assert.match(failed.stderr, /invalid\.csp:1:1 \[dynamic-translation-key\]/);
+  assert.match(failed.stderr, /invalid\.csp:2:1 \[dynamic-translation-key\]/);
   assert.match(failed.stderr, /pass runtime values through \$trans placeholders/);
 
   const usageError = runCli([]);
@@ -99,4 +126,22 @@ test('CLI checks multiple files and returns 0, 1, and 2 as specified', () => {
   const readError = runCli(['--file', path.join(path.dirname(valid), 'missing.js')]);
   assert.equal(readError.status, 2);
   assert.match(readError.stderr, /\[file-read-error\]/);
+});
+
+
+test('independent client regions do not share comments and decode event helper names', () => {
+  const source = '<button onclick="// comment"></button><script>$g(key)</script><button onclick="&#36;g(other)" />';
+  const results = checker.scanSource(source, {filePath: 'events.csp'});
+  assert.equal(results.length, 2);
+  assert.equal(results[0].column, source.indexOf('$g') + 1);
+  assert.equal(results[1].column, source.indexOf('&#36;') + 1);
+});
+
+test('CSP runtime and compile-time ObjectScript expressions are excluded', () => {
+  const source = '<script>const a=#($g(variable))#; const b=##($g(other))##; $g(clientKey);</script>';
+  assert.deepEqual(checker.scanSource(source, {filePath: 'server.csp'}).map(v => v.column), [source.indexOf('$g(clientKey)') + 1]);
+});
+
+test('JavaScript strings containing markup do not change the scan language', () => {
+  assert.deepEqual(checker.scanSource('const html = "<script>$g(example)</script>";'), []);
 });

@@ -1,4 +1,3 @@
-
 ---
 name: i18n-csp-trans-sync
 description: Use when exporting, verifying, or explicitly syncing page-level translations between an IRIS server and the project-configured local page translation seed file.

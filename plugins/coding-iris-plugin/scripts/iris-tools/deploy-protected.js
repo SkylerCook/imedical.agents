@@ -5,7 +5,7 @@ const {performance}=require('node:perf_hooks');
 const {createSession}=require('./sftp-worker');
 const guard=require('./deploy-guard'),csp=require('./compile-csp');
 const {needsInput}=require('./deploy-question');
-const {resolveWorkspaceContext,validateWorkspaceContext}=require('../../../../scripts/lib/workspace-context');
+const {resolveWorkspaceContext,workspaceContextBlockers}=require('../../../../scripts/lib/workspace-context');
 function parse(argv){
  const a={projectRoot:process.cwd(),files:[]};
  const keys={'--project-root':'projectRoot','--source-root':'sourceRoot','--mode':'mode','--demand':'demand','--decision':'decision','--python':'python','--known-hosts':'knownHosts','--host-key-sha256':'fingerprint'};
@@ -138,7 +138,8 @@ async function main(kind,argv){
  const started=performance.now();
  try{
   const a=parse(argv),context=resolveWorkspaceContext(a.projectRoot);
-  if(validateWorkspaceContext(context).some(r=>['manifest-invalid','schema-version-unsupported'].includes(r.status)))guard.stop('invalid-workspace-context');
+  const blockers=workspaceContextBlockers(context);
+  if(blockers.length)guard.stop('invalid-workspace-context',{statuses:blockers.map(r=>r.status)});
   const config=guard.read(path.join(context.contextRoot,'config/project-env.json')),mcp=guard.read(path.join(context.workspaceRoot,'.mcp.json'));
   if(!a.execute){console.log(JSON.stringify({status:'planned',mode:a.mode,kind,files:a.files,demand:a.demand}));return;}
   let files,target;

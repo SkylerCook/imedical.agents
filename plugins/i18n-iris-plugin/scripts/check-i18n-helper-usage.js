@@ -132,7 +132,114 @@ function lineAndColumn(source, index) {
   return { line: lines.length, column: lines[lines.length - 1].length + 1 };
 }
 
+function blank(source) {
+  return source.replace(/[^\r\n]/g, ' ');
+}
+
+// Keep offsets while selecting executable client regions. CSP server blocks and
+// HTML text/ordinary attributes are not JavaScript translation-helper calls.
+function maskServerExpressions(source) {
+  const output = source.split('');
+  const starts = /##?\(/g;
+  let match;
+  while ((match = starts.exec(source))) {
+    let index = starts.lastIndex;
+    let depth = 1;
+    while (index < source.length && depth > 0) {
+      if (source[index] === '"') {
+        index += 1;
+        while (index < source.length) {
+          if (source[index++] === '"') {
+            if (source[index] === '"') index += 1;
+            else break;
+          }
+        }
+      } else {
+        if (source[index] === '(') depth += 1;
+        if (source[index] === ')') depth -= 1;
+        index += 1;
+      }
+    }
+    const suffix = match[0].startsWith('##') ? '##' : '#';
+    if (depth !== 0 || !source.startsWith(suffix, index)) continue;
+    index += suffix.length;
+    for (let cursor = match.index; cursor < index; cursor += 1) {
+      if (!/[\r\n]/.test(output[cursor])) output[cursor] = ' ';
+    }
+    starts.lastIndex = index;
+  }
+  return output.join('');
+}
+
+function clientRegions(source) {
+  const masked = maskServerExpressions(source.replace(/<!--[\s\S]*?-->|<%[\s\S]*?%>/g, blank));
+  const regions = [];
+  const copy = (start, end) => regions.push({source: masked.slice(start, end), offset: start});
+  const tags = /<([a-z][\w:-]*)\b(?:[^"'<>]|"[^"]*"|'[^']*')*>/gi;
+  let tag;
+  while ((tag = tags.exec(masked))) {
+    const attributes = [];
+    const pattern = /([^\s=<>/]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
+    const bodyStart = tag.index + 1 + tag[1].length;
+    const body = tag[0].slice(1 + tag[1].length, -1);
+    let attribute;
+    while ((attribute = pattern.exec(body))) {
+      const value = attribute[2] ?? attribute[3] ?? attribute[4] ?? '';
+      const equal = attribute[0].indexOf('=');
+      const valueOffset = equal < 0 ? attribute[0].length : equal + 1 + attribute[0].slice(equal + 1).search(/\S/);
+      const quoted = attribute[2] !== undefined || attribute[3] !== undefined;
+      attributes.push({ name: attribute[1].toLowerCase(), value,
+        start: bodyStart + attribute.index + valueOffset + (quoted ? 1 : 0) });
+    }
+    const values = Object.fromEntries(attributes.map(item => [item.name, item.value.toLowerCase()]));
+    const name = tag[1].toLowerCase();
+    if (name === 'script' || name === 'style') {
+      const closing = new RegExp('</' + name + '\\s*>', 'gi');
+      closing.lastIndex = tags.lastIndex;
+      const close = closing.exec(masked);
+      const end = close ? close.index : masked.length;
+      const client = name === 'script' && values.runat !== 'server'
+        && (!values.language || /^(javascript|jscript|ecmascript)$/i.test(values.language))
+        && (!values.type || /^(module|(?:text|application)\/(?:javascript|ecmascript))$/i.test(values.type));
+      if (client) copy(tags.lastIndex, end);
+      tags.lastIndex = close ? closing.lastIndex : masked.length;
+      continue;
+    }
+    if (values.runat === 'server') continue;
+    for (const attribute of attributes) {
+      if (!/^on[a-z]+$/.test(attribute.name)) continue;
+      const offsets = [];
+      let cursor = 0;
+      // HTML decodes character references before compiling event handlers.
+      // Map decoded offsets back to the original attribute for diagnostics.
+      const decoded = attribute.value.replace(/&(?:quot|apos|amp|lt|gt|#\d+|#x[\da-f]+);/gi, (entity, offset) => {
+        while (cursor < offset) offsets.push(cursor++);
+        const key = entity.slice(1, -1).toLowerCase();
+        const code = key.startsWith('#x') ? parseInt(key.slice(2), 16) : key.startsWith('#') ? Number(key.slice(1)) : null;
+        const value = code === null ? ({quot: '"', apos: "'", amp: '&', lt: '<', gt: '>'})[key]
+          : code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : '\ufffd';
+        for (let i = 0; i < value.length; i += 1) offsets.push(offset);
+        cursor = offset + entity.length;
+        return value;
+      });
+      while (cursor < attribute.value.length) offsets.push(cursor++);
+      regions.push({source: decoded, offset: attribute.start, offsets});
+    }
+  }
+  return regions;
+}
+
 function scanSource(source, options = {}) {
+  const markup = /\.(csp|html?)$/i.test(options.filePath || '');
+  const regions = markup ? clientRegions(source) : [{source, offset: 0}];
+  return regions.flatMap(region => scanJavaScript(region.source, options).map(violation => {
+    const {offset, ...details} = violation;
+    const original = region.offset + (region.offsets ? region.offsets[offset] : offset);
+    return {...details, ...lineAndColumn(source, original)};
+  }));
+}
+
+function scanJavaScript(source, options = {}) {
   const staticHelper = options.staticHelper || DEFAULT_STATIC_HELPER;
   const placeholderHelper = options.placeholderHelper || DEFAULT_PLACEHOLDER_HELPER;
   const helpers = [
@@ -140,50 +247,70 @@ function scanSource(source, options = {}) {
     { name: placeholderHelper, kind: 'placeholder' },
   ].sort((left, right) => right.name.length - left.name.length);
   const violations = [];
-  let index = 0;
-
-  while (index < source.length) {
-    const character = source[index];
-    if (character === '/' && source[index + 1] === '/') {
-      const newline = source.indexOf('\n', index + 2);
-      index = newline === -1 ? source.length : newline + 1;
-      continue;
-    }
-    if (character === '/' && source[index + 1] === '*') {
-      const close = source.indexOf('*/', index + 2);
-      index = close === -1 ? source.length : close + 2;
-      continue;
-    }
-    if (character === '"' || character === "'" || character === '`') {
-      index = readQuotedLiteral(source, index, character).end;
-      continue;
-    }
-
-    let matched = false;
-    for (const helper of helpers) {
-      if (!source.startsWith(helper.name, index)) continue;
-      if (isIdentifierCharacter(source[index - 1]) || isIdentifierCharacter(source[index + helper.name.length])) continue;
-      const openParen = skipWhitespaceAndComments(source, index + helper.name.length);
-      if (source[openParen] !== '(') continue;
-
-      const result = inspectFirstArgument(source, openParen);
-      if (!result.valid) {
-        const location = lineAndColumn(source, index);
-        violations.push({
-          ...location,
-          helper: helper.name,
-          helperKind: helper.kind,
-          reason: result.reason,
-          code: 'dynamic-translation-key',
-        });
+  function scanCode(start, interpolation = false) {
+    let index = start;
+    let braces = 0;
+    while (index < source.length) {
+      const character = source[index];
+      if (character === '{') braces += 1;
+      if (character === '}') {
+        if (interpolation && braces === 0) return index + 1;
+        braces -= 1;
       }
-      index = openParen + 1;
-      matched = true;
-      break;
-    }
-    if (!matched) index += 1;
-  }
+      if (character === '/' && source[index + 1] === '/') {
+        const newline = source.indexOf('\n', index + 2);
+        index = newline === -1 ? source.length : newline + 1;
+        continue;
+      }
+      if (character === '/' && source[index + 1] === '*') {
+        const close = source.indexOf('*/', index + 2);
+        index = close === -1 ? source.length : close + 2;
+        continue;
+      }
+      if (character === '`') {
+        index += 1;
+        while (index < source.length) {
+          if (source[index] === '\\') { index += 2; continue; }
+          if (source[index] === '`') { index += 1; break; }
+          if (source[index] === '$' && source[index + 1] === '{') {
+            index = scanCode(index + 2, true);
+          } else index += 1;
+        }
+        continue;
+      }
+      if (character === '"' || character === "'") {
+        index = readQuotedLiteral(source, index, character).end;
+        continue;
+      }
 
+      let matched = false;
+      for (const helper of helpers) {
+        if (!source.startsWith(helper.name, index)) continue;
+        if (isIdentifierCharacter(source[index - 1]) || isIdentifierCharacter(source[index + helper.name.length])) continue;
+        const openParen = skipWhitespaceAndComments(source, index + helper.name.length);
+        if (source[openParen] !== '(') continue;
+
+        const result = inspectFirstArgument(source, openParen);
+        if (!result.valid) {
+          const location = lineAndColumn(source, index);
+          violations.push({
+            ...location,
+            offset: index,
+            helper: helper.name,
+            helperKind: helper.kind,
+            reason: result.reason,
+            code: 'dynamic-translation-key',
+          });
+        }
+        index = openParen + 1;
+        matched = true;
+        break;
+      }
+      if (!matched) index += 1;
+    }
+    return index;
+  }
+  scanCode(0);
   return violations;
 }
 
@@ -221,7 +348,7 @@ function run(argv, io = {}) {
       return 2;
     }
 
-    const violations = scanSource(source, options);
+    const violations = scanSource(source, { ...options, filePath: resolved });
     violationCount += violations.length;
     for (const violation of violations) {
       stderr.write(`${formatViolation(file, violation, options.placeholderHelper)}\n`);

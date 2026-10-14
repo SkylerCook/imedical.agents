@@ -1,5 +1,7 @@
 # i18n-iris-plugin
 
+0.2.6：修正四个种子/同步技能的 frontmatter 首行，正常更新并刷新 thin-index 后恢复真实 description，无配置迁移或清理。helper 检查对 `.js` 扫描 JavaScript；对 `.csp`/`.html`/`.htm` 仅扫描客户端 script 和 on* 事件属性，排除服务端 script、`<% %>`、`#(...)#`/`##(...)##`、普通 HTML 文本及属性。模板 `${...}` 内调用同样检查；诊断行列对应原文件。它是静态检查，不替代 CSP 编译或浏览器运行验证。
+
 `i18n-iris-plugin` 是面向 IRIS/ObjectScript/CSP/HISUI 工程的通用 i18n Agent 能力包，覆盖：
 
 - 前后端 i18n 编码改造。

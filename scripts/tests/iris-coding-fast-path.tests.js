@@ -6,6 +6,9 @@ const path = require("node:path");
 
 const root = path.resolve(__dirname, "../..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
+const codingIndex = read('plugins/coding-iris-plugin/rules/iris_coding_index.md');
+assert.match(codingIndex, /默认 direct.*不要求基线会话.*仅.*guarded/);
+assert.doesNotMatch(codingIndex, /需要部署的业务需求在第一次修改前读取/);
 const skill = read("plugins/coding-iris-plugin/skills/iris-coding/SKILL.md");
 const demandCommitSkill = read("plugins/coding-iris-plugin/skills/iris-demand-commit/SKILL.md");
 const deploySkill = read("plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md");

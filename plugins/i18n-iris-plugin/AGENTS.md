@@ -46,7 +46,7 @@
 
 ## 内置脚本
 
-- `scripts/check-i18n-helper-usage.js`：只读扫描指定 JS/CSP 文件，阻断动态翻译 key；支持从项目 profile 传入静态 helper 与占位符 helper 名称。
+- `scripts/check-i18n-helper-usage.js`：helper 检查对 `.js` 扫描 JavaScript；对 `.csp`/`.html`/`.htm` 仅扫描客户端 script 和 on* 事件属性，排除服务端 script、`<% %>`、`#(...)#`/`##(...)##`、普通 HTML 文本及属性。模板 `${...}` 内调用同样检查；诊断行列对应原文件。它是静态检查，不替代 CSP 编译或浏览器运行验证。支持从项目 profile 传入 helper 名称。
 - `scripts/generate-plugin-thin-index.ps1`：转发根 canonical thin-index 生成器。
 - `scripts/sync-xml-print-template.ps1`：XML 打印模板同步与受控 fallback。
 

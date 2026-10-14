@@ -27,7 +27,7 @@ related:
 - [后端 ObjectScript 编码](iris_coding_backend.md)：BLH/DATA/SQL、ObjectScript 风格、Broker、SQL 执行层。
 - [前端 CSP/JS/HISUI 编码](iris_coding_frontend.md)：前端任务必读，包含修改前与最终 diff 后的条件 i18n 门禁、字节检测、HISUI 复用和页面验证。
 - [MCP 与部署工作流](iris_coding_workflow.md)：仅使用 MCP、上传、编译、远程读取或 SQL 验证时读取。
-- [Git 基线与部署保护](../references/deployment-protection.md#建立会话)：需要部署的业务需求在第一次修改前读取，部署时复用会话。
+- [Git 基线与部署保护](../references/deployment-protection.md#建立会话)：开发部署默认 direct，不要求基线会话；仅在用户或项目要求 guarded 时，在第一次修改前读取，部署时复用会话。
 - [IRIS 知识查询与 MCP 路由](iris_knowledge_lookup.md)：IRIS 类、方法签名、宏、SQL 元数据和官方文档的数据源选择；仅查询任务读取。
 - [IRIS 部署执行清单](iris_deploy_checklist.md)：上传、编译、部署和远端验证的逐项检查清单；仅部署任务读取。
 - [Legacy GB2312 提升流程](iris_gb2312_workflow.md)：仅在用户明确处理已确认的历史 GB2312 工程，并要求将 `{name}.gb2312.{ext}` 替换回原始文件名时读取。

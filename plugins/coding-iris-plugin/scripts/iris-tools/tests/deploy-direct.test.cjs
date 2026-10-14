@@ -136,6 +136,7 @@ test('compile CLI deploys without Git or demand, keeps source, and plan never co
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  t.after(()=>{server.closeAllConnections();server.close();});
  fs.mkdirSync(path.join(f.dir,'.agents/config'),{recursive:true});
+ fs.mkdirSync(path.join(f.dir,'.agents/.git'));
  fs.writeFileSync(path.join(f.dir,'.agents/config/project-env.json'),JSON.stringify({iris:{namespace:'TEST'},mcp:{serverName:'iris'}}));
  fs.writeFileSync(path.join(f.dir,'.mcp.json'),JSON.stringify({mcpServers:{iris:{env:{IRIS_HOST:'127.0.0.1',IRIS_WEB_PORT:String(server.address().port),IRIS_USERNAME:'test',IRIS_PASSWORD:'fake',IRIS_NAMESPACE:'TEST',IRIS_SCHEME:'http'}}}}));
  const invoke=extra=>new Promise((resolve,reject)=>{

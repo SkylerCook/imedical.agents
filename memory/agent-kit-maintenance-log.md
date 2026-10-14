@@ -1,5 +1,8 @@
 # imedical.agents 维护日志
 
+- 2026-10-14（路由、预检、混合 CSP 与提交复核）：coding-iris 0.15.9 对齐默认 direct/可选 guarded 索引，verify 支持重复执行并按 NUL 路径集合核对缺少/额外文件；部署、CSP 编译和 SFTP 配置统一消费 workspace 校验结果。更新器统一报告/停止状态，缺少独立 .agents Git 时在任何 exclude/索引生成前失败，Overlay 复用 initializer 的阻断结论。i18n 0.2.6 修正四技能 frontmatter，helper 扫描区分客户端区域、服务端表达式及模板插值，事件实体位置映射回源码。同步 owner、README、更新说明与发布记录；无配置/会话迁移，无旧文件清理，不同步业务副本。
+  - 验证：Windows Node 24 下提交 15 项（全套 14 项及修正完整性夹具后的负例复测）、direct/编译 19 项、前端/SFTP/resolver 18 项、helper/预检 12 项及路由契约 4 项通过；Windows PowerShell 5.1 更新器全套通过，PowerShell 7 新增发现/停止回归通过，暂存版本门禁验证 7 个相关组件通过。更新器全套测试的旧后条件断言已对齐 canonical CLS 引用，无业务规范变更。提交钩子命中的两处历史合成密码改为运行时随机值，保留值不变断言；PowerShell 5.1 两段受影响夹具及原凭据扫描器复验通过。新增混合语法与工作区检查纳入既有三平台 Node 22/24 矩阵；非 Windows 本机无法执行，不能视为已通过。测试只用合成 Git/本机回环服务，无业务服务器操作；最终提交和推送以 Git 记录为准。
+
 - 2026-10-14（BOS 需求媒体读取）：bos-plugin 0.2.2 明确处理时主动读取影响理解、实现或验收的截图和附件；workflow 统一事实来源，handle 路由、query 区分仅查询与处理调用，覆盖纯图片正文、相关性不明、关键内容缺失及证据复用。同步 README、能力指南、摘要、场景与发布记录；owner AGENTS、能力目录、usage 的既有边界仍准确，安装更新机制不变，无配置迁移或清理。
   - 验证：BOS workflow 契约 1 项、部署文档链接/清单 1 项及 diff 检查通过；逐项核对两技能与 workflow 的读取条件，无真实 BOS 或宿主验收，场景验证沿既有 backlog 跟踪。未改运行脚本，无临时产物，未同步业务副本；提交门禁与推送结果以 Git 记录为准。
 

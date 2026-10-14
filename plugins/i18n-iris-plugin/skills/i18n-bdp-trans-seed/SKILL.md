@@ -1,4 +1,3 @@
-
 ---
 name: i18n-bdp-trans-seed
 description: Use when generating multilingual dictionary or table-display translation term tables and SQL for the project-configured dictionary translation storage.

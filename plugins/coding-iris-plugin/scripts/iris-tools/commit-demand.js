@@ -418,15 +418,18 @@ function applyCommand(args) {
 }
 
 function verifyPlan(plan) {
-  if (plan.status !== 'committed') throw new Error(`计划尚未全部提交: ${plan.status}`);
+  if (!['committed', 'verified'].includes(plan.status)) throw new Error(`计划尚未全部提交: ${plan.status}`);
   for (const repo of plan.repositories) {
     const commit = repo.execution && repo.execution.commit;
     if (!commit) throw new Error(`仓库缺少提交记录: ${repo.root}`);
     const actualMessage = `${gitText(repo.root, ['show', '-s', '--format=%B', commit])}\n`;
     if (actualMessage !== repo.message) throw new Error(`提交信息不一致: ${repo.root}`);
-    const changed = gitText(repo.root, ['diff-tree', '--no-commit-id', '--name-only', '-r', commit]).split(/\r?\n/).filter(Boolean);
+    // Preserve literal paths and count both sides of renames, as the plan does.
+    const changed = String(runGit(repo.root, ['diff-tree', '--root', '--no-commit-id', '--name-only', '--no-renames', '-r', '-z', commit]).stdout).split('\0').filter(Boolean);
     const missing = repo.files.filter((file) => !changed.includes(file));
     if (missing.length) throw new Error(`提交缺少计划文件: ${repo.root}: ${missing.join(', ')}`);
+    const unexpected = changed.filter((file) => !repo.files.includes(file));
+    if (unexpected.length) throw new Error(`提交包含计划外文件: ${repo.root}: ${unexpected.join(', ')}`);
     repo.execution.status = 'verified';
     repo.execution.remainingStatus = gitText(repo.root, ['status', '--short']);
   }

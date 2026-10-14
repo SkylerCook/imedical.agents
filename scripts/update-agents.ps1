@@ -733,26 +733,26 @@ function Convert-ThinIndexTextOutput {
   return $items
 }
 
+# Shared by reporting and preflight stopping; repairable convergence states are separate.
+$updateBlockingStatuses = @(
+  "agents-missing", "agents-git-missing", "git-version-unsupported", "git-status-failed",
+  "git-head-resolve-failed", "git-upstream-missing", "git-divergence-check-failed",
+  "pull-blocked-dirty", "pull-blocked-ahead", "pull-blocked-diverged", "fetch-failed",
+  "pull-failed", "sparse-refresh-failed", "workspace-overlay-initializer-missing", "workspace-overlay-blocked"
+)
+
+function Test-UpdateBlocked {
+  param([object[]]$Results)
+  return @($Results | Where-Object { $_.status -in $updateBlockingStatuses }).Count -gt 0
+}
+
 function Write-UpdateSummary {
   param(
     [object[]]$Results,
     [string]$Mode
   )
 
-  $actionRequiredStatuses = @(
-    "agents-missing",
-    "agents-git-missing",
-    "git-version-unsupported",
-    "git-status-failed",
-    "git-head-resolve-failed",
-    "git-upstream-missing",
-    "git-divergence-check-failed",
-    "pull-blocked-dirty",
-    "pull-blocked-ahead",
-    "pull-blocked-diverged",
-    "fetch-failed",
-    "pull-failed",
-    "sparse-refresh-failed",
+  $actionRequiredStatuses = $updateBlockingStatuses + @(
     "conflict",
     "config-review-required",
     "config-migration-review-required",
@@ -1113,7 +1113,7 @@ $runningScriptHash = if (Test-Path -LiteralPath $runningScriptPath -PathType Lea
 
 if (-not (Test-Path -LiteralPath $contextRoot -PathType Container)) {
   Write-UpdateResult -Status "agents-missing" -Target ".agents" -Reason ".agents directory does not exist" -Phase "preflight"
-  return
+  exit 1
 }
 
 if ($context.mode -eq "workspace-overlay") {
@@ -1129,9 +1129,9 @@ if ($context.mode -eq "workspace-overlay") {
   }
   $skipReason = if ($NoPull) { "Overlay context refresh explicitly requested -NoPull" } else { "Overlay context never fetches or pulls CapabilityRoot" }
   $results.Add((Write-UpdateResult -Status "capability-pull-skipped-overlay" -Target $capabilityRoot -Reason $skipReason -Phase "git"))
-  if ($results | Where-Object { $_.status -in @("workspace-overlay-initializer-missing", "workspace-overlay-blocked", "manifest-invalid", "schema-version-unsupported", "capability-root-missing", "capability-git-missing", "source-root-missing", "git-root-missing", "source-path-missing", "source-path-not-junction", "junction-target-mismatch", "shared-path-not-junction", "local-path-is-link", "runtime-adapter-source-missing", "runtime-adapter-source-invalid") }) {
+  if (Test-UpdateBlocked -Results @($results.ToArray())) {
     if ($Detailed) { $results | Format-List status, plugin, phase, target, source, reason } else { Write-UpdateSummary -Results $results -Mode $Mode }
-    return
+    exit 1
   }
 }
 elseif ((-not $NoPull) -and ($Mode -ne "Check")) {
@@ -1139,7 +1139,7 @@ elseif ((-not $NoPull) -and ($Mode -ne "Check")) {
   foreach ($item in $gitResults) {
     $results.Add($item)
   }
-  if ($gitResults | Where-Object { $_.status -in @("git-version-unsupported", "git-status-failed", "git-head-resolve-failed", "git-upstream-missing", "git-divergence-check-failed", "pull-blocked-dirty", "pull-blocked-ahead", "pull-blocked-diverged", "fetch-failed", "pull-failed", "sparse-refresh-failed") }) {
+  if (Test-UpdateBlocked -Results @($gitResults)) {
     $results | Format-List status, plugin, phase, target, source, reason, oldHash, newHash, upstreamHash
     exit 1
   }
@@ -1167,6 +1167,11 @@ elseif ((-not $NoPull) -and ($Mode -ne "Check")) {
 }
 elseif (($context.mode -eq "standard") -and (-not (Test-Path -LiteralPath (Join-Path $agentsRoot ".git")))) {
   $results.Add((Write-UpdateResult -Status "agents-git-missing" -Target ".agents" -Reason ".agents is not an independent Git repository" -Phase "git"))
+}
+
+if (Test-UpdateBlocked -Results @($results.ToArray())) {
+  if ($Detailed) { $results | Format-List status, plugin, phase, target, source, reason } else { Write-UpdateSummary -Results $results -Mode $Mode }
+  exit 1
 }
 
 if ($context.mode -eq "standard") {

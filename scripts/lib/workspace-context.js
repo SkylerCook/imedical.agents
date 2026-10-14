@@ -257,6 +257,12 @@ function validateWorkspaceContext(context) {
   return results;
 }
 
+// Deployment consumers reject all invalid results, including filesystem state.
+function workspaceContextBlockers(context) {
+  return validateWorkspaceContext(context).filter(item =>
+    !['workspace-context-resolved', 'junction-ok', 'local-path-ok'].includes(item.status));
+}
+
 function resolveGitRootForPath(context, filePath) {
   const file = normalizePath(filePath);
   const matches = context.sourceRoots
@@ -324,6 +330,7 @@ function resolveSourceFilePath(context, filePath) {
 }
 
 module.exports = {
+  workspaceContextBlockers,
   resolveSourceFilePath,
   resolveWorkspaceContext,
   validateWorkspaceContext,

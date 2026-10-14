@@ -12,6 +12,7 @@ function fixture(t, runtime) {
   t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   const context = path.join(root, '.agents');
   fs.mkdirSync(path.join(context, 'config'), {recursive: true});
+  fs.mkdirSync(path.join(context, '.git'));
   const config = {sftp: {enabled: true, runtime, serverName: 'sftp-server'}};
   fs.writeFileSync(path.join(context, 'config/project-env.json'), JSON.stringify(config));
   const mcp = {mcpServers: {'sftp-server': {command: 'custom-python', args: ['/legacy/sftp-server/src/main.py'],

@@ -5,7 +5,7 @@ const path = require('node:path');
 const http = require('node:http');
 const https = require('node:https');
 const {performance} = require('node:perf_hooks');
-const {resolveWorkspaceContext, validateWorkspaceContext} = require('../../../../scripts/lib/workspace-context');
+const {resolveWorkspaceContext, workspaceContextBlockers} = require('../../../../scripts/lib/workspace-context');
 
 function required(value, field) {
   if (typeof value !== 'string' || !value.trim() || value.startsWith('TODO')) throw new Error(`Missing ${field}`);
@@ -100,7 +100,11 @@ async function main(argv) {
   }
   const parsed = args(argv);
   const context = resolveWorkspaceContext(parsed.projectRoot);
-  if (validateWorkspaceContext(context).some(item => ['manifest-invalid', 'schema-version-unsupported'].includes(item.status))) throw new Error('Invalid workspace context');
+  if (workspaceContextBlockers(context).length) {
+    const error = new Error('Invalid workspace context');
+    error.code = 'invalid-workspace-context';
+    throw error;
+  }
   const read = file => JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
   const config = read(path.join(context.contextRoot, 'config/project-env.json'));
   const deployment = plan(parsed.documents, config.web?.cspBasePath);
@@ -113,7 +117,12 @@ async function main(argv) {
   if (result.status !== 'compiled') process.exitCode = 1;
 }
 module.exports = {plan, connection, compile, validateResponse, args};
-if (require.main === module) main(process.argv.slice(2)).catch(() => {
+if (require.main === module) main(process.argv.slice(2)).catch(error => {
+  if (error.code === 'invalid-workspace-context') {
+    console.error(JSON.stringify({schema: 'iris-csp-compile/v1', status: 'blocked', reason: error.code}));
+    process.exitCode = 1;
+    return;
+  }
   console.error(JSON.stringify({schema: 'iris-csp-compile/v1', status: 'failed-or-unknown', message: 'Check configuration, target names and server compile state before retrying; no automatic retry was made'}));
   process.exitCode = 1;
 });

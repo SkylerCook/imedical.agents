@@ -88,7 +88,7 @@ SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项�
 
 `scripts/iris-tools/promote-demand.js` 提供 DEV→PRD 需求的 plan/apply/continue/verify 状态机；计划按 DEV/PRD 绝对路径身份隔离，远端基线暂存于系统临时目录，不写入 `.agents/work` 或业务源码，直到 apply 通过全部探测门禁。冲突后的 `continue` 必须重新校验 DEV/PRD HEAD，并拒绝未暂存或未跟踪状态。
 
-`scripts/iris-tools/commit-demand.js` 提供普通标版/项目需求的 plan/apply/verify 状态机；新计划通过一次批量 Git 状态读取生成包含 index blob 与工作区字节哈希的防漂移指纹，`apply --verify` 在同一进程完成提交和验证。它先完成全部仓库的安全 pull 门禁，再只提交计划内精确路径，不扫描父目录或无关 sibling，不执行 push。
+`scripts/iris-tools/commit-demand.js` 提供普通标版/项目需求的 plan/apply/verify 状态机；新计划通过一次批量 Git 状态读取生成包含 index blob 与工作区字节哈希的防漂移指纹，`apply --verify` 在同一进程完成提交和验证；独立 verify 可重复执行，实际提交文件集合必须与计划精确一致。它先完成全部仓库的安全 pull 门禁，再只提交计划内精确路径，不扫描父目录或无关 sibling，不执行 push。
 
 `generate-plugin-thin-index.ps1` 不复制到目标工程；初始化和重建索引时直接调用插件内脚本。
 
@@ -105,6 +105,8 @@ SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项�
 前端上传加编译固定使用 `scripts/iris-tools/deploy-frontend.js`：单连接差异上传、哈希回读后批量 Atelier 编译；失败停止，不临时生成脚本或自动换通道。参数及耗时口径见 `scripts/iris-tools/README.md`。
 
 ## 开发部署与可选基线保护
+
+部署、CSP 编译和 SFTP 配置入口共用 workspace 校验结果；目录缺失、错误链接及无效 manifest 在配置读取和远端连接前停止并返回非零退出码。能力包必须为有效安装（含 CapabilityRoot 的 .git）；direct 仍不要求业务源码 Git 仓库或基线会话。
 
 日常开发部署默认 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留编码、Storage、并发变化、回读和编译检查。需要三方合并时显式使用 `--mode guarded --demand <id>` 并建立会话。旧命令仅带 `--demand` 继续使用 guarded。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 只生成本地计划。
 

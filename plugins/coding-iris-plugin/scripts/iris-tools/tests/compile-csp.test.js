@@ -73,6 +73,7 @@ test('CLI defaults to local plan without MCP config or remote connection', t => 
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'csp-plan-'));
   t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
   fs.mkdirSync(path.join(root,'.agents/config'),{recursive:true});
+  fs.mkdirSync(path.join(root,'.agents/.git'));
   fs.writeFileSync(path.join(root,'.agents/config/project-env.json'),JSON.stringify({web:{cspBasePath:'web/csp'}}));
   const result=spawnSync(process.execPath,[path.resolve(__dirname,'../compile-csp.js'),'--project-root',root,'--documents','web/csp/a.show.csp'],{encoding:'utf8'});
   assert.equal(result.status,0,result.stderr);

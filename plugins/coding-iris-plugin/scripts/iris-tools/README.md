@@ -395,3 +395,9 @@ Python 默认使用 `.mcp.json` 对应 SFTP 的 `command`，可用 `--python <in
 替换前摘要检查与 rename 之间仍有竞争窗口，不是原子条件写入。正常及可处理异常会关闭连接、清理本次临时文件；断线或强杀不能保证 finally 执行。`transport.cleanupPending` 是需要人工核实的本次远端临时路径；恢复先检查最终目标和临时文件实际状态，不能依据名字批量删除或盲目补传。
 
 已部署工程通过正常能力包更新同时取得插件脚本及完整 `vendor/sftp-server/src/`，不可只复制一个入口；无配置/状态迁移和旧文件清理。源仓修改不会自动更新业务副本，也不要求重新部署已完成的业务文件。
+
+### 工作区预检与提交复核
+
+部署、CSP 编译和 SFTP 配置入口共用 workspace 校验结果；目录缺失、错误链接及无效 manifest 在配置读取和远端连接前停止并返回非零退出码。能力包必须为有效安装（含 CapabilityRoot 的 .git）；direct 仍不要求业务源码 Git 仓库或基线会话。
+
+`commit-demand.js verify --plan <plan.json>` 接受 committed 和 verified 状态，重试仍重新读取提交消息与完整文件集合；缺少或额外路径均失败。路径按 NUL 分隔读取，重命名按删除与新增两端比较。
