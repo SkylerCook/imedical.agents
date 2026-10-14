@@ -35,6 +35,758 @@ $("#btn").linkbutton("disable");
 
 # 更新日志 #
 
+## 2026-10-12
+- :sparkles: 各组件增加无障碍标签
+- :sparkles: 增加汉字图标：传染病、高危-高风险、高危-较高风险、高危-一般风险、高危-低风险 [7450033]
+
+## 2026-09-25
+- :lipstick: `iHOS`下表格夜间皮肤的斑马纹变量值色值修改 [7255746]
+- :sparkles: 增加字体图标 [7369631]
+
+## 2026-09-24
+- :lipstick: 五方布局面板标题高度统一：`iHOS`风格折叠状态标题高度44px修改成46px，与展开状态一致
+- :lipstick: `pure`风格五方布局面板标题高度展开48px、折叠46px统一修改成46px，与`iHOS`风格保持一致
+- :lipstick: `iHOS`修改下拉表单异常状态红色边框色值 [7049179]
+
+## 2026-09-22
+- :bug: 页面二次加载jQuery覆盖全局`$`后，vben风格下DOMReady时`$.hisui.switchTheme`报错问题修复[7446901]
+- - ready回调改为闭包捕获打包时的jQuery，并对`$.hisui`判空保护
+
+## 2026-09-19
+- :bug: `tabs`多页滚动按钮连续点击卡慢问题修复
+- `ihos`风格下表格无数据插图样式修改 [7234838]
+
+## 2026-08-26
+- 在奇安信浏览器Chrome/102下，`comboq`,`combo`类组件中文输入法入上屏中文时，不马上触发查询问题 [7338481]
+
+## 2026-08-14
+- `date`组件最大年份修改成9999年
+- - 兼容8.4项目，药房药品有效期有时使用到9999年
+
+## 2026-08-02
+- `tooltip`增加notTrans配置项,true时不自动翻译内容，默认为false
+- `datagrid`的列增加showTip后，弹出的tip不自动翻译,显示的和单元格一样的内容不用翻译
+
+## 2026-08-01
+- 增加藏文支持 [7216604]
+
+## 2026-07-29
+- :lipstick: iHOS_HISUI样式调整，datagrid要求无数据的时候，增加“暂无数据“的文字描述 [7095942]
+
+## 2026-07-28
+- 修改HISUI使用vben样式,默认色系时报错问题
+
+## 2026-07-23
+- 增加`.hui-r-label`,`.hui-l-value`,`.hui-form-row-h`公共样式
+
+## 2026-07-07
+- :lipstick: 纯净下`popover`提示四角显示成圆角
+
+## 2026-07-06
+- :lipstick: `popover`提示四角显示成圆角
+- :lipstick: `hstep`与`vstep`节点背景颜色修改
+
+## 2026-06-24
+- :sparkles: pure与iHOS风格下`datagrid`无数据时图标样式修改
+
+## 2026-06-17
+- :lipstick: `iHOS`风格下`tabs`禁用样式下字体透明度为0.6
+
+## 2026-06-16
+- :sparkles: `popover`关闭按钮默认不显示
+
+## 2026-06-11
+- :lipstick: `iHOS`风格下`datagrid`翻页条样式修改
+- :lipstick: `popover`关闭按钮右边距修改 [7021223]
+
+## 2026-06-10
+- :sparkles: `pure`风格下`accordion`增加面板风格 [5928528]
+- :sparkles: `iHOS`风格下`accordion`增加面板风格 [5928528]
+
+## 2026-06-09
+- :sparkles: `linkbutton`点击事件增加按钮存在性校验 [7016269]
+- :lipstick: `iHOS`风格下`datagird`排序时，表头上的排序按钮颜色需修改 [6957417]
+
+## 2026-06-08
+- :sparkles: `iHOS`风格下`popover`关闭按钮样式修改 [7021223]
+- :sparkles: `pure`风格下`popover`关闭按钮样式修改 [7021222]
+- :lipstick: `iHOS`风格下弹出窗口标题高度修改
+- :sparkles: `iHOS`风格下禁用页签样式编写 [7021177]
+- :sparkles: `pure`风格下禁用页签样式编写 [7021200]
+
+## 2026-06-04
+- :sparkles: `pure`与`iHOS`的`messager-popover`弹出位置居上 [7001666]
+- :lipstick: `iHOS`风格下`datagird`排序时，表头上的排序按钮颜色需修改 [6957417]
+
+## 2026-06-02
+- :sparkles: 处理`date`类组件输入大年份时显示错误问题,如201126-06-02 [6934608]
+- :lipstick: iHOS表头高度与纯净保持一致 [6935052]
+- :lipstick: 去除iHOS表头文字下3px间距 [6935052]
+
+
+## 2026-05-29
+- :lipstick: iHOS风格下tab-tool的白色边框需要去掉 [6967379]
+- :lipstick: iHOS风格下`layout`上图标与文字上下对齐
+- :lipstick: iHOS风格下五方布局图标不对齐问题，其中一个图标在表格得初始化里面定义，未在layout布局定义 [6997750]
+
+## 2026-05-18
+- :lipstick: 步骤节点在夜间样式修改
+
+## 2026-05-15 
+- :lipstick: 处理iHOS风格下四字按钮与两字按钮的宽度不一致问题 [6941781]
+- :lipstick: iHOS方格下五方布局中伸缩箭头与面板标题上下对齐 [6949939]
+- :feature: 如果`datagrid`对应的请求数据data，存在`data.code`且不存在`data.rows`时，保留返回值格式
+
+## 2026-05-13
+- 修改iHOS风格下的插画 [6855534]
+
+## 2026-05-12
+- 图标新增患者基本信息`patient-information`图标 [6884093]
+- iHOS风格插画logo、产品名称、夜间模式下无数据图片及样式修改 [6891154]
+
+## 2026-05-11
+- :lipstick: `treegrid`界面中勾选框样式处理 [6925277]
+- :sparkles: 增加消息已处理图标,优化图标代码 [6903458]
+
+## 2026-04-29
+- :lipstick: iHOS风格下`menutree`的收展按钮样式修改
+
+## 2026-04-28
+- :lipstick: iHOS风格下`datagrid`无数据图片显示重复
+- :lipstick: iHOS风格下`datagrid`背景修改成透明 [6864835]
+
+## 2026-04-23
+- :lipstick: 修改`menutree`图标颜色 [6598293]
+- :lipstick: 修改滚动条样式
+- :lipstick: iHOS风格`tree`图标颜色修改
+- :lipstick: iHOS风格`tree`树线分成三种颜色
+
+## 2026-04-22
+- :lipstick: iHOS风格下表格线条样式修改 [6550160]
+- :lipstick: iHOS风格`tee`选中与悬浮样式修改 [6550163]
+- :lipstick: iHOS风格`datagrid`内plain按钮样式修改 [6550185]
+
+## 2026-04-21
+- :lipstick: 日历下拉面板选中色值修改 [6550156]
+
+## 2026-04-20
+- :lipstick: iHOS风格`datagrid`无数据时背景透明问题处理
+
+
+## 2026-04-17
+- :lipstick: iHOS风格`datagrid`线条样式修改
+- :lipstick: iHOS风格`datagrid`下`datagrid-body-border-gray`不加表格边框
+- :lipstick: iHOS风格`datagrid`分组图标样式修改 [6550155]
+- :lipstick: iHOS风格`datagrid`无数据时图标样式修改
+
+## 2026-04-15
+- iHOS风格datagrid列头悬浮背景色修改
+- iHOS风格菜单按钮展开时背景色修改
+
+## 2026-04-14
+- :lipstick: `tabs`超出的页签菜单样式修改
+- :lipstick: `popover`关闭按钮样式修改 [6828934]
+
+## 2026-04-13
+- tabs增加overflowMenu配置属性 [5905641]
+
+## 2026-04-09
+- :sparkles: 纯净与iHOS风格`vstep`与`hstep`增加悬浮与点击样式 [6527705]
+- :sparkles: iHOS风格日期输入框高度修改 [6550145]
+- :lipstick: iHOS风格菜单按钮展开背景色修改 [6550147]
+- :lipstick: iHOS风格表格线条颜色修改及示例checkbox修改成icheckbox [6550148]
+
+
+## 2026-04-07
+- :lipstick: `iHOS`与`pure`增加header与body都透明样式 [5664638]
+```html
+<div class="hui-none-bgcolor2"></div>
+```
+
+## 2026-04-07
+- :lipstick:`iHOS`风格下下拉表单必填下拉箭头背景色值修改 [6734538]
+- :lipstick: `iHOS`与`pure`增加透明背景与透明边框公共样式 [5664638]
+```html
+<div class="hui-none-bgcolor"></div>
+<div class="hui-tran-border"></div>
+```
+
+## 2026-04-03
+- :sparkles: `lookup`配置`minQueryLen`属性后,解决全部查询时不能回车选行问题 [6817099]
+
+## 2026-03-31
+- :lipstick: 纯净与iHOS风格`popover`标题样式处理 [6773684]
+- :lipstick: iHOS风格下夜间插画样式修改
+- :lipstick: 对最新版chrome浏览器下输入框激活默认时的边框样式处理
+
+## 2026-03-23
+- `layout`组件增加`onBeforeCollapseForMouseLeave`事件 [6762669]
+- - 当点击东/南/西/北面板悬浮展开后，鼠标移开东/南/西/北面板时，进入此事件
+
+## 2026-03-20
+- `layout`折叠状态时,展示图标
+- 纯净风格下折叠状态时字体不加粗 [6750237]
+- 增加面板字体图标
+
+## 2026-03-18
+- iHOS与纯净风格下`hisui-timespinner textbox`的输入框长度修改 [6716530]
+- 纯净风格下勾选框必填项样式修改
+
+## 2026-03-13
+- `validatebox`组件增加`setValue`方法 [6727411]
+
+## 2026-03-12
+- iHOS风格下`tree`的勾选框样式修改
+- iHOS风格下`checkbox`与`radio`必填项样式修改
+
+## 2026-02-28
+- 五方布局折叠状态显示出图标 [6549151]
+- iHOS风格`panel`及`accordion`图标颜色样式修改
+
+## 2026-02-27
+- iHOS风格手风琴风格样式修改 [6549145] [6549146] [6549144]
+
+## 2026-02-26
+- iHOS风格`splitbutton-light`样式修改 [6548006]
+- iHOS风格`tabs`横向滚动条样式修改 [6549138]
+- iHOS风格`tabs`左右位置的样式修改 [6549140]
+
+## 2026-02-13
+- 字体图标国际化 [6677050]
+- 帮助图标颜色修改 [6671544]
+- `splitbutton`分割线去除
+
+## 2026-02-11
+- `dateboxq`组件样式修改[6550062]
+- `menutree`组件样式修改
+- :lipstick: 解决有些字体图标宽度超出16问题
+- `panel`的工具按钮位置放置按钮时，鼠标在按钮下方边缘处悬浮提示层会闪烁 [6658266]
+## 2026-02-10
+- `calendar`箭头样式修改
+
+## 2026-02-07
+- iHOS风格下`splitbutton-blue`按钮风格样式修改 [6548004]
+
+## 2026-02-06
+- 日历面板按钮样式修改 [6550062]
+- 文件上传组件样式修改 [6543272]
+- 分割按钮组件样式修改 [6548003]
+- iHOS风格`menutree`样式修改
+- `menutree`增加支持accordion配置项
+
+
+## 2026-02-05
+- iHOS风格`lookup`样式修改 [6550060]
+
+## 2026-02-04
+- `tooltip`提示层宽度优化 [6570113]
+
+## 2026-02-03
+- `tooltip`提示层宽度优化 [6570113]
+
+## 2026-02-01
+- 在日月年(dmy)格式下,minMaxDate规则器修正 [6610806]
+
+## 2026-01-25
+- 修改海蓝主题下对应节点处小圆点的颜色 [6549152]
+
+## 2026-01-17
+- :bug: `vstep`的getStep方法返回值错位问题 [6616586]
+
+## 2026-01-16
+- 夜间滚动条样式修改
+- 下拉框样式修改 [6548016]
+- iHOS风格下`triggerbox`样式修改 [6548011]
+
+## 2026-01-15
+- 添加`combogridmult`组件 [6103929]
+```js
+$('xxx').combogridmult({
+  multiple:true,
+  itemWordSize:4, // 此配置值大于0时,选中项的文字长度超过此值时,显示省略号
+  // 与combogrid属性一致
+});
+// 此组件会远程翻页,所以初始化后,使用setValuesJson方法设置值
+$('xxx').combogridmult('setValuesJson',[{id:1,text:'lisi'},{id:2,text:'zhangsan'}]);
+$('xxx').combogridmult('getText').split(','); // 得到text数组
+$('xxx').combogridmult('getValues');  // 得到值数组
+```
+- 修改`checkbox`,`radio`在无描述时的宽度 [6422954]
+
+## 2026-01-14
+- iHOS风格`menubutton`组件样式修改 [6548001]
+- iHOS风格`datagrid-toolbar`上按钮背景色修改 [6548002]
+- iHOS风格`lookup`样式修改 [6550059]
+- pure风格`splitbutton`组件的`splitbutton-light`风格按钮点击色修改
+
+## 2026-01-13
+- iHOS风格`datagrid-toolbar`背景色修改成透明
+- iHOS风格插画修改
+- iHOS风格`messager`组件修改 [6543437]
+- iHOS风格`menubutton`组件修改 [6548000]
+- 纯净风格`comboxbox`全选条宽度问题 [6578382]
+
+## 2026-01-12
+- 纯净版本`splitbutton`样式修改 [5794797]
+- 纯净版本`splitbutton`样式修改 [5864535]
+- `dialog`组件背景色修改成透明
+- 增加vben版本下插画 [6338279]
+
+## 2026-01-09
+- `linkbutton`组件样式修改 [6547996]
+- `label`组件示例界面修改 [6547995]
+- 次要按钮样式修改 [6547997]
+- 右侧图标按钮样式修改 [6547998]
+- 透明大按钮样式修改 [6547999]
+- `window`组件背景色样式修改 [6543417]
+
+## 2026-01-08
+- `validatebox`组件样式修改 [6548007]
+- `searchbox`组件样式修改 [6548009]
+- `keywords`组件样式修改 [6543276]
+- `panel`组件样式修改 [6549137]
+
+## 2026-01-07
+- `switchbox`组件样式修改 [6543258]
+- `popover`组件样式修改[6543259]
+- `checkbox`与`radio`组件样式修改 [6543262]
+
+## 2026-01-06
+- `popover`提示组件的分割线颜色修改 [6543246]
+- `vben`下默认给body加了data-theme属性
+
+## 2026-01-05
+- 修改翻页图标 [6440587]
+- 增加`icon-reorder`图标 [6530935]
+- 增加`icon-bed-allocated`图标 [6538514]
+
+## 2025-12-19
+- 增加`$.hisui.switchTheme`方法切换风格
+```
+$.hisui.switchVersion('pure');
+或
+$.hisui.switchVersion('vben');
+$.hisui.switchTheme('bgdark');
+```
+
+## 2025-12-14
+- 只有1版本医为浏览器才考虑3版本病历覆盖界面问题,优化内存GC
+
+## 2025-12-12
+- `pure`风格下处理表格空白图片居中问题
+- `DropDropRadio`兼容老的`Onchange`事件
+
+## 2025-12-02
+- :feature: `pagination`组件会把`pageSize`增加到`pageList`中 [6434616]
+
+## 2025-11-18
+- `datagrid`点击行时,报错保护
+- `datagrid`在加载新数据前,清空旧行记录上`tiptool`提示 [6245838]
+- :bug: 在iframe上弹出的`window`控制拖动大小失灵问题 [6282360]
+
+## 2025-11-17
+- `急`字图标增加其它语言下对应的图标样式 [6368897]
+- 纯净版本无数据图片处理 [6283719]
+
+## 2025-11-14
+- :lipstick: 纯净`splitbutton`悬浮与点击时都不显示边框 [5794790]
+- :lipstick: 纯净表格及树表头文字上下居中对齐 [6202443]
+
+## 2025-11-13
+- :feature: `combogrid`增加`paginationNoWrap`属性 [6206977]
+
+## 2025-11-12
+- :feature: `treegrid`增加`shiftCheck`属性 [5845820]
+
+## 2025-11-07
+- :lipstick: `datagrid`无数据背景图各语言问题处理
+
+## 2025-11-06
+- :lipstick: `datagrid`无数据背景图居中问题处理
+- :feature: `lookup`增加`dlgWindow`属性
+
+## 2025-11-03
+- 为`datagrid`自定义的`displayMsg`属性值增加翻译 [6336881]
+- 修正纯净版`confirm`界面按钮在头菜单显示宽度不正确问题 [6336877]
+
+## 2025-10-20
+- 增加图标 [6255685]
+
+## 2025-10-16
+- :sparkles: `datagrid`的列属性`showTip`为true时,非空内容(trim)才弹出提示层 [6203451]
+- :lipstick: 纯净版页签标题与页签之间增加竖线分割样式修改 [5799094]
+- :sparkles: 还原`radio`与`checkbox`结构中for属性 [6093300]
+
+## 2025-09-15
+- :sparkles: 纯净版本表格默认上下间距还原成0,增加`datagrid-body-padding7`样式 [6083733]
+
+## 2025-09-12
+- :lipstick: 纯净版本`radio`与`checkbox`样式修改 [6093300]
+- :lipstick: 纯净版泡芙提示标题样式修改 [6102133]
+- :sparkles: 纯净版表格内容上下间距修改成7px [6083733]
+- :lipstick: `tabs`与`panel`样式修改 [6052224]
+- :lipstick: 纯净版增加`splitbutton-light`样式的splitbutton [5864535]
+
+## 2025-09-11
+- 处理`datagrid-toolbar`内的`filebox`组件按钮位置偏移问题 [6089231]
+
+## 2025-09-09
+- 修改`switchbox`样式,最大宽度修改成51px [5629549]
+
+## 2025-09-04
+- `combo`组件增加`panelMaxHeight`属性 [6132370]
+
+## 2025-08-27
+- 图标样式增加到浅蓝与纯净风格
+
+## 2025-08-08
+- `lookup`只有一行记录时,出现纵向滚动条问题 [6035752]
+
+## 2025-08-07
+- :lipstick: `纯净`版本调整面板,页签,手风琴,四方布局的标题样式 [6052224]
+- :sparkles: 树表格删除插件行时，动态刷新隔行变色样式 [6030688]
+
+## 2025-08-06
+- :sparkles: 增加5个图标 [6032286]
+
+## 2025-08-01
+- :sparkles: 树节点隔行颜色优化 [6030688]
+
+## 2025-07-31
+- :lipstick: `纯净`版翻页条下拉框中的数字大于2位时，数字显示不完整 [6021471]
+
+## 2025-07-30
+- :sparkles: `panel`内容超出时提示功能优化 [6012372]
+
+## 2025-07-29
+- :sparkles: 树下的表格显示无数据图片问题 [6035708]
+- :sparkles: `tree`与`combobox`增加queryParams参数 [6014510]
+
+## 2025-07-24
+- :sparkles: `linkbutton`大按钮悬浮背景色及文字间距调整 [5565107]
+
+## 2025-07-21
+- :sparkles:`window`及子组件支持`constrain`属性  [5986363]
+- `HISUIStyleCode`变量未定义处理
+
+## 2025-07-17
+- `searchbox`框内提示文字支持翻译 [5995966]
+
+## 2025-07-14
+- :lipstick: 纯净风格下蓝色按钮禁用样式调整 [5915086]
+
+## 2025-07-10
+- :lipstick: 纯净风格下多层表头增加下划线 [5918124]
+- :lipstick: 纯净风格带竖线的表格最后一行增加下边框 [5918045]
+- :lipstick: 纯净风格下单选框文字高度增加1px [5918045]
+- :lipstick: 纯净风格下纵向步骤条标题左边距调整 [5915528]
+- :lipstick: 纯净风格下蓝色按钮禁用样式调整 [5915086]
+- :lipstick: 纯净风格下窗口标题上下居中 [5900209]
+- :sparkles: `panel`收起时设置`panel-status-collapse`样式顺序调整 [5560640]
+
+## 2025-07-09
+- :lipstick: prompt提示窗口样式修改,nth-child(5)去除 [5968481]
+
+## 2025-07-08
+- :sparkles: `combobox`元素全选但全选勾未选 [5949378]
+
+## 2025-07-07
+- `calendar`相关控件支持鼠标滚动切换月份 [5909844]
+- `pure`版本的下拉菜单未指定宽度时,高度不加2 [5909505]
+- - `menu`通过appendItem方法添加右键子项，其生成的html存在多余的style='height: 36px;',导致菜单高度变成36px
+
+## 2025-07-04
+- :sparkles:`popover`组件偶尔出现最后一个字显示成省略号问题 [5937243]
+- :sparkles:`switchbox`组件非中文描述时，宽度算法优化 [5895812]
+
+## 2025-07-03
+- :bug: `panel`销毁时清除标题的`tooltip`提示 [5913220]
+
+## 2025-06-26
+- :lipstick: `numberbox`输入框有时右边间距消失
+
+## 2025-06-24
+- :bug: 获取汉字拼音首字母方法优化,防止内存溢出 [5889364]
+- :bug: 数字序号列不允许拖动 [5889729]
+
+## 2025-06-20
+- :bug: `panel`触发resize逻辑优化 [5888040]
+- - 宽高都为0时才可以触发面板的适应
+- 纯净版`confirm`背景色修改
+- :lipstick: 纯净版列表`序号`位置向上移1px
+
+## 2025-06-19
+- `switchbox`增加对文字的翻译功能 [5892841]
+- `datagrid`的`showFilterToolbar`配置成true时，增加可以追加`toolbar`信息功能 [5894525]
+
+## 2025-06-18
+- 表格标题上下居中 [5561835]
+
+## 2025-06-17
+- :bug: `combobox`的loadFilter方法返回`undefined`报错处理
+- :lipstick: `pure`下`datagrid`表格行样式修改 [5800605]
+
+## 2025-06-13
+- :lipstick: `pure`下splitbutton按钮样式修改 [5794790]
+- :lipstick: `pure`下`searchbox`菜单样式修改 [5846605]
+
+```html
+  <input id="ss2"/>
+  <div id="mm" class="search-btn-menu">
+    <div data-options="name:'ALL'">所有</div>
+    <div data-options="name:'V'">核实</div>
+    <div data-options="name:'D'">停止</div>
+    <div data-options="name:'C'">作废</div>
+  </div>
+```
+
+```javascript
+  $(function(){
+    $("#ss2").searchbox({
+      searcher:function(value,name){
+        alert(value+","+name);
+      },
+      menu:'#mm',
+      prompt:'请输入值',
+    });
+  });
+```
+
+- :lipstick: `pure`页签`brand`标题与页签之间增加竖线分割 [5799094]
+
+## 2025-06-11
+- :bug: `combobox`普通单选模式,在多次执行`$.parser.parse()`后大概率无法选择 [5803813]
+- - 当配置项没有data属性时，没有重新生成下拉面板，会出现此问题
+
+## 2025-06-10
+- :lipstick:优化弹出窗口的背景色 [5744108]
+
+## 2025-06-09
+- `menutree`在折叠时，悬浮图标打开的子面板限制最大高度，且当比较居下时，适当进行向上偏移。
+- `menutree`修复在折叠时，悬浮或选中图标没有背景色问题。
+
+## 2025-06-04
+- :sparkles: 在面板隐藏时调用长标题时,也要显示略省号
+- :lipstick: 纯净页签默认文字及图标色值修改 [5834393]
+
+## 2025-06-04
+- :sparkles: 面板收起后鼠标悬浮时提示为空问题 [5831651]
+
+## 2025-06-03
+- :sparkles: 表格有数据判断增加`rows`元素个数大于0 [5806709]
+
+## 2025-05-29
+- :lipstick: 增加优字图标 [5817354]
+- `linkbutton`未生成时,调用`disable`方法报错处理
+- `combo`关闭面板选择器修改
+
+## 2025-05-28
+- :sparkles: `panel`及子组件的标题长度超时宽度时显示省略号且增加悬浮提示 [5780047]
+- 修改法语翻译及法语插画样式
+
+## 2025-05-27
+- :lipstick: tab带标题和图标的样式，图标需要跟标题对齐 [5785358]
+- :lipstick: 纯净风格下`#191919`修改成`#000000` [5787308]
+- :lipstick: 纯净风格下`#424656`修改成`#000000` [5787308]
+- 增加图标 [5781347]
+
+## 2025-02-26
+- :sparkles: 增加法语翻译
+- :sparkles: `pure`风格下列头`序号`二字翻译
+
+## 2025-02-23
+- :sparkles: 支持右图标按钮及文字悬浮效果 [5752156]
+
+## 2025-05-15
+- :bug: `lookup`在医嘱录入界面的`用法`与`频次`输入框间跳动问题 [5753319]
+
+## 2025-05-14
+- 只有配置了`className`与`queryName`的表格才可以双击弹出列定义界面 [5748227]
+
+## 2025-05-12
+- :sparkles: `datagrid`无数据时,图片显示支持国际化 [5743354]
+
+## 2025-05-09
+- :bug: `lookup`在医嘱录入界面的`用法`与`频次`输入框间跳动问题 [5753319]
+
+## 2025-05-08
+- :lipstick: `pure`风格下下拉框背景色修改成白色 [5547723]
+
+## 2025-05-04
+- :lipstick: `pure`风格下表格工具条上按钮位置向下移1px [5547672]
+
+## 2025-05-03
+- 支持葡萄牙语 [5718496]
+- :lipstick: `pure`风格下`layout`布局上图标和描述未对齐 [5605222]
+- :lipstick: `pure`风格下`window`有标题时遮罩层上边应无圆角 [5657405]
+- :lipstick: `pure`风格下列头上的勾选框与文字上下居中 [5561835]
+- :lipstick: `pure`风格下大图按钮样式修改 [5565107]
+
+## 2025-05-01
+- `fixRowNumber`配置项下合计行号也应该隐藏 [5734598]
+- 增加极简版本图形分类图标 [5691324]
+
+## 2025-04-28
+- 更新三张表背景插图
+- 还原表格类组件的第一列数据特殊间距值 [5633712]
+
+## 2025-04-27
+- 使用`datagrid`的`updateRow`方法写表格数据时，增加`datagrid-have-data`样式 [物流交接界面]
+- 使用`datagrid-detailsview`插件显示表格数据时，增加`datagrid-have-data`样式 [结算界面]
+- 增加三个无背景插图 [5713492]
+
+## 2025-04-21
+- :sparkles: `pure`风格下`messager`内容文字大小修改成16px,行高30px [5649325]
+- `filebox`选择按钮竖线处理 [5619557]
+- `pure`下`message-confirm`组件阴影高度大于弹窗口问题 [5678473]
+
+## 2025-04-19
+- :sparkles: 时间微调器箭头图标修改 [5565184]
+
+## 2025-04-18
+- :bug: 表格列头列尾最大宽度修改 [5653712]
+- :sparkles: `datagrid`,`treegrid`,`propertygrid`增加无数据图片显示 [5544254]
+
+## 2025-04-14
+- `pure`下`datagrid`无数据时显示图片 [5544254]
+
+## 2025-04-14
+- `pure`下`popover`的背景色修改成纯白色 [5660143]
+- `pure`messager提示文字需要限制显示范围[5659152]
+
+## 2025-04-12
+- `pure`风格下`switchbox`位置调整 [5629549]
+- `pure`表格及树通用表头增加hover背景色值(#E1E2E6) [5547566]
+- `pure`表格及树隔行变色颜色修改成#FAFAFC [5561852]
+- `pure`表格外层2px边框问题处理 [5561833]
+
+## 2025-04-08
+- `pure`的菜单按钮样式修改 [5565095]
+- `pure`的`switchbox`小开关的字号及位置修改 [5629540]
+- `pure`树节点自定义图标时,原file图片会重叠出现问题 [5537144]
+- `pure`下提示窗口文字行高默认成24px [5608685]
+
+## 2025-04-07
+- `pure`风格下`filebox`鼠标悬浮变色 [5619557]
+- `pure`风格`tabs`配置showHeader:false时，去掉下2px间距 [5621742]
+- `pure`带图标的按钮，图标上移1px [5632179]
+
+## 2025-03-31
+- `pure`风格下`popover`无标题且配置`padding:true`时，无上边距问题处理 [5562042]
+- `pure`风格下表格内必填数字框输入为空时，输入框样式显示问题处理 [5585197]
+
+## 2025-03-27
+- :sparkles: `lookup`关联的`datagrid`增加`id`，以便`信创`实现列定义功能 [5584071]
+- 增加5个`输血`图标 [5571681]
+- 增加3个`图片`图标
+- `pure`默认字体修改 [5561986]
+- :sparkles: `comboq`类组件在输入框中按F1~F12键时不触发事件 [5604790]
+- `pure`的`linkbutton`最小宽度修改成76px [5536168]
+- `pure`的`messager.popover`弹出位置修改 [5560458]
+- `pure`的`messager`弹窗口居中问题 [5560458]
+- `lookup`扩展`lookupGridId`属性来定义对应表格的id [5584071]
+
+## 2025-03-24
+- 验证框`invalid`状态下，四个方位的提示层的箭头样式处理 [5571747]
+
+## 2025-03-21
+- 兼容`messager`的warning提示效果
+
+## 2025-03-14
+- `window`与`dialog`fit时，宽与高包含父容器padding [5534619]
+- - 所有风格下都修改成些逻辑，`panel`与`layout`的fit时，宽高不包含父容器padding，只是适应内容宽高
+- `dialog`中部空白背景还原回白色
+- `datagrid`第一列为勾选框时,左边也要10px边距 [5547568]
+
+## 2025-03-13
+- `lite`风格下能对齐的输入框在`pure`无法对齐 [5499755]
+- - 因为textbox的padding从5px扩大至10px，宽度要修改小才能保存与原来一样宽，与combo对齐
+- `pure`风格下confirm窗口提示内容右边距设置为60像素 [5524746]
+- `pure`风格下通过`dialog`,`window`打开弹窗位置偏右 [5526280]
+- `pure`风格`datagrid`文字发现下边显示不全，高度调试 [wqy]
+- `pure`风格下window，dialog内容白色区域背景应该圆角 [5527853]
+- `menutree`组件在`lite`和`lightblue`风格下支持`title`配置项
+
+## 2025-03-12
+- 开关切换支持指定长度，且文字不限 [5461634]
+- `popover`箭头样式重写 [5469936]
+
+## 2025-03-10
+- 纯净版`menutree`组件，同级节点有子节点和无子节点没对齐问题
+- `menutree`组件增加`expandAllOnSearch`属性,为true时，有条件查询时，展开所有节点
+- `menutree`组件增加`collapseAllOnNoSearch`属性,为true时，无条件查询时，折叠所有节点
+- 纯净版`menutree`组件展开与收起菜单面板的图标修改
+- 纯净版`menutree`组件支持`title`属性，在底部显示标题
+
+## 2025-03-07
+- 处理下拉框或放大镜输入汉字时不触发查询问题
+- 表格合计上分隔线颜色修改
+- 输入框高度不一致问题处理 [5459621]
+
+## 2025-03-05
+- 当`layout`父容器为body时，且body有底部边距时，自动在底部插入一个高为底部边距的空白元素，将多余内容挤下去
+- 修复`layout`自身容器有padding时，五方面板定位不正确问题
+
+## 2025-03-04
+- 处理病历编辑器覆盖弹出窗口问题 [5516164]
+
+## 2025-03-03
+- 纯净下插画修改
+- `popover`反色样式间距处理
+
+## 2025-03-01
+- :lipstick: `lightblue`与`pure`下popover组件inverse样式修改 [5479338]
+- :lipstick: 解决纯净风格`window`窗口内的翻页条右端`页码文字`垂直居中问题 [5464555]
+- :lipstick: `纯净风格`表头文字样式修改 [5461229]
+- 增加面板图标5个 [5509809]
+- 纯净风格修改插画 [5458315]
+
+## 2025-02-28
+- 修复layout下边距问题
+
+## 2025-02-26
+- 纯净版本泡芙提示间距修改 [5469936]
+- 在`layout`收起后箭头显示不全 [5467918]
+- 处理`window`无法折叠问题 [5465634]
+- 处理纯净版本下`insertRow`的行字体颜色为白色问题
+
+## 2025-02-25
+- 纯净版按钮宽度设置为58px时，文字不居中问题。 [5481143]
+- `datebox`鼠标长按今天按钮上，不能选中当天日期问题	[5479592]
+- 当文字内容超出宽度时`tree`选中颜色右边为直角,修改成圆角
+
+## 2025-02-24
+- 纯净表单blue按钮选中状态的边框色值及大图标色值修改 [5483209]
+- 下拉树图标样式修改 [5481560]
+
+## 2025-02-22
+- 弹出提示窗口后，默认按钮兼容纯净版本
+
+## 2025-02-21
+- `menutree`组件增加`findNode`方法
+ 
+## 2025-02-20
+- 增加查询面板左边距样式类 `.hisuicom-leftpadding-container` [5474027]
+- 增加`$.hisui.getHisuiStyle()`方法获取当前hisui样式
+- 调整`menutree`纯净版样式
+- `tab`增加属性`simpleContextMenu`属性，当为`true`时，显示默认的关闭、关闭其他等右键菜单
+
+## 2025-02-14
+- 处理表格工具栏上按钮`l-btn-focus`时样式
+- 修复表格工具栏上按钮无图片时文字靠右问题 `药房界面`
+- 去除一些important写法
+
+## 2025-02-12
+- 纯净版本body不自带padding
+- 纯净版本下拉框选中的记录背景色修改
+- `linkbutton`蓝色按钮边框色修改
+
+## 2025-02-10
+- :sparkles: 纯净版本下`confirm`及`prompt`窗口按钮顺序调整
+
+## 2025-02-06
+- :sparkles: 为`datagrid`增加datagrid-not-view1样式类，来区分是否有固定列
+
 ## 2025-01-25
 - :sparkles: 鼠标移到按钮上时不隐藏下拉菜单。见`splibutton`示例
 
@@ -46,7 +798,8 @@ $("#btn").linkbutton("disable");
 
 ## 2025-01-14
 - :sparkles: 编辑表格内`combogrid`在懒加载时默认显示设置`oldHtml`文本
-```js
+
+```javascript
 // 解决lazy时，双击编辑时速度，且不触发数据查询
 editor:{
   type:'combogrid',
@@ -58,8 +811,6 @@ editor:{
   multiple:true,
   ...
 }
-
-
 ```
 
 ## 2024-12-31

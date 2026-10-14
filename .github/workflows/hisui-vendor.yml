@@ -1,0 +1,55 @@
+name: HISUI vendor
+on:
+  pull_request:
+    paths:
+      - 'vendor/hisui/**'
+      - 'maintenance/hisui-build/**'
+      - 'scripts/tests/hisui-vendor.tests.js'
+      - '.github/workflows/hisui-vendor.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        node: ['22', '24']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Prepare isolated locked test tools
+        shell: pwsh
+        run: |
+          $taskDir = Join-Path $env:RUNNER_TEMP ('hisui-' + [guid]::NewGuid().ToString('N'))
+          $toolsDir = Join-Path $taskDir 'tools'
+          New-Item -ItemType Directory -Path $toolsDir | Out-Null
+          "HISUI_BUILD_TOOLS=$toolsDir" >> $env:GITHUB_ENV
+          "HISUI_TEST_TEMP=$taskDir" >> $env:GITHUB_ENV
+          Copy-Item maintenance/hisui-build/package.json,maintenance/hisui-build/package-lock.json -Destination $toolsDir
+          npm ci --prefix $toolsDir --ignore-scripts --no-audit --no-fund --cache (Join-Path $taskDir 'npm-cache')
+          if ($LASTEXITCODE -ne 0) { throw 'Tool installation failed' }
+          $sourceDir = Join-Path $taskDir 'upstream'
+          New-Item -ItemType Directory -Path $sourceDir | Out-Null
+          $sha = (Get-Content vendor/hisui/upstream.json -Raw | ConvertFrom-Json).commit
+          git -C $sourceDir init --quiet
+          git -C $sourceDir -c core.autocrlf=false fetch --depth=1 https://github.com/wanghc/hisui.git $sha
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned source fetch failed' }
+          git -C $sourceDir -c core.autocrlf=false checkout --quiet --detach FETCH_HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned source checkout failed' }
+          "HISUI_UPSTREAM_SOURCE=$sourceDir" >> $env:GITHUB_ENV
+      - run: node --test scripts/tests/hisui-vendor.tests.js
+      - name: Clean owned temporary directory
+        if: always()
+        shell: pwsh
+        run: |
+          if ($env:HISUI_TEST_TEMP) {
+            $root = [IO.Path]::GetFullPath($env:HISUI_TEST_TEMP)
+            $base = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+            if (!$root.StartsWith($base, [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe temporary directory' }
+            Remove-Item -LiteralPath $root -Recurse -Force
+          }

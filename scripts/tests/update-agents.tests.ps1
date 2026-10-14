@@ -487,6 +487,9 @@ Assert-Contains $hisuiStyleIndexContent "../rules/iris_coding_frontend.md" "HISU
 Assert-Contains $hisuiStyleIndexContent '`vendor/hisui/dist/css/`' "HISUI style maintenance should document the source-repo vendor path"
 Assert-Contains $hisuiStyleIndexContent '`.agents/vendor/hisui/dist/css/`' "HISUI style maintenance should document the deployed vendor path"
 Assert-Contains $hisuiWidgetIndexContent "../rules/iris_coding_frontend.md" "HISUI widget related path should resolve from references/"
+Assert-Contains $hisuiWidgetIndexContent "source-index.json" "HISUI widget references should locate the current pinned snapshot"
+Assert-Contains $hisuiStyleIndexContent "resource-warnings.json" "HISUI style references should disclose known upstream resource gaps"
+Assert-Contains (Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $repoRoot "docs/update-agents.md")) "HISUI 资产更新" "Update runbook should explain packaged HISUI assets without business-project builds"
 $feedbackTemplateContent = Get-Content -Raw -Encoding UTF8 -Path $feedbackTemplatePath
 $feedbackProtocolContent = Get-Content -Raw -Encoding UTF8 -Path $feedbackProtocolPath
 Assert-Contains $feedbackTemplateContent "<!-- discovery-process -->" "feedback template should require the discovery process"

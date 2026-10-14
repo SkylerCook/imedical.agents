@@ -1,0 +1,11 @@
+{
+  "name": "imedical-hisui-vendor-build",
+  "private": true,
+  "description": "Source-repository-only tools for rebuilding the upstream HISUI snapshot; never installed in business projects.",
+  "dependencies": {
+    "clean-css": "5.3.3",
+    "less": "3.13.1",
+    "uglify-js": "3.19.3",
+    "jsdom": "26.1.0"
+  }
+}

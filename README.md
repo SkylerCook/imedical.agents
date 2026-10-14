@@ -293,6 +293,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - 本地优先、按需上传/编译的工作流约束。
 - 当前前端 UTF-8 原样编辑、导出和上传流程，以及仅供显式历史工程使用的 legacy GB2312 promote 兼容流程。
 - HISUI 控件/API 按需读取 `references/hisui-widget-index.md`，主题 CSS、locale CSS、语义 class、图标和插图按需读取 `references/hisui-style-index.md`；弹窗内面板留白、裁切与滚动异常见[宽度排查指导](plugins/coding-iris-plugin/references/hisui-style-index.md#弹窗内面板的宽度留白与滚动)。
+- HISUI 资产固定到上游 `4c09319`（2026-10-12），来源、构建与文件 SHA-256 见 [vendor 说明](vendor/hisui/README.md)；源仓具备只读检查、固定提交重建、校验与失败回滚入口，coding-iris-plugin 0.17.1 同步源码索引。沿正常能力包更新分发，不改已有项目预览路径；上游已知资源缺项与实际 HIS 应用 helper 分开核对。
 - iris-agentic-dev MCP server Windows x64 可执行文件（当前 **v1.4.2**）内置在 `.agents/vendor/iris-agentic-dev/`；Windows 安装/更新在 vendor exe 存在时只把既有 IRIS MCP `command` / `mcp.serverPath` 收敛到该项目相对路径，目标工程 `.mcp.json` 仍保存实际连接事实，其它连接字段和 MCP server 不变。Write 只有在重新读取并确认 `.mcp.json` 与既有 `project-env.json` 均已落盘后才报告成功；历史更新器的确定性两阶段兼容命令见更新 runbook。
 - `iris-mcp-lookup` 统一查询当前实例类/方法签名、本地源码和 InterSystems 官方文档，并支持已知官方 URL 的 Fetch/WebFetch/Open 等价能力。
 - `iris-demand-promote` 将已提交的 DEV 需求补丁移植到独立 PRD 按需导出仓库：PRD 服务器导出是目标基线，计划、确认、本地提交和验证分阶段执行，不授权上传、编译或生产部署。

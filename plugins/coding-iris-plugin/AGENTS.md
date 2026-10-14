@@ -66,6 +66,7 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 - Legacy GB2312 提升流程：`rules/iris_gb2312_workflow.md`
 - HISUI 控件参考：`references/hisui-widget-index.md`（源码内置在 `.agents/vendor/hisui/`）
 - HISUI 样式与资源参考：`references/hisui-style-index.md`（主题 CSS、locale CSS、语义 class、图标与插图）
+- HISUI 上游升级：源仓读取 `vendor/hisui/AGENTS.md`；版本与行号取 vendor 的 upstream.json/source-index.json，实际工程先核对运行文件和应用 helper，不能把新快照等同真实 HIS 版本。
 - iris-agentic-dev 配置：`rules/iris_agentic_dev.md`（Windows x64 可执行文件内置在 `.agents/vendor/iris-agentic-dev/`）
 - IRIS 知识查询与 MCP 路由：`rules/iris_knowledge_lookup.md`
 - IRIS 官方文档路由：`references/iris-official-docs-routing.md`

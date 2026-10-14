@@ -1,0 +1,256 @@
+{
+  "schema": "imedical-hisui-source-index/v1",
+  "file": "dist/js/jquery.hisui.js",
+  "lineCount": 26630,
+  "widgets": {
+    "_outerWidth": {
+      "definition": 970,
+      "defaults": null
+    },
+    "_outerHeight": {
+      "definition": 985,
+      "defaults": null
+    },
+    "_scrollLeft": {
+      "definition": 1000,
+      "defaults": null
+    },
+    "_fit": {
+      "definition": 1010,
+      "defaults": null
+    },
+    "draggable": {
+      "definition": 1342,
+      "defaults": 1466
+    },
+    "droppable": {
+      "definition": 1502,
+      "defaults": 1544
+    },
+    "resizable": {
+      "definition": 1555,
+      "defaults": 1750
+    },
+    "linkbutton": {
+      "definition": 1926,
+      "defaults": 1991
+    },
+    "pagination": {
+      "definition": 2229,
+      "defaults": 2295
+    },
+    "tree": {
+      "definition": 3322,
+      "defaults": 3619
+    },
+    "progressbar": {
+      "definition": 3733,
+      "defaults": 3792
+    },
+    "tooltip": {
+      "definition": 3979,
+      "defaults": 4050
+    },
+    "_remove": {
+      "definition": 4071,
+      "defaults": null
+    },
+    "panel": {
+      "definition": 4635,
+      "defaults": 4773
+    },
+    "window": {
+      "definition": 5211,
+      "defaults": 5288
+    },
+    "dialog": {
+      "definition": 5421,
+      "defaults": 5469
+    },
+    "accordion": {
+      "definition": 6298,
+      "defaults": 6375
+    },
+    "tabs": {
+      "definition": 7277,
+      "defaults": 7419
+    },
+    "layout": {
+      "definition": 8096,
+      "defaults": 8163
+    },
+    "menu": {
+      "definition": 8591,
+      "defaults": 8698
+    },
+    "menubutton": {
+      "definition": 8808,
+      "defaults": 8874
+    },
+    "splitbutton": {
+      "definition": 8895,
+      "defaults": 8937
+    },
+    "searchbox": {
+      "definition": 9111,
+      "defaults": 9212
+    },
+    "validatebox": {
+      "definition": 9412,
+      "defaults": 9481
+    },
+    "form": {
+      "definition": 9887,
+      "defaults": 9937
+    },
+    "numberbox": {
+      "definition": 10048,
+      "defaults": 10144
+    },
+    "calendar": {
+      "definition": 10620,
+      "defaults": 10679
+    },
+    "spinner": {
+      "definition": 10810,
+      "defaults": 10917
+    },
+    "numberspinner": {
+      "definition": 10960,
+      "defaults": 11014
+    },
+    "timespinner": {
+      "definition": 11220,
+      "defaults": 11291
+    },
+    "datagrid": {
+      "definition": 13661,
+      "defaults": 15045
+    },
+    "propertygrid": {
+      "definition": 15316,
+      "defaults": 15506
+    },
+    "treegrid": {
+      "definition": 16302,
+      "defaults": 16969
+    },
+    "combo": {
+      "definition": 17506,
+      "defaults": 17649
+    },
+    "comboboxAddClass": {
+      "definition": 17685,
+      "defaults": null
+    },
+    "comboboxRemoveClass": {
+      "definition": 17698,
+      "defaults": null
+    },
+    "combobox": {
+      "definition": 18182,
+      "defaults": 18316
+    },
+    "combotree": {
+      "definition": 18511,
+      "defaults": 18600
+    },
+    "combogrid": {
+      "definition": 18851,
+      "defaults": 18926
+    },
+    "DropDropRadio": {
+      "definition": 19106,
+      "defaults": null
+    },
+    "datebox": {
+      "definition": 19334,
+      "defaults": 19383
+    },
+    "datetimebox": {
+      "definition": 19666,
+      "defaults": 19718
+    },
+    "slider": {
+      "definition": 20003,
+      "defaults": 20092
+    },
+    "switchbox": {
+      "definition": 21049,
+      "defaults": 21135
+    },
+    "checkbox": {
+      "definition": 21324,
+      "defaults": 21459
+    },
+    "radio": {
+      "definition": 21682,
+      "defaults": 21824
+    },
+    "filebox": {
+      "definition": 21954,
+      "defaults": 22034
+    },
+    "popover": {
+      "definition": 22077,
+      "defaults": 22142
+    },
+    "comboq": {
+      "definition": 22415,
+      "defaults": 22569
+    },
+    "lookup": {
+      "definition": 22989,
+      "defaults": 23036
+    },
+    "keywords": {
+      "definition": 23174,
+      "defaults": 23252
+    },
+    "triggerbox": {
+      "definition": 23361,
+      "defaults": 23454
+    },
+    "dateboxq": {
+      "definition": 24063,
+      "defaults": 24120
+    },
+    "datetimeboxq": {
+      "definition": 24246,
+      "defaults": 24309
+    },
+    "hstep": {
+      "definition": 24460,
+      "defaults": 24508
+    },
+    "vstep": {
+      "definition": 24605,
+      "defaults": 24653
+    },
+    "timeboxq": {
+      "definition": 24693,
+      "defaults": 24851
+    },
+    "imedisabled": {
+      "definition": 24950,
+      "defaults": 24979
+    },
+    "menutree": {
+      "definition": 25707,
+      "defaults": 25769
+    },
+    "inputclearbtn": {
+      "definition": 25894,
+      "defaults": 25934
+    },
+    "label": {
+      "definition": 25958,
+      "defaults": 25984
+    },
+    "combogridmult": {
+      "definition": 26196,
+      "defaults": 26264
+    }
+  },
+  "note": "Line numbers apply only to this snapshot. Target HIS scripts may include separate application helpers."
+}

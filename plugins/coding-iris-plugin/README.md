@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+0.17.1：同步 HISUI 固定提交快照的控件/样式索引、源码行号、主题与 locale 清单；版本身份来自 `.agents/vendor/hisui/upstream.json`，资源缺项见 resource-warnings.json。正常能力包更新即可取得参考，实际 HIS 的应用层 helper 和运行版本须按任务核对，无业务源码或配置迁移。
+
 需求提交使用 demand-delivery-plugin 的 demand-commit，标版补录使用 bos-plugin 的 bos-demand-entry；本插件不再提供兼容技能或 CLI。已部署项目由更新器迁移引用与启用状态，见 [迁移说明](../../docs/demand-delivery-migration.md)。
 
 0.16.0：移除需求交付旧入口，更新器负责已部署项目的引用与启用状态迁移。此前 0.15.9：部署、CSP 编译和 SFTP 配置入口共用 workspace 校验结果；目录缺失、错误链接及无效 manifest 在配置读取和远端连接前停止并返回非零退出码。能力包必须为有效安装（含 CapabilityRoot 的 .git）；direct 仍不要求业务源码 Git 仓库或基线会话。 `commit-demand verify` 可对 committed/verified 计划重复执行，并精确比较提交与计划的文件集合（含中文路径和重命名两端）。随正常能力包更新生效，无配置迁移或清理。

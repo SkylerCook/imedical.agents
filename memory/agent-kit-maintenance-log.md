@@ -1,5 +1,10 @@
 # imedical.agents 维护日志
 
+- 2026-10-14（HISUI 资产升级，framework-maintenance）：核心固定 wanghc/hisui 的 `4c09319c2daa09a25813c6e6af349e2791d79944`（2026-10-12），按上游组件顺序与 Less 配方、锁定工具重建主/压缩 JS、五个主题及 locale；保留来源与许可证。对照 HISUI 0.1.0 打包目录（主 JS 文件时间 2026-09-22），补充 26 个 Git 未跟踪分发资源并单独固定摘要，不用较旧主库覆盖新源码。1262 个受管文件有完整摘要，62 个 jQuery 入口有源码索引；14 个生效 CSS 资源缺项如实报告，排除注释 URL。coding-iris-plugin 0.17.1 同步控件/样式行号与运行版本/helper 边界。源仓具备 check/verify、固定输入构建、并发修改保护与失败回滚；正常能力包更新分发 vendor，维护工具/依赖不部署，不改项目预览配置。用户选择的每月只读检查在当前聊天设置为每月 1 日 09:00，有变化才提醒，不自动升级、提交或同步工程。
+  - 验证：Windows Node 24 最终专项 12/12 通过，无跳过，包含固定源码与分发输入逐文件复现、篡改/新增/缺失、索引、分发摘要漂移、资源缺项门禁、回滚/恢复保留、链接边界及两种真实 JS 的 DataGrid editor 取值保存；部署文档链接 1/1 通过。本机浏览器默认主库与 pure 压缩库均编辑保存成功，pure 冒烟资源请求全部 200、Console 无错误；未注入 getValue shim，当前主库与参考包均未提供 $.fn.getValue。PS7 及真实 Windows PowerShell 5.1 的新增更新文档断言、5.1 脚本 BOM/语法检查通过，安装器未变化，不机械重跑更新器全套。最终 check 与上游 master 一致，离线 verify 与自有文档差异检查通过。组件 worktree 校验识别 0.17.0→0.17.1，无本轮新增问题，全量仍被已登记 xc 历史记录缺 commit 阻塞；未改历史记录。三平台 Node 22/24 CI 已配置，实跑与真实 HIS/WebView/PAD 沿既有队列取证。
+  - 收尾：本地内容证据记录在 `.git/hisui-vendor-validation.json`，指纹匹配可复用。浏览器验收页关闭、回环服务停止；本任务临时 clone、构建 tools/cache 与诊断脚本已删除并复核。使用者的原始打包目录保留；提交与推送按本轮后续授权执行，结果以 Git 记录为准；没有业务工程同步或服务器操作。
+  - 差异边界：自有实现/文档的 diff check 通过；HISUI 生成 JS 保留构建器输出，单独 diff check 报告 5 处末尾空格，不将第三方生成代码的格式调整混入资产升级。
+
 - 2026-10-14（需求交付归属迁移）：demand-delivery-plugin 0.1.0 接管通用提交，bos-plugin 0.3.0 接管标版补录；coding-iris-plugin 0.16.0 删除旧技能、CLI 和引用别名，六个直接依赖插件递增 patch 并扩大兼容范围。根更新器独立识别旧部署，先检查显式状态、自定义内容、链接、目标和过滤冲突，再生成验证新入口、迁移项目 AGENTS/本地文档与配置、启用缺失 owner、删除旧受管入口。迁移 product/default-kind 配置，保留草稿与计划数据协议；不初始化 BOS 个人凭据、不访问外部服务、不自动更新业务副本。
   - 验证：Windows Node 24 联合回归 52/52 通过（提交/hook 21、BOS 发现/更新 8、补录 19、迁移专项 4）；最终迁移规则定向复验通过。PS7 / PS5.1 均验证了 standard/Overlay 的 DryRun、接入启用、删除旧入口和幂等更新。PS5.1 更新器首轮已通过前半段，在 legacy sparse 夹具漏打包新增 helper 处停止；补齐 helper/resolver 与实际落盘断言后，从该场景续跑至末尾全部通过。技能 frontmatter、路由与部署文档链接检查、diff check 通过；版本检查无本轮新增问题，保留已登记 xc 历史记录债务。非 Windows CI、真实宿主与业务副本尚未验证。验证证据更新至 D:/tmp/Codex/demand-ownership-20261014/validation-evidence.json；测试产物收尾清理后只保留此文件。本轮按用户授权提交并推送，未同步真实业务项目；工作区并行的部署配置改动保留，不纳入本轮验证结论。
 

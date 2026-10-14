@@ -1,0 +1,136 @@
+{
+  "schema": "imedical-hisui-distribution-assets/v1",
+  "origin": "HISUI 0.1.0 packaged distribution provided for reference; build commit unverified",
+  "files": [
+    {
+      "path": "dist/css/font-awesome.all.min.css",
+      "bytes": 59348,
+      "sha256": "c493875ea907c37e2ef7b9560f75ad5dd918121a0f42889eda351ccab0373eb1"
+    },
+    {
+      "path": "dist/css/hisui.pure.min20241216.css",
+      "bytes": 184028,
+      "sha256": "decd3d04e190664c776eb0147ce2752cec80f753f0572938994790046e4d766b"
+    },
+    {
+      "path": "dist/css/hisui.pure20241216.css",
+      "bytes": 312169,
+      "sha256": "f09b8a859c8a509669eca5077fb75a8f3b9bc03e388d4dd5eda57cf642dfeb20"
+    },
+    {
+      "path": "dist/css/icons/big/person_seal.png",
+      "bytes": 343,
+      "sha256": "f2257d073b277cd5e1be7c541115ee945b3261fe5028cfca5f4c420e253a0336"
+    },
+    {
+      "path": "dist/css/icons/pure/pat/man-no-bg.svg",
+      "bytes": 6436,
+      "sha256": "34d750f6091fe2d7ec2b70be335220773b3bf0a4e7555f18e84f007908637e7b"
+    },
+    {
+      "path": "dist/css/icons/pure/pat/unknown-gender-no-bg.svg",
+      "bytes": 4523,
+      "sha256": "e6bd5de9f5aeecd635bdb00071e06ee61acca30cf9a2e28a0d73f781c4a1f5c9"
+    },
+    {
+      "path": "dist/css/icons/pure/pat/woman-no-bg.svg",
+      "bytes": 8655,
+      "sha256": "a1c198bb6178d81552aff09daa55119965403f80ed891073366dad0b17e19e18"
+    },
+    {
+      "path": "dist/css/icons/pure/sysst/nodata_region2.svg",
+      "bytes": 3753,
+      "sha256": "0a16d2187cb23b23552dacbd7c1592944f10a322b63f3cb7b1e1b9f823df07ec"
+    },
+    {
+      "path": "dist/css/images/datebox_arrow_7E7E7E.png",
+      "bytes": 504,
+      "sha256": "8c1f147fcf2cd6fa81c55b42f91c903d26c592e9259d39becc8d2fd4706b4914"
+    },
+    {
+      "path": "dist/css/images/lookup_arrow_7E7E7E.png",
+      "bytes": 184,
+      "sha256": "025e526543e1ac6eeb01e8f98d677f335dc6b1e1d8b7c91a3e4c48199e6a7abe"
+    },
+    {
+      "path": "dist/css/images/pure/vline.jpg",
+      "bytes": 146,
+      "sha256": "6f614f5ebaa4794f5dd92b81b2feae9db478b36466d905bf1aff0036d7c77354"
+    },
+    {
+      "path": "dist/webfonts/fa-brands-400.eot",
+      "bytes": 136822,
+      "sha256": "e680a327721ecc34188b940ff7b8225355855f5a6b89af70386e5e482b0be2dc"
+    },
+    {
+      "path": "dist/webfonts/fa-brands-400.svg",
+      "bytes": 747545,
+      "sha256": "94dacc528f619e406733de1aa58b40aff7b230b61087648b8ba853dff1e6b54f"
+    },
+    {
+      "path": "dist/webfonts/fa-brands-400.ttf",
+      "bytes": 136516,
+      "sha256": "0097aaf99df2ae041aeccda155c791b155c01039e0942d1ca36ec737982f67f7"
+    },
+    {
+      "path": "dist/webfonts/fa-brands-400.woff",
+      "bytes": 92136,
+      "sha256": "55bc1f23b3a4c2e323b617b48effc242a890f00be5115f616836377f02eecf91"
+    },
+    {
+      "path": "dist/webfonts/fa-brands-400.woff2",
+      "bytes": 78476,
+      "sha256": "8080fdb99d0362aa03c9c26280edb3a553a5779acfd45c1bbd41ecf965891fc5"
+    },
+    {
+      "path": "dist/webfonts/fa-regular-400.eot",
+      "bytes": 34350,
+      "sha256": "440d15bd015ef65f292d2ddb3a093c5d1fe2d593919c86ca28a4cf0d283fbd58"
+    },
+    {
+      "path": "dist/webfonts/fa-regular-400.svg",
+      "bytes": 144714,
+      "sha256": "2ea97ff83c5ee5bbbc0e48fe797132b5f43084147b0112e10eb14e1369aba938"
+    },
+    {
+      "path": "dist/webfonts/fa-regular-400.ttf",
+      "bytes": 34052,
+      "sha256": "5a6a7730b932700ce3bb607e6bf933ff0e9a62208ebeaa71a584151ab213151b"
+    },
+    {
+      "path": "dist/webfonts/fa-regular-400.woff",
+      "bytes": 16772,
+      "sha256": "7b2471d365465f1047834dfeb434aa46d09674d5ae9408d46eca60beeec516cf"
+    },
+    {
+      "path": "dist/webfonts/fa-regular-400.woff2",
+      "bytes": 13556,
+      "sha256": "c4fb9de3f938e36b352dd7e0732bf381482981f8f000f23c212a2d980eeed1f1"
+    },
+    {
+      "path": "dist/webfonts/fa-solid-900.eot",
+      "bytes": 204814,
+      "sha256": "3330fcfaa94a7b03b1c3f3b8bb2383518f655f30d24f2d3064e35835a10670c5"
+    },
+    {
+      "path": "dist/webfonts/fa-solid-900.svg",
+      "bytes": 917575,
+      "sha256": "4afba40dab8053829479eea71209b56633d09e5ee7571a99c4e68e5faaa03b4c"
+    },
+    {
+      "path": "dist/webfonts/fa-solid-900.ttf",
+      "bytes": 204528,
+      "sha256": "e3b4ee7d2dc2641317d00347cb27f06120dcda110d85af9a47f5ba29e6747e76"
+    },
+    {
+      "path": "dist/webfonts/fa-solid-900.woff",
+      "bytes": 104280,
+      "sha256": "f5df6b698bad24548f6f16b977db7d84ba00d3aba671c28bfdc4ba6363caca86"
+    },
+    {
+      "path": "dist/webfonts/fa-solid-900.woff2",
+      "bytes": 80304,
+      "sha256": "928a48c59641f6a15f534bdbfa7db0314d903fce48c06772f9b78e3a1a983ad0"
+    }
+  ]
+}

@@ -14,5 +14,6 @@
 | 医生站 AI 源仓验证 | [维护验证说明](validation/iris-imedical-doctor-ai.md) |
 | 项目工具的源仓验证 | [交接与兼容验证](validation/project-tools.md) |
 | 知识资产来源更新 | [知识资产维护](governance/imedical-knowledge.md) |
+| HISUI 固定提交资产升级与校验 | [HISUI 源仓构建](hisui-build/README.md) |
 
 历史案例和旧运行记录只保留证据语义，不作为当前脚本调用或生产部署指令。新业务项目的部署计划、私有脚本和运行记录应归目标项目；已获用户授权删除的旧部署样本不在维护区保留副本。

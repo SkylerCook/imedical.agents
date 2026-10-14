@@ -4,12 +4,13 @@ if ($.fn.pagination){
 	$.fn.pagination.defaults.displayMsg = '\u663e\u793a{from}\u5230{to},\u5171{total}\u8bb0\u5f55';
 }
 if ($.fn.datagrid){
-	$.fn.datagrid.defaults.loadMsg = '\u6b63\u5728\u5904\u7406\uff0c\u8bf7\u7a0d\u5f85\u3002\u3002\u3002';
+	$.fn.datagrid.defaults.loadMsg = '\u6b63\u5728\u5904\u7406\uff0c\u8bf7\u7a0d\u5f85。。。';
 	$.fn.datagrid.defaults.findBtn = "\u67e5\u8be2";
 	$.fn.datagrid.defaults.clearBtn = "\u6e05\u7a7a";
 	$.fn.datagrid.defaults.advancedBtn = "\u9ad8\u7ea7";
 	$.fn.datagrid.defaults.advanced2Btn = "\u6536\u8d77";
 	$.fn.datagrid.defaults.like = "\u6a21\u7cca\u67e5\u8be2";
+	$.fn.datagrid.defaults.nocol = "\u5e8f\u53f7";
 }
 if ($.fn.propertygrid) {
 	$.fn.propertygrid.defaults.findBtn = "\u67e5\u8be2";
@@ -59,7 +60,7 @@ if ($.fn.combotree){
 }
 if ($.fn.combogrid){
 	$.fn.combogrid.defaults.missingMessage = '\u8be5\u8f93\u5165\u9879\u4e3a\u5fc5\u8f93\u9879';
-	$.fn.combogrid.defaults.loadMsg = '\u6b63\u5728\u5904\u7406\uff0c\u8bf7\u7a0d\u5f85\u3002\u3002\u3002';
+	$.fn.combogrid.defaults.loadMsg = '\u6b63\u5728\u5904\u7406\uff0c\u8bf7\u7a0d\u5f85。。。';
 	$.fn.combogrid.defaults.findBtn = "\u67e5\u8be2";
 	$.fn.combogrid.defaults.clearBtn = "\u6e05\u7a7a";
 	$.fn.combogrid.defaults.advancedBtn = "\u9ad8\u7ea7";
@@ -71,9 +72,9 @@ if ($.fn.calendar){
 	$.fn.calendar.defaults.months = ['\u4e00\u6708','\u4e8c\u6708','\u4e09\u6708','\u56db\u6708','\u4e94\u6708','\u516d\u6708','\u4e03\u6708','\u516b\u6708','\u4e5d\u6708','\u5341\u6708','\u5341\u4e00\u6708','\u5341\u4e8c\u6708'];
 }
 if ($.fn.datebox){
-	$.fn.datebox.defaults.currentText = '<span style="color:'+$.hisui.getStyleCodeConfigValue("dateTodayColor")+';font-size:12px;">\u4eca\u5929</span>';
-	$.fn.datebox.defaults.closeText = '<span style="color:'+$.hisui.getStyleCodeConfigValue("dateCloseColor")+';font-size:12px;">\u5173\u95ed</span>';
-	$.fn.datebox.defaults.okText = '<span style="color:'+$.hisui.getStyleCodeConfigValue("dateOkColor")+';font-size:12px;">\u786e\u5b9a</span>';
+	$.fn.datebox.defaults.currentText = '<span class="date-today-btn">\u4eca\u5929</span>';
+	$.fn.datebox.defaults.closeText = '<span class="date-close-btn">\u5173\u95ed</span>';
+	$.fn.datebox.defaults.okText = '<span class="date-ok-btn">\u786e\u5b9a</span>';
 	$.fn.datebox.defaults.missingMessage = '\u8be5\u8f93\u5165\u9879\u4e3a\u5fc5\u8f93\u9879';
 	$.fn.datebox.defaults.rules.datebox.message = '\u975e\u6cd5\u65e5\u671f,\u6b63\u786e\u683c\u5f0f:2019-01-06';
 	$.fn.datebox.defaults.rules.minMaxDate.messageMax = '\u65e5\u671f\u5fc5\u987b\u5c0f\u4e8e\u6216\u7b49\u4e8e{1}';
@@ -90,6 +91,7 @@ if ($.fn.datebox){
 		/*t-n , t+n */
 		/* 2\u56de\u8f66 \u89e3\u6790\u6210\u5f53\u524d\u6708\u4efd2\u65e5 */
 		if (!s) return new Date();
+		if (s=='NaN-NaN-NaN') return new Date();
 		function ConvertTDate(dt) {
 			var xdays = 0;
 			var today=new Date();
@@ -113,7 +115,7 @@ if ($.fn.datebox){
 		var ch ='', newStr = '',special=false;
 		for(var i=0;i<s.length;i++){
 			ch = s.charAt(i);
-			if ('1234567890/-'.indexOf(ch)==-1){  //\u7279\u6b8a\u5b57\u7b26
+			if ('1234567890/- :'.indexOf(ch)==-1){  //\u7279\u6b8a\u5b57\u7b26 \u8003\u8651\u7a7a\u683c\u4e0e\u5192\u53f7 30/12/2026 00:00:00->
 				if (!special && i!=0 && i!=s.length-1) newStr +='-'
 				special = true;
 			}else{
@@ -161,7 +163,7 @@ if ($.fn.datebox){
 			}
 		}
 
-		if (!isNaN(y) && !isNaN(m) && !isNaN(d)){
+		if (!isNaN(y) && !isNaN(m) && !isNaN(d) && y>=1900 && y<=9999){
 			return new Date(y,m-1,d);
 		}else{
 			var nowDate = new Date();
@@ -199,7 +201,7 @@ if ($.fn.datetimeboxq){
 }
 if ($.fn.timeboxq){
 	$.fn.timeboxq.defaults.missingMessage = $.fn.validatebox.defaults.missingMessage;
-	$.fn.timeboxq.defaults.rules.timeboxq.message = "\u975e\u6cd5\u65f6\u95f4\u3002\u6b63\u786e\u8f93\u5165\u5982\uff1a14:10\uff0c1410 \u6216 n+15\u8868\u793a15\u5206\u949f\u540e";
+	$.fn.timeboxq.defaults.rules.timeboxq.message = "\u975e\u6cd5\u65f6\u95f4。\u6b63\u786e\u8f93\u5165\u5982\uff1a14:10\uff0c1410 \u6216 n+15\u8868\u793a15\u5206\u949f\u540e";
 	$.fn.timeboxq.defaults.rules.minMaxTime.messageMax = '\u65f6\u95f4\u5fc5\u987b\u5c0f\u4e8e\u6216\u7b49\u4e8e{1}';
 	$.fn.timeboxq.defaults.rules.minMaxTime.messageMin = '\u65f6\u95f4\u5fc5\u987b\u5927\u4e8e\u6216\u7b49\u4e8e{0}';
 	$.fn.timeboxq.defaults.rules.minMaxTime.message = '\u975e\u6709\u6548\u65f6\u95f4\u8303\u56f4';
@@ -224,3 +226,72 @@ if ($.fn.splitbutton){
 if ($.fn.menubutton){
 	$.fn.menubutton.defaults.waitingAlert = $.fn.linkbutton.defaults.waitingAlert;
 }
+if ($.fn.tabs){
+	$.fn.tabs.defaults.noHiddenTabs = "\uff08\u65e0\u9690\u85cf\u9875\u7b7e\uff09";
+	$.fn.tabs.defaults.refreshText = "\u5237\u65b0";
+	$.fn.tabs.defaults.closeText = "\u5173\u95ed";
+	$.fn.tabs.defaults.closeOtherText = "\u5173\u95ed\u5176\u4ed6";
+	$.fn.tabs.defaults.closeAllText = "\u5173\u95ed\u5168\u90e8";
+	$.fn.tabs.defaults.closeLeftText = "\u5173\u95ed\u5de6\u4fa7";
+	$.fn.tabs.defaults.closeRightText = "\u5173\u95ed\u53f3\u4fa7";
+}
+if ($.fn.menutree){
+	$.fn.menutree.defaults.title = "\u5bfc\u822a\u83dc\u5355";
+}
+if ($.fn.combogridmult){
+	$.fn.combogridmult.defaults.columns = [[
+		{field:'id',title:'id',width:60},
+		{field:'text',title:'\u63cf\u8ff0',width:220},
+		{field:'code',title:'\u4ee3\u7801',width:150}
+	]];
+}
+
+/* ==================== \u65e0\u969c\u788d\u6309\u94ae\u6807\u7b7e\uff08aria-label\uff09 ====================
+   \u56fe\u6807\u6309\u94ae\u6ca1\u6709\u6587\u5b57\uff0c\u8bfb\u5c4f\u5668\u4f9d\u8d56 aria-label \u6717\u8bfb。
+   \u6ce8\u610f\uff1a\u6d3e\u751f\u7ec4\u4ef6\uff08window/dialog/datagrid \u7ee7\u627f panel\uff1bcombobox/datebox \u7ee7\u627f combo\uff1b
+   numberspinner \u7ee7\u627f spinner\uff09\u7684 defaults \u662f\u7236\u7ec4\u4ef6【\u52a0\u8f7d\u65f6\u7684\u5feb\u7167】\uff0c
+   \u8bed\u8a00\u5305\u5728\u7ec4\u4ef6\u52a0\u8f7d\u4e4b\u540e\u6267\u884c\uff0c\u56e0\u6b64\u5fc5\u987b\u6309\u65cf\u9010\u4e2a\u8986\u76d6\uff0c\u5426\u5219\u4f1a\u8bfb\u5230\u82f1\u6587\u9ed8\u8ba4\u503c。 */
+(function () {
+	/* panel \u5de5\u5177\u6309\u94ae\uff1a\u6298\u53e0/\u5c55\u5f00/\u6700\u5c0f\u5316/\u6700\u5927\u5316/\u8fd8\u539f/\u5173\u95ed\uff08window、dialog、messager \u5171\u7528\uff09 */
+	var panelA11y = {
+		collapseText: '\u6298\u53e0', expandText: '\u5c55\u5f00',
+		minimizeText: '\u6700\u5c0f\u5316', maximizeText: '\u6700\u5927\u5316',
+		restoreText: '\u8fd8\u539f', closeText: '\u5173\u95ed'
+	};
+	['panel', 'window', 'dialog', 'datagrid', 'propertygrid', 'treegrid'].forEach(function (n) {
+		if ($.fn[n] && $.fn[n].defaults) $.extend($.fn[n].defaults, panelA11y);
+	});
+	if ($.fn.layout && $.fn.layout.paneldefaults) $.extend($.fn.layout.paneldefaults, panelA11y);
+
+	/* combo \u4e0b\u62c9\u7bad\u5934 / \u6e05\u7a7a\u6309\u94ae */
+	var comboA11y = { arrowText: '\u5c55\u5f00/\u6536\u8d77\u4e0b\u62c9\u9762\u677f', clearText: '\u6e05\u7a7a' };
+	['combo', 'combobox', 'combotree', 'combogrid', 'combogridmult', 'datebox', 'datetimebox',
+	 'comboq', 'dateboxq', 'datetimeboxq', 'lookup', 'triggerbox'].forEach(function (n) {
+		if ($.fn[n] && $.fn[n].defaults) $.extend($.fn[n].defaults, comboA11y);
+	});
+
+	/* spinner \u4e0a\u4e0b\u7bad\u5934 */
+	var spinnerA11y = { spinUpText: '\u589e\u52a0', spinDownText: '\u51cf\u5c11' };
+	['spinner', 'numberspinner', 'timespinner'].forEach(function (n) {
+		if ($.fn[n] && $.fn[n].defaults) $.extend($.fn[n].defaults, spinnerA11y);
+	});
+
+	/* tabs \u6eda\u52a8\u7bad\u5934、\u6ea2\u51fa\u83dc\u5355\u6309\u94ae、\u9875\u7b7e\u5173\u95ed\u6309\u94ae */
+	if ($.fn.tabs) {
+		$.extend($.fn.tabs.defaults, {
+			closeText: '\u5173\u95ed', scrollLeftText: '\u5411\u5de6\u6eda\u52a8',
+			scrollRightText: '\u5411\u53f3\u6eda\u52a8', overflowBtnText: '\u66f4\u591a\u9875\u7b7e'
+		});
+	}
+	/* layout \u533a\u57df\u6536\u8d77/\u5c55\u5f00\u6309\u94ae */
+	if ($.fn.layout) {
+		$.extend($.fn.layout.defaults, {
+			collapseNorthText: '\u6536\u8d77\u4e0a\u65b9\u533a\u57df', collapseSouthText: '\u6536\u8d77\u4e0b\u65b9\u533a\u57df',
+			collapseEastText: '\u6536\u8d77\u53f3\u4fa7\u533a\u57df', collapseWestText: '\u6536\u8d77\u5de6\u4fa7\u533a\u57df',
+			expandNorthText: '\u5c55\u5f00\u4e0a\u65b9\u533a\u57df', expandSouthText: '\u5c55\u5f00\u4e0b\u65b9\u533a\u57df',
+			expandEastText: '\u5c55\u5f00\u53f3\u4fa7\u533a\u57df', expandWestText: '\u5c55\u5f00\u5de6\u4fa7\u533a\u57df'
+		});
+	}
+	if ($.fn.searchbox) $.fn.searchbox.defaults.searchText = '\u641c\u7d22';
+	if ($.fn.inputclearbtn) $.fn.inputclearbtn.defaults.clearText = '\u6e05\u9664';
+})();

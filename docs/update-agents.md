@@ -1,5 +1,11 @@
 # .agents 安装与更新 Runbook
 
+## HISUI 资产更新
+
+HISUI 快照通过既有 `/vendor/**` 分发，coding-iris-plugin 0.17.1 同步控件/样式参考。源仓的固定提交、构建工具和完整文件摘要见 [vendor 说明](../vendor/hisui/README.md)；维护区升级脚本不部署，不在业务项目安装 npm 或现场构建 HISUI。上游升级按 [维护入口](../vendor/hisui/AGENTS.md) 执行，普通安装/更新不访问 HISUI 上游。
+
+已部署项目沿本 runbook 正常更新能力包，再刷新 enabled 插件入口；Overlay 只更新共享 CapabilityRoot 一次。旧受管资产随能力包 Git 快进收敛，不自动删除项目自定义资产、改写 cure_form_profile.md 的显式预览路径或替换服务器文件。版本身份取 upstream.json，行号取 source-index.json；CSS 的已知缺项见 resource-warnings.json，真实 HIS 页面使用的主库/主题/locale/helper 需按任务核对。
+
 IRIS 部署配置继承更新：先同步经过验证的 coding-iris-plugin 部署脚本（含 project-env.js）与规则，再由项目创建器声明模块 manifest 的 projectEnvFallback。保留本地配置与 MCP，不复制凭据，不为回退切换 project-root；没有声明的已有项目保持原行为。
 
 

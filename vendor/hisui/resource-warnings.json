@@ -1,0 +1,467 @@
+[
+  {
+    "file": "css/hisui.css",
+    "url": "images/blank.gif",
+    "target": "css/images/blank.gif"
+  },
+  {
+    "file": "css/hisui.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.css",
+    "url": "icons/noread_report.png",
+    "target": "css/icons/noread_report.png"
+  },
+  {
+    "file": "css/hisui.css",
+    "url": "../img/loading.gif",
+    "target": "img/loading.gif"
+  },
+  {
+    "file": "css/hisui.lightblue.css",
+    "url": "images/blank.gif",
+    "target": "css/images/blank.gif"
+  },
+  {
+    "file": "css/hisui.lightblue.css",
+    "url": "images/lightblue/pagination_icons.png",
+    "target": "css/images/lightblue/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lightblue.css",
+    "url": "images/lightblue/pagination_icons.png",
+    "target": "css/images/lightblue/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lightblue.css",
+    "url": "images/lightblue/pagination_icons.png",
+    "target": "css/images/lightblue/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lightblue.css",
+    "url": "images/lightblue/pagination_icons.png",
+    "target": "css/images/lightblue/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lightblue.css",
+    "url": "images/lightblue/pagination_icons.png",
+    "target": "css/images/lightblue/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lightblue.css",
+    "url": "images/lightblue/menu_arrows.png",
+    "target": "css/images/lightblue/menu_arrows.png"
+  },
+  {
+    "file": "css/hisui.lightblue.css",
+    "url": "images/lightblue/menu_arrows.png",
+    "target": "css/images/lightblue/menu_arrows.png"
+  },
+  {
+    "file": "css/hisui.lightblue.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.lightblue.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.lightblue.css",
+    "url": "icons/lite/pat/man_no_bg.png",
+    "target": "css/icons/lite/pat/man_no_bg.png"
+  },
+  {
+    "file": "css/hisui.lightblue.css",
+    "url": "icons/lite/pat/woman_no_bg.png",
+    "target": "css/icons/lite/pat/woman_no_bg.png"
+  },
+  {
+    "file": "css/hisui.lightblue.css",
+    "url": "icons/lite/pat/unknown_gender_no_bg.png",
+    "target": "css/icons/lite/pat/unknown_gender_no_bg.png"
+  },
+  {
+    "file": "css/hisui.lightblue.css",
+    "url": "../img/loading.gif",
+    "target": "img/loading.gif"
+  },
+  {
+    "file": "css/hisui.lightblue.min.css",
+    "url": "images/blank.gif",
+    "target": "css/images/blank.gif"
+  },
+  {
+    "file": "css/hisui.lightblue.min.css",
+    "url": "images/lightblue/pagination_icons.png",
+    "target": "css/images/lightblue/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lightblue.min.css",
+    "url": "images/lightblue/pagination_icons.png",
+    "target": "css/images/lightblue/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lightblue.min.css",
+    "url": "images/lightblue/pagination_icons.png",
+    "target": "css/images/lightblue/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lightblue.min.css",
+    "url": "images/lightblue/pagination_icons.png",
+    "target": "css/images/lightblue/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lightblue.min.css",
+    "url": "images/lightblue/pagination_icons.png",
+    "target": "css/images/lightblue/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lightblue.min.css",
+    "url": "images/lightblue/menu_arrows.png",
+    "target": "css/images/lightblue/menu_arrows.png"
+  },
+  {
+    "file": "css/hisui.lightblue.min.css",
+    "url": "images/lightblue/menu_arrows.png",
+    "target": "css/images/lightblue/menu_arrows.png"
+  },
+  {
+    "file": "css/hisui.lightblue.min.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.lightblue.min.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.lightblue.min.css",
+    "url": "icons/lite/pat/man_no_bg.png",
+    "target": "css/icons/lite/pat/man_no_bg.png"
+  },
+  {
+    "file": "css/hisui.lightblue.min.css",
+    "url": "icons/lite/pat/woman_no_bg.png",
+    "target": "css/icons/lite/pat/woman_no_bg.png"
+  },
+  {
+    "file": "css/hisui.lightblue.min.css",
+    "url": "icons/lite/pat/unknown_gender_no_bg.png",
+    "target": "css/icons/lite/pat/unknown_gender_no_bg.png"
+  },
+  {
+    "file": "css/hisui.lightblue.min.css",
+    "url": "../img/loading.gif",
+    "target": "img/loading.gif"
+  },
+  {
+    "file": "css/hisui.lite.css",
+    "url": "images/blank.gif",
+    "target": "css/images/blank.gif"
+  },
+  {
+    "file": "css/hisui.lite.css",
+    "url": "images/lite/pagination_icons.png",
+    "target": "css/images/lite/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lite.css",
+    "url": "images/lite/pagination_icons.png",
+    "target": "css/images/lite/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lite.css",
+    "url": "images/lite/pagination_icons.png",
+    "target": "css/images/lite/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lite.css",
+    "url": "images/lite/pagination_icons.png",
+    "target": "css/images/lite/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lite.css",
+    "url": "images/lite/pagination_icons.png",
+    "target": "css/images/lite/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lite.css",
+    "url": "images/lite/menu_arrows.png",
+    "target": "css/images/lite/menu_arrows.png"
+  },
+  {
+    "file": "css/hisui.lite.css",
+    "url": "images/lite/menu_arrows.png",
+    "target": "css/images/lite/menu_arrows.png"
+  },
+  {
+    "file": "css/hisui.lite.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.lite.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.lite.css",
+    "url": "icons/lite/pat/man_no_bg.png",
+    "target": "css/icons/lite/pat/man_no_bg.png"
+  },
+  {
+    "file": "css/hisui.lite.css",
+    "url": "icons/lite/pat/woman_no_bg.png",
+    "target": "css/icons/lite/pat/woman_no_bg.png"
+  },
+  {
+    "file": "css/hisui.lite.css",
+    "url": "icons/lite/pat/unknown_gender_no_bg.png",
+    "target": "css/icons/lite/pat/unknown_gender_no_bg.png"
+  },
+  {
+    "file": "css/hisui.lite.css",
+    "url": "../img/loading.gif",
+    "target": "img/loading.gif"
+  },
+  {
+    "file": "css/hisui.lite.min.css",
+    "url": "images/blank.gif",
+    "target": "css/images/blank.gif"
+  },
+  {
+    "file": "css/hisui.lite.min.css",
+    "url": "images/lite/pagination_icons.png",
+    "target": "css/images/lite/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lite.min.css",
+    "url": "images/lite/pagination_icons.png",
+    "target": "css/images/lite/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lite.min.css",
+    "url": "images/lite/pagination_icons.png",
+    "target": "css/images/lite/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lite.min.css",
+    "url": "images/lite/pagination_icons.png",
+    "target": "css/images/lite/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lite.min.css",
+    "url": "images/lite/pagination_icons.png",
+    "target": "css/images/lite/pagination_icons.png"
+  },
+  {
+    "file": "css/hisui.lite.min.css",
+    "url": "images/lite/menu_arrows.png",
+    "target": "css/images/lite/menu_arrows.png"
+  },
+  {
+    "file": "css/hisui.lite.min.css",
+    "url": "images/lite/menu_arrows.png",
+    "target": "css/images/lite/menu_arrows.png"
+  },
+  {
+    "file": "css/hisui.lite.min.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.lite.min.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.lite.min.css",
+    "url": "icons/lite/pat/man_no_bg.png",
+    "target": "css/icons/lite/pat/man_no_bg.png"
+  },
+  {
+    "file": "css/hisui.lite.min.css",
+    "url": "icons/lite/pat/woman_no_bg.png",
+    "target": "css/icons/lite/pat/woman_no_bg.png"
+  },
+  {
+    "file": "css/hisui.lite.min.css",
+    "url": "icons/lite/pat/unknown_gender_no_bg.png",
+    "target": "css/icons/lite/pat/unknown_gender_no_bg.png"
+  },
+  {
+    "file": "css/hisui.lite.min.css",
+    "url": "../img/loading.gif",
+    "target": "img/loading.gif"
+  },
+  {
+    "file": "css/hisui.min.css",
+    "url": "images/blank.gif",
+    "target": "css/images/blank.gif"
+  },
+  {
+    "file": "css/hisui.min.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.min.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.min.css",
+    "url": "icons/noread_report.png",
+    "target": "css/icons/noread_report.png"
+  },
+  {
+    "file": "css/hisui.min.css",
+    "url": "../img/loading.gif",
+    "target": "img/loading.gif"
+  },
+  {
+    "file": "css/hisui.pure.css",
+    "url": "images/pure/menu_arrows.png",
+    "target": "css/images/pure/menu_arrows.png"
+  },
+  {
+    "file": "css/hisui.pure.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.pure.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.pure.css",
+    "url": "../img/loading.gif",
+    "target": "img/loading.gif"
+  },
+  {
+    "file": "css/hisui.pure.min.css",
+    "url": "images/pure/menu_arrows.png",
+    "target": "css/images/pure/menu_arrows.png"
+  },
+  {
+    "file": "css/hisui.pure.min.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.pure.min.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.pure.min.css",
+    "url": "../img/loading.gif",
+    "target": "img/loading.gif"
+  },
+  {
+    "file": "css/hisui.pure.min20241216.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.pure.min20241216.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.pure.min20241216.css",
+    "url": "../img/loading.gif",
+    "target": "img/loading.gif"
+  },
+  {
+    "file": "css/hisui.pure20241216.css",
+    "url": "images/pure/menu_arrows.png",
+    "target": "css/images/pure/menu_arrows.png"
+  },
+  {
+    "file": "css/hisui.pure20241216.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.pure20241216.css",
+    "url": "images/tree_icons.png",
+    "target": "css/images/tree_icons.png"
+  },
+  {
+    "file": "css/hisui.pure20241216.css",
+    "url": "../img/loading.gif",
+    "target": "img/loading.gif"
+  },
+  {
+    "file": "css/hisui.vben.css",
+    "url": "images/pure/menu_arrows.png",
+    "target": "css/images/pure/menu_arrows.png"
+  },
+  {
+    "file": "css/hisui.vben.css",
+    "url": "../img/loading.gif",
+    "target": "img/loading.gif"
+  },
+  {
+    "file": "css/hisui.vben.min.css",
+    "url": "images/pure/menu_arrows.png",
+    "target": "css/images/pure/menu_arrows.png"
+  },
+  {
+    "file": "css/hisui.vben.min.css",
+    "url": "../img/loading.gif",
+    "target": "img/loading.gif"
+  },
+  {
+    "file": "css/locale/hisui.lightblue.fr.css",
+    "url": "../icons_fr/lite/sysst/nodata_region_grid.svg",
+    "target": "css/icons_fr/lite/sysst/nodata_region_grid.svg"
+  },
+  {
+    "file": "css/locale/hisui.lightblue.fr.css",
+    "url": "../icons_fr/lite/sysst/nodata_region_grid.svg",
+    "target": "css/icons_fr/lite/sysst/nodata_region_grid.svg"
+  },
+  {
+    "file": "css/locale/hisui.lightblue.pt.css",
+    "url": "../icons_pt/lite/sysst/nodata_region_grid.svg",
+    "target": "css/icons_pt/lite/sysst/nodata_region_grid.svg"
+  },
+  {
+    "file": "css/locale/hisui.lightblue.pt.css",
+    "url": "../icons_pt/lite/sysst/nodata_region_grid.svg",
+    "target": "css/icons_pt/lite/sysst/nodata_region_grid.svg"
+  },
+  {
+    "file": "css/locale/hisui.lite.fr.css",
+    "url": "../icons_fr/lite/sysst/nodata_region_grid.svg",
+    "target": "css/icons_fr/lite/sysst/nodata_region_grid.svg"
+  },
+  {
+    "file": "css/locale/hisui.lite.fr.css",
+    "url": "../icons_fr/lite/sysst/nodata_region_grid.svg",
+    "target": "css/icons_fr/lite/sysst/nodata_region_grid.svg"
+  },
+  {
+    "file": "css/locale/hisui.lite.pt.css",
+    "url": "../icons_pt/lite/sysst/nodata_region_grid.svg",
+    "target": "css/icons_pt/lite/sysst/nodata_region_grid.svg"
+  },
+  {
+    "file": "css/locale/hisui.lite.pt.css",
+    "url": "../icons_pt/lite/sysst/nodata_region_grid.svg",
+    "target": "css/icons_pt/lite/sysst/nodata_region_grid.svg"
+  }
+]

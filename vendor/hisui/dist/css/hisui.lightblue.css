@@ -219,7 +219,7 @@
   width: 100%;
   height: 100%;
   filter: alpha(opacity=40);
-  opacity: 0.40;
+  opacity: 0.4;
   font-size: 1px;
   *zoom: 1;
   overflow: hidden;
@@ -327,7 +327,7 @@
   filter: alpha(opacity=60);
 }
 .combo-arrow-hover {
-  opacity: 1.0;
+  opacity: 1;
   filter: alpha(opacity=100);
 }
 .combo-panel {
@@ -428,7 +428,7 @@
   position: absolute;
   background: #fafafa;
   filter: alpha(opacity=10);
-  opacity: 0.10;
+  opacity: 0.1;
   z-index: 4;
 }
 .layout-button-up {
@@ -1593,7 +1593,7 @@
   filter: alpha(opacity=60);
 }
 .datebox-button a:hover {
-  opacity: 1.0;
+  opacity: 1;
   filter: alpha(opacity=100);
 }
 .datebox-current,
@@ -1660,7 +1660,7 @@
   height: 10px;
 }
 .spinner-arrow-hover {
-  opacity: 1.0;
+  opacity: 1;
   filter: alpha(opacity=100);
 }
 .spinner-arrow-up {
@@ -1743,7 +1743,7 @@
   filter: alpha(opacity=60);
 }
 .searchbox-button-hover {
-  opacity: 1.0;
+  opacity: 1;
   filter: alpha(opacity=100);
 }
 .searchbox .l-btn-plain {
@@ -1759,7 +1759,7 @@
 .searchbox .l-btn-plain:hover {
   border: 0;
   padding: 0;
-  opacity: 1.0;
+  opacity: 1;
   filter: alpha(opacity=100);
   -moz-border-radius: 0 0 0 0;
   -webkit-border-radius: 0 0 0 0;
@@ -2412,6 +2412,7 @@
   src: url('../fonts/Mw_mifonts.eot?#iefix') format('embedded-opentype'), /* IE6-IE8 */ url('../fonts/Mw_mifonts.woff') format('woff'), /* Modern Browsers */ url('../fonts/Mw_mifonts.woff2') format('woff2'), url('../fonts/Mw_mifonts.ttf') format('truetype');
   /* Safari, Android, iOS */
 }
+/*white icon*/
 .icon {
   font: normal normal normal 16px/1 Mw_mifonts;
 }
@@ -2497,22 +2498,35 @@ tree-icon tree-file显示默认的文件图标
 以下代码为file设置成字体图片,导致tree线条不对，最终在icon-drug上增加background:none;来实现树节点图片显示问题 [3127716]
 */
 /*create white icon*/
-/*white icon*/
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-add,.icon-w-add,.icon-w-new,.icon-w-plus {
+.icon-add,
+.icon-w-add,
+.icon-w-new,
+.icon-w-plus {
   text-align: center;
   background: none;
 }
-.icon-add:before,.icon-w-add:before,.icon-w-new:before,.icon-w-plus:before {
+.icon-add:before,
+.icon-w-add:before,
+.icon-w-new:before,
+.icon-w-plus:before {
   font-family: Mw_mifonts;
   content: "\f001";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-edit,.icon-write-order,.icon-w-edit,.icon-gray-edit,.icon-paper-pen-blue {
+.icon-edit,
+.icon-write-order,
+.icon-w-edit,
+.icon-gray-edit,
+.icon-paper-pen-blue {
   text-align: center;
   background: none;
 }
-.icon-edit:before,.icon-write-order:before,.icon-w-edit:before,.icon-gray-edit:before,.icon-paper-pen-blue:before {
+.icon-edit:before,
+.icon-write-order:before,
+.icon-w-edit:before,
+.icon-gray-edit:before,
+.icon-paper-pen-blue:before {
   font-family: Mw_mifonts;
   content: "\f002";
 }
@@ -2526,11 +2540,15 @@ tree-icon tree-file显示默认的文件图标
   content: "\f002";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-cancel,.icon-w-cancel,.icon-w-close {
+.icon-cancel,
+.icon-w-cancel,
+.icon-w-close {
   text-align: center;
   background: none;
 }
-.icon-cancel:before,.icon-w-cancel:before,.icon-w-close:before {
+.icon-cancel:before,
+.icon-w-cancel:before,
+.icon-w-close:before {
   font-family: Mw_mifonts;
   content: "\f003";
 }
@@ -2544,20 +2562,26 @@ tree-icon tree-file显示默认的文件图标
   content: "\f003";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-cut,.icon-cut-blue {
+.icon-cut,
+.icon-cut-blue {
   text-align: center;
   background: none;
 }
-.icon-cut:before,.icon-cut-blue:before {
+.icon-cut:before,
+.icon-cut-blue:before {
   font-family: Mw_mifonts;
   content: "\f004";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-copy,.icon-w-copy,.icon-copy-blue {
+.icon-copy,
+.icon-w-copy,
+.icon-copy-blue {
   text-align: center;
   background: none;
 }
-.icon-copy:before,.icon-w-copy:before,.icon-copy-blue:before {
+.icon-copy:before,
+.icon-w-copy:before,
+.icon-copy-blue:before {
   font-family: Mw_mifonts;
   content: "\f005";
 }
@@ -2571,83 +2595,113 @@ tree-icon tree-file显示默认的文件图标
   content: "\f006";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-save,.icon-w-save,.icon-big-save {
+.icon-save,
+.icon-w-save,
+.icon-big-save {
   text-align: center;
   background: none;
 }
-.icon-save:before,.icon-w-save:before,.icon-big-save:before {
+.icon-save:before,
+.icon-w-save:before,
+.icon-big-save:before {
   font-family: Mw_mifonts;
   content: "\f007";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-print,.icon-w-print,.icon-big-print {
+.icon-print,
+.icon-w-print,
+.icon-big-print {
   text-align: center;
   background: none;
 }
-.icon-print:before,.icon-w-print:before,.icon-big-print:before {
+.icon-print:before,
+.icon-w-print:before,
+.icon-big-print:before {
   font-family: Mw_mifonts;
   content: "\f008";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-arrow-top,.icon-w-arrow-up,.icon-top-green,.icon-up {
+.icon-arrow-top,
+.icon-w-arrow-up,
+.icon-top-green,
+.icon-up {
   text-align: center;
   background: none;
 }
-.icon-arrow-top:before,.icon-w-arrow-up:before,.icon-top-green:before,.icon-up:before {
+.icon-arrow-top:before,
+.icon-w-arrow-up:before,
+.icon-top-green:before,
+.icon-up:before {
   font-family: Mw_mifonts;
   content: "\f009";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-arrow-bottom,.icon-w-arrow-down,.icon-down-blue,.icon-down {
+.icon-arrow-bottom,
+.icon-w-arrow-down,
+.icon-down-blue,
+.icon-down {
   text-align: center;
   background: none;
 }
-.icon-arrow-bottom:before,.icon-w-arrow-down:before,.icon-down-blue:before,.icon-down:before {
+.icon-arrow-bottom:before,
+.icon-w-arrow-down:before,
+.icon-down-blue:before,
+.icon-down:before {
   font-family: Mw_mifonts;
   content: "\f010";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-arrow-left,.icon-w-arrow-left {
+.icon-arrow-left,
+.icon-w-arrow-left {
   text-align: center;
   background: none;
 }
-.icon-arrow-left:before,.icon-w-arrow-left:before {
+.icon-arrow-left:before,
+.icon-w-arrow-left:before {
   font-family: Mw_mifonts;
   content: "\f011";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-arrow-right,.icon-w-arrow-right {
+.icon-arrow-right,
+.icon-w-arrow-right {
   text-align: center;
   background: none;
 }
-.icon-arrow-right:before,.icon-w-arrow-right:before {
+.icon-arrow-right:before,
+.icon-w-arrow-right:before {
   font-family: Mw_mifonts;
   content: "\f012";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-remove,.icon-big-del {
+.icon-remove,
+.icon-big-del {
   text-align: center;
   background: none;
 }
-.icon-remove:before,.icon-big-del:before {
+.icon-remove:before,
+.icon-big-del:before {
   font-family: Mw_mifonts;
   content: "\f013";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-reset,.icon-w-reset {
+.icon-reset,
+.icon-w-reset {
   text-align: center;
   background: none;
 }
-.icon-reset:before,.icon-w-reset:before {
+.icon-reset:before,
+.icon-w-reset:before {
   font-family: Mw_mifonts;
   content: "\f014";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-omega,.icon-big-omega {
+.icon-omega,
+.icon-big-omega {
   text-align: center;
   background: none;
 }
-.icon-omega:before,.icon-big-omega:before {
+.icon-omega:before,
+.icon-big-omega:before {
   font-family: Mw_mifonts;
   content: "\f015";
 }
@@ -2670,11 +2724,15 @@ tree-icon tree-file显示默认的文件图标
   content: "\f017";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-find,.icon-find,.icon-search {
+.icon-w-find,
+.icon-find,
+.icon-search {
   text-align: center;
   background: none;
 }
-.icon-w-find:before,.icon-find:before,.icon-search:before {
+.icon-w-find:before,
+.icon-find:before,
+.icon-search:before {
   font-family: Mw_mifonts;
   content: "\f018";
 }
@@ -2697,11 +2755,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f020";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-card,.icon-w-card {
+.icon-card,
+.icon-w-card {
   text-align: center;
   background: none;
 }
-.icon-card:before,.icon-w-card:before {
+.icon-card:before,
+.icon-w-card:before {
   font-family: Mw_mifonts;
   content: "\f021";
 }
@@ -2715,11 +2775,15 @@ tree-icon tree-file显示默认的文件图标
   content: "\f022";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-switch,.icon-big-switch,.icon-transfer {
+.icon-w-switch,
+.icon-big-switch,
+.icon-transfer {
   text-align: center;
   background: none;
 }
-.icon-w-switch:before,.icon-big-switch:before,.icon-transfer:before {
+.icon-w-switch:before,
+.icon-big-switch:before,
+.icon-transfer:before {
   font-family: Mw_mifonts;
   content: "\f023";
 }
@@ -2742,65 +2806,91 @@ tree-icon tree-file显示默认的文件图标
   content: "\f024";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-config,.icon-gear-gray {
+.icon-w-config,
+.icon-gear-gray {
   text-align: center;
   background: none;
 }
-.icon-w-config:before,.icon-gear-gray:before {
+.icon-w-config:before,
+.icon-gear-gray:before {
   font-family: Mw_mifonts;
   content: "\f025";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-home,.icon-house,.icon-big-home,.icon-home-black,.icon-home-gray {
+.icon-w-home,
+.icon-house,
+.icon-big-home,
+.icon-home-black,
+.icon-home-gray {
   text-align: center;
   background: none;
 }
-.icon-w-home:before,.icon-house:before,.icon-big-home:before,.icon-home-black:before,.icon-home-gray:before {
+.icon-w-home:before,
+.icon-house:before,
+.icon-big-home:before,
+.icon-home-black:before,
+.icon-home-gray:before {
   font-family: Mw_mifonts;
   content: "\f026";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-export,.icon-export {
+.icon-w-export,
+.icon-export {
   text-align: center;
   background: none;
 }
-.icon-w-export:before,.icon-export:before {
+.icon-w-export:before,
+.icon-export:before {
   font-family: Mw_mifonts;
   content: "\f027";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-import,.icon-import {
+.icon-w-import,
+.icon-import {
   text-align: center;
   background: none;
 }
-.icon-w-import:before,.icon-import:before {
+.icon-w-import:before,
+.icon-import:before {
   font-family: Mw_mifonts;
   content: "\f028";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-update,.icon-refresh-gray,.icon-reload,.icon-big-refresh {
+.icon-w-update,
+.icon-refresh-gray,
+.icon-reload,
+.icon-big-refresh {
   text-align: center;
   background: none;
 }
-.icon-w-update:before,.icon-refresh-gray:before,.icon-reload:before,.icon-big-refresh:before {
+.icon-w-update:before,
+.icon-refresh-gray:before,
+.icon-reload:before,
+.icon-big-refresh:before {
   font-family: Mw_mifonts;
   content: "\f029";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-file,.icon-folder,.icon-file {
+.icon-w-file,
+.icon-folder,
+.icon-file {
   text-align: center;
   background: none;
 }
-.icon-w-file:before,.icon-folder:before,.icon-file:before {
+.icon-w-file:before,
+.icon-folder:before,
+.icon-file:before {
   font-family: Mw_mifonts;
   content: "\f030";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-file-open,.icon-file-open {
+.icon-w-file-open,
+.icon-file-open {
   text-align: center;
   background: none;
 }
-.icon-w-file-open:before,.icon-file-open:before {
+.icon-w-file-open:before,
+.icon-file-open:before {
   font-family: Mw_mifonts;
   content: "\f031";
 }
@@ -2814,29 +2904,41 @@ tree-icon tree-file显示默认的文件图标
   content: "\f032";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-star,.icon-star-orange-border,.icon-big-favorite {
+.icon-w-star,
+.icon-star-orange-border,
+.icon-big-favorite {
   text-align: center;
   background: none;
 }
-.icon-w-star:before,.icon-star-orange-border:before,.icon-big-favorite:before {
+.icon-w-star:before,
+.icon-star-orange-border:before,
+.icon-big-favorite:before {
   font-family: Mw_mifonts;
   content: "\f032";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-paper,.icon-paper-info {
+.icon-w-paper,
+.icon-paper-info {
   text-align: center;
   background: none;
 }
-.icon-w-paper:before,.icon-paper-info:before {
+.icon-w-paper:before,
+.icon-paper-info:before {
   font-family: Mw_mifonts;
   content: "\f033";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-star-yellow,.icon-star-light-yellow,.icon-star,.icon-star-orange-body {
+.icon-star-yellow,
+.icon-star-light-yellow,
+.icon-star,
+.icon-star-orange-body {
   text-align: center;
   background: none;
 }
-.icon-star-yellow:before,.icon-star-light-yellow:before,.icon-star:before,.icon-star-orange-body:before {
+.icon-star-yellow:before,
+.icon-star-light-yellow:before,
+.icon-star:before,
+.icon-star-orange-body:before {
   font-family: Mw_mifonts;
   content: "\f034";
 }
@@ -2850,29 +2952,37 @@ tree-icon tree-file显示默认的文件图标
   content: "\f035";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-msg,.icon-msg-unread {
+.icon-w-msg,
+.icon-msg-unread {
   text-align: center;
   background: none;
 }
-.icon-w-msg:before,.icon-msg-unread:before {
+.icon-w-msg:before,
+.icon-msg-unread:before {
   font-family: Mw_mifonts;
   content: "\f036";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-stamp,.icon-stamp,.icon-big-stamp {
+.icon-w-stamp,
+.icon-stamp,
+.icon-big-stamp {
   text-align: center;
   background: none;
 }
-.icon-w-stamp:before,.icon-stamp:before,.icon-big-stamp:before {
+.icon-w-stamp:before,
+.icon-stamp:before,
+.icon-big-stamp:before {
   font-family: Mw_mifonts;
   content: "\f037";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-batch-cfg,.icon-batch-cfg {
+.icon-w-batch-cfg,
+.icon-batch-cfg {
   text-align: center;
   background: none;
 }
-.icon-w-batch-cfg:before,.icon-batch-cfg:before {
+.icon-w-batch-cfg:before,
+.icon-batch-cfg:before {
   font-family: Mw_mifonts;
   content: "\f038";
 }
@@ -2886,20 +2996,28 @@ tree-icon tree-file显示默认的文件图标
   content: "\f039";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-batch-add,.icon-batch-add {
+.icon-w-batch-add,
+.icon-batch-add {
   text-align: center;
   background: none;
 }
-.icon-w-batch-add:before,.icon-batch-add:before {
+.icon-w-batch-add:before,
+.icon-batch-add:before {
   font-family: Mw_mifonts;
   content: "\f040";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-eye,.icon-eye,.icon-green-line-eye,.icon-big-open-eye {
+.icon-w-eye,
+.icon-eye,
+.icon-green-line-eye,
+.icon-big-open-eye {
   text-align: center;
   background: none;
 }
-.icon-w-eye:before,.icon-eye:before,.icon-green-line-eye:before,.icon-big-open-eye:before {
+.icon-w-eye:before,
+.icon-eye:before,
+.icon-green-line-eye:before,
+.icon-big-open-eye:before {
   font-family: Mw_mifonts;
   content: "\f041";
 }
@@ -2913,20 +3031,32 @@ tree-icon tree-file显示默认的文件图标
   content: "\f042";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-submit,.icon-submit {
+.icon-w-submit,
+.icon-submit {
   text-align: center;
   background: none;
 }
-.icon-w-submit:before,.icon-submit:before {
+.icon-w-submit:before,
+.icon-submit:before {
   font-family: Mw_mifonts;
   content: "\f043";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-clock,.icon-clock,.icon-clock-blod,.icon-clock-black,.icon-w-clock-ora,.icon-clock-orange {
+.icon-w-clock,
+.icon-clock,
+.icon-clock-blod,
+.icon-clock-black,
+.icon-w-clock-ora,
+.icon-clock-orange {
   text-align: center;
   background: none;
 }
-.icon-w-clock:before,.icon-clock:before,.icon-clock-blod:before,.icon-clock-black:before,.icon-w-clock-ora:before,.icon-clock-orange:before {
+.icon-w-clock:before,
+.icon-clock:before,
+.icon-clock-blod:before,
+.icon-clock-black:before,
+.icon-w-clock-ora:before,
+.icon-clock-orange:before {
   font-family: Mw_mifonts;
   content: "\f044";
 }
@@ -2940,11 +3070,17 @@ tree-icon tree-file显示默认的文件图标
   content: "\f045";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-run,.icon-run,.icon-big-start,.icon-arrow-right-top {
+.icon-w-run,
+.icon-run,
+.icon-big-start,
+.icon-arrow-right-top {
   text-align: center;
   background: none;
 }
-.icon-w-run:before,.icon-run:before,.icon-big-start:before,.icon-arrow-right-top:before {
+.icon-w-run:before,
+.icon-run:before,
+.icon-big-start:before,
+.icon-arrow-right-top:before {
   font-family: Mw_mifonts;
   content: "\f046";
 }
@@ -2967,20 +3103,32 @@ tree-icon tree-file显示默认的文件图标
   content: "\f048";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-key,.icon-key {
+.icon-w-key,
+.icon-key {
   text-align: center;
   background: none;
 }
-.icon-w-key:before,.icon-key:before {
+.icon-w-key:before,
+.icon-key:before {
   font-family: Mw_mifonts;
   content: "\f049";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-img,.icon-img,.icon-miss-img,.icon-big-img,.icon-big-miss-img,.icon-img-blue {
+.icon-w-img,
+.icon-img,
+.icon-miss-img,
+.icon-big-img,
+.icon-big-miss-img,
+.icon-img-blue {
   text-align: center;
   background: none;
 }
-.icon-w-img:before,.icon-img:before,.icon-miss-img:before,.icon-big-img:before,.icon-big-miss-img:before,.icon-img-blue:before {
+.icon-w-img:before,
+.icon-img:before,
+.icon-miss-img:before,
+.icon-big-img:before,
+.icon-big-miss-img:before,
+.icon-img-blue:before {
   font-family: Mw_mifonts;
   content: "\f050";
 }
@@ -2994,29 +3142,39 @@ tree-icon tree-file显示默认的文件图标
   content: "\f051";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-ok,.icon-ok,.icon-done,.icon-accept {
+.icon-w-ok,
+.icon-ok,
+.icon-done,
+.icon-accept {
   text-align: center;
   background: none;
 }
-.icon-w-ok:before,.icon-ok:before,.icon-done:before,.icon-accept:before {
+.icon-w-ok:before,
+.icon-ok:before,
+.icon-done:before,
+.icon-accept:before {
   font-family: Mw_mifonts;
   content: "\f052";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-filter,.icon-filter {
+.icon-w-filter,
+.icon-filter {
   text-align: center;
   background: none;
 }
-.icon-w-filter:before,.icon-filter:before {
+.icon-w-filter:before,
+.icon-filter:before {
   font-family: Mw_mifonts;
   content: "\f053";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-predrug,.icon-drug {
+.icon-w-predrug,
+.icon-drug {
   text-align: center;
   background: none;
 }
-.icon-w-predrug:before,.icon-drug:before {
+.icon-w-predrug:before,
+.icon-drug:before {
   font-family: Mw_mifonts;
   content: "\f054";
 }
@@ -3030,29 +3188,35 @@ tree-icon tree-file显示默认的文件图标
   content: "\f055";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-paid,.icon-fee {
+.icon-w-paid,
+.icon-fee {
   text-align: center;
   background: none;
 }
-.icon-w-paid:before,.icon-fee:before {
+.icon-w-paid:before,
+.icon-fee:before {
   font-family: Mw_mifonts;
   content: "\f056";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-zoom,.icon-arrow-zoom {
+.icon-w-zoom,
+.icon-arrow-zoom {
   text-align: center;
   background: none;
 }
-.icon-w-zoom:before,.icon-arrow-zoom:before {
+.icon-w-zoom:before,
+.icon-arrow-zoom:before {
   font-family: Mw_mifonts;
   content: "\f057";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-shrink,.icon-arrow-shrink {
+.icon-w-shrink,
+.icon-arrow-shrink {
   text-align: center;
   background: none;
 }
-.icon-w-shrink:before,.icon-arrow-shrink:before {
+.icon-w-shrink:before,
+.icon-arrow-shrink:before {
   font-family: Mw_mifonts;
   content: "\f613";
 }
@@ -3066,11 +3230,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f058";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-upload,.icon-upload {
+.icon-w-upload,
+.icon-upload {
   text-align: center;
   background: none;
 }
-.icon-w-upload:before,.icon-upload:before {
+.icon-w-upload:before,
+.icon-upload:before {
   font-family: Mw_mifonts;
   content: "\f059";
 }
@@ -3093,20 +3259,24 @@ tree-icon tree-file显示默认的文件图标
   content: "\f061";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-download,.icon-download {
+.icon-w-download,
+.icon-download {
   text-align: center;
   background: none;
 }
-.icon-w-download:before,.icon-download:before {
+.icon-w-download:before,
+.icon-download:before {
   font-family: Mw_mifonts;
   content: "\f062";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-w-pause-circle,.icon-pause {
+.icon-w-pause-circle,
+.icon-pause {
   text-align: center;
   background: none;
 }
-.icon-w-pause-circle:before,.icon-pause:before {
+.icon-w-pause-circle:before,
+.icon-pause:before {
   font-family: Mw_mifonts;
   content: "\f063";
 }
@@ -3138,11 +3308,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f066";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-tip,.icon-big-tip {
+.icon-tip,
+.icon-big-tip {
   text-align: center;
   background: none;
 }
-.icon-tip:before,.icon-big-tip:before {
+.icon-tip:before,
+.icon-big-tip:before {
   font-family: Mw_mifonts;
   content: "\f067";
 }
@@ -3183,11 +3355,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f070";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-person,.icon-user {
+.icon-person,
+.icon-user {
   text-align: center;
   background: none;
 }
-.icon-person:before,.icon-user:before {
+.icon-person:before,
+.icon-user:before {
   font-family: Mw_mifonts;
   content: "\f071";
 }
@@ -3228,20 +3402,24 @@ tree-icon tree-file显示默认的文件图标
   content: "\f075";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-patient,.icon-outhosp-patient {
+.icon-patient,
+.icon-outhosp-patient {
   text-align: center;
   background: none;
 }
-.icon-patient:before,.icon-outhosp-patient:before {
+.icon-patient:before,
+.icon-outhosp-patient:before {
   font-family: Mw_mifonts;
   content: "\f076";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-stethoscope,.icon-big-med-equi {
+.icon-stethoscope,
+.icon-big-med-equi {
   text-align: center;
   background: none;
 }
-.icon-stethoscope:before,.icon-big-med-equi:before {
+.icon-stethoscope:before,
+.icon-big-med-equi:before {
   font-family: Mw_mifonts;
   content: "\f077";
 }
@@ -3255,11 +3433,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f078";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-checkin,.icon-finish-report {
+.icon-checkin,
+.icon-finish-report {
   text-align: center;
   background: none;
 }
-.icon-checkin:before,.icon-finish-report:before {
+.icon-checkin:before,
+.icon-finish-report:before {
   font-family: Mw_mifonts;
   content: "\f079";
 }
@@ -3282,29 +3462,37 @@ tree-icon tree-file显示默认的文件图标
   content: "\f081";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-doctor,.icon-big-doctor-adm {
+.icon-doctor,
+.icon-big-doctor-adm {
   text-align: center;
   background: none;
 }
-.icon-doctor:before,.icon-big-doctor-adm:before {
+.icon-doctor:before,
+.icon-big-doctor-adm:before {
   font-family: Mw_mifonts;
   content: "\f082";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-clear-screen,.icon-big-clear {
+.icon-clear-screen,
+.icon-big-clear {
   text-align: center;
   background: none;
 }
-.icon-clear-screen:before,.icon-big-clear:before {
+.icon-clear-screen:before,
+.icon-big-clear:before {
   font-family: Mw_mifonts;
   content: "\f083";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-read-card,.icon-big-card-reader,.icon-big-read-card {
+.icon-read-card,
+.icon-big-card-reader,
+.icon-big-read-card {
   text-align: center;
   background: none;
 }
-.icon-read-card:before,.icon-big-card-reader:before,.icon-big-read-card:before {
+.icon-read-card:before,
+.icon-big-card-reader:before,
+.icon-big-read-card:before {
   font-family: Mw_mifonts;
   content: "\f084";
 }
@@ -3336,20 +3524,24 @@ tree-icon tree-file显示默认的文件图标
   content: "\f087";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-other,.icon-other-yellow {
+.icon-other,
+.icon-other-yellow {
   text-align: center;
   background: none;
 }
-.icon-other:before,.icon-other-yellow:before {
+.icon-other:before,
+.icon-other-yellow:before {
   font-family: Mw_mifonts;
   content: "\f088";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-patient-info,.icon-pat-info {
+.icon-patient-info,
+.icon-pat-info {
   text-align: center;
   background: none;
 }
-.icon-patient-info:before,.icon-pat-info:before {
+.icon-patient-info:before,
+.icon-pat-info:before {
   font-family: Mw_mifonts;
   content: "\f089";
 }
@@ -3363,20 +3555,24 @@ tree-icon tree-file显示默认的文件图标
   content: "\f090";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-add-diag,.icon-adm-add {
+.icon-add-diag,
+.icon-adm-add {
   text-align: center;
   background: none;
 }
-.icon-add-diag:before,.icon-adm-add:before {
+.icon-add-diag:before,
+.icon-adm-add:before {
   font-family: Mw_mifonts;
   content: "\f091";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-emr-cri,.icon-book {
+.icon-emr-cri,
+.icon-book {
   text-align: center;
   background: none;
 }
-.icon-emr-cri:before,.icon-book:before {
+.icon-emr-cri:before,
+.icon-book:before {
   font-family: Mw_mifonts;
   content: "\f092";
 }
@@ -3426,20 +3622,24 @@ tree-icon tree-file显示默认的文件图标
   content: "\f097";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-eye-deepgrade,.icon-big-eye-deepgrade {
+.icon-eye-deepgrade,
+.icon-big-eye-deepgrade {
   text-align: center;
   background: none;
 }
-.icon-eye-deepgrade:before,.icon-big-eye-deepgrade:before {
+.icon-eye-deepgrade:before,
+.icon-big-eye-deepgrade:before {
   font-family: Mw_mifonts;
   content: "\f098";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-fee-arrow,.icon-big-fee-arrow {
+.icon-fee-arrow,
+.icon-big-fee-arrow {
   text-align: center;
   background: none;
 }
-.icon-fee-arrow:before,.icon-big-fee-arrow:before {
+.icon-fee-arrow:before,
+.icon-big-fee-arrow:before {
   font-family: Mw_mifonts;
   content: "\f099";
 }
@@ -3597,11 +3797,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f116";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-mnypaper-down,.icon-mnypaper-down2 {
+.icon-mnypaper-down,
+.icon-mnypaper-down2 {
   text-align: center;
   background: none;
 }
-.icon-mnypaper-down:before,.icon-mnypaper-down2:before {
+.icon-mnypaper-down:before,
+.icon-mnypaper-down2:before {
   font-family: Mw_mifonts;
   content: "\f117";
 }
@@ -3651,11 +3853,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f122";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-alert,.icon-big-alert {
+.icon-alert,
+.icon-big-alert {
   text-align: center;
   background: none;
 }
-.icon-alert:before,.icon-big-alert:before {
+.icon-alert:before,
+.icon-big-alert:before {
   font-family: Mw_mifonts;
   content: "\f122";
 }
@@ -3777,11 +3981,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f135";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-camera,.icon-w-camera {
+.icon-camera,
+.icon-w-camera {
   text-align: center;
   background: none;
 }
-.icon-camera:before,.icon-w-camera:before {
+.icon-camera:before,
+.icon-w-camera:before {
   font-family: Mw_mifonts;
   content: "\f136";
 }
@@ -3813,11 +4019,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f139";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-forbid,.icon-no {
+.icon-forbid,
+.icon-no {
   text-align: center;
   background: none;
 }
-.icon-forbid:before,.icon-no:before {
+.icon-forbid:before,
+.icon-no:before {
   font-family: Mw_mifonts;
   content: "\f140";
 }
@@ -3831,11 +4039,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f141";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-export-data,.icon-export-paper {
+.icon-export-data,
+.icon-export-paper {
   text-align: center;
   background: none;
 }
-.icon-export-data:before,.icon-export-paper:before {
+.icon-export-data:before,
+.icon-export-paper:before {
   font-family: Mw_mifonts;
   content: "\f142";
 }
@@ -3849,11 +4059,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f143";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-unuse,.icon-big-stop {
+.icon-unuse,
+.icon-big-stop {
   text-align: center;
   background: none;
 }
-.icon-unuse:before,.icon-big-stop:before {
+.icon-unuse:before,
+.icon-big-stop:before {
   font-family: Mw_mifonts;
   content: "\f144";
 }
@@ -3876,20 +4088,24 @@ tree-icon tree-file显示默认的文件图标
   content: "\f146";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-scanning,.icon-w-scan-code {
+.icon-scanning,
+.icon-w-scan-code {
   text-align: center;
   background: none;
 }
-.icon-scanning:before,.icon-w-scan-code:before {
+.icon-scanning:before,
+.icon-w-scan-code:before {
   font-family: Mw_mifonts;
   content: "\f147";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-return,.icon-big-slide-return {
+.icon-return,
+.icon-big-slide-return {
   text-align: center;
   background: none;
 }
-.icon-return:before,.icon-big-slide-return:before {
+.icon-return:before,
+.icon-big-slide-return:before {
   font-family: Mw_mifonts;
   content: "\f148";
 }
@@ -3921,11 +4137,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f151";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-print-box,.icon-big-print-box {
+.icon-print-box,
+.icon-big-print-box {
   text-align: center;
   background: none;
 }
-.icon-print-box:before,.icon-big-print-box:before {
+.icon-print-box:before,
+.icon-big-print-box:before {
   font-family: Mw_mifonts;
   content: "\f152";
 }
@@ -3948,11 +4166,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f154";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-wrench-blue,.icon-big-maint {
+.icon-wrench-blue,
+.icon-big-maint {
   text-align: center;
   background: none;
 }
-.icon-wrench-blue:before,.icon-big-maint:before {
+.icon-wrench-blue:before,
+.icon-big-maint:before {
   font-family: Mw_mifonts;
   content: "\f155";
 }
@@ -3993,20 +4213,24 @@ tree-icon tree-file显示默认的文件图标
   content: "\f159";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-paper-eye,.icon-big-book-eye {
+.icon-paper-eye,
+.icon-big-book-eye {
   text-align: center;
   background: none;
 }
-.icon-paper-eye:before,.icon-big-book-eye:before {
+.icon-paper-eye:before,
+.icon-big-book-eye:before {
   font-family: Mw_mifonts;
   content: "\f160";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-run-red,.icon-arrow-blue {
+.icon-run-red,
+.icon-arrow-blue {
   text-align: center;
   background: none;
 }
-.icon-run-red:before,.icon-arrow-blue:before {
+.icon-run-red:before,
+.icon-arrow-blue:before {
   font-family: Mw_mifonts;
   content: "\f161";
 }
@@ -4038,11 +4262,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f164";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-paper-arrow,.icon-big-paper-arrow {
+.icon-paper-arrow,
+.icon-big-paper-arrow {
   text-align: center;
   background: none;
 }
-.icon-paper-arrow:before,.icon-big-paper-arrow:before {
+.icon-paper-arrow:before,
+.icon-big-paper-arrow:before {
   font-family: Mw_mifonts;
   content: "\f165";
 }
@@ -4083,11 +4309,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f169";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-base-info,.icon-big-idcard {
+.icon-base-info,
+.icon-big-idcard {
   text-align: center;
   background: none;
 }
-.icon-base-info:before,.icon-big-idcard:before {
+.icon-base-info:before,
+.icon-big-idcard:before {
   font-family: Mw_mifonts;
   content: "\f170";
 }
@@ -4155,20 +4383,26 @@ tree-icon tree-file显示默认的文件图标
   content: "\f177";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-check,.icon-checkbox,.icon-big-blue-frame-ok {
+.icon-check,
+.icon-checkbox,
+.icon-big-blue-frame-ok {
   text-align: center;
   background: none;
 }
-.icon-check:before,.icon-checkbox:before,.icon-big-blue-frame-ok:before {
+.icon-check:before,
+.icon-checkbox:before,
+.icon-big-blue-frame-ok:before {
   font-family: Mw_mifonts;
   content: "\f178";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-chg-doctor-grant,.icon-doctor-green-pen {
+.icon-chg-doctor-grant,
+.icon-doctor-green-pen {
   text-align: center;
   background: none;
 }
-.icon-chg-doctor-grant:before,.icon-doctor-green-pen:before {
+.icon-chg-doctor-grant:before,
+.icon-doctor-green-pen:before {
   font-family: Mw_mifonts;
   content: "\f179";
 }
@@ -4254,11 +4488,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f188";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-drug-link,.icon-durg-ref {
+.icon-drug-link,
+.icon-durg-ref {
   text-align: center;
   background: none;
 }
-.icon-drug-link:before,.icon-durg-ref:before {
+.icon-drug-link:before,
+.icon-durg-ref:before {
   font-family: Mw_mifonts;
   content: "\f189";
 }
@@ -4371,11 +4607,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f201";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-location,.icon-big-position {
+.icon-location,
+.icon-big-position {
   text-align: center;
   background: none;
 }
-.icon-location:before,.icon-big-position:before {
+.icon-location:before,
+.icon-big-position:before {
   font-family: Mw_mifonts;
   content: "\f202";
 }
@@ -4497,11 +4735,15 @@ tree-icon tree-file显示默认的文件图标
   content: "\f215";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-paper,.icon-paper-blue-line,.icon-paper-table {
+.icon-paper,
+.icon-paper-blue-line,
+.icon-paper-table {
   text-align: center;
   background: none;
 }
-.icon-paper:before,.icon-paper-blue-line:before,.icon-paper-table:before {
+.icon-paper:before,
+.icon-paper-blue-line:before,
+.icon-paper-table:before {
   font-family: Mw_mifonts;
   content: "\f216";
 }
@@ -4578,11 +4820,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f224";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-paper-upgrade,.icon-paper-upgrade-add {
+.icon-paper-upgrade,
+.icon-paper-upgrade-add {
   text-align: center;
   background: none;
 }
-.icon-paper-upgrade:before,.icon-paper-upgrade-add:before {
+.icon-paper-upgrade:before,
+.icon-paper-upgrade-add:before {
   font-family: Mw_mifonts;
   content: "\f225";
 }
@@ -4605,11 +4849,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f227";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-pat-alert-red,.icon-pat-alert-yellow {
+.icon-pat-alert-red,
+.icon-pat-alert-yellow {
   text-align: center;
   background: none;
 }
-.icon-pat-alert-red:before,.icon-pat-alert-yellow:before {
+.icon-pat-alert-red:before,
+.icon-pat-alert-yellow:before {
   font-family: Mw_mifonts;
   content: "\f228";
 }
@@ -4641,11 +4887,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f231";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-radio,.icon-big-blue-white-circle {
+.icon-radio,
+.icon-big-blue-white-circle {
   text-align: center;
   background: none;
 }
-.icon-radio:before,.icon-big-blue-white-circle:before {
+.icon-radio:before,
+.icon-big-blue-white-circle:before {
   font-family: Mw_mifonts;
   content: "\f232";
 }
@@ -4731,11 +4979,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f240";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-unlock,.icon-big-unlock {
+.icon-unlock,
+.icon-big-unlock {
   text-align: center;
   background: none;
 }
-.icon-unlock:before,.icon-big-unlock:before {
+.icon-unlock:before,
+.icon-big-unlock:before {
   font-family: Mw_mifonts;
   content: "\f241";
 }
@@ -4956,20 +5206,24 @@ tree-icon tree-file显示默认的文件图标
   content: "\f265";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-tooth,.icon-big-tooth {
+.icon-tooth,
+.icon-big-tooth {
   text-align: center;
   background: none;
 }
-.icon-tooth:before,.icon-big-tooth:before {
+.icon-tooth:before,
+.icon-big-tooth:before {
   font-family: Mw_mifonts;
   content: "\f266";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-paid,.icon-big-paid {
+.icon-paid,
+.icon-big-paid {
   text-align: center;
   background: none;
 }
-.icon-paid:before,.icon-big-paid:before {
+.icon-paid:before,
+.icon-big-paid:before {
   font-family: Mw_mifonts;
   content: "\f267";
 }
@@ -5064,11 +5318,15 @@ tree-icon tree-file显示默认的文件图标
   content: "\f277";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-skip-no,.icon-big-skip-no,.icon-w-skip-no {
+.icon-skip-no,
+.icon-big-skip-no,
+.icon-w-skip-no {
   text-align: center;
   background: none;
 }
-.icon-skip-no:before,.icon-big-skip-no:before,.icon-w-skip-no:before {
+.icon-skip-no:before,
+.icon-big-skip-no:before,
+.icon-w-skip-no:before {
   font-family: Mw_mifonts;
   content: "\f278";
 }
@@ -5109,11 +5367,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f282";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-alarm,.icon-big-alert-yellow {
+.icon-alarm,
+.icon-big-alert-yellow {
   text-align: center;
   background: none;
 }
-.icon-alarm:before,.icon-big-alert-yellow:before {
+.icon-alarm:before,
+.icon-big-alert-yellow:before {
   font-family: Mw_mifonts;
   content: "\f283";
 }
@@ -5235,11 +5495,15 @@ tree-icon tree-file显示默认的文件图标
   content: "\f296";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-bell-blue,.icon-bell-yellow,.icon-big-msg {
+.icon-bell-blue,
+.icon-bell-yellow,
+.icon-big-msg {
   text-align: center;
   background: none;
 }
-.icon-bell-blue:before,.icon-bell-yellow:before,.icon-big-msg:before {
+.icon-bell-blue:before,
+.icon-bell-yellow:before,
+.icon-big-msg:before {
   font-family: Mw_mifonts;
   content: "\f297";
 }
@@ -5262,137 +5526,171 @@ tree-icon tree-file显示默认的文件图标
   content: "\f299";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-print-arr-bo,.icon-print-arr-bo-gray {
+.icon-print-arr-bo,
+.icon-print-arr-bo-gray {
   text-align: center;
   background: none;
 }
-.icon-print-arr-bo:before,.icon-print-arr-bo-gray:before {
+.icon-print-arr-bo:before,
+.icon-print-arr-bo-gray:before {
   font-family: Mw_mifonts;
   content: "\f300";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-triangle-gray-right,.icon-triangle-green-right {
+.icon-triangle-gray-right,
+.icon-triangle-green-right {
   text-align: center;
   background: none;
 }
-.icon-triangle-gray-right:before,.icon-triangle-green-right:before {
+.icon-triangle-gray-right:before,
+.icon-triangle-green-right:before {
   font-family: Mw_mifonts;
   content: "\f301";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-triangle-green-left,.icon-triangle-gray-left {
+.icon-triangle-green-left,
+.icon-triangle-gray-left {
   text-align: center;
   background: none;
 }
-.icon-triangle-green-left:before,.icon-triangle-gray-left:before {
+.icon-triangle-green-left:before,
+.icon-triangle-gray-left:before {
   font-family: Mw_mifonts;
   content: "\f302";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-paper-pay,.icon-paper-pay-gray {
+.icon-paper-pay,
+.icon-paper-pay-gray {
   text-align: center;
   background: none;
 }
-.icon-paper-pay:before,.icon-paper-pay-gray:before {
+.icon-paper-pay:before,
+.icon-paper-pay-gray:before {
   font-family: Mw_mifonts;
   content: "\f303";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-compu-torus,.icon-compu-torus-gray {
+.icon-compu-torus,
+.icon-compu-torus-gray {
   text-align: center;
   background: none;
 }
-.icon-compu-torus:before,.icon-compu-torus-gray:before {
+.icon-compu-torus:before,
+.icon-compu-torus-gray:before {
   font-family: Mw_mifonts;
   content: "\f304";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-two-recta-gear,.icon-two-recta-gear-gray {
+.icon-two-recta-gear,
+.icon-two-recta-gear-gray {
   text-align: center;
   background: none;
 }
-.icon-two-recta-gear:before,.icon-two-recta-gear-gray:before {
+.icon-two-recta-gear:before,
+.icon-two-recta-gear-gray:before {
   font-family: Mw_mifonts;
   content: "\f305";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-compu-run,.icon-compu-run-gray {
+.icon-compu-run,
+.icon-compu-run-gray {
   text-align: center;
   background: none;
 }
-.icon-compu-run:before,.icon-compu-run-gray:before {
+.icon-compu-run:before,
+.icon-compu-run-gray:before {
   font-family: Mw_mifonts;
   content: "\f306";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-paper-blue-add,.icon-paper-blue-add-gray {
+.icon-paper-blue-add,
+.icon-paper-blue-add-gray {
   text-align: center;
   background: none;
 }
-.icon-paper-blue-add:before,.icon-paper-blue-add-gray:before {
+.icon-paper-blue-add:before,
+.icon-paper-blue-add-gray:before {
   font-family: Mw_mifonts;
   content: "\f307";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-trian-recta-right,.icon-big-next,.icon-trian-recta-right-gray {
+.icon-trian-recta-right,
+.icon-big-next,
+.icon-trian-recta-right-gray {
   text-align: center;
   background: none;
 }
-.icon-trian-recta-right:before,.icon-big-next:before,.icon-trian-recta-right-gray:before {
+.icon-trian-recta-right:before,
+.icon-big-next:before,
+.icon-trian-recta-right-gray:before {
   font-family: Mw_mifonts;
   content: "\f308";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-box-red-add,.icon-box-red-add-gray {
+.icon-box-red-add,
+.icon-box-red-add-gray {
   text-align: center;
   background: none;
 }
-.icon-box-red-add:before,.icon-box-red-add-gray:before {
+.icon-box-red-add:before,
+.icon-box-red-add-gray:before {
   font-family: Mw_mifonts;
   content: "\f309";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-green-chart,.icon-gray-chart {
+.icon-green-chart,
+.icon-gray-chart {
   text-align: center;
   background: none;
 }
-.icon-green-chart:before,.icon-gray-chart:before {
+.icon-green-chart:before,
+.icon-gray-chart:before {
   font-family: Mw_mifonts;
   content: "\f310";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-report-eye,.icon-report-eye-gray {
+.icon-report-eye,
+.icon-report-eye-gray {
   text-align: center;
   background: none;
 }
-.icon-report-eye:before,.icon-report-eye-gray:before {
+.icon-report-eye:before,
+.icon-report-eye-gray:before {
   font-family: Mw_mifonts;
   content: "\f311";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-trian-recta-left,.icon-big-pre,.icon-trian-recta-left-gray {
+.icon-trian-recta-left,
+.icon-big-pre,
+.icon-trian-recta-left-gray {
   text-align: center;
   background: none;
 }
-.icon-trian-recta-left:before,.icon-big-pre:before,.icon-trian-recta-left-gray:before {
+.icon-trian-recta-left:before,
+.icon-big-pre:before,
+.icon-trian-recta-left-gray:before {
   font-family: Mw_mifonts;
   content: "\f312";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-clock-pen,.icon-clock-pen-gray {
+.icon-clock-pen,
+.icon-clock-pen-gray {
   text-align: center;
   background: none;
 }
-.icon-clock-pen:before,.icon-clock-pen-gray:before {
+.icon-clock-pen:before,
+.icon-clock-pen-gray:before {
   font-family: Mw_mifonts;
   content: "\f313";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-drug-eye,.icon-drug-eye-gray {
+.icon-drug-eye,
+.icon-drug-eye-gray {
   text-align: center;
   background: none;
 }
-.icon-drug-eye:before,.icon-drug-eye-gray:before {
+.icon-drug-eye:before,
+.icon-drug-eye-gray:before {
   font-family: Mw_mifonts;
   content: "\f314";
 }
@@ -5559,11 +5857,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f332";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-write-order,.icon-big-paper-pen {
+.icon-write-order,
+.icon-big-paper-pen {
   text-align: center;
   background: none;
 }
-.icon-write-order:before,.icon-big-paper-pen:before {
+.icon-write-order:before,
+.icon-big-paper-pen:before {
   font-family: Mw_mifonts;
   content: "\f333";
 }
@@ -5910,11 +6210,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f371";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-arrow-left-top,.icon-arrow-le-bo-gray {
+.icon-arrow-left-top,
+.icon-arrow-le-bo-gray {
   text-align: center;
   background: none;
 }
-.icon-arrow-left-top:before,.icon-arrow-le-bo-gray:before {
+.icon-arrow-left-top:before,
+.icon-arrow-le-bo-gray:before {
   font-family: Mw_mifonts;
   content: "\f372";
 }
@@ -6126,74 +6428,90 @@ tree-icon tree-file显示默认的文件图标
   content: "\f395";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-big-lt-rt-37,.icon-lt-rt-37 {
+.icon-big-lt-rt-37,
+.icon-lt-rt-37 {
   text-align: center;
   background: none;
 }
-.icon-big-lt-rt-37:before,.icon-lt-rt-37:before {
+.icon-big-lt-rt-37:before,
+.icon-lt-rt-37:before {
   font-family: Mw_mifonts;
   content: "\f396";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-big-lt-rt-46,.icon-lt-rt-46 {
+.icon-big-lt-rt-46,
+.icon-lt-rt-46 {
   text-align: center;
   background: none;
 }
-.icon-big-lt-rt-46:before,.icon-lt-rt-46:before {
+.icon-big-lt-rt-46:before,
+.icon-lt-rt-46:before {
   font-family: Mw_mifonts;
   content: "\f580";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-big-lt-rt-64,.icon-lt-rt-64 {
+.icon-big-lt-rt-64,
+.icon-lt-rt-64 {
   text-align: center;
   background: none;
 }
-.icon-big-lt-rt-64:before,.icon-lt-rt-64:before {
+.icon-big-lt-rt-64:before,
+.icon-lt-rt-64:before {
   font-family: Mw_mifonts;
   content: "\f579";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-big-lt-rt-55,.icon-lt-rt-55 {
+.icon-big-lt-rt-55,
+.icon-lt-rt-55 {
   text-align: center;
   background: none;
 }
-.icon-big-lt-rt-55:before,.icon-lt-rt-55:before {
+.icon-big-lt-rt-55:before,
+.icon-lt-rt-55:before {
   font-family: Mw_mifonts;
   content: "\f397";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-big-lt-rt-73,.icon-lt-rt-73 {
+.icon-big-lt-rt-73,
+.icon-lt-rt-73 {
   text-align: center;
   background: none;
 }
-.icon-big-lt-rt-73:before,.icon-lt-rt-73:before {
+.icon-big-lt-rt-73:before,
+.icon-lt-rt-73:before {
   font-family: Mw_mifonts;
   content: "\f398";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-big-lt-rt-19,.icon-lt-rt-19 {
+.icon-big-lt-rt-19,
+.icon-lt-rt-19 {
   text-align: center;
   background: none;
 }
-.icon-big-lt-rt-19:before,.icon-lt-rt-19:before {
+.icon-big-lt-rt-19:before,
+.icon-lt-rt-19:before {
   font-family: Mw_mifonts;
   content: "\f399";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-big-lt-rt-82,.icon-lt-rt-82 {
+.icon-big-lt-rt-82,
+.icon-lt-rt-82 {
   text-align: center;
   background: none;
 }
-.icon-big-lt-rt-82:before,.icon-lt-rt-82:before {
+.icon-big-lt-rt-82:before,
+.icon-lt-rt-82:before {
   font-family: Mw_mifonts;
   content: "\f533";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-big-lt-rt-28,.icon-lt-rt-28 {
+.icon-big-lt-rt-28,
+.icon-lt-rt-28 {
   text-align: center;
   background: none;
 }
-.icon-big-lt-rt-28:before,.icon-lt-rt-28:before {
+.icon-big-lt-rt-28:before,
+.icon-lt-rt-28:before {
   font-family: Mw_mifonts;
   content: "\f534";
 }
@@ -6639,11 +6957,15 @@ tree-icon tree-file显示默认的文件图标
   content: "\f447";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-ca-green,.icon-big-ca,.icon-big-ca-green {
+.icon-ca-green,
+.icon-big-ca,
+.icon-big-ca-green {
   text-align: center;
   background: none;
 }
-.icon-ca-green:before,.icon-big-ca:before,.icon-big-ca-green:before {
+.icon-ca-green:before,
+.icon-big-ca:before,
+.icon-big-ca-green:before {
   font-family: Mw_mifonts;
   content: "\f447";
 }
@@ -6693,11 +7015,13 @@ tree-icon tree-file显示默认的文件图标
   content: "\f452";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-ster-finish,.icon-ster-ok {
+.icon-ster-finish,
+.icon-ster-ok {
   text-align: center;
   background: none;
 }
-.icon-ster-finish:before,.icon-ster-ok:before {
+.icon-ster-finish:before,
+.icon-ster-ok:before {
   font-family: Mw_mifonts;
   content: "\f453";
 }
@@ -7575,47 +7899,57 @@ tree-icon tree-file显示默认的文件图标
   content: "\f584";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-big-insert-local-image,.icon-insert-local-image {
+.icon-big-insert-local-image,
+.icon-insert-local-image {
   text-align: center;
   background: none;
 }
-.icon-big-insert-local-image:before,.icon-insert-local-image:before {
+.icon-big-insert-local-image:before,
+.icon-insert-local-image:before {
   font-family: Mw_mifonts;
   content: "\f585";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-big-edit-picture,.icon-edit-picture {
+.icon-big-edit-picture,
+.icon-edit-picture {
   text-align: center;
   background: none;
 }
-.icon-big-edit-picture:before,.icon-edit-picture:before {
+.icon-big-edit-picture:before,
+.icon-edit-picture:before {
   font-family: Mw_mifonts;
   content: "\f586";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-big-creating-a-pedigree-map,.icon-creating-a-pedigree-map {
+.icon-big-creating-a-pedigree-map,
+.icon-creating-a-pedigree-map {
   text-align: center;
   background: none;
 }
-.icon-big-creating-a-pedigree-map:before,.icon-creating-a-pedigree-map:before {
+.icon-big-creating-a-pedigree-map:before,
+.icon-creating-a-pedigree-map:before {
   font-family: Mw_mifonts;
   content: "\f587";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-big-edit-pedigree-chart,.icon-edit-pedigree-chart {
+.icon-big-edit-pedigree-chart,
+.icon-edit-pedigree-chart {
   text-align: center;
   background: none;
 }
-.icon-big-edit-pedigree-chart:before,.icon-edit-pedigree-chart:before {
+.icon-big-edit-pedigree-chart:before,
+.icon-edit-pedigree-chart:before {
   font-family: Mw_mifonts;
   content: "\f588";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
-.icon-big-image-properties,.icon-image-properties {
+.icon-big-image-properties,
+.icon-image-properties {
   text-align: center;
   background: none;
 }
-.icon-big-image-properties:before,.icon-image-properties:before {
+.icon-big-image-properties:before,
+.icon-image-properties:before {
   font-family: Mw_mifonts;
   content: "\f589";
 }
@@ -7707,7 +8041,7 @@ tree-icon tree-file显示默认的文件图标
 }
 .icon-page-first:before {
   font-family: Mw_mifonts;
-  content: "\f1008";
+  content: "\f657";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
 .icon-page-prev {
@@ -7716,7 +8050,7 @@ tree-icon tree-file显示默认的文件图标
 }
 .icon-page-prev:before {
   font-family: Mw_mifonts;
-  content: "\f1009";
+  content: "\f658";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
 .icon-page-next {
@@ -7725,7 +8059,7 @@ tree-icon tree-file显示默认的文件图标
 }
 .icon-page-next:before {
   font-family: Mw_mifonts;
-  content: "\f1010";
+  content: "\f659";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
 .icon-page-last {
@@ -7734,7 +8068,7 @@ tree-icon tree-file显示默认的文件图标
 }
 .icon-page-last:before {
   font-family: Mw_mifonts;
-  content: "\f1011";
+  content: "\f660";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
 .icon-page-load {
@@ -7743,7 +8077,7 @@ tree-icon tree-file显示默认的文件图标
 }
 .icon-page-load:before {
   font-family: Mw_mifonts;
-  content: "\f1012";
+  content: "\f661";
 }
 /*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
 .icon-b-compatibility-review {
@@ -7853,6 +8187,375 @@ tree-icon tree-file显示默认的文件图标
   font-family: Mw_mifonts;
   content: "\f631";
 }
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-upload-img {
+  text-align: center;
+  background: none;
+}
+.icon-upload-img:before {
+  font-family: Mw_mifonts;
+  content: "\f632";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-collect-img {
+  text-align: center;
+  background: none;
+}
+.icon-collect-img:before {
+  font-family: Mw_mifonts;
+  content: "\f633";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-capture-img {
+  text-align: center;
+  background: none;
+}
+.icon-capture-img:before {
+  font-family: Mw_mifonts;
+  content: "\f634";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-big-upload-img {
+  text-align: center;
+  background: none;
+}
+.icon-big-upload-img:before {
+  font-family: Mw_mifonts;
+  content: "\f632";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-big-collect-img {
+  text-align: center;
+  background: none;
+}
+.icon-big-collect-img:before {
+  font-family: Mw_mifonts;
+  content: "\f633";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-big-capture-img {
+  text-align: center;
+  background: none;
+}
+.icon-big-capture-img:before {
+  font-family: Mw_mifonts;
+  content: "\f634";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-stacked-diag {
+  text-align: center;
+  background: none;
+}
+.icon-stacked-diag:before {
+  font-family: Mw_mifonts;
+  content: "\f636";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-rose-diag {
+  text-align: center;
+  background: none;
+}
+.icon-rose-diag:before {
+  font-family: Mw_mifonts;
+  content: "\f637";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-curve-diag {
+  text-align: center;
+  background: none;
+}
+.icon-curve-diag:before {
+  font-family: Mw_mifonts;
+  content: "\f638";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-thermal-diag {
+  text-align: center;
+  background: none;
+}
+.icon-thermal-diag:before {
+  font-family: Mw_mifonts;
+  content: "\f639";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-bar-diag {
+  text-align: center;
+  background: none;
+}
+.icon-bar-diag:before {
+  font-family: Mw_mifonts;
+  content: "\f640";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-bar-graph {
+  text-align: center;
+  background: none;
+}
+.icon-bar-graph:before {
+  font-family: Mw_mifonts;
+  content: "\f641";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-cloud-chart {
+  text-align: center;
+  background: none;
+}
+.icon-cloud-chart:before {
+  font-family: Mw_mifonts;
+  content: "\f642";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-chart-pie {
+  text-align: center;
+  background: none;
+}
+.icon-chart-pie:before {
+  font-family: Mw_mifonts;
+  content: "\f594";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-chart-bar {
+  text-align: center;
+  background: none;
+}
+.icon-chart-bar:before {
+  font-family: Mw_mifonts;
+  content: "\f592";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-chart-doughnut {
+  text-align: center;
+  background: none;
+}
+.icon-chart-doughnut:before {
+  font-family: Mw_mifonts;
+  content: "\f596";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-chart-radar {
+  text-align: center;
+  background: none;
+}
+.icon-chart-radar:before {
+  font-family: Mw_mifonts;
+  content: "\f597";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-measurement {
+  text-align: center;
+  background: none;
+}
+.icon-measurement:before {
+  font-family: Mw_mifonts;
+  content: "\f644";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-filtering {
+  text-align: center;
+  background: none;
+}
+.icon-filtering:before {
+  font-family: Mw_mifonts;
+  content: "\f645";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-gain {
+  text-align: center;
+  background: none;
+}
+.icon-gain:before {
+  font-family: Mw_mifonts;
+  content: "\f646";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-walking-speed {
+  text-align: center;
+  background: none;
+}
+.icon-walking-speed:before {
+  font-family: Mw_mifonts;
+  content: "\f647";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-volume-up {
+  text-align: center;
+  background: none;
+}
+.icon-volume-up:before {
+  font-family: Mw_mifonts;
+  content: "\f1018";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-right-black {
+  text-align: center;
+  background: none;
+}
+.icon-right-black:before {
+  font-family: Mw_mifonts;
+  content: "\f1019";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-dbl-user {
+  text-align: center;
+  background: none;
+}
+.icon-dbl-user:before {
+  font-family: Mw_mifonts;
+  content: "\f1020";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-paper-pen-black {
+  text-align: center;
+  background: none;
+}
+.icon-paper-pen-black:before {
+  font-family: Mw_mifonts;
+  content: "\f1021";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-pen-black {
+  text-align: center;
+  background: none;
+}
+.icon-pen-black:before {
+  font-family: Mw_mifonts;
+  content: "\f1022";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-reorder {
+  text-align: center;
+  background: none;
+}
+.icon-reorder:before {
+  font-family: Mw_mifonts;
+  content: "\f662";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-bed-allocated {
+  text-align: center;
+  background: none;
+}
+.icon-bed-allocated:before {
+  font-family: Mw_mifonts;
+  content: "\f663";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-big-font-size {
+  text-align: center;
+  background: none;
+}
+.icon-big-font-size:before {
+  font-family: Mw_mifonts;
+  content: "\f648";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-big-insert-spec {
+  text-align: center;
+  background: none;
+}
+.icon-big-insert-spec:before {
+  font-family: Mw_mifonts;
+  content: "\f649";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-big-prev-diag {
+  text-align: center;
+  background: none;
+}
+.icon-big-prev-diag:before {
+  font-family: Mw_mifonts;
+  content: "\f650";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-big-molecular-order {
+  text-align: center;
+  background: none;
+}
+.icon-big-molecular-order:before {
+  font-family: Mw_mifonts;
+  content: "\f651";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-big-tec-order {
+  text-align: center;
+  background: none;
+}
+.icon-big-tec-order:before {
+  font-family: Mw_mifonts;
+  content: "\f652";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-big-spec-clean {
+  text-align: center;
+  background: none;
+}
+.icon-big-spec-clean:before {
+  font-family: Mw_mifonts;
+  content: "\f653";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-big-print-slides {
+  text-align: center;
+  background: none;
+}
+.icon-big-print-slides:before {
+  font-family: Mw_mifonts;
+  content: "\f654";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-big-material-coll {
+  text-align: center;
+  background: none;
+}
+.icon-big-material-coll:before {
+  font-family: Mw_mifonts;
+  content: "\f655";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-three-slices {
+  text-align: center;
+  background: none;
+}
+.icon-three-slices:before {
+  font-family: Mw_mifonts;
+  content: "\f1023";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-msg-processed {
+  text-align: center;
+  background: none;
+}
+.icon-msg-processed:before {
+  font-family: Mw_mifonts;
+  content: "\f665";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-patient-information {
+  text-align: center;
+  background: none;
+}
+.icon-patient-information:before {
+  font-family: Mw_mifonts;
+  content: "\f664";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-system-language {
+  text-align: center;
+  background: none;
+}
+.icon-system-language:before {
+  font-family: Mw_mifonts;
+  content: "\f667";
+}
+/*在列上显示icon-xx时图标时,不显示图标,且不居中问题 2911539*/
+.icon-system-style {
+  text-align: center;
+  background: none;
+}
+.icon-system-style:before {
+  font-family: Mw_mifonts;
+  content: "\f668";
+}
 .icon-inpatient:before,
 .icon-outpatient:before,
 .icon-emergency:before,
@@ -7887,7 +8590,13 @@ tree-icon tree-file显示默认的文件图标
 .icon-evaluate-green:before,
 .icon-quality:before,
 .icon-mass-injury:before,
-.icon-implant:before {
+.icon-implant:before,
+.icon-priority:before,
+.icon-infection:before,
+.icon-high-risk-red:before,
+.icon-high-risk-orange:before,
+.icon-high-risk-yellow:before,
+.icon-high-risk-green:before {
   font-size: 12px;
   display: inline-block;
   width: 14px;
@@ -8067,13 +8776,13 @@ tree-icon tree-file显示默认的文件图标
 .icon-macpw:before {
   content: "径";
   background: #FFE9FE;
-  border: 1px solid #F17AE9 ;
+  border: 1px solid #F17AE9;
   color: #F340E7;
 }
 .icon-macpworder:before {
   content: "嘱";
-  background: #EFF9FF ;
-  border: 1px solid #22A1FF ;
+  background: #EFF9FF;
+  border: 1px solid #22A1FF;
   color: #0086FF;
 }
 .icon-gcp::before {
@@ -8123,6 +8832,52 @@ tree-icon tree-file显示默认的文件图标
   background: #EFF9FF;
   border: 1px solid #22A1FF;
   color: #0086FF;
+}
+.icon-priority:before {
+  content: "优";
+  background: #ff4e00;
+  border: 1px solid #e49472;
+  color: #FFFFFF;
+}
+/* 7450033 【图标维护】HISUI极简风格组件库，汉字图标（16*16）图标维护 */
+.icon-infection:before {
+  content: "传";
+  background: #F4E5F9;
+  border: 1px solid #DE99F5;
+  color: #8C07BB;
+}
+.icon-high-risk-red:before {
+  content: "高";
+  background: #FA6D5F;
+  border: 1px solid #F22B2B;
+  color: #FFFFFF;
+}
+.icon-high-risk-orange:before {
+  content: "高";
+  background: #F7AA2F;
+  border: 1px solid #F68300;
+  color: #FFFFFF;
+}
+.icon-high-risk-yellow:before {
+  content: "高";
+  background: #FFDD00;
+  border: 1px solid #FFBC20;
+  color: #FFFFFF;
+}
+.icon-high-risk-green:before {
+  content: "高";
+  background: #28CF00;
+  border: 1px solid #28BA05;
+  color: #FFFFFF;
+}
+.icon-page-first:before,
+.icon-page-prev:before,
+.icon-page-next:before,
+.icon-page-last:before {
+  font-size: 10px;
+}
+.icon-page-load:before {
+  font-size: 14px;
 }
 .pic-pat-babyboy {
   background: url('icons/lite/pat/babyboy.png') no-repeat center center;
@@ -8174,6 +8929,24 @@ tree-icon tree-file显示默认的文件图标
 }
 .pic-pat-unknown-gender {
   background: url('icons/lite/pat/unknown_gender.png') no-repeat center center;
+  background-size: contain;
+  width: 100%;
+  height: 100%;
+}
+.pic-pat-man-no-bg {
+  background: url('icons/lite/pat/man_no_bg.png') no-repeat center center;
+  background-size: contain;
+  width: 100%;
+  height: 100%;
+}
+.pic-pat-woman-no-bg {
+  background: url('icons/lite/pat/woman_no_bg.png') no-repeat center center;
+  background-size: contain;
+  width: 100%;
+  height: 100%;
+}
+.pic-pat-unknown-gender-no-bg {
+  background: url('icons/lite/pat/unknown_gender_no_bg.png') no-repeat center center;
   background-size: contain;
   width: 100%;
   height: 100%;
@@ -8404,6 +9177,9 @@ a {
   color: #339eff;
 }
 /*chrome默认了outline*/
+input:focus-visible {
+  outline: none;
+}
 input,
 textarea {
   outline-width: 0;
@@ -8444,6 +9220,9 @@ textarea {
 }
 .panel-title {
   background-image: none;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 .panel-header,
 .panel-body {
@@ -9725,6 +10504,88 @@ textarea:-ms-input-placeholder {
 .tabs-system li.tabs-selected .tabs-close {
   color: #339eff;
 }
+/* 溢出页签下拉按钮（overflowMenu 模式） */
+/* 溢出页签下拉按钮（overflowMenu 模式） */
+.tabs-overflow-menu.menu {
+  padding: 10px;
+}
+.tabs-overflow-menu.menu .menu-item {
+  padding: 0px 10px;
+  border-radius: 6px;
+}
+.tabs-overflow-menu.menu .menu-item.tabs-overflow-menu-selected {
+  /* 溢出菜单中当前选中页签的菜单项高亮 */
+  background-color: #d7e9ff;
+}
+.tabs-overflow-menu.menu .menu-text {
+  padding-left: 0px;
+  padding-right: 26px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.tabs-overflow-menu.menu .menu-active {
+  background-color: #e4f0fe;
+  border-color: #e4f0fe;
+}
+/* 溢出页签下拉按钮（overflowMenu 模式） */
+.tabs-overflow-btn {
+  position: absolute;
+  top: 4px;
+  bottom: 0;
+  right: 4px;
+  width: 28px;
+  display: none;
+  border-radius: 6px;
+  cursor: pointer;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tabs-overflow-btn:hover {
+  background-color: #d7e9ff;
+}
+.tabs-overflow-btn a.tabs-overflow-btn-icon {
+  display: inline-block;
+  color: #666666;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  opacity: 0.8;
+  margin: 1px 6px 6px 6px;
+}
+.tabs-overflow-btn a.tabs-overflow-btn-icon:hover {
+  opacity: 1;
+}
+.tabs-overflow-btn a.tabs-overflow-btn-icon:before {
+  font-family: Mw_mifonts;
+  content: "\f195";
+}
+/* 溢出菜单中的关闭按钮 */
+.tabs-overflow-menu-close {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  font-size: 10px;
+  margin-top: 10px;
+  color: #939393;
+  text-decoration: none;
+  opacity: 0.6;
+  font-family: Mw_mifonts;
+  position: absolute;
+  right: 10px;
+}
+.tabs-overflow-menu-close::before {
+  content: "\f480";
+}
+.tabs-overflow-menu-close:hover {
+  opacity: 1;
+  background-color: transparent;
+  color: #FC494F;
+}
 .l-btn-text {
   min-width: 0;
   /*@linkbutton-text-width;*/
@@ -9890,7 +10751,7 @@ textarea:-ms-input-placeholder {
 .l-btn-waiting:hover,
 .l-btn.hover-dark.l-btn-waiting:hover,
 .l-btn.hover-dark.l-btn-waiting {
-  opacity: 1.0;
+  opacity: 1;
   filter: alpha(opacity=100);
   background: #E5E5E5;
   color: #999999;
@@ -10567,6 +11428,18 @@ td.datagrid-value-changed {
 .datebox-button {
   background-color: #F4F4F4;
 }
+.datebox-button .date-today-btn {
+  font-size: 12px;
+  color: #449edd;
+}
+.datebox-button .date-close-btn {
+  font-size: 12px;
+  color: #ff2600;
+}
+.datebox-button .date-ok-btn {
+  font-size: 12px;
+  color: #ff2600;
+}
 .datebox-button a {
   color: #444;
 }
@@ -10770,7 +11643,453 @@ td.datagrid-value-changed {
 .searchbox .l-btn-plain:hover {
   border: 0;
   padding: 0;
-  opacity: 1.0;
+  opacity: 1;
+  filter: alpha(opacity=100);
+  -moz-border-radius: 0 0 0 0;
+  -webkit-border-radius: 0 0 0 0;
+  border-radius: 0 0 0 0;
+}
+.searchbox a.m-btn-plain-active {
+  -moz-border-radius: 0 0 0 0;
+  -webkit-border-radius: 0 0 0 0;
+  border-radius: 0 0 0 0;
+}
+.searchbox-button::before {
+  content: "\f018";
+}
+.searchbox {
+  border-color: #baddff;
+  /*#95B8E7;*/
+  background-color: #fcfdff;
+}
+.searchbox .l-btn-plain {
+  background: #E0ECFF;
+}
+.searchbox .l-btn-plain-disabled,
+.searchbox .l-btn-plain-disabled:hover {
+  opacity: 1;
+  filter: alpha(opacity=100);
+}
+.calendar {
+  border-width: 1px;
+  border-style: solid;
+  padding: 1px;
+  overflow: hidden;
+}
+.calendar table {
+  table-layout: fixed;
+  border-collapse: separate;
+  font-size: 12px;
+  width: 100%;
+  height: 100%;
+}
+.calendar table td,
+.calendar table th {
+  font-size: 12px;
+}
+.calendar-noborder {
+  border: 0;
+}
+.calendar-header {
+  position: relative;
+  height: 22px;
+}
+.calendar-title {
+  text-align: center;
+  height: 22px;
+}
+.calendar-title span {
+  position: relative;
+  display: inline-block;
+  top: 2px;
+  padding: 0 3px;
+  height: 18px;
+  line-height: 18px;
+  font-size: 12px;
+  cursor: pointer;
+  -moz-border-radius: 5px 5px 5px 5px;
+  -webkit-border-radius: 5px 5px 5px 5px;
+  border-radius: 5px 5px 5px 5px;
+}
+.calendar-prevmonth,
+.calendar-nextmonth,
+.calendar-prevyear,
+.calendar-nextyear {
+  position: absolute;
+  top: 50%;
+  margin-top: -7px;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  font-size: 1px;
+  -moz-border-radius: 5px 5px 5px 5px;
+  -webkit-border-radius: 5px 5px 5px 5px;
+  border-radius: 5px 5px 5px 5px;
+}
+.calendar-prevmonth {
+  left: 20px;
+  background: url('images/calendar_arrows.png') no-repeat -18px -2px;
+}
+.calendar-nextmonth {
+  right: 20px;
+  background: url('images/calendar_arrows.png') no-repeat -34px -2px;
+}
+.calendar-prevyear {
+  left: 3px;
+  background: url('images/calendar_arrows.png') no-repeat -1px -2px;
+}
+.calendar-nextyear {
+  right: 3px;
+  background: url('images/calendar_arrows.png') no-repeat -49px -2px;
+}
+.calendar-body {
+  position: relative;
+}
+.calendar-body th,
+.calendar-body td {
+  text-align: center;
+}
+.calendar-day {
+  border: 0;
+  padding: 1px;
+  cursor: pointer;
+  -moz-border-radius: 5px 5px 5px 5px;
+  -webkit-border-radius: 5px 5px 5px 5px;
+  border-radius: 5px 5px 5px 5px;
+}
+.calendar-other-month {
+  opacity: 0.6;
+  filter: alpha(opacity=60);
+}
+.calendar-disabled {
+  opacity: 0.2;
+  filter: alpha(opacity=20);
+  cursor: default;
+}
+.calendar-menu {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 180px;
+  height: 150px;
+  padding: 5px;
+  font-size: 12px;
+  display: none;
+  overflow: hidden;
+}
+.calendar-menu-year-inner {
+  text-align: center;
+  padding-bottom: 5px;
+}
+.calendar-menu-year {
+  width: 40px;
+  text-align: center;
+  border-width: 1px;
+  border-style: solid;
+  margin: 0;
+  padding: 2px;
+  font-weight: bold;
+  font-size: 12px;
+}
+.calendar-menu-prev,
+.calendar-menu-next {
+  display: inline-block;
+  width: 21px;
+  height: 21px;
+  vertical-align: top;
+  cursor: pointer;
+  -moz-border-radius: 5px 5px 5px 5px;
+  -webkit-border-radius: 5px 5px 5px 5px;
+  border-radius: 5px 5px 5px 5px;
+}
+.calendar-menu-prev {
+  margin-right: 10px;
+  background: url('images/calendar_arrows.png') no-repeat 2px 2px;
+}
+.calendar-menu-next {
+  margin-left: 10px;
+  background: url('images/calendar_arrows.png') no-repeat -45px 2px;
+}
+.calendar-menu-month {
+  text-align: center;
+  cursor: pointer;
+  font-weight: bold;
+  -moz-border-radius: 5px 5px 5px 5px;
+  -webkit-border-radius: 5px 5px 5px 5px;
+  border-radius: 5px 5px 5px 5px;
+}
+.calendar-body th,
+.calendar-menu-month {
+  color: #4d4d4d;
+}
+.calendar-day {
+  color: #000000;
+}
+.calendar-sunday {
+  color: #CC2222;
+}
+.calendar-saturday {
+  color: #00ee00;
+}
+.calendar-today {
+  color: #0000ff;
+}
+.calendar-menu-year {
+  border-color: #95B8E7;
+}
+.calendar {
+  border-color: #95B8E7;
+}
+.calendar-header {
+  background: #E0ECFF;
+}
+.calendar-body,
+.calendar-menu {
+  background: #ffffff;
+}
+.calendar-body th {
+  background: #F4F4F4;
+  padding: 2px 0;
+}
+.calendar-hover,
+.calendar-nav-hover,
+.calendar-menu-hover {
+  background-color: #eaf2ff;
+  color: #000000;
+}
+.calendar-hover {
+  border: 1px solid #b7d2ff;
+  padding: 0;
+}
+.calendar-selected {
+  background-color: #ffe48d;
+  color: #000000;
+  border: 1px solid #ffab3f;
+  padding: 0;
+}
+/*日历最下面的today close*/
+.datebox-button a {
+  font-size: 12px;
+}
+.datebox-button {
+  background-color: #F4F4F4;
+}
+.datebox-button .date-today-btn {
+  font-size: 12px;
+  color: #449edd;
+}
+.datebox-button .date-close-btn {
+  font-size: 12px;
+  color: #ff2600;
+}
+.datebox-button .date-ok-btn {
+  font-size: 12px;
+  color: #ff2600;
+}
+.datebox-button a {
+  color: #444;
+}
+.datebox .combo-arrow {
+  background: none;
+}
+.datetimebox-f + .datebox .combo-arrow::before {
+  content: "\f044";
+}
+.datebox .combo-arrow::before {
+  content: "\f024";
+}
+/*.numberbox {
+  border: 1px solid #95B8E7;
+  margin: 0;
+  padding: 0 2px;
+  vertical-align: middle;
+}
+*/
+.spinner {
+  display: inline-block;
+  white-space: nowrap;
+  margin: 0;
+  padding: 0;
+  border-width: 1px;
+  border-style: solid;
+  overflow: hidden;
+  vertical-align: middle;
+  -moz-border-radius: 2px;
+  -webkit-border-radius: 2px;
+  border-radius: 2px;
+  /*20221010 disabled样式覆盖:hover样式*/
+}
+.spinner .spinner-arrow {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  margin: 0;
+  padding: 0;
+  background-color: #ffffff;
+}
+.spinner .spinner-arrow .spinner-arrow-hover {
+  opacity: 1;
+  filter: alpha(opacity=100);
+  color: #339eff;
+  background-color: #d5eefe;
+}
+.spinner:hover,
+.spinner.spinner-hover {
+  background-color: #eff9ff;
+  border-color: #339eff;
+}
+.spinner.disabled {
+  background-color: #F5F5F5;
+  border-color: #CCCCCC;
+}
+.spinner.disabled .spinner-arrow {
+  background-color: #F5F5F5;
+}
+.spinner.disabled .spinner-arrow .spinner-arrow-up {
+  background-image: none;
+  color: #999999;
+}
+.spinner.disabled .spinner-arrow .spinner-arrow-down {
+  background-image: none;
+  color: #999999;
+}
+.spinner .spinner-text {
+  font-size: 14px;
+  border: 0px;
+  line-height: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0 0 0 5px;
+  *margin-top: -1px;
+  *height: 26px;
+  *line-height: 26px;
+  _height: 26px;
+  _line-height: 26px;
+  vertical-align: baseline;
+}
+.spinner-arrow-up::before {
+  content: "\f477";
+}
+.spinner-arrow-down::before {
+  content: "\f476";
+}
+.spinner {
+  border-color: #baddff;
+}
+.progressbar {
+  border-width: 1px;
+  border-style: solid;
+  -moz-border-radius: 5px 5px 5px 5px;
+  -webkit-border-radius: 5px 5px 5px 5px;
+  border-radius: 5px 5px 5px 5px;
+  overflow: hidden;
+  position: relative;
+}
+.progressbar-text {
+  text-align: center;
+  position: absolute;
+}
+.progressbar-value {
+  position: relative;
+  overflow: hidden;
+  width: 0;
+  -moz-border-radius: 5px 0 0 5px;
+  -webkit-border-radius: 5px 0 0 5px;
+  border-radius: 5px 0 0 5px;
+}
+.progressbar {
+  border-color: #95B8E7;
+}
+.progressbar-text {
+  color: #000000;
+  font-size: 12px;
+}
+.progressbar-value .progressbar-text {
+  background-color: #ffe48d;
+  color: #000000;
+}
+.searchbox {
+  display: inline-block;
+  white-space: nowrap;
+  margin: 0;
+  padding: 0;
+  border-width: 1px;
+  border-style: solid;
+  overflow: hidden;
+  vertical-align: middle;
+  -moz-border-radius: 2px;
+  -webkit-border-radius: 2px;
+  border-radius: 2px;
+}
+.searchbox.disabled {
+  border-color: #CCCCCC;
+}
+.searchbox.disabled .searchbox-button {
+  background-color: #F5F5F5;
+  background-image: url('images/searchbox_button_disable.png');
+}
+.searchbox:hover,
+.searchbox.searchbox-hover {
+  background-color: #eff9ff;
+  border-color: #339eff;
+}
+.searchbox .searchbox-text {
+  font-size: 14px;
+  border: 0;
+  margin: 0;
+  padding: 0 5px;
+  *margin-top: -1px;
+  vertical-align: top;
+}
+.searchbox .searchbox-text:active {
+  background-color: #eff9ff;
+}
+.searchbox .searchbox-text:disabled {
+  background-color: #F5F5F5;
+}
+.searchbox .searchbox-text:focus {
+  background-color: #eff9ff;
+}
+.searchbox .searchbox-text:focus + span > span {
+  /*20190710*/
+  opacity: 1;
+  filter: alpha(opacity=100);
+  background-color: #eff9ff;
+}
+.searchbox .searchbox-prompt {
+  font-size: 14px;
+  color: #ccc;
+}
+.searchbox-button {
+  width: 30px;
+  height: 28px;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: top;
+  cursor: pointer;
+  opacity: 1;
+  filter: alpha(opacity=100);
+}
+.searchbox-button.searchbox-button-hover {
+  opacity: 1;
+  filter: alpha(opacity=100);
+  background-color: #eff9ff;
+  color: #339eff;
+}
+.searchbox .l-btn-plain {
+  border: 0;
+  padding: 0;
+  vertical-align: top;
+  opacity: 0.6;
+  filter: alpha(opacity=60);
+  -moz-border-radius: 0 0 0 0;
+  -webkit-border-radius: 0 0 0 0;
+  border-radius: 0 0 0 0;
+}
+.searchbox .l-btn-plain:hover {
+  border: 0;
+  padding: 0;
+  opacity: 1;
   filter: alpha(opacity=100);
   -moz-border-radius: 0 0 0 0;
   -webkit-border-radius: 0 0 0 0;
@@ -11440,7 +12759,7 @@ td.datagrid-value-changed {
   -moz-border-radius: 2px;
   -webkit-border-radius: 2px;
   border-radius: 2px;
-  opacity: 1.0;
+  opacity: 1;
   filter: opacity(100);
 }
 .accordiontree.tree > li > .tree-node .tree-icon {
@@ -11652,6 +12971,10 @@ label.radio.right {
   padding-left: 0px;
   padding-right: 24px;
 }
+label.checkbox:empty,
+label.radio:empty {
+  padding-left: 16px;
+}
 label.radio {
   background-position-x: -6px;
   background-position-y: -120px;
@@ -11741,7 +13064,7 @@ label.hischeckbox_square-blue.radio.right {
   height: 20px;
 }
 .has-switch.switch-mini i.switch-mini-icons {
-  height: 1.20em;
+  height: 1.2em;
   line-height: 9px;
   vertical-align: text-top;
   text-align: center;
@@ -12258,17 +13581,17 @@ label.hischeckbox_square-blue.radio.right {
   -webkit-transition-property: "opacity,transform";
   -o-transition-property: "opacity,transform";
   transition-property: "opacity,transform";
-  -webkit-transition: .15s linear;
-  -o-transition: .15s linear;
-  transition: .15s linear;
+  -webkit-transition: 0.15s linear;
+  -o-transition: 0.15s linear;
+  transition: 0.15s linear;
   opacity: 0;
   filter: alpha(opacity=0);
 }
 .webui-popover.fade,
 .webui-popover.fade-out {
-  -webkit-transition: opacity .15s linear;
-  -o-transition: opacity .15s linear;
-  transition: opacity .15s linear;
+  -webkit-transition: opacity 0.15s linear;
+  -o-transition: opacity 0.15s linear;
+  transition: opacity 0.15s linear;
   opacity: 0;
   filter: alpha(opacity=0);
 }
@@ -12302,19 +13625,19 @@ label.hischeckbox_square-blue.radio.right {
   line-height: 16px;
   color: #000;
   text-shadow: 0 1px 0 #fff;
-  opacity: .2;
+  opacity: 0.2;
   filter: alpha(opacity=20);
   text-decoration: none;
 }
 .webui-popover-inner .close:hover,
 .webui-popover-inner .close:focus {
-  opacity: .5;
+  opacity: 0.5;
   filter: alpha(opacity=50);
 }
 .webui-popover-inner .close:after {
   content: "\00D7";
-  width: .8em;
-  height: .8em;
+  width: 0.8em;
+  height: 0.8em;
   padding: 4px;
   position: relative;
 }
@@ -12750,11 +14073,11 @@ ul.kw-section-list::after {
   display: inline-block;
   vertical-align: top;
   cursor: pointer;
-  opacity: 1.0;
+  opacity: 1;
   filter: alpha(opacity=100);
 }
 .triggerbox-button-hover {
-  opacity: 1.0;
+  opacity: 1;
   filter: alpha(opacity=100);
   background-color: #eff9ff;
   color: #339EFF;
@@ -12772,7 +14095,7 @@ ul.kw-section-list::after {
 .triggerbox .l-btn-plain:hover {
   border: 0;
   padding: 0;
-  opacity: 1.0;
+  opacity: 1;
   filter: alpha(opacity=100);
   -moz-border-radius: 0 0 0 0;
   -webkit-border-radius: 0 0 0 0;
@@ -12812,7 +14135,7 @@ ul.kw-section-list::after {
       }*/
 }
 .triggerbox.triggerbox-plain .triggerbox-button.triggerbox-button-hover {
-  opacity: 1.0;
+  opacity: 1;
   filter: alpha(opacity=100);
   background-color: #eff9ff;
   color: #339eff;
@@ -13181,6 +14504,12 @@ input.timeboxq::-ms-clear {
   border-radius: 4px;
   background-color: #fcfdff;
   overflow: auto;
+}
+.menutree .menutree-tree-wrap.menutree-tree-accordion {
+  overflow-y: hidden;
+}
+.menutree .menutree-tree-wrap.menutree-tree-accordion .menutree-tree.tree > li > ul {
+  overflow-y: auto;
 }
 .menutree .menutree-tree-wrap .menutree-tree.tree {
   border: 0px solid #E5E5E5;
@@ -13647,6 +14976,48 @@ input.timeboxq::-ms-clear {
   background-position-x: -36px;
   color: red;
   cursor: pointer;
+}
+.combogridmult {
+  position: relative;
+  overflow-y: auto;
+  max-height: 150px;
+}
+span.combogridmult-label {
+  position: relative;
+  display: block;
+  margin: 4px 0 0 4px;
+  padding: 0 20px 0 4px;
+  float: left;
+  text-decoration: none;
+  border-radius: 5px 5px 5px 5px;
+  background: #eaf2ff;
+  color: #000000;
+}
+.textbox-addon {
+  position: absolute;
+}
+.textbox-addon-right {
+  right: 0px;
+  bottom: 0px;
+  height: 100%;
+}
+.combogridmult .combo-text {
+  float: left;
+}
+.combogridmult .combo-arrow {
+  height: 100%!important;
+}
+.combogridmult-remove {
+  background: url(../css/images/tabs_icons_2.png) no-repeat 0px center;
+  position: absolute;
+  display: block;
+  width: 16px;
+  height: 16px;
+  right: 2px;
+  top: 50%;
+  margin-top: -8px;
+  opacity: 0.6;
+  filter: 60;
 }
 /*
 width可以改变右边滚动条的宽度

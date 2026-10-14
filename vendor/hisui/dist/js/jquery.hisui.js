@@ -1,3 +1,150 @@
+/*
+    json2.js
+    2013-05-26
+
+    Public Domain.
+
+    NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
+
+    See http://www.JSON.org/js.html
+
+
+    This code should be minified before deployment.
+    See http://javascript.crockford.com/jsmin.html
+
+    USE YOUR OWN COPY. IT IS EXTREMELY UNWISE TO LOAD CODE FROM SERVERS YOU DO
+    NOT CONTROL.
+
+
+    This file creates a global JSON object containing two methods: stringify
+    and parse.
+
+        JSON.stringify(value, replacer, space)
+            value       any JavaScript value, usually an object or array.
+
+            replacer    an optional parameter that determines how object
+                        values are stringified for objects. It can be a
+                        function or an array of strings.
+
+            space       an optional parameter that specifies the indentation
+                        of nested structures. If it is omitted, the text will
+                        be packed without extra whitespace. If it is a number,
+                        it will specify the number of spaces to indent at each
+                        level. If it is a string (such as '\t' or '&nbsp;'),
+                        it contains the characters used to indent at each level.
+
+            This method produces a JSON text from a JavaScript value.
+
+            When an object value is found, if the object contains a toJSON
+            method, its toJSON method will be called and the result will be
+            stringified. A toJSON method does not serialize: it returns the
+            value represented by the name/value pair that should be serialized,
+            or undefined if nothing should be serialized. The toJSON method
+            will be passed the key associated with the value, and this will be
+            bound to the value
+
+            For example, this would serialize Dates as ISO strings.
+
+                Date.prototype.toJSON = function (key) {
+                    function f(n) {
+                        // Format integers to have at least two digits.
+                        return n < 10 ? '0' + n : n;
+                    }
+
+                    return this.getUTCFullYear()   + '-' +
+                         f(this.getUTCMonth() + 1) + '-' +
+                         f(this.getUTCDate())      + 'T' +
+                         f(this.getUTCHours())     + ':' +
+                         f(this.getUTCMinutes())   + ':' +
+                         f(this.getUTCSeconds())   + 'Z';
+                };
+
+            You can provide an optional replacer method. It will be passed the
+            key and value of each member, with this bound to the containing
+            object. The value that is returned from your method will be
+            serialized. If your method returns undefined, then the member will
+            be excluded from the serialization.
+
+            If the replacer parameter is an array of strings, then it will be
+            used to select the members to be serialized. It filters the results
+            such that only members with keys listed in the replacer array are
+            stringified.
+
+            Values that do not have JSON representations, such as undefined or
+            functions, will not be serialized. Such values in objects will be
+            dropped; in arrays they will be replaced with null. You can use
+            a replacer function to replace those with JSON values.
+            JSON.stringify(undefined) returns undefined.
+
+            The optional space parameter produces a stringification of the
+            value that is filled with line breaks and indentation to make it
+            easier to read.
+
+            If the space parameter is a non-empty string, then that string will
+            be used for indentation. If the space parameter is a number, then
+            the indentation will be that many spaces.
+
+            Example:
+
+            text = JSON.stringify(['e', {pluribus: 'unum'}]);
+            // text is '["e",{"pluribus":"unum"}]'
+
+
+            text = JSON.stringify(['e', {pluribus: 'unum'}], null, '\t');
+            // text is '[\n\t"e",\n\t{\n\t\t"pluribus": "unum"\n\t}\n]'
+
+            text = JSON.stringify([new Date()], function (key, value) {
+                return this[key] instanceof Date ?
+                    'Date(' + this[key] + ')' : value;
+            });
+            // text is '["Date(---current time---)"]'
+
+
+        JSON.parse(text, reviver)
+            This method parses a JSON text to produce an object or array.
+            It can throw a SyntaxError exception.
+
+            The optional reviver parameter is a function that can filter and
+            transform the results. It receives each of the keys and values,
+            and its return value is used instead of the original value.
+            If it returns what it received, then the structure is not modified.
+            If it returns undefined then the member is deleted.
+
+            Example:
+
+            // Parse the text. Values that look like ISO date strings will
+            // be converted to Date objects.
+
+            myData = JSON.parse(text, function (key, value) {
+                var a;
+                if (typeof value === 'string') {
+                    a =
+/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}(?:\.\d*)?)Z$/.exec(value);
+                    if (a) {
+                        return new Date(Date.UTC(+a[1], +a[2] - 1, +a[3], +a[4],
+                            +a[5], +a[6]));
+                    }
+                }
+                return value;
+            });
+
+            myData = JSON.parse('["Date(09/09/2001)"]', function (key, value) {
+                var d;
+                if (typeof value === 'string' &&
+                        value.slice(0, 5) === 'Date(' &&
+                        value.slice(-1) === ')') {
+                    d = new Date(value.slice(5, -1));
+                    if (d) {
+                        return d;
+                    }
+                }
+                return value;
+            });
+
+
+    This is a reference implementation. You are free to copy, modify, or
+    redistribute.
+*/
 if (typeof JSON !== "object") {
     JSON = {};
 }
@@ -149,8 +296,26 @@ if (typeof JSON !== "object") {
     }
 })();
 
-(function(c) {
-    c.hisui = {
+/**
+ * jQuery HISUI 0.1.0
+ * 
+ * Copyright (c) 2009-2014 www.jeasyui.com. All rights reserved.
+ *
+ * Licensed under the GPL license: http://www.gnu.org/licenses/gpl.txt
+ * To use it on other terms please contact us at info@jeasyui.com
+ *
+ */
+(function(v) {
+    v.expr.pseudos.visibleOrZeroSize = function(e) {
+        if (v(e).css("display") === "none") {
+            return false;
+        }
+        var t = v(e).parents().filter(function() {
+            return v(this).css("display") === "none";
+        }).length > 0;
+        return !t;
+    };
+    v.hisui = {
         indexOfArray: function(e, t, i) {
             for (var a = 0, n = e.length; a < n; a++) {
                 if (i == undefined) {
@@ -246,12 +411,12 @@ if (typeof JSON !== "object") {
         },
         hisuiStyle: null,
         getHisuiStyle: function() {
-            if (c.hisui.hisuiStyle === null) {
+            if (v.hisui.hisuiStyle === null) {
                 var t = "";
                 if (typeof HISUIStyleCode == "string") {
                     t = HISUIStyleCode;
                 } else {
-                    c("link").each(function() {
+                    v("link").each(function() {
                         if (this.href.indexOf("/hisui.") > -1) {
                             var e = this.href.split("/hisui.")[1].split(".")[0];
                             if (e != "css" && e != "min") {
@@ -263,10 +428,10 @@ if (typeof JSON !== "object") {
                         }
                     });
                 }
-                c.hisui.hisuiStyle = t;
+                v.hisui.hisuiStyle = t;
                 return t;
             } else {
-                return c.hisui.hisuiStyle;
+                return v.hisui.hisuiStyle;
             }
         },
         switchObjectSize: function(e, t, i, a, n) {
@@ -283,24 +448,24 @@ if (typeof JSON !== "object") {
                     if (s) {
                         if (null == s.getAttribute("data-hideTimes")) s.setAttribute("data-hideTimes", 0);
                         if (0 > s.getAttribute("data-hideTimes")) s.setAttribute("data-hideTimes", 0);
-                        if (!c.data(a, "changeIdStr")) {
-                            c.data(a, "changeIdStr", {
+                        if (!v.data(a, "changeIdStr")) {
+                            v.data(a, "changeIdStr", {
                                 NPAPIIdStr: ""
                             });
                         }
                         if (i) {
-                            if (c.data(a, "changeIdStr").NPAPIIdStr.indexOf("," + changeId + ",") < 0) {
+                            if (v.data(a, "changeIdStr").NPAPIIdStr.indexOf("," + changeId + ",") < 0) {
                                 s.setAttribute("data-hideTimes", parseInt(s.getAttribute("data-hideTimes")) + 1);
-                                c.data(a, "changeIdStr").NPAPIIdStr += "," + changeId + ",";
+                                v.data(a, "changeIdStr").NPAPIIdStr += "," + changeId + ",";
                             }
                             s.style.width = "0px";
                             s.style.height = "0px";
                         } else {
-                            if (c.data(a, "changeIdStr").NPAPIIdStr.indexOf("," + changeId + ",") > -1) {
+                            if (v.data(a, "changeIdStr").NPAPIIdStr.indexOf("," + changeId + ",") > -1) {
                                 s.setAttribute("data-hideTimes", parseInt(s.getAttribute("data-hideTimes")) - 1);
                             }
                             if (0 > s.getAttribute("data-hideTimes")) s.setAttribute("data-hideTimes", 0);
-                            c.data(a, "changeIdStr").NPAPIIdStr = c.data(a, "changeIdStr").NPAPIIdStr.replace("," + changeId + ",", "");
+                            v.data(a, "changeIdStr").NPAPIIdStr = v.data(a, "changeIdStr").NPAPIIdStr.replace("," + changeId + ",", "");
                             if (s.getAttribute("data-hideTimes") == 0) {
                                 s.style.width = "100%";
                                 s.style.height = "100%";
@@ -312,6 +477,9 @@ if (typeof JSON !== "object") {
         },
         findObjectDom: function(e, t, i, a, n) {
             if (!!window.ActiveXObject || "ActiveXObject" in window) return;
+            if (navigator.userAgent.indexOf("Chrome/49.") == -1) {
+                return;
+            }
             if (windowNPAPITotal < 0) return;
             n = n || "panel";
             windowNPAPITotal--;
@@ -321,14 +489,14 @@ if (typeof JSON !== "object") {
                 var s = t.frames[o].window;
                 try {
                     var l = s.frameElement.closest(".panel");
-                    if (l && c(l).length > 0 && c(l).is(":hidden")) continue;
+                    if (l && v(l).length > 0 && v(l).is(":hidden")) continue;
                     s.document;
                 } catch (d) {
                     return;
                 }
-                c.hisui.findObjectDom(e, s, i, a, n);
+                v.hisui.findObjectDom(e, s, i, a, n);
             }
-            c.hisui.switchObjectSize(e, t, i, a, n);
+            v.hisui.switchObjectSize(e, t, i, a, n);
         },
         styleCodeConfig: {
             mustCalcPanelHeaderCardTitleWidth: {
@@ -336,7 +504,8 @@ if (typeof JSON !== "object") {
                 blue: true,
                 lite: false,
                 lightblue: false,
-                pure: false
+                pure: false,
+                vben: false
             },
             accordionBodyExHeight: {
                 lite: -1,
@@ -345,99 +514,297 @@ if (typeof JSON !== "object") {
             },
             datagridRowNumberHeaderTitle: {
                 pure: function() {
-                    return c.fn.datagrid.defaults.nocol;
+                    return v.fn.datagrid.defaults.nocol;
+                },
+                vben: function() {
+                    return v.fn.datagrid.defaults.nocol;
                 },
                 "default": ""
             },
-            dateTodayColor: {
-                "default": "#449edd",
-                pure: "#008FFF"
-            },
-            dateCloseColor: {
-                "default": "#ff2600",
-                pure: "#939393"
-            },
-            dateOkColor: {
-                "default": "#ff2600"
-            },
             inputHeight: {
                 "default": 30,
-                pure: 32
+                pure: 32,
+                vben: 32
             },
             messagerPromptBtnIndex: {
                 "default": [ "ok", "cancel" ],
-                pure: [ "cancel", "ok" ]
+                pure: [ "cancel", "ok" ],
+                vben: [ "cancel", "ok" ]
             },
             messagerConfirm3BtnIndex: {
                 "default": [ "ok", "no", "cancel" ],
-                pure: [ "cancel", "no", "ok" ]
+                pure: [ "cancel", "no", "ok" ],
+                vben: [ "cancel", "no", "ok" ]
             },
             messagerConfirmBtnIndex: {
                 "default": [ "ok", "cancel" ],
-                pure: [ "cancel", "ok" ]
+                pure: [ "cancel", "ok" ],
+                vben: [ "cancel", "ok" ]
             },
             messagerFocusBtnIndex: {
                 "default": 0,
-                pure: 1
+                pure: 1,
+                vben: 1
             },
             tabHeight: {
                 "default": 36,
-                pure: 44
+                pure: 44,
+                vben: 44
             },
             dateboxqPanelHeight: {
                 "default": 202,
-                pure: 210
+                pure: 210,
+                vben: 210
             },
             datetimeboxPanelHeight: {
                 "default": 232,
-                pure: 248
+                pure: 248,
+                vben: 248
             },
             collapsedSize: {
                 "default": 28,
-                pure: 56
+                pure: 56,
+                vben: 56
             },
             collapsedHeight: {
                 "default": 38,
-                pure: 56
+                pure: 56,
+                vben: 56
             },
             windowMinWidth: {
                 "default": 10,
-                pure: 474
+                pure: 474,
+                vben: 474
             },
             windowMinHeight: {
                 "default": 10,
-                pure: 274
+                pure: 274,
+                vben: 274
             },
             messagerMinWidth: {
                 "default": 300,
-                pure: 474
+                pure: 474,
+                vben: 474
             },
             panelTitleFontSize: {
                 "default": 14,
-                pure: 18
+                pure: 18,
+                vben: 18
+            },
+            comboboxSelectallPaddingLeft: {
+                "default": 5,
+                pure: 10,
+                vben: 10
+            },
+            popoverPosition: {
+                "default": "center",
+                pure: "top",
+                vben: "top"
             }
         },
         getStyleCodeConfigValue: function(e) {
-            if ("undefined" == typeof HISUIStyleCode) return c.hisui.styleCodeConfig[e]["default"];
-            if ("undefined" == typeof c.hisui.styleCodeConfig[e]) return "";
-            if ("undefined" == typeof c.hisui.styleCodeConfig[e][HISUIStyleCode]) return c.hisui.styleCodeConfig[e]["default"];
-            if ("function" == typeof c.hisui.styleCodeConfig[e][HISUIStyleCode]) {
-                return c.hisui.styleCodeConfig[e][HISUIStyleCode].call();
+            if ("undefined" == typeof HISUIStyleCode) return v.hisui.styleCodeConfig[e]["default"];
+            if ("undefined" == typeof v.hisui.styleCodeConfig[e]) return "";
+            if ("undefined" == typeof v.hisui.styleCodeConfig[e][HISUIStyleCode]) return v.hisui.styleCodeConfig[e]["default"];
+            if ("function" == typeof v.hisui.styleCodeConfig[e][HISUIStyleCode]) {
+                return v.hisui.styleCodeConfig[e][HISUIStyleCode].call();
             }
-            return c.hisui.styleCodeConfig[e][HISUIStyleCode];
+            return v.hisui.styleCodeConfig[e][HISUIStyleCode];
+        },
+        switchVersion: function(e) {
+            window.HISUIStyleCode = e;
+        },
+        switchTheme: function(e) {
+            var t = "";
+            if (typeof HISUIStyleCode == "undefined" || HISUIStyleCode == "blue") {
+                t = "";
+            } else {
+                t = HISUIStyleCode + ".";
+                if ((typeof e == "undefined" || e == "") && HISUIStyleCode == "vben") {
+                    e = "bgseablue";
+                }
+                v("body").attr("data-theme", e);
+                window.HISUITheme = e;
+            }
+            if (window.HISUIJsPath) {
+                var i = window.HISUIJsPath.replace(/\/js\/$/, "/css/");
+                var a = false;
+                var n = document.getElementsByTagName("link");
+                for (var r = 0; r < n.length; r++) {
+                    var o = n[r];
+                    if (o.href.indexOf(i + "hisui.") > -1) {
+                        if (window.HISUIStyleCode == "vben" && o.href.indexOf("hisui.vben.") > -1) {
+                            a = true;
+                        } else {
+                            o.parentNode.removeChild(o);
+                        }
+                    }
+                }
+                if (!a) {
+                    var o = document.createElement("link");
+                    o.id = "hisui-css-theme";
+                    o.rel = "stylesheet";
+                    o.type = "text/css";
+                    o.href = i + "hisui." + t + "min.css";
+                    document.head.appendChild(o);
+                }
+            }
+            v("iframe").each(function() {
+                try {
+                    if (this.contentWindow && this.contentWindow.document && this.contentWindow.document.body) {
+                        this.contentWindow.$.hisui.switchVersion(HISUIStyleCode);
+                        this.contentWindow.$.hisui.switchTheme(HISUITheme);
+                    }
+                } catch (e) {}
+            });
+        },
+        switchLightDrak: function(t) {
+            if (typeof t != "undefined") {
+                t = t == "0" ? "" : t;
+                v("body").attr("data-theme", t ? "bgdark" : "");
+                window.HISUILightDrak = t;
+            } else {
+                if (v("body").attr("data-theme") == "bgdark") {
+                    v("body").attr("data-theme", "");
+                    window.HISUILightDrak = "";
+                } else {
+                    v("body").attr("data-theme", "bgdark");
+                    window.HISUILightDrak = 1;
+                }
+            }
+            v("iframe").each(function() {
+                try {
+                    if (this.contentWindow && this.contentWindow.document && this.contentWindow.document.body) {
+                        this.contentWindow.$.hisui.switchLightDrak(t);
+                    }
+                } catch (e) {}
+            });
+        },
+        switchPrimaryColor: function(t) {
+            if (!t) {
+                return;
+            }
+            v("body").removeClass("high-saturation medium-saturation low-saturation");
+            if (t.indexOf("#") == -1) {
+                t = "#" + t;
+            }
+            var e = v.hisui.hexToHsl(t);
+            window.HISUIColorRGB = t.slice(1);
+            var i = document.body;
+            i.style.setProperty("--primary-color", t);
+            i.style.setProperty("--primary-h", e.h);
+            i.style.setProperty("--primary-s", Math.round(e.s * 100) + "%");
+            i.style.setProperty("--primary-l", Math.round(e.l * 100) + "%");
+            if (e.s > .5 && e.s < .8) {
+                v("body").addClass("medium-saturation");
+            } else if (e.s <= .5) {
+                v("body").addClass("low-saturation");
+            } else {
+                v("body").addClass("high-saturation");
+            }
+            if (e.l > .8) {
+                v("body").addClass("high-lightness");
+            } else {
+                v("body").removeClass("high-lightness");
+            }
+            v("iframe").each(function() {
+                try {
+                    if (this.contentWindow && this.contentWindow.document && this.contentWindow.document.body) {
+                        this.contentWindow.$.hisui.switchPrimaryColor(t);
+                    }
+                } catch (e) {}
+            });
+        },
+        hexToHsl: function(e) {
+            if (!e || typeof e !== "string") return "";
+            const t = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+            if (!t.test(e)) {
+                return "";
+            }
+            let i, a, n;
+            let r = e.substring(1);
+            const o = r.length === 3;
+            const s = parseInt(o ? r[0] + r[0] : r.substring(0, 2), 16) / 255;
+            const l = parseInt(o ? r[1] + r[1] : r.substring(2, 4), 16) / 255;
+            const d = parseInt(o ? r[2] + r[2] : r.substring(4, 6), 16) / 255;
+            const c = Math.max(s, l, d);
+            const f = Math.min(s, l, d);
+            const u = c - f;
+            n = (c + f) / 2;
+            if (u === 0) {
+                i = a = 0;
+            } else {
+                a = u / (1 - Math.abs(2 * n - 1));
+                switch (c) {
+                  case s:
+                    i = (l - d) / u + (l < d ? 6 : 0);
+                    break;
+
+                  case l:
+                    i = (d - s) / u + 2;
+                    break;
+
+                  case d:
+                    i = (s - l) / u + 4;
+                    break;
+                }
+                i = Math.round(i * 60);
+            }
+            return {
+                h: i.toFixed(0),
+                s: a.toFixed(2),
+                l: n.toFixed(2)
+            };
         }
     };
-    c.hisui.globalContainerId = "z-q-container";
-    c.hisui.globalContainerSelector = "#" + c.hisui.globalContainerId;
-    c.hisui.getLastSrcTargetDom = function() {
-        return c.data(document.getElementById(c.hisui.globalContainerId), "data").srcTargetDom;
+    v.hisui.offsetInDialogWindow = function(e, t) {
+        if (!e.getBoundingClientRect) {
+            return v(e).offset();
+        }
+        if (!e.ownerDocument.defaultView) {
+            return v(e).offset();
+        }
+        if (!t && window == e.ownerDocument.defaultView) {
+            return v(e).offset();
+        }
+        var i = 0;
+        var a = 0;
+        var n = t || window;
+        var r = e.ownerDocument.defaultView;
+        var o = e.getBoundingClientRect();
+        i += o.left;
+        a += o.top;
+        var s = r;
+        while (s !== n) {
+            var l = s.frameElement;
+            if (!l) {
+                break;
+            }
+            var d = s.parent;
+            var c = d.document.documentElement;
+            var f = d.document.body;
+            var u = d.pageXOffset !== undefined ? d.pageXOffset : c && c.scrollLeft || f && f.scrollLeft || 0;
+            var h = d.pageYOffset !== undefined ? d.pageYOffset : c && c.scrollTop || f && f.scrollTop || 0;
+            var p = l.getBoundingClientRect();
+            i += p.left + u;
+            a += p.top + h;
+            s = d;
+        }
+        return {
+            left: Math.round(i),
+            top: Math.round(a)
+        };
+    }, v.hisui.globalContainerId = "z-q-container";
+    v.hisui.globalContainerSelector = "#" + v.hisui.globalContainerId;
+    v.hisui.getLastSrcTargetDom = function() {
+        return v.data(document.getElementById(v.hisui.globalContainerId), "data").srcTargetDom;
     };
-    c.hisui.fixPanelTLWH = function() {
-        var n = c.data(document.getElementById(c.hisui.globalContainerId), "data");
+    v.hisui.fixPanelTLWH = function() {
+        var n = v.data(document.getElementById(v.hisui.globalContainerId), "data");
+        if (!n) return;
         var e = n.srcTargetDom;
-        var r = c(e);
-        var o = c(c.hisui.globalContainerSelector);
-        var t = r.offset();
+        var r = v(e);
+        var o = v(v.hisui.globalContainerSelector);
         if (n.offsettimer) {
             clearTimeout(n.offsettimer);
             n.offsettimer = null;
@@ -445,7 +812,7 @@ if (typeof JSON !== "object") {
         (function() {
             if (o.is(":visible")) {
                 var e = parseInt(l());
-                if (e > r.offset().top) {
+                if (e > v.hisui.offsetInDialogWindow(r[0]).top) {
                     e--;
                     o.removeClass("comboq-p-top").addClass("comboq-p-bottom");
                     r.removeClass("comboq-textbox-top").addClass("comboq-textbox-bottom");
@@ -464,11 +831,11 @@ if (typeof JSON !== "object") {
                     n.offsettimer = null;
                 }
                 try {
-                    var i = c.data(document.getElementById(c.hisui.globalContainerId), "data");
-                    if ("undefined" == typeof c(i.srcTargetDom).attr("id")) {
+                    var i = v.data(document.getElementById(v.hisui.globalContainerId), "data");
+                    if ("undefined" == typeof v(i.srcTargetDom).attr("id")) {
                         n.offsettimer = setTimeout(arguments.callee, 60);
                     } else {
-                        if (r.attr("id") === c(i.srcTargetDom).attr("id")) n.offsettimer = setTimeout(arguments.callee, 60);
+                        if (r.attr("id") === v(i.srcTargetDom).attr("id")) n.offsettimer = setTimeout(arguments.callee, 60);
                     }
                 } catch (a) {
                     console.error(a);
@@ -476,9 +843,9 @@ if (typeof JSON !== "object") {
             }
         })();
         function s() {
-            var e = r.offset().left;
-            if (e + o._outerWidth() > c(window)._outerWidth() + c(document).scrollLeft()) {
-                e = c(window)._outerWidth() + c(document).scrollLeft() - o._outerWidth();
+            var e = v.hisui.offsetInDialogWindow(r[0]).left;
+            if (e + o._outerWidth() > v(window)._outerWidth() + v(document).scrollLeft()) {
+                e = v(window)._outerWidth() + v(document).scrollLeft() - o._outerWidth();
             }
             if (e < 0) {
                 e = 0;
@@ -486,26 +853,27 @@ if (typeof JSON !== "object") {
             return e;
         }
         function l() {
-            var e = r.offset().top + r._outerHeight();
-            if (e + o._outerHeight() > c(window)._outerHeight() + c(document).scrollTop()) {
-                e = r.offset().top - o._outerHeight();
+            var e = v.hisui.offsetInDialogWindow(r[0]).top;
+            var t = e + r._outerHeight();
+            if (t + o._outerHeight() > v(window)._outerHeight() + v(document).scrollTop()) {
+                t = e - o._outerHeight();
             }
-            if (e < c(document).scrollTop()) {
-                e = r.offset().top + r._outerHeight();
+            if (t < v(document).scrollTop()) {
+                t = e + r._outerHeight();
             }
-            e = parseInt(e);
-            return e;
+            t = parseInt(t);
+            return t;
         }
     };
-    c.parser = {
+    v.parser = {
         auto: true,
         onComplete: function(e) {},
         plugins: [ "draggable", "droppable", "resizable", "pagination", "tooltip", "linkbutton", "menu", "menubutton", "splitbutton", "progressbar", "tree", "combobox", "combotree", "combogrid", "numberbox", "validatebox", "searchbox", "numberspinner", "timespinner", "calendar", "datebox", "datetimebox", "slider", "layout", "panel", "datagrid", "propertygrid", "treegrid", "tabs", "accordion", "window", "dialog", "checkbox", "radio", "switchbox", "keywords", "comboq", "lookup", "triggerbox", "dateboxq", "datetimeboxq", "timeboxq", "label" ],
         parse: function(a) {
             var n = [];
-            for (var e = 0; e < c.parser.plugins.length; e++) {
-                var t = c.parser.plugins[e];
-                var i = c(".hisui-" + t, a);
+            for (var e = 0; e < v.parser.plugins.length; e++) {
+                var t = v.parser.plugins[e];
+                var i = v(".hisui-" + t, a);
                 if (i.length) {
                     if (i[t]) {
                         i[t]();
@@ -528,15 +896,15 @@ if (typeof JSON !== "object") {
                         var i = n[e].jq;
                         i[t]();
                     }
-                    c.parser.onComplete.call(c.parser, a);
+                    v.parser.onComplete.call(v.parser, a);
                 });
             } else {
-                c.parser.onComplete.call(c.parser, a);
+                v.parser.onComplete.call(v.parser, a);
             }
         },
         parseValue: function(e, t, i, a) {
             a = a || 0;
-            var n = c.trim(String(t || ""));
+            var n = v.trim(String(t || ""));
             var r = n.substr(n.length - 1, 1);
             if (r == "%") {
                 n = parseFloat(n.substr(0, n.length - 1));
@@ -553,9 +921,9 @@ if (typeof JSON !== "object") {
             return n;
         },
         parseOptions: function(e, t) {
-            var i = c(e);
+            var i = v(e);
             var a = {};
-            var n = c.trim(i.attr("data-options"));
+            var n = v.trim(i.attr("data-options"));
             if (n) {
                 if (n.substring(0, 1) != "{") {
                     n = "{" + n + "\n" + "}";
@@ -585,21 +953,21 @@ if (typeof JSON !== "object") {
                         }
                     }
                 }
-                c.extend(a, r);
+                v.extend(a, r);
             }
             return a;
         }
     };
-    c(function() {
-        var e = c('<div style="position:absolute;top:-1000px;width:100px;height:100px;padding:5px"></div>').appendTo("body");
+    v(function() {
+        var e = v('<div style="position:absolute;top:-1000px;width:100px;height:100px;padding:5px"></div>').appendTo("body");
         e.width(100);
-        c._boxModel = Math.abs(parseInt(e.width()) - 100) <= 2;
+        v._boxModel = Math.abs(parseInt(e.width()) - 100) <= 2;
         e.remove();
-        if (!window.easyloader && c.parser.auto) {
-            c.parser.parse();
+        if (!window.easyloader && v.parser.auto) {
+            v.parser.parse();
         }
     });
-    c.fn._outerWidth = function(e) {
+    v.fn._outerWidth = function(e) {
         if (e == undefined) {
             if (this[0] == window) {
                 return this.width() || document.body.clientWidth;
@@ -607,14 +975,14 @@ if (typeof JSON !== "object") {
             return this.outerWidth() || 0;
         }
         return this.each(function() {
-            if (c._boxModel) {
-                c(this).width(e - (c(this).outerWidth() - c(this).width()));
+            if (v._boxModel) {
+                v(this).width(e - (v(this).outerWidth() - v(this).width()));
             } else {
-                c(this).width(e);
+                v(this).width(e);
             }
         });
     };
-    c.fn._outerHeight = function(e) {
+    v.fn._outerHeight = function(e) {
         if (e == undefined) {
             if (this[0] == window) {
                 return this.height() || document.body.clientHeight;
@@ -622,24 +990,24 @@ if (typeof JSON !== "object") {
             return this.outerHeight() || 0;
         }
         return this.each(function() {
-            if (c._boxModel) {
-                c(this).height(e - (c(this).outerHeight() - c(this).height()));
+            if (v._boxModel) {
+                v(this).height(e - (v(this).outerHeight() - v(this).height()));
             } else {
-                c(this).height(e);
+                v(this).height(e);
             }
         });
     };
-    c.fn._scrollLeft = function(e) {
+    v.fn._scrollLeft = function(e) {
         if (e == undefined) {
             return this.scrollLeft();
         } else {
             return this.each(function() {
-                c(this).scrollLeft(e);
+                v(this).scrollLeft(e);
             });
         }
     };
-    c.fn._propAttr = c.fn.prop || c.fn.attr;
-    c.fn._fit = function(e) {
+    v.fn._propAttr = v.fn.prop || v.fn.attr;
+    v.fn._fit = function(e) {
         e = e == undefined ? true : e;
         var t = this[0];
         var i = t.tagName == "BODY" ? t : this.parent()[0];
@@ -648,9 +1016,9 @@ if (typeof JSON !== "object") {
             if (!t.fitted) {
                 t.fitted = true;
                 i.fcount = a + 1;
-                c(i).addClass("panel-noscroll");
+                v(i).addClass("panel-noscroll");
                 if (i.tagName == "BODY") {
-                    c("html").addClass("panel-fit");
+                    v("html").addClass("panel-fit");
                 }
             }
         } else {
@@ -658,29 +1026,29 @@ if (typeof JSON !== "object") {
                 t.fitted = false;
                 i.fcount = a - 1;
                 if (i.fcount == 0) {
-                    c(i).removeClass("panel-noscroll");
+                    v(i).removeClass("panel-noscroll");
                     if (i.tagName == "BODY") {
-                        c("html").removeClass("panel-fit");
+                        v("html").removeClass("panel-fit");
                     }
                 }
             }
         }
         if (this.hasClass("window") || this.hasClass("dialog")) {
-            if (c(i).css("box-sizing") == "border-box") {
+            if (v(i).css("box-sizing") == "border-box") {
                 return {
-                    width: c(i)._outerWidth(),
-                    height: c(i)._outerHeight()
+                    width: v(i)._outerWidth(),
+                    height: v(i)._outerHeight()
                 };
             } else {
                 return {
-                    width: c(i)._outerWidth(),
-                    height: c(i).height()
+                    width: v(i)._outerWidth(),
+                    height: v(i).height()
                 };
             }
         }
         return {
-            width: c(i).width(),
-            height: c(i).height()
+            width: v(i).width(),
+            height: v(i).height()
         };
     };
 })(jQuery);
@@ -1446,6 +1814,15 @@ if (typeof JSON !== "object") {
         }).bind("blur.linkbutton", function() {
             r(this).removeClass("l-btn-focus");
         }).bind("click.linkbutton", function() {
+            if (!e) {
+                return;
+            }
+            if (r(e).length == 0) {
+                return;
+            }
+            if (!r.data(e, "linkbutton")) {
+                return;
+            }
             o(e);
             t.debouncedClickFun.call(this, e);
             if (!i.hasClass("filebox-button")) return false;
@@ -1865,6 +2242,12 @@ if (typeof JSON !== "object") {
                     options: e
                 });
             }
+            if ($.inArray(e.pageSize, e.pageList) == -1) {
+                e.pageList.push(e.pageSize);
+                e.pageList.sort(function(e, t) {
+                    return e - t;
+                });
+            }
             _81(this);
             _92(this);
         });
@@ -2264,7 +2647,7 @@ if (typeof JSON !== "object") {
             }
         }
         function l(e) {
-            var t = T(r, e[0]);
+            var t = y(r, e[0]);
             if (t) {
                 var i = h(t.target).find(".tree-checkbox");
                 i.removeClass("tree-checkbox0 tree-checkbox1 tree-checkbox2");
@@ -2337,7 +2720,7 @@ if (typeof JSON !== "object") {
                     if (n.hasClass("tree-checkbox2")) {
                         var r = true;
                         var o = true;
-                        var s = Z(e, t);
+                        var s = T(e, t);
                         for (var l = 0; l < s.length; l++) {
                             if (s[l].checked) {
                                 o = false;
@@ -2454,7 +2837,7 @@ if (typeof JSON !== "object") {
     }
     function l(t, i, e, a) {
         var n = h.data(t, "tree").options;
-        e = e || {};
+        e = h.extend({}, n.queryParams, e || {});
         var r = null;
         if (t != i) {
             var o = h(i).prev();
@@ -2581,7 +2964,7 @@ if (typeof JSON !== "object") {
         }
     }
     function i(e, t) {
-        var i = Z(e, t);
+        var i = T(e, t);
         if (t) {
             i.unshift(X(e, t));
         }
@@ -2591,10 +2974,10 @@ if (typeof JSON !== "object") {
     }
     function a(e, t) {
         var i = [];
-        var a = T(e, t);
+        var a = y(e, t);
         while (a) {
             i.unshift(a);
-            a = T(e, a.target);
+            a = y(e, a.target);
         }
         for (var n = 0; n < i.length; n++) {
             u(e, i[n].target);
@@ -2621,7 +3004,7 @@ if (typeof JSON !== "object") {
         }
     }
     function b(e, t) {
-        var i = Z(e, t);
+        var i = T(e, t);
         if (t) {
             i.unshift(X(e, t));
         }
@@ -2661,7 +3044,7 @@ if (typeof JSON !== "object") {
     }
     function x(e, t) {
         var i = t.before || t.after;
-        var a = T(e, i);
+        var a = y(e, i);
         var n = t.data;
         if (!n) {
             return;
@@ -2711,7 +3094,7 @@ if (typeof JSON !== "object") {
         g(r, r);
         function a(e) {
             var t = h(e).attr("id");
-            var i = T(r, e);
+            var i = y(r, e);
             var a = i ? i.children : h.data(r, "tree").data;
             for (var n = 0; n < a.length; n++) {
                 if (a[n].domId == t) {
@@ -2750,7 +3133,7 @@ if (typeof JSON !== "object") {
         }
         return t;
     }
-    function Z(e, t) {
+    function T(e, t) {
         var i = [];
         var a = X(e, t);
         var n = a ? a.children : h.data(e, "tree").data;
@@ -2759,11 +3142,11 @@ if (typeof JSON !== "object") {
         });
         return i;
     }
-    function T(e, t) {
+    function y(e, t) {
         var i = h(t).closest("ul").prevAll("div.tree-node:first");
         return X(e, i[0]);
     }
-    function y(t, e) {
+    function Z(t, e) {
         e = e || "checked";
         if (!h.isArray(e)) {
             e = [ e ];
@@ -3002,13 +3385,13 @@ if (typeof JSON !== "object") {
             return S(e[0]);
         },
         getParent: function(e, t) {
-            return T(e[0], t);
+            return y(e[0], t);
         },
         getChildren: function(e, t) {
-            return Z(e[0], t);
+            return T(e[0], t);
         },
         getChecked: function(e, t) {
-            return y(e[0], t);
+            return Z(e[0], t);
         },
         getSelected: function(e) {
             return L(e[0]);
@@ -3243,6 +3626,7 @@ if (typeof JSON !== "object") {
         lines: false,
         dnd: false,
         data: null,
+        queryParams: {},
         formatter: function(e) {
             return e.text;
         },
@@ -3414,13 +3798,13 @@ if (typeof JSON !== "object") {
     };
 })(jQuery);
 
-(function(l) {
+(function(d) {
     function i(e) {
-        l(e).addClass("tooltip-f");
+        d(e).addClass("tooltip-f");
     }
     function a(t) {
-        var i = l.data(t, "tooltip").options;
-        l(t).unbind(".tooltip").bind(i.showEvent + ".tooltip", function(e) {
+        var i = d.data(t, "tooltip").options;
+        d(t).unbind(".tooltip").bind(i.showEvent + ".tooltip", function(e) {
             n(t, e);
         }).bind(i.hideEvent + ".tooltip", function(e) {
             r(t, e);
@@ -3428,12 +3812,12 @@ if (typeof JSON !== "object") {
             if (i.trackMouse) {
                 i.trackMouseX = e.pageX;
                 i.trackMouseY = e.pageY;
-                d(t);
+                f(t);
             }
         });
     }
-    function s(e) {
-        var t = l.data(e, "tooltip");
+    function c(e) {
+        var t = d.data(e, "tooltip");
         if (t.showTimer) {
             clearTimeout(t.showTimer);
             t.showTimer = null;
@@ -3443,19 +3827,19 @@ if (typeof JSON !== "object") {
             t.hideTimer = null;
         }
     }
-    function d(e) {
-        var t = l.data(e, "tooltip");
+    function f(e) {
+        var t = d.data(e, "tooltip");
         if (!t || !t.tip) {
             return;
         }
         var i = t.options;
         var a = t.tip;
         if (i.trackMouse) {
-            o = l();
+            o = d();
             var n = i.trackMouseX + i.deltaX;
             var r = i.trackMouseY + i.deltaY;
         } else {
-            var o = l(e);
+            var o = d(e);
             var n = o.offset().left + i.deltaX;
             var r = o.offset().top + i.deltaY;
         }
@@ -3480,7 +3864,7 @@ if (typeof JSON !== "object") {
             n -= (a._outerWidth() - o._outerWidth()) / 2;
             r += o._outerHeight() + 12 + (i.trackMouse ? 12 : 0);
             if (r + a._outerHeight() > document.documentElement["clientHeight"] + window.scrollY) {
-                r -= a._outerHeight() + l(e)._outerHeight() + 12 + 12;
+                r -= a._outerHeight() + d(e)._outerHeight() + 12 + 12;
                 i.currentPosition = "top";
             }
             break;
@@ -3490,14 +3874,14 @@ if (typeof JSON !== "object") {
             s = n;
             n = 0;
         }
-        if (!l(e).is(":visible")) {
+        if (!d(e).is(":visible")) {
             n = -1e5;
             r = -1e5;
         }
         a.css({
             left: n,
             top: r,
-            zIndex: i.zIndex != undefined ? i.zIndex : l.fn.window ? l.fn.window.defaults.zIndex++ : ""
+            zIndex: i.zIndex != undefined ? i.zIndex : d.fn.window ? d.fn.window.defaults.zIndex++ : ""
         });
         if (s < 0) {
             a.children("div.tooltip-arrow").eq(0).css({
@@ -3507,19 +3891,32 @@ if (typeof JSON !== "object") {
         i.onPosition.call(e, n, r);
     }
     function n(a, n) {
-        var e = l.data(a, "tooltip");
+        var e = d.data(a, "tooltip");
         var r = e.options;
         var o = e.tip;
         if (!o) {
-            o = l('<div tabindex="-1" class="tooltip">' + '<div class="tooltip-content"></div>' + '<div class="tooltip-arrow-outer"></div>' + '<div class="tooltip-arrow"></div>' + "</div>").appendTo("body");
+            o = d('<div tabindex="-1" class="tooltip">' + '<div class="tooltip-content"></div>' + '<div class="tooltip-arrow-outer"></div>' + '<div class="tooltip-arrow"></div>' + "</div>").appendTo("body");
             e.tip = o;
-            c(a);
+            u(a);
+        }
+        if ((r.position == "top" || r.position == "bottom") && !r.tipWidth) {
+            var t = parseInt(d(window).width());
+            var i = d(a).offset();
+            var s = o._outerWidth();
+            var l = parseInt(d(a)._outerWidth());
+            if (i.left < 200) {
+                s = parseInt(i.left) * 2 + l - 10;
+                o.css("maxWidth", s + "px");
+            } else if (i.left > t - 200) {
+                s = (t - parseInt(i.left) - l) * 2 + l - 10;
+                o.css("maxWidth", s + "px");
+            }
         }
         if (r.tipWidth) o.css("width", r.tipWidth);
         o.removeClass("tooltip-top tooltip-bottom tooltip-left tooltip-right").addClass("tooltip-" + r.position);
-        s(a);
+        c(a);
         e.showTimer = setTimeout(function() {
-            d(a);
+            f(a);
             o.removeClass("tooltip-top tooltip-bottom tooltip-left tooltip-right").addClass("tooltip-" + r.currentPosition);
             o.show();
             r.onShow.call(a, n);
@@ -3537,17 +3934,17 @@ if (typeof JSON !== "object") {
         }, r.showDelay);
     }
     function r(e, t) {
-        var i = l.data(e, "tooltip");
+        var i = d.data(e, "tooltip");
         if (i && i.tip) {
-            s(e);
+            c(e);
             i.hideTimer = setTimeout(function() {
                 i.tip.hide();
                 i.options.onHide.call(e, t);
             }, i.options.hideDelay);
         }
     }
-    function c(e, t) {
-        var i = l.data(e, "tooltip");
+    function u(e, t) {
+        var i = d.data(e, "tooltip");
         var a = i.options;
         if (t) {
             a.content = t;
@@ -3556,50 +3953,54 @@ if (typeof JSON !== "object") {
             return;
         }
         var n = typeof a.content == "function" ? a.content.call(e) : a.content;
-        i.tip.children(".tooltip-content").html(l.hisui.getTrans(n));
+        if (a.notTrans) {
+            i.tip.children(".tooltip-content").html(n);
+        } else {
+            i.tip.children(".tooltip-content").html(d.hisui.getTrans(n));
+        }
         a.onUpdate.call(e, n);
     }
     function t(e) {
-        var t = l.data(e, "tooltip");
+        var t = d.data(e, "tooltip");
         if (t) {
-            s(e);
+            c(e);
             var i = t.options;
             if (t.tip) {
                 t.tip.remove();
             }
             if (i._title) {
-                l(e).attr("title", i._title);
+                d(e).attr("title", i._title);
             }
-            l.removeData(e, "tooltip");
-            l(e).unbind(".tooltip").removeClass("tooltip-f");
+            d.removeData(e, "tooltip");
+            d(e).unbind(".tooltip").removeClass("tooltip-f");
             i.onDestroy.call(e);
         }
     }
-    l.fn.tooltip = function(t, e) {
+    d.fn.tooltip = function(t, e) {
         if (typeof t == "string") {
-            return l.fn.tooltip.methods[t](this, e);
+            return d.fn.tooltip.methods[t](this, e);
         }
         t = t || {};
         return this.each(function() {
-            var e = l.data(this, "tooltip");
+            var e = d.data(this, "tooltip");
             if (e) {
-                l.extend(e.options, t);
+                d.extend(e.options, t);
             } else {
-                l.data(this, "tooltip", {
-                    options: l.extend({}, l.fn.tooltip.defaults, l.fn.tooltip.parseOptions(this), t)
+                d.data(this, "tooltip", {
+                    options: d.extend({}, d.fn.tooltip.defaults, d.fn.tooltip.parseOptions(this), t)
                 });
                 i(this);
             }
             a(this);
-            c(this);
+            u(this);
         });
     };
-    l.fn.tooltip.methods = {
+    d.fn.tooltip.methods = {
         options: function(e) {
-            return l.data(e[0], "tooltip").options;
+            return d.data(e[0], "tooltip").options;
         },
         tip: function(e) {
-            return l.data(e[0], "tooltip").tip;
+            return d.data(e[0], "tooltip").tip;
         },
         arrow: function(e) {
             return e.tooltip("tip").children(".tooltip-arrow-outer,.tooltip-arrow");
@@ -3616,12 +4017,12 @@ if (typeof JSON !== "object") {
         },
         update: function(e, t) {
             return e.each(function() {
-                c(this, t);
+                u(this, t);
             });
         },
         reposition: function(e) {
             return e.each(function() {
-                d(this);
+                f(this);
             });
         },
         destroy: function(e) {
@@ -3630,9 +4031,9 @@ if (typeof JSON !== "object") {
             });
         }
     };
-    l.fn.tooltip.parseOptions = function(e) {
-        var t = l(e);
-        var i = l.extend({}, l.parser.parseOptions(e, [ "position", "showEvent", "hideEvent", "content", "tipWidth", {
+    d.fn.tooltip.parseOptions = function(e) {
+        var t = d(e);
+        var i = d.extend({}, d.parser.parseOptions(e, [ "position", "showEvent", "hideEvent", "content", "tipWidth", {
             deltaX: "number",
             deltaY: "number",
             showDelay: "number",
@@ -3646,8 +4047,9 @@ if (typeof JSON !== "object") {
         }
         return i;
     };
-    l.fn.tooltip.defaults = {
+    d.fn.tooltip.defaults = {
         tipWidth: undefined,
+        notTrans: false,
         position: "bottom",
         content: null,
         trackMouse: false,
@@ -3684,13 +4086,16 @@ if (typeof JSON !== "object") {
         i.remove();
         return a;
     }
-    function _ellipsizeTitle(e) {
-        var t = $.hisui.getStyleCodeConfigValue("panelTitleFontSize");
-        var i = parseInt(GetCurrentStrWidth(e.find(".panel-title").html(), "normal " + t + 'px "Microsoft Yahei", verdana, helvetica, arial, sans-serif'));
+    function _ellipsizeTitle(e, t) {
+        var i = $.hisui.getStyleCodeConfigValue("panelTitleFontSize");
+        var a = t.titleShowWidth || 0;
+        var n = parseInt(GetCurrentStrWidth(e.find(".panel-title").html(), "normal " + i + 'px "Microsoft Yahei", verdana, helvetica, arial, sans-serif'));
         if (e.length > 0 && e.closest(".panel").css("display") != "none") {
-            var a = e.find(".panel-tool").offset().left - e.find(".panel-title").offset().left - 16;
-            if (i > a && a > 30) {
-                e.find(".panel-title").width(a);
+            var r = e.find(".panel-tool").offset().left - e.find(".panel-title").offset().left - 16;
+            if (Math.abs(a - r) < 3) return;
+            if (n > r && r > 30) {
+                e.find(".panel-title").width(r);
+                t.titleShowWidth = r;
                 e.tooltip({
                     content: "",
                     style: null,
@@ -3755,18 +4160,35 @@ if (typeof JSON !== "object") {
                 }
             }
         }
-        _ellipsizeTitle(r);
+        _ellipsizeTitle(r, a);
         if (!isNaN(a.height)) {
             n._outerHeight(a.height);
             o._outerHeight(n.height() - r._outerHeight());
         } else {
             o.height("auto");
         }
+        if (a.maxHeight != null) {
+            var d = n.height() - r._outerHeight();
+            var c = $.parser.parseValue("height", a.maxHeight, $(n).parent());
+            if (d > c) {
+                d = c;
+                o._outerHeight(c);
+            }
+            o.css("maxHeight", c + "px");
+        } else {
+            o.css("maxHeight", "");
+        }
         n.css("height", "");
         a.onResize.apply(e, [ a.width, a.height ]);
-        $(e).find(">div,>form>div").filter(":visible").each(function() {
-            $(this).triggerHandler("_resize");
-        });
+        if ($.expr.pseudos.visibleOrZeroSize) {
+            $(e).find(">div,>form>div").filter(":visibleOrZeroSize").each(function() {
+                $(this).triggerHandler("_resize");
+            });
+        } else {
+            $(e).find(">div,>form>div").filter(":visible").each(function() {
+                $(this).triggerHandler("_resize");
+            });
+        }
     }
     function _1e9(e, t) {
         var i = $.data(e, "panel").options;
@@ -3804,9 +4226,29 @@ if (typeof JSON !== "object") {
         });
         return e;
     }
+    function _refreshCloseA11yLabel(e, t) {
+        var i = $(e);
+        if (!i.hasClass("panel-header")) {
+            i = i.children("div.panel-header");
+        }
+        var a = i.children("div.panel-tool").children("a.panel-tool-close");
+        if (!a.length) {
+            return;
+        }
+        var n = t && t._titleForA11y != null ? t._titleForA11y : t && t.title || "";
+        var r = t && t.closeText;
+        if (r == null && $.fn.panel.defaults) {
+            r = $.fn.panel.defaults.closeText;
+        }
+        if (r == null) {
+            r = "Close";
+        }
+        a.attr("aria-label", n + r);
+    }
     function _1f0(_1f1) {
         var opts = $.data(_1f1, "panel").options;
         var _1f2 = $.data(_1f1, "panel").panel;
+        opts._titleForA11y = opts.title || "";
         if (opts.tools && typeof opts.tools == "string") {
             _1f2.find(">div.panel-header>div.panel-tool .panel-tool-a").appendTo(opts.tools);
         }
@@ -3829,18 +4271,30 @@ if (typeof JSON !== "object") {
                 if ($.isArray(opts.tools)) {
                     for (var i = 0; i < opts.tools.length; i++) {
                         var t = $('<a href="javascript:void(0)"></a>').addClass(opts.tools[i].iconCls).appendTo(tool);
+                        if (opts.tools[i].text) {
+                            t.attr({
+                                role: "button",
+                                "aria-label": opts.tools[i].text
+                            });
+                        }
                         if (opts.tools[i].handler) {
                             t.bind("click", eval(opts.tools[i].handler));
                         }
                     }
                 } else {
                     $(opts.tools).children().each(function() {
+                        if ($(this).attr("text")) {
+                            $(this).attr({
+                                role: "button",
+                                "aria-label": $(this).attr("text")
+                            });
+                        }
                         $(this).addClass($(this).attr("iconCls")).addClass("panel-tool-a").appendTo(tool);
                     });
                 }
             }
             if (opts.collapsible) {
-                $('<a class="panel-tool-collapse" href="javascript:void(0)"></a>').appendTo(tool).bind("click", function() {
+                $('<a class="panel-tool-collapse" href="javascript:void(0)" aria-label="' + opts.collapseText + '"></a>').appendTo(tool).bind("click", function() {
                     if (opts.collapsed == true) {
                         _210(_1f1, true);
                     } else {
@@ -3850,13 +4304,13 @@ if (typeof JSON !== "object") {
                 });
             }
             if (opts.minimizable) {
-                $('<a class="panel-tool-min" href="javascript:void(0)"></a>').appendTo(tool).bind("click", function() {
+                $('<a class="panel-tool-min" href="javascript:void(0)" aria-label="' + opts.minimizeText + '"></a>').appendTo(tool).bind("click", function() {
                     _216(_1f1);
                     return false;
                 });
             }
             if (opts.maximizable) {
-                $('<a class="panel-tool-max" href="javascript:void(0)"></a>').appendTo(tool).bind("click", function() {
+                $('<a class="panel-tool-max" href="javascript:void(0)" aria-label="' + opts.maximizeText + '"></a>').appendTo(tool).bind("click", function() {
                     if (opts.maximized == true) {
                         _219(_1f1);
                     } else {
@@ -3866,10 +4320,11 @@ if (typeof JSON !== "object") {
                 });
             }
             if (opts.closable) {
-                $('<a class="panel-tool-close" href="javascript:void(0)"></a>').appendTo(tool).bind("click", function() {
+                $('<a class="panel-tool-close" href="javascript:void(0)" data-tool-close="1"></a>').appendTo(tool).bind("click", function() {
                     _1f4(_1f1);
                     return false;
                 });
+                _refreshCloseA11yLabel(_1f3, opts);
             }
             _1f2.children("div.panel-body").removeClass("panel-body-noheader");
         } else {
@@ -3933,7 +4388,7 @@ if (typeof JSON !== "object") {
         t.find(".s-btn").each(function() {
             $(this).splitbutton("destroy");
         });
-        t.find(".tooltip-f").each(function() {
+        t.closest(".panel").find(".tooltip-f").each(function() {
             $(this).tooltip("destroy");
         });
         t.children("div").each(function() {
@@ -3964,7 +4419,7 @@ if (typeof JSON !== "object") {
             windowNPAPITotal = 200;
             $.hisui.findObjectDom(i, window, true, e);
         }
-        _ellipsizeTitle(a.children("div.panel-header"));
+        _ellipsizeTitle(a.children("div.panel-header"), i);
         i.onOpen.call(e);
         if (i.maximized == true) {
             i.maximized = false;
@@ -3989,17 +4444,19 @@ if (typeof JSON !== "object") {
         }
         a._fit(false);
         a.hide();
-        if (i.isTopZindex) {
-            windowNPAPITotal = 200;
-            $.hisui.findObjectDom(i, window, false, e);
+        if (navigator.userAgent.indexOf("Chrome/49.") > -1) {
+            if (i.isTopZindex) {
+                windowNPAPITotal = 200;
+                $.hisui.findObjectDom(i, window, false, e);
+            }
+            $.data(e, "changeIdStr", {
+                NPAPIIdStr: ""
+            });
         }
-        $.data(e, "changeIdStr", {
-            NPAPIIdStr: ""
-        });
         i.closed = true;
         i.onClose.call(e);
     }
-    function _209(e, t) {
+    function _destroy(e, t) {
         var i = $.data(e, "panel").options;
         var a = $.data(e, "panel").panel;
         if (t != true) {
@@ -4024,16 +4481,18 @@ if (typeof JSON !== "object") {
             return;
         }
         r.addClass("panel-tool-expand");
-        r.closest(".panel").addClass("panel-status-collapse");
+        r.attr("aria-label", i.expandText);
         if (t == true) {
             n.slideUp("normal", function() {
                 i.collapsed = true;
                 i.onCollapse.call(e);
+                r.closest(".panel").addClass("panel-status-collapse");
             });
         } else {
             n.hide();
             i.collapsed = true;
             i.onCollapse.call(e);
+            r.closest(".panel").addClass("panel-status-collapse");
         }
     }
     function _210(e, t) {
@@ -4049,6 +4508,7 @@ if (typeof JSON !== "object") {
             return;
         }
         r.removeClass("panel-tool-expand");
+        r.attr("aria-label", i.collapseText);
         r.closest(".panel").removeClass("panel-status-collapse");
         if (t == true) {
             n.slideDown("normal", function() {
@@ -4073,6 +4533,7 @@ if (typeof JSON !== "object") {
             return;
         }
         a.addClass("panel-tool-restore");
+        a.attr("aria-label", t.restoreText);
         if (!$.data(e, "panel").original) {
             $.data(e, "panel").original = {
                 width: t.width,
@@ -4108,6 +4569,7 @@ if (typeof JSON !== "object") {
         }
         i.show();
         a.removeClass("panel-tool-restore");
+        a.attr("aria-label", t.maximizeText);
         $.extend(t, $.data(e, "panel").original);
         _1e3(e);
         t.minimized = false;
@@ -4139,9 +4601,13 @@ if (typeof JSON !== "object") {
         }
     }
     function _220(e, t) {
-        $.data(e, "panel").options.title = t;
-        $(e).panel("header").find("div.panel-title").html($.data(e, "panel").options.notTrans ? t : $.hisui.getTrans(t));
-        _ellipsizeTitle($(e).panel("header"));
+        var i = $.data(e, "panel").options;
+        i.title = t;
+        var a = $(e).panel("header");
+        a.find("div.panel-title").html(i.notTrans ? t : $.hisui.getTrans(t));
+        _ellipsizeTitle(a, i);
+        i._titleForA11y = t || "";
+        _refreshCloseA11yLabel(a, i);
     }
     var TO = false;
     var _223 = true;
@@ -4158,7 +4624,7 @@ if (typeof JSON !== "object") {
             if (e.length) {
                 e.layout("resize");
             } else {
-                $("body").children("div.panel,div.accordion,div.tabs-container,div.layout").filter(":visible").each(function() {
+                $("body").children("div.panel,div.accordion,div.tabs-container,div.layout").filter(":visibleOrZeroSize").each(function() {
                     $(this).triggerHandler("_resize");
                 });
             }
@@ -4229,7 +4695,7 @@ if (typeof JSON !== "object") {
         },
         destroy: function(e, t) {
             return e.each(function() {
-                _209(this, t);
+                _destroy(this, t);
             });
         },
         refresh: function(e, t) {
@@ -4288,7 +4754,8 @@ if (typeof JSON !== "object") {
             cache: "boolean",
             fit: "boolean",
             border: "boolean",
-            noheader: "boolean"
+            noheader: "boolean",
+            maxHeight: "number"
         }, {
             collapsible: "boolean",
             minimizable: "boolean",
@@ -4304,7 +4771,15 @@ if (typeof JSON !== "object") {
         });
     };
     $.fn.panel.defaults = {
+        maxHeight: null,
         isTopZindex: false,
+        titleShowWidth: 0,
+        collapseText: "Collapse",
+        expandText: "Expand",
+        minimizeText: "Minimize",
+        maximizeText: "Maximize",
+        restoreText: "Restore",
+        closeText: "Close",
         id: null,
         title: null,
         iconCls: null,
@@ -4386,16 +4861,16 @@ if (typeof JSON !== "object") {
     };
 })(jQuery);
 
-(function(o) {
-    function a(e, t) {
-        var i = o.data(e, "window").options;
+(function(d) {
+    function i(e, t) {
+        var i = d.data(e, "window").options;
         if (t) {
-            o.extend(i, t);
+            d.extend(i, t);
         }
-        o(e).panel("resize", i);
+        d(e).panel("resize", i);
     }
-    function s(e, t) {
-        var i = o.data(e, "window");
+    function o(e, t) {
+        var i = d.data(e, "window");
         if (t) {
             if (t.left != null) {
                 i.options.left = t.left;
@@ -4404,7 +4879,7 @@ if (typeof JSON !== "object") {
                 i.options.top = t.top;
             }
         }
-        o(e).panel("move", i.options);
+        d(e).panel("move", i.options);
         if (i.shadow) {
             i.shadow.css({
                 left: i.options.left,
@@ -4413,47 +4888,47 @@ if (typeof JSON !== "object") {
         }
     }
     function r(e, t) {
-        var i = o.data(e, "window");
+        var i = d.data(e, "window");
         var a = i.options;
         var n = a.width;
         if (isNaN(n)) {
             n = i.window._outerWidth();
         } else {
-            n = Math.max(n, o.hisui.getStyleCodeConfigValue("windowMinWidth"));
+            n = Math.max(n, d.hisui.getStyleCodeConfigValue("windowMinWidth"));
         }
         if (a.inline) {
             var r = i.window.parent();
             a.left = (r.width() - n) / 2 + r.scrollLeft();
         } else {
-            a.left = (o(window)._outerWidth() - n) / 2 + o(document).scrollLeft();
+            a.left = (d(window)._outerWidth() - n) / 2 + d(document).scrollLeft();
         }
         if (t) {
-            s(e);
+            o(e);
         }
     }
-    function l(e, t) {
-        var i = o.data(e, "window");
+    function s(e, t) {
+        var i = d.data(e, "window");
         var a = i.options;
         var n = a.height;
         if (isNaN(n)) {
             n = i.window._outerHeight();
         } else {
-            n = Math.max(n, o.hisui.getStyleCodeConfigValue("windowMinHeight"));
+            n = Math.max(n, d.hisui.getStyleCodeConfigValue("windowMinHeight"));
         }
         if (a.inline) {
             var r = i.window.parent();
             a.top = (r.height() - n) / 2 + r.scrollTop();
         } else {
-            a.top = (o(window)._outerHeight() - n) / 2 + o(document).scrollTop();
+            a.top = (d(window)._outerHeight() - n) / 2 + d(document).scrollTop();
         }
         if (t) {
-            s(e);
+            o(e);
         }
     }
-    function n(a) {
-        var n = o.data(a, "window");
+    function a(a) {
+        var n = d.data(a, "window");
         var e = n.options.closed;
-        var t = o(a).panel(o.extend({}, n.options, {
+        var t = d(a).panel(d.extend({}, n.options, {
             border: false,
             doSize: true,
             closed: true,
@@ -4484,25 +4959,25 @@ if (typeof JSON !== "object") {
                 if (n.mask) {
                     n.mask.css({
                         display: "block",
-                        zIndex: o.fn.window.defaults.zIndex++
+                        zIndex: d.fn.window.defaults.zIndex++
                     });
                 }
                 if (n.shadow) {
                     n.shadow.css({
                         display: "block",
-                        zIndex: o.fn.window.defaults.zIndex++,
+                        zIndex: d.fn.window.defaults.zIndex++,
                         left: n.options.left,
                         top: n.options.top,
                         width: n.window._outerWidth(),
                         height: n.window._outerHeight()
                     });
                 }
-                n.window.css("z-index", o.fn.window.defaults.zIndex++);
+                n.window.css("z-index", d.fn.window.defaults.zIndex++);
                 n.options.onOpen.call(a);
             },
             onResize: function(e, t) {
-                var i = o(this).panel("options");
-                o.extend(n.options, {
+                var i = d(this).panel("options");
+                d.extend(n.options, {
                     width: i.width,
                     height: i.height,
                     left: i.left,
@@ -4553,7 +5028,7 @@ if (typeof JSON !== "object") {
                     i = '<iframe style="position:absolute;z-index:-1;width:100%;height:100%;top:0;left:0;scrolling:no;" frameborder="0"></iframe>';
                 }
             }
-            n.mask = o('<div class="window-mask">' + i + "</div>").insertAfter(n.window);
+            n.mask = d('<div class="window-mask">' + i + "</div>").insertAfter(n.window);
             n.mask.css({
                 width: n.options.inline ? n.mask.parent().width() : c().width,
                 height: n.options.inline ? n.mask.parent().height() : c().height,
@@ -4564,7 +5039,7 @@ if (typeof JSON !== "object") {
             n.shadow.remove();
         }
         if (n.options.shadow == true) {
-            n.shadow = o('<div class="window-shadow"></div>').insertAfter(n.window);
+            n.shadow = d('<div class="window-shadow"></div>').insertAfter(n.window);
             n.shadow.css({
                 display: "none"
             });
@@ -4573,104 +5048,140 @@ if (typeof JSON !== "object") {
             r(a);
         }
         if (n.options.top == null) {
-            l(a);
+            s(a);
         }
-        s(a);
+        o(a);
         if (!e) {
             t.window("open");
         }
     }
-    function d(t) {
-        var i = o.data(t, "window");
-        i.window.draggable({
+    function l(e, t, i, a) {
+        var n = this;
+        var r = d.data(n, "window");
+        var o = r.options;
+        if (!o.constrain) {
+            return {};
+        }
+        if (d.isFunction(o.constrain)) {
+            return o.constrain.call(n, e, t, i, a);
+        }
+        var s = d(n).window("window");
+        var l = o.inline ? s.parent() : d(window);
+        if (e < 0) {
+            e = 0;
+        }
+        if (t < l.scrollTop()) {
+            t = l.scrollTop();
+        }
+        if (e + i > l.width()) {
+            if (i == s.outerWidth()) {
+                e = l.width() - i;
+            } else {
+                i = l.width() - e;
+            }
+        }
+        if (t - l.scrollTop() + a > l.height()) {
+            if (a == s.outerHeight()) {
+                t = l.height() - a + l.scrollTop();
+            } else {
+                a = l.height() - t + l.scrollTop();
+            }
+        }
+        return {
+            left: e,
+            top: t,
+            width: i,
+            height: a
+        };
+    }
+    function n(i) {
+        var a = d.data(i, "window");
+        a.window.draggable({
             handle: ">div.panel-header>div.panel-title",
-            disabled: i.options.draggable == false,
+            disabled: a.options.draggable == false,
             onStartDrag: function(e) {
-                if (i.mask) {
-                    i.mask.css("z-index", o.fn.window.defaults.zIndex++);
-                }
-                if (i.shadow) {
-                    i.shadow.css("z-index", o.fn.window.defaults.zIndex++);
-                }
-                i.window.css("z-index", o.fn.window.defaults.zIndex++);
-                if (!i.proxy) {
-                    i.proxy = o('<div class="window-proxy"></div>').insertAfter(i.window);
-                }
-                i.proxy.css({
-                    display: "none",
-                    zIndex: o.fn.window.defaults.zIndex++,
-                    left: e.data.left,
-                    top: e.data.top
-                });
-                i.proxy._outerWidth(i.window._outerWidth());
-                i.proxy._outerHeight(i.window._outerHeight());
-                setTimeout(function() {
-                    if (i.proxy) {
-                        i.proxy.show();
-                    }
-                }, 500);
+                t(e);
             },
             onDrag: function(e) {
-                i.proxy.css({
-                    display: "block",
-                    left: e.data.left,
-                    top: e.data.top
-                });
+                n(e);
                 return false;
             },
             onStopDrag: function(e) {
-                i.options.left = e.data.left;
-                i.options.top = e.data.top;
-                o(t).window("move");
-                i.proxy.remove();
-                i.proxy = null;
+                r(e, "move");
             }
         });
-        i.window.resizable({
-            disabled: i.options.resizable == false,
+        a.window.resizable({
+            disabled: a.options.resizable == false,
             onStartResize: function(e) {
-                i.pmask = o('<div class="window-proxy-mask"></div>').insertAfter(i.window);
-                i.pmask.css({
-                    zIndex: o.fn.window.defaults.zIndex++,
-                    left: e.data.left,
-                    top: e.data.top,
-                    width: i.window._outerWidth(),
-                    height: i.window._outerHeight()
-                });
-                if (!i.proxy) {
-                    i.proxy = o('<div class="window-proxy"></div>').insertAfter(i.window);
-                }
-                i.proxy.css({
-                    zIndex: o.fn.window.defaults.zIndex++,
-                    left: e.data.left,
-                    top: e.data.top
-                });
-                i.proxy._outerWidth(e.data.width);
-                i.proxy._outerHeight(e.data.height);
+                try {
+                    d("iframe").css("pointer-events", "none");
+                } catch (e) {}
+                t(e);
             },
             onResize: function(e) {
-                i.proxy.css({
-                    left: e.data.left,
-                    top: e.data.top
-                });
-                i.proxy._outerWidth(e.data.width);
-                i.proxy._outerHeight(e.data.height);
+                n(e);
                 return false;
             },
             onStopResize: function(e) {
-                o.extend(i.options, {
-                    left: e.data.left,
-                    top: e.data.top,
-                    width: e.data.width,
-                    height: e.data.height
-                });
-                a(t);
-                i.pmask.remove();
-                i.pmask = null;
-                i.proxy.remove();
-                i.proxy = null;
+                r(e, "resize");
+                try {
+                    d("iframe").css("pointer-events", "auto");
+                } catch (e) {}
             }
         });
+        function t(e) {
+            if (a.pmask) {
+                a.pmask.remove();
+            }
+            a.pmask = d('<div class="window-proxy-mask"></div>').insertAfter(a.window);
+            a.pmask.css({
+                display: "none",
+                zIndex: d.fn.window.defaults.zIndex++,
+                left: e.data.left,
+                top: e.data.top,
+                width: a.window._outerWidth(),
+                height: a.window._outerHeight()
+            });
+            if (a.proxy) {
+                a.proxy.remove();
+            }
+            a.proxy = d('<div class="window-proxy"></div>').insertAfter(a.window);
+            a.proxy.css({
+                display: "none",
+                zIndex: d.fn.window.defaults.zIndex++,
+                left: e.data.left,
+                top: e.data.top
+            });
+            a.proxy._outerWidth(e.data.width)._outerHeight(e.data.height);
+            a.proxy.hide();
+            setTimeout(function() {
+                if (a.pmask) {
+                    a.pmask.show();
+                }
+                if (a.proxy) {
+                    a.proxy.show();
+                }
+            }, 500);
+        }
+        function n(e) {
+            d.extend(e.data, l.call(i, e.data.left, e.data.top, e.data.width, e.data.height));
+            a.pmask.show();
+            a.proxy.css({
+                display: "block",
+                left: e.data.left,
+                top: e.data.top
+            });
+            a.proxy._outerWidth(e.data.width);
+            a.proxy._outerHeight(e.data.height);
+        }
+        function r(e, t) {
+            d.extend(e.data, l.call(i, e.data.left, e.data.top, e.data.width + .1, e.data.height + .1));
+            d(i).window(t, e.data);
+            a.pmask.remove();
+            a.pmask = null;
+            a.proxy.remove();
+            a.proxy = null;
+        }
     }
     function c() {
         if (document.compatMode == "BackCompat") {
@@ -4685,21 +5196,21 @@ if (typeof JSON !== "object") {
             };
         }
     }
-    o(window).resize(function() {
-        o("body>div.window-mask").css({
-            width: o(window)._outerWidth(),
-            height: o(window)._outerHeight()
+    d(window).resize(function() {
+        d("body>div.window-mask").css({
+            width: d(window)._outerWidth(),
+            height: d(window)._outerHeight()
         });
         setTimeout(function() {
-            o("body>div.window-mask").css({
+            d("body>div.window-mask").css({
                 width: c().width,
                 height: c().height
             });
         }, 50);
     });
-    o.fn.window = function(t, e) {
+    d.fn.window = function(t, e) {
         if (typeof t == "string") {
-            var i = o.fn.window.methods[t];
+            var i = d.fn.window.methods[t];
             if (i) {
                 return i(this, e);
             } else {
@@ -4708,26 +5219,26 @@ if (typeof JSON !== "object") {
         }
         t = t || {};
         return this.each(function() {
-            var e = o.data(this, "window");
+            var e = d.data(this, "window");
             if (e) {
-                o.extend(e.options, t);
+                d.extend(e.options, t);
             } else {
-                e = o.data(this, "window", {
-                    options: o.extend({}, o.fn.window.defaults, o.fn.window.parseOptions(this), t)
+                e = d.data(this, "window", {
+                    options: d.extend({}, d.fn.window.defaults, d.fn.window.parseOptions(this), t)
                 });
                 if (!e.options.inline) {
                     document.body.appendChild(this);
                 }
             }
+            a(this);
             n(this);
-            d(this);
         });
     };
-    o.fn.window.methods = {
+    d.fn.window.methods = {
         options: function(e) {
             var t = e.panel("options");
-            var i = o.data(e[0], "window").options;
-            return o.extend(i, {
+            var i = d.data(e[0], "window").options;
+            return d.extend(i, {
                 closed: t.closed,
                 collapsed: t.collapsed,
                 minimized: t.minimized,
@@ -4735,16 +5246,16 @@ if (typeof JSON !== "object") {
             });
         },
         window: function(e) {
-            return o.data(e[0], "window").window;
+            return d.data(e[0], "window").window;
         },
         resize: function(e, t) {
             return e.each(function() {
-                a(this, t);
+                i(this, t);
             });
         },
         move: function(e, t) {
             return e.each(function() {
-                s(this, t);
+                o(this, t);
             });
         },
         hcenter: function(e) {
@@ -4754,19 +5265,19 @@ if (typeof JSON !== "object") {
         },
         vcenter: function(e) {
             return e.each(function() {
-                l(this, true);
+                s(this, true);
             });
         },
         center: function(e) {
             return e.each(function() {
                 r(this);
-                l(this);
                 s(this);
+                o(this);
             });
         }
     };
-    o.fn.window.parseOptions = function(e) {
-        return o.extend({}, o.fn.panel.parseOptions(e), o.parser.parseOptions(e, [ {
+    d.fn.window.parseOptions = function(e) {
+        return d.extend({}, d.fn.panel.parseOptions(e), d.parser.parseOptions(e, [ {
             draggable: "boolean",
             resizable: "boolean",
             shadow: "boolean",
@@ -4774,7 +5285,7 @@ if (typeof JSON !== "object") {
             inline: "boolean"
         } ]));
     };
-    o.fn.window.defaults = o.extend({}, o.fn.panel.defaults, {
+    d.fn.window.defaults = d.extend({}, d.fn.panel.defaults, {
         zIndex: 9e3,
         draggable: true,
         resizable: true,
@@ -4786,7 +5297,8 @@ if (typeof JSON !== "object") {
         minimizable: true,
         maximizable: true,
         closable: true,
-        closed: false
+        closed: false,
+        constrain: false
     });
 })(jQuery);
 
@@ -5334,7 +5846,7 @@ if (typeof JSON !== "object") {
             return $.messager.confirm3SrcMsg(e, $.hisui.getTrans(t), i);
         },
         promptSrcMsg: function(e, t, i) {
-            var a = '<div class="messager-icon messager-question"></div>' + '<div style="margin-left:42px">' + t + "</div>" + "<br/>" + '<div style="clear:both;"/>' + '<div><input class="messager-input" type="text"/></div>';
+            var a = '<div class="messager-icon messager-question"></div>' + '<div style="margin-left:42px">' + t + "</div>" + "<br/>" + '<div style="clear:both;"/>' + '<div class="messager-input-line"><input class="messager-input" type="text"/></div>';
             var n = {};
             n["ok"] = function(e) {
                 if (e && ("undefined" != typeof e.clientY && e.clientY < 0)) return false;
@@ -5437,10 +5949,11 @@ if (typeof JSON !== "object") {
                 i.style.left = document.body.clientWidth / 2 - o.width() / 2;
             }
             if (i.style.top == "") {
-                if ("undefined" == typeof HISUIStyleCode || HISUIStyleCode !== "pure") {
-                    i.style.top = document.body.clientHeight / 2 - o.height() / 2;
-                } else {
+                var s = $.hisui.getStyleCodeConfigValue("popoverPosition");
+                if (s == "top") {
                     i.style.top = document.body.scrollTop + document.documentElement.scrollTop + 10;
+                } else {
+                    i.style.top = document.body.clientHeight / 2 - o.height() / 2;
                 }
             }
             o.css(i.style);
@@ -5473,7 +5986,7 @@ if (typeof JSON !== "object") {
                 o.remove();
             });
             if (i.timeout > 0) {
-                var s = setTimeout(function() {
+                var l = setTimeout(function() {
                     switch (i.showType) {
                       case null:
                         o.hide();
@@ -5536,6 +6049,8 @@ if (typeof JSON !== "object") {
         }
         if (l.hasClass("accordion-gray")) {
             a -= 4 * (n.length - 1) + 1;
+        } else if (l.hasClass("accordion-panel-plain")) {
+            a -= 10 * (n.length - 1) + 1;
         }
         o(true, a - o(false) + 1);
         function o(e, t) {
@@ -5874,6 +6389,95 @@ if (typeof JSON !== "object") {
 })(jQuery);
 
 (function($) {
+    function createOverflowMenuBtn(t) {
+        var e = $.data(t, "tabs");
+        if (e.overflowMenuBtn) {
+            return;
+        }
+        var i = $(t).children("div.tabs-header");
+        var a = $('<div class="tabs-overflow-btn"><a href="javascript:void(0)" class="tabs-overflow-btn-icon" role="button" aria-label="' + e.options.overflowBtnText + '"></a></div>').appendTo(i);
+        var n = $('<div class="tabs-overflow-menu"></div>').appendTo("body");
+        n.menu({
+            onClick: function(e) {
+                selectTab(t, parseInt(e.name, 10));
+            }
+        });
+        e.overflowMenuBtn = a;
+        e.overflowMenuEl = n;
+        a.on("click.tabs-overflow", function(e) {
+            e.stopPropagation();
+            updateOverflowMenu(t);
+            n.menu("show", {
+                left: a.offset().left + a.outerWidth() - n.outerWidth(),
+                top: a.offset().top + a.outerHeight()
+            });
+        });
+    }
+    function destroyOverflowMenuBtn(e) {
+        var t = $.data(e, "tabs");
+        if (t.overflowMenuBtn) {
+            t.overflowMenuBtn.off("click.tabs-overflow").remove();
+            t.overflowMenuBtn = null;
+        }
+        if (t.overflowMenuEl) {
+            t.overflowMenuEl.menu("destroy");
+            t.overflowMenuEl = null;
+        }
+        var i = $(e).children("div.tabs-header");
+        $("ul.tabs li", i).show();
+    }
+    function updateOverflowMenu(d) {
+        var c = $.data(d, "tabs");
+        var f = c.overflowMenuEl;
+        if (!f) {
+            return;
+        }
+        var e = f.children("div.menu-item").toArray();
+        for (var t = 0; t < e.length; t++) {
+            f.menu("removeItem", e[t]);
+        }
+        var i = $(d).children("div.tabs-header");
+        var u = false;
+        $("ul.tabs li", i).each(function(e) {
+            var t = $(this);
+            if (t.css("display") === "none") {
+                var i = c.tabs[e];
+                var a = i ? i.panel("options").title : "";
+                var n = i ? i.panel("options").iconCls : "";
+                var r = i ? i.panel("options").closable : false;
+                var o = t.hasClass("tabs-selected");
+                f.menu("appendItem", {
+                    text: a,
+                    iconCls: n || undefined,
+                    name: String(e)
+                });
+                u = true;
+                var s = f.children("div.menu-item").last();
+                if (o) {
+                    s.addClass("tabs-overflow-menu-selected");
+                }
+                if (r) {
+                    var l = $('<a href="javascript:void(0)" class="tabs-overflow-menu-close" role="button" aria-label="' + (a || "") + c.options.closeText + '"></a>');
+                    s.append(l);
+                    (function(t) {
+                        l.on("click.tabs-overflow-close", function(e) {
+                            e.stopPropagation();
+                            closeTab(d, t.panel("options").title);
+                            updateOverflowMenu(d);
+                            f.menu("show", {});
+                        });
+                    })(i);
+                }
+            }
+        });
+        if (!u) {
+            f.menu("appendItem", {
+                text: c.options.noHiddenTabs,
+                disabled: true,
+                name: "-1"
+            });
+        }
+    }
     function setScrollers(e) {
         var t = $.data(e, "tabs").options;
         if (t.tabPosition == "left" || t.tabPosition == "right" || !t.showHeader) {
@@ -5894,51 +6498,127 @@ if (typeof JSON !== "object") {
             l += $(this).outerWidth(true);
         });
         var d = i.width() - a._outerWidth();
-        if (l > d) {
-            n.add(r).show()._outerHeight(s);
-            if (t.toolPosition == "left") {
-                a.css({
-                    left: n.outerWidth(),
-                    right: ""
-                });
-                o.css({
-                    marginLeft: n.outerWidth() + a._outerWidth(),
-                    marginRight: r._outerWidth(),
-                    width: d - n.outerWidth() - r.outerWidth()
+        if (t.overflowMenu) {
+            n.add(r).hide();
+            createOverflowMenuBtn(e);
+            var c = $.data(e, "tabs").overflowMenuBtn;
+            var f = 28;
+            var u = $("ul.tabs li", i);
+            u.show();
+            var h = d - f;
+            var p = 0;
+            var v = false;
+            u.each(function() {
+                p += $(this).outerWidth(true);
+                if (p > h) {
+                    v = true;
+                }
+            });
+            if (v) {
+                c.show()._outerHeight(28);
+                if (t.toolPosition == "left") {
+                    a.css({
+                        left: f,
+                        right: ""
+                    });
+                    o.css({
+                        marginLeft: f + a._outerWidth(),
+                        marginRight: 0,
+                        width: h
+                    });
+                } else {
+                    a.css({
+                        left: "",
+                        right: f
+                    });
+                    o.css({
+                        marginLeft: 0,
+                        marginRight: f + a._outerWidth(),
+                        width: h
+                    });
+                }
+                var g = 0;
+                u.each(function() {
+                    var e = $(this).outerWidth(true);
+                    if (g + e > h) {
+                        $(this).hide();
+                    } else {
+                        g += e;
+                    }
                 });
             } else {
-                a.css({
-                    left: "",
-                    right: r.outerWidth()
-                });
-                o.css({
-                    marginLeft: n.outerWidth(),
-                    marginRight: r.outerWidth() + a._outerWidth(),
-                    width: d - n.outerWidth() - r.outerWidth()
-                });
+                c.hide();
+                u.show();
+                if (t.toolPosition == "left") {
+                    a.css({
+                        left: 0,
+                        right: ""
+                    });
+                    o.css({
+                        marginLeft: a._outerWidth(),
+                        marginRight: 0,
+                        width: d
+                    });
+                } else {
+                    a.css({
+                        left: "",
+                        right: 0
+                    });
+                    o.css({
+                        marginLeft: 0,
+                        marginRight: a._outerWidth(),
+                        width: d
+                    });
+                }
             }
         } else {
-            n.add(r).hide();
-            if (t.toolPosition == "left") {
-                a.css({
-                    left: 0,
-                    right: ""
-                });
-                o.css({
-                    marginLeft: a._outerWidth(),
-                    marginRight: 0,
-                    width: d
-                });
+            destroyOverflowMenuBtn(e);
+            if (l > d) {
+                n.add(r).show()._outerHeight(s);
+                if (t.toolPosition == "left") {
+                    a.css({
+                        left: n.outerWidth(),
+                        right: ""
+                    });
+                    o.css({
+                        marginLeft: n.outerWidth() + a._outerWidth(),
+                        marginRight: r._outerWidth(),
+                        width: d - n.outerWidth() - r.outerWidth()
+                    });
+                } else {
+                    a.css({
+                        left: "",
+                        right: r.outerWidth()
+                    });
+                    o.css({
+                        marginLeft: n.outerWidth(),
+                        marginRight: r.outerWidth() + a._outerWidth(),
+                        width: d - n.outerWidth() - r.outerWidth()
+                    });
+                }
             } else {
-                a.css({
-                    left: "",
-                    right: 0
-                });
-                o.css({
-                    marginLeft: 0,
-                    marginRight: a._outerWidth(),
-                    width: d
-                });
+                n.add(r).hide();
+                if (t.toolPosition == "left") {
+                    a.css({
+                        left: 0,
+                        right: ""
+                    });
+                    o.css({
+                        marginLeft: a._outerWidth(),
+                        marginRight: 0,
+                        width: d
+                    });
+                } else {
+                    a.css({
+                        left: "",
+                        right: 0
+                    });
+                    o.css({
+                        marginLeft: 0,
+                        marginRight: a._outerWidth(),
+                        width: d
+                    });
+                }
             }
         }
     }
@@ -5970,7 +6650,7 @@ if (typeof JSON !== "object") {
         var e = $.data(n, "tabs");
         var t = e.options;
         if (t.simpleContextMenu) {
-            var r = $('<div class="tabs-ctx-menu">' + '<div class="tabs-ctx-menu-refresh" >刷新</div>' + '<div class="menu-sep" ></div>' + '<div class="tabs-ctx-menu-close" >关闭</div>' + '<div class="tabs-ctx-menu-closeother" >关闭其他</div>' + '<div class="tabs-ctx-menu-closeall" >关闭全部</div>' + '<div class="tabs-ctx-menu-closeleft" >关闭左侧</div>' + '<div class="tabs-ctx-menu-closeright">关闭右侧</div>' + "</div>").appendTo("body");
+            var r = $('<div class="tabs-ctx-menu">' + '<div class="tabs-ctx-menu-refresh" >' + t.refreshText + "</div>" + '<div class="menu-sep" ></div>' + '<div class="tabs-ctx-menu-close" >' + t.closeText + "</div>" + '<div class="tabs-ctx-menu-closeother" >' + t.closeOtherText + "</div>" + '<div class="tabs-ctx-menu-closeall" >' + t.closeAllText + "</div>" + '<div class="tabs-ctx-menu-closeleft" >' + t.closeLeftText + "</div>" + '<div class="tabs-ctx-menu-closeright">' + t.closeRightText + "</div>" + "</div>").appendTo("body");
             r.menu({});
             e.ctxmenu = r;
             r.find(".tabs-ctx-menu-refresh").off("click.tabs").on("click.tabs", function() {
@@ -6169,7 +6849,8 @@ if (typeof JSON !== "object") {
             t[0].appendChild(this);
         });
         e[0].appendChild(t[0]);
-        $('<div class="tabs-header">' + '<div class="tabs-scroller-left"></div>' + '<div class="tabs-scroller-right"></div>' + '<div class="tabs-wrap">' + '<ul class="tabs"></ul>' + "</div>" + "</div>").prependTo(a);
+        var i = $.data(a, "tabs").options;
+        $('<div class="tabs-header">' + '<div class="tabs-scroller-left" role="button" aria-label="' + i.scrollLeftText + '"></div>' + '<div class="tabs-scroller-right" role="button" aria-label="' + i.scrollRightText + '"></div>' + '<div class="tabs-wrap">' + '<ul class="tabs"></ul>' + "</div>" + "</div>").prependTo(a);
         e.children("div.tabs-panels").children("div").each(function(e) {
             var t = $.extend({}, $.parser.parseOptions(this), {
                 selected: $(this).attr("selected") ? true : undefined
@@ -6203,13 +6884,13 @@ if (typeof JSON !== "object") {
                     $(r).tabs("scrollBy", s.scrollIncrement);
                 } else {
                     var t = $(e.target).closest("li");
-                    if (t.hasClass("tabs-disabled")) {
-                        return;
-                    }
                     var i = $(e.target).closest("a.tabs-close");
                     if (i.length) {
                         closeTab(r, l(t));
                     } else {
+                        if (t.hasClass("tabs-disabled")) {
+                            return;
+                        }
                         if (t.length) {
                             var a = l(t);
                             var n = o.tabs[a].panel("options");
@@ -6372,7 +7053,7 @@ if (typeof JSON !== "object") {
         o.find("a.tabs-close").remove();
         if (r.closable) {
             s.addClass("tabs-closable");
-            $('<a href="javascript:void(0)" class="tabs-close"></a>').appendTo(o);
+            $('<a href="javascript:void(0)" class="tabs-close" role="button" aria-label="' + (r.title || "") + $.data(e, "tabs").options.closeText + '"></a>').appendTo(o);
         } else {
             s.removeClass("tabs-closable");
         }
@@ -6707,7 +7388,7 @@ if (typeof JSON !== "object") {
                 var e = $(this).tabs("options");
                 var i = $(this).find(">div.tabs-header>div.tabs-wrap");
                 var t = Math.min(i._scrollLeft() + n, a());
-                i.animate({
+                i.stop(true, true).animate({
                     scrollLeft: t
                 }, e.scrollDuration);
                 function a() {
@@ -6730,7 +7411,9 @@ if (typeof JSON !== "object") {
             tabWidth: "number",
             tabHeight: "number",
             selected: "number",
-            showHeader: "boolean"
+            showHeader: "boolean",
+            overflowMenu: "boolean",
+            overflowMenuWidth: "number"
         } ]));
     };
     $.fn.tabs.defaults = {
@@ -6749,6 +7432,18 @@ if (typeof JSON !== "object") {
         tabPosition: "top",
         scrollIncrement: 100,
         scrollDuration: 400,
+        overflowMenu: false,
+        overflowMenuWidth: 140,
+        noHiddenTabs: "No hidden tabs",
+        refreshText: "Refresh",
+        closeText: "Close",
+        closeOtherText: "Close Others",
+        closeAllText: "Close All",
+        closeLeftText: "Close Left",
+        closeRightText: "Close Right",
+        scrollLeftText: "Scroll left",
+        scrollRightText: "Scroll right",
+        overflowBtnText: "More tabs",
         onLoad: function(e) {},
         onSelect: function(e, t) {},
         onUnselect: function(e, t) {},
@@ -6945,7 +7640,14 @@ if (typeof JSON !== "object") {
                 var i = "layout-button-" + t[d];
                 var a = e.children("a." + i);
                 if (!a.length) {
-                    a = u('<a href="javascript:void(0)"></a>').addClass(i).appendTo(e);
+                    var n = (u.data(s, "layout") || {}).options || u.fn.layout.defaults;
+                    var r = {
+                        north: "collapseNorthText",
+                        south: "collapseSouthText",
+                        east: "collapseEastText",
+                        west: "collapseWestText"
+                    }[d];
+                    a = u('<a href="javascript:void(0)" aria-label="' + n[r] + '"></a>').addClass(i).appendTo(e);
                     a.bind("click", {
                         dir: d
                     }, function(e) {
@@ -7068,27 +7770,30 @@ if (typeof JSON !== "object") {
         }
         var t = u.data(o, "layout");
         var l = t.panels;
-        var i = t.options;
-        var a = l[s];
-        var d = a.panel("options");
-        if (d.onBeforeCollapse.call(a) == false) {
+        var d = t.options;
+        var i = l[s];
+        var c = i.panel("options");
+        if (c.onBeforeCollapse.call(i) == false) {
             return;
         }
-        var n = "expand" + s.substring(0, 1).toUpperCase() + s.substring(1);
-        if (!l[n]) {
-            l[n] = c(s);
-            l[n].panel("panel").bind("click", function() {
-                if (i.clickExpand) {
+        var a = "expand" + s.substring(0, 1).toUpperCase() + s.substring(1);
+        if (!l[a]) {
+            l[a] = r(s);
+            l[a].panel("panel").bind("click", function() {
+                if (d.clickExpand) {
                     b(o, s);
                     return false;
                 } else {
                     var e = f();
-                    a.panel("expand", false).panel("open").panel("resize", e.collapse);
-                    a.panel("panel").animate(e.expand, function() {
+                    i.panel("expand", false).panel("open").panel("resize", e.collapse);
+                    i.panel("panel").animate(e.expand, function() {
                         u(this).unbind(".layout").bind("mouseleave.layout", {
                             region: s
                         }, function(e) {
                             if (h == true) {
+                                return;
+                            }
+                            if (c.onBeforeCollapseForMouseLeave.call(i, e) == false) {
                                 return;
                             }
                             g(o, e.data.region);
@@ -7098,17 +7803,17 @@ if (typeof JSON !== "object") {
                 }
             });
         }
-        var r = f();
-        if (!m(l[n])) {
-            l.center.panel("resize", r.resizeC);
+        var n = f();
+        if (!m(l[a])) {
+            l.center.panel("resize", n.resizeC);
         }
-        a.panel("panel").animate(r.collapse, e, function() {
-            a.panel("collapse", false).panel("close");
-            l[n].panel("open").panel("resize", r.expandP);
+        i.panel("panel").animate(n.collapse, e, function() {
+            i.panel("collapse", false).panel("close");
+            l[a].panel("open").panel("resize", n.expandP);
             u(this).unbind(".layout");
         });
-        function c(e) {
-            var t;
+        function r(e) {
+            var t, i = "";
             if (e == "east") {
                 t = "layout-button-left";
             } else {
@@ -7117,52 +7822,61 @@ if (typeof JSON !== "object") {
                 } else {
                     if (e == "north") {
                         t = "layout-button-down";
+                        i = c.iconCls;
                     } else {
                         if (e == "south") {
                             t = "layout-button-up";
+                            i = c.iconCls;
                         }
                     }
                 }
             }
-            var i = "&nbsp;", a = "";
-            if (d.title != "" && d.showCollapsedTitle) {
+            var a = "&nbsp;", n = "";
+            if (c.title != "" && c.showCollapsedTitle) {
                 if (e == "east" || e == "west") {
-                    a = u.hisui.getTrans(d.title).split("").join("</div><div>");
-                    a = '<div class="layout-expand-body-title"><div>' + a + "</div></div>";
+                    n = "<div class='" + c.iconCls + "'></div><div>" + u.hisui.getTrans(c.title).split("").join("</div><div>");
+                    n = '<div class="layout-expand-body-title"><div>' + n + "</div></div>";
                 } else {
-                    i = d.title;
+                    a = c.title;
                 }
             }
-            var n = u("<div></div>").appendTo(o);
-            n.panel(u.extend({}, u.fn.layout.paneldefaults, {
+            var r = u("<div></div>").appendTo(o);
+            r.panel(u.extend({}, u.fn.layout.paneldefaults, {
+                iconCls: i,
                 cls: "layout-expand layout-expand-" + e,
-                title: i,
-                content: a,
-                headerCls: d.headerCls,
-                bodyCls: d.bodyCls,
+                title: a,
+                content: n,
+                headerCls: c.headerCls,
+                bodyCls: c.bodyCls,
                 closed: true,
                 minWidth: 0,
                 minHeight: 0,
                 doSize: false,
                 tools: [ {
                     iconCls: t,
+                    text: d[{
+                        north: "expandNorthText",
+                        south: "expandSouthText",
+                        east: "expandEastText",
+                        west: "expandWestText"
+                    }[e]],
                     handler: function() {
                         b(o, s);
                         return false;
                     }
                 } ]
             }));
-            n.panel("panel").hover(function() {
+            r.panel("panel").hover(function() {
                 u(this).addClass("layout-expand-over");
             }, function() {
                 u(this).removeClass("layout-expand-over");
             });
-            return n;
+            return r;
         }
         function f() {
             var e = u(o);
             var t = l.center.panel("options");
-            var i = d.collapsedSize;
+            var i = c.collapsedSize;
             var a = {
                 top: parseInt(e.css("padding-top")),
                 left: parseInt(e.css("padding-left")),
@@ -7170,8 +7884,8 @@ if (typeof JSON !== "object") {
                 bottom: parseInt(e.css("padding-bottom"))
             };
             if (s == "east") {
-                var n = t.width + d.width - i;
-                if (d.split || !d.border) {
+                var n = t.width + c.width - i;
+                if (c.split || !c.border) {
                     n++;
                 }
                 return {
@@ -7179,7 +7893,7 @@ if (typeof JSON !== "object") {
                         width: n
                     },
                     expand: {
-                        left: e.width() - d.width + (a.left > 0 ? a.left : 0)
+                        left: e.width() - c.width + (a.left > 0 ? a.left : 0)
                     },
                     expandP: {
                         top: t.top,
@@ -7195,8 +7909,8 @@ if (typeof JSON !== "object") {
                 };
             } else {
                 if (s == "west") {
-                    var n = t.width + d.width - i;
-                    if (d.split || !d.border) {
+                    var n = t.width + c.width - i;
+                    if (c.split || !c.border) {
                         n++;
                     }
                     return {
@@ -7214,17 +7928,17 @@ if (typeof JSON !== "object") {
                             height: t.height
                         },
                         collapse: {
-                            left: -d.width,
+                            left: -c.width,
                             top: t.top,
                             height: t.height
                         }
                     };
                 } else {
                     if (s == "north") {
-                        i = d.collapsedHeight;
+                        i = c.collapsedHeight;
                         var r = t.height;
                         if (!m(l.expandNorth)) {
-                            r += d.height - i + (d.split || !d.border ? 1 : 0);
+                            r += c.height - i + (c.split || !c.border ? 1 : 0);
                         }
                         l.east.add(l.west).add(l.expandEast).add(l.expandWest).panel("resize", {
                             top: i - 1 + (a.top > 0 ? a.top : 0),
@@ -7245,16 +7959,16 @@ if (typeof JSON !== "object") {
                                 height: i
                             },
                             collapse: {
-                                top: -d.height,
+                                top: -c.height,
                                 width: e.width()
                             }
                         };
                     } else {
                         if (s == "south") {
-                            i = d.collapsedHeight;
+                            i = c.collapsedHeight;
                             var r = t.height;
                             if (!m(l.expandSouth)) {
-                                r += d.height - i + (d.split || !d.border ? 1 : 0);
+                                r += c.height - i + (c.split || !c.border ? 1 : 0);
                             }
                             l.east.add(l.west).add(l.expandEast).add(l.expandWest).panel("resize", {
                                 height: r
@@ -7264,7 +7978,7 @@ if (typeof JSON !== "object") {
                                     height: r
                                 },
                                 expand: {
-                                    top: e.height() - d.height + (a.top > 0 ? a.top : 0)
+                                    top: e.height() - c.height + (a.top > 0 ? a.top : 0)
                                 },
                                 expandP: {
                                     top: e.height() - i + (a.top > 0 ? a.top : 0),
@@ -7448,7 +8162,15 @@ if (typeof JSON !== "object") {
     };
     u.fn.layout.defaults = {
         fit: false,
-        clickExpand: false
+        clickExpand: false,
+        collapseNorthText: "Collapse north panel",
+        collapseSouthText: "Collapse south panel",
+        collapseEastText: "Collapse east panel",
+        collapseWestText: "Collapse west panel",
+        expandNorthText: "Expand north panel",
+        expandSouthText: "Expand south panel",
+        expandEastText: "Expand east panel",
+        expandWestText: "Expand west panel"
     };
     u.fn.layout.parsePanelOptions = function(e) {
         var t = u(e);
@@ -7573,7 +8295,9 @@ if (typeof JSON !== "object") {
                 if (r < $(this)._outerWidth()) {
                     r = $(this)._outerWidth();
                 }
-                $(this).closest("div.menu-item")._outerHeight($(this)._outerHeight() + 2);
+                if ("pure" == window.HISUIStyleCode) {} else {
+                    $(this).closest("div.menu-item")._outerHeight($(this)._outerHeight() + 2);
+                }
             });
             r += 40;
         }
@@ -7660,13 +8384,15 @@ if (typeof JSON !== "object") {
                 t.options.onHide.call(e);
             }
         }
-        if (t.options.isTopZindex) {
-            windowNPAPITotal = 200;
-            $.hisui.findObjectDom(t.options, window, false, e, "menu");
+        if (navigator.userAgent.indexOf("Chrome/49.") > -1) {
+            if (t.options.isTopZindex) {
+                windowNPAPITotal = 200;
+                $.hisui.findObjectDom(t.options, window, false, e, "menu");
+            }
+            $.data(e, "changeIdStr", {
+                NPAPIIdStr: ""
+            });
         }
-        $.data(e, "changeIdStr", {
-            NPAPIIdStr: ""
-        });
         return false;
     }
     function showMenu(e, t) {
@@ -8226,7 +8952,7 @@ if (typeof JSON !== "object") {
         $(e).addClass("searchbox-f").hide();
         var t = $('<span class="searchbox"></span>').insertAfter(e);
         var i = $('<input type="text" class="searchbox-text">').appendTo(t);
-        $('<span><span class="searchbox-button"></span></span>').appendTo(t);
+        $('<span><span class="searchbox-button" role="button" aria-label="' + $.fn.searchbox.defaults.searchText + '"></span></span>').appendTo(t);
         var a = $(e).attr("name");
         if (a) {
             i.attr("name", a);
@@ -8268,8 +8994,18 @@ if (typeof JSON !== "object") {
         var e = a.options;
         if (e.menu) {
             a.menu = $(e.menu).menu({
+                minWidth: 60,
                 onClick: function(e) {
                     n(e);
+                },
+                onShow: function() {
+                    a.searchbox.addClass("searchbox-plain-menu-open");
+                    $(this).offset({
+                        left: a.searchbox.offset().left
+                    });
+                },
+                onHide: function() {
+                    a.searchbox.removeClass("searchbox-plain-menu-open");
                 }
             });
             var t = a.menu.children("div.menu-item:first");
@@ -8387,6 +9123,7 @@ if (typeof JSON !== "object") {
                     searchbox: init(this)
                 });
             }
+            if (e.options && e.options.prompt) e.options.prompt = $.hisui.getTrans(e.options.prompt);
             _404(this);
             _413(this);
             _409(this);
@@ -8479,6 +9216,7 @@ if (typeof JSON !== "object") {
         value: "",
         menu: null,
         disabled: false,
+        searchText: "Search",
         searcher: function(e, t) {}
     };
 })(jQuery);
@@ -8698,6 +9436,12 @@ if (typeof JSON !== "object") {
         destroy: function(e) {
             return e.each(function() {
                 _41f(this);
+            });
+        },
+        setValue: function(e, t) {
+            return e.each(function() {
+                $(this).val(t);
+                _42e(this);
             });
         },
         validate: function(e) {
@@ -9542,46 +10286,61 @@ if (typeof JSON !== "object") {
         i._outerHeight(t.height);
         i.find(".calendar-body")._outerHeight(i.height() - a._outerHeight());
     }
-    function a(t) {
-        Y(t).addClass("calendar").html('<div class="calendar-header">' + '<div class="calendar-prevmonth"></div>' + '<div class="calendar-nextmonth"></div>' + '<div class="calendar-prevyear"></div>' + '<div class="calendar-nextyear"></div>' + '<div class="calendar-title">' + "<span>Aprial 2010</span>" + "</div>" + "</div>" + '<div class="calendar-body">' + '<div class="calendar-menu">' + '<div class="calendar-menu-year-inner">' + '<span class="calendar-menu-prev"></span>' + '<span><input class="calendar-menu-year" type="text"></input></span>' + '<span class="calendar-menu-next"></span>' + "</div>" + '<div class="calendar-menu-month-inner">' + "</div>" + "</div>" + "</div>");
-        Y(t).find(".calendar-title span").hover(function() {
+    function a(a) {
+        Y(a).addClass("calendar").html('<div class="calendar-header">' + '<div class="calendar-prevmonth"></div>' + '<div class="calendar-nextmonth"></div>' + '<div class="calendar-prevyear"></div>' + '<div class="calendar-nextyear"></div>' + '<div class="calendar-title">' + "<span>Aprial 2010</span>" + "</div>" + "</div>" + '<div class="calendar-body">' + '<div class="calendar-menu">' + '<div class="calendar-menu-year-inner">' + '<span class="calendar-menu-prev"></span>' + '<span><input class="calendar-menu-year" type="text"></input></span>' + '<span class="calendar-menu-next"></span>' + "</div>" + '<div class="calendar-menu-month-inner">' + "</div>" + "</div>" + "</div>");
+        Y(a).find(".calendar-title span").hover(function() {
             Y(this).addClass("calendar-menu-hover");
         }, function() {
             Y(this).removeClass("calendar-menu-hover");
         }).click(function() {
-            var e = Y(t).find(".calendar-menu");
+            var e = Y(a).find(".calendar-menu");
             if (e.is(":visible")) {
                 e.hide();
             } else {
-                r(t);
+                t(a);
             }
         });
-        Y(".calendar-prevmonth,.calendar-nextmonth,.calendar-prevyear,.calendar-nextyear", t).hover(function() {
+        Y(".calendar-prevmonth,.calendar-nextmonth,.calendar-prevyear,.calendar-nextyear", a).hover(function() {
             Y(this).addClass("calendar-nav-hover");
         }, function() {
             Y(this).removeClass("calendar-nav-hover");
         });
-        Y(t).find(".calendar-nextmonth").click(function() {
-            e(t, 1);
+        Y(a).find(".calendar-nextmonth").click(function() {
+            n(a, 1);
         });
-        Y(t).find(".calendar-prevmonth").click(function() {
-            e(t, -1);
+        Y(a).find(".calendar-prevmonth").click(function() {
+            n(a, -1);
         });
-        Y(t).find(".calendar-nextyear").click(function() {
-            n(t, 1);
+        Y(a).find(".calendar-nextyear").click(function() {
+            e(a, 1);
         });
-        Y(t).find(".calendar-prevyear").click(function() {
-            n(t, -1);
+        Y(a).find(".calendar-prevyear").click(function() {
+            e(a, -1);
         });
-        Y(t).bind("_resize", function() {
-            var e = Y.data(t, "calendar").options;
+        Y(a).bind("_resize", function() {
+            var e = Y.data(a, "calendar").options;
             if (e.fit == true) {
-                i(t);
+                i(a);
             }
             return false;
         });
+        Y(a).unbind("mousewheel DOMMouseScroll").bind("mousewheel DOMMouseScroll", function(e) {
+            e.preventDefault();
+            var t = 0;
+            if (e.originalEvent.wheelDelta) {
+                t = e.originalEvent.wheelDelta;
+            } else if (e.originalEvent.detail) {
+                t = -e.originalEvent.detail * 10;
+            }
+            var i = Y(this).parent().find(".datebox-common");
+            if (t > 0) {
+                n(a, -1);
+            } else {
+                n(a, 1);
+            }
+        });
     }
-    function e(e, t) {
+    function n(e, t) {
         var i = Y.data(e, "calendar").options;
         i.month += t;
         if (i.month > 12) {
@@ -9598,14 +10357,14 @@ if (typeof JSON !== "object") {
         a.find("td.calendar-selected").removeClass("calendar-selected");
         a.find("td:eq(" + (i.month - 1) + ")").addClass("calendar-selected");
     }
-    function n(e, t) {
+    function e(e, t) {
         var i = Y.data(e, "calendar").options;
         i.year += t;
         u(e);
         var a = Y(e).find(".calendar-menu-year");
         a.val(i.year);
     }
-    function r(n) {
+    function t(n) {
         var r = Y.data(n, "calendar").options;
         Y(n).find(".calendar-menu").show();
         if (Y(n).find(".calendar-menu-month-inner").is(":empty")) {
@@ -9949,7 +10708,7 @@ if (typeof JSON !== "object") {
 
 (function(o) {
     function a(e) {
-        var t = o('<span class="spinner">' + '<span class="spinner-arrow">' + '<span class="spinner-arrow-up"></span>' + '<span class="spinner-arrow-down"></span>' + "</span>" + "</span>").insertAfter(e);
+        var t = o('<span class="spinner">' + '<span class="spinner-arrow">' + '<span class="spinner-arrow-up" role="button" aria-label="' + o.fn.spinner.defaults.spinUpText + '"></span>' + '<span class="spinner-arrow-down" role="button" aria-label="' + o.fn.spinner.defaults.spinDownText + '"></span>' + "</span>" + "</span>").insertAfter(e);
         o(e).addClass("spinner-text spinner-f").prependTo(t);
         return t;
     }
@@ -9981,6 +10740,8 @@ if (typeof JSON !== "object") {
         var e = o.data(t, "spinner").spinner;
         o(t).unbind(".spinner");
         e.find(".spinner-arrow-up,.spinner-arrow-down").unbind(".spinner");
+        e.find(".spinner-arrow-up").attr("aria-label", i.spinUpText);
+        e.find(".spinner-arrow-down").attr("aria-label", i.spinDownText);
         if (!i.disabled && !i.readonly) {
             e.find(".spinner-arrow-up").bind("mouseenter.spinner", function() {
                 o(this).addClass("spinner-arrow-hover");
@@ -10164,6 +10925,8 @@ if (typeof JSON !== "object") {
         editable: true,
         disabled: false,
         readonly: false,
+        spinUpText: "Increase",
+        spinDownText: "Decrease",
         spin: function(e) {},
         onSpinUp: function() {},
         onSpinDown: function() {},
@@ -10581,12 +11344,14 @@ if (typeof JSON !== "object") {
         }
     }
     function _setSelectionByIdField(e, t, i) {
-        for (var a = 0, n = e.length; a < n; a++) {
-            if (e[a][t] == i[t]) {
-                return;
+        if (i) {
+            for (var a = 0, n = e.length; a < n; a++) {
+                if (e[a] && e[a][t] == i[t]) {
+                    return;
+                }
             }
+            e.push(i);
         }
-        e.push(i);
     }
     function _506(e) {
         var t = $.data(e, "datagrid");
@@ -11000,7 +11765,7 @@ if (typeof JSON !== "object") {
                 showPageList: opts.showPageList,
                 afterPageText: opts.afterPageText,
                 beforePageText: opts.beforePageText,
-                displayMsg: opts.displayMsg,
+                displayMsg: opts.displayMsg ? $.hisui.getTrans(opts.displayMsg) : opts.displayMsg,
                 pageSize: opts.pageSize,
                 pageList: opts.pageList,
                 onSelectPage: function(e, t) {
@@ -11187,7 +11952,7 @@ if (typeof JSON !== "object") {
             }
             e.stopPropagation();
         });
-        var e = a.find("div.datagrid-cell,div.datagrid-header-rownumber");
+        var e = a.find("div.datagrid-cell");
         e.closest("td").unbind(".datagrid").bind("mouseenter.datagrid", function() {
             if (v.resizing) {
                 return;
@@ -11321,7 +12086,7 @@ if (typeof JSON !== "object") {
             } else {
                 var n = g.finder.getRow(p, a);
                 var r = t.closest("td[field]", i);
-                if (r.length) {
+                if (n && r.length) {
                     var o = r.attr("field");
                     g.onClickCell.call(p, a, o, n[o]);
                 }
@@ -11396,6 +12161,7 @@ if (typeof JSON !== "object") {
                                     var c = g.finder.getRow(p, n);
                                     d = cm[s][l].showTipFormatter.call(this, c, n);
                                 }
+                                d = $.trim(d);
                                 var f = cm[s][l].tipWidth || 350;
                                 var u = cm[s][l].tipPosition || "bottom";
                                 var h = cm[s][l].tipTrackMouse || false;
@@ -11404,6 +12170,7 @@ if (typeof JSON !== "object") {
                                     position: u,
                                     trackMouse: h,
                                     tipWidth: f,
+                                    notTrans: true,
                                     onShow: function() {
                                         var e = this;
                                         (function() {
@@ -11962,6 +12729,11 @@ if (typeof JSON !== "object") {
                 return i;
             });
         }
+        a.body2.closest(".datagrid").find(".tooltip-f").each(function() {
+            try {
+                $(this).tooltip("destroy");
+            } catch (e) {}
+        });
         if (i.view.onBeforeRender) {
             i.view.onBeforeRender.call(i.view, l, e.rows);
         }
@@ -12005,9 +12777,9 @@ if (typeof JSON !== "object") {
         _5af(l);
         $(l).datagrid("autoSizeColumn");
         if (e.total > 0 || e.rows && e.rows.length > 0) {
-            a.body2.removeClass("datagrid-no-data").addClass("datagrid-have-data");
+            a.body2.closest(".datagrid").removeClass("datagrid-no-data").addClass("datagrid-have-data");
         } else {
-            a.body2.removeClass("datagrid-have-data").addClass("datagrid-no-data");
+            a.body2.closest(".datagrid").removeClass("datagrid-have-data").addClass("datagrid-no-data");
         }
     }
     function _5af(e) {
@@ -12034,10 +12806,12 @@ if (typeof JSON !== "object") {
             a.onCheck = r;
         }
         function c(e, t) {
-            for (var i = 0; i < e.length; i++) {
-                if (e[i][a.idField] == t[a.idField]) {
-                    e[i] = t;
-                    return true;
+            if (t) {
+                for (var i = 0; i < e.length; i++) {
+                    if (e[i] && e[i][a.idField] == t[a.idField]) {
+                        e[i] = t;
+                        return true;
+                    }
                 }
             }
             return false;
@@ -12175,7 +12949,7 @@ if (typeof JSON !== "object") {
             _uncheckRow(e, t, true);
         }
         r.finder.getTr(e, t).removeClass("datagrid-row-selected");
-        if (r.idField) {
+        if (r.idField && o) {
             _503(s, r.idField, o[r.idField]);
         }
         _handerMergeddRow(r, e, t, "datagrid-merged-row-selected", false);
@@ -12304,7 +13078,7 @@ if (typeof JSON !== "object") {
         var l = a.dc;
         var d = l.header1.add(l.header2);
         d.find("div.datagrid-header-check input[type=checkbox]")._propAttr("checked", false);
-        if (n.idField) {
+        if (n.idField && r) {
             _503(a.checkedRows, n.idField, r[n.idField]);
         }
         n.onUncheck.call(e, t, r);
@@ -12884,25 +13658,25 @@ if (typeof JSON !== "object") {
             }
         }
     };
-    $.fn.datagrid = function(a, e) {
-        if (typeof a == "string") {
-            return $.fn.datagrid.methods[a](this, e);
+    $.fn.datagrid = function(n, e) {
+        if (typeof n == "string") {
+            return $.fn.datagrid.methods[n](this, e);
         }
-        a = a || {};
+        n = n || {};
         return this.each(function() {
             var e = $.data(this, "datagrid");
             var r;
             if (e) {
-                r = $.extend(e.options, a);
+                r = $.extend(e.options, n);
                 e.options = r;
                 if ("function" == typeof r.onInitBefore) r.onInitBefore.call(this, r);
-                _handerColumns(r, a, e);
+                _handerColumns(r, n, e);
             } else {
                 r = $.extend({}, $.extend({}, $.fn.datagrid.defaults, {
                     queryParams: {}
-                }), $.fn.datagrid.parseOptions(this), a);
+                }), $.fn.datagrid.parseOptions(this), n);
                 if ("function" == typeof r.onInitBefore) r.onInitBefore.call(this, r);
-                _handerColumns(r, a, e);
+                _handerColumns(r, n, e);
                 $(this).css("width", "").css("height", "");
                 var t = _53a(this, r.rownumbers);
                 if (!r.columns) {
@@ -12933,8 +13707,9 @@ if (typeof JSON !== "object") {
             }
             if ("function" == typeof r.onInitBefore2) r.onInitBefore2.call(this, r);
             var o = this;
-            if (r.showFilterToolbar && (r.toolbar == null || r.toolbar == "")) {
+            if (r.showFilterToolbar) {
                 addToolLoadFilter(o);
+                var i = r.toolbar || undefined;
                 r.toolbar = [ {
                     type: "input",
                     "class": "textbox datagrid-toolbar-findbox",
@@ -13013,6 +13788,10 @@ if (typeof JSON !== "object") {
                     },
                     notTrans: true
                 } ];
+                if (i && $.isArray(i) && i.length > 0) {
+                    r.toolbar = r.toolbar.concat(i);
+                    r.showFilterToolbar = false;
+                }
             }
             _545(this);
             _559(this);
@@ -13021,9 +13800,9 @@ if (typeof JSON !== "object") {
                 _578(this, r.data);
                 _630(this);
             } else {
-                var i = $.fn.datagrid.parseData(this);
-                if (i.total > 0) {
-                    _578(this, i);
+                var a = $.fn.datagrid.parseData(this);
+                if (a.total > 0) {
+                    _578(this, a);
                     _630(this);
                 }
             }
@@ -14148,6 +14927,11 @@ if (typeof JSON !== "object") {
                         n.push($(this).attr("field"));
                     });
                 }
+                i.find(".tooltip-f").each(function() {
+                    try {
+                        $(this).tooltip("destroy");
+                    } catch (e) {}
+                });
                 i.html(this.renderRow.call(this, s, t, e, l, c[l]));
                 if (d.showChangedStyle) {
                     for (var r = 0; r < n.length; r++) {
@@ -14166,7 +14950,7 @@ if (typeof JSON !== "object") {
             i.call(this, true);
             i.call(this, false);
             $(s).datagrid("fixRowHeight", l);
-            $(s).datagrid("getPanel").find(".datagrid-view2 .datagrid-body").removeClass("datagrid-no-data").addClass("datagrid-have-data");
+            $(s).datagrid("getPanel").closest(".datagrid").removeClass("datagrid-no-data").addClass("datagrid-have-data");
         },
         insertRow: function(o, s, e) {
             var l = $.data(o, "datagrid");
@@ -14273,7 +15057,7 @@ if (typeof JSON !== "object") {
         queryName: "",
         compContext: "",
         showChangedStyle: true,
-        fixRowNumber: false,
+        fixRowNumber: true,
         autoSizeColumn: true,
         sharedStyleSheet: false,
         frozenColumns: undefined,
@@ -14329,10 +15113,9 @@ if (typeof JSON !== "object") {
                                 type: "error"
                             });
                         }
-                        var t = {
-                            total: 0,
-                            rows: []
-                        };
+                        var t = e;
+                        t.total = 0;
+                        t.rows = [];
                         if (e.data != null && "object" == typeof e.data) {
                             t = e.data;
                             if ($.isArray(e.data.records)) {
@@ -14572,11 +15355,10 @@ if (typeof JSON !== "object") {
             for (var r = 0; r < n.length; r++) {
                 a.push(this.renderGroup.call(this, e, r, n[r], i));
             }
-            debugger;
             if (n && n.length) {
-                g(t).closest(".datagrid-body").removeClass("datagrid-no-data").addClass("datagrid-have-data");
+                g(t).closest(".datagrid").removeClass("datagrid-no-data").addClass("datagrid-have-data");
             } else {
-                g(t).closest(".datagrid-body").removeClass("datagrid-have-data").addClass("datagrid-no-data");
+                g(t).closest(".datagrid").removeClass("datagrid-have-data").addClass("datagrid-no-data");
             }
             g(t).html(a.join(""));
         },
@@ -14778,21 +15560,21 @@ if (typeof JSON !== "object") {
                 n.sortName = e;
                 n.sortOrder = t;
                 if (n.remoteSort) {
-                    m(a);
+                    C(a);
                 } else {
                     var i = w(a).treegrid("getData");
-                    p(a, null, i);
+                    x(a, null, i);
                 }
                 n.onSortColumn.call(a, e, t);
             },
             onClickCell: function(e, t) {
-                n.onClickCell.call(a, t, C(a, e));
+                n.onClickCell.call(a, t, S(a, e));
             },
             onDblClickCell: function(e, t) {
-                n.onDblClickCell.call(a, t, C(a, e));
+                n.onDblClickCell.call(a, t, S(a, e));
             },
             onRowContextMenu: function(e, t) {
-                n.onContextMenu.call(a, e, C(a, t));
+                n.onContextMenu.call(a, e, S(a, t));
             }
         }));
         var t = w.data(a, "datagrid").options;
@@ -14808,7 +15590,7 @@ if (typeof JSON !== "object") {
                 onSelectPage: function(e, t) {
                     n.pageNumber = e;
                     n.pageSize = t;
-                    m(a);
+                    C(a);
                 }
             });
             n.pageSize = i.pagination("options").pageSize;
@@ -14819,7 +15601,7 @@ if (typeof JSON !== "object") {
         var t = w.data(n, "datagrid").dc;
         if (!t.body1.is(":empty") && (!r.nowrap || r.autoRowHeight)) {
             if (e != undefined) {
-                var i = d(n, e);
+                var i = l(n, e);
                 for (var a = 0; a < i.length; a++) {
                     o(i[a][r.idField]);
                 }
@@ -14855,13 +15637,49 @@ if (typeof JSON !== "object") {
             }
         };
     }
+    function i(e, n) {
+        var t = w.data(e, "treegrid");
+        var r = t.options;
+        if (r.shiftCheck) {
+            var i = r.finder.getTr(e, n, "body", 1);
+            var a = i.closest(".datagrid-body-inner");
+            var o = a.find(".datagrid-row");
+            var s = -1, l = [];
+            o.each(function(e, t) {
+                var i = w(t);
+                var a = i.attr("node-id");
+                if (a == n) {
+                    return false;
+                }
+                if (r.cascadeCheck && i.next().hasClass("treegrid-tr-tree")) {
+                    return;
+                }
+                if (i.find(".tree-checkbox.tree-checkbox1").length > 0) {
+                    s = e;
+                    l = [];
+                }
+                l.push(a);
+            });
+            if (s > -1) {
+                for (var d = 0; d < l.length; d++) {
+                    c(e, l[d], true, true);
+                }
+            }
+        }
+    }
     function t(e) {
         var a = w(e.target);
         if (a.hasClass("tree-hit")) {
             t(Z);
         } else {
             if (a.hasClass("tree-checkbox")) {
-                t(s);
+                t(c);
+                if (e.shiftKey) {
+                    if (window.getSelection) {
+                        window.getSelection().removeAllRanges();
+                    }
+                    t(i);
+                }
             } else {}
         }
         function t(e) {
@@ -14870,14 +15688,14 @@ if (typeof JSON !== "object") {
             e(i, t.attr("node-id"));
         }
     }
-    function s(e, t, i, a) {
+    function c(e, t, i, a) {
         var n = w.data(e, "treegrid");
         var r = n.checkedRows;
         var o = n.options;
         if (!o.checkbox) {
             return;
         }
-        var s = C(e, t);
+        var s = S(e, t);
         if (!s.checkState) {
             return;
         }
@@ -14913,16 +15731,16 @@ if (typeof JSON !== "object") {
             }
         }
         if (o.cascadeCheck) {
-            f(e, s, i);
-            u(e, s);
+            u(e, s, i);
+            h(e, s);
         } else {
-            c(e, s, i ? "1" : "0");
+            f(e, s, i ? "1" : "0");
         }
         if (!a) {
             o.onCheckNode.call(e, s, i);
         }
     }
-    function c(e, t, i) {
+    function f(e, t, i) {
         var a = w.data(e, "treegrid");
         var n = a.checkedRows;
         var r = a.options;
@@ -14944,22 +15762,22 @@ if (typeof JSON !== "object") {
             w.hisui.addArrayItem(n, r.idField, t);
         }
     }
-    function f(t, e, i) {
+    function u(t, e, i) {
         var a = i ? 1 : 0;
-        c(t, e, a);
+        f(t, e, a);
         w.hisui.forEach(e.children || [], true, function(e) {
-            c(t, e, a);
+            f(t, e, a);
         });
     }
-    function u(e, t) {
+    function h(e, t) {
         var i = w.data(e, "treegrid").options;
-        var a = x(e, t[i.idField]);
+        var a = Y(e, t[i.idField]);
         if (a) {
-            c(e, a, l(a));
-            u(e, a);
+            f(e, a, s(a));
+            h(e, a);
         }
     }
-    function l(e) {
+    function s(e) {
         var t = 0;
         var i = 0;
         var a = 0;
@@ -14995,7 +15813,7 @@ if (typeof JSON !== "object") {
         if (!i.checkbox) {
             return;
         }
-        var a = C(e, t);
+        var a = S(e, t);
         var n = i.finder.getTr(e, t);
         var r = n.find(".tree-checkbox");
         if (i.view.hasCheckbox(e, a)) {
@@ -15004,17 +15822,17 @@ if (typeof JSON !== "object") {
                 w('<span class="tree-checkbox"></span>').insertBefore(n.find(".tree-title"));
             }
             if (a.checkState == "checked") {
-                s(e, t, true, true);
+                c(e, t, true, true);
             } else {
                 if (a.checkState == "unchecked") {
-                    s(e, t, false, true);
+                    c(e, t, false, true);
                 } else {
-                    var o = l(a);
+                    var o = s(a);
                     if (o === 0) {
-                        s(e, t, false, true);
+                        c(e, t, false, true);
                     } else {
                         if (o === 1) {
-                            s(e, t, true, true);
+                            c(e, t, true, true);
                         }
                     }
                 }
@@ -15023,10 +15841,10 @@ if (typeof JSON !== "object") {
             r.remove();
             a.checkState = undefined;
             a.checked = undefined;
-            u(e, a);
+            h(e, a);
         }
     }
-    function h(e, t) {
+    function p(e, t) {
         var i = w.data(e, "treegrid").options;
         var a = i.finder.getTr(e, t, "body", 1);
         var n = i.finder.getTr(e, t, "body", 2);
@@ -15038,7 +15856,25 @@ if (typeof JSON !== "object") {
             w('<tr class="treegrid-tr-tree">' + '<td style="border:0px" colspan="' + t + '">' + "<div></div>" + "</td>" + "</tr>").insertAfter(e);
         }
     }
-    function b(e, t) {
+    function b(e) {
+        var t = w.data(e, "treegrid");
+        var i = t.options;
+        if (i.striped) {
+            t.dc.body1.find("tr.datagrid-row").filter(":visible").each(function(e) {
+                w(this).removeClass("datagrid-row-alt");
+                if (e % 2) {
+                    w(this).addClass("datagrid-row-alt");
+                }
+            });
+            t.dc.body2.find("tr.datagrid-row").filter(":visible").each(function(e) {
+                w(this).removeClass("datagrid-row-alt");
+                if (e % 2) {
+                    w(this).addClass("datagrid-row-alt");
+                }
+            });
+        }
+    }
+    function m(e, t) {
         var i = w.data(e, "treegrid");
         var a = i.options;
         var n = i.checkedRows;
@@ -15052,12 +15888,12 @@ if (typeof JSON !== "object") {
             }
         }
     }
-    function p(e, t, i, a, n) {
+    function x(e, t, i, a, n) {
         var r = w.data(e, "treegrid");
         var o = r.options;
         var s = r.dc;
         i = o.loadFilter.call(e, i, t);
-        var l = C(e, t);
+        var l = S(e, t);
         if (l) {
             var d = o.finder.getTr(e, t, "body", 1);
             var c = o.finder.getTr(e, t, "body", 2);
@@ -15077,7 +15913,7 @@ if (typeof JSON !== "object") {
             if (!l) {
                 r.checkedRows = [];
             } else {
-                b(e, u);
+                m(e, u);
             }
             f.empty();
             u.empty();
@@ -15112,7 +15948,7 @@ if (typeof JSON !== "object") {
             o.onLoadSuccess.call(e, l, i);
         }
     }
-    function m(t, i, e, a, n) {
+    function C(t, i, e, a, n) {
         var r = w.data(t, "treegrid").options;
         var o = w(t).datagrid("getPanel").find("div.datagrid-body");
         if (i == undefined && r.queryParams) {
@@ -15134,7 +15970,7 @@ if (typeof JSON !== "object") {
                 order: r.sortOrder
             });
         }
-        var l = C(t, i);
+        var l = S(t, i);
         if (r.onBeforeLoad.call(t, l, s) == false) {
             return;
         }
@@ -15144,7 +15980,7 @@ if (typeof JSON !== "object") {
         var c = r.loader.call(t, s, function(e) {
             d.removeClass("tree-loading");
             w(t).treegrid("loaded");
-            p(t, i, e, a);
+            x(t, i, e, a);
             if (n) {
                 n();
             }
@@ -15161,25 +15997,25 @@ if (typeof JSON !== "object") {
             w(t).treegrid("loaded");
         }
     }
-    function i(e) {
-        var t = a(e);
+    function a(e) {
+        var t = n(e);
         return t.length ? t[0] : null;
     }
-    function a(e) {
+    function n(e) {
         return w.data(e, "treegrid").data;
     }
-    function x(e, t) {
-        var i = C(e, t);
+    function Y(e, t) {
+        var i = S(e, t);
         if (i._parentId) {
-            return C(e, i._parentId);
+            return S(e, i._parentId);
         } else {
             return null;
         }
     }
-    function d(e, t) {
+    function l(e, t) {
         var i = w.data(e, "treegrid").data;
         if (t) {
-            var a = C(e, t);
+            var a = S(e, t);
             i = a ? a.children || [] : [];
         }
         var n = [];
@@ -15188,13 +16024,13 @@ if (typeof JSON !== "object") {
         });
         return n;
     }
-    function n(e, t) {
+    function d(e, t) {
         var i = w.data(e, "treegrid").options;
         var a = i.finder.getTr(e, t);
         var n = a.children('td[field="' + i.treeField + '"]');
         return n.find("span.tree-indent,span.tree-hit").length;
     }
-    function C(e, t) {
+    function S(e, t) {
         var i = w.data(e, "treegrid");
         var a = i.options;
         var n = null;
@@ -15206,9 +16042,9 @@ if (typeof JSON !== "object") {
         });
         return n;
     }
-    function Y(e, t) {
+    function T(e, t) {
         var i = w.data(e, "treegrid").options;
-        var a = C(e, t);
+        var a = S(e, t);
         var n = i.finder.getTr(e, t);
         var r = n.find("span.tree-hit");
         if (r.length == 0) {
@@ -15237,12 +16073,13 @@ if (typeof JSON !== "object") {
             v(e, t);
             i.onCollapse.call(e, a);
         }
+        b(e);
     }
-    function S(t, i) {
+    function y(t, i) {
         var a = w.data(t, "treegrid").options;
         var e = a.finder.getTr(t, i);
         var n = e.find("span.tree-hit");
-        var r = C(t, i);
+        var r = S(t, i);
         if (n.length == 0) {
             return;
         }
@@ -15259,13 +16096,13 @@ if (typeof JSON !== "object") {
             var s = o.children("td").children("div");
             d(s);
         } else {
-            h(t, r[a.idField]);
+            p(t, r[a.idField]);
             var o = e.next("tr.treegrid-tr-tree");
             var s = o.children("td").children("div");
             s.hide();
             var l = w.extend({}, a.queryParams || {});
             l.id = r[a.idField];
-            m(t, r[a.idField], l, true, function() {
+            C(t, r[a.idField], l, true, function() {
                 if (s.is(":empty")) {
                     o.remove();
                 } else {
@@ -15273,6 +16110,7 @@ if (typeof JSON !== "object") {
                 }
             });
         }
+        b(t);
         function d(e) {
             r.state = "open";
             if (a.animate) {
@@ -15294,51 +16132,51 @@ if (typeof JSON !== "object") {
         var a = i.finder.getTr(e, t);
         var n = a.find("span.tree-hit");
         if (n.hasClass("tree-expanded")) {
-            Y(e, t);
+            T(e, t);
         } else {
-            S(e, t);
-        }
-    }
-    function T(e, t) {
-        var i = w.data(e, "treegrid").options;
-        var a = d(e, t);
-        if (t) {
-            a.unshift(C(e, t));
-        }
-        for (var n = 0; n < a.length; n++) {
-            Y(e, a[n][i.idField]);
-        }
-    }
-    function y(e, t) {
-        var i = w.data(e, "treegrid").options;
-        var a = d(e, t);
-        if (t) {
-            a.unshift(C(e, t));
-        }
-        for (var n = 0; n < a.length; n++) {
-            S(e, a[n][i.idField]);
+            y(e, t);
         }
     }
     function L(e, t) {
         var i = w.data(e, "treegrid").options;
-        var a = [];
-        var n = x(e, t);
-        while (n) {
-            var r = n[i.idField];
-            a.unshift(r);
-            n = x(e, r);
+        var a = l(e, t);
+        if (t) {
+            a.unshift(S(e, t));
         }
-        for (var o = 0; o < a.length; o++) {
-            S(e, a[o]);
+        for (var n = 0; n < a.length; n++) {
+            T(e, a[n][i.idField]);
         }
     }
     function X(e, t) {
+        var i = w.data(e, "treegrid").options;
+        var a = l(e, t);
+        if (t) {
+            a.unshift(S(e, t));
+        }
+        for (var n = 0; n < a.length; n++) {
+            y(e, a[n][i.idField]);
+        }
+    }
+    function H(e, t) {
+        var i = w.data(e, "treegrid").options;
+        var a = [];
+        var n = Y(e, t);
+        while (n) {
+            var r = n[i.idField];
+            a.unshift(r);
+            n = Y(e, r);
+        }
+        for (var o = 0; o < a.length; o++) {
+            y(e, a[o]);
+        }
+    }
+    function J(e, t) {
         var i = w.data(e, "treegrid");
         var a = i.options;
         if (t.parent) {
             var n = a.finder.getTr(e, t.parent);
             if (n.next("tr.treegrid-tr-tree").length == 0) {
-                h(e, t.parent);
+                p(e, t.parent);
             }
             var r = n.children('td[field="' + a.treeField + '"]').children("div.datagrid-cell");
             var o = r.children("span.tree-icon");
@@ -15350,13 +16188,13 @@ if (typeof JSON !== "object") {
                 }
             }
         }
-        p(e, t.parent, t.data, i.data.length > 0, true);
+        x(e, t.parent, t.data, i.data.length > 0, true);
     }
-    function H(o, s) {
+    function D(o, s) {
         var l = s.before || s.after;
         var d = w.data(o, "treegrid").options;
-        var e = x(o, l);
-        X(o, {
+        var e = Y(o, l);
+        J(o, {
             parent: e ? e[d.idField] : null,
             data: [ s.data ]
         });
@@ -15388,10 +16226,10 @@ if (typeof JSON !== "object") {
             a.remove();
         }
     }
-    function J(e, t) {
+    function $(e, t) {
         var i = w.data(e, "treegrid");
         var a = i.options;
-        var n = x(e, t);
+        var n = Y(e, t);
         w(e).datagrid("deleteRow", t);
         w.hisui.removeArrayItem(i.checkedRows, a.idField, t);
         g(e);
@@ -15404,9 +16242,10 @@ if (typeof JSON !== "object") {
         });
         w(e).treegrid("showLines");
     }
-    function D(o) {
+    function k(o) {
         var s = w(o);
         var l = s.treegrid("options");
+        b(o);
         if (l.lines) {
             s.treegrid("getPanel").addClass("tree-lines");
         } else {
@@ -15494,7 +16333,7 @@ if (typeof JSON !== "object") {
             if (e.options.data) {
                 w(this).treegrid("loadData", e.options.data);
             }
-            m(this);
+            C(this);
         });
     };
     w.fn.treegrid.methods = {
@@ -15513,7 +16352,7 @@ if (typeof JSON !== "object") {
         },
         loadData: function(e, t) {
             return e.each(function() {
-                p(this, t.parent, t);
+                x(this, t.parent, t);
             });
         },
         load: function(e, t) {
@@ -15542,12 +16381,12 @@ if (typeof JSON !== "object") {
                     }
                     e.queryParams = t;
                     var a = e.finder.getTr(this, t.id);
-                    b(this, a.next("tr.treegrid-tr-tree"));
+                    m(this, a.next("tr.treegrid-tr-tree"));
                     a.next("tr.treegrid-tr-tree").remove();
                     a.find("span.tree-hit").removeClass("tree-expanded tree-expanded-hover").addClass("tree-collapsed");
-                    S(this, t.id);
+                    y(this, t.id);
                 } else {
-                    m(this, null, t);
+                    C(this, null, t);
                 }
             });
         },
@@ -15575,22 +16414,22 @@ if (typeof JSON !== "object") {
             return w.data(e[0], "treegrid").footer;
         },
         getRoot: function(e) {
-            return i(e[0]);
-        },
-        getRoots: function(e) {
             return a(e[0]);
         },
+        getRoots: function(e) {
+            return n(e[0]);
+        },
         getParent: function(e, t) {
-            return x(e[0], t);
+            return Y(e[0], t);
         },
         getChildren: function(e, t) {
-            return d(e[0], t);
+            return l(e[0], t);
         },
         getLevel: function(e, t) {
-            return n(e[0], t);
+            return d(e[0], t);
         },
         find: function(e, t) {
-            return C(e[0], t);
+            return S(e[0], t);
         },
         isLeaf: function(e, t) {
             var i = w.data(e[0], "treegrid").options;
@@ -15610,12 +16449,12 @@ if (typeof JSON !== "object") {
         },
         collapse: function(e, t) {
             return e.each(function() {
-                Y(this, t);
+                T(this, t);
             });
         },
         expand: function(e, t) {
             return e.each(function() {
-                S(this, t);
+                y(this, t);
             });
         },
         toggle: function(e, t) {
@@ -15625,32 +16464,32 @@ if (typeof JSON !== "object") {
         },
         collapseAll: function(e, t) {
             return e.each(function() {
-                T(this, t);
+                L(this, t);
             });
         },
         expandAll: function(e, t) {
             return e.each(function() {
-                y(this, t);
+                X(this, t);
             });
         },
         expandTo: function(e, t) {
             return e.each(function() {
-                L(this, t);
+                H(this, t);
             });
         },
         append: function(e, t) {
             return e.each(function() {
-                X(this, t);
+                J(this, t);
             });
         },
         insert: function(e, t) {
             return e.each(function() {
-                H(this, t);
+                D(this, t);
             });
         },
         remove: function(e, t) {
             return e.each(function() {
-                J(this, t);
+                $(this, t);
             });
         },
         pop: function(e, t) {
@@ -15670,7 +16509,7 @@ if (typeof JSON !== "object") {
                 var t = i.row;
                 e.view.updateRow.call(e.view, this, i.id, t);
                 if (t.checked != undefined) {
-                    t = C(this, i.id);
+                    t = S(this, i.id);
                     w.extend(t, {
                         checkState: t.checked ? "checked" : t.checked === false ? "unchecked" : undefined
                     });
@@ -15696,7 +16535,7 @@ if (typeof JSON !== "object") {
         },
         showLines: function(e) {
             return e.each(function() {
-                D(this);
+                k(this);
             });
         },
         setSelectionState: function(e) {
@@ -15704,7 +16543,7 @@ if (typeof JSON !== "object") {
                 w(this).datagrid("setSelectionState");
                 var e = w(this).data("treegrid");
                 for (var t = 0; t < e.tmpIds.length; t++) {
-                    s(this, e.tmpIds[t], true, true);
+                    c(this, e.tmpIds[t], true, true);
                 }
                 e.tmpIds = [];
             });
@@ -15721,12 +16560,12 @@ if (typeof JSON !== "object") {
         },
         checkNode: function(e, t) {
             return e.each(function() {
-                s(this, t, true);
+                c(this, t, true);
             });
         },
         uncheckNode: function(e, t) {
             return e.each(function() {
-                s(this, t, false);
+                c(this, t, false);
             });
         },
         clearChecked: function(e) {
@@ -15735,7 +16574,7 @@ if (typeof JSON !== "object") {
                 var i = w(t).treegrid("options");
                 w(t).datagrid("clearChecked");
                 w.map(w(t).treegrid("getCheckedNodes"), function(e) {
-                    s(t, e[i.idField], false, true);
+                    c(t, e[i.idField], false, true);
                 });
             });
         }
@@ -15749,7 +16588,7 @@ if (typeof JSON !== "object") {
             animate: "boolean"
         } ]));
     };
-    var $ = w.extend({}, w.fn.datagrid.defaults.view, {
+    var Q = w.extend({}, w.fn.datagrid.defaults.view, {
         getStyleValue: function(e) {
             var t = "";
             var i = "";
@@ -15779,9 +16618,9 @@ if (typeof JSON !== "object") {
             if (this.treeNodes && this.treeNodes.length) {
                 var i = C.call(this, t, this.treeLevel, this.treeNodes);
                 w(e).append(i.join(""));
-                w(e).closest(".datagrid-body").removeClass("datagrid-no-data").addClass("datagrid-have-data");
+                w(e).closest(".datagrid").removeClass("datagrid-no-data").addClass("datagrid-have-data");
             } else {
-                w(e).closest(".datagrid-body").removeClass("datagrid-have-data").addClass("datagrid-no-data");
+                w(e).closest(".datagrid").removeClass("datagrid-have-data").addClass("datagrid-no-data");
             }
             function C(e, t, i) {
                 var a = w(v).treegrid("getParent", i[0][g.idField]);
@@ -16046,7 +16885,7 @@ if (typeof JSON !== "object") {
                 }
                 r(i, t);
             }
-            var o = C(e, t);
+            var o = S(e, t);
             if (o) {
                 if (o.children) {
                     o.children = o.children.concat(i);
@@ -16135,7 +16974,7 @@ if (typeof JSON !== "object") {
         lines: false,
         animate: false,
         singleSelect: true,
-        view: $,
+        view: Q,
         rowEvents: w.extend({}, w.fn.datagrid.defaults.rowEvents, {
             mouseover: e(true),
             mouseout: e(false),
@@ -16281,10 +17120,13 @@ if (typeof JSON !== "object") {
         n.insertAfter(e);
     }
     function n(t) {
+        var e = f.data(t, "combo");
+        var i = e.options;
         f(t).addClass("combo-f").hide();
-        var i = f('<span class="combo">' + '<input type="text" class="combo-text" autocomplete="off">' + '<span><span class="combo-arrow"></span></span>' + '<input type="hidden" class="combo-value">' + "</span>").insertAfter(t);
-        var e = f('<div class="combo-panel"></div>').appendTo("body");
-        e.panel({
+        var a = f('<span class="combo">' + '<input type="text" class="combo-text" autocomplete="off">' + '<span><span class="combo-arrow" role="button" aria-label="' + i.arrowText + '"></span></span>' + '<input type="hidden" class="combo-value">' + "</span>").insertAfter(t);
+        var n = f('<div class="combo-panel"></div>').appendTo("body");
+        n.panel({
+            maxHeight: i.panelMaxHeight || "",
             doSize: false,
             closed: true,
             cls: "combo-p",
@@ -16301,7 +17143,7 @@ if (typeof JSON !== "object") {
                         e.css("z-index", f.fn.window.defaults.zIndex++);
                     }
                 }
-                i.addClass("combo-p-active");
+                a.addClass("combo-p-active");
                 f(this).panel("resize");
             },
             onBeforeClose: function() {
@@ -16310,19 +17152,19 @@ if (typeof JSON !== "object") {
             onClose: function() {
                 var e = f.data(t, "combo");
                 if (e) {
-                    i.removeClass("combo-p-active");
+                    a.removeClass("combo-p-active");
                     e.options.onHidePanel.call(t);
                 }
             }
         });
-        var a = f(t).attr("name");
-        if (a) {
-            i.find("input.combo-value").attr("name", a);
-            f(t).removeAttr("name").attr("comboName", a);
+        var r = f(t).attr("name");
+        if (r) {
+            a.find("input.combo-value").attr("name", r);
+            f(t).removeAttr("name").attr("comboName", r);
         }
         return {
-            combo: i,
-            panel: e
+            combo: a,
+            panel: n
         };
     }
     function r(e) {
@@ -16382,7 +17224,8 @@ if (typeof JSON !== "object") {
                     f("div.combo-panel:visible").not(r).not(t).panel("close");
                 }
             }).bind("keydown.combo paste.combo drop.combo input.combo compositionend.combo", function(t) {
-                if (navigator.userAgent.indexOf("MWBrowser/2") == -1 && navigator.userAgent.indexOf("Electron/22.3") == -1 && "undefined" == typeof t.keyCode) {
+                var e = navigator.userAgent;
+                if (e.indexOf("MWBrowser/2") == -1 && e.indexOf("Electron/22.3") == -1 && e.indexOf("Qaxbrowser") == -1 && "undefined" == typeof t.keyCode) {
                     return;
                 }
                 switch (t.keyCode) {
@@ -16460,19 +17303,23 @@ if (typeof JSON !== "object") {
         var a = t.combo;
         var n = t.panel;
         n.panel("move", {
-            left: o(),
-            top: s()
+            left: s(),
+            top: l()
         });
         if (n.panel("options").closed) {
             n.panel("open");
             var r = t.combo;
+            var o = i.panelWidth ? i.panelWidth : r.outerWidth();
+            if (i.paginationNoWrap) {
+                o = Math.max(o, 40 + n.find(".pagination table").outerWidth() + n.find(".pagination .pagination-info").outerWidth());
+            }
             n.panel("resize", {
-                width: i.panelWidth ? i.panelWidth : r.outerWidth(),
+                width: o,
                 height: i.panelHeight
             });
             if (n.find(".datagrid").length > 0) {
                 f.data(e, "combogrid").grid.datagrid("resize", {
-                    width: i.panelWidth ? i.panelWidth : r.outerWidth(),
+                    width: o,
                     height: i.panelHeight
                 });
             }
@@ -16480,7 +17327,7 @@ if (typeof JSON !== "object") {
         }
         (function() {
             if (n.is(":visible")) {
-                var e = s();
+                var e = l();
                 if (e > a.offset().top) {
                     a.removeClass("combo-p-top").addClass("combo-p-bottom");
                     n.parent().removeClass("combo-p-top").addClass("combo-p-bottom");
@@ -16492,13 +17339,13 @@ if (typeof JSON !== "object") {
                     e -= 32;
                 }
                 n.panel("move", {
-                    left: o(),
+                    left: s(),
                     top: e
                 });
                 setTimeout(arguments.callee, 200);
             }
         })();
-        function o() {
+        function s() {
             var e = a.offset().left;
             if (i.panelAlign == "right") {
                 e += a._outerWidth() - n._outerWidth();
@@ -16511,7 +17358,7 @@ if (typeof JSON !== "object") {
             }
             return e;
         }
-        function s() {
+        function l() {
             var e = a.offset().top + a._outerHeight() - 1;
             if (e + n._outerHeight() > f(window)._outerHeight() + f(document).scrollTop()) {
                 e = a.offset().top - n._outerHeight() + 1;
@@ -16674,13 +17521,13 @@ if (typeof JSON !== "object") {
             if (e) {
                 f.extend(e.options, i);
             } else {
-                var t = n(this);
                 e = f.data(this, "combo", {
                     options: f.extend({}, f.fn.combo.defaults, f.fn.combo.parseOptions(this), i),
-                    combo: t.combo,
-                    panel: t.panel,
                     previousValue: null
                 });
+                var t = n(this);
+                e.combo = t.combo;
+                e.panel = t.panel;
                 f(this).removeAttr("disabled");
             }
             r(this);
@@ -16789,7 +17636,8 @@ if (typeof JSON !== "object") {
             editable: "boolean",
             hasDownArrow: "boolean",
             delay: "number",
-            selectOnNavigation: "boolean"
+            selectOnNavigation: "boolean",
+            panelMaxHeight: "number"
         } ]), {
             panelHeight: t.attr("panelHeight") == "auto" ? "auto" : parseInt(t.attr("panelHeight")) || undefined,
             multiple: t.attr("multiple") ? true : undefined,
@@ -16799,6 +17647,8 @@ if (typeof JSON !== "object") {
         });
     };
     f.fn.combo.defaults = f.extend({}, f.fn.validatebox.defaults, {
+        paginationNoWrap: false,
+        panelMaxHeight: null,
         blurValidValue: false,
         enterNullValueClear: true,
         width: "auto",
@@ -16816,6 +17666,8 @@ if (typeof JSON !== "object") {
         value: "",
         delay: 200,
         deltaX: 19,
+        arrowText: "Toggle dropdown",
+        clearText: "Clear",
         keyHandler: {
             up: function(e) {},
             down: function(e) {},
@@ -16853,10 +17705,10 @@ jQuery.fn.comboboxRemoveClass = function(e) {
     return t;
 };
 
-(function(w) {
+(function(Y) {
     var a = 0;
     function l(e, t) {
-        var i = w.data(e, "combobox");
+        var i = Y.data(e, "combobox");
         var a = i.options;
         var n = i.data;
         for (var r = 0; r < n.length; r++) {
@@ -16867,8 +17719,8 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         return -1;
     }
     function d(e, t) {
-        var i = w.data(e, "combobox").options;
-        var a = w(e).combo("panel");
+        var i = Y.data(e, "combobox").options;
+        var a = Y(e).combo("panel");
         var n = i.finder.getEl(e, t);
         if (n.length) {
             if (n.position().top <= 0) {
@@ -16883,8 +17735,8 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         }
     }
     function t(e, t) {
-        var i = w.data(e, "combobox").options;
-        var a = w(e).combobox("panel");
+        var i = Y.data(e, "combobox").options;
+        var a = Y(e).combobox("panel");
         var n = a.children("div.combobox-item-hover");
         if (!n.length) {
             n = a.children("div.combobox-item-selected");
@@ -16919,15 +17771,15 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         }
     }
     function c(e, t) {
-        var i = w.data(e, "combobox").options;
-        var a = w(e).combo("getValues");
-        if (w.inArray(t + "", a) == -1) {
+        var i = Y.data(e, "combobox").options;
+        var a = Y(e).combo("getValues");
+        if (Y.inArray(t + "", a) == -1) {
             if (i.multiple) {
                 a.push(t);
             } else {
                 a = [ t ];
             }
-            Y(e, a);
+            S(e, a);
             i.onSelect.call(e, i.finder.getRow(e, t));
         } else {
             if (i.multiple) {} else {
@@ -16935,8 +17787,8 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                     var n = i.finder.getRow(e, t);
                     if (n) {
                         var r = n[i.textField];
-                        if (r !== w(e).combo("getText")) {
-                            w(e).combo("setText", r);
+                        if (r !== Y(e).combo("getText")) {
+                            Y(e).combo("setText", r);
                         }
                     }
                 }
@@ -16944,18 +17796,18 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         }
     }
     function o(e, t) {
-        var i = w.data(e, "combobox").options;
-        var a = w(e).combo("getValues");
-        var n = w.inArray(t + "", a);
+        var i = Y.data(e, "combobox").options;
+        var a = Y(e).combo("getValues");
+        var n = Y.inArray(t + "", a);
         if (n >= 0) {
             a.splice(n, 1);
-            Y(e, a);
+            S(e, a);
             i.onUnselect.call(e, i.finder.getRow(e, t));
         }
     }
-    function Y(e, t, i) {
-        var a = w.data(e, "combobox").options;
-        var n = w(e).combo("panel");
+    function S(e, t, i) {
+        var a = Y.data(e, "combobox").options;
+        var n = Y(e).combo("panel");
         n.find("div.combobox-item-selected").comboboxRemoveClass("combobox-item-selected");
         var r = [], o = [], s = [];
         for (var l = 0; l < t.length; l++) {
@@ -16974,12 +17826,12 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             r.push(d);
             o.push(c);
         }
-        w(e).combo("setValues", r);
+        Y(e).combo("setValues", r);
         if (!i) {
-            w(e).combo("setText", o.join(a.separator));
+            Y(e).combo("setText", o.join(a.separator));
         }
         if (a.rowStyle && a.rowStyle == "checkbox") {
-            var u = w.data(e, "combobox").data.length;
+            var u = Y.data(e, "combobox").data.length;
             if (s.length == u) {
                 n.parent().children("._hisui_combobox-selectall").comboboxAddClass("checked");
             } else {
@@ -16988,13 +17840,13 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         }
     }
     function r(n, e, t) {
-        var i = w.data(n, "combobox");
+        var i = Y.data(n, "combobox");
         if ("undefined" == typeof i) return;
         var r = i.options;
-        i.data = r.loadFilter.call(n, e);
+        i.data = r.loadFilter.call(n, e) || [];
         i.groups = [];
         e = i.data;
-        var a = w(n).combobox("getValues");
+        var a = Y(n).combobox("getValues");
         var o = [];
         var s = undefined;
         var l = "01234567890123456789", d = 0;
@@ -17009,66 +17861,66 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             }
             return i;
         }
-        strFontWidth = function(e, t) {
-            var i = t || "14px Microsoft Yahei", a = w("<div>" + e + "</div>").css({
+        var f = function(e, t) {
+            var i = t || "14px Microsoft Yahei", a = Y("<div>" + e + "</div>").css({
                 position: "absolute",
                 "float": "left",
                 "white-space": "nowrap",
                 visibility: "hidden",
                 font: i
-            }).appendTo(w("body")), n = a.width();
+            }).appendTo(Y("body")), n = a.width();
             a.remove();
             return n;
         };
-        var f = "";
-        for (var u = 0; u < e.length; u++) {
-            var h = e[u];
-            var p = h[r.valueField] + "";
-            var v = h[r.textField];
-            var g = h[r.groupField];
-            if (g) {
-                if (s != g) {
-                    s = g;
-                    i.groups.push(g);
+        var u = "";
+        for (var h = 0; h < e.length; h++) {
+            var p = e[h];
+            var v = p[r.valueField] + "";
+            var g = p[r.textField];
+            var b = p[r.groupField];
+            if (b) {
+                if (s != b) {
+                    s = b;
+                    i.groups.push(b);
                     o.push('<div id="' + (i.groupIdPrefix + "_" + (i.groups.length - 1)) + '" class="combobox-group">');
-                    o.push(r.groupFormatter ? r.groupFormatter.call(n, g) : g);
+                    o.push(r.groupFormatter ? r.groupFormatter.call(n, b) : b);
                     o.push("</div>");
                 }
             } else {
                 s = undefined;
             }
-            var b = "combobox-item" + (h.disabled ? " combobox-item-disabled" : "") + (g ? " combobox-gitem" : "");
-            o.push('<div id="' + (i.itemIdPrefix + "_" + u) + '" ' + f + ' class="' + b + '">');
-            o.push(r.formatter ? r.formatter.call(n, h) : v);
+            var m = "combobox-item" + (p.disabled ? " combobox-item-disabled" : "") + (b ? " combobox-gitem" : "");
+            o.push('<div id="' + (i.itemIdPrefix + "_" + h) + '" ' + u + ' class="' + m + '">');
+            o.push(r.formatter ? r.formatter.call(n, p) : g);
             o.push("</div>");
-            if (h["selected"] && w.inArray(p, a) == -1) {
-                a.push(p);
+            if (p["selected"] && Y.inArray(v, a) == -1) {
+                a.push(v);
             }
         }
-        w(n).combo("panel").html(o.join(""));
+        Y(n).combo("panel").html(o.join(""));
         if (r.multiple) {
-            Y(n, a, t);
+            S(n, a, t);
             if (r.rowStyle && r.rowStyle == "checkbox") {
-                var m = w(n).combo("panel");
-                m.closest(".combo-p").children("._hisui_combobox-selectall").remove();
-                var x = m.width() - 5;
-                var C = w('<div style="width:' + x + 'px" class="_hisui_combobox-selectall"><span class="combobox-checkbox"></span>' + r.selectAllBtnDesc + "</div>").bind("mouseenter", function(e) {
-                    w(e.target).closest("div._hisui_combobox-selectall").comboboxAddClass("combobox-selectall-hover");
+                var x = Y(n).combo("panel");
+                x.closest(".combo-p").children("._hisui_combobox-selectall").remove();
+                var C = x.width() - Y.hisui.getStyleCodeConfigValue("comboboxSelectallPaddingLeft");
+                var w = Y('<div style="width:' + C + 'px" class="_hisui_combobox-selectall"><span class="combobox-checkbox"></span>' + r.selectAllBtnDesc + "</div>").bind("mouseenter", function(e) {
+                    Y(e.target).closest("div._hisui_combobox-selectall").comboboxAddClass("combobox-selectall-hover");
                     e.stopPropagation();
                 }).bind("mouseleave", function(e) {
-                    w(e.target).closest("div._hisui_combobox-selectall").comboboxRemoveClass("combobox-selectall-hover");
+                    Y(e.target).closest("div._hisui_combobox-selectall").comboboxRemoveClass("combobox-selectall-hover");
                     e.stopPropagation();
                 }).bind("click", function(e) {
-                    var t = w(this);
+                    var t = Y(this);
                     if (t.hasClass("checked")) {
                         t.comboboxRemoveClass("checked");
-                        w(n).combobox("setValues", []);
+                        Y(n).combobox("setValues", []);
                     } else {
                         var a = [];
                         t.comboboxAddClass("checked");
-                        var i = w(n).combo("panel");
+                        var i = Y(n).combo("panel");
                         i.find("div.combobox-item").filter(":visible").each(function() {
-                            var e = w(this);
+                            var e = Y(this);
                             if (!e.length || e.hasClass("combobox-item-disabled")) {
                                 return;
                             }
@@ -17079,50 +17931,50 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                             var i = t[r.valueField];
                             a.push(i);
                         });
-                        w(n).combobox("setValues", a);
+                        Y(n).combobox("setValues", a);
                     }
                     if (r.onAllSelectClick) {
                         r.onAllSelectClick.call(n, e);
                     }
                 });
                 if (r.allSelectButtonPosition == "bottom") {
-                    C.insertAfter(m);
-                    C.parent().comboboxAddClass("bbtm");
+                    w.insertAfter(x);
+                    w.parent().comboboxAddClass("bbtm");
                 } else {
-                    C.insertBefore(m);
-                    C.parent().comboboxAddClass("btop");
+                    w.insertBefore(x);
+                    w.parent().comboboxAddClass("btop");
                 }
             }
         } else {
-            Y(n, a.length ? [ a[a.length - 1] ] : [], t);
+            S(n, a.length ? [ a[a.length - 1] ] : [], t);
         }
         if (r.defaultHoverFirstRow === true) {
             if (e.length > 0) {
-                w(n).combo("panel").find(".combobox-item:visible:eq(0)").comboboxAddClass("combobox-item-hover");
+                Y(n).combo("panel").find(".combobox-item:visible:eq(0)").comboboxAddClass("combobox-item-hover");
             }
         }
         r.onLoadSuccess.call(n, e);
     }
     function n(i, e, t, a) {
-        var n = w.data(i, "combobox").options;
+        var n = Y.data(i, "combobox").options;
         if (e) {
             n.url = e;
         }
-        t = t || {};
+        t = Y.extend({}, n.queryParams, t || {});
         if (n.onBeforeLoad.call(i, t) == false) {
             return;
         }
         n.loader.call(i, t, function(e) {
             var t = e;
             if ("undefined" !== typeof e.code) {
-                if (w.isArray(e.rows)) {
+                if (Y.isArray(e.rows)) {
                     t = e.rows;
-                } else if (w.isArray(e.data)) {
+                } else if (Y.isArray(e.data)) {
                     t = e.data;
-                } else if (w.isArray(e.records)) {
+                } else if (Y.isArray(e.records)) {
                     t = e.records;
-                } else if (e.data != null && typeof e.data === "object" && w.isArray(e.data) === false) {
-                    if (w.isArray(e.data.records)) {
+                } else if (e.data != null && typeof e.data === "object" && Y.isArray(e.data) === false) {
+                    if (Y.isArray(e.data.records)) {
                         t = e.data.records;
                     }
                 }
@@ -17133,26 +17985,26 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         });
     }
     function i(l, e) {
-        var d = w.data(l, "combobox");
+        var d = Y.data(l, "combobox");
         var c = d.options;
         if (c.multiple && !e) {
-            Y(l, [], true);
+            S(l, [], true);
         } else {
-            Y(l, [ e ], true);
+            S(l, [ e ], true);
         }
         if (c.mode == "remote") {
             n(l, null, {
                 q: e
             }, true);
         } else {
-            var t = w(l).combo("panel");
+            var t = Y(l).combo("panel");
             t.find("div.combobox-item-selected,div.combobox-item-hover").comboboxRemoveClass("combobox-item-selected combobox-item-hover");
             t.find("div.combobox-item,div.combobox-group").hide();
             var f = d.data;
             var u = [];
             var i = c.multiple ? e.split(c.separator) : [ e ];
-            w.map(i, function(e) {
-                e = w.trim(e);
+            Y.map(i, function(e) {
+                e = Y.trim(e);
                 var t = undefined;
                 for (var i = 0; i < f.length; i++) {
                     var a = f[i];
@@ -17166,25 +18018,25 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                             s.comboboxAddClass("combobox-item-selected");
                         }
                         if (c.groupField && t != o) {
-                            w("#" + d.groupIdPrefix + "_" + w.inArray(o, d.groups)).show();
+                            Y("#" + d.groupIdPrefix + "_" + Y.inArray(o, d.groups)).show();
                             t = o;
                         }
                     }
                 }
             });
-            Y(l, u, true);
+            S(l, u, true);
             if (u.length > 0) {
                 c.onSelect.call(l, c.finder.getRow(l, u[u.length - 1]));
             }
             if (c.defaultHoverFirstRow === true) {
                 if (f.length > 0) {
-                    w(l).combo("panel").find(".combobox-item:visible:eq(0)").comboboxAddClass("combobox-item-hover");
+                    Y(l).combo("panel").find(".combobox-item:visible:eq(0)").comboboxAddClass("combobox-item-hover");
                 }
             }
         }
     }
     function s(t) {
-        var e = w(t);
+        var e = Y(t);
         var i = e.combobox("options");
         var a = e.combobox("panel");
         if (!a.is(":visible")) return;
@@ -17204,7 +18056,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             }
         }
         var s = [];
-        w.map(e.combobox("getValues"), function(e) {
+        Y.map(e.combobox("getValues"), function(e) {
             if (l(t, e) >= 0) {
                 s.push(e);
             }
@@ -17217,8 +18069,8 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         }
     }
     function f(e) {
-        w(e).combobox("textbox").val("");
-        var t = w.data(e, "combo");
+        Y(e).combobox("textbox").val("");
+        var t = Y.data(e, "combo");
         t.previousValue = "";
         i(e, "");
     }
@@ -17230,17 +18082,17 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         if (t && (t.className || "").indexOf("combobox-item") > -1) {
             return;
         }
-        var i = w(e).combobox("options");
+        var i = Y(e).combobox("options");
         if (i.doEnterFlag == 1) {
             i.doEnterFlag == 0;
             return;
         }
-        var a = w(e).combobox("getValue");
+        var a = Y(e).combobox("getValue");
         if (a == undefined || a == "" || a == null) {
             f(e);
         } else {
             var n = 0;
-            var r = w(e).combobox("getData");
+            var r = Y(e).combobox("getData");
             for (var o = 0; o < r.length; o++) {
                 if (r[o][i.valueField] == a) {
                     n = 1;
@@ -17252,12 +18104,12 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         }
     };
     function h(n) {
-        var e = w.data(n, "combobox");
+        var e = Y.data(n, "combobox");
         var r = e.options;
         a++;
         e.itemIdPrefix = "_hisui_combobox_i" + a;
         e.groupIdPrefix = "_hisui_combobox_g" + a;
-        w(n).comboboxAddClass("combobox-f");
+        Y(n).comboboxAddClass("combobox-f");
         var t = r.onHidePanel;
         if (r && r.blurValidValue) {
             r.forceValidValue = true;
@@ -17270,30 +18122,38 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                 u(e);
             };
         }
-        w(n).combo(w.extend({}, r, {
+        Y(n).combo(Y.extend({}, r, {
             onShowPanel: function() {
-                w(n).combo("panel").find("div.combobox-item,div.combobox-group").show();
-                w(n).combo("panel").find(".combobox-item-selected").comboboxAddClass("combobox-item-selected");
-                d(n, w(n).combobox("getValue"));
+                Y(n).combo("panel").find("div.combobox-item,div.combobox-group").show();
+                Y(n).combo("panel").find(".combobox-item-selected").comboboxAddClass("combobox-item-selected");
+                d(n, Y(n).combobox("getValue"));
                 r.onShowPanel.call(n);
                 if (r.defaultHoverFirstRow === true) {
-                    w(n).combo("panel").find(".combobox-item:visible:eq(0)").comboboxAddClass("combobox-item-hover");
+                    Y(n).combo("panel").find(".combobox-item:visible:eq(0)").comboboxAddClass("combobox-item-hover");
                 }
+                var i = true;
+                Y(n).combo("panel").find(".combobox-item").each(function(e, t) {
+                    if (!Y(this).hasClass("combobox-item-selected")) {
+                        i = false;
+                        return false;
+                    }
+                });
+                if (i) Y(n).combo("panel").closest(".panel").find("div._hisui_combobox-selectall").addClass("checked");
             },
             onHidePanel: t
         }));
-        w(n).combo("panel").unbind().bind("mouseover", function(e) {
-            w(this).children("div.combobox-item-hover").comboboxRemoveClass("combobox-item-hover");
-            var t = w(e.target).closest("div.combobox-item");
+        Y(n).combo("panel").unbind().bind("mouseover", function(e) {
+            Y(this).children("div.combobox-item-hover").comboboxRemoveClass("combobox-item-hover");
+            var t = Y(e.target).closest("div.combobox-item");
             if (!t.hasClass("combobox-item-disabled")) {
                 t.comboboxAddClass("combobox-item-hover");
             }
             e.stopPropagation();
         }).bind("mouseout", function(e) {
-            w(e.target).closest("div.combobox-item").comboboxRemoveClass("combobox-item-hover");
+            Y(e.target).closest("div.combobox-item").comboboxRemoveClass("combobox-item-hover");
             e.stopPropagation();
         }).bind("click", function(e) {
-            var t = w(e.target).closest("div.combobox-item");
+            var t = Y(e.target).closest("div.combobox-item");
             if (!t.length || t.hasClass("combobox-item-disabled")) {
                 return;
             }
@@ -17314,14 +18174,14 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                 } else {
                     c(n, a);
                 }
-                w(n).combo("hidePanel");
+                Y(n).combo("hidePanel");
             }
             e.stopPropagation();
         });
     }
-    w.fn.combobox = function(i, e) {
+    Y.fn.combobox = function(i, e) {
         if (typeof i == "string") {
-            var t = w.fn.combobox.methods[i];
+            var t = Y.fn.combobox.methods[i];
             if (t) {
                 return t(this, e);
             } else {
@@ -17330,63 +18190,65 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         }
         i = i || {};
         return this.each(function() {
-            var e = w.data(this, "combobox");
+            var e = Y.data(this, "combobox");
             if (e) {
-                w.extend(e.options, i);
+                Y.extend(e.options, i);
                 h(this);
             } else {
-                e = w.data(this, "combobox", {
-                    options: w.extend({}, w.fn.combobox.defaults, w.fn.combobox.parseOptions(this), i),
+                e = Y.data(this, "combobox", {
+                    options: Y.extend({}, Y.fn.combobox.defaults, Y.fn.combobox.parseOptions(this), i),
                     data: []
                 });
                 h(this);
-                var t = w.fn.combobox.parseData(this);
+                var t = Y.fn.combobox.parseData(this);
                 if (t.length) {
                     r(this, t);
                 }
             }
-            if (e.data) {
+            if (e.options.data) {
+                r(this, e.options.data);
+            } else if (e.data && e.data.length > 0) {
                 r(this, e.data);
             }
             n(this);
         });
     };
-    w.fn.combobox.methods = {
+    Y.fn.combobox.methods = {
         options: function(e) {
             var t = e.combo("options");
-            return w.extend(w.data(e[0], "combobox").options, {
+            return Y.extend(Y.data(e[0], "combobox").options, {
                 originalValue: t.originalValue,
                 disabled: t.disabled,
                 readonly: t.readonly
             });
         },
         getData: function(e) {
-            return w.data(e[0], "combobox").data;
+            return Y.data(e[0], "combobox").data;
         },
         setValues: function(e, t) {
             return e.each(function() {
-                Y(this, t);
+                S(this, t);
             });
         },
         setValue: function(e, t) {
             return e.each(function() {
-                Y(this, [ t ]);
+                S(this, [ t ]);
             });
         },
         clear: function(e) {
             return e.each(function() {
-                w(this).combo("clear");
-                var e = w(this).combo("panel");
+                Y(this).combo("clear");
+                var e = Y(this).combo("panel");
                 e.find("div.combobox-item-selected").comboboxRemoveClass("combobox-item-selected");
             });
         },
         reset: function(e) {
             return e.each(function() {
-                var e = w(this).combobox("options");
+                var e = Y(this).combobox("options");
                 if (e.multiple) {
-                    w(this).combobox("setValues", e.originalValue);
+                    Y(this).combobox("setValues", e.originalValue);
                 } else {
-                    w(this).combobox("setValue", e.originalValue);
+                    Y(this).combobox("setValue", e.originalValue);
                 }
             });
         },
@@ -17397,7 +18259,15 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         },
         reload: function(e, t) {
             return e.each(function() {
-                n(this, t);
+                if (typeof t == "string") {
+                    n(this, t);
+                } else {
+                    if (t) {
+                        var e = Y(this).combobox("options");
+                        e.queryParams = t;
+                    }
+                    n(this);
+                }
             });
         },
         select: function(e, t) {
@@ -17411,17 +18281,17 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             });
         }
     };
-    w.fn.combobox.parseOptions = function(e) {
-        var t = w(e);
-        return w.extend({}, w.fn.combo.parseOptions(e), w.parser.parseOptions(e, [ "valueField", "textField", "groupField", "mode", "method", "url" ]));
+    Y.fn.combobox.parseOptions = function(e) {
+        var t = Y(e);
+        return Y.extend({}, Y.fn.combo.parseOptions(e), Y.parser.parseOptions(e, [ "valueField", "textField", "groupField", "mode", "method", "url" ]));
     };
-    w.fn.combobox.parseData = function(e) {
+    Y.fn.combobox.parseData = function(e) {
         var n = [];
-        var r = w(e).combobox("options");
-        w(e).children().each(function() {
+        var r = Y(e).combobox("options");
+        Y(e).children().each(function() {
             if (this.tagName.toLowerCase() == "optgroup") {
-                var e = w(this).attr("label");
-                w(this).children().each(function() {
+                var e = Y(this).attr("label");
+                Y(this).children().each(function() {
                     t(this, e);
                 });
             } else {
@@ -17430,7 +18300,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         });
         return n;
         function t(e, t) {
-            var i = w(e);
+            var i = Y(e);
             var a = {};
             a[r.valueField] = i.attr("value") != undefined ? i.attr("value") : i.text();
             a[r.textField] = i.text();
@@ -17443,11 +18313,12 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             n.push(a);
         }
     };
-    w.fn.combobox.defaults = w.extend({}, w.fn.combo.defaults, {
+    Y.fn.combobox.defaults = Y.extend({}, Y.fn.combo.defaults, {
         forceValidValue: false,
         allowNull: false,
         selectAllBtnDesc: "select/unselect",
         defaultHoverFirstRow: false,
+        queryParams: {},
         allSelectButtonPosition: "top",
         rowStyle: "",
         valueField: "value",
@@ -17479,11 +18350,11 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             }
         },
         filter: function(e, t) {
-            var i = w(this).combobox("options");
+            var i = Y(this).combobox("options");
             return t[i.textField].toLowerCase().indexOf(e.toLowerCase()) == 0;
         },
         formatter: function(e) {
-            var t = w(this).combobox("options");
+            var t = Y(this).combobox("options");
             if (t.rowStyle && t.rowStyle == "checkbox") {
                 return "<span class='combobox-checkbox'></span>" + e[t.textField];
             } else {
@@ -17491,11 +18362,11 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             }
         },
         loader: function(e, t, i) {
-            var a = w(this).combobox("options");
+            var a = Y(this).combobox("options");
             if (!a.url) {
                 return false;
             }
-            w.ajax({
+            Y.ajax({
                 type: a.method,
                 url: a.url,
                 data: e,
@@ -17514,11 +18385,11 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         finder: {
             getEl: function(e, t) {
                 var i = l(e, t);
-                var a = w.data(e, "combobox").itemIdPrefix + "_" + i;
-                return w("#" + a);
+                var a = Y.data(e, "combobox").itemIdPrefix + "_" + i;
+                return Y("#" + a);
             },
             getRow: function(e, t) {
-                var i = w.data(e, "combobox");
+                var i = Y.data(e, "combobox");
                 var a = t instanceof jQuery ? t.attr("id").substr(i.itemIdPrefix.length + 1) : l(e, t);
                 return i.data[parseInt(a)];
             }
@@ -17747,72 +18618,89 @@ jQuery.fn.comboboxRemoveClass = function(e) {
 })(jQuery);
 
 (function(b) {
-    function a(n) {
-        var r = b.data(n, "combogrid");
-        var o = r.options;
-        var s = r.grid;
-        b(n).addClass("combogrid-f").combo(o);
-        var e = b(n).combo("panel");
-        if (!s) {
-            s = b("<table></table>").appendTo(e);
-            r.grid = s;
+    function a(s) {
+        var l = b.data(s, "combogrid");
+        var d = l.options;
+        var c = l.grid;
+        b(s).addClass("combogrid-f").combo(d);
+        var e = b(s).combo("panel");
+        if (!c) {
+            c = b("<table></table>").appendTo(e);
+            l.grid = c;
         }
-        if (o.lazy && b(n).combo("getValue") == "") b(n).combo("options").queryOnFirstArrowDown = true;
-        s.datagrid(b.extend({}, o, {
+        if (d.lazy && b(s).combo("getValue") == "") b(s).combo("options").queryOnFirstArrowDown = true;
+        c.datagrid(b.extend({}, d, {
             border: false,
             fit: true,
-            singleSelect: !o.multiple,
+            singleSelect: !d.multiple,
             onLoadSuccess: function(e) {
-                var t = b(n).combo("getValues");
-                var i = o.onSelect;
-                o.onSelect = function() {};
-                l(n, t, r.remainText);
-                o.onSelect = i;
-                o.onLoadSuccess.apply(n, arguments);
+                var t = b(s).combo("getValues");
+                var i = d.onSelect;
+                d.onSelect = function() {};
+                f(s, t, l.remainText);
+                d.onSelect = i;
+                if (d.paginationNoWrap) {
+                    var a = b.data(s, "combo");
+                    var n = a.combo;
+                    var r = a.panel;
+                    var o = d.panelWidth ? d.panelWidth : n.outerWidth();
+                    o = Math.max(o, 40 + r.find(".pagination table").outerWidth() + r.find(".pagination .pagination-info").outerWidth());
+                    if (r.find(".pagination").outerWidth() < o) {
+                        r.panel("resize", {
+                            width: o
+                        });
+                        if (r.find(".datagrid").length > 0) {
+                            c.datagrid("resize", {
+                                width: o
+                            });
+                        }
+                    }
+                }
+                d.onLoadSuccess.apply(s, arguments);
             },
             onClickRow: t,
             onSelect: function(e, t) {
                 i();
-                o.onSelect.call(this, e, t);
+                d.onSelect.call(this, e, t);
             },
             onUnselect: function(e, t) {
                 i();
-                o.onUnselect.call(this, e, t);
+                d.onUnselect.call(this, e, t);
             },
             onSelectAll: function(e) {
                 i();
-                o.onSelectAll.call(this, e);
+                d.onSelectAll.call(this, e);
             },
             onUnselectAll: function(e) {
-                if (o.multiple) {
+                if (d.multiple) {
                     i();
                 }
-                o.onUnselectAll.call(this, e);
+                d.onUnselectAll.call(this, e);
             },
-            lazy: o.lazy && b(n).combo("getValue") == ""
+            lazy: d.lazy && b(s).combo("getValue") == ""
         }));
         function t(e, t) {
-            r.remainText = false;
+            l.remainText = false;
             i();
-            if (!o.multiple) {
-                b(n).combo("hidePanel");
+            if (!d.multiple) {
+                b(s).combo("hidePanel");
             }
-            o.onClickRow.call(this, e, t);
+            d.onClickRow.call(this, e, t);
         }
         function i() {
-            var e = s.datagrid("getSelections");
+            var e = c.datagrid("getSelections");
             var t = [], i = [];
             for (var a = 0; a < e.length; a++) {
-                t.push(e[a][o.idField]);
-                i.push(e[a][o.textField]);
+                t.push(e[a][d.idField]);
+                i.push(e[a][d.textField]);
             }
-            if (!o.multiple) {
-                b(n).combo("setValues", t.length ? t : [ "" ]);
+            if (!d.multiple) {
+                b(s).combo("setValues", t.length ? t : [ "" ]);
             } else {
-                b(n).combo("setValues", t);
+                b(s).combo("setValues", t);
             }
-            if (!r.remainText) {
-                b(n).combo("setText", i.join(o.separator));
+            if (!l.remainText) {
+                b(s).combo("setText", i.join(d.separator));
             }
         }
     }
@@ -17847,7 +18735,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             n.datagrid("selectRow", s);
         }
     }
-    function l(e, t, i) {
+    function f(e, t, i) {
         var a = b.data(e, "combogrid");
         var n = a.options;
         var r = a.grid;
@@ -17897,9 +18785,9 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         var r = t.grid;
         t.remainText = true;
         if (n.multiple && !e) {
-            l(a, [], true);
+            f(a, [], true);
         } else {
-            l(a, [ e ], true);
+            f(a, [ e ], true);
         }
         if (n.mode == "remote") {
             r.datagrid("clearSelections");
@@ -18006,12 +18894,12 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         },
         setValues: function(e, t) {
             return e.each(function() {
-                l(this, t);
+                f(this, t);
             });
         },
         setValue: function(e, t) {
             return e.each(function() {
-                l(this, [ t ]);
+                f(this, [ t ]);
             });
         },
         clear: function(e) {
@@ -18104,6 +18992,9 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                         var t = e[s.valueField];
                         var i = c(o, t);
                         d("#" + i).prop("checked", true);
+                        if (s.Onchange) {
+                            s.Onchange(e);
+                        }
                         if (s.oldonSelect) {
                             s.oldonSelect(e);
                         }
@@ -19229,6 +20120,19 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         onComplete: function(e) {}
     };
 })(jQuery);
+/*! ============================================================
+ * bootstrapSwitch v1.8 by Larentis Mattia @SpiritualGuru
+ * http://www.larentis.eu/
+ * 
+ * Enhanced for radiobuttons by Stein, Peter @BdMdesigN
+ * http://www.bdmdesign.org/
+ *
+ * Project site:
+ * http://www.larentis.eu/switch/
+ * ============================================================
+ * Licensed under the Apache License, Version 2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * ============================================================ */
 
 !function(g) {
     "use strict";
@@ -19239,7 +20143,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                 return this.each(function() {
                     var t = g(this), e, i, a, n, r = t.closest("form"), o = "", s = t.attr("class"), l, d, c = "ON", f = "OFF", u = false, h = false;
                     g.each([ "switch-mini", "switch-small", "switch-large" ], function(e, t) {
-                        if (s && s.indexOf(t) >= 0) o = t;
+                        if (s.indexOf(t) >= 0) o = t;
                     });
                     t.addClass("has-switch");
                     if (t.data("on") !== undefined) l = "switch-" + t.data("on");
@@ -19307,9 +20211,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                             t.unbind("click");
                         } else {
                             t.on("mousemove touchmove", function(e) {
-                                var t = g(this).closest(".make-switch");
-                                if (t.length == 0) return;
-                                var i = (e.pageX || e.originalEvent.targetTouches[0].pageX) - t.offset().left, a = i / t.width() * 100, n = 25, r = 75;
+                                var t = g(this).closest(".make-switch"), i = (e.pageX || e.originalEvent.targetTouches[0].pageX) - t.offset().left, a = i / t.width() * 100, n = 25, r = 75;
                                 d = true;
                                 if (a < n) a = n; else if (a > r) a = r;
                                 t.find(">div").css("left", a - r + "%");
@@ -19468,7 +20370,21 @@ jQuery.fn.comboboxRemoveClass = function(e) {
     };
 }(jQuery);
 
-!function(w, Z, Y) {
+(function(e) {
+    e(function() {
+        e(".make-switch")["bootstrapSwitch"]();
+    });
+})(jQuery);
+/*
+ *  webui popover plugin  - v1.2.17
+ *  A lightWeight popover plugin with jquery ,enchance the  popover plugin of bootstrap with some awesome new features. It works well with bootstrap ,but bootstrap is not necessary!
+ *  https://github.com/sandywalker/webui-popover
+ *
+ *  Made by Sandy Duan
+ *  Under MIT License
+ */
+
+!function(w, T, Y) {
     "use strict";
     !function(e) {
         "function" == typeof define && define.amd ? define([ "jquery" ], e) : "object" == typeof exports ? module.exports = e(require("jquery")) : e(w.jQuery);
@@ -19540,7 +20456,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                 width: ""
             },
             hideEmpty: !1
-        }, m = g + "-rtl", f = [], r = v('<div class="webui-popover-backdrop"></div>'), e = 0, u = !1, S = -2e3, o = v(Z), i = function(e, t) {
+        }, m = g + "-rtl", f = [], r = v('<div class="webui-popover-backdrop"></div>'), e = 0, u = !1, S = -2e3, o = v(T), i = function(e, t) {
             return isNaN(e) ? t || 0 : Number(e);
         }, h = function(e) {
             return e.data("plugin_" + l);
@@ -19550,7 +20466,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         }, s = function(e) {
             for (var t = null, i = 0; i < f.length; i++) t = h(f[i]), t && t.id !== e.id && t.hide(!0);
             o.trigger("hiddenAll." + b);
-        }, c = "ontouchstart" in Z.documentElement && /Mobi/.test(navigator.userAgent), x = function(e) {
+        }, c = "ontouchstart" in T.documentElement && /Mobi/.test(navigator.userAgent), x = function(e) {
             var t = {
                 x: 0,
                 y: 0
@@ -19564,10 +20480,10 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         };
         n.prototype = {
             init: function() {
-                if (this.$element[0] instanceof Z.constructor && !this.options.selector) throw new Error("`selector` option must be specified when initializing " + this.type + " on the window.document object!");
+                if (this.$element[0] instanceof T.constructor && !this.options.selector) throw new Error("`selector` option must be specified when initializing " + this.type + " on the window.document object!");
                 "manual" !== this.getTrigger() && (c ? this.$element.off("touchend", this.options.selector).on("touchend", this.options.selector, v.proxy(this.toggle, this)) : "click" === this.getTrigger() ? this.$element.off("click", this.options.selector).on("click", this.options.selector, v.proxy(this.toggle, this)) : "hover" === this.getTrigger() && this.$element.off("mouseenter mouseleave click", this.options.selector).on("mouseenter", this.options.selector, v.proxy(this.mouseenterHandler, this)).on("mouseleave", this.options.selector, v.proxy(this.mouseleaveHandler, this))), 
                 this._poped = !1, this._inited = !0, this._opened = !1, this._idSeed = e, 
-                this.id = l + this._idSeed, this.options.container = v(this.options.container || Z.body).first(), 
+                this.id = l + this._idSeed, this.options.container = v(this.options.container || T.body).first(), 
                 this.options.backdrop && r.appendTo(this.options.container).hide(), 
                 e++, "sticky" === this.getTrigger() && this.show(), this.options.selector && (this._options = v.extend({}, this.options, {
                     selector: ""
@@ -19882,7 +20798,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             },
             getElementPosition: function() {
                 var e = this.$element[0].getBoundingClientRect(), t = this.options.container, i = t.css("position");
-                if (t.is(Z.body) || "static" === i) return v.extend({}, this.$element.offset(), {
+                if (t.is(T.body) || "static" === i) return v.extend({}, this.$element.offset(), {
                     width: this.$element[0].offsetWidth || e.width,
                     height: this.$element[0].offsetHeight || e.height
                 });
@@ -19903,7 +20819,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                 } : void 0;
             },
             getTargetPositin: function(e, t, i, a) {
-                var n = e, r = this.options.container, o = this.$element.outerWidth(), s = this.$element.outerHeight(), l = Z.documentElement.scrollTop + r.scrollTop(), d = Z.documentElement.scrollLeft + r.scrollLeft(), c = {}, f = null, u = this.options.arrow ? 20 : 0, h = 10, p = u + h > o ? u : 0, v = u + h > s ? u : 0, g = 0, b = Z.documentElement.clientHeight + l, m = Z.documentElement.clientWidth + d, x = n.left + n.width / 2 - p > 0, C = n.left + n.width / 2 + p < m, w = n.top + n.height / 2 - v > 0, Y = n.top + n.height / 2 + v < b;
+                var n = e, r = this.options.container, o = this.$element.outerWidth(), s = this.$element.outerHeight(), l = T.documentElement.scrollTop + r.scrollTop(), d = T.documentElement.scrollLeft + r.scrollLeft(), c = {}, f = null, u = this.options.arrow ? 20 : 0, h = 10, p = u + h > o ? u : 0, v = u + h > s ? u : 0, g = 0, b = T.documentElement.clientHeight + l, m = T.documentElement.clientWidth + d, x = n.left + n.width / 2 - p > 0, C = n.left + n.width / 2 + p < m, w = n.top + n.height / 2 - v > 0, Y = n.top + n.height / 2 + v < b;
                 switch (t) {
                   case "bottom":
                     c = {
@@ -20068,27 +20984,46 @@ jQuery.fn.comboboxRemoveClass = function(e) {
     });
 }(window, document);
 
-(function(o) {
+(function(c) {
     function i(e) {
-        var t = o(e).empty();
-        var i = o.data(e, "switchbox").options;
+        var t = c(e).empty();
+        var i = c.data(e, "switchbox").options;
         t.width(i.width);
         var a = false;
+        i.onText = c.hisui.getTrans(i.onText);
+        i.offText = c.hisui.getTrans(i.offText);
         if (i.onText != "" && i.offText != "") {
-            var n = parseInt(i.onText.length) + parseInt(i.offText.length);
+            var n = 0, r = 0;
+            for (var o = 0; o < i.onText.length; o++) {
+                var s = i.onText.charCodeAt(o);
+                if (s > 40869 || s < 19968) {
+                    n += .4;
+                } else {
+                    n += 1;
+                }
+            }
+            for (var o = 0; o < i.offText.length; o++) {
+                var s = i.offText.charCodeAt(o);
+                if (s > 40869 || s < 19968) {
+                    r += .4;
+                } else {
+                    r += 1;
+                }
+            }
+            var l = Math.ceil(n + r);
             if (i.onText.length != i.offText.length) {
                 a = true;
             }
         }
         if (!t.hasClass("has-switch")) {
-            var r = "";
+            var d = "";
             if (i.disabled) {
-                r += " disabled ";
+                d += " disabled ";
             }
             if (i.checked) {
-                r += " checked ";
+                d += " checked ";
             }
-            t.append('<input type="checkbox"' + r + ">");
+            t.append('<input type="checkbox"' + d + ">");
         }
         if (i.size == "mini") {
             t.addClass("switch-mini");
@@ -20103,7 +21038,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         t.attr("data-off-label", i.offText);
         t.attr("data-animated", i.animated);
         t.bootstrapSwitch();
-        if (a) t.width(n * 20);
+        if (a) t.width(l * 20);
         t.bind("switch-change", function(e, t) {
             if (!i.disabled) {
                 i.onSwitchChange.call(this, e, t);
@@ -20111,31 +21046,31 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             return false;
         });
     }
-    o.fn.switchbox = function(t, e) {
+    c.fn.switchbox = function(t, e) {
         if (typeof t == "string") {
-            return o.fn.switchbox.methods[t](this, e);
+            return c.fn.switchbox.methods[t](this, e);
         }
         t = t || {};
         return this.each(function() {
-            var e = o.data(this, "switchbox");
+            var e = c.data(this, "switchbox");
             if (e) {
-                o.extend(e.options, t);
+                c.extend(e.options, t);
             } else {
-                o.data(this, "switchbox", {
-                    options: o.extend({}, o.fn.switchbox.defaults, o.fn.switchbox.parseOptions(this), t)
+                c.data(this, "switchbox", {
+                    options: c.extend({}, c.fn.switchbox.defaults, c.fn.switchbox.parseOptions(this), t)
                 });
-                o(this).removeAttr("disabled");
+                c(this).removeAttr("disabled");
             }
             i(this);
         });
     };
-    o.fn.switchbox.methods = {
+    c.fn.switchbox.methods = {
         options: function(e) {
-            return o.data(e[0], "switchbox").options;
+            return c.data(e[0], "switchbox").options;
         },
         toggleActivation: function(e) {
             return e.each(function() {
-                o(this).bootstrapSwitch("toggleActivation");
+                c(this).bootstrapSwitch("toggleActivation");
             });
         },
         isActive: function(e) {
@@ -20143,17 +21078,17 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         },
         setActive: function(e, t) {
             return e.each(function() {
-                o(this).bootstrapSwitch("setActive", t);
+                c(this).bootstrapSwitch("setActive", t);
             });
         },
         toggle: function(e) {
             return e.each(function() {
-                o(this).bootstrapSwitch("toggleState");
+                c(this).bootstrapSwitch("toggleState");
             });
         },
         setValue: function(e, t, i) {
             return e.each(function() {
-                o(this).bootstrapSwitch("setState", t, i || true);
+                c(this).bootstrapSwitch("setState", t, i || true);
             });
         },
         getValue: function(e) {
@@ -20161,33 +21096,35 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         },
         setOnText: function(e, t) {
             return e.each(function() {
-                o(this).bootstrapSwitch("setOnLabel", t);
+                t = c.hisui.getTrans(t);
+                c(this).bootstrapSwitch("setOnLabel", t);
             });
         },
         setOffText: function(e, t) {
             return e.each(function() {
-                o(this).bootstrapSwitch("setOffLabel", t);
+                t = c.hisui.getTrans(t);
+                c(this).bootstrapSwitch("setOffLabel", t);
             });
         },
         setOnClass: function(e, t) {
             return e.each(function() {
-                o(this).bootstrapSwitch("setOnClass", t);
+                c(this).bootstrapSwitch("setOnClass", t);
             });
         },
         setOffClass: function(e, t) {
             return e.each(function() {
-                o(this).bootstrapSwitch("setOffClass", t);
+                c(this).bootstrapSwitch("setOffClass", t);
             });
         },
         destroy: function(e) {
             return e.each(function() {
-                o(this).bootstrapSwitch("destroy");
+                c(this).bootstrapSwitch("destroy");
             });
         }
     };
-    o.fn.switchbox.parseOptions = function(e) {
-        var t = o(e);
-        return o.extend({}, o.parser.parseOptions(e, [ "id", "iconCls", "iconAlign", "group", "size", {
+    c.fn.switchbox.parseOptions = function(e) {
+        var t = c(e);
+        return c.extend({}, c.parser.parseOptions(e, [ "id", "iconCls", "iconAlign", "group", "size", {
             plain: "boolean",
             toggle: "boolean",
             selected: "boolean"
@@ -20195,7 +21132,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             disabled: t.attr("disabled") ? true : undefined
         });
     };
-    o.fn.switchbox.defaults = {
+    c.fn.switchbox.defaults = {
         id: null,
         disabled: false,
         checked: true,
@@ -21132,6 +22069,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             var a = t.title;
             var n = t.content;
             var r = o('<div class="webui-popover top in" id="tempPopover" style="display: block; top: 451.6px; left: 11.375px; visibility:hidden">' + '<div class="webui-arrow" style="left: 199px;"></div>' + '<div class="webui-popover-inner">' + '<h3 class="webui-popover-title">' + a + "</h3>" + '<div class="webui-popover-content">' + n + "</div></div></div>").appendTo("body").width();
+            r = Math.ceil(r) + 1;
             o(e).data().plugin_webuiPopover.options.template = i.replace('"webui-popover-inner"', '"webui-popover-inner" style="width: ' + r + 'px"');
             o("#tempPopover").remove();
         }
@@ -21242,9 +22180,9 @@ jQuery.fn.comboboxRemoveClass = function(e) {
     };
 })(jQuery);
 
-(function(s) {
+(function(l) {
     function t(e, t) {
-        var i = s(t);
+        var i = l(t);
         if (i.hasClass("bginone")) return false;
         var a = e.pageX;
         var n = i._outerWidth();
@@ -21255,31 +22193,37 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         return false;
     }
     function i(e, t) {
-        s(e)._outerWidth(t);
+        l(e)._outerWidth(t);
     }
-    function l(e) {
-        var t = s(s.hisui.globalContainerSelector);
-        if (t.length > 0 && s.data(t[0], "data")) {
-            var i = s.data(t[0], "data");
-            var a = i.qState;
-            clearTimeout(i.offsettimer);
-            i.offsettimer = null;
+    function s(e, t) {
+        var i = t || window;
+        if (t) {} else if (e) {
+            var a = l.data(e, "comboq") || s;
+            var n = a.options;
+            i = n.dlgWindow || window;
+        }
+        var r = i.$(l.hisui.globalContainerSelector);
+        if (r.length > 0 && i.$.data(r[0], "data")) {
+            var o = i.$.data(r[0], "data");
+            var s = o.qState;
+            clearTimeout(o.offsettimer);
+            o.offsettimer = null;
             if ("undefined" == typeof e) {
-                e = i.srcTargetDom;
+                e = o.srcTargetDom;
             }
         }
-        if (t.is(":visible")) {
-            var n = s.data(e, "comboq") || a;
-            if (n) {
-                var r = n.options;
-                n.isShow = false;
-                r.onHidePanel.call(this, e);
+        if (r.is(":visible") && e) {
+            var a = l.data(e, "comboq") || s;
+            if (a) {
+                var n = a.options;
+                a.isShow = false;
+                n.onHidePanel.call(this, e);
             }
-            s(e).removeClass("comboq-active");
-            s(s.hisui.globalContainerSelector).hide();
-            return s(e);
+            l(e).removeClass("comboq-active");
+            i.$(l.hisui.globalContainerSelector).hide();
+            return l(e);
         }
-        if ("undefined" != typeof e) return s(e);
+        if ("undefined" != typeof e) return l(e);
         return null;
     }
     function a(e) {
@@ -21287,31 +22231,31 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         r(e, "");
     }
     function n(e, t) {
-        var i = s.data(e, "comboq");
-        if (t != s(e).val()) {
-            s(e).val(t);
-            s(e).comboq("validate");
+        var i = l.data(e, "comboq");
+        if (t != l(e).val()) {
+            l(e).val(t);
+            l(e).comboq("validate");
             i.previousValue = t;
         }
     }
     function r(e, t) {
-        var i = s.data(e, "comboq");
+        var i = l.data(e, "comboq");
         var a = i.options;
-        var n = s(e).data("value");
+        var n = l(e).data("value");
         if (t != n) {
             a.onChange.call(e, t, n);
-            s(e).data("value", t);
-            s(e).comboq("validate");
+            l(e).data("value", t);
+            l(e).comboq("validate");
             i.originalRealValue = t;
         }
     }
     function o(a) {
-        var n = s.data(a, "comboq");
+        var n = l.data(a, "comboq");
         var r = n.options;
-        var o = s(a);
+        var o = l(a);
         o.addClass("comboq");
         o.attr("autocomplete", "off");
-        if (s.isNumeric(r.width)) o._outerWidth(r.width);
+        if (l.isNumeric(r.width)) o._outerWidth(r.width);
         if (r.disabled) {
             o.addClass("disabled");
         }
@@ -21322,33 +22266,22 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             o.addClass("bginone");
         }
         o.validatebox(r);
-        s(document).unbind(".comboq").bind("mousedown.comboq", function(e) {
-            var t = s(e.target).closest("input.comboq");
-            if (t.length > 0 && s.data(t[0], "comboq").isShow) {
-                return;
-            }
-            var i = s(e.target).closest(s.hisui.globalContainerSelector);
-            if (i.length) {
-                return;
-            }
-            if (s(s.hisui.globalContainerSelector).is(":visible")) l();
-        });
         o.unbind(".comboq").bind("mousemove.comboq", function(e) {
-            if (s(this).hasClass("disabled")) return;
-            if (s(this).hasClass("readonly")) return;
+            if (l(this).hasClass("disabled")) return;
+            if (l(this).hasClass("readonly")) return;
             if (t(e, this)) {
                 this.style.cursor = "pointer";
-                s(this).addClass("comboq-arrow-hover");
+                l(this).addClass("comboq-arrow-hover");
             } else {
                 this.style.cursor = "auto";
-                s(this).removeClass("comboq-arrow-hover");
+                l(this).removeClass("comboq-arrow-hover");
             }
         }).bind("mouseleave.comboq", function() {
             this.style.cursor = "auto";
-            s(this).removeClass("comboq-arrow-hover");
+            l(this).removeClass("comboq-arrow-hover");
         }).bind("click.comboq", function(e) {
-            if (s(this).hasClass("disabled")) return;
-            if (s(this).hasClass("readonly")) return;
+            if (l(this).hasClass("disabled")) return;
+            if (l(this).hasClass("readonly")) return;
             if (t(e, this)) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -21361,7 +22294,9 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             if (!r.f112Enabled) {
                 if (i.keyCode >= 112 && i.keyCode <= 123) return;
             }
-            if (navigator.userAgent.indexOf("MWBrowser/2") == -1 && navigator.userAgent.indexOf("Electron/22.3") == -1 && "undefined" == typeof i.keyCode) {
+            var e = r.dlgWindow || window;
+            var t = navigator.userAgent;
+            if (t.indexOf("MWBrowser/2") == -1 && t.indexOf("Electron/22.3") == -1 && t.indexOf("Qaxbrowser") == -1 && "undefined" == typeof i.keyCode) {
                 return;
             }
             switch (i.keyCode) {
@@ -21370,7 +22305,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                 break;
 
               case 40:
-                if (!s(s.hisui.globalContainerSelector).is(":visible")) {
+                if (!e.$(l.hisui.globalContainerSelector).is(":visible")) {
                     if (false == c(this)) return;
                 }
                 r.keyHandler.down.call(a, i);
@@ -21398,10 +22333,9 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                         if (n.timer) {
                             clearTimeout(n.timer);
                         }
-                        if (r.minQueryLen > 0 && o.val().length < r.minQueryLen) return;
                         n.timer = setTimeout(function() {
                             if (!n.isShow) {
-                                var e = s(a).comboq("showPanel");
+                                var e = l(a).comboq("showPanel");
                                 if (e == false) return;
                             }
                             r.keyHandler.enter.call(a, i);
@@ -21412,7 +22346,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
 
               case 9:
               case 27:
-                l();
+                s();
                 break;
 
               default:
@@ -21425,14 +22359,14 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                         if (r.minQueryLen > 0 && o.val().length < r.minQueryLen) return;
                         n.timer = setTimeout(function() {
                             if (!n.isShow) {
-                                var e = s(a).comboq("showPanel");
+                                var e = l(a).comboq("showPanel");
                                 if (e == false) return;
                             }
                             var t = o.val();
                             if (n.previousValue != t) {
                                 n.previousValue = t;
                                 r.keyHandler.query.call(a, o.val(), i);
-                                s(a).comboq("validate");
+                                l(a).comboq("validate");
                             }
                         }, r.delay);
                     }
@@ -21443,43 +22377,44 @@ jQuery.fn.comboboxRemoveClass = function(e) {
     }
     function d(e, t) {
         if (t) {
-            s(e).addClass("disabled");
-            s(e).prop("disabled", true);
+            l(e).addClass("disabled");
+            l(e).prop("disabled", true);
         } else {
-            s(e).removeClass("disabled");
-            s(e).prop("disabled", false);
+            l(e).removeClass("disabled");
+            l(e).prop("disabled", false);
         }
     }
     function c(e) {
-        var t = s(e);
-        var i = s.data(e, "comboq");
+        var t = l(e);
+        var i = l.data(e, "comboq");
         var a = i.options;
         if (a.onBeforeShowPanel.call(e) === false) return false;
-        var n = s(s.hisui.globalContainerSelector);
-        if (n.length > 0) {
-            n.empty();
+        var n = a.dlgWindow || window;
+        var r = n.$(l.hisui.globalContainerSelector);
+        if (r.length > 0) {
+            r.empty();
         } else {
-            n = s('<div id="' + s.hisui.globalContainerId + '"></div>').appendTo("body");
+            r = n.$('<div id="' + l.hisui.globalContainerId + '"></div>').appendTo("body");
         }
-        n.height(a.panelHeight);
-        n.css("z-index", s.fn.window.defaults.zIndex++);
+        r.height(a.panelHeight);
+        r.css("z-index", n.$.fn.window.defaults.zIndex++);
         if (!a.panelWidth) {
             a.panelWidth = t._outerWidth();
         }
-        n.width(a.panelWidth);
+        r.width(a.panelWidth);
         i.isShow = true;
-        n.show();
-        s.data(document.getElementById(s.hisui.globalContainerId), "data", {
+        r.show();
+        n.$.data(n.document.getElementById(l.hisui.globalContainerId), "data", {
             srcTargetDom: e,
             qState: i
         });
         a.onShowPanel.call(e);
         t.addClass("comboq-active");
-        s.hisui.fixPanelTLWH();
+        n.$.hisui.fixPanelTLWH();
     }
-    s.fn.comboq = function(i, e) {
+    l.fn.comboq = function(i, e) {
         if (typeof i == "string") {
-            var t = s.fn.comboq.methods[i];
+            var t = l.fn.comboq.methods[i];
             if (t) {
                 return t(this, e);
             } else {
@@ -21488,25 +22423,27 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         }
         i = i || {};
         return this.each(function() {
-            var e = s.data(this, "comboq");
+            var e = l.data(this, "comboq");
             if (e) {
-                s.extend(e.options, i);
+                l.extend(e.options, i);
             } else {
-                e = s.data(this, "comboq", {
+                e = l.data(this, "comboq", {
                     isShow: false,
-                    options: s.extend({}, s.fn.comboq.defaults, s.fn.comboq.parseOptions(this), i),
+                    options: l.extend({}, l.fn.comboq.defaults, l.fn.comboq.parseOptions(this), i),
                     previousValue: null
                 });
                 var t = o(this);
             }
         });
     };
-    s.fn.comboq.methods = {
+    l.fn.comboq.methods = {
         options: function(e) {
-            return s.data(e[0], "comboq").options;
+            return l.data(e[0], "comboq").options;
         },
         panel: function(e) {
-            return s(s.hisui.globalContainerSelector);
+            var t = l.data(e[0], "comboq").options;
+            var i = t.dlgWindow || window;
+            return i.$(l.hisui.globalContainerSelector);
         },
         textbox: function(e) {
             return e;
@@ -21523,7 +22460,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             return c(e[0]);
         },
         hidePanel: function(e) {
-            return l();
+            return s(e[0]);
         },
         setDisabled: function(e, t) {
             return e.each(function() {
@@ -21543,11 +22480,11 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         readonly: function(e, t) {
             return e.each(function() {
                 if (t) {
-                    s(this).addClass("readonly");
+                    l(this).addClass("readonly");
                 } else {
-                    s(this).removeClass("readonly");
+                    l(this).removeClass("readonly");
                 }
-                s(this).prop("readonly", t);
+                l(this).prop("readonly", t);
             });
         },
         isValid: function(e) {
@@ -21560,13 +22497,13 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         },
         reset: function(e) {
             return e.each(function() {
-                var e = s.data(this, "comboq").options;
+                var e = l.data(this, "comboq").options;
                 if (e.multiple) {
-                    s(this).comboq("setValues", e.originalRealValue);
-                    s(this).comboq("setText", e.originalValue);
+                    l(this).comboq("setValues", e.originalRealValue);
+                    l(this).comboq("setText", e.originalValue);
                 } else {
-                    s(this).comboq("setValue", e.originalRealValue);
-                    s(this).comboq("setText", e.originalValue);
+                    l(this).comboq("setValue", e.originalRealValue);
+                    l(this).comboq("setText", e.originalValue);
                 }
             });
         },
@@ -21583,7 +22520,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         },
         setValues: function(e, t) {
             return e.each(function() {
-                if (s.isArray(t) && t.length > 0) r(this, t[0]); else {
+                if (l.isArray(t) && t.length > 0) r(this, t[0]); else {
                     r(this, "");
                 }
             });
@@ -21597,22 +22534,25 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             });
         },
         createPanelBody: function(e, t) {
-            var i = s(s.hisui.globalContainerSelector);
-            if (i.length) {
-                i.empty();
+            var i = l.data(e[0], "comboq");
+            var a = i.options;
+            var n = a.dlgWindow || window;
+            var r = n.$(l.hisui.globalContainerSelector);
+            if (r.length) {
+                r.empty();
             } else {
-                i = s('<div id="' + s.hisui.globalContainerId + '"></div>').appendTo("body");
+                r = n.$('<div id="' + l.hisui.globalContainerId + '"></div>').appendTo("body");
             }
-            var a = "<div></div>";
+            var o = "<div></div>";
             if (t != "") {
-                a = '<div id="' + t + '"></div>';
+                o = '<div id="' + t + '"></div>';
             }
-            return s(a).appendTo(i);
+            return l(o).appendTo(r);
         }
     };
-    s.fn.comboq.parseOptions = function(e) {
-        var t = s(e);
-        return s.extend({}, s.fn.validatebox.parseOptions(e), s.parser.parseOptions(e, [ "blurValidValue", "width", "height", "separator", "panelAlign", {
+    l.fn.comboq.parseOptions = function(e) {
+        var t = l(e);
+        return l.extend({}, l.fn.validatebox.parseOptions(e), l.parser.parseOptions(e, [ "blurValidValue", "width", "height", "separator", "panelAlign", {
             panelWidth: "number",
             editable: "boolean",
             hasDownArrow: "boolean",
@@ -21626,7 +22566,8 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             value: t.val() || undefined
         });
     };
-    s.fn.comboq.defaults = s.extend({}, s.fn.validatebox.defaults, {
+    l.fn.comboq.defaults = l.extend({}, l.fn.validatebox.defaults, {
+        dlgWindow: window,
         blurValidValue: false,
         f112Enabled: false,
         enterNullValueClear: true,
@@ -21660,14 +22601,52 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         onHidePanel: function() {},
         onChange: function(e, t) {}
     });
-    s(window).on("blur", function() {
-        l();
+    l(document).unbind(".comboq").bind("mousedown.comboq", function(a) {
+        var e = l(a.target).closest("input.comboq");
+        if (e.length > 0 && l.data(e[0], "comboq").isShow) {
+            return;
+        }
+        var t = l(a.target).closest(l.hisui.globalContainerSelector);
+        if (t.length) {
+            return;
+        }
+        if (l(l.hisui.globalContainerSelector).is(":visible")) s();
+        function i(e) {
+            try {
+                return !!e && !!e.document;
+            } catch (a) {
+                return false;
+            }
+        }
+        function n() {
+            var e = window;
+            while (e !== e.top) {
+                if (i(e.parent)) {
+                    e = e.parent;
+                } else {
+                    break;
+                }
+            }
+            return e;
+        }
+        function r(e) {
+            if (e) s(undefined, e);
+            var t = e.frames.length;
+            for (var i = 0; i < t; i++) {
+                try {
+                    if (e.frames[i]) r(e.frames[i]);
+                } catch (a) {}
+            }
+        }
+        try {
+            r(n());
+        } catch (a) {}
     });
 })(jQuery);
 
-(function(g) {
+(function(b) {
     function t(e, t) {
-        var i = g.data(e, "lookup");
+        var i = b.data(e, "lookup");
         var a = i.options;
         var n = i.grid;
         if (!n) return;
@@ -21699,7 +22678,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         }
     }
     function i(e, t) {
-        var i = g.data(e, "lookup");
+        var i = b.data(e, "lookup");
         var a = i.options;
         var n = i.grid;
         t = t == "prev" ? "prev" : "next";
@@ -21709,7 +22688,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         }
     }
     function u(e, t, i) {
-        var a = g.data(e, "lookup");
+        var a = b.data(e, "lookup");
         var n = a.options;
         var r = a.grid;
         var o = [];
@@ -21723,16 +22702,16 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         s.onChange = l;
         if (!i) {
             var c = o.join(n.separator);
-            if (g(e).lookup("getText") != c) {
-                g(e).lookup("setText", c);
+            if (b(e).lookup("getText") != c) {
+                b(e).lookup("setText", c);
             }
         }
     }
     function d(a, e, t) {
-        var i = g.data(a, "lookup");
+        var i = b.data(a, "lookup");
         var n = i.options;
         var r = i.grid;
-        var o = g(a).comboq("panel");
+        var o = b(a).comboq("panel");
         if (n.isCombo && n.enableNumberEvent) {
             if (t.shiftKey) return;
             if (t.ctrlKey) return;
@@ -21766,7 +22745,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         }
         if (n.mode == "remote") {
             r.datagrid("clearSelections");
-            r.datagrid("load", g.extend({}, n.queryParams, {
+            r.datagrid("load", b.extend({}, n.queryParams, {
                 q: e
             }));
         } else {
@@ -21776,10 +22755,10 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             r.datagrid("clearSelections").datagrid("highlightRow", -1);
             var c = r.datagrid("getRows");
             var f = n.multiple ? e.split(n.separator) : [ e ];
-            g.map(f, function(i) {
-                i = g.trim(i);
+            b.map(f, function(i) {
+                i = b.trim(i);
                 if (i) {
-                    g.map(c, function(e, t) {
+                    b.map(c, function(e, t) {
                         if (i == e[n.textField]) {
                             r.datagrid("selectRow", t);
                         } else {
@@ -21795,18 +22774,31 @@ jQuery.fn.comboboxRemoveClass = function(e) {
     function h(e) {
         var t = false;
         try {
+            if (!e) {
+                return false;
+            }
+            if (!e.grid) {
+                return false;
+            }
+            var i = e.grid[0];
+            var a = i.ownerDocument || i.document || document;
+            var n = b.contains(a, i);
+            if (!n) {
+                e.grid = null;
+                return false;
+            }
             if (e.grid && e.grid.datagrid("options").lookup) t = true;
-        } catch (i) {}
+        } catch (r) {}
         return t;
     }
     function a(e, t) {
-        var i = g.data(e, "lookup");
+        var i = b.data(e, "lookup");
         var a = i.options;
         var n = i.grid;
-        var r = g(e).comboq("panel");
+        var r = b(e).comboq("panel");
         if (h(i) && r.is(":visible")) {
             var o = n.datagrid("options").queryParams.q;
-            if (o == g(e).lookup("getText")) {
+            if (o == b(e).lookup("getText")) {
                 var s = a.finder.getTr(n[0], null, "highlight");
                 if (s.length) {
                     var l = parseInt(s.attr("datagrid-row-index"));
@@ -21814,10 +22806,11 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                     return;
                 }
             }
-            d(e, g(e).lookup("getText"), t);
+            if (a.minQueryLen > 0 && b(e).val().length < a.minQueryLen) return;
+            d(e, b(e).lookup("getText"), t);
         } else {
-            g(e).comboq("hidePanel");
-            g(e).comboq("showPanel");
+            b(e).comboq("hidePanel");
+            b(e).comboq("showPanel");
         }
         return;
     }
@@ -21837,204 +22830,210 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         });
     }
     function f(e, t, i) {
-        var a = g(e);
-        var n = g.data(e, "lookup");
+        var a = b(e);
+        var n = b.data(e, "lookup");
         var r = n.options;
-        var o = g(g.hisui.globalContainerSelector);
+        var o = b(b.hisui.globalContainerSelector);
+        var s = r.dlgWindow || window;
+        var o = s.$(b.hisui.globalContainerSelector);
         if (!o.is(":visible")) return;
-        var s = o._outerHeight();
+        var l = o._outerHeight();
         if (r.panelHeightFix) {
-            var l = document.documentElement.clientHeight;
-            var d = a.offset();
-            var c = d.top - document.documentElement.scrollTop;
-            var f = l - c - a._outerHeight();
-            if (c > f) {
-                s = c;
+            var d = s.document.documentElement.clientHeight;
+            var c = b.hisui.offsetInDialogWindow(e, s);
+            var f = c.top - s.document.documentElement.scrollTop;
+            var u = d - f - a._outerHeight();
+            if (f > u) {
+                l = f;
             } else {
-                s = f;
+                l = u;
             }
             if (t.datagrid("getPanel").find(".datagrid-view2 .datagrid-btable").eq(0).length > 0) {
-                var u = t.datagrid("getPanel").find(".datagrid-view2 .datagrid-btable").eq(0)[0].scrollHeight + i;
-                var h = 36 + 18;
-                var p = t.datagrid("getPanel").find(".datagrid-view2 .datagrid-body");
-                if (p.length > 0 && p[0].scrollWidth != p[0].clientWidth) {
-                    h += 18;
+                var h = t.datagrid("getPanel").find(".datagrid-view2 .datagrid-btable").eq(0)[0].scrollHeight + i;
+                var p = 36 + 18;
+                p += 18;
+                var v = t.datagrid("getPanel").find(".datagrid-view2 .datagrid-body");
+                if (v.length > 0 && v[0].scrollWidth != v[0].clientWidth) {
+                    p += 18;
                 }
-                var v = t.datagrid("getPanel").find(".datagrid-pager");
-                if (v.length > 0) {
-                    h += v._outerHeight();
+                var g = t.datagrid("getPanel").find(".datagrid-pager");
+                if (g.length > 0) {
+                    p += g._outerHeight();
                 }
-                if (s > u + h) {
-                    s = u + h;
+                if (l > h + p) {
+                    l = h + p;
                 }
             }
-            if (s > r.panelMaxHeight) {
-                s = r.panelMaxHeight;
+            if (l > r.panelMaxHeight) {
+                l = r.panelMaxHeight;
             }
-            if (s < r.panelMinHeight) {
-                s = r.panelMinHeight;
+            if (l < r.panelMinHeight) {
+                l = r.panelMinHeight;
             }
-            s = s - 18;
+            l = l - 18;
         }
-        return s;
+        return l;
     }
-    function o(e, t, i) {
-        var a = g(g.hisui.globalContainerSelector);
-        if (a.is(":visible")) {
-            var n = g.data(e, "lookup");
-            var r = n.options;
-            if (r.rowSummaryHeight > 0 && a.find(".lookup-rowSummary").length > 0) {
-                a.find(".lookup-rowSummary").children().remove();
-                g(t).appendTo(g(".lookup-rowSummary"));
+    function s(e, t, i) {
+        var a = b.data(e, "lookup");
+        var n = a.options;
+        var r = n.dlgWindow || window;
+        var o = r.$(b.hisui.globalContainerSelector);
+        if (o.is(":visible")) {
+            if (n.rowSummaryHeight > 0 && o.find(".lookup-rowSummary").length > 0) {
+                o.find(".lookup-rowSummary").children().remove();
+                r.$(t).appendTo(r.$(".lookup-rowSummary"));
             } else {
-                a.find(".lookup-rowSummary").remove();
-                var o = g('<div class="lookup-rowSummary">' + t + "</div>").appendTo(a);
-                if (r.rowSummaryHeight == 0) r.rowSummaryHeight = o._outerHeight();
-                g(".lookup-rowSummary").css("height", r.rowSummaryHeight).css("overflow", "auto");
+                o.find(".lookup-rowSummary").remove();
+                var s = r.$('<div class="lookup-rowSummary">' + t + "</div>").appendTo(o);
+                if (n.rowSummaryHeight == 0) n.rowSummaryHeight = s._outerHeight();
+                r.$(".lookup-rowSummary").css("height", n.rowSummaryHeight).css("overflow", "auto");
             }
-            var s = f(e, i, r.rowSummaryHeight);
-            var l = s - r.rowSummaryHeight;
-            c(a, i, s, l);
-            g.hisui.fixPanelTLWH();
+            var l = f(e, i, n.rowSummaryHeight);
+            var d = l - n.rowSummaryHeight;
+            c(o, i, l, d);
+            r.$.hisui.fixPanelTLWH();
         }
         return;
     }
     function n(a) {
-        var i = g.data(a, "lookup");
-        var n = i.options;
-        if ("function" == typeof n.selectRowRender) {
-            n.fit = false;
-            n.panelHeightFix = true;
+        var n = b.data(a, "lookup");
+        var r = n.options;
+        if ("function" == typeof r.selectRowRender) {
+            r.fit = false;
+            r.panelHeightFix = true;
         } else {
-            n.fit = true;
+            r.fit = true;
         }
-        if (!h(i)) {
-            var r = g(a).comboq("createPanelBody", n.lookupGridId ? n.lookupGridId : a.id ? "z-q-lu-" + a.id : "");
-            if (!n.columns && typeof n.columnsLoader == "function") n.columns = n.columnsLoader(a);
+        if (!h(n)) {
+            var o = b(a).comboq("createPanelBody", r.lookupGridId ? r.lookupGridId : a.id ? "z-q-lu-" + a.id : "");
+            if (!r.columns && typeof r.columnsLoader == "function") r.columns = r.columnsLoader(a);
             if ("undefined" == typeof $LOOKUPBTOOLBAR) $LOOKUPBTOOLBAR = {};
-            if ("string" == typeof n.btoolbar && n.btoolbar != "" && "undefined" == typeof $LOOKUPBTOOLBAR[n.btoolbar]) {
-                $LOOKUPBTOOLBAR[n.btoolbar] = g(n.btoolbar)[0].outerHTML;
+            if ("string" == typeof r.btoolbar && r.btoolbar != "" && "undefined" == typeof $LOOKUPBTOOLBAR[r.btoolbar]) {
+                $LOOKUPBTOOLBAR[r.btoolbar] = b(r.btoolbar)[0].outerHTML;
             }
-            if (g(n.btoolbar).length == 0 && $LOOKUPBTOOLBAR[n.btoolbar] != "") {
-                n.btoolbar = $LOOKUPBTOOLBAR[n.btoolbar];
+            if (b(r.btoolbar).length == 0 && $LOOKUPBTOOLBAR[r.btoolbar] != "") {
+                r.btoolbar = $LOOKUPBTOOLBAR[r.btoolbar];
             }
-            r.datagrid(g.extend({}, n, {
-                title: n.gridTitle || "",
+            o.datagrid(b.extend({}, r, {
+                title: r.gridTitle || "",
                 width: 400,
                 height: 300,
                 rownumbers: true,
                 lazy: true,
                 border: false,
-                singleSelect: !n.multiple,
+                singleSelect: !r.multiple,
                 onBeforeLoad: function(e) {
-                    var t = g(g.hisui.globalContainerSelector);
-                    c(t, r);
-                    return n.onBeforeLoad.apply(a, arguments);
+                    var t = r.dlgWindow || window;
+                    var i = t.$(b.hisui.globalContainerSelector);
+                    c(i, o);
+                    return r.onBeforeLoad.apply(a, arguments);
                 },
                 onLoadSuccess: function(e) {
-                    if (i.panel.is(":visible")) {
-                        if (n.forceFocus) {
-                            g(a).focus();
+                    if (n.panel.is(":visible")) {
+                        var t = r.dlgWindow || window;
+                        if (r.forceFocus) {
+                            b(a).focus();
                         }
-                        var t = f(a, r, 0);
-                        c(g(g.hisui.globalContainerSelector), r, t, t);
-                        r.datagrid("highlightRow", 0);
+                        var i = f(a, o, 0);
+                        c(t.$(b.hisui.globalContainerSelector), o, i, i);
+                        o.datagrid("highlightRow", 0);
                     }
-                    n.onLoadSuccess.apply(a, arguments);
+                    r.onLoadSuccess.apply(a, arguments);
                 },
                 onSelect: function(e, t) {
-                    var i = n.onChange;
-                    n.onChange = function() {};
+                    var i = r.onChange;
+                    r.onChange = function() {};
                     if (t) {
-                        g(a).comboq("setText", t[n.textField]);
-                        g(a).comboq("setValue", t[n.idField]);
+                        b(a).comboq("setText", t[r.textField]);
+                        b(a).comboq("setValue", t[r.idField]);
                     }
-                    n.onChange = i;
-                    if (false !== n.onSelect.call(this, e, t)) {
-                        g(a).comboq("hidePanel");
+                    r.onChange = i;
+                    if (false !== r.onSelect.call(this, e, t)) {
+                        b(a).comboq("hidePanel");
                     }
                 },
                 onHighlightRow: function(e, t) {
-                    if ("function" == typeof n.selectRowRender) {
-                        var i = n.selectRowRender.call(this, t);
+                    if ("function" == typeof r.selectRowRender) {
+                        var i = r.selectRowRender.call(this, t);
                         if (typeof i != "string") i = "";
-                        o(a, i, r);
+                        s(a, i, o);
                     }
                 },
                 clickDelay: 200,
-                lookup: g(a)
+                lookup: b(a)
             }));
-            i.grid = r;
+            n.grid = o;
         }
-        if (n.minQueryLen < 0) {
-            n.minQueryLen = 0;
+        if (r.minQueryLen < 0) {
+            r.minQueryLen = 0;
         }
-        var e = g(a).lookup("getText");
-        i.grid.datagrid("load", g.extend({}, n.queryParams, {
+        var e = b(a).lookup("getText");
+        n.grid.datagrid("load", b.extend({}, r.queryParams, {
             q: e
         }));
     }
     function r(e) {
-        var t = g.data(e, "lookup");
+        var t = b.data(e, "lookup");
         var i = t.options;
-        var a = g(e);
+        var a = b(e);
         a.addClass("lookup");
-        a.comboq(g.extend({}, i, {
+        a.comboq(b.extend({}, i, {
             onShowPanel: function() {
-                t.panel = g(e).comboq("panel");
+                t.panel = b(e).comboq("panel");
                 n(e);
                 i.onShowPanel.call(e);
             }
         }));
     }
-    g.fn.lookup = function(t, e) {
+    b.fn.lookup = function(t, e) {
         if (typeof t == "string") {
-            var i = g.fn.lookup.methods[t];
+            var i = b.fn.lookup.methods[t];
             if (i) {
                 return i(this, e);
             } else {
-                return g(this).comboq(t, e);
+                return b(this).comboq(t, e);
             }
         }
         t = t || {};
         t.originalValue = t.value;
         return this.each(function() {
-            var e = g.data(this, "lookup");
+            var e = b.data(this, "lookup");
             if (e) {
-                g.extend(e.options, t);
+                b.extend(e.options, t);
             } else {
-                e = g.data(this, "lookup", {
-                    options: g.extend({}, g.fn.lookup.defaults, g.fn.lookup.parseOptions(this), t)
+                e = b.data(this, "lookup", {
+                    options: b.extend({}, b.fn.lookup.defaults, b.fn.lookup.parseOptions(this), t)
                 });
                 r(this);
             }
         });
     };
-    g.fn.lookup.methods = {
+    b.fn.lookup.methods = {
         options: function(e) {
-            return g.data(e[0], "lookup").options;
+            return b.data(e[0], "lookup").options;
         },
         grid: function(e) {
-            return g.data(e[0], "lookup").grid;
+            return b.data(e[0], "lookup").grid;
         },
         clear: function(e) {
             return e.each(function() {
-                var e = g.data(this, "lookup");
+                var e = b.data(this, "lookup");
                 if (e) {
-                    if (h(e)) g(this).lookup("grid").datagrid("clearSelections");
-                    g(this).lookup("setText", "");
-                    g(this).lookup("setValue", "");
+                    if (h(e)) b(this).lookup("grid").datagrid("clearSelections");
+                    b(this).lookup("setText", "");
+                    b(this).lookup("setValue", "");
                 }
             });
         }
     };
-    g.fn.lookup.parseOptions = function(e) {
-        return g.extend({}, g.fn.comboq.parseOptions(e), g.fn.datagrid.parseOptions(e), g.parser.parseOptions(e, [ "idField", "textField", "mode", {
+    b.fn.lookup.parseOptions = function(e) {
+        return b.extend({}, b.fn.comboq.parseOptions(e), b.fn.datagrid.parseOptions(e), b.parser.parseOptions(e, [ "idField", "textField", "mode", {
             isCombo: "boolean",
             minQueryLen: "number"
         } ]));
     };
-    g.fn.lookup.defaults = g.extend({}, g.fn.comboq.defaults, g.fn.datagrid.defaults, {
+    b.fn.lookup.defaults = b.extend({}, b.fn.comboq.defaults, b.fn.datagrid.defaults, {
         lookupGridId: "",
         panelHeightFix: false,
         panelMaxHeight: 500,
@@ -22073,7 +23072,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             }
         },
         filter: function(e, t) {
-            var i = g(this).lookup("options");
+            var i = b(this).lookup("options");
             return t[i.textField].toLowerCase().indexOf(e.toLowerCase()) == 0;
         },
         onShowPanel: function() {},
@@ -22465,8 +23464,8 @@ jQuery.fn.comboboxRemoveClass = function(e) {
 })(jQuery);
 
 (function(a) {
-    var i = "YDYQSXMWZSSXJBYMGCCZQPSSQBYCDSCDQLDYLYBSSJGYZZJJFKCCLZDHWDWZJLJPFYYNWJJTMYHZWZHFLZPPQHGSCYYYNJQYXXGJHHSDSJNKKTMOMLCRXYPSNQSECCQZGGLLYJLMYZZSECYKYYHQWJSSGGYXYZYJWWKDJHYCHMYXJTLXJYQBYXZLDWRDJRWYSRLDZJPCBZJJBRCFTLECZSTZFXXZHTRQHYBDLYCZSSYMMRFMYQZPWWJJYFCRWFDFZQPYDDWYXKYJAWJFFXYPSFTZYHHYZYSWCJYXSCLCXXWZZXNBGNNXBXLZSZSBSGPYSYZDHMDZBQBZCWDZZYYTZHBTSYYBZGNTNXQYWQSKBPHHLXGYBFMJEBJHHGQTJCYSXSTKZHLYCKGLYSMZXYALMELDCCXGZYRJXSDLTYZCQKCNNJWHJTZZCQLJSTSTBNXBTYXCEQXGKWJYFLZQLYHYXSPSFXLMPBYSXXXYDJCZYLLLSJXFHJXPJBTFFYABYXBHZZBJYZLWLCZGGBTSSMDTJZXPTHYQTGLJSCQFZKJZJQNLZWLSLHDZBWJNCJZYZSQQYCQYRZCJJWYBRTWPYFTWEXCSKDZCTBZHYZZYYJXZCFFZZMJYXXSDZZOTTBZLQWFCKSZSXFYRLNYJMBDTHJXSQQCCSBXYYTSYFBXDZTGBCNSLCYZZPSAZYZZSCJCSHZQYDXLBPJLLMQXTYDZXSQJTZPXLCGLQTZWJBHCTSYJSFXYEJJTLBGXSXJMYJQQPFZASYJNTYDJXKJCDJSZCBARTDCLYJQMWNQNCLLLKBYBZZSYHQQLTWLCCXTXLLZNTYLNEWYZYXCZXXGRKRMTCNDNJTSYYSSDQDGHSDBJGHRWRQLYBGLXHLGTGXBQJDZPYJSJYJCTMRNYMGRZJCZGJMZMGXMPRYXKJNYMSGMZJYMKMFXMLDTGFBHCJHKYLPFMDXLQJJSMTQGZSJLQDLDGJYCALCMZCSDJLLNXDJFFFFJCZFMZFFPFKHKGDPSXKTACJDHHZDDCRRCFQYJKQCCWJDXHWJLYLLZGCFCQDSMLZPBJJPLSBCJGGDCKKDEZSQCCKJGCGKDJTJDLZYCXKLQSCGJCLTFPCQCZGWPJDQYZJJBYJHSJDZWGFSJGZKQCCZLLPSPKJGQJHZZLJPLGJGJJTHJJYJZCZMLZLYQBGJWMLJKXZDZNJQSYZMLJLLJKYWXMKJLHSKJGBMCLYYMKXJQLBMLLKMDXXKWYXYSLMLPSJQQJQXYXFJTJDXMXXLLCXQBSYJBGWYMBGGBCYXPJYGPEPFGDJGBHBNSQJYZJKJKHXQFGQZKFHYGKHDKLLSDJQXPQYKYBNQSXQNSZSWHBSXWHXWBZZXDMNSJBSBKBBZKLYLXGWXDRWYQZMYWSJQLCJXXJXKJEQXSCYETLZHLYYYSDZPAQYZCMTLSHTZCFYZYXYLJSDCJQAGYSLCQLYYYSHMRQQKLDXZSCSSSYDYCJYSFSJBFRSSZQSBXXPXJYSDRCKGJLGDKZJZBDKTCSYQPYHSTCLDJDHMXMCGXYZHJDDTMHLTXZXYLYMOHYJCLTYFBQQXPFBDFHHTKSQHZYYWCNXXCRWHOWGYJLEGWDQCWGFJYCSNTMYTOLBYGWQWESJPWNMLRYDZSZTXYQPZGCWXHNGPYXSHMYQJXZTDPPBFYHZHTJYFDZWKGKZBLDNTSXHQEEGZZYLZMMZYJZGXZXKHKSTXNXXWYLYAPSTHXDWHZYMPXAGKYDXBHNHXKDPJNMYHYLPMGOCSLNZHKXXLPZZLBMLSFBHHGYGYYGGBHSCYAQTYWLXTZQCEZYDQDQMMHTKLLSZHLSJZWFYHQSWSCWLQAZYNYTLSXTHAZNKZZSZZLAXXZWWCTGQQTDDYZTCCHYQZFLXPSLZYGPZSZNGLNDQTBDLXGTCTAJDKYWNSYZLJHHZZCWNYYZYWMHYCHHYXHJKZWSXHZYXLYSKQYSPSLYZWMYPPKBYGLKZHTYXAXQSYSHXASMCHKDSCRSWJPWXSGZJLWWSCHSJHSQNHCSEGNDAQTBAALZZMSSTDQJCJKTSCJAXPLGGXHHGXXZCXPDMMHLDGTYBYSJMXHMRCPXXJZCKZXSHMLQXXTTHXWZFKHCCZDYTCJYXQHLXDHYPJQXYLSYYDZOZJNYXQEZYSQYAYXWYPDGXDDXSPPYZNDLTWRHXYDXZZJHTCXMCZLHPYYYYMHZLLHNXMYLLLMDCPPXHMXDKYCYRDLTXJCHHZZXZLCCLYLNZSHZJZZLNNRLWHYQSNJHXYNTTTKYJPYCHHYEGKCTTWLGQRLGGTGTYGYHPYHYLQYQGCWYQKPYYYTTTTLHYHLLTYTTSPLKYZXGZWGPYDSSZZDQXSKCQNMJJZZBXYQMJRTFFBTKHZKBXLJJKDXJTLBWFZPPTKQTZTGPDGNTPJYFALQMKGXBDCLZFHZCLLLLADPMXDJHLCCLGYHDZFGYDDGCYYFGYDXKSSEBDHYKDKDKHNAXXYBPBYYHXZQGAFFQYJXDMLJCSQZLLPCHBSXGJYNDYBYQSPZWJLZKSDDTACTBXZDYZYPJZQSJNKKTKNJDJGYYPGTLFYQKASDNTCYHBLWDZHBBYDWJRYGKZYHEYYFJMSDTYFZJJHGCXPLXHLDWXXJKYTCYKSSSMTWCTTQZLPBSZDZWZXGZAGYKTYWXLHLSPBCLLOQMMZSSLCMBJCSZZKYDCZJGQQDSMCYTZQQLWZQZXSSFPTTFQMDDZDSHDTDWFHTDYZJYQJQKYPBDJYYXTLJHDRQXXXHAYDHRJLKLYTWHLLRLLRCXYLBWSRSZZSYMKZZHHKYHXKSMDSYDYCJPBZBSQLFCXXXNXKXWYWSDZYQOGGQMMYHCDZTTFJYYBGSTTTYBYKJDHKYXBELHTYPJQNFXFDYKZHQKZBYJTZBXHFDXKDASWTAWAJLDYJSFHBLDNNTNQJTJNCHXFJSRFWHZFMDRYJYJWZPDJKZYJYMPCYZNYNXFBYTFYFWYGDBNZZZDNYTXZEMMQBSQEHXFZMBMFLZZSRXYMJGSXWZJSPRYDJSJGXHJJGLJJYNZZJXHGXKYMLPYYYCXYTWQZSWHWLYRJLPXSLSXMFSWWKLCTNXNYNPSJSZHDZEPTXMYYWXYYSYWLXJQZQXZDCLEEELMCPJPCLWBXSQHFWWTFFJTNQJHJQDXHWLBYZNFJLALKYYJLDXHHYCSTYYWNRJYXYWTRMDRQHWQCMFJDYZMHMYYXJWMYZQZXTLMRSPWWCHAQBXYGZYPXYYRRCLMPYMGKSJSZYSRMYJSNXTPLNBAPPYPYLXYYZKYNLDZYJZCZNNLMZHHARQMPGWQTZMXXMLLHGDZXYHXKYXYCJMFFYYHJFSBSSQLXXNDYCANNMTCJCYPRRNYTYQNYYMBMSXNDLYLYSLJRLXYSXQMLLYZLZJJJKYZZCSFBZXXMSTBJGNXYZHLXNMCWSCYZYFZLXBRNNNYLBNRTGZQYSATSWRYHYJZMZDHZGZDWYBSSCSKXSYHYTXXGCQGXZZSHYXJSCRHMKKBXCZJYJYMKQHZJFNBHMQHYSNJNZYBKNQMCLGQHWLZNZSWXKHLJHYYBQLBFCDSXDLDSPFZPSKJYZWZXZDDXJSMMEGJSCSSMGCLXXKYYYLNYPWWWGYDKZJGGGZGGSYCKNJWNJPCXBJJTQTJWDSSPJXZXNZXUMELPXFSXTLLXCLJXJJLJZXCTPSWXLYDHLYQRWHSYCSQYYBYAYWJJJQFWQCQQCJQGXALDBZZYJGKGXPLTZYFXJLTPADKYQHPMATLCPDCKBMTXYBHKLENXDLEEGQDYMSAWHZMLJTWYGXLYQZLJEEYYBQQFFNLYXRDSCTGJGXYYNKLLYQKCCTLHJLQMKKZGCYYGLLLJDZGYDHZWXPYSJBZKDZGYZZHYWYFQYTYZSZYEZZLYMHJJHTSMQWYZLKYYWZCSRKQYTLTDXWCTYJKLWSQZWBDCQYNCJSRSZJLKCDCDTLZZZACQQZZDDXYPLXZBQJYLZLLLQDDZQJYJYJZYXNYYYNYJXKXDAZWYRDLJYYYRJLXLLDYXJCYWYWNQCCLDDNYYYNYCKCZHXXCCLGZQJGKWPPCQQJYSBZZXYJSQPXJPZBSBDSFNSFPZXHDWZTDWPPTFLZZBZDMYYPQJRSDZSQZSQXBDGCPZSWDWCSQZGMDHZXMWWFYBPDGPHTMJTHZSMMBGZMBZJCFZWFZBBZMQCFMBDMCJXLGPNJBBXGYHYYJGPTZGZMQBQTCGYXJXLWZKYDPDYMGCFTPFXYZTZXDZXTGKMTYBBCLBJASKYTSSQYYMSZXFJEWLXLLSZBQJJJAKLYLXLYCCTSXMCWFKKKBSXLLLLJYXTYLTJYYTDPJHNHNNKBYQNFQYYZBYYESSESSGDYHFHWTCJBSDZZTFDMXHCNJZYMQWSRYJDZJQPDQBBSTJGGFBKJBXTGQHNGWJXJGDLLTHZHHYYYYYYSXWTYYYCCBDBPYPZYCCZYJPZYWCBDLFWZCWJDXXHYHLHWZZXJTCZLCDPXUJCZZZLYXJJTXPHFXWPYWXZPTDZZBDZCYHJHMLXBQXSBYLRDTGJRRCTTTHYTCZWMXFYTWWZCWJWXJYWCSKYBZSCCTZQNHXNWXXKHKFHTSWOCCJYBCMPZZYKBNNZPBZHHZDLSYDDYTYFJPXYNGFXBYQXCBHXCPSXTYZDMKYSNXSXLHKMZXLYHDHKWHXXSSKQYHHCJYXGLHZXCSNHEKDTGZXQYPKDHEXTYKCNYMYYYPKQYYYKXZLTHJQTBYQHXBMYHSQCKWWYLLHCYYLNNEQXQWMCFBDCCMLJGGXDQKTLXKGNQCDGZJWYJJLYHHQTTTNWCHMXCXWHWSZJYDJCCDBQCDGDNYXZTHCQRXCBHZTQCBXWGQWYYBXHMBYMYQTYEXMQKYAQYRGYZSLFYKKQHYSSQYSHJGJCNXKZYCXSBXYXHYYLSTYCXQTHYSMGSCPMMGCCCCCMTZTASMGQZJHKLOSQYLSWTMXSYQKDZLJQQYPLSYCZTCQQPBBQJZCLPKHQZYYXXDTDDTSJCXFFLLCHQXMJLWCJCXTSPYCXNDTJSHJWXDQQJSKXYAMYLSJHMLALYKXCYYDMNMDQMXMCZNNCYBZKKYFLMCHCMLHXRCJJHSYLNMTJZGZGYWJXSRXCWJGJQHQZDQJDCJJZKJKGDZQGJJYJYLXZXXCDQHHHEYTMHLFSBDJSYYSHFYSTCZQLPBDRFRZTZYKYWHSZYQKWDQZRKMSYNBCRXQBJYFAZPZZEDZCJYWBCJWHYJBQSZYWRYSZPTDKZPFPBNZTKLQYHBBZPNPPTYZZYBQNYDCPJMMCYCQMCYFZZDCMNLFPBPLNGQJTBTTNJZPZBBZNJKLJQYLNBZQHKSJZNGGQSZZKYXSHPZSNBCGZKDDZQANZHJKDRTLZLSWJLJZLYWTJNDJZJHXYAYNCBGTZCSSQMNJPJYTYSWXZFKWJQTKHTZPLBHSNJZSYZBWZZZZLSYLSBJHDWWQPSLMMFBJDWAQYZTCJTBNNWZXQXCDSLQGDSDPDZHJTQQPSWLYYJZLGYXYZLCTCBJTKTYCZJTQKBSJLGMGZDMCSGPYNJZYQYYKNXRPWSZXMTNCSZZYXYBYHYZAXYWQCJTLLCKJJTJHGDXDXYQYZZBYWDLWQCGLZGJGQRQZCZSSBCRPCSKYDZNXJSQGXSSJMYDNSTZTPBDLTKZWXQWQTZEXNQCZGWEZKSSBYBRTSSSLCCGBPSZQSZLCCGLLLZXHZQTHCZMQGYZQZNMCOCSZJMMZSQPJYGQLJYJPPLDXRGZYXCCSXHSHGTZNLZWZKJCXTCFCJXLBMQBCZZWPQDNHXLJCTHYZLGYLNLSZZPCXDSCQQHJQKSXZPBAJYEMSMJTZDXLCJYRYYNWJBNGZZTMJXLTBSLYRZPYLSSCNXPHLLHYLLQQZQLXYMRSYCXZLMMCZLTZSDWTJJLLNZGGQXPFSKYGYGHBFZPDKMWGHCXMSGDXJMCJZDYCABXJDLNBCDQYGSKYDQTXDJJYXMSZQAZDZFSLQXYJSJZYLBTXXWXQQZBJZUFBBLYLWDSLJHXJYZJWTDJCZFQZQZZDZSXZZQLZCDZFJHYSPYMPQZMLPPLFFXJJNZZYLSJEYQZFPFZKSYWJJJHRDJZZXTXXGLGHYDXCSKYSWMMZCWYBAZBJKSHFHJCXMHFQHYXXYZFTSJYZFXYXPZLCHMZMBXHZZSXYFYMNCWDABAZLXKTCSHHXKXJJZJSTHYGXSXYYHHHJWXKZXSSBZZWHHHCWTZZZPJXSNXQQJGZYZYWLLCWXZFXXYXYHXMKYYSWSQMNLNAYCYSPMJKHWCQHYLAJJMZXHMMCNZHBHXCLXTJPLTXYJHDYYLTTXFSZHYXXSJBJYAYRSMXYPLCKDUYHLXRLNLLSTYZYYQYGYHHSCCSMZCTZQXKYQFPYYRPFFLKQUNTSZLLZMWWTCQQYZWTLLMLMPWMBZSSTZRBPDDTLQJJBXZCSRZQQYGWCSXFWZLXCCRSZDZMCYGGDZQSGTJSWLJMYMMZYHFBJDGYXCCPSHXNZCSBSJYJGJMPPWAFFYFNXHYZXZYLREMZGZCYZSSZDLLJCSQFNXZKPTXZGXJJGFMYYYSNBTYLBNLHPFZDCYFBMGQRRSSSZXYSGTZRNYDZZCDGPJAFJFZKNZBLCZSZPSGCYCJSZLMLRSZBZZLDLSLLYSXSQZQLYXZLSKKBRXBRBZCYCXZZZEEYFGKLZLYYHGZSGZLFJHGTGWKRAAJYZKZQTSSHJJXDCYZUYJLZYRZDQQHGJZXSSZBYKJPBFRTJXLLFQWJHYLQTYMBLPZDXTZYGBDHZZRBGXHWNJTJXLKSCFSMWLSDQYSJTXKZSCFWJLBXFTZLLJZLLQBLSQMQQCGCZFPBPHZCZJLPYYGGDTGWDCFCZQYYYQYSSCLXZSKLZZZGFFCQNWGLHQYZJJCZLQZZYJPJZZBPDCCMHJGXDQDGDLZQMFGPSYTSDYFWWDJZJYSXYYCZCYHZWPBYKXRYLYBHKJKSFXTZJMMCKHLLTNYYMSYXYZPYJQYCSYCWMTJJKQYRHLLQXPSGTLYYCLJSCPXJYZFNMLRGJJTYZBXYZMSJYJHHFZQMSYXRSZCWTLRTQZSSTKXGQKGSPTGCZNJSJCQCXHMXGGZTQYDJKZDLBZSXJLHYQGGGTHQSZPYHJHHGYYGKGGCWJZZYLCZLXQSFTGZSLLLMLJSKCTBLLZZSZMMNYTPZSXQHJCJYQXYZXZQZCPSHKZZYSXCDFGMWQRLLQXRFZTLYSTCTMJCXJJXHJNXTNRZTZFQYHQGLLGCXSZSJDJLJCYDSJTLNYXHSZXCGJZYQPYLFHDJSBPCCZHJJJQZJQDYBSSLLCMYTTMQTBHJQNNYGKYRQYQMZGCJKPDCGMYZHQLLSLLCLMHOLZGDYYFZSLJCQZLYLZQJESHNYLLJXGJXLYSYYYXNBZLJSSZCQQCJYLLZLTJYLLZLLBNYLGQCHXYYXOXCXQKYJXXXYKLXSXXYQXCYKQXQCSGYXXYQXYGYTQOHXHXPYXXXULCYEYCHZZCBWQBBWJQZSCSZSSLZYLKDESJZWMYMCYTSDSXXSCJPQQSQYLYYZYCMDJDZYWCBTJSYDJKCYDDJLBDJJSODZYSYXQQYXDHHGQQYQHDYXWGMMMAJDYBBBPPBCMUUPLJZSMTXERXJMHQNUTPJDCBSSMSSSTKJTSSMMTRCPLZSZMLQDSDMJMQPNQDXCFYNBFSDQXYXHYAYKQYDDLQYYYSSZBYDSLNTFQTZQPZMCHDHCZCWFDXTMYQSPHQYYXSRGJCWTJTZZQMGWJJTJHTQJBBHWZPXXHYQFXXQYWYYHYSCDYDHHQMNMTMWCPBSZPPZZGLMZFOLLCFWHMMSJZTTDHZZYFFYTZZGZYSKYJXQYJZQBHMBZZLYGHGFMSHPZFZSNCLPBQSNJXZSLXXFPMTYJYGBXLLDLXPZJYZJYHHZCYWHJYLSJEXFSZZYWXKZJLUYDTMLYMQJPWXYHXSKTQJEZRPXXZHHMHWQPWQLYJJQJJZSZCPHJLCHHNXJLQWZJHBMZYXBDHHYPZLHLHLGFWLCHYYTLHJXCJMSCPXSTKPNHQXSRTYXXTESYJCTLSSLSTDLLLWWYHDHRJZSFGXTSYCZYNYHTDHWJSLHTZDQDJZXXQHGYLTZPHCSQFCLNJTCLZPFSTPDYNYLGMJLLYCQHYSSHCHYLHQYQTMZYPBYWRFQYKQSYSLZDQJMPXYYSSRHZJNYWTQDFZBWWTWWRXCWHGYHXMKMYYYQMSMZHNGCEPMLQQMTCWCTMMPXJPJJHFXYYZSXZHTYBMSTSYJTTQQQYYLHYNPYQZLCYZHZWSMYLKFJXLWGXYPJYTYSYXYMZCKTTWLKSMZSYLMPWLZWXWQZSSAQSYXYRHSSNTSRAPXCPWCMGDXHXZDZYFJHGZTTSBJHGYZSZYSMYCLLLXBTYXHBBZJKSSDMALXHYCFYGMQYPJYCQXJLLLJGSLZGQLYCJCCZOTYXMTMTTLLWTGPXYMZMKLPSZZZXHKQYSXCTYJZYHXSHYXZKXLZWPSQPYHJWPJPWXQQYLXSDHMRSLZZYZWTTCYXYSZZSHBSCCSTPLWSSCJCHNLCGCHSSPHYLHFHHXJSXYLLNYLSZDHZXYLSXLWZYKCLDYAXZCMDDYSPJTQJZLNWQPSSSWCTSTSZLBLNXSMNYYMJQBQHRZWTYYDCHQLXKPZWBGQYBKFCMZWPZLLYYLSZYDWHXPSBCMLJBSCGBHXLQHYRLJXYSWXWXZSLDFHLSLYNJLZYFLYJYCDRJLFSYZFSLLCQYQFGJYHYXZLYLMSTDJCYHBZLLNWLXXYGYYHSMGDHXXHHLZZJZXCZZZCYQZFNGWPYLCPKPYYPMCLQKDGXZGGWQBDXZZKZFBXXLZXJTPJPTTBYTSZZDWSLCHZHSLTYXHQLHYXXXYYZYSWTXZKHLXZXZPYHGCHKCFSYHUTJRLXFJXPTZTWHPLYXFCRHXSHXKYXXYHZQDXQWULHYHMJTBFLKHTXCWHJFWJCFPQRYQXCYYYQYGRPYWSGSUNGWCHKZDXYFLXXHJJBYZWTSXXNCYJJYMSWZJQRMHXZWFQSYLZJZGBHYNSLBGTTCSYBYXXWXYHXYYXNSQYXMQYWRGYQLXBBZLJSYLPSYTJZYHYZAWLRORJMKSCZJXXXYXCHDYXRYXXJDTSQFXLYLTSFFYXLMTYJMJUYYYXLTZCSXQZQHZXLYYXZHDNBRXXXJCTYHLBRLMBRLLAXKYLLLJLYXXLYCRYLCJTGJCMTLZLLCYZZPZPCYAWHJJFYBDYYZSMPCKZDQYQPBPCJPDCYZMDPBCYYDYCNNPLMTMLRMFMMGWYZBSJGYGSMZQQQZTXMKQWGXLLPJGZBQCDJJJFPKJKCXBLJMSWMDTQJXLDLPPBXCWRCQFBFQJCZAHZGMYKPHYYHZYKNDKZMBPJYXPXYHLFPNYYGXJDBKXNXHJMZJXSTRSTLDXSKZYSYBZXJLXYSLBZYSLHXJPFXPQNBYLLJQKYGZMCYZZYMCCSLCLHZFWFWYXZMWSXTYNXJHPYYMCYSPMHYSMYDYSHQYZCHMJJMZCAAGCFJBBHPLYZYLXXSDJGXDHKXXTXXNBHRMLYJSLTXMRHNLXQJXYZLLYSWQGDLBJHDCGJYQYCMHWFMJYBMBYJYJWYMDPWHXQLDYGPDFXXBCGJSPCKRSSYZJMSLBZZJFLJJJLGXZGYXYXLSZQYXBEXYXHGCXBPLDYHWETTWWCJMBTXCHXYQXLLXFLYXLLJLSSFWDPZSMYJCLMWYTCZPCHQEKCQBWLCQYDPLQPPQZQFJQDJHYMMCXTXDRMJWRHXCJZYLQXDYYNHYYHRSLSRSYWWZJYMTLTLLGTQCJZYABTCKZCJYCCQLJZQXALMZYHYWLWDXZXQDLLQSHGPJFJLJHJABCQZDJGTKHSSTCYJLPSWZLXZXRWGLDLZRLZXTGSLLLLZLYXXWGDZYGBDPHZPBRLWSXQBPFDWOFMWHLYPCBJCCLDMBZPBZZLCYQXLDOMZBLZWPDWYYGDSTTHCSQSCCRSSSYSLFYBFNTYJSZDFNDPDHDZZMBBLSLCMYFFGTJJQWFTMTPJWFNLBZCMMJTGBDZLQLPYFHYYMJYLSDCHDZJWJCCTLJCLDTLJJCPDDSQDSSZYBNDBJLGGJZXSXNLYCYBJXQYCBYLZCFZPPGKCXZDZFZTJJFJSJXZBNZYJQTTYJYHTYCZHYMDJXTTMPXSPLZCDWSLSHXYPZGTFMLCJTYCBPMGDKWYCYZCDSZZYHFLYCTYGWHKJYYLSJCXGYWJCBLLCSNDDBTZBSCLYZCZZSSQDLLMQYYHFSLQLLXFTYHABXGWNYWYYPLLSDLDLLBJCYXJZMLHLJDXYYQYTDLLLBUGBFDFBBQJZZMDPJHGCLGMJJPGAEHHBWCQXAXHHHZCHXYPHJAXHLPHJPGPZJQCQZGJJZZUZDMQYYBZZPHYHYBWHAZYJHYKFGDPFQSDLZMLJXKXGALXZDAGLMDGXMWZQYXXDXXPFDMMSSYMPFMDMMKXKSYZYSHDZKXSYSMMZZZMSYDNZZCZXFPLSTMZDNMXCKJMZTYYMZMZZMSXHHDCZJEMXXKLJSTLWLSQLYJZLLZJSSDPPMHNLZJCZYHMXXHGZCJMDHXTKGRMXFWMCGMWKDTKSXQMMMFZZYDKMSCLCMPCGMHSPXQPZDSSLCXKYXTWLWJYAHZJGZQMCSNXYYMMPMLKJXMHLMLQMXCTKZMJQYSZJSYSZHSYJZJCDAJZYBSDQJZGWZQQXFKDMSDJLFWEHKZQKJPEYPZYSZCDWYJFFMZZYLTTDZZEFMZLBNPPLPLPEPSZALLTYLKCKQZKGENQLWAGYXYDPXLHSXQQWQCQXQCLHYXXMLYCCWLYMQYSKGCHLCJNSZKPYZKCQZQLJPDMDZHLASXLBYDWQLWDNBQCRYDDZTJYBKBWSZDXDTNPJDTCTQDFXQQMGNXECLTTBKPWSLCTYQLPWYZZKLPYGZCQQPLLKCCYLPQMZCZQCLJSLQZDJXLDDHPZQDLJJXZQDXYZQKZLJCYQDYJPPYPQYKJYRMPCBYMCXKLLZLLFQPYLLLMBSGLCYSSLRSYSQTMXYXZQZFDZUYSYZTFFMZZSMZQHZSSCCMLYXWTPZGXZJGZGSJSGKDDHTQGGZLLBJDZLCBCHYXYZHZFYWXYZYMSDBZZYJGTSMTFXQYXQSTDGSLNXDLRYZZLRYYLXQHTXSRTZNGZXBNQQZFMYKMZJBZYMKBPNLYZPBLMCNQYZZZSJZHJCTZKHYZZJRDYZHNPXGLFZTLKGJTCTSSYLLGZRZBBQZZKLPKLCZYSSUYXBJFPNJZZXCDWXZYJXZZDJJKGGRSRJKMSMZJLSJYWQSKYHQJSXPJZZZLSNSHRNYPZTWCHKLPSRZLZXYJQXQKYSJYCZTLQZYBBYBWZPQDWWYZCYTJCJXCKCWDKKZXSGKDZXWWYYJQYYTCYTDLLXWKCZKKLCCLZCQQDZLQLCSFQCHQHSFSMQZZLNBJJZBSJHTSZDYSJQJPDLZCDCWJKJZZLPYCGMZWDJJBSJQZSYZYHHXJPBJYDSSXDZNCGLQMBTSFSBPDZDLZNFGFJGFSMPXJQLMBLGQCYYXBQKDJJQYRFKZTJDHCZKLBSDZCFJTPLLJGXHYXZCSSZZXSTJYGKGCKGYOQXJPLZPBPGTGYJZGHZQZZLBJLSQFZGKQQJZGYCZBZQTLDXRJXBSXXPZXHYZYCLWDXJJHXMFDZPFZHQHQMQGKSLYHTYCGFRZGNQXCLPDLBZCSCZQLLJBLHBZCYPZZPPDYMZZSGYHCKCPZJGSLJLNSCDSLDLXBMSTLDDFJMKDJDHZLZXLSZQPQPGJLLYBDSZGQLBZLSLKYYHZTTNTJYQTZZPSZQZTLLJTYYLLQLLQYZQLBDZLSLYYZYMDFSZSNHLXZNCZQZPBWSKRFBSYZMTHBLGJPMCZZLSTLXSHTCSYZLZBLFEQHLXFLCJLYLJQCBZLZJHHSSTBRMHXZHJZCLXFNBGXGTQJCZTMSFZKJMSSNXLJKBHSJXNTNLZDNTLMSJXGZJYJCZXYJYJWRWWQNZTNFJSZPZSHZJFYRDJSFSZJZBJFZQZZHZLXFYSBZQLZSGYFTZDCSZXZJBQMSZKJRHYJZCKMJKHCHGTXKXQGLXPXFXTRTYLXJXHDTSJXHJZJXZWZLCQSBTXWXGXTXXHXFTSDKFJHZYJFJXRZSDLLLTQSQQZQWZXSYQTWGWBZCGZLLYZBCLMQQTZHZXZXLJFRMYZFLXYSQXXJKXRMQDZDMMYYBSQBHGZMWFWXGMXLZPYYTGZYCCDXYZXYWGSYJYZNBHPZJSQSYXSXRTFYZGRHZTXSZZTHCBFCLSYXZLZQMZLMPLMXZJXSFLBYZMYQHXJSXRXSQZZZSSLYFRCZJRCRXHHZXQYDYHXSJJHZCXZBTYNSYSXJBQLPXZQPYMLXZKYXLXCJLCYSXXZZLXDLLLJJYHZXGYJWKJRWYHCPSGNRZLFZWFZZNSXGXFLZSXZZZBFCSYJDBRJKRDHHGXJLJJTGXJXXSTJTJXLYXQFCSGSWMSBCTLQZZWLZZKXJMLTMJYHSDDBXGZHDLBMYJFRZFSGCLYJBPMLYSMSXLSZJQQHJZFXGFQFQBPXZGYYQXGZTCQWYLTLGWSGWHRLFSFGZJMGMGBGTJFSYZZGZYZAFLSSPMLPFLCWBJZCLJJMZLPJJLYMQDMYYYFBGYGYZMLYZDXQYXRQQQHSYYYQXYLJTYXFSFSLLGNQCYHYCWFHCCCFXPYLYPLLZYXXXXXKQHHXSHJZCFZSCZJXCPZWHHHHHAPYLQALPQAFYHXDYLUKMZQGGGDDESRNNZLTZGCHYPPYSQJJHCLLJTOLNJPZLJLHYMHEYDYDSQYCDDHGZUNDZCLZYZLLZNTNYZGSLHSLPJJBDGWXPCDUTJCKLKCLWKLLCASSTKZZDNQNTTLYYZSSYSSZZRYLJQKCQDHHCRXRZYDGRGCWCGZQFFFPPJFZYNAKRGYWYQPQXXFKJTSZZXSWZDDFBBXTBGTZKZNPZZPZXZPJSZBMQHKCYXYLDKLJNYPKYGHGDZJXXEAHPNZKZTZCMXCXMMJXNKSZQNMNLWBWWXJKYHCPSTMCSQTZJYXTPCTPDTNNPGLLLZSJLSPBLPLQHDTNJNLYYRSZFFJFQWDPHZDWMRZCCLODAXNSSNYZRESTYJWJYJDBCFXNMWTTBYLWSTSZGYBLJPXGLBOCLHPCBJLTMXZLJYLZXCLTPNCLCKXTPZJSWCYXSFYSZDKNTLBYJCYJLLSTGQCBXRYZXBXKLYLHZLQZLNZCXWJZLJZJNCJHXMNZZGJZZXTZJXYCYYCXXJYYXJJXSSSJSTSSTTPPGQTCSXWZDCSYFPTFBFHFBBLZJCLZZDBXGCXLQPXKFZFLSYLTUWBMQJHSZBMDDBCYSCCLDXYCDDQLYJJWMQLLCSGLJJSYFPYYCCYLTJANTJJPWYCMMGQYYSXDXQMZHSZXPFTWWZQSWQRFKJLZJQQYFBRXJHHFWJJZYQAZMYFRHCYYBYQWLPEXCCZSTYRLTTDMQLYKMBBGMYYJPRKZNPBSXYXBHYZDJDNGHPMFSGMWFZMFQMMBCMZZCJJLCNUXYQLMLRYGQZCYXZLWJGCJCGGMCJNFYZZJHYCPRRCMTZQZXHFQGTJXCCJEAQCRJYHPLQLSZDJRBCQHQDYRHYLYXJSYMHZYDWLDFRYHBPYDTSSCNWBXGLPZMLZZTQSSCPJMXXYCSJYTYCGHYCJWYRXXLFEMWJNMKLLSWTXHYYYNCMMCWJDQDJZGLLJWJRKHPZGGFLCCSCZMCBLTBHBQJXQDSPDJZZGKGLFQYWBZYZJLTSTDHQHCTCBCHFLQMPWDSHYYTQWCNZZJTLBYMBPDYYYXSQKXWYYFLXXNCWCXYPMAELYKKJMZZZBRXYYQJFLJPFHHHYTZZXSGQQMHSPGDZQWBWPJHZJDYSCQWZKTXXSQLZYYMYSDZGRXCKKUJLWPYSYSCSYZLRMLQSYLJXBCXTLWDQZPCYCYKPPPNSXFYZJJRCEMHSZMSXLXGLRWGCSTLRSXBZGBZGZTCPLUJLSLYLYMTXMTZPALZXPXJTJWTCYYZLBLXBZLQMYLXPGHDSLSSDMXMBDZZSXWHAMLCZCPJMCNHJYSNSYGCHSKQMZZQDLLKABLWJXSFMOCDXJRRLYQZKJMYBYQLYHETFJZFRFKSRYXFJTWDSXXSYSQJYSLYXWJHSNLXYYXHBHAWHHJZXWMYLJCSSLKYDZTXBZSYFDXGXZJKHSXXYBSSXDPYNZWRPTQZCZENYGCXQFJYKJBZMLJCMQQXUOXSLYXXLYLLJDZBTYMHPFSTTQQWLHOKYBLZZALZXQLHZWRRQHLSTMYPYXJJXMQSJFNBXYXYJXXYQYLTHYLQYFMLKLJTMLLHSZWKZHLJMLHLJKLJSTLQXYLMBHHLNLZXQJHXCFXXLHYHJJGBYZZKBXSCQDJQDSUJZYYHZHHMGSXCSYMXFEBCQWWRBPYYJQTYZCYQYQQZYHMWFFHGZFRJFCDPXNTQYZPDYKHJLFRZXPPXZDBBGZQSTLGDGYLCQMLCHHMFYWLZYXKJLYPQHSYWMQQGQZMLZJNSQXJQSYJYCBEHSXFSZPXZWFLLBCYYJDYTDTHWZSFJMQQYJLMQXXLLDTTKHHYBFPWTYYSQQWNQWLGWDEBZWCMYGCULKJXTMXMYJSXHYBRWFYMWFRXYQMXYSZTZZTFYKMLDHQDXWYYNLCRYJBLPSXCXYWLSPRRJWXHQYPHTYDNXHHMMYWYTZCSQMTSSCCDALWZTCPQPYJLLQZYJSWXMZZMMYLMXCLMXCZMXMZSQTZPPQQBLPGXQZHFLJJHYTJSRXWZXSCCDLXTYJDCQJXSLQYCLZXLZZXMXQRJMHRHZJBHMFLJLMLCLQNLDXZLLLPYPSYJYSXCQQDCMQJZZXHNPNXZMEKMXHYKYQLXSXTXJYYHWDCWDZHQYYBGYBCYSCFGPSJNZDYZZJZXRZRQJJYMCANYRJTLDPPYZBSTJKXXZYPFDWFGZZRPYMTNGXZQBYXNBUFNQKRJQZMJEGRZGYCLKXZDSKKNSXKCLJSPJYYZLQQJYBZSSQLLLKJXTBKTYLCCDDBLSPPFYLGYDTZJYQGGKQTTFZXBDKTYYHYBBFYTYYBCLPDYTGDHRYRNJSPTCSNYJQHKLLLZSLYDXXWBCJQSPXBPJZJCJDZFFXXBRMLAZHCSNDLBJDSZBLPRZTSWSBXBCLLXXLZDJZSJPYLYXXYFTFFFBHJJXGBYXJPMMMPSSJZJMTLYZJXSWXTYLEDQPJMYGQZJGDJLQJWJQLLSJGJGYGMSCLJJXDTYGJQJQJCJZCJGDZZSXQGSJGGCXHQXSNQLZZBXHSGZXCXYLJXYXYYDFQQJHJFXDHCTXJYRXYSQTJXYEFYYSSYYJXNCYZXFXMSYSZXYYSCHSHXZZZGZZZGFJDLTYLNPZGYJYZYYQZPBXQBDZTZCZYXXYHHSQXSHDHGQHJHGYWSZTMZMLHYXGEBTYLZKQWYTJZRCLEKYSTDBCYKQQSAYXCJXWWGSBHJYZYDHCSJKQCXSWXFLTYNYZPZCCZJQTZWJQDZZZQZLJJXLSBHPYXXPSXSHHEZTXFPTLQYZZXHYTXNCFZYYHXGNXMYWXTZSJPTHHGYMXMXQZXTSBCZYJYXXTYYZYPCQLMMSZMJZZLLZXGXZAAJZYXJMZXWDXZSXZDZXLEYJJZQBHZWZZZQTZPSXZTDSXJJJZNYAZPHXYYSRNQDTHZHYYKYJHDZXZLSWCLYBZYECWCYCRYLCXNHZYDZYDYJDFRJJHTRSQTXYXJRJHOJYNXELXSFSFJZGHPZSXZSZDZCQZBYYKLSGSJHCZSHDGQGXYZGXCHXZJWYQWGYHKSSEQZZNDZFKWYSSTCLZSTSYMCDHJXXYWEYXCZAYDMPXMDSXYBSQMJMZJMTZQLPJYQZCGQHXJHHLXXHLHDLDJQCLDWBSXFZZYYSCHTYTYYBHECXHYKGJPXHHYZJFXHWHBDZFYZBCAPNPGNYDMSXHMMMMAMYNBYJTMPXYYMCTHJBZYFCGTYHWPHFTWZZEZSBZEGPFMTSKFTYCMHFLLHGPZJXZJGZJYXZSBBQSCZZLZCCSTPGXMJSFTCCZJZDJXCYBZLFCJSYZFGSZLYBCWZZBYZDZYPSWYJZXZBDSYUXLZZBZFYGCZXBZHZFTPBGZGEJBSTGKDMFHYZZJHZLLZZGJQZLSFDJSSCBZGPDLFZFZSZYZYZSYGCXSNXXCHCZXTZZLJFZGQSQYXZJQDCCZTQCDXZJYQJQCHXZTDLGSCXZSYQJQTZWLQDQZTQCHQQJZYEZZZPBWKDJFCJPZTYPQYQTTYNLMBDKTJZPQZQZZFPZSBNJLGYJDXJDZZKZGQKXDLPZJTCJDQBXDJQJSTCKNXBXZMSLYJCQMTJQWWCJQNJNLLLHJCWQTBZQYDZCZPZZDZYDDCYZZZCCJTTJFZDPRRTZTJDCQTQZDTJNPLZBCLLCTZSXKJZQZPZLBZRBTJDCXFCZDBCCJJLTQQPLDCGZDBBZJCQDCJWYNLLZYZCCDWLLXWZLXRXNTQQCZXKQLSGDFQTDDGLRLAJJTKUYMKQLLTZYTDYYCZGJWYXDXFRSKSTQTENQMRKQZHHQKDLDAZFKYPBGGPZREBZZYKZZSPEGJXGYKQZZZSLYSYYYZWFQZYLZZLZHWCHKYPQGNPGBLPLRRJYXCCSYYHSFZFYBZYYTGZXYLXCZWXXZJZBLFFLGSKHYJZEYJHLPLLLLCZGXDRZELRHGKLZZYHZLYQSZZJZQLJZFLNBHGWLCZCFJYSPYXZLZLXGCCPZBLLCYBBBBUBBCBPCRNNZCZYRBFSRLDCGQYYQXYGMQZWTZYTYJXYFWTEHZZJYWLCCNTZYJJZDEDPZDZTSYQJHDYMBJNYJZLXTSSTPHNDJXXBYXQTZQDDTJTDYYTGWSCSZQFLSHLGLBCZPHDLYZJYCKWTYTYLBNYTSDSYCCTYSZYYEBHEXHQDTWNYGYCLXTSZYSTQMYGZAZCCSZZDSLZCLZRQXYYELJSBYMXSXZTEMBBLLYYLLYTDQYSHYMRQWKFKBFXNXSBYCHXBWJYHTQBPBSBWDZYLKGZSKYHXQZJXHXJXGNLJKZLYYCDXLFYFGHLJGJYBXQLYBXQPQGZTZPLNCYPXDJYQYDYMRBESJYYHKXXSTMXRCZZYWXYQYBMCLLYZHQYZWQXDBXBZWZMSLPDMYSKFMZKLZCYQYCZLQXFZZYDQZPZYGYJYZMZXDZFYFYTTQTZHGSPCZMLCCYTZXJCYTJMKSLPZHYSNZLLYTPZCTZZCKTXDHXXTQCYFKSMQCCYYAZHTJPCYLZLYJBJXTPNYLJYYNRXSYLMMNXJSMYBCSYSYLZYLXJJQYLDZLPQBFZZBLFNDXQKCZFYWHGQMRDSXYCYTXNQQJZYYPFZXDYZFPRXEJDGYQBXRCNFYYQPGHYJDYZXGRHTKYLNWDZNTSMPKLBTHBPYSZBZTJZSZZJTYYXZPHSSZZBZCZPTQFZMYFLYPYBBJQXZMXXDJMTSYSKKBJZXHJCKLPSMKYJZCXTMLJYXRZZQSLXXQPYZXMKYXXXJCLJPRMYYGADYSKQLSNDHYZKQXZYZTCGHZTLMLWZYBWSYCTBHJHJFCWZTXWYTKZLXQSHLYJZJXTMPLPYCGLTBZZTLZJCYJGDTCLKLPLLQPJMZPAPXYZLKKTKDZCZZBNZDYDYQZJYJGMCTXLTGXSZLMLHBGLKFWNWZHDXUHLFMKYSLGXDTWWFRJEJZTZHYDXYKSHWFZCQSHKTMQQHTZHYMJDJSKHXZJZBZZXYMPAGQMSTPXLSKLZYNWRTSQLSZBPSPSGZWYHTLKSSSWHZZLYYTNXJGMJSZSUFWNLSOZTXGXLSAMMLBWLDSZYLAKQCQCTMYCFJBSLXCLZZCLXXKSBZQCLHJPSQPLSXXCKSLNHPSFQQYTXYJZLQLDXZQJZDYYDJNZPTUZDSKJFSLJHYLZSQZLBTXYDGTQFDBYAZXDZHZJNHHQBYKNXJJQCZMLLJZKSPLDYCLBBLXKLELXJLBQYCXJXGCNLCQPLZLZYJTZLJGYZDZPLTQCSXFDMNYCXGBTJDCZNBGBQYQJWGKFHTNPYQZQGBKPBBYZMTJDYTBLSQMPSXTBNPDXKLEMYYCJYNZCTLDYKZZXDDXHQSHDGMZSJYCCTAYRZLPYLTLKXSLZCGGEXCLFXLKJRTLQJAQZNCMBYDKKCXGLCZJZXJHPTDJJMZQYKQSECQZDSHHADMLZFMMZBGNTJNNLGBYJBRBTMLBYJDZXLCJLPLDLPCQDHLXZLYCBLCXZZJADJLNZMMSSSMYBHBSQKBHRSXXJMXSDZNZPXLGBRHWGGFCXGMSKLLTSJYYCQLTSKYWYYHYWXBXQYWPYWYKQLSQPTNTKHQCWDQKTWPXXHCPTHTWUMSSYHBWCRWXHJMKMZNGWTMLKFGHKJYLSYYCXWHYECLQHKQHTTQKHFZLDXQWYZYYDESBPKYRZPJFYYZJCEQDZZDLATZBBFJLLCXDLMJSSXEGYGSJQXCWBXSSZPDYZCXDNYXPPZYDLYJCZPLTXLSXYZYRXCYYYDYLWWNZSAHJSYQYHGYWWAXTJZDAXYSRLTDPSSYYFNEJDXYZHLXLLLZQZSJNYQYQQXYJGHZGZCYJCHZLYCDSHWSHJZYJXCLLNXZJJYYXNFXMWFPYLCYLLABWDDHWDXJMCXZTZPMLQZHSFHZYNZTLLDYWLSLXHYMMYLMBWWKYXYADTXYLLDJPYBPWUXJMWMLLSAFDLLYFLBHHHBQQLTZJCQJLDJTFFKMMMBYTHYGDCQRDDWRQJXNBYSNWZDBYYTBJHPYBYTTJXAAHGQDQTMYSTQXKBTZPKJLZRBEQQSSMJJBDJOTGTBXPGBKTLHQXJJJCTHXQDWJLWRFWQGWSHCKRYSWGFTGYGBXSDWDWRFHWYTJJXXXJYZYSLPYYYPAYXHYDQKXSHXYXGSKQHYWFDDDPPLCJLQQEEWXKSYYKDYPLTJTHKJLTCYYHHJTTPLTZZCDLTHQKZXQYSTEEYWYYZYXXYYSTTJKLLPZMCYHQGXYHSRMBXPLLNQYDQHXSXXWGDQBSHYLLPJJJTHYJKYPPTHYYKTYEZYENMDSHLCRPQFDGFXZPSFTLJXXJBSWYYSKSFLXLPPLBBBLBSFXFYZBSJSSYLPBBFFFFSSCJDSTZSXZRYYSYFFSYZYZBJTBCTSBSDHRTJJBYTCXYJEYLXCBNEBJDSYXYKGSJZBXBYTFZWGENYHHTHZHHXFWGCSTBGXKLSXYWMTMBYXJSTZSCDYQRCYTWXZFHMYMCXLZNSDJTTTXRYCFYJSBSDYERXJLJXBBDEYNJGHXGCKGSCYMBLXJMSZNSKGXFBNBPTHFJAAFXYXFPXMYPQDTZCXZZPXRSYWZDLYBBKTYQPQJPZYPZJZNJPZJLZZFYSBTTSLMPTZRTDXQSJEHBZYLZDHLJSQMLHTXTJECXSLZZSPKTLZKQQYFSYGYWPCPQFHQHYTQXZKRSGTTSQCZLPTXCDYYZXSQZSLXLZMYCPCQBZYXHBSXLZDLTCDXTYLZJYYZPZYZLTXJSJXHLPMYTXCQRBLZSSFJZZTNJYTXMYJHLHPPLCYXQJQQKZZSCPZKSWALQSBLCCZJSXGWWWYGYKTJBBZTDKHXHKGTGPBKQYSLPXPJCKBMLLXDZSTBKLGGQKQLSBKKTFXRMDKBFTPZFRTBBRFERQGXYJPZSSTLBZTPSZQZSJDHLJQLZBPMSMMSXLQQNHKNBLRDDNXXDHDDJCYYGYLXGZLXSYGMQQGKHBPMXYXLYTQWLWGCPBMQXCYZYDRJBHTDJYHQSHTMJSBYPLWHLZFFNYPMHXXHPLTBQPFBJWQDBYGPNZTPFZJGSDDTQSHZEAWZZYLLTYYBWJKXXGHLFKXDJTMSZSQYNZGGSWQSPHTLSSKMCLZXYSZQZXNCJDQGZDLFNYKLJCJLLZLMZZNHYDSSHTHZZLZZBBHQZWWYCRZHLYQQJBEYFXXXWHSRXWQHWPSLMSSKZTTYGYQQWRSLALHMJTQJSMXQBJJZJXZYZKXBYQXBJXSHZTSFJLXMXZXFGHKZSZGGYLCLSARJYHSLLLMZXELGLXYDJYTLFBHBPNLYZFBBHPTGJKWETZHKJJXZXXGLLJLSTGSHJJYQLQZFKCGNNDJSSZFDBCTWWSEQFHQJBSAQTGYPQLBXBMMYWXGSLZHGLZGQYFLZBYFZJFRYSFMBYZHQGFWZSYFYJJPHZBYYZFFWODGRLMFTWLBZGYCQXCDJYGZYYYYTYTYDWEGAZYHXJLZYYHLRMGRXXZCLHNELJJTJTPWJYBJJBXJJTJTEEKHWSLJPLPSFYZPQQBDLQJJTYYQLYZKDKSQJYYQZLDQTGJQYZJSUCMRYQTHTEJMFCTYHYPKMHYZWJDQFHYYXWSHCTXRLJHQXHCCYYYJLTKTTYTMXGTCJTZAYYOCZLYLBSZYWJYTSJYHBYSHFJLYGJXXTMZYYLTXXYPZLXYJZYZYYPNHMYMDYYLBLHLSYYQQLLNJJYMSOYQBZGDLYXYLCQYXTSZEGXHZGLHWBLJHEYXTWQMAKBPQCGYSHHEGQCMWYYWLJYJHYYZLLJJYLHZYHMGSLJLJXCJJYCLYCJPCPZJZJMMYLCQLNQLJQJSXYJMLSZLJQLYCMMHCFMMFPQQMFYLQMCFFQMMMMHMZNFHHJGTTHHKHSLNCHHYQDXTMMQDCYZYXYQMYQYLTDCYYYZAZZCYMZYDLZFFFMMYCQZWZZMABTBYZTDMNZZGGDFTYPCGQYTTSSFFWFDTZQSSYSTWXJHXYTSXXYLBYQHWWKXHZXWZNNZZJZJJQJCCCHYYXBZXZCYZTLLCQXYNJYCYYCYNZZQYYYEWYCZDCJYCCHYJLBTZYYCQWMPWPYMLGKDLDLGKQQBGYCHJXY";
-    var n = {
+    var n = "YDYQSXMWZSSXJBYMGCCZQPSSQBYCDSCDQLDYLYBSSJGYZZJJFKCCLZDHWDWZJLJPFYYNWJJTMYHZWZHFLZPPQHGSCYYYNJQYXXGJHHSDSJNKKTMOMLCRXYPSNQSECCQZGGLLYJLMYZZSECYKYYHQWJSSGGYXYZYJWWKDJHYCHMYXJTLXJYQBYXZLDWRDJRWYSRLDZJPCBZJJBRCFTLECZSTZFXXZHTRQHYBDLYCZSSYMMRFMYQZPWWJJYFCRWFDFZQPYDDWYXKYJAWJFFXYPSFTZYHHYZYSWCJYXSCLCXXWZZXNBGNNXBXLZSZSBSGPYSYZDHMDZBQBZCWDZZYYTZHBTSYYBZGNTNXQYWQSKBPHHLXGYBFMJEBJHHGQTJCYSXSTKZHLYCKGLYSMZXYALMELDCCXGZYRJXSDLTYZCQKCNNJWHJTZZCQLJSTSTBNXBTYXCEQXGKWJYFLZQLYHYXSPSFXLMPBYSXXXYDJCZYLLLSJXFHJXPJBTFFYABYXBHZZBJYZLWLCZGGBTSSMDTJZXPTHYQTGLJSCQFZKJZJQNLZWLSLHDZBWJNCJZYZSQQYCQYRZCJJWYBRTWPYFTWEXCSKDZCTBZHYZZYYJXZCFFZZMJYXXSDZZOTTBZLQWFCKSZSXFYRLNYJMBDTHJXSQQCCSBXYYTSYFBXDZTGBCNSLCYZZPSAZYZZSCJCSHZQYDXLBPJLLMQXTYDZXSQJTZPXLCGLQTZWJBHCTSYJSFXYEJJTLBGXSXJMYJQQPFZASYJNTYDJXKJCDJSZCBARTDCLYJQMWNQNCLLLKBYBZZSYHQQLTWLCCXTXLLZNTYLNEWYZYXCZXXGRKRMTCNDNJTSYYSSDQDGHSDBJGHRWRQLYBGLXHLGTGXBQJDZPYJSJYJCTMRNYMGRZJCZGJMZMGXMPRYXKJNYMSGMZJYMKMFXMLDTGFBHCJHKYLPFMDXLQJJSMTQGZSJLQDLDGJYCALCMZCSDJLLNXDJFFFFJCZFMZFFPFKHKGDPSXKTACJDHHZDDCRRCFQYJKQCCWJDXHWJLYLLZGCFCQDSMLZPBJJPLSBCJGGDCKKDEZSQCCKJGCGKDJTJDLZYCXKLQSCGJCLTFPCQCZGWPJDQYZJJBYJHSJDZWGFSJGZKQCCZLLPSPKJGQJHZZLJPLGJGJJTHJJYJZCZMLZLYQBGJWMLJKXZDZNJQSYZMLJLLJKYWXMKJLHSKJGBMCLYYMKXJQLBMLLKMDXXKWYXYSLMLPSJQQJQXYXFJTJDXMXXLLCXQBSYJBGWYMBGGBCYXPJYGPEPFGDJGBHBNSQJYZJKJKHXQFGQZKFHYGKHDKLLSDJQXPQYKYBNQSXQNSZSWHBSXWHXWBZZXDMNSJBSBKBBZKLYLXGWXDRWYQZMYWSJQLCJXXJXKJEQXSCYETLZHLYYYSDZPAQYZCMTLSHTZCFYZYXYLJSDCJQAGYSLCQLYYYSHMRQQKLDXZSCSSSYDYCJYSFSJBFRSSZQSBXXPXJYSDRCKGJLGDKZJZBDKTCSYQPYHSTCLDJDHMXMCGXYZHJDDTMHLTXZXYLYMOHYJCLTYFBQQXPFBDFHHTKSQHZYYWCNXXCRWHOWGYJLEGWDQCWGFJYCSNTMYTOLBYGWQWESJPWNMLRYDZSZTXYQPZGCWXHNGPYXSHMYQJXZTDPPBFYHZHTJYFDZWKGKZBLDNTSXHQEEGZZYLZMMZYJZGXZXKHKSTXNXXWYLYAPSTHXDWHZYMPXAGKYDXBHNHXKDPJNMYHYLPMGOCSLNZHKXXLPZZLBMLSFBHHGYGYYGGBHSCYAQTYWLXTZQCEZYDQDQMMHTKLLSZHLSJZWFYHQSWSCWLQAZYNYTLSXTHAZNKZZSZZLAXXZWWCTGQQTDDYZTCCHYQZFLXPSLZYGPZSZNGLNDQTBDLXGTCTAJDKYWNSYZLJHHZZCWNYYZYWMHYCHHYXHJKZWSXHZYXLYSKQYSPSLYZWMYPPKBYGLKZHTYXAXQSYSHXASMCHKDSCRSWJPWXSGZJLWWSCHSJHSQNHCSEGNDAQTBAALZZMSSTDQJCJKTSCJAXPLGGXHHGXXZCXPDMMHLDGTYBYSJMXHMRCPXXJZCKZXSHMLQXXTTHXWZFKHCCZDYTCJYXQHLXDHYPJQXYLSYYDZOZJNYXQEZYSQYAYXWYPDGXDDXSPPYZNDLTWRHXYDXZZJHTCXMCZLHPYYYYMHZLLHNXMYLLLMDCPPXHMXDKYCYRDLTXJCHHZZXZLCCLYLNZSHZJZZLNNRLWHYQSNJHXYNTTTKYJPYCHHYEGKCTTWLGQRLGGTGTYGYHPYHYLQYQGCWYQKPYYYTTTTLHYHLLTYTTSPLKYZXGZWGPYDSSZZDQXSKCQNMJJZZBXYQMJRTFFBTKHZKBXLJJKDXJTLBWFZPPTKQTZTGPDGNTPJYFALQMKGXBDCLZFHZCLLLLADPMXDJHLCCLGYHDZFGYDDGCYYFGYDXKSSEBDHYKDKDKHNAXXYBPBYYHXZQGAFFQYJXDMLJCSQZLLPCHBSXGJYNDYBYQSPZWJLZKSDDTACTBXZDYZYPJZQSJNKKTKNJDJGYYPGTLFYQKASDNTCYHBLWDZHBBYDWJRYGKZYHEYYFJMSDTYFZJJHGCXPLXHLDWXXJKYTCYKSSSMTWCTTQZLPBSZDZWZXGZAGYKTYWXLHLSPBCLLOQMMZSSLCMBJCSZZKYDCZJGQQDSMCYTZQQLWZQZXSSFPTTFQMDDZDSHDTDWFHTDYZJYQJQKYPBDJYYXTLJHDRQXXXHAYDHRJLKLYTWHLLRLLRCXYLBWSRSZZSYMKZZHHKYHXKSMDSYDYCJPBZBSQLFCXXXNXKXWYWSDZYQOGGQMMYHCDZTTFJYYBGSTTTYBYKJDHKYXBELHTYPJQNFXFDYKZHQKZBYJTZBXHFDXKDASWTAWAJLDYJSFHBLDNNTNQJTJNCHXFJSRFWHZFMDRYJYJWZPDJKZYJYMPCYZNYNXFBYTFYFWYGDBNZZZDNYTXZEMMQBSQEHXFZMBMFLZZSRXYMJGSXWZJSPRYDJSJGXHJJGLJJYNZZJXHGXKYMLPYYYCXYTWQZSWHWLYRJLPXSLSXMFSWWKLCTNXNYNPSJSZHDZEPTXMYYWXYYSYWLXJQZQXZDCLEEELMCPJPCLWBXSQHFWWTFFJTNQJHJQDXHWLBYZNFJLALKYYJLDXHHYCSTYYWNRJYXYWTRMDRQHWQCMFJDYZMHMYYXJWMYZQZXTLMRSPWWCHAQBXYGZYPXYYRRCLMPYMGKSJSZYSRMYJSNXTPLNBAPPYPYLXYYZKYNLDZYJZCZNNLMZHHARQMPGWQTZMXXMLLHGDZXYHXKYXYCJMFFYYHJFSBSSQLXXNDYCANNMTCJCYPRRNYTYQNYYMBMSXNDLYLYSLJRLXYSXQMLLYZLZJJJKYZZCSFBZXXMSTBJGNXYZHLXNMCWSCYZYFZLXBRNNNYLBNRTGZQYSATSWRYHYJZMZDHZGZDWYBSSCSKXSYHYTXXGCQGXZZSHYXJSCRHMKKBXCZJYJYMKQHZJFNBHMQHYSNJNZYBKNQMCLGQHWLZNZSWXKHLJHYYBQLBFCDSXDLDSPFZPSKJYZWZXZDDXJSMMEGJSCSSMGCLXXKYYYLNYPWWWGYDKZJGGGZGGSYCKNJWNJPCXBJJTQTJWDSSPJXZXNZXUMELPXFSXTLLXCLJXJJLJZXCTPSWXLYDHLYQRWHSYCSQYYBYAYWJJJQFWQCQQCJQGXALDBZZYJGKGXPLTZYFXJLTPADKYQHPMATLCPDCKBMTXYBHKLENXDLEEGQDYMSAWHZMLJTWYGXLYQZLJEEYYBQQFFNLYXRDSCTGJGXYYNKLLYQKCCTLHJLQMKKZGCYYGLLLJDZGYDHZWXPYSJBZKDZGYZZHYWYFQYTYZSZYEZZLYMHJJHTSMQWYZLKYYWZCSRKQYTLTDXWCTYJKLWSQZWBDCQYNCJSRSZJLKCDCDTLZZZACQQZZDDXYPLXZBQJYLZLLLQDDZQJYJYJZYXNYYYNYJXKXDAZWYRDLJYYYRJLXLLDYXJCYWYWNQCCLDDNYYYNYCKCZHXXCCLGZQJGKWPPCQQJYSBZZXYJSQPXJPZBSBDSFNSFPZXHDWZTDWPPTFLZZBZDMYYPQJRSDZSQZSQXBDGCPZSWDWCSQZGMDHZXMWWFYBPDGPHTMJTHZSMMBGZMBZJCFZWFZBBZMQCFMBDMCJXLGPNJBBXGYHYYJGPTZGZMQBQTCGYXJXLWZKYDPDYMGCFTPFXYZTZXDZXTGKMTYBBCLBJASKYTSSQYYMSZXFJEWLXLLSZBQJJJAKLYLXLYCCTSXMCWFKKKBSXLLLLJYXTYLTJYYTDPJHNHNNKBYQNFQYYZBYYESSESSGDYHFHWTCJBSDZZTFDMXHCNJZYMQWSRYJDZJQPDQBBSTJGGFBKJBXTGQHNGWJXJGDLLTHZHHYYYYYYSXWTYYYCCBDBPYPZYCCZYJPZYWCBDLFWZCWJDXXHYHLHWZZXJTCZLCDPXUJCZZZLYXJJTXPHFXWPYWXZPTDZZBDZCYHJHMLXBQXSBYLRDTGJRRCTTTHYTCZWMXFYTWWZCWJWXJYWCSKYBZSCCTZQNHXNWXXKHKFHTSWOCCJYBCMPZZYKBNNZPBZHHZDLSYDDYTYFJPXYNGFXBYQXCBHXCPSXTYZDMKYSNXSXLHKMZXLYHDHKWHXXSSKQYHHCJYXGLHZXCSNHEKDTGZXQYPKDHEXTYKCNYMYYYPKQYYYKXZLTHJQTBYQHXBMYHSQCKWWYLLHCYYLNNEQXQWMCFBDCCMLJGGXDQKTLXKGNQCDGZJWYJJLYHHQTTTNWCHMXCXWHWSZJYDJCCDBQCDGDNYXZTHCQRXCBHZTQCBXWGQWYYBXHMBYMYQTYEXMQKYAQYRGYZSLFYKKQHYSSQYSHJGJCNXKZYCXSBXYXHYYLSTYCXQTHYSMGSCPMMGCCCCCMTZTASMGQZJHKLOSQYLSWTMXSYQKDZLJQQYPLSYCZTCQQPBBQJZCLPKHQZYYXXDTDDTSJCXFFLLCHQXMJLWCJCXTSPYCXNDTJSHJWXDQQJSKXYAMYLSJHMLALYKXCYYDMNMDQMXMCZNNCYBZKKYFLMCHCMLHXRCJJHSYLNMTJZGZGYWJXSRXCWJGJQHQZDQJDCJJZKJKGDZQGJJYJYLXZXXCDQHHHEYTMHLFSBDJSYYSHFYSTCZQLPBDRFRZTZYKYWHSZYQKWDQZRKMSYNBCRXQBJYFAZPZZEDZCJYWBCJWHYJBQSZYWRYSZPTDKZPFPBNZTKLQYHBBZPNPPTYZZYBQNYDCPJMMCYCQMCYFZZDCMNLFPBPLNGQJTBTTNJZPZBBZNJKLJQYLNBZQHKSJZNGGQSZZKYXSHPZSNBCGZKDDZQANZHJKDRTLZLSWJLJZLYWTJNDJZJHXYAYNCBGTZCSSQMNJPJYTYSWXZFKWJQTKHTZPLBHSNJZSYZBWZZZZLSYLSBJHDWWQPSLMMFBJDWAQYZTCJTBNNWZXQXCDSLQGDSDPDZHJTQQPSWLYYJZLGYXYZLCTCBJTKTYCZJTQKBSJLGMGZDMCSGPYNJZYQYYKNXRPWSZXMTNCSZZYXYBYHYZAXYWQCJTLLCKJJTJHGDXDXYQYZZBYWDLWQCGLZGJGQRQZCZSSBCRPCSKYDZNXJSQGXSSJMYDNSTZTPBDLTKZWXQWQTZEXNQCZGWEZKSSBYBRTSSSLCCGBPSZQSZLCCGLLLZXHZQTHCZMQGYZQZNMCOCSZJMMZSQPJYGQLJYJPPLDXRGZYXCCSXHSHGTZNLZWZKJCXTCFCJXLBMQBCZZWPQDNHXLJCTHYZLGYLNLSZZPCXDSCQQHJQKSXZPBAJYEMSMJTZDXLCJYRYYNWJBNGZZTMJXLTBSLYRZPYLSSCNXPHLLHYLLQQZQLXYMRSYCXZLMMCZLTZSDWTJJLLNZGGQXPFSKYGYGHBFZPDKMWGHCXMSGDXJMCJZDYCABXJDLNBCDQYGSKYDQTXDJJYXMSZQAZDZFSLQXYJSJZYLBTXXWXQQZBJZUFBBLYLWDSLJHXJYZJWTDJCZFQZQZZDZSXZZQLZCDZFJHYSPYMPQZMLPPLFFXJJNZZYLSJEYQZFPFZKSYWJJJHRDJZZXTXXGLGHYDXCSKYSWMMZCWYBAZBJKSHFHJCXMHFQHYXXYZFTSJYZFXYXPZLCHMZMBXHZZSXYFYMNCWDABAZLXKTCSHHXKXJJZJSTHYGXSXYYHHHJWXKZXSSBZZWHHHCWTZZZPJXSNXQQJGZYZYWLLCWXZFXXYXYHXMKYYSWSQMNLNAYCYSPMJKHWCQHYLAJJMZXHMMCNZHBHXCLXTJPLTXYJHDYYLTTXFSZHYXXSJBJYAYRSMXYPLCKDUYHLXRLNLLSTYZYYQYGYHHSCCSMZCTZQXKYQFPYYRPFFLKQUNTSZLLZMWWTCQQYZWTLLMLMPWMBZSSTZRBPDDTLQJJBXZCSRZQQYGWCSXFWZLXCCRSZDZMCYGGDZQSGTJSWLJMYMMZYHFBJDGYXCCPSHXNZCSBSJYJGJMPPWAFFYFNXHYZXZYLREMZGZCYZSSZDLLJCSQFNXZKPTXZGXJJGFMYYYSNBTYLBNLHPFZDCYFBMGQRRSSSZXYSGTZRNYDZZCDGPJAFJFZKNZBLCZSZPSGCYCJSZLMLRSZBZZLDLSLLYSXSQZQLYXZLSKKBRXBRBZCYCXZZZEEYFGKLZLYYHGZSGZLFJHGTGWKRAAJYZKZQTSSHJJXDCYZUYJLZYRZDQQHGJZXSSZBYKJPBFRTJXLLFQWJHYLQTYMBLPZDXTZYGBDHZZRBGXHWNJTJXLKSCFSMWLSDQYSJTXKZSCFWJLBXFTZLLJZLLQBLSQMQQCGCZFPBPHZCZJLPYYGGDTGWDCFCZQYYYQYSSCLXZSKLZZZGFFCQNWGLHQYZJJCZLQZZYJPJZZBPDCCMHJGXDQDGDLZQMFGPSYTSDYFWWDJZJYSXYYCZCYHZWPBYKXRYLYBHKJKSFXTZJMMCKHLLTNYYMSYXYZPYJQYCSYCWMTJJKQYRHLLQXPSGTLYYCLJSCPXJYZFNMLRGJJTYZBXYZMSJYJHHFZQMSYXRSZCWTLRTQZSSTKXGQKGSPTGCZNJSJCQCXHMXGGZTQYDJKZDLBZSXJLHYQGGGTHQSZPYHJHHGYYGKGGCWJZZYLCZLXQSFTGZSLLLMLJSKCTBLLZZSZMMNYTPZSXQHJCJYQXYZXZQZCPSHKZZYSXCDFGMWQRLLQXRFZTLYSTCTMJCXJJXHJNXTNRZTZFQYHQGLLGCXSZSJDJLJCYDSJTLNYXHSZXCGJZYQPYLFHDJSBPCCZHJJJQZJQDYBSSLLCMYTTMQTBHJQNNYGKYRQYQMZGCJKPDCGMYZHQLLSLLCLMHOLZGDYYFZSLJCQZLYLZQJESHNYLLJXGJXLYSYYYXNBZLJSSZCQQCJYLLZLTJYLLZLLBNYLGQCHXYYXOXCXQKYJXXXYKLXSXXYQXCYKQXQCSGYXXYQXYGYTQOHXHXPYXXXULCYEYCHZZCBWQBBWJQZSCSZSSLZYLKDESJZWMYMCYTSDSXXSCJPQQSQYLYYZYCMDJDZYWCBTJSYDJKCYDDJLBDJJSODZYSYXQQYXDHHGQQYQHDYXWGMMMAJDYBBBPPBCMUUPLJZSMTXERXJMHQNUTPJDCBSSMSSSTKJTSSMMTRCPLZSZMLQDSDMJMQPNQDXCFYNBFSDQXYXHYAYKQYDDLQYYYSSZBYDSLNTFQTZQPZMCHDHCZCWFDXTMYQSPHQYYXSRGJCWTJTZZQMGWJJTJHTQJBBHWZPXXHYQFXXQYWYYHYSCDYDHHQMNMTMWCPBSZPPZZGLMZFOLLCFWHMMSJZTTDHZZYFFYTZZGZYSKYJXQYJZQBHMBZZLYGHGFMSHPZFZSNCLPBQSNJXZSLXXFPMTYJYGBXLLDLXPZJYZJYHHZCYWHJYLSJEXFSZZYWXKZJLUYDTMLYMQJPWXYHXSKTQJEZRPXXZHHMHWQPWQLYJJQJJZSZCPHJLCHHNXJLQWZJHBMZYXBDHHYPZLHLHLGFWLCHYYTLHJXCJMSCPXSTKPNHQXSRTYXXTESYJCTLSSLSTDLLLWWYHDHRJZSFGXTSYCZYNYHTDHWJSLHTZDQDJZXXQHGYLTZPHCSQFCLNJTCLZPFSTPDYNYLGMJLLYCQHYSSHCHYLHQYQTMZYPBYWRFQYKQSYSLZDQJMPXYYSSRHZJNYWTQDFZBWWTWWRXCWHGYHXMKMYYYQMSMZHNGCEPMLQQMTCWCTMMPXJPJJHFXYYZSXZHTYBMSTSYJTTQQQYYLHYNPYQZLCYZHZWSMYLKFJXLWGXYPJYTYSYXYMZCKTTWLKSMZSYLMPWLZWXWQZSSAQSYXYRHSSNTSRAPXCPWCMGDXHXZDZYFJHGZTTSBJHGYZSZYSMYCLLLXBTYXHBBZJKSSDMALXHYCFYGMQYPJYCQXJLLLJGSLZGQLYCJCCZOTYXMTMTTLLWTGPXYMZMKLPSZZZXHKQYSXCTYJZYHXSHYXZKXLZWPSQPYHJWPJPWXQQYLXSDHMRSLZZYZWTTCYXYSZZSHBSCCSTPLWSSCJCHNLCGCHSSPHYLHFHHXJSXYLLNYLSZDHZXYLSXLWZYKCLDYAXZCMDDYSPJTQJZLNWQPSSSWCTSTSZLBLNXSMNYYMJQBQHRZWTYYDCHQLXKPZWBGQYBKFCMZWPZLLYYLSZYDWHXPSBCMLJBSCGBHXLQHYRLJXYSWXWXZSLDFHLSLYNJLZYFLYJYCDRJLFSYZFSLLCQYQFGJYHYXZLYLMSTDJCYHBZLLNWLXXYGYYHSMGDHXXHHLZZJZXCZZZCYQZFNGWPYLCPKPYYPMCLQKDGXZGGWQBDXZZKZFBXXLZXJTPJPTTBYTSZZDWSLCHZHSLTYXHQLHYXXXYYZYSWTXZKHLXZXZPYHGCHKCFSYHUTJRLXFJXPTZTWHPLYXFCRHXSHXKYXXYHZQDXQWULHYHMJTBFLKHTXCWHJFWJCFPQRYQXCYYYQYGRPYWSGSUNGWCHKZDXYFLXXHJJBYZWTSXXNCYJJYMSWZJQRMHXZWFQSYLZJZGBHYNSLBGTTCSYBYXXWXYHXYYXNSQYXMQYWRGYQLXBBZLJSYLPSYTJZYHYZAWLRORJMKSCZJXXXYXCHDYXRYXXJDTSQFXLYLTSFFYXLMTYJMJUYYYXLTZCSXQZQHZXLYYXZHDNBRXXXJCTYHLBRLMBRLLAXKYLLLJLYXXLYCRYLCJTGJCMTLZLLCYZZPZPCYAWHJJFYBDYYZSMPCKZDQYQPBPCJPDCYZMDPBCYYDYCNNPLMTMLRMFMMGWYZBSJGYGSMZQQQZTXMKQWGXLLPJGZBQCDJJJFPKJKCXBLJMSWMDTQJXLDLPPBXCWRCQFBFQJCZAHZGMYKPHYYHZYKNDKZMBPJYXPXYHLFPNYYGXJDBKXNXHJMZJXSTRSTLDXSKZYSYBZXJLXYSLBZYSLHXJPFXPQNBYLLJQKYGZMCYZZYMCCSLCLHZFWFWYXZMWSXTYNXJHPYYMCYSPMHYSMYDYSHQYZCHMJJMZCAAGCFJBBHPLYZYLXXSDJGXDHKXXTXXNBHRMLYJSLTXMRHNLXQJXYZLLYSWQGDLBJHDCGJYQYCMHWFMJYBMBYJYJWYMDPWHXQLDYGPDFXXBCGJSPCKRSSYZJMSLBZZJFLJJJLGXZGYXYXLSZQYXBEXYXHGCXBPLDYHWETTWWCJMBTXCHXYQXLLXFLYXLLJLSSFWDPZSMYJCLMWYTCZPCHQEKCQBWLCQYDPLQPPQZQFJQDJHYMMCXTXDRMJWRHXCJZYLQXDYYNHYYHRSLSRSYWWZJYMTLTLLGTQCJZYABTCKZCJYCCQLJZQXALMZYHYWLWDXZXQDLLQSHGPJFJLJHJABCQZDJGTKHSSTCYJLPSWZLXZXRWGLDLZRLZXTGSLLLLZLYXXWGDZYGBDPHZPBRLWSXQBPFDWOFMWHLYPCBJCCLDMBZPBZZLCYQXLDOMZBLZWPDWYYGDSTTHCSQSCCRSSSYSLFYBFNTYJSZDFNDPDHDZZMBBLSLCMYFFGTJJQWFTMTPJWFNLBZCMMJTGBDZLQLPYFHYYMJYLSDCHDZJWJCCTLJCLDTLJJCPDDSQDSSZYBNDBJLGGJZXSXNLYCYBJXQYCBYLZCFZPPGKCXZDZFZTJJFJSJXZBNZYJQTTYJYHTYCZHYMDJXTTMPXSPLZCDWSLSHXYPZGTFMLCJTYCBPMGDKWYCYZCDSZZYHFLYCTYGWHKJYYLSJCXGYWJCBLLCSNDDBTZBSCLYZCZZSSQDLLMQYYHFSLQLLXFTYHABXGWNYWYYPLLSDLDLLBJCYXJZMLHLJDXYYQYTDLLLBUGBFDFBBQJZZMDPJHGCLGMJJPGAEHHBWCQXAXHHHZCHXYPHJAXHLPHJPGPZJQCQZGJJZZUZDMQYYBZZPHYHYBWHAZYJHYKFGDPFQSDLZMLJXKXGALXZDAGLMDGXMWZQYXXDXXPFDMMSSYMPFMDMMKXKSYZYSHDZKXSYSMMZZZMSYDNZZCZXFPLSTMZDNMXCKJMZTYYMZMZZMSXHHDCZJEMXXKLJSTLWLSQLYJZLLZJSSDPPMHNLZJCZYHMXXHGZCJMDHXTKGRMXFWMCGMWKDTKSXQMMMFZZYDKMSCLCMPCGMHSPXQPZDSSLCXKYXTWLWJYAHZJGZQMCSNXYYMMPMLKJXMHLMLQMXCTKZMJQYSZJSYSZHSYJZJCDAJZYBSDQJZGWZQQXFKDMSDJLFWEHKZQKJPEYPZYSZCDWYJFFMZZYLTTDZZEFMZLBNPPLPLPEPSZALLTYLKCKQZKGENQLWAGYXYDPXLHSXQQWQCQXQCLHYXXMLYCCWLYMQYSKGCHLCJNSZKPYZKCQZQLJPDMDZHLASXLBYDWQLWDNBQCRYDDZTJYBKBWSZDXDTNPJDTCTQDFXQQMGNXECLTTBKPWSLCTYQLPWYZZKLPYGZCQQPLLKCCYLPQMZCZQCLJSLQZDJXLDDHPZQDLJJXZQDXYZQKZLJCYQDYJPPYPQYKJYRMPCBYMCXKLLZLLFQPYLLLMBSGLCYSSLRSYSQTMXYXZQZFDZUYSYZTFFMZZSMZQHZSSCCMLYXWTPZGXZJGZGSJSGKDDHTQGGZLLBJDZLCBCHYXYZHZFYWXYZYMSDBZZYJGTSMTFXQYXQSTDGSLNXDLRYZZLRYYLXQHTXSRTZNGZXBNQQZFMYKMZJBZYMKBPNLYZPBLMCNQYZZZSJZHJCTZKHYZZJRDYZHNPXGLFZTLKGJTCTSSYLLGZRZBBQZZKLPKLCZYSSUYXBJFPNJZZXCDWXZYJXZZDJJKGGRSRJKMSMZJLSJYWQSKYHQJSXPJZZZLSNSHRNYPZTWCHKLPSRZLZXYJQXQKYSJYCZTLQZYBBYBWZPQDWWYZCYTJCJXCKCWDKKZXSGKDZXWWYYJQYYTCYTDLLXWKCZKKLCCLZCQQDZLQLCSFQCHQHSFSMQZZLNBJJZBSJHTSZDYSJQJPDLZCDCWJKJZZLPYCGMZWDJJBSJQZSYZYHHXJPBJYDSSXDZNCGLQMBTSFSBPDZDLZNFGFJGFSMPXJQLMBLGQCYYXBQKDJJQYRFKZTJDHCZKLBSDZCFJTPLLJGXHYXZCSSZZXSTJYGKGCKGYOQXJPLZPBPGTGYJZGHZQZZLBJLSQFZGKQQJZGYCZBZQTLDXRJXBSXXPZXHYZYCLWDXJJHXMFDZPFZHQHQMQGKSLYHTYCGFRZGNQXCLPDLBZCSCZQLLJBLHBZCYPZZPPDYMZZSGYHCKCPZJGSLJLNSCDSLDLXBMSTLDDFJMKDJDHZLZXLSZQPQPGJLLYBDSZGQLBZLSLKYYHZTTNTJYQTZZPSZQZTLLJTYYLLQLLQYZQLBDZLSLYYZYMDFSZSNHLXZNCZQZPBWSKRFBSYZMTHBLGJPMCZZLSTLXSHTCSYZLZBLFEQHLXFLCJLYLJQCBZLZJHHSSTBRMHXZHJZCLXFNBGXGTQJCZTMSFZKJMSSNXLJKBHSJXNTNLZDNTLMSJXGZJYJCZXYJYJWRWWQNZTNFJSZPZSHZJFYRDJSFSZJZBJFZQZZHZLXFYSBZQLZSGYFTZDCSZXZJBQMSZKJRHYJZCKMJKHCHGTXKXQGLXPXFXTRTYLXJXHDTSJXHJZJXZWZLCQSBTXWXGXTXXHXFTSDKFJHZYJFJXRZSDLLLTQSQQZQWZXSYQTWGWBZCGZLLYZBCLMQQTZHZXZXLJFRMYZFLXYSQXXJKXRMQDZDMMYYBSQBHGZMWFWXGMXLZPYYTGZYCCDXYZXYWGSYJYZNBHPZJSQSYXSXRTFYZGRHZTXSZZTHCBFCLSYXZLZQMZLMPLMXZJXSFLBYZMYQHXJSXRXSQZZZSSLYFRCZJRCRXHHZXQYDYHXSJJHZCXZBTYNSYSXJBQLPXZQPYMLXZKYXLXCJLCYSXXZZLXDLLLJJYHZXGYJWKJRWYHCPSGNRZLFZWFZZNSXGXFLZSXZZZBFCSYJDBRJKRDHHGXJLJJTGXJXXSTJTJXLYXQFCSGSWMSBCTLQZZWLZZKXJMLTMJYHSDDBXGZHDLBMYJFRZFSGCLYJBPMLYSMSXLSZJQQHJZFXGFQFQBPXZGYYQXGZTCQWYLTLGWSGWHRLFSFGZJMGMGBGTJFSYZZGZYZAFLSSPMLPFLCWBJZCLJJMZLPJJLYMQDMYYYFBGYGYZMLYZDXQYXRQQQHSYYYQXYLJTYXFSFSLLGNQCYHYCWFHCCCFXPYLYPLLZYXXXXXKQHHXSHJZCFZSCZJXCPZWHHHHHAPYLQALPQAFYHXDYLUKMZQGGGDDESRNNZLTZGCHYPPYSQJJHCLLJTOLNJPZLJLHYMHEYDYDSQYCDDHGZUNDZCLZYZLLZNTNYZGSLHSLPJJBDGWXPCDUTJCKLKCLWKLLCASSTKZZDNQNTTLYYZSSYSSZZRYLJQKCQDHHCRXRZYDGRGCWCGZQFFFPPJFZYNAKRGYWYQPQXXFKJTSZZXSWZDDFBBXTBGTZKZNPZZPZXZPJSZBMQHKCYXYLDKLJNYPKYGHGDZJXXEAHPNZKZTZCMXCXMMJXNKSZQNMNLWBWWXJKYHCPSTMCSQTZJYXTPCTPDTNNPGLLLZSJLSPBLPLQHDTNJNLYYRSZFFJFQWDPHZDWMRZCCLODAXNSSNYZRESTYJWJYJDBCFXNMWTTBYLWSTSZGYBLJPXGLBOCLHPCBJLTMXZLJYLZXCLTPNCLCKXTPZJSWCYXSFYSZDKNTLBYJCYJLLSTGQCBXRYZXBXKLYLHZLQZLNZCXWJZLJZJNCJHXMNZZGJZZXTZJXYCYYCXXJYYXJJXSSSJSTSSTTPPGQTCSXWZDCSYFPTFBFHFBBLZJCLZZDBXGCXLQPXKFZFLSYLTUWBMQJHSZBMDDBCYSCCLDXYCDDQLYJJWMQLLCSGLJJSYFPYYCCYLTJANTJJPWYCMMGQYYSXDXQMZHSZXPFTWWZQSWQRFKJLZJQQYFBRXJHHFWJJZYQAZMYFRHCYYBYQWLPEXCCZSTYRLTTDMQLYKMBBGMYYJPRKZNPBSXYXBHYZDJDNGHPMFSGMWFZMFQMMBCMZZCJJLCNUXYQLMLRYGQZCYXZLWJGCJCGGMCJNFYZZJHYCPRRCMTZQZXHFQGTJXCCJEAQCRJYHPLQLSZDJRBCQHQDYRHYLYXJSYMHZYDWLDFRYHBPYDTSSCNWBXGLPZMLZZTQSSCPJMXXYCSJYTYCGHYCJWYRXXLFEMWJNMKLLSWTXHYYYNCMMCWJDQDJZGLLJWJRKHPZGGFLCCSCZMCBLTBHBQJXQDSPDJZZGKGLFQYWBZYZJLTSTDHQHCTCBCHFLQMPWDSHYYTQWCNZZJTLBYMBPDYYYXSQKXWYYFLXXNCWCXYPMAELYKKJMZZZBRXYYQJFLJPFHHHYTZZXSGQQMHSPGDZQWBWPJHZJDYSCQWZKTXXSQLZYYMYSDZGRXCKKUJLWPYSYSCSYZLRMLQSYLJXBCXTLWDQZPCYCYKPPPNSXFYZJJRCEMHSZMSXLXGLRWGCSTLRSXBZGBZGZTCPLUJLSLYLYMTXMTZPALZXPXJTJWTCYYZLBLXBZLQMYLXPGHDSLSSDMXMBDZZSXWHAMLCZCPJMCNHJYSNSYGCHSKQMZZQDLLKABLWJXSFMOCDXJRRLYQZKJMYBYQLYHETFJZFRFKSRYXFJTWDSXXSYSQJYSLYXWJHSNLXYYXHBHAWHHJZXWMYLJCSSLKYDZTXBZSYFDXGXZJKHSXXYBSSXDPYNZWRPTQZCZENYGCXQFJYKJBZMLJCMQQXUOXSLYXXLYLLJDZBTYMHPFSTTQQWLHOKYBLZZALZXQLHZWRRQHLSTMYPYXJJXMQSJFNBXYXYJXXYQYLTHYLQYFMLKLJTMLLHSZWKZHLJMLHLJKLJSTLQXYLMBHHLNLZXQJHXCFXXLHYHJJGBYZZKBXSCQDJQDSUJZYYHZHHMGSXCSYMXFEBCQWWRBPYYJQTYZCYQYQQZYHMWFFHGZFRJFCDPXNTQYZPDYKHJLFRZXPPXZDBBGZQSTLGDGYLCQMLCHHMFYWLZYXKJLYPQHSYWMQQGQZMLZJNSQXJQSYJYCBEHSXFSZPXZWFLLBCYYJDYTDTHWZSFJMQQYJLMQXXLLDTTKHHYBFPWTYYSQQWNQWLGWDEBZWCMYGCULKJXTMXMYJSXHYBRWFYMWFRXYQMXYSZTZZTFYKMLDHQDXWYYNLCRYJBLPSXCXYWLSPRRJWXHQYPHTYDNXHHMMYWYTZCSQMTSSCCDALWZTCPQPYJLLQZYJSWXMZZMMYLMXCLMXCZMXMZSQTZPPQQBLPGXQZHFLJJHYTJSRXWZXSCCDLXTYJDCQJXSLQYCLZXLZZXMXQRJMHRHZJBHMFLJLMLCLQNLDXZLLLPYPSYJYSXCQQDCMQJZZXHNPNXZMEKMXHYKYQLXSXTXJYYHWDCWDZHQYYBGYBCYSCFGPSJNZDYZZJZXRZRQJJYMCANYRJTLDPPYZBSTJKXXZYPFDWFGZZRPYMTNGXZQBYXNBUFNQKRJQZMJEGRZGYCLKXZDSKKNSXKCLJSPJYYZLQQJYBZSSQLLLKJXTBKTYLCCDDBLSPPFYLGYDTZJYQGGKQTTFZXBDKTYYHYBBFYTYYBCLPDYTGDHRYRNJSPTCSNYJQHKLLLZSLYDXXWBCJQSPXBPJZJCJDZFFXXBRMLAZHCSNDLBJDSZBLPRZTSWSBXBCLLXXLZDJZSJPYLYXXYFTFFFBHJJXGBYXJPMMMPSSJZJMTLYZJXSWXTYLEDQPJMYGQZJGDJLQJWJQLLSJGJGYGMSCLJJXDTYGJQJQJCJZCJGDZZSXQGSJGGCXHQXSNQLZZBXHSGZXCXYLJXYXYYDFQQJHJFXDHCTXJYRXYSQTJXYEFYYSSYYJXNCYZXFXMSYSZXYYSCHSHXZZZGZZZGFJDLTYLNPZGYJYZYYQZPBXQBDZTZCZYXXYHHSQXSHDHGQHJHGYWSZTMZMLHYXGEBTYLZKQWYTJZRCLEKYSTDBCYKQQSAYXCJXWWGSBHJYZYDHCSJKQCXSWXFLTYNYZPZCCZJQTZWJQDZZZQZLJJXLSBHPYXXPSXSHHEZTXFPTLQYZZXHYTXNCFZYYHXGNXMYWXTZSJPTHHGYMXMXQZXTSBCZYJYXXTYYZYPCQLMMSZMJZZLLZXGXZAAJZYXJMZXWDXZSXZDZXLEYJJZQBHZWZZZQTZPSXZTDSXJJJZNYAZPHXYYSRNQDTHZHYYKYJHDZXZLSWCLYBZYECWCYCRYLCXNHZYDZYDYJDFRJJHTRSQTXYXJRJHOJYNXELXSFSFJZGHPZSXZSZDZCQZBYYKLSGSJHCZSHDGQGXYZGXCHXZJWYQWGYHKSSEQZZNDZFKWYSSTCLZSTSYMCDHJXXYWEYXCZAYDMPXMDSXYBSQMJMZJMTZQLPJYQZCGQHXJHHLXXHLHDLDJQCLDWBSXFZZYYSCHTYTYYBHECXHYKGJPXHHYZJFXHWHBDZFYZBCAPNPGNYDMSXHMMMMAMYNBYJTMPXYYMCTHJBZYFCGTYHWPHFTWZZEZSBZEGPFMTSKFTYCMHFLLHGPZJXZJGZJYXZSBBQSCZZLZCCSTPGXMJSFTCCZJZDJXCYBZLFCJSYZFGSZLYBCWZZBYZDZYPSWYJZXZBDSYUXLZZBZFYGCZXBZHZFTPBGZGEJBSTGKDMFHYZZJHZLLZZGJQZLSFDJSSCBZGPDLFZFZSZYZYZSYGCXSNXXCHCZXTZZLJFZGQSQYXZJQDCCZTQCDXZJYQJQCHXZTDLGSCXZSYQJQTZWLQDQZTQCHQQJZYEZZZPBWKDJFCJPZTYPQYQTTYNLMBDKTJZPQZQZZFPZSBNJLGYJDXJDZZKZGQKXDLPZJTCJDQBXDJQJSTCKNXBXZMSLYJCQMTJQWWCJQNJNLLLHJCWQTBZQYDZCZPZZDZYDDCYZZZCCJTTJFZDPRRTZTJDCQTQZDTJNPLZBCLLCTZSXKJZQZPZLBZRBTJDCXFCZDBCCJJLTQQPLDCGZDBBZJCQDCJWYNLLZYZCCDWLLXWZLXRXNTQQCZXKQLSGDFQTDDGLRLAJJTKUYMKQLLTZYTDYYCZGJWYXDXFRSKSTQTENQMRKQZHHQKDLDAZFKYPBGGPZREBZZYKZZSPEGJXGYKQZZZSLYSYYYZWFQZYLZZLZHWCHKYPQGNPGBLPLRRJYXCCSYYHSFZFYBZYYTGZXYLXCZWXXZJZBLFFLGSKHYJZEYJHLPLLLLCZGXDRZELRHGKLZZYHZLYQSZZJZQLJZFLNBHGWLCZCFJYSPYXZLZLXGCCPZBLLCYBBBBUBBCBPCRNNZCZYRBFSRLDCGQYYQXYGMQZWTZYTYJXYFWTEHZZJYWLCCNTZYJJZDEDPZDZTSYQJHDYMBJNYJZLXTSSTPHNDJXXBYXQTZQDDTJTDYYTGWSCSZQFLSHLGLBCZPHDLYZJYCKWTYTYLBNYTSDSYCCTYSZYYEBHEXHQDTWNYGYCLXTSZYSTQMYGZAZCCSZZDSLZCLZRQXYYELJSBYMXSXZTEMBBLLYYLLYTDQYSHYMRQWKFKBFXNXSBYCHXBWJYHTQBPBSBWDZYLKGZSKYHXQZJXHXJXGNLJKZLYYCDXLFYFGHLJGJYBXQLYBXQPQGZTZPLNCYPXDJYQYDYMRBESJYYHKXXSTMXRCZZYWXYQYBMCLLYZHQYZWQXDBXBZWZMSLPDMYSKFMZKLZCYQYCZLQXFZZYDQZPZYGYJYZMZXDZFYFYTTQTZHGSPCZMLCCYTZXJCYTJMKSLPZHYSNZLLYTPZCTZZCKTXDHXXTQCYFKSMQCCYYAZHTJPCYLZLYJBJXTPNYLJYYNRXSYLMMNXJSMYBCSYSYLZYLXJJQYLDZLPQBFZZBLFNDXQKCZFYWHGQMRDSXYCYTXNQQJZYYPFZXDYZFPRXEJDGYQBXRCNFYYQPGHYJDYZXGRHTKYLNWDZNTSMPKLBTHBPYSZBZTJZSZZJTYYXZPHSSZZBZCZPTQFZMYFLYPYBBJQXZMXXDJMTSYSKKBJZXHJCKLPSMKYJZCXTMLJYXRZZQSLXXQPYZXMKYXXXJCLJPRMYYGADYSKQLSNDHYZKQXZYZTCGHZTLMLWZYBWSYCTBHJHJFCWZTXWYTKZLXQSHLYJZJXTMPLPYCGLTBZZTLZJCYJGDTCLKLPLLQPJMZPAPXYZLKKTKDZCZZBNZDYDYQZJYJGMCTXLTGXSZLMLHBGLKFWNWZHDXUHLFMKYSLGXDTWWFRJEJZTZHYDXYKSHWFZCQSHKTMQQHTZHYMJDJSKHXZJZBZZXYMPAGQMSTPXLSKLZYNWRTSQLSZBPSPSGZWYHTLKSSSWHZZLYYTNXJGMJSZSUFWNLSOZTXGXLSAMMLBWLDSZYLAKQCQCTMYCFJBSLXCLZZCLXXKSBZQCLHJPSQPLSXXCKSLNHPSFQQYTXYJZLQLDXZQJZDYYDJNZPTUZDSKJFSLJHYLZSQZLBTXYDGTQFDBYAZXDZHZJNHHQBYKNXJJQCZMLLJZKSPLDYCLBBLXKLELXJLBQYCXJXGCNLCQPLZLZYJTZLJGYZDZPLTQCSXFDMNYCXGBTJDCZNBGBQYQJWGKFHTNPYQZQGBKPBBYZMTJDYTBLSQMPSXTBNPDXKLEMYYCJYNZCTLDYKZZXDDXHQSHDGMZSJYCCTAYRZLPYLTLKXSLZCGGEXCLFXLKJRTLQJAQZNCMBYDKKCXGLCZJZXJHPTDJJMZQYKQSECQZDSHHADMLZFMMZBGNTJNNLGBYJBRBTMLBYJDZXLCJLPLDLPCQDHLXZLYCBLCXZZJADJLNZMMSSSMYBHBSQKBHRSXXJMXSDZNZPXLGBRHWGGFCXGMSKLLTSJYYCQLTSKYWYYHYWXBXQYWPYWYKQLSQPTNTKHQCWDQKTWPXXHCPTHTWUMSSYHBWCRWXHJMKMZNGWTMLKFGHKJYLSYYCXWHYECLQHKQHTTQKHFZLDXQWYZYYDESBPKYRZPJFYYZJCEQDZZDLATZBBFJLLCXDLMJSSXEGYGSJQXCWBXSSZPDYZCXDNYXPPZYDLYJCZPLTXLSXYZYRXCYYYDYLWWNZSAHJSYQYHGYWWAXTJZDAXYSRLTDPSSYYFNEJDXYZHLXLLLZQZSJNYQYQQXYJGHZGZCYJCHZLYCDSHWSHJZYJXCLLNXZJJYYXNFXMWFPYLCYLLABWDDHWDXJMCXZTZPMLQZHSFHZYNZTLLDYWLSLXHYMMYLMBWWKYXYADTXYLLDJPYBPWUXJMWMLLSAFDLLYFLBHHHBQQLTZJCQJLDJTFFKMMMBYTHYGDCQRDDWRQJXNBYSNWZDBYYTBJHPYBYTTJXAAHGQDQTMYSTQXKBTZPKJLZRBEQQSSMJJBDJOTGTBXPGBKTLHQXJJJCTHXQDWJLWRFWQGWSHCKRYSWGFTGYGBXSDWDWRFHWYTJJXXXJYZYSLPYYYPAYXHYDQKXSHXYXGSKQHYWFDDDPPLCJLQQEEWXKSYYKDYPLTJTHKJLTCYYHHJTTPLTZZCDLTHQKZXQYSTEEYWYYZYXXYYSTTJKLLPZMCYHQGXYHSRMBXPLLNQYDQHXSXXWGDQBSHYLLPJJJTHYJKYPPTHYYKTYEZYENMDSHLCRPQFDGFXZPSFTLJXXJBSWYYSKSFLXLPPLBBBLBSFXFYZBSJSSYLPBBFFFFSSCJDSTZSXZRYYSYFFSYZYZBJTBCTSBSDHRTJJBYTCXYJEYLXCBNEBJDSYXYKGSJZBXBYTFZWGENYHHTHZHHXFWGCSTBGXKLSXYWMTMBYXJSTZSCDYQRCYTWXZFHMYMCXLZNSDJTTTXRYCFYJSBSDYERXJLJXBBDEYNJGHXGCKGSCYMBLXJMSZNSKGXFBNBPTHFJAAFXYXFPXMYPQDTZCXZZPXRSYWZDLYBBKTYQPQJPZYPZJZNJPZJLZZFYSBTTSLMPTZRTDXQSJEHBZYLZDHLJSQMLHTXTJECXSLZZSPKTLZKQQYFSYGYWPCPQFHQHYTQXZKRSGTTSQCZLPTXCDYYZXSQZSLXLZMYCPCQBZYXHBSXLZDLTCDXTYLZJYYZPZYZLTXJSJXHLPMYTXCQRBLZSSFJZZTNJYTXMYJHLHPPLCYXQJQQKZZSCPZKSWALQSBLCCZJSXGWWWYGYKTJBBZTDKHXHKGTGPBKQYSLPXPJCKBMLLXDZSTBKLGGQKQLSBKKTFXRMDKBFTPZFRTBBRFERQGXYJPZSSTLBZTPSZQZSJDHLJQLZBPMSMMSXLQQNHKNBLRDDNXXDHDDJCYYGYLXGZLXSYGMQQGKHBPMXYXLYTQWLWGCPBMQXCYZYDRJBHTDJYHQSHTMJSBYPLWHLZFFNYPMHXXHPLTBQPFBJWQDBYGPNZTPFZJGSDDTQSHZEAWZZYLLTYYBWJKXXGHLFKXDJTMSZSQYNZGGSWQSPHTLSSKMCLZXYSZQZXNCJDQGZDLFNYKLJCJLLZLMZZNHYDSSHTHZZLZZBBHQZWWYCRZHLYQQJBEYFXXXWHSRXWQHWPSLMSSKZTTYGYQQWRSLALHMJTQJSMXQBJJZJXZYZKXBYQXBJXSHZTSFJLXMXZXFGHKZSZGGYLCLSARJYHSLLLMZXELGLXYDJYTLFBHBPNLYZFBBHPTGJKWETZHKJJXZXXGLLJLSTGSHJJYQLQZFKCGNNDJSSZFDBCTWWSEQFHQJBSAQTGYPQLBXBMMYWXGSLZHGLZGQYFLZBYFZJFRYSFMBYZHQGFWZSYFYJJPHZBYYZFFWODGRLMFTWLBZGYCQXCDJYGZYYYYTYTYDWEGAZYHXJLZYYHLRMGRXXZCLHNELJJTJTPWJYBJJBXJJTJTEEKHWSLJPLPSFYZPQQBDLQJJTYYQLYZKDKSQJYYQZLDQTGJQYZJSUCMRYQTHTEJMFCTYHYPKMHYZWJDQFHYYXWSHCTXRLJHQXHCCYYYJLTKTTYTMXGTCJTZAYYOCZLYLBSZYWJYTSJYHBYSHFJLYGJXXTMZYYLTXXYPZLXYJZYZYYPNHMYMDYYLBLHLSYYQQLLNJJYMSOYQBZGDLYXYLCQYXTSZEGXHZGLHWBLJHEYXTWQMAKBPQCGYSHHEGQCMWYYWLJYJHYYZLLJJYLHZYHMGSLJLJXCJJYCLYCJPCPZJZJMMYLCQLNQLJQJSXYJMLSZLJQLYCMMHCFMMFPQQMFYLQMCFFQMMMMHMZNFHHJGTTHHKHSLNCHHYQDXTMMQDCYZYXYQMYQYLTDCYYYZAZZCYMZYDLZFFFMMYCQZWZZMABTBYZTDMNZZGGDFTYPCGQYTTSSFFWFDTZQSSYSTWXJHXYTSXXYLBYQHWWKXHZXWZNNZZJZJJQJCCCHYYXBZXZCYZTLLCQXYNJYCYYCYNZZQYYYEWYCZDCJYCCHYJLBTZYYCQWMPWPYMLGKDLDLGKQQBGYCHJXY";
+    var r = {
         19969: "DZ",
         19975: "WM",
         19988: "QJ",
@@ -22843,21 +23842,36 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         40840: "YK",
         40863: "QJG"
     };
-    function r(e) {
+    function o(e, t) {
         if (typeof e != "string") throw new Error(-1, "makePy parameter type must 'string'!");
-        var t = new Array();
-        for (var i = 0, a = e.length; i < a; i++) {
-            var n = e.charAt(i);
-            t.push(o(n));
+        var i = new Array();
+        for (var a = 0, n = e.length; a < n; a++) {
+            var r = e.charAt(a);
+            i.push(l(r, t));
         }
-        return s(t);
+        var o = 0;
+        for (var s = 0; s < i.length; s++) {
+            if (i[s].length > 1) {
+                o++;
+            }
+            if (o > 5) {
+                i[s] = i[s].slice(0, 1);
+            }
+        }
+        return d(i);
     }
-    function o(e) {
-        var t = e.charCodeAt(0);
-        if (t > 40869 || t < 19968) return e;
-        return n[t] ? n[t] : i.charAt(t - 19968);
+    function l(e, t) {
+        var i = e.charCodeAt(0);
+        if (i > 40869 || i < 19968) return e;
+        if (r[i]) {
+            if (t || false) {
+                return r[i].slice(0, 1);
+            }
+            return r[i];
+        }
+        return n.charAt(i - 19968);
     }
-    function s(e) {
+    function d(e) {
         var t = [ "" ];
         for (var i = 0, a = e.length; i < a; i++) {
             var n = e[i];
@@ -22883,14 +23897,14 @@ jQuery.fn.comboboxRemoveClass = function(e) {
     function e(e) {
         var t = a.trim(e);
         if (t != "") {
-            var i = r(t);
+            var i = o(t, true);
             return i[0];
         } else {
             return "";
         }
     }
     a.hisui.toChineseSpell = e;
-    a.hisui.getChineseSpellArray = r;
+    a.hisui.getChineseSpellArray = o;
 })(jQuery);
 
 (function(g) {
@@ -23424,7 +24438,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         o = l.length;
         for (var d = 0; d < o; d++) {
             var c = l[d];
-            n.css("width", a.stepWidth).attr("ind", 1 + parseInt(d)).text(c.title).append('<div class="cnode">' + (a.showNumber ? d + 1 : "") + "</div>");
+            n.css("width", a.stepWidth).attr("ind", 1 + parseInt(d)).append('<span class="title">' + c.title + "</span>").append('<div class="cnode">' + (a.showNumber ? d + 1 : "") + "</div>");
             if (c.context) n.append(c.context);
             r.append(n);
             n = f(h);
@@ -23434,8 +24448,8 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         p(e, a.currentInd);
         f(e).unbind(".hstep").bind("click.hstep", function(e) {
             var t = f(e.target).closest("li");
-            t.closest(".hstep-container-steps").children("li").removeClass("hover");
-            t.addClass("hover");
+            t.closest(".hstep-container-steps").children("li").removeClass("hover clicked");
+            t.addClass("hover clicked");
             if (t.length > 0 && a.onSelect) {
                 var i = a.items[t.attr("ind") - 1];
                 i.state = t.hasClass("done") ? "done" : t.hasClass("active") ? "active" : "undone";
@@ -23505,7 +24519,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
     var u = "<div class='vstep-container'>" + "<ul class='vstep-container-steps'>" + "</ul>" + "<div class='vstep-progress'>" + "<p class='vstep-progress-bar'>" + "<span class='vstep-progress-highlight' style='height:0%'>" + "</span>" + "</p>" + "</div>" + "</div>";
     var h = "<li class='vstep-step undone'></li>";
     function t(e) {
-        var t = s(e) - 1;
+        var t = s(e);
         var i = f.data(e, "vstep");
         var a = i.options;
         if (t > 0) return a.items[t - 1];
@@ -23579,8 +24593,8 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         p(e, a.currentInd);
         f(e).unbind(".vstep").bind("click.vstep", function(e) {
             var t = f(e.target).closest("li");
-            t.closest(".vstep-container-steps").children("li").removeClass("hover");
-            t.addClass("hover");
+            t.closest(".vstep-container-steps").children("li").removeClass("hover clicked");
+            t.addClass("hover clicked");
             if (t.length > 0 && a.onSelect) {
                 var i = a.items[t.attr("ind") - 1];
                 i.state = t.hasClass("done") ? "done" : t.hasClass("active") ? "active" : "undone";
@@ -23970,7 +24984,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
 (function(c) {
     c.parser.plugins.push("menutree");
     function n(a) {
-        if (c.hisui.getHisuiStyle() == "pure") {
+        if (c.hisui.getHisuiStyle() == "pure" || c.hisui.getHisuiStyle() == "vben") {
             var e = c('<div class="menutree-wrap"><div class="menutree-searchbox-wrap"><div class="menutree-searchbox-proxy"></div></div><div class="menutree-tree-wrap"></div><div class="menutree-collapse-wrap"></div></div>').insertAfter(a);
         } else {
             var e = c('<div class="menutree-wrap"><div class="menutree-collapse-wrap"></div><div class="menutree-searchbox-wrap"></div><div class="menutree-tree-wrap"></div></div>').insertAfter(a);
@@ -24079,7 +25093,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         var o = n.find(".menutree-searchbox");
         if (o.length > 0) o.searchbox("resize", t.width);
         var s = t.height - (r.offset().top - r.parent().offset().top);
-        if (c.hisui.getHisuiStyle() == "pure" && t.collapsible) {
+        if ((c.hisui.getHisuiStyle() == "pure" || c.hisui.getHisuiStyle() == "vben") && t.collapsible) {
             s = s - a.outerHeight();
         }
         r._outerHeight(s);
@@ -24116,7 +25130,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             });
         }
         var o = c.hisui.getHisuiStyle();
-        if (o == "pure" || o == "lite" || o == "lightblue") {
+        if (o == "pure" || o == "lite" || o == "lightblue" || o == "vben") {
             if (i.title) {
                 var s = n.find(".menutree-tree-title");
                 n.addClass("menutree-collapse-wrap-withtitle");
@@ -24162,15 +25176,17 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                     J(i, e, true, a);
                     var n = r._q != e;
                     r._q = e;
-                    if (e && o.expandAllOnSearch) {
+                    if (e && o.expandAllOnSearch && !o.accordion) {
                         t.tree("expandAll");
                     } else if (!e && o.collapseAllOnNoSearch) {
                         t.tree("collapseAll");
                     }
                 }
             },
-            prompt: o.prompt
+            prompt: o.prompt,
+            height: c.hisui.getHisuiStyle() == "vben" ? 32 : c.fn.searchbox.defaults.height
         });
+        i.next(".searchbox").addClass("menutree-searchbox-searchbox");
         if (o.searchable) {
             e.removeClass("menutree-hidden");
         } else {
@@ -24203,136 +25219,178 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         }
         if (i == 1 && e.find("li.menutree-li-levelx").length == 0) {
             e.addClass("menutree-tree-nox");
+        } else {
+            e.removeClass("menutree-tree-nox");
         }
     }
-    function l(S) {
-        var Z = c.data(S, "menutree");
-        var T = Z.options;
-        var e = Z.panel;
+    function l(e) {
+        var t = 0;
+        e.find(".menutree-li-level1>.tree-node").each(function() {
+            t += c(this).outerHeight();
+        });
+        var i = e.closest(".menutree-tree-wrap").height();
+        e.find(".menutree-li-level1>ul").each(function() {
+            c(this).outerHeight(i - t);
+        });
+        e.closest(".menutree-tree-wrap").addClass("menutree-tree-accordion");
+    }
+    function f(S) {
+        var T = c.data(S, "menutree");
+        var y = T.options;
+        var e = T.panel;
         var t = e.find(".menutree-tree-wrap");
-        var y = t.find(".menutree-tree");
-        if (y.length == 0) {
-            y = c('<div class="menutree-tree" ></div>').appendTo(t);
-            Z.tree = y;
+        var Z = t.find(".menutree-tree");
+        if (Z.length == 0) {
+            Z = c('<div class="menutree-tree" ></div>').appendTo(t);
+            T.tree = Z;
         }
-        var i = c.extend({}, T, {
-            formatter: p,
+        var i = c.extend({}, y, {
+            formatter: v,
             onClick: function(i) {
-                if (!y.tree("isLeaf", i.target)) {
-                    var e = y.tree("getRoots");
+                if (!Z.tree("isLeaf", i.target)) {
+                    var e = Z.tree("getRoots");
                     var t = c.hisui.indexOfArray(e, "id", i.id) > -1;
-                    if (T.rootCollapsible || !t) {
-                        if (T.onlyOneExpanded && i.state == "closed") {
-                            var a = y.tree("getParent", i.target), n = null;
+                    if (y.rootCollapsible || !t) {
+                        if (y.onlyOneExpanded && i.state == "closed") {
+                            var a = Z.tree("getParent", i.target), n = null;
                             if (a) {
-                                n = y.tree("getChildren", a.target);
+                                n = Z.tree("getChildren", a.target);
                             } else {
                                 n = e;
                             }
                             c.each(n, function(e, t) {
-                                if (t.id != i.id && t.state == "open") y.tree("collapse", t.target);
+                                if (t.id != i.id && t.state == "open") Z.tree("collapse", t.target);
+                            });
+                        } else if (y.accordion && t && i.state == "closed") {
+                            var n = e;
+                            c.each(n, function(e, t) {
+                                if (t.id != i.id && t.state == "open") Z.tree("collapse", t.target);
                             });
                         }
-                        y.tree("toggle", i.target);
+                        Z.tree("toggle", i.target);
                     }
-                    T.onMenuGroupClick.call(S, i);
+                    y.onMenuGroupClick.call(S, i);
                 } else {
-                    T.onMenuClick.call(S, i);
+                    y.onMenuClick.call(S, i);
                 }
-                T.onClick.call(this, i);
+                y.onClick.call(this, i);
             },
             onBeforeExpand: function(i) {
-                if (T.onBeforeExpand) {
-                    var e = T.onBeforeExpand.call(S, i);
+                if (y.onBeforeExpand) {
+                    var e = y.onBeforeExpand.call(S, i);
                     if (e === false) return false;
                 }
-                var t = y.tree("getRoots");
-                if (T.onlyOneExpanded) {
-                    var a = y.tree("getParent", i.target), n = null;
+                var t = Z.tree("getRoots");
+                if (y.onlyOneExpanded) {
+                    var a = Z.tree("getParent", i.target), n = null;
                     if (a) {
-                        n = y.tree("getChildren", a.target);
+                        n = Z.tree("getChildren", a.target);
                     } else {
                         n = t;
                     }
                     c.each(n, function(e, t) {
-                        if (t.id != i.id && t.state == "open" && !(T.expandAllOnSearch && Z._q)) {
-                            y.tree("collapse", t.target);
+                        if (t.id != i.id && t.state == "open" && !(y.expandAllOnSearch && T._q)) {
+                            Z.tree("collapse", t.target);
                         }
                     });
+                } else if (y.accordion) {
+                    var a = Z.tree("getParent", i.target), n = null;
+                    if (!a) {
+                        n = Z.tree("getRoots");
+                        c.each(n, function(e, t) {
+                            if (t.id != i.id && t.state == "open" && !(y.expandAllOnSearch && T._q)) {
+                                Z.tree("collapse", t.target);
+                            }
+                        });
+                    }
                 }
             },
             onBeforeCollapse: function(e) {
-                if (T.onBeforeCollapse) {
-                    var t = T.onBeforeCollapse.call(S, e);
+                if (y.onBeforeCollapse) {
+                    var t = y.onBeforeCollapse.call(S, e);
                     if (t === false) return false;
                 }
-                if (!T.rootCollapsible) {
-                    var i = y.tree("getParent", e.target);
+                if (!y.rootCollapsible) {
+                    var i = Z.tree("getParent", e.target);
                     if (!i) return false;
                 }
             },
             onLoadSuccess: function(e, t) {
-                T.onLoadSuccess.call(S, e, t);
-                d(y);
+                y.onLoadSuccess.call(S, e, t);
+                d(Z);
+                if (y.accordion) {
+                    l(Z);
+                }
             },
             loadFilter: function(e, t) {
-                var i = T.loadFilter.call(S, e, t);
-                f(i, !t, T.onlyOneExpanded, T.rootCollapsible);
+                var i = y.loadFilter.call(S, e, t);
+                u(i, !t, y.onlyOneExpanded, y.rootCollapsible, y.accordion);
                 return i;
+            },
+            onSelect: function(e) {
+                if (Z.tree("isLeaf", e.target)) {
+                    Z.find(".menutree-child-selected").removeClass("menutree-child-selected");
+                    var t = c(e.target).parent().parent().prev(".tree-node");
+                    while (t.length > 0) {
+                        t.addClass("menutree-child-selected");
+                        t = t.parent().parent().prev(".tree-node");
+                    }
+                }
+                y.onSelect.call(Z[0], e);
             }
         });
-        y.tree(i);
-        if (T.title) {
+        Z.tree(i);
+        if (y.title) {
             var a = t.find(".menutree-tree-title");
             if (a.length == 0) {
                 a = c('<div class="menutree-tree-title"></div>').prependTo(t);
             }
-            a.html(c.hisui.getTrans(T.title));
+            a.html(c.hisui.getTrans(y.title));
             t.addClass("menutree-tree-withtitle");
         } else {
             t.find(".menutree-tree-title").remove();
             t.removeClass("menutree-tree-withtitle");
         }
-        if (!T.rootCollapsible) {
+        if (!y.rootCollapsible) {
             t.addClass("menutree-tree-norootcollapse");
         } else {
             t.removeClass("menutree-tree-norootcollapse");
         }
-        if (T.collapsible) {
+        if (y.collapsible) {
             t.addClass("menutree-tree-collapsible");
-            u(S);
+            h(S);
         } else {
             t.removeClass("menutree-tree-collapsible");
         }
-        y.off(".menutree").on("mouseenter.menutree", ">li", function() {
+        Z.off(".menutree").on("mouseenter.menutree", ">li", function() {
             var e = c(this);
-            if (e.closest(".menutree").hasClass("menutree-min") && !Z._isClickShowSub) {
-                if (Z._hideSubTimer) clearTimeout(Z._hideTimer);
-                Z._showSubTimer = setTimeout(function() {
+            if (e.closest(".menutree").hasClass("menutree-min") && !T._isClickShowSub) {
+                if (T._hideSubTimer) clearTimeout(T._hideTimer);
+                T._showSubTimer = setTimeout(function() {
                     n(e);
                 }, 200);
             }
         }).on("mouseleave.menutree", ">li", function() {
             var e = c(this);
-            if (e.closest(".menutree").hasClass("menutree-min") && !Z._isClickShowSub) {
-                if (Z._showSubTimer) clearTimeout(Z._showSubTimer);
-                Z._hideSubTimer = setTimeout(function() {
-                    var e = Z.subpanel;
+            if (e.closest(".menutree").hasClass("menutree-min") && !T._isClickShowSub) {
+                if (T._showSubTimer) clearTimeout(T._showSubTimer);
+                T._hideSubTimer = setTimeout(function() {
+                    var e = T.subpanel;
                     e.panel("close");
-                    Z._isClickShowSub = false;
+                    T._isClickShowSub = false;
                 });
             }
         }).on("click.menutree", ">li", function() {
             var e = c(this);
             if (e.closest(".menutree").hasClass("menutree-min")) {
-                if (Z._hideSubTimer) clearTimeout(Z._hideTimer);
-                if (Z._showSubTimer) clearTimeout(Z._showSubTimer);
+                if (T._hideSubTimer) clearTimeout(T._hideTimer);
+                if (T._showSubTimer) clearTimeout(T._showSubTimer);
                 n(e);
-                Z._isClickShowSub = true;
+                T._isClickShowSub = true;
             }
         });
         function n(e) {
-            var t = Z.subpanel;
+            var t = T.subpanel;
             var i = e.offset();
             var a = i.left + e._outerWidth(), n = i.top - 1;
             t.panel("move", {
@@ -24342,24 +25400,24 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             t.panel("open");
             var r = t.find(".menutree-tree");
             var o = e.find(">.tree-node");
-            var s = y.tree("getNode", o);
+            var s = Z.tree("getNode", o);
             var l = L(s);
             if (l.children && l.state != "open") {
                 l.state = "open";
             }
             var d = [ l ];
             r.tree("loadData", d);
-            var c = Z.tree;
+            var c = T.tree;
             var f = c.tree("getSelected");
             if (f) {
                 var u = r.tree("find", f.id);
                 if (u) r.tree("select", u.target);
             }
-            var h = Z._q;
+            var h = T._q;
             if (h) {
                 var p = r.tree("getRoots");
-                H(p, h, null, T.searchFields);
-                var v = !T.rootCollapsible;
+                H(p, h, null, y.searchFields);
+                var v = !y.rootCollapsible;
                 J(p, h, true, v);
             }
             var g = e.closest(".menutree-tree-wrap");
@@ -24379,41 +25437,41 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                 overflowX: "hidden"
             });
             t.panel("resize", {
-                width: T.width,
+                width: y.width,
                 height: "auto"
             });
             X(S);
             e.addClass("menutree-root-hover");
         }
     }
-    function f(e, t, i, a) {
-        var n = false;
-        for (var r = 0; r < e.length; r++) {
-            var o = e[r];
-            if (o.children) {
+    function u(e, t, i, a, n) {
+        var r = false;
+        for (var o = 0; o < e.length; o++) {
+            var s = e[o];
+            if (s.children) {
                 if (t) {
                     if (a) {
-                        if (o.state != "closed") {
-                            if (n) {
-                                if (i) o.state = "closed";
+                        if (s.state != "closed") {
+                            if (r) {
+                                if (i || n) s.state = "closed";
                             } else {
-                                n = true;
+                                r = true;
                             }
                         }
                     } else {
-                        o.state = "open";
+                        s.state = "open";
                     }
-                    if (!o.iconCls) o.iconCls = "icon-book-rep";
+                    if (!s.iconCls) s.iconCls = "icon-book-rep";
                 } else {
-                    if (o.state != "closed") {
-                        if (n) {
-                            if (i) o.state = "closed";
+                    if (s.state != "closed") {
+                        if (r) {
+                            if (i) s.state = "closed";
                         } else {
-                            n = true;
+                            r = true;
                         }
                     }
                 }
-                f(o.children, false, i, a);
+                u(s.children, false, i, a);
             }
         }
         return e;
@@ -24437,18 +25495,18 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         }
         return t;
     }
-    function u(r) {
-        var a = c.data(r, "menutree");
-        var o = a.options;
-        var s = a.subpanel;
+    function h(r) {
+        var n = c.data(r, "menutree");
+        var o = n.options;
+        var s = n.subpanel;
         var e = s.find(".menutree-tree-wrap");
         var l = e.find(".menutree-tree");
         if (l.length == 0) {
             l = c('<div class="menutree-tree menutree-subtree" ></div>').appendTo(e);
-            a.subtree = l;
+            n.subtree = l;
         }
         var t = c.extend({}, o, {
-            formatter: p,
+            formatter: v,
             onClick: function(i) {
                 if (!l.tree("isLeaf", i.target)) {
                     var e = l.tree("getRoots");
@@ -24492,25 +25550,33 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                 }
             },
             onExpand: function(e) {
-                var t = a.tree;
+                var t = n.tree;
                 var i = t.tree("find", e.id);
                 t.tree("expand", i.target);
-                h(r);
+                p(r);
             },
             onCollapse: function(e) {
-                var t = a.tree;
+                var t = n.tree;
                 var i = t.tree("find", e.id);
                 t.tree("collapse", i.target);
-                h(r);
+                p(r);
             },
             onSelect: function(e) {
-                var t = a.tree;
+                var t = n.tree;
                 var i = t.tree("find", e.id);
                 t.tree("select", i.target);
+                if (l.tree("isLeaf", e.target)) {
+                    l.find(".menutree-child-selected").removeClass("menutree-child-selected");
+                    var a = c(e.target).parent().parent().prev(".tree-node");
+                    while (a.length > 0) {
+                        a.addClass("menutree-child-selected");
+                        a = a.parent().parent().prev(".tree-node");
+                    }
+                }
             },
             loadFilter: function(e, t) {
                 var i = o.loadFilter.call(r, e, t);
-                f(i, !t, o.onlyOneExpanded, o.rootCollapsible);
+                u(i, !t, o.onlyOneExpanded, o.rootCollapsible);
                 return i;
             },
             onLoadSuccess: function(e, t) {
@@ -24519,12 +25585,12 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         });
         l.tree(t);
         l.off(".menutree").on("mouseenter.menutree", function() {
-            if (a._hideSubTimer) {
-                clearTimeout(a._hideSubTimer);
+            if (n._hideSubTimer) {
+                clearTimeout(n._hideSubTimer);
             }
         }).on("mouseleave.menutree", function() {
-            if (!a._isClickShowSub) {
-                a._hideSubTimer = setTimeout(function() {
+            if (!n._isClickShowSub) {
+                n._hideSubTimer = setTimeout(function() {
                     s.panel("close");
                 }, 200);
             }
@@ -24549,8 +25615,8 @@ jQuery.fn.comboboxRemoveClass = function(e) {
     function e(e, t, i) {
         X(e);
     }
-    var h = c.hisui.debounce(e, 200);
-    function p(e, t) {
+    var p = c.hisui.debounce(e, 200);
+    function v(e, t) {
         var i = e.text;
         if (t && t != "") {
             var a = new RegExp(t, "ig");
@@ -24562,7 +25628,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             return i;
         }
     }
-    function v(e, t) {
+    function g(e, t) {
         var i = false;
         if (e.indexOf(t) > -1) {
             i = true;
@@ -24590,7 +25656,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                 s._ok = true;
             } else {
                 var l = s.text.toLowerCase();
-                if (v(l, t)) {
+                if (g(l, t)) {
                     s._ok = true;
                 } else if (a) {
                     var d = a.split(",");
@@ -24598,7 +25664,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
                         var f = d[c];
                         var u = s[f];
                         if (!u && s.attributes) u = s.attributes[f];
-                        if (u && v(u, t)) {
+                        if (u && g(u, t)) {
                             s._ok = true;
                             break;
                         }
@@ -24620,7 +25686,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             }
             var o = c("#" + r.domId);
             if (i && a) {} else if (r._ok) {
-                var s = p(r, t);
+                var s = v(r, t);
                 o.find(".tree-title").html(s);
                 o.removeClass("menutree-node-hidden");
             } else {
@@ -24628,12 +25694,12 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             }
         }
     }
-    function g(e, t) {
+    function b(e, t) {
         var i = c.data(e, "menutree");
         var a = i.tree.tree("find", t);
         if (a) i.tree.tree("select", a.target);
     }
-    function b(e, t) {
+    function m(e, t) {
         var i = c.data(e, "menutree");
         var a = i.tree.tree("find", t);
         return a;
@@ -24659,13 +25725,13 @@ jQuery.fn.comboboxRemoveClass = function(e) {
             }
             var i = c.hisui.getHisuiStyle();
             if (e.options.collapsible && !e.options.title) {
-                if (i != "lite" && i != "lightblue" && i != "pure") {
-                    e.options.title = "导航菜单";
+                if (i != "lite" && i != "lightblue" && i != "pure" && i != "vben") {
+                    e.options.title = c.fn.menutree.defaults.title;
                 }
             }
             o(this);
             s(this);
-            l(this);
+            f(this);
             r(this);
         });
     };
@@ -24678,11 +25744,11 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         },
         selectById: function(e, t) {
             e.each(function() {
-                g(this, t);
+                b(this, t);
             });
         },
         findNode: function(e, t) {
-            return b(e[0], t);
+            return m(e[0], t);
         }
     };
     c.fn.menutree.parseOptions = function(e) {
@@ -24713,6 +25779,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         searchFields: "",
         expandAllOnSearch: true,
         collapseAllOnNoSearch: true,
+        accordion: false,
         onMenuClick: function(e) {},
         onMenuGroupClick: function(e) {},
         onPanelCollapse: function(e) {},
@@ -24739,12 +25806,12 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         }
         var n = d(".z-q-clearbtn");
         if (n.length == 0) {
-            n = d('<span class="z-q-clearbtn"><i class="z-q-clearbtnicon">&nbsp;</i></span>').appendTo("body");
+            n = d('<span class="z-q-clearbtn" role="button" aria-label="' + i.clearText + '"><i class="z-q-clearbtnicon">&nbsp;</i></span>').appendTo("body");
             d(document.body).delegate("input.inputclearbtn-f", "mouseenter.inputclearbtn focus.inputclearbtn", function(e) {
                 if ("" !== e.target.value) {
                     var r = d(".z-q-clearbtn");
                     if (r.length == 0) {
-                        r = d('<span class="z-q-clearbtn"><i class="z-q-clearbtnicon">&nbsp;</i></span>').appendTo("body");
+                        r = d('<span class="z-q-clearbtn" role="button" aria-label="' + d.fn.inputclearbtn.defaults.clearText + '"><i class="z-q-clearbtnicon">&nbsp;</i></span>').appendTo("body");
                     }
                     var o = e.target;
                     var s = d(o);
@@ -24868,6 +25935,7 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         clearCls: "default",
         clearBtnRight: 10,
         clearBtnTop: 20,
+        clearText: "Clear",
         onClearBefore: null,
         onClearAfter: null
     });
@@ -24919,6 +25987,402 @@ jQuery.fn.comboboxRemoveClass = function(e) {
         refInputId: null,
         notTrans: false
     };
+})(jQuery);
+
+(function(f) {
+    function a(i) {
+        var e = f.data(i, "combogridmult");
+        var a = e.options;
+        a.originRequired = a.required;
+        var t = e.grid;
+        f(i).addClass("combogridmult-f").combo(a);
+        f(i).next().addClass("combogridmult");
+        f(i).next().children("span").addClass("textbox-addon textbox-addon-right");
+        if (a.multiple) {
+            f(i).next().find(".combo-text").width(40);
+        }
+        var n = f(i).combo("panel");
+        if (!t) {
+            t = f("<table></table>").appendTo(n);
+            e.grid = t;
+        }
+        t.datagrid(f.extend({}, a, {
+            border: false,
+            fit: true,
+            singleSelect: !a.multiple,
+            onLoadSuccess: function(e) {
+                r(i);
+            },
+            onClickRow: function(e, t) {
+                if (!a.multiple) {
+                    o(i, [ t ]);
+                    f(i).combo("hidePanel");
+                    r(i);
+                }
+            },
+            onSelect: function(e, t) {
+                if (a.multiple) {
+                    s(i, t);
+                    r(i);
+                }
+                a.onSelect.call(this, e, t);
+            },
+            onUnselect: function(e, t) {
+                if (a.multiple) {
+                    u(i, t[a.idField], false);
+                    r(i);
+                }
+                a.onUnselect.call(this, e, t);
+            }
+        }));
+        f.data(i, "combogrid").grid = t;
+    }
+    function r(e) {
+        f(e).combogridmult("panel").find("tr.datagrid-row").removeClass("datagrid-row-selected");
+        var t = d(e);
+        var i = f.data(e, "combogridmult");
+        var a = i.grid;
+        var n = i.options;
+        var r = a.datagrid("getData");
+        for (var o = 0; o < t.length; o++) {
+            var s = t[o];
+            var l = f.hisui.indexOfArray(r.rows, n.idField, s);
+            if (l > -1) {
+                f(e).combogridmult("panel").find('tr[datagrid-row-index="' + l + '"]').addClass("datagrid-row-selected");
+            }
+        }
+    }
+    function o(e, t) {
+        var i = f.data(e, "combogridmult");
+        var a = i.options;
+        f(e).next().find(".combogridmult-label").remove();
+        f(e).next().find(".combo-text").val("");
+        f(e).next().find("combo-value").remove();
+        for (var n = 0; n < t.length; n++) {
+            var r = t[n];
+            s(e, r);
+        }
+    }
+    function s(t, e) {
+        var i = f(t).combogridmult("options");
+        var a = e[i.idField];
+        if (!a) return;
+        var n = f(t).next();
+        var r = n.find('[data-value="' + a + '"].combogridmult-label');
+        if (r.length > 0) return;
+        var i = f(t).combogridmult("options");
+        var o = n.find(".combo-text");
+        var s = e[i.textField], l = s;
+        var d = "";
+        if (i.multiple) {
+            if (i.itemWordSize && s.length > i.itemWordSize) {
+                l = s.substr(0, i.itemWordSize) + "...";
+            }
+        } else {
+            d = 'style="display:none;"';
+        }
+        var c = f('<span class="combogridmult-label" title="' + s + '" data-value="' + a + '" ' + d + "></span>").insertBefore(o).html(l);
+        if (i.multiple) {
+            f('<a href="javascript:;" class="combogridmult-remove"></a>').appendTo(c).click(function() {
+                var e = f(this).parent().data("value");
+                u(t, e, true);
+            });
+            f(t).combobox("setText", "");
+            if (i.originRequired) {
+                if (f(o).validatebox("options").required) f(o).validatebox("options").required = false;
+                f(o).validatebox("validate");
+            }
+        } else {
+            f(t).combobox("setText", s);
+        }
+    }
+    function u(t, i, e) {
+        var a = f(t).combogridmult("options");
+        f(t).next().find(".combogridmult-label").each(function() {
+            var e = f(this).data("value");
+            if (e == i) {
+                f(this).remove();
+                if (!a.multiple) {
+                    f(t).combobox("setText", "");
+                }
+            }
+        });
+        if (a.originRequired && f(t).next().find(".combogridmult-label").length == 0) {
+            var n = f(t).next().find(".combo-text");
+            f(n).validatebox("options").required = true;
+            f(n).validatebox("validate");
+        }
+        if (i && e) {
+            var r = f.data(t, "combogridmult");
+            var o = r.grid.datagrid("getData");
+            if (o && o.rows) {
+                var s = f.hisui.indexOfArray(o.rows, a.idField, i);
+                if (s > -1) {
+                    r.grid.datagrid("unselectRow", s);
+                }
+            }
+        }
+    }
+    function d(e) {
+        var t = [];
+        f(e).next().find(".combogridmult-label").each(function() {
+            var e = f(this).data("value");
+            t.push(e);
+        });
+        return t;
+    }
+    function t(e) {
+        var t = [];
+        f(e).next().find(".combogridmult-label").each(function() {
+            var e = f(this).prop("title") || f(this).text();
+            t.push(e);
+        });
+        return t.join(",");
+    }
+    function i(e, t) {
+        var i = f.data(e, "combogridmult");
+        var a = i.options;
+        var n = i.grid;
+        var r = n.datagrid("getRows").length;
+        if (!r) {
+            return;
+        }
+        var o = a.finder.getTr(n[0], null, "highlight");
+        if (!o.length) {
+            o = a.finder.getTr(n[0], null, "selected");
+        }
+        var s;
+        if (!o.length) {
+            s = t == "next" ? 0 : r - 1;
+        } else {
+            var s = parseInt(o.attr("datagrid-row-index"));
+            s += t == "next" ? 1 : -1;
+            if (s < 0) {
+                s = r - 1;
+            }
+            if (s >= r) {
+                s = 0;
+            }
+        }
+        n.datagrid("highlightRow", s);
+    }
+    function n(e) {
+        var t = f(e);
+        var i = t.combogridmult("panel");
+        if (!i.is(":visible")) return;
+        var a = f.data(e, "combogridmult");
+        var n = a.options;
+        var r = a.grid;
+        var o = i.find("tr.datagrid-row-over");
+        if (o.length) {
+            var s = o.attr("datagrid-row-index");
+            var l = r.datagrid("getData").rows[parseInt(s)];
+            var d = l[n.idField];
+            n.doEnterFlag = 1;
+            if (n.multiple) {
+                if (o.hasClass("datagrid-row-selected")) {
+                    r.datagrid("options").onUnselect.call(r, s, l);
+                } else {
+                    r.datagrid("options").onSelect.call(r, s, l);
+                }
+            } else {
+                r.datagrid("options").onClickRow.call(r, s, l);
+            }
+        }
+        if (!n.multiple) {
+            t.combogridmult("hidePanel");
+        }
+    }
+    f.fn.combogridmult = function(t, e) {
+        if (typeof t == "string") {
+            var i = f.fn.combogridmult.methods[t];
+            if (i) {
+                return i(this, e);
+            } else {
+                return this.combo(t, e);
+            }
+        }
+        t = t || {};
+        return this.each(function() {
+            var e = f.data(this, "combogridmult");
+            f.data(this, "combogrid", {
+                grid: null
+            });
+            if (e) {
+                f.extend(e.options, t);
+            } else {
+                e = f.data(this, "combogridmult", {
+                    options: f.extend({}, f.fn.combogridmult.defaults, f.fn.combogridmult.parseOptions(this), t)
+                });
+            }
+            a(this);
+        });
+    };
+    f.fn.combogridmult.methods = {
+        options: function(e) {
+            var t = e.combo("options");
+            return f.extend(f.data(e[0], "combogridmult").options, {
+                originalValue: t.originalValue,
+                disabled: t.disabled,
+                readonly: t.readonly
+            });
+        },
+        grid: function(e) {
+            return f.data(e[0], "combogridmult").grid;
+        },
+        setValuesJson: function(e, t) {
+            return e.each(function() {
+                o(this, t);
+            });
+        },
+        getValue: function(e) {
+            var t = f(e).combogridmult("options");
+            return d(e).join(t.separator);
+        },
+        getValues: function(e) {
+            return d(e);
+        },
+        getText: function(e) {
+            return t(e);
+        },
+        clear: function(e) {
+            return e.each(function() {
+                f(this).combogridmult("setValuesJson", []);
+            });
+        },
+        reset: function(e) {
+            return e.each(function() {
+                var e = f(this).combogridmult("options");
+                f(this).combogridmult("setValuesJson", e.originalValueJson);
+            });
+        }
+    };
+    f.fn.combogridmult.parseOptions = function(e) {
+        var t = f(e);
+        return f.extend({}, f.fn.combo.parseOptions(e), f.fn.datagrid.parseOptions(e), f.parser.parseOptions(e, [ "idField", "textField", "mode" ]));
+    };
+    f.fn.combogridmult.defaults = f.extend({}, f.fn.combo.defaults, f.fn.datagrid.defaults, {
+        lazy: true,
+        delay: 400,
+        queryOnFirstArrowDown: true,
+        mode: "remote",
+        fitColumns: true,
+        pagination: true,
+        columns: [ [ {
+            field: "id",
+            title: "id",
+            width: 60
+        }, {
+            field: "text",
+            title: "描述",
+            width: 220
+        }, {
+            field: "code",
+            title: "代码",
+            width: 150
+        } ] ],
+        panelWidth: 450,
+        panelHeight: 280,
+        itemWordSize: null,
+        method: "post",
+        separator: ",",
+        originalValue: "",
+        loadMsg: "loading",
+        idField: "id",
+        textField: "text",
+        multiple: false,
+        keyHandler: {
+            up: function(e) {
+                i(this, "prev");
+                e.preventDefault();
+            },
+            down: function(e) {
+                i(this, "next");
+                e.preventDefault();
+            },
+            left: function(e) {},
+            right: function(e) {},
+            enter: function(e) {
+                n(this);
+            },
+            query: function(e, t) {
+                var i = this;
+                var a = f.data(this, "combogridmult");
+                var n = a.options;
+                var r = f(this).next();
+                var o = r.find(".combo-text").val();
+                if (o == "" && !n.multiple) {
+                    f(i).combogridmult("clear");
+                }
+                setTimeout(function() {
+                    if (a.timer) {
+                        clearTimeout(a.timer);
+                    }
+                    a.timer = setTimeout(function() {
+                        var e = r.find(".combo-text").val();
+                        if (n.mode == "remote") {
+                            a.grid.datagrid("load", f.extend({}, n.queryParams, {
+                                q: e
+                            }));
+                        }
+                    }, n.delay);
+                }, 0);
+            }
+        }
+    });
+    f.extend(f.fn.datagrid.defaults.editors, {
+        combogridmult: {
+            init: function(e, t) {
+                var i = f('<input type="text">').appendTo(e);
+                i.combogridmult(t);
+                return i;
+            },
+            destroy: function(e) {
+                f(e).combo("destroy");
+            },
+            getValue: function(e) {
+                var t = f(e).combogridmult("options");
+                return f(e).combogridmult("getValues").join(t.separator);
+            },
+            setValue: function(e, t) {
+                var i = f(e).combogridmult("options");
+                if (!!t) {
+                    if (typeof t == "string") {
+                        f(e).combogridmult("setValues", t.split(i.separator));
+                    } else {
+                        f(e).combogridmult("setValues", t);
+                    }
+                }
+            },
+            setValueText: function(e, t, i) {
+                if (!!t) {
+                    var a = f(e).combogridmult("options");
+                    if (typeof t == "string") {
+                        t = t.split(a.separator);
+                    }
+                    if (typeof i == "string") {
+                        i = i.split(a.separator);
+                    }
+                    var n = [];
+                    for (var r = 0; r < t.length; r++) {
+                        var o = {};
+                        o[a.idField] = t[r];
+                        o[a.textField] = i[r];
+                        n.push(o);
+                    }
+                    f(e).combogridmult("setValuesJson", n);
+                }
+            },
+            resize: function(e, t) {
+                f(e).combo("resize", t);
+                var i = f(e).combogridmult("options");
+                if (i.multiple) {
+                    f(e).next().find(".combo-text").height(30);
+                    f(e).next().find(".combo-text").width(t);
+                }
+            }
+        }
+    });
 })(jQuery);
 
 $URL = "websys.Broker.cls";
@@ -25107,42 +26571,59 @@ var Level = {
         };
     });
     e.$HUI = t;
+    function a() {
+        try {
+            var e = document.getElementsByTagName("script");
+            var t = e[e.length - 1];
+            var i = t.src;
+            if (i) {
+                return i.substring(0, i.lastIndexOf("/") + 1);
+            }
+        } catch (a) {}
+        return "";
+    }
+    window.HISUIJsPath = a();
 })(window, jQuery);
 
-$(function() {
-    $(document.body).on("keydown", function(e) {
-        var t = e.keyCode;
-        try {
-            if (e.altKey && t == 37) {
-                e.preventDefault();
-                return false;
-            }
-            if (t == 8) {
-                if (document.designMode == "on") return;
-                var i = e.target;
-                if ($(i).prop("contenteditable")) return;
-                var a = i.tagName.toUpperCase();
-                if ($(i).prop("readonly")) {
+(function(r) {
+    r(function() {
+        if (window.HISUIStyleCode == "vben" && window.HISUITheme) {
+            if (r.hisui && r.hisui.switchTheme) r.hisui.switchTheme(window.HISUITheme);
+        }
+        r(document.body).on("keydown", function(e) {
+            var t = e.keyCode;
+            try {
+                if (e.altKey && t == 37) {
                     e.preventDefault();
                     return false;
                 }
-                if (a == "INPUT") {
-                    var n = i.type.toUpperCase();
-                    if (n == "CHECKBOX") {
+                if (t == 8) {
+                    if (document.designMode == "on") return;
+                    var i = e.target;
+                    if (r(i).prop("contenteditable")) return;
+                    var a = i.tagName.toUpperCase();
+                    if (r(i).prop("readonly")) {
                         e.preventDefault();
                         return false;
                     }
-                    if (n == "RADIO") {
+                    if (a == "INPUT") {
+                        var n = i.type.toUpperCase();
+                        if (n == "CHECKBOX") {
+                            e.preventDefault();
+                            return false;
+                        }
+                        if (n == "RADIO") {
+                            e.preventDefault();
+                            return false;
+                        }
+                    }
+                    if (a !== "INPUT" && a !== "TEXTAREA") {
                         e.preventDefault();
                         return false;
                     }
                 }
-                if (a !== "INPUT" && a !== "TEXTAREA") {
-                    e.preventDefault();
-                    return false;
-                }
-            }
-        } catch (e) {}
-        return true;
+            } catch (e) {}
+            return true;
+        });
     });
-});
+})(jQuery);

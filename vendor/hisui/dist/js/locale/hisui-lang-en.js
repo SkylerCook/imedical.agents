@@ -10,6 +10,7 @@ if ($.fn.datagrid){
 	$.fn.datagrid.defaults.advancedBtn = "Advance";
 	$.fn.datagrid.defaults.advanced2Btn = "Collapse";
 	$.fn.datagrid.defaults.like = "like";
+	$.fn.datagrid.defaults.nocol = "SN";
 }
 if ($.fn.treegrid && $.fn.datagrid){
 	$.fn.treegrid.defaults.loadMsg = $.fn.datagrid.defaults.loadMsg;
@@ -58,9 +59,9 @@ if ($.fn.calendar){
 	$.fn.calendar.defaults.months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 }
 if ($.fn.datebox){
-	$.fn.datebox.defaults.currentText = '<span style="color:#449edd;font-size:12px;">Today</span>';
+	$.fn.datebox.defaults.currentText = '<span class="date-today-btn">Today</span>';
 	$.fn.datebox.defaults.closeText = 'Close';
-	$.fn.datebox.defaults.okText = '<span style="color:#ff2600;font-size:12px;">Ok</span>';
+	$.fn.datebox.defaults.okText = '<span class="date-ok-btn">Ok</span>';
 	$.fn.datebox.defaults.missingMessage = 'This field is required.';
 	$.fn.datebox.defaults.rules.datebox.message = 'Illegal date, Correct format:2019-01-06';
 	$.fn.datebox.defaults.rules.minMaxDate.messageMax = 'Date must be less than{1}';
@@ -133,7 +134,7 @@ if ($.fn.datebox){
 				return new Date(y,m-1,1);
 			}
 		}
-		if (!isNaN(y) && !isNaN(m) && !isNaN(d)){
+		if (!isNaN(y) && !isNaN(m) && !isNaN(d) && y>=1900 && y<=9999){
 			return new Date(y,m-1,d);
 		}else{
 			var nowDate = new Date();
@@ -188,4 +189,29 @@ if ($.fn.checkbox){
 }
 if ($.fn.linkbutton){
 	$.fn.linkbutton.defaults.waitingAlert = 'The button has been clicked and the system is responding. Please wait';
+}
+if ($.fn.splitbutton){
+	$.fn.splitbutton.defaults.waitingAlert = $.fn.linkbutton.defaults.waitingAlert;
+}
+if ($.fn.menubutton){
+	$.fn.menubutton.defaults.waitingAlert = $.fn.linkbutton.defaults.waitingAlert;
+}
+if ($.fn.tabs){
+	$.fn.tabs.defaults.noHiddenTabs = "No hidden tabs";
+	$.fn.tabs.defaults.refreshText = "Refresh";
+	$.fn.tabs.defaults.closeText = "Close";
+	$.fn.tabs.defaults.closeOtherText = "Close Others";
+	$.fn.tabs.defaults.closeAllText = "Close All";
+	$.fn.tabs.defaults.closeLeftText = "Close Left";
+	$.fn.tabs.defaults.closeRightText = "Close Right";
+}
+if ($.fn.menutree){
+	$.fn.menutree.defaults.title = "Navigation Menu";
+}
+if ($.fn.combogridmult){
+	$.fn.combogridmult.defaults.columns = [[
+		{field:'id',title:'id',width:60},
+		{field:'text',title:'Description',width:220},
+		{field:'code',title:'Code',width:150}
+	]];
 }

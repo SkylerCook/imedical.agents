@@ -1,6 +1,6 @@
 ---
 name: hisui-style-index
-description: HISUI v0.1.0 CSS 样式与资源索引，用于确认主题 class、状态样式、图标、插图、多语言视觉资源和样式覆盖边界
+description: HISUI 固定提交快照的 CSS 样式与资源索引，用于确认主题 class、状态样式、图标、插图、多语言视觉资源和样式覆盖边界
 task-affinity: [iris, frontend, hisui, css, theme, locale, reference]
 tags: [HISUI, frontend, css, theme, locale, style-reference, source-code]
 category: frontend
@@ -8,7 +8,7 @@ related:
   - ../rules/iris_coding_frontend.md
   - hisui-widget-index.md
 createdAt: 2026-07-18
-updatedAt: 2026-07-18
+updatedAt: 2026-10-14
 ---
 
 # HISUI CSS 样式与资源索引
@@ -16,6 +16,8 @@ updatedAt: 2026-07-18
 本文用于日常 CSP / HTML / CSS / JavaScript / HISUI 前端开发。遇到主题颜色、边框、背景、控件状态、图标、插图或多语言视觉资源不确定时，先查本索引，再读取目标页面实际加载的主题 CSS 和 locale CSS 确认。
 
 控件选型、API 参数、事件和 JavaScript 框架行为仍查同级 `hisui-widget-index.md`。
+
+本轮核对来源为 vendor/hisui/upstream.json 中的 `4c09319c2daa09a25813c6e6af349e2791d79944`（2026-10-12）。版本或行号只相对于该快照；开发以目标页面实际加载的主题和 locale 为准。上游 CSS 有已记录的缺失图片引用，见 vendor/hisui/resource-warnings.json；不能用快照完整性通过代替每个样式资源可用或真实 HIS 验收。
 
 ## 样式复用优先级
 
@@ -31,7 +33,7 @@ updatedAt: 2026-07-18
 | 能力 | 源码入口 | 查证重点 |
 |---|---|---|
 | 默认主题 | `dist/css/hisui.css` | 控件基础 class、状态 class、图标和插图 |
-| 主题变体 | `dist/css/hisui.lite.css`、`hisui.lightblue.css`、`hisui.pure.css` 等 | 同一 selector 在不同主题中的实现差异 |
+| 主题变体 | `dist/css/hisui.lite.css`、`hisui.lightblue.css`、`hisui.pure.css`、`hisui.vben.css` | 同一 selector 在不同主题中的实现差异 |
 | 多语言视觉资源 | `dist/css/locale/hisui*.css` | 相同语义 class 是否在目标 locale 下替换图片资源 |
 | 主题资源 | `dist/css/icons/<theme>/` | 仅用于追溯 class 的资源来源，业务代码不直接引用路径 |
 | 字体资源 | `dist/fonts/` | `icon-*` 等字体图标的字体文件来源 |
@@ -61,11 +63,11 @@ updatedAt: 2026-07-18
 
 | 语义入口 | default | lite | lightblue | pure | 说明 |
 |---|---:|---:|---:|---:|---|
-| `.pic-sysst-nodata-region` | 4983 | 8391 | 8337 | 6145 | 区域型无数据插图 |
-| `.pic-sysst-nodata-msg` | 4989 | 8397 | 8343 | 6151 | 带提示信息的无数据插图 |
-| `.table-splitline` | 未发现 | 10311 | 10270 | 9442 | DataGrid 表格竖向分割线；使用前确认当前主题是否定义 |
+| `.pic-sysst-nodata-region` | 5010 | 9110 | 9110 | 6704 | 区域型无数据插图 |
+| `.pic-sysst-nodata-msg` | 5016 | 9116 | 9116 | 6710 | 带提示信息的无数据插图 |
+| `.table-splitline` | 未发现 | 11117 | 11131 | 10211 | DataGrid 表格竖向分割线；使用前确认当前主题是否定义 |
 
-当前 locale 目录已提供 `hisui.en.css`、`hisui.lite.en.css`、`hisui.lightblue.en.css`、`hisui.pure.en.css`。多语言视觉资源需继续确认目标页面是否实际加载对应文件。
+当前 locale 目录已提供 default / lite / lightblue / pure / vben 的 en / pt / fr CSS；JS locale 包含 zh_CN、zh_TC、en、pt、fr、bod。多语言视觉资源需继续确认目标页面是否实际加载对应文件，缺项按 resource-warnings.json 定向验证。
 
 ## 常用系统插图 class
 
