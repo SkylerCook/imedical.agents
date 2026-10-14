@@ -6,7 +6,7 @@
 |---|---|
 | [bos-init](skills/bos-init/SKILL.md) | 初始化个人身份，或接入项目并生成发现入口 |
 | [bos-demand-entry](skills/bos-demand-entry/SKILL.md) | 从 Git 补丁生成标版文本/Excel，回填编号并衔接 demand-commit |
-| [bos-demand-query](skills/bos-demand-query/SKILL.md) | 查询待办、历史或指定编号详情 |
+| [bos-demand-query](skills/bos-demand-query/SKILL.md) | 按发起/接受/当前人员或组查询待办、历史及编号详情 |
 | [bos-demand-handle](skills/bos-demand-handle/SKILL.md) | 实施、验证和交付需求，提交校验成功后准备并按授权补录日志 |
 | [bos-code-update-log](skills/bos-code-update-log/SKILL.md) | 预览并按授权将已有 Git 提交补录为代码更新日志 |
 
@@ -33,3 +33,5 @@
 客户端原生工具是可选接入方式，服务来源、stdio 注册示例与验收见 [客户端 MCP](references/client-mcp.md)。
 
 0.5.1 补齐[查询参数契约](references/usage.md#查询参数契约)：区分上游 schema、本地开放字段、日期默认值与本地模式/排序，并限定标题报错样本的结论。运行接口和配置不变；已有业务工程主动更新能力包并刷新已启用插件索引后取得说明，无新增配置迁移或旧文件清理。
+
+0.6.0 开放 suser / tuser / tgroup、explain 和可选 body，通过同一上游查询工具透传；列表支持任一人员/组条件，显式 cuser: "" 清除默认当前人，避免发起/接受维度被隐含交集裁剪。默认“我的待办”仍为本人＋所在组。旧空 cuser 调用需按[调用迁移](references/usage.md#060-调用迁移)改为省略字段才能继续继承本人；body 内部结构和非默认 explain 值由上游确认，本地合成测试不代表真实服务验收。已有工程主动更新能力包并刷新已启用插件索引后生效，无私有配置迁移或旧文件清理。

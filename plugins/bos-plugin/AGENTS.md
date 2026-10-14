@@ -7,7 +7,7 @@ BOS 能力独立于技术栈。目录存在仅表示 available；项目使用前
 ## 路由
 
 - 从实际 Git 补丁生成标版需求文本/Excel并回填编号：[bos-demand-entry](skills/bos-demand-entry/SKILL.md)。
-- 只读需求列表、详情、图片及附件元数据：[bos-demand-query](skills/bos-demand-query/SKILL.md)。
+- 按发起人、接受人、当前人及对应组只读查询需求列表、详情、图片及附件元数据：[bos-demand-query](skills/bos-demand-query/SKILL.md)。
 - 已有需求号或正文，需要调查、实施、验证，以及提交后的日志衔接：[bos-demand-handle](skills/bos-demand-handle/SKILL.md)。
 - 已有本地提交补录为 BOS 代码更新日志：[bos-code-update-log](skills/bos-code-update-log/SKILL.md)。
 - 按技能分段的共享私有配置、初始化与查询 CLI：[使用说明](references/usage.md)。

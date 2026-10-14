@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { PassThrough } = require('node:stream');
 const fs = require('node:fs');
 const path = require('node:path');
-const { queryArguments, loadConfig, withClient, query, serve } = require('../scripts/bos-demand-query');
+const { queryArguments, loadConfig, withClient, query, serve, tool } = require('../scripts/bos-demand-query');
 const config = { url: 'https://example.invalid/sse?access_key=test-key', headers: { 'X-Gateway-Upstream-BOS-MCP-TOKEN': 'test-token' } };
 
 test('personal identity is supplied by caller or environment and never inferred', () => {
@@ -12,7 +12,7 @@ test('personal identity is supplied by caller or environment and never inferred'
   assert.throws(() => queryArguments(date), /cuser/);
   assert.equal(queryArguments(date, 'sample-user').cuser, 'sample-user');
   assert.equal(queryArguments({ ...date, cuser: 'explicit-user' }, 'sample-user').cuser, 'explicit-user');
-  assert.throws(() => queryArguments({ ...date, suser: 'other' }), /参数/);
+  assert.equal(queryArguments({ ...date, suser: 'other', cuser: '', cgroup: '' }, 'sample-user', 'sample-group').suser, 'other');
 });
 
 test('id lookup clears all conditions; list requires real explicit dates', () => {
@@ -23,6 +23,53 @@ test('id lookup clears all conditions; list requires real explicit dates', () =>
   assert.throws(() => queryArguments({ cuser: 'sample-user' }), /date/);
   assert.throws(() => queryArguments({ cuser: 'sample-user', date: '2026-02-30', date2: '2026-03-02' }), /date/);
   assert.throws(() => queryArguments({ cuser: 'sample-user', date: '2026-03-02', date2: '2026-03-01' }), /截止/);
+});
+
+test('all upstream query fields are discoverable with their declared types', () => {
+  const strings = 'explain id title content source status type sgroup tgroup cgroup suser tuser cuser datetype date date2 product mod'.split(' ');
+  for (const key of strings) assert.equal(tool.inputSchema.properties[key].type, 'string', key);
+  assert.equal(tool.inputSchema.properties.body.type, 'object');
+});
+
+test('explicitly clearing current identity supports each person and group role without hidden defaults', () => {
+  for (const key of ['suser', 'tuser', 'cuser', 'sgroup', 'tgroup', 'cgroup']) {
+    const input = { mode: 'history', cuser: '', cgroup: '', [key]: 'chosen-scope' };
+    const args = queryArguments(input, 'default-user', 'default-group');
+    assert.equal(args[key], 'chosen-scope');
+    for (const other of ['suser', 'tuser', 'cuser', 'sgroup', 'tgroup', 'cgroup'].filter(field => field !== key)) assert.equal(args[other], '', other);
+    assert.equal(args.date, '1900-01-01');
+    assert.equal(Object.keys(args).length, 18);
+    assert.ok(Object.values(args).every(value => typeof value === 'string'));
+  }
+  const args = queryArguments({ mode: 'history', cuser: '' }, 'default-user', 'default-group');
+  assert.equal(args.cuser, ''); assert.equal(args.cgroup, 'default-group');
+  const pending = queryArguments({ mode: 'pending', cuser: '', cgroup: '', tgroup: 'chosen-receiver' }, 'default-user', 'default-group');
+  assert.equal(pending.cuser, ''); assert.equal(pending.cgroup, ''); assert.equal(pending.tgroup, 'chosen-receiver');
+});
+
+test('empty, whitespace and TODO role scopes stop while explicit conditions remain combined', () => {
+  for (const input of [
+    { cuser: '', cgroup: '' },
+    { cuser: ' ', cgroup: '', suser: ' ', tgroup: ' ' },
+    { cuser: '', cgroup: '', body: { suser: 'opaque-value' } }
+  ]) assert.throws(() => queryArguments({ mode: 'history', ...input }, 'default-user', 'default-group'), /至少需一个人员或组条件/);
+  for (const key of ['suser', 'tuser', 'cuser', 'sgroup', 'tgroup', 'cgroup']) {
+    assert.throws(() => queryArguments({ mode: 'history', cuser: '', cgroup: '', [key]: 'TODO' }, 'default-user', 'default-group'), /TODO/);
+  }
+  const conditions = { suser: 'origin-user', tuser: 'receiver-user', cuser: 'current-user', sgroup: 'origin-group', tgroup: 'receiver-group', cgroup: 'current-group' };
+  const args = queryArguments({ mode: 'history', ...conditions }, 'default-user', 'default-group');
+  for (const [key, value] of Object.entries(conditions)) assert.equal(args[key], value);
+});
+
+test('opaque body must be an object and detail lookup retains transport options while clearing filters', () => {
+  const body = { nested: { values: ['synthetic', 7, true, null] } };
+  const input = { id: '12345', explain: '0', body, suser: 'origin-user', tuser: 'receiver-user', tgroup: 'receiver-group' };
+  const args = queryArguments(input, 'default-user', 'default-group');
+  assert.deepEqual(args.body, body); assert.deepEqual(input.body, body);
+  assert.equal(args.suser, ''); assert.equal(args.tuser, ''); assert.equal(args.tgroup, '');
+  assert.equal(args.cuser, ''); assert.equal(args.cgroup, '');
+  for (const value of [null, [], 'text', 7, false]) assert.throws(() => queryArguments({ id: '12345', body: value }), /JSON 对象/);
+  assert.throws(() => queryArguments({ id: '12345', explain: 1 }), /参数/);
 });
 
 test('configuration requires a skill section, HTTPS and personal token, without leaking invalid input', t => {
@@ -67,6 +114,37 @@ function mock({ foreign = false, disconnect = false, silence = false, token = 't
   };
   return { fetchImpl, calls };
 }
+
+test('role queries send the chosen scope and opaque body through the existing upstream tool', async (t) => {
+  const result = { content: [{ type: 'text', text: JSON.stringify({ code: 200, data: [] }) }] };
+  const body = { vendorDefined: { values: ['synthetic'] } };
+  for (const key of ['suser', 'tuser', 'tgroup', 'sgroup', 'cgroup']) {
+    const m = mock({ result });
+    t.mock.method(globalThis, 'fetch', m.fetchImpl);
+    const response = await query(config, { mode: 'history', cuser: '', cgroup: '', [key]: 'chosen-scope', body }, 'default-user', 'default-group');
+    const call = JSON.parse(m.calls.at(-1).body).params;
+    assert.equal(call.name, 'post_imedway_ylxt_bosdata');
+    assert.equal(call.arguments[key], 'chosen-scope');
+    assert.equal(call.arguments.cuser, '');
+    if (key !== 'cgroup') assert.equal(call.arguments.cgroup, '');
+    assert.deepEqual(call.arguments.body, body);
+    assert.deepEqual(response._meta.bosDemandQuery.filters, call.arguments);
+  }
+});
+
+test('explanation requests preserve upstream payload without inventing defaults or list counts', async (t) => {
+  const result = { content: [{ type: 'text', text: JSON.stringify({ code: 200, data: { syntheticField: 'synthetic explanation' } }) }] };
+  const m = mock({ result });
+  t.mock.method(globalThis, 'fetch', m.fetchImpl);
+  const response = await query(config, { explain: 'synthetic-explain-value', suser: 'chosen-origin', body: { opaque: true } }, 'default-user', 'default-group');
+  assert.deepEqual(response, result);
+  const args = JSON.parse(m.calls.at(-1).body).params.arguments;
+  assert.equal(args.explain, 'synthetic-explain-value'); assert.equal(args.suser, 'chosen-origin');
+  assert.equal(args.cuser, ''); assert.equal(args.cgroup, '');
+  assert.equal(args.date, ''); assert.equal(args.date2, '');
+  assert.deepEqual(args.body, { opaque: true });
+  assert.equal(response._meta, undefined);
+});
 
 test('SSE handshake, endpoint routing, notification and response correlation', async () => {
   const m = mock();
@@ -310,4 +388,28 @@ test('stdio uses the same pending rules and keeps personal group and origin grou
   assert.equal(result._meta.bosDemandQuery.includedCount, 5);
   assert.equal(result._meta.bosDemandQuery.filters.cgroup, 'personal-group');
   assert.equal(result._meta.bosDemandQuery.filters.sgroup, 'origin-group');
+});
+
+test('stdio discovers the full upstream parameters and queries an origin role without current defaults', async (t) => {
+  const m = mock({ result: listResult() });
+  t.mock.method(globalThis, 'fetch', m.fetchImpl);
+  const input = new PassThrough(); const output = new PassThrough(); let text = '';
+  output.on('data', chunk => { text += chunk; });
+  const running = serve(config, { BOS_CUSER: 'default-current', BOS_CGROUP: 'default-group' }, input, output);
+  input.end([
+    { jsonrpc: '2.0', id: 1, method: 'initialize' },
+    { jsonrpc: '2.0', id: 2, method: 'tools/list' },
+    { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'bos_demand_query', arguments: { mode: 'pending', suser: 'chosen-origin', cuser: '', cgroup: '', body: { opaque: true } } } }
+  ].map(JSON.stringify).join('\n') + '\n');
+  await running;
+  const replies = text.trim().split('\n').map(JSON.parse);
+  const properties = replies[1].result.tools[0].inputSchema.properties;
+  for (const key of ['suser', 'tuser', 'tgroup', 'explain']) assert.equal(properties[key].type, 'string');
+  assert.equal(properties.body.type, 'object');
+  const result = replies[2].result;
+  assert.equal(result._meta.bosDemandQuery.filters.suser, 'chosen-origin');
+  assert.equal(result._meta.bosDemandQuery.filters.cuser, '');
+  assert.equal(result._meta.bosDemandQuery.filters.cgroup, '');
+  assert.equal(result._meta.bosDemandQuery.includedCount, 5);
+  assert.deepEqual(JSON.parse(m.calls.at(-1).body).params.arguments.body, { opaque: true });
 });

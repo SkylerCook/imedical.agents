@@ -8,11 +8,15 @@ const readline = require('node:readline');
 const personal = require('./personal-config');
 const fields = 'id title content source status type sgroup tgroup cgroup suser tuser cuser datetype date date2 product mod'.split(' ');
 const upstreamTool = 'post_imedway_ylxt_bosdata';
+const scopeFields = ['suser', 'tuser', 'cuser', 'sgroup', 'tgroup', 'cgroup'];
 const descriptions = {
+  explain: '上游字段说明参数；默认 0，其它非空值原样交给上游解释，返回值不做本地列表处理。',
   id: '需求编号；按编号查询忽略其他筛选条件，不保证属于默认当前人。',
   title: '需求标题关键字', content: '需求描述关键字', source: '需求来源', status: '需求状态',
-  type: '需求类型', cuser: '当前人；省略时使用 BOS_CUSER 或本机配置默认值。',
+  type: '需求类型', suser: '发起人', tuser: '接受人',
+  cuser: '当前人；省略时使用 BOS_CUSER 或本机配置默认值，显式空字符串清除默认当前人。',
   sgroup: '发起组名称；作为额外条件，与个人所在的当前组 cgroup 独立，省略或空字符串表示不限发起组。',
+  tgroup: '接受组',
   cgroup: '个人所在的当前组；省略时使用 BOS_CGROUP 或本机配置 cgroup，显式空字符串查询全部组。',
   datetype: '创建时间、预计完成时间、执行时间、分配时间或操作时间；默认创建时间。',
   date: '起始日期 YYYY-MM-DD；普通 list 模式必须明确提供，待办和 history 可自动生成。',
@@ -27,8 +31,8 @@ const queryOptions = {
 };
 const pendingExcludedStatuses = new Set(['完成', '取消', '已拆分']);
 const tool = {
-  name: 'bos_demand_query', description: '只读查询 BOS 需求。待办默认当前人和个人所在组，可额外筛选发起组；列表统一排序并返回计数。按编号查询不受当前人限制；待办排除规则为暂行口径，不保证服务端无截断。',
-  inputSchema: { type: 'object', properties: { ...Object.fromEntries(Object.entries(descriptions).map(([key, description]) => [key, { type: 'string', description }])), ...queryOptions }, additionalProperties: false }
+  name: 'bos_demand_query', description: '只读查询 BOS 需求，支持发起人、接受人、当前人及对应组。待办默认当前人和个人所在组，显式空字符串可清除默认身份；列表统一排序并返回计数。按编号查询不受当前人限制；待办排除规则为暂行口径，不保证服务端无截断。',
+  inputSchema: { type: 'object', properties: { ...Object.fromEntries(Object.entries(descriptions).map(([key, description]) => [key, { type: 'string', description }])), body: { type: 'object', description: '上游可选对象，内部结构未声明；仅透传调用者明确提供的 JSON 对象。' }, ...queryOptions }, additionalProperties: false }
 };
 
 function validDate(value) {
@@ -38,24 +42,35 @@ function validDate(value) {
 function prepareQuery(input, defaultUser = '', defaultGroup = '', now = new Date()) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('查询参数必须为对象');
   for (const [key, value] of Object.entries(input)) {
+    if (key === 'body') {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('body 必须为 JSON 对象');
+      continue;
+    }
     if ((!Object.hasOwn(descriptions, key) && !Object.hasOwn(queryOptions, key)) || typeof value !== 'string') throw new Error('查询参数名称或类型无效');
   }
   const args = Object.fromEntries(fields.map(key => [key, '']));
-  args.explain = '0';
+  args.explain = Object.hasOwn(input, 'explain') ? input.explain : '0';
+  if (Object.hasOwn(input, 'body')) args.body = input.body;
   if (input.id) {
     if (!/^\d+$/.test(input.id)) throw new Error('需求编号必须是数字');
     args.id = input.id;
     return { args, mode: 'detail' };
+  }
+  if (args.explain && args.explain !== '0') {
+    for (const key of Object.keys(descriptions)) if (Object.hasOwn(input, key)) args[key] = input[key];
+    return { args, mode: 'explain' };
   }
   const mode = input.mode || 'list';
   const sort = input.sort || '创建时间';
   const order = input.order || 'asc';
   if (!queryOptions.mode.enum.includes(mode) || !queryOptions.sort.enum.includes(sort) || !queryOptions.order.enum.includes(order)) throw new Error('mode、sort 或 order 无效');
   for (const key of Object.keys(descriptions)) if (Object.hasOwn(input, key)) args[key] = input[key];
-  args.cuser = (input.cuser || defaultUser).trim();
+  args.cuser = (Object.hasOwn(input, 'cuser') ? input.cuser : defaultUser).trim();
   args.cgroup = (Object.hasOwn(input, 'cgroup') ? input.cgroup : defaultGroup).trim();
-  if (/^TODO$/i.test(args.cuser) || /^TODO$/i.test(args.cgroup)) throw new Error('个人身份尚未配置；运行 bos-init 并填写 cuser / cgroup，不能使用 TODO 查询');
-  if (!args.cuser) throw new Error('请提供 cuser，或设置 BOS_CUSER / 本机配置 cuser');
+  const explicitScope = scopeFields.some(key => Object.hasOwn(input, key) && input[key].trim());
+  if (!Object.hasOwn(input, 'cuser') && !args.cuser && !explicitScope) throw new Error('请提供 cuser，或设置 BOS_CUSER / 本机配置 cuser；按其它人员或组查询时明确提供条件');
+  if (scopeFields.some(key => /^TODO$/i.test(args[key].trim()))) throw new Error('查询身份尚未配置；运行 bos-init 或明确提供人员/组条件，不能使用 TODO 查询');
+  if (!scopeFields.some(key => args[key].trim())) throw new Error('列表查询至少需一个人员或组条件（suser、tuser、cuser、sgroup、tgroup、cgroup）');
   const pending = mode === 'pending' || mode === 'project-pending';
   if (pending && !Object.hasOwn(input, 'cgroup') && !args.cgroup) throw new Error('待办需配置个人所在组 cgroup；明确跨组查询时传 cgroup 空字符串');
   if (mode === 'project-pending') {
@@ -89,7 +104,7 @@ function queryArguments(input, defaultUser = '', defaultGroup = '', now = new Da
 }
 
 function processList(result, plan) {
-  if (plan.mode === 'detail' || result.isError) return result;
+  if (plan.mode === 'detail' || plan.mode === 'explain' || result.isError) return result;
   const lists = [];
   result.content.forEach((item, index) => {
     if (item.type !== 'text') return;
