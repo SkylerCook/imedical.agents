@@ -1,5 +1,7 @@
 # .agents 安装与更新 Runbook
 
+需求迁移由外部插件注册表编排时，先消费迁移器 JSON 的 `stateChanges` / `enabledAfter`，再通过 `-ExpectedEnabledPlugin` 传入完整预期集合；不一致在需求迁移写入前停止。普通 Check 会检测待迁移旧入口及已启用新入口的实际可达性。编排顺序和边界见 [外部编排契约](demand-delivery-migration.md#外部编排与-check)。
+
 ## HISUI 资产更新
 
 HISUI 快照通过既有 `/vendor/**` 分发，coding-iris-plugin 0.17.1 同步控件/样式参考。源仓的固定提交、构建工具和完整文件摘要见 [vendor 说明](../vendor/hisui/README.md)；维护区升级脚本不部署，不在业务项目安装 npm 或现场构建 HISUI。上游升级按 [维护入口](../vendor/hisui/AGENTS.md) 执行，普通安装/更新不访问 HISUI 上游。

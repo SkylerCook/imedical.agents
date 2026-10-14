@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- 需求迁移外部编排：迁移器输出 stateChanges/enabledBefore/enabledAfter，更新器可用 ExpectedEnabledPlugin 校验预计完整集合；框架不读取私有注册表。Check 检查待迁移状态及已启用新 owner 的索引/实际源文件可达性，项目验证器仍负责注册表一致性，见 docs/demand-delivery-migration.md。
+
 - 2026-10-14 HISUI：核心固定上游 `4c09319`（2026-10-12），26 个 Git 外分发资源单独固定摘要；coding-iris-plugin 0.17.1 同步控件/样式索引。源仓升级读取 vendor/hisui/AGENTS.md 与 maintenance/hisui-build/README.md；check/verify 只读，固定输入构建、完整性和回滚专项通过。真实 HIS/helper、已知资源缺项与非 Windows 矩阵分开验证；不自动改预览配置或同步业务工程。
 
 - 2026-10-14 路由与预检修复：coding-iris 0.15.9、i18n 0.2.6；默认 direct 路由一致，verify 可重复且比较完整路径集合，更新/部署异常工作区前置停止，混合 CSP 按客户端区域与模板插值检查。验证范围见维护日志。

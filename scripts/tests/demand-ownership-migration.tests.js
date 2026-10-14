@@ -2,7 +2,7 @@
 const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
 const { spawnSync } = require('node:child_process');
-const { plan, apply } = require('../migrate-demand-ownership');
+const { plan, apply, check } = require('../migrate-demand-ownership');
 const repo = path.resolve(__dirname, '../..');
 const shell = process.env.BOS_TEST_POWERSHELL || 'pwsh';
 const write = (p, s) => { fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, s); };
@@ -20,6 +20,12 @@ function fixture(t, overlay = false) {
   const capability = overlay ? path.join(temp, 'capability') : local;
   const context = { workspaceRoot: root, contextRoot: local, capabilityRoot: capability };
   for (const owner of ['bos-plugin', 'demand-delivery-plugin']) fs.cpSync(path.join(repo, 'plugins', owner), path.join(capability, 'plugins', owner), { recursive: true });
+  if (overlay) {
+    fs.mkdirSync(local, { recursive: true });
+    const link = path.join(local, 'plugins');
+    fs.symlinkSync(path.join(capability, 'plugins'), link, process.platform === 'win32' ? 'junction' : 'dir');
+    t.after(() => { if (fs.existsSync(link)) fs.unlinkSync(link); });
+  }
   for (const name of ['iris-demand-commit', 'iris-demand-entry']) write(path.join(capability, 'plugins/coding-iris-plugin/skills', name, 'SKILL.md'), `---\nname: ${name}\ndescription: Test legacy entry\n---\n`);
   const generate = owner => run([path.join(repo, 'scripts/generate-plugin-thin-index.ps1'), '-ProjectRoot', root, '-ContextRoot', local, '-CapabilityRoot', capability, '-PluginPath', path.join(capability, 'plugins', owner), '-Mode', 'Write']);
   generate('coding-iris-plugin');
@@ -43,7 +49,35 @@ for (const overlay of [false, true]) test('migrates references and states only a
   assert.match(fs.readFileSync(path.join(f.local, 'config/plugin_profile.md'), 'utf8'), /bos-plugin \| enabled/);
   assert.doesNotMatch(fs.readFileSync(path.join(f.local, 'config/plugin_profile.md'), 'utf8'), /iris-demand-commit/);
   assert.match(fs.readFileSync(path.join(f.local, 'config/demand_delivery_profile.md'), 'utf8'), /产品标识：IRIS/);
-  assert.deepEqual(plan(f.context), { owners: [], changes: [], removals: [], conflicts: [] });
+  const repeated = plan(f.context);
+  assert.deepEqual(repeated.owners, []);
+  assert.deepEqual(repeated.changes, []);
+  assert.deepEqual(repeated.stateChanges, []);
+  assert.deepEqual(check(f.context), []);
+  const index = path.join(f.local, 'skills/demand-commit/SKILL.md');
+  const good = fs.readFileSync(index, 'utf8');
+  fs.unlinkSync(index);
+  assert.ok(check(f.context).length, 'Check must fail after migrated entry disappears');
+  fs.writeFileSync(index, good.replace('/demand-commit/SKILL.md', '/missing/SKILL.md'));
+  assert.ok(check(f.context).length, 'Check must reject redirected entry');
+  fs.writeFileSync(index, good);
+  fs.unlinkSync(path.join(f.capability, 'plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md'));
+  assert.ok(check(f.context).length, 'Check must read canonical source');
+});
+
+test('external orchestration receives exact enabled delta and can block before mutation', t => {
+  const f = fixture(t), p = plan(f.context);
+  assert.deepEqual(p.enabledBefore, ['coding-iris-plugin']);
+  assert.deepEqual(p.enabledAfter, ['bos-plugin', 'coding-iris-plugin', 'demand-delivery-plugin']);
+  assert.deepEqual(p.stateChanges.map(c => c.plugin).sort(), ['bos-plugin', 'demand-delivery-plugin']);
+  const blocked = plan(f.context, [], [], p.enabledBefore);
+  assert.ok(blocked.conflicts.some(x => x.includes('expected enabled plugin set mismatch')));
+  assert.throws(() => apply(f.context, blocked), /expected enabled plugin set mismatch/);
+  assert.ok(fs.existsSync(path.join(f.local, 'skills/iris-demand-commit/SKILL.md')));
+  assert.deepEqual(plan(f.context, [], [], p.enabledAfter).conflicts, []);
+  for (const owner of p.owners) f.generate(owner);
+  apply(f.context, p);
+  assert.ok(plan(f.context, [], [], p.enabledBefore).conflicts.length, 'registry drift is detected even after migration');
 });
 test('custom content, explicit states, filtered owners, missing targets and input drift block retirement', t => {
   const f = fixture(t), old = path.join(f.local, 'skills/iris-demand-commit/SKILL.md');

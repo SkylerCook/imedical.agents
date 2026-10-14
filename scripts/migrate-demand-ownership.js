@@ -42,7 +42,10 @@ function managed(text, name, source) {
   const values = Object.fromEntries(fields.map(f => [f[1], f[2]]));
   return values.name === name && values['thin-index'] === 'true' && values.source === source;
 }
-function plan(context, selected = [], excluded = []) {
+function enabledPlugins(text) {
+  return [...new Set([...text.matchAll(/^\|\s*([\w-]+)\s*\|\s*(enabled|initialized)\s*\|/gim)].map(m => m[1].toLowerCase()))].sort();
+}
+function plan(context, selected = [], excluded = [], expectedEnabled) {
   const { workspaceRoot: root, contextRoot: local, capabilityRoot: capability } = context;
   const changes = [], removals = [], owners = new Set(), conflicts = [], inspected = new Set();
   const profile = path.join(local, 'config/plugin_profile.md');
@@ -112,7 +115,21 @@ function plan(context, selected = [], excluded = []) {
       addOwner(old); removals.push({ file, before });
     } catch (e) { conflicts.push(e.message); }
   }
-  if (!owners.size && !removals.length && !changes.length) return { owners: [], changes: [], removals: [], conflicts: [] };
+  const stateChanges = [];
+  function finish(before, after) {
+    const enabledBefore = enabledPlugins(before), enabledAfter = enabledPlugins(after);
+    if (expectedEnabled !== undefined) {
+      const expected = [...new Set(expectedEnabled.map(n => n.trim().toLowerCase()))].sort();
+      if (expected.some(n => !/^[a-z0-9][a-z0-9-]*$/.test(n))) conflicts.push('invalid expected enabled plugin name');
+      else if (JSON.stringify(expected) !== JSON.stringify(enabledAfter)) conflicts.push('expected enabled plugin set mismatch; projected=' + enabledAfter.join(',') + '; expected=' + expected.join(','));
+    }
+    return { owners: [...owners], changes, removals, conflicts, stateChanges, enabledBefore, enabledAfter };
+  }
+  if (!owners.size && !removals.length && !changes.length) {
+    let current = '';
+    try { safe(profile, local); if (exists(profile)) current = read(profile); } catch (e) { conflicts.push(e.message); }
+    return finish(current, current);
+  }
   // Preserve the old entry's confirmed project facts outside its removed adapter.
   const deliveryProfile = path.join(local, 'config/demand_delivery_profile.md');
   try {
@@ -138,7 +155,10 @@ function plan(context, selected = [], excluded = []) {
     const status = match?.[1].split('|')[0].trim().toLowerCase();
     if (!match && oldState) conflicts.push('legacy plugin state requires explicit successor choice: coding-iris-plugin=' + oldState);
     if (match && !['enabled', 'initialized'].includes(status)) conflicts.push('explicit plugin state preserved: ' + owner + '=' + status);
-    if (!match) afterProfile += `\n| ${owner} | enabled | ${owner === 'bos-plugin' ? 'bos-init' : '-'} | - | migrated demand capability |\n`;
+    if (!match) {
+      stateChanges.push({ plugin: owner, from: null, to: 'enabled' });
+      afterProfile += `\n| ${owner} | enabled | ${owner === 'bos-plugin' ? 'bos-init' : '-'} | - | migrated demand capability |\n`;
+    }
     const manifestPath = path.join(capability, 'plugins', owner, '.agents-plugin/plugin.json');
     try {
       const manifest = JSON.parse(read(manifestPath));
@@ -152,20 +172,41 @@ function plan(context, selected = [], excluded = []) {
     } catch (e) { conflicts.push(e.message); }
   }
   if (afterProfile !== beforeProfile) changes.push({ file: profile, before: beforeProfile, after: afterProfile });
-  return { owners: [...owners], changes, removals, conflicts };
+  return finish(beforeProfile, afterProfile);
+}
+// A post-migration Check must verify discovery even when no legacy names remain.
+function check(context, requiredOwners) {
+  const conflicts = [], profile = path.join(context.contextRoot, 'config/plugin_profile.md');
+  try {
+    safe(profile, context.contextRoot);
+    const enabled = requiredOwners || enabledPlugins(exists(profile) ? read(profile) : '');
+    for (const owner of new Set(Object.values(names).map(n => n[1]))) {
+      if (!enabled.includes(owner)) continue;
+      const ownerRoot = path.join(context.capabilityRoot, 'plugins', owner);
+      const manifest = JSON.parse(read(path.join(ownerRoot, '.agents-plugin/plugin.json')));
+      const requiredSkill = Object.values(names).find(n => n[1] === owner)[0];
+      read(path.join(ownerRoot, 'skills', requiredSkill, 'SKILL.md'));
+      for (const skill of fs.readdirSync(path.join(ownerRoot, 'skills'))) {
+        if (manifest.thinIndex?.excludeSkills?.includes(skill)) continue;
+        const source = '.agents/plugins/' + owner + '/skills/' + skill + '/SKILL.md';
+        const entry = path.join(context.contextRoot, 'skills', skill, 'SKILL.md');
+        safe(entry, context.contextRoot);
+        if (!managed(read(entry), skill, source)) throw Error('new entry not verified: ' + entry);
+        const canonical = path.join(ownerRoot, 'skills', skill, 'SKILL.md');
+        const logical = path.resolve(context.workspaceRoot, source);
+        if (!fs.statSync(canonical).isFile() || fs.realpathSync(logical) !== fs.realpathSync(canonical)) throw Error('new entry target mismatch: ' + logical);
+        read(logical);
+      }
+      const scripts = owner === 'bos-plugin' ? ['demand-entry.js', 'demand-entry-xlsx.js'] : ['commit-demand.js'];
+      for (const script of scripts) read(path.join(ownerRoot, 'scripts', script));
+    }
+  } catch (e) { conflicts.push(e.message); }
+  return conflicts;
 }
 function apply(context, p) {
   if (p.conflicts.length) throw Error(p.conflicts.join('\n'));
-  for (const owner of p.owners) {
-    const ownerRoot = path.join(context.capabilityRoot, 'plugins', owner);
-    const manifest = JSON.parse(read(path.join(ownerRoot, '.agents-plugin/plugin.json')));
-    for (const skill of fs.readdirSync(path.join(ownerRoot, 'skills'))) {
-      if (manifest.thinIndex?.excludeSkills?.includes(skill)) continue;
-      const target = path.join(context.contextRoot, 'skills', skill, 'SKILL.md');
-      safe(target, context.contextRoot);
-      if (!managed(read(target), skill, '.agents/plugins/' + owner + '/skills/' + skill + '/SKILL.md')) throw Error('new entry not verified: ' + target);
-    }
-  }
+  const unreachable = check(context, p.owners);
+  if (unreachable.length) throw Error(unreachable.join('\n'));
   for (const c of [...p.changes, ...p.removals]) {
     safe(c.file, c.file.startsWith(context.contextRoot + path.sep) ? context.contextRoot : context.workspaceRoot);
     if ((exists(c.file) ? read(c.file) : '') !== c.before) throw Error('migration input changed: ' + c.file);
@@ -186,12 +227,17 @@ function main() {
   const args = process.argv.slice(2), value = key => args[args.indexOf(key) + 1];
   const context = resolveWorkspaceContext(value('--project-root'));
   if (!['standard', 'workspace-overlay'].includes(context.mode)) throw Error('invalid workspace context');
-  const p = plan(context, args.includes('--selected') ? value('--selected').split(',').filter(Boolean) : [], args.includes('--excluded') ? value('--excluded').split(',').filter(Boolean) : []);
+  const expected = args.find(arg => arg.startsWith('--expected-enabled='));
+  const p = plan(context, args.includes('--selected') ? value('--selected').split(',').filter(Boolean) : [], args.includes('--excluded') ? value('--excluded').split(',').filter(Boolean) : [], expected === undefined ? undefined : expected.slice('--expected-enabled='.length).split(',').filter(Boolean));
+  if (args.includes('--check')) {
+    if (p.owners.length) p.conflicts.push('demand migration pending; run DryRun then Write');
+    p.conflicts.push(...check(context));
+  }
   if (args.includes('--apply') && !p.conflicts.length) apply(context, p);
   // Keep project text/private configuration out of logs and avoid PS5.1 console encoding loss.
-  const summary = { owners: p.owners, changes: p.changes.map(c => ({ file: c.file })), removals: p.removals.map(c => ({ file: c.file })), conflicts: p.conflicts };
+  const summary = { schema: 'demand-ownership-plan/v1', owners: p.owners, stateChanges: p.stateChanges, enabledBefore: p.enabledBefore, enabledAfter: p.enabledAfter, changes: p.changes.map(c => ({ file: c.file })), removals: p.removals.map(c => ({ file: c.file })), conflicts: p.conflicts };
   console.log(JSON.stringify(summary).replace(/[\u007f-\uffff]/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')));
   if (p.conflicts.length) process.exitCode = 1;
 }
 if (require.main === module) { try { main(); } catch (e) { console.error(e.message); process.exitCode = 1; } }
-module.exports = { moves, plan, apply, managed };
+module.exports = { moves, plan, apply, managed, check };

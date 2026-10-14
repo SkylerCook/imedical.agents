@@ -4,6 +4,7 @@
   [string]$Mode = "DryRun",
   [string[]]$Plugin = @(),
   [string[]]$ExcludePlugin = @(),
+  [string[]]$ExpectedEnabledPlugin,
   [ValidateSet("ClaudeCode", "Codex", "CodeBuddy")]
   [string[]]$RuntimeAdapter = @(),
   [switch]$ForceThinIndex,
@@ -1164,6 +1165,7 @@ elseif ((-not $NoPull) -and ($Mode -ne "Check")) {
     if ($ForceThinIndex) { $resumeParams.ForceThinIndex = $true }
     if ($CleanupLegacyVendorSkills) { $resumeParams.CleanupLegacyVendorSkills = $true }
     if ($Detailed) { $resumeParams.Detailed = $true }
+    if ($PSBoundParameters.ContainsKey("ExpectedEnabledPlugin")) { $resumeParams.ExpectedEnabledPlugin = $ExpectedEnabledPlugin }
     & $runningScriptPath @resumeParams
     exit $LASTEXITCODE
   }
@@ -1240,10 +1242,15 @@ $demandMigrationScript = Join-Path $capabilityRoot "scripts/migrate-demand-owner
 $demandMigrationArgs = @($demandMigrationScript, "--project-root", $projectRootFull)
 if ($Plugin.Count -gt 0) { $demandMigrationArgs += @("--selected", ($Plugin -join ",")) }
 if ($ExcludePlugin.Count -gt 0) { $demandMigrationArgs += @("--excluded", ($ExcludePlugin -join ",")) }
+if ($PSBoundParameters.ContainsKey("ExpectedEnabledPlugin")) { $demandMigrationArgs += ("--expected-enabled=" + ($ExpectedEnabledPlugin -join ",")) }
+if ($Mode -eq "Check") { $demandMigrationArgs += "--check" }
 $demandMigrationText = & node @demandMigrationArgs | Out-String
 $demandMigrationExit = $LASTEXITCODE
 if ($demandMigrationExit -ne 0) { throw ("Demand ownership migration blocked: " + $demandMigrationText) }
 $demandMigration = $demandMigrationText | ConvertFrom-Json
+foreach ($stateChange in @($demandMigration.stateChanges)) {
+  $results.Add((Write-UpdateResult -Status "demand-owner-enable-planned" -Target $stateChange.plugin -Reason "missing -> enabled; reconcile external orchestration before Write" -Phase "demand-migration"))
+}
 foreach ($change in @($demandMigration.changes)) {
   $results.Add((Write-UpdateResult -Status "demand-migration-planned" -Target $change.file -Reason "replace legacy demand references or enable successor owner" -Phase "demand-migration"))
 }

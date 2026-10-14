@@ -25,6 +25,16 @@ coding-iris-plugin 0.16.0 删除旧需求技能、CLI 和引用别名。框架�
 
 更新器的检查范围有明确边界：工程外的个人脚本、复制到其它位置的入口及不在上述范围中的调用方，需由其 owner 切换旧 CLI 路径。DryRun 显示文件级迁移清单；不输出项目配置全文。冲突报告代表迁移尚未完成，不能把能力包 Git 更新成功当作项目入口已生效。Git 拉取可能已移除旧源文件；保留下来的旧索引用于定位和恢复，并不保证旧命令仍可执行。解决报告的冲突并重新 Write / Check 后再继续使用。
 
+## 外部编排与 Check
+
+插件启用清单若由外部注册表维护，项目编排器必须先调用 `node <CapabilityRoot>/scripts/migrate-demand-ownership.js --project-root <WorkspaceRoot>`。JSON `schema=demand-ownership-plan/v1` 中，`stateChanges` 仅列本次拟新增的启用（`plugin/from/to`），`enabledBefore` / `enabledAfter` 为本地 profile 迁移前后完整启用集合（含旧 initialized 状态）；`owners` 是本次涉及的能力，不等于新增启用。`conflicts` 非空或退出码非零时停止，不消费冲突计划。
+
+项目编排器按自身契约核对并更新注册表，保留其它配置；框架不发现、不读取、不改写外部注册表。批量工程先预检全部上下文，再逐个迁移及验收，记录已完成项，失败后从实际状态恢复；不保证跨工作区或注册表的原子事务。完成判据是注册表、profile、入口与项目自己的验证器一致。
+
+可在 PowerShell 调用更新器时传入 `-ExpectedEnabledPlugin $expectedPlugins`（字符串数组，必须包含迁移后的全部启用插件，而非仅新增项）。更新器在新入口生成和需求引用/profile 写入前比较预期集合，差异返回非零；自更新重启保留该参数。省略参数时保留普通项目的自动接入行为。CLI 等价参数为 `--expected-enabled=plugin-a,plugin-b`，空集合用 `--expected-enabled=`。此门禁针对需求迁移，不能代替编排器最终验证其它更新步骤及私有注册表；此前 Git 拉取等更新步骤可能已执行。
+
+`Check` 现在在仍有旧入口待迁移时返回非零；DryRun 用于预览，Write 用于迁移。迁移后即使没有旧名称，Check 仍检查本地 profile 中启用的新 owner 的日常薄索引、canonical skill、实际逻辑路径解析与需求 CLI 文件。缺失、改指或不可达返回非零；不修改索引、不执行业务 CLI、不访问 BOS，也不等于宿主已加载验收。框架不会从本地 profile 推断私有注册表是否同步；需要该校验时显式传入预期集合并运行项目验证器。
+
 ## 数据与验证
 
 旧 iris-standard-demand/v2 草稿、iris-standard-demand-facts/v1 取证、iris-demand-commit-plan/v1 计划及默认计划目录保持原协议和摘要，不因入口删除而改写。v1 录入草稿原先就不受支持。数字编号、三段式描述、29 列可选 Excel 和 standard-only 补录保持不变；project 可用 demand-commit。

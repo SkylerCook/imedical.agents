@@ -1,5 +1,8 @@
 # imedical.agents 维护日志
 
+- 2026-10-14（需求迁移编排契约补齐，framework-maintenance）：根迁移器输出 demand-ownership-plan/v1、实际新增启用差异及迁移前后完整启用集合；更新器 ExpectedEnabledPlugin 可在需求生成/写入前阻断外部预期不一致，并在自更新续跑时保留参数。普通 Check 对待迁移旧入口返回非零；无旧入口时仍检查已启用 successor 的薄索引、逻辑路径、canonical skill 和需求 CLI 文件，Apply 复用同一可达性校验。框架不读取或改写私有注册表，不跨工作区提供原子事务。
+  - 验证：Windows Node 24 的迁移专项 5 项、standard/Overlay 更新集成 2 项在 PowerShell 7 和 Windows PowerShell 5.1 均通过，覆盖预期集合不符阻断、完整数组传入成功、迁移待办 Check、入口删除/改指/源文件缺失及幂等；部署文档链接检查 1 项、UTF-8 BOM 与 diff check 通过。未重跑无关提交/补录全套；非 Windows 矩阵与私有注册表适配/项目验证仍待对应工程执行。仅根脚本/文档/测试变化，无插件版本变化；本轮按后续用户授权提交并推送，未同步真实业务副本。
+
 - 2026-10-14（BOS 提交后日志编排，framework-maintenance）：bos-plugin 0.5.0 将 bos-code-update-log 衔接到 bos-demand-handle 的共享 workflow；全部提交 verified 后精确复用 root/完整 hash，自动准备计划，再复用明确 BOS 预授权或请求一次授权。配置缺失、拒绝及接口失败保留本地提交，未知结果先核对，已确认成功不重复写入；通用提交脚本和配置结构不变，不另建普通需求状态库。同步 owner、路由、指南、workflow registry、场景、版本与发布记录；业务工程通过既有更新取得，无新增迁移或旧文件清理。
   - 验证：Windows Node 24 插件全套 51/51 通过，新增四项覆盖单仓/多仓 verified 结果到日志计划与模拟提交、HEAD 后续变化不扩选、配置缺失及后续仓提交失败的结果边界。PowerShell 7 与 Windows PowerShell 5.1 的标准/Overlay/单共享目录发现及 workflow 契约分别 5/5 通过；部署文档链接/清单 1/1 通过。工具检查与静态契约不替代真实 Agent 的预授权/拒绝、部分失败阶段选择及交接去重轨迹，沿既有 BOS P2 队列取证；现有三平台 Node 22/24 CI 自动纳入新增测试，未取得非 Windows/Node 22 实跑。
   - 收尾：组件 owner 定向比较确认非 breaking 的 0.4.0→0.5.0 minor 递增，无问题；diff check 通过，隔离夹具自清理后本任务临时目录已删除并复核。功能证据存于源仓 Git 本地元数据，可按内容指纹复用，不部署。本轮不修改个人配置，不同步业务副本或用户级入口，不执行真实 BOS；提交与推送按本轮后续授权执行，结果以 Git 记录为准。

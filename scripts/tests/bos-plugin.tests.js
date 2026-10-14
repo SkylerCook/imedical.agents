@@ -6,15 +6,15 @@ const { randomBytes } = require('node:crypto');
 const repo = path.resolve(__dirname, '../..');
 const read = p => fs.readFileSync(path.join(repo, p), 'utf8');
 const shell = process.env.BOS_TEST_POWERSHELL || 'pwsh';
-function run(cmd, args, cwd, env = process.env) {
+function run(cmd, args, cwd, env = process.env, expectedStatus = 0) {
   // PS7 prepends its module paths; let Windows PowerShell build its own defaults.
   if (/^powershell(?:\.exe)?$/i.test(cmd)) {
     env = { ...env };
     for (const key of Object.keys(env)) if (key.toLowerCase() === 'psmodulepath') delete env[key];
   }
   const r = spawnSync(cmd, args, { cwd, env, encoding: 'utf8', windowsHide: true, timeout: 120000, maxBuffer: 8 * 1024 * 1024 });
-  assert.equal(r.status, 0, String(r.error || '') + r.stderr + r.stdout);
-  return r.stdout;
+  assert.equal(r.status, expectedStatus, String(r.error || '') + r.stderr + r.stdout);
+  return r.stdout + (expectedStatus ? r.stderr : '');
 }
 function write(p, s) { fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, s); }
 function fixture(t, overlay, singleShared = false) {
@@ -129,14 +129,25 @@ for (const overlay of [false, true]) test('updater retires deployed demand names
   const args = ['-NoProfile', '-File', path.join(f.capability, 'scripts/update-agents.ps1'), '-ProjectRoot', f.project, '-NoPull', '-Detailed'];
   const preview = run(shell, [...args, '-Mode', 'DryRun'], f.root);
   assert.match(preview, /demand-migration-planned/);
+  assert.match(preview, /demand-owner-enable-planned/);
   assert.match(fs.readFileSync(path.join(f.project, 'AGENTS.md'), 'utf8'), /iris-demand-commit/);
-  const output = run(shell, [...args, '-Mode', 'Write'], f.root);
+  const blocked = run(shell, [...args, '-Mode', 'Write', '-ExpectedEnabledPlugin', 'unrelated-plugin'], f.root, process.env, 1);
+  assert.match(blocked, /expected enabled plugin set mismatch/);
+  assert.ok(fs.existsSync(path.join(f.context, 'skills/iris-demand-commit/SKILL.md')));
+  assert.equal(fs.existsSync(path.join(f.context, 'skills/demand-commit/SKILL.md')), false);
+  assert.match(run(shell, [...args, '-Mode', 'Check'], f.root, process.env, 1), /demand migration pending/);
+  const quote = s => "'" + s.replaceAll("'", "''") + "'";
+  const invoke = `& ${quote(path.join(f.capability, 'scripts/update-agents.ps1'))} -ProjectRoot ${quote(f.project)} -NoPull -Detailed -Mode Write -ExpectedEnabledPlugin @('bos-plugin','demand-delivery-plugin')`;
+  const output = run(shell, ['-NoProfile', '-Command', invoke], f.root);
   assert.match(output, /demand-migration-applied/);
   for (const name of ['demand-commit', 'bos-demand-entry']) assert.ok(fs.existsSync(path.join(f.context, 'skills', name, 'SKILL.md')));
   for (const name of ['iris-demand-commit', 'iris-demand-entry']) assert.equal(fs.existsSync(path.join(f.context, 'skills', name)), false);
   assert.match(fs.readFileSync(path.join(f.context, 'config/plugin_profile.md'), 'utf8'), /demand-delivery-plugin\s*\|\s*enabled/);
   assert.doesNotMatch(fs.readFileSync(path.join(f.project, 'AGENTS.md'), 'utf8'), /iris-demand-/);
   assert.doesNotMatch(run(shell, [...args, '-Mode', 'Write'], f.root), /demand-migration-applied/);
+  run(shell, [...args, '-Mode', 'Check'], f.root);
+  fs.unlinkSync(path.join(f.context, 'skills/demand-commit/SKILL.md'));
+  assert.match(run(shell, [...args, '-Mode', 'Check'], f.root, process.env, 1), /Demand ownership migration blocked/);
 });
 
 for (const overlay of [false, true]) test('generic demand skill is discoverable without IRIS: ' + overlay, t => {
