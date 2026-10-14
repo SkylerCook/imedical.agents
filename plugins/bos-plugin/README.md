@@ -1,6 +1,6 @@
 # BOS Plugin
 
-为不同技术栈提供 BOS 查询和需求处理入口。查询采用 Node.js 内置模块，需要 Node.js >=22.5.0；这是 Agent 工具链依赖，不是业务系统生产运行依赖。版本以 manifest 为准。
+为不同技术栈提供 BOS 查询、需求处理和代码更新日志补录入口。使用 Node.js 内置模块，需要 Node.js >=22.5.0；这是 Agent 工具链依赖，不是业务系统生产运行依赖。版本以 manifest 为准。
 
 | 入口 | 用途 |
 |---|---|
@@ -8,6 +8,7 @@
 | [bos-demand-entry](skills/bos-demand-entry/SKILL.md) | 从 Git 补丁生成标版文本/Excel，回填编号并衔接 demand-commit |
 | [bos-demand-query](skills/bos-demand-query/SKILL.md) | 查询待办、历史或指定编号详情 |
 | [bos-demand-handle](skills/bos-demand-handle/SKILL.md) | 核对需求后使用项目领域能力实施、验证和交付 |
+| [bos-code-update-log](skills/bos-code-update-log/SKILL.md) | 预览并按授权将已有 Git 提交补录为代码更新日志 |
 
 插件无 IRIS 强依赖。IRIS 项目按范围直达前端/后端技能，混合或边界不明时使用 iris-coding；其它项目沿用自己的规范。简单任务由当前 Agent 连续修改、自查和目标验证，正式协作资料按条件加载，具体分流见 [bos-demand workflow](../../workflows/bos-demand.workflow.md)。
 
@@ -15,14 +16,16 @@
 
 处理需求时主动读取影响理解、实现或验收的截图和附件，复用已有证据；关键资料无法读取时说明缺口并澄清后再实施依赖部分。仅查询详情仍按用户需要读取媒体，具体约定见上述 workflow。
 
-首次接入从 bos-init 真实路径开始。个人初始化不启用项目；项目接入也不代替个人凭据填写。查询必须配置 BOS_MCP_CONFIG 或已有连接环境变量；[使用说明](references/usage.md)定义优先级、TODO 填写与离线核对，defaults 成功不等于身份完整或真实连接可用。[接入与迁移](references/adoption.md)包含项目与用户级接入步骤。普通框架更新只分发能力，不启用插件、不修改个人配置或客户端。
+首次接入从 bos-init 真实路径开始。个人初始化不启用项目；项目接入也不代替个人凭据填写。查询与代码更新日志共用 BOS_MCP_CONFIG 指向的仓外文件，按 skill 名分段且凭据独立；[使用说明](references/usage.md)定义优先级、TODO 填写与离线核对，defaults 成功不等于身份完整或真实连接可用。[接入与迁移](references/adoption.md)包含项目与用户级接入步骤。普通框架更新只分发能力，不启用插件、不修改个人配置或客户端。
 
 示例：“查看 BOS 12345 的详情”“处理 BOS 12345”“处理 BOS 12345，验收通过后提交”。只要求查询时不会改代码；只说验收通过不会自动授权提交。
+
+0.4.0 统一分段配置，运行时不保留旧格式或编辑器设置回退；旧平铺配置须明确运行 migrate-config 原地转换，详见[配置与迁移](references/usage.md)。个人配置不会被项目更新器自动修改，日志缺失只阻塞日志技能。代码更新日志的 plan 不联网，submit 需明确 BOS 写入授权，字段与结果判定见[接口说明](references/code-update-log.md)。
 
 ## 验证
 
 运行 node --test plugins/bos-plugin/tests/*.tests.js；发现/流程集成见 scripts/tests/bos-plugin.tests.js，场景验收见 [需求场景](references/scenarios.md)。测试使用合成数据与隔离仓库，不连接真实 BOS。CI 配置不等于跨平台通过，真实宿主及项目试点另行取证。
 
-框架是查询能力的唯一维护源，适用于组织统一分发、个人独立配置。新使用者从 [私有配置初始化](references/usage.md)开始；实例仅在仓外生成，真实凭据不进入框架。待办、项目待办、历史模式由脚本统一处理。已有本机技能按 [迁移步骤](references/adoption.md)改为引用，不维护第二份实现。
+框架是 BOS 查询与日志能力的唯一维护源，适用于组织统一分发、个人独立配置。新使用者从 [私有配置初始化](references/usage.md)开始；实例仅在仓外生成，真实凭据不进入框架。待办、项目待办、历史模式由脚本统一处理。已有本机技能按 [迁移步骤](references/adoption.md)改为引用，不维护第二份实现。
 
 客户端原生工具是可选接入方式，服务来源、stdio 注册示例与验收见 [客户端 MCP](references/client-mcp.md)。

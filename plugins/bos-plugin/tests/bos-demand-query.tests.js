@@ -25,11 +25,17 @@ test('id lookup clears all conditions; list requires real explicit dates', () =>
   assert.throws(() => queryArguments({ cuser: 'sample-user', date: '2026-03-02', date2: '2026-03-01' }), /截止/);
 });
 
-test('configuration requires HTTPS and personal token, without leaking invalid input', () => {
-  assert.deepEqual(loadConfig({ BOS_MCP_URL: config.url, BOS_MCP_TOKEN: 'test-token' }), config);
-  assert.throws(() => loadConfig({ BOS_MCP_URL: 'http://example.invalid', BOS_MCP_TOKEN: 'test-token' }), /HTTPS/);
-  assert.throws(() => loadConfig({ BOS_MCP_URL: config.url, BOS_MCP_TOKEN: 'xxxxx' }), /Token/);
-  assert.throws(() => loadConfig({ BOS_MCP_CONFIG: 'missing-private-config' }), /无法读取/);
+test('configuration requires a skill section, HTTPS and personal token, without leaking invalid input', t => {
+  const env = { BOS_MCP_CONFIG: path.resolve('missing-private-config') };
+  let selected = config;
+  t.mock.method(fs, 'readFileSync', () => JSON.stringify({ 'bos-demand-query': selected }));
+  assert.deepEqual(loadConfig(env), config);
+  selected = { ...config, url: 'http://example.invalid' };
+  assert.throws(() => loadConfig(env), /HTTPS/);
+  selected = { ...config, headers: { 'X-Gateway-Upstream-BOS-MCP-TOKEN': 'xxxxx' } };
+  assert.throws(() => loadConfig(env), /Token/);
+  fs.readFileSync.mock.mockImplementation(() => { throw Error('private-input'); });
+  assert.throws(() => loadConfig(env), /无法读取/);
 });
 
 function mock({ foreign = false, disconnect = false, silence = false, token = 'test-token', result = { tools: [{ name: 'sample-query' }] } } = {}) {
@@ -170,10 +176,10 @@ test('current group defaults, explicit override and cross-group queries preserve
 });
 
 test('local current group is validated without exposing connection values', (t) => {
-  t.mock.method(fs, 'readFileSync', () => JSON.stringify({ ...config, cgroup: 'sample-group' }));
-  assert.equal(loadConfig({ BOS_MCP_CONFIG: 'private-fixture' }).cgroup, 'sample-group');
-  fs.readFileSync.mock.mockImplementation(() => JSON.stringify({ ...config, cgroup: 42 }));
-  assert.throws(() => loadConfig({ BOS_MCP_CONFIG: 'private-fixture' }), /cgroup/);
+  t.mock.method(fs, 'readFileSync', () => JSON.stringify({ 'bos-demand-query': { ...config, cgroup: 'sample-group' } }));
+  assert.equal(loadConfig({ BOS_MCP_CONFIG: path.resolve('private-fixture') }).cgroup, 'sample-group');
+  fs.readFileSync.mock.mockImplementation(() => JSON.stringify({ 'bos-demand-query': { ...config, cgroup: 42 } }));
+  assert.throws(() => loadConfig({ BOS_MCP_CONFIG: path.resolve('private-fixture') }), /cgroup/);
 });
 
 

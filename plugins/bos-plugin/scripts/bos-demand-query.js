@@ -140,37 +140,17 @@ function processList(result, plan) {
 }
 
 function loadConfig(env = process.env) {
-  let config;
-  const filePath = env.BOS_MCP_CONFIG;
-  if (filePath !== undefined && (typeof filePath !== 'string' || !filePath.trim())) throw new Error('BOS_MCP_CONFIG 必须为明确的私有配置路径');
-  if (!filePath && (!env.BOS_MCP_URL || !env.BOS_MCP_TOKEN)) throw new Error('缺少 BOS 配置；设置 BOS_MCP_CONFIG 或 BOS_MCP_URL + BOS_MCP_TOKEN');
-  if (filePath) {
-    try {
-      const file = JSON.parse(fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, ''));
-      config = file.mcpServers ? file.mcpServers[env.BOS_MCP_SERVER || 'bos-demand-query'] : file;
-    } catch { throw new Error('无法读取 BOS 本机 JSON 配置；请设置 BOS_MCP_CONFIG ；显式配置失败不会切换到其它身份'); }
-  } else {
-    config = { url: env.BOS_MCP_URL, headers: { 'X-Gateway-Upstream-BOS-MCP-TOKEN': env.BOS_MCP_TOKEN } };
-  }
-  if (!config || config.enabled === false) throw new Error('BOS 服务未配置或已禁用');
-  if (typeof config !== 'object' || Array.isArray(config)) throw new Error('BOS 配置必须为对象');
+  let config = personal.readSkillConfig(env, 'bos-demand-query');
   if (config.connection === 'company') {
     if (Object.hasOwn(config, 'url')) throw new Error('公司连接配置不能同时设置 url');
     if (typeof config.access_key !== 'string' || !config.access_key.trim() || /^TODO$/i.test(config.access_key.trim())) throw new Error('请在 BOS_MCP_CONFIG 指向的文件补全 access_key TODO');
-    const base = env.BOS_MCP_URL && env.BOS_MCP_URL !== env.BOS_MANAGED_MCP_URL ? env.BOS_MCP_URL : personal.companyUrl();
+    const base = personal.companyUrl();
     let endpoint;
     try { endpoint = new URL(base); } catch { throw new Error('BOS URL 无效'); }
     if (endpoint.search || endpoint.hash) throw new Error('公司服务地址不得含鉴权参数；access_key 放私有配置');
     endpoint.searchParams.set('access_key', config.access_key);
     config = { ...config, url: endpoint.href };
   } else if (config.connection !== undefined) throw new Error('BOS connection 无效');
-  // Only identity-only files opt into environment connections. Partial legacy
-  // connection files remain errors; never combine credentials across sources.
-  if (!Object.hasOwn(config, 'url') && !Object.hasOwn(config, 'headers')) {
-    if (Object.keys(config).some(key => !['enabled', 'cuser', 'cgroup'].includes(key))) throw new Error('身份配置包含未知字段');
-    if (!env.BOS_MCP_URL || !env.BOS_MCP_TOKEN) throw new Error('身份配置需要 BOS_MCP_URL + BOS_MCP_TOKEN');
-    config = { ...config, url: env.BOS_MCP_URL, headers: { 'X-Gateway-Upstream-BOS-MCP-TOKEN': env.BOS_MCP_TOKEN } };
-  }
   let url;
   try { url = new URL(config.url); } catch { throw new Error('BOS URL 无效'); }
   if (url.protocol !== 'https:' || url.username || url.password) throw new Error('BOS URL 必须使用 HTTPS 且不含用户信息');
@@ -323,11 +303,11 @@ function initConfig(filePath, options) { return personal.initialize(filePath, op
 
 async function main() {
   const [command = 'serve', json] = process.argv.slice(2);
-  if (command === '--help') { console.log('node bos-demand-query.js serve|check|defaults|query <JSON>|init-config [absolute-private-path]|migrate-config <existing-private-path>\nBOS_MCP_CONFIG: explicit private JSON; identity-only files use BOS_MCP_URL + BOS_MCP_TOKEN. No implicit lookup. Node >=22.5.0.'); return; }
+  if (command === '--help') { console.log('node bos-demand-query.js serve|check|defaults|query <JSON>|init-config [absolute-private-path]|migrate-config <existing-private-path>\nBOS_MCP_CONFIG: shared private JSON with bos-demand-query and bos-code-update-log sections. Only the selected skill section is read. migrate-config converts the old flat query file in place. Node >=22.5.0.'); return; }
   const [major, minor] = process.versions.node.split('.').map(Number);
   if (major < 22 || (major === 22 && minor < 5)) throw new Error('需要 Node.js >=22.5.0（Agent 工具链运行时）');
   if (command === 'init-config') { console.log(JSON.stringify(initConfig(json))); return; }
-  if (command === 'migrate-config') { if (!json) throw new Error('migrate-config 需要原私有文件绝对路径'); console.log(JSON.stringify(personal.initialize(undefined, { migrateFrom: json }))); return; }
+  if (command === 'migrate-config') { console.log(JSON.stringify(personal.migrate(json))); return; }
   const config = loadConfig();
   if (command === 'defaults') {
     console.log(JSON.stringify({ cuser: process.env.BOS_CUSER || config.cuser || '', cgroup: process.env.BOS_CGROUP ?? config.cgroup ?? '' }));

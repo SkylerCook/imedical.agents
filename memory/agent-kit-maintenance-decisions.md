@@ -2,6 +2,10 @@
 
 本文件记录 `imedical.agents` 能力包仓库的长期决策和稳定边界。当前状态摘要见 `agent-kit-maintenance-memory.md`，近期维护流水见 `agent-kit-maintenance-log.md`，后续计划见 `agent-kit-maintenance-backlog.md`。
 
+## BOS 个人配置与分发
+
+- BOS 联网能力共用仓外私有 JSON 和 BOS_MCP_CONFIG 路径绑定，按实际 skill 名分段，各自读取自己的凭据；查询身份覆盖与连接凭据分别处理。普通框架更新只分发已启用插件能力，不迁移个人文件；旧格式转换由明确迁移请求执行，运行时不猜测或跨段回退。公司默认地址归插件 company-defaults，不以维护者本机配置作为公共事实。
+
 ## 内容分层
 
 - 项目使用文档统一放 docs/ 并随能力包部署；源仓治理、设计历史和验证证据归 maintenance/，不进入 sparse。稳定操作入口保留，新增指南/参考分组。文档迁移优先依赖 Git 安全快进清除旧受管路径与空目录；自定义文件保留，本地改动停止，不新增宽泛删除。

@@ -44,6 +44,7 @@
 | [bos-demand-entry](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md) | 从 Git 补丁生成标版需求、回填编号并衔接提交 | 日常入口 |
 | [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md) | 列表、详情和附件元数据只读查询 | 日常入口 |
 | [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md) | 需求分流、实施验证与验收提交衔接 | 日常入口 |
+| [bos-code-update-log](../../plugins/bos-plugin/skills/bos-code-update-log/SKILL.md) | 已有 Git 提交的日志预览与授权 BOS 补录 | 日常入口 |
 
 无独立 rules；执行流程见 bos-demand workflow，配置与 CLI 见插件 references。示例与边界见 [使用指南](capability-guide.md#bos-plugin)。
 

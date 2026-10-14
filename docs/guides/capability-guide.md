@@ -24,6 +24,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 | 初始化 BOS 个人配置或接入项目 | [bos-init](#bos-plugin) | 明确个人初始化或目标项目接入；凭据只在仓外配置中填写 |
 | 查询 BOS 待办、历史或详情 | [bos-demand-query](#bos-plugin) | 查询模式或需求编号，按需补充日期和筛选条件 |
 | 处理已有 BOS 需求 | [bos-demand-handle](#bos-plugin) | 需求编号或充分正文、目标工程和操作范围 |
+| 补录 BOS 代码更新日志 | [bos-code-update-log](#bos-plugin) | 已有提交的 repo/hash，预览范围与独立 BOS 写入授权 |
 | 初始化、修正或精简项目上下文 | [project-context-maintenance](#agent-context-kit) | 目标工程、初始化或维护范围 |
 | 在另一种 Agent 工具中发现已有技能 | [coding-agent-adaptation](#agent-context-kit) | 已安装的工程、目标宿主 |
 | 给当前需求留交接、下次继续 | [task-handoff](#agent-context-kit) | 当前需求或明确交接路径 |
@@ -225,11 +226,13 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 ## bos-plugin
 
-前提：Node.js >=22.5.0；项目内使用时明确启用插件，个人查询可使用已接入的用户级入口。在线查询使用显式私有配置或连接环境变量，已有充分需求正文的本地处理不依赖在线查询。
+前提：Node.js >=22.5.0；项目内使用时明确启用插件，个人查询可使用已接入的用户级入口。在线查询与日志补录使用 BOS_MCP_CONFIG 指向的共享私有文件，各自读取按 skill 命名的段，已有充分需求正文的本地处理不依赖在线查询。
 
-- [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md)：请求“初始化 BOS 个人配置”，Windows 创建或复用仓外私有配置并绑定用户环境，用户补全 TODO 后离线核对；这不启用项目。请求“为当前项目接入 BOS 查询与需求处理”才更新 profile 并生成两个日常发现入口。详见[配置说明](../../plugins/bos-plugin/references/usage.md)；非 Windows 使用显式配置，不自动注册客户端 MCP。
+- [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md)：请求“初始化 BOS 个人配置”，Windows 创建或复用分段私有配置，仅绑定 BOS_MCP_CONFIG；旧平铺文件须明确 migrate-config 原地迁移，用户补全 TODO 后离线核对；这不启用项目。请求“为当前项目接入 BOS 查询与需求处理”才更新 profile 并生成四个日常发现入口。详见[配置说明](../../plugins/bos-plugin/references/usage.md)；非 Windows 使用显式配置，不自动注册客户端 MCP。
 - [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：请求“查看 BOS 12345 详情”或“查询我的待办”。结果区分正文、图片与附件链接，不改业务代码或 BOS 状态。
 - [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：请求“处理 BOS 12345”，主动读取影响需求理解的截图和附件，按项目技术栈实现与验证；“验收后提交”可提前授权本需求提交，单独验收不会自动提交。完整正文可在 BOS 不可用时继续本地工作。
+
+- [bos-code-update-log](../../plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)：请求“预览这些提交的 BOS 代码更新日志”只运行 plan；明确“把这些提交补录到 BOS”才执行 submit。只读已有 Git 提交，跨仓说明全部保留，不执行本地 commit/push；token 与 linkProject 使用本技能配置段，缺失不影响需求查询。
 
 简单任务由当前 Agent 连续修改、自查和目标验证；IRIS 前端/后端范围明确时直达专项技能，混合或边界不明时进入 iris-coding，非 IRIS 沿用项目规范。回归按实际改动选择，正式协作按条件加载已有协议；只有明确要求交接才建交接记录。提交仍按原授权执行。新进程可读入口、真实宿主发现及简单需求提效分别验证，见 [场景](../../plugins/bos-plugin/references/scenarios.md)。
 

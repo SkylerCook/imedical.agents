@@ -2,6 +2,7 @@
 const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
 const { spawnSync } = require('node:child_process');
+const { randomBytes } = require('node:crypto');
 const repo = path.resolve(__dirname, '../..');
 const read = p => fs.readFileSync(path.join(repo, p), 'utf8');
 const shell = process.env.BOS_TEST_POWERSHELL || 'pwsh';
@@ -48,10 +49,12 @@ function fixture(t, overlay, singleShared = false) {
 for (const mode of ['standard', 'overlay', 'overlay-single-shared']) test('plugin discovery respects states and bootstrap exclusion: ' + mode, t => {
   const f = fixture(t, mode !== 'standard', mode === 'overlay-single-shared');
   const queryEntry = path.join(f.context, 'skills/bos-demand-query/SKILL.md');
+  const logEntry = path.join(f.context, 'skills/bos-code-update-log/SKILL.md');
   for (const status of ['available','disabled','enabled']) {
     write(path.join(f.context, 'config/plugin_profile.md'), '# Plugin Profile\n\n| plugin | status | initSkill | dependsOn | notes |\n|---|---|---|---|---|\n| bos-plugin | '+status+' | bos-init | - | fixture |\n');
     const updateOutput = run(shell, ['-NoProfile','-File',path.join(f.capability,'scripts/update-agents.ps1'),'-ProjectRoot',f.project,'-Plugin','bos-plugin','-Mode','Write','-NoPull','-Detailed'], f.root);
     assert.equal(fs.existsSync(queryEntry), status === 'enabled', updateOutput);
+    assert.equal(fs.existsSync(logEntry), status === 'enabled', updateOutput);
   }
   assert.ok(fs.existsSync(path.join(f.context, 'skills/bos-demand-handle/SKILL.md')));
   assert.ok(fs.existsSync(path.join(f.context, 'skills/bos-demand-entry/SKILL.md')));
@@ -69,9 +72,22 @@ for (const mode of ['standard', 'overlay', 'overlay-single-shared']) test('plugi
   const env = { ...process.env };
   for (const key of Object.keys(env)) if (key.startsWith('BOS_')) delete env[key];
   const out = run(process.execPath, ['-e', probe, queryEntry, f.project], f.root,
-    { ...env, BOS_MCP_URL: 'https://example.invalid/sse', BOS_MCP_TOKEN: 'synthetic-token', BOS_CUSER: 'synthetic-user' });
+    { ...env, BOS_MCP_CONFIG: writeConfig(f.root), BOS_CUSER: 'synthetic-user' });
   assert.equal(JSON.parse(out).cuser, 'synthetic-user');
+  const pointer = fs.readFileSync(logEntry, 'utf8').match(/^source:\s*(.+)$/m)[1].trim();
+  const logSkill = fs.realpathSync(path.resolve(f.project, pointer));
+  const logScript = path.resolve(path.dirname(logSkill), '../../scripts/bos-code-update-log.js');
+  const logOutput = run(process.execPath, [logScript, 'defaults'], f.root, { ...env, BOS_MCP_CONFIG: writeConfig(f.root) });
+  assert.equal(JSON.parse(logOutput).tokenConfigured, true);
 });
+function writeConfig(root) {
+  const file = path.join(root, 'private.json');
+  write(file, JSON.stringify({
+    'bos-demand-query': { url: 'https://example.invalid/sse', headers: { 'X-Gateway-Upstream-BOS-MCP-TOKEN': randomBytes(24).toString('hex') }, cuser: 'synthetic-user', cgroup: 'synthetic-group' },
+    'bos-code-update-log': { url: 'https://example.invalid/code-log', token: randomBytes(24).toString('hex'), linkProject: 'synthetic-project' }
+  }));
+  return file;
+}
 test('BOS workflow delegates lifecycle, domains and authorization without a second state store', () => {
   const workflow = read('workflows/bos-demand.workflow.md');
   for (const marker of ['taskKind=business-demand','standard-change.workflow.md','delivery-lifecycle.md','task-handoff/SKILL.md','iris-coding/SKILL.md','demand-commit/SKILL.md','acceptance-pending','accepted','serial','Coordinator']) assert.ok(workflow.includes(marker), marker);

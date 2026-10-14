@@ -1,26 +1,29 @@
 # 使用与配置
 
-## Windows 首次使用
+## 共享私有配置
 
-请求“初始化 BOS”即可。bos-init 执行 `node <插件脚本绝对路径> init-config`，自动创建 `%LOCALAPPDATA%/imedical-agents/bos/config.json`，并将 Windows 用户级 BOS_MCP_CONFIG 绑定到该文件绝对路径。命令返回 configPath，Agent 展示或打开此文件，使用者只补全其中 TODO：access_key、headers.X-Gateway-Upstream-BOS-MCP-TOKEN、cuser 和 cgroup。凭据由公司服务维护方提供，不发到聊天、不写入工程或框架。
+两项联网技能共用一个仓外 JSON 文件，通过 BOS_MCP_CONFIG 明确指定绝对路径。顶层按实际 skill 名分段：bos-demand-query 与 bos-code-update-log；每项只读取自己的段，另一段缺失、禁用或未填不影响它。凭据分开提供，不能互相代用。普通框架更新只分发能力，不读取或修改个人配置。
 
-脚本内置的是 MCP 客户端协议，不包含访问凭据。公司不含鉴权参数的默认服务地址来自 [公司默认值](company-defaults.json)，初始化自动设置 BOS_MCP_URL；请求时将私有 access_key 拼接到 URL。无需使用者打开系统环境变量界面。
+| 配置段 | 字段与作用 |
+|---|---|
+| bos-demand-query | connection: company、access_key、headers.X-Gateway-Upstream-BOS-MCP-TOKEN、cuser、cgroup；或自定义 url/headers 与身份字段 |
+| bos-code-update-log | connection: company、token、linkProject、可选 timeout（默认 30000ms）；或自定义 url；见 [日志配置](code-update-log.md) |
 
-初始化需在正常 Windows 用户环境执行。工具提权不等于脱离应用包重定向；检测到 LOCALAPPDATA 或目标物理路径落入 Packages 下的 AC / LocalCache 时，应在写入前停止。由正常桌面 PowerShell 初始化，并以物理路径及桌面访问验证；同一工具环境中的 Test-Path 或变量回读不能单独证明成功。
+公司连接由 [公司默认值](company-defaults.json) 管理：查询取 url，日志取 codeUpdateLogUrl。自定义连接在对应段写 url，与 connection: company 二选一；不猜测生产/测试环境。地址更新只改变公司连接的运行时默认值，不写个人文件。BOS_MCP_CONFIG 仅绑定文件路径，不含凭据；旧连接环境变量和编辑器设置均不再作为连接来源。
 
-新文件使用 connection: company；实例只在仓外生成，仓内不保存可供填写真实凭据的完整模板。已存在的配置不覆盖，显式 BOS_MCP_CONFIG 路径继续使用，配置缺失/损坏/禁用时不会切换身份。生成和绑定分别验证，绑定失败保留文件，修复后重试。非 Windows 自动初始化明确停止；其它平台仍可显式提供私有配置或连接环境变量。
+## Windows 初始化与旧配置迁移
 
-Windows 子进程不能改变已运行客户端的环境：初始化后，Agent 根据返回的 configPath 为当前验证命令设置 BOS_MCP_CONFIG，并读取已回写的用户级 BOS_MCP_URL / BOS_MANAGED_MCP_URL；之后重启客户端，使后续进程继承用户环境。用户补全凭据后运行 defaults 离线校验配置，并核对返回的 cuser、cgroup 已填写且不是 TODO；命令成功本身不证明身份完整。只有已有查询/连接验证授权才执行 check 或 query。不要回显完整配置。
+请求“初始化 BOS 个人配置”，bos-init 执行 node <查询脚本绝对路径> init-config [私有文件绝对路径]。路径优先级：命令参数 → 进程 BOS_MCP_CONFIG → 用户级 BOS_MCP_CONFIG → %LOCALAPPDATA%/imedical-agents/bos/config.json。生成两段 TODO 实例，只绑定用户级 BOS_MCP_CONFIG。返回 configPath 后，Agent 展示或打开文件，使用者通过安全渠道填写各自字段，不把真实凭据发送到聊天。仓内不保存可填写真实凭据的模板。
 
-## 公司地址更新与个人配置
+已有新格式文件保留字段值；仅补充缺失的技能段。普通初始化遇到旧格式停止。明确请求迁移时运行 node <查询脚本绝对路径> migrate-config <原文件绝对路径>：只在原路径一次性把已识别的平铺查询对象移到 bos-demand-query，增加日志 TODO 段，不转换或删除查询字段、不从编辑器导入凭据。写前比对原字节，发生并发修改就停止；原子替换后回读，临时文件清理，无备份副本。已有新格式可重复执行且保留原值。未识别的旧包装或额外字段停止，须人工核对并按技能分段整理，不猜测身份。
 
-维护者只修改 company-defaults.json 的无凭据 HTTPS 地址并按框架流程发布。已有使用者更新插件后再次运行 bos-init，自动刷新 BOS_MCP_URL；BOS_MANAGED_MCP_URL 记录上次框架设置的地址，仅当前值与其相同才允许覆盖，个人自定义地址保留。查询遇到框架管理的旧地址时使用当前插件默认值，不依赖重启才能取得新公司地址。更新操作不重写个人文件或凭据。
+本版本运行时只接受按 skill 分段的格式，不兼容旧平铺、mcpServers 包装、仅身份文件或连接环境变量回退。升级到 0.4.0 前应先明确迁移步骤，使用新版本迁移脚本转换私有文件后再启动查询。其它工程主动更新能力包；维护源修改不自动更新业务副本。
 
-旧完整私有配置（url/headers，或 mcpServers 包装）继续兼容且优先，不与环境连接混用。需要显式迁移到标准目录时运行 `migrate-config <旧私有文件绝对路径>`：核对旧服务与公司默认一致，将 access_key 和 headers/身份转入新文件并绑定新路径，旧文件保留；新目标已存在时停止覆盖。旧文件仍由用户管理，不自动删除。
+自动初始化/迁移仅支持正常 Windows 宿主；拒绝仓内文件、文件链接和 Packages 下 AC/LocalCache 重定向。目录 Junction 须核对物理位置仍在仓外且桌面可访问。绑定失败保留文件，修复后重试；非 Windows 只读 CLI 可用，私有文件与路径绑定由使用者显式配置，自动初始化明确停止。
 
-未指定私有文件时仍支持 BOS_MCP_URL + BOS_MCP_TOKEN；之前的仅身份文件也兼容环境连接。这些是兼容/自动化方式，不是普通用户首次接入流程。完整配置错误不回退。显式服务名由 BOS_MCP_SERVER 选择，默认 bos-demand-query。
+用户级绑定不会改变已运行客户端环境。当前验证命令显式注入返回路径，客户端重启后继承 BOS_MCP_CONFIG。凭据填写后分别运行对应脚本 defaults 离线校验；query 的 cuser/cgroup 还须确认不是 TODO，日志 defaults 校验 token/linkProject。命令成功不代表真实连接或 BOS 写入成功，网络操作按独立授权执行。
 
-人员优先级：调用参数 → BOS_CUSER → 文件 cuser；组优先级：显式 cgroup（含空字符串）→ BOS_CGROUP → 文件 cgroup。TODO 表示未填写；access_key/Token 未完成时停止连接，身份 TODO 阻止列表，按编号不要求身份。缺少所在组的待办查询停止；只有用户主动传 cgroup: "" 才视为跨组。sgroup 是另一个发起组筛选，不是个人所在组。
+人员优先级：调用参数 → BOS_CUSER → 本技能段 cuser；组优先级：显式 cgroup（含空字符串）→ BOS_CGROUP → 本技能段 cgroup。access_key/Token 的 TODO 阻止查询连接；身份 TODO 阻止列表，编号查询不要求身份。缺少所在组时停止，只有主动传 cgroup: "" 才是跨组；sgroup 是另一个发起组筛选。
 
 ## 命令
 

@@ -48,7 +48,7 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
 - `agents/` 和 `workflows/` 是唯一 canonical 源。
 - Codex、Claude Code、OpenCode、CodeBuddy 等工具专属入口只是 adapter，可删除重建。
 - 业务项目差异写入业务项目自己的 `AGENTS.md`、`.agents/config/`、`.agents/rules/`、`.agents/memory/`。
-- 连接配置遵循各能力的私有配置契约：IRIS 使用目标工程被忽略的 `.mcp.json`；BOS 使用仓外个人配置或环境变量。真实连接信息与凭据不进入能力包或 Git 历史。
+- 连接配置遵循各能力的私有配置契约：IRIS 使用目标工程被忽略的 `.mcp.json`；BOS 使用 BOS_MCP_CONFIG 指向的按 skill 分段的仓外个人配置。真实连接信息与凭据不进入能力包或 Git 历史。
 
 ## 给 Agent 的落地入口
 
@@ -250,12 +250,13 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 提供跨技术栈的 BOS 只读查询与已有需求处理，无 IRIS 插件强依赖：
 
-- [bos-init](plugins/bos-plugin/skills/bos-init/SKILL.md)：个人配置初始化与项目接入分别执行；Windows 可生成仓外私有配置并绑定用户环境变量，用户填写 TODO。项目接入才启用插件并生成三个日常入口。
+- [bos-init](plugins/bos-plugin/skills/bos-init/SKILL.md)：个人配置初始化与项目接入分别执行；Windows 可生成仓外私有配置并绑定用户环境变量，用户填写 TODO。项目接入才启用插件并生成四个日常入口。
 - [bos-demand-query](plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：查询我的待办、项目待办、历史或编号详情，区分正文、描述图片和附件；不写回 BOS。
 - [bos-demand-entry](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md)：从实际 Git 补丁生成标版文本/Excel，使用项目确认的产品标识，回填 BOS 编号后衔接通用提交；无需查询凭据。
+- [bos-code-update-log](plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)：从已有 Git 提交生成预览，并按明确授权补录 BOS 代码更新日志；独立凭据与需求查询共用私有文件。
 - [bos-demand-handle](plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：处理已有需求号或充分正文，主动读取影响理解的截图和附件，按项目技术栈实施、自查和验证；IRIS 专项直达，正式协作按条件加载，提交沿用明确授权。
 
-插件默认 available。个人查询可使用用户级入口，不要求启用业务项目；项目使用按 profile 接入。普通更新不修改私有配置、用户级入口或客户端设置。首次使用与已有用户迁移见 [配置说明](plugins/bos-plugin/references/usage.md)和[接入说明](plugins/bos-plugin/references/adoption.md)，流程见 [bos-demand workflow](workflows/bos-demand.workflow.md)。
+0.4.0 统一按 skill 分段的私有配置，旧平铺文件须明确迁移，运行时不回退旧连接来源；见插件配置说明。插件默认 available。个人查询可使用用户级入口，不要求启用业务项目；项目使用按 profile 接入。普通更新不修改私有配置、用户级入口或客户端设置。首次使用与已有用户迁移见 [配置说明](plugins/bos-plugin/references/usage.md)和[接入说明](plugins/bos-plugin/references/adoption.md)，流程见 [bos-demand workflow](workflows/bos-demand.workflow.md)。
 
 ### agent-framework-evolution
 

@@ -735,13 +735,17 @@ standard 与 Overlay 均在目标 ContextRoot 清理，不删除 CapabilityRoot 
 
 ## BOS 插件接入
 
-bos-plugin 随既有 /plugins/** 与 workflow 分发，默认 available；仅明确接入后通过 [bos-init](../plugins/bos-plugin/skills/bos-init/SKILL.md) 启用。enabled 生成 bos-demand-query 与 bos-demand-handle 的项目 thin-index，bos-init 按 manifest 排除；available/disabled 不生成新入口。已有用户定制入口不强行覆盖或自动删除。
+bos-plugin 随既有 /plugins/** 与 workflow 分发，默认 available；仅明确接入后通过 [bos-init](../plugins/bos-plugin/skills/bos-init/SKILL.md) 启用。enabled 生成 bos-demand-query、bos-demand-handle、bos-demand-entry、bos-code-update-log 四个项目 thin-index；bos-init 按 manifest 排除。available/disabled 不生成新入口；已有定制内容沿用冲突保护，不强行覆盖。
 
-查询采用 BOS_MCP_CONFIG 或连接环境变量，不再按代码位置寻找个人配置，也不读取 IRIS .mcp.json。无需更新安装/更新器核心。Overlay 只在 canonical 更新一次，模块按 -NoPull 刷新。用户级原技能、客户端链接和私有配置保持原状；其独立迁移按 [迁移说明](../plugins/bos-plugin/references/adoption.md)执行。
+项目主动执行既有更新流程取得能力。Overlay 共享 CapabilityRoot 只更新一次，各 ContextRoot 用 -NoPull 刷新生成层。不需要更改安装器/更新器核心；源仓维护不自动同步工程或用户级入口。
 
-BOS 个人初始化在仓外生成私有实例，框架不携带真实凭据；完整旧配置继续有效。公司推广由组织提供服务接入渠道，每位使用者独立配置。可选客户端原生工具按 [注册说明](../plugins/bos-plugin/references/client-mcp.md)增量注册；普通更新不写个人配置或客户端设置。
+### BOS 0.4.0 共享配置迁移（breaking）
 
-Windows BOS 更新后运行 bos-init 复核个人配置并同步框架管理的公司地址；标准配置位于 LOCALAPPDATA/imedical-agents/bos/config.json，自动绑定 BOS_MCP_CONFIG。既有文件与自定义地址保留，用户只补全 TODO。完整步骤见插件 usage。
+查询与日志共用 BOS_MCP_CONFIG 指向的仓外 JSON，顶层按 bos-demand-query 与 bos-code-update-log 分段，凭据分别填写。新版本不再读取旧平铺/mcpServers/仅身份配置、连接环境变量回退或编辑器设置；查询参数与人员/组显式覆盖不变，客户端 stdio 注册仍只需传共享文件路径。
+
+已有有效平铺文件由使用者明确执行新版查询脚本 migrate-config <原文件绝对路径>，原地保留查询对象并增加日志 TODO 段；包装结构或未知额外字段停止并提示人工核对。运行时不自动迁移，普通 Write 不修改私有文件。新初始化创建两段，Windows 默认位置为 LOCALAPPDATA/imedical-agents/bos/config.json，仅绑定 BOS_MCP_CONFIG。非 Windows 显式配置新结构，自动初始化/迁移明确停止。
+
+更新后以新进程分别调用需要使用的技能 defaults 离线核对。日志 token/linkProject 未填写只阻塞日志，不影响查询；真实查询、BOS 写入及宿主发现分别取证。历史业务副本在主动更新前仍使用旧实现，不能宣称源仓修改已生效。完整操作与失败恢复见 [配置说明](../plugins/bos-plugin/references/usage.md)与[日志协议](../plugins/bos-plugin/references/code-update-log.md)。
 
 ### 2026-10-14 路由与工作区预检收敛
 

@@ -1,8 +1,8 @@
 {
   "name": "bos-plugin",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "displayName": "BOS Demand Plugin",
-  "description": "跨技术栈的 BOS 只读查询、需求处理、标版补录与通用提交衔接。",
+  "description": "跨技术栈的 BOS 只读查询、需求处理、标版补录、代码更新日志与通用提交衔接。",
   "entry": "AGENTS.md",
   "skills": "skills/",
   "scripts": "scripts/",
@@ -19,6 +19,7 @@
     "处理 BOS 需求，使用当前项目开发规范",
     "处理这个需求，验收通过后提交",
     "为当前项目接入 BOS 查询与需求处理",
+    "把已有 Git 提交补录到 BOS 代码更新日志",
     "使用 bos-demand-entry 从 Git 改动生成标版需求文本并回填编号"
   ]
 }
