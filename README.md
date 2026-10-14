@@ -127,6 +127,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 安装与更新的 sparse 刷新共用 `scripts/refresh-agents-sparse.js`，通过参数传递规则，避免 Windows PowerShell 5.1 管道 UTF-8 BOM 导致首项未落盘；刷新后核验规则覆盖的已跟踪文件及 skip-worktree 状态，失败即停止。Node.js >=22.5.0 是能力包工具链前置依赖，不是业务系统生产依赖。
 
+HISUI 等 `-text` 资产同时校验实际字节与 HEAD blob；历史 Windows CRLF checkout 在正常升级或 standard `Write -NoPull` 中安全收敛。自定义内容、二进制差异及链接停止并保留；`Check`、`DryRun -NoPull` 和 Overlay 只读检查，异常时阻断生成层。共享 capability 先在所属项目修复，再刷新模块；见 [更新说明](docs/update-agents.md#sparse-刷新与落盘验证)。
+
 旧版部署若只检出了 `/scripts/*.ps1`，新版更新器会在可执行更新的 `DryRun`/`Write` 或自更新恢复阶段先补齐当前 sparse checkout 清单中的 `scripts/lib/**`，再加载 `WorkspaceContext.psm1`；`Check` 保持只读，只报告缺失而不修复。
 
 standard 模式的更新器在 fetch 后比较本地 `HEAD` 与 upstream：一致时报告 `agents-up-to-date` 并跳过 pull，仅落后时才 fast-forward 并报告带旧/新 hash 的 `agents-updated`；本地领先或分叉会明确停止。普通 `DryRun` 仍会更新 capability Git 后预演项目生成层，若需保持 capability checkout 不变请使用 `Check` 或 `DryRun -NoPull`。

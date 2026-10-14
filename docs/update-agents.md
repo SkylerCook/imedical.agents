@@ -51,6 +51,10 @@ coding-iris-plugin 0.10.0 的部署保护随既有 plugins 与 vendor 分发。�
 
 规则以命令参数传递，不经过 `$OutputEncoding` 管道。Windows PowerShell 5.1 + UTF-8 BOM 的 stdin 在本机 Git 2.54.0 下可复现首项路径遗漏；不能据此声称 Git `set` 不更新工作区。刷新后检查正向规则覆盖的所有 index 文件是否存在、是否仍带 skip-worktree；失败返回 `sparse-refresh-failed`，旧版恢复沿用 `workspace-context-resolver-restore-failed`。不以追加 `reapply` 掩盖输入问题。
 
+对受版本控制的 `-text` 资产，helper 还会读取 index 属性并将工作区实际字节与 `HEAD` blob 比较；声明 filter 或 working-tree-encoding 的文件不参与原始字节比较。旧 Windows checkout 即使 Git 状态干净，也可能在新增 `-text` 后保留未变化文件的 CRLF。普通安装/升级的 sparse 刷新及 standard `Write -NoPull` 会在 Git 状态干净、全部差异仅为 CRLF→LF 时按 blob 安全收敛，保留 `core.autocrlf`；发现自定义内容、二进制差异或链接时整个修复计划停止，已有内容保留。替换前复核目标与 HEAD，写后重新校验。
+
+`Check`、`DryRun -NoPull` 与 Overlay 只校验，不修复资产；不一致报告 `runtime-assets-invalid` 并在配置和索引生成前停止。Overlay 的共享 CapabilityRoot 应先由其所属 standard 项目完成更新或 `Write -NoPull` 修复，再逐模块刷新。不要用 `reset --hard`、强制 checkout 或更改全局换行配置处理此问题。
+
 已有部署发布后按原 DryRun/Write 流程升级，不需清理用户配置或手改 sparse 文件。安装器更新现有副本时也拒绝 dirty checkout，fetch/pull/clone 或刷新失败立即停止。`Check`、`DryRun -NoPull` 与 Overlay 的只读/不拉取边界保持原样。本机 Windows PS5.1/PS7 验证结果见维护日志；非 Windows 矩阵由 `.github/workflows/sparse-refresh.yml` 执行，配置存在不代表已通过。
 
 ## SFTP vendor 运行时接入
@@ -344,6 +348,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `fetch-failed` | 停止。报告网络或远端拉取失败。 |
 | `pull-failed` | 停止。报告无法 fast-forward。 |
 | `sparse-refresh-failed` | 停止。报告 sparse checkout 刷新失败。 |
+| `runtime-assets-invalid` | 停止。运行时文件缺失或 `-text` 资产实际字节与 HEAD 不符；先核对自定义改动，仅确认的历史换行差异可由所属 standard 项目的 Write 修复。 |
+| `runtime-assets-verified` | 运行时文件已落盘，参与原始字节校验的资产与 HEAD 一致。 |
 | `workspace-context-resolver-missing` | 停止。只读模式发现 `scripts/lib/WorkspaceContext.psm1` 缺失；改用允许拉取的 DryRun 或经确认的 Write 触发旧 sparse checkout 恢复。 |
 | `workspace-context-resolver-restore-failed` | 停止。旧 sparse checkout 自动恢复失败；检查 `.agents` 是否为干净的独立 Git checkout、Git 版本和 sparse 状态。 |
 | `thin-index-script-missing` | 停止。报告插件缺少 thin-index 脚本。 |

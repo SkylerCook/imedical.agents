@@ -8,7 +8,7 @@
 
 - P2 需求迁移编排：外部注册表适配及逐工作区 Write/Check/项目验证器联合验收由目标项目执行；框架只提供启用差异与预期集合门禁，不跨项目写注册表。非 Windows 矩阵沿既有需求交付验证队列推进。
 
-- HISUI：Windows Node 24 的 12 项专项及默认/pure 浏览器编辑保存已通过；Windows/macOS/Linux × Node 22/24 的固定输入重建、完整性、分发补充资产及回滚 CI 实跑待完成，沿下表第 7 项推进。14 个 CSS 资源缺项按真实目标页面的使用范围核对；实际 HIS 主库、主题/locale、附加 helper 和 WebView/PAD 属于现有 P1 第 4 项工程验收，不将 source snapshot 或 jsdom 冒烟当成设备验证。
+- HISUI：Windows Node 24 的 12 项资产专项及默认/pure 浏览器编辑保存已通过；部署字节收敛新增 20 项专项（含完整 1262 文件摘要）及 6 项文档回归通过，PS5.1/PS7 更新器全套通过。Windows/macOS/Linux × Node 22/24 的固定输入重建、完整性、分发补充资产、回滚及旧 autocrlf checkout 收敛 CI 实跑待完成，沿下表第 7 项 P2 推进；真实项目应通过正常更新复验，不直接补写副本。14 个 CSS 资源缺项按真实目标页面的使用范围核对；实际 HIS 主库、主题/locale、附加 helper 和 WebView/PAD 属于现有 P1 第 4 项工程验收，不将 source snapshot 或 jsdom 冒烟当成设备验证。
 
 - 路由/预检修复：混合 CSP helper、workspace 部署前置阻断与提交重复 verify 已加入既有三平台 Node 22/24 CI；本机 Windows Node 24/PowerShell 5.1 的结果见日志，非 Windows 矩阵及真实工程样本待独立取证。此项沿下表兼容/宿主验证推进，不新增业务门禁。
 

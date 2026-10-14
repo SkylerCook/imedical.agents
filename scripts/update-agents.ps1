@@ -142,15 +142,34 @@ function Assert-AgentsNodeRuntime {
 }
 
 function Invoke-AgentsSparseRefresh {
-  param([string]$Root, [string[]]$Patterns, [switch]$Initial)
+  param([string]$Root, [string[]]$Patterns, [switch]$Initial, [switch]$VerifyOnly, [switch]$RepairRawOnly)
   # Read from HEAD: the helper itself may be excluded by legacy sparse rules.
   $source = git -C $Root show HEAD:scripts/refresh-agents-sparse.js
   if ($LASTEXITCODE -ne 0) { throw "Sparse refresh runtime missing from HEAD" }
   Assert-AgentsNodeRuntime
   $extra = @()
   if ($Initial) { $extra += "--initial" }
+  if ($VerifyOnly) { $extra += "--verify" }
+  if ($RepairRawOnly) { $extra += "--repair-raw" }
   & node -e ($source -join "`n") -- --sparse-bootstrap $Root @Patterns @extra
   if ($LASTEXITCODE -ne 0) { throw "Sparse refresh or runtime materialization validation failed" }
+}
+
+function Invoke-AgentsRuntimeValidation {
+  param([string]$Root, [string]$ProjectRootFull, [string]$Mode, [switch]$NoPull, [switch]$Overlay)
+  try {
+    # Overlay and read-only modes must never repair the shared capability checkout.
+    if (($Mode -eq "Write") -and $NoPull -and (-not $Overlay)) {
+      Invoke-AgentsSparseRefresh -Root $Root -Patterns $runtimeSparsePaths -RepairRawOnly
+    }
+    else {
+      Invoke-AgentsSparseRefresh -Root $Root -Patterns $runtimeSparsePaths -VerifyOnly
+    }
+    return (Write-UpdateResult -Status "runtime-assets-verified" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $Root) -Reason "Runtime files are materialized and tracked raw assets match HEAD bytes" -Phase "preflight")
+  }
+  catch {
+    return (Write-UpdateResult -Status "runtime-assets-invalid" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $Root) -Reason $_.Exception.Message -Phase "preflight")
+  }
 }
 
 function Assert-GitSparseCheckoutSubcommandAvailable {
@@ -739,7 +758,7 @@ $updateBlockingStatuses = @(
   "agents-missing", "agents-git-missing", "git-version-unsupported", "git-status-failed",
   "git-head-resolve-failed", "git-upstream-missing", "git-divergence-check-failed",
   "pull-blocked-dirty", "pull-blocked-ahead", "pull-blocked-diverged", "fetch-failed",
-  "pull-failed", "sparse-refresh-failed", "workspace-overlay-initializer-missing", "workspace-overlay-blocked"
+  "pull-failed", "sparse-refresh-failed", "runtime-assets-invalid", "workspace-overlay-initializer-missing", "workspace-overlay-blocked"
 )
 
 function Test-UpdateBlocked {
@@ -1121,6 +1140,14 @@ if (-not (Test-Path -LiteralPath $contextRoot -PathType Container)) {
 }
 
 if ($context.mode -eq "workspace-overlay") {
+  if (Test-Path -LiteralPath (Join-Path $capabilityRoot ".git")) {
+    $runtimeResult = Invoke-AgentsRuntimeValidation -Root $capabilityRoot -ProjectRootFull $projectRootFull -Mode $Mode -NoPull:$NoPull -Overlay
+    $results.Add($runtimeResult)
+    if (Test-UpdateBlocked -Results @($runtimeResult)) {
+      $results | Format-List status, plugin, phase, target, source, reason
+      exit 1
+    }
+  }
   $initializer = Join-Path $capabilityRoot "scripts/initialize-workspace-overlay.ps1"
   if (-not (Test-Path -LiteralPath $initializer -PathType Leaf)) {
     $results.Add((Write-UpdateResult -Status "workspace-overlay-initializer-missing" -Target $initializer -Reason "CapabilityRoot initializer is missing" -Phase "workspace-context"))
@@ -1180,6 +1207,12 @@ if (Test-UpdateBlocked -Results @($results.ToArray())) {
 }
 
 if ($context.mode -eq "standard") {
+  $runtimeResult = Invoke-AgentsRuntimeValidation -Root $capabilityRoot -ProjectRootFull $projectRootFull -Mode $Mode -NoPull:$NoPull
+  $results.Add($runtimeResult)
+  if (Test-UpdateBlocked -Results @($runtimeResult)) {
+    $results | Format-List status, plugin, phase, target, source, reason
+    exit 1
+  }
   $agentsExcludePath = Join-Path $agentsRoot ".git/info/exclude"
   foreach ($pattern in $agentsLocalExcludePatterns) {
     $exists = (Test-Path -LiteralPath $agentsExcludePath) -and (Select-String -Path $agentsExcludePath -Pattern ("^\s*" + [regex]::Escape($pattern) + "\s*$") -Quiet)

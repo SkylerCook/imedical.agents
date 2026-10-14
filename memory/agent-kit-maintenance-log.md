@@ -1,5 +1,9 @@
 # imedical.agents 维护日志
 
+- 2026-10-14（HISUI 部署字节收敛，framework-maintenance）：补齐根 sparse helper 对 tracked `-text` 且无 filter/working-tree-encoding 资产的 HEAD blob 校验。旧 Windows autocrlf checkout 在新增属性的快进后可能 Git 状态干净而字节仍为 CRLF；安装/正常升级与 standard Write -NoPull 仅在干净 checkout、完整计划都是 CRLF→LF 差异时按原 blob 收敛，复核 HEAD/实际字节并以相同 index mode/blob 重置旧 stat，不暂存新内容。自定义/二进制/链接差异保留并停止；Check、DryRun -NoPull 和 Overlay 只读验证并在生成层前阻断。共享 capability 由所属 standard 项目修复，不直接修改业务副本。
+  - 验证：Windows Node 24.14.1 的 sparse/字节专项 20 项与部署文档回归 6 项全部通过，包含完整 HISUI 1262 文件摘要、Git 状态/暂存内容、幂等、隐藏自定义改动、完整计划阻断、Junction，以及 PS5.1/PS7 实际 Check 与 bootstrap。更新器全套在 Windows PowerShell 5.1 与 PowerShell 7 均通过；旧删除夹具改为模拟已提交的上游删除，不以缺失 HEAD 文件绕过门禁。既有三平台 Node 22/24 CI 自动纳入专项，非本机矩阵与真实项目升级复验仍待对应入口执行。
+  - 收尾：同步 README、更新 runbook、长期决策与治理队列；仅根脚本/测试/维护说明变化，不递增插件或改写不可变发布记录。功能证据保存在 Git 本地元数据，按内容指纹复用；本轮按用户授权提交并推送，不包含并行任务改动。
+
 - 2026-10-14（需求迁移编排契约补齐，framework-maintenance）：根迁移器输出 demand-ownership-plan/v1、实际新增启用差异及迁移前后完整启用集合；更新器 ExpectedEnabledPlugin 可在需求生成/写入前阻断外部预期不一致，并在自更新续跑时保留参数。普通 Check 对待迁移旧入口返回非零；无旧入口时仍检查已启用 successor 的薄索引、逻辑路径、canonical skill 和需求 CLI 文件，Apply 复用同一可达性校验。框架不读取或改写私有注册表，不跨工作区提供原子事务。
   - 验证：Windows Node 24 的迁移专项 5 项、standard/Overlay 更新集成 2 项在 PowerShell 7 和 Windows PowerShell 5.1 均通过，覆盖预期集合不符阻断、完整数组传入成功、迁移待办 Check、入口删除/改指/源文件缺失及幂等；部署文档链接检查 1 项、UTF-8 BOM 与 diff check 通过。未重跑无关提交/补录全套；非 Windows 矩阵与私有注册表适配/项目验证仍待对应工程执行。仅根脚本/文档/测试变化，无插件版本变化；本轮按后续用户授权提交并推送，未同步真实业务副本。
 

@@ -61,6 +61,8 @@
 
 ## 部署边界
 
+- sparse 落盘验证不能用 Git 状态干净代替资产字节完整性：对 tracked `-text` 且无 filter/working-tree-encoding 的文件比较实际字节与 HEAD blob。仅在干净 checkout、完整计划都能证明为历史 CRLF→LF 差异时修复；自定义内容、二进制差异、链接或并发变化停止并保留。只读模式与 Overlay 不修复共享 capability，由其所属 standard 更新入口收敛。
+
 - 已部署业务工程的 `.agents/` 是独立能力包仓库；能力包更新后应先更新 `.agents`，再按启用插件重建 thin-index。
 - standard 模式保持业务根内独立 `.agents` Git；workspace-overlay 模式允许模块 `ContextRoot` 无 `.git`，但必须由 `WorkspaceRoot/.agents/capability.json` 明确声明共享 `CapabilityRoot`、local/shared 目录和 SourceRoot/GitRoot。解析器不得扫描父目录或 sibling 推断这些根。
 - workspace-overlay 采用 capability-once/context-many：先在 canonical 标版根更新 capability，再对各模块以 `-NoPull` 刷新 ContextRoot。模块刷新不得 fetch/pull 或改写 CapabilityRoot Git，只能维护 ContextRoot 本地生成层和 manifest 受管 Junction。

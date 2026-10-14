@@ -41,7 +41,7 @@
 - 通用 AGENT 框架仍为 beta。schema 2.0 用互斥 `taskKind` 分开业务验收与框架维护生命周期；旧 schema 1.0–1.2 只读。业务验收后才执行只读 feedback 审查，任何写入逐项授权；框架维护不触发或提示 feedback。
 - standard 更新器只对落后状态 fast-forward，领先/分叉停止；普通 DryRun 可更新 capability，严格不更新用 Check 或 DryRun -NoPull。Overlay 区分 Workspace/Context/Capability/Source/GitRoot，共享 capability 只更新一次，不扩大源码/Git 边界。
 
-- sparse 刷新统一由根 JavaScript helper 执行，参数输入绕过 PS5.1 UTF-8 BOM，校验 index 中规则覆盖文件实际落盘；bootstrap 从 HEAD 读取 helper，失败停止。无业务副本自动同步。
+- sparse 刷新统一由根 JavaScript helper 执行，参数输入绕过 PS5.1 UTF-8 BOM，校验规则覆盖文件实际落盘及 tracked `-text` 原始字节；bootstrap 从 HEAD 读取 helper。干净 checkout 的纯历史换行差异可安全收敛，自定义/二进制/链接差异保留并停止；Check、DryRun -NoPull 与 Overlay 只读，共享 capability 由所属 standard 项目修复。无业务副本自动同步。
 
 ## 必读路由
 

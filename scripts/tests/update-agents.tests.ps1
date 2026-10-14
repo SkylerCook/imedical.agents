@@ -40,8 +40,13 @@ function Assert-Contains {
   }
 }
 
+function Get-AgentsTestTemp {
+  if (-not [string]::IsNullOrWhiteSpace($env:AGENTS_TEST_TEMP)) { return $env:AGENTS_TEST_TEMP }
+  return [System.IO.Path]::GetTempPath()
+}
+
 function New-TestProject {
-  $root = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-update-test-" + [System.Guid]::NewGuid().ToString("N"))
+  $root = Join-Path (Get-AgentsTestTemp) ("agents-update-test-" + [System.Guid]::NewGuid().ToString("N"))
   New-Item -ItemType Directory -Force -Path $root | Out-Null
   git -C $root init | Out-Null
   git -C $root config user.email "test@example.invalid" | Out-Null
@@ -263,16 +268,24 @@ function New-TestProject {
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".claude/skills/root-vendor") | Out-Null
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".claude/skills/vendor-test-skill/SKILL.md") -Value "# Existing user skill"
 
+  # A deployed capability has a HEAD; read-only runtime checks inspect its blobs.
+  $fixtureHooks = Join-Path $root "fixture-hooks"
+  New-Item -ItemType Directory -Force -Path $fixtureHooks | Out-Null
+  git -C (Join-Path $root ".agents") config core.hooksPath $fixtureHooks | Out-Null
+  git -C (Join-Path $root ".agents") add . | Out-Null
+  git -C (Join-Path $root ".agents") commit -qm "test: seed deployed capability" | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Cannot seed deployed capability fixture" }
+
   return $root
 }
 
 function New-OverlayTestProject {
   param([string]$CapabilityProjectRoot)
 
-  $workspaceRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-overlay-update-test-" + [System.Guid]::NewGuid().ToString("N"))
+  $workspaceRoot = Join-Path (Get-AgentsTestTemp) ("agents-overlay-update-test-" + [System.Guid]::NewGuid().ToString("N"))
   $contextRoot = Join-Path $workspaceRoot ".agents"
-  $sourceTarget = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-overlay-source-" + [System.Guid]::NewGuid().ToString("N"))
-  $gitRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-overlay-git-" + [System.Guid]::NewGuid().ToString("N"))
+  $sourceTarget = Join-Path (Get-AgentsTestTemp) ("agents-overlay-source-" + [System.Guid]::NewGuid().ToString("N"))
+  $gitRoot = Join-Path (Get-AgentsTestTemp) ("agents-overlay-git-" + [System.Guid]::NewGuid().ToString("N"))
   New-Item -ItemType Directory -Force -Path $contextRoot, $sourceTarget, $gitRoot | Out-Null
   git -C $workspaceRoot init | Out-Null
   git -C $workspaceRoot config user.email "test@example.invalid" | Out-Null
@@ -610,8 +623,8 @@ finally {
 
 $deployedSyntheticCredential = [guid]::NewGuid().ToString("N")
 $deployedUpgradeSourceProject = New-TestProject
-$deployedUpgradeRemote = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-upgrade-remote-" + [System.Guid]::NewGuid().ToString("N") + ".git")
-$deployedUpgradeProjectRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-deployed-upgrade-" + [System.Guid]::NewGuid().ToString("N"))
+$deployedUpgradeRemote = Join-Path (Get-AgentsTestTemp) ("agents-upgrade-remote-" + [System.Guid]::NewGuid().ToString("N") + ".git")
+$deployedUpgradeProjectRoot = Join-Path (Get-AgentsTestTemp) ("agents-deployed-upgrade-" + [System.Guid]::NewGuid().ToString("N"))
 try {
   $upgradeSourceAgentsRoot = Join-Path $deployedUpgradeSourceProject ".agents"
   $upgradeSourceUpdater = Join-Path $upgradeSourceAgentsRoot "scripts/update-agents.ps1"
@@ -741,8 +754,8 @@ finally {
 }
 
 $gitStateProjectRoot = New-TestProject
-$gitStateRemote = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-git-state-remote-" + [System.Guid]::NewGuid().ToString("N"))
-$gitStatePublisher = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-git-state-publisher-" + [System.Guid]::NewGuid().ToString("N"))
+$gitStateRemote = Join-Path (Get-AgentsTestTemp) ("agents-git-state-remote-" + [System.Guid]::NewGuid().ToString("N"))
+$gitStatePublisher = Join-Path (Get-AgentsTestTemp) ("agents-git-state-publisher-" + [System.Guid]::NewGuid().ToString("N"))
 try {
   $gitStateAgentsRoot = Join-Path $gitStateProjectRoot ".agents"
   git -C $gitStateAgentsRoot config user.email "test@example.invalid"
@@ -855,7 +868,7 @@ finally {
   }
 }
 
-$legacySparseProjectRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agents-legacy-sparse-test-" + [System.Guid]::NewGuid().ToString("N"))
+$legacySparseProjectRoot = Join-Path (Get-AgentsTestTemp) ("agents-legacy-sparse-test-" + [System.Guid]::NewGuid().ToString("N"))
 try {
   $legacySparseAgentsRoot = Join-Path $legacySparseProjectRoot ".agents"
   New-Item -ItemType Directory -Force -Path (Join-Path $legacySparseAgentsRoot "scripts/lib") | Out-Null
@@ -1289,6 +1302,8 @@ try {
   Assert-Contains $afterWrite "newField: TODO" "Write should append missing config keys"
 
   Remove-Item -LiteralPath (Join-Path $projectRoot ".agents/plugins/sample-plugin/rules/sample_rule.md")
+  git -C (Join-Path $projectRoot ".agents") add -A -- plugins/sample-plugin/rules/sample_rule.md | Out-Null
+  git -C (Join-Path $projectRoot ".agents") commit -qm "test: upstream removes rule" | Out-Null
   $staleOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-String
   if (-not $staleOutput.Contains("removed")) {
     Write-Host $staleOutput
@@ -1300,6 +1315,8 @@ try {
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sample_rule.md"))) "Stale thin-index should be removed"
 
   Remove-Item -LiteralPath (Join-Path $projectRoot ".agents/vendor/test-vendor/skills/vendor-test-skill/SKILL.md")
+  git -C (Join-Path $projectRoot ".agents") add -A -- vendor/test-vendor/skills/vendor-test-skill/SKILL.md | Out-Null
+  git -C (Join-Path $projectRoot ".agents") commit -qm "test: upstream removes vendor skill" | Out-Null
   $staleVendorOutput = & (Join-Path $projectRoot ".agents/scripts/generate-vendor-thin-index.ps1") -AgentsRoot ".agents" -ProjectRoot $projectRoot -Skill @("root-vendor") -CleanupLegacyVendorSkills -Mode Write | Out-String
   Assert-Contains $staleVendorOutput "removed" "Write should remove stale vendor thin-index files"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/vendor-test-skill/SKILL.md"))) "Stale vendor thin-index should be removed"
@@ -1419,7 +1436,7 @@ finally {
 
 
 # Real owner skills must retain their descriptions through the canonical generator.
-$discoveryRoot = Join-Path ([IO.Path]::GetTempPath()) ('iris-discovery-' + [guid]::NewGuid().ToString('N'))
+$discoveryRoot = Join-Path (Get-AgentsTestTemp) ('iris-discovery-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $discoveryRoot | Out-Null
 try {
   & (Join-Path $repoRoot 'scripts/generate-plugin-thin-index.ps1') -PluginPath (Join-Path $repoRoot 'plugins/i18n-iris-plugin') -ProjectRoot $discoveryRoot -ContextRoot (Join-Path $discoveryRoot '.agents') -CapabilityRoot $repoRoot -Mode Write | Out-Null
@@ -1434,7 +1451,7 @@ try {
 } finally { Remove-Item -LiteralPath $discoveryRoot -Recurse -Force }
 
 # Invoke a child host to assert exit codes without terminating this test suite.
-$invalidRoot = Join-Path ([IO.Path]::GetTempPath()) ('agents-no-git-' + [guid]::NewGuid().ToString('N'))
+$invalidRoot = Join-Path (Get-AgentsTestTemp) ('agents-no-git-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path (Join-Path $invalidRoot '.agents') -Force | Out-Null
 try {
   $testHost = (Get-Process -Id $PID).Path
