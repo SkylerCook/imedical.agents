@@ -24,7 +24,7 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 - `iris_test`、`iris_coverage`、`iris_execute_method`、容器切换和其它远端执行即使不直接改业务源码，也必须按远端状态变更取得任务级授权；上游 MCP 自带门禁不能代替本仓库授权边界。
 - 历史 CSP/JS/CSS 文件可能存在编码和特殊 EOF，修改前先确认实际编码和尾部格式，避免整文件重写。
 - 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`；`project-utf8` 仅作为兼容读取别名，`standard-gb2312` 仅服务用户明确指定的历史工程，实际文件字节检测始终是最终门禁。Overlay manifest 明确只声明 `backend` 时，profile 使用 `N/A (backend-only)`，不得伪造前端编码结论。
-- 在 workspace-overlay 中统一通过 capability 包的 workspace context resolver 获取 `WorkspaceRoot`、`ContextRoot`、`CapabilityRoot`、`SourceRoot` 和 `GitRoot`；配置与 profile 只从 ContextRoot 读取，插件/模板/vendor 从 CapabilityRoot 读取。允许按当前需求只读调查已声明 GitRoot 或项目注册表明确映射的相关仓库；默认源码修改、Git 暂存/提交和部署仍限定在 SourceRoot 与任务授权内。具体边界遵循能力包根 `docs/workspace-overlay.md`，不得扫描父目录或 sibling 猜测根路径。
+- 在 workspace-overlay 中统一通过 capability 包的 workspace context resolver 获取 `WorkspaceRoot`、`ContextRoot`、`CapabilityRoot`、`SourceRoot` 和 `GitRoot`；profile 只从 ContextRoot 读取，部署配置按下述显式继承契约选择，插件/模板/vendor 从 CapabilityRoot 读取。允许按当前需求只读调查已声明 GitRoot 或项目注册表明确映射的相关仓库；默认源码修改、Git 暂存/提交和部署仍限定在 SourceRoot 与任务授权内。具体边界遵循能力包根 `docs/workspace-overlay.md`，不得扫描父目录或 sibling 猜测根路径。
 - `compile.js` 接受 workspace-overlay 的 `backend/src/...` WorkspaceRoot 逻辑路径时，必须在声明的 backend SourceRoot target 下解析本地文件，并移除逻辑 `backend/src` 前缀后生成 IRIS 远端文档名；不得把 `src` 误作为类包名。
 
 ## Skill 路由
@@ -123,3 +123,5 @@ SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项�
 ## BOS 需求入口
 
 BOS 查询和已有需求处理归独立 bos-plugin；项目已启用时从其 bos-demand-handle 路由到本插件。直接正文开发无需 BOS 配置。事实和有效预授权复用；验收后提交及裸调用语义由 demand-commit 统一维护，不另建提交机制。
+
+部署配置支持 Overlay 显式 `projectEnvFallback`：模块文件优先，仅缺失时读取声明的主仓文件；具体范围、冲突停止与源码隔离规则以 [部署清单](rules/iris_deploy_checklist.md#部署配置继承) 为准，不切换项目根或生成副本。

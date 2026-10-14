@@ -2,6 +2,8 @@
 
 - 2026-10-14 路由与预检修复：coding-iris 0.15.9、i18n 0.2.6；默认 direct 路由一致，verify 可重复且比较完整路径集合，更新/部署异常工作区前置停止，混合 CSP 按客户端区域与模板插值检查。验证范围见维护日志。
 
+- Overlay 部署配置解析由 coding-iris-plugin/scripts/iris-tools/project-env.js 维护；模块本地优先、manifest.projectEnvFallback 显式回退，MCP 与源码边界仍归模块。
+
 - 最近维护回看覆盖至 `d81fa6f`（2026-10-13）：BOS 组织分发与简单需求流程、SFTP 单连接部署、提交路径边界；提交索引和验证范围见维护日志。
 - `bos-plugin` 0.3.0：处理时主动读取相关截图和附件，关键资料缺失先澄清依赖部分；查询、个人配置初始化与跨技术栈需求处理归框架统一维护。简单需求连续实施、自查和目标验证，IRIS 专项直达，正式协作条件加载；普通更新不修改个人配置或客户端，接入见插件 usage/adoption；个人初始化、项目启用与其它领域接入分开，defaults 成功还须核对身份非 TODO。
 - 编码规范：CLS 与前端分别以 coding-iris-plugin 的 `references/cls-coding-format.md`、`references/frontend-coding-format.md` 为事实源；只约束真正新增代码，原有代码的功能修改不附带格式化。JS 页面组织模板可选，按实际容器能力选用；Review 对照修改前源码，不把 diff 的 + 行等同新增。

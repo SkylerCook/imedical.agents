@@ -35,6 +35,7 @@ function connection(config, mcp) {
   const port = Number(env.IRIS_WEB_PORT);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid IRIS_WEB_PORT');
   if (config.iris?.namespace && config.iris.namespace !== env.IRIS_NAMESPACE) throw new Error('Namespace differs between .mcp.json and project-env.json');
+  require('./project-env').validateTarget(config, env);
   const tls = String(env.IRIS_TLS_VERIFY ?? true).toLowerCase();
   if (!['true', 'false'].includes(tls)) throw new Error('Invalid IRIS_TLS_VERIFY');
   return {protocol: env.IRIS_SCHEME + ':', hostname: env.IRIS_HOST, port,
@@ -106,7 +107,9 @@ async function main(argv) {
     throw error;
   }
   const read = file => JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
-  const config = read(path.join(context.contextRoot, 'config/project-env.json'));
+  const {config, inherited} = require('./project-env').readProjectEnv(context);
+  if (inherited) require('./project-env').validateTarget(config,
+    read(path.join(context.workspaceRoot, '.mcp.json')).mcpServers?.[config.mcp?.serverName || 'iris-agentic-dev']?.env || {});
   const deployment = plan(parsed.documents, config.web?.cspBasePath);
   if (!parsed.execute) { console.log(JSON.stringify(deployment)); return; }
   const options = connection(config, read(path.join(context.workspaceRoot, '.mcp.json')));

@@ -140,8 +140,9 @@ async function main(kind,argv){
   const a=parse(argv),context=resolveWorkspaceContext(a.projectRoot);
   const blockers=workspaceContextBlockers(context);
   if(blockers.length)guard.stop('invalid-workspace-context',{statuses:blockers.map(r=>r.status)});
-  const config=guard.read(path.join(context.contextRoot,'config/project-env.json')),mcp=guard.read(path.join(context.workspaceRoot,'.mcp.json'));
-  if(!a.execute){console.log(JSON.stringify({status:'planned',mode:a.mode,kind,files:a.files,demand:a.demand}));return;}
+  const {config,configPath,inherited}=require('./project-env').readProjectEnv(context),mcp=guard.read(path.join(context.workspaceRoot,'.mcp.json'));
+  require('./project-env').validateTarget(config,mcp.mcpServers?.[config.mcp?.serverName||'iris-agentic-dev']?.env||{});
+  if(!a.execute){console.log(JSON.stringify({status:'planned',mode:a.mode,kind,files:a.files,demand:a.demand,configPath,inherited}));return;}
   let files,target;
   if(kind==='frontend'){adapter=frontendAdapter(a,config,mcp,context);files=adapter.files;target=adapter.target;}
   else {

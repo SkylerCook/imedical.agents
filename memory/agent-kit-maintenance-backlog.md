@@ -1,5 +1,7 @@
 # imedical.agents 后续治理队列
 
+- P2 Overlay 部署继承：Windows 本地验证后仍需 CI 在 macOS/Linux 的矩阵验证；导出/Broker/配置生成未纳入本轮部署继承范围。
+
 本文件记录 `imedical.agents` 能力包仓库的后续计划、暂缓事项和治理优先级。入口摘要见 `agent-kit-maintenance-memory.md`，长期决策见 `agent-kit-maintenance-decisions.md`，近期维护流水见 `agent-kit-maintenance-log.md`。
 
 ## P2 技能链接适配待验证

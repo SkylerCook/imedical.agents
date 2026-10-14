@@ -15,7 +15,7 @@ description: Use when an IRIS project needs remote deployment planning, upload, 
 
 1. 目标工程 `AGENTS.md`
 2. 目标工程 `.agents/config/iris_project_profile.md`
-3. 目标工程 `.agents/config/project-env.json`
+3. 按部署清单的配置继承规则选择 `project-env.json`（模块优先，显式回退）
 4. 涉及 MCP、SFTP、上传、编译或远端验证时读取目标工程 `.mcp.json`
 5. 插件规则 `rules/iris_deploy_checklist.md`
 
@@ -84,3 +84,5 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js --docu
 ## 提问工具的兼容与降级
 
 needs-user-input 的 question 是工具无关协议；必须按 references/deployment-protection.md 的“Question 能力兼容”处理。优先使用当前模式允许且适合此类确认的工具；不支持选项则文本提问，工具不可用或禁止授权确认则使用普通对话，非交互环境保持停止。选项 code 与显示文案分离；无回复、取消、超时及默认选中都不构成授权。不可把工具输出直接作为写入授权，需关联用户明确决定和当前 token。
+
+部署配置支持 Overlay 显式 `projectEnvFallback`：模块文件优先，仅缺失时读取声明的主仓文件；具体范围、冲突停止与源码隔离规则以 [部署清单](../../rules/iris_deploy_checklist.md#部署配置继承) 为准，不切换项目根或生成副本。

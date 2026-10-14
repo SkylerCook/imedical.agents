@@ -1,5 +1,8 @@
 # Workspace Overlay 部署与恢复 Runbook
 
+部署配置例外：IRIS 部署可通过 manifest 的可选 `projectEnvFallback` 显式声明回退文件；仅模块配置不存在时读取，不改变任何根边界。详见 [IRIS 部署配置继承](../plugins/coding-iris-plugin/rules/iris_deploy_checklist.md#部署配置继承)。
+
+
 Workspace overlay 用于让多个模块工作区共享一份 canonical capability Git，同时各自保留独立的 `config`、`rules`、`memory` 和 `work`。它遵循 **capability-once/context-many**：先更新标版根 capability，再逐个刷新模块 Context；模块刷新不会 fetch 或 pull capability Git。
 
 ## 五类根

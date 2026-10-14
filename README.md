@@ -1,5 +1,8 @@
 # imedical.agents
 
+Overlay 部署支持模块配置优先、显式主仓配置回退；连接目标与模块 MCP 一致，SourceRoot 边界保持。见 [部署配置继承](plugins/coding-iris-plugin/rules/iris_deploy_checklist.md#部署配置继承)。
+
+
 需求交付归属调整：通用提交由 [demand-delivery-plugin](plugins/demand-delivery-plugin/README.md) 的 demand-commit 维护；BOS 补录由 [bos-demand-entry](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md) 维护，产品标识按项目或用户输入。旧 IRIS 入口已移除，由更新器迁移，详见 [迁移说明](docs/demand-delivery-migration.md)。
 
 > **让 AI Coding 的最佳实践成为团队共享的基础设施。**

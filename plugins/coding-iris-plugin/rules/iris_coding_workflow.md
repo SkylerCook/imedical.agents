@@ -153,3 +153,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 ## 开发部署与可选基线保护
 
 日常开发部署默认 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留编码、Storage、并发变化、回读和编译检查。需要三方合并时显式使用 `--mode guarded --demand <id>` 并建立会话。旧命令仅带 `--demand` 继续使用 guarded。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 只生成本地计划。
+
+部署配置支持 Overlay 显式 `projectEnvFallback`：模块文件优先，仅缺失时读取声明的主仓文件；具体范围、冲突停止与源码隔离规则以 [部署清单](iris_deploy_checklist.md#部署配置继承) 为准，不切换项目根或生成副本。

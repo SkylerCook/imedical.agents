@@ -10,9 +10,17 @@ related:
 
 部署 IRIS 文件时优先按本清单执行。标题和字段名尽量稳定，便于低能力模型逐项检查。
 
+## 部署配置继承
+
+部署工具优先读取当前 ContextRoot 的 `config/project-env.json`；仅文件不存在时，允许 workspace-overlay 按 manifest 的可选 `projectEnvFallback` 读取指定文件（相对 WorkspaceRoot，也可为绝对路径）。没有声明就停止，不扫描父目录，不默认从 CapabilityRoot 取业务配置。
+
+回退只选择整份配置，不合并字段或复制凭据。模块文件损坏、不完整或不可读时不回退；回退配置必须声明 iris.host/port/scheme/namespace，并与模块 `.mcp.json` 的实际目标一致。存在冲突时停止，不打印凭据。WorkspaceRoot、SourceRoot、GitRoot、MCP 和 profile 始终属于当前模块，不通过切换 `--project-root` 扩大部署范围。
+
+本契约由 `scripts/iris-tools/project-env.js` 实现，适用于 compile、deploy-frontend、compile-csp 和 prepare-deploy-manifest。配置生成/迁移工具仍只写模块本地配置；导出与 Broker 调试尚沿用本地配置，不据此宣称支持继承。模块创建器负责显式填写主仓关系；普通项目不自动启用。
+
 ## 必需配置来源
 
-- 读取目标项目 `AGENTS.md`、`.agents/config/iris_project_profile.md` 和 `.agents/config/project-env.json`。
+- 读取目标项目 `AGENTS.md`、`.agents/config/iris_project_profile.md`，并按上述继承规则选择 `project-env.json`。
 - namespace 从 `project-env.json -> iris.namespace` 获取。
 - Web 文档前缀从 `project-env.json -> web.basePath` 和 `web.cspBasePath` 获取。
 - 可选 Broker Cookie 从 `project-env.json -> web.cookie` 或 `debugger.js --cookie` 获取。

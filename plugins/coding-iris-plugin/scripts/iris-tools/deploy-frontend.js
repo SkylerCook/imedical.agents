@@ -99,8 +99,9 @@ async function main(argv) {
   if (argv.includes('--execute') || argv.includes('--demand') || argv.includes('--mode') || argv.includes('--decision')) return require('./deploy-protected').main('frontend', argv);
   const args=parse(argv), context=resolveWorkspaceContext(args.projectRoot);
   if(workspaceContextBlockers(context).length)throw new Error('Invalid workspace context');
-  const config=readJson(path.join(context.contextRoot,'config/project-env.json'));
+  const {config}=require('./project-env').readProjectEnv(context);
   const mcp=readJson(path.join(context.workspaceRoot,'.mcp.json'));
+  require('./project-env').validateTarget(config,mcp.mcpServers?.[config.mcp?.serverName||'iris-agentic-dev']?.env||{});
   const server=mcp.mcpServers?.[config.sftp?.serverName || 'sftp-server'];
   if(!server || server.disabled===true)throw new Error('SFTP configuration missing or disabled');
   const env={...server.env};

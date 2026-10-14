@@ -1,5 +1,8 @@
 # .agents 安装与更新 Runbook
 
+IRIS 部署配置继承更新：先同步经过验证的 coding-iris-plugin 部署脚本（含 project-env.js）与规则，再由项目创建器声明模块 manifest 的 projectEnvFallback。保留本地配置与 MCP，不复制凭据，不为回退切换 project-root；没有声明的已有项目保持原行为。
+
+
 ## 文档目录迁移与旧文件清理
 
 项目文档从 [docs/README.md](README.md) 按用途阅读；新增指南归 guides/，导出参考归 reference/。源仓维护材料已移出 docs，沿现有 /docs/** 分发规则不会下发。稳定 runbook 路径保持。

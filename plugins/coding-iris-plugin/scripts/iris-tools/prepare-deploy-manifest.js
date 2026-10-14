@@ -59,12 +59,7 @@ function toPosix(value) {
 }
 
 function readProjectEnv(context) {
-    const configPath = path.join(context.contextRoot, 'config', 'project-env.json');
-    if (!fs.existsSync(configPath)) {
-        return {};
-    }
-    const raw = fs.readFileSync(configPath, 'utf8').replace(/^\uFEFF/, '');
-    return JSON.parse(raw);
+    return require('./project-env').readProjectEnv(context, {optional: true}).config;
 }
 
 function gitChangedFiles(gitRoot, base) {

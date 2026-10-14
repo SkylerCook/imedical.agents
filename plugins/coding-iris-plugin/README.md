@@ -280,3 +280,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 已启用 [bos-plugin](../bos-plugin/README.md) 的工程可从 bos-demand-handle 进入 IRIS 开发，复用已核对需求事实与原始授权；BOS 不是本插件硬依赖。提交仍使用 demand-commit：有效“验收后提交”预授权在验收后直接执行，裸调用缺少模式时一次提示 --plan / --commit。
 
 提交计划支持 Overlay SourceRoot 的 Junction 入口和真实路径，并在 Apply 前重新核验归属；新增、删除文件沿最近现存父目录解析，逃逸链接或声明范围不符时停止。无需业务配置迁移，普通框架更新分发修复。
+
+部署配置支持 Overlay 显式 `projectEnvFallback`：模块文件优先，仅缺失时读取声明的主仓文件；具体范围、冲突停止与源码隔离规则以 [部署清单](rules/iris_deploy_checklist.md#部署配置继承) 为准，不切换项目根或生成副本。

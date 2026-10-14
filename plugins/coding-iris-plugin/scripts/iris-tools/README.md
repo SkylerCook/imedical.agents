@@ -403,3 +403,5 @@ Python 默认使用 `.mcp.json` 对应 SFTP 的 `command`，可用 `--python <in
 部署、CSP 编译和 SFTP 配置入口共用 workspace 校验结果；目录缺失、错误链接及无效 manifest 在配置读取和远端连接前停止并返回非零退出码。能力包必须为有效安装（含 CapabilityRoot 的 .git）；direct 仍不要求业务源码 Git 仓库或基线会话。
 
 `plugins/demand-delivery-plugin/scripts/commit-demand.js verify --plan <plan.json>` 接受 committed 和 verified 状态，重试仍重新读取提交消息与完整文件集合；缺少或额外路径均失败。路径按 NUL 分隔读取，重命名按删除与新增两端比较。
+
+部署配置支持 Overlay 显式 `projectEnvFallback`：模块文件优先，仅缺失时读取声明的主仓文件；具体范围、冲突停止与源码隔离规则以 [部署清单](../../rules/iris_deploy_checklist.md#部署配置继承) 为准，不切换项目根或生成副本。
