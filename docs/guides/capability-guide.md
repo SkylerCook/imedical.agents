@@ -74,7 +74,7 @@
 | 现有表单响应式 | `cure-form-responsive` 检查模板并保留契约 → 完整预览与验证 → 需要发布时进入部署流程；新任务不必使用旧名称 |
 | 页面国际化 | 定位链路和分类 → `i18n-coding` / `i18n-text-extract` → 页面非字典文案用 `i18n-page-trans-seed`，字典项用 `i18n-bdp-trans-seed` → 核验；已有服务器翻译迁移用 `i18n-csp-trans-sync` |
 | 标版需求录入 | `iris-demand-entry --text`（按需加 `--excel`）→ 用户录入 BOSS → 回填编号与标题 → `--bind` / `--plan` → 明确提交时 `--commit`；完整参数见[需求录入协议](../../plugins/coding-iris-plugin/references/standard-demand-entry.md) |
-| 已有 BOS 需求处理 | `bos-demand-handle` → 有编号时只读获取详情，已有充分正文则复用 → 按技术栈实施、自查和目标验证 → 用户验收 → 执行已明确授权的提交；不自动回写 BOS |
+| 已有 BOS 需求处理 | `bos-demand-handle` → 有编号时只读获取详情，主动读取相关截图与附件，已有充分事实则复用 → 按技术栈实施、自查和目标验证 → 用户验收 → 执行已明确授权的提交；不自动回写 BOS |
 | 跨会话继续需求 | 启用 `task-handoff` → 执行 Agent 在关键节点维护 → 明确交接时保存快照 → 新会话读取记录、inspect 核实现场 → 继续已授权范围；详见[交接说明](../task-handoff.md) |
 
 这些路线允许在已有可信产物处接续，不要求重复完成前置工作。表单的规格批准、交互验证、版本哈希及部署门禁仍按[交付协议](../../plugins/iris-cure-form-dev/references/cure-form-delivery-workflow.md)执行；批量脚本化表单交互的授权要求见其[交互测试协议](../../plugins/iris-cure-form-dev/references/cure-form-interaction-test-v1.md)。
@@ -226,6 +226,6 @@
 
 - [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md)：请求“初始化 BOS 个人配置”，Windows 创建或复用仓外私有配置并绑定用户环境，用户补全 TODO 后离线核对；这不启用项目。请求“为当前项目接入 BOS 查询与需求处理”才更新 profile 并生成两个日常发现入口。详见[配置说明](../../plugins/bos-plugin/references/usage.md)；非 Windows 使用显式配置，不自动注册客户端 MCP。
 - [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：请求“查看 BOS 12345 详情”或“查询我的待办”。结果区分正文、图片与附件链接，不改业务代码或 BOS 状态。
-- [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：请求“处理 BOS 12345”，按项目技术栈实现与验证；“验收后提交”可提前授权本需求提交，单独验收不会自动提交。完整正文可在 BOS 不可用时继续本地工作。
+- [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：请求“处理 BOS 12345”，主动读取影响需求理解的截图和附件，按项目技术栈实现与验证；“验收后提交”可提前授权本需求提交，单独验收不会自动提交。完整正文可在 BOS 不可用时继续本地工作。
 
 简单任务由当前 Agent 连续修改、自查和目标验证；IRIS 前端/后端范围明确时直达专项技能，混合或边界不明时进入 iris-coding，非 IRIS 沿用项目规范。回归按实际改动选择，正式协作按条件加载已有协议；只有明确要求交接才建交接记录。提交仍按原授权执行。新进程可读入口、真实宿主发现及简单需求提效分别验证，见 [场景](../../plugins/bos-plugin/references/scenarios.md)。
