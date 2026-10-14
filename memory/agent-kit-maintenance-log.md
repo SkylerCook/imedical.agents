@@ -1,5 +1,9 @@
 # imedical.agents 维护日志
 
+- 2026-10-14（BOS 查询参数说明，framework-maintenance）：bos-plugin 0.5.1 为查询技能增加按条件读取参数契约的路由，完整字段表集中到既有 usage，区分上游 18 项必填字符串与可选 body、本地开放范围、身份要求、日期默认值和本地模式/排序。上游声明注明维护时提供的 tools/list 快照来源与日期；标题 HTTP 500 保留单样本及无标题对照的结论边界，错误不自动移除筛选。运行脚本和配置不变，不开放额外参数。
+  - 验证：Windows Node 24.14.1 查询专项 22/22、部署文档链接/清单 1/1、skill-creator 格式校验通过；直接调用参数转换核对 18 个 string 字段、筛选透传、未开放字段拒绝、本地选项不透传及个人身份要求。6 份受影响正式文档的本地链接/锚点可达，包含新发布记录。复用组件版本工具进行 owner 与直接依赖范围的只读工作区比较，确认 0.5.0→0.5.1 非 breaking patch，无版本、发布记录或依赖问题；diff check 通过。合成验证不替代真实 BOS、宿主或非 Windows 验收。
+  - 收尾：同步插件/仓库 README、使用指南、维护摘要及发布记录；owner AGENTS、能力目录、长期决策、安装/更新说明与测试入口仍准确，无机制变更。未确认的真实查询边界并入现有 P2 BOS 队列，不新增前置门禁。已有业务工程通过既有主动更新取得说明，无配置迁移或旧文件清理；本轮未连接真实 BOS、未改个人配置、未同步业务副本。按用户后续授权提交并推送，复用上述功能证据并补查暂存版本门禁，结果以 Git 记录为准。
+
 - 2026-10-14（HISUI 部署字节收敛，framework-maintenance）：补齐根 sparse helper 对 tracked `-text` 且无 filter/working-tree-encoding 资产的 HEAD blob 校验。旧 Windows autocrlf checkout 在新增属性的快进后可能 Git 状态干净而字节仍为 CRLF；安装/正常升级与 standard Write -NoPull 仅在干净 checkout、完整计划都是 CRLF→LF 差异时按原 blob 收敛，复核 HEAD/实际字节并以相同 index mode/blob 重置旧 stat，不暂存新内容。自定义/二进制/链接差异保留并停止；Check、DryRun -NoPull 和 Overlay 只读验证并在生成层前阻断。共享 capability 由所属 standard 项目修复，不直接修改业务副本。
   - 验证：Windows Node 24.14.1 的 sparse/字节专项 20 项与部署文档回归 6 项全部通过，包含完整 HISUI 1262 文件摘要、Git 状态/暂存内容、幂等、隐藏自定义改动、完整计划阻断、Junction，以及 PS5.1/PS7 实际 Check 与 bootstrap。更新器全套在 Windows PowerShell 5.1 与 PowerShell 7 均通过；旧删除夹具改为模拟已提交的上游删除，不以缺失 HEAD 文件绕过门禁。既有三平台 Node 22/24 CI 自动纳入专项，非本机矩阵与真实项目升级复验仍待对应入口执行。
   - 收尾：同步 README、更新 runbook、长期决策与治理队列；仅根脚本/测试/维护说明变化，不递增插件或改写不可变发布记录。功能证据保存在 Git 本地元数据，按内容指纹复用；本轮按用户授权提交并推送，不包含并行任务改动。
