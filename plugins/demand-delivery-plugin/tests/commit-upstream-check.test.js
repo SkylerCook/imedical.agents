@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const source = fs.readFileSync(path.join(__dirname, '../commit-demand.js'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '../scripts/commit-demand.js'), 'utf8');
 for (const mode of ['success', 'pull-failed', 'head-changed', 'snapshot-changed', 'local-only']) {
   test('global upstream hook coordination: ' + mode, () => {
     const calls = [];

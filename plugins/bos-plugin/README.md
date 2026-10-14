@@ -5,12 +5,13 @@
 | 入口 | 用途 |
 |---|---|
 | [bos-init](skills/bos-init/SKILL.md) | 初始化个人身份，或接入项目并生成发现入口 |
+| [bos-demand-entry](skills/bos-demand-entry/SKILL.md) | 从 Git 补丁生成标版文本/Excel，回填编号并衔接 demand-commit |
 | [bos-demand-query](skills/bos-demand-query/SKILL.md) | 查询待办、历史或指定编号详情 |
 | [bos-demand-handle](skills/bos-demand-handle/SKILL.md) | 核对需求后使用项目领域能力实施、验证和交付 |
 
 插件无 IRIS 强依赖。IRIS 项目按范围直达前端/后端技能，混合或边界不明时使用 iris-coding；其它项目沿用自己的规范。简单任务由当前 Agent 连续修改、自查和目标验证，正式协作资料按条件加载，具体分流见 [bos-demand workflow](../../workflows/bos-demand.workflow.md)。
 
-已部署项目通过普通能力包更新取得本次流程修正，无配置迁移或旧文件清理；源仓修改不会自动同步业务工程。
+0.3.0 接管标版需求补录，产品标识由项目约定或用户明确提供；本地文本/Excel 不要求查询凭据。提交按需复用 demand-delivery-plugin。旧入口由更新器迁移，已有数据协议继续兼容，更新和接入见 [迁移说明](../../docs/demand-delivery-migration.md)。源仓修改不会自动同步业务工程。
 
 处理需求时主动读取影响理解、实现或验收的截图和附件，复用已有证据；关键资料无法读取时说明缺口并澄清后再实施依赖部分。仅查询详情仍按用户需要读取媒体，具体约定见上述 workflow。
 

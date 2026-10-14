@@ -1,6 +1,8 @@
 # coding-iris-plugin
 
-0.15.9：部署、CSP 编译和 SFTP 配置入口共用 workspace 校验结果；目录缺失、错误链接及无效 manifest 在配置读取和远端连接前停止并返回非零退出码。能力包必须为有效安装（含 CapabilityRoot 的 .git）；direct 仍不要求业务源码 Git 仓库或基线会话。 `commit-demand verify` 可对 committed/verified 计划重复执行，并精确比较提交与计划的文件集合（含中文路径和重命名两端）。随正常能力包更新生效，无配置迁移或清理。
+需求提交使用 demand-delivery-plugin 的 demand-commit，标版补录使用 bos-plugin 的 bos-demand-entry；本插件不再提供兼容技能或 CLI。已部署项目由更新器迁移引用与启用状态，见 [迁移说明](../../docs/demand-delivery-migration.md)。
+
+0.16.0：移除需求交付旧入口，更新器负责已部署项目的引用与启用状态迁移。此前 0.15.9：部署、CSP 编译和 SFTP 配置入口共用 workspace 校验结果；目录缺失、错误链接及无效 manifest 在配置读取和远端连接前停止并返回非零退出码。能力包必须为有效安装（含 CapabilityRoot 的 .git）；direct 仍不要求业务源码 Git 仓库或基线会话。 `commit-demand verify` 可对 committed/verified 计划重复执行，并精确比较提交与计划的文件集合（含中文路径和重命名两端）。随正常能力包更新生效，无配置迁移或清理。
 
 前端 SFTP 工具已纳入 `.agents/vendor/sftp-server/`：修复路径/忽略规则、原子上传与 SHA-256 回读校验、超时及结构化错误。新项目默认禁用 SFTP；旧项目更新时自动迁移可识别的 SFTP 启动路径（显式 custom 除外），保留连接参数。Python 依赖按带哈希锁文件单独安装，升级器不自动安装依赖。主机密钥与服务器原子替换兼容要求见 [SFTP runtime](../../vendor/sftp-server/README.md)。这不提供无 SFTP 服务器的上传替代通道。
 
@@ -26,8 +28,8 @@ CSP、HTML、JS、CSS 编码与 Review 共用[前端规范](references/frontend-
 - 工作流规则：本地优先；导出、编译、Broker 调试和配置同步优先使用 IRIS 开发主力脚本；MCP 作为辅助能力补上下文、只读验证或覆盖脚本未覆盖场景。
 - 部署编排：`skills/iris-deploy/SKILL.md` 负责远端部署入口、清单生成、确认门禁和验证编排，上传、编译、部署和远端验证按 `rules/iris_deploy_checklist.md` 逐项执行。
 - 需求移植：`skills/iris-demand-promote/SKILL.md` 将已提交的 DEV 需求补丁移植到独立 PRD 按需导出仓库；先导出 PRD 服务器基线，再做三方应用，只创建本地 PRD 提交。
-- 需求提交：`skills/iris-demand-commit/SKILL.md` 支持 `$iris-demand-commit --plan|--commit`。`--plan` 只生成方案型提交信息且不追问是否提交；`--commit` 视为本地提交授权，标版提交前强制安全快进，项目兼容纯本地仓库；两种模式均不包含 push。
-- 标版需求闭环：`skills/iris-demand-entry/SKILL.md` 从实际 Git diff 生成 `{IRIS}` 名称和简洁三段式描述；缺陷为操作/预期/实际，功能改进为说明/操作/预期，用户、安全组、科室按需补充。用户模式 `--text / --bind / --plan / --commit / --help`，历史来源用 `--rev` 或 `--range`，可选 `--excel` / `--Excel` 生成同正文的 29 列 BOSS 导入表。人工录入并回填编号/标题后衔接提交；历史提交不自动改写。输出拒绝 `.agents/`、能力包源码及目录链接别名。草稿仅支持 v2，旧格式重新生成。已部署工程按现有流程更新能力包并刷新 enabled 插件 thin-index，无配置迁移或文件清理。详见 [操作协议](references/standard-demand-entry.md)。
+
+
 - 前端统一编码：当前标版、医院项目的源码、上传内容和服务器运行编码统一使用 canonical `utf8`。
 - 前端编码保护：实际文件字节检测是最终门禁；正常任务静默处理，完成时只报告一行摘要。
 - 前端 i18n 条件门禁：以目标工程 `plugin_profile.md` 为事实来源，只有 i18n 已启用且任务或 diff 命中翻译 helper、翻译 key 或用户可见文案时才追加 i18n 规则和稳定 key 检查；普通前端需求不加载完整 i18n workflow。
@@ -120,7 +122,7 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 3. 检查目标工程 `.mcp.json` 是否包含实际需要的 IRIS/SFTP 能力。
 4. 运行 thin-index dry-run，确认无冲突后再 write。
 5. 前后端边界不明或混合编码任务使用 `iris-coding`；明确前端/后端任务直接使用专项 skill。开发部署默认 direct，仅要求 guarded 时在首次修改前完成或复用 Git 基线；i18n 条件矩阵和检查命令统一由前端规则维护，入口保留修改前与最终 diff 后两个检查时点。
-6. `iris-coding` 本地验证后进入 `acceptance-pending`，不自动加载 `iris-demand-commit`；只有用户要求生成提交信息、明确要求提交，或显式调用 `$iris-demand-commit --plan|--commit` 时才读取交付类型并路由，commit 不改变验收状态。
+6. `iris-coding` 本地验证后进入 `acceptance-pending`，不自动加载 `demand-commit`；只有用户要求生成提交信息、明确要求提交，或显式调用 `$demand-commit --plan|--commit` 时才读取交付类型并路由，commit 不改变验收状态。
 7. `fast/full/guarded` 只决定开发路径深度，不跳过项目入口、profile、通用安全规则和命中的前后端/i18n/HISUI 规则。轻量并行仅允许最多两个临时只读子 Agent，主 Agent保持唯一写入者。
 7. 明确的纯后端任务可直接使用 `iris-backend-coding`，明确的纯前端任务可直接使用 `iris-frontend-coding`。
 8. 明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
@@ -152,7 +154,7 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 
 它们在 manifest 中均为 optional。任务命中后直接读取 `.agents/vendor/iris-agentic-dev-skills/skills/<name>/SKILL.md`；上游原文中的工具名可能与内置 MCP 版本不同，执行前必须读取 `rules/iris_knowledge_lookup.md` 并按当前 `tools/list` schema 映射。`objectscript-tdd` 只有在任务已授权远端编译和测试时才能触发。
 
-已部署业务工程更新 `.agents` 后，重新为 enabled `coding-iris-plugin` 生成 plugin thin-index，即可获得 `iris-mcp-lookup`、`iris-demand-promote`、`iris-demand-commit` 与 `iris_knowledge_lookup` 浅层入口。更新器同时执行 `demand-delivery-type-v1`：从明确项目上下文填充 `standard/project`，无法确定时写入 `TODO` 并提示用户补全。optional vendor skills 不会自动生成浅层入口；需要用户级运行时副本时，按 `docs/update-agents.md` 显式选择具体 skill 和 runtime。
+已部署业务工程更新 `.agents` 后，重新为 enabled `coding-iris-plugin` 生成 plugin thin-index，即可获得 `iris-mcp-lookup`、`iris-demand-promote`与 `iris_knowledge_lookup` 浅层入口。更新器同时执行 `demand-delivery-type-v1`：从明确项目上下文填充 `standard/project`，无法确定时写入 `TODO` 并提示用户补全。optional vendor skills 不会自动生成浅层入口；需要用户级运行时副本时，按 `docs/update-agents.md` 显式选择具体 skill 和 runtime。
 
 ## IRIS 开发主力脚本
 
@@ -160,7 +162,7 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 
 - `export.js`：从 IRIS 导出 `.cls/.mac/.inc/.int/.js/.csp/.css`；支持 `--probe --json` 只读探测和 `--staging-dir` 临时导出。
 - `promote-demand.js`：按需求号执行 DEV→PRD 的 plan/apply/continue/verify；同名仓库按 DEV/PRD 绝对路径身份隔离临时计划，`continue` 重新校验双方 HEAD 并拒绝未暂存或未跟踪状态。不同需求号的独立 DEV 提交强制分别形成 PRD 提交，只有 `fix(123,456):...` 这类 DEV 联合需求提交才允许保留为一笔；独立需求共享文件时，用 `--prior-plan` 链接上一笔已验证计划。本脚本不上传、编译或部署远端。
-- `commit-demand.js`：为 `$iris-demand-commit --plan|--commit` 提供底层 plan/apply/verify。`--plan` 只调用脚本 `plan` 并停止；`--commit` 在明确授权后调用 `plan` 与 `apply --verify`。脚本按需求文件解析 GitRoot，标版首行使用简短菜单/功能摘要并在第三行保留完整需求，项目生成两行提交信息；pull、安全门禁、精确文件边界及无 push 约束保持不变。
+
 - `compile.js`：上传并编译本地类文件；在 workspace-overlay 中同时接受 `backend/src/...` 逻辑路径，并把远端文档名规范化为不含 `backend/src` 前缀的类文档名。
 - `debugger.js`：调用 Web Broker 方法做快速调试。
 - `sync-env-config.js`：仅当 `.agents/config/project-env.json` 是事实来源时，从它生成 `.mcp.json`。
@@ -185,16 +187,16 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
 常用调用：
 
 ```powershell
-$iris-demand-commit --plan
-$iris-demand-commit --commit
+$demand-commit --plan
+$demand-commit --commit
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <文件标识符>
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js --files <文件路径...> --execute
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/debugger.js --class <ClassName> --method <MethodName>
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js --files <path...>
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js --from-git --base HEAD
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/promote-demand.js plan --demand <id> --dev-root <path> --prd-root <path>
-node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js plan --project-root <path> --kind <standard|project> --demand <id> --subject <menu-summary> --title <full-title> --type <type> --file <path> --modification <description>
-node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js apply --plan <plan.json> --confirm-commit --verify
+node .agents/plugins/demand-delivery-plugin/scripts/commit-demand.js plan --project-root <path> --kind <standard|project> --demand <id> --subject <menu-summary> --title <full-title> --type <type> --file <path> --modification <description>
+node .agents/plugins/demand-delivery-plugin/scripts/commit-demand.js apply --plan <plan.json> --confirm-commit --verify
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/promote-demand.js plan --demand <next-id> --dev-root <path> --prd-root <path> --prior-plan <verified-plan.json>
 node .agents/scripts/iris-mcp.js check
 node .agents/scripts/iris-mcp.js call iris_doc "{...}"
@@ -271,10 +273,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 
 纯初始化入口 `coding-iris-init` 直接读取插件内真实 SKILL.md，manifest 的 `thinIndex.excludeSkills` 将其排除出浅层技能列表。已启用项目常规更新时，Check/DryRun 只报告旧受管索引，Write 精准删除；自定义文件和链接保留。迁移边界见能力包 [更新说明](../../docs/update-agents.md#纯初始化-skill-薄索引迁移)。
 
-- 提交与全局 upstream 检查去重：见 [协议](references/commit-upstream-check.md)，复用进程级 hooks.requireUpToDate 配置，手动提交保持原检查。
+- 提交与全局 upstream 检查去重：见 [协议](../demand-delivery-plugin/references/commit-upstream-check.md)，复用进程级 hooks.requireUpToDate 配置，手动提交保持原检查。
 
 ## BOS 需求衔接
 
-已启用 [bos-plugin](../bos-plugin/README.md) 的工程可从 bos-demand-handle 进入 IRIS 开发，复用已核对需求事实与原始授权；BOS 不是本插件硬依赖。提交仍使用 iris-demand-commit：有效“验收后提交”预授权在验收后直接执行，裸调用缺少模式时一次提示 --plan / --commit。
+已启用 [bos-plugin](../bos-plugin/README.md) 的工程可从 bos-demand-handle 进入 IRIS 开发，复用已核对需求事实与原始授权；BOS 不是本插件硬依赖。提交仍使用 demand-commit：有效“验收后提交”预授权在验收后直接执行，裸调用缺少模式时一次提示 --plan / --commit。
 
 提交计划支持 Overlay SourceRoot 的 Junction 入口和真实路径，并在 Apply 前重新核验归属；新增、删除文件沿最近现存父目录解析，逃逸链接或声明范围不符时停止。无需业务配置迁移，普通框架更新分发修复。

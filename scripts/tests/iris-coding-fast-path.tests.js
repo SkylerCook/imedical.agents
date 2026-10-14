@@ -10,7 +10,7 @@ const codingIndex = read('plugins/coding-iris-plugin/rules/iris_coding_index.md'
 assert.match(codingIndex, /默认 direct.*不要求基线会话.*仅.*guarded/);
 assert.doesNotMatch(codingIndex, /需要部署的业务需求在第一次修改前读取/);
 const skill = read("plugins/coding-iris-plugin/skills/iris-coding/SKILL.md");
-const demandCommitSkill = read("plugins/coding-iris-plugin/skills/iris-demand-commit/SKILL.md");
+const demandCommitSkill = read("plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md");
 const deploySkill = read("plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md");
 const i18nSkill = read("plugins/i18n-iris-plugin/skills/i18n-coding/SKILL.md");
 const lifecycle = read("agents/_shared/delivery-lifecycle.md");
@@ -34,9 +34,9 @@ for (const content of [deploySkill, i18nSkill]) {
 assert(!i18nSkill.includes("需求处理完成后，检查本次是否产生可跨需求复用的经验，并按需更新"));
 for (const forbidden of ["完成本地验证后读取“默认需求交付类型”", "需求完成后由 `iris-coding` 路由 `iris-demand-commit`"]) assert(!skill.includes(forbidden));
 
-assert(skill.includes("../iris-demand-commit/SKILL.md"));
+assert(skill.includes("../../../demand-delivery-plugin/skills/demand-commit/SKILL.md"));
 assert(skill.includes("--plan / --commit"));
-for (const marker of ["$iris-demand-commit --plan", "$iris-demand-commit --commit"]) assert(demandCommitSkill.includes(marker));
+for (const marker of ["$demand-commit --plan", "$demand-commit --commit"]) assert(demandCommitSkill.includes(marker));
 assert(demandCommitSkill.includes("`--plan` / `-plan`"));
 assert(demandCommitSkill.includes("`--commit` / `-commit`"));
 assert(demandCommitSkill.includes("不得继续询问是否提交"));

@@ -1,5 +1,7 @@
 # AGENTS.md
 
+需求提交使用 demand-delivery-plugin 的 demand-commit，标版补录使用 bos-plugin 的 bos-demand-entry；本插件不再提供兼容技能或 CLI。已部署项目由更新器迁移引用与启用状态，见 [迁移说明](../../docs/demand-delivery-migration.md)。
+
 Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/cls-coding-format.md)：修改前加载、最终 diff 后复核。独立 Review 接收该规范路径与项目显式覆盖，格式规范只用于本次新增代码，已有代码的功能修改不附带格式化；可选格式自检仅提示，不作为提交门禁。
 
 ## 插件定位
@@ -37,14 +39,14 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 - 历史前端 GB2312 转换后替换源文件：`skills/iris-frontend-gb2312-promote/SKILL.md`
 - IRIS 远端部署编排：`skills/iris-deploy/SKILL.md`
 - DEV→PRD 需求移植：`skills/iris-demand-promote/SKILL.md`
-- 标版/项目需求提交：`skills/iris-demand-commit/SKILL.md`
-- 标版需求闭环：`skills/iris-demand-entry/SKILL.md`，用户模式 `--text / --bind / --plan / --commit / --help`，可选 `--excel` / `--Excel`；名称带 `{IRIS}`，描述按缺陷或功能/改进使用简洁三段式，草稿仅支持 v2。历史来源用 `--rev`，不与提交授权混用。
+- 标版/项目需求提交：`../demand-delivery-plugin/skills/demand-commit/SKILL.md`
+- 标版需求闭环：`../bos-plugin/skills/bos-demand-entry/SKILL.md`，用户模式 `--text / --bind / --plan / --commit / --help`，可选 `--excel` / `--Excel`；产品标识取项目配置，描述按缺陷或功能/改进使用简洁三段式，草稿仅支持 v2。历史来源用 `--rev`，不与提交授权混用。
 - IRIS 类、方法签名与官方文档查询：`skills/iris-mcp-lookup/SKILL.md`
 
 前后端边界不明或混合编码需求使用 `iris-coding`；明确的纯后端、纯前端任务直接使用对应专项 skill。各编码入口默认 direct；仅要求 guarded 时建立基线会话，完整规则由 `references/deployment-protection.md` 维护。
 当用户明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
 当用户要求把已提交的 DEV 需求更新到独立 PRD 按需导出仓库时，使用 `iris-demand-promote`；需求来源是 DEV Git 补丁，目标基线必须从 PRD 服务器导出，默认只形成本地 PRD 提交。
-只有用户要求生成提交信息、明确要求提交，或显式调用 `$iris-demand-commit --plan|--commit` 时才使用 `iris-demand-commit`；本地验证完成不自动加载。`--plan` 只生成提交计划和完整 commit message，不执行 pull 或 commit，也不追问是否提交；`--commit` 视为本地提交授权，直接执行 plan/apply/verify。commit 不改变 `acceptance-pending`，也不触发 feedback；push 仍需另行授权。
+只有用户要求生成提交信息、明确要求提交，或显式调用 `$demand-commit --plan|--commit` 时才使用 `demand-commit`；本地验证完成不自动加载。`--plan` 只生成提交计划和完整 commit message，不执行 pull 或 commit，也不追问是否提交；`--commit` 视为本地提交授权，直接执行 plan/apply/verify。commit 不改变 `acceptance-pending`，也不触发 feedback；push 仍需另行授权。
 
 `iris-coding` 使用 `fast/full/guarded` 开发路径，但所有路径都必须读取项目入口、profile、通用规则和命中的专项规则。存在独立范围时做轻量 `parallelAssessment`，只在两个独立只读范围确有收益时自主使用最多两个临时子 Agent；主 Agent 是唯一写入者。并行写入、持续通信或跨会话协作应建议 `iris-change-agent` 正式 workflow。
 当用户要求查询 IRIS 类、方法、函数、宏、SQL 元数据或官方文档时，使用 `iris-mcp-lookup`；该 skill 默认只读，并把当前实例元数据与官方文档版本分开报告。
@@ -70,7 +72,7 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 
 ## 内置脚本
 
-`scripts/iris-tools/demand-entry.js` 为 standard 提供 Git 实际补丁取证、可恢复草稿、文本/Excel 输出、BOSS 编号回填与提交消息；`plan` 转交现有 commit-demand.js。历史提交只生成消息，不改写历史；Excel 可选，BOSS 由用户录入。所有写入入口拒绝 `.agents/` 与能力包源码路径，含目录链接别名；旧位置仍可只读作为输入。协议见 `references/standard-demand-entry.md`，无新增 npm/Python 依赖。
+
 
 `scripts/iris-tools/compile-csp.js` 固化 CSP 的 Atelier 编译通道：默认本地计划，显式 `--execute` 一次批量编译虚拟路径列表。仅编译指定文件（含 show.csp），不自动扩展父页面或重新上传；无自动重试。
 
@@ -88,7 +90,7 @@ SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项�
 
 `scripts/iris-tools/promote-demand.js` 提供 DEV→PRD 需求的 plan/apply/continue/verify 状态机；计划按 DEV/PRD 绝对路径身份隔离，远端基线暂存于系统临时目录，不写入 `.agents/work` 或业务源码，直到 apply 通过全部探测门禁。冲突后的 `continue` 必须重新校验 DEV/PRD HEAD，并拒绝未暂存或未跟踪状态。
 
-`scripts/iris-tools/commit-demand.js` 提供普通标版/项目需求的 plan/apply/verify 状态机；新计划通过一次批量 Git 状态读取生成包含 index blob 与工作区字节哈希的防漂移指纹，`apply --verify` 在同一进程完成提交和验证；独立 verify 可重复执行，实际提交文件集合必须与计划精确一致。它先完成全部仓库的安全 pull 门禁，再只提交计划内精确路径，不扫描父目录或无关 sibling，不执行 push。
+
 
 `generate-plugin-thin-index.ps1` 不复制到目标工程；初始化和重建索引时直接调用插件内脚本。
 
@@ -116,8 +118,8 @@ SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项�
 
 遵循 agents/_shared/execution-guidance.md（源仓根；部署态为 .agents/agents/_shared/）。guidanceMode 默认 auto，可选 concise/assisted；辅助程度不改变授权、编码及领域契约。方法允许合并或重排，IRIS 编码共用 iris_coding_general 的风险分流。业务验收后按信号加载 feedback，无信号不例行报告。现有工程按 docs/update-agents.md 定点合并项目入口，普通能力包更新不重写用户 AGENTS/profile。
 
-- 提交与全局 upstream 检查去重：见 [协议](references/commit-upstream-check.md)，复用进程级 hooks.requireUpToDate 配置，手动提交保持原检查。
+- 提交与全局 upstream 检查去重：见 [协议](../demand-delivery-plugin/references/commit-upstream-check.md)，复用进程级 hooks.requireUpToDate 配置，手动提交保持原检查。
 
 ## BOS 需求入口
 
-BOS 查询和已有需求处理归独立 bos-plugin；项目已启用时从其 bos-demand-handle 路由到本插件。直接正文开发无需 BOS 配置。事实和有效预授权复用；验收后提交及裸调用语义由 iris-demand-commit 统一维护，不另建提交机制。
+BOS 查询和已有需求处理归独立 bos-plugin；项目已启用时从其 bos-demand-handle 路由到本插件。直接正文开发无需 BOS 配置。事实和有效预授权复用；验收后提交及裸调用语义由 demand-commit 统一维护，不另建提交机制。

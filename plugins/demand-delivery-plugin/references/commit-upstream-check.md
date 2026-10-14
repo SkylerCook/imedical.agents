@@ -8,10 +8,10 @@
 
 先通过 git config --show-origin --show-scope --get-all core.hooksPath 与 git rev-parse --git-path hooks/pre-commit 核对实际生效钩子，不依据 .git/hooks 文件存在判断生效。只有读取 hooks.requireUpToDate 的钩子支持本去重；不识别该配置的钩子保持原行为，不自动改写或替换。
 
-实现、测试与本文随既有 plugins 路径分发，无安装器改动、无钩子模板、无需改全局配置。已有工程更新 coding-iris-plugin 即可；未发布版本可按授权定点对比同步。同步完成不等于框架已提交、发布或其他工程已更新。
+实现、测试与本文随既有 plugins 路径分发，无安装器改动、无钩子模板、无需改全局配置。已有工程完整更新能力包即可；未发布版本可按授权定点对比同步。同步完成不等于框架已提交、发布或其他工程已更新。
 
 ## 验证
 
-node --test plugins/coding-iris-plugin/scripts/iris-tools/tests/commit-upstream-check.test.js
+node --test plugins/demand-delivery-plugin/tests/commit-upstream-check.test.js
 
 模拟执行覆盖成功后仅 commit 设置开关、pull 失败、HEAD 漂移、快照变化阻断及 local-only 不设置开关。测试不执行真实提交或联网。跨平台代码不依赖 shell；Windows 已验证，macOS/Linux 仍待对应环境执行。

@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { resolveWorkspaceContext, resolveSourceFilePath, resolveGitRootForPath } = require('../../../../scripts/lib/workspace-context');
+const { resolveWorkspaceContext, resolveSourceFilePath, resolveGitRootForPath } = require('../../../scripts/lib/workspace-context');
 
 const SCHEMA = 'iris-demand-commit-plan/v1';
 const TYPES = new Set(['feat', 'fix', 'refactor', 'docs', 'chore']);
@@ -39,7 +39,7 @@ function toCamel(value) {
 function runGit(root, args, options = {}) {
   const remainingBudget = PROCESS_BUDGET_MS - (Date.now() - processStartedAt);
   if (remainingBudget <= 0) throw new Error('提交工具本轮执行已达到 2 分钟上限，请检查当前 Git 卡点后重试');
-  if (process.env.IRIS_DEMAND_COMMIT_DEBUG === '1') process.stderr.write(`[git:start] ${root} :: ${args.join(' ')}\n`);
+  if ((process.env.DEMAND_COMMIT_DEBUG === '1' || process.env.IRIS_DEMAND_COMMIT_DEBUG === '1')) process.stderr.write(`[git:start] ${root} :: ${args.join(' ')}\n`);
   const result = spawnSync('git', ['-C', root, ...args], {
     encoding: options.encoding || 'utf8',
     windowsHide: true,
@@ -47,7 +47,7 @@ function runGit(root, args, options = {}) {
     timeout: Math.min(options.timeout || 60000, remainingBudget),
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' },
   });
-  if (process.env.IRIS_DEMAND_COMMIT_DEBUG === '1') process.stderr.write(`[git:end] status=${result.status} ${args[0]}\n`);
+  if ((process.env.DEMAND_COMMIT_DEBUG === '1' || process.env.IRIS_DEMAND_COMMIT_DEBUG === '1')) process.stderr.write(`[git:end] status=${result.status} ${args[0]}\n`);
   if (result.error) throw new Error(`git -C ${root} ${args.join(' ')} 执行异常: ${result.error.message}`);
   if (result.status !== 0 && !options.allowFailure) {
     const message = String(result.stderr || result.stdout || '').trim();
@@ -460,4 +460,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { buildMessage, validateModification, planCommand, applyCommand, verifyCommand };
+module.exports = { main, buildMessage, validateModification, planCommand, applyCommand, verifyCommand };

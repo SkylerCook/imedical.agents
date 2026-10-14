@@ -1,5 +1,8 @@
 # 能力使用指南（非 xc）
 
+IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 projectEnvFallback；本地配置存在就不回退。仍在模块入口执行，不切换主仓。见 [部署清单](../../plugins/coding-iris-plugin/rules/iris_deploy_checklist.md#部署配置继承)。
+
+
 本手册帮助使用者选择能力、提供输入和判断结果。[能力目录](capability-catalog.md)列出非 xc 插件内全部 skill、rule 及源文件；本文为每个 skill 提供请求示例。详细操作和最新参数以链接的 SKILL.md 为准。
 
 ## 第一次使用
@@ -48,8 +51,8 @@
 只有 skill 明确声明的参数才可使用。例如下面是给 Agent 的请求：
 
 ```text
-使用 iris-demand-entry --text，从当前标版改动生成需求录入文本。
-使用 iris-demand-commit --plan，只生成已验证改动的提交方案。
+使用 bos-demand-entry --text，从当前标版改动生成需求录入文本。
+使用 demand-commit --plan，只生成已验证改动的提交方案。
 ```
 
 `--plan`、`--commit` 不是所有 skill 的通用参数。对没有这些参数的能力，直接说“先给计划”“只做差异检查”或“执行已确认范围”；实际脚本命令由 Agent 按技能正文选择。需要手工执行时，使用源文档中的完整命令，并确认运行目录和前提。
@@ -73,7 +76,7 @@
 | 文档新建治疗表单 | `extract-doc-ingest` 提取结构 → `cure-form-requirement-adapter` 生成规格 → 人工确认且 unresolved 清零 → CA 用 `cure-assess-form-dev`，CR 用 `cure-record-form-dev` → 预览与交互验证 → 按范围进入 `cure-form-deploy` |
 | 现有表单响应式 | `cure-form-responsive` 检查模板并保留契约 → 完整预览与验证 → 需要发布时进入部署流程；新任务不必使用旧名称 |
 | 页面国际化 | 定位链路和分类 → `i18n-coding` / `i18n-text-extract` → 页面非字典文案用 `i18n-page-trans-seed`，字典项用 `i18n-bdp-trans-seed` → 核验；已有服务器翻译迁移用 `i18n-csp-trans-sync` |
-| 标版需求录入 | `iris-demand-entry --text`（按需加 `--excel`）→ 用户录入 BOSS → 回填编号与标题 → `--bind` / `--plan` → 明确提交时 `--commit`；完整参数见[需求录入协议](../../plugins/coding-iris-plugin/references/standard-demand-entry.md) |
+| 标版需求录入 | `bos-demand-entry --text`（按需加 `--excel`）→ 用户录入 BOSS → 回填编号与标题 → `--bind` / `--plan` → 明确提交时 `--commit`；完整参数见[需求录入协议](../../plugins/bos-plugin/references/standard-demand-entry.md) |
 | 已有 BOS 需求处理 | `bos-demand-handle` → 有编号时只读获取详情，主动读取相关截图与附件，已有充分事实则复用 → 按技术栈实施、自查和目标验证 → 用户验收 → 执行已明确授权的提交；不自动回写 BOS |
 | 跨会话继续需求 | 启用 `task-handoff` → 执行 Agent 在关键节点维护 → 明确交接时保存快照 → 新会话读取记录、inspect 核实现场 → 继续已授权范围；详见[交接说明](../task-handoff.md) |
 
@@ -124,8 +127,8 @@
 | [coding-iris-init](../../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md) | 为当前 IRIS 工程接入 coding-iris-plugin，检查现有配置和脚本入口。 | 目标工程与实际配置可核实；产出 profile、脚本及薄索引检查结果，保留已有值。 |
 | [iris-backend-coding](../../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md) | 修改指定类方法以满足这份需求，保留分层和返回契约，按框架规范检查新增代码。 | 提供类方法、需求及范围，有项目显式规范时一并提供；编码与 Review 共用 CLS 规范，格式化只处理本次新增代码，不附带整理已有代码。产出本地源码，分别报告 Agent 审查、脚本覆盖项及编译/运行证据。 |
 | [iris-coding](../../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md) | 修改这个功能，先查明前后端调用链，再完成范围内实现。 | 提供功能入口和需求；产出任务路由、相关前后端变更及验证说明。 |
-| [iris-demand-commit](../../plugins/coding-iris-plugin/skills/iris-demand-commit/SKILL.md) | 使用 iris-demand-commit --plan，为已验证改动生成提交方案。 | 实现已验证；--plan 不提交，明确 --commit 才执行本地提交；push 独立授权。 |
-| [iris-demand-entry](../../plugins/coding-iris-plugin/skills/iris-demand-entry/SKILL.md) | 使用 iris-demand-entry --text，根据当前改动整理标版需求录入文本。 | 仅 standard；输出 `{IRIS}` 名称和三段式描述，缺陷为操作/预期/实际，功能改进为说明/操作/预期；用户、安全组、科室按需补充。文本或可选 Excel，人工录 BOSS 后回填编号，再衔接提交。草稿仅支持 v2；输出限工程临时目录或正式需求目录，不写入 `.agents/` 或能力包源码。 |
+| [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md) | 使用 demand-commit --plan，为已验证改动生成提交方案。 | 实现已验证；--plan 不提交，明确 --commit 才执行本地提交；push 独立授权。 |
+| [bos-demand-entry](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md) | 使用 bos-demand-entry --text，根据当前改动整理标版需求录入文本。 | 仅 standard；输出项目产品标识前缀的名称和三段式描述，缺陷为操作/预期/实际，功能改进为说明/操作/预期；用户、安全组、科室按需补充。文本或可选 Excel，人工录 BOSS 后回填编号，再衔接提交。草稿仅支持 v2；输出限工程临时目录或正式需求目录，不写入 `.agents/` 或能力包源码。 |
 | [iris-demand-promote](../../plugins/coding-iris-plugin/skills/iris-demand-promote/SKILL.md) | 先评估将 DEV 的指定提交移植到指定 PRD 仓库的范围和基线。 | 明确两个仓库、提交及服务器基线读取范围；授权实施后形成 PRD 本地提交，不部署。 |
 | [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 将这些文件部署到已指定环境并检查编译。 | 明确目标、文件和授权范围后直接执行，默认 direct，无需 Git 基线会话；需要三方合并时选 guarded，分别报告上传、回读、编译及业务验证。 |
 | [iris-frontend-coding](../../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md) | 调整指定 HISUI 页面的交互，或排查弹窗面板留白、裁切与滚动异常，保留现有数据和调用契约。 | 提供页面、行为要求及项目显式规范/兼容基线；编码与 Review 共用前端规范，仅对本次新增代码应用格式约定，按条件加载 i18n。分别报告静态检查、自审或独立 Review、实际页面验证；布局问题仍路由到 HISUI 样式参考；新建页面或审查初始化链路时，按依赖与容器契约选择 JS 组织模板。 |
@@ -229,3 +232,9 @@
 - [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：请求“处理 BOS 12345”，主动读取影响需求理解的截图和附件，按项目技术栈实现与验证；“验收后提交”可提前授权本需求提交，单独验收不会自动提交。完整正文可在 BOS 不可用时继续本地工作。
 
 简单任务由当前 Agent 连续修改、自查和目标验证；IRIS 前端/后端范围明确时直达专项技能，混合或边界不明时进入 iris-coding，非 IRIS 沿用项目规范。回归按实际改动选择，正式协作按条件加载已有协议；只有明确要求交接才建交接记录。提交仍按原授权执行。新进程可读入口、真实宿主发现及简单需求提效分别验证，见 [场景](../../plugins/bos-plugin/references/scenarios.md)。
+
+## demand-delivery-plugin
+
+启用新入口后使用 [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md) 的 `--plan` 生成提交信息，明确 `--commit` 执行本地提交。当前用户或项目约定须明确 standard/project、数字需求号、标题与精确文件；无须 IRIS profile。其它提交格式沿用项目规范。
+
+BOS 补录使用 [bos-demand-entry](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md) 的 `--text`，按需加 `--excel`；产品标识来自项目或用户确认，录入后用 `--bind` 回填，再独立授权提交。本地补录不要求 BOS 凭据。本文旧 iris-demand-* 示例仍作为兼容调用可用。详见 [迁移说明](../demand-delivery-migration.md)。

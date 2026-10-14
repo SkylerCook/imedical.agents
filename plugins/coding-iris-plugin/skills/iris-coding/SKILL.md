@@ -17,8 +17,8 @@ description: Route IRIS coding requests with unclear frontend/backend boundaries
 | 已提交 DEV 需求移植到独立 PRD 按需导出仓库 | [iris-demand-promote](../iris-demand-promote/SKILL.md)，区别于远端生产部署 |
 | 用户明确处理历史 GB2312 工程并要求将临时文件替换回源文件 | [iris-frontend-gb2312-promote](../iris-frontend-gb2312-promote/SKILL.md) |
 | IRIS 类、方法签名、宏、SQL 元数据或官方文档查询 | [iris-mcp-lookup](../iris-mcp-lookup/SKILL.md) |
-| 用户要求从补丁补录 BOSS 需求、可选 Excel 或编号回填 | [iris-demand-entry](../iris-demand-entry/SKILL.md) |
-| 用户要求生成提交信息、明确要求提交，或显式调用 iris-demand-commit 的 --plan / --commit | [iris-demand-commit](../iris-demand-commit/SKILL.md)；本地验证完成不自动加载该 skill |
+| 用户要求从补丁补录 BOSS 需求、可选 Excel 或编号回填 | [bos-demand-entry](../../../bos-plugin/skills/bos-demand-entry/SKILL.md) |
+| 用户要求生成提交信息、明确要求提交，或显式调用 demand-commit 的 --plan / --commit | [demand-commit](../../../demand-delivery-plugin/skills/demand-commit/SKILL.md)；本地验证完成不自动加载该 skill |
 
 ## 修改前
 
@@ -41,7 +41,7 @@ description: Route IRIS coding requests with unclear frontend/backend boundaries
 ## 完成条件与交付
 
 - 命中的专项规则、字节检查、i18n 门禁和必要验证已完成；缺失验证明确说明限制，未通过的门禁不能报告完成。
-- 报告改动范围、验证结果及必要的混合任务接口分工；前端正常时只给一行编码摘要。提交计划与 commit 结果仅在用户要求时按 iris-demand-commit 输出，需求号、标题和默认交付类型不触发提交或追问。
+- 报告改动范围、验证结果及必要的混合任务接口分工；前端正常时只给一行编码摘要。提交计划与 commit 结果仅在用户要求时按 demand-commit 输出，需求号、标题和默认交付类型不触发提交或追问。
 - 业务需求设置 taskKind=business-demand，按[交付生命周期](../../../../agents/_shared/delivery-lifecycle.md)进入 acceptance-pending 并给出最短验收步骤。仅在用户验收后且存在框架缺陷、规则冲突、可复用经验或用户要求时做只读 feedback 审查；任何写入逐项授权。
 - 纯框架维护使用 taskKind=framework-maintenance 和[维护生命周期](../../../../agents/_shared/maintenance-lifecycle.md)，不进入业务验收或 feedback 流程。
 

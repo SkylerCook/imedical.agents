@@ -10,6 +10,7 @@
 
 | 插件 | 用途 | 接入入口 | 直接依赖 |
 |---|---|---|---|
+| [demand-delivery-plugin](#demand-delivery-plugin) | 数字需求号的跨技术栈提交 | demand-commit；无专用初始化 | 无插件依赖 |
 | [bos-plugin](#bos-plugin) | BOS 查询与跨技术栈需求处理 | [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md) | 无插件依赖 |
 | [agent-context-kit](#agent-context-kit) | 项目上下文、宿主技能接入、需求交接 | [project-context-maintenance](../../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md) | 无插件依赖 |
 | [agent-framework-evolution](#agent-framework-evolution) | 已验收业务需求反馈与通用能力打包 | [agent-framework-evolution-init](../../plugins/agent-framework-evolution/skills/agent-framework-evolution-init/SKILL.md) | 无插件依赖 |
@@ -25,6 +26,14 @@
 
 接入入口不一定是纯初始化 skill：例如 project-context-maintenance、extract-doc-ingest 和两个图谱入口也承担日常任务。是否生成薄索引以 manifest 的 thinIndex.excludeSkills 为准；不能仅按 initSkill 字段排除。
 
+## demand-delivery-plugin
+
+| Skill | 用途 | 类型 |
+|---|---|---|
+| [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md) | standard/project 提交计划、本地提交与验证，无 IRIS 配置依赖 | 日常入口 |
+
+接入与旧入口兼容见 [迁移说明](../demand-delivery-migration.md)。
+
 ## bos-plugin
 
 跨技术栈的 BOS 只读查询与已有需求处理，无 IRIS 插件强依赖。详见 [插件说明](../../plugins/bos-plugin/README.md)。
@@ -32,6 +41,7 @@
 | 入口 | 中文用途 | 入口类型 |
 |---|---|---|
 | [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md) | 个人身份初始化、明确接入和项目发现 | 初始化入口 |
+| [bos-demand-entry](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md) | 从 Git 补丁生成标版需求、回填编号并衔接提交 | 日常入口 |
 | [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md) | 列表、详情和附件元数据只读查询 | 日常入口 |
 | [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md) | 需求分流、实施验证与验收提交衔接 | 日常入口 |
 
@@ -82,8 +92,8 @@ IRIS 前后端开发、知识查询、需求提交与部署。详见[插件说�
 | [coding-iris-init](../../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md) | 初始化 IRIS 编码能力 | 纯初始化，直接读取源文件 |
 | [iris-backend-coding](../../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md) | 按统一命名与格式规范实现、复核 ObjectScript 后端 | 日常入口 |
 | [iris-coding](../../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md) | 路由混合或边界不明的 IRIS 开发 | 日常入口 |
-| [iris-demand-commit](../../plugins/coding-iris-plugin/skills/iris-demand-commit/SKILL.md) | 生成需求提交方案或执行本地提交 | 日常入口 |
-| [iris-demand-entry](../../plugins/coding-iris-plugin/skills/iris-demand-entry/SKILL.md) | 从标版 Git 改动生成 `{IRIS}` 名称与三段式需求描述 | 日常入口 |
+
+
 | [iris-demand-promote](../../plugins/coding-iris-plugin/skills/iris-demand-promote/SKILL.md) | 将 DEV 已提交需求移植到 PRD 本地仓库 | 日常入口 |
 | [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 规划和执行 IRIS 远端部署 | 日常入口 |
 | [iris-frontend-coding](../../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md) | 按统一前端规范实现与复核 CSP、HTML、JavaScript、CSS、HISUI 前端 | 日常入口 |

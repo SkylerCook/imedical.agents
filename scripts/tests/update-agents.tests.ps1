@@ -60,6 +60,7 @@ function New-TestProject {
   Copy-Item -LiteralPath $agentThinIndexScriptUnderTest -Destination (Join-Path $root ".agents/scripts/generate-agent-thin-index.ps1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/refresh-agents-sparse.js") -Destination (Join-Path $root ".agents/scripts/refresh-agents-sparse.js")
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-agents.ps1")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/migrate-demand-ownership.js") -Destination (Join-Path $root ".agents/scripts/migrate-demand-ownership.js")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-runtime-skills.js") -Destination (Join-Path $root ".agents/scripts/sync-runtime-skills.js")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/workspace-context.js") -Destination (Join-Path $root ".agents/scripts/lib/workspace-context.js")
   Copy-Item -LiteralPath $profileScriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-plugin-profile.ps1")
@@ -507,7 +508,7 @@ Assert-True ($interfaceDevManifest.name -eq "iris-interface-dev") "interface plu
 Assert-True (@($interfaceDevManifest.configMigrations | Where-Object { $_.id -eq "interface-output-root-v1" }).Count -eq 1) "interface plugin should declare the output-root migration"
 Assert-True ([version]$codingIrisManifest.version -ge [version]"0.6.0") "coding iris plugin manifest should expose guarded demand commit workflow"
 Assert-True (@($codingIrisManifest.configMigrations | Where-Object { $_.id -eq "demand-delivery-type-v1" }).Count -eq 1) "coding iris plugin should declare demand delivery type migration"
-Assert-True (Test-Path -LiteralPath (Join-Path $repoRoot "plugins/coding-iris-plugin/skills/iris-demand-commit/SKILL.md") -PathType Leaf) "coding iris plugin should include iris-demand-commit"
+Assert-True (Test-Path -LiteralPath (Join-Path $repoRoot "plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md") -PathType Leaf) "demand delivery plugin should include demand-commit"
 Assert-True ($cureFormDevManifest.name -eq "iris-cure-form-dev") "cure form plugin manifest should use the canonical name"
 Assert-True ([version]$cureFormDevManifest.version -ge [version]"0.7.2") "cure form plugin manifest should accept the coding iris v0.9 compatibility range"
 Assert-True (($cureFormDevManifest.dependencies -contains "extract-doc")) "cure form plugin should declare extract-doc as a dependency"
@@ -861,7 +862,9 @@ try {
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $legacySparseAgentsRoot "scripts/update-agents.ps1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/refresh-agents-sparse.js") -Destination (Join-Path $legacySparseAgentsRoot "scripts/refresh-agents-sparse.js")
   Copy-Item -LiteralPath $workspaceContextModuleUnderTest -Destination (Join-Path $legacySparseAgentsRoot "scripts/lib/WorkspaceContext.psm1")
-  git -C $legacySparseAgentsRoot add scripts/update-agents.ps1 scripts/lib/WorkspaceContext.psm1 scripts/refresh-agents-sparse.js
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/migrate-demand-ownership.js") -Destination (Join-Path $legacySparseAgentsRoot "scripts/migrate-demand-ownership.js")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/workspace-context.js") -Destination (Join-Path $legacySparseAgentsRoot "scripts/lib/workspace-context.js")
+  git -C $legacySparseAgentsRoot add scripts/update-agents.ps1 scripts/lib/WorkspaceContext.psm1 scripts/refresh-agents-sparse.js scripts/migrate-demand-ownership.js scripts/lib/workspace-context.js
   git -C $legacySparseAgentsRoot commit -m "test: seed legacy sparse checkout" | Out-Null
   git -C $legacySparseAgentsRoot sparse-checkout init --no-cone
   git -C $legacySparseAgentsRoot sparse-checkout set --no-cone "/scripts/*.ps1"
@@ -875,6 +878,7 @@ try {
   $legacySparseOutput = & (Join-Path $legacySparseAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $legacySparseProjectRoot -Mode DryRun -NoPull -ResumedAfterSelfUpdate -Detailed | Out-String
   Assert-Contains $legacySparseOutput "workspace-context-resolver-restored" "Self-updated updater should restore runtime modules omitted by a legacy sparse checkout"
   Assert-True (Test-Path -LiteralPath (Join-Path $legacySparseAgentsRoot "scripts/lib/WorkspaceContext.psm1")) "Legacy sparse recovery should materialize WorkspaceContext.psm1"
+  Assert-True (Test-Path -LiteralPath (Join-Path $legacySparseAgentsRoot "scripts/migrate-demand-ownership.js")) "Sparse recovery must deploy the demand migration helper"
   Assert-Contains (Get-Content -Raw -LiteralPath (Join-Path $legacySparseAgentsRoot ".git/info/sparse-checkout")) "/scripts/lib/**" "Legacy sparse recovery should persist the current runtime sparse paths"
 }
 finally {

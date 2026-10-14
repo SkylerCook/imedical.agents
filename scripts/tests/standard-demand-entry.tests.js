@@ -5,9 +5,9 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const entry = require('../../plugins/coding-iris-plugin/scripts/iris-tools/demand-entry');
-const { buildWorkbook, HEADERS } = require('../../plugins/coding-iris-plugin/scripts/iris-tools/demand-entry-xlsx');
-const script = path.resolve(__dirname, '../../plugins/coding-iris-plugin/scripts/iris-tools/demand-entry.js');
+const entry = require('../../plugins/bos-plugin/scripts/demand-entry');
+const { buildWorkbook, HEADERS } = require('../../plugins/bos-plugin/scripts/demand-entry-xlsx');
+const script = path.resolve(__dirname, '../../plugins/bos-plugin/scripts/demand-entry.js');
 const modification = '增加模板内容必填校验，在空内容保存时显示提示并聚焦输入框，避免提交无效模板';
 const bugDescription = { format: 'bug', steps: ['进入模板维护界面。', '保持内容为空，点击【暂存】。'], expected: '提示必填，不保存空模板。', actual: '空内容仍提示暂存成功。' };
 function git(repo, ...args) {
@@ -240,11 +240,22 @@ test('incomplete descriptions and missing technology prefix fail before output i
   }
   spec.requirements[0].description = bugDescription;
   spec.requirements[0].name = '模板校验';
-  assert.throws(() => entry.prepare(spec, temp), /IRIS/);
+  assert.throws(() => entry.prepare(spec, temp), /产品标识/);
   delete draft.requirements[0].description.expected;
   const output = path.join(temp, 'invalid-description');
   assert.throws(() => entry.deliver(draft, output, false), /description.expected/);
   assert.equal(fs.existsSync(output), false);
   draft.schema = 'iris-standard-demand/v1';
   assert.throws(() => entry.bind(draft, 'r1', '123', '标题'), /不支持的需求草稿/);
+});
+
+ test('non-IRIS product uses the same draft and Excel protocol', t => {
+  const { repo, temp } = fixture(t); const { spec } = draftFor(repo, temp);
+  spec.requirements[0].name = '{WEB} 模板校验';
+  const draft = entry.prepare(spec, temp);
+  assert.match(entry.renderText(draft.requirements[0]), /\{WEB\}/);
+  entry.bind(draft, 'r1', '1234567', '跨技术栈需求');
+  assert.match(entry.messages(draft, 'r1')[0].message, /需求描述:1234567 跨技术栈需求/);
+  const sheet = unzipStored(buildWorkbook([draft.requirements[0]], { 模块编码: 'TEST' }, entry.renderText))['xl/worksheets/sheet1.xml'];
+  assert.match(sheet, /\{WEB\}/);
 });

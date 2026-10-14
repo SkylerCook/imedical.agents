@@ -1,6 +1,6 @@
 ---
-name: iris-demand-entry
-description: Standard IRIS demand lifecycle with --text, --bind, --plan, --commit and --help modes. Extract demand text from Git changes or commits, optionally add --excel/--Excel, then bind a BOSS number and hand off to iris-demand-commit. Not for project delivery.
+name: bos-demand-entry
+description: Standard BOS demand lifecycle with --text, --bind, --plan, --commit and --help modes. Extract demand text from Git changes or commits, optionally add --excel/--Excel, then bind a BOSS number and hand off to demand-commit. Not for project delivery.
 ---
 
 # 标版需求录入与提交衔接
@@ -8,6 +8,8 @@ description: Standard IRIS demand lifecycle with --text, --bind, --plan, --commi
 仅用于 `standard`：代码改动或指定提交 → 需求文本 → 用户录入 BOSS → 回填需求号和最终标题 → 标版 commit message → 获授权后本地提交。用户说“根据提交提需求”“代码改完补需求”“生成 demand text”“标版需求闭环”时使用。此入口明确选择 standard，不修改工程默认交付类型；明确 project 请求转交原流程。
 
 默认输出可复制文本；`--excel` 与 `--Excel` 等价，额外生成 29 列导入表，不是必经步骤。Excel 缺少模块编码时先交付文本，再一次性请求缺失字段；不猜测编号、模块编码、指派人或验收完成事实。只按用户明确需要生成 Excel，不因闭环请求自动导出。
+
+文本、Excel 和编号回填均为本地流程，不要求 BOS 连接凭据。新入口按项目 plugin profile 接入 bos-plugin；旧兼容入口不自动启用查询或其它插件。提交复用 demand-delivery-plugin，不依赖 IRIS 配置。
 
 ## 模式参数（用户入口）
 
@@ -19,18 +21,18 @@ description: Standard IRIS demand lifecycle with --text, --bind, --plan, --commi
 | `--text` | 从本次改动或指定历史提交生成需求文本与草稿 | collect → Agent 按实际补丁写 spec → prepare |
 | `--bind <需求号>` | 回填 BOSS 编号、最终标题，并立即输出提交消息 | bind → message |
 | `--plan` | 根据已绑定草稿生成完整提交信息 | worktree：plan；history：message |
-| `--commit` | 明确授权所选需求的本地提交，不包含 push | plan → iris-demand-commit apply --confirm-commit --verify |
+| `--commit` | 明确授权所选需求的本地提交，不包含 push | plan → demand-commit apply --confirm-commit --verify |
 
 ```text
-$iris-demand-entry --help
-$iris-demand-entry --text
-$iris-demand-entry --text --excel --module-code DT-20
-$iris-demand-entry --text --range HEAD~3..HEAD
-$iris-demand-entry --text --rev abc123 --rev def456 --Excel
-$iris-demand-entry --bind 7060431 --title "BOSS 最终需求标题"
-$iris-demand-entry --bind 7060431 --same-title
-$iris-demand-entry --plan
-$iris-demand-entry --commit
+$bos-demand-entry --help
+$bos-demand-entry --text
+$bos-demand-entry --text --excel --module-code DT-20
+$bos-demand-entry --text --range HEAD~3..HEAD
+$bos-demand-entry --text --rev abc123 --rev def456 --Excel
+$bos-demand-entry --bind 7060431 --title "BOSS 最终需求标题"
+$bos-demand-entry --bind 7060431 --same-title
+$bos-demand-entry --plan
+$bos-demand-entry --commit
 ```
 
 附加参数：
@@ -56,7 +58,7 @@ $iris-demand-entry --commit
 
 ## 简洁录入模板
 
-- **需求名称**：`{IRIS} 业务端-功能入口-问题或目标`，使用已核实的业务名称；描述正文不重复名称、标题或 `content` 标签。
+- **需求名称**：`{产品标识} 业务端-功能入口-问题或目标`，产品标识取自项目明确约定或本次用户输入；未确定时一次补问，不从技术栈猜测。迁移项目的默认标识读取 `.agents/config/demand_delivery_profile.md`；明确项目约定或用户输入优先。使用已核实的业务名称；描述正文不重复名称、标题或 `content` 标签。
 - **缺陷**（`description.format=bug`）：`【操作步骤】→【预期结果】→【实际结果】`。实际结果描述修复前现象；步骤包含复现所需操作，异常恢复仅在本次改动涉及时补充。
 - **新功能、功能改进**（`description.format=change`）：`【需求说明】→【操作步骤】→【预期结果】`。步骤描述交付后的使用/验证方式，预期写清可观察的行为。
 - 用户、安全组、科室已有且相关时写入步骤；缺失时省略，不为这些常规信息追问。只有问题依赖特定用户、权限、安全组或科室时，才作为必要条件补齐。共享模板和示例不保存业务账号或连接信息。
@@ -74,7 +76,7 @@ $iris-demand-entry --commit
 
 ## 正式提交
 
-只对 worktree 来源使用 [iris-demand-commit](../iris-demand-commit/SKILL.md)：`demand-entry.js plan` 校验草稿后转交原 `commit-demand.js plan`，固定 `--kind standard`，复用精确文件、每仓库修改说明、BOSS 编号与最终标题。不能把 draft 当作 commit plan，也不能手工编辑生成的 plan。
+只对 worktree 来源使用 [demand-commit](../../../demand-delivery-plugin/skills/demand-commit/SKILL.md)：`demand-entry.js plan` 校验草稿后转交原 `commit-demand.js plan`，固定 `--kind standard`，复用精确文件、每仓库修改说明、BOSS 编号与最终标题。不能把 draft 当作 commit plan，也不能手工编辑生成的 plan。
 
 生成消息或回填编号不授权 commit。用户明确要求提交时，沿用已有授权展示 plan 后执行原 `apply --confirm-commit --verify`，不重复确认；pull 门禁、漂移停止和多仓库部分成功报告均沿用原 skill。已完成验证的有效证据复用，未知验证状态如实报告。push、部署与 BOSS 写入不包含在本流程；BOSS 由用户录入。提交不改变业务验收状态。
 

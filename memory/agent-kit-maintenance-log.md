@@ -1,5 +1,8 @@
 # imedical.agents 维护日志
 
+- 2026-10-14（需求交付归属迁移）：demand-delivery-plugin 0.1.0 接管通用提交，bos-plugin 0.3.0 接管标版补录；coding-iris-plugin 0.16.0 删除旧技能、CLI 和引用别名，六个直接依赖插件递增 patch 并扩大兼容范围。根更新器独立识别旧部署，先检查显式状态、自定义内容、链接、目标和过滤冲突，再生成验证新入口、迁移项目 AGENTS/本地文档与配置、启用缺失 owner、删除旧受管入口。迁移 product/default-kind 配置，保留草稿与计划数据协议；不初始化 BOS 个人凭据、不访问外部服务、不自动更新业务副本。
+  - 验证：Windows Node 24 联合回归 52/52 通过（提交/hook 21、BOS 发现/更新 8、补录 19、迁移专项 4）；最终迁移规则定向复验通过。PS7 / PS5.1 均验证了 standard/Overlay 的 DryRun、接入启用、删除旧入口和幂等更新。PS5.1 更新器首轮已通过前半段，在 legacy sparse 夹具漏打包新增 helper 处停止；补齐 helper/resolver 与实际落盘断言后，从该场景续跑至末尾全部通过。技能 frontmatter、路由与部署文档链接检查、diff check 通过；版本检查无本轮新增问题，保留已登记 xc 历史记录债务。非 Windows CI、真实宿主与业务副本尚未验证。验证证据更新至 D:/tmp/Codex/demand-ownership-20261014/validation-evidence.json；测试产物收尾清理后只保留此文件。本轮按用户授权提交并推送，未同步真实业务项目；工作区并行的部署配置改动保留，不纳入本轮验证结论。
+
 - 2026-10-14（路由、预检、混合 CSP 与提交复核）：coding-iris 0.15.9 对齐默认 direct/可选 guarded 索引，verify 支持重复执行并按 NUL 路径集合核对缺少/额外文件；部署、CSP 编译和 SFTP 配置统一消费 workspace 校验结果。更新器统一报告/停止状态，缺少独立 .agents Git 时在任何 exclude/索引生成前失败，Overlay 复用 initializer 的阻断结论。i18n 0.2.6 修正四技能 frontmatter，helper 扫描区分客户端区域、服务端表达式及模板插值，事件实体位置映射回源码。同步 owner、README、更新说明与发布记录；无配置/会话迁移，无旧文件清理，不同步业务副本。
   - 验证：Windows Node 24 下提交 15 项（全套 14 项及修正完整性夹具后的负例复测）、direct/编译 19 项、前端/SFTP/resolver 18 项、helper/预检 12 项及路由契约 4 项通过；Windows PowerShell 5.1 更新器全套通过，PowerShell 7 新增发现/停止回归通过，暂存版本门禁验证 7 个相关组件通过。更新器全套测试的旧后条件断言已对齐 canonical CLS 引用，无业务规范变更。提交钩子命中的两处历史合成密码改为运行时随机值，保留值不变断言；PowerShell 5.1 两段受影响夹具及原凭据扫描器复验通过。新增混合语法与工作区检查纳入既有三平台 Node 22/24 矩阵；非 Windows 本机无法执行，不能视为已通过。测试只用合成 Git/本机回环服务，无业务服务器操作；最终提交和推送以 Git 记录为准。
 

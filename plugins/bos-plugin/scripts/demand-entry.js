@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
-const { buildMessage, validateModification } = require('./commit-demand');
+const { buildMessage, validateModification } = require('../../demand-delivery-plugin/scripts/commit-demand');
 const { buildWorkbook } = require('./demand-entry-xlsx');
 const SCHEMA = 'iris-standard-demand/v2';
 const FACTS = 'iris-standard-demand-facts/v1';
@@ -115,7 +115,7 @@ function normalizeDescription(raw, name) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !['bug', 'change'].includes(raw.format)) {
     throw new Error('description.format 必须为 bug（缺陷）或 change（功能/改进）');
   }
-  if (!/^\{IRIS\} \S/.test(oneLine(name, 'name'))) throw new Error('需求名称须使用 {IRIS} 前缀并以空格分隔');
+  if (!/^\{[^{}\r\n]+\} \S/.test(oneLine(name, 'name'))) throw new Error('需求名称须使用已确认的 {产品标识} 前缀并以空格分隔');
   const detail = raw.format === 'bug' ? 'actual' : 'summary';
   const allowed = ['format', 'steps', 'expected', detail];
   for (const key of Object.keys(raw)) {
@@ -237,7 +237,7 @@ function safeOutputPath(file) {
     ancestor = parent;
   }
   const canonical = path.resolve(fs.realpathSync.native(ancestor), path.relative(ancestor, resolved));
-  const capabilityRoot = fs.realpathSync.native(path.resolve(__dirname, '..', '..', '..', '..'));
+  const capabilityRoot = fs.realpathSync.native(path.resolve(__dirname, '..', '..', '..'));
   const insideCapability = (candidate) => {
     const relative = path.relative(capabilityRoot, candidate);
     return !relative || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
@@ -322,7 +322,7 @@ function main(argv = process.argv.slice(2)) {
       }
       result = deliver(draft, args.output, args.excel);
     } else if (args.command === 'plan') {
-      const child = spawnSync(process.execPath, [path.join(__dirname, 'commit-demand.js'), ...planArguments(draft, args.item, args.projectRoot)], { encoding: 'utf8', windowsHide: true, timeout: 120000, maxBuffer: 32 * 1024 * 1024 });
+      const child = spawnSync(process.execPath, [path.resolve(__dirname, '../../demand-delivery-plugin/scripts/commit-demand.js'), ...planArguments(draft, args.item, args.projectRoot)], { encoding: 'utf8', windowsHide: true, timeout: 120000, maxBuffer: 32 * 1024 * 1024 });
       if (child.error || child.status !== 0) throw new Error(child.error?.message || child.stderr || child.stdout);
       process.stdout.write(child.stdout);
       return;

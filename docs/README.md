@@ -34,3 +34,5 @@
 - [个人配置与查询用法](../plugins/bos-plugin/references/usage.md)：Windows 初始化、TODO 填写、配置优先级和查询模式。
 - [接入与迁移](../plugins/bos-plugin/references/adoption.md)：项目启用、显式私有配置及独立用户级迁移。
 - [需求场景验收](../plugins/bos-plugin/references/scenarios.md)：自动检查和真实宿主证据的边界。
+
+需求交付拆分与兼容更新见 [需求交付迁移](demand-delivery-migration.md)：新入口 demand-commit / bos-demand-entry，旧 IRIS 入口已删除，更新器定向迁移项目引用并接入缺失 owner；显式状态冲突阻断，旧数据格式保留。

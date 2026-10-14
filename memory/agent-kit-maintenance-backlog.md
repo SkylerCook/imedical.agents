@@ -10,7 +10,7 @@
 
 - 提交校验工具：Windows/macOS/Linux × Node 22/24 的组件版本与内容证据 CI 矩阵实跑待完成；本轮 Windows Node 24 与隔离提交重放已验证，矩阵配置不等于平台通过。
 
-- 标版需求录入：standard-demand-entry 的 Windows/macOS/Linux × Node 22/24 CI 实跑，以及新版三段式描述在用户侧 BOSS 文本/Excel 的真实录入与测试交接验证；结构与本地 Git 测试不代表业务系统已验收。
+- 需求交付归属迁移：demand-delivery-plugin / bos-demand-entry 的真实宿主与业务副本接入、需求入口更新迁移、standard-demand-entry 和通用提交的 Windows/macOS/Linux × Node 22/24 CI 实跑，以及新版三段式描述在用户侧 BOSS 文本/Excel 的真实录入与测试交接验证；结构与本地 Git 测试不代表业务系统已验收。
 
 - Windows/macOS/Linux × Node 22/24 的 runtime-skills / skill-plugin-migration CI 实跑，以及 Claude Code 和非 Windows 宿主实际发现验证；CodeBuddy 的 Windows 项目 Skills 页面已有用户确认样本，实际任务调用仍独立取证。
 

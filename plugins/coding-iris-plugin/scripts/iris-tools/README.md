@@ -1,5 +1,7 @@
 ﻿# IRIS 开发主力脚本集合
 
+需求提交与补录已移交独立 owner，原 CLI 已移除。使用 CapabilityRoot 下 plugins/demand-delivery-plugin/scripts/commit-demand.js 与 plugins/bos-plugin/scripts/demand-entry.js。
+
 这些 Node.js 脚本用于生成部署清单、从 IRIS 服务器导出文件、编译类文件、调试方法调用以及同步环境配置。
 
 ## 配置说明
@@ -400,4 +402,4 @@ Python 默认使用 `.mcp.json` 对应 SFTP 的 `command`，可用 `--python <in
 
 部署、CSP 编译和 SFTP 配置入口共用 workspace 校验结果；目录缺失、错误链接及无效 manifest 在配置读取和远端连接前停止并返回非零退出码。能力包必须为有效安装（含 CapabilityRoot 的 .git）；direct 仍不要求业务源码 Git 仓库或基线会话。
 
-`commit-demand.js verify --plan <plan.json>` 接受 committed 和 verified 状态，重试仍重新读取提交消息与完整文件集合；缺少或额外路径均失败。路径按 NUL 分隔读取，重命名按删除与新增两端比较。
+`plugins/demand-delivery-plugin/scripts/commit-demand.js verify --plan <plan.json>` 接受 committed 和 verified 状态，重试仍重新读取提交消息与完整文件集合；缺少或额外路径均失败。路径按 NUL 分隔读取，重命名按删除与新增两端比较。

@@ -1,5 +1,7 @@
 # imedical.agents
 
+需求交付归属调整：通用提交由 [demand-delivery-plugin](plugins/demand-delivery-plugin/README.md) 的 demand-commit 维护；BOS 补录由 [bos-demand-entry](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md) 维护，产品标识按项目或用户输入。旧 IRIS 入口已移除，由更新器迁移，详见 [迁移说明](docs/demand-delivery-migration.md)。
+
 > **让 AI Coding 的最佳实践成为团队共享的基础设施。**
 
 `imedical.agents` 是 imedical 的 AI Coding 能力包仓库，将实践中验证有效的 Agent 角色、协作流程、插件规则、skills、模板和辅助脚本沉淀为可治理、可一键分发、可持续演进的团队能力。它帮助团队成员缩小对 AI Coding 的认知与使用差异，让优秀经验被整个团队稳定复用。
@@ -177,7 +179,7 @@ imedical.agents/
 
 ## 源仓组件版本管理
 
-16 个插件以 `.agents-plugin/plugin.json` 为版本事实来源，目前没有根级独立 skill；以后新增的独立 skill 在 `SKILL.md` 声明自身版本，插件内部内容统一继承 owner 插件版本。发布记录位于 `releases/plugin|skill/<name>/<version>.md`，依赖版本范围通过 manifest 的 `dependencyVersions` 审计，同时保留原 `dependencies` 名称数组供现有更新器使用。
+17 个插件以 `.agents-plugin/plugin.json` 为版本事实来源，目前没有根级独立 skill；以后新增的独立 skill 在 `SKILL.md` 声明自身版本，插件内部内容统一继承 owner 插件版本。发布记录位于 `releases/plugin|skill/<name>/<version>.md`，依赖版本范围通过 manifest 的 `dependencyVersions` 审计，同时保留原 `dependencies` 名称数组供现有更新器使用。
 
 维护者精确暂存插件或独立 skill 的本次文件后运行：
 
@@ -245,8 +247,9 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 提供跨技术栈的 BOS 只读查询与已有需求处理，无 IRIS 插件强依赖：
 
-- [bos-init](plugins/bos-plugin/skills/bos-init/SKILL.md)：个人配置初始化与项目接入分别执行；Windows 可生成仓外私有配置并绑定用户环境变量，用户填写 TODO。项目接入才启用插件并生成两个日常入口。
+- [bos-init](plugins/bos-plugin/skills/bos-init/SKILL.md)：个人配置初始化与项目接入分别执行；Windows 可生成仓外私有配置并绑定用户环境变量，用户填写 TODO。项目接入才启用插件并生成三个日常入口。
 - [bos-demand-query](plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：查询我的待办、项目待办、历史或编号详情，区分正文、描述图片和附件；不写回 BOS。
+- [bos-demand-entry](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md)：从实际 Git 补丁生成标版文本/Excel，使用项目确认的产品标识，回填 BOS 编号后衔接通用提交；无需查询凭据。
 - [bos-demand-handle](plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：处理已有需求号或充分正文，主动读取影响理解的截图和附件，按项目技术栈实施、自查和验证；IRIS 专项直达，正式协作按条件加载，提交沿用明确授权。
 
 插件默认 available。个人查询可使用用户级入口，不要求启用业务项目；项目使用按 profile 接入。普通更新不修改私有配置、用户级入口或客户端设置。首次使用与已有用户迁移见 [配置说明](plugins/bos-plugin/references/usage.md)和[接入说明](plugins/bos-plugin/references/adoption.md)，流程见 [bos-demand workflow](workflows/bos-demand.workflow.md)。
@@ -271,6 +274,10 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - `plugins/agent-context-kit/skills/coding-agent-adaptation/SKILL.md`（原根级技能迁入，项目入口不变）
 - `plugins/agent-context-kit/skills/task-handoff/SKILL.md`：通用需求交接与同机跨会话接续，按需启用、关键节点维护；本机材料在项目 `docs/handoff/`，轻量脚本检查工作现场，不强制正式 run。接入与兼容见 [交接运行说明](docs/task-handoff.md)。
 
+### demand-delivery-plugin
+
+跨技术栈的数字需求号提交，支持 standard/project、精确文件计划、防漂移和本地提交校验。新入口 demand-commit，无 IRIS/BOS 配置依赖；--plan 不提交，--commit 仅授权本地提交。按项目 profile 接入，已部署旧入口由更新器迁移。
+
 ### coding-iris-plugin
 
 当前维护修复统一 direct/guarded 索引路由、提交 verify 的重复执行及精确路径集合，并将 workspace 异常前置阻断。更新器在缺少独立 .agents Git 时以非零退出码停止生成；i18n 恢复真实技能描述并按混合 CSP 语言区域检查 helper。同步方式见 [更新说明](docs/update-agents.md)。
@@ -286,7 +293,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - iris-agentic-dev MCP server Windows x64 可执行文件（当前 **v1.4.2**）内置在 `.agents/vendor/iris-agentic-dev/`；Windows 安装/更新在 vendor exe 存在时只把既有 IRIS MCP `command` / `mcp.serverPath` 收敛到该项目相对路径，目标工程 `.mcp.json` 仍保存实际连接事实，其它连接字段和 MCP server 不变。Write 只有在重新读取并确认 `.mcp.json` 与既有 `project-env.json` 均已落盘后才报告成功；历史更新器的确定性两阶段兼容命令见更新 runbook。
 - `iris-mcp-lookup` 统一查询当前实例类/方法签名、本地源码和 InterSystems 官方文档，并支持已知官方 URL 的 Fetch/WebFetch/Open 等价能力。
 - `iris-demand-promote` 将已提交的 DEV 需求补丁移植到独立 PRD 按需导出仓库：PRD 服务器导出是目标基线，计划、确认、本地提交和验证分阶段执行，不授权上传、编译或生产部署。
-- `iris-demand-commit` 为已完成的标版/项目需求提供显式 `$iris-demand-commit --plan|--commit`：`--plan` 只生成仓库级方案型提交信息且不追问是否提交，`--commit` 视为本地提交授权并执行 plan/apply/verify。标版提交前强制 `pull --ff-only`，项目兼容无 upstream 的纯本地仓库，push 始终另行授权。
+- `demand-commit` 通用提交实现由 [demand-delivery-plugin](plugins/demand-delivery-plugin/README.md)维护。
 - 官方 `iris-agentic-dev` v1.2.6 中 8 个通用 ObjectScript skill 以固定 commit 快照进入 `.agents/vendor/iris-agentic-dev-skills/`，由 coding 插件声明为 optional capability，避免全局加载；新生成的 MCP 配置默认 `--no-skills`，由本仓库统一治理 skill 发现层。
 
 常用 skill：
@@ -296,8 +303,6 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - `iris-backend-coding`
 - `iris-mcp-lookup`
 - `iris-demand-promote`
-- `iris-demand-commit`
-- `iris-demand-entry`：仅 standard，支持 `--text / --bind / --plan / --commit / --help` 模式，从实际 Git 改动/提交生成 `{IRIS}` 名称与简洁三段式描述，可选 `--excel` / `--Excel`，由用户录入 BOSS 后回填编号并衔接标准提交消息；草稿仅支持 v2，用户/安全组/科室按需补充。所有输出拒绝写入 `.agents/` 或能力包源码（含目录链接别名）；[操作协议](plugins/coding-iris-plugin/references/standard-demand-entry.md)。
 - `iris-frontend-coding`
 - `iris-frontend-gb2312-promote`
 
@@ -603,4 +608,4 @@ guidanceMode（auto/concise/assisted）、executionPath 和 orchestrationMode �
 
 纯初始化 skill 由插件 manifest 的 `thinIndex.excludeSkills` 排除；已启用项目更新会精准清理旧受管 init 薄索引及历史遗留空目录，日常入口继续保留。详见 [迁移说明](docs/update-agents.md#纯初始化-skill-薄索引迁移)。
 
-提交同步去重：coding-iris-plugin 支持已校验 pull 与 upstream 钩子协作，见 [接入协议](plugins/coding-iris-plugin/references/commit-upstream-check.md)。
+提交同步去重：demand-delivery-plugin 支持已校验 pull 与 upstream 钩子协作，见 [接入协议](plugins/demand-delivery-plugin/references/commit-upstream-check.md)。

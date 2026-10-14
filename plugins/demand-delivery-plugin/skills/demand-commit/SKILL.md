@@ -1,18 +1,20 @@
 ---
-name: iris-demand-commit
-description: Use after an IRIS standard or project demand is implemented and verified. Supports explicit --plan/-plan to generate repository-specific commit messages without committing, and --commit/-commit to create verified local commits after authorization; push remains separate.
+name: demand-commit
+description: Use after a standard or project demand is implemented and verified. Supports explicit --plan/-plan to generate repository-specific commit messages without committing, and --commit/-commit to create verified local commits after authorization; push remains separate.
 ---
 
-# IRIS Demand Commit
+# Demand Commit
 
-本 skill 在用户要求生成提交信息、直接提交，或显式调用 `$iris-demand-commit --plan|--commit` 时加载。commit 可以在 `acceptance-pending` 阶段独立执行，但不得把生命周期推进到 `accepted`，也不得触发 feedback 审查或写入。
+本 skill 在用户要求生成提交信息、直接提交，或显式调用 `$demand-commit --plan|--commit` 时加载。commit 可以在 `acceptance-pending` 阶段独立执行，但不得把生命周期推进到 `accepted`，也不得触发 feedback 审查或写入。
+
+适用于采用数字需求号及本技能 standard/project 提交格式的项目。项目提交规范与本格式冲突时先按项目规范处理，不强套此格式；不需要 IRIS、BOS 连接或领域初始化。新入口按项目 plugin profile 接入 demand-delivery-plugin；旧入口已移除，已部署项目由更新器迁移。
 
 ## 使用时机
 
-当 IRIS 编码需求已经完成本地修改和必要验证，需要生成或执行 Git 提交时使用本 Skill。它同时支持：
+当编码需求已经完成本地修改和必要验证，需要生成或执行 Git 提交时使用本 Skill。它同时支持：
 
 - `standard`：标版、标准版或通用产品需求。
-- `project`：医院项目、客户定制或项目实施需求。
+- `project`：客户定制或项目实施需求。
 
 “处理需求”“修复问题”“执行方案”不包含提交授权。只有用户在当前任务中明确要求“提交”或 `commit`，才允许进入 `apply`。`push`、部署、上传和远程编译始终需要独立授权。
 
@@ -21,8 +23,8 @@ description: Use after an IRIS standard or project demand is implemented and ver
 支持自然语言意图和显式参数两种入口。显式参数优先于自然语言；单横线作为兼容别名，执行前统一规范化为双横线：
 
 ```text
-$iris-demand-commit --plan
-$iris-demand-commit --commit
+$demand-commit --plan
+$demand-commit --commit
 ```
 
 - `--plan` / `-plan`：只生成提交计划和每个仓库的完整 commit message。只运行 `plan`，不得执行 `pull`、`git add`、`git commit` 或 `verify`，不得继续询问是否提交；完成时明确报告“未创建本地 commit”。
@@ -40,11 +42,11 @@ $iris-demand-commit --commit
 
 ## 必读上下文
 
-标版代码已完成但尚无 BOSS 需求号时，用户要求补需求/闭环则先使用 `../iris-demand-entry/SKILL.md`：默认需求文本，可选 `--excel` / `--Excel`，由用户录入 BOSS。回填编号后复用草稿生成消息；worktree 来源通过 `demand-entry.js plan` 转交本脚本标准计划。历史提交来源只生成消息，不进入 Apply、不自动改写历史。此衔接不改变 project 流程及提交授权。
+项目使用 BOS，标版代码已完成但尚无 BOSS 需求号时，用户要求补需求/闭环则先使用 `../../../bos-plugin/skills/bos-demand-entry/SKILL.md`：默认需求文本，可选 `--excel` / `--Excel`，由用户录入 BOSS。回填编号后复用草稿生成消息；worktree 来源通过 `demand-entry.js plan` 转交本脚本标准计划。历史提交来源只生成消息，不进入 Apply、不自动改写历史。此衔接不改变 project 流程及提交授权。
 
 1. 目标工程 `AGENTS.md`。
-2. `.agents/config/iris_project_profile.md`。
-3. `iris-coding` 已确认的需求号、需求标题、需求描述、修改文件和验证结果。
+2. 目标工程 AGENTS 或其指向的项目配置中已确认的默认需求交付类型；不要求 IRIS profile。
+3. 当前开发流程已确认的需求号、需求标题、需求描述、修改文件和验证结果。
 4. 各修改文件所属 Git 仓库的 `AGENTS.md` 与提交约束。
 
 ## 需求类型
@@ -52,14 +54,14 @@ $iris-demand-commit --commit
 按以下优先级确定当前需求类型：
 
 1. 用户对当前需求明确指定的 `standard` 或 `project`。
-2. `iris_project_profile.md` 中合法的“默认需求交付类型”。
+2. 目标工程 AGENTS 或其明确指向的项目配置中合法的“默认需求交付类型”。迁移项目可读取 `.agents/config/demand_delivery_profile.md`；其中 TODO 仍需确认。
 3. 若字段为 `TODO`、缺失或非法，暂停提交并提示：
 
 ```text
 默认需求交付类型仍为 TODO，请确认该工程默认处理 standard（标版）还是 project（项目）需求。
 ```
 
-用户回答的是当前需求类型时，只用于本次计划；用户确认的是工程默认类型时，更新 profile 后再继续。不得根据目录名、`contextMode`、remote、upstream 或代码量猜测类型。
+用户回答的是当前需求类型时，只用于本次计划；用户确认的是工程默认类型时，按项目约定更新该配置后再继续。不得根据目录名、`contextMode`、remote、upstream 或代码量猜测类型。
 
 ## 修改说明质量
 
@@ -87,7 +89,7 @@ $iris-demand-commit --commit
 需求描述:<requirement-id> <完整需求标题>
 ```
 
-标版首行优先使用用户可识别的菜单名或“菜单-功能”摘要，保持简短，不重复完整需求标题；完整原始需求只放在 `需求描述`。例如首行使用 `fix(7060431):口腔技工单-模板维护`，而不是复制包含操作步骤和报错现象的长需求标题。
+标版首行优先使用用户可识别的菜单名或“菜单-功能”摘要，保持简短，不重复完整需求标题；完整原始需求只放在 `需求描述`。例如首行使用 `fix(7060431):模板维护-内容校验`，而不是复制包含操作步骤和报错现象的长需求标题。
 
 项目需求使用两行格式：
 
@@ -113,7 +115,7 @@ $iris-demand-commit --commit
 调用提交脚本生成计划。必须传入需求文件；多仓库时为每个仓库提供独立修改说明。
 
 ```powershell
-node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js plan `
+node .agents/plugins/demand-delivery-plugin/scripts/commit-demand.js plan `
   --project-root <workspace-root> `
   --kind <standard|project> `
   --demand <requirement-id> `
@@ -134,7 +136,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js plan
 只有已取得明确提交授权时执行：
 
 ```powershell
-node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js apply `
+node .agents/plugins/demand-delivery-plugin/scripts/commit-demand.js apply `
   --plan <plan.json> `
   --confirm-commit `
   --verify
@@ -157,7 +159,7 @@ pull 门禁全部通过后，脚本只暂存和提交计划内路径。多仓库
 ### 3. Verify
 
 ```powershell
-node .agents/plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js verify --plan <plan.json>
+node .agents/plugins/demand-delivery-plugin/scripts/commit-demand.js verify --plan <plan.json>
 ```
 
 核对每个计划仓库的 commit、完整消息和提交文件集合，并报告计划外工作区状态。Verify 通过只证明本地提交完成，不代表已 push 或部署。

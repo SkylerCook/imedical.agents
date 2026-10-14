@@ -2,9 +2,15 @@ name: BOS demand framework
 on:
   push:
     paths:
+      - 'scripts/migrate-demand-ownership.js'
+      - 'scripts/update-agents.ps1'
+      - 'scripts/generate-plugin-thin-index.ps1'
+      - 'scripts/tests/demand-ownership-migration.tests.js'
       - 'plugins/bos-plugin/**'
-      - 'plugins/coding-iris-plugin/scripts/iris-tools/commit-demand.js'
-      - 'plugins/coding-iris-plugin/scripts/iris-tools/tests/iris-demand-commit.test.js'
+      - 'plugins/demand-delivery-plugin/scripts/commit-demand.js'
+      - 'plugins/demand-delivery-plugin/**'
+      - 'plugins/bos-plugin/scripts/demand-entry*.js'
+      - 'plugins/demand-delivery-plugin/tests/demand-commit.test.js'
       - 'scripts/lib/workspace-context.js'
       - 'scripts/lib/WorkspaceContext.psm1'
       - 'scripts/tests/bos-plugin.tests.js'
@@ -25,7 +31,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: node --test plugins/bos-plugin/tests/bos-demand-query.tests.js plugins/bos-plugin/tests/configuration.tests.js scripts/tests/bos-plugin.tests.js plugins/coding-iris-plugin/scripts/iris-tools/tests/iris-demand-commit.test.js plugins/coding-iris-plugin/scripts/iris-tools/tests/commit-upstream-check.test.js
+      - run: node --test plugins/bos-plugin/tests/bos-demand-query.tests.js plugins/bos-plugin/tests/configuration.tests.js scripts/tests/bos-plugin.tests.js plugins/demand-delivery-plugin/tests/demand-commit.test.js plugins/demand-delivery-plugin/tests/commit-upstream-check.test.js
       - run: node --test scripts/tests/workspace-context.tests.js scripts/tests/standard-demand-entry.tests.js
       - run: node --test --test-name-pattern="project links resolve" scripts/tests/documentation-layout.tests.js
       - if: runner.os == 'Windows'
@@ -33,4 +39,4 @@ jobs:
         run: |
           & ./scripts/tests/workspace-context.tests.ps1
           $env:BOS_TEST_POWERSHELL = 'powershell.exe'
-          node --test scripts/tests/bos-plugin.tests.js
+          node --test scripts/tests/bos-plugin.tests.js scripts/tests/demand-ownership-migration.tests.js

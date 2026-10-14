@@ -222,7 +222,7 @@ if (Test-Path -LiteralPath $pluginManifestPath -PathType Leaf) {
 $results = New-Object System.Collections.Generic.List[object]
 
 # Owner migrations, including disabled owners, must not lose user content during global stale cleanup.
-$migratedSkillNames = @()
+$migratedSkillNames = @("iris-demand-commit", "iris-demand-entry") # Removed demand entries are retired only by the updater migration.
 if (Test-Path -LiteralPath $pluginsRoot -PathType Container) {
     Get-ChildItem -LiteralPath $pluginsRoot -Directory | ForEach-Object {
         $ownerManifestPath = Join-Path $_.FullName ".agents-plugin/plugin.json"

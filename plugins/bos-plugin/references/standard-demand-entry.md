@@ -1,13 +1,13 @@
 # Standard 需求草稿与工具协议
 
-入口：`skills/iris-demand-entry/SKILL.md`。所有命令使用插件内 `scripts/iris-tools/demand-entry.js`（下文简写）；只用 Node 内置模块，无需 npm install、Python 或个人运行器路径。工具不调用 BOSS，也不修改 Git。`collect`、`prepare`、`bind`、`render` 的输出路径若落在 `.agents/` 或能力包源码中（包括通过目录链接到达），会在写入前停止；输入文件可从旧位置读取，以便迁出既有产物。
+入口：`skills/bos-demand-entry/SKILL.md`。所有命令使用插件内 `scripts/demand-entry.js`（下文简写）；只用 Node 内置模块，无需 npm install、Python 或个人运行器路径。工具不调用 BOSS，也不修改 Git。`collect`、`prepare`、`bind`、`render` 的输出路径若落在 `.agents/` 或能力包源码中（包括通过目录链接到达），会在写入前停止；输入文件可从旧位置读取，以便迁出既有产物。
 
 ## 1. 读取代码事实
 
 用户入口优先采用 skill 的 `--text / --bind <编号> / --plan / --commit / --help`，完整参数表以 SKILL.md 为准。下文为 Agent 内部脚本协议，不直接接受这些 skill 模式；历史来源在用户层使用 `--rev`，底层 collect 才使用 `--commit <hash>`，不得混淆。`--bind --same-title` 由 Agent 读取所选条目的 title，传给下方 bind 的 `--title`。现有脚本接口不变。
 
 ```text
-node demand-entry.js collect --repo <GitRoot> --file src/a.cls --file src/b.js --output <临时目录>/facts.json
+node demand-entry.js collect --repo <GitRoot> --file src/a.js --file src/b.css --output <临时目录>/facts.json
 node demand-entry.js collect --repo <GitRoot> --commit <hash1> --commit <hash2> --output <临时目录>/history.json
 node demand-entry.js collect --repo <GitRoot> --range <base>..<head> --output <临时目录>/history.json
 ```
@@ -24,7 +24,7 @@ node demand-entry.js collect --repo <GitRoot> --range <base>..<head> --output <�
   "common": { "需求类型": "产品BUG", "模块编码": "用户提供的编码" },
   "requirements": [{
     "key": "r1",
-    "name": "{IRIS} 模板维护-空内容暂存时仍提示成功",
+    "name": "{WEB} 模板维护-空内容暂存时仍提示成功",
     "title": "模板维护支持空内容提示",
     "description": {
       "format": "bug",
@@ -44,7 +44,7 @@ node demand-entry.js collect --repo <GitRoot> --range <base>..<head> --output <�
 }
 ```
 
-`evidence` 相对 spec 目录解析；prepare 将证据嵌入 draft，后续不依赖该临时文件。`key` 为稳定映射键；`name` 是 BOSS 需求名称，新模板须以 `{IRIS} ` 开头。`title` 留作编号回填与提交衔接，不在新描述中重复输出；缺省取 name 去除前缀后的文字。每个 change 对应一个仓库的事实与修改说明。
+`evidence` 相对 spec 目录解析；prepare 将证据嵌入 draft，后续不依赖该临时文件。`key` 为稳定映射键；`name` 是 BOSS 需求名称，新模板须以已确认的 `{产品标识} ` 开头；IRIS 只是其中一个值。`title` 留作编号回填与提交衔接，不在新描述中重复输出；缺省取 name 去除前缀后的文字。每个 change 对应一个仓库的事实与修改说明。
 
 新 spec 使用 `description`，`format` 按业务目的选择，与 Git 提交 `type` 分开：
 
@@ -90,7 +90,7 @@ node demand-entry.js plan --draft <bound.json> --item r1 --project-root <Workspa
 
 bind 只记录用户给定编号与最终标题，不要求 Git 当前无漂移；message/plan 才校验，以便等待期间先保存编号。不同条目不能绑定同一编号；已绑定编号/标题不会静默覆盖。需要纠正时由 Agent 按用户明确指示复制并编辑新草稿中的 boss 映射，再校验，不修改证据。
 
-message 复用 `commit-demand.js` 的 buildMessage/validateModification。plan 仅适用于全部为 worktree 的来源，由原提交工具重新校验 WorkspaceRoot/Overlay 和实际 GitRoot，生成标准计划；不做 pull/add/commit。历史来源即使当前出现其它未提交修改也拒绝 plan。用户明确提交后按 iris-demand-commit 运行 apply/verify；本工具没有 apply/commit/rewrite 命令。
+message 复用 `commit-demand.js` 的 buildMessage/validateModification。plan 仅适用于全部为 worktree 的来源，由原提交工具重新校验 WorkspaceRoot/Overlay 和实际 GitRoot，生成标准计划；不做 pull/add/commit。历史来源即使当前出现其它未提交修改也拒绝 plan。用户明确提交后按 demand-commit 运行 apply/verify；本工具没有 apply/commit/rewrite 命令。
 
 ## Excel 导入契约
 
@@ -114,4 +114,4 @@ message 复用 `commit-demand.js` 的 buildMessage/validateModification。plan �
 
 维护专项：`node --test scripts/tests/standard-demand-entry.tests.js`。CI 定义于 `.github/workflows/standard-demand-entry.yml`，Windows/macOS/Linux × Node 22/24；CI 文件存在不代表矩阵已运行。BOSS 实际导入须用户在业务系统确认，结构读取通过不等同于 BOSS 验收。
 
-已部署工程更新能力包后，对 enabled coding-iris-plugin 重建 thin-index 可发现新入口；旧 iris-demand-commit --plan/--commit 不变，无旧文件删除或配置迁移。本轮不自动更新业务副本或修改个人 requirement-entry skill。
+已部署工程完整更新能力包后，对 enabled bos-plugin 重建 thin-index 可发现 bos-demand-entry；demand-commit 由 enabled demand-delivery-plugin 提供。旧 IRIS 入口已删除，更新器负责迁移引用与启用状态，原草稿/取证标识不变；详见 [迁移说明](../../../docs/demand-delivery-migration.md)。本轮不自动更新业务副本或修改个人 requirement-entry skill。

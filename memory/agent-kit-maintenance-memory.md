@@ -3,13 +3,13 @@
 - 2026-10-14 路由与预检修复：coding-iris 0.15.9、i18n 0.2.6；默认 direct 路由一致，verify 可重复且比较完整路径集合，更新/部署异常工作区前置停止，混合 CSP 按客户端区域与模板插值检查。验证范围见维护日志。
 
 - 最近维护回看覆盖至 `d81fa6f`（2026-10-13）：BOS 组织分发与简单需求流程、SFTP 单连接部署、提交路径边界；提交索引和验证范围见维护日志。
-- `bos-plugin` 0.2.2：处理时主动读取相关截图和附件，关键资料缺失先澄清依赖部分；查询、个人配置初始化与跨技术栈需求处理归框架统一维护。简单需求连续实施、自查和目标验证，IRIS 专项直达，正式协作条件加载；普通更新不修改个人配置或客户端，接入见插件 usage/adoption；个人初始化、项目启用与其它领域接入分开，defaults 成功还须核对身份非 TODO。
+- `bos-plugin` 0.3.0：处理时主动读取相关截图和附件，关键资料缺失先澄清依赖部分；查询、个人配置初始化与跨技术栈需求处理归框架统一维护。简单需求连续实施、自查和目标验证，IRIS 专项直达，正式协作条件加载；普通更新不修改个人配置或客户端，接入见插件 usage/adoption；个人初始化、项目启用与其它领域接入分开，defaults 成功还须核对身份非 TODO。
 - 编码规范：CLS 与前端分别以 coding-iris-plugin 的 `references/cls-coding-format.md`、`references/frontend-coding-format.md` 为事实源；只约束真正新增代码，原有代码的功能修改不附带格式化。JS 页面组织模板可选，按实际容器能力选用；Review 对照修改前源码，不把 diff 的 + 行等同新增。
 - 提交：成功 pull 后仅对 commit 临时关闭重复 upstream 检查，其余钩子保留；Junction/SourceRoot 物理归属及预授权规则见提交 skill。版本与功能证据按内容复用；已登记历史债务沿 backlog 处理，不重复阻断无关提交。
 - 文档与能力手册：项目入口 `docs/README.md`，源仓入口 `maintenance/README.md`；非 xc 能力见 `docs/guides/capability-catalog.md`、`capability-guide.md`，xc 手册列入 P2。迁移与旧受管副本收敛见 `maintenance/governance/documentation-layout.md`。
 - 项目上下文：Overlay 允许按需只读调查已声明或注册表映射的源码仓库，写入仍受 SourceRoot 和授权约束。初始化、事实维护、日常优化分别路由，普通更新不覆盖项目入口；知识库路由及旧入口迁移见 `docs/update-agents.md`。
 - task-handoff：agent-context-kit 0.4.2 修复 Windows 长短路径身份判断；同机同工作区按需交接，正文与机器现场分离。当前 Codex 宿主的新会话接续于 2026-09-19 经用户验收，其它宿主仍待验证；见 `docs/task-handoff.md`。
-- 标版需求录入：`iris-demand-entry` 从实际 Git 补丁生成 `{IRIS}` 名称与三段式描述，人工录 BOSS 后回填编号并复用需求提交，可选 Excel；仅支持 v2 草稿，输出拒绝能力包及其链接别名，详见 `references/standard-demand-entry.md`。
+- 需求交付：demand-delivery-plugin 0.1.0 的 demand-commit 承接通用提交，bos-plugin 0.3.0 的 bos-demand-entry 承接补录。coding-iris-plugin 0.16.0 移除旧技能/CLI；更新器先验证新入口，再迁移项目 AGENTS、启用缺失 owner 和删除旧受管入口。显式状态或自定义内容冲突阻断；数据协议保留，见 docs/demand-delivery-migration.md。
 - 纯 init 薄索引按 manifest 排除；enabled 常规 Write 精准清理旧受管入口，保留自定义文件、非空目录与链接。稀疏检出由根 JS helper 统一刷新并验证实际落盘；失败停止，不自动同步真实工程。
 
 本文件只服务能力包源仓维护，不部署到业务项目，不生成 thin-index。规则以根 `AGENTS.md` 为准；本文件保留接手摘要，历史过程不作为当前状态。
@@ -25,8 +25,8 @@
 - 开发部署默认 direct，不要求需求号或 Git 会话，保留 Storage、并发变化、回读和编译检查。显式 guarded 或旧 --demand 命令使用固定 Git 基线，服务器差异仅合入隔离产物；首次合并后再次覆盖、冲突、未知结果必须人工决定。状态保存在用户私有目录，更新基线保留历史。Question 使用固定 code 和工具无关协议，按能力降级为文本；暂停/查看/无效决定不写入。详见 coding-iris-plugin/references/deployment-protection.md。
 
 - 能力源分为厂商无关的 `agents/`、`workflows/`、可复用 `plugins/` 与根级 `skills/`；工具专属配置只作为 adapter。源仓 `.agents/skills/agent-kit-maintenance/` 是维护者专用入口。
-- 当前有 16 个插件、0 个根级独立 skill。插件版本以 manifest 为准，独立 skill 版本以 frontmatter 为准；内部内容继承 owner 版本。发布记录不可变且不部署，版本 validator 不接入业务安装/更新/hook。
-- `coding-iris-plugin` 当前 v0.15.9：Windows 部署会话初始化对 Git 根目录长路径和 8.3 短路径按物理路径比较，既有会话状态不迁移；standard 需求录入使用简洁三段式与 v2 草稿，依赖兼容范围以各 owner manifest 为准。保留共享知识检索、项目菜单同步与产物路径门禁；前端 canonical 编码为 `utf8`，实际字节检测是最终门禁；真实 GB2312/mixed/unknown 不自动转码，明确 backend-only Overlay 为 `N/A (backend-only)`。CLS 提供统一命名与格式规范、Agent Review 与可选自检，不增加编译证据或提交门禁。
+- 当前有 17 个插件、0 个根级独立 skill。插件版本以 manifest 为准，独立 skill 版本以 frontmatter 为准；内部内容继承 owner 版本。发布记录不可变且不部署，版本 validator 不接入业务安装/更新/hook。
+- `coding-iris-plugin` 当前 v0.16.0：Windows 部署会话初始化对 Git 根目录长路径和 8.3 短路径按物理路径比较，既有会话状态不迁移；standard 需求录入使用简洁三段式与 v2 草稿，依赖兼容范围以各 owner manifest 为准。保留共享知识检索、项目菜单同步与产物路径门禁；前端 canonical 编码为 `utf8`，实际字节检测是最终门禁；真实 GB2312/mixed/unknown 不自动转码，明确 backend-only Overlay 为 `N/A (backend-only)`。CLS 提供统一命名与格式规范、Agent Review 与可选自检，不增加编译证据或提交门禁。
 - CSP 编译固定到 `compile-csp.js` 的 Atelier 通道；`deploy-frontend.js` 的 direct/guarded 共用单连接传输、替换前复核、逐文件最终校验与完整结果，提供阶段进度/计数；保留 guarded 编译后检查，默认本地计划、显式执行，不自动重试或扩展父页面。竞争窗口、强杀恢复及耗时口径见工具 README；真实服务器性能仍待独立授权验证。SFTP vendor 新项目默认禁用，更新自动迁移可识别的既有标准启动参数，显式 custom/自定义参数保留，不创建服务或安装 Python 依赖。
 - `iris-cure-form-dev` 当前 v0.7.8：兼容 coding-iris-plugin 0.14；任务产物与运行态统一归目标项目 `docs/work/cure-form/<task>/`，快照/敏感证据归同任务 private；配置/规则仍在 `.agents/`。自动/手动部署与版本化克隆/显式原 RowID 覆盖分别选择。新模板不使用灰度，采用克隆的既有模板按引用拓扑收尾，原 ID 覆盖不调用 consolidate。显式旧输出路径保持兼容，不迁移既有备份。
 - 表单部署的 `transaction-package` / `lightweight-sql` 通道独立于 automatic/manual；轻量通道只服务已有独占单模板 content。固定 SQL 绑定兼容层保留单行事务门禁，授权样本验证不代表全部服务器/HIS 验收。

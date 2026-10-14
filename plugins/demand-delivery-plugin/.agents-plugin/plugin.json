@@ -1,0 +1,15 @@
+{
+  "name": "demand-delivery-plugin",
+  "version": "0.1.0",
+  "displayName": "Demand Delivery Plugin",
+  "description": "跨技术栈的数字需求号提交计划、本地提交与验证。",
+  "entry": "AGENTS.md",
+  "skills": "skills/",
+  "scripts": "scripts/",
+  "references": "references/",
+  "dependencies": [],
+  "defaultPrompt": [
+    "使用 demand-commit --plan 生成需求提交信息",
+    "使用 demand-commit --commit 执行已授权的本地需求提交"
+  ]
+}

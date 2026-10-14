@@ -28,7 +28,7 @@ function fixture(t, overlay, singleShared = false) {
   for (const name of ['scripts', 'hooks', 'agents', 'workflows']) {
     fs.cpSync(path.join(repo, name), path.join(capability, name), { recursive: true, filter: p => !p.includes(path.join('scripts', 'tests')) });
   }
-  fs.cpSync(path.join(repo, 'plugins/bos-plugin'), path.join(capability, 'plugins/bos-plugin'), { recursive: true });
+  for (const name of ['bos-plugin', 'demand-delivery-plugin']) fs.cpSync(path.join(repo, 'plugins', name), path.join(capability, 'plugins', name), { recursive: true });
   if (overlay) {
     const shared = singleShared ? ['plugins'] : ['plugins','agents','workflows'];
     const source = path.join(root, 'source'); fs.mkdirSync(source);
@@ -54,6 +54,7 @@ for (const mode of ['standard', 'overlay', 'overlay-single-shared']) test('plugi
     assert.equal(fs.existsSync(queryEntry), status === 'enabled', updateOutput);
   }
   assert.ok(fs.existsSync(path.join(f.context, 'skills/bos-demand-handle/SKILL.md')));
+  assert.ok(fs.existsSync(path.join(f.context, 'skills/bos-demand-entry/SKILL.md')));
   assert.equal(fs.existsSync(path.join(f.context, 'skills/bos-init/SKILL.md')), false);
   // A fresh process resolves the generated pointer and invokes its real script.
   const probe = String.raw`
@@ -73,10 +74,45 @@ for (const mode of ['standard', 'overlay', 'overlay-single-shared']) test('plugi
 });
 test('BOS workflow delegates lifecycle, domains and authorization without a second state store', () => {
   const workflow = read('workflows/bos-demand.workflow.md');
-  for (const marker of ['taskKind=business-demand','standard-change.workflow.md','delivery-lifecycle.md','task-handoff/SKILL.md','iris-coding/SKILL.md','iris-demand-commit/SKILL.md','acceptance-pending','accepted','serial','Coordinator']) assert.ok(workflow.includes(marker), marker);
+  for (const marker of ['taskKind=business-demand','standard-change.workflow.md','delivery-lifecycle.md','task-handoff/SKILL.md','iris-coding/SKILL.md','demand-commit/SKILL.md','acceptance-pending','accepted','serial','Coordinator']) assert.ok(workflow.includes(marker), marker);
   for (const marker of ['非 IRIS','预授权','不自动创建','未验证','只读']) assert.ok(workflow.includes(marker), marker);
   const manifest = JSON.parse(read('plugins/bos-plugin/.agents-plugin/plugin.json'));
   assert.deepEqual(manifest.dependencies, []);
   assert.deepEqual(manifest.thinIndex.excludeSkills, ['bos-init']);
   assert.ok(read('workflows/workflow-registry.md').includes('bos-demand'));
+});
+
+for (const overlay of [false, true]) test('updater retires deployed demand names and enables successors: ' + overlay, t => {
+  const f = fixture(t, overlay);
+  const oldRoot = path.join(f.capability, 'plugins/coding-iris-plugin');
+  for (const name of ['iris-demand-commit', 'iris-demand-entry']) write(path.join(oldRoot, 'skills', name, 'SKILL.md'), `---\nname: ${name}\ndescription: old deployed entry\n---\n`);
+  run(shell, ['-NoProfile', '-File', path.join(f.capability, 'scripts/generate-plugin-thin-index.ps1'), '-ProjectRoot', f.project, '-ContextRoot', f.context, '-CapabilityRoot', f.capability, '-PluginPath', oldRoot, '-Mode', 'Write'], f.root);
+  fs.rmSync(oldRoot, { recursive: true });
+  write(path.join(f.project, 'AGENTS.md'), '# Project\nUse iris-demand-commit; use iris-demand-entry.\n');
+  const args = ['-NoProfile', '-File', path.join(f.capability, 'scripts/update-agents.ps1'), '-ProjectRoot', f.project, '-NoPull', '-Detailed'];
+  const preview = run(shell, [...args, '-Mode', 'DryRun'], f.root);
+  assert.match(preview, /demand-migration-planned/);
+  assert.match(fs.readFileSync(path.join(f.project, 'AGENTS.md'), 'utf8'), /iris-demand-commit/);
+  const output = run(shell, [...args, '-Mode', 'Write'], f.root);
+  assert.match(output, /demand-migration-applied/);
+  for (const name of ['demand-commit', 'bos-demand-entry']) assert.ok(fs.existsSync(path.join(f.context, 'skills', name, 'SKILL.md')));
+  for (const name of ['iris-demand-commit', 'iris-demand-entry']) assert.equal(fs.existsSync(path.join(f.context, 'skills', name)), false);
+  assert.match(fs.readFileSync(path.join(f.context, 'config/plugin_profile.md'), 'utf8'), /demand-delivery-plugin\s*\|\s*enabled/);
+  assert.doesNotMatch(fs.readFileSync(path.join(f.project, 'AGENTS.md'), 'utf8'), /iris-demand-/);
+  assert.doesNotMatch(run(shell, [...args, '-Mode', 'Write'], f.root), /demand-migration-applied/);
+});
+
+for (const overlay of [false, true]) test('generic demand skill is discoverable without IRIS: ' + overlay, t => {
+  const f = fixture(t, overlay);
+  const entry = path.join(f.context, 'skills/demand-commit/SKILL.md');
+  for (const status of ['available', 'disabled', 'enabled']) {
+    write(path.join(f.context, 'config/plugin_profile.md'), '# Plugin Profile\n\n| plugin | status | initSkill | dependsOn | notes |\n|---|---|---|---|---|\n| demand-delivery-plugin | '+status+' | - | - | fixture |\n');
+    const out = run(shell, ['-NoProfile', '-File', path.join(f.capability, 'scripts/update-agents.ps1'), '-ProjectRoot', f.project, '-Plugin', 'demand-delivery-plugin', '-Mode', 'Write', '-NoPull'], f.root);
+    assert.equal(fs.existsSync(entry), status === 'enabled', out);
+    if (status === 'enabled') {
+      const pointer = fs.readFileSync(entry, 'utf8').match(/^source:\s*(.+)$/m)[1].trim();
+      assert.ok(fs.readFileSync(path.resolve(f.project, pointer), 'utf8').includes('name: demand-commit'));
+      assert.equal(fs.existsSync(path.join(f.capability, 'plugins/coding-iris-plugin')), false);
+    }
+  }
 });

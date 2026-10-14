@@ -809,6 +809,9 @@ function Write-UpdateSummary {
 
   Write-Output "Agent kit update summary"
   Write-Output "Mode: $Mode"
+  foreach ($migrationItem in @($Results | Where-Object { $_.phase -eq "demand-migration" })) {
+    Write-Output ("- {0}: {1} {2}" -f $migrationItem.status, $migrationItem.target, $migrationItem.reason)
+  }
   Write-Output ""
 
   $pluginNames = @($Results | Where-Object { $_.phase -eq "plugin" -and $_.status -eq "plugin-found" } | Select-Object -ExpandProperty plugin -Unique)
@@ -1230,6 +1233,32 @@ if (Test-Path -LiteralPath (Join-Path $projectRootFull "AGENTS.md") -PathType Le
 }
 else {
   $results.Add((Write-UpdateResult -Status "agents-entry-missing" -Target "AGENTS.md" -Reason "project entrypoint missing; maintain it through project-context-maintenance" -Phase "entrypoint"))
+}
+
+# Demand ownership migration must run before any generator can remove stale entries.
+$demandMigrationScript = Join-Path $capabilityRoot "scripts/migrate-demand-ownership.js"
+$demandMigrationArgs = @($demandMigrationScript, "--project-root", $projectRootFull)
+if ($Plugin.Count -gt 0) { $demandMigrationArgs += @("--selected", ($Plugin -join ",")) }
+if ($ExcludePlugin.Count -gt 0) { $demandMigrationArgs += @("--excluded", ($ExcludePlugin -join ",")) }
+$demandMigrationText = & node @demandMigrationArgs | Out-String
+$demandMigrationExit = $LASTEXITCODE
+if ($demandMigrationExit -ne 0) { throw ("Demand ownership migration blocked: " + $demandMigrationText) }
+$demandMigration = $demandMigrationText | ConvertFrom-Json
+foreach ($change in @($demandMigration.changes)) {
+  $results.Add((Write-UpdateResult -Status "demand-migration-planned" -Target $change.file -Reason "replace legacy demand references or enable successor owner" -Phase "demand-migration"))
+}
+foreach ($removed in @($demandMigration.removals)) {
+  $results.Add((Write-UpdateResult -Status "demand-migration-planned" -Target $removed.file -Reason "retire after successor entry verification" -Phase "demand-migration"))
+}
+foreach ($owner in @($demandMigration.owners)) {
+  $migrationThinMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
+  $migrationThinOutput = & (Join-Path $capabilityRoot "scripts/generate-plugin-thin-index.ps1") -PluginPath (Join-Path $capabilityRoot ("plugins/" + $owner)) -ProjectRoot $projectRootFull -ContextRoot $contextRoot -CapabilityRoot $capabilityRoot -Mode $migrationThinMode | Out-String
+  foreach ($item in (Convert-ThinIndexTextOutput -Text $migrationThinOutput -PluginName $owner)) { $results.Add($item) }
+}
+if ($Mode -eq "Write" -and @($demandMigration.owners).Count -gt 0) {
+  $demandAppliedText = & node @demandMigrationArgs --apply | Out-String
+  if ($LASTEXITCODE -ne 0) { throw ("Demand ownership migration incomplete: " + $demandAppliedText) }
+  $results.Add((Write-UpdateResult -Status "demand-migration-applied" -Reason "successor entries verified; project references migrated; old managed entries removed" -Phase "demand-migration"))
 }
 
 $allPlugins = Get-InstalledPlugins -AgentsRoot $capabilityRoot -IncludeNames @() -ExcludeNames $ExcludePlugin

@@ -18,7 +18,7 @@
 
 1. 检查真实 GitRoot 的 staged/unstaged/untracked 和路径边界；SourceRoot、Junction 或 manifest 不符时停止写入。确认修复点在范围外则完成只读取证并报告目标、原因和影响，获得具体范围授权后再写。
 2. 定位入口、调用链、复用能力和根因，明确修改范围、实现方案与验收条件。资料不足时补充调查；简单局部修复可直接实现，不强制设计文档或新抽象。
-3. 根据项目技术栈路由。IRIS 且 coding-iris-plugin 已启用时，明确前端任务直达 [iris-frontend-coding](../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md)，明确后端任务直达 [iris-backend-coding](../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md)；混合或边界不明时才读取 [iris-coding](../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md)。专项技能负责加载其适用规则，复用仍持有且未变化的资料。standard/project 来自用户或项目 profile，不能由 BOS 来源、模块名或目录名推断。先改代码补需求仍走 iris-demand-entry。
+3. 根据项目技术栈路由。IRIS 且 coding-iris-plugin 已启用时，明确前端任务直达 [iris-frontend-coding](../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md)，明确后端任务直达 [iris-backend-coding](../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md)；混合或边界不明时才读取 [iris-coding](../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md)。专项技能负责加载其适用规则，复用仍持有且未变化的资料。standard/project 来自用户或项目 profile，不能由 BOS 来源、模块名或目录名推断。先改代码补需求走 bos-demand-entry。
 4. 非 IRIS 使用本项目开发、测试、审查和提交规则，不加载 IRIS 规范。领域插件缺失时只阻塞依赖该能力的阶段，不私自安装、启用或假称检查通过。
 5. 在受控范围实施；对照需求、适用规范和现有证据审查最终 diff，检查行为、契约及真正新增代码。必要验证覆盖最终修改，后续相关变化使证据过期。普通任务由当前 Agent 完成这些职责，正式协作时再交给对应角色。
 
@@ -40,6 +40,6 @@
 
 “处理需求”包含调查、实施和必要验证，不含 commit。用户说“处理并在验收后提交”时保留其原话、需求和范围，accepted 后展示具体计划并执行；单独“验收通过”只改变验收状态。已有明确预授权不重复确认；范围扩大、需求实质变化或提交门禁要求确认时重新核对。
 
-IRIS 提交委托 [iris-demand-commit](../plugins/coding-iris-plugin/skills/iris-demand-commit/SKILL.md)，复用编号、完整标题、每仓库文件与修改说明；保持 pull、漂移、精确暂存及验证门禁。其它技术栈沿用项目提交规范。没有授权不执行提交，裸调用的模式提示以对应技能为准，不先承诺提交。
+采用数字需求号与 standard/project 格式的项目提交委托 [demand-commit](../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md)，复用编号、完整标题、每仓库文件与修改说明；保持 pull、漂移、精确暂存及验证门禁。其它提交格式沿用项目提交规范。没有授权不执行提交，裸调用的模式提示以对应技能为准，不先承诺提交。
 
 push、部署、上传、远端编译、BOS 状态更新和 feedback 写入各自授权；本插件仅提供 BOS 只读工具。用户已自行提交时只在需要核实时检查既有结果，不再创建重复提交。最终报告待办动作和真实停止原因，不把提交当成业务验收。

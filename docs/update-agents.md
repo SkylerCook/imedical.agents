@@ -23,11 +23,11 @@ coding-iris-plugin 0.13 提供 iris-imedical-knowledge / iris-menu-sync；共享
 
 ## 标版需求录入入口
 
-新增 `iris-demand-entry` 随 coding-iris-plugin 既有 plugins 路径分发。已部署工程更新能力包后，按本 runbook 为 enabled coding-iris-plugin 重建 thin-index，即可使用默认需求文本及可选 `--excel` / `--Excel`；直接读取插件真实 skill 也可进入。无需配置迁移、额外 npm/Python 安装或旧文件清理，个人 requirement-entry 副本不自动替换。运行草稿与 BOSS 编号属于目标工程私有产物，不进入能力包更新/清理范围；源仓实现不代表业务副本已生效。操作见 `plugins/coding-iris-plugin/references/standard-demand-entry.md`。
+需求提交和补录已迁出 IRIS，完整更新会定向迁移旧技能、项目 AGENTS 与启用状态；冲突阻断，详见 [需求交付迁移](demand-delivery-migration.md)。
 
 coding-iris-plugin 0.13.6 起，需求录入输出路径拒绝 `.agents/`、能力包源码和指向它们的目录链接。更新器不会自动移动此前误放的私有 `facts.json`、`spec.json` 或草稿；先核对准确文件与内容，将它们迁到工程任务临时目录或正式需求目录，再处理 `.agents` dirty checkout 并更新。旧输入仍可只读访问，不能为了通过更新而直接删除用户产物。
 
-agent-context-kit v0.3.1 修复普通更新把 guidanceMode 默认值追加到待确认区的问题：模板使用 `agents-update:optional-key` 声明合法可选键，缺省不写入，已有明确配置保留且不误报废弃。项目入口迁移脚本现会报告并补齐缺失的执行辅助路由；仍需显式 `--write`，普通更新不改 AGENTS。历史误追加项只有能确认由本次更新生成且未被用户修改时才定点移除，不按字段值 auto 批量删除。
+agent-context-kit v0.3.1 修复普通更新把 guidanceMode 默认值追加到待确认区的问题：模板使用 `agents-update:optional-key` 声明合法可选键，缺省不写入，已有明确配置保留且不误报废弃。项目入口迁移脚本现会报告并补齐缺失的执行辅助路由；仍需显式 `--write`，该上下文维护步骤不随普通更新执行；需求入口删除的定向引用迁移是例外，见需求交付迁移说明。历史误追加项只有能确认由本次更新生成且未被用户修改时才定点移除，不按字段值 auto 批量删除。
 
 coding-iris-plugin 0.10.0 的部署保护随既有 plugins 与 vendor 分发。必须一并更新 deploy-guard.js、deploy-protected.js、前后端入口与 protected-file.py；不新增连接配置。用户私有 .iris-deploy-state 不属于更新/清理范围。旧后端位置参数须迁移为 --demand/--files/--execute，先建立 Git 基线会话。未提交的 canonical 开发版可在核对目标无分歧后同步精确运行时文件，再用更新器 -NoPull 刷新生成层；此状态是本地待发布副本，不能声称已从远端发布。
 
@@ -377,7 +377,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 默认需求交付类型仍为 TODO，请确认该工程默认处理 standard（标版）还是 project（项目）需求。
 ```
 
-处理该停止项时，只修改目标工程本地 `.agents/config/iris_project_profile.md` 的该字段，保留其它配置。补全前，`iris-coding` 可以继续普通编码，但 `iris-demand-commit` 不得生成可执行提交计划或执行 commit。
+处理该停止项时，只修改目标工程本地 `.agents/config/iris_project_profile.md` 的该字段，保留其它配置。补全前，`iris-coding` 可以继续普通编码，但 `demand-commit` 不得生成可执行提交计划或执行 commit。
 
 ## Agent thin-index
 
@@ -737,3 +737,5 @@ Windows BOS 更新后运行 bos-init 复核个人配置并同步框架管理的�
 ### 2026-10-14 路由与工作区预检收敛
 
 正常更新能力包后先 Check，再 Write 刷新已启用插件索引；四个 i18n 技能恢复真实 description。Overlay 先更新共享 CapabilityRoot，再逐 ContextRoot 用原有 -NoPull 流程刷新。无需配置/会话迁移或额外清理，用户自定义入口按既有冲突机制处理。部署入口将 workspace 校验失败前置；异常目录先修复部署结构，direct 不新增业务 Git 基线要求。
+
+需求交付拆分与兼容更新见 [需求交付迁移](demand-delivery-migration.md)：新入口 demand-commit / bos-demand-entry，旧 IRIS 入口已删除，更新器定向迁移项目引用并接入缺失 owner；显式状态冲突阻断，旧数据格式保留。

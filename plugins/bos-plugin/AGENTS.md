@@ -2,8 +2,11 @@
 
 BOS 能力独立于技术栈。目录存在仅表示 available；项目使用前核对 plugin profile，首次接入读取 [bos-init](skills/bos-init/SKILL.md)。不自动启用其它插件。
 
+本地补录和提交衔接不要求 BOS 凭据；查询仍使用原配置。提交实现来自随能力包分发的 demand-delivery-plugin，仅在需要提交时加载，不将其启用状态变成只读查询的前置条件。
+
 ## 路由
 
+- 从实际 Git 补丁生成标版需求文本/Excel并回填编号：[bos-demand-entry](skills/bos-demand-entry/SKILL.md)。
 - 只读需求列表、详情、图片及附件元数据：[bos-demand-query](skills/bos-demand-query/SKILL.md)。
 - 已有需求号或正文，需要调查、实施、验证：[bos-demand-handle](skills/bos-demand-handle/SKILL.md)。
 - 本机私有配置、初始化与查询 CLI：[使用说明](references/usage.md)。
