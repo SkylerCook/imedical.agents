@@ -12,6 +12,7 @@
 node .agents/scripts/agent-orchestrator.js init --run-directory docs/agent-reports/<run-id> --plan <plan.json>
 node .agents/scripts/agent-orchestrator.js next --run-directory docs/agent-reports/<run-id> --json
 node .agents/scripts/agent-orchestrator.js ack --run-directory docs/agent-reports/<run-id> --result <result.json>
+node .agents/scripts/agent-orchestrator.js result --run-directory docs/agent-reports/<run-id> --result <completion.json>
 node .agents/scripts/agent-orchestrator.js message --run-directory docs/agent-reports/<run-id> --from <id> --to <id> --type handoff --body-file <file>
 node .agents/scripts/agent-orchestrator.js transition --run-directory docs/agent-reports/<run-id> --entity <kind> --status <state>
 node .agents/scripts/agent-orchestrator.js status --run-directory docs/agent-reports/<run-id> --json
@@ -19,6 +20,8 @@ node .agents/scripts/agent-orchestrator.js validate --run-directory docs/agent-r
 ```
 
 `next` 只生成幂等 action。宿主根据 capability probe 执行 `serial`、`subagent`、`session`（兼容 `codex-session`） 或 `human` action，再用 `ack` 返回结果；CLI 不包含产品 API、凭据或远程连接逻辑。
+
+新 run 使用 launch-result/v1：异步启动 ACK 仅确认 endpointId，正式等待返回后由 Coordinator 核验，再用 result 消费同 actionId/endpointId 的完成结果和 artifactRefs。同步 run-serial 仍通过 ack 交件；重复结果幂等、冲突拒绝。旧 run 兼容与未知结果处理见 [协议](../agents/_shared/orchestration-protocol.md)。测试准备、会话保活和证据采集见 [测试运行时](testing-runtime.md)。
 
 ## multi-session 授权
 

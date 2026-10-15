@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- BOS 可重复验收与收尾：共享 testing-protocol 与 testing-runtime 已落地，项目适配认证/空闲心跳、版本与副作用；新编排 launch-result/v1 分开启动 ACK 和完成消费，修复事件 payload 别名污染。Windows 本地协议已验证；真实会话、业务接入与非本机矩阵仍待验证，不自动启用心跳或同步业务工程。
+
 - 需求迁移外部编排：迁移器输出 stateChanges/enabledBefore/enabledAfter，更新器可用 ExpectedEnabledPlugin 校验预计完整集合；框架不读取私有注册表。Check 检查待迁移状态及已启用新 owner 的索引/实际源文件可达性，项目验证器仍负责注册表一致性，见 docs/demand-delivery-migration.md。
 
 - 2026-10-14 HISUI：核心固定上游 `4c09319`（2026-10-12），26 个 Git 外分发资源单独固定摘要；coding-iris-plugin 0.17.1 同步控件/样式索引。源仓升级读取 vendor/hisui/AGENTS.md 与 maintenance/hisui-build/README.md；check/verify 只读，固定输入构建、完整性和回滚专项通过。真实 HIS/helper、已知资源缺项与非 Windows 矩阵分开验证；不自动改预览配置或同步业务工程。

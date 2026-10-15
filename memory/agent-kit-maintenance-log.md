@@ -1,5 +1,9 @@
 # imedical.agents 维护日志
 
+- 2026-10-15（BOS 验收、会话维护与编排基础修复，framework-maintenance）：补齐共享测试契约、Testing Agent/BOS workflow 路由和项目适配指南；新增无依赖 test-session/test-evidence 模块，按有效活动延后心跳、认证恢复串行化、未知结果阻断、限时收尾，实际资源响应哈希及 request-time frame 归属可复用。编排事件 payload 深拷贝消除 ACK 投影污染，新 launch-result/v1 区分启动与 result 消费；旧 run 不补造历史完成证据。
+  - 验证：Windows Node 24.14.1 新增专项 19/19、既有编排/验证指纹测试、框架 contract/evolution（含 PS5.1/PS7）与 BOS 9/9 通过；BOS 测试夹具补 HEAD 初始提交以符合现有运行时预检。文档链接通过，三平台 Node 22/24 CI 已接入新增专项，未取得非本机实跑。组件版本检查保留已登记 xc 1.0.2–1.0.4 发布记录缺 commit 的六项历史问题；本轮不修改插件目录，无组件递增。
+  - 边界：仅框架本地实现与模拟验证，真实保活端点/空闲时限及完整业务路径仍待授权接入。未提交、推送、同步业务副本或访问真实业务服务；通知和数据保留沿批次策略。
+
 - 2026-10-14（BOS 查询能力补齐，framework-maintenance）：bos-plugin 0.6.0 通过既有 CLI / stdio 和同一上游工具开放全部已声明参数，新增 suser / tuser / tgroup、可覆盖 explain 和不透明 body。列表接受任一人员/组条件，显式空 cuser / cgroup 分别清除默认条件，多项明确条件保留组合；默认“我的待办”继续本人＋所在组，默认本人缺失且无其它明确口径时停止。body 不推断内部协议，字段说明返回不做本地列表处理。空 cuser 从回落本人变为显式清除，按 0.x breaking minor 提供调用迁移；继承本人应省略该字段，私有配置不迁移。
   - 验证：Windows Node 24.14.1 查询专项 29/29，通过合成传输与 stdio 覆盖六种人员/组独立及组合、默认保留和显式清除、空/空白/TODO 阻断、body 对象校验与透传、字段说明原返回和既有待办过滤；首次回归发现个人待办缺少本人时可能退化为整组，已补齐停止条件并复测通过。workflow 契约 2/2、部署文档链接/清单 1/1、skill 格式及受影响文档链接通过。版本工具 owner/直接依赖范围的只读工作区比较确认 0.5.1→0.6.0 breaking minor、Migration 和不可变记录无问题；diff check 通过。现有三平台 Node 22/24 CI 自动纳入新增测试，未取得非 Windows / Node 22 或真实 BOS 验证。
   - 收尾：同步 owner、技能/usage、README、能力手册、场景、维护摘要/决策、P2 验证队列及发布记录；安装/更新和 thin-index 机制不变，已有业务工程主动更新并刷新已启用索引，旧空 cuser 调用按 usage 调整，无文件清理。查询证据保存在 `.git/agent-validation/bos-query-role-0.6.0.json`，suite 为 bos-query-role，内容指纹匹配可复用；工具默认系统临时缓存中的本次条目已移除，其它共享记录保留，无任务临时产物。未连接真实 BOS、未改个人配置、未同步业务副本；按用户后续授权提交并推送，精确暂存 16 个文件，复用查询证据，暂存组件版本门禁通过，结果以 Git 记录为准。

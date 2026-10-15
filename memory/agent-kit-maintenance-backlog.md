@@ -1,5 +1,12 @@
 # imedical.agents 后续治理队列
 
+## P1 可重复验收真实接入
+
+1. 在明确授权的目标工程核实无业务写入的同会话保活端点、空闲时限及有效请求判据，完成无心跳/有效操作/心跳/停止后超时/失效恢复对照。未通过前保持心跳禁用；优先于扩并行与批量调度。
+2. 用现有项目 runner 接入一条真实业务路径并重复执行，核验正常入口、实际加载版本、界面/业务状态、请求归属、未知写结果回读及资源退出；记录分阶段耗时与人工介入，不以本地协议测试替代。
+3. P2：取得 Windows/macOS/Linux × Node 22/24 CI 和可用 Agent 宿主的实际结果；不支持后台定时或子 Agent 的宿主验证恢复前检查与串行降级。
+
+
 - P2 Overlay 部署继承：Windows 本地验证后仍需 CI 在 macOS/Linux 的矩阵验证；导出/Broker/配置生成未纳入本轮部署继承范围。
 
 本文件记录 `imedical.agents` 能力包仓库的后续计划、暂缓事项和治理优先级。入口摘要见 `agent-kit-maintenance-memory.md`，长期决策见 `agent-kit-maintenance-decisions.md`，近期维护流水见 `agent-kit-maintenance-log.md`。

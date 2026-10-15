@@ -30,6 +30,9 @@ function fixture(t, overlay, singleShared = false) {
     fs.cpSync(path.join(repo, name), path.join(capability, name), { recursive: true, filter: p => !p.includes(path.join('scripts', 'tests')) });
   }
   for (const name of ['bos-plugin', 'demand-delivery-plugin']) fs.cpSync(path.join(repo, 'plugins', name), path.join(capability, 'plugins', name), { recursive: true });
+  // Runtime preflight reads assets from HEAD; model an installed capability checkout.
+  run('git', ['add', '.'], capability);
+  run('git', ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', `core.hooksPath=${path.join(root, 'empty-hooks')}`, 'commit', '-qm', 'fixture runtime'], capability);
   if (overlay) {
     const shared = singleShared ? ['plugins'] : ['plugins','agents','workflows'];
     const source = path.join(root, 'source'); fs.mkdirSync(source);

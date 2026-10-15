@@ -40,6 +40,10 @@
 
 ## 完成、恢复和验证证据
 
+新 run 声明 `orchestration.resultLifecycle=launch-result/v1`。spawn-subagent/create-session 的 succeeded ACK 必须带 endpointId，仅将 work 推进 running；宿主正式等待取得实际结果、Coordinator 核验后，通过 `result --result <json>` 消费，输入沿用 actionId/status/endpointId/artifactRefs/error。成功完成需同一 endpointId 与非空证据引用。重复相同结果幂等，冲突结果拒绝；blocked 表示未知，先核实，不自动重放。串行 run-serial 的 ACK 仍代表同步执行结果。
+
+旧 schema 2.0 未声明此语义时保持可读，历史启动 ACK 不能证明实际完成；新工具不接收旧 run 的启动/完成结果，也不改历史事件，使用新 run 接续经核实的剩余范围。最终门禁报告未消费结果，不能手改 work=completed 绕过。执行结束但有人工验收项时交付摘要，business acceptance 仍独立。
+
 完成命令和 validate --final 共用门禁：无 pending/blocked action、无未完成或失败 work item、有效验证、业务 accepted 或维护 maintenance-complete。授权请求被对应授权满足后确认请求 action，不冒充业务执行成功。blocked ACK 表示结果待核实，不自动重试；明确核实后以 --entity action --id <id> --status cancelled --actor user --evidence-ref <结果依据> 关闭未决动作，再恢复同一 work item。
 
 写入 run 验证通过时使用 --verification-file，绑定 validation-evidence.js 的实际通过证据；完成前重新计算 scope 指纹，源码、产物和远端读回快照变更使验证失效。详细 CLI 见 docs/agent-orchestration.md。旧 schema 1.0–1.2 只读，旧 2.0 可补验证证据，不重写历史事件。

@@ -67,9 +67,10 @@ try {
   assert.equal(replayedStatus.topic, "parallel read-only fixture");
 
   const resultFile = path.join(temporary, "ack.json");
-  writeJson(resultFile, { actionId: firstActions[0].id, status: "succeeded", artifactRefs: ["handoffs/read-a.md"] });
+  writeJson(resultFile, { actionId: firstActions[0].id, status: "succeeded", endpointId: "reader-a", artifactRefs: ["handoffs/read-a.md"] });
   invoke(["ack", "--run-directory", serialRun, "--result", resultFile, "--json"]);
   invoke(["ack", "--run-directory", serialRun, "--result", resultFile, "--json"]);
+  invoke(["result", "--run-directory", serialRun, "--result", resultFile, "--json"]);
   writeJson(resultFile, { actionId: firstActions[0].id, status: "failed", error: "conflict" });
   invoke(["ack", "--run-directory", serialRun, "--result", resultFile, "--json"], 1);
 
@@ -79,8 +80,9 @@ try {
   invoke(["ack", "--run-directory", serialRun, "--result", resultFile, "--json"]);
   const retry = invoke(["next", "--run-directory", serialRun, "--json"]).find((item) => item.workItemId === "read-b");
   assert.notEqual(retry.id, firstActions[1].id);
-  writeJson(resultFile, { actionId: retry.id, status: "succeeded", artifactRefs: ["handoffs/read-b.md"] });
+  writeJson(resultFile, { actionId: retry.id, status: "succeeded", endpointId: "reader-b", artifactRefs: ["handoffs/read-b.md"] });
   invoke(["ack", "--run-directory", serialRun, "--result", resultFile, "--json"]);
+  invoke(["result", "--run-directory", serialRun, "--result", resultFile, "--json"]);
 
   const gitFixture = path.join(temporary, "git-fixture");
   fs.mkdirSync(gitFixture);
@@ -138,6 +140,7 @@ try {
   for (const action of sessionActions.filter((item) => item.type === "create-session")) {
     writeJson(resultFile, { actionId: action.id, status: "succeeded", endpointId: `fixture-${action.targetId}`, artifactRefs: [`handoffs/${action.targetId}.md`] });
     invoke(["ack", "--run-directory", multiRun, "--result", resultFile, "--json"]);
+    invoke(["result", "--run-directory", multiRun, "--result", resultFile, "--json"]);
   }
   const integrationActions = invoke(["next", "--run-directory", multiRun, "--json"]);
   assert.equal(integrationActions.filter((item) => item.type === "prepare-integration" && item.authorizationCategory === "merge").length, 1);

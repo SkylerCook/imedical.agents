@@ -1,5 +1,7 @@
 # .agents 安装与更新 Runbook
 
+可重复测试与会话维护通过既有 scripts/lib、agents、workflows、docs 分发，无新迁移或旧文件清理；项目 runner 显式接入后才可启用经核实的心跳。异步编排启动与结果消费有新契约，旧 run 不自动升级，见 [测试运行时](testing-runtime.md) 与 [编排手册](agent-orchestration.md)。
+
 需求迁移由外部插件注册表编排时，先消费迁移器 JSON 的 `stateChanges` / `enabledAfter`，再通过 `-ExpectedEnabledPlugin` 传入完整预期集合；不一致在需求迁移写入前停止。普通 Check 会检测待迁移旧入口及已启用新入口的实际可达性。编排顺序和边界见 [外部编排契约](demand-delivery-migration.md#外部编排与-check)。
 
 ## HISUI 资产更新

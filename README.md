@@ -210,6 +210,7 @@ node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js
 - `workflows/iris-change.workflow.md`：IRIS 领域协作流程。
 - `workflows/i18n-change.workflow.md`：IRIS i18n 领域流程。
 - `scripts/agent-orchestrator.js`：schema 2.0 事件驱动调度 CLI，生成统一 adapter action，不直接调用产品 API。
+- 异步启动与完成分别通过 ACK/result 消费；可重复验收、按项目配置的空闲心跳与收尾见 [测试运行时](docs/testing-runtime.md)。默认串行可用，真实会话与业务验证独立取证。
 
 i18n 流程：
 

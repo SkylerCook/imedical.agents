@@ -10,7 +10,8 @@ const SCHEMA_VERSION = "2.0";
 const MANIFEST_NAME = "00-run-manifest.json";
 const EVENT_NAME = "events.jsonl";
 const LEGACY_SCHEMAS = new Set(["1.0", "1.1", "1.2"]);
-const MUTATING_COMMANDS = new Set(["init", "next", "ack", "message", "transition"]);
+const MUTATING_COMMANDS = new Set(["init", "next", "ack", "result", "message", "transition"]);
+const LAUNCH_ACTIONS = new Set(["spawn-subagent", "create-session"]);
 const TERMINAL_WORK = new Set(["completed", "failed", "skipped"]);
 const AUTHORIZATION_KEYS = ["collaborationPlan", "remoteWrite", "commit", "merge", "push", "deploy", "feedbackWrite"];
 const TASK_KINDS = new Set(["business-demand", "framework-maintenance", "other"]);
@@ -36,6 +37,10 @@ function verificationIssues(manifest) {
 
 function completionIssues(manifest) {
   const issues = verificationIssues(manifest);
+  for (const action of manifest.actions.filter(a => LAUNCH_ACTIONS.has(a.type) && a.result?.status === "succeeded" && a.status !== "cancelled")) {
+    if (!action.completionResult || action.completionResult.status === "blocked") issues.push(`unconsumed execution result: ${action.id}`);
+  }
+  if (!manifest.orchestration.resultLifecycle && manifest.actions.some(a => LAUNCH_ACTIONS.has(a.type) && a.result?.status === "succeeded")) issues.push("legacy launch completion lacks independently consumed result evidence");
   if (manifest.workItems.some(item => !TERMINAL_WORK.has(item.status))) issues.push("unfinished work items");
   if (manifest.workItems.some(item => item.status === "failed")) issues.push("failed work items cannot complete successfully");
   if (manifest.actions.some(item => !["acknowledged", "failed", "cancelled"].includes(item.status))) issues.push("pending or blocked actions");
@@ -251,7 +256,7 @@ function eventPayload(manifest, type, actorId, entityId, payload, idempotencyKey
     type,
     entityId: entityId || null,
     idempotencyKey: idempotencyKey || null,
-    payload: payload || {}
+    payload: clone(payload || {})
   };
 }
 
@@ -385,6 +390,7 @@ function createManifest(options) {
     workflow: { id: options.workflow || plan.workflow || "standard-change", source: plan.workflowSource || `workflows/${options.workflow || plan.workflow || "standard-change"}.workflow.md` },
     executionPath: options.executionPath || plan.executionPath || "full",
     orchestration: {
+      resultLifecycle: "launch-result/v1",
       mode: options.orchestrationMode || plan.orchestrationMode || "serial",
       adapter: options.adapter || plan.adapter || "serial",
       fallbacks: plan.fallbacks || ["serial", "human"],
@@ -518,14 +524,14 @@ function commandNext(options) {
       manifest.status = "awaiting-integration-authorization";
     }
     const unfinished = manifest.workItems.filter((item) => !TERMINAL_WORK.has(item.status));
-    if (created.length === 0 && unfinished.length > 0 && !manifest.actions.some((item) => item.status === "pending")) manifest.status = "blocked";
+    if (created.length === 0 && unfinished.length > 0 && !unfinished.some(item => item.status === "running") && !manifest.actions.some((item) => item.status === "pending")) manifest.status = "blocked";
     else if (created.length > 0 && manifest.status !== "awaiting-integration-authorization") manifest.status = "active";
     persist(runDirectory, manifest, "actions.generated", manifest.coordinatorId, manifest.runId, { actionIds: created.map((item) => item.id), adapter });
     return created;
   });
 }
 
-function commandAck(options) {
+function commandAck(options, completion = false) {
   const runDirectory = requireRunDirectory(options);
   if (!options.result) fail("ack requires --result <json>");
   const result = readJson(path.resolve(options.result));
@@ -535,16 +541,35 @@ function commandAck(options) {
     const actionId = options.action || result.actionId;
     const action = manifest.actions.find((item) => item.id === actionId);
     if (!action) fail(`Unknown action: ${actionId}`);
+    if (result.actionId !== actionId) fail("Result actionId mismatch");
+    const launch = LAUNCH_ACTIONS.has(action.type);
+    if (launch && manifest.orchestration.resultLifecycle !== "launch-result/v1") fail("Legacy launch results require independent review; start a new run for launch-result/v1");
+    if (completion && (!launch || action.result?.status !== "succeeded" || result.endpointId !== action.result.endpointId)) fail("Completion requires a successful launch and matching endpointId");
     const normalized = { actionId, status: result.status, endpointId: result.endpointId || null, artifactRefs: result.artifactRefs || [], error: result.error || null };
-    if (action.result) {
-      if (hash(action.result) === hash(normalized)) return action;
+    const resultKey = completion ? "completionResult" : "result";
+    if (action[resultKey]) {
+      if (hash(action[resultKey]) === hash(normalized)) return action;
       fail(`Conflicting ACK for action ${actionId}`);
     }
-    if (!["succeeded", "failed", "blocked"].includes(normalized.status)) fail(`Invalid ACK status: ${normalized.status}`);
-    action.result = normalized;
+    if (action.status === "cancelled") fail("Cancelled action cannot accept a result");
+    if (!["succeeded", "failed", "blocked", "cancelled"].includes(normalized.status)) fail(`Invalid ACK status: ${normalized.status}`);
+    if (!Array.isArray(normalized.artifactRefs) || normalized.artifactRefs.some(ref => typeof ref !== "string")) fail("artifactRefs must be strings");
+    if (launch && normalized.status === "succeeded" && !normalized.endpointId) fail("Launch requires endpointId");
+    if (completion && normalized.status === "succeeded" && !normalized.artifactRefs.length) fail("Completion requires artifactRefs");
+    action[resultKey] = clone(normalized);
     action.status = normalized.status === "succeeded" ? "acknowledged" : normalized.status;
     const work = manifest.workItems.find((item) => item.id === action.workItemId);
-    if (work && !["request-authorization", "prepare-integration"].includes(action.type)) {
+    if (launch && !completion && normalized.status === "succeeded") {
+      work.status = "running";
+      if (work.writeScopes.length) {
+        resetTaskLifecycle(manifest);
+        manifest.verification.status = "stale";
+        manifest.verification.lastMutationSequence = manifest.eventLog.lastSequence + 1;
+      }
+      persist(runDirectory, manifest, "action.launched", manifest.coordinatorId, action.id, normalized, action.idempotencyKey);
+      return action;
+    }
+    if (work && ["run-serial", "request-human", "spawn-subagent", "create-session"].includes(action.type)) {
       work.attempts.push({ actionId, status: normalized.status, at: now(), artifactRefs: normalized.artifactRefs, error: normalized.error });
       if (normalized.status === "succeeded") {
         work.status = "completed";
@@ -563,7 +588,7 @@ function commandAck(options) {
           manifest.verification.lastMutationSequence = manifest.eventLog.lastSequence + 1;
         }
       } else if (normalized.status === "failed" && work.attempts.length < work.maxAttempts) work.status = "pending";
-      else work.status = normalized.status;
+      else work.status = normalized.status === "cancelled" ? "blocked" : normalized.status;
     }
     if (action.type === "deliver-message" && normalized.status === "succeeded") {
       const message = manifest.messages.find((item) => item.bodyRef === action.payloadRef && item.to.includes(action.targetId));
@@ -572,7 +597,7 @@ function commandAck(options) {
         message.deliveredAt = now();
       }
     }
-    persist(runDirectory, manifest, "action.acknowledged", manifest.coordinatorId, action.id, normalized, action.idempotencyKey);
+    persist(runDirectory, manifest, completion ? "action.result-consumed" : "action.acknowledged", manifest.coordinatorId, action.id, normalized, action.idempotencyKey);
     return action;
   });
 }
@@ -745,6 +770,7 @@ function commandTransition(options) {
       const item = manifest.workItems.find((value) => value.id === options.id);
       if (!item) fail(`Unknown work item: ${options.id}`);
       if (!["pending", "ready", "dispatched", "running", "blocked", "completed", "failed", "skipped"].includes(status)) fail(`Invalid work item status: ${status}`);
+      if (status === "completed" && manifest.actions.some(a => a.workItemId === item.id && LAUNCH_ACTIONS.has(a.type) && a.result?.status === "succeeded" && a.status !== "cancelled" && a.completionResult?.status !== "succeeded")) fail("Work completion requires consumed execution result");
       item.status = status;
       if (item.writeScopes.length) {
         resetTaskLifecycle(manifest);
@@ -801,6 +827,7 @@ function validateDag(workItems, issues) {
 
 function validateV2(manifest, runDirectory, finalOnly, settings = {}) {
   const issues = [];
+  if (manifest.orchestration?.resultLifecycle && manifest.orchestration.resultLifecycle !== "launch-result/v1") issues.push("unsupported resultLifecycle");
   if (manifest.schemaVersion !== SCHEMA_VERSION) issues.push(`schemaVersion must be ${SCHEMA_VERSION}`);
   if (!TASK_KINDS.has(manifest.taskKind)) issues.push("taskKind must be business-demand, framework-maintenance, or other");
   if (!["always", "on-signal"].includes(manifest.feedbackReviewPolicy || "always")) issues.push("Invalid feedbackReviewPolicy");
@@ -927,13 +954,13 @@ function commandStatus(options) {
 }
 
 function usage() {
-  return `agent-orchestrator.js <command> --run-directory <path> [options]\n\nCommands:\n  init        Create a schema 2.0 run from --plan <json>\n  next        Emit currently executable idempotent actions\n  ack         Record adapter result from --result <json>\n  message     Persist coordinator-routed communication\n  transition  Advance authorization, work, verification, demand acceptance, maintenance, feedback, or run state\n  status      Print current projection\n  validate    Validate consistency; add --final for completion gates\n\nVerification: transition --entity verification --status passed --verification-file <bindings.json>\nBindings: [{repoRoot, suite, evidenceFile}] from validation-evidence.js; required for writes.\nFeedback: transition --entity feedback-decision --status skipped --reason no-signal (on-signal only).\nRecovery: transition --entity action --id <id> --status cancelled --actor user --evidence-ref <resolution>.\n`;
+  return `agent-orchestrator.js <command> --run-directory <path> [options]\n\nCommands:\n  init        Create a schema 2.0 run from --plan <json>\n  next        Emit currently executable idempotent actions\n  ack         Record adapter result from --result <json>\n  result      Consume asynchronous completion from --result <json>\n  message     Persist coordinator-routed communication\n  transition  Advance authorization, work, verification, demand acceptance, maintenance, feedback, or run state\n  status      Print current projection\n  validate    Validate consistency; add --final for completion gates\n\nVerification: transition --entity verification --status passed --verification-file <bindings.json>\nBindings: [{repoRoot, suite, evidenceFile}] from validation-evidence.js; required for writes.\nFeedback: transition --entity feedback-decision --status skipped --reason no-signal (on-signal only).\nRecovery: transition --entity action --id <id> --status cancelled --actor user --evidence-ref <resolution>.\n`;
 }
 
 function main(argv = process.argv.slice(2)) {
   const { command, options } = parseArgs(argv);
   if (!command || command === "help" || options.help) { process.stdout.write(usage()); return 0; }
-  const handlers = { init: commandInit, next: commandNext, ack: commandAck, message: commandMessage, transition: commandTransition, status: commandStatus, validate: commandValidate };
+  const handlers = { init: commandInit, next: commandNext, ack: commandAck, result: options => commandAck(options, true), message: commandMessage, transition: commandTransition, status: commandStatus, validate: commandValidate };
   if (!handlers[command]) fail(`Unknown command: ${command}`);
   if (MUTATING_COMMANDS.has(command) && command !== "init") {
     const manifest = loadManifest(requireRunDirectory(options));

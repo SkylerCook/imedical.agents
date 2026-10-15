@@ -241,3 +241,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 启用新入口后使用 [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md) 的 `--plan` 生成提交信息，明确 `--commit` 执行本地提交。当前用户或项目约定须明确 standard/project、数字需求号、标题与精确文件；无须 IRIS profile。其它提交格式沿用项目规范。
 
 BOS 补录使用 [bos-demand-entry](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md) 的 `--text`，按需加 `--excel`；产品标识来自项目或用户确认，录入后用 `--bind` 回填，再独立授权提交。本地补录不要求 BOS 凭据。本文旧 iris-demand-* 示例仍作为兼容调用可用。详见 [迁移说明](../demand-delivery-migration.md)。
+
+## 可重复 BOS 验收
+
+需求实现前按 [测试协议](../../agents/_shared/testing-protocol.md) 明确角色、数据、动作、断言与恢复。需要接入已有 runner 时使用 [测试运行时](../testing-runtime.md)，例如“为本需求准备可重复的验收，沿用项目认证和数据，在部署版本就绪后执行并清理”。心跳必须先验证项目端点和空闲时限，更新能力包不会自动启用；真实服务器操作仍需对应授权。普通任务可串行执行，工具通过不等于用户验收。
