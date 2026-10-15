@@ -237,6 +237,8 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 ## bos-plugin
 
+BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调用检查见[可用性依赖](../plugin-availability.md)。
+
 前提：Node.js >=22.5.0；项目内使用时明确启用插件，个人查询可使用已接入的用户级入口。在线查询与日志补录使用 BOS_MCP_CONFIG 指向的共享私有文件，各自读取按 skill 命名的段，已有充分需求正文的本地处理不依赖在线查询。
 
 - [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md)：请求“初始化 BOS 个人配置”，Windows 创建或复用分段私有配置，仅绑定 BOS_MCP_CONFIG；旧平铺文件须明确 migrate-config 原地迁移，用户补全 TODO 后离线核对；这不启用项目。请求“为当前项目接入 BOS 查询与需求处理”才更新 profile 并生成四个日常发现入口。详见[配置说明](../../plugins/bos-plugin/references/usage.md)；非 Windows 使用显式配置，不自动注册客户端 MCP。

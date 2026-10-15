@@ -5,6 +5,8 @@ description: 处理已有 BOS 需求号或正文，按项目技术栈调查、�
 
 # BOS 需求处理
 
+进入通用提交或连续验收前，按[可用性依赖协议](../../../../docs/plugin-availability.md)检查调用方 bos-plugin 的 demand-commit 或 demand-acceptance 阶段；缺口只阻塞对应阶段。
+
 只查详情、待办或历史时使用 [bos-demand-query](../bos-demand-query/SKILL.md)。先有代码再补录标版需求时使用 [bos-demand-entry](../bos-demand-entry/SKILL.md)，不倒转本入口。
 
 读取目标 AGENTS、plugin profile 后执行 [bos-demand workflow](../../../../workflows/bos-demand.workflow.md)，简单需求按其中的串行路径连续处理，领域技能按范围直达，正式协作资料按条件加载。bos-plugin 为 available/disabled 时说明接入缺口，用户明确接入后使用 bos-init；其它领域插件未启用时使用其自身初始化入口，只阻塞依赖该能力的阶段。不因有目录而当作已启用。

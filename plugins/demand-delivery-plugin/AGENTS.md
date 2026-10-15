@@ -1,5 +1,7 @@
 # Demand Delivery Plugin
 
+跨插件阶段依赖以 manifest 的 availableDependencies 为事实源；触发时按[可用性依赖协议](../../docs/plugin-availability.md)检查，缺口仅阻塞对应阶段，显式 disabled 保留。
+
 用户要求需求提交信息或明确提交时读取 [demand-commit](skills/demand-commit/SKILL.md)。使用项目已确认的数字需求号、standard/project 类型及精确文件范围；与项目提交规范冲突时停止并说明，不替换项目规范。
 
 连续人工验收、逐号交付或查询验收/交付编号汇总时，读取 [demand-acceptance](skills/demand-acceptance/SKILL.md)，复用已有台账和授权；提交与 BOS 日志继续由各自技能执行。

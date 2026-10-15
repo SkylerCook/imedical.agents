@@ -76,6 +76,8 @@ $bos-demand-entry --commit
 
 ## 正式提交
 
+执行 prepare/message/plan 前，按[可用性依赖协议](../../../../docs/plugin-availability.md)检查 bos-plugin 的 standard-demand-entry 阶段；正式提交再检查 demand-commit 阶段。脚本按需加载提交能力，取证、回填和渲染可独立执行。
+
 只对 worktree 来源使用 [demand-commit](../../../demand-delivery-plugin/skills/demand-commit/SKILL.md)：`demand-entry.js plan` 校验草稿后转交原 `commit-demand.js plan`，固定 `--kind standard`，复用精确文件、每仓库修改说明、BOSS 编号与最终标题。不能把 draft 当作 commit plan，也不能手工编辑生成的 plan。
 
 生成消息或回填编号不授权 commit。用户明确要求提交时，沿用已有授权展示 plan 后执行原 `apply --confirm-commit --verify`，不重复确认；pull 门禁、漂移停止和多仓库部分成功报告均沿用原 skill。已完成验证的有效证据复用，未知验证状态如实报告。push、部署与 BOSS 写入不包含在本流程；BOSS 由用户录入。提交不改变业务验收状态。

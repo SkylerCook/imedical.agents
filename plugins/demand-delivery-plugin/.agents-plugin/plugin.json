@@ -1,6 +1,6 @@
 {
   "name": "demand-delivery-plugin",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "displayName": "Demand Delivery Plugin",
   "description": "跨技术栈的数字需求号提交与连续人工验收、逐号交付恢复。",
   "entry": "AGENTS.md",
@@ -12,5 +12,25 @@
     "使用 demand-commit --plan 生成需求提交信息",
     "使用 demand-commit --commit 执行已授权的本地需求提交",
     "使用 demand-acceptance 连续接收人工验收并按既有授权逐号交付"
+  ],
+  "availableDependencies": [
+    {
+      "plugin": "bos-plugin",
+      "stage": "bos-demand-entry",
+      "trigger": "标版需求缺少编号，需要生成 BOS 补录材料",
+      "entries": [
+        "skills/bos-demand-entry/SKILL.md",
+        "scripts/demand-entry.js"
+      ]
+    },
+    {
+      "plugin": "bos-plugin",
+      "stage": "bos-code-update-log",
+      "trigger": "交付选择 BOS 代码更新日志补录",
+      "entries": [
+        "skills/bos-code-update-log/SKILL.md",
+        "scripts/bos-code-update-log.js"
+      ]
+    }
   ]
 }

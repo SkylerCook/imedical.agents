@@ -69,8 +69,8 @@ node demand-entry.js collect --repo <GitRoot> --range <base>..<head> --output <�
 `imported: true` 表示已录 BOSS，文本/Excel 不重复输出；bind 后也自动排除。`common`、`fields` 仅供 Excel，不改变默认文本流程。
 
 ```text
-node demand-entry.js prepare --spec <spec.json> --output <新交付目录>
-node demand-entry.js prepare --spec <spec.json> --output <新交付目录> --excel
+node demand-entry.js prepare --project-root <WorkspaceRoot> --spec <spec.json> --output <新交付目录>
+node demand-entry.js prepare --project-root <WorkspaceRoot> --spec <spec.json> --output <新交付目录> --excel
 node demand-entry.js render --draft <draft.json> --output <新交付目录> --Excel
 ```
 
@@ -84,11 +84,13 @@ node demand-entry.js render --draft <draft.json> --output <新交付目录> --Ex
 
 ```text
 node demand-entry.js bind --draft <draft.json> --item r1 --demand <需求号> --title <BOSS最终标题> --output <bound.json>
-node demand-entry.js message --draft <bound.json> --item r1
+node demand-entry.js message --project-root <WorkspaceRoot> --draft <bound.json> --item r1
 node demand-entry.js plan --draft <bound.json> --item r1 --project-root <WorkspaceRoot>
 ```
 
 bind 只记录用户给定编号与最终标题，不要求 Git 当前无漂移；message/plan 才校验，以便等待期间先保存编号。不同条目不能绑定同一编号；已绑定编号/标题不会静默覆盖。需要纠正时由 Agent 按用户明确指示复制并编辑新草稿中的 boss 映射，再校验，不修改证据。
+
+prepare/message 的 --project-root 用于读取目标项目的依赖状态；省略时使用当前工作目录，跨工程调用应显式传入。prepare/message/plan 在加载提交模块前检查 manifest 声明的可用性依赖，显式 disabled 或入口缺失只阻塞该阶段。
 
 message 复用 `commit-demand.js` 的 buildMessage/validateModification。plan 仅适用于全部为 worktree 的来源，由原提交工具重新校验 WorkspaceRoot/Overlay 和实际 GitRoot，生成标准计划；不做 pull/add/commit。历史来源即使当前出现其它未提交修改也拒绝 plan。用户明确提交后按 demand-commit 运行 apply/verify；本工具没有 apply/commit/rewrite 命令。
 

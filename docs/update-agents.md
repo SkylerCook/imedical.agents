@@ -422,6 +422,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/generate-age
 
 ## Vendor skill 按依赖发现
 
+enabled 插件的 availableDependencies 复用只读检查，输出 plugin-availability-ready / plugin-availability-warning；警告不阻断独立能力，实际阶段检查失败才停止。此关系不加入 vendor 依赖递归或自动启用。声明、命令与升级方式见[可用性依赖](plugin-availability.md)。
+
 `vendor/` 是随能力包部署的 fallback 源，不是默认安装列表。`update-agents.ps1` 调用 `resolve-plugin-skill-dependencies.ps1`，递归汇总 enabled 插件、显式选择插件及其插件依赖；manifest 中 `skillDependencies.required` 自动进入项目发现层，`optional` 只在任务命中 trigger 后按需读取。
 
 `coding-iris-plugin` 引入的 `iris-agentic-dev-skills` 属于 optional vendor skill：更新脚本会把 v1.2.6 固定提交的 8 个 skill 快照同步到 `.agents/vendor/iris-agentic-dev-skills/`，但不会自动生成 `.agents/skills` thin-index。需要直接使用这些官方 skill 时，可从 vendor 路径读取，或由目标 runtime 的显式同步选项生成入口；`objectscript-tdd` 仍受任务级编译/测试授权约束，`iris-mcp-lookup` 本身仍由插件 canonical skill 提供。

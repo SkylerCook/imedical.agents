@@ -2,6 +2,8 @@ name: BOS demand framework
 on:
   push:
     paths:
+      - 'scripts/check-plugin-availability.js'
+      - 'scripts/tests/plugin-availability.tests.js'
       - 'scripts/migrate-demand-ownership.js'
       - 'scripts/update-agents.ps1'
       - 'scripts/generate-plugin-thin-index.ps1'
@@ -31,6 +33,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
+      - run: node --test scripts/tests/plugin-availability.tests.js
       - run: node --test plugins/bos-plugin/tests/*.tests.js scripts/tests/bos-plugin.tests.js plugins/demand-delivery-plugin/tests/demand-commit.test.js plugins/demand-delivery-plugin/tests/commit-upstream-check.test.js
       - run: node --test scripts/tests/workspace-context.tests.js scripts/tests/standard-demand-entry.tests.js
       - run: node --test --test-name-pattern="project links resolve" scripts/tests/documentation-layout.tests.js

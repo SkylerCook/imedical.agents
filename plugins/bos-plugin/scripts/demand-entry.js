@@ -5,7 +5,17 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
-const { buildMessage, validateModification } = require('../../demand-delivery-plugin/scripts/commit-demand');
+const { checkAvailability } = require('../../../scripts/check-plugin-availability');
+const { resolveWorkspaceContext } = require('../../../scripts/lib/workspace-context');
+function submissionTools(projectRoot = process.cwd()) {
+  const context = resolveWorkspaceContext(projectRoot);
+  if (context.mode === 'invalid') throw new Error('Invalid workspace context');
+  const result = checkAvailability({ capabilityRoot: path.resolve(__dirname, '../../..'),
+    contextRoot: context.contextRoot,
+    plugin: 'bos-plugin', stage: 'standard-demand-entry' });
+  if (!result.ok) throw new Error('BOS 补录依赖不可用: ' + JSON.stringify(result.checks));
+  return require('../../demand-delivery-plugin/scripts/commit-demand');
+}
 const { buildWorkbook } = require('./demand-entry-xlsx');
 const SCHEMA = 'iris-standard-demand/v2';
 const FACTS = 'iris-standard-demand-facts/v1';
@@ -143,7 +153,8 @@ function renderText(item, withName = true) {
   return withName ? `需求名称：\n\n${item.name}\n\n需求描述：\n\n${body}` : body;
 }
 
-function prepare(spec, baseDirectory) {
+function prepare(spec, baseDirectory, projectRoot) {
+  const { validateModification } = submissionTools(projectRoot);
   if (spec.kind !== 'standard') throw new Error('此入口仅支持 kind=standard');
   if (!Array.isArray(spec.requirements) || !spec.requirements.length) throw new Error('requirements 不能为空');
   const keys = new Set();
@@ -200,7 +211,8 @@ function bind(draft, key, demand, title) {
   return draft;
 }
 
-function messages(draft, key) {
+function messages(draft, key, projectRoot) {
+  const { buildMessage, validateModification } = submissionTools(projectRoot);
   const item = getItem(draft, key);
   if (!item.boss) throw new Error('请先回填 BOSS 需求号和最终标题');
   if (!/^\d+$/.test(item.boss.demand)) throw new Error('无效 BOSS 需求号');
@@ -215,10 +227,14 @@ function messages(draft, key) {
 }
 
 function planArguments(draft, key, projectRoot) {
-  const item = getItem(draft, key);
-  messages(draft, key);
-  if (item.changes.some((change) => change.evidence.mode !== 'worktree')) throw new Error('历史提交只能生成消息；本入口不 amend、rebase 或创建空提交');
   if (!projectRoot) throw new Error('需要 --project-root 以校验实际工程边界');
+  const context = resolveWorkspaceContext(projectRoot);
+  if (context.mode === 'invalid') throw new Error('Invalid workspace context');
+  const availability = checkAvailability({ ...context, capabilityRoot: path.resolve(__dirname, '../../..'), plugin: 'bos-plugin', stage: 'demand-commit' });
+  if (!availability.ok) throw new Error('BOS 提交依赖不可用: ' + JSON.stringify(availability.checks));
+  const item = getItem(draft, key);
+  messages(draft, key, projectRoot);
+  if (item.changes.some((change) => change.evidence.mode !== 'worktree')) throw new Error('历史提交只能生成消息；本入口不 amend、rebase 或创建空提交');
   const args = ['plan', '--project-root', path.resolve(projectRoot), '--kind', 'standard', '--demand', item.boss.demand,
     '--subject', item.subject, '--title', item.boss.title, '--type', item.type];
   for (const change of item.changes) {
@@ -269,8 +285,8 @@ function parseArgs(argv) {
   }
   const allowed = {
     collect: ['repo', 'range', 'output', 'files', 'commits'],
-    prepare: ['spec', 'output', 'excel'], bind: ['draft', 'item', 'demand', 'title', 'output'],
-    render: ['draft', 'output', 'excel'], message: ['draft', 'item'], plan: ['draft', 'item', 'projectRoot'],
+    prepare: ['spec', 'output', 'excel', 'projectRoot'], bind: ['draft', 'item', 'demand', 'title', 'output'],
+    render: ['draft', 'output', 'excel'], message: ['draft', 'item', 'projectRoot'], plan: ['draft', 'item', 'projectRoot'],
   }[args.command];
   if (!allowed) throw new Error('用法: demand-entry.js collect|prepare|bind|render|message|plan');
   for (const key of Object.keys(args)) {
@@ -304,7 +320,7 @@ function main(argv = process.argv.slice(2)) {
     writeNew(args.output, `${JSON.stringify(result, null, 2)}\n`);
     result = { evidence: path.resolve(args.output), mode: result.mode, files: result.files };
   } else if (args.command === 'prepare') {
-    const draft = prepare(readJson(args.spec), path.dirname(path.resolve(args.spec)));
+    const draft = prepare(readJson(args.spec), path.dirname(path.resolve(args.spec)), args.projectRoot);
     result = deliver(draft, args.output, args.excel);
   } else {
     const draft = readJson(args.draft);
@@ -313,7 +329,7 @@ function main(argv = process.argv.slice(2)) {
       if (!args.output) throw new Error('需要 --output 保存回填后的新草稿');
       writeNew(args.output, `${JSON.stringify(result, null, 2)}\n`);
       result = { draft: path.resolve(args.output), item: args.item, demand: args.demand };
-    } else if (args.command === 'message') result = messages(draft, args.item);
+    } else if (args.command === 'message') result = messages(draft, args.item, args.projectRoot);
     else if (args.command === 'render') {
       for (const item of draft.requirements) {
         getItem(draft, item.key);

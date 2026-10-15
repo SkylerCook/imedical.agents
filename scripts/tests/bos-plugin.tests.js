@@ -153,6 +153,16 @@ for (const overlay of [false, true]) test('updater retires deployed demand names
   assert.match(run(shell, [...args, '-Mode', 'Check'], f.root, process.env, 1), /Demand ownership migration blocked/);
 });
 
+for (const overlay of [false, true]) test('availability warning preserves BOS discovery without enabling Delivery: ' + overlay, t => {
+  const f = fixture(t, overlay);
+  write(path.join(f.context, 'config/plugin_profile.md'), '| plugin | status | initSkill | dependsOn | notes |\n|---|---|---|---|---|\n| bos-plugin | enabled | bos-init | - | fixture |\n| demand-delivery-plugin | disabled | - | - | fixture |\n');
+  const output = run(shell, ['-NoProfile', '-File', path.join(f.capability, 'scripts/update-agents.ps1'), '-ProjectRoot', f.project, '-Plugin', 'bos-plugin', '-Mode', 'Write', '-NoPull', '-Detailed'], f.root);
+  assert.match(output, /plugin-availability-warning/);
+  assert.ok(fs.existsSync(path.join(f.context, 'skills/bos-demand-query/SKILL.md')));
+  assert.equal(fs.existsSync(path.join(f.context, 'skills/demand-commit/SKILL.md')), false);
+  assert.match(fs.readFileSync(path.join(f.context, 'config/plugin_profile.md'), 'utf8'), /demand-delivery-plugin\s*\|\s*disabled/);
+});
+
 for (const overlay of [false, true]) test('generic demand skill is discoverable without IRIS: ' + overlay, t => {
   const f = fixture(t, overlay);
   const entry = path.join(f.context, 'skills/demand-commit/SKILL.md');

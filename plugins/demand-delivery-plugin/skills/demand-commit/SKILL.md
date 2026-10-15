@@ -44,6 +44,8 @@ $demand-commit --commit
 
 ## 必读上下文
 
+转入 BOS 标版补录前，按[可用性依赖协议](../../../../docs/plugin-availability.md)检查 demand-delivery-plugin 的 bos-demand-entry 阶段；普通提交不触发此检查。
+
 项目使用 BOS，标版代码已完成但尚无 BOSS 需求号时，用户要求补需求/闭环则先使用 `../../../bos-plugin/skills/bos-demand-entry/SKILL.md`：默认需求文本，可选 `--excel` / `--Excel`，由用户录入 BOSS。回填编号后复用草稿生成消息；worktree 来源通过 `demand-entry.js plan` 转交本脚本标准计划。历史提交来源只生成消息，不进入 Apply、不自动改写历史。此衔接不改变 project 流程及提交授权。
 
 1. 目标工程 `AGENTS.md`。

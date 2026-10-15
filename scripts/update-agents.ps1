@@ -1344,6 +1344,16 @@ foreach ($installedPlugin in $allPlugins) {
     continue
   }
 
+  if ($null -ne $installedPlugin.manifest.PSObject.Properties["availableDependencies"]) {
+    $availabilityText = & node (Join-Path $capabilityRoot "scripts/check-plugin-availability.js") --project-root $projectRootFull --capability-root $capabilityRoot --context-root $contextRoot --plugin $installedPlugin.name | Out-String
+    if ($LASTEXITCODE -ne 0) { throw "Invalid availableDependencies: $($installedPlugin.name)" }
+    $availability = $availabilityText | ConvertFrom-Json
+    foreach ($check in @($availability.checks)) {
+      $availabilityStatus = if ($check.available) { "plugin-availability-ready" } else { "plugin-availability-warning" }
+      $results.Add((Write-UpdateResult -Status $availabilityStatus -Target $pluginTarget -Reason ("stage=" + $check.stage + "; requires=" + $check.plugin + "; " + ($check.problems -join ", ")) -PluginName $installedPlugin.name -Phase "plugin"))
+    }
+  }
+
   $plugins.Add($installedPlugin)
   $status = if ($explicitlySelected) { "plugin-selected" } else { "plugin-found" }
   $results.Add((Write-UpdateResult -Status $status -Target $pluginTarget -Reason $profileEntry.status -PluginName $installedPlugin.name -Phase "plugin"))

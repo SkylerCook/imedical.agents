@@ -41,6 +41,8 @@
 
 ## bos-plugin
 
+BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调用检查见[可用性依赖](../plugin-availability.md)。
+
 跨技术栈的 BOS 只读查询与已有需求处理，无 IRIS 插件强依赖。详见 [插件说明](../../plugins/bos-plugin/README.md)。
 
 | 入口 | 中文用途 | 入口类型 |

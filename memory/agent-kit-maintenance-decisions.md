@@ -1,5 +1,7 @@
 # imedical.agents 长期维护决策
 
+- availableDependencies 是按阶段触发的文件/入口依赖，允许 available/enabled，显式 disabled 停止对应阶段；不进入强依赖递归、版本范围或自动启用。声明在 manifest，执行协议见 docs/plugin-availability.md。
+
 本文件记录 `imedical.agents` 能力包仓库的长期决策和稳定边界。当前状态摘要见 `agent-kit-maintenance-memory.md`，近期维护流水见 `agent-kit-maintenance-log.md`，后续计划见 `agent-kit-maintenance-backlog.md`。
 
 ## BOS 个人配置与分发

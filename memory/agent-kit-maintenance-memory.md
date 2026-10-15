@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- 阶段可用性依赖：BOS/Delivery 在 manifest 声明 availableDependencies，更新时提示、阶段执行前检查；保留强依赖 enabled 门禁及显式 disabled。入口为 docs/plugin-availability.md。
+
 - 夜跑分层接入：`bos-demand-unattended` 复用单需求流程与现有证据；后端直接方法/实际接口分层，UI 延迟加载无头 Playwright。`run-acceptance.js`、Broker stdin 机器接口与项目适配见 docs/night-acceptance.md；本机合成链路已验证，真实项目及三平台矩阵待验，不启动批次或安装依赖。
 
 - BOS 可重复验收与收尾：共享 testing-protocol 与 testing-runtime 已落地，项目适配认证/空闲心跳、版本与副作用；新编排 launch-result/v1 分开启动 ACK 和完成消费，修复事件 payload 别名污染。Windows 本地协议已验证；真实会话、业务接入与非本机矩阵仍待验证，不自动启用心跳或同步业务工程。

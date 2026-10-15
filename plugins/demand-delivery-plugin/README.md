@@ -1,5 +1,7 @@
 # Demand Delivery Plugin
 
+跨插件阶段依赖以 manifest 的 availableDependencies 为事实源；触发时按[可用性依赖协议](../../docs/plugin-availability.md)检查，缺口仅阻塞对应阶段，显式 disabled 保留。
+
 跨技术栈复用需求提交安全机制，入口为 [demand-commit](skills/demand-commit/SKILL.md)。支持数字需求号及 standard/project 格式，不要求 IRIS profile、MCP 或 BOS 凭据；这是组织需求交付约定，不是任意 Git 提交格式转换器。
 
 连续验收使用 [demand-acceptance](skills/demand-acceptance/SKILL.md)：用户逐号给出结论，Agent 持续接收、按目标仓库串行交付，报告可独立整理。人工通过和实际交付分别汇总；BOS 多需求号列表固定为数量在块外、`text` 块内单行升序去重、半角逗号无空格。优先复用已有台账，明确批次按需使用 [验收索引协议](references/acceptance-session.md)；不改变正式任务编排。BOS 日志阶段条件使用 bos-plugin，不增加通用提交的强制依赖。

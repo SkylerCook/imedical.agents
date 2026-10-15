@@ -1,5 +1,7 @@
 # 项目使用文档
 
+插件依赖声明与阶段检查见[可用性依赖](plugin-availability.md)。
+
 本目录随能力包部署，服务业务工程中的接入、开发和运行。先从[能力目录](guides/capability-catalog.md)查找入口，再读[使用指南](guides/capability-guide.md)。业务任务产物保存在目标工程自己的 docs，不写入能力包 docs。
 
 ## 按目的阅读

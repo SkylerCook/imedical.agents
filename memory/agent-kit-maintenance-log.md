@@ -1,5 +1,10 @@
 # imedical.agents 维护日志
 
+- 2026-10-15（阶段可用性依赖，framework-maintenance）：bos-plugin 0.7.0、demand-delivery-plugin 0.3.0 在 manifest 声明 availableDependencies 的目标、阶段、触发条件与入口。根检查器复用 workspace-context，更新器只报告 ready/warning，阶段检查缺失或显式 disabled 时停止；不改变强依赖 enabled 门禁，不递归启用或改写依赖 profile。补录脚本延迟加载提交模块，prepare/message 支持显式项目根，取证/回填/渲染不受 Delivery 缺失影响。
+  - 验证：Windows Node 24.14.1 可用性专项 8/8、标版补录 19/19；BOS 发现/更新专项在 PowerShell 7 与 Windows PowerShell 5.1 分别 11/11，通过 standard、Overlay、单共享目录、状态保留、升级迁移与警告不阻断查询。修复实测中文 JSON 经 Windows 控制台编码破坏的问题，机器输出采用 Unicode 转义。部署文档链接 1/1、PS1 UTF-8 BOM 与两个 owner 的只读版本比较通过。
+  - 收尾：同步说明、技能触发指针、手册、维护入口与发布记录；既有三平台 Node 22/24 CI 纳入专项，非本机实跑和真实宿主仍列 P2。完整能力包更新后生效，无私有配置迁移或旧文件清理；任务专属临时目录已清理并复核；未同步业务工程，保留并行夜跑修改；提交与双远端推送按用户后续 c + p 授权执行，结果以 Git 记录为准。
+
+
 - 2026-10-15（连续人工验收，framework-maintenance）：demand-delivery-plugin 0.2.0 新增 demand-acceptance，固化连续接收结论、精确逐号交付、授权复用、独立报告与断点恢复。人工通过、自动证据和交付阶段分别记录；BOS 多需求号输出为数量在块外、text 块内单行升序去重、半角逗号无空格。复用 demand-commit 与可选 bos-code-update-log，不增加第二套 Git/BOS 执行器；普通单需求沿用原入口，批次索引按需使用。
   - 验证：Windows Node 24.14.1 的验收专项 16/16 通过，包含官方 commit-demand 真实隔离 Git 提交结果对接、多仓完整回执、范围漂移、交付者/发布排他、未知 BOS 不重放、部分 push 恢复及精确编号格式。独立 Agent 场景演练先实际发现 BOS 自行核对仍需人工确认、commit+BOS 恢复未释放占有两处问题；修正为权威回读证据可登记成功、完成后释放，并经内存复演和新增回归确认。脚本只校验元数据/回执，不证明真实 BOS 结果或服务端幂等。
   - 发现与治理：技能 quick_validate、部署文档链接/目录覆盖通过；Windows PowerShell 5.1 在隔离项目实际生成新 thin-index，确认描述保留且 source 指向真实技能。README、目录/指南、workflow 条件入口、插件 manifest、不可变发布记录及维护摘要/队列同步；定向版本检查无问题（0.1.0→0.2.0 minor），全仓仍仅有已登记 xc 1.0.2–1.0.4 缺 commit 的六项历史问题。现有 standard-demand-entry 的三平台 Node 22/24 矩阵自动覆盖新增测试，非本机实跑和真实宿主接入仍待验证。
