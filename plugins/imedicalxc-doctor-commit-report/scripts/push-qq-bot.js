@@ -1,6 +1,8 @@
 'use strict';
 // QQ 机器人推送适配器（NapCat / OneBot HTTP API）
-// 用法: node push-qq-bot.js <report-md-path>
+// 用法: node push-qq-bot.js <report-md-path> [--only=opening,distribution,db,issues,pending,closing,upload] [--dry-run]
+//   --only    仅发送指定段落（逗号分隔；默认全部）
+//   --dry-run 仅打印消息不实际发送（试运行演练/发送前核验用）
 // 读取 .agents/plugins/imedicalxc-doctor-commit-report/config/commit-report-push.json 中的 qqbot 配置
 
 const fs = require('node:fs');
@@ -34,6 +36,29 @@ function loadPushConfig() {
 function loadReporterConfig() {
   if (!fs.existsSync(reporterConfigPath)) return {};
   return JSON.parse(fs.readFileSync(reporterConfigPath, 'utf8'));
+}
+
+const PUSH_SECTIONS = ['opening', 'distribution', 'db', 'issues', 'pending', 'closing', 'upload'];
+let DRY_RUN = false;
+
+function parseArgs(argv) {
+  const args = { reportPath: '', only: null, dryRun: false };
+  for (const a of argv) {
+    if (a === '--dry-run') {
+      args.dryRun = true;
+    } else if (a.startsWith('--only=')) {
+      const names = a.slice('--only='.length).split(',').map((s) => s.trim()).filter(Boolean);
+      const unknown = names.filter((n) => !PUSH_SECTIONS.includes(n));
+      if (unknown.length > 0) {
+        console.error(`--only 含未知段落: ${unknown.join(', ')}（可选: ${PUSH_SECTIONS.join(',')}）`);
+        process.exit(1);
+      }
+      args.only = new Set(names);
+    } else if (!a.startsWith('--') && !args.reportPath) {
+      args.reportPath = a;
+    }
+  }
+  return args;
 }
 
 function requestJson(baseUrl, endpoint, token, body) {
@@ -72,6 +97,10 @@ function requestJson(baseUrl, endpoint, token, body) {
 }
 
 async function sendText(cfg, message) {
+  if (DRY_RUN) {
+    console.log(`[DRY-RUN] 将发送文本消息（群 ${cfg.groupId}）:\n----\n${message}\n----`);
+    return true;
+  }
   const res = await requestJson(cfg.apiBaseUrl, '/send_group_msg', cfg.apiToken, {
     group_id: cfg.groupId,
     message,
@@ -85,6 +114,10 @@ async function sendText(cfg, message) {
 }
 
 async function uploadFile(cfg, filePath, displayName) {
+  if (DRY_RUN) {
+    console.log(`[DRY-RUN] 将上传群文件: ${displayName || path.basename(filePath)}`);
+    return true;
+  }
   const buf = fs.readFileSync(filePath);
   const b64 = buf.toString('base64');
   const res = await requestJson(cfg.apiBaseUrl, '/upload_group_file', cfg.apiToken, {
@@ -532,9 +565,12 @@ function formatPendingReminder(pending, nameToMember, admins, sheetUrl) {
 }
 
 async function main() {
-  const reportPath = process.argv[2];
+  const args = parseArgs(process.argv.slice(2));
+  const reportPath = args.reportPath;
+  const want = (name) => !args.only || args.only.has(name);
+  DRY_RUN = args.dryRun;
   if (!reportPath) {
-    console.error('用法: node push-qq-bot.js <report-md-path>');
+    console.error('用法: node push-qq-bot.js <report-md-path> [--only=opening,distribution,db,issues,pending,closing,upload] [--dry-run]');
     process.exit(1);
   }
   if (!fs.existsSync(reportPath)) {
@@ -557,7 +593,9 @@ async function main() {
 
   const issueReg = reporterCfg.issueRegistration;
   let pending = null;
-  if (issueReg && issueReg.enabled) {
+  if (!want('pending')) {
+    console.log('未包含 pending 段落，跳过问题处理提醒');
+  } else if (issueReg && issueReg.enabled) {
     console.log('读取问题登记表待处理问题...');
     try {
       pending = collectPendingIssues(await fetchSheetRows(issueReg));
@@ -581,7 +619,8 @@ async function main() {
   const lowCount = lowStars.length;
   const threeCount = itemsToSend.length - lowCount;
 
-  console.log(`推送目标: 群 ${cfg.groupId} @ ${cfg.apiBaseUrl}`);
+  console.log(`推送目标: 群 ${cfg.groupId} @ ${cfg.apiBaseUrl}` +
+    (args.only ? ` · 仅发送: ${[...args.only].join(',')}` : '') + (DRY_RUN ? ' · DRY-RUN' : ''));
   console.log('获取群成员列表...');
   const members = await getGroupMembers(cfg);
   console.log(`群成员 ${members.length} 人`);
@@ -591,29 +630,43 @@ async function main() {
   let allOk = true;
 
   // 步骤 1：开场消息
-  console.log('\n--- 步骤1: 发送开场消息 ---');
-  const opening = formatOpening(dateRange, totalCommits);
-  if (!await sendText(cfg, opening)) allOk = false;
+  if (want('opening')) {
+    console.log('\n--- 步骤1: 发送开场消息 ---');
+    const opening = formatOpening(dateRange, totalCommits);
+    if (!await sendText(cfg, opening)) allOk = false;
+  } else {
+    console.log('\n--- 步骤1: 跳过（未在 --only 内）---');
+  }
 
   // 步骤 2：提交人分布
-  if (dist) {
-    console.log('\n--- 步骤2: 发送【按提交人分布】---');
-    const msg = formatAuthorDist(dateRange, dist);
-    if (!await sendText(cfg, msg)) allOk = false;
+  if (want('distribution')) {
+    if (dist) {
+      console.log('\n--- 步骤2: 发送【按提交人分布】---');
+      const msg = formatAuthorDist(dateRange, dist);
+      if (!await sendText(cfg, msg)) allOk = false;
+    } else {
+      console.log('[WARN] 未找到【按提交人分布】段落，跳过');
+    }
   } else {
-    console.log('[WARN] 未找到【按提交人分布】段落，跳过');
+    console.log('\n--- 步骤2: 跳过（未在 --only 内）---');
   }
 
   // 步骤 2.5：数据库脚本执行提醒
-  if (db) {
-    console.log('\n--- 步骤2.5: 发送【数据库脚本执行提醒】---');
-    if (!await sendText(cfg, formatDbReminder(db, dateRange, nameToMember, admins))) allOk = false;
+  if (want('db')) {
+    if (db) {
+      console.log('\n--- 步骤2.5: 发送【数据库脚本执行提醒】---');
+      if (!await sendText(cfg, formatDbReminder(db, dateRange, nameToMember, admins))) allOk = false;
+    } else {
+      console.log('[WARN] 未找到 db-changes JSON，跳过数据库脚本执行提醒');
+    }
   } else {
-    console.log('[WARN] 未找到 db-changes JSON，跳过数据库脚本执行提醒');
+    console.log('\n--- 步骤2.5: 跳过（未在 --only 内）---');
   }
 
   // 步骤 3-4：预警 + 逐条问题（1-2★ 优先，3★ 补充）
-  if (itemsToSend.length > 0) {
+  if (!want('issues')) {
+    console.log('\n--- 步骤3-4: 跳过（未在 --only 内）---');
+  } else if (itemsToSend.length > 0) {
     console.log(`\n--- 步骤3: 发送预警消息（${lowCount} 条 1-2★` +
       (threeCount > 0 ? ` + ${threeCount} 条 3★ 补充` : '') + '）---');
     const warningText = lowCount > 0
@@ -638,8 +691,10 @@ async function main() {
   }
 
   // 步骤 4.5：问题处理提醒（登记表地址 + @未标识处理结果人员）
-  console.log('\n--- 步骤4.5: 发送【问题处理提醒】---');
-  if (pending && pending.total > 0) {
+  if (!want('pending')) {
+    console.log('\n--- 步骤4.5: 跳过（未在 --only 内）---');
+  } else if (pending && pending.total > 0) {
+    console.log('\n--- 步骤4.5: 发送【问题处理提醒】---');
     const reminder = formatPendingReminder(pending, nameToMember, admins, issueReg.sheetUrl || '');
     if (!await sendText(cfg, reminder)) allOk = false;
   } else if (pending) {
@@ -649,13 +704,21 @@ async function main() {
   }
 
   // 步骤 5：收尾 @全体
-  console.log('\n--- 步骤5: 发送收尾消息（@全体）---');
-  if (!await sendText(cfg, formatClosing())) allOk = false;
+  if (want('closing')) {
+    console.log('\n--- 步骤5: 发送收尾消息（@全体）---');
+    if (!await sendText(cfg, formatClosing())) allOk = false;
+  } else {
+    console.log('\n--- 步骤5: 跳过（未在 --only 内）---');
+  }
 
   // 步骤 6：上传报告文件
-  console.log('\n--- 步骤6: 上传报告文件 ---');
-  const fileName = formatDateRangeFileName(dateRange);
-  if (!await uploadFile(cfg, reportPath, fileName)) allOk = false;
+  if (want('upload')) {
+    console.log('\n--- 步骤6: 上传报告文件 ---');
+    const fileName = formatDateRangeFileName(dateRange);
+    if (!await uploadFile(cfg, reportPath, fileName)) allOk = false;
+  } else {
+    console.log('\n--- 步骤6: 跳过（未在 --only 内）---');
+  }
 
   console.log('\n推送完成:', allOk ? '全部成功' : '部分失败，请检查日志');
   process.exit(allOk ? 0 : 1);

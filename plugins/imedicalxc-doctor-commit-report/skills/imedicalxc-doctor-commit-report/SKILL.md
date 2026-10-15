@@ -240,6 +240,8 @@ git commit -m "docs: 新增 {label} 医生站信创产品迭代周报"
 node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <outputDir>/<YYYY-MM>/commit-report-<YYYY-MM>.md
 ```
 
+可选参数（试运行演练/补推用，日常周报不加）：`--only=<段>` 仅发送指定段落（`opening,distribution,db,issues,pending,closing,upload`，默认全部）；`--dry-run` 仅打印消息不实际发送（发送前核验）。
+
 推送内容（QQ 群消息）：
 1. 【按提交人分布】—— 一条文本消息，含日期范围和各提交人占比
 2. 【数据库脚本执行提醒】—— 一条文本消息（自动读取同目录 `db-changes-<label>.json`）：四类计数 + 明细摘要（新增配置的 ST_CODE/配置项、提醒码、首用 PO）+ 执行方案推荐 + 试用阶段说明（「说明：当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。」），@ 涉及提交人；四类全为 0 时发「本期无数据库脚本执行提醒」
