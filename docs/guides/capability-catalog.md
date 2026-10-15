@@ -1,5 +1,7 @@
 # 能力目录（非 xc）
 
+[夜跑决策策略](../night-policy.md)为现有 Coordinator 增加两阶段分级、投入复评与固定抽验，显式启用；复用原事件、验证指纹和 runner，不增加常驻角色或 skill。
+
 共享 [夜跑 workflow](../../workflows/bos-demand-unattended.workflow.md) 与 [分层 runner](../night-acceptance.md) 复用现有插件，不增加 skill 数量；coding-iris-plugin 提供 Broker 机器调用。
 
 面向使用者的插件、skill 与 rule 清单。先读[使用指南](capability-guide.md)，或按下面的插件定位具体入口。

@@ -1,6 +1,6 @@
 {
   "name": "bos-plugin",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "displayName": "BOS Demand Plugin",
   "description": "跨技术栈的 BOS 只读查询、需求处理、标版补录、代码更新日志与通用提交衔接。",
   "entry": "AGENTS.md",
@@ -17,6 +17,7 @@
   "defaultPrompt": [
     "查询 BOS 我的待办或按编号查看需求",
     "处理 BOS 需求，使用当前项目开发规范",
+    "$bos-demand-handle --night，按当前项目和已确认范围处理夜跑需求",
     "处理这个需求，验收通过后提交并准备 BOS 代码日志补录计划",
     "处理这个 BOS 需求，验收后提交并将本次提交补录到 BOS 代码更新日志",
     "为当前项目接入 BOS 查询与需求处理",

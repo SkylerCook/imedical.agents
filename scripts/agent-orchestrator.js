@@ -5,12 +5,13 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const { check: checkEvidence, worktreeFingerprint } = require("./validation-evidence.js");
+const { initializeNight, validateNightItems, updateNight, gateNight, currentSources, nightCompletionIssues } = require("./lib/night-dispatch.js");
 
 const SCHEMA_VERSION = "2.0";
 const MANIFEST_NAME = "00-run-manifest.json";
 const EVENT_NAME = "events.jsonl";
 const LEGACY_SCHEMAS = new Set(["1.0", "1.1", "1.2"]);
-const MUTATING_COMMANDS = new Set(["init", "next", "ack", "result", "message", "transition"]);
+const MUTATING_COMMANDS = new Set(["init", "next", "ack", "result", "message", "transition", "night-record"]);
 const LAUNCH_ACTIONS = new Set(["spawn-subagent", "create-session"]);
 const TERMINAL_WORK = new Set(["completed", "failed", "skipped"]);
 const AUTHORIZATION_KEYS = ["collaborationPlan", "remoteWrite", "commit", "merge", "push", "deploy", "feedbackWrite"];
@@ -36,7 +37,7 @@ function verificationIssues(manifest) {
 }
 
 function completionIssues(manifest) {
-  const issues = verificationIssues(manifest);
+  const issues = [...verificationIssues(manifest), ...nightCompletionIssues(manifest)];
   for (const action of manifest.actions.filter(a => LAUNCH_ACTIONS.has(a.type) && a.result?.status === "succeeded" && a.status !== "cancelled")) {
     if (!action.completionResult || action.completionResult.status === "blocked") issues.push(`unconsumed execution result: ${action.id}`);
   }
@@ -305,6 +306,7 @@ function normalizeParticipant(value, index) {
 
 function normalizeWorkItem(value, index, coordinatorId) {
   return {
+    ...(value.night ? { night: structuredClone(value.night) } : {}),
     id: value.id || `work-${index + 1}`,
     title: value.title || value.id || `Work ${index + 1}`,
     kind: value.kind || "change",
@@ -349,6 +351,7 @@ function resetTaskLifecycle(manifest) {
 
 function planMaterial(manifest) {
   return {
+    ...(manifest.night ? { night: { batchId: manifest.night.batchId, policy: manifest.night.policy, limits: manifest.night.limits, ...(manifest.night.quotaPolicy ? { quotaPolicy: manifest.night.quotaPolicy } : {}), ...(manifest.night.workspaces ? { workspaces: manifest.night.workspaces } : {}) }, nightWork: manifest.workItems.map(item => ({ id: item.id, night: item.night })) } : {}),
     ...(manifest.repositoryRoot ? { repositoryRoot: manifest.repositoryRoot } : {}),
     taskKind: manifest.taskKind,
     workflow: manifest.workflow,
@@ -414,6 +417,9 @@ function createManifest(options) {
     verification: { status: "not-run", verifierId: null, scopes: [], lastMutationSequence: 0, verifiedThroughSequence: 0, revision: null },
     eventLog: { path: EVENT_NAME, lastSequence: 0, projectionHash: "" }
   };
+  const night = initializeNight(plan, path.resolve(options.plan));
+  if (night) manifest.night = night;
+  validateNightItems(manifest);
   manifest.orchestration.planHash = hash(planMaterial(manifest));
   if (manifest.orchestration.mode === "multi-session") manifest.status = "awaiting-authorization";
   return manifest;
@@ -442,6 +448,7 @@ function createAction(manifest, workItem, adapter, typeOverride, authorizationCa
   const existing = manifest.actions.find((item) => item.idempotencyKey === idempotencyKey && !["failed", "cancelled"].includes(item.status));
   if (existing) return existing;
   const action = {
+    ...(workItem?.night?.modelTier ? { modelRequest: { tier: workItem.night.modelTier, mappingReference: workItem.night.modelMappingReference || null } } : {}),
     id: `act-${idempotencyKey.slice(0, 16)}`,
     workItemId: workItem?.id || null,
     type,
@@ -501,8 +508,16 @@ function commandNext(options) {
       fail("Adapter fallback cannot preserve isolated write endpoints; use an explicitly revised plan");
     }
     const workMap = new Map(manifest.workItems.map((item) => [item.id, item]));
+    if (manifest.night) { manifest.night.lastDispatchDecisions = []; manifest.night.observedAt = now(); }
     for (const item of manifest.workItems) {
-      if ((item.status === "pending" || item.status === "ready") && dependenciesComplete(item, workMap)) {
+      const demandBusy = manifest.workItems.some(work => work.night?.demandId === item.night?.demandId && work.id !== item.id &&
+        (work.status === "running" || manifest.actions.some(action => action.workItemId === work.id && action.status === "pending" && action.type !== "request-authorization")));
+      const cleanupReady = item.night?.phase === "cleanup" && !demandBusy &&
+        manifest.night?.demands.find(record => record.id === item.night?.demandId)?.cleanupRequested === true;
+      if ((item.status === "pending" || item.status === "ready") && (dependenciesComplete(item, workMap) || (manifest.night && cleanupReady))) {
+        const decision = gateNight(manifest, item);
+        if (manifest.night) manifest.night.lastDispatchDecisions.push({ workItemId: item.id, ...decision });
+        if (!decision.allowed) continue;
         item.status = "ready";
         const requiredAuthorization = item.authorizationCategory;
         const grant = requiredAuthorization ? manifest.authorizations[requiredAuthorization] : null;
@@ -529,6 +544,31 @@ function commandNext(options) {
     persist(runDirectory, manifest, "actions.generated", manifest.coordinatorId, manifest.runId, { actionIds: created.map((item) => item.id), adapter });
     return created;
   });
+}
+
+function commandNightRecord(options) {
+  if (!options.record) fail("night-record requires --record <json> --actor <coordinator>");
+  const runDirectory = requireRunDirectory(options);
+  return withLock(runDirectory, () => {
+    const manifest = loadManifest(runDirectory, true);
+    assertMutable(manifest, "night-record");
+    const input = readJson(path.resolve(options.record));
+    updateNight(manifest, input, options.actor);
+    manifest.verification.status = "stale";
+    manifest.verification.lastMutationSequence = manifest.eventLog.lastSequence + 1;
+    persist(runDirectory, manifest, "night.recorded", options.actor, input.record?.id || manifest.runId, { kind: input.kind, evidenceRefs: input.evidenceRefs });
+    return manifest.night;
+  });
+}
+
+function commandNightStatus(options) {
+  const manifest = loadManifest(requireRunDirectory(options));
+  if (!manifest.night) return { enabled: false };
+  const records = manifest.night.demands.filter(record => !options.demand || record.id === options.demand);
+  return { enabled: true, ...manifest.night, currentSources: records.map(record => {
+    try { return { id: record.id, ...currentSources(record) }; }
+    catch (error) { return { id: record.id, error: error.message }; }
+  }), decisions: manifest.workItems.filter(item => !options.demand || item.night.demandId === options.demand).map(item => ({ workItemId: item.id, ...gateNight(manifest, item) })) };
 }
 
 function commandAck(options, completion = false) {
@@ -699,6 +739,7 @@ function commandTransition(options) {
       if (patch.repositoryRoot) manifest.repositoryRoot = path.resolve(patch.repositoryRoot);
       if (patch.participants) manifest.participants = patch.participants.map(normalizeParticipant);
       if (patch.workItems) manifest.workItems = patch.workItems.map((item, index) => normalizeWorkItem(item, index, manifest.coordinatorId));
+      validateNightItems(manifest);
       if (patch.orchestrationMode) manifest.orchestration.mode = patch.orchestrationMode;
       if (patch.adapter) manifest.orchestration.adapter = patch.adapter;
       if (patch.feedbackReviewPolicy) {
@@ -770,6 +811,10 @@ function commandTransition(options) {
       const item = manifest.workItems.find((value) => value.id === options.id);
       if (!item) fail(`Unknown work item: ${options.id}`);
       if (!["pending", "ready", "dispatched", "running", "blocked", "completed", "failed", "skipped"].includes(status)) fail(`Invalid work item status: ${status}`);
+      if (manifest.night && ["dispatched", "running"].includes(status)) {
+        const decision = gateNight(manifest, item);
+        if (!decision.allowed) fail(`Night execution blocked: ${decision.reasons.join(", ")}`);
+      }
       if (status === "completed" && manifest.actions.some(a => a.workItemId === item.id && LAUNCH_ACTIONS.has(a.type) && a.result?.status === "succeeded" && a.status !== "cancelled" && a.completionResult?.status !== "succeeded")) fail("Work completion requires consumed execution result");
       item.status = status;
       if (item.writeScopes.length) {
@@ -953,14 +998,18 @@ function commandStatus(options) {
   };
 }
 
-function usage() {
+function baseUsage() {
   return `agent-orchestrator.js <command> --run-directory <path> [options]\n\nCommands:\n  init        Create a schema 2.0 run from --plan <json>\n  next        Emit currently executable idempotent actions\n  ack         Record adapter result from --result <json>\n  result      Consume asynchronous completion from --result <json>\n  message     Persist coordinator-routed communication\n  transition  Advance authorization, work, verification, demand acceptance, maintenance, feedback, or run state\n  status      Print current projection\n  validate    Validate consistency; add --final for completion gates\n\nVerification: transition --entity verification --status passed --verification-file <bindings.json>\nBindings: [{repoRoot, suite, evidenceFile}] from validation-evidence.js; required for writes.\nFeedback: transition --entity feedback-decision --status skipped --reason no-signal (on-signal only).\nRecovery: transition --entity action --id <id> --status cancelled --actor user --evidence-ref <resolution>.\n`;
+}
+
+function usage() {
+  return baseUsage() + '\nNight policy (opt-in):\n  night-record --record <json> --actor <coordinator>  Record a decision or runner receipt\n  night-status [--demand <id>] --json               Read gates and current source bindings\n';
 }
 
 function main(argv = process.argv.slice(2)) {
   const { command, options } = parseArgs(argv);
   if (!command || command === "help" || options.help) { process.stdout.write(usage()); return 0; }
-  const handlers = { init: commandInit, next: commandNext, ack: commandAck, result: options => commandAck(options, true), message: commandMessage, transition: commandTransition, status: commandStatus, validate: commandValidate };
+  const handlers = { init: commandInit, next: commandNext, ack: commandAck, result: options => commandAck(options, true), message: commandMessage, transition: commandTransition, status: commandStatus, validate: commandValidate, "night-record": commandNightRecord, "night-status": commandNightStatus };
   if (!handlers[command]) fail(`Unknown command: ${command}`);
   if (MUTATING_COMMANDS.has(command) && command !== "init") {
     const manifest = loadManifest(requireRunDirectory(options));

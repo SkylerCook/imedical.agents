@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- 夜跑决策策略：`bos-demand-handle --night` 由 Agent 生成显式批次，接入两阶段评估、独立短审、13/30分钟复评、柔性人工成本和固定抽验。worktree 默认在业务工作区 .worktrees 下复用 Overlay 并从实际 cwd 预检；Codex 额度默认20%停领、10%收尾，其他宿主可关闭。复用现有编排事件与来源指纹，不新增运行器；接口见 docs/night-policy.md。源仓修改不等于业务安装副本升级，真实项目及跨平台证据见日志与 backlog。
+
 - 阶段可用性依赖：BOS/Delivery 在 manifest 声明 availableDependencies，更新时提示、阶段执行前检查；保留强依赖 enabled 门禁及显式 disabled。入口为 docs/plugin-availability.md。
 
 - 夜跑分层接入：`bos-demand-unattended` 复用单需求流程与现有证据；后端直接方法/实际接口分层，UI 延迟加载无头 Playwright。`run-acceptance.js`、Broker stdin 机器接口与项目适配见 docs/night-acceptance.md；本机合成链路已验证，真实项目及三平台矩阵待验，不启动批次或安装依赖。

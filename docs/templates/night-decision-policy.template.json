@@ -1,0 +1,7 @@
+{
+  "demandBudgetMinutes": 13,
+  "sharedPreparationBudgetMinutes": 30,
+  "humanEstimateMinutes": 6,
+  "auditSampleRate": 0.2,
+  "maxInFlight": 1
+}

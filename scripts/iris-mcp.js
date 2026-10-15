@@ -28,7 +28,7 @@ function usage(exitCode = 1) {
   const out = exitCode === 0 ? console.log : console.error;
   out(`Usage:
   node .agents/scripts/iris-mcp.js check
-  node .agents/scripts/iris-mcp.js tools
+  node .agents/scripts/iris-mcp.js tools [--schema]
   node .agents/scripts/iris-mcp.js call <toolName> <jsonArgs> [--allow-write]
   node .agents/scripts/iris-mcp.js call <toolName> --json-file <path> [--allow-write]`);
   process.exit(exitCode);
@@ -432,16 +432,44 @@ class JsonLineMcpClient {
   }
 }
 
-async function callTool(client, toolName, toolArgs, options = {}) {
-  if (namespace && toolArgs && !Object.prototype.hasOwnProperty.call(toolArgs, 'namespace')) {
-    toolArgs.namespace = namespace;
+const toolCatalogs = new WeakMap();
+
+async function listTools(client) {
+  if (!toolCatalogs.has(client)) {
+    const pending = (async () => {
+      const tools = [], cursors = new Set();
+      let cursor;
+      do {
+        const response = await client.request('tools/list', cursor === undefined ? {} : { cursor });
+        if (response.error || !Array.isArray(response.result?.tools)) throw new Error('MCP tools/list failed or returned an invalid catalog');
+        tools.push(...response.result.tools);
+        cursor = response.result.nextCursor;
+        if (cursor !== undefined && cursor !== null && cursor !== '') {
+          if (typeof cursor !== 'string' || cursors.has(cursor)) throw new Error('MCP tools/list returned an invalid cursor');
+          cursors.add(cursor);
+        }
+      } while (cursor !== undefined && cursor !== null && cursor !== '');
+      return tools;
+    })();
+    toolCatalogs.set(client, pending);
+    pending.catch(() => toolCatalogs.delete(client));
   }
+  return structuredClone(await toolCatalogs.get(client));
+}
+
+async function callTool(client, toolName, toolArgs, options = {}) {
   if (isWriteLike(toolName, toolArgs || {}) && !options.allowWrite) {
     throw new Error(`Blocked write-capable or unclassified MCP tool: ${toolName}. Re-run with --allow-write only after explicit user approval.`);
   }
+  const args = { ...(toolArgs || {}) };
+  const defaultNamespace = options.defaultNamespace === undefined ? namespace : options.defaultNamespace;
+  if (defaultNamespace && !Object.prototype.hasOwnProperty.call(args, 'namespace')) {
+    const tool = (await listTools(client)).find(item => item.name === toolName);
+    if (Object.prototype.hasOwnProperty.call(tool?.inputSchema?.properties || {}, 'namespace')) args.namespace = defaultNamespace;
+  }
   const response = await client.request('tools/call', {
     name: toolName,
-    arguments: toolArgs || {}
+    arguments: args
   }, options.timeoutMs || 30000);
   return extractToolText(response);
 }
@@ -470,9 +498,9 @@ async function main() {
     }
 
     if (command === 'tools') {
-      const response = await client.request('tools/list', {});
-      const names = (response.result && response.result.tools || []).map((tool) => tool.name);
-      printJson('TOOLS', names);
+      const tools = await listTools(client);
+      printJson('TOOLS', tools.map(tool => tool.name));
+      if (hasFlag('--schema')) printJson('TOOL_SCHEMAS', tools.map(({ name, inputSchema }) => ({ name, inputSchema })));
       return;
     }
 
@@ -494,6 +522,8 @@ async function main() {
 }
 
 module.exports = {
+  callTool,
+  listTools,
   isClassifiedTool,
   isWriteLike,
   parseToolArgsInput,

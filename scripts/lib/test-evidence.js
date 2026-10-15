@@ -80,9 +80,19 @@ async function runTestCase({ demandId, caseId, scope, version, adapter, session,
   }
   const frozenVersion = structuredClone(version);
   const result = { schema: 'imedical-test-result/v1', demandId, caseId, scope: structuredClone(scope), version: structuredClone(frozenVersion), startedAt: new Date(now()).toISOString(), status: 'review-pending', assertions: [], evidenceRefs: [], untested: [], failureCategory: null, durations: {}, cleanup: { verified: false } };
-  async function step(name, fn) { const start = now(); try { return await fn(); } finally { result.durations[name] = now() - start; } }
+  result.timingSegments = [];
+  async function step(name, fn) {
+    const start = now();
+    try { return await fn(); }
+    finally {
+      const end = now();
+      result.durations[name] = end - start;
+      const phase = ['authentication', 'prepare'].includes(name) ? 'preparation' : name === 'close' ? 'cleanup' : ['execute', 'sideEffects'].includes(name) ? 'execute' : 'evidence';
+      result.timingSegments.push({ phase, step: name, startedAt: new Date(start).toISOString(), endedAt: new Date(end).toISOString() });
+    }
+  }
   try {
-    if (session && !await session.ensureReady()) { result.failureCategory = 'authentication'; return result; }
+    if (session && !await step('authentication', () => session.ensureReady())) { result.failureCategory = 'authentication'; return result; }
     if (await step('prepare', adapter.prepare) !== true) { result.failureCategory = 'environment'; return result; }
     if (await step('versionBefore', () => adapter.verifyVersion(structuredClone(frozenVersion))) !== true) { result.failureCategory = 'version'; return result; }
     // No automatic replay: a thrown/unknown write outcome must be independently reconciled.

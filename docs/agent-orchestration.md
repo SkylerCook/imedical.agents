@@ -8,6 +8,8 @@
 
 ## CLI
 
+显式启用夜跑决策的批次还支持 `night-record`、`night-status`，输入与执行前复核见[夜跑决策接口](night-policy.md)。旧 run 无策略引用时沿用原行为。
+
 ```text
 node .agents/scripts/agent-orchestrator.js init --run-directory docs/agent-reports/<run-id> --plan <plan.json>
 node .agents/scripts/agent-orchestrator.js next --run-directory docs/agent-reports/<run-id> --json
