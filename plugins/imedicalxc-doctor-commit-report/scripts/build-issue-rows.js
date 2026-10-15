@@ -4,7 +4,8 @@
 /*
  * build-issue-rows.js — 医生站信创产品迭代周报 · 低星问题登记行数据生成（确定性）
  *
- * 读取某期 evaluations.json，筛出 1-2★（rating ≤ 2）条目，渲染为《信创版产品迭代
+ * 读取某期 evaluations.json，筛出 1-2★（rating ≤ 2）条目；条目含 issueItems（多个
+ * 独立问题的逐项明细）时按问题拆为多行，其余条目一行，渲染为《信创版产品迭代
  * 每周问题登记》目标表 9 列标准行值，输出结构化 JSON（UTF-8 无 BOM），供 Agent
  * 经 tencent_docs MCP 读表去重后批量写入。
  *
@@ -91,7 +92,16 @@ function formatIssueText(e) {
   return String(e.evaluation || '').trim() || '—';
 }
 
-function toRow(e, { label, date }) {
+// 条目拆行：issueItems（多个独立问题的逐项明细，由评估环节产出）优先，逐项一行；否则整条一个问题
+function issueTexts(e) {
+  if (Array.isArray(e.issueItems)) {
+    const items = e.issueItems.map((s) => String(s || '').trim()).filter(Boolean);
+    if (items.length > 0) return items;
+  }
+  return [formatIssueText(e)];
+}
+
+function toRow(e, { label, date, issueText }) {
   return {
     shortHash: shortHashOf(e),
     hash: e.hash || '',
@@ -100,7 +110,7 @@ function toRow(e, { label, date }) {
       date,
       `${e.rating}★`,
       formatCommit(e),
-      formatIssueText(e),
+      issueText,
       e.author || '',
       STATUS_TODO,
       '',
@@ -113,7 +123,7 @@ function buildRows(evaluations, { label, date }) {
   return evaluations
     .filter((e) => Number(e.rating) <= RATING_MAX)
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.hash < b.hash ? -1 : 1))
-    .map((e) => toRow(e, { label, date }));
+    .flatMap((e) => issueTexts(e).map((issueText) => toRow(e, { label, date, issueText })));
 }
 
 function main() {
@@ -146,6 +156,7 @@ function main() {
   }
 
   const rows = buildRows(evaluations, { label, date });
+  const commitCount = new Set(rows.map((r) => r.shortHash)).size;
   const output = {
     meta: {
       generatedAt: new Date().toISOString(),
@@ -153,7 +164,8 @@ function main() {
       label,
       registrationDate: date,
       threshold: `rating <= ${RATING_MAX}`,
-      count: rows.length
+      count: rows.length,
+      commitCount
     },
     target: {
       fileId: reg.fileId,
@@ -169,7 +181,7 @@ function main() {
 
   console.log(`来源: ${inputPath}`);
   console.log(`期号: ${label} · 登记日期: ${date} · 阈值: rating <= ${RATING_MAX}`);
-  console.log(`低星条目: ${rows.length} 条`);
+  console.log(`低星提交: ${commitCount} 条 · 登记行: ${rows.length} 行`);
   for (const r of rows) {
     console.log(`  ${r.shortHash} · ${r.values[5]} · ${r.values[2]} · ${r.values[3].slice(0, 60)}`);
   }
@@ -185,4 +197,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { HEADER, parseArgs, loadConfig, normalizeEvaluations, shortHashOf, formatCommit, formatIssueText, toRow, buildRows, todayYMD };
+module.exports = { HEADER, parseArgs, loadConfig, normalizeEvaluations, shortHashOf, formatCommit, formatIssueText, issueTexts, toRow, buildRows, todayYMD };
