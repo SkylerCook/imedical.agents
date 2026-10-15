@@ -1,0 +1,9 @@
+{
+  "schema": "imedical-night-batch/v1",
+  "demandSelection": { "ids": [], "queryReference": null },
+  "workspaceReference": null,
+  "authorizationReferences": { "commit": null, "push": null, "merge": null, "deploy": null, "testDataWrite": null, "testDataDisposition": null, "bosLog": null, "bosStatus": null },
+  "policy": { "maxInFlight": 1, "stopClaimingAt": null, "stopPublishingAt": null, "stopAt": null, "notificationReference": null, "dataPolicyReference": null },
+  "acceptanceProfileReference": null,
+  "runReference": null
+}

@@ -166,7 +166,7 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 - `promote-demand.js`：按需求号执行 DEV→PRD 的 plan/apply/continue/verify；同名仓库按 DEV/PRD 绝对路径身份隔离临时计划，`continue` 重新校验双方 HEAD 并拒绝未暂存或未跟踪状态。不同需求号的独立 DEV 提交强制分别形成 PRD 提交，只有 `fix(123,456):...` 这类 DEV 联合需求提交才允许保留为一笔；独立需求共享文件时，用 `--prior-plan` 链接上一笔已验证计划。本脚本不上传、编译或部署远端。
 
 - `compile.js`：上传并编译本地类文件；在 workspace-overlay 中同时接受 `backend/src/...` 逻辑路径，并把远端文档名规范化为不含 `backend/src` 前缀的类文档名。
-- `debugger.js`：调用 Web Broker 方法做快速调试。
+- `debugger.js`：保留 Web Broker 人工调试，新增可导入 callBroker 与 `--json --stdin` 机器验收；TLS、有限请求、业务断言与授权分开核验。见 [分层验收](../../docs/night-acceptance.md)。
 - `sync-env-config.js`：仅当 `.agents/config/project-env.json` 是事实来源时，从它生成 `.mcp.json`。
 - `prepare-deploy-manifest.js`：根据文件列表或 git diff 生成 IRIS 部署 JSON 清单；只做本地分析，不执行上传、编译或远端写入。
 

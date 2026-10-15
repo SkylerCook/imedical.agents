@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- 夜跑分层接入：`bos-demand-unattended` 复用单需求流程与现有证据；后端直接方法/实际接口分层，UI 延迟加载无头 Playwright。`run-acceptance.js`、Broker stdin 机器接口与项目适配见 docs/night-acceptance.md；本机合成链路已验证，真实项目及三平台矩阵待验，不启动批次或安装依赖。
+
 - BOS 可重复验收与收尾：共享 testing-protocol 与 testing-runtime 已落地，项目适配认证/空闲心跳、版本与副作用；新编排 launch-result/v1 分开启动 ACK 和完成消费，修复事件 payload 别名污染。Windows 本地协议已验证；真实会话、业务接入与非本机矩阵仍待验证，不自动启用心跳或同步业务工程。
 
 - 需求迁移外部编排：迁移器输出 stateChanges/enabledBefore/enabledAfter，更新器可用 ExpectedEnabledPlugin 校验预计完整集合；框架不读取私有注册表。Check 检查待迁移状态及已启用新 owner 的索引/实际源文件可达性，项目验证器仍负责注册表一致性，见 docs/demand-delivery-migration.md。
@@ -34,7 +36,7 @@
 
 - 能力源分为厂商无关的 `agents/`、`workflows/`、可复用 `plugins/` 与根级 `skills/`；工具专属配置只作为 adapter。源仓 `.agents/skills/agent-kit-maintenance/` 是维护者专用入口。
 - 当前有 17 个插件、0 个根级独立 skill。插件版本以 manifest 为准，独立 skill 版本以 frontmatter 为准；内部内容继承 owner 版本。发布记录不可变且不部署，版本 validator 不接入业务安装/更新/hook。
-- `coding-iris-plugin` 当前 v0.17.1：Windows 部署会话初始化对 Git 根目录长路径和 8.3 短路径按物理路径比较，既有会话状态不迁移；standard 需求录入使用简洁三段式与 v2 草稿，依赖兼容范围以各 owner manifest 为准。保留共享知识检索、项目菜单同步与产物路径门禁；前端 canonical 编码为 `utf8`，实际字节检测是最终门禁；真实 GB2312/mixed/unknown 不自动转码，明确 backend-only Overlay 为 `N/A (backend-only)`。CLS 提供统一命名与格式规范、Agent Review 与可选自检，不增加编译证据或提交门禁。
+- `coding-iris-plugin` 当前 v0.18.0：增加纯导入 Broker 客户端、严格 TLS/超时/授权与非交互 stdin 入口，旧人工 CLI 保留兼容；六个直接依赖 owner 仅扩大兼容范围并递增 patch。Windows 部署会话初始化对 Git 根目录长路径和 8.3 短路径按物理路径比较，既有会话状态不迁移；standard 需求录入使用简洁三段式与 v2 草稿，依赖兼容范围以各 owner manifest 为准。保留共享知识检索、项目菜单同步与产物路径门禁；前端 canonical 编码为 `utf8`，实际字节检测是最终门禁；真实 GB2312/mixed/unknown 不自动转码，明确 backend-only Overlay 为 `N/A (backend-only)`。CLS 提供统一命名与格式规范、Agent Review 与可选自检，不增加编译证据或提交门禁。
 - CSP 编译固定到 `compile-csp.js` 的 Atelier 通道；`deploy-frontend.js` 的 direct/guarded 共用单连接传输、替换前复核、逐文件最终校验与完整结果，提供阶段进度/计数；保留 guarded 编译后检查，默认本地计划、显式执行，不自动重试或扩展父页面。竞争窗口、强杀恢复及耗时口径见工具 README；真实服务器性能仍待独立授权验证。SFTP vendor 新项目默认禁用，更新自动迁移可识别的既有标准启动参数，显式 custom/自定义参数保留，不创建服务或安装 Python 依赖。
 - `iris-cure-form-dev` 当前 v0.7.8：兼容 coding-iris-plugin 0.14；任务产物与运行态统一归目标项目 `docs/work/cure-form/<task>/`，快照/敏感证据归同任务 private；配置/规则仍在 `.agents/`。自动/手动部署与版本化克隆/显式原 RowID 覆盖分别选择。新模板不使用灰度，采用克隆的既有模板按引用拓扑收尾，原 ID 覆盖不调用 consolidate。显式旧输出路径保持兼容，不迁移既有备份。
 - 表单部署的 `transaction-package` / `lightweight-sql` 通道独立于 automatic/manual；轻量通道只服务已有独占单模板 content。固定 SQL 绑定兼容层保留单行事务门禁，授权样本验证不代表全部服务器/HIS 验收。

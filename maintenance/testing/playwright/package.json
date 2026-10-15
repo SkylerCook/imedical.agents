@@ -1,0 +1,8 @@
+{
+  "name": "imedical-night-acceptance-tests",
+  "private": true,
+  "version": "1.0.0",
+  "devDependencies": {
+    "playwright-core": "1.62.1"
+  }
+}

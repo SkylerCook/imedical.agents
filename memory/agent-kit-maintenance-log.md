@@ -1,5 +1,9 @@
 # imedical.agents 维护日志
 
+- 2026-10-15（夜跑分层验收，framework-maintenance）：新增按需加载的夜跑 workflow、批次模板和项目接入说明。纯后端不加载浏览器，UI 使用延迟加载 Playwright 的薄 runner，复用 session/evidence；独占 context、API 独立采集、有限执行与关闭、失败停止后续用例。Broker 抽取纯导入客户端，stdin 非交互调用区分传输/认证/业务/未知结果，精确方法角色授权、严格 TLS、响应上限、不重放未知写。旧 CLI 移入兼容模块，--path/--url 同义。
+  - 验证：Windows Node 24.14.1 新增及基础专项 30 项、既有编排结果 2 项、框架契约 1 项通过；实际复用宿主 Playwright 1.62.1 与已安装 Chrome 155.0.8059.40，无头登录、正常导航、iframe/popup、截图/API 回读、版本失效及恢复通过；合成 HTTP 空闲/有效活动/心跳/认证恢复/停止对照使用可控服务时钟，不代表真实服务器时限。Overlay 配置专项通过；首次发现旧静态测试把 compile 薄入口误判为未调用 workspace resolver，改为核验入口委托及实现解析，并复测通过。文档部署链接通过。
+  - 治理：coding-iris-plugin 0.18.0 与六个依赖 patch/发布记录同步，新增 CI 三平台 Node 22/24 和源仓隔离依赖锁；未安装依赖，矩阵尚未执行。版本校验仅剩既有 xc 1.0.2–1.0.4 缺 commit 的六项历史问题，不改历史记录。正式 run 仍由 Coordinator 核验并消费既有结果，不另建台账；真实项目和宿主持续运行能力留 backlog。最终定向复测 14/14，部署文档链接及 diff check 通过；任务截图、临时配置、合成服务与浏览器均已退出/清理。未启动夜跑、同步业务副本或操作真实服务；提交与推送按用户后续 c + p 授权执行，结果以 Git 记录为准。
+
 - 2026-10-15（BOS 验收、会话维护与编排基础修复，framework-maintenance）：补齐共享测试契约、Testing Agent/BOS workflow 路由和项目适配指南；新增无依赖 test-session/test-evidence 模块，按有效活动延后心跳、认证恢复串行化、未知结果阻断、限时收尾，实际资源响应哈希及 request-time frame 归属可复用。编排事件 payload 深拷贝消除 ACK 投影污染，新 launch-result/v1 区分启动与 result 消费；旧 run 不补造历史完成证据。
   - 验证：Windows Node 24.14.1 新增专项 19/19、既有编排/验证指纹测试、框架 contract/evolution（含 PS5.1/PS7）与 BOS 9/9 通过；BOS 测试夹具补 HEAD 初始提交以符合现有运行时预检。文档链接通过，三平台 Node 22/24 CI 已接入新增专项，未取得非本机实跑。组件版本检查保留已登记 xc 1.0.2–1.0.4 发布记录缺 commit 的六项历史问题；本轮不修改插件目录，无组件递增。
   - 边界：仅框架本地实现与模拟验证，真实保活端点/空闲时限及完整业务路径仍待授权接入。未提交、推送、同步业务副本或访问真实业务服务；通知和数据保留沿批次策略。

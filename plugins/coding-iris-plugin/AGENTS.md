@@ -1,5 +1,7 @@
 # AGENTS.md
 
+后端验收按内部方法、实际 Broker/REST/SOAP 入口及副作用分层；纯后端不强制浏览器，影响前端行为时补 UI。夜跑使用 debugger 的非交互机器入口，见 [分层接入](../../docs/night-acceptance.md)。
+
 需求提交使用 demand-delivery-plugin 的 demand-commit，标版补录使用 bos-plugin 的 bos-demand-entry；本插件不再提供兼容技能或 CLI。已部署项目由更新器迁移引用与启用状态，见 [迁移说明](../../docs/demand-delivery-migration.md)。
 
 Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/cls-coding-format.md)：修改前加载、最终 diff 后复核。独立 Review 接收该规范路径与项目显式覆盖，格式规范只用于本次新增代码，已有代码的功能修改不附带格式化；可选格式自检仅提示，不作为提交门禁。

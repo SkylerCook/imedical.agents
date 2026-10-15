@@ -1,5 +1,7 @@
 # .agents 安装与更新 Runbook
 
+夜跑分层验收沿既有 workflows、scripts/*.js、scripts/lib 与 coding-iris-plugin 分发；更新不会启动批次或安装 Playwright。debugger 旧 CLI 兼容，新机器入口需项目显式接入；六个依赖 owner 的版本范围同步接纳 coding-iris-plugin 0.18 系列，无私有配置迁移，见 [接入说明](night-acceptance.md)。
+
 可重复测试与会话维护通过既有 scripts/lib、agents、workflows、docs 分发，无新迁移或旧文件清理；项目 runner 显式接入后才可启用经核实的心跳。异步编排启动与结果消费有新契约，旧 run 不自动升级，见 [测试运行时](testing-runtime.md) 与 [编排手册](agent-orchestration.md)。
 
 需求迁移由外部插件注册表编排时，先消费迁移器 JSON 的 `stateChanges` / `enabledAfter`，再通过 `-ExpectedEnabledPlugin` 传入完整预期集合；不一致在需求迁移写入前停止。普通 Check 会检测待迁移旧入口及已启用新入口的实际可达性。编排顺序和边界见 [外部编排契约](demand-delivery-migration.md#外部编排与-check)。

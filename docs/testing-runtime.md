@@ -1,5 +1,7 @@
 # 可重复测试运行时
 
+批量夜跑与纯后端/UI 分层执行使用 [夜跑接入](night-acceptance.md)。纯后端无需 Playwright；Web 验收按需复用现有 runtime，不自动安装。
+
 入口为 [BOS workflow](../workflows/bos-demand.workflow.md) 和 [测试协议](../agents/_shared/testing-protocol.md)。实现位于 [test-session.js](../scripts/lib/test-session.js)、[test-evidence.js](../scripts/lib/test-evidence.js)，只用 Node 内置模块；不创建浏览器、不保存凭据、不新增服务端接口。Node 是能力包工具依赖，不是业务生产运行依赖。
 
 ## 接入顺序

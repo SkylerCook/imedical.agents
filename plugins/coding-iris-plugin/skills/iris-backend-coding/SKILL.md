@@ -30,6 +30,8 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 
 ## 完成检查
 
+按实际改动选择验收层级：内部方法直接验证，对外 Broker/REST/SOAP 经真实入口验证，写入增加独立回读；纯后端不强制走前端。返回契约影响前端消费者时补受影响页面。Broker 机器调用与授权/证据边界见 [分层验收接入](../../../../docs/night-acceptance.md)。
+
 - 最终 diff 已按 CLS 规范检查命名、格式、改动范围和兼容性；脚本检查与 Agent 审查结果分别说明。
 - 调用独立 review-agent 时传入冻结 diff、需求、范围、项目显式规范和 CLS 规范路径；不要求额外安装 formatter skill，无子 Agent 时按同一清单串行复核。
 - SQL 写入层返回格式稳定。

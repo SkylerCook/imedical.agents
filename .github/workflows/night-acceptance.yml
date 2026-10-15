@@ -1,0 +1,25 @@
+name: Night acceptance contracts
+on:
+  push:
+    paths: ['scripts/run-acceptance.js', 'scripts/lib/test-*.js', 'scripts/lib/playwright-runner.js', 'scripts/tests/*acceptance*', 'scripts/tests/playwright-runner.tests.js', 'plugins/coding-iris-plugin/scripts/iris-tools/debugger*.js', 'plugins/coding-iris-plugin/scripts/iris-tools/broker-client.js', 'plugins/coding-iris-plugin/scripts/iris-tools/tests/broker-client.test.js', 'workflows/bos-demand-unattended.workflow.md', 'maintenance/testing/playwright/**', '.github/workflows/night-acceptance.yml']
+  pull_request:
+  workflow_dispatch:
+jobs:
+  acceptance:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        node: ['22', '24']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci --ignore-scripts --prefix maintenance/testing/playwright
+      - run: node maintenance/testing/playwright/node_modules/playwright-core/cli.js install --with-deps chromium
+      - run: node --test scripts/tests/playwright-runner.tests.js plugins/coding-iris-plugin/scripts/iris-tools/tests/broker-client.test.js scripts/tests/test-session.tests.js scripts/tests/test-evidence.tests.js scripts/tests/night-acceptance-contract.tests.js
+        env:
+          PLAYWRIGHT_RUNTIME_MODULE: ${{ github.workspace }}/maintenance/testing/playwright/node_modules/playwright-core
+          REQUIRE_PLAYWRIGHT: '1'

@@ -1,5 +1,7 @@
 # 能力使用指南（非 xc）
 
+夜跑/批量处理请按 [夜跑接入](../night-acceptance.md) 先选择验收层级：纯后端直接验证方法或实际接口，UI 行为优先无头 Playwright；工具就绪不代替业务授权。
+
 IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 projectEnvFallback；本地配置存在就不回退。仍在模块入口执行，不切换主仓。见 [部署清单](../../plugins/coding-iris-plugin/rules/iris_deploy_checklist.md#部署配置继承)。
 
 

@@ -1,5 +1,7 @@
 # BOS Demand Workflow
 
+用户明确要求批量、夜跑或无人值守时，从 [夜跑 workflow](bos-demand-unattended.workflow.md) 组织批次；普通单需求仍直接执行本流程。
+
 ## 入口、输入与事实
 
 通过 bos-demand-handle 处理已有 BOS 需求。taskKind=business-demand；插件自身维护走 framework-maintenance。只读查询交给 bos-demand-query，不创建开发流程。

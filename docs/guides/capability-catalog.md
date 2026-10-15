@@ -1,5 +1,7 @@
 # 能力目录（非 xc）
 
+共享 [夜跑 workflow](../../workflows/bos-demand-unattended.workflow.md) 与 [分层 runner](../night-acceptance.md) 复用现有插件，不增加 skill 数量；coding-iris-plugin 提供 Broker 机器调用。
+
 面向使用者的插件、skill 与 rule 清单。先读[使用指南](capability-guide.md)，或按下面的插件定位具体入口。
 
 范围：当前非 `imedicalxc-*` 插件，共 **12 个插件、49 个 skill、35 个 rule**；skill 数包含初始化和兼容入口，不包含 vendor skills、Agent 生成入口或源仓维护 skill。xc 本轮未编入，后续单独补齐。清单按当前文件快照核对；版本和依赖范围以各插件 manifest 为准。

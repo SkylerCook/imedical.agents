@@ -8,7 +8,11 @@ const { spawnSync } = require('child_process');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
 const toolsRoot = path.join(repoRoot, 'plugins', 'coding-iris-plugin', 'scripts', 'iris-tools');
-const tools = ['prepare-deploy-manifest.js', 'compile.js', 'export.js', 'debugger.js', 'sync-env-config.js'];
+const tools = ['prepare-deploy-manifest.js', 'deploy-protected.js', 'export.js', 'debugger-legacy.js', 'sync-env-config.js'];
+
+// Thin entrypoints delegate configuration lookup to their actual implementation.
+assert.match(fs.readFileSync(path.join(toolsRoot, 'compile.js'), 'utf8'), /require\('\.\/deploy-protected'\)\.main/);
+assert.match(fs.readFileSync(path.join(toolsRoot, 'debugger.js'), 'utf8'), /require\('\.\/debugger-legacy'\)/);
 
 for (const tool of tools) {
   const text = fs.readFileSync(path.join(toolsRoot, tool), 'utf8');

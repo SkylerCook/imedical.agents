@@ -1,5 +1,7 @@
 # imedical.agents
 
+夜跑方案按内部方法、实际接口、UI 分层验收，纯后端不加载浏览器；Web 默认无头 Playwright，复用已安装环境。Broker 机器调用、批次截止及清理见 [夜跑接入](docs/night-acceptance.md)。
+
 需求迁移支持外部编排预检：结构化启用差异、可选预期插件集合门禁，以及迁移后入口可达性 Check，见 [更新衔接](docs/demand-delivery-migration.md#外部编排与-check)。
 
 Overlay 部署支持模块配置优先、显式主仓配置回退；连接目标与模块 MCP 一致，SourceRoot 边界保持。见 [部署配置继承](plugins/coding-iris-plugin/rules/iris_deploy_checklist.md#部署配置继承)。
