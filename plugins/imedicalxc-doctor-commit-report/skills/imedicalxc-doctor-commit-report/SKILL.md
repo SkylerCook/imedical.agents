@@ -1,7 +1,7 @@
 ---
 name: imedicalxc-doctor-commit-report
 description: |
-  HIS 医生站信创产品迭代周报。采集 src/ 下 20 个子仓库在指定时间窗内 11 位医生站同事的 git 提交，输出五要素汇总（岗位工作站 / 需求类型 / 优先级 / 提交人 / 改造内容总结），对【流程修改 / 业务调整】类提交做混合式评估（轻量全覆盖 + 高风险三类自动升级深度评估，1-5 星评级，1-2★ 必须给出至少一条具体问题评价），并自动检测数据库脚本执行提醒（PO 数据结构修改 / 新增系统标准配置 / 新增系统标准提醒 / 新增代码表缓存配置），归档 Markdown 报告，将 1-2★ 低星问题经 tencent_docs MCP 登记到《信创版产品迭代每周问题登记》，并按配置尝试推送。用于周度定时汇总或按需汇总提交记录。
+  HIS 医生站信创产品迭代周报。采集 src/ 下 20 个子仓库在指定时间窗内 11 位医生站同事的 git 提交，输出五要素汇总（岗位工作站 / 需求类型 / 优先级 / 提交人 / 改造内容总结），对【流程修改 / 业务调整】类提交做混合式评估（轻量全覆盖 + 高风险三类自动升级深度评估，1-5 星评级，1-2★ 必须给出至少一条具体问题评价），并自动检测数据库脚本执行提醒（PO 数据结构修改 / 新增系统标准配置 / 新增系统标准提醒 / 新增代码表缓存配置），归档 Markdown 报告，将 1-2★ 低星问题经 tencent_docs MCP 登记到《信创版产品迭代每周问题登记》（多个独立问题的提交按问题拆行），并按配置尝试推送。用于周度定时汇总或按需汇总提交记录。
 triggers:
   - 提交汇总
   - 提交记录汇总
@@ -110,9 +110,9 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/detect-db-changes.j
 | 1★ | 严重问题（与业务设计冲突、可能引发数据错误） |
 
 4. **评价描述**（1-3 句）
-5. **低星强制补充**：1-2★ 必须给出**至少一条具体问题评价**——引用文件:行号或 diff 片段，指明与业务设计冲突或遗漏之处
+5. **低星强制补充**：1-2★ 必须给出**至少一条具体问题评价**——引用文件:行号或 diff 片段，指明与业务设计冲突或遗漏之处。一条提交含**多个相互独立的问题**时，同时输出 `issueItems` 数组逐问题列出（每个元素恰对应一个问题，供步骤 ⑥ 按问题拆行登记；同一问题的对比说明保持为一个元素）
 
-评估结果落盘为同目录 `evaluations.json`（条目字段：hash / shortHash / subject / author / date / repo / highRiskCategory / impactScope / compliance / complianceReason / rating / evaluation / specificIssue），作为步骤 ⑥ 低星问题登记的数据源。
+评估结果落盘为同目录 `evaluations.json`（条目字段：hash / shortHash / subject / author / date / repo / highRiskCategory / impactScope / compliance / complianceReason / rating / evaluation / specificIssue / issueItems——1-2★ 且含多个独立问题时必填的逐问题明细数组），作为步骤 ⑥ 低星问题登记的数据源。
 
 ## 步骤 ⑤：归档
 
@@ -217,17 +217,17 @@ git commit -m "docs: 新增 {label} 医生站信创产品迭代周报"
 
 将本期 1-2★ 低星问题经 tencent_docs MCP 登记到【腾讯文档】信创版产品迭代每周问题登记（https://docs.qq.com/sheet/DWEN5eXB5Q0diYWdI?tab=BB08J2 ，表格身份取自 config `issueRegistration`）：
 
-1. 运行行数据生成脚本（确定性）：`node .agents/plugins/imedicalxc-doctor-commit-report/scripts/build-issue-rows.js <outputDir>/<YYYY-MM>/evaluations.json` → 同目录 `issue-rows-<label>.json`（已按 rating ≤ 2 过滤、渲染 9 列目标行值、含 fileId/sheetId）。
+1. 运行行数据生成脚本（确定性）：`node .agents/plugins/imedicalxc-doctor-commit-report/scripts/build-issue-rows.js <outputDir>/<YYYY-MM>/evaluations.json` → 同目录 `issue-rows-<label>.json`（已按 rating ≤ 2 过滤、渲染 9 列目标行值、含 fileId/sheetId；条目含 `issueItems` 时按问题拆为多行，同一提交多行共享同一「提交」值）。
 2. 读取 config `issueRegistration`：不存在或 `enabled=false` → 输出「登记未启用，跳过」，进入步骤 ⑦。
 3. MCP 读取目标表：`sheet_get_sheet_info` 获取表容量；`sheet_get_cell_data`（列 A-D、行 0 至容量-1、return_csv=true）读取全表，解析「提交」列各行首 token 的 8 位十六进制短哈希集合（registry）。
 4. 过滤：`shortHash` 已在 registry 的行跳过；其余为待写入行。写入起始行 = 表中最后一个非空数据行 + 1（表头占第 0 行，空表从第 1 行开始）。
 5. MCP 批量写入：`sheet_set_range_value`（value_type=STRING、0-based 行列；空值单元格跳过不写）；若 起始行 + 行数 超出表容量，先 `sheet_insert_dimension` 扩容再写。
-6. 在报告 md 末尾追加「七、低星问题登记」小节：登记表链接、新增 N 条（短哈希清单）、跳过 M 条、异常说明。
+6. 在报告 md 末尾追加「七、低星问题登记」小节：登记表链接、新增 N 行（涉及 C 个提交，短哈希清单）、跳过 M 条（已登记提交）、异常说明。
 7. 父仓库本地提交（`git add docs/commit-reports/`，含 issue-rows JSON 与报告 md；不推送远端）。
 
 **失败语义（非阻断）**：`evaluations.json` 缺失或读表失败 → 告警并跳过写入（**禁止盲写**，防止重复登记）；写入失败 → 告警；两种情况均继续步骤 ⑦（推送不受影响）。
 
-登记列取值（9 列）：来源=`医生站信创产品迭代周报-<label>` / 登记日期=实际写入日期 / 星级=`<rating>★` / 提交=`短哈希 [仓库名] 提交标题` / 具体问题=specificIssue（空或「无」时兜底 evaluation，均空填 `—`）/ 负责人=提交人 / 完成状态=`未完成` / 完成日期与备注留空。
+登记列取值（9 列）：来源=`医生站信创产品迭代周报-<label>` / 登记日期=实际写入日期 / 星级=`<rating>★` / 提交=`短哈希 [仓库名] 提交标题` / 具体问题=`issueItems` 逐项（每条目一行；无 `issueItems` 时取 specificIssue，空或「无」时兜底 evaluation，均空填 `—`）/ 负责人=提交人 / 完成状态=`未完成` / 完成日期与备注留空。
 
 ## 步骤 ⑦：推送
 
