@@ -256,8 +256,7 @@ function gateNight(manifest, item, now = Date.now()) {
     if (now >= Date.parse(night.limits.stopAt)) reasons.push('night-stopped');
     if (phase === 'deployment' && now >= Date.parse(night.limits.stopPublishingAt)) reasons.push('publishing-stopped');
     const occupied = occupiedDemands(manifest);
-    const started = manifest.actions.some(a => manifest.workItems.find(w => w.id === a.workItemId)?.night?.demandId === demandId && a.type !== 'request-authorization' && a.status !== 'cancelled');
-    if (!started && now >= Date.parse(night.limits.stopClaimingAt)) reasons.push('claiming-stopped');
+    if (!actuallyStarted && now >= Date.parse(night.limits.stopClaimingAt)) reasons.push('claiming-stopped');
     if (!occupied.has(demandId) && occupied.size >= night.policy.maxInFlight) reasons.push('night-capacity');
     const stage = ['implementation', 'review'].includes(phase) ? 'pre' : 'post';
     const repair = phase === 'implementation' && nonempty(record.repairEvidenceRef);

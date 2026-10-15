@@ -45,6 +45,20 @@ test('closeout stops started business work, cleanup remains possible and fresh h
     f.update(10);
     assert.equal(gateNight(f.manifest, f.work, f.now).allowed, true);
 });
+
+test('claim deadline rejects reserved actions but allows actually started demand closeout', () => {
+    const f = fixture(); delete f.manifest.night.quotaPolicy;
+    f.manifest.night.limits.stopClaimingAt = new Date(f.now).toISOString();
+    for (const status of ['pending', 'acknowledged']) {
+        f.manifest.actions = [{ workItemId: f.work.id, type: 'spawn-subagent', status }];
+        assert.ok(gateNight(f.manifest, f.work, f.now).reasons.includes('claiming-stopped'), status);
+    }
+    f.work.status = 'running';
+    assert.equal(gateNight(f.manifest, f.work, f.now).allowed, true);
+    f.work.status = 'pending'; f.work.attempts = [{ id: 'started-attempt' }];
+    assert.equal(gateNight(f.manifest, f.work, f.now).allowed, true);
+    assert.equal(gateNight(f.manifest, f.cleanup, f.now).allowed, true);
+});
 test('quota records sanitize unrelated metadata and cannot use reported remainingPercent', () => {
     const f = fixture();
     f.update(85, f.now, { token: 'private', accountId: 'private', credits: { balance: 10 }, remainingPercent: 100 });

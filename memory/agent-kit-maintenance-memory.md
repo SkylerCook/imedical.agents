@@ -16,7 +16,7 @@
 
 - Overlay 部署配置解析由 coding-iris-plugin/scripts/iris-tools/project-env.js 维护；模块本地优先、manifest.projectEnvFallback 显式回退，MCP 与源码边界仍归模块。
 
-- 最近维护回看覆盖至 `d81fa6f`（2026-10-13）：BOS 组织分发与简单需求流程、SFTP 单连接部署、提交路径边界；提交索引和验证范围见维护日志。
+- 最近维护回看覆盖 `e964d0e..da28585`（2026-10-15）：需求交付拆分、BOS 查询/补录、HISUI 更新兼容、验收运行时与夜跑门禁；本轮补齐停止领新判据和 CI 路径覆盖，提交索引和验证范围见维护日志。
 - `bos-plugin` 0.6.0：查询开放全部已声明字段，人员/组可切换口径；默认“我的待办”保留，旧空 cuser 的调用迁移及验证边界见 usage“查询参数契约”。需求处理的全部本地提交 verified 后，workflow 精确复用 repo/hash 自动准备代码日志计划，再复用明确 BOS 预授权或请求一次授权；失败保留本地提交，未知结果先核对，已确认成功不重复写入。个人配置沿用 BOS_MCP_CONFIG 的仓外文件，按 skill 分段、凭据独立，旧平铺格式仅显式 migrate-config 转换。处理时主动读取相关媒体；简单需求连续实施、自查和目标验证，IRIS 专项直达，正式协作条件加载。普通更新不修改个人配置或客户端；接入与配置核对见插件 usage/adoption，Windows 验证见维护日志，真实宿主/BOS 及非 Windows 矩阵分开取证。
 - 编码规范：CLS 与前端分别以 coding-iris-plugin 的 `references/cls-coding-format.md`、`references/frontend-coding-format.md` 为事实源；只约束真正新增代码，原有代码的功能修改不附带格式化。JS 页面组织模板可选，按实际容器能力选用；Review 对照修改前源码，不把 diff 的 + 行等同新增。
 - 提交：成功 pull 后仅对 commit 临时关闭重复 upstream 检查，其余钩子保留；Junction/SourceRoot 物理归属及预授权规则见提交 skill。版本与功能证据按内容复用；已登记历史债务沿 backlog 处理，不重复阻断无关提交。
@@ -42,10 +42,10 @@
 - 当前有 17 个插件、0 个根级独立 skill。插件版本以 manifest 为准，独立 skill 版本以 frontmatter 为准；内部内容继承 owner 版本。发布记录不可变且不部署，版本 validator 不接入业务安装/更新/hook。
 - `coding-iris-plugin` 当前 v0.18.0：增加纯导入 Broker 客户端、严格 TLS/超时/授权与非交互 stdin 入口，旧人工 CLI 保留兼容；六个直接依赖 owner 仅扩大兼容范围并递增 patch。Windows 部署会话初始化对 Git 根目录长路径和 8.3 短路径按物理路径比较，既有会话状态不迁移；standard 需求录入使用简洁三段式与 v2 草稿，依赖兼容范围以各 owner manifest 为准。保留共享知识检索、项目菜单同步与产物路径门禁；前端 canonical 编码为 `utf8`，实际字节检测是最终门禁；真实 GB2312/mixed/unknown 不自动转码，明确 backend-only Overlay 为 `N/A (backend-only)`。CLS 提供统一命名与格式规范、Agent Review 与可选自检，不增加编译证据或提交门禁。
 - CSP 编译固定到 `compile-csp.js` 的 Atelier 通道；`deploy-frontend.js` 的 direct/guarded 共用单连接传输、替换前复核、逐文件最终校验与完整结果，提供阶段进度/计数；保留 guarded 编译后检查，默认本地计划、显式执行，不自动重试或扩展父页面。竞争窗口、强杀恢复及耗时口径见工具 README；真实服务器性能仍待独立授权验证。SFTP vendor 新项目默认禁用，更新自动迁移可识别的既有标准启动参数，显式 custom/自定义参数保留，不创建服务或安装 Python 依赖。
-- `iris-cure-form-dev` 当前 v0.7.8：兼容 coding-iris-plugin 0.14；任务产物与运行态统一归目标项目 `docs/work/cure-form/<task>/`，快照/敏感证据归同任务 private；配置/规则仍在 `.agents/`。自动/手动部署与版本化克隆/显式原 RowID 覆盖分别选择。新模板不使用灰度，采用克隆的既有模板按引用拓扑收尾，原 ID 覆盖不调用 consolidate。显式旧输出路径保持兼容，不迁移既有备份。
+- `iris-cure-form-dev`：当前版本和兼容范围以 owner manifest 为准；任务产物与运行态统一归目标项目 `docs/work/cure-form/<task>/`，快照/敏感证据归同任务 private；配置/规则仍在 `.agents/`。自动/手动部署与版本化克隆/显式原 RowID 覆盖分别选择。新模板不使用灰度，采用克隆的既有模板按引用拓扑收尾，原 ID 覆盖不调用 consolidate。显式旧输出路径保持兼容，不迁移既有备份。
 - 表单部署的 `transaction-package` / `lightweight-sql` 通道独立于 automatic/manual；轻量通道只服务已有独占单模板 content。固定 SQL 绑定兼容层保留单行事务门禁，授权样本验证不代表全部服务器/HIS 验收。
 - `imedicalxc-doctor-extend-engineer` 本轮修复版本 v1.0.1：电子健康卡子 skill 经主编排器架构门禁加载，不固定参照厂家，不自动回补既有厂家；映射按协议语义、方向和明确主映射取值。wrapper 只暴露主入口，旧受管子入口精准清理，自定义文件和链接保留。
-- `iris-imedical-doctor-ai` v0.3.1 兼容 coding-iris-plugin 0.14，提供医生站 AI 开发方法、迁移行为对照和可控异步测试辅助，补齐入口分层、共享页面等价性、运行时接入、摘要检查及 UI/状态交互验证；工程、原型与接口按任务核实，菜单/wiki 按需使用 vendor 参考，项目菜单刷新复用 iris-menu-sync。其余插件职责与入口见仓库 README，不在本摘要重复目录清单。
+- `iris-imedical-doctor-ai` 的当前版本和兼容范围以 owner manifest 为准，提供医生站 AI 开发方法、迁移行为对照和可控异步测试辅助，补齐入口分层、共享页面等价性、运行时接入、摘要检查及 UI/状态交互验证；工程、原型与接口按任务核实，菜单/wiki 按需使用 vendor 参考，项目菜单刷新复用 iris-menu-sync。其余插件职责与入口见仓库 README，不在本摘要重复目录清单。
 - 通用 AGENT 框架仍为 beta。schema 2.0 用互斥 `taskKind` 分开业务验收与框架维护生命周期；旧 schema 1.0–1.2 只读。业务验收后才执行只读 feedback 审查，任何写入逐项授权；框架维护不触发或提示 feedback。
 - standard 更新器只对落后状态 fast-forward，领先/分叉停止；普通 DryRun 可更新 capability，严格不更新用 Check 或 DryRun -NoPull。Overlay 区分 Workspace/Context/Capability/Source/GitRoot，共享 capability 只更新一次，不扩大源码/Git 边界。
 

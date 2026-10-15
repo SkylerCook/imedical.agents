@@ -13,7 +13,7 @@ node .agents/scripts/agent-orchestrator.js night-record --run-directory <run> --
 node .agents/scripts/agent-orchestrator.js night-status --run-directory <run> --demand <id> --json
 ```
 
-`next` 在现有锁内执行准入、预算、容量和截止检查，生成动作立即预留容量。宿主消费动作前调用既有 `transition --entity work-item --id <workId> --status running` 再检查当前门禁；动作生成不等于已经启动，截止后的旧动作不得直接执行。实际执行器仍须使用批次 deadline。无法执行的原因在 night-status 的 decisions 中读取，不反复请求相同授权。
+`next` 在现有锁内执行准入、预算、容量和截止检查，生成动作立即预留容量。宿主消费动作前调用既有 `transition --entity work-item --id <workId> --status running` 再检查当前门禁；仅生成动作不等于已经开始需求；停止领新截止与额度门禁共用 running/completed 或实际 attempt 判据，截止后的未启动旧动作不得直接执行。实际执行器仍须使用批次 deadline。无法执行的原因在 night-status 的 decisions 中读取，不反复请求相同授权。
 
 ## 显式入口与工作区
 

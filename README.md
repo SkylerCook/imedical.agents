@@ -1,6 +1,6 @@
 # imedical.agents
 
-通过 `$bos-demand-handle --night` 发起夜跑，由 Agent 生成批次和计划并复用原调度器。新批次执行两阶段评估、独立短审、投入复评、源码绑定、容量预留、截止与固定抽验；静态候选和人工待验不计运行通过。worktree 复用 Overlay，Codex 可按真实额度停止领新需求。接入见[夜跑决策接口](docs/night-policy.md)。
+通过 `$bos-demand-handle --night` 发起夜跑，由 Agent 生成批次和计划并复用原调度器。新批次执行两阶段评估、独立短审、投入复评、源码绑定、容量预留、截止与固定抽验；静态候选和人工待验不计运行通过。worktree 复用 Overlay，Codex 可按真实额度停止领新需求；仅预留动作不算已开始，停止领新截止会在实际执行前复核。接入见[夜跑决策接口](docs/night-policy.md)。
 
 夜跑方案按内部方法、实际接口、UI 分层验收，纯后端不加载浏览器；Web 默认无头 Playwright，复用已安装环境。Broker 机器调用、批次截止及清理见 [夜跑接入](docs/night-acceptance.md)。
 
