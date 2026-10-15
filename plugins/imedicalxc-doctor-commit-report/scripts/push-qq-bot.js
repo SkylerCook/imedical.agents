@@ -7,6 +7,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const https = require('node:https');
+const os = require('node:os');
+const { pathToFileURL } = require('node:url');
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..', '..');
 const pushConfigPath = path.join(repoRoot, '.agents', 'plugins', 'imedicalxc-doctor-commit-report', 'config', 'commit-report-push.json');
@@ -29,10 +31,9 @@ function loadPushConfig() {
   return cfg.qqbot;
 }
 
-function loadReporters() {
-  if (!fs.existsSync(reporterConfigPath)) return [];
-  const cfg = JSON.parse(fs.readFileSync(reporterConfigPath, 'utf8'));
-  return (cfg.reporters || []).map((r) => r.name);
+function loadReporterConfig() {
+  if (!fs.existsSync(reporterConfigPath)) return {};
+  return JSON.parse(fs.readFileSync(reporterConfigPath, 'utf8'));
 }
 
 function requestJson(baseUrl, endpoint, token, body) {
@@ -380,6 +381,156 @@ function formatThreeStar(item, memberMap, admins) {
   return parts.join(' ') + '\n' + item.comment;
 }
 
+// ---------- 问题登记表（步骤 4.5：未标识处理结果提醒） ----------
+// 读取《信创版产品迭代每周问题登记》：复用本机 tencent-docs MCP 代理（settings.json 指向的
+// proxy.js 同目录 mcp-http-client.js，HTTP↔MCP 桥），配置与凭据运行时读取，不落盘。
+
+const ISSUE_SOURCE_PREFIX = '医生站信创产品迭代周报';
+const STATUS_TODO = '未完成';
+const USER_SETTINGS_PATH = path.join(os.homedir(), '.qoder', 'settings.json');
+
+function loadTdMcpConfig() {
+  let url = process.env.TD_MCP_URL;
+  let token = process.env.TD_TOKEN;
+  let proxyPath = process.env.TD_PROXY_PATH;
+  if (!url || !token || !proxyPath) {
+    try {
+      const settings = JSON.parse(fs.readFileSync(USER_SETTINGS_PATH, 'utf8'));
+      const td = (settings.mcpServers || {})['tencent-docs'] || {};
+      const env = td.env || {};
+      url = url || env.TD_MCP_URL;
+      token = token || env.TD_TOKEN;
+      if (!proxyPath && Array.isArray(td.args)) {
+        proxyPath = td.args.find((a) => typeof a === 'string' && a.endsWith('.js'));
+      }
+    } catch (err) {
+      console.error(`[WARN] 读取 ${USER_SETTINGS_PATH} 失败:`, err.message);
+    }
+  }
+  if (!url || !token) return null;
+  return {
+    url,
+    token,
+    clientPath: proxyPath ? path.join(path.dirname(proxyPath), 'mcp-http-client.js') : '',
+  };
+}
+
+function withTimeout(promise, ms, label) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label}超时（${ms / 1000}s）`)), ms);
+    Promise.resolve(promise).then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
+function parseToolResult(result) {
+  const text = ((result || {}).content || []).map((c) => c.text || '').join('');
+  if (!text) throw new Error('MCP 工具返回为空');
+  const obj = JSON.parse(text);
+  if (obj.error) throw new Error(String(obj.error));
+  return obj;
+}
+
+function cellText(c) {
+  if (!c) return '';
+  if (c.value_type === 'NUMBER') {
+    return c.number_value === undefined || c.number_value === null ? '' : String(c.number_value);
+  }
+  return String(c.string_value || '').trim();
+}
+
+async function fetchSheetRows(reg) {
+  const mcp = loadTdMcpConfig();
+  if (!mcp) {
+    throw new Error(`缺少腾讯文档 MCP 配置（环境变量 TD_MCP_URL/TD_TOKEN 或 ${USER_SETTINGS_PATH} 的 mcpServers['tencent-docs']）`);
+  }
+  if (!mcp.clientPath || !fs.existsSync(mcp.clientPath)) {
+    throw new Error(`未找到腾讯文档 MCP 客户端模块: ${mcp.clientPath || '(未从 settings.json 的 tencent-docs.args 推导出路径)'}`);
+  }
+  const { MCPClient } = await import(pathToFileURL(mcp.clientPath).href);
+  const client = new MCPClient(mcp.url, mcp.token);
+  await withTimeout(client.initialize(), 30000, '腾讯文档 MCP 连接');
+  const info = parseToolResult(await withTimeout(
+    client.callTool('sheet.get_sheet_info', { file_id: reg.fileId }), 30000, '读取子表信息'));
+  const sheet = (info.sheets || []).find((s) => s.sheet_id === reg.sheetId);
+  if (!sheet) {
+    throw new Error(`子表未找到（sheetId=${reg.sheetId}）`);
+  }
+  const rowCount = Number(sheet.row_count) || 200;
+  const data = parseToolResult(await withTimeout(
+    client.callTool('sheet.get_cell_data', {
+      file_id: reg.fileId,
+      sheet_id: reg.sheetId,
+      start_row: 0,
+      end_row: rowCount - 1,
+      start_col: 0,
+      end_col: 8,
+      return_csv: false,
+    }),
+    60000, '读取登记表数据'));
+  const grid = [];
+  for (const c of data.cells || []) {
+    const r = Number(c.row);
+    const col = Number(c.col);
+    if (!Number.isInteger(r) || !Number.isInteger(col)) continue;
+    if (!grid[r]) grid[r] = [];
+    grid[r][col] = cellText(c);
+  }
+  return grid;
+}
+
+// 已标识处理结果：完成状态被改为「未完成」以外的值，或完成日期/备注任一被填写
+function isIssueIdentified(row) {
+  const status = (row[6] || '').trim();
+  if (status && status !== STATUS_TODO) return true;
+  return Boolean((row[7] || '').trim() || (row[8] || '').trim());
+}
+
+function collectPendingIssues(rows) {
+  const counts = new Map();
+  let total = 0;
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i] || [];
+    if (!(row[0] || '').trim().startsWith(ISSUE_SOURCE_PREFIX)) continue;
+    if (isIssueIdentified(row)) continue;
+    total += 1;
+    const owner = (row[5] || '').trim();
+    if (owner) counts.set(owner, (counts.get(owner) || 0) + 1);
+  }
+  return { total, counts };
+}
+
+function formatPendingReminder(pending, nameToMember, admins, sheetUrl) {
+  const lines = [
+    '📌 问题处理提醒',
+    `《信创版产品迭代每周问题登记》有 ${pending.total} 条问题未标识处理结果，请相关同事点击链接查看并更新：`,
+    sheetUrl,
+  ];
+  const byMember = new Map();
+  const unmatched = [];
+  const entries = [...pending.counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh'));
+  for (const [name, count] of entries) {
+    const member = nameToMember.get(name);
+    if (member) {
+      byMember.set(member.user_id, (byMember.get(member.user_id) || 0) + count);
+    } else {
+      unmatched.push(name);
+    }
+  }
+  const tail = [];
+  const ats = [...byMember.entries()].map(([qq, count]) => `[CQ:at,qq=${qq}]（${count} 条）`);
+  if (ats.length > 0) tail.push(ats.join(' '));
+  if (unmatched.length > 0) {
+    let text = `未找到「${unmatched.join('」「')}」群成员`;
+    if (admins.length > 0) text += ` [CQ:at,qq=${admins[0].user_id}]`;
+    tail.push(text);
+  }
+  if (tail.length > 0) lines.push(tail.join(' '));
+  return lines.join('\n');
+}
+
 async function main() {
   const reportPath = process.argv[2];
   if (!reportPath) {
@@ -401,7 +552,22 @@ async function main() {
   const lowStars = extractLowStars(md);
   const threeStars = extractThreeStars(md);
   const hashAuthorMap = buildHashAuthorMap(md);
-  const reporterNames = loadReporters();
+  const reporterCfg = loadReporterConfig();
+  const reporterNames = (reporterCfg.reporters || []).map((r) => r.name);
+
+  const issueReg = reporterCfg.issueRegistration;
+  let pending = null;
+  if (issueReg && issueReg.enabled) {
+    console.log('读取问题登记表待处理问题...');
+    try {
+      pending = collectPendingIssues(await fetchSheetRows(issueReg));
+      console.log(`未标识处理结果: ${pending.total} 条（涉及 ${pending.counts.size} 人）`);
+    } catch (err) {
+      console.error('[WARN] 问题登记表读取失败，跳过问题处理提醒:', err.message);
+    }
+  } else {
+    console.log('问题登记未启用，跳过问题处理提醒');
+  }
 
   // 构建发送列表：1-2★ 优先，不足 5 条则用 3★ 补充
   const SUPPLEMENT_TARGET = 5;
@@ -419,7 +585,8 @@ async function main() {
   console.log('获取群成员列表...');
   const members = await getGroupMembers(cfg);
   console.log(`群成员 ${members.length} 人`);
-  const { nameToMember, admins } = buildMemberMap(members, reporterNames);
+  const matchNames = [...new Set([...reporterNames, ...(pending ? [...pending.counts.keys()] : [])])];
+  const { nameToMember, admins } = buildMemberMap(members, matchNames);
 
   let allOk = true;
 
@@ -470,6 +637,17 @@ async function main() {
     console.log('\n本期无需关注的问题，跳过步骤3-4');
   }
 
+  // 步骤 4.5：问题处理提醒（登记表地址 + @未标识处理结果人员）
+  console.log('\n--- 步骤4.5: 发送【问题处理提醒】---');
+  if (pending && pending.total > 0) {
+    const reminder = formatPendingReminder(pending, nameToMember, admins, issueReg.sheetUrl || '');
+    if (!await sendText(cfg, reminder)) allOk = false;
+  } else if (pending) {
+    console.log('无未标识处理结果的问题，跳过');
+  } else {
+    console.log('[WARN] 未取到问题登记表数据，跳过');
+  }
+
   // 步骤 5：收尾 @全体
   console.log('\n--- 步骤5: 发送收尾消息（@全体）---');
   if (!await sendText(cfg, formatClosing())) allOk = false;
@@ -483,7 +661,11 @@ async function main() {
   process.exit(allOk ? 0 : 1);
 }
 
-main().catch((err) => {
-  console.error('推送异常:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('推送异常:', err);
+    process.exit(1);
+  });
+}
+
+module.exports = { cellText, isIssueIdentified, collectPendingIssues, formatPendingReminder, fetchSheetRows };
