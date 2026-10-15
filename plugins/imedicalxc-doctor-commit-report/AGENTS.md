@@ -1,6 +1,6 @@
 # iMedicalXC Doctor Commit Report
 
-`imedicalxc-doctor-commit-report` 是医生站信创产品迭代周报插件：确定性采集 + 数据库变更检测 + LLM 语义分析，产出医生站团队的周度提交汇总、变更影响评估与数据库脚本执行提醒报告。
+`imedicalxc-doctor-commit-report` 是医生站信创产品迭代周报插件：确定性采集 + 数据库变更检测 + LLM 语义分析，产出医生站团队的周度提交汇总、变更影响评估与数据库脚本执行提醒报告，并将 1-2★ 低星问题经腾讯文档 MCP 登记到《信创版产品迭代每周问题登记》。
 
 ## 插件定位
 
@@ -9,7 +9,7 @@
 
 ## 使用约束
 
-- 全程只读 git 仓库（log / show），不触发远端上传、编译、数据库写入。
+- 全程只读 git 仓库（log / show），不触发远端上传、编译、数据库写入；唯一例外：低星问题登记经 tencent_docs MCP 写入《信创版产品迭代每周问题登记》。
 - 推送凭据不落盘明文；推送配置 `config/commit-report-push.json` 本地不入库。
 - 评估依赖 `imedicalxc-doctor-business-understanding` 插件做高风险提交的深度链路分析。
 
@@ -19,6 +19,7 @@
 
 ## 内置脚本
 
+- `scripts/build-issue-rows.js`：读取某期 evaluations.json，筛出 1-2★（rating ≤ 2）条目，渲染《信创版产品迭代每周问题登记》9 列标准行值（含负责人=提交人、完成状态=未完成），输出 `issue-rows-<label>.json`（含 fileId/sheetId），供 Agent 经 tencent_docs MCP 按「提交」列短哈希去重后批量写入。
 - `scripts/collect-commits.js`：遍历 src/ 下 20 个子仓库，按时间窗 + 11 人白名单过滤并排除 merge，输出 `raw-commits-<YYYY-MM>.json`（UTF-8 无 BOM）。
 - `scripts/detect-db-changes.js`：扫描 Java 提交 diff，检测四类数据库脚本执行提醒——PO 数据结构修改、新增系统标准配置（ST_CODE + 配置项）、新增系统标准提醒（HisBusinessException 字典表提醒码，含跨仓库常量链解析）、新增代码表缓存配置（DocCacheUtils PO 首次使用；非首用的复用调用归入 `cacheReuses` 仅存档、不计入提醒；两类缓存记录均解析 PO 的 `@TableName` 表名，供按表名维护的代码表缓存管理使用），输出 `db-changes-<YYYY-MM>.json`。
 - `scripts/push-qq-bot.js`：QQ 机器人推送适配器（NapCat/OneBot HTTP API）。读取报告 Markdown 与同目录 `db-changes-<label>.json`，发送开场、提交人分布、数据库脚本执行提醒（四类计数 + 明细 + 执行方案推荐 + 试用阶段说明「当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询」，PO 改走腾讯文档 DDL 登记表格、其余三类经公司标准库 demo 维护）、低星问题清单（@提交人）后上传报告文件。配置见 `config/commit-report-push.json`。
