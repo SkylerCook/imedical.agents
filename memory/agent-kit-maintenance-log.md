@@ -1,5 +1,10 @@
 # imedical.agents 维护日志
 
+- 2026-10-15（连续人工验收，framework-maintenance）：demand-delivery-plugin 0.2.0 新增 demand-acceptance，固化连续接收结论、精确逐号交付、授权复用、独立报告与断点恢复。人工通过、自动证据和交付阶段分别记录；BOS 多需求号输出为数量在块外、text 块内单行升序去重、半角逗号无空格。复用 demand-commit 与可选 bos-code-update-log，不增加第二套 Git/BOS 执行器；普通单需求沿用原入口，批次索引按需使用。
+  - 验证：Windows Node 24.14.1 的验收专项 16/16 通过，包含官方 commit-demand 真实隔离 Git 提交结果对接、多仓完整回执、范围漂移、交付者/发布排他、未知 BOS 不重放、部分 push 恢复及精确编号格式。独立 Agent 场景演练先实际发现 BOS 自行核对仍需人工确认、commit+BOS 恢复未释放占有两处问题；修正为权威回读证据可登记成功、完成后释放，并经内存复演和新增回归确认。脚本只校验元数据/回执，不证明真实 BOS 结果或服务端幂等。
+  - 发现与治理：技能 quick_validate、部署文档链接/目录覆盖通过；Windows PowerShell 5.1 在隔离项目实际生成新 thin-index，确认描述保留且 source 指向真实技能。README、目录/指南、workflow 条件入口、插件 manifest、不可变发布记录及维护摘要/队列同步；定向版本检查无问题（0.1.0→0.2.0 minor），全仓仍仅有已登记 xc 1.0.2–1.0.4 缺 commit 的六项历史问题。现有 standard-demand-entry 的三平台 Node 22/24 矩阵自动覆盖新增测试，非本机实跑和真实宿主接入仍待验证。
+  - 收尾：严格 UTF-8、语法及最终差异检查通过；任务临时夹具与官方计划临时文件已清理。提交与双远端推送按本轮用户 c + p 授权执行，结果以 Git 记录为准；未操作真实 BOS 或更新业务工程副本，技能需正常能力包更新并刷新 thin-index 后在业务宿主发现。纯框架维护不创建自反馈。
+
 - 2026-10-15（夜跑分层验收，framework-maintenance）：新增按需加载的夜跑 workflow、批次模板和项目接入说明。纯后端不加载浏览器，UI 使用延迟加载 Playwright 的薄 runner，复用 session/evidence；独占 context、API 独立采集、有限执行与关闭、失败停止后续用例。Broker 抽取纯导入客户端，stdin 非交互调用区分传输/认证/业务/未知结果，精确方法角色授权、严格 TLS、响应上限、不重放未知写。旧 CLI 移入兼容模块，--path/--url 同义。
   - 验证：Windows Node 24.14.1 新增及基础专项 30 项、既有编排结果 2 项、框架契约 1 项通过；实际复用宿主 Playwright 1.62.1 与已安装 Chrome 155.0.8059.40，无头登录、正常导航、iframe/popup、截图/API 回读、版本失效及恢复通过；合成 HTTP 空闲/有效活动/心跳/认证恢复/停止对照使用可控服务时钟，不代表真实服务器时限。Overlay 配置专项通过；首次发现旧静态测试把 compile 薄入口误判为未调用 workspace resolver，改为核验入口委托及实现解析，并复测通过。文档部署链接通过。
   - 治理：coding-iris-plugin 0.18.0 与六个依赖 patch/发布记录同步，新增 CI 三平台 Node 22/24 和源仓隔离依赖锁；未安装依赖，矩阵尚未执行。版本校验仅剩既有 xc 1.0.2–1.0.4 缺 commit 的六项历史问题，不改历史记录。正式 run 仍由 Coordinator 核验并消费既有结果，不另建台账；真实项目和宿主持续运行能力留 backlog。最终定向复测 14/14，部署文档链接及 diff check 通过；任务截图、临时配置、合成服务与浏览器均已退出/清理。未启动夜跑、同步业务副本或操作真实服务；提交与推送按用户后续 c + p 授权执行，结果以 Git 记录为准。

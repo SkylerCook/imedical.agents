@@ -9,6 +9,8 @@ description: Use after a standard or project demand is implemented and verified.
 
 适用于采用数字需求号及本技能 standard/project 提交格式的项目。项目提交规范与本格式冲突时先按项目规范处理，不强套此格式；不需要 IRIS、BOS 连接或领域初始化。新入口按项目 plugin profile 接入 demand-delivery-plugin；旧入口已移除，已部署项目由更新器迁移。
 
+连续人工验收、多条交付排队或批次恢复时，由 [demand-acceptance](../demand-acceptance/SKILL.md) 接收结论与协调；本技能仍独立执行单号计划与提交。
+
 ## 使用时机
 
 当编码需求已经完成本地修改和必要验证，需要生成或执行 Git 提交时使用本 Skill。它同时支持：

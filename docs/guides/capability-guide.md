@@ -26,6 +26,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 | 初始化 BOS 个人配置或接入项目 | [bos-init](#bos-plugin) | 明确个人初始化或目标项目接入；凭据只在仓外配置中填写 |
 | 查询 BOS 待办、历史或详情 | [bos-demand-query](#bos-plugin) | 查询模式或需求编号，按需补充日期和筛选条件 |
 | 处理已有 BOS 需求 | [bos-demand-handle](#bos-plugin) | 需求编号或充分正文、目标工程和操作范围 |
+| 连续验收已实现需求、边验边交付 | [demand-acceptance](#demand-delivery-plugin) | 需求与来源映射、人工结论、已有台账及各项交付授权 |
 | 补录 BOS 代码更新日志 | [bos-code-update-log](#bos-plugin) | 已有提交的 repo/hash，预览范围与独立 BOS 写入授权 |
 | 初始化、修正或精简项目上下文 | [project-context-maintenance](#agent-context-kit) | 目标工程、初始化或维护范围 |
 | 在另一种 Agent 工具中发现已有技能 | [coding-agent-adaptation](#agent-context-kit) | 已安装的工程、目标宿主 |
@@ -61,6 +62,14 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 `--plan`、`--commit` 不是所有 skill 的通用参数。对没有这些参数的能力，直接说“先给计划”“只做差异检查”或“执行已确认范围”；实际脚本命令由 Agent 按技能正文选择。需要手工执行时，使用源文档中的完整命令，并确认运行目录和前提。
 
 一次请求尽量给齐：**目标工程、文件或对象、预期结果、允许的操作范围**。涉及翻译补充目标语言，涉及表单补充 CA/CR，涉及接口补充规范与字段确认情况。连接信息由 Agent 从工程已有配置读取，不粘贴到通用手册或能力文件中。
+
+## demand-delivery-plugin
+
+已有需求需要提交时使用 [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md)。用户连续验收多个需求时使用 [demand-acceptance](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md)，例如：
+
+> 我逐号报验收结论，你持续登记并交付。此前明确授权范围内的通过项依次提交、补 BOS 日志并 push，报告整理不阻塞下一条。汇总时分别给人工通过和已交付编号，用能直接粘贴到 BOS 的单行逗号格式。
+
+已有授权复用，缺少具体动作授权时只推进可独立执行的部分。默认复用台账；需要批次恢复时读 [验收索引协议](../../plugins/demand-delivery-plugin/references/acceptance-session.md)。更新能力包后刷新 thin-index 即可发现新入口，不自动部署业务改动或启动批次。
 
 ## Rule、reference 和脚本怎么用
 

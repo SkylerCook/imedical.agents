@@ -287,7 +287,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 ### demand-delivery-plugin
 
-跨技术栈的数字需求号提交，支持 standard/project、精确文件计划、防漂移和本地提交校验。新入口 demand-commit，无 IRIS/BOS 配置依赖；--plan 不提交，--commit 仅授权本地提交。按项目 profile 接入，已部署旧入口由更新器迁移。
+跨技术栈的数字需求号提交与连续人工验收。demand-commit 支持 standard/project、精确文件计划、防漂移和本地提交校验；--plan 不提交，--commit 仅授权本地提交。新增 [demand-acceptance](plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md) 接收连续验收、逐号交付与断点恢复，提供可直接粘贴到 BOS 的编号汇总；选用 BOS 写入时条件使用 bos-plugin。按项目 profile 接入并刷新 thin-index，已部署旧入口由更新器迁移。
 
 ### coding-iris-plugin
 

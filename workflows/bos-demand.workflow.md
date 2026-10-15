@@ -40,6 +40,8 @@
 
 按 [业务交付生命周期](../agents/_shared/delivery-lifecycle.md)进入 acceptance-pending，提供最短验收步骤；用户明确验收后进入 accepted。远端操作必须有专项授权，未执行则标为未验证。反馈只在 accepted 且有信号时只读审查，写入仍独立授权。
 
+明确进入连续人工验收批次时，由 [demand-acceptance](../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md) 接收逐号结论、协调已授权交付和编号汇总；正式 run 状态仍归本流程及既有编排维护，普通单需求不自动建立批次索引。
+
 ## 提交与授权
 
 “处理需求”包含调查、实施和必要验证，不含 commit。用户说“处理并在验收后提交”时保留其原话、需求和范围，accepted 后展示具体计划并执行；单独“验收通过”只改变验收状态。已有明确预授权不重复确认；范围扩大、需求实质变化或提交门禁要求确认时重新核对。
