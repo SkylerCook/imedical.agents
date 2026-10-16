@@ -234,3 +234,22 @@ test('confirmed BOS readback recovers without user interruption and releases com
     assert.equal(api.summarize(f.state(), 'delivered').csv, '10');
   }
 });
+
+
+test('pending report tracks user decisions independently of automatic gaps', t => {
+  const f = fixture(t);
+  const state = f.state();
+  state.demands[0].automatic.gaps = [];
+  state.demands[1].automatic.status = 'not-verified';
+  assert.equal(api.summarize(state, 'pending').count, 2);
+  assert.match(api.render(state, 'pending'), /^待用户验收结论共/);
+  assert.equal(api.render(state, 'pending', 'csv'), '2,10');
+  assert.deepEqual(JSON.parse(api.render(state, 'pending', 'json')).ids, ['2', '10']);
+  const gapItem = state.demands[1];
+  api.apply(state, 'decide', { id: gapItem.id, actor: 'user', status: 'passed', quote: 'Accepted with the recorded limitation' });
+  assert.equal(api.summarize(state, 'pending').count, 1);
+  assert.equal(api.summarize(state, 'accepted').count, 1);
+  assert.deepEqual(gapItem.automatic.gaps, ['native scenario pending']);
+  api.apply(state, 'decide', { id: state.demands[0].id, actor: 'user', status: 'deferred', quote: 'Defer acceptance' });
+  assert.match(api.render(state, 'pending'), /^待用户验收结论共/);
+});

@@ -299,7 +299,7 @@ function render(state, kind = 'accepted', format = 'markdown') {
   if (format === 'json') return JSON.stringify(result, null, 2);
   if (format === 'csv') return result.csv;
   if (format !== 'markdown') fail('Unknown report format');
-  const labels = { accepted: '验收通过', delivered: '已完成约定交付', failed: '验收不通过', deferred: '暂缓', pending: '待确认' };
+  const labels = { accepted: '验收通过', delivered: '已完成约定交付', failed: '验收不通过', deferred: '暂缓', pending: '待用户验收结论' };
   if (kind === 'delivered' && state.scope.deliveryActions.includes('bos-log') && state.scope.deliveryActions.includes('push')) labels.delivered = '已完整交付';
   const heading = `${labels[kind]}共 **${result.count} 条**：`;
   return result.count ? `${heading}\n\n\`\`\`text\n${result.csv}\n\`\`\`` : `${heading}暂无。`;
