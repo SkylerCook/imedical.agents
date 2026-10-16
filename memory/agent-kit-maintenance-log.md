@@ -1,5 +1,9 @@
 # imedical.agents 维护日志
 
+- 2026-10-16（验收调用授权收敛，framework-maintenance）：demand-delivery-plugin 0.5.0 将用户明确调用 demand-acceptance 开展验收交付定义为该批次通过项 commit＋BOS 日志＋push 的授权，无需交付参数或重复选择范围；非 BOS 项目跳过日志。保留暂不交付限制和旧批次原授权，查看/维护技能、查询汇总与自动加载不产生授权。demand-commit 显式承接批次授权，索引 authorize 保存真实调用原话，执行脚本和索引格式不变。
+  - 验证：两份技能 quick_validate 在 Python UTF-8 模式通过（首次默认 GBK 读取失败，未改文件编码）；文档部署链接/清单 1/1 通过。逐项核对明确调用后通过、暂停、纯查询/自动加载、旧批次恢复和下游授权传递；纯技能契约变更未重跑 Git/BOS 执行测试，真实宿主行为仍在既有 P2 队列。工作区版本校验识别 0.4.0→0.5.0 breaking minor，无本次新增问题；全仓仍仅有已登记 xc 1.0.2–1.0.4 缺 commit 的六项历史问题，未修改历史记录。
+  - 同步：owner AGENTS/README/manifest、两份技能、索引协议、仓库 README、能力手册、维护摘要/队列及新发布记录对齐；长期决策与安装/更新机制未改变。已部署工程按正常更新刷新已启用索引，新调用采用新契约，旧批次不自动扩权；无配置迁移或旧文件清理。用户后续授权 c + p，复用已有验证并补查精确暂存与组件版本门禁，按既有约定推送 origin/github，结果以 Git 记录为准；未同步业务副本，无任务临时文件。
+
 - 2026-10-16（BOS 夜跑 2.1 闭环，framework-maintenance）：BOS 0.9.0 / coding 0.19.0 在既有编排器、Overlay、部署与验收执行器上增加启动前集中授权/真实预检、单批次多仓、受管执行回执与分层计时；运行中异常项挂起交接，不新增授权问题。保留独立审查与 acceptance-pending，旧 2.0 不迁移；数据处置与资源退出独立核验，CLS 文档名共用 Class 声明解析，Windows 大小写、阶段跳过依赖及重叠计时有回归。
   - 验证：Windows Node 24.14.1 兼容/部署/Broker/额度/会话回归 103 项、新契约/实际 Overlay/无头 UI/稀疏分发 28 项、版本治理 17 项、文档链接 1 项通过；PS5.1 部署清单及前项失败不被末项成功掩盖的示例通过。两个需求在回环 Atelier 合成服务上走真实受管 compile CLI，断言只一次 PUT/编译；前后端写入的联合证据与重复验收自动归档，最终 acceptance-pending。额外收尾定向 22 项通过；改变文件的 JavaScript 语法检查通过。已有 Chrome 无头与本地页面不代表真实 HIS 或 bundled Chromium 矩阵。
   - 同步：六个直接依赖仅补 patch、兼容范围接纳 coding <0.20.0；检查其 owner 说明仍适用，无需重复规则正文。owner AGENTS/README/skill、脚本说明、共享协议、根 README、使用手册、更新/Overlay runbook、schema、模板、发布草稿与维护入口/队列对齐。CI 补最低 22.5.0 和 PS5.1；未修改安装/更新器或实际业务副本，无配置迁移或额外兼容清理。

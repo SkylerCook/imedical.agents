@@ -30,7 +30,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 | 初始化 BOS 个人配置或接入项目 | [bos-init](#bos-plugin) | 明确个人初始化或目标项目接入；凭据只在仓外配置中填写 |
 | 查询 BOS 待办、历史或详情 | [bos-demand-query](#bos-plugin) | 查询模式或需求编号，按需补充日期和筛选条件 |
 | 处理已有 BOS 需求 | [bos-demand-handle](#bos-plugin) | 需求编号或充分正文、目标工程和操作范围 |
-| 连续验收已实现需求、边验边交付 | [demand-acceptance](#demand-delivery-plugin) | 需求与来源映射、人工结论、已有台账及各项交付授权 |
+| 连续验收已实现需求、边验边交付 | [demand-acceptance](#demand-delivery-plugin) | 需求与来源映射、人工结论及已有台账；明确调用即授权完整交付 |
 | 补录 BOS 代码更新日志 | [bos-code-update-log](#bos-plugin) | 已有提交的 repo/hash，预览范围与独立 BOS 写入授权 |
 | 初始化、修正或精简项目上下文 | [project-context-maintenance](#agent-context-kit) | 目标工程、初始化或维护范围 |
 | 在另一种 Agent 工具中发现已有技能 | [coding-agent-adaptation](#agent-context-kit) | 已安装的工程、目标宿主 |
@@ -71,11 +71,11 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 已有需求需要提交时使用 [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md)。用户连续验收多个需求时使用 [demand-acceptance](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md)，例如：
 
-> 我逐号报验收结论，你持续登记并交付。此前明确授权范围内的通过项依次提交、补 BOS 日志并 push，报告整理不阻塞下一条。汇总时分别给人工通过和已交付编号，用能直接粘贴到 BOS 的单行逗号格式。
+> 使用 demand-acceptance，我逐号报验收结论，通过后依次提交、补 BOS 日志并 push，报告整理不阻塞下一条。汇总时分别给人工通过和已交付编号，用能直接粘贴到 BOS 的单行逗号格式。
 
-新任务用 `demand-acceptance` 验收当前工作区；从其他 worktree 接收变更用 `demand-acceptance --worktree`，或 `demand-acceptance --worktree "<来源路径>"`（兼容 `-worktree`）。来源与目标核实后才合入；当前目录是 worktree 不代表要合回其他仓库。接续已有批次保留原映射，参数不授予交付或清理权限。
+新任务用 `demand-acceptance` 验收当前工作区；从其他 worktree 接收变更用 `demand-acceptance --worktree`，或 `demand-acceptance --worktree "<来源路径>"`（兼容 `-worktree`）。来源与目标核实后才合入；当前目录是 worktree 不代表要合回其他仓库。接续已有批次保留原映射；来源参数只选择来源，交付授权来自用户明确调用，清理仍需独立授权。
 
-已有授权复用，缺少具体动作授权时只推进可独立执行的部分。默认复用台账；需要批次恢复时读 [验收索引协议](../../plugins/demand-delivery-plugin/references/acceptance-session.md)。更新能力包后刷新 thin-index 即可发现新入口，不自动部署业务改动或启动批次。
+明确调用开展验收交付即授权该批次通过项提交、BOS 日志及推送，无需额外开关或反复选择范围；非 BOS 项目跳过日志。用户明确暂不交付时保留限制；仅查看技能、查询汇总或 Agent 自动加载不产生写入授权。默认复用台账；需要批次恢复时读 [验收索引协议](../../plugins/demand-delivery-plugin/references/acceptance-session.md)。更新能力包后刷新 thin-index 即可发现新入口，不自动部署业务改动或启动批次。
 
 ## Rule、reference 和脚本怎么用
 

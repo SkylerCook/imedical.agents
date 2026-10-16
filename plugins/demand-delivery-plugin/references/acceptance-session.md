@@ -37,7 +37,7 @@ node <script> report --directory <task-dir> --kind delivered --format csv
 }
 ```
 
-`deliveryActions` 明确本批次约定，包含 commit；BOS/push 按真实需要选择，不能根据初始化配置推断授权。push 必须有明确 remote 和完整分支 ref。同一真实仓库使用一个 key；不同 key/别名不能指向同一仓库。Agent 还应通过现有 Git/Overlay 工具核对实际 common-dir、来源与目标，不以目录字符串代替仓库身份。
+`deliveryActions` 明确本批次约定，包含 commit；BOS/push 按真实需要选择，不能根据初始化配置推断授权。用户明确调用 demand-acceptance 开展验收交付时，按技能“调用与授权”复用该批次授权；authorize 保存真实调用原话与适用动作，无需用户重复确认。旧批次保留已有授权范围与限制，恢复不能自动补齐未授权动作。push 必须有明确 remote 和完整分支 ref。同一真实仓库使用一个 key；不同 key/别名不能指向同一仓库。Agent 还应通过现有 Git/Overlay 工具核对实际 common-dir、来源与目标，不以目录字符串代替仓库身份。
 
 ## 接收和发布
 
