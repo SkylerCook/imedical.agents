@@ -39,8 +39,9 @@
 - 框架默认将整个后条件表达式放在括号内；比较运算符两侧留空格，组合条件之间使用紧凑 `&&` / `||`，例如 `q:((value = "")&&(other = ""))`。这是一种选定风格，不是所有合法语法的集合。
 - 语法允许括号内部的空白；不要宣称后条件内部一律禁止空格。对于未用外层括号包住的组合条件，不能把 `continue:(cond1)&&(cond2)` 改成 `continue:(cond1) && (cond2)`，后者的括号外空白会提前结束后条件。
 - 保留字符串中的空格；不能对表达式用正则批量增删空白。命令冒号、参数后条件、SQL 参数绑定等不同位置不能套用统一的“冒号两侧空格”规则。
+- 循环退出属于语法约束：在 `for`、`while` 或 `do ... while` 循环内用 `q` / `quit` 结束当前循环时，必须不带返回值参数；后条件不属于返回值参数。正确：`q:(subRowId = "")`；错误：`q:(subRowId = "") ""`。需要返回方法结果时，在循环结束后按方法返回契约处理，不能给循环退出的 `q` 追加返回值。编码与 Review 均须检查此项，它不是可选风格建议。
 
-语法依据：[InterSystems ObjectScript Syntax Basics](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=GCOS_syntax) 的 Postconditionals / Whitespace。该说明用于区分语言规则与框架风格，不代替目标 IRIS 版本的编译验证。
+语法依据：[InterSystems ObjectScript Syntax Basics](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=GCOS_syntax) 的 Postconditionals / Whitespace。循环退出依据：[QUIT (ObjectScript)](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_cquit) 的 Without an Argument / With an Argument。这些说明用于区分语言规则与框架风格，不代替目标 IRIS 版本的编译验证。
 
 ## 注释与空行
 
