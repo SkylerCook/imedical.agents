@@ -259,3 +259,84 @@ test('incomplete descriptions and missing technology prefix fail before output i
   const sheet = unzipStored(buildWorkbook([draft.requirements[0]], { 模块编码: 'TEST' }, entry.renderText))['xl/worksheets/sheet1.xml'];
   assert.match(sheet, /\{WEB\}/);
 });
+
+function workSpec() {
+  return { kind: 'standard', source: 'work', common: { 模块编码: 'TEST' }, requirements: [{
+    key: 'w1', name: '{DEMO} 演示场景与样例准备',
+    description: { format: 'work', goal: '明确演示场景', activities: ['确认样例范围', '准备关联数据'], outcome: { kind: 'expected', text: '样例可供演示' } },
+    sources: [{ kind: 'user', locator: '本轮用户说明', summary: '已确认场景，数据待准备' }],
+    progress: { status: 'in-progress', summary: '场景已确认，数据尚未准备' }
+  }] };
+}
+function workFixture(t) {
+  const base = path.join(os.tmpdir(), 'codex'); fs.mkdirSync(base, { recursive: true });
+  const temp = fs.mkdtempSync(path.join(base, 'work-demand-test-'));
+  t.after(() => { assert.equal(path.dirname(temp), base); assert.ok(!fs.lstatSync(temp).isSymbolicLink()); fs.rmSync(temp, { recursive: true, force: true }); assert.ok(!fs.existsSync(temp)); });
+  return temp;
+}
+test('work preparation needs no Git or submission project and preserves optional factual outcomes', () => {
+  const spec = workSpec();
+  const draft = entry.prepare(spec, '/missing-evidence', '/missing-project');
+  assert.equal(draft.schema, 'iris-standard-demand/v3');
+  assert.equal(draft.source, 'work');
+  assert.ok(!Object.hasOwn(draft.requirements[0], 'changes'));
+  let body = entry.renderText(draft.requirements[0], false);
+  assert.match(body, /【预期成果】/); assert.match(body, /数据尚未准备/);
+  assert.doesNotMatch(body, /验收标准|本轮用户说明/);
+  delete spec.requirements[0].description.outcome;
+  body = entry.renderText(entry.prepare(spec).requirements[0], false);
+  assert.doesNotMatch(body, /预期成果|工作结果|验收标准/);
+  spec.requirements[0].description.outcome = { kind: 'result', text: '形成场景清单；数据仍待准备' };
+  assert.match(entry.renderText(entry.prepare(spec).requirements[0]), /【工作结果】/);
+});
+test('work rejects mixed sources and incomplete facts rather than fabricating code evidence', () => {
+  for (const mutate of [s => { s.source = 'mixed'; }, s => { s.requirements[0].changes = []; },
+    s => { s.requirements[0].type = 'chore'; }, s => { s.requirements[0].sources = []; },
+    s => { s.requirements[0].progress.status = 'invented'; }, s => { s.requirements[0].description.format = 'change'; },
+    s => { s.requirements[0].description.outcome = { kind: 'result', text: '' }; }]) {
+    const spec = workSpec(); mutate(spec); assert.throws(() => entry.prepare(spec));
+  }
+  const draft = entry.prepare(workSpec()); draft.requirements.push({ ...draft.requirements[0] });
+  assert.throws(() => entry.bind(draft, 'w1', '123', '标题'), /重复/);
+});
+test('work bind saves only the mapping and all submission paths stop before dependencies', () => {
+  const draft = entry.prepare(workSpec());
+  const before = JSON.stringify(draft.requirements[0].sources);
+  entry.bind(draft, 'w1', '1234567', '最终工作标题');
+  assert.equal(draft.requirements[0].boss.demand, '1234567');
+  assert.equal(JSON.stringify(draft.requirements[0].sources), before);
+  assert.throws(() => entry.messages(draft, 'w1', '/missing'), /无代码提交对象/);
+  assert.throws(() => entry.planArguments(draft, 'w1'), /无代码提交对象/);
+  assert.throws(() => entry.bind(draft, 'w1', '999', '另一标题'), /已绑定不同/);
+  draft.schema = 'iris-standard-demand/v2';
+  assert.throws(() => entry.bind(draft, 'w1', '1234567', '最终工作标题'), /不支持/);
+});
+test('work CLI prepare render Excel and bind operate outside Git without rewriting sources', t => {
+  const temp = workFixture(t), spec = workSpec(), source = path.join(temp, 'notes.md');
+  const original = '- [ ] 准备演示数据\n'; fs.writeFileSync(source, original);
+  spec.requirements[0].sources = [{ kind: 'note', locator: source + ':1 准备演示数据', summary: '数据待准备' }];
+  const input = path.join(temp, 'spec.json'); fs.writeFileSync(input, JSON.stringify(spec));
+  const run = (...args) => spawnSync(process.execPath, [script, ...args], { cwd: temp, encoding: 'utf8', windowsHide: true });
+  const out = path.join(temp, 'out');
+  let result = run('prepare', '--spec', input, '--output', out, '--excel'); assert.equal(result.status, 0, result.stderr);
+  const draftPath = path.join(out, 'draft.json'), draft = JSON.parse(fs.readFileSync(draftPath, 'utf8'));
+  const prose = entry.renderText(draft.requirements[0], false);
+  const sheet = unzipStored(fs.readFileSync(path.join(out, 'requirements.xlsx')))['xl/worksheets/sheet1.xml'];
+  assert.ok(sheet.includes(prose)); assert.doesNotMatch(sheet, /notes\.md|产品BUG|新功能/);
+  const rendered = path.join(temp, 'rendered'); result = run('render', '--draft', draftPath, '--output', rendered, '--Excel'); assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.readFileSync(path.join(out, 'w1.txt'), 'utf8'), fs.readFileSync(path.join(rendered, 'w1.txt'), 'utf8'));
+  const bound = path.join(temp, 'bound.json'); result = run('bind', '--draft', draftPath, '--item', 'w1', '--demand', '123', '--title', '最终标题', '--output', bound); assert.equal(result.status, 0, result.stderr);
+  for (const mode of ['message', 'plan']) { result = run(mode, '--draft', bound, '--item', 'w1'); assert.notEqual(result.status, 0); assert.match(result.stderr, /无代码提交对象/); }
+  assert.equal(fs.readFileSync(source, 'utf8'), original);
+  assert.ok(!fs.existsSync(path.join(temp, '.git')));
+});
+test('work missing Excel fields can deliver text and invalid work drafts create no output', t => {
+  const temp = workFixture(t), spec = workSpec(); spec.common = {};
+  const draft = entry.prepare(spec);
+  assert.throws(() => entry.deliver(draft, path.join(temp, 'excel'), true), /模块编码/);
+  assert.ok(!fs.existsSync(path.join(temp, 'excel')));
+  entry.deliver(draft, path.join(temp, 'text'), false);
+  draft.requirements[0].changes = [];
+  assert.throws(() => entry.deliver(draft, path.join(temp, 'invalid'), false), /混合来源/);
+  assert.ok(!fs.existsSync(path.join(temp, 'invalid')));
+});

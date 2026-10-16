@@ -18,6 +18,7 @@ function submissionTools(projectRoot = process.cwd()) {
 }
 const { buildWorkbook } = require('./demand-entry-xlsx');
 const SCHEMA = 'iris-standard-demand/v2';
+const WORK_SCHEMA = 'iris-standard-demand/v3';
 const FACTS = 'iris-standard-demand-facts/v1';
 const hash = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
@@ -121,11 +122,23 @@ function oneLine(value, name) {
   return value.trim();
 }
 
-function normalizeDescription(raw, name) {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !['bug', 'change'].includes(raw.format)) {
-    throw new Error('description.format 必须为 bug（缺陷）或 change（功能/改进）');
+function normalizeDescription(raw, name, work = false) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || !(work ? ['work'] : ['bug', 'change']).includes(raw.format)) {
+    throw new Error('description.format 必须与来源匹配：代码为 bug/change，工作记录为 work');
   }
   if (!/^\{[^{}\r\n]+\} \S/.test(oneLine(name, 'name'))) throw new Error('需求名称须使用已确认的 {产品标识} 前缀并以空格分隔');
+  if (work) {
+    for (const key of Object.keys(raw)) if (!['format', 'goal', 'activities', 'outcome'].includes(key)) throw new Error(`未知工作描述字段: ${key}`);
+    const goal = text(raw.goal);
+    if (!goal || !Array.isArray(raw.activities) || !raw.activities.length) throw new Error('工作目标和工作内容不能为空');
+    const activities = raw.activities.map(value => oneLine(value, '工作内容'));
+    let outcome;
+    if (raw.outcome !== undefined) {
+      if (!raw.outcome || !['expected', 'result'].includes(raw.outcome.kind) || !text(raw.outcome.text)) throw new Error('工作成果须明确 expected/result 及内容，未知时省略');
+      outcome = { kind: raw.outcome.kind, text: text(raw.outcome.text) };
+    }
+    return { format: 'work', goal, activities, ...(outcome ? { outcome } : {}) };
+  }
   const detail = raw.format === 'bug' ? 'actual' : 'summary';
   const allowed = ['format', 'steps', 'expected', detail];
   for (const key of Object.keys(raw)) {
@@ -141,7 +154,47 @@ function normalizeDescription(raw, name) {
   return { format: raw.format, steps, expected, [detail]: body };
 }
 
+function normalizeWorkItem(raw) {
+  if (['changes', 'type', 'subject'].some(key => Object.hasOwn(raw, key))) throw new Error('工作记录不能包含 Git 取证或提交字段；混合来源请分批');
+  if (!Array.isArray(raw.sources) || !raw.sources.length) throw new Error('工作记录必须提供事实来源');
+  const sources = raw.sources.map(source => {
+    if (!source || !['user', 'note', 'meeting', 'report'].includes(source.kind)) throw new Error('无效工作事实来源');
+    return { kind: source.kind, locator: oneLine(source.locator, '来源位置或用户说明标识'), summary: oneLine(source.summary, '必要事实摘要') };
+  });
+  if (!raw.progress || !['planned', 'in-progress', 'completed', 'unknown'].includes(raw.progress.status)) throw new Error('工作进度必须为 planned/in-progress/completed/unknown');
+  const progress = { status: raw.progress.status, summary: oneLine(raw.progress.summary, '当前进度依据') };
+  return { sources, progress, description: normalizeDescription(raw.description, raw.name, true) };
+}
+
+function isWorkDraft(draft) {
+  if (draft.kind !== 'standard') throw new Error('不支持的需求草稿');
+  if (draft.schema === SCHEMA && (draft.source === undefined || draft.source === 'code')) return false;
+  if (draft.schema === WORK_SCHEMA && draft.source === 'work') return true;
+  throw new Error('不支持的需求草稿或来源');
+}
+
+function validateWorkDraft(draft) {
+  if (!isWorkDraft(draft)) return;
+  if (!Array.isArray(draft.requirements) || !draft.requirements.length) throw new Error('工作草稿不能为空');
+  const keys = new Set();
+  for (const item of draft.requirements) {
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(item.key) || keys.has(item.key)) throw new Error('工作需求 key 无效或重复');
+    keys.add(item.key);
+    normalizeWorkItem(item);
+  }
+}
+
 function renderText(item, withName = true) {
+  if (item.description?.format === 'work') {
+    const { description, progress } = normalizeWorkItem(item);
+    const labels = { planned: '计划', 'in-progress': '进行中', completed: '已完成', unknown: '待核实' };
+    const sections = [['工作目标', description.goal], ['工作内容', description.activities.map((value, i) => `${i + 1}. ${value}`).join('\n')]];
+    if (description.outcome) sections.push([description.outcome.kind === 'expected' ? '预期成果' : '工作结果', description.outcome.text]);
+    sections.push(['当前进度', `${labels[progress.status]}：${progress.summary}`]);
+    if (text(item.remarks)) sections.push(['备注', text(item.remarks)]);
+    const body = sections.map(([label, value]) => `【${label}】\n${value}`).join('\n\n');
+    return withName ? `需求名称：\n\n${item.name}\n\n需求描述：\n\n${body}` : body;
+  }
   const description = normalizeDescription(item.description, item.name);
   const steps = description.steps.map((step, i) => `${i + 1}. ${step}`).join('\n');
   const sections = description.format === 'bug'
@@ -154,8 +207,11 @@ function renderText(item, withName = true) {
 }
 
 function prepare(spec, baseDirectory, projectRoot) {
-  const { validateModification } = submissionTools(projectRoot);
   if (spec.kind !== 'standard') throw new Error('此入口仅支持 kind=standard');
+  const source = spec.source === undefined ? 'code' : spec.source;
+  if (!['code', 'work'].includes(source)) throw new Error('source 必须为 code 或 work，混合来源请分批');
+  const work = source === 'work';
+  const validateModification = work ? null : submissionTools(projectRoot).validateModification;
   if (!Array.isArray(spec.requirements) || !spec.requirements.length) throw new Error('requirements 不能为空');
   const keys = new Set();
   const assigned = new Set();
@@ -165,10 +221,14 @@ function prepare(spec, baseDirectory, projectRoot) {
     keys.add(key);
     const item = {
       key, name: oneLine(raw.name, 'name'), title: oneLine(raw.title || raw.name.replace(/^\{[^}]+\}\s*/, ''), 'title'),
-      description: normalizeDescription(raw.description, raw.name), remarks: text(raw.remarks),
-      type: raw.type, subject: oneLine(raw.subject, 'subject'), fields: raw.fields || {},
+      description: normalizeDescription(raw.description, raw.name, work), remarks: text(raw.remarks),
+      fields: raw.fields || {},
       verification: text(raw.verification), imported: raw.imported === true,
     };
+    if (work) return { ...item, ...normalizeWorkItem(raw) };
+    if (Object.hasOwn(raw, 'sources') || Object.hasOwn(raw, 'progress')) throw new Error('代码来源不能混入工作记录字段');
+    item.type = raw.type;
+    item.subject = oneLine(raw.subject, 'subject');
     if (!['feat', 'fix', 'refactor', 'docs', 'chore'].includes(item.type)) throw new Error('无效提交 type');
     if (!Array.isArray(raw.changes) || !raw.changes.length) throw new Error('每条需求必须关联取证文件');
     const repos = new Set();
@@ -190,11 +250,12 @@ function prepare(spec, baseDirectory, projectRoot) {
     });
     return item;
   });
-  return { schema: SCHEMA, kind: 'standard', createdAt: new Date().toISOString(), common: spec.common || {}, requirements };
+  return { schema: work ? WORK_SCHEMA : SCHEMA, ...(work ? { source: 'work' } : {}), kind: 'standard', createdAt: new Date().toISOString(), common: spec.common || {}, requirements };
 }
 
 function getItem(draft, key) {
-  if (draft.schema !== SCHEMA || draft.kind !== 'standard') throw new Error('不支持的需求草稿');
+  isWorkDraft(draft);
+  validateWorkDraft(draft);
   const item = draft.requirements.find((entry) => entry.key === key);
   if (!item) throw new Error('找不到需求 key');
   return item;
@@ -212,8 +273,9 @@ function bind(draft, key, demand, title) {
 }
 
 function messages(draft, key, projectRoot) {
-  const { buildMessage, validateModification } = submissionTools(projectRoot);
   const item = getItem(draft, key);
+  if (isWorkDraft(draft)) throw new Error('工作记录无代码提交对象，不生成 commit message');
+  const { buildMessage, validateModification } = submissionTools(projectRoot);
   if (!item.boss) throw new Error('请先回填 BOSS 需求号和最终标题');
   if (!/^\d+$/.test(item.boss.demand)) throw new Error('无效 BOSS 需求号');
   oneLine(item.boss.title, 'BOSS 最终标题');
@@ -227,6 +289,8 @@ function messages(draft, key, projectRoot) {
 }
 
 function planArguments(draft, key, projectRoot) {
+  getItem(draft, key);
+  if (isWorkDraft(draft)) throw new Error('工作记录无代码提交对象，不生成 Git 提交计划');
   if (!projectRoot) throw new Error('需要 --project-root 以校验实际工程边界');
   const context = resolveWorkspaceContext(projectRoot);
   if (context.mode === 'invalid') throw new Error('Invalid workspace context');
@@ -297,6 +361,8 @@ function parseArgs(argv) {
 }
 
 function deliver(draft, directory, excel) {
+  isWorkDraft(draft);
+  validateWorkDraft(draft);
   if (!directory) throw new Error('需要 --output，指定新的交付目录');
   directory = safeOutputPath(directory);
   if (fs.existsSync(directory)) throw new Error('交付目录已存在，请指定新目录以保留已有产物');
@@ -334,7 +400,7 @@ function main(argv = process.argv.slice(2)) {
       for (const item of draft.requirements) {
         getItem(draft, item.key);
         if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(item.key)) throw new Error('无效 key');
-        for (const change of item.changes) verifyEvidence(change.evidence);
+        if (!isWorkDraft(draft)) for (const change of item.changes) verifyEvidence(change.evidence);
       }
       result = deliver(draft, args.output, args.excel);
     } else if (args.command === 'plan') {

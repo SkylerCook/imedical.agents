@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- bos-plugin 0.10.0：bos-demand-entry 默认代码，--work 显式工作记录（v3，代码 v2 兼容），目标/内容及可选预期成果或工作结果，不强制验收标准；编号只写草稿，无 Git 提交或自动来源写回。增加 --split 显式拆合审查，可与 --excel 组合，省略模式进入 --text；同一草稿渲染文本/Excel，共享文件限制保留。更新能力包并刷新已启用索引取得，真实 Agent 场景见既有 P2 队列。
+
 - 2026-10-16 iris-agentic-dev vendor 已升级至 v1.5.0，官方资产摘要与本地版本一致；Windows helper/CLI/schema 验证通过，断连工具数仍为 70/81。既有 8 项 vendor skills 同步到 v1.5.0 固定提交，逐项 blob/许可证校验通过；响应兼容变化和业务副本更新步骤见 vendor/iris-agentic-dev/README.md，coding 插件 0.19.4 对齐响应契约，lookup 固定快照与发现专项在 PS7/PS5.1 通过；真实服务器/未分类工具审计仍在 P1 队列。
 
 - MCP helper：tools/call 内置配置检查；按需使用 --names 与 --schema --json，规则见 coding-iris-plugin/rules/iris_agentic_dev.md。旧输出兼容，无跨会话缓存；本地 bundled schema 已实测，业务副本与非 Windows 验证分开。

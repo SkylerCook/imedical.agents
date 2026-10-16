@@ -1,5 +1,9 @@
 # BOS Plugin
 
+`bos-demand-entry --work --split --excel` 从明确工作记录整理并导出；默认仍为代码来源。工作记录使用目标、内容及可选预期成果/工作结果，进度如实保留，不强制验收标准；回填编号后不进入 Git 提交，不自动修改来源。代码 v2 草稿保持可用，工作记录新增 v3。
+
+`bos-demand-entry --split` 显式审查拆合，`--excel` 导出，`--split --excel` 组合使用；省略模式时进入 `--text`。保留按业务目的整理的默认行为，复用原草稿与导出流程，共享文件边界不绕过。更新能力包并刷新已启用薄索引即可取得，无配置/schema 迁移。
+
 0.9.0：新夜跑使用一个多仓 schema 2.1 run，启动前集中取得必需授权并实际预检；运行中异常分支挂起交接。回执、计时和数据处置接入既有执行器，见[决策接口](../../docs/night-policy.md#schema-21-启动契约)。已有 2.0 run 不迁移；正常更新能力包并刷新已启用入口后，由项目显式接入新 profile，无自动业务写入。
 
 跨插件阶段依赖以 manifest 的 availableDependencies 为事实源；触发时按[可用性依赖协议](../../docs/plugin-availability.md)检查，缺口仅阻塞对应阶段，显式 disabled 保留。

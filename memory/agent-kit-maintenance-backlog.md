@@ -1,5 +1,7 @@
 # imedical.agents 后续治理队列
 
+- P2 标版拆分审查：按 bos-plugin/references/scenarios.md 验证真实宿主 --work 来源选择、计划与成果区分、可选成果不强填、口述/文件来源回填边界及 BOS 实际导入；短参数归一化、单目的不强拆、公共能力依赖、共享文件受阻与 Excel 同源输出；薄索引和脚本回归不替代 Agent 行为证据。沿既有兼容/宿主验证队列，不新增审批。
+
 - P2 MCP helper：新增 CLI 专项已加入 Windows/macOS/Linux × Node 22.5/22/24 既有矩阵，待取得 CI 结果；已部署业务副本正常更新后验证规则实际加载与调用轮次。Windows bundled schema 实测不替代业务连接验证。
 
 - P2 需求迁移扫描边界：嵌套 Git/worktree/Agent 上下文与符号链接的非 Windows CI 及部署更新后复验沿现有跨平台/业务副本队列推进；源仓只读检查不代替完整更新验收。

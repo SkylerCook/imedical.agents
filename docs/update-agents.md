@@ -1,5 +1,9 @@
 # .agents 安装与更新 Runbook
 
+BOS 0.10.0 还支持显式 `--work` 工作记录来源，默认仍为 Git；代码 v2 保持可用，工作 v3 需新版脚本读取，旧版本不支持，不自动转换或覆盖草稿。工作来源不依赖提交插件，编号只回填草稿。
+
+BOS 0.10.0 新增 Agent 层 `bos-demand-entry --split` 和 `--split --excel` 用法。普通更新能力包并刷新已启用 bos-plugin 薄索引，核对 description 展示短参数且 source 指向最新 SKILL；技能正文与脚本随原插件路径分发。无需配置/草稿 schema 迁移或旧文件清理，未启用项目不自动启用，底层 CLI 不接受 --split。
+
 ## CLS 检查与医生站继承要求更新（coding-iris-plugin 0.19.6）
 
 按正常更新流程拉取能力包、刷新已启用的 coding-iris-plugin 薄索引并执行 Check。本轮 CLS 规范、后端 skill/rule、类模板、doctor-dev 默认配置及 check-cls-format.js/cls-format.js 均沿既有插件 sparse 路径分发，无新增安装依赖或旧文件清理。

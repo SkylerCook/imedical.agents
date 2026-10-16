@@ -4,7 +4,7 @@
 
 ## 1. 读取代码事实
 
-用户入口优先采用 skill 的 `--text / --bind <编号> / --plan / --commit / --help`，完整参数表以 SKILL.md 为准。下文为 Agent 内部脚本协议，不直接接受这些 skill 模式；历史来源在用户层使用 `--rev`，底层 collect 才使用 `--commit <hash>`，不得混淆。`--bind --same-title` 由 Agent 读取所选条目的 title，传给下方 bind 的 `--title`。现有脚本接口不变。
+用户入口优先采用 skill 的 `--text / --bind <编号> / --plan / --commit / --help`，完整参数表以 SKILL.md 为准。下文为 Agent 内部脚本协议，不直接接受这些 skill 模式；历史来源在用户层使用 `--rev`，底层 collect 才使用 `--commit <hash>`，不得混淆。`--bind --same-title` 由 Agent 读取所选条目的 title，传给下方 bind 的 `--title`。`--split` 为 Agent 层拆分审查开关，可与 `--excel` 组合；省略模式时隐含 `--text`。拆合输出与共享文件受阻行为见 SKILL 的“拆分审查”；不将该开关传给脚本。现有脚本接口不变。
 
 ```text
 node demand-entry.js collect --repo <GitRoot> --file src/a.js --file src/b.css --output <临时目录>/facts.json
@@ -78,7 +78,7 @@ node demand-entry.js render --draft <draft.json> --output <新交付目录> --Ex
 
 新文本分为“需求名称”和“需求描述”两个填写块，正文使用 `【小标题】`、编号步骤和段落间空行；Excel 需求名称列与文本同源，需求描述列仅包含同一三段式正文及可选备注。Agent 在聊天交付时分别展示两块内容，不再次改写生成文本。标版修复可以独立提报。
 
-草稿使用 `iris-standard-demand/v2`，仅接受上述三段式 description；旧草稿不兼容，需根据当前需求重新生成，不提供迁移分支。已有 Git 提交记录不受影响。
+代码草稿继续使用 `iris-standard-demand/v2`，接受上述 bug/change description；工作记录使用下节 v3。已有 v2 草稿保持可读，v1 仍不兼容。已有 Git 提交记录不受影响。
 
 ## 3. 回填及提交衔接
 
@@ -90,9 +90,39 @@ node demand-entry.js plan --draft <bound.json> --item r1 --project-root <Workspa
 
 bind 只记录用户给定编号与最终标题，不要求 Git 当前无漂移；message/plan 才校验，以便等待期间先保存编号。不同条目不能绑定同一编号；已绑定编号/标题不会静默覆盖。需要纠正时由 Agent 按用户明确指示复制并编辑新草稿中的 boss 映射，再校验，不修改证据。
 
-prepare/message 的 --project-root 用于读取目标项目的依赖状态；省略时使用当前工作目录，跨工程调用应显式传入。prepare/message/plan 在加载提交模块前检查 manifest 声明的可用性依赖，显式 disabled 或入口缺失只阻塞该阶段。
+代码来源 prepare/message 的 --project-root 用于读取目标项目的依赖状态；省略时使用当前工作目录，跨工程调用应显式传入。prepare/message/plan 在加载提交模块前检查 manifest 声明的可用性依赖，显式 disabled 或入口缺失只阻塞该阶段。
 
 message 复用 `commit-demand.js` 的 buildMessage/validateModification。plan 仅适用于全部为 worktree 的来源，由原提交工具重新校验 WorkspaceRoot/Overlay 和实际 GitRoot，生成标准计划；不做 pull/add/commit。历史来源即使当前出现其它未提交修改也拒绝 plan。用户明确提交后按 demand-commit 运行 apply/verify；本工具没有 apply/commit/rewrite 命令。
+
+## 工作记录协议（--work）
+
+这是 Agent 层开关，不直接传入脚本 CLI。省略 source 或 source=code 仍走 Git；source=work 调用同一 prepare，跳过 collect 与提交依赖。首版不混合两类来源。
+
+```json
+{
+  "kind": "standard",
+  "source": "work",
+  "common": {},
+  "requirements": [{
+    "key": "w1",
+    "name": "{DEMO} 演示场景与样例准备",
+    "description": {
+      "format": "work",
+      "goal": "明确演示场景",
+      "activities": ["梳理样例范围", "协调关联数据准备"],
+      "outcome": {"kind": "expected", "text": "样例可用于演示"}
+    },
+    "sources": [{"kind": "user", "locator": "本轮用户说明", "summary": "场景已确认，数据待准备"}],
+    "progress": {"status": "in-progress", "summary": "数据尚未准备"}
+  }]
+}
+```
+
+输出 schema=iris-standard-demand/v3、source=work；代码仍输出 v2，不改既有草稿。sources 为非空事实列表，kind 为 user/note/meeting/report，locator 是材料路径及条目锚点或口述标识，summary 仅必要摘要；不读取 locator 执行命令、不复制整篇日记。progress.status 为 planned/in-progress/completed/unknown，summary 交代实际状态依据，不知道就记录待核实。
+
+工作描述使用【工作目标】【工作内容】；outcome 可省略，kind=expected 为【预期成果】，kind=result 为【工作结果】，不强制验收标准。另附【当前进度】，避免计划被当成已完成。fields/common 的 BOS 分类按用户既有口径填写，与描述格式和 Git type 无关，不默认设为新功能；来源路径/摘要不进入 Excel 正文。脚本只校验结构，不能证明事实真实性或自动判断完成。
+
+工作条目禁止 changes/type/subject，混合输入停止。prepare/render/deliver/bind 保持原 CLI 与产物保护；bind 只保存编号，不修改来源。message/plan 在加载提交依赖及 Git 操作前停止并报告无代码提交对象。来源回填需用户明确要求，由 Agent 回读并精确定位后处理，不是 bind 的隐式副作用；无可写来源的口述只保留草稿映射。
 
 ## Excel 导入契约
 

@@ -1,5 +1,13 @@
 # imedical.agents 维护日志
 
+- 2026-10-16（工作记录需求，framework-maintenance）：并入未提交 bos-plugin 0.10.0，--work 明确选择非代码来源，默认 Git 不变，与 split/excel 组合，来源由自然语言明确，首版不混合。工作格式为目标/内容及可选预期成果或工作结果，进度如实保留，不强加验收标准或 BOS 分类。来源必要摘要与 locator 保留在私有 v3 草稿；口述无文件不回填，bind 只保存编号，另行明确来源回填才由 Agent 回读定位。
+  - 实现：同一 prepare/render/Excel/bind 链路支持 work，跳过 Git/提交依赖；工作条目禁止 changes/type/subject，message/plan 在任何提交依赖或 Git 操作前停止。代码 v2 保持读写兼容，无旧草稿迁移。同步 skill、协议/场景、manifest 阶段触发、两级 README、能力指南/目录、更新说明、摘要/队列及未提交发布记录；无私人日记读取或原文入仓，长期决策和安装/索引算法不变。
+  - 验证：Windows Node 24 需求专项 24/24（旧代码 19 项与工作 5 项）通过，覆盖非 Git 目录 CLI 全流程、可选成果、Excel 正文同源/分类不默认、进度保留、混合拒绝、编号回填与来源不变、提交提前阻断。既有三平台 Node 22/24 CI 已覆盖本测试文件，非 Windows/真实 Agent/BOS 导入仍待证据。Windows PowerShell 5.1 薄索引实生成验证 --work、split/excel 及 canonical source 通过；文档链接 1/1 与 diff check 通过。工作区版本审计无本轮新增问题，完整审计仅既有 xc 历史问题退出 1。测试目录已清理，未暂存、提交、推送或更新真实下游；保留并行改动。
+
+- 2026-10-16（标版需求显式拆合审查，framework-maintenance）：bos-plugin 0.10.0 为 bos-demand-entry 增加 --split，支持与 --excel/--Excel 独立组合，无模式时进入 --text；help、参数表、description 和示例同步。取证后按独立价值与验收判断拆合，展示范围/归属/依赖/理由，不强拆、不虚构工作量；共享文件保留 prepare 阻断，先交候选文本，不能伪称 draft/Excel 已生成。CLI、schema、三段式渲染不变。
+  - 同步：owner AGENTS/README、协议与 Agent 场景、根 README、能力指南、更新 Runbook、摘要/队列和 minor 发布记录同步。能力目录入口/职责及长期决策仍适用，无需更改；索引生成器原样保留 description，无新安装依赖或配置迁移，正常更新并刷新已启用索引取得。
+  - 验证：Windows Node 24 定向回归 5/5（共享文件阻断、29 列 Excel 同源正文/字段校验/别名、CLI prepare/render 文本与 Excel 一致）；Windows PowerShell 5.1 在隔离项目真实生成薄索引，split/excel 描述和 canonical source 可达验证通过；文档链接 1/1、diff check 通过。参数组合、单目的不强拆及公共能力依赖按场景表做静态语义复核，真实 Agent 输出与跨平台结果仍在 P2 队列，不把脚本回归当作模型验收。版本审计确认 0.9.0→0.10.0，无本轮新增问题，仅既有 xc 历史问题使完整审计退出 1。隔离目录已清理，未暂存、提交、推送或同步业务副本，保留并行验收报告修改。
+
 - 2026-10-16（下游分发补验）：安装/更新 sparse 覆盖和文档链接专项 2/2 通过；后端规则新增已确认 doctor-dev 项目的运行时读取入口，旧 profile 未抄入要求也会加载，显式冲突须澄清。更新 Runbook 已说明文件、索引及 Agent 行为三层核对；真实根工程与模块刷新由用户指定的 R200 更新任务负责。本轮获 c + p 授权，只暂存本任务内容并推送 origin/github；保留并行验收报告修改。
 
 - 2026-10-16（新增类继承执行检查，framework-maintenance）：并入尚未提交的 coding-iris-plugin 0.19.6。沿后端既有基类规则补齐建类前 profile/同职责类/公共基类核对、模板 Extends 适配及 Review 依据传递；通用模板保留语言示例，新增使用前适配提示，不增加重复原则或静态继承推断器。用户明确的医生站组注册类继承要求落在 doctor-dev 领域默认配置，覆盖直接或间接继承，不自行豁免基础设施类；通用规则不绑定业务类，既有业务源码与 profile 未修改。

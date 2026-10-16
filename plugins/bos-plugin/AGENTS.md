@@ -8,7 +8,7 @@ BOS 能力独立于技术栈。目录存在仅表示 available；项目使用前
 
 ## 路由
 
-- 从实际 Git 补丁生成标版需求文本/Excel并回填编号：[bos-demand-entry](skills/bos-demand-entry/SKILL.md)。
+- 默认从 Git 补丁，或显式 --work 从工作记录生成标版需求文本/Excel并回填编号（`--split` 审查拆分，`--split --excel` 拆分并导出）：[bos-demand-entry](skills/bos-demand-entry/SKILL.md)。
 - 按发起人、接受人、当前人及对应组只读查询需求列表、详情、图片及附件元数据：[bos-demand-query](skills/bos-demand-query/SKILL.md)。
 - 已有需求号或正文，需要调查、实施、验证，以及提交后的日志衔接：[bos-demand-handle](skills/bos-demand-handle/SKILL.md)。
 - `$bos-demand-handle --night` 或明确自然语言夜跑：经同一技能进入共享夜跑 workflow，由 Agent 准备批次资料；参数仅选择流程，沿用既有授权。
