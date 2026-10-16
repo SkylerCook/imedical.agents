@@ -11,7 +11,7 @@ related:
 
 ## MCP 能力矩阵
 
-本矩阵基于 `tools/list`、2026-06-01 的目标项目冒烟测试和 2026-08-25 对仓库内置 `iris-agentic-dev 1.2.6` 的断连本地 schema 复核整理。完整合并 toolset 返回 78 个工具；本仓库 helper 与新生成的 `.mcp.json` 默认使用 `--no-skills`，返回 67 个工具。本文只记录通用能力，不得从 `.mcp.json` 复制 host、用户名、密码、namespace、token 或私有路径。
+本矩阵基于 `tools/list`、2026-06-01 的目标项目冒烟测试和 2026-10-16 对仓库内置 `iris-agentic-dev 1.5.0` 的断连本地 schema 复核整理。完整合并 toolset 返回 81 个工具；本仓库 helper 与新生成的 `.mcp.json` 默认使用 `--no-skills`，返回 70 个工具。本文只记录通用能力，不得从 `.mcp.json` 复制 host、用户名、密码、namespace、token 或私有路径。
 
 ### 配置与会话
 
@@ -27,7 +27,7 @@ related:
 
 ### 安全发现与读取
 
-- `iris_info`：发现 namespace 元数据、文档列表、最近修改、作业、CSP app、CSP debug、SQL Analytics schema。
+- `iris_info`：发现 namespace 元数据、文档列表、最近修改、作业、CSP app、CSP debug、XData namespace 的 Studio Assist grammar（`what=sa_schema`）。
 - `iris_query`：执行 SQL SELECT；破坏性 SQL 默认拦截，除非显式 force 且环境允许。
 - `iris_symbols`、`iris_symbols_local`：搜索已编译 IRIS 类或本地 `.cls/.mac/.inc` 文件。
 - `iris_search`：跨 IRIS 文档全文搜索。
@@ -72,9 +72,9 @@ related:
 - `kb`、`kb_index`、`kb_recall`：索引或召回知识库内容。
 - `skill*` 工具：学习 Agent 技能注册表操作；正常业务部署中不要使用写入、分享或社区安装能力。
 
-## 当前内置版本工具名复核：2026-08-25
+## 当前内置版本工具名复核：2026-10-16
 
-仓库内置 `iris-agentic-dev 1.2.6` 已通过本地 JSON-RPC `initialize` + `tools/list` 复核。完整合并 toolset 为 78 个工具；默认 `--no-skills` 为 67 个。除原有知识查询和编码工具外，已明确覆盖以下 v1.2.6 能力组：
+仓库内置 `iris-agentic-dev 1.5.0` 已通过本地 JSON-RPC `initialize` + `tools/list` 复核。完整合并 toolset 为 81 个工具；默认 `--no-skills` 为 70 个。除原有知识查询和编码工具外，以下沿用 v1.2.6 分类基线，不代表新版真实服务器行为已验证；`iris_mirror_status`、`iris_reload_pool`、`iris_system_performance` 尚未完成本仓语义审计，helper 均要求 `--allow-write`：
 
 - `docs_introspect`
 - `iris_symbols`
@@ -98,6 +98,18 @@ related:
 - `hl7_schema_list` / `hl7_schema_inspect` / `mermaid_class` / `mermaid_production` / `resolve_storage` / `stream_inspect`
 
 上游 vendor skill 中的 `objectscript_iris_*`、`debug_*` 和旧容器工具名不得直接调用；按 `iris_knowledge_lookup.md` 映射后，再以当前工具 schema 为准。
+
+## v1.5.0 响应与执行契约
+
+依据[上游发布说明](https://github.com/intersystems-community/iris-agentic-dev/blob/v1.5.0/docs/release-notes/v1.5.0.md#breaking-changes)，以下为版本适配说明，真实目标行为仍须核验：
+
+- `iris_macro` 使用 `definition/signature/expansion` 等字段替代旧 `result`；不存在的宏返回 `MACRO_NOT_FOUND`。
+- `iris_info what=documents` 使用顶层 `documents`，不再嵌套 `result.content`；`ALL` 包含全部文档类型，`inline=true` 默认最多 500 项。检查 `truncated/total_count`，不把截断列表当完整清单。
+- `iris_info what=sa_schema` 的 `name` 是 http(s) XData namespace URL，不是 SQL Analytics schema 或 cube 名称；区分 `INVALID_PARAMS`、`SA_SCHEMA_NOT_FOUND` 和后台构建未完成的 `SA_SCHEMA_PENDING`。
+- `iris_execute_method` 的错误 %Status 返回 `METHOD_RETURNED_ERROR`；HTTP `iris_execute` 原样发送嵌入式 SQL，不再返回 `sql_translated/translated_code`。核对业务结果，不能只看传输成功。
+- 原生 CLI 的单次 `tool` 拒绝 `iris_ws_open`、`iris_ws_exec`、`iris_ws_close`；持久会话须在同一 MCP 进程或原生 `batch` 中完成。根 helper 每次启动独立进程，不能跨调用复用 session token。
+- 正常退出新增 CSP 会话注销和临时类清理等待；强制终止不等于已清理。CLI 可能增加约 3 秒退出耗时，真实资源释放需目标侧验证。
+- vendor skill 的 `iris_doc put`、编译与测试示例必须服从项目部署入口、Storage 保护和既有远程动作授权；上游原文不覆盖项目契约。
 
 ## 冒烟测试结果：2026-06-01
 

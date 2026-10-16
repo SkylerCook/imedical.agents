@@ -1,5 +1,10 @@
 # imedical.agents 维护日志
 
+- 2026-10-16（iris-agentic-dev v1.5.0 升级与偏差收敛，framework-maintenance）：Windows x64 exe 从 v1.4.2 升级至 v1.5.0，官方资产大小 52344832 字节及 SHA-256 `6aee62484c7bb557466778889ba3520aa5ddbb470d99b10803a489f60be9e213` 匹配。既有 8 项 ObjectScript vendor skills 同步至固定提交 `2b3e017b7fc73d6370fc1e89e7fa03f3de49a1a1`，逐项 Git blob SHA 和 MIT LICENSE 校验通过，保留上游原文及 optional 加载。
+  - 同步：coding-iris-plugin 0.19.4 对齐 AGENTS/README、能力矩阵、查询/文档路由及 v1.5.0 响应、截断、会话与退出契约；原生工具语义变化不混同 MCP 外层或 Atelier 响应。根 README、UPSTREAM、更新说明、使用指南、维护摘要/队列及 patch 发布记录同步，目录清单入口不变。用户级已有技能仅复用，不自动刷新或覆盖；项目部署/Storage/远程授权优先于上游示例。
+  - 验证：PS7/Windows PowerShell 5.1 helper 与 lookup 专项均通过；lookup 覆盖固定技能 blob、manifest optional 解析及 thin-index DryRun，已移除旧插件 0.4.0 断言并更新固定来源。Node CLI/schema 3/3、部署文档链接 1/1 通过；断连工具数为默认 70、opt-in 81。六个直接依赖范围均接纳 0.19.4。工作区组件审计识别本次合法 patch，无新增问题，仅报告既有 xc 1.0.2–1.0.4 缺 commit 的六项历史问题，未修改不可变发布记录。
+  - 边界：helper 保留 v1.2.6 分类基线及三个未分类工具 fail-closed；完整语义、真实服务器/资源释放和非 Windows 验证仍留既有 P1/P2 队列。安装/更新/同步脚本未变，未机械重跑全量更新器测试。已部署工程正常更新并刷新已启用索引、重启 MCP，无配置迁移或旧文件清理；用户后续授权 c + p，复用验证证据并补查精确暂存、组件门禁和双远端出站范围，提交与推送结果以 Git 记录为准；未同步业务/用户级副本。两轮下载临时目录均已清理，本轮未生成业务产物。
+
 - 2026-10-16（MCP helper 准备流程优化，framework-maintenance）：根 iris-mcp.js 增加 tools --names 精确筛选、去重及未知工具报错，check/tools/call --json 输出单个对象；旧标签格式兼容，写入门禁保持。coding-iris-plugin 0.19.3 修正规则和示例，正常调用复用内置 check_config，参数已知直接调用，不建立跨会话缓存或常驻服务。
   - 验证：Windows Node 24.14.1 CLI/schema 3 项通过；实际启动 bundled v1.4.2，三个目标工具 schema 可直接解析；模拟进程覆盖请求次数、参数文件、namespace、错误输出、旧格式、未授权阻断和显式授权转发。PS5.1 helper 既有政策与 bundled 默认/opt-in 测试通过，文档链接检查通过。所有真实 vendor 调用仅配置/目录读取，无业务调用。CLI 临时目录使用沙箱可写系统临时路径，测试 finally 删除并验证；既有 PS 测试亦清理自身目录。
   - 检查局限：lookup 旧测试在写死插件 0.4.0 的断言处失败（基线 manifest 已为 0.19.2），本轮未扩大修复；worktree 版本审计仅报告已登记 xc 1.0.2–1.0.4 缺 commit 的六项历史错误，无本轮新增错误。新 CLI 已纳入既有三平台 Node 22.5/22/24 CI，未取得远端矩阵结果。

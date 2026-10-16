@@ -1,42 +1,45 @@
 ---
 author: tdyar
-benchmark_date: '2026-04-02'
-benchmark_iris_version: '2025.1'
+benchmark_date: "2026-04-02"
+benchmark_iris_version: "2025.1"
 benchmark_tasks:
-- jira-001
-- jira-002
-- jira-003
-- jira-004
-- jira-005
-- jira-006
-- jira-007
-- jira-008
-- jira-009
-- jira-010
-- jira-011
-- jira-012
-- jira-013
-- jira-014
-- jira-015
-- jira-016
-- jira-017
-- jira-018
-- jira-019
-- jira-020
-- jira-021
-- jira-056
-description: 'ObjectScript %List, %ListOfDataTypes, $LISTBUILD, $LISTTOSTRING, $LISTNEXT
+  - jira-001
+  - jira-002
+  - jira-003
+  - jira-004
+  - jira-005
+  - jira-006
+  - jira-007
+  - jira-008
+  - jira-009
+  - jira-010
+  - jira-011
+  - jira-012
+  - jira-013
+  - jira-014
+  - jira-015
+  - jira-016
+  - jira-017
+  - jira-018
+  - jira-019
+  - jira-020
+  - jira-021
+  - jira-056
+description:
+  "ObjectScript %List, %ListOfDataTypes, $LISTBUILD, $LISTTOSTRING, $LISTNEXT
   patterns. Use when building, iterating, merging, or converting lists in ObjectScript.
 
-  '
-iris_version: '>=2024.1'
+  "
+iris_version: ">=2024.1"
 name: objectscript-list-patterns
+tier: core
 pass_rate: 0.9090909090909091
 state: reviewed
 tags:
-- objectscript
-- list
-trigger: Any ObjectScript code involving $LIST, $LISTBUILD, %ListOfDataTypes, CSV
+  - objectscript
+  - list
+trigger:
+  Any ObjectScript code involving $LIST, $LISTBUILD, %ListOfDataTypes, CSV
   building, or list accumulation.
 ---
 
@@ -45,24 +48,24 @@ trigger: Any ObjectScript code involving $LIST, $LISTBUILD, %ListOfDataTypes, CS
 ## 1. Building a List Incrementally
 
 ```objectscript
-// WRONG — $LISTBUILD creates a new list each iteration, O(n²):
+// CORRECT — append with _$LISTBUILD. Linear: 80,000 items in 0.002 s (IRIS 2026.2).
 Set lst = ""
-For i=1:1:count {
+For i=1:1:values.Count() {
     Set lst = lst _ $LISTBUILD(values.GetAt(i))
 }
+Set csv = $LISTTOSTRING(lst, ",")   // for CSV output
 
-// CORRECT — accumulate into a %ListOfDataTypes, convert at end:
+// SLOW in a loop — $LIST(lst, *+1) is quadratic: 80,000 items in 1.71 s on the same instance.
+Set lst = ""
+For i=1:1:values.Count() {
+    Set $LIST(lst, *+1) = values.GetAt(i)
+}
+
+// ALSO FINE — a %ListOfDataTypes when you need an object collection:
 Set result = ##class(%ListOfDataTypes).%New()
 For i=1:1:values.Count() {
     Do result.Insert(values.GetAt(i))
 }
-
-// CORRECT — for CSV output specifically, use $LISTTOSTRING:
-Set lst = ""
-For i=1:1:values.Count() {
-    Set lst = lst _ $LISTBUILD(values.GetAt(i))
-}
-Set csv = $LISTTOSTRING(lst, ",")
 ```
 
 ## 2. CSV Building — O(n) Pattern

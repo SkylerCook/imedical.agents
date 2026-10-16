@@ -1,5 +1,6 @@
 ---
 name: objectscript-tdd
+tier: core
 description: Compile-test-fix loop for ObjectScript development. Use when writing or modifying ObjectScript classes.
 license: MIT
 metadata:
@@ -27,7 +28,7 @@ Close the feedback loop: write → compile → fix errors → run tests → fix 
 Use the objectscript MCP tool when available (check `/mcp`):
 
 ```text
-iris_compile(target="MyPackage/MyClass.cls", namespace="USER")
+iris_doc(mode="put", name="MyPackage.MyClass.cls", content="...", compile=true, namespace="USER")
 ```
 
 Fallback when MCP is unavailable:
@@ -42,15 +43,33 @@ Never present code to the user that hasn't compiled. If you can't compile (no IR
 
 > ⚠️ No IRIS connection available — code is unverified. Recommend compiling before use.
 
+A class that compiles clean has not been tested. The compiler does not check that a local is set before it is read, and it cannot check a method name built at runtime. Both of these compile with no error and fail when called:
+
+```objectscript
+ClassMethod Total(pA As %Integer, pB As %Integer) As %Integer
+{
+    Set tSum = pA + pB
+    Quit tSun                  // <UNDEFINED> tSun at runtime
+}
+
+ClassMethod Dyn() As %String
+{
+    Quit $CLASSMETHOD("MyPackage.MyClass", "Nope")   // <METHOD DOES NOT EXIST> at runtime
+}
+```
+
+A literal `..Nope()` is caught at compile time, but a dynamic call is not. Call every method you changed at least once, through `iris_execute` or a test, before you call it done.
+
 ## Common Compile Errors and Fixes
 
-| Error                         | Cause                                       | Fix                               |
-| ----------------------------- | ------------------------------------------- | --------------------------------- |
-| `QUIT argument not allowed`   | `Quit <val>` inside TRY/CATCH or loop       | Change to `Return <val>`          |
-| `Expected a compilable class` | Missing `Class` keyword or malformed header | Check class declaration line      |
-| `Method does not exist`       | Intra-class call without `..`               | Add `..` prefix                   |
-| `<UNDEFINED>` at runtime      | Variable used before SET                    | Initialize variable before use    |
-| `Expected white space`        | Missing space after command keyword         | Add space: `Set x=1` not `Setx=1` |
+| Error                              | Cause                                       | Fix                               |
+| ---------------------------------- | ------------------------------------------- | --------------------------------- |
+| `#1043: QUIT argument not allowed` | `Quit <val>` inside TRY/CATCH               | Change to `Return <val>`          |
+| `<COMMAND>` at runtime             | `Quit <val>` inside a For/While block       | Change to `Return <val>`          |
+| `Expected a compilable class`      | Missing `Class` keyword or malformed header | Check class declaration line      |
+| `Method does not exist`            | Intra-class call without `..`               | Add `..` prefix                   |
+| `<UNDEFINED>` at runtime           | Variable used before SET                    | Initialize variable before use    |
+| `Expected white space`             | Missing space after command keyword         | Add space: `Set x=1` not `Setx=1` |
 
 ## Related skills
 

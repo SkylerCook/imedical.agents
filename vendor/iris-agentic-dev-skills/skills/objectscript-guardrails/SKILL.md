@@ -25,10 +25,12 @@ benchmark_tasks:
   - jira-020
   - jira-021
   - jira-056
-description: Use when writing or reviewing any ObjectScript code. Hard gate — 10-item
+description:
+  Use when writing or reviewing any ObjectScript code. Hard gate — 15-item
   checklist catches the most common AI mistakes before showing code to the user.
 iris_version: ">=2024.1"
 name: objectscript-guardrails
+tier: core
 pass_rate: 0.8636363636363636
 state: reviewed
 tags:
@@ -46,15 +48,17 @@ trigger: Use for tdyar/iris-light-slim
 ## HARD GATE Checklist
 
 - [ ] **Quit/Return**: No `Quit value` inside For/While/Try — use `Return value`
-- [ ] **Postfix syntax**: `Quit:key=""` — NO spaces in condition, alone on its own line
-- [ ] **$IsObject**: Check `'$IsObject(obj)` after every `%OpenId` before touching properties
+- [ ] **Postfix syntax**: `Quit:key=""` — NO spaces in the condition (`Quit:key = ""` is ERROR #1054). It may share a line
+- [ ] **$IsObject**: Check `'$IsObject(obj)`after every`%OpenId` before touching properties
 - [ ] **SQL table name**: Last dot = schema separator. `Catalog.Item` → SQL `Catalog.Item` (not `Catalog_Item`)
 - [ ] **SQLCODE**: `0` = success (falsy). Check `SQLCODE = 0` not just `SQLCODE`
 - [ ] **HTML escaping**: `&` FIRST, then `<`, then `>`
 - [ ] **Arithmetic**: Left-to-right, no precedence. Use `1.8` not `9/5`. Parenthesize everything
-- [ ] **$ListBuild()**: Empty list is `""` not `$ListBuild()` — `$ListLength($ListBuild()) = 1`
+- [ ] **$ListBuild()**: Empty list is `""` not `$ListBuild()`—`$ListLength($ListBuild()) = 1`
 - [ ] **%Status**: Use `$$$ISERR(sc)` / `$$$ThrowOnError(sc)`. Never return `$$$OK` after catching an error
-- [ ] **Transactions**: `If $TLevel > 0 { TROLLBACK }` — never `Return` inside TSTART without rollback
+- [ ] **Transactions**: Record `Set entry=$TLevel` before `TSTART` and roll back one level with `TROLLBACK:$TLevel>entry 1`. A bare `TROLLBACK` also rolls back the caller's transaction (IRIS 2026.2). Never `Return` inside TSTART without rollback
+- [ ] **Namespace**: `New $NAMESPACE` before `Set $NAMESPACE = "%SYS"`. When the method exits, the caller's namespace comes back. Without the `New`, the caller is left in `%SYS`
+- [ ] **Admin via class API, not SQL**: Create and change users, roles, resources and namespaces with `Security.Users`, `Security.Roles`, `Security.Resources` and `Config.*` class methods in `%SYS`, not SQL. SQL writes to those tables fail: `UPDATE` gives -132 and `DELETE` -134, and `UPDATE Security.Users SET Roles=...` gives -400 with the roles unchanged. A write that matches no row returns 100, so a clean SQLCODE proves nothing. `%SYS.Task` takes SQL writes and the task really changes, so use `%SYS.Task` methods (`Suspend`, `Resume`, `%OpenId` + `%Save`). Check `Exists(name)` before `Create`; a second `Create` returns an error `%Status` (#837 user, #891 resource), so check it with `$$$ISERR`. Never write a password or secret into code, logs or output
 - [ ] **Storage blocks**: Never edit `Storage Default { ... }` — compiler auto-maps properties on compile, added or removed (orphans are fine). Rename exception: also rename its Storage entry. Reset needs explicit user confirmation.
 - [ ] **%INLIST in ObjectScript**: `%INLIST` is SQL-only. In ObjectScript method code use `$ListFind(list, value) > 0`. Writing `Return (x %INLIST list)` causes ERROR #1010.
 - [ ] **`'=` in SQL strings**: `'=` is the ObjectScript not-equal operator. Inside SQL string literals, use `<>`. `"WHERE Tags '= ''"` → parser sees `'` as start of SQL string.
@@ -86,6 +90,10 @@ SELECT FROM Catalog_Item           →  SELECT FROM Catalog.Item
 If SQLCODE { "not found" }         →  If SQLCODE = 100 { "not found" }
 celsius * 9 / 5 + 32               →  (celsius * 1.8) + 32
 Set lst = $ListBuild()             →  Set lst = ""
+Set $NAMESPACE = "%SYS"            →  New $NAMESPACE  Set $NAMESPACE = "%SYS"
+UPDATE Security.Users SET Roles=.. →  Set p("Roles")=..  Security.Users.Modify(name,.p)
+INSERT INTO Security.Resources ..  →  If 'Security.Resources.Exists(n) { Create(n,desc,perm) }
+UPDATE %SYS.Task SET Suspended=1   →  ##class(%SYS.Task).Suspend(id)
 
 // Storage / Operators:
 Add Property + map into Storage           →  leave Storage alone (compiler auto-maps)

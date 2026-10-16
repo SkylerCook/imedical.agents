@@ -428,9 +428,11 @@ enabled 插件的 availableDependencies 复用只读检查，输出 plugin-avail
 
 `vendor/` 是随能力包部署的 fallback 源，不是默认安装列表。`update-agents.ps1` 调用 `resolve-plugin-skill-dependencies.ps1`，递归汇总 enabled 插件、显式选择插件及其插件依赖；manifest 中 `skillDependencies.required` 自动进入项目发现层，`optional` 只在任务命中 trigger 后按需读取。
 
-`coding-iris-plugin` 引入的 `iris-agentic-dev-skills` 属于 optional vendor skill：更新脚本会把 v1.2.6 固定提交的 8 个 skill 快照同步到 `.agents/vendor/iris-agentic-dev-skills/`，但不会自动生成 `.agents/skills` thin-index。需要直接使用这些官方 skill 时，可从 vendor 路径读取，或由目标 runtime 的显式同步选项生成入口；`objectscript-tdd` 仍受任务级编译/测试授权约束，`iris-mcp-lookup` 本身仍由插件 canonical skill 提供。
+`coding-iris-plugin` 引入的 `iris-agentic-dev-skills` 属于 optional vendor skill：更新脚本会把 v1.5.0 固定提交的 8 个 skill 快照同步到 `.agents/vendor/iris-agentic-dev-skills/`，但不会自动生成 `.agents/skills` thin-index。需要直接使用这些官方 skill 时，可从 vendor 路径读取，或由目标 runtime 的显式同步选项生成入口；`objectscript-tdd` 仍受任务级编译/测试授权约束，`iris-mcp-lookup` 本身仍由插件 canonical skill 提供。
 
 新建目标工程从 `project-env.template.json` 生成 `.mcp.json` 时默认写入 `--no-skills` / `IRIS_NO_SKILLS=true`。已有工程更新能力包时，仅按下节规则收敛 MCP server 路径；其它 `.mcp.json` 和 `project-env.json` 字段保持不变。如需采用该默认值，应人工在本地 `mcp.includeBuiltInSkills=false` 后重新生成，或在既有 MCP 配置中显式加入 `--no-skills`。确需上游 skill registry、KB 或学习工具时可本地设置 `mcp.includeBuiltInSkills=true`，不得把连接事实一并提交。
+
+用户级目录已有同名 SKILL.md 时，同步器报告 vendor-skill-reused 并保留原内容，不比较版本或覆盖旧副本。需要新版时优先直接读取项目 vendor；确需替换用户级副本，应先核对来源和用户修改，再单独执行明确授权的更新。
 
 ## iris-agentic-dev vendor 运行时优先
 

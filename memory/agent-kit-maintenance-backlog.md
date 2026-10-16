@@ -1,6 +1,6 @@
 # imedical.agents 后续治理队列
 
-- P2 MCP helper：新增 CLI 专项已加入 Windows/macOS/Linux × Node 22.5/22/24 既有矩阵，待取得 CI 结果；已部署业务副本正常更新后验证规则实际加载与调用轮次。Windows bundled schema 实测不替代业务连接验证。lookup 旧专项仍固定断言插件 0.4.0，与当前版本不符，后续治理时改为当前契约检查，不随每次版本升级改常量。
+- P2 MCP helper：新增 CLI 专项已加入 Windows/macOS/Linux × Node 22.5/22/24 既有矩阵，待取得 CI 结果；已部署业务副本正常更新后验证规则实际加载与调用轮次。Windows bundled schema 实测不替代业务连接验证。
 
 - P2 需求迁移扫描边界：嵌套 Git/worktree/Agent 上下文与符号链接的非 Windows CI 及部署更新后复验沿现有跨平台/业务副本队列推进；源仓只读检查不代替完整更新验收。
 
@@ -96,7 +96,7 @@
 
 - **P3 · 上游 MCP 原生 write 参数支持跟踪**：固定 SQL 兼容层的授权样本已通过，不再列为本轮实写阻断。后续上游补齐参数绑定后须重新验证，不能静默切换；新增实例和正常 deploy 改内容全链路另按具体任务验收。服务器 operation 审计仍由完整事务通道提供。
 
-- **P1 · `iris-agentic-dev` v1.4.2 工具体系审计**：本轮 exe 更新后 `--no-skills` 从 67 增至 70 个工具，新增 `iris_mirror_status`、`iris_reload_pool`、`iris_system_performance`。helper 对未分类工具保持 fail-closed，三者当前均需 `--allow-write`；后续单独审计 schema、读写语义、`web_prefix` 与 v1.4.2 之前 `iris_ws_exec` 门禁缺口的体系影响，再按组件版本治理更新 coding-iris-plugin。
+- **P1 · `iris-agentic-dev` v1.5.0 工具体系审计**：v1.5.0 本地断连工具数仍为 70/81；既有 8 项 vendor skills 已同步并验证来源，SQL/事务/测试等新指导在目标 IRIS 版本的适用性仍待验证；响应兼容说明已由 coding 0.19.4 对齐；待在真实服务器核验 `iris_macro`、`iris_info`、`iris_execute_method`、HTTP `iris_execute` 行为，以及 helper 退出时 CSP 会话/临时类是否实际释放。此前 v1.4.2 exe 更新后 `--no-skills` 从 67 增至 70 个工具，新增 `iris_mirror_status`、`iris_reload_pool`、`iris_system_performance`。helper 对未分类工具保持 fail-closed，三者当前均需 `--allow-write`；后续单独审计 schema、读写语义、`web_prefix` 与 v1.4.2 之前 `iris_ws_exec` 门禁缺口的体系影响，再按组件版本治理更新 coding-iris-plugin。
 
 ### 治疗表单后续验证与协议演进
 

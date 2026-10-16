@@ -46,7 +46,7 @@ CSP、HTML、JS、CSS 编码与 Review 共用[前端规范](references/frontend-
 - IRIS 开发主力脚本：通过 `scripts/iris-tools/` 提供部署清单生成、导出、编译、Broker 调试和环境配置同步。
 - MCP 能力说明：`rules/iris_agentic_dev.md` 记录 IRIS MCP 能力矩阵，`rules/sftp_server.md` 记录 SFTP MCP 能力矩阵和安全边界。
 - IRIS 知识查询：`skills/iris-mcp-lookup/SKILL.md` 统一路由当前实例元数据、本地源码和官方文档，支持已知 `docs.intersystems.com` URL 的 Fetch/WebFetch/Open 等价能力。
-- 官方 ObjectScript skills：从 `iris-agentic-dev` v1.2.6 固定快照选择 8 个通用 skill，部署在 `.agents/vendor/iris-agentic-dev-skills/`，全部按 optional capability 触发，不默认生成浅层入口。
+- 官方 ObjectScript skills：从 `iris-agentic-dev` v1.5.0 固定快照选择 8 个通用 skill，部署在 `.agents/vendor/iris-agentic-dev-skills/`，全部按 optional capability 触发，不默认生成浅层入口。
 
 ## 标准目录
 
@@ -141,9 +141,9 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 - `iris_symbols_local`：本地 `.cls/.mac/.inc`。
 - `iris_doc mode=get/head`：当前实例中的类或例程文档；它不用于查询官方文档站。
 - 当前运行器网页读取能力：已知 `docs.intersystems.com` URL；Claude Code 可显示为 `Fetch` / `WebFetch`。
-- `iris_doc_search`：只有当前 `tools/list` 实际包含该工具时才使用；内置 v1.2.6 已复核包含该工具。
+- `iris_doc_search`：只有当前 `tools/list` 实际包含该工具时才使用；内置 v1.5.0 已复核包含该工具。
 
-内置 v1.2.6 的完整合并 toolset 已复核为 78 个工具；helper 与新生成的 `.mcp.json` 默认使用 `--no-skills` 后为 67 个。新增多实例、跨环境比较、持久会话、namespace/database、journal/audit、HL7、Mermaid 和 Storage 解析等能力，具体边界见 `rules/iris_agentic_dev.md`。`iris_coverage` 仍属于远端测试/监控能力，不属于知识查询默认路径；使用前必须取得任务级授权并确认 IRIS `gmheap >= 256 MB`。
+内置 v1.5.0 的完整合并 toolset 已复核为 81 个工具；helper 与新生成的 `.mcp.json` 默认使用 `--no-skills` 后为 70 个。新增多实例、跨环境比较、持久会话、namespace/database、journal/audit、HL7、Mermaid 和 Storage 解析等能力，具体边界见 `rules/iris_agentic_dev.md`。`iris_coverage` 仍属于远端测试/监控能力，不属于知识查询默认路径；使用前必须取得任务级授权并确认 IRIS `gmheap >= 256 MB`。
 
 官方 vendor skills 来源和 commit 见 `.agents/vendor/iris-agentic-dev-skills/UPSTREAM.md`。当前选择：
 
