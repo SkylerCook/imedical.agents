@@ -25,6 +25,21 @@ function anchors(text) {
     const n = counts.get(base) || 0; counts.set(base, n + 1); return base + (n ? '-' + n : '');
   }));
 }
+test('CLS fixes remain covered by both install and update distribution', () => {
+  const prefix = 'plugins/coding-iris-plugin/';
+  for (const relative of ['references/cls-coding-format.md', 'rules/iris_coding_backend.md',
+    'skills/iris-backend-coding/SKILL.md', 'templates/class.template.cls',
+    'templates/profile-defaults/doctor-dev.md', 'scripts/iris-tools/check-cls-format.js',
+    'scripts/iris-tools/cls-format.js']) {
+    const file = prefix + relative;
+    assert.ok(fs.existsSync(path.join(repo, file)), file);
+    assert.ok(covered(file, install), 'install: ' + file);
+    assert.ok(covered(file, update), 'update: ' + file);
+  }
+  const backend = read(prefix + 'rules/iris_coding_backend.md');
+  assert.ok(backend.includes('../templates/profile-defaults/doctor-dev.md#后端约定'));
+});
+
 test('exact destinations, absent old files and stable runtime entries', () => {
   assert.deepEqual(install, update);
   assert.equal(layout.moves.length, new Set(layout.moves.map(m => m.to)).size);

@@ -1,5 +1,13 @@
 # .agents 安装与更新 Runbook
 
+## CLS 检查与医生站继承要求更新（coding-iris-plugin 0.19.6）
+
+按正常更新流程拉取能力包、刷新已启用的 coding-iris-plugin 薄索引并执行 Check。本轮 CLS 规范、后端 skill/rule、类模板、doctor-dev 默认配置及 check-cls-format.js/cls-format.js 均沿既有插件 sparse 路径分发，无新增安装依赖或旧文件清理。
+
+更新后核对插件 manifest 版本不低于 0.19.6、后端薄索引指向当前插件源文件，并在新建类/Review 时加载最新后端规则。项目 AGENTS/profile 或用户已明确为医生站组时，规则会继续读取 doctor-dev 后端约定；旧 profile 未抄入该约定不阻断此加载入口。有显式冲突须先澄清，不自动重写 profile 或已有类；项目类型未明确时不得按路径猜测。
+
+验收分别核对文件落盘、索引可达和 Agent 是否实际按依据选择继承。可选 CLS 检查器只提供静态提示，不替代 IRIS 编译。源码仓分发测试不代表真实项目已更新；根工程与模块工作区由其更新任务执行既有 DryRun/Write/Check 并保留本地改动。
+
 需求迁移扫描在独立嵌套 Git/Agent 工作区边界停止，报告 `demand-workspace-skipped`；不越界检查或改写活动 worktree 的链接入口，也不按目录名整体豁免。边界标记与单独更新要求见 [需求迁移](demand-delivery-migration.md)。
 
 夜跑分层验收沿既有 workflows、scripts/*.js、scripts/lib 与 coding-iris-plugin 分发；更新不会启动批次或安装 Playwright。BOS 0.9 / coding 0.19 的新夜跑显式接入 schema 2.1、单批次多仓绑定和启动前实际预检；六个直接依赖 owner 的范围同步接纳 coding 0.19。正常更新能力包并刷新 enabled 索引后再探测 capabilities；旧 2.0 run 和普通 CLI 保持兼容，无私有配置迁移或额外旧文件清理，见 [接入说明](night-acceptance.md)。

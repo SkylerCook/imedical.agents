@@ -1,3 +1,4 @@
+// Template only: adapt Extends after checking the target profile, peer classes and common bases.
 /// Name: Display name utilities
 /// Description: Provides a minimal name passthrough example.
 Class Example.Utility Extends %RegisteredObject

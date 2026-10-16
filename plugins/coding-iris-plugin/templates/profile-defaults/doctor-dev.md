@@ -18,7 +18,8 @@
 - BLH 类命名模板：`<Entity>BLH`（如 `ApplyBLH`、`AttachBLH`）
 - DATA 类命名模板：`<Entity>DATA`（如 `ApplyDATA`、`AttachDATA`）
 - SQL 类命名模板：`<Entity>SQL`（如 `ApplySQL`、`AttachSQL`）
-- 公共 Super 类：`DHCDoc.GetData.COM.Super`（提供 `GetCustomRows()` 通用 SQL-to-JSON），继承自 `DHCDoc.Util.RegisteredObject`
+- 医生站组注册类必须直接或间接继承 `DHCDoc.Util.RegisteredObject`；新建类时核对完整继承链，不能仅继承 `%RegisteredObject`，也不因属于流式适配器等基础设施类而自行豁免。此要求只适用于医生站组，不推广到其它项目类型。
+- 公共 Super 类：`DHCDoc.GetData.COM.Super`（提供 `GetCustomRows()` 通用 SQL-to-JSON），继承自 `DHCDoc.Util.RegisteredObject`；按职责选择是否使用 Super，不要求所有注册类都直接继承 Super。
 - JSON 工具类：`DHCDoc.Util.FromJSON`、`DHCDoc.Util.JSONAdaptor`、`DHCDoc.Util.QueryToJSON`
 - Broker 入口或调用封装：`DHCDoc.Util.Broker`（主 Broker），另有 `DHCAnt.COM.Broker`（抗菌药等专用）
 

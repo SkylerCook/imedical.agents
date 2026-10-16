@@ -5,7 +5,7 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 
 # IRIS Backend Coding
 
-编写 `.cls` 前读取[CLS 命名与格式规范](../../references/cls-coding-format.md)，最终 diff 后按同一规范检查。新类使用规范模板；已有类只规范本次新增代码，不格式化被功能需求修改的原有代码。可选本地自检不阻断提交，不要求上传、回读或编译证据。
+编写 `.cls` 前读取[CLS 命名与格式规范](../../references/cls-coding-format.md)，最终 diff 后按同一规范检查。新类参考规范模板，并按后端规则完成基类选择与项目适配；已有类只规范本次新增代码，不格式化被功能需求修改的原有代码。可选本地自检不阻断提交，不要求上传、回读或编译证据。
 
 ## 使用时机
 
@@ -25,7 +25,7 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 2. 再读取 `rules/iris_coding_index.md`、`rules/iris_coding_general.md`、`rules/iris_coding_backend.md`。
 3. 仅当任务涉及上传、编译、远程读取或只读 SQL 时，再读取 `.mcp.json` 和 `rules/iris_coding_workflow.md`。
 4. 本地搜索现有实现和同类代码，复用业务实现与接口契约；命名与格式按 CLS 规范的适用顺序执行，不从历史代码推断默认风格。
-5. 按 BLH/DATA/SQL 职责分层修改，不把项目专属类名写回插件规则。
+5. 新建类先完成[后端规则的基类核对](../../rules/iris_coding_backend.md#三层架构)，再适配模板的 `Extends`；按实际职责分层修改，不把项目专属类名写回通用规则。
 6. 默认只做本地修改；用户明确要求后再上传或编译。
 
 ## 完成检查
@@ -34,7 +34,7 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 
 - 最终 diff 已按 CLS 规范检查命名、格式、改动范围和兼容性；脚本检查与 Agent 审查结果分别说明。
 - 对本次新增注册类/非表模型、表类、成员及变量，按 [ObjectScript 注释约定](../../references/cls-coding-format.md#注释与空行) 核对适用标签、参数/返回契约、结构引用和自然语言说明；SQL 投影或返回结构不明时报告缺口，Debug 仅作为文档内容，不自动编译、调试或改写历史注释。
-- 调用独立 review-agent 时传入冻结 diff、需求、范围、项目显式规范和 CLS 规范路径；不要求额外安装 formatter skill，无子 Agent 时按同一清单串行复核。
+- 调用独立 review-agent 时传入冻结 diff、需求、范围、项目显式规范和 CLS 规范路径；新增类附基类选择及 profile/源码依据，按共用清单审查继承。不要求额外安装 formatter skill，无子 Agent 时按同一清单串行复核。
 - SQL 写入层返回格式稳定。
 - 参数校验避免 `<UNDEFINED>`。
 - 未引入源工程硬编码服务器、namespace 或业务前缀。

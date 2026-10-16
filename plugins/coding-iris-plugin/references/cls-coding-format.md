@@ -8,7 +8,7 @@
 
 ## 改动范围
 
-- 新类按完整规范编写，可参考[类模板](../templates/class.template.cls)。
+- 新类按完整规范编写；使用[类模板](../templates/class.template.cls)前，按[后端基类核对流程](../rules/iris_coding_backend.md#三层架构)适配 `Extends`，模板中的基类不代表项目继承要求。
 - 已有类的格式规范仅用于本次真正新增的代码，如新方法、声明或语句；不得格式化原有代码，即使它因功能需求被修改，也保留其既有风格。新增代码可添加自身必要的分隔空行，但不整理相邻历史空白、类末尾或 EOF。
 - 历史命名、空格、缩进、注释、空行和换行保持原样。格式自检发现原有代码的问题时不修正，也不影响提交。功能或语法修复按需求执行，不借修复附带调整风格。
 - 不以服务器输出为由覆盖本地文件或接受无关业务/Storage 变化。
@@ -21,9 +21,13 @@
 |---|---|---|
 | 新增局部变量、形参、普通属性 | lowerCamelCase，表达业务语义 | `patientId`、`displayName` |
 | 新类名和方法名 | UpperCamelCase；包路径以项目约定为准 | `PatientSummary`、`GetDisplayName` |
-| 新增常量标识 | UPPER_SNAKE_CASE | `MAX_RETRY_COUNT` |
+| 新增类级 `Parameter` | 默认 UpperCamelCase，先满足 ObjectScript 成员名语法 | `DefineCode`、`MaxRetryCount` |
 
 系统标识、覆写方法和对外映射使用契约要求的名称。不要把命名规范用于字符串内容、SQL 字段、Global 节点或已有接口键。
+
+语言合法性优先于风格：未加引号的类成员名以字母或 `%` 开头，后续为字母或数字；不能把通用 `UPPER_SNAKE_CASE` 套用到 `Parameter`，例如 `Parameter DEFINE_CODE` 含不合法的下划线。合法的全大写名称、继承参数及已有契约保持原样，UpperCamelCase 只是新增参数的默认风格。宏按预处理器规则处理，不与类参数混同。
+
+声明与引用一起核对，例如 `Parameter DefineCode = "ExampleConfig";` 对应 `..#DefineCode` 或 `##class(Demo.Config).#DefineCode`。带引号的成员名、非 ASCII 名称、动态 `$PARAMETER`、继承/跨类引用按目标版本和实际声明核实；不能机械删除下划线或重命名。引用中的 `_` 也可能是拼接运算符，编辑器红线或静态提示不构成已取得 IRIS 编译失败的证据。
 
 ## 命令、表达式与缩进
 
@@ -153,6 +157,11 @@ Index idxClientBatch On clientBatchId [ Unique ];
 
 ## 编码与 Review 检查
 
+- **新增类继承**：逐个核对所选基类与项目 profile、同职责类及公共基类的依据，检查完整继承链是否满足项目契约；模板合法或格式自检通过不构成继承选择正确的证据。基础设施类可以按职责选择不同基类，但仍须满足所属项目的明确约束；缺依据时报告待核对项，不自动判为通过。
+- **提取后复用**：公共方法提取或搬迁后，沿单值、批量等相关入口检查是否仍重复有效期过滤、判重等相同业务规则。同一规则保留一处实现，入口处理各自参数和返回契约；先核实语义和批量性能约束，不机械抽取简单字段读取，不为消除表面相似扩大重构。
+- **业务标识与归属**：审查本次相关路径中重复、同义且稳定的业务标识，先查已有定义及业务 owner；确需统一维护且属于类契约时，使用归属类的 `Parameter`。不塞入无关通用工具类，不要求所有字符串常量化；接口值与调用兼容保持。
+- **Parameter 声明与引用**：核对语言合法性、引用拼写/大小写及继承契约，区分语法、默认风格和不确定项；规范或格式检查通过不能代替 IRIS 编译。
+
 修改前确定规范来源及真正新增代码的范围；格式审查仅检查新增代码的命名、缩进、表达式、注释和空行，并核对未顺带改动原有代码风格。Git diff 的 + 行可能是原有代码修改、移动或重排，不能直接作为新增代码证明；对照任务开始时源码及最终 diff 判断。新建源码完整遵循规范，复制或移动的历史代码不因所在文件是新文件就自动成为格式化目标。功能、语法和接口/字符串/SQL/Storage 兼容性审查仍覆盖相关 diff。
 
 需要独立 Review 时，向通用 [review-agent](../../../agents/review-agent/AGENT.md) 传入冻结 diff、需求、变更范围、项目显式覆盖和本文路径；混合任务附带各语言适用规范。只读 Reviewer 区分功能/语法缺陷、规范不符合项及可选风格建议，给出位置、规则依据和最小修改建议。没有独立 Agent 时由当前 Agent 按相同清单复核，不因格式 Review 创建正式 run。
@@ -167,9 +176,11 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/check-cls-format.js <
 
 复杂结构无法可靠识别时输出 `manual-review`，由 Agent 仅检查本次编辑部分。脚本不写文件、不连接服务器、不自动修复。检查器按 HEAD 变更区间提示，不能区分真正新增与原有代码修改；Agent 对照修改前源码筛选，仅处理新增代码，原有代码提示不作为格式修正要求。
 
-脚本仅覆盖成员分隔、EOF 和可识别结构，不校验命名、缩进、表达式格式、文档标签或注释语义；脚本通过不等于全部规范通过。Agent 检查和脚本结果分别报告，纯风格问题不升级为功能缺陷或提交硬门禁。
+脚本覆盖成员分隔、EOF、可识别结构和有限的 Parameter 命名检查：未加引号的 ASCII 声明非法名称输出 `CLS-PARAMETER-NAME` 提示；直接 `.#` 引用的可疑拼写、带引号/非 ASCII 声明及动态 `$PARAMETER` 输出 `manual-review`。字符串和注释中的示例不作为代码；复杂结构沿用 `CLS-STRUCTURE` 人工核对。不解析继承或跨类符号、不证明引用存在，不检查所有语法、命名风格、缩进、表达式格式、文档标签或业务语义。脚本通过不等于全部规范通过，更不替代 IRIS 编译。Agent 检查和脚本结果分别报告，纯风格问题不升级为功能缺陷或提交硬门禁。
 
 ## 参考来源
+
+- InterSystems 官方 [类成员命名规则](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_appx_identifiers) 与 [类参数声明和引用](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=GOBJ_parameters)：2026-10-16 核对语言边界；系统参数常用全大写，但并非用户参数的强制风格。文档依据与本地静态测试不代表目标 IRIS 已编译。
 
 - [@clawhub_yaoxin521123/iris-code-formatter](https://api.skillhub.cn/clawhub_yaoxin521123/iris-code-formatter)，包版本 `3.1.0`：参考命名、空格、控制结构、注释和空行的组织方式。本规范采用自有表述和示例，保留框架的 4 空格缩进与最小改动边界。
 - 上游包未提供明确许可证，本轮不复制或分发原包。其 Global 命名、锁、事务、返回值及完整代码输出要求未纳入本文；使用本规范不依赖 SkillHub、全局 formatter skill 或联网加载。
