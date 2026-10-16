@@ -27,10 +27,13 @@ let namespace;
 function usage(exitCode = 1) {
   const out = exitCode === 0 ? console.log : console.error;
   out(`Usage:
-  node .agents/scripts/iris-mcp.js check
-  node .agents/scripts/iris-mcp.js tools [--schema]
-  node .agents/scripts/iris-mcp.js call <toolName> <jsonArgs> [--allow-write]
-  node .agents/scripts/iris-mcp.js call <toolName> --json-file <path> [--allow-write]`);
+  node .agents/scripts/iris-mcp.js check [--json]
+  node .agents/scripts/iris-mcp.js tools [--names <name1,name2>] [--schema] [--json]
+  node .agents/scripts/iris-mcp.js call <toolName> <jsonArgs> [--allow-write] [--json]
+  node .agents/scripts/iris-mcp.js call <toolName> --json-file <path> [--allow-write] [--json]
+
+tools and call include check_config; a separate check is only needed for diagnosis.
+--json emits one object on stdout; errors go to stderr with a nonzero exit code.`);
   process.exit(exitCode);
 }
 
@@ -479,6 +482,16 @@ async function main() {
     usage(command ? 0 : 1);
   }
 
+  const namesValue = optionValue('--names');
+  if (namesValue !== null && command !== 'tools') throw new Error('--names is only supported by tools');
+  const names = namesValue === null ? null : [...new Set(namesValue.split(',').map(name => name.trim()))];
+  if (names?.some(name => !name)) throw new Error('--names requires comma-separated nonempty tool names');
+  const output = {};
+  const emit = (key, value) => {
+    output[key] = value;
+    if (!hasFlag('--json')) printJson(key, value);
+  };
+  const finish = () => { if (hasFlag('--json')) console.log(JSON.stringify(output)); };
   loadWorkspaceContext();
   const client = new JsonLineMcpClient(server.command, buildMcpArgs(), env);
   try {
@@ -491,16 +504,21 @@ async function main() {
 
     const check = await callTool(client, 'check_config', {}, { allowWrite: true });
     const checkSummary = summarizeCheck(check);
-    printJson('CHECK', checkSummary);
+    emit('CHECK', checkSummary);
 
     if (command === 'check') {
+      finish();
       return;
     }
 
     if (command === 'tools') {
-      const tools = await listTools(client);
-      printJson('TOOLS', tools.map(tool => tool.name));
-      if (hasFlag('--schema')) printJson('TOOL_SCHEMAS', tools.map(({ name, inputSchema }) => ({ name, inputSchema })));
+      const catalog = await listTools(client);
+      const missing = names?.filter(name => !catalog.some(tool => tool.name === name)) || [];
+      if (missing.length) throw new Error(`Unknown or unavailable MCP tools: ${missing.join(', ')}`);
+      const tools = names ? names.map(name => catalog.find(tool => tool.name === name)) : catalog;
+      emit('TOOLS', tools.map(tool => tool.name));
+      if (hasFlag('--schema')) emit('TOOL_SCHEMAS', tools.map(({ name, inputSchema }) => ({ name, inputSchema })));
+      finish();
       return;
     }
 
@@ -511,11 +529,12 @@ async function main() {
       const inlineJson = argv[2] && argv[2] !== '--json-file' ? argv[2] : null;
       const toolArgs = parseToolArgsInput(inlineJson, jsonFile);
       const result = await callTool(client, toolName, toolArgs, { allowWrite: hasFlag('--allow-write'), timeoutMs: 60000 });
-      printJson('RESULT', result);
+      emit('RESULT', result);
+      finish();
       return;
     }
 
-    usage();
+    throw new Error(`Unknown command: ${command}`);
   } finally {
     client.close();
   }

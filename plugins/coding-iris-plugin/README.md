@@ -202,11 +202,13 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/promote-demand.js pla
 node .agents/plugins/demand-delivery-plugin/scripts/commit-demand.js plan --project-root <path> --kind <standard|project> --demand <id> --subject <menu-summary> --title <full-title> --type <type> --file <path> --modification <description>
 node .agents/plugins/demand-delivery-plugin/scripts/commit-demand.js apply --plan <plan.json> --confirm-commit --verify
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/promote-demand.js plan --demand <next-id> --dev-root <path> --prd-root <path> --prior-plan <verified-plan.json>
-node .agents/scripts/iris-mcp.js check
-node .agents/scripts/iris-mcp.js call iris_doc "{...}"
+node .agents/scripts/iris-mcp.js tools --names iris_doc --schema --json
+node .agents/scripts/iris-mcp.js call iris_doc "{...}" --json
 ```
 
 `.agents/config/project-env.json` 和 `.mcp.json` 可能包含账号、密码、服务器地址等敏感信息，应由目标工程本地维护，不提交到业务项目版本库。
+
+MCP helper 的 `tools` / `call` 已包含配置检查，已知参数可直接调用；按需 schema、JSON 输出与真实连接验证见 [MCP 诊断规则](rules/iris_agentic_dev.md#诊断)。旧命令与带标签输出保持兼容。已部署工程正常更新能力包与已启用规则即可，无配置迁移、常驻服务或旧文件清理。
 
 ## Legacy 前端 GB2312 提升流程
 

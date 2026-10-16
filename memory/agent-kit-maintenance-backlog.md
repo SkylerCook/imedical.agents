@@ -1,5 +1,7 @@
 # imedical.agents 后续治理队列
 
+- P2 MCP helper：新增 CLI 专项已加入 Windows/macOS/Linux × Node 22.5/22/24 既有矩阵，待取得 CI 结果；已部署业务副本正常更新后验证规则实际加载与调用轮次。Windows bundled schema 实测不替代业务连接验证。lookup 旧专项仍固定断言插件 0.4.0，与当前版本不符，后续治理时改为当前契约检查，不随每次版本升级改常量。
+
 - P2 需求迁移扫描边界：嵌套 Git/worktree/Agent 上下文与符号链接的非 Windows CI 及部署更新后复验沿现有跨平台/业务副本队列推进；源仓只读检查不代替完整更新验收。
 
 ## P1 可重复验收真实接入
