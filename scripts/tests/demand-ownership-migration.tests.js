@@ -79,6 +79,50 @@ test('external orchestration receives exact enabled delta and can block before m
   apply(f.context, p);
   assert.ok(plan(f.context, [], [], p.enabledBefore).conflicts.length, 'registry drift is detected even after migration');
 });
+
+test('nested workspace markers bound scanning without exempting ordinary directories or links', t => {
+  const f = fixture(t), children = [];
+  for (const [name, marker, content] of [
+    ['checkout', '.git/HEAD', 'ref: refs/heads/main'],
+    ['worktree', '.git', 'gitdir: /synthetic/not-followed'],
+    ['overlay', '.agents/capability.json', '{"schemaVersion":1,"mode":"workspace-overlay"}'],
+    ['standard', '.agents/.git/HEAD', 'ref: refs/heads/main'],
+  ]) {
+    // Arbitrary names, including project automation scopes: no .worktrees allowlist.
+    const child = path.join(f.root, 'scripts', 'isolated', name);
+    write(path.join(child, marker), content);
+    write(path.join(child, 'rules.md'), 'iris-demand-commit');
+    fs.symlinkSync(path.join(f.root, 'AGENTS.md'), path.join(child, 'AGENTS.md'), 'file');
+    children.push(child);
+  }
+  const ordinary = path.join(f.root, '.worktrees', 'ordinary', 'AGENTS.md');
+  const linkedContext = path.join(f.root, 'scripts', 'isolated', 'linked-context');
+  fs.mkdirSync(linkedContext);
+  fs.symlinkSync(f.local, path.join(linkedContext, '.agents'), process.platform === 'win32' ? 'junction' : 'dir');
+  fs.symlinkSync(path.join(f.root, 'AGENTS.md'), path.join(linkedContext, 'AGENTS.md'), 'file');
+  write(path.join(linkedContext, 'rules.md'), 'iris-demand-commit');
+  children.push(linkedContext);
+  write(ordinary, 'iris-demand-commit');
+  const p = plan(f.context);
+  assert.deepEqual(p.conflicts, []);
+  assert.equal(p.skippedWorkspaces.length, children.length);
+  assert.ok(p.changes.some(c => c.file === ordinary), 'directory name alone never exempts project references');
+  assert.ok(!p.changes.some(c => children.some(dir => c.file.startsWith(dir + path.sep))));
+  for (const owner of p.owners) f.generate(owner);
+  apply(f.context, p);
+  for (const child of children) {
+    assert.ok(fs.lstatSync(path.join(child, 'AGENTS.md')).isSymbolicLink());
+    assert.equal(fs.readFileSync(path.join(child, 'rules.md'), 'utf8'), 'iris-demand-commit');
+  }
+  const repeated = plan(f.context);
+  assert.deepEqual(repeated.owners, []);
+  assert.deepEqual(repeated.conflicts, []);
+  assert.equal(repeated.skippedWorkspaces.length, children.length);
+  const custom = path.join(f.root, 'custom', 'AGENTS.md');
+  fs.mkdirSync(path.dirname(custom));
+  fs.symlinkSync(path.join(f.root, 'AGENTS.md'), custom, 'file');
+  assert.ok(plan(f.context).conflicts.some(c => c.includes(custom)), 'in-scope custom links remain conflicts even without legacy references');
+});
 test('custom content, explicit states, filtered owners, missing targets and input drift block retirement', t => {
   const f = fixture(t), old = path.join(f.local, 'skills/iris-demand-commit/SKILL.md');
   const original = fs.readFileSync(old, 'utf8');

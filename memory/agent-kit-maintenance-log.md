@@ -1,5 +1,8 @@
 # imedical.agents 维护日志
 
+- 2026-10-16（需求迁移嵌套工作区边界，framework-maintenance）：扫描器在子目录的 Git 元数据、独立 Agent 部署/Overlay 标记或链接 Agent 上下文处停止递归，通过 skippedWorkspaces / demand-workspace-skipped 报告；不按目录名豁免，不读取或修改嵌套入口，当前项目自定义链接仍阻断。覆盖任意目录名、自动化目录、普通同名目录继续迁移、迁移后无旧名称及链接保持。
+  - 验证：Windows Node 的迁移专项 6 项和 standard/Overlay 更新集成 2 项在 PowerShell 7、Windows PowerShell 5.1 均通过；部署文档链接 1 项、UTF-8 BOM 与 diff check 通过。修复版 helper 对反馈工作区只读 Check 无冲突、无迁移写入；未同步业务副本，完整部署更新及非 Windows CI 待目标侧复验。仅根脚本/测试/说明变化，无插件版本变更；按用户后续授权提交并推送，隔离测试产物已清理，内容证据保留在源仓 Git 本地元数据。
+
 - 2026-10-16（验收调用授权收敛，framework-maintenance）：demand-delivery-plugin 0.5.0 将用户明确调用 demand-acceptance 开展验收交付定义为该批次通过项 commit＋BOS 日志＋push 的授权，无需交付参数或重复选择范围；非 BOS 项目跳过日志。保留暂不交付限制和旧批次原授权，查看/维护技能、查询汇总与自动加载不产生授权。demand-commit 显式承接批次授权，索引 authorize 保存真实调用原话，执行脚本和索引格式不变。
   - 验证：两份技能 quick_validate 在 Python UTF-8 模式通过（首次默认 GBK 读取失败，未改文件编码）；文档部署链接/清单 1/1 通过。逐项核对明确调用后通过、暂停、纯查询/自动加载、旧批次恢复和下游授权传递；纯技能契约变更未重跑 Git/BOS 执行测试，真实宿主行为仍在既有 P2 队列。工作区版本校验识别 0.4.0→0.5.0 breaking minor，无本次新增问题；全仓仍仅有已登记 xc 1.0.2–1.0.4 缺 commit 的六项历史问题，未修改历史记录。
   - 同步：owner AGENTS/README/manifest、两份技能、索引协议、仓库 README、能力手册、维护摘要/队列及新发布记录对齐；长期决策与安装/更新机制未改变。已部署工程按正常更新刷新已启用索引，新调用采用新契约，旧批次不自动扩权；无配置迁移或旧文件清理。用户后续授权 c + p，复用已有验证并补查精确暂存与组件版本门禁，按既有约定推送 origin/github，结果以 Git 记录为准；未同步业务副本，无任务临时文件。

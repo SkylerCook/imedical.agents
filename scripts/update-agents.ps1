@@ -1281,6 +1281,9 @@ $demandMigrationText = & node @demandMigrationArgs | Out-String
 $demandMigrationExit = $LASTEXITCODE
 if ($demandMigrationExit -ne 0) { throw ("Demand ownership migration blocked: " + $demandMigrationText) }
 $demandMigration = $demandMigrationText | ConvertFrom-Json
+foreach ($skipped in @($demandMigration.skippedWorkspaces)) {
+  $results.Add((Write-UpdateResult -Status "demand-workspace-skipped" -Target $skipped.directory -Reason ($skipped.reason + "; update this workspace independently") -Phase "demand-migration"))
+}
 foreach ($stateChange in @($demandMigration.stateChanges)) {
   $results.Add((Write-UpdateResult -Status "demand-owner-enable-planned" -Target $stateChange.plugin -Reason "missing -> enabled; reconcile external orchestration before Write" -Phase "demand-migration"))
 }

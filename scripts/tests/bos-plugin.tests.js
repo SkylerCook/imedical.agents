@@ -129,9 +129,13 @@ for (const overlay of [false, true]) test('updater retires deployed demand names
   run(shell, ['-NoProfile', '-File', path.join(f.capability, 'scripts/generate-plugin-thin-index.ps1'), '-ProjectRoot', f.project, '-ContextRoot', f.context, '-CapabilityRoot', f.capability, '-PluginPath', oldRoot, '-Mode', 'Write'], f.root);
   fs.rmSync(oldRoot, { recursive: true });
   write(path.join(f.project, 'AGENTS.md'), '# Project\nUse iris-demand-commit; use iris-demand-entry.\n');
+  const nested = path.join(f.project, 'isolated', 'developer');
+  write(path.join(nested, '.agents/capability.json'), '{"schemaVersion":1,"mode":"workspace-overlay"}');
+  fs.symlinkSync(path.join(f.project, 'AGENTS.md'), path.join(nested, 'AGENTS.md'), 'file');
   const args = ['-NoProfile', '-File', path.join(f.capability, 'scripts/update-agents.ps1'), '-ProjectRoot', f.project, '-NoPull', '-Detailed'];
   const preview = run(shell, [...args, '-Mode', 'DryRun'], f.root);
   assert.match(preview, /demand-migration-planned/);
+  assert.match(preview, /demand-workspace-skipped/);
   assert.match(preview, /demand-owner-enable-planned/);
   assert.match(fs.readFileSync(path.join(f.project, 'AGENTS.md'), 'utf8'), /iris-demand-commit/);
   const blocked = run(shell, [...args, '-Mode', 'Write', '-ExpectedEnabledPlugin', 'unrelated-plugin'], f.root, process.env, 1);
@@ -149,6 +153,7 @@ for (const overlay of [false, true]) test('updater retires deployed demand names
   assert.doesNotMatch(fs.readFileSync(path.join(f.project, 'AGENTS.md'), 'utf8'), /iris-demand-/);
   assert.doesNotMatch(run(shell, [...args, '-Mode', 'Write'], f.root), /demand-migration-applied/);
   run(shell, [...args, '-Mode', 'Check'], f.root);
+  assert.ok(fs.lstatSync(path.join(nested, 'AGENTS.md')).isSymbolicLink());
   fs.unlinkSync(path.join(f.context, 'skills/demand-commit/SKILL.md'));
   assert.match(run(shell, [...args, '-Mode', 'Check'], f.root, process.env, 1), /Demand ownership migration blocked/);
 });

@@ -23,6 +23,8 @@ coding-iris-plugin 0.16.0 删除旧需求技能、CLI 和引用别名。框架�
 
 项目接入只登记启用与发现入口，不自动执行 BOS 个人凭据初始化、不连接 BOS、不注册客户端 MCP。demand-delivery-plugin 没有专用 init；BOS 本地补录无需查询凭据。需要查询时再按 bos-init 完成个人配置。
 
+嵌套工作区按事实标记停止递归：子目录存在 `.git`（仓库目录或 worktree/submodule 指针文件）、自己的 `.agents/capability.json`、`.agents/.git`，或 `.agents` 本身为链接时，归其独立上下文处理。当前 WorkspaceRoot 不因此跳过；不读取嵌套入口或跟随其中链接，也不以 `.worktrees` 等目录名作为豁免。JSON `skippedWorkspaces` 和更新器 `demand-workspace-skipped` 报告边界与原因，调用方按需独立更新这些工作区；标记存在不代表该工作区配置已验证。普通子目录仍扫描，当前项目范围内的自定义链接仍报冲突。
+
 更新器的检查范围有明确边界：工程外的个人脚本、复制到其它位置的入口及不在上述范围中的调用方，需由其 owner 切换旧 CLI 路径。DryRun 显示文件级迁移清单；不输出项目配置全文。冲突报告代表迁移尚未完成，不能把能力包 Git 更新成功当作项目入口已生效。Git 拉取可能已移除旧源文件；保留下来的旧索引用于定位和恢复，并不保证旧命令仍可执行。解决报告的冲突并重新 Write / Check 后再继续使用。
 
 ## 外部编排与 Check

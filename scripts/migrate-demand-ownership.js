@@ -48,6 +48,7 @@ function enabledPlugins(text) {
 function plan(context, selected = [], excluded = [], expectedEnabled) {
   const { workspaceRoot: root, contextRoot: local, capabilityRoot: capability } = context;
   const changes = [], removals = [], owners = new Set(), conflicts = [], inspected = new Set();
+  const skippedWorkspaces = new Map();
   const profile = path.join(local, 'config/plugin_profile.md');
   const addOwner = old => owners.add(names[old][1]);
   const oldFiles = new Set(Object.keys(names).map(n => path.join(local, 'skills', n, 'SKILL.md')));
@@ -85,6 +86,17 @@ function plan(context, selected = [], excluded = [], expectedEnabled) {
   function walk(dir, all) {
     if (!exists(dir)) return;
     try { safe(dir, dir.startsWith(local) ? local : root); } catch (e) { conflicts.push(e.message); return; }
+    // Nested checkouts and Agent contexts own their entrypoints. Never traverse
+    // their links or migrate them as documents belonging to the outer project.
+    if (dir !== root) {
+      const agents = path.join(dir, '.agents');
+      const agentStat = exists(agents);
+      let reason;
+      if (exists(path.join(dir, '.git'))) reason = 'nested-git-workspace';
+      else if (agentStat?.isSymbolicLink()) reason = 'nested-linked-agent-context';
+      else if (agentStat?.isDirectory() && (exists(path.join(agents, 'capability.json')) || exists(path.join(agents, '.git')))) reason = 'nested-agent-workspace';
+      if (reason) { skippedWorkspaces.set(dir, { directory: dir, reason }); return; }
+    }
     for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
       if (['.git', 'node_modules', '.agents', 'vendor', 'dist', 'build'].includes(item.name)) continue;
       const file = path.join(dir, item.name);
@@ -123,7 +135,7 @@ function plan(context, selected = [], excluded = [], expectedEnabled) {
       if (expected.some(n => !/^[a-z0-9][a-z0-9-]*$/.test(n))) conflicts.push('invalid expected enabled plugin name');
       else if (JSON.stringify(expected) !== JSON.stringify(enabledAfter)) conflicts.push('expected enabled plugin set mismatch; projected=' + enabledAfter.join(',') + '; expected=' + expected.join(','));
     }
-    return { owners: [...owners], changes, removals, conflicts, stateChanges, enabledBefore, enabledAfter };
+    return { owners: [...owners], changes, removals, conflicts, stateChanges, enabledBefore, enabledAfter, skippedWorkspaces: [...skippedWorkspaces.values()] };
   }
   if (!owners.size && !removals.length && !changes.length) {
     let current = '';
@@ -235,7 +247,7 @@ function main() {
   }
   if (args.includes('--apply') && !p.conflicts.length) apply(context, p);
   // Keep project text/private configuration out of logs and avoid PS5.1 console encoding loss.
-  const summary = { schema: 'demand-ownership-plan/v1', owners: p.owners, stateChanges: p.stateChanges, enabledBefore: p.enabledBefore, enabledAfter: p.enabledAfter, changes: p.changes.map(c => ({ file: c.file })), removals: p.removals.map(c => ({ file: c.file })), conflicts: p.conflicts };
+  const summary = { schema: 'demand-ownership-plan/v1', owners: p.owners, stateChanges: p.stateChanges, enabledBefore: p.enabledBefore, enabledAfter: p.enabledAfter, skippedWorkspaces: p.skippedWorkspaces, changes: p.changes.map(c => ({ file: c.file })), removals: p.removals.map(c => ({ file: c.file })), conflicts: p.conflicts };
   console.log(JSON.stringify(summary).replace(/[\u007f-\uffff]/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0')));
   if (p.conflicts.length) process.exitCode = 1;
 }

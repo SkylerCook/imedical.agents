@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- 需求迁移扫描按嵌套 Git/Agent 标记停止递归并报告 skippedWorkspaces，不按临时目录名称豁免；当前项目自定义链接仍冲突。独立工作区单独更新，见 docs/demand-delivery-migration.md。
+
 - 夜跑决策策略：BOS 0.9 / coding 0.19 的新批次使用 2.1 单批次多仓 run、启动前集中授权和实际能力预检，受管部署/验收自动归档回执与分层计时；运行中异常分支挂起交接。旧 2.0 保持兼容；数据保留/重置/删除与资源退出分别核验。沿用两阶段评估、独立短审、13/30分钟复评、容量、三截止和20%/10%额度策略，不新增运行器。接口见 docs/night-policy.md；真实项目、三策略各三轮成本和跨平台/最低 Node 证据仍见日志与 backlog，源仓修改不代表副本升级。
 
 - 阶段可用性依赖：BOS/Delivery 在 manifest 声明 availableDependencies，更新时提示、阶段执行前检查；保留强依赖 enabled 门禁及显式 disabled。入口为 docs/plugin-availability.md。
