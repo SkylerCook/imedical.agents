@@ -1,5 +1,8 @@
 # imedical.agents 维护日志
 
+- 2026-10-16（夜跑 worktree 忽略门禁，framework-maintenance）：根 night-workspace.js 在 plan/check 对 worktreeRoot 的祖先 Git 仓执行目录忽略检查；未覆盖则停止并提示共享忽略、本地 exclude 或仓外落点，不自动写业务配置。覆盖未创建目录、自定义路径、反向规则、恢复时规则失效及 linked worktree 的 gitfile；保留原 detached/Overlay 设计。同步 README、夜跑契约、更新说明、摘要及既有 P1 项目试点验收项，无插件目录变更或版本升级。
+  - 验证：Windows 本地专项 10/10 通过，随后新增 gitfile 用例定向 1/1 通过；node --check 与 git diff --check 通过。夹具自动清理并验证目录移除；首轮沙箱因 D 盘临时目录权限失败，获准沙箱外重跑。现有 night-acceptance CI 已覆盖本专项，macOS/Linux 与真实业务副本尚未验证，未启动夜跑或同步业务工程。
+
 - 2026-10-16（工作记录需求，framework-maintenance）：并入未提交 bos-plugin 0.10.0，--work 明确选择非代码来源，默认 Git 不变，与 split/excel 组合，来源由自然语言明确，首版不混合。工作格式为目标/内容及可选预期成果或工作结果，进度如实保留，不强加验收标准或 BOS 分类。来源必要摘要与 locator 保留在私有 v3 草稿；口述无文件不回填，bind 只保存编号，另行明确来源回填才由 Agent 回读定位。
   - 实现：同一 prepare/render/Excel/bind 链路支持 work，跳过 Git/提交依赖；工作条目禁止 changes/type/subject，message/plan 在任何提交依赖或 Git 操作前停止。代码 v2 保持读写兼容，无旧草稿迁移。同步 skill、协议/场景、manifest 阶段触发、两级 README、能力指南/目录、更新说明、摘要/队列及未提交发布记录；无私人日记读取或原文入仓，长期决策和安装/索引算法不变。
   - 验证：Windows Node 24 需求专项 24/24（旧代码 19 项与工作 5 项）通过，覆盖非 Git 目录 CLI 全流程、可选成果、Excel 正文同源/分类不默认、进度保留、混合拒绝、编号回填与来源不变、提交提前阻断。既有三平台 Node 22/24 CI 已覆盖本测试文件，非 Windows/真实 Agent/BOS 导入仍待证据。Windows PowerShell 5.1 薄索引实生成验证 --work、split/excel 及 canonical source 通过；文档链接 1/1 与 diff check 通过。工作区版本审计无本轮新增问题，完整审计仅既有 xc 历史问题退出 1。测试目录已清理，未暂存、提交、推送或更新真实下游；保留并行改动。

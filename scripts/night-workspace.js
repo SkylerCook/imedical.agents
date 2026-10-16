@@ -46,6 +46,23 @@ function inspectRepository(source, target, revision, allowProgress) {
     if (!clean && !allowProgress) throw new Error('Existing worktree is dirty; preserve and reassess');
     return { status: 'reuse', clean, head };
 }
+function checkWorktreeRootIgnored(worktreeRoot) {
+    // Inspect the destination's ancestors, not the source repositories: an
+    // Overlay workspace can live outside Git or inside a different repository.
+    let parent = path.dirname(worktreeRoot);
+    while (true) {
+        if (fs.existsSync(path.join(parent, '.git'))) {
+            const root = git(parent, ['rev-parse', '--show-toplevel']);
+            const relativeRoot = path.relative(root, worktreeRoot).split(path.sep).join('/') + '/';
+            const result = spawnSync('git', ['--no-optional-locks', '-C', root, 'check-ignore', '--quiet', '--', relativeRoot], { encoding: 'utf8', windowsHide: true, timeout: 15000 });
+            if (result.status === 1) throw new Error(`Worktree root is not ignored by Git: ${worktreeRoot}. Add a directory ignore rule in ${root} (.gitignore or local .git/info/exclude), or set worktreeRoot outside Git.`);
+            if (result.status !== 0) throw new Error(`Git ignore check failed: ${result.error?.message || result.stderr.trim()}`);
+        }
+        const next = path.dirname(parent);
+        if (next === parent) break;
+        parent = next;
+    }
+}
 function planWorkspace(request, { allowProgress = false } = {}) {
     const businessWorkspace = absolute(request.businessWorkspace, 'businessWorkspace');
     if (request.runReference) absolute(request.runReference, 'runReference');
@@ -57,6 +74,7 @@ function planWorkspace(request, { allowProgress = false } = {}) {
     const worktreeRoot = absolute(request.worktreeRoot || path.join(businessWorkspace, '.worktrees'), 'worktreeRoot');
     const workspaceRoot = path.join(worktreeRoot, request.batchId, request.role);
     noLinkedAncestors(workspaceRoot);
+    checkWorktreeRootIgnored(worktreeRoot);
     if (!Array.isArray(request.repositories) || !request.repositories.length) throw new Error('Explicit repositories required');
     const names = new Set();
     const repositories = request.repositories.map(item => {

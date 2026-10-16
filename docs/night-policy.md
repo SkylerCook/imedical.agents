@@ -55,7 +55,7 @@ node .agents/scripts/run-acceptance.js --profile <项目模块> --preflight --ru
 
 用户在已更新能力包的业务工作区输入 `$bos-demand-handle --night`，并提供需求范围和截止时间。Agent 复用既有授权，生成批次、策略及编排计划；用户无需手填 JSON。`--night` 是技能路由参数，不传给 BOS 查询 CLI，不授予新的远端写入权限。新批次显式引用决策策略，历史批次不自动迁移。
 
-Agent 使用 `node <CapabilityRoot>/scripts/night-workspace.js plan <request.json>` 生成只读计划，再执行计划中的既有 Git worktree 与 Overlay 初始化步骤。默认落点为 `<businessWorkspace>/.worktrees/<batchId>/<role>/repos/<repository>`；显式 `worktreeRoot` 可覆盖默认值。独立角色的 cwd 使用对应 Overlay workspaceRoot，共享能力指向 CapabilityRoot，项目事实通过逐文件引用复用，凭据不复制进计划。
+Agent 使用 `node <CapabilityRoot>/scripts/night-workspace.js plan <request.json>` 生成只读计划，再执行计划中的既有 Git worktree 与 Overlay 初始化步骤。默认落点为 `<businessWorkspace>/.worktrees/<batchId>/<role>/repos/<repository>`；显式 `worktreeRoot` 可覆盖默认值。 `plan` 与 `check` 均通过 Git 检查落点的祖先仓库：仓内 worktreeRoot 必须被目录忽略规则覆盖，否则在创建或派发前停止。可在目标仓 `.gitignore` 或本地 Git exclude 中配置对应目录规则，也可选择仓外路径；脚本不自动修改忽略配置，仓外落点无需此规则。独立角色的 cwd 使用对应 Overlay workspaceRoot，共享能力指向 CapabilityRoot，项目事实通过逐文件引用复用，凭据不复制进计划。
 
 批次的 `workspacePreflightReferences: [{ownerId,planReference}]` 引用上述计划（路径相对批次文件）。完成初始化后执行 `night-workspace.js check <plan.json>`，从实际工作 cwd 校验 Git 身份、项目引用、技能正文及脚本可加载性；派发时重新核对。worker 根 AGENTS.md 引用原业务入口，必要规则通过 requiredRules 声明；薄索引必须能找到实际正文。已有 worktree 不执行 reset；后续正常修改和基线后代提交允许继续。孤立 worktree 参与者的 ref 必须匹配预检计划的真实仓目录。使用源仓能力的 Overlay 可用于本地验证，不能据此声称原业务项目安装副本已经升级；正式使用按既有能力包更新流程刷新技能索引。
 

@@ -2,7 +2,7 @@
 
 需求迁移更新会识别并报告独立嵌套 Git/Agent 工作区，保留其入口与链接；普通项目子目录仍受迁移检查。见 [扫描边界](docs/demand-delivery-migration.md)。
 
-通过 `$bos-demand-handle --night` 发起夜跑，由 Agent 生成批次和计划并复用原调度器。新批次采用一个多仓 schema 2.1 run，开始前集中取得必需授权并实际预检；受管入口复核绑定并自动归档回执与计时，运行中异常分支挂起交接，不新增授权问题。保留两阶段评估、独立短审、源码绑定、容量、额度、截止与固定抽验，业务最终仍 acceptance-pending。旧 2.0 run 保持原行为；接入与真实试点条件见[夜跑决策接口](docs/night-policy.md)。
+通过 `$bos-demand-handle --night` 发起夜跑，由 Agent 生成批次和计划并复用原调度器。新批次采用一个多仓 schema 2.1 run，开始前集中取得必需授权并实际预检；受管入口复核绑定并自动归档回执与计时，运行中异常分支挂起交接，不新增授权问题。保留两阶段评估、独立短审、源码绑定、容量、额度、截止与固定抽验，业务最终仍 acceptance-pending。旧 2.0 run 保持原行为；接入与真实试点条件见[夜跑决策接口](docs/night-policy.md)。 仓内夜跑目录须被 Git 忽略，plan/check 在创建与派发前核验；也可显式选择仓外 worktreeRoot。
 
 夜跑方案按内部方法、实际接口、UI 分层验收，纯后端不加载浏览器；Web 默认无头 Playwright，复用已安装环境。Broker 机器调用、批次截止及清理见 [夜跑接入](docs/night-acceptance.md)。
 

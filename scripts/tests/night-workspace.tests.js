@@ -113,6 +113,40 @@ test('plan is read-only, defaults under business and carries explicit owner/sour
     assert.equal(checkWorkspace(plan).ok,false);
     const alternate=planWorkspace({...f.request,worktreeRoot:path.join(f.root,'custom')});assert.ok(alternate.workspaceRoot.startsWith(path.join(f.root,'custom')));
 });
+test('in-repository destinations require a directory ignore before creation and on resumed checks', t => {
+    const f = fixture(t);
+    runGit(f.business, ['init', '-q']);
+    assert.throws(() => planWorkspace(f.request), /not ignored by Git/);
+    assert.equal(fs.existsSync(path.join(f.business, '.worktrees')), false);
+    write(path.join(f.business, '.gitignore'), '/.worktrees/\n');
+    const plan = f.setup();
+    assert.equal(checkWorkspace(plan).ok, true);
+    write(path.join(f.business, '.gitignore'), '');
+    assert.match(checkWorkspace(plan).issues.join(' '), /not ignored by Git/);
+    write(path.join(f.business, '.git/info/exclude'), '/.worktrees/\n');
+    assert.equal(checkWorkspace(plan).ok, true);
+});
+
+test('custom destination checks its containing repository and permits external paths', t => {
+    const f = fixture(t);
+    const custom = { ...f.request, worktreeRoot: path.join(f.source, 'nested', 'workers') };
+    assert.throws(() => planWorkspace(custom), /not ignored by Git/);
+    write(path.join(f.source, '.gitignore'), '/nested/workers/\n');
+    assert.equal(planWorkspace(custom).request.worktreeRoot, custom.worktreeRoot);
+    write(path.join(f.source, '.gitignore'), '/nested/*\n!/nested/workers/\n');
+    assert.throws(() => planWorkspace(custom), /not ignored by Git/);
+    assert.ok(planWorkspace({ ...f.request, worktreeRoot: path.join(f.root, 'external') }));
+});
+
+test('destination inside a linked worktree uses its gitfile and local excludes', t => {
+    const f = fixture(t), existing = f.setup().repositories[0].target;
+    const request = { ...f.request, worktreeRoot: path.join(existing, 'workers') };
+    assert.equal(fs.statSync(path.join(existing, '.git')).isFile(), true);
+    assert.throws(() => planWorkspace(request), /not ignored by Git/);
+    write(path.join(f.source, '.git/info/exclude'), '/workers/\n');
+    assert.ok(planWorkspace(request));
+});
+
 test('real registered worktree and actual worker cwd resolve shared capability, context and thin skill', t => {
     const f=fixture(t), plan=f.setup();const started=performance.now(),checked=checkWorkspace(plan);t.diagnostic(`Complete fresh-cwd check: ${Math.round(performance.now()-started)} ms`);assert.equal(checked.ok,true,JSON.stringify(checked));
     assert.equal(checked.repositories[0].status,'reuse');

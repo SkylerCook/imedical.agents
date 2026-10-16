@@ -14,7 +14,7 @@ BOS 0.10.0 新增 Agent 层 `bos-demand-entry --split` 和 `--split --excel` 用
 
 需求迁移扫描在独立嵌套 Git/Agent 工作区边界停止，报告 `demand-workspace-skipped`；不越界检查或改写活动 worktree 的链接入口，也不按目录名整体豁免。边界标记与单独更新要求见 [需求迁移](demand-delivery-migration.md)。
 
-夜跑分层验收沿既有 workflows、scripts/*.js、scripts/lib 与 coding-iris-plugin 分发；更新不会启动批次或安装 Playwright。BOS 0.9 / coding 0.19 的新夜跑显式接入 schema 2.1、单批次多仓绑定和启动前实际预检；六个直接依赖 owner 的范围同步接纳 coding 0.19。正常更新能力包并刷新 enabled 索引后再探测 capabilities；旧 2.0 run 和普通 CLI 保持兼容，无私有配置迁移或额外旧文件清理，见 [接入说明](night-acceptance.md)。
+夜跑分层验收沿既有 workflows、scripts/*.js、scripts/lib 与 coding-iris-plugin 分发；更新不会启动批次或安装 Playwright。BOS 0.9 / coding 0.19 的新夜跑显式接入 schema 2.1、单批次多仓绑定和启动前实际预检；六个直接依赖 owner 的范围同步接纳 coding 0.19。正常更新能力包并刷新 enabled 索引后再探测 capabilities；旧 2.0 run 和普通 CLI 保持兼容，无私有配置迁移或额外旧文件清理，见 [接入说明](night-acceptance.md)。 夜跑工作区忽略门禁随根 scripts 更新生效：已有仓内落点须先配置对应目录忽略规则（共享 `.gitignore` 或本地 Git exclude），再重跑 plan/check；也可为新批次指定仓外 worktreeRoot。不自动移动或清理已有 worktree。
 
 可重复测试与会话维护通过既有 scripts/lib、agents、workflows、docs 分发，无新迁移或旧文件清理；项目 runner 显式接入后才可启用经核实的心跳。异步编排启动与结果消费有新契约，旧 run 不自动升级，见 [测试运行时](testing-runtime.md) 与 [编排手册](agent-orchestration.md)。
 
