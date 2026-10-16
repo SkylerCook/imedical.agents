@@ -1,5 +1,8 @@
 # imedical.agents 维护日志
 
+- 2026-10-16（插件薄索引描述刷新，framework-maintenance）：根生成器普通 Write 比较并刷新受管 skill/rule 的生成字段，一致时 unchanged、不重写；Check 对 thin-index-stale 失败，DryRun 只报告。来源/正文/未知字段冲突与链接保留，Force 不再绕过插件索引归属保护；迁移原文哈希与预演状态保留，迁移后索引可继续刷新。agent/vendor 独立生成器不变，无插件目录修改或版本升级。同步 README、更新契约、摘要与 P2 下游/跨平台队列。
+  - 验证：Windows PowerShell 7/5.1 专项及完整更新器回归通过，技能归属迁移 8/8 通过；覆盖原有索引描述变更、多行字段、规则元数据、BOM/CRLF、标准/Overlay、重复更新不改时间戳、只读预演、Check 失败、自定义内容及链接保护。修复测试夹具漏带夜跑运行时、缺失 Git 基线及 BOS init 清单过期，未改这些领域实现。专项纳入三平台 Node 22/24 CI，非 Windows 实跑与真实业务发现层仍待取证。用户授权自测后提交推送；本轮未同步业务副本。
+
 - 2026-10-16（夜跑 worktree 忽略门禁，framework-maintenance）：根 night-workspace.js 在 plan/check 对 worktreeRoot 的祖先 Git 仓执行目录忽略检查；未覆盖则停止并提示共享忽略、本地 exclude 或仓外落点，不自动写业务配置。覆盖未创建目录、自定义路径、反向规则、恢复时规则失效及 linked worktree 的 gitfile；保留原 detached/Overlay 设计。同步 README、夜跑契约、更新说明、摘要及既有 P1 项目试点验收项，无插件目录变更或版本升级。
   - 验证：Windows 本地专项 10/10 通过，随后新增 gitfile 用例定向 1/1 通过；node --check 与 git diff --check 通过。夹具自动清理并验证目录移除；首轮沙箱因 D 盘临时目录权限失败，获准沙箱外重跑。现有 night-acceptance CI 已覆盖本专项，macOS/Linux 与真实业务副本尚未验证，未启动夜跑或同步业务工程。
 

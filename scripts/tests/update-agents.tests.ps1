@@ -82,6 +82,9 @@ function New-TestProject {
   Copy-Item -LiteralPath $overlayInitializerUnderTest -Destination (Join-Path $root ".agents/scripts/initialize-workspace-overlay.ps1")
   Copy-Item -LiteralPath $irisMcpHelperUnderTest -Destination (Join-Path $root ".agents/scripts/iris-mcp.js")
   Copy-Item -LiteralPath $agentOrchestratorUnderTest -Destination (Join-Path $root ".agents/scripts/agent-orchestrator.js")
+  foreach ($runtimeFile in @('lib/night-dispatch.js', 'lib/night-policy.js', 'lib/night-quota.js', 'lib/night-contract.js', 'night-workspace.js')) {
+    Copy-Item -LiteralPath (Join-Path $repoRoot ('scripts/' + $runtimeFile)) -Destination (Join-Path $root ('.agents/scripts/' + $runtimeFile))
+  }
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/validation-evidence.js") -Destination (Join-Path $root ".agents/scripts/validation-evidence.js")
   Copy-Item -LiteralPath $preferVendorIrisMcpScriptUnderTest -Destination (Join-Path $root ".agents/scripts/prefer-vendor-iris-mcp.ps1")
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/agent-registry.md") -Value "# Agent Registry"
@@ -1032,7 +1035,7 @@ try {
   Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "skills/iris-change-agent/SKILL.md") -PathType Leaf) "Overlay iris-change-agent thin-index should be written to ContextRoot"
   Assert-True (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "scripts/agent-orchestrator.js") -PathType Leaf) "Overlay should generate the agent orchestrator runtime adapter"
   $overlayOrchestratorHelp = (& node (Join-Path $overlayProject.ContextRoot "scripts/agent-orchestrator.js") help 2>&1 | Out-String)
-  Assert-True ($LASTEXITCODE -eq 0) "Overlay agent orchestrator adapter should preserve the canonical helper exit code"
+  Assert-True ($LASTEXITCODE -eq 0) "Overlay agent orchestrator adapter should preserve the canonical helper exit code: $overlayOrchestratorHelp"
   Assert-Contains $overlayOrchestratorHelp "Commands:" "Overlay agent orchestrator adapter should forward to the canonical runtime"
   $overlayPluginThinIndex = [System.IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "skills/sample-skill/SKILL.md"), [System.Text.Encoding]::UTF8)
   Assert-Contains $overlayPluginThinIndex "source: .agents/plugins/sample-plugin/skills/sample-skill/SKILL.md" "Overlay plugin thin-index should keep a logical capability source"
@@ -1229,6 +1232,35 @@ try {
   Assert-Contains $sampleSkillThinIndex "thin-index: true" "Skill thin-index should declare thin-index frontmatter"
   Assert-Contains $sampleSkillThinIndex "source: .agents/plugins/sample-plugin/skills/sample-skill/SKILL.md" "Skill thin-index should declare source frontmatter"
   # Simulate an already deployed pure init entry, then upgrade its owner policy.
+  # Existing discovery metadata must converge without Force, including Check failure.
+  $refreshSource = Join-Path $projectRoot '.agents/plugins/sample-plugin/skills/sample-skill/SKILL.md'
+  $refreshTarget = Join-Path $projectRoot '.agents/skills/sample-skill/SKILL.md'
+  $sourceBeforeRefresh = [IO.File]::ReadAllText($refreshSource)
+  [IO.File]::WriteAllText($refreshSource, $sourceBeforeRefresh.Replace('Use when testing real skill description propagation.', 'Updated discovery description.'), [Text.UTF8Encoding]::new($false))
+  $beforeRefresh = [IO.File]::ReadAllText($refreshTarget)
+  $refreshDry = & $scriptUnderTest -ProjectRoot $projectRoot -Mode DryRun -NoPull -Detailed -Plugin sample-plugin | Out-String
+  Assert-Contains $refreshDry 'thin-index-stale' 'DryRun must detect stale metadata'
+  $checkFailed = $false
+  try { & $scriptUnderTest -ProjectRoot $projectRoot -Mode Check -NoPull -Detailed -Plugin sample-plugin | Out-Null } catch { $checkFailed = $true }
+  Assert-True $checkFailed 'Check must fail for stale metadata'
+  Assert-True ([IO.File]::ReadAllText($refreshTarget) -ceq $beforeRefresh) 'Read-only modes must preserve target bytes'
+  $refreshWrite = & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-String
+  Assert-Contains $refreshWrite 'updated' 'Ordinary Write must refresh existing indexes'
+  Assert-Contains ([IO.File]::ReadAllText($refreshTarget)) 'Updated discovery description.' 'Updated description must reach discovery layer'
+  $writeTime = (Get-Item -LiteralPath $refreshTarget).LastWriteTimeUtc
+  & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -Plugin sample-plugin | Out-Null
+  Assert-True ((Get-Item -LiteralPath $refreshTarget).LastWriteTimeUtc -eq $writeTime) 'Repeated Write must not rewrite unchanged targets'
+  & $scriptUnderTest -ProjectRoot $projectRoot -Mode Check -NoPull -Plugin sample-plugin | Out-Null
+  $currentIndex = [IO.File]::ReadAllText($refreshTarget)
+  foreach ($customIndex in @($currentIndex + "`nCustom instructions", $currentIndex.Replace('source: .agents/plugins/sample-plugin/', 'source: .agents/plugins/other-plugin/'), $currentIndex.Replace('thin-index: true', "thin-index: true`ncustom: preserve"))) {
+    [IO.File]::WriteAllText($refreshTarget, $customIndex, [Text.UTF8Encoding]::new($false))
+    $conflictFailed = $false
+    try { & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -ForceThinIndex -Plugin sample-plugin | Out-Null } catch { $conflictFailed = $true }
+    Assert-True $conflictFailed 'Custom or mismatched targets must block even with Force'
+    Assert-True ([IO.File]::ReadAllText($refreshTarget) -ceq $customIndex) 'Conflicts must preserve custom bytes'
+  }
+  [IO.File]::WriteAllText($refreshTarget, $currentIndex, [Text.UTF8Encoding]::new($false))
+
   $initName = "sample-plugin-init"
   $initSource = Join-Path $projectRoot ".agents/plugins/sample-plugin/skills/$initName/SKILL.md"
   $initTarget = Join-Path $projectRoot ".agents/skills/$initName/SKILL.md"

@@ -31,6 +31,9 @@ function init(root) {
 }
 function fixture(name) {
   const root = path.join(temp, name); init(path.join(root, '.agents')); copyRuntime(path.join(root, '.agents'));
+  git(path.join(root, '.agents'), 'config', 'core.autocrlf', 'false');
+  git(path.join(root, '.agents'), 'add', '.');
+  git(path.join(root, '.agents'), '-c', 'core.hooksPath=', 'commit', '-qm', 'test runtime baseline');
   write(path.join(root, 'AGENTS.md'), '# Custom project entry\nDo not rewrite.'); return root;
 }
 function ps(script, args, expected = 0) { return command(shell, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, ...args], expected); }
@@ -147,7 +150,7 @@ test('Overlay generates module-local owner indexes without modifying shared capa
 
 
 test('pure init policy is explicit while daily initSkill entries remain discoverable', () => {
-  const pure = ['agent-framework-evolution', 'coding-iris-plugin', 'i18n-iris-plugin', 'imedicalxc-doctor-perf-analysis-engineer', 'iris-cure-form-dev', 'iris-imedical-doctor-ai', 'iris-interface-dev'];
+  const pure = ['agent-framework-evolution', 'bos-plugin', 'coding-iris-plugin', 'i18n-iris-plugin', 'imedicalxc-doctor-perf-analysis-engineer', 'iris-cure-form-dev', 'iris-imedical-doctor-ai', 'iris-interface-dev'];
   for (const owner of fs.readdirSync(path.join(repo, 'plugins'))) {
     const manifest = path.join(repo, 'plugins', owner, '.agents-plugin/plugin.json');
     if (!fs.existsSync(manifest)) continue;

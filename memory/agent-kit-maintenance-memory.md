@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- 插件 skill/rule 受管薄索引普通 Write 自动刷新生成元数据，Check 对过期索引失败；正文/未知字段/来源冲突及链接保留，Force 不绕过保护。迁移后 owner 索引同样可刷新；agent/vendor 独立生成器不变。下游升级步骤见 docs/update-agents.md，验证见维护日志。
+
 - 夜跑仓内 worktreeRoot 在 plan/check 中核验 Git 目录忽略规则，缺失时停止并提示配置忽略或选择仓外路径；不自动修改业务仓配置，既有批次需重跑 check。
 
 - bos-plugin 0.10.0：bos-demand-entry 默认代码，--work 显式工作记录（v3，代码 v2 兼容），目标/内容及可选预期成果或工作结果，不强制验收标准；编号只写草稿，无 Git 提交或自动来源写回。增加 --split 显式拆合审查，可与 --excel 组合，省略模式进入 --text；同一草稿渲染文本/Excel，共享文件限制保留。更新能力包并刷新已启用索引取得，真实 Agent 场景见既有 P2 队列。

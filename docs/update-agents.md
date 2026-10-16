@@ -603,6 +603,12 @@ source: .agents/plugins/coding-iris-plugin/rules/iris_coding_frontend.md
 
 ## Skill thin-index description
 
+已启用插件的 skill/rule 薄索引在普通 `Write` 中自动刷新生成的元数据，无需 `-ForceThinIndex`。内容一致报告 `unchanged`，受管内容变化报告 `updated`；`DryRun` / `Check` 报告 `thin-index-stale` 且不写文件，其中 `Check` 以失败结束，需执行 `Write` 后重新验收。不存在的入口仍按原流程生成。
+
+受管识别要求来源、标记及生成正文匹配，且不存在额外 frontmatter 字段；只有生成字段（skill 的 `name` / `description`，rule 另含 `task-affinity` / `related`）允许变化。直接修改这些生成字段会在更新时被源文件覆盖；项目定制应放在项目独立规则或配置。正文定制、来源不符、未知结构及目标或父目录链接保留并报告 `thin-index-conflict`，更新器以失败结束。`-ForceThinIndex` 对插件索引保留参数兼容，但不再越过归属保护；agent/vendor 独立生成器的既有语义不变。历史 root skill 迁移继续允许已知原文哈希，迁移后的受管索引可正常刷新。
+
+已部署工程先更新能力包，再执行原有 `Write` / `Check`；无需删除旧索引。Overlay 先更新共享 CapabilityRoot，再逐 ContextRoot 执行 `Write -NoPull`。本行为只覆盖插件 skill/rule 通用生成器，不自动同步用户级技能副本。历史无 frontmatter 的 rule 若内容完全一致仍保留，无法确认归属的差异须人工核对。
+
 插件 skill thin-index 会传播真实 `SKILL.md` 的 `name` 和 `description`，并补充：
 
 ```yaml

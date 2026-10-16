@@ -18,6 +18,9 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: node --test scripts/tests/runtime-skills.tests.js scripts/tests/skill-plugin-migration.tests.js
+      - name: Plugin thin-index refresh
+        shell: pwsh
+        run: ./scripts/tests/plugin-thin-index-refresh.tests.ps1
   windows-integration:
     strategy:
       fail-fast: false
@@ -38,6 +41,7 @@ jobs:
           & ./scripts/tests/agent-entrypoints.tests.ps1
           & ./scripts/tests/workspace-overlay.tests.ps1
           & ./scripts/tests/update-agents.tests.ps1
+          & ./scripts/tests/plugin-thin-index-refresh.tests.ps1
           $env:TEST_POWERSHELL = "${{ matrix.shell }}"
           node --test scripts/tests/skill-plugin-migration.tests.js
       - name: Update and overlay integration (PowerShell 7)

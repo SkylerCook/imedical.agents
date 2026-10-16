@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$PluginPath = ".agents/plugins/agent-context-kit",
     [string]$ProjectRoot = ".",
     [string]$ContextRoot = "",
@@ -66,6 +66,70 @@ function Write-Result {
         source = $Source
         reason = $Reason
     }
+}
+
+function Update-ManagedThinIndex {
+    param([string]$TargetFile, [string]$TargetRel, [string]$SourceRel,
+          [string]$Content, [string[]]$Fields, [string[]]$LegacyHashes = @())
+
+    # Never traverse a generated target link, including missing children of a junction.
+    $cursor = $TargetFile
+    while ($cursor -and (($cursor -eq $contextRootFull) -or (Test-IsUnderPath $cursor $contextRootFull))) {
+        $entry = Get-Item -LiteralPath $cursor -Force -ErrorAction SilentlyContinue
+        if ($null -ne $entry -and (($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+            (($cursor -ne $TargetFile) -and (-not $entry.PSIsContainer)) -or
+            (($cursor -eq $TargetFile) -and $entry.PSIsContainer))) {
+            return Write-Result 'thin-index-conflict' $TargetRel $SourceRel 'linked or invalid target preserved'
+        }
+        if ($cursor -eq $contextRootFull) { break }
+        $cursor = Split-Path -Parent $cursor
+    }
+
+    $status = 'generated'
+    if (Test-Path -LiteralPath $TargetFile -PathType Leaf) {
+        $original = [IO.File]::ReadAllText($TargetFile, [Text.Encoding]::UTF8)
+        $existing = $original.Replace("`r`n", "`n").TrimStart([char]0xFEFF)
+        $expected = $Content.Replace("`r`n", "`n")
+        if ($existing -ceq $expected) {
+            return Write-Result 'unchanged' $TargetRel $SourceRel 'managed thin-index is current'
+        }
+        # Only generated metadata may vary. Source, marker, unknown fields and body
+        # must still match the current template exactly; a marker alone is not ownership.
+        $headerPattern = '\A---\n(?<header>[\s\S]*?)\n---(?:\n|$)'
+        $oldHeader = [regex]::Match($existing, $headerPattern)
+        $newHeader = [regex]::Match($expected, $headerPattern)
+        $managed = $false
+        if ($oldHeader.Success -and $newHeader.Success) {
+            $fieldPattern = '(?m)^(?:' + ($Fields -join '|') + '):[^\n]*(?:\n[ \t]+[^\n]*)*\n?'
+            $oldFixed = [regex]::Replace($oldHeader.Groups['header'].Value + "`n", $fieldPattern, '')
+            $newFixed = [regex]::Replace($newHeader.Groups['header'].Value + "`n", $fieldPattern, '')
+            $managed = ($oldFixed -ceq $newFixed) -and
+                ($existing.Substring($oldHeader.Length) -ceq $expected.Substring($newHeader.Length))
+        }
+        if (-not $managed -and $LegacyHashes.Count -gt 0) {
+            $sha = [Security.Cryptography.SHA256]::Create()
+            try { $hash = ([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($existing)))).Replace('-', '').ToLowerInvariant() }
+            finally { $sha.Dispose() }
+            if ($LegacyHashes -contains $hash) { $managed = $true; $status = 'skill-owner-migrated' }
+        }
+        if (-not $managed) {
+            $conflict = if ($LegacyHashes.Count -gt 0) { 'skill-owner-migration-conflict' } else { 'thin-index-conflict' }
+            return Write-Result $conflict $TargetRel $SourceRel 'custom or unrecognized content preserved; Force does not bypass ownership'
+        }
+        if ($status -ne 'skill-owner-migrated') { $status = 'updated' }
+        if ($Mode -ne 'Write') {
+            if ($status -eq 'skill-owner-migrated') { return Write-Result $status $TargetRel $SourceRel $Mode }
+            return Write-Result 'thin-index-stale' $TargetRel $SourceRel 'managed thin-index differs; run Write to refresh'
+        }
+        if ([IO.File]::ReadAllText($TargetFile, [Text.Encoding]::UTF8) -cne $original) {
+            return Write-Result 'thin-index-conflict' $TargetRel $SourceRel 'target changed during generation'
+        }
+    }
+    if ($Mode -eq 'Write') {
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $TargetFile) | Out-Null
+        [IO.File]::WriteAllText($TargetFile, $Content, [Text.UTF8Encoding]::new($false))
+    }
+    return Write-Result $status $TargetRel $SourceRel $Mode
 }
 
 function Convert-FromUtf8Base64 {
@@ -334,16 +398,7 @@ if (Test-Path -LiteralPath $rulesSource -PathType Container) {
         ) | ForEach-Object { $contentLines.Add($_) }
         $content = @($contentLines) -join [Environment]::NewLine
 
-        if ((Test-Path -LiteralPath $targetFile) -and (-not $Force)) {
-            $results.Add((Write-Result -Status "skipped" -Target $targetRel -Source $sourceRel -Reason "target exists; use -Force to overwrite"))
-            return
-        }
-
-        if ($Mode -eq "Write") {
-            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $targetFile) | Out-Null
-            [System.IO.File]::WriteAllText($targetFile, $content, [System.Text.UTF8Encoding]::new($false))
-        }
-        $results.Add((Write-Result -Status "generated" -Target $targetRel -Source $sourceRel -Reason $Mode))
+        $results.Add((Update-ManagedThinIndex $targetFile $targetRel $sourceRel $content @('name', 'description', 'task-affinity', 'related')))
     }
 }
 else {
@@ -504,35 +559,7 @@ if (Test-Path -LiteralPath $skillsSource -PathType Container) {
         ) | ForEach-Object { $contentLines.Add($_) }
         $content = @($contentLines) -join [Environment]::NewLine
 
-        if (($legacyHashes.Count -gt 0) -and (Test-Path -LiteralPath $targetFile -PathType Leaf)) {
-            $existing = [System.IO.File]::ReadAllText($targetFile, [System.Text.Encoding]::UTF8).Replace("`r`n", "`n")
-            if ($existing -ceq $content.Replace("`r`n", "`n")) {
-                $results.Add((Write-Result -Status "unchanged" -Target $targetRel -Source $sourceRel -Reason "owner skill thin-index is current"))
-                return
-            }
-            $sha = [System.Security.Cryptography.SHA256]::Create()
-            try { $hash = ([System.BitConverter]::ToString($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($existing)))).Replace("-", "").ToLowerInvariant() }
-            finally { $sha.Dispose() }
-            if ($legacyHashes -notcontains $hash) {
-                $results.Add((Write-Result -Status "skill-owner-migration-conflict" -Target $targetRel -Source $sourceRel -Reason "unrecognized/custom skill content preserved"))
-                return
-            }
-            if ($Mode -eq "Write") {
-                [System.IO.File]::WriteAllText($targetFile, $content, [System.Text.UTF8Encoding]::new($false))
-            }
-            $results.Add((Write-Result -Status "skill-owner-migrated" -Target $targetRel -Source $sourceRel -Reason $Mode))
-            return
-        }
-        if ((Test-Path -LiteralPath $targetFile) -and (-not $Force)) {
-            $results.Add((Write-Result -Status "skipped" -Target $targetRel -Source $sourceRel -Reason "target exists; use -Force to overwrite"))
-            return
-        }
-
-        if ($Mode -eq "Write") {
-            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $targetFile) | Out-Null
-            [System.IO.File]::WriteAllText($targetFile, $content, [System.Text.UTF8Encoding]::new($false))
-        }
-        $results.Add((Write-Result -Status "generated" -Target $targetRel -Source $sourceRel -Reason $Mode))
+        $results.Add((Update-ManagedThinIndex $targetFile $targetRel $sourceRel $content @('name', 'description') $legacyHashes))
     }
 }
 else {

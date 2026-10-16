@@ -773,6 +773,8 @@ function Write-UpdateSummary {
   )
 
   $actionRequiredStatuses = $updateBlockingStatuses + @(
+    "thin-index-stale",
+    "thin-index-conflict",
     "conflict",
     "config-review-required",
     "config-migration-review-required",
@@ -1527,5 +1529,8 @@ else {
   Write-UpdateSummary -Results $results -Mode $Mode
 }
 if ($runtimeAdapterFailed) { throw "Runtime skill adaptation incomplete; resolve the reported status before retrying." }
+if (@($results | Where-Object { $_.status -eq "thin-index-conflict" -or ($Mode -eq "Check" -and $_.status -eq "thin-index-stale") }).Count -gt 0) {
+  throw "Plugin thin-index verification incomplete; refresh stale indexes with Write and resolve preserved conflicts."
+}
 
 if (@($results | Where-Object { $_.status -eq "skill-owner-migration-conflict" }).Count -gt 0) { throw "Skill owner migration blocked; custom or linked targets were preserved." }
