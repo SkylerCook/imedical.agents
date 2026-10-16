@@ -33,7 +33,7 @@ SFTP 工具纳入 [vendor/sftp-server](vendor/sftp-server/README.md)：保留五
 
 前端 CSP、HTML、JS、CSS 共用[前端命名与格式规范](plugins/coding-iris-plugin/references/frontend-coding-format.md)：默认 ES5、4 空格与双引号，混合语言分区审查，保留历史接口和主题契约。复用现有 Review、编码及 i18n 检查，不引入格式化器。[JS 页面组织模板](plugins/coding-iris-plugin/templates/javascript-page-template.md)按实际依赖和生命周期选择，不要求所有前端统一架构。
 
-CLS 编码与 Review 共用 [命名与格式规范](plugins/coding-iris-plugin/references/cls-coding-format.md)：仅规范本次新增代码，原有代码即使被功能需求修改也不附带格式化，项目显式规范可覆盖默认值。Agent 审查命名与表达式，可选脚本检查成员边界和 EOF，不增加提交门禁。普通能力包更新分发，无业务代码迁移。
+CLS 编码与 Review 共用 [命名与格式规范](plugins/coding-iris-plugin/references/cls-coding-format.md)：仅规范本次新增代码，原有代码即使被功能需求修改也不附带格式化，项目显式规范可覆盖默认值。Agent 审查命名、表达式及 [新增表类注释](plugins/coding-iris-plugin/references/cls-coding-format.md#持久化表类注释)，可选脚本检查成员边界和 EOF，不增加提交门禁。普通能力包更新分发，无业务代码迁移。
 
 IRIS 编码入口按边界选择：明确前端/后端任务直达专项 skill，混合或边界不明时使用 [iris-coding](plugins/coding-iris-plugin/skills/iris-coding/SKILL.md)。开发部署默认 direct，仅 guarded 模式在修改前处理基线，i18n 条件矩阵由前端规则统一维护；静态读取体量与真实提效分别验证，见[验证记录](maintenance/validation/agent-evolution.md)。
 
@@ -304,7 +304,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - ObjectScript 后端编码规则。
 - CSP、JavaScript、CSS、HISUI 前端统一使用 canonical `utf8`：标版、医院项目的源码、上传内容和服务器运行编码均为 UTF-8，实际文件字节检测是最终门禁；旧 GB2312 仅保留显式历史工程兼容，明确的 backend-only Overlay 则记录 `N/A (backend-only)`。
 - 前端任务按目标工程 `plugin_profile.md` 执行条件 i18n 门禁：只有 i18n 已启用且任务或 diff 命中翻译 helper、翻译 key 或用户可见文案时，才追加 i18n 规则与稳定 key 检查；普通前端需求不进入完整 i18n workflow。
-- 本地优先、按需上传/编译的工作流约束。
+- 本地优先、按需上传/编译的工作流约束。后端编译后回读并仅回填 Storage，覆盖新增表和字段演进；失败区分远端已编译与本地未同步，受管夜跑保留源码冻结版本复审门禁，见 [部署契约](plugins/coding-iris-plugin/references/deployment-protection.md#编译后-storage-同步)。
 - 当前前端 UTF-8 原样编辑、导出和上传流程，以及仅供显式历史工程使用的 legacy GB2312 promote 兼容流程。
 - HISUI 控件/API 按需读取 `references/hisui-widget-index.md`，主题 CSS、locale CSS、语义 class、图标和插图按需读取 `references/hisui-style-index.md`；弹窗内面板留白、裁切与滚动异常见[宽度排查指导](plugins/coding-iris-plugin/references/hisui-style-index.md#弹窗内面板的宽度留白与滚动)。
 - HISUI 资产固定到上游 `4c09319`（2026-10-12），来源、构建与文件 SHA-256 见 [vendor 说明](vendor/hisui/README.md)；源仓具备只读检查、固定提交重建、校验与失败回滚入口，coding-iris-plugin 0.17.1 同步源码索引。沿正常能力包更新分发，不改已有项目预览路径；上游已知资源缺项与实际 HIS 应用 helper 分开核对。

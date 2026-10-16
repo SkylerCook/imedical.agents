@@ -162,6 +162,8 @@
 
 - 执行辅助、风险深度和协作形态独立。硬约束集中、默认方法可调整、辅助资料按信号读取；不按模型品牌判断能力。新业务 run 默认 on-signal 反馈，旧记录缺省 always，用户验收及反馈写入授权不变。
 
+- 后端已授权部署包含编译后 Storage 核对回填，作为不修改本地源码约定的唯一部署例外；本地代码和 Git 暂存区保持原边界。回填失败与编译失败分开，未知结果不自动重试；受管夜跑源码变化保持冻结版本复审，不自动继承原版本验收。具体行为归 coding-iris-plugin 的 deployment-protection。
+
 ## 根级技能的 owner 迁移
 
 - coding-agent-adaptation 归 agent-context-kit，反馈审查与能力打包归 agent-framework-evolution。原项目技能名作为薄索引保持稳定；根级独立组件退役并保留 tombstone。新基础插件默认 enabled 只延续原默认技能分发，已有 available/disabled 不覆盖，不自动触发反馈或写入。

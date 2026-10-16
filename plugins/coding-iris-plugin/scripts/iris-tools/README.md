@@ -87,13 +87,13 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js scripts/tes
 
 2.1 夜跑 Overlay 执行 compile.js / deploy-frontend.js 时增加 `--work-item <id> --environment-alias <alias>`，可用 `--run-directory <run>` 复核 Overlay 绑定。启动前完成项目预检，work item 须为 running；门禁通过后自动消费真实回执，缺身份拒绝执行。夜跑 CSP 统一经 deploy-frontend --files，普通 compile-csp 保持兼容。CLS 文档名取文件中的 Class 声明，目录不参与包名推导；无法解析明确停止。
 
-复用项目 Atelier 连接，默认 direct 按指定 .cls/.mac/.inc 本地文件完成条件上传、回读和编译。源码及暂存区保持不变。
+复用项目 Atelier 连接，默认 direct 按指定 .cls/.mac/.inc 本地文件完成条件上传、回读和编译。编译成功后回读并仅回填核对通过的 Storage，保留本地代码、BOM/换行及暂存区，详见 [Storage 同步](../../references/deployment-protection.md#编译后-storage-同步)。
 
     node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js --project-root . --files src/Sample/Util/Date.cls --execute
 
 direct 无需需求号或 Git 会话。需要三方合并时先按部署契约建立会话，再使用 `--mode guarded --demand <需求号>`；旧命令仅带 `--demand` 保持 guarded。原类名/位置参数调用被拒绝，环境来自私有配置。没有 --execute 只生成计划。
 
-direct 输出 verified、blocked、compile-failed 或 failed-or-unknown；guarded 可返回 needs-user-input。具体文件、哈希、人工决定及恢复流程见 [部署保护](../../references/deployment-protection.md)。CSP 沿用 compile-csp.js，不进入后端文档入口。
+direct 输出 verified、blocked、compile-failed、failed-or-unknown 或 storage-sync-incomplete；guarded 可返回 needs-user-input。编译后失败报告 remoteCompilation=compiled 与 localStorageSync.status=incomplete，已同步文件列于 files；不自动重试。受管夜跑回填改变源码指纹时返回 review-pending 交接复审，部署与本地回填结果仍保留。具体文件、哈希、人工决定及恢复流程见 [部署保护](../../references/deployment-protection.md)。CSP 沿用 compile-csp.js，不进入后端文档入口。
 
 ---
 

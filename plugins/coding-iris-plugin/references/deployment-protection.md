@@ -2,22 +2,36 @@
 
 ## 默认开发部署（direct）
 
-明确目标环境、文件范围并取得部署授权后，直接使用本地文件更新目标。不要求需求号、Git 基线会话、干净工作区或 fetch/pull；已有明确授权不重复确认。部署不会修改本地源码、暂存区或 Git 历史。
+明确目标环境、文件范围并取得部署授权后，直接使用本地文件更新目标。不要求需求号、Git 基线会话、干净工作区或 fetch/pull；已有明确授权不重复确认。部署仅允许将编译后核对通过的 Storage 回填到本次指定的本地类文件；暂存区和 Git 历史保持不变。
 
 - 后端：`node compile.js --project-root <workspace> --files <project-relative.cls|mac|inc...> --execute`。
 - 前端：`node deploy-frontend.js --project-root <workspace> --source-root <frontend> --files <project-relative-files...> --execute`，SSH 信任参数沿用。
 - 无 `--execute` 只输出本地计划，不连接服务器。计划输出不代表远端检查已通过。
 - 默认 `direct`；显式 `--mode guarded --demand <id>` 启用下文的基线会话和三方合并。兼容旧命令：仅带 `--demand` 或 `--decision` 时仍选择 `guarded`；`--mode direct --demand <id>` 可显式使用 direct。`--decision` 仅限 guarded。
 
-执行前对整批文件完成路径、重复目标、UTF-8、NUL、冲突标记、JS 语法与 Storage 检查，失败不写入。direct 按本地文件更新，不合并部署开始前已有的服务器代码差异；需要保留或合并此类差异时选择 guarded。本地类未包含 Storage 时，仅在上传产物中保留服务器 Storage；已有本地 Storage 与服务器不同则停止人工核对，不用命令参数绕过。
+执行前对整批文件完成路径、重复目标、UTF-8、NUL、冲突标记、JS 语法与 Storage 检查，失败不写入。direct 按本地文件更新，不合并部署开始前已有的服务器代码差异；需要保留或合并此类差异时选择 guarded。本地类未包含 Storage 时，先在上传产物中保留服务器 Storage；已有本地 Storage 与服务器不同则停止人工核对，不用命令参数绕过。
 
 每文件上传前复核本地字节和远端快照，发现检查期间变化立即停止。后端使用 Atelier 时间戳条件上传；前端使用预期哈希检查和原子替换。上传后回读验证，整批成功后编译；内容未变的后端/CSP 也执行编译以确认当前结果。并发保护不能阻止其它工具在本次部署结束后写入。
 
-输出 `iris-direct-deploy/v1`，包含逐文件状态和编译诊断；只有 `verified` 表示工具验证通过。预检失败为 `blocked`，编译失败为 `compile-failed`，写入开始后的错误为 `failed-or-unknown`，携带失败阶段和已处理文件。批次不保证远端事务性，不自动重试或回滚，也不创建持久会话；失败后先核对受影响的服务器文件再继续，不把重新执行当作自动恢复。业务功能仍需对应验证。
+输出 `iris-direct-deploy/v1`，包含逐文件状态和编译诊断；只有 `verified` 表示工具验证通过。预检失败为 `blocked`，编译失败为 `compile-failed`，写入开始后的错误为 `failed-or-unknown`，编译后核对/回填失败为 `storage-sync-incomplete`，携带失败阶段和已处理文件。批次不保证远端事务性，不自动重试或回滚，也不创建持久会话；失败后先核对受影响的服务器文件再继续，不把重新执行当作自动恢复。业务功能仍需对应验证。
+
+## 编译后 Storage 同步
+
+后端 direct/guarded 共用 Atelier doc 回读。编译成功后检查整个文件批次：以实际上传产物为参照，类定义只允许 Storage 新增或更新（兼容类尾分隔空行），非 Storage 内容须一致；Storage 删除、既有块顺序变化、重复名称或无法可靠解析均停止。宏/include 必须保持回读一致。解析区分 UDL 注释、方法字符串和 XML/CDATA；不支持的结构保留现场，不猜测修改。
+
+整批检查通过后，复核待回填类的服务器快照及全部本地原始字节，按名称替换或追加 Storage。只回填本次部署明确指定的类，不自动扩展编译器涉及的其它类；不根据直接继承 %Persistent 的正则决定范围，间接继承及 serial 类生成的 Storage 也使用同一检查。保留本地方法、注释、BOM 和原有换行，不整类覆盖，不手工生成或重排映射。每个文件在原目录创建独占临时文件，替换前再次比较原字节，原子替换后回读，finally 清理本次临时文件。检查与替换间仍有竞争窗口，文件批次不保证事务性，失败可能已经同步部分文件。
+
+新建持久化类首次编译、已有类新增字段，以及本地缺 Storage 但服务器已有映射均走同一流程；Storage 相同不写本地。现有类部署前的 Storage 冲突仍阻断。guarded 将编译后 deployed 与仅含 Storage 回填的 local 快照保存到原私有会话，后续按最近部署快照检查 Storage，基线 Git 历史不改写；服务器合并代码不进入本地。
+
+结果包含 localStorageSync.status/files、逐文件 storageSynced/localSha256；后端 sha256 对应编译后回读内容（规范化 UTF-8 文本），localSha256 对应实际本地字节。direct 编译后核对或回填失败返回 storage-sync-incomplete，remoteCompilation=compiled；guarded 保留 needs-user-input 和未知结果恢复门禁，并报告同样的远端编译与本地同步状态。不得把远端已编译但同步未完成报告为 verified，也不自动重传、重编译或回滚。
+
+受管夜跑仍保留冻结版本门禁：本地回填改变源码指纹时返回 review-pending、deploymentStatus=verified、reason=storage-sync-requires-source-review，并归档回执、挂起交接。需按既有流程复审并重新冻结后继续，不把 Storage 同步伪装为原版本验收，也不自动放宽授权或重置状态。普通部署不增加确认步骤。
+
+已部署工程按正常能力包更新取得脚本和规则；无需配置迁移、会话重建或旧文件清理。旧失败/未知会话仍须按原恢复流程核实，不自动迁移为成功。
 
 ## 可选基线保护（guarded）
 
-以下会话、三方合并、人工决定及状态管理仅适用于 guarded。前后端上传共用 deploy-guard.js。服务器内容只进入用户私有状态目录和临时部署产物，不能复制回源码或暂存区。Git 提交工具不读取这些内容。
+以下会话、三方合并、人工决定及状态管理仅适用于 guarded。前后端上传共用 deploy-guard.js。服务器合并代码只进入用户私有状态目录和临时部署产物；编译后 Storage 按上文核对回填，其他内容不能复制回源码或暂存区。Git 提交工具不读取这些内容。
 
 ## 建立会话
 
@@ -38,7 +52,7 @@
 
 服务器等于本地时跳过；等于基线时上传本地；首次其它差异执行三方文本合并。后续以最近成功本地快照和部署产物应用增量。首次合并后远端再次变化停止。每文件上传前再次读取，上传后回读；条件上传能力见下方验证说明，不能阻止其它工具随后写入。
 
-全批合并检查完成后才写入。UTF-8、NUL、冲突标记、JS 语法检查内置；检查不代替调用方的业务验证。Storage 差异、远端删除、新增碰撞及无法确定的后端格式进入人工处理。不得用 --decision 绕过 Storage 或语法检查。
+全批合并检查完成后才写入。UTF-8、NUL、冲突标记、JS 语法检查内置；检查不代替调用方的业务验证。部署前 Storage 差异（已有部署快照时以该快照为参照）、远端删除、新增碰撞及无法确定的后端格式进入人工处理。不得用 --decision 绕过 Storage 或语法检查。
 
 ## 人工处理
 

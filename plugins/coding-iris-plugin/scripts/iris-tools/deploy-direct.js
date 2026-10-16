@@ -23,7 +23,8 @@ function prepare(file, local, remote) {
 
 async function run({files, adapter, kind}) {
   const result = {schema: 'iris-direct-deploy/v1', mode: 'direct', status: 'checking', files: []};
-  let stage = 'preflight', writing = false, activeFile;
+  let stage = 'preflight', writing = false, activeFile, compiled = false;
+  const storageSynced = [];
   try {
     const names = new Set(), prepared = [];
     for (const file of files) {
@@ -61,11 +62,22 @@ async function run({files, adapter, kind}) {
     if (result.compilation && result.compilation.status !== 'compiled') {
       return {...result, status: 'compile-failed', failedStage: stage};
     }
+    compiled = true;
+    if (kind === 'backend') {
+      stage = 'post-compile';
+      const plans = await require('./storage-sync').reconcile(prepared, adapter, {
+        onFile: file => { activeFile = file.remotePath; },
+        onSynced: plan => { storageSynced.push(plan.file.remotePath); }
+      });
+      result.localStorageSync = {status: 'verified', files: storageSynced};
+      result.files = result.files.map((file, i) => ({...file, sha256: guard.hash(plans[i].compiled), localSha256: guard.hash(plans[i].bytes), storageSynced: plans[i].synced}));
+    }
     return {...result, status: 'verified'};
   } catch (error) {
-    return {...result, status: error.reason === 'compile-failed' ? 'compile-failed' : writing || stage === 'compile' ? 'failed-or-unknown' : 'blocked',
+    return {...result, status: compiled ? 'storage-sync-incomplete' : error.reason === 'compile-failed' ? 'compile-failed' : writing || stage === 'compile' ? 'failed-or-unknown' : 'blocked',
       reason: error.reason || 'transport-or-configuration-failed', failedStage: stage, failedFile: activeFile,
-      partialOrUnknown: writing || stage === 'compile', details: error.details || {},
+      partialOrUnknown: writing || stage === 'compile' || compiled, details: error.details || {},
+      ...(compiled ? {remoteCompilation: 'compiled', localStorageSync: {status: 'incomplete', files: storageSynced}} : {}),
       message: 'No automatic retry or rollback. Inspect affected server files before continuing.'};
   }
 }

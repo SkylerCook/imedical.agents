@@ -115,7 +115,8 @@ test('partial upload is recorded, repeat is blocked, and source stays untouched'
   const remote=new Map(files.map(f=>[f.remotePath,Buffer.from('// base\r\n')]));let writes=0;
   const adapter={read:async f=>remote.get(f.remotePath),put:async f=>{writes++;if(f.remotePath==='b.js')throw Error('disconnect');remote.set(f.remotePath,f.bytes);},compile:async()=>{}};
   const opts={repo,demand:'789',files,target:'partial',adapter,checkUpdates:()=>{}};
-  assert.equal((await g.run(opts)).status,'verified');assert.equal(writes,0);
+  const initial=await g.run(opts);assert.equal(initial.status,'verified');assert.equal(writes,0);
+  assert.equal(initial.files[0].sha256,g.hash(remote.get(files[0].remotePath)));
   for(const f of files)fs.writeFileSync(f.localPath,'// local\r\n');
   const result=await g.run(opts);assert.equal(result.status,'needs-user-input');assert.equal(result.partialOrUnknown,true);assert.equal(result.sourceUnchanged,true);
   assert.equal(writes,2);assert.equal((await g.run(opts)).reason,'previous-result-unknown');assert.equal(writes,2);
@@ -125,4 +126,33 @@ test('partial upload is recorded, repeat is blocked, and source stays untouched'
   g.initialize(repo,'790','HEAD',true);git('mv','a.js','renamed.js');
   const renamed=await g.run({...opts,demand:'790',files:[{localPath:path.join(repo,'renamed.js'),remotePath:'renamed.js'}],adapter:{read:async()=>{throw Error('must not read');}}});assert.equal(renamed.reason,'local-delete-or-rename');
  }finally{os.homedir=home;fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('guarded backfills Storage only, retains merged server code privately, and deploys again',async t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'guard-storage-')),repo=path.join(dir,'repo');fs.mkdirSync(repo);
+ const home=os.homedir;os.homedir=()=>dir;t.after(()=>{os.homedir=home;fs.rmSync(dir,{recursive:true,force:true});});
+ const git=(...a)=>{const r=spawnSync('git',['-C',repo,...a],{encoding:'utf8',windowsHide:true});assert.equal(r.status,0,r.stderr);return r.stdout;};
+ git('init');git('config','user.name','Test');git('config','user.email','test@example.invalid');
+ const localPath=path.join(repo,'Demo.A.cls'),base='Class Demo.A Extends %Persistent\n{\n// local base\nProperty Name As %String;\n// stable separator 1\n// stable separator 2\n// stable separator 3\n// server base\n}\n';
+ fs.writeFileSync(localPath,base);git('add','.');git('commit','-m','base');g.initialize(repo,'900','HEAD',true);
+ fs.writeFileSync(localPath,base.replace('local base','local edit'));
+ const head=git('rev-parse','HEAD'),index=git('ls-files','--stage');
+ let remote=Buffer.from(base.replace('server base','server edit')),version=1,puts=0;
+ const block=n=>'Storage Default\n{\n<Data name="D"><Value name="1"><Value>Name</Value></Value>'+(n>1?'<Value name="2"><Value>Added</Value></Value>':'')+'</Data>\n<Type>%Storage.Persistent</Type>\n}';
+ const adapter={read:async()=>remote,put:async f=>{remote=f.bytes;puts++;},compile:async()=>{
+  let code=remote.toString();code=version===1?code.replace(/}\n$/,block(1)+'\n}\n'):code.replace(block(1),block(2));remote=Buffer.from(code);return {status:'compiled'};
+ }};
+ const opts={repo,demand:'900',files:[{localPath,remotePath:'Demo.A.cls'}],target:'backend:mock',adapter,checkUpdates:()=>{}};
+ let result=await g.run(opts);assert.equal(result.status,'verified',JSON.stringify(result));assert.equal(result.sourceUnchanged,false);assert.equal(result.files[0].merged,true);
+ let local=fs.readFileSync(localPath,'utf8');assert.ok(local.includes(block(1)));assert.ok(local.includes('server base'));assert.ok(!local.includes('server edit'));assert.ok(remote.toString().includes('server edit'));
+ let session=g.read(g.location(repo,'900').file),stored=Object.values(session.targets)[0].files['Demo.A.cls'];assert.equal(stored.local,local);assert.equal(stored.deployed,remote.toString());
+ version=2;fs.writeFileSync(localPath,local.replace('local edit','local next').replace('Property Name As %String;', 'Property Name As %String;\nProperty Added As %String;'));
+ result=await g.run(opts);assert.equal(result.status,'verified',JSON.stringify(result));assert.equal(puts,2);assert.ok(fs.readFileSync(localPath,'utf8').includes(block(2)));assert.ok(remote.toString().includes('server edit'));
+ assert.equal(git('rev-parse','HEAD'),head);assert.equal(git('ls-files','--stage'),index);
+ adapter.compile=async()=>({status:'compiled'});
+ result=await g.run(opts);assert.equal(result.status,'verified',JSON.stringify(result));assert.equal(result.sourceUnchanged,true);assert.equal(puts,2);
+ // A concurrent edit during compile cannot be overwritten or silently retried.
+ adapter.compile=async()=>{fs.appendFileSync(localPath,'// user edit\n');return {status:'compiled'};};
+ result=await g.run(opts);assert.equal(result.status,'needs-user-input');assert.equal(result.remoteCompilation,'compiled');assert.equal(result.localStorageSync.status,'incomplete');
+ assert.ok(fs.readFileSync(localPath,'utf8').endsWith('// user edit\n'));assert.equal((await g.run(opts)).reason,'previous-result-unknown');
 });

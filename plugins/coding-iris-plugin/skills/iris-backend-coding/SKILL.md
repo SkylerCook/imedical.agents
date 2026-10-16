@@ -33,6 +33,7 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 按实际改动选择验收层级：内部方法直接验证，对外 Broker/REST/SOAP 经真实入口验证，写入增加独立回读；纯后端不强制走前端。返回契约影响前端消费者时补受影响页面。Broker 机器调用与授权/证据边界见 [分层验收接入](../../../../docs/night-acceptance.md)。
 
 - 最终 diff 已按 CLS 规范检查命名、格式、改动范围和兼容性；脚本检查与 Agent 审查结果分别说明。
+- 新增持久化表类及已有表类本次新增的属性、索引，按 [表类注释约定](../../references/cls-coding-format.md#持久化表类注释) 核对必需标签与实际实现；SQL 投影无法确认时报告缺口，不为注释补齐自动编译，也不批量改写历史注释。
 - 调用独立 review-agent 时传入冻结 diff、需求、范围、项目显式规范和 CLS 规范路径；不要求额外安装 formatter skill，无子 Agent 时按同一清单串行复核。
 - SQL 写入层返回格式稳定。
 - 参数校验避免 `<UNDEFINED>`。

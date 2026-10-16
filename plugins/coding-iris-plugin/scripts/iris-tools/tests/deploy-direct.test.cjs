@@ -30,7 +30,7 @@ test('uploads a batch without Git, verifies all files, then compiles',async t=>{
  const f=fixture(t,['Class Demo.A\n{\n}\n','Class Demo.B\n{\n}\n']);
  const result=await run({...f,kind:'backend'});
  assert.equal(result.status,'verified');assert.equal(result.files.length,2);
- assert.equal(f.events.at(-1),'compile');
+ assert.ok(f.events.slice(f.events.indexOf('compile')+1).every(x=>x.startsWith('read:')));
  assert.ok(f.events.indexOf('read:Demo.1.cls')<f.events.indexOf('put:Demo.0.cls'));
  assert.equal(fs.existsSync(path.join(f.dir,'.git')),false);
  assert.deepEqual(fs.readdirSync(f.dir).sort(),['Demo.0.cls','Demo.1.cls']);
@@ -40,17 +40,80 @@ test('unchanged source is not uploaded but still compiles',async t=>{
  const f=fixture(t);f.remote.set(f.files[0].remotePath,fs.readFileSync(f.files[0].localPath));
  const result=await run({...f,kind:'backend'});
  assert.equal(result.status,'verified');assert.equal(result.files[0].status,'unchanged');
- assert.equal(f.events.some(x=>x.startsWith('put:')),false);assert.equal(f.events.at(-1),'compile');
+ assert.equal(f.events.some(x=>x.startsWith('put:')),false);assert.ok(f.events.indexOf('compile')<f.events.length-1);
 });
 
-test('preserves generated Storage in deployment content without changing source',async t=>{
- const f=fixture(t),file=f.files[0],source=fs.readFileSync(file.localPath);
+test('a non-storage class with non-XML XData keeps the existing exact round-trip path',async t=>{
+ const content='Class Demo.Json\n{\nXData Settings [ MimeType = "application/json" ]\n{\n{"text":"braces { }"}\n}\n}\n';
+ const f=fixture(t,[content]);
+ const result=await run({...f,kind:'backend'});assert.equal(result.status,'verified',JSON.stringify(result));
+ assert.equal(result.files[0].storageSynced,false);assert.equal(fs.readFileSync(f.files[0].localPath,'utf8'),content);
+});
+
+test('preserves server Storage in upload and backfills it to source after compilation',async t=>{
+ const f=fixture(t),file=f.files[0];
  const storage='Storage Default\n{\n<DataLocation>^DemoD</DataLocation>\n}';
  f.remote.set(file.remotePath,Buffer.from('Class Demo.A\n{\n'+storage+'\n}\n'));
- assert.equal((await run({...f,kind:'backend'})).status,'verified');
+ const result=await run({...f,kind:'backend'});
+ assert.equal(result.status,'verified');assert.equal(result.files[0].storageSynced,true);
  assert.ok(f.remote.get(file.remotePath).toString().includes(storage));
- assert.deepEqual(fs.readFileSync(file.localPath),source);
+ assert.ok(fs.readFileSync(file.localPath,'utf8').includes(storage));
  assert.throws(()=>prepare('A.cls','Class A\n{\n'+storage+'\n}', 'Class A\n{\n'+storage.replace('DemoD','OtherD')+'\n}'),/storage-review/);
+});
+
+test('new persistent class round trip and property evolution preserve BOM, CRLF and local code',async t=>{
+ const original='\uFEFFClass Demo.A Extends %Persistent\r\n{\r\n/// local comment\r\nProperty Name As %String;\r\n}\r\n';
+ const f=fixture(t,[original]),file=f.files[0];
+ const block=n=>'Storage Default\n{\n<Data name="DefaultData">\n<Value name="1"><Value>Name</Value></Value>'+(n>1?'<Value name="2"><Value>Added</Value></Value>':'')+'\n</Data>\n<Type>%Storage.Persistent</Type>\n}';
+ let version=1,compiles=0;
+ f.adapter.compile=async()=>{compiles++;const remote=f.remote.get(file.remotePath).toString();
+  f.remote.set(file.remotePath,Buffer.from(compiles===1?remote.replace(/}\n$/,block(version)+'\n}\n'):remote.replace(block(version-1),block(version))));return {status:'compiled'};};
+ let result=await run({...f,kind:'backend'});
+ assert.equal(result.status,'verified');assert.equal(result.localStorageSync.files[0],file.remotePath);
+ let local=fs.readFileSync(file.localPath,'utf8');assert.ok(local.startsWith('\uFEFF'));assert.ok(!local.replace(/\r\n/g,'').includes('\n'));
+ assert.ok(local.includes('/// local comment\r\nProperty Name As %String;\r\n'));
+ const updated=local.replace('Property Name As %String;','Property Name As %String;\r\nProperty Added As %String;');fs.writeFileSync(file.localPath,updated);version++;
+ result=await run({...f,kind:'backend'});assert.equal(result.status,'verified');assert.equal(result.files[0].storageSynced,true);
+ local=fs.readFileSync(file.localPath,'utf8');assert.ok(local.includes('<Value name="2">'));assert.ok(local.includes('Property Added As %String;\r\n'));
+ const before=fs.readFileSync(file.localPath);f.adapter.compile=async()=>({status:'compiled'});
+ result=await run({...f,kind:'backend'});assert.equal(result.status,'verified');assert.equal(result.files[0].storageSynced,false);assert.deepEqual(fs.readFileSync(file.localPath),before);
+});
+
+test('post-compile body change, missing source, malformed or removed Storage never backfill',async t=>{
+ for(const mode of ['body','missing','malformed','removed']){
+  const storage='Storage Default\n{\n<Type>%Storage.Persistent</Type>\n}';
+  const original='Class Demo.A\n{\n'+(mode==='removed'?storage+'\n':'')+'}\n';
+  const f=fixture(t,[original]),file=f.files[0];
+  f.adapter.compile=async()=>{const content=f.remote.get(file.remotePath).toString();
+   if(mode==='missing')f.remote.delete(file.remotePath);
+   else f.remote.set(file.remotePath,Buffer.from(mode==='body'?content.replace('Demo.A','Demo.Other'):mode==='malformed'?content.replace(/}\n$/, 'Storage Default\n{\n<Type>broken\n}\n}\n'):content.replace(storage,'')));
+   return {status:'compiled'};
+  };
+  const result=await run({...f,kind:'backend'});assert.equal(result.status,'storage-sync-incomplete',mode);assert.equal(result.remoteCompilation,'compiled');
+  assert.equal(fs.readFileSync(file.localPath,'utf8'),original);assert.equal(f.events.filter(e=>e.startsWith('put:')).length,1);
+ }
+});
+
+test('whole batch is checked before backfill and compile-time local edits survive',async t=>{
+ for(const mode of ['remote','local']){
+  const f=fixture(t,['Class Demo.A\n{\n}\n','Class Demo.B\n{\n}\n']),original=f.files.map(file=>fs.readFileSync(file.localPath));
+  f.adapter.compile=async()=>{
+   for(const file of f.files)f.remote.set(file.remotePath,Buffer.from(f.remote.get(file.remotePath).toString().replace(/}\n$/,'Storage Default\n{\n<Type>%Storage.Persistent</Type>\n}\n}\n')));
+   if(mode==='remote')f.remote.set(f.files[1].remotePath,Buffer.from('Class Other\n{\n}\n'));
+   else fs.appendFileSync(f.files[1].localPath,'// user edit\n');
+   return {status:'compiled'};
+  };
+  const result=await run({...f,kind:'backend'});assert.equal(result.status,'storage-sync-incomplete');assert.deepEqual(result.localStorageSync.files,[]);
+  assert.deepEqual(fs.readFileSync(f.files[0].localPath),original[0]);
+  if(mode==='local')assert.ok(fs.readFileSync(f.files[1].localPath,'utf8').endsWith('// user edit\n'));
+ }
+});
+
+test('macro documents keep source and also require post-compile readback',async t=>{
+ const f=fixture(t,['ROUTINE Demo\n quit\n']);f.files[0].remotePath='Demo.mac';
+ f.adapter.compile=async()=>{f.remote.set('Demo.mac',Buffer.from('ROUTINE Demo\n write 1\n'));return {status:'compiled'};};
+ assert.equal((await run({...f,kind:'backend'})).reason,'post-compile-source-changed');
+ assert.equal(fs.readFileSync(f.files[0].localPath,'utf8'),'ROUTINE Demo\n quit\n');
 });
 
 test('all preflights run before writes: Storage conflicts and invalid UTF8 stop batch',async t=>{
@@ -124,13 +187,13 @@ test('real Atelier adapter uses read timestamp and surfaces per-document errors'
  assert.ok(result.details.compilation.errors.some(e=>e.document==='Demo.0.cls'));
 });
 
-test('compile CLI deploys without Git or demand, keeps source, and plan never connects',async t=>{
+test('compile CLI backfills generated Storage without Git, and plan never connects',async t=>{
  const {spawn}=require('node:child_process'),http=require('node:http');
  const f=fixture(t);let content=['Class Demo.Old','{','}'],requests=0,puts=0,compiles=0;
  const server=http.createServer((req,res)=>{let body='';req.on('data',x=>body+=x);req.on('end',()=>{
   requests++;
   if(req.method==='PUT'){puts++;content=JSON.parse(body).content;}
-  if(req.url.includes('/action/compile'))compiles++;
+  if(req.url.includes('/action/compile')){compiles++;if(!content.includes('Storage Default'))content.splice(content.lastIndexOf('}'),0,'Storage Default','{','<Type>%Storage.Persistent</Type>','}');}
   res.end(JSON.stringify({status:{errors:[]},result:{content:req.url.includes('/action/compile')?[]:content,ts:'2026-01-01 00:00:00.000',enc:false},console:[]}));
  });});
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -149,5 +212,62 @@ test('compile CLI deploys without Git or demand, keeps source, and plan never co
  const original=fs.readFileSync(f.files[0].localPath),deployed=await invoke(['--execute']);
  assert.equal(deployed.code,0,deployed.out+deployed.err);assert.equal(JSON.parse(deployed.out).status,'verified');
  assert.equal(puts,1);assert.equal(compiles,1);assert.equal(fs.existsSync(path.join(f.dir,'.git')),false);
- assert.deepEqual(fs.readFileSync(f.files[0].localPath),original);
+ assert.ok(fs.readFileSync(f.files[0].localPath,'utf8').includes('Storage Default'));
+ assert.ok(fs.readFileSync(f.files[0].localPath,'utf8').startsWith(original.toString().split('}')[0]));
+ const again=await invoke(['--execute']);assert.equal(again.code,0,again.out+again.err);assert.equal(puts,1);assert.equal(compiles,2);
+ assert.equal(JSON.parse(again.out).files[0].storageSynced,false);
+ // Source backfill must not bypass managed night frozen-version review.
+ fs.writeFileSync(f.files[0].localPath,original);
+ const night=require('../../../../../scripts/lib/night-execution'),output=[],receipts=[];
+ t.mock.method(night,'begin',()=>({operation:{id:'synthetic'}}));t.mock.method(night,'reusableDeployment',()=>null);
+ t.mock.method(night,'finish',(_binding,result)=>receipts.push(result));t.mock.method(console,'log',line=>output.push(JSON.parse(line)));
+ const exitCode=process.exitCode;
+ try{
+  await require('../deploy-protected').main('backend',['--project-root',f.dir,'--files',path.basename(f.files[0].localPath),'--execute']);
+  assert.equal(output[0].status,'review-pending');assert.equal(output[0].deploymentStatus,'verified');assert.equal(output[0].reason,'storage-sync-requires-source-review');assert.equal(process.exitCode,1);
+  assert.equal(receipts[0].status,'review-pending');assert.equal(receipts[0].localStorageSync.status,'verified');
+ }finally{process.exitCode=exitCode;}
+});
+
+test('Storage parser ignores method strings/comments and XML braces; rejects ambiguous blocks',()=>{
+ const sync=require('../storage-sync');
+ const storage='Storage Default\n{\n<Data name="D"><Value name="1"><Value>{Name}</Value></Value><Empty /></Data>\n<!-- } -->\n<Type><![CDATA[} {]]></Type>\n}';
+ const source='Class Demo.A\n{\n/*\nStorage Fake\n{\n}\n*/\nClassMethod Test()\n{\n set x = "Storage Fake { }"\n // Storage Fake {\n}\nXData Sample\n{\n<Test>{a}</Test>\n}\n'+storage+'\n}\n';
+ assert.equal(sync.storage(source),storage);
+ assert.equal(sync.storage('Class Demo.A\n{\nstorage Default\n{\n<Type>%Storage.Persistent</Type>\n}\n}\n'),'storage Default\n{\n<Type>%Storage.Persistent</Type>\n}');
+ assert.throws(()=>sync.storage(source.replace('</Data>','</Other>')),/storage-format-unknown/);
+ assert.throws(()=>sync.storage(source.replace(storage,storage+'\n'+storage)),/storage-format-unknown/);
+ const additional='Storage Other\n{\n<Type>%Storage.Persistent</Type>\n}';
+ const result=sync.backfill(source,source.replace(storage,storage+'\n'+additional)).toString();
+ assert.ok(result.includes(additional));assert.ok(result.includes('ClassMethod Test()'));
+ assert.throws(()=>sync.backfill(source,source.replace(storage,additional+'\n'+storage)),/post-compile-storage-reordered/);
+});
+
+test('local replacement failure reports compiled/incomplete, keeps source and removes only its temporary file',async t=>{
+ const f=fixture(t),file=f.files[0],before=fs.readFileSync(file.localPath);
+ f.adapter.compile=async()=>{f.remote.set(file.remotePath,Buffer.from(before.toString().replace(/}\n$/,'Storage Default\n{\n<Type>%Storage.Persistent</Type>\n}\n}\n')));return {status:'compiled'};};
+ const rename=fs.renameSync;t.mock.method(fs,'renameSync',(from,to)=>{if(to===file.localPath)throw Error('test: file busy');return rename(from,to);});
+ const result=await run({...f,kind:'backend'});assert.equal(result.status,'storage-sync-incomplete');assert.equal(result.remoteCompilation,'compiled');
+ assert.deepEqual(fs.readFileSync(file.localPath),before);assert.deepEqual(fs.readdirSync(f.dir),[path.basename(file.localPath)]);
+});
+
+test('late local/server changes block sync and partial local sync is explicitly reported',async t=>{
+ for(const mode of ['late-local','late-server','partial'])await t.test(mode,async t=>{
+  const f=fixture(t,['Class Demo.A\n{\n}\n','Class Demo.B\n{\n}\n']),before=f.files.map(file=>fs.readFileSync(file.localPath));
+  f.adapter.compile=async()=>{for(const file of f.files)f.remote.set(file.remotePath,Buffer.from(fs.readFileSync(file.localPath,'utf8').replace(/}\n$/,'Storage Default\n{\n<Type>%Storage.Persistent</Type>\n}\n}\n')));return {status:'compiled'};};
+  if(mode==='late-server'){
+   const read=f.adapter.read;let reads=0;
+   f.adapter.read=async file=>{if(++reads===10)f.remote.set(file.remotePath,Buffer.from('Class Changed\n{\n}\n'));return read(file);};
+  }else if(mode==='partial'){
+   const rename=fs.renameSync;t.mock.method(fs,'renameSync',(from,to)=>{if(to===f.files[1].localPath)throw Error('busy');return rename(from,to);});
+  }else{
+   const open=fs.openSync;t.mock.method(fs,'openSync',(name,...args)=>{const fd=open(name,...args);if(typeof name==='string'&&name.endsWith('.tmp'))fs.appendFileSync(f.files[0].localPath,'// latest edit\n');return fd;});
+  }
+  const result=await run({...f,kind:'backend'});assert.equal(result.status,'storage-sync-incomplete',JSON.stringify(result));
+  assert.deepEqual(result.localStorageSync.files,mode==='partial'?[f.files[0].remotePath]:[]);
+  if(mode==='partial')assert.ok(fs.readFileSync(f.files[0].localPath,'utf8').includes('Storage Default'));
+  else if(mode==='late-local')assert.ok(fs.readFileSync(f.files[0].localPath,'utf8').endsWith('// latest edit\n'));
+  else assert.deepEqual(fs.readFileSync(f.files[0].localPath),before[0]);
+  assert.deepEqual(fs.readFileSync(f.files[1].localPath),before[1]);assert.equal(fs.readdirSync(f.dir).length,2);
+ });
 });

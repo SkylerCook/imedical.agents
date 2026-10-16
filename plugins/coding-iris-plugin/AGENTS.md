@@ -8,6 +8,8 @@
 
 Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/cls-coding-format.md)：修改前加载、最终 diff 后复核。独立 Review 接收该规范路径与项目显式覆盖，格式规范只用于本次新增代码，已有代码的功能修改不附带格式化；可选格式自检仅提示，不作为提交门禁。
 
+新增持久化表类、属性或索引时，加载同一规范中的 [表类注释约定](references/cls-coding-format.md#持久化表类注释)，由 Agent 核对业务标签、实际 SQL 投影与历史兼容；现有格式脚本不承担标签或表结构文档生成校验。
+
 ## 插件定位
 
 修改或 Review CSP、HTML、JavaScript、CSS 前读取[前端命名与格式规范](references/frontend-coding-format.md)，最终 diff 后复核；传递项目覆盖和兼容基线，CSP 内服务端代码按 CLS 规范处理。
@@ -110,6 +112,8 @@ SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项�
 官方 `iris-agentic-dev` v1.2.6 中通用性较高的 8 个 ObjectScript skills 固定快照位于 `.agents/vendor/iris-agentic-dev-skills/`，在 manifest 中全部声明为 optional capability。任务命中后按需读取，普通更新不生成浅层入口；上游工具名必须先按 `rules/iris_knowledge_lookup.md` 映射到当前 `tools/list` schema。`objectscript-tdd` 只有在任务已授权远端编译和测试时才能使用，其原文中的直接 session fallback 不得绕过本插件门禁。
 
 前端上传加编译固定使用 `scripts/iris-tools/deploy-frontend.js`：单连接差异上传、哈希回读后批量 Atelier 编译；失败停止，不临时生成脚本或自动换通道。参数及耗时口径见 `scripts/iris-tools/README.md`。
+
+后端编译后必须按 [Storage 同步契约](references/deployment-protection.md#编译后-storage-同步) 核对并仅回填本次指定类的 Storage；本地同步失败不能报告 verified，受管夜跑保留源码冻结版本复审门禁。
 
 ## 开发部署与可选基线保护
 

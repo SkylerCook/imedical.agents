@@ -56,6 +56,7 @@ related:
 
 ## 持久化类字段变更
 
+- 新增持久化表类、属性或索引时，按 [CLS 表类注释约定](../references/cls-coding-format.md#持久化表类注释) 编写并 Review 业务名称、SQL 表名和说明；历史代码范围与编译授权沿用原边界，不把通用方法注释套成表结构标签。
 - `%Persistent` 类新增 `Property` 时必须追加到已有属性末尾，不得插入历史字段中间。
 - 不要手工改写或重排 `Storage Default` 的 `<Value>` 节点；Storage 由 IRIS 编译器按类定义重新生成。
 - 历史数据按 `$lg(global(id), position)` 等位置语义存储时，中间插入字段会造成旧数据错位；无法确认存储结构时，先停下来核对 Storage 和已有数据形态。

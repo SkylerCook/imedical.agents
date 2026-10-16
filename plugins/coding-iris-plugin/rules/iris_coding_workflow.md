@@ -64,7 +64,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 |---|---|---|---|
 | `sync-env-config.js` | 从 `.agents/config/project-env.json` 生成 `.mcp.json`；支持可选 `sftp.enabled=true` 生成 `sftp-server` MCP | 仅当 `project-env.json` 是事实来源时初始化或同步 MCP 配置 | 不反向读取 `.mcp.json`；不验证远端连通性；不上传文件；不编译；不把敏感值写入插件 |
 | `export.js` | 通过 IRIS Atelier API 导出 IRIS 文档；可识别类名、`.cls`、`.js`、`.csp`；JS/CSP 路径前缀来自 `web.basePath` / `web.cspBasePath` | 本地缺少类、CSP、JS 上下文时导出远端源码 | 不上传；不编译；不做 SFTP；不做 GB2312 转换 |
-| `compile.js` | 默认 direct 本地文件上传，保留 Atelier 条件上传、回读与编译；可选 guarded 基线合并 | `.cls` 等后端 IRIS 文档的小范围上传与编译 | 不支持 CSP；不支持 SFTP；不处理 GB2312；Storage 有差异或格式无法可靠比较时停止 |
+| `compile.js` | 默认 direct 本地文件上传，保留 Atelier 条件上传、回读与编译，编译后按部署契约仅回填 Storage；可选 guarded 基线合并 | `.cls` 等后端 IRIS 文档的小范围上传与编译 | 不支持 CSP；不支持 SFTP；不处理 GB2312；部署前 Storage 冲突或格式无法可靠比较时停止 |
 | `debugger.js` | 通过 HTTP/HTTPS POST 调用 Broker/API；支持命令行或交互输入 Token、ClassName、MethodName、参数、URL、Cookie | 验证后端 Broker 方法、调试业务接口返回 | 不上传；不编译；不执行 SQL；不替代单元测试或页面访问验证 |
 
 脚本使用规则：

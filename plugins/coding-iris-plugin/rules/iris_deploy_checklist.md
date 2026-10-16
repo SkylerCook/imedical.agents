@@ -48,6 +48,7 @@ related:
 ## 后端类部署
 
 - direct 在本地未声明 Storage 时仅向上传产物补入服务器 Storage；本地显式 Storage 与服务器不同或无法可靠解析时停止核对。guarded 检查 B/L/R 的 Storage 差异。两种模式均不得自动删除或重新生成 Storage 来绕过保护。
+- 编译成功后按 [部署保护](../references/deployment-protection.md#编译后-storage-同步) 回读并仅回填 Storage；完成标准包含本地同步。编译已成功但回填失败时停止，不重传或重编译；夜跑源码指纹变化沿既有冻结版本复审门禁交接。
 - 不得上传“只删除 `Storage Default` 行但保留裸 Storage 内容”的类。
 - 先上传完整依赖切片，再编译；不要上传一个类后立刻编译一个类。
 - 推荐顺序：实体类（字典、配置、业务） -> 公共/基类 -> 业务类（字典、配置、业务 SQL/DATA/BLH） -> 集成类 -> 前端文件。

@@ -137,6 +137,14 @@ function frontendAdapter(a,config,mcp,context){
   async close(){try{await session.close();}finally{fs.rmSync(dir,{recursive:true,force:true});}}
  };
 }
+function sourceReview(result,binding){
+ // Generated Storage is a real source change. Preserve the existing frozen
+ // version review gate in managed night runs rather than weakening its hash.
+ if(binding && result.status==='verified' && result.localStorageSync?.files.length){
+  result.deploymentStatus='verified';result.status='review-pending';result.reason='storage-sync-requires-source-review';
+ }
+ return result;
+}
 async function main(kind,argv){
  let adapter,nightBinding,nightMode=false;
  const started=performance.now();
@@ -166,11 +174,11 @@ async function main(kind,argv){
   let reuse=false;
   if(prior){
    if(adapter.verifyReuse)reuse=await adapter.verifyReuse();
-   else if(adapter.read){const matches=await Promise.all(files.map(async f=>{const remote=await adapter.read(f),source=fs.readFileSync(f.localPath);return kind==='backend'?guard.text(remote)===require('./deploy-direct').prepare(f.remotePath,guard.text(source),guard.text(remote)):guard.hash(remote)===guard.hash(source);}));reuse=matches.every(Boolean);}
+   else if(adapter.read){const matches=await Promise.all(files.map(async f=>{const remote=await adapter.read(f),source=fs.readFileSync(f.localPath);return kind==='backend'?guard.text(remote)===guard.text(source):guard.hash(remote)===guard.hash(source);}));reuse=matches.every(Boolean);}
   }
   if(reuse){await adapter.close?.();const result={status:'verified',reusedOperationId:prior.id,files:files.map(f=>({file:f.remotePath,status:'unchanged'}))};nightExecution.finish(nightBinding,result);nightBinding=null;console.log(JSON.stringify(result));return;}
   if(a.mode==='direct'){
-   const result=adapter.batch?await adapter.batch():await require('./deploy-direct').run({files,adapter,kind});
+   const result=sourceReview(adapter.batch?await adapter.batch():await require('./deploy-direct').run({files,adapter,kind}),nightBinding);
    await adapter.close?.();
    result.timings={...result.timings,totalMs:Math.round(performance.now()-started)};
    nightExecution.finish(nightBinding,{...result,...(result.partialOrUnknown?{failureCategory:'execution-unknown'}:{})});nightBinding=null;
@@ -182,7 +190,7 @@ async function main(kind,argv){
   const roots=files.map(f=>{const r=spawnSync('git',['-C',path.dirname(f.localPath),'rev-parse','--show-toplevel'],{encoding:'utf8',windowsHide:true});if(r.status!==0)guard.stop('repository-unknown');return fs.realpathSync(r.stdout.trim());});
   if(new Set(roots).size!==1)guard.stop('split-batch-by-repository');
   const decision=a.decision?guard.read(path.resolve(a.decision)):null;
-  const result=await guard.run({repo:roots[0],demand:a.demand,files,target:kind+':'+target,adapter,decision});
+  const result=sourceReview(await guard.run({repo:roots[0],demand:a.demand,files,target:kind+':'+target,adapter,decision}),nightBinding);
   await adapter.close?.();
   if(adapter.metrics)result.transport=adapter.metrics;
   if(adapter.results && !result.files)result.files=adapter.results;

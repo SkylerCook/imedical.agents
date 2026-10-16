@@ -121,16 +121,7 @@ function baseline(repo,base,relative) {
  return text(p.stdout);
 }
 function storage(s) {
- const source=s||"",blocks=[];
- for(const match of source.matchAll(/^[ \t]*Storage[ \t]+\S+/gm)){
-  const open=source.indexOf("{",match.index);
-  if(open<0)stop("storage-format-unknown");
-  let depth=1,end=open+1;
-  for(;end<source.length&&depth;end++){if(source[end]==="{")depth++;else if(source[end]==="}")depth--;}
-  if(depth)stop("storage-format-unknown");
-  blocks.push(source.slice(match.index,end));
- }
- return blocks.join("\n");
+ return require('./storage-sync').storage(s);
 }
 function validate(file,content,base,remote) {
  if(/\.cls$/i.test(file) && (storage(base)!==storage(content)||storage(base)!==storage(remote)))stop('storage-review-required',{file});
@@ -147,7 +138,8 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
  fs.mkdirSync(loc.dir,{recursive:true,mode:0o700});
  const lock=path.join(loc.dir,'lock'); let fd;
  try{fd=fs.openSync(lock,'wx',0o600);}catch{stop('session-busy-or-interrupted');}
- let state,targetState,before,attempt=false,recoveryObservations,activeFile;
+ let state,targetState,before,attempt=false,recoveryObservations,activeFile,compilation,compiled=false;
+ const storageSynced=[];
  try {
   state=read(loc.file);
   if(state.closed)stop('session-closed');
@@ -184,7 +176,7 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
   const prepared=[];let decisionApplied=false;
   for(const f of files) {
    activeFile=f;
-   const raw=await adapter.read(f), remote=text(raw), local=text(fs.readFileSync(f.localPath));
+   const raw=await adapter.read(f), remote=text(raw), source=fs.readFileSync(f.localPath), local=text(source);
    if(recoveryObservations){const observed=recoveryObservations.find(x=>x[0]===f.remotePath);if(observed[1]!==hash(raw)||observed[2]!==hash(fs.readFileSync(f.localPath)))stop('recovery-confirmation-expired',{file:f.relative});}
    const base=baseline(repo,state.base,f.relative), previous=targetState.files[f.remotePath];
    const token=digest(JSON.stringify({repo:loc.repo,demand,base:state.base,local,remote,previous:previous||null,target:key,file:f.remotePath}));
@@ -193,8 +185,8 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
    targetState.pending={file:f.relative,token,base,local,remote};
    try {
     const selected=choose(base,local,remote,previous,allowed);
-    validate(f.relative,selected.content,base,remote);
-    prepared.push({...f,...selected,local,expected:hash(raw),skip:remote===selected.content,bytes:remote===selected.content?raw:selected.content===local?fs.readFileSync(f.localPath):Buffer.from(selected.content),token});
+    validate(f.relative,selected.content,previous?previous.deployed:base,remote);
+    prepared.push({...f,...selected,local,source,expected:hash(raw),skip:remote===selected.content,bytes:remote===selected.content?raw:selected.content===local?source:Buffer.from(selected.content),token});
    }catch(e){if(e instanceof Attention)e.details={...e.details,file:f.relative,token,localHash:hash(local),remoteHash:hash(raw),base:state.base};throw e;}
   }
   if(['merge','overwrite'].includes(decision?.action)&&!decisionApplied)stop('decision-expired');
@@ -214,17 +206,33 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
    write(loc.file,state);
   }
   activeFile=undefined;
-  await adapter.compile(prepared);
-  for(const f of prepared){activeFile=f;if(text(await adapter.read(f))!==f.content)stop('post-compile-source-changed',{file:f.relative});}
+  compilation=await adapter.compile(prepared);
+  if(compilation && compilation.status!=='compiled')stop('compile-failed',{compilation});
+  compiled=true;
+  const plans=await require('./storage-sync').reconcile(prepared,adapter,{
+   onFile:f=>{activeFile=f;},
+   beforeWrite:plans=>{
+    if(JSON.stringify(snapshot(repo,files))!==JSON.stringify(before))stop('local-source-changed');
+    for(const p of plans)targetState.files[p.file.remotePath].deployed=p.compiled;
+    write(loc.file,state);
+   },
+   onSynced:p=>{
+    storageSynced.push(p.file.remotePath);
+    targetState.files[p.file.remotePath].local=text(p.bytes);
+    write(loc.file,state);
+   }
+  });
   activeFile=undefined;
-  if(JSON.stringify(snapshot(repo,files))!==JSON.stringify(before))stop('local-source-changed');
+  const expected={...before,files:plans.map(p=>[p.file.localPath,hash(p.bytes)])};
+  if(JSON.stringify(snapshot(repo,files))!==JSON.stringify(expected))stop('local-source-changed');
   targetState.status='verified'; delete targetState.attention; delete targetState.pending; write(loc.file,state);
-  return {status:'verified',files:prepared.map(f=>({file:f.relative,sha256:hash(f.bytes),merged:f.merged,status:f.skip?'unchanged':'uploaded'})),sourceUnchanged:true};
+  return {status:'verified',compilation,localStorageSync:{status:'verified',files:storageSynced},files:plans.map(p=>({file:p.file.relative,sha256:hash(/\.(cls|mac|inc)$/i.test(p.file.remotePath)?p.compiled:p.file.bytes),localSha256:hash(p.bytes),storageSynced:p.synced,merged:p.file.merged,status:p.file.skip?'unchanged':'uploaded'})),sourceUnchanged:storageSynced.length===0};
  }catch(e){
   adapter.recordFailure?.(activeFile,e);
   let sourceUnchanged;
   if(before){try{sourceUnchanged=JSON.stringify(snapshot(repo,files))===JSON.stringify(before);}catch{sourceUnchanged=false;}}
-  const result=needsInput(e instanceof Attention?e.reason:'transport-or-compile-failed',e instanceof Attention?e.details:{},{sourceUnchanged,partialOrUnknown:attempt,stateFile:loc.file});
+  const result=needsInput(e instanceof Attention?e.reason:'transport-or-compile-failed',e instanceof Attention?e.details:{},{sourceUnchanged,partialOrUnknown:attempt,stateFile:loc.file,
+   ...(compiled?{remoteCompilation:'compiled',compilation,localStorageSync:{status:'incomplete',files:storageSynced}}:{})});
   if(state&&targetState){targetState.status=attempt||['writing','failed-or-unknown'].includes(targetState.status)?'failed-or-unknown':'needs-user-input';targetState.attention=result;write(loc.file,state);}
   return result;
  }finally{fs.closeSync(fd);fs.unlinkSync(lock);}
