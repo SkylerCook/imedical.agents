@@ -6,6 +6,8 @@
 
 连续验收使用 [demand-acceptance](skills/demand-acceptance/SKILL.md)：用户逐号给出结论，Agent 持续接收、按目标仓库串行交付，报告可独立整理。人工通过和实际交付分别汇总；BOS 多需求号列表固定为数量在块外、`text` 块内单行升序去重、半角逗号无空格。优先复用已有台账，明确批次按需使用 [验收索引协议](references/acceptance-session.md)；不改变正式任务编排。BOS 日志阶段条件使用 bos-plugin，不增加通用提交的强制依赖。
 
+`demand-acceptance` 新任务默认验收当前工作区修改；`demand-acceptance --worktree [路径]` 从已确认的来源接收变更，兼容 `-worktree`。这是技能层参数，索引脚本不接收该开关；接续、映射和授权边界见技能“代码来源”。已有工程正常更新能力包并刷新已启用索引，无配置迁移或旧文件清理。
+
 `--plan` 只生成消息与计划；`--commit` 表达本地提交授权并执行 plan/apply/verify，均不包含 push。交付类型来自当前用户或项目约定，缺失时补问。
 
 需要 Node.js >=22.5.0（Agent 工具链依赖）。新项目按项目上下文维护流程将本插件标为 enabled 后刷新 thin-index；没有初始化凭据或领域配置。旧入口迁移、数据协议和部署步骤见 [迁移说明](../../docs/demand-delivery-migration.md)。

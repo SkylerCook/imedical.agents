@@ -1,6 +1,6 @@
 {
   "name": "demand-delivery-plugin",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "displayName": "Demand Delivery Plugin",
   "description": "跨技术栈的数字需求号提交与连续人工验收、逐号交付恢复。",
   "entry": "AGENTS.md",

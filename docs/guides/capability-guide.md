@@ -71,6 +71,8 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 > 我逐号报验收结论，你持续登记并交付。此前明确授权范围内的通过项依次提交、补 BOS 日志并 push，报告整理不阻塞下一条。汇总时分别给人工通过和已交付编号，用能直接粘贴到 BOS 的单行逗号格式。
 
+新任务用 `demand-acceptance` 验收当前工作区；从其他 worktree 接收变更用 `demand-acceptance --worktree`，或 `demand-acceptance --worktree "<来源路径>"`（兼容 `-worktree`）。来源与目标核实后才合入；当前目录是 worktree 不代表要合回其他仓库。接续已有批次保留原映射，参数不授予交付或清理权限。
+
 已有授权复用，缺少具体动作授权时只推进可独立执行的部分。默认复用台账；需要批次恢复时读 [验收索引协议](../../plugins/demand-delivery-plugin/references/acceptance-session.md)。更新能力包后刷新 thin-index 即可发现新入口，不自动部署业务改动或启动批次。
 
 ## Rule、reference 和脚本怎么用

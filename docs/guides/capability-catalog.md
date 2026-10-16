@@ -37,7 +37,7 @@
 | Skill | 用途 | 类型 |
 |---|---|---|
 | [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md) | standard/project 提交计划、本地提交与验证，无 IRIS 配置依赖 | 日常入口 |
-| [demand-acceptance](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md) | 连续人工验收、逐号交付恢复与 BOS 编号汇总 | 批量验收入口 |
+| [demand-acceptance](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md) | 连续人工验收、逐号交付恢复与 BOS 编号汇总 | 默认当前工作区；`--worktree [路径]` 指定来源 |
 
 接入与旧入口兼容见 [迁移说明](../demand-delivery-migration.md)。
 
