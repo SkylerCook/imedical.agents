@@ -37,6 +37,7 @@ related:
 ## ObjectScript 风格
 
 - 命名、缩写、缩进、控制结构和后条件空白统一遵循[CLS 规范](../references/cls-coding-format.md)，历史风格不自动覆盖规范。
+- 新增注册类/非表模型、类方法、实例方法及变量时，按同一规范的[注释约定](../references/cls-coding-format.md#注释与空行) 核对职责、参数/返回契约、结构引用及自然语言变量说明；按实际填写适用标签，Debug 在文档提取或 Review 时不执行。
 - 必填参数校验优先用 `$g(param)=""`，避免未传参时报 `<UNDEFINED>`。
 - `%DynamicObject` 属性不能用 `$g()`，直接点号访问并按对象语义判断。
 
@@ -56,7 +57,7 @@ related:
 
 ## 持久化类字段变更
 
-- 新增持久化表类、属性或索引时，按 [CLS 表类注释约定](../references/cls-coding-format.md#持久化表类注释) 编写并 Review 业务名称、SQL 表名和说明；历史代码范围与编译授权沿用原边界，不把通用方法注释套成表结构标签。
+- 新增持久化表类、属性或索引时，按 [CLS 表类注释约定](../references/cls-coding-format.md#持久化表类注释) 核对业务名称和 SQL 投影，属性的补充说明及索引注释按实际需要填写；非表类不套用 Table 标签，历史代码范围和编译授权沿用原边界。
 - `%Persistent` 类新增 `Property` 时必须追加到已有属性末尾，不得插入历史字段中间。
 - 不要手工改写或重排 `Storage Default` 的 `<Value>` 节点；Storage 由 IRIS 编译器按类定义重新生成。
 - 历史数据按 `$lg(global(id), position)` 等位置语义存储时，中间插入字段会造成旧数据错位；无法确认存储结构时，先停下来核对 Storage 和已有数据形态。

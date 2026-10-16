@@ -8,7 +8,7 @@
 
 Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/cls-coding-format.md)：修改前加载、最终 diff 后复核。独立 Review 接收该规范路径与项目显式覆盖，格式规范只用于本次新增代码，已有代码的功能修改不附带格式化；可选格式自检仅提示，不作为提交门禁。
 
-新增持久化表类、属性或索引时，加载同一规范中的 [表类注释约定](references/cls-coding-format.md#持久化表类注释)，由 Agent 核对业务标签、实际 SQL 投影与历史兼容；现有格式脚本不承担标签或表结构文档生成校验。
+新增注册类/非表模型、表类、成员或变量时，加载同一规范的 [ObjectScript 注释约定](references/cls-coding-format.md#注释与空行)，由 Agent 核对职责、业务标签、参数/返回契约及结构引用；现有格式脚本不承担注释语义校验或表/接口文档生成。
 
 ## 插件定位
 

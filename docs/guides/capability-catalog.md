@@ -102,7 +102,7 @@ IRIS 前后端开发、知识查询、需求提交与部署。详见[插件说�
 | 入口 | 中文用途 | 入口类型 |
 |---|---|---|
 | [coding-iris-init](../../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md) | 初始化 IRIS 编码能力 | 纯初始化，直接读取源文件 |
-| [iris-backend-coding](../../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md) | 按统一命名、格式及表类注释规范实现、复核 ObjectScript 后端 | 日常入口 |
+| [iris-backend-coding](../../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md) | 按统一命名、格式及类/方法/变量注释规范实现、复核 ObjectScript 后端 | 日常入口 |
 | [iris-coding](../../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md) | 路由混合或边界不明的 IRIS 开发 | 日常入口 |
 
 

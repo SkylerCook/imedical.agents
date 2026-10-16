@@ -24,7 +24,7 @@
 
 - 最近维护回看覆盖 `e964d0e..da28585`（2026-10-15）：需求交付拆分、BOS 查询/补录、HISUI 更新兼容、验收运行时与夜跑门禁；本轮补齐停止领新判据和 CI 路径覆盖，提交索引和验证范围见维护日志。
 - `bos-plugin` 0.6.0：查询开放全部已声明字段，人员/组可切换口径；默认“我的待办”保留，旧空 cuser 的调用迁移及验证边界见 usage“查询参数契约”。需求处理的全部本地提交 verified 后，workflow 精确复用 repo/hash 自动准备代码日志计划，再复用明确 BOS 预授权或请求一次授权；失败保留本地提交，未知结果先核对，已确认成功不重复写入。个人配置沿用 BOS_MCP_CONFIG 的仓外文件，按 skill 分段、凭据独立，旧平铺格式仅显式 migrate-config 转换。处理时主动读取相关媒体；简单需求连续实施、自查和目标验证，IRIS 专项直达，正式协作条件加载。普通更新不修改个人配置或客户端；接入与配置核对见插件 usage/adoption，Windows 验证见维护日志，真实宿主/BOS 及非 Windows 矩阵分开取证。
-- 编码规范：CLS 与前端分别以 coding-iris-plugin 的 `references/cls-coding-format.md`、`references/frontend-coding-format.md` 为事实源；只约束真正新增代码，原有代码的功能修改不附带格式化。新增持久化表类/属性/索引的业务标签和 SQL 投影核对归 CLS 注释章节，保留历史别名和声明/Storage；由 Agent Review 检查，不新增文档生成器或脚本门禁。JS 页面组织模板可选，按实际容器能力选用；Review 对照修改前源码，不把 diff 的 + 行等同新增。
+- 编码规范：CLS 与前端分别以 coding-iris-plugin 的 `references/cls-coding-format.md`、`references/frontend-coding-format.md` 为事实源；只约束真正新增代码，原有代码的功能修改不附带格式化。注册类/DTO 与表类职责、成员标签、方法参数/返回结构及自然语言变量说明归 CLS 注释章节；非表类不填 Table，Param 按参数名区分，属性说明和索引注释按需，保留完整方法头/空参调试示例与历史兼容，Debug 不执行。由 Agent Review 核对，不新增文档生成器或脚本门禁。JS 页面组织模板可选，按实际容器能力选用；Review 对照修改前源码，不把 diff 的 + 行等同新增。
 - 提交：成功 pull 后仅对 commit 临时关闭重复 upstream 检查，其余钩子保留；Junction/SourceRoot 物理归属及预授权规则见提交 skill。版本与功能证据按内容复用；已登记历史债务沿 backlog 处理，不重复阻断无关提交。
 - 文档与能力手册：项目入口 `docs/README.md`，源仓入口 `maintenance/README.md`；非 xc 能力见 `docs/guides/capability-catalog.md`、`capability-guide.md`，xc 手册列入 P2。迁移与旧受管副本收敛见 `maintenance/governance/documentation-layout.md`。
 - 项目上下文：Overlay 允许按需只读调查已声明或注册表映射的源码仓库，写入仍受 SourceRoot 和授权约束。初始化、事实维护、日常优化分别路由，普通更新不覆盖项目入口；知识库路由及旧入口迁移见 `docs/update-agents.md`。
@@ -46,7 +46,7 @@
 
 - 能力源分为厂商无关的 `agents/`、`workflows/`、可复用 `plugins/` 与根级 `skills/`；工具专属配置只作为 adapter。源仓 `.agents/skills/agent-kit-maintenance/` 是维护者专用入口。
 - 当前有 17 个插件、0 个根级独立 skill。插件版本以 manifest 为准，独立 skill 版本以 frontmatter 为准；内部内容继承 owner 版本。发布记录不可变且不部署，版本 validator 不接入业务安装/更新/hook。
-- `coding-iris-plugin` 当前 v0.19.4：增加纯导入 Broker 客户端、严格 TLS/超时/授权与非交互 stdin 入口，旧人工 CLI 保留兼容；六个直接依赖 owner 仅扩大兼容范围并递增 patch。Windows 部署会话初始化对 Git 根目录长路径和 8.3 短路径按物理路径比较，既有会话状态不迁移；standard 需求录入使用简洁三段式与 v2 草稿，依赖兼容范围以各 owner manifest 为准。保留共享知识检索、项目菜单同步与产物路径门禁；前端 canonical 编码为 `utf8`，实际字节检测是最终门禁；真实 GB2312/mixed/unknown 不自动转码，明确 backend-only Overlay 为 `N/A (backend-only)`。CLS 提供统一命名与格式规范、Agent Review 与可选自检；循环退出的 q 参数约束见规范后条件章节，由编码与 Review 核对，现有自检不作语法校验，不增加编译证据或提交门禁。
+- `coding-iris-plugin` 当前 v0.19.5：增加纯导入 Broker 客户端、严格 TLS/超时/授权与非交互 stdin 入口，旧人工 CLI 保留兼容；六个直接依赖 owner 仅扩大兼容范围并递增 patch。Windows 部署会话初始化对 Git 根目录长路径和 8.3 短路径按物理路径比较，既有会话状态不迁移；standard 需求录入使用简洁三段式与 v2 草稿，依赖兼容范围以各 owner manifest 为准。保留共享知识检索、项目菜单同步与产物路径门禁；前端 canonical 编码为 `utf8`，实际字节检测是最终门禁；真实 GB2312/mixed/unknown 不自动转码，明确 backend-only Overlay 为 `N/A (backend-only)`。CLS 提供统一命名与格式规范、Agent Review 与可选自检；循环退出的 q 参数约束见规范后条件章节，由编码与 Review 核对，现有自检不作语法校验，不增加编译证据或提交门禁。
 - CSP 编译固定到 `compile-csp.js` 的 Atelier 通道；`deploy-frontend.js` 的 direct/guarded 共用单连接传输、替换前复核、逐文件最终校验与完整结果，提供阶段进度/计数；保留 guarded 编译后检查，默认本地计划、显式执行，不自动重试或扩展父页面。竞争窗口、强杀恢复及耗时口径见工具 README；真实服务器性能仍待独立授权验证。SFTP vendor 新项目默认禁用，更新自动迁移可识别的既有标准启动参数，显式 custom/自定义参数保留，不创建服务或安装 Python 依赖。
 - `iris-cure-form-dev`：当前版本和兼容范围以 owner manifest 为准；任务产物与运行态统一归目标项目 `docs/work/cure-form/<task>/`，快照/敏感证据归同任务 private；配置/规则仍在 `.agents/`。自动/手动部署与版本化克隆/显式原 RowID 覆盖分别选择。新模板不使用灰度，采用克隆的既有模板按引用拓扑收尾，原 ID 覆盖不调用 consolidate。显式旧输出路径保持兼容，不迁移既有备份。
 - 表单部署的 `transaction-package` / `lightweight-sql` 通道独立于 automatic/manual；轻量通道只服务已有独占单模板 content。固定 SQL 绑定兼容层保留单行事务门禁，授权样本验证不代表全部服务器/HIS 验收。

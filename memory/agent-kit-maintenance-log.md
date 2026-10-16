@@ -1,5 +1,9 @@
 # imedical.agents 维护日志
 
+- 2026-10-16（注册类、方法与变量注释，framework-maintenance）：coding-iris-plugin 0.19.5 重整 CLS 注释章节，明确非表注册类/DTO 的 Name/Description、表类 Table 与实际投影、ClassMethod/Method 的参数/返回/副作用与结构引用，以及自然语言变量说明。按已确认新稿将属性 Description 和索引注释改为按需，Param 按参数名重复，其余标签单次声明；保留完整方法头的空参、返回状态及 Debug 调用形式，用通用类名承载，示例错误码不提升为通用契约。
+  - 同步：注册类模板只补注释，原类声明/签名/方法体保持；后端规则/skill、owner AGENTS/README、根 README、能力手册、维护摘要/队列及新 patch 发布记录对齐。既有循环退出约束保留；未实现标签解析器或文档生成器，Debug 不执行，真实宿主执行观察沿原 P2 队列。长期决策、安装/更新/索引机制不变；正常更新能力包及已启用入口，无配置迁移或旧文件清理。未提交、未同步业务副本或执行远程调用。
+  - 验证：注册类模板 LF/CRLF 专项 1/1、部署文档链接/入口清单 1/1 及嵌入表类示例边界检查通过；去除文档注释后逐字对比模板与 HEAD，类声明/签名/方法体不变，CLS 注释章节之前的规范（含循环退出约束）完全保持。按注册类/表类分类、方法参数去重/续行、返回结构引用、变量说明位置及完整 Debug 不执行进行语义复核；未运行 IRIS 编译或新增注释解析器测试。工作区组件审计识别 0.19.4→0.19.5，无本次新增问题；退出 1 仅来自已登记且未修改的 xc 发布记录历史债务。未暂存或提交，真实宿主执行仍在既有 P2 队列，本轮无临时文件。 用户后续授权 c + p，复用本轮模板/示例与文档验证，补查精确暂存及组件版本门禁，按仓库 README 同步 origin/github；实际提交和推送结果以 Git 记录为准。
+
 - 2026-10-16（iris-agentic-dev v1.5.0 升级与偏差收敛，framework-maintenance）：Windows x64 exe 从 v1.4.2 升级至 v1.5.0，官方资产大小 52344832 字节及 SHA-256 `6aee62484c7bb557466778889ba3520aa5ddbb470d99b10803a489f60be9e213` 匹配。既有 8 项 ObjectScript vendor skills 同步至固定提交 `2b3e017b7fc73d6370fc1e89e7fa03f3de49a1a1`，逐项 Git blob SHA 和 MIT LICENSE 校验通过，保留上游原文及 optional 加载。
   - 同步：coding-iris-plugin 0.19.4 对齐 AGENTS/README、能力矩阵、查询/文档路由及 v1.5.0 响应、截断、会话与退出契约；原生工具语义变化不混同 MCP 外层或 Atelier 响应。根 README、UPSTREAM、更新说明、使用指南、维护摘要/队列及 patch 发布记录同步，目录清单入口不变。用户级已有技能仅复用，不自动刷新或覆盖；项目部署/Storage/远程授权优先于上游示例。
   - 验证：PS7/Windows PowerShell 5.1 helper 与 lookup 专项均通过；lookup 覆盖固定技能 blob、manifest optional 解析及 thin-index DryRun，已移除旧插件 0.4.0 断言并更新固定来源。Node CLI/schema 3/3、部署文档链接 1/1 通过；断连工具数为默认 70、opt-in 81。六个直接依赖范围均接纳 0.19.4。工作区组件审计识别本次合法 patch，无新增问题，仅报告既有 xc 1.0.2–1.0.4 缺 commit 的六项历史问题，未修改不可变发布记录。
