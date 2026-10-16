@@ -1,5 +1,7 @@
 # BOS Plugin
 
+0.9.0：新夜跑使用一个多仓 schema 2.1 run，启动前集中取得必需授权并实际预检；运行中异常分支挂起交接。回执、计时和数据处置接入既有执行器，见[决策接口](../../docs/night-policy.md#schema-21-启动契约)。已有 2.0 run 不迁移；正常更新能力包并刷新已启用入口后，由项目显式接入新 profile，无自动业务写入。
+
 跨插件阶段依赖以 manifest 的 availableDependencies 为事实源；触发时按[可用性依赖协议](../../docs/plugin-availability.md)检查，缺口仅阻塞对应阶段，显式 disabled 保留。
 
 为不同技术栈提供 BOS 查询、需求处理和代码更新日志补录入口。使用 Node.js 内置模块，需要 Node.js >=22.5.0；这是 Agent 工具链依赖，不是业务系统生产运行依赖。版本以 manifest 为准。

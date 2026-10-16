@@ -85,6 +85,8 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js scripts/tes
 
 ### 2. compile.js - 后端上传与编译
 
+2.1 夜跑 Overlay 执行 compile.js / deploy-frontend.js 时增加 `--work-item <id> --environment-alias <alias>`，可用 `--run-directory <run>` 复核 Overlay 绑定。启动前完成项目预检，work item 须为 running；门禁通过后自动消费真实回执，缺身份拒绝执行。夜跑 CSP 统一经 deploy-frontend --files，普通 compile-csp 保持兼容。CLS 文档名取文件中的 Class 声明，目录不参与包名推导；无法解析明确停止。
+
 复用项目 Atelier 连接，默认 direct 按指定 .cls/.mac/.inc 本地文件完成条件上传、回读和编译。源码及暂存区保持不变。
 
     node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile.js --project-root . --files src/Sample/Util/Date.cls --execute

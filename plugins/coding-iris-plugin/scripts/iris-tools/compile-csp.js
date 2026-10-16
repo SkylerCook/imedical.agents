@@ -106,6 +106,7 @@ async function main(argv) {
     error.code = 'invalid-workspace-context';
     throw error;
   }
+  if (parsed.execute && context.manifest?.nightRunReference) throw Object.assign(new Error('Use bound deploy-frontend --files for night CSP compilation and receipt'), { code: 'night-managed-frontend-required' });
   const read = file => JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
   const {config, inherited} = require('./project-env').readProjectEnv(context);
   if (inherited) require('./project-env').validateTarget(config,
@@ -121,7 +122,7 @@ async function main(argv) {
 }
 module.exports = {plan, connection, compile, validateResponse, args};
 if (require.main === module) main(process.argv.slice(2)).catch(error => {
-  if (error.code === 'invalid-workspace-context') {
+  if (['invalid-workspace-context', 'night-managed-frontend-required'].includes(error.code)) {
     console.error(JSON.stringify({schema: 'iris-csp-compile/v1', status: 'blocked', reason: error.code}));
     process.exitCode = 1;
     return;

@@ -101,7 +101,7 @@ function classifyFile(descriptor, config) {
     if (ext === '.cls' || ext === '.mac' || ext === '.inc') {
         const relWithoutSrc = sourceRelative.replace(/^src\//i, '');
         item.kind = 'iris-class';
-        item.documentName = relWithoutSrc.replace(/\//g, '.');
+        item.documentName = ext === '.cls' && item.exists ? require('./backend-document').documentName(physicalPath, fs.readFileSync(physicalPath, 'utf8')) : relWithoutSrc.replace(/\//g, '.');
         item.requiresStorageStrip = false;
         if (item.exists && ext === '.cls') {
             const content = fs.readFileSync(physicalPath, 'utf8');

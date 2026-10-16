@@ -1,5 +1,7 @@
 # Workspace Overlay 部署与恢复 Runbook
 
+夜跑可显式填写可选 `nightRunReference` 绑定唯一 run；由 night-workspace 的绝对 runReference 生成并复核。受管部署/编译/验收入口要求 work item 身份，详见[夜跑契约](night-policy.md#schema-21-启动契约)。普通 Overlay 无此字段时保持原行为。
+
 部署配置例外：IRIS 部署可通过 manifest 的可选 `projectEnvFallback` 显式声明回退文件；仅模块配置不存在时读取，不改变任何根边界。详见 [IRIS 部署配置继承](../plugins/coding-iris-plugin/rules/iris_deploy_checklist.md#部署配置继承)。
 
 

@@ -4,7 +4,7 @@
 
 正式 AGENT workflow 管理任务图、角色、会话、通信、交接、调度、恢复和验证；它不等于启动 subagent。`iris-coding` 等 skill 为提效而使用的最多两个临时只读子 Agent 不创建 run，主 Agent 保持唯一写入者。
 
-新 run 使用 schema `2.0`。历史 `1.0–1.2` 仅支持 `status` 和 `validate`，不会原地重写。
+普通新 run 使用 schema `2.0`；新夜跑使用显式 `preflight-only` 的 schema `2.1`，先运行 `agent-orchestrator.js capabilities` 探测宿主运行时支持。既有 `2.0` 沿用原行为，历史 `1.0–1.2` 仅支持 `status` 和 `validate`，均不原地迁移。2.1 多仓、授权和回执契约见[夜跑决策接口](night-policy.md#schema-21-启动契约)。
 
 ## CLI
 

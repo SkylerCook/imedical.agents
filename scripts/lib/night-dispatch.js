@@ -7,6 +7,7 @@ const { normalizePolicy, assessDemand, summarizeHumanBudget, selectAuditSample }
 const { worktreeFingerprint } = require('../validation-evidence');
 const { normalizeQuotaPolicy, assessQuota, sanitizeQuotaSnapshot } = require('./night-quota');
 const { checkWorkspace } = require('../night-workspace');
+const contract = require('./night-contract');
 const PHASES = ['implementation', 'review', 'deployment', 'verification', 'cleanup'];
 const digest = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const nonempty = value => typeof value === 'string' && value.trim();
@@ -42,17 +43,19 @@ function initializeNight(plan, planFile) {
     return { schema: 'imedical-night-decisions/v1', batchId: batch.batchId, policy,
         ...(batch.quotaPolicy ? { quotaPolicy: normalizeQuotaPolicy(batch.quotaPolicy), quotaSnapshot: null } : {}),
         ...(workspaces ? { workspaces } : {}),
+        ...(batch.policy?.interactionMode === 'preflight-only' ? { interactionMode: 'preflight-only', authorizationReferences: batch.authorizationReferences || {}, requiredCapabilities: batch.requiredCapabilities || [], runReference: batch.runReference ? path.resolve(path.dirname(file), batch.runReference) : null } : {}),
         limits: { stopClaimingAt: limits.stopClaimingAt, stopPublishingAt: limits.stopPublishingAt, stopAt: limits.stopAt }, demands: [], shared: { timingSegments: [], reassessments: [] }, humanReassessments: [], audit: null };
 }
 
 function validateNightItems(manifest) {
     if (!manifest.night) return;
+    contract.validateItems(manifest);
     if (manifest.night.workspaces) {
         const samePath = (a, b) => process.platform === 'win32' ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase() : path.resolve(a) === path.resolve(b);
         for (const workspace of manifest.night.workspaces) {
             const owner = manifest.participants.find(item => item.id === workspace.ownerId);
             if (!owner) throw new Error('Workspace preflight owner is not a participant');
-            if (owner.worktree?.mode === 'isolated' && (!path.isAbsolute(owner.worktree.ref || '') || !(workspace.plan.repositories || []).some(repo => samePath(repo.target, owner.worktree.ref)))) throw new Error('Participant worktree differs from workspace preflight plan');
+            if (!contract.strict(manifest) && owner.worktree?.mode === 'isolated' && (!path.isAbsolute(owner.worktree.ref || '') || !(workspace.plan.repositories || []).some(repo => samePath(repo.target, owner.worktree.ref)))) throw new Error('Participant worktree differs from workspace preflight plan');
         }
     }
     for (const item of manifest.workItems) {
@@ -71,10 +74,10 @@ function validateSourceCoverage(manifest, record) {
     if (!record.assessment?.post) return;
     for (const item of work.filter(item => item.writeScopes.length)) {
         const owner = manifest.participants.find(p => p.id === item.ownerId);
-        const root = owner?.worktree?.mode === 'isolated' ? owner.worktree.ref : manifest.repositoryRoot;
+        const root = contract.repositoryRoot(manifest, item);
         if (!root || !path.isAbsolute(root)) throw new Error('Source owner repository required');
         for (const scope of item.writeScopes) {
-            if (!(record.sourceScopes || []).some(source => path.resolve(source.repoRoot) === path.resolve(root) && source.scopes.some(parent => parent === '.' || scope === parent || scope.startsWith(`${parent}/`)))) throw new Error('Post assessment does not cover planned source writes');
+            if (!(record.sourceScopes || []).some(source => (contract.strict(manifest) ? contract.physical(source.repoRoot) === contract.physical(root) : path.resolve(source.repoRoot) === path.resolve(root)) && source.scopes.some(parent => contract.strict(manifest) ? contract.contains(parent, scope) : parent === '.' || scope === parent || scope.startsWith(`${parent}/`)))) throw new Error('Post assessment does not cover planned source writes');
         }
     }
 }
@@ -116,7 +119,16 @@ function updateNight(manifest, input, actor) {
     if (actor !== manifest.coordinatorId) throw new Error('Night records require coordinator actor');
     requireEvidence(input);
     const night = manifest.night;
-    if (input.kind === 'quota') {
+    if (input.kind === 'preflight-start') {
+        if (!contract.strict(manifest)) throw new Error('Managed preflight requires schema 2.1');
+        if (night.preflight) night.preflight.revoked = true;
+        night.preflightAttempt = { status: 'running', startedAt: new Date().toISOString(), evidenceRefs: input.evidenceRefs };
+    } else if (input.kind === 'preflight') {
+        contract.recordPreflight(manifest, input.receipt);
+        night.preflightAttempt = { ...night.preflightAttempt, status: night.preflight.state, finishedAt: new Date().toISOString(), evidenceRefs: input.evidenceRefs };
+    } else if (['operation-start', 'operation-result', 'operation-blocked'].includes(input.kind)) {
+        contract.operationRecord(manifest, input, currentSources, gateNight);
+    } else if (input.kind === 'quota') {
         if (!night.quotaPolicy?.enabled) throw new Error('Quota monitoring is not enabled for this batch');
         const snapshot = sanitizeQuotaSnapshot(input.snapshot);
         if (Date.parse(snapshot.observedAt) > Date.now()) throw new Error('Quota snapshot cannot be from the future');
@@ -129,10 +141,15 @@ function updateNight(manifest, input, actor) {
         if (result.schema !== 'imedical-test-result/v1' || result.demandId !== record.id || !nonempty(result.caseId) || !result.scope || result.version !== record.frozenVersion || !sourcesMatch(record) || !Array.isArray(result.timingSegments)) throw new Error('Test result identity/version/timing mismatch');
         const receiptHash = digest(result);
         if ((record.testReceipts || []).some(receipt => receipt.hash === receiptHash)) return structuredClone(night);
+        if (contract.strict(manifest)) {
+            const op = night.operations?.find(o => o.id === result.binding?.operationId);
+            if (!op || op.phase !== 'verification' || op.status !== 'running' || op.demandId !== record.id || result.binding.workItemId !== op.workItemId || op.frozenVersion !== result.version) throw new Error('Test result requires a matching managed verification operation');
+        }
         if (!['internal-method', 'external-api', 'ui'].includes(result.acceptance?.level)) throw new Error('Real test acceptance level required');
-        record.timingSegments.push(...result.timingSegments);
+        record.timingSegments.push(...result.timingSegments.map(s => contract.strict(manifest) ? { ...s, granularity: 'detail', workItemId: result.binding.workItemId } : s));
         record.testReceipts ||= [];
-        record.testReceipts.push({ hash: receiptHash, evidenceRef: input.resultFile, status: result.status, caseId: result.caseId, scope: structuredClone(result.scope), level: result.acceptance.level });
+        record.testReceipts.push({ hash: receiptHash, evidenceRef: input.resultFile, status: result.status, caseId: result.caseId, scope: structuredClone(result.scope), level: result.acceptance.level, frozenVersion: result.version, ...(result.binding ? { operationId: result.binding.operationId, workItemId: result.binding.workItemId } : {}) });
+        if (contract.strict(manifest) && result.dataDisposition?.verified !== true) record.resources.polluted = true;
         record.resources.pending = result.cleanup?.verified !== true || record.resources.pending;
         record.results.knownDefect = result.failureCategory === 'business' || record.results.knownDefect;
         record.results.unknownWrite = result.failureCategory === 'execution-unknown' || record.results.unknownWrite;
@@ -172,17 +189,26 @@ function updateNight(manifest, input, actor) {
         if (!manifest.participants.some(p => p.id === record.implementationOwnerId)) throw new Error('Unknown implementation owner');
         const previous = night.demands.find(item => item.id === record.id);
         validateSourceCoverage(manifest, record);
-        for (const key of ['timingSegments', 'failures', 'reassessments', 'testReceipts']) appendOnly(previous?.[key], record[key], `demand.${key}`, night.observedAt);
+        for (const key of ['timingSegments', 'failures', 'reassessments', 'testReceipts', 'deploymentReceipts']) appendOnly(previous?.[key], record[key], `demand.${key}`, night.observedAt);
         if (record.assessment?.post) {
             if (!manifest.participants.some(p => p.id === record.assessment.post.reviewerId)) throw new Error('Unknown reviewer');
             if (!sourcesMatch(record)) throw new Error('Post assessment source fingerprint is stale');
         }
+        if (contract.strict(manifest) && record.candidateReady && !['static-review', 'manual'].includes(record.assessment?.post?.route) && !record.testReceipts?.some(r => r.status === 'passed' && r.frozenVersion === record.frozenVersion)) throw new Error('Runtime candidate requires consumed current test receipts');
         if (record.candidateReady && (!assessDemand(record, 'post', night.policy).allowed || !nonempty(record.handoffRef) || !checksComplete(record))) throw new Error('Candidate requires current approved post review, completed minimum checks and handoff');
         if (record.candidateReady && !['static-review', 'manual'].includes(record.assessment.post.route)) {
             const result = record.automatedResult;
             if (result?.status !== 'passed' || result.level !== record.assessment.post.route || result.scopeFingerprint !== record.scopeFingerprint || result.frozenVersion !== record.frozenVersion || !nonempty(result.evidenceRef)) throw new Error('Runtime candidate requires matching automated result');
         }
         if (night.audit && record.candidateReady && record.assessment.post.route === 'static-review' && !night.audit.cohort.some(item => item.id === record.id && item.scopeFingerprint === record.scopeFingerprint && item.frozenVersion === record.frozenVersion)) throw new Error('Frozen audit cohort cannot gain or change static candidates');
+        if (contract.strict(manifest) && previous?.frozenVersion && previous.frozenVersion !== record.frozenVersion) {
+            for (const item of manifest.workItems.filter(w => w.night.demandId === record.id && ['review', 'deployment', 'verification'].includes(w.night.phase) && w.status !== 'skipped')) {
+                const active = night.operations?.some(op => op.workItemId === item.id && op.status === 'running');
+                contract.trackWork(manifest, item, 'blocked');
+                item.status = active ? 'blocked' : 'pending';
+                if (active) record.resources.pending = true;
+            }
+        }
         if (previous) night.demands[night.demands.indexOf(previous)] = structuredClone(record);
         else night.demands.push(structuredClone(record));
     } else throw new Error('Unknown night record kind');
@@ -204,6 +230,7 @@ function nightCompletionIssues(manifest) {
         if (!night.audit.results.some(result => result.id === id && result.status === 'passed') || !sourcesMatch(record) || record.scopeFingerprint !== frozen.scopeFingerprint || record.frozenVersion !== frozen.frozenVersion) issues.push(`night audit not passed or stale: ${id}`);
     }
     for (const record of night.demands) if (record.candidateReady && (!checksComplete(record) || !sourcesMatch(record))) issues.push(`night candidate evidence stale: ${record.id}`);
+    if (contract.strict(manifest)) for (const record of night.demands) if (contract.timingStatus(manifest, record) === 'incomplete') issues.push(`night timing incomplete: ${record.id}`);
     return issues;
 }
 
@@ -245,6 +272,12 @@ function gateNight(manifest, item, now = Date.now()) {
     const record = night.demands.find(r => r.id === demandId);
     if (!record) return { allowed: false, reasons: ['night-assessment-missing'] };
     if (record.blocked === true) reasons.push('demand-blocked');
+    if (contract.strict(manifest)) {
+        if (!night.startedAt && night.preflight?.state !== 'ready') reasons.push('night-preflight-not-ready');
+        if (!night.startedAt && manifest.workItems.some(w => w.status !== 'skipped' && contract.readinessReasons(manifest, w, now).length)) reasons.push('night-startup-preflight-incomplete');
+        reasons.push(...contract.readinessReasons(manifest, item, now));
+        if (contract.timingStatus(manifest, record) === 'incomplete') reasons.push('timing-incomplete');
+    }
     if (night.workspaces) {
         const workspace = night.workspaces.find(entry => entry.ownerId === item.ownerId);
         if (!workspace || !checkWorkspace(workspace.plan).ok) reasons.push('night-workspace-preflight-failed');

@@ -15,6 +15,11 @@
     "sourceRoots"
   ],
   "properties": {
+    "nightRunReference": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Explicit night run binding; managed deployment and acceptance require a matching work item."
+    },
     "schemaVersion": {
       "const": 1
     },

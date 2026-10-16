@@ -82,7 +82,7 @@ test('headless UI: login, navigation, frames, popup, response version, API and c
         timeoutMs: 10000, deadlineAt: Date.now() + 60000, viewport: { width: 1200, height: 800 }, resourceKey: req => ({ '/app.js': 'app', '/popup': 'popup' })[new URL(req.url()).pathname] || null }));
     t.after(() => runner.stop());
     function uiCase(expected) {
-        return specification({ level: 'ui', entry: 'normal-menu', version: expected, createAdapter: ({ context, collector, apiRequest }) => {
+        return specification({ level: 'ui', entry: 'normal-menu', strictData: true, effects: 'read-only', version: expected, createAdapter: ({ context, collector, apiRequest }) => {
             contexts.add(context); let page, visible = false, business = false;
             return adapter({
                 prepare: async () => {

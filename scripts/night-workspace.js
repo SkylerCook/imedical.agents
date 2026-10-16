@@ -48,6 +48,7 @@ function inspectRepository(source, target, revision, allowProgress) {
 }
 function planWorkspace(request, { allowProgress = false } = {}) {
     const businessWorkspace = absolute(request.businessWorkspace, 'businessWorkspace');
+    if (request.runReference) absolute(request.runReference, 'runReference');
     if (!segment(request.batchId) || !segment(request.role) || typeof request.roleOwnerId !== 'string' || !request.roleOwnerId.trim()) throw new Error('Safe batchId, role and explicit roleOwnerId required');
     const origin = resolveWorkspaceContext(businessWorkspace);
     const capabilityRoot = absolute(request.capabilityRoot || origin.capabilityRoot, 'capabilityRoot');
@@ -80,7 +81,7 @@ function planWorkspace(request, { allowProgress = false } = {}) {
     const requiredRules = request.requiredRules || [];
     if (!Array.isArray(requiredRules)) throw new Error('requiredRules must be an array');
     requiredRules.forEach(relative);
-    const manifest = { schemaVersion: 1, mode: 'workspace-overlay', workspace: `${request.batchId}-${request.role}`, contextRoot: '.agents', capabilityRoot, sharedDirectories: ['plugins', 'vendor', 'agents', 'workflows'], localDirectories: ['config', 'rules', 'memory', 'skills', 'scripts', 'work'], sourceRoots: repositories.map(repo => ({ name: repo.name, path: `src/${repo.name}`, target: repo.target, gitRoot: repo.target })) };
+    const manifest = { ...(request.runReference ? { nightRunReference: path.resolve(request.runReference) } : {}), schemaVersion: 1, mode: 'workspace-overlay', workspace: `${request.batchId}-${request.role}`, contextRoot: '.agents', capabilityRoot, sharedDirectories: ['plugins', 'vendor', 'agents', 'workflows'], localDirectories: ['config', 'rules', 'memory', 'skills', 'scripts', 'work'], sourceRoots: repositories.map(repo => ({ name: repo.name, path: `src/${repo.name}`, target: repo.target, gitRoot: repo.target })) };
     return { schema: 'imedical-night-workspace/v1', request: { ...request, businessWorkspace, capabilityRoot, worktreeRoot, entrypointReference, repositories: repositories.map(repo => ({ name: repo.name, sourceRepo: repo.sourceRepo, ref: repo.revision })) }, roleOwnerId: request.roleOwnerId, workspaceRoot, capabilityRoot, originalContextRoot: origin.contextRoot, repositories, requiredSkills, requiredScripts, requiredRules, entrypointReference, contextReferences, manifest, actions: [
         ...repositories.filter(repo => repo.status === 'create').map(repo => ({ executable: 'git', args: ['-C', repo.sourceRepo, 'worktree', 'add', '--detach', repo.target, repo.revision] })),
         { owner: 'agent', action: 'initialize-existing-overlay', script: path.join(capabilityRoot, 'scripts/initialize-workspace-overlay.ps1'), modes: ['DryRun', 'Write', 'Check'], workspaceRoot, instruction: 'Write reviewed manifest, link AGENTS.md to entrypointReference and declared project context files; generate skill/rule thin indexes with existing overlay updater. Never copy credentials or replace local context directories with links.' }
@@ -105,6 +106,7 @@ function checkWorkspace(input) {
         const loaded = JSON.parse(child.stdout);
         issues.push(...loaded.issues.map(item => item.status));
         const context = loaded.context;
+        if (request.runReference && (!context.manifest?.nightRunReference || !same(context.manifest.nightRunReference, path.resolve(request.runReference)))) issues.push('Worker nightRunReference differs from plan');
         if (context.mode !== 'workspace-overlay' || !same(context.capabilityRoot, plan.capabilityRoot)) issues.push('Worker context does not use planned shared capability');
         if (context.sourceRoots.length !== plan.repositories.length || plan.repositories.some(repo => !context.sourceRoots.some(src => src.name === repo.name && same(src.path, path.join(plan.workspaceRoot, 'src', repo.name)) && same(src.target, repo.target) && same(src.gitRoot, repo.target)))) issues.push('Worker SourceRoot/GitRoot differs from plan');
         const entrypoint = path.join(plan.workspaceRoot, 'AGENTS.md');

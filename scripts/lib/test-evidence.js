@@ -73,26 +73,36 @@ function createRequestCollector(source, { early = false, resourceKey = () => nul
   return { setTarget(value) { target = value; }, setPhase(value) { phase = value; }, snapshot, loaded, stop };
 }
 
-async function runTestCase({ demandId, caseId, scope, version, adapter, session, now = Date.now }) {
+async function runTestCase({ demandId, caseId, scope, version, adapter, session, strictData = false, effects = "read-only", dataPolicy, now = Date.now }) {
   if (!caseId || !scope || !version || !adapter) throw new Error('Case, scope, version and adapter required');
   for (const name of ['prepare', 'verifyVersion', 'execute', 'assert', 'sideEffects', 'close']) {
     if (typeof adapter[name] !== 'function') throw new Error(`Missing test adapter: ${name}`);
   }
+  if (strictData && !["read-only", "write"].includes(effects)) throw new Error("Explicit case effects required");
+  if (strictData && effects === "write" && (!["retain", "reset", "delete"].includes(dataPolicy) || typeof adapter.inspectFixtures !== "function" || typeof adapter.finalizeData !== "function")) throw new Error("Write case requires fixture readiness and explicit data disposition adapter");
   const frozenVersion = structuredClone(version);
+  let fixturesVerified = false;
   const result = { schema: 'imedical-test-result/v1', demandId, caseId, scope: structuredClone(scope), version: structuredClone(frozenVersion), startedAt: new Date(now()).toISOString(), status: 'review-pending', assertions: [], evidenceRefs: [], untested: [], failureCategory: null, durations: {}, cleanup: { verified: false } };
   result.timingSegments = [];
+  if (strictData) result.dataDisposition = { policy: dataPolicy || null, status: effects === "read-only" ? "not-applicable" : "pending", verified: effects === "read-only" };
   async function step(name, fn) {
     const start = now();
     try { return await fn(); }
     finally {
       const end = now();
       result.durations[name] = end - start;
-      const phase = ['authentication', 'prepare'].includes(name) ? 'preparation' : name === 'close' ? 'cleanup' : ['execute', 'sideEffects'].includes(name) ? 'execute' : 'evidence';
+      const phase = ['authentication', 'prepare', 'fixtureReadiness'].includes(name) ? 'preparation' : ['close', 'dataDisposition'].includes(name) ? 'cleanup' : ['execute', 'sideEffects'].includes(name) ? 'execute' : 'evidence';
       result.timingSegments.push({ phase, step: name, startedAt: new Date(start).toISOString(), endedAt: new Date(end).toISOString() });
     }
   }
   try {
     if (session && !await step('authentication', () => session.ensureReady())) { result.failureCategory = 'authentication'; return result; }
+    if (strictData && effects === 'write') {
+      const ready = await step('fixtureReadiness', adapter.inspectFixtures);
+      result.fixtureReadiness = ready;
+      if (!ready || !['identityVerified', 'relationsVerified', 'ownershipVerified', 'entryVerified', 'reuseVerified'].every(k => ready[k] === true) || !ready.evidenceRefs?.length) { result.failureCategory = 'environment'; return result; }
+      fixturesVerified = true;
+    }
     if (await step('prepare', adapter.prepare) !== true) { result.failureCategory = 'environment'; return result; }
     if (await step('versionBefore', () => adapter.verifyVersion(structuredClone(frozenVersion))) !== true) { result.failureCategory = 'version'; return result; }
     // No automatic replay: a thrown/unknown write outcome must be independently reconciled.
@@ -101,16 +111,24 @@ async function runTestCase({ demandId, caseId, scope, version, adapter, session,
     if (!Array.isArray(assertions) || !assertions.length) throw new Error('No assertions');
     result.assertions = assertions.map(a => ({ id: a.id, passed: a.passed === true, evidenceRefs: Array.isArray(a.evidenceRefs) ? a.evidenceRefs : [] }));
     result.evidenceRefs = [...new Set(result.assertions.flatMap(a => a.evidenceRefs))];
-    const effects = await step('sideEffects', adapter.sideEffects);
+    const observedEffects = await step('sideEffects', adapter.sideEffects);
     const unchanged = await step('versionAfter', () => adapter.verifyVersion(structuredClone(frozenVersion)));
     if (unchanged !== true) result.failureCategory = 'version';
     else if (result.assertions.some(a => !a.passed)) { result.status = 'failed'; result.failureCategory = 'business'; }
-    else if (effects !== true || result.assertions.some(a => !a.evidenceRefs.length)) result.failureCategory = 'evidence';
+    else if (observedEffects !== true || result.assertions.some(a => !a.evidenceRefs.length)) result.failureCategory = 'evidence';
     else result.status = 'passed';
   } catch {
     result.failureCategory = 'execution-unknown';
     result.untested.push('Reconcile operation outcome before retry; adapter retains protected raw evidence.');
   } finally {
+    if (strictData && effects === 'write' && fixturesVerified) {
+      try {
+        const disposition = await step('dataDisposition', () => adapter.finalizeData({ policy: dataPolicy, status: result.status }));
+        const expected = { retain: 'retained', reset: 'reset', delete: 'deleted' }[dataPolicy];
+        result.dataDisposition = { ...disposition, policy: dataPolicy };
+        if (disposition?.verified !== true || ![expected, 'not-applicable'].includes(disposition.status) || !disposition.evidenceRefs?.length) { result.dataDisposition.verified = false; result.status = 'review-pending'; result.failureCategory ||= 'data-disposition'; }
+      } catch { result.dataDisposition.verified = false; result.status = 'review-pending'; result.failureCategory = 'execution-unknown'; }
+    }
     try { result.cleanup.verified = await step('close', adapter.close) === true; } catch { result.cleanup.verified = false; }
     if (!result.cleanup.verified) { result.status = 'review-pending'; result.failureCategory ||= 'cleanup'; }
     result.finishedAt = new Date(now()).toISOString();

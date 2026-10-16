@@ -1,6 +1,6 @@
 # .agents 安装与更新 Runbook
 
-夜跑分层验收沿既有 workflows、scripts/*.js、scripts/lib 与 coding-iris-plugin 分发；更新不会启动批次或安装 Playwright。debugger 旧 CLI 兼容，新机器入口需项目显式接入；六个依赖 owner 的版本范围同步接纳 coding-iris-plugin 0.18 系列，无私有配置迁移，见 [接入说明](night-acceptance.md)。
+夜跑分层验收沿既有 workflows、scripts/*.js、scripts/lib 与 coding-iris-plugin 分发；更新不会启动批次或安装 Playwright。BOS 0.9 / coding 0.19 的新夜跑显式接入 schema 2.1、单批次多仓绑定和启动前实际预检；六个直接依赖 owner 的范围同步接纳 coding 0.19。正常更新能力包并刷新 enabled 索引后再探测 capabilities；旧 2.0 run 和普通 CLI 保持兼容，无私有配置迁移或额外旧文件清理，见 [接入说明](night-acceptance.md)。
 
 可重复测试与会话维护通过既有 scripts/lib、agents、workflows、docs 分发，无新迁移或旧文件清理；项目 runner 显式接入后才可启用经核实的心跳。异步编排启动与结果消费有新契约，旧 run 不自动升级，见 [测试运行时](testing-runtime.md) 与 [编排手册](agent-orchestration.md)。
 

@@ -93,16 +93,21 @@ function createTestExecutor(options) {
         busy = true;
         const consoleStart = consoleEvents.length, apiStart = apiEvents.length;
         try {
+            if (input.strictData && input.level === 'ui' && (options.headed === true || !options.viewport)) throw new Error('Night UI requires headless executor and explicit viewport');
             if (input.level === 'ui') await ensureBrowser(input.role);
+            if (input.strictData && input.level === 'ui' && options.viewport) {
+                const probe = await bounded(() => context.newPage());
+                try { const actual = await bounded(() => probe.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }))); if (actual.width !== options.viewport.width || actual.height !== options.viewport.height) throw new Error('viewport-not-effective'); } finally { await bounded(() => probe.close(), closeTimeoutMs, true); }
+            }
             const networkStart = collector?.snapshot().length || 0;
             const adapter = await bounded(() => input.createAdapter({ context: input.level === 'ui' ? context : undefined,
                 collector: input.level === 'ui' ? collector : undefined, apiRequest: input.level === 'ui' ? apiRequest : undefined, signal: abortController.signal, session }));
             const wrapped = {};
-            for (const name of ['prepare', 'verifyVersion', 'execute', 'assert', 'sideEffects', 'close']) {
+            for (const name of ['prepare', 'verifyVersion', 'execute', 'assert', 'sideEffects', 'close', ...(input.strictData && input.effects === 'write' ? ['inspectFixtures', 'finalizeData'] : [])]) {
                 if (typeof adapter[name] !== 'function') throw new Error(`Missing adapter: ${name}`);
                 wrapped[name] = (...args) => {
                     if (input.level === 'ui') collector.setPhase(name === 'close' ? 'closing' : name);
-                    return bounded(() => adapter[name](...args), name === 'close' ? closeTimeoutMs : timeoutMs, name === 'close');
+                    return bounded(() => adapter[name](...args), ['close', 'finalizeData'].includes(name) ? closeTimeoutMs : timeoutMs, ['close', 'finalizeData'].includes(name));
                 };
             }
             const result = await runTestCase({ ...input, adapter: wrapped, session: session ? { ensureReady: () => bounded(() => session.ensureReady()) } : undefined });

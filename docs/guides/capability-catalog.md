@@ -47,6 +47,8 @@ BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调
 
 跨技术栈的 BOS 只读查询与已有需求处理，无 IRIS 插件强依赖。详见 [插件说明](../../plugins/bos-plugin/README.md)。
 
+夜跑在既有调度器上使用 2.1 单批次多仓、启动前预检及自动回执，普通 2.0 兼容，见[运行契约](../night-policy.md#schema-21-启动契约)。
+
 | 入口 | 中文用途 | 入口类型 |
 |---|---|---|
 | [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md) | 个人身份初始化、明确接入和项目发现 | 初始化入口 |

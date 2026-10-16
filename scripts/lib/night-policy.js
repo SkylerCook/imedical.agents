@@ -18,12 +18,19 @@ function normalizePolicy(input = {}) {
 function elapsedMinutes(segments, now) {
     if (!Array.isArray(segments)) throw new TypeError('timingSegments required');
     let milliseconds = 0;
+    const intervals = [];
     for (const segment of segments) {
         if (!segment || !['preparation', 'diagnosis', 'execute', 'wait', 'evidence', 'cleanup'].includes(segment.phase) || !text(segment.startedAt) || (segment.endedAt !== undefined && !text(segment.endedAt))) throw new TypeError('Invalid timing segment');
         const start = Date.parse(segment.startedAt);
         const end = segment.endedAt === undefined ? now : Date.parse(segment.endedAt);
         if (!Number.isFinite(start) || !Number.isFinite(end) || end < start || end > now) throw new TypeError('Invalid segment time');
-        if (['preparation', 'diagnosis'].includes(segment.phase)) milliseconds += end - start;
+        if (['preparation', 'diagnosis'].includes(segment.phase)) { milliseconds += end - start; intervals.push([start, end]); }
+    }
+    // 2.1 stage observations may contain detailed subsegments. Count their
+    // actual interval once; legacy unlayered timing retains its original sum.
+    if (segments.some(s => s.granularity === 'stage')) {
+        let end = -Infinity; milliseconds = 0;
+        for (const [start, stop] of intervals.sort((a,b) => a[0]-b[0])) { milliseconds += Math.max(0, stop-Math.max(start,end)); end = Math.max(end,stop); }
     }
     return milliseconds / 60000;
 }

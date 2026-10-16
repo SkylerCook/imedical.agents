@@ -29,30 +29,82 @@ function fixture(t) {
     const request = { businessWorkspace: business, capabilityRoot: cap, batchId: 'batch-1', role: 'developer', roleOwnerId: 'dev', repositories: [{ name: 'backend', sourceRepo: source, ref: runGit(source, ['rev-parse', 'HEAD']) }], requiredSkills: ['check'], requiredScripts: ['scripts/check.js'], contextReferences: [{ path: 'config/plugin_profile.md', source: path.join(business, '.agents/config/plugin_profile.md') }] };
     const targets = [];
     t.after(() => {
-        for (const target of targets) if (fs.existsSync(target)) runGit(source, ['worktree', 'remove', '--force', target]);
+        for (const {target,sourceRepo} of targets) if (fs.existsSync(target)) runGit(sourceRepo, ['worktree', 'remove', '--force', target]);
         assert.equal(path.dirname(root), path.resolve(parent));
         assert.ok(path.basename(root).startsWith('night-workspace-'));
         assert.equal(fs.lstatSync(root).isSymbolicLink(), false);
         fs.rmSync(root, { recursive: true, force: true });
         assert.equal(fs.existsSync(root), false);
     });
-    function setup() {
-        const plan = planWorkspace(request);
-        fs.mkdirSync(path.dirname(plan.repositories[0].target), { recursive: true });
-        runGit(source, ['worktree', 'add', '--detach', plan.repositories[0].target, request.repositories[0].ref]); targets.push(plan.repositories[0].target);
+    function setup(input = request) {
+        const plan = planWorkspace(input);
+        for (const repo of plan.repositories) {
+            fs.mkdirSync(path.dirname(repo.target), { recursive: true });
+            runGit(repo.sourceRepo, ['worktree', 'add', '--detach', repo.target, repo.revision]); targets.push(repo);
+        }
         const context = path.join(plan.workspaceRoot, '.agents');
         fs.symlinkSync(path.join(business, 'AGENTS.md'), path.join(plan.workspaceRoot, 'AGENTS.md'), 'file');
         for (const dir of plan.manifest.localDirectories) fs.mkdirSync(path.join(context, dir), { recursive: true });
         write(path.join(context, 'capability.json'), JSON.stringify(plan.manifest));
         for (const dir of plan.manifest.sharedDirectories) fs.symlinkSync(path.join(cap, dir), path.join(context, dir), 'junction');
         fs.mkdirSync(path.join(plan.workspaceRoot, 'src'));
-        fs.symlinkSync(plan.repositories[0].target, path.join(plan.workspaceRoot, 'src/backend'), 'junction');
+        for (const repo of plan.repositories) fs.symlinkSync(repo.target, path.join(plan.workspaceRoot, 'src', repo.name), 'junction');
         fs.symlinkSync(request.contextReferences[0].source, path.join(context, 'config/plugin_profile.md'), 'file');
         write(path.join(context, 'skills/check/SKILL.md'), '---\nthin-index: true\nsource: .agents/plugins/fixture/skills/check/SKILL.md\n---\n');
         return plan;
     }
     return { root, business, source, cap, request, setup };
 }
+test('one schema 2.1 run gates real multi-repo overlays and automatically consumes executor receipts on repeated runs', async t => {
+    const f=fixture(t), run=path.join(f.root,'run'), other=path.join(f.root,'frontend');
+    write(path.join(f.source,'Smoke.cls'),'Class Fixture.Smoke Extends %RegisteredObject\n{\n}\n');runGit(f.source,['add','Smoke.cls']);runGit(f.source,['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','class fixture']);f.request.repositories[0].ref=runGit(f.source,['rev-parse','HEAD']);
+    fs.mkdirSync(other); runGit(other,['init','-q']); write(path.join(other,'code.txt'),'frontend\n'); runGit(other,['add','.']); runGit(other,['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','fixture']);
+    f.request.runReference=run; f.request.repositories.push({name:'frontend',sourceRepo:other,ref:runGit(other,['rev-parse','HEAD'])});
+    const developer=f.setup(), reviewer=f.setup({...f.request,role:'reviewer',roleOwnerId:'reviewer'});
+    assert.equal(checkWorkspace(developer).ok,true); assert.equal(checkWorkspace(reviewer).ok,true);
+    const phases=['implementation','review','deployment','verification','cleanup'];
+    const input=(name,value)=>{const file=path.join(f.root,name);write(file,JSON.stringify(value));return file;};
+    const policy=input('policy.json',{}), now=Date.now();
+    input('batch.json',{batchId:'batch-1',decisionPolicyReference:policy,runReference:run,authorizationReferences:{deploy:'grant:batch'},workspacePreflightReferences:[{ownerId:'dev',planReference:input('developer.json',developer)},{ownerId:'reviewer',planReference:input('reviewer.json',reviewer)}],policy:{interactionMode:'preflight-only',stopClaimingAt:new Date(now+3600000).toISOString(),stopPublishingAt:new Date(now+7200000).toISOString(),stopAt:new Date(now+10800000).toISOString()}});
+    const workItems=['1','2'].flatMap(id=>phases.map((phase,i)=>({id:id==='1'?phase:`2-${phase}`,ownerId:phase==='review'?'reviewer':'dev',repositoryRoot:(phase==='review'?reviewer:developer).repositories[0].target,dependsOn:i?[id==='1'?phases[i-1]:`2-${phases[i-1]}`]:[],writeScopes:phase==='implementation'?['code.txt','Smoke.cls']:[],kind:phase==='cleanup'?'cleanup':'task',night:{demandId:id,phase,role:'tester',environmentAlias:'synthetic-test',effects:'read-only'}})));
+    for(const id of ['1','2']){const primary=workItems.find(w=>w.id===(id==='1'?'implementation':'2-implementation'));const frontend={...structuredClone(primary),id:id==='1'?'implementation-ui':'2-implementation-ui',repositoryRoot:developer.repositories[1].target,writeScopes:['code.txt']};workItems.push(frontend);workItems.find(w=>w.id===(id==='1'?'review':'2-review')).dependsOn.push(frontend.id);}
+    write(path.join(developer.repositories[1].target,'code.txt'),'frontend change under test\n');
+    const plan={taskKind:'business-demand',coordinatorId:'leader',repositoryRoot:developer.repositories[0].target,nightBatchReference:'batch.json',orchestrationMode:'serial',adapter:'serial',adapterCapabilities:{serial:true},participants:[{id:'leader',role:'coordinator',endpoint:{type:'serial'}},{id:'dev',role:'coding',endpoint:{type:'serial'}},{id:'reviewer',role:'review',endpoint:{type:'serial'}}],workItems};
+    const cli=(command,args=[])=>{const r=spawnSync(process.execPath,[path.resolve(__dirname,'../agent-orchestrator.js'),command,'--run-directory',run,...args],{encoding:'utf8',windowsHide:true});assert.equal(r.status,0,r.stdout+r.stderr);return JSON.parse(r.stdout);};
+    cli('init',['--plan',input('plan.json',plan)]);
+    const {recordNight,loadManifest}=require('../agent-orchestrator'), {currentSources}=require('../lib/night-dispatch'), managed=require('../lib/night-execution'), {runAcceptance,runPreflight}=require('../run-acceptance');
+    const sourceScopes=developer.repositories.map(r=>({repoRoot:r.target,scopes:r.name==='backend'?['code.txt','Smoke.cls']:['code.txt']})), frozen=currentSources({sourceScopes}), evidence={rationale:'Synthetic actual contract exercise',evidenceRefs:['synthetic:source']};
+    const assessment={businessCertainty:'confirmed',risk:'low',changeKinds:['query'],...evidence,reviewerId:'reviewer',minimumChecks:['actual-case'],route:'external-api',...frozen};
+    for(const id of ['1','2'])recordNight(run,{kind:'demand',record:{id,implementationOwnerId:'dev',sourceScopes,...frozen,assessment:{pre:assessment,post:assessment},results:{knownDefect:false,unknownWrite:false},resources:{pending:false,polluted:false},timingSegments:[],failures:[],reassessments:[]},...evidence},'leader');
+    assert.deepEqual(cli('next'),[]);
+    const profileFile=path.join(f.root,'profile.cjs');write(profileFile,'// synthetic fixture\n');
+    const http=require('node:http');let content=['Class Fixture.Old','{','}'],puts=0,compiles=0;
+    const server=http.createServer((req,res)=>{let body='';req.on('data',chunk=>body+=chunk);req.on('end',()=>{if(req.method==='PUT'){puts++;content=JSON.parse(body).content;}if(req.url.includes('/action/compile'))compiles++;res.end(JSON.stringify({status:{errors:[]},result:{content:req.url.includes('/action/compile')?[]:content,ts:'2026-01-01 00:00:00.000',enc:false},console:[]}));});});
+    await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(()=>{server.closeAllConnections();server.close();});
+    const config={iris:{namespace:'TEST'},mcp:{serverName:'iris'}},mcp={mcpServers:{iris:{env:{IRIS_HOST:'127.0.0.1',IRIS_WEB_PORT:String(server.address().port),IRIS_USERNAME:'fixture',IRIS_PASSWORD:'synthetic-only',IRIS_NAMESPACE:'TEST',IRIS_SCHEME:'http'}}}};
+    const configFile=path.join(developer.workspaceRoot,'.agents/config/project-env.json'),mcpFile=path.join(developer.workspaceRoot,'.mcp.json');write(configFile,JSON.stringify(config));write(mcpFile,JSON.stringify(mcp));
+    const profile={options:{projectRoot:developer.workspaceRoot,deadlineAt:Date.now()+60000},preflight:async()=>({environmentAlias:'synthetic-test',cleanupVerified:true,deploymentConfigFingerprint:'configuration',authorizations:[{category:'deploy',reference:'grant:batch',environmentAlias:'synthetic-test',roles:['tester'],scopes:sourceScopes.map(s=>({repoRoot:s.repoRoot,paths:s.scopes}))}],checks:['authentication','role','entry','exit'].map(id=>({id,status:'passed',role:'tester',nonInteractive:true,evidenceRef:'synthetic:actual-probe'}))}),cases:[{demandId:'1',caseId:'actual-case',scope:sourceScopes,level:'external-api',role:'tester',entry:'synthetic-entry',effects:'read-only',createAdapter:()=>({prepare:async()=>true,verifyVersion:async()=>true,execute:async()=>{},assert:async()=>[{id:'actual',passed:true,evidenceRefs:['synthetic:actual-result']}],sideEffects:async()=>true,close:async()=>true})}]};
+    profile.options.configurationFiles=[configFile,mcpFile];const originalPreflight=profile.preflight;profile.preflight=async()=>({...await originalPreflight(),deploymentConfigFingerprint:managed.fingerprint({config,mcp})});profile.cases.push({...profile.cases[0],demandId:'2'});
+    await assert.rejects(runPreflight({...profile,cases:profile.cases.map(c=>({...c,level:'ui'}))},profileFile,run),/UI cases must declare/);
+    const preflight=await runPreflight(profile,profileFile,run);assert.equal(preflight.state,'ready');
+    const transition=(phase,status)=>cli('transition',['--entity','work-item','--id',phase,'--status',status]);
+    for(const phase of ['implementation','implementation-ui','review']){transition(phase,'running');transition(phase,'completed');}
+    transition('deployment','running');
+    const execution={workspaceRoot:developer.workspaceRoot,projectRoot:developer.workspaceRoot,runDirectory:run,workItemId:'deployment',environmentAlias:'synthetic-test',configurationFingerprint:'configuration'};
+    const deploy=workItem=>new Promise((resolve,reject)=>{const child=require('node:child_process').spawn(process.execPath,[path.resolve(__dirname,'../../plugins/coding-iris-plugin/scripts/iris-tools/compile.js'),'--project-root',developer.workspaceRoot,'--files','src/backend/Smoke.cls','--execute','--work-item',workItem,'--environment-alias','synthetic-test'],{windowsHide:true});let out='',err='';child.stdout.on('data',x=>out+=x);child.stderr.on('data',x=>err+=x);const timer=setTimeout(()=>{child.kill();reject(Error('Synthetic deployment timeout'));},30000);child.on('error',e=>{clearTimeout(timer);reject(e);});child.on('close',code=>{clearTimeout(timer);try{assert.equal(code,0,out+err);resolve(JSON.parse(out));}catch(e){reject(e);}});});
+    await deploy('deployment');transition('deployment','completed');
+    transition('verification','running');
+    for(let round=0;round<2;round++){const result=await runAcceptance(profile,{...execution,workItemId:'verification',profileFingerprint:preflight.profileFingerprint});assert.equal(result.status,'scope-passed');}
+    transition('verification','completed');transition('cleanup','running');transition('cleanup','completed');
+    for(const phase of ['implementation','implementation-ui','review']){transition(`2-${phase}`,'running');transition(`2-${phase}`,'completed');}
+    transition('2-deployment','running');const reused=await deploy('2-deployment');assert.ok(reused.reusedOperationId);assert.equal(puts,1);assert.equal(compiles,1);transition('2-deployment','completed');
+    transition('2-verification','running');assert.equal((await runAcceptance(profile,{...execution,workItemId:'2-verification',profileFingerprint:preflight.profileFingerprint})).status,'scope-passed');transition('2-verification','completed');transition('2-cleanup','running');transition('2-cleanup','completed');
+    const validation=require('../validation-evidence'),bindings=sourceScopes.map((source,i)=>{const evidenceFile=path.join(f.root,`validation-${i}.json`);validation.record(source.repoRoot,{suite:'synthetic-managed-acceptance',command:'managed compile CLI and acceptance executor',scopes:source.scopes,evidenceFile});return{repoRoot:source.repoRoot,suite:'synthetic-managed-acceptance',evidenceFile};});
+    cli('transition',['--entity','verification','--status','passed','--verification-file',input('validation-bindings.json',bindings)]);cli('transition',['--entity','acceptance','--status','locally-verified']);cli('transition',['--entity','acceptance','--status','acceptance-pending']);
+    const stored=loadManifest(run);assert.equal(stored.schemaVersion,'2.1');assert.equal(stored.night.demands[0].testReceipts.length,2);assert.equal(stored.night.demands[0].sources.length,2);assert.ok(stored.night.demands[0].timingSegments.filter(s=>s.granularity==='stage').every(s=>s.endedAt));assert.equal(stored.acceptance.status,'acceptance-pending');assert.equal(stored.verification.evidenceSnapshots.length,2);
+    assert.throws(()=>managed.resolveBinding({projectRoot:developer.workspaceRoot}),/identity required/);
+    const another=spawnSync(process.execPath,[path.resolve(__dirname,'../agent-orchestrator.js'),'init','--run-directory',path.join(f.root,'second-run'),'--plan',path.join(f.root,'plan.json')],{encoding:'utf8',windowsHide:true});assert.equal(another.status,1);
+});
 test('plan is read-only, defaults under business and carries explicit owner/source/overlay', t => {
     const f=fixture(t), before=runGit(f.source,['status','--porcelain=v1']), plan=planWorkspace(f.request);
     assert.equal(plan.workspaceRoot,path.join(f.business,'.worktrees/batch-1/developer'));

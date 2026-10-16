@@ -21,6 +21,8 @@ description: Use when an IRIS project needs remote deployment planning, upload, 
 
 配置缺失时停止执行，并报告缺失字段名；不得臆造 namespace、Web 根、host、Cookie 或远端路径默认值。
 
+Overlay 绑定 nightRunReference 时，部署/编译使用已预检的 2.1 run 和 running work item，携带 `--work-item <id> --environment-alias <alias>`，可显式复核 `--run-directory`。入口自动归档回执并核验来源、授权、额度和截止；运行中缺口按夜跑 workflow 挂起交接，不新增授权问题。夜跑 CSP 统一经 deploy-frontend --files 完成，独立 compile-csp 执行会指向该受管入口；普通调用保持兼容。
+
 ## 部署清单
 
 先核实文件与远端目标映射；已有明确文件清单可直接执行部署入口，不额外要求清单文件或审批。需要整理混合文件时使用插件脚本：

@@ -77,7 +77,7 @@ try {
 
   $classItem = $manifest.items | Where-Object { $_.relativePath -eq "src/Sample/Package/Order.cls" }
   Assert-Equals $classItem.kind "iris-class" "CLS files should be classified as iris-class"
-  Assert-Equals $classItem.documentName "Sample.Package.Order.cls" "CLS document name should derive from src path"
+  Assert-Equals $classItem.documentName "Sample.Package.Order.cls" "CLS document name should derive from Class declaration"
   Assert-Equals $classItem.requiresStorageStrip $true "Persistent class with Storage risk should request Storage strip check"
 
   $cspItem = $manifest.items | Where-Object { $_.relativePath -eq "frontend/csp/order.page.csp" }
@@ -127,6 +127,21 @@ try {
   Assert-Equals $frontendItem.relativePath "frontend/src/same.js" "Frontend path must map to WorkspaceRoot logical path"
   Assert-Equals ([System.IO.Path]::GetFullPath($backendItem.gitRoot)) ([System.IO.Path]::GetFullPath($backendRepo)) "Backend item must preserve GitRoot"
   Assert-Equals ([System.IO.Path]::GetFullPath($frontendItem.gitRoot)) ([System.IO.Path]::GetFullPath($frontendRepo)) "Frontend item must preserve GitRoot"
+  $nestedClass = Join-Path $backendRepo "src/WrongFolder/Model.cls"
+  New-Item -ItemType Directory -Force -Path (Split-Path $nestedClass -Parent) | Out-Null
+  [System.IO.File]::WriteAllText($nestedClass, "Class Actual.Package.Model Extends %RegisteredObject {}", [System.Text.UTF8Encoding]::new($false))
+  $nestedJson = & node $scriptUnderTest --project-root $overlayRoot --files "backend/src/WrongFolder/Model.cls" | Out-String
+  Assert-Equals $LASTEXITCODE 0 "Nested module CLS manifest should succeed"
+  $nested = $nestedJson | ConvertFrom-Json
+  Assert-Equals $nested.items[0].documentName "Actual.Package.Model.cls" "Logical module directories must not become class packages"
+  [System.IO.File]::WriteAllText($nestedClass, "// missing Class declaration", [System.Text.UTF8Encoding]::new($false))
+  $previousErrorPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = "Continue"
+    & node $scriptUnderTest --project-root $overlayRoot --files "backend/src/WrongFolder/Model.cls" 2>$null | Out-Null
+    $invalidClassExit = $LASTEXITCODE
+  } finally { $ErrorActionPreference = $previousErrorPreference }
+  Assert-True ($invalidClassExit -ne 0) "Unparseable CLS must fail explicitly"
 }
 finally {
   if (Test-Path -LiteralPath $testRoot) {

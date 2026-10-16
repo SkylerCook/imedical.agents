@@ -13,6 +13,7 @@
 | 打印国际化候选经验 | [案例复盘](validation/cases/print-i18n-case.md) |
 | 医生站 AI 源仓验证 | [维护验证说明](validation/iris-imedical-doctor-ai.md) |
 | 项目工具的源仓验证 | [交接与兼容验证](validation/project-tools.md) |
+| BOS 夜跑 2.1 源仓验证与试点边界 | [验证说明](validation/bos-night-framework-v2.1.md) |
 | 知识资产来源更新 | [知识资产维护](governance/imedical-knowledge.md) |
 | HISUI 固定提交资产升级与校验 | [HISUI 源仓构建](hisui-build/README.md) |
 

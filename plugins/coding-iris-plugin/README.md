@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+0.19.0：夜跑绑定的 compile/deploy-frontend/run-acceptance 在执行前复核预检、授权、多仓来源、额度与截止，并自动归档真实回执。使用 `--work-item <id> --environment-alias <alias>`；run 从 Overlay 取得，可用 `--run-directory` 显式复核。普通非夜跑入口兼容。CLS 清单和部署共用 Class 声明解析，解析失败明确停止。通过正常能力包更新取得，新 profile 接入见[夜跑契约](../../docs/night-policy.md#schema-21-启动契约)，不修改私有配置或自动启动业务测试。
+
 0.17.1：同步 HISUI 固定提交快照的控件/样式索引、源码行号、主题与 locale 清单；版本身份来自 `.agents/vendor/hisui/upstream.json`，资源缺项见 resource-warnings.json。正常能力包更新即可取得参考，实际 HIS 的应用层 helper 和运行版本须按任务核对，无业务源码或配置迁移。
 
 需求提交使用 demand-delivery-plugin 的 demand-commit，标版补录使用 bos-plugin 的 bos-demand-entry；本插件不再提供兼容技能或 CLI。已部署项目由更新器迁移引用与启用状态，见 [迁移说明](../../docs/demand-delivery-migration.md)。

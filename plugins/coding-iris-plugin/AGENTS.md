@@ -2,6 +2,8 @@
 
 后端验收按内部方法、实际 Broker/REST/SOAP 入口及副作用分层；纯后端不强制浏览器，影响前端行为时补 UI。夜跑使用 debugger 的非交互机器入口，见 [分层接入](../../docs/night-acceptance.md)。
 
+2.1 夜跑 Overlay 的 compile/deploy-frontend/run-acceptance 入口必须携带 work item 和环境别名，通过同一 run 门禁并自动归档回执。预检覆盖实际认证、角色、正常入口和退出；数据保留/重置/删除与资源退出分别验证，见[夜跑契约](../../docs/night-policy.md#schema-21-启动契约)。CLS 清单和部署统一从 Class 声明解析文档名，目录只用于定位本地文件。
+
 需求提交使用 demand-delivery-plugin 的 demand-commit，标版补录使用 bos-plugin 的 bos-demand-entry；本插件不再提供兼容技能或 CLI。已部署项目由更新器迁移引用与启用状态，见 [迁移说明](../../docs/demand-delivery-migration.md)。
 
 Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/cls-coding-format.md)：修改前加载、最终 diff 后复核。独立 Review 接收该规范路径与项目显式覆盖，格式规范只用于本次新增代码，已有代码的功能修改不附带格式化；可选格式自检仅提示，不作为提交门禁。
@@ -27,7 +29,7 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 - 历史 CSP/JS/CSS 文件可能存在编码和特殊 EOF，修改前先确认实际编码和尾部格式，避免整文件重写。
 - 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`；`project-utf8` 仅作为兼容读取别名，`standard-gb2312` 仅服务用户明确指定的历史工程，实际文件字节检测始终是最终门禁。Overlay manifest 明确只声明 `backend` 时，profile 使用 `N/A (backend-only)`，不得伪造前端编码结论。
 - 在 workspace-overlay 中统一通过 capability 包的 workspace context resolver 获取 `WorkspaceRoot`、`ContextRoot`、`CapabilityRoot`、`SourceRoot` 和 `GitRoot`；profile 只从 ContextRoot 读取，部署配置按下述显式继承契约选择，插件/模板/vendor 从 CapabilityRoot 读取。允许按当前需求只读调查已声明 GitRoot 或项目注册表明确映射的相关仓库；默认源码修改、Git 暂存/提交和部署仍限定在 SourceRoot 与任务授权内。具体边界遵循能力包根 `docs/workspace-overlay.md`，不得扫描父目录或 sibling 猜测根路径。
-- `compile.js` 接受 workspace-overlay 的 `backend/src/...` WorkspaceRoot 逻辑路径时，必须在声明的 backend SourceRoot target 下解析本地文件，并移除逻辑 `backend/src` 前缀后生成 IRIS 远端文档名；不得把 `src` 误作为类包名。
+- `compile.js` 接受 workspace-overlay 的 `backend/src/...` WorkspaceRoot 逻辑路径时，必须在声明的 backend SourceRoot target 下解析本地文件；CLS 远端文档名从实际 Class 声明解析，不得把逻辑目录误作为类包名。
 
 ## Skill 路由
 

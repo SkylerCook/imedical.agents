@@ -95,7 +95,7 @@ async function execute(plan, upload, compile) {
 }
 
 async function main(argv) {
-  if(argv.includes('--help')) {console.log('Usage: node deploy-frontend.js --project-root <project> [--source-root <frontend-root>] --files <project-relative-files...> [--python <interpreter>] [--known-hosts <file> | --host-key-sha256 <trusted-SHA256:fingerprint>] [--execute] [--mode direct|guarded] [--demand <id>]\nDefault: local plan; authorized execution uses direct mode without a Git session. --demand without --mode retains guarded behavior. Upload/readback precedes CSP compilation. No automatic retries.');return;}
+  if(argv.includes('--help')) {console.log('Usage: node deploy-frontend.js --project-root <project> [--source-root <frontend-root>] --files <project-relative-files...> [--python <interpreter>] [--known-hosts <file> | --host-key-sha256 <trusted-SHA256:fingerprint>] [--execute] [--mode direct|guarded] [--demand <id>] [--run-directory <run> --work-item <id> --environment-alias <alias>]\nDefault: local plan; authorized execution uses direct mode without a Git session. --demand without --mode retains guarded behavior. Upload/readback precedes CSP compilation. No automatic retries.');return;}
   if (argv.includes('--execute') || argv.includes('--demand') || argv.includes('--mode') || argv.includes('--decision')) return require('./deploy-protected').main('frontend', argv);
   const args=parse(argv), context=resolveWorkspaceContext(args.projectRoot);
   if(workspaceContextBlockers(context).length)throw new Error('Invalid workspace context');

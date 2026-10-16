@@ -39,6 +39,8 @@ Coordinator 使用 `agent-orchestrator.js night-record --record <记录文件> -
 
 ## 批次与执行器
 
+新夜跑按 [2.1 启动契约](night-policy.md#schema-21-启动契约) 先集中授权和实际预检，再进入 running。已有 2.0 run 和普通 profile 保持兼容，旧 profile 不自动取得新夜跑资格。
+
 启用决策策略后的输入、计时、源码绑定、抽验和恢复步骤见[夜跑决策接口](night-policy.md)。
 
 目标工程填写 [批次模板](templates/night-run-batch.template.json)，null/空项为待确认，模板不是授权。时间须明确时区且满足停止领取 ≤ 停止发布 ≤ 绝对停止。默认 maxInFlight=1，通知/数据处置引用当前批次策略；旧夜跑时点和业务资料不复制。
@@ -98,6 +100,31 @@ module.exports = async () => ({
 ```
 
 纯后端 profile 只保留第一项，无需 runtimeModule。接口不是 Broker 时沿用实际 REST/SOAP 客户端。assert 必须引用已取得的证据，不使用示例路径作为正式材料。
+
+## 2.1 项目适配与数据成本
+
+profile 可导出 `preflight({signal,createTestExecutor})`，使用同一实际认证、业务角色和正常入口验证能力，并在 finally 有界退出。返回结构见[预检回执](night-policy.md#schema-21-启动契约)。options.configurationFiles 显式列入适配器、环境配置及影响执行的项目文件；自动摘要不保存文件内容。preflight 受 timeoutMs/deadlineAt 限制；超时或退出不明不得启动，先核对探针资源。取消信号必须由适配器响应。
+
+UI case 在启动前的工作项中声明 `night.route: ui`（已有冻结后 UI 评估时可复用），使无头与视口能力进入预检；不能延后到运行时才发现 profile 需要浏览器。实际验收的 options.projectRoot 须为该 work owner 的 Overlay workspaceRoot，异步 profile 工厂可使用传入的 workItem/night 选择项目配置。
+
+新 case 显式 effects；写用例提供 inspectFixtures 与 finalizeData，复用项目原有 fixture authority，不另建通用数据库台账。inspectFixtures 在批量准备前核实业务 RowID、关联记录、精确归属/租约/当前状态和一条完整真实入口，返回 identityVerified/relationsVerified/ownershipVerified/entryVerified/reuseVerified 五项 true 及 evidenceRefs。任何缺口阻止执行，也不调用写处置适配器猜测删除对象。正常操作触及的共享父记录和审计字段纳入预授权，sideEffects 独立前后回读。
+
+检查清单逐项记录结果；在 Windows PowerShell 5.1 中每条原生命令后立即保留并检查退出码，例如以下片段（变量由当前项目填写）：
+
+```powershell
+& node --check $profilePath
+$syntaxExit = $LASTEXITCODE
+if ($syntaxExit -ne 0) { throw "Profile syntax check failed: $syntaxExit" }
+& node $projectCheckScript
+$projectExit = $LASTEXITCODE
+if ($projectExit -ne 0) { throw "Project check failed: $projectExit" }
+```
+
+已知源码范围的编码及条件 i18n 检查在编辑前执行，最终 diff 后复核，继续使用原有领域规则和检查入口，不新增通用检查运行器。
+
+finalizeData 接收 `{policy,status}`，项目返回 `{status: retained|reset|deleted,verified,evidenceRefs}`；无本轮数据时可明确 not-applicable 并附依据。未知写结果先独立回读，不自动重放。处置使用关闭预算，仍须在原授权范围内；随后独立调用 close 退出资源。结果 `dataDisposition` 与 `cleanup.verified` 分开：保留且已核验可以通过，关闭成功不证明数据删除，处置失败也不能隐藏退出失败。
+
+授权测试项目采用同一用例集、角色和数据规模，对 retain、reset、delete 各完成至少三轮全周期，共至少九轮；以项目既有 profile/fixture 适配执行，不建立新调度器。逐轮保留准备、执行、独立读回、处置、资源退出、人工介入次数/耗时，以及运行前后记录数/字节增长。prepare/fixtureReadiness、execute、assert/sideEffects、dataDisposition、close 取实际 durations；人工介入和数据量由项目独立采样，缺项为 unknown。比较各策略总耗时中位数、范围及增长，再由项目选择策略；不同规模、首次造数和重复复用分别统计，不把合成测试当作清理收益。本轮框架测试不执行真实造数或这九轮项目成本试验。
 
 ## UI 与证据
 
