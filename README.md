@@ -27,7 +27,7 @@ Overlay 部署支持模块配置优先、显式主仓配置回退；连接目标
 
 文档入口：[项目使用文档](docs/README.md) · [框架维护资料](maintenance/README.md)。
 
-使用入口：[能力目录（插件 / skill / rule）](docs/guides/capability-catalog.md) · [使用指南（场景选择 / 接入 / 全部技能示例）](docs/guides/capability-guide.md)。当前覆盖非 xc 能力；xc 手册列入后续治理。详细执行契约仍由各插件源文件维护。
+使用入口：[能力目录（插件 / skill / rule）](docs/guides/capability-catalog.md) · [使用指南（场景选择 / 接入 / 全部技能示例）](docs/guides/capability-guide.md) · [连接信息查看与排查](docs/guides/connection-configuration.md)。当前覆盖非 xc 能力；xc 手册列入后续治理。详细执行契约仍由各插件源文件维护。
 
 iMedical 知识资料已接入 [共享参考库](vendor/imedical-knowledge/README.md)：通过 coding-iris-plugin 的 `iris-imedical-knowledge` 按需检索 wiki、菜单与技术资料，`iris-menu-sync` 刷新项目菜单快照。新装/更新沿现有 plugins/vendor 分发，项目资料保留在 ContextRoot；详见 [部署与使用](docs/guides/imedical-knowledge.md)。
 

@@ -1,5 +1,9 @@
 # imedical.agents 维护日志
 
+- 2026-10-17（连接配置查看指南，framework-maintenance）：新增 docs/guides/connection-configuration.md，提供使用者可查的字段位置、读取顺序、常见异常及 Agent 自主定位步骤，避免要求使用者解释目录。覆盖 BOS 私有分段与公司默认地址组合、进程环境继承、客户端注册独立性、IRIS/Overlay 配置来源；不保存个人连接事实，不新增配置中心、图形面板或自动扫描器。
+  - 同步仓库 README、docs 首页、能力使用指南与维护摘要；现有 /docs/** 分发已覆盖，无插件或根级 skill 变化，不递增组件版本，无配置迁移或兼容清理。能力目录、backlog 与长期决策无需调整，未扩展运行时能力或产生新的必做治理事项。
+  - 验证：对照 BOS personal-config.js、usage/client-mcp 与 IRIS project-env.js、工具说明、诊断规则；包含新增文档的 project links resolve 定向测试 1/1 通过，diff check 通过。未测试真实远端或宿主自动发现，未同步业务副本；无临时产物，未暂存、提交或推送。
+
 - 2026-10-17（BOS 按需复用项目能力，framework-maintenance）：bos-plugin 0.10.1 将普通与夜跑的领域选择集中在 BOS workflow，复用项目已启用插件并按当前需求加载，支持不同与混合技术栈。IRIS 专项直达、查询和部署路径保留；不新增配置、全仓扫描、启动审计或预检轮次。夜跑仅列计划所需能力，复用原 worktree 上下文及真实预检，运行时未改。
   - 同步 owner 入口/README、场景清单、能力手册、仓库 README、摘要、P2 真实宿主队列及 patch 发布记录。正常更新并刷新已启用薄索引取得，无配置迁移或旧文件清理；未同步业务副本。
   - 验证：BOS workflow 2/2、夜跑入口与共享路由链接 2/2、IRIS fast-path、部署文档链接 1/1 通过；worktree 上下文/技能正文/脚本/规则与范围预检定向 3/3 通过。首轮因沙箱拒绝 D 盘临时目录失败，获准后隔离运行通过且夹具自行验证清理。工作树组件版本检查识别 0.10.0→0.10.1，仍被 HEAD 已存在的 imedicalxc-doctor-extend-engineer 1.0.2/1.0.3/1.0.4 发布记录缺少 commit 阻断，本次未修改历史记录。未宣称真实 Agent 路由或夜跑耗时已验证，未暂存、提交或推送。

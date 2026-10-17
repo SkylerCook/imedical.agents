@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- 连接信息查看与排查统一入口为 docs/guides/connection-configuration.md，供使用者与 Agent 共用；覆盖 BOS 分段字段、初始化与运行时区别、客户端来源和 IRIS/Overlay 配置边界。只导航现有事实源，不复制私有值或新增扫描器；README、docs 首页与能力指南已接入。
+
 - bos-plugin 0.10.1：普通与夜跑按需求复用项目已启用插件，支持不同及混合技术栈，IRIS 专项及部署路径保留；不新增配置、启动扫描或预检轮次。worktree 继承与运行时不变，真实路由观察见既有场景队列。
 
 - Worktree 创建同时交付审阅入口和固定基点；规范归 docs/guides/worktree-review.md，协作、普通 workflow、Overlay 与夜跑入口共用。复用计划 revision，Git 预检不证明 VS Code 界面可用；无新创建器或 schema，真实双入口验证沿既有队列。

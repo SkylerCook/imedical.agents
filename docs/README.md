@@ -10,6 +10,7 @@
 |---|---|
 | 查插件、skill、rule | [能力目录](guides/capability-catalog.md) |
 | 选择场景、查看请求示例 | [使用指南](guides/capability-guide.md) |
+| 查服务地址、凭据来源或排查配置未生效 | [连接信息查看与排查](guides/connection-configuration.md) |
 | 安装或更新能力包、旧版迁移 | [安装更新](update-agents.md) |
 | 多模块共享能力包 | [Workspace Overlay](workspace-overlay.md) |
 | 创建 worktree 并查看代码差异与历史 | [Worktree 审阅交付](guides/worktree-review.md) |
