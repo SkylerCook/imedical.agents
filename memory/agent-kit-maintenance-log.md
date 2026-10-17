@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+- 2026-10-17（技能适配说明澄清）：适配 runbook 将五个原生支持 `.agents/skills` 的宿主移出链接适配表，前置“无需适配”说明；命令示例只列需要目录接入的宿主，保留显式覆盖的兼容说明。仅调整文档，不改变脚本、插件或配置契约，无需版本递增及新增治理项；文档链接定向检查与 diff check 通过。
+
 - 2026-10-17（扩展项目技能适配，framework-maintenance）：agent-context-kit 0.5.0 将命名宿主从 3 个扩展至 10 个，增加 WorkBuddy/WorkBuddyDonghua/Qoder 目录链接、OpenCode/Cursor/GeminiCLI/GitHubCopilot 通用层复用；Node 支持 Custom 与显式项目发现目录，保留冲突并拒绝越界、Git 元数据和上下文重叠。安装/更新入口参数同步，个人全局技能分发保持独立。项目配置新增可选“技能适配目录”章节和三目录示例，由 skill 读取逐行清单并调用原执行器补缺；不新增解析器或普通更新自动执行。
   - 同步 owner 入口、README、skill、发布记录、适配与更新文档、能力指南和维护队列；能力目录原职责不变，无需改写。Windows 专项 21/21 通过，含 Qoder 链接及 PS5.1/PS7 参数接受、链接实时可见、Custom CLI、冲突/越界、Overlay 与 legacy 防写穿；文档链接 1/1 通过。首轮沙箱 Junction 被 EPERM 阻止，转沙箱外 D 盘隔离夹具通过；系统临时回退夹具与 D 盘测试夹具由测试清理，D 盘任务空目录已删除并复核。工作区版本审计识别 0.4.3→0.5.0，无本轮新增问题；全仓仍由已登记 xc 三份历史发布记录缺 commit 阻断，不修改历史。非 Windows CI 与真实宿主发现/执行仍待验，未同步业务副本，提交推送沿本轮用户 c + p 授权执行，结果以 Git 记录为准。
 

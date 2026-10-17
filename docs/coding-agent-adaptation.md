@@ -2,7 +2,11 @@
 
 统一入口为 `plugins/agent-context-kit/skills/coding-agent-adaptation/SKILL.md`，执行器为 `scripts/sync-runtime-skills.js`。Node.js >=22.5.0 是能力包工具链前置依赖，不是业务系统生产依赖。
 
-## 推荐用法：写清单后执行技能
+## 原生支持：无需适配
+
+**Codex、OpenCode、Cursor、GeminiCLI、GitHubCopilot** 原生发现项目 `.agents/skills`。安装能力包并生成所需技能入口后即可使用，无需复制、建立额外链接或填写适配清单。运行中的宿主可能需要刷新技能或开启新会话。
+
+## 需要额外目录的宿主：写清单后执行技能
 
 在目标项目 `.agents/config/project_context_profile.md` 中添加以下章节，按实际使用的工具保留目录即可；Overlay 使用模块自己的 ContextRoot/config/project_context_profile.md。
 
@@ -22,13 +26,14 @@
 
 示例不是默认启用列表。普通安装/更新不会自动执行这份配置；移除清单条目不会删除旧链接。原生发现 `.agents/skills` 的宿主不必填写。已部署项目更新能力包后手动添加此可选章节，再执行技能；不覆盖既有配置。
 
-## 支持与边界
+## 目录链接适配与边界
 
-| RuntimeAdapter | 项目发现目录 | 策略 |
+以下宿主通过额外的项目目录接入同一批技能；`RuntimeAdapter` 是命令行参数，使用前面的目录清单时无需填写。
+
+| 宿主 / RuntimeAdapter | 接入目录 | 策略 |
 |---|---|---|
 | CodeBuddy | `.codebuddy/skills` | 链接到 ContextRoot/skills |
 | ClaudeCode | `.claude/skills` | 链接到 ContextRoot/skills |
-| Codex / OpenCode / Cursor / GeminiCLI / GitHubCopilot | `.agents/skills` | 直接复用，不创建另一份目录 |
 | WorkBuddy | `.workbuddy/skills` | 链接；宿主发现待验 |
 | WorkBuddyDonghua | `.workbuddydonghua/skills` | 链接；宿主发现待验 |
 | Qoder | `.qoder/skills` | 链接到 ContextRoot/skills（IDE / CLI） |
@@ -57,13 +62,13 @@ node .agents/scripts/sync-runtime-skills.js --project-root . --runtime CodeBuddy
 .agents/scripts/update-agents.ps1 -ProjectRoot . -RuntimeAdapter CodeBuddy -Mode Write
 ```
 
-PowerShell 直接调用可传 `-RuntimeAdapter CodeBuddy,ClaudeCode,Codex`。普通 DryRun 仍遵守更新器既有 fetch/pull 语义；要求离线或不改变 capability 时加 `-NoPull`，或使用上述独立 Node 命令。未选择 runtime 时仍不写工具目录；链接存在后无需持久化额外 runtime 配置。
+PowerShell 直接调用可传 `-RuntimeAdapter CodeBuddy,ClaudeCode,Qoder`。普通 DryRun 仍遵守更新器既有 fetch/pull 语义；要求离线或不改变 capability 时加 `-NoPull`，或使用上述独立 Node 命令。未选择 runtime 时仍不写工具目录；链接存在后无需持久化额外 runtime 配置。
 
 首次安装的脚本文件入口支持 `install-agents.ps1 -RuntimeAdapter CodeBuddy`；安装完成后以 `Write -NoPull` 初始化默认项目发现层并接入链接。不带参数的网络安装方式保持原状，领域插件仍需初始化才能启用。
 
 ## 原生与定制目录
 
-默认优先复用宿主已支持的通用层。确需原生目录时，Node 入口可显式覆盖：
+原生支持 `.agents/skills` 的宿主无需执行本节命令。仅在明确要求额外原生目录或定制目录时，Node 入口可显式覆盖：
 
 ```powershell
 node .agents/scripts/sync-runtime-skills.js --project-root . --runtime OpenCode --skills-dir .opencode/skills --mode DryRun
@@ -74,7 +79,7 @@ node .agents/scripts/sync-runtime-skills.js --project-root . --runtime Custom --
 
 原生目录参考：OpenCode `.opencode/skills`、Cursor `.cursor/skills`、Gemini CLI `.gemini/skills`、GitHub Copilot `.github/skills`。`--skills-dir` 适用于所有 runtime；Custom 必填。完成 DryRun 后，对同一组参数执行 Write、Check。路径须为 `.host/.../skills` 形式并使用 `/`，拒绝绝对路径、父目录穿越、Git 元数据、ContextRoot 内嵌目标和链接父目录；与源相同则复用。
 
-安装/更新器的 `-RuntimeAdapter` 接受表内全部命名宿主；自定义路径仅用 Node 命令，不添加个人路径注册表。WorkBuddy 系目录来自端点约定及用户指定，文件系统测试不证明该版本宿主会加载项目目录。定制版、JetBrains 等宿主须独立核实项目路径，不能把用户级 `intellij-skills` 等路径直接推导到项目。用户级分发由已有全局技能管理流程处理。
+安装/更新器的 `-RuntimeAdapter` 接受表内全部命名宿主；原生支持的五个宿主参数仍兼容，但只复用通用层，无需主动指定。自定义路径仅用 Node 命令，不添加个人路径注册表。WorkBuddy 系目录来自端点约定及用户指定，文件系统测试不证明该版本宿主会加载项目目录。定制版、JetBrains 等宿主须独立核实项目路径，不能把用户级 `intellij-skills` 等路径直接推导到项目。用户级分发由已有全局技能管理流程处理。
 
 已部署工程更新能力包后，显式选择新增 runtime 或执行 Node 命令即可；已有链接无需迁移，不自动清理旧目录，也不自动给全部宿主创建入口。
 
