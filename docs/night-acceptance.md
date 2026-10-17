@@ -124,6 +124,8 @@ if ($projectExit -ne 0) { throw "Project check failed: $projectExit" }
 
 finalizeData 接收 `{policy,status}`，项目返回 `{status: retained|reset|deleted,verified,evidenceRefs}`；无本轮数据时可明确 not-applicable 并附依据。未知写结果先独立回读，不自动重放。处置使用关闭预算，仍须在原授权范围内；随后独立调用 close 退出资源。结果 `dataDisposition` 与 `cleanup.verified` 分开：保留且已核验可以通过，关闭成功不证明数据删除，处置失败也不能隐藏退出失败。
 
+已允许新增、保留测试数据的开发测试库按[人工复验数据与收尾](../agents/_shared/testing-protocol.md#人工复验数据与收尾)优先保留验收样本，沿用授权并通过现有 evidenceRefs 引用批次、记录 ID、场景与页面入口。删除用例单独核验指定对象；成本对照试验不作为获准保留数据交付的前置门禁，无需新增 schema 或同义台账。
+
 授权测试项目采用同一用例集、角色和数据规模，对 retain、reset、delete 各完成至少三轮全周期，共至少九轮；以项目既有 profile/fixture 适配执行，不建立新调度器。逐轮保留准备、执行、独立读回、处置、资源退出、人工介入次数/耗时，以及运行前后记录数/字节增长。prepare/fixtureReadiness、execute、assert/sideEffects、dataDisposition、close 取实际 durations；人工介入和数据量由项目独立采样，缺项为 unknown。比较各策略总耗时中位数、范围及增长，再由项目选择策略；不同规模、首次造数和重复复用分别统计，不把合成测试当作清理收益。本轮框架测试不执行真实造数或这九轮项目成本试验。
 
 ## UI 与证据
@@ -134,7 +136,7 @@ collector 在首导航前挂载，项目 prepare 设置目标 frame，verifyVers
 
 context.request 与页面请求分别采集；`apiRequest(url,options)` 返回原 Playwright response，项目核验业务正文并 dispose。API 摘要不包含 URL、参数或票据。页面/API 异常及未知 frame 归属会阻止自动通过；项目可提供 reviewObservations(observations)，仅在逐事件证据支持时返回 true。该复核结果及依据由项目保留，不用统一取消白名单。
 
-项目 close 只关闭该 case 的页面和数据；runner stop 负责 collector、context、browser 和 session。仅 cleanupVerified=true 才声明执行器退出；卡住的回调或关闭失败交接为未清理，不杀用户其它浏览器进程。
+项目 close 只退出该 case 持有的页面等运行资源，数据按 finalizeData 的已授权策略处置，close 不重复删除保留数据；runner stop 负责 collector、context、browser 和 session。仅 cleanupVerified=true 才声明执行器退出；卡住的回调或关闭失败交接为未清理，不杀用户其它浏览器进程。
 
 ## IRIS Broker 机器调用
 

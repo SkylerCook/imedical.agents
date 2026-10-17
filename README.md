@@ -1,5 +1,9 @@
 # imedical.agents
 
+创建 worktree 同时交付用户审阅入口：真实仓库的 `.code-workspace`、适用的容器目录设置、固定基点与提交归属。正常更新取得规范，已有 worktree 按任务范围补齐，见[Worktree 审阅交付](docs/guides/worktree-review.md)。
+
+开发测试库已允许新增、保留测试数据时，交付代码和验证证据的同时保留可人工复验的数据与入口；沿用授权、登记批次与记录 ID，数据处置与临时资源退出分开核验。统一规则见[人工复验数据与收尾](agents/_shared/testing-protocol.md#人工复验数据与收尾)。已有项目正常更新能力包即可取得，无配置迁移或旧文件清理。
+
 需求迁移更新会识别并报告独立嵌套 Git/Agent 工作区，保留其入口与链接；普通项目子目录仍受迁移检查。见 [扫描边界](docs/demand-delivery-migration.md)。
 
 通过 `$bos-demand-handle --night` 发起夜跑，由 Agent 生成批次和计划并复用原调度器。新批次采用一个多仓 schema 2.1 run，开始前集中取得必需授权并实际预检；受管入口复核绑定并自动归档回执与计时，运行中异常分支挂起交接，不新增授权问题。保留两阶段评估、独立短审、源码绑定、容量、额度、截止与固定抽验，业务最终仍 acceptance-pending。旧 2.0 run 保持原行为；接入与真实试点条件见[夜跑决策接口](docs/night-policy.md)。 仓内夜跑目录须被 Git 忽略，plan/check 在创建与派发前核验；也可显式选择仓外 worktreeRoot。

@@ -1,5 +1,9 @@
 # imedical.agents 维护记忆入口
 
+- Worktree 创建同时交付审阅入口和固定基点；规范归 docs/guides/worktree-review.md，协作、普通 workflow、Overlay 与夜跑入口共用。复用计划 revision，Git 预检不证明 VS Code 界面可用；无新创建器或 schema，真实双入口验证沿既有队列。
+
+- 开发测试库已授权保留的人工复验数据按共享 testing-protocol 登记、核验并随入口交付；删除用例与资源退出分别核验。Testing Agent 与夜跑接入引用同一规则，正常更新取得，无插件版本或 schema 变化；真实宿主执行观察沿既有验收队列。
+
 - 插件 skill/rule 受管薄索引普通 Write 自动刷新生成元数据，Check 对过期索引失败；正文/未知字段/来源冲突及链接保留，Force 不绕过保护。迁移后 owner 索引同样可刷新；agent/vendor 独立生成器不变。下游升级步骤见 docs/update-agents.md，验证见维护日志。
 
 - 夜跑仓内 worktreeRoot 在 plan/check 中核验 Git 目录忽略规则，缺失时停止并提示配置忽略或选择仓外路径；不自动修改业务仓配置，既有批次需重跑 check。

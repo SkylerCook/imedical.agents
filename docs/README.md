@@ -12,6 +12,7 @@
 | 选择场景、查看请求示例 | [使用指南](guides/capability-guide.md) |
 | 安装或更新能力包、旧版迁移 | [安装更新](update-agents.md) |
 | 多模块共享能力包 | [Workspace Overlay](workspace-overlay.md) |
+| 创建 worktree 并查看代码差异与历史 | [Worktree 审阅交付](guides/worktree-review.md) |
 | 在指定 Agent 宿主发现技能 | [技能适配](coding-agent-adaptation.md) |
 | 需求交接和跨会话继续 | [任务交接](task-handoff.md) |
 | 执行阶段化协作、恢复任务 | [调度运行手册](agent-orchestration.md) |

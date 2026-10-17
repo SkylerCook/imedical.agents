@@ -59,6 +59,8 @@ Agent 使用 `node <CapabilityRoot>/scripts/night-workspace.js plan <request.jso
 
 批次的 `workspacePreflightReferences: [{ownerId,planReference}]` 引用上述计划（路径相对批次文件）。完成初始化后执行 `night-workspace.js check <plan.json>`，从实际工作 cwd 校验 Git 身份、项目引用、技能正文及脚本可加载性；派发时重新核对。worker 根 AGENTS.md 引用原业务入口，必要规则通过 requiredRules 声明；薄索引必须能找到实际正文。已有 worktree 不执行 reset；后续正常修改和基线后代提交允许继续。孤立 worktree 参与者的 ref 必须匹配预检计划的真实仓目录。使用源仓能力的 Overlay 可用于本地验证，不能据此声称原业务项目安装副本已经升级；正式使用按既有能力包更新流程刷新技能索引。
 
+初始化交付还须按[worktree 审阅规范](guides/worktree-review.md)提供 VS Code 工作区文件及容器目录设置，使用保存计划的实际 target 和固定 revision 作为入口与创建基点。该项由 Agent 核验，`night-workspace.js check` 不验证编辑器配置或界面，不能仅凭预检通过宣称查看入口可用。
+
 ## Codex 额度门禁
 
 新 Codex 批次设置 `quotaPolicy: {enabled:true,provider:"codex",stopClaimingRemainingPercent:20,closeoutRemainingPercent:10,maxAgeSeconds:300}`；其他宿主可设置 `{enabled:false}`。旧批次省略此字段保持原行为。阈值和有效期均可配置。

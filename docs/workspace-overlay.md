@@ -19,6 +19,8 @@ Workspace overlay 用于让多个模块工作区共享一份 canonical capabilit
 
 解析器只读取 `WorkspaceRoot/.agents/capability.json`。不得通过扫描父目录或 sibling 猜测 capability、源码或 Git 根。
 
+创建 worktree Overlay 时执行[审阅交付规范](guides/worktree-review.md)：入口指向真实 GitRoot，同时覆盖 `.code-workspace` 与直接打开 WorkspaceRoot 的方式，固定创建基点并区分未提交、worktree 提交和已集成提交。
+
 ### 源码读取与修改范围
 
 源码调查先从 SourceRoot 开始，允许按当前需求在已声明 GitRoot 中只读搜索和查看公共实现、基类、接口及调用方；目标项目注册表明确提供其他相关源码仓库时，也可按该映射只读调查。只读调查无需另行授权，不要求切换工作区。按符号和调用链缩小检索范围，不默认通读全仓，不扫描父目录猜测根路径。
