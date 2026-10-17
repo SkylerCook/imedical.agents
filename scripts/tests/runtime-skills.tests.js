@@ -42,7 +42,7 @@ test('Check and DryRun never create directories; Check CLI reports missing link'
   const cli = spawnSync(process.execPath, [path.resolve(__dirname, '../sync-runtime-skills.js'), '--project-root', root, '--runtime', 'CodeBuddy', '--mode', 'Check']);
   assert.equal(cli.status, 1);
 });
-for (const runtime of ['CodeBuddy', 'ClaudeCode']) test(`${runtime}: create, idempotency and live source changes`, () => {
+for (const runtime of ['CodeBuddy', 'ClaudeCode', 'WorkBuddy', 'WorkBuddyDonghua', 'Qoder']) test(`${runtime}: create, idempotency and live source changes`, () => {
   const root = fixture(runtime + ' 中文 space');
   const first = run(root, runtime);
   assert.equal(first.status, 'runtime-adapter-linked');
@@ -60,6 +60,51 @@ test('Codex reuses source without creating .codex', () => {
   const root = fixture('codex');
   assert.equal(run(root, 'Codex').status, 'runtime-adapter-reused');
   assert.equal(fs.existsSync(path.join(root, '.codex')), false);
+});
+for (const [runtime, directory] of Object.entries({ OpenCode: '.opencode', Cursor: '.cursor',
+  GeminiCLI: '.gemini', GitHubCopilot: '.github' })) test(`${runtime}: reuse common layer or explicitly link native directory`, () => {
+  const root = fixture(runtime);
+  assert.equal(run(root, runtime).status, 'runtime-adapter-reused');
+  assert.equal(fs.existsSync(path.join(root, directory)), false);
+  const result = sync({ projectRoot: root, runtime, skillsDir: `${directory}/skills`, mode: 'Write' });
+  assert.equal(result.status, 'runtime-adapter-linked');
+  assert.equal(fs.readFileSync(path.join(result.target, 'sample/SKILL.md'), 'utf8'), 'original');
+});
+test('custom discovery: dry run, CLI write, check and preserve conflict', () => {
+  const root = fixture('custom-discovery');
+  const options = { projectRoot: root, runtime: 'Custom', skillsDir: '.custom/nested/skills' };
+  assert.equal(sync(options).status, 'runtime-adapter-planned');
+  assert.equal(fs.existsSync(path.join(root, '.custom')), false);
+  const result = spawnSync(process.execPath, [path.resolve(__dirname, '../sync-runtime-skills.js'),
+    '--project-root', root, '--runtime', 'Custom', '--skills-dir', options.skillsDir, '--mode', 'Write']);
+  assert.equal(result.status, 0, result.stdout.toString());
+  assert.equal(sync({ ...options, mode: 'Check' }).status, 'runtime-adapter-unchanged');
+  fs.mkdirSync(path.join(root, '.existing/skills'), { recursive: true });
+  assert.equal(sync({ ...options, skillsDir: '.existing/skills', mode: 'Write' }).status, 'runtime-adapter-conflict');
+});
+test('custom discovery rejects traversal, metadata, source overlap and linked parent', () => {
+  const root = fixture('custom-boundary');
+  for (const skillsDir of ['', '../skills', '/tmp/skills', 'C:/skills', '.host/../skills',
+    '.host\\skills', '.git/skills', '.GIT/skills', '.agents/private/skills', '.host//skills']) {
+    assert.throws(() => sync({ projectRoot: root, runtime: 'Custom', skillsDir, mode: 'Write' }), /requires|skills-dir/);
+  }
+  assert.throws(() => sync({ projectRoot: root, runtime: 'Custom' }), /requires/);
+  const outside = path.join(temporary, 'custom-outside'); fs.mkdirSync(outside);
+  link(outside, path.join(root, '.host'));
+  assert.throws(() => sync({ projectRoot: root, runtime: 'Custom', skillsDir: '.host/skills', mode: 'Write' }), /physical directory/);
+  assert.deepEqual(fs.readdirSync(outside), []);
+});
+test('PowerShell entrypoints accept every named runtime on PS5.1 and PS7', { skip: process.platform !== 'win32' }, () => {
+  for (const shell of ['powershell.exe', 'pwsh.exe']) {
+    const command = `foreach ($file in @('scripts/install-agents.ps1','scripts/update-agents.ps1')) {
+      $values = (Get-Command $file).Parameters['RuntimeAdapter'].Attributes.ValidValues
+      foreach ($runtime in @('CodeBuddy','ClaudeCode','Codex','WorkBuddy','WorkBuddyDonghua','OpenCode','Cursor','GeminiCLI','GitHubCopilot','Qoder')) {
+        if ($values -notcontains $runtime) { throw "$file rejects $runtime" }
+      }
+    }`;
+    const result = spawnSync(shell, ['-NoProfile', '-Command', command], { encoding: 'utf8', cwd: path.resolve(__dirname, '../..'), windowsHide: true });
+    assert.equal(result.status, 0, result.stderr);
+  }
 });
 test('preserves custom directory and files in all modes', () => {
   const root = fixture('custom'); const target = path.join(root, '.codebuddy', 'skills');

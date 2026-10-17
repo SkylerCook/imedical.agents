@@ -4,7 +4,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { resolveWorkspaceContext, validateWorkspaceContext } = require('./lib/workspace-context.js');
-const adapters = { CodeBuddy: '.codebuddy', ClaudeCode: '.claude', Codex: null };
+const adapters = { CodeBuddy: '.codebuddy', ClaudeCode: '.claude', Codex: null,
+  Qoder: '.qoder', WorkBuddy: '.workbuddy', WorkBuddyDonghua: '.workbuddydonghua',
+  OpenCode: null, Cursor: null, GeminiCLI: null, GitHubCopilot: null, Custom: null };
 const same = (a, b) => process.platform === 'win32'
   ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase()
   : path.resolve(a) === path.resolve(b);
@@ -21,9 +23,15 @@ function physicalChain(root, target) {
     if (entry && (entry.isSymbolicLink() || !entry.isDirectory())) throw new Error(`Expected physical directory: ${cursor}`);
   }
 }
-function sync({ projectRoot = '.', runtime, mode = 'DryRun' }) {
-  if (!Object.hasOwn(adapters, runtime)) throw new Error('runtime must be CodeBuddy, ClaudeCode or Codex');
+function sync({ projectRoot = '.', runtime, mode = 'DryRun', skillsDir }) {
+  if (!Object.hasOwn(adapters, runtime)) throw new Error(`runtime must be ${Object.keys(adapters).join(', ')}`);
   if (!['Check', 'DryRun', 'Write'].includes(mode)) throw new Error('mode must be Check, DryRun or Write');
+  if (runtime === 'Custom' && !skillsDir) throw new Error('Custom requires --skills-dir with a verified project discovery path');
+  // Portable project-relative paths only; reject Windows drive/UNC syntax on every platform.
+  if (skillsDir !== undefined && (typeof skillsDir !== 'string' ||
+      !/^\.[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*\/skills$/.test(skillsDir))) {
+    throw new Error('skills-dir must be a project-relative .host/.../skills path using forward slashes');
+  }
   const root = fs.realpathSync(projectRoot);
   const context = resolveWorkspaceContext(root);
   const failures = validateWorkspaceContext(context).filter(x => !['workspace-context-resolved', 'junction-ok', 'local-path-ok'].includes(x.status));
@@ -31,9 +39,18 @@ function sync({ projectRoot = '.', runtime, mode = 'DryRun' }) {
   const source = path.join(context.contextRoot, 'skills');
   physicalChain(root, source);
   if (!stat(source)?.isDirectory()) throw new Error('Project skills missing; initialize/update the project first');
-  const target = adapters[runtime] ? path.join(root, adapters[runtime], 'skills') : source;
+  const target = skillsDir ? path.join(root, skillsDir) :
+    adapters[runtime] ? path.join(root, adapters[runtime], 'skills') : source;
+  const within = (parent, child) => {
+    const relative = path.relative(parent, child);
+    return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+  };
+  if (skillsDir && (skillsDir.split('/')[0].toLowerCase() === '.git' ||
+      (!same(target, source) && (within(context.contextRoot, target) || within(target, source))))) {
+    throw new Error('skills-dir must not overlap project context or Git metadata');
+  }
   const output = (status, reason) => ({ status, runtime, source, target, reason });
-  if (runtime === 'Codex') return output('runtime-adapter-reused', 'Codex uses the common project discovery layer');
+  if (same(target, source)) return output('runtime-adapter-reused', `${runtime} uses the common project discovery layer`);
   physicalChain(root, path.dirname(target));
   const current = stat(target); // lstat also detects dangling links; never replace existing content.
   if (current) {
@@ -53,11 +70,11 @@ function sync({ projectRoot = '.', runtime, mode = 'DryRun' }) {
 }
 function main(args) {
   if (args.includes('--help')) {
-    console.log('Usage: node sync-runtime-skills.js --project-root <project> --runtime CodeBuddy|ClaudeCode|Codex --mode Check|DryRun|Write');
+    console.log(`Usage: node sync-runtime-skills.js --project-root <project> --runtime ${Object.keys(adapters).join('|')} [--skills-dir .host/skills] --mode Check|DryRun|Write`);
     return;
   }
   const options = {};
-  const keys = { '--project-root': 'projectRoot', '--runtime': 'runtime', '--mode': 'mode' };
+  const keys = { '--project-root': 'projectRoot', '--runtime': 'runtime', '--mode': 'mode', '--skills-dir': 'skillsDir' };
   for (let i = 0; i < args.length; i += 2) {
     if (!keys[args[i]] || !args[i + 1] || args[i + 1].startsWith('--') || Object.hasOwn(options, keys[args[i]])) throw new Error('Invalid or duplicate argument');
     options[keys[args[i]]] = args[i + 1];

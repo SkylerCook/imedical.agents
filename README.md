@@ -153,7 +153,7 @@ standard 模式的更新器在 fetch 后比较本地 `HEAD` 与 upstream：一�
 - `-NoPull`：基于本地 `.agents` 内容检查或重建。
 - `-Plugin <name[]>`：只处理指定插件。
 - `-ExcludePlugin <name[]>`：跳过指定插件。
-- `-RuntimeAdapter CodeBuddy|ClaudeCode|Codex`：显式接入链接优先的项目技能发现层；默认仅维护 `.agents/skills` 通用层。CodeBuddy/Claude Code 使用目录链接，Codex 直接复用；已有目录冲突保留。接入 skill 为 `coding-agent-adaptation`，命令、迁移与验证范围见 [技能适配](docs/coding-agent-adaptation.md)。
+- `-RuntimeAdapter <宿主>`：显式接入链接优先的项目技能发现层；默认仅维护 `.agents/skills` 通用层。CodeBuddy/Claude Code/WorkBuddy/WorkBuddyDonghua/Qoder 使用目录链接，Codex/OpenCode/Cursor/GeminiCLI/GitHubCopilot 直接复用；已有目录冲突保留。接入 skill 为 `coding-agent-adaptation`，命令、迁移与验证范围见 [技能适配](docs/coding-agent-adaptation.md)。
 - 已启用插件的受管 skill/rule thin-index 在普通 `Write` 自动刷新描述等生成字段；一致时不重写，`Check` 对过期索引失败。自定义正文、来源冲突及链接保留并阻断，升级无需删除旧索引，详见 [更新机制](docs/update-agents.md#skill-thin-index-description)。
 - `-ForceThinIndex`：兼容转发至生成器；插件索引不再依赖它刷新，也不允许用它绕过归属保护；agent/vendor 索引沿用各自语义。
 - `-CleanupLegacyVendorSkills`：显式清理不再属于 enabled 插件 required 集合的受管 vendor thin-index；普通更新不清理。
@@ -167,7 +167,7 @@ standard 模式的更新器在 fetch 后比较本地 `HEAD` 与 upstream：一�
 
 模块默认修改范围为 SourceRoot；理解依赖和调用链时可按需只读查看已声明 GitRoot 或项目注册表映射的相关仓库，读取不扩大写入授权。完整命令、读写边界、旧入口迁移和安全恢复策略见 [docs/workspace-overlay.md](docs/workspace-overlay.md)。
 
-安装和更新先根据 enabled 插件 manifest 解析 `skillDependencies`，只为 required vendor skill 生成 `.agents/skills/<name>/SKILL.md` 项目通用入口；optional skill 由任务场景触发。常规流程不再写用户级 skill 目录；用户级 Claude Code/Codex vendor 同步必须显式指定 runtime 和 skill。CodeBuddy/Claude Code 的项目技能采用链接接入；OpenCode、WorkBuddy、Hermes 等未实现 adapter 的工具使用 `.agents/skills` 或直接 vendor 源降级。
+安装和更新先根据 enabled 插件 manifest 解析 `skillDependencies`，只为 required vendor skill 生成 `.agents/skills/<name>/SKILL.md` 项目通用入口；optional skill 由任务场景触发。常规流程不再写用户级 skill 目录；用户级 Claude Code/Codex vendor 同步必须显式指定 runtime 和 skill。项目技能适配支持命名宿主与显式自定义项目目录，见 [技能适配](docs/coding-agent-adaptation.md)；尚未核实发现机制的宿主直接读取技能源降级。
 
 ## 仓库结构
 
@@ -637,3 +637,5 @@ guidanceMode（auto/concise/assisted）、executionPath 和 orchestrationMode �
 纯初始化 skill 由插件 manifest 的 `thinIndex.excludeSkills` 排除；已启用项目更新会精准清理旧受管 init 薄索引及历史遗留空目录，日常入口继续保留。详见 [迁移说明](docs/update-agents.md#纯初始化-skill-薄索引迁移)。
 
 提交同步去重：demand-delivery-plugin 支持已校验 pull 与 upstream 钩子协作，见 [接入协议](plugins/demand-delivery-plugin/references/commit-upstream-check.md)。
+
+项目技能目录也可在 `ContextRoot/config/project_context_profile.md` 的“技能适配目录”章节逐行填写，再执行 `coding-agent-adaptation` 补齐缺失链接；普通更新不自动执行此清单。示例见 [技能适配](docs/coding-agent-adaptation.md)。

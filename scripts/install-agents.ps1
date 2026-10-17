@@ -1,5 +1,5 @@
 ﻿param(
-  [ValidateSet("ClaudeCode", "Codex", "CodeBuddy")]
+  [ValidateSet("ClaudeCode", "Codex", "CodeBuddy", "WorkBuddy", "WorkBuddyDonghua", "OpenCode", "Cursor", "GeminiCLI", "GitHubCopilot", "Qoder")]
   [string[]]$RuntimeAdapter = @()
 )
 

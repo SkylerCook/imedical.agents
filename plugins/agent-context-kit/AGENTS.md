@@ -43,3 +43,7 @@
 遵循 agents/_shared/execution-guidance.md（源仓根；部署态为 .agents/agents/_shared/）。guidanceMode 默认 auto，可选 concise/assisted；辅助程度不改变授权、编码及领域契约。方法允许合并或重排，IRIS 编码共用 iris_coding_general 的风险分流。业务验收后按信号加载 feedback，无信号不例行报告。现有工程按 docs/update-agents.md 定点合并项目入口，普通能力包更新不重写用户 AGENTS/profile。
 
 知识库入口：初始化或授权维护时，为已启用 coding-iris-plugin 的工程在 AGENTS.md 合并一条自主查询指引；具体条件见 project-context-maintenance 的 initialization.md。完整索引随能力包更新，普通更新不覆盖工程入口。
+
+项目技能适配使用 `skills/coding-agent-adaptation/SKILL.md`：支持 WorkBuddy/WorkBuddyDonghua/Qoder 命名目录、OpenCode/Cursor/GeminiCLI/GitHubCopilot 通用层复用，以及受项目边界约束的自定义发现目录；执行器和参数说明归能力包根 `docs/coding-agent-adaptation.md`。用户级分发独立管理，宿主加载与文件系统检查分别取证。
+
+用户可在项目配置 `project_context_profile.md` 的“技能适配目录”章节逐行填写目录，再执行 coding-agent-adaptation 补齐缺失链接。示例和冲突处理见能力包根 `docs/coding-agent-adaptation.md`；普通更新不自动执行清单。

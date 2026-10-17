@@ -5,7 +5,7 @@
   [string[]]$Plugin = @(),
   [string[]]$ExcludePlugin = @(),
   [string[]]$ExpectedEnabledPlugin,
-  [ValidateSet("ClaudeCode", "Codex", "CodeBuddy")]
+  [ValidateSet("ClaudeCode", "Codex", "CodeBuddy", "WorkBuddy", "WorkBuddyDonghua", "OpenCode", "Cursor", "GeminiCLI", "GitHubCopilot", "Qoder")]
   [string[]]$RuntimeAdapter = @(),
   [switch]$ForceThinIndex,
   [switch]$CleanupLegacyVendorSkills,

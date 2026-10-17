@@ -14,6 +14,14 @@
 <!-- agents-update:optional-key guidanceMode -->
 `guidanceMode` 可选 auto | concise | assisted；未配置时按 auto 处理。仅在用户明确选择后增加配置项，当前用户明确选择优先。此项只控制辅助资料，不改变权限、领域规则和验证要求；普通更新不自动写入默认值。
 
+## 技能适配目录
+
+<!-- 可选：按需在本节逐行填写项目相对目录，执行 coding-agent-adaptation 时只补缺失链接。示例见能力包 docs/coding-agent-adaptation.md；以下注释不作为启用清单。
+.qoder/skills
+.workbuddydonghua/skills
+.codebuddy/skills
+-->
+
 ## 使用范围
 
 初始化时按 project-context-maintenance 判断模式并填充上述字段，删除无信息占位；日常沿用已确定模式，用户明确变更工程定位时再调整。`intent-first-on-demand-export` 下少量已导出文件不代表完整工程，不据此推断完整架构。

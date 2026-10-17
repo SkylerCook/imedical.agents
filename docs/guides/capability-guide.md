@@ -126,7 +126,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 | Skill | 请求示例 | 前提与预期结果 |
 |---|---|---|
-| [coding-agent-adaptation](../../plugins/agent-context-kit/skills/coding-agent-adaptation/SKILL.md) | 把当前工程已有技能接入 CodeBuddy，检查发现入口。 | 已有 .agents，明确宿主；产出链接检查结果，已有冲突内容保留。 |
+| [coding-agent-adaptation](../../plugins/agent-context-kit/skills/coding-agent-adaptation/SKILL.md) | 按项目配置中逐行填写的目录清单补齐缺失技能链接；也支持指定宿主。 | 已有 .agents，明确宿主；产出链接检查结果，已有冲突内容保留。 |
 | [project-context-maintenance](../../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md) | 检查当前工程上下文，更新已过时的事实并精简重复说明。 | 提供目标工程和维护范围；产出适用的 AGENTS、规则、记忆或配置变更。 |
 | [task-handoff](../../plugins/agent-context-kit/skills/task-handoff/SKILL.md) | 为当前需求启用交接；下次从交接记录继续。 | 同机同工作区、串行接续；产出 docs/handoff 下正文及现场记录，明确交接时留快照。 |
 

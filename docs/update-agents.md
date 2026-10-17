@@ -571,7 +571,7 @@ git config --unset core.hooksPath
 
 ## 跨 Agent skills 链接适配
 
-`-RuntimeAdapter CodeBuddy|ClaudeCode|Codex` 统一调用 `sync-runtime-skills.js`。CodeBuddy/Claude Code 链接到项目 ContextRoot/skills；Codex 复用通用层。普通目录、错误或失效链接保留并阻断适配，更新器以失败结束，已完成的其它更新步骤不回滚。Check 只读，缺失链接不算验收通过。首次安装脚本也支持同名参数；完整命令、平台证据与旧目录迁移见 [技能适配](coding-agent-adaptation.md)。
+`-RuntimeAdapter <宿主>` 统一调用 `sync-runtime-skills.js`。CodeBuddy/Claude Code/WorkBuddy/WorkBuddyDonghua/Qoder 链接到项目 ContextRoot/skills；Codex/OpenCode/Cursor/GeminiCLI/GitHubCopilot 复用通用层。自定义目录通过 Node 入口的 `--skills-dir` 指定，不传给 PowerShell 更新器。普通目录、错误或失效链接保留并阻断适配，更新器以失败结束，已完成的其它更新步骤不回滚。Check 只读，缺失链接不算验收通过。首次安装脚本也支持同名参数；完整命令、平台证据与旧目录迁移见 [技能适配](coding-agent-adaptation.md)。
 
 ## Claude Code legacy 复制入口
 
@@ -714,7 +714,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - 业务项目 `.agents/skills/agent-kit-maintenance/` 不存在；该维护者专用 skill 只保留在能力包源仓根 `.agents/skills/agent-kit-maintenance/`，源仓 `.agents/` 不在 sparse checkout 部署清单内。若历史部署或手工 full clone 已遗留该目录，执行 `update-agents.ps1 -Mode Write` 会继续清理并报告 `maintenance-only-skill-removed`。
 - enabled 插件 required vendor thin-index 已存在或 DryRun 明确报告生成计划；optional 只显示 trigger。
 - 普通更新没有写用户级 skill 目录；历史副本只报告 `legacy-runtime-skill-detected`。
-- 未指定工具 adapter 时报告 `runtime-adapter-skipped`；显式启用 CodeBuddy/Claude Code adapter 时，目录链接结果为 `runtime-adapter-planned` / `runtime-adapter-linked` / `runtime-adapter-unchanged`；冲突保留并停止。
+- 未指定工具 adapter 时报告 `runtime-adapter-skipped`；显式选择目录链接 adapter 时，目录链接结果为 `runtime-adapter-planned` / `runtime-adapter-linked` / `runtime-adapter-unchanged`；冲突保留并停止。
 - `.agents/.git/info/exclude` 包含 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`、`/work/`。
 - `.agents/config/plugin_profile.md` 存在或 dry-run 明确报告默认插件状态。
 - 如果业务项目有 `AGENTS.md`，兼容入口可以是 `entrypoint-ok`，也可以缺失；缺失或异常只作为可选提示，不应在 write 中自动修复。
@@ -799,3 +799,5 @@ bos-plugin 随既有 /plugins/** 与 workflow 分发，默认 available；仅明
 正常更新能力包后先 Check，再 Write 刷新已启用插件索引；四个 i18n 技能恢复真实 description。Overlay 先更新共享 CapabilityRoot，再逐 ContextRoot 用原有 -NoPull 流程刷新。无需配置/会话迁移或额外清理，用户自定义入口按既有冲突机制处理。部署入口将 workspace 校验失败前置；异常目录先修复部署结构，direct 不新增业务 Git 基线要求。
 
 需求交付拆分与兼容更新见 [需求交付迁移](demand-delivery-migration.md)：新入口 demand-commit / bos-demand-entry，旧 IRIS 入口已删除，更新器定向迁移项目引用并接入缺失 owner；显式状态冲突阻断，旧数据格式保留。
+
+项目技能目录也可在 `ContextRoot/config/project_context_profile.md` 的“技能适配目录”章节逐行填写，再执行 `coding-agent-adaptation` 补齐缺失链接；普通更新不自动执行此清单。示例见 [技能适配](coding-agent-adaptation.md)。
