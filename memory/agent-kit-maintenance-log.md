@@ -1,5 +1,10 @@
 # imedical.agents 维护日志
 
+- 2026-10-17（BOS 按需复用项目能力，framework-maintenance）：bos-plugin 0.10.1 将普通与夜跑的领域选择集中在 BOS workflow，复用项目已启用插件并按当前需求加载，支持不同与混合技术栈。IRIS 专项直达、查询和部署路径保留；不新增配置、全仓扫描、启动审计或预检轮次。夜跑仅列计划所需能力，复用原 worktree 上下文及真实预检，运行时未改。
+  - 同步 owner 入口/README、场景清单、能力手册、仓库 README、摘要、P2 真实宿主队列及 patch 发布记录。正常更新并刷新已启用薄索引取得，无配置迁移或旧文件清理；未同步业务副本。
+  - 验证：BOS workflow 2/2、夜跑入口与共享路由链接 2/2、IRIS fast-path、部署文档链接 1/1 通过；worktree 上下文/技能正文/脚本/规则与范围预检定向 3/3 通过。首轮因沙箱拒绝 D 盘临时目录失败，获准后隔离运行通过且夹具自行验证清理。工作树组件版本检查识别 0.10.0→0.10.1，仍被 HEAD 已存在的 imedicalxc-doctor-extend-engineer 1.0.2/1.0.3/1.0.4 发布记录缺少 commit 阻断，本次未修改历史记录。未宣称真实 Agent 路由或夜跑耗时已验证，未暂存、提交或推送。
+
+
 - 2026-10-17（worktree 审阅交付，framework-maintenance）：新增 docs/guides/worktree-review.md，将真实 GitRoot、双打开入口、固定创建 SHA、未提交/worktree/集成提交归属和界面验证限制纳入创建交付。工作区配置局部合并，保留 JSONC 与原设置；夜跑复用已存 revision，不新增创建器、状态字段或默认提交。此次容器打开漏配是用户提供的单次案例，规则不将其推广为所有 VS Code 仓库发现故障的根因。
   - 同步：共享协作协议、standard workflow、Overlay/夜跑接入、docs 入口、能力指南、README、摘要和 P2 真实双入口验证队列。插件及根级 skill 无变化，不触发组件版本递增；registry/bindings、能力目录、安装/更新和长期目录决策仍适用。正常更新分发指南，已有业务 worktree 按授权任务补齐，无自动迁移或清理。
   - 验证：VS Code 官方 Git 扩展实现/设置定义核对相对扫描路径与检测开关；两个 JSON 示例解析及路径映射一致性通过，Git 查看命令在当前仓只读冒烟通过，部署文档链接 1/1、diff check 通过。未创建业务 worktree、未改本机 VS Code 设置或验证界面；未新增临时文件，保留前轮测试数据规则改动，未暂存/提交/推送。

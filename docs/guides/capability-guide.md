@@ -255,7 +255,7 @@ BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调
 
 - [bos-code-update-log](../../plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)：请求“预览这些提交的 BOS 代码更新日志”只运行 plan；明确“把这些提交补录到 BOS”才执行 submit。只读已有 Git 提交，跨仓说明全部保留，不执行本地 commit/push；token 与 linkProject 使用本技能配置段，缺失不影响需求查询。
 
-简单任务由当前 Agent 连续修改、自查和目标验证；IRIS 前端/后端范围明确时直达专项技能，混合或边界不明时进入 iris-coding，非 IRIS 沿用项目规范。回归按实际改动选择，正式协作按条件加载已有协议；只有明确要求交接才建交接记录。提交仍按原授权执行。新进程可读入口、真实宿主发现及简单需求提效分别验证，见 [场景](../../plugins/bos-plugin/references/scenarios.md)。
+普通与夜跑复用项目已启用领域能力，按需求范围选择入口，支持不同及混合技术栈；新增体系不要求修改 BOS 分支或增加启动扫描。简单任务由当前 Agent 连续修改、自查和目标验证；IRIS 前端/后端范围明确时直达专项技能，混合或边界不明时进入 iris-coding，非 IRIS 沿用项目规范。回归按实际改动选择，正式协作按条件加载已有协议；只有明确要求交接才建交接记录。提交仍按原授权执行。新进程可读入口、真实宿主发现及简单需求提效分别验证，见 [场景](../../plugins/bos-plugin/references/scenarios.md)。
 
 ## demand-delivery-plugin
 

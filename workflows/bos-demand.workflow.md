@@ -22,9 +22,17 @@
 
 1. 检查真实 GitRoot 的 staged/unstaged/untracked 和路径边界；SourceRoot、Junction 或 manifest 不符时停止写入。确认修复点在范围外则完成只读取证并报告目标、原因和影响，获得具体范围授权后再写。
 2. 定位入口、调用链、复用能力和根因，明确修改范围、实现方案与验收条件。资料不足时补充调查；简单局部修复可直接实现，不强制设计文档或新抽象。
-3. 根据项目技术栈路由。IRIS 且 coding-iris-plugin 已启用时，明确前端任务直达 [iris-frontend-coding](../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md)，明确后端任务直达 [iris-backend-coding](../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md)；混合或边界不明时才读取 [iris-coding](../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md)。专项技能负责加载其适用规则，复用仍持有且未变化的资料。standard/project 来自用户或项目 profile，不能由 BOS 来源、模块名或目录名推断。先改代码补需求走 bos-demand-entry。
-4. 非 IRIS 使用本项目开发、测试、审查和提交规则，不加载 IRIS 规范。领域插件缺失时只阻塞依赖该能力的阶段，不私自安装、启用或假称检查通过。
+3. 按下节“编码体系选择”确定本次适用领域及入口，复用仍持有且未变化的资料。standard/project 来自用户或项目 profile，不能由 BOS 来源、模块名或目录名推断。先改代码补需求走 bos-demand-entry。
+4. 领域插件缺失时沿用项目已有开发、测试、审查和提交规则；必要能力缺口只阻塞依赖它的阶段，不私自安装、启用或假称检查通过。
 5. 在受控范围实施；对照需求、适用规范和现有证据审查最终 diff，检查行为、契约及真正新增代码。必要验证覆盖最终修改，后续相关变化使证据过期。普通任务由当前 Agent 完成这些职责，正式协作时再交给对应角色。
+
+### 编码体系选择
+
+普通处理与夜跑均复用项目已启用插件的能力，按当前需求加载对应入口。依据项目 AGENTS 和 plugin profile，结合正在定位的源码范围，按需读取相关插件的 AGENTS 与技能路由；不同项目可采用不同技术栈，同一项目可组合多个体系。新增体系由自身插件提供入口，无需在 BOS 增加技术栈分支。
+
+复用已读取且未变化的上下文，将选择合入正常定位，不新增启动审计、全仓扫描或全部插件预加载。按需使用领域的查询、编码、构建、部署、编译和验证能力，不局限于 coding 技能；专项授权及领域门禁保持不变。
+
+兼容现有 IRIS 路径：本次确属 IRIS 且 coding-iris-plugin 已启用时，明确前端任务直达 [iris-frontend-coding](../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md)，明确后端任务直达 [iris-backend-coding](../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md)；混合或边界不明时才读取 [iris-coding](../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md)。查询、部署等沿用该插件已有路由。非 IRIS 组件使用自身体系，不因同项目启用 IRIS 而加载其规范。
 
 ## 协作与恢复
 

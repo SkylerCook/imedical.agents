@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- bos-plugin 0.10.1：普通与夜跑按需求复用项目已启用插件，支持不同及混合技术栈，IRIS 专项及部署路径保留；不新增配置、启动扫描或预检轮次。worktree 继承与运行时不变，真实路由观察见既有场景队列。
+
 - Worktree 创建同时交付审阅入口和固定基点；规范归 docs/guides/worktree-review.md，协作、普通 workflow、Overlay 与夜跑入口共用。复用计划 revision，Git 预检不证明 VS Code 界面可用；无新创建器或 schema，真实双入口验证沿既有队列。
 
 - 开发测试库已授权保留的人工复验数据按共享 testing-protocol 登记、核验并随入口交付；删除用例与资源退出分别核验。Testing Agent 与夜跑接入引用同一规则，正常更新取得，无插件版本或 schema 变化；真实宿主执行观察沿既有验收队列。

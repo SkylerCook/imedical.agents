@@ -23,6 +23,12 @@ test('night skill routing resolves the shared workflow and retains the ordinary 
     assert.match(read(path.join(root, 'workflows/bos-demand-unattended.workflow.md')), /\$bos-demand-handle --night/);
     assert.match(skill, /新批次显式设置 `decisionPolicyReference`/);
     const night = read(path.join(root, 'workflows/bos-demand-unattended.workflow.md'));
+    // Ordinary and unattended routing must reach the same canonical section.
+    const domainLink = [...night.matchAll(/\]\(([^)]+)\)/g)]
+        .map(match => match[1]).find(link => link.endsWith('#编码体系选择'));
+    assert.ok(domainLink, 'shared domain routing link');
+    const [domainFile, anchor] = domainLink.split('#');
+    assert.ok(read(path.resolve(root, 'workflows', domainFile)).split(/\r?\n/).includes('### ' + anchor));
     assert.match(night, /workspacePreflightReferences/);
     assert.match(night, /kind:"quota"/);
     assert.match(night, /其它宿主显式使用 `enabled:false`/);

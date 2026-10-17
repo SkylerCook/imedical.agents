@@ -1,5 +1,7 @@
 # imedical.agents 后续治理队列
 
+- P2 BOS 领域路由：按 plugins/bos-plugin/references/scenarios.md 观察现有 IRIS 与未来具备对应插件的混合技术栈真实轨迹；核对按需加载、worktree 能力继承、缺能力人工留项及无新增启动审计。源码与静态链接检查不替代宿主行为或夜跑启动耗时证据。
+
 - P2 薄索引刷新：新增专项已纳入 Windows/macOS/Linux × Node 22/24 CI；非 Windows 结果及真实下游更新后的发现层加载待取证，沿既有跨平台/宿主验证队列推进。源仓自测不代表业务副本已升级。
 
 - P2 标版拆分审查：按 bos-plugin/references/scenarios.md 验证真实宿主 --work 来源选择、计划与成果区分、可选成果不强填、口述/文件来源回填边界及 BOS 实际导入；短参数归一化、单目的不强拆、公共能力依赖、共享文件受阻与 Excel 同源输出；薄索引和脚本回归不替代 Agent 行为证据。沿既有兼容/宿主验证队列，不新增审批。

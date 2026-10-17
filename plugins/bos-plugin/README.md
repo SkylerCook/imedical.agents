@@ -18,7 +18,9 @@
 | [bos-demand-handle](skills/bos-demand-handle/SKILL.md) | 实施、验证和交付需求，提交校验成功后准备并按授权补录日志 |
 | [bos-code-update-log](skills/bos-code-update-log/SKILL.md) | 预览并按授权将已有 Git 提交补录为代码更新日志 |
 
-插件无 IRIS 强依赖。IRIS 项目按范围直达前端/后端技能，混合或边界不明时使用 iris-coding；其它项目沿用自己的规范。简单任务由当前 Agent 连续修改、自查和目标验证，正式协作资料按条件加载，具体分流见 [bos-demand workflow](../../workflows/bos-demand.workflow.md)。
+本次路由说明通过正常更新能力包并刷新已启用薄索引取得，无配置迁移或旧文件清理，不自动同步业务项目。
+
+插件无 IRIS 强依赖。普通与夜跑按当前需求复用项目已启用插件，支持不同项目的不同技术栈及混合体系；新增体系无需修改 BOS 分支，不增加启动扫描或配置。IRIS 项目按范围直达前端/后端技能，混合或边界不明时使用 iris-coding；其它项目沿用自己的规范。简单任务由当前 Agent 连续修改、自查和目标验证，正式协作资料按条件加载，具体分流见 [bos-demand workflow](../../workflows/bos-demand.workflow.md)。
 
 0.3.0 接管标版需求补录，产品标识由项目约定或用户明确提供；本地文本/Excel 不要求查询凭据。提交按需复用 demand-delivery-plugin。旧入口由更新器迁移，已有数据协议继续兼容，更新和接入见 [迁移说明](../../docs/demand-delivery-migration.md)。源仓修改不会自动同步业务工程。
 

@@ -1,5 +1,7 @@
 # imedical.agents
 
+BOS 普通与夜跑处理按需求复用项目已启用插件，支持不同及混合技术栈，保留 IRIS 专项直达；无需新增配置或启动扫描，见[领域路由](workflows/bos-demand.workflow.md#编码体系选择)。
+
 创建 worktree 同时交付用户审阅入口：真实仓库的 `.code-workspace`、适用的容器目录设置、固定基点与提交归属。正常更新取得规范，已有 worktree 按任务范围补齐，见[Worktree 审阅交付](docs/guides/worktree-review.md)。
 
 开发测试库已允许新增、保留测试数据时，交付代码和验证证据的同时保留可人工复验的数据与入口；沿用授权、登记批次与记录 ID，数据处置与临时资源退出分开核验。统一规则见[人工复验数据与收尾](agents/_shared/testing-protocol.md#人工复验数据与收尾)。已有项目正常更新能力包即可取得，无配置迁移或旧文件清理。
