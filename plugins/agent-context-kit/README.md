@@ -1,12 +1,14 @@
 # Agent Context Kit
 
+v0.4.3 在初始化模板补齐按需文档入口；已部署项目由根更新器定向追加缺失导航，保留正文与配置。DryRun/Check/Write、Overlay 与冲突边界见 [更新说明](../../docs/update-agents.md#文档导航补齐)。
+
 v0.4.2 修复 Windows 短路径与 Git 长路径混用导致的 task-handoff 初始化、状态检查和 Overlay Junction 误判；现有交接内容与项目入口无需迁移，更新能力包后生效。
 
 v0.4.0 新增通用 `task-handoff`：按需启用后，在关键节点维护项目 `docs/handoff/<首次时间戳>-<需求ID>/handoff.md`；明确交接保存历史快照，新 Agent 核实现场后沿用范围内授权继续。无编号使用 `00000`，默认本机保存、不入 Git；跨会话直接接手，用户负责停止旧写入者。标准 Markdown 可独立阅读，暂不接入 Obsidian。
 
 工具 `scripts/task-handoff.js` 提供 init/list/inspect/checkpoint/snapshot/validate；机器现场与正文摘要分开保存，检查源码、index 和证据变化，不产生业务通过或授权结论。入口见 [task-handoff](skills/task-handoff/SKILL.md)，命令与恢复边界见其 references。正常更新后刷新 enabled 插件薄索引即可显式调用；自然语言发现路由通过初始化/授权维护定点加入项目 AGENTS，普通更新不覆盖旧入口。既有交接、个人 handoff 和正式 run 不迁移。
 
-项目上下文支持初始化、事实维护与日常优化，按目标选择流程。contextMode 仅在初始化、模式缺失或用户明确变更工程定位时判定；维护与优化沿用已有模式。入口去重、领域记忆分层和旧快照标记保留用户约束；普通维护不自动扫描或启用插件。主入口见 `skills/project-context-maintenance/SKILL.md`，初始化/优化细节按其中 references 条件读取。已部署项目只有在授权维护时定点调整，能力包更新不覆盖业务上下文。
+项目上下文支持初始化、事实维护与日常优化，按目标选择流程。contextMode 仅在初始化、模式缺失或用户明确变更工程定位时判定；维护与优化沿用已有模式。入口去重、领域记忆分层和旧快照标记保留用户约束；普通维护不自动扫描或启用插件。主入口见 `skills/project-context-maintenance/SKILL.md`，初始化/优化细节按其中 references 条件读取。已部署项目只有在授权维护时定点调整，能力包更新保留业务上下文；仅对缺失的文档导航追加 `.agents/docs/README.md` 入口，更新与冲突处理见能力包根 `docs/update-agents.md`。
 
 技能归属迁移（0.3.2）：`coding-agent-adaptation` 由本插件承接，执行器仍在根 scripts。项目 `.agents/skills/coding-agent-adaptation/SKILL.md` 路径保持不变，由插件薄索引提供。旧版原文仅在历史内容哈希匹配时转换，自定义内容保留并报告冲突。迁移说明见 `docs/skill-plugin-migration.md`（能力包根）。
 

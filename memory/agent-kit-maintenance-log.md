@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+- 2026-10-17（项目文档导航，framework-maintenance）：agent-context-kit 0.4.3 模板增加按任务读取 docs 首页；根更新器在既有项目入口缺失时追加导航，DryRun 预览、Check 检出、Write 幂等写入并回读。Overlay 未映射 docs 时解析 CapabilityRoot；链接、编码、Markdown 未闭合及并发变化停止，缺少 AGENTS 仍交初始化。普通更新不覆盖正文、配置与规则的边界保留。验证：Windows PowerShell 5.1 完整更新器回归通过，文档入口与布局分发 13/13 通过；覆盖旧项目追加、DryRun 不写、Check 失败/通过、重复更新、BOM/CRLF、无效编码、链接保护、未闭合 Markdown、Overlay 与旧 sparse 恢复。工作区版本审计仅报告既有 xc 三份历史发布记录缺 commit，无本轮新增问题；未修改历史记录。新专项加入 Windows/macOS/Linux × Node 22/24 CI，非本机与真实宿主仍待验证；未部署真实业务项目。本轮经用户授权提交并推送，提交前复核既有测试指纹。
+
 - 2026-10-17（连接配置查看指南，framework-maintenance）：新增 docs/guides/connection-configuration.md，提供使用者可查的字段位置、读取顺序、常见异常及 Agent 自主定位步骤，避免要求使用者解释目录。覆盖 BOS 私有分段与公司默认地址组合、进程环境继承、客户端注册独立性、IRIS/Overlay 配置来源；不保存个人连接事实，不新增配置中心、图形面板或自动扫描器。
   - 同步仓库 README、docs 首页、能力使用指南与维护摘要；现有 /docs/** 分发已覆盖，无插件或根级 skill 变化，不递增组件版本，无配置迁移或兼容清理。能力目录、backlog 与长期决策无需调整，未扩展运行时能力或产生新的必做治理事项。
   - 验证：对照 BOS personal-config.js、usage/client-mcp 与 IRIS project-env.js、工具说明、诊断规则；包含新增文档的 project links resolve 定向测试 1/1 通过，diff check 通过。未测试真实远端或宿主自动发现，未同步业务副本；无临时产物，未暂存、提交或推送。

@@ -10,7 +10,7 @@
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun
 ```
 
-确认 dry-run 输出后，才使用 `-Mode Write`。更新脚本只负责拉取能力包、检查入口、维护生成层 ignore、按 `plugin_profile.md` 分流插件、重建已启用插件 thin-index 和合并明确缺失的 config 项；不得自动重写 `AGENTS.md`、`.agents/memory/`、`.agents/rules/project.md` 或项目已有 config 值。
+确认 dry-run 输出后，才使用 `-Mode Write`。更新脚本只负责拉取能力包、检查入口、维护生成层 ignore、按 `plugin_profile.md` 分流插件、重建已启用插件 thin-index 和合并明确缺失的 config 项；文档导航为限定例外：缺少 `.agents/docs/README.md` 路由时，Write 仅追加入口，DryRun 预览、Check 检出缺失；保留现有内容，冲突停止。除此之外不得自动重写 `AGENTS.md`、`.agents/memory/`、`.agents/rules/project.md` 或项目已有 config 值。
 
 插件状态规则：
 
@@ -42,7 +42,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
    - 构建/运行入口：package.json、build 脚本、workspace 配置。
    - 已有配置及项目文档；仅涉及连接、远端能力或配置问题时读取 `.mcp.json`。
    探索仅覆盖当前初始化需要，不为模板全仓扫描；无法确定的非敏感配置标真实待确认项，连接字段只在私有配置处理。`intent-first-on-demand-export` 跳过全工程归纳。
-5. 创建或更新 `AGENTS.md`，只放最小启动流程和路由；新建时参考 `templates/AGENTS.template.md`。
+5. 创建或更新 `AGENTS.md`，只放最小启动流程和路由；新建时参考 `templates/AGENTS.template.md`。能力包使用、操作指南或连接排查统一指向 `.agents/docs/README.md`；核验该路径可达，Overlay 未映射 docs 时按 capability.json 解析 CapabilityRoot，读取其 docs/README.md。已有等价入口复用。
    - `agent-context-kit` 为 enabled 且 task-handoff 入口可用时，在本次已授权初始化/维护范围内定点合并模板的“需求交接”路由；已有等价路由复用，available/disabled 不加入。只加入入口，不创建 docs/handoff 任务，不复制完整流程。普通能力包更新不执行此合并。
    - `codebase-complete`：可写入已验证架构事实。
    - `intent-first-on-demand-export`：必须写明本地代码不代表完整工程，后续按需导出相关文件后再分析和修改。

@@ -1,5 +1,14 @@
 # .agents 安装与更新 Runbook
 
+## 文档导航补齐
+
+更新器在 Write 模式为已有项目 `AGENTS.md` 补齐缺失的按需文档导航，指向 `.agents/docs/README.md`；已有有效导航保留，重复执行不重复添加。Overlay 未映射 docs 时，入口改为按 `.agents/capability.json` 解析 CapabilityRoot 并读取其 docs/README.md，不修改共享目录或 manifest。
+
+DryRun 报告 `docs-entry-missing` 且不写项目入口；Check 对缺失导航返回失败，Write 追加后回读验证。缺少 AGENTS.md 时仍由 project-context-maintenance 初始化，不生成空白项目规则。缺少文档、失效路径、非 UTF-8、文件链接/硬链接、未闭合 Markdown 或并发变化时停止并保留原文；按提示修复后重跑。只补导航，不覆盖项目正文、配置、规则或记忆；这是普通更新保护边界的限定例外。临时写入文件在项目入口旁创建并在结束时清理，兼容入口不另写副本。
+
+已有项目使用正常更新流程获取新版脚本与 docs，先 DryRun，再 Write，最后 Check；严格离线预演使用 `-NoPull`。此修改不自动扫描或更新其它工程，无旧文件清理。新项目初始化使用相同入口；链接检查证明可达，实际宿主是否按任务读取仍需在目标工程观察。
+
+
 BOS 0.10.0 还支持显式 `--work` 工作记录来源，默认仍为 Git；代码 v2 保持可用，工作 v3 需新版脚本读取，旧版本不支持，不自动转换或覆盖草稿。工作来源不依赖提交插件，编号只回填草稿。
 
 BOS 0.10.0 新增 Agent 层 `bos-demand-entry --split` 和 `--split --excel` 用法。普通更新能力包并刷新已启用 bos-plugin 薄索引，核对 description 展示短参数且 source 指向最新 SKILL；技能正文与脚本随原插件路径分发。无需配置/草稿 schema 迁移或旧文件清理，未启用项目不自动启用，底层 CLI 不接受 --split。

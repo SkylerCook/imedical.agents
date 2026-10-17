@@ -25,6 +25,8 @@ Overlay 部署支持模块配置优先、显式主仓配置回退；连接目标
 
 仓库同时帮助 Codex、Claude Code、OpenCode、CodeBuddy、WorkBuddy、Hermes 等不同 AI 开发工具快速获得正确上下文，并区分通用能力、项目差异、连接信息和临时经验。
 
+项目更新会为已有 `AGENTS.md` 补齐缺失的按需文档导航；保留自定义内容，冲突停止，详见 [更新说明](docs/update-agents.md)。
+
 文档入口：[项目使用文档](docs/README.md) · [框架维护资料](maintenance/README.md)。
 
 使用入口：[能力目录（插件 / skill / rule）](docs/guides/capability-catalog.md) · [使用指南（场景选择 / 接入 / 全部技能示例）](docs/guides/capability-guide.md) · [连接信息查看与排查](docs/guides/connection-configuration.md)。当前覆盖非 xc 能力；xc 手册列入后续治理。详细执行契约仍由各插件源文件维护。

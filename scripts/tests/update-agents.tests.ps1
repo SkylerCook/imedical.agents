@@ -65,6 +65,9 @@ function New-TestProject {
   Copy-Item -LiteralPath $agentThinIndexScriptUnderTest -Destination (Join-Path $root ".agents/scripts/generate-agent-thin-index.ps1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/refresh-agents-sparse.js") -Destination (Join-Path $root ".agents/scripts/refresh-agents-sparse.js")
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-agents.ps1")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-documentation-entry.js") -Destination (Join-Path $root ".agents/scripts/sync-documentation-entry.js")
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/docs") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/docs/README.md") -Value "# Documentation"
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/migrate-demand-ownership.js") -Destination (Join-Path $root ".agents/scripts/migrate-demand-ownership.js")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-runtime-skills.js") -Destination (Join-Path $root ".agents/scripts/sync-runtime-skills.js")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/workspace-context.js") -Destination (Join-Path $root ".agents/scripts/lib/workspace-context.js")
@@ -240,7 +243,7 @@ function New-TestProject {
     '& $canonicalScript -PluginPath $PluginPath -ProjectRoot $ProjectRoot -Mode $Mode -ExcludeSkill $ExcludeSkill -ExcludeRule $ExcludeRule -Force:$Force'
   )
 
-  Set-Content -Encoding UTF8 -Path (Join-Path $root "AGENTS.md") -Value "# Target Project"
+  Set-Content -Encoding UTF8 -Path (Join-Path $root "AGENTS.md") -Value @("# Target Project", '- 能力包使用、操作指南或连接配置排查：先读取 [.agents 文档入口](.agents/docs/README.md)，再按问题进入对应指南。')
   Set-Content -Encoding UTF8 -Path (Join-Path $root "CLAUDE.md") -Value "# Existing Claude Entry"
 
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/vendor/test-vendor/skills/vendor-test-skill") | Out-Null
@@ -294,7 +297,7 @@ function New-OverlayTestProject {
   git -C $workspaceRoot config user.email "test@example.invalid" | Out-Null
   git -C $workspaceRoot config user.name "Test User" | Out-Null
   New-Item -ItemType Junction -Path (Join-Path $workspaceRoot "backend") -Target $sourceTarget | Out-Null
-  Set-Content -Encoding UTF8 -Path (Join-Path $workspaceRoot "AGENTS.md") -Value "# Overlay Test Project"
+  Set-Content -Encoding UTF8 -Path (Join-Path $workspaceRoot "AGENTS.md") -Value @("# Overlay Test Project", '- 能力包使用、操作指南或连接配置排查：先按 `.agents/capability.json` 解析 `CapabilityRoot`，读取其 `docs/README.md`，再按问题进入对应指南。')
 
   $capabilityRoot = Join-Path $CapabilityProjectRoot ".agents"
   $manifest = [ordered]@{
@@ -883,7 +886,8 @@ try {
   Copy-Item -LiteralPath $workspaceContextModuleUnderTest -Destination (Join-Path $legacySparseAgentsRoot "scripts/lib/WorkspaceContext.psm1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/migrate-demand-ownership.js") -Destination (Join-Path $legacySparseAgentsRoot "scripts/migrate-demand-ownership.js")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/workspace-context.js") -Destination (Join-Path $legacySparseAgentsRoot "scripts/lib/workspace-context.js")
-  git -C $legacySparseAgentsRoot add scripts/update-agents.ps1 scripts/lib/WorkspaceContext.psm1 scripts/refresh-agents-sparse.js scripts/migrate-demand-ownership.js scripts/lib/workspace-context.js
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-documentation-entry.js") -Destination (Join-Path $legacySparseAgentsRoot "scripts/sync-documentation-entry.js")
+  git -C $legacySparseAgentsRoot add scripts/update-agents.ps1 scripts/sync-documentation-entry.js scripts/lib/WorkspaceContext.psm1 scripts/refresh-agents-sparse.js scripts/migrate-demand-ownership.js scripts/lib/workspace-context.js
   git -C $legacySparseAgentsRoot commit -m "test: seed legacy sparse checkout" | Out-Null
   git -C $legacySparseAgentsRoot sparse-checkout init --no-cone
   git -C $legacySparseAgentsRoot sparse-checkout set --no-cone "/scripts/*.ps1"
@@ -897,6 +901,7 @@ try {
   $legacySparseOutput = & (Join-Path $legacySparseAgentsRoot "scripts/update-agents.ps1") -ProjectRoot $legacySparseProjectRoot -Mode DryRun -NoPull -ResumedAfterSelfUpdate -Detailed | Out-String
   Assert-Contains $legacySparseOutput "workspace-context-resolver-restored" "Self-updated updater should restore runtime modules omitted by a legacy sparse checkout"
   Assert-True (Test-Path -LiteralPath (Join-Path $legacySparseAgentsRoot "scripts/lib/WorkspaceContext.psm1")) "Legacy sparse recovery should materialize WorkspaceContext.psm1"
+  Assert-True (Test-Path -LiteralPath (Join-Path $legacySparseAgentsRoot "scripts/sync-documentation-entry.js")) "Sparse recovery must deploy the documentation entry helper"
   Assert-True (Test-Path -LiteralPath (Join-Path $legacySparseAgentsRoot "scripts/migrate-demand-ownership.js")) "Sparse recovery must deploy the demand migration helper"
   Assert-Contains (Get-Content -Raw -LiteralPath (Join-Path $legacySparseAgentsRoot ".git/info/sparse-checkout")) "/scripts/lib/**" "Legacy sparse recovery should persist the current runtime sparse paths"
 }
@@ -904,6 +909,28 @@ finally {
   if (Test-Path -LiteralPath $legacySparseProjectRoot) {
     Remove-Item -Recurse -Force -LiteralPath $legacySparseProjectRoot
   }
+}
+
+$docsEntryProjectRoot = New-TestProject
+try {
+  $entryFile = Join-Path $docsEntryProjectRoot "AGENTS.md"
+  Set-Content -Encoding UTF8 -LiteralPath $entryFile -Value "# Existing Project without docs route"
+  $beforeEntry = [System.IO.File]::ReadAllText($entryFile)
+  $updater = Join-Path $docsEntryProjectRoot ".agents/scripts/update-agents.ps1"
+  $preview = & $updater -ProjectRoot $docsEntryProjectRoot -Mode DryRun -NoPull -Detailed | Out-String
+  Assert-Contains $preview "docs-entry-missing" "DryRun should discover a missing documentation entry"
+  Assert-True ([System.IO.File]::ReadAllText($entryFile) -eq $beforeEntry) "DryRun must preserve AGENTS"
+  $applied = & $updater -ProjectRoot $docsEntryProjectRoot -Mode Write -NoPull -Detailed | Out-String
+  Assert-Contains $applied "docs-entry-added" "Write should append the documentation entry"
+  $afterEntry = [System.IO.File]::ReadAllText($entryFile)
+  Assert-True ($afterEntry.StartsWith($beforeEntry)) "Write must preserve existing project prose"
+  Assert-Contains $afterEntry ".agents/docs/README.md" "The project must have a reachable docs route"
+  $repeated = & $updater -ProjectRoot $docsEntryProjectRoot -Mode Write -NoPull -Detailed | Out-String
+  Assert-Contains $repeated "docs-entry-ok" "Repeated Write should not duplicate the route"
+  Assert-True ([System.IO.File]::ReadAllText($entryFile) -eq $afterEntry) "Repeated Write must not change AGENTS"
+}
+finally {
+  Remove-Item -Recurse -Force -LiteralPath $docsEntryProjectRoot
 }
 
 $missingAgentsEntryProjectRoot = New-TestProject
