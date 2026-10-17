@@ -41,6 +41,8 @@ worktree 复用原项目启用能力，领域选择沿用[单需求流程](bos-d
 
 计划逐条覆盖 implementation/review/deployment/verification/cleanup，跳过阶段附原因与交接。部署/验收经绑定 work item 的受管入口自动归档回执；共享部署确认目标内容仍相同后复用。数据策略采用项目 fixture authority，处置与资源退出分别报告，真实成本对照见[接入说明](../docs/night-acceptance.md#21-项目适配与数据成本)。
 
+处理报告收尾按[编号汇总契约](../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#编号汇总契约)固定给出本批全部需求号汇总，并核对基线已满足、无需新增代码项未遗漏；状态分组另列。仅引用报告契约不触发验收交付授权。
+
 ## 单 Agent 降级
 
 无 subagent、原生 skill 或 YAML 能力时，读取本 Markdown 按阶段串行执行；项目 JSON 仅作为输入资料，不要求固定产品 API。没有浏览器时仍可执行后端用例，UI 范围保留待验。没有真实环境授权时，只完成本地合成验证与待执行计划。

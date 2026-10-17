@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+- 2026-10-17（本批全部需求号汇总，framework-maintenance）：demand-delivery-plugin 0.5.2 补齐处理报告完整批次集合，覆盖基线已满足、无需新增代码与待处理项；沿用编号格式，状态分组不能替代。普通 workflow 与夜跑引用同一契约，不扩大交付授权。同步 README、能力指南、发布记录和维护入口；AGENTS 与能力目录入口仍准确，无需修改，真实宿主观察合入既有 P2 队列。文档链接定向检查 1/1 通过，git diff --check 通过；工作区版本校验无本轮新增问题，全仓仅既有 xc 三份发布记录缺 commit 导致退出 1。后续获用户 c + p 授权，按本次范围提交并推送 origin/master；未同步业务副本。本轮无临时文件。
+
 - 2026-10-17（项目文档导航，framework-maintenance）：agent-context-kit 0.4.3 模板增加按任务读取 docs 首页；根更新器在既有项目入口缺失时追加导航，DryRun 预览、Check 检出、Write 幂等写入并回读。Overlay 未映射 docs 时解析 CapabilityRoot；链接、编码、Markdown 未闭合及并发变化停止，缺少 AGENTS 仍交初始化。普通更新不覆盖正文、配置与规则的边界保留。验证：Windows PowerShell 5.1 完整更新器回归通过，文档入口与布局分发 13/13 通过；覆盖旧项目追加、DryRun 不写、Check 失败/通过、重复更新、BOM/CRLF、无效编码、链接保护、未闭合 Markdown、Overlay 与旧 sparse 恢复。工作区版本审计仅报告既有 xc 三份历史发布记录缺 commit，无本轮新增问题；未修改历史记录。新专项加入 Windows/macOS/Linux × Node 22/24 CI，非本机与真实宿主仍待验证；未部署真实业务项目。本轮经用户授权提交并推送，提交前复核既有测试指纹。
 
 - 2026-10-17（连接配置查看指南，framework-maintenance）：新增 docs/guides/connection-configuration.md，提供使用者可查的字段位置、读取顺序、常见异常及 Agent 自主定位步骤，避免要求使用者解释目录。覆盖 BOS 私有分段与公司默认地址组合、进程环境继承、客户端注册独立性、IRIS/Overlay 配置来源；不保存个人连接事实，不新增配置中心、图形面板或自动扫描器。
