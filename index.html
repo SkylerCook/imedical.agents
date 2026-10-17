@@ -12,10 +12,10 @@
     <style>
         :root {
             color-scheme: light;
-            --type-body: 1.125rem;
-            --type-small: 1rem;
-            --type-card: 1.5rem;
-            --type-section: clamp(2rem, 2.5vw, 2.5rem);
+            --type-body: 1.25rem;
+            --type-small: 1.125rem;
+            --type-card: 1.625rem;
+            --type-section: clamp(2.125rem, 2.8vw, 2.75rem);
             --bg: #f6f8fb;
             --panel: #ffffff;
             --panel-soft: #eef4f8;
@@ -1113,7 +1113,7 @@
         .masthead a { text-decoration: none; }
         .brand { font-size: 22px; font-weight: 800; letter-spacing: -1px; }
         .brand span { color: var(--accent); }
-        .masthead > div { display: flex; gap: 28px; font-size: var(--type-small); font-weight: 700; }
+        .masthead > div { display: flex; align-items: center; gap: 28px; font-size: var(--type-small); font-weight: 700; }
         .growth-section { padding: 0 0 36px; }
         section .growth-shell { opacity: 1; transform: none; }
         .growth-shell { padding: 38px 48px 22px; border-radius: 24px; background: radial-gradient(ellipse at 98% 0%, #694b343d, transparent 55%), linear-gradient(130deg, #092a3b, #0a202d); }
@@ -1417,7 +1417,7 @@
             .context-state-grid, .exoskeleton-supports { grid-template-columns: 1fr; }
         }
         @media (max-width: 760px) {
-            :root { --type-body: 1.0625rem; --type-small: .9375rem; --type-card: 1.375rem; --type-section: clamp(1.625rem, 4.5vw, 1.875rem); }
+            :root { --type-body: 1.125rem; --type-small: 1rem; --type-card: 1.375rem; --type-section: clamp(1.625rem, 4.5vw, 1.875rem); }
             .masthead { gap: 12px; padding-block: 16px; }
             .masthead > div { width: 100%; gap: 12px 20px; }
             .masthead > div a:first-child { display: inline; }
@@ -1440,7 +1440,7 @@
             .engineering-details summary strong { font-size: var(--type-card); }
         }
         .outcome-section { padding: 48px 10px 40px; display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(240px, 1fr); gap: 40px; align-items: center; }
-        .outcome-section h1 { font-size: clamp(36px, 4.5vw, 60px); line-height: 1.25; margin: 18px 0; letter-spacing: -.03em; }
+        .outcome-section h1 { font-size: clamp(38px, 4.8vw, 64px); line-height: 1.25; margin: 18px 0; letter-spacing: -.03em; }
         .outcome-section h1 span { color: var(--primary); }
         .outcome-section p { color: var(--muted); font-size: var(--type-body); line-height: 1.8; max-width: 44rem; }
         .outcome-total { padding: 28px; border: 1px solid #bdd6df; border-radius: 18px; background: #eaf3f6; }
@@ -1454,6 +1454,93 @@
             .outcome-section { grid-template-columns: 1fr; gap: 20px; padding: 30px 8px; }
             .outcome-total { padding: 22px; }
         }
+        /* Preserve the original showcase; add task entry points and usable controls. */
+        .entry-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; margin-top: 24px; }
+        .entry-actions a { font-size: var(--type-small); font-weight: 700; text-underline-offset: 5px; }
+        .entry-button { display: inline-flex; justify-content: center; align-items: center; min-height: 48px; padding: 10px 22px; border-radius: 8px; background: var(--primary-dark); color: white; text-decoration: none; }
+        .entry-button:hover { background: var(--primary); color: white; }
+        .outcome-workflow { display: inline-block; margin-top: 18px; font-size: var(--type-small); }
+        .project-entry { padding: 20px 10px 0; }
+        .task-routes > summary { cursor: pointer; padding: 18px 0; font-weight: 700; color: var(--primary-dark); }
+        .task-routes { margin-top: 28px; border-top: 1px solid var(--line); }
+        .task-route { display: grid; grid-template-columns: 210px 1fr; gap: 24px; padding: 20px 0; border-bottom: 1px solid var(--line); }
+        .task-route h3 { font-size: var(--type-body); margin: 0; }
+        .entry-links { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
+        .entry-links a { font-size: var(--type-small); text-underline-offset: 4px; }
+        .route-note { font-size: var(--type-small); color: var(--muted); margin-top: 18px; }
+        .project-entry .entry-button { color: var(--primary-dark); background: #ffd3b9; }
+        .project-entry .entry-button:hover { background: white; }
+        .project-entry .entry-actions > a:not(.entry-button) { color: var(--primary-dark); }
+        .project-entry .start-note { font-size: var(--type-small); }
+        .growth-period { min-height: 44px; border-bottom: 2px solid transparent; }
+        .growth-period[aria-pressed='true'] { border-bottom-color: #ffb278; background: #ffffff0d; font-weight: 800; }
+        .growth-period:hover:not([aria-pressed='true']) { border-bottom-color: transparent; background: transparent; color: white; }
+        #growth-scrubber { min-height: 44px; }
+        a:focus-visible, summary:focus-visible { outline: 3px solid #b75a24; outline-offset: 5px; }
+        .growth-section a:focus-visible, .final-card a:focus-visible { outline-color: #ffd3b9; }
+        section .grid, section .architecture, section .repo-map, section .agent-grid, section .timeline, section .correction, section .quote, section .final-card { opacity: 1; transform: none; }
+        @media (max-width: 760px) {
+            .task-route { grid-template-columns: 1fr; gap: 12px; }
+            .entry-links { gap: 4px 20px; }
+            .entry-links a { display: inline-flex; min-height: 44px; align-items: center; }
+            .growth-periods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+            .growth-period { min-height: 52px; }
+            .entry-actions { gap: 12px 20px; }
+        }
+        .keep-word { white-space: nowrap; }
+        .presentation-trigger { border: 1px solid #145f7d; border-radius: 7px; background: #0b3e54; color: white; padding: 9px 16px; font: inherit; cursor: pointer; font-weight: 700; }
+        .presentation-trigger:hover { background: #145f7d; }
+        .deck { width: 100vw; max-width: none; height: 100dvh; max-height: none; margin: 0; padding: 0; border: 0; background: var(--bg); color: var(--text); }
+        .deck[open] { display: flex; flex-direction: column; }
+        .deck::backdrop { background: #081a28; }
+        .deck-toolbar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px 30px; background: #0b2939; color: white; }
+        .deck-toolbar strong { font-size: 20px; }
+        .deck-toolbar p { margin: 0; color: #c4d7e0; font-size: 16px; }
+        .deck-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        .deck button, .deck select { font: inherit; font-size: 16px; min-height: 44px; border: 1px solid #6d939f; border-radius: 6px; color: white; background: #173f51; padding: 6px 14px; cursor: pointer; }
+        .deck button:hover:not(:disabled) { background: #285c70; }
+        .deck button:disabled { opacity: .45; cursor: default; }
+        .deck :focus-visible { outline: 3px solid #ffb278; outline-offset: 3px; }
+        .deck-stage { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; scroll-snap-type: y proximity; scroll-behavior: smooth; }
+        .deck-slide { min-height: 100%; scroll-snap-align: start; padding: 36px max(32px, calc((100vw - 1320px) / 2)); display: flex; flex-direction: column; justify-content: center; gap: 24px; border-bottom: 1px solid #b8cbd6; position: relative; }
+        .deck-slide > * { flex-shrink: 0; }
+        .deck-slide:nth-child(even) { background: #eaf2f7; }
+        .deck-slide .section-head { margin-bottom: 0; }
+        .deck-slide .section-head h2, .deck-slide > h2 { font-size: clamp(32px, 3.3vw, 48px); line-height: 1.35; margin: 0; color: var(--primary-dark); }
+        .deck-slide .outcome-section { padding: 0; }
+        .deck-slide .outcome-section h1 { font-size: clamp(40px, 4.7vw, 68px); }
+        .deck-slide .outcome-total strong { font-size: clamp(100px, 11vw, 160px); }
+        .deck-slide .growth-shell { padding: 30px 36px; }
+        .deck-slide .growth-head h2 { color: white; font-size: 40px; line-height: 1.35; margin: 10px 0; }
+        .deck-slide .growth-head h2 span { color: #ffb278; }
+        .deck-slide .growth-story { min-height: 0; }
+        .deck-slide .grid { margin: 0; }
+        .deck-slide .card { padding: 24px; }
+        .deck-slide .card h3 { font-size: 26px; }
+        .deck-slide .card p { font-size: 20px; }
+        .deck-slide .exoskeleton-diagram { padding: 24px; }
+        .deck-system { display: grid; grid-template-columns: 1fr 1.25fr; gap: 28px; align-items: stretch; }
+        .deck-system .cognitive-engine, .deck-system .executor { width: auto; margin: 0; display: flex; flex-direction: column; justify-content: center; }
+        .deck-system .executor::before, .deck-system .executor::after { display: none; }
+        .deck-slide .context-state-grid { margin-top: 24px; }
+        .deck-slide .final-card { padding: 56px; }
+        .deck-slide .final-card h2 { font-size: clamp(36px, 4vw, 56px); }
+        .deck-slide .final-card p { font-size: 24px; line-height: 1.9; }
+        .deck-status { min-width: 66px; text-align: center; font-variant-numeric: tabular-nums; font-size: 17px; }
+        @media (max-width: 760px) {
+            .deck-toolbar { align-items: start; flex-direction: column; gap: 8px; padding: 12px 16px; }
+            .deck-toolbar p { display: none; }
+            .deck-controls { width: 100%; gap: 6px; }
+            .deck button, .deck select { font-size: 14px; padding: 6px 10px; }
+            .deck select { max-width: 140px; }
+            .deck-slide { padding: 28px 20px; justify-content: start; }
+            .deck-system { grid-template-columns: 1fr; }
+            .deck-slide .growth-shell, .deck-slide .exoskeleton-diagram { padding: 20px 16px; }
+            .deck-slide .growth-head h2 { font-size: 30px; }
+            .deck-slide .final-card { padding: 28px 22px; }
+            .deck-slide .final-card p { font-size: 20px; }
+        }
+        @media (prefers-reduced-motion: reduce) { .deck-stage { scroll-behavior: auto; } }
     </style>
 </head>
 
@@ -1461,15 +1548,15 @@
     <main class="page">
         <nav class="masthead" aria-label="页面导航">
             <a class="brand" href="#outcome-title">imedical<span>.agents</span></a>
-            <div><a href="#capability-title">能力全景</a><a href="#sharing-title">团队共享</a><a href="#exoskeleton-title">How it works</a><a href="https://gitee.com/skyler-cook/imedical.agents">查看源码 ↗</a></div>
+            <div><button type="button" class="presentation-trigger" hidden>成果演示</button><a href="#capability-title">能力全景</a><a href="#sharing-title">团队共享</a><a href="#exoskeleton-title">工程架构</a><a href="#project-entry">接入项目</a><a href="https://gitee.com/skyler-cook/imedical.agents">查看源码 ↗</a></div>
         </nav>
         <section class="outcome-section" aria-labelledby="outcome-title">
             <div>
                 <span class="eyebrow">2026.10 / 最新成果</span>
-                <h1 id="outcome-title">无人值守，<br><span>已经能产出需求。</span></h1>
-                <p>从共享方法与工具，到无人值守处理需求，工程能力开始转化为实际产出。这是近期最重要的一步。</p>
+                <h1 id="outcome-title">无人值守，<br><span>已经能<span class="keep-word">产出需求。</span></span></h1>
+                <p>imedical.agents 是面向医疗软件团队的 AI Coding 能力包，连接项目上下文、专业技能、执行工具与验证方法。无人值守需求产出，是这套共享能力近期最重要的实践成果。</p>
                 <p>启动前明确范围与授权，运行中推进实现、审查和验证，遇到阻塞保留断点，产出后进入验收与交付。</p>
-                <a class="text-link" href="https://gitee.com/skyler-cook/imedical.agents/blob/master/workflows/bos-demand-unattended.workflow.md">了解无人值守需求流程 ↗</a>
+                <div class="entry-actions"><a class="entry-button" href="https://gitee.com/skyler-cook/imedical.agents/blob/master/docs/update-agents.md">让你的项目用起来</a><a href="#exoskeleton-title">了解工程能力体系</a></div><a class="text-link outcome-workflow" href="https://gitee.com/skyler-cook/imedical.agents/blob/master/workflows/bos-demand-unattended.workflow.md">了解无人值守需求流程 ↗</a>
             </div>
             <aside class="outcome-total" aria-label="无人值守已产出 35 项需求">
                 <span>无人值守 · 已产出需求</span>
@@ -1587,7 +1674,7 @@
                 <article><span class="map-index">02</span><h3>执行与连接</h3><p>把专业做法写成可调用的技能，让工具连接真实工程。</p><div class="capability-tags"><span>Plugins / Skills</span><span>MCP / Scripts</span><span>Vendor / 知识参考</span></div></article>
                 <article><span class="map-index">03</span><h3>验证与演进</h3><p>用规则和检查约束执行，经过审查后把有效经验继续沉淀。</p><div class="capability-tags"><span>Rules / 检查</span><span>版本治理</span><span>反馈与经验</span></div></article>
             </div>
-            <a class="catalog-link" href="https://gitee.com/skyler-cook/imedical.agents/blob/master/docs/guides/capability-catalog.md">浏览完整能力目录 <span>↗</span></a>
+            <details class="task-routes"><summary>按实际任务查看能力入口</summary><div class="task-route"><h3>理解项目与代码</h3><div class="entry-links"><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/plugins/agent-context-kit/README.md">上下文与交接</a><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/docs/guides/imedical-knowledge.md">业务知识</a><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/plugins/iris-codegraph/README.md">IRIS 图谱</a><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/plugins/codegraph-query/README.md">代码关系查询</a><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/plugins/extract-doc/README.md">文档解析</a></div></div><div class="task-route"><h3>完成专业开发</h3><div class="entry-links"><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/plugins/coding-iris-plugin/README.md">IRIS 开发</a><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/plugins/iris-cure-form-dev/README.md">治疗表单</a><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/plugins/iris-interface-dev/README.md">接口开发</a><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/plugins/iris-external-reg/README.md">预约接入</a><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/plugins/i18n-iris-plugin/README.md">国际化</a><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/plugins/iris-imedical-doctor-ai/README.md">医生站 AI</a><a href="https://gitee.com/skyler-cook/imedical.agents/tree/master/plugins">xc 插件源目录</a></div></div><div class="task-route"><h3>从需求走到交付</h3><div class="entry-links"><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/plugins/bos-plugin/README.md">BOS 需求</a><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/docs/night-policy.md">夜跑机制</a><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/plugins/demand-delivery-plugin/README.md">验收与交付</a></div></div><div class="task-route"><h3>在团队中持续复用</h3><div class="entry-links"><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/docs/workspace-overlay.md">多模块共享</a><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/docs/coding-agent-adaptation.md">客户端适配</a><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/plugins/agent-framework-evolution/README.md">经验沉淀</a></div></div></details><p class="route-note">专业开发同时覆盖 xc 的扩展开发、数据提取、性能分析与打印模板。能力按项目启用，具体操作与验证边界以各插件说明为准。</p><a class="catalog-link" href="https://gitee.com/skyler-cook/imedical.agents/blob/master/docs/guides/capability-catalog.md">浏览完整能力目录 <span>↗</span></a>
         </section>
         <section aria-labelledby="sharing-title">
             <div class="section-head">
@@ -1704,6 +1791,7 @@
                 </section>
             </div>
         </details>
+        <div class="project-entry" id="project-entry"><div class="entry-actions"><a class="entry-button" href="https://gitee.com/skyler-cook/imedical.agents/blob/master/docs/update-agents.md">查看安装与更新</a><a href="https://gitee.com/skyler-cook/imedical.agents/blob/master/docs/guides/capability-guide.md">已有项目，开始使用</a></div><p class="start-note">从目标工程的 AGENTS.md 出发，核对插件启用状态，提供任务目标、操作范围与验收要求。</p></div>
         <section class="final" aria-labelledby="final-title">
             <div class="final-card">
                 <h2 id="final-title">能力持续成长，团队共享进步。</h2>
@@ -1712,9 +1800,24 @@
                     <code>imedical.agents</code> 将经过验证的做法沉淀为可治理的能力包，按项目接入并持续更新；
                     以项目手册建立上下文，用 Skills 沉淀方法、MCP 连接工具、Rules 划定边界，再由 Agents / Workflows 按需组织协作。
                 </p>
+
             </div>
         </section>
     </main>
+    <dialog class="deck" aria-label="imedical.agents 成果演示">
+        <header class="deck-toolbar">
+            <div><strong>imedical.agents · 成果演示</strong><p>上下滚动浏览 · 方向键翻页 · Esc 返回长页</p></div>
+            <div class="deck-controls">
+                <select id="deck-chapter" aria-label="选择演示章节"></select>
+                <button id="deck-prev" type="button" aria-label="上一页">上一页</button>
+                <output class="deck-status" aria-live="polite"></output>
+                <button id="deck-next" type="button" aria-label="下一页">下一页</button>
+                <button id="deck-fullscreen" type="button">全屏</button>
+                <button id="deck-close" type="button">返回长页</button>
+            </div>
+        </header>
+        <div class="deck-stage" tabindex="0" aria-label="演示内容，可上下滚动"></div>
+    </dialog>
     <script>
         const growthSection = document.querySelector('.growth-section');
         const growthPeriodButtons = [...growthSection.querySelectorAll('.growth-period')];
@@ -1838,6 +1941,148 @@
             entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } });
         }, { threshold: 0.15 });
         document.querySelectorAll('section .grid, section .growth-shell, section .architecture, section .repo-map, section .agent-grid, section .timeline, section .correction, section .quote, section .final-card').forEach(el => io.observe(el));
+        // Build the presentation from the page's source content, avoiding a second copy of facts.
+        const deck = document.querySelector('.deck');
+        const deckStage = deck.querySelector('.deck-stage');
+        const deckChapter = document.querySelector('#deck-chapter');
+        const deckPrev = document.querySelector('#deck-prev');
+        const deckNext = document.querySelector('#deck-next');
+        const deckStatus = deck.querySelector('.deck-status');
+        const deckLaunch = document.querySelector('.presentation-trigger');
+        let deckSlides = [];
+        let deckIndex = 0;
+        let deckFrame = null;
+        let deckPreviousOverflow = '';
+        let deckOwnsFullscreen = false;
+        let cloneSequence = 0;
+        function presentationCopy(selector) {
+            const source = document.querySelector('main.page ' + selector);
+            const copy = source.cloneNode(true);
+            const ids = new Map();
+            [copy, ...copy.querySelectorAll('[id]')].forEach(element => {
+                if (!element.id) return;
+                const oldId = element.id;
+                element.id = `presentation-${++cloneSequence}-${oldId}`;
+                ids.set(oldId, element.id);
+            });
+            [copy, ...copy.querySelectorAll('*')].forEach(element => {
+                for (const attr of ['aria-labelledby', 'aria-describedby']) {
+                    if (element.hasAttribute(attr)) element.setAttribute(attr, element.getAttribute(attr).split(' ').map(id => ids.get(id) || id).join(' '));
+                }
+                if (element.hasAttribute('clip-path')) element.setAttribute('clip-path', element.getAttribute('clip-path').replace(/url\(#([^)]*)\)/g, (_, id) => `url(#${ids.get(id) || id})`));
+            });
+            return copy;
+        }
+        function addDeckSlide(title, ...contents) {
+            const slide = document.createElement('section');
+            slide.className = 'deck-slide';
+            slide.setAttribute('aria-label', title);
+            slide.append(...contents);
+            deckStage.append(slide);
+            const option = document.createElement('option');
+            option.value = deckSlides.length;
+            option.textContent = `${deckSlides.length + 1}. ${title}`;
+            deckChapter.append(option);
+            deckSlides.push(slide);
+        }
+        function deckHeading(text) {
+            const heading = document.createElement('h2');
+            heading.textContent = text;
+            return heading;
+        }
+        function buildPresentation() {
+            deckStage.replaceChildren(); deckChapter.replaceChildren(); deckSlides = [];
+            const outcome = presentationCopy('.outcome-section');
+            outcome.querySelectorAll('.entry-actions, .outcome-workflow').forEach(element => element.remove());
+            addDeckSlide('核心成果', outcome);
+            const growth = presentationCopy('.growth-shell');
+            growth.querySelectorAll('.growth-controls, .growth-method, .sr-only, .growth-story[hidden]').forEach(element => element.remove());
+            addDeckSlide('能力成长', growth);
+            addDeckSlide('阶段进展', presentationCopy('[aria-labelledby="progress-title"] .section-head'), presentationCopy('[aria-labelledby="progress-title"] .grid'), presentationCopy('[aria-labelledby="progress-title"] .adapter-evidence'));
+            addDeckSlide('能力全景', presentationCopy('[aria-labelledby="capability-title"] .section-head'), presentationCopy('.capability-map'), presentationCopy('.route-note'));
+            addDeckSlide('团队复用', presentationCopy('[aria-labelledby="sharing-title"] .section-head'), presentationCopy('[aria-labelledby="sharing-title"] .grid'));
+            const architecture = document.createElement('div'); architecture.className = 'exoskeleton-diagram';
+            const system = document.createElement('div'); system.className = 'deck-system';
+            system.append(presentationCopy('.cognitive-engine'), presentationCopy('.executor'));
+            const context = document.createElement('div'); context.className = 'exoskeleton-frame';
+            context.append(presentationCopy('.context-state-grid'));
+            const exchange = presentationCopy('.brain-exchange');
+            exchange.textContent = '计划与指令 → 执行与观察 → 验证反馈';
+            architecture.append(system, exchange, context);
+            addDeckSlide('工程架构', deckHeading('为大模型，构建一套可靠做事的外骨骼。'), architecture);
+            const supports = document.createElement('div'); supports.className = 'exoskeleton-diagram';
+            const frame = document.createElement('div'); frame.className = 'exoskeleton-frame';
+            frame.append(presentationCopy('.exoskeleton-supports'), presentationCopy('.runtime-guard'), presentationCopy('.orchestration'));
+            supports.append(frame);
+            addDeckSlide('执行与验证', deckHeading('方法、工具与约束，共同支撑执行。'), supports);
+            addDeckSlide('团队价值', presentationCopy('.final-card'));
+        }
+        function updateDeckPosition(index) {
+            deckIndex = index;
+            deckChapter.value = index;
+            deckStatus.textContent = `${index + 1} / ${deckSlides.length}`;
+            deckPrev.disabled = index === 0;
+            deckNext.disabled = index === deckSlides.length - 1;
+        }
+        function goToDeckSlide(index) {
+            const next = Math.max(0, Math.min(index, deckSlides.length - 1));
+            updateDeckPosition(next);
+            deckSlides[next].scrollIntoView({ behavior: reducedMotion.matches ? 'instant' : 'smooth', block: 'start' });
+        }
+        deckLaunch.hidden = false;
+        deckLaunch.addEventListener('click', () => {
+            pauseGrowth(); selectGrowthPeriod(lastGrowthPeriod, false);
+            buildPresentation(); updateDeckPosition(0);
+            deckPreviousOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            deck.showModal(); deckStage.focus({ preventScroll: true });
+            deckStage.scrollTo({ top: 0, behavior: 'instant' });
+        });
+        deckStage.addEventListener('scroll', () => {
+            cancelAnimationFrame(deckFrame);
+            deckFrame = requestAnimationFrame(() => {
+                const top = deckStage.getBoundingClientRect().top;
+                let closest = 0;
+                deckSlides.forEach((slide, index) => {
+                    if (slide.getBoundingClientRect().top <= top + deckStage.clientHeight * 0.25) closest = index;
+                });
+                updateDeckPosition(closest);
+            });
+        }, { passive: true });
+        deckPrev.addEventListener('click', () => goToDeckSlide(deckIndex - 1));
+        deckNext.addEventListener('click', () => goToDeckSlide(deckIndex + 1));
+        deckChapter.addEventListener('change', () => goToDeckSlide(Number(deckChapter.value)));
+        document.querySelector('#deck-close').addEventListener('click', () => deck.close());
+        deck.addEventListener('close', () => {
+            cancelAnimationFrame(deckFrame);
+            if (deckOwnsFullscreen && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+            document.body.style.overflow = deckPreviousOverflow;
+            deckLaunch.focus();
+        });
+        deck.addEventListener('keydown', event => {
+            if (event.target.matches('select, input, textarea, a, button')) return;
+            let next = deckIndex;
+            if (event.key === 'ArrowRight' || event.key === 'PageDown') next++;
+            else if (event.key === 'ArrowLeft' || event.key === 'PageUp') next--;
+            else if (event.key === 'Home') next = 0;
+            else if (event.key === 'End') next = deckSlides.length - 1;
+            else return;
+            event.preventDefault(); goToDeckSlide(next);
+        });
+        const fullscreenButton = document.querySelector('#deck-fullscreen');
+        fullscreenButton.hidden = !document.fullscreenEnabled;
+        fullscreenButton.addEventListener('click', async () => {
+            try {
+                if (deckOwnsFullscreen && document.fullscreenElement) await document.exitFullscreen();
+                else { await document.documentElement.requestFullscreen(); deckOwnsFullscreen = true; fullscreenButton.textContent = '退出全屏'; }
+            } catch {
+                fullscreenButton.textContent = '全屏不可用';
+            }
+        });
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) deckOwnsFullscreen = false;
+            fullscreenButton.textContent = document.fullscreenElement ? '退出全屏' : '全屏';
+        });
     </script>
 </body>
 
