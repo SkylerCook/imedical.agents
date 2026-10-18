@@ -1,5 +1,7 @@
 # AGENTS.md
 
+启用 `night-convergence/v1` 时受管部署调用受剩余预算限制；超时结果未知，保留回读/退出断点，不自动重放。项目验收涉及环境依赖时提供实际 `verifyDependencies`，详见[夜跑接口](../../docs/night-policy.md#返修收敛与按需依赖)。
+
 后端验收按内部方法、实际 Broker/REST/SOAP 入口及副作用分层；纯后端不强制浏览器，影响前端行为时补 UI。夜跑使用 debugger 的非交互机器入口，见 [分层接入](../../docs/night-acceptance.md)。
 
 2.1 夜跑 Overlay 的 compile/deploy-frontend/run-acceptance 入口必须携带 work item 和环境别名，通过同一 run 门禁并自动归档回执。预检覆盖实际认证、角色、正常入口和退出；数据保留/重置/删除与资源退出分别验证，见[夜跑契约](../../docs/night-policy.md#schema-21-启动契约)。CLS 清单和部署统一从 Class 声明解析文档名，目录只用于定位本地文件。

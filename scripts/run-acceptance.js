@@ -5,6 +5,7 @@ const { createTestExecutor } = require('./lib/playwright-runner');
 const managed = require('./lib/night-execution');
 const { currentSources } = require('./lib/night-dispatch');
 const { loadManifest } = require('./agent-orchestrator');
+const convergence = require('./lib/night-convergence');
 const digest = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 async function runAcceptance(profile, execution = {}) {
     if (!Array.isArray(profile.cases) || !profile.cases.length) throw new Error('Nonempty cases required');
@@ -15,8 +16,9 @@ async function runAcceptance(profile, execution = {}) {
     const results = [];
     try {
         if (binding && path.relative(fs.realpathSync.native(profile.options.projectRoot), fs.realpathSync.native(binding.context.workspaceRoot)) !== '') throw new Error('Acceptance profile root differs from work owner');
-        executor = createTestExecutor(binding ? { ...profile.options, deadlineAt: Math.min(profile.options.deadlineAt, Date.parse(binding.manifest.night.limits.stopAt)) } : profile.options);
+        executor = createTestExecutor(binding ? { ...profile.options, deadlineAt: Math.min(profile.options.deadlineAt, Date.parse(binding.manifest.night.limits.stopAt), binding.operation.deadlineAt ?? Infinity) } : profile.options);
         for (const original of cases) {
+            managed.checkpoint(binding);
             let input = original;
             if (binding) {
                 const record = binding.manifest.night.demands.find(d => d.id === binding.item.night.demandId);
@@ -25,6 +27,16 @@ async function runAcceptance(profile, execution = {}) {
                 if (!['read-only', 'write'].includes(input.effects) || input.effects === 'write' && (binding.item.night.effects !== 'write' || input.dataPolicy !== binding.item.night.dataPolicy)) throw new Error('Case effects/data policy differ from authorized work item');
                 if (input.version && input.version !== record.frozenVersion) throw new Error('Case frozen version differs from work item');
                 input = { ...input, strictData: true, version: record.frozenVersion };
+                const dependencies = convergence.environmentBindings(binding.manifest, record.id);
+                if (dependencies.length) {
+                    const factory = input.createAdapter;
+                    input.createAdapter = async context => {
+                        const adapter = await factory(context), verifyVersion = adapter.verifyVersion;
+                        if (typeof adapter.verifyDependencies !== 'function') throw new Error('Environment dependencies require actual version verification');
+                        adapter.verifyVersion = async version => await verifyVersion.call(adapter, version) === true && await adapter.verifyDependencies(structuredClone(dependencies)) === true;
+                        return adapter;
+                    };
+                }
             }
             const result = await executor.run(input);
             if (binding) result.sourceBindings = currentSources(binding.manifest.night.demands.find(d => d.id === input.demandId)).sources;
@@ -32,10 +44,10 @@ async function runAcceptance(profile, execution = {}) {
             managed.consumeTest(binding, result);
             if (result.status !== 'passed') break;
         }
-    } catch { executionError = 'executor-failed'; }
+    } catch (error) { executionError = error.code === 'night-checkpoint-blocked' ? 'checkpoint-blocked' : 'executor-failed'; }
     finally { cleanup = executor ? await executor.stop() : { cleanupVerified: true, pendingOperations: 0 }; }
     const result = { schema: 'imedical-acceptance-batch/v1', results, cleanup, ...(executionError ? { executionError } : {}), status: !executionError && results.length === cases.length && results.every(r => r.status === 'passed') && cleanup.cleanupVerified ? 'scope-passed' : 'review-pending' };
-    managed.finish(binding, { ...result, ...(executionError ? { failureCategory: 'execution-unknown' } : {}) });
+    managed.finish(binding, { ...result, ...(executionError ? { failureCategory: executionError === 'checkpoint-blocked' ? 'gate' : 'execution-unknown' } : {}) });
     return result;
 }
 async function runPreflight(profile, profileFile, runDirectory) {

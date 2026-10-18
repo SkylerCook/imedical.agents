@@ -1,5 +1,7 @@
 # imedical.agents
 
+夜跑精简优化：新批次通过 `night-convergence/v1` 设置明确总时限与问题尝试硬上限；有依赖才绑定消费版本和相关验证，最终组合沿现有 Coordinator 协议核验。不增加自动合并器、交付组状态机或资源锁。接口、旧 run 兼容和真实环境限制见[夜跑策略](docs/night-policy.md#返修收敛与按需依赖)，已部署项目正常更新后仅新批次启用。
+
 BOS 普通与夜跑处理按需求复用项目已启用插件，支持不同及混合技术栈，保留 IRIS 专项直达；无需新增配置或启动扫描，见[领域路由](workflows/bos-demand.workflow.md#编码体系选择)。
 
 创建 worktree 同时交付用户审阅入口：真实仓库的 `.code-workspace`、适用的容器目录设置、固定基点与提交归属。正常更新取得规范，已有 worktree 按任务范围补齐，见[Worktree 审阅交付](docs/guides/worktree-review.md)。

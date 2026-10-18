@@ -170,6 +170,7 @@ async function main(kind,argv){
    });
    target=JSON.stringify([conn.protocol,conn.hostname,conn.port,conn.path.replace(/action\/compile.*$/,'')]);
   }
+  adapter=nightExecution.boundAdapter(nightBinding,adapter);
   const prior=nightExecution.reusableDeployment(nightBinding);
   let reuse=false;
   if(prior){

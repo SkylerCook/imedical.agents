@@ -1,6 +1,7 @@
 'use strict';
 
 const { createHash } = require('node:crypto');
+const convergence = require('./night-convergence');
 const DEFAULTS = Object.freeze({ demandBudgetMinutes: 13, sharedPreparationBudgetMinutes: 30, humanEstimateMinutes: 6, auditSampleRate: 0.2, maxInFlight: 1 });
 const ROUTES = ['static-review', 'internal-method', 'external-api', 'ui', 'manual'];
 const KINDS = ['text', 'style', 'internal-logic', 'query', 'write', 'state', 'contract', 'ui', 'device', 'module-refactor'];
@@ -8,9 +9,10 @@ const text = value => typeof value === 'string' && value.trim().length > 0;
 const list = value => Array.isArray(value) && value.length > 0 && value.every(text);
 function normalizePolicy(input = {}) {
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('Policy must be an object');
-    for (const key of Object.keys(input)) if (!Object.hasOwn(DEFAULTS, key)) throw new TypeError(`Unknown policy field: ${key}`);
+    for (const key of Object.keys(input)) if (!Object.hasOwn(DEFAULTS, key) && key !== 'convergence') throw new TypeError(`Unknown policy field: ${key}`);
     const policy = { ...DEFAULTS, ...input };
     for (const [key, value] of Object.entries(policy)) {
+        if (key === 'convergence') { policy.convergence = convergence.normalize(value); continue; }
         if (!Number.isFinite(value) || value <= 0 || (key === 'auditSampleRate' && value > 1) || (key === 'maxInFlight' && !Number.isInteger(value))) throw new TypeError(`Invalid policy field: ${key}`);
     }
     return policy;

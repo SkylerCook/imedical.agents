@@ -1045,7 +1045,7 @@ function usage() {
 function main(argv = process.argv.slice(2)) {
   const { command, options } = parseArgs(argv);
   if (!command || command === "help" || options.help) { process.stdout.write(usage()); return 0; }
-  const handlers = { capabilities: () => ({ schemas: ["2.0", "2.1"], features: ["preflight-only", "multi-repository-work-items", "managed-night-execution", "data-disposition"] }), init: commandInit, next: commandNext, ack: commandAck, result: options => commandAck(options, true), message: commandMessage, transition: commandTransition, status: commandStatus, validate: commandValidate, "night-record": commandNightRecord, "night-status": commandNightStatus };
+  const handlers = { capabilities: () => ({ schemas: ["2.0", "2.1"], features: ["preflight-only", "multi-repository-work-items", "managed-night-execution", "data-disposition", "night-convergence/v1"] }), init: commandInit, next: commandNext, ack: commandAck, result: options => commandAck(options, true), message: commandMessage, transition: commandTransition, status: commandStatus, validate: commandValidate, "night-record": commandNightRecord, "night-status": commandNightStatus };
   if (!handlers[command]) fail(`Unknown command: ${command}`);
   if (MUTATING_COMMANDS.has(command) && command !== "init") {
     const manifest = loadManifest(requireRunDirectory(options));

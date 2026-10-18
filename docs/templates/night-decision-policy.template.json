@@ -3,5 +3,11 @@
   "sharedPreparationBudgetMinutes": 30,
   "humanEstimateMinutes": 6,
   "auditSampleRate": 0.2,
-  "maxInFlight": 1
+  "maxInFlight": 1,
+  "convergence": {
+    "version": 1,
+    "maxProblemAttempts": 4,
+    "totalBudgetMinutes": null,
+    "demandBudgets": {}
+  }
 }

@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- 夜跑精简收敛：新批次探测 night-convergence/v1，明确批次统一总时限/需求覆盖，问题默认最多 4 次尝试；按需绑定依赖版本和范围，实际环境依赖由 profile 前后核验。沿用 run 事件与最终集成协议，不增加交付组/资源锁。BOS 0.10.2、coding 0.19.7 接入入口和部署预算；旧 run 不迁移。接口见 docs/night-policy.md；本机合成回归与真实/非 Windows 待验边界见日志及既有 P1/P2 队列。
+
 - 项目文档导航：agent-context-kit 0.4.3 模板与更新器共用按需 docs 首页入口；既有 AGENTS 缺失导航时 Write 追加，DryRun 预览、Check 检出。Overlay 解析 CapabilityRoot，项目正文与配置保留；更新与冲突边界见 docs/update-agents.md。
 
 - 连接信息查看与排查统一入口为 docs/guides/connection-configuration.md，供使用者与 Agent 共用；覆盖 BOS 分段字段、初始化与运行时区别、客户端来源和 IRIS/Overlay 配置边界。只导航现有事实源，不复制私有值或新增扫描器；README、docs 首页与能力指南已接入。
@@ -62,7 +64,7 @@
 
 - 能力源分为厂商无关的 `agents/`、`workflows/`、可复用 `plugins/` 与根级 `skills/`；工具专属配置只作为 adapter。源仓 `.agents/skills/agent-kit-maintenance/` 是维护者专用入口。
 - 当前有 17 个插件、0 个根级独立 skill。插件版本以 manifest 为准，独立 skill 版本以 frontmatter 为准；内部内容继承 owner 版本。发布记录不可变且不部署，版本 validator 不接入业务安装/更新/hook。
-- `coding-iris-plugin` 当前 v0.19.6：增加纯导入 Broker 客户端、严格 TLS/超时/授权与非交互 stdin 入口，旧人工 CLI 保留兼容；六个直接依赖 owner 仅扩大兼容范围并递增 patch。Windows 部署会话初始化对 Git 根目录长路径和 8.3 短路径按物理路径比较，既有会话状态不迁移；standard 需求录入使用简洁三段式与 v2 草稿，依赖兼容范围以各 owner manifest 为准。保留共享知识检索、项目菜单同步与产物路径门禁；前端 canonical 编码为 `utf8`，实际字节检测是最终门禁；真实 GB2312/mixed/unknown 不自动转码，明确 backend-only Overlay 为 `N/A (backend-only)`。新建类按 profile/同职责类/公共基类核对并适配 Extends，Review 检查继承依据；医生站注册类的指定继承要求归 doctor-dev 默认配置。CLS 共用清单检查提取后业务规则复用与稳定标识归属；Parameter 默认采用合法的 UpperCamelCase，可选自检提示非法声明及引用歧义，不替代 IRIS 编译；循环退出的 q 参数约束见规范后条件章节，由编码与 Review 核对，现有自检不作语法校验，不增加编译证据或提交门禁。
+- `coding-iris-plugin` 当前 v0.19.7：增加纯导入 Broker 客户端、严格 TLS/超时/授权与非交互 stdin 入口，旧人工 CLI 保留兼容；六个直接依赖 owner 仅扩大兼容范围并递增 patch。Windows 部署会话初始化对 Git 根目录长路径和 8.3 短路径按物理路径比较，既有会话状态不迁移；standard 需求录入使用简洁三段式与 v2 草稿，依赖兼容范围以各 owner manifest 为准。保留共享知识检索、项目菜单同步与产物路径门禁；前端 canonical 编码为 `utf8`，实际字节检测是最终门禁；真实 GB2312/mixed/unknown 不自动转码，明确 backend-only Overlay 为 `N/A (backend-only)`。新建类按 profile/同职责类/公共基类核对并适配 Extends，Review 检查继承依据；医生站注册类的指定继承要求归 doctor-dev 默认配置。CLS 共用清单检查提取后业务规则复用与稳定标识归属；Parameter 默认采用合法的 UpperCamelCase，可选自检提示非法声明及引用歧义，不替代 IRIS 编译；循环退出的 q 参数约束见规范后条件章节，由编码与 Review 核对，现有自检不作语法校验，不增加编译证据或提交门禁。
 - CSP 编译固定到 `compile-csp.js` 的 Atelier 通道；`deploy-frontend.js` 的 direct/guarded 共用单连接传输、替换前复核、逐文件最终校验与完整结果，提供阶段进度/计数；保留 guarded 编译后检查，默认本地计划、显式执行，不自动重试或扩展父页面。竞争窗口、强杀恢复及耗时口径见工具 README；真实服务器性能仍待独立授权验证。SFTP vendor 新项目默认禁用，更新自动迁移可识别的既有标准启动参数，显式 custom/自定义参数保留，不创建服务或安装 Python 依赖。
 - `iris-cure-form-dev`：当前版本和兼容范围以 owner manifest 为准；任务产物与运行态统一归目标项目 `docs/work/cure-form/<task>/`，快照/敏感证据归同任务 private；配置/规则仍在 `.agents/`。自动/手动部署与版本化克隆/显式原 RowID 覆盖分别选择。新模板不使用灰度，采用克隆的既有模板按引用拓扑收尾，原 ID 覆盖不调用 consolidate。显式旧输出路径保持兼容，不迁移既有备份。
 - 表单部署的 `transaction-package` / `lightweight-sql` 通道独立于 automatic/manual；轻量通道只服务已有独占单模板 content。固定 SQL 绑定兼容层保留单行事务门禁，授权样本验证不代表全部服务器/HIS 验收。

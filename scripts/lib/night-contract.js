@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
+const convergence = require('./night-convergence');
 const hash = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const text = value => typeof value === 'string' && value.trim().length > 0;
 const strict = manifest => manifest.schemaVersion === '2.1';
@@ -167,8 +168,9 @@ function timingStatus(manifest, record) {
 function assertStageComplete(manifest, item, currentSources) {
     if (!strict(manifest)) return;
     const record = manifest.night.demands.find(d => d.id === item.night.demandId);
+    if (convergence.enabled(manifest) && item.night.phase === 'verification' && convergence.dependencyReasons(manifest, record, true).length) throw new Error('Verification dependencies are not current and verified');
     if (currentSources && ['deployment', 'verification'].includes(item.night.phase) && currentSources(record).frozenVersion !== record.frozenVersion) throw new Error('Stage source version changed');
-    const operation = manifest.night.operations?.find(o => o.workItemId === item.id && o.status === 'verified' && o.frozenVersion === record?.frozenVersion && (o.phase === 'verification' ? o.profileFingerprint === manifest.night.preflight.profileFingerprint : o.configurationFingerprint === manifest.night.preflight.deploymentConfigFingerprint));
+    const operation = manifest.night.operations?.find(o => o.workItemId === item.id && o.status === 'verified' && o.frozenVersion === record?.frozenVersion && (!convergence.enabled(manifest) || o.dependencyToken === convergence.dependencyToken(manifest, record.id)) && (o.phase === 'verification' ? o.profileFingerprint === manifest.night.preflight.profileFingerprint : o.configurationFingerprint === manifest.night.preflight.deploymentConfigFingerprint));
     if (item.night.phase === 'deployment' && (!operation || !record?.deploymentReceipts?.some(r => r.operationId === operation.id && r.status === 'verified' && r.frozenVersion === record.frozenVersion))) throw new Error('Deployment stage requires a current managed receipt');
     if (item.night.phase === 'verification' && (!operation || !record?.testReceipts?.some(r => r.operationId === operation.id && r.status === 'passed' && r.frozenVersion === record.frozenVersion))) throw new Error('Verification stage requires current test receipts');
 }
@@ -198,7 +200,7 @@ function operationRecord(manifest, input, currentSources, gate) {
             if (actual !== a.sha256) throw new Error('Operation artifact changed');
         }
         if (night.operations.some(o => o.workItemId === item.id && o.status === 'running')) throw new Error('Unresolved operation; reconcile before retry');
-        night.operations.push({ ...structuredClone(op), demandId: record.id, frozenVersion: currentSources(record).frozenVersion, status: 'running', startedAt: new Date().toISOString() });
+        night.operations.push({ ...structuredClone(op), demandId: record.id, frozenVersion: currentSources(record).frozenVersion, ...(convergence.enabled(manifest) ? { dependencyToken: convergence.dependencyToken(manifest, record.id), deadlineAt: Math.min(Date.parse(night.limits.stopAt), Date.now() + convergence.budget(manifest, record).remainingMinutes * 60000) } : {}), status: 'running', startedAt: new Date().toISOString() });
     } else {
         const op = night.operations.find(o => o.id === input.operationId);
         if (!op) throw new Error('Unknown managed operation');
@@ -207,6 +209,7 @@ function operationRecord(manifest, input, currentSources, gate) {
         const record = night.demands.find(d => d.id === op.demandId);
         op.resultHash = resultHash; op.finishedAt = new Date().toISOString();
         op.status = ['verified', 'scope-passed'].includes(input.result?.status) && currentSources(record).frozenVersion === op.frozenVersion ? 'verified' : 'review-pending';
+        if (convergence.enabled(manifest) && (op.dependencyToken !== convergence.dependencyToken(manifest, record.id) || convergence.dependencyReasons(manifest, record).length)) op.status = 'review-pending';
         if (op.phase === 'verification' && (!input.result?.results?.length || input.result.cleanup?.cleanupVerified !== true || input.result.results.some(r => r.status !== 'passed' || !record.testReceipts?.some(receipt => receipt.operationId === op.id && receipt.hash === hash(r))))) op.status = 'review-pending';
         op.evidenceRefs = input.evidenceRefs;
         if (op.phase === 'deployment') {

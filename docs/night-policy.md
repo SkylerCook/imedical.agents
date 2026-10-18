@@ -4,6 +4,46 @@
 
 ## 启用与执行
 
+新批次启用下述 `night-convergence/v1` 精简扩展；旧 run 不补字段、不迁移计数。扩展复用本 run 的事件、计时和源码指纹，不增加调度器、通用交付组或资源锁。
+
+## 返修收敛与按需依赖
+
+启动前检查 `capabilities.features` 含 `night-convergence/v1`，使用 schema 2.1。策略新增 `convergence: {version:1,maxProblemAttempts:4,totalBudgetMinutes:<明确分钟数>,demandBudgets:{}}`。模板的 null 必须启动前填写；可为整批需求设统一时限，用 demandBudgets 的需求 ID 覆盖个别值。没有统一默认分钟数，Agent 从批次约定取得，不猜测；旧工具因未知策略字段拒绝启动。运行中不提高预算；接续需用户决定并保留原问题历史与已用时间，不能创建空记录清零。
+
+总投入按该需求 preparation/diagnosis/execute/wait/evidence 的实际活动区间取并集，父阶段与明细不重复计量；挂起后的空闲不计，共享准备单列，cleanup 不单独计入。保留 13/30 分钟探索复评及三截止。派发、转 running、受管操作开始及每个验收用例前复查；验收 deadline 和受管部署调用受剩余时间约束。超时不证明远端已停止，保留未知结果，禁止重放；资源退出和独立安全核对仍沿原授权执行。
+
+### 问题与尝试
+
+以下事件经原 `night-record --record ... --actor <Coordinator>` 提交，共用 `eventId`、`demandId`、`rationale`、非空 `evidenceRefs`。eventId 稳定，原样重放幂等、同 ID 不同内容拒绝。
+
+| kind | 额外字段与行为 |
+|---|---|
+| problem | problemId、caseId、category；首次诊断失败时登记。同需求同 caseId/category 不允许换名字另开计数。受管失败自动生成稳定 problemId，先看 night-status 再复用。 |
+| attempt-start | problemId、attemptId、hypothesis、change、expectedCheck、newEvidenceRefs、evidenceSummary。开始即占一次；一个问题只允许一次未结束尝试，中断后复用。 |
+| attempt-result | problemId、attemptId、status 为 resolved/failed/blocked。resolved 需要本次尝试的当前版本通过回执；静态检查需 checks 中同 caseId 的通过项带 attemptId、当前源码指纹和证据。 |
+
+一次尝试是一轮有明确假设的诊断、修复和定向验证，不是一个命令或一个回归用例。默认第 4 次可执行并消费结果，仍失败则拒绝第 5 次；换 Agent、work item、版本不清零。首次失败和正常回归不算修复尝试。问题复发沿用原历史；本版不新增问题拆合 API，相关问题沿原稳定标识记录，需求总时限始终累计。
+
+失败签名按用例、类别和失败断言标识计算，排除日志路径、引用与时间戳。下一次须说明新假设、改变及新证据内容；仅换引用且假设/改变/证据摘要相同会拒绝。文本不同不能证明语义有进展，Coordinator 必须核实，无新证据则挂起；普通复评不能豁免硬上限。长诊断循环每次新尝试也须登记，不能绕到普通工具继续业务动作；脚本不能计数任意宿主命令。
+
+night-status 的 decisions 返回预算、问题与依赖原因。停止后交付版本、已通过/失败/未测场景、各次改变和证据、停止原因及复现步骤。安全状态清楚且无活动操作的耗尽项释放容量，独立需求继续；未知写或未退出操作仍占用。已知缺陷写待修复，技术缺口写待补验，不计通过。
+
+### 依赖绑定
+
+独立需求无需额外输入。存在依赖时在下游验证前登记 `dependency-bind`，包含 `binding: {upstreamId,upstreamVersion,type,sourceScopes,requiredChecks,evidenceRefs}`；type 为 information/contract/code/environment，upstreamVersion 是上游当前冻结版本。sourceScopes 使用现有 `{repoRoot,scopes}`，必须在上游范围内，缺失路径不按空内容放行。code 另填 consumerScopes，属于下游源码范围并与源范围同路径同内容，确认代码实际可见。不同产物布局由项目先准备可对照范围。
+
+B 可基于稳定契约提前开发；最终技术通过要求依赖范围未变、所需上游 checks 通过且无未解决问题，并有 B 当前版本和依赖组合匹配的受管测试回执。无需等待无关检查或用户验收；有依赖的静态项无法取得组合证据时保留待补验。
+
+范围未变可复用原消费版本检查；相关变化沿直接和传递依赖撤销通过结论，重排受影响 review/verification，保留实现与历史证据。未知影响按失效处理。运行中不重派，先核对操作再重绑定；重新绑定撤销旧组合结论。必要的重新部署由 Coordinator 按影响安排，不默认全批回归。
+
+environment 依赖要求项目验收 adapter 实现 `verifyDependencies(bindings)`，实际读取运行端版本逐项比较，通过返回 true。执行器在正常 verifyVersion 前后检查中同时调用它，缺失/不匹配不能通过，传递环境依赖也传入。不能只回显输入，实际证据留项目；源码指纹不替代运行端核验。
+
+### 最终集成
+
+Coordinator 按[协作协议](../agents/_shared/orchestration-protocol.md)记录输入、逐仓结果和最终验证。单人单仓复用已有记录；跨仓/多人再补交接字段。本次不提供自动合并器、交付组状态机或共享资源锁；同部署对象/共享可变数据的冲突窗口由 Coordinator 在既有计划中排序。框架不能阻止外部部署，运行端前后核验仍必需。
+
+## 原有策略接口
+
 计划的 `nightBatchReference` 相对计划文件解析。批次设置唯一 `batchId`、带时区的三截止和 `decisionPolicyReference`；策略引用相对批次文件，填写[策略模板](templates/night-decision-policy.template.json)。无策略引用的旧批次保持原行为。批次与策略的 maxInFlight 必须一致。
 
 启用后每个 work item 声明 `night: {demandId, phase}`，phase 为 implementation/review/deployment/verification/cleanup。每个需求的 implementation 工作项具有唯一实际 owner。cleanup 必须使用 `kind: cleanup` 且无业务源码 writeScopes；它仍遵守数据处置授权。角色和独占源码范围沿现有计划声明。

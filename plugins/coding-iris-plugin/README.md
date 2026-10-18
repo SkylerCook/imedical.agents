@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+0.19.7：受管部署接入可选 `night-convergence/v1` 剩余预算，在现有 transport 边界复核并限制等待；超时保留未知写及收尾，不能据此宣称远端已取消。普通调用及未启用扩展的旧批次保持原行为。正常更新能力包后新批次按[收敛接口](../../docs/night-policy.md#返修收敛与按需依赖)准备，旧 run 不迁移，无私有配置或旧文件清理。
+
 0.19.0：夜跑绑定的 compile/deploy-frontend/run-acceptance 在执行前复核预检、授权、多仓来源、额度与截止，并自动归档真实回执。使用 `--work-item <id> --environment-alias <alias>`；run 从 Overlay 取得，可用 `--run-directory` 显式复核。普通非夜跑入口兼容。CLS 清单和部署共用 Class 声明解析，解析失败明确停止。通过正常能力包更新取得，新 profile 接入见[夜跑契约](../../docs/night-policy.md#schema-21-启动契约)，不修改私有配置或自动启动业务测试。
 
 0.17.1：同步 HISUI 固定提交快照的控件/样式索引、源码行号、主题与 locale 清单；版本身份来自 `.agents/vendor/hisui/upstream.json`，资源缺项见 resource-warnings.json。正常能力包更新即可取得参考，实际 HIS 的应用层 helper 和运行版本须按任务核对，无业务源码或配置迁移。

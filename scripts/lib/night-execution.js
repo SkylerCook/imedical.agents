@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const { resolveWorkspaceContext } = require('./workspace-context');
 const { loadManifest, recordNight } = require('../agent-orchestrator');
 const contract = require('./night-contract');
+const convergence = require('./night-convergence');
 
 function resolveBinding({ projectRoot = process.cwd(), runDirectory, workItemId }) {
     const context = resolveWorkspaceContext(projectRoot);
@@ -32,7 +33,8 @@ function begin(options) {
         environmentAlias: options.environmentAlias, ...(options.configurationFingerprint ? { configurationFingerprint: options.configurationFingerprint } : {}), ...(options.profileFingerprint ? { profileFingerprint: options.profileFingerprint } : {}),
         artifacts: (options.artifacts || []).map(file => ({ localPath: fs.realpathSync.native(file), sha256: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex') })) };
       recordNight(binding.directory, { kind: 'operation-start', operation, rationale: 'Managed execution entry gate', evidenceRefs: [binding.context.manifestPath] }, binding.manifest.coordinatorId);
-      return { ...binding, operation };
+      const latest = loadManifest(binding.directory);
+      return { ...binding, manifest: latest, operation: latest.night.operations.find(o => o.id === operation.id) };
     }
     catch (error) {
         try { recordNight(binding.directory, { kind: 'operation-blocked', workItemId: binding.item.id, reasons: ['execution-entry-gate-failed'], rationale: 'Hold affected execution; no runtime authorization request', evidenceRefs: [binding.context.manifestPath] }, binding.manifest.coordinatorId); } catch { /* Preserve original gate failure; unresolved ownership remains in the run. */ }
@@ -57,6 +59,35 @@ function consumeTest(binding, result) {
     recordNight(binding.directory, { kind: 'test-result', id: result.demandId, resultFile: file, rationale: 'Actual managed case receipt', evidenceRefs: [file] }, binding.manifest.coordinatorId);
 }
 
+function checkpoint(binding) {
+    if (!binding || !convergence.enabled(binding.manifest)) return;
+    const manifest = loadManifest(binding.directory);
+    const item = manifest.workItems.find(w => w.id === binding.item.id);
+    const decision = require('./night-dispatch').gateNight(manifest, item);
+    const op = manifest.night.operations.find(o => o.id === binding.operation.id);
+    if (!decision.allowed || !op || op.status !== 'running' || Date.now() >= op.deadlineAt || op.dependencyToken !== convergence.dependencyToken(manifest, item.night.demandId)) throw Object.assign(new Error('Night execution checkpoint blocked'), { code: 'night-checkpoint-blocked' });
+    binding.manifest = manifest;
+}
+
+// Bound one existing transport call. A deadline does not cancel a remote write;
+// the caller must preserve its unknown result and close/reconcile the transport.
+function boundAdapter(binding, adapter) {
+    if (!binding || !convergence.enabled(binding.manifest)) return adapter;
+    return new Proxy(adapter, { get(target, key) {
+        const value = target[key];
+        if (typeof value !== 'function') return value;
+        if (key === 'close') return value.bind(target);
+        return async (...args) => {
+            const remaining = binding.operation.deadlineAt - Date.now();
+            if (remaining <= 0) throw new Error('Night operation deadline exhausted');
+            checkpoint(binding);
+            let timer;
+            try { return await Promise.race([Promise.resolve().then(() => value.apply(target, args)), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Night transport deadline; reconcile outcome')), Math.min(remaining, 2147483647)); })]); }
+            finally { clearTimeout(timer); }
+        };
+    } });
+}
+
 function finish(binding, result) {
     if (!binding) return;
     const file = save(binding, 'result', result);
@@ -77,4 +108,4 @@ function reusableDeployment(binding) {
     return binding.manifest.night.operations?.find(op => op.phase === 'deployment' && op.status === 'verified' && op.configurationFingerprint === binding.operation.configurationFingerprint && op.environmentAlias === binding.operation.environmentAlias && contract.hash(op.artifacts) === contract.hash(binding.operation.artifacts)) || null;
 }
 
-module.exports = { resolveBinding, begin, consumeTest, finish, preflight, preflightStart, reusableDeployment, fingerprint: contract.hash };
+module.exports = { resolveBinding, begin, checkpoint, boundAdapter, consumeTest, finish, preflight, preflightStart, reusableDeployment, fingerprint: contract.hash };

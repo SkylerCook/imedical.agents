@@ -1,5 +1,9 @@
 # .agents 安装与更新 Runbook
 
+## 夜跑收敛扩展
+
+正常更新根 scripts/lib、验收入口、共享协议和已启用插件薄索引后，新批次检查 `capabilities.features` 含 `night-convergence/v1`，从策略模板填写明确总时限；null 不可执行。旧 run 不迁移或补造记录，无旧文件删除。环境依赖的验收 profile 需实现真实 `verifyDependencies` 后再启用该依赖；其它需求复用原 profile。合成回归在 night-convergence/night-contract-v2 专项与现有三平台 CI，真实业务验证另按授权执行。本轮未改安装/更新脚本，部署布局沿既有 scripts/lib/** 与 scripts/*.js。
+
 ## 文档导航补齐
 
 更新器在 Write 模式为已有项目 `AGENTS.md` 补齐缺失的按需文档导航，指向 `.agents/docs/README.md`；已有有效导航保留，重复执行不重复添加。Overlay 未映射 docs 时，入口改为按 `.agents/capability.json` 解析 CapabilityRoot 并读取其 docs/README.md，不修改共享目录或 manifest。

@@ -8,6 +8,7 @@ const { worktreeFingerprint } = require('../validation-evidence');
 const { normalizeQuotaPolicy, assessQuota, sanitizeQuotaSnapshot } = require('./night-quota');
 const { checkWorkspace } = require('../night-workspace');
 const contract = require('./night-contract');
+const convergence = require('./night-convergence');
 const PHASES = ['implementation', 'review', 'deployment', 'verification', 'cleanup'];
 const digest = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const nonempty = value => typeof value === 'string' && value.trim();
@@ -19,6 +20,7 @@ function initializeNight(plan, planFile) {
     const batch = read(file);
     if (!batch.decisionPolicyReference) return null;
     const policy = normalizePolicy(read(path.resolve(path.dirname(file), batch.decisionPolicyReference)));
+    if (policy.convergence && batch.policy?.interactionMode !== 'preflight-only') throw new Error('Night convergence requires schema 2.1 preflight-only');
     if (!nonempty(batch.batchId)) throw new Error('Night batchId required');
     const limits = batch.policy || {};
     const dates = ['stopClaimingAt', 'stopPublishingAt', 'stopAt'].map(key => {
@@ -119,7 +121,13 @@ function updateNight(manifest, input, actor) {
     if (actor !== manifest.coordinatorId) throw new Error('Night records require coordinator actor');
     requireEvidence(input);
     const night = manifest.night;
-    if (input.kind === 'preflight-start') {
+    if (['problem', 'attempt-start', 'attempt-result', 'dependency-bind'].includes(input.kind)) {
+        const changed = convergence.recordEvent(manifest, input);
+        if (changed && ['dependency-bind', 'attempt-start'].includes(input.kind)) {
+            const phases = input.kind === 'dependency-bind' ? ['review', 'verification'] : ['implementation'];
+            for (const item of manifest.workItems.filter(w => w.night.demandId === input.demandId && phases.includes(w.night.phase) && ['completed', 'blocked', 'failed'].includes(w.status))) item.status = 'pending';
+        }
+    } else if (input.kind === 'preflight-start') {
         if (!contract.strict(manifest)) throw new Error('Managed preflight requires schema 2.1');
         if (night.preflight) night.preflight.revoked = true;
         night.preflightAttempt = { status: 'running', startedAt: new Date().toISOString(), evidenceRefs: input.evidenceRefs };
@@ -144,11 +152,13 @@ function updateNight(manifest, input, actor) {
         if (contract.strict(manifest)) {
             const op = night.operations?.find(o => o.id === result.binding?.operationId);
             if (!op || op.phase !== 'verification' || op.status !== 'running' || op.demandId !== record.id || result.binding.workItemId !== op.workItemId || op.frozenVersion !== result.version) throw new Error('Test result requires a matching managed verification operation');
+            if (convergence.enabled(manifest) && (op.dependencyToken !== convergence.dependencyToken(manifest, record.id) || convergence.dependencyReasons(manifest, record).length)) throw new Error('Test dependency combination changed');
         }
         if (!['internal-method', 'external-api', 'ui'].includes(result.acceptance?.level)) throw new Error('Real test acceptance level required');
         record.timingSegments.push(...result.timingSegments.map(s => contract.strict(manifest) ? { ...s, granularity: 'detail', workItemId: result.binding.workItemId } : s));
         record.testReceipts ||= [];
         record.testReceipts.push({ hash: receiptHash, evidenceRef: input.resultFile, status: result.status, caseId: result.caseId, scope: structuredClone(result.scope), level: result.acceptance.level, frozenVersion: result.version, ...(result.binding ? { operationId: result.binding.operationId, workItemId: result.binding.workItemId } : {}) });
+        if (convergence.enabled(manifest)) Object.assign(record.testReceipts.at(-1), { dependencyToken: convergence.dependencyToken(manifest, record.id), convergenceAttemptIds: convergence.problems(manifest, record.id).flatMap(p => p.attempts.filter(a => !a.result).map(a => a.attemptId)) });
         if (contract.strict(manifest) && result.dataDisposition?.verified !== true) record.resources.polluted = true;
         record.resources.pending = result.cleanup?.verified !== true || record.resources.pending;
         record.results.knownDefect = result.failureCategory === 'business' || record.results.knownDefect;
@@ -159,6 +169,7 @@ function updateNight(manifest, input, actor) {
             delete record.automatedResult;
             record.candidateReady = false;
             record.failures.push({ category: result.failureCategory || 'evidence', evidenceFingerprint: input.failureEvidenceFingerprint || digest({ category: result.failureCategory, assertions: result.assertions, untested: result.untested }) });
+            convergence.observeFailure(manifest, record, result);
         }
     } else if (input.kind === 'shared') {
         for (const key of ['timingSegments', 'reassessments']) appendOnly(night.shared[key], input[key], `shared.${key}`, night.observedAt);
@@ -188,6 +199,10 @@ function updateNight(manifest, input, actor) {
         if (!record || !manifest.workItems.some(item => item.night.demandId === record.id)) throw new Error('Unknown night demand');
         if (!manifest.participants.some(p => p.id === record.implementationOwnerId)) throw new Error('Unknown implementation owner');
         const previous = night.demands.find(item => item.id === record.id);
+        if (convergence.enabled(manifest) && record.candidateReady) {
+            if (convergence.problems(manifest, record.id).some(p => !p.resolved) || convergence.dependencyReasons(manifest, record, true).length) throw new Error('Candidate has unresolved problems or dependencies');
+            if (convergence.bindings(manifest, record.id).length && !record.testReceipts?.some(r => r.status === 'passed' && r.frozenVersion === record.frozenVersion && r.dependencyToken === convergence.dependencyToken(manifest, record.id))) throw new Error('Candidate requires current dependency combination receipt');
+        }
         validateSourceCoverage(manifest, record);
         for (const key of ['timingSegments', 'failures', 'reassessments', 'testReceipts', 'deploymentReceipts']) appendOnly(previous?.[key], record[key], `demand.${key}`, night.observedAt);
         if (record.assessment?.post) {
@@ -212,6 +227,21 @@ function updateNight(manifest, input, actor) {
         if (previous) night.demands[night.demands.indexOf(previous)] = structuredClone(record);
         else night.demands.push(structuredClone(record));
     } else throw new Error('Unknown night record kind');
+    if (convergence.enabled(manifest)) for (const record of night.demands) {
+        const reasons = convergence.dependencyReasons(manifest, record, true);
+        if (reasons.length) {
+            record.candidateReady = false; delete record.automatedResult;
+            if (reasons.some(r => r !== 'dependency-verification-pending') && !record.dependencyIssues?.some(r => r !== 'dependency-verification-pending')) {
+                for (const item of manifest.workItems.filter(w => w.night.demandId === record.id && ['review', 'verification'].includes(w.night.phase) && w.status !== 'skipped')) {
+                    const active = night.operations?.some(op => op.workItemId === item.id && op.status === 'running');
+                    contract.trackWork(manifest, item, 'blocked');
+                    item.status = active ? 'blocked' : 'pending';
+                    if (active) record.resources.pending = true;
+                }
+            }
+            record.dependencyIssues = reasons;
+        } else delete record.dependencyIssues;
+    }
     night.observedAt = new Date().toISOString();
     return structuredClone(night);
 }
@@ -231,6 +261,10 @@ function nightCompletionIssues(manifest) {
     }
     for (const record of night.demands) if (record.candidateReady && (!checksComplete(record) || !sourcesMatch(record))) issues.push(`night candidate evidence stale: ${record.id}`);
     if (contract.strict(manifest)) for (const record of night.demands) if (contract.timingStatus(manifest, record) === 'incomplete') issues.push(`night timing incomplete: ${record.id}`);
+    if (convergence.enabled(manifest)) for (const record of night.demands) {
+        if (convergence.problems(manifest, record.id).some(p => !p.resolved)) issues.push(`night problem unresolved: ${record.id}`);
+        if (convergence.dependencyReasons(manifest, record, true).length || convergence.bindings(manifest, record.id).length && !record.testReceipts?.some(r => r.status === 'passed' && r.frozenVersion === record.frozenVersion && r.dependencyToken === convergence.dependencyToken(manifest, record.id))) issues.push(`night dependency evidence stale: ${record.id}`);
+    }
     return issues;
 }
 
@@ -248,7 +282,8 @@ function occupiedDemands(manifest) {
         const started = actions.some(a => a.type !== 'request-authorization') || item.status === 'completed';
         const allTerminal = manifest.workItems.filter(w => w.night.demandId === item.night.demandId).every(w => ['completed', 'skipped'].includes(w.status));
         const handedOff = record?.candidateReady && record.handoffRef && !unsafe;
-        if (unsafe || active || (started && !allTerminal && !handedOff && !record?.blocked)) occupied.add(item.night.demandId);
+        const stopped = record && convergence.enabled(manifest) && convergence.hardReasons(manifest, record, 'implementation').some(r => ['total-budget-exhausted', 'problem-attempts-exhausted'].includes(r));
+        if (unsafe || active || (started && !allTerminal && !handedOff && !record?.blocked && !stopped)) occupied.add(item.night.demandId);
     }
     return occupied;
 }
@@ -271,6 +306,8 @@ function gateNight(manifest, item, now = Date.now()) {
     const reasons = [];
     const record = night.demands.find(r => r.id === demandId);
     if (!record) return { allowed: false, reasons: ['night-assessment-missing'] };
+    reasons.push(...convergence.hardReasons(manifest, record, phase, now));
+    if (!['implementation', 'review'].includes(phase)) reasons.push(...convergence.dependencyReasons(manifest, record));
     if (record.blocked === true) reasons.push('demand-blocked');
     if (contract.strict(manifest)) {
         if (!night.startedAt && night.preflight?.state !== 'ready') reasons.push('night-preflight-not-ready');
@@ -314,7 +351,7 @@ function gateNight(manifest, item, now = Date.now()) {
     const summary = summarizeHumanBudget(night.demands, night.policy);
     if (summary.estimatedMinutes > summary.eligibleCount * night.policy.humanEstimateMinutes && !night.humanReassessments.some(r => r.summaryFingerprint === digest(summary))) reasons.push('human-budget-reassessment-required');
     if (decision.route === 'static-review' && night.audit?.results.some(r => r.status === 'misclassified')) reasons.push('static-policy-suspended');
-    return { allowed: reasons.length === 0, reasons: [...new Set(reasons)], route: decision.route, ...(quota.enabled ? { quota } : {}) };
+    return { allowed: reasons.length === 0, reasons: [...new Set(reasons)], route: decision.route, ...(convergence.enabled(manifest) ? { budget: convergence.budget(manifest, record, now), problems: convergence.problems(manifest, record.id), dependencyIssues: convergence.dependencyReasons(manifest, record, true) } : {}), ...(quota.enabled ? { quota } : {}) };
 }
 
 module.exports = { initializeNight, validateNightItems, updateNight, gateNight, currentSources, occupiedDemands, sharedMinutes, nightCompletionIssues };
