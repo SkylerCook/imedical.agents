@@ -2,6 +2,8 @@
 
 新夜跑入口要求 `night-convergence/v1`，启动前明确总时限，问题与按需依赖沿[共享夜跑接口](../../docs/night-policy.md#返修收敛与按需依赖)记录；旧 run 不静默升级。
 
+新批次同时按 [无人值守治理](../../docs/night-governance.md) 生成并批准 executionPlan：先周额度基线、逐条评级与最低测试，再确定双 Developer、双 Tester、worktree 与授权；派发前 materialize 实体 PLAN 和角色上下文。治理投入计入预算，取消默认全量 UI，旧批次不迁移。
+
 跨插件阶段依赖以 manifest 的 availableDependencies 为事实源；触发时按[可用性依赖协议](../../docs/plugin-availability.md)检查，缺口仅阻塞对应阶段，显式 disabled 保留。
 
 BOS 能力独立于技术栈。目录存在仅表示 available；项目使用前核对 plugin profile，首次接入读取 [bos-init](skills/bos-init/SKILL.md)。不自动启用其它插件。

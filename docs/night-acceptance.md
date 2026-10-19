@@ -2,6 +2,8 @@
 
 入口为 [夜跑 workflow](../workflows/bos-demand-unattended.workflow.md)，基础契约见 [测试运行时](testing-runtime.md)。本方案不是后台调度服务；Coordinator 负责阶段与授权，工具负责有限执行、会话和清理。
 
+新批次使用 [无人值守治理](night-governance.md) 落盘 executionPlan，并选择两类 Tester、持续 worker/v2 预检及认证复用；旧单次入口兼容。第一批真实治理试跑最多 5 条，授权与预算另在目标项目 PLAN 确定；下文历史 10 候选抽验用于后续扩大阶段。
+
 ## 选择最小充分的验收层级
 
 批次显式启用成本分级策略时，先执行下节的两次评估，再选择本表中的运行层级；未启用时沿用现有流程。分级不改变授权、业务验收状态或领域硬约束。

@@ -15,6 +15,8 @@ description: 处理已有 BOS 需求号或正文，复用项目已启用领域�
 
 ## 夜跑入口
 
+新批次执行 [事前治理](../../../../docs/night-governance.md)：由 Agent 生成结构化 executionPlan、周额度基线和逐需求最低测试；批准后在独立 worktree materialize 实体 PLAN，再以角色分片上下文实际派发。核实至少两个 Developer 的并发与两个 Tester 分工，治理和人工负担计入总成本。缺必要并发、用量或停止能力时保留具体缺口，不能静默按单开发或全量 UI 执行。
+
 `$bos-demand-handle --night` 是本技能的显式夜跑选择，不是交给 BOS 查询脚本的 CLI 参数。也接受“今晚处理这些需求”“批量夜跑”等明确自然语言请求；未指定夜跑时继续普通单需求流程。
 
 命中夜跑后执行 [BOS 夜跑 workflow](../../../../workflows/bos-demand-unattended.workflow.md)。从当前请求和既有上下文取得需求编号或查询范围、目标工程、截止、授权及人工留项策略，由 Agent 生成和维护目标工程的批次、策略及编排输入，用户无需手填 JSON。先核实已有配置与事实，仅集中询问仍缺少且影响执行的业务决定；批次文件本身不产生授权。

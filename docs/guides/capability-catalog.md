@@ -1,6 +1,10 @@
 # 能力目录（非 xc）
 
+[无人值守治理](../night-governance.md) 在同一 run 上绑定实体 PLAN、角色上下文、双 Developer / 双 Tester、冻结版本、持续认证 worker、周额度和分级成本报告；无新增 skill 或文件锁服务。
+
 [夜跑决策策略](../night-policy.md)为现有 Coordinator 增加两阶段分级、投入复评与固定抽验，显式启用；复用原事件、验证指纹和 runner，不增加常驻角色或 skill。
+
+已有 2.1 run 的容量增长沿原 `night-record` 接口，需要用户事实引用、无活动写入及全部有效授权，见[容量调整](../night-policy.md#运行中调整容量)；不新增技能或权限来源。
 
 共享 [夜跑 workflow](../../workflows/bos-demand-unattended.workflow.md) 与 [分层 runner](../night-acceptance.md) 复用现有插件，不增加 skill 数量；coding-iris-plugin 提供 Broker 机器调用。
 

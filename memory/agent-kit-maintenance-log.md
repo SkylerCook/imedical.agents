@@ -1,5 +1,16 @@
 # imedical.agents 维护日志
 
+- 2026-10-19–20（无人值守事前与联合交付治理，framework-maintenance）：按批准 PLAN 在原 schema 2.1 run 接入 executionPlan、周额度落盘基线、角色/需求分片上下文及双 Developer / 双 Tester 容量与错峰；两种启动位置 materialize 实体 PLAN/AGENTS 薄入口，保留原规则及链接目标。加入跨 worktree 同类身份、既有 Developer 集成、独立 post 后冻结材料、实际目标发布窗口、真实前后差异与原层级回执复用。持续 worker/v2 分需求与批次资源，预检及两需求复用一次认证，旧 owner 不得被换预检丢弃。
+  - Codex adapter 复用本机 app-server 协议，原生 Goal set/get 回读、续轮与恢复、停止 ACK/终态分开；受管 wrapper 在原锁内预留 token，落盘真实 launch receipt 并消费 ACK。观察失效时停止可核实端点，未知端点保留；无 Goal 要求真实 watcher PID/新鲜心跳/控制通道 challenge。主会话治理 token 缺实读时预留预算且总成本 unknown，周额度仍覆盖全部会话。
+  - coding-iris-plugin 0.20.0 显式 Atelier 前端通道复用 conditional write/回读/编译，SFTP 保持明确选择；冻结 bytes 保留原源码身份，支持继续编辑/删除原文件，Storage 新块需要回填则停止并交独立复审。BOS 0.10.3 入口、六个依赖 owner patch/range、发布记录、角色/workflow/registry、模板、更新兼容、能力手册和专项 CI 同步；不改安装/更新脚本，不增加生产依赖或文件锁服务。
+  - 验证命令、最终结果与限制集中于 maintenance/validation/night-governance-2026-10-19.md。真实 Codex 仅 schema 与 initialize/collaborationMode 握手，无真实会话/Goal/业务执行；首次真实浏览器行为通过但关闭超时，独立基线及配套 Chromium 151 同样复现，失败事实保留。原生等待链将退出阻塞定位到外部凭据选择器持有的共享 DictManager 锁；经用户授权核对身份并仅终止持锁者后，原 Node/Playwright/超时下 Chrome、Edge 各两次退出通过（155–239 ms），原 UI 用例含最终资源退出 1/1 通过；诊断及复测资源已清理，框架运行时代码未因诊断改变。真实项目最多 5 条试跑、native Goal 实际预算及非 Windows/最低 Node 结果留既有 P1/P2；详细 PLAN 前按需预检、浏览器完整启停探针已明确登记为待补，不宣称当前 worker 已具备。保留进入本轮前的容量/复评修改及第三夜观察文档，随本轮治理提交。
+  - Windows 整合回归 220 项（219 通过、1 真实 UI opt-in 跳过），PowerShell 5.1 部署清单、文档链接与 diff check 通过；收尾定向 33/33、28/28、报告 9/9 通过（范围重叠不累加）。版本全仓审计仅余三份 xc 历史发布记录缺 commit 的 6 条既有错误，本轮 8 个组件变化无新增问题；不改不可变历史、不声称全仓门禁通过。新夹具 D 盘优先、受限时系统临时回退，按归属清理。
+  - 提交前已同步远端 Feign 审计提交，摘要冲突保留双方内容。30 文件补验首轮 262/263（含真实 UI，无跳过）；补齐旧部署模拟绑定的 manifest 字段后，该文件 23/23 通过，其余 29 文件 240 项经指纹复用，缓存保留首次失败。暂存 8 个 owner 及直接依赖版本门禁、PowerShell 5.1 与文档链接通过；缓存归本仓库私有 Git 元数据，不入仓。
+
+- 2026-10-18（夜跑容量事件与探索复评，framework-maintenance，随本轮治理提交）：在既有night-record加入仅增长maxInFlight的policy-update，要求用户事实引用、真实无活动写入边界、原值匹配和原preflight仍有效；逐一校验所有会重绑的授权，包含未被work使用者，拒绝过期/撤销/来源或环境变化。原事件锁与回放保留历史，重算planHash后仅移动有效scopeHash，不重建授权元数据，默认容量仍1。探索复评只要求实际计费的preparation/diagnosis段闭合，保留正常execute计时及精确重评字段。
+  - 在现有night-convergence/v1基线上局部适配，保留其接口与实现；新增16项针对测试、原三平台Node矩阵入口、夜跑接口/能力手册/README及维护摘要。该阶段根运行时变更无插件或独立skill owner版本变化，未修改插件、安装更新器、账号或真实run。保留既有观察文档与maintenance导航修改，后续随事前治理实现一并提交。
+  - Windows Node 24.14.1：11个夜跑/调度/授权/额度/收敛专项89/89通过；最终新增专项16/16、文档链接1/1及diff check通过。测试临时目录限定D盘，夹具自行清理。受管事件集成覆盖旧日志前缀、候选/回执/权限元数据保留、hash重绑、锁竞争和回放；未使用grant的失效/替换反例均拒绝。已准备旧基线3文件最小候选并在旧依赖上16/16，通过不表示已部署真实业务副本；实际应用与运行事件由对应工程另行取证。非Windows/最低Node/真实运行边界沿既有P1/P2队列。
+
 - 2026-10-18（夜跑精简收敛，framework-maintenance）：按用户收窄后的范围，复用现有 run 增加可选 night-convergence/v1，问题及尝试事件幂等、默认 4 次硬上限、显式总时间与区间去重；有依赖才增加版本/范围绑定及组合回执，相关或传递变化撤销通过结论。受管验收用例边界复查、部署 adapter 限制剩余等待；超时不证明远端停止，保留未知写与收尾。Coordinator 集成补协议，不建立交付组状态机、资源锁或自动合并器。
   - 收尾复验：重绑定/返修重新排队且事件重放不重复排队，真实消费者 worktree 内容核验；相关夜跑/CLI/回执回归 41/41。随后将用例开始前的门禁停止与执行未知分开，避免误占容量；最终 convergence + playwright-runner 共 21 项，20 通过、1 完整 UI 缺运行时跳过，其中新增收敛专项 15/15。跨平台配置已接入，非本机与真实环境未执行。
   - 可复用本地证据保存在当前仓 `.git/night-convergence-validation.json`（suite: night-convergence-and-runner，含 UI 跳过限制）；使用 validation-evidence check 的 --evidence-file 显式读取。工具先写默认 C 盘临时缓存后已精准移除本任务条目，其它缓存保留，D 盘证据供后续验收/提交复用。

@@ -34,3 +34,5 @@
 新增智能体时必须同步更新本注册表和 `workflows/workflow-registry.md`。
 
 通用角色可由正式 workflow 分配给同会话子 Agent、多会话任务、人工参与者或单 Agent 串行执行。它们不是“必须启动子 Agent”的别名。
+
+无人值守 executionPlan 复用这些角色，Developer 至少两个独立 owner，Testing 按功能/浏览器分工；Reviewer 由未参与对应实现的现有角色短审，见 [治理契约](../docs/night-governance.md)。无法满足本批并发时先报告能力缺口，不能把通用串行降级默认为已批准夜跑方案。

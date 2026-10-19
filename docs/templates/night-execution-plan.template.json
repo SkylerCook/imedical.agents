@@ -1,0 +1,158 @@
+{
+  "executionPlan": {
+    "version": 1,
+    "objective": "<approved-batch-objective>",
+    "assessment": {
+      "summary": "<user-initial-assessment>",
+      "feasibility": "executable",
+      "complexity": "low",
+      "risk": "low",
+      "evidenceRefs": ["<assessment-evidence-reference>"]
+    },
+    "demands": [
+      {
+        "id": "<demand-id>",
+        "sourceText": "<complete-original-demand-text>",
+        "remarks": "<original-remarks-or-empty-string>",
+        "userAssessment": "<user-assessment-for-this-demand>",
+        "feasibility": "executable",
+        "complexity": "low",
+        "risk": "low"
+      }
+    ],
+    "budget": {
+      "timeMinutes": null,
+      "tokens": null,
+      "governanceMinutes": null,
+      "governanceTokens": null,
+      "weekly": {
+        "budgetPercentPoints": null,
+        "budgetId": "<stable-batch-budget-id>",
+        "baselineReference": "<absolute-preapproval-quota-baseline-path>"
+      }
+    },
+    "capacity": {
+      "clients": [
+        {
+          "id": "<actual-client-id>",
+          "maxConcurrent": null,
+          "evidenceRef": "<actual-client-capacity-observation>"
+        }
+      ],
+      "testerSchedule": [
+        {
+          "ownerId": "browser-tester",
+          "after": ["functional-tester"],
+          "reason": "<why-the-verified-client-capacity-requires-staggering>"
+        }
+      ]
+    },
+    "workers": [
+      {
+        "ownerId": "coordinator",
+        "role": "coordinator",
+        "clientId": "<actual-client-id>",
+        "workspaceRoot": "<absolute-coordinator-workspace-root>",
+        "entrypointReference": "<absolute-original-project-AGENTS.md>",
+        "requiredRules": ["<project-rule.md>", "<coordinator-role-rule.md>"],
+        "repositories": []
+      },
+      {
+        "ownerId": "developer-1",
+        "role": "developer",
+        "clientId": "<actual-client-id>",
+        "workspaceRoot": "<absolute-developer-1-workspace-root>",
+        "entrypointReference": "<absolute-original-project-AGENTS.md>",
+        "requiredRules": ["<project-rule.md>", "<developer-role-rule.md>"],
+        "repositories": [
+          {
+            "name": "<repo-name>",
+            "sourceRepo": "<absolute-source-repo-root>",
+            "target": "<absolute-developer-1-repo-worktree>",
+            "revision": "<fixed-base-commit-sha>",
+            "sourceIdentity": { "gitCommonDir": "<absolute-source-git-common-dir>" }
+          }
+        ]
+      },
+      {
+        "ownerId": "developer-2",
+        "role": "developer",
+        "clientId": "<actual-client-id>",
+        "workspaceRoot": "<absolute-developer-2-workspace-root>",
+        "entrypointReference": "<absolute-original-project-AGENTS.md>",
+        "requiredRules": ["<project-rule.md>", "<developer-role-rule.md>"],
+        "repositories": [
+          {
+            "name": "<repo-name>",
+            "sourceRepo": "<absolute-source-repo-root>",
+            "target": "<absolute-developer-2-repo-worktree>",
+            "revision": "<fixed-base-commit-sha>",
+            "sourceIdentity": { "gitCommonDir": "<absolute-source-git-common-dir>" }
+          }
+        ]
+      },
+      {
+        "ownerId": "functional-tester",
+        "role": "functional-tester",
+        "clientId": "<actual-client-id>",
+        "workspaceRoot": "<absolute-functional-tester-workspace-root>",
+        "entrypointReference": "<absolute-original-project-AGENTS.md>",
+        "requiredRules": ["<project-rule.md>", "<functional-tester-role-rule.md>"],
+        "repositories": [
+          {
+            "name": "<repo-name>",
+            "sourceRepo": "<absolute-source-repo-root>",
+            "target": "<absolute-functional-tester-repo-worktree>",
+            "revision": "<fixed-base-commit-sha>",
+            "sourceIdentity": { "gitCommonDir": "<absolute-source-git-common-dir>" }
+          }
+        ]
+      },
+      {
+        "ownerId": "browser-tester",
+        "role": "browser-tester",
+        "clientId": "<actual-client-id>",
+        "workspaceRoot": "<absolute-browser-tester-workspace-root>",
+        "entrypointReference": "<absolute-original-project-AGENTS.md>",
+        "requiredRules": ["<project-rule.md>", "<browser-tester-role-rule.md>"],
+        "repositories": [
+          {
+            "name": "<repo-name>",
+            "sourceRepo": "<absolute-source-repo-root>",
+            "target": "<absolute-browser-tester-repo-worktree>",
+            "revision": "<fixed-base-commit-sha>",
+            "sourceIdentity": { "gitCommonDir": "<absolute-source-git-common-dir>" }
+          }
+        ]
+      }
+    ],
+    "minimumTests": [
+      {
+        "id": "<minimum-test-id>",
+        "demandId": "<demand-id>",
+        "ownerId": "functional-tester",
+        "level": "<static-review|internal-method|external-api|ui|manual|not-applicable>",
+        "scope": ["<affected-scope-or-case>"],
+        "expectedResult": "<observable-expected-result>",
+        "rationale": "<why-this-test-level-is-sufficient>"
+      }
+    ],
+    "authorizationReferences": {
+      "collaborationPlan": "<explicit-user-approval-reference>"
+    },
+    "dataRetention": {
+      "mode": "none",
+      "scope": "<data-scope-or-read-only-scope>",
+      "handoff": "<recheck-entry-and-data-or-no-data-created>",
+      "authorizationReference": null
+    },
+    "integration": {
+      "ownerId": "coordinator",
+      "strategy": "review-only",
+      "targetRepo": "<absolute-integration-target-repo>",
+      "baseRevision": "<fixed-integration-base-commit-sha>",
+      "verification": "<integration-checks-and-required-evidence>",
+      "authorizationReference": null
+    }
+  }
+}

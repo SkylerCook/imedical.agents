@@ -5,7 +5,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
-const { planWorkspace, checkWorkspace } = require('../night-workspace');
+const { planWorkspace, checkWorkspace, materializeWorkspace } = require('../night-workspace');
+const { executionPlanFixture } = require('./fixtures/night-plan');
 function runGit(repo, args) {
     const result = spawnSync('git', ['-C', repo, ...args], { encoding: 'utf8', windowsHide: true });
     assert.equal(result.status, 0, result.stderr); return result.stdout.trim();
@@ -182,4 +183,75 @@ test('configured rules must load and source logical paths cannot silently change
     fs.symlinkSync(plan.repositories[0].target,path.join(plan.workspaceRoot,'src/redirected'),'junction');
     write(path.join(plan.workspaceRoot,'.agents/capability.json'),JSON.stringify(plan.manifest));
     assert.match(checkWorkspace(plan).issues.join(' '),/SourceRoot\/GitRoot differs/);
+});
+
+function executionWorkspace(t) {
+    const f = fixture(t);
+    Object.assign(f.request, { role: 'developer', roleOwnerId: 'dev-a', executionPlanVersion: 1, runReference: path.join(f.root, 'run'), requiredRules: ['role.md'] });
+    const plan = f.setup();
+    write(path.join(plan.workspaceRoot, '.agents/rules/role.md'), '# Developer role\n');
+    const manifest = {
+        schemaVersion: '2.1', runId: 'approved-run', coordinatorId: 'leader', orchestration: { planHash: 'approved-plan-hash' },
+        executionPlan: executionPlanFixture({ root: f.root, source: f.source, revision: plan.repositories[0].revision, gitCommonDir: path.resolve(f.source, runGit(f.source, ['rev-parse', '--git-common-dir'])), workspacePlans: [plan] }),
+        authorizations: { collaborationPlan: { state: 'granted', scopeHash: 'approved-plan-hash', sourceReference: 'grant:approved-batch' } },
+        night: { runReference: f.request.runReference, authorizationReferences: { collaborationPlan: 'grant:approved-batch' }, workspaces: [{ ownerId: 'dev-a', plan }] },
+        eventLog: { lastSequence: 1, projectionHash: '' }
+    };
+    function save() {
+        manifest.eventLog.projectionHash = require('../agent-orchestrator').projectionHash(manifest);
+        write(path.join(f.request.runReference, '00-run-manifest.json'), JSON.stringify(manifest));
+        write(path.join(f.request.runReference, 'events.jsonl'), JSON.stringify({ sequence: 1, payload: { projectionPatches: [{ op: 'set', path: '', value: manifest }] } }) + '\n');
+    }
+    save(); return { ...f, plan, manifest, save };
+}
+test('explicit PLAN materialization projects to overlay and physical Git entrypoints without changing originals', t => {
+    const f = executionWorkspace(t), entry = path.join(f.plan.workspaceRoot, 'AGENTS.md'), physicalEntry = path.join(f.plan.repositories[0].target, 'AGENTS.md');
+    const original = fs.readFileSync(path.join(f.business, 'AGENTS.md'), 'utf8');
+    write(physicalEntry, '# Repository custom instruction\nKeep this paragraph.\n');
+    assert.equal(checkWorkspace(f.plan).ok, false, 'read-only check cannot materialize missing artifacts');
+    const before = fs.readFileSync(physicalEntry, 'utf8');
+    assert.equal(fs.lstatSync(entry).isSymbolicLink(), true);
+    const result = materializeWorkspace(f.plan);
+    assert.equal(result.ok, true); assert.equal(result.artifacts.length, 2);
+    assert.equal(fs.lstatSync(entry).isSymbolicLink(), false);
+    assert.equal(fs.readFileSync(path.join(f.business, 'AGENTS.md'), 'utf8'), original);
+    assert.ok(fs.readFileSync(physicalEntry, 'utf8').startsWith(before));
+    assert.equal(checkWorkspace(f.plan).ok, true, JSON.stringify(checkWorkspace(f.plan)));
+    const once = fs.readFileSync(physicalEntry, 'utf8'); materializeWorkspace(f.plan); assert.equal(fs.readFileSync(physicalEntry, 'utf8'), once);
+    fs.unlinkSync(path.join(f.plan.repositories[0].target, '.agents/rules/night_run_plan.md'));
+    assert.match(checkWorkspace(f.plan).issues.join(' '), /ENOENT/, 'direct physical Git root must load its PLAN too');
+});
+test('current plan hash, artifact content and actual role rule are independently enforced', t => {
+    const f = executionWorkspace(t); materializeWorkspace(f.plan);
+    const rule = path.join(f.plan.workspaceRoot, '.agents/rules/night_run_plan.md');
+    fs.appendFileSync(rule, '\nunauthorized projection change'); assert.match(checkWorkspace(f.plan).issues.join(' '), /hash differs/);
+    materializeWorkspace(f.plan);
+    f.manifest.orchestration.planHash = 'updated-plan'; f.manifest.authorizations.collaborationPlan.scopeHash = 'updated-plan'; f.save();
+    assert.match(checkWorkspace(f.plan).issues.join(' '), /hash differs/);
+    materializeWorkspace(f.plan); assert.equal(checkWorkspace(f.plan).ok, true);
+    fs.unlinkSync(path.join(f.plan.workspaceRoot, '.agents/rules/role.md')); assert.equal(checkWorkspace(f.plan).ok, false);
+});
+test('materialize refuses unapproved/stale runs and shared context before writing either worker entrance', t => {
+    const f = executionWorkspace(t), rootRule = path.join(f.plan.workspaceRoot, '.agents/rules/night_run_plan.md'), physical = f.plan.repositories[0].target;
+    f.manifest.authorizations.collaborationPlan.scopeHash = 'stale'; f.save();
+    assert.throws(() => materializeWorkspace(f.plan), /approved collaborationPlan/); assert.equal(fs.existsSync(rootRule), false);
+    f.manifest.authorizations.collaborationPlan.scopeHash = f.manifest.orchestration.planHash; f.save();
+    fs.symlinkSync(path.join(f.business, '.agents'), path.join(physical, '.agents'), 'junction');
+    assert.throws(() => materializeWorkspace(f.plan), /traverses a link/); assert.equal(fs.existsSync(rootRule), false);
+    assert.equal(fs.existsSync(path.join(f.business, '.agents/rules/night_run_plan.md')), false);
+    assert.equal(fs.lstatSync(path.join(f.plan.workspaceRoot, 'AGENTS.md')).isSymbolicLink(), true);
+    fs.unlinkSync(path.join(physical, '.agents'));
+    f.manifest.executionPlan.workers[1].repositories[0].sourceIdentity.gitCommonDir = f.cap; f.save();
+    assert.throws(() => materializeWorkspace(f.plan), /source identity/); assert.equal(fs.existsSync(rootRule), false);
+    assert.throws(() => materializeWorkspace({ ...f.plan, request: { ...f.plan.request, executionPlanVersion: undefined } }), /explicit/);
+});
+test('each developer gets its own workspace and unrelated AGENTS links are preserved', t => {
+    const f = executionWorkspace(t), second = planWorkspace({ ...f.request, roleOwnerId: 'dev-b' });
+    assert.notEqual(second.workspaceRoot, f.plan.workspaceRoot);
+    assert.equal(path.basename(second.workspaceRoot), 'dev-b');
+    const physicalEntry = path.join(f.plan.repositories[0].target, 'AGENTS.md');
+    fs.symlinkSync(path.join(f.plan.workspaceRoot, '.agents/rules/role.md'), physicalEntry, 'file');
+    assert.throws(() => materializeWorkspace(f.plan), /approved original entrypoint/);
+    assert.equal(fs.lstatSync(physicalEntry).isSymbolicLink(), true);
+    assert.equal(fs.existsSync(path.join(f.plan.workspaceRoot, '.agents/rules/night_run_plan.md')), false);
 });

@@ -10,6 +10,8 @@ const { initializeNight, validateNightItems, updateNight, gateNight, currentSour
 const SCHEMA_VERSION = "2.0";
 const MUTABLE_SCHEMAS = new Set(["2.0", "2.1"]);
 const nightContract = require("./lib/night-contract");
+const nightPlan = require("./lib/night-plan");
+const hashText = value => crypto.createHash("sha256").update(value).digest("hex");
 const MANIFEST_NAME = "00-run-manifest.json";
 const EVENT_NAME = "events.jsonl";
 const LEGACY_SCHEMAS = new Set(["1.0", "1.1", "1.2"]);
@@ -354,7 +356,8 @@ function resetTaskLifecycle(manifest) {
 
 function planMaterial(manifest) {
   return {
-    ...(manifest.night ? { night: { ...(nightContract.strict(manifest) ? { interactionMode: manifest.night.interactionMode, authorizationReferences: manifest.night.authorizationReferences, requiredCapabilities: manifest.night.requiredCapabilities } : {}), batchId: manifest.night.batchId, policy: manifest.night.policy, limits: manifest.night.limits, ...(manifest.night.quotaPolicy ? { quotaPolicy: manifest.night.quotaPolicy } : {}), ...(manifest.night.workspaces ? { workspaces: manifest.night.workspaces } : {}) }, nightWork: manifest.workItems.map(item => ({ id: item.id, night: item.night })) } : {}),
+    ...(manifest.executionPlan ? { executionPlan: manifest.executionPlan } : {}),
+    ...(manifest.night ? { night: { ...(nightContract.strict(manifest) ? { interactionMode: manifest.night.interactionMode, authorizationReferences: manifest.night.authorizationReferences, requiredCapabilities: manifest.night.requiredCapabilities } : {}), ...(manifest.night.quotaBaselineHash ? { quotaBaselineHash: manifest.night.quotaBaselineHash } : {}), batchId: manifest.night.batchId, policy: manifest.night.policy, limits: manifest.night.limits, ...(manifest.night.quotaPolicy ? { quotaPolicy: manifest.night.quotaPolicy } : {}), ...(manifest.night.workspaces ? { workspaces: manifest.night.workspaces } : {}) }, nightWork: manifest.workItems.map(item => ({ id: item.id, night: item.night })) } : {}),
     ...(manifest.repositoryRoot ? { repositoryRoot: manifest.repositoryRoot } : {}),
     taskKind: manifest.taskKind,
     workflow: manifest.workflow,
@@ -388,6 +391,7 @@ function createManifest(options) {
   }
   const manifest = {
     schemaVersion: plan.schemaVersion || SCHEMA_VERSION,
+    ...(plan.executionPlan ? { executionPlan: clone(plan.executionPlan) } : {}),
     ...(plan.repositoryRoot ? { repositoryRoot: path.resolve(plan.repositoryRoot) } : {}),
     runId: options.runId || plan.runId || path.basename(path.resolve(options.runDirectory || options.runDir)),
     topic: options.topic || plan.topic || "",
@@ -423,6 +427,7 @@ function createManifest(options) {
   const night = initializeNight(plan, path.resolve(options.plan));
   if (night) manifest.night = night;
   if (night?.interactionMode === "preflight-only") manifest.schemaVersion = "2.1";
+  if (manifest.executionPlan && !nightContract.strict(manifest)) fail("Execution PLAN requires schema 2.1 managed execution");
   if (!MUTABLE_SCHEMAS.has(manifest.schemaVersion)) fail("Unsupported plan schemaVersion");
   if (nightContract.strict(manifest) && plan.workItems.some(w => !path.isAbsolute(w.repositoryRoot || ""))) fail("Night work repositoryRoot must be explicitly absolute");
   if (manifest.schemaVersion === "2.0" && manifest.workItems.some(w => w.repositoryRoot)) fail("Explicit work repositoryRoot requires schema 2.1");
@@ -457,6 +462,7 @@ function createAction(manifest, workItem, adapter, typeOverride, authorizationCa
   const existing = manifest.actions.find((item) => item.idempotencyKey === idempotencyKey && !["failed", "cancelled"].includes(item.status));
   if (existing) return existing;
   const action = {
+    ...(workItem && manifest.executionPlan ? { context: nightPlan.buildActionContext(manifest, workItem) } : {}),
     ...(workItem?.night?.modelTier ? { modelRequest: { tier: workItem.night.modelTier, mappingReference: workItem.night.modelMappingReference || null } } : {}),
     id: `act-${idempotencyKey.slice(0, 16)}`,
     workItemId: workItem?.id || null,
@@ -476,6 +482,30 @@ function createAction(manifest, workItem, adapter, typeOverride, authorizationCa
   };
   manifest.actions.push(action);
   return action;
+}
+
+function assertActionContext(manifest, action) {
+  if (!manifest.executionPlan || !action?.workItemId) return;
+  const item = manifest.workItems.find(w => w.id === action.workItemId), context = action.context;
+  const expected = nightPlan.buildActionContext(manifest, item);
+  if (!context || !nightPlan.contextSnapshotMatches(context, expected) || context.bindingHash !== expected.bindingHash || context.workerRuleSha256 !== expected.workerRuleSha256) fail("Action context missing or stale");
+  if (item.night.phase !== "cleanup") {
+    const workspace = manifest.night.workspaces?.find(w => w.ownerId === item.ownerId);
+    if (!workspace || !require("./night-workspace").checkWorkspace(workspace.plan, { manifest }).ok) fail("Action PLAN or role rules are missing or stale on disk");
+  }
+}
+
+function hostReceipt(result) {
+  if (!result.host) return {};
+  const host = {};
+  for (const key of ["threadId", "turnId", "deadlineAt", "contextInjected", "mode", "maxTurns", "supervisionRequired", "derivedSessionBudgetInherited", "executionUnknown", "goalPaused", "budgetConfigured"]) if (result.host[key] !== undefined) host[key] = clone(result.host[key]);
+  if (host.threadId && host.threadId !== result.endpointId) fail("Host receipt endpoint identity mismatch");
+  if (result.host.budget) {
+    host.budget = {};
+    for (const key of ["configured", "tokenBudget", "tokensUsed", "threadId", "readback"]) if (result.host.budget[key] !== undefined) host.budget[key] = clone(result.host.budget[key]);
+    if (host.budget.configured && (host.budget.readback !== true || host.budget.threadId !== result.endpointId || !Number.isSafeInteger(host.budget.tokenBudget) || host.budget.tokenBudget <= 0 || !Number.isSafeInteger(host.budget.tokensUsed) || host.budget.tokensUsed < 0)) fail("Host budget receipt lacks actual identity/readback");
+  }
+  return { host };
 }
 
 function commandInit(options) {
@@ -571,7 +601,20 @@ function recordNight(runDirectory, input, actor) {
   return withLock(runDirectory, () => {
     const manifest = loadManifest(runDirectory, true);
     assertMutable(manifest, "night-record");
-    updateNight(manifest, input, actor);
+    updateNight(manifest, input, actor, { runDirectory: path.resolve(runDirectory) });
+    if (input.kind === 'policy-update') {
+      const change = manifest.night.policyChanges.at(-1);
+      change.previousPlanHash = manifest.orchestration.planHash;
+      manifest.orchestration.planHash = hash(planMaterial(manifest));
+      change.nextPlanHash = manifest.orchestration.planHash;
+      // updateNight verified every grant, including grants unused by work items.
+      // Preserve authority metadata; only the existing valid scope binding moves.
+      for (const grant of manifest.night.preflight.authorizations) {
+        const held = manifest.authorizations[grant.category];
+        if (held) held.scopeHash = manifest.orchestration.planHash;
+      }
+      manifest.night.preflight.planHash = manifest.orchestration.planHash;
+    }
     manifest.verification.status = "stale";
     manifest.verification.lastMutationSequence = manifest.eventLog.lastSequence + 1;
     persist(runDirectory, manifest, "night.recorded", actor, input.record?.id || manifest.runId, { kind: input.kind, evidenceRefs: input.evidenceRefs });
@@ -591,8 +634,8 @@ function commandNightStatus(options) {
 
 function commandAck(options, completion = false) {
   const runDirectory = requireRunDirectory(options);
-  if (!options.result) fail("ack requires --result <json>");
-  const result = readJson(path.resolve(options.result));
+  if (!options.result && !options.resultValue) fail("ack requires --result <json>");
+  const result = options.resultValue ? clone(options.resultValue) : readJson(path.resolve(options.result));
   return withLock(runDirectory, () => {
     const manifest = loadManifest(runDirectory, true);
     assertMutable(manifest, "ack");
@@ -601,9 +644,17 @@ function commandAck(options, completion = false) {
     if (!action) fail(`Unknown action: ${actionId}`);
     if (result.actionId !== actionId) fail("Result actionId mismatch");
     const launch = LAUNCH_ACTIONS.has(action.type);
+    if (manifest.executionPlan && action.workItemId && result.status === "succeeded") {
+      assertActionContext(manifest, action);
+      if (result.contextHash !== action.context.sha256) fail("Action context not acknowledged by adapter");
+    }
     if (launch && manifest.orchestration.resultLifecycle !== "launch-result/v1") fail("Legacy launch results require independent review; start a new run for launch-result/v1");
     if (completion && (!launch || action.result?.status !== "succeeded" || result.endpointId !== action.result.endpointId)) fail("Completion requires a successful launch and matching endpointId");
-    const normalized = { actionId, status: result.status, endpointId: result.endpointId || null, artifactRefs: result.artifactRefs || [], error: result.error || null };
+    const normalized = { actionId, status: result.status, endpointId: result.endpointId || null, artifactRefs: result.artifactRefs || [], error: result.error || null, ...(action.context ? { contextHash: result.contextHash || null } : {}), ...hostReceipt(result) };
+    if (manifest.executionPlan && launch && !completion && normalized.status === 'succeeded' && normalized.host?.budget?.configured) {
+      const reservation = manifest.night.clientReservations?.find(r => r.actionId === action.id && r.status === 'reserved');
+      if (!reservation || normalized.host.budget.tokenBudget > reservation.tokens || normalized.host.deadlineAt !== reservation.deadlineAt) fail("Native Goal launch lacks its exact persisted budget reservation");
+    }
     const resultKey = completion ? "completionResult" : "result";
     if (action[resultKey]) {
       if (hash(action[resultKey]) === hash(normalized)) return action;
@@ -840,6 +891,11 @@ function commandTransition(options) {
       if (!item) fail(`Unknown work item: ${options.id}`);
       if (!["pending", "ready", "dispatched", "running", "blocked", "completed", "failed", "skipped"].includes(status)) fail(`Invalid work item status: ${status}`);
       if (manifest.night && ["dispatched", "running"].includes(status)) {
+        if (manifest.executionPlan && item.night.phase !== "cleanup") {
+          const action = manifest.actions.find(a => a.workItemId === item.id && a.status === "pending" && a.type !== "request-authorization");
+          if (!action) fail("Current dispatched action context required before execution");
+          assertActionContext(manifest, action);
+        }
         if (nightContract.strict(manifest) && !dependenciesComplete(item, new Map(manifest.workItems.map(w => [w.id, w])), true) && !(item.night.phase === "cleanup" && manifest.night.demands.find(r => r.id === item.night.demandId)?.cleanupRequested)) fail("Night stage dependencies incomplete");
         const decision = gateNight(manifest, item);
         if (!decision.allowed) fail(`Night execution blocked: ${decision.reasons.join(", ")}`);
@@ -909,7 +965,8 @@ function validateV2(manifest, runDirectory, finalOnly, settings = {}) {
   const issues = [];
   if (manifest.orchestration?.resultLifecycle && manifest.orchestration.resultLifecycle !== "launch-result/v1") issues.push("unsupported resultLifecycle");
   if (!MUTABLE_SCHEMAS.has(manifest.schemaVersion)) issues.push("Unsupported mutable schemaVersion");
-  try { nightContract.validateItems(manifest); } catch (error) { issues.push(error.message); }
+  try { validateNightItems(manifest); } catch (error) { issues.push(error.message); }
+  if (manifest.executionPlan && !nightContract.strict(manifest)) issues.push("Execution PLAN requires schema 2.1");
   if (!TASK_KINDS.has(manifest.taskKind)) issues.push("taskKind must be business-demand, framework-maintenance, or other");
   if (!["always", "on-signal"].includes(manifest.feedbackReviewPolicy || "always")) issues.push("Invalid feedbackReviewPolicy");
   if (manifest.feedbackDecision?.reviewState === "skipped" && ((manifest.feedbackReviewPolicy || "always") !== "on-signal" || manifest.feedbackDecision.skipReason !== "no-signal" || manifest.feedbackDecision.candidatesRef || manifest.feedbackDecision.decisions.length)) issues.push("invalid skipped feedback review");
@@ -1045,7 +1102,7 @@ function usage() {
 function main(argv = process.argv.slice(2)) {
   const { command, options } = parseArgs(argv);
   if (!command || command === "help" || options.help) { process.stdout.write(usage()); return 0; }
-  const handlers = { capabilities: () => ({ schemas: ["2.0", "2.1"], features: ["preflight-only", "multi-repository-work-items", "managed-night-execution", "data-disposition", "night-convergence/v1"] }), init: commandInit, next: commandNext, ack: commandAck, result: options => commandAck(options, true), message: commandMessage, transition: commandTransition, status: commandStatus, validate: commandValidate, "night-record": commandNightRecord, "night-status": commandNightStatus };
+  const handlers = { capabilities: () => ({ schemas: ["2.0", "2.1"], features: ["preflight-only", "multi-repository-work-items", "managed-night-execution", "data-disposition", "night-convergence/v1", "night-execution-plan/v1", "browser-worker/v1", "night-frozen-sources/v1", "night-weekly-quota/v1", "night-client/v1"] }), init: commandInit, next: commandNext, ack: commandAck, result: options => commandAck(options, true), message: commandMessage, transition: commandTransition, status: commandStatus, validate: commandValidate, "night-record": commandNightRecord, "night-status": commandNightStatus };
   if (!handlers[command]) fail(`Unknown command: ${command}`);
   if (MUTATING_COMMANDS.has(command) && command !== "init") {
     const manifest = loadManifest(requireRunDirectory(options));
@@ -1066,4 +1123,4 @@ if (require.main === module) {
   catch (error) { process.stderr.write(`${error.message}\n`); process.exitCode = error.exitCode || 1; }
 }
 
-module.exports = { recordNight, loadManifest, SCHEMA_VERSION, createManifest, validateV2, validateLegacy, projectionHash, scopeConflict, main };
+module.exports = { recordNight, loadManifest, SCHEMA_VERSION, createManifest, validateV2, validateLegacy, projectionHash, scopeConflict, assertActionContext, consumeActionResult: (runDirectory, result, completion = false) => commandAck({ runDirectory, resultValue: result }, completion), main };

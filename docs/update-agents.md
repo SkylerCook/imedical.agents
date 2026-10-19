@@ -1,5 +1,11 @@
 # .agents 安装与更新 Runbook
 
+## 无人值守治理 v1
+
+按正常更新流程同步根 scripts/*.js、scripts/lib/**、agents/workflows/docs 及已启用 coding-iris-plugin，再执行 Check。新批次探测 `night-execution-plan/v1`、`browser-worker/v1`、`night-frozen-sources/v1` 和 `night-weekly-quota/v1`；从 [治理接入](night-governance.md) 先取基线、填写并批准 executionPlan，再为独立 worktree materialize 实体 PLAN。普通更新不修改业务 AGENTS、不启动任务、不安装浏览器、不创建 Goal；旧 run/既有工作区不自动迁移，无旧文件删除。
+
+coding-iris-plugin 的 `web.frontendTransport:atelier` 为明确项目能力选择，复用既有保护/回读/编译；省略仍沿旧 SFTP，失败不自动换通道。依赖 owner 只扩大兼容范围；项目连接和认证配置仍私有。分发专项覆盖新增文件实际稀疏落盘，真实业务副本和各平台结果仍单独核验。本轮未修改安装/更新脚本。
+
 ## 夜跑收敛扩展
 
 正常更新根 scripts/lib、验收入口、共享协议和已启用插件薄索引后，新批次检查 `capabilities.features` 含 `night-convergence/v1`，从策略模板填写明确总时限；null 不可执行。旧 run 不迁移或补造记录，无旧文件删除。环境依赖的验收 profile 需实现真实 `verifyDependencies` 后再启用该依赖；其它需求复用原 profile。合成回归在 night-convergence/night-contract-v2 专项与现有三平台 CI，真实业务验证另按授权执行。本轮未改安装/更新脚本，部署布局沿既有 scripts/lib/** 与 scripts/*.js。

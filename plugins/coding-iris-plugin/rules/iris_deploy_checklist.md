@@ -42,7 +42,7 @@ related:
 
 - 能用脚本稳定完成的，不优先调用 MCP。
 - MCP 只补脚本能力缺口、做远端只读验证，或在用户明确要求部署时执行上传/编译。
-- 任何项目缺少 `sftp-server` 时，不得臆造 ftp 能力；只记录“前端上传能力不可用”，并输出待上传文件清单和目标映射。
+- 前端通道按项目明确配置选择：已确认支持时以 `web.frontendTransport="atelier"` 复用受保护 doc 读写；SFTP 为显式 fallback，旧项目省略字段沿用 SFTP。配置、失败与字节契约见[部署保护](../references/deployment-protection.md#前端通道选择)。两者均不可用时输出待上传文件和映射，不臆造能力或失败自动切换。
 - 涉及远端写入、批量同步、远端命令、Production、凭据或数据库变更时，须有覆盖当前目标和范围的明确授权；已有授权不重复确认。
 
 ## 后端类部署
@@ -62,7 +62,7 @@ related:
 
 ## CSP 编译
 
-- CSP 文件通过 SFTP 上传到物理 Web 根。
+- CSP 经已选择的受保护 Atelier doc 或 SFTP 通道上传；虚拟文档名与物理路径分别取项目配置。
 - CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 - Legacy 流程中不要把 `.gb2312.csp` 作为编译目标。
 - 不要把 `iris_execute.success=true` 当成编译成功；它只表示 ObjectScript 外层包装执行过。

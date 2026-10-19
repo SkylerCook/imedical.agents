@@ -85,7 +85,7 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 
 `scripts/iris-tools/compile-csp.js` 固化 CSP 的 Atelier 编译通道：默认本地计划，显式 `--execute` 一次批量编译虚拟路径列表。仅编译指定文件（含 show.csp），不自动扩展父页面或重新上传；无自动重试。
 
-SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项目保持 SFTP 默认禁用；更新时自动迁移可识别的旧 SFTP 启动路径；显式 custom 和自定义参数保持不变。依赖安装、主机密钥核对、原子上传兼容边界见 `../../vendor/sftp-server/README.md`；无 SFTP 的服务器仍需其它上传能力。
+SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项目保持 SFTP 默认禁用；更新时自动迁移可识别的旧 SFTP 启动路径；显式 custom 和自定义参数保持不变。依赖安装、主机密钥核对、原子上传兼容边界见 `../../vendor/sftp-server/README.md`。项目已确认 Atelier Web doc 支持时，前端通道选择和 SFTP fallback 按[部署保护](references/deployment-protection.md#前端通道选择)执行。
 
 插件内置：
 
@@ -113,7 +113,7 @@ SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项�
 
 官方 `iris-agentic-dev` v1.5.0 中通用性较高的 8 个 ObjectScript skills 固定快照位于 `.agents/vendor/iris-agentic-dev-skills/`，在 manifest 中全部声明为 optional capability。任务命中后按需读取，普通更新不生成浅层入口；上游工具名必须先按 `rules/iris_knowledge_lookup.md` 映射到当前 `tools/list` schema。`objectscript-tdd` 只有在任务已授权远端编译和测试时才能使用，其原文中的直接 session fallback 不得绕过本插件门禁。
 
-前端上传加编译固定使用 `scripts/iris-tools/deploy-frontend.js`：单连接差异上传、哈希回读后批量 Atelier 编译；失败停止，不临时生成脚本或自动换通道。参数及耗时口径见 `scripts/iris-tools/README.md`。
+前端上传加编译固定使用 `scripts/iris-tools/deploy-frontend.js`：按显式配置选择受保护 Atelier doc 或 SFTP，哈希回读后批量编译；失败停止。受管发布读取绑定的只读快照，保留原源码身份与 Storage 复审门禁。参数及耗时口径见 `scripts/iris-tools/README.md`。
 
 后端编译后必须按 [Storage 同步契约](references/deployment-protection.md#编译后-storage-同步) 核对并仅回填本次指定类的 Storage；本地同步失败不能报告 verified，受管夜跑保留源码冻结版本复审门禁。
 

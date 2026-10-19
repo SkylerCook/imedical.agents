@@ -10,7 +10,9 @@
 
 0.16.0：移除需求交付旧入口，更新器负责已部署项目的引用与启用状态迁移。此前 0.15.9：部署、CSP 编译和 SFTP 配置入口共用 workspace 校验结果；目录缺失、错误链接及无效 manifest 在配置读取和远端连接前停止并返回非零退出码。能力包必须为有效安装（含 CapabilityRoot 的 .git）；direct 仍不要求业务源码 Git 仓库或基线会话。 `commit-demand verify` 可对 committed/verified 计划重复执行，并精确比较提交与计划的文件集合（含中文路径和重命名两端）。随正常能力包更新生效，无配置迁移或清理。
 
-前端 SFTP 工具已纳入 `.agents/vendor/sftp-server/`：修复路径/忽略规则、原子上传与 SHA-256 回读校验、超时及结构化错误。新项目默认禁用 SFTP；旧项目更新时自动迁移可识别的 SFTP 启动路径（显式 custom 除外），保留连接参数。Python 依赖按带哈希锁文件单独安装，升级器不自动安装依赖。主机密钥与服务器原子替换兼容要求见 [SFTP runtime](../../vendor/sftp-server/README.md)。这不提供无 SFTP 服务器的上传替代通道。
+前端项目确认支持 Atelier Web doc 读写后，可通过私有 `web.frontendTransport="atelier"` 复用受保护导出、条件上传、SHA-256 回读和 CSP 编译；SFTP 为明确选择的 fallback，旧项目省略字段保留 SFTP。失败停止，不自动换通道；通道、字节和冻结发布边界见[部署保护](references/deployment-protection.md#前端通道选择)。
+
+前端 SFTP 工具已纳入 `.agents/vendor/sftp-server/`：修复路径/忽略规则、原子上传与 SHA-256 回读校验、超时及结构化错误。新项目默认禁用 SFTP；旧项目更新时自动迁移可识别的 SFTP 启动路径（显式 custom 除外），保留连接参数。Python 依赖按带哈希锁文件单独安装，升级器不自动安装依赖。主机密钥与服务器原子替换兼容要求见 [SFTP runtime](../../vendor/sftp-server/README.md)。正常更新取得新入口，既有配置不自动迁移或清理，业务副本需自行同步。
 
 CLS 编码与 Review 共用[命名与格式规范](references/cls-coding-format.md)：用户明确要求、项目显式规范、框架默认值依次适用；历史代码只提供业务与兼容证据。格式化仅处理本次真正新增代码，原有代码的功能修改不附带风格调整；diff 的 + 行不自动等同新增代码。新建类先按后端流程核对 profile、同职责类和公共基类，适配模板 Extends，Review 核对继承依据。Agent 检查命名和表达式，共用清单检查提取后的业务规则重复和稳定标识归属；Parameter 默认使用合法的 UpperCamelCase。可选脚本检查成员边界、EOF 及有限的 Parameter 声明/引用命名，歧义提示人工核对，不替代 IRIS 编译，不作为提交门禁。新增注册类/DTO、表类及成员共用 [注释约定](references/cls-coding-format.md#注释与空行)：非表类明确职责，方法说明参数/返回契约并引用结构，变量用自然语言说明非显然含义；Param 按参数名区分，属性补充说明和索引注释按需，兼容历史标签。完整方法头示例保留空参数、返回状态和 Debug 调用形式，使用通用类名；不执行其中调用。Agent 完成注释 Review，现有格式脚本不承担标签解析或文档生成。
 

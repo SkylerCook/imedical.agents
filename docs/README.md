@@ -19,6 +19,7 @@
 | 执行阶段化协作、恢复任务 | [调度运行手册](agent-orchestration.md) |
 | 连续人工验收、逐号交付与编号汇总 | [demand-acceptance](../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md) |
 | 夜跑批次与后端/UI 分层验收 | [夜跑接入](night-acceptance.md) |
+| 事前 PLAN、双 Developer、冻结交付与持续浏览器 Tester | [无人值守治理](night-governance.md) |
 | 可重复验收、空闲会话保活与资源收尾 | [测试运行时](testing-runtime.md) |
 | 旧根级技能的插件归属迁移 | [迁移说明](skill-plugin-migration.md) |
 | 查询知识与刷新菜单 | [知识接入](guides/imedical-knowledge.md) |

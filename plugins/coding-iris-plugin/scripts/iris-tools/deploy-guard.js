@@ -18,6 +18,11 @@ function text(bytes) {
  if(s.includes('\0')||s.includes('\uFFFD'))stop('binary-or-invalid-text');
  return s.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n');
 }
+function readSource(file) {
+ const bytes=fs.readFileSync(file.immutablePath||file.localPath);
+ if(file.immutablePath&&(!/^[0-9a-f]{64}$/.test(file.immutableSha256||'')||hash(bytes)!==file.immutableSha256))stop('frozen-source-changed',{file:file.remotePath});
+ return bytes;
+}
 function merge(base,local,remote) {
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'iris-merge-'));
  try {
@@ -104,7 +109,7 @@ function initialize(repo,demand,baseRef,confirm) {
  }finally{fs.closeSync(fd);fs.unlinkSync(lock);}
 }
 function snapshot(repo,files) {
- return {head:git(repo,['rev-parse','HEAD']),index:git(repo,['ls-files','--stage']),files:files.map(f=>[f.localPath,hash(fs.readFileSync(f.localPath))])};
+ return {head:git(repo,['rev-parse','HEAD']),index:git(repo,['ls-files','--stage']),files:files.map(f=>[f.localPath,hash(readSource(f))])};
 }
 function checkGit(repo) {
  git(repo,['fetch','--no-tags']);
@@ -150,7 +155,7 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
   if(decision?.action==='resume'&&!recovering)stop('decision-expired');
   if(recovering){
    const observations=[];
-   for(const f of files)observations.push([f.remotePath,hash(await adapter.read(f)),hash(fs.readFileSync(f.localPath))]);
+   for(const f of files)observations.push([f.remotePath,hash(await adapter.read(f)),hash(readSource(f))]);
    const token=digest(JSON.stringify({repo:loc.repo,demand,key,base:state.base,observations,files:targetState.files}));
    if(decision?.action!=='resume'||decision.token!==token)stop('previous-result-unknown',{token});
    recoveryObservations=observations;
@@ -158,7 +163,7 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
   checkUpdates(repo);
   const names=new Set();
   for(const f of files) {
-   f.localPath=fs.realpathSync(f.localPath);
+   f.localPath=f.immutablePath?path.resolve(f.localPath):fs.realpathSync(f.localPath);
    const rel=path.relative(loc.repo,f.localPath);
    if(rel.startsWith('..')||path.isAbsolute(rel))stop('file-outside-repository');
    if(names.has(f.remotePath))stop('duplicate-remote-target'); names.add(f.remotePath);
@@ -176,8 +181,8 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
   const prepared=[];let decisionApplied=false;
   for(const f of files) {
    activeFile=f;
-   const raw=await adapter.read(f), remote=text(raw), source=fs.readFileSync(f.localPath), local=text(source);
-   if(recoveryObservations){const observed=recoveryObservations.find(x=>x[0]===f.remotePath);if(observed[1]!==hash(raw)||observed[2]!==hash(fs.readFileSync(f.localPath)))stop('recovery-confirmation-expired',{file:f.relative});}
+   const raw=await adapter.read(f), remote=text(raw), source=readSource(f), local=text(source);
+   if(recoveryObservations){const observed=recoveryObservations.find(x=>x[0]===f.remotePath);if(observed[1]!==hash(raw)||observed[2]!==hash(readSource(f)))stop('recovery-confirmation-expired',{file:f.relative});}
    const base=baseline(repo,state.base,f.relative), previous=targetState.files[f.remotePath];
    const token=digest(JSON.stringify({repo:loc.repo,demand,base:state.base,local,remote,previous:previous||null,target:key,file:f.remotePath}));
    const allowed=decision?.token===token && ['merge','overwrite'].includes(decision.action)?decision.action:null;
@@ -237,7 +242,7 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
   return result;
  }finally{fs.closeSync(fd);fs.unlinkSync(lock);}
 }
-module.exports={Attention,stop,digest,hash,text,storage,merge,choose,initialize,run,checkGit,validate,read,write,location};
+module.exports={Attention,stop,digest,hash,text,readSource,storage,merge,choose,initialize,run,checkGit,validate,read,write,location};
 if(require.main===module){
  const [command,repo,demand,base,confirmation]=process.argv.slice(2);
  try {

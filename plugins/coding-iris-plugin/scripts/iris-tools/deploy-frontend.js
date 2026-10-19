@@ -29,17 +29,20 @@ function buildPlan(args, config, env, context) {
   let source=args.sourceRoot || env.LOCAL_PATH;
   if(!source)throw new Error('Missing LOCAL_PATH; use --source-root');
   for(const token of ['__PROJECT_ROOT__','${workspaceFolder}','${cwd}'])source=source.replaceAll(token,context.workspaceRoot);
-  const root=fs.realpathSync(path.resolve(context.workspaceRoot,source));
+  const requestedRoot=path.resolve(context.workspaceRoot,source);
+  const root=fs.existsSync(requestedRoot)?fs.realpathSync(requestedRoot):requestedRoot;
   if(!context.sourceRoots.some(s=>inside(root,fs.realpathSync(s.target))))throw new Error('Source root outside declared workspace');
   const remote=env.REMOTE_PATH;
   if(typeof remote!=='string' || !remote.startsWith('/') || /[\\\x00-\x1f]/.test(remote) || remote.split('/').includes('..'))throw new Error('Invalid REMOTE_PATH');
   const files=[],seen=new Set();
   for(const input of args.files) {
-    const local=fs.realpathSync(path.resolve(context.workspaceRoot,input));
-    if(!inside(local,root) || !fs.statSync(local).isFile())throw new Error('Source outside upload root or not a file');
+    const requested=path.resolve(context.workspaceRoot,input);
+    const immutable=context.deploymentArtifacts?.get(requested)||(fs.existsSync(requested)?context.deploymentArtifacts?.get(fs.realpathSync(requested)):undefined);
+    const local=immutable?.sourcePath||(immutable?requested:fs.realpathSync(requested));
+    if(!inside(local,root) || !fs.statSync(immutable?.immutablePath||local).isFile())throw new Error('Source outside upload root or not a file');
     const relative=path.relative(root,local).split(path.sep).join('/');
     if(!/^(csp|scripts|css)\//.test(relative) || !/\.(csp|js|css|html|htm)$/i.test(relative))throw new Error('Unsupported frontend path');
-    const bytes=fs.readFileSync(local);
+    const bytes=immutable?require('./deploy-guard').readSource({localPath:local,...immutable}):fs.readFileSync(local);
     const text=new TextDecoder('utf-8',{fatal:true}).decode(bytes);
     if(text.includes('\uFFFD'))throw new Error('Replacement characters in source');
     const destination=path.posix.join(remote,relative);
@@ -50,7 +53,8 @@ function buildPlan(args, config, env, context) {
       if(!relative.startsWith('csp/'))throw new Error('CSP must be below source-root/csp');
       document=csp.plan([config.web.cspBasePath.replace(/\/$/,'')+'/'+relative.slice(4)],config.web.cspBasePath).documents[0];
     }
-    files.push({file:relative,localPath:local,remotePath:destination,bytes:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex'),document});
+    const sourceGitRoot=context.sourceRoots.find(s=>inside(local,fs.realpathSync(s.target)))?.gitRoot;
+    files.push({file:relative,localPath:local,...immutable,...(sourceGitRoot?{sourceGitRoot}:{}),remotePath:destination,bytes:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex'),document});
   }
   return {schema:'iris-frontend-deploy/v1',status:'planned',sourceRoot:root,files,documents:files.map(f=>f.document).filter(Boolean)};
 }
@@ -102,10 +106,8 @@ async function main(argv) {
   const {config}=require('./project-env').readProjectEnv(context);
   const mcp=readJson(path.join(context.workspaceRoot,'.mcp.json'));
   require('./project-env').validateTarget(config,mcp.mcpServers?.[config.mcp?.serverName||'iris-agentic-dev']?.env||{});
-  const server=mcp.mcpServers?.[config.sftp?.serverName || 'sftp-server'];
-  if(!server || server.disabled===true)throw new Error('SFTP configuration missing or disabled');
-  const env={...server.env};
-  const plan=buildPlan(args,config,env,context);
+  const protectedDeploy=require('./deploy-protected');
+  const plan=protectedDeploy.frontendPlan(args,config,mcp,context);
   // This branch is plan-only; execution returned through deploy-protected above.
   console.log(JSON.stringify(plan));
   return;

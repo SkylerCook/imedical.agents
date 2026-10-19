@@ -116,6 +116,7 @@ async function reconcile(files, adapter, {onFile = () => {}, beforeWrite = () =>
       if (storage(guard.text(file.source)) !== storage(compiled)) {
         plan.bytes = backfill(file.source.toString('utf8'), compiled);
         plan.synced = !plan.bytes.equals(file.source);
+        if (plan.synced && file.immutablePath) stop('frozen-storage-sync-requires-source-review', {file: file.remotePath, sourcePath: file.localPath, snapshotReadOnly: true, storageBackfillRequired: true});
       }
     } else if (compiled !== file.content) stop('post-compile-source-changed', {file: file.remotePath});
     plans.push(plan);
@@ -126,7 +127,7 @@ async function reconcile(files, adapter, {onFile = () => {}, beforeWrite = () =>
   }
   for (const plan of plans) {
     onFile(plan.file);
-    if (!fs.readFileSync(plan.file.localPath).equals(plan.file.source)) stop('local-changed-during-deploy', {file: plan.file.remotePath});
+    if (!guard.readSource(plan.file).equals(plan.file.source)) stop('local-changed-during-deploy', {file: plan.file.remotePath});
   }
   beforeWrite(plans);
   for (const plan of plans) {

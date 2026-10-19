@@ -81,11 +81,12 @@ async function runTestCase({ demandId, caseId, scope, version, adapter, session,
   if (strictData && !["read-only", "write"].includes(effects)) throw new Error("Explicit case effects required");
   if (strictData && effects === "write" && (!["retain", "reset", "delete"].includes(dataPolicy) || typeof adapter.inspectFixtures !== "function" || typeof adapter.finalizeData !== "function")) throw new Error("Write case requires fixture readiness and explicit data disposition adapter");
   const frozenVersion = structuredClone(version);
-  let fixturesVerified = false;
+  let fixturesVerified = false, activeStep;
   const result = { schema: 'imedical-test-result/v1', demandId, caseId, scope: structuredClone(scope), version: structuredClone(frozenVersion), startedAt: new Date(now()).toISOString(), status: 'review-pending', assertions: [], evidenceRefs: [], untested: [], failureCategory: null, durations: {}, cleanup: { verified: false } };
   result.timingSegments = [];
   if (strictData) result.dataDisposition = { policy: dataPolicy || null, status: effects === "read-only" ? "not-applicable" : "pending", verified: effects === "read-only" };
   async function step(name, fn) {
+    activeStep = name;
     const start = now();
     try { return await fn(); }
     finally {
@@ -117,8 +118,10 @@ async function runTestCase({ demandId, caseId, scope, version, adapter, session,
     else if (result.assertions.some(a => !a.passed)) { result.status = 'failed'; result.failureCategory = 'business'; }
     else if (observedEffects !== true || result.assertions.some(a => !a.evidenceRefs.length)) result.failureCategory = 'evidence';
     else result.status = 'passed';
-  } catch {
+  } catch (error) {
     result.failureCategory = 'execution-unknown';
+    result.failureStage = ['authentication', 'prepare', 'fixtureReadiness', 'versionBefore', 'execute', 'assert', 'sideEffects', 'versionAfter', 'close', 'dataDisposition'].includes(activeStep) ? activeStep : 'operation';
+    if (error?.code === 'target-assertion-failed') { result.failureStage = 'target'; result.failureCategory = 'environment'; }
     result.untested.push('Reconcile operation outcome before retry; adapter retains protected raw evidence.');
   } finally {
     if (strictData && effects === 'write' && fixturesVerified) {

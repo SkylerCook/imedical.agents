@@ -219,7 +219,7 @@ test('compile CLI backfills generated Storage without Git, and plan never connec
  // Source backfill must not bypass managed night frozen-version review.
  fs.writeFileSync(f.files[0].localPath,original);
  const night=require('../../../../../scripts/lib/night-execution'),output=[],receipts=[];
- t.mock.method(night,'begin',()=>({operation:{id:'synthetic'}}));t.mock.method(night,'reusableDeployment',()=>null);
+ t.mock.method(night,'begin',()=>({manifest:{},operation:{id:'synthetic'}}));t.mock.method(night,'reusableDeployment',()=>null);
  t.mock.method(night,'finish',(_binding,result)=>receipts.push(result));t.mock.method(console,'log',line=>output.push(JSON.parse(line)));
  const exitCode=process.exitCode;
  try{

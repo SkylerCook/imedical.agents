@@ -31,7 +31,7 @@ async function run({files, adapter, kind}) {
       activeFile = file.remotePath;
       if (names.has(file.remotePath)) guard.stop('duplicate-remote-path', {file: file.remotePath});
       names.add(file.remotePath);
-      const source = fs.readFileSync(file.localPath), local = guard.text(source);
+      const source = guard.readSource(file), local = guard.text(source);
       const remoteBytes = await adapter.read(file), remote = guard.text(remoteBytes);
       const content = prepare(file.remotePath, local, remote);
       // Frontend files keep original UTF-8 bytes, BOM and newlines.
@@ -42,7 +42,7 @@ async function run({files, adapter, kind}) {
     for (const file of prepared) {
       stage = 'upload';
       activeFile = file.remotePath;
-      if (!fs.readFileSync(file.localPath).equals(file.source)) guard.stop('local-changed-during-deploy', {file: file.remotePath});
+      if (!guard.readSource(file).equals(file.source)) guard.stop('local-changed-during-deploy', {file: file.remotePath});
       const latest = await adapter.read(file);
       if (guard.hash(latest) !== guard.hash(file.remoteBytes)) guard.stop('remote-changed-during-deploy', {file: file.remotePath});
       const unchanged = kind === 'backend' ? guard.text(latest) === file.content : guard.hash(latest) === guard.hash(file.bytes);

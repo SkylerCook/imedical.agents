@@ -63,7 +63,59 @@ function backendAdapter(conn){
   async compile(files){const r=await csp.compile(conn,{documents:files.map(f=>f.remotePath)});if(r.status!=='compiled')guard.stop('compile-failed',{compilation:r});return r;}
  };
 }
+function frontendTransport(config){
+ const selected=config.web?.frontendTransport===undefined?'sftp':config.web.frontendTransport;
+ if(!['atelier','sftp'].includes(selected))guard.stop('unsupported-frontend-transport');
+ return selected;
+}
+function atelierFrontendPlan(a,config,context){
+ const prefix=value=>{
+  if(typeof value!=='string'||!value.trim()||value.startsWith('TODO'))guard.stop('frontend-atelier-prefix-required');
+  const normalized=value.replace(/^\//,'').replace(/\/$/,'');
+  if(/[\\%?#\x00-\x20]/.test(normalized)||normalized.split('/').some(part=>!part||part==='.'||part==='..'))guard.stop('frontend-atelier-prefix-invalid');
+  return normalized;
+ };
+ const base=prefix(config.web?.basePath);
+ // Reuse the established SourceRoot, file-type, UTF-8 and virtual CSP checks.
+ // Atelier targets are explicit Web document names, never SFTP physical paths.
+ const plan=require('./deploy-frontend').buildPlan(a,config,{REMOTE_PATH:'/'+base},context);
+ const files=plan.files.map(file=>{const remotePath=file.file.startsWith('csp/')?prefix(config.web?.cspBasePath)+'/'+file.file.slice(4):base+'/'+file.file;return {...file,remotePath,targetId:remotePath};});
+ if(new Set(files.map(file=>file.remotePath)).size!==files.length)guard.stop('duplicate-remote-target');
+ return {...plan,transport:'atelier',files};
+}
+function atelierFrontendAdapter(a,config,mcp,context){
+ const started=performance.now(),plan=atelierFrontendPlan(a,config,context);
+ if(a.python||a.knownHosts||a.fingerprint)guard.stop('sftp-options-require-sftp-transport');
+ for(const file of plan.files)require('./deploy-direct').prepare(file.remotePath,guard.text(guard.readSource(file)),null);
+ const conn=csp.connection(config,mcp),docs=backendAdapter(conn);
+ const timings={localPreflightMs:Math.round(performance.now()-started)};
+ return {files:plan.files,metrics:{kind:'atelier'},timings,
+  target:JSON.stringify([conn.protocol,conn.hostname,conn.port,conn.path.replace(/action\/compile.*$/,'')]),
+  read:docs.read,
+  async put(file){
+   // Keep the frontend artifact's BOM/newlines. A server that normalizes these
+   // bytes fails readback rather than silently changing the upload contract.
+   await docs.put({...file,content:file.bytes.toString('utf8')});
+   const back=await docs.read(file),sha256=guard.hash(file.bytes);
+   if(guard.hash(back)!==sha256)guard.stop('readback-mismatch',{file:file.remotePath});
+   return {status:'verified',verification:'final-target-sha256',remotePath:file.remotePath,sha256};
+  },
+  async compile(files){
+   const startedCompile=performance.now();
+   try{const targets=files.filter(file=>/\.csp$/i.test(file.remotePath));if(targets.length)return await docs.compile(targets);}
+   finally{timings.compileMs=Math.round(performance.now()-startedCompile);}
+  }
+ };
+}
+function frontendPlan(a,config,mcp,context){
+ if(frontendTransport(config)==='atelier')return atelierFrontendPlan(a,config,context);
+ const server=mcp.mcpServers?.[config.sftp?.serverName||'sftp-server'];
+ if(!server||server.disabled)guard.stop('sftp-unavailable');
+ const plan=require('./deploy-frontend').buildPlan(a,config,server.env||{},context);
+ return {...plan,files:plan.files.map(file=>({...file,targetId:file.document||'deployment-target:'+guard.digest(file.remotePath)}))};
+}
 function frontendAdapter(a,config,mcp,context){
+ if(frontendTransport(config)==='atelier')return atelierFrontendAdapter(a,config,mcp,context);
  const preflightStarted=performance.now();
  const server=mcp.mcpServers?.[config.sftp?.serverName||'sftp-server'];
  if(!server||server.disabled)guard.stop('sftp-unavailable');
@@ -72,9 +124,9 @@ function frontendAdapter(a,config,mcp,context){
  if(a.knownHosts){if(a.fingerprint)guard.stop('conflicting-ssh-trust');env.TARGET_KNOWN_HOSTS=path.resolve(context.workspaceRoot,a.knownHosts);delete env.TARGET_HOST_KEY_SHA256;}
  const build=require('./deploy-frontend').buildPlan;
  const plan=build(a,config,env,context);
- if(a.mode==='direct'){
+ if(a.mode==='direct'&&!context.deploymentArtifacts?.size){
   for(const file of plan.files){
-   const content=guard.text(fs.readFileSync(file.localPath));
+   const content=guard.text(guard.readSource(file));
    require('./deploy-direct').prepare(file.remotePath,content,null);
   }
   const frontend=require('./deploy-frontend');
@@ -156,18 +208,32 @@ async function main(kind,argv){
   const {config,configPath,inherited}=require('./project-env').readProjectEnv(context),mcp=guard.read(path.join(context.workspaceRoot,'.mcp.json'));
   require('./project-env').validateTarget(config,mcp.mcpServers?.[config.mcp?.serverName||'iris-agentic-dev']?.env||{});
   if(!a.execute){console.log(JSON.stringify({status:'planned',mode:a.mode,kind,files:a.files,demand:a.demand,configPath,inherited}));return;}
-  nightBinding=nightExecution.begin({projectRoot:context.workspaceRoot,runDirectory:a.runDirectory,workItemId:a.workItemId,environmentAlias:a.environmentAlias,configurationFingerprint:nightExecution.fingerprint({config,mcp}),phase:'deployment',artifacts:a.files.map(file=>path.resolve(context.workspaceRoot,file))});
+  const execution={projectRoot:context.workspaceRoot,runDirectory:a.runDirectory,workItemId:a.workItemId,environmentAlias:a.environmentAlias,configurationFingerprint:nightExecution.fingerprint({config,mcp}),phase:'deployment'};
+  const binding=nightExecution.resolveBinding(execution),artifacts=a.files.map(file=>path.resolve(context.workspaceRoot,file));
+  if(binding&&typeof nightExecution.frozenArtifact==='function'){
+   const mapped=artifacts.map(sourcePath=>({sourcePath,frozen:nightExecution.frozenArtifact(binding,sourcePath)})).filter(item=>item.frozen?.sha256);
+   if(mapped.length){
+    if(mapped.length!==artifacts.length)guard.stop('partial-frozen-deployment');
+    context.deploymentArtifacts=new Map(mapped.map(({sourcePath,frozen})=>[sourcePath,{sourcePath:frozen.sourcePath||sourcePath,immutablePath:frozen.path,immutableSha256:frozen.sha256}]));
+   }
+  }
   let files,target;
+  if(kind==='frontend')files=frontendPlan(a,config,mcp,context).files;
+  else {
+   files=a.files.map(file=>{
+    const requested=path.resolve(context.workspaceRoot,file),immutable=context.deploymentArtifacts?.get(requested);
+    const localPath=immutable?.sourcePath||fs.realpathSync(requested);
+    const source=context.sourceRoots.find(s=>{const r=path.relative(fs.realpathSync(s.target),localPath);return r&&!r.startsWith('..')&&!path.isAbsolute(r);});
+    if(!source||!fs.statSync(immutable?.immutablePath||localPath).isFile())guard.stop('file-outside-workspace');
+    const ext=path.extname(file).toLowerCase(),content=guard.text(guard.readSource({localPath,...immutable}));
+    if(!['.cls','.mac','.inc'].includes(ext))guard.stop('unsupported-backend-type');
+    return {localPath,...immutable,sourceGitRoot:source.gitRoot,remotePath:require('./backend-document').documentName(file,content)};
+   });
+  }
+  nightBinding=nightExecution.begin({...execution,artifacts:files.map(file=>({localPath:file.immutablePath||file.localPath,targetId:file.targetId||file.document||file.remotePath}))});
   if(kind==='frontend'){adapter=frontendAdapter(a,config,mcp,context);files=adapter.files;target=adapter.target;}
   else {
    const conn=csp.connection(config,mcp);adapter=backendAdapter(conn);
-   files=a.files.map(file=>{
-    const localPath=fs.realpathSync(path.resolve(context.workspaceRoot,file));
-    if(!context.sourceRoots.some(s=>{const r=path.relative(fs.realpathSync(s.target),localPath);return r&&!r.startsWith('..')&&!path.isAbsolute(r);}))guard.stop('file-outside-workspace');
-    const ext=path.extname(file).toLowerCase(),content=guard.text(fs.readFileSync(localPath));
-    if(!['.cls','.mac','.inc'].includes(ext))guard.stop('unsupported-backend-type');
-    return {localPath,remotePath:require('./backend-document').documentName(file,content)};
-   });
    target=JSON.stringify([conn.protocol,conn.hostname,conn.port,conn.path.replace(/action\/compile.*$/,'')]);
   }
   adapter=nightExecution.boundAdapter(nightBinding,adapter);
@@ -175,20 +241,21 @@ async function main(kind,argv){
   let reuse=false;
   if(prior){
    if(adapter.verifyReuse)reuse=await adapter.verifyReuse();
-   else if(adapter.read){const matches=await Promise.all(files.map(async f=>{const remote=await adapter.read(f),source=fs.readFileSync(f.localPath);return kind==='backend'?guard.text(remote)===guard.text(source):guard.hash(remote)===guard.hash(source);}));reuse=matches.every(Boolean);}
+   else if(adapter.read){const matches=await Promise.all(files.map(async f=>{const remote=await adapter.read(f),source=guard.readSource(f);return kind==='backend'?guard.text(remote)===guard.text(source):guard.hash(remote)===guard.hash(source);}));reuse=matches.every(Boolean);}
   }
   if(reuse){await adapter.close?.();const result={status:'verified',reusedOperationId:prior.id,files:files.map(f=>({file:f.remotePath,status:'unchanged'}))};nightExecution.finish(nightBinding,result);nightBinding=null;console.log(JSON.stringify(result));return;}
   if(a.mode==='direct'){
    const result=sourceReview(adapter.batch?await adapter.batch():await require('./deploy-direct').run({files,adapter,kind}),nightBinding);
    await adapter.close?.();
-   result.timings={...result.timings,totalMs:Math.round(performance.now()-started)};
+   if(adapter.metrics)result.transport=adapter.metrics;
+   result.timings={...result.timings,...adapter.timings,totalMs:Math.round(performance.now()-started)};
    nightExecution.finish(nightBinding,{...result,...(result.partialOrUnknown?{failureCategory:'execution-unknown'}:{})});nightBinding=null;
     let output=JSON.stringify(result);
    for(const secret of [config.iris?.password,...Object.values(mcp.mcpServers||{}).map(s=>s.env?.IRIS_PASSWORD)])if(secret)output=output.split(JSON.stringify(secret).slice(1,-1)).join('[redacted]');
    console.log(output);if(result.status!=='verified')process.exitCode=1;
    return;
   }
-  const roots=files.map(f=>{const r=spawnSync('git',['-C',path.dirname(f.localPath),'rev-parse','--show-toplevel'],{encoding:'utf8',windowsHide:true});if(r.status!==0)guard.stop('repository-unknown');return fs.realpathSync(r.stdout.trim());});
+  const roots=files.map(f=>{const r=spawnSync('git',['-C',f.immutablePath&&f.sourceGitRoot?f.sourceGitRoot:path.dirname(f.localPath),'rev-parse','--show-toplevel'],{encoding:'utf8',windowsHide:true});if(r.status!==0)guard.stop('repository-unknown');return fs.realpathSync(r.stdout.trim());});
   if(new Set(roots).size!==1)guard.stop('split-batch-by-repository');
   const decision=a.decision?guard.read(path.resolve(a.decision)):null;
   const result=sourceReview(await guard.run({repo:roots[0],demand:a.demand,files,target:kind+':'+target,adapter,decision}),nightBinding);
@@ -201,5 +268,5 @@ async function main(kind,argv){
  }catch(e){if(nightBinding){try{nightExecution.finish(nightBinding,{status:'review-pending',failureCategory:'execution-unknown'});}catch{}}console.log(JSON.stringify(nightMode?{status:'blocked',reason:e.reason||'night-execution-unverified',handoff:true}:needsInput(e.reason||'configuration-or-transport-failed',e.details||{})));process.exitCode=1;}
  finally{await adapter?.close?.();}
 }
-module.exports={main,parse,request,backendAdapter,frontendAdapter};
+module.exports={main,parse,request,backendAdapter,frontendAdapter,frontendTransport,atelierFrontendPlan,frontendPlan};
 if(require.main===module)main('backend',process.argv.slice(2));

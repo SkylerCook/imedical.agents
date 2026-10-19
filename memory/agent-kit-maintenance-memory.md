@@ -2,7 +2,9 @@
 
 - Feign 文档审计：imedicalxc-doctor-data-extraction 1.1.0 新增 `feign-api-doc-audit` skill 与 `feign-doc-audit.js`（paths/fields/io/lint/all）。按 import、package、scope、module 消歧同名 Feign 类型，嵌套子表支持从父表行推导类型；真实文档全量校验 paths/fields/io/lint 均为 0。入口见插件 README 与 release record。
 
-- 夜跑精简收敛：新批次探测 night-convergence/v1，明确批次统一总时限/需求覆盖，问题默认最多 4 次尝试；按需绑定依赖版本和范围，实际环境依赖由 profile 前后核验。沿用 run 事件与最终集成协议，不增加交付组/资源锁。BOS 0.10.2、coding 0.19.7 接入入口和部署预算；旧 run 不迁移。接口见 docs/night-policy.md；本机合成回归与真实/非 Windows 待验边界见日志及既有 P1/P2 队列。
+- 新夜跑按 docs/night-governance.md 先保存周额度基线、批准 executionPlan，再 materialize 双 Developer / 双 Tester 的实体 PLAN 与角色上下文；新模板 maxInFlight=4，旧 run 不迁移。冻结联合版本、同目标发布、差异证据复用、持续认证 worker、原子 token 预留与客户端恢复沿同一 run；成本未知不造零。BOS 0.10.3、coding 0.20.0 及六个兼容 owner 已同步；Atelier 前端显式选择，旧 SFTP 保留。源码/合成验证与真实宿主生效分开；本机 browser.close 共享锁阻塞已授权解除，Chrome/Edge 退出与原 UI 用例回归通过，验证见 maintenance/validation/night-governance-2026-10-19.md。
+
+- 既有 night-convergence/v1 的 4 次问题上限、明确总时限、按需依赖、13/30 探索复评及 policy-update 有效授权/空闲边界保持；不新增通用锁或自动合并器。原接口见 docs/night-policy.md，真实试点和非 Windows 矩阵沿既有队列。
 
 - 项目文档导航：agent-context-kit 0.4.3 模板与更新器共用按需 docs 首页入口；既有 AGENTS 缺失导航时 Write 追加，DryRun 预览、Check 检出。Overlay 解析 CapabilityRoot，项目正文与配置保留；更新与冲突边界见 docs/update-agents.md。
 

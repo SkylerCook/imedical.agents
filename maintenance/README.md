@@ -14,6 +14,8 @@
 | 医生站 AI 源仓验证 | [维护验证说明](validation/iris-imedical-doctor-ai.md) |
 | 项目工具的源仓验证 | [交接与兼容验证](validation/project-tools.md) |
 | BOS 夜跑 2.1 源仓验证与试点边界 | [验证说明](validation/bos-night-framework-v2.1.md) |
+| 事前 PLAN、并行/冻结交付与持续浏览器治理 | [本轮验证及限制](validation/night-governance-2026-10-19.md) |
+| 第三次无人值守需求处理的框架观察 | [原始观察记录](validation/bos-night-run-3-observations-2026-10-18.md)，本轮治理实施与限制见上方验证 |
 | 知识资产来源更新 | [知识资产维护](governance/imedical-knowledge.md) |
 | HISUI 固定提交资产升级与校验 | [HISUI 源仓构建](hisui-build/README.md) |
 

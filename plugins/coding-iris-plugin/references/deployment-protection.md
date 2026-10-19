@@ -11,7 +11,19 @@
 
 执行前对整批文件完成路径、重复目标、UTF-8、NUL、冲突标记、JS 语法与 Storage 检查，失败不写入。direct 按本地文件更新，不合并部署开始前已有的服务器代码差异；需要保留或合并此类差异时选择 guarded。本地类未包含 Storage 时，先在上传产物中保留服务器 Storage；已有本地 Storage 与服务器不同则停止人工核对，不用命令参数绕过。
 
-每文件上传前复核本地字节和远端快照，发现检查期间变化立即停止。后端使用 Atelier 时间戳条件上传；前端使用预期哈希检查和原子替换。上传后回读验证，整批成功后编译；内容未变的后端/CSP 也执行编译以确认当前结果。并发保护不能阻止其它工具在本次部署结束后写入。
+每文件上传前复核本地字节和远端快照，发现检查期间变化立即停止。后端及显式 Atelier 前端使用时间戳条件上传；SFTP 前端使用预期哈希检查和原子替换。上传后回读验证，整批成功后编译；内容未变的后端/CSP 也执行编译以确认当前结果。并发保护不能阻止其它工具在本次部署结束后写入。
+
+### 前端通道选择
+
+项目确认支持 Atelier Web doc 读写后，在私有 `project-env.json` 设置 `web.frontendTransport="atelier"`；部署入口优先复用 Atelier doc 导出、条件 PUT、最终 SHA-256 回读和 CSP 批量编译，无 SFTP/Python 依赖。`--source-root` 显式指定包含 `csp/`、`scripts/`、`css/` 的本地根；目标取 `web.basePath`、`web.cspBasePath`，不复用 SFTP 物理路径。JS/CSS 不触发编译，未变化 CSP 仍编译。
+
+SFTP 是明确选择的 fallback：设置 `web.frontendTransport="sftp"` 并保留已有 SFTP 配置、SSH 信任与 vendor 依赖；旧项目省略该字段保持原 SFTP 行为。未知通道停止，Atelier 认证、时间戳、条件写入、回读或编译失败均停止，不自动切到 SFTP。Atelier 模式拒绝 SFTP 专属 CLI 参数；两条通道均复用既有配置目标核对、TLS 设置、direct/guarded 和夜跑授权边界，不放宽证书校验。
+
+受管 PLAN 的 `deploymentTargets` 取事前本地部署计划中的 `targetId`：后端为实际 Class 文档名，CSP/Atelier 为虚拟文档，SFTP 静态资源使用实际目标路径的摘要标识。执行入口在远端连接前重新解析并与声明集合核对；切换通道或配置需重新预检，不把物理路径或连接事实写入 PLAN/Agent 规则。
+
+Atelier 按 UTF-8 原产物发送 BOM 与换行；服务器若规范化字节使哈希回读不一致，则保持失败结果并核对服务端状态，再决定是否明确改用 SFTP。源仓合成回归不证明具体服务器支持相同的 Web doc 读写语义。
+
+受管夜跑已绑定发布快照时，前后端仍以原源码路径校验仓库归属、Git 基线和远端映射，实际部署字节固定读取快照并逐次核验摘要；后续开发修改不进入本次产物。快照不可回写。编译生成新的 Storage 时只报告原类的回填建议并停止等待源码复审，保留 `remoteCompilation=compiled`，不修改开发工作区或冻结文件；没有快照的旧 run 保持原流程。
 
 输出 `iris-direct-deploy/v1`，包含逐文件状态和编译诊断；只有 `verified` 表示工具验证通过。预检失败为 `blocked`，编译失败为 `compile-failed`，写入开始后的错误为 `failed-or-unknown`，编译后核对/回填失败为 `storage-sync-incomplete`，携带失败阶段和已处理文件。批次不保证远端事务性，不自动重试或回滚，也不创建持久会话；失败后先核对受影响的服务器文件再继续，不把重新执行当作自动恢复。业务功能仍需对应验证。
 

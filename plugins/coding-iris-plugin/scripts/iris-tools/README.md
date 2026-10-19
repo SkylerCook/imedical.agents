@@ -376,7 +376,11 @@ A:
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/deploy-frontend.js --source-root <frontend-root> --files <project-relative-file...> --execute
 ```
 
-`--source-root` 对应包含 `csp/`、`scripts/`、`css/` 的目录，映射到私有配置 `REMOTE_PATH`；省略时读取 SFTP 的 `LOCAL_PATH`。文件列表必须明确，CSP 虚拟路径取 `web.cspBasePath`。direct 固定顺序：本地 UTF-8/语法/路径/配置校验 → 一次 SFTP 连接整批比较 SHA-256 → 仅差异文件原子上传并立即校验最终目标 → 汇总全部逐文件证据 → 一次 Atelier 编译指定 CSP。保留上传前本地与远端变化检查，并在临时文件上传完成、替换前再次检查远端摘要；连接中断即停止，不重新连接。未变化 CSP 仍执行编译；JS/CSS 不触发编译。不自动扩展父页面，不重试、不切换通道；部分上传成功后失败不自动回滚。
+`--source-root` 对应包含 `csp/`、`scripts/`、`css/` 的目录，文件列表必须明确。项目已确认 Web doc 支持时，私有配置 `web.frontendTransport="atelier"` 优先复用现有 Atelier 时间戳导出、条件 PUT、最终 SHA-256 回读和 CSP 批量编译；目标使用 `web.basePath`、`web.cspBasePath`。该模式需显式 `--source-root`，无 SFTP/Python 依赖；失败停止，服务器规范化 BOM/换行导致字节不一致也停止。
+
+SFTP fallback 使用 `web.frontendTransport="sftp"`，旧项目省略字段沿用该通道。它把本地根映射到私有 `REMOTE_PATH`；省略 `--source-root` 时读取 SFTP 的 `LOCAL_PATH`。direct 维持一次连接比较 SHA-256、差异原子上传、最终回读和一次 CSP 编译；替换前复核远端摘要。绑定只读发布快照时复用现有逐文件保护会话读取快照产物，不从继续开发的原工作区取上传字节。两通道均保留整批 UTF-8/语法/路径预检和上传前变化检查；未变化 CSP 仍编译，JS/CSS 不编译。不自动扩展父页面，不重试、不切换通道，部分成功后不自动回滚；guarded 继续使用原 Git 基线与合并状态。完整边界见[部署保护](../../references/deployment-protection.md#前端通道选择)。
+
+事前本地计划输出每文件 `targetId`，供受管 PLAN 声明 `deploymentTargets`；执行前重新解析并核对实际目标集合。SFTP 静态目标用摘要标识，不在 PLAN 或 Agent 规则保存物理路径；通道/配置变化需重新预检。
 
 Python 默认使用 `.mcp.json` 对应 SFTP 的 `command`，可用 `--python <interpreter>` 明确覆盖；解释器须已安装 vendor 锁定依赖。可信主机密钥使用配置或 `--known-hosts <file>`；本次明确核实的指纹可用 `--host-key-sha256 <SHA256:fingerprint>`，不写入信任库，不自动接受未知密钥。两个参数互斥。
 

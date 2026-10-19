@@ -5,7 +5,9 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { normalizePolicy, assessDemand, summarizeHumanBudget, selectAuditSample } = require('./night-policy');
 const { worktreeFingerprint } = require('../validation-evidence');
-const { normalizeQuotaPolicy, assessQuota, sanitizeQuotaSnapshot } = require('./night-quota');
+const { normalizeQuotaPolicy, assessQuota, sanitizeQuotaSnapshot, advanceWeeklyQuota } = require('./night-quota');
+const { validateExecutionPlan, buildActionContext, contextSnapshotMatches } = require('./night-plan');
+const integration = require('./night-integration');
 const { checkWorkspace } = require('../night-workspace');
 const contract = require('./night-contract');
 const convergence = require('./night-convergence');
@@ -42,7 +44,18 @@ function initializeNight(plan, planFile) {
             return { ownerId: entry.ownerId, planReference: planFile, plan: workspacePlan };
         });
     }
+    let weeklyQuota;
+    if (plan.executionPlan) {
+        validateExecutionPlan(plan);
+        if (policy.maxInFlight < 2) throw new Error('Execution PLAN requires maxInFlight >= 2');
+        const weekly = plan.executionPlan.budget.weekly;
+        weeklyQuota = read(path.resolve(path.dirname(planFile), weekly.baselineReference));
+        if (weeklyQuota.schema !== 'night-weekly-quota/v1' || weeklyQuota.budgetId !== weekly.budgetId || weeklyQuota.budgetPercentPoints !== weekly.budgetPercentPoints || !Number.isFinite(Date.parse(weeklyQuota.recordedAt)) || Date.parse(weeklyQuota.recordedAt) > Date.now() || !nonempty(weeklyQuota.authorizationReference)) throw new Error('A persisted authorized weekly baseline must precede PLAN initialization');
+        if (batch.quotaPolicy?.weeklyBudgetPercentPoints !== weekly.budgetPercentPoints) throw new Error('PLAN and quota weekly budgets differ');
+        if (!normalizeQuotaPolicy(batch.quotaPolicy).enabled) throw new Error('Execution PLAN requires enabled weekly quota enforcement');
+    }
     return { schema: 'imedical-night-decisions/v1', batchId: batch.batchId, policy,
+        ...(weeklyQuota ? { weeklyQuota, quotaBaselineReference: path.resolve(path.dirname(planFile), plan.executionPlan.budget.weekly.baselineReference), quotaBaselineHash: digest(weeklyQuota), usage: { basis: 'managed-endpoints', totalTokens: 0, endpoints: [], unobservedGovernance: true } } : {}),
         ...(batch.quotaPolicy ? { quotaPolicy: normalizeQuotaPolicy(batch.quotaPolicy), quotaSnapshot: null } : {}),
         ...(workspaces ? { workspaces } : {}),
         ...(batch.policy?.interactionMode === 'preflight-only' ? { interactionMode: 'preflight-only', authorizationReferences: batch.authorizationReferences || {}, requiredCapabilities: batch.requiredCapabilities || [], runReference: batch.runReference ? path.resolve(path.dirname(file), batch.runReference) : null } : {}),
@@ -51,6 +64,8 @@ function initializeNight(plan, planFile) {
 
 function validateNightItems(manifest) {
     if (!manifest.night) return;
+    if (manifest.executionPlan) validateExecutionPlan(manifest);
+    if (manifest.executionPlan && !['subagent', 'multi-session'].includes(manifest.orchestration.mode)) throw new Error('Execution PLAN requires a verified concurrent adapter; serial fallback must be explicitly replanned');
     contract.validateItems(manifest);
     if (manifest.night.workspaces) {
         const samePath = (a, b) => process.platform === 'win32' ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase() : path.resolve(a) === path.resolve(b);
@@ -79,7 +94,7 @@ function validateSourceCoverage(manifest, record) {
         const root = contract.repositoryRoot(manifest, item);
         if (!root || !path.isAbsolute(root)) throw new Error('Source owner repository required');
         for (const scope of item.writeScopes) {
-            if (!(record.sourceScopes || []).some(source => (contract.strict(manifest) ? contract.physical(source.repoRoot) === contract.physical(root) : path.resolve(source.repoRoot) === path.resolve(root)) && source.scopes.some(parent => contract.strict(manifest) ? contract.contains(parent, scope) : parent === '.' || scope === parent || scope.startsWith(`${parent}/`)))) throw new Error('Post assessment does not cover planned source writes');
+            if (!integration.integrationCovers(manifest, record, root, scope) && !(record.sourceScopes || []).some(source => (contract.strict(manifest) ? contract.physical(source.repoRoot) === contract.physical(root) : path.resolve(source.repoRoot) === path.resolve(root)) && source.scopes.some(parent => contract.strict(manifest) ? contract.contains(parent, scope) : parent === '.' || scope === parent || scope.startsWith(`${parent}/`)))) throw new Error('Post assessment does not cover planned source writes');
         }
     }
 }
@@ -87,10 +102,20 @@ function validateSourceCoverage(manifest, record) {
 function checksComplete(record) {
     const post = record.assessment?.post;
     if (!post || !Array.isArray(record.checks)) return false;
-    return post.minimumChecks.every(id => record.checks.some(check => check.id === id && check.status === 'passed' && check.scopeFingerprint === record.scopeFingerprint && check.frozenVersion === record.frozenVersion && check.evidenceRefs?.length));
+    return post.minimumChecks.every(id => integration.reusedCheck(record, id) || record.checks.some(check => check.id === id && check.status === 'passed' && check.scopeFingerprint === record.scopeFingerprint && check.frozenVersion === record.frozenVersion && check.evidenceRefs?.length));
+}
+
+function plannedChecksComplete(manifest, record) {
+    if (!integration.enabled(manifest)) return true;
+    return manifest.executionPlan.minimumTests.filter(t => t.demandId === record.id).every(t => {
+        if (integration.reusedCheck(record, t.id)) return true;
+        if (['static-review','manual','not-applicable'].includes(t.level)) return record.checks?.some(c => c.id === t.id && c.status === 'passed' && c.frozenVersion === record.frozenVersion && c.scopeFingerprint === record.scopeFingerprint && c.evidenceRefs?.length);
+        return record.testReceipts?.some(r => r.status === 'passed' && r.frozenVersion === record.frozenVersion && r.level === t.level && r.caseId === t.id && manifest.workItems.find(w => w.id === r.workItemId)?.ownerId === t.ownerId);
+    });
 }
 
 function currentSources(record) {
+    if (record.sourceSnapshot) return integration.frozenSources(record);
     if (!Array.isArray(record.sourceScopes) || !record.sourceScopes.length) throw new Error('Post review requires sourceScopes');
     const sources = record.sourceScopes.map(source => {
         if (!path.isAbsolute(source.repoRoot || '') || !Array.isArray(source.scopes) || !source.scopes.length) throw new Error('Absolute source repo and scopes required');
@@ -116,17 +141,56 @@ function requireEvidence(input) {
     if (!nonempty(input.rationale) || !Array.isArray(input.evidenceRefs) || !input.evidenceRefs.length || !input.evidenceRefs.every(nonempty)) throw new Error('Decision rationale and evidenceRefs required');
 }
 
-function updateNight(manifest, input, actor) {
+function updateNight(manifest, input, actor, options = {}) {
     if (!manifest.night) throw new Error('Night decision policy is not enabled');
     if (actor !== manifest.coordinatorId) throw new Error('Night records require coordinator actor');
     requireEvidence(input);
     const night = manifest.night;
-    if (['problem', 'attempt-start', 'attempt-result', 'dependency-bind'].includes(input.kind)) {
+    if (input.kind === 'policy-update') {
+        if (!contract.strict(manifest)) throw new Error('Policy update requires managed schema 2.1');
+        const allowed = new Set(['kind', 'changes', 'expectedMaxInFlight', 'userAuthorization', 'boundary', 'rationale', 'evidenceRefs']);
+        if (Object.keys(input).some(key => !allowed.has(key)) || !input.changes || Object.keys(input.changes).length !== 1 || !Object.hasOwn(input.changes, 'maxInFlight')) throw new Error('Only maxInFlight may be updated');
+        const previous = night.policy.maxInFlight, next = input.changes.maxInFlight;
+        if (input.expectedMaxInFlight !== previous) throw new Error('Policy update expected value is stale');
+        if (!Number.isInteger(next) || next <= previous) throw new Error('maxInFlight must increase by an explicitly authorized positive integer');
+        if (input.userAuthorization?.actor !== 'user' || !nonempty(input.userAuthorization.reference) || !input.evidenceRefs.includes(input.userAuthorization.reference)) throw new Error('Policy update requires a referenced human authorization');
+        const boundary = input.boundary;
+        if (!boundary || boundary.runtimeOperationsSettled !== true || boundary.sourceWritesSettled !== true || boundary.fixtureWritesSettled !== true) throw new Error('Policy update requires an evidenced idle write boundary');
+        if (manifest.workItems.some(work => work.status === 'running') || night.operations?.some(operation => operation.status === 'running') || night.preflightAttempt?.status === 'running' || manifest.actions.some(action => ['pending', 'blocked'].includes(action.status))) throw new Error('Policy update requires no active or pending managed execution');
+        if (night.demands.some(record => record.results?.unknownWrite || record.resources?.pending || record.resources?.polluted)) throw new Error('Policy update requires reconciled writes and resources');
+        if (!night.preflight || night.preflight.state !== 'ready' || night.preflight.revoked || !Array.isArray(night.preflight.authorizations) || manifest.workItems.some(work => work.status !== 'skipped' && contract.readinessReasons(manifest, work).length)) throw new Error('Policy update requires current unchanged preflight authorization');
+        for (const grant of night.preflight.authorizations) {
+            const held = manifest.authorizations[grant.category];
+            if (!held) continue;
+            if (held.state !== 'granted' || held.revoked || held.scopeHash !== manifest.orchestration.planHash || !nonempty(grant.reference) || held.sourceReference !== grant.reference || night.authorizationReferences?.[grant.category] !== grant.reference || grant.revoked || grant.environmentAlias !== night.preflight.environmentAlias || !nonempty(grant.environmentAlias) || held.environmentAlias !== undefined && held.environmentAlias !== grant.environmentAlias) throw new Error('Policy update cannot grant, restore or replace authorization');
+            for (const expiry of [grant.expiresAt, held.expiresAt].filter(value => value !== undefined)) if (!/T.*(?:Z|[+-]\d{2}:\d{2})$/.test(expiry) || !Number.isFinite(Date.parse(expiry)) || Date.parse(expiry) <= Date.now()) throw new Error('Policy update cannot rebind expired authorization');
+        }
+        const occupied = occupiedDemands(manifest).size;
+        if (next < occupied) throw new Error('maxInFlight is below current occupied capacity');
+        night.policy = normalizePolicy({ ...night.policy, maxInFlight: next });
+        night.policyChanges ||= [];
+        night.policyChanges.push({ at: new Date().toISOString(), field: 'maxInFlight', previous, next, occupied,
+            userAuthorization: { actor: 'user', reference: input.userAuthorization.reference }, boundary: structuredClone(boundary), rationale: input.rationale, evidenceRefs: [...input.evidenceRefs] });
+    } else if (['problem', 'attempt-start', 'attempt-result', 'dependency-bind'].includes(input.kind)) {
         const changed = convergence.recordEvent(manifest, input);
         if (changed && ['dependency-bind', 'attempt-start'].includes(input.kind)) {
             const phases = input.kind === 'dependency-bind' ? ['review', 'verification'] : ['implementation'];
             for (const item of manifest.workItems.filter(w => w.night.demandId === input.demandId && phases.includes(w.night.phase) && ['completed', 'blocked', 'failed'].includes(w.status))) item.status = 'pending';
         }
+    } else if (['source-integrate', 'source-freeze', 'evidence-reuse'].includes(input.kind)) {
+        if (!path.isAbsolute(options.runDirectory || '')) throw new Error('Integration requires the managed run directory');
+        integration.recordIntegration(manifest, input, options.runDirectory, record => currentSources({ ...record, sourceSnapshot: undefined }));
+    } else if (input.kind === 'browser-owner-exit') {
+        contract.browserOwnerExit(manifest, input);
+    } else if (input.kind === 'source-missing') {
+        const record = night.demands.find(d => d.id === input.demandId);
+        if (!record || !nonempty(input.handoffRef) || !Array.isArray(input.searchedScopes) || !input.searchedScopes.length || !Number.isFinite(input.elapsedMinutes) || input.elapsedMinutes <= 0) throw new Error('Source missing requires bounded lookup evidence and a recovery handoff');
+        if (night.operations?.some(o => o.demandId === record.id && o.status === 'running') || record.results?.unknownWrite || record.resources?.pending || record.resources?.polluted) throw new Error('Reconcile active operations and resources before skipping');
+        const planned = manifest.workItems.filter(w => w.night.demandId === record.id);
+        if (input.searchedScopes.some(s => !path.isAbsolute(s.repositoryRoot || '') || !Array.isArray(s.scopes) || !s.scopes.length || !planned.some(w => contract.repositoryRoot(manifest, w) === s.repositoryRoot && s.scopes.every(scope => [...w.readScopes, ...w.writeScopes].some(parent => contract.contains(parent, scope)))))) throw new Error('Source lookup escaped declared scopes');
+        record.skipped = { reason: 'source-missing', searchedScopes: input.searchedScopes, elapsedMinutes: input.elapsedMinutes, evidenceRefs: input.evidenceRefs, handoffRef: input.handoffRef };
+        record.blocked = true; record.candidateReady = false;
+        for (const work of planned) { work.status = 'skipped'; work.night.skipReason = 'source-missing'; work.night.handoffRef = input.handoffRef; }
     } else if (input.kind === 'preflight-start') {
         if (!contract.strict(manifest)) throw new Error('Managed preflight requires schema 2.1');
         if (night.preflight) night.preflight.revoked = true;
@@ -139,9 +203,45 @@ function updateNight(manifest, input, actor) {
     } else if (input.kind === 'quota') {
         if (!night.quotaPolicy?.enabled) throw new Error('Quota monitoring is not enabled for this batch');
         const snapshot = sanitizeQuotaSnapshot(input.snapshot);
-        if (Date.parse(snapshot.observedAt) > Date.now()) throw new Error('Quota snapshot cannot be from the future');
-        if (night.quotaSnapshot && Date.parse(snapshot.observedAt) < Date.parse(night.quotaSnapshot.observedAt)) throw new Error('Quota snapshot cannot move backwards');
+        if (!night.weeklyQuota && Date.parse(snapshot.observedAt) > Date.now()) throw new Error('Quota snapshot cannot be from the future');
+        if (!night.weeklyQuota && night.quotaSnapshot && Date.parse(snapshot.observedAt) < Date.parse(night.quotaSnapshot.observedAt)) throw new Error('Quota snapshot cannot move backwards');
         night.quotaSnapshot = snapshot;
+        if (night.weeklyQuota) night.weeklyQuota = advanceWeeklyQuota(night.weeklyQuota, snapshot, night.quotaPolicy).state;
+    } else if (input.kind === 'client-reserve') {
+        if (!integration.enabled(manifest)) throw new Error('Execution PLAN required for client reservation');
+        const reservation = input.reservation, action = manifest.actions.find(a => a.id === reservation?.actionId), work = manifest.workItems.find(w => w.id === action?.workItemId);
+        if (!action || !work || work.status !== 'running' || action.status !== 'pending' || action.result || !Number.isSafeInteger(reservation.tokens) || reservation.tokens <= 0 || !Number.isFinite(Date.parse(reservation.deadlineAt)) || Date.parse(reservation.deadlineAt) <= Date.now() || Date.parse(reservation.deadlineAt) > Math.min(Date.parse(night.limits.stopAt), Date.parse(night.weeklyQuota.recordedAt) + manifest.executionPlan.budget.timeMinutes * 60000)) throw new Error('Client reservation must bind a current bounded running action');
+        if (!path.isAbsolute(options.runDirectory || '') || !path.isAbsolute(reservation.launchReceiptFile || '') || !path.relative(options.runDirectory, reservation.launchReceiptFile).replace(/\\/g,'/').startsWith('evidence/night-operations/')) throw new Error('Client reservation requires a durable in-run launch receipt path');
+        const expectedContext = buildActionContext(manifest, work);
+        if (!action.context || !contextSnapshotMatches(action.context, expectedContext) || action.context.bindingHash !== expectedContext.bindingHash || action.scopeHash !== manifest.orchestration.planHash || !gateNight(manifest, work).allowed) throw new Error('Client reservation context or gate is stale');
+        night.clientReservations ||= [];
+        if (night.clientReservations.some(r => r.actionId === action.id)) throw new Error('Client launch already reserved; reconcile rather than replay');
+        const governance = night.usage?.basis === 'managed-endpoints' && night.usage.unobservedGovernance ? manifest.executionPlan.budget.governanceTokens : 0;
+        const allocated = night.clientReservations.filter(r => r.status !== 'settled').reduce((sum, r) => {
+            const bound = manifest.actions.find(a => a.id === r.actionId), used = night.usage?.endpoints?.find(e => e.endpointId === bound?.result?.endpointId);
+            return sum + Math.max(0, r.tokens - (used?.goalTokensUsed || 0));
+        }, 0);
+        if (!Number.isSafeInteger(night.usage?.totalTokens) || governance + allocated + night.usage.totalTokens + reservation.tokens > manifest.executionPlan.budget.tokens) throw new Error('Client token allocation exceeds the approved batch budget');
+        night.clientReservations.push({ actionId: action.id, tokens: reservation.tokens, deadlineAt: reservation.deadlineAt, launchReceiptFile: reservation.launchReceiptFile, status: 'reserved', at: new Date().toISOString(), evidenceRefs: input.evidenceRefs });
+    } else if (input.kind === 'usage') {
+        if (!integration.enabled(manifest)) throw new Error('Execution PLAN required for aggregate token accounting');
+        const observation = input.observation, action = manifest.actions.find(a => a.id === observation?.actionId);
+        if (!action || action.result?.endpointId !== observation.endpointId || !Number.isSafeInteger(observation.totalTokens) || observation.totalTokens < 0 || !Number.isFinite(Date.parse(observation.observedAt)) || Date.parse(observation.observedAt) > Date.now()) throw new Error('Usage must bind an observed endpoint and cumulative token counter');
+        if (observation.goalTokensUsed !== undefined && (!Number.isSafeInteger(observation.goalTokensUsed) || observation.goalTokensUsed < 0) || observation.goalTokenBudget !== undefined && (!Number.isSafeInteger(observation.goalTokenBudget) || observation.goalTokenBudget <= 0)) throw new Error('Observed Goal budget/usage counters invalid');
+        if (observation.goalStatus !== undefined && !['active','paused','complete','budgetLimited','usageLimited','blocked'].includes(observation.goalStatus)) throw new Error('Observed Goal status invalid');
+        if (observation.turnStatus !== undefined && !['notStarted','inProgress','completed','interrupted','failed','unknown'].includes(observation.turnStatus)) throw new Error('Observed turn status invalid');
+        if (action.result?.host?.budget?.configured && observation.goalTokenBudget !== undefined && observation.goalTokenBudget !== action.result.host.budget.tokenBudget) throw new Error('Goal token budget drifted from launch readback');
+        night.usage ||= { endpoints: [], totalTokens: 0 };
+        const old = night.usage.endpoints.find(e => e.endpointId === observation.endpointId);
+        if (old && (observation.totalTokens < old.totalTokens || Date.parse(observation.observedAt) < Date.parse(old.observedAt))) throw new Error('Usage cannot reset on resume');
+        if (old?.goalTokensUsed !== undefined && observation.goalTokensUsed !== undefined && observation.goalTokensUsed < old.goalTokensUsed) throw new Error('Goal usage cannot reset on resume');
+        if (old) Object.assign(old, structuredClone(observation)); else night.usage.endpoints.push(structuredClone(observation));
+        night.usage.totalTokens = night.usage.endpoints.reduce((sum, e) => sum + e.totalTokens, 0);
+        night.usage.evidenceRefs = input.evidenceRefs;
+        if (['completed','interrupted','failed'].includes(observation.turnStatus) && (!action.result?.host?.budget?.configured || ['paused','complete','budgetLimited','usageLimited','blocked'].includes(observation.goalStatus))) {
+            const reservation = night.clientReservations?.find(r => r.actionId === action.id);
+            if (reservation) reservation.status = 'settled';
+        }
     } else if (input.kind === 'test-result') {
         const record = night.demands.find(item => item.id === input.id);
         if (!record || !path.isAbsolute(input.resultFile || '')) throw new Error('Known demand and absolute resultFile required');
@@ -155,6 +255,10 @@ function updateNight(manifest, input, actor) {
             if (convergence.enabled(manifest) && (op.dependencyToken !== convergence.dependencyToken(manifest, record.id) || convergence.dependencyReasons(manifest, record).length)) throw new Error('Test dependency combination changed');
         }
         if (!['internal-method', 'external-api', 'ui'].includes(result.acceptance?.level)) throw new Error('Real test acceptance level required');
+        if (integration.enabled(manifest)) {
+            const work = manifest.workItems.find(w => w.id === result.binding?.workItemId), expected = work?.night.route || record.assessment.post.route;
+            if (result.acceptance.level !== expected || !manifest.executionPlan.minimumTests.some(t => t.demandId === record.id && t.ownerId === work.ownerId && t.level === expected && t.id === result.caseId && JSON.stringify([...t.scope].sort()) === JSON.stringify([...(Array.isArray(result.scope) ? result.scope : [result.scope])].sort())) ) throw new Error('Receipt is outside the assigned minimum test plan');
+        }
         record.timingSegments.push(...result.timingSegments.map(s => contract.strict(manifest) ? { ...s, granularity: 'detail', workItemId: result.binding.workItemId } : s));
         record.testReceipts ||= [];
         record.testReceipts.push({ hash: receiptHash, evidenceRef: input.resultFile, status: result.status, caseId: result.caseId, scope: structuredClone(result.scope), level: result.acceptance.level, frozenVersion: result.version, ...(result.binding ? { operationId: result.binding.operationId, workItemId: result.binding.workItemId } : {}) });
@@ -195,10 +299,20 @@ function updateNight(manifest, input, actor) {
         if (previous) return structuredClone(night);
         night.audit.results.push({ id: input.id, status: input.status, scopeFingerprint: input.scopeFingerprint, frozenVersion: input.frozenVersion, evidenceRefs: input.evidenceRefs, rationale: input.rationale });
     } else if (input.kind === 'demand') {
-        const record = input.record;
+        const record = structuredClone(input.record);
         if (!record || !manifest.workItems.some(item => item.night.demandId === record.id)) throw new Error('Unknown night demand');
         if (!manifest.participants.some(p => p.id === record.implementationOwnerId)) throw new Error('Unknown implementation owner');
         const previous = night.demands.find(item => item.id === record.id);
+        if (integration.enabled(manifest)) for (const key of ['testReceipts','deploymentReceipts']) {
+            if (record[key] !== undefined && JSON.stringify(record[key]) !== JSON.stringify(previous?.[key] || [])) throw new Error(`${key} requires its managed execution event`);
+            record[key] = structuredClone(previous?.[key] || []);
+        }
+        for (const key of ['sourceSnapshot', 'integrationBinding', 'evidenceReuse', 'skipped']) {
+            if (record[key] !== undefined && JSON.stringify(record[key]) !== JSON.stringify(previous?.[key])) throw new Error(`${key} requires its managed event`);
+            if (previous?.[key] !== undefined && (key !== 'sourceSnapshot' || record.frozenVersion === previous.frozenVersion)) record[key] = structuredClone(previous[key]);
+        }
+        if (previous?.frozenVersion !== record.frozenVersion) delete record.sourceSnapshot;
+        if (previous?.checks) record.checks = [...previous.checks.filter(old => !(record.checks || []).some(next => JSON.stringify(next) === JSON.stringify(old))), ...(record.checks || [])];
         if (convergence.enabled(manifest) && record.candidateReady) {
             if (convergence.problems(manifest, record.id).some(p => !p.resolved) || convergence.dependencyReasons(manifest, record, true).length) throw new Error('Candidate has unresolved problems or dependencies');
             if (convergence.bindings(manifest, record.id).length && !record.testReceipts?.some(r => r.status === 'passed' && r.frozenVersion === record.frozenVersion && r.dependencyToken === convergence.dependencyToken(manifest, record.id))) throw new Error('Candidate requires current dependency combination receipt');
@@ -210,13 +324,14 @@ function updateNight(manifest, input, actor) {
             if (!sourcesMatch(record)) throw new Error('Post assessment source fingerprint is stale');
         }
         if (contract.strict(manifest) && record.candidateReady && !['static-review', 'manual'].includes(record.assessment?.post?.route) && !record.testReceipts?.some(r => r.status === 'passed' && r.frozenVersion === record.frozenVersion)) throw new Error('Runtime candidate requires consumed current test receipts');
-        if (record.candidateReady && (!assessDemand(record, 'post', night.policy).allowed || !nonempty(record.handoffRef) || !checksComplete(record))) throw new Error('Candidate requires current approved post review, completed minimum checks and handoff');
+        if (record.candidateReady && (!assessDemand(record, 'post', night.policy, Date.now(), { collaborationReady: integration.enabled(manifest) }).allowed || !nonempty(record.handoffRef) || !checksComplete(record) || !plannedChecksComplete(manifest, record))) throw new Error('Candidate requires current approved post review, completed minimum checks and handoff');
         if (record.candidateReady && !['static-review', 'manual'].includes(record.assessment.post.route)) {
             const result = record.automatedResult;
             if (result?.status !== 'passed' || result.level !== record.assessment.post.route || result.scopeFingerprint !== record.scopeFingerprint || result.frozenVersion !== record.frozenVersion || !nonempty(result.evidenceRef)) throw new Error('Runtime candidate requires matching automated result');
         }
         if (night.audit && record.candidateReady && record.assessment.post.route === 'static-review' && !night.audit.cohort.some(item => item.id === record.id && item.scopeFingerprint === record.scopeFingerprint && item.frozenVersion === record.frozenVersion)) throw new Error('Frozen audit cohort cannot gain or change static candidates');
         if (contract.strict(manifest) && previous?.frozenVersion && previous.frozenVersion !== record.frozenVersion) {
+            for (const action of manifest.actions.filter(a => a.status === 'pending' && !a.result && manifest.workItems.find(w => w.id === a.workItemId)?.night.demandId === record.id)) action.status = 'cancelled';
             for (const item of manifest.workItems.filter(w => w.night.demandId === record.id && ['review', 'deployment', 'verification'].includes(w.night.phase) && w.status !== 'skipped')) {
                 const active = night.operations?.some(op => op.workItemId === item.id && op.status === 'running');
                 contract.trackWork(manifest, item, 'blocked');
@@ -259,12 +374,13 @@ function nightCompletionIssues(manifest) {
         const record = night.demands.find(r => r.id === id), frozen = night.audit.cohort.find(r => r.id === id);
         if (!night.audit.results.some(result => result.id === id && result.status === 'passed') || !sourcesMatch(record) || record.scopeFingerprint !== frozen.scopeFingerprint || record.frozenVersion !== frozen.frozenVersion) issues.push(`night audit not passed or stale: ${id}`);
     }
-    for (const record of night.demands) if (record.candidateReady && (!checksComplete(record) || !sourcesMatch(record))) issues.push(`night candidate evidence stale: ${record.id}`);
+    for (const record of night.demands) if (record.candidateReady && (!checksComplete(record) || !plannedChecksComplete(manifest, record) || !sourcesMatch(record))) issues.push(`night candidate evidence stale: ${record.id}`);
     if (contract.strict(manifest)) for (const record of night.demands) if (contract.timingStatus(manifest, record) === 'incomplete') issues.push(`night timing incomplete: ${record.id}`);
     if (convergence.enabled(manifest)) for (const record of night.demands) {
         if (convergence.problems(manifest, record.id).some(p => !p.resolved)) issues.push(`night problem unresolved: ${record.id}`);
         if (convergence.dependencyReasons(manifest, record, true).length || convergence.bindings(manifest, record.id).length && !record.testReceipts?.some(r => r.status === 'passed' && r.frozenVersion === record.frozenVersion && r.dependencyToken === convergence.dependencyToken(manifest, record.id))) issues.push(`night dependency evidence stale: ${record.id}`);
     }
+    issues.push(...contract.retainedOwnerIssues(manifest));
     return issues;
 }
 
@@ -317,9 +433,26 @@ function gateNight(manifest, item, now = Date.now()) {
     }
     if (night.workspaces) {
         const workspace = night.workspaces.find(entry => entry.ownerId === item.ownerId);
-        if (!workspace || !checkWorkspace(workspace.plan).ok) reasons.push('night-workspace-preflight-failed');
+        if (!workspace || !checkWorkspace(workspace.plan, { manifest }).ok) reasons.push('night-workspace-preflight-failed');
     }
-    const quota = assessQuota(night.quotaSnapshot, night.quotaPolicy, now);
+    const quota = assessQuota(night.quotaSnapshot, night.quotaPolicy, now, night.weeklyQuota);
+    if (integration.enabled(manifest)) {
+        const plan = manifest.executionPlan, plannedDemand = plan.demands.find(d => d.id === demandId);
+        try { if (digest(read(night.quotaBaselineReference)) !== night.quotaBaselineHash) reasons.push('quota-baseline-changed'); } catch { reasons.push('quota-baseline-unavailable'); }
+        if (['blocked', 'unsupported'].includes(plannedDemand?.feasibility)) reasons.push('demand-prerequisites-unavailable');
+        if (now >= Date.parse(night.weeklyQuota?.recordedAt || manifest.createdAt) + plan.budget.timeMinutes * 60000) reasons.push('batch-time-budget-exhausted');
+        const governanceReserve = night.usage?.basis === 'managed-endpoints' && night.usage.unobservedGovernance ? plan.budget.governanceTokens : 0;
+        if (night.usage?.totalTokens + governanceReserve >= plan.budget.tokens) reasons.push('batch-token-budget-exhausted');
+        if (['deployment', 'verification'].includes(phase) && !record.sourceSnapshot) reasons.push('frozen-source-required');
+        if (manifest.workItems.some(w => w.id !== item.id && w.ownerId === item.ownerId && (w.status === 'running' || manifest.actions.some(a => a.workItemId === w.id && a.status === 'pending')))) reasons.push('owner-busy');
+        const worker = plan.workers.find(w => w.ownerId === item.ownerId), client = plan.capacity.clients.find(c => c.id === worker.clientId);
+        const activeOwners = new Set(manifest.workItems.filter(w => w.id !== item.id && (w.status === 'running' || manifest.actions.some(a => a.workItemId === w.id && a.status === 'pending'))).map(w => w.ownerId));
+        const activeClientOwners = plan.workers.filter(w => w.clientId === worker.clientId && (w.role === 'coordinator' || activeOwners.has(w.ownerId)));
+        if (!activeOwners.has(item.ownerId) && activeClientOwners.length >= client.maxConcurrent) reasons.push('client-capacity-exhausted');
+        const scheduled = plan.capacity.testerSchedule.find(s => s.ownerId === item.ownerId);
+        if (scheduled?.after.some(id => activeOwners.has(id)) || plan.capacity.testerSchedule.some(s => s.after.includes(item.ownerId) && activeOwners.has(s.ownerId))) reasons.push('tester-schedule-conflict');
+        reasons.push(...integration.publicationReasons(manifest, item));
+    }
     const actuallyStarted = manifest.workItems.some(work => work.night.demandId === demandId &&
         (['running', 'completed'].includes(work.status) || work.attempts?.length > 0));
     if (quota.mode === 'unknown' || quota.mode === 'closeout' || (quota.mode === 'drain' && !actuallyStarted)) reasons.push(...quota.reasons);
@@ -330,8 +463,12 @@ function gateNight(manifest, item, now = Date.now()) {
     if (!occupied.has(demandId) && occupied.size >= night.policy.maxInFlight) reasons.push('night-capacity');
     const stage = ['implementation', 'review'].includes(phase) ? 'pre' : 'post';
     const repair = phase === 'implementation' && nonempty(record.repairEvidenceRef);
-    const decision = assessDemand(repair ? { ...record, results: { ...record.results, knownDefect: false } } : record, stage, night.policy, now);
+    const decision = assessDemand(repair ? { ...record, results: { ...record.results, knownDefect: false } } : record, stage, night.policy, now, { collaborationReady: integration.enabled(manifest) });
     reasons.push(...decision.reasons);
+    if (integration.enabled(manifest) && phase === 'verification' && item.night.route) {
+        if (!manifest.executionPlan.minimumTests.some(t => t.demandId === demandId && t.ownerId === item.ownerId && t.level === item.night.route)) reasons.push('test-plan-route-mismatch');
+        decision.route = item.night.route;
+    }
     try { validateSourceCoverage(manifest, record); } catch { reasons.push('source-or-owner-scope-mismatch'); }
     if (stage === 'post' && !sourcesMatch(record)) reasons.push('source-fingerprint-changed');
     if (phase === 'verification' && ['static-review', 'manual'].includes(decision.route)) {
@@ -354,4 +491,4 @@ function gateNight(manifest, item, now = Date.now()) {
     return { allowed: reasons.length === 0, reasons: [...new Set(reasons)], route: decision.route, ...(convergence.enabled(manifest) ? { budget: convergence.budget(manifest, record, now), problems: convergence.problems(manifest, record.id), dependencyIssues: convergence.dependencyReasons(manifest, record, true) } : {}), ...(quota.enabled ? { quota } : {}) };
 }
 
-module.exports = { initializeNight, validateNightItems, updateNight, gateNight, currentSources, occupiedDemands, sharedMinutes, nightCompletionIssues };
+module.exports = { initializeNight, validateNightItems, updateNight, gateNight, currentSources, occupiedDemands, sharedMinutes, nightCompletionIssues, plannedChecksComplete };
