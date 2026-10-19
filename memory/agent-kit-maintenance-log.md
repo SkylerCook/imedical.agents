@@ -588,3 +588,9 @@ iris-imedical-doctor-ai 0.3.0 新增迁移行为契约、入口对照模板与 a
 coding-iris-plugin 0.15.2 在成功 pull 及快照校验后，仅向 commit 传入 hooks.requireUpToDate=false；其他全局检查保持，local-only 不设置。通过5项定向流程测试及2项既有消息测试。Windows 验证；macOS/Linux 待执行。未改安装器或全局钩子；插件入口与范围不变，能力手册无新增条目。
 
 本轮工作区版本检查识别0.15.1→0.15.2，无本插件错误；完整检查仍被未改动组件的既有发布记录问题阻断，不宣称全仓通过。当前授权工程已定点同步实现及协议，未提交或发布。
+
+## 2026-10-19 Feign 文档审计能力
+
+imedicalxc-doctor-data-extraction 1.1.0 新增 `feign-api-doc-audit` skill 与 `feign-doc-audit.js`，覆盖已有 API 文档的服务地址、入参/出参类型、字段表、JSON 示例和格式基线检查。类型解析按 import、package、scope、module 顺序消歧；无显式类型的嵌套子表支持从父表行（如 `records`、`waitData`、`cureList`）推导类型。
+
+真实文档与源码全量验证：`paths=0`、`fields=0`、`io=0`、`lint=0`；负向样例可检出错误地址与虚构字段。thin-index dry-run 已识别并生成两个 skill 入口；组件版本校验识别 1.0.0→1.1.0，本插件无报错，完整审计仍被 `imedicalxc-doctor-extend-engineer` 既有发布记录问题阻断。能力手册未收录该插件，无需同步；未同步业务副本、未提交或发布。

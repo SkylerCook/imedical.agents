@@ -5,6 +5,8 @@ HIS 数据抽取与第三方接口对照文档生成插件。覆盖从 @OpenApi 
 ## 入口
 
 - **技能**：`skills/imedicalxc-doctor-data-extraction/SKILL.md` — 核心 3 阶段工作流（数据抽取 → 对照文档生成 → Feign接口生成）
+- **审计技能**：`skills/feign-api-doc-audit/SKILL.md` — 已有 Feign API 文档的服务地址、出入参类型与字段核对修正
+- **审计脚本**：`scripts/feign-doc-audit.js` — 参数化 `paths` / `fields` / `io` / `lint` / `all` 检查
 - **脚本**：`scripts/generate-plugin-thin-index.ps1` — thin-index 生成
 
 ## 前置条件
@@ -13,6 +15,7 @@ HIS 数据抽取与第三方接口对照文档生成插件。覆盖从 @OpenApi 
 1. 目标 Controller 目录（含 @OpenApi 注解的 Controller）
 2. Feign 接口目录和 DTO/VO 源码
 3. 第三方接口文档（PDF/DOC，可选——仅生成对照文档时需要）
+4. 已有 Feign API 文档（可选——仅文档审计时需要）
 
 ## 触发条件
 

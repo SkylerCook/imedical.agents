@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- Feign 文档审计：imedicalxc-doctor-data-extraction 1.1.0 新增 `feign-api-doc-audit` skill 与 `feign-doc-audit.js`（paths/fields/io/lint/all）。按 import、package、scope、module 消歧同名 Feign 类型，嵌套子表支持从父表行推导类型；真实文档全量校验 paths/fields/io/lint 均为 0。入口见插件 README 与 release record。
+
 - 夜跑精简收敛：新批次探测 night-convergence/v1，明确批次统一总时限/需求覆盖，问题默认最多 4 次尝试；按需绑定依赖版本和范围，实际环境依赖由 profile 前后核验。沿用 run 事件与最终集成协议，不增加交付组/资源锁。BOS 0.10.2、coding 0.19.7 接入入口和部署预算；旧 run 不迁移。接口见 docs/night-policy.md；本机合成回归与真实/非 Windows 待验边界见日志及既有 P1/P2 队列。
 
 - 项目文档导航：agent-context-kit 0.4.3 模板与更新器共用按需 docs 首页入口；既有 AGENTS 缺失导航时 Write 追加，DryRun 预览、Check 检出。Overlay 解析 CapabilityRoot，项目正文与配置保留；更新与冲突边界见 docs/update-agents.md。

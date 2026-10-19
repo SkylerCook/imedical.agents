@@ -505,11 +505,13 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - 扫描和分析 `@OpenApi` Controller。
 - 生成第三方接口对照文档、字段映射和差异说明。
 - Feign 接口代码生成和 API 文档生成作为辅助能力。
+- 核对并修正已有 API 文档的服务地址、入参/出参类型与字段（`feign-doc-audit.js` 支持 `paths`/`fields`/`io`/`lint`）。
 - thin-index wrapper 暴露 `imedicalxc-doctor-data-extraction` 入口。
 
 常用 skill：
 
 - `imedicalxc-doctor-data-extraction`
+- `feign-api-doc-audit`
 
 ### imedicalxc-doctor-print-template-design
 

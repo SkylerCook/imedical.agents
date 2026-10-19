@@ -539,6 +539,8 @@ EsbBaseDTO<XxxDTO> internalDto = mapStruct.toEsbBaseXxxDTO(dto);
 
 **输出文件**：`Feign接口API文档-集成平台标准接口.md`
 
+> 已有文档的服务地址、出入参类型与字段核对，使用配套 skill `../feign-api-doc-audit/SKILL.md`，并复用插件脚本 `scripts/feign-doc-audit.js`。
+
 #### 标题层级规范（CRITICAL）
 
 全文统一为 **5级结构**，不得跳级，不得使用文字型章节标题：
