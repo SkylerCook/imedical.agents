@@ -10,7 +10,7 @@
 - 明确总时间、token、治理投入、周额度、三截止、授权和停止条件。规划、开发、集成、审查、两类测试、监控、报告、排障、返工与人工补救均计成本；未知项保留 unknown。
 - 至少两个 Developer 各用独立 owner/worktree；一个功能 Tester、一个浏览器 Tester、一个 Coordinator。核实真实客户端容量；四槽位必须事前声明 Tester 错峰。新模板 `maxInFlight:4`，它约束流水线占用，实际 Developer 并发另行取证。旧 run 的容量不自动改变。
 - 每个需求至少一项 `minimumTests`，包含唯一 case ID、owner、level、精确 scope、预期与理由；不默认全量 UI。静态、方法、接口、目标 UI、人工交接分别选择。不同验证部分可用同一需求的多个 verification 工作项，分别声明 `night.route` 和角色。
-- 写清逐仓固定基点、目标路径、写入范围、集成 owner、冻结/发布顺序和测试数据处置。两个 Developer 不共用实体目录；Tester 消费冻结材料或计划中声明的测试 worktree。
+- 写清逐仓固定基点、目标路径、写入范围、集成 owner、冻结/发布顺序和测试数据处置。按[人工复验数据规则](../agents/_shared/testing-protocol.md#人工复验数据与收尾)保留供用户快速验收的获准样本，将范围、授权引用与交接说明填入既有 `dataRetention`，采用保留策略时明确 `mode:retain`。两个 Developer 不共用实体目录；Tester 消费冻结材料或计划中声明的测试 worktree。
 
 `agents/` 中的 canonical 角色继续有效，PLAN 只补本批约束。模型用能力档位和宿主映射，不把具体型号或订阅名称写进 canonical。
 
@@ -87,7 +87,7 @@ stdin 每行一条已登记请求，例如：
 
 worker 总 deadline 取 profile，单请求截止独立。预检通过后，多需求复用相同项目、环境、身份、角色和认证配置的 owner；每次验证重新 begin/checkpoint/consume/finish。认证检查有效时复用，确认失效才恢复；恢复后重验身份与前置条件。request context 共享当前浏览器 cookie；Broker 等页面票据仍由项目 adapter 在页面中处理，`authentication.mode:browser-session` 与 `level:external-api` 可组合。
 
-case 只清理页面、监听器、临时数据等自身资源；认证主页/context/browser 留 worker 统一退出。preflight/v2 分别证明临时资源退出、保留 owner 可控、无未结束操作，不能标全部退出。批末、取消和绝对截止执行 stop 并归档每个 owner 的实际退出回执；旧 owner 未核销不能通过替换预检丢弃。超时底层操作仍在则阻止接新需求。进程丢失后读断点并核旧 owner，不能声称登录态仍存活。
+case 只清理页面、监听器等自身运行资源；数据按已批准的处置策略保留、重置或删除，`close` 不删除保留验收样本；认证主页/context/browser 留 worker 统一退出。preflight/v2 分别证明临时资源退出、保留 owner 可控、无未结束操作，不能标全部退出。批末、取消和绝对截止执行 stop 并归档每个 owner 的实际退出回执；旧 owner 未核销不能通过替换预检丢弃。超时底层操作仍在则阻止接新需求。进程丢失后读断点并核旧 owner，不能声称登录态仍存活。
 
 正式 UI 默认已验证无头 profile。断言包含业务页/frame 实际尺寸、可见状态、部署/加载版本、业务结果及相关 Console/Network 来源；空白探针页、仅配置视口、截图或忽略所有错误均不能证明通过。Edge/有头/内置浏览器用于计划指定验收或有界诊断，切换重新核对身份与版本。原生打印、真实设备、未知异常单独留项，不扩大成全量 UI。
 

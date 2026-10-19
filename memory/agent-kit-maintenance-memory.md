@@ -14,7 +14,7 @@
 
 - Worktree 创建同时交付审阅入口和固定基点；规范归 docs/guides/worktree-review.md，协作、普通 workflow、Overlay 与夜跑入口共用。复用计划 revision，Git 预检不证明 VS Code 界面可用；无新创建器或 schema，真实双入口验证沿既有队列。
 
-- 开发测试库已授权保留的人工复验数据按共享 testing-protocol 登记、核验并随入口交付；删除用例与资源退出分别核验。Testing Agent 与夜跑接入引用同一规则，正常更新取得，无插件版本或 schema 变化；真实宿主执行观察沿既有验收队列。
+- 开发测试库本批获准创建的验收样本允许保留供用户快速复验；事前计划明确范围和授权，交付需求号、批次/记录 ID、入口及复验步骤，项目既有处置约定优先。统一沿 testing-protocol，数据处置与运行资源退出分开核验；Testing Agent 与夜跑引用同一规则，正常更新取得，无插件版本或 schema 变化，真实执行观察沿既有验收队列。
 
 - 插件 skill/rule 受管薄索引普通 Write 自动刷新生成元数据，Check 对过期索引失败；正文/未知字段/来源冲突及链接保留，Force 不绕过保护。迁移后 owner 索引同样可刷新；agent/vendor 独立生成器不变。下游升级步骤见 docs/update-agents.md，验证见维护日志。
 

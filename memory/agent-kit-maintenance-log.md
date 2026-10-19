@@ -1,5 +1,7 @@
 # imedical.agents 维护日志
 
+- 2026-10-20（保留测试数据供用户快速验收，framework-maintenance）：收紧共享 testing-protocol 与 Testing Agent 入口，明确开发测试库中本批获准创建的验收样本可保留；事前计划写清范围、授权和交接，按需求交付样本标识、入口与复验步骤，沿用已有授权及项目处置约定。夜跑文档复用既有 dataRetention/evidenceRefs，并消除 case 收尾误删保留数据的歧义；README 与维护摘要同步。未改运行时、插件、schema 或安装更新器，已有项目正常更新取得；真实数据标识继续留目标项目受保护记录。能力手册和既有 backlog 观察项已核对，本次无需新增条目；文档链接定向检查 1/1 及 diff check 通过，真实宿主行为沿既有观察队列，不以规则修改宣称已生效。
+
 - 2026-10-19–20（无人值守事前与联合交付治理，framework-maintenance）：按批准 PLAN 在原 schema 2.1 run 接入 executionPlan、周额度落盘基线、角色/需求分片上下文及双 Developer / 双 Tester 容量与错峰；两种启动位置 materialize 实体 PLAN/AGENTS 薄入口，保留原规则及链接目标。加入跨 worktree 同类身份、既有 Developer 集成、独立 post 后冻结材料、实际目标发布窗口、真实前后差异与原层级回执复用。持续 worker/v2 分需求与批次资源，预检及两需求复用一次认证，旧 owner 不得被换预检丢弃。
   - Codex adapter 复用本机 app-server 协议，原生 Goal set/get 回读、续轮与恢复、停止 ACK/终态分开；受管 wrapper 在原锁内预留 token，落盘真实 launch receipt 并消费 ACK。观察失效时停止可核实端点，未知端点保留；无 Goal 要求真实 watcher PID/新鲜心跳/控制通道 challenge。主会话治理 token 缺实读时预留预算且总成本 unknown，周额度仍覆盖全部会话。
   - coding-iris-plugin 0.20.0 显式 Atelier 前端通道复用 conditional write/回读/编译，SFTP 保持明确选择；冻结 bytes 保留原源码身份，支持继续编辑/删除原文件，Storage 新块需要回填则停止并交独立复审。BOS 0.10.3 入口、六个依赖 owner patch/range、发布记录、角色/workflow/registry、模板、更新兼容、能力手册和专项 CI 同步；不改安装/更新脚本，不增加生产依赖或文件锁服务。
