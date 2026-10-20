@@ -136,80 +136,125 @@ async function findClassFile(repo, hash, fq, ctx, anchorFile) {
   return null;
 }
 
-async function resolveBusinessCodePrefix(repoAbs, hash, filePath, expr, ctx) {
-  // 常量可能链式引用其他常量（如 BUSINESS_CODE = XxxConstants.ORD_BUSINESS_CODE），沿链最多 5 跳；
-  // 引用类不在本仓库时（如 comoe 引用 ctsv 的常量类），按全限定名在其他仓库 HEAD 近似解析
-  const visited = new Set();
-  let cur = { repo: repoAbs, hash, file: filePath, expr };
-  for (let hop = 0; hop < 5; hop++) {
-    const key = `${cur.repo}|${cur.hash}|${cur.file}|${cur.expr}`;
-    if (visited.has(key)) return null;
-    visited.add(key);
-    const content = await ctx.gitShowFile(cur.repo, cur.hash, cur.file);
-    if (!content) return null;
-    const parts = cur.expr.split('.');
-    if (parts.length === 1) {
-      const varName = parts[0];
-      const vm = new RegExp(`String\\s+${varName}\\s*=\\s*"([^"]+)"`).exec(content);
-      if (vm) return vm[1];
-      const rm = new RegExp(`String\\s+${varName}\\s*=\\s*([A-Za-z_][\\w.]*)\\s*;`).exec(content);
-      if (rm && rm[1] !== varName) {
-        cur = { ...cur, expr: rm[1] };
-        continue;
-      }
-      const si = new RegExp(`import\\s+static\\s+([\\w.]+)\\.${varName}\\s*;`).exec(content);
-      if (si) {
-        cur = { ...cur, expr: si[1] };
-        continue;
-      }
-      return null;
-    }
-    const cls = parts[parts.length - 2];
-    const field = parts[parts.length - 1];
-    let fq = null;
-    if (parts.length >= 3) {
-      fq = parts.slice(0, -1).join('.');
-    } else {
-      const imp = new RegExp(`import\\s+((?:[\\w.]+\\.)${cls})\\s*;`).exec(content);
-      if (imp) fq = imp[1];
-    }
-    let clsContent = null;
-    let at = null;
-    if (fq) {
-      const found = await findClassFile(cur.repo, cur.hash, fq, ctx, cur.file);
-      if (found) {
-        clsContent = found.content;
-        at = { repo: cur.repo, hash: cur.hash, file: found.file };
-      } else {
-        for (const r of ctx.repos) {
-          const other = path.join(ctx.repoRoot, r);
-          if (other === cur.repo) continue;
-          const f2 = await findClassFile(other, 'HEAD', fq, ctx, null);
-          if (f2) {
-            clsContent = f2.content;
-            at = { repo: other, hash: 'HEAD', file: f2.file };
-            break;
-          }
-        }
-      }
-    }
-    if (!clsContent && parts.length === 2) {
-      // 无导入（同包类）→ 本仓库同目录兜底
-      const rel = path.posix.join(path.posix.dirname(cur.file), `${cls}.java`);
-      clsContent = await ctx.gitShowFile(cur.repo, cur.hash, rel);
-      if (clsContent) at = { repo: cur.repo, hash: cur.hash, file: rel };
-    }
-    if (!clsContent) return null;
-    const cm = new RegExp(`String\\s+${field}\\s*=\\s*"([^"]+)"`).exec(clsContent);
-    if (cm) return cm[1];
-    const rm = new RegExp(`String\\s+${field}\\s*=\\s*([A-Za-z_][\\w.]*)\\s*;`).exec(clsContent);
-    if (rm) {
-      cur = { repo: at.repo, hash: at.hash, file: at.file, expr: rm[1] };
+// 顶层（引号与括号之外）按 + 拆分拼接表达式；括号/引号内的 + 不算分隔符
+function splitConcat(expr) {
+  const parts = [];
+  let buf = '';
+  let depth = 0;
+  let inStr = false;
+  for (let i = 0; i < expr.length; i++) {
+    const ch = expr[i];
+    if (inStr) {
+      buf += ch;
+      if (ch === '\\' && i + 1 < expr.length) buf += expr[++i];
+      else if (ch === '"') inStr = false;
       continue;
+    }
+    if (ch === '"') { inStr = true; buf += ch; continue; }
+    if (ch === '(' || ch === '[' || ch === '{') depth++;
+    else if (ch === ')' || ch === ']' || ch === '}') depth--;
+    if (ch === '+' && depth === 0) { parts.push(buf.trim()); buf = ''; continue; }
+    buf += ch;
+  }
+  if (buf.trim()) parts.push(buf.trim());
+  return parts;
+}
+
+function unescapeJavaLiteral(s) {
+  return s.replace(/\\(["'\\ntbrf])/g, (all, c) => (c === 'n' ? '\n' : c === 't' ? '\t' : c));
+}
+
+// `String NAME = <rhs>;` 的 rhs（去掉行尾注释与注解噪声）
+function declarationRhs(content, name) {
+  const re = new RegExp(`String\\s+${name}\\s*=\\s*([^;]+);`);
+  const m = re.exec(content);
+  if (!m) return null;
+  return m[1].replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
+}
+
+// 定位 `Cls.FIELD` / `pkg.Cls.FIELD` 的声明文件内容
+async function findFieldOwner(ctx, at, content, expr) {
+  const parts = expr.split('.');
+  const cls = parts[parts.length - 2];
+  let fq = null;
+  if (parts.length >= 3) {
+    fq = parts.slice(0, -1).join('.');
+  } else {
+    const imp = new RegExp(`import\\s+((?:[\\w.]+\\.)${cls})\\s*;`).exec(content);
+    if (imp) fq = imp[1];
+  }
+  if (fq) {
+    const found = await findClassFile(at.repo, at.hash, fq, ctx, at.file);
+    if (found) return { at: { repo: at.repo, hash: at.hash, file: found.file }, content: found.content };
+    for (const r of ctx.repos) {
+      const other = path.join(ctx.repoRoot, r);
+      if (other === at.repo) continue;
+      const f2 = await findClassFile(other, 'HEAD', fq, ctx, null);
+      if (f2) return { at: { repo: other, hash: 'HEAD', file: f2.file }, content: f2.content };
+    }
+  }
+  if (parts.length === 2) {
+    // 无导入（同包类）→ 本仓库同目录兜底
+    const rel = path.posix.join(path.posix.dirname(at.file), `${cls}.java`);
+    const c2 = await ctx.gitShowFile(at.repo, at.hash, rel);
+    if (c2) return { at: { repo: at.repo, hash: at.hash, file: rel }, content: c2 };
+  }
+  return null;
+}
+
+// 递归求值字符串表达式：字面量、字面量拼接、同文件常量、静态导入常量、跨类/跨仓库常量链
+async function evalStringExpr(ctx, at, content, expr, seen, depth = 0) {
+  const e = String(expr).trim();
+  if (!e || depth > 10) return null;
+  const parts = splitConcat(e);
+  if (parts.length > 1) {
+    let out = '';
+    for (const p of parts) {
+      const v = await evalStringExpr(ctx, at, content, p, seen, depth + 1);
+      if (v == null) return null;
+      out += v;
+    }
+    return out;
+  }
+  const lit = /^"([\s\S]*)"$/.exec(e);
+  if (lit) return unescapeJavaLiteral(lit[1]);
+  if (!/^[A-Za-z_][\w.]*$/.test(e)) return null;
+
+  const key = `${at.file}|${e}`;
+  if (seen.has(key)) return null;
+  seen.add(key);
+
+  const name = e.split('.').pop();
+  if (!e.includes('.')) {
+    const rhs = declarationRhs(content, name);
+    if (rhs) return evalStringExpr(ctx, at, content, rhs, seen, depth + 1);
+    const si = new RegExp(`import\\s+static\\s+([\\w.]+)\\.${name}\\s*;`).exec(content);
+    if (si) return evalQualified(ctx, at, content, `${si[1]}.${name}`, seen, depth);
+    for (const w of content.matchAll(/import\s+static\s+([\w.]+)\.\*\s*;/g)) {
+      const v = await evalQualified(ctx, at, content, `${w[1]}.${name}`, seen, depth);
+      if (v != null) return v;
     }
     return null;
   }
-  return null;
+  return evalQualified(ctx, at, content, e, seen, depth);
+}
+
+async function evalQualified(ctx, at, content, expr, seen, depth) {
+  const owner = await findFieldOwner(ctx, at, content, expr);
+  if (!owner) return null;
+  const rhs = declarationRhs(owner.content, expr.split('.').pop());
+  if (!rhs) return null;
+  return evalStringExpr(ctx, owner.at, owner.content, rhs, seen, depth + 1);
+}
+
+async function resolveBusinessCodePrefix(repoAbs, hash, filePath, expr, ctx) {
+  // 提醒码前缀常量既可能是纯字面量，也可能是 `其他常量 + "片段"` 的拼接形式（如
+  // `BUSINESS_CODE = AggcareExternalConstants.BUSINESS_CODE + "practice.order"`），
+  // 故按字符串表达式递归求值；引用类不在本仓库时按全限定名在其他仓库 HEAD 近似解析。
+  const content = await ctx.gitShowFile(repoAbs, hash, filePath);
+  if (!content) return null;
+  const at = { repo: repoAbs, hash, file: filePath };
+  return evalStringExpr(ctx, at, content, expr, new Set());
 }
 
 // ---------- 缓存读取对象首用判定 ----------
