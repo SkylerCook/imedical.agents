@@ -63,15 +63,19 @@ function cstNow() {
   return new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' (UTC+8)';
 }
 
-function buildEmailMd(db) {
+function buildEmailMd(db, opts = {}) {
   const w = (db.meta && db.meta.window) || {};
   const range = w.since && w.until ? `${w.since} ~ ${w.until}` : (w.label || '');
   const rows = buildRows(db);
   const lines = [];
-  lines.push(`# ${SUBJECT}`);
+  lines.push(`# ${SUBJECT}${opts.suffix || ''}`);
   lines.push('');
   if (range) {
     lines.push(`> 检测时间窗：${range}`);
+    lines.push('');
+  }
+  if (opts.note) {
+    lines.push(`> **更正说明**：${opts.note}`);
     lines.push('');
   }
   lines.push('说明：当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。');
@@ -109,7 +113,8 @@ function buildEmailMd(db) {
   return lines.join('\n');
 }
 
-function buildEmailHtml(db) {
+function buildEmailHtml(db, opts = {}) {
+  const subject = `${SUBJECT}${opts.suffix || ''}`;
   const w = (db.meta && db.meta.window) || {};
   const range = w.since && w.until ? `${w.since} ~ ${w.until}` : (w.label || '');
   const rows = buildRows(db);
@@ -160,15 +165,19 @@ function buildEmailHtml(db) {
   lines.push('<html lang="zh-CN">');
   lines.push('<head>');
   lines.push('  <meta charset="UTF-8">');
-  lines.push(`  <title>${escapeHtml(SUBJECT)}</title>`);
+  lines.push(`  <title>${escapeHtml(subject)}</title>`);
   lines.push('</head>');
   lines.push('<body style="margin: 0; padding: 0; background: #f5f6f8;">');
   lines.push(`  <div style="${wrapStyle}">`);
-  lines.push(`    <h2 style="margin: 0 0 10px; padding-bottom: 10px; font-size: 20px; color: #1f4e79; border-bottom: 2px solid #1f4e79;">${escapeHtml(SUBJECT)}</h2>`);
+  lines.push(`    <h2 style="margin: 0 0 10px; padding-bottom: 10px; font-size: 20px; color: #1f4e79; border-bottom: 2px solid #1f4e79;">${escapeHtml(subject)}</h2>`);
   if (range) {
     lines.push(`    <p style="${metaStyle}">检测时间窗：${escapeHtml(range)}</p>`);
   }
   lines.push(`    <p style="${metaStyle}">生成时间：${cstNow()}</p>`);
+  if (opts.note) {
+    lines.push('    <p style="margin: 14px 0 0; padding: 10px 14px; background: #fff7e6; border-left: 4px solid #d48806; color: #613400;">'
+      + `<strong>更正说明：</strong>${escapeHtml(opts.note)}</p>`);
+  }
   lines.push('    <p style="margin: 14px 0 18px;">本期医生站开发提交中检测到以下数据库相关变更，请相关负责人参照第二章操作说明进行处理。</p>');
   lines.push('    <p style="margin: 0 0 18px;"><strong>说明：</strong>当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。</p>');
   lines.push('');
@@ -193,19 +202,25 @@ function buildEmailHtml(db) {
 }
 
 function main() {
-  const input = process.argv[2];
+  const argv = process.argv.slice(2);
+  const input = argv.find((a) => !a.startsWith('--'));
   if (!input) {
-    console.error('Usage: node build-db-email.js <db-changes-<label>.json>');
+    console.error('Usage: node build-db-email.js <db-changes-<label>.json> [--note=<更正说明>] [--subject-suffix=<标题后缀>]');
     process.exit(1);
   }
+  const opt = (name) => {
+    const hit = argv.find((a) => a.startsWith(`--${name}=`));
+    return hit ? hit.slice(`--${name}=`.length).trim() : '';
+  };
+  const opts = { note: opt('note'), suffix: opt('subject-suffix') };
   const db = JSON.parse(fs.readFileSync(input, 'utf8'));
   const base = path.join(
     path.dirname(input),
     path.basename(input).replace(/^db-changes-/, 'db-change-email-').replace(/\.json$/, '')
   );
-  fs.writeFileSync(`${base}.md`, buildEmailMd(db), 'utf8');
-  fs.writeFileSync(`${base}.html`, buildEmailHtml(db), 'utf8');
-  console.log(`邮件标题: ${SUBJECT}`);
+  fs.writeFileSync(`${base}.md`, buildEmailMd(db, opts), 'utf8');
+  fs.writeFileSync(`${base}.html`, buildEmailHtml(db, opts), 'utf8');
+  console.log(`邮件标题: ${SUBJECT}${opts.suffix}`);
   console.log(`正文文件(MD): ${base}.md`);
   console.log(`正文文件(HTML): ${base}.html`);
   console.log(`变更行数: ${buildRows(db).length}`);
