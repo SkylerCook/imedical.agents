@@ -1,6 +1,6 @@
 {
   "name": "bos-plugin",
-  "version": "0.10.3",
+  "version": "0.11.0",
   "displayName": "BOS Demand Plugin",
   "description": "跨技术栈的 BOS 只读查询、需求处理、标版补录、代码更新日志与通用提交衔接。",
   "entry": "AGENTS.md",
@@ -22,7 +22,8 @@
     "处理这个 BOS 需求，验收后提交并将本次提交补录到 BOS 代码更新日志",
     "为当前项目接入 BOS 查询与需求处理",
     "把已有 Git 提交补录到 BOS 代码更新日志",
-    "使用 bos-demand-entry 从 Git 改动生成标版需求文本并回填编号"
+    "使用 bos-demand-entry 从 Git 改动生成标版需求文本并回填编号",
+    "提需求给支持组，根据主题和资料生成需求文本"
   ],
   "availableDependencies": [
     {
@@ -37,7 +38,7 @@
     {
       "plugin": "demand-delivery-plugin",
       "stage": "standard-demand-entry",
-      "trigger": "代码来源标版补录 prepare、message 或 plan 复用提交能力；工作来源不需要该依赖",
+      "trigger": "代码来源标版补录 prepare、message 或 plan 复用提交能力；主题和工作来源不需要该依赖",
       "entries": [
         "scripts/commit-demand.js"
       ]

@@ -21,7 +21,7 @@ BOS 普通与夜跑处理按需求复用项目已启用插件，支持不同及�
 Overlay 部署支持模块配置优先、显式主仓配置回退；连接目标与模块 MCP 一致，SourceRoot 边界保持。见 [部署配置继承](plugins/coding-iris-plugin/rules/iris_deploy_checklist.md#部署配置继承)。
 
 
-需求交付归属调整：通用提交由 [demand-delivery-plugin](plugins/demand-delivery-plugin/README.md) 的 demand-commit 维护；BOS 补录默认代码来源，`--work` 明确使用工作记录并止于编号回填；支持 `--split` 审查拆合、`--excel` 导出及 `--split --excel` 组合（省略模式默认 `--text`），由 [bos-demand-entry](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md) 维护，产品标识按项目或用户输入。旧 IRIS 入口已移除，由更新器迁移，详见 [迁移说明](docs/demand-delivery-migration.md)。
+需求交付归属调整：通用提交由 [demand-delivery-plugin](plugins/demand-delivery-plugin/README.md) 的 demand-commit 维护；[bos-demand-entry](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md) 从 Git 补录，或按主题和资料向本组/其他组提需，`--work` 则整理工作记录；后两类止于编号回填。支持 `--split` 审查拆合、`--excel` 导出及组合（省略模式默认 `--text`），产品标识按实际对象确定。旧 IRIS 入口已移除，由更新器迁移，详见 [迁移说明](docs/demand-delivery-migration.md)。
 
 > **让 AI Coding 的最佳实践成为团队共享的基础设施。**
 
@@ -276,7 +276,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 - [bos-init](plugins/bos-plugin/skills/bos-init/SKILL.md)：个人配置初始化与项目接入分别执行；Windows 可生成仓外私有配置并绑定用户环境变量，用户填写 TODO。项目接入才启用插件并生成四个日常入口。
 - [bos-demand-query](plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：按发起人、接受人、当前人或对应组查询待办、历史及编号详情，区分正文、描述图片和附件；个人默认值、显式清除与 0.6.0 调用迁移见[查询参数契约](plugins/bos-plugin/references/usage.md#查询参数契约)，不写回 BOS。
-- [bos-demand-entry](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md)：从实际 Git 补丁生成标版文本/Excel，使用项目确认的产品标识，回填 BOS 编号后衔接通用提交；无需查询凭据。
+- [bos-demand-entry](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md)：从 Git、主题及资料或工作记录生成标版文本/Excel；支持给其他组提需，回填编号后仅代码按需衔接提交；结合上下文判断完成状态，已完成条目追加备注；无需查询凭据。
 - [bos-code-update-log](plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)：从已有 Git 提交生成预览，并按明确授权补录 BOS 代码更新日志；独立凭据与需求查询共用私有文件。
 - [bos-demand-handle](plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：处理已有需求号或充分正文，主动读取相关媒体并按技术栈实施、自查和验证；全部提交校验成功后复用本次仓库/hash 准备日志计划，再按明确 BOS 授权补录。IRIS 专项直达，正式协作按条件加载。
 

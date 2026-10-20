@@ -1,5 +1,7 @@
 # BOS Plugin
 
+0.11.0：`bos-demand-entry` 支持“提需求给某组，解决某问题”或主题加资料的自然语言调用，无需 Git 或额外开关；新主题草稿以 v3 source=request 复用 bug/change 正文、文本/Excel 和编号回填。接收组仅作交接信息，不自动发送、指派或提交；产品标识未知时可先按真实主题命名。结合工作上下文、代码与已有验证判断完成状态，已完成条目通过原 remarks 追加备注，见 [skill](skills/bos-demand-entry/SKILL.md#来源选择与主题提需)。正常更新能力包并刷新已启用索引取得；旧代码 v2/工作 v3 草稿可读，无实例迁移或旧文件清理，不自动同步业务项目。
+
 0.10.3：新夜跑事前生成并批准 executionPlan、周额度基线、逐条最低测试与双开发/双测试 worktree 安排，派发前物理落盘 PLAN 和角色上下文；旧批次不迁移。沿正常更新刷新已启用索引，无额外配置迁移或旧文件删除，见 [治理接入](../../docs/night-governance.md)。
 
 0.10.2：新夜跑按共享 workflow 启用 `night-convergence/v1`，显式总时限及最多 4 次问题尝试，存在依赖才绑定版本和检查；独立需求不增加依赖资料。正常更新并刷新已启用薄索引后只用于新批次，旧 run 保持原行为，无旧文件清理；未自动启动或同步业务项目。接口和限制见[夜跑策略](../../docs/night-policy.md#返修收敛与按需依赖)。
@@ -17,7 +19,7 @@
 | 入口 | 用途 |
 |---|---|
 | [bos-init](skills/bos-init/SKILL.md) | 初始化个人身份，或接入项目并生成发现入口 |
-| [bos-demand-entry](skills/bos-demand-entry/SKILL.md) | 从 Git 补丁生成标版文本/Excel，回填编号并衔接 demand-commit |
+| [bos-demand-entry](skills/bos-demand-entry/SKILL.md) | 从 Git、提需主题及资料或工作记录生成文本/Excel，回填编号；代码按需衔接提交 |
 | [bos-demand-query](skills/bos-demand-query/SKILL.md) | 按发起/接受/当前人员或组查询待办、历史及编号详情 |
 | [bos-demand-handle](skills/bos-demand-handle/SKILL.md) | 实施、验证和交付需求，提交校验成功后准备并按授权补录日志 |
 | [bos-code-update-log](skills/bos-code-update-log/SKILL.md) | 预览并按授权将已有 Git 提交补录为代码更新日志 |

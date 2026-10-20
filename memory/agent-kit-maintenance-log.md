@@ -1,5 +1,10 @@
 # imedical.agents 维护日志
 
+- 2026-10-20（主题提需与完成备注，framework-maintenance）：bos-plugin 0.11.0 扩展 bos-demand-entry，通过自然语言主题、接收组及可选资料选 v3 source=request，无 Git/提交依赖；复用既有 bug/change、prepare/render/deliver/bind 与 Excel。共用非代码校验，接收组仅作交接元数据，不推断 BOS 产品组/指派人，产品标识未知时主题名称可不加前缀；三类来源分批，主题/工作无代码提交对象，原代码 v2/工作 v3 兼容。合并本轮未提交的完成备注规则：按上下文与事实判断，已完成条目用原 remarks 追加【备注】已完成，已有备注保留，文本写完不代表待解决问题完成；原 0.10.4 未发布草稿合并到 0.11.0，不改已提交记录。
+  - 同步 owner AGENTS/README/manifest、技能/协议、根 README、两份能力手册、维护摘要和发布记录，沿既有 P2 补充主题路由与真实录入样本。无新增 CLI、依赖、安装/更新或 thin-index 逻辑；正常更新完整能力包并刷新已启用索引，新 request 草稿需新脚本；无实例迁移或旧文件清理，未同步业务副本。
+  - Windows Node 24.14.1 专项 29/29 通过，覆盖 Git/工作兼容、无 Git 主题 bug/change、资料/接收组保留、文本/Excel/CLI 回填、混合来源和提交/输出保护。初轮 28/29，新夹具同时触发多个校验，隔离后整组 29/29；已记录 standard-demand-entry 内容证据。文档链接 1/1、canonical/本机入口 skill 格式与 diff check 通过，版本比较无新增问题（仅既有 xc 历史 6 条）。测试目录已清理；非 Windows、Node 22 和真实 BOS 仍待现有 CI/P2 取证。用户真实例子仅在内存验证正文，未写入仓库或模拟系统修复。
+  - 当前已安装全局入口沿既有 Junction 指向本源；按 skills-sync 同步共享入口缓存的发现描述及本机原登记段落，保留其他会话修改。既有三端链接、源路径、格式及对齐检查通过；未新增端点，宿主刷新后的自动发现和真实路由仍待观察。未执行 BOS 写入或对外发送；Git 提交与推送状态以 Git 记录为准。
+
 - 2026-10-20（保留测试数据供用户快速验收，framework-maintenance）：收紧共享 testing-protocol 与 Testing Agent 入口，明确开发测试库中本批获准创建的验收样本可保留；事前计划写清范围、授权和交接，按需求交付样本标识、入口与复验步骤，沿用已有授权及项目处置约定。夜跑文档复用既有 dataRetention/evidenceRefs，并消除 case 收尾误删保留数据的歧义；README 与维护摘要同步。未改运行时、插件、schema 或安装更新器，已有项目正常更新取得；真实数据标识继续留目标项目受保护记录。能力手册和既有 backlog 观察项已核对，本次无需新增条目；文档链接定向检查 1/1 及 diff check 通过，真实宿主行为沿既有观察队列，不以规则修改宣称已生效。
 
 - 2026-10-19–20（无人值守事前与联合交付治理，framework-maintenance）：按批准 PLAN 在原 schema 2.1 run 接入 executionPlan、周额度落盘基线、角色/需求分片上下文及双 Developer / 双 Tester 容量与错峰；两种启动位置 materialize 实体 PLAN/AGENTS 薄入口，保留原规则及链接目标。加入跨 worktree 同类身份、既有 Developer 集成、独立 post 后冻结材料、实际目标发布窗口、真实前后差异与原层级回执复用。持续 worker/v2 分需求与批次资源，预检及两需求复用一次认证，旧 owner 不得被换预检丢弃。

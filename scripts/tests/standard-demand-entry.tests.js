@@ -340,3 +340,94 @@ test('work missing Excel fields can deliver text and invalid work drafts create 
   assert.throws(() => entry.deliver(draft, path.join(temp, 'invalid'), false), /混合来源/);
   assert.ok(!fs.existsSync(path.join(temp, 'invalid')));
 });
+
+function requestSpec(format = 'bug') {
+  return { kind: 'standard', source: 'request', common: { 模块编码: 'TEST' }, requirements: [{
+    key: 'r1', name: '演示系统-登录-提示无法获取授权信息', recipientGroup: '演示支持组',
+    description: format === 'bug'
+      ? { format: 'bug', steps: ['进入用户指定的演示环境，尝试登录系统。'], expected: '能够正常登录。', actual: '据用户反馈，提示无法获取授权信息，不能登录。' }
+      : { format: 'change', summary: '登录失败时提供明确的授权信息提示。', steps: ['在授权信息不可获取时尝试登录。'], expected: '显示可理解的失败原因。' },
+    sources: [{ kind: 'user', locator: '本轮用户说明', summary: '提出演示系统登录故障' }, { kind: 'image', locator: '用户提供的截图', summary: '展示登录提示' }],
+    progress: { status: 'planned', summary: '待接收组处理，未提供完成证据' }
+  }] };
+}
+
+test('request reuses bug/change prose without Git, prefix or submission dependencies', () => {
+  for (const format of ['bug', 'change']) {
+    const draft = entry.prepare(requestSpec(format), '/missing-evidence', '/missing-project');
+    assert.equal(draft.schema, 'iris-standard-demand/v3');
+    assert.equal(draft.source, 'request');
+    const item = draft.requirements[0], body = entry.renderText(item, false);
+    assert.equal(item.recipientGroup, '演示支持组');
+    assert.ok(!Object.hasOwn(item, 'changes'));
+    assert.match(body, format === 'bug' ? /【实际结果】/ : /【需求说明】/);
+    assert.doesNotMatch(body, /工作目标|当前进度|已完成|用户提供的截图|本轮用户说明/);
+    assert.ok(!Object.hasOwn(item.fields, '产品组'));
+    assert.ok(!Object.hasOwn(item.fields, '指派人'));
+    delete item.recipientGroup;
+    assert.doesNotThrow(() => entry.bind(draft, 'r1', '123', '最终标题'));
+  }
+});
+
+test('request rejects mixed evidence, source mismatches and unsupported facts', () => {
+  for (const mutate of [s => { s.requirements[0].changes = []; }, s => { s.requirements[0].type = 'fix'; },
+    s => { s.requirements[0].sources = []; }, s => { s.requirements[0].sources[0].kind = 'invented'; },
+    s => { s.requirements[0].recipientGroup = ''; }, s => { s.requirements[0].progress.status = 'invented'; },
+    s => { s.requirements[0].description.format = 'work'; }, s => { delete s.requirements[0].description.actual; }]) {
+    const spec = requestSpec(); mutate(spec); assert.throws(() => entry.prepare(spec));
+  }
+  const work = workSpec(); work.requirements[0].recipientGroup = '演示支持组';
+  assert.throws(() => entry.prepare(work), /仅适用于主题提需/);
+  const draft = entry.prepare(requestSpec()); draft.source = 'work';
+  draft.requirements[0].name = '{DEMO} 登录问题';
+  draft.requirements[0].sources = [draft.requirements[0].sources[0]];
+  delete draft.requirements[0].recipientGroup;
+  assert.throws(() => entry.bind(draft, 'r1', '123', '标题'), /来源匹配/);
+});
+
+test('request bind preserves recipient and facts while stopping all submission paths', () => {
+  const draft = entry.prepare(requestSpec()), before = JSON.stringify(draft.requirements[0].sources);
+  entry.bind(draft, 'r1', '123', '最终标题');
+  assert.equal(draft.requirements[0].recipientGroup, '演示支持组');
+  assert.equal(JSON.stringify(draft.requirements[0].sources), before);
+  assert.throws(() => entry.messages(draft, 'r1', '/missing-project'), /无代码提交对象/);
+  assert.throws(() => entry.planArguments(draft, 'r1', '/missing-project'), /无代码提交对象/);
+});
+
+test('request CLI text Excel render and bind share one draft outside Git', t => {
+  const temp = workFixture(t), spec = requestSpec(), input = path.join(temp, 'spec.json');
+  spec.requirements[0].remarks = '保留用户说明的影响范围。';
+  fs.writeFileSync(input, JSON.stringify(spec));
+  const run = (...args) => spawnSync(process.execPath, [script, ...args], { cwd: temp, encoding: 'utf8', windowsHide: true });
+  const out = path.join(temp, 'out');
+  let result = run('prepare', '--spec', input, '--output', out, '--excel'); assert.equal(result.status, 0, result.stderr);
+  const draftPath = path.join(out, 'draft.json'), draft = JSON.parse(fs.readFileSync(draftPath, 'utf8'));
+  const body = entry.renderText(draft.requirements[0], false);
+  assert.ok(unzipStored(fs.readFileSync(path.join(out, 'requirements.xlsx')))['xl/worksheets/sheet1.xml'].includes(body));
+  const rendered = path.join(temp, 'rendered');
+  result = run('render', '--draft', draftPath, '--output', rendered); assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.readFileSync(path.join(out, 'r1.txt'), 'utf8'), fs.readFileSync(path.join(rendered, 'r1.txt'), 'utf8'));
+  const bound = path.join(temp, 'bound.json');
+  result = run('bind', '--draft', draftPath, '--item', 'r1', '--demand', '123', '--title', '最终标题', '--output', bound); assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(fs.readFileSync(bound, 'utf8')).requirements[0].recipientGroup, '演示支持组');
+  for (const command of ['message', 'plan']) {
+    result = run(command, '--draft', bound, '--item', 'r1'); assert.notEqual(result.status, 0); assert.match(result.stderr, /无代码提交对象/);
+  }
+  assert.ok(!fs.existsSync(path.join(temp, '.git')));
+});
+
+test('request retains completion remarks and enforces existing output protection', t => {
+  const temp = workFixture(t), spec = requestSpec();
+  spec.requirements[0].progress = { status: 'completed', summary: '用户已确认处理完成' };
+  spec.requirements[0].remarks = '已完成\n保留已有备注。';
+  const draft = entry.prepare(spec), body = entry.renderText(draft.requirements[0], false);
+  assert.ok(body.endsWith('【备注】\n已完成\n保留已有备注。'));
+  assert.equal((body.match(/【备注】/g) || []).length, 1);
+  const forbidden = path.join(temp, '.agents', 'out');
+  assert.throws(() => entry.deliver(draft, forbidden, false), /不能写入/);
+  assert.ok(!fs.existsSync(forbidden));
+  delete draft.common['模块编码'];
+  const excel = path.join(temp, 'excel');
+  assert.throws(() => entry.deliver(draft, excel, true), /模块编码/);
+  assert.ok(!fs.existsSync(excel));
+});

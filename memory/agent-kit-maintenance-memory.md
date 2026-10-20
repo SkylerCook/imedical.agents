@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- bos-plugin 0.11.0：bos-demand-entry 支持主题及可选资料向本组/其他组提需，自然语言选择 v3 source=request，无需 Git；复用 bug/change、文本/Excel及编号回填，接收组仅交接，未知产品标识可先按事实命名。代码 v2/工作 v3 保持兼容；结合上下文判断完成状态，已完成条目用原 remarks 追加备注，待解决问题不因文本写完而标完成。正常更新并刷新已启用索引取得，不自动发送、提交或同步业务副本。
+
 - Feign 文档审计：imedicalxc-doctor-data-extraction 1.1.0 新增 `feign-api-doc-audit` skill 与 `feign-doc-audit.js`（paths/fields/io/lint/all）。按 import、package、scope、module 消歧同名 Feign 类型，嵌套子表支持从父表行推导类型；真实文档全量校验 paths/fields/io/lint 均为 0。入口见插件 README 与 release record。
 
 - 新夜跑按 docs/night-governance.md 先保存周额度基线、批准 executionPlan，再 materialize 双 Developer / 双 Tester 的实体 PLAN 与角色上下文；新模板 maxInFlight=4，旧 run 不迁移。冻结联合版本、同目标发布、差异证据复用、持续认证 worker、原子 token 预留与客户端恢复沿同一 run；成本未知不造零。BOS 0.10.3、coding 0.20.0 及六个兼容 owner 已同步；Atelier 前端显式选择，旧 SFTP 保留。源码/合成验证与真实宿主生效分开；本机 browser.close 共享锁阻塞已授权解除，Chrome/Edge 退出与原 UI 用例回归通过，验证见 maintenance/validation/night-governance-2026-10-19.md。
