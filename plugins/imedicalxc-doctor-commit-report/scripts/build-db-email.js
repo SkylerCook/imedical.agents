@@ -30,9 +30,20 @@ function buildRows(db) {
   for (const it of db.configItems || []) {
     rows.push(['新增系统标准配置', `${it.stCode || it.stCodeRaw} / ${it.itemCode}`, it.author]);
   }
+  const reminderGroups = new Map();
   for (const r of db.reminders || []) {
+    const unresolved = !r.resolvedCode;
     const code = r.resolvedCode || `${r.expr}+${r.codeSuffix}`;
-    rows.push(['新增系统标准提醒', r.message ? `${code}（${r.message}）` : code, r.author]);
+    const key = `${code}|${r.message || ''}|${r.author}|${unresolved}`;
+    const g = reminderGroups.get(key) || { code, message: r.message, author: r.author, unresolved, count: 0 };
+    g.count += 1;
+    reminderGroups.set(key, g);
+  }
+  for (const g of reminderGroups.values()) {
+    let content = g.message ? `${g.code}（${g.message}）` : g.code;
+    if (g.count > 1) content += ` ×${g.count} 处`;
+    if (g.unresolved) content += '（提醒码前缀常量未能自动解析，完整前缀见周报第五章该提交明细）';
+    rows.push(['新增系统标准提醒', content, g.author]);
   }
   for (const cc of db.cacheConfigs || []) {
     rows.push(['新增代码表缓存配置', `${cc.poClass}.${cc.method}${cc.tableName ? `（表 ${cc.tableName}）` : ''}`, cc.author]);
