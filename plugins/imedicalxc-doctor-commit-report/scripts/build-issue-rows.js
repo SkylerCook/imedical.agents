@@ -76,6 +76,12 @@ function normalizeEvaluations(parsed) {
   return null;
 }
 
+// 期号：优先取文件名后缀 evaluations-<label>.json（同月多窗口场景），无后缀时回退目录名
+function labelOf(inputPath) {
+  const m = /^evaluations-(.+)\.json$/.exec(path.basename(inputPath));
+  return m ? m[1] : path.basename(path.dirname(inputPath));
+}
+
 function shortHashOf(e) {
   return SHORT_HASH_RE.test(e.shortHash || '') ? e.shortHash : String(e.hash || '').slice(0, 8);
 }
@@ -145,7 +151,7 @@ function main() {
     throw new Error(`输入文件应为评估条目数组或 { evaluations: [...] } 结构: ${inputPath}`);
   }
 
-  const label = path.basename(path.dirname(inputPath));
+  const label = labelOf(inputPath);
   const date = opts.date || todayYMD();
 
   const repoRoot = path.resolve(__dirname, '..', '..', '..', '..');
@@ -197,4 +203,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { HEADER, parseArgs, loadConfig, normalizeEvaluations, shortHashOf, formatCommit, formatIssueText, issueTexts, toRow, buildRows, todayYMD };
+module.exports = { HEADER, parseArgs, loadConfig, normalizeEvaluations, labelOf, shortHashOf, formatCommit, formatIssueText, issueTexts, toRow, buildRows, todayYMD };
