@@ -36,6 +36,7 @@ task-affinity: [iris, coding, safety, editing]
 
 ## 文件编辑安全
 
+- 创建或接续隔离 worktree，及阶段完成或交接时，读取并执行[阶段提交与恢复点](../../../docs/guides/worktree-review.md#阶段提交与恢复点)：复用有效授权保存本任务阶段 commit，明确最后恢复点与剩余未提交范围；无授权沿该节集中说明，不将 worktree 隔离当作代码已保存到 Git。
 - 保留原文件编码、换行风格和特殊 EOF。
 - 历史 CSP/JS/CSS/ObjectScript 文件避免整文件重写，优先局部补丁。
 - 生成或移动文件时遵循目标工程 profile 的目录与命名约定。

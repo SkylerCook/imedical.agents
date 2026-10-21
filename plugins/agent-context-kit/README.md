@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+v0.5.1 在项目入口模板补充 worktree 创建、接续、阶段完成及交接时的[恢复点路由](../../docs/guides/worktree-review.md#阶段提交与恢复点)。模板不授予提交权限；新项目按模板初始化，已有项目在授权上下文维护时定点合并，普通更新保留项目 AGENTS 与原有授权，无配置迁移或旧文件清理。
+
 v0.4.3 在初始化模板补齐按需文档入口；已部署项目由根更新器定向追加缺失导航，保留正文与配置。DryRun/Check/Write、Overlay 与冲突边界见 [更新说明](../../docs/update-agents.md#文档导航补齐)。
 
 v0.4.2 修复 Windows 短路径与 Git 长路径混用导致的 task-handoff 初始化、状态检查和 Overlay Junction 误判；现有交接内容与项目入口无需迁移，更新能力包后生效。

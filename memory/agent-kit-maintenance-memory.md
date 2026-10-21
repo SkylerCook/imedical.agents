@@ -21,7 +21,7 @@
 | IRIS 编码、部署、MCP 或 HISUI | [编码 owner](../plugins/coding-iris-plugin/README.md)；按任务读 CLS/前端规范、UTF-8/legacy、direct/guarded、Atelier/SFTP、Storage；升级资产再读各 vendor AGENTS/README |
 | 公司 UI、截图评审或 HISUI 标注/布局 | [通用 UI](../plugins/imedical-ui/README.md)、[IRIS 适配](../plugins/iris-ui/README.md)；原件更新读 [vendor 说明](../vendor/imedical-ui-standards/README.md)，接入核对强依赖和注册/profile |
 | 项目上下文、技能适配或接续 | 目标项目 AGENTS 与 [project-context-maintenance](../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md)；[技能适配](../docs/coding-agent-adaptation.md)区分原生发现/目录链接，[task-handoff](../docs/task-handoff.md)用于显式交接 |
-| worktree 审阅、人工复验与报告 | [审阅交付](../docs/guides/worktree-review.md)、[测试协议](../agents/_shared/testing-protocol.md)；固定基点、本批全部编号、样本定位、补验/用户结论及数据/资源收尾分别核验 |
+| worktree 审阅、阶段恢复点、人工复验与报告 | [审阅交付](../docs/guides/worktree-review.md#阶段提交与恢复点)、[测试协议](../agents/_shared/testing-protocol.md)；阶段提交授权与剩余差异、固定基点、编号汇总、样本及验收分别核验；入口归通用编码规则与项目模板 |
 | 查找能力、连接或共享知识 | [项目文档](../docs/README.md)；非 xc [目录](../docs/guides/capability-catalog.md)/[指南](../docs/guides/capability-guide.md)，xc 读 owner；[连接配置](../docs/guides/connection-configuration.md)、[知识接入](../docs/guides/imedical-knowledge.md)按需读取 |
 
 ## 维护与部署边界

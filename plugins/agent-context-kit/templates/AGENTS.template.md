@@ -22,6 +22,7 @@ TODO: 只保留项目实际需要的高频保护，如所属 Git 仓库、用户
 
 ## 按任务读取
 
+- 创建或接续 worktree、完成一批改动或准备交接时，读取并执行[阶段提交与恢复点](.agents/docs/guides/worktree-review.md#阶段提交与恢复点)，核对本地提交授权和最后恢复点；本入口不授予提交权限。
 - 能力包使用、操作指南或连接配置排查：先读取 [.agents 文档入口](.agents/docs/README.md)，再按问题进入对应指南。
 
 - 需求交接：确认 `agent-context-kit` 为 enabled（无 profile 时沿用基础 enabled）且入口可用后，启用交接、生成交接或接续已有需求时读取 `.agents/skills/task-handoff/SKILL.md`；从项目 `docs/handoff/` 定位任务，启用后关键节点持续维护，普通需求不自动建档。

@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+0.20.3：前后端必读的通用规则增加 worktree 创建、接续、阶段完成及交接时的[恢复点路由](../../docs/guides/worktree-review.md#阶段提交与恢复点)，已有本地阶段提交授权按约定执行，验收与合并/push 等权限保持独立。正常更新后由通用编码入口读取，无项目配置迁移或运行器变更。
+
 0.20.2：前端验证按[共享协议的风险与停止条件](../../agents/_shared/testing-protocol.md#验证范围与停止条件)选择，控件状态检查限定本次实际改变的表现。已明确的局部配置可完成必要静态检查后交付，未测效果保留待验；沿正常更新取得，无配置迁移或运行时变更。
 
 0.20.1：前端入口按项目启用状态与 UI 信号条件读取 [iris-ui 专项规则](../iris-ui/rules/iris_ui.md)，普通前端任务保持原流程。规则加载条件以 [iris-frontend-coding 流程](skills/iris-frontend-coding/SKILL.md#流程)为准；通过正常更新取得能力，显式启用 UI 插件后生效，无配置迁移或旧文件清理。

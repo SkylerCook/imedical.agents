@@ -43,6 +43,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
    - 已有配置及项目文档；仅涉及连接、远端能力或配置问题时读取 `.mcp.json`。
    探索仅覆盖当前初始化需要，不为模板全仓扫描；无法确定的非敏感配置标真实待确认项，连接字段只在私有配置处理。`intent-first-on-demand-export` 跳过全工程归纳。
 5. 创建或更新 `AGENTS.md`，只放最小启动流程和路由；新建时参考 `templates/AGENTS.template.md`。能力包使用、操作指南或连接排查统一指向 `.agents/docs/README.md`；核验该路径可达，Overlay 未映射 docs 时按 capability.json 解析 CapabilityRoot，读取其 docs/README.md。已有等价入口复用。
+   - 在本次授权的入口维护范围内，合并模板的 worktree 创建、接续、阶段完成及交接路由，核验恢复点规范可达；已有等价路由复用。只补读取入口，项目持续本地提交授权仍须用户明确确认；本次任务授权留任务记录，不扩成永久权限。普通能力包更新不执行此合并。
    - `agent-context-kit` 为 enabled 且 task-handoff 入口可用时，在本次已授权初始化/维护范围内定点合并模板的“需求交接”路由；已有等价路由复用，available/disabled 不加入。只加入入口，不创建 docs/handoff 任务，不复制完整流程。普通能力包更新不执行此合并。
    - `codebase-complete`：可写入已验证架构事实。
    - `intent-first-on-demand-export`：必须写明本地代码不代表完整工程，后续按需导出相关文件后再分析和修改。

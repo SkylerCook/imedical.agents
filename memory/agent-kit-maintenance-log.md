@@ -1,5 +1,13 @@
 # imedical.agents 维护日志
 
+## 2026-10-22 Worktree 阶段恢复点与实际加载入口
+
+- 通用机制集中在 `docs/guides/worktree-review.md`：创建/接续时核对提交策略，按有效授权保存阶段本地 commit，交付最后本任务 SHA 与剩余未提交范围；阶段提交、人工验收、合并、push、部署及清理分别核对，不扩大权限。
+- 修复只在新建 worktree 时出现的弱路由：Coding Agent、协作协议与 standard-change workflow 覆盖创建、接续、阶段完成和交接；普通 IRIS 前后端必读的通用规则直接触发同一规范。agent-context-kit 项目模板及初始化说明补条件入口，现有项目仅在授权上下文维护时合并，普通更新不覆盖 AGENTS 或写入持续提交权限。
+- coding-iris-plugin 0.20.3、agent-context-kit 0.5.1 为兼容 PATCH；未改 UI 插件、提交脚本、安装/更新器、钩子或业务文件。角色/流程身份及 bindings 无变化，registry 不需改写；维护入口、长期归属、README 与能力手册同步。
+- 验证：文档部署链接与能力清单专项 1/1 通过；19 个当时已改/新增文件的严格 UTF-8、JSON 和本地链接检查通过，diff 检查通过。一轮独立差异审查及四场景试读通过：仅创建授权、阶段提交预授权但视觉待验、明确验收后提交、同文件存在并行修改。静态路由和试读不代表真实宿主已执行；后续沿既有 P2 worktree 队列取证。
+- 用户已授权本轮精确提交与推送，沿 staged 版本门禁执行，结果以 Git 记录为准。未同步业务副本、修改项目授权或提交原业务 worktree；未创建任务临时文件。
+
 ## UI 使用复盘与验证范围纠偏（2026-10-22）
 
 - 本轮 `framework-maintenance` 以 `c8c885b` 为实施基线，按用户要求汇总 UI 技能实际使用并回归 canonical 源仓；原有 DOC:HEAD/body、主题、首屏/侧栏和部署保护内容复用，未重复新增规则。范围与证据见[匿名复盘](../maintenance/validation/ui-skill-usage-2026-10-22.md)。
