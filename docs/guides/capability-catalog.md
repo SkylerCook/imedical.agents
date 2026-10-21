@@ -10,7 +10,7 @@
 
 面向使用者的插件、skill 与 rule 清单。先读[使用指南](capability-guide.md)，或按下面的插件定位具体入口。
 
-范围：当前非 `imedicalxc-*` 插件，共 **14 个插件、53 个 skill、36 个 rule**；skill 数包含初始化和兼容入口，不包含 vendor skills、Agent 生成入口或源仓维护 skill。xc 本轮未编入，后续单独补齐。清单按当前文件快照核对；版本和依赖范围以各插件 manifest 为准。
+范围：当前非 `imedicalxc-*` 插件，共 **15 个插件、56 个 skill、37 个 rule**；skill 数包含初始化和兼容入口，不包含 vendor skills、Agent 生成入口或源仓维护 skill。xc 本轮未编入，后续单独补齐。清单按当前文件快照核对；版本和依赖范围以各插件 manifest 为准。
 
 共享测试能力见 [测试运行时](../testing-runtime.md)：项目适配的会话检查/心跳、实际加载版本和资源收尾，不新增插件或日常 skill。
 
@@ -32,7 +32,8 @@
 | [iris-cure-form-dev](#iris-cure-form-dev) | CA/CR 治疗表单开发、响应式改造与部署 | [cure-form-init](../../plugins/iris-cure-form-dev/skills/cure-form-init/SKILL.md) | extract-doc、coding-iris-plugin |
 | [iris-external-reg](#iris-external-reg) | 第三方预约挂号专用接口开发 | [iris-external-reg](../../plugins/iris-external-reg/skills/iris-external-reg/SKILL.md) | extract-doc、coding-iris-plugin |
 | [iris-imedical-doctor-ai](#iris-imedical-doctor-ai) | 医生站 AI 集成与兼容验证 | [iris-imedical-doctor-ai-init](../../plugins/iris-imedical-doctor-ai/skills/iris-imedical-doctor-ai-init/SKILL.md) | coding-iris-plugin |
-| [iris-ui](#iris-ui) | UI 标注还原、布局诊断与多主题适配 | [iris-ui-init](../../plugins/iris-ui/skills/iris-ui-init/SKILL.md) | coding-iris-plugin |
+| [imedical-ui](#imedical-ui) | 公司 UI 规范及截图/浏览器评审 | [imedical-ui-init](../../plugins/imedical-ui/skills/imedical-ui-init/SKILL.md) | 无插件依赖 |
+| [iris-ui](#iris-ui) | IRIS CSP＋HISUI 的公司 UI 规范落地适配 | [iris-ui-init](../../plugins/iris-ui/skills/iris-ui-init/SKILL.md) | coding-iris-plugin、imedical-ui |
 | [iris-interface-dev](#iris-interface-dev) | 通用接口文档解析、字段匹配与实现 | [iris-interface-init](../../plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md) | extract-doc、coding-iris-plugin |
 
 接入入口不一定是纯初始化 skill：例如 project-context-maintenance、extract-doc-ingest 和两个图谱入口也承担日常任务。是否生成薄索引以 manifest 的 thinIndex.excludeSkills 为准；不能仅按 initSkill 字段排除。
@@ -275,9 +276,29 @@ CA/CR 治疗表单开发、响应式改造与部署。详见[插件说明](../..
 
 辅助资料：[references](../../plugins/iris-external-reg/references) · [scripts](../../plugins/iris-external-reg/scripts)。按 skill 的引用选择所需资料，不需要逐个加载或执行。
 
+## imedical-ui
+
+公司 BS 端 UI 规范与评审，技术栈无关；IHOS 海蓝/PURE 天蓝共性只维护一次，少量差异按来源处理。详见[插件说明](../../plugins/imedical-ui/README.md)、[manifest](../../plugins/imedical-ui/.agents-plugin/plugin.json)和[使用示例](capability-guide.md#imedical-ui)。
+
+### Skills
+
+| 入口 | 中文用途 | 入口类型 |
+|---|---|---|
+| [imedical-ui](../../plugins/imedical-ui/skills/imedical-ui/SKILL.md) | 按场景读取公司规范并核对业务共性与风格差异 | 日常入口 |
+| [imedical-ui-review](../../plugins/imedical-ui/skills/imedical-ui-review/SKILL.md) | 用截图或现有浏览器评审UI，报告出处、问题与未覆盖项 | 日常评审 |
+| [imedical-ui-init](../../plugins/imedical-ui/skills/imedical-ui-init/SKILL.md) | 按既有流程接入公司UI能力，核对项目启用状态 | 纯初始化，直接读源文件 |
+
+### Rules
+
+| 规则 | 何时读取、约束什么 |
+|---|---|
+| [imedical_ui](../../plugins/imedical-ui/rules/imedical_ui.md) | 公司UI的共性适配、来源强度、技术归属、修改权限及双基准核对 |
+
+辅助资料：[references](../../plugins/imedical-ui/references) · [证据底稿](../../vendor/imedical-ui-standards/README.md)。具体数值保留条件和例外，按需读取；不加载查看器CSS或创建第二组件库。
+
 ## iris-ui
 
-IRIS/HISUI UI 标注还原、布局与初始化故障诊断、多主题适配及技术验证。详见[插件说明](../../plugins/iris-ui/README.md)和[manifest](../../plugins/iris-ui/.agents-plugin/plugin.json)；[使用示例](capability-guide.md#iris-ui)。
+IRIS CSP＋HISUI 对公司UI规范的落地适配，正式依赖 imedical-ui。处理公共接入、布局与初始化故障及技术证据。详见[插件说明](../../plugins/iris-ui/README.md)和[manifest](../../plugins/iris-ui/.agents-plugin/plugin.json)；[使用示例](capability-guide.md#iris-ui)。
 
 ### Skills
 

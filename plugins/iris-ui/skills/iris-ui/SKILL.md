@@ -1,6 +1,6 @@
 ---
 name: iris-ui
-description: 用于 IRIS/HISUI 页面的标注复刻、布局优化、主题兼容及 UI 故障修复；核对公共适配、动态控件生命周期与验证证据。普通后端需求、仅业务规则修改和独立非 IRIS 网页不触发。
+description: 将 imedical-ui 规范落实到 IRIS CSP＋HISUI 页面，处理公共接入、布局优化、主题兼容及生命周期故障。纯评审使用 imedical-ui-review；普通后端、仅业务规则修改和非 IRIS 网页不触发。
 ---
 
 # IRIS/HISUI UI 改造
@@ -8,7 +8,7 @@ description: 用于 IRIS/HISUI 页面的标注复刻、布局优化、主题兼�
 ## 建立当前事实
 
 1. 读取目标工程入口、插件启用状态和现有 IRIS profile，确认源码、Git/worktree 与修改边界。未启用时说明启用方式，按用户要求使用同插件 init；只读分析不自动写配置。
-2. 读取 [UI 规则](../../rules/iris_ui.md)，实现复用 [iris-frontend-coding](../../../coding-iris-plugin/skills/iris-frontend-coding/SKILL.md)。核对目标页当前公共加载链、实际主题及已有适配，再判定本次缺口。
+2. 读取 [UI 规则](../../rules/iris_ui.md)，通过其统一入口核对 `imedical-ui`、`coding-iris-plugin` 已启用且兼容，再加载公司规范。实现复用 [iris-frontend-coding](../../../coding-iris-plugin/skills/iris-frontend-coding/SKILL.md)，核对 CSP 公共加载链、实际主题及已有适配后判定缺口。只做截图或浏览器视觉评审时转 [imedical-ui-review](../../../imedical-ui/skills/imedical-ui-review/SKILL.md)；源码只读核查沿当前范围交付依据与未验证项。
 3. 有原型、截图或评审标注时读 [标注方法](../../references/design-annotations.md)，把视觉目标、业务取舍和当前证据分开。无原型的故障修复先建立前后可观察断言。
 
 完成条件：已定位实际入口与修改层，能说明哪些表现由公共能力负责、哪些是本次页面差异；影响实现的业务问题保持待确认，独立 UI 工作继续。

@@ -1,10 +1,11 @@
 # IRIS UI
 
-本插件负责 IRIS/HISUI 页面改造的方法与只读测量辅助。具体源码、主题、原型和业务契约以目标工程当前事实为准。
+本插件负责把 [imedical-ui](../imedical-ui/AGENTS.md) 的公司 UI 规范落实到 IRIS CSP＋HISUI，处理公共接入、资源、布局生命周期及只读测量。公司规范和截图/浏览器评审归 imedical-ui；具体源码与业务契约以目标工程为准。
 
 - 日常入口：[iris-ui](skills/iris-ui/SKILL.md)；启用入口：[iris-ui-init](skills/iris-ui-init/SKILL.md)。纯 init 不生成薄索引。
 - 模块接入及部署先按 [框架更新流程](../../docs/update-agents.md) 和 [Overlay 流程](../../docs/workspace-overlay.md) 执行，薄索引生成不能替代框架更新。
 - UI 增量约束的唯一来源：[iris_ui.md](rules/iris_ui.md)。编码、i18n、部署及提交复用 [coding-iris-plugin](../coding-iris-plugin/AGENTS.md)，验证复用 [testing-protocol](../../agents/_shared/testing-protocol.md)。
+- `imedical-ui` 与 `coding-iris-plugin` 均须 enabled 且满足 manifest 版本。frontend 直达 rule 也执行同一依赖约束；未来 Java/HTML 适配直接依赖通用层，不依赖本插件。
 - 标注、布局生命周期、匿名案例按主 skill 的条件指针读取；不在入口重复正文。
 - 工程截图、业务数据、连接信息、部署快照和需求台账留在目标工程；本插件只保存脱敏方法、受限样例和可复用工具。
 

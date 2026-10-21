@@ -1,10 +1,12 @@
 # IRIS UI
 
-为 IRIS/HISUI 的标注复刻、布局优化、主题兼容和 UI 故障修复提供工作方法。先复用 HISUI 和工程公共适配，再补页面缺口；保留业务契约并记录可核对的证据。
+负责 [imedical-ui](../imedical-ui/README.md) 在 **IRIS CSP＋HISUI** 中的落地适配：公共 head/body 接入、资源加载、控件 API、布局及初始化生命周期。公司共性规范和截图/浏览器评审归通用层；本层先复用 HISUI 和工程公共能力，保留业务契约。
 
 ## 使用
 
 通过现有安装/更新流程取得插件，调用 [iris-ui-init](skills/iris-ui-init/SKILL.md) 核对并启用，再使用 [iris-ui](skills/iris-ui/SKILL.md)。目录存在只表示 available；启用沿用项目的 plugin_profile，不新增 UI 连接或工程配置。
+
+0.2.0 正式依赖 `imedical-ui` 和 `coding-iris-plugin`，两者须 enabled 且版本兼容。已有工程从 0.1.0 升级时，按正常流程核对并接入 `imedical-ui`，同步项目注册表和 profile，再完整刷新 Context；显式禁用或冲突保持待处理。更新器出现 `plugin-dependency-missing` 时可能仍返回 0，必须核对状态及实际入口，不能只看退出码。只做 UI 评审使用 [imedical-ui-review](../imedical-ui/skills/imedical-ui-review/SKILL.md)。未来 Java/HTML 适配插件直接依赖通用层，不经过 IRIS 层。
 
 模块部署遵循[框架更新 runbook](../../docs/update-agents.md)和[Overlay 两阶段流程](../../docs/workspace-overlay.md)：共享能力在所属根工作区更新一次，再由项目既有模块管理入口以 `-NoPull` 刷新指定模块并验证。源仓未发布或更新受阻时，报告正式部署待完成；手工同步和单独生成薄索引不算框架更新部署。
 

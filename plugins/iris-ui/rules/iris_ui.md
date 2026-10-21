@@ -1,21 +1,29 @@
 ---
 name: iris_ui
-description: IRIS/HISUI 标注对齐、布局与主题兼容的增量规则。
+description: 将 imedical-ui 规范落实到 IRIS CSP＋HISUI 的公共接入、布局、生命周期与主题适配规则。
 task-affinity: [iris, hisui, frontend, ui]
 related:
   - ../../coding-iris-plugin/rules/iris_coding_frontend.md
   - ../references/design-annotations.md
   - ../references/layout-lifecycle.md
+  - ../../imedical-ui/rules/imedical_ui.md
 ---
 
 # UI 增量规则
 
 编码格式、兼容基线、i18n、控件视觉归属和源码检查使用 [IRIS 前端规则](../../coding-iris-plugin/rules/iris_coding_frontend.md)；本文件只补 UI 改造判断。
 
+## 依赖与公司规范
+
+- 本入口包括 frontend skill 的直接调用：先核对当前 Context 的 `imedical-ui` 与 `coding-iris-plugin` 均为 enabled，且实际版本满足本插件 manifest。缺失、available、disabled 或版本不兼容时，将 UI 实施标为待接入，沿[框架更新流程](../../../docs/update-agents.md)处理；保留显式禁用，不自行改启用集合。
+- 依赖满足后读取 [公司 UI 共性规则](../../imedical-ui/rules/imedical_ui.md)，按其中场景指针选取规范。共性和风格差异以通用层为唯一来源，本层不复制一套规范。
+- 本层关注 CSP/CSR、公共 head/body、资源链和 HISUI API/尺寸生命周期。采用 `DOC:HEAD` / `docBodyAttr` 的工程核对正确输出及实际生效，其它 IRIS 接入按当前源码查证，不写死具体业务目录。
+
 ## 修改前
 
 - 从实际页面追踪公共 head、body 属性、主题与自适应的接入关系，再判断页面缺口。核对公共接入是正确输出并生效，而非仅在源文件里存在。
 - 对照标注提取目标，并记录布局由宿主、公共组件或页面哪层负责。页面任务限定其授权范围；公共源码缺口交给对应 owner，授权后再改。
+- 模块内共用样式在已授权任务范围内处理；跨模块或全局公共样式的新增、调整先提交具体影响和拟改内容给用户审核。
 - 把展示变更与业务契约分开：字段 ID、事件入口、请求参数、持久化值、权限与状态逻辑以现行实现和需求为准。需要改变业务含义时先明确范围。
 
 ## 布局与主题

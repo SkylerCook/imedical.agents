@@ -1,8 +1,8 @@
 {
   "name": "iris-ui",
-  "version": "0.1.0",
-  "displayName": "IRIS UI",
-  "description": "IRIS/HISUI UI 标注还原、布局与初始化诊断、多主题适配及技术验证；复用既有编码、框架参考与部署能力。",
+  "version": "0.2.0",
+  "displayName": "IRIS CSP＋HISUI 适配",
+  "description": "将 imedical-ui 公司规范落实到 IRIS CSP＋HISUI，核对公共接入、布局与初始化、多主题及技术证据；复用既有编码和部署能力。",
   "entry": "AGENTS.md",
   "rules": "rules/",
   "references": "references/",
@@ -16,12 +16,17 @@
     ]
   },
   "dependencies": [
-    "coding-iris-plugin"
+    "coding-iris-plugin",
+    "imedical-ui"
   ],
   "dependencyVersions": {
     "coding-iris-plugin": {
       "minVersion": "0.20.1",
       "maxVersionExclusive": "0.21.0"
+    },
+    "imedical-ui": {
+      "minVersion": "0.1.0",
+      "maxVersionExclusive": "0.2.0"
     }
   },
   "requiresProjectFiles": [

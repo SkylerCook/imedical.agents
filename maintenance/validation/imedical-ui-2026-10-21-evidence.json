@@ -1,0 +1,42 @@
+{
+  "schema": "imedical-validation-evidence/v1",
+  "repository": "D:\\CodeSpace\\GIT\\Gitee\\imedical.agents",
+  "suites": {
+    "imedical-ui-v1": {
+      "suite": "imedical-ui-v1",
+      "command": "node --test scripts/tests/imedical-ui.tests.js scripts/tests/iris-ui.tests.js",
+      "status": "passed",
+      "completedAt": "2026-10-21T04:48:02.480Z",
+      "algorithm": "content-v2",
+      "head": "a37ea2da39fbe9e385f254a979e7844aa13eaa71",
+      "scopes": [
+        "agents",
+        "hooks",
+        "plugins/coding-iris-plugin/.agents-plugin/plugin.json",
+        "plugins/imedical-ui",
+        "plugins/iris-ui",
+        "scripts",
+        "vendor/imedical-ui-standards",
+        "workflows"
+      ],
+      "fingerprint": "ac5d5e2c1120c1565b0e7728ef61740f26ec09898f93a9091ac031615313df96"
+    },
+    "iris-ui-v2": {
+      "suite": "iris-ui-v2",
+      "command": "node --test scripts/tests/imedical-ui.tests.js scripts/tests/iris-ui.tests.js",
+      "status": "passed",
+      "completedAt": "2026-10-21T04:48:02.754Z",
+      "algorithm": "content-v2",
+      "head": "a37ea2da39fbe9e385f254a979e7844aa13eaa71",
+      "scopes": [
+        "plugins/coding-iris-plugin/.agents-plugin/plugin.json",
+        "plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md",
+        "plugins/imedical-ui",
+        "plugins/iris-ui",
+        "scripts/generate-plugin-thin-index.ps1",
+        "scripts/tests/iris-ui.tests.js"
+      ],
+      "fingerprint": "c89605661b022a41039507bf49fb06d2de667ffef67e3f7aa284cd987102c85c"
+    }
+  }
+}

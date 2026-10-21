@@ -1,0 +1,22 @@
+{
+  "name": "imedical-ui",
+  "version": "0.1.0",
+  "displayName": "iMedical UI 规范与评审",
+  "description": "公司 BS 端 IHOS 海蓝与 PURE 天蓝的共性规范、差异参考、截图/浏览器评审与可追溯标注，不绑定技术栈。",
+  "entry": "AGENTS.md",
+  "rules": "rules/",
+  "references": "references/",
+  "skills": "skills/",
+  "scripts": "scripts/",
+  "initSkill": "imedical-ui-init",
+  "thinIndex": { "excludeSkills": ["imedical-ui-init"] },
+  "dependencies": [],
+  "dependencyVersions": {},
+  "requiresProjectFiles": ["AGENTS.md"],
+  "defaultPrompt": [
+    "按 IHOS 海蓝和 PURE 天蓝规范核对这个业务页面，共性一次适配，差异按需补齐",
+    "查询表单、表格或弹窗的 UI 标注要求，并给出适用条件和出处",
+    "检查这次 UI 修改是否同时覆盖两个评审基准",
+    "通过截图或浏览器评审 UI，给出有规范出处的问题和未覆盖项"
+  ]
+}

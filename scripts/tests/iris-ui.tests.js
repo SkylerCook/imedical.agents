@@ -94,7 +94,7 @@ test("browser global entry and function source are both callable in the selected
 test("plugin discovery and optional UI routing preserve ownership and enabled boundary", () => {
     const manifest = JSON.parse(fs.readFileSync(path.join(plugin, ".agents-plugin/plugin.json"), "utf8"));
     assert.equal(manifest.name, "iris-ui");
-    assert.deepEqual(manifest.dependencies, ["coding-iris-plugin"]);
+    assert.deepEqual(manifest.dependencies, ["coding-iris-plugin", "imedical-ui"]);
     assert.deepEqual(manifest.thinIndex.excludeSkills, ["iris-ui-init"]);
     for (const entry of [manifest.entry, "skills/iris-ui/SKILL.md", "skills/iris-ui-init/SKILL.md", "rules/iris_ui.md"]) {
         assert.ok(fs.existsSync(path.join(plugin, entry)), entry);

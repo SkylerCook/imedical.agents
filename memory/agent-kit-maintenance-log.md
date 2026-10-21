@@ -1,5 +1,10 @@
 # imedical.agents 维护日志
 
+- 2026-10-21（公司UI规范与评审，framework-maintenance）：新增imedical-ui 0.1.0，面向技术栈无关的IHOS海蓝/PURE天蓝规范提炼，提供共性rule、五类场景参考、风格差异、来源目录及截图/浏览器评审。30画板与PDF的64个原文件形成61.62MiB证据子集，逐文件摘要校验；原文权限保留，不复制查看器或其它配色，不生成生产CSS/查询CLI。iris-ui 0.2.0正式依赖通用层，定位为IRIS CSP＋HISUI适配；保留短名，展示名明确职责，未来Java/HTML适配直接依赖通用层。
+  - 新专项9/9、既有iris-ui专项8/8、文档链接/目录1/1通过；PS7/PS5.1生成两日常入口并排除纯init；官方更新器隔离fixture确认依赖missing/available/disabled实际阻断iris入口，enabled才生成，不依赖退出0。两UI owner版本/迁移/精确breaking授权比较issues=0，未做全仓发布审计。验证与边界见 maintenance/validation/imedical-ui-2026-10-21.md。
+  - 一个独立Agent进行两类源码场景试读与一张PURE基准原图试评，能按实际布局选择规则，保留IHOS单方条款与双family依据边界，不将样例、截图状态或源码当作真实页面验收。据此收敛源码/视觉评审路由及材料来源身份。工程细节留项目，本源仓仅保留匿名结论；无对照实验，不推广提效结论。
+  - 既有更新器、部署器及业务/公共CSS未改；源仓本批代码与资料不等同业务副本已更新。正式分发按共享能力更新→模块NoPull完整刷新及注册/profile验证执行，真实双基准浏览器评审和非Windows矩阵沿P2补证。测试D临时根受权限限制使用系统临时目录回退，全部本任务fixture已核实删除。提交/推送按各自授权，未自动推公开镜像。
+
 - 2026-10-21（iris-ui 首版，framework-maintenance）：新增 iris-ui 0.1.0，提供标注还原、布局/主题/生命周期诊断的单一日常入口、纯 init、增量 rule、按需参考、匿名案例、任务模板与只读 collectUiMetrics。编码插件 0.20.1 仅补 enabled + UI 信号条件规则路由；沿用编码/HISUI vendor/部署/测试协议，不新建 profile、运行器、状态机或传输实现。同步两 owner 发布记录、根与插件说明、两份手册、维护入口及 P1 部署缺口/P2 扩展验证队列。
   - Windows 专项 8/8，含 PS7/PS5.1 薄索引预演、幂等、纯 init 排除、自定义规则保护及跨 realm 函数源码调用；文档目录 1/1。真实 HISUI 匿名夹具三主题 × 两宽度 × 四阶段共 24 阶段通过，6 次目标主题资源实际响应 200、失败请求 0、Console error 0。独立审查后修正主题资源等待和动画最终状态取样；完整证据及边界见 maintenance/validation/iris-ui-2026-10-21.md。
   - 首次单工程试点仅完成共享层 DryRun 快进、精确手工同步及模块 -Plugin iris-ui 定向刷新，逐文件哈希与 PS7/PS5.1 各 23 项结构检查通过；这只是本地开发版试接，未执行共享 Context Write，不能作为正式完整部署。用户随后明确模块部署走框架更新流程并授权先提交、推送；已纠正 init/README/指南，正式接入依原 runbook 与项目模块管理入口执行，结果以 Git 和目标工程更新回执核对。业务源码与原验收状态保留，真实宿主路由和 UI 验收仍独立取证。

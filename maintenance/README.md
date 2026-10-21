@@ -13,6 +13,7 @@
 | 打印国际化候选经验 | [案例复盘](validation/cases/print-i18n-case.md) |
 | 医生站 AI 源仓验证 | [维护验证说明](validation/iris-imedical-doctor-ai.md) |
 | UI 插件首版与匿名 HISUI 测量 | [验证及本地接入边界](validation/iris-ui-2026-10-21.md) |
+| 公司 UI 规范、截图/浏览器评审及 IRIS 适配依赖 | [本轮验证与试读边界](validation/imedical-ui-2026-10-21.md) |
 | 项目工具的源仓验证 | [交接与兼容验证](validation/project-tools.md) |
 | BOS 夜跑 2.1 源仓验证与试点边界 | [验证说明](validation/bos-night-framework-v2.1.md) |
 | 事前 PLAN、并行/冻结交付与持续浏览器治理 | [本轮验证及限制](validation/night-governance-2026-10-19.md) |

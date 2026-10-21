@@ -55,6 +55,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 | 页面、字典或打印国际化 | [i18n-iris-plugin](#i18n-iris-plugin) | 页面或模板、语言、文案类别 |
 | 开发医生站 AI 集成 | [iris-imedical-doctor-ai](#iris-imedical-doctor-ai) | 现有宿主、业务服务、交互要求 |
 | UI 标注还原、布局或主题兼容诊断 | [iris-ui](#iris-ui) | 原型/标注或复现步骤、页面范围和目标主题 |
+| 公司UI规范、截图或浏览器评审 | [imedical-ui](#imedical-ui) | 截图/页面或规范问题、目标风格与范围 |
 | 整理标版需求、提交或移植 | [需求入口](#coding-iris-plugin) | Git 改动或提交、编号、仓库角色 |
 | 发布 IRIS 文件或治疗表单 | [iris-deploy](#coding-iris-plugin)、[cure-form-deploy](#iris-cure-form-dev) | 明确对象、目标、交付方式和授权范围 |
 | 沉淀已验证的通用经验 | [agent-framework-evolution](#agent-framework-evolution) | 已验证材料；业务反馈还须满足验收条件 |
@@ -229,9 +230,21 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 |---|---|---|
 | [iris-external-reg](../../plugins/iris-external-reg/skills/iris-external-reg/SKILL.md) | 依据指定平台协议制定预约挂号接入计划，核对 HIS 标准能力。 | 提供规范与工程入口；产出解析与计划；计划确认后进入获授权的实现，复用 RegInterface。 |
 
+## imedical-ui
+
+[查看插件清单](capability-catalog.md#imedical-ui)。技术栈无关，只需项目入口和既有插件配置；来源固定为IHOS海蓝与PURE天蓝，详细规范按场景读取。
+
+| Skill | 请求示例 | 前提与预期结果 |
+|---|---|---|
+| [imedical-ui](../../plugins/imedical-ui/skills/imedical-ui/SKILL.md) | 按两套规范核对这个查询页，共性一次适配，差异按需补。 | 使用现有组件/技术栈；产出带条件和出处的适配点及核查，业务行为变化另列。 |
+| [imedical-ui-review](../../plugins/imedical-ui/skills/imedical-ui-review/SKILL.md) | 用这些截图评审UI，或核对指定浏览器标签里的实际页面。 | 只审查提供的证据，报告位置、事实、来源和建议；截图看不到的交互、比例未知和缺失风格保持未覆盖，AI结论不等同正式UI验收。 |
+| [imedical-ui-init](../../plugins/imedical-ui/skills/imedical-ui-init/SKILL.md) | 按框架更新流程接入公司UI规范与评审能力。 | 保留现有配置，核对注册/profile，生成日常入口；不隐含业务修改、公共CSS修改或远端操作授权。 |
+
+业务实现通过目标适配能力完成；IRIS CSP＋HISUI 使用 iris-ui。未来 Java/HTML 适配直接依赖通用层，不需要 IRIS 配置。本期规范底稿不含完整查看器或其它主题导出。
+
 ## iris-ui
 
-[查看该插件清单](capability-catalog.md#iris-ui)。首次接入先核对 coding-iris-plugin 已启用且版本兼容，直接读取插件内 init；普通更新只分发能力，不自动启用。
+[查看该插件清单](capability-catalog.md#iris-ui)。0.2.0正式依赖 imedical-ui 与 coding-iris-plugin 均已启用且兼容；首次接入直接读插件init，已有工程同步核对注册/profile后走正常完整更新。更新不会自动启用依赖，不能只看退出码判定成功。
 
 | Skill | 请求示例 | 前提与预期结果 |
 |---|---|---|

@@ -1,5 +1,15 @@
 # .agents 安装与更新 Runbook
 
+## 公司 UI 规范与 IRIS 适配层
+
+`imedical-ui` 0.1.0 提供公司 BS 端 IHOS 海蓝/PURE 天蓝的共性规则、按需参考及截图/浏览器评审；`iris-ui` 0.2.0 专注 IRIS CSP＋HISUI 落地，正式依赖 `imedical-ui` 与 `coding-iris-plugin`。通用层无需 IRIS profile，既有 IRIS 配置仍由 coding owner 管理。
+
+已有 `iris-ui` 0.1.0 工程需迁移启用集合：先核对项目 profile/注册表，在本次已获授权接入范围内启用 `imedical-ui`，再依原标准更新流程预演、写入、检查。Overlay 共享 capability 更新一次，再由项目模块管理入口 `-NoPull` 完整刷新并验证；注册表与 profile 必须一致。显式 disabled、身份或自定义冲突先报告，不用 setter 强行覆盖。
+
+新插件默认 available；更新器不会因依赖声明自动启用它。依赖未 enabled 时会报告 `plugin-dependency-missing` 并跳过依赖方入口，整体退出码仍可能为0；应核对状态、依赖集合和实际映射，不能只看退出码。保留自定义文件和旧记录，无本批旧文件删除。
+
+插件与必要证据沿现有 `plugins/**`、`vendor/**` sparse 路径分发，无安装器或更新器代码变更。vendor目录落盘不等于已启用；纯init不生成日常索引。公司资料版权/分发条件保持原状，源码接收、远端推送与正式分发分别按授权处理，不自动推公开镜像。框架源仓修改不代表业务副本已经升级。
+
 ## 无人值守治理 v1
 
 按正常更新流程同步根 scripts/*.js、scripts/lib/**、agents/workflows/docs 及已启用 coding-iris-plugin，再执行 Check。新批次探测 `night-execution-plan/v1`、`browser-worker/v1`、`night-frozen-sources/v1` 和 `night-weekly-quota/v1`；从 [治理接入](night-governance.md) 先取基线、填写并批准 executionPlan，再为独立 worktree materialize 实体 PLAN。普通更新不修改业务 AGENTS、不启动任务、不安装浏览器、不创建 Goal；旧 run/既有工作区不自动迁移，无旧文件删除。
