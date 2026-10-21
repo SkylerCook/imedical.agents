@@ -1,5 +1,30 @@
 # imedical.agents 维护日志
 
+## 全局回看覆盖点
+
+2026-10-21：本轮以 `087511d`（上轮 `e964d0e..da28585` 回看收尾）为基线，审计 `087511d..c7e828d` 共 34 个提交。逐提交检查实际文件清单，按能力族对照当前 owner、README、手册、共享协议、维护记录与测试入口；以下是上下文覆盖索引，不表示重新执行全部功能测试或业务链路。下轮从 `c7e828d` 之后的提交继续。
+
+| 变更族 | 提交 | 当前事实源与边界 |
+|---|---|---|
+| 需求交付、人工复验、worktree | `d756c73`、`a1350ae`、`c91accb`、`2fd37a6`、`ddd9dcf`、`8ffd035` | demand-delivery-plugin、testing-protocol、worktree-review；代码来源、明确调用授权、完整编号、用户结论与数据/资源收尾分别核验 |
+| 更新、发现与项目导航 | `546cba4`、`c70d057`、`be25069`、`d5eab95`、`8c3faca`、`0faa992`、`43a4b06` | 更新/迁移/技能适配 runbook；嵌套边界、受管索引刷新、导航追加、原生发现与额外目录链接分开，普通更新不执行项目适配清单 |
+| IRIS 编码、Storage 与 vendor MCP | `b1f69c9`、`ecfcd45`、`fc1413c`、`ff14958`、`8b93a3f`、`6994042` | coding-iris-plugin 与 vendor；规范、部署和 helper 各用 owner 契约，不从历史 patch 推断当前版本或真实服务器验收 |
+| BOS 录入与跨栈处理 | `03dc921`、`195eea0`、`d07087c` | bos-plugin；Git 代码 v2、工作/主题 v3、拆分/导出/编号回填及完成备注，接收组不推断产品与指派，不自动发送 |
+| 夜跑执行、收敛与成本 | `2a0c509`、`40d690d`、`35d8cb0`、`dd22d74`、`227a44d` | night-governance/night-policy/night-acceptance、workflow 与根运行时；新 2.1 计划/能力探针/监督及联合源码保护，旧 run 保留，真实试点沿 P1 |
+| UI 规范、适配与资料分层 | `a37ea2d`、`1e74b62`、`c7e828d` | imedical-ui、iris-ui 与 vendor；通用层/IRIS 强依赖、完整本地原件/可分发证据、规则审查/实际 UI 验收分开 |
+| Feign 文档审计 | `fd95083` | imedicalxc-doctor-data-extraction；主入口与 feign-api-doc-audit 两入口，xc 手册仍按既有 P2 范围治理 |
+| 展示页 | `cfc44dc`、`8c73ff8`、`ebe62b6` | index.html 与 Pages 配置仅供源仓展示；成果快照不替代当前能力/部署事实，不进入项目分发 |
+
+本轮修正（framework-maintenance）：
+
+- 维护入口从历史版本流水收敛为当前接手与任务路由，移除过期 owner 版本、重复状态及失效“首条”引用；长期决策将依赖/夜跑归回对应概念，提交校验改为当前 staged 内容门禁。
+- README 先说明工程用途，近期夜跑/测试/worktree 内容归回使用位置；能力目录与指南修正需求提交 owner，删除“旧 iris-demand-* 仍可调用”的误述，合并重复交付章节；Feign 总览补齐两个薄索引入口，公司完整原件与已提交证据的分发区别对齐 vendor。
+- backlog 的 MCP 索引统一为 v1.5.0；Atelier 前端通道由“待建设”改为“已实现待真实/矩阵验证”，增量保护独立保留；历史发布债务详情与既有三份记录范围一致，不新增普通提交阻断。未完成项保持原 P0–P3 顺序，本轮不启动独立治理或扩编 xc 手册。
+- 验证：`node --test --test-name-pattern="project links resolve" scripts/tests/documentation-layout.tests.js` 1/1 通过；本轮 7 份文档的 440 个本地链接/锚点、UTF-8 读取、34 个提交覆盖无遗漏/重复、单一交付章节及 skill owner 归属核对通过。当前清单为 19 个插件，非 xc 的 15 个插件/56 个 skill/37 个 rule 与手册一致，暂存区为空；`git diff --check` 通过。既有功能测试仅作历史证据，本轮未重跑业务或完整运行时测试，也未取得新跨平台结果。根 AGENTS、维护 skill、owner manifest/版本及部署规则已核对，无需为本次纯文档修正改动实现、组件版本、不可变发布记录或更新器。
+- 本轮只改全局说明、能力手册及维护上下文；实施阶段未暂存/提交/推送，未同步业务副本或操作真实服务。用户后续授权 c + p，复用既有文档证据，补查精确暂存、适用门禁及 origin/github 出站范围；提交复核同步去除 README 尾部过期的“当前 v0.15.8”断言，版本回归 manifest、前端通道说明回归工具文档。提交与双远端推送结果以 Git 记录为准；未创建临时文件。
+
+## 维护流水（按记录时间）
+
 - 2026-10-21（完整UI原件本地集中管理，framework-maintenance）：将用户整理好的iHOS、PURE、手机端活力蓝三个完整资料目录复制到vendor/imedical-ui-standards/originals/2026-10-21，只保留展开内容/PDF，共2650文件、266900286字节；源目录及源ZIP保留，本地不重复保存压缩包。逐项核对源/副本SHA及字节数，本地冻结清单记录来源/文件摘要，Git目录索引只含批次/总量/目录摘要。
   - 目录内gitignore忽略/originals/，完整原件不提交、不随项目分发；已有规则与64文件证据子集保持原样，后续升级仍可按授权提交和正常框架流程分发。更新顺序为新本地批次→核对标注→更新受影响规则/证据/插件版本→标准框架分发，不重写历史或改通用更新器。
   - 已撤回本轮误将64证据迁出Git的修改及其测试/发布草稿，现有manifest/插件/测试与实施基线1e74b62一致。64原件摘要与规则引用专项2/2、文档目录1/1、diff检查通过；临时复制检查点和误迁移副本已按归属清理，正式本地原件与清单保留。未修改业务代码或部署态能力，当前仅资料管理入口与索引变更，无插件接口/版本变化。
@@ -292,7 +317,7 @@
 
 本文件记录近期维护流水摘要和验证结论。长期决策见 `agent-kit-maintenance-decisions.md`，后续治理队列见 `agent-kit-maintenance-backlog.md`，入口摘要见 `agent-kit-maintenance-memory.md`。
 
-## 近期已完成
+## 历史维护摘要（保留当时状态）
 
 - 2026-09-20（工作区待提交）：imedicalxc-doctor-extend-engineer v1.0.4 编码规约新增 AO：必填项必须有值（来源缺失立即抛 rpcException，不允许空值上送，空值常被平台以"数据签名不正确"等不直观原因拒绝）；多值逗号分隔且无对照的扩展设定取值（如备案设备码）每次调用随机取一个。源于冠新科技 getPersonInfoByQrCode 的 terminalCode 必填未赋值问题（文档 6.5，识读终端编码 Y 必填）。字母范围引用同步 A~AN→A~AO（4 处）；plugin.json 递增 1.0.3→1.0.4（patch，非 breaking），新增 releases 1.0.4.md。本轮未提交、未推送；HIS 业务工程 `.agents` 副本经 `git pull` 同步（待推送后）。
 
@@ -500,7 +525,7 @@
 - 已新增独立 `scripts/generate-agent-thin-index.ps1`，并接入 `scripts/update-agents.ps1` 的 `agent-thin-index` 阶段；已部署业务项目常规 DryRun/Write 可生成 `.agents/skills/<agent-name>/SKILL.md`，当前用于把 `i18n-agent` 暴露给只发现浅层 skill 的 Agent。
 - 已明确本轮不做工具专属 adapter；Codex、Claude Code、OpenCode、CodeBuddy 原生入口仍暂缓，agent thin-index 只做 canonical 路由，不复制插件规则全文。
 
-## 近期提交索引
+## 历史提交索引（保留原记录）
 
 - `ca310db`：增强 HISUI 样式优先复用规则，拆分控件/API 与 CSS 样式/资源索引。
 - `621b633`：新增 `iris-external-reg` 第三方预约挂号接口开发插件，并继续完善 `extract-doc`。
@@ -543,7 +568,7 @@
 - `6ae4277`：新增托管更新 runbook 和 `update-agents` 摘要视图。
 - `0a932d7`：收敛唯一主入口、可选兼容入口和 stale thin-index 清理。
 
-## 最近验证
+## 历史验证摘要（保留当时范围）
 
 - 2026-08-04：迁入 `codegraph-query` 和 `iris-codegraph` 插件；补齐 manifest、AGENTS、README、usage rule、skill 和 thin-index wrapper，并同步仓库 README、runbook、维护记忆和 update-agents 测试。已验证 `.codegraph` 状态 complete，`cg-query.js help`、`icg-query.js help`、`node --check` 均通过；`iris-codegraph` 构建因当前项目缺少 `.mcp.json` 未执行。后续确认 `codegraph-query` 依赖 `iris-codegraph`，并把该前置关系写回 manifest、plugin_profile 和回归断言。
 
@@ -586,7 +611,7 @@
 
 ## 维护要求
 
-- 后续完成每轮维护后，更新本文件的近期已完成、提交索引和最近验证摘要。
+- 后续完成每轮维护后，更新本文件的近期维护结果、全局回看覆盖点和对应验证摘要；历史记录保留当时范围，不作为当前状态。
 - 不记录一次性命令输出、短期失败日志或可从 Git 历史直接恢复的完整流水。
 
 ## 2026-09-15 前端确定性部署入口
@@ -614,7 +639,7 @@
 
 - 2026-09-18：coding-iris-plugin 0.13.3 将 HISUI 原生控件状态复用细化为通用前端约束，覆盖冲突排查与状态组合验证；同步 frontend skill、README 和发布说明。纯指导资料变化，业务副本未同步。
 
-## 2026-09-23 医生站 AI 迁移验证增强（未提交）
+## 2026-09-23 医生站 AI 迁移验证增强（实施记录）
 
 iris-imedical-doctor-ai 0.3.0 新增迁移行为契约、入口对照模板与 async-contract-probe 测试辅助。同步主入口、使用指南、发布记录及三平台 Node 22/24 CI。Windows Node 24 源仓专项 14/14 通过（含 PS7/PS5.1 thin-index）；工具支持可控回调、事件记录和隔离旧缺陷反例，不定义业务完成策略。目标工程独立记录实际实现回归，源仓无业务数据。版本审计识别本次 0.2.2→0.3.0，无本次组件报错；完整审计仍受其它组件既有发布记录问题影响。非 Windows/Node22 CI 与真实设备验证沿用 P2 队列；未同步业务插件副本、提交或推送。
 
@@ -628,4 +653,4 @@ coding-iris-plugin 0.15.2 在成功 pull 及快照校验后，仅向 commit 传�
 
 imedicalxc-doctor-data-extraction 1.1.0 新增 `feign-api-doc-audit` skill 与 `feign-doc-audit.js`，覆盖已有 API 文档的服务地址、入参/出参类型、字段表、JSON 示例和格式基线检查。类型解析按 import、package、scope、module 顺序消歧；无显式类型的嵌套子表支持从父表行（如 `records`、`waitData`、`cureList`）推导类型。
 
-真实文档与源码全量验证：`paths=0`、`fields=0`、`io=0`、`lint=0`；负向样例可检出错误地址与虚构字段。thin-index dry-run 已识别并生成两个 skill 入口；组件版本校验识别 1.0.0→1.1.0，本插件无报错，完整审计仍被 `imedicalxc-doctor-extend-engineer` 既有发布记录问题阻断。能力手册未收录该插件，无需同步；未同步业务副本、未提交或发布。
+真实文档与源码全量验证：`paths=0`、`fields=0`、`io=0`、`lint=0`；负向样例可检出错误地址与虚构字段。thin-index dry-run 已识别并生成两个 skill 入口；组件版本校验识别 1.0.0→1.1.0，本插件无报错，完整审计仍被 `imedicalxc-doctor-extend-engineer` 既有发布记录问题阻断。能力手册未收录该插件，沿既有 P2 补齐，不将未收录等同本轮已完成手册；未同步业务副本。实现已随 `fd95083` 提交，当前版本仍以 manifest 为准。

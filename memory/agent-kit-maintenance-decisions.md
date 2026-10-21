@@ -1,12 +1,8 @@
 # imedical.agents 长期维护决策
 
-- availableDependencies 是按阶段触发的文件/入口依赖，允许 available/enabled，显式 disabled 停止对应阶段；不进入强依赖递归、版本范围或自动启用。声明在 manifest，执行协议见 docs/plugin-availability.md。
-
 本文件记录 `imedical.agents` 能力包仓库的长期决策和稳定边界。当前状态摘要见 `agent-kit-maintenance-memory.md`，近期维护流水见 `agent-kit-maintenance-log.md`，后续计划见 `agent-kit-maintenance-backlog.md`。
 
 ## BOS 个人配置与分发
-
-- 新夜跑只扩展既有 run/workspace/test-result，schema 2.1 显式接入且保留 2.0；集中预授权和实际能力预检在启动前完成，运行中局部挂起交接，不代批宿主。数据处置归项目 fixture authority，资源退出独立取证，不新增调度器或数据库台账；契约唯一正文见 docs/night-policy.md 与 docs/night-acceptance.md。
 
 - 默认个人查询是便捷入口，不是 BOS 只读能力的边界；同一适配层支持上游已声明参数，显式口径与默认值分别表达，参数支持与真实服务验收分别取证。字段契约与调用迁移由 bos-plugin 的 usage 维护。
 
@@ -121,6 +117,8 @@
 
 ## 跨插件一致性
 
+- availableDependencies 是按阶段触发的文件/入口依赖，允许 available/enabled，显式 disabled 停止对应阶段；不进入强依赖递归、版本范围或自动启用。声明在 manifest，执行协议见 docs/plugin-availability.md。
+
 - 治疗表单生命周期必须区分新开发与现有模板改造：`expectedVersion=NEW` 的新开发表单直接创建正式模板，不使用灰度；已有模板默认版本化克隆，也可按明确授权绑定当前快照执行 `in-place-overwrite`。原 RowID 覆盖不创建灰度或调用 consolidate；克隆策略在验收后按引用拓扑通过 `consolidate` / `consolidate-shared` 收尾。`cleanup` 只处理已完成引用切换的零引用孤儿模板，不替代正式合并。
 
 - 修改插件目录结构时，同步检查 `.agents-plugin/plugin.json`、插件 `AGENTS.md`、插件 README、仓库 README 和相关 docs。
@@ -130,7 +128,8 @@
 
 ## Agent 运行与反馈边界
 
-- 新运行使用 schema 2.0；`executionPath: fast|full|guarded` 与 `orchestrationMode: serial|subagent|multi-session` 正交。历史 schema 1.0–1.2 只读，不原地迁移。
+- 通用新运行使用 schema 2.0；`executionPath: fast|full|guarded` 与 `orchestrationMode: serial|subagent|multi-session` 正交。历史 schema 1.0–1.2 只读，不原地迁移。
+- 新夜跑在既有 run/workspace/test-result 上显式使用 schema 2.1，保留旧 2.0 契约；先保存用量基线、初筛并实际预检能力，再制定详细 PLAN、集中授权与启动。executionPlan、监督/恢复、联合版本和证据等级的正文归 docs/night-governance.md、docs/night-policy.md、docs/night-acceptance.md，不以宿主 ACK 或静态检查替代实际监督与业务验证。数据处置归项目 fixture authority，资源退出独立核验。
 - `events.jsonl` 是事件事实源，`00-run-manifest.json` 是当前投影；Coordinator 是唯一状态和集成 owner，参与者通过 action result、message 和 handoff 返回。
 - multi-session 协作计划授权只覆盖当前 planHash；远程写入、commit、merge、push、部署和 feedback 写入分别授权。可写会话必须使用隔离 worktree 和互斥 scope。
 - schema 2.0 先以互斥 `taskKind` 分流：`business-demand` 使用 `implementing -> locally-verified -> acceptance-pending -> accepted`；`framework-maintenance` 使用 `maintaining -> locally-verified -> maintenance-complete`；`other` 不进入任一生命周期。业务需求与框架维护同时出现时建立独立记录，不共享验收、feedback 或完成状态。
@@ -139,7 +138,7 @@
 ## 提交阶段验证复用
 
 - 完整维护回归与 Git 提交门禁分离。完整测试通过后，以 `scripts/validation-evidence.js` 记录 suite、命令、受测 scope 和 worktree 指纹；scope 指纹未变化时，提交阶段复用该结果，不机械重跑完整套件。
-- 验证按影响面选择：纯文档维护不固定运行组件版本完整测试；插件或根级独立 skill 目录变化仍须版本校验，版本工具或治理逻辑变化须专项回归。提交阶段只补齐适用且已失效或尚未执行的快速门禁：worktree 组件版本校验、`git diff --check` 和暂存复核。受测范围变化、缺少有效结果或已有失败时才重跑对应完整测试；`git commit` 另以已有明确提交授权为前提。
+- 验证按影响面选择：纯文档维护核对链接、规则与相关契约；插件或独立 skill 目录变化执行组件版本门禁，版本工具变化补专项回归。获得提交授权后精确暂存，提交前补齐适用且失效或尚未执行的 `validate --staged --budget-ms 60000`、`git diff --cached --check` 和暂存复核；worktree 检查不能替代暂存内容验证。受测 scope 变化、缺少有效证据或已有失败时才补跑对应功能测试；完整审计留给 CI、发布或明确审计。
 
 ## 领域插件与项目资料边界
 

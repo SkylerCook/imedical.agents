@@ -24,7 +24,7 @@
 | [bos-plugin](#bos-plugin) | BOS 查询与跨技术栈需求处理 | [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md) | 无插件依赖 |
 | [agent-context-kit](#agent-context-kit) | 项目上下文、宿主技能接入、需求交接 | [project-context-maintenance](../../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md) | 无插件依赖 |
 | [agent-framework-evolution](#agent-framework-evolution) | 已验收业务需求反馈与通用能力打包 | [agent-framework-evolution-init](../../plugins/agent-framework-evolution/skills/agent-framework-evolution-init/SKILL.md) | 无插件依赖 |
-| [coding-iris-plugin](#coding-iris-plugin) | IRIS 前后端开发、知识查询、需求提交与部署 | [coding-iris-init](../../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md) | 无插件依赖 |
+| [coding-iris-plugin](#coding-iris-plugin) | IRIS 前后端开发、知识查询、DEV→PRD 需求移植与部署 | [coding-iris-init](../../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md) | 无插件依赖 |
 | [extract-doc](#extract-doc) | 文档解析和结构化落盘 | [extract-doc-ingest](../../plugins/extract-doc/skills/extract-doc-ingest/SKILL.md) | 无插件依赖 |
 | [i18n-iris-plugin](#i18n-iris-plugin) | IRIS 页面、字典与打印国际化 | [i18n-project-init](../../plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md) | coding-iris-plugin |
 | [iris-codegraph](#iris-codegraph) | IRIS/ObjectScript 图谱构建与查询 | [iris-codegraph](../../plugins/iris-codegraph/skills/iris-codegraph/SKILL.md) | coding-iris-plugin |
@@ -45,7 +45,7 @@
 | [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md) | standard/project 提交计划、本地提交与验证，无 IRIS 配置依赖 | 日常入口 |
 | [demand-acceptance](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md) | 连续人工验收、逐号交付恢复与 BOS 编号汇总 | 明确调用即授权完整交付；默认当前工作区，`--worktree [路径]` 指定来源 |
 
-接入与旧入口兼容见 [迁移说明](../demand-delivery-migration.md)。
+接入与已删除旧入口的迁移见 [迁移说明](../demand-delivery-migration.md)。
 
 ## bos-plugin
 
@@ -101,7 +101,7 @@ BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调
 
 ## coding-iris-plugin
 
-IRIS 前后端开发、知识查询、需求提交与部署。详见[插件说明](../../plugins/coding-iris-plugin/README.md)和[manifest](../../plugins/coding-iris-plugin/.agents-plugin/plugin.json)；[使用示例](capability-guide.md#coding-iris-plugin)。
+IRIS 前后端开发、知识查询、DEV→PRD 需求移植与部署。通用提交归 demand-delivery-plugin，标版补录归 bos-plugin。详见[插件说明](../../plugins/coding-iris-plugin/README.md)和[manifest](../../plugins/coding-iris-plugin/.agents-plugin/plugin.json)；[使用示例](capability-guide.md#coding-iris-plugin)。
 
 ### Skills
 
@@ -110,8 +110,6 @@ IRIS 前后端开发、知识查询、需求提交与部署。详见[插件说�
 | [coding-iris-init](../../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md) | 初始化 IRIS 编码能力 | 纯初始化，直接读取源文件 |
 | [iris-backend-coding](../../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md) | 按统一命名、格式及类/方法/变量注释规范实现、复核 ObjectScript 后端 | 日常入口 |
 | [iris-coding](../../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md) | 路由混合或边界不明的 IRIS 开发 | 日常入口 |
-
-
 | [iris-demand-promote](../../plugins/coding-iris-plugin/skills/iris-demand-promote/SKILL.md) | 将 DEV 已提交需求移植到 PRD 本地仓库 | 日常入口 |
 | [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 规划和执行 IRIS 远端部署，编译后仅回填核对通过的 Storage | 日常入口 |
 | [iris-frontend-coding](../../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md) | 按统一前端规范实现与复核 CSP、HTML、JavaScript、CSS、HISUI 前端 | 日常入口 |

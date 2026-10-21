@@ -1,28 +1,5 @@
 # imedical.agents
 
-新夜跑可启用 [executionPlan 治理](docs/night-governance.md)：初筛后按需预检再出详细 PLAN，实体规则与角色上下文、至少两个 Developer 并发、两类 Tester、冻结联合版本和共享目标成果保护、持续认证及宿主监督 worker、周额度增量及分级成本报告。最低自检与实际证据等级分开，停滞按最近有效交付计时。新模板 maxInFlight 为 4，容量与错峰须核实；旧 run 保留原值。已有 2.1 run 的容量调整仍走[原授权门禁](docs/night-policy.md#运行中调整容量)。
-
-夜跑精简优化：新批次通过 `night-convergence/v1` 设置明确总时限与问题尝试硬上限；有依赖才绑定消费版本和相关验证，最终组合沿现有 Coordinator 协议核验。不增加自动合并器、交付组状态机或资源锁。接口、旧 run 兼容和真实环境限制见[夜跑策略](docs/night-policy.md#返修收敛与按需依赖)，已部署项目正常更新后仅新批次启用。
-
-BOS 普通与夜跑处理按需求复用项目已启用插件，支持不同及混合技术栈，保留 IRIS 专项直达；无需新增配置或启动扫描，见[领域路由](workflows/bos-demand.workflow.md#编码体系选择)。
-
-创建 worktree 同时交付用户审阅入口：真实仓库的 `.code-workspace`、适用的容器目录设置、固定基点与提交归属。正常更新取得规范，已有 worktree 按任务范围补齐，见[Worktree 审阅交付](docs/guides/worktree-review.md)。
-
-允许保留开发测试库中本批获准创建的验收样本，供用户后续快速验收；事前明确范围，交付时给出需求号、批次、记录 ID、入口与复验步骤，数据处置与临时资源退出分开核验。授权和项目处置约定统一见[人工复验数据与收尾](agents/_shared/testing-protocol.md#人工复验数据与收尾)。已有项目正常更新能力包即可取得，无配置迁移或旧文件清理。
-
-需求迁移更新会识别并报告独立嵌套 Git/Agent 工作区，保留其入口与链接；普通项目子目录仍受迁移检查。见 [扫描边界](docs/demand-delivery-migration.md)。
-
-通过 `$bos-demand-handle --night` 发起夜跑，由 Agent 生成批次和计划并复用原调度器。新批次采用一个多仓 schema 2.1 run，开始前集中取得必需授权并实际预检；受管入口复核绑定并自动归档回执与计时，运行中异常分支挂起交接，不新增授权问题。保留两阶段评估、独立短审、源码绑定、容量、额度、截止与固定抽验，业务最终仍 acceptance-pending。旧 2.0 run 保持原行为；接入与真实试点条件见[夜跑决策接口](docs/night-policy.md)。 仓内夜跑目录须被 Git 忽略，plan/check 在创建与派发前核验；也可显式选择仓外 worktreeRoot。
-
-夜跑方案按内部方法、实际接口、UI 分层验收，纯后端不加载浏览器；Web 默认无头 Playwright，复用已安装环境。Broker 机器调用、批次截止及清理见 [夜跑接入](docs/night-acceptance.md)。
-
-需求迁移支持外部编排预检：结构化启用差异、可选预期插件集合门禁，以及迁移后入口可达性 Check，见 [更新衔接](docs/demand-delivery-migration.md#外部编排与-check)。
-
-Overlay 部署支持模块配置优先、显式主仓配置回退；连接目标与模块 MCP 一致，SourceRoot 边界保持。见 [部署配置继承](plugins/coding-iris-plugin/rules/iris_deploy_checklist.md#部署配置继承)。
-
-
-需求交付归属调整：通用提交由 [demand-delivery-plugin](plugins/demand-delivery-plugin/README.md) 的 demand-commit 维护；[bos-demand-entry](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md) 从 Git 补录，或按主题和资料向本组/其他组提需，`--work` 则整理工作记录；后两类止于编号回填。支持 `--split` 审查拆合、`--excel` 导出及组合（省略模式默认 `--text`），产品标识按实际对象确定。旧 IRIS 入口已移除，由更新器迁移，详见 [迁移说明](docs/demand-delivery-migration.md)。
-
 > **让 AI Coding 的最佳实践成为团队共享的基础设施。**
 
 `imedical.agents` 是 imedical 的 AI Coding 能力包仓库，将实践中验证有效的 Agent 角色、协作流程、插件规则、skills、模板和辅助脚本沉淀为可治理、可一键分发、可持续演进的团队能力。它帮助团队成员缩小对 AI Coding 的认知与使用差异，让优秀经验被整个团队稳定复用。
@@ -37,11 +14,11 @@ Overlay 部署支持模块配置优先、显式主仓配置回退；连接目标
 
 iMedical 知识资料已接入 [共享参考库](vendor/imedical-knowledge/README.md)：通过 coding-iris-plugin 的 `iris-imedical-knowledge` 按需检索 wiki、菜单与技术资料，`iris-menu-sync` 刷新项目菜单快照。新装/更新沿现有 plugins/vendor 分发，项目资料保留在 ContextRoot；详见 [部署与使用](docs/guides/imedical-knowledge.md)。
 
-技能插件化：agent-context-kit v0.3.2 接管跨 Agent 适配，新增 agent-framework-evolution v0.1.0 管理反馈与可复用内容打包。已部署项目保持原技能入口和运行时链接，首次更新步骤见 [迁移指南](docs/skill-plugin-migration.md)。
+技能归属：agent-context-kit 接管跨 Agent 适配，agent-framework-evolution 管理反馈与可复用内容打包。已部署项目保持原技能入口和运行时链接，首次更新步骤见 [迁移指南](docs/skill-plugin-migration.md)。
 
 CSP 部署编译统一使用 `coding-iris-plugin/scripts/iris-tools/compile-csp.js`：上传后直接调用 Atelier 编译接口，支持一次批量请求、错误检查和耗时输出，避免反复探测 MCP 编译路径。
 
-SFTP 工具纳入 [vendor/sftp-server](vendor/sftp-server/README.md)：保留五个 MCP 工具名，补齐路径约束、内容比较、原子替换和 SHA-256 校验。`coding-iris-plugin` v0.9.0 为新项目提供默认禁用的配置；更新时自动迁移可识别的既有标准启动参数，显式 custom 或自定义参数保留，不要求 runtime opt-in，也不自动安装 Python 依赖。
+SFTP 工具纳入 [vendor/sftp-server](vendor/sftp-server/README.md)：保留五个 MCP 工具名，补齐路径约束、内容比较、原子替换和 SHA-256 校验。`coding-iris-plugin` 为新项目提供默认禁用的配置；更新时自动迁移可识别的既有标准启动参数，显式 custom 或自定义参数保留，不要求 runtime opt-in，也不自动安装 Python 依赖。
 
 前端 CSP、HTML、JS、CSS 共用[前端命名与格式规范](plugins/coding-iris-plugin/references/frontend-coding-format.md)：默认 ES5、4 空格与双引号，混合语言分区审查，保留历史接口和主题契约。复用现有 Review、编码及 i18n 检查，不引入格式化器。[JS 页面组织模板](plugins/coding-iris-plugin/templates/javascript-page-template.md)按实际依赖和生命周期选择，不要求所有前端统一架构。
 
@@ -65,7 +42,7 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
 
 核心原则：
 
-- `agents/` 和 `workflows/` 是唯一 canonical 源。
+- 角色与 workflow 的 canonical 分别归 `agents/` 和 `workflows/`，可复用能力实现归 `plugins/`；工具 adapter 从事实源生成。
 - Codex、Claude Code、OpenCode、CodeBuddy 等工具专属入口只是 adapter，可删除重建。
 - 业务项目差异写入业务项目自己的 `AGENTS.md`、`.agents/config/`、`.agents/rules/`、`.agents/memory/`。
 - 连接配置遵循各能力的私有配置契约：IRIS 使用目标工程被忽略的 `.mcp.json`；BOS 使用 BOS_MCP_CONFIG 指向的按 skill 分段的仓外个人配置。真实连接信息与凭据不进入能力包或 Git 历史。
@@ -74,7 +51,7 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
 
 如果你是正在业务项目中执行安装或更新的 Agent，先判断 `.agents/` 状态，不要假设本地 runbook 已经存在：
 
-安装和更新要求 Git `2.25.0` 或更新版本，因为脚本依赖 `git sparse-checkout`；低版本 Git for Windows 请先升级后再执行安装命令。
+能力包工具链需要 Node.js `>=22.5.0` 和 Git `>=2.25.0`；Node.js 不属于 HIS 等业务系统的生产运行依赖。Git 基线来自 `sparse-checkout`，受支持的 Node 版本范围与平台验证按项目 runbook 和维护队列核实。
 
 | 状态 | 下一步 |
 |---|---|
@@ -232,6 +209,10 @@ node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js
 - `workflows/i18n-change.workflow.md`：IRIS i18n 领域流程。
 - `scripts/agent-orchestrator.js`：schema 2.0 事件驱动调度 CLI，生成统一 adapter action，不直接调用产品 API。
 - 异步启动与完成分别通过 ACK/result 消费；可重复验收、按项目配置的空闲心跳与收尾见 [测试运行时](docs/testing-runtime.md)。默认串行可用，真实会话与业务验证独立取证。
+
+BOS 普通与夜跑按需求复用项目已启用的领域插件，支持不同及混合技术栈，入口见 [BOS workflow](workflows/bos-demand.workflow.md#编码体系选择)。通过 `$bos-demand-handle --night` 发起夜跑，在原调度器上显式使用 schema 2.1：按[治理顺序](docs/night-governance.md)先初筛和能力预检，再详细 PLAN、授权、实体规则与监督 worker；联合源码、返修上限、预算/容量/截止、恢复及旧 run 兼容见[夜跑策略](docs/night-policy.md)。[分层验收](docs/night-acceptance.md)区分后端与 UI，最低自检、可交接状态和实际证据等级分别报告；真实项目与宿主试点仍由维护队列取证。
+
+创建 worktree 同时按[审阅交付](docs/guides/worktree-review.md)给出查看入口和固定基点。开发测试库中本批获准创建的验收样本可按[测试协议](agents/_shared/testing-protocol.md#人工复验数据与收尾)保留供人工复验；样本定位、数据处置与临时资源退出分别核验。
 
 i18n 流程：
 
@@ -465,7 +446,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 公司 BS 端 UI 规范与评审，提炼 IHOS 海蓝、PURE 天蓝的业务共性和少量风格差异，提供有出处的布局、表单、表格及反馈参考。技术栈无关，不提供生产 CSS 或组件库。
 
 - 规范与开发核对：[imedical-ui](plugins/imedical-ui/skills/imedical-ui/SKILL.md)；截图或浏览器评审：[imedical-ui-review](plugins/imedical-ui/skills/imedical-ui-review/SKILL.md)；接入直接读 [imedical-ui-init](plugins/imedical-ui/skills/imedical-ui-init/SKILL.md)。
-- [插件说明](plugins/imedical-ui/README.md)包含按需读取路由，30画板及PDF底稿用于追溯，截图/浏览器证据与正式UI验收分别记录。
+- [插件说明](plugins/imedical-ui/README.md)包含按需读取路由，30画板及PDF底稿用于追溯，截图/浏览器证据与正式UI验收分别记录。完整公司原件仅存源仓被忽略的本地批次；已提交证据子集随 vendor 分发，来源和资料更新见 [vendor 说明](vendor/imedical-ui-standards/README.md)。
 - `iris-ui` 正式依赖本插件；未来 Java/HTML 适配直接依赖通用层，各自处理其框架接入。本期不创建未来适配插件，不修改业务或公共 CSS。
 
 ### iris-ui
@@ -526,7 +507,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - 生成第三方接口对照文档、字段映射和差异说明。
 - Feign 接口代码生成和 API 文档生成作为辅助能力。
 - 核对并修正已有 API 文档的服务地址、入参/出参类型与字段（`feign-doc-audit.js` 支持 `paths`/`fields`/`io`/`lint`）。
-- thin-index wrapper 暴露 `imedicalxc-doctor-data-extraction` 入口。
+- thin-index wrapper 暴露 `imedicalxc-doctor-data-extraction` 与 `feign-api-doc-audit` 两个入口；后者审计已有 Feign API 文档。
 
 常用 skill：
 
@@ -646,7 +627,7 @@ git push github master
 
 如果其中一个远端失败，先处理失败原因，不要在另一个平台手工补提交，避免历史分叉。
 
-`coding-iris-plugin` 当前 v0.15.8 的 `deploy-frontend.js` 为 direct/guarded 复用单连接传输、替换前摘要检查和逐文件最终目标校验，再编译指定 CSP；提供完整结果与阶段观测，默认本地计划、显式执行。用法见[工具说明](plugins/coding-iris-plugin/scripts/iris-tools/README.md)；源仓变化不代表业务项目副本已更新。
+`coding-iris-plugin` 的 `deploy-frontend.js` 为 direct/guarded 复用所选通道的传输、逐文件最终目标校验和 CSP 编译；通道与检查边界、阶段观测及配置见[工具说明](plugins/coding-iris-plugin/scripts/iris-tools/README.md)，当前版本以 manifest 为准。默认本地计划、显式执行；源仓变化不代表业务项目副本已更新。
 
 开发部署默认 direct，无需需求号或 Git 基线会话，保留并发变化检查、Storage 保护、回读及编译。`--mode guarded --demand <id>` 保留 Git 基线与三方合并；旧命令仅带 `--demand` 仍为 guarded。详见 [部署契约](plugins/coding-iris-plugin/references/deployment-protection.md)。
 
