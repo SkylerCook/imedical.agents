@@ -1,0 +1,36 @@
+{
+  "name": "iris-ui",
+  "version": "0.1.0",
+  "displayName": "IRIS UI",
+  "description": "IRIS/HISUI UI 标注还原、布局与初始化诊断、多主题适配及技术验证；复用既有编码、框架参考与部署能力。",
+  "entry": "AGENTS.md",
+  "rules": "rules/",
+  "references": "references/",
+  "skills": "skills/",
+  "templates": "templates/",
+  "scripts": "scripts/",
+  "initSkill": "iris-ui-init",
+  "thinIndex": {
+    "excludeSkills": [
+      "iris-ui-init"
+    ]
+  },
+  "dependencies": [
+    "coding-iris-plugin"
+  ],
+  "dependencyVersions": {
+    "coding-iris-plugin": {
+      "minVersion": "0.20.1",
+      "maxVersionExclusive": "0.21.0"
+    }
+  },
+  "requiresProjectFiles": [
+    "AGENTS.md",
+    ".agents/config/iris_project_profile.md"
+  ],
+  "defaultPrompt": [
+    "按 UI 标注改造这个 HISUI 页面，保留业务契约",
+    "排查首屏、滚动或窗口切换后的布局问题",
+    "核对多主题适配并记录技术验证与人工验收缺口"
+  ]
+}

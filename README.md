@@ -95,6 +95,7 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
    - `.agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md`
    - `.agents/plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md`
    - `.agents/plugins/iris-imedical-doctor-ai/skills/iris-imedical-doctor-ai-init/SKILL.md`
+   - `.agents/plugins/iris-ui/skills/iris-ui-init/SKILL.md`
    - `.agents/plugins/imedicalxc-doctor-extend-engineer/skills/imedicalxc-doctor-extend-engineer/SKILL.md`
 
 不要把本仓库根 `AGENTS.md`、根 `memory/` 或展示页文件复制到业务项目。可选的 `CLAUDE.md`、`CODEBUDDY.md` 兼容入口只需链接到项目自己的 `AGENTS.md`；检查器按解析后的目标判断，现有等价链接不应被重建，操作边界见[更新说明](docs/update-agents.md#windows-可选兼容入口)。
@@ -205,7 +206,7 @@ imedical.agents/
 
 ## 源仓组件版本管理
 
-17 个插件以 `.agents-plugin/plugin.json` 为版本事实来源，目前没有根级独立 skill；以后新增的独立 skill 在 `SKILL.md` 声明自身版本，插件内部内容统一继承 owner 插件版本。发布记录位于 `releases/plugin|skill/<name>/<version>.md`，依赖版本范围通过 manifest 的 `dependencyVersions` 审计，同时保留原 `dependencies` 名称数组供现有更新器使用。
+18 个插件以 `.agents-plugin/plugin.json` 为版本事实来源，目前没有根级独立 skill；以后新增的独立 skill 在 `SKILL.md` 声明自身版本，插件内部内容统一继承 owner 插件版本。发布记录位于 `releases/plugin|skill/<name>/<version>.md`，依赖版本范围通过 manifest 的 `dependencyVersions` 审计，同时保留原 `dependencies` 名称数组供现有更新器使用。
 
 维护者精确暂存插件或独立 skill 的本次文件后运行：
 
@@ -458,6 +459,14 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 - `iris-external-reg`
 
+### iris-ui
+
+面向 IRIS/HISUI 的 UI 标注还原、布局与初始化故障诊断及多主题适配，复用 coding-iris-plugin 的编码规则、HISUI 参考和部署入口。
+
+- 初始化：直接读取 [iris-ui-init](plugins/iris-ui/skills/iris-ui-init/SKILL.md)；日常入口：[iris-ui](plugins/iris-ui/skills/iris-ui/SKILL.md)。
+- 标注映射、脱敏案例和只读尺寸采集见 [插件说明](plugins/iris-ui/README.md)；技术验证与用户验收分别记录，项目原图和私有事实保留在目标工程。
+- 通过正常更新取得能力，默认 available；显式接入后刷新薄索引。现有前端入口按条件加载 UI 规则，不改变未启用项目或普通前端任务，无配置迁移或旧文件清理。
+
 ### iris-imedical-doctor-ai
 
 传统页面迁移提供行为对照模板和可控异步测试辅助，覆盖完成信号、资源释放与混合任务；见插件验证参考。
@@ -545,7 +554,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
    - `.agents/memory/project-memory.md`
 6. 先 dry-run，再 write 生成 `agent-context-kit` thin-index。
 7. 查看 `.agents/config/plugin_profile.md`；未启用插件保持 `available`，不要自动生成它们的 thin-index。
-8. 按依赖顺序初始化需要的领域插件，例如先启用 `coding-iris-plugin`、`extract-doc`，再启用依赖它们的 `iris-codegraph`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`、`iris-imedical-doctor-ai`；其它可选插件包括 `codegraph-query`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`。
+8. 按依赖顺序初始化需要的领域插件，例如先启用 `coding-iris-plugin`、`extract-doc`，再启用依赖它们的 `iris-codegraph`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`、`iris-imedical-doctor-ai`、`iris-ui`；其它可选插件包括 `codegraph-query`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`。
 9. 如需启用提交前差异降噪 hook，由用户在业务项目根目录显式运行 `.agents/scripts/install-git-hooks.ps1 -ProjectRoot .`；安装/更新 `.agents` 只分发 hook 模板和脚本，不自动修改 `core.hooksPath`。
 10. 按需要读取 `agents/agent-registry.md` 和 `workflows/workflow-registry.md` 使用顶层智能体。
 

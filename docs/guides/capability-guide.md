@@ -54,6 +54,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 | 新建 CA/CR 或改造已有表单 | [iris-cure-form-dev](#iris-cure-form-dev) | 文档或模板、CA/CR 类型、目标设备 |
 | 页面、字典或打印国际化 | [i18n-iris-plugin](#i18n-iris-plugin) | 页面或模板、语言、文案类别 |
 | 开发医生站 AI 集成 | [iris-imedical-doctor-ai](#iris-imedical-doctor-ai) | 现有宿主、业务服务、交互要求 |
+| UI 标注还原、布局或主题兼容诊断 | [iris-ui](#iris-ui) | 原型/标注或复现步骤、页面范围和目标主题 |
 | 整理标版需求、提交或移植 | [需求入口](#coding-iris-plugin) | Git 改动或提交、编号、仓库角色 |
 | 发布 IRIS 文件或治疗表单 | [iris-deploy](#coding-iris-plugin)、[cure-form-deploy](#iris-cure-form-dev) | 明确对象、目标、交付方式和授权范围 |
 | 沉淀已验证的通用经验 | [agent-framework-evolution](#agent-framework-evolution) | 已验证材料；业务反馈还须满足验收条件 |
@@ -227,6 +228,19 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 | Skill | 请求示例 | 前提与预期结果 |
 |---|---|---|
 | [iris-external-reg](../../plugins/iris-external-reg/skills/iris-external-reg/SKILL.md) | 依据指定平台协议制定预约挂号接入计划，核对 HIS 标准能力。 | 提供规范与工程入口；产出解析与计划；计划确认后进入获授权的实现，复用 RegInterface。 |
+
+## iris-ui
+
+[查看该插件清单](capability-catalog.md#iris-ui)。首次接入先核对 coding-iris-plugin 已启用且版本兼容，直接读取插件内 init；普通更新只分发能力，不自动启用。
+
+| Skill | 请求示例 | 前提与预期结果 |
+|---|---|---|
+| [iris-ui](../../plugins/iris-ui/skills/iris-ui/SKILL.md) | 按这份 UI 标注改造指定 HISUI 页面，先核对公共适配和主题，保留业务契约。 | 提供原型/标注或故障复现入口及范围；产出标注映射、范围内代码和实际覆盖的技术验证，用户视觉/业务验收分别记录。 |
+| [iris-ui-init](../../plugins/iris-ui/skills/iris-ui-init/SKILL.md) | 在当前工程按框架更新流程接入 iris-ui，复用现有 IRIS 配置并检查日常入口。 | 依赖已启用且兼容；Overlay 先更新共享能力，再按项目模块管理流程刷新 Context；保留自定义配置，不以手工同步或单独生成薄索引代替正式更新。 |
+
+诊断请求示例：“首屏出现横向滚动，展开查询后消失，请比较实际容器尺寸与生命周期。”插件只读辅助 `collectUiMetrics({targets:[{name,selector}]})` 采集显式目标的几何与样式证据；浏览器控制仍使用宿主现有能力，无法读取的 frame/控件报告未采集。图片与标注、实际加载资源、Console/Network 和交互验证按任务补齐，数值采集成功不代表布局已通过。
+
+现有前端入口的条件加载以 [iris-frontend-coding 流程](../../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md#流程)为准。部署继续使用原 owner；需要保留服务器已有修改时，先按 [部署保护](../../plugins/coding-iris-plugin/references/deployment-protection.md)核对可用基线与合并条件，不能把 UI 插件启用当成部署授权或新增保护能力。
 
 ## iris-imedical-doctor-ai
 

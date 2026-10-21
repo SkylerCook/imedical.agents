@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- iris-ui 0.1.0：IRIS/HISUI 标注还原、布局/主题/生命周期诊断的领域入口；复用 coding-iris 0.20.1 的编码与条件路由，只在 enabled 且命中 UI 信号时加载。提供按需案例、任务模板及只读 collectUiMetrics，不新增 UI profile、浏览器运行器、部署器或验收状态。接入和限制见插件 README；验证与本地试点状态见 maintenance/validation/iris-ui-2026-10-21.md，增量部署缺口留原 coding owner 的 P1 队列。
+
 - bos-plugin 0.11.0：bos-demand-entry 支持主题及可选资料向本组/其他组提需，自然语言选择 v3 source=request，无需 Git；复用 bug/change、文本/Excel及编号回填，接收组仅交接，未知产品标识可先按事实命名。代码 v2/工作 v3 保持兼容；结合上下文判断完成状态，已完成条目用原 remarks 追加备注，待解决问题不因文本写完而标完成。正常更新并刷新已启用索引取得，不自动发送、提交或同步业务副本。
 
 - Feign 文档审计：imedicalxc-doctor-data-extraction 1.1.0 新增 `feign-api-doc-audit` skill 与 `feign-doc-audit.js`（paths/fields/io/lint/all）。按 import、package、scope、module 消歧同名 Feign 类型，嵌套子表支持从父表行推导类型；真实文档全量校验 paths/fields/io/lint 均为 0。入口见插件 README 与 release record。
@@ -69,8 +71,8 @@
 - 开发部署默认 direct，不要求需求号或 Git 会话，保留 Storage、并发变化、回读和编译检查。后端编译后整批核对并仅回填指定类的 Storage，本地源码只允许此例外；guarded 更新最近部署快照，回填失败分开报告远端编译与本地状态，夜跑源码指纹变化保持冻结版本复审门禁。显式 guarded 或旧 --demand 命令使用固定 Git 基线，服务器差异仅合入隔离产物；首次合并后再次覆盖、冲突、未知结果必须人工决定。状态保存在用户私有目录，更新基线保留历史。Question 使用固定 code 和工具无关协议，按能力降级为文本；暂停/查看/无效决定不写入。详见 coding-iris-plugin/references/deployment-protection.md。
 
 - 能力源分为厂商无关的 `agents/`、`workflows/`、可复用 `plugins/` 与根级 `skills/`；工具专属配置只作为 adapter。源仓 `.agents/skills/agent-kit-maintenance/` 是维护者专用入口。
-- 当前有 17 个插件、0 个根级独立 skill。插件版本以 manifest 为准，独立 skill 版本以 frontmatter 为准；内部内容继承 owner 版本。发布记录不可变且不部署，版本 validator 不接入业务安装/更新/hook。
-- `coding-iris-plugin` 当前 v0.19.7：增加纯导入 Broker 客户端、严格 TLS/超时/授权与非交互 stdin 入口，旧人工 CLI 保留兼容；六个直接依赖 owner 仅扩大兼容范围并递增 patch。Windows 部署会话初始化对 Git 根目录长路径和 8.3 短路径按物理路径比较，既有会话状态不迁移；standard 需求录入使用简洁三段式与 v2 草稿，依赖兼容范围以各 owner manifest 为准。保留共享知识检索、项目菜单同步与产物路径门禁；前端 canonical 编码为 `utf8`，实际字节检测是最终门禁；真实 GB2312/mixed/unknown 不自动转码，明确 backend-only Overlay 为 `N/A (backend-only)`。新建类按 profile/同职责类/公共基类核对并适配 Extends，Review 检查继承依据；医生站注册类的指定继承要求归 doctor-dev 默认配置。CLS 共用清单检查提取后业务规则复用与稳定标识归属；Parameter 默认采用合法的 UpperCamelCase，可选自检提示非法声明及引用歧义，不替代 IRIS 编译；循环退出的 q 参数约束见规范后条件章节，由编码与 Review 核对，现有自检不作语法校验，不增加编译证据或提交门禁。
+- 当前有 18 个插件、0 个根级独立 skill。插件版本以 manifest 为准，独立 skill 版本以 frontmatter 为准；内部内容继承 owner 版本。发布记录不可变且不部署，版本 validator 不接入业务安装/更新/hook。
+- `coding-iris-plugin` 当前 v0.20.1，新增 UI 条件路由见本入口首条；保留此前纯导入 Broker 客户端、严格 TLS/超时/授权与非交互 stdin 入口，旧人工 CLI 保留兼容。Windows 部署会话初始化对 Git 根目录长路径和 8.3 短路径按物理路径比较，既有会话状态不迁移；standard 需求录入使用简洁三段式与 v2 草稿，依赖兼容范围以各 owner manifest 为准。保留共享知识检索、项目菜单同步与产物路径门禁；前端 canonical 编码为 `utf8`，实际字节检测是最终门禁；真实 GB2312/mixed/unknown 不自动转码，明确 backend-only Overlay 为 `N/A (backend-only)`。新建类按 profile/同职责类/公共基类核对并适配 Extends，Review 检查继承依据；医生站注册类的指定继承要求归 doctor-dev 默认配置。CLS 共用清单检查提取后业务规则复用与稳定标识归属；Parameter 默认采用合法的 UpperCamelCase，可选自检提示非法声明及引用歧义，不替代 IRIS 编译；循环退出的 q 参数约束见规范后条件章节，由编码与 Review 核对，现有自检不作语法校验，不增加编译证据或提交门禁。
 - CSP 编译固定到 `compile-csp.js` 的 Atelier 通道；`deploy-frontend.js` 的 direct/guarded 共用单连接传输、替换前复核、逐文件最终校验与完整结果，提供阶段进度/计数；保留 guarded 编译后检查，默认本地计划、显式执行，不自动重试或扩展父页面。竞争窗口、强杀恢复及耗时口径见工具 README；真实服务器性能仍待独立授权验证。SFTP vendor 新项目默认禁用，更新自动迁移可识别的既有标准启动参数，显式 custom/自定义参数保留，不创建服务或安装 Python 依赖。
 - `iris-cure-form-dev`：当前版本和兼容范围以 owner manifest 为准；任务产物与运行态统一归目标项目 `docs/work/cure-form/<task>/`，快照/敏感证据归同任务 private；配置/规则仍在 `.agents/`。自动/手动部署与版本化克隆/显式原 RowID 覆盖分别选择。新模板不使用灰度，采用克隆的既有模板按引用拓扑收尾，原 ID 覆盖不调用 consolidate。显式旧输出路径保持兼容，不迁移既有备份。
 - 表单部署的 `transaction-package` / `lightweight-sql` 通道独立于 automatic/manual；轻量通道只服务已有独占单模板 content。固定 SQL 绑定兼容层保留单行事务门禁，授权样本验证不代表全部服务器/HIS 验收。

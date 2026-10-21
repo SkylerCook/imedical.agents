@@ -27,7 +27,7 @@ description: Implement or modify IRIS CSP, JavaScript, CSS, or HISUI frontend co
 
 ## 流程
 
-1. 先读取目标工程 `.agents/config/iris_project_profile.md` 和 `.agents/config/plugin_profile.md`。
+1. 先读取目标工程 `.agents/config/iris_project_profile.md` 和 `.agents/config/plugin_profile.md`。修改前与最终 diff 后，均仅当 `iris-ui` 状态为 `enabled`，且任务或最终 diff 涉及标注/原型还原、布局/滚动/尺寸、主题兼容或首屏闪烁时，追加读取 [UI 专项规则](../../../iris-ui/rules/iris_ui.md)；普通前端任务及 `available`/`disabled` 状态保持原流程。已启用但规则入口缺失时报告能力包不完整，暂停依赖该规则的 UI 阶段。此处只加载规则，后续继续当前编码流程。
 2. 再读取 `rules/iris_coding_index.md`、`rules/iris_coding_general.md`、`rules/iris_coding_frontend.md`。
 3. 修改前执行[条件 i18n 门禁](../../rules/iris_coding_frontend.md#条件-i18n-门禁)；启用状态、文案/helper 信号、缺失配置处理及专项路由只按该节判定。
 4. HISUI 控件选型或 API 不确定时，读取 `references/hisui-widget-index.md` 并继续检查 `.agents/vendor/hisui/dist/js/jquery.hisui.js`；样式、图标或多语言资源不确定时，读取 `references/hisui-style-index.md` 并检查对应主题 CSS、locale CSS 和页面实际引入关系。

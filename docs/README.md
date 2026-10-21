@@ -24,6 +24,7 @@
 | 旧根级技能的插件归属迁移 | [迁移说明](skill-plugin-migration.md) |
 | 查询知识与刷新菜单 | [知识接入](guides/imedical-knowledge.md) |
 | 接入医生站 AI 插件 | [医生站 AI](guides/iris-imedical-doctor-ai.md) |
+| 按 UI 标注改造 HISUI 页面、排查布局与主题兼容 | [IRIS UI](../plugins/iris-ui/README.md) |
 | 按版本选择医生站导出清单 | [导出参考](reference/project-export-map/doctor/README.md) |
 | 查看工作区 manifest 结构 | [capability schema](schemas/workspace-capability.schema.json) |
 

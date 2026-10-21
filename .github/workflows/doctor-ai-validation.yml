@@ -1,4 +1,4 @@
-name: Validate AI workstation tooling
+name: Validate HISUI and AI workstation tooling
 on:
   pull_request:
   push:
@@ -17,4 +17,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: node --test scripts/tests/iris-imedical-doctor-ai.tests.js scripts/tests/async-contract-probe.tests.cjs
+      - run: node --test scripts/tests/iris-imedical-doctor-ai.tests.js scripts/tests/async-contract-probe.tests.cjs scripts/tests/iris-ui.tests.js

@@ -1,0 +1,76 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>IRIS UI diagnostic fixture</title>
+<link id="themeCss" rel="stylesheet" href="/hisui/css/hisui.pure.css">
+<style>
+body { padding: 16px; font-size: 14px; }
+#sampleLayout { height: 300px; }
+.content { padding: 12px; }
+#contentBox { height: 130px; overflow: auto; }
+.combo-row { display: flex; align-items: center; gap: 8px; }
+#comboSlot { flex: 1; min-width: 0; }
+#reference { white-space: nowrap; }
+table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+td { padding: 8px 0; }
+.category { width: 76px; }
+#hiddenTarget { display: none; }
+</style>
+<script src="/hisui/js/jquery-1.11.3.min.js"></script>
+<script src="/hisui/js/jquery.hisui.js"></script>
+<script src="/collect-ui-metrics.js"></script>
+</head><body>
+<h1>Anonymous layout and lifecycle fixture</h1>
+<p><button id="fill">Fill content</button> <button id="toggle">Toggle query panel</button></p>
+<div id="sampleLayout">
+  <div data-options="region:'center'"><div class="content">
+    <div id="contentBox">
+      <div class="combo-row"><div id="comboSlot"><input id="combo"></div><a id="reference" href="#fixture">Reference</a></div>
+      <table><tr><td class="category">Category</td><td id="headerCell">Group choices</td></tr>
+        <tr><td class="category">Material</td><td id="optionCell">Alpha / Beta / Gamma / Delta</td></tr></table>
+      <div id="rows"></div>
+    </div>
+  </div></div>
+  <div id="queryPanel" data-options="region:'east',width:190,collapsible:true,title:'Query'"><p>Anonymous query panel</p></div>
+</div>
+<div id="hiddenTarget">Hidden sample</div><div id="fixtureStatus">initializing</div>
+<script>
+(function () {
+    "use strict";
+    var params = new URLSearchParams(location.search);
+    var theme = params.get("theme") || "pure";
+    var width = Number(params.get("width")) || 625;
+    var collapsed = false;
+    if (["pure", "vben", "lite"].indexOf(theme) === -1) { throw new Error("Unknown fixture theme"); }
+    function fitCombo() {
+        $("#combo").combobox("resize", $("#comboSlot").width());
+    }
+    $(function () {
+        $("#sampleLayout").width(width + 220).layout({ onCollapse: fitCombo, onExpand: fitCombo });
+        $("#combo").combobox({ data: [{ value: "alpha", text: "Alpha" }, { value: "beta", text: "Beta" }],
+            valueField: "value", textField: "text", onResize: function () {} });
+        fitCombo();
+        $("#fill").on("click", function () {
+            var rows = [];
+            for (var i = 0; i < 20; i++) { rows.push("<p>Anonymous option " + (i + 1) + "</p>"); }
+            $("#rows").html(rows.join(""));
+            fitCombo();
+            $("#fixtureStatus").text("filled");
+        });
+        $("#toggle").on("click", function () {
+            collapsed = !collapsed;
+            $("#toggle").prop("disabled", true);
+            $("#fixtureStatus").text("changing");
+            $("#sampleLayout").layout(collapsed ? "collapse" : "expand", "east");
+            var panel = $("#queryPanel").panel("panel");
+            panel.promise("fx").done(function () {
+                window.requestAnimationFrame(function () {
+                    $("#sampleLayout").layout("resize");
+                    fitCombo();
+                    $("#fixtureStatus").text(collapsed ? "collapsed" : "expanded");
+                    $("#toggle").prop("disabled", false);
+                });
+            });
+        });
+        $("#fixtureStatus").text("ready");
+    });
+}());
+</script></body></html>

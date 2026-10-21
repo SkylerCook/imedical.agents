@@ -43,7 +43,7 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 - 首次初始化：`skills/coding-iris-init/SKILL.md`
 - 统一编码入口：`skills/iris-coding/SKILL.md`
 - 后端 ObjectScript 编码：`skills/iris-backend-coding/SKILL.md`
-- 前端 CSP/JS/HISUI 编码：`skills/iris-frontend-coding/SKILL.md`
+- 前端 CSP/JS/HISUI 编码：`skills/iris-frontend-coding/SKILL.md`；UI 专项规则按该入口的条件路由加载。
 - 历史前端 GB2312 转换后替换源文件：`skills/iris-frontend-gb2312-promote/SKILL.md`
 - IRIS 远端部署编排：`skills/iris-deploy/SKILL.md`
 - DEV→PRD 需求移植：`skills/iris-demand-promote/SKILL.md`
