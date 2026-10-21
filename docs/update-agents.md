@@ -10,6 +10,8 @@
 
 插件与必要证据沿现有 `plugins/**`、`vendor/**` sparse 路径分发，无安装器或更新器代码变更。vendor目录落盘不等于已启用；纯init不生成日常索引。公司资料版权/分发条件保持原状，源码接收、远端推送与正式分发分别按授权处理，不自动推公开镜像。框架源仓修改不代表业务副本已经升级。
 
+完整公司材料另存源仓 `vendor/imedical-ui-standards/originals/<批次>/`，由目录内 `.gitignore` 忽略，仅本地集中管理，不提交、不随项目更新分发。用户整理好展开目录和 PDF 后按新批次复制、校验并保留本地清单；随后根据标注变化升级规则、提炼证据及插件版本，后者继续按正常流程提交和分发。现有已入 Git 的证据子集保持，资料管理及升级路径见 [vendor 说明](../vendor/imedical-ui-standards/README.md#完整公司原件仅本地)。
+
 ## 无人值守治理 v1
 
 按正常更新流程同步根 scripts/*.js、scripts/lib/**、agents/workflows/docs 及已启用 coding-iris-plugin，再执行 Check。新批次探测 `night-execution-plan/v1`、`browser-worker/v1`、`night-frozen-sources/v1` 和 `night-weekly-quota/v1`；从 [治理接入](night-governance.md) 先取基线、填写并批准 executionPlan，再为独立 worktree materialize 实体 PLAN。普通更新不修改业务 AGENTS、不启动任务、不安装浏览器、不创建 Goal；旧 run/既有工作区不自动迁移，无旧文件删除。

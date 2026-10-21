@@ -2,6 +2,8 @@
 
 - imedical-ui 0.1.0：公司BS端IHOS海蓝/PURE天蓝共性规则、五类场景参考、风格差异和截图/浏览器评审；30画板/PDF证据子集带来源摘要。MD优先按需读取，不生成生产CSS、查询CLI或第二组件库；PDF单方要求不自动成为PURE强制要求，设计器说明与业务契约分开。见插件README及 maintenance/validation/imedical-ui-2026-10-21.md。
 
+- UI完整原件另存vendor/imedical-ui-standards/originals/<批次>，只留用户整理后的展开目录/PDF，Git忽略且不向项目分发；本地清单留来源和逐文件SHA，originals-catalog.json只记批次/目录总量/摘要。已提交规则及64文件证据保持，升级后仍可按授权提交分发；不要把完整原件与提炼证据混淆。资料更新路径见vendor README“完整公司原件”。
+
 - iris-ui 0.2.0：IRIS CSP＋HISUI的公司规范落地适配，正式依赖imedical-ui 0.1.x与coding-iris 0.20.x；旧0.1工程需核对注册/profile接入依赖，更新器不会自动启用，退出0不替代实际状态。保留布局生命周期、匿名案例和只读collectUiMetrics，不新增profile/运行器/部署器。未来Java/HTML适配直接依赖通用层；真实分发和UI验收独立取证，增量部署缺口仍归原coding P1队列。
 
 - bos-plugin 0.11.0：bos-demand-entry 支持主题及可选资料向本组/其他组提需，自然语言选择 v3 source=request，无需 Git；复用 bug/change、文本/Excel及编号回填，接收组仅交接，未知产品标识可先按事实命名。代码 v2/工作 v3 保持兼容；结合上下文判断完成状态，已完成条目用原 remarks 追加备注，待解决问题不因文本写完而标完成。正常更新并刷新已启用索引取得，不自动发送、提交或同步业务副本。
