@@ -248,7 +248,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 | Skill | 请求示例 | 前提与预期结果 |
 |---|---|---|
-| [iris-ui](../../plugins/iris-ui/skills/iris-ui/SKILL.md) | 按这份 UI 标注改造指定 HISUI 页面，先核对公共适配和主题，保留业务契约。 | 提供原型/标注或故障复现入口及范围；产出标注映射、范围内代码和实际覆盖的技术验证，用户视觉/业务验收分别记录。 |
+| [iris-ui](../../plugins/iris-ui/skills/iris-ui/SKILL.md) | 按这份 UI 标注改造指定 HISUI 页面，先核对公共适配和主题，保留业务契约。 | 提供原型/标注或故障复现入口及范围；按共享协议选择足够检查并停止，产出标注映射、范围内代码和实际覆盖的技术证据，用户视觉/业务验收分别记录。 |
 | [iris-ui-init](../../plugins/iris-ui/skills/iris-ui-init/SKILL.md) | 在当前工程按框架更新流程接入 iris-ui，复用现有 IRIS 配置并检查日常入口。 | 依赖已启用且兼容；Overlay 先更新共享能力，再按项目模块管理流程刷新 Context；保留自定义配置，不以手工同步或单独生成薄索引代替正式更新。 |
 
 诊断请求示例：“首屏出现横向滚动，展开查询后消失，请比较实际容器尺寸与生命周期。”插件只读辅助 `collectUiMetrics({targets:[{name,selector}]})` 采集显式目标的几何与样式证据；浏览器控制仍使用宿主现有能力，无法读取的 frame/控件报告未采集。图片与标注、实际加载资源、Console/Network 和交互验证按任务补齐，数值采集成功不代表布局已通过。

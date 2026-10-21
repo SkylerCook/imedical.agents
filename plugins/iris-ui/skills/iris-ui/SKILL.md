@@ -16,10 +16,10 @@ description: 将 imedical-ui 规范落实到 IRIS CSP＋HISUI 页面，处理公
 ## 实施与定向验证
 
 4. 保留字段、事件与数据契约，以现有组件和原生 resize/布局接口完成最小适配。遇到首屏、异步填充、侧栏、页签、弹窗或重复打开问题，读 [布局生命周期](../../references/layout-lifecycle.md)。相同机制影响多入口时核对共享调用者。
-5. 按实际改动选择主题、宽度、内容和状态组合，复用 [testing-protocol](../../../../agents/_shared/testing-protocol.md) 执行与记录。需要只读尺寸辅助时，在明确目标 frame 中显式使用 [collect-ui-metrics.js](../../scripts/collect-ui-metrics.js)；它不采文本、值、URL，也不判断视觉验收。
+5. 先按共享协议的[验证范围与停止条件](../../../../agents/_shared/testing-protocol.md#验证范围与停止条件)选定必要检查；需要运行证据时，再按具体风险选择主题、宽度、内容和状态组合。需要只读尺寸辅助时，在明确目标 frame 中显式使用 [collect-ui-metrics.js](../../scripts/collect-ui-metrics.js)；它不采文本、值、URL，也不判断视觉验收。
 6. 修复仍反复失效或准备推广经验时，读 [已验证案例](../../references/verified-cases.md)，核对机制和适用条件；有证据后再扩大同类排查，不机械套用案例代码。
 
-完成条件：修改行为及直接受影响状态已有匹配证据，剩余缺口明确；静态检查、匿名夹具、真实页面诊断和用户验收分别陈述。
+完成条件：选定技术检查已完成，证据与当前差异匹配，剩余缺口明确；静态检查、匿名夹具、真实页面诊断和用户验收分别陈述。静态交付可以保留视觉或运行待验，不据此声明功能运行通过。
 
 ## 交付
 

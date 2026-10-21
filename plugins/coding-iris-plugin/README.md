@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+0.20.2：前端验证按[共享协议的风险与停止条件](../../agents/_shared/testing-protocol.md#验证范围与停止条件)选择，控件状态检查限定本次实际改变的表现。已明确的局部配置可完成必要静态检查后交付，未测效果保留待验；沿正常更新取得，无配置迁移或运行时变更。
+
 0.20.1：前端入口按项目启用状态与 UI 信号条件读取 [iris-ui 专项规则](../iris-ui/rules/iris_ui.md)，普通前端任务保持原流程。规则加载条件以 [iris-frontend-coding 流程](skills/iris-frontend-coding/SKILL.md#流程)为准；通过正常更新取得能力，显式启用 UI 插件后生效，无配置迁移或旧文件清理。
 
 0.19.7：受管部署接入可选 `night-convergence/v1` 剩余预算，在现有 transport 边界复核并限制等待；超时保留未知写及收尾，不能据此宣称远端已取消。普通调用及未启用扩展的旧批次保持原行为。正常更新能力包后新批次按[收敛接口](../../docs/night-policy.md#返修收敛与按需依赖)准备，旧 run 不迁移，无私有配置或旧文件清理。

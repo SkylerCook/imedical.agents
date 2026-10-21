@@ -222,7 +222,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 新运行使用 schema 2.0：`taskKind` 先将 `business-demand`、`framework-maintenance` 和 `other` 分流；业务需求走用户验收与 feedback，框架维护走独立 `maintenance-complete` 状态，运行时拒绝交叉调用。`executionPath: fast|full|guarded` 与 `orchestrationMode: serial|subagent|multi-session` 相互独立，状态通过 `events.jsonl` 投影到 `00-run-manifest.json`。协作计划、远程写入、commit、merge、push、部署和 feedback 写入分别授权。旧 schema 1.0–1.2 保持只读兼容。skill 内部短时只读子 Agent 提效不创建正式 run。
 
-功能验证通过 `scripts/validation-evidence.js` 记录 suite、命令与受测内容指纹，无关 HEAD 变化仍可复用；版本门禁独立缓存，只检查暂存组件及直接依赖，Git 历史对象批量读取。默认 60 秒预算并输出阶段与耗时；未变化的历史发布问题单列，全仓检查保留给 CI、发布与明确审计。详见 [组件版本规范](maintenance/governance/component-version-management.md)。
+验证范围先按[共享协议的风险与停止条件](agents/_shared/testing-protocol.md#验证范围与停止条件)选择，已明确的局部修改完成必要检查后交付，未测效果保持待验。功能验证通过 `scripts/validation-evidence.js` 记录 suite、命令与受测内容指纹，无关 HEAD 变化仍可复用；版本门禁独立缓存，只检查暂存组件及直接依赖，Git 历史对象批量读取。默认 60 秒预算并输出阶段与耗时；未变化的历史发布问题单列，全仓检查保留给 CI、发布与明确审计。详见 [组件版本规范](maintenance/governance/component-version-management.md)。
 
 对应能力：
 
@@ -454,7 +454,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 将 imedical-ui 公司规范落实到 IRIS CSP＋HISUI，处理公共接入、控件API、布局与初始化生命周期，复用 coding-iris-plugin 的编码规则、HISUI 参考和部署入口。
 
 - 初始化：直接读取 [iris-ui-init](plugins/iris-ui/skills/iris-ui-init/SKILL.md)；日常入口：[iris-ui](plugins/iris-ui/skills/iris-ui/SKILL.md)。
-- 标注映射、脱敏案例和只读尺寸采集见 [插件说明](plugins/iris-ui/README.md)；技术验证与用户验收分别记录，项目原图和私有事实保留在目标工程。
+- 标注映射、空工具栏/模板预览等脱敏案例和只读尺寸采集见 [插件说明](plugins/iris-ui/README.md)；技术验证按风险选范围并及时停止，用户验收单独记录，项目原图和私有事实保留在目标工程。
 - 0.2.0 起强依赖 `imedical-ui` 和 `coding-iris-plugin` 已启用且兼容；已有工程按[升级说明](docs/update-agents.md#公司-ui-规范与-iris-适配层)同步核对注册/profile，再按原完整流程更新并检查状态。现有前端入口仍按 UI 信号加载，不改普通前端任务；没有旧文件清理。
 
 ### iris-imedical-doctor-ai
