@@ -52,6 +52,46 @@ test('frozen material survives later development and tampering cannot become old
     fs.appendFileSync(path.join(record.sourceSnapshot.root,entry.artifact), 'tampered');
     assert.throws(() => currentSources(record), /changed/);
 });
+test('integration requeues all completed downstream stages and cancels stale dispatch while retaining old receipts', t => {
+    const f = fixture(t), record = f.add('D1', 'dev-b', f.repoB);
+    const stages = f.manifest.workItems.filter(w => ['review', 'deployment', 'verification'].includes(w.night.phase)); stages.forEach(w => { w.status = 'completed'; });
+    f.manifest.actions.push({ id: 'old', status: 'pending', workItemId: stages[1].id });
+    record.testReceipts = [{ status: 'passed', frozenVersion: record.frozenVersion, evidenceRef: 'old:receipt' }];
+    updateNight(f.manifest, { kind: 'source-integrate', demandId: 'D1', integrationBinding: { ownerId: 'dev-a', repositoryRoot: f.repoA }, ...evidence }, 'leader', { runDirectory: f.root });
+    assert.deepEqual(stages.map(w => w.status), ['pending', 'pending', 'pending']); assert.equal(f.manifest.actions[0].status, 'cancelled'); assert.equal(record.testReceipts.length, 1);
+});
+test('a later shared target requires all prior demands to review the same joint bytes before publishing', t => {
+    const f = fixture(t), a = f.add('D1', 'dev-a', f.repoA), b = f.add('D2', 'dev-b', f.repoB);
+    for (const record of [a, b]) updateNight(f.manifest, { kind: 'source-freeze', demandId: record.id, ...evidence }, 'leader', { runDirectory: f.root });
+    const item = f.manifest.workItems.find(w => w.id === 'D2-deployment'), entry = a.sourceSnapshot.files[0];
+    const oldArtifact = { targetId: 'Shared.cls', localPath: path.join(a.sourceSnapshot.root, entry.artifact), sha256: entry.sha256 };
+    a.candidateReady = true; f.manifest.workItems.filter(w => w.night.demandId === a.id && w.night.phase === 'verification').forEach(w => { w.status = 'completed'; });
+    f.manifest.night.operations = [{ phase: 'deployment', status: 'verified', demandId: a.id, frozenVersion: a.frozenVersion, targetKeys: integration.targetsFor(f.manifest, item), artifacts: [oldArtifact] }];
+    assert.ok(integration.publicationReasons(f.manifest, item, [{ ...oldArtifact, sha256: 'overwriting-content' }]).includes('publication-joint-source-review-required'));
+    assert.deepEqual(integration.publicationReasons(f.manifest, item, [oldArtifact]), []);
+    fs.writeFileSync(path.join(f.repoA, 'Shared.cls'), 'Class Shared\n{\nMethod A() { quit 2 }\nMethod B() { quit 3 }\n}\n');
+    for (const record of [a, b]) {
+        updateNight(f.manifest, { kind: 'source-integrate', demandId: record.id, integrationBinding: { ownerId: 'dev-a', repositoryRoot: f.repoA }, ...evidence }, 'leader', { runDirectory: f.root });
+        record.assessment.post = { ...record.assessment.pre, ...currentSources(record), reviewerId: 'functional' };
+        updateNight(f.manifest, { kind: 'source-freeze', demandId: record.id, ...evidence }, 'leader', { runDirectory: f.root });
+    }
+    const joint = b.sourceSnapshot.files[0], artifact = { targetId: 'Shared.cls', localPath: path.join(b.sourceSnapshot.root, joint.artifact), sha256: joint.sha256 };
+    assert.deepEqual(integration.publicationReasons(f.manifest, item, [artifact]), []);
+    assert.match(fs.readFileSync(artifact.localPath, 'utf8'), /A\(\) \{ quit 2/); assert.match(fs.readFileSync(artifact.localPath, 'utf8'), /B\(\) \{ quit 3/);
+    f.manifest.night.preflight = { deploymentConfigFingerprint: 'actual:config' };
+    const jointOperation = { phase: 'deployment', status: 'verified', frozenVersion: b.frozenVersion, environmentAlias: item.night.environmentAlias, configurationFingerprint: 'actual:config', targetKeys: integration.targetsFor(f.manifest, item) };
+    const peerWork = f.manifest.workItems.find(w => w.id === 'D1-deployment');
+    assert.equal(integration.sharedPublicationCovers(f.manifest, jointOperation, peerWork), true);
+    assert.equal(integration.sharedPublicationCovers(f.manifest, { ...jointOperation, frozenVersion: 'old' }, peerWork), false);
+    assert.equal(integration.sharedPublicationCovers(f.manifest, { ...jointOperation, targetKeys: [] }, peerWork), false);
+});
+test('integrating one repository preserves the other repository of a cross-repository demand', t => {
+    const f = fixture(t), record = f.add('D1', 'dev-b', f.repoB), other = path.join(f.root, 'other');
+    f.git(f.source, 'clone', '--no-hardlinks', f.source, other);
+    record.sourceScopes.push({ repoRoot: other, scopes: ['Shared.cls'] });
+    updateNight(f.manifest, { kind: 'source-integrate', demandId: record.id, integrationBinding: { ownerId: 'dev-a', repositoryRoot: f.repoA }, ...evidence }, 'leader', { runDirectory: f.root });
+    assert.deepEqual(record.sourceScopes.map(s => s.repoRoot), [f.repoA, other]);
+});
 test('same class identity spans worktrees; integration requires fresh independent review', t => {
     const f = fixture(t), record = f.add('D1','dev-b',f.repoB);
     assert.equal(integration.logicalSourceMatches(f.repoA,f.repoB),true);

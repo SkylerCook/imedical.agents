@@ -10,6 +10,7 @@ test('new runtime files materialize under deployed sparse patterns; source-only 
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'night-sparse-'));
     const git = (...args) => execFileSync('git', ['-C', root, ...args], { stdio: 'pipe' });
     const deployed = ['scripts/run-acceptance.js', 'scripts/night-quota-baseline.js', 'scripts/night-source-diff.js', 'scripts/night-report.js', 'scripts/lib/night-plan.js', 'scripts/lib/night-integration.js', 'scripts/lib/night-client.js', 'scripts/lib/night-codex-client.js', 'scripts/lib/night-client-supervisor.js', 'scripts/lib/night-report.js', 'scripts/lib/acceptance-worker.js', 'scripts/lib/night-convergence.js', 'scripts/lib/night-contract.js', 'scripts/lib/night-execution.js', 'scripts/lib/playwright-runner.js', 'scripts/lib/test-session.js', 'scripts/lib/test-evidence.js', 'workflows/bos-demand-unattended.workflow.md', 'docs/night-acceptance.md', 'docs/night-governance.md', 'docs/templates/night-execution-plan.template.json'];
+    deployed.push('scripts/night-capability-probe.js', 'scripts/night-client-worker.js', 'scripts/lib/night-capability.js', 'scripts/lib/night-client-worker.js');
     const sourceOnly = ['maintenance/testing/playwright/package-lock.json', 'scripts/tests/night-convergence.tests.js', 'scripts/tests/playwright-runner.tests.js'];
     const files = [...deployed, ...sourceOnly];
     try {

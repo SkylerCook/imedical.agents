@@ -651,9 +651,16 @@ function commandAck(options, completion = false) {
     if (launch && manifest.orchestration.resultLifecycle !== "launch-result/v1") fail("Legacy launch results require independent review; start a new run for launch-result/v1");
     if (completion && (!launch || action.result?.status !== "succeeded" || result.endpointId !== action.result.endpointId)) fail("Completion requires a successful launch and matching endpointId");
     const normalized = { actionId, status: result.status, endpointId: result.endpointId || null, artifactRefs: result.artifactRefs || [], error: result.error || null, ...(action.context ? { contextHash: result.contextHash || null } : {}), ...hostReceipt(result) };
-    if (manifest.executionPlan && launch && !completion && normalized.status === 'succeeded' && normalized.host?.budget?.configured) {
+    if (manifest.executionPlan && launch && !completion && normalized.status === 'succeeded' && (normalized.host?.budget?.configured || manifest.executionPlan.clientSupervision?.required)) {
       const reservation = manifest.night.clientReservations?.find(r => r.actionId === action.id && r.status === 'reserved');
-      if (!reservation || normalized.host.budget.tokenBudget > reservation.tokens || normalized.host.deadlineAt !== reservation.deadlineAt) fail("Native Goal launch lacks its exact persisted budget reservation");
+      if (!reservation || normalized.host?.budget?.tokenBudget > reservation.tokens || normalized.host?.deadlineAt !== reservation.deadlineAt) fail("Managed launch lacks its exact persisted budget reservation");
+      if (manifest.executionPlan.clientSupervision?.required) {
+        const actual = JSON.parse(fs.readFileSync(reservation.launchReceiptFile, 'utf8'));
+        const worker = JSON.parse(fs.readFileSync(path.join(runDirectory, 'night-client-worker.lock'), 'utf8'));
+        if (actual.host?.threadId !== normalized.host?.threadId || actual.host?.turnId !== normalized.host?.turnId || ['configured', 'readback', 'tokenBudget', 'tokensUsed', 'threadId'].some(key => actual.host?.budget?.[key] !== normalized.host?.budget?.[key])) fail('Managed host identity or budget differs from its actual launch receipt');
+        if (actual.actionId !== action.id || actual.status !== 'succeeded' || actual.endpointId !== normalized.endpointId || actual.contextHash !== normalized.contextHash || actual.host?.deadlineAt !== normalized.host?.deadlineAt || worker.schema !== 'night-client-worker/v1' || worker.runDirectory !== path.resolve(runDirectory) || !Number.isSafeInteger(worker.pid) || worker.pid <= 0 || !Number.isFinite(Date.parse(worker.heartbeatAt)) || Date.now() - Date.parse(worker.heartbeatAt) < 0 || Date.now() - Date.parse(worker.heartbeatAt) > 60000) fail('Managed launch requires its actual receipt and live supervisor');
+        try { process.kill(worker.pid, 0); } catch { fail('Managed supervisor process is unavailable'); }
+      }
     }
     const resultKey = completion ? "completionResult" : "result";
     if (action[resultKey]) {

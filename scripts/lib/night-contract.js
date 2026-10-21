@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const convergence = require('./night-convergence');
 const integration = require('./night-integration');
+const { executableWork } = require('./night-capability');
 const hash = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const text = value => typeof value === 'string' && value.trim().length > 0;
 const strict = manifest => manifest.schemaVersion === '2.1';
@@ -122,7 +123,7 @@ function recordPreflight(manifest, receipt) {
     if (!text(receipt?.profileFingerprint) || !text(receipt.configFingerprint) || !Array.isArray(receipt.configurationFiles) || !receipt.configurationFiles.length || !Array.isArray(receipt.authorizations) || !Array.isArray(receipt.checks) || !text(receipt.checkedAt) || !/T.*(?:Z|[+-]\d{2}:\d{2})$/.test(receipt.checkedAt) || !Number.isFinite(Date.parse(receipt.checkedAt)) || Date.parse(receipt.checkedAt) > Date.now()) throw new Error('Invalid preflight receipt');
     if (receipt.checks.some(c => !text(c.id) || !text(c.evidenceRef) || !['passed', 'blocked', 'failed'].includes(c.status) || typeof c.nonInteractive !== 'boolean')) throw new Error('Invalid capability check');
     if (!text(receipt.environmentAlias) || !preflightResourcesVerified(receipt, manifest) || receipt.configurationFiles.some(f => !path.isAbsolute(f.path || '') || !/^[a-f0-9]{64}$/.test(f.sha256 || ''))) throw new Error('Invalid preflight environment/configuration/exit');
-    if (manifest.workItems.some(w => w.night.phase === 'deployment' && w.status !== 'skipped') && !text(receipt.deploymentConfigFingerprint)) throw new Error('Deployment configuration fingerprint required');
+    if (manifest.workItems.some(w => w.night.phase === 'deployment' && executableWork(manifest, w)) && !text(receipt.deploymentConfigFingerprint)) throw new Error('Deployment configuration fingerprint required');
     const previous = manifest.night.preflight;
     const incoming = receipt.retainedOwners || [];
     if ((previous?.retainedOwners || []).some(owner => !ownerExited(manifest, owner.ownerRef, previous.workerRef) && (receipt.workerRef !== previous.workerRef || receipt.workerPid !== previous.workerPid || !incoming.some(next => hash(next) === hash(owner))))) throw new Error('Previous browser owners must exit before replacing preflight');
@@ -134,7 +135,7 @@ function recordPreflight(manifest, receipt) {
     }
     manifest.night.preflight.sourceScopes = manifest.night.startedAt && previous?.sourceScopes || manifest.workItems.filter(w => w.writeScopes.length).map(w => ({ repoRoot: w.repositoryRoot, paths: w.writeScopes }));
     manifest.night.preflight.planHash = manifest.orchestration.planHash;
-    const active = manifest.workItems.filter(w => w.status !== 'skipped' && w.night.phase !== 'cleanup');
+    const active = manifest.workItems.filter(w => executableWork(manifest, w));
     const issues = [...new Set(active.flatMap(w => readinessReasons(manifest, w)))];
     manifest.night.preflight.state = issues.length ? 'blocked' : 'ready';
     manifest.night.preflight.issues = issues;
@@ -187,7 +188,7 @@ function ownerMatches(manifest, item, owner) {
 
 function rebindAuthorizations(manifest) {
     if (!strict(manifest) || !manifest.night.preflight) return;
-    if (manifest.workItems.filter(w => w.status !== 'skipped' && w.night.phase !== 'cleanup').some(w => readinessReasons(manifest, w).length)) return;
+    if (manifest.workItems.filter(w => executableWork(manifest, w)).some(w => readinessReasons(manifest, w).length)) return;
     for (const grant of manifest.night.preflight.authorizations) if (manifest.authorizations[grant.category]) manifest.authorizations[grant.category] = { state: 'granted', scopeHash: manifest.orchestration.planHash, grantedAt: manifest.night.preflight.checkedAt, grantedBy: 'preflight-reference', sourceReference: grant.reference };
     manifest.night.preflight.planHash = manifest.orchestration.planHash;
 }
@@ -226,7 +227,7 @@ function assertStageComplete(manifest, item, currentSources) {
     const record = manifest.night.demands.find(d => d.id === item.night.demandId);
     if (convergence.enabled(manifest) && item.night.phase === 'verification' && convergence.dependencyReasons(manifest, record, true).length) throw new Error('Verification dependencies are not current and verified');
     if (currentSources && ['deployment', 'verification'].includes(item.night.phase) && currentSources(record).frozenVersion !== record.frozenVersion) throw new Error('Stage source version changed');
-    const operation = manifest.night.operations?.find(o => o.workItemId === item.id && o.status === 'verified' && o.frozenVersion === record?.frozenVersion && (!convergence.enabled(manifest) || o.dependencyToken === convergence.dependencyToken(manifest, record.id)) && (o.phase === 'verification' ? o.profileFingerprint === manifest.night.preflight.profileFingerprint : o.configurationFingerprint === manifest.night.preflight.deploymentConfigFingerprint));
+    const operation = manifest.night.operations?.find(o => (o.workItemId === item.id || integration.sharedPublicationCovers(manifest, o, item)) && o.status === 'verified' && o.frozenVersion === record?.frozenVersion && (!convergence.enabled(manifest) || o.dependencyToken === convergence.dependencyToken(manifest, record.id)) && (o.phase === 'verification' ? o.profileFingerprint === manifest.night.preflight.profileFingerprint : o.configurationFingerprint === manifest.night.preflight.deploymentConfigFingerprint));
     if (item.night.phase === 'deployment' && (!operation || !record?.deploymentReceipts?.some(r => r.operationId === operation.id && r.status === 'verified' && r.frozenVersion === record.frozenVersion))) throw new Error('Deployment stage requires a current managed receipt');
     if (item.night.phase === 'verification' && (!operation || !record?.testReceipts?.some(r => r.operationId === operation.id && r.status === 'passed' && r.frozenVersion === record.frozenVersion))) throw new Error('Verification stage requires current test receipts');
 }
@@ -281,7 +282,14 @@ function operationRecord(manifest, input, currentSources, gate) {
         op.evidenceRefs = input.evidenceRefs;
         if (op.phase === 'deployment') {
             record.deploymentReceipts ||= [];
-            record.deploymentReceipts.push({ operationId: op.id, status: op.status, frozenVersion: op.frozenVersion, artifacts: op.artifacts, environmentAlias: op.environmentAlias, evidenceRefs: input.evidenceRefs });
+            const receipt = { operationId: op.id, status: op.status, frozenVersion: op.frozenVersion, artifacts: op.artifacts, environmentAlias: op.environmentAlias, evidenceRefs: input.evidenceRefs };
+            record.deploymentReceipts.push(receipt);
+            for (const work of manifest.workItems.filter(w => w.night.demandId !== record.id && integration.sharedPublicationCovers(manifest, op, w))) {
+                const peer = night.demands.find(d => d.id === work.night.demandId);
+                if (convergence.enabled(manifest) && op.dependencyToken !== convergence.dependencyToken(manifest, peer.id)) continue;
+                peer.deploymentReceipts ||= [];
+                if (!peer.deploymentReceipts.some(r => r.operationId === op.id)) peer.deploymentReceipts.push({ ...structuredClone(receipt), sharedFromDemandId: record.id, sourceWorkItemId: op.workItemId });
+            }
         }
         if (input.result?.failureCategory === 'execution-unknown') record.results.unknownWrite = true;
         if (input.result?.cleanup && !caseClean || input.result?.cleanup?.verified === false) record.resources.pending = true;

@@ -26,9 +26,35 @@ function fixture() {
     d1.sourceSnapshot = { frozenVersion: d1.frozenVersion, root: path.join(root, 'frozen/D1'), files: [{ relative: 'd1.js' }] };
     d1.integrationBinding = { ownerId: 'leader', repositoryRoot: root };
     d1.deploymentReceipts = [{ status: 'verified', frozenVersion: d1.frozenVersion, evidenceRefs: ['actual:publication'] }];
+    m.workItems.push({ id: 'D1-deployment', ownerId: 'dev-a', status: 'completed', night: { demandId: 'D1', phase: 'deployment' } });
     d1.evidenceReuse = [{ reviewerId: 'reviewer', fromVersion: 'D1-v0', toVersion: 'D1-v1', currentScopeFingerprint: d1.scopeFingerprint, checkIds: ['extra-check'], affectedChecks: [], evidenceRefs: ['impact:review'] }];
     return { m, events: [{ sequence: 1, at: at(20), type: 'night.recorded', payload: { kind: 'demand' } }], at };
 }
+test('approved static checks are handoff-ready without inventing runtime or publication evidence', () => {
+    const { m, events } = fixture(), d = m.night.demands[0];
+    m.workItems = m.workItems.filter(w => w.id !== 'D1-deployment');
+    m.executionPlan.minimumTests.find(t => t.demandId === d.id).level = 'static-review';
+    d.assessment.post.route = 'static-review'; d.testReceipts = []; d.deploymentReceipts = [];
+    d.checks = [{ id: 'case-1', status: 'passed', frozenVersion: d.frozenVersion, scopeFingerprint: d.scopeFingerprint, evidenceRefs: ['review:actual'] }];
+    const row = buildNightReport(m, events).demands[0];
+    assert.equal(row.level, 'handoff-ready'); assert.equal(row.handoff.ready, true); assert.deepEqual(row.validation.missingChecks, []);
+    assert.equal(row.evidenceLevel.runtimeExecuted, false); assert.deepEqual(row.evidenceLevel.actual, ['static-review']); assert.deepEqual(row.gaps, []);
+    d.results.unknownWrite = true; assert.equal(buildNightReport(m, events).demands[0].handoff.ready, false);
+});
+test('a past delivery does not hide later stalls and observation-only events do not reset the clock', () => {
+    const { m, at } = fixture(); m.executionPlan.monitoring = { noDeliveryMinutes: 25 };
+    const value = structuredClone(m.night.demands[0]); value.handoffRef = 'actual:handoff';
+    const events = [{ sequence: 1, at: at(5), payload: { projectionPatches: [{ op: 'set', path: '/night/demands/0', value: structuredClone(value) }] } }];
+    const before = buildNightReport(m, events);
+    m.updatedAt = at(45); events.push({ sequence: 2, at: at(40), payload: { projectionPatches: [{ op: 'set', path: '/night/demands/0', value: structuredClone(value) }] } }); m.eventLog.lastSequence = 2;
+    const stalled = buildNightReport(m, events, { previousReport: before });
+    assert.equal(stalled.monitoring.lastDeliveryAt, at(5)); assert.equal(stalled.monitoring.elapsedMinutes, 40); assert.equal(stalled.monitoring.noDelivery, true);
+    assert.ok(stalled.signals.some(s => s.kind === 'no-delivery'));
+    assert.deepEqual(buildNightReport(m, events, { previousReport: stalled, observedAt: at(46) }).signals, []);
+    value.testReceipts.push({ status: 'passed', caseId: 'another-case', frozenVersion: value.frozenVersion, evidenceRef: 'actual:another-test' });
+    events.push({ sequence: 3, at: at(44), payload: { projectionPatches: [{ op: 'set', path: '/night/demands/0', value }] } });
+    assert.equal(buildNightReport(m, events).monitoring.noDelivery, false);
+});
 test('delivery report preserves every demand and separates group, spot, manual, blocked and skipped evidence', () => {
     const { m, events } = fixture(), report = buildNightReport(m, events);
     assert.deepEqual(report.demands.map(d => d.level), ['test-group', 'spot-check', 'manual', 'not-ready', 'skipped']);

@@ -1,6 +1,6 @@
 # 能力使用指南（非 xc）
 
-新夜跑先按 [治理接入](../night-governance.md) 准备周额度基线、逐条最低测试、真实容量与独立 worktree，再批准并 materialize executionPlan；浏览器 Tester 使用持续 worker 复用认证。旧 run 不迁移，首次真实试跑最多 5 条另行授权。
+新夜跑先按 [治理接入](../night-governance.md) 记录用量基线，在初筛后预检能力、确定可执行子集，再规划逐条最低测试、预算、真实容量与独立 worktree，批准并 materialize executionPlan；宿主使用 client worker 持续监督，浏览器 Tester 使用验收 worker 复用认证。报告分开最低自检和实际证据。旧 run 不迁移，首次真实试跑最多 5 条另行授权。
 
 需要调整已有 2.1 夜跑容量时，先取得用户明确授权，在真实安全边界使用原 `night-record` 事件增加 `maxInFlight`；默认、权限、截止及历史保留，未使用的授权也必须有效。条件和字段见[运行中调整容量](../night-policy.md#运行中调整容量)。
 

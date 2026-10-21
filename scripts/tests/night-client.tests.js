@@ -46,6 +46,14 @@ function request(extra = {}) {
         authorization: { actor: 'user', reference: 'authorization:scope' }, deadlineAt: new Date(now + 60000).toISOString(), maxTurns: 1, ...extra };
 }
 
+test('restoring a durable endpoint rearms its original deadline and interrupts without another supervisor poll', async () => {
+    const original = fixture(), receipt = await original.client.startOrResume(request());
+    const restored = fixture(); restored.client.restoreEndpoint(receipt);
+    assert.equal(restored.timers.length, 1);
+    restored.timers[0](); await new Promise(resolve => setImmediate(resolve));
+    assert.ok(restored.calls.some(c => c.method === 'turn/interrupt'));
+});
+
 test('vendor-neutral contract uses host adapters and missing adapters fail explicitly', () => {
     assert.throws(() => createClientAdapter({ host: 'unimplemented' }), /supervised/);
     assert.throws(() => validateClientAdapter({ probe() {} }), /requires/);

@@ -10,7 +10,7 @@ const present = value => typeof value === 'string' && value.trim().length > 0;
 const unique = values => [...new Set(values.filter(present))];
 const list = value => Array.isArray(value) ? value : [];
 const same = (a, b) => present(a) && present(b) && (process.platform === 'win32' ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase() : path.resolve(a) === path.resolve(b));
-const labels = { 'test-group': '测试组可演示', 'spot-check': '点测', manual: '专项人工', 'not-ready': '未就绪', skipped: '已跳过' };
+const labels = { 'test-group': '测试组可演示', 'handoff-ready': '自检达标可交接', 'spot-check': '点测', manual: '专项人工', 'not-ready': '未就绪', skipped: '已跳过' };
 function interval(segment, asOf) {
     const start = Date.parse(segment.startedAt), end = Date.parse(segment.endedAt || asOf);
     return Number.isFinite(start) && Number.isFinite(end) && end >= start ? [start, end] : null;
@@ -55,9 +55,14 @@ function demandReport(manifest, definition) {
     const manual = tests.some(t => t.level === 'manual') || record.assessment?.post?.route === 'manual';
     const safetyClosed = record.results?.knownDefect === false && record.results?.unknownWrite === false && record.resources?.pending === false && record.resources?.polluted === false;
     const blocked = record.blocked === true || ['blocked', 'unsupported'].includes(definition.feasibility) || record.results?.knownDefect === true || record.results?.unknownWrite === true || record.resources?.pending === true || record.resources?.polluted === true;
+    const runtimeRequired = tests.some(t => ['internal-method', 'external-api', 'ui'].includes(t.level)) || ['internal-method', 'external-api', 'ui'].includes(record.assessment?.post?.route);
+    const publicationRequired = work.some(w => w.night.phase === 'deployment');
+    const minimumSatisfied = plannedChecks.length > 0 && missingChecks.length === 0;
+    const handoffReady = !skipped && !blocked && safetyClosed && frozen && minimumSatisfied && record.candidateReady === true && (!publicationRequired || published.length > 0);
     let level = 'not-ready';
     if (skipped) level = 'skipped';
-    else if (!blocked && safetyClosed && frozen && published.length && passed.length && plannedChecks.length && !missingChecks.length && !manual && record.candidateReady === true) level = 'test-group';
+    else if (handoffReady && !runtimeRequired && !manual) level = 'handoff-ready';
+    else if (handoffReady && passed.length && !manual) level = 'test-group';
     else if (!blocked && passed.length) level = 'spot-check';
     else if (!blocked && manual) level = 'manual';
     const gaps = [];
@@ -69,9 +74,9 @@ function demandReport(manifest, definition) {
     if (record.resources?.pending || record.resources?.polluted) gaps.push('资源或数据尚未核销');
     if (!safetyClosed && !skipped) gaps.push('安全状态未完整取证');
     if (!frozen && !skipped) gaps.push('没有当前版本的不可变冻结证据');
-    if (!published.length && !skipped) gaps.push('没有当前版本的已验证发布回执');
+    if (publicationRequired && !published.length && !skipped) gaps.push('没有当前版本的已验证发布回执');
     if (missingChecks.length) gaps.push(`最低检查未覆盖：${missingChecks.join(', ')}`);
-    if (!passed.length && !skipped) gaps.push('没有当前版本的运行测试通过回执');
+    if (runtimeRequired && !passed.length && !skipped) gaps.push('没有当前版本的运行测试通过回执');
     if (receipts.some(r => !currentReceipt(record, r))) gaps.push('存在旧版本测试证据，单列保留');
     const review = [];
     for (const item of work.filter(w => w.night.phase === 'implementation')) {
@@ -85,12 +90,15 @@ function demandReport(manifest, definition) {
     else if (record.results?.unknownWrite || record.resources?.pending || record.resources?.polluted) nextStep = '先核对未知写入、数据处置与资源退出';
     else if (record.results?.knownDefect) nextStep = '由原 owner 返修并按当前冻结版本重新验证受影响范围';
     else if (level === 'test-group') nextStep = '按已验证版本、入口与用例组演示，等待用户验收';
+    else if (level === 'handoff-ready') nextStep = '已满足批准的最低自检，按静态证据与入口交接用户验收';
     else if (level === 'manual') nextStep = '按专项人工步骤、预期结果与交接入口复验';
     else if (level === 'spot-check') nextStep = '保留已通过点测，补齐缺失最低检查和整体验证';
     return {
         id, sourceText: definition.sourceText || null, remarks: typeof definition.remarks === 'string' ? definition.remarks : null,
         assessment: { userAssessment: definition.userAssessment || null, feasibility: definition.feasibility || null, complexity: definition.complexity || null, risk: definition.risk || null },
         level, levelLabel: labels[level], frozenVersion: record.frozenVersion || null, scopeFingerprint: record.scopeFingerprint || null, codeReview: review,
+        handoff: { ready: handoffReady, minimumSatisfied, publicationRequired },
+        evidenceLevel: { actual: unique([...checks.map(() => 'static-review'), ...passed.map(r => r.level)]), reusedCheckIds: unique(reuse.flatMap(r => list(r.checkIds))), runtimeRequired, runtimeExecuted: passed.length > 0 },
         integration: { planned: manifest.executionPlan?.integration || null, recorded: record.integrationBinding || null },
         freeze: { verifiedRecord: !!frozen, artifactRoot: frozen ? record.sourceSnapshot.root : null, frozenVersion: record.sourceSnapshot?.frozenVersion || null, fileCount: list(record.sourceSnapshot?.files).length || null },
         publication: { current: published, other: deployment.filter(r => !published.includes(r)) },
@@ -186,7 +194,41 @@ function reportSignals(previous, current) {
     if (current.monitoring?.noDelivery === true && previous.monitoring?.noDelivery !== true) out.push({ kind: 'no-delivery', minutes: current.monitoring.elapsedMinutes });
     return out;
 }
-function buildNightReport(manifest, events = [], { previousReport } = {}) {
+function lastDelivery(manifest, events, asOf) {
+    const seen = new Set(); let latest = null;
+    for (const event of events) {
+        const at = Date.parse(event.at);
+        if (!Number.isFinite(at) || at > Date.parse(asOf)) continue;
+        for (const patch of list(event.payload?.projectionPatches)) {
+            if (patch.op !== 'set') continue;
+            const values = /^\/night\/demands$/.test(patch.path) ? list(patch.value) : /^\/night\/demands\/\d+$/.test(patch.path) ? [patch.value] : [];
+            for (const value of values) {
+                const record = list(manifest.night?.demands).find(r => r.id === value?.id);
+                if (!record || value.results?.knownDefect !== false || value.results?.unknownWrite !== false || value.resources?.pending !== false || value.resources?.polluted !== false) continue;
+                const milestones = [
+                    ...(value.candidateReady && present(value.frozenVersion) && present(value.handoffRef) ? [`candidate:${value.id}:${value.frozenVersion}`] : []),
+                    ...list(value.testReceipts).filter(r => r.status === 'passed' && r.frozenVersion === value.frozenVersion && present(r.evidenceRef)).map(r => `test:${value.id}:${r.frozenVersion}:${r.caseId}:${r.level || 'runtime'}`)
+                ];
+                for (const key of milestones) if (!seen.has(key)) { seen.add(key); if (!latest || at > Date.parse(latest)) latest = event.at; }
+            }
+            const candidate = /^\/night\/demands\/(\d+)\/candidateReady$/.exec(patch.path);
+            if (candidate && patch.value === true) {
+                const record = manifest.night?.demands?.[Number(candidate[1])], key = record && `candidate:${record.id}:${record.frozenVersion}`;
+                if (record?.candidateReady && record.results?.knownDefect === false && record.results?.unknownWrite === false && record.resources?.pending === false && record.resources?.polluted === false && present(record.handoffRef) && !seen.has(key)) { seen.add(key); if (!latest || at > Date.parse(latest)) latest = event.at; }
+            }
+            const receipts = /^\/night\/demands\/(\d+)\/testReceipts(?:\/\d+)?$/.exec(patch.path);
+            if (receipts) {
+                const record = manifest.night?.demands?.[Number(receipts[1])];
+                for (const receipt of Array.isArray(patch.value) ? patch.value : [patch.value]) if (record?.results?.knownDefect === false && record.results.unknownWrite === false && record.resources?.pending === false && record.resources.polluted === false && receipt?.status === 'passed' && receipt.frozenVersion === record.frozenVersion && present(receipt.evidenceRef)) {
+                    const key = `test:${record.id}:${receipt.frozenVersion}:${receipt.caseId}:${receipt.level || 'runtime'}`;
+                    if (!seen.has(key)) { seen.add(key); if (!latest || at > Date.parse(latest)) latest = event.at; }
+                }
+            }
+        }
+    }
+    return latest;
+}
+function buildNightReport(manifest, events = [], { previousReport, observedAt } = {}) {
     if (!manifest || !present(manifest.runId)) throw new Error('Existing run manifest required');
     if (!Array.isArray(events)) throw new Error('Event array required');
     const declared = list(manifest.executionPlan?.demands), ids = unique([...declared.map(d => d.id), ...list(manifest.night?.demands).map(d => d.id), ...list(manifest.workItems).map(w => w.night?.demandId)]);
@@ -198,8 +240,12 @@ function buildNightReport(manifest, events = [], { previousReport } = {}) {
     if (events.length && events.at(-1).sequence !== manifest.eventLog?.lastSequence) issues.push('事件历史与 manifest sequence 不一致');
     const report = { schema: 'night-delivery-report/v1', runId: manifest.runId, planHash: manifest.orchestration?.planHash || null, asOf: manifest.updatedAt || null, status: manifest.status || 'unknown', acceptance: manifest.acceptance || null, provenance: { source: 'run-manifest-and-events', manifestSequence: manifest.eventLog?.lastSequence || null, eventCount: events.length, eventHistoryIssues: issues }, demands: definitions.map(d => demandReport(manifest, d)), costs: costReport(manifest, events, rows), developerConcurrency: developerConcurrency(manifest, rows) };
     report.summary = Object.fromEntries(Object.keys(labels).map(level => [level, report.demands.filter(d => d.level === level).length]));
-    const threshold = manifest.executionPlan?.monitoring?.noDeliveryMinutes, elapsed = report.costs.elapsedMinutes;
-    report.monitoring = { noDeliveryMinutes: Number.isFinite(threshold) && threshold > 0 ? threshold : null, elapsedMinutes: elapsed, noDelivery: Number.isFinite(threshold) && threshold > 0 && elapsed !== null ? elapsed >= threshold && report.summary['test-group'] + report.summary['spot-check'] === 0 : null };
+    const threshold = manifest.executionPlan?.monitoring?.noDeliveryMinutes, asOf = observedAt || manifest.updatedAt;
+    if (observedAt && (!Number.isFinite(Date.parse(observedAt)) || Date.parse(observedAt) < Date.parse(manifest.updatedAt))) throw new Error('Report observation precedes the recorded run');
+    const lastDeliveryAt = lastDelivery(manifest, events, asOf), baseline = lastDeliveryAt || manifest.night?.startedAt || manifest.createdAt;
+    const untimedDelivery = !lastDeliveryAt && report.demands.some(d => d.handoff.ready || d.level === 'spot-check');
+    const elapsed = !untimedDelivery && Number.isFinite(Date.parse(asOf)) && Number.isFinite(Date.parse(baseline)) && Date.parse(asOf) >= Date.parse(baseline) ? (Date.parse(asOf) - Date.parse(baseline)) / 60000 : null;
+    report.monitoring = { noDeliveryMinutes: Number.isFinite(threshold) && threshold > 0 ? threshold : null, observedAt: asOf || null, lastDeliveryAt, elapsedMinutes: elapsed, basis: lastDeliveryAt ? 'last-effective-delivery' : 'run-start-no-delivery-timestamp', noDelivery: Number.isFinite(threshold) && threshold > 0 && elapsed !== null ? elapsed >= threshold : null };
     report.signalFingerprint = hash(meaningfulState(report)); report.signals = reportSignals(previousReport, report);
     return report;
 }
@@ -208,7 +254,7 @@ const quote = value => display(value).split(/\r?\n/).map(line => `> ${line}`).jo
 function renderNightReport(report) {
     const lines = [`# 夜跑交付报告：${report.runId}`, '', `截至：${display(report.asOf)}；run：${report.status}；用户验收：${display(report.acceptance?.status)}。`, '', `测试组可演示 ${report.summary['test-group']}；点测 ${report.summary['spot-check']}；专项人工 ${report.summary.manual}；未就绪 ${report.summary['not-ready']}；已跳过 ${report.summary.skipped}。`, '', '## 逐需求交付', ''];
     for (const d of report.demands) {
-        lines.push(`### ${d.id} · ${d.levelLabel}`, '', quote(d.sourceText), '', `原始备注：${display(d.remarks)}。`, `可执行性：${display(d.assessment.feasibility)}；复杂度：${display(d.assessment.complexity)}；风险：${display(d.assessment.risk)}。`, '', `冻结版本：${display(d.frozenVersion)}；冻结证据：${d.freeze.verifiedRecord ? '有当前记录' : '未取证'}；当前发布回执 ${d.publication.current.length}；当前测试回执 ${d.validation.currentReceipts.length}；复用审查 ${d.evidenceReuse.length}。`, '');
+        lines.push(`### ${d.id} · ${d.levelLabel}`, '', quote(d.sourceText), '', `原始备注：${display(d.remarks)}。`, `可执行性：${display(d.assessment.feasibility)}；复杂度：${display(d.assessment.complexity)}；风险：${display(d.assessment.risk)}。`, `最低自检：${d.handoff.minimumSatisfied ? '已满足' : '未满足'}；可交接：${d.handoff.ready ? '是' : '否'}；实际证据等级：${d.evidenceLevel.actual.join(', ') || '无当前执行证据'}；差异复用检查：${d.evidenceLevel.reusedCheckIds.join(', ') || '无'}。`, '', `冻结版本：${display(d.frozenVersion)}；冻结证据：${d.freeze.verifiedRecord ? '有当前记录' : '未取证'}；当前发布回执 ${d.publication.current.length}；当前测试回执 ${d.validation.currentReceipts.length}；复用审查 ${d.evidenceReuse.length}。`, '');
         for (const review of d.codeReview) lines.push(`- 代码审阅：${review.worktree ? `[${review.ownerId}](<${review.worktree}>)` : review.ownerId}；固定基点 ${display(review.baseRevision)}；基点来源 ${review.evidence}。`);
         lines.push(`- 集成计划：${display(d.integration.planned?.strategy)}；owner ${display(d.integration.planned?.ownerId)}；实际集成记录：${d.integration.recorded ? `${d.integration.recorded.ownerId || '未知 owner'} / ${display(d.integration.recorded.repositoryRoot)}` : '未记录'}。`);
         if (d.freeze.artifactRoot) lines.push(`- 冻结源码：[查看](<${d.freeze.artifactRoot}>)；版本 ${display(d.freeze.frozenVersion)}。`);

@@ -1,5 +1,8 @@
 # imedical.agents 维护日志
 
+- 2026-10-20（夜跑六处成本与交付缺口修复，framework-maintenance）：共享目标增加相关需求联合源码复审绑定，整个版本/环境/配置/目标及依赖一致才共享一次实际发布回执；source-integrate 复用下游重排并保留跨仓来源、旧证据。增加实际 JSONL client worker、定时观察、PID 租约、断点与原截止恢复；新模板严格启动 ACK 核预留、实际宿主身份/预算回执及监督进程。初筛能力探针先于详细 PLAN，回执落盘读回并绑定可执行子集、配置和有效期，正式 run 保留原授权门禁。报告分开最低自检/可交接/证据等级，停滞按最近新增有效交付计时，重复观测不刷新。未增插件或独立 skill，无组件版本变化；README、治理/手册/workflow、模板、维护摘要、P1 未完成真实试点及 CI 已同步。
+  - Windows Node 24.14.1 最终 13 文件直接影响链 115/115 通过；随后浏览器认证 API 的早期依赖边界仅定向补验能力/计划两文件 13/13 通过，范围重叠不累加。Playwright 1.62.1 / 已安装 Chrome 155.0.8059.85 的新早期探针实测完整启停通过，pendingOperations=0；既有项目文档链接 1/1、diff check 与新增 CLI/module 语法检查通过。首轮可变历史对象引用及后续严格 ACK 测试夹具缺 JSON 序列化的失败均已修正，不抹掉过程；实际业务、真实模型 Goal/停止、非 Windows/最低 Node 仍待取证，见 maintenance/validation/night-cost-regression-2026-10-20.md。临时测试仓、探针及本轮浏览器由用例按归属退出和清理。
+
 - 2026-10-20（主题提需与完成备注，framework-maintenance）：bos-plugin 0.11.0 扩展 bos-demand-entry，通过自然语言主题、接收组及可选资料选 v3 source=request，无 Git/提交依赖；复用既有 bug/change、prepare/render/deliver/bind 与 Excel。共用非代码校验，接收组仅作交接元数据，不推断 BOS 产品组/指派人，产品标识未知时主题名称可不加前缀；三类来源分批，主题/工作无代码提交对象，原代码 v2/工作 v3 兼容。合并本轮未提交的完成备注规则：按上下文与事实判断，已完成条目用原 remarks 追加【备注】已完成，已有备注保留，文本写完不代表待解决问题完成；原 0.10.4 未发布草稿合并到 0.11.0，不改已提交记录。
   - 同步 owner AGENTS/README/manifest、技能/协议、根 README、两份能力手册、维护摘要和发布记录，沿既有 P2 补充主题路由与真实录入样本。无新增 CLI、依赖、安装/更新或 thin-index 逻辑；正常更新完整能力包并刷新已启用索引，新 request 草稿需新脚本；无实例迁移或旧文件清理，未同步业务副本。
   - Windows Node 24.14.1 专项 29/29 通过，覆盖 Git/工作兼容、无 Git 主题 bug/change、资料/接收组保留、文本/Excel/CLI 回填、混合来源和提交/输出保护。初轮 28/29，新夹具同时触发多个校验，隔离后整组 29/29；已记录 standard-demand-entry 内容证据。文档链接 1/1、canonical/本机入口 skill 格式与 diff check 通过，版本比较无新增问题（仅既有 xc 历史 6 条）。测试目录已清理；非 Windows、Node 22 和真实 BOS 仍待现有 CI/P2 取证。用户真实例子仅在内存验证正文，未写入仓库或模拟系统修复。

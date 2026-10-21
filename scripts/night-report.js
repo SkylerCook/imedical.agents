@@ -17,7 +17,7 @@ function main(argv = process.argv.slice(2)) {
     const manifest = loadManifest(directory);
     const eventFile = path.join(directory, 'events.jsonl');
     const events = fs.existsSync(eventFile) ? fs.readFileSync(eventFile, 'utf8').split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line)) : [];
-    const report = buildNightReport(manifest, events);
+    const report = buildNightReport(manifest, events, { observedAt: new Date().toISOString() });
     const output = options['--output'] ? path.resolve(options['--output']) : null;
     const format = options['--format'] || (output && /\.md$/i.test(output) ? 'markdown' : 'json');
     if (!['json', 'markdown'].includes(format)) throw new Error('Report format must be json or markdown');

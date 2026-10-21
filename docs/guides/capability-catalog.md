@@ -1,6 +1,6 @@
 # 能力目录（非 xc）
 
-[无人值守治理](../night-governance.md) 在同一 run 上绑定实体 PLAN、角色上下文、双 Developer / 双 Tester、冻结版本、持续认证 worker、周额度和分级成本报告；无新增 skill 或文件锁服务。
+[无人值守治理](../night-governance.md) 初筛后独立预检能力，在同一 run 上绑定实体 PLAN、角色上下文、双 Developer / 双 Tester、联合源码保护、持续认证及宿主监督 worker、周额度和分级成本报告；最低自检与证据等级分开，无新增 skill 或文件锁服务。
 
 [夜跑决策策略](../night-policy.md)为现有 Coordinator 增加两阶段分级、投入复评与固定抽验，显式启用；复用原事件、验证指纹和 runner，不增加常驻角色或 skill。
 

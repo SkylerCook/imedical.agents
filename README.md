@@ -1,6 +1,6 @@
 # imedical.agents
 
-新夜跑可启用 [executionPlan 治理](docs/night-governance.md)：实体 PLAN 与角色上下文、至少两个 Developer 并发、两类 Tester、冻结联合版本、共享目标发布窗口、持续认证 worker、周额度增量及分级成本报告。新模板 maxInFlight 为 4，容量与错峰须核实；旧 run 保留原值。已有 2.1 run 的容量调整仍走[原授权门禁](docs/night-policy.md#运行中调整容量)。
+新夜跑可启用 [executionPlan 治理](docs/night-governance.md)：初筛后按需预检再出详细 PLAN，实体规则与角色上下文、至少两个 Developer 并发、两类 Tester、冻结联合版本和共享目标成果保护、持续认证及宿主监督 worker、周额度增量及分级成本报告。最低自检与实际证据等级分开，停滞按最近有效交付计时。新模板 maxInFlight 为 4，容量与错峰须核实；旧 run 保留原值。已有 2.1 run 的容量调整仍走[原授权门禁](docs/night-policy.md#运行中调整容量)。
 
 夜跑精简优化：新批次通过 `night-convergence/v1` 设置明确总时限与问题尝试硬上限；有依赖才绑定消费版本和相关验证，最终组合沿现有 Coordinator 协议核验。不增加自动合并器、交付组状态机或资源锁。接口、旧 run 兼容和真实环境限制见[夜跑策略](docs/night-policy.md#返修收敛与按需依赖)，已部署项目正常更新后仅新批次启用。
 

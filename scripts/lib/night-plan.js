@@ -35,11 +35,13 @@ function validateExecutionPlan(input) {
     const plan = input?.executionPlan;
     if (plan === undefined) return null;
     need(plan && typeof plan === 'object' && !Array.isArray(plan) && plan.version === 1, 'unsupported version');
+    require('./night-capability').validateProbeBinding(plan, input.workItems, { started: !!input.night?.startedAt });
     need(text(plan.objective), 'objective required');
     const a = plan.assessment;
     need(a && text(a.summary) && FEASIBILITY.includes(a.feasibility) && ['low', 'medium', 'high'].includes(a.complexity) && ['low', 'medium', 'high'].includes(a.risk), 'user assessment, feasibility, complexity and risk required');
     strings(a.evidenceRefs, 'assessment evidenceRefs');
     if (plan.monitoring !== undefined) need(plan.monitoring && Number.isFinite(plan.monitoring.noDeliveryMinutes) && plan.monitoring.noDeliveryMinutes > 0, 'monitoring.noDeliveryMinutes must be explicit positive minutes');
+    if (plan.clientSupervision !== undefined) need(plan.clientSupervision?.required === true, 'explicit client supervision cannot be disabled');
     const b = plan.budget;
     need(b && Number.isFinite(b.timeMinutes) && b.timeMinutes > 0 && Number.isSafeInteger(b.tokens) && b.tokens > 0, 'explicit timeMinutes and tokens required');
     need(Number.isFinite(b.governanceMinutes) && b.governanceMinutes >= 0 && b.governanceMinutes <= b.timeMinutes && Number.isSafeInteger(b.governanceTokens) && b.governanceTokens >= 0 && b.governanceTokens <= b.tokens, 'governance budget must fit the total budget');

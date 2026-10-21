@@ -208,6 +208,7 @@ function createCodexClientAdapter(options = {}) {
             }
             const turnParams = { threadId: thread.id, input: [{ type: 'text', text: request.prompt }],
                 ...(request.mode !== undefined ? { collaborationMode: { mode: request.mode, settings: { model: request.model, developer_instructions: null } } } : {}) };
+            if (clock() >= deadline) throw new Error('Host preparation consumed the task deadline; no business turn started');
             const result = await transport.request('turn/start', turnParams);
             if (!nonempty(result.turn?.id)) throw new Error('Host turn identity is missing');
             endpoint.turnId = result.turn.id; endpoint.turnStatus = result.turn.status;
@@ -235,6 +236,9 @@ function createCodexClientAdapter(options = {}) {
         if (endpoints.has(receipt.actionId)) throw new Error('Action endpoint is already bound');
         endpoints.set(receipt.actionId, { actionId: receipt.actionId, threadId: receipt.endpointId, turnId: receipt.host.turnId,
             deadlineAt: receipt.host.deadlineAt, budget: receipt.host.budget || { configured: false }, nativeGoal: receipt.host.budget?.configured === true, turnStatus: 'unknown', ...(receipt.contextHash ? { contextHash: receipt.contextHash } : {}) });
+        const endpoint = endpoints.get(receipt.actionId);
+        endpoint.timer = schedule(() => { status({ actionId: receipt.actionId }).then(() => stop({ actionId: receipt.actionId, reason: 'restored-deadline' })).then(value => observer({ kind: value.stopped ? 'host-stop' : 'host-stop-unconfirmed', actionId: receipt.actionId, receipt: value }), () => observer({ kind: 'host-stop-unconfirmed', actionId: receipt.actionId })); }, Math.max(1, Date.parse(endpoint.deadlineAt) - clock()));
+        endpoint.timer?.unref?.();
         return { actionId: receipt.actionId, endpointId: receipt.endpointId, restored: true, hostStatusVerified: false };
     }
     async function status(input) {

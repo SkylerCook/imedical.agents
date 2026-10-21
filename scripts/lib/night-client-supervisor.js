@@ -113,7 +113,7 @@ function createNightSupervisor({ runDirectory, adapter, recordNight = orchestrat
                     try { stop = await bounded(() => adapter.stop({ actionId: action.id, reason: stopBatch ? 'batch-closeout-or-unknown' : 'work-gate-or-deadline' })); } catch { stop = null; }
                     try { const actual = await bounded(() => adapter.status({ actionId: action.id })); after = validStatus(action, actual) ? actual : null; } catch { after = null; }
                 }
-                const stoppedVerified = terminal(after) && (action.result.host.budget?.configured !== true || stop?.goalPaused === true);
+                const stoppedVerified = terminal(after) && (action.result.host.budget?.configured !== true || stop?.goalPaused === true || observation.goalReadbackVerified && ['paused', 'complete', 'budgetLimited', 'usageLimited', 'blocked'].includes(observation.usage?.goal?.status));
                 const output = { actionId: action.id, endpointId: action.result.endpointId, observedAt: new Date(now()).toISOString(), turnStatus: after?.turnStatus || 'unknown', stopRequested: mustStop, interruptAcknowledged: stop?.interruptRequested === true, stoppedVerified,
                     processCleanupVerified: stoppedVerified && stop?.processCleanupVerified === true, resourceCleanupVerified: stoppedVerified && stop?.resourceCleanupVerified === true };
                 const evidenceRef = save({ schema: 'night-client-status-observation/v1', ...output }); outputs.push({ ...output, evidenceRef });

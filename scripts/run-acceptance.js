@@ -75,7 +75,7 @@ async function runPreflight(profile, profileFile, runDirectory, execution = {}) 
     const lifecycle = execution.managed || managed;
     lifecycle.preflightStart(path.resolve(runDirectory), path.resolve(profileFile));
     const manifest = (execution.loadManifest || loadManifest)(path.resolve(runDirectory));
-    for (const item of manifest.workItems.filter(w => w.night.phase === 'verification' && w.status !== 'skipped')) {
+    for (const item of manifest.workItems.filter(w => w.night.phase === 'verification' && require('./lib/night-capability').executableWork(manifest, w))) {
         const cases = workCases(profile, manifest, item);
         if (!cases?.length || cases.some(c => !['read-only', 'write'].includes(c.effects) || c.role !== item.night.role || c.effects === 'write' && (item.night.effects !== 'write' || c.dataPolicy !== item.night.dataPolicy))) throw new Error('Preflight profile cases differ from planned roles/effects/data policy');
         const post = manifest.night.demands.find(d => d.id === item.night.demandId)?.assessment?.post;

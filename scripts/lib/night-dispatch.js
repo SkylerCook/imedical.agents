@@ -16,6 +16,16 @@ const digest = value => crypto.createHash('sha256').update(JSON.stringify(value)
 const nonempty = value => typeof value === 'string' && value.trim();
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 
+function requeueSourceStages(manifest, record) {
+    for (const action of manifest.actions.filter(a => a.status === 'pending' && !a.result && manifest.workItems.find(w => w.id === a.workItemId)?.night.demandId === record.id)) action.status = 'cancelled';
+    for (const item of manifest.workItems.filter(w => w.night.demandId === record.id && ['review', 'deployment', 'verification'].includes(w.night.phase) && w.status !== 'skipped')) {
+        const active = manifest.night.operations?.some(op => op.workItemId === item.id && ['running', 'review-pending'].includes(op.status));
+        contract.trackWork(manifest, item, 'blocked');
+        item.status = active ? 'blocked' : 'pending';
+        if (active) record.resources.pending = true;
+    }
+}
+
 function initializeNight(plan, planFile) {
     if (!plan.nightBatchReference) return null;
     const file = path.resolve(path.dirname(planFile), plan.nightBatchReference);
@@ -51,6 +61,7 @@ function initializeNight(plan, planFile) {
         const weekly = plan.executionPlan.budget.weekly;
         weeklyQuota = read(path.resolve(path.dirname(planFile), weekly.baselineReference));
         if (weeklyQuota.schema !== 'night-weekly-quota/v1' || weeklyQuota.budgetId !== weekly.budgetId || weeklyQuota.budgetPercentPoints !== weekly.budgetPercentPoints || !Number.isFinite(Date.parse(weeklyQuota.recordedAt)) || Date.parse(weeklyQuota.recordedAt) > Date.now() || !nonempty(weeklyQuota.authorizationReference)) throw new Error('A persisted authorized weekly baseline must precede PLAN initialization');
+        if (plan.executionPlan.capabilityProbe && Date.parse(weeklyQuota.recordedAt) > Date.parse(read(plan.executionPlan.capabilityProbe.reference).checkedAt)) throw new Error('Weekly baseline must include the initial capability probe and planning cost');
         if (batch.quotaPolicy?.weeklyBudgetPercentPoints !== weekly.budgetPercentPoints) throw new Error('PLAN and quota weekly budgets differ');
         if (!normalizeQuotaPolicy(batch.quotaPolicy).enabled) throw new Error('Execution PLAN requires enabled weekly quota enforcement');
     }
@@ -180,6 +191,7 @@ function updateNight(manifest, input, actor, options = {}) {
     } else if (['source-integrate', 'source-freeze', 'evidence-reuse'].includes(input.kind)) {
         if (!path.isAbsolute(options.runDirectory || '')) throw new Error('Integration requires the managed run directory');
         integration.recordIntegration(manifest, input, options.runDirectory, record => currentSources({ ...record, sourceSnapshot: undefined }));
+        if (input.kind === 'source-integrate') requeueSourceStages(manifest, night.demands.find(d => d.id === input.demandId));
     } else if (input.kind === 'browser-owner-exit') {
         contract.browserOwnerExit(manifest, input);
     } else if (input.kind === 'source-missing') {
@@ -331,13 +343,7 @@ function updateNight(manifest, input, actor, options = {}) {
         }
         if (night.audit && record.candidateReady && record.assessment.post.route === 'static-review' && !night.audit.cohort.some(item => item.id === record.id && item.scopeFingerprint === record.scopeFingerprint && item.frozenVersion === record.frozenVersion)) throw new Error('Frozen audit cohort cannot gain or change static candidates');
         if (contract.strict(manifest) && previous?.frozenVersion && previous.frozenVersion !== record.frozenVersion) {
-            for (const action of manifest.actions.filter(a => a.status === 'pending' && !a.result && manifest.workItems.find(w => w.id === a.workItemId)?.night.demandId === record.id)) action.status = 'cancelled';
-            for (const item of manifest.workItems.filter(w => w.night.demandId === record.id && ['review', 'deployment', 'verification'].includes(w.night.phase) && w.status !== 'skipped')) {
-                const active = night.operations?.some(op => op.workItemId === item.id && op.status === 'running');
-                contract.trackWork(manifest, item, 'blocked');
-                item.status = active ? 'blocked' : 'pending';
-                if (active) record.resources.pending = true;
-            }
+            requeueSourceStages(manifest, record);
         }
         if (previous) night.demands[night.demands.indexOf(previous)] = structuredClone(record);
         else night.demands.push(structuredClone(record));
@@ -427,7 +433,7 @@ function gateNight(manifest, item, now = Date.now()) {
     if (record.blocked === true) reasons.push('demand-blocked');
     if (contract.strict(manifest)) {
         if (!night.startedAt && night.preflight?.state !== 'ready') reasons.push('night-preflight-not-ready');
-        if (!night.startedAt && manifest.workItems.some(w => w.status !== 'skipped' && contract.readinessReasons(manifest, w, now).length)) reasons.push('night-startup-preflight-incomplete');
+        if (!night.startedAt && manifest.workItems.some(w => require('./night-capability').executableWork(manifest, w) && contract.readinessReasons(manifest, w, now).length)) reasons.push('night-startup-preflight-incomplete');
         reasons.push(...contract.readinessReasons(manifest, item, now));
         if (contract.timingStatus(manifest, record) === 'incomplete') reasons.push('timing-incomplete');
     }

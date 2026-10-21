@@ -3,6 +3,7 @@ const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), crypto = require('node:crypto');
 const { createNightSupervisor, createManagedNightClient } = require('../lib/night-client-supervisor');
 const { normalizeQuotaPolicy, createWeeklyBaseline, advanceWeeklyQuota } = require('../lib/night-quota');
+const { createClientWorker } = require('../lib/night-client-worker');
 function fixture(t, { used = 20, endpoints = 1, nativeGoal = true } = {}) {
     const root = require('./fixtures/temp-directory').createTempDirectory('night-supervisor-'); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
     const now = Date.now(), calls = [], files = [], bound = new Set(), state = { used, turnStatus: 'inProgress', goalStatus: 'active', unknown: false, total: 10, goalTokens: 10, budget: 100, stopTerminal: false, physical: true, context: true };
@@ -41,6 +42,44 @@ test('quota observation failure immediately stops only persisted batch endpoints
     const result = await f.supervisor.tick(); assert.equal(result.mode, 'closeout'); assert.equal(result.observationUnknown, true); assert.deepEqual(f.calls.filter(c => c[0] === 'stop'), [['stop', 'a1']]);
     assert.equal(result.endpoints[0].interruptAcknowledged, true); assert.equal(result.endpoints[0].stoppedVerified, false); assert.equal(result.endpoints[0].resourceCleanupVerified, false); assert(fs.existsSync(result.endpoints[0].evidenceRef));
     assert.equal(JSON.stringify(result).includes('private credential'), false);
+});
+test('a running worker observes quota without model commands and stops only the owned host', async t => {
+    const f = fixture(t), worker = createClientWorker({ ...f.options, intervalMs: 100 }); f.state.stopTerminal = true;
+    try {
+        await worker.start(); f.state.used = 30;
+        const deadline = Date.now() + 1500;
+        while (!f.calls.some(c => c[0] === 'stop') && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20));
+        assert.ok(f.calls.some(c => c[0] === 'stop' && c[1] === 'a1'));
+        assert.equal(worker.snapshot().observation.stopClaiming, true);
+        assert.ok(fs.existsSync(path.join(f.root, 'evidence/night-operations/client-worker-checkpoint.json')));
+    } finally { await worker.close(); }
+    assert.equal(fs.existsSync(path.join(f.root, 'night-client-worker.lock')), false);
+});
+test('a second worker cannot take a live lease or stop its endpoints when startup is rejected', async t => {
+    const f = fixture(t), first = createClientWorker({ ...f.options, intervalMs: 100 }), second = createClientWorker({ ...f.options, intervalMs: 100 });
+    f.state.stopTerminal = true;
+    try { await first.start(); await assert.rejects(second.start(), /live client supervisor/); await second.close(); assert.equal(f.calls.some(c => c[0] === 'stop'), false); }
+    finally { await first.close(); }
+});
+test('already terminal and paused native Goals remain verified on later observations', async t => {
+    const f = fixture(t); f.state.turnStatus = 'interrupted'; f.state.goalStatus = 'paused';
+    const result = await f.supervisor.tick(); assert.equal(result.endpoints[0].stopRequested, false); assert.equal(result.endpoints[0].stoppedVerified, true);
+});
+test('client JSONL entry accepts queued input and EOF stops only owned endpoints with a durable checkpoint', async t => {
+    const f = fixture(t), { PassThrough } = require('node:stream'), input = new PassThrough(), output = [];
+    f.state.stopTerminal = true;
+    input.end(JSON.stringify({ id: 'observe-1', operation: 'observe' }) + '\n');
+    const code = await require('../night-client-worker').main(['--run-directory', f.root, '--interval-ms', '100'], { adapter: f.options.adapter, workerOptions: f.options, input, output: { write: text => output.push(JSON.parse(text)) } });
+    assert.equal(code, 0); assert.equal(output[0].operation, 'ready'); assert.ok(output.some(row => row.id === 'observe-1' && row.status === 'succeeded'));
+    assert.ok(f.calls.some(c => c[0] === 'stop' && c[1] === 'a1')); assert.equal(fs.existsSync(path.join(f.root, 'night-client-worker.lock')), false);
+});
+test('a dead worker lease restores existing endpoints without resetting their allocated Goal', async t => {
+    const f = fixture(t), { spawnSync } = require('node:child_process'); f.state.stopTerminal = true;
+    const child = spawnSync(process.execPath, ['-e', 'process.stdout.write(String(process.pid))'], { encoding: 'utf8', windowsHide: true }); assert.equal(child.status, 0);
+    fs.writeFileSync(path.join(f.root, 'night-client-worker.lock'), JSON.stringify({ identity: 'dead-owner', pid: Number(child.stdout) }));
+    const worker = createClientWorker({ ...f.options, intervalMs: 100 });
+    try { await worker.start(); assert.ok(f.calls.some(c => c[0] === 'restore' && c[1].host.budget.tokenBudget === 100)); assert.equal(f.manifest.night.usage.totalTokens, 10); }
+    finally { await worker.close(); }
 });
 test('weekly 80 percent drains new claims while active endpoints continue; 100 percent stops actual bound endpoints', async t => {
     const f = fixture(t); f.state.used = 28;

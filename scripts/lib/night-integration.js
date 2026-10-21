@@ -101,10 +101,39 @@ function publicationReasons(manifest, item, artifacts = []) {
         if (op.status === 'verified' && op.frozenVersion !== record?.frozenVersion) {
             const old = manifest.night.demands.find(d => d.id === op.demandId);
             const verification = manifest.workItems.filter(w => w.night.demandId === op.demandId && w.night.phase === 'verification');
-            if (!old?.candidateReady && verification.some(w => !['completed', 'skipped'].includes(w.status))) reasons.push('publication-verification-window');
+            if (old?.frozenVersion === op.frozenVersion && !old.candidateReady && verification.some(w => !['completed', 'skipped'].includes(w.status))) reasons.push('publication-verification-window');
+        }
+    }
+    // Serial publication alone cannot preserve an earlier demand's changes.
+    // Every affected demand must independently review the same new bytes. Its
+    // runtime checks may follow this publication; they are requeued on rebinding.
+    if (artifacts.length) {
+        const previous = new Map();
+        for (const op of manifest.night.operations || []) if (op.phase === 'deployment' && op.status === 'verified' && op.demandId !== record?.id && op.targetKeys?.some(k => targets.includes(k))) {
+            for (const artifact of artifacts) if (op.targetKeys.includes(hash([item.night.environmentAlias, artifact.targetId]))) previous.set(`${op.demandId}:${artifact.targetId}`, { op, artifact });
+        }
+        for (const { op, artifact } of previous.values()) {
+            const peer = manifest.night.demands.find(d => d.id === op.demandId);
+            const old = manifest.night.sourceSnapshots?.find(s => s.demandId === op.demandId && s.snapshot.frozenVersion === op.frozenVersion)?.snapshot || (peer?.sourceSnapshot?.frozenVersion === op.frozenVersion ? peer.sourceSnapshot : null);
+            const published = op.artifacts?.find(a => a.targetId === artifact.targetId);
+            const file = old?.files.find(f => published && (same(published.localPath, path.join(old.root, f.artifact)) || same(published.localPath, path.join(f.repoRoot, f.relative))));
+            let reviewed = false;
+            try {
+                if (file && peer?.sourceSnapshot && peer.assessment?.post?.reviewerId !== peer.implementationOwnerId && text(peer.assessment?.post?.reviewerId) && peer.assessment.post.frozenVersion === peer.frozenVersion && peer.assessment.post.scopeFingerprint === peer.scopeFingerprint) {
+                    frozenSources(peer);
+                    reviewed = peer.sourceSnapshot.files.some(f => f.relative === file.relative && logicalSourceMatches(f.repoRoot, file.repoRoot) && f.sha256 === artifact.sha256);
+                }
+            } catch { /* Missing or changed joint evidence remains blocked. */ }
+            if (!reviewed) reasons.push('publication-joint-source-review-required');
         }
     }
     return [...new Set(reasons)];
+}
+function sharedPublicationCovers(manifest, operation, item) {
+    if (!enabled(manifest) || item.night.phase !== 'deployment' || operation.phase !== 'deployment' || operation.status !== 'verified' || operation.environmentAlias !== item.night.environmentAlias || operation.configurationFingerprint !== manifest.night.preflight?.deploymentConfigFingerprint) return false;
+    const record = manifest.night.demands.find(d => d.id === item.night.demandId);
+    if (!record?.sourceSnapshot || record.frozenVersion !== operation.frozenVersion) return false;
+    try { return targetsFor(manifest, item).every(key => operation.targetKeys?.includes(key)); } catch { return false; }
 }
 function snapshotChanges(before, after) {
     const key = f => `${commonDirectory(f.repoRoot)}:${f.relative}`;
@@ -135,9 +164,9 @@ function recordIntegration(manifest, input, runDirectory, liveSources) {
         if (!binding || planned.strategy === 'review-only' || binding.ownerId !== planned.ownerId || !same(binding.repositoryRoot, planned.targetRepo) || !text(planned.authorizationReference)) throw new Error('Integration source is outside the approved integration scope');
         if (manifest.night.operations?.some(o => o.demandId === record.id && o.status === 'running')) throw new Error('Cannot integrate an active operation');
         try { git(binding.repositoryRoot, ['merge-base', '--is-ancestor', planned.baseRevision, 'HEAD']); } catch { throw new Error('Integration HEAD is outside the approved fixed base'); }
-        if (!record.sourceScopes.every(s => logicalSourceMatches(s.repoRoot, binding.repositoryRoot))) throw new Error('Integration changes source repository identity');
+        if (!record.sourceScopes.some(s => logicalSourceMatches(s.repoRoot, binding.repositoryRoot))) throw new Error('Integration changes source repository identity');
         record.integrationBinding = structuredClone(binding);
-        record.sourceScopes = record.sourceScopes.map(s => ({ ...s, repoRoot: binding.repositoryRoot }));
+        record.sourceScopes = record.sourceScopes.map(s => logicalSourceMatches(s.repoRoot, binding.repositoryRoot) ? { ...s, repoRoot: binding.repositoryRoot } : s);
         const current = liveSources({ ...record, sourceSnapshot: undefined });
         Object.assign(record, current);
         delete record.sourceSnapshot; delete record.automatedResult;
@@ -171,4 +200,4 @@ function recordIntegration(manifest, input, runDirectory, liveSources) {
     } else throw new Error('Unknown integration event');
 }
 function reusedCheck(record, id) { return record.evidenceReuse?.some(r => r.toVersion === record.frozenVersion && r.currentScopeFingerprint === record.scopeFingerprint && r.checkIds.includes(id) && !r.affectedChecks.includes(id)); }
-module.exports = { enabled, commonDirectory, logicalSourceMatches, integrationCovers, freezeSources, frozenSources, targetsFor, publicationReasons, snapshotChanges, impactDiff, recordIntegration, reusedCheck, hash };
+module.exports = { enabled, commonDirectory, logicalSourceMatches, integrationCovers, freezeSources, frozenSources, targetsFor, publicationReasons, sharedPublicationCovers, snapshotChanges, impactDiff, recordIntegration, reusedCheck, hash };

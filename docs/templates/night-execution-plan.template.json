@@ -1,6 +1,8 @@
 {
   "executionPlan": {
     "version": 1,
+    "capabilityProbe": { "reference": null, "sha256": null, "maxAgeMinutes": 30 },
+    "clientSupervision": { "required": true },
     "objective": "<approved-batch-objective>",
     "assessment": {
       "summary": "<user-initial-assessment>",

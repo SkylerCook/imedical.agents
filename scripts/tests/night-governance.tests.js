@@ -50,6 +50,10 @@ test('approved PLAN creates materialized workers, dispatches two real actions an
     const snapshot = { observedAt: new Date(now).toISOString(), rateLimitsByLimitId: { codex: { primary: { usedPercent: 1, windowDurationMins: 300 }, secondary: { usedPercent: 10, windowDurationMins: 10080, resetsAt: Math.floor(now / 1000) + 86400 } } } };
     const baseline = require('../night-quota-baseline').createBaseline({ snapshot, policy: quotaPolicy, budgetId: executionPlan.budget.weekly.budgetId, authorizationReference: 'user:budget-approved', now });
     file('baseline.json', baseline);
+    const initialConfig = path.join(root, 'initial-capability.json'); write(initialConfig, '{}');
+    const initialConfigHash = crypto.createHash('sha256').update('{}').digest('hex');
+    const probeFile = file('initial-probe.json', { schema: 'night-capability-probe/v1', checkedAt: new Date().toISOString(), profileFingerprint: initialConfigHash, configurationFiles: [{ path: initialConfig, sha256: initialConfigHash }], cleanupVerified: true, operationExited: true, eligibleDemandIds: ['D1', 'D2'], requirements: ['D1', 'D2'].map(demandId => ({ demandId, role: '*', capabilities: ['entry'], executable: true })) });
+    executionPlan.capabilityProbe = { reference: probeFile, sha256: crypto.createHash('sha256').update(fs.readFileSync(probeFile)).digest('hex'), maxAgeMinutes: 30 };
     const policyFile = file('policy.json', { maxInFlight: 2 });
     const authRefs = { collaborationPlan: 'grant:approved-batch', deploy: 'grant:deployment' };
     const phases = ['implementation', 'review', 'deployment', 'verification', 'cleanup'];
@@ -58,6 +62,7 @@ test('approved PLAN creates materialized workers, dispatches two real actions an
         return { id: `${id}-${phase}`, ownerId, repositoryRoot: plans.find(p => p.roleOwnerId === ownerId).repositories[0].target, dependsOn: i ? [`${id}-${phases[i - 1]}`] : [], writeScopes: phase === 'implementation' ? ['code.txt'] : [], readScopes: ['code.txt'], kind: phase === 'cleanup' ? 'cleanup' : 'task', night: { demandId: id, phase, role: 'tester', effects: 'read-only', environmentAlias: 'synthetic-test', ...(phase === 'deployment' ? { deploymentTargets: [id] } : {}) } };
     }));
     const batchFile = file('batch.json', { batchId: 'batch-1', decisionPolicyReference: policyFile, runReference: run, authorizationReferences: authRefs, workspacePreflightReferences: plans.map(p => ({ ownerId: p.roleOwnerId, planReference: file(`${p.roleOwnerId}.json`, p) })), policy: { interactionMode: 'preflight-only', stopClaimingAt: new Date(now + 3600000).toISOString(), stopPublishingAt: new Date(now + 7200000).toISOString(), stopAt: new Date(now + 10800000).toISOString() }, quotaPolicy });
+    executionPlan.clientSupervision = { required: true };
     const planFile = file('orchestration-plan.json', { taskKind: 'business-demand', coordinatorId: 'leader', repositoryRoot: plans[0].repositories[0].target, nightBatchReference: batchFile, orchestrationMode: 'subagent', adapter: 'subagent', adapterCapabilities: { subagent: true }, participants: executionPlan.workers.map(w => ({ id: w.ownerId, role: w.role === 'coordinator' ? 'coordinator' : 'worker', endpoint: { type: 'subagent' } })), executionPlan, workItems });
     const init = cli('agent-orchestrator.js', ['init', '--run-directory', run, '--plan', planFile]); assert.equal(init.executionPlan.version, 1);
     const evidence = { rationale: 'Synthetic real-script contract test', evidenceRefs: ['synthetic:actual-operation'] };
@@ -91,7 +96,18 @@ test('approved PLAN creates materialized workers, dispatches two real actions an
     for (const action of actions) {
         const bad = file('bad-result.json', { actionId: action.id, status: 'succeeded', endpointId: action.targetId, contextHash: 'wrong' });
         assert.match(cli('agent-orchestrator.js', ['ack', '--run-directory', run, '--result', bad], 1), /context/i);
-        const result = file(`${action.targetId}-result.json`, { actionId: action.id, status: 'succeeded', endpointId: action.targetId, contextHash: action.context.sha256 });
+        const deadlineAt = new Date(now + 100000).toISOString();
+        const actual = { actionId: action.id, status: 'succeeded', endpointId: action.targetId, contextHash: action.context.sha256, host: { threadId: action.targetId, turnId: 'synthetic-turn', deadlineAt, budget: { configured: false } } };
+        const result = file(`${action.targetId}-result.json`, actual);
+        assert.match(cli('agent-orchestrator.js', ['ack', '--run-directory', run, '--result', result], 1), /persisted budget reservation/);
+        const launchReceiptFile = path.join(run, 'evidence/night-operations', `${action.id}-launch.json`); write(launchReceiptFile, JSON.stringify(actual));
+        orchestrator.recordNight(run, { kind: 'client-reserve', reservation: { actionId: action.id, tokens: 100, deadlineAt, launchReceiptFile }, ...evidence }, 'leader');
+        const lease = path.join(run, 'night-client-worker.lock');
+        if (!fs.existsSync(lease)) assert.match(cli('agent-orchestrator.js', ['ack', '--run-directory', run, '--result', result], 1), /night-client-worker.lock/);
+        // PID witness is synthetic here; autonomous observation is tested with the worker.
+        write(lease, JSON.stringify({ schema: 'night-client-worker/v1', pid: process.pid, identity: 'fixture-supervisor', heartbeatAt: new Date().toISOString(), runDirectory: path.resolve(run) }));
+        const changedHost = file(`${action.targetId}-forged-host.json`, { ...actual, host: { ...actual.host, turnId: 'unbound-turn' } });
+        assert.match(cli('agent-orchestrator.js', ['ack', '--run-directory', run, '--result', changedHost], 1), /actual launch receipt/);
         cli('agent-orchestrator.js', ['ack', '--run-directory', run, '--result', result]);
         const completion = file(`${action.targetId}-completion.json`, { actionId: action.id, status: 'succeeded', endpointId: action.targetId, contextHash: action.context.sha256, artifactRefs: [path.join(root, `${action.targetId}-interval.json`)] });
         cli('agent-orchestrator.js', ['result', '--run-directory', run, '--result', completion]);
