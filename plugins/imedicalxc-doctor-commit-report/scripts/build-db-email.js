@@ -7,6 +7,8 @@ const path = require('path');
 const SUBJECT = '信创版数据变更通知-医生站';
 const DDL_URL = 'https://docs.qq.com/sheet/DSnJ5V0tYRG9jT1VL?tab=ipn52r';
 const DDL_DOC_NAME = '【腾讯文档】信创版HIS数据库升级脚本汇总表格';
+const STD_ENV_URL = 'http://82.156.104.202:32678/imedical/his/hos/login';
+const STD_ENV_NAME = '信创标准环境';
 
 function buildRows(db) {
   const rows = [];
@@ -101,15 +103,15 @@ function buildEmailMd(db, opts = {}) {
   lines.push('');
   lines.push('### 2. 新增系统标准提醒');
   lines.push('');
-  lines.push('公司标准库 demo → 打开菜单【系统提示信息】，参照代码信息进行数据维护。');
+  lines.push(`[信创标准环境](${STD_ENV_URL}) → 打开菜单【系统提示信息】，参照代码信息进行数据维护。`);
   lines.push('');
   lines.push('### 3. 新增系统标准配置');
   lines.push('');
-  lines.push('公司标准库 demo → 打开【系统标准配置】菜单，筛选指定配置项导出，导入项目现场。请勿直接维护，请使用导入功能，防止出现维护错误。');
+  lines.push(`[信创标准环境](${STD_ENV_URL}) → 打开【系统标准配置】菜单，筛选指定配置项导出，导入项目现场。请勿直接维护，请使用导入功能，防止出现维护错误。`);
   lines.push('');
   lines.push('### 4. 新增代码表缓存配置');
   lines.push('');
-  lines.push('公司标准库 demo → 打开【代码表缓存管理】，参照代码信息进行数据维护。');
+  lines.push(`[信创标准环境](${STD_ENV_URL}) → 打开【代码表缓存管理】，参照代码信息进行数据维护。`);
   lines.push('');
   return lines.join('\n');
 }
@@ -189,11 +191,11 @@ function buildEmailHtml(db, opts = {}) {
   lines.push(`    <h4 style="${h4Style}">1. 数据库 DDL 脚本</h4>`);
   lines.push(`    <p style="margin: 0 0 10px;">建议参考 <a href="${DDL_URL}" style="color: #1f4e79;">${escapeHtml(DDL_DOC_NAME)}</a> 的描述进行执行。</p>`);
   lines.push(`    <h4 style="${h4Style}">2. 新增系统标准提醒</h4>`);
-  lines.push('    <p style="margin: 0 0 10px;">公司标准库 demo → 打开菜单【系统提示信息】，参照代码信息进行数据维护。</p>');
+  lines.push(`    <p style="margin: 0 0 10px;"><a href="${STD_ENV_URL}" style="color: #1f4e79;">信创标准环境</a> → 打开菜单【系统提示信息】，参照代码信息进行数据维护。</p>`);
   lines.push(`    <h4 style="${h4Style}">3. 新增系统标准配置</h4>`);
-  lines.push('    <p style="margin: 0 0 10px;">公司标准库 demo → 打开【系统标准配置】菜单，筛选指定配置项导出，导入项目现场。请勿直接维护，请使用导入功能，防止出现维护错误。</p>');
+  lines.push(`    <p style="margin: 0 0 10px;"><a href="${STD_ENV_URL}" style="color: #1f4e79;">信创标准环境</a> → 打开【系统标准配置】菜单，筛选指定配置项导出，导入项目现场。请勿直接维护，请使用导入功能，防止出现维护错误。</p>`);
   lines.push(`    <h4 style="${h4Style}">4. 新增代码表缓存配置</h4>`);
-  lines.push('    <p style="margin: 0 0 10px;">公司标准库 demo → 打开【代码表缓存管理】，参照代码信息进行数据维护。</p>');
+  lines.push(`    <p style="margin: 0 0 10px;"><a href="${STD_ENV_URL}" style="color: #1f4e79;">信创标准环境</a> → 打开【代码表缓存管理】，参照代码信息进行数据维护。</p>`);
   lines.push('');
   lines.push('    <p style="margin: 26px 0 0; padding-top: 12px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #999999;">本邮件由医生站信创产品迭代周报流程自动生成，请勿直接回复。</p>');
   lines.push('  </div>');
