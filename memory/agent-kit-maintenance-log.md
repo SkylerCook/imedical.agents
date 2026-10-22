@@ -1,5 +1,12 @@
 # imedical.agents 维护日志
 
+## 2026-10-22 主子需求与共享提交记录
+
+- framework-maintenance基线b40f4e8；bos-plugin 0.12.0和demand-delivery-plugin 0.6.0新增一级主子代码归属，按业务验收拆分，代码只归主需求；各自编号日志可引用同一主提交，明确none跳过代码阶段，证据不明保持待处理。规则归[共享协议](../docs/demand-code-ownership.md)，新草稿v4/验收v2不自动迁移旧数据。
+- 同步技能正文、owner AGENTS/README、数据/日志/验收接口、BOS workflow、总览及能力手册、正常更新说明和两份发布记录；根scripts/lib校验沿既有分发，新专项纳入原三平台CI，不创建新插件、状态库或BOS页面操作器。
+- Windows/Node24.14.1：新增12项及原59项唯一功能用例均通过，含官方提交结果→四目标mock BOS→本地bare单次push；验收最终代码相关30项复测通过，另BOS发现与迁移11/11通过（修正夹具漏复制docs目录，断言helper分发；生产更新器未改）。目录/链接定向检查及最终UTF-8/JSON/JS语法/diff通过，功能指纹已记录并回读，任务D盘临时根已核实清理。两个MINOR版本无本轮新增问题，完整版本校验仍受三份旧发布记录缺commit的6项错误阻断，未改历史债务。证据、命令及局限见[验证记录](../maintenance/validation/demand-code-ownership-2026-10-22.md)。
+- 实施阶段未暂存、提交、推送、写真实BOS或更新业务副本；用户随后授权本轮c + p，复用有效功能证据，按精确范围、staged版本门禁及origin/master出站复核执行，结果以Git记录为准。正常更新及真实服务/宿主与非本机CI证据仍按现有队列和独立授权处理。共享脚本变化需完整更新能力包，模块保持NoPull刷新；无新增凭据配置或旧文件清理。
+
 ## 2026-10-22 demand-commit 无交集上游更新的自动接续
 
 - 本轮 `framework-maintenance` 以 `5b58abe` 为实施基线，demand-delivery-plugin 0.5.2→0.5.3 PATCH。HEAD 前进仍返回退出码 3 / refresh-required，由 Agent 检查每个新增提交的路径与实际影响、原需求文件状态及完整消息；满足无交集和内容不变后正式重新 plan 并沿用已有授权，最多两次。CLI、计划 schema 和提交/BOS/推送各自授权保持。

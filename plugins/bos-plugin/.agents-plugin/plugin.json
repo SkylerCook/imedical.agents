@@ -1,6 +1,6 @@
 {
   "name": "bos-plugin",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "displayName": "BOS Demand Plugin",
   "description": "跨技术栈的 BOS 只读查询、需求处理、标版补录、代码更新日志与通用提交衔接。",
   "entry": "AGENTS.md",

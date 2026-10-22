@@ -43,7 +43,7 @@
 | Skill | 用途 | 类型 |
 |---|---|---|
 | [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md) | standard/project 提交计划、本地提交与验证，上游无交集时复核接续，无 IRIS 配置依赖 | 日常入口 |
-| [demand-acceptance](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md) | 连续人工验收、逐号交付恢复与 BOS 编号汇总 | 明确调用即授权完整交付；默认当前工作区，`--worktree [路径]` 指定来源 |
+| [demand-acceptance](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md) | 连续人工验收、主子共享交付/无代码跳过及BOS编号汇总 | 明确调用即授权完整交付；默认当前工作区，`--worktree [路径]` 指定来源 |
 
 接入与已删除旧入口的迁移见 [迁移说明](../demand-delivery-migration.md)。
 
@@ -58,10 +58,10 @@ BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调
 | 入口 | 中文用途 | 入口类型 |
 |---|---|---|
 | [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md) | 个人身份初始化、明确接入和项目发现 | 初始化入口 |
-| [bos-demand-entry](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md) | 从 Git、主题及资料或工作记录生成需求、回填编号；仅代码衔接提交 | 日常入口；支持给其他组提需，--work 工作记录 |
+| [bos-demand-entry](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md) | 从Git、主题/资料或工作记录生成需求、回填编号；代码可按主子归属衔接提交 | 日常入口；支持给其他组提需，--work 工作记录 |
 | [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md) | 按发起/接受/当前人员或组只读查询列表、详情和附件元数据 | 日常入口 |
 | [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md) | 需求实施验证、授权提交与提交后日志补录衔接 | 日常入口 |
-| [bos-code-update-log](../../plugins/bos-plugin/skills/bos-code-update-log/SKILL.md) | 已有 Git 提交的日志预览与授权 BOS 补录 | 日常入口 |
+| [bos-code-update-log](../../plugins/bos-plugin/skills/bos-code-update-log/SKILL.md) | 已有Git提交的日志预览、主子共享提交映射与授权BOS补录 | 日常入口 |
 
 无独立 rules；执行流程见 bos-demand workflow，配置与 CLI 见插件 references。示例与边界见 [使用指南](capability-guide.md#bos-plugin)。
 

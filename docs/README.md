@@ -40,6 +40,8 @@
 
 ## BOS 需求
 
+- [需求拆分与代码归属](demand-code-ownership.md)：一级主子关系、共享提交、各自日志与明确无代码阶段。
+
 - [BOS 插件](../plugins/bos-plugin/README.md)：跨技术栈查询与处理入口。
 - [个人配置与查询用法](../plugins/bos-plugin/references/usage.md)：按 skill 分段的共享配置、Windows 初始化、显式迁移与查询模式。
 - [代码更新日志](../plugins/bos-plugin/references/code-update-log.md)：已有提交的预览、独立配置和授权写入边界。

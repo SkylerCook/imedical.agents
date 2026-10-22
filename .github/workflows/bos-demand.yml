@@ -13,6 +13,8 @@ on:
       - 'plugins/demand-delivery-plugin/**'
       - 'plugins/bos-plugin/scripts/demand-entry*.js'
       - 'plugins/demand-delivery-plugin/tests/demand-commit.test.js'
+      - 'scripts/lib/demand-code-binding.js'
+      - 'scripts/tests/demand-hierarchy.tests.js'
       - 'scripts/lib/workspace-context.js'
       - 'scripts/lib/WorkspaceContext.psm1'
       - 'scripts/tests/bos-plugin.tests.js'
@@ -35,7 +37,7 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: node --test scripts/tests/plugin-availability.tests.js
       - run: node --test plugins/bos-plugin/tests/*.tests.js scripts/tests/bos-plugin.tests.js plugins/demand-delivery-plugin/tests/demand-commit.test.js plugins/demand-delivery-plugin/tests/commit-upstream-check.test.js
-      - run: node --test scripts/tests/workspace-context.tests.js scripts/tests/standard-demand-entry.tests.js
+      - run: node --test scripts/tests/demand-hierarchy.tests.js scripts/tests/workspace-context.tests.js scripts/tests/standard-demand-entry.tests.js
       - run: node --test --test-name-pattern="project links resolve" scripts/tests/documentation-layout.tests.js
       - if: runner.os == 'Windows'
         shell: powershell

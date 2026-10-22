@@ -14,7 +14,7 @@ node demand-entry.js collect --repo <GitRoot> --range <base>..<head> --output <�
 
 `--repo` 必须是明确选定的 GitRoot。未提交来源覆盖指定文件的 staged、unstaged、非忽略 untracked；同时保存 HEAD、状态、补丁与文件字节指纹。历史来源解析为完整 hash，可加 `--file` 缩小范围；合并提交拒绝猜测主线。支持初始提交取证；尚无 HEAD 的新仓库不支持。删除/重命名要覆盖需求涉及的旧、新路径。
 
-脚本不做业务推理；Agent 阅读实际 patch 后编写 spec。每个需求每仓库取证一次，避免把整次迭代的文件直接分配给每条需求。多条待提交需求共用文件，或多条历史需求共用同一提交的同一文件时，脚本阻止自动归属，需先拆分；不同历史提交修改同一文件可以分别提报。不支持同文件按 hunk 自动提交。
+脚本不做业务推理；Agent 阅读实际 patch 后编写 spec。每个代码归属条目每仓库取证一次，避免把整次迭代的文件直接分配给每条需求。多条待提交需求共用文件，或多条历史需求共用同一提交的同一文件时，脚本阻止自动归属，需先隔离，或按下方v4将共同业务目标组织为主子关系、唯一分配主需求；不同历史提交修改同一文件可以分别提报。不支持同文件按 hunk 自动提交。
 
 ## 2. 编写 spec 并输出
 
@@ -78,7 +78,7 @@ node demand-entry.js render --draft <draft.json> --output <新交付目录> --Ex
 
 新文本分为“需求名称”和“需求描述”两个填写块，正文使用 `【小标题】`、编号步骤和段落间空行；Excel 需求名称列与文本同源，需求描述列仅包含同一三段式正文及可选备注。Agent 在聊天交付时分别展示两块内容，不再次改写生成文本。标版修复可以独立提报。
 
-代码草稿继续使用 `iris-standard-demand/v2`，接受上述 bug/change description；工作记录和主题提需使用下节 v3，以 source 区分。已有 v2/v3 工作草稿保持可读，v1 仍不兼容。已有 Git 提交记录不受影响。
+扁平代码草稿继续使用 `iris-standard-demand/v2`，主子代码草稿使用下方v4，接受上述 bug/change description；工作记录和主题提需使用下节 v3，以 source 区分。已有 v2/v3 工作草稿保持可读，v1 仍不兼容。已有 Git 提交记录不受影响。
 
 ## 3. 回填及提交衔接
 
@@ -177,3 +177,23 @@ sources 至少一条，复用 user/note/meeting/report，主题来源另支持 d
 维护专项：`node --test scripts/tests/standard-demand-entry.tests.js`。CI 定义于 `.github/workflows/standard-demand-entry.yml`，Windows/macOS/Linux × Node 22/24；CI 文件存在不代表矩阵已运行。BOSS 实际导入须用户在业务系统确认，结构读取通过不等同于 BOSS 验收。
 
 已部署工程完整更新能力包后，对 enabled bos-plugin 重建 thin-index 可发现 bos-demand-entry；demand-commit 由 enabled demand-delivery-plugin 提供。旧 IRIS 入口已删除，更新器负责迁移引用与启用状态，原草稿/取证标识不变；详见 [迁移说明](../../../docs/demand-delivery-migration.md)。本轮不自动更新业务副本或修改个人 requirement-entry skill。
+
+## 主子需求与代码归属 v4
+
+按[共享协议](../../../docs/demand-code-ownership.md)拆分；首版层级仅用于source=code，主题/工作来源保持v3。prepare在出现parentKey或codeBinding时生成iris-standard-demand/v4，缺省根条目own、带parentKey的条目parent；输出始终保存明确归属。无层级字段继续输出v2。
+
+spec示例（Agent按自然语言准备，不要求用户填写）：
+
+```json
+{"kind":"standard","requirements":[
+  {"key":"main","name":"{WEB} 操作图标统一","description":{"format":"bug","steps":["打开目标入口"],"expected":"图标一致","actual":"部分主题为文字"},"codeBinding":{"kind":"own"},"type":"fix","subject":"操作图标","changes":[{"evidence":"facts.json","modification":"使用共用图标配置替代主题分支，使各主题操作一致并保留原事件"}]},
+  {"key":"child","parentKey":"main","name":"{WEB} 材料入口图标统一","description":{"format":"bug","steps":["打开材料入口"],"expected":"图标一致","actual":"显示文字"},"codeBinding":{"kind":"parent"}},
+  {"key":"baseline","name":"{WEB} 基线核对","description":{"format":"change","summary":"核对现有实现","steps":["查看现有入口"],"expected":"满足要求"},"codeBinding":{"kind":"none","reason":"已核对基线满足，无需新增代码且无相关提交"}}
+]}
+```
+
+own沿原规则保存changes/type/subject。parent及none省略这些字段，避免重复归属；none必须有reason。验证拒绝缺失主需求、自引用、循环、多级嵌套、重复key/编号及无关条目重复文件证据。bind逐项记录独立编号与最终标题，不能自动复用主需求编号。
+
+prepare/render额外生成relations.md，保留整批主子key、各自BOS编号及代码归属；与draft及逐条文本同目录。Excel仍使用同一正文和29列表头，不添加未知父子导入字段，BOS中的关系由用户建立。已绑定的条目不重复导出正文，关系说明仍包含其映射。
+
+message/plan选中parent时返回references-parent、parentKey/parentDemand、主需求消息及canCommit=false，不执行子需求Git计划；未绑定主需求时提示待回填。API planArguments拒绝parent/none，CLI plan以结构化路由说明结束。none返回not-applicable及reason，不因无代码要求提交插件或凭据；own继续原message/plan门禁。历史证据保持完整固定hash，不因主子组织而获得改写提交历史的权限。

@@ -260,6 +260,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - [bos-init](plugins/bos-plugin/skills/bos-init/SKILL.md)：个人配置初始化与项目接入分别执行；Windows 可生成仓外私有配置并绑定用户环境变量，用户填写 TODO。项目接入才启用插件并生成四个日常入口。
 - [bos-demand-query](plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：按发起人、接受人、当前人或对应组查询待办、历史及编号详情，区分正文、描述图片和附件；个人默认值、显式清除与 0.6.0 调用迁移见[查询参数契约](plugins/bos-plugin/references/usage.md#查询参数契约)，不写回 BOS。
 - [bos-demand-entry](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md)：从 Git、主题及资料或工作记录生成标版文本/Excel；支持给其他组提需，回填编号后仅代码按需衔接提交；结合上下文判断完成状态，已完成条目追加备注；无需查询凭据。
+- [主子需求与代码归属](docs/demand-code-ownership.md)：业务按验收拆分，共享代码唯一归主需求，主子日志复用真实提交；明确无代码可跳过对应阶段。
 - [bos-code-update-log](plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)：从已有 Git 提交生成预览，并按明确授权补录 BOS 代码更新日志；独立凭据与需求查询共用私有文件。
 - [bos-demand-handle](plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：处理已有需求号或充分正文，主动读取相关媒体并按技术栈实施、自查和验证；全部提交校验成功后复用本次仓库/hash 准备日志计划，再按明确 BOS 授权补录。IRIS 专项直达，正式协作按条件加载。
 

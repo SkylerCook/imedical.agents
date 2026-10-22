@@ -19,6 +19,8 @@ function submissionTools(projectRoot = process.cwd()) {
 const { buildWorkbook } = require('./demand-entry-xlsx');
 const SCHEMA = 'iris-standard-demand/v2';
 const NON_CODE_SCHEMA = 'iris-standard-demand/v3';
+const HIERARCHY_SCHEMA = 'iris-standard-demand/v4';
+const { hasBindings, normalizeBindings } = require('../../../scripts/lib/demand-code-binding');
 const FACTS = 'iris-standard-demand-facts/v1';
 const hash = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
@@ -173,7 +175,7 @@ function normalizeNonCodeItem(raw, source = 'work') {
 
 function isNonCodeDraft(draft) {
   if (draft.kind !== 'standard') throw new Error('不支持的需求草稿');
-  if (draft.schema === SCHEMA && (draft.source === undefined || draft.source === 'code')) return false;
+  if ([SCHEMA, HIERARCHY_SCHEMA].includes(draft.schema) && (draft.source === undefined || draft.source === 'code')) return false;
   if (draft.schema === NON_CODE_SCHEMA && ['work', 'request'].includes(draft.source)) return true;
   throw new Error('不支持的需求草稿或来源');
 }
@@ -216,7 +218,11 @@ function prepare(spec, baseDirectory, projectRoot) {
   const source = spec.source === undefined ? 'code' : spec.source;
   if (!['code', 'work', 'request'].includes(source)) throw new Error('source 必须为 code、work 或 request，混合来源请分批');
   const nonCode = source !== 'code';
-  const validateModification = nonCode ? null : submissionTools(projectRoot).validateModification;
+  const hierarchical = hasBindings(spec.requirements);
+  if (nonCode && hierarchical) throw new Error('主子代码归属仅用于代码来源，主题及工作记录保持原协议');
+  const relations = hierarchical ? normalizeBindings(spec.requirements) : null;
+  const needsCode = !nonCode && (!relations || [...relations.values()].some(item => item.codeBinding.kind === 'own'));
+  const validateModification = needsCode ? submissionTools(projectRoot).validateModification : null;
   if (!Array.isArray(spec.requirements) || !spec.requirements.length) throw new Error('requirements 不能为空');
   const keys = new Set();
   const assigned = new Set();
@@ -232,6 +238,15 @@ function prepare(spec, baseDirectory, projectRoot) {
     };
     if (nonCode) return { ...item, ...normalizeNonCodeItem(raw, source) };
     if (['sources', 'progress', 'recipientGroup'].some(key => Object.hasOwn(raw, key))) throw new Error('代码来源不能混入非代码需求字段');
+    if (relations) {
+      const relation = relations.get(key);
+      item.parentKey = relation.parent;
+      item.codeBinding = relation.codeBinding;
+      if (item.codeBinding.kind !== 'own') {
+        if (['changes', 'type', 'subject'].some(field => Object.hasOwn(raw, field))) throw new Error('复用主需求或无代码条目不能重复分配代码证据及提交字段');
+        return item;
+      }
+    }
     item.type = raw.type;
     item.subject = oneLine(raw.subject, 'subject');
     if (!['feat', 'fix', 'refactor', 'docs', 'chore'].includes(item.type)) throw new Error('无效提交 type');
@@ -255,11 +270,54 @@ function prepare(spec, baseDirectory, projectRoot) {
     });
     return item;
   });
-  return { schema: nonCode ? NON_CODE_SCHEMA : SCHEMA, ...(nonCode ? { source } : {}), kind: 'standard', createdAt: new Date().toISOString(), common: spec.common || {}, requirements };
+  return { schema: nonCode ? NON_CODE_SCHEMA : hierarchical ? HIERARCHY_SCHEMA : SCHEMA, ...(nonCode ? { source } : {}), kind: 'standard', createdAt: new Date().toISOString(), common: spec.common || {}, requirements };
 }
 
+function validateHierarchy(draft) {
+  if (draft.schema !== HIERARCHY_SCHEMA) {
+    if (hasBindings(draft.requirements)) throw new Error('主子需求必须使用v4草稿，旧草稿不自动升级');
+    return;
+  }
+  const relations = normalizeBindings(draft.requirements), assigned = new Set(), demands = new Set();
+  for (const item of draft.requirements) {
+    const relation = relations.get(item.key);
+    if (item.boss) {
+      if (!/^\d+$/.test(item.boss.demand) || demands.has(item.boss.demand)) throw new Error('需求编号无效或重复');
+      demands.add(item.boss.demand);
+    }
+    if (relation.codeBinding.kind !== 'own') {
+      if (['changes', 'type', 'subject'].some(field => Object.hasOwn(item, field))) throw new Error('子需求或无代码条目不能重复拥有提交字段');
+      continue;
+    }
+    if (!Array.isArray(item.changes) || !item.changes.length) throw new Error('代码归属条目必须有真实取证');
+    for (const change of item.changes) {
+      const evidence = change.evidence;
+      for (const file of evidence.files) for (const scope of evidence.mode === 'history' ? evidence.commits : ['worktree']) {
+        const identity = [process.platform === 'win32' ? evidence.repo.toLowerCase() : evidence.repo, scope, file].join('\0');
+        if (assigned.has(identity)) throw new Error('无关需求共用文件范围，必须复核代码归属');
+        assigned.add(identity);
+      }
+    }
+  }
+}
+function commitRoute(draft, key, projectRoot) {
+  const item = getItem(draft, key);
+  if (draft.schema !== HIERARCHY_SCHEMA || item.codeBinding.kind === 'own') return null;
+  if (item.codeBinding.kind === 'none') return { status: 'not-applicable', item: key, reason: item.codeBinding.reason, canCommit: false };
+  const parent = getItem(draft, item.parentKey);
+  return { status: 'references-parent', item: key, parentKey: parent.key, parentDemand: parent.boss?.demand || null,
+    canCommit: false, messages: parent.boss ? messages(draft, parent.key, projectRoot) : [],
+    instruction: '代码归属主需求；请选择主需求生成正式计划，保留该主需求全部子项的验收及授权边界' };
+}
+function relationText(draft) {
+  validateHierarchy(draft);
+  const rows = draft.requirements.map(item => [item.key, item.parentKey || '-', item.codeBinding.kind,
+    item.boss?.demand || '待回填', item.codeBinding.reason || (item.codeBinding.kind === 'parent' ? '复用主需求代码，独立验收' : '唯一代码归属')].join(' | '));
+  return '# 主子需求及代码归属\n\n| key | 主需求key | 代码归属 | BOS编号 | 说明 |\n|---|---|---|---|---|\n' + rows.map(row => '| ' + row + ' |').join('\n') + '\n\n代码仅挂own条目；parent条目复用主提交。全部子项通过后按已有授权正式交付；none须保留无代码依据。BOS父子关系由用户录入，导入表保持原29列。\n';
+}
 function getItem(draft, key) {
   isNonCodeDraft(draft);
+  validateHierarchy(draft);
   validateNonCodeDraft(draft);
   const item = draft.requirements.find((entry) => entry.key === key);
   if (!item) throw new Error('找不到需求 key');
@@ -280,6 +338,8 @@ function bind(draft, key, demand, title) {
 function messages(draft, key, projectRoot) {
   const item = getItem(draft, key);
   if (isNonCodeDraft(draft)) throw new Error('非代码需求无代码提交对象，不生成 commit message');
+  const route = commitRoute(draft, key, projectRoot);
+  if (route) return route;
   const { buildMessage, validateModification } = submissionTools(projectRoot);
   if (!item.boss) throw new Error('请先回填 BOSS 需求号和最终标题');
   if (!/^\d+$/.test(item.boss.demand)) throw new Error('无效 BOSS 需求号');
@@ -296,6 +356,8 @@ function messages(draft, key, projectRoot) {
 function planArguments(draft, key, projectRoot) {
   getItem(draft, key);
   if (isNonCodeDraft(draft)) throw new Error('非代码需求无代码提交对象，不生成 Git 提交计划');
+  const route = commitRoute(draft, key, projectRoot);
+  if (route) throw new Error(route.instruction || ('无代码提交对象: ' + route.reason));
   if (!projectRoot) throw new Error('需要 --project-root 以校验实际工程边界');
   const context = resolveWorkspaceContext(projectRoot);
   if (context.mode === 'invalid') throw new Error('Invalid workspace context');
@@ -367,6 +429,7 @@ function parseArgs(argv) {
 
 function deliver(draft, directory, excel) {
   isNonCodeDraft(draft);
+  validateHierarchy(draft);
   validateNonCodeDraft(draft);
   if (!directory) throw new Error('需要 --output，指定新的交付目录');
   directory = safeOutputPath(directory);
@@ -378,6 +441,7 @@ function deliver(draft, directory, excel) {
   fs.mkdirSync(directory, { recursive: true });
   writeNew(path.join(directory, 'draft.json'), `${JSON.stringify(draft, null, 2)}\n`);
   for (const [index, item] of active.entries()) writeNew(path.join(directory, `${item.key}.txt`), `${texts[index]}\n`);
+  if (draft.schema === HIERARCHY_SCHEMA) writeNew(path.join(directory, 'relations.md'), relationText(draft));
   if (workbook) writeNew(path.join(directory, 'requirements.xlsx'), workbook);
   return { directory, items: active.map((item) => item.key), excel: !!workbook };
 }
@@ -405,10 +469,12 @@ function main(argv = process.argv.slice(2)) {
       for (const item of draft.requirements) {
         getItem(draft, item.key);
         if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(item.key)) throw new Error('无效 key');
-        if (!isNonCodeDraft(draft)) for (const change of item.changes) verifyEvidence(change.evidence);
+        if (!isNonCodeDraft(draft)) for (const change of item.changes || []) verifyEvidence(change.evidence);
       }
       result = deliver(draft, args.output, args.excel);
     } else if (args.command === 'plan') {
+      const route = commitRoute(draft, args.item, args.projectRoot);
+      if (route) { console.log(JSON.stringify(route, null, 2)); return; }
       const child = spawnSync(process.execPath, [path.resolve(__dirname, '../../demand-delivery-plugin/scripts/commit-demand.js'), ...planArguments(draft, args.item, args.projectRoot)], { encoding: 'utf8', windowsHide: true, timeout: 120000, maxBuffer: 32 * 1024 * 1024 });
       if (child.error || child.status !== 0) throw new Error(child.error?.message || child.stderr || child.stdout);
       process.stdout.write(child.stdout);
@@ -421,4 +487,4 @@ function main(argv = process.argv.slice(2)) {
 if (require.main === module) {
   try { main(); } catch (error) { console.error(`[停止] ${error.message}`); process.exitCode = 1; }
 }
-module.exports = { collect, verifyEvidence, prepare, bind, messages, planArguments, renderText, parseArgs, deliver, main };
+module.exports = { collect, verifyEvidence, prepare, bind, messages, planArguments, renderText, parseArgs, deliver, commitRoute, relationText, validateHierarchy, main };

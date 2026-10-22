@@ -83,6 +83,8 @@ coding-iris-plugin 0.13 提供 iris-imedical-knowledge / iris-menu-sync；共享
 
 ## 标版需求录入入口
 
+BOS 0.12.0及需求交付0.6.0新增[主子代码归属](demand-code-ownership.md)。沿既有完整更新取得两个owner和根scripts/lib后刷新enabled索引；Overlay只更新共享能力一次，再按项目流程NoPull刷新模块。新层级草稿v4/验收v2使用新工具，旧v2/v3草稿及验收v1保持原语义，不自动转换、清理或改授权；无私有配置迁移，不调用真实BOS或启动验收批次。安装器/更新器实现和部署目录不变。
+
 需求提交和补录已迁出 IRIS，完整更新会定向迁移旧技能、项目 AGENTS 与启用状态；冲突阻断，详见 [需求交付迁移](demand-delivery-migration.md)。
 
 coding-iris-plugin 0.13.6 起，需求录入输出路径拒绝 `.agents/`、能力包源码和指向它们的目录链接。更新器不会自动移动此前误放的私有 `facts.json`、`spec.json` 或草稿；先核对准确文件与内容，将它们迁到工程任务临时目录或正式需求目录，再处理 `.agents` dirty checkout 并更新。旧输入仍可只读访问，不能为了通过更新而直接删除用户产物。

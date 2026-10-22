@@ -3,6 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const SCHEMA = 'demand-acceptance-session/v1';
+const HIERARCHY_SCHEMA = 'demand-acceptance-session/v2';
+const { hasBindings, normalizeBindings } = require('../../../scripts/lib/demand-code-binding');
 const ACTIONS = ['commit', 'bos-log', 'push'];
 const PHASES = ['commit', 'bos', 'push'];
 const now = () => new Date().toISOString();
@@ -52,9 +54,11 @@ function writeAtomic(file, value) {
 }
 function load(directory) {
   const state = json(path.join(directory, 'session.json'));
-  if (state.schema !== SCHEMA) fail('Unsupported session schema');
+  if (![SCHEMA, HIERARCHY_SCHEMA].includes(state.schema)) fail('Unsupported session schema');
+  if (state.schema === HIERARCHY_SCHEMA) normalizeBindings(state.demands, { idField: 'id', parentField: 'parentId' });
+  else if (hasBindings(state.demands, 'parentId')) fail('Legacy session cannot acquire hierarchy without a new scoped session');
   assertDirectory(directory, state.projectRoot);
-  const observedScope = { projectRoot: state.projectRoot, deliveryActions: state.scope.deliveryActions, demands: state.demands.map(item => ({ id: item.id, repositories: item.repositories })) };
+  const observedScope = { projectRoot: state.projectRoot, deliveryActions: state.scope.deliveryActions, demands: state.demands.map(item => scopeItem(item, state.schema === HIERARCHY_SCHEMA)) };
   if (hash(state.scope) !== state.scopeHash || hash(observedScope) !== state.scopeHash) fail('Session scope changed; reconcile the mapping before continuing');
   return state;
 }
@@ -78,13 +82,48 @@ function mutate(directory, operation) {
     fs.unlinkSync(lock);
   }
 }
+function scopeItem(item, hierarchical) {
+  return { id: item.id, repositories: item.repositories, ...(hierarchical ? { parentId: item.parentId, codeBinding: item.codeBinding } : {}) };
+}
+function mode(item) { return item.codeBinding?.kind || 'own'; }
+function codeOwner(state, item) { return mode(item) === 'parent' ? demand(state, { id: item.parentId }) : item; }
+function groupReady(state, item) {
+  if (state.schema !== HIERARCHY_SCHEMA) return item.decision.status === 'passed';
+  const root = item.parentId ? demand(state, { id: item.parentId }) : item;
+  return state.demands.filter(entry => entry.id === root.id || entry.parentId === root.id).every(entry => entry.decision.status === 'passed');
+}
+function applicable(item, phase) { return mode(item) !== 'none' && !(mode(item) === 'parent' && ['commit', 'push'].includes(phase)); }
+function codeReady(item) { return item.delivery.commit.status === 'succeeded' || (mode(item) === 'parent' && item.delivery.commit.status === 'inherited'); }
+function pushReady(item) { return item.delivery.push.status === 'succeeded' || (mode(item) === 'parent' && item.delivery.push.status === 'inherited'); }
+function refreshReferences(state) {
+  if (state.schema !== HIERARCHY_SCHEMA) return;
+  for (const item of state.demands.filter(entry => mode(entry) === 'parent' && entry.delivery.commit.status === 'inherited')) {
+    const parent = codeOwner(state, item);
+    if (parent.delivery.commit.status !== 'succeeded' || !sameSelection(selection(item), selection(parent))) fail('Inherited commit differs from its verified parent receipt');
+    if (state.scope.deliveryActions.includes('push') && parent.delivery.push.status === 'succeeded') {
+      item.delivery.push = { status: 'inherited', sourceDemand: parent.id, records: parent.delivery.push.records, at: parent.delivery.push.at };
+    }
+  }
+  for (const item of state.demands) if (completed(state, item)) { item.claim = null; item.publication = null; }
+}
+function validateBosTarget(state, item, receipt) {
+  if (state.schema !== HIERARCHY_SCHEMA) return;
+  if (receipt?.requirementCode !== item.id || receipt?.codeOwnerRequirementCode !== codeOwner(state, item).id) fail('BOS receipt must identify the target demand and verified code owner');
+  text(receipt.linkProject, 'BOS linkProject');
+  if (item.delivery.bos.linkProject && receipt.linkProject !== item.delivery.bos.linkProject) fail('BOS associated project changed; preserve the prior result and reconcile the mapping');
+}
 function create(directory, input) {
   const projectRoot = path.resolve(text(input.projectRoot, 'projectRoot'));
   assertDirectory(directory, projectRoot);
   const actions = [...new Set(input.deliveryActions || [])];
   if (!actions.includes('commit') || actions.some(action => !ACTIONS.includes(action))) fail('Specify deliveryActions including commit');
   const seen = new Set(), repositories = new Map();
-  const demands = (input.demands || []).map(item => {
+  const hierarchical = hasBindings(input.demands, 'parentId');
+  const rows = (input.demands || []).map(item => ({ ...item, id: id(item.id), ...(Object.hasOwn(item, 'parentId') ? { parentId: item.parentId === null ? null : id(item.parentId) } : {}) }));
+  const relations = hierarchical ? normalizeBindings(rows, { idField: 'id', parentField: 'parentId' }) : null;
+  const demands = rows.map(item => {
+    const relation = relations?.get(item.id), kind = relation?.codeBinding.kind || 'own';
+    if (kind !== 'own' && Object.hasOwn(item, 'repositories')) fail('Inherited or no-code demands cannot duplicate repository ownership');
     const demandId = id(item.id);
     if (seen.has(demandId)) fail(`Duplicate demand: ${demandId}`);
     seen.add(demandId);
@@ -101,20 +140,23 @@ function create(directory, input) {
           file.split(/[\\/]/).some(part => ['..', '.git', '.agents'].includes(part)))) fail('Provide exact repository-relative files');
       return { ...identity, files: files.sort() };
     });
-    if (!specs.length || new Set(specs.map(repo => repo.key)).size !== specs.length) fail('Demand needs unique repository keys');
+    if ((kind === 'own' && !specs.length) || new Set(specs.map(repo => repo.key)).size !== specs.length) fail('Demand needs unique repository keys');
     const automatic = item.automatic || {};
     return {
       id: demandId, title: text(item.title, 'title'), repositories: specs,
+      ...(hierarchical ? { parentId: relation.parent, codeBinding: relation.codeBinding } : {}),
       automatic: { status: automatic.status || 'not-verified', evidenceRefs: automatic.evidenceRefs || [], gaps: automatic.gaps || [] },
       decision: { status: 'pending', quote: null, at: null },
       claim: null, publication: null,
-      delivery: { commit: { status: 'pending', records: [] }, bos: { status: actions.includes('bos-log') ? 'pending' : 'not-applicable' }, push: { status: actions.includes('push') ? 'pending' : 'not-applicable', records: [] } },
+      delivery: { commit: { status: kind === 'none' ? 'not-applicable' : 'pending', records: [], ...(kind === 'none' ? { reason: relation.codeBinding.reason } : {}) },
+        bos: { status: kind !== 'none' && actions.includes('bos-log') ? 'pending' : 'not-applicable', ...(kind === 'none' ? { reason: relation.codeBinding.reason } : {}) },
+        push: { status: kind !== 'none' && actions.includes('push') ? 'pending' : 'not-applicable', records: [], ...(kind === 'none' ? { reason: relation.codeBinding.reason } : {}) } },
       history: []
     };
   });
   if (!demands.length) fail('No demands provided');
-  const scope = { projectRoot, deliveryActions: actions, demands: demands.map(item => ({ id: item.id, repositories: item.repositories })) };
-  const state = { schema: SCHEMA, taskKind: 'business-demand', projectRoot, createdAt: now(), updatedAt: now(), scope, scopeHash: hash(scope), authorizations: {}, demands };
+  const scope = { projectRoot, deliveryActions: actions, demands: demands.map(item => scopeItem(item, hierarchical)) };
+  const state = { schema: hierarchical ? HIERARCHY_SCHEMA : SCHEMA, taskKind: 'business-demand', projectRoot, createdAt: now(), updatedAt: now(), scope, scopeHash: hash(scope), authorizations: {}, demands };
   fs.mkdirSync(directory, { recursive: true });
   const lock = path.join(directory, 'session.lock');
   const descriptor = fs.openSync(lock, 'wx');
@@ -139,9 +181,10 @@ function owned(state, input) {
   return item;
 }
 function completed(state, item) {
-  return item.decision.status === 'passed' && item.delivery.commit.status === 'succeeded' &&
+  if (mode(item) === 'none') return item.decision.status === 'passed' && ['commit', 'bos', 'push'].every(phase => item.delivery[phase].status === 'not-applicable');
+  return item.decision.status === 'passed' && codeReady(item) &&
     (!state.scope.deliveryActions.includes('bos-log') || item.delivery.bos.status === 'succeeded') &&
-    (!state.scope.deliveryActions.includes('push') || item.delivery.push.status === 'succeeded');
+    (!state.scope.deliveryActions.includes('push') || pushReady(item));
 }
 function selection(item) {
   return item.delivery.commit.records.map(record => ({ repo: record.repo, hash: record.hash }));
@@ -163,7 +206,7 @@ function commitReceipt(item, receipt) {
   if (records.length !== item.repositories.length || new Set(records.map(record => record.key)).size !== records.length) fail('All target repositories must be verified');
   return records;
 }
-function apply(state, command, input) {
+function applyCore(state, command, input) {
   if (command === 'authorize') {
     const quote = human(input), actions = input.actions || [];
     if (!actions.length || actions.some(action => !state.scope.deliveryActions.includes(action))) fail('Authorization actions differ from session scope');
@@ -174,7 +217,9 @@ function apply(state, command, input) {
     const item = demand(state, input), quote = human(input);
     if (!['passed', 'failed', 'deferred'].includes(input.status)) fail('Invalid human verdict');
     if (item.decision.status === input.status) return state;
-    if (item.claim || item.delivery.commit.records.length) fail('Delivery has started; preserve receipts and reconcile a revised demand explicitly');
+    const root = state.schema === HIERARCHY_SCHEMA && item.parentId ? demand(state, { id: item.parentId }) : item;
+    const related = state.schema === HIERARCHY_SCHEMA ? state.demands.filter(entry => entry.id === root.id || entry.parentId === root.id) : [item];
+    if (related.some(entry => entry.claim || entry.delivery.commit.records.length)) fail('Delivery has started; preserve receipts and reconcile a revised demand explicitly');
     item.decision = { status: input.status, quote, at: now() };
     item.history.push({ event: 'user-decision', status: input.status, at: now() });
     return state;
@@ -183,6 +228,8 @@ function apply(state, command, input) {
     const item = demand(state, input), owner = text(input.owner, 'owner');
     if (item.decision.status !== 'passed') fail('Only a human-passed demand can be delivered');
     if (completed(state, item)) fail('Demand is already delivered');
+    if (!groupReady(state, item)) fail('All related child demands must pass human acceptance before shared delivery');
+    if (mode(item) === 'parent' && codeOwner(state, item).delivery.commit.status !== 'succeeded') fail('Wait for the verified parent commit; do not create a child commit');
     if (item.claim) {
       if (item.claim.owner === owner) {
         for (const [key, root] of Object.entries(input.worktrees || {})) {
@@ -207,6 +254,7 @@ function apply(state, command, input) {
   }
   if (command === 'publish') {
     const item = owned(state, input);
+    if (!groupReady(state, item)) fail('Shared acceptance group is not ready');
     for (const action of state.scope.deliveryActions) {
       if (state.authorizations[action]?.scopeHash !== state.scopeHash) fail(`Missing scoped authorization: ${action}`);
     }
@@ -214,6 +262,16 @@ function apply(state, command, input) {
       if (other.repositories.some(a => item.repositories.some(b => canonical(a.root) === canonical(b.root) && a.remote === b.remote && a.ref === b.ref))) fail('Publication is busy; prepare independently and wait before commit/BOS/push');
     }
     item.publication = { owner: item.claim.owner, at: now() };
+    return state;
+  }
+  if (command === 'inherit') {
+    const item = owned(state, input);
+    if (state.schema !== HIERARCHY_SCHEMA || mode(item) !== 'parent' || !item.publication || !groupReady(state, item)) fail('Only a published accepted child can inherit its parent commit');
+    if (item.delivery.commit.status !== 'pending') fail('Parent commit reference already recorded; resume the next phase');
+    const parent = codeOwner(state, item);
+    if (parent.delivery.commit.status !== 'succeeded' || !selection(parent).length) fail('A verified parent commit is required');
+    item.delivery.commit = { status: 'inherited', sourceDemand: parent.id, records: parent.delivery.commit.records.map(record => ({ ...record })), at: now() };
+    item.history.push({ event: 'inherit-commit', sourceDemand: parent.id, at: now() });
     return state;
   }
   if (command === 'release') {
@@ -226,14 +284,15 @@ function apply(state, command, input) {
     const item = owned(state, input);
     if (item.delivery.bos.status !== 'unknown') fail('No unknown BOS result to reconcile');
     let reconciliation;
+    if (input.status === 'succeeded') validateBosTarget(state, item, input.receipt);
     if (input.actor === 'agent' && input.status === 'succeeded') {
       if (input.verification?.source !== 'bos-readback' || input.receipt?.submitted !== true) fail('Agent reconciliation needs an authoritative BOS readback receipt');
       reconciliation = { actor: 'agent', source: 'bos-readback', evidenceRef: text(input.verification.evidenceRef, 'readback evidenceRef'), at: now() };
     } else reconciliation = { actor: 'user', quote: human(input), at: now() };
-    if (input.status === 'not-submitted') item.delivery.bos = { status: 'pending', reconciliation };
+    if (input.status === 'not-submitted') item.delivery.bos = { ...item.delivery.bos, status: 'pending', reconciliation };
     else if (input.status === 'succeeded') {
       if (!sameSelection(input.receipt?.select, selection(item)) || input.receipt?.resultCodes?.some(code => code !== '000') || !input.receipt?.resultCodes?.length) fail('Reconciled BOS result must identify the exact commits and success codes');
-      item.delivery.bos = { status: 'succeeded', selection: selection(item), resultCodes: [...input.receipt.resultCodes], reconciliation };
+      item.delivery.bos = { status: 'succeeded', selection: selection(item), resultCodes: [...input.receipt.resultCodes], reconciliation, ...(state.schema === HIERARCHY_SCHEMA ? { requirementCode: item.id, codeOwnerRequirementCode: codeOwner(state, item).id, linkProject: input.receipt.linkProject } : {}) };
     } else fail('Choose not-submitted or succeeded');
     item.history.push({ event: 'reconcile-bos', status: item.delivery.bos.status, at: now() });
     if (completed(state, item)) { item.claim = null; item.publication = null; }
@@ -246,18 +305,28 @@ function apply(state, command, input) {
   if (!item.publication) fail('Acquire publication ownership before side effects');
   const action = phase === 'bos' ? 'bos-log' : phase;
   if (!state.scope.deliveryActions.includes(action)) fail('Phase is outside the requested delivery actions');
-  if (phase !== 'commit' && item.delivery.commit.status !== 'succeeded') fail('Commit verification must finish first');
+  if (!applicable(item, phase)) fail('Phase is not applicable; shared commit/push must be referenced from the parent');
+  if (!groupReady(state, item)) fail('All related child demands must pass before delivery');
+  if (phase !== 'commit' && !codeReady(item)) fail('Commit verification must finish first');
+  if (phase === 'push' && state.scope.deliveryActions.includes('bos-log') && state.demands.some(child => child.parentId === item.id && mode(child) === 'parent' && child.delivery.bos.status !== 'succeeded')) fail('All child BOS results must be confirmed before the single shared push');
   if (phase === 'push' && state.scope.deliveryActions.includes('bos-log') && item.delivery.bos.status !== 'succeeded') fail('BOS result must be confirmed before push');
   const previous = item.delivery[phase];
   if (previous.status === 'succeeded') fail('Phase already succeeded; do not repeat the external action');
   if (phase === 'bos' && ['running', 'unknown'].includes(previous.status) && input.status === 'running') fail('BOS may already have been written; reconcile before retry');
   if (phase === 'bos' && previous.status === 'unknown') fail('Reconcile unknown BOS results explicitly');
+  if (phase === 'bos' && state.schema === HIERARCHY_SCHEMA && input.status === 'running') {
+    validateBosTarget(state, item, input.receipt);
+    if (!sameSelection(input.receipt.select, selection(item))) fail('BOS request must use the exact verified commit selection');
+    previous.linkProject = input.receipt.linkProject;
+  }
   if (input.status === 'succeeded') {
     if (phase === 'commit') item.delivery.commit = { status: 'succeeded', records: commitReceipt(item, input.receipt), at: now() };
     if (phase === 'bos') {
+      validateBosTarget(state, item, input.receipt);
       if (!sameSelection(input.receipt?.select, selection(item)) || !input.receipt?.submitted ||
           !input.receipt?.resultCodes?.length || input.receipt.resultCodes.some(code => code !== '000')) fail('BOS receipt must confirm the exact verified commit selection');
-      item.delivery.bos = { status: 'succeeded', selection: selection(item), resultCodes: [...input.receipt.resultCodes], at: now(), ...(input.evidenceRef ? { evidenceRef: text(input.evidenceRef, 'evidenceRef') } : {}) };
+      item.delivery.bos = { status: 'succeeded', selection: selection(item), resultCodes: [...input.receipt.resultCodes], at: now(), ...(input.evidenceRef ? { evidenceRef: text(input.evidenceRef, 'evidenceRef') } : {}),
+        ...(state.schema === HIERARCHY_SCHEMA ? { requirementCode: item.id, codeOwnerRequirementCode: codeOwner(state, item).id, linkProject: input.receipt.linkProject } : {}) };
     }
     if (phase === 'push') {
       const records = [...(previous.records || [])];
@@ -281,6 +350,15 @@ function apply(state, command, input) {
   item.history.push({ event: phase, status: item.delivery[phase].status, at: now(), ...(input.durationMs === undefined ? {} : { durationMs: input.durationMs }) });
   if (completed(state, item)) { item.claim = null; item.publication = null; }
   return state;
+}
+function apply(state, command, input) {
+  const result = applyCore(state, command, input);
+  refreshReferences(state);
+  return result;
+}
+function readyForClaim(state, item) {
+  return item.decision.status === 'passed' && groupReady(state, item) && !completed(state, item) && !item.claim &&
+    (mode(item) !== 'parent' || codeOwner(state, item).delivery.commit.status === 'succeeded');
 }
 function summarize(state, kind = 'accepted') {
   const groups = {
@@ -306,7 +384,7 @@ function render(state, kind = 'accepted', format = 'markdown') {
 }
 function main(argv = process.argv.slice(2)) {
   try {
-    if (argv[0] === '--help') { process.stdout.write('acceptance-session.js <init|authorize|decide|claim|publish|record|reconcile-bos|release|status|next|report> --directory <project task dir> [--input-file file|--stdin] [--id demand] [--kind accepted|delivered|failed|deferred|pending] [--format markdown|json|csv]\n'); return 0; }
+    if (argv[0] === '--help') { process.stdout.write('acceptance-session.js <init|authorize|decide|claim|publish|inherit|record|reconcile-bos|release|status|next|report> --directory <project task dir> [--input-file file|--stdin] [--id demand] [--kind accepted|delivered|failed|deferred|pending] [--format markdown|json|csv]\n'); return 0; }
     const command = argv.shift(), options = {};
     while (argv.length) {
       const key = argv.shift();
@@ -317,7 +395,7 @@ function main(argv = process.argv.slice(2)) {
     const directory = path.resolve(text(options.directory, 'directory'));
     if (command === 'report') { process.stdout.write(`${render(load(directory), options.kind, options.format)}\n`); return 0; }
     if (command === 'next') {
-      const state = load(directory), candidates = state.demands.filter(item => item.decision.status === 'passed' && !completed(state, item) && !item.claim).sort((a,b) => a.decision.at.localeCompare(b.decision.at));
+      const state = load(directory), candidates = state.demands.filter(item => readyForClaim(state, item)).sort((a,b) => a.decision.at.localeCompare(b.decision.at));
       process.stdout.write(JSON.stringify({ next: candidates[0] || null }, null, 2) + '\n'); return 0;
     }
     if (command === 'status' && options.id) {
@@ -331,5 +409,5 @@ function main(argv = process.argv.slice(2)) {
     return 0;
   } catch (error) { process.stderr.write(`${error.message}\n`); return 1; }
 }
-module.exports = { create, load, mutate, apply, completed, selection, idsCsv, summarize, render, main };
+module.exports = { create, load, mutate, apply, completed, selection, idsCsv, summarize, render, readyForClaim, main };
 if (require.main === module) process.exitCode = main();

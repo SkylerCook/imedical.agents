@@ -60,3 +60,22 @@ node <脚本绝对路径> submit '{"select":[{"repo":"<仓库路径>","hash":"<�
 保留上游字段映射和数字需求提交格式。上游编辑器设置改为按技能分段的仓外共享文件；选择范围由明确 repo/hash 决定，不限制是否已推送；确认通过 `--confirm`；超时统一 30000ms；多仓不同说明全部保留；提交后不询问或执行 push。
 
 来源工程曾报告该默认地址上的单账号接口样本，不能替代本框架版本的验收。本次回归只使用合成数据、隔离 Git 仓库和 mock HTTP，不连接或写入真实 BOS。Windows/macOS/Linux、Node 22/24 由现有 CI 矩阵执行，配置存在不等于结果通过；真实地址、账号权限及服务端去重策略仍需各自取证。
+
+## 主子需求复用提交
+
+普通select保持原行为。新输入与select互斥：
+
+```json
+{"bindings":[
+  {"requirementCode":"100","codeOwnerRequirementCode":"100","select":[{"repo":"<GitRoot>","hash":"<完整40位主提交>"}]},
+  {"requirementCode":"101","codeOwnerRequirementCode":"100","select":[{"repo":"<GitRoot>","hash":"<同一个完整主提交>"}]}
+]}
+```
+
+plan/submit均接受该JSON，不新增命令。Agent只从已确认的主子关系、各自编号和verified提交结果构造映射；编号为数字字符串，映射必须使用完整hash。CLI验证真实commit中的需求号等于codeOwnerRequirementCode，缺失或不一致停止，不能只提供任意目标号覆盖解析结果。代码来源未知时保留待处理，不用none掩盖缺证据。
+
+每个目标需求独立生成payload，RequirementCode使用目标编号；Repository的hash/文件/行数及菜单、原修改说明来自同一真实提交，子需求说明附共享主需求和hash。summary额外提供codeOwnerRequirementCode供回执关联。提交说明与历史不改写，BOS页面及服务端接口不改动。
+
+单次调用按目标编号、关联项目、真实Git仓库身份与完整hash去重；同仓不同worktree去重，不将不同子需求误当重复。关联项目为本次配置中的固定LinkProject。跨次去重继续复用任务/验收回执，不新增全局数据库；已确认成功的不重发，未知结果先核对。共享统计表示复用同一提交，不宣称各子需求独立新增同一批代码。
+
+明确none的条目由调用方先记录代码日志not-applicable及原因，不调用plan/submit、不读取日志凭据。select为空、缺少hash或只有未完成提交仍报错，不等价于无代码。新协议的批次回执需同时保存目标编号、代码所属编号、linkProject和精确select，见[验收批次](../../demand-delivery-plugin/references/acceptance-session.md#主子需求及无代码条目-v2)。

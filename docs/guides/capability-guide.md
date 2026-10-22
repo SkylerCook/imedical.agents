@@ -282,12 +282,14 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 ## bos-plugin
 
+主子需求按[代码归属协议](../demand-code-ownership.md)：例如“按三个入口拆子需求，共享代码挂主需求；全部通过后统一提交，主子各自日志复用这次提交”。Agent准备草稿和映射，用户逐项回填编号即可；明确无代码的条目保留原因并跳过代码交付，不需日志凭据。
+
 BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调用检查见[可用性依赖](../plugin-availability.md)。
 
 前提：Node.js >=22.5.0；项目内使用时明确启用插件，个人查询可使用已接入的用户级入口。在线查询与日志补录使用 BOS_MCP_CONFIG 指向的共享私有文件，各自读取按 skill 命名的段，已有充分需求正文的本地处理不依赖在线查询。
 
 - [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md)：请求“初始化 BOS 个人配置”，Windows 创建或复用分段私有配置，仅绑定 BOS_MCP_CONFIG；旧平铺文件须明确 migrate-config 原地迁移，用户补全 TODO 后离线核对；这不启用项目。请求“为当前项目接入 BOS 查询与需求处理”才更新 profile 并生成四个日常发现入口。详见[配置说明](../../plugins/bos-plugin/references/usage.md)；非 Windows 使用显式配置，不自动注册客户端 MCP。
-- [bos-demand-entry](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md)：请求“根据当前标版改动补需求”“整理这份工作记录”或“提需求给支持组，解决演示系统登录问题”，可补资料。仅 standard；Git 代码用 v2，`--work` 工作和自然语言主题提需用 v3；主题不要求 Git，接收组与产品标识分开核实。默认文本，`--split` 审查拆合、`--excel` 导出同源草稿、`--bind` 回填编号，仅代码按授权衔接提交。已完成条目追加备注，文本写完不代表问题已解决。本地生成无需 BOS 凭据，不自动发送或录入；产物归目标工程需求目录或任务临时目录。旧 `iris-demand-entry` / `iris-demand-commit` 已删除，改用当前 owner，数据兼容与项目引用迁移见[迁移说明](../demand-delivery-migration.md)。
+- [bos-demand-entry](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md)：请求“根据当前标版改动补需求”“整理这份工作记录”或“提需求给支持组，解决演示系统登录问题”，可补资料。仅 standard；扁平Git代码用v2，主子代码用v4，`--work` 工作和自然语言主题提需用 v3；主题不要求 Git，接收组与产品标识分开核实。默认文本，`--split` 审查拆合、`--excel` 导出同源草稿、`--bind` 回填编号，仅代码按授权衔接提交。已完成条目追加备注，文本写完不代表问题已解决。本地生成无需 BOS 凭据，不自动发送或录入；产物归目标工程需求目录或任务临时目录。旧 `iris-demand-entry` / `iris-demand-commit` 已删除，改用当前 owner，数据兼容与项目引用迁移见[迁移说明](../demand-delivery-migration.md)。
 - [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：请求“查看 BOS 12345 详情”“查询我的待办”“查询我发起的历史”或“查询指定接受组的待办”。个人待办默认本人＋所在组；切换人员/组口径时明确清除不用的默认条件，字段说明与 body 按[查询参数契约](../../plugins/bos-plugin/references/usage.md#查询参数契约)处理。旧 cuser: "" 调用升级后表示清除当前人，继承本人应省略该字段。结果区分正文、图片与附件链接，不改业务代码或 BOS 状态。
 - [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：请求“处理 BOS 12345”，主动读取相关媒体并按项目技术栈实现与验证；“验收后提交”授权本地提交，全部校验成功后自动准备本次日志计划，再请求 BOS 补录授权。“验收后提交并将本次提交补录到 BOS 代码更新日志”可提前明确两项授权。配置缺失、拒绝或补录失败保留本地已提交结果；完整正文可在 BOS 不可用时继续本地工作。
 

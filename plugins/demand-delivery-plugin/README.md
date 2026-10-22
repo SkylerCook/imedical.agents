@@ -1,5 +1,7 @@
 # Demand Delivery Plugin
 
+0.6.0：新验收v2支持主子分组门禁、主提交及push回执继承、逐子项BOS日志和明确无代码阶段不适用，见[代码归属](../../docs/demand-code-ownership.md)。旧v1批次原样恢复，不自动迁移。取得完整能力包及根scripts/lib后刷新已启用索引，无新增项目配置或实际服务写入。
+
 跨插件阶段依赖以 manifest 的 availableDependencies 为事实源；触发时按[可用性依赖协议](../../docs/plugin-availability.md)检查，缺口仅阻塞对应阶段，显式 disabled 保留。
 
 跨技术栈复用需求提交安全机制，入口为 [demand-commit](skills/demand-commit/SKILL.md)。支持数字需求号及 standard/project 格式，不要求 IRIS profile、MCP 或 BOS 凭据；这是组织需求交付约定，不是任意 Git 提交格式转换器。

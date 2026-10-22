@@ -88,3 +88,25 @@ commit 的 unknown/失败应先读官方计划及实际 Git，判断是否已有
 报告者只读 session.json/执行回执，写独立报告；多个交付者仅通过辅助命令短时更新元数据。量测 durationMs 记录实际阶段时间；未量测等待另列未归因，不写为 Git/BOS 的耗时。
 
 目前测试覆盖本机隔离状态流与本地 Git 对接；真实 BOS 写入/远端发布及非本机宿主需另行取得授权和证据。
+
+## 主子需求及无代码条目 v2
+
+语义按[代码归属协议](../../../docs/demand-code-ownership.md)。init出现parentId或codeBinding时创建demand-acceptance-session/v2，原输入继续v1，load兼容二者；旧批次不自动升级。v2的parentId、codeBinding及none原因都纳入scopeHash，不能在已授权批次中静默改归属、移除未通过子项或扩大范围。
+
+在原init输入的demands中，主需求own保留原repositories；子需求声明parentId及codeBinding={kind:parent}，省略repositories；明确无代码声明codeBinding={kind:none,reason:<调查结论>}，同样省略repositories。根缺省own，存在parentId的子项缺省parent。一级关系、编号及引用由脚本校验，完整无代码依据由Agent按任务事实判断。
+
+主需求及全部关联子项人工passed后，own才允许claim/publish；parent还需主需求的commit已verified。next只返回具备上述条件的候选，不阻塞其它独立需求。主需求若已有共享提交或交付claim，任何相关子项修改结论均需明确修订范围并保留旧回执，不能覆盖现场。
+
+own仍按原commit回执登记。子需求claim/publish后执行inherit（输入为id/owner），脚本引用已记录的主需求完整仓库/hash，commit.status=inherited、sourceDemand=主需求号；不能record伪造子需求commit或重复inherit。parent不需要额外worktree，也不拥有代码文件发布权。
+
+BOS阶段每个主子需求各自运行。v2的bos/running输入receipt须包含计划的目标需求、代码所属需求、关联项目和精确select；成功时再附实际submitted/resultCodes。例如：
+
+```json
+{"id":"101","owner":"delivery-a","phase":"bos","status":"succeeded","receipt":{"requirementCode":"101","codeOwnerRequirementCode":"100","linkProject":"<计划中的关联项目>","select":[{"repo":"<主需求verified仓库>","hash":"<完整主提交>"}],"submitted":true,"resultCodes":["000"]}}
+```
+
+目标号、主编号、完整选择及关联项目均需匹配；不能把主需求日志成功回执直接当子需求成功。running/unknown沿原停止与reconcile-bos契约，关联项目不能在恢复中偷偷替换。成功记录保留上述身份，不新建日志状态库。
+
+全部适用子需求日志及主需求日志确认成功后，own执行一次push并按原规则验证远端包含主提交。已经inherit的子需求自动引用push回执并标记inherited，不再执行push；尚未登记引用的子需求可在主提交已存在时继续inherit并恢复各自日志。失败只恢复相应阶段，不能为日志重做Git提交。
+
+none在创建时将commit/bos/push置not-applicable并保存原因；仅在人类passed且所有阶段确实不适用时算完成。其对应record调用被拒绝，不索取BOS凭据或创建空提交。父提交待完成、hash遗失及结果未知均不能转none；旧v1仍保留原适用阶段和回执格式。

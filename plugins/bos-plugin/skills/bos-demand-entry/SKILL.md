@@ -1,6 +1,6 @@
 ---
 name: bos-demand-entry
-description: Generate BOS demand text from Git changes, a topic and optional materials for another group, or --work records. Use --split to review splitting, --excel to export, and --bind to save demand IDs; --plan/--commit apply only to code. Not for project delivery.
+description: Generate BOS demand text from Git changes, a topic and optional materials for another group, or --work records. Use --split to review independent or parent-child splitting, --excel to export, and --bind to save demand IDs; --plan/--commit apply only to code. Not for project delivery.
 ---
 
 # 标版需求录入与提交衔接
@@ -109,9 +109,11 @@ $bos-demand-entry --commit
 1. 代码需求以独立问题或业务成果、可独立判断的验收标准、值得单独追踪为依据；工作记录按独立工作目标和已有或预期成果判断，不要求额外验收标准。公共能力和业务落地各有独立价值时可分条并标明依赖；测试、部署、兼容、加 Parameter 或提取方法等配套通常归所属需求。不按文件数、方法、阶段、代码行数或目标条数机械拆分，也不重复计算公共能力。
 2. 展示简洁审查表：每条的价值、范围、代码验收点或工作成果、代码/片段或来源条目归属、依赖及拆合理由。只有一个独立目的时明确建议保留一条。通过真实问题、改动边界、影响范围和验证证据体现工作量，不虚构工时、成果或验收事实。
 3. 边界明确且符合各自来源约束时，直接生成同一批条目的对应格式文本、draft 和可选 Excel，不固定增加确认环节。只有影响拆合的业务取舍无法从事实确定时才询问。
-4. 以下限制只适用于代码来源：多条需求共享待提交文件，或共享同一历史提交的同一文件时，先交付审查与候选文本，标明片段归属及隔离限制；当前 prepare 不支持 hunk 归属，不能重复分配整文件、伪造取证或自动改 Git 历史。该批 draft/Excel 暂不生成，说明需先明确并隔离代码范围，或由用户确认合并业务条目；不把候选文本冒充已生成草稿。Excel 仍走既有渲染，不另造绕过归属检查的导出通道。
+4. 业务可独立验收但共享文件不宜拆时，按[代码归属协议](../../../../docs/demand-code-ownership.md)组织一级主子需求：主需求唯一持有证据，子需求引用主需求，使用v4草稿生成全部文本及关系说明，可选Excel仍为原29列。无共同业务目标的独立需求继续执行共享文件拦截，交付候选与片段归属，等待隔离，不能重复分配整文件或改写历史。
 
-这些是 Agent 解释的 skill 参数，不能把 `--split` 直接传给底层脚本；拆分开关不改变脚本 CLI；代码保留 v2，主题/工作记录使用 v3 协议。审查表留在交付说明，不把技术归属与依赖表塞入 BOS 三段式正文。
+这些是 Agent 解释的 skill 参数，不能把 `--split` 直接传给底层脚本；拆分开关不改变脚本 CLI；扁平代码保留v2，主子代码使用v4，主题/工作记录保持v3；具体字段见数据协议。审查表留在交付说明，不把技术归属与依赖表塞入 BOS 三段式正文。
+
+选中parent子需求调用message/plan时，展示主需求归属及对应消息，返回canCommit=false；由用户或既有范围明确选择主需求后才执行正式计划。none返回不适用及原因，不加载提交依赖。全部关联子项通过前只允许已有授权的阶段恢复点；该分组不改变提交权限。
 
 ## 代码与主题简洁录入模板
 

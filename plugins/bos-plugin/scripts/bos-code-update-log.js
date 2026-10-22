@@ -248,6 +248,35 @@ function selectRecords(select) {
   }).filter(Boolean);
 }
 
+// Explicit target/owner bindings reuse immutable commits without rewriting their messages.
+function selectInput(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('日志输入必须为对象');
+  if (Object.hasOwn(input, 'select') && Object.hasOwn(input, 'bindings')) throw new Error('select 与 bindings 互斥');
+  if (!Object.hasOwn(input, 'bindings')) return selectRecords(input.select);
+  if (!Array.isArray(input.bindings) || !input.bindings.length) throw new Error('bindings 不能为空；明确无代码的条目在流程中记录不适用');
+  const owners = new Map(), selections = [];
+  for (const binding of input.bindings) {
+    if (!binding || typeof binding !== 'object' || Array.isArray(binding) ||
+        typeof binding.requirementCode !== 'string' || typeof binding.codeOwnerRequirementCode !== 'string' ||
+        !/^\d+$/.test(binding.requirementCode) || !/^\d+$/.test(binding.codeOwnerRequirementCode)) throw new Error('日志映射须明确目标需求号与代码所属主需求号');
+    const requirementCode = String(binding.requirementCode), owner = String(binding.codeOwnerRequirementCode);
+    if (owners.has(requirementCode) && owners.get(requirementCode) !== owner) throw new Error('同一目标需求不能映射不同代码归属');
+    owners.set(requirementCode, owner);
+    if (!Array.isArray(binding.select) || !binding.select.length || binding.select.some(item => !/^[0-9a-f]{40}$/i.test(item?.hash || ''))) throw new Error('日志映射须提供明确仓库和完整提交hash');
+    selections.push({ binding: { requirementCode, codeOwnerRequirementCode: owner }, select: binding.select });
+  }
+  const records = selectRecords(selections.flatMap(item => item.select)), result = [], seen = new Set();
+  for (const { binding, select } of selections) for (const selected of select) {
+    const repo = fs.realpathSync(path.resolve(selected.repo));
+    const record = records.find(item => item.repo === repo && item.hash.toLowerCase() === selected.hash.toLowerCase());
+    const parsed = parseCommitMessage(record.message);
+    if (parsed.error || parsed.requirementCode !== binding.codeOwnerRequirementCode) throw new Error('真实提交需求号与声明的代码所属主需求不一致');
+    const gitRoot = fs.realpathSync(gitDirOf(repo));
+    const identity = [binding.requirementCode, process.platform === 'win32' ? gitRoot.toLowerCase() : gitRoot, record.hash].join('\0');
+    if (!seen.has(identity)) { seen.add(identity); result.push({ ...record, logBinding: binding }); }
+  }
+  return result;
+}
 // 按需求号聚合：同一需求号的多个仓库合并进同一个 Repository 数组，与 BOS 接口契约一致。
 function buildPayload(records, { linkProject, userCode }) {
   const groups = new Map();
@@ -261,6 +290,12 @@ function buildPayload(records, { linkProject, userCode }) {
       AddLines: record.files.reduce((sum, file) => sum + file.addLines, 0),
       DelLines: record.files.reduce((sum, file) => sum + file.delLines, 0)
     };
+    const binding = record.logBinding;
+    if (binding) {
+      if (parsed.requirementCode !== binding.codeOwnerRequirementCode) throw new Error('提交与主需求归属不一致');
+      parsed.requirementCode = binding.requirementCode;
+      if (binding.requirementCode !== binding.codeOwnerRequirementCode) parsed.modifyDesc += `\n复用主需求 ${binding.codeOwnerRequirementCode} 的提交 ${record.hash}。`;
+    }
     const group = groups.get(parsed.requirementCode);
     if (group) {
       group.Repository.push(repository);
@@ -383,6 +418,7 @@ function option(argv, name) {
 }
 
 const USAGE = [
+  'bos-code-update-log plan|submit 接受 select 或 bindings（含requirementCode、codeOwnerRequirementCode、select），二者互斥',
   'bos-code-update-log defaults',
   'bos-code-update-log repos [--workspace <目录>] [--depth <层数>]',
   'bos-code-update-log commits --repo <仓库路径> [--limit <条数>]',
@@ -410,9 +446,10 @@ async function main(argv, { env = process.env, fetchImpl = fetch } = {}) {
   if (command === 'plan' || command === 'submit') {
     const input = parseJsonArgument(argv[1], USAGE);
     const settings = loadConfig(env);
-    const records = selectRecords(input.select);
+    const records = selectInput(input);
     const payload = buildPayload(records, { linkProject: settings.linkProject, userCode: resolveUserCode(records, option(argv, '--user')) });
     const summary = summarize(payload);
+    if (input.bindings) for (const item of summary) item.codeOwnerRequirementCode = records.find(record => record.logBinding.requirementCode === item.requirementCode).logBinding.codeOwnerRequirementCode;
     if (command === 'plan') return { ok: true, submitted: false, url: settings.url, configSource: settings.configSource, tokenConfigured: Boolean(settings.token), payload, summary };
     if (!argv.includes('--confirm')) {
       return { ok: false, submitted: false, error: '提交为写操作，需要显式传 --confirm', url: settings.url, configSource: settings.configSource, summary };
@@ -447,6 +484,7 @@ module.exports = {
   listCommits,
   commitRecords,
   selectRecords,
+  selectInput,
   buildPayload,
   summarize,
   submit,

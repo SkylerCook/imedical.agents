@@ -1,5 +1,7 @@
 # Demand Delivery Plugin
 
+主子需求拆分、共享提交或明确无代码时，先按[代码归属协议](../../docs/demand-code-ownership.md)核对业务与代码归属；skill和脚本采用新协议，旧草稿/批次保持原语义。业务有独立验收价值不因共享文件强制合并，子需求也不重复拥有代码。
+
 跨插件阶段依赖以 manifest 的 availableDependencies 为事实源；触发时按[可用性依赖协议](../../docs/plugin-availability.md)检查，缺口仅阻塞对应阶段，显式 disabled 保留。
 
 用户要求需求提交信息或明确提交时读取 [demand-commit](skills/demand-commit/SKILL.md)。使用项目已确认的数字需求号、standard/project 类型及精确文件范围；与项目提交规范冲突时停止并说明，不替换项目规范。

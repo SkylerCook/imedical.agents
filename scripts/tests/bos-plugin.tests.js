@@ -26,10 +26,11 @@ function fixture(t, overlay, singleShared = false) {
   fs.mkdirSync(context, { recursive: true });
   fs.mkdirSync(capability, { recursive: true });
   run('git', ['init'], capability);
-  for (const name of ['scripts', 'hooks', 'agents', 'workflows']) {
+  for (const name of ['scripts', 'hooks', 'agents', 'workflows', 'docs']) {
     fs.cpSync(path.join(repo, name), path.join(capability, name), { recursive: true, filter: p => !p.includes(path.join('scripts', 'tests')) });
   }
   for (const name of ['bos-plugin', 'demand-delivery-plugin']) fs.cpSync(path.join(repo, 'plugins', name), path.join(capability, 'plugins', name), { recursive: true });
+  assert.ok(fs.existsSync(path.join(capability, 'scripts/lib/demand-code-binding.js')), 'shared ownership runtime must be distributed');
   // Runtime preflight reads assets from HEAD; model an installed capability checkout.
   run('git', ['add', '.'], capability);
   run('git', ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', `core.hooksPath=${path.join(root, 'empty-hooks')}`, 'commit', '-qm', 'fixture runtime'], capability);
