@@ -315,7 +315,7 @@ function formatDbReminder(db, dateRange, memberMap, admins) {
     lines.push('  · 数据结构修改：通过【腾讯文档】his 版本升级脚本汇总表格登记 DDL 执行 https://docs.qq.com/sheet/DSnJ5V0tYRG9jT1VL?tab=BB08J2');
   }
   if (counts.newStCodes + counts.configItems > 0) {
-    lines.push('  · 新增系统标准配置：信创标准环境 → 使用demo账户登录 → 系统标准配置菜单，筛选指定配置项导出，导入项目现场（请勿直接维护，请使用导入功能，防止出现维护错误）');
+    lines.push('  · 新增系统标准配置：信创标准环境 → 使用demo账户登录 → 系统标准配置菜单，筛选指定配置项导出文件，导入项目现场。\n  请勿直接维护，请使用导入功能，防止出现维护错误。');
   }
   if (counts.reminders > 0) {
     lines.push('  · 新增系统标准提醒：信创标准环境 → 使用demo账户登录 → 系统提示信息，参照代码信息进行数据维护');
