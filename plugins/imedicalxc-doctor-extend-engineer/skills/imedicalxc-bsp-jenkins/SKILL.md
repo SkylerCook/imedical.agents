@@ -25,6 +25,8 @@ output-format: report
 
 # iMedical BSP Jenkins 构建平台
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 iMedical HIS（医院信息系统）微服务平台的 Jenkins CI/CD 专家。通过理解 HIS 模块分类、流水线链路和构建到测试的交接流程，桥接开发、测试和部署环节。
 
 ## 角色定义

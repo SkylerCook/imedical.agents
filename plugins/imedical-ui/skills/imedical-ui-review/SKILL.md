@@ -5,6 +5,8 @@ description: 按公司 UI 规范评审截图或已打开的浏览器页面，核
 
 # iMedical UI 评审
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 接收材料与范围
 
 1. 读取目标项目入口和插件状态，确认用户要求评审的页面或截图及范围。未指定工程的截图可先检查可见表现，源码归属与技术栈保持待确认，不为评审创建连接或修改插件状态。

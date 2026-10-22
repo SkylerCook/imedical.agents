@@ -10,7 +10,7 @@
 
 文档入口：[项目使用文档](docs/README.md) · [框架维护资料](maintenance/README.md)。
 
-使用入口：[能力目录（插件 / skill / rule）](docs/guides/capability-catalog.md) · [使用指南（场景选择 / 接入 / 全部技能示例）](docs/guides/capability-guide.md) · [连接信息查看与排查](docs/guides/connection-configuration.md)。当前覆盖非 xc 能力；xc 手册列入后续治理。详细执行契约仍由各插件源文件维护。
+使用入口：[能力目录（插件 / skill / rule）](docs/guides/capability-catalog.md) · [使用指南（场景选择 / 接入 / 全部技能示例）](docs/guides/capability-guide.md) · [统一帮助](docs/guides/capability-help.md) · [连接信息查看与排查](docs/guides/connection-configuration.md)。目录和场景手册当前覆盖非 xc 能力；xc 手册列入后续治理。统一帮助覆盖全部自有 skill（含 init、xc）和 Agent，以 `--help` 或“查看用法”请求，只展示说明；详细执行契约仍由各源定义维护，第三方 vendor 沿用原约定。
 
 iMedical 知识资料已接入 [共享参考库](vendor/imedical-knowledge/README.md)：通过 coding-iris-plugin 的 `iris-imedical-knowledge` 按需检索 wiki、菜单与技术资料，`iris-menu-sync` 刷新项目菜单快照。新装/更新沿现有 plugins/vendor 分发，项目资料保留在 ContextRoot；详见 [部署与使用](docs/guides/imedical-knowledge.md)。
 

@@ -12,6 +12,8 @@
 4. 按 `defaultWorkflow` 读取 `workflows/<workflow>.workflow.md`。
 5. 按 `bindings.yaml` 读取需要的插件 rules、skills 或 templates。
 
+明确请求 `--help` 或查看用法时，读到真实定义后按[统一帮助协议](../docs/guides/capability-help.md)展示并结束；后续 workflow、bindings 和业务前置仅在实际任务中加载。
+
 ## 已注册智能体
 
 | 智能体 | 类型 | 职责 | 角色定义 | 默认 workflow | 依赖插件 |

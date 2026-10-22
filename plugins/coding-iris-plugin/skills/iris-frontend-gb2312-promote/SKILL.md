@@ -5,6 +5,8 @@ description: Use only when the user explicitly identifies a historical IRIS fron
 
 # IRIS 前端 GB2312 提升
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 职责
 
 本 skill 只服务用户明确指定、尚未迁移到当前 UTF-8 标准的历史工程。当用户要求把该历史工程的前端源文件转换为 GB2312，并将转换后的 `{name}.gb2312.{ext}` 文件提升回原文件名时使用；不得由标版目录、仓库角色或普通上传任务自动触发。

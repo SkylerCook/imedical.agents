@@ -1,5 +1,15 @@
 # .agents 安装与更新 Runbook
 
+## 统一 skill / Agent 帮助
+
+全部自有 skill（含 init、xc）和 Agent 的源定义接入[统一帮助协议](guides/capability-help.md)。`--help` 或“查看用法”只展示说明，不检查业务配置、连接或插件现场状态，不初始化或启动任务；附带执行参数也不执行。实际任务继续沿各自原流程与授权。
+
+standard 已有工程按本 runbook 的正常 DryRun → Write → Check 更新能力包和已启用入口。公共协议、技能源定义和 Agent 源定义分别沿既有 `/docs/**`、`/plugins/**`、`/agents/**` 下发；薄索引模板不变，旧入口继续读取更新后的真实定义，无帮助专项索引迁移或旧文件清理。新安装沿“安装 → 项目及所需插件初始化 → 更新并检查”，不自动增加 init 的日常入口或启用插件。
+
+Overlay 先更新共享 CapabilityRoot 一次，再由模块原完整流程以 `-NoPull` 刷新 ContextRoot。模块未映射 docs 时，从 `.agents/capability.json` 显式定位 CapabilityRoot 下的协议与指南，不复制文档或新增映射。宿主通过 Junction/symlink 读取同一项目技能集合时可直接看到新源路由，必要时刷新宿主发现或开启新会话；用户级独立复制副本沿原分发流程更新。
+
+验收时分别核对协议和源定义实际落盘、旧索引 source 可达，以及真实帮助调用是否在业务步骤前结束；仅看更新退出码或源仓测试不代表业务副本及宿主已验收。源仓维护 skill 继续不部署，vendor 契约、项目 AGENTS、插件状态、私有配置、安装器和更新器实现保持。
+
 ## 公司 UI 规范与 IRIS 适配层
 
 `imedical-ui` 0.1.0 提供公司 BS 端 IHOS 海蓝/PURE 天蓝的共性规则、按需参考及截图/浏览器评审；`iris-ui` 0.2.0 专注 IRIS CSP＋HISUI 落地，正式依赖 `imedical-ui` 与 `coding-iris-plugin`。通用层无需 IRIS profile，既有 IRIS 配置仍由 coding owner 管理。

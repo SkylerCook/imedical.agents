@@ -5,6 +5,8 @@ description: Use when querying InterSystems IRIS classes, methods, signatures, m
 
 # IRIS MCP Lookup
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 目标
 
 使用目标 IRIS 实例、当前工作区源码和 InterSystems 官方文档交叉查询 IRIS 知识。不要把任一来源描述为绝对准确；必须记录实例 namespace、文档版本或本地源码范围。

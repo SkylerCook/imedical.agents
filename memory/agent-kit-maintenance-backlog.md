@@ -42,7 +42,7 @@
 
 ## P2 技能链接适配待验证
 
-- P2 新增宿主：补齐 WorkBuddy/WorkBuddyDonghua/Qoder 项目目录、OpenCode/Cursor/GeminiCLI/GitHubCopilot 通用层与显式原生目录的真实发现/调用证据；自定义目录及边界测试沿既有 Windows/macOS/Linux × Node 22/24 矩阵取证。文件系统检查不替代宿主加载。
+- P2 新增宿主：补齐 WorkBuddy/WorkBuddyDonghua/Qoder 项目目录、OpenCode/Cursor/GeminiCLI/GitHubCopilot 通用层与显式原生目录的真实发现/调用证据；自定义目录及边界测试沿既有 Windows/macOS/Linux × Node 22/24 矩阵取证。统一帮助已纳入同一矩阵，后续在获授权业务副本及其它宿主验证新旧索引的实际加载和混合执行参数只展示帮助；本机分发与六场景独立 Agent 抽样不替代这些证据，不新增平行队列。文件系统检查不替代宿主加载。
 
 - P2 worktree 审阅交付：在真实多仓 Overlay 分别用工作区文件和直接打开容器验收 VS Code 仓库/分支/逐行差异；覆盖已有 JSONC 设置保留、固定基点后主分支推进、无新增提交和集成归属。补取真实宿主由必读入口触发阶段恢复点、复用阶段提交授权及拒绝混入并行修改的证据；源仓路由核验与规则试读不替代实际执行或界面证据，不自动创建业务 worktree。
 

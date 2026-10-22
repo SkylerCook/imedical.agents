@@ -5,6 +5,8 @@ description: 处理已有 BOS 需求号或正文，复用项目已启用领域�
 
 # BOS 需求处理
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 按[代码归属协议](../../../../docs/demand-code-ownership.md)处理主子需求及明确无代码条目：验收范围分别记录，共享代码只提交主需求；主子各自日志复用真实主提交，none跳过代码交付阶段并保留原因。先完成该判断，再加载日志配置或索取凭据。
 
 进入通用提交或连续验收前，按[可用性依赖协议](../../../../docs/plugin-availability.md)检查调用方 bos-plugin 的 demand-commit 或 demand-acceptance 阶段；缺口只阻塞对应阶段。

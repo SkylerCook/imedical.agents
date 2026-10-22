@@ -1,5 +1,7 @@
 # AGENTS.md
 
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 ## 插件定位
 
 `extract-doc` 提供可复用的文档读取与落盘能力：把 PDF、DOC、DOCX、XLS、XLSX 文档转换为 Markdown、接口字段 JSON、字段摘要和诊断文件；业务插件需要原始版面事实时，可额外生成领域无关的 `structure.json`。

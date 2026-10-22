@@ -5,6 +5,8 @@ description: 为 imedical 开发、分析和排查提供 wiki、菜单与技术�
 
 # iMedical 知识检索
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 选择是否查询遵循 [通用规则的自主使用知识资料原则](../../rules/iris_coding_general.md#自主使用知识资料)。本 skill 是可选的本地只读能力；任何使用本插件的 Agent 或领域 skill 都可按需读取，不要求先切换完整开发流程。
 
 - 读取目标项目入口，按现有 resolver 解析 ContextRoot 与 CapabilityRoot。共享资料位于 CapabilityRoot/vendor/imedical-knowledge；项目当前菜单位于 ContextRoot/work/menu-sync/<sourceId>/current.json 指向的 generation。

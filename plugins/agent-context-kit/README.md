@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 v0.5.1 在项目入口模板补充 worktree 创建、接续、阶段完成及交接时的[恢复点路由](../../docs/guides/worktree-review.md#阶段提交与恢复点)。模板不授予提交权限；新项目按模板初始化，已有项目在授权上下文维护时定点合并，普通更新保留项目 AGENTS 与原有授权，无配置迁移或旧文件清理。
 
 v0.4.3 在初始化模板补齐按需文档入口；已部署项目由根更新器定向追加缺失导航，保留正文与配置。DryRun/Check/Write、Overlay 与冲突边界见 [更新说明](../../docs/update-agents.md#文档导航补齐)。

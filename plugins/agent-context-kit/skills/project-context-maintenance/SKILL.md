@@ -5,6 +5,8 @@ description: Initialize, maintain, or optimize project context including AGENTS.
 
 # 项目上下文维护
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 用途
 
 维护有利于目标工程编程的上下文：让后续 Agent 更快定位实现、沿用正确模式、执行有效验证并保持工程边界。精简服务于编程体验，不以最短文本、固定文件数或统一模板为目标。

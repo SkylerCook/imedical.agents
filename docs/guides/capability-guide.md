@@ -68,7 +68,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 宿主支持技能选择器或 `$技能名` 时，也可以使用其原生入口。`$技能名` 不是 PowerShell 命令，也不是所有 Agent 工具都支持的通用语法。宿主没有技能发现能力时，让 Agent 直接读取真实 `SKILL.md` 并按其流程执行；这不改变插件启用与授权条件。宿主发现适配见[技能适配说明](../coding-agent-adaptation.md)。
 
-只有 skill 明确声明的参数才可使用。例如下面是给 Agent 的请求：
+全部自有 skill（含 init、xc）和 Agent 支持 `--help` 或“查看用法”，默认展示简明用途、输入、已声明参数、示例和指南链接；这是 Agent 层的请求，不进入业务流程。完整帮助、路径解析和更新方式见[统一帮助协议](capability-help.md)。除这项公共约定外，只有 skill 明确声明的参数才可使用。例如下面是给 Agent 的请求：
 
 ```text
 使用 bos-demand-entry --text，从当前标版改动生成需求录入文本。

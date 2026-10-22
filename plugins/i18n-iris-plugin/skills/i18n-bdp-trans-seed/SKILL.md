@@ -5,6 +5,8 @@ description: Use when generating multilingual dictionary or table-display transl
 
 # BDP Translation Seed — 字典数据翻译生成与部署
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 触发条件
 
 当字典表或表字段展示值需要翻译，并通过项目配置的字典/表字段翻译 helper 在运行时展示目标语言时使用本 Skill。

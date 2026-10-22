@@ -5,6 +5,8 @@ description: 当需要把 PDF、DOC、DOCX、XLS 或 XLSX 文档转换为 Markdo
 
 # 文档解析落盘
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 用于把源文档解析为目标项目本地落盘产物，供后续字段诊断、人工核对或业务插件继续处理。
 
 ## 必读

@@ -1,5 +1,7 @@
 # iris-external-reg
 
+For help requests (`--help`, show usage), all skills owned by this plugin follow the [shared help protocol](../../docs/guides/capability-help.md) and stop before enablement, connection checks, or business preconditions. Normal capability updates distribute the source definitions; existing thin indexes continue reading their source. Help does not enable the plugin.
+
 `iris-external-reg` is a reusable workflow for IRIS third-party appointment registration integrations.
 
 It packages the former `skills/iris-external-reg` capability as a normal `.agents` plugin:

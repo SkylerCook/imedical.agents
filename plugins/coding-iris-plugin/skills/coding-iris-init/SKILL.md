@@ -5,6 +5,8 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
 
 # Coding IRIS Init
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 职责边界
 
 本 Skill 是 `coding-iris-plugin` 的 bootstrap 初始化入口。首次接入目标工程时，Agent 必须直接读取插件真实路径 `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`，不要依赖安装后才生成的 thin-index。

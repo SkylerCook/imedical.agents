@@ -1,5 +1,7 @@
 # iris-cure-form-dev
 
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 面向 IRIS/HISUI 的 CA 治疗评估表单与 CR 治疗记录表单自动化插件。插件复用 `extract-doc` 和 `coding-iris-plugin`，提供从医院文档到治疗规格、Excel 多模板边界报告与生成、服务器模板响应式改造，以及受控部署与回滚的统一流程。
 
 ## 命令

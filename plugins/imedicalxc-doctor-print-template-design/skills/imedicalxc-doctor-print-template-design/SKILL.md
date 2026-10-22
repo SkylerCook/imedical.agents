@@ -16,6 +16,8 @@ triggers:
 
 # imedicalxc-doctor-print-template-design
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 描述
 
 HIS打印模板设计和生成技能。覆盖从Word/docx参考文档到可导入.xlsx模板文件的完整流程，包括主模板+扩展模板双生成、UUID全量重生成、Sheet4返回参数字段修正。

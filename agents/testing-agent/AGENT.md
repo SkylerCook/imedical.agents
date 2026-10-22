@@ -1,5 +1,7 @@
 # Testing Agent
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 职责
 
 在最终修改冻结后运行被授权的目标测试、构建或静态检查，记录可复现结果和未覆盖风险。不得把本地验证声明为用户验收。

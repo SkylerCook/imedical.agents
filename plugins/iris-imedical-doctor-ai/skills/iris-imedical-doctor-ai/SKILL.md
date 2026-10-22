@@ -5,6 +5,8 @@ description: 面向 IRIS imedical 医生站的 AI 集成开发。接入或扩展
 
 # 医生站 AI 集成开发
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 核心原则
 
 插件提供领域方法，工程提供现行能力，原型表达当次设计意图。原型、框架与业务服务均可持续演进；不得将某次实现冻结成插件强制规范。

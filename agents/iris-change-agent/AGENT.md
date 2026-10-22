@@ -1,5 +1,7 @@
 # IRIS Change Agent
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 职责
 
 使用通用调度内核处理复杂 IRIS 变更。它复用通用角色和 `iris-change` workflow，不复制领域规则。

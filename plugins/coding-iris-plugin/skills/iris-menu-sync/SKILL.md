@@ -5,6 +5,8 @@ description: 同步或刷新 imedical 菜单资料、安全组菜单树与本地
 
 # IRIS 菜单资料同步
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 1. 读取目标项目入口和 [菜单同步契约](../../references/menu-knowledge-sync.md)。从现有 workspace resolver 取得 ContextRoot/CapabilityRoot，不另建连接配置。
 2. 明确同步来源别名与范围：全部或用户指定安全组。已有项目约定直接复用；同名组通过实际 ID 区分。未指定范围时默认刷新已登记的安全组，首次同步默认完整采集。来源别名不得包含连接信息。
 3. 使用现有原生 IRIS MCP 获取数据；先核对可用工具 schema 和目标类源码/签名。没有原生工具时复用 CapabilityRoot/scripts/iris-mcp.js。不要猜测参数名、SQL 字段或返回封装。

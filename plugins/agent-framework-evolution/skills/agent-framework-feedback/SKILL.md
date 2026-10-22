@@ -5,6 +5,8 @@ description: Use only when feedback review is applicable and the user has explic
 
 # Agent Framework Feedback
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 触发条件
 
 自动调用本 skill 前必须先读取 `agents/_shared/delivery-lifecycle.md`，依次确认 `taskKind=business-demand`、由其派生的 `feedbackReviewApplicable=true`，以及需求已由用户明确进入 `accepted`。三个条件缺一不可；还需命中框架缺陷、规则冲突、可复用新经验或用户明确要求。普通 skill 无信号不加载；正式 run 的 always 策略保留例行只读审查。

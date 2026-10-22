@@ -8,6 +8,7 @@
 
 | 目的 | 文档 |
 |---|---|
+| 查看任意自有 skill / Agent 的用法 | [统一帮助](guides/capability-help.md) |
 | 查插件、skill、rule | [能力目录](guides/capability-catalog.md) |
 | 选择场景、查看请求示例 | [使用指南](guides/capability-guide.md) |
 | 查服务地址、凭据来源或排查配置未生效 | [连接信息查看与排查](guides/connection-configuration.md) |

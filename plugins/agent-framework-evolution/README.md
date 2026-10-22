@@ -1,5 +1,7 @@
 # Agent Framework Evolution
 
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 把需求中的已验证经验反馈、整理为可复用框架能力。原有两个根级技能迁入本插件，技能名称和项目 `.agents/skills/<name>/SKILL.md` 入口不变。
 
 ## Skills

@@ -1,5 +1,7 @@
 # IRIS UI
 
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 本插件负责把 [imedical-ui](../imedical-ui/AGENTS.md) 的公司 UI 规范落实到 IRIS CSP＋HISUI，处理公共接入、资源、布局生命周期及只读测量。公司规范和截图/浏览器评审归 imedical-ui；具体源码与业务契约以目标工程为准。
 
 - 日常入口：[iris-ui](skills/iris-ui/SKILL.md)；启用入口：[iris-ui-init](skills/iris-ui-init/SKILL.md)。纯 init 不生成薄索引。

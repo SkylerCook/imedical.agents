@@ -1,5 +1,7 @@
 # iris-codegraph
 
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 `iris-codegraph` 是面向 InterSystems IRIS/ObjectScript 后端代码的图谱构建与查询插件，是 HIS 研发知识中台后端层（IRISGraph）的实现载体。
 
 ## 能力范围

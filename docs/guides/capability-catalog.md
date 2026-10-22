@@ -1,5 +1,7 @@
 # 能力目录（非 xc）
 
+查看任意自有 skill / Agent 的用法，可请求 `--help` 或“查看用法”，见[统一帮助](capability-help.md)。帮助覆盖 init、xc 和 Agent；本目录的非 xc 清单范围保持。
+
 [无人值守治理](../night-governance.md) 初筛后独立预检能力，在同一 run 上绑定实体 PLAN、角色上下文、双 Developer / 双 Tester、联合源码保护、持续认证及宿主监督 worker、周额度和分级成本报告；最低自检与证据等级分开，无新增 skill 或文件锁服务。
 
 [夜跑决策策略](../night-policy.md)为现有 Coordinator 增加两阶段分级、投入复评与固定抽验，显式启用；复用原事件、验证指纹和 runner，不增加常驻角色或 skill。

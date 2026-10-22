@@ -5,6 +5,8 @@ description: 只读查询 BOS 待办、历史或编号详情，支持发起人�
 
 # BOS 需求查询
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 使用本 skill 自带的 ../../scripts/bos-demand-query.js；先解析当前 skill 的真实目录（包括 Junction），再解析脚本绝对路径，不依赖项目目录或项目 .mcp.json。需要 Node.js >=22.5.0，无 npm 依赖。
 
 ## 参数选择

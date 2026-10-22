@@ -97,6 +97,8 @@
 
 ## 入口决策
 
+- 自有 skill / Agent 帮助的公共规则唯一来源为 [capability-help](../docs/guides/capability-help.md)，各源定义只保留前置条件路由，参数继续归 owner。帮助先于业务前置并展示后结束；规则、路径和更新细节在该协议维护，不复制到索引模板。vendor 与源仓维护入口的部署边界保持。
+
 - 历史只读 Agent run schema 1.2 使用阶段 `attempts[]`、capability matrix、远程动作终态、`finalization` 和限定 verification scope 表达暂停恢复及最终验证门禁；validator 继续兼容 schema 1.0/1.1。
 - `check_config` 只核对配置定位，真实连通以当次无副作用网络探针为准。自动发现生效且探针成功时，`config_file=null` 不构成配置失败；单一工具的瞬时失败只降级对应 capability。
 - Independent Verifier 只能在所有远程动作终态、无 suspended attempt 且验证范围冻结后启动。报告、summary、manifest 和 feedback 不属于业务验证版本。

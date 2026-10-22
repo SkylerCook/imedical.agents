@@ -5,6 +5,8 @@ description: Use when an IRIS project needs remote deployment planning, upload, 
 
 # IRIS Deploy
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 核心边界
 
 本 Skill 是 IRIS 项目部署编排入口。仅分析或未获写入授权时只做本地计划和只读验证；用户明确要求部署且目标、文件范围已清楚时直接执行，不再重复确认。上传、编译、SFTP 同步、远端命令、数据库变更或生产环境动作须有覆盖当前范围的明确授权。

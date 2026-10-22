@@ -1,6 +1,6 @@
 {
   "name": "iris-codegraph",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "displayName": "IRIS CodeGraph Plugin",
   "description": "Build and query a local SQLite graph for IRIS/ObjectScript classes, methods, properties, parameters, inheritance, and static ##class calls.",
   "entry": "AGENTS.md",

@@ -1,5 +1,7 @@
 # AGENTS.md
 
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 启用 `night-convergence/v1` 时受管部署调用受剩余预算限制；超时结果未知，保留回读/退出断点，不自动重放。项目验收涉及环境依赖时提供实际 `verifyDependencies`，详见[夜跑接口](../../docs/night-policy.md#返修收敛与按需依赖)。
 
 后端验收按内部方法、实际 Broker/REST/SOAP 入口及副作用分层；纯后端不强制浏览器，影响前端行为时补 UI。夜跑使用 debugger 的非交互机器入口，见 [分层接入](../../docs/night-acceptance.md)。

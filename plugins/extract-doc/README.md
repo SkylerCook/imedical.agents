@@ -1,5 +1,7 @@
 # extract-doc
 
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 `extract-doc` 是文档读取与结构化落盘插件，用于把 PDF、DOC、DOCX、XLS、XLSX 转换为本地文件产物，避免把完整文档塞进会话上下文。
 
 ## 能力范围

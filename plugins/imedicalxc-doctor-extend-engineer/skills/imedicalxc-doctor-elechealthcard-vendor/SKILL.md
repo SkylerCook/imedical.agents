@@ -19,6 +19,8 @@ output-format: delivery
 
 # iMedicalXC 电子健康卡 · 新厂家接入工作流
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 把「在 HIS 增加一家电子健康卡第三方厂家」做成可重复流水线。核心：
 **结构镜像既有厂家；协议差异收敛在厂家私有包内；一切方法/DTO/VO/报文以新厂家对接文档为准。**
 

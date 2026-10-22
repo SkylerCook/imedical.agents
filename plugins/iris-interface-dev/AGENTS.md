@@ -1,5 +1,7 @@
 # AGENTS.md
 
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 ## 插件定位
 
 `iris-interface-dev` 提供 IRIS 接口开发的文档优先能力：接口文档落盘、结构化抽取、字段匹配诊断、接口开发计划、接口实现和离线审查。

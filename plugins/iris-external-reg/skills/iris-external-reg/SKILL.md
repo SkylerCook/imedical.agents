@@ -5,6 +5,8 @@ description: 按照 HIS 标准自助机预约挂号程序规范开发第三方�
 
 # IRIS 第三方预约挂号接口开发
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 核心目标
 
 在 `DHCDoc.Interface.Outside.RegInterface` 中实现第三方预约挂号接口。该包作为外部平台翻译层，将省平台或第三方平台请求转换为 `DHCExternalService` XML 调用，或从 HIS Global 读取业务数据后调用平台接口。

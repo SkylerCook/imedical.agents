@@ -85,7 +85,11 @@ function New-TestProject {
   Copy-Item -LiteralPath $overlayInitializerUnderTest -Destination (Join-Path $root ".agents/scripts/initialize-workspace-overlay.ps1")
   Copy-Item -LiteralPath $irisMcpHelperUnderTest -Destination (Join-Path $root ".agents/scripts/iris-mcp.js")
   Copy-Item -LiteralPath $agentOrchestratorUnderTest -Destination (Join-Path $root ".agents/scripts/agent-orchestrator.js")
-  foreach ($runtimeFile in @('lib/night-dispatch.js', 'lib/night-policy.js', 'lib/night-quota.js', 'lib/night-contract.js', 'night-workspace.js')) {
+  foreach ($runtimeFile in @(
+    'lib/night-dispatch.js', 'lib/night-policy.js', 'lib/night-quota.js', 'lib/night-contract.js',
+    'lib/night-convergence.js', 'lib/night-plan.js', 'lib/night-integration.js', 'lib/night-capability.js',
+    'night-workspace.js'
+  )) {
     Copy-Item -LiteralPath (Join-Path $repoRoot ('scripts/' + $runtimeFile)) -Destination (Join-Path $root ('.agents/scripts/' + $runtimeFile))
   }
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/validation-evidence.js") -Destination (Join-Path $root ".agents/scripts/validation-evidence.js")

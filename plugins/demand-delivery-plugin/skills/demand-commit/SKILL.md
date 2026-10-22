@@ -5,6 +5,8 @@ description: Use after a standard or project demand is implemented and verified.
 
 # Demand Commit
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 本 skill 在用户要求生成提交信息、直接提交，或显式调用 `$demand-commit --plan|--commit` 时加载。commit 可以在 `acceptance-pending` 阶段独立执行，但不得把生命周期推进到 `accepted`，也不得触发 feedback 审查或写入。
 
 适用于采用数字需求号及本技能 standard/project 提交格式的项目。项目提交规范与本格式冲突时先按项目规范处理，不强套此格式；不需要 IRIS、BOS 连接或领域初始化。新入口按项目 plugin profile 接入 demand-delivery-plugin；旧入口已移除，已部署项目由更新器迁移。

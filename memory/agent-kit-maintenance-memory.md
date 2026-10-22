@@ -4,6 +4,8 @@
 
 ## 当前接手
 
+- 自有 skill（含 init、xc）和 Agent 的 `--help` / 查看用法从源定义首段进入[统一帮助协议](../docs/guides/capability-help.md)，展示后结束；新旧索引模板保持。分发、PS5.1/PS7 与宿主抽样边界见[本轮验证](../maintenance/validation/capability-help-2026-10-22.md)，业务副本仍按正常更新分别验收。
+
 - 主子需求与共享代码：业务拆分和代码归属按[共享协议](../docs/demand-code-ownership.md)，bos-plugin提供v4草稿/显式日志bindings，交付owner提供验收v2及主提交/push引用；旧数据不自动迁移。验证与服务端边界见[本轮记录](../maintenance/validation/demand-code-ownership-2026-10-22.md)。
 
 - demand-commit 的上游无交集更新由 Agent 复核后沿用已有提交授权接续，条件与次数集中于[同步复核协议](../plugins/demand-delivery-plugin/references/commit-upstream-check.md)；真实宿主与非本机矩阵证据沿既有 P2 需求交付队列取得。

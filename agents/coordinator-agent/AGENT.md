@@ -1,5 +1,7 @@
 # Coordinator Agent
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 职责
 
 将已授权的 workflow 投影为任务图，分配 owner，生成幂等 action，持久化通信，裁决证据冲突，控制验收与外部动作门禁，并作为唯一集成 owner。

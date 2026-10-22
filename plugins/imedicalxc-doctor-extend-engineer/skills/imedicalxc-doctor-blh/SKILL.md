@@ -5,6 +5,8 @@ description: 医生站组 BLH（Business Logic Handler）编写规范，指导�
 
 # 医生站组 BLH 编写规范
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 本技能定义了医生站组 BLH（Business Logic Handler）的完整编写规范，用于指导区域需求（RegionBLH）和项目组个性化需求（ProjectBLH）的开发工作。
 
 ## 何时使用

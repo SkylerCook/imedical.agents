@@ -1,5 +1,7 @@
 # imedicalxc-doctor-data-extraction
 
+帮助请求（`--help`、查看用法）先于业务前置检查，按[统一帮助协议](../../docs/guides/capability-help.md)展示后结束。源定义随正常能力包更新分发，既有 thin-index 继续指向源文件；查看帮助不自动启用插件。
+
 HIS 数据抽取与第三方接口对照文档生成插件。覆盖从 @OpenApi Controller 扫描到字段级对照文档生成的完整工作流，支持 Feign 接口代码生成和 API 文档生成辅助功能。
 
 ## 入口

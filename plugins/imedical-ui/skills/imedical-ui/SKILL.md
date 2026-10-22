@@ -5,6 +5,8 @@ description: 按公司 BS 端 IHOS 海蓝和 PURE 天蓝规范开发或核对 UI
 
 # 公司 UI 规范适配
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 用户只要求截图/浏览器评审或找 UI 问题时，使用 [imedical-ui-review](../imedical-ui-review/SKILL.md)，按评审范围交付发现。
 
 ## 确定当前目标

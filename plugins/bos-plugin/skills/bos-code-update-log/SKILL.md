@@ -5,6 +5,8 @@ description: 将已有 Git 提交补录为 BOS 代码更新日志，支持主子
 
 # BOS 代码更新日志补录
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 消费已存在的本地提交，完成「本地已提交 → BOS 记录」。本地 commit、push、部署和 BOS 写入各自沿用明确授权。提交格式来自 [demand-commit](../../../demand-delivery-plugin/skills/demand-commit/SKILL.md)，不要求启用该插件才能补录历史提交。
 
 先解析当前 skill 的真实目录（包括 Junction），再定位 `../../scripts/bos-code-update-log.js` 的绝对路径。使用 Node.js >=22.5.0，无 npm 依赖；这是 Agent 工具链运行时。项目 `.mcp.json` 不用于本技能。

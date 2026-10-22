@@ -1,5 +1,7 @@
 # BOS Plugin
 
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 主子需求拆分、共享提交或明确无代码时，先按[代码归属协议](../../docs/demand-code-ownership.md)核对业务与代码归属；skill和脚本采用新协议，旧草稿/批次保持原语义。业务有独立验收价值不因共享文件强制合并，子需求也不重复拥有代码。
 
 新夜跑入口要求 `night-convergence/v1`，启动前明确总时限，问题与按需依赖沿[共享夜跑接口](../../docs/night-policy.md#返修收敛与按需依赖)记录；旧 run 不静默升级。

@@ -5,6 +5,8 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 
 # IRIS Backend Coding
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 编写 `.cls` 前读取[CLS 命名与格式规范](../../references/cls-coding-format.md)，最终 diff 后按同一规范检查。新类参考规范模板，并按后端规则完成基类选择与项目适配；已有类只规范本次新增代码，不格式化被功能需求修改的原有代码。可选本地自检不阻断提交，不要求上传、回读或编译证据。
 
 ## 使用时机

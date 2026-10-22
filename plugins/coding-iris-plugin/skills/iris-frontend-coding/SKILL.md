@@ -5,6 +5,8 @@ description: Implement or modify IRIS CSP, JavaScript, CSS, or HISUI frontend co
 
 # IRIS Frontend Coding
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 修改 CSP、HTML、JS、CSS 前读取[前端命名与格式规范](../../references/frontend-coding-format.md)，最终 diff 后按同一规范复核。明确项目覆盖与 JS 兼容基线；格式规范只用于本次新增代码，原有代码的功能修改不附带格式化，历史代码不自动成为风格标准。
 
 ## Legacy GB2312 Promotion Routing

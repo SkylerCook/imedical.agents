@@ -5,6 +5,8 @@ description: 将 imedical-ui 规范落实到 IRIS CSP＋HISUI 页面，处理公
 
 # IRIS/HISUI UI 改造
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 建立当前事实
 
 1. 读取目标工程入口、插件启用状态和现有 IRIS profile，确认源码、Git/worktree 与修改边界。未启用时说明启用方式，按用户要求使用同插件 init；只读分析不自动写配置。

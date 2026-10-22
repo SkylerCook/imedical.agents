@@ -5,6 +5,8 @@ description: 当需要实际开发一个 IRIS 接口（前端 JavaScript + 后�
 
 # IRIS 接口开发（实现）
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 把"接口需求"落成可运行的 IRIS 源码与配置：后端 ObjectScript 类方法/Query，前端中间件 JS（或 CSP 调用），以及 `dhcdoc.interface.accessmanage.csp` / `dhcdocinterfaceregister` 中的配置项。
 
 本 skill 是 `iris-interface-dev` 插件中唯一负责"写代码"的实现技能。文档解析、字段匹配、计划仍由 `init`/`doc-ingest`/`field-match`/`dev-plan` 负责；离线审查仍走 `iris_interface_review`。v1 的"不生成最终 ObjectScript"限制只针对计划类 skill——本 skill 是与之互补的实现技能，但编译/上传/远端验证/部署仍须交给 `coding-iris-plugin`，且默认禁止远程写入，除非用户明确要求。

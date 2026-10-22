@@ -1,6 +1,6 @@
 {
   "name": "codegraph-query",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "displayName": "CodeGraph Query Plugin",
   "description": "Read-only query workflow for CodeGraph SQLite indexes under .codegraph/codegraph.db, used for code location, caller/callee checks, route lookup, and first-pass impact analysis.",
   "entry": "AGENTS.md",

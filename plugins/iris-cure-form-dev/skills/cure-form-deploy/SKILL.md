@@ -5,6 +5,8 @@ description: 为 CA/CR 治疗表单生成部署包，执行 dry-run、受控事�
 
 # Cure Form Deploy
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 先读取插件 `../../AGENTS.md` 的适用硬约束及 `../../references/cure-form-delivery-workflow.md` 的“工作目录”“自动部署 / 手动部署”；预览、多 Map 或恢复演练按该文件路由补读。已有内容可在未变化时复用。部署选择与授权沿用该流程的唯一约定，不重复要求用户选择；写入结果未知时停止并只读核实，不重试。
 
 1. 阅读 `../../rules/cure_form_deploy.md` 与 `../../references/cure-form-package-v1.md`。

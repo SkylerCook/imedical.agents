@@ -5,6 +5,8 @@ description: 连续接收人工需求验收结论，明确调用即授权该批�
 
 # Demand Acceptance
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 主子需求或明确无代码条目先读[代码归属协议](../../../../docs/demand-code-ownership.md)与[v2批次接口](../../references/acceptance-session.md#主子需求及无代码条目-v2)：全部关联子项通过后主需求提交一次，子项引用提交并分别补日志，全部日志确认后共享push一次；none按原因标记阶段不适用。旧v1批次保留原契约，不自动升级。
 
 让用户连续验收，Agent 接收结论并交付。适用已有实现、待人工验收的需求；复用项目验收台账和已确认事实。跨技术栈、跨宿主执行，脚本需要 Node.js >=22.5.0。

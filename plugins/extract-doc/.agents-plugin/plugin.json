@@ -1,6 +1,6 @@
 {
   "name": "extract-doc",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "displayName": "Extract Doc Plugin",
   "description": "Reusable document ingestion workflow for converting PDF, DOC, DOCX, XLS, and XLSX files into Markdown, interface-oriented fields, and optional domain-neutral document structure artifacts.",
   "entry": "AGENTS.md",

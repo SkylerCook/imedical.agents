@@ -5,6 +5,8 @@ description: 将服务器或本地已有 CA/CR 治疗表单改造成 PC、手机
 
 # Cure Form Responsive
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 先读取插件 `../../AGENTS.md` 的适用硬约束；按 `../../references/cure-form-delivery-workflow.md` 的“按任务读取”表加载工作目录和预览相关章节。已持有且未变化的内容可复用。以下是默认方法，允许合并或重排；部署、灰度收尾只在任务包含该阶段时执行。
 
 1. 先通过 `inspect` 或本地文件建立完整快照，确认 MapType 是 CA/CR。

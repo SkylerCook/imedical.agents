@@ -8,6 +8,8 @@ description: |
 
 # iMedicalXC 医生站集成架构
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 HIS 医生站工作流第三方集成的架构蓝图。
 
 > **业务约束规则**：本文档的 `references/domain-constraints.md` 定义了所有业务约束（什么能做/什么不能做、职责边界、接口契约细则、XML 生成方式），是本 skill 的规则子文件。

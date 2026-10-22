@@ -5,6 +5,8 @@ description: Initialize or inspect the framework feedback and reusable-content p
 
 # Agent Framework Evolution Init
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 先读取项目 AGENTS.md、plugin_profile.md 和 capability.json（如存在）。本插件无项目连接配置；它只承接框架原默认反馈与打包技能。
 
 默认基础启用仅适用于 profile 无记录的情况。已有 available/disabled 必须保留，除非用户明确要求启用；启用授权不等于执行反馈或写入经验。

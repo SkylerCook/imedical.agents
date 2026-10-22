@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 需求启用交接、明确交接、发现或接续已有任务时使用 `skills/task-handoff/SKILL.md`。材料在项目 `docs/handoff/`，本机保留；普通需求不为交接建立正式 run。脚本只管理记录与检查现场，不调度会话或授予业务操作权限。
 
 项目上下文支持初始化、事实维护与日常优化，按目标选择流程。入口去重、领域记忆分层和旧快照标记保留用户约束；普通维护不自动扫描或启用插件。主入口见 `skills/project-context-maintenance/SKILL.md`，初始化/优化细节按其中 references 条件读取。已部署项目只有在授权维护时定点调整，能力包更新保留业务上下文；仅对缺失的文档导航追加 `.agents/docs/README.md` 入口，更新与冲突处理见能力包根 `docs/update-agents.md`。

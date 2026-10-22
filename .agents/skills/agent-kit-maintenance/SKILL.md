@@ -5,6 +5,8 @@ description: Use when maintaining the imedical.agents repository itself, especia
 
 # Agent Kit Maintenance
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；附带执行参数也不进入维护流程。本入口仍仅服务源仓，不部署到业务项目。
+
 ## 目标
 
 维护 `imedical.agents` 能力包仓库时使用本 skill，避免多人提交插件或脚本后遗漏 README、维护记忆、manifest、docs 或测试。

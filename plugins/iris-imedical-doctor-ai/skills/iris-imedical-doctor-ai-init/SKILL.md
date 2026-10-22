@@ -5,6 +5,8 @@ description: Initialize iris-imedical-doctor-ai using the target project's exist
 
 # 初始化
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 1. 读取项目入口和既有 plugin/context/IRIS 配置，确认工作区与能力源边界，不创建连接配置。
 2. 核对 coding-iris-plugin 已启用且满足 manifest；缺失时按原 owner 流程处理。离线分析不因连接不可用而整体停止。
 3. 识别目标已有的 AI 集成入口或拟新增的接入位置。不要求特定文件、基类、业务目录或某版原型；新建能力与扩展现有能力均可使用本插件。

@@ -5,6 +5,8 @@ description: Connect installed project skills to coding agents through shared di
 
 # Coding Agent Adaptation
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 将项目通用技能入口接入用户指定的 coding agent。只适配技能发现，不安装宿主，不修改 MCP、hooks、原生子代理或插件启用状态。
 
 ## 执行

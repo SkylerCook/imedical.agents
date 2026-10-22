@@ -5,6 +5,8 @@ description: 从完整 CA/CR HISUI HTML 中提取唯一根容器 div，生成可
 
 # Cure Form Fragment
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 1. 输入必须是完整、可验证的 CA/CR HTML。
 2. 提取唯一业务根 div，保留内部 DOM ID、缓存标签、radio `name/value` 和事件绑定。
 3. 移除 `html/head/body`、样式与脚本加载标签；宿主负责预加载目标工程配置的公共基础和响应式 CSS，表单独立 CSS 由获批运行时加载契约处理。

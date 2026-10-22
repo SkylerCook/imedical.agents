@@ -5,6 +5,8 @@ description: 从已批准 cure-form-spec/v1 新建或重构 CA 治疗评估表�
 
 # Cure Assess Form Dev
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 1. 只接受 `formType=CA` 且已批准、`unresolved[]` 为空的规格。
 2. 默认在 `docs/work/cure-form/<task>/<moduleId>/source/` 生成 HTML、JS、fragment 和规格；统一使用 --task-id，显式 --output-root 兼容原有输出布局。修改后直接列出预览链接。
    - 多模板规格按顺序生成全部 `*.fragment.html`；只有确有计算、联动或初始化逻辑的模板才生成独立 `*.js`，无逻辑模板不得生成空壳脚本。

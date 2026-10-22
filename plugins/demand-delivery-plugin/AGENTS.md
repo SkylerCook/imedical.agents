@@ -1,5 +1,7 @@
 # Demand Delivery Plugin
 
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 主子需求拆分、共享提交或明确无代码时，先按[代码归属协议](../../docs/demand-code-ownership.md)核对业务与代码归属；skill和脚本采用新协议，旧草稿/批次保持原语义。业务有独立验收价值不因共享文件强制合并，子需求也不重复拥有代码。
 
 跨插件阶段依赖以 manifest 的 availableDependencies 为事实源；触发时按[可用性依赖协议](../../docs/plugin-availability.md)检查，缺口仅阻塞对应阶段，显式 disabled 保留。

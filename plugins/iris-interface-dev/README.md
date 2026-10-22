@@ -1,5 +1,7 @@
 # iris-interface-dev
 
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 `iris-interface-dev` 是面向 IRIS 接口开发的文档优先能力包。它覆盖接口文档解析适配、字段匹配诊断、开发计划、IRIS 接口实现和离线审查；通用文档转换委托 `extract-doc`，编码规范与部署能力复用 `coding-iris-plugin`。
 
 ## 能力范围
