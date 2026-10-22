@@ -89,6 +89,16 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 > 使用 demand-acceptance，我逐号报验收结论，通过后依次提交、补 BOS 日志并 push，报告整理不阻塞下一条。汇总时分别给人工通过和已交付编号，用能直接粘贴到 BOS 的单行逗号格式。
 
+快捷登记人工通过推荐保留“编号＋标题”，先按编号定位再用标题复核；也支持纯编号列表 `/demand-acceptance --pass 123,124`。多行粘贴示例：
+
+```text
+/demand-acceptance --pass
+123 示例需求标题
+124 另一条示例需求标题
+```
+
+已进入验收会话后可省略技能名，直接发送 `--pass` 加上述多行列表。裸 `--pass` 仅在上下文唯一定位一个待验收需求时使用，多候选只澄清编号；详细解析、重复结论续接和暂停边界见技能“接收结论”。以上为调用示例，帮助或讨论示例不执行交付。
+
 新任务用 `demand-acceptance` 验收当前工作区；从其他 worktree 接收变更用 `demand-acceptance --worktree`，或 `demand-acceptance --worktree "<来源路径>"`（兼容 `-worktree`）。来源与目标核实后才合入；当前目录是 worktree 不代表要合回其他仓库。接续已有批次保留原映射；来源参数只选择来源，交付授权来自用户明确调用，清理仍需独立授权。
 
 明确调用开展验收交付即授权该批次通过项提交、BOS 日志及推送，无需额外开关或反复选择范围；非 BOS 项目跳过日志。用户明确暂不交付时保留限制；仅查看技能、查询汇总或 Agent 自动加载不产生写入授权。默认复用台账；需要批次恢复时读 [验收索引协议](../../plugins/demand-delivery-plugin/references/acceptance-session.md)。更新能力包后刷新 thin-index 即可发现新入口，不自动部署业务改动或启动批次。

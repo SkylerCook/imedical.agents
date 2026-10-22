@@ -22,7 +22,7 @@
 | 修改插件或独立 skill、准备提交 | owner AGENTS/README/manifest 与[组件版本治理](../maintenance/governance/component-version-management.md)；校验暂存内容，功能证据按 scope 复用 |
 | 修改 Agent、workflow 或共享协议 | [Agent registry](../agents/agent-registry.md)、[workflow registry](../workflows/workflow-registry.md)、对应 AGENT/bindings 与共享协议；adapter 和 canonical 分开 |
 | 夜跑批次、预算、监督与恢复 | [治理顺序](../docs/night-governance.md)、[策略与兼容](../docs/night-policy.md)、[分层验收](../docs/night-acceptance.md)；先初筛/能力预检再详细 PLAN，旧 run 保留原契约 |
-| BOS 查询、处理、提需与交付 | [BOS owner](../plugins/bos-plugin/README.md)、[交付 owner](../plugins/demand-delivery-plugin/README.md)；代码/工作/主题来源与明确验收调用授权按 skill，[旧入口迁移](../docs/demand-delivery-migration.md) |
+| BOS 查询、处理、提需与交付 | [BOS owner](../plugins/bos-plugin/README.md)、[交付 owner](../plugins/demand-delivery-plugin/README.md)；代码/工作/主题来源与明确验收调用授权按 skill，人工通过快捷参数及多行粘贴读 [接收结论](../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#接收结论)，[旧入口迁移](../docs/demand-delivery-migration.md) |
 | IRIS 编码、部署、MCP 或 HISUI | [编码 owner](../plugins/coding-iris-plugin/README.md)；按任务读 CLS/前端规范、UTF-8/legacy、direct/guarded、Atelier/SFTP、Storage；升级资产再读各 vendor AGENTS/README |
 | 公司 UI、截图评审或 HISUI 标注/布局 | [通用 UI](../plugins/imedical-ui/README.md)、[IRIS 适配](../plugins/iris-ui/README.md)；原件更新读 [vendor 说明](../vendor/imedical-ui-standards/README.md)，接入核对强依赖和注册/profile |
 | 项目上下文、技能适配或接续 | 目标项目 AGENTS 与 [project-context-maintenance](../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md)；[技能适配](../docs/coding-agent-adaptation.md)区分原生发现/目录链接，[task-handoff](../docs/task-handoff.md)用于显式交接 |

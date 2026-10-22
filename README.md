@@ -290,7 +290,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 插件的阶段可用性依赖由 manifest 声明，更新时提示、调用前检查；与要求 enabled 的强依赖分开，见[依赖协议](docs/plugin-availability.md)。
 
-跨技术栈的数字需求号提交与连续人工验收。demand-commit 支持 standard/project、精确文件计划、防漂移和本地提交校验；--plan 不提交，--commit 仅授权本地提交。新增 [demand-acceptance](plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md) 接收连续验收、逐号交付与断点恢复，明确调用即授权该批次通过项提交、BOS 日志及推送，无需交付开关；默认当前工作区，`--worktree [路径]` 指定变更来源，提供可直接粘贴到 BOS 的编号汇总；选用 BOS 写入时条件使用 bos-plugin。按项目 profile 接入并刷新 thin-index，已部署旧入口由更新器迁移。报告按[共享测试协议](agents/_shared/testing-protocol.md#结果与交接)分别统计人工补验与待用户验收结论，保留实际功能验证范围。处理报告固定包含本批全部需求号汇总（含基线已满足、无需新增代码项），状态分组另列；格式与完整性核对见 [编号汇总契约](plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#编号汇总契约)。
+跨技术栈的数字需求号提交与连续人工验收。demand-commit 支持 standard/project、精确文件计划、防漂移和本地提交校验；--plan 不提交，--commit 仅授权本地提交。新增 [demand-acceptance](plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md) 接收连续验收、逐号交付与断点恢复，明确调用即授权该批次通过项提交、BOS 日志及推送，无需交付开关；默认当前工作区，`--worktree [路径]` 指定变更来源；`--pass` 支持编号列表及多行“编号＋标题”人工通过结论；提供可直接粘贴到 BOS 的编号汇总；选用 BOS 写入时条件使用 bos-plugin。按项目 profile 接入并刷新 thin-index，已部署旧入口由更新器迁移。报告按[共享测试协议](agents/_shared/testing-protocol.md#结果与交接)分别统计人工补验与待用户验收结论，保留实际功能验证范围。处理报告固定包含本批全部需求号汇总（含基线已满足、无需新增代码项），状态分组另列；格式与完整性核对见 [编号汇总契约](plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#编号汇总契约)。
 
 ### coding-iris-plugin
 
