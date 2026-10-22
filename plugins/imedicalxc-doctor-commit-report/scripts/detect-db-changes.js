@@ -349,6 +349,63 @@ function constantNameBefore(joined, index) {
   return null;
 }
 
+// 提取配置项上方的中文注释（/* ... */ 或 // 形式）
+// 从 new 表达式所在行向上查找，取最近的注释块内容
+// 跳过声明行（public static final ... =）和空行，找到注释即返回
+function extractConfigDescription(addedTexts, matchLineIndex) {
+  let nonCommentLinesSeen = 0;
+  // 从 matchLineIndex 向上查找注释，最多跳过 3 行非注释行（声明行/空行）
+  for (let i = matchLineIndex - 1; i >= Math.max(0, matchLineIndex - 10); i--) {
+    const line = addedTexts[i].trim();
+    
+    // 单行注释 /* xxx */
+    const singleBlock = /^\/\*\s*(.+?)\s*\*\/$/.exec(line);
+    if (singleBlock) {
+      return singleBlock[1].trim().slice(0, 80);
+    }
+    
+    // 多行注释的结束行 */
+    if (line === '*/') {
+      const commentLines = [];
+      for (let j = i - 1; j >= Math.max(0, i - 10); j--) {
+        const cLine = addedTexts[j].trim();
+        if (cLine === '/*') break;
+        if (cLine.startsWith('/*')) {
+          const content = cLine.replace(/^\/\*\s*/, '').replace(/\s*\*\/$/, '').trim();
+          if (content) commentLines.unshift(content);
+          break;
+        }
+        if (cLine.startsWith('*')) {
+          const content = cLine.replace(/^\*\s*/, '').trim();
+          if (content) commentLines.unshift(content);
+        } else {
+          break;
+        }
+      }
+      if (commentLines.length > 0) {
+        return commentLines.join('；').slice(0, 80);
+      }
+    }
+    
+    // 单行 // 注释
+    const singleLine = /^\/\/\s*(.+)$/.exec(line);
+    if (singleLine) {
+      return singleLine[1].trim().slice(0, 80);
+    }
+    
+    // 空行或声明相关行（public/static/final/= 等）继续向上
+    if (line === '' || /^(public|private|protected|static|final|\w+\s+\w+\s*=)/.test(line) || line.endsWith('=')) {
+      nonCommentLinesSeen++;
+      if (nonCommentLinesSeen > 3) break; // 跳过太多非注释行，停止
+      continue;
+    }
+    
+    // 其他非注释行，停止
+    break;
+  }
+  return null;
+}
+
 // ---------- 单提交检测 ----------
 
 async function detectCommit(commit, ctx) {
@@ -445,6 +502,7 @@ async function detectCommit(commit, ctx) {
         scope = 'docconfig';
       }
       const cn = constantNameBefore(joined, m.index);
+      const desc = extractConfigDescription(addedTexts, startLine);
       result.configItems.push({
         ...base,
         file: sec.path,
@@ -454,7 +512,8 @@ async function detectCommit(commit, ctx) {
         stCode,
         stCodeRaw,
         itemCode,
-        scope
+        scope,
+        description: desc
       });
     }
 

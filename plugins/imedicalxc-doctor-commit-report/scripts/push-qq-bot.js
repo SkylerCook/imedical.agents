@@ -300,7 +300,8 @@ function formatDbReminder(db, dateRange, memberMap, admins) {
     details.push({ text: `  · PO ${p.tableName || '（表名未知）'}：${what}`, author: p.author });
   }
   for (const it of db.configItems || []) {
-    details.push({ text: `  · 配置 ${it.stCode || it.stCodeRaw} / ${it.itemCode}`, author: it.author });
+    const desc = it.description ? `（${it.description}）` : '';
+    details.push({ text: `  · 配置 ${it.stCode || it.stCodeRaw} / ${it.itemCode}${desc}`, author: it.author });
   }
   for (const cc of db.cacheConfigs || []) {
     details.push({ text: `  · 缓存 ${cc.poClass}.${cc.method}${cc.tableName ? `（表 ${cc.tableName}）` : ''}`, author: cc.author });

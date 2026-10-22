@@ -178,10 +178,10 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/detect-db-changes.j
 
 ### 5.2 新增系统标准配置
 
-| 提交 | 提交人 | 配置大类（ST_CODE） | 常量名 | 配置项 | 检测依据 |
-|---|---|---|---|---|---|
+| 提交 | 提交人 | 配置大类（ST_CODE） | 常量名 | 配置项 | 配置说明 | 检测依据 |
+|---|---|---|---|---|---|---|
 
-（检测依据：`docconfig 新增配置读取` / `行内 ST_CODE 字面量`；新增 ST_CODE 大类单列一行，常量名/配置项填 —）
+（检测依据：`docconfig 新增配置读取` / `行内 ST_CODE 字面量`；新增 ST_CODE 大类单列一行，常量名/配置项/配置说明填 —；配置说明取自 JSON `description` 字段，≤80 字）
 
 ### 5.3 新增系统标准提醒
 

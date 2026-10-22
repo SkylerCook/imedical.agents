@@ -28,7 +28,8 @@ function buildRows(db) {
     rows.push(['新增系统标准配置', `${s.stCode}（新增配置大类）`, s.author]);
   }
   for (const it of db.configItems || []) {
-    rows.push(['新增系统标准配置', `${it.stCode || it.stCodeRaw} / ${it.itemCode}`, it.author]);
+    const desc = it.description ? `（${it.description}）` : '';
+    rows.push(['新增系统标准配置', `${it.stCode || it.stCodeRaw} / ${it.itemCode}${desc}`, it.author]);
   }
   const reminderGroups = new Map();
   for (const r of db.reminders || []) {
