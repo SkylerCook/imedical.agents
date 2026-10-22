@@ -444,7 +444,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 ### imedical-ui
 
-公司 BS 端 UI 规范与评审，提炼 IHOS 海蓝、PURE 天蓝的业务共性和少量风格差异，提供有出处的布局、表单、表格及反馈参考。技术栈无关，不提供生产 CSS 或组件库。
+公司 BS 端 UI 规范与评审，提炼 IHOS 海蓝、PURE 天蓝的业务共性和少量风格差异，提供有出处的布局、表单、表格及反馈参考。按对象语义判断共性，材料主题不自动限定业务实现范围；公司规范推广仍遵循来源证据。技术栈无关，不提供生产 CSS 或组件库。
 
 - 规范与开发核对：[imedical-ui](plugins/imedical-ui/skills/imedical-ui/SKILL.md)；截图或浏览器评审：[imedical-ui-review](plugins/imedical-ui/skills/imedical-ui-review/SKILL.md)；接入直接读 [imedical-ui-init](plugins/imedical-ui/skills/imedical-ui-init/SKILL.md)。
 - [插件说明](plugins/imedical-ui/README.md)包含按需读取路由，30画板及PDF底稿用于追溯，截图/浏览器证据与正式UI验收分别记录。完整公司原件仅存源仓被忽略的本地批次；已提交证据子集随 vendor 分发，来源和资料更新见 [vendor 说明](vendor/imedical-ui-standards/README.md)。
@@ -455,7 +455,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 将 imedical-ui 公司规范落实到 IRIS CSP＋HISUI，处理公共接入、控件API、布局与初始化生命周期，复用 coding-iris-plugin 的编码规则、HISUI 参考和部署入口。
 
 - 初始化：直接读取 [iris-ui-init](plugins/iris-ui/skills/iris-ui-init/SKILL.md)；日常入口：[iris-ui](plugins/iris-ui/skills/iris-ui/SKILL.md)。
-- 标注映射、空工具栏/模板预览等脱敏案例和只读尺寸采集见 [插件说明](plugins/iris-ui/README.md)；技术验证按风险选范围并及时停止，用户验收单独记录，项目原图和私有事实保留在目标工程。
+- 标注映射、跨主题共性、空工具栏/模板预览等脱敏案例与只读辅助见 [插件说明](plugins/iris-ui/README.md)。相关 UI 修改在最终 diff 后使用 [主题条件扫描器](plugins/iris-ui/scripts/check-theme-scope.js)核对显式文件的候选，结合调用者与兼容基准判断；扫描不判定视觉通过。技术验证按风险选范围并及时停止，用户验收单独记录，项目原图和私有事实保留在目标工程。
 - 0.2.0 起强依赖 `imedical-ui` 和 `coding-iris-plugin` 已启用且兼容；已有工程按[升级说明](docs/update-agents.md#公司-ui-规范与-iris-适配层)同步核对注册/profile，再按原完整流程更新并检查状态。现有前端入口仍按 UI 信号加载，不改普通前端任务；没有旧文件清理。
 
 ### iris-imedical-doctor-ai

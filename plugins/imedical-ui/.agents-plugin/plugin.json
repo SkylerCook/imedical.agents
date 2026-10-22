@@ -1,6 +1,6 @@
 {
   "name": "imedical-ui",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "displayName": "iMedical UI 规范与评审",
   "description": "公司 BS 端 IHOS 海蓝与 PURE 天蓝的共性规范、差异参考、截图/浏览器评审与可追溯标注，不绑定技术栈。",
   "entry": "AGENTS.md",

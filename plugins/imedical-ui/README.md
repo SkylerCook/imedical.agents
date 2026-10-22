@@ -6,7 +6,7 @@
 
 通过既有框架更新流程取得能力，按项目 plugin_profile/注册表启用 `imedical-ui`，由框架生成日常 skill 与 rule 薄索引。首次接入直接读 [imedical-ui-init](skills/imedical-ui-init/SKILL.md)；日常调用 [imedical-ui](skills/imedical-ui/SKILL.md)。不新增 UI profile 或连接配置。
 
-例如：“按两套评审规范核对这个查询页，先列共性和差异，保留业务逻辑。”AI 先读共性规则，再按场景选参考，输出有出处的适配点与核查结果。已有需求台账/任务记录直接补充，不另建验收状态。
+例如：“按两套评审规范核对这个查询页，先列共性和差异，保留业务逻辑。”AI 先读共性规则，再按场景选参考，输出有出处的适配点与核查结果。材料只提供一种主题时，仍按[对象语义](references/style-differences.md#按对象语义判断共性)设计业务共性，分别记录实际验证覆盖。已有需求台账/任务记录直接补充，不另建验收状态。
 
 只做评审时使用 [imedical-ui-review](skills/imedical-ui-review/SKILL.md)：可提供截图或指定已打开的浏览器页面，输出定位、观察事实、规范出处、适用风格、建议及证据限制。截图无法证明的交互与未提供风格保持未覆盖；浏览器使用宿主已有能力，不安装第二套运行器。AI 评审与正式 UI 组/用户验收分别记录。
 

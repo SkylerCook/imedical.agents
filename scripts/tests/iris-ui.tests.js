@@ -102,8 +102,25 @@ test("plugin discovery and optional UI routing preserve ownership and enabled bo
     const frontend = fs.readFileSync(path.join(repo, "plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md"), "utf8");
     assert.match(frontend, /iris-ui/);
     assert.match(frontend, /enabled/);
+    for (const trigger of ["操作图标", "按主题切换控件", "弹窗适配", "主题条件变更"]) {
+        assert.ok(frontend.includes(trigger), trigger);
+    }
+    assert.match(frontend, /普通前端任务及 `available`\/`disabled` 状态保持原流程/);
     const coding = JSON.parse(fs.readFileSync(path.join(repo, "plugins/coding-iris-plugin/.agents-plugin/plugin.json"), "utf8"));
     assert.equal((coding.dependencies || []).includes("iris-ui"), false);
+});
+
+test("UI implementation routes final theme review to one owner and reuses the task record", () => {
+    const read = relative => fs.readFileSync(path.join(plugin, relative), "utf8");
+    const rule = read("rules/iris_ui.md");
+    const skill = read("skills/iris-ui/SKILL.md");
+    assert.match(skill, /rules\/iris_ui\.md#最终差异核对/);
+    assert.match(rule, /README\.md#只读主题范围扫描/);
+    assert.match(rule, /零候选不代表/);
+    assert.match(rule, /优先级/);
+    const task = read("templates/ui-task.md");
+    for (const field of ["共性落点", "差异依据", "兼容基准"]) assert.ok(task.includes(field), field);
+    assert.ok(fs.existsSync(path.join(plugin, "scripts/check-theme-scope.js")));
 });
 
 for (const shell of (process.platform === "win32" ? ["pwsh.exe", "powershell.exe"] : [])) {

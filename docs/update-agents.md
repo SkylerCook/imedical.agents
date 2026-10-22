@@ -10,6 +10,8 @@
 
 插件与必要证据沿现有 `plugins/**`、`vendor/**` sparse 路径分发，无安装器或更新器代码变更。vendor目录落盘不等于已启用；纯init不生成日常索引。公司资料版权/分发条件保持原状，源码接收、远端推送与正式分发分别按授权处理，不自动推公开镜像。框架源仓修改不代表业务副本已经升级。
 
+`imedical-ui` 0.1.1、`iris-ui` 0.2.2 与 `coding-iris-plugin` 0.20.4 补齐业务共性的主题条件核对；依赖下限以 iris-ui manifest 为准。沿上述正常流程一次更新共享 capability，再以 `-NoPull` 刷新模块 Context，核对新规则和 `plugins/iris-ui/scripts/check-theme-scope.js` 实际可读。扫描器随现有插件路径分发，只读显式源码并给出候选，不加入业务页面或 Git hook。此批无启用集合迁移、公共 CSS、更新器逻辑或旧文件清理变化；源仓验证不代表业务副本已更新。
+
 完整公司材料另存源仓 `vendor/imedical-ui-standards/originals/<批次>/`，由目录内 `.gitignore` 忽略，仅本地集中管理，不提交、不随项目更新分发。用户整理好展开目录和 PDF 后按新批次复制、校验并保留本地清单；随后根据标注变化升级规则、提炼证据及插件版本，后者继续按正常流程提交和分发。现有已入 Git 的证据子集保持，资料管理及升级路径见 [vendor 说明](../vendor/imedical-ui-standards/README.md#完整公司原件仅本地)。
 
 ## 无人值守治理 v1

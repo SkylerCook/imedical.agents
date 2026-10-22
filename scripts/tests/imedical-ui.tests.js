@@ -255,10 +255,10 @@ test("company standards stay stack independent and the IRIS adapter declares its
     for (const entry of [company.entry, "skills/imedical-ui/SKILL.md", "skills/imedical-ui-review/SKILL.md",
         "skills/imedical-ui-init/SKILL.md", "rules/imedical_ui.md"]) assert.ok(fs.existsSync(path.join(plugin, entry)), entry);
     const adapter = jsonFile(path.join(repo, "plugins/iris-ui/.agents-plugin/plugin.json"));
-    assert.equal(adapter.version, "0.2.0");
+    assert.match(adapter.version, /^0\.2\.\d+$/);
     assert.ok(adapter.dependencies.includes("imedical-ui"));
     assert.ok(adapter.dependencies.includes("coding-iris-plugin"));
-    assert.deepEqual(adapter.dependencyVersions["imedical-ui"], { minVersion: "0.1.0", maxVersionExclusive: "0.2.0" });
+    assert.deepEqual(adapter.dependencyVersions["imedical-ui"], { minVersion: "0.1.1", maxVersionExclusive: "0.2.0" });
     const manifests = new Map(fs.readdirSync(path.join(repo, "plugins")).map(name => {
         const file = path.join(repo, "plugins", name, ".agents-plugin/plugin.json");
         return fs.existsSync(file) ? jsonFile(file) : null;
@@ -274,6 +274,21 @@ test("company standards stay stack independent and the IRIS adapter declares its
         complete.add(name);
     }
     for (const name of manifests.keys()) visit(name);
+});
+
+test("development and review routes share one semantic classification reference", () => {
+    const anchor = "style-differences.md#按对象语义判断共性";
+    for (const relative of ["rules/imedical_ui.md", "skills/imedical-ui/SKILL.md",
+        "skills/imedical-ui-review/SKILL.md", "references/review-method.md"]) {
+        assert.ok(fs.readFileSync(path.join(plugin, relative), "utf8").includes(anchor), relative);
+    }
+    const rule = fs.readFileSync(path.join(plugin, "rules/imedical_ui.md"), "utf8");
+    assert.match(rule, /公司通用规范，需要两风格证据/);
+    assert.match(rule, /不缩小当前业务实现范围/);
+    const reference = fs.readFileSync(path.join(plugin, "references/style-differences.md"), "utf8");
+    assert.match(reference, /## 按对象语义判断共性/);
+    assert.match(reference, /CSS 优先级、组件初始化与动态阶段/);
+    assert.match(reference, /统计表分隔线\/隔行底色/);
 });
 
 function tempFixture(t) {

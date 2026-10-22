@@ -15,6 +15,7 @@
 | UI 插件首版与匿名 HISUI 测量 | [验证及本地接入边界](validation/iris-ui-2026-10-21.md) |
 | 公司 UI 规范、截图/浏览器评审及 IRIS 适配依赖 | [本轮验证与试读边界](validation/imedical-ui-2026-10-21.md) |
 | UI 技能实际使用、局部修复与过度验证纠偏 | [流程复盘及框架回归](validation/ui-skill-usage-2026-10-22.md) |
+| UI 业务共性、主题条件与候选扫描 | [改造、场景试读及验证边界](validation/ui-cross-theme-2026-10-22.md) |
 | 项目工具的源仓验证 | [交接与兼容验证](validation/project-tools.md) |
 | BOS 夜跑 2.1 源仓验证与试点边界 | [验证说明](validation/bos-night-framework-v2.1.md) |
 | 事前 PLAN、并行/冻结交付与持续浏览器治理 | [本轮验证及限制](validation/night-governance-2026-10-19.md) |

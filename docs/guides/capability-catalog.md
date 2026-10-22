@@ -290,7 +290,7 @@ CA/CR 治疗表单开发、响应式改造与部署。详见[插件说明](../..
 
 | 规则 | 何时读取、约束什么 |
 |---|---|
-| [imedical_ui](../../plugins/imedical-ui/rules/imedical_ui.md) | 公司UI的共性适配、来源强度、技术归属、修改权限及双基准核对 |
+| [imedical_ui](../../plugins/imedical-ui/rules/imedical_ui.md) | 公司UI的共性适配、规范推广证据与业务范围、责任层及双基准核对 |
 
 辅助资料：[references](../../plugins/imedical-ui/references) · [证据底稿](../../vendor/imedical-ui-standards/README.md)。具体数值保留条件和例外，按需读取；不加载查看器CSS或创建第二组件库。
 
@@ -309,9 +309,9 @@ IRIS CSP＋HISUI 对公司UI规范的落地适配，正式依赖 imedical-ui。�
 
 | 规则 | 何时读取、约束什么 |
 |---|---|
-| [iris_ui](../../plugins/iris-ui/rules/iris_ui.md) | UI 标注还原或布局、主题、初始化问题的证据、范围与验证约束 |
+| [iris_ui](../../plugins/iris-ui/rules/iris_ui.md) | UI 标注还原、业务共性与主题条件、初始化及兼容证据的实施闭环 |
 
-辅助资料：[references](../../plugins/iris-ui/references) · [templates](../../plugins/iris-ui/templates) · [scripts](../../plugins/iris-ui/scripts)。只读尺寸采集不操作业务，不代替 Console/Network、视觉或用户验收。
+辅助资料：[references](../../plugins/iris-ui/references) · [templates](../../plugins/iris-ui/templates) · [scripts](../../plugins/iris-ui/scripts)。[主题条件扫描器](../../plugins/iris-ui/scripts/check-theme-scope.js)只读显式源码并输出待判断候选；只读尺寸采集提供指定目标的几何证据。两者不代替 Console/Network、实际渲染或用户验收。
 
 ## iris-imedical-doctor-ai
 

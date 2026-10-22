@@ -238,7 +238,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 | Skill | 请求示例 | 前提与预期结果 |
 |---|---|---|
-| [imedical-ui](../../plugins/imedical-ui/skills/imedical-ui/SKILL.md) | 按两套规范核对这个查询页，共性一次适配，差异按需补。 | 使用现有组件/技术栈；产出带条件和出处的适配点及核查，业务行为变化另列。 |
+| [imedical-ui](../../plugins/imedical-ui/skills/imedical-ui/SKILL.md) | 按两套规范核对这个查询页，共性一次适配，差异按需补；目前只有 PURE 截图。 | 使用现有组件/技术栈，按对象语义和责任层归类；截图风格不自动限定业务共性的实现范围，规范推广仍须对应来源证据，业务行为变化另列。 |
 | [imedical-ui-review](../../plugins/imedical-ui/skills/imedical-ui-review/SKILL.md) | 用这些截图评审UI，或核对指定浏览器标签里的实际页面。 | 只审查提供的证据，报告位置、事实、来源和建议；截图看不到的交互、比例未知和缺失风格保持未覆盖，AI结论不等同正式UI验收。 |
 | [imedical-ui-init](../../plugins/imedical-ui/skills/imedical-ui-init/SKILL.md) | 按框架更新流程接入公司UI规范与评审能力。 | 保留现有配置，核对注册/profile，生成日常入口；不隐含业务修改、公共CSS修改或远端操作授权。 |
 
@@ -250,10 +250,12 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 | Skill | 请求示例 | 前提与预期结果 |
 |---|---|---|
-| [iris-ui](../../plugins/iris-ui/skills/iris-ui/SKILL.md) | 按这份 UI 标注改造指定 HISUI 页面，先核对公共适配和主题，保留业务契约。 | 提供原型/标注或故障复现入口及范围；按共享协议选择足够检查并停止，产出标注映射、范围内代码和实际覆盖的技术证据，用户视觉/业务验收分别记录。 |
+| [iris-ui](../../plugins/iris-ui/skills/iris-ui/SKILL.md) | 按这份 UI 标注改造指定 HISUI 页面，共性共用、差异有据，保留已验收主题和业务契约。 | 提供原型/标注或故障复现入口及范围；修改前归类，最终 diff 核对主题限定和直接调用者；按共享协议选取 CSS 优先级、初始化及动态阶段证据并及时停止，用户视觉/业务验收分别记录。 |
 | [iris-ui-init](../../plugins/iris-ui/skills/iris-ui-init/SKILL.md) | 在当前工程按框架更新流程接入 iris-ui，复用现有 IRIS 配置并检查日常入口。 | 依赖已启用且兼容；Overlay 先更新共享能力，再按项目模块管理流程刷新 Context；保留自定义配置，不以手工同步或单独生成薄索引代替正式更新。 |
 
 诊断请求示例：“首屏出现横向滚动，展开查询后消失，请比较实际容器尺寸与生命周期。”插件只读辅助 `collectUiMetrics({targets:[{name,selector}]})` 采集显式目标的几何与样式证据；浏览器控制仍使用宿主现有能力，无法读取的 frame/控件报告未采集。图片与标注、实际加载资源、Console/Network 和交互验证按任务补齐，数值采集成功不代表布局已通过。
+
+相关 UI 修改的最终 diff 后，使用 [主题条件扫描器](../../plugins/iris-ui/scripts/check-theme-scope.js)辅助核对新增或受影响的主题限定：`node <iris-ui>/scripts/check-theme-scope.js --project-root <WorkspaceRoot> --file <精确文件>`，多文件重复 `--file`。工具只读 CSP、CSR、HTML、JS、CSS 显式文件，输出 JSON 候选与覆盖限制；成功返回 0（包括发现候选），输入或读取失败返回 2。Agent 判断共性或有据差异，并沿现有搜索核对未覆盖的封装；不遍历全仓，不自动修改或阻断。相关内容未变时复用已有结果，零候选不等于 UI 通过。
 
 现有前端入口的条件加载以 [iris-frontend-coding 流程](../../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md#流程)为准。部署继续使用原 owner；需要保留服务器已有修改时，先按 [部署保护](../../plugins/coding-iris-plugin/references/deployment-protection.md)核对可用基线与合并条件，不能把 UI 插件启用当成部署授权或新增保护能力。
 

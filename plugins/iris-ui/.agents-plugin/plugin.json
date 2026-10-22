@@ -1,6 +1,6 @@
 {
   "name": "iris-ui",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "displayName": "IRIS CSP＋HISUI 适配",
   "description": "将 imedical-ui 公司规范落实到 IRIS CSP＋HISUI，核对公共接入、布局与初始化、多主题及技术证据；复用既有编码和部署能力。",
   "entry": "AGENTS.md",
@@ -21,11 +21,11 @@
   ],
   "dependencyVersions": {
     "coding-iris-plugin": {
-      "minVersion": "0.20.2",
+      "minVersion": "0.20.4",
       "maxVersionExclusive": "0.21.0"
     },
     "imedical-ui": {
-      "minVersion": "0.1.0",
+      "minVersion": "0.1.1",
       "maxVersionExclusive": "0.2.0"
     }
   },

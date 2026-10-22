@@ -12,6 +12,8 @@
 
 0.2.1 按共享测试协议明确验证范围与停止条件，补充空工具栏及模板预览边界案例；同时取得 coding-iris-plugin 0.20.2 的条件化前端验证指导。已明确的局部修改不默认建立浏览器矩阵，未测效果保留待验。沿正常更新取得，无业务资源、连接配置或旧文件清理。
 
+0.2.2 补齐业务共性的主题条件审查和最终 diff 核对，依赖 imedical-ui 0.1.1 与 coding-iris-plugin 0.20.4。共性判断、适配入口与兼容证据沿[UI 规则](rules/iris_ui.md)，任务模板沿用原记录；新增工具随插件正常分发，不接入业务运行时或 Git 阻断 hook。
+
 例如：“按这组标注调整申请页，保留业务逻辑”“定位折叠侧栏后留白，检查其它主题是否受影响”。纯后端需求继续使用原编码入口；本插件不取代通用前端编码规范。
 
 ## 按需资料
@@ -22,6 +24,18 @@
 - [UI 任务模板](templates/ui-task.md)：较长任务需要落盘时复用；已有台账可直接补充相应字段。
 
 编码与 HISUI 选型复用 [iris-frontend-coding](../coding-iris-plugin/skills/iris-frontend-coding/SKILL.md)，验证及交付复用 [testing-protocol](../../agents/_shared/testing-protocol.md)。工程图稿、截图和完整需求台账留在目标工程。
+
+## 只读主题范围扫描
+
+涉及 UI 修改的最终 diff 后，将本次相关源码逐个传给 [check-theme-scope.js](scripts/check-theme-scope.js)：
+
+```text
+node <CapabilityRoot>/plugins/iris-ui/scripts/check-theme-scope.js --project-root <WorkspaceRoot> --file <精确文件> [--file <精确文件> ...]
+```
+
+仅接受显式 CSP、CSR、HTML、JS、CSS 文件，路径通过现有 Workspace/Overlay resolver 核对；不遍历目录或全仓。输出 JSON 包含主题选择器、HISUI 主题读取、可识别同文件 helper 及调用的文件、行号、类型和覆盖限制。结果是待 Agent 核对的候选，合法主题差异同样会出现；成功返回 `0`，输入或读取失败返回 `2`。不改源码，不自动判违规或删除分支，零候选不代表 UI 通过。
+
+Agent 结合实际 diff 沿现有搜索核对动态封装、跨文件间接判断和直接共用调用者，再依规则归类共性或有据差异。有效结果在相关内容未变时复用；不为已知小修改重复扫描。源仓专项为 `node --test scripts/tests/iris-ui-theme-scope.tests.js`。
 
 ## 只读浏览器测量
 
