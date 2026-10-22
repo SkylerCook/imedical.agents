@@ -38,7 +38,7 @@ $demand-commit --commit
 
 ## 预先授权与裸调用
 
-用户已明确“处理并在验收后提交”时，保留原话、需求和已确认范围；用户验收通过后视为本需求的 --commit 授权，复用已有事实与有效证据，展示计划后直接 Apply。验收尚未发生则等待验收，不提前提交。范围扩大、需求实质变化或 pull 改变 HEAD 等原有门禁要求确认时重新核对授权。
+用户已明确“处理并在验收后提交”时，保留原话、需求和已确认范围；用户验收通过后视为本需求的 --commit 授权，复用已有事实与有效证据，展示计划后直接 Apply。验收尚未发生则等待验收，不提前提交。上游无交集且本需求内容未变时，按[同步复核与自动接续协议](../../references/commit-upstream-check.md#head-前进后的自动接续)沿用已有授权；范围扩大、需要人工重新验收或业务取舍时再请用户决定。
 
 由 [demand-acceptance](../demand-acceptance/SKILL.md) 转入时，复用其已确认的批次调用授权：本需求人工通过后展示计划并直接 Apply，不要求用户补说“提交”或添加 --commit；push 和 BOS 仍由验收技能协调。
 
@@ -158,9 +158,9 @@ node .agents/plugins/demand-delivery-plugin/scripts/commit-demand.js apply `
 - `project`：存在 upstream 时执行 `git pull --ff-only`；没有 upstream 时记录 `local-only` 并允许本地提交。
 - 禁止自动 `stash`、`rebase`、merge、reset 或丢弃修改。
 - pull 失败、分支分叉或标版仓库缺少 upstream 时停止。
-- 任一 pull 改变 HEAD 时，本轮不得创建任何 commit；重新 plan、展示新 diff 和消息并再次取得用户确认。
+- 任一 pull 改变 HEAD 时，本轮不创建 commit，脚本以退出码 `3` 返回 `refresh-required`。Agent 立即按[自动接续协议](../../references/commit-upstream-check.md#head-前进后的自动接续)复核；满足条件后重新 plan、展示复核结果并继续 Apply，无需再次取得相同提交授权。
 
-pull 门禁全部通过后，脚本只暂存和提交计划内路径。多仓库先完成全部 pull，再逐仓 commit；若 hook 等原因造成部分成功，必须逐仓报告，不得伪装为原子成功。
+pull 门禁全部通过后重新读取所有仓库快照，并在每仓暂存前再次校验现场；脚本只暂存和提交计划内路径。多仓库先完成全部 pull，再逐仓 commit；若并行修改或 hook 等原因造成部分成功，必须逐仓报告，不得伪装为原子成功。
 
 ### 3. Verify
 

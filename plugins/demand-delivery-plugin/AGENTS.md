@@ -8,4 +8,4 @@
 
 通用提交与验收索引不依赖 IRIS 或 BOS；选用 BOS 日志阶段时需已接入 bos-plugin。新入口通过项目 plugin profile 接入；更新器按旧能力使用证据迁移项目引用与 owner 启用状态，旧入口已移除。各入口按自身授权契约执行，部署不包含在验收交付中。
 
-脚本使用共享 workspace-context，保留 Overlay 归属、计划完整性、漂移停止、pull 和 hook 门禁。提交实现只维护在 scripts/commit-demand.js；兼容协议见 [迁移说明](../../docs/demand-delivery-migration.md)。
+脚本使用共享 workspace-context，保留 Overlay 归属、计划完整性、现场校验、pull 和 hook 门禁。HEAD 前进时按[同步复核协议](references/commit-upstream-check.md)由 Agent 核查并自动接续；提交实现只维护在 scripts/commit-demand.js，兼容协议见 [迁移说明](../../docs/demand-delivery-migration.md)。

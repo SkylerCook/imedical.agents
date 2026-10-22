@@ -380,7 +380,6 @@ function applyCommand(args) {
     const after = repo.stateVersion === 2
       ? repositoryInfo(repo.root, repo.files)
       : { head: gitText(repo.root, ['rev-parse', 'HEAD']) };
-    checked.set(comparable(repo.root), after);
     repo.execution.pull = before === after.head ? 'up-to-date' : 'fast-forwarded';
     if (before !== after.head) refreshed = true;
   }
@@ -393,13 +392,14 @@ function applyCommand(args) {
   }
 
   for (const repo of plan.repositories) {
-    if (repo.stateVersion === 2) assertSnapshotMatches(repo, checked.get(comparable(repo.root)));
-    else assertRepoUnchanged(repo);
+    // A later repository's pull may have taken time; read the live snapshot again.
+    assertRepoUnchanged(repo);
   }
   assertPlanScope(plan);
   plan.status = 'committing';
   writeJson(plan.planPath, plan);
   for (const repo of plan.repositories) {
+    assertRepoUnchanged(repo);
     runGit(repo.root, ['add', '--all', '--', ...repo.files]);
     const messageFile = path.join(path.dirname(plan.planPath), `${hash(repo.root).slice(0, 12)}.message.txt`);
     fs.writeFileSync(messageFile, repo.message, 'utf8');

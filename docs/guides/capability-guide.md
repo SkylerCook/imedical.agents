@@ -83,6 +83,8 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 使用 [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md) 的 `--plan` 为已验证改动生成方案，明确 `--commit` 才执行本地提交；push 独立授权。当前用户或项目约定须明确 standard/project、数字需求号、标题与精确文件，无需 IRIS profile。
 
+上游更新与需求无交集、内容和消息未变时，按[同步复核协议](../../plugins/demand-delivery-plugin/references/commit-upstream-check.md#head-前进后的自动接续)由 Agent 重新 plan 后沿用已有授权接续。技能自行同步，有无 hook 均适用；`--plan` 仍不联网或提交。
+
 已有需求需要提交时使用 [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md)。用户连续验收多个需求时使用 [demand-acceptance](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md)。报告按[共享测试协议](../../agents/_shared/testing-protocol.md#结果与交接)分别统计人工补验与待用户验收结论，保留实际功能验证范围。处理报告固定包含本批全部需求号汇总（含基线已满足、无需新增代码项），状态分组另列；格式与完整性核对见 [编号汇总契约](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#编号汇总契约)。
 
 > 使用 demand-acceptance，我逐号报验收结论，通过后依次提交、补 BOS 日志并 push，报告整理不阻塞下一条。汇总时分别给人工通过和已交付编号，用能直接粘贴到 BOS 的单行逗号格式。

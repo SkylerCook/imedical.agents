@@ -200,6 +200,199 @@ test('standard apply pulls, commits three-line message, verifies, and does not p
   assert.notEqual(git(fixture.root, ['rev-parse', 'HEAD']).stdout.trim(), remoteBefore);
 });
 
+function withUpstream(fixture = createRepo('source')) {
+  const bare = path.join(fixture.parent, 'refresh-remote.git');
+  run('git', ['init', '--bare', bare], fixture.parent);
+  git(fixture.root, ['remote', 'add', 'origin', bare]);
+  git(fixture.root, ['push', '-u', 'origin', 'main']);
+  const actor = path.join(fixture.parent, 'refresh-actor');
+  run('git', ['clone', '-b', 'main', bare, actor], fixture.parent);
+  for (const [key, value] of [['user.name', 'Refresh Fixture'], ['user.email', 'refresh@example.invalid'],
+    ['commit.gpgSign', 'false'], ['core.hooksPath', path.join(fixture.parent, 'empty-hooks')]]) git(actor, ['config', key, value]);
+  return { ...fixture, bare, actor };
+}
+
+function actorCommit(fixture, message) {
+  git(fixture.actor, ['add', '--all']);
+  git(fixture.actor, ['commit', '-m', message]);
+  git(fixture.actor, ['push']);
+}
+
+function replan(previous, attempt) {
+  return JSON.parse(runCli(['plan', '--project-root', previous.projectRoot, '--kind', previous.kind,
+    '--demand', previous.demand, '--type', previous.type, '--subject', previous.subject, '--title', previous.title,
+    ...previous.repositories.flatMap(repo => ['--modification', `${repo.root}::${repo.modification}`,
+      ...repo.files.flatMap(file => ['--file', path.join(repo.root, file)])]),
+    '--output', path.join(path.dirname(previous.planPath), `${previous.demand}-refresh-${attempt}.json`)],
+  previous.projectRoot).stdout);
+}
+
+function incomingPaths(root, before, after) {
+  const commits = git(root, ['rev-list', `${before}..${after}`]).stdout.trim().split(/\r?\n/).filter(Boolean);
+  return [...new Set(commits.flatMap(commit => git(root,
+    ['diff-tree', '--root', '-r', '-m', '--no-commit-id', '--name-only', '--no-renames', '-z', commit])
+    .stdout.split('\0').filter(Boolean)))];
+}
+
+test('two disjoint upstream advances preserve three-file plans and resume with the same commit authorization', () => {
+  const f = withUpstream();
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'demand update\n');
+  fs.writeFileSync(path.join(f.root, '新增 文件.txt'), 'new demand content\n');
+  fs.writeFileSync(path.join(f.root, 'third.txt'), 'third demand content\n');
+  fs.writeFileSync(path.join(f.root, 'unrelated.txt'), 'outside staged\n');
+  git(f.root, ['add', 'unrelated.txt']);
+  fs.appendFileSync(path.join(f.root, 'unrelated.txt'), 'outside unstaged\n');
+  fs.writeFileSync(path.join(f.root, 'outside-untracked.txt'), 'outside untracked\n');
+  const cachedOutside = git(f.root, ['diff', '--cached', '--binary', '--', 'unrelated.txt']).stdout;
+  const worktreeOutside = fs.readFileSync(path.join(f.root, 'unrelated.txt'), 'utf8');
+  let planned = JSON.parse(runCli(['plan', '--project-root', f.root, '--kind', 'standard', '--demand', '123',
+    '--type', 'fix', '--subject', '合成功能', '--title', '合成需求', '--modification',
+    '通过校验输入内容并保留原始值，确保保存时显示正确结果',
+    ...['target.txt', '新增 文件.txt', 'third.txt'].flatMap(file => ['--file', file])], f.root).stdout);
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    fs.writeFileSync(path.join(f.actor, `remote-${attempt}.txt`), `independent update ${attempt}\n`);
+    actorCommit(f, `upstream ${attempt}`);
+    const applied = runCli(['apply', '--plan', planned.planPath, '--confirm-commit', '--verify'], f.root, true);
+    assert.equal(applied.status, 3, applied.stderr);
+    assert.equal(JSON.parse(applied.stdout).status, 'refresh-required');
+    const after = git(f.root, ['rev-parse', 'HEAD']).stdout.trim();
+    assert.equal(incomingPaths(f.root, planned.repositories[0].head, after)
+      .some(file => planned.repositories[0].files.includes(file)), false);
+    const next = replan(planned, attempt);
+    for (const key of ['kind', 'demand', 'type', 'subject', 'title']) assert.equal(next[key], planned[key]);
+    for (const key of ['root', 'branch', 'upstream', 'files', 'states', 'fingerprint', 'message']) {
+      assert.deepEqual(next.repositories[0][key], planned.repositories[0][key], key);
+    }
+    assert.equal(next.repositories[0].head, after);
+    assert.equal(git(f.root, ['log', '-1', '--format=%s']).stdout.trim(), `upstream ${attempt}`);
+    planned = next;
+  }
+  const remoteHead = git(f.bare, ['rev-parse', 'refs/heads/main']).stdout.trim();
+  runCli(['apply', '--plan', planned.planPath, '--confirm-commit', '--verify'], f.root);
+  const verified = JSON.parse(fs.readFileSync(planned.planPath, 'utf8'));
+  assert.equal(verified.status, 'verified');
+  assert.equal(git(f.root, ['rev-parse', 'HEAD^']).stdout.trim(), remoteHead);
+  assert.equal(git(f.bare, ['rev-parse', 'refs/heads/main']).stdout.trim(), remoteHead);
+  assert.equal(git(f.root, ['diff', '--cached', '--binary', '--', 'unrelated.txt']).stdout, cachedOutside);
+  assert.equal(fs.readFileSync(path.join(f.root, 'unrelated.txt'), 'utf8'), worktreeOutside);
+  assert.equal(fs.readFileSync(path.join(f.root, 'outside-untracked.txt'), 'utf8'), 'outside untracked\n');
+});
+
+for (const change of ['edit-reverted', 'rename-reverted']) {
+  test('incoming commit paths reveal planned-file intersections hidden by net diff: ' + change, () => {
+    const f = withUpstream();
+    fs.writeFileSync(path.join(f.root, 'target.txt'), 'local demand\n');
+    const planned = plan(f.root, 'standard');
+    if (change === 'edit-reverted') fs.writeFileSync(path.join(f.actor, 'target.txt'), 'upstream edit\n');
+    else fs.renameSync(path.join(f.actor, 'target.txt'), path.join(f.actor, '移动 文件.txt'));
+    actorCommit(f, 'touch planned path');
+    if (change === 'edit-reverted') fs.writeFileSync(path.join(f.actor, 'target.txt'), 'initial\n');
+    else fs.renameSync(path.join(f.actor, '移动 文件.txt'), path.join(f.actor, 'target.txt'));
+    actorCommit(f, 'restore upstream tree');
+    assert.equal(runCli(['apply', '--plan', planned.planPath, '--confirm-commit'], f.root, true).status, 3);
+    const after = git(f.root, ['rev-parse', 'HEAD']).stdout.trim();
+    assert.equal(git(f.root, ['diff', '--name-only', planned.repositories[0].head, after]).stdout, '');
+    const paths = incomingPaths(f.root, planned.repositories[0].head, after);
+    assert.ok(paths.includes('target.txt'));
+    if (change === 'rename-reverted') assert.ok(paths.includes('移动 文件.txt'));
+    const candidate = replan(planned, 1);
+    assert.equal(candidate.repositories[0].fingerprint, planned.repositories[0].fingerprint);
+    assert.equal(git(f.root, ['log', '-1', '--format=%s']).stdout.trim(), 'restore upstream tree');
+  });
+}
+
+test('plan does not contact an unavailable configured upstream', () => {
+  const f = withUpstream();
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'demand\n');
+  git(f.root, ['remote', 'set-url', 'origin', path.join(f.parent, 'missing-remote.git')]);
+  const head = git(f.root, ['rev-parse', 'HEAD']).stdout;
+  const status = git(f.root, ['status', '--porcelain']).stdout;
+  assert.equal(plan(f.root, 'standard').status, 'planned');
+  assert.equal(git(f.root, ['rev-parse', 'HEAD']).stdout, head);
+  assert.equal(git(f.root, ['status', '--porcelain']).stdout, status);
+});
+
+test('diverged upstream is not retried or integrated and preserves demand changes', () => {
+  const f = withUpstream();
+  fs.writeFileSync(path.join(f.root, 'local.txt'), 'local commit\n');
+  git(f.root, ['add', 'local.txt']); git(f.root, ['commit', '-m', 'local advance']);
+  fs.writeFileSync(path.join(f.actor, 'remote.txt'), 'remote commit\n'); actorCommit(f, 'remote advance');
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'demand\n');
+  const planned = plan(f.root, 'standard'), head = git(f.root, ['rev-parse', 'HEAD']).stdout;
+  const applied = runCli(['apply', '--plan', planned.planPath, '--confirm-commit', '--verify'], f.root, true);
+  assert.equal(applied.status, 1); assert.match(applied.stderr, /pull --ff-only/);
+  assert.equal(git(f.root, ['rev-parse', 'HEAD']).stdout, head);
+  assert.equal(fs.readFileSync(path.join(f.root, 'target.txt'), 'utf8'), 'demand\n');
+});
+
+for (const drift of ['content', 'index', 'message', 'head', 'branch', 'upstream']) {
+  test('apply rejects an unreviewed planned-state change: ' + drift, () => {
+    const f = withUpstream();
+    fs.writeFileSync(path.join(f.root, 'target.txt'), 'demand\n');
+    const planned = plan(f.root, 'standard');
+    if (drift === 'content') fs.appendFileSync(path.join(f.root, 'target.txt'), 'other work\n');
+    if (drift === 'index') git(f.root, ['add', 'target.txt']);
+    if (drift === 'message') {
+      planned.repositories[0].message = 'changed without authorization';
+      fs.writeFileSync(planned.planPath, JSON.stringify(planned));
+    }
+    if (drift === 'head') {
+      fs.writeFileSync(path.join(f.root, 'parallel.txt'), 'parallel commit\n');
+      git(f.root, ['add', 'parallel.txt']); git(f.root, ['commit', '-m', 'parallel advance']);
+    }
+    if (drift === 'branch') git(f.root, ['checkout', '-b', 'other']);
+    if (drift === 'upstream') {
+      git(f.root, ['update-ref', 'refs/remotes/origin/other', 'HEAD']);
+      git(f.root, ['branch', '--set-upstream-to=origin/other']);
+    }
+    const head = git(f.root, ['rev-parse', 'HEAD']).stdout;
+    const status = git(f.root, ['status', '--porcelain']).stdout;
+    const applied = runCli(['apply', '--plan', planned.planPath, '--confirm-commit'], f.root, true);
+    assert.equal(applied.status, 1); assert.match(applied.stderr, /重新 plan/);
+    assert.equal(git(f.root, ['rev-parse', 'HEAD']).stdout, head);
+    assert.equal(git(f.root, ['status', '--porcelain']).stdout, status);
+  });
+}
+
+function installSyntheticHook(f, reject) {
+  const hooks = path.join(f.parent, 'synthetic-hooks'); fs.mkdirSync(hooks);
+  const log = path.join(f.parent, 'hook.log');
+  const quotedLog = "'" + log.replace(/\\/g, '/').replace(/'/g, "'\\''") + "'";
+  fs.writeFileSync(path.join(hooks, 'pre-commit'), '#!/bin/sh\n' +
+    'enabled=$(git config --bool --get hooks.requireUpToDate)\n' +
+    'printf "%s\\n" "$enabled" >> ' + quotedLog + '\n' +
+    'if [ "$enabled" = true ]; then git rev-parse --verify "@{upstream}" >/dev/null || exit 1; git fetch --quiet --no-tags origin || exit 1; fi\n' +
+    (reject ? 'echo "synthetic remaining check rejected" >&2\nexit 1\n' : 'exit 0\n'), {mode:0o755});
+  git(f.root, ['config', 'core.hooksPath', hooks]);
+  git(f.root, ['config', 'hooks.requireUpToDate', 'true']);
+  return log;
+}
+
+for (const reject of [false, true]) {
+  test('compatible hook only skips freshness and keeps other checks: ' + (reject ? 'reject' : 'allow'), () => {
+    const f = withUpstream(), log = installSyntheticHook(f, reject);
+    fs.writeFileSync(path.join(f.root, 'target.txt'), 'demand\n');
+    const planned = plan(f.root, 'standard'), head = git(f.root, ['rev-parse', 'HEAD']).stdout;
+    const applied = runCli(['apply', '--plan', planned.planPath, '--confirm-commit', '--verify'], f.root, true);
+    assert.equal(applied.status, reject ? 1 : 0, applied.stderr);
+    assert.equal(fs.readFileSync(log, 'utf8'), 'false\n');
+    assert.equal(git(f.root, ['config', '--bool', 'hooks.requireUpToDate']).stdout.trim(), 'true');
+    if (reject) assert.equal(git(f.root, ['rev-parse', 'HEAD']).stdout, head);
+    else assert.equal(JSON.parse(applied.stdout).status, 'verified');
+  });
+}
+
+test('project local-only respects a user hook that requires an upstream', () => {
+  const f = createRepo(), log = installSyntheticHook(f, false);
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'local-only demand\n');
+  const planned = plan(f.root, 'project'), head = git(f.root, ['rev-parse', 'HEAD']).stdout;
+  const applied = runCli(['apply', '--plan', planned.planPath, '--confirm-commit', '--verify'], f.root, true);
+  assert.equal(applied.status, 1);
+  assert.equal(fs.readFileSync(log, 'utf8'), 'true\n');
+  assert.equal(git(f.root, ['rev-parse', 'HEAD']).stdout, head);
+  assert.equal(git(f.root, ['config', '--bool', 'hooks.requireUpToDate']).stdout.trim(), 'true');
+});
+
 function overlayFixture() {
   const fixture = createRepo('business');
   const workspace = path.join(fixture.parent, 'manager', 'module');

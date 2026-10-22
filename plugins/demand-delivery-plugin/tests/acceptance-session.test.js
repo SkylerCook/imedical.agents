@@ -184,7 +184,7 @@ test('CLI stdin intake and scoped status resume without rewriting the batch', t 
   assert.equal(current.demands, undefined);
 });
 
-test('accepts the actual verified commit-demand result from an isolated local repository', t => {
+for (const refreshed of [false, true]) test('accepts the actual verified commit-demand result after refresh=' + refreshed, t => {
   const f = fixture(t), repo = f.input.demands[0].repositories[0].root;
   const run = (command, args, cwd = repo) => {
     const result = spawnSync(command, args, { cwd, encoding: 'utf8', windowsHide: true, timeout: 30000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });
@@ -198,13 +198,35 @@ test('accepts the actual verified commit-demand result from an isolated local re
   run('git', ['config', 'core.hooksPath', hooks]);
   fs.writeFileSync(path.join(repo, 'changed.txt'), 'before\n');
   run('git', ['add', 'changed.txt']); run('git', ['commit', '-m', 'fixture baseline']);
+  const remote = path.join(f.root, 'commit-remote.git'), actor = path.join(f.root, 'commit-actor');
+  if (refreshed) {
+    run('git', ['init', '--bare', remote]);
+    run('git', ['remote', 'add', 'origin', remote]); run('git', ['push', '-u', 'origin', 'main']);
+    run('git', ['clone', '-b', 'main', remote, actor], f.root);
+    for (const [key,value] of [['user.name','Refresh Fixture'],['user.email','refresh@example.invalid'],
+      ['commit.gpgSign','false'],['core.hooksPath',hooks]]) run('git',['config',key,value],actor);
+  }
   fs.writeFileSync(path.join(repo, 'changed.txt'), 'after\n');
   // Official plans must live under os.tmpdir(); remove only this test-owned directory.
   const officialTemp = fs.mkdtempSync(path.join(os.tmpdir(), 'acceptance-official-plan-'));
   t.after(() => { assert.ok(path.basename(officialTemp).startsWith('acceptance-official-plan-')); fs.rmSync(officialTemp, { recursive: true, force: true }); });
   const commitCli = path.resolve(__dirname, '../scripts/commit-demand.js');
-  const planned = JSON.parse(run(process.execPath, [commitCli, 'plan', '--project-root', repo, '--kind', 'project', '--demand', '10', '--type', 'fix', '--title', '编辑框默认值恢复', '--file', 'changed.txt', '--modification', '通过回填初始值恢复编辑框清空后的默认内容，避免保存空字符串并保留初始内容', '--output', path.join(officialTemp, 'plan.json')]));
+  const planArgs = [commitCli, 'plan', '--project-root', repo, '--kind', 'project', '--demand', '10', '--type', 'fix', '--title', '编辑框默认值恢复', '--file', 'changed.txt', '--modification', '通过回填初始值恢复编辑框清空后的默认内容，避免保存空字符串并保留初始内容'];
+  let planned = JSON.parse(run(process.execPath, [...planArgs, '--output', path.join(officialTemp, 'plan.json')]));
   f.prepare();
+  if (refreshed) {
+    fs.writeFileSync(path.join(actor,'independent.txt'),'independent upstream change\n');
+    run('git',['add','independent.txt'],actor); run('git',['commit','-m','independent change'],actor); run('git',['push'],actor);
+    const waiting = spawnSync(process.execPath,[commitCli,'apply','--plan',planned.planPath,'--confirm-commit','--verify'],
+      {cwd:repo,encoding:'utf8',windowsHide:true,timeout:30000,env:{...process.env,GIT_TERMINAL_PROMPT:'0',GIT_EDITOR:'true'}});
+    assert.equal(waiting.status,3,waiting.stderr);
+    assert.equal(JSON.parse(waiting.stdout).status,'refresh-required');
+    const next = JSON.parse(run(process.execPath,[...planArgs,'--output',path.join(officialTemp,'refreshed.json')]));
+    assert.equal(next.repositories[0].fingerprint,planned.repositories[0].fingerprint);
+    assert.equal(next.repositories[0].message,planned.repositories[0].message);
+    planned = next;
+    assert.equal(f.state().demands[0].delivery.commit.records.length,0);
+  }
   run(process.execPath, [commitCli, 'apply', '--plan', planned.planPath, '--confirm-commit', '--verify']);
   const verified = JSON.parse(fs.readFileSync(planned.planPath, 'utf8'));
   f.record('commit', 'succeeded', verified);

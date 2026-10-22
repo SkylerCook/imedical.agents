@@ -641,6 +641,6 @@ guidanceMode（auto/concise/assisted）、executionPath 和 orchestrationMode �
 
 纯初始化 skill 由插件 manifest 的 `thinIndex.excludeSkills` 排除；已启用项目更新会精准清理旧受管 init 薄索引及历史遗留空目录，日常入口继续保留。详见 [迁移说明](docs/update-agents.md#纯初始化-skill-薄索引迁移)。
 
-提交同步去重：demand-delivery-plugin 支持已校验 pull 与 upstream 钩子协作，见 [接入协议](plugins/demand-delivery-plugin/references/commit-upstream-check.md)。
+提交同步与接续：demand-delivery-plugin 独立完成同步，复用 upstream 钩子去重；上游无交集且需求内容和消息未变时由 Agent 复核、重新 plan 并沿用已有授权，见 [接入协议](plugins/demand-delivery-plugin/references/commit-upstream-check.md)。
 
 项目技能目录也可在 `ContextRoot/config/project_context_profile.md` 的“技能适配目录”章节逐行填写，再执行 `coding-agent-adaptation` 补齐缺失链接；普通更新不自动执行此清单。示例见 [技能适配](docs/coding-agent-adaptation.md)。

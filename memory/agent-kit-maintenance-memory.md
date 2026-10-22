@@ -4,6 +4,7 @@
 
 ## 当前接手
 
+- demand-commit 的上游无交集更新由 Agent 复核后沿用已有提交授权接续，条件与次数集中于[同步复核协议](../plugins/demand-delivery-plugin/references/commit-upstream-check.md)；真实宿主与非本机矩阵证据沿既有 P2 需求交付队列取得。
 - 最近全局回看覆盖 `087511d..c7e828d`（2026-10-16–21，34 个提交），承接上一轮 `e964d0e..da28585`。范围、修正及验证见[日志覆盖点](agent-kit-maintenance-log.md#全局回看覆盖点)，不代表业务副本或跨平台已验收。
 - UI 分层：`imedical-ui` 提炼技术栈无关公司规范并评审截图/浏览器；`iris-ui` 负责 IRIS CSP＋HISUI，强依赖通用层和编码插件。局部修改的验证范围与停止条件归[共享测试协议](../agents/_shared/testing-protocol.md#验证范围与停止条件)，本轮使用复盘见[维护记录](../maintenance/validation/ui-skill-usage-2026-10-22.md)；完整原件与可分发证据的边界见[长期决策](agent-kit-maintenance-decisions.md#领域插件与项目资料边界)。
 - 真实夜跑/Goal 监督、业务部署与设备验收仍须独立取证。Windows 本地测试、CI 配置和源仓提交各有边界；当前 P0–P3 顺序及责任见[治理队列](agent-kit-maintenance-backlog.md#治理优先级与执行顺序)。

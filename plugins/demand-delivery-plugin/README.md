@@ -10,6 +10,8 @@
 
 `demand-commit --plan` 只生成消息与计划；`demand-commit --commit` 表达本地提交授权并执行 plan/apply/verify，均不包含 push。交付类型来自当前用户或项目约定，缺失时补问。
 
+上游前进且与本需求无交集、需求内容和消息未变时，Agent 复核后沿用已有授权自动重新 plan 并接续；边界与次数见[同步复核协议](references/commit-upstream-check.md)。同步由技能独立完成，有无 hook 均可使用；已部署项目正常更新能力包并刷新已启用索引即可，无配置迁移或旧文件清理，不需重装 hook。
+
 需要 Node.js >=22.5.0（Agent 工具链依赖）。新项目按项目上下文维护流程将本插件标为 enabled 后刷新 thin-index；没有初始化凭据或领域配置。旧入口迁移、数据协议和部署步骤见 [迁移说明](../../docs/demand-delivery-migration.md)。
 
 运行 `node --test plugins/demand-delivery-plugin/tests/*.test.js` 验证隔离 Git 仓库与模拟 hook 行为；真实远端和其它平台结果另行取证。
