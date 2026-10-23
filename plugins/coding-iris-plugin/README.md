@@ -41,6 +41,8 @@ CSP、HTML、JS、CSS 编码与 Review 共用[前端规范](references/frontend-
 - iMedical 知识检索：[iris-imedical-knowledge](skills/iris-imedical-knowledge/SKILL.md) 使用共享 vendor 参考与项目当前菜单。模型根据任务信息缺口自主决定是否查询，无需用户点名，不固定为开发前置步骤；源码核实优先。指定来源但菜单快照缺失时返回警告并继续查询共享参考，不要求先同步菜单；损坏快照仍报错。
 - 菜单资料同步：[iris-menu-sync](skills/iris-menu-sync/SKILL.md) 通过已有 MCP 采集，sync-menu.js 提供离线 plan/apply、差异、完整性校验与原子快照切换；支持全量及指定组。更新后重建 enabled 插件 thin-index；无需新连接或 npm，项目快照不会被 vendor 更新覆盖。协议见 [menu-knowledge-sync](references/menu-knowledge-sync.md)。
 
+  已审阅并登记的全量来源由 `refresh-menu.js` 固定完成启用组动态采集、完整性检查、断点恢复和异常差异停止，可由宿主月度调用；无变化不通知。0.20.6 补齐既有采集流程的可重复入口，正常更新能力包后按协议登记，不迁移或清理旧快照，不自动部署服务端。
+
 - ObjectScript 后端编码规则：BLH/DATA/SQL 分层、SQL 返回约定、ObjectScript 语法风格、Broker 接口习惯。
 - CSP/JavaScript/HISUI 前端编码规则：框架页/内容页拆分、HISUI 控件及原生视觉状态优先（含悬浮/焦点/禁用/等待）、JS 组织方式、前端数据回显。
 - 工作流规则：本地优先；导出、编译、Broker 调试和配置同步优先使用 IRIS 开发主力脚本；MCP 作为辅助能力补上下文、只读验证或覆盖脚本未覆盖场景。

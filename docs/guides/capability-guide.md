@@ -177,7 +177,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 | [iris-frontend-gb2312-promote](../../plugins/coding-iris-plugin/skills/iris-frontend-gb2312-promote/SKILL.md) | 这是仍需 GB2312 的历史工程，请先检查转换文件与源文件的替换范围。 | 必须明确历史编码要求及文件替换授权；产出源名提升结果，普通 UTF-8 工程不使用。 |
 | [iris-imedical-knowledge](../../plugins/coding-iris-plugin/skills/iris-imedical-knowledge/SKILL.md) | 查询这个业务概念的相关参考，再结合当前源码核实。 | 给出业务词或疑点；产出来源和适用性说明，现有信息足够时无需查询。 |
 | [iris-mcp-lookup](../../plugins/coding-iris-plugin/skills/iris-mcp-lookup/SKILL.md) | 核实这个 IRIS 类方法的签名和当前可用能力，注明来源。 | 给出类方法或文档线索；依当前 MCP、本地源码或官方文档返回证据，不猜签名。无原生入口时使用 [helper 按需 schema 与 JSON 输出](../../plugins/coding-iris-plugin/rules/iris_agentic_dev.md#诊断)，正常调用已内置配置检查；使用 v1.5.0 时按同一规则中的响应契约处理列表截断、方法错误和持久会话。 |
-| [iris-menu-sync](../../plugins/coding-iris-plugin/skills/iris-menu-sync/SKILL.md) | 刷新指定安全组的菜单资料快照，先检查采集范围。 | 明确全部或指定组及读取范围；产出本地快照和差异，不修改 HIS 菜单或权限。 |
+| [iris-menu-sync](../../plugins/coding-iris-plugin/skills/iris-menu-sync/SKILL.md) | 刷新全部或指定安全组快照；已审阅并登记的全量来源可由宿主每月调用固定采集入口。 | 明确来源及读取范围；产出本地快照和差异，异常保留旧快照。定期运行动态读取启用组，不自动部署或修改 HIS 权限。 |
 
 ## extract-doc
 

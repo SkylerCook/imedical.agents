@@ -85,6 +85,8 @@ Check 和 DryRun -NoPull 保持只读；普通 DryRun 允许更新 capability，
 
 ## iMedical 知识资料与菜单同步
 
+0.20.6 为已有菜单刷新流程补齐固定采集入口 `refresh-menu.js`，新增源端读取适配和采集证据原子发布，不改变 sparse、thin-index 或旧快照 schema。已部署工程正常更新能力包与入口后，按[无人值守协议](../plugins/coding-iris-plugin/references/menu-knowledge-sync.md#无人值守刷新)审阅并登记项目私有实例配置，再由宿主调度。配置与 work/menu-sync 保持 Git 忽略，原快照和历史 generation 无需迁移或清理；首次登记和实际环境权限独立核验，不自动创建任务或部署服务端。
+
 0.13.1 将知识检索的选择统一到 IRIS 通用规则，由模型自主决定是否查询，不要求用户点名或每次必查。已部署工程正常更新并重建 coding-iris-plugin thin-index，刷新后的 skill 描述与通用规则即可生效；不新增连接、迁移资料或自动刷新菜单。具体模型实际选用行为仍需任务观察。
 
 coding-iris-plugin 0.13 提供 iris-imedical-knowledge / iris-menu-sync；共享资料随已有 `/vendor/**`、入口与工具随 `/plugins/**` 分发，未改变安装/更新 sparse 范围。不把普通资料声明成 vendor skill，不自动安装 Qoder 或新增连接。

@@ -118,7 +118,7 @@ IRIS 前后端开发、知识查询、DEV→PRD 需求移植与部署。通用�
 | [iris-frontend-gb2312-promote](../../plugins/coding-iris-plugin/skills/iris-frontend-gb2312-promote/SKILL.md) | 提升明确历史 GB2312 工程的转换文件 | 日常入口 |
 | [iris-imedical-knowledge](../../plugins/coding-iris-plugin/skills/iris-imedical-knowledge/SKILL.md) | 检索 wiki、菜单与技术参考 | 日常入口 |
 | [iris-mcp-lookup](../../plugins/coding-iris-plugin/skills/iris-mcp-lookup/SKILL.md) | 核实 IRIS 元数据和官方 API 文档 | 日常入口 |
-| [iris-menu-sync](../../plugins/coding-iris-plugin/skills/iris-menu-sync/SKILL.md) | 刷新项目本地菜单资料快照 | 日常入口 |
+| [iris-menu-sync](../../plugins/coding-iris-plugin/skills/iris-menu-sync/SKILL.md) | 刷新项目本地菜单资料快照；已登记全量来源支持宿主定期采集 | 日常入口 |
 
 ### Rules
 

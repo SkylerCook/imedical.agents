@@ -103,7 +103,7 @@ function render(snapshot) {
   }
   return files;
 }
-function sync({ root, input, write = false, allowEmpty = false, expectHash, expectInput }) {
+function sync({ root, input, write = false, allowEmpty = false, expectHash, expectInput, acquisition }) {
   noLinks(root);
   if (!write) { const p = prepare(root,input,allowEmpty); return { status:'planned', revision:p.previous.revision,inputHash:p.inputHash,changes:p.changes }; }
   fs.mkdirSync(root,{recursive:true}); const lock = path.join(root,'.lock'); fs.mkdirSync(lock);
@@ -117,6 +117,7 @@ function sync({ root, input, write = false, allowEmpty = false, expectHash, expe
     for (const [name,content] of Object.entries(render(p.snapshot))) {
       const file = path.join(dir,name); fs.mkdirSync(path.dirname(file),{recursive:true}); fs.writeFileSync(file,content,{flag:'wx'});
     }
+    if (acquisition !== undefined) fs.writeFileSync(path.join(dir,'acquisition.json'), JSON.stringify(acquisition,null,2)+'\n',{flag:'wx'});
     const revision = hash(p.snapshot); pointerTemp = path.join(root,`${generation}.tmp`);
     fs.writeFileSync(pointerTemp,JSON.stringify({schema:'iris-menu-current/v1',generation,revision,previous:p.previous.generation || null})+'\n',{flag:'wx'});
     fs.renameSync(pointerTemp,path.join(root,'current.json')); published = true;
