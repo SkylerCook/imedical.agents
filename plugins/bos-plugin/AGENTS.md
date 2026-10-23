@@ -16,6 +16,8 @@ BOS 能力独立于技术栈。目录存在仅表示 available；项目使用前
 
 ## 路由
 
+- 待办默认创建日期升序，个人查询 `--sort` / `--order` 可指定其它日期及方向；默认列表含创建时间，沿[日期排序口径](references/usage.md#日期排序口径)执行，排序与筛选独立。
+
 - 个人查询默认待办；`--proj` 项目 / `--dev` 产品（非项目）可独立调用或与待办/工作量组合，沿[查询 skill](skills/bos-demand-query/SKILL.md)及[来源口径](references/usage.md#项目与产品非项目来源口径)，与旧 project-pending 区分。
 
 - 从 Git 补录、根据主题及资料向本组/其他组提需，或显式 --work 整理工作记录，生成标版文本/Excel并回填编号（`--split` 审查拆分，`--split --excel` 拆分并导出）：[bos-demand-entry](skills/bos-demand-entry/SKILL.md)。主题提需无需 Git，不自动发送或指派。

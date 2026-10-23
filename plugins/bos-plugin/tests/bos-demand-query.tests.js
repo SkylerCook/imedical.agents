@@ -365,6 +365,52 @@ test('source shortcuts are discoverable and help does not require credentials', 
   assert.deepEqual(tool.inputSchema.properties.sourceScope.enum, ['all', 'project', 'non-project']);
 });
 
+test('personal CLI accepts all date sort fields and directions independently of source or filter dates', () => {
+  const fields = ['创建时间', '预计完成时间', '分配时间', '执行时间', '操作时间'];
+  for (const sort of fields) {
+    assert.deepEqual(parsePersonalCli(['--proj', '--sort', sort, '--order', 'desc']), { mode: 'todo', sourceScope: 'project', sort, order: 'desc' });
+    assert.deepEqual(parsePersonalCli(['--order', 'asc', '--dev', '--sort', sort]), { mode: 'todo', sourceScope: 'non-project', sort, order: 'asc' });
+  }
+  const dated = parsePersonalCli(['--todo', '2026-10-23', '--sort', '分配时间']);
+  const args = queryArguments(dated, 'sample-user');
+  assert.equal(args.datetype, '预计完成时间'); assert.equal(args.date, '2026-10-23');
+  assert.equal(Object.hasOwn(args, 'sort'), false); assert.equal(Object.hasOwn(args, 'order'), false);
+  for (const argv of [['--todo', '--sort'], ['--proj', '--sort', '标题'], ['--dev', '--order', 'up'], ['--todo', '--sort', '创建时间', '--sort', '预计完成时间'], ['--dev', '--order', 'asc', '--order', 'desc']]) assert.throws(() => parsePersonalCli(argv));
+  const { spawnSync } = require('node:child_process');
+  for (const flag of ['--sort', '--order']) {
+    const result = spawnSync(process.execPath, [path.resolve(__dirname, '../scripts/bos-demand-query.js'), flag], { encoding: 'utf8', env: { ...process.env, BOS_MCP_CONFIG: path.resolve('nonexistent-config') } });
+    assert.equal(result.status, 1); assert.match(result.stderr, /需提供一个合法值/); assert.doesNotMatch(result.stderr, /配置/);
+  }
+});
+
+test('all todo source scopes default to creation day ascending and allow other date fields in both directions', async t => {
+  const rows = [
+    { '需求号': '10', '创建时间': '2026-10-02', '预计完成时间': '2026-10-01', '分配时间': '2026-10-03', '执行时间': '2026-10-04', '操作时间': '2026-10-02' },
+    { '需求号': '2', '创建时间': '2026-10-01', '预计完成时间': '2026-10-03', '分配时间': '2026-10-01', '执行时间': '2026-10-02', '操作时间': '2026-10-01' },
+    { '需求号': '3', '创建时间': '2026-10-02', '预计完成时间': '2026-10-02', '分配时间': '2026-10-02', '执行时间': '2026-10-01', '操作时间': '2026-10-03' },
+    { '需求号': '4', '创建时间': 'invalid', '预计完成时间': '', '执行时间': 'invalid', '操作时间': null }
+  ].map(row => ({ ...row, '状态': '分配', '接受人': 'sample-user', '当前人': 'sample-user' }));
+  const expected = {
+    '创建时间': [['2', '3', '10', '4'], ['3', '10', '2', '4']],
+    '预计完成时间': [['10', '3', '2', '4'], ['2', '3', '10', '4']],
+    '分配时间': [['2', '3', '10', '4'], ['10', '3', '2', '4']],
+    '执行时间': [['3', '2', '10', '4'], ['10', '2', '3', '4']],
+    '操作时间': [['2', '10', '3', '4'], ['3', '10', '2', '4']]
+  };
+  for (const sourceScope of ['all', 'project', 'non-project']) {
+    t.mock.method(globalThis, 'fetch', mock({ result: listResult(rows.map(row => ({ ...row, '来源': sourceScope === 'project' ? '项目' : '产品' }))) }).fetchImpl);
+    const defaults = await query(config, { mode: 'todo', sourceScope }, 'sample-user');
+    assert.deepEqual(getRows(defaults).map(x => x['需求号']), expected['创建时间'][0]);
+    assert.equal(defaults._meta.bosDemandQuery.sort, '创建时间'); assert.equal(defaults._meta.bosDemandQuery.order, 'asc');
+    for (const [sort, orders] of Object.entries(expected)) for (const [index, order] of ['asc', 'desc'].entries()) {
+      const result = await query(config, { mode: 'todo', sourceScope, sort, order }, 'sample-user');
+      assert.deepEqual(getRows(result).map(x => x['需求号']), orders[index]);
+      assert.equal(result._meta.bosDemandQuery.missingSortDateCount, 1);
+      assert.equal(result._meta.bosDemandQuery.includedCount, 4);
+    }
+  }
+});
+
 test('personal CLI accepts all todos, single days and inclusive ranges, but workload requires dates', () => {
   assert.deepEqual(parsePersonalCli(['--todo']), { mode: 'todo' });
   for (const flag of ['--todo', '--workload']) {
@@ -432,7 +478,7 @@ const personalRows = [
 test('todo uses both people and active states, includes rework and previously executed assignments, and allows undated work', async t => {
   t.mock.method(globalThis, 'fetch', mock({ result: listResult(personalRows) }).fetchImpl);
   const all = await query(config, { mode: 'todo' }, 'sample-user', 'sample-group');
-  assert.deepEqual(getRows(all).map(x => x['需求号']), ['1', '2', '7', '18', '19', '13']);
+  assert.deepEqual(getRows(all).map(x => x['需求号']), ['1', '2', '7', '13', '18', '19']);
   assert.equal(all._meta.bosDemandQuery.personal.range, null);
   const dated = await query(config, { mode: 'todo', date: '2026-10-23' }, 'sample-user', 'sample-group');
   assert.deepEqual(getRows(dated).map(x => x['需求号']), ['1', '2', '7', '18', '19']);

@@ -27,7 +27,7 @@ const queryOptions = {
   sourceScope: { type: 'string', enum: ['all', 'project', 'non-project'], description: '个人查询来源口径：all 不限；project 为项目；non-project 为产品（所有非项目来源）。省略 mode 时默认 todo，不发送到上游。' },
   mode: { type: 'string', enum: ['list', 'pending', 'project-pending', 'history', 'todo', 'workload'], description: 'todo 为本人开发待办，日期可省略，提供时按预计完成时间；workload 为本人工作量，必须提供执行日期。旧 pending/project-pending/history 保留原口径。' },
   timezone: { type: 'string', description: '默认日期截止日使用的 IANA 时区；默认 Asia/Shanghai，可按用户时区覆盖。' },
-  sort: { type: 'string', enum: ['创建时间', '预计完成时间', '执行时间'], description: '列表排序字段；默认创建时间，todo 默认预计完成时间，workload 默认执行时间；同日需求号升序。' },
+  sort: { type: 'string', enum: ['创建时间', '预计完成时间', '分配时间', '执行时间', '操作时间'], description: '日期排序字段；todo 及通用列表默认创建时间，workload 默认执行时间；同日需求号升序，缺失或无效日期置后。排序不改变日期筛选字段。' },
   order: { type: 'string', enum: ['asc', 'desc'], description: '日期排序方向；默认 asc，缺失或无效日期置后。' }
 };
 const pendingExcludedStatuses = new Set(['完成', '取消', '已拆分']);
@@ -79,7 +79,7 @@ function preparePersonalQuery(input, defaultUser, now) {
   for (const [key, value] of Object.entries(fixed)) {
     if (Object.hasOwn(input, key) && input[key] !== value) throw new Error(`${mode} 的 ${key} 固定为 ${value || '空字符串'}；其它口径使用 list/history`);
   }
-  const sort = input.sort || dateField;
+  const sort = input.sort || (mode === 'todo' ? '创建时间' : dateField);
   const order = input.order || 'asc';
   if (!queryOptions.sort.enum.includes(sort) || !queryOptions.order.enum.includes(order)) throw new Error('sort 或 order 无效');
   const args = Object.fromEntries(fields.map(key => [key, input[key] ?? '']));
@@ -96,14 +96,20 @@ function preparePersonalQuery(input, defaultUser, now) {
 
 function parsePersonalCli(argv) {
   let mode, sourceScope;
+  const options = {};
   const values = [];
-  for (const token of argv) {
+  for (let index = 0; index < argv.length; index++) {
+    const token = argv[index];
     if (token === '--todo' || token === '--workload') {
       if (mode) throw new Error('--todo / --workload 不可重复或同时使用');
       mode = token.slice(2);
     } else if (token === '--proj' || token === '--dev') {
       if (sourceScope) throw new Error('--proj / --dev 不可重复或同时使用');
       sourceScope = token === '--proj' ? 'project' : 'non-project';
+    } else if (token === '--sort' || token === '--order') {
+      const key = token.slice(2), value = argv[++index];
+      if (Object.hasOwn(options, key) || !queryOptions[key].enum.includes(value)) throw new Error(`${token} 需提供一个合法值且不可重复`);
+      options[key] = value;
     } else if (token.startsWith('--')) throw new Error('未知个人查询参数');
     else values.push(token);
   }
@@ -113,7 +119,7 @@ function parsePersonalCli(argv) {
   if (dates.length > 2 || dates.some(value => !validDate(value))) throw new Error('日期格式应为 YYYY-MM-DD 或 YYYY-MM-DD~YYYY-MM-DD');
   if (!dates.length && mode === 'workload') throw new Error('--workload 必须提供执行日期或日期范围');
   if (dates.length === 2 && dates[1] < dates[0]) throw new Error('截止日期不得早于起始日期');
-  return { mode, ...(sourceScope ? { sourceScope } : {}), ...(dates.length ? { date: dates[0], date2: dates[1] ?? dates[0] } : {}) };
+  return { mode, ...(sourceScope ? { sourceScope } : {}), ...(dates.length ? { date: dates[0], date2: dates[1] ?? dates[0] } : {}), ...options };
 }
 
 function personalDecision(row, plan) {
@@ -428,8 +434,8 @@ function initConfig(filePath, options) { return personal.initialize(filePath, op
 async function main() {
   const argv = process.argv.slice(2);
   const [command = 'serve', json] = argv;
-  if (argv.includes('--help')) { console.log('node bos-demand-query.js --todo [YYYY-MM-DD [YYYY-MM-DD] | YYYY-MM-DD~YYYY-MM-DD] [--proj|--dev]\nnode bos-demand-query.js --workload YYYY-MM-DD [YYYY-MM-DD] [--proj|--dev]\n--proj / --dev: project / non-project sources; default to todo without --workload.\n--todo: personal development todos, optional due dates; --workload: personal workload, required execution dates. Both ends inclusive.\nnode bos-demand-query.js serve|check|defaults|query <JSON>|init-config [absolute-private-path]|migrate-config <existing-private-path>\nBOS_MCP_CONFIG: shared private JSON with bos-demand-query and bos-code-update-log sections. Only the selected skill section is read. migrate-config converts the old flat query file in place. Node >=22.5.0.'); return; }
-  const personalInput = ['--todo', '--workload', '--proj', '--dev'].includes(command) ? parsePersonalCli(argv) : null;
+  if (argv.includes('--help')) { console.log('node bos-demand-query.js --todo [YYYY-MM-DD [YYYY-MM-DD] | YYYY-MM-DD~YYYY-MM-DD] [--proj|--dev]\nnode bos-demand-query.js --workload YYYY-MM-DD [YYYY-MM-DD] [--proj|--dev]\n--sort <创建时间|预计完成时间|分配时间|执行时间|操作时间> --order asc|desc; todo defaults to creation date.\n--proj / --dev: project / non-project sources; default to todo without --workload.\n--todo: personal development todos, optional due dates; --workload: personal workload, required execution dates. Both ends inclusive.\nnode bos-demand-query.js serve|check|defaults|query <JSON>|init-config [absolute-private-path]|migrate-config <existing-private-path>\nBOS_MCP_CONFIG: shared private JSON with bos-demand-query and bos-code-update-log sections. Only the selected skill section is read. migrate-config converts the old flat query file in place. Node >=22.5.0.'); return; }
+  const personalInput = ['--todo', '--workload', '--proj', '--dev', '--sort', '--order'].includes(command) ? parsePersonalCli(argv) : null;
   const [major, minor] = process.versions.node.split('.').map(Number);
   if (major < 22 || (major === 22 && minor < 5)) throw new Error('需要 Node.js >=22.5.0（Agent 工具链运行时）');
   if (command === 'init-config') { console.log(JSON.stringify(initConfig(json))); return; }

@@ -94,7 +94,7 @@
 | mode | list / pending / project-pending / history / todo / workload；默认 list，个人两模式见下节 |
 | sourceScope | all / project / non-project；仅用于个人 todo/workload，提供且省略 mode 时默认 todo，见来源口径 |
 | timezone | 有效 IANA 时区；默认 Asia/Shanghai，用于生成截止日 |
-| sort | 创建时间 / 预计完成时间 / 执行时间；通用模式默认创建时间，todo 默认预计完成时间，workload 默认执行时间 |
+| sort | 创建时间 / 预计完成时间 / 分配时间 / 执行时间 / 操作时间；todo 和通用模式默认创建时间，workload 默认执行时间 |
 | order | asc / desc；默认 asc，控制日期排序方向 |
 
 详细模式、日期优先级与排序规则见下节“查询模式”。
@@ -127,6 +127,14 @@ skill 无参数默认 todo；脚本保留无参数启动 serve 的兼容行为�
 - all：保留原 source 精确筛选及不限来源的语义，不作额外分类。
 
 来源范围与原人员/状态/日期等条件组合生效，不切换至旧 project-pending 模式。仅在选择来源口径时，缺失、空白或非字符串来源进入 personal.unclassified，不自动归入产品；不匹配的已知来源记 outside-source。返回 data 仍是已处理结果，personal.sourceScope / sourceBasis 展示采用口径，returnedCount / includedCount / excludedCount 及 excludedReasons 反映上游候选与本地排除。分类不证明服务端返回全量；来源缺失的候选也可能受上游 source 预筛影响，不能从 project 查询声称已发现全部缺失来源。
+
+## 日期排序口径
+
+所有 todo 默认 sort: "创建时间"、order: "asc"，与来源 all/project/non-project 无关。workload 默认执行时间升序；通用列表默认值保持创建时间升序。JSON/MCP 可指定五个日期字段和 asc/desc；个人 CLI/skill 使用 `--sort <字段> --order asc|desc`，可与模式、来源和日期范围任意先后组合。未知值、缺值或同一参数重复在联网前停止。比如 `--proj --sort 预计完成时间 --order asc` 按到期日期排序，`--todo --sort 分配时间 --order desc` 按分配日期倒序。
+
+比较原字段 YYYY-MM-DD，按选择方向排序，同日需求号数值升序，缺失或无效日期始终置后；创建日期在各默认列表中展示，字段缺失标“未返回”，空值标“空”。排序只重排纳入结果，不改变来源、人员、状态分类、计数或日期筛选：todo 的筛选日期仍为预计完成时间，workload 仍为执行时间。实际选择以 `_meta.bosDemandQuery.sort/order` 为准，Agent 不二次重排；需求号串仍按原约定编号升序。
+
+0.15.0 将 todo 原默认预计完成时间升序改为创建时间升序；需要保持原顺序的调用显式传 sort: "预计完成时间", order: "asc"，或 CLI 追加 `--sort 预计完成时间 --order asc`。日期筛选、返回结构与私有配置不变。正常更新能力包并刷新已启用索引取得；无需数据迁移或旧文件清理。
 
 ## 参数异常与验证边界
 

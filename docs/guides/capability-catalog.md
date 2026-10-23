@@ -61,7 +61,7 @@ BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调
 |---|---|---|
 | [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md) | 个人身份初始化、明确接入和项目发现 | 初始化入口 |
 | [bos-demand-entry](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md) | 从Git、主题/资料或工作记录生成需求、回填编号；代码可按主子归属衔接提交 | 日常入口；支持给其他组提需，--work 工作记录 |
-| [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md) | 个人开发待办、工作量，或人员/组列表、详情和附件元数据 | 默认待办；`--todo [日期或范围]` / `--workload 日期或范围`，可叠加 `--proj` / `--dev`，只读 |
+| [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md) | 个人开发待办、工作量，或人员/组列表、详情和附件元数据 | 默认待办；`--todo [日期或范围]` / `--workload 日期或范围`，可叠加 `--proj` / `--dev`，支持 `--sort` / `--order` 日期排序，只读 |
 | [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md) | 需求实施验证、授权提交与提交后日志补录衔接 | 日常入口 |
 | [bos-code-update-log](../../plugins/bos-plugin/skills/bos-code-update-log/SKILL.md) | 已有Git提交的日志预览、主子共享提交映射与授权BOS补录 | 日常入口 |
 
