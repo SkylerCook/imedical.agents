@@ -53,6 +53,39 @@ PURE 标准查询组合示例的外侧 15px 由页面内容边界承担，不要
 - 滚动区域内的装饰背景归稳定容器，避免跟随内容滚动产生渐变接缝或重复背景。
 - 长内容、空数据、无患者三种状态均使用同一布局边界；状态切换后不遗留占位宽度。
 
+### 普通面板与带底色面板
+
+以下取自内容背景，不是标题背景；几何参数与 paint 有效性分别核对。四角参数存在，不等于对应背景已绘制，也不等于运行时所有祖先都呈现该圆角。
+
+| 对象与来源 | 背景节点 | 参数事实 | 分类／证据类型 |
+|---|---|---|---|
+| 普通面板，[PURE 控件-02](../../../vendor/imedical-ui-standards/pure-controls/res/控件-02布局/data.js) | `24d63808-e18c-4b42-b218-cf163ece12bf` | fillEnabled=true、#FFFFFFFF；四角6px；strokeEnabled=false | 主题差异／构件几何 |
+| 普通面板，[IHOS 控件-02](../../../vendor/imedical-ui-standards/ihos-seablue/res/控件-02布局/data.js) | `0772b586-7649-46df-a7f4-9f2fa16cd4b7` | fillEnabled=false，保存#FFFFFFFF及四角6px；strokeEnabled=false | 主题差异／构件几何 |
+| 带底色面板，[PURE 控件-02](../../../vendor/imedical-ui-standards/pure-controls/res/控件-02布局/data.js) | `4f243bb7-6cac-4eb6-8889-b01d0436d133` | fillEnabled=true、#FFF1F7FE；四角6px；strokeEnabled=false | 构件变体＋主题差异／构件几何 |
+| 带底色面板，[IHOS 控件-02](../../../vendor/imedical-ui-standards/ihos-seablue/res/控件-02布局/data.js) | `30cdc1d7-eb96-4ed2-8ee6-aec61b840bd9` | fillEnabled=true、#FFE6EAF9；四角0px；strokeEnabled=false | 构件变体＋主题差异／构件几何 |
+
+普通与带底色面板先按使用场景选型，再沿对应主题和原生组件取参；不统一为白卡、蓝底或6px圆角。标题关闭的背景另见[有效图层反例](source-catalog.md#有效图层与参数提炼)，不能替代本表的内容背景判断。
+
+### 面板与树的图标角色
+
+标题图标的面性角色沿[表单与操作](forms-and-actions.md#图标及业务确认)，下表补两族可核对的构件；对应原预览均为四块实心圆角方块。面性判断结合原图与标题角色，不能仅由 fillEnabled=true 推导：闭合轮廓也可能形成线性外观。树的展开箭头、文件夹/文件及文字分别承担不同角色，不能因保留了箭头就认为节点图标完整；展开、收起、叶节点和当前态按本次改动核查。
+
+| 对象与来源 | 完整节点 GUID | 有效参数及边界 |
+|---|---|---|
+| 标题面性图标，[IHOS 控件-02](../../../vendor/imedical-ui-standards/ihos-seablue/res/控件-02布局/data.js)／[原预览](../../../vendor/imedical-ui-standards/ihos-seablue/res/控件-02布局/preview.png) | `e1307a22-225c-4ff3-8c85-7cfbf82dbdc7` | Path；fillEnabled=true、stroke=null；填充图形，不是线性操作图标 |
+| 标题面性图标，[PURE 控件-02](../../../vendor/imedical-ui-standards/pure-controls/res/控件-02布局/data.js)／[原预览](../../../vendor/imedical-ui-standards/pure-controls/res/控件-02布局/preview.png) | `7ffe0770-6b5d-4e1b-8305-f6d6e699a8cf` | Path；fillEnabled=true、stroke=null；两族角色一致，资源和色值仍由主题负责 |
+| 树文件夹，[IHOS 控件-03](../../../vendor/imedical-ui-standards/ihos-seablue/res/控件-03HOS组补充控件/data.js) | `f1d292c5-f534-42ca-b164-9a0c4d768231` | 16×16文件夹组，含有效填充；不同于展开箭头 |
+| 树文件夹，[PURE 控件-03](../../../vendor/imedical-ui-standards/pure-controls/res/控件-03HOS组补充控件/data.js) | `e0326516-5045-4cb4-89b7-f5a86b022085` | 16×16文件夹组，含有效填充；不据样本固定所有树行高 |
+
+普通树叶节点亦有独立文档图标，不用文件夹或展开箭头代替：
+
+| 对象与来源 | 完整节点 GUID | 有效参数及边界 |
+|---|---|---|
+| 普通树文档叶节点，[PURE 控件-01](../../../vendor/imedical-ui-standards/pure-controls/res/控件-01按钮+表格+表单+其他控件/data.js) | `17afd3bb-4efd-47bb-a57c-e18d7f3a4e79` | 文档组16×16，与“四级”文字同父；含有效填充路径，透明占位矩形不作为可见图标 |
+| 普通树文档叶节点，[IHOS 控件-01](../../../vendor/imedical-ui-standards/ihos-seablue/res/控件-01按钮+表格+表单+其他控件/data.js) | `5989cda0-cea7-4d2e-bd92-d710b3e1ba3a` | 文档组16×16，与“四级”文字同父；含有效填充路径，节点角色不由连线或缩进代替 |
+
+普通面板、带底色面板、标题背景与内容背景是不同对象；关闭的背景/描边不能当作可见要求，反例见[有效图层](source-catalog.md#有效图层与参数提炼)。边框开关、图标映射及参数组合交给技术栈适配核对，不把某页的 `border:true` 或树参数推广成全部组件的默认值。
+
 ## 导航与系统级标签组
 
 - 导航属于宿主时，业务页只接入已分配的内容区；全局菜单、标题栏、页签由宿主负责。

@@ -1,76 +1,300 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>IRIS UI diagnostic fixture</title>
+<html lang="en"><head><meta charset="utf-8"><title>IRIS UI diagnostic fixture</title>
+<script>
+(function () {
+    "use strict";
+    var params = new URLSearchParams(location.search);
+    var style = params.get("theme") || "pure";
+    if (["pure", "vben", "lite"].indexOf(style) === -1) { throw new Error("Unknown fixture theme"); }
+    // Set JS identity before HISUI loads; a CSS URL alone does not select native defaults.
+    window.HISUIStyleCode = style;
+    window.HISUITheme = style === "vben" ? "bgseablue" : "";
+    window.fixtureConfig = { style: style, theme: window.HISUITheme,
+        width: Math.max(360, Math.min(1000, Number(params.get("width")) || 625)) };
+}());
+</script>
 <link id="themeCss" rel="stylesheet" href="/hisui/css/hisui.pure.css">
 <style>
 body { padding: 16px; font-size: 14px; }
-#sampleLayout { height: 300px; }
+h1 { font-size: 20px; }
+.fixture-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.fixture-section { margin: 20px 0; }
+.fixture-pair { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 20px; }
+.fixture-column { width: 420px; max-width: 100%; min-width: 0; }
+#sampleLayout { height: 320px; }
 .content { padding: 12px; }
-#contentBox { height: 130px; overflow: auto; }
+#contentBox { height: 170px; overflow: auto; }
 .combo-row { display: flex; align-items: center; gap: 8px; }
 #comboSlot { flex: 1; min-width: 0; }
 #reference { white-space: nowrap; }
-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
-td { padding: 8px 0; }
+#fieldTable { width: 100%; table-layout: fixed; border-collapse: collapse; }
+#fieldTable td { padding: 8px 0; vertical-align: top; }
+#optionCell label.radio { display: block; height: auto; min-height: 21px; margin-bottom: 10px; white-space: normal; overflow-wrap: anywhere; box-sizing: border-box; }
 .category { width: 76px; }
+.fixture-tree { height: 230px; overflow: auto; }
+.fixture-tree .tree-title { white-space: normal; max-width: 220px; }
+#surfaceHost { padding: 15px; width: 450px; max-width: 100%; box-sizing: border-box;
+    background: repeating-conic-gradient(#d8d8d8 0 25%, #f0f0f0 0 50%) 0 / 12px 12px; }
+.surface-row { margin: 0; padding: 8px 12px; }
 #hiddenTarget { display: none; }
+#fixtureStatus { font-family: monospace; margin: 10px 0; }
+#resourceStatus { white-space: pre-wrap; }
 </style>
 <script src="/hisui/js/jquery-1.11.3.min.js"></script>
 <script src="/hisui/js/jquery.hisui.js"></script>
 <script src="/collect-ui-metrics.js"></script>
 </head><body>
+<script>document.body.setAttribute("data-theme", window.fixtureConfig.theme);</script>
 <h1>Anonymous layout and lifecycle fixture</h1>
-<p><button id="fill">Fill content</button> <button id="toggle">Toggle query panel</button></p>
+<p>Local synthetic content. Native HISUI skins own controls; this page supplies diagnostic containers only.</p>
+<div id="fixtureStatus" role="status">initializing</div><pre id="resourceStatus"></pre>
+<section class="fixture-section">
+<h2>Content width and query sidebar</h2>
+<div class="fixture-actions">
+<button id="short">One group</button><button id="fill">Many groups</button>
+<button id="cycle">1 / many / 1</button><button id="toggle">Toggle query panel</button>
+<button id="reopen">Reopen native dialog</button>
+</div>
 <div id="sampleLayout">
-  <div data-options="region:'center'"><div class="content">
+  <div id="mainPanel" data-options="region:'center',border:false"><div class="content">
     <div id="contentBox">
       <div class="combo-row"><div id="comboSlot"><input id="combo"></div><a id="reference" href="#fixture">Reference</a></div>
-      <table><tr><td class="category">Category</td><td id="headerCell">Group choices</td></tr>
-        <tr><td class="category">Material</td><td id="optionCell">Alpha / Beta / Gamma / Delta</td></tr></table>
+      <table id="fieldTable"><tr><td class="category">Category</td><td id="headerCell">Group choices</td></tr>
+        <tr><td class="category">Material</td><td id="optionCell"></td></tr></table>
       <div id="rows"></div>
     </div>
   </div></div>
-  <div id="queryPanel" data-options="region:'east',width:190,collapsible:true,title:'Query'"><p>Anonymous query panel</p></div>
+  <div id="queryPanel" data-options="region:'east',width:190,collapsible:true,title:'Query',iconCls:'icon-panel-brand'"><p>Anonymous query panel</p></div>
 </div>
-<div id="hiddenTarget">Hidden sample</div><div id="fixtureStatus">initializing</div>
+</section>
+<section class="fixture-section">
+<h2>Native panel surface and scrollbar</h2>
+<p>The checkerboard is an artificial contrast host, not a company theme. Matching its background to the native card demonstrates how a parent can visually fill rounded corners and scrollbar space.</p>
+<div class="fixture-actions"><button id="parentContrast">Contrast parent</button><button id="parentMatch">Match parent to native card</button></div>
+<div id="surfaceHost"><div id="surfacePanel"><div id="surfaceRows"></div></div></div>
+</section>
+<section class="fixture-section">
+<h2>Tree configuration comparison</h2>
+<p>Both trees use lines and the same native icon classes. Only autoNodeHeight differs.</p>
+<div class="fixture-pair">
+  <div class="fixture-column"><h3>lines=true / autoNodeHeight=true</h3><div class="fixture-tree"><ul id="treeAuto"></ul></div></div>
+  <div class="fixture-column"><h3>lines=true / autoNodeHeight=false</h3><div class="fixture-tree"><ul id="treeFixed"></ul></div></div>
+</div>
+</section>
+<section class="fixture-section">
+<h2>Native border comparison</h2>
+<p>Compare wrappers and actual border widths. Colors and corner radii are supplied by the loaded theme.</p>
+<div class="fixture-pair">
+  <div class="fixture-column"><div id="panelBorderOn">Panel border=true</div><table id="gridBorderOn"></table></div>
+  <div class="fixture-column"><div id="panelBorderOff">Panel border=false</div><table id="gridBorderOff"></table></div>
+</div>
+</section>
+<div id="repeatDialog"><div id="dialogRows"></div></div>
+<div id="hiddenTarget">Hidden sample</div>
 <script>
 (function () {
     "use strict";
-    var params = new URLSearchParams(location.search);
-    var theme = params.get("theme") || "pure";
-    var width = Number(params.get("width")) || 625;
-    var collapsed = false;
-    if (["pure", "vben", "lite"].indexOf(theme) === -1) { throw new Error("Unknown fixture theme"); }
-    function fitCombo() {
-        $("#combo").combobox("resize", $("#comboSlot").width());
-    }
-    $(function () {
-        $("#sampleLayout").width(width + 220).layout({ onCollapse: fitCombo, onExpand: fitCombo });
-        $("#combo").combobox({ data: [{ value: "alpha", text: "Alpha" }, { value: "beta", text: "Beta" }],
-            valueField: "value", textField: "text", onResize: function () {} });
-        fitCombo();
-        $("#fill").on("click", function () {
-            var rows = [];
-            for (var i = 0; i < 20; i++) { rows.push("<p>Anonymous option " + (i + 1) + "</p>"); }
-            $("#rows").html(rows.join(""));
-            fitCombo();
-            $("#fixtureStatus").text("filled");
+    var config = window.fixtureConfig;
+    var count = 1;
+    var reopenCount = 0;
+    var resizeTimer;
+    var hostResizeTimer;
+    var lastHostWidth;
+    var observer;
+    var parentMatched = false;
+    function settle() {
+        return new Promise(function (resolve) {
+            window.requestAnimationFrame(function () { window.requestAnimationFrame(resolve); });
         });
-        $("#toggle").on("click", function () {
-            collapsed = !collapsed;
+    }
+    function fitCombo() {
+        if ($.data($("#combo")[0], "combobox")) { $("#combo").combobox("resize", Math.floor($("#comboSlot").width())); }
+    }
+    function fitHostWidth() {
+        // Requested sample width is an upper bound; measure the actual embedding host.
+        var width = Math.floor($("#sampleLayout").parent().width());
+        if (width === lastHostWidth) { return; }
+        lastHostWidth = width;
+        $("#sampleLayout").width(Math.min(config.width + 220, width)).layout("resize");
+        $("#surfacePanel").panel("resize", { width: Math.min(420, Math.floor($("#surfaceHost").width())) });
+        ["On", "Off"].forEach(function (suffix) {
+            var panel = $("#panelBorder" + suffix);
+            var columnWidth = Math.floor(panel.panel("panel").parent().width());
+            panel.panel("resize", { width: Math.min(420, columnWidth) });
+            $("#gridBorder" + suffix).datagrid("resize", { width: Math.min(420, columnWidth) });
+        });
+        $("#repeatDialog").dialog("resize", { width: Math.min(474, Math.floor($("body").width())) });
+        if (!$("#repeatDialog").dialog("options").closed) { $("#repeatDialog").dialog("center"); }
+    }
+    function afterContent() {
+        fitCombo();
+        return settle().then(function () { fitCombo(); return observe(); });
+    }
+    function fillRows(target, amount, className) {
+        var rows = [];
+        for (var i = 0; i < amount; i++) { rows.push("<p class='" + className + "'>Anonymous group " + (i + 1) + "</p>"); }
+        $(target).html(rows.join(""));
+    }
+    function fillChoices(amount) {
+        var selected = Number($("#optionCell input:checked").val()) || 1;
+        if (selected > amount) { selected = 1; }
+        var cell = $("#optionCell").empty();
+        for (var i = 1; i <= amount; i++) {
+            var text = "Anonymous option " + i;
+            if (i % 3 === 0) { text += " with a long configured description that wraps inside the available content width"; }
+            $("<input type='radio'>").attr("value", i).appendTo(cell).radio({
+                id: "anonymous-option-" + i, name: "anonymous-config", label: text, checked: i === selected
+            });
+        }
+    }
+    function setCount(amount) {
+        $("#fixtureStatus").text("changing-groups");
+        count = Math.max(1, Math.min(40, Number(amount) || 1));
+        fillChoices(count);
+        fillRows("#rows", count, "content-row");
+        fillRows("#surfaceRows", count, "surface-row");
+        fillRows("#dialogRows", count, "surface-row");
+        return afterContent().then(function (result) {
+            $("#fixtureStatus").text("groups:" + count);
+            return result;
+        });
+    }
+    function toggleQuery() {
+        return new Promise(function (resolve) {
+            var panel = $("#sampleLayout").layout("panel", "east");
+            var collapse = !panel.panel("options").collapsed;
             $("#toggle").prop("disabled", true);
             $("#fixtureStatus").text("changing");
-            $("#sampleLayout").layout(collapsed ? "collapse" : "expand", "east");
-            var panel = $("#queryPanel").panel("panel");
-            panel.promise("fx").done(function () {
-                window.requestAnimationFrame(function () {
+            $("#sampleLayout").layout(collapse ? "collapse" : "expand", "east");
+            // Callbacks precede native animation cleanup. Measure only the settled wrapper.
+            window.setTimeout(function () {
+                panel.panel("panel").promise("fx").done(function () {
                     $("#sampleLayout").layout("resize");
-                    fitCombo();
-                    $("#fixtureStatus").text(collapsed ? "collapsed" : "expanded");
-                    $("#toggle").prop("disabled", false);
+                    afterContent().then(function (result) {
+                        $("#fixtureStatus").text(collapse ? "collapsed" : "expanded");
+                        $("#toggle").prop("disabled", false);
+                        resolve(result);
+                    });
                 });
-            });
+            }, 0);
         });
-        $("#fixtureStatus").text("ready");
+    }
+    function cycle() {
+        return setCount(1).then(function () { return setCount(24); }).then(function () { return setCount(1); });
+    }
+    function matchParent(enabled) {
+        parentMatched = enabled;
+        var host = document.getElementById("surfaceHost");
+        if (enabled) {
+            host.style.backgroundImage = "none";
+            host.style.backgroundColor = window.getComputedStyle(document.getElementById("surfacePanel")).backgroundColor;
+        } else {
+            host.style.removeProperty("background-image");
+            host.style.removeProperty("background-color");
+        }
+        return afterContent();
+    }
+    function reopen() {
+        $("#fixtureStatus").text("reopening");
+        $("#repeatDialog").dialog("close");
+        return settle().then(function () {
+            reopenCount++;
+            $("#repeatDialog").dialog("open");
+            return afterContent();
+        }).then(function (result) {
+            $("#fixtureStatus").text("opened:" + reopenCount);
+            return result;
+        });
+    }
+    function styleOf(element) {
+        var css = window.getComputedStyle(element);
+        return { display: css.display, visibility: css.visibility, opacity: css.opacity,
+            background: css.backgroundColor, backgroundImage: css.backgroundImage,
+            border: [css.borderTopWidth, css.borderRightWidth, css.borderBottomWidth, css.borderLeftWidth],
+            borderColor: css.borderTopColor,
+            radius: [css.borderTopLeftRadius, css.borderTopRightRadius, css.borderBottomRightRadius, css.borderBottomLeftRadius],
+            padding: [css.paddingTop, css.paddingRight, css.paddingBottom, css.paddingLeft],
+            overflow: [css.overflowX, css.overflowY] };
+    }
+    function treeObservation(id) {
+        var tree = $(id);
+        return { lines: tree.tree("options").lines, autoNodeHeight: tree.tree("options").autoNodeHeight,
+            icons: tree.find(".tree-icon").map(function () {
+                var css = window.getComputedStyle(this);
+                return { linesBranch: $(this).hasClass("tree-icon-lines"), folder: $(this).hasClass("tree-folder"),
+                    nativeIcon: $(this).hasClass("icon-paper"), display: css.display,
+                    background: css.backgroundImage, before: window.getComputedStyle(this, "::before").content };
+            }).get() };
+    }
+    function resources() {
+        var link = document.getElementById("themeCss");
+        var expected = "/hisui/css/hisui." + config.style + ".css";
+        var actual = new URL(link.href).pathname;
+        return { expectedStyle: config.style, jsStyle: $.hisui.getHisuiStyle(), expectedTheme: config.theme,
+            bodyTheme: document.body.getAttribute("data-theme"), css: actual, cssMatches: actual === expected,
+            cssLoaded: !!link.sheet, nativeTree: typeof $.fn.tree === "function", nativePanel: typeof $.fn.panel === "function" };
+    }
+    function observe() {
+        return { context: resources(), state: { groups: count, parentMatched: parentMatched, reopenCount: reopenCount,
+                collapsed: $("#queryPanel").panel("options").collapsed, dialogClosed: $("#repeatDialog").dialog("options").closed },
+            geometry: collectUiMetrics({ targets: [
+                { name: "layout", selector: "#sampleLayout" }, { name: "content", selector: "#contentBox" },
+                { name: "combo-slot", selector: "#comboSlot" }, { name: "combo-wrapper", selector: "#comboSlot > .combo" },
+                { name: "surface-host", selector: "#surfaceHost" }, { name: "surface-body", selector: "#surfacePanel" },
+                { name: "query", selector: "#queryPanel" } ] }),
+            surfaces: { host: styleOf(document.getElementById("surfaceHost")), body: styleOf(document.getElementById("surfacePanel")),
+                wrapper: styleOf($("#surfacePanel").panel("panel")[0]) },
+            borders: { panelOn: styleOf(document.getElementById("panelBorderOn")), panelOff: styleOf(document.getElementById("panelBorderOff")),
+                gridOn: styleOf($("#gridBorderOn").datagrid("getPanel")[0]), gridOff: styleOf($("#gridBorderOff").datagrid("getPanel")[0]) },
+            trees: { auto: treeObservation("#treeAuto"), fixed: treeObservation("#treeFixed") } };
+    }
+    $(function () {
+        $("#sampleLayout").width(Math.min(config.width + 220, Math.floor($("#sampleLayout").parent().width()))).layout({ onCollapse: fitCombo, onExpand: fitCombo });
+        $("#combo").combobox({ data: [{ value: "alpha", text: "Alpha" }, { value: "beta", text: "Beta" }], valueField: "value", textField: "text" });
+        $("#surfacePanel").panel({ width: 420, height: 220, title: "Native surface", border: true, iconCls: "icon-panel-brand" });
+        $("#repeatDialog").dialog({ width: 474, height: 274, title: "Repeated open", closed: true, modal: false });
+        var treeData = [{ id: 1, text: "Anonymous root", iconCls: "icon-paper", state: "open", children: [
+            { id: 2, text: "Anonymous long group with wrapped content", iconCls: "icon-paper", state: "open", children: [
+                { id: 3, text: "Anonymous leaf", iconCls: "icon-paper" } ] } ] }];
+        $("#treeAuto").tree({ data: $.extend(true, [], treeData), lines: true, autoNodeHeight: true });
+        $("#treeFixed").tree({ data: $.extend(true, [], treeData), lines: true, autoNodeHeight: false });
+        [true, false].forEach(function (border) {
+            var suffix = border ? "On" : "Off";
+            $("#panelBorder" + suffix).panel({ width: 420, height: 90, title: "Native panel", border: border });
+            $("#gridBorder" + suffix).datagrid({ width: 420, height: 180, border: border, toolbar: null, rownumbers: true,
+                columns: [[{ field: "label", title: "Item", width: 180 }, { field: "quantity", title: "Quantity", width: 100, align: "right" }]],
+                data: [{ label: "Anonymous item", quantity: 1 }, { label: "Another item", quantity: 12 }] });
+        });
+        fitHostWidth();
+        $(window).on("resize.irisFixture", function () {
+            window.clearTimeout(hostResizeTimer);
+            hostResizeTimer = window.setTimeout(function () { fitHostWidth(); afterContent(); }, 0);
+        });
+        observer = new ResizeObserver(function () {
+            window.clearTimeout(resizeTimer);
+            resizeTimer = window.setTimeout(function () { fitHostWidth(); fitCombo(); }, 0);
+        });
+        observer.observe(document.getElementById("comboSlot"));
+        observer.observe(document.getElementById("sampleLayout").parentElement);
+        $(window).one("unload.irisFixture", function () {
+            observer.disconnect();
+            window.clearTimeout(resizeTimer);
+            window.clearTimeout(hostResizeTimer);
+        });
+        $("#fill").on("click", function () { setCount(24); });
+        $("#short").on("click", function () { setCount(1); });
+        $("#cycle").on("click", cycle);
+        $("#toggle").on("click", toggleQuery);
+        $("#reopen").on("click", reopen);
+        $("#parentContrast").on("click", function () { matchParent(false); });
+        $("#parentMatch").on("click", function () { matchParent(true); });
+        window.fixtureUI = { observe: observe, setCount: setCount, cycle: cycle, toggle: toggleQuery, reopen: reopen, matchParent: matchParent };
+        setCount(1).then(function () {
+            var context = resources();
+            var valid = context.cssMatches && context.cssLoaded && context.jsStyle === config.style && context.bodyTheme === config.theme;
+            $("#resourceStatus").text(JSON.stringify(context, null, 2));
+            $("#fixtureStatus").text(valid ? "ready" : "resource-mismatch");
+        });
     });
 }());
 </script></body></html>

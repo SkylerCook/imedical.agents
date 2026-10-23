@@ -578,8 +578,9 @@ HISUI 内置图标通过 `iconCls` 属性引用。选型时先查本节能用的
 ### 框架尺寸与滚动边界
 
 - panel 的显式尺寸、百分比或 `fit` 取舍按实际父容器与生命周期决定；修改前核对初始化 options、生成的外层 panel 和 panel-body，不能由一个固定宽度案例推广出通用像素值或安全余量。
-- `fit:true` 是尺寸适配选项，不是滚动条修复开关。按[控件参考](hisui-widget-index.md#一布局与容器)检查当前 JS 的 `_fit` 和 panel resize 路径：当前 vendor 普通分支取父元素 `.width()` / `.height()`，window/dialog 有不同分支，不能笼统认定均包含父 padding。隐藏初始化后还要验证首次打开与后续 resize。
+- `fit:true` 是尺寸适配选项，不是滚动条修复开关。按[控件参考](hisui-widget-index.md#一布局与容器)检查当前 JS 的 `_fit`（1010–1052 行）和 panel resize 路径：普通分支取父元素 jQuery `.width()` / `.height()` 的 content box，window/dialog 另有分支。自定义 resize 复用实际 owner 的原生尺寸口径；`clientWidth/clientHeight` 会受临时滚动条影响，减 padding 后不保证与该口径等价。缩小后再测 client 尺寸可能把暂时的窄值写回子 panel，滚动条消失后仍留下不对称留白；先核对完整 resize 链，不固定补偿滚动条宽度。隐藏初始化后还要验证首次打开与后续 resize。
 - 框架使用 `_boxModel`、`_outerWidth` / `_outerHeight` 计算尺寸；保留框架容器的盒模型，只对明确需要的原生元素局部调整。是否出现补偿偏差须结合实际 jQuery/HISUI 构建验证，不由源码片段断言所有控件必然偏小。
+- panel 的 `border` option 由原生 API 增删 `panel-body-noborder` / `panel-header-noborder`（4587–4592 行）；边框宽度、颜色和圆角再由主题 CSS 决定。DataGrid 的 `getPanel` 返回内部 panel body（14375–14376 行），与外层 `.datagrid` 不是同一层；先确认标注的边界归属，不能在错误包装层叠加边框。边框可见性及父背景是否填平子层圆角由实际渲染核对，computed radius 非零不代表四角可见。
 - 当前默认主题 `.panel-body.panel-noscroll` 设置 `overflow:hidden`。只有确认该层无需滚动、内容完整可达且真实溢出已解决后，才使用 `bodyCls:'panel-noscroll'`；目标主题须提供此规则。内容可能增长时保留合适的滚动层，隐藏滚动条不能作为修复溢出的证据。
 
 ### 验证收口

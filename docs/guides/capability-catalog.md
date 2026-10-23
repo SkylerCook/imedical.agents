@@ -94,7 +94,7 @@ BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调
 | 入口 | 中文用途 | 入口类型 |
 |---|---|---|
 | [agent-framework-evolution-init](../../plugins/agent-framework-evolution/skills/agent-framework-evolution-init/SKILL.md) | 接入反馈与能力打包入口 | 纯初始化，直接读取源文件 |
-| [agent-framework-feedback](../../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md) | 按共享准入筛选已验收业务需求的经验与框架反馈 | 日常入口 |
+| [agent-framework-feedback](../../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md) | 按共享准入筛选已验收需求；授权时形成隔离待审补丁 | 日常入口 |
 | [reusable-content-packaging](../../plugins/agent-framework-evolution/skills/reusable-content-packaging/SKILL.md) | 将已验证经验打包为可复用能力 | 日常入口 |
 
 ### Rules
@@ -126,7 +126,7 @@ IRIS 前后端开发、知识查询、DEV→PRD 需求移植与部署。通用�
 |---|---|
 | [iris_agentic_dev](../../plugins/coding-iris-plugin/rules/iris_agentic_dev.md) | 使用 IRIS MCP 时，核对能力边界与诊断方式 |
 | [iris_coding_backend](../../plugins/coding-iris-plugin/rules/iris_coding_backend.md) | 修改 ObjectScript 时，遵循后端语法、分层和返回约定 |
-| [iris_coding_frontend](../../plugins/coding-iris-plugin/rules/iris_coding_frontend.md) | 修改 CSP、JS、CSS、HISUI 时，遵循前端规范与条件 i18n 门禁 |
+| [iris_coding_frontend](../../plugins/coding-iris-plugin/rules/iris_coding_frontend.md) | 修改 CSP、JS、CSS、HISUI 时，遵循前端规范与条件 UI/i18n 门禁 |
 | [iris_coding_general](../../plugins/coding-iris-plugin/rules/iris_coding_general.md) | IRIS 编码共用的编辑安全、风险分流和最小修改要求 |
 | [iris_coding_index](../../plugins/coding-iris-plugin/rules/iris_coding_index.md) | 读取项目 profile 后，选择 IRIS 编码规则入口 |
 | [iris_coding_workflow](../../plugins/coding-iris-plugin/rules/iris_coding_workflow.md) | 涉及脚本、MCP、上传、编译和远端验证时使用 |
@@ -294,11 +294,11 @@ CA/CR 治疗表单开发、响应式改造与部署。详见[插件说明](../..
 |---|---|
 | [imedical_ui](../../plugins/imedical-ui/rules/imedical_ui.md) | 公司UI的共性适配、规范推广证据与业务范围、责任层及双基准核对 |
 
-辅助资料：[references](../../plugins/imedical-ui/references) · [证据底稿](../../vendor/imedical-ui-standards/README.md)。具体数值保留条件和例外，按需读取；不加载查看器CSS或创建第二组件库。
+辅助资料：[references](../../plugins/imedical-ui/references) · [证据底稿](../../vendor/imedical-ui-standards/README.md)。规范按有效图层、适用范围和证据类型分类；具体数值保留变体及反例，按需读取，不加载查看器CSS或创建第二组件库。
 
 ## iris-ui
 
-IRIS CSP＋HISUI 对公司UI规范的落地适配，正式依赖 imedical-ui。处理公共接入、布局与初始化故障及技术证据。详见[插件说明](../../plugins/iris-ui/README.md)和[manifest](../../plugins/iris-ui/.agents-plugin/plugin.json)；[使用示例](capability-guide.md#iris-ui)。
+IRIS CSP＋HISUI 对公司UI规范的落地适配，正式依赖 imedical-ui；验收后按 ui-self-regression 可用性阶段复用反馈能力，不形成反向强依赖。处理公共接入、布局与初始化故障及技术证据。详见[插件说明](../../plugins/iris-ui/README.md)和[manifest](../../plugins/iris-ui/.agents-plugin/plugin.json)；[使用示例](capability-guide.md#iris-ui)。
 
 ### Skills
 

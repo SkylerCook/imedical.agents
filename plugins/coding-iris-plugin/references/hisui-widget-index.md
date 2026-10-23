@@ -8,7 +8,7 @@ related:
   - ../rules/iris_coding_frontend.md
   - hisui-style-index.md
 createdAt: 2026-04-24
-updatedAt: 2026-10-14
+updatedAt: 2026-10-23
 ---
 
 # HISUI 前端编码参考与源码索引
@@ -37,6 +37,8 @@ updatedAt: 2026-10-14
 - 不确定参数、事件名或返回值时，以本地 HISUI 源码为准，不按 EasyUI 文档或记忆推断。
 
 ## 常见 API 陷阱
+
+- 当前快照的 `layout("resize")` 忽略第二个尺寸对象（按 source-index 的 layout 定位 `$.fn.layout.methods.resize`）。非 fit 布局的宿主内容宽度改变时，先按所属容器口径设置 layout 元素宽度，再调用 `layout("resize")`；panel/dialog 的 resize 参数契约不能直接套到 layout。
 
 - `$.messager.popover()` 的 `type` 仅支持 `info/success/alert/error`。
 - `$.messager.alert()` 的 `type` 支持 `warning/question/error/info`。
@@ -77,6 +79,12 @@ updatedAt: 2026-10-14
 | **treegrid** | 16302 | 16969 | → datagrid | 树形表格 |
 | **pagination** | 2229 | 2295 | — | 分页栏 |
 | **tree** | 3322 | 3619 | — | 树形控件 |
+
+### Tree 节点与连线模式
+
+普通层级树由原生 `tree-folder` / `tree-folder-open` / `tree-file` 区分分支与叶节点；展开命中区 `tree-hit`、复选框及标题图标是不同对象。已启用公司 UI 规范时，图标语义查[公司图标规范](../../imedical-ui/references/forms-and-actions.md#图标及业务确认)，图片、字体与状态取实际主题资源，不把普通节点图标推广到专用菜单或业务树。
+
+当前 vendor 的 `tree.defaults` 为 `lines:false`、`autoNodeHeight:false`；先核对任务是否需要连线和变高节点，不能为恢复文件夹图标就一律关闭连线。源码 `view.render`（3559–3595 行）在两者均为 true 且测得标题高度大于 0 时生成 `tree-icon-lines`，走主题的连线图标模式；该分支不拼接节点 `iconCls`，普通分支才保留它。标注要求普通文件夹/叶图标时，应同时检查初始化 options、生成 DOM、formatter 高度与主题 CSS，再选最小配置；不能只加 `iconCls` 并假定生效。
 
 ### DataGrid 独立插件
 

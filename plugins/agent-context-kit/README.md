@@ -117,3 +117,5 @@ schema 2.0 的运行时命令由 `.agents/scripts/agent-orchestrator.js` 提供�
 0.5.3 只收敛发现依据与文档路由，未改变安装/更新器、默认目录或 CLI。已部署工程正常更新能力包即可取得参考，现有 thin-index 继续引用源 skill，无配置迁移或旧文件清理；WorkBuddy 命名目录与当前官方项目目录的差异及已有自定义路径接入方式见 source.md。
 
 用户可在项目配置 `project_context_profile.md` 的“技能适配目录”章节逐行填写目录，再执行 coding-agent-adaptation 补齐缺失链接。示例和冲突处理见能力包根 `docs/coding-agent-adaptation.md`；普通更新不自动执行清单。
+
+项目入口模板的反馈授权只指向 [feedback skill](../agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#写入授权与自动待审补丁) 的唯一契约；已有项目在授权上下文维护时定点合并。模板和插件启用不授予自动写入权限，普通更新不重写项目 AGENTS。

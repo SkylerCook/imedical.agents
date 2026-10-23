@@ -52,12 +52,12 @@ test('only selected stage blocks; manifest identity and file type are checked', 
 test('BOS-independent exports load without Delivery; dependent stage gives explicit error', t => {
   const f = fixture(t);
   for (const file of ['plugins/bos-plugin/scripts/demand-entry.js', 'plugins/bos-plugin/scripts/demand-entry-xlsx.js',
-    'plugins/bos-plugin/.agents-plugin/plugin.json', 'scripts/check-plugin-availability.js', 'scripts/lib/workspace-context.js']) {
+    'plugins/bos-plugin/.agents-plugin/plugin.json', 'scripts/check-plugin-availability.js', 'scripts/lib/workspace-context.js', 'scripts/lib/demand-code-binding.js']) {
     f.write(path.join(f.options.capabilityRoot, file), fs.readFileSync(path.join(repo, file)));
   }
   const entry = require(path.join(f.options.capabilityRoot, 'plugins/bos-plugin/scripts/demand-entry.js'));
   assert.equal(typeof entry.collect, 'function');
-  assert.throws(() => entry.prepare({}, f.root), /BOS 补录依赖不可用/);
+  assert.throws(() => entry.prepare({ kind: 'standard' }, f.root), /BOS 补录依赖不可用/);
 });
 test('real declarations resolve without recursing bilateral availability', () => {
   for (const plugin of ['bos-plugin', 'demand-delivery-plugin']) {
@@ -95,7 +95,48 @@ test('explicit project state protects BOS prepare even when called from another 
   try {
     fs.mkdirSync(path.join(root, '.agents/config'), { recursive: true });
     fs.writeFileSync(path.join(root, '.agents/config/plugin_profile.md'), '| demand-delivery-plugin | disabled |\n');
-    assert.throws(() => entry.prepare({}, root, root), /plugin-disabled/);
-    assert.throws(() => entry.planArguments({}, 'r1', root), /plugin-disabled/);
+    assert.throws(() => entry.prepare({ kind: 'standard' }, root, root), /plugin-disabled/);
+    assert.throws(() => entry.planArguments({ kind: 'standard', schema: 'iris-standard-demand/v2', requirements: [{ key: 'r1' }] }, 'r1', root), /plugin-disabled/);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+// Exercise the UI stage through the same resolver used by deployed projects.
+test('UI regression stage uses real manifests; disabled/missing stop only this stage', t => {
+  const f = fixture(t);
+  const ui = JSON.parse(readSource('plugins/iris-ui/.agents-plugin/plugin.json'));
+  const target = 'agent-framework-evolution';
+  f.write(path.join(f.options.capabilityRoot, 'plugins/iris-ui/.agents-plugin/plugin.json'), JSON.stringify(ui));
+  const targetManifest = path.join(f.options.capabilityRoot, 'plugins', target, '.agents-plugin/plugin.json');
+  f.write(targetManifest, readSource('plugins/' + target + '/.agents-plugin/plugin.json'));
+  const entry = path.join(f.options.capabilityRoot, 'plugins', target, 'skills/agent-framework-feedback/SKILL.md');
+  f.write(entry, readSource('plugins/' + target + '/skills/agent-framework-feedback/SKILL.md'));
+  const options = { ...f.options, plugin: 'iris-ui', stage: 'ui-self-regression' };
+  for (const state of ['available', 'enabled', 'disabled']) {
+    const profile = '| ' + target + ' | ' + state + ' |\n'; f.write(f.profile, profile);
+    assert.equal(checkAvailability(options).ok, state !== 'disabled');
+    assert.equal(fs.readFileSync(f.profile, 'utf8'), profile);
+  }
+  f.write(f.profile, '| ' + target + ' | available |\n');
+  fs.unlinkSync(entry);
+  assert.equal(checkAvailability(options).ok, false);
+  assert.equal(checkAvailability({ ...options, stage: undefined }).checks[0].problems.length > 0, true);
+  f.write(entry, '# Entry restored'); fs.unlinkSync(targetManifest);
+  assert.equal(checkAvailability(options).ok, false);
+  assert.equal(ui.dependencies.includes(target), false);
+  assert.deepEqual(ui.availableDependencies[0].entries, ['skills/agent-framework-feedback/SKILL.md']);
+});
+function readSource(relative) { return fs.readFileSync(path.join(repo, relative), 'utf8'); }
+
+test('feedback authorization pointers share one owner instead of per-item-only contracts', () => {
+  const owner = readSource('plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md');
+  assert.match(owner, /## 写入授权与自动待审补丁/);
+  for (const text of ['默认模式', '当前任务或项目明确授权', '独立 worktree/branch', '同一需求多次返修',
+    '缺少任一证据', '源仓未知、不可用、权限不足', '不递归生成自身反馈']) assert.ok(owner.includes(text), text);
+  for (const file of ['agents/_shared/delivery-lifecycle.md', 'agents/_shared/feedback-protocol.md',
+    'plugins/agent-context-kit/templates/AGENTS.template.md', 'plugins/agent-context-kit/templates/AGENTS.context-snippet.md',
+    'plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md', 'docs/update-agents.md']) {
+    const text = readSource(file);
+    assert.doesNotMatch(text, /仍需用户逐项授权|均必须由用户逐项授权|只有逐项授权/);
+    assert.match(text, /feedback skill|feedback.*授权/);
+  }
 });

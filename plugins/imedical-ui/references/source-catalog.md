@@ -15,6 +15,26 @@
 
 仅一方提供的规范保留其适用范围。需要同时适配两风格时优先采用明确的兼容条款；真正冲突时记录双方证据与待确认点，不按目录新旧静默覆盖。规范涉及默认值、必填、权限或编辑流程时，先对照业务契约登记差异。
 
+## 有效图层与参数提炼
+
+回查图形时沿以下顺序完成；开发和评审使用同一判断，不从非空颜色字段直接推导可见效果。
+
+1. 固定资料族、画板、构件类别及默认/悬浮/选中/禁用等变体；节点名称相同不代表状态相同。
+2. 沿节点到画板检查 `visible`、`opacity` 及祖先状态。自身可见且不透明，仍可能被透明祖先隐藏；蒙版、裁切和叠放影响最终可见结果。
+3. 分别核对 `fillEnabled` 和 `strokeEnabled`、实际 paint、颜色 alpha、描边宽度及位置。关闭的 paint、null paint 或零 alpha 不产生对应填充/描边；可见分隔线也可能由填充矩形组成。
+4. 缺失字段只使用已证实的导出语义或组件默认值；未掌握默认时记为未知，不把缺省一律当作开或关。文本另查有效的分段样式，不能用外层 fill 覆盖星号等局部颜色。
+5. 区分整体边界、背景、文字、图标与独立分隔线，再量相邻有效边界。预览只辅助确认组合，不把单个背景框尺寸当完整控件尺寸。
+6. 提炼时保留来源事实和[适用范围／业务归属两个判断](style-differences.md#按对象语义判断共性)；不能从隐藏变体、关闭描边或一套状态升级出全局规则。运行时最终绘制由技术栈适配与实际页面核查确认。
+
+以下是有效性反例，不是新增业务样式要求：
+
+| 原始节点 | 来源 | 可复核事实及限制 |
+|---|---|---|
+| 面板背景 `a068f8f8-a516-4a41-988f-28ac5c098b5a` | [IHOS 控件-02](../../../vendor/imedical-ui-standards/ihos-seablue/res/控件-02布局/data.js) | 白色 fill/stroke 均有值，但 fillEnabled=false、strokeEnabled=false；不能据此宣称可见白底白边 |
+| 标题背景 `1a5579f9-b35d-44a8-9463-df80bee6f6df` | [PURE 控件-02](../../../vendor/imedical-ui-standards/pure-controls/res/控件-02布局/data.js) | 白色 fill/stroke 均有值，但 fillEnabled=false、strokeEnabled=false；不能要求所有标题补白底或边框 |
+| 占位文字 `9c75ac00-0568-4f74-89e8-2eb487913a0e` | [IHOS 控件-01](../../../vendor/imedical-ui-standards/ihos-seablue/res/控件-01按钮+表格+表单+其他控件/data.js) | visible=true、opacity=0；不作为当前可见文字边界 |
+| 斜纹子组 `c428b63a-d5e3-431d-9176-a05dd00605bd` | [IHOS 控件-03](../../../vendor/imedical-ui-standards/ihos-seablue/res/控件-03HOS组补充控件/data.js) | 自身 visible=true、opacity=1，但祖先opacity=0；不能从该子组推出运行时斜纹要求 |
+
 ## 来源适用范围
 
 PDF 是 **IHOS 风格**说明书，其“必须／默认”等条款首先约束 IHOS。PURE 需要对应导出标注、构件证据或明确的跨风格兼容条款支持；不能仅凭本插件同时支持两风格，将 IHOS 单方明文升级为 PURE 强制要求。参考中标“PDF pXX”的内容遵守此边界；缺少 PURE 证据时可作核查参考，但不能据此直接判 PURE 违规。p52 的“兼容纯净时10px”是明确跨风格条款。

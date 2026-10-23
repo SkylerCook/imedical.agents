@@ -18,7 +18,7 @@
 1. 本次任务是否读取了 `.agents/` 下的框架文件（rules、skills、templates、references、scripts、agents、workflows 等）？
 2. 是否在该业务需求的真实使用过程中发现并修正了框架问题（不只是独立维护框架本身）？
 
-**两个条件都满足且用户明确授权生成该 framework feedback 时**，执行反馈生成。否则正常结束，不生成反馈。技术验证、commit、部署、Verifier 完成、框架文件已修正或纯框架维护已完成，都不等于用户验收，也不构成反馈写入授权。
+**两个条件都满足且用户明确授权生成该 framework feedback 时**，执行反馈生成。授权来源与已明确授权的源仓隔离待审补丁模式，统一遵循 [feedback skill](../../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#写入授权与自动待审补丁)；该模式形成源仓待审 diff 时不重复复制整份反馈包。否则正常结束，不生成反馈。技术验证、commit、部署、Verifier 完成、框架文件已修正或纯框架维护已完成，都不等于用户验收，也不构成反馈写入授权。
 
 ## 反馈生成步骤
 

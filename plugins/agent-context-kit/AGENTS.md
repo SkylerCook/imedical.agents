@@ -51,3 +51,5 @@
 项目技能适配使用 `skills/coding-agent-adaptation/SKILL.md`；宿主目录、项目 MD、形态/版本条件及本机历史观察统一查 [source.md](skills/coding-agent-adaptation/references/source.md)，执行器和参数说明归能力包根 `docs/coding-agent-adaptation.md`。用户级路径不推导项目路径，未知项由用户说明，技能发现与规则加载分别取证；参考登记不扩大创建权限或改变脚本默认映射。
 
 用户可在项目配置 `project_context_profile.md` 的“技能适配目录”章节逐行填写目录，再执行 coding-agent-adaptation 补齐缺失链接。示例和冲突处理见能力包根 `docs/coding-agent-adaptation.md`；普通更新不自动执行清单。
+
+反馈写入授权以 [feedback skill](../agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#写入授权与自动待审补丁) 为准；项目模板只保留入口，不维护第二套逐项或批次授权契约。

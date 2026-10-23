@@ -40,3 +40,23 @@
 代码相同、上传成功、编译成功、实页加载及业务通过是不同证据。并行服务器更新要求核对修改前基线、本次差异与当前远端；无法可靠合并时停止覆盖。
 
 实际模式和能力以 [现行部署契约](../../coding-iris-plugin/references/deployment-protection.md) 为准。direct 不合并部署开始前差异，guarded 有自己的需求与基线条件；本插件首版只正确路由和暴露缺口，不提供新增合并或自动拦截能力，也不许诺远端锁。更完整的增量保护由部署 owner 后续建设。
+
+## 实施自检中的机制线索
+
+以下配置分支已与当前 vendor 源码核对，匿名夹具提供可重复的观测入口；具体浏览器结果另记，不能因存在夹具便称所有工程已验证。
+
+| 线索 | 核对方式及适用边界 |
+| --- | --- |
+| 父背景填平卡片圆角或滚动槽 | 分别读取父容器、原生 wrapper/body 及滚动状态；同色父背景与对照底切换只帮助确认承载关系。保留 PURE／iHOS 及面板变体差异 |
+| 树指定 iconCls 未进入普通图标分支 | 核对 `lines && autoNodeHeight`、文本测量及 `.tree-icon-lines`；单行 false 对照不直接替代确需多行的配置 |
+| 只换 CSS 误记另一主题已测 | 初始化前设置 JS style/theme，再核对实际 CSS 与 body 属性；当前 iHOS 海蓝用 vben＋bgseablue，真实工程构建独立取证 |
+
+场景动作和匿名观察沿[夹具回归](layout-lifecycle.md#匿名夹具回归)，实际测得结果保留在当前任务的维护验证证据，不写入业务数据或重复运行台账。
+
+## 经验回归入口
+
+这是已验收 UI **业务需求**的条件分支；纯框架维护沿维护生命周期，不触发自身反馈。
+
+命中可复用经验或框架缺口时，核对当前项目 `agent-framework-evolution` 为 available 或 enabled、入口可读且满足 `0.2.0 <= version < 0.3.0`；显式 disabled、缺失或版本不兼容时停在候选及缺口，不自动改变启用集合。可用依赖并非日常 UI 实施的强制依赖。
+
+符合条件后复用 [agent-framework-feedback](../../agent-framework-evolution/skills/agent-framework-feedback/SKILL.md) 的只读准入与去重。已有规范充分时修正实施；业务特例留项目；相同需求返修不虚增独立命中。写入及源仓隔离待审补丁严格沿其[唯一授权入口](../../agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#写入授权与自动待审补丁)，验收、准入、授权和源仓隔离条件分别成立才执行。无写入授权时仅交付候选；不复制一套授权协议，不把业务安装副本当源仓修改。

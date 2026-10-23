@@ -31,6 +31,27 @@ MarkLion 图形例证：
 | IHOS普通表格 | [IHOS 控件-01](../../../vendor/imedical-ui-standards/ihos-seablue/res/控件-01按钮+表格+表单+其他控件/data.js)，`dc3ada77-8e69-4391-940e-034c7f6cb5ae` | 结构可复用；颜色与描边继续由主题负责 |
 | PURE表头 | PURE同画板，`1558e4e1-4b16-4c25-8c49-8f6459cfe36d` | 外包高33px含绘制边界；不能据此与其它34px样本互相覆盖 |
 
+### 表格外框与内部边界
+
+以下外框节点均为 fillEnabled=false；stroke 颜色和宽度须与启用状态一起读取。普通表格跨族差异与同族内部的白底变体分别记录，不据白色 paint 字段给所有表格加白边。
+
+| 对象与来源 | 外框节点 | 参数事实 | 分类／证据类型 |
+|---|---|---|---|
+| 普通表格，[PURE 控件-01](../../../vendor/imedical-ui-standards/pure-controls/res/控件-01按钮+表格+表单+其他控件/data.js) | `e68477cf-f752-4593-9709-048bd8682ac3` | strokeEnabled=true、strokeWidth=1、#FFFFFFFF；下角6px | 主题差异／构件几何 |
+| 标准查询表格，[PURE 查询组合](../../../vendor/imedical-ui-standards/pure-layouts/res/布局-02标准查询页面/data.js) | `b8319d34-f1df-4d4b-92aa-628f22de6809` | strokeEnabled=true、strokeWidth=1、#FFFFFFFF；下角6px | 主题差异／组合示例 |
+| 普通表格，[IHOS 控件-01](../../../vendor/imedical-ui-standards/ihos-seablue/res/控件-01按钮+表格+表单+其他控件/data.js) | `06410dae-3ff9-4d08-8fdc-0bc4d8b44310` | strokeEnabled=false；保存strokeWidth=1、#FFFFFFFF，不产生该外框 | 主题差异／构件几何 |
+| 标准查询表格，[IHOS 查询组合](../../../vendor/imedical-ui-standards/ihos-seablue/res/布局-03标准查询页面/data.js) | `a361aeef-978d-4d7c-9f8c-6be1a249328a` | strokeEnabled=false；保存strokeWidth=1、#FFFFFFFF，不产生该外框 | 主题差异／组合示例 |
+| 白背景表格，[PURE 控件-01](../../../vendor/imedical-ui-standards/pure-controls/res/控件-01按钮+表格+表单+其他控件/data.js) | `c53febf8-4a66-481e-8fc4-923679b631ea` | strokeEnabled=true、strokeWidth=1、#FFE4E4E4；四角6px | 构件变体／构件几何 |
+
+外框参数由已有组件／主题承接；技术栈适配确认其开关实际控制哪一层，不能把外框、表头分隔、单元格线与承载白卡视作一个 border。
+
+表头整体与填充矩形不是同一尺寸；可见的1px分隔线也不一定来自 stroke：
+
+| 来源与节点 | 有效几何和绘制 | 不应推出的结论 |
+|---|---|---|
+| [IHOS 控件-01](../../../vendor/imedical-ui-standards/ihos-seablue/res/控件-01按钮+表格+表单+其他控件/data.js)，`79134d65-8d9e-4f43-8bab-7b0b34a79ba1` | 表头34px＝底33px＋1px填充矩形下边框；下边框strokeEnabled=false | 不能因描边关闭就删掉实际可见分隔线 |
+| [PURE 控件-01](../../../vendor/imedical-ui-standards/pure-controls/res/控件-01按钮+表格+表单+其他控件/data.js)，`1558e4e1-4b16-4c25-8c49-8f6459cfe36d` | 表头33px＝底32px＋1px填充矩形下边框；下边框strokeEnabled=false | 不能按IHOS表头整体34px覆盖PURE底矩形或其它表格变体 |
+
 蓝底专用表格有明确使用条件：
 
 > “仅限蓝色面板内使用，例如患者列表等，位于左侧时宽度不宜超过350px”。

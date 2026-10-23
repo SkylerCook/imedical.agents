@@ -27,7 +27,7 @@ description: Route IRIS coding requests with unclear frontend/backend boundaries
 1. 读取目标工程 `.agents/config/iris_project_profile.md`、`.agents/config/plugin_profile.md`、[规则索引](../../rules/iris_coding_index.md)和[通用规则](../../rules/iris_coding_general.md)。复用仍持有且未变化的内容。
 2. 按通用规则判定 executionPath、parallelAssessment 和正式 run；guidanceMode 使用共享辅助协议。风险分流不减少命中的硬约束。
 3. 日常开发部署默认 direct，不要求需求号或 Git 基线会话；已有修改不触发基线确认。仅在用户或项目要求 guarded 时，在第一次修改前读取[建立会话要求](../../references/deployment-protection.md#建立会话)。上传、编译仍需明确授权。
-4. 定位页面、按钮、JS 调用和后端方法，确认调用链及文件边界；按上表读取命中的专项 skill 和规则。前端修改前执行[条件 i18n 门禁](../../rules/iris_coding_frontend.md#条件-i18n-门禁)，启用状态、信号、规则加载和失败处理均以该节为准。
+4. 定位页面、按钮、JS 调用和后端方法，确认调用链及文件边界；按上表读取命中的专项 skill 和规则。前端修改前执行[UI 条件门禁](../../rules/iris_coding_frontend.md#ui-条件门禁)及[条件 i18n 门禁](../../rules/iris_coding_frontend.md#条件-i18n-门禁)，启用状态、信号、规则加载和失败处理均以各 owner 节为准。
 
 业务背景、菜单与实现参考按通用规则“自主使用知识资料”按需查询；用户要求刷新菜单资料时转 [iris-menu-sync](../iris-menu-sync/SKILL.md)。涉及远端读取或 SQL 验证时按规则索引读取工作流和目标工程私有连接配置，遵守对应授权边界。
 
@@ -37,14 +37,14 @@ description: Route IRIS coding requests with unclear frontend/backend boundaries
 
 1. 复用现有业务实现与兼容契约，编码风格按各自专项规范执行；混合任务先明确前端展示/采集与后端处理/返回契约，再分阶段执行各自专项流程。
 2. 前端每个触碰文件修改前后执行字节检测，按[编码策略](../../rules/iris_coding_frontend.md#编码策略)保持 canonical `utf8`，异常停止；HISUI 复用、控件状态和 CSP 验证沿用前端规则。
-3. 最终 diff 后再次执行条件 i18n 门禁；命中时完成 owner 规则要求的 helper 静态检查，失败停止。核对接口契约、改动范围与目标验证结果。
+3. 最终 diff 后再次执行 UI 条件门禁与条件 i18n 门禁；命中时完成 owner 规则要求的核对及 helper 静态检查，失败停止。核对接口契约、改动范围与目标验证结果。
 4. 默认只做本地修改、只读验证和报告；上传、编译、远程写入、数据库变更必须由用户明确要求。部署执行转 iris-deploy，已有基线不代替部署授权。
 
 ## 完成条件与交付
 
 - 命中的专项规则、字节检查、i18n 门禁和必要验证已完成；缺失验证明确说明限制，未通过的门禁不能报告完成。
 - 报告改动范围、验证结果及必要的混合任务接口分工；前端正常时只给一行编码摘要。提交计划与 commit 结果仅在用户要求时按 demand-commit 输出，需求号、标题和默认交付类型不触发提交或追问。
-- 业务需求设置 taskKind=business-demand，按[交付生命周期](../../../../agents/_shared/delivery-lifecycle.md)进入 acceptance-pending 并给出最短验收步骤。仅在用户验收后且存在框架缺陷、规则冲突、可复用经验或用户要求时做只读 feedback 审查；任何写入逐项授权。
+- 业务需求设置 taskKind=business-demand，按[交付生命周期](../../../../agents/_shared/delivery-lifecycle.md)进入 acceptance-pending 并给出最短验收步骤。仅在用户验收后且存在框架缺陷、规则冲突、可复用经验或用户要求时做只读 feedback 审查；写入前按[反馈授权](../../../agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#写入授权与自动待审补丁)核对当前有效授权。
 - 纯框架维护使用 taskKind=framework-maintenance 和[维护生命周期](../../../../agents/_shared/maintenance-lifecycle.md)，不进入业务验收或 feedback 流程。
 
 ## BOS 需求衔接

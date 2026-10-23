@@ -8,7 +8,7 @@
 - 模块接入及部署先按 [框架更新流程](../../docs/update-agents.md) 和 [Overlay 流程](../../docs/workspace-overlay.md) 执行，薄索引生成不能替代框架更新。
 - UI 增量约束的唯一来源：[iris_ui.md](rules/iris_ui.md)。编码、i18n、部署及提交复用 [coding-iris-plugin](../coding-iris-plugin/AGENTS.md)，验证复用 [testing-protocol](../../agents/_shared/testing-protocol.md)。
 - `imedical-ui` 与 `coding-iris-plugin` 均须 enabled 且满足 manifest 版本。frontend 直达 rule 也执行同一依赖约束；未来 Java/HTML 适配直接依赖通用层，不依赖本插件。
-- 标注、布局生命周期、匿名案例按主 skill 的条件指针读取；不在入口重复正文。
+- 标注、布局生命周期、匿名案例按主 skill 的条件指针读取；实施自检见[布局生命周期](references/layout-lifecycle.md#实施自检)，已验收 UI 业务需求的经验回归见[经验回归入口](references/verified-cases.md#经验回归入口)。不在入口重复正文。
 - 业务共性归类、主题条件与共用调用者的最终核对按 UI rule 执行；[只读扫描器](scripts/check-theme-scope.js)提供显式文件候选和覆盖限制，不判违规、不修改业务源码。
 - 工程截图、业务数据、连接信息、部署快照和需求台账留在目标工程；本插件只保存脱敏方法、受限样例和可复用工具。
 

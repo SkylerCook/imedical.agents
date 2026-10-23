@@ -13,6 +13,7 @@
 | i18n 协作历史样本 | [i18n P1](validation/i18n-agent-p1/README.md) |
 | 打印国际化候选经验 | [案例复盘](validation/cases/print-i18n-case.md) |
 | 医生站 AI 源仓验证 | [维护验证说明](validation/iris-imedical-doctor-ai.md) |
+| UI 规范提炼、读取门禁与经验回归 | [源仓改进与验证边界](validation/ui-framework-optimization-2026-10-23.md) |
 | UI 插件首版与匿名 HISUI 测量 | [验证及本地接入边界](validation/iris-ui-2026-10-21.md) |
 | 公司 UI 规范、截图/浏览器评审及 IRIS 适配依赖 | [本轮验证与试读边界](validation/imedical-ui-2026-10-21.md) |
 | UI 技能实际使用、局部修复与过度验证纠偏 | [流程复盘及框架回归](validation/ui-skill-usage-2026-10-22.md) |

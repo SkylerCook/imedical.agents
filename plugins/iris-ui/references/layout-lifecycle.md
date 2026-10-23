@@ -4,7 +4,7 @@
 
 ## 公共接入与主题
 
-从实际入口追踪 head 展开后的资源顺序、主题选择、body 输出和公共适配。采用 `DOC:HEAD` / `docBodyAttr` 的工程同时核对两者；其它加载机制按当前源码调查，不硬套路径。读取实际加载资源与计算样式，区别未加载、选择器未命中、优先级被覆盖及重复适配。
+从实际入口追踪 head 展开后的资源顺序、主题选择、body 输出和公共适配。采用 `DOC:HEAD` / `docBodyAttr` 的工程同时核对两者；其它加载机制按当前源码调查，不硬套路径。读取实际加载资源与计算样式，区别未加载、选择器未命中、优先级被覆盖及重复适配。主题 CSS 与 JS 选项须一致：HISUI 的 `HISUIStyleCode`、`HISUITheme` 及最终 body `data-theme` 在组件初始化前核对；iHOS 海蓝在当前 vendor 中使用 vben＋bgseablue，不能仅替换 CSS 文件名便声称已覆盖其原生默认。工程实际版本另行核实。
 
 先识别哪些尺寸来自控件原生 options、生成包裹层、公共 layout 接管标记和页面业务容器。公共已经接管的面板继续由公共负责；缺口才通过原生 API 补齐，保留原回调。主题专属视觉与通用尺寸分开验证，并按工程支持范围检查普通、焦点、禁用和等待状态。
 
@@ -15,7 +15,15 @@
 3. 控件同格还有链接、图标或按钮时，给这些元素明确剩余空间关系，再调用控件 resize；整格宽度不等于控件可用宽度。
 4. 表格提前换行但右侧空白时，核对每行真实列数、colspan/rowspan 与嵌套表格，再判断 `table-layout` 的影响。动态字典保留业务内容，用长短项作对照。
 
+圆角看似消失时，分别读外层 wrapper、面板 body、滚动容器及其父背景。父层同色背景、子层满铺背景或滚动槽承载可能填平圆角之外的区域；先对照实际裁剪和滚动前后状态，不能只量到 `border-radius:6px` 就认定视觉已符合，也不因白卡在 PURE 可见便向其它 family 强加白底。
+
 空白条也可能来自控件配置。当前 HISUI `datagrid` 按 `toolbar` 是否为真值决定生成容器，`[]` 仍会创建空工具栏；无工具栏场景采用原生的 `null`，有按钮的配置保持。按目标版本核对选项语义，优先修初始化配置，不用隐藏整个工具栏的 CSS 影响操作页面。
+
+## 原生配置与可见结果
+
+面板、datagrid 的 `border`、bodyCls 和生成 wrapper 共同决定外边界；用原生 `panel`／`datagrid("getPanel")` 定位实际绘制层，再区分表格外框、表头和分页内部线。边框颜色及普通面板变体沿[公司场景参考](../../imedical-ui/references/tables-and-feedback.md)，不用一个主题的结果覆盖所有变体。
+
+树缺少指定图标时，先读原始 `iconCls`、`lines`、`autoNodeHeight` 与生成的 `.tree-icon`。当前 vendor 在 `lines && autoNodeHeight` 且测得文本高度时生成 `.tree-icon-lines` 分支，指定 `iconCls` 不走普通图标分支；这是配置组合与版本有关的机制，不等于业务未传图标。保持单行节点时可核对原生 `autoNodeHeight:false`，需要多行内容时另选能保持图标和全文可达的原生配置；不隐藏全部图标或用裁切掩盖长内容。
 
 ## 异步内容与侧栏
 
@@ -42,3 +50,29 @@
 按共享协议的[范围与停止条件](../../../agents/_shared/testing-protocol.md#验证范围与停止条件)，仅取能回答当前风险的场景。首次空态、查询展开/收起、页签切换、内容增减、字典重载、重复打开、慢加载及初始化失败是候选项；宽度和主题也采用实际受影响集合，不组合成每次必测矩阵。
 
 可在明确目标 frame 中使用 [collect-ui-metrics.js](../scripts/collect-ui-metrics.js) 采集只读尺寸与限定样式。多匹配先缩小选择，不取第一个元素当成目标；测量后还需检查可见状态、对应交互、实际资源版本及相关 Console/Network。完整执行和交付沿 [testing-protocol](../../../agents/_shared/testing-protocol.md)。
+
+## 实施自检
+
+最终 diff 后，只核对本次机制涉及的对象并沿用已有任务记录：
+
+1. 比对原型有效变体与实际主题、JS/CSS/locale、公共接入；声明已覆盖的 family 必须对应真实资源身份。
+2. 读取原生 options 及生成包裹层；边框、圆角、树图标分别核对实际绘制层和可见状态，背景与滚动槽由谁承载要可解释。
+3. 内容或配置会动态变化时，用“1组→多组→1组”检查滚动条出现、消失后的实际内容宽度、控件 resize 与全文可达；原有选择和值保持契约。
+4. 侧栏、页签或弹窗受影响时，等待原生动画和开关收尾再量最终状态，核对重复打开与过期回调。纯文案等不涉及该机制的变更不扩展此场景。
+5. 并列记录原型参数、源码检查、匿名夹具、实际页面及用户验收；其中一层通过不代替其它层。已有规范漏执行先修实施；新增经验是否回归框架沿[经验入口](verified-cases.md#经验回归入口)。
+
+## 匿名夹具回归
+
+源仓复用既有 `scripts/tests/fixtures/iris-ui-server.cjs` 与 `iris-ui.html`，仅用于匿名技术证据；不新增生产 CSS 或浏览器运行器。打开服务入口的 `/?theme=pure&width=625`、`/?theme=vben&width=625`，先等 `fixtureStatus=ready` 并核对 `resourceStatus` 中 CSS 加载、JS style 与 body theme。这不是真实 HIS 当前资源已一致的证据。`width` 是布局期望宽度参数；夹具将布局、面板与 dialog 通过原生 `resize` 限制在宿主可用内容宽度内，宿主尺寸改变后重新计算，不用隐藏横向溢出掩盖问题。
+
+可通过页面按钮或同一页面 JS realm 中的 `window.fixtureUI` 操作。宿主只开放 DOM 读取时，使用按钮并直接核对 DOM／计算样式；不能取得页面全局函数不代表夹具未初始化。连续点击前等待 `fixtureStatus` 的对应完成值，`changing-groups`、`changing`、`reopening` 均是进行中，不可计为通过；初始加载仍以 `ready` 为完成信号：
+
+| 场景动作 | 读取和判断 |
+| --- | --- |
+| `await fixtureUI.setCount(24)`，再 `setCount(1)`；或 `cycle()` | 等 `groups:24`／`groups:1`，再对照内容与原生面板的滚动条出现/消失、combo 剩余宽度和内容可达；`cycle()` 最终为 `groups:1` |
+| `await fixtureUI.toggle()` 重复收展 | 等 `collapsed`／`expanded`，再读取原生 fx 结束后的 query 状态与控件尺寸，不取动画中间值 |
+| `await fixtureUI.reopen()` 重复打开原生 dialog | 等 `opened:N` 递增完成，再核对每次仍可访问内容，关闭与重开不影响其它容器状态 |
+| `await fixtureUI.matchParent(true)`，再 `matchParent(false)` | 对照父背景与原生卡片边界；棋盘背景只是人工对照底，不是公司配色 |
+| `fixtureUI.observe()` | 匿名 geometry、父/子/wrapper 计算样式、两个 tree 配置与图标、panel/datagrid border 对照；不修改公开 `collectUiMetrics` API |
+
+两个树分别配置 `lines:true`＋`autoNodeHeight:true/false`；边框样本分别使用原生 `border:true/false`。夹具观测只能证明当前 vendor 和当前状态，不把内置对照当成所有工程的规范，也不预填用户视觉验收。结束服务沿终端输入 `stop`，业务已有服务和页面保持原状。

@@ -163,7 +163,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 | Skill | 请求示例 | 前提与预期结果 |
 |---|---|---|
 | [agent-framework-evolution-init](../../plugins/agent-framework-evolution/skills/agent-framework-evolution-init/SKILL.md) | 在当前工程启用 agent-framework-evolution，检查技能入口。 | 保留显式插件状态；只接入入口，不执行反馈或打包。 |
-| [agent-framework-feedback](../../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md) | 这个业务需求已验收，请只读审查本次框架反馈候选。 | 业务需求已明确验收且反馈适用；仅给通过 skill 共享准入的候选，无合格项正常结束；局部经验留项目内，写入和提升另按授权执行；框架维护不触发。 |
+| [agent-framework-feedback](../../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md) | 这个业务需求已验收，请只读审查本次框架反馈候选。 | 业务需求已明确验收且反馈适用；仅给通过 skill 共享准入的候选，无合格项正常结束；局部经验留项目内；明确授权自动模式时在确认源仓隔离分支形成待审补丁，否则写入和提升按动作授权；框架维护不触发。 |
 | [reusable-content-packaging](../../plugins/agent-framework-evolution/skills/reusable-content-packaging/SKILL.md) | 把这份已验证的通用流程整理成能力包，去掉项目私有信息。 | 提供经验来源、验证证据与目标范围；产出通用能力文件及接入说明。 |
 
 ## coding-iris-plugin
@@ -271,7 +271,9 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 相关 UI 修改的最终 diff 后，使用 [主题条件扫描器](../../plugins/iris-ui/scripts/check-theme-scope.js)辅助核对新增或受影响的主题限定：`node <iris-ui>/scripts/check-theme-scope.js --project-root <WorkspaceRoot> --file <精确文件>`，多文件重复 `--file`。工具只读 CSP、CSR、HTML、JS、CSS 显式文件，输出 JSON 候选与覆盖限制；成功返回 0（包括发现候选），输入或读取失败返回 2。Agent 判断共性或有据差异，并沿现有搜索核对未覆盖的封装；不遍历全仓，不自动修改或阻断。相关内容未变时复用已有结果，零候选不等于 UI 通过。
 
-现有前端入口的条件加载以 [iris-frontend-coding 流程](../../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md#流程)为准。部署继续使用原 owner；需要保留服务器已有修改时，先按 [部署保护](../../plugins/coding-iris-plugin/references/deployment-protection.md)核对可用基线与合并条件，不能把 UI 插件启用当成部署授权或新增保护能力。
+现有前端入口的条件加载以 [前端 rule 的 UI 门禁](../../plugins/coding-iris-plugin/rules/iris_coding_frontend.md#ui-条件门禁)为准，skill 和只走规则的审查复用同一入口。部署继续使用原 owner；需要保留服务器已有修改时，先按 [部署保护](../../plugins/coding-iris-plugin/references/deployment-protection.md)核对可用基线与合并条件，不能把 UI 插件启用当成部署授权或新增保护能力。
+
+验收后的经验回归沿 [iris-ui](../../plugins/iris-ui/skills/iris-ui/SKILL.md) 的 ui-self-regression 阶段和 [统一授权契约](../../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#写入授权与自动待审补丁)。例如：“本项目明确授权，已验收且合格的 UI 经验在已确认源仓的隔离分支自动形成待审补丁，允许的 owner 及动作范围为……”。源仓身份、范围或证据不足时仅交候选；业务工程更新和提交发布另行授权。
 
 ## iris-imedical-doctor-ai
 

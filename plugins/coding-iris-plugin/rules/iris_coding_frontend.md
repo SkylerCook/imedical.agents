@@ -18,6 +18,21 @@ related:
 - UI 框架：HISUI，除非目标工程 profile 明确关闭。
 - jQuery/HISUI 版本、主题、源码路径以 `.agents/config/iris_project_profile.md` 为准。
 
+## UI 条件门禁
+
+本节是前端 UI 条件读取的唯一入口。编码与 Review（包括只从本 rule 进入的审查）均读取当前 Context 的 `.agents/config/plugin_profile.md`，在修改前与最终 diff 后各判断一次；纯 Review 按任务与待审 diff 判断。目录存在只表示 `available`，不等于已启用。
+
+UI 信号包括标注/原型还原、布局/滚动/尺寸、字体/颜色/边框/圆角、控件视觉与状态、标题图标、操作图标及树节点图标、按主题切换控件、弹窗适配、主题条件变更、主题兼容及首屏闪烁。
+
+| iris-ui 状态 | 任务或 diff | 行为 |
+|---|---|---|
+| `enabled` | 无 UI 信号 | 继续普通前端流程，不追加 UI 专项规则 |
+| `enabled` | 命中 UI 信号 | 读取 [UI 专项规则](../../iris-ui/rules/iris_ui.md)，由其核对当前启用集合、manifest 依赖版本与公司规范，再继续当前编码或 Review 流程 |
+| `available`、`disabled` 或 profile 缺失 | 任意前端任务 | 保留原流程和项目已有约束，不自动加载或启用 UI 插件；不能将普通前端检查报告为公司 UI 规范已核对 |
+| `enabled` | 命中 UI 信号且规则/依赖缺失或版本不兼容 | 报告能力包不完整或依赖不兼容，暂停依赖该能力的 UI 阶段；沿[已有更新流程](../../../docs/update-agents.md)补齐，保留显式禁用，不自行改启用集合 |
+
+本门禁只条件读取规则，不自动切换完整 UI workflow，也不自动更新能力包或业务副本。门禁命中且依赖满足时，标题图标的面性/线性语义统一查[公司图标规范](../../imedical-ui/references/forms-and-actions.md#图标及业务确认)，HISUI 资源与状态实现查本规则的复用指针；不在编码层复制公司规范。
+
 ## 条件 i18n 门禁
 
 前端任务必须读取目标工程 `.agents/config/plugin_profile.md`，并在修改前与最终 diff 后各判断一次。插件目录存在只表示 `available`，只有 `i18n-iris-plugin` 状态为 `enabled` 才能自动追加 i18n 能力。
@@ -124,7 +139,7 @@ node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
 ## 验证
 
 - 默认做本地结构和引用检查；运行场景与结束条件统一按[共享测试协议](../../../agents/_shared/testing-protocol.md#验证范围与停止条件)选择。
-- 最终 diff 按前端规范检查命名、格式、兼容基线及范围；独立 Review 传递规范路径、用户/项目覆盖与已有检查结果，无独立 Agent 时明确报告串行自审。
+- 最终 diff 按前端规范检查命名、格式、兼容基线及范围，并重新执行[UI 条件门禁](#ui-条件门禁)；独立 Review 传递规则与规范路径、用户/项目覆盖、UI 启用状态及已有检查结果，无独立 Agent 时明确报告串行自审。
 - 前端文件变更后按 `utf8` 复检所有触碰文件；正常时只报告模式、文件数和保持的编码。
 - 调整 DataGrid 列定义后，检查保存、校验、行编辑和回显逻辑中的 editor/列下标是否仍对应正确字段。
 - 用户明确要求部署时，先通过 UTF-8 字节门禁，再直接上传原始源文件并验证。

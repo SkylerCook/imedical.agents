@@ -72,6 +72,64 @@ function collectGuids(value, output = new Set()) {
     return output;
 }
 
+const semanticBoards = new Map();
+function sourceNodes(packageId, boardPrefix = "控件-01") {
+    const key = packageId + ":" + boardPrefix;
+    if (!semanticBoards.has(key)) {
+        const item = sources.packages.find(item => item.id === packageId);
+        assert.ok(item, packageId);
+        const matches = item.boards.filter(board => board.name.startsWith(boardPrefix));
+        assert.equal(matches.length, 1, key);
+        const board = parseBoard(fs.readFileSync(inside(vendor, matches[0].data), "utf8")).board;
+        const records = [];
+        function visit(node, ancestors) {
+            records.push({ node, ancestors });
+            for (const child of node.children || []) visit(child, [...ancestors, node]);
+        }
+        visit(board, []);
+        semanticBoards.set(key, records);
+    }
+    return semanticBoards.get(key);
+}
+
+function sourceNode(records, guid) {
+    const matches = records.filter(record => record.node.guid === guid);
+    assert.equal(matches.length, 1, guid);
+    return matches[0];
+}
+
+// These helpers describe only explicit solid-paint evidence, not a renderer.
+// Unknown schema defaults, gradients, masks and compositing need source/runtime review.
+function sourceVisibility(record) {
+    const chain = [...record.ancestors, record.node];
+    if (chain.some(node => node.visible === false || node.opacity === 0)) return "hidden";
+    if (chain.some(node => node.visible !== true || !Number.isFinite(node.opacity))) return "unknown";
+    return "visible";
+}
+
+function sourcePaint(record, kind) {
+    const node = record.node;
+    if (node[kind + "Enabled"] === false || node[kind] === null ||
+        (kind === "stroke" && node.strokeWidth === 0) || sourceVisibility(record) === "hidden") return "off";
+    if (sourceVisibility(record) !== "visible" || node[kind + "Enabled"] !== true) return "unknown";
+    if (kind === "stroke" && !(node.strokeWidth > 0)) return "unknown";
+    if (!node[kind] || !Number.isInteger(node[kind].value)) return "unknown";
+    return (node[kind].value >>> 24) === 0 ? "off" : "on";
+}
+
+function sourceSolidColor(paint) {
+    assert.ok(paint && Number.isInteger(paint.value), "Expected an explicit solid color");
+    return "#" + paint.value.toString(16).padStart(8, "0").toUpperCase();
+}
+
+function referenceRow(relative, guid, ...facts) {
+    const text = fs.readFileSync(path.join(plugin, "references", relative), "utf8");
+    const rows = text.split(/\r?\n/).filter(line => line.startsWith("|") && line.includes(guid));
+    assert.ok(rows.length, relative + ": missing semantic row for " + guid);
+    assert.ok(rows.some(row => facts.every(fact => row.includes(fact))),
+        relative + ": " + guid + " must retain one row with " + facts.join(", "));
+}
+
 function filesBelow(root) {
     const output = [];
     for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
@@ -222,6 +280,239 @@ test("shared board GUIDs remain separate sources in different design families", 
     assert.equal(guidsBySource().get(inside(vendor, pure.data)).has(guid), true);
 });
 
+test("source semantics keep ordinary label gaps separate from radio text gaps in both families", () => {
+    const cases = [
+        { family: "ihos-seablue", form: "e575fdc7-1112-4f57-b524-0e2abbffcceb",
+            label: "fc69af54-82da-44dc-814d-db13fe1bc8bf", input: "6db38c4b-9827-45ff-a9f7-da7ce0dd0434",
+            radio: "6e6a49d4-43d8-4371-8e57-a43b224c4fff", text: "7073591a-8583-40f2-8f1d-fc36444e42aa",
+            glyph: "1487819e-ba53-44cd-ba2e-2f6d3872635b", inputWidth: 200 },
+        { family: "pure-controls", form: "9c838ed6-a154-4847-b4ea-3e8fb9add19e",
+            label: "d21939e3-617b-4341-85c5-0ee88c64ba0e", input: "473a110b-64ef-423d-8253-32869b8230e0",
+            radio: "6c05aa79-16fb-424a-825b-876340e384d7", text: "8fa8eca5-87fa-49e1-8243-cd975b5512f8",
+            glyph: "ebbae068-2527-41a5-8901-ff9364a81ca6", inputWidth: 244 }
+    ];
+    for (const item of cases) {
+        const records = sourceNodes(item.family);
+        const label = sourceNode(records, item.label), input = sourceNode(records, item.input);
+        const text = sourceNode(records, item.text), glyph = sourceNode(records, item.glyph);
+        for (const record of [label, input, text, glyph]) assert.equal(sourceVisibility(record), "visible");
+        const labelGap = input.node.globalBounds.x - label.node.globalBounds.x - label.node.globalBounds.width;
+        const radioGap = text.node.globalBounds.x - glyph.node.globalBounds.x - glyph.node.globalBounds.width;
+        assert.equal(labelGap, 10, item.family);
+        assert.equal(radioGap, 5, item.family);
+        assert.notEqual(labelGap, radioGap, "A radio label is not an ordinary form label");
+        assert.equal(input.node.globalBounds.width, item.inputWidth);
+        referenceRow("forms-and-actions.md", item.form, labelGap + "px", item.inputWidth + "px");
+        referenceRow("forms-and-actions.md", item.radio, radioGap + "px");
+    }
+});
+
+test("source semantics preserve filled title icons and folder roles across both families", () => {
+    const cases = [
+        { family: "ihos-seablue", title: "e1307a22-225c-4ff3-8c85-7cfbf82dbdc7",
+            folder: "f1d292c5-f534-42ca-b164-9a0c4d768231", leaf: "5989cda0-cea7-4d2e-bd92-d710b3e1ba3a" },
+        { family: "pure-controls", title: "7ffe0770-6b5d-4e1b-8305-f6d6e699a8cf",
+            folder: "e0326516-5045-4cb4-89b7-f5a86b022085", leaf: "17afd3bb-4efd-47bb-a57c-e18d7f3a4e79" }
+    ];
+    for (const item of cases) {
+        const title = sourceNode(sourceNodes(item.family, "控件-02"), item.title);
+        assert.equal(title.node.types.Path, 1);
+        assert.ok(title.ancestors.some(node => /标题/.test(node.name)), "The paint belongs to a title component");
+        assert.equal(sourcePaint(title, "fill"), "on");
+        assert.equal(title.node.stroke, null);
+        assert.equal(sourcePaint(title, "stroke"), "off", "Enabled with null paint does not draw a stroke");
+        referenceRow("layout-and-navigation.md", item.title, "fillEnabled=true", "stroke=null");
+        const records = sourceNodes(item.family, "控件-03");
+        const folder = sourceNode(records, item.folder);
+        assert.equal(folder.node.name, "文件夹");
+        assert.equal(sourceVisibility(folder), "visible");
+        assert.deepEqual([folder.node.globalBounds.width, folder.node.globalBounds.height], [16, 16]);
+        assert.ok(records.some(record => record.ancestors.includes(folder.node) && sourcePaint(record, "fill") === "on"));
+        referenceRow("layout-and-navigation.md", item.folder, "16×16", "文件夹");
+        const ordinary = sourceNodes(item.family);
+        const leaf = sourceNode(ordinary, item.leaf);
+        assert.equal(leaf.node.name, "文档");
+        assert.equal(sourceVisibility(leaf), "visible");
+        assert.deepEqual([leaf.node.globalBounds.width, leaf.node.globalBounds.height], [16, 16]);
+        assert.ok(leaf.ancestors.at(-1).children.some(node => node.text === "四级"));
+        const parts = ordinary.filter(record => record.ancestors.includes(leaf.node));
+        assert.ok(parts.some(record => record.node.types.Path && sourcePaint(record, "fill") === "on"));
+        assert.ok(parts.some(record => record.node.types.Rectangle && record.node.fillEnabled === true &&
+            sourcePaint(record, "fill") === "off"), "A transparent placeholder is not the visible document icon");
+        referenceRow("layout-and-navigation.md", item.leaf, "文档", "16×16", "有效填充");
+
+    }
+});
+
+test("source semantics distinguish disabled panel paints from primary and secondary button variants", () => {
+    const cases = [
+        { family: "ihos-seablue", panel: "a068f8f8-a516-4a41-988f-28ac5c098b5a",
+            primary: "56187cac-ae4c-4c03-9ac8-a7543be0c6ac", secondary: "c1e19006-8736-4498-81a8-8860e7ebb5fd" },
+        { family: "pure-controls", panel: "1a5579f9-b35d-44a8-9463-df80bee6f6df",
+            primary: "68696a32-54d7-44b9-a76d-4b9c8a1f4553", secondary: "a6b915d0-f48d-4e54-9eb7-3121ef3a03d0" }
+    ];
+    for (const item of cases) {
+        const panel = sourceNode(sourceNodes(item.family, "控件-02"), item.panel);
+        assert.equal(panel.node.fill.value, 0xffffffff);
+        assert.equal(panel.node.stroke.value, 0xffffffff);
+        assert.equal(sourcePaint(panel, "fill"), "off");
+        assert.equal(sourcePaint(panel, "stroke"), "off");
+        referenceRow("source-catalog.md", item.panel, "fillEnabled=false", "strokeEnabled=false");
+        const records = sourceNodes(item.family);
+        const primary = sourceNode(records, item.primary), secondary = sourceNode(records, item.secondary);
+        assert.equal(sourcePaint(primary, "fill"), "on");
+        assert.equal(sourcePaint(primary, "stroke"), "off");
+        assert.equal(sourcePaint(secondary, "fill"), "on");
+        assert.equal(sourcePaint(secondary, "stroke"), "on");
+        referenceRow("forms-and-actions.md", item.primary, "fillEnabled=true", "strokeEnabled=false");
+        referenceRow("forms-and-actions.md", item.secondary, "fillEnabled=true", "strokeEnabled=true");
+    }
+});
+
+test("source semantics distinguish complete table headers from filled separator rectangles", () => {
+    const cases = [
+        { family: "ihos-seablue", header: "79134d65-8d9e-4f43-8bab-7b0b34a79ba1", height: 34,
+            background: "fbc9df8d-e7d7-4206-a04d-0f05f6c850aa", separator: "ab1f7b62-aa1c-4151-a0d5-2b576fe29d43" },
+        { family: "pure-controls", header: "1558e4e1-4b16-4c25-8c49-8f6459cfe36d", height: 33,
+            background: "b798bace-196d-4beb-a012-82c03dbb7e0f", separator: "08a5d9b8-c994-4478-be8a-5952d6d4dba7" }
+    ];
+    for (const item of cases) {
+        const records = sourceNodes(item.family);
+        const header = sourceNode(records, item.header), background = sourceNode(records, item.background);
+        const separator = sourceNode(records, item.separator);
+        assert.equal(header.node.globalBounds.height, item.height);
+        assert.equal(background.node.globalBounds.height, item.height - 1);
+        assert.equal(separator.node.globalBounds.height, 1);
+        assert.equal(separator.node.globalBounds.y, background.node.globalBounds.y + background.node.globalBounds.height);
+        assert.equal(sourcePaint(separator, "fill"), "on");
+        assert.equal(sourcePaint(separator, "stroke"), "off");
+        referenceRow("tables-and-feedback.md", item.header, item.height + "px", "1px填充矩形", "strokeEnabled=false");
+    }
+});
+
+test("source semantics reject invisible descendants and transparent paints without inventing schema defaults", () => {
+    const placeholder = sourceNode(sourceNodes("ihos-seablue"), "9c75ac00-0568-4f74-89e8-2eb487913a0e");
+    assert.equal(placeholder.node.visible, true);
+    assert.equal(sourceVisibility(placeholder), "hidden");
+    referenceRow("source-catalog.md", placeholder.node.guid, "opacity=0");
+    const hidden = sourceNode(sourceNodes("ihos-seablue", "控件-03"), "c428b63a-d5e3-431d-9176-a05dd00605bd");
+    assert.equal(hidden.node.visible, true);
+    assert.equal(hidden.node.opacity, 1);
+    assert.ok(hidden.ancestors.some(node => node.opacity === 0));
+    assert.equal(sourceVisibility(hidden), "hidden");
+    referenceRow("source-catalog.md", hidden.node.guid, "祖先opacity=0");
+    const transparentMask = sourceNode(sourceNodes("ihos-seablue", "控件-03"), "3a016be4-bf06-4fd1-aa2c-4f666908685f");
+    assert.equal(transparentMask.node.fillEnabled, true);
+    assert.equal(sourcePaint(transparentMask, "fill"), "off", "Alpha zero is not a visible solid fill");
+    const solid = { visible: true, opacity: 1, fillEnabled: true, fill: { value: 0xff000000 } };
+    assert.equal(sourcePaint({ node: solid, ancestors: [] }, "fill"), "on");
+    assert.equal(sourcePaint({ node: solid, ancestors: [{ visible: false, opacity: 1 }] }, "fill"), "off");
+    assert.equal(sourcePaint({ node: { ...solid, fillEnabled: undefined }, ancestors: [] }, "fill"), "unknown");
+    assert.equal(sourcePaint({ node: { ...solid, visible: undefined }, ancestors: [] }, "fill"), "unknown");
+    assert.equal(sourcePaint({ node: { ...solid, opacity: undefined }, ancestors: [] }, "fill"), "unknown");
+});
+
+test("source semantics preserve table outer-frame family differences and the PURE white-background variant", () => {
+    const cases = [
+        { family: "pure-controls", board: "控件-01", guid: "e68477cf-f752-4593-9709-048bd8682ac3",
+            enabled: true, color: "#FFFFFFFF", category: "主题差异", evidence: "构件几何" },
+        { family: "pure-layouts", board: "布局-02", guid: "b8319d34-f1df-4d4b-92aa-628f22de6809",
+            enabled: true, color: "#FFFFFFFF", category: "主题差异", evidence: "组合示例" },
+        { family: "ihos-seablue", board: "控件-01", guid: "06410dae-3ff9-4d08-8fdc-0bc4d8b44310",
+            enabled: false, color: "#FFFFFFFF", category: "主题差异", evidence: "构件几何" },
+        { family: "ihos-seablue", board: "布局-03", guid: "a361aeef-978d-4d7c-9f8c-6be1a249328a",
+            enabled: false, color: "#FFFFFFFF", category: "主题差异", evidence: "组合示例" },
+        { family: "pure-controls", board: "控件-01", guid: "c53febf8-4a66-481e-8fc4-923679b631ea",
+            enabled: true, color: "#FFE4E4E4", category: "构件变体", evidence: "构件几何" }
+    ];
+    for (const item of cases) {
+        const record = sourceNode(sourceNodes(item.family, item.board), item.guid);
+        assert.equal(sourceVisibility(record), "visible");
+        assert.equal(record.node.fillEnabled, false);
+        assert.equal(record.node.strokeEnabled, item.enabled);
+        assert.equal(record.node.strokeWidth, 1);
+        assert.equal(sourceSolidColor(record.node.stroke), item.color);
+        assert.equal(sourcePaint(record, "stroke"), item.enabled ? "on" : "off");
+        referenceRow("tables-and-feedback.md", item.guid, "strokeEnabled=" + item.enabled,
+            "strokeWidth=1", item.color, item.category, item.evidence);
+    }
+});
+
+test("source semantics keep ordinary and colored panel paints and radii in their family variants", () => {
+    const cases = [
+        { family: "pure-controls", guid: "24d63808-e18c-4b42-b218-cf163ece12bf",
+            enabled: true, color: "#FFFFFFFF", radius: 6, category: "主题差异" },
+        { family: "ihos-seablue", guid: "0772b586-7649-46df-a7f4-9f2fa16cd4b7",
+            enabled: false, color: "#FFFFFFFF", radius: 6, category: "主题差异" },
+        { family: "pure-controls", guid: "4f243bb7-6cac-4eb6-8889-b01d0436d133",
+            enabled: true, color: "#FFF1F7FE", radius: 6, category: "构件变体" },
+        { family: "ihos-seablue", guid: "30cdc1d7-eb96-4ed2-8ee6-aec61b840bd9",
+            enabled: true, color: "#FFE6EAF9", radius: 0, category: "构件变体" }
+    ];
+    for (const item of cases) {
+        const record = sourceNode(sourceNodes(item.family, "控件-02"), item.guid);
+        assert.equal(sourceVisibility(record), "visible");
+        assert.equal(record.node.fillEnabled, item.enabled);
+        assert.equal(sourceSolidColor(record.node.fill), item.color);
+        assert.deepEqual(Object.values(record.node.cornerRadii), Array(4).fill(item.radius));
+        assert.equal(sourcePaint(record, "fill"), item.enabled ? "on" : "off");
+        assert.equal(sourcePaint(record, "stroke"), "off");
+        referenceRow("layout-and-navigation.md", item.guid, "fillEnabled=" + item.enabled,
+            item.color, "四角" + item.radius + "px", item.category, "构件几何");
+    }
+});
+
+test("source semantics keep modal-close buttons distinct from the generic secondary-button scene", () => {
+    const cases = [
+        { family: "pure-controls", board: "控件-01", guid: "0bd2bf48-579c-4c56-aa27-28520e9a2bdc",
+            text: "次要按钮", fill: "#FFEDF6FF", ink: "#FF008FFF", stroke: "#FFA5D5FF", evidence: "构件几何" },
+        { family: "pure-layouts", board: "布局-07", guid: "4c6ab7eb-b19c-42e4-bdee-802afe9ae910",
+            text: "关闭", fill: "#FFFFFFFF", ink: "#FF000000", stroke: "#FFCCCCCC", evidence: "组合示例" },
+        { family: "ihos-seablue", board: "布局-06", guid: "18acb0c6-0be3-48ea-9006-0a682bc6630e",
+            text: "关闭", fill: "#FFFFFFFF", ink: "#FF000000", stroke: "#FFCCCCCC", evidence: "组合示例" }
+    ];
+    for (const item of cases) {
+        const records = sourceNodes(item.family, item.board);
+        const button = sourceNode(records, item.guid);
+        assert.equal(sourceVisibility(button), "visible");
+        const descendants = records.filter(record => record.ancestors.includes(button.node));
+        const backgrounds = descendants.filter(record => record.node.types.Rectangle && sourcePaint(record, "fill") === "on");
+        const labels = descendants.filter(record => record.node.text === item.text && sourceVisibility(record) === "visible");
+        assert.equal(backgrounds.length, 1);
+        assert.equal(labels.length, 1);
+        const background = backgrounds[0], label = labels[0];
+        assert.equal(sourceSolidColor(background.node.fill), item.fill);
+        assert.equal(sourceSolidColor(background.node.stroke), item.stroke);
+        assert.equal(sourcePaint(background, "stroke"), "on");
+        assert.equal(background.node.strokeWidth, 1);
+        assert.equal(sourceSolidColor(label.node.fill), item.ink);
+        for (const range of label.node.styleRanges || []) {
+            if (range.fill) assert.equal(sourceSolidColor(range.fill), item.ink);
+        }
+        referenceRow("forms-and-actions.md", item.guid, "背景" + item.fill,
+            "文字" + item.ink, "描边" + item.stroke, "构件变体", item.evidence);
+    }
+});
+
+test("source semantics record applicability and evidence type independently without promoting demand supplements", () => {
+    const text = fs.readFileSync(path.join(plugin, "references/style-differences.md"), "utf8");
+    const header = text.split(/\r?\n/).find(line => line.startsWith("| 适用范围＼证据类型 |"));
+    assert.ok(header);
+    assert.deepEqual(header.split("|").slice(2, -1).map(cell => cell.trim()),
+        ["明文要求", "构件几何", "组合示例", "需求补充"]);
+    const matrix = text.slice(text.indexOf(header)).split(/\r?\n\s*\r?\n/, 1)[0];
+    const rows = matrix.split(/\r?\n/).filter(line => /^\| (共性|主题差异|构件变体|业务特例) \|/.test(line));
+    assert.deepEqual(rows.map(row => row.split("|")[1].trim()), ["共性", "主题差异", "构件变体", "业务特例"]);
+    for (const row of rows) assert.equal(row.split("|").slice(1, -1).filter(cell => cell.trim()).length, 5);
+    const common = rows[0].split("|").slice(1, -1).map(cell => cell.trim());
+    assert.match(common[1], /跨风格条款/);
+    assert.match(common[2], /两族有效节点/);
+    assert.match(common[3], /不固定示例/);
+    assert.match(common[4], /不伪造.*升级为公司规则/);
+    assert.match(rows[2], /通用次按钮／弹窗关闭按钮/);
+    assert.match(rows[3], /不推广成全局默认/);
+});
+
 test("plugin Markdown links resolve and GUID citations belong to their linked design sources", () => {
     const records = guidsBySource();
     let citations = 0;
@@ -255,10 +546,10 @@ test("company standards stay stack independent and the IRIS adapter declares its
     for (const entry of [company.entry, "skills/imedical-ui/SKILL.md", "skills/imedical-ui-review/SKILL.md",
         "skills/imedical-ui-init/SKILL.md", "rules/imedical_ui.md"]) assert.ok(fs.existsSync(path.join(plugin, entry)), entry);
     const adapter = jsonFile(path.join(repo, "plugins/iris-ui/.agents-plugin/plugin.json"));
-    assert.match(adapter.version, /^0\.2\.\d+$/);
+    assert.match(adapter.version, /^0\.3\.\d+$/);
     assert.ok(adapter.dependencies.includes("imedical-ui"));
     assert.ok(adapter.dependencies.includes("coding-iris-plugin"));
-    assert.deepEqual(adapter.dependencyVersions["imedical-ui"], { minVersion: "0.1.1", maxVersionExclusive: "0.2.0" });
+    assert.deepEqual(adapter.dependencyVersions["imedical-ui"], { minVersion: "0.1.3", maxVersionExclusive: "0.2.0" });
     const manifests = new Map(fs.readdirSync(path.join(repo, "plugins")).map(name => {
         const file = path.join(repo, "plugins", name, ".agents-plugin/plugin.json");
         return fs.existsSync(file) ? jsonFile(file) : null;

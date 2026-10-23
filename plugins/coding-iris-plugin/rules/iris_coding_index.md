@@ -25,7 +25,7 @@ related:
 
 - [通用编辑安全](iris_coding_general.md)：所有编码任务必读，包含风险分流、授权、最小改动与 diff 检查；业务知识资料按其“自主使用知识资料”查询。
 - [后端 ObjectScript 编码](iris_coding_backend.md)：BLH/DATA/SQL、ObjectScript 风格、Broker、SQL 执行层。
-- [前端 CSP/JS/HISUI 编码](iris_coding_frontend.md)：前端任务必读，包含修改前与最终 diff 后的条件 i18n 门禁、字节检测、HISUI 复用和页面验证。
+- [前端 CSP/JS/HISUI 编码](iris_coding_frontend.md)：前端编码与 Review 必读，包含修改前与最终 diff 后的[UI 条件门禁](iris_coding_frontend.md#ui-条件门禁)、条件 i18n 门禁、字节检测、HISUI 复用和页面验证；只从 rule 进入也执行同一门禁。
 - [MCP 与部署工作流](iris_coding_workflow.md)：仅使用 MCP、上传、编译、远程读取或 SQL 验证时读取。
 - [Git 基线与部署保护](../references/deployment-protection.md#建立会话)：开发部署默认 direct，不要求基线会话；仅在用户或项目要求 guarded 时，在第一次修改前读取，部署时复用会话。
 - [IRIS 知识查询与 MCP 路由](iris_knowledge_lookup.md)：IRIS 类、方法签名、宏、SQL 元数据和官方文档的数据源选择；仅查询任务读取。

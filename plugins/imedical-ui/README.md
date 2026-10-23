@@ -22,7 +22,7 @@
 | 证据类型、资料批次、原图与完整图层定位 | [来源与覆盖](references/source-catalog.md) |
 | 截图或浏览器评审、问题归因与报告 | [评审方法](references/review-method.md) |
 
-`rules` 只保留每次任务都需要的判断；详细参数及例外在 references。vendor 是可追溯底稿，日常开发不需要反复读取巨型 data.js，也不从查看器 CSS 推导业务样式。
+`rules` 只保留每次任务都需要的判断；详细参数及例外在 references。vendor 是可追溯底稿，日常开发不需要反复读取巨型 data.js，也不从查看器 CSS 推导业务样式。需要提炼新参数或依据冲突时，按[有效图层判断](references/source-catalog.md#有效图层与参数提炼)回查；来源允许推广的范围和本次业务共用归属分别记录。
 
 ## 技术栈适配
 
@@ -37,6 +37,6 @@
 
 按 [框架更新流程](../../docs/update-agents.md)接入；Overlay 先更新共享 capability 一次，再通过项目模块管理入口 `-NoPull` 刷新并验证。`iris-ui` 0.2.0 起要求本插件已 enabled；已有工程必须同时核对注册表和 profile 的依赖启用集合，显式 disabled 或身份冲突不绕过。
 
-源仓测试：`node --test scripts/tests/imedical-ui.tests.js scripts/tests/iris-ui.tests.js`。检查覆盖来源字节、30 画板、引用图层、文档路径、依赖拓扑和隔离 Context 的发现行为。文档或薄索引检查不能替代真实模型读取、业务页面运行或 UI 评审。
+源仓测试：`node --test scripts/tests/imedical-ui.tests.js scripts/tests/iris-ui.tests.js`。检查覆盖来源字节、30 画板、引用图层、文档路径、依赖拓扑和隔离 Context 的发现行为，并将真实源节点的有效 paint、祖先透明度、标签/选择项间距及标题/树/表格/按钮变体与 MD 结论对照。文档或薄索引检查不能替代真实模型读取、业务页面运行或 UI 评审。
 
 原始证据见 [vendor 说明](../../vendor/imedical-ui-standards/README.md)。本期没有新增查询 CLI、自动 CSS 生成、完整查看器、业务页面补丁或自动部署。

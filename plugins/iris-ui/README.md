@@ -16,6 +16,8 @@
 
 0.2.2 补齐业务共性的主题条件审查和最终 diff 核对，依赖 imedical-ui 0.1.1 与 coding-iris-plugin 0.20.4。共性判断、适配入口与兼容证据沿[UI 规则](rules/iris_ui.md)，任务模板沿用原记录；新增工具随插件正常分发，不接入业务运行时或 Git 阻断 hook。
 
+0.3.0 补充原生边界、树配置及实际主题初始化的实施自检，沿既有匿名 HISUI 夹具核对内容增减、侧栏和重复打开。UI 经验回归按[条件入口](references/verified-cases.md#经验回归入口)复用 agent-framework-feedback；具体授权仍由原 owner 解释。
+
 例如：“按这组标注调整申请页，保留业务逻辑”“定位折叠侧栏后留白，检查其它主题是否受影响”。纯后端需求继续使用原编码入口；本插件不取代通用前端编码规范。
 
 ## 按需资料
@@ -54,7 +56,7 @@ collectUiMetrics({
 
 `name` 使用不含业务标识的技术标签。测量函数只读取尺寸、滚动和限定计算样式；零匹配或多匹配报告未测量，由调用者核对目标。输出不包含输入 selector、DOM 文本、表单值或 URL。真实页面优先将独立函数源码交给现有工具的只读 evaluate，不安装全局函数；整份脚本会注册 `window.collectUiMetrics`，仅供独立夹具或已明确需要该入口的环境。无需把脚本加入业务页面 asset；Node 可使用其 CommonJS 导出，浏览器加载方式按当前工具核实，不假定动态 import 可用。测量结果辅助诊断，不能判定与标注视觉一致或代替用户验收。截图、Console、Network 和实际加载版本仍由适用工具按当前任务核对。
 
-源仓可运行 `node --test scripts/tests/iris-ui.tests.js`。真实浏览器夹具使用 `node scripts/tests/fixtures/iris-ui-server.cjs`，仅监听回环地址并输出入口；在交互终端输入 `stop` 结束。夹具覆盖匿名控件与布局，执行器仍使用当前宿主工具。
+源仓可运行 `node --test scripts/tests/iris-ui.tests.js`。真实浏览器夹具使用 `node scripts/tests/fixtures/iris-ui-server.cjs`，仅监听回环地址并输出入口；在交互终端输入 `stop` 结束。夹具覆盖匿名控件与布局，执行器仍使用当前宿主工具。`/?theme=pure&width=625` 与 `/?theme=vben&width=625` 分别使用 PURE、实际 iHOS 海蓝（vben＋bgseablue）；CSS、JS 标识在初始化前设置，先核对页面 `resourceStatus` 与 `fixtureStatus`。场景动作、匿名观察和恢复方式见[夹具回归](references/layout-lifecycle.md#匿名夹具回归)。
 
 ## 部署与验证边界
 

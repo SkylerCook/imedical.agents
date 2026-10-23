@@ -30,6 +30,19 @@ PDF 页码为文件物理页码；其条款按 [来源适用范围](source-catal
 | PURE 标准查询白卡 | `(15,67,1890,145)`；其中字段与两排结构是示例 | [布局-02标准查询页面](../../../vendor/imedical-ui-standards/pure-layouts/res/布局-02标准查询页面/data.js)，`2b97b31a-81f1-4ad6-9560-33131943dfec` |
 | IHOS 标准查询背景 | `(0,52,1920,145)`，与 PURE 的承载边界不同 | [布局-03标准查询页面](../../../vendor/imedical-ui-standards/ihos-seablue/res/布局-03标准查询页面/data.js)，`c50d8ca1-fdbf-46eb-9cfa-16cda157cacd` |
 
+### 标签与选择项的几何边界
+
+下表是两族对应构件的有效边界样本，供当前对象核对；普通标签与选择项文字是不同类别，不设覆盖全部 label 的统一间距。输入宽度仍按业务容器计算。
+
+| 对象与来源 | 构件定位 | 参数与适用范围 |
+|---|---|---|
+| 普通标签→输入框，[IHOS 控件-01](../../../vendor/imedical-ui-standards/ihos-seablue/res/控件-01按钮+表格+表单+其他控件/data.js) | 表单组 `e575fdc7-1112-4f57-b524-0e2abbffcceb` | 10px；标签右边界4451，输入左边界4461；200px输入宽仅本样本 |
+| 普通标签→输入框，[PURE 控件-01](../../../vendor/imedical-ui-standards/pure-controls/res/控件-01按钮+表格+表单+其他控件/data.js) | 下拉框组 `9c838ed6-a154-4847-b4ea-3e8fb9add19e` | 10px；标签右边界4421，输入左边界4431；244px输入宽仅本样本 |
+| 单选图形→选项文字，IHOS同画板 | 单选组 `6e6a49d4-43d8-4371-8e57-a43b224c4fff` | 5px；16px图形右边界5086，文字左边界5091 |
+| 单选图形→选项文字，PURE同画板 | 单选组 `6c05aa79-16fb-424a-825b-876340e384d7` | 5px；16px图形右边界5288，文字左边界5293；本样本为选中禁用态 |
+
+几何参数用于对应构件的适配核查；必填、默认选项及禁用语义仍按下文业务边界处理。
+
 ## 字体、输入及选择器
 
 来源：[PDF p14–15、p22–26（字体、输入框、选择器与框体）](source-catalog.md)。
@@ -78,12 +91,33 @@ MarkLion 样本：[PURE 控件-01按钮+表格+表单+其他控件](../../../ven
 | IHOS主要按钮76×32、圆角6、文字14 | [IHOS 控件-01](../../../vendor/imedical-ui-standards/ihos-seablue/res/控件-01按钮+表格+表单+其他控件/data.js)，`e135988f-9799-49dc-81c6-e588c398c167` | 支持共性结构，不要求再写一套控件 CSS |
 | 表单右侧辅助按钮默认/悬浮/禁用 | PURE同画板，`f88f33c0-8173-470a-bab5-f5cfd23f926a` | 仅该辅助按钮类别；不当作所有按钮的配色规则 |
 
+按钮描边必须随类别和状态判断，不能由一个默认按钮推到整套按钮：
+
+| 来源与构件 | 有效绘制参数 | 反例边界 |
+|---|---|---|
+| [IHOS 控件-01](../../../vendor/imedical-ui-standards/ihos-seablue/res/控件-01按钮+表格+表单+其他控件/data.js)，主按钮背景 `56187cac-ae4c-4c03-9ac8-a7543be0c6ac` | fillEnabled=true、strokeEnabled=false | 保存了 stroke 颜色仍不产生描边 |
+| [PURE 控件-01](../../../vendor/imedical-ui-standards/pure-controls/res/控件-01按钮+表格+表单+其他控件/data.js)，主按钮背景 `68696a32-54d7-44b9-a76d-4b9c8a1f4553` | fillEnabled=true、strokeEnabled=false | 不据此移除次按钮边框 |
+| IHOS同画板，次按钮背景 `c1e19006-8736-4498-81a8-8860e7ebb5fd` | fillEnabled=true、strokeEnabled=true | 对应次按钮变体，不推广为所有按钮加边框 |
+| PURE同画板，次按钮背景 `a6b915d0-f48d-4e54-9eb7-3121ef3a03d0` | fillEnabled=true、strokeEnabled=true | 当前变体与主按钮的描边不同 |
+
+### 通用次按钮与弹窗关闭按钮
+
+弹窗关闭是场景变体，不能仅凭“次按钮”角色把所有关闭按钮改成通用次按钮的底色或文字色。以下保留默认构件参数，运行时沿已有按钮类别和主题能力；不由颜色反向改变主次或 handler。
+
+| 场景与来源 | 构件节点 | 有效默认参数 | 分类／证据类型 |
+|---|---|---|---|
+| 通用次按钮，[PURE 控件-01](../../../vendor/imedical-ui-standards/pure-controls/res/控件-01按钮+表格+表单+其他控件/data.js) | `0bd2bf48-579c-4c56-aa27-28520e9a2bdc` | 背景#FFEDF6FF、文字#FF008FFF、描边#FFA5D5FF | 构件变体／构件几何 |
+| 弹窗关闭，[PURE 含按钮弹窗](<../../../vendor/imedical-ui-standards/pure-layouts/res/布局-07含按钮的弹窗页面(固定按钮组合）/data.js>) | `4c6ab7eb-b19c-42e4-bdee-802afe9ae910` | 背景#FFFFFFFF、文字#FF000000、描边#FFCCCCCC；描边启用1px | 构件变体／组合示例 |
+| 弹窗关闭，[IHOS 含按钮弹窗](<../../../vendor/imedical-ui-standards/ihos-seablue/res/布局-06含按钮的弹窗页面(固定按钮组合）/data.js>) | `18acb0c6-0be3-48ea-9006-0a682bc6630e` | 背景#FFFFFFFF、文字#FF000000、描边#FFCCCCCC；描边启用1px | 构件变体／组合示例 |
+
+两族关闭按钮样本一致，通用次按钮与关闭按钮仍不能合并成一个默认外观；其它状态和实际产品例外按其来源及业务需求核查。
+
 ## 图标及业务确认
 
 来源：[PDF p15–17（图标类型与操作交互）](source-catalog.md)。
 
 - 图标按功能语义从已有库选择。纯图标按钮**必须**有 Tooltip；与文字组合时仍需核对可见标签、禁用与焦点反馈。
-- 规范的面性图标用于面板/页签标题，线性图标用于行列操作或辅助动作；按对应类别使用，不能为省空间把所有操作都图标化。
+- 规范的面性图标用于面板/页签标题，线性图标用于行列操作或辅助动作；按对应类别使用，不能为省空间把所有操作都图标化。两族标题构件和树节点的对应证据见[面板与树的图标角色](layout-and-navigation.md#面板与树的图标角色)；图标角色共用，具体资源与状态沿当前主题，不靠类名前缀猜颜色。
 - 删除/关闭确认及“×”悬浮/选中红色属于原文要求。确认流程会改变操作链时先核对已有确认、未保存保护及业务要求，避免二次确认或静默新增拦截。
 - 不把设计示例中的按钮数量、动作名称或固定组合复制成业务能力。
 

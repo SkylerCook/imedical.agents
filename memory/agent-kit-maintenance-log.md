@@ -1,5 +1,12 @@
 # imedical.agents 维护日志
 
+## 2026-10-23 UI 规范提炼与需求经验回归
+
+- framework-maintenance，基点 ab39cb0，独立分支 codex/ui-framework-optimization；保留主工作区并行修改。改进有效图层与跨主题构件对照、前端 rule 唯一读取门禁、HISUI 参数组合、实施自检和明确授权的源仓隔离待审补丁模式；公开 collectUiMetrics 及生产样式不变。
+- owner 版本、发布草稿、共享授权指针、能力手册和定向测试同步。项目模板为消除旧逐项授权冲突追加 agent-context-kit 0.5.4 PATCH；主仓并行0.5.3随后提交为467cf3f，隔离工作树接续该基点，完整保留已提交改动及不可变发布记录，实施阶段未创建本任务提交或合并到主仓。
+- 11个匿名返工样本、实际测试、浏览器资源/状态及独立Agent使用结果统一见[验证记录](../maintenance/validation/ui-framework-optimization-2026-10-23.md)。第一轮未接入框架，不能认定为框架接入后漏执行；静态通过、实际使用和正式UI验收分开。
+- 实施阶段未提交、推送、发布、部署或更新业务工程；用户随后明确授权本次 c + p，仅提交本次改动并推送 Gitee origin/master，实际结果以 Git 回执为准。其它平台/更多宿主及接入后效果沿原 UI P2 队列继续，业务工程更新另行安排。
+
 ## 2026-10-23 项目规则路由落地与完成判定
 
 - 在同一未发布 agent-context-kit 0.5.3 PATCH 草稿中，按 writing-for-agents 收紧现有 `project-context-maintenance`：主 skill 集中维护入口定位、条件/读取时点、断链补齐、正文读取及代表场景走查，初始化/优化只引用该节，模板明确工程任务先读规则入口。未新增加载器、索引模板、配置项或客户端适配脚本。

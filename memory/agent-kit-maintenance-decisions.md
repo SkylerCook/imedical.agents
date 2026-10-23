@@ -192,3 +192,7 @@
 - 提交权限来自当前用户或项目明确约定；项目长期授权留项目入口/规则，仅当前任务的授权留现有任务记录。框架只提供路由与执行约束，不授予业务项目 commit、merge、push 或部署权限。模板更新保留已有项目入口，授权维护时才合并条件指针。
 
 - 夜跑能力不足时的单人实施采用[明确退出夜跑转普通受监督串行](../workflows/bos-demand-unattended.workflow.md#单-agent-降级)，不增加单人受管模式。原 run、独立工作区、预算/截止与未知资源的保留方式只在该契约维护；主/派生宿主停止效果与协议诊断分开取证。
+
+## UI 经验回归的源仓待审边界（2026-10-23）
+
+公司视觉规范、IRIS布局机制与HISUI API参数分别归各owner，来源范围和技术实现范围分别判断。自动待审补丁授权只按 [feedback skill](../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#写入授权与自动待审补丁)核对，入口不另写授权状态机；普通加载保持只读。源节点提炼和真实使用回归见[验证记录](../maintenance/validation/ui-framework-optimization-2026-10-23.md)，接入效果按后续真实任务取证。

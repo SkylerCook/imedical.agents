@@ -99,15 +99,62 @@ test("plugin discovery and optional UI routing preserve ownership and enabled bo
     for (const entry of [manifest.entry, "skills/iris-ui/SKILL.md", "skills/iris-ui-init/SKILL.md", "rules/iris_ui.md"]) {
         assert.ok(fs.existsSync(path.join(plugin, entry)), entry);
     }
-    const frontend = fs.readFileSync(path.join(repo, "plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md"), "utf8");
-    assert.match(frontend, /iris-ui/);
-    assert.match(frontend, /enabled/);
-    for (const trigger of ["操作图标", "按主题切换控件", "弹窗适配", "主题条件变更"]) {
-        assert.ok(frontend.includes(trigger), trigger);
-    }
-    assert.match(frontend, /普通前端任务及 `available`\/`disabled` 状态保持原流程/);
     const coding = JSON.parse(fs.readFileSync(path.join(repo, "plugins/coding-iris-plugin/.agents-plugin/plugin.json"), "utf8"));
-    assert.equal((coding.dependencies || []).includes("iris-ui"), false);
+    for (const name of ["iris-ui", "imedical-ui"]) {
+        assert.equal((coding.dependencies || []).includes(name), false, name + " remains optional to coding");
+        assert.equal(Object.hasOwn(coding.dependencyVersions || {}, name), false, name + " has no reverse required range");
+    }
+});
+
+test("frontend UI instruction gate covers rule-only review, both checkpoints and optional states", () => {
+    const coding = path.join(repo, "plugins/coding-iris-plugin");
+    const rule = fs.readFileSync(path.join(coding, "rules/iris_coding_frontend.md"), "utf8");
+    const gate = /^## UI 条件门禁\r?\n([\s\S]*?)(?=^## )/m.exec(rule)?.[1];
+    assert.ok(gate, "one authoritative frontend UI gate");
+    assert.match(gate, /只从本 rule 进入/);
+    assert.match(gate, /修改前与最终 diff 后各判断一次/);
+    assert.match(gate, /当前 Context/);
+    for (const trigger of ["标注/原型还原", "布局/滚动/尺寸", "操作图标", "按主题切换控件", "弹窗适配", "主题条件变更"]) {
+        assert.ok(gate.includes(trigger), trigger);
+    }
+    const rows = gate.split(/\r?\n/).filter(line => line.startsWith("|"));
+    const noSignal = rows.find(line => line.includes("无 UI 信号"));
+    const enabled = rows.find(line => line.includes("命中 UI 信号 |"));
+    const optional = rows.find(line => line.includes("profile 缺失"));
+    const incomplete = rows.find(line => line.includes("版本不兼容"));
+    assert.match(noSignal, /enabled.*不追加 UI 专项规则/);
+    assert.match(enabled, /enabled.*\.\.\/\.\.\/iris-ui\/rules\/iris_ui\.md.*manifest 依赖版本/);
+    for (const state of ["available", "disabled", "profile 缺失"]) assert.ok(optional.includes(state), state);
+    assert.match(optional, /不自动加载或启用.*不能.*已核对/);
+    assert.match(incomplete, /规则\/依赖缺失.*版本不兼容.*暂停.*已有更新流程.*保留显式禁用/);
+    assert.match(gate, /不自动切换完整 UI workflow/);
+    assert.match(gate, /imedical-ui\/references\/forms-and-actions\.md#图标及业务确认/);
+    assert.equal((rule.match(/^## UI 条件门禁$/gm) || []).length, 1);
+    for (const entry of ["skills/iris-frontend-coding/SKILL.md", "skills/iris-coding/SKILL.md",
+        "rules/iris_coding_index.md", "AGENTS.md", "README.md"]) {
+        const text = fs.readFileSync(path.join(coding, entry), "utf8");
+        assert.match(text, /iris_coding_frontend\.md#ui-条件门禁/, entry);
+        assert.equal(text.includes("UI 信号包括"), false, entry + " points to the owner instead of copying the gate");
+    }
+});
+
+test("enabled UI dependency contract rejects missing and incompatible providers", () => {
+    const manifest = JSON.parse(fs.readFileSync(path.join(plugin, ".agents-plugin/plugin.json"), "utf8"));
+    const { inRange } = require("../../.agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js");
+    const rule = fs.readFileSync(path.join(plugin, "rules/iris_ui.md"), "utf8");
+    assert.match(rule, /均为 enabled/);
+    assert.match(rule, /实际版本满足本插件 manifest/);
+    assert.match(rule, /缺失、available、disabled 或版本不兼容/);
+    for (const name of manifest.dependencies) {
+        const providerPath = path.join(repo, "plugins", name, ".agents-plugin/plugin.json");
+        assert.ok(fs.existsSync(providerPath), name);
+        const provider = JSON.parse(fs.readFileSync(providerPath, "utf8"));
+        const range = manifest.dependencyVersions[name];
+        assert.ok(inRange(provider.version, range.minVersion, range.maxVersionExclusive), name + " current version");
+        assert.ok(inRange(range.minVersion, range.minVersion, range.maxVersionExclusive), name + " lower boundary");
+        assert.equal(inRange(range.maxVersionExclusive, range.minVersion, range.maxVersionExclusive), false, name + " incompatible boundary");
+    }
+    // The gate is an Agent instruction contract, not an executable plugin auto-enabler.
 });
 
 test("UI implementation routes final theme review to one owner and reuses the task record", () => {
