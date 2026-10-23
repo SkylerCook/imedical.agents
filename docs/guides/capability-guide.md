@@ -89,7 +89,9 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 已有需求需要提交时使用 [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md)。用户连续验收多个需求时使用 [demand-acceptance](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md)。报告按[共享测试协议](../../agents/_shared/testing-protocol.md#结果与交接)分别统计人工补验与待用户验收结论，保留实际功能验证范围。处理报告固定包含本批全部需求号汇总（含基线已满足、无需新增代码项），状态分组另列；格式与完整性核对见 [编号汇总契约](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#编号汇总契约)。
 
-> 使用 demand-acceptance，我逐号报验收结论，通过后依次提交、补 BOS 日志并 push，报告整理不阻塞下一条。汇总时分别给人工通过和已交付编号，用能直接粘贴到 BOS 的单行逗号格式。
+> 使用 demand-acceptance，我逐号报验收结论：独立需求通过后交付；主子需求共享代码时，整组通过后主需求提交一次，各需求分别补日志，全部适用日志确认后共享 push 一次。明确无代码项登记原因并跳过代码阶段。汇总时分别给人工通过和已交付编号，用能直接粘贴到 BOS 的单行逗号格式。
+
+主子组的阻塞、共享回执和无代码阶段按[代码归属协议](../demand-code-ownership.md)处理，单个子项通过不提前提交共享代码，其它独立需求可继续；明确无代码也须人工验收，缺失或未知提交不作为无代码跳过。帮助请求只展示说明，沿[统一帮助协议](capability-help.md)结束，不进入交付。
 
 快捷登记人工通过推荐保留“编号＋标题”，先按编号定位再用标题复核；也支持纯编号列表 `/demand-acceptance --pass 123,124`。多行粘贴示例：
 

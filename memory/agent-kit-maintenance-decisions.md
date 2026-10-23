@@ -119,6 +119,8 @@
 
 ## 跨插件一致性
 
+- 需求的业务拆分、代码归属、共享日志与验收分流统一由[代码归属协议](../docs/demand-code-ownership.md)维护，BOS 与交付 owner 共用；旧草稿和批次保留原契约，不自动升级或产生写入授权。维护说明引用该协议，不再用逐号独立提交概括全部交付类型。
+
 - availableDependencies 是按阶段触发的文件/入口依赖，允许 available/enabled，显式 disabled 停止对应阶段；不进入强依赖递归、版本范围或自动启用。声明在 manifest，执行协议见 docs/plugin-availability.md。
 
 - 治疗表单生命周期必须区分新开发与现有模板改造：`expectedVersion=NEW` 的新开发表单直接创建正式模板，不使用灰度；已有模板默认版本化克隆，也可按明确授权绑定当前快照执行 `in-place-overwrite`。原 RowID 覆盖不创建灰度或调用 consolidate；克隆策略在验收后按引用拓扑通过 `consolidate` / `consolidate-shared` 收尾。`cleanup` 只处理已完成引用切换的零引用孤儿模板，不替代正式合并。

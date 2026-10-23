@@ -6,14 +6,8 @@
 
 - 客户端启动就绪、ACK/历史回读分级及温和退出已回归共享库，接口和验证见[生命周期修复记录](../maintenance/validation/night-client-lifecycle-2026-10-23.md)；业务副本未自动更新。夜跑退出与诊断优化已实施，具体差异及验证见[维护日志](agent-kit-maintenance-log.md#2026-10-23-夜跑退出与客户端诊断)；降级唯一契约归 workflow，真实宿主遵循与其它平台验证沿原夜跑治理队列继续。
 
-- 自有 skill（含 init、xc）和 Agent 的 `--help` / 查看用法从源定义首段进入[统一帮助协议](../docs/guides/capability-help.md)，展示后结束；新旧索引模板保持。分发、PS5.1/PS7 与宿主抽样边界见[本轮验证](../maintenance/validation/capability-help-2026-10-22.md)，业务副本仍按正常更新分别验收。
-
-- 主子需求与共享代码：业务拆分和代码归属按[共享协议](../docs/demand-code-ownership.md)，bos-plugin提供v4草稿/显式日志bindings，交付owner提供验收v2及主提交/push引用；旧数据不自动迁移。验证与服务端边界见[本轮记录](../maintenance/validation/demand-code-ownership-2026-10-22.md)。
-
-- demand-commit 的上游无交集更新由 Agent 复核后沿用已有提交授权接续，条件与次数集中于[同步复核协议](../plugins/demand-delivery-plugin/references/commit-upstream-check.md)；真实宿主与非本机矩阵证据沿既有 P2 需求交付队列取得。
-- 最近全局回看覆盖 `087511d..c7e828d`（2026-10-16–21，34 个提交），承接上一轮 `e964d0e..da28585`。范围、修正及验证见[日志覆盖点](agent-kit-maintenance-log.md#全局回看覆盖点)，不代表业务副本或跨平台已验收。
-- UI 分层：`imedical-ui` 提炼技术栈无关公司规范并评审截图/浏览器；`iris-ui` 负责 IRIS CSP＋HISUI，强依赖通用层和编码插件。跨主题共性的归类、主题条件核对和只读候选扫描见[本轮回归](../maintenance/validation/ui-cross-theme-2026-10-22.md)；局部验证的范围与停止条件归[共享测试协议](../agents/_shared/testing-protocol.md#验证范围与停止条件)，早期使用复盘见[维护记录](../maintenance/validation/ui-skill-usage-2026-10-22.md)；完整原件与可分发证据边界见[长期决策](agent-kit-maintenance-decisions.md#领域插件与项目资料边界)。
-- 真实夜跑/Goal 监督、业务部署与设备验收仍须独立取证。Windows 本地测试、CI 配置和源仓提交各有边界；当前 P0–P3 顺序及责任见[治理队列](agent-kit-maintenance-backlog.md#治理优先级与执行顺序)。
+- 最近全局回看覆盖 `c8c885b..58b852b`（2026-10-22，6 个提交），承接上一轮 34 个提交的全局审计。范围、发现及本轮验证见[日志覆盖点](agent-kit-maintenance-log.md#全局回看覆盖点)；版本查当前 manifest，逐功能历史证据按日志路由读取。
+- 真实夜跑/Goal 监督、业务部署、设备及其它宿主验证仍沿[治理队列](agent-kit-maintenance-backlog.md#治理优先级与执行顺序)取证。源码提交、本机测试和 CI 配置分别表达，不等同业务副本或跨平台已验收。
 
 ## 按任务读取
 
@@ -24,11 +18,12 @@
 | 修改插件或独立 skill、准备提交 | owner AGENTS/README/manifest 与[组件版本治理](../maintenance/governance/component-version-management.md)；校验暂存内容，功能证据按 scope 复用 |
 | 修改 Agent、workflow 或共享协议 | [Agent registry](../agents/agent-registry.md)、[workflow registry](../workflows/workflow-registry.md)、对应 AGENT/bindings 与共享协议；adapter 和 canonical 分开 |
 | 夜跑批次、预算、监督与恢复 | [治理顺序](../docs/night-governance.md)、[策略与兼容](../docs/night-policy.md)、[分层验收](../docs/night-acceptance.md)；先初筛/能力预检再详细 PLAN，旧 run 保留原契约 |
-| BOS 查询、处理、提需与交付 | 待办默认创建日期升序、其它日期 `--sort` / `--order` 见[排序口径](../plugins/bos-plugin/references/usage.md#日期排序口径)；默认开发待办，项目 `--proj` / 产品（非项目）`--dev` 见[来源口径](../plugins/bos-plugin/references/usage.md#项目与产品非项目来源口径)；个人开发待办 `--todo [日期或范围]` 与工作量 `--workload 日期或范围` 先读[查询口径](../plugins/bos-plugin/references/usage.md#个人待办与工作量口径)，列表/需求串见[输出格式](../plugins/bos-plugin/skills/bos-demand-query/SKILL.md#输出格式)；[BOS owner](../plugins/bos-plugin/README.md)、[交付 owner](../plugins/demand-delivery-plugin/README.md)；代码/工作/主题来源与明确验收调用授权按 skill，人工通过快捷参数及多行粘贴读 [接收结论](../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#接收结论)，[旧入口迁移](../docs/demand-delivery-migration.md) |
+| BOS 查询、处理、提需与交付 | 待办默认创建日期升序、其它日期 `--sort` / `--order` 见[排序口径](../plugins/bos-plugin/references/usage.md#日期排序口径)；默认开发待办，项目 `--proj` / 产品（非项目）`--dev` 见[来源口径](../plugins/bos-plugin/references/usage.md#项目与产品非项目来源口径)；个人开发待办 `--todo [日期或范围]` 与工作量 `--workload 日期或范围` 先读[查询口径](../plugins/bos-plugin/references/usage.md#个人待办与工作量口径)，列表/需求串见[输出格式](../plugins/bos-plugin/skills/bos-demand-query/SKILL.md#输出格式)；[BOS owner](../plugins/bos-plugin/README.md)、[交付 owner](../plugins/demand-delivery-plugin/README.md)；主子/无代码先读[代码归属](../docs/demand-code-ownership.md)，人工通过快捷参数及多行粘贴读 [接收结论](../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#接收结论)，提交漂移读[同步复核](../plugins/demand-delivery-plugin/references/commit-upstream-check.md)，[旧入口迁移](../docs/demand-delivery-migration.md)保留数据兼容 |
 | IRIS 编码、部署、MCP 或 HISUI | [编码 owner](../plugins/coding-iris-plugin/README.md)；按任务读 CLS/前端规范、UTF-8/legacy、direct/guarded、Atelier/SFTP、Storage；菜单定期采集读[无人值守协议](../plugins/coding-iris-plugin/references/menu-knowledge-sync.md#无人值守刷新)；升级资产再读各 vendor AGENTS/README |
-| 公司 UI、截图评审或 HISUI 标注/布局 | [通用 UI](../plugins/imedical-ui/README.md)、[IRIS 适配](../plugins/iris-ui/README.md)；原件更新读 [vendor 说明](../vendor/imedical-ui-standards/README.md)，接入核对强依赖和注册/profile |
+| 公司 UI、截图评审或 HISUI 标注/布局 | [通用 UI](../plugins/imedical-ui/README.md)、[IRIS 适配](../plugins/iris-ui/README.md)；按对象语义核对跨主题共性、兼容基准与候选扫描，接入查强依赖和注册/profile；原件更新读 [vendor 说明](../vendor/imedical-ui-standards/README.md) |
 | 项目上下文、技能适配或接续 | 目标项目 AGENTS 与 [project-context-maintenance](../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md)；[技能适配](../docs/coding-agent-adaptation.md)区分原生发现/目录链接，[task-handoff](../docs/task-handoff.md)用于显式交接 |
 | worktree 审阅、阶段恢复点、人工复验与报告 | [审阅交付](../docs/guides/worktree-review.md#阶段提交与恢复点)、[测试协议](../agents/_shared/testing-protocol.md)；阶段提交授权与剩余差异、固定基点、编号汇总、样本及验收分别核验；入口归通用编码规则与项目模板 |
+| 查看 skill / Agent 用法 | [统一帮助](../docs/guides/capability-help.md)覆盖自有 init、xc 与 Agent；先读当前源定义，仅展示说明后结束；vendor 沿上游契约 |
 | 查找能力、连接或共享知识 | [项目文档](../docs/README.md)；非 xc [目录](../docs/guides/capability-catalog.md)/[指南](../docs/guides/capability-guide.md)，xc 读 owner；[连接配置](../docs/guides/connection-configuration.md)、[知识接入](../docs/guides/imedical-knowledge.md)按需读取 |
 
 ## 维护与部署边界
