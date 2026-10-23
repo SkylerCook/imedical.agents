@@ -18,25 +18,99 @@ const descriptions = {
   sgroup: '发起组名称；作为额外条件，与个人所在的当前组 cgroup 独立，省略或空字符串表示不限发起组。',
   tgroup: '接受组',
   cgroup: '个人所在的当前组；省略时使用 BOS_CGROUP 或本机配置 cgroup，显式空字符串查询全部组。',
-  datetype: '创建时间、预计完成时间、执行时间、分配时间或操作时间；默认创建时间。',
-  date: '起始日期 YYYY-MM-DD；普通 list 模式必须明确提供，待办和 history 可自动生成。',
-  date2: '截止日期 YYYY-MM-DD；端点包含规则由上游决定，尚未验证。',
+  datetype: '创建时间、预计完成时间、执行时间、分配时间或操作时间；通用模式默认创建时间，todo/workload 按各自固定日期口径。',
+  date: '起始日期 YYYY-MM-DD；workload 必填执行日期，todo 可省略查全部，提供时按预计完成时间；通用模式按原日期规则。',
+  date2: '截止日期 YYYY-MM-DD；todo/workload 省略时等于 date，范围包含截止日；通用模式端点由上游决定。',
   product: '产品', mod: '产品模块'
 };
 const queryOptions = {
-  mode: { type: 'string', enum: ['list', 'pending', 'project-pending', 'history'], description: 'list 需明确日期；pending 为本人所在组待办；project-pending 另限来源为项目；history 为全部历史，不过滤待办状态。' },
+  mode: { type: 'string', enum: ['list', 'pending', 'project-pending', 'history', 'todo', 'workload'], description: 'todo 为本人开发待办，日期可省略，提供时按预计完成时间；workload 为本人工作量，必须提供执行日期。旧 pending/project-pending/history 保留原口径。' },
   timezone: { type: 'string', description: '默认日期截止日使用的 IANA 时区；默认 Asia/Shanghai，可按用户时区覆盖。' },
-  sort: { type: 'string', enum: ['创建时间', '预计完成时间'], description: '列表排序字段；默认创建时间，按日排序，同日需求号升序。' },
+  sort: { type: 'string', enum: ['创建时间', '预计完成时间', '执行时间'], description: '列表排序字段；默认创建时间，todo 默认预计完成时间，workload 默认执行时间；同日需求号升序。' },
   order: { type: 'string', enum: ['asc', 'desc'], description: '日期排序方向；默认 asc，缺失或无效日期置后。' }
 };
 const pendingExcludedStatuses = new Set(['完成', '取消', '已拆分']);
+const workExcludedStatuses = new Set(['取消', '已拆分', '回置']);
+const todoStatuses = new Set(['新建', '分配', '分配(开发)', '活动', '修正']);
+const handedOffStatuses = new Set(['测试分配', '组内测试', '测试完成', '更新完成', '挂起']);
 const tool = {
-  name: 'bos_demand_query', description: '只读查询 BOS 需求，支持发起人、接受人、当前人及对应组。待办默认当前人和个人所在组，显式空字符串可清除默认身份；列表统一排序并返回计数。按编号查询不受当前人限制；待办排除规则为暂行口径，不保证服务端无截断。',
+  name: 'bos_demand_query', description: '只读查询 BOS 需求。todo 为个人开发待办，日期可省略，提供时按预计完成时间；workload 按必填执行日期统计工作量。两者组合接受人/当前人/状态并单列未知组合。原人员/组列表、pending/history、编号详情及字段说明继续可用，不保证上游无截断。',
   inputSchema: { type: 'object', properties: { ...Object.fromEntries(Object.entries(descriptions).map(([key, description]) => [key, { type: 'string', description }])), body: { type: 'object', description: '上游可选对象，内部结构未声明；仅透传调用者明确提供的 JSON 对象。' }, ...queryOptions }, additionalProperties: false }
 };
 
 function validDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+}
+
+function nextDay(value) {
+  const date = new Date(`${value}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
+  const result = date.toISOString().slice(0, 10);
+  if (!validDate(result)) throw new Error('截止日期超出支持范围');
+  return result;
+}
+
+function localToday(timezone, now) {
+  try {
+    const parts = new Intl.DateTimeFormat('en', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
+    return ['year', 'month', 'day'].map(key => parts.find(item => item.type === key).value).join('-');
+  } catch { throw new Error('timezone 必须为有效 IANA 时区'); }
+}
+
+function preparePersonalQuery(input, defaultUser, now) {
+  const mode = input.mode;
+  const subject = (input.tuser ?? defaultUser ?? '').trim();
+  if (!subject || /^TODO$/i.test(subject)) throw new Error('个人待办/工作量需已配置的本人身份，或明确提供 tuser；不能使用 TODO');
+  const dated = Object.hasOwn(input, 'date') || Object.hasOwn(input, 'date2');
+  if (mode === 'workload' && !dated) throw new Error('workload 必须提供执行日期或日期范围');
+  const dateField = mode === 'workload' ? '执行时间' : '预计完成时间';
+  const timezone = input.timezone || 'Asia/Shanghai';
+  const today = localToday(timezone, now);
+  const date = input.date;
+  const end = input.date2 ?? date;
+  if (dated && (!validDate(date) || !validDate(end))) throw new Error('需提供有效 date 和 date2，格式 YYYY-MM-DD');
+  if (dated && end < date) throw new Error('截止日期不得早于起始日期');
+  const fixed = { cuser: mode === 'todo' ? subject : '', cgroup: '', datetype: dated ? dateField : '创建时间' };
+  for (const [key, value] of Object.entries(fixed)) {
+    if (Object.hasOwn(input, key) && input[key] !== value) throw new Error(`${mode} 的 ${key} 固定为 ${value || '空字符串'}；其它口径使用 list/history`);
+  }
+  const sort = input.sort || dateField;
+  const order = input.order || 'asc';
+  if (!queryOptions.sort.enum.includes(sort) || !queryOptions.order.enum.includes(order)) throw new Error('sort 或 order 无效');
+  const args = Object.fromEntries(fields.map(key => [key, input[key] ?? '']));
+  Object.assign(args, fixed, { tuser: subject, explain: '0', date: dated ? date : '1900-01-01', date2: nextDay(dated ? end : today) });
+  if (scopeFields.some(key => /^TODO$/i.test(args[key].trim()))) throw new Error('查询身份尚未配置；不能使用 TODO 查询');
+  if (Object.hasOwn(input, 'body')) args.body = input.body;
+  return { args, mode, subject, sort, order, timezone, pendingApplied: false,
+    personal: { dateField, range: dated ? { date, date2: end, inclusive: true } : null } };
+}
+
+function parsePersonalCli(argv) {
+  const mode = { '--todo': 'todo', '--workload': 'workload' }[argv[0]];
+  if (!mode) throw new Error('使用 --todo 或 --workload');
+  const values = argv.slice(1);
+  if (values.length > 2) throw new Error('日期参数过多；使用单日、起止两日或 YYYY-MM-DD~YYYY-MM-DD');
+  const dates = values.length === 1 ? values[0].split('~') : values;
+  if (dates.length > 2 || dates.some(value => !validDate(value))) throw new Error('日期格式应为 YYYY-MM-DD 或 YYYY-MM-DD~YYYY-MM-DD');
+  if (!dates.length && mode === 'workload') throw new Error('--workload 必须提供执行日期或日期范围');
+  if (dates.length === 2 && dates[1] < dates[0]) throw new Error('截止日期不得早于起始日期');
+  return { mode, ...(dates.length ? { date: dates[0], date2: dates[1] ?? dates[0] } : {}) };
+}
+
+function personalDecision(row, plan) {
+  const value = key => String(row[key] ?? '').trim();
+  const status = value('状态');
+  const receiver = value('接受人'), current = value('当前人');
+  if (!receiver || !current || !status) return 'unclassified';
+  if (receiver !== plan.subject) return 'other-receiver';
+  if (workExcludedStatuses.has(status)) return 'non-work';
+  const day = value(plan.personal.dateField).slice(0, 10);
+  const range = plan.personal.range;
+  if (range && (!validDate(day) || day < range.date || day > range.date2)) return 'outside-date';
+  if (status === '完成') return plan.mode === 'workload' ? 'include' : 'closed';
+  if (current === plan.subject && todoStatuses.has(status)) return plan.mode === 'todo' ? 'include' : 'still-owned';
+  if (current !== plan.subject && handedOffStatuses.has(status)) return plan.mode === 'workload' ? 'include' : 'handed-off';
+  return 'unclassified';
 }
 
 function prepareQuery(input, defaultUser = '', defaultGroup = '', now = new Date()) {
@@ -60,6 +134,7 @@ function prepareQuery(input, defaultUser = '', defaultGroup = '', now = new Date
     for (const key of Object.keys(descriptions)) if (Object.hasOwn(input, key)) args[key] = input[key];
     return { args, mode: 'explain' };
   }
+  if (input.mode === 'todo' || input.mode === 'workload') return preparePersonalQuery(input, defaultUser, now);
   const mode = input.mode || 'list';
   const sort = input.sort || '创建时间';
   const order = input.order || 'asc';
@@ -78,12 +153,7 @@ function prepareQuery(input, defaultUser = '', defaultGroup = '', now = new Date
     args.source = '项目';
   }
   const timezone = input.timezone || 'Asia/Shanghai';
-  let today;
-  try {
-    const parts = new Intl.DateTimeFormat('en', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
-    const part = name => parts.find(item => item.type === name).value;
-    today = `${part('year')}-${part('month')}-${part('day')}`;
-  } catch { throw new Error('timezone 必须为有效 IANA 时区'); }
+  const today = localToday(timezone, now);
   if (mode !== 'list' && !Object.hasOwn(input, 'date') && !Object.hasOwn(input, 'date2')) {
     if (input.datetype && input.datetype !== '创建时间') throw new Error('非创建时间查询需明确 date 和 date2');
     args.date = '1900-01-01';
@@ -117,7 +187,16 @@ function processList(result, plan) {
   const { data, index } = lists[0];
   if (data.data.some(row => !row || typeof row !== 'object' || Array.isArray(row))) throw new Error('BOS 列表行结构无效');
   const returnedCount = data.data.length;
-  const rows = data.data.filter(row => !plan.pendingApplied || !pendingExcludedStatuses.has(String(row['状态'] ?? '').trim()));
+  const reasons = {};
+  const unclassified = [];
+  const rows = data.data.filter(row => {
+    if (!plan.personal) return !plan.pendingApplied || !pendingExcludedStatuses.has(String(row['状态'] ?? '').trim());
+    const reason = personalDecision(row, plan);
+    if (reason === 'include') return true;
+    reasons[reason] = (reasons[reason] || 0) + 1;
+    if (reason === 'unclassified') unclassified.push(row);
+    return false;
+  });
   const sortDate = row => {
     const value = typeof row[plan.sort] === 'string' ? row[plan.sort].trim().slice(0, 10) : '';
     return validDate(value) ? value : '';
@@ -148,6 +227,10 @@ function processList(result, plan) {
         pendingApplied: plan.pendingApplied, provisionalPendingRule: !!plan.pendingApplied,
         excludedStatuses: plan.pendingApplied ? [...pendingExcludedStatuses] : [], statuses: Object.fromEntries(statuses),
         missingSortDateCount: rows.filter(row => !sortDate(row)).length,
+        ...(plan.personal ? { personal: { subject: plan.subject, ...plan.personal, excludedReasons: reasons,
+          unclassifiedCount: unclassified.length, unclassified,
+          basis: plan.mode === 'todo' ? `接受人和当前人均为本人，状态为${[...todoStatuses].join('/')}` : '接受人为本人，有期间执行记录，已完成或已流转他人；取消/已拆分/回置排除',
+          dateBoundary: '向上游请求至截止日次日，再按原字段日期核对包含首尾两日；上游端点与截断仍待核对' } } : {}),
         completeness: '上游分页和总量限制未知；返回数不保证覆盖全部历史'
       }
     }
@@ -317,8 +400,10 @@ async function serve(config, env = process.env, input = process.stdin, output = 
 function initConfig(filePath, options) { return personal.initialize(filePath, options); }
 
 async function main() {
-  const [command = 'serve', json] = process.argv.slice(2);
-  if (command === '--help') { console.log('node bos-demand-query.js serve|check|defaults|query <JSON>|init-config [absolute-private-path]|migrate-config <existing-private-path>\nBOS_MCP_CONFIG: shared private JSON with bos-demand-query and bos-code-update-log sections. Only the selected skill section is read. migrate-config converts the old flat query file in place. Node >=22.5.0.'); return; }
+  const argv = process.argv.slice(2);
+  const [command = 'serve', json] = argv;
+  if (argv.includes('--help')) { console.log('node bos-demand-query.js --todo [YYYY-MM-DD [YYYY-MM-DD] | YYYY-MM-DD~YYYY-MM-DD]\nnode bos-demand-query.js --workload YYYY-MM-DD [YYYY-MM-DD] | YYYY-MM-DD~YYYY-MM-DD\n--todo: personal development todos, optional due dates; --workload: personal workload, required execution dates. Both ends inclusive.\nnode bos-demand-query.js serve|check|defaults|query <JSON>|init-config [absolute-private-path]|migrate-config <existing-private-path>\nBOS_MCP_CONFIG: shared private JSON with bos-demand-query and bos-code-update-log sections. Only the selected skill section is read. migrate-config converts the old flat query file in place. Node >=22.5.0.'); return; }
+  const personalInput = command === '--todo' || command === '--workload' ? parsePersonalCli(argv) : null;
   const [major, minor] = process.versions.node.split('.').map(Number);
   if (major < 22 || (major === 22 && minor < 5)) throw new Error('需要 Node.js >=22.5.0（Agent 工具链运行时）');
   if (command === 'init-config') { console.log(JSON.stringify(initConfig(json))); return; }
@@ -341,14 +426,14 @@ async function main() {
       throw new Error('未发现 BOS 查询工具');
     });
     console.log(JSON.stringify(result));
-  } else if (command === 'query') {
+  } else if (command === 'query' || personalInput) {
     let args;
-    try { args = JSON.parse(json); } catch { throw new Error('query 需要合法 JSON 参数'); }
+    try { args = personalInput || JSON.parse(json); } catch { throw new Error('query 需要合法 JSON 参数'); }
     const result = await query(config, args, process.env.BOS_CUSER || config.cuser);
     console.log(JSON.stringify(result));
     if (result.isError) process.exitCode = 1;
   } else throw new Error('未知命令；使用 --help');
 }
 
-module.exports = { main, initConfig, queryArguments, loadConfig, withClient, query, serve, tool };
+module.exports = { main, initConfig, queryArguments, parsePersonalCli, loadConfig, withClient, query, serve, tool };
 if (require.main === module) main().catch(error => { console.error(error.message); process.exitCode = 1; });

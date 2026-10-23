@@ -17,7 +17,7 @@ BOS 能力独立于技术栈。目录存在仅表示 available；项目使用前
 ## 路由
 
 - 从 Git 补录、根据主题及资料向本组/其他组提需，或显式 --work 整理工作记录，生成标版文本/Excel并回填编号（`--split` 审查拆分，`--split --excel` 拆分并导出）：[bos-demand-entry](skills/bos-demand-entry/SKILL.md)。主题提需无需 Git，不自动发送或指派。
-- 按发起人、接受人、当前人及对应组只读查询需求列表、详情、图片及附件元数据：[bos-demand-query](skills/bos-demand-query/SKILL.md)。
+- 个人开发待办 `bos-demand-query --todo [日期或范围]`、工作量 `--workload 日期或范围`，或按人员/组查询列表及编号详情：[bos-demand-query](skills/bos-demand-query/SKILL.md)。人员流转、状态组合和日期口径归[查询协议](references/usage.md#个人待办与工作量口径)，workload 必须给执行日期；只读并展示实际口径。
 - 已有需求号或正文，需要调查、实施、验证，以及提交后的日志衔接：[bos-demand-handle](skills/bos-demand-handle/SKILL.md)。
 - `$bos-demand-handle --night` 或明确自然语言夜跑：经同一技能进入共享夜跑 workflow，由 Agent 准备批次资料；参数仅选择流程，沿用既有授权。
 - 已有本地提交补录为 BOS 代码更新日志：[bos-code-update-log](skills/bos-code-update-log/SKILL.md)。

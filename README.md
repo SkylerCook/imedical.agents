@@ -258,7 +258,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 提供跨技术栈的 BOS 只读查询与已有需求处理，无 IRIS 插件强依赖：
 
 - [bos-init](plugins/bos-plugin/skills/bos-init/SKILL.md)：个人配置初始化与项目接入分别执行；Windows 可生成仓外私有配置并绑定用户环境变量，用户填写 TODO。项目接入才启用插件并生成四个日常入口。
-- [bos-demand-query](plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：按发起人、接受人、当前人或对应组查询待办、历史及编号详情，区分正文、描述图片和附件；个人默认值、显式清除与 0.6.0 调用迁移见[查询参数契约](plugins/bos-plugin/references/usage.md#查询参数契约)，不写回 BOS。
+- [bos-demand-query](plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：`--todo [日期或范围]` 查个人开发待办（可不带日期，带日期按预计完成时间），`--workload 日期或范围` 查工作量（执行日期必填）；人员流转及状态组合见[个人查询口径](plugins/bos-plugin/references/usage.md#个人待办与工作量口径)。原人员/组、历史与编号详情查询继续可用；默认列表必含需求号/标题，末尾默认追加发起人/发起组，可指定其它列或“只要需求串”，见[输出格式](plugins/bos-plugin/skills/bos-demand-query/SKILL.md#输出格式)。区分正文、图片和附件，不写回 BOS。
 - [bos-demand-entry](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md)：从 Git、主题及资料或工作记录生成标版文本/Excel；支持给其他组提需，回填编号后仅代码按需衔接提交；结合上下文判断完成状态，已完成条目追加备注；无需查询凭据。
 - [主子需求与代码归属](docs/demand-code-ownership.md)：业务按验收拆分，共享代码唯一归主需求，主子日志复用真实提交；明确无代码可跳过对应阶段。
 - [bos-code-update-log](plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)：从已有 Git 提交生成预览，并按明确授权补录 BOS 代码更新日志；独立凭据与需求查询共用私有文件。
