@@ -4,6 +4,7 @@ const { validateClientAdapter } = require('./night-client');
 const { assessQuota, sanitizeQuotaSnapshot } = require('./night-quota');
 const orchestration = require('../agent-orchestrator');
 const { gateNight } = require('./night-dispatch');
+const { diagnosticFields, appendDiagnostics } = require('./night-client-diagnostics');
 const physical = value => fs.realpathSync.native(path.resolve(value));
 const same = (a, b) => process.platform === 'win32' ? physical(a).toLowerCase() === physical(b).toLowerCase() : physical(a) === physical(b);
 const positive = value => Number.isSafeInteger(value) && value > 0;
@@ -50,7 +51,7 @@ function createNightSupervisor({ runDirectory, adapter, recordNight = orchestrat
             if (!validStatus(action, existing)) await bounded(() => adapter.restoreEndpoint(structuredClone(receipt)));
             restored.add(action.id);
           } catch (error) {
-            errors.push({ actionId: action.id, endpointId: action.result.endpointId, category: ['client-restore-capability-missing', 'persisted-launch-receipt-incomplete', 'persisted-goal-readback-unverified'].includes(error.code) ? error.code : 'endpoint-restore-unverified' });
+            errors.push({ actionId: action.id, endpointId: action.result.endpointId, category: ['client-restore-capability-missing', 'persisted-launch-receipt-incomplete', 'persisted-goal-readback-unverified'].includes(error.code) ? error.code : 'endpoint-restore-unverified', ...diagnosticFields(error, 'restore') });
           }
         }
         return { restoredActionIds: [...restored], errors };
@@ -68,19 +69,19 @@ function createNightSupervisor({ runDirectory, adapter, recordNight = orchestrat
         if (busy) fail('supervisor-operation-in-flight'); busy = true;
         try {
             let manifest = read(); const restoration = await restore(manifest);
-            const observations = [], active = bindings(manifest).filter(action => restored.has(action.id)), quotaSamples = []; let observationUnknown = restoration.errors.length > 0;
+            const diagnostics = [], observations = [], active = bindings(manifest).filter(action => restored.has(action.id)), quotaSamples = []; let observationUnknown = restoration.errors.length > 0;
             for (const action of active) {
-                let state, usage;
-                try { state = await bounded(() => adapter.status({ actionId: action.id })); } catch { observationUnknown = true; }
-                try { usage = await bounded(() => adapter.usage({ actionId: action.id })); } catch { observationUnknown = true; }
+                let state, usage; const diagnostics = [];
+                try { state = await bounded(() => adapter.status({ actionId: action.id })); } catch (error) { observationUnknown = true; appendDiagnostics(diagnostics, error, 'status'); }
+                try { usage = await bounded(() => adapter.usage({ actionId: action.id })); } catch (error) { observationUnknown = true; appendDiagnostics(diagnostics, error, 'usage'); }
                 if (!validStatus(action, state)) { state = null; observationUnknown = true; }
                 const totalTokens = tokens(usage), goalReadbackVerified = goalValid(action, usage);
                 if (totalTokens === null || !goalReadbackVerified) observationUnknown = true;
                 if (usage?.snapshot) quotaSamples.push(sanitizeQuotaSnapshot(usage.snapshot));
-                observations.push({ action, state, usage, totalTokens, goalReadbackVerified });
+                observations.push({ action, state, usage, totalTokens, goalReadbackVerified, diagnostics });
             }
             if (!active.length) {
-                try { const usage = await bounded(() => adapter.usage()); if (usage?.snapshot) quotaSamples.push(sanitizeQuotaSnapshot(usage.snapshot)); else observationUnknown = true; } catch { observationUnknown = true; }
+                try { const usage = await bounded(() => adapter.usage()); if (usage?.snapshot) quotaSamples.push(sanitizeQuotaSnapshot(usage.snapshot)); else observationUnknown = true; } catch (error) { observationUnknown = true; appendDiagnostics(diagnostics, error, 'usage'); }
             }
             if (!quotaSamples.length) observationUnknown = true;
             for (const snapshot of quotaSamples) {
@@ -100,7 +101,7 @@ function createNightSupervisor({ runDirectory, adapter, recordNight = orchestrat
             const deadline = Date.parse(manifest.night.limits.stopAt), stopBatch = observationUnknown || ['unknown', 'closeout'].includes(quota.mode) || !Number.isFinite(deadline) || now() >= deadline || remainingTokens === null || remainingTokens === 0;
             const outputs = [];
             for (const observation of observations) {
-                const { action, state } = observation, item = manifest.workItems.find(work => work.id === action.workItemId);
+                const { action, state, diagnostics } = observation, item = manifest.workItems.find(work => work.id === action.workItemId);
                 let decision;
                 try { decision = gate(manifest, item, now()); } catch { decision = { allowed: false, reasons: ['gate-observation-unknown'] }; }
                 const reasons = [...(decision.reasons || [])], ownDeadline = Date.parse(action.result.host.deadlineAt);
@@ -110,15 +111,15 @@ function createNightSupervisor({ runDirectory, adapter, recordNight = orchestrat
                 const mustStop = (!terminal(state) || goalActiveOrUnknown) && (stopBatch || action.status === 'cancelled' || action.completionResult?.status === 'succeeded' || goalExhausted || !Number.isFinite(ownDeadline) || now() >= ownDeadline || !decision.allowed && !drainOnly);
                 let stop, after = state;
                 if (mustStop) {
-                    try { stop = await bounded(() => adapter.stop({ actionId: action.id, reason: stopBatch ? 'batch-closeout-or-unknown' : 'work-gate-or-deadline' })); } catch { stop = null; }
-                    try { const actual = await bounded(() => adapter.status({ actionId: action.id })); after = validStatus(action, actual) ? actual : null; } catch { after = null; }
+                    try { stop = await bounded(() => adapter.stop({ actionId: action.id, reason: stopBatch ? 'batch-closeout-or-unknown' : 'work-gate-or-deadline' })); appendDiagnostics(diagnostics, stop, 'stop'); } catch (error) { stop = null; appendDiagnostics(diagnostics, error, 'stop'); }
+                    try { const actual = await bounded(() => adapter.status({ actionId: action.id })); after = validStatus(action, actual) ? actual : null; } catch (error) { after = null; appendDiagnostics(diagnostics, error, 'status'); }
                 }
                 const stoppedVerified = terminal(after) && (action.result.host.budget?.configured !== true || stop?.goalPaused === true || observation.goalReadbackVerified && ['paused', 'complete', 'budgetLimited', 'usageLimited', 'blocked'].includes(observation.usage?.goal?.status));
-                const output = { actionId: action.id, endpointId: action.result.endpointId, observedAt: new Date(now()).toISOString(), turnStatus: after?.turnStatus || 'unknown', stopRequested: mustStop, interruptAcknowledged: stop?.interruptRequested === true, stoppedVerified,
-                    processCleanupVerified: stoppedVerified && stop?.processCleanupVerified === true, resourceCleanupVerified: stoppedVerified && stop?.resourceCleanupVerified === true };
+                const output = { actionId: action.id, endpointId: action.result.endpointId, observedAt: new Date(now()).toISOString(), turnStatus: after?.turnStatus || 'unknown', stopRequested: mustStop, interruptAcknowledged: stop?.interruptAcknowledged === true, stoppedVerified,
+                    processCleanupVerified: stoppedVerified && stop?.processCleanupVerified === true, resourceCleanupVerified: stoppedVerified && stop?.resourceCleanupVerified === true, ...(diagnostics.length ? { diagnostics } : {}) };
                 const evidenceRef = save({ schema: 'night-client-status-observation/v1', ...output }); outputs.push({ ...output, evidenceRef });
             }
-            return { schema: 'night-client-supervision/v1', mode: stopBatch ? 'closeout' : quota.mode, quota, observationUnknown, remainingTokens, observedManagedTokens: used ?? null, governanceReserve: governance, totalCostKnown: manifest.night.usage?.unobservedGovernance !== true, stopClaiming: stopBatch || quota.mode === 'drain', endpoints: outputs, unresolvedEndpoints: restoration.errors };
+            return { schema: 'night-client-supervision/v1', mode: stopBatch ? 'closeout' : quota.mode, quota, observationUnknown, remainingTokens, observedManagedTokens: used ?? null, governanceReserve: governance, totalCostKnown: manifest.night.usage?.unobservedGovernance !== true, stopClaiming: stopBatch || quota.mode === 'drain', endpoints: outputs, unresolvedEndpoints: restoration.errors, ...(diagnostics.length ? { diagnostics } : {}) };
         } finally { busy = false; }
     }
     async function beforeLaunch(request) {
@@ -182,6 +183,7 @@ function clientReceipt(value, actionId, contextHash) {
             if (typeof host.budget.threadId === 'string') receipt.host.budget.threadId = host.budget.threadId;
         }
     }
+    Object.assign(receipt, diagnosticFields(value, 'launch'));
     if (value?.error) receipt.error = 'host-launch-unverified';
     return receipt;
 }
@@ -208,7 +210,7 @@ function createManagedNightClient(options) {
         attempted.add(request.actionId);
         // A lost reservation ACK remains unknown; never start or replay through it.
         await recordNight(runDirectory, { kind: 'client-reserve', reservation, rationale: 'Reserve approved action tokens before host mutation', evidenceRefs: [reservationFile] }, manifest.coordinatorId);
-        let receipt, launchPersisted = false, failure;
+        let receipt, launchPersisted = false, failure; const diagnostics = [];
         try {
             const actual = await adapter.startOrResume(request);
             receipt = clientReceipt(actual, request.actionId, request.context.sha256);
@@ -223,16 +225,18 @@ function createManagedNightClient(options) {
             if (receipt.status !== 'succeeded') fail('managed-host-launch-unverified');
             await consumeActionResult(runDirectory, receipt, false);
             return { ...receipt, managed: { reservationFile, launchReceiptFile, launchPersisted: true, actionResultConsumed: true } };
-        } catch (error) { failure = error.code || 'managed-launch-persistence-or-host-unknown'; }
+        } catch (error) { failure = error.code || 'managed-launch-persistence-or-host-unknown'; appendDiagnostics(diagnostics, error, 'launch'); }
         receipt ||= clientReceipt(null, request.actionId, request.context.sha256);
+        appendDiagnostics(diagnostics, receipt, 'launch');
         receipt = { ...receipt, status: 'blocked', error: 'managed-launch-unverified', host: { ...receipt.host, executionUnknown: true } };
         let stop, state;
         // Stop first; persistence recovery must not keep an uncertain host running.
-        try { stop = await adapter.stop({ actionId: request.actionId, reason: 'managed-launch-unverified' }); } catch { /* Preserve unknown host ownership. */ }
-        try { state = await adapter.status({ actionId: request.actionId }); } catch { /* An ACK is not terminal proof. */ }
+        try { stop = await adapter.stop({ actionId: request.actionId, reason: 'managed-launch-unverified' }); appendDiagnostics(diagnostics, stop, 'recovery-stop'); } catch (error) { appendDiagnostics(diagnostics, error, 'recovery-stop'); }
+        try { state = await adapter.status({ actionId: request.actionId }); } catch (error) { appendDiagnostics(diagnostics, error, 'recovery-status'); }
+        if (diagnostics.length) receipt.diagnostics = diagnostics;
         const identity = state?.actionId === request.actionId && state.endpointId === receipt.endpointId;
         const recovery = { schema: 'night-client-launch-recovery/v1', receipt, reservationFile, launchReceiptFile, launchPersisted, failureCategory: ['managed-launch-identity-mismatch', 'managed-launch-host-binding-missing', 'managed-native-goal-readback-mismatch', 'managed-unrequested-goal', 'managed-receipt-readback-failed'].includes(failure) ? failure : 'managed-launch-persistence-or-host-unknown',
-            stopRequested: true, interruptAcknowledged: stop?.interruptRequested === true, stoppedVerified: identity && terminal(state) && (!request.nativeGoal || stop?.goalPaused === true), processCleanupVerified: false, resourceCleanupVerified: false };
+            stopRequested: true, interruptAcknowledged: stop?.interruptAcknowledged === true, stoppedVerified: identity && terminal(state) && (!request.nativeGoal || stop?.goalPaused === true), processCleanupVerified: false, resourceCleanupVerified: false, ...(diagnostics.length ? { diagnostics } : {}) };
         let recoveryFile;
         try { recoveryFile = path.join(parent, `client-recovery-${key}.json`); await write(recoveryFile, recovery); } catch { recoveryFile = null; }
         recoveries.set(request.actionId, structuredClone(recovery));

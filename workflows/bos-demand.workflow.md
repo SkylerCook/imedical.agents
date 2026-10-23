@@ -38,6 +38,8 @@
 
 简单需求默认 serial。仅需正式任务图、并行写入、持续通信或跨会话协作时，加载 [standard-change](standard-change.workflow.md) 和 [协作协议](../agents/_shared/orchestration-protocol.md)，由 Coordinator 唯一维护 run；正式 IRIS 协作复用 iris-change。只有存在独立范围、实际收益且用户及宿主允许时使用临时只读子 Agent，这类短时协助不创建正式 run。
 
+能力不足需转单人实施时，按[退出夜跑转受监督串行](bos-demand-unattended.workflow.md#单-agent-降级)先确认范围并核实独立工作区；普通串行复用该转换留下的约束与源码映射。
+
 并行写入使用隔离 worktree 和互斥 scope，协作计划与外部动作分别授权。无 subagent、adapter、skill 或无法解析 YAML 时读取 Markdown 串行执行；必要人工动作通过 human 交接。失败先核实结果再重试，不重复执行已确认动作。
 
 仅用户明确要求交接时调用 [task-handoff](../plugins/agent-context-kit/skills/task-handoff/SKILL.md)；插件未启用时报告接入缺口。已有正式 run 只引用，不复制状态。普通需求不自动创建档案、阶段报告或保存 BOS 原始返回。

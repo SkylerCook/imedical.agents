@@ -40,3 +40,13 @@ test('night route is discoverable without inventing a BOS executable command', (
     for (const file of ['AGENTS.md', 'README.md']) assert.match(read(path.join(plugin, file)), /\$bos-demand-handle --night/);
     assert.match(read(path.join(plugin, 'skills/bos-demand-handle/SKILL.md')), /不是交给 BOS 查询脚本的 CLI 参数/);
 });
+
+test('supervised serial exit keeps isolation and prior limits without weakening managed night gates', () => {
+    const night = read(path.join(root, 'workflows/bos-demand-unattended.workflow.md'));
+    const fallback = night.slice(night.indexOf('## 单 Agent 降级'));
+    for (const text of ['退出夜跑', '用户确认', '独立 worktree', '固定基点', '预算基线', '三截止', '未知端点', '不自动回到原工作区', 'task-handoff', '不承诺自动唤醒', '自审', 'nightRunReference']) assert.ok(fallback.includes(text), text);
+    for (const file of ['skills/bos-demand-handle/SKILL.md', 'README.md', 'AGENTS.md', 'references/scenarios.md']) assert.ok(read(path.join(plugin, file)).includes('#单-agent-降级'), file);
+    // The documented exit does not relax the original managed execution validator.
+    assert.match(read(path.join(root, 'scripts/lib/night-plan.js')), /at least two developers required/);
+    assert.match(read(path.join(root, 'scripts/lib/night-dispatch.js')), /Execution PLAN requires a verified concurrent adapter/);
+});

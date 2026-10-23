@@ -2,6 +2,8 @@
 
 本协议在既有 schema 2.1 batch/plan/run 上显式启用 `executionPlan.version:1`，与 [收敛门禁](night-policy.md) 和 [验收运行时](night-acceptance.md) 共用事件、授权、计时与回执。旧 run 不补字段、不迁移问题或清零计数。源码、合成测试通过不代表真实宿主或业务工程已接入。
 
+受管能力不足时按[退出夜跑转受监督串行](../workflows/bos-demand-unattended.workflow.md#单-agent-降级)处理；该转换与本协议的双 Developer 受管执行分开，保留失败及退出未知证据。
+
 ## 事前形成可执行计划
 
 先按已有授权保存本批用量与计时基线，将初筛、探针与规划全部计成本；缺授权集中申请。初筛需求并声明所需能力后，运行不依赖 run 的能力预检，之后才编制详细评级、测试、预算和 PLAN：
@@ -112,6 +114,8 @@ case 只清理页面、监听器等自身运行资源；数据按已批准的处
 受管宿主消费者使用 `night-client-supervisor.createManagedNightClient`：启动前真实 gate、原 run 锁内 `client-reserve` 原子分配、实际启动回执落盘读回、结构化 ACK，失败先停止并保留未知归属。`tick()` 读取真实端点状态/用量并写回原事件；额度未知或耗尽时请求停止，drain 只停止领新。调用方须维持监督进程并保存断点；无 Goal 时还需新鲜 watcher 回执、真实 PID 和控制通道 challenge，仅 JSON 自称 active 不能通过。进程丢失后的恢复不承诺在途请求已经停止。原始 host adapter 只供受管消费者实现使用，不作为跳过门禁的夜跑入口。
 
 实际入口为 `node .agents/scripts/night-client-worker.js --run-directory <run> --host codex`。保持 stdin 控制通道打开，每行传 `{id,operation:"startOrResume",request:<已批准 action 的启动参数>}`，也支持 `observe` 与 `stop`；它不选择工作或自行新增会话。worker 默认每 5 秒读取用量、门禁和实际状态，将断点写回 run 的受保护证据。EOF、取消和额度/截止收尾只停止本批端点；超过 30 秒仍未知则保留未退出证据，不标清理成功。单 run 的 PID 租约防止双监督，旧 PID 已消失才恢复；恢复端点重新挂原截止计时器，无法回读则禁止新启动。
+
+客户端错误回执可带 `diagnostics` 数组，字段为 `provider/category/method/rpcCode/stage`；未知值保持 unknown/null，旧回执无需补字段。RPC 通过请求 ID 关联方法，拒绝、超时、传输退出及无效响应分别分类；仅保存允许的方法和类别，不保存请求参数、凭据或服务端错误正文，不据此自动重试或推断已停止。
 
 新模板 `clientSupervision.required:true` 的启动 ACK 同时要求预算预留、实际回执和存活监督进程；仅构造成功 JSON 无法放行。旧计划不补字段，正常更新取得新脚本后，对新批次使用新模板及 CLI，不能将旧运行器视为已接入。宿主实际 Goal、停止效果和业务部署仍须真实项目单独取证。
 

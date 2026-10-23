@@ -18,7 +18,7 @@ function fixture(t, { used = 20, endpoints = 1, nativeGoal = true } = {}) {
         restoreEndpoint: async value => { calls.push(['restore', structuredClone(value)]); bound.add(value.actionId); },
         status: async ({ actionId }) => { calls.push(['status', actionId]); if (!bound.has(actionId)) throw Error('not restored'); return status(actionId); },
         usage: async input => { calls.push(['usage', input?.actionId || 'account']); if (state.unknown) throw Error('private credential failure'); return { snapshot: snapshot(), threadTokens: { total: { totalTokens: state.total } }, goal: input && nativeGoal ? { threadId: `endpoint-${input.actionId}`, tokenBudget: state.budget, tokensUsed: state.goalTokens, status: state.goalStatus } : null }; },
-        stop: async ({ actionId }) => { calls.push(['stop', actionId]); state.goalStatus = 'paused'; if (state.stopTerminal) state.turnStatus = 'interrupted'; return { actionId, interruptRequested: true, stopped: false, goalPaused: true, processCleanupVerified: false, resourceCleanupVerified: false }; }
+        stop: async ({ actionId }) => { calls.push(['stop', actionId]); state.goalStatus = 'paused'; if (state.stopTerminal) state.turnStatus = 'interrupted'; return { actionId, interruptRequested: true, interruptAcknowledged: true, stopped: false, goalPaused: true, processCleanupVerified: false, resourceCleanupVerified: false }; }
     };
     const recordNight = (_, input) => {
         files.push(...input.evidenceRefs); calls.push(['record', input.kind]);
@@ -166,4 +166,51 @@ test('failed launch receipt persistence stops the host and preserves reservation
 });
 test('supervisor accepts a verified native Goal continuation turn while fixed one-turn tasks retain their original turn binding', async t => {
     for (const nativeGoal of [true, false]) { const f = fixture(t, { nativeGoal }); await f.supervisor.restore(); const old = f.options.adapter.status; f.options.adapter.status = async input => ({ ...await old(input), turnId: 'continuation-turn' }); const result = await f.supervisor.tick(); assert.equal(result.observationUnknown, !nativeGoal); assert.equal(result.endpoints[0].stopRequested, !nativeGoal); }
+});
+
+test('RPC observation errors survive the persisted supervisor receipt without becoming terminal proof', async t => {
+    const { rpcError } = require('../lib/night-client-diagnostics');
+    const f = fixture(t); await f.supervisor.tick();
+    f.options.adapter.status = async () => { throw rpcError('rpc-rejected', 'thread/read', -32603); };
+    const result = await f.supervisor.tick(), endpoint = result.endpoints[0];
+    assert.equal(result.observationUnknown, true); assert.equal(endpoint.stoppedVerified, false);
+    assert.equal(endpoint.diagnostics[0].method, 'thread/read');
+    assert.deepEqual(JSON.parse(fs.readFileSync(endpoint.evidenceRef)).diagnostics, endpoint.diagnostics);
+});
+
+test('failed managed launches retain RPC diagnostics in durable recovery and do not relaunch', async t => {
+    const { rpcError } = require('../lib/night-client-diagnostics');
+    const f = fixture(t, { endpoints: 0 }); let launches = 0;
+    f.options.adapter.startOrResume = async () => { launches++; throw rpcError('rpc-rejected', 'turn/start', -32603); };
+    const managed = createManagedNightClient({ ...f.options, consumeActionResult: async () => {} }), request = f.launch();
+    const result = await managed.startOrResume(request), recovery = JSON.parse(fs.readFileSync(result.managed.recoveryFile));
+    assert.equal(recovery.stoppedVerified, false); assert.equal(recovery.diagnostics[0].method, 'turn/start');
+    await assert.rejects(managed.startOrResume(request), /already-attempted/); assert.equal(launches, 1);
+});
+
+test('requesting an interrupt without its ACK is never reported as acknowledged', async t => {
+    const f = fixture(t); f.state.unknown = true;
+    f.options.adapter.stop = async () => ({ interruptRequested: true, interruptAcknowledged: false, stopped: false, goalPaused: false });
+    const result = await f.supervisor.tick();
+    assert.equal(result.endpoints[0].stopRequested, true); assert.equal(result.endpoints[0].interruptAcknowledged, false); assert.equal(result.endpoints[0].stoppedVerified, false);
+});
+
+test('account-only RPC failures survive a worker checkpoint without fabricated endpoint cleanup', async t => {
+    const f = fixture(t, { endpoints: 0 }), { rpcError } = require('../lib/night-client-diagnostics');
+    f.options.adapter.usage = async () => { throw rpcError('rpc-timeout', 'account/rateLimits/read'); };
+    const result = await f.supervisor.tick();
+    assert.equal(result.mode, 'closeout'); assert.equal(result.observationUnknown, true); assert.deepEqual(result.endpoints, []);
+    assert.equal(result.diagnostics[0].method, 'account/rateLimits/read');
+});
+
+test('client JSONL failures carry safe RPC diagnostics and still close the owned endpoint', async t => {
+    const f = fixture(t), { rpcError } = require('../lib/night-client-diagnostics'), { PassThrough } = require('node:stream');
+    f.state.stopTerminal = true; const stop = f.options.adapter.stop; let first = true;
+    f.options.adapter.stop = async input => { if (first) { first = false; throw rpcError('rpc-rejected', 'turn/interrupt', -32603); } return stop(input); };
+    const input = new PassThrough(), output = [];
+    input.end(JSON.stringify({ id: 'stop-diagnostic', operation: 'stop', actionId: 'a1' }) + '\n');
+    const code = await require('../night-client-worker').main(['--run-directory', f.root, '--interval-ms', '100'], { adapter: f.options.adapter, workerOptions: f.options, input, output: { write: text => output.push(JSON.parse(text)) } });
+    const blocked = output.find(row => row.id === 'stop-diagnostic');
+    assert.equal(blocked.status, 'blocked'); assert.equal(blocked.diagnostics[0].method, 'turn/interrupt'); assert.equal(blocked.diagnostics[0].rpcCode, -32603);
+    assert.equal(code, 0); assert.equal(fs.existsSync(path.join(f.root, 'night-client-worker.lock')), false);
 });

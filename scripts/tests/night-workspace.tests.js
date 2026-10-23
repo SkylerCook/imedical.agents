@@ -255,3 +255,48 @@ test('each developer gets its own workspace and unrelated AGENTS links are prese
     assert.equal(fs.lstatSync(physicalEntry).isSymbolicLink(), true);
     assert.equal(fs.existsSync(path.join(f.plan.workspaceRoot, '.agents/rules/night_run_plan.md')), false);
 });
+
+// This is a Git/Overlay + handoff tool drill, not proof of model compliance or unattended execution.
+test('approved exit uses two isolated source worktrees and resumes their exact handoff without resetting history', t => {
+    const f = fixture(t), frontend = path.join(f.root, 'frontend');
+    runGit(f.root, ['clone', '-q', '--no-hardlinks', f.source, frontend]);
+    f.request.repositories.push({ name: 'frontend', sourceRepo: frontend, ref: runGit(frontend, ['rev-parse', 'HEAD']) });
+    const bases = f.request.repositories.map(r => r.ref);
+    write(path.join(f.source, 'code.txt'), 'unrelated original checkout edit\n');
+    write(path.join(frontend, 'parallel.txt'), 'other owner\n');
+    const before = f.request.repositories.map(r => runGit(r.sourceRepo, ['status', '--porcelain=v1']));
+    const originalHistory = { approved: false, quotaBaseline: 20, consumedPercentPoints: 2, stopClaimingAt: '2030-01-01T01:00:00+08:00', stopPublishingAt: '2030-01-01T02:00:00+08:00', stopAt: '2030-01-01T03:00:00+08:00', unresolvedProbe: { stopped: false, businessAuthorized: false } };
+    // Preparation is read-only before the separately recorded human decision.
+    const proposal = planWorkspace(f.request);
+    assert.equal(fs.existsSync(proposal.workspaceRoot), false);
+    assert.deepEqual(f.request.repositories.map(r => runGit(r.sourceRepo, ['status', '--porcelain=v1'])), before);
+    const history = { ...originalHistory, approved: true, quote: 'Exit night and continue supervised serial in isolated worktrees' };
+    const plan = f.setup(); assert.equal(checkWorkspace(plan).ok, true);
+    assert.equal(plan.manifest.nightRunReference, undefined); assert.equal(plan.request.executionPlanVersion, undefined);
+    for (const r of plan.repositories) {
+        assert.equal(runGit(r.target, ['rev-parse', 'HEAD']), r.revision);
+        runGit(r.target, ['checkout', '-qb', 'codex/supervised-fixture']);
+        write(path.join(r.target, 'code.txt'), 'authorized serial change\n');
+    }
+    const context = path.join(f.root, 'context.json');
+    write(context, JSON.stringify({ repositories: plan.repositories.map(r => ({ root: r.target, scopes: ['code.txt'] })), entrypoints: [], evidence: [] }));
+    const tool = path.resolve(__dirname, '../../plugins/agent-context-kit/scripts/task-handoff.js');
+    function handoff(args) { const result = spawnSync(process.execPath, [tool, ...args, '--project-root', plan.workspaceRoot], { encoding: 'utf8', windowsHide: true, timeout: 15000 }); assert.equal(result.status, 0, result.stdout + result.stderr); return JSON.parse(result.stdout); }
+    const created = handoff(['init', '--title', 'Synthetic supervised exit', '--task-kind', 'other', '--context-file', context]);
+    const doc = path.join(created.directory, 'handoff.md');
+    write(doc, fs.readFileSync(doc, 'utf8').replace(/\bTODO\b/g, 'Synthetic tool drill') + '\n## Preserved night preparation\n\n' + JSON.stringify(history) + '\n');
+    handoff(['checkpoint', '--task-directory', created.directory]);
+    assert.equal(handoff(['validate', '--task-directory', created.directory]).valid, true);
+    // A separate invocation reads the persisted checkpoint, rather than this test's plan object.
+    const recovered = JSON.parse(fs.readFileSync(path.join(created.directory, 'state.json')));
+    assert.deepEqual(recovered.inputs.repositories.map(r => r.root).sort(), plan.repositories.map(r => r.target).sort());
+    assert.equal(handoff(['inspect', '--task-directory', created.directory]).valid, true);
+    assert.equal(fs.readFileSync(path.join(f.source, 'code.txt'), 'utf8'), 'unrelated original checkout edit\n');
+    assert.equal(fs.readFileSync(path.join(frontend, 'parallel.txt'), 'utf8'), 'other owner\n');
+    assert.deepEqual(JSON.parse(fs.readFileSync(doc, 'utf8').split('## Preserved night preparation\n\n')[1]), history);
+    assert.deepEqual(f.request.repositories.map(r => runGit(r.sourceRepo, ['rev-parse', 'HEAD'])), bases);
+    assert.deepEqual(f.request.repositories.map(r => runGit(r.sourceRepo, ['status', '--porcelain=v1'])), before);
+    const invalid = structuredClone(f.request); invalid.batchId = 'invalid-exit'; invalid.repositories[0].ref = 'missing-reference';
+    assert.throws(() => planWorkspace(invalid), /Git check failed/);
+    assert.equal(fs.existsSync(path.join(f.business, '.worktrees', 'invalid-exit')), false);
+});

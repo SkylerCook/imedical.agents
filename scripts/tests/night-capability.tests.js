@@ -62,3 +62,20 @@ test('real headless initial probe owns the browser and verifies full exit before
     assert.equal(result.checks.find(c => c.id === 'browser-lifecycle').status, 'passed');
     assert.ok(result.browserLifecycle.instances[0].browserVersion); t.diagnostic(JSON.stringify(result.browserLifecycle));
 });
+
+test('preflight RPC failure preserves safe diagnostics and keeps all demands blocked', async t => {
+    const f = fixture(t), { rpcError } = require('../lib/night-client-diagnostics');
+    f.profile.preflight = async () => { throw rpcError('rpc-rejected', 'thread/read', -32603); };
+    const receipt = await probeCapabilities(f.profile, f.file);
+    assert.deepEqual(receipt.eligibleDemandIds, []); assert.equal(receipt.cleanupVerified, false);
+    assert.equal(receipt.diagnostics[0].method, 'thread/read'); assert.equal(receipt.diagnostics[0].rpcCode, -32603);
+});
+
+test('project preflight can return sanitized RPC diagnostics on both receipt and check', async t => {
+    const f = fixture(t), { rpcError, diagnosticFields } = require('../lib/night-client-diagnostics');
+    const error = rpcError('rpc-rejected', 'thread/read', -32603);
+    f.profile.preflight = async () => ({ cleanupVerified: true, ...diagnosticFields(error, 'probe'), checks: [{ id: 'entry', status: 'blocked', nonInteractive: true, evidenceRef: 'probe:failed', ...diagnosticFields(error, 'probe') }] });
+    const receipt = await probeCapabilities(f.profile, f.file);
+    assert.equal(receipt.diagnostics[0].method, 'thread/read'); assert.equal(receipt.checks[0].diagnostics[0].rpcCode, -32603);
+    assert.deepEqual(receipt.eligibleDemandIds, []);
+});

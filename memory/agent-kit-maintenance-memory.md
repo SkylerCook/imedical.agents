@@ -4,6 +4,8 @@
 
 ## 当前接手
 
+- 夜跑退出与诊断优化已实施，具体差异及验证见[维护日志](agent-kit-maintenance-log.md#2026-10-23-夜跑退出与客户端诊断)；降级唯一契约归 workflow，真实宿主遵循与其它平台验证沿原夜跑治理队列继续。
+
 - 自有 skill（含 init、xc）和 Agent 的 `--help` / 查看用法从源定义首段进入[统一帮助协议](../docs/guides/capability-help.md)，展示后结束；新旧索引模板保持。分发、PS5.1/PS7 与宿主抽样边界见[本轮验证](../maintenance/validation/capability-help-2026-10-22.md)，业务副本仍按正常更新分别验收。
 
 - 主子需求与共享代码：业务拆分和代码归属按[共享协议](../docs/demand-code-ownership.md)，bos-plugin提供v4草稿/显式日志bindings，交付owner提供验收v2及主提交/push引用；旧数据不自动迁移。验证与服务端边界见[本轮记录](../maintenance/validation/demand-code-ownership-2026-10-22.md)。

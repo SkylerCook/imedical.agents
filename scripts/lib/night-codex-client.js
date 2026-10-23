@@ -9,6 +9,7 @@ const { spawn, spawnSync } = require('node:child_process');
 const { createInterface } = require('node:readline');
 const { createHash } = require('node:crypto');
 const { sanitizeQuotaSnapshot } = require('./night-quota');
+const { rpcError, appendDiagnostics } = require('./night-client-diagnostics');
 const nonempty = value => typeof value === 'string' && value.trim().length > 0;
 const positiveInt = value => Number.isSafeInteger(value) && value > 0;
 
@@ -44,19 +45,19 @@ function createCodexStdioTransport(options = {}) {
     const timeoutMs = options.timeoutMs || 15000;
     let child, connected, connecting, sequence = 0, closed = false;
     const pending = new Map(), listeners = new Set();
-    function failPending(reason) {
-        for (const { reject, timer } of pending.values()) { clearTimeout(timer); reject(new Error(reason)); }
+    function failPending(category) {
+        for (const { reject, timer, method } of pending.values()) { clearTimeout(timer); reject(rpcError(category, method)); }
         pending.clear();
     }
     function send(value) {
-        if (!child || closed || !child.stdin.writable) throw new Error('Codex transport is not connected');
+        if (!child || closed || !child.stdin.writable) throw rpcError('transport-closed', value.method);
         child.stdin.write(`${JSON.stringify(value)}\n`);
     }
     function request(method, params = {}) {
         return new Promise((resolve, reject) => {
             const id = ++sequence;
-            const timer = setTimeout(() => { pending.delete(id); reject(new Error(`Codex RPC timed out: ${method}`)); }, timeoutMs);
-            pending.set(id, { resolve, reject, timer });
+            const timer = setTimeout(() => { pending.delete(id); reject(rpcError('rpc-timeout', method)); }, timeoutMs);
+            pending.set(id, { resolve, reject, timer, method });
             try { send({ id, method, params }); } catch (error) { clearTimeout(timer); pending.delete(id); reject(error); }
         });
     }
@@ -65,24 +66,28 @@ function createCodexStdioTransport(options = {}) {
         if (connected) return connected;
         if (connecting) return connecting;
         connecting = (async () => {
-            const probe = probeCodexCli(options);
+            const probe = (options.probe || probeCodexCli)(options);
             if (!probe.available) throw new Error(probe.reason);
-            child = spawn(options.command || 'codex', ['app-server', '--listen', 'stdio://'], { cwd: options.cwd, windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
-            child.on('error', () => failPending('Codex app-server transport failed'));
-            child.on('exit', () => { closed = true; failPending('Codex app-server exited'); });
-            child.stdin.on('error', () => failPending('Codex app-server stdin failed'));
+            child = (options.spawn || spawn)(options.command || 'codex', ['app-server', '--listen', 'stdio://'], { cwd: options.cwd, windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
+            child.on('error', () => failPending('transport-failed'));
+            child.on('exit', () => { closed = true; failPending('transport-closed'); });
+            child.stdin.on('error', () => failPending('transport-failed'));
             const lines = createInterface({ input: child.stdout });
             lines.on('line', line => {
                 let message;
                 try { message = JSON.parse(line); } catch { return; }
+                if (!message || typeof message !== 'object' || Array.isArray(message)) return;
                 if (message.method && message.id !== undefined) {
                     // No implicit approval, credential exchange or tool execution.
                     send({ id: message.id, error: { code: -32601, message: 'Interactive host request requires supervised execution' } });
                 } else if (message.method) {
                     for (const listener of listeners) listener(message);
                 } else if (pending.has(message.id)) {
-                    const { resolve, reject, timer } = pending.get(message.id); clearTimeout(timer); pending.delete(message.id);
-                    if (message.error) reject(new Error(`Codex RPC rejected (code ${message.error.code ?? 'unknown'})`));
+                    const { resolve, reject, timer, method } = pending.get(message.id); clearTimeout(timer); pending.delete(message.id);
+                    if (Object.hasOwn(message, 'error')) {
+                        if (!message.error || typeof message.error !== 'object' || !Number.isSafeInteger(message.error.code) || Object.hasOwn(message, 'result')) reject(rpcError('protocol-invalid', method));
+                        else reject(rpcError('rpc-rejected', method, message.error.code));
+                    } else if (!Object.hasOwn(message, 'result')) reject(rpcError('protocol-invalid', method));
                     else resolve(message.result);
                 }
             });
@@ -97,7 +102,7 @@ function createCodexStdioTransport(options = {}) {
     }
     function close() {
         closed = true;
-        failPending('Codex transport closed; endpoint termination is not confirmed');
+        failPending('transport-closed');
         if (child) { child.stdin.end(); child.kill(); }
         return { localTransportClosed: true, endpointStopped: false };
     }
@@ -220,9 +225,10 @@ function createCodexClientAdapter(options = {}) {
         } catch (error) {
             // A failed readback may still have set an active Goal. Pause it before
             // returning; the failure receipt makes any unresolved host state clear.
+            const diagnostics = []; appendDiagnostics(diagnostics, error, 'launch');
             let goalPaused = false;
-            if (endpoint.nativeGoal) try { await transport.request('thread/goal/set', { threadId: thread.id, status: 'paused', origin: 'automatic' }); goalPaused = (await transport.request('thread/goal/get', { threadId: thread.id })).goal?.status === 'paused'; } catch { /* receipt remains unconfirmed */ }
-            return { actionId: request.actionId, status: 'blocked', endpointId: thread.id, artifactRefs: [], error: error.message,
+            if (endpoint.nativeGoal) try { await transport.request('thread/goal/set', { threadId: thread.id, status: 'paused', origin: 'automatic' }); goalPaused = (await transport.request('thread/goal/get', { threadId: thread.id })).goal?.status === 'paused'; } catch (failure) { appendDiagnostics(diagnostics, failure, 'goal-pause'); }
+            return { actionId: request.actionId, status: 'blocked', endpointId: thread.id, artifactRefs: [], error: error.message === 'Native Goal budget readback failed; no business turn may start' ? error.message : 'host-launch-unverified', ...(diagnostics.length ? { diagnostics } : {}),
                 host: { executionUnknown: true, goalPaused, budgetConfigured: false } };
         }
     }
@@ -279,7 +285,7 @@ function createCodexClientAdapter(options = {}) {
     async function stop(input) {
         const endpoint = endpointFor(input);
         cancel(endpoint.timer);
-        const errors = [];
+        const errors = [], diagnostics = [];
         let goalPaused = !endpoint.nativeGoal, interruptRequested = false, interruptAcknowledged = false;
         if (endpoint.nativeGoal) {
             try {
@@ -291,21 +297,21 @@ function createCodexClientAdapter(options = {}) {
                     goalPaused = (await transport.request('thread/goal/get', { threadId: endpoint.threadId })).goal?.status === 'paused';
                 }
                 if (!goalPaused) errors.push('goal-pause-unconfirmed');
-            } catch { errors.push('goal-pause-unconfirmed'); }
+            } catch (error) { errors.push('goal-pause-unconfirmed'); appendDiagnostics(diagnostics, error, 'goal-pause'); }
             try {
                 const page = await transport.request('thread/turns/list', { threadId: endpoint.threadId, limit: 50, sortDirection: 'desc', itemsView: 'notLoaded' });
                 const active = (page.data || []).find(turn => turn.status === 'inProgress');
                 if (active) { endpoint.turnId = active.id; endpoint.turnStatus = active.status; }
-            } catch { errors.push('active-turn-unconfirmed'); }
+            } catch (error) { errors.push('active-turn-unconfirmed'); appendDiagnostics(diagnostics, error, 'active-turn'); }
         }
         if (endpoint.turnId && endpoint.turnStatus === 'inProgress') {
             interruptRequested = true;
             try { await transport.request('turn/interrupt', { threadId: endpoint.threadId, turnId: endpoint.turnId }); interruptAcknowledged = true; }
-            catch { errors.push('turn-interrupt-unconfirmed'); }
+            catch (error) { errors.push('turn-interrupt-unconfirmed'); appendDiagnostics(diagnostics, error, 'interrupt'); }
         }
         // An interrupt ACK is not completion, fixture cleanup or process cleanup.
         return { actionId: endpoint.actionId, endpointId: endpoint.threadId, interruptRequested, interruptAcknowledged,
-            stopped: !errors.length && goalPaused && ['interrupted', 'completed', 'failed', 'notStarted'].includes(endpoint.turnStatus), goalPaused, errors,
+            stopped: !errors.length && goalPaused && ['interrupted', 'completed', 'failed', 'notStarted'].includes(endpoint.turnStatus), goalPaused, errors, ...(diagnostics.length ? { diagnostics } : {}),
             supervisionRequired: true, processCleanupVerified: false, resourceCleanupVerified: false };
     }
     function dispose() {

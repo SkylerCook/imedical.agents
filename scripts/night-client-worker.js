@@ -3,6 +3,7 @@
 const path = require('node:path'), readline = require('node:readline');
 const { createClientAdapter } = require('./lib/night-client');
 const { createClientWorker } = require('./lib/night-client-worker');
+const { diagnosticFields } = require('./lib/night-client-diagnostics');
 async function main(argv = process.argv.slice(2), { adapter, input = process.stdin, output = process.stdout, workerOptions = {} } = {}) {
     const args = {};
     for (let i = 0; i < argv.length; i++) { const key = argv[i]; if (!['--run-directory', '--host', '--interval-ms'].includes(key) || !argv[i + 1] || args[key]) throw Error('Invalid client worker argument'); args[key] = argv[++i]; }
@@ -21,7 +22,7 @@ async function main(argv = process.argv.slice(2), { adapter, input = process.std
             if (!line.trim()) continue;
             let value;
             try { if (Buffer.byteLength(line) > 1024 * 1024) throw Error('request-too-large'); value = JSON.parse(line); const result = await worker.command(value); output.write(JSON.stringify({ id: value.id || null, status: 'succeeded', result }) + '\n'); }
-            catch { output.write(JSON.stringify({ id: value?.id || null, status: 'blocked', category: 'client-worker-operation-unverified' }) + '\n'); }
+            catch (error) { output.write(JSON.stringify({ id: value?.id || null, status: 'blocked', category: 'client-worker-operation-unverified', ...diagnosticFields(error, 'command') }) + '\n'); }
         }
     } finally { lines.close(); await stop(); process.removeListener('SIGINT', signal); process.removeListener('SIGTERM', signal); }
     const result = worker.snapshot().observation;

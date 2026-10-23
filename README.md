@@ -212,6 +212,8 @@ node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js
 
 BOS 普通与夜跑按需求复用项目已启用的领域插件，支持不同及混合技术栈，入口见 [BOS workflow](workflows/bos-demand.workflow.md#编码体系选择)。通过 `$bos-demand-handle --night` 发起夜跑，在原调度器上显式使用 schema 2.1：按[治理顺序](docs/night-governance.md)先初筛和能力预检，再详细 PLAN、授权、实体规则与监督 worker；联合源码、返修上限、预算/容量/截止、恢复及旧 run 兼容见[夜跑策略](docs/night-policy.md)。[分层验收](docs/night-acceptance.md)区分后端与 UI，最低自检、可交接状态和实际证据等级分别报告；真实项目与宿主试点仍由维护队列取证。
 
+能力不足时按[退出夜跑转受监督串行](workflows/bos-demand-unattended.workflow.md#单-agent-降级)明确转换，保留隔离与原约束；客户端 RPC 诊断沿既有回执记录方法、错误类别和错误码，接口成功、停止确认与资源退出仍分别取证。
+
 创建或接续 worktree 按[审阅交付](docs/guides/worktree-review.md)核对查看入口和固定基点；阶段完成及交接时按其中[恢复点规则](docs/guides/worktree-review.md#阶段提交与恢复点)执行已授权本地提交并交付剩余差异。入口由 Coding Agent、通用编码规则与项目模板触发，已有项目入口仅在授权维护时定点合并。开发测试库中本批获准创建的验收样本可按[测试协议](agents/_shared/testing-protocol.md#人工复验数据与收尾)保留供人工复验；样本定位、数据处置与临时资源退出分别核验。
 
 i18n 流程：

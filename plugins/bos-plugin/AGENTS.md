@@ -33,3 +33,5 @@ BOS 能力独立于技术栈。目录存在仅表示 available；项目使用前
 新夜跑采用[2.1 启动契约](../../docs/night-policy.md#schema-21-启动契约)：一个批次一个多仓 run，全部必需授权与实际能力在开始前核验；运行中受阻分支挂起并交接，不请求新授权、不代批宿主。既有 2.0 run 保持原行为。
 
 代码更新日志的 plan 只读本地 Git；submit 是独立 BOS 写入，需明确授权与 --confirm，不代替本地 commit/push 或需求状态。需求处理的全部提交校验成功后自动准备日志计划，复用精确 repo/hash，再按已有授权执行或请求授权；失败恢复与去重由 [bos-demand workflow](../../workflows/bos-demand.workflow.md#提交后的-bos-代码更新日志) 定义。
+
+夜跑降级的唯一契约是[退出夜跑转受监督串行](../../workflows/bos-demand-unattended.workflow.md#单-agent-降级)；入口和场景说明只引用该段，不维护另一套降级步骤。

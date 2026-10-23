@@ -224,3 +224,77 @@ test('restored bounded task stays pinned to its original turn when another turn 
     assert.equal(resumed.calls.some(call => ['thread/goal/get', 'turn/interrupt'].includes(call.method)), false);
     resumed.client.dispose();
 });
+
+function stdioFixture(t, timeoutMs = 100) {
+    const { EventEmitter } = require('node:events'), { PassThrough, Writable } = require('node:stream');
+    const { createCodexStdioTransport } = require('../lib/night-codex-client');
+    const child = new EventEmitter(), sent = [];
+    child.stdout = new PassThrough();
+    const reply = value => child.stdout.write(JSON.stringify(value) + '\n');
+    child.stdin = new Writable({ write(chunk, _, done) {
+        for (const line of chunk.toString().trim().split('\n')) {
+            const message = JSON.parse(line); sent.push(message);
+            if (message.method === 'initialize') queueMicrotask(() => reply({ id: message.id, result: { platformOs: 'fixture' } }));
+        }
+        done();
+    } });
+    child.kill = () => { child.stdout.end(); child.emit('exit', 0); };
+    const transport = createCodexStdioTransport({ timeoutMs, probe: () => ({ available: true, methods: [] }), spawn: (_, args, opts) => { assert.deepEqual(args, ['app-server', '--listen', 'stdio://']); assert.equal(opts.windowsHide, true); return child; } });
+    t.after(() => transport.close());
+    return { transport, child, sent, reply };
+}
+
+test('actual stdio parser correlates concurrent out-of-order errors without leaking host payloads', async t => {
+    const f = stdioFixture(t); await f.transport.connect();
+    const first = f.transport.request('thread/read', { private: 'REQUEST_SECRET' });
+    const second = f.transport.request('account/rateLimits/read', { private: 'OTHER_SECRET' });
+    const rejected = assert.rejects(second, error => {
+        assert.deepEqual(error.diagnostic, { provider: 'codex', category: 'rpc-rejected', method: 'account/rateLimits/read', rpcCode: -32603 });
+        assert.match(error.message, /account\/rateLimits\/read/);
+        assert.equal(JSON.stringify(error).includes('SECRET'), false); assert.equal(error.message.includes('SECRET'), false); return true;
+    });
+    const calls = f.sent.filter(r => r.id && r.method !== 'initialize');
+    f.reply({ id: calls[1].id, error: { code: -32603, message: 'HOST_SECRET Bearer token', data: { password: 'SERVER_SECRET' } } });
+    f.reply({ id: calls[0].id, result: { thread: { id: 'known' } } });
+    assert.equal((await first).thread.id, 'known'); await rejected;
+    assert.equal(f.sent.filter(r => r.method === 'account/rateLimits/read').length, 1);
+});
+
+test('actual stdio timeout and process exit retain each pending RPC method and never retry', async t => {
+    const f = stdioFixture(t, 20); await f.transport.connect();
+    await assert.rejects(f.transport.request('thread/read'), e => e.diagnostic.category === 'rpc-timeout' && e.diagnostic.method === 'thread/read');
+    const pending = f.transport.request('turn/interrupt');
+    const closed = assert.rejects(pending, e => e.diagnostic.category === 'transport-closed' && e.diagnostic.method === 'turn/interrupt');
+    f.child.emit('exit', 1); await closed;
+    assert.equal(f.sent.filter(r => r.method === 'thread/read').length, 1);
+    assert.equal(f.transport.close().endpointStopped, false);
+});
+
+test('actual stdio rejects correlated malformed payloads and survives unrelated non-object lines', async t => {
+    const f = stdioFixture(t); await f.transport.connect();
+    f.child.stdout.write('not-json\nnull\n42\n[]\n');
+    for (const payload of [{ error: 'HOST_SECRET' }, { error: { code: 'PRIVATE_CODE', message: 'HOST_SECRET' } }, { result: {}, error: { code: -32603 } }, {}]) {
+        const pending = f.transport.request('thread/read');
+        const rejected = assert.rejects(pending, e => e.diagnostic.category === 'protocol-invalid' && !e.message.includes('SECRET'));
+        f.reply({ id: f.sent.at(-1).id, ...payload }); await rejected;
+    }
+    const pending = f.transport.request('thread/goal/get');
+    const failed = assert.rejects(pending, e => e.diagnostic.category === 'transport-failed' && e.diagnostic.method === 'thread/goal/get');
+    f.child.stdin.emit('error', Error('PIPE_SECRET')); await failed;
+});
+
+test('stop failures carry safe diagnostics while interruption and cleanup remain unverified', async () => {
+    const { rpcError } = require('../lib/night-client-diagnostics');
+    const f = fixture({ request: method => { if (method === 'turn/interrupt') throw rpcError('rpc-rejected', method, -32603); } });
+    await f.client.startOrResume(request()); const receipt = await f.client.stop({ actionId: 'action-1' });
+    assert.equal(receipt.stopped, false); assert.equal(receipt.interruptAcknowledged, false); assert.equal(receipt.processCleanupVerified, false);
+    assert.equal(receipt.diagnostics[0].method, 'turn/interrupt'); assert.equal(receipt.diagnostics[0].stage, 'interrupt'); f.client.dispose();
+});
+
+test('diagnostic receipt serialization drops forged methods, messages, params and unbounded arrays', () => {
+    const { diagnosticFields } = require('../lib/night-client-diagnostics');
+    const value = { diagnostics: Array.from({ length: 30 }, () => ({ provider: 'codex', category: 'rpc-rejected', method: 'SECRET/method', rpcCode: 'SECRET', message: 'SECRET', params: { token: 'SECRET' }, stage: 'SECRET' })) };
+    const receipt = diagnosticFields(value, 'status'); assert.equal(receipt.diagnostics.length, 16);
+    assert.equal(receipt.diagnostics[0].method, 'unknown'); assert.equal(receipt.diagnostics[0].rpcCode, null);
+    assert.equal(JSON.stringify(receipt).includes('SECRET'), false); assert.deepEqual(diagnosticFields(Error('old receipt')), {});
+});
