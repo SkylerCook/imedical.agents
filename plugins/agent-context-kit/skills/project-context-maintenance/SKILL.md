@@ -1,6 +1,6 @@
 ---
 name: project-context-maintenance
-description: Initialize, maintain, or optimize project context including AGENTS.md, rules, memory, profiles and skill routes. Use for context setup, factual updates, duplicate or stale guidance, and reading-cost reviews; ordinary coding does not trigger routine context maintenance. 用于初始化、维护及日常优化项目上下文。
+description: Initialize, maintain, or optimize project context including AGENTS.md, rules, memory, profiles and skill routes. Use for context setup, missing or broken rule routes, factual updates, duplicate or stale guidance, and reading-cost reviews; ordinary coding does not trigger routine context maintenance. 用于初始化、维护及日常优化项目上下文。
 ---
 
 # 项目上下文维护
@@ -162,7 +162,7 @@ description: Initialize, maintain, or optimize project context including AGENTS.
 - 上下文状态：当前工程是否完整、本地代码是否代表全量事实、是否需要按需导出。
 - 新会话启动顺序：先读哪些 memory/rules/config。
 - 高频硬约束：跨任务必须遵守、遗漏会造成明显风险的规则。
-- 规则路由：不同任务类型应读取哪些 rules 或 skills。
+- 规则路由：不同任务类型应读取哪些 rules 或 skills，按下文[规则路由维护](#规则路由维护)落地。
 - 插件路由：项目已接入的插件、首次初始化入口、thin-index 入口。
 - 插件状态引用 `plugin_profile.md`，不维护第二份状态清单。
 - 外部工具边界：MCP/SFTP/编译/上传等能力的使用原则和安全边界。
@@ -198,9 +198,19 @@ description: Initialize, maintain, or optimize project context including AGENTS.
 - 保持路由清晰：能链接到 rules/skills 的内容不要复制全文。
 - 保持稳定：任务进度只在 memory，AGENTS 只在入口或硬约束变化时更新。
 - 合并时保留目标项目已有业务规则，不覆盖用户定制。
-- 多 Agent 入口差异较大时，优先在 AGENTS 中放统一入口，再由插件或配置处理差异。
+- 多客户端共用 AGENTS 中的任务路由；入口发现机制不明时查[宿主依据](../coding-agent-adaptation/references/source.md)，按实际加载方式接入，规则正文仍维护在原 owner。
 - 配置表格避免“同左”“同上”等易失效引用；共用值提升到通用配置段落，差异表只保留例外。
 - 多仓库共用的非敏感配置集中维护；远端路径、namespace 等连接事实仍只保留在私有连接配置。
+
+## 规则路由维护
+
+初始化、规则入口缺失/失效，或本次维护调整了路由时执行；只检查受影响的读取链。普通编码发现断链时报告缺口，修复仍沿本次授权范围。
+
+1. **定位入口**：从当前 `AGENTS.md` 跟到实际规则入口。复用已有等价索引；小工程可保留直接路由。确需集中多场景路由且没有既有入口时，使用 `.agents/rules/index.md`；创建引用前先落实目标文件，已有入口不因文件名不同而重建。
+2. **写明触发**：每条路由写清任务/文件条件、应在何时读取、目标路径；采用索引时入口保留高频保护和索引指针，直接路由时保留简短条件与路径，专项正文归 owner。插件路由按项目启用状态选择，新增或调整的路由只有在对应能力已启用且入口可用时才列为可执行项；已有状态冲突保留并报告。
+3. **补齐断链**：入口已引用但目标缺失时，在授权范围内按已验证规则补齐最小索引，或将引用改到已有等价入口；保留原约束。规则含义或目标无法确认时报告待确认，只暂停依赖该路由的动作。受管 thin-index 沿 owner 生成流程维护，不在索引中另写规则正文。
+4. **读到正文**：逐条核对本次新增/调整路由的路径；若有索引或 thin-index，继续跟到真实规则正文。Markdown 相对链接以所在文件为基准，thin-index 的 source 按项目逻辑路径与 workspace manifest 解析。Overlay 沿 ContextRoot/CapabilityRoot 边界读取；完成条件是触发明确、目标存在且内容与任务相符，而非仅有一行链接。
+5. **场景走查**：选一个受影响的代表任务，从 AGENTS 沿触发条件读到所需规则，确认只选择命中项、保留必要 profile 条件；仍持有且未变化的内容复用。交付区分路由修改、文件链走查和实际客户端加载证据；未运行宿主时明确加载/行为待验，不为走查启动业务操作或要求所有客户端逐一运行。
 
 ## 禁止写入
 
@@ -215,7 +225,7 @@ description: Initialize, maintain, or optimize project context including AGENTS.
 1. 按“内容归属”表判断每条信息的目标位置。
 2. 优先更新、替换、合并旧内容，不无限追加。
 3. 项目记忆入口应便于快速接手；领域细节有明显独立读取场景时再拆分，并提供触发条件与链接，不以固定行数为验收目标。
-4. 规则文件只保留稳定规范，不写当前进度。
+4. 规则文件只保留稳定规范；涉及入口或读取路径时按[规则路由维护](#规则路由维护)补齐并走查，不写当前进度。
 5. 内容属于领域插件或专项规则时先定位 owner；仅在授权范围内更新，memory 只保留入口或摘要。项目维护不自动授权修改 canonical 能力源。
 6. 配置保留已有有效值；授权优化可清理确认无语义的模板占位与重复说明，不删除未知配置或用默认值覆盖现值。
 7. 编辑后检查重复内容、过期矛盾和敏感信息。
@@ -262,6 +272,7 @@ description: Initialize, maintain, or optimize project context including AGENTS.
 - rules 只包含长期约束，不记录任务进度。
 - 插件内容可复用，且没有源项目硬编码。
 - 仅初始化/接入场景检查完整闭环；维护和优化检查实际改动、约束保留和引用，不重复初始化。
+- 受影响的规则路由已满足[规则路由维护](#规则路由维护)完成条件；等价入口已复用，未确认的断链和客户端加载证据缺口分别报告。
 - `.agents/config/` 已保留项目已有值；模板新增字段只作为待确认项合并。
 - 涉及 standard 安装或忽略边界变化时检查 `.agents/.git/info/exclude`；Overlay 不创建该文件。
 - 兼容入口缺失或异常只作为可选提示；`CLAUDE.md`、`CODEBUDDY.md` 未维护第二份规则。

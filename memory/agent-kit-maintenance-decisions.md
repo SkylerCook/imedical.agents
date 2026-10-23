@@ -157,7 +157,9 @@
 
 ## 项目技能适配
 
-- 项目 ContextRoot/skills 为通用技能入口；命名宿主按发现能力复用通用层或建立项目目录链接；映射与自定义目录约束见 docs/coding-agent-adaptation.md。适配器只负责发现，不管理插件启用、MCP、hooks 或原生子代理。已有普通目录、自定义内容与错误链接均保留；不静默复制，不用递归删除修复链接。
+- 项目 ContextRoot/skills 为通用技能入口；命名宿主按发现能力复用通用层或建立项目目录链接。宿主目录、项目 MD、形态/版本与证据归 `plugins/agent-context-kit/skills/coding-agent-adaptation/references/source.md`，流程和自定义目录约束归 `docs/coding-agent-adaptation.md`；脚本实际默认值仍查执行器，当前不解析 Markdown。未知项由用户说明，用户级观察不推导项目路径，项目差异不自动提升为通用默认。适配器只负责发现，不管理插件启用、MCP、hooks 或原生子代理，也不因参考登记创建规则入口。已有普通目录、自定义内容与错误链接均保留；不静默复制，不用递归删除修复链接。
+
+- 项目规则路由的落地与完成判定归 `project-context-maintenance/SKILL.md` 的“规则路由维护”；初始化/优化引用同一流程。已有等价索引或小工程直接路由可复用，不按固定文件名建第二套入口；受影响读取链走查到正文与真实客户端加载分别取证，普通能力包更新不代替授权的项目上下文维护。
 
 ## 安全边界
 

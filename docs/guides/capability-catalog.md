@@ -75,8 +75,8 @@ BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调
 
 | 入口 | 中文用途 | 入口类型 |
 |---|---|---|
-| [coding-agent-adaptation](../../plugins/agent-context-kit/skills/coding-agent-adaptation/SKILL.md) | 将项目技能接入指定 Agent 宿主 | 日常入口 |
-| [project-context-maintenance](../../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md) | 初始化、维护或优化项目上下文 | 日常入口 |
+| [coding-agent-adaptation](../../plugins/agent-context-kit/skills/coding-agent-adaptation/SKILL.md) | 将项目技能接入指定 Agent 宿主；目录与规则 MD 依据见 [source.md](../../plugins/agent-context-kit/skills/coding-agent-adaptation/references/source.md) | 日常入口 |
+| [project-context-maintenance](../../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md) | 初始化、维护或优化项目上下文，补齐并走查受影响的规则路由 | 日常入口 |
 | [task-handoff](../../plugins/agent-context-kit/skills/task-handoff/SKILL.md) | 为需求建立交接并跨会话接续 | 日常入口 |
 
 ### Rules

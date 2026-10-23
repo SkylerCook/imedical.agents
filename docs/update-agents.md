@@ -252,6 +252,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 `CLAUDE.md`、`CODEBUDDY.md` 仅在用户明确需要对应工具兼容入口时创建。安装器和更新器只报告入口状态，不自动创建、覆盖或修复。不要复制 `AGENTS.md`，也不要直接用 `del` 或 `Remove-Item` 删除现有同名文件；现有文件可能包含尚未归并的独立规则。
 
+是否需要兼容入口，先按 [source.md](../plugins/agent-context-kit/skills/coding-agent-adaptation/references/source.md) 核对实际宿主、版本/配置与规则加载方式；可选入口 `missing` 不等于宿主未读取 `AGENTS.md`。用户级规则路径与项目 MD 分开判断，不因目录适配成功就推断规则加载成功。
+
 优先运行能力包自带修复脚本：
 
 ```powershell
@@ -609,7 +611,7 @@ git config --unset core.hooksPath
 
 ## 跨 Agent skills 链接适配
 
-`-RuntimeAdapter <宿主>` 统一调用 `sync-runtime-skills.js`。CodeBuddy/Claude Code/WorkBuddy/WorkBuddyDonghua/Qoder 链接到项目 ContextRoot/skills；Codex/OpenCode/Cursor/GeminiCLI/GitHubCopilot 复用通用层。自定义目录通过 Node 入口的 `--skills-dir` 指定，不传给 PowerShell 更新器。普通目录、错误或失效链接保留并阻断适配，更新器以失败结束，已完成的其它更新步骤不回滚。Check 只读，缺失链接不算验收通过。首次安装脚本也支持同名参数；完整命令、平台证据与旧目录迁移见 [技能适配](coding-agent-adaptation.md)。
+`-RuntimeAdapter <宿主>` 统一调用 `sync-runtime-skills.js`，保留既有命名映射；宿主真实项目目录、项目 MD 与映射差异统一查 [source.md](../plugins/agent-context-kit/skills/coding-agent-adaptation/references/source.md)。先核对目标版本与执行器实际目标，不从用户级目录推导项目路径；需要不同目录时使用 Node 入口的 `--runtime Custom --skills-dir`，不传给 PowerShell 更新器。普通目录、错误或失效链接保留并阻断适配，更新器以失败结束，已完成的其它更新步骤不回滚。Check 只读检查技能目录，缺失技能链接不算目录接入通过，不检查项目 MD 加载。首次安装脚本也支持同名参数；完整命令、平台证据与旧目录迁移见 [技能适配](coding-agent-adaptation.md)。
 
 ## Claude Code legacy 复制入口
 
@@ -795,6 +797,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 ## 已有上下文的日常优化
 
 能力包更新与项目内容优化分别执行。用户授权目标项目优化后，用 `project-context-maintenance` 的日常优化路径，按实际内容合并重复入口、按需拆分领域记忆、标记旧快照及清理无信息占位；保留自定义约束、有效配置与技能路由。初始化仍完成对应闭环，事实维护只更新相关 owner。无需重新初始化、扫描候选插件或生成新的模式字段；更新器不自动重写业务 AGENTS/rules/memory。仅授权 canonical 更新时不处理任何业务副本。
+
+规则入口缺失、断链或读取路径变化时，在授权的项目维护中按[规则路由维护](../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md#规则路由维护)补齐并走查到真实正文；沿用已有等价索引或直接路由。普通更新只取得新版指导与生成层刷新，不自动补建项目总索引，不修改客户端配置；文件链通过与宿主实际加载分别报告。
 
 ### 知识库工程入口迁移
 

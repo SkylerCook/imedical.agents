@@ -6,6 +6,8 @@
 
 项目上下文支持初始化、事实维护与日常优化，按目标选择流程。入口去重、领域记忆分层和旧快照标记保留用户约束；普通维护不自动扫描或启用插件。主入口见 `skills/project-context-maintenance/SKILL.md`，初始化/优化细节按其中 references 条件读取。已部署项目只有在授权维护时定点调整，能力包更新保留业务上下文；仅对缺失的文档导航追加 `.agents/docs/README.md` 入口，更新与冲突处理见能力包根 `docs/update-agents.md`。
 
+规则入口缺失、断链或本次维护调整读取路径时，按主 skill 的[规则路由维护](skills/project-context-maintenance/SKILL.md#规则路由维护)复用实际入口、补齐引用并走查到正文；等价索引或小工程直接路由保持，文件链走查与客户端加载分别报告。
+
 技能归属迁移（0.3.2）：`coding-agent-adaptation` 由本插件承接，执行器仍在根 scripts。项目 `.agents/skills/coding-agent-adaptation/SKILL.md` 路径保持不变，由插件薄索引提供。旧版原文仅在历史内容哈希匹配时转换，自定义内容保留并报告冲突。迁移说明见 `docs/skill-plugin-migration.md`（能力包根）。
 
 迁移 `scripts/migrate-execution-entry.js` 默认报告，显式 `--write` 才替换已知旧句并补齐缺失的辅助协议路由；不写 profile。guidanceMode 是可选配置，未配置按 auto 处理；模板只声明 optional-key，不提供可自动合并的默认配置行。
@@ -46,6 +48,6 @@
 
 知识库入口：初始化或授权维护时，为已启用 coding-iris-plugin 的工程在 AGENTS.md 合并一条自主查询指引；具体条件见 project-context-maintenance 的 initialization.md。完整索引随能力包更新，普通更新不覆盖工程入口。
 
-项目技能适配使用 `skills/coding-agent-adaptation/SKILL.md`：支持 WorkBuddy/WorkBuddyDonghua/Qoder 命名目录、OpenCode/Cursor/GeminiCLI/GitHubCopilot 通用层复用，以及受项目边界约束的自定义发现目录；执行器和参数说明归能力包根 `docs/coding-agent-adaptation.md`。用户级分发独立管理，宿主加载与文件系统检查分别取证。
+项目技能适配使用 `skills/coding-agent-adaptation/SKILL.md`；宿主目录、项目 MD、形态/版本条件及本机历史观察统一查 [source.md](skills/coding-agent-adaptation/references/source.md)，执行器和参数说明归能力包根 `docs/coding-agent-adaptation.md`。用户级路径不推导项目路径，未知项由用户说明，技能发现与规则加载分别取证；参考登记不扩大创建权限或改变脚本默认映射。
 
 用户可在项目配置 `project_context_profile.md` 的“技能适配目录”章节逐行填写目录，再执行 coding-agent-adaptation 补齐缺失链接。示例和冲突处理见能力包根 `docs/coding-agent-adaptation.md`；普通更新不自动执行清单。

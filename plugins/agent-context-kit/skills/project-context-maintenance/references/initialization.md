@@ -43,6 +43,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
    - 已有配置及项目文档；仅涉及连接、远端能力或配置问题时读取 `.mcp.json`。
    探索仅覆盖当前初始化需要，不为模板全仓扫描；无法确定的非敏感配置标真实待确认项，连接字段只在私有配置处理。`intent-first-on-demand-export` 跳过全工程归纳。
 5. 创建或更新 `AGENTS.md`，只放最小启动流程和路由；新建时参考 `templates/AGENTS.template.md`。能力包使用、操作指南或连接排查统一指向 `.agents/docs/README.md`；核验该路径可达，Overlay 未映射 docs 时按 capability.json 解析 CapabilityRoot，读取其 docs/README.md。已有等价入口复用。
+   - 同时按主 skill 的[规则路由维护](../SKILL.md#规则路由维护)落实入口引用的规则索引或等价路由；使用等价入口时替换模板路径，小工程直接路由时去掉模板的索引指针，保留有效条件与路径。采用 `.agents/rules/index.md` 时先补齐文件再保留引用。插件尚未接入时只保留已确认的项目路由，后续沿插件初始化补充。
    - 在本次授权的入口维护范围内，合并模板的 worktree 创建、接续、阶段完成及交接路由，核验恢复点规范可达；已有等价路由复用。只补读取入口，项目持续本地提交授权仍须用户明确确认；本次任务授权留任务记录，不扩成永久权限。普通能力包更新不执行此合并。
    - `agent-context-kit` 为 enabled 且 task-handoff 入口可用时，在本次已授权初始化/维护范围内定点合并模板的“需求交接”路由；已有等价路由复用，available/disabled 不加入。只加入入口，不创建 docs/handoff 任务，不复制完整流程。普通能力包更新不执行此合并。
    - `codebase-complete`：可写入已验证架构事实。
@@ -120,6 +121,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - 插件要求的 `.agents/scripts/*`
 - `.agents/.git/info/exclude`
 
+规则入口另须完成主 skill 的[规则路由维护](../SKILL.md#规则路由维护)走查；插件 thin-index 已生成不替代项目任务路由已落实。实际客户端未验证时按该节报告证据边界。
 
 ### 知识库简短入口
 
