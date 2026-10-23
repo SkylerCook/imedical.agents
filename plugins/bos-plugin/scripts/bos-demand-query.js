@@ -24,6 +24,7 @@ const descriptions = {
   product: '产品', mod: '产品模块'
 };
 const queryOptions = {
+  sourceScope: { type: 'string', enum: ['all', 'project', 'non-project'], description: '个人查询来源口径：all 不限；project 为项目；non-project 为产品（所有非项目来源）。省略 mode 时默认 todo，不发送到上游。' },
   mode: { type: 'string', enum: ['list', 'pending', 'project-pending', 'history', 'todo', 'workload'], description: 'todo 为本人开发待办，日期可省略，提供时按预计完成时间；workload 为本人工作量，必须提供执行日期。旧 pending/project-pending/history 保留原口径。' },
   timezone: { type: 'string', description: '默认日期截止日使用的 IANA 时区；默认 Asia/Shanghai，可按用户时区覆盖。' },
   sort: { type: 'string', enum: ['创建时间', '预计完成时间', '执行时间'], description: '列表排序字段；默认创建时间，todo 默认预计完成时间，workload 默认执行时间；同日需求号升序。' },
@@ -59,6 +60,10 @@ function localToday(timezone, now) {
 
 function preparePersonalQuery(input, defaultUser, now) {
   const mode = input.mode;
+  const sourceScope = input.sourceScope ?? 'all';
+  if (!queryOptions.sourceScope.enum.includes(sourceScope)) throw new Error('sourceScope 必须为 all、project 或 non-project');
+  const source = input.source?.trim() || '';
+  if ((sourceScope === 'project' && source && source !== '项目') || (sourceScope === 'non-project' && source === '项目')) throw new Error('source 与来源口径冲突，不能扩大或替换查询条件');
   const subject = (input.tuser ?? defaultUser ?? '').trim();
   if (!subject || /^TODO$/i.test(subject)) throw new Error('个人待办/工作量需已配置的本人身份，或明确提供 tuser；不能使用 TODO');
   const dated = Object.hasOwn(input, 'date') || Object.hasOwn(input, 'date2');
@@ -79,22 +84,36 @@ function preparePersonalQuery(input, defaultUser, now) {
   if (!queryOptions.sort.enum.includes(sort) || !queryOptions.order.enum.includes(order)) throw new Error('sort 或 order 无效');
   const args = Object.fromEntries(fields.map(key => [key, input[key] ?? '']));
   Object.assign(args, fixed, { tuser: subject, explain: '0', date: dated ? date : '1900-01-01', date2: nextDay(dated ? end : today) });
+  if (sourceScope === 'project') args.source = '项目';
   if (scopeFields.some(key => /^TODO$/i.test(args[key].trim()))) throw new Error('查询身份尚未配置；不能使用 TODO 查询');
   if (Object.hasOwn(input, 'body')) args.body = input.body;
   return { args, mode, subject, sort, order, timezone, pendingApplied: false,
-    personal: { dateField, range: dated ? { date, date2: end, inclusive: true } : null } };
+    personal: { dateField, range: dated ? { date, date2: end, inclusive: true } : null, sourceScope,
+      sourceBasis: sourceScope === 'project' ? '来源=项目'
+        : sourceScope === 'non-project' ? `产品（非项目）：来源非空且不等于项目${source ? `；另限来源=${source}` : ''}`
+          : source ? `来源=${source}` : '来源不限' } };
 }
 
 function parsePersonalCli(argv) {
-  const mode = { '--todo': 'todo', '--workload': 'workload' }[argv[0]];
-  if (!mode) throw new Error('使用 --todo 或 --workload');
-  const values = argv.slice(1);
+  let mode, sourceScope;
+  const values = [];
+  for (const token of argv) {
+    if (token === '--todo' || token === '--workload') {
+      if (mode) throw new Error('--todo / --workload 不可重复或同时使用');
+      mode = token.slice(2);
+    } else if (token === '--proj' || token === '--dev') {
+      if (sourceScope) throw new Error('--proj / --dev 不可重复或同时使用');
+      sourceScope = token === '--proj' ? 'project' : 'non-project';
+    } else if (token.startsWith('--')) throw new Error('未知个人查询参数');
+    else values.push(token);
+  }
+  mode ||= 'todo';
   if (values.length > 2) throw new Error('日期参数过多；使用单日、起止两日或 YYYY-MM-DD~YYYY-MM-DD');
   const dates = values.length === 1 ? values[0].split('~') : values;
   if (dates.length > 2 || dates.some(value => !validDate(value))) throw new Error('日期格式应为 YYYY-MM-DD 或 YYYY-MM-DD~YYYY-MM-DD');
   if (!dates.length && mode === 'workload') throw new Error('--workload 必须提供执行日期或日期范围');
   if (dates.length === 2 && dates[1] < dates[0]) throw new Error('截止日期不得早于起始日期');
-  return { mode, ...(dates.length ? { date: dates[0], date2: dates[1] ?? dates[0] } : {}) };
+  return { mode, ...(sourceScope ? { sourceScope } : {}), ...(dates.length ? { date: dates[0], date2: dates[1] ?? dates[0] } : {}) };
 }
 
 function personalDecision(row, plan) {
@@ -104,6 +123,11 @@ function personalDecision(row, plan) {
   if (!receiver || !current || !status) return 'unclassified';
   if (receiver !== plan.subject) return 'other-receiver';
   if (workExcludedStatuses.has(status)) return 'non-work';
+  if (plan.personal.sourceScope !== 'all') {
+    const source = value('来源');
+    if (typeof row['来源'] !== 'string' || !source) return 'unclassified';
+    if ((source === '项目') !== (plan.personal.sourceScope === 'project')) return 'outside-source';
+  }
   const day = value(plan.personal.dateField).slice(0, 10);
   const range = plan.personal.range;
   if (range && (!validDate(day) || day < range.date || day > range.date2)) return 'outside-date';
@@ -134,7 +158,9 @@ function prepareQuery(input, defaultUser = '', defaultGroup = '', now = new Date
     for (const key of Object.keys(descriptions)) if (Object.hasOwn(input, key)) args[key] = input[key];
     return { args, mode: 'explain' };
   }
-  if (input.mode === 'todo' || input.mode === 'workload') return preparePersonalQuery(input, defaultUser, now);
+  const selectedMode = input.mode || (Object.hasOwn(input, 'sourceScope') ? 'todo' : 'list');
+  if (selectedMode === 'todo' || selectedMode === 'workload') return preparePersonalQuery({ ...input, mode: selectedMode }, defaultUser, now);
+  if (Object.hasOwn(input, 'sourceScope')) throw new Error('sourceScope 仅用于 todo / workload，普通来源精确筛选请使用 source');
   const mode = input.mode || 'list';
   const sort = input.sort || '创建时间';
   const order = input.order || 'asc';
@@ -402,8 +428,8 @@ function initConfig(filePath, options) { return personal.initialize(filePath, op
 async function main() {
   const argv = process.argv.slice(2);
   const [command = 'serve', json] = argv;
-  if (argv.includes('--help')) { console.log('node bos-demand-query.js --todo [YYYY-MM-DD [YYYY-MM-DD] | YYYY-MM-DD~YYYY-MM-DD]\nnode bos-demand-query.js --workload YYYY-MM-DD [YYYY-MM-DD] | YYYY-MM-DD~YYYY-MM-DD\n--todo: personal development todos, optional due dates; --workload: personal workload, required execution dates. Both ends inclusive.\nnode bos-demand-query.js serve|check|defaults|query <JSON>|init-config [absolute-private-path]|migrate-config <existing-private-path>\nBOS_MCP_CONFIG: shared private JSON with bos-demand-query and bos-code-update-log sections. Only the selected skill section is read. migrate-config converts the old flat query file in place. Node >=22.5.0.'); return; }
-  const personalInput = command === '--todo' || command === '--workload' ? parsePersonalCli(argv) : null;
+  if (argv.includes('--help')) { console.log('node bos-demand-query.js --todo [YYYY-MM-DD [YYYY-MM-DD] | YYYY-MM-DD~YYYY-MM-DD] [--proj|--dev]\nnode bos-demand-query.js --workload YYYY-MM-DD [YYYY-MM-DD] [--proj|--dev]\n--proj / --dev: project / non-project sources; default to todo without --workload.\n--todo: personal development todos, optional due dates; --workload: personal workload, required execution dates. Both ends inclusive.\nnode bos-demand-query.js serve|check|defaults|query <JSON>|init-config [absolute-private-path]|migrate-config <existing-private-path>\nBOS_MCP_CONFIG: shared private JSON with bos-demand-query and bos-code-update-log sections. Only the selected skill section is read. migrate-config converts the old flat query file in place. Node >=22.5.0.'); return; }
+  const personalInput = ['--todo', '--workload', '--proj', '--dev'].includes(command) ? parsePersonalCli(argv) : null;
   const [major, minor] = process.versions.node.split('.').map(Number);
   if (major < 22 || (major === 22 && minor < 5)) throw new Error('需要 Node.js >=22.5.0（Agent 工具链运行时）');
   if (command === 'init-config') { console.log(JSON.stringify(initConfig(json))); return; }

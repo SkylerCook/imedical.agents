@@ -1,6 +1,6 @@
 {
   "name": "bos-plugin",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "displayName": "BOS Demand Plugin",
   "description": "跨技术栈的 BOS 只读查询、需求处理、标版补录、代码更新日志与通用提交衔接。",
   "entry": "AGENTS.md",
@@ -15,6 +15,7 @@
     ]
   },
   "defaultPrompt": [
+    "使用 bos-demand-query --proj 查询项目待办，--dev 查询产品（非项目）待办；可组合 --workload 日期范围",
     "使用 bos-demand-query --todo 查询全部开发待办，或提供日期按预计完成时间查询",
     "使用 bos-demand-query --workload 日期或日期范围查询我的工作量",
     "处理 BOS 需求，使用当前项目开发规范",

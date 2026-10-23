@@ -92,6 +92,7 @@
 | 参数 | 取值与本地作用 |
 |---|---|
 | mode | list / pending / project-pending / history / todo / workload；默认 list，个人两模式见下节 |
+| sourceScope | all / project / non-project；仅用于个人 todo/workload，提供且省略 mode 时默认 todo，见来源口径 |
 | timezone | 有效 IANA 时区；默认 Asia/Shanghai，用于生成截止日 |
 | sort | 创建时间 / 预计完成时间 / 执行时间；通用模式默认创建时间，todo 默认预计完成时间，workload 默认执行时间 |
 | order | asc / desc；默认 asc，控制日期排序方向 |
@@ -116,6 +117,16 @@
 结果仍在 data，汇总仍在 `_meta.bosDemandQuery`；personal 含 subject、dateField、range（全部待办为 null）、basis、excludedReasons、unclassifiedCount 和原待核对条目 unclassified。回复必须展示实际人员、日期字段/范围、人员/状态组合口径、已确认条数，并单列待核对项。字段缺失和上游完整性限制如实说明；工作量是本次快照下已完成开发环节的需求数，不是最终验收数、工时或历史流转次数，执行时间被覆盖时不能还原此前工作量。
 
 旧 pending / project-pending 保留原当前人＋所在组及状态排除行为；明确个人开发待办使用 todo。旧 list/history、按编号详情、explain 与私有配置结构不变。正常更新能力包并刷新已启用索引即可取得新入口，无配置迁移或旧文件清理，不自动部署业务副本。
+
+## 项目与产品非项目来源口径
+
+skill 无参数默认 todo；脚本保留无参数启动 serve 的兼容行为，Agent 显式调用 `--todo`。`--proj` / `--dev` 是互斥来源开关，可单独使用（默认 todo），也可在 `--todo` / `--workload` 和日期前后组合。日期语义不变，workload 始终要求日期。JSON/MCP 使用本地 sourceScope（all / project / non-project），提供且省略 mode 时默认 todo，非个人模式显式传该字段停止；原 query JSON 未给 mode/sourceScope 仍为 list。
+
+- project：上游 source 固定“项目”，并在本地核对返回来源；冲突的显式 source 停止。
+- non-project：产品按“非项目”理解，包含产品、用户、实施、产品部及其它实际非空非项目来源。上游 source 不限，再本地排除项目；明确给非项目 source 时保留该精确条件，给 source: "项目" 时停止。不猜测上游排除、多选或逻辑表达式语法。
+- all：保留原 source 精确筛选及不限来源的语义，不作额外分类。
+
+来源范围与原人员/状态/日期等条件组合生效，不切换至旧 project-pending 模式。仅在选择来源口径时，缺失、空白或非字符串来源进入 personal.unclassified，不自动归入产品；不匹配的已知来源记 outside-source。返回 data 仍是已处理结果，personal.sourceScope / sourceBasis 展示采用口径，returnedCount / includedCount / excludedCount 及 excludedReasons 反映上游候选与本地排除。分类不证明服务端返回全量；来源缺失的候选也可能受上游 source 预筛影响，不能从 project 查询声称已发现全部缺失来源。
 
 ## 参数异常与验证边界
 

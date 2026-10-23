@@ -318,6 +318,53 @@ const sampleRows = [
 const listResult = (rows = sampleRows) => ({ content: [{ type: 'text', text: JSON.stringify({ code: 200, data: rows, message: 'sample' }) }, { type: 'image', data: 'sample-image', mimeType: 'image/png' }], _meta: { existing: 'preserved' } });
 const getRows = result => JSON.parse(result.content[0].text).data;
 
+test('source shortcuts default to todo and combine with dated workload in either flag order', () => {
+  assert.deepEqual(parsePersonalCli(['--proj']), { mode: 'todo', sourceScope: 'project' });
+  assert.deepEqual(parsePersonalCli(['--dev']), { mode: 'todo', sourceScope: 'non-project' });
+  for (const args of [['--workload', '2026-10-19', '2026-10-20', '--dev'], ['--dev', '--workload', '2026-10-19~2026-10-20']]) {
+    assert.deepEqual(parsePersonalCli(args), { mode: 'workload', sourceScope: 'non-project', date: '2026-10-19', date2: '2026-10-20' });
+  }
+  assert.deepEqual(parsePersonalCli(['--todo', '--proj', '2026-10-23']), { mode: 'todo', sourceScope: 'project', date: '2026-10-23', date2: '2026-10-23' });
+  for (const args of [['--proj', '--dev'], ['--dev', '--dev'], ['--proj', '--workload'], ['--proj', '--unknown']]) assert.throws(() => parsePersonalCli(args));
+});
+
+test('source scopes preserve filters and never invent upstream negation or multi-value syntax', () => {
+  const project = queryArguments({ sourceScope: 'project' }, 'sample-user', 'ignored-group');
+  assert.equal(project.source, '项目'); assert.equal(project.tuser, 'sample-user'); assert.equal(project.cuser, 'sample-user'); assert.equal(project.cgroup, '');
+  const dev = queryArguments({ mode: 'workload', sourceScope: 'non-project', date: '2026-10-23', product: 'sample-product' }, 'sample-user');
+  assert.equal(dev.source, ''); assert.equal(dev.product, 'sample-product'); assert.equal(Object.hasOwn(dev, 'sourceScope'), false);
+  assert.equal(queryArguments({ sourceScope: 'non-project', source: '用户' }, 'sample-user').source, '用户');
+  for (const input of [{ sourceScope: 'invalid' }, { sourceScope: 'project', source: '用户' }, { sourceScope: 'non-project', source: '项目' }, { mode: 'history', sourceScope: 'project' }]) assert.throws(() => queryArguments(input, 'sample-user'));
+});
+
+test('source classification includes every non-project source and reports absent or malformed sources', async t => {
+  const sources = ['项目', '产品', '用户', '实施', '产品部', '', undefined, 7];
+  for (const mode of ['todo', 'workload']) {
+    const rows = sources.map((source, i) => ({ '需求号': String(i + 1), '来源': source, '状态': mode === 'todo' ? '修正' : '挂起', '接受人': 'sample-user', '当前人': mode === 'todo' ? 'sample-user' : 'reviewer', '执行时间': '2026-10-23', '预计完成时间': '2026-10-23' }));
+    t.mock.method(globalThis, 'fetch', mock({ result: listResult(rows) }).fetchImpl);
+    for (const [sourceScope, ids] of [['project', ['1']], ['non-project', ['2', '3', '4', '5']], ['all', ['1', '2', '3', '4', '5', '6', '7', '8']]]) {
+      const result = await query(config, { mode, sourceScope, date: '2026-10-23' }, 'sample-user', 'ignored-group');
+      assert.deepEqual(getRows(result).map(x => x['需求号']), ids);
+      const meta = result._meta.bosDemandQuery;
+      assert.equal(meta.personal.sourceScope, sourceScope);
+      assert.equal(meta.personal.unclassifiedCount, sourceScope === 'all' ? 0 : 3);
+      assert.equal(meta.returnedCount, 8);
+      assert.equal(meta.includedCount + meta.excludedCount, 8);
+    }
+    const exact = await query(config, { mode, sourceScope: 'all', source: '产品', date: '2026-10-23' }, 'sample-user');
+    assert.equal(exact._meta.bosDemandQuery.personal.sourceBasis, '来源=产品');
+    const narrowed = await query(config, { mode, sourceScope: 'non-project', source: '产品', date: '2026-10-23' }, 'sample-user');
+    assert.match(narrowed._meta.bosDemandQuery.personal.sourceBasis, /另限来源=产品/);
+  }
+});
+
+test('source shortcuts are discoverable and help does not require credentials', () => {
+  const { spawnSync } = require('node:child_process');
+  const r = spawnSync(process.execPath, [path.resolve(__dirname, '../scripts/bos-demand-query.js'), '--proj', '--help'], { encoding: 'utf8', env: { ...process.env, BOS_MCP_CONFIG: path.resolve('nonexistent-config') } });
+  assert.equal(r.status, 0); assert.match(r.stdout, /--proj/); assert.match(r.stdout, /--dev/);
+  assert.deepEqual(tool.inputSchema.properties.sourceScope.enum, ['all', 'project', 'non-project']);
+});
+
 test('personal CLI accepts all todos, single days and inclusive ranges, but workload requires dates', () => {
   assert.deepEqual(parsePersonalCli(['--todo']), { mode: 'todo' });
   for (const flag of ['--todo', '--workload']) {
