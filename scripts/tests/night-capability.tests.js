@@ -79,3 +79,64 @@ test('project preflight can return sanitized RPC diagnostics on both receipt and
     assert.equal(receipt.diagnostics[0].method, 'thread/read'); assert.equal(receipt.checks[0].diagnostics[0].rpcCode, -32603);
     assert.deepEqual(receipt.eligibleDemandIds, []);
 });
+
+
+function clientFixture(overrides = {}) {
+    const calls = [], launches = new Map();
+    const adapter = {
+        probe: async () => ({ available: true }),
+        startOrResume: async request => { calls.push(['launch', request.actionId]); const result = { actionId: request.actionId, status: 'succeeded', endpointId: request.actionId + '-endpoint', host: { turnId: request.actionId + '-turn' } }; launches.set(request.actionId, result); return result; },
+        waitForReady: async ({ actionId }) => { calls.push(['ready', actionId]); const l = launches.get(actionId); return { ready: true, endpointId: l.endpointId, turnId: l.host.turnId }; },
+        status: async ({ actionId }) => { calls.push(['read', actionId]); const l = launches.get(actionId); return { endpointId: l.endpointId, turnId: l.host.turnId, turnStatus: calls.some(c => c[0] === 'stop' && c[1] === actionId) ? 'interrupted' : 'inProgress' }; },
+        stop: async ({ actionId }) => { calls.push(['stop', actionId]); return { interruptRequested: true, interruptAcknowledged: true }; },
+        waitForTerminal: async ({ actionId }) => { const l = launches.get(actionId); return { terminalObserved: true, endpointId: l.endpointId, turnId: l.host.turnId, turnStatus: 'interrupted' }; },
+        shutdown: async () => { calls.push(['shutdown']); return { localTransportClosed: true, processCleanupVerified: true, endpointStopped: false }; }
+    };
+    Object.assign(adapter, overrides); return { adapter, calls, launches };
+}
+function clientOptions(extra = {}) { return { cwd: path.resolve(__dirname), authorization: { actor: 'user', reference: 'user:probe-only' }, deadlineAt: Date.now() + 1000, timeoutMs: 500, closeTimeoutMs: 10, recordReceipt: async () => {}, ...extra }; }
+
+test('lifecycle probing requires authorization and durable recording before it creates a client', async () => {
+    const { probeClientLifecycle } = require('../lib/night-client'); let created = 0;
+    const createAdapter = () => { created++; return clientFixture().adapter; };
+    await assert.rejects(probeClientLifecycle(clientOptions({ authorization: null }), { createAdapter }), /Authorized/);
+    await assert.rejects(probeClientLifecycle(clientOptions({ recordReceipt: async () => { throw Error('private disk failure'); } }), { createAdapter }), /receipt-unverified/);
+    assert.equal(created, 0);
+});
+
+test('ACK alone never reconciles an active endpoint and a timed out launch remains unknown', async () => {
+    const { probeClientLifecycle } = require('../lib/night-client');
+    const f = clientFixture({ waitForTerminal: () => new Promise(() => {}) });
+    f.adapter.status = async ({ actionId }) => ({ endpointId: f.launches.get(actionId).endpointId, turnId: f.launches.get(actionId).host.turnId, turnStatus: 'inProgress' });
+    const result = await probeClientLifecycle(clientOptions(), { createAdapter: () => f.adapter });
+    assert.equal(result.cleanupVerified, false); assert.equal(result.unresolvedEndpoints.length, 2); assert.ok(result.endpoints.every(e => e.interruptAcknowledged && !e.terminalVerified));
+    assert.equal(f.calls.filter(c => c[0] === 'stop').length, 2);
+    const unknown = clientFixture({ startOrResume: () => new Promise(() => {}) });
+    const lost = await probeClientLifecycle(clientOptions({ timeoutMs: 10 }), { createAdapter: () => unknown.adapter });
+    assert.equal(lost.operationExited, false); assert.equal(lost.unresolvedEndpoints.length, 2); assert.ok(lost.unresolvedEndpoints.every(e => e.endpointId === null)); assert.equal(lost.cleanupVerified, false);
+});
+
+test('startup cancellation still stops owned endpoints and never replays their launches', async () => {
+    const { probeClientLifecycle } = require('../lib/night-client'); const controller = new AbortController();
+    const f = clientFixture({ waitForReady: async () => { controller.abort(); throw Error('cancelled'); } });
+    const result = await probeClientLifecycle(clientOptions({ signal: controller.signal }), { createAdapter: () => f.adapter });
+    assert.equal(result.checks[0].status, 'blocked'); assert.equal(f.calls.filter(c => c[0] === 'launch').length, 2); assert.equal(f.calls.filter(c => c[0] === 'stop').length, 2); assert.equal(result.cleanupVerified, true);
+});
+
+test('capability CLI records each endpoint and ACK in its existing receipt and rejects forged pass checks', async t => {
+    const f = fixture(t), output = path.join(f.root, 'client.json');
+    fs.writeFileSync(f.file, "module.exports={options:{projectRoot:__dirname,deadlineAt:Date.now()+3000,timeoutMs:2000,closeTimeoutMs:20},capabilityRequirements:[{demandId:'D',role:'dev',capabilities:['client-lifecycle','client-stop']}],preflight:async({probeClientLifecycle})=>{await probeClientLifecycle({authorization:{actor:'user',reference:'user:noop'},timeoutMs:1000,closeTimeoutMs:20});return {cleanupVerified:true,checks:['client-lifecycle','client-stop'].map(id=>({id,status:'passed',nonInteractive:true,evidenceRef:'forged:pass'}))}}};");
+    const client = clientFixture(), ready = client.adapter.waitForReady;
+    client.adapter.waitForReady = async input => { const onDisk = JSON.parse(fs.readFileSync(output)); assert.equal(onDisk.cleanupVerified, false); assert.throws(() => validateProbeBinding({ capabilityProbe: { reference: output, sha256: crypto.createHash('sha256').update(fs.readFileSync(output)).digest('hex'), maxAgeMinutes: 10 } }), /resources unresolved/); assert.ok(onDisk.clientLifecycle.endpoints.some(e => e.actionId === input.actionId && e.endpointId)); return ready(input); };
+    client.adapter.shutdown = async () => { const onDisk = JSON.parse(fs.readFileSync(output)); assert.ok(onDisk.clientLifecycle.endpoints.every(e => e.interruptAcknowledged)); return { localTransportClosed: true, processCleanupVerified: false, endpointStopped: false }; };
+    const result = await main(['--profile', f.file, '--output', output], { createClient: () => client.adapter });
+    const saved = JSON.parse(fs.readFileSync(output)); assert.equal(result.cleanupVerified, false); assert.deepEqual(saved.eligibleDemandIds, []); assert.ok(saved.checks.filter(c => c.id.startsWith('client-')).every(c => c.status === 'blocked'));
+    assert.equal(fs.readdirSync(f.root).some(name => name.endsWith('.tmp')), false); await assert.rejects(main(['--profile', f.file, '--output', output]), /EEXIST/);
+});
+
+
+test('new lifecycle requirements cannot be satisfied by project-authored pass labels alone', async t => {
+    const f = fixture(t); f.profile.capabilityRequirements = [{ demandId: 'D', role: 'dev', capabilities: ['client-lifecycle', 'client-stop'] }];
+    f.profile.preflight = async () => ({ cleanupVerified: true, checks: ['client-lifecycle', 'client-stop'].map(id => ({ id, role: '*', status: 'passed', nonInteractive: true, evidenceRef: 'legacy:claim' })) });
+    const result = await probeCapabilities(f.profile, f.file); assert.deepEqual(result.eligibleDemandIds, []); assert.deepEqual(result.requirements[0].missing, ['client-lifecycle', 'client-stop']);
+});

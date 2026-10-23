@@ -2,7 +2,7 @@
 
 新夜跑先按 [治理接入](../night-governance.md) 记录用量基线，在初筛后预检能力、确定可执行子集，再规划逐条最低测试、预算、真实容量与独立 worktree，批准并 materialize executionPlan；宿主使用 client worker 持续监督，浏览器 Tester 使用验收 worker 复用认证。报告分开最低自检和实际证据。旧 run 不迁移，首次真实试跑最多 5 条另行授权。
 
-预检失败需单人继续时，使用[退出夜跑转受监督串行](../../workflows/bos-demand-unattended.workflow.md#单-agent-降级)，默认保留独立 worktree、原预算与截止及恢复证据；不按单人夜跑派发。
+预检失败需单人继续时，使用[退出夜跑转受监督串行](../../workflows/bos-demand-unattended.workflow.md#单-agent-降级)，默认保留独立 worktree、原预算与截止及恢复证据；不按单人夜跑派发。新项目预检通过[通用客户端探针](../night-governance.md#客户端生命周期预检)提供生命周期/停止证据，不再另写即时中断脚本；旧已批准 run 及回执保留。
 
 需要调整已有 2.1 夜跑容量时，先取得用户明确授权，在真实安全边界使用原 `night-record` 事件增加 `maxInFlight`；默认、权限、截止及历史保留，未使用的授权也必须有效。条件和字段见[运行中调整容量](../night-policy.md#运行中调整容量)。
 

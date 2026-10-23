@@ -298,3 +298,125 @@ test('diagnostic receipt serialization drops forged methods, messages, params an
     assert.equal(receipt.diagnostics[0].method, 'unknown'); assert.equal(receipt.diagnostics[0].rpcCode, null);
     assert.equal(JSON.stringify(receipt).includes('SECRET'), false); assert.deepEqual(diagnosticFields(Error('old receipt')), {});
 });
+
+
+test('lifecycle readiness is pinned to this user item, including notifications before turn ACK', async () => {
+    const f = fixture(); const receipt = await f.client.startOrResume(request());
+    const controller = new AbortController(); let ready = false;
+    const waiting = f.client.waitForReady({ actionId: 'action-1', timeoutMs: 100, signal: controller.signal }).then(value => { ready = true; return value; });
+    f.emit('turn/started', { threadId: receipt.endpointId, turn: { id: 'turn-1' } });
+    f.emit('item/completed', { threadId: 'another-thread', turnId: 'turn-1', item: { type: 'userMessage' } });
+    f.emit('item/completed', { threadId: receipt.endpointId, turnId: 'another-turn', item: { type: 'userMessage' } });
+    await new Promise(resolve => setImmediate(resolve)); assert.equal(ready, false);
+    f.emit('item/completed', { threadId: receipt.endpointId, turnId: 'turn-1', item: { type: 'userMessage', content: 'PRIVATE' } });
+    assert.equal((await waiting).source, 'user-item-completed');
+    let early;
+    const beforeAck = fixture({ request(method) { if (method === 'turn/start') { early.emit('turn/completed', { threadId: 'thread-1', turn: { id: 'turn-1', status: 'completed' } }); return { turn: { id: 'turn-1', status: 'inProgress' } }; } } }); early = beforeAck;
+    await beforeAck.client.startOrResume(request());
+    assert.equal((await beforeAck.client.waitForReady({ actionId: 'action-1', timeoutMs: 50 })).source, 'terminal-event');
+    assert.equal((await beforeAck.client.waitForTerminal({ actionId: 'action-1', timeoutMs: 50 })).turnStatus, 'completed');
+    f.client.dispose(); beforeAck.client.dispose();
+});
+
+test('readiness timeout and cancellation do not read history or invent terminal proof', async () => {
+    const f = fixture(); await f.client.startOrResume(request());
+    await assert.rejects(f.client.waitForReady({ actionId: 'action-1', timeoutMs: 5 }), /startup-unverified/);
+    const controller = new AbortController(); const waiting = f.client.waitForTerminal({ actionId: 'action-1', timeoutMs: 100, signal: controller.signal }); controller.abort();
+    await assert.rejects(waiting, /cancelled/); assert.equal(f.calls.some(c => c.method === 'thread/read' || c.method === 'thread/turns/list'), false); f.client.dispose();
+});
+
+test('real stdio lifecycle probe retains interrupt ACK and terminal events across -32603 readback failures', async t => {
+    const { probeClientLifecycle } = require('../lib/night-client');
+    const f = stdioFixture(t), saved = [], calls = f.sent;
+    // Route responses through the actual line parser, including interleaved events.
+    let threads = 0;
+    const originalWrite = f.child.stdin._write;
+    f.child.stdin._write = function(chunk, encoding, done) {
+        originalWrite.call(this, chunk, encoding, () => {
+            const m = JSON.parse(chunk.toString());
+            if (m.method === 'thread/start') queueMicrotask(() => f.reply({ id: m.id, result: { thread: { id: 'thread-' + (++threads) } } }));
+            if (m.method === 'turn/start') queueMicrotask(() => {
+                f.reply({ method: 'item/completed', params: { threadId: m.params.threadId, turnId: m.params.threadId + '-turn', item: { type: 'userMessage' } } });
+                f.reply({ id: m.id, result: { turn: { id: m.params.threadId + '-turn', status: 'inProgress' } } });
+            });
+            if (['thread/read', 'thread/turns/list'].includes(m.method)) queueMicrotask(() => f.reply({ id: m.id, error: { code: -32603, message: 'HOST_SECRET rollout is empty' } }));
+            if (m.method === 'turn/interrupt') queueMicrotask(() => { f.reply({ id: m.id, result: {} }); f.reply({ method: 'turn/completed', params: { threadId: m.params.threadId, turn: { id: m.params.turnId, status: 'interrupted' } } }); });
+            done();
+        });
+    };
+    // The synthetic process exits from EOF, without requiring a forced kill.
+    f.child.stdin.on('finish', () => { f.child.stdout.end(); f.child.emit('exit', 0); });
+    let killed = 0; f.child.kill = () => { killed++; };
+    const baseConnect = f.transport.connect;
+    f.transport.connect = async () => ({ ...await baseConnect(), methods: methods.filter(m => !m.startsWith('thread/goal/') && m !== 'collaborationMode/list'), nativeGoalBudgetDeclared: false });
+    const result = await probeClientLifecycle({ cwd: path.resolve(__dirname), authorization: { actor: 'user', reference: 'fixture' }, deadlineAt: Date.now() + 2000, timeoutMs: 1000, closeTimeoutMs: 30, recordReceipt: async value => saved.push(value) }, { createAdapter: () => createCodexClientAdapter({ transport: f.transport }) });
+    assert.equal(result.cleanupVerified, true); assert.equal(result.checks.find(c => c.id === 'client-lifecycle').status, 'blocked'); assert.equal(result.checks.find(c => c.id === 'client-stop').status, 'passed');
+    assert.deepEqual(result.unresolvedEndpoints, []); assert.equal(killed, 0); assert.equal(result.transport.processCleanupVerified, true); assert.equal(result.transport.endpointStopped, false);
+    for (const endpoint of result.endpoints) {
+        assert.equal(endpoint.interruptAcknowledged, true); assert.equal(endpoint.terminalVerified, true); assert.equal(endpoint.historyReadbackVerified, false);
+        assert.ok(endpoint.failures.includes('history-readback-unverified')); assert.ok(endpoint.failures.includes('stop-readback-unverified')); assert.equal(endpoint.failures.includes('interrupt-unverified'), false);
+        assert.ok(endpoint.diagnostics.every(d => d.method === 'thread/turns/list' && d.rpcCode === -32603));
+        assert.ok(saved.some(r => r.endpoints.some(e => e.actionId === endpoint.actionId && e.interruptAcknowledged && !e.terminalVerified)), 'ACK persisted before readback');
+    }
+    assert.equal(calls.filter(c => c.method === 'turn/start').length, 2); assert.equal(calls.filter(c => c.method === 'thread/turns/list').length, 4);
+    assert.ok(calls.filter(c => c.method === 'thread/start').every(c => c.params.sandbox === 'read-only'));
+    assert.equal(JSON.stringify(saved).includes('HOST_SECRET'), false);
+});
+
+test('transport shutdown drains EOF before bounded force, and never claims endpoint termination', async t => {
+    const graceful = stdioFixture(t); await graceful.transport.connect(); let kills = 0;
+    graceful.child.stdin.on('finish', () => setTimeout(() => graceful.child.emit('exit', 0), 5)); graceful.child.kill = () => { kills++; };
+    const promise = graceful.transport.shutdown({ timeoutMs: 30 });
+    assert.equal(kills, 0); const result = await promise; assert.equal(result.processCleanupVerified, true); assert.equal(result.forced, false); assert.equal(result.endpointStopped, false);
+    const hung = stdioFixture(t); await hung.transport.connect(); hung.child.kill = () => { kills++; };
+    const failed = await hung.transport.shutdown({ timeoutMs: 5 }); assert.equal(failed.forced, true); assert.equal(failed.processCleanupVerified, false); assert.equal(failed.endpointStopped, false);
+    const killed = stdioFixture(t); await killed.transport.connect(); const forced = await killed.transport.shutdown({ timeoutMs: 5 }); assert.equal(forced.forced, true); assert.equal(forced.processCleanupVerified, true);
+});
+
+
+test('installed Codex lifecycle uses a loopback model and persists before interruption', { skip: !process.env.CODEX_TEST_EXECUTABLE, timeout: 30000 }, async t => {
+    const http = require('node:http'), fs = require('node:fs'), { spawn } = require('node:child_process');
+    const { probeClientLifecycle, createClientAdapter } = require('../lib/night-client');
+    const temp = require('./fixtures/temp-directory'), root = temp.createTempDirectory('night-live-client-');
+    const home = path.join(root, 'home'), work = path.join(root, 'workspace'), output = path.join(root, 'receipt.json');
+    let client, requests = 0;
+    const server = http.createServer(async (request, response) => {
+        for await (const _ of request) { /* Consume only; do not log model inputs. */ }
+        if (!request.url.endsWith('/responses')) { response.writeHead(404); response.end('{}'); return; }
+        requests++;
+        response.writeHead(200, { 'Content-Type': 'text/event-stream' });
+        response.write('event: response.created\ndata: ' + JSON.stringify({ type: 'response.created', response: { id: 'fixture', status: 'in_progress' } }) + '\n\n');
+        // Hold sampling open until the real turn/interrupt cancels it.
+    });
+    t.after(async () => {
+        try { if (client) { const exit = await client.shutdown({ timeoutMs: 1000 }); assert.equal(exit.processCleanupVerified, true); } }
+        finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); assert.ok(temp.ownsTempDirectory(root)); fs.rmSync(root, { recursive: true, force: true }); assert.equal(fs.existsSync(root), false); }
+    });
+    fs.mkdirSync(home); fs.mkdirSync(work);
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    fs.writeFileSync(path.join(home, 'config.toml'), 'model="diagnostic-fixture"\nmodel_provider="fixture"\napproval_policy="never"\nsandbox_mode="read-only"\n[model_providers.fixture]\nname="Offline fixture"\nbase_url="http://127.0.0.1:' + server.address().port + '/v1"\nwire_api="responses"\nrequires_openai_auth=false\nsupports_websockets=false\n');
+    const env = { ...process.env, CODEX_HOME: home }; for (const key of ['OPENAI_API_KEY', 'CODEX_API_KEY', 'CODEX_ACCESS_TOKEN', 'OPENAI_BASE_URL']) delete env[key];
+    let snapshots = 0;
+    const result = await probeClientLifecycle({ cwd: work, model: 'diagnostic-fixture', authorization: { actor: 'user', reference: 'offline:fixture' }, deadlineAt: Date.now() + 20000, timeoutMs: 15000, closeTimeoutMs: 1500,
+        recordReceipt: async value => { fs.writeFileSync(output, JSON.stringify(value)); assert.equal(JSON.parse(fs.readFileSync(output)).schema, value.schema); snapshots++; } }, {
+        createAdapter: options => (client = createClientAdapter({ ...options, command: process.env.CODEX_TEST_EXECUTABLE, tempRoot: root, spawn: (command, args, settings) => spawn(command, args, { ...settings, env }) }))
+    });
+    assert.ok(snapshots >= 7); assert.ok(result.endpoints.every(e => e.startupReady && e.historyReadbackVerified && e.interruptAcknowledged && e.terminalVerified), JSON.stringify(result));
+    assert.equal(result.cleanupVerified, true); assert.equal(result.transport.forced, false); assert.deepEqual(result.unresolvedEndpoints, []);
+    assert.deepEqual(result.checks.map(c => c.status), ['passed', 'passed']);
+    t.diagnostic('Installed CLI, two endpoints; loopback model requests=' + requests + '; all startup/ACK/terminal/process checks passed.');
+});
+
+test('closing a client releases its outstanding startup event wait', async () => {
+    const f = fixture(); await f.client.startOrResume(request());
+    const waiting = f.client.waitForReady({ actionId: 'action-1', timeoutMs: 10000 });
+    const rejected = assert.rejects(waiting, /lifecycle-closed/); f.client.dispose(); await rejected;
+});
+
+test('cancellation while thread creation is in flight prevents the first turn from starting', async () => {
+    const controller = new AbortController();
+    const f = fixture({ request(method) { if (method === 'thread/start') controller.abort(); } });
+    const receipt = await f.client.startOrResume(request({ signal: controller.signal }));
+    assert.equal(receipt.status, 'blocked'); assert.equal(receipt.host.executionUnknown, true);
+    assert.equal(f.calls.some(c => c.method === 'turn/start'), false); f.client.dispose();
+});

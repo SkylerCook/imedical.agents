@@ -4,7 +4,7 @@
 
 ## 当前接手
 
-- 夜跑退出与诊断优化已实施，具体差异及验证见[维护日志](agent-kit-maintenance-log.md#2026-10-23-夜跑退出与客户端诊断)；降级唯一契约归 workflow，真实宿主遵循与其它平台验证沿原夜跑治理队列继续。
+- 客户端启动就绪、ACK/历史回读分级及温和退出已回归共享库，接口和验证见[生命周期修复记录](../maintenance/validation/night-client-lifecycle-2026-10-23.md)；业务副本未自动更新。夜跑退出与诊断优化已实施，具体差异及验证见[维护日志](agent-kit-maintenance-log.md#2026-10-23-夜跑退出与客户端诊断)；降级唯一契约归 workflow，真实宿主遵循与其它平台验证沿原夜跑治理队列继续。
 
 - 自有 skill（含 init、xc）和 Agent 的 `--help` / 查看用法从源定义首段进入[统一帮助协议](../docs/guides/capability-help.md)，展示后结束；新旧索引模板保持。分发、PS5.1/PS7 与宿主抽样边界见[本轮验证](../maintenance/validation/capability-help-2026-10-22.md)，业务副本仍按正常更新分别验收。
 

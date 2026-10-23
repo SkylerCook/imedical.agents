@@ -2,7 +2,7 @@
 // Persist only this allowlist. Host messages, parameters and response bodies are untrusted.
 const METHODS = new Set(['initialize', 'collaborationMode/list', 'thread/start', 'thread/resume', 'thread/read', 'thread/turns/list', 'turn/start', 'turn/interrupt', 'thread/goal/get', 'thread/goal/set', 'account/rateLimits/read']);
 const CATEGORIES = new Set(['rpc-rejected', 'rpc-timeout', 'transport-closed', 'transport-failed', 'protocol-invalid']);
-const STAGES = new Set(['probe', 'launch', 'status', 'usage', 'restore', 'stop', 'goal-pause', 'active-turn', 'interrupt', 'recovery-stop', 'recovery-status', 'capability', 'command']);
+const STAGES = new Set(['probe', 'launch', 'status', 'usage', 'restore', 'stop', 'goal-pause', 'active-turn', 'interrupt', 'recovery-stop', 'recovery-status', 'capability', 'command', 'startup-readback', 'stop-readback']);
 function rpcError(category, method, rpcCode = null) {
     const diagnostic = { provider: 'codex', category: CATEGORIES.has(category) ? category : 'protocol-invalid', method: METHODS.has(method) ? method : 'unknown', rpcCode: Number.isSafeInteger(rpcCode) ? rpcCode : null };
     return Object.assign(new Error('Codex ' + diagnostic.category + ': ' + diagnostic.method + ' (code ' + (diagnostic.rpcCode ?? 'unknown') + ')'), { code: 'night-client-' + diagnostic.category, diagnostic });

@@ -1,5 +1,13 @@
 # imedical.agents 维护日志
 
+## 2026-10-23 客户端生命周期预检与温和退出
+
+- framework-maintenance，实施基线 a2ae955；仅维护根级运行库、能力预检/worker、工作流与指南，不改插件或独立 skill 版本。BOS 并行查询变更及原有文档修改保留；业务副本未更新，实施阶段未执行 Git 暂存、提交或推送。用户随后授权本次 c + p；仅暂存本次生命周期修复，实际提交与推送以 Git 回执为准。
+- 通用 probeClientLifecycle 进入现有 preflight 上下文：明确授权/截止/持久回执可用后，创建两个固定无业务只读单轮端点，等待匹配事件后做一次历史回读，不增加 RPC 重试。项目整体 timeout 与批次截止取较早值，创建在途取消不再继续首次 turn/start。新预检不接受项目自行贴的生命周期/停止通过标签，旧批准 run/回执不迁移。
+- 原回执逐阶段保存 launch 身份、启动事件、历史回读、中断请求/ACK、终态及本地退出。历史失败不能抹掉 ACK；ACK 无终态或未知进程均阻断。stdin 结束后有界等退出，超时才 force；worker 将 transport 证据写回原 checkpoint，未知退出保留 lease，不把本地关闭当端点停止。未改 RPC 请求格式、Goal 预算或双开发/独立审查门禁。
+- 最终 Windows Node 24.14.1：直接链 69 通过、1 个真实浏览器用例因缺锁定运行时跳过，受管路径 63/63，文档链接定向 1/1，JS 语法/UTF-8/BOM/换行/diff 检查通过。安装的 CLI 0.163.0-alpha.11.2 在独立 home 与 loopback 假模型实测两端点全链通过；原始空 rollout 首次写入原因未证实，原未知端点不核销。真实业务、其它平台/Node 与宿主遵循沿原治理队列取证。
+- 原 installer/sparse 已覆盖变更的全部根文件，现有 CI 已包含受影响测试，无依赖安装、schema/私有配置迁移或旧文件清理。版本治理仅针对实际 owner 目录变化，本轮没有此类路径，不以并行 BOS 版本变化作为本次发布。详细证据及下游 profile 接入见[验证记录](../maintenance/validation/night-client-lifecycle-2026-10-23.md)。
+
 ## 2026-10-23 BOS 待办创建日期与可选日期排序
 
 - `framework-maintenance` 基线 `a2ae955`；BOS 0.14.0→0.15.0 MINOR，默认排序变化标记 breaking 并提供 Migration。所有个人待办默认创建日期升序，默认列表补创建时间；个人 CLI/skill 增加 --sort / --order，JSON/MCP 支持创建/预计完成/分配/执行/操作五类日期，显式排序覆盖默认，同日需求号升序，缺失或无效日期置后。筛选日期、归属/来源/状态分类与计数独立，工作量仍默认执行日期。

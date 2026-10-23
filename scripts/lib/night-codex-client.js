@@ -45,6 +45,7 @@ function createCodexStdioTransport(options = {}) {
     const timeoutMs = options.timeoutMs || 15000;
     let child, connected, connecting, sequence = 0, closed = false;
     const pending = new Map(), listeners = new Set();
+    let shutdownPromise, processExited = false;
     function failPending(category) {
         for (const { reject, timer, method } of pending.values()) { clearTimeout(timer); reject(rpcError(category, method)); }
         pending.clear();
@@ -70,7 +71,7 @@ function createCodexStdioTransport(options = {}) {
             if (!probe.available) throw new Error(probe.reason);
             child = (options.spawn || spawn)(options.command || 'codex', ['app-server', '--listen', 'stdio://'], { cwd: options.cwd, windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
             child.on('error', () => failPending('transport-failed'));
-            child.on('exit', () => { closed = true; failPending('transport-closed'); });
+            child.on('exit', () => { processExited = true; closed = true; failPending('transport-closed'); });
             child.stdin.on('error', () => failPending('transport-failed'));
             const lines = createInterface({ input: child.stdout });
             lines.on('line', line => {
@@ -79,7 +80,7 @@ function createCodexStdioTransport(options = {}) {
                 if (!message || typeof message !== 'object' || Array.isArray(message)) return;
                 if (message.method && message.id !== undefined) {
                     // No implicit approval, credential exchange or tool execution.
-                    send({ id: message.id, error: { code: -32601, message: 'Interactive host request requires supervised execution' } });
+                    if (!closed) send({ id: message.id, error: { code: -32601, message: 'Interactive host request requires supervised execution' } });
                 } else if (message.method) {
                     for (const listener of listeners) listener(message);
                 } else if (pending.has(message.id)) {
@@ -103,22 +104,57 @@ function createCodexStdioTransport(options = {}) {
     function close() {
         closed = true;
         failPending('transport-closed');
-        if (child) { child.stdin.end(); child.kill(); }
+        if (child && !processExited) { child.stdin.end(); child.kill(); }
         return { localTransportClosed: true, endpointStopped: false };
     }
-    return { connect, request, subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); }, close };
+    async function shutdown({ timeoutMs = options.closeTimeoutMs || 2000 } = {}) {
+        if (!positiveInt(timeoutMs) || timeoutMs > 10000) throw new TypeError('Bounded transport shutdown timeout required');
+        if (shutdownPromise) return shutdownPromise;
+        closed = true; failPending('transport-closed');
+        shutdownPromise = (async () => {
+            let forced = false;
+            const wait = () => new Promise(resolve => {
+                if (!child || processExited) return resolve(true);
+                const done = () => { clearTimeout(timer); child.removeListener('exit', done); resolve(true); };
+                const timer = setTimeout(() => { child.removeListener('exit', done); resolve(processExited); }, timeoutMs);
+                child.once('exit', done);
+            });
+            if (child && !processExited) {
+                const graceful = wait();
+                try { child.stdin.end(); } catch { /* Exit still needs independent proof. */ }
+                if (!await graceful) {
+                    forced = true; const killed = wait();
+                    try { child.kill(); } catch { /* Keep process exit unverified. */ }
+                    await killed;
+                }
+            }
+            return { localTransportClosed: true, endpointStopped: false, processCleanupVerified: !child || processExited, forced };
+        })();
+        return shutdownPromise;
+    }
+    return { connect, request, shutdown, subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); }, close };
 }
 
 function createCodexClientAdapter(options = {}) {
     const transport = options.transport || createCodexStdioTransport(options);
     if (typeof transport.request !== 'function' || typeof transport.connect !== 'function') throw new TypeError('Codex transport requires connect and request');
-    const contexts = new Map(), endpoints = new Map(), tokenUsage = new Map(), goalStates = new Map();
+    const contexts = new Map(), endpoints = new Map(), tokenUsage = new Map(), goalStates = new Map(), eventWaiters = new Set();
     let capabilities;
     const clock = options.now || Date.now;
     const schedule = options.setTimeout || setTimeout, cancel = options.clearTimeout || clearTimeout;
     const observer = typeof options.onEvent === 'function' ? options.onEvent : () => {};
     const unsubscribe = typeof transport.subscribe === 'function' ? transport.subscribe(message => {
         const data = message.params || {};
+        const turnId = data.turnId || data.turn?.id;
+        if (nonempty(turnId)) for (const endpoint of endpoints.values()) {
+            if (endpoint.threadId !== data.threadId || endpoint.turnId && endpoint.turnId !== turnId && !endpoint.nativeGoal) continue;
+            endpoint.lifecycleEvents ||= new Map();
+            if (!endpoint.lifecycleEvents.has(turnId) && endpoint.lifecycleEvents.size >= 8) continue;
+            const event = endpoint.lifecycleEvents.get(turnId) || {};
+            if (message.method === 'item/completed' && data.item?.type === 'userMessage') event.ready = true;
+            if (message.method === 'turn/completed' && ['completed', 'interrupted', 'failed'].includes(data.turn?.status)) event.terminalStatus = data.turn.status;
+            endpoint.lifecycleEvents.set(turnId, event);
+        }
         if (message.method === 'thread/tokenUsage/updated' && nonempty(data.threadId)) tokenUsage.set(data.threadId, data.tokenUsage);
         if (message.method === 'thread/goal/updated' && nonempty(data.threadId)) goalStates.set(data.threadId, data.goal);
         if (message.method === 'turn/started') for (const endpoint of endpoints.values()) {
@@ -130,6 +166,7 @@ function createCodexClientAdapter(options = {}) {
                 if (!endpoint.nativeGoal || ['paused', 'complete', 'budgetLimited', 'usageLimited', 'blocked'].includes(goalStates.get(endpoint.threadId)?.status)) cancel(endpoint.timer);
             }
         }
+        for (const wake of [...eventWaiters]) wake();
     }) : () => {};
     async function probe() {
         const declared = await transport.connect();
@@ -173,6 +210,7 @@ function createCodexClientAdapter(options = {}) {
     async function startOrResume(request) {
         if (!capabilities) await probe();
         if (!capabilities.available) throw new Error('Codex lifecycle unavailable; use supervised execution');
+        if (request?.signal?.aborted) throw new Error('Host preparation cancelled; no business turn started');
         if (!nonempty(request?.actionId) || !nonempty(request.prompt) || !nonempty(request.cwd) || !path.isAbsolute(request.cwd)) throw new TypeError('Launch requires actionId, prompt and absolute cwd');
         if (request.authorization?.actor !== 'user' || !nonempty(request.authorization.reference)) throw new Error('Host launch requires referenced user authorization');
         if (endpoints.has(request.actionId)) throw new Error('Action already launched; resume its recorded endpoint instead of duplicate start');
@@ -190,7 +228,8 @@ function createCodexClientAdapter(options = {}) {
             injectContext({ ...request.context, actionId: request.actionId, reference: request.context.reference || `context:${request.context.sha256}` });
         }
         const context = contexts.get(request.actionId);
-        const params = { cwd: request.cwd, approvalPolicy: 'never', sandbox: 'workspace-write',
+        if (request.sandbox !== undefined && !['read-only', 'workspace-write'].includes(request.sandbox)) throw new TypeError('Unsupported bounded sandbox');
+        const params = { cwd: request.cwd, approvalPolicy: 'never', sandbox: request.sandbox || 'workspace-write',
             ...(context ? { developerInstructions: context.text } : {}), ...(request.model ? { model: request.model } : {}) };
         let thread;
         if (request.threadId !== undefined) {
@@ -205,6 +244,7 @@ function createCodexClientAdapter(options = {}) {
         // execution-unknown and cannot silently create another endpoint on retry.
         endpoints.set(request.actionId, endpoint);
         try {
+            if (request.signal?.aborted) throw new Error('Host preparation cancelled; no business turn started');
             if (request.nativeGoal) {
                 endpoint.budget = await configureGoal(thread.id, request.nativeGoal, request.goalAuthorization || request.authorization, () => { endpoint.nativeGoal = true; });
             } else if (capabilities.nativeGoal) {
@@ -214,9 +254,10 @@ function createCodexClientAdapter(options = {}) {
             const turnParams = { threadId: thread.id, input: [{ type: 'text', text: request.prompt }],
                 ...(request.mode !== undefined ? { collaborationMode: { mode: request.mode, settings: { model: request.model, developer_instructions: null } } } : {}) };
             if (clock() >= deadline) throw new Error('Host preparation consumed the task deadline; no business turn started');
+            if (request.signal?.aborted) throw new Error('Host preparation cancelled; no business turn started');
             const result = await transport.request('turn/start', turnParams);
             if (!nonempty(result.turn?.id)) throw new Error('Host turn identity is missing');
-            endpoint.turnId = result.turn.id; endpoint.turnStatus = result.turn.status;
+            endpoint.turnId = result.turn.id; endpoint.turnStatus = endpoint.lifecycleEvents?.get(result.turn.id)?.terminalStatus || result.turn.status;
             endpoint.timer = schedule(() => { stop({ actionId: request.actionId, reason: 'bounded-deadline' }).then(receipt => observer({ kind: receipt.stopped ? 'host-stop' : 'host-stop-unconfirmed', actionId: request.actionId, receipt }), () => observer({ kind: 'host-stop-unconfirmed', actionId: request.actionId })); }, Math.max(1, deadline - clock()));
             endpoint.timer?.unref?.();
             return { actionId: request.actionId, status: 'succeeded', endpointId: thread.id, artifactRefs: [], ...(context ? { contextHash: context.contextHash } : {}),
@@ -246,6 +287,19 @@ function createCodexClientAdapter(options = {}) {
         endpoint.timer = schedule(() => { status({ actionId: receipt.actionId }).then(() => stop({ actionId: receipt.actionId, reason: 'restored-deadline' })).then(value => observer({ kind: value.stopped ? 'host-stop' : 'host-stop-unconfirmed', actionId: receipt.actionId, receipt: value }), () => observer({ kind: 'host-stop-unconfirmed', actionId: receipt.actionId })); }, Math.max(1, Date.parse(endpoint.deadlineAt) - clock()));
         endpoint.timer?.unref?.();
         return { actionId: receipt.actionId, endpointId: receipt.endpointId, restored: true, hostStatusVerified: false };
+    }
+    function waitForLifecycle(input, terminal) {
+        const endpoint = endpointFor(input), timeoutMs = Math.min(input.timeoutMs || 10000, terminal ? Infinity : Date.parse(endpoint.deadlineAt) - clock());
+        if (!positiveInt(timeoutMs) || timeoutMs > 300000) return Promise.reject(new Error('client-lifecycle-deadline'));
+        return new Promise((resolve, reject) => {
+            let timer;
+            const finish = (error, event) => { clearTimeout(timer); eventWaiters.delete(wake); input.signal?.removeEventListener('abort', aborted); error ? reject(error) : resolve({ actionId: endpoint.actionId, endpointId: endpoint.threadId, turnId: endpoint.turnId, ...(terminal ? { terminalObserved: true, turnStatus: event.terminalStatus } : { ready: true, source: event.ready ? 'user-item-completed' : 'terminal-event' }) }); };
+            const aborted = () => finish(new Error('client-lifecycle-cancelled'));
+            const wake = error => { if (error) return finish(error); const event = endpoint.lifecycleEvents?.get(endpoint.turnId); if (terminal ? event?.terminalStatus : event?.ready || event?.terminalStatus) finish(null, event); };
+            eventWaiters.add(wake); input.signal?.addEventListener('abort', aborted, { once: true });
+            timer = setTimeout(() => finish(new Error(terminal ? 'client-terminal-unverified' : 'client-startup-unverified')), timeoutMs);
+            if (input.signal?.aborted) aborted(); else wake();
+        });
     }
     async function status(input) {
         const endpoint = endpointFor(input);
@@ -314,12 +368,19 @@ function createCodexClientAdapter(options = {}) {
             stopped: !errors.length && goalPaused && ['interrupted', 'completed', 'failed', 'notStarted'].includes(endpoint.turnStatus), goalPaused, errors, ...(diagnostics.length ? { diagnostics } : {}),
             supervisionRequired: true, processCleanupVerified: false, resourceCleanupVerified: false };
     }
+    async function shutdown(options) {
+        for (const endpoint of endpoints.values()) cancel(endpoint.timer);
+        for (const wake of [...eventWaiters]) wake(new Error('client-lifecycle-closed'));
+        unsubscribe();
+        return typeof transport.shutdown === 'function' ? transport.shutdown(options) : { ...(transport.close?.() || {}), processCleanupVerified: false, endpointStopped: false };
+    }
     function dispose() {
         for (const endpoint of endpoints.values()) cancel(endpoint.timer);
+        for (const wake of [...eventWaiters]) wake(new Error('client-lifecycle-closed'));
         unsubscribe();
         return transport.close?.() || { localTransportClosed: false, endpointStopped: false };
     }
-    return { probe, injectContext, startOrResume, status, usage, stop, restoreEndpoint, dispose };
+    return { probe, injectContext, startOrResume, status, usage, stop, restoreEndpoint, dispose, shutdown, waitForReady: input => waitForLifecycle(input, false), waitForTerminal: input => waitForLifecycle(input, true) };
 }
 
 module.exports = { probeCodexCli, createCodexStdioTransport, createCodexClientAdapter };

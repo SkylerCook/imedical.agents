@@ -20,6 +20,7 @@
 | 项目工具的源仓验证 | [交接与兼容验证](validation/project-tools.md) |
 | BOS 夜跑 2.1 源仓验证与试点边界 | [验证说明](validation/bos-night-framework-v2.1.md) |
 | 事前 PLAN、并行/冻结交付与持续浏览器治理 | [本轮验证及限制](validation/night-governance-2026-10-19.md) |
+| 客户端启动、停止回执与温和退出 | [修复及验证边界](validation/night-client-lifecycle-2026-10-23.md) |
 | 夜跑成果保护、监督与成本回归 | [六处修复及验证边界](validation/night-cost-regression-2026-10-20.md) |
 | 第三次无人值守需求处理的框架观察 | [原始观察记录](validation/bos-night-run-3-observations-2026-10-18.md)，本轮治理实施与限制见上方验证 |
 | 知识资产来源更新 | [知识资产维护](governance/imedical-knowledge.md) |

@@ -56,6 +56,31 @@ action.context 实际携带公共硬约束、当前角色、当前需求原文�
 
 事前预检另含 `client-lifecycle`、`client-stop`、`client-usage`、`automation-inventory` 的实际非交互证据。检查遗留自动任务归属，结束只处理本批拥有的任务；不能清理其它任务来伪造空环境。
 
+### 客户端生命周期预检
+
+新能力预检声明 client-lifecycle/client-stop 时，项目 preflight 使用框架传入的 probeClientLifecycle，不再自行拼接“启动后立即停止并轮询历史”的脚本。入口仍为 `night-capability-probe.js --profile <项目私有适配器> --output <本批新回执>`；同一回执在启动前及每个端点、ACK、终态、退出阶段落盘读回，未完成时 cleanupVerified/operationExited 均为 false，不可绑定可执行 PLAN。不创建第二套台账；旧已批准回执和 run 不自动迁移。
+
+项目 profile 的最小接入如下；授权引用和三截止由本批事实提供，不能照抄示例产生授权。浏览器、登录、业务入口、周额度用量及 automation-inventory 仍由项目原适配器提供。
+
+~~~javascript
+preflight: async ({ probeClientLifecycle }) => {
+    const client = await probeClientLifecycle({
+        authorization: approvedClientProbeAuthorization,
+        deadlineAt: approvedProbeDeadline, // 不得晚于本批绝对停止时间
+        timeoutMs: 30000, closeTimeoutMs: 2000
+    });
+    return { cleanupVerified: client.cleanupVerified, checks: client.checks };
+}
+~~~
+
+探针只在原授权内创建两个固定无业务单轮端点，使用 read-only sandbox，沿项目宿主和模型映射，不派发需求或建立 Goal。Codex adapter 等待与实际 threadId/turnId 匹配的 userMessage item/completed 或已完成 turn 事件，再做一次历史回读；turn/start ACK 和文件非空均不单独证明就绪。历史回读不重试，失败按 startup-readback/stop-readback 分级记录安全 RPC 方法/错误码，不推断 -32603 的具体根因。
+
+每个端点只执行一轮显式中断检查，分别保留 interruptRequested、interruptAcknowledged、terminalVerified、historyReadbackVerified 及 stopReadbackVerified。client-stop 要求两个端点均取得 ACK 与独立终态证据；只有 ACK 仍保留未知端点。历史回读失败不能抹掉已取得的 ACK/终态，也不能让 client-lifecycle 通过。终态可来自同一 turn 的完成事件或回读；回读仍为 inProgress 时保留冲突，不宣称停止。
+
+关闭时先结束本地 stdin，在有界时间内等待进程退出，再按需强制结束并记录 forced；没有退出事件则 processCleanupVerified=false。worker 将退出证据写回原 checkpoint，未知本地进程保留 lease。退出本地 transport 始终不表示 endpointStopped。探针使用项目整体 timeout 与本批截止中的较早值，取消后不再发送首次 turn/start。取消、超时、写回失败或终态未知均阻断相关实施；保留现有未知资源，不能重新创建探针或降级来清账。能力不足时的流程转换仍按既有[退出契约](../workflows/bos-demand-unattended.workflow.md#单-agent-降级)确认，不将历史读取错误一概描述为中断 API 失败。
+
+底层实现为 [客户端](../scripts/lib/night-client.js)、[Codex adapter](../scripts/lib/night-codex-client.js) 及[能力预检](../scripts/lib/night-capability.js)。供应商协议参考[官方 App Server 生命周期](https://learn.chatgpt.com/docs/app-server)；事件到达不等于磁盘已可读，实际回读与真实宿主遵循分别取证。
+
 ## 同类并行与联合版本
 
 按 Git common directory 与类相对路径识别关联；worktree 路径不同不会产生两个独立源仓。同类不同片段可并行，同方法、字段、辅助逻辑或契约冲突由既有 Developer 集成 owner 先统一方案。没有通用文件锁服务。

@@ -214,3 +214,13 @@ test('client JSONL failures carry safe RPC diagnostics and still close the owned
     assert.equal(blocked.status, 'blocked'); assert.equal(blocked.diagnostics[0].method, 'turn/interrupt'); assert.equal(blocked.diagnostics[0].rpcCode, -32603);
     assert.equal(code, 0); assert.equal(fs.existsSync(path.join(f.root, 'night-client-worker.lock')), false);
 });
+
+
+test('worker checkpoints local transport exit separately and keeps its lease when that exit is unverified', async t => {
+    const f = fixture(t); f.state.stopTerminal = true;
+    f.options.adapter.shutdown = async () => ({ localTransportClosed: true, processCleanupVerified: false, endpointStopped: false, forced: true });
+    const worker = createClientWorker({ ...f.options, intervalMs: 100 }); await worker.start(); await worker.close();
+    const saved = JSON.parse(fs.readFileSync(path.join(f.root, 'evidence/night-operations/client-worker-checkpoint.json')));
+    assert.equal(saved.observation.endpoints[0].stoppedVerified, true); assert.equal(saved.observation.transport.processCleanupVerified, false); assert.equal(saved.observation.transport.endpointStopped, false);
+    assert.equal(fs.existsSync(path.join(f.root, 'night-client-worker.lock')), true);
+});

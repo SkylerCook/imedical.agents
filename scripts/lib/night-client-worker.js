@@ -66,10 +66,16 @@ function createClientWorker({ runDirectory, adapter, intervalMs = 5000, now = Da
             return managed.startOrResume(request);
         });
     }
+    async function shutdownAdapter() {
+        let timer;
+        try { return await Promise.race([Promise.resolve().then(() => adapter.shutdown ? adapter.shutdown() : adapter.dispose?.()), new Promise((_, reject) => { timer = setTimeout(() => reject(Error('client-transport-exit-unverified')), 10000); })]); }
+        catch { return { localTransportClosed: false, endpointStopped: false, processCleanupVerified: false }; }
+        finally { clearTimeout(timer); }
+    }
     async function close(reason = 'worker-close') {
         if (closed) return lastObservation;
         if (closing) return queue;
-        if (!acquired) { closed = true; await adapter.dispose?.(); return null; }
+        if (!acquired) { closed = true; await shutdownAdapter(); return null; }
         closing = true; clearTimeout(timer);
         return serial(async () => {
             const manifest = (seams.loadManifest || require('../agent-orchestrator').loadManifest)(root);
@@ -78,8 +84,12 @@ function createClientWorker({ runDirectory, adapter, intervalMs = 5000, now = Da
             for (const action of actions) try { await managed.stop({ actionId: action.id, reason }); } catch { /* Final observation retains unresolved endpoints. */ }
             try { await observe(); } finally {
                 closed = true;
-                if (lastObservation && !lastObservation.unresolvedEndpoints.length && lastObservation.endpoints.every(e => e.stoppedVerified) && JSON.parse(fs.readFileSync(lease, 'utf8')).identity === identity) fs.unlinkSync(lease);
-                await adapter.dispose?.();
+                const transport = await shutdownAdapter();
+                if (lastObservation && transport) {
+                    lastObservation.transport = { localTransportClosed: transport.localTransportClosed === true, processCleanupVerified: transport.processCleanupVerified === true, endpointStopped: false, forced: transport.forced === true };
+                    persist(path.join(directory, 'client-worker-checkpoint.json'), { schema: 'night-client-worker-checkpoint/v1', identity, pid: process.pid, observedAt: new Date(now()).toISOString(), observation: lastObservation });
+                }
+                if (transport?.processCleanupVerified !== false && lastObservation && !lastObservation.unresolvedEndpoints.length && lastObservation.endpoints.every(e => e.stoppedVerified) && JSON.parse(fs.readFileSync(lease, 'utf8')).identity === identity) fs.unlinkSync(lease);
                 onClosed(lastObservation);
             }
             return lastObservation;
