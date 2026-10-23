@@ -24,6 +24,7 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 
 ## 使用约束
 
+- 当前需求已明确为 `project` 且 `contextMode: intent-first-on-demand-export` 时，编码、需求上下文获取及发布先读取[项目按需导出开发协议](references/project-demand-development.md)；该分支的同步与冻结发布门禁优先于下文默认 direct。`standard` 沿既有标版分支；类型缺失先查合法默认值，不能从 contextMode 推导。公共远端准入仍按通道约束执行。
 - 不在插件 rules/skills 中硬编码服务器、namespace、账号、密码、token、远程路径、业务页面清单、业务类名前缀或项目专属基类。
 - `templates/profile-defaults/<type>.md` 只作为用户显式选择项目类型后的领域默认值来源；它不是通用规则，加载后仍需代码探索或用户确认校验。
 - 涉及工程差异时读取目标工程 `.agents/config/iris_project_profile.md`。
@@ -53,7 +54,7 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 - 标版需求闭环：`../bos-plugin/skills/bos-demand-entry/SKILL.md`，用户模式 `--text / --bind / --plan / --commit / --help`，可选 `--excel` / `--Excel`；产品标识取项目配置，描述按缺陷或功能/改进使用简洁三段式，草稿仅支持 v2。历史来源用 `--rev`，不与提交授权混用。
 - IRIS 类、方法签名与官方文档查询：`skills/iris-mcp-lookup/SKILL.md`
 
-前后端边界不明或混合编码需求使用 `iris-coding`；明确的纯后端、纯前端任务直接使用对应专项 skill。各编码入口默认 direct；仅要求 guarded 时建立基线会话，完整规则由 `references/deployment-protection.md` 维护。
+前后端边界不明或混合编码需求使用 `iris-coding`；明确的纯后端、纯前端任务直接使用对应专项 skill。非按需导出工程各编码入口默认 direct；仅要求 guarded 时建立基线会话，完整规则由 `references/deployment-protection.md` 维护。
 当用户明确要求部署、上传、编译、SFTP 同步、CSP 编译或远端部署验证时，使用 `iris-deploy`。
 当用户要求把已提交的 DEV 需求更新到独立 PRD 按需导出仓库时，使用 `iris-demand-promote`；需求来源是 DEV Git 补丁，目标基线必须从 PRD 服务器导出，默认只形成本地 PRD 提交。
 只有用户要求生成提交信息、明确要求提交，或显式调用 `$demand-commit --plan|--commit` 时才使用 `demand-commit`；本地验证完成不自动加载。`--plan` 只生成提交计划和完整 commit message，不执行 pull 或 commit，也不追问是否提交；`--commit` 视为本地提交授权，直接执行 plan/apply/verify。commit 不改变 `acceptance-pending`，也不触发 feedback；push 仍需另行授权。
@@ -109,6 +110,8 @@ SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项�
 
 `scripts/iris-tools/` 是 IRIS 开发主力脚本集合，包含部署清单生成、导出、编译、Broker 调试和环境配置同步。真实连接信息由目标工程本地私有配置承载：已有 `.mcp.json` 时反向补齐 `.agents/config/project-env.json`，没有 `.mcp.json` 时才从 `templates/project-env.template.json` 创建并用 `sync-env-config.js` 生成 `.mcp.json`。这些文件不得提交到版本库。
 
+`scripts/iris-tools/source-sync.js` 管理项目按需导出、现场保护、服务器层与需求层的独立提交及复审冻结；操作参数以 `--help` 为准。共享远端准入与 Atelier client 位于能力包根 `scripts/lib/`，本地状态检查/显式恢复使用根 `scripts/iris-remote.js`，具体边界归上述项目协议。
+
 `prepare-deploy-manifest.js --from-git` 在 workspace-overlay 中按声明的 SourceRoot/GitRoot 分组执行 Git diff，并把结果映射回 WorkspaceRoot 逻辑路径；同名仓库相对路径必须保留各自 `sourceRoot`、`gitRoot`，不得互相覆盖。前端编码迁移只扫描 `sourceRoots[name=frontend]`；manifest 明确只有 `backend` 时规范化为 `N/A (backend-only)`，其它无法判定的缺失声明继续阻断。
 
 默认模板将 `mcp.serverPath` 指向 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`。该路径只表示内置 MCP server 可执行文件位置，不包含 host、namespace、账号、密码或 token。
@@ -121,9 +124,9 @@ SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项�
 
 ## 开发部署与可选基线保护
 
-部署、CSP 编译和 SFTP 配置入口共用 workspace 校验结果；目录缺失、错误链接及无效 manifest 在配置读取和远端连接前停止并返回非零退出码。能力包必须为有效安装（含 CapabilityRoot 的 .git）；direct 仍不要求业务源码 Git 仓库或基线会话。
+部署、CSP 编译和 SFTP 配置入口共用 workspace 校验结果；目录缺失、错误链接及无效 manifest 在配置读取和远端连接前停止并返回非零退出码。能力包必须为有效安装（含 CapabilityRoot 的 .git）；非按需导出工程的 direct 仍不要求业务源码 Git 仓库或基线会话。
 
-日常开发部署默认 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留编码、Storage、并发变化、回读和编译检查。需要三方合并时显式使用 `--mode guarded --demand <id>` 并建立会话。旧命令仅带 `--demand` 继续使用 guarded。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 只生成本地计划。
+非按需导出工程日常开发部署默认 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留编码、Storage、并发变化、回读和编译检查。需要三方合并时显式使用 `--mode guarded --demand <id>` 并建立会话。旧命令仅带 `--demand` 继续使用 guarded。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 只生成本地计划。
 
 部署 Question 兼容：停止结果提供工具无关 question 协议，固定决定代码；Agent 按能力采用选项或文字确认。暂停/查看/无效决定不写入。详见 references/deployment-protection.md。
 

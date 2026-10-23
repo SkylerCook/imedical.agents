@@ -28,6 +28,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
 
 按条件继续读取：
 
+- 需求类型明确为 `project` 且使用 `intent-first-on-demand-export` 时，读取[项目开发协议](../../references/project-demand-development.md)，按其接入测试/正式各自本地 Git、私有环境声明与准入资格；不自动启用策略、初始化 Git 或连接服务器。标版沿原分支，contextMode 不决定需求类型。
 - 需要人工安装说明或步骤对照时，读取 `templates/coding-iris-init-guide.md`；本文件是 Agent 执行指令，两者冲突时以本文件为准。
 - 生成或重建 thin-index 前，读取插件内置 `scripts/generate-plugin-thin-index.ps1` 的调用方式，不复制脚本实现。
 - 创建或补齐 profile 时，读取 `templates/iris_project_profile.template.md`；只有用户明确选择项目类型时，才读取 `templates/profile-defaults/<type>.md`。

@@ -1,5 +1,16 @@
 # imedical.agents 维护日志
 
+## 2026-10-24 IRIS 项目按需导出开发
+
+- 用户随后授权 c + p；提交前复用有效验证证据，补正自定义 MCP serverName 的 status/reconcile 解析并通过 2 项定向回归；按 README 双远端约定同步 Gitee 主仓与 GitHub 镜像，业务服务器操作仍独立授权。
+
+- framework-maintenance，仅已确认 project＋按需 contextMode 命中项目开发分支；standard 沿既有规则，公共机制及角色共用，skill/rule/IRIS agent/workflow 传递类型与来源而不复制正文。新增 source-sync 现场/基线恢复、逐需求层提交、移植接入、部署前同步复审及冻结产物发布。两环境独立本地 Git；无变化不建 export 或空提交，本地回滚追加新提交。
+- 根共享库承接已接入 Atelier/Broker/MCP 的单实例或已确认共享许可池跨进程准入，默认串行、503 零重试，未知写保留核实断点；仅本人会话/子进程收尾。外部 IDE、原生 MCP 和其它独立客户端不自动受控，不承诺 1 LU 或即时释放。模板无连接凭据，私有状态不进入 Git。
+- 本机 source-sync 25/25 全项＋最终身份/读取恢复 2/2 定向，事务 7/7，promotion 30/30 全项＋legacy/类型 2/2 定向；部署既有六 suite 70/70，类型/事务/CSP 组合 27/27，index flags 与 Storage 最终补测 16/16。远端联合 30/30、最终受限恢复 14/14；独立恢复 GET 仍保留原熔断和未知写，不清除业务结果。
+- coding 0.21.0、context 0.7.0 与七个直接依赖 PATCH 已同步；工作树版本/兼容比较无新增问题，既存历史债务不改写。UTF-8、JSON、JavaScript 语法与 diff check 通过，CI 增加三平台 × Node 22.5/22/24，当前实跑仅 Windows Node 24.14.1。实际命令、范围和未部署边界见[本轮验证](../maintenance/validation/iris-project-demand-development-2026-10-24.md)。
+- capability-help、documentation-entry/layout 共 17 项通过；fast-path 已改为沿现 owner 的有效授权指针核对，并修正同文件锚点读取，最终通过；不恢复过时的强制逐项询问规则。
+- 本轮未连接业务服务器，未初始化业务 Git、部署、暂存、提交或推送。真实资格窗口、旧 Caché 兼容、其它平台与业务副本入口加载沿 backlog 原 P1/P2 队列推进；不新增守护平台或并行治理队列。
+
 ## 2026-10-24 项目知识库目录与授权归类
 
 - framework-maintenance，基线467cf3f；实现通用骨架、owner目录声明、当前ContextRoot运行资料、首次接入/具体计划授权及备份恢复。更新可补已接入的空目录，未接入或待整理只提示；各工作区知识本地保留，扩展登记用途和导航。

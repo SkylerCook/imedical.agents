@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+v0.7.0：复用已有 `intent-first-on-demand-export` 模式，在当前需求已明确为 `project` 且 IRIS 插件已启用时条件路由到[项目开发协议](../coding-iris-plugin/references/project-demand-development.md)。上下文模式不决定标版／项目需求类型；公共角色和能力共用，只条件加载分支。本插件不复制 IRIS 同步/License/发布机制。已有工程授权维护时定点合并；普通更新不启用模式、不改私有配置或初始化 Git，无旧文件清理。
+
 本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
 
 v0.5.1 在项目入口模板补充 worktree 创建、接续、阶段完成及交接时的[恢复点路由](../../docs/guides/worktree-review.md#阶段提交与恢复点)。模板不授予提交权限；新项目按模板初始化，已有项目在授权上下文维护时定点合并，普通更新保留项目 AGENTS 与原有授权，无配置迁移或旧文件清理。

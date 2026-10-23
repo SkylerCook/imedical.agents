@@ -80,7 +80,11 @@ async function execute(plan, upload, compile) {
   try {
     const sent=await upload(plan);
     result.timings.uploadVerifyMs=Math.round(performance.now()-tick);
-    result.files=sent.files || [];
+    result.files=(sent.files || []).map(file => {
+      const source = plan.files.find(planned => planned.file === file.file);
+      return {...file, document: file.document || source?.publicationDocument || source?.document || null,
+        ...(source ? {localSha256: source.sha256} : {})};
+    });
     if (sent.transport) result.transport = sent.transport;
     if(sent.status!=='verified')return {...result,status:'upload-failed',failedStage:sent.failedStage,failedFile:sent.failedFile,errorType:sent.errorType};
     // Only complete, ordered evidence for every planned file permits compilation.
@@ -99,8 +103,9 @@ async function execute(plan, upload, compile) {
 }
 
 async function main(argv) {
-  if(argv.includes('--help')) {console.log('Usage: node deploy-frontend.js --project-root <project> [--source-root <frontend-root>] --files <project-relative-files...> [--python <interpreter>] [--known-hosts <file> | --host-key-sha256 <trusted-SHA256:fingerprint>] [--execute] [--mode direct|guarded] [--demand <id>] [--run-directory <run> --work-item <id> --environment-alias <alias>]\nDefault: local plan; authorized execution uses direct mode without a Git session. --demand without --mode retains guarded behavior. Upload/readback precedes CSP compilation. No automatic retries.');return;}
-  if (argv.includes('--execute') || argv.includes('--demand') || argv.includes('--mode') || argv.includes('--decision')) return require('./deploy-protected').main('frontend', argv);
+  if(argv.includes('--help')) console.log('--kind standard|project: explicit task type overrides the project default. Project + on-demand mode requires a source plan; License admission remains shared.');
+  if(argv.includes('--help')) {console.log('Usage: node deploy-frontend.js --project-root <project> [--source-root <frontend-root>] --files <project-relative-files...> [--python <interpreter>] [--known-hosts <file> | --host-key-sha256 <trusted-SHA256:fingerprint>] [--execute] [--mode direct|guarded] [--demand <id>] [--source-plan <reviewed-plan.json>] [--publication-decision <publish-receipt.json>] [--run-directory <run> --work-item <id> --environment-alias <alias>]\nDefault: local plan. On-demand project mode requires a reviewed source plan, a local Git commit and a separate production publication receipt. Other projects retain direct/guarded compatibility. Upload/readback precedes CSP compilation and final batch readback. No automatic retries.');return;}
+  if (argv.some(value=>['--execute','--demand','--mode','--decision','--source-plan','--publication-decision','--kind'].includes(value))) return require('./deploy-protected').main('frontend', argv);
   const args=parse(argv), context=resolveWorkspaceContext(args.projectRoot);
   if(workspaceContextBlockers(context).length)throw new Error('Invalid workspace context');
   const {config}=require('./project-env').readProjectEnv(context);

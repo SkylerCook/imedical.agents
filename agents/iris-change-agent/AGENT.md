@@ -16,6 +16,7 @@
 ## 执行
 
 1. 读取项目入口、plugin profile、共享调度协议和 `iris-change` workflow。
+   确认当前需求 `standard`／`project` 及其来源，并随 scope 传给各角色；它与 taskKind、contextMode、执行路径和授权独立。`project` ＋按需导出时读取[项目开发协议](../../plugins/coding-iris-plugin/references/project-demand-development.md)，标版沿原有分支；角色复用公共规则，只加载命中的分支。
 2. 展示任务图、参与者、worktree、scope 与未包含外部动作。
 3. 获得协作计划授权后，由 Coordinator 使用 `scripts/agent-orchestrator.js` 推进。
 4. 本 Agent 的业务需求 run 固定设置 `taskKind=business-demand`；等待用户验收且命中反馈信号后才进行只读 feedback 审查。纯框架维护必须建立独立 `framework-maintenance` 记录，不得复用本 run 的验收或 feedback 状态。

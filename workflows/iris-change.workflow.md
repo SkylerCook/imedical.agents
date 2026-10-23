@@ -7,6 +7,7 @@
 - 读取项目 `AGENTS.md`、plugin profile 和 IRIS project profile。
 - 读取 `workflows/standard-change.workflow.md`。
 - 使用 `iris-coding` 判断 `executionPath: fast | full | guarded`；它与 `orchestrationMode` 独立。
+- 当前需求 `standard`／`project` 及来源随 handoff 传递，不能由 contextMode 或 workflow 名称推导；`standard-change` 表示通用协作流程。项目按需导出命中时加载 coding owner 的[项目开发协议](../plugins/coding-iris-plugin/references/project-demand-development.md)，公共角色不复制分支正文。
 - 本 workflow 处理业务需求时固定设置 `taskKind=business-demand`，并由此派生 `feedbackReviewApplicable=true`；若仅维护框架本身，必须改走 `agent-kit-maintenance` 和框架维护生命周期，不得创建需求验收状态。
 
 ## 领域阶段

@@ -24,7 +24,7 @@ SFTP 工具纳入 [vendor/sftp-server](vendor/sftp-server/README.md)：保留五
 
 CLS 编码与 Review 共用 [命名与格式规范](plugins/coding-iris-plugin/references/cls-coding-format.md)：仅规范本次新增代码，原有代码即使被功能需求修改也不附带格式化，项目显式规范可覆盖默认值。新增类先核对项目基类并适配模板 Extends，Review 检查继承依据；Agent 审查命名、表达式及 [注册类、方法与变量注释](plugins/coding-iris-plugin/references/cls-coding-format.md#注释与空行)，共用清单补查提取后的重复业务规则及稳定业务标识归属；Parameter 语言合法性优先，可选脚本检查成员边界、EOF 和有限的 Parameter 声明/引用命名，不增加提交门禁。普通能力包更新分发，无业务代码迁移。
 
-IRIS 编码入口按边界选择：明确前端/后端任务直达专项 skill，混合或边界不明时使用 [iris-coding](plugins/coding-iris-plugin/skills/iris-coding/SKILL.md)。开发部署默认 direct，仅 guarded 模式在修改前处理基线，i18n 条件矩阵由前端规则统一维护；静态读取体量与真实提效分别验证，见[验证记录](maintenance/validation/agent-evolution.md)。
+IRIS 编码入口按边界选择：明确前端/后端任务直达专项 skill，混合或边界不明时使用 [iris-coding](plugins/coding-iris-plugin/skills/iris-coding/SKILL.md)。当前需求已明确为 `project` 且采用 `intent-first-on-demand-export` 时执行[项目按需导出开发协议](plugins/coding-iris-plugin/references/project-demand-development.md)，按范围刷新基线、保护现场并于部署前同步复审；标版沿既有分支，contextMode 不决定需求类型。公共角色、字节检查和远端准入共用，规则与 skill 条件加载。i18n 条件矩阵由前端规则统一维护；静态读取体量与真实提效分别验证，见[验证记录](maintenance/validation/agent-evolution.md)。
 
 ## 快速理解
 

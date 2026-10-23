@@ -103,7 +103,7 @@ BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调
 
 ## coding-iris-plugin
 
-IRIS 前后端开发、知识查询、DEV→PRD 需求移植与部署。通用提交归 demand-delivery-plugin，标版补录归 bos-plugin。详见[插件说明](../../plugins/coding-iris-plugin/README.md)和[manifest](../../plugins/coding-iris-plugin/.agents-plugin/plugin.json)；[使用示例](capability-guide.md#coding-iris-plugin)。
+IRIS 前后端开发、知识查询、项目按需导出与部署，支持可选 DEV→PRD 需求移植。`intent-first-on-demand-export` 的基线、现场保护、复审和远端准入统一见[项目开发协议](../../plugins/coding-iris-plugin/references/project-demand-development.md)，由 source-sync.js 与既有编码/部署入口承接，不新增独立 skill。通用提交归 demand-delivery-plugin，标版补录归 bos-plugin。详见[插件说明](../../plugins/coding-iris-plugin/README.md)和[manifest](../../plugins/coding-iris-plugin/.agents-plugin/plugin.json)；[使用示例](capability-guide.md#coding-iris-plugin)。
 
 ### Skills
 

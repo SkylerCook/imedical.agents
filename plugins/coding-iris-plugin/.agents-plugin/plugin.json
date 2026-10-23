@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.20.7",
+  "version": "0.21.0",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
@@ -84,6 +84,16 @@
     "AGENTS.md",
     ".mcp.json",
     ".agents/config/iris_project_profile.md"
+  ],
+  "projectDirectories": [
+    {
+      "id": "source-sync",
+      "base": "context",
+      "path": "work/source-sync",
+      "role": "recovery",
+      "create": "task",
+      "purpose": "项目按需导出的私有基线、现场保护与恢复断点"
+    }
   ],
   "defaultPrompt": [
     "Initialize IRIS coding support in this project",

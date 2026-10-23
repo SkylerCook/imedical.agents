@@ -231,12 +231,13 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
   const expected={...before,files:plans.map(p=>[p.file.localPath,hash(p.bytes)])};
   if(JSON.stringify(snapshot(repo,files))!==JSON.stringify(expected))stop('local-source-changed');
   targetState.status='verified'; delete targetState.attention; delete targetState.pending; write(loc.file,state);
-  return {status:'verified',compilation,localStorageSync:{status:'verified',files:storageSynced},files:plans.map(p=>({file:p.file.relative,sha256:hash(/\.(cls|mac|inc)$/i.test(p.file.remotePath)?p.compiled:p.file.bytes),localSha256:hash(p.bytes),storageSynced:p.synced,merged:p.file.merged,status:p.file.skip?'unchanged':'uploaded'})),sourceUnchanged:storageSynced.length===0};
+  return {status:'verified',compilation,localStorageSync:{status:'verified',files:storageSynced},files:plans.map(p=>({file:p.file.relative,document:p.file.publicationDocument||p.file.document||p.file.remotePath,sha256:hash(/\.(cls|mac|inc)$/i.test(p.file.remotePath)?p.compiled:p.file.bytes),uploadSha256:hash(p.file.bytes),postCompileSha256:hash(p.compiledBytes),localSha256:hash(p.bytes),storageSynced:p.synced,merged:p.file.merged,status:p.file.skip?'unchanged':'uploaded'})),sourceUnchanged:storageSynced.length===0};
  }catch(e){
+  if(attempt&&e.reason!=='compile-failed'){try{adapter.markUnknown?.(e.reason||e.code||'deployment-outcome-unknown');}catch{}}
   adapter.recordFailure?.(activeFile,e);
   let sourceUnchanged;
   if(before){try{sourceUnchanged=JSON.stringify(snapshot(repo,files))===JSON.stringify(before);}catch{sourceUnchanged=false;}}
-  const result=needsInput(e instanceof Attention?e.reason:'transport-or-compile-failed',e instanceof Attention?e.details:{},{sourceUnchanged,partialOrUnknown:attempt,stateFile:loc.file,
+  const result=needsInput(e instanceof Attention?e.reason:e.code||'transport-or-compile-failed',e instanceof Attention?e.details:{},{sourceUnchanged,partialOrUnknown:attempt,stateFile:loc.file,
    ...(compiled?{remoteCompilation:'compiled',compilation,localStorageSync:{status:'incomplete',files:storageSynced}}:{})});
   if(state&&targetState){targetState.status=attempt||['writing','failed-or-unknown'].includes(targetState.status)?'failed-or-unknown':'needs-user-input';targetState.attention=result;write(loc.file,state);}
   return result;

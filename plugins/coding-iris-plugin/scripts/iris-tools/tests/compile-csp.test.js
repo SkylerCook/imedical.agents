@@ -80,3 +80,22 @@ test('CLI defaults to local plan without MCP config or remote connection', t => 
   assert.equal(JSON.parse(result.stdout).status,'planned');
   assert.equal(fs.existsSync(path.join(root,'.mcp.json')),false);
 });
+
+test('on-demand standalone CSP compile branches by explicit demand kind without inferring it', async t => {
+  const parent = process.env.CODEX_TEST_TMP_ROOT || (process.platform === 'win32' ? 'D:\\tmp\\Codex' : os.tmpdir()); fs.mkdirSync(parent, {recursive: true});
+  const root = fs.mkdtempSync(path.join(parent, 'csp-demand-kind-')); t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  const context = {workspaceRoot: root, contextRoot: path.join(root, '.agents')};
+  fs.mkdirSync(path.join(context.contextRoot, 'config'), {recursive: true}); fs.mkdirSync(path.join(context.contextRoot, '.git'));
+  fs.writeFileSync(path.join(context.contextRoot, 'config/project_context_profile.md'), '- contextMode: intent-first-on-demand-export\n');
+  let calls = 0; const client = {compile: async () => {calls++; return good;}};
+  const deployment = plan(['web/csp/a.csp'], 'web/csp');
+  await assert.rejects(compile({}, deployment, 60000, {context, client}), /explicit-demand-kind-required/); assert.equal(calls, 0);
+  await assert.rejects(compile({}, deployment, 60000, {context, client, kind: 'project'}), /on-demand CSP compilation/); assert.equal(calls, 0);
+  assert.equal((await compile({}, deployment, 60000, {context, client, kind: 'standard'})).status, 'compiled'); assert.equal(calls, 1);
+  fs.writeFileSync(path.join(context.contextRoot, 'config/iris_project_profile.md'), '- 默认需求交付类型：standard\n');
+  assert.equal((await compile({}, deployment, 60000, {context, client})).status, 'compiled'); assert.equal(calls, 2);
+  await assert.rejects(require('../compile-csp').main(['--project-root', root, '--documents', 'web/csp/a.csp', '--execute', '--kind', 'project']), error => error.code === 'on-demand-managed-compile-required');
+  assert.equal(calls, 2);
+  assert.equal(require('../compile-csp').args(['--kind', 'standard']).kind, 'standard');
+  assert.throws(() => require('../compile-csp').args(['--kind', 'unknown']), /explicit-demand-kind-required/);
+});

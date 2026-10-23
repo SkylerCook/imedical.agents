@@ -19,7 +19,9 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 
 ## 部署方式
 
-日常开发部署默认 direct，不要求需求号或 Git 基线会话；已有修改不触发基线确认。仅在用户或项目要求 guarded 时，在第一次修改前读取[建立会话要求](../../references/deployment-protection.md#建立会话)。完整模式与保护范围见[部署契约](../../references/deployment-protection.md)。上传、编译仍需明确授权。
+已确认 `project` 需求且 `contextMode: intent-first-on-demand-export` 时，修改前先读[项目开发协议](../../references/project-demand-development.md)，执行需求基线、现场保护及部署前同步复审；不以本地已有文件判断服务器最新。标版沿既有分支，不能从 contextMode 推导需求类型。
+
+其它工程日常开发部署默认 direct，不要求需求号或 Git 基线会话；已有修改不触发基线确认。仅在用户或项目要求 guarded 时，在第一次修改前读取[建立会话要求](../../references/deployment-protection.md#建立会话)。完整模式与保护范围见[部署契约](../../references/deployment-protection.md)。上传、编译仍需明确授权。
 
 ## 流程
 

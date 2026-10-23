@@ -30,6 +30,9 @@ function run(args) {
   fs.mkdirSync(configRoot, { recursive: true });
   fs.copyFileSync(sourceScript, scriptPath);
   fs.copyFileSync(sourceWorkspaceContext, workspaceContextPath);
+  for (const name of ['atelier-client.js', 'iris-remote-operations.js']) {
+    fs.copyFileSync(path.join(repoRoot, 'scripts', 'lib', name), path.join(path.dirname(workspaceContextPath), name));
+  }
 
   const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });

@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+0.21.0：需求已明确为 `project` 且采用 `intent-first-on-demand-export` 时接入[项目开发协议](references/project-demand-development.md)，按需求刷新服务器基线、保护现场并分层提交，部署前重新同步和复审冻结。`standard` 沿既有分支；上下文模式不能推导需求类型。前端优先复用已确认支持的 Atelier，公共远端准入只覆盖已接入工具；真实 License 资格、旧服务器兼容及资源退出须在授权窗口取证。正常更新后，由授权项目维护配置私有策略和各环境本地 Git；不自动初始化 Git、启用模式、连接服务器或迁移旧恢复材料。
+
 本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
 
 前端编码与 Review 的 UI 条件读取统一由[前端规则门禁](rules/iris_coding_frontend.md#ui-条件门禁)维护，覆盖修改前、最终 diff 和只走 rule 的入口；HISUI 参考补充 Tree 模式、panel 边框及原生内容尺寸口径。通过正常更新取得，无配置迁移、自动启用或业务资源发布。
@@ -47,7 +49,8 @@ CSP、HTML、JS、CSS 编码与 Review 共用[前端规范](references/frontend-
 - CSP/JavaScript/HISUI 前端编码规则：框架页/内容页拆分、HISUI 控件及原生视觉状态优先（含悬浮/焦点/禁用/等待）、JS 组织方式、前端数据回显。
 - 工作流规则：本地优先；导出、编译、Broker 调试和配置同步优先使用 IRIS 开发主力脚本；MCP 作为辅助能力补上下文、只读验证或覆盖脚本未覆盖场景。
 - 部署编排：`skills/iris-deploy/SKILL.md` 负责远端部署入口、清单生成、确认门禁和验证编排，上传、编译、部署和远端验证按 `rules/iris_deploy_checklist.md` 逐项执行。
-- 需求移植：`skills/iris-demand-promote/SKILL.md` 将已提交的 DEV 需求补丁移植到独立 PRD 按需导出仓库；先导出 PRD 服务器基线，再做三方应用，只创建本地 PRD 提交。
+- 项目开发：[source-sync 协议](references/project-demand-development.md)管理测试默认、正式显式授权、按需导出及双环境独立本地 Git；已有需求历史追加 export/需求层，不重写提交。
+- 需求移植：`skills/iris-demand-promote/SKILL.md` 将已提交的 DEV 需求补丁移植到独立 PRD 按需导出仓库；先导出 PRD 服务器基线，再做三方应用，只创建本地 PRD 提交。它是项目开发的一条可选路径。
 
 
 - 前端统一编码：当前标版、医院项目的源码、上传内容和服务器运行编码统一使用 canonical `utf8`。
@@ -131,7 +134,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 
 workspace-overlay 模式不在每个模块中重复拉取插件：先更新共享 `CapabilityRoot`，再从 capability 脚本入口用 `-NoPull` 刷新模块 `ContextRoot`。IRIS 工具统一解析 workspace context：`project-env.json` 与 profile 来自 `ContextRoot`，插件/模板/vendor 来自 `CapabilityRoot`，工具源码写入限制在声明的 SourceRoot，`--from-git` 在各自 GitRoot 执行并映射回 WorkspaceRoot 逻辑路径。Agent 可按当前需求只读搜索和查看已声明 GitRoot 或项目注册表明确映射的相关仓库，读取不扩大修改或部署权限；边界与旧项目入口迁移见能力包根 `docs/workspace-overlay.md`。前端编码迁移只扫描 `sourceRoots[name=frontend]`；明确只有 `backend` 时写入 `N/A (backend-only)`，无法从 manifest 判定业务类型时才要求人工复核，不通过扫描父目录或 sibling 猜测源码根。
 
-0.15.0 将日常开发部署默认改为 direct，无需需求号或 Git 基线会话。`--mode guarded --demand <id>` 保留三方合并，旧命令仅带 `--demand` 保持 guarded。更新能力包后生效，无配置和历史会话迁移；已有明确部署授权不重复确认。
+0.15.0 将日常开发部署默认改为 direct，无需需求号或 Git 基线会话；0.21.0 起此默认仅适用于非按需导出工程。`--mode guarded --demand <id>` 保留三方合并，旧命令仅带 `--demand` 保持 guarded。已有明确部署授权不重复确认；按需导出工程先执行上述项目协议。
 
 重建脚本委托根 canonical thin-index 脚本执行：生成阶段只处理当前 `PluginPath`，stale 清理阶段会扫描 `.agents/rules/` 中所有指向 `.agents/plugins/*/rules/*.md` 的 thin-index，并移除源文件已不存在的旧 rule 入口，例如迁移到 `references/` 的 HISUI 控件参考入口。目标工程自定义规则不会被清理。
 
@@ -141,7 +144,7 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 2. 基于 `templates/iris_project_profile.template.md` 创建 `.agents/config/iris_project_profile.md`。
 3. 检查目标工程 `.mcp.json` 是否包含实际需要的 IRIS/SFTP 能力。
 4. 运行 thin-index dry-run，确认无冲突后再 write。
-5. 前后端边界不明或混合编码任务使用 `iris-coding`；明确前端/后端任务直接使用专项 skill。开发部署默认 direct，仅要求 guarded 时在首次修改前完成或复用 Git 基线；i18n 条件矩阵和检查命令统一由前端规则维护，入口保留修改前与最终 diff 后两个检查时点。
+5. 前后端边界不明或混合编码任务使用 `iris-coding`；明确前端/后端任务直接使用专项 skill。按需导出模式先执行项目开发协议，其它工程默认 direct，仅要求 guarded 时在首次修改前完成或复用 Git 基线；i18n 条件矩阵和检查命令统一由前端规则维护。
 6. `iris-coding` 本地验证后进入 `acceptance-pending`，不自动加载 `demand-commit`；只有用户要求生成提交信息、明确要求提交，或显式调用 `$demand-commit --plan|--commit` 时才读取交付类型并路由，commit 不改变验收状态。
 7. `fast/full/guarded` 只决定开发路径深度，不跳过项目入口、profile、通用安全规则和命中的前后端/i18n/HISUI 规则。轻量并行仅允许最多两个临时只读子 Agent，主 Agent保持唯一写入者。
 7. 明确的纯后端任务可直接使用 `iris-backend-coding`，明确的纯前端任务可直接使用 `iris-frontend-coding`。

@@ -165,8 +165,13 @@ test('compiler errors return diagnostics and never report verified',async t=>{
 
 test('frontend preserves UTF8 BOM and CRLF; syntax failures stop before upload',async t=>{
  const f=fixture(t,[Buffer.from('\uFEFFconst x = "中文";\r\n')]);f.files[0].remotePath='/web/scripts/a.js';
+ f.files[0].publicationDocument='web/scripts/a.js';
  const bytes=fs.readFileSync(f.files[0].localPath);
- assert.equal((await run({...f,kind:'frontend'})).status,'verified');
+ const receipt=await run({...f,kind:'frontend'});
+ assert.equal(receipt.status,'verified');
+ assert.equal(receipt.files[0].document,'web/scripts/a.js');
+ assert.equal(receipt.files[0].localSha256,require('../deploy-guard').hash(bytes));
+ assert.equal(receipt.files[0].postCompileSha256,receipt.files[0].localSha256);
  assert.deepEqual(f.remote.get(f.files[0].remotePath),bytes);
  fs.writeFileSync(f.files[0].localPath,'const =;');f.events.length=0;
  assert.equal((await run({...f,kind:'frontend'})).reason,'javascript-syntax-failed');

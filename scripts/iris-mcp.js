@@ -16,6 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const remoteOperations = require('./lib/iris-remote-operations');
 
 const argv = process.argv.slice(2);
 const command = argv[0];
@@ -358,7 +359,8 @@ function isWriteLike(toolName, toolArgs) {
 }
 
 class JsonLineMcpClient {
-  constructor(commandPath, args, childEnv) {
+  constructor(commandPath, args, childEnv, { remoteOwner } = {}) {
+    this.remoteOwner = remoteOwner;
     this.proc = spawn(commandPath, args, {
       cwd: workspaceRoot,
       env: { ...process.env, ...childEnv },
@@ -377,6 +379,10 @@ class JsonLineMcpClient {
       for (const pending of this.pending.values()) {
         pending.reject(new Error(`MCP exited ${code}`));
       }
+      this.pending.clear();
+    });
+    this.proc.on('error', () => {
+      for (const pending of this.pending.values()) pending.reject(new Error('MCP process failed'));
       this.pending.clear();
     });
   }
@@ -403,6 +409,18 @@ class JsonLineMcpClient {
   }
 
   request(method, params, timeoutMs = 30000) {
+    if (!this.remoteOwner || method !== 'tools/call') return this.requestRaw(method, params, timeoutMs);
+    return this.remoteOwner.run({effects:isWriteLike(params.name,params.arguments || {})?'write':'read-only',operation:'mcp-tools-call'}, async () => {
+      const result = await this.requestRaw(method, params, timeoutMs);
+      if (result.error || result.result?.isError) {
+        const failure = JSON.stringify(result);
+        throw new remoteOperations.RemoteOperationError('mcp-remote-tool-failed', /(?:HTTP\s*503|503\s+Service Unavailable|"(?:httpStatus|statusCode)"\s*:\s*503)/i.test(failure) ? {status:503} : {});
+      }
+      return result;
+    });
+  }
+
+  requestRaw(method, params, timeoutMs = 30000) {
     const id = this.nextId++;
     this.proc.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n');
     return new Promise((resolve, reject) => {
@@ -427,11 +445,15 @@ class JsonLineMcpClient {
     this.proc.stdin.write(JSON.stringify({ jsonrpc: '2.0', method, params }) + '\n');
   }
 
-  close() {
-    if (this.proc) {
-      this.proc.stdin.end();
-      this.proc.kill();
-    }
+  async close() {
+    if (!this.proc || this.proc.exitCode !== null || this.proc.signalCode) return {processExited:true};
+    const exited = new Promise(resolve => this.proc.once('exit', () => resolve(true)));
+    this.proc.stdin.end();
+    let timer;
+    const wait = ms => Promise.race([exited,new Promise(resolve => {timer=setTimeout(()=>resolve(false),ms);})]).finally(()=>clearTimeout(timer));
+    if (await wait(1000)) return {processExited:true};
+    this.proc.kill();
+    return {processExited:await wait(1000)};
   }
 }
 
@@ -491,9 +513,17 @@ async function main() {
     output[key] = value;
     if (!hasFlag('--json')) printJson(key, value);
   };
-  const finish = () => { if (hasFlag('--json')) console.log(JSON.stringify(output)); };
+  let finishRequested = false;
+  const finish = () => { finishRequested = true; };
   loadWorkspaceContext();
-  const client = new JsonLineMcpClient(server.command, buildMcpArgs(), env);
+  const context = require('./lib/workspace-context').resolveWorkspaceContext(workspaceRoot);
+  const connection = {protocol:(env.IRIS_SCHEME || 'https')+':',hostname:env.IRIS_HOST,port:env.IRIS_WEB_PORT,
+    rejectUnauthorized:String(env.IRIS_TLS_VERIFY ?? 'true').toLowerCase()!=='false'};
+  const policy = remoteOperations.loadRemotePolicy(context,{connection});
+  if (policy.enabled && policy.qualification.channels?.mcp?.processExitVerified !== true) throw new Error('remote-mcp-exit-qualification-required');
+  const owner = remoteOperations.createRemoteOperation({policy,connection,channel:'mcp'});
+  owner.acquire();
+  const client = new JsonLineMcpClient(server.command, buildMcpArgs(), env, {remoteOwner:owner});
   try {
     await client.request('initialize', {
       protocolVersion: '2024-11-05',
@@ -503,6 +533,8 @@ async function main() {
     client.notify('notifications/initialized', {});
 
     const check = await callTool(client, 'check_config', {}, { allowWrite: true });
+    if (policy.enabled && (check.connected !== true || String(check.host || '').toLowerCase() !== String(env.IRIS_HOST).toLowerCase() ||
+        Number(check.port) !== Number(env.IRIS_WEB_PORT) || check.namespace !== env.IRIS_NAMESPACE)) throw new Error('remote-mcp-target-unverified');
     const checkSummary = summarizeCheck(check);
     emit('CHECK', checkSummary);
 
@@ -536,7 +568,13 @@ async function main() {
 
     throw new Error(`Unknown command: ${command}`);
   } finally {
-    client.close();
+    const exit = await client.close();
+    if (!exit.processExited && policy.enabled) owner.markUnknown('mcp-process-exit-unverified');
+    const receipt = owner.close({cleanupVerified:exit.processExited,processExited:exit.processExited});
+    if (finishRequested && hasFlag('--json')) {
+      if (policy.enabled) output.REMOTE = receipt;
+      console.log(JSON.stringify(output));
+    }
   }
 }
 

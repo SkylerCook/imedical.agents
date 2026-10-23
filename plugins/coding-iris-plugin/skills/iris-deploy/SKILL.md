@@ -7,6 +7,8 @@ description: Use when an IRIS project needs remote deployment planning, upload, 
 
 帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
 
+已确认 `project` 需求且 `contextMode: intent-first-on-demand-export` 时，先读[项目开发协议](../../references/project-demand-development.md)，执行部署前服务器同步、合并复审和 source plan 冻结；正式发布决定绑定当前冻结摘要。不能从 contextMode 推导需求类型；标版沿既有分支，公共 License 准入仍适用。传输模式不能绕过项目发布门禁。
+
 ## 核心边界
 
 本 Skill 是 IRIS 项目部署编排入口。仅分析或未获写入授权时只做本地计划和只读验证；用户明确要求部署且目标、文件范围已清楚时直接执行，不再重复确认。上传、编译、SFTP 同步、远端命令、数据库变更或生产环境动作须有覆盖当前范围的明确授权。
@@ -43,7 +45,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 
 ## 前端上传加编译
 
-优先直接调用 `scripts/iris-tools/deploy-frontend.js --source-root <frontend-root> --files <project-relative-file...> --execute`，默认 direct，参数与失败语义见 `scripts/iris-tools/README.md`。已有明确授权、目标和有效配置时使用一条命令，不再单独生成临时脚本、重复预检或逐工具确认。固定完成上传、哈希回读和指定 CSP 编译；无 `--execute` 只生成本地计划。失败停止，不自动重试或扩大文件范围。
+优先直接调用 `scripts/iris-tools/deploy-frontend.js --source-root <frontend-root> --files <project-relative-file...> --execute`，非按需导出工程默认 direct，参数与失败语义见 `scripts/iris-tools/README.md`。已有明确授权、目标和有效配置时使用一条命令，不再单独生成临时脚本、重复预检或逐工具确认。固定完成上传、哈希回读和指定 CSP 编译；无 `--execute` 只生成本地计划。失败停止，不自动重试或扩大文件范围。
 
 ## 执行顺序
 
@@ -83,7 +85,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js --docu
 
 ## 开发部署与可选基线保护
 
-日常开发部署默认使用 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留路径、编码、Storage、并发变化、回读和编译检查。需要跨版本三方合并时显式选择 `--mode guarded --demand <id>` 并建立保护会话。旧命令仅带 `--demand` 时继续按 guarded 执行，不静默降低已有保护。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 始终只生成本地计划。
+非按需导出工程日常开发部署默认使用 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留路径、编码、Storage、并发变化、回读和编译检查。需要跨版本三方合并时显式选择 `--mode guarded --demand <id>` 并建立保护会话。旧命令仅带 `--demand` 时继续按 guarded 执行，不静默降低已有保护。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 始终只生成本地计划。
 
 ## 提问工具的兼容与降级
 

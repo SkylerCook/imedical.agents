@@ -54,6 +54,11 @@ function ask(rl, question) {
 }
 
 async function main() {
+    const context = resolveWorkspaceContext(process.cwd());
+    const remote = require('../../../../scripts/lib/iris-remote-operations');
+    if (remote.contextMode(context) === 'intent-first-on-demand-export' || remote.loadRemotePolicy(context).enabled) {
+        throw new Error('remote-legacy-broker-disabled; use the managed Broker machine entry');
+    }
     const envConfig = loadConfig();
     const irisConfig = envConfig.iris || {};
     const hostname = irisConfig.host;

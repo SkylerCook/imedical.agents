@@ -10,6 +10,8 @@ related:
 
 部署 IRIS 文件时优先按本清单执行。标题和字段名尽量稳定，便于低能力模型逐项检查。
 
+已确认 `project` 需求且 `contextMode: intent-first-on-demand-export` 时先读[项目开发协议](../references/project-demand-development.md)，部署前同步与 source plan 发布门禁为前置；标版沿既有分支，contextMode 不决定需求类型。
+
 ## 部署配置继承
 
 部署工具优先读取当前 ContextRoot 的 `config/project-env.json`；仅文件不存在时，允许 workspace-overlay 按 manifest 的可选 `projectEnvFallback` 读取指定文件（相对 WorkspaceRoot，也可为绝对路径）。没有声明就停止，不扫描父目录，不默认从 CapabilityRoot 取业务配置。
@@ -80,4 +82,4 @@ related:
 
 ## 开发部署与可选基线保护
 
-日常开发部署默认使用 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留路径、编码、Storage、并发变化、回读和编译检查。需要跨版本三方合并时显式选择 `--mode guarded --demand <id>` 并建立保护会话。旧命令仅带 `--demand` 时继续按 guarded 执行，不静默降低已有保护。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 始终只生成本地计划。
+非按需导出工程日常开发部署默认使用 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留路径、编码、Storage、并发变化、回读和编译检查。需要跨版本三方合并时显式选择 `--mode guarded --demand <id>` 并建立保护会话。旧命令仅带 `--demand` 时继续按 guarded 执行，不静默降低已有保护。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 始终只生成本地计划。

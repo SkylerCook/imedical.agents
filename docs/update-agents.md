@@ -1,5 +1,13 @@
 # .agents 安装与更新 Runbook
 
+## IRIS 项目按需导出开发（coding 0.21 / context 0.7）
+
+按正常更新取得已启用的 coding-iris-plugin、agent-context-kit、根 `scripts/*.js` 与 `scripts/lib/**`，刷新 enabled 薄索引后执行 Check。Overlay 更新共享 CapabilityRoot 一次，再由各模块原流程以 `-NoPull` 刷新 ContextRoot；新增脚本与模板沿现有 sparse 范围分发，不新增安装依赖、守护服务或自动远端调用。
+
+当前需求已明确为 `project` 且采用 `intent-first-on-demand-export` 的 IRIS 工程在连接前须按[项目开发协议](../plugins/coding-iris-plugin/references/project-demand-development.md)补齐测试/正式各自的本地 Git、私有环境声明、verified 远端策略及资格证据，缺失时 fail closed。标版沿既有分支，contextMode 不决定类型；公共远端资源保护仍适用。授权维护时合入条件指针；普通更新不改项目 AGENTS/profile、连接或凭据，不自动初始化 Git、登记 License 资格、开启模式或转换旧计划。`work/source-sync` 是当前 ContextRoot 的私有 recovery/task 目录，既有恢复材料不搬移、不清理。
+
+项目按需分支以 source-sync 的部署前同步、合并复审和冻结发布优先，正式批准绑定当前冻结摘要；其它分支保留既有 direct/guarded。MCP helper 公共 tools/call 已接准入，原生 MCP、外部 IDE 及其它独立客户端属于外部边界；不得换路避开 License 控制。源仓 mock/静态检查不等于目标 License、旧 Caché、业务副本或跨平台已验收。
+
 ## 统一 skill / Agent 帮助
 
 全部自有 skill（含 init、xc）和 Agent 的源定义接入[统一帮助协议](guides/capability-help.md)。`--help` 或“查看用法”只展示说明，不检查业务配置、连接或插件现场状态，不初始化或启动任务；附带执行参数也不执行。实际任务继续沿各自原流程与授权。
@@ -143,7 +151,7 @@ coding-iris-plugin 0.10.0 的部署保护随既有 plugins 与 vendor 分发。�
 - `.agents/config/` 默认只允许合并，不覆盖已有值；唯一的运行时路径例外是 Windows x64 上将既有 `project-env.json` 的 `mcp.serverPath` 收敛到随能力包部署的 `iris-agentic-dev.exe`，其它字段保持不变。
 - `.agents/config/plugin_profile.md` 是插件启用状态事实来源；插件目录存在只表示 `available`，不表示已启用。
 - `.mcp.json` 是连接事实来源。不要把 host、账号、密码、token、namespace 或远程路径写入 `AGENTS.md`、rules、memory、config 或插件。
-- 安装/更新会部署 `.agents/scripts/iris-mcp.js`。standard 项目直接使用 sparse checkout 中的 canonical helper；workspace overlay 会在 `ContextRoot/scripts/` 生成 manifest-aware JS adapter，并转发到 `CapabilityRoot/scripts/iris-mcp.js`。原生 MCP 工具优先；只有运行器未暴露原生工具时才使用该 helper，不得把 helper 当成 canonical 规则源。更新后的 helper 会消费 `check_config` 版本和 capabilities，显式分类 v1.2.6 基线工具，尚未分类的后续版本工具默认进入 `--allow-write` 授权门禁，并按已知工具的 `mode` / `action` 拦截远端状态变化；默认通过 `--no-skills` 避免与能力包 vendor skills 重复。Windows x64 安装/更新在确认 vendor exe 已存在后，只收敛 `.mcp.json` 的 IRIS MCP `command` 和既有 `project-env.json` 的 `mcp.serverPath`；不创建连接配置，不修改 `.iris-agentic-dev.toml`，也不改 host、账号、密码、namespace、args、env 或其它 MCP server。
+- 安装/更新会部署 `.agents/scripts/iris-mcp.js`。standard 项目直接使用 sparse checkout 中的 canonical helper；workspace overlay 会在 `ContextRoot/scripts/` 生成 manifest-aware JS adapter，并转发到 `CapabilityRoot/scripts/iris-mcp.js`。非受管按需模式原生 MCP 工具优先；运行器未暴露原生工具时使用 helper。按需模式遵守本页项目开发协议的准入边界，不以原生工具绕过，也不得把 helper 当成 canonical 规则源。更新后的 helper 会消费 `check_config` 版本和 capabilities，显式分类 v1.2.6 基线工具，尚未分类的后续版本工具默认进入 `--allow-write` 授权门禁，并按已知工具的 `mode` / `action` 拦截远端状态变化；默认通过 `--no-skills` 避免与能力包 vendor skills 重复。Windows x64 安装/更新在确认 vendor exe 已存在后，只收敛 `.mcp.json` 的 IRIS MCP `command` 和既有 `project-env.json` 的 `mcp.serverPath`；不创建连接配置，不修改 `.iris-agentic-dev.toml`，也不改 host、账号、密码、namespace、args、env 或其它 MCP server。
 - 如果输出中出现停止条件，先停止并向用户汇报，不要继续执行破坏性操作。
 - 若 `WorkspaceRoot/.agents/capability.json` 存在，按 workspace overlay 处理；`ContextRoot` 无 `.git` 是合法状态。完整两阶段流程和恢复门禁见 `docs/workspace-overlay.md`。
 

@@ -6,9 +6,15 @@
 
 这些 Node.js 脚本用于生成部署清单、从 IRIS 服务器导出文件、编译类文件、调试方法调用以及同步环境配置。
 
+已确认 `project` 需求且采用 `intent-first-on-demand-export` 时先读[项目开发协议](../../references/project-demand-development.md)，以 `source-sync.js` 管理范围、服务器基线、现场和复审；下文原始 export/direct 用法不替代该分支门禁。`standard` 沿既有流程，contextMode 不决定类型。`source-sync.js --help` 是操作参数入口，plan 本地只读，prepare 才读取服务器，提交与发布分别核对授权；无变化不建 export 或空提交。
+
+受管 Atelier 生命周期复用同一 client/Cookie 并串行执行，503 不重试，未知写保留断点。根 `scripts/iris-mcp.js` 接入公共 tools/call 准入，根 `scripts/iris-remote.js` 提供本地 status/reconcile 和显式受限 inspect；原生 MCP/IDE 和其它客户端不因此自动受控。按需上下文的已接入远端通道需 verified 私有策略、严格 TLS 及适用退出资格，真实 License 占用/回落不能由 keepalive、logout 回执或进程退出推定。
+
+项目按需分支的 CSP 编译随已复审 deploy-frontend 执行，独立 `compile-csp.js --execute` 停止；其它分支保留既有单独编译及有效授权，公共 License 准入不豁免。Storage 复审收尾、追加本地回滚和锁恢复均复用 source-sync 当前 CLI，不重新部署或 rewind 历史。
+
 ## 配置说明
 
-所有脚本都从业务项目 `.agents/config/project-env.json` 读取连接参数。首次使用前先确认配置事实来源：已有 `.mcp.json` 时，从 `.mcp.json` 反向生成或补齐 `project-env.json`；没有 `.mcp.json` 时，才从 `.agents/plugins/coding-iris-plugin/templates/project-env.template.json` 复制并填写真实环境，再运行 `sync-env-config.js` 生成 `.mcp.json`。模板默认使用内置 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe` 作为后端 MCP server 路径。这些文件包含敏感信息，不应提交到版本控制系统。
+项目连接来自现有 `.mcp.json` 与 `.agents/config/project-env.json`，各入口按其契约核对目标；首次使用前先确认配置事实来源：已有 `.mcp.json` 时，从 `.mcp.json` 反向生成或补齐 `project-env.json`；没有 `.mcp.json` 时，才从 `.agents/plugins/coding-iris-plugin/templates/project-env.template.json` 复制并填写真实环境，再运行 `sync-env-config.js` 生成 `.mcp.json`。模板默认使用内置 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe` 作为后端 MCP server 路径。这些文件包含敏感信息，不应提交到版本控制系统。
 
 工具优先级：
 
@@ -391,7 +397,7 @@ Python 默认使用 `.mcp.json` 对应 SFTP 的 `command`，可用 `--python <in
 
 ## 开发部署与可选基线保护
 
-日常开发部署默认 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留编码、Storage、并发变化、回读和编译检查。需要三方合并时显式使用 `--mode guarded --demand <id>` 并建立会话。旧命令仅带 `--demand` 继续使用 guarded。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 只生成本地计划。
+非按需导出工程日常开发部署默认 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留编码、Storage、并发变化、回读和编译检查。需要三方合并时显式使用 `--mode guarded --demand <id>` 并建立会话。旧命令仅带 `--demand` 继续使用 guarded。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 只生成本地计划。
 
 部署 Question 兼容：停止结果提供工具无关 question 协议，固定决定代码；Agent 按能力采用选项或文字确认。暂停/查看/无效决定不写入。详见 references/deployment-protection.md。
 

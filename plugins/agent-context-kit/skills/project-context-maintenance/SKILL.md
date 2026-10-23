@@ -122,6 +122,7 @@ description: Initialize, maintain, or optimize project context and local docs kn
 
 对 `intent-first-on-demand-export` 工程：
 
+- 当前需求已明确为 `project` 且 `coding-iris-plugin` 已启用时，给项目入口合入[IRIS 项目开发协议](../../../coding-iris-plugin/references/project-demand-development.md)的条件指针；标版沿原有分支，contextMode 不决定需求类型。同步、准入与发布细节归 coding owner，不在本流程复制，也不自动连接服务器或启用私有策略。
 - `AGENTS.md` 保持轻量，只写项目定位、上下文状态、按需导出工作流、必读入口和安全边界。
 - 架构段落必须明确“暂无可验证完整架构；不得基于零散文件推断整体工程”。
 - 本地已有文件最多列为“当前已导出/已存在文件”，不得写“系统由这些文件组成”“核心模块是这些文件”“调用链如下”等结论。

@@ -4,6 +4,8 @@
 
 ## 当前接手
 
+- IRIS 项目按需导出已在源仓实现：明确 project＋按需上下文才经[单一协议](../plugins/coding-iris-plugin/references/project-demand-development.md)连接 source-sync、移植、冻结发布；标版沿既有分支，公共角色/远端准入共用。两环境独立本地 Git、无变化不提交、逐需求层重放与追加回滚。未提交或连接业务服务器；本机验证见维护日志，真实 License/退出资格、旧版本及跨平台证据沿既有队列取证。
+
 - 项目知识库目录治理已在源仓实现：通用骨架、owner路径、授权计划、备份/中断恢复和已接入更新补齐；使用见[目录治理](../docs/guides/project-knowledge-layout.md)，本机验证和未部署边界见维护日志对应日期。
 
 

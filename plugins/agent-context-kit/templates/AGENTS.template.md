@@ -8,6 +8,8 @@ TODO: 用一句话说明业务用途和技术栈；只写已验证边界。初�
 
 上下文模式及本地代码范围见 `.agents/config/project_context_profile.md`。若为 `intent-first-on-demand-export`，少量已导出文件只代表需求上下文；不得推断完整架构，按任务获取必要源码后再处理。
 
+若当前需求已明确为 `project`、该模式下 `coding-iris-plugin` 已启用，编码、补齐需求源码及部署前先读 `.agents/plugins/coding-iris-plugin/references/project-demand-development.md`；标版沿既有分支，contextMode 不决定需求类型。公共远端资源保护仍按 owner 规则执行。
+
 ## 开发路线
 
 TODO: 按项目实际情况填写高频任务的源码入口/参考实现，以及已有构建、运行或验证文档的链接；缺少文档且命令已验证时写最小命令与前置条件。不要复制专项文档，不虚构未验证的工具链。

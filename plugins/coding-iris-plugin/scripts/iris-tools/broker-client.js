@@ -15,7 +15,7 @@ function matchesAssertions(body, assertions) {
     });
 }
 
-async function callBroker(options) {
+async function callBrokerTransport(options) {
     const { className, methodName, role, effects, authorization, signal } = options;
     const timeoutMs = options.timeoutMs ?? 30000;
     const maxResponseBytes = options.maxResponseBytes ?? 8 * 1024 * 1024;
@@ -107,4 +107,35 @@ async function callBroker(options) {
     });
 }
 
+async function callBroker(options) {
+    let url;
+    try { url = new URL(options.url); } catch { return callBrokerTransport(options); }
+    const remote = require('../../../../scripts/lib/iris-remote-operations');
+    const context = options.context || require('../../../../scripts/lib/workspace-context').resolveWorkspaceContext(options.projectRoot || process.cwd());
+    let owner, result;
+    try {
+        const connection = { protocol: url.protocol, hostname: url.hostname, port: Number(url.port || (url.protocol === 'https:' ? 443 : 80)), rejectUnauthorized: true };
+        const policy = remote.loadRemotePolicy(context, {connection});
+        if (policy.enabled && (!options.cookie || typeof options.sessionOwnerReference !== 'string' || !options.sessionOwnerReference.trim())) {
+            throw new remote.RemoteOperationError('remote-broker-session-owner-required');
+        }
+        owner = options.remoteOwner || remote.createRemoteOperation({policy, connection, channel: 'broker'});
+        result = await owner.run({effects: options.effects || 'read-only', operation: 'broker-method'}, async () => {
+            const value = await callBrokerTransport(options);
+            if (value.httpStatus === 503 || options.effects === 'write' && value.outcome === 'unknown' && value.transport !== 'not-sent') {
+                throw Object.assign(new Error('remote-broker-outcome-unverified'), {status: value.httpStatus, result: value});
+            }
+            return value;
+        });
+    } catch (error) {
+        result = error.result || { schema: 'iris-broker-result/v1', status: 'rejected', transport: 'not-sent', httpStatus: null,
+            authentication: 'unknown', business: 'not-asserted', outcome: 'not-executed', errorCode: error.code || 'remote-admission-rejected' };
+    } finally {
+        if (owner && !options.remoteOwner) {
+            const exit = owner.close({ borrowedSession: !!options.cookie, sessionExitOwner: options.cookie ? 'caller' : 'legacy', cleanupVerified: true });
+            if (result) result.remoteOperation = exit;
+        }
+    }
+    return result;
+}
 module.exports = { callBroker, matchesAssertions };

@@ -1,0 +1,17 @@
+{
+  "schema": "iris-remote-policy/v1",
+  "enabled": false,
+  "coordinationRoot": "<absolute-private-coordination-directory>",
+  "poolKey": "verified-pool-alias",
+  "maxConcurrent": 1,
+  "allowSharedPool": false,
+  "qualification": {
+    "status": "pending",
+    "reference": "<local-qualification-evidence-file>",
+    "channels": {
+      "mcp": {
+        "processExitVerified": false
+      }
+    }
+  }
+}

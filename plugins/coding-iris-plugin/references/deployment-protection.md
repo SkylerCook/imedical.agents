@@ -1,5 +1,7 @@
 # 开发部署与可选基线保护
 
+已确认 `project` 需求且 `intent-first-on-demand-export` 时先执行[项目按需导出开发协议](project-demand-development.md)，使用部署前同步、复审和冻结发布门禁；标版沿原有分支。该项目分支即使使用 direct 传输，也不跳过 source plan 和生产批准；contextMode 不决定需求类型。
+
 ## 默认开发部署（direct）
 
 明确目标环境、文件范围并取得部署授权后，直接使用本地文件更新目标。不要求需求号、Git 基线会话、干净工作区或 fetch/pull；已有明确授权不重复确认。部署仅允许将编译后核对通过的 Storage 回填到本次指定的本地类文件；暂存区和 Git 历史保持不变。

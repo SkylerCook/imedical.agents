@@ -103,9 +103,10 @@ async function reconcile(files, adapter, {onFile = () => {}, beforeWrite = () =>
   // Read/check the whole batch before changing any local file.
   for (const file of files) {
     onFile(file);
-    const compiled = guard.text(await adapter.read(file));
+    const compiledBytes = await adapter.read(file), compiled = guard.text(compiledBytes);
     if (compiled === null) stop('post-compile-source-missing', {file: file.remotePath});
-    const plan = {file, compiled, bytes: file.source, synced: false};
+    const plan = {file, compiled, compiledBytes, bytes: file.source, synced: false};
+    if (!/\.(cls|mac|inc)$/i.test(file.remotePath) && guard.hash(compiledBytes) !== guard.hash(file.bytes)) stop('post-compile-source-changed', {file: file.remotePath});
     if (/\.cls$/i.test(file.remotePath)) {
       if (file.content === compiled && storage(guard.text(file.source)) === storage(compiled)) { plans.push(plan); continue; }
       const uploaded = inspect(file.content), remote = inspect(compiled);

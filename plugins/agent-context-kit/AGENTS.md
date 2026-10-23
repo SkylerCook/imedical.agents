@@ -14,6 +14,8 @@
 
 用于初始化和维护 Agent 项目上下文文件的通用插件。
 
+当前需求已明确为 `project`、`project_context_profile.md` 为 `intent-first-on-demand-export` 且 coding-iris-plugin 已启用时，将[IRIS 项目开发协议](../coding-iris-plugin/references/project-demand-development.md)作为编码、补源码和发布的条件入口。标版沿既有分支，通用模式不决定需求类型；IRIS 细节只由 coding owner 维护，普通更新不自动改写项目入口或配置。
+
 ## 能力范围
 
 本插件用于维护项目级 Agent 上下文，包括：

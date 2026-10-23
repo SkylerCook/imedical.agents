@@ -26,6 +26,8 @@
 
 初始化时按 project-context-maintenance 判断模式并填充上述字段，删除无信息占位；日常沿用已确定模式，用户明确变更工程定位时再调整。`intent-first-on-demand-export` 下少量已导出文件不代表完整工程，不据此推断完整架构。
 
+当前需求已明确为 `project`、该模式且 `coding-iris-plugin` 已启用时，IRIS 需求处理读取能力包 `plugins/coding-iris-plugin/references/project-demand-development.md`。标版沿既有分支；本 profile 只声明上下文语义，不决定需求类型，也不复制 IRIS 连接、License 策略或发布规则。
+
 ## 待确认项
 
 <!-- 仅填写实际影响执行的未决配置；无待确认项时省略此节，不保留空泛 TODO。 -->

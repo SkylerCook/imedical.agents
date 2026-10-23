@@ -6,12 +6,14 @@ const CHOICES = Object.freeze({
   inspect: {label: '查看差异', description: '只读查看文件和服务器状态，不授权上传。'},
   merge: {label: '重新合并', description: '仅为当前快照重新尝试合并，冲突仍会停止。'},
   overwrite: {label: '覆盖当前文件', description: '用本地内容替换当前服务器文件，会丢弃该文件的服务器差异。'},
-  resume: {label: '核实后恢复', description: '核实上次部署结果后重新检查；不自动解决冲突。'}
+  resume: {label: '核实后恢复', description: '核实上次部署结果后重新检查；不自动解决冲突。'},
+  publish: {label: '发布已复审版本', description: '只批准当前环境、提交、文件、产物哈希及服务器基线对应的正式发布。'}
 });
 
 function actions(reason, details) {
   const codes = ['pause', 'inspect'];
   if (!/^[a-f0-9]{64}$/.test(details.token || '')) return codes;
+  if (reason === 'production-approval-required') return [...codes, 'publish'];
   if (reason === 'previous-result-unknown') return [...codes, 'resume'];
   if (reason === 'remote-overwritten-again') return [...codes, 'merge', 'overwrite'];
   if (['merge-conflict', 'new-file-collision', 'remote-deleted'].includes(reason)) return [...codes, 'overwrite'];
@@ -28,6 +30,7 @@ function needsInput(reason, details = {}, extra = {}) {
       reason,
       token: details.token || null,
       recommendedAction: 'pause',
+      ...(reason === 'production-approval-required' ? {decisionSchema: 'iris-publication-decision/v1'} : {}),
       requiresExplicitResponse: true,
       choices: codes.map(code => ({code, ...CHOICES[code]}))
     }
@@ -43,6 +46,7 @@ function decisionError(decision) {
     return 'invalid-decision';
   }
   if (['pause', 'inspect'].includes(decision.action)) return 'decision-' + decision.action;
+  if (decision.action === 'publish') return 'publication-decision-requires-publication-gate';
   if (typeof decision.token !== 'string' || !/^[a-f0-9]{64}$/.test(decision.token)) return 'invalid-decision-token';
   return null;
 }

@@ -24,9 +24,11 @@ description: Route IRIS coding requests with unclear frontend/backend boundaries
 
 ## 修改前
 
+当前需求类型为 `project` 且 `contextMode: intent-first-on-demand-export` 时，先读[项目开发协议](../../references/project-demand-development.md)，在需求范围内建立/刷新基线并保护现场；该分支优先于下列默认 direct。类型由用户本次指定或合法项目默认值确定，不能由 contextMode 推导；标版沿既有分支，后续均读取命中的专项规则。
+
 1. 读取目标工程 `.agents/config/iris_project_profile.md`、`.agents/config/plugin_profile.md`、[规则索引](../../rules/iris_coding_index.md)和[通用规则](../../rules/iris_coding_general.md)。复用仍持有且未变化的内容。
 2. 按通用规则判定 executionPath、parallelAssessment 和正式 run；guidanceMode 使用共享辅助协议。风险分流不减少命中的硬约束。
-3. 日常开发部署默认 direct，不要求需求号或 Git 基线会话；已有修改不触发基线确认。仅在用户或项目要求 guarded 时，在第一次修改前读取[建立会话要求](../../references/deployment-protection.md#建立会话)。上传、编译仍需明确授权。
+3. 非按需导出工程日常开发部署默认 direct，不要求需求号或 Git 基线会话；已有修改不触发基线确认。仅在用户或项目要求 guarded 时，在第一次修改前读取[建立会话要求](../../references/deployment-protection.md#建立会话)。上传、编译仍需明确授权。
 4. 定位页面、按钮、JS 调用和后端方法，确认调用链及文件边界；按上表读取命中的专项 skill 和规则。前端修改前执行[UI 条件门禁](../../rules/iris_coding_frontend.md#ui-条件门禁)及[条件 i18n 门禁](../../rules/iris_coding_frontend.md#条件-i18n-门禁)，启用状态、信号、规则加载和失败处理均以各 owner 节为准。
 
 业务背景、菜单与实现参考按通用规则“自主使用知识资料”按需查询；用户要求刷新菜单资料时转 [iris-menu-sync](../iris-menu-sync/SKILL.md)。涉及远端读取或 SQL 验证时按规则索引读取工作流和目标工程私有连接配置，遵守对应授权边界。

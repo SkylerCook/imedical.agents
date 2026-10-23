@@ -9,6 +9,8 @@ related:
 
 # iris-agentic-dev 使用约束
 
+`contextMode: intent-first-on-demand-export` 时先读[项目开发协议](../references/project-demand-development.md#license-准入与资源收尾)。根 `scripts/iris-mcp.js` 的公共 tools/call 已接准入；新模式需 verified 策略及 `qualification.channels.mcp.processExitVerified`，不使用 legacy debugger 绕过。下文原生 MCP 优先只适用于未要求受管准入的场景；原生 MCP/外部 IDE/其它独立客户端不被 helper 自动拦截，未核实其准入与退出资格时不得换路执行。
+
 ## MCP 能力矩阵
 
 本矩阵基于 `tools/list`、2026-06-01 的目标项目冒烟测试和 2026-10-16 对仓库内置 `iris-agentic-dev 1.5.0` 的断连本地 schema 复核整理。完整合并 toolset 返回 81 个工具；本仓库 helper 与新生成的 `.mcp.json` 默认使用 `--no-skills`，返回 70 个工具。本文只记录通用能力，不得从 `.mcp.json` 复制 host、用户名、密码、namespace、token 或私有路径。
@@ -153,7 +155,7 @@ related:
 
 ## 诊断
 
-- 原生 `mcp__iris_agentic_dev__*` 工具优先。只有当前运行器没有暴露原生工具且目标工程确实存在 `.agents/scripts/iris-mcp.js` 时，才使用 `node .agents/scripts/iris-mcp.js check|tools|call ...`；helper 不存在时报告入口缺失，不得假定它已部署。
+- 非受管按需模式中，原生 `mcp__iris_agentic_dev__*` 工具优先；运行器没有暴露原生工具且目标工程确实存在 `.agents/scripts/iris-mcp.js` 时，使用 `node .agents/scripts/iris-mcp.js check|tools|call ...`。按需模式遵守本页首段准入边界，不能因原生工具可用而绕开 helper；helper 不存在时报告入口缺失，不得假定它已部署。
 - helper 的 `tools` / `call` 已内置 `check_config`，正常调用直接使用这两个入口，独立 `check` 留给配置诊断。参数已知时直接 `call`；需要核实参数时使用 `tools --names iris_global,iris_execute_method,iris_doc --schema --json`，将名单换成本次实际需要的工具。`--json` 的 stdout 为单个 JSON 对象，含 `CHECK` 与 `TOOLS` / `TOOL_SCHEMAS` 或 `RESULT`，无需落盘截取；失败检查退出码和 stderr。工具名不可用时明确报错，不回退到猜参数。目录仅在本次进程内复用，无跨会话缓存。
 - `check_config` 只说明配置解析结果，不发起 IRIS 网络调用。先确认目标 host、namespace、`connection_source`、`fallback_warning`、`objectscript_workspace` 和 `capabilities` 是否合理，再立即执行 `iris_query("SELECT 1 AS Probe")` 作为最小无副作用网络探针。
 - `capabilities.compile_path=docker_exec` 时，允许 `iris_compile` 使用上游自动路由，不要先把 Atelier REST 不可用扩大为整个 MCP 不可用；`capabilities` 仍是连接状态推导，不替代真实工具调用验证。

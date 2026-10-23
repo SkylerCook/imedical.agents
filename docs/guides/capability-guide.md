@@ -170,13 +170,15 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 [查看该插件清单](capability-catalog.md#coding-iris-plugin)。下面的示例发给 Agent，不在终端执行；路径、对象和范围替换为当前工程实际值。
 
+项目按需导出示例：“处理这份 project 需求，先核实相关服务器文件，保留本地修改，按现有授权完成合并和本地验证。”已确认 `project` ＋ `intent-first-on-demand-export` 才命中[项目开发协议](../../plugins/coding-iris-plugin/references/project-demand-development.md)；标版沿既有分支，contextMode 不决定需求类型。测试为日常默认，正式直接开发须明确授权；两环境各有本地 Git，远端读取资格、普通提交和发布授权分别核对。部署前再次同步并复审冻结，前端优先使用已确认支持的 Atelier。无需每需求全量刷新，也不以文件数量推断 License 安全。
+
 | Skill | 请求示例 | 前提与预期结果 |
 |---|---|---|
 | [coding-iris-init](../../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md) | 为当前 IRIS 工程接入 coding-iris-plugin，检查现有配置和脚本入口。 | 目标工程与实际配置可核实；产出 profile、脚本及薄索引检查结果，保留已有值。 |
 | [iris-backend-coding](../../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md) | 修改指定类方法以满足这份需求，保留分层和返回契约，按框架规范检查新增代码。 | 提供类方法、需求及范围，有项目显式规范时一并提供；编码与 Review 共用 CLS 规范，格式化只处理本次新增代码，不附带整理已有代码。新增注册类/DTO、表类及成员按统一标签说明职责和参数/返回契约，变量使用自然注释，复杂返回引用结构；Debug 只作为文档内容，属性说明及索引注释按需，保留历史兼容及 Storage。新建类核对 profile、同职责类和公共基类，适配模板 Extends，向 Review 提供继承依据。提取公共方法后核对规则复用和稳定标识归属；Parameter 声明/引用按语言合法性检查，静态歧义交人工核对。产出本地源码，分别报告 Agent 审查、脚本覆盖项及编译/运行证据。 |
 | [iris-coding](../../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md) | 修改这个功能，先查明前后端调用链，再完成范围内实现。 | 提供功能入口和需求；产出任务路由、相关前后端变更及验证说明。 |
 | [iris-demand-promote](../../plugins/coding-iris-plugin/skills/iris-demand-promote/SKILL.md) | 先评估将 DEV 的指定提交移植到指定 PRD 仓库的范围和基线。 | 明确两个仓库、提交及服务器基线读取范围；授权实施后形成 PRD 本地提交，不部署。 |
-| [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 将这些文件部署到已指定环境并检查编译。 | 明确目标、文件和授权范围后直接执行，默认 direct，无需 Git 基线会话；需要三方合并时选 guarded，分别报告上传、编译后回读、Storage 本地回填及业务验证；回填失败不能报告部署验证通过，受管夜跑源码变化后复审冻结版本。 |
+| [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 将这些文件部署到已指定环境并检查编译。 | 按需导出工程先同步、合并复审并绑定 source plan；正式批准绑定当前冻结摘要。其它工程默认 direct，需要三方合并时选 guarded。分别报告上传、编译及最终回读、Storage 和业务验证；回填失败不能报告验证通过，冻结源码变化后复审。 |
 | [iris-frontend-coding](../../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md) | 调整指定 HISUI 页面的交互，或排查弹窗面板留白、裁切与滚动异常，保留现有数据和调用契约。 | 提供页面、行为要求及项目显式规范/兼容基线；编码与 Review 共用前端规范，仅对本次新增代码应用格式约定，按条件加载 i18n。分别报告静态检查、自审或独立 Review、实际页面验证；布局问题仍路由到 HISUI 样式参考；新建页面或审查初始化链路时，按依赖与容器契约选择 JS 组织模板。 |
 | [iris-frontend-gb2312-promote](../../plugins/coding-iris-plugin/skills/iris-frontend-gb2312-promote/SKILL.md) | 这是仍需 GB2312 的历史工程，请先检查转换文件与源文件的替换范围。 | 必须明确历史编码要求及文件替换授权；产出源名提升结果，普通 UTF-8 工程不使用。 |
 | [iris-imedical-knowledge](../../plugins/coding-iris-plugin/skills/iris-imedical-knowledge/SKILL.md) | 查询这个业务概念的相关参考，再结合当前源码核实。 | 给出业务词或疑点；产出来源和适用性说明，现有信息足够时无需查询。 |
