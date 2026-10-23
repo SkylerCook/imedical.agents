@@ -4,6 +4,9 @@
 
 ## 当前接手
 
+- 项目知识库目录治理已在源仓实现：通用骨架、owner路径、授权计划、备份/中断恢复和已接入更新补齐；使用见[目录治理](../docs/guides/project-knowledge-layout.md)，本机验证和未部署边界见维护日志对应日期。
+
+
 - UI 规范与需求经验回归优化在独立 worktree 实施，源节点有效状态、条件读取与明确授权的待审补丁契约见[验证记录](../maintenance/validation/ui-framework-optimization-2026-10-23.md)；第一轮未接入框架，不倒推为接入后失效。实施阶段未提交或合并；用户随后明确授权本次 c + p，提交与 Gitee origin/master 推送以 Git 回执为准。业务副本未更新，后续真实接入沿原 UI P2 队列取证。
 
 - 客户端启动就绪、ACK/历史回读分级及温和退出已回归共享库，接口和验证见[生命周期修复记录](../maintenance/validation/night-client-lifecycle-2026-10-23.md)；业务副本未自动更新。夜跑退出与诊断优化已实施，具体差异及验证见[维护日志](agent-kit-maintenance-log.md#2026-10-23-夜跑退出与客户端诊断)；降级唯一契约归 workflow，真实宿主遵循与其它平台验证沿原夜跑治理队列继续。

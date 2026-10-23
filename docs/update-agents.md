@@ -843,3 +843,7 @@ bos-plugin 随既有 /plugins/** 与 workflow 分发，默认 available；仅明
 需求交付拆分与兼容更新见 [需求交付迁移](demand-delivery-migration.md)：新入口 demand-commit / bos-demand-entry，旧 IRIS 入口已删除，更新器定向迁移项目引用并接入缺失 owner；显式状态冲突阻断，旧数据格式保留。
 
 项目技能目录也可在 `ContextRoot/config/project_context_profile.md` 的“技能适配目录”章节逐行填写，再执行 `coding-agent-adaptation` 补齐缺失链接；普通更新不自动执行此清单。示例见 [技能适配](coding-agent-adaptation.md)。
+
+## 项目知识库目录治理
+
+普通更新从当前工作区调用 `project-docs.js update`，standard/Overlay 共用入口。未接入仅提示首次授权；已接入 Write 可补空目录，Check/DryRun 只读。异常报告待复核，不阻断其它更新；不自动迁移文件或改变Git策略。首次部署、扩展登记、具体迁移与批次回退按[目录治理](guides/project-knowledge-layout.md)执行。CLI/lib沿现有根scripts与plugins稀疏规则分发，业务副本需独立更新；源仓实现不代表已部署。

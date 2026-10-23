@@ -35,3 +35,5 @@
 ## 内置脚本
 
 - `scripts/generate-plugin-thin-index.ps1`：thin-index wrapper，只委托根 `.agents/scripts/generate-plugin-thin-index.ps1`。
+
+项目知识库接入后，文档摄取复用 extract-doc 的目录声明；已有显式输出保持。目录及授权见[项目知识库目录治理](../../docs/guides/project-knowledge-layout.md)。

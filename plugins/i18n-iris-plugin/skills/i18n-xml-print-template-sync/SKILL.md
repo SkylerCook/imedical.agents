@@ -11,7 +11,7 @@ Use this skill to coordinate the server-side XML print template workflow:
 
 ```text
 IRIS User.DHCXMLPConfig source template
-  -> export XPC_FileData to references/xmlPrintTemp/
+  -> export XPC_FileData to resolved referencesDir
   -> translate visible defaultvalue text with i18n-xml-template
   -> write {Template}-{LANG} back to User.DHCXMLPConfig
   -> verify metadata, XML parseability, and Chinese defaultvalue residue
@@ -48,6 +48,8 @@ This skill only handles XML template records. Backend print fixed Chinese text i
 
 ## Script
 
+Resolve project directories using [directory selection](../../references/project-directories.md) before creating artifacts. Explicit ReferencesDir/OutputDir and valid project profile values take precedence; governance changes defaults only after explicit project adoption. Reuse the same outputDir for translation and Apply.
+
 Run from the target project root:
 
 ```powershell
@@ -76,12 +78,12 @@ Useful modes:
 
 # Discover actual runtime templates from captured print JSON.
 .agents/plugins/i18n-iris-plugin/scripts/sync-xml-print-template.ps1 `
-  -DiscoverFromPrintJson docs/xmlPrintTemp/sample-print-data.json `
+  -DiscoverFromPrintJson <captured-print-data.json> `
   -TargetLanguage EN `
   -ObjectScriptToolName iris_execute `
   -VerifyOnly
 
-# Write only after translated files exist under docs/xmlPrintTemp/.
+# Write only after translated files exist under the resolved outputDir.
 .agents/plugins/i18n-iris-plugin/scripts/sync-xml-print-template.ps1 `
   -TemplateNames NewDHCDocOrderDirectPrint `
   -TargetLanguage EN `
@@ -109,10 +111,10 @@ Useful modes:
    - `-DiscoverFromPrintJson` for actual runtime `PrintTemp`.
 2. Run `-VerifyOnly` first to check whether `{Template}-{LANG}` already exists and whether metadata is complete.
 3. Run dry-run export to create:
-   - `references/xmlPrintTemp/{Template}.txt`
-   - `docs/xmlPrintTemp/sync-xml-print-template-manifest.json`
-   - `docs/xmlPrintTemp/sync-xml-print-template-prompt.md`
-4. Use `i18n-xml-template` to generate `docs/xmlPrintTemp/{Template}-{LANG}.txt`.
+   - `{referencesDir}/{Template}.txt`
+   - `{outputDir}/sync-xml-print-template-manifest.json`
+   - `{outputDir}/sync-xml-print-template-prompt.md`
+4. Use `i18n-xml-template` with the manifest outputDir to generate `{outputDir}/{Template}-{LANG}.txt`.
 5. Review generated XML:
    - XML parses.
    - Only user-visible `defaultvalue` text changed.
@@ -136,7 +138,7 @@ When the source query, export, and local translation have succeeded but server s
 - After a successful fallback save, perform one read-only metadata query/export and complete XML parse/residue verification. Do not repeat the earlier discovery and translation stages.
 
 Offline regression coverage is in
-`scripts/tests/sync-xml-print-template.Tests.ps1`. It verifies normal inline save,
+`scripts/tests/sync-xml-print-template.Tests.ps1` (inside this plugin). It verifies normal inline save,
 single-attempt convergence after temporary `<SYNTAX>`, chunk count, and cleanup on
 both successful and failed fallback saves.
 
@@ -155,7 +157,7 @@ XPC_Origin_Flag = {SourceTemplate}
 XPC_FileData    = translated XML stream
 ```
 
-Existing target records are not overwritten unless `-Overwrite` is passed. Overwrite mode must back up the old target XML to `docs/xmlPrintTemp/backups/`.
+Existing target records are not overwritten unless `-Overwrite` is passed. Overwrite mode must back up the old target XML to `{outputDir}/backups/`. These are template recovery copies; framework directory-migration backups have a separate lifecycle.
 
 Language display names are resolved by the script. The mapping comes from `.agents/config/i18n_project_profile.md` 的语言目录（服务器 `^SS("LAN",id)` 实际数据）。脚本默认读取 `-I18nProfilePath .agents/config/i18n_project_profile.md`，必要时可显式传入其它 profile 路径。不在本文件硬编码语言列表，避免两处维护。
 

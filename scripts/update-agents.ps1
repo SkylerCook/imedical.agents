@@ -911,6 +911,15 @@ function Write-UpdateSummary {
     }
   }
 
+  $projectDocsNotes = @($Results | Where-Object { $_.phase -eq "project-docs" })
+  if ($projectDocsNotes.Count -gt 0) {
+    Write-Output ""
+    Write-Output "Project documentation:"
+    foreach ($item in $projectDocsNotes) {
+      Write-Output ("- {0} {1}: {2}" -f $item.status, $item.target, $item.reason)
+    }
+  }
+
   Write-Output ""
   Write-Output "Use -Detailed to print every result item."
 }
@@ -1527,6 +1536,27 @@ if ($RuntimeAdapter.Count -eq 0) {
 
 if (($allPlugins.Count -eq 0) -or (($Plugin.Count -gt 0) -and ($matchedPluginCount -eq 0))) {
   $results.Add((Write-UpdateResult -Status "plugin-none" -Target (Get-RelativePathPortable -From $projectRootFull -To (Join-Path $agentsRoot "plugins")) -Reason "no installed plugins matched filters" -Phase "plugin"))
+}
+
+# Ordinary updates only maintain directories from an explicitly approved docs setup.
+# The canonical script resolves this workspace's ContextRoot and never visits siblings.
+$projectDocsScript = Join-Path $capabilityRoot "scripts/project-docs.js"
+if (-not (Test-Path -LiteralPath $projectDocsScript -PathType Leaf)) {
+  $results.Add((Write-UpdateResult -Status "docs-layout-skipped" -Target "docs" -Reason "project-docs.js is unavailable in this capability version; update capability before explicit setup" -Phase "project-docs"))
+}
+else {
+  try {
+    $projectDocsText = & node $projectDocsScript update --project-root $projectRootFull --mode $Mode 2>&1 | Out-String
+    $projectDocsExit = $LASTEXITCODE
+    $projectDocsResult = $projectDocsText | ConvertFrom-Json
+    if (($projectDocsExit -ne 0) -or ([string]$projectDocsResult.status -notmatch '^docs-layout-')) {
+      throw ("project-docs update requires review (exit {0}): {1}" -f $projectDocsExit, [string]$projectDocsResult.reason)
+    }
+    $results.Add((Write-UpdateResult -Status ([string]$projectDocsResult.status) -Target ([string]$projectDocsResult.target) -Reason ([string]$projectDocsResult.reason) -Phase "project-docs"))
+  }
+  catch {
+    $results.Add((Write-UpdateResult -Status "docs-layout-review-required" -Target "docs" -Reason $_.Exception.Message -Phase "project-docs"))
+  }
 }
 
 if ($Detailed) {

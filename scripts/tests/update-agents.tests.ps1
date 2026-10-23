@@ -66,6 +66,8 @@ function New-TestProject {
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/refresh-agents-sparse.js") -Destination (Join-Path $root ".agents/scripts/refresh-agents-sparse.js")
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-agents.ps1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-documentation-entry.js") -Destination (Join-Path $root ".agents/scripts/sync-documentation-entry.js")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/project-docs.js") -Destination (Join-Path $root ".agents/scripts/project-docs.js")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/project-directories.js") -Destination (Join-Path $root ".agents/scripts/lib/project-directories.js")
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/docs") | Out-Null
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/docs/README.md") -Value "# Documentation"
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/migrate-demand-ownership.js") -Destination (Join-Path $root ".agents/scripts/migrate-demand-ownership.js")
@@ -87,7 +89,8 @@ function New-TestProject {
   Copy-Item -LiteralPath $agentOrchestratorUnderTest -Destination (Join-Path $root ".agents/scripts/agent-orchestrator.js")
   foreach ($runtimeFile in @(
     'lib/night-dispatch.js', 'lib/night-policy.js', 'lib/night-quota.js', 'lib/night-contract.js',
-    'lib/night-convergence.js', 'lib/night-plan.js', 'lib/night-integration.js', 'lib/night-capability.js',
+    'lib/night-convergence.js', 'lib/night-plan.js', 'lib/night-integration.js', 'lib/night-capability.js', 'lib/night-client-diagnostics.js',
+    'lib/night-client.js', 'lib/night-codex-client.js', 'lib/playwright-runner.js', 'lib/test-evidence.js',
     'night-workspace.js'
   )) {
     Copy-Item -LiteralPath (Join-Path $repoRoot ('scripts/' + $runtimeFile)) -Destination (Join-Path $root ('.agents/scripts/' + $runtimeFile))
@@ -142,6 +145,12 @@ function New-TestProject {
     '  "initSkill": "project-context-maintenance"',
     "}"
   )
+  # Keep synthetic plugin behavior while exercising the real owner's directory declarations.
+  $realContextManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $repoRoot "plugins/agent-context-kit/.agents-plugin/plugin.json") | ConvertFrom-Json
+  $fixtureContextManifestPath = Join-Path $contextPluginRoot ".agents-plugin/plugin.json"
+  $fixtureContextManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath $fixtureContextManifestPath | ConvertFrom-Json
+  $fixtureContextManifest | Add-Member -MemberType NoteProperty -Name projectDirectories -Value $realContextManifest.projectDirectories
+  [IO.File]::WriteAllText($fixtureContextManifestPath, ($fixtureContextManifest | ConvertTo-Json -Depth 20), [Text.UTF8Encoding]::new($false))
   Set-Content -Encoding UTF8 -Path (Join-Path $contextPluginRoot "rules/context_rule.md") -Value "# Context Rule"
   Set-Content -Encoding UTF8 -Path (Join-Path $contextPluginRoot "skills/project-context-maintenance/SKILL.md") -Value @(
     "---",
@@ -337,6 +346,37 @@ function New-OverlayTestProject {
     SourceTarget = $sourceTarget
     GitRoot = $gitRoot
   }
+}
+
+function Enable-TestProjectDocsLayout {
+  param([string]$Root, [string]$CapabilityRoot)
+
+  $scratch = Join-Path (Get-AgentsTestTemp) ("agents-docs-setup-" + [guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Path $scratch | Out-Null
+  try {
+    $cli = Join-Path $CapabilityRoot "scripts/project-docs.js"
+    $planText = & node $cli setup-plan --project-root $Root | Out-String
+    Assert-True ($LASTEXITCODE -eq 0) ("Docs setup planning should succeed: " + $planText)
+    $plan = $planText | ConvertFrom-Json
+    Assert-True (-not [string]::IsNullOrWhiteSpace([string]$plan.id)) "Docs setup plan must expose its approval id"
+    $planPath = Join-Path $scratch "setup-plan.json"
+    [IO.File]::WriteAllText($planPath, $planText, [Text.UTF8Encoding]::new($false))
+    $applyText = & node $cli apply --project-root $Root --plan $planPath --approve-plan $plan.id --backup-root (Join-Path $scratch "backup") | Out-String
+    Assert-True ($LASTEXITCODE -eq 0) ("Approved docs setup should succeed: " + $applyText)
+  }
+  finally {
+    if (Test-Path -LiteralPath $scratch) { Remove-Item -LiteralPath $scratch -Recurse -Force }
+  }
+}
+
+function Get-TestEmptyDocsDirectory {
+  param([string]$Root)
+  $directory = Get-ChildItem -LiteralPath (Join-Path $Root "docs") -Directory -Recurse | Where-Object {
+    (-not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint)) -and
+    (@(Get-ChildItem -LiteralPath $_.FullName -Force).Count -eq 0)
+  } | Select-Object -First 1
+  Assert-True ($null -ne $directory) "Approved docs setup must create at least one declared empty directory"
+  return $directory.FullName
 }
 
 Assert-True (Test-Path -LiteralPath $scriptUnderTest -PathType Leaf) "scripts/update-agents.ps1 should exist"
@@ -1010,6 +1050,7 @@ finally {
 
 $overlayCapabilityProject = New-TestProject
 $overlayProject = $null
+$overlayDocsSibling = Join-Path (Get-AgentsTestTemp) ("agents-overlay-docs-sibling-" + [guid]::NewGuid().ToString("N"))
 try {
   $overlayCapabilityVendorExe = Join-Path $overlayCapabilityProject ".agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe"
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $overlayCapabilityVendorExe) | Out-Null
@@ -1056,6 +1097,9 @@ try {
 
   $overlayWriteOutput = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode Write -Detailed | Out-String
   Assert-Contains $overlayWriteOutput "capability-pull-skipped-overlay" "Overlay Write should skip capability fetch and pull"
+  Assert-Contains $overlayWriteOutput "docs-layout-setup-required" "Overlay Write must request explicit first docs setup"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $overlayProject.WorkspaceRoot "docs"))) "Overlay update must not silently initialize docs"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $overlayProject.ContextRoot "config/documentation-layout.json"))) "Overlay update must not create docs ownership configuration"
   Assert-Contains $overlayWriteOutput "mcp-vendor-command-applied" "Overlay Write should prefer the bundled MCP executable through the vendor Junction"
   Assert-True (-not $overlayWriteOutput.Contains("agents-git-missing")) "Overlay ContextRoot should not require .git"
   Assert-Contains $overlayWriteOutput (Split-Path -Leaf $overlayCapabilityProject) "Overlay plugin discovery should report the CapabilityRoot source path"
@@ -1087,6 +1131,29 @@ try {
   Assert-True ($overlayProjectEnv.preserved.source -eq "overlay-project") "Overlay project-env convergence must preserve unrelated configuration"
   Assert-True ((git -C $overlayProject.CapabilityRoot status --short | Out-String) -eq $capabilityStatusBefore) "Overlay update must not change capability Git status"
 
+  # A configured Overlay owns its local docs only; nearby workspaces remain unrelated.
+  Enable-TestProjectDocsLayout -Root $overlayProject.WorkspaceRoot -CapabilityRoot $overlayProject.CapabilityRoot
+  $overlayDocsOwner = Join-Path $overlayProject.ContextRoot "config/documentation-layout.json"
+  $overlayDocsOwnerHash = (Get-FileHash -LiteralPath $overlayDocsOwner -Algorithm SHA256).Hash
+  $overlayMissingDocs = Get-TestEmptyDocsDirectory -Root $overlayProject.WorkspaceRoot
+  Remove-Item -LiteralPath $overlayMissingDocs -Force
+  New-Item -ItemType Directory -Force -Path (Join-Path $overlayDocsSibling ".agents/config"), (Join-Path $overlayDocsSibling "docs") | Out-Null
+  [IO.File]::WriteAllText((Join-Path $overlayDocsSibling ".agents/config/documentation-layout.json"), "unrelated-invalid-config", [Text.UTF8Encoding]::new($false))
+  [IO.File]::WriteAllText((Join-Path $overlayDocsSibling "docs/keep.md"), "unrelated sibling knowledge", [Text.UTF8Encoding]::new($false))
+  $overlayDocsPreview = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode DryRun -NoPull -Detailed | Out-String
+  Assert-Contains $overlayDocsPreview "docs-layout-directories-missing" "Overlay DryRun should report the current workspace's missing docs directories"
+  Assert-True (-not (Test-Path -LiteralPath $overlayMissingDocs)) "Overlay DryRun must not restore docs directories"
+  $overlayDocsWrite = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode Write -NoPull -Detailed | Out-String
+  Assert-Contains $overlayDocsWrite "docs-layout-updated" "Configured Overlay Write should restore declared empty docs directories"
+  Assert-True (Test-Path -LiteralPath $overlayMissingDocs -PathType Container) "Overlay docs restoration must target the current workspace"
+  Assert-True ((Get-FileHash -LiteralPath $overlayDocsOwner -Algorithm SHA256).Hash -eq $overlayDocsOwnerHash) "Ordinary Overlay update must preserve local docs ownership configuration"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $overlayCapabilityProject "docs"))) "Overlay docs restoration must not initialize the capability owner's knowledge base"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $overlayProject.CapabilityRoot "config/documentation-layout.json"))) "Overlay docs ownership must remain in ContextRoot"
+  Assert-True ((git -C $overlayProject.CapabilityRoot status --short | Out-String) -eq $capabilityStatusBefore) "Overlay docs updates must preserve shared capability Git state"
+  Assert-True ([IO.File]::ReadAllText((Join-Path $overlayDocsSibling ".agents/config/documentation-layout.json")) -eq "unrelated-invalid-config") "Overlay docs updates must preserve sibling configuration"
+  Assert-True (@(Get-ChildItem -LiteralPath (Join-Path $overlayDocsSibling "docs") -Force).Count -eq 1) "Overlay docs updates must not populate sibling docs"
+  Assert-True (-not $overlayDocsWrite.Contains((Split-Path -Leaf $overlayDocsSibling))) "Overlay docs updates must not report unrelated sibling workspaces"
+
   & (Join-Path $overlayProject.CapabilityRoot "scripts/update-plugin-profile.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -ContextRoot $overlayProject.ContextRoot -CapabilityRoot $overlayProject.CapabilityRoot -Plugin sample-plugin -Status disabled | Out-Null
   $disabledOverlayOutput = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode DryRun -NoPull -Detailed -Plugin sample-plugin | Out-String
   Assert-Contains $disabledOverlayOutput "plugin-explicit-selection-disabled" "Explicit selection must not silently enable a disabled plugin"
@@ -1111,7 +1178,7 @@ try {
 }
 finally {
   if ($null -ne $overlayProject) {
-    foreach ($path in @($overlayProject.WorkspaceRoot, $overlayProject.SourceTarget, $overlayProject.GitRoot)) {
+    foreach ($path in @($overlayProject.WorkspaceRoot, $overlayProject.SourceTarget, $overlayProject.GitRoot, $overlayDocsSibling)) {
       if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Recurse -Force }
     }
   }
@@ -1153,6 +1220,10 @@ try {
 
   $summaryOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode DryRun -NoPull | Out-String
   Assert-Contains $summaryOutput "Agent kit update summary" "Default output should be summarized"
+  Assert-Contains $summaryOutput "docs-layout-setup-required" "An ordinary DryRun must report optional docs setup"
+  Assert-Contains $summaryOutput "Project documentation:" "The default summary must show actionable documentation notes"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "docs"))) "An ordinary DryRun must not create a project knowledge base"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/config/documentation-layout.json"))) "An ordinary DryRun must not opt a project into docs governance"
   Assert-Contains $summaryOutput "Available plugins:" "Default output should list available plugins"
   Assert-Contains $summaryOutput "sample-plugin" "Default output should report sample plugin as available"
   Assert-Contains $summaryOutput "agent-context-kit" "Default output should process the default context plugin"
@@ -1191,6 +1262,9 @@ try {
 
   $writeOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-String
   Assert-Contains $writeOutput "config-merged-key" "Write should merge missing config keys"
+  Assert-Contains $writeOutput "docs-layout-setup-required" "An ordinary Write must request explicit first docs setup"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot "docs"))) "An ordinary Write must not initialize docs"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/config/documentation-layout.json"))) "An ordinary Write must not create docs ownership configuration"
   Assert-Contains $writeOutput "config-migration-applied" "Write should apply plugin config migration"
   Assert-Contains $writeOutput "sample migration received Write" "Write should pass Write to plugin config migration"
   Assert-Contains $writeOutput "git-hooks-not-enabled" "Write should report hooks are available but not enabled"
@@ -1497,6 +1571,65 @@ finally {
   }
 }
 
+
+# Exercise the real docs CLI through the ordinary updater, entirely in a synthetic project.
+$docsProjectRoot = New-TestProject
+try {
+  $docsUpdater = Join-Path $docsProjectRoot ".agents/scripts/update-agents.ps1"
+  $docsCapabilityRoot = Join-Path $docsProjectRoot ".agents"
+  $unconfiguredDocsWrite = & $docsUpdater -ProjectRoot $docsProjectRoot -Mode Write -NoPull -Detailed | Out-String
+  Assert-Contains $unconfiguredDocsWrite "docs-layout-setup-required" "Ordinary Write must leave first docs setup explicitly authorized"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $docsProjectRoot "docs"))) "No-setup ordinary Write must not initialize docs"
+  Enable-TestProjectDocsLayout -Root $docsProjectRoot -CapabilityRoot $docsCapabilityRoot
+  $docsOwnerPath = Join-Path $docsProjectRoot ".agents/config/documentation-layout.json"
+  $docsOwnerHash = (Get-FileHash -LiteralPath $docsOwnerPath -Algorithm SHA256).Hash
+  $docsLegacyPath = Join-Path $docsProjectRoot "docs/project-custom-legacy/topic.md"
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $docsLegacyPath) | Out-Null
+  [IO.File]::WriteAllText($docsLegacyPath, "project-specific existing knowledge", [Text.UTF8Encoding]::new($false))
+  $docsMissingDirectory = Get-TestEmptyDocsDirectory -Root $docsProjectRoot
+  Remove-Item -LiteralPath $docsMissingDirectory -Force
+  foreach ($readOnlyMode in @("Check", "DryRun")) {
+    $docsReadOnly = & $docsUpdater -ProjectRoot $docsProjectRoot -Mode $readOnlyMode -NoPull -Detailed | Out-String
+    Assert-Contains $docsReadOnly "docs-layout-directories-missing" ("Configured " + $readOnlyMode + " should report missing docs directories")
+    Assert-True (-not (Test-Path -LiteralPath $docsMissingDirectory)) ("Docs " + $readOnlyMode + " must not create directories")
+    Assert-True ((Get-FileHash -LiteralPath $docsOwnerPath -Algorithm SHA256).Hash -eq $docsOwnerHash) ("Docs " + $readOnlyMode + " must not rewrite ownership")
+  }
+  $docsRestored = & $docsUpdater -ProjectRoot $docsProjectRoot -Mode Write -NoPull -Detailed | Out-String
+  Assert-Contains $docsRestored "docs-layout-updated" "Configured Write should restore only declared missing directories"
+  Assert-True (Test-Path -LiteralPath $docsMissingDirectory -PathType Container) "Configured Write must materialize the declared directory"
+  Assert-True ([IO.File]::ReadAllText($docsLegacyPath) -eq "project-specific existing knowledge") "Ordinary update must preserve unclassified project knowledge in place"
+  Assert-True ((Get-FileHash -LiteralPath $docsOwnerPath -Algorithm SHA256).Hash -eq $docsOwnerHash) "Ordinary Write must preserve docs ownership configuration"
+
+  # A file occupying a declared directory is a review note, never an overwrite.
+  Remove-Item -LiteralPath $docsMissingDirectory -Force
+  [IO.File]::WriteAllText($docsMissingDirectory, "user-owned obstruction", [Text.UTF8Encoding]::new($false))
+  $docsConflict = & $docsUpdater -ProjectRoot $docsProjectRoot -Mode Write -NoPull | Out-String
+  Assert-Contains $docsConflict "docs-layout-review-required" "Directory anomalies must be reported without blocking ordinary updates"
+  Assert-Contains $docsConflict "Agent kit update summary" "A docs anomaly must still produce the completed updater summary"
+  Assert-True ([IO.File]::ReadAllText($docsMissingDirectory) -eq "user-owned obstruction") "A docs directory anomaly must preserve the existing object"
+  Remove-Item -LiteralPath $docsMissingDirectory -Force
+
+  # Older or broken optional runtimes must not make an otherwise valid update fail.
+  $optionalDocsScript = Join-Path $docsCapabilityRoot "scripts/project-docs.js"
+  [IO.File]::WriteAllText($optionalDocsScript, "process.stdout.write('invalid JSON'); process.exitCode = 2;", [Text.UTF8Encoding]::new($false))
+  git -C $docsCapabilityRoot add -- scripts/project-docs.js | Out-Null
+  git -C $docsCapabilityRoot commit -qm "test: optional docs runtime reports malformed output" | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "The malformed-runtime fixture commit should succeed"
+  $docsChildHost = (Get-Process -Id $PID).Path
+  $docsMalformed = & $docsChildHost -NoProfile -ExecutionPolicy Bypass -File $docsUpdater -ProjectRoot $docsProjectRoot -Mode Write -NoPull -Detailed | Out-String
+  Assert-True ($LASTEXITCODE -eq 0) "An optional docs runtime failure must not fail the framework update"
+  Assert-Contains $docsMalformed "docs-layout-review-required" "Malformed optional docs output must request review"
+  git -C $docsCapabilityRoot rm -- scripts/project-docs.js | Out-Null
+  git -C $docsCapabilityRoot commit -qm "test: capability version without optional docs runtime" | Out-Null
+  Assert-True ($LASTEXITCODE -eq 0) "The old-capability fixture commit should succeed"
+  $docsUnavailable = & $docsChildHost -NoProfile -ExecutionPolicy Bypass -File $docsUpdater -ProjectRoot $docsProjectRoot -Mode Write -NoPull -Detailed | Out-String
+  Assert-True ($LASTEXITCODE -eq 0) "An older capability missing docs runtime must remain updateable"
+  Assert-Contains $docsUnavailable "docs-layout-skipped" "Older capability versions should report a clear docs skip"
+  Assert-True ([IO.File]::ReadAllText($docsLegacyPath) -eq "project-specific existing knowledge") "Optional runtime failures must preserve project docs"
+}
+finally {
+  if (Test-Path -LiteralPath $docsProjectRoot) { Remove-Item -LiteralPath $docsProjectRoot -Recurse -Force }
+}
 
 # Real owner skills must retain their descriptions through the canonical generator.
 $discoveryRoot = Join-Path (Get-AgentsTestTemp) ('iris-discovery-' + [guid]::NewGuid().ToString('N'))

@@ -119,3 +119,7 @@ schema 2.0 的运行时命令由 `.agents/scripts/agent-orchestrator.js` 提供�
 用户可在项目配置 `project_context_profile.md` 的“技能适配目录”章节逐行填写目录，再执行 coding-agent-adaptation 补齐缺失链接。示例和冲突处理见能力包根 `docs/coding-agent-adaptation.md`；普通更新不自动执行清单。
 
 项目入口模板的反馈授权只指向 [feedback skill](../agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#写入授权与自动待审补丁) 的唯一契约；已有项目在授权上下文维护时定点合并。模板和插件启用不授予自动写入权限，普通更新不重写项目 AGENTS。
+
+## 项目知识库目录
+
+项目资料归属、能力必需目录、首次接入、更新提示及授权迁移见[项目知识库目录治理](../../docs/guides/project-knowledge-layout.md)。`project-context-maintenance` 负责接入与维护，根 `scripts/project-docs.js` 提供只读计划与精确批准后的备份/恢复执行；未接入项目保持旧默认，已有交接路径按其工具契约发现。

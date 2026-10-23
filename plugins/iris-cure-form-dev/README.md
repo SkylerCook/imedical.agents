@@ -227,3 +227,7 @@ node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js common-migrate `
 新增部署静态资源的 basename 必须语义明确、使用 camelCase 且不超过 24 个字符。业务 `moduleId` / `moduleName` 超长时，保留这些稳定业务标识，另行在规格中声明短资源名；引用路径和部署文件 basename 必须一致。允许 `Struct`、`Func`、`Assess` 以及公认临床缩写，禁止点分命名和 `ass` 等含糊缩写。
 
 纯初始化入口 `cure-form-init` 直接读取插件内真实 SKILL.md，manifest 的 `thinIndex.excludeSkills` 将其排除出浅层技能列表。已启用项目常规更新时，Check/DryRun 只报告旧受管索引，Write 精准删除；自定义文件和链接保留。迁移边界见能力包 [更新说明](../../docs/update-agents.md#纯初始化-skill-薄索引迁移)。
+
+## 项目目录治理
+
+新任务和已有任务的目录选择、正式交付及 private 恢复边界统一见[目录与恢复契约](references/project-directories.md)。下文 `docs/work/cure-form` 示例表示未接入或已有任务的兼容路径；接入后使用实际解析结果，不据示例重建旧根。

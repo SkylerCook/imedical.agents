@@ -37,4 +37,4 @@ description: 当需要基于接口解析产物生成阶段化实施计划，并�
 
 ## 输出
 
-默认写入 `docs/interface/<doc-name>/implementation-plan.md`。用户指定其他目标项目本地路径时，以用户路径为准。
+默认在当前文档实际 `parsed.json` 所在目录写入 `implementation-plan.md`，复用解析阶段的目录选择。用户指定其他目标项目本地路径时，以用户路径为准。

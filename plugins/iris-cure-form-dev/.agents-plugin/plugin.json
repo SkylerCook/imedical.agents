@@ -1,6 +1,6 @@
 {
   "name": "iris-cure-form-dev",
-  "version": "0.7.15",
+  "version": "0.8.0",
   "displayName": "IRIS Cure Form Dev Plugin",
   "description": "CA/CR treatment form ingestion, multi-template generation, responsive migration, review, deployment planning, verification, and rollback orchestration.",
   "entry": "AGENTS.md",
@@ -22,7 +22,7 @@
   "dependencyVersions": {
     "extract-doc": {
       "minVersion": "0.2.0",
-      "maxVersionExclusive": "0.3.0"
+      "maxVersionExclusive": "0.4.0"
     },
     "coding-iris-plugin": {
       "minVersion": "0.3.1",
@@ -47,5 +47,26 @@
     "Prepare a dry-run cure form deployment package and review its impact",
     "Consolidate an accepted existing-form grey template back to its formal RowID and verify zero grey references",
     "Verify or roll back a cure form deployment operation"
+  ],
+  "projectDirectories": [
+    {
+      "id": "form-work",
+      "base": "context",
+      "path": "work/cure-form",
+      "role": "runtime",
+      "create": "setup",
+      "legacyPaths": [
+        "docs/work/cure-form"
+      ],
+      "purpose": "表单任务工作资料与私有恢复快照"
+    },
+    {
+      "id": "form-delivery",
+      "base": "workspace",
+      "path": "docs/delivery/cure-forms",
+      "role": "delivery",
+      "create": "setup",
+      "purpose": "经审核选择保留的表单交付与报告"
+    }
   ]
 }

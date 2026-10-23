@@ -42,4 +42,10 @@ IRIS 编码、HISUI、i18n、部署和提交继续复用原 owner，按其当前
 
 ## 交付
 
-记录实际变更、复用点、兼容影响、验证结果与未覆盖范围。项目产物遵循目标工程约定；没有约定时可用 docs/work/ai-integration/<task>/。通用插件不保存工程快照、原型数据或患者信息。远程动作按现有授权边界执行。
+记录实际变更、复用点、兼容影响、验证结果与未覆盖范围。项目明确约定的产物位置优先；没有约定时先调用当前 CapabilityRoot 的目录解析器（standard 通常为下列路径，Overlay 按 capability.json 定位共享脚本）：
+
+~~~powershell
+node .agents/scripts/project-docs.js resolve --project-root . --owner iris-imedical-doctor-ai --id ai-delivery --fallback docs/work/ai-integration
+~~~
+
+以 JSON 返回的 path 加任务子目录作为实际交付目录。仅已明确启用 docs 治理时，默认根为 docs/delivery/ai-integration；未接入时保留 docs/work/ai-integration。解析不生成内容，首次预建和存量迁移仍分别授权。通用插件不保存工程快照、原型数据或患者信息；任务临时证据遵循工程临时目录约定。远程动作按现有授权边界执行。

@@ -369,3 +369,7 @@ IRIS CSP＋HISUI 对公司UI规范的落地适配，正式依赖 imedical-ui；�
 ## 清单维护
 
 本页与使用指南是导航和摘要，实际契约仍由 manifest、SKILL.md、rule 及其引用维护。新增、删除、重命名或改变入口行为时，同步更新对应清单行、示例和 README 入口；不要复制规则全文。核对插件的 skills/*/SKILL.md、rules/*.md 与 manifest，确保每个范围内文件均有链接，并检查链接和统计。新增根级 skill 或调整 vendor 边界时重新说明统计范围。纯文档更新随既有 docs 分发，无须修改插件启用状态或迁移配置。
+
+## 项目知识库目录
+
+项目知识库骨架、能力目录声明和授权迁移由 agent-context-kit 承接，入口见[目录治理](project-knowledge-layout.md)及 `project-context-maintenance`；不新增并行插件。

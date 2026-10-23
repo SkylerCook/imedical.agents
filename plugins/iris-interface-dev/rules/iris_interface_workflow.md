@@ -20,12 +20,7 @@ related:
 
 ## 落盘要求
 
-解析输出固定写入：
-
-- `docs/interface/<doc-name>/source.md`
-- `docs/interface/<doc-name>/parsed.json`
-- `docs/interface/<doc-name>/fields.md`
-- `docs/interface/<doc-name>/diagnostics.md`
+解析目录复用 [extract-doc 输出契约](../../extract-doc/skills/extract-doc-ingest/SKILL.md#输出契约)，生成 `source.md`、`parsed.json`、`fields.md`、`diagnostics.md`。字段诊断和计划沿本次实际产物路径继续，不独立推导默认目录。
 
 不得把完整文档内容默认写入对话。
 

@@ -9,8 +9,19 @@ function segment(value) {
 }
 function taskRoot(args = {}) {
   const project = path.resolve(args.projectRoot || process.cwd());
-  return args.workRoot ? path.resolve(project, args.workRoot)
-    : path.join(project, 'docs', 'work', 'cure-form', segment(args.taskId || args.moduleId || args.mapCode));
+  if (args.workRoot) return path.resolve(project, args.workRoot);
+  const task = segment(args.taskId || args.moduleId || args.mapCode);
+  const legacy = path.join(project, 'docs', 'work', 'cure-form', task);
+  const profile = path.resolve(project, args.targetProfile || '.agents/config/cure_form_profile.md');
+  if (fs.existsSync(profile)) {
+    const content = new TextDecoder('utf-8', {fatal:true}).decode(fs.readFileSync(profile));
+    const match = content.match(/^\s*-\s*WorkRoot:\s*(.*?)\s*$/m);
+    if (match && match[1] && !/^(?:auto|<required>|<unset>|TODO)$/i.test(match[1])) return path.resolve(project, match[1].replace(/^`|`$/g,''), task);
+  }
+  // Existing tasks keep their recovery location until an explicitly approved migration.
+  if (fs.existsSync(legacy)) return legacy;
+  const { resolveDirectory } = require('../../../scripts/lib/project-directories');
+  return path.join(resolveDirectory(project, 'iris-cure-form-dev', 'form-work', 'docs/work/cure-form'), task);
 }
 function formRoot(args, mapCode) { return path.join(taskRoot({ ...args, mapCode: args.mapCode || mapCode }), segment(mapCode || args.mapCode || args.moduleId)); }
 function privateRoot(args) {

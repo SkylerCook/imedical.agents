@@ -8,6 +8,10 @@
 
 通过现有安装/更新流程取得插件，调用 iris-imedical-doctor-ai-init 核对能力并启用，再使用 iris-imedical-doctor-ai。目录存在仅表示 available。主 skill 按医生站 AI 接入、诊断推荐与采纳、卡片、流式对话、病历联动及相关框架改进的业务意图触发，普通 HIS 开发不触发。
 
+## 项目产物目录（0.4.0）
+
+主 skill 在落盘前调用共享目录解析器。目标工程已启用 docs 治理且无明确目录覆盖时，使用 docs/delivery/ai-integration；未接入时保留 docs/work/ai-integration。目录可按任务细分，首次预建或存量迁移需独立授权；普通能力包更新不生成业务产物。
+
 ## 内容
 
 - 菜单/wiki 查询与刷新复用 coding-iris-plugin 的 iris-imedical-knowledge / iris-menu-sync。资料位于共享 vendor，实际项目快照留 ContextRoot；更新后由依赖插件 thin-index 暴露入口，不重复维护工具。

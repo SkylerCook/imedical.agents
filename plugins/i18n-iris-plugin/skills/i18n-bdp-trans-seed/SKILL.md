@@ -45,10 +45,12 @@ description: Use when generating multilingual dictionary or table-display transl
 
 ## 翻译表输出
 
+生成文件前按 [目录选择](../../references/project-directories.md) 的 `terms` 命令取得 `path` 作为 `termsDir`；显式项目覆盖优先，治理未启用时仍为 `docs`。
+
 推荐命名：
 
 ```text
-docs/i18n_terms_{LANG}_dict_YYYYMMDD_HHMM.md
+{termsDir}/i18n_terms_{LANG}_dict_YYYYMMDD_HHMM.md
 ```
 
 固定列：

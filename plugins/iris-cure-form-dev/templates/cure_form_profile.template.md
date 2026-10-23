@@ -2,9 +2,9 @@
 
 - CapabilityManifest: .agents/capability.json
 - CapabilityRoot: auto
-- WorkRoot: docs/work/cure-form
+- WorkRoot: auto
 - DocsRoot: docs
-- DevelopmentRoot: docs/work/cure-form
+- DevelopmentRoot: auto
 - DefaultEnvironment: development
 - NamespaceSource: local MCP/server profile
 - AllowedFormTypes: CA, CR
@@ -21,3 +21,5 @@
 - PreviewAdaptationCss: <required>
 - PreviewBrowserCommand:
 - CommonMigrationConfig: <required>
+
+WorkRoot 的 auto 选择由[目录与恢复契约](../references/project-directories.md)定义。已有项目显式值不自动迁移。

@@ -10,7 +10,7 @@
 
 ## 使用约束
 
-- 解析结果默认写入目标项目 `docs/interface/<doc-name>/`，不得把完整文档内容默认塞进会话上下文。
+- 解析结果按 `skills/extract-doc-ingest/SKILL.md` 的输出契约写入目标项目；显式输出路径优先，不得把完整文档内容默认塞进会话上下文。
 - MarkItDown 只是可选转换器；不可用时使用脚本内置 DOCX、PDF、XLSX 解析链路。
 - `.doc` 文件只做可选转换；缺少可用转换器时提示用户另存为 DOCX。
 - 现有 `parsed.json` 保持接口字段识别语义；`structure.json` 只记录段落、表格、单元格、页面、图片等通用结构，不写入具体业务领域判断。

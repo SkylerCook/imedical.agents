@@ -37,7 +37,7 @@ description: 当需要对已解析字段做语义归一化、候选匹配、未�
 
 ```powershell
 python .agents/plugins/iris-interface-dev/scripts/iris-interface-field-match.py `
-  --parsed docs/interface/<doc-name>/parsed.json `
+  --parsed <实际产物目录>/parsed.json `
   --project-root .
 ```
 
@@ -45,7 +45,7 @@ python .agents/plugins/iris-interface-dev/scripts/iris-interface-field-match.py 
 
 ```powershell
 python .agents/plugins/iris-interface-dev/scripts/iris-interface-field-match.py `
-  --parsed docs/interface/<doc-name>/parsed.json `
+  --parsed <实际产物目录>/parsed.json `
   --project-root . `
   --feedback .agents/config/iris-interface-field-feedback.json
 ```

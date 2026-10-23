@@ -1,0 +1,18 @@
+name: Project documentation layout
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  layout:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        node: ['22', '24']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node --test scripts/tests/project-docs.tests.js scripts/tests/i18n-directory-layout.tests.js scripts/tests/task-handoff.tests.js scripts/tests/cure-form-workspace.tests.js scripts/tests/extract-doc-layout.tests.js plugins/bos-plugin/tests/demand-directories.tests.js plugins/iris-imedical-doctor-ai/scripts/tests/directory-layout.test.js

@@ -1,6 +1,6 @@
 ---
 name: project-context-maintenance
-description: Initialize, maintain, or optimize project context including AGENTS.md, rules, memory, profiles and skill routes. Use for context setup, missing or broken rule routes, factual updates, duplicate or stale guidance, and reading-cost reviews; ordinary coding does not trigger routine context maintenance. 用于初始化、维护及日常优化项目上下文。
+description: Initialize, maintain, or optimize project context and local docs knowledge layout including AGENTS.md, rules, memory, profiles and skill routes. Use for context setup, missing or broken rule routes, factual updates, duplicate or stale guidance, and reading-cost reviews; ordinary coding does not trigger routine context maintenance. 用于初始化、维护及日常优化项目上下文。
 ---
 
 # 项目上下文维护
@@ -305,3 +305,7 @@ description: Initialize, maintain, or optimize project context including AGENTS.
 ## 条件维护与入口迁移
 
 只在稳定项目事实变化、入口失效、配置变化或用户要求时加载；普通编码不例行维护。已部署工程定点合并 AGENTS 中旧分流和无条件收尾条款，保留全部自定义约束；缺少 guidanceMode 按 auto 读取，不自动写 profile。能力包更新不等于项目入口已迁移。按 docs/update-agents.md 的演进迁移清单处理。
+
+## 项目资料目录治理
+
+查找或新建项目资料时，先读取已存在的项目 `docs/README.md`。首次接入目录骨架、登记扩展、处理更新提示或整理已有文件时，读取[项目知识库目录治理](../../../../docs/guides/project-knowledge-layout.md)，用同一预演/授权/恢复入口执行。首次接入和迁移均需明确授权；普通更新仅补已接入的目录。人和 AI 共用导航，正文单一归属，按主题读取，不每次加载全库。

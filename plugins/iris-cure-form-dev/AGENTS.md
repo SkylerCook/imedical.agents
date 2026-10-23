@@ -51,3 +51,7 @@
 - CR 必须保持 `SaveCureRecord`、`CureExpJsonStr`、`MapID`、回显和打印。
 - 新建 CA/CR 部署后必须生成绑定 package 与 operation ID 的人工交互报告；失败时停止交付，不自动回滚。真实服务器保存仍需写入授权。
 - 新建及改造表单默认覆盖 `360/390/430/768/810/1024/1080/1194/1280`。
+
+## 项目目录治理
+
+新任务和已有任务的目录选择、正式交付及 private 恢复边界统一见[目录与恢复契约](references/project-directories.md)。下文 `docs/work/cure-form` 示例表示未接入或已有任务的兼容路径；接入后使用实际解析结果，不据示例重建旧根。

@@ -42,16 +42,18 @@ description: Use when extracting user-visible source-language text from frontend
 
 ## 输出文件
 
+生成文件前按 [目录选择](../../references/project-directories.md) 的 `terms` 命令取得 `path` 作为 `termsDir`；显式项目覆盖优先，治理未启用时仍为 `docs`。
+
 非字典页面级翻译推荐：
 
 ```text
-docs/i18n_terms_{LANG}_YYYYMMDD_HHMM.md
+{termsDir}/i18n_terms_{LANG}_YYYYMMDD_HHMM.md
 ```
 
 字典翻译推荐：
 
 ```text
-docs/i18n_terms_{LANG}_dict_YYYYMMDD_HHMM.md
+{termsDir}/i18n_terms_{LANG}_dict_YYYYMMDD_HHMM.md
 ```
 
 实际目录和命名可由 project profile 覆盖。

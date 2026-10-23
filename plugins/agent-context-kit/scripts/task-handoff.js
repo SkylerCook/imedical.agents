@@ -6,6 +6,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { resolveWorkspaceContext, validateWorkspaceContext } = require('../../../scripts/lib/workspace-context.js');
+const { resolveDirectory } = require('../../../scripts/lib/project-directories.js');
 const { check: checkEvidence } = require('../../../scripts/validation-evidence.js');
 
 const SCHEMA = 'imedical-task-handoff/v1';
@@ -69,13 +70,16 @@ function workspace(projectRoot) {
     const errors = validateWorkspaceContext(context).filter(item => !['workspace-context-resolved', 'junction-ok', 'local-path-ok'].includes(item.status));
     if (context.mode !== 'workspace-overlay' || errors.length) fail(`Invalid workspace context: ${JSON.stringify(errors)}`);
   }
-  const base = noLinks(path.join(root, 'docs/handoff'));
-  return { root, base, context };
+  const legacy = path.join(root, 'docs/handoff');
+  const base = noLinks(resolveDirectory(root, 'agent-context-kit', 'handoff', legacy));
+  const bases = [...new Map([base, legacy].map(directory => [comparable(directory), noLinks(directory)])).values()];
+  if (bases.some(directory => !within(directory, root) || comparable(directory) === comparable(root))) fail('Handoff roots must stay inside the current workspace');
+  return { root, base, bases, context };
 }
 function taskPath(ws, input) {
   if (!input) fail('--task-directory is required');
   const directory = noLinks(path.isAbsolute(input) ? input : path.resolve(ws.root, input));
-  if (path.dirname(directory) !== ws.base) fail('Task must be a direct child of project docs/handoff');
+  if (!ws.bases.some(base => comparable(path.dirname(directory)) === comparable(base))) fail('Task must be a direct child of a handoff root in the current workspace');
   return directory;
 }
 function metadata(text) {
@@ -143,7 +147,7 @@ function normalizeInputs(ws, input = {}) {
 function fileRecords(root, scopes, excluded) {
   const records = new Map();
   function visit(file) {
-    if (within(file, excluded) || ['.git', '.agents', 'node_modules'].includes(path.basename(file))) return;
+    if (excluded.some(root => within(file, root)) || ['.git', '.agents', 'node_modules'].includes(path.basename(file))) return;
     noLinks(file);
     const relative = path.relative(root, file).replaceAll(path.sep, '/');
     if (!fs.existsSync(file)) { records.set(relative, { path: relative, type: 'missing' }); return; }
@@ -165,7 +169,7 @@ function statusRecords(raw, checkoutPrefix, excluded) {
     const entry = { index: chunk[0], worktree: chunk[1], path: chunk.slice(3) };
     if (/[RC]/.test(chunk.slice(0, 2))) entry.originalPath = chunks[++i];
     if ((!checkoutPrefix || entry.path.startsWith(checkoutPrefix)) &&
-        (!excluded || (entry.path !== excluded && !entry.path.startsWith(`${excluded}/`)))) entries.push(entry);
+        !excluded.some(root => entry.path === root || entry.path.startsWith(`${root}/`))) entries.push(entry);
   }
   return entries;
 }
@@ -173,7 +177,7 @@ function collect(ws, inputs) {
   const warnings = [];
   const repositories = inputs.repositories.map(repo => {
     const probe = git(repo.root, ['rev-parse', '--show-toplevel']);
-    const files = fileRecords(repo.root, repo.scopes, ws.base);
+    const files = fileRecords(repo.root, repo.scopes, ws.bases);
     const result = { ...repo, files, fingerprint: hash(JSON.stringify(files)) };
     if (!repo.scopes.length) warnings.push(`no-content-scopes: ${repo.root}`);
     if (probe.status !== 0) {
@@ -191,9 +195,9 @@ function collect(ws, inputs) {
     const prefix = gitText(repo.root, ['rev-parse', '--show-prefix']).trim();
     const physicalRepo = fs.realpathSync.native(repo.root);
     const physicalProject = fs.realpathSync.native(ws.root);
-    const excluded = within(physicalProject, physicalRepo)
-      ? path.posix.join(prefix, path.relative(physicalRepo, path.join(physicalProject, 'docs/handoff')).replaceAll(path.sep, '/'))
-      : null;
+    const excluded = ws.bases.map(base => path.join(physicalProject, path.relative(ws.root, base)))
+      .filter(base => within(base, physicalRepo))
+      .map(base => path.posix.join(prefix, path.relative(physicalRepo, base).replaceAll(path.sep, '/')));
     result.changes = statusRecords(gitText(repo.root, ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--', '.']), prefix, excluded);
     result.indexFingerprint = repo.scopes.length ? hash(gitText(repo.root, ['ls-files', '--stage', '-z', '--', ...repo.scopes])) : null;
     return result;
@@ -205,7 +209,7 @@ function collect(ws, inputs) {
       const saved = stored.suites?.[binding.suite];
       if (!saved) return { ...binding, reusable: false, reason: 'missing-evidence' };
       const safe = normalizeInputs(ws, { repositories: [{ root: binding.repoRoot, scopes: saved.scopes || ['.'] }] });
-      fileRecords(safe.repositories[0].root, safe.repositories[0].scopes, ws.base);
+      fileRecords(safe.repositories[0].root, safe.repositories[0].scopes, ws.bases);
       const checked = checkEvidence(binding.repoRoot, binding);
       return { ...binding, reusable: checked.reusable, reason: checked.reason, savedFingerprint: checked.saved?.fingerprint || null };
     } catch (error) { return { ...binding, reusable: false, reason: `unverified: ${error.message}` }; }
@@ -229,17 +233,21 @@ function links(ws, doc, inputs) {
   return [...new Set(missing)];
 }
 function ignoreLocal(ws) {
-  const probe = git(ws.root, ['rev-parse', '--show-toplevel']);
+  noLinks(ws.base);
+  // The active root may belong to the installed .agents checkout, not the business repository.
+  let owner = noLinks(path.dirname(ws.base));
+  while (!fs.existsSync(owner)) owner = path.dirname(owner);
+  const probe = git(owner, ['rev-parse', '--show-toplevel']);
   if (probe.status !== 0) {
     if (probe.error?.code === 'ENOENT') fail('Git unavailable: cannot ensure local-only handoff; install Git or configure local exclusion before init');
     if (/not a git repository/i.test(probe.stderr || '')) return { status: 'not-a-repository' };
     fail('Cannot determine project Git exclusion; no handoff created');
   }
-  const relative = path.relative(ws.root, ws.base).replaceAll(path.sep, '/');
-  if (gitText(ws.root, ['ls-files', '-z', '--', relative]).trim()) fail('Handoff material is already tracked; preserve it and resolve tracking explicitly before init');
-  const prefix = gitText(ws.root, ['rev-parse', '--show-prefix']).trim();
+  const relative = path.relative(owner, ws.base).replaceAll(path.sep, '/');
+  if (gitText(owner, ['ls-files', '-z', '--', relative]).trim()) fail('Handoff material is already tracked; preserve it and resolve tracking explicitly before init');
+  const prefix = gitText(owner, ['rev-parse', '--show-prefix']).trim();
   const gitRelative = `${prefix}${relative}`;
-  const file = noLinks(gitText(ws.root, ['rev-parse', '--path-format=absolute', '--git-path', 'info/exclude']).trim());
+  const file = noLinks(gitText(owner, ['rev-parse', '--path-format=absolute', '--git-path', 'info/exclude']).trim());
   const old = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
   const rule = `/${gitRelative.replace(/([\\*?\[\]#! ])/g, '\\$1')}/`;
   if (!old.split(/\r?\n/).includes(rule)) {
@@ -293,7 +301,7 @@ function init(ws, options, input) {
   fs.mkdirSync(ws.base, { recursive: true });
   const demandId = String(options.demandId || '00000');
   const slug = demandId.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80) || '00000';
-  const directory = unique(ws.base, `-${slug}`, '', file => fs.mkdirSync(file));
+  const directory = unique(ws.base, `-${slug}`, '', file => fs.mkdirSync(taskPath(ws, file)));
   const meta = { schema: SCHEMA, taskKey: path.basename(directory), demandId, title: options.title, taskKind: options.taskKind, status: 'active', updatedAt: new Date().toISOString() };
   const frontmatter = Object.entries(meta).map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join('\n');
   const template = fs.readFileSync(path.join(__dirname, '../templates/task-handoff.md'), 'utf8');
@@ -304,14 +312,18 @@ function init(ws, options, input) {
 }
 function list(ws, all = false) {
   const tasks = [], errors = [];
-  if (!fs.existsSync(ws.base)) return { tasks, errors };
-  for (const entry of fs.readdirSync(ws.base, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-    if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
-    try {
-      const directory = taskPath(ws, path.join(ws.base, entry.name));
-      const doc = document(directory);
-      if (all || doc.meta.status !== 'closed') tasks.push({ ...doc.meta, directory, resumePoint: doc.text.match(/^## 下一步\r?\n([\s\S]*?)(?=^## |$(?![\s\S]))/m)?.[1].trim() || '' });
-    } catch (error) { errors.push({ directory: entry.name, error: error.message }); }
+  for (const base of ws.bases) {
+    noLinks(base);
+    if (!fs.existsSync(base)) continue;
+    for (const entry of fs.readdirSync(base, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+      const candidate = path.join(base, entry.name);
+      try {
+        const directory = taskPath(ws, candidate);
+        const doc = document(directory);
+        if (all || doc.meta.status !== 'closed') tasks.push({ ...doc.meta, directory, resumePoint: doc.text.match(/^## 下一步\r?\n([\s\S]*?)(?=^## |$(?![\s\S]))/m)?.[1].trim() || '' });
+      } catch (error) { errors.push({ directory: candidate, error: error.message }); }
+    }
   }
   return { tasks, errors };
 }

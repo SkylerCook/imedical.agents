@@ -1,6 +1,6 @@
 # Standard 需求草稿与工具协议
 
-入口：`skills/bos-demand-entry/SKILL.md`。所有命令使用插件内 `scripts/demand-entry.js`（下文简写）；只用 Node 内置模块，无需 npm install、Python 或个人运行器路径。工具不调用 BOSS，也不修改 Git。`collect`、`prepare`、`bind`、`render` 的输出路径若落在 `.agents/` 或能力包源码中（包括通过目录链接到达），会在写入前停止；输入文件可从旧位置读取，以便迁出既有产物。
+入口：`skills/bos-demand-entry/SKILL.md`。所有命令使用插件内 `scripts/demand-entry.js`（下文简写）；只用 Node 内置模块，无需 npm install、Python 或个人运行器路径。工具不调用 BOSS，也不修改 Git。`collect` 和可读交付继续拒绝 `.agents/` 或能力包源码（包括目录链接）；私有草稿仅在目录治理启用后允许写入当前声明的 ContextRoot/work/standard-demand。目录选择、--draft-output 与旧调用兼容见 [需求目录](demand-directories.md)；输入文件可从旧位置读取。
 
 ## 1. 读取代码事实
 
@@ -74,7 +74,7 @@ node demand-entry.js prepare --project-root <WorkspaceRoot> --spec <spec.json> -
 node demand-entry.js render --draft <draft.json> --output <新交付目录> --Excel
 ```
 
-输出 `draft.json`、逐条 `r1.txt`，可选 `requirements.xlsx`。输出目录必须尚不存在，脚本不覆盖旧产物。文本默认不要求模块编码；Excel 缺字段时先不带标志生成文本，再补充 draft.common/requirements[].fields 并 render 到新目录。草稿正文允许人工编辑，证据不能编辑，代码变化必须重新 collect/prepare。回填后的草稿和旧草稿区分保存，向用户说明最新路径。
+旧调用输出同目录 `draft.json`、逐条 `r1.txt` 和可选 `requirements.xlsx`；治理调用按 [需求目录](demand-directories.md) 分离草稿并读取返回 JSON 的 draft 路径。输出目录必须尚不存在，脚本不覆盖旧产物。文本默认不要求模块编码；Excel 缺字段时先不带标志生成文本，再补充 draft.common/requirements[].fields 并 render 到新目录。草稿正文允许人工编辑，证据不能编辑，代码变化必须重新 collect/prepare。回填后的草稿和旧草稿区分保存，向用户说明最新路径。
 
 新文本分为“需求名称”和“需求描述”两个填写块，正文使用 `【小标题】`、编号步骤和段落间空行；Excel 需求名称列与文本同源，需求描述列仅包含同一三段式正文及可选备注。Agent 在聊天交付时分别展示两块内容，不再次改写生成文本。标版修复可以独立提报。
 

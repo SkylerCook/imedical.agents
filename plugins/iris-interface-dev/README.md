@@ -7,7 +7,7 @@
 ## 能力范围
 
 - 接口文档解析入口由本插件的 `iris-interface-doc-ingest` skill 承担，实际文档读取、格式转换和结构化抽取委托 `extract-doc`。
-- 接口解析产物约定写入 `docs/interface/<doc-name>/`。
+- 接口解析目录复用 [extract-doc 输出契约](../extract-doc/skills/extract-doc-ingest/SKILL.md#输出契约)，后续诊断和计划沿实际产物路径处理；已有文件保持原位置。
 - 生成 `source.md`、`parsed.json`、`fields.md`、`diagnostics.md`；字段匹配阶段生成 `field-match.json` 和 `field-match.md`。
 - `parsed.json` 使用 `iris-interface-doc-ingest/v2` schema；字段除保留 v1/v1.2 规范字段外，还包含 `rawColumns`、`sourceLocation`、`classification`、`confidence`、`warnings`、`requiredReason` 和 `jsonPathReason`。
 - `iris-interface-build` 负责把已确认的接口契约实现为 ObjectScript、JavaScript/CSP 和配置说明，并按接入管理、统一注册调度、只读 Query 三种机制路由。
@@ -34,11 +34,10 @@ iris-interface-dev/
 python .agents/plugins/extract-doc/scripts/extract-doc-ingest.py `
   --file docs/input/interface.xlsx `
   --project-root . `
-  --output-root docs/interface `
   --schema-version iris-interface-doc-ingest/v2
 
 python .agents/plugins/iris-interface-dev/scripts/iris-interface-field-match.py `
-  --parsed docs/interface/interface/parsed.json `
+  --parsed <实际产物目录>/parsed.json `
   --project-root . `
   --feedback .agents/config/iris-interface-field-feedback.json
 ```
@@ -80,7 +79,7 @@ python -c "import docx, pdfplumber, openpyxl, xlrd; print('optional parsers ok')
 
 ```powershell
 python .agents/plugins/iris-interface-dev/scripts/iris-interface-review.py `
-  --parsed docs/interface/interface/parsed.json `
+  --parsed <实际产物目录>/parsed.json `
   --code output/Draft.cls
 ```
 

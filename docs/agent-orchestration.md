@@ -77,3 +77,7 @@ ACK blocked 保留 action/work item 阻塞，不自动重试；失败确认且�
 完成门禁还拒绝 failed work item、pending/blocked action、缺失验证和未完成反馈决定。不要先写 completed 再运行最终校验；失败必须保留原状态。
 
 验证仓库身份：串行写入计划必须显式声明 repositoryRoot（实际仓库绝对路径）；隔离参与者使用绝对 worktree.ref。证据必须同时匹配仓库身份和受测路径，不能用另一仓库的同名文件通过验证。旧 run 缺少身份时通过 plan patch 补充并重新验证；新增 repositoryRoot 才进入 planHash，不改变未声明该字段的历史哈希。
+
+## 项目目录治理接入后的运行根
+
+新建run前用 `project-docs.js resolve --project-root <工作区> --owner agent-context-kit --id runs --fallback docs/agent-reports` 取得实际根，再把run目录显式传给编排器。未接入沿原路径；旧run继续按原目录恢复，不自动移动。上文 `docs/agent-reports` 表示兼容示例。根选择和授权流程见[目录治理](guides/project-knowledge-layout.md)。

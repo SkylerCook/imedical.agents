@@ -48,3 +48,19 @@ test('localhost serves hash-bound vendor read-only and denies private files', as
   assert.throws(() => validateMount(mount, vendor), /changed/);
   assert.equal((await request('/__cure_vendor/hisui/example.css')).status, 404);
 });
+
+
+test('governed new tasks use local work while explicit and existing tasks remain recoverable', (t) => {
+  const projectRoot=fs.mkdtempSync(path.join(fs.realpathSync.native(os.tmpdir()),'cure-governed-'));
+  t.after(()=>fs.rmSync(projectRoot,{recursive:true,force:true}));
+  const put=(file,value)=>{const target=path.join(projectRoot,file);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,value);};
+  const manifest=fs.readFileSync(path.resolve(__dirname,'../../plugins/iris-cure-form-dev/.agents-plugin/plugin.json'));
+  put('.agents/plugins/iris-cure-form-dev/.agents-plugin/plugin.json',manifest);
+  put('.agents/config/plugin_profile.md','| iris-cure-form-dev | enabled |\n');
+  put('.agents/config/documentation-layout.json',JSON.stringify({schema:'imedical-documentation-layout/v1',enabled:true,workspaceRoot:projectRoot,extensions:[]}));
+  const args={projectRoot,taskId:'new-task'};assert.equal(taskRoot(args),path.join(projectRoot,'.agents/work/cure-form/new-task'));
+  const privatePath=privateRoot(args);assert.equal(fs.readFileSync(path.join(privatePath,'.gitignore'),'utf8'),'*\n');
+  fs.mkdirSync(path.join(projectRoot,'docs/work/cure-form/old-task'),{recursive:true});assert.equal(taskRoot({...args,taskId:'old-task'}),path.join(projectRoot,'docs/work/cure-form/old-task'));
+  assert.equal(taskRoot({...args,workRoot:'custom/output'}),path.join(projectRoot,'custom/output'));
+  put('.agents/config/cure_form_profile.md','- WorkRoot: docs/custom-cure\n');assert.equal(taskRoot({...args,taskId:'profile-task'}),path.join(projectRoot,'docs/custom-cure/profile-task'));
+});

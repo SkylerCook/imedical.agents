@@ -40,19 +40,16 @@ python .agents/plugins/extract-doc/scripts/extract-doc-ingest.py `
 python .agents/plugins/extract-doc/scripts/extract-doc-ingest.py `
   --file <document-path> `
   --project-root . `
-  --output-root docs/interface `
   --emit-structure
 ```
 
 ## 输出契约
 
-不显式传入 `--output-root` 时，默认写入 `docs/interface/<doc-name>/`。每个文档固定产物为：
+显式 `--output-root` 始终优先。省略时，由脚本解析 `extract-doc/document-ingest` 的 owner 目录声明：未接入治理保持 `docs/interface/` 且不要求 Node.js；接入后使用声明结果，当前为 `docs/modules/interfaces/`。治理已启用但配置、owner 或解析器无效时停止，保留现场。
 
-- `docs/interface/<doc-name>/source.md`
-- `docs/interface/<doc-name>/parsed.json`
-- `docs/interface/<doc-name>/fields.md`
-- `docs/interface/<doc-name>/diagnostics.md`
-- 传入 `--emit-structure` 时：`docs/interface/<doc-name>/structure.json`
+每个文档在解析出的根目录下使用 `<doc-name>/`，固定文件为 `source.md`、`parsed.json`、`fields.md`、`diagnostics.md`；传入 `--emit-structure` 时增加 `structure.json`。文件名及 schema 保持兼容。脚本不会迁移历史文件，后续处理使用本次实际返回的路径。
+
+目录接入、授权与更新行为见[项目知识库布局](../../../../docs/guides/project-knowledge-layout.md)。
 
 `structure.json` 固定使用 `extract-doc/structure-v1`。它只描述领域无关的文档结构；字段语义、控件类型和业务规则由调用方插件继续处理。
 

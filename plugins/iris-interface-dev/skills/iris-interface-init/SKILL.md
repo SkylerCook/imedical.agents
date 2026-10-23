@@ -18,7 +18,7 @@ description: 当需要为目标项目初始化 IRIS 接口开发工作区、输�
 
 ## 职责
 
-- 创建或确认目标项目 `docs/interface/` 输出目录，并确认 `extract-doc` 已可用于接口文档解析。
+- 按 `extract-doc` 输出契约确认当前项目文档目录，在本次已授权初始化范围内创建所需目录，并确认 `extract-doc` 已可用于接口文档解析。
 - 目标项目缺少接口配置时，参考 `../../templates/iris_interface_profile.template.md` 创建项目本地 profile。
 - 通过 `scripts/generate-plugin-thin-index.ps1` 生成或刷新插件 thin-index。
 - 检查目标项目是否已启用 `coding-iris-plugin`。

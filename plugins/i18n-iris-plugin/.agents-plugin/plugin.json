@@ -1,6 +1,6 @@
 {
   "name": "i18n-iris-plugin",
-  "version": "0.2.12",
+  "version": "0.3.0",
   "displayName": "IRIS I18N Plugin",
   "description": "Reusable i18n agent workflows for IRIS/ObjectScript/CSP/HISUI projects.",
   "entry": "AGENTS.md",
@@ -35,5 +35,45 @@
     "Verify server and local page translation differences",
     "Verify XML print template EN records",
     "Create EN XML print templates for PrintTemp values"
-  ]
+  ],
+  "projectDirectories": [
+    {
+      "id": "print-templates",
+      "base": "workspace",
+      "path": "docs/delivery/print-templates",
+      "role": "delivery",
+      "create": "setup",
+      "legacyPaths": [
+        "docs/xmlPrintTemp"
+      ]
+    },
+    {
+      "id": "print-template-sources",
+      "base": "workspace",
+      "path": "docs/delivery/print-templates/source",
+      "role": "delivery",
+      "create": "setup",
+      "legacyPaths": [
+        "references/xmlPrintTemp"
+      ]
+    },
+    {
+      "id": "terms",
+      "base": "workspace",
+      "path": "docs/delivery/i18n/terms",
+      "role": "delivery",
+      "create": "setup"
+    },
+    {
+      "id": "csp-backups",
+      "base": "workspace",
+      "path": "docs/delivery/i18n/csp-trans-sync/backups",
+      "role": "recovery",
+      "create": "setup",
+      "legacyPaths": [
+        "docs/i18n-csp-trans-sync/backups"
+      ]
+    }
+  ],
+  "references": "references/"
 }

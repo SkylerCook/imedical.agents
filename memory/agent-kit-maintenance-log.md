@@ -1,5 +1,13 @@
 # imedical.agents 维护日志
 
+## 2026-10-24 项目知识库目录与授权归类
+
+- framework-maintenance，基线467cf3f；实现通用骨架、owner目录声明、当前ContextRoot运行资料、首次接入/具体计划授权及备份恢复。更新可补已接入的空目录，未接入或待整理只提示；各工作区知识本地保留，扩展登记用途和导航。
+- 同步i18n XML/术语/CSP恢复、交接新旧根、BOS正式文本与私有draft分离、表单新任务/旧恢复、文档摄取/接口及医生AI输出。脚本、profile/skill、owner版本/发布、部署说明与能力手册共同更新；现行契约只在[目录治理](../docs/guides/project-knowledge-layout.md)维护。
+- 最终集成81/81；更新器、XML fallback及接口suite在PS7/PS5.1通过，BOS原有29项通过；编码/部署链接/补丁检查通过。本次8个owner版本变化无新增治理问题，历史发布欠项保持；完整证据和限制见[验证记录](../maintenance/validation/project-knowledge-layout-2026-10-24.md)。
+- 实施阶段未部署业务项目、未迁移用户已有资料、未暂存/提交/推送。用户随后授权本次 c + p；提交前核对已推送的并行UI提交bf0904f，保留其正文并衔接agent-context-kit 0.5.4→0.6.0。提交前补跑81项集成全过，复用其它有效证据，补查受影响的模板/入口并执行暂存版本门禁；仅推送Gitee origin/master，业务部署与迁移继续独立授权。跨平台CI和真实宿主/项目迁移沿P2队列取证。
+
+
 ## 2026-10-23 UI 规范提炼与需求经验回归
 
 - framework-maintenance，基点 ab39cb0，独立分支 codex/ui-framework-optimization；保留主工作区并行修改。改进有效图层与跨主题构件对照、前端 rule 唯一读取门禁、HISUI 参数组合、实施自检和明确授权的源仓隔离待审补丁模式；公开 collectUiMetrics 及生产样式不变。

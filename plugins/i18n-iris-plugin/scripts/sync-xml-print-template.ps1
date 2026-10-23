@@ -1,4 +1,4 @@
-
+﻿
 param(
     [string]$ProjectRoot = ".",
     [string[]]$TemplateNames = @(),
@@ -765,8 +765,15 @@ Translate only user-visible defaultvalue attributes. Preserve XML structure, coo
 }
 
 $mcpConfig = Resolve-RootPath $McpConfigPath
-$refDir = Resolve-RootPath $ReferencesDir
-$outDir = Resolve-RootPath $OutputDir
+$directoryResolver = Join-Path $PSScriptRoot "resolve-project-directory.js"
+$directoryArgs = @($directoryResolver, "xml", "--project-root", $projectRootResolved, "--profile", $I18nProfilePath)
+if ($PSBoundParameters.ContainsKey("ReferencesDir")) { $directoryArgs += @("--references-dir", $ReferencesDir) }
+if ($PSBoundParameters.ContainsKey("OutputDir")) { $directoryArgs += @("--output-dir", $OutputDir) }
+$directoryJson = & node @directoryArgs 2>&1 | Out-String
+if ($LASTEXITCODE -ne 0) { throw ("I18n directory resolution failed: " + $directoryJson) }
+$directories = $directoryJson | ConvertFrom-Json
+$refDir = [string]$directories.referencesDir
+$outDir = [string]$directories.outputDir
 $languageDisplayMap = Get-I18nLanguageDisplayMap $I18nProfilePath
 $mcpJson = Get-Content $mcpConfig -Raw | ConvertFrom-Json
 if (-not $IrisNamespace) {

@@ -62,3 +62,5 @@ Only report artifact paths and extraction diagnostics in conversation. Do not pa
 ## Activation and updates
 
 Existing projects receive this plugin through the normal `.agents/scripts/update-agents.ps1` flow, but the directory is only `available` until initialization is complete. Use `project-context-maintenance` to initialize and enable `extract-doc` and `coding-iris-plugin` first, then validate this plugin and run `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin iris-external-reg -Status enabled`. Re-run the updater to generate its rule and skill thin-index entries.
+
+项目知识库接入后，文档摄取复用 extract-doc 的目录声明；已有显式输出保持。目录及授权见[项目知识库目录治理](../../docs/guides/project-knowledge-layout.md)。

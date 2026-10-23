@@ -21,6 +21,10 @@
 - 前端翻译 helper 的 key 必须保持稳定字面量；运行时值只能作为占位符参数传入。修改 JS/CSP helper 后使用 `scripts/check-i18n-helper-usage.js` 做只读静态检查，失败不得继续交付。
 - i18n 业务需求开工时设置 `taskKind=business-demand`；本地验证、commit、部署均不得代表用户验收，交付后停在 `acceptance-pending`。只有用户明确验收后才允许只读 feedback 审查，任何经验写入、命中次数更新、framework feedback 或 rule 提升仍需用户逐项授权。纯框架维护使用独立 `framework-maintenance` 记录，不进入需求验收或 feedback。
 
+## 项目目录
+
+生成 XML、术语表或 CSP 同步恢复副本前，按 [目录选择](references/project-directories.md) 解析；显式参数和有效项目 profile 优先，治理未启用时保留 legacy 路径。页面翻译 seed 仍归 backend SourceRoot。
+
 ## Skill 路由
 
 - 初始化目标工程：`skills/i18n-project-init/SKILL.md`

@@ -1,6 +1,6 @@
 {
   "name": "bos-plugin",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "displayName": "BOS Demand Plugin",
   "description": "跨技术栈的 BOS 只读查询、需求处理、标版补录、代码更新日志与通用提交衔接。",
   "entry": "AGENTS.md",
@@ -52,6 +52,22 @@
       "entries": [
         "skills/demand-acceptance/SKILL.md"
       ]
+    }
+  ],
+  "projectDirectories": [
+    {
+      "id": "demand-delivery",
+      "base": "workspace",
+      "path": "docs/delivery/demands",
+      "role": "delivery",
+      "create": "setup"
+    },
+    {
+      "id": "demand-drafts",
+      "base": "context",
+      "path": "work/standard-demand",
+      "role": "runtime",
+      "create": "setup"
     }
   ]
 }

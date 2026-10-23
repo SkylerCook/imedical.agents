@@ -3004,7 +3004,7 @@ function commandCommonMigrate(args) {
 }
 
 function usage() {
-  console.log(`Usage: cure-form <command> [options]\nCommands: ${[...COMMANDS].join(', ')}\nUse --task-id consistently. Task outputs: docs/work/cure-form/<task>/<Map>/; runtime state: <task>/private/. Project config and rules remain in .agents/. Explicit --output-root and --work-root remain supported.`);
+  console.log(`Usage: cure-form <command> [options]\nCommands: ${[...COMMANDS].join(', ')}\nUse --task-id consistently. Task outputs use taskRoot (governed work/cure-form or legacy docs/work/cure-form); runtime state: <task>/private/. Project config and rules remain in .agents/. Explicit --output-root and --work-root remain supported.`);
 }
 
 async function main() {

@@ -2,7 +2,7 @@
 
 创建或接续 worktree、完成一批改动或准备交接时，读取并执行[阶段提交与恢复点](.agents/docs/guides/worktree-review.md#阶段提交与恢复点)，核对本地提交授权和最后恢复点；本入口不授予提交权限。
 
-需求交接：确认 `agent-context-kit` 为 enabled（无 profile 时沿用基础 enabled）且入口可用后，启用交接、生成交接或接续已有需求时读取 `.agents/skills/task-handoff/SKILL.md`；从项目 `docs/handoff/` 定位任务，启用后关键节点持续维护，普通需求不自动建档。
+需求交接：确认 `agent-context-kit` 为 enabled（无 profile 时沿用基础 enabled）且入口可用后，启用交接、生成交接或接续已有需求时读取 `.agents/skills/task-handoff/SKILL.md`；通过 task-handoff 工具解析当前工作区交接根并定位任务，启用后关键节点持续维护，普通需求不自动建档。
 
 初始化、维护或日常优化 Agent 面向项目的上下文时，使用 `.agents/skills/project-context-maintenance/SKILL.md`。
 
@@ -21,3 +21,5 @@
 辅助模式按 `.agents/agents/_shared/execution-guidance.md`：guidanceMode 默认 auto，当前用户选择优先于 project_context_profile；方法允许调整，硬约束不变。
 
 - 能力包使用、操作指南或连接配置排查：先读取 [.agents 文档入口](.agents/docs/README.md)，再按问题进入对应指南。
+
+- 查找、新建或整理项目资料时先读已存在的 `docs/README.md`；首次接入目录治理或迁移旧文件时，读取能力包 `docs/guides/project-knowledge-layout.md` 并取得明确授权。

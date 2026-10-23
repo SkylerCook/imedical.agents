@@ -1,6 +1,6 @@
 {
   "name": "extract-doc",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "displayName": "Extract Doc Plugin",
   "description": "Reusable document ingestion workflow for converting PDF, DOC, DOCX, XLS, and XLSX files into Markdown, interface-oriented fields, and optional domain-neutral document structure artifacts.",
   "entry": "AGENTS.md",
@@ -14,5 +14,18 @@
   "defaultPrompt": [
     "Check parser availability for this document",
     "Extract this document into Markdown and structured JSON artifacts"
+  ],
+  "projectDirectories": [
+    {
+      "id": "document-ingest",
+      "base": "workspace",
+      "path": "docs/modules/interfaces",
+      "role": "knowledge",
+      "create": "setup",
+      "purpose": "文档解析、接口字段与实施说明",
+      "legacyPaths": [
+        "docs/interface"
+      ]
+    }
   ]
 }

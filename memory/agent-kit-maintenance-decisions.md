@@ -14,7 +14,7 @@
 
 - 源仓普通提交采用暂存组件版本门禁，功能测试与版本校验独立取证；无关 HEAD 变化不使内容证据失效。已登记且未变化的历史发布结构问题保留技术债，不重复人工处理，不阻断无新增问题的局部提交；完整审计继续保留历史问题。规则唯一正文见 maintenance/governance/component-version-management.md。
 
-- 治疗表单插件的项目任务产物和运行态统一归 `docs/work/cure-form/<task>/`，以 Map/source/preview/verification/manual-deploy 与 private 分层；`.agents/` 保留框架能力及项目配置/规则，不默认容纳具体需求运行态。该决策不迁移 Overlay 配置，不移动既有备份/凭证，显式旧输出路径保持兼容。预览 HTTP 只读挂载受允许的 vendor 根，并隔离 private；自动与手动部署是独立选择，原 RowID 覆盖与灰度是另一策略维度。
+- 治疗表单插件的项目任务产物和运行态由 owner 目录契约解析，已接入治理的新任务使用 ContextRoot/work，未接入或旧任务兼容 `docs/work/cure-form/<task>/`，以 Map/source/preview/verification/manual-deploy 与 private 分层；框架能力及项目配置/规则保持其原归属，具体需求运行态只进入当前工作区的 ContextRoot/work，不写共享能力资产。该决策不迁移 Overlay 配置，不移动既有备份/凭证，显式旧输出路径保持兼容。预览 HTTP 只读挂载受允许的 vendor 根，并隔离 private；自动与手动部署是独立选择，原 RowID 覆盖与灰度是另一策略维度。
 
 - `agents/` 放厂商无关的智能体 canonical 定义，包括 agent registry、`AGENT.md`、`bindings.yaml` 和共享交接协议；不放工具专属生成物或业务项目私有事实。
 - `workflows/` 放厂商无关的多智能体/阶段化 workflow canonical 定义，包括 workflow registry 和 `*.workflow.md`；workflow 必须支持不具备子代理能力时的单 Agent 串行降级。
@@ -192,6 +192,11 @@
 - 提交权限来自当前用户或项目明确约定；项目长期授权留项目入口/规则，仅当前任务的授权留现有任务记录。框架只提供路由与执行约束，不授予业务项目 commit、merge、push 或部署权限。模板更新保留已有项目入口，授权维护时才合并条件指针。
 
 - 夜跑能力不足时的单人实施采用[明确退出夜跑转普通受监督串行](../workflows/bos-demand-unattended.workflow.md#单-agent-降级)，不增加单人受管模式。原 run、独立工作区、预算/截止与未知资源的保留方式只在该契约维护；主/派生宿主停止效果与协议诊断分开取证。
+
+## 项目知识库目录治理
+
+统一骨架、能力目录与扩展、首次部署授权、更新补齐、精确归类计划及批次备份恢复的现行契约归 [目录治理](../docs/guides/project-knowledge-layout.md)。框架实现不授予项目首次部署或存量迁移权限；业务恢复备份与目录迁移备份分别管理。
+
 
 ## UI 经验回归的源仓待审边界（2026-10-23）
 

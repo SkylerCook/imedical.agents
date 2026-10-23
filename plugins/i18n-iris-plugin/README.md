@@ -21,6 +21,10 @@
 - i18n 任务 Step 0 启动契约：开工即确定运行模式、创建 manifest、声明文件所有权，并分别确认翻译数据写入与业务代码部署授权。
 - 需求交付遵循共享生命周期：i18n 业务需求设置 `taskKind=business-demand`，本地验证后停在 `acceptance-pending`；只有用户明确验收后才做 feedback 只读审查，经验新增、命中更新和框架反馈仍需逐项授权。纯框架维护使用独立 `framework-maintenance` 生命周期，不进入需求验收或 feedback。
 
+## 项目目录治理（0.3.0）
+
+本插件通过 manifest 的 projectDirectories 声明 XML 打印模板、原文、术语表和 CSP 同步恢复目录。目标项目明确启用目录治理后，默认归入 docs/delivery；未接入项目保留旧路径，显式参数及有效 i18n profile 优先。首次接入、预建与存量迁移需分别授权，普通更新不移动文件。解析命令、目录优先级与旧任务恢复见 [项目 i18n 产物目录](references/project-directories.md)。
+
 ## 设计原则
 
 - 插件包只提供通用能力，不绑定具体工程。

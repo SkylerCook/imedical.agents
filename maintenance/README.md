@@ -5,6 +5,7 @@
 | 任务 | 入口 |
 |---|---|
 | 自有 skill / Agent 帮助及随更新分发 | [验证与实际调用边界](validation/capability-help-2026-10-22.md) |
+| 项目知识库目录治理的本机证据与未部署边界 | [源仓验证](validation/project-knowledge-layout-2026-10-24.md) |
 | 调整文档目录或部署边界 | [文档布局与迁移](governance/documentation-layout.md)、[机器核对清单](governance/documentation-layout.json) |
 | 插件版本、发布记录与兼容审计 | [组件版本治理](governance/component-version-management.md) |
 | 回看早期工作区方案 | [Workspace Kit v0.2.0](design/ai-coding-workspace-kit-v0.2.0.md)，历史设计，不作为当前项目入口 |

@@ -7,7 +7,7 @@ description: 为需求启用持久交接、生成交接快照、发现或接续�
 
 帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
 
-服务同机同工作区的跨会话、跨 Agent 串行接续。以项目 `docs/handoff/<首次时间戳>-<需求ID>/handoff.md` 为主入口，无需求 ID 使用 `00000`。这不是正式多智能体 run，也不负责搬运代码、创建新会话或停止旧会话。
+服务同机同工作区的跨会话、跨 Agent 串行接续。以任务目录的 `handoff.md` 为主入口，目录按[工具契约](references/tool-contract.md#目录解析)解析；无需求 ID 使用 `00000`。这不是正式多智能体 run，也不负责搬运代码、创建新会话或停止旧会话。
 
 ## 选择入口
 

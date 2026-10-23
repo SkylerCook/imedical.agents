@@ -1,6 +1,6 @@
 {
   "name": "iris-external-reg",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "displayName": "IRIS External Registration",
   "description": "Workflow and reference pack for developing third-party appointment registration integrations on IRIS, including document handoff through extract-doc, implementation planning, ObjectScript development guidance, RegInterface mapping, and verification.",
   "entry": "AGENTS.md",
@@ -16,7 +16,7 @@
   "dependencyVersions": {
     "extract-doc": {
       "minVersion": "0.2.0",
-      "maxVersionExclusive": "0.3.0"
+      "maxVersionExclusive": "0.4.0"
     },
     "coding-iris-plugin": {
       "minVersion": "0.3.0",

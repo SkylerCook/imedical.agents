@@ -56,6 +56,10 @@
 
 0.4.0 统一分段配置，运行时不保留旧格式或编辑器设置回退；旧平铺配置须明确运行 migrate-config 原地转换，详见[配置与迁移](references/usage.md)。个人配置不会被项目更新器自动修改，日志缺失只阻塞日志技能。代码更新日志的 plan 不联网，submit 需明确 BOS 写入授权，字段与结果判定见[接口说明](references/code-update-log.md)。
 
+## 项目产物目录（0.16.0）
+
+目录治理启用后，标版需求的正式文本/Excel 默认归 docs/delivery/demands，含补丁草稿归当前 ContextRoot/work/standard-demand。prepare/render 支持 --draft-output；普通旧调用和未接入项目保持兼容。首次接入与存量迁移分别授权，更新本插件不搬文件。命令、恢复与明确路径覆盖见 [交付与草稿目录](references/demand-directories.md)。
+
 ## 验证
 
 运行 node --test plugins/bos-plugin/tests/*.tests.js；发现/流程集成见 scripts/tests/bos-plugin.tests.js，场景验收见 [需求场景](references/scenarios.md)。测试使用合成数据与隔离仓库，不连接真实 BOS。CI 配置不等于跨平台通过，真实宿主及项目试点另行取证。

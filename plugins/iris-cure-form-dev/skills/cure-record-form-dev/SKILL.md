@@ -8,7 +8,7 @@ description: 从已批准 cure-form-spec/v1 新建或重构 CR 治疗记录表�
 帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
 
 1. 只接受 `formType=CR` 且已批准、`unresolved[]` 为空的规格。
-2. 默认在 `docs/work/cure-form/<task>/<moduleId>/source/` 生成 HTML、JS、fragment 和规格；统一使用 --task-id，显式 --output-root 兼容原有输出布局。修改后直接列出预览链接。
+2. 按[目录与恢复契约](../../references/project-directories.md)解析当前任务根，在 `<taskRoot>/<moduleId>/source/` 生成 HTML、JS、fragment 和规格；统一使用 --task-id，显式 --output-root 兼容原有输出布局。修改后直接列出预览链接。
 3. 保持 DOM ID、缓存标签、radio `name/value`、`Init/OtherInfo/PrintInfo`。
 4. 必须保持宿主 `record.recordtemp.js` 的 `SaveCureRecord`、`CureExpJsonStr`、`MapID` 及回显和打印行为；表单模块不得重新定义这些宿主入口。
 5. 默认满足手机/PDA、常规 PAD、宽屏 PAD 横屏和 PC 响应式契约。

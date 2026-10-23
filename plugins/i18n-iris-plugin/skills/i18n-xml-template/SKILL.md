@@ -24,7 +24,7 @@ description: Use when translating XML print template files whose visible text is
 
 - `targetLanguage`：目标语言代码；默认使用 project profile 配置，通常为 `EN`。
 - `sourceFiles`：一个或多个 XML 打印模板文本文件。
-- `outputDir`：输出目录；未指定时使用 project profile 或 `docs/xmlPrintTemp/`。
+- `outputDir`：本次明确输出目录；同步 manifest 已提供时直接复用，否则按 [目录选择](../../references/project-directories.md) 的 `xml` 解析取得 `outputDir`，保留 profile 覆盖、治理启用条件及 legacy 兼容。
 
 ## 输出产物
 

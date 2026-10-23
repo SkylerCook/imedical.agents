@@ -38,7 +38,6 @@ description: 按照 HIS 标准自助机预约挂号程序规范开发第三方�
      python .agents/plugins/extract-doc/scripts/extract-doc-ingest.py `
        --file <document-path> `
        --project-root . `
-       --output-root docs/output/iris-external-reg `
        --schema-version iris-external-reg/v1
      ```
      对话中只汇报产物路径、字段数量、转换器和诊断摘要，不粘贴完整文档。
@@ -99,3 +98,5 @@ TODO 未确认前，相关代码必须保留 `; TODO: 待确认 - ...` 注释，
 | `../../references/xml-to-obj.md` | 需要处理 XML 与对象互转时 |
 | `../../references/reginterface-wiki-index.md` | 需要快速确认核心类、方法、TradeCode、Entity 时 |
 | `../../references/reginterface-wiki.md` | 索引不足，需要查看 `DHCExternalService.RegInterface` 详细方法说明时 |
+
+默认摄取目录由 extract-doc 解析，项目显式 `--output-root` 保持优先；目录治理接入不会移动已有接口资料。

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Plugin projectDirectories",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "id",
+      "base",
+      "path",
+      "role",
+      "create"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]+$"
+      },
+      "base": {
+        "enum": [
+          "workspace",
+          "context",
+          "capability"
+        ]
+      },
+      "path": {
+        "type": "string",
+        "minLength": 1
+      },
+      "role": {
+        "enum": [
+          "knowledge",
+          "delivery",
+          "runtime",
+          "recovery",
+          "source",
+          "temporary",
+          "capability"
+        ]
+      },
+      "create": {
+        "enum": [
+          "setup",
+          "task",
+          "never"
+        ]
+      },
+      "purpose": {
+        "type": "string"
+      },
+      "legacyPaths": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "additionalProperties": false
+  }
+}

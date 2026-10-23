@@ -647,3 +647,7 @@ guidanceMode（auto/concise/assisted）、executionPath 和 orchestrationMode �
 提交同步与接续：demand-delivery-plugin 独立完成同步，复用 upstream 钩子去重；上游无交集且需求内容和消息未变时由 Agent 复核、重新 plan 并沿用已有授权，见 [接入协议](plugins/demand-delivery-plugin/references/commit-upstream-check.md)。
 
 项目技能目录也可在 `ContextRoot/config/project_context_profile.md` 的“技能适配目录”章节逐行填写，再执行 `coding-agent-adaptation` 补齐缺失链接；普通更新不自动执行此清单。示例见 [技能适配](docs/coding-agent-adaptation.md)。
+
+## 项目知识库目录治理
+
+框架通过 agent-context-kit 的[目录治理](docs/guides/project-knowledge-layout.md)统一项目 docs 骨架、能力目录声明、当前工作区运行资料及授权归类。首次部署显式批准；后续更新可补空目录，存量迁移按具体计划备份/回退。能力默认值与显式项目配置分别保留；standard/Overlay 均不跨工作区整理。实现和本机回归不等于业务项目已部署或跨平台矩阵通过。

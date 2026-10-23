@@ -1,6 +1,6 @@
 {
   "name": "agent-context-kit",
-  "version": "0.5.4",
+  "version": "0.6.0",
   "displayName": "Agent Context Kit",
   "description": "Reusable project context, local task handoff and cross-session continuation, plus schema 2.0 agent run templates and separate demand and framework-maintenance lifecycles.",
   "entry": "AGENTS.md",
@@ -26,5 +26,61 @@
     "coding-agent-adaptation": [
       "c74b680eb4b4f556226a4a252b3d038f326c57c6b5e853d053c736274ad23489"
     ]
-  }
+  },
+  "projectDirectories": [
+    {
+      "id": "guides",
+      "base": "workspace",
+      "path": "docs/guides",
+      "role": "knowledge",
+      "create": "setup",
+      "purpose": "开发、操作和排障指南"
+    },
+    {
+      "id": "modules",
+      "base": "workspace",
+      "path": "docs/modules",
+      "role": "knowledge",
+      "create": "setup",
+      "purpose": "业务专题、接口和设计说明"
+    },
+    {
+      "id": "delivery",
+      "base": "workspace",
+      "path": "docs/delivery",
+      "role": "delivery",
+      "create": "setup",
+      "purpose": "正式交付、验收、演示和配套附件"
+    },
+    {
+      "id": "archive",
+      "base": "workspace",
+      "path": "docs/archive",
+      "role": "knowledge",
+      "create": "setup",
+      "purpose": "已被替代的历史资料"
+    },
+    {
+      "id": "handoff",
+      "base": "context",
+      "path": "work/handoff",
+      "role": "runtime",
+      "create": "setup",
+      "legacyPaths": [
+        "docs/handoff"
+      ],
+      "purpose": "本工作区交接与恢复状态"
+    },
+    {
+      "id": "runs",
+      "base": "context",
+      "path": "work/agent-reports",
+      "role": "runtime",
+      "create": "setup",
+      "legacyPaths": [
+        "docs/agent-reports"
+      ],
+      "purpose": "新任务运行与证据；旧run保留其显式目录"
+    }
+  ]
 }
