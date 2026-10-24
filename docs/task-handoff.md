@@ -14,7 +14,7 @@
 - 既有项目：正常更新能力包并刷新薄索引后可显式调用；自然语言路由在已授权上下文维护中定点加入，保留自定义正文。available/disabled 不自动启用。
 - 目录治理：未接入时沿用 `docs/handoff/`；接入后新任务使用本工作区 `ContextRoot/work/handoff/`。完整路径与旧任务恢复规则见[目录解析](../plugins/agent-context-kit/skills/task-handoff/references/tool-contract.md#目录解析)。更新和搭建目录均不迁移已有任务。
 - 本机保存：init 使用管理交接目录的 Git 仓库本地 exclude；不修改共享 ignore，不自动取消已有跟踪。材料不是临时文件，任务结束后保留。
-- Overlay：目录属于 WorkspaceRoot，代码读取与 Git 查询受声明的 SourceRoot/GitRoot 限制，共享 CapabilityRoot 不写入任务现场。
+- Overlay：交接目录按当前工作区的 ContextRoot 和治理状态解析，未接入时兼容 WorkspaceRoot 下的旧根；代码读取与 Git 查询受声明的 SourceRoot/GitRoot 限制，共享 CapabilityRoot 不写入任务现场。
 - 个人 handoff、旧交接文档与正式 run 保持原样；引用已有材料，无强制迁移或兼容清理。
 - Obsidian：标准 Markdown 与普通链接可独立查看，本版没有专属语法、配置、同步或聚合副本。
 

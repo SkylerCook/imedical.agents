@@ -154,7 +154,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 |---|---|---|
 | [coding-agent-adaptation](../../plugins/agent-context-kit/skills/coding-agent-adaptation/SKILL.md) | 按项目配置中逐行填写的目录清单补齐缺失技能链接；也支持指定宿主。 | 已有 .agents，明确目录或宿主；先读 [source.md](../../plugins/agent-context-kit/skills/coding-agent-adaptation/references/source.md)，未知目录或规则 MD 由用户说明。产出技能目录检查结果，项目规则加载独立验证，已有自定义内容保留。 |
 | [project-context-maintenance](../../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md) | 核对工程入口到专项规则的读取路径，修复断链并精简重复说明。 | 提供目标工程和维护范围；保留约束及等价路由，按[规则路由维护](../../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md#规则路由维护)检查受影响链并走查代表任务；客户端加载按实际证据报告。 |
-| [task-handoff](../../plugins/agent-context-kit/skills/task-handoff/SKILL.md) | 为当前需求启用交接；下次从交接记录继续。 | 同机同工作区、串行接续；产出 docs/handoff 下正文及现场记录，明确交接时留快照。 |
+| [task-handoff](../../plugins/agent-context-kit/skills/task-handoff/SKILL.md) | 为当前需求启用交接；下次从交接记录继续。 | 同机同工作区、串行接续；材料由目录解析器定位，已接入治理的新任务用 ContextRoot/work/handoff，未接入沿 docs/handoff，旧任务原位恢复；明确交接时留快照。 |
 
 ## agent-framework-evolution
 
@@ -178,7 +178,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 | [iris-backend-coding](../../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md) | 修改指定类方法以满足这份需求，保留分层和返回契约，按框架规范检查新增代码。 | 提供类方法、需求及范围，有项目显式规范时一并提供；编码与 Review 共用 CLS 规范，格式化只处理本次新增代码，不附带整理已有代码。新增注册类/DTO、表类及成员按统一标签说明职责和参数/返回契约，变量使用自然注释，复杂返回引用结构；Debug 只作为文档内容，属性说明及索引注释按需，保留历史兼容及 Storage。新建类核对 profile、同职责类和公共基类，适配模板 Extends，向 Review 提供继承依据。提取公共方法后核对规则复用和稳定标识归属；Parameter 声明/引用按语言合法性检查，静态歧义交人工核对。产出本地源码，分别报告 Agent 审查、脚本覆盖项及编译/运行证据。 |
 | [iris-coding](../../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md) | 修改这个功能，先查明前后端调用链，再完成范围内实现。 | 提供功能入口和需求；产出任务路由、相关前后端变更及验证说明。 |
 | [iris-demand-promote](../../plugins/coding-iris-plugin/skills/iris-demand-promote/SKILL.md) | 先评估将 DEV 的指定提交移植到指定 PRD 仓库的范围和基线。 | 明确两个仓库、提交及服务器基线读取范围；授权实施后形成 PRD 本地提交，不部署。 |
-| [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 将这些文件部署到已指定环境并检查编译。 | 按需导出工程先同步、合并复审并绑定 source plan；正式批准绑定当前冻结摘要。其它工程默认 direct，需要三方合并时选 guarded。分别报告上传、编译及最终回读、Storage 和业务验证；回填失败不能报告验证通过，冻结源码变化后复审。 |
+| [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 将这些文件部署到已指定环境并检查编译。 | 已确认 project＋intent-first-on-demand-export 时先同步、合并复审并绑定 source plan；正式批准绑定当前冻结摘要。未命中该分支的工程沿原 direct/guarded 契约。分别报告上传、编译及最终回读、Storage 和业务验证；回填失败不能报告验证通过，冻结源码变化后复审。 |
 | [iris-frontend-coding](../../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md) | 调整指定 HISUI 页面的交互，或排查弹窗面板留白、裁切与滚动异常，保留现有数据和调用契约。 | 提供页面、行为要求及项目显式规范/兼容基线；编码与 Review 共用前端规范，仅对本次新增代码应用格式约定，按条件加载 i18n。分别报告静态检查、自审或独立 Review、实际页面验证；布局问题仍路由到 HISUI 样式参考；新建页面或审查初始化链路时，按依赖与容器契约选择 JS 组织模板。 |
 | [iris-frontend-gb2312-promote](../../plugins/coding-iris-plugin/skills/iris-frontend-gb2312-promote/SKILL.md) | 这是仍需 GB2312 的历史工程，请先检查转换文件与源文件的替换范围。 | 必须明确历史编码要求及文件替换授权；产出源名提升结果，普通 UTF-8 工程不使用。 |
 | [iris-imedical-knowledge](../../plugins/coding-iris-plugin/skills/iris-imedical-knowledge/SKILL.md) | 查询这个业务概念的相关参考，再结合当前源码核实。 | 给出业务词或疑点；产出来源和适用性说明，现有信息足够时无需查询。 |
@@ -296,7 +296,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 |---|---|---|
 | [iris-interface-build](../../plugins/iris-interface-dev/skills/iris-interface-build/SKILL.md) | 按已确认计划实现接口方法和前端调用，并做离线审查。 | 已有字段确认和实施计划；产出本地 .cls、.js、.csp 及配置项，远端动作交给 coding-iris。 |
 | [iris-interface-dev-plan](../../plugins/iris-interface-dev/skills/iris-interface-dev-plan/SKILL.md) | 基于解析和字段匹配结果生成接口开发计划。 | 提供 parsed.json、fields.md、diagnostics.md 及确认结果；产出 implementation-plan.md，编码转 iris-interface-build。 |
-| [iris-interface-doc-ingest](../../plugins/iris-interface-dev/skills/iris-interface-doc-ingest/SKILL.md) | 解析指定厂家接口文档，生成后续字段匹配所需产物。 | 提供文档并可用 extract-doc；产出 docs/interface 下的解析文件，使用接口专用 schema。 |
+| [iris-interface-doc-ingest](../../plugins/iris-interface-dev/skills/iris-interface-doc-ingest/SKILL.md) | 解析指定厂家接口文档，生成后续字段匹配所需产物。 | 提供文档并可用 extract-doc；复用其目录契约，已接入治理默认 docs/modules/interfaces，未接入兼容 docs/interface，显式 outputRoot 优先。使用接口专用 schema，后续处理使用工具返回的实际路径。 |
 | [iris-interface-field-match](../../plugins/iris-interface-dev/skills/iris-interface-field-match/SKILL.md) | 对已解析接口字段做匹配，列出低置信候选和人工确认项。 | 提供 parsed.json、fields.md 和可选本地反馈；产出 field-match.json、field-match.md，不擅自确认歧义。 |
 | [iris-interface-init](../../plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md) | 为当前工程接入接口开发能力，检查解析和编码依赖。 | 依赖 extract-doc 与 coding-iris；产出 profile、输出目录和薄索引状态。 |
 

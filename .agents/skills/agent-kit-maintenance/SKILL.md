@@ -107,7 +107,7 @@ git diff --check
 - **插件或根级独立 skill 目录变化**：先精确暂存本次文件，提交前运行下列 staged 组件版本校验，并按改动补充 owner 专项测试。完整审计保留给 CI、发布或明确审计。
 - **组件版本工具或治理逻辑变化**：补充 `node --test scripts/tests/component-version-management.tests.js`；其它任务仅在影响该行为或有回归证据时运行。
 - **PowerShell 与跨平台工具链变化**：按根规则验证支持的宿主和平台；通用 `.ps1` 验证 Windows PowerShell 5.1，跨平台矩阵尚未完成时明确列出缺口，不宣称全部通过。
-- **生成预览、交付包或部署运行态的项目集成测试**：从目标项目执行，产物放目标项目约定目录（治疗表单为 `docs/work/cure-form/`）；不在源仓生成业务测试产物。纯框架单元测试使用隔离临时目录。
+- **生成预览、交付包或部署运行态的项目集成测试**：从目标项目执行，产物按目标项目 owner 目录契约解析，见[目录治理](../../../docs/guides/project-knowledge-layout.md#能力接入与兼容)；其中治疗表单未接入治理或旧任务兼容 `docs/work/cure-form/`，显式路径及业务恢复资料保持。不在源仓生成业务测试产物，纯框架单元测试使用隔离临时目录。
 
 ```powershell
 node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js validate --repo-root . --staged --budget-ms 60000

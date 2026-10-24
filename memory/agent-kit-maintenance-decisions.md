@@ -18,7 +18,7 @@
 
 - 源仓普通提交采用暂存组件版本门禁，功能测试与版本校验独立取证；无关 HEAD 变化不使内容证据失效。已登记且未变化的历史发布结构问题保留技术债，不重复人工处理，不阻断无新增问题的局部提交；完整审计继续保留历史问题。规则唯一正文见 maintenance/governance/component-version-management.md。
 
-- 治疗表单插件的项目任务产物和运行态由 owner 目录契约解析，已接入治理的新任务使用 ContextRoot/work，未接入或旧任务兼容 `docs/work/cure-form/<task>/`，以 Map/source/preview/verification/manual-deploy 与 private 分层；框架能力及项目配置/规则保持其原归属，具体需求运行态只进入当前工作区的 ContextRoot/work，不写共享能力资产。该决策不迁移 Overlay 配置，不移动既有备份/凭证，显式旧输出路径保持兼容。预览 HTTP 只读挂载受允许的 vendor 根，并隔离 private；自动与手动部署是独立选择，原 RowID 覆盖与灰度是另一策略维度。
+- 治疗表单插件的项目任务产物和运行态由 owner 目录契约解析，已接入治理的新任务使用 ContextRoot/work，未接入或旧任务兼容 `docs/work/cure-form/<task>/`，以 Map/source/preview/verification/manual-deploy 与 private 分层；框架能力及项目配置/规则保持其原归属，已接入治理的新任务运行态进入当前工作区的 ContextRoot/work，旧任务沿兼容路径恢复，均不写共享能力资产。该决策不迁移 Overlay 配置，不移动既有备份/凭证，显式旧输出路径保持兼容。预览 HTTP 只读挂载受允许的 vendor 根，并隔离 private；自动与手动部署是独立选择，原 RowID 覆盖与灰度是另一策略维度。
 
 - `agents/` 放厂商无关的智能体 canonical 定义，包括 agent registry、`AGENT.md`、`bindings.yaml` 和共享交接协议；不放工具专属生成物或业务项目私有事实。
 - `workflows/` 放厂商无关的多智能体/阶段化 workflow canonical 定义，包括 workflow registry 和 `*.workflow.md`；workflow 必须支持不具备子代理能力时的单 Agent 串行降级。
@@ -141,7 +141,7 @@
 - `events.jsonl` 是事件事实源，`00-run-manifest.json` 是当前投影；Coordinator 是唯一状态和集成 owner，参与者通过 action result、message 和 handoff 返回。
 - multi-session 协作计划授权只覆盖当前 planHash；远程写入、commit、merge、push、部署和 feedback 写入分别授权。可写会话必须使用隔离 worktree 和互斥 scope。
 - schema 2.0 先以互斥 `taskKind` 分流：`business-demand` 使用 `implementing -> locally-verified -> acceptance-pending -> accepted`；`framework-maintenance` 使用 `maintaining -> locally-verified -> maintenance-complete`；`other` 不进入任一生命周期。业务需求与框架维护同时出现时建立独立记录，不共享验收、feedback 或完成状态。
-- feedback 适用性由 `taskKind=business-demand` 固定派生，不能作为独立布尔开关绕过分类。框架维护的 `acceptance.status=not-applicable` 且 feedback 始终 `not-eligible`。任何经验新增、命中更新、framework feedback 或 rule 提升均需用户逐项授权。
+- feedback 适用性由 `taskKind=business-demand` 固定派生，不能作为独立布尔开关绕过分类。框架维护的 `acceptance.status=not-applicable` 且 feedback 始终 `not-eligible`。写入核对用户的动作授权，或已明确批准的源仓隔离待审补丁授权；准入、允许范围及提交/推送边界统一见[feedback skill](../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#写入授权与自动待审补丁)，不对已有有效授权逐项重复询问。
 
 ## 提交阶段验证复用
 
@@ -167,7 +167,7 @@
 
 ## 安全边界
 
-- 日常开发部署默认 direct：用户明确指定目标、文件并授权后按本地文件更新，不强制需求号、Git 基线会话或三方合并。保留路径、编码、Storage、并发变化、回读及编译检查；已有授权不逐工具重复确认。需要基线合并时显式选 guarded，旧 --demand 命令维持 guarded。此决定不改变生产操作和领域插件专项授权要求，源码变更不自动同步业务副本。
+- 未命中项目按需分支的日常开发部署沿既有 direct/guarded 契约；已有有效授权不逐工具重复确认。已确认 `project` ＋ `intent-first-on-demand-export` 时，先按[项目开发协议](../plugins/coding-iris-plugin/references/project-demand-development.md)同步、复审和冻结发布，传输模式不能绕过该分支门禁。生产操作和领域专项授权独立核对，源码变更不自动同步业务副本。
 
 - 不写服务器地址、账号、密码、token、namespace、远程路径或任何敏感连接信息。
 - 不把业务项目私有事实写入本仓库插件、规则或记忆。
@@ -175,7 +175,7 @@
 
 - 执行辅助、风险深度和协作形态独立。硬约束集中、默认方法可调整、辅助资料按信号读取；不按模型品牌判断能力。新业务 run 默认 on-signal 反馈，旧记录缺省 always，用户验收及反馈写入授权不变。
 
-- 后端已授权部署包含编译后 Storage 核对回填，作为不修改本地源码约定的唯一部署例外；本地代码和 Git 暂存区保持原边界。回填失败与编译失败分开，未知结果不自动重试；受管夜跑源码变化保持冻结版本复审，不自动继承原版本验收。具体行为归 coding-iris-plugin 的 deployment-protection。
+- 后端 Storage 核对、回填及本地提交按[部署保护](../plugins/coding-iris-plugin/references/deployment-protection.md#编译后-storage-同步)和所命中的项目分支执行；冻结发布的 `post-compile-review` / `finish` 继续核对当前复审及提交授权，不用旧批准代替新版本。回填与编译分别报告，未知结果不自动重试，业务代码和暂存区仍受现场保护。
 
 ## 根级技能的 owner 迁移
 
@@ -184,7 +184,7 @@
 
 ## 需求接续补充决策（2026-09-19）
 
-- 通用 task-handoff 归 agent-context-kit；项目 docs/handoff/<首次毫秒时间戳>-<需求ID或00000>/ 保留最新正文、机器现场与显式交接历史。后补编号不改稳定目录，默认本机 exclude，不自动提交或取消跟踪。
+- 通用 task-handoff 归 agent-context-kit；材料根由[目录解析](../plugins/agent-context-kit/skills/task-handoff/references/tool-contract.md#目录解析)选择，已接入治理的新任务归当前 ContextRoot/work/handoff，未接入或旧任务沿兼容路径。保留最新正文、机器现场与显式交接历史；后补编号不改稳定目录，本机 exclude 和已有跟踪策略保持。
 - 接续沿用范围明确的授权，先核实现场和证据再继续；记录不产生新授权。直接接手不检测旧会话或锁定 owner，用户负责避免并发；真实内容冲突仍需处理。
 - 轻量工具维护可复核事实，不判定业务完成；业务/框架生命周期复用现有契约，正式 run 只引用。标准 Markdown 不依赖产品 API 或 Obsidian；无脚本能力时人工核查并明确未执行项。
 

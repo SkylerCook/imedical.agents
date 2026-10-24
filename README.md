@@ -16,7 +16,7 @@ iMedical 知识资料已接入 [共享参考库](vendor/imedical-knowledge/READM
 
 技能归属：agent-context-kit 接管跨 Agent 适配，agent-framework-evolution 管理反馈与可复用内容打包。已部署项目保持原技能入口和运行时链接，首次更新步骤见 [迁移指南](docs/skill-plugin-migration.md)。
 
-CSP 部署编译统一使用 `coding-iris-plugin/scripts/iris-tools/compile-csp.js`：上传后直接调用 Atelier 编译接口，支持一次批量请求、错误检查和耗时输出，避免反复探测 MCP 编译路径。
+CSP 编译沿 coding owner 的[部署入口](plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md)选择：普通工程可使用 `compile-csp.js` 的 Atelier 通道；已确认 `project` ＋ `intent-first-on-demand-export` 的工程及受管夜跑须由对应部署链路编译，独立调用不能绕过 source plan、复审或运行门禁。
 
 SFTP 工具纳入 [vendor/sftp-server](vendor/sftp-server/README.md)：保留五个 MCP 工具名，补齐路径约束、内容比较、原子替换和 SHA-256 校验。`coding-iris-plugin` 为新项目提供默认禁用的配置；更新时自动迁移可识别的既有标准启动参数，显式 custom 或自定义参数保留，不要求 runtime opt-in，也不自动安装 Python 依赖。
 
@@ -286,7 +286,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 - `plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md`
 - `plugins/agent-context-kit/skills/coding-agent-adaptation/SKILL.md`（原根级技能迁入，项目入口不变）
-- `plugins/agent-context-kit/skills/task-handoff/SKILL.md`：通用需求交接与同机跨会话接续，按需启用、关键节点维护；本机材料在项目 `docs/handoff/`，轻量脚本检查工作现场，不强制正式 run。接入与兼容见 [交接运行说明](docs/task-handoff.md)。
+- `plugins/agent-context-kit/skills/task-handoff/SKILL.md`：通用需求交接与同机跨会话接续，按需启用、关键节点维护；材料由当前工作区的目录解析器定位，已接入治理的新任务用 ContextRoot/work，未接入和旧任务保留兼容路径。轻量脚本检查工作现场，不强制正式 run；见[交接运行说明](docs/task-handoff.md)。
 
 ### demand-delivery-plugin
 
@@ -408,7 +408,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 负责 IRIS/HISUI 的 CA 治疗评估与 CR 治疗记录表单自动化：
 
 - 医院 DOCX、PDF、XLS/XLSX 解析委托 `extract-doc/structure-v1`，本插件负责治疗语义规格和人工确认门禁。
-- 文档驱动的新表单默认从业务项目 `docs/` 读取需求；产物统一放 `docs/work/cure-form/<task>/<Map>/`，运行态/快照放同任务 `private/`，项目配置和规则仍在 `.agents/`。多候选文件必须显式选择。
+- 文档驱动的新表单默认从业务项目 `docs/` 读取需求；任务产物和运行态由 owner 目录契约解析，已接入治理的新任务归当前 ContextRoot/work，未接入或旧任务兼容 `docs/work/cure-form/`，显式路径与业务恢复快照保持。仅选定正式交付进入知识库，项目配置和规则保持原归属；多候选文件显式选择，见[目录治理](docs/guides/project-knowledge-layout.md#能力接入与兼容)。
 - Excel 多模板通过显式 A1 边界生成只读摄取报告，并在审批后生成有序 fragment、JavaScript 和 Map composition changes；范围重叠和合并单元格边界截断保持为审批门禁。
 - 获批规格可携带复杂模板 `fragmentHtml`/`javascript`，生成器验证根容器、响应式 class、字段 ID/缓存标签与模块接口；模板逻辑和表单入口分别以外部运行时路径写入模板/Map“引用JS”，独立预览只初始化实际存在的子模板脚本。
 - 新建 CA/CR 表单直接创建正式模板；现有模板改造默认 versioned-clone，也支持明确授权的 in-place-overwrite，后者只覆盖原 content/Map showJS，保留组成和其它配置。共享模板默认版本化克隆，按引用拓扑验收合并。
@@ -632,7 +632,7 @@ git push github master
 
 `coding-iris-plugin` 的 `deploy-frontend.js` 为 direct/guarded 复用所选通道的传输、逐文件最终目标校验和 CSP 编译；通道与检查边界、阶段观测及配置见[工具说明](plugins/coding-iris-plugin/scripts/iris-tools/README.md)，当前版本以 manifest 为准。默认本地计划、显式执行；源仓变化不代表业务项目副本已更新。
 
-开发部署默认 direct，无需需求号或 Git 基线会话，保留并发变化检查、Storage 保护、回读及编译。`--mode guarded --demand <id>` 保留 Git 基线与三方合并；旧命令仅带 `--demand` 仍为 guarded。详见 [部署契约](plugins/coding-iris-plugin/references/deployment-protection.md)。
+未命中项目按需分支的开发部署默认 direct；显式 guarded 和旧 `--demand` 命令保留原基线行为，见[部署契约](plugins/coding-iris-plugin/references/deployment-protection.md)。已确认 `project` ＋ `intent-first-on-demand-export` 时，[项目开发协议](plugins/coding-iris-plugin/references/project-demand-development.md)的同步、复审及冻结发布优先；传输模式和既有部署授权不能代替当前发布版本的批准。
 
 部署保护的 Question 使用固定决定代码和工具无关结果；不同交互能力按选项/文本降级，无回复保持停止。
 
