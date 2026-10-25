@@ -1,6 +1,6 @@
 {
   "name": "bos-plugin",
-  "version": "0.16.0",
+  "version": "0.16.1",
   "displayName": "BOS Demand Plugin",
   "description": "跨技术栈的 BOS 只读查询、需求处理、标版补录、代码更新日志与通用提交衔接。",
   "entry": "AGENTS.md",
@@ -60,14 +60,28 @@
       "base": "workspace",
       "path": "docs/delivery/demands",
       "role": "delivery",
-      "create": "setup"
+      "create": "setup",
+      "purpose": "BOS 需求正式文本和 Excel 交付",
+      "examples": [
+        "需求文本.md",
+        "需求导入.xlsx"
+      ],
+      "boundary": "保存评审或录入使用的正式材料；私有待办草稿归本地 work/standard-demand",
+      "lifecycle": "正式交付；按需求保留，不因提交 BOS 自动清理"
     },
     {
       "id": "demand-drafts",
       "base": "context",
       "path": "work/standard-demand",
       "role": "runtime",
-      "create": "setup"
+      "create": "setup",
+      "purpose": "BOS 私有需求草稿与恢复状态",
+      "examples": [
+        "需求草稿.json",
+        "恢复状态.json"
+      ],
+      "boundary": "保留私有编写与恢复状态；选定正式文本和 Excel 归 docs/delivery/demands",
+      "lifecycle": "本机运行资料；旧草稿与显式输出位置保持，不自动外传或删除"
     }
   ]
 }

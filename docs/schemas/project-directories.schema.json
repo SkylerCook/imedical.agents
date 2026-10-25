@@ -9,7 +9,8 @@
       "base",
       "path",
       "role",
-      "create"
+      "create",
+      "purpose"
     ],
     "properties": {
       "id": {
@@ -46,7 +47,22 @@
         ]
       },
       "purpose": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1,
+        "description": "面向人和 Agent 的用途；旧声明仍可只读盘点和解析，说明生成/更新会提示缺失来源并要求补齐"
+      },
+      "examples": {
+        "type": "array",
+        "minItems": 1,
+        "items": { "type": "string", "minLength": 1 }
+      },
+      "boundary": {
+        "type": "string",
+        "minLength": 1
+      },
+      "lifecycle": {
+        "type": "string",
+        "minLength": 1
       },
       "legacyPaths": {
         "type": "array",

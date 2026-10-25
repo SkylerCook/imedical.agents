@@ -1,6 +1,6 @@
 {
   "name": "iris-cure-form-dev",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "displayName": "IRIS Cure Form Dev Plugin",
   "description": "CA/CR treatment form ingestion, multi-template generation, responsive migration, review, deployment planning, verification, and rollback orchestration.",
   "entry": "AGENTS.md",
@@ -58,7 +58,14 @@
       "legacyPaths": [
         "docs/work/cure-form"
       ],
-      "purpose": "表单任务工作资料与私有恢复快照"
+      "purpose": "表单任务工作资料与私有恢复快照",
+      "examples": [
+        "任务源码",
+        "预览",
+        "private/snapshots/"
+      ],
+      "boundary": "保存表单任务工作与私有恢复资料；只选审核后的正式材料进入 form-delivery",
+      "lifecycle": "本机任务状态；已有 task/profile 保留原位置，private 不进入公开预览或 Git"
     },
     {
       "id": "form-delivery",
@@ -66,7 +73,14 @@
       "path": "docs/delivery/cure-forms",
       "role": "delivery",
       "create": "setup",
-      "purpose": "经审核选择保留的表单交付与报告"
+      "purpose": "经审核选择保留的表单交付与报告",
+      "examples": [
+        "表单交付说明.md",
+        "人工交互报告.md",
+        "选定附件"
+      ],
+      "boundary": "保存经审核的正式交付；整个任务工作目录与 private 保留在 form-work",
+      "lifecycle": "正式交付；必要业务恢复附件按 owner 保留，不等同迁移临时备份"
     }
   ]
 }

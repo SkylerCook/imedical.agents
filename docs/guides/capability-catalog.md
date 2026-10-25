@@ -372,4 +372,4 @@ IRIS CSP＋HISUI 对公司UI规范的落地适配，正式依赖 imedical-ui；�
 
 ## 项目知识库目录
 
-项目知识库骨架、能力目录声明和授权迁移由 agent-context-kit 承接，入口见[目录治理](project-knowledge-layout.md)及 `project-context-maintenance`；不新增并行插件。
+项目知识库骨架、owner/扩展用途说明、README 受管区持续更新和授权迁移由 agent-context-kit 承接，入口见[目录治理](project-knowledge-layout.md)及 `project-context-maintenance`；旧说明接管复用 project-docs.js navigation-plan/apply，不新增并行插件。

@@ -6,6 +6,7 @@
 |---|---|
 | 自有 skill / Agent 帮助及随更新分发 | [验证与实际调用边界](validation/capability-help-2026-10-22.md) |
 | 项目知识库目录治理的本机证据与未部署边界 | [源仓验证](validation/project-knowledge-layout-2026-10-24.md) |
+| 目录用途说明、旧导航接管和普通更新 | [本机模拟与升级步骤](validation/project-docs-navigation-2026-10-26.md) |
 | IRIS 项目开发、独立 Git、License 准入及冻结发布 | [本机验证与试点边界](validation/iris-project-demand-development-2026-10-24.md) |
 | 调整文档目录或部署边界 | [文档布局与迁移](governance/documentation-layout.md)、[机器核对清单](governance/documentation-layout.json) |
 | 插件版本、发布记录与兼容审计 | [组件版本治理](governance/component-version-management.md) |

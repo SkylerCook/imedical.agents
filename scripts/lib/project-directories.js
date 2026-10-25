@@ -25,6 +25,10 @@ function safePath(root, rel) {
   return file;
 }
 function json(file) { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(fs.readFileSync(file))); }
+function description(entry) {
+  for (const key of ['purpose','boundary','lifecycle']) if (entry[key] !== undefined && (typeof entry[key] !== 'string' || !entry[key].trim() || /[\r\n]/.test(entry[key]))) throw Error('Invalid directory description: ' + key);
+  if (entry.examples !== undefined && (!Array.isArray(entry.examples) || !entry.examples.length || entry.examples.some(v => typeof v !== 'string' || !v.trim() || /[\r\n]/.test(v)))) throw Error('Invalid directory examples');
+}
 function contextFor(root) {
   let ancestor = path.resolve(root);
   for (;;) {
@@ -50,7 +54,9 @@ function configFor(context) {
   for (const item of config.extensions) {
     if (!item || typeof item.purpose !== 'string' || !item.purpose.trim() || !item.path.startsWith('docs/')) throw Error('Extension needs docs path and purpose');
     safePath(context.workspaceRoot, item.path);
+    description(item);
   }
+  if (new Set(config.extensions.map(e=>e.path.toLowerCase())).size !== config.extensions.length) throw Error('Duplicate extension path');
   return config;
 }
 function enabledPlugins(context) {
@@ -80,6 +86,7 @@ function inventory(context, all = false) {
     for (const entry of manifest.projectDirectories || []) {
       if (!entry || !/^[a-z0-9-]+$/.test(entry.id) || ids.has(entry.id) || !['workspace','context','capability'].includes(entry.base) || !['knowledge','delivery','runtime','recovery','source','temporary','capability'].includes(entry.role) || !['setup','task','never'].includes(entry.create)) throw Error('Invalid projectDirectories in ' + name);
       ids.add(entry.id); relative(entry.path);
+      description(entry);
       if (entry.base === 'capability' && entry.create !== 'never') throw Error('Capability assets are read-only');
       if (entry.base === 'context' && !entry.path.startsWith('work/')) throw Error('Context output must be inside work/');
       if (entry.base === 'workspace' && !entry.path.startsWith('docs/')) throw Error('Workspace documentation must be inside docs/');
@@ -107,4 +114,4 @@ function fingerprint(context) {
   }
   return digest(JSON.stringify(files.map(file => [file, fs.existsSync(file) ? digest(fs.readFileSync(file)) : null])));
 }
-module.exports = { SCHEMA, digest, slash, same, within, relative, safePath, json, contextFor, configFor, enabledPlugins, inventory, resolveDirectory, fingerprint };
+module.exports = { SCHEMA, digest, slash, same, within, relative, safePath, json, description, contextFor, configFor, enabledPlugins, inventory, resolveDirectory, fingerprint };

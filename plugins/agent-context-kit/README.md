@@ -124,4 +124,4 @@ schema 2.0 的运行时命令由 `.agents/scripts/agent-orchestrator.js` 提供�
 
 ## 项目知识库目录
 
-项目资料归属、能力必需目录、首次接入、更新提示及授权迁移见[项目知识库目录治理](../../docs/guides/project-knowledge-layout.md)。`project-context-maintenance` 负责接入与维护，根 `scripts/project-docs.js` 提供只读计划与精确批准后的备份/恢复执行；未接入项目保持旧默认，已有交接路径按其工具契约发现。
+0.8.0 补齐 owner/扩展驱动的目录用途、典型产物、边界与生命周期说明。总导航、主要用途入口、扩展和本地 work 入口使用同一受管区，普通更新可检测缺失/过期并刷新，保留人工正文。旧 README 用 navigation-plan 沿既有精确批准与备份流程接管；首次接入和存量迁移仍独立授权。升级命令及检查范围见[项目知识库目录治理](../../docs/guides/project-knowledge-layout.md)，现有任务与业务恢复资料不移动或清理。

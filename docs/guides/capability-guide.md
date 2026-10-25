@@ -323,4 +323,4 @@ BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调
 
 ## 项目知识库目录
 
-项目资料增多或更新提示待归类时，使用 project-context-maintenance 读取[目录治理](project-knowledge-layout.md)：先准备实际计划，再首次部署或迁移授权；更新本身不产生搬移权限。
+项目资料增多、目录用途不清或更新提示待归类时，使用 project-context-maintenance 读取[目录治理](project-knowledge-layout.md)。例如“检查目录说明并补齐受管导航，保留人工正文”：先 DryRun 审查；无标记 README 用 navigation-plan 精确评审接管，之后普通 Write 更新受管区。首次部署、说明接管与资料迁移按各批计划执行；目录和说明通过不代表逐文件已分类，更新本身不产生搬移权限。

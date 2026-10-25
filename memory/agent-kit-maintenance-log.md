@@ -1,5 +1,13 @@
 # imedical.agents 维护日志
 
+## 2026-10-26 项目目录说明与持续更新
+
+- framework-maintenance，基点 d3e22de。复用 projectDirectories、documentation-layout.json.extensions 与普通更新器，补齐 owner 用途/示例/边界/生命周期；总导航、主要用途、扩展和本地 work 入口使用统一受管区。首次 setup/扩展登记纳入具体 README 变更；已存在无标记 README 通过 navigation-plan 精确评审后追加受管区，后续 Write 保留人工正文并刷新。缺失/过期说明、标记冲突与目录异常可见，不使用 Force。
+- 目录默认值、显式 profile、旧任务和业务恢复位置不变；兼容区仅说明现有路径，不移动或清理。docs-layout-ok 的范围限定为声明目录、受管说明及生成导航，顶层归属提示不等同逐文件分类。项目特殊语义留本地扩展，不写入通用实现。
+- agent-context-kit 0.8.0 与六个目录 owner PATCH、新发布记录、各 README、源仓/项目手册和治理队列同步；其它 owner AGENTS 与相关目录引用已核对，路径/业务契约未改变，无需新增第二套指引。现有 project-docs CI 和安装/更新 sparse 规则覆盖新 helper，无需改安装/更新实现或另建机制。
+- 本机 Node 24.14.1 目录集成最终 92/92（说明与迁移专项 35 项）、文档分发/链接专项 2/2；PS5.1/PS7 更新器完整回归结果及边界见[验证记录](../maintenance/validation/project-docs-navigation-2026-10-26.md)。只读工作区版本预检覆盖 7 个变更 owner、11 项受影响组件，无新增问题；实际提交前仍须 staged 门禁。跨平台矩阵和真实项目接入沿原 P2 队列取证，未更新业务副本、迁移材料或操作真实服务。
+- 用户已明确授权本批提交并推送 Gitee 和 GitHub；三项功能证据指纹匹配，41 个文件的精确暂存与差异检查、7 个变更 owner/11 项受影响组件的 staged 门禁通过。两个远端均在实施基点，仅本批新提交待推送，无额外历史；任务临时夹具与日志已清理，正式验证记录及本机证据缓存保留。项目升级、资料迁移与真实服务操作继续独立授权。
+
 ## 2026-10-24 IRIS 项目按需导出开发
 
 - 用户随后授权 c + p；提交前复用有效验证证据，补正自定义 MCP serverName 的 status/reconcile 解析并通过 2 项定向回归；按 README 双远端约定同步 Gitee 主仓与 GitHub 镜像，业务服务器操作仍独立授权。

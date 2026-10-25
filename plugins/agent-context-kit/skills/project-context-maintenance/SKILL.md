@@ -309,4 +309,4 @@ description: Initialize, maintain, or optimize project context and local docs kn
 
 ## 项目资料目录治理
 
-查找或新建项目资料时，先读取已存在的项目 `docs/README.md`。首次接入目录骨架、登记扩展、处理更新提示或整理已有文件时，读取[项目知识库目录治理](../../../../docs/guides/project-knowledge-layout.md)，用同一预演/授权/恢复入口执行。首次接入和迁移均需明确授权；普通更新仅补已接入的目录。人和 AI 共用导航，正文单一归属，按主题读取，不每次加载全库。
+查找或新建项目资料时，先读取已存在的项目 `docs/README.md`。首次接入目录骨架、补用途说明、登记扩展、处理更新提示或整理已有文件时，读取[项目知识库目录治理](../../../../docs/guides/project-knowledge-layout.md)，复用 owner projectDirectories 与本地 extensions。先 DryRun 核对目录与说明差异；无标记旧 README 通过 navigation-plan 精确评审后追加受管区，后续普通 Write 维护受管说明并保留人工正文。首次接入、说明接管和资料迁移沿同一计划/授权/恢复入口；目录说明通过不推断逐文件已归类。人和 AI 共用导航，正文单一归属，按主题读取，不每次加载全库。

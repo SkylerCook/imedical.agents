@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.21.0",
+  "version": "0.21.1",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
@@ -78,7 +78,9 @@
   },
   "initSkill": "coding-iris-init",
   "thinIndex": {
-    "excludeSkills": ["coding-iris-init"]
+    "excludeSkills": [
+      "coding-iris-init"
+    ]
   },
   "requiresProjectFiles": [
     "AGENTS.md",
@@ -92,7 +94,14 @@
       "path": "work/source-sync",
       "role": "recovery",
       "create": "task",
-      "purpose": "项目按需导出的私有基线、现场保护与恢复断点"
+      "purpose": "项目按需导出的私有基线、现场保护与恢复断点",
+      "examples": [
+        "同步基线",
+        "冻结计划",
+        "恢复断点"
+      ],
+      "boundary": "仅保存按需同步的私有现场与基线；业务源码归 SourceRoot，正式交付归 docs/delivery",
+      "lifecycle": "按任务创建；按 source-sync 恢复与发布契约保留，不作为普通临时文件清理"
     }
   ],
   "defaultPrompt": [

@@ -1,6 +1,6 @@
 {
   "name": "iris-imedical-doctor-ai",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "displayName": "IRIS iMedical Doctor AI",
   "description": "面向 IRIS imedical 医生站的 AI 集成开发。用于嵌入式助手、外挂或旁路 AI 接入，以及诊断推荐与采纳、交互卡片、流式对话、病历联动和诊疗数据衔接；复用既有业务服务并验证集成链路。",
   "entry": "AGENTS.md",
@@ -41,7 +41,14 @@
       "create": "setup",
       "legacyPaths": [
         "docs/work/ai-integration"
-      ]
+      ],
+      "purpose": "AI 集成方案与正式交付说明",
+      "examples": [
+        "AI集成方案.md",
+        "集成验收说明.md"
+      ],
+      "boundary": "仅保存正式集成说明；业务源码、原型数据和患者资料按项目原归属管理",
+      "lifecycle": "正式交付；显式项目路径优先，旧 docs/work/ai-integration 保留不迁移"
     }
   ]
 }

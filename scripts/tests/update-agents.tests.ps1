@@ -68,6 +68,7 @@ function New-TestProject {
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-documentation-entry.js") -Destination (Join-Path $root ".agents/scripts/sync-documentation-entry.js")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/project-docs.js") -Destination (Join-Path $root ".agents/scripts/project-docs.js")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/project-directories.js") -Destination (Join-Path $root ".agents/scripts/lib/project-directories.js")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/project-docs-navigation.js") -Destination (Join-Path $root ".agents/scripts/lib/project-docs-navigation.js")
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/docs") | Out-Null
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/docs/README.md") -Value "# Documentation"
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/migrate-demand-ownership.js") -Destination (Join-Path $root ".agents/scripts/migrate-demand-ownership.js")
@@ -86,6 +87,7 @@ function New-TestProject {
   Copy-Item -LiteralPath $workspaceContextModuleUnderTest -Destination (Join-Path $root ".agents/scripts/lib/WorkspaceContext.psm1")
   Copy-Item -LiteralPath $overlayInitializerUnderTest -Destination (Join-Path $root ".agents/scripts/initialize-workspace-overlay.ps1")
   Copy-Item -LiteralPath $irisMcpHelperUnderTest -Destination (Join-Path $root ".agents/scripts/iris-mcp.js")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/iris-remote-operations.js") -Destination (Join-Path $root ".agents/scripts/lib/iris-remote-operations.js")
   Copy-Item -LiteralPath $agentOrchestratorUnderTest -Destination (Join-Path $root ".agents/scripts/agent-orchestrator.js")
   foreach ($runtimeFile in @(
     'lib/night-dispatch.js', 'lib/night-policy.js', 'lib/night-quota.js', 'lib/night-contract.js',
@@ -371,12 +373,30 @@ function Enable-TestProjectDocsLayout {
 
 function Get-TestEmptyDocsDirectory {
   param([string]$Root)
-  $directory = Get-ChildItem -LiteralPath (Join-Path $Root "docs") -Directory -Recurse | Where-Object {
-    (-not ($_.Attributes -band [IO.FileAttributes]::ReparsePoint)) -and
-    (@(Get-ChildItem -LiteralPath $_.FullName -Force).Count -eq 0)
-  } | Select-Object -First 1
-  Assert-True ($null -ne $directory) "Approved docs setup must create at least one declared empty directory"
-  return $directory.FullName
+  # Simulate a lost declared directory, including its generated entry. This fixture owns it.
+  $directory = Join-Path $Root "docs/guides"
+  $readme = Join-Path $directory "README.md"
+  Assert-True ((@(Get-ChildItem -LiteralPath $directory -Force).Count -eq 1) -and (Test-Path -LiteralPath $readme -PathType Leaf)) "Fixture guides must contain only its generated README"
+  Remove-Item -LiteralPath $readme -Force
+  return $directory
+}
+
+function Assert-TestDocsDescriptionRefresh {
+  param([string]$Root, [string]$Updater)
+  $readme = Join-Path $Root "docs/README.md"
+  $original = [IO.File]::ReadAllText($readme)
+  $tail = "`r`nProject-owned prose and business links.`r`n"
+  [IO.File]::WriteAllText($readme, ($original.Replace("## 当前目录说明", "## 过期目录说明") + $tail), [Text.UTF8Encoding]::new($false))
+  foreach ($readMode in @("Check", "DryRun")) {
+    $output = & $Updater -ProjectRoot $Root -Mode $readMode -NoPull -Detailed | Out-String
+    Assert-Contains $output "docs-layout-descriptions-stale" "Updater should report stale managed descriptions"
+    Assert-Contains ([IO.File]::ReadAllText($readme)) "## 过期目录说明" "Read modes must preserve stale content for review"
+  }
+  $output = & $Updater -ProjectRoot $Root -Mode Write -NoPull -Detailed | Out-String
+  Assert-Contains $output "docs-layout-updated" "Ordinary Write should refresh managed descriptions"
+  Assert-True ([IO.File]::ReadAllText($readme) -eq ($original + $tail)) "Managed refresh must preserve project prose exactly"
+  $again = & $Updater -ProjectRoot $Root -Mode Write -NoPull -Detailed | Out-String
+  Assert-Contains $again "docs-layout-ok" "Repeated ordinary Write should be idempotent"
 }
 
 Assert-True (Test-Path -LiteralPath $scriptUnderTest -PathType Leaf) "scripts/update-agents.ps1 should exist"
@@ -1133,6 +1153,7 @@ try {
 
   # A configured Overlay owns its local docs only; nearby workspaces remain unrelated.
   Enable-TestProjectDocsLayout -Root $overlayProject.WorkspaceRoot -CapabilityRoot $overlayProject.CapabilityRoot
+  Assert-TestDocsDescriptionRefresh -Root $overlayProject.WorkspaceRoot -Updater (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1")
   $overlayDocsOwner = Join-Path $overlayProject.ContextRoot "config/documentation-layout.json"
   $overlayDocsOwnerHash = (Get-FileHash -LiteralPath $overlayDocsOwner -Algorithm SHA256).Hash
   $overlayMissingDocs = Get-TestEmptyDocsDirectory -Root $overlayProject.WorkspaceRoot
@@ -1581,6 +1602,7 @@ try {
   Assert-Contains $unconfiguredDocsWrite "docs-layout-setup-required" "Ordinary Write must leave first docs setup explicitly authorized"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $docsProjectRoot "docs"))) "No-setup ordinary Write must not initialize docs"
   Enable-TestProjectDocsLayout -Root $docsProjectRoot -CapabilityRoot $docsCapabilityRoot
+  Assert-TestDocsDescriptionRefresh -Root $docsProjectRoot -Updater $docsUpdater
   $docsOwnerPath = Join-Path $docsProjectRoot ".agents/config/documentation-layout.json"
   $docsOwnerHash = (Get-FileHash -LiteralPath $docsOwnerPath -Algorithm SHA256).Hash
   $docsLegacyPath = Join-Path $docsProjectRoot "docs/project-custom-legacy/topic.md"
@@ -1601,6 +1623,7 @@ try {
   Assert-True ((Get-FileHash -LiteralPath $docsOwnerPath -Algorithm SHA256).Hash -eq $docsOwnerHash) "Ordinary Write must preserve docs ownership configuration"
 
   # A file occupying a declared directory is a review note, never an overwrite.
+  $docsMissingDirectory = Get-TestEmptyDocsDirectory -Root $docsProjectRoot
   Remove-Item -LiteralPath $docsMissingDirectory -Force
   [IO.File]::WriteAllText($docsMissingDirectory, "user-owned obstruction", [Text.UTF8Encoding]::new($false))
   $docsConflict = & $docsUpdater -ProjectRoot $docsProjectRoot -Mode Write -NoPull | Out-String

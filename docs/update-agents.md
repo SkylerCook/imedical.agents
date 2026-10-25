@@ -854,4 +854,6 @@ bos-plugin 随既有 /plugins/** 与 workflow 分发，默认 available；仅明
 
 ## 项目知识库目录治理
 
-普通更新从当前工作区调用 `project-docs.js update`，standard/Overlay 共用入口。未接入仅提示首次授权；已接入 Write 可补空目录，Check/DryRun 只读。异常报告待复核，不阻断其它更新；不自动迁移文件或改变Git策略。首次部署、扩展登记、具体迁移与批次回退按[目录治理](guides/project-knowledge-layout.md)执行。CLI/lib沿现有根scripts与plugins稀疏规则分发，业务副本需独立更新；源仓实现不代表已部署。
+普通更新从当前工作区调用 `project-docs.js update`，standard/Overlay 共用入口。未接入仅提示首次授权；已接入 Write 可补声明目录、缺失 README 并更新带标记的受管说明，Check/DryRun 只读并识别说明缺失/过期。人工正文、扩展配置与业务文件保留。无标记 README 提示 `navigation-plan`，评审后沿既有 apply 的精确批准与备份接管，再由普通 Write 持续维护；不使用 Force 覆盖旧导航。直接 CLI 的 `documentationChanges` 可审查受管区前后内容。
+
+异常报告待复核，不阻断其它更新；不自动迁移文件或改变 Git 策略。`docs-layout-ok` 只覆盖目录、受管说明和生成导航，未逐文件归类或验证全库人工链接。首次部署、扩展登记、旧工程说明升级、具体迁移与批次回退按[目录治理](guides/project-knowledge-layout.md)执行。CLI/lib 沿现有根 scripts 与 plugins 稀疏规则分发，业务副本需独立更新；Overlay 共享能力更新一次，各工作区分别刷新本地说明，源仓实现不代表已部署。

@@ -4,6 +4,7 @@
 
 ## 当前接手
 
+- 项目目录说明复用 owner `projectDirectories` 与本地 extensions；README 受管区可持续更新，无标记旧导航先 navigation-plan 精确评审接管。实现与升级边界见[目录治理](../docs/guides/project-knowledge-layout.md#持续目录说明)；目录、说明、逐文件归类分别判断，业务副本与跨平台结果独立取证。
 - 最近全局回看覆盖 `58b852b..16a5b6f`（2026-10-22–24，12 个提交），包含上轮明确未审计的 7 笔及上轮文档收尾。发现、修正和验证见[日志覆盖点](agent-kit-maintenance-log.md#全局回看覆盖点)；当前版本查 owner manifest，逐功能证据按日志读取。
 - 项目按需同步发布、知识库目录治理及反馈待审补丁均已有条件入口；实现、项目接入、有效授权、真实服务/License 与跨平台验证分别核实。未完成项按[治理队列](agent-kit-maintenance-backlog.md#治理优先级与执行顺序)原 P0–P3 顺序推进。
 

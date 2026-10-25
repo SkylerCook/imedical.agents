@@ -650,4 +650,4 @@ guidanceMode（auto/concise/assisted）、executionPath 和 orchestrationMode �
 
 ## 项目知识库目录治理
 
-框架通过 agent-context-kit 的[目录治理](docs/guides/project-knowledge-layout.md)统一项目 docs 骨架、能力目录声明、当前工作区运行资料及授权归类。首次部署显式批准；后续更新可补空目录，存量迁移按具体计划备份/回退。能力默认值与显式项目配置分别保留；standard/Overlay 均不跨工作区整理。实现和本机回归不等于业务项目已部署或跨平台矩阵通过。
+框架通过 agent-context-kit 的[目录治理](docs/guides/project-knowledge-layout.md)统一项目 docs 骨架、能力目录声明、当前工作区运行资料及授权归类。目录说明由 owner 和本地扩展驱动，覆盖用途、典型产物、边界与保留周期；普通更新检查并刷新 README 受管区，保留人工正文。首次部署显式批准；无标记旧 README 用 `navigation-plan` 精确评审后追加受管区，存量迁移另按具体计划备份/回退。能力默认值与显式项目配置分别保留；standard/Overlay 均不跨工作区整理。目录与说明检查不等于逐文件已归类，实现和本机回归不等于业务项目已部署或跨平台矩阵通过。

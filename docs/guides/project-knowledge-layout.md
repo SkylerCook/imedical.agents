@@ -21,22 +21,34 @@
 
 各插件 `.agents-plugin/plugin.json` 的 `projectDirectories` 是目录默认值的 owner 事实源。更新器读取当前工作区 plugin_profile 中 enabled 的声明；available/disabled 不产生项目目录。`inventory` 可盘点所有已声明目录，但不因盘点而启用插件。
 
-每项声明包含 id、base（workspace/context/capability）、path、role、create（setup/task/never）、用途和可选 legacyPaths。结构见[声明 schema](../schemas/project-directories.schema.json)。框架源资产只读；项目生成目录限制在当前 docs 或 ContextRoot/work。项目显式路径仍由能力原有 profile 或参数选择，优先于新默认；不另维护重复的路径总表。
+每项声明包含 id、base（workspace/context/capability）、path、role、create（setup/task/never）、可读用途 purpose 和可选 legacyPaths；examples、boundary、lifecycle 分别描述典型产物、相邻边界和状态/保留周期。结构见[声明 schema](../schemas/project-directories.schema.json)。新声明必须提供 purpose；旧声明仍能盘点和解析路径，说明更新遇到缺失用途时报告具体 owner，补齐前不写说明，不用内部 role 充当用途。框架源资产只读；项目生成目录限制在当前 docs 或 ContextRoot/work。项目显式路径仍由能力原有 profile 或参数选择，优先于新默认；不另维护重复的路径总表。
 
 首次明确授权接入后，创建四个用途目录和 enabled 能力的 setup 固定父目录，允许为空。模板名、需求号等动态子目录按任务生成。登记的工作区扩展保留其名称和用途，并进入导航；不是按文件扩展名分类。
 
-目录治理配置保存在本地 `ContextRoot/config/documentation-layout.json`，包含工作区身份和已登记扩展。配置复制到其它工作区、配置错误、链接路径或目录冲突都要求复核，不能默默回退为新默认。
+目录治理配置保存在本地 `ContextRoot/config/documentation-layout.json`，包含工作区身份和已登记扩展。扩展必填 path 和 purpose，可填写相同的 examples、boundary、lifecycle；普通更新读取并保留这些本地说明。项目特有目录继续在 extensions 声明，不按目录名称猜测是否现行或可清理。配置复制到其它工作区、配置错误、链接路径或目录冲突都要求复核，不能默默回退为新默认。
+
+## 持续目录说明
+
+总导航和四个主要用途目录生成 README 受管区，集中说明 enabled 能力的目录用途、典型文件、边界及生命周期；ContextRoot/work 的一个 README 汇总运行目录。每个已登记扩展有本目录入口；能力嵌套目录在主要用途入口列出，不机械给每一级添加 README。任务创建的目录在尚不存在时只列路径并标记“按任务创建”，不生成悬空链接或提前创建任务。业务正文和跨专题链接仍由项目维护。
+
+受管区使用 `<!-- project-docs:managed:start -->` 与 `<!-- project-docs:managed:end -->` 标记。普通 Write 只替换这一区域，区外人工内容、BOM 和换行保持；新增缺失 README 也纳入受管说明。标记残缺、重复、隐藏在未闭合 Markdown 中、路径异常或文件冲突时整体预检停止该轮说明更新，报告 review-required。
+
+已存在且没有标记的 README 不自动接管：Check/DryRun/Write 都保留原文并提示 navigation-plan。该计划展示准确写入内容，在原文后追加统一受管区；沿既有 apply 的精确批准、备份和回退执行。它不删除旧导航、合并业务正文或迁移任何资料；旧区的过时项目说明由人工在授权维护中核对。首次 setup-plan 和 extension-plan 也把 README 变更纳入同批评审，不再把扩展逐条散落追加在文末。无 Force 覆盖分支。
+
+总导航同时说明**已存在且由 enabled owner 声明**的历史兼容目录、当前默认落点和保留原因；旧 handoff、agent-reports、work 等任务状态沿原契约恢复。未登记目录只提示待归属，不根据名称移动或删除。扩展可在 lifecycle 写明其现行/历史分区、替代入口和保留要求；未填写时标明应以项目说明核对，不推断业务状态。
 
 ## 授权与普通更新
 
 首次部署需要用户明确授权。普通框架 Write、插件 enabled、同意目录设计均不代替首次部署授权。
 
 - 未接入：只报告 setup-required，不创建骨架或迁移文件，框架更新继续。
-- 已接入：Check/DryRun 只读；Write 可补齐声明的空目录，保留已有文件和项目规则。
+- 已接入：Check/DryRun 只读；Write 可补齐声明的目录及缺失 README，并更新已受管说明，保留人工正文和项目规则。
 - 待整理：更新给出未归属项提示；Agent 先准备实际旧→新路径、引用编辑、备份及跳过项，再询问用户是否执行该批计划。无人值守只提示。
 - 已有目录异常：报告 review-required；目录整理问题不阻断其它框架更新。
 
 严格离线只读仍使用更新器 `DryRun -NoPull`；普通 DryRun 的 capability 拉取语义保持原 runbook。更新不会自动移动旧文件、改写知识正文或改变项目 Git 跟踪策略。
+
+CLI 输出 `documentationChanges`，包含 README 路径、missing/stale/unmanaged 状态和受管区前后内容，供 DryRun 审查；unmanaged 通过 navigation-plan 评审。Check 能报告 descriptions-missing、descriptions-stale、directories-missing 或 review-required。`docs-layout-ok` 只证明声明目录、生成说明和生成导航与当前事实源一致；`unclassified` 仍只是 docs 顶层未归属项，**不证明逐文件分类、人工链接全库有效、业务内容现行或用户验收**。已归属目录中的文件仍需项目按任务核实。
 
 ## 操作入口
 
@@ -46,17 +58,20 @@
 node .agents/scripts/project-docs.js update --project-root <当前工作区> --mode DryRun
 node .agents/scripts/project-docs.js inventory --project-root <当前工作区>
 node .agents/scripts/project-docs.js setup-plan --project-root <当前工作区>
+node .agents/scripts/project-docs.js navigation-plan --project-root <当前工作区>
 node .agents/scripts/project-docs.js extension-plan --project-root <当前工作区> --path docs/backlog --purpose 待治理事项
 node .agents/scripts/project-docs.js plan --project-root <当前工作区> --mapping <归类映射JSON>
 ```
 
-setup-plan、extension-plan 和 plan 只输出预演，不写项目。保存原 JSON 后，先向用户展示 action 中将创建/修改/移动的准确路径和 skipped，再取得该批授权：
+setup-plan、navigation-plan、extension-plan 和 plan 只输出预演，不写项目。保存原 JSON 后，先向用户展示 action 中将创建/修改/移动的准确路径和 skipped，再取得该批授权：
 
 ```text
 node .agents/scripts/project-docs.js apply --project-root <当前工作区> --plan <计划JSON> --approve-plan <该计划id> --backup-root <工作区与能力包范围外的备份根>
 ```
 
 `--approve-plan` 必须等于经过评审的原计划 id。内容、目录或配置发生变化时先重新预演；不能重新计算 id 后沿用旧授权。备份根必须与 workspace/capability 根分离、不是其祖先或后代，并为实体路径。备份按独立批次保存原文件、校验值、原计划和恢复 journal；检查读回后才修改项目。
+
+已接入旧工程升级：先正常更新能力包，执行 update DryRun；遇到无标记 README 时保存 navigation-plan，评审后 apply，再执行 update Check。后续普通更新 Write 即可刷新受管区，重复执行无变更。standard 与 Overlay 都对当前 WorkspaceRoot 单独执行；共享能力更新一次，各模块说明更新分别执行，不写共享根或相邻模块的项目资料。
 
 归类映射示例：
 

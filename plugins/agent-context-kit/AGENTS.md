@@ -58,4 +58,4 @@
 
 ## 项目知识库目录
 
-项目资料归属、能力必需目录、首次接入、更新提示及授权迁移见[项目知识库目录治理](../../docs/guides/project-knowledge-layout.md)。`project-context-maintenance` 负责接入与维护，根 `scripts/project-docs.js` 提供只读计划与精确批准后的备份/恢复执行；未接入项目保持旧默认，已有交接路径按其工具契约发现。
+项目资料归属、用途说明、README 受管区更新、首次接入及授权迁移见[项目知识库目录治理](../../docs/guides/project-knowledge-layout.md)。`project-context-maintenance` 负责接入与维护，根 `scripts/project-docs.js` 复用目录声明与本地扩展。无标记旧说明用 navigation-plan 精确评审后追加受管区；普通 Write 保留人工正文并更新已受管说明。目录检查不代表逐文件归类；未接入项目保持旧默认，已有交接路径按其工具契约发现。

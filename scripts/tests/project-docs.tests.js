@@ -8,7 +8,7 @@ const docs=require('../project-docs');
 const dirs=require('../lib/project-directories');
 const repo=path.resolve(__dirname,'../..');
 function fixture(run){
-  const parent=fs.realpathSync.native(os.tmpdir()); const batch=fs.mkdtempSync(path.join(parent,'project-docs-'));
+  const parent=fs.realpathSync.native(process.env.AGENTS_TEST_TEMP || os.tmpdir()); const batch=fs.mkdtempSync(path.join(parent,'project-docs-'));
   const root=path.join(batch,'project'),backup=path.join(batch,'backup');fs.mkdirSync(root);
   const put=(name,contents)=>{const f=path.join(root,name);fs.mkdirSync(path.dirname(f),{recursive:true});fs.writeFileSync(f,contents);};
   put('.agents/plugins/agent-context-kit/.agents-plugin/plugin.json',fs.readFileSync(path.join(repo,'plugins/agent-context-kit/.agents-plugin/plugin.json')));
@@ -18,6 +18,18 @@ function fixture(run){
   try{return run({root,backup,batch,put,setup});}finally{assert.equal(path.dirname(fs.realpathSync.native(batch)),parent);fs.rmSync(batch,{recursive:true,force:true});assert.ok(!fs.existsSync(batch));}
 }
 const read=(root,file)=>fs.readFileSync(path.join(root,file),'utf8');
+function overlay({root,batch}) {
+  const capability=path.join(batch,'capability'),source=path.join(batch,'source');
+  fs.mkdirSync(capability);fs.mkdirSync(path.join(capability,'.git'));fs.mkdirSync(source);
+  fs.renameSync(path.join(root,'.agents/plugins'),path.join(capability,'plugins'));
+  fs.symlinkSync(path.join(capability,'plugins'),path.join(root,'.agents/plugins'),process.platform==='win32'?'junction':'dir');
+  fs.symlinkSync(source,path.join(root,'backend'),process.platform==='win32'?'junction':'dir');
+  fs.writeFileSync(path.join(root,'.agents/capability.json'),JSON.stringify({schemaVersion:1,mode:'workspace-overlay',workspace:'fixture',contextRoot:'.agents',capabilityRoot:'../capability',sharedDirectories:['plugins'],localDirectories:['config'],sourceRoots:[{name:'backend',path:'backend',target:'../source',gitRoot:'../source'}]}));
+  return capability;
+}
+function assertLinks(root, file) {
+  for(const match of read(root,file).matchAll(/\]\(([^)]+)\)/g))assert.ok(fs.existsSync(path.resolve(root,path.dirname(file),decodeURI(match[1]))),file+' -> '+match[1]);
+}
 test('unconfigured update and resolver are read-only even without .agents',()=>fixture(({root})=>{
   const empty=path.join(root,'empty');fs.mkdirSync(empty);assert.equal(docs.update(empty,'Write').status,'docs-layout-setup-required');
   assert.equal(dirs.resolveDirectory(empty,'missing','test','docs/legacy'),path.join(empty,'docs/legacy'));assert.deepEqual(fs.readdirSync(empty),[]);
@@ -35,17 +47,18 @@ test('authorized setup prebuilds empty skeleton and preserves prose and line end
   assert.equal(dirs.resolveDirectory(root,'agent-context-kit','handoff','docs/handoff'),path.join(root,'.agents/work/handoff'));
   assert.throws(()=>docs.setupPlan(root),/already enrolled/);
 }));
-test('setup keeps existing docs navigation byte-for-byte',()=>fixture(({root,put,setup})=>{
-  put('docs/README.md','\uFEFF# 自定义导航\r\n');const before=fs.readFileSync(path.join(root,'docs/README.md'));setup();assert.deepEqual(fs.readFileSync(path.join(root,'docs/README.md')),before);
+test('reviewed setup appends a managed section preserving custom navigation bytes',()=>fixture(({root,put,setup})=>{
+  put('docs/README.md','\uFEFF# 自定义导航\r\n');const before=fs.readFileSync(path.join(root,'docs/README.md'));setup();assert.deepEqual(fs.readFileSync(path.join(root,'docs/README.md')).subarray(0,before.length),before);
+  assert.equal(docs.update(root,'Check').status,'docs-layout-ok');
 }));
 test('update is idempotent, read modes do not recreate empty dirs, files survive',()=>fixture(({root,put,setup})=>{
-  setup();put('docs/custom/note.md','owner data');fs.rmdirSync(path.join(root,'docs/guides'));
+  setup();put('docs/custom/note.md','owner data');fs.unlinkSync(path.join(root,'docs/guides/README.md'));fs.rmdirSync(path.join(root,'docs/guides'));
   assert.equal(docs.update(root,'Check').status,'docs-layout-directories-missing');assert.ok(!fs.existsSync(path.join(root,'docs/guides')));
   assert.equal(docs.update(root,'DryRun').status,'docs-layout-directories-missing');assert.equal(docs.update(root,'Write').status,'docs-layout-updated');
   const again=docs.update(root,'Write');assert.equal(again.status,'docs-layout-ok');assert.deepEqual(again.unclassified,['docs/custom']);assert.equal(read(root,'docs/custom/note.md'),'owner data');
 }));
 test('directory collision preflights all targets before update writes',()=>fixture(({root,put,setup})=>{
-  setup();fs.rmdirSync(path.join(root,'docs/guides'));fs.rmdirSync(path.join(root,'docs/modules'));put('docs/modules','user file');
+  setup();for(const dir of ['guides','modules']){fs.unlinkSync(path.join(root,'docs',dir,'README.md'));fs.rmdirSync(path.join(root,'docs',dir));}put('docs/modules','user file');
   assert.equal(docs.update(root,'Write').status,'docs-layout-review-required');assert.ok(!fs.existsSync(path.join(root,'docs/guides')));assert.equal(read(root,'docs/modules'),'user file');
 }));
 test('source drift and edited plan contents invalidate approval before backup',()=>fixture(({root,put,setup,backup})=>{
@@ -126,4 +139,68 @@ test('tampered recovery journal cannot reuse the original approval for another p
 }));
 test('workspace ancestor junction is refused before path resolution or backup',()=>fixture(({root,batch})=>{
   const alias=path.join(batch,'alias');fs.symlinkSync(root,alias,process.platform==='win32'?'junction':'dir');const sub=path.join(root,'sub');fs.mkdirSync(sub);assert.throws(()=>dirs.contextFor(path.join(alias,'sub')),/physical/);
+}));
+
+for(const mode of ['standard','workspace-overlay']){
+  test(mode+': upgrade custom README through reviewed plan, then ordinary Write maintains descriptions',()=>fixture(f=>{
+    const {root,put,backup,setup}=f,capability=mode==='workspace-overlay'?overlay(f):path.join(root,'.agents');
+    setup();const original='\uFEFF# 人工导航\r\n\r\n[业务](guides/business.md)\r\n';put('docs/README.md',original);put('docs/guides/business.md','business');
+    const config=read(root,'.agents/config/documentation-layout.json');
+    for(const action of ['Check','DryRun','Write']){const result=docs.update(root,action);assert.equal(result.status,'docs-layout-review-required');assert.equal(read(root,'docs/README.md'),original);assert.ok(result.documentationChanges.some(e=>e.state==='unmanaged'));}
+    const plan=docs.navigationPlan(root);assert.equal(plan.kind,'navigation');assert.equal(read(root,'docs/README.md'),original);
+    docs.applyPlan(root,plan,plan.id,backup);assert.ok(read(root,'docs/README.md').startsWith(original));
+    fs.appendFileSync(path.join(root,'docs/guides/README.md'),'\n## 项目补充\n人工内容\n');
+    const manifest=path.join(capability,'plugins/agent-context-kit/.agents-plugin/plugin.json'),owner=JSON.parse(fs.readFileSync(manifest));owner.projectDirectories[0].purpose='新版项目指南';fs.writeFileSync(manifest,JSON.stringify(owner));
+    const preview=docs.update(root,'DryRun');assert.equal(preview.status,'docs-layout-descriptions-stale');assert.ok(preview.documentationChanges.some(e=>e.before.includes('开发、操作和排障指南')&&e.after.includes('新版项目指南')));
+    assert.equal(docs.update(root,'Check').status,'docs-layout-descriptions-stale');assert.equal(docs.update(root,'Write').status,'docs-layout-updated');
+    assert.ok(read(root,'docs/guides/README.md').endsWith('## 项目补充\n人工内容\n'));assert.ok(read(root,'docs/README.md').startsWith(original));
+    assert.equal(docs.update(root,'Write').status,'docs-layout-ok');assert.equal(read(root,'.agents/config/documentation-layout.json'),config);
+    for(const file of ['docs/README.md','docs/guides/README.md','.agents/work/README.md'])assertLinks(root,file);
+    if(mode==='workspace-overlay'){assert.ok(!fs.existsSync(path.join(capability,'docs')));assert.ok(!fs.existsSync(path.join(root,'.agents/.git')));}
+  }));
+}
+test('all owner descriptions have examples, boundaries and lifecycles; task paths have no dead links',()=>fixture(({root,put,setup})=>{
+  const names=[];for(const name of fs.readdirSync(path.join(repo,'plugins'))){const file=path.join(repo,'plugins',name,'.agents-plugin/plugin.json');if(fs.existsSync(file)&&JSON.parse(fs.readFileSync(file)).projectDirectories){names.push(name);put('.agents/plugins/'+name+'/.agents-plugin/plugin.json',fs.readFileSync(file));}}
+  put('.agents/config/plugin_profile.md',names.map(n=>'| '+n+' | enabled |').join('\n'));setup();
+  for(const e of dirs.inventory(dirs.contextFor(root))){assert.ok(e.purpose);assert.ok(e.examples.length);assert.ok(e.boundary);assert.ok(e.lifecycle);}
+  const readme=read(root,'docs/README.md');assert.ok(readme.includes('BOS 需求正式文本和 Excel 交付'));assert.ok(!readme.includes('| delivery |'));assert.ok(readme.includes('按任务创建'));assert.ok(!fs.existsSync(path.join(root,'.agents/work/source-sync')));
+  for(const file of ['docs/README.md','docs/delivery/README.md','.agents/work/README.md'])assertLinks(root,file);
+}));
+test('extension plans keep one managed section, local details and custom prose over repeated updates',()=>fixture(({root,put,setup,backup})=>{
+  setup();put('docs/专题 空间/README.md','自定义说明\n');
+  const entry={path:'docs/专题 空间',purpose:'项目专题',examples:['设计.md'],boundary:'项目特有边界',lifecycle:'历史与现行分区，以项目标记为准'};
+  const first=docs.extensionPlan(root,entry);docs.applyPlan(root,first,first.id,backup);
+  const second=docs.extensionPlan(root,{path:'docs/backlog',purpose:'待治理事项'});docs.applyPlan(root,second,second.id,backup);
+  assert.equal(read(root,'docs/README.md').split('<!-- project-docs:managed:start -->').length,2);assert.ok(read(root,'docs/专题 空间/README.md').startsWith('自定义说明\n'));assert.ok(read(root,'docs/README.md').includes('项目特有边界'));
+  assert.deepEqual(JSON.parse(read(root,'.agents/config/documentation-layout.json')).extensions[0],entry);assert.equal(docs.update(root,'Write').status,'docs-layout-ok');assertLinks(root,'docs/README.md');
+}));
+test('missing or corrupted managed navigation is reported and ordinary Write repairs only its section',()=>fixture(({root,put,setup})=>{
+  setup();fs.unlinkSync(path.join(root,'docs/modules/README.md'));assert.equal(docs.update(root,'Check').status,'docs-layout-descriptions-missing');assert.ok(!fs.existsSync(path.join(root,'docs/modules/README.md')));assert.equal(docs.update(root,'Write').status,'docs-layout-updated');
+  const file='docs/README.md';put(file,read(root,file).replace('guides/README.md','missing/README.md')+'\n人工尾部\n');assert.equal(docs.update(root,'Check').status,'docs-layout-descriptions-stale');docs.update(root,'Write');assert.ok(read(root,file).endsWith('人工尾部\n'));assertLinks(root,file);
+}));
+test('unmatched, duplicated or hidden managed sections are visible conflicts before any update',()=>fixture(({root,put,setup})=>{
+  setup();const original=read(root,'docs/README.md'),guide=read(root,'docs/guides/README.md');
+  for(const contents of [original.replace('<!-- project-docs:managed:end -->',''),original+original,'```md\n'+original]){put('docs/README.md',contents);assert.equal(docs.update(root,'Write').status,'docs-layout-review-required');assert.equal(read(root,'docs/README.md'),contents);assert.equal(read(root,'docs/guides/README.md'),guide);assert.throws(()=>docs.navigationPlan(root),/preserve/);}
+}));
+test('reviewed navigation plan protects a newly introduced file from concurrent overwrite',()=>fixture(({root,setup,put,backup})=>{
+  setup();fs.unlinkSync(path.join(root,'docs/modules/README.md'));const plan=docs.navigationPlan(root);put('docs/modules/README.md','new user file');assert.throws(()=>docs.applyPlan(root,plan,plan.id,backup),/changed since review/);assert.equal(read(root,'docs/modules/README.md'),'new user file');
+}));
+test('ordinary Write protects a newly introduced file at creation time',()=>fixture(({root,setup})=>{
+  setup();const file=path.join(root,'docs/modules/README.md');fs.unlinkSync(file);const write=fs.writeFileSync;let once=true;
+  fs.writeFileSync=function(target,contents,options){if(target===file&&once){once=false;write(target,'concurrent new file');}return write(target,contents,options);};
+  try{assert.equal(docs.update(root,'Write').status,'docs-layout-review-required');}finally{fs.writeFileSync=write;}assert.equal(fs.readFileSync(file,'utf8'),'concurrent new file');
+}));
+test('navigation planning refuses a file changed while its prose was being read',()=>fixture(({root,setup,put})=>{
+  setup();const file=path.join(root,'docs/README.md');put('docs/README.md','old prose');const readFile=fs.readFileSync;let once=true;
+  fs.readFileSync=function(target,...args){const contents=readFile(target,...args);if(target===file&&once){once=false;fs.writeFileSync(file,'new concurrent prose');}return contents;};
+  try{assert.throws(()=>docs.navigationPlan(root),/changed during planning/);}finally{fs.readFileSync=readFile;}assert.equal(read(root,'docs/README.md'),'new concurrent prose');
+}));
+test('legacy runtime roots are described in place and directory checks do not classify their files',()=>fixture(({root,put,setup})=>{
+  put('docs/handoff/active/handoff.md','keep handoff');put('docs/agent-reports/active/state.json','keep run');put('docs/work/unknown.md','keep runtime');setup();
+  const result=docs.update(root,'Check');assert.equal(result.status,'docs-layout-ok');assert.ok(result.unclassified.includes('docs/work'));assert.match(result.checkedScope,/no per-file classification/);
+  assert.ok(read(root,'docs/README.md').includes('历史兼容目录'));assert.ok(read(root,'docs/handoff/README.md').includes('.agents/work/handoff'));assert.equal(read(root,'docs/handoff/active/handoff.md'),'keep handoff');assert.equal(read(root,'docs/agent-reports/active/state.json'),'keep run');assert.equal(read(root,'docs/work/unknown.md'),'keep runtime');
+}));
+test('missing owner purpose requests review instead of falling back to an internal role',()=>fixture(({root,put})=>{
+  const file='.agents/plugins/agent-context-kit/.agents-plugin/plugin.json',m=JSON.parse(read(root,file));delete m.projectDirectories[0].purpose;put(file,JSON.stringify(m));
+  put('.agents/config/documentation-layout.json',JSON.stringify({schema:dirs.SCHEMA,enabled:true,workspaceRoot:root,extensions:[]}));const result=docs.update(root,'Write');assert.equal(result.status,'docs-layout-review-required');assert.deepEqual(result.descriptionSourcesMissing,[{owner:'agent-context-kit',path:'docs/guides'}]);assert.ok(!fs.existsSync(path.join(root,'docs')));
 }));

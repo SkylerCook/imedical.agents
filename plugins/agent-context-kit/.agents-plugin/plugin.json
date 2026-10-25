@@ -1,6 +1,6 @@
 {
   "name": "agent-context-kit",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "displayName": "Agent Context Kit",
   "description": "Reusable project context, local task handoff and cross-session continuation, plus schema 2.0 agent run templates and separate demand and framework-maintenance lifecycles.",
   "entry": "AGENTS.md",
@@ -34,7 +34,14 @@
       "path": "docs/guides",
       "role": "knowledge",
       "create": "setup",
-      "purpose": "开发、操作和排障指南"
+      "purpose": "开发、操作和排障指南",
+      "examples": [
+        "开发接入.md",
+        "操作手册.md",
+        "故障排查.md"
+      ],
+      "boundary": "操作步骤归本目录；业务对象与接口契约归 modules",
+      "lifecycle": "现行指南；替代后保留引用并归 archive"
     },
     {
       "id": "modules",
@@ -42,7 +49,14 @@
       "path": "docs/modules",
       "role": "knowledge",
       "create": "setup",
-      "purpose": "业务专题、接口和设计说明"
+      "purpose": "业务专题、接口和设计说明",
+      "examples": [
+        "专题设计.md",
+        "接口字段.md",
+        "流程说明.md"
+      ],
+      "boundary": "长期专题知识归本目录；执行步骤归 guides，验收材料归 delivery",
+      "lifecycle": "现行专题；注明适用版本，过期材料归 archive"
     },
     {
       "id": "delivery",
@@ -50,7 +64,14 @@
       "path": "docs/delivery",
       "role": "delivery",
       "create": "setup",
-      "purpose": "正式交付、验收、演示和配套附件"
+      "purpose": "正式交付、验收、演示和配套附件",
+      "examples": [
+        "需求说明.md",
+        "验收报告.md",
+        "演示附件"
+      ],
+      "boundary": "保存对外交付的定稿与附件；私有草稿和运行断点归 ContextRoot/work",
+      "lifecycle": "按需求或批次保留；正式交付与业务恢复资料分别核对保留策略"
     },
     {
       "id": "archive",
@@ -58,7 +79,13 @@
       "path": "docs/archive",
       "role": "knowledge",
       "create": "setup",
-      "purpose": "已被替代的历史资料"
+      "purpose": "已被替代的历史资料",
+      "examples": [
+        "旧版设计.md",
+        "已替代操作说明.md"
+      ],
+      "boundary": "只放已替代历史；保留原日期与当前替代入口",
+      "lifecycle": "历史资料；归档不表示可自动删除或继续作为现行规范"
     },
     {
       "id": "handoff",
@@ -69,7 +96,13 @@
       "legacyPaths": [
         "docs/handoff"
       ],
-      "purpose": "本工作区交接与恢复状态"
+      "purpose": "本工作区交接与恢复状态",
+      "examples": [
+        "handoff.md",
+        "交接快照"
+      ],
+      "boundary": "记录本工作区接续范围与恢复线索；正式交付摘要归 docs/delivery",
+      "lifecycle": "本机任务状态；旧交接沿原根发现，任务结束不自动删除恢复资料"
     },
     {
       "id": "runs",
@@ -80,7 +113,14 @@
       "legacyPaths": [
         "docs/agent-reports"
       ],
-      "purpose": "新任务运行与证据；旧run保留其显式目录"
+      "purpose": "新任务运行与证据；旧run保留其显式目录",
+      "examples": [
+        "plan.json",
+        "manifest.json",
+        "运行证据"
+      ],
+      "boundary": "供编排和阶段恢复；不把运行通过等同业务验收",
+      "lifecycle": "本机运行状态；旧 run 保留显式目录，恢复与清理由运行 owner 决定"
     }
   ]
 }

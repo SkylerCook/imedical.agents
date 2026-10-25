@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+0.21.1 补齐 manifest projectDirectories 的用途、典型产物、边界和生命周期，供项目受管目录说明复用。已接入工程通过普通更新刷新受管区；无标记 README 按[目录说明升级](../../docs/guides/project-knowledge-layout.md#持续目录说明)评审接管。目录默认值、显式配置和旧任务恢复位置沿原契约，不迁移或清理业务资料。
+
 0.21.0：需求已明确为 `project` 且采用 `intent-first-on-demand-export` 时接入[项目开发协议](references/project-demand-development.md)，按需求刷新服务器基线、保护现场并分层提交，部署前重新同步和复审冻结。`standard` 沿既有分支；上下文模式不能推导需求类型。前端优先复用已确认支持的 Atelier，公共远端准入只覆盖已接入工具；真实 License 资格、旧服务器兼容及资源退出须在授权窗口取证。正常更新后，由授权项目维护配置私有策略和各环境本地 Git；不自动初始化 Git、启用模式、连接服务器或迁移旧恢复材料。
 
 本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。

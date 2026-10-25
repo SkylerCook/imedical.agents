@@ -1,6 +1,6 @@
 {
   "name": "i18n-iris-plugin",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "displayName": "IRIS I18N Plugin",
   "description": "Reusable i18n agent workflows for IRIS/ObjectScript/CSP/HISUI projects.",
   "entry": "AGENTS.md",
@@ -45,7 +45,15 @@
       "create": "setup",
       "legacyPaths": [
         "docs/xmlPrintTemp"
-      ]
+      ],
+      "purpose": "XML 打印模板译文、manifest 和版面报告",
+      "examples": [
+        "译文.xml",
+        "manifest.json",
+        "版面报告.md"
+      ],
+      "boundary": "XML 原文单列 source；覆盖前恢复副本仍在本次 outputDir/backups",
+      "lifecycle": "业务交付与恢复链按 owner 保留；旧任务沿原 manifest，不自动覆盖或清理"
     },
     {
       "id": "print-template-sources",
@@ -55,14 +63,27 @@
       "create": "setup",
       "legacyPaths": [
         "references/xmlPrintTemp"
-      ]
+      ],
+      "purpose": "XML 打印模板原文与翻译输入",
+      "examples": [
+        "原文.xml"
+      ],
+      "boundary": "保留翻译输入与来源；译文、manifest 和报告归父级输出目录",
+      "lifecycle": "业务原始材料；与译文保持同次解析关联，不作为临时副本删除"
     },
     {
       "id": "terms",
       "base": "workspace",
       "path": "docs/delivery/i18n/terms",
       "role": "delivery",
-      "create": "setup"
+      "create": "setup",
+      "purpose": "多语言术语表与字典 SQL 交付",
+      "examples": [
+        "i18n_terms_LANG_YYYYMMDD_HHMM.md",
+        "字典交付.sql"
+      ],
+      "boundary": "保存术语及字典交付；页面翻译 seed 继续归 backend SourceRoot",
+      "lifecycle": "按语言与批次保留正式交付；执行 SQL 仍需独立授权"
     },
     {
       "id": "csp-backups",
@@ -72,7 +93,14 @@
       "create": "setup",
       "legacyPaths": [
         "docs/i18n-csp-trans-sync/backups"
-      ]
+      ],
+      "purpose": "CSP 翻译同步前的业务方法体恢复副本",
+      "examples": [
+        "同步前方法体",
+        "恢复副本"
+      ],
+      "boundary": "业务对象恢复资料；与目录迁移批次备份和任务临时日志分别管理",
+      "lifecycle": "恢复资料；按 CSP 同步契约保留，不能在目录验收后自动删除"
     }
   ],
   "references": "references/"

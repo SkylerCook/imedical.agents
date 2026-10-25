@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 'use strict';
-// Project knowledge layout: plans are read-only; mutations require approval of their exact digest.
+// Setup, adoption and migration use exact reviewed plans; updates maintain owned sections only.
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const d = require('./lib/project-directories');
+const nav = require('./lib/project-docs-navigation');
 const PLAN = 'imedical-project-docs-plan/v1', JOURNAL = 'imedical-project-docs-backup/v1';
 const text = bytes => new TextDecoder('utf-8', {fatal:true, ignoreBOM:true}).decode(bytes);
 function fileHash(file) { return fs.existsSync(file) ? d.digest(fs.readFileSync(file)) : null; }
@@ -32,18 +33,22 @@ function target(context, rel) {
 }
 function rel(context,file) { return d.slash(path.relative(context.workspaceRoot,file)); }
 function protectedPath(file) { return /(?:^|\/)(?:\.git|private|agent-reports|handoff|acceptance)(?:\/|$)/i.test(file) || /^docs\/(?:work|archive)(?:\/|$)/i.test(file); }
-function managedDirectories(context) {
-  const result = d.inventory(context).filter(e=>e.create==='setup' && e.base!=='capability');
-  const config = d.configFor(context);
-  for (const e of config?.extensions || []) result.push({owner:'workspace',id:e.path,base:'workspace',path:e.path,role:'knowledge',create:'setup',target:d.safePath(context.workspaceRoot,e.path),purpose:e.purpose});
-  if (!result.some(e=>e.path==='docs/guides')) throw Error('agent-context-kit directory declarations missing or not enabled');
-  return result;
+function entriesFor(context, extensions=d.configFor(context)?.extensions || []) { return nav.catalog(context,extensions); }
+function documentation(context, entries, adopt=false) {
+  return [...nav.descriptions(context,entries)].map(([file,body])=>{
+    const absolute=target(context,file);
+    if(fs.existsSync(absolute)&&!fs.statSync(absolute).isFile())throw Error('File conflict: '+file);
+    const before=fs.existsSync(absolute)?fs.readFileSync(absolute):null;
+    return {path:file,beforeHash:before===null?null:d.digest(before),...nav.section(before,body,file,adopt)};
+  });
 }
-function navigation(context, entries) {
-  const lines = ['# 项目知识库','','按用途进入；业务专题可以交叉引用，正文保留一份。','','| 目录 | 用途 |','|---|---|'];
-  for (const e of entries.filter(e=>e.base==='workspace' && e.role!=='recovery')) lines.push(`| [${e.path.slice(5)}/](${encodeURI(e.path.slice(5))}/) | ${(e.purpose || e.role).replaceAll('|','/')} |`);
-  lines.push('','工具运行和恢复资料由当前工作区 `.agents/work/` 管理；历史兼容区按能力契约保留。','归档资料保留原有适用日期，不因整理而成为现行规范。','');
-  return lines.join('\n');
+function addDocumentation(plan,context,entries) {
+  if(entries.some(e=>!e.purpose))throw Error('Directory purpose missing in owner projectDirectories; fill the source declaration first');
+  for(const doc of documentation(context,entries,true))if(doc.state!=='current'){
+    const op=action(context,'write',doc.path,doc.content);
+    if(op.beforeHash!==doc.beforeHash)throw Error('File changed during planning: '+doc.path);
+    plan.actions.push(op);
+  }
 }
 function action(context, kind, file, content) {
   const absolute = target(context,file);
@@ -71,13 +76,11 @@ function base(context,kind) { return {schema:PLAN,kind,workspaceRoot:context.wor
 function setupPlan(root) {
   const context=d.contextFor(root), existing=d.configFor(context);
   if (existing?.enabled) throw Error('Layout already enrolled; use extension-plan or migration plan');
-  const entries=managedDirectories(context), plan=base(context,'setup');
-  for(const e of entries) plan.actions.push(action(context,'mkdir',rel(context,e.target)));
+  const entries=entriesFor(context), plan=base(context,'setup');
+  for(const e of entries.filter(e=>e.create==='setup')) plan.actions.push(action(context,'mkdir',rel(context,e.target)));
   const config={schema:d.SCHEMA,enabled:true,workspaceRoot:context.workspaceRoot,extensions:[]};
   plan.actions.push(action(context,'write',rel(context,path.join(context.contextRoot,'config/documentation-layout.json')),JSON.stringify(config,null,2)+'\n'));
-  const readme=path.join(context.workspaceRoot,'docs/README.md');
-  if (!fs.existsSync(readme)) plan.actions.push(action(context,'write','docs/README.md',navigation(context,entries)));
-  else plan.skipped.push({path:'docs/README.md',reason:'Existing navigation preserved; include explicit reference edits in a reviewed plan'});
+  addDocumentation(plan,context,entries);
   const agents=path.join(context.workspaceRoot,'AGENTS.md');
   if (fs.existsSync(agents)) {
     d.safePath(context.workspaceRoot,'AGENTS.md'); const before=fs.readFileSync(agents); const contents=text(before);
@@ -95,19 +98,21 @@ function extensionPlan(root, entry) {
   const context=d.contextFor(root), config=d.configFor(context);
   if (!config?.enabled) throw Error('Explicit initial setup required');
   if (!entry || typeof entry.purpose!=='string' || !entry.purpose.trim() || /[\r\n]/.test(entry.purpose) || !entry.path.startsWith('docs/')) throw Error('Extension needs docs path and purpose');
+  d.description(entry);
   d.safePath(context.workspaceRoot,entry.path);
   if (config.extensions.some(e=>e.path===entry.path)) throw Error('Extension already registered');
   const plan=base(context,'extension');
   plan.actions.push(action(context,'mkdir',entry.path));
   plan.actions.push(action(context,'write',rel(context,path.join(context.contextRoot,'config/documentation-layout.json')),JSON.stringify({...config,extensions:[...config.extensions,entry]},null,2)+'\n'));
-  const readme=path.join(context.workspaceRoot,'docs/README.md');
-  if(fs.existsSync(readme)){
-    const before=fs.readFileSync(readme),contents=text(before),newline=contents.includes('\r\n')?'\r\n':'\n';
-    const addition='- ['+entry.path.slice(5)+'/]('+encodeURI(entry.path.slice(5))+'/)：'+entry.purpose;
-    const {activeText}=require('./sync-documentation-entry');
-    if(!activeText(contents+newline+addition).includes(addition))throw Error('Unclosed Markdown navigation; preserve and repair');
-    plan.actions.push(action(context,'write','docs/README.md',Buffer.concat([before,Buffer.from((contents.endsWith('\n')?newline:newline+newline)+addition+newline)])));
-  }
+  addDocumentation(plan,context,entriesFor(context,[...config.extensions,entry]));
+  return seal(plan);
+}
+function navigationPlan(root) {
+  const context=d.contextFor(root);
+  if(!d.configFor(context)?.enabled)throw Error('Explicit initial setup required');
+  const entries=entriesFor(context),plan=base(context,'navigation');
+  for(const e of entries.filter(e=>e.create==='setup'))plan.actions.push(action(context,'mkdir',rel(context,e.target)));
+  addDocumentation(plan,context,entries);
   return seal(plan);
 }
 function walk(context, directory, skipped=[], files=[]) {
@@ -198,7 +203,7 @@ function migrationPlan(root, mapping) {
 }
 function checkPlan(root,plan,approval) {
   const context=d.contextFor(root); const {id,...body}=plan;
-  if (plan.schema!==PLAN || !['setup','extension','migration'].includes(plan.kind) || !d.same(plan.workspaceRoot,context.workspaceRoot) || !d.same(plan.contextRoot,context.contextRoot) || id!==d.digest(JSON.stringify(body)) || approval!==id) throw Error('Exact reviewed plan approval required');
+  if (plan.schema!==PLAN || !['setup','extension','navigation','migration'].includes(plan.kind) || !d.same(plan.workspaceRoot,context.workspaceRoot) || !d.same(plan.contextRoot,context.contextRoot) || id!==d.digest(JSON.stringify(body)) || approval!==id) throw Error('Exact reviewed plan approval required');
   if (plan.policyHash!==d.fingerprint(context)) throw Error('Layout policy changed; regenerate plan');
   for(const entry of plan.directories || []){const dir=d.safePath(context.workspaceRoot,entry.path);if(fs.existsSync(dir)!==entry.existed)throw Error('Directory changed since review: '+entry.path);}
   for(const entry of plan.directoryContents || []){const file=target(context,entry.path);if(JSON.stringify(fs.readdirSync(file).sort())!==JSON.stringify(entry.entries))throw Error('Directory contents changed since review: '+entry.path);}
@@ -318,13 +323,17 @@ function cleanup(root,journalFile,acceptance) {
   return {status:'docs-layout-backup-cleaned',planId:journal.planId};
 }
 function update(root,mode='DryRun') {
-  const result={target:'docs',status:'docs-layout-review-required',reason:'',missingDirectories:[],unclassified:[]};
+  const result={target:'docs',status:'docs-layout-review-required',reason:'',missingDirectories:[],unclassified:[],documentationChanges:[],applied:[],checkedScope:'Declared directory existence, managed descriptions and generated navigation only; no per-file classification or business acceptance'};
   try {
     if(!['DryRun','Check','Write'].includes(mode))throw Error('Invalid mode');
     const context=d.contextFor(root),config=d.configFor(context);
     if(!config?.enabled)return {...result,status:'docs-layout-setup-required',reason:'Explicit first-deployment authorization required; run setup-plan'};
-    const entries=managedDirectories(context);
-    for(const e of entries){const file=target(context,rel(context,e.target));if(fs.existsSync(file)&&!fs.statSync(file).isDirectory())throw Error('Directory conflict: '+e.path);if(!fs.existsSync(file))result.missingDirectories.push(rel(context,file));}
+    const entries=entriesFor(context),policy=d.fingerprint(context);
+    for(const e of entries.filter(e=>e.create==='setup')){const file=target(context,rel(context,e.target));if(fs.existsSync(file)&&!fs.statSync(file).isDirectory())throw Error('Directory conflict: '+e.path);if(!fs.existsSync(file))result.missingDirectories.push(rel(context,file));}
+    const changes=documentation(context,entries).filter(e=>e.state!=='current');
+    result.documentationChanges=changes.map(({path,state,beforeHash,before,after})=>({path,state,beforeHash,before,after}));
+    result.descriptionSourcesMissing=entries.filter(e=>!e.purpose).map(e=>({owner:e.owner,path:e.path}));
+    if(result.descriptionSourcesMissing.length)return {...result,reason:'Directory purpose missing in owner projectDirectories; fill the source declaration before updating descriptions'};
     const docs=path.join(context.workspaceRoot,'docs');
     if(fs.existsSync(docs)) {
       d.safePath(context.workspaceRoot,'docs');
@@ -332,20 +341,44 @@ function update(root,mode='DryRun') {
       for(const entry of d.inventory(context))for(const legacy of entry.legacyPaths||[])if(legacy.startsWith('docs/'))known.add(legacy.split('/')[1]);
       result.unclassified=fs.readdirSync(docs,{withFileTypes:true}).filter(e=>e.name!=='README.md'&&!known.has(e.name)).map(e=>'docs/'+e.name);
     }
-    if(mode==='Write')for(const directory of result.missingDirectories){const file=target(context,directory);fs.mkdirSync(file,{recursive:true});}
-    return {...result,status:result.missingDirectories.length?(mode==='Write'?'docs-layout-updated':'docs-layout-directories-missing'):'docs-layout-ok',reason:result.unclassified.length?'Unclassified entries need a reviewed migration plan':'Existing files preserved; only declared empty directories may be added'};
+    if(changes.some(e=>!e.writable))return {...result,reason:'Unmanaged README preserved; review navigation-plan and apply its exact digest before ordinary Write can maintain sections'};
+    const status=result.missingDirectories.length?'docs-layout-directories-missing':changes.some(e=>e.state==='missing')?'docs-layout-descriptions-missing':changes.length?'docs-layout-descriptions-stale':'docs-layout-ok';
+    if(mode==='Write'){
+      if(policy!==d.fingerprint(context))throw Error('Layout policy changed; retry after review');
+      // All targets were preflighted. Recheck each write, including newly introduced files.
+      for(const directory of result.missingDirectories){const file=target(context,directory);fs.mkdirSync(file,{recursive:true});}
+      for(const op of changes){
+        const file=target(context,op.path);
+        if(fileHash(file)!==op.beforeHash)throw Error('Concurrent content preserved: '+op.path);
+        fs.mkdirSync(path.dirname(file),{recursive:true});
+        if(op.beforeHash===null)fs.writeFileSync(file,op.content,{flag:'wx'});
+        else{
+          const temp=file+'.docs-layout-'+randomUUID()+'.tmp';
+          try{
+            fs.writeFileSync(temp,op.content,{flag:'wx',mode:fs.statSync(file).mode});
+            target(context,op.path);
+            if(fileHash(file)!==op.beforeHash)throw Error('Concurrent content preserved: '+op.path);
+            fs.renameSync(temp,file);
+          }finally{if(fs.existsSync(temp))fs.unlinkSync(temp);}
+        }
+        if(fileHash(file)!==d.digest(op.content))throw Error('Write read-back mismatch: '+op.path);
+        result.applied.push(op.path);
+      }
+    }
+    return {...result,status:mode==='Write'&&status!=='docs-layout-ok'?'docs-layout-updated':status,reason:'Checked directory structure and managed descriptions; project prose preserved. '+(result.unclassified.length?'Top-level unclassified entries need review; ':'')+'No per-file classification, migration or cleanup performed'};
   }catch(error){return {...result,reason:error.message};}
 }
 function cli(argv) {
   const command=argv.shift(),args={};
   while(argv.length){const key=argv.shift();if(!key.startsWith('--')||!argv.length||argv[0].startsWith('--'))throw Error('Expected --key value');if(Object.hasOwn(args,key))throw Error('Duplicate option');args[key]=argv.shift();}
-  const allowed={inventory:['--project-root'],resolve:['--project-root','--owner','--id','--fallback'],update:['--project-root','--mode'],'setup-plan':['--project-root'],'extension-plan':['--project-root','--path','--purpose'],plan:['--project-root','--mapping'],apply:['--project-root','--plan','--approve-plan','--backup-root'],rollback:['--project-root','--journal','--approve-plan'],cleanup:['--project-root','--journal','--accept-batch']};
-  if(!allowed[command]||Object.keys(args).some(k=>!allowed[command].includes(k)))throw Error('Usage: project-docs.js inventory|resolve|update|setup-plan|extension-plan|plan|apply|rollback|cleanup --project-root PATH ...');
+  const allowed={inventory:['--project-root'],resolve:['--project-root','--owner','--id','--fallback'],update:['--project-root','--mode'],'setup-plan':['--project-root'],'navigation-plan':['--project-root'],'extension-plan':['--project-root','--path','--purpose'],plan:['--project-root','--mapping'],apply:['--project-root','--plan','--approve-plan','--backup-root'],rollback:['--project-root','--journal','--approve-plan'],cleanup:['--project-root','--journal','--accept-batch']};
+  if(!allowed[command]||Object.keys(args).some(k=>!allowed[command].includes(k)))throw Error('Usage: project-docs.js inventory|resolve|update|setup-plan|navigation-plan|extension-plan|plan|apply|rollback|cleanup --project-root PATH ...');
   if(!args['--project-root'])throw Error('--project-root required');const root=args['--project-root'];
   if(command==='inventory')return {directories:d.inventory(d.contextFor(root),true)};
   if(command==='resolve')return {path:d.resolveDirectory(root,args['--owner'],args['--id'],args['--fallback'])};
   if(command==='update')return update(root,args['--mode']||'DryRun');
   if(command==='setup-plan')return setupPlan(root);
+  if(command==='navigation-plan')return navigationPlan(root);
   if(command==='extension-plan')return extensionPlan(root,{path:args['--path'],purpose:args['--purpose']});
   if(command==='plan')return migrationPlan(root,d.json(args['--mapping']));
   if(command==='apply')return applyPlan(root,d.json(args['--plan']),args['--approve-plan'],args['--backup-root']);
@@ -353,4 +386,4 @@ function cli(argv) {
   return cleanup(root,args['--journal'],args['--accept-batch']);
 }
 if(require.main===module){try{process.stdout.write(JSON.stringify(cli(process.argv.slice(2)))+'\n');}catch(error){process.stderr.write(error.message+'\n');process.exitCode=1;}}
-module.exports={setupPlan,extensionPlan,migrationPlan,checkPlan,applyPlan,rollback,cleanup,update,rewriteLinks,cli};
+module.exports={setupPlan,extensionPlan,navigationPlan,migrationPlan,checkPlan,applyPlan,rollback,cleanup,update,rewriteLinks,cli};
