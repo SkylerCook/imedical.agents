@@ -42,7 +42,7 @@ test('CLS fixes remain covered by both install and update distribution', () => {
 
 test('exact destinations, absent old files and stable runtime entries', () => {
   assert.deepEqual(install, update);
-  for (const file of ['scripts/project-docs.js', 'scripts/lib/project-docs-navigation.js', 'scripts/lib/project-directories.js', 'scripts/sync-documentation-entry.js', 'scripts/lib/workspace-context.js']) {
+  for (const file of ['scripts/project-docs.js', 'scripts/lib/project-docs-navigation.js', 'scripts/lib/project-directories.js', 'scripts/sync-documentation-entry.js', 'scripts/lib/workspace-context.js', 'scripts/lib/real-repository-commit.js']) {
     assert.ok(fs.existsSync(path.join(repo, file)), file);
     assert.ok(covered(file, install) && covered(file, update), 'project docs runtime: ' + file);
   }

@@ -24,7 +24,7 @@ function fixture(t) {
       { encoding: 'utf8', windowsHide: true, env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: global } });
     assert.equal(r.status, 0, r.error?.message || r.stderr); return r.stdout.trim();
   }
-  git('init'); fs.writeFileSync(path.join(repo, 'actions.js'), 'old\n'); git('add', '.'); git('commit', '-m', 'base');
+  git('init', '-b', 'dev'); fs.writeFileSync(path.join(repo, 'actions.js'), 'old\n'); git('add', '.'); git('commit', '-m', 'base');
   fs.appendFileSync(path.join(repo, 'actions.js'), 'shared icons\n');
   const facts = entry.collect({ repo, files: ['actions.js'] }); fs.writeFileSync(path.join(root, 'facts.json'), JSON.stringify(facts));
   const spec = { kind: 'standard', common: { 模块编码: 'SYNTHETIC' }, requirements: [
@@ -71,7 +71,7 @@ test('explicit no-code drafts skip code dependencies but unknown or missing evid
   assert.throws(() => entry.prepare(spec, f.root, f.repo), /type|subject|取证/);
 });
 test('main and child BOS logs reuse immutable commits with distinct targets and strict owner validation', async t => {
-  const f = fixture(t), hash = f.commit(), select = [{ repo: f.repo, hash }];
+  const f = fixture(t), hash = f.commit(), select = [{ repo: f.repo, ref: 'refs/heads/dev', hash }];
   const file = path.join(f.root, 'private.json'); fs.writeFileSync(file, JSON.stringify({ 'bos-code-update-log': { url: 'https://example.invalid/code-log', token: randomBytes(24).toString('hex'), linkProject: 'synthetic' } }));
   let requests = 0, sent;
   const options = { env: { BOS_MCP_CONFIG: file }, fetchImpl: async (_url, req) => { requests++; sent = JSON.parse(req.body); return { ok: true, status: 200, json: async () => ({ ResultCode: '000' }) }; } };
@@ -152,10 +152,12 @@ test('no-code acceptance uses not-applicable phases, scope mutations stop, legac
   assert.equal(acceptance.completed(legacy, legacy.demands[0]), false);
 });
 
-test('mapped logs deduplicate the same repository through distinct worktrees but preserve child targets', async t => {
+test('mapped logs reject worktree sources and deduplicate real commits without merging child targets', async t => {
   const f = fixture(t), hash = f.commit(), other = path.join(f.root, 'other-worktree');
   f.git('worktree', 'add', '--detach', other, hash);
-  const select = [{ repo: f.repo, hash }, { repo: other, hash }];
+  const select = [{ repo: f.repo, ref: 'refs/heads/dev', hash }, { repo: other, ref: 'refs/heads/dev', hash }];
+  assert.throws(() => log.selectInput({ bindings: [{ requirementCode: '100', codeOwnerRequirementCode: '100', select }] }), /worktree/);
+  select[1] = { ...select[0] };
   const records = log.selectInput({ bindings: ['100','101'].map(requirementCode => ({ requirementCode, codeOwnerRequirementCode: '100', select })) });
   assert.equal(records.length, 2);
   assert.deepEqual(records.map(item => item.logBinding.requirementCode), ['100','101']);

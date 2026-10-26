@@ -1,7 +1,7 @@
 name: Standard demand entry
 on:
   push:
-    paths: ['scripts/migrate-demand-ownership.js', 'scripts/generate-plugin-thin-index.ps1', 'scripts/update-agents.ps1', 'scripts/tests/demand-ownership-migration.tests.js', 'plugins/demand-delivery-plugin/scripts/commit-demand.js', 'plugins/demand-delivery-plugin/**', 'plugins/bos-plugin/scripts/demand-entry*.js', 'scripts/lib/workspace-context.js', 'scripts/lib/demand-code-binding.js', 'scripts/tests/demand-hierarchy.tests.js', 'scripts/tests/standard-demand-entry.tests.js', '.github/workflows/standard-demand-entry.yml']
+    paths: ['scripts/migrate-demand-ownership.js', 'scripts/generate-plugin-thin-index.ps1', 'scripts/update-agents.ps1', 'scripts/tests/demand-ownership-migration.tests.js', 'plugins/demand-delivery-plugin/scripts/commit-demand.js', 'plugins/demand-delivery-plugin/**', 'plugins/bos-plugin/scripts/demand-entry*.js', 'scripts/lib/workspace-context.js', 'scripts/lib/demand-code-binding.js', 'scripts/lib/real-repository-commit.js', 'scripts/tests/real-repository-commit.tests.js', 'scripts/tests/demand-hierarchy.tests.js', 'scripts/tests/standard-demand-entry.tests.js', '.github/workflows/standard-demand-entry.yml']
   pull_request:
   workflow_dispatch:
 jobs:
@@ -18,3 +18,4 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: node --test scripts/tests/demand-hierarchy.tests.js scripts/tests/standard-demand-entry.tests.js scripts/tests/demand-ownership-migration.tests.js plugins/demand-delivery-plugin/tests/*.test.js
+      - run: node --test scripts/tests/real-repository-commit.tests.js

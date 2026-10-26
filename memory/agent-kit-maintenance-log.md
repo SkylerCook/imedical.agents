@@ -1,5 +1,12 @@
 # imedical.agents 维护日志
 
+## 2026-10-26 实仓提交门禁与主子需求闭环
+
+- framework-maintenance，按已确认计划实施。BOS 日志以实仓 repo/ref/完整 hash 为前置条件，plan/submit/最终写入共用只读 Git 门禁，拒绝 worktree 来源及裸 payload；凭据在来源验证后读取。
+- 验收绑定最终实仓提交；parent 引用主实仓提交逐项日志与共享 push，own 子项独立交付，none 保留原因跳过。整组完成按全部成员计算，共享 push 检查子项精确选择和成功码，旧回执恢复重核实仓。
+- demand-delivery-plugin 0.8.0、bos-plugin 0.17.0 的 breaking 迁移、owner 入口、流程、手册和现有三平台 CI 同步。去重67项本机验证通过：BOS12、最终状态流/主子42、发现11、分发链接2；版本预检新增问题0，完整审计保留基线既有6条发布记录 commit 诊断。详见[验证记录](../maintenance/validation/real-repository-delivery-2026-10-26.md)。
+- 实施阶段未暂存、提交、推送、修改真实 BOS 或更新业务副本。用户随后授权 c + p，按本批精确范围及 README 双远端约定提交并推送；提交前已核实两端 master 均在实施基点、功能验证指纹匹配。非 Windows/Node22 矩阵及真实宿主/服务取证沿既有 P2 队列，业务副本升级仍独立授权，未将本机回归宣称为实际业务已生效。
+
 ## 2026-10-26 项目目录说明与持续更新
 
 - framework-maintenance，基点 d3e22de。复用 projectDirectories、documentation-layout.json.extensions 与普通更新器，补齐 owner 用途/示例/边界/生命周期；总导航、主要用途、扩展和本地 work 入口使用统一受管区。首次 setup/扩展登记纳入具体 README 变更；已存在无标记 README 通过 navigation-plan 精确评审后追加受管区，后续 Write 保留人工正文并刷新。缺失/过期说明、标记冲突与目录异常可见，不使用 Force。

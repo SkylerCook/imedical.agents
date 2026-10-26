@@ -1,5 +1,7 @@
 # BOS Plugin
 
+0.17.0：BOS 日志以实仓 commit 为前置条件；select/bindings 必填实仓 repo、目标 ref 和完整 hash，plan/submit/最终写入均拒绝 worktree 来源及裸 payload。主子共享与无代码跳过按[代码归属](../../docs/demand-code-ownership.md)，CLI 迁移见[实仓门禁](references/code-update-log.md#实仓-commit-门禁)。完整更新两个 owner 及根 scripts/lib 后刷新已启用索引；旧回执保留，恢复前重新核实，不重发成功日志，无私有配置迁移或自动业务更新。
+
 0.16.1 补齐 manifest projectDirectories 的用途、典型产物、边界和生命周期，供项目受管目录说明复用。已接入工程通过普通更新刷新受管区；无标记 README 按[目录说明升级](../../docs/guides/project-knowledge-layout.md#持续目录说明)评审接管。目录默认值、显式配置和旧任务恢复位置沿原契约，不迁移或清理业务资料。
 
 0.15.0：各默认列表展示创建时间；所有个人待办默认改为创建日期升序，项目/非项目口径均可用 `--sort <日期字段> --order asc|desc` 选择创建、预计完成、分配、执行或操作日期。工作量默认执行日期，筛选条件与计数不变。需要原到期顺序时显式指定 `--sort 预计完成时间 --order asc`；兼容及同步方式见[日期排序口径](references/usage.md#日期排序口径)，正常更新和刷新已启用索引取得，无私有配置或数据迁移、旧文件清理。
@@ -36,7 +38,7 @@
 | [bos-demand-entry](skills/bos-demand-entry/SKILL.md) | 从 Git、提需主题及资料或工作记录生成文本/Excel，回填编号；代码按需衔接提交 |
 | [bos-demand-query](skills/bos-demand-query/SKILL.md) | 按发起/接受/当前人员或组查询待办、历史及编号详情 |
 | [bos-demand-handle](skills/bos-demand-handle/SKILL.md) | 实施、验证和交付需求，提交校验成功后准备并按授权补录日志 |
-| [bos-code-update-log](skills/bos-code-update-log/SKILL.md) | 预览并按授权将已有 Git 提交补录为代码更新日志 |
+| [bos-code-update-log](skills/bos-code-update-log/SKILL.md) | 仅从已核验实仓 commit 预览及授权补录代码日志 |
 
 本次路由说明通过正常更新能力包并刷新已启用薄索引取得，无配置迁移或旧文件清理，不自动同步业务项目。
 
@@ -54,7 +56,7 @@
 
 此入口的新批次显式启用决策策略，引用现有工作区计划与 Overlay 预检，并按宿主记录额度策略；Codex 在启动及派发前读取真实额度，停止领新和收尾阈值由 workflow 定义。旧批次保持原策略。本地源仓变更不表示已更新项目安装副本。
 
-0.5.0 在需求处理的全部本地提交校验成功后，直接复用本次仓库与完整 hash 自动准备 BOS 日志计划；展示具体计划后复用明确的 BOS 补录预授权或请求一次授权。“验收后提交并把本次提交补录到 BOS 代码更新日志”可同时明确两个动作。缺少日志配置、拒绝或接口失败时保留本地已提交结果；未知结果先核对，已确认成功不重复写入。编排见 workflow，不改变通用 demand-commit 或需求状态；业务工程主动更新后生效，无新增配置迁移或旧文件清理。
+0.5.0 在需求处理的全部实仓提交校验成功后，直接复用本次仓库与完整 hash 自动准备 BOS 日志计划；展示具体计划后复用明确的 BOS 补录预授权或请求一次授权。“验收后提交并把本次提交补录到 BOS 代码更新日志”可同时明确两个动作。缺少日志配置、拒绝或接口失败时保留本地已提交结果；未知结果先核对，已确认成功不重复写入。编排见 workflow，不改变通用 demand-commit 或需求状态；业务工程主动更新后生效，无新增配置迁移或旧文件清理。
 
 0.4.0 统一分段配置，运行时不保留旧格式或编辑器设置回退；旧平铺配置须明确运行 migrate-config 原地转换，详见[配置与迁移](references/usage.md)。个人配置不会被项目更新器自动修改，日志缺失只阻塞日志技能。代码更新日志的 plan 不联网，submit 需明确 BOS 写入授权，字段与结果判定见[接口说明](references/code-update-log.md)。
 

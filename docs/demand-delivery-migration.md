@@ -9,6 +9,10 @@ coding-iris-plugin 0.16.0 删除旧需求技能、CLI 和引用别名。框架�
 | coding-iris-plugin/scripts/iris-tools/commit-demand.js | demand-delivery-plugin/scripts/commit-demand.js |
 | coding-iris-plugin/scripts/iris-tools/demand-entry.js、demand-entry-xlsx.js | bos-plugin/scripts/ 下同名脚本 |
 
+## 实仓提交门禁升级
+
+demand-delivery-plugin 0.8.0 与 bos-plugin 0.17.0 收敛 BOS 日志来源。完整更新两个 owner 和根 scripts/lib 后刷新已启用索引；select/bindings.select 须明确实仓 repo、完整目标 ref 和40位 hash，commits 增加 --ref，导出的 submit 接收 select/bindings 而非裸 payload。worktree 阶段提交先合实仓再核验；parent 引用主实仓提交，none 保留原因并跳过。旧 v1/v2 回执保留原貌，恢复与完成判定重新核验，原目标不符须显式修订，不重发已成功日志或自动清理旧记录。无私有配置迁移，不改安装/更新算法。详细行为见[实仓门禁](../plugins/bos-plugin/references/code-update-log.md#实仓-commit-门禁)与[验收协议](../plugins/demand-delivery-plugin/references/acceptance-session.md)。
+
 ## 已部署项目更新
 
 在目标 WorkspaceRoot 按 [更新说明](update-agents.md)执行完整更新：先 DryRun 检查，再 Write，最后 Check。首次迁移不要使用 -Plugin / -ExcludePlugin 过滤掉需要的新 owner。只有源仓改动提交并同步到目标能力包后，目标项目才取得迁移代码；本轮维护不会自动更新真实业务项目。

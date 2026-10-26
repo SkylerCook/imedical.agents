@@ -263,8 +263,8 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - [bos-demand-query](plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：默认个人待办，`--proj` 项目 / `--dev` 产品（非项目）可组合；`--todo [日期或范围]` 查个人开发待办（可不带日期，带日期按预计完成时间），`--workload 日期或范围` 查工作量（执行日期必填）；人员流转及状态组合见[个人查询口径](plugins/bos-plugin/references/usage.md#个人待办与工作量口径)。原人员/组、历史与编号详情查询继续可用；默认列表含创建时间，待办默认创建日期升序，可用 `--sort` / `--order` 指定其它日期及方向；必含需求号/标题，末尾默认追加发起人/发起组，可指定其它列或“只要需求串”，见[输出格式](plugins/bos-plugin/skills/bos-demand-query/SKILL.md#输出格式)。区分正文、图片和附件，不写回 BOS。
 - [bos-demand-entry](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md)：从 Git、主题及资料或工作记录生成标版文本/Excel；支持给其他组提需，回填编号后仅代码按需衔接提交；结合上下文判断完成状态，已完成条目追加备注；无需查询凭据。
 - [主子需求与代码归属](docs/demand-code-ownership.md)：业务按验收拆分，共享代码唯一归主需求，主子日志复用真实提交；明确无代码可跳过对应阶段。
-- [bos-code-update-log](plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)：从已有 Git 提交生成预览，并按明确授权补录 BOS 代码更新日志；独立凭据与需求查询共用私有文件。
-- [bos-demand-handle](plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：处理已有需求号或充分正文，主动读取相关媒体并按技术栈实施、自查和验证；全部提交校验成功后复用本次仓库/hash 准备日志计划，再按明确 BOS 授权补录。IRIS 专项直达，正式协作按条件加载。
+- [bos-code-update-log](plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)：仅从已核验实仓 commit 生成预览并按授权补录 BOS 代码更新日志，worktree 先合入实仓；独立凭据与需求查询共用私有文件。
+- [bos-demand-handle](plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：处理已有需求号或充分正文，主动读取相关媒体并按技术栈实施、自查和验证；全部实仓提交校验成功后复用本次 repo/ref/hash 准备日志计划，再按明确 BOS 授权补录。IRIS 专项直达，正式协作按条件加载。
 
 0.4.0 统一按 skill 分段的私有配置，旧平铺文件须明确迁移，运行时不回退旧连接来源；见插件配置说明。插件默认 available。个人查询可使用用户级入口，不要求启用业务项目；项目使用按 profile 接入。普通更新不修改私有配置、用户级入口或客户端设置。首次使用与已有用户迁移见 [配置说明](plugins/bos-plugin/references/usage.md)和[接入说明](plugins/bos-plugin/references/adoption.md)，流程见 [bos-demand workflow](workflows/bos-demand.workflow.md)。
 
@@ -292,7 +292,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 插件的阶段可用性依赖由 manifest 声明，更新时提示、调用前检查；与要求 enabled 的强依赖分开，见[依赖协议](docs/plugin-availability.md)。
 
-跨技术栈的数字需求号提交与连续人工验收。demand-commit 支持 standard/project、精确文件计划、防漂移和本地提交校验；--plan 不提交，--commit 仅授权本地提交。[demand-acceptance](plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md) 接收连续验收与断点恢复；明确调用开展验收交付即授权该批次通过项提交、BOS 日志及推送，无需交付开关。独立需求逐号交付，主子共享提交及明确无代码项先按[代码归属协议](docs/demand-code-ownership.md)分流，不将单个子项通过视为整组可提交。默认当前工作区，`--worktree [路径]` 指定变更来源；`--pass` 支持编号列表及多行“编号＋标题”人工通过结论。选用 BOS 写入时条件使用 bos-plugin。按项目 profile 接入并刷新 thin-index，已部署旧入口由更新器迁移。报告按[共享测试协议](agents/_shared/testing-protocol.md#结果与交接)分别统计人工补验与待用户验收结论，保留实际功能验证范围。处理报告固定包含本批全部需求号汇总（含基线已满足、无需新增代码项），状态分组另列；格式与完整性核对见 [编号汇总契约](plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#编号汇总契约)。
+跨技术栈的数字需求号提交与连续人工验收。demand-commit 支持 standard/project、精确文件计划、防漂移和本地提交校验；--plan 不提交，--commit 仅授权本地提交。[demand-acceptance](plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md) 接收连续验收与断点恢复；明确调用开展验收交付即授权该批次通过项提交、BOS 日志及推送，无需交付开关。独立需求逐号交付，主子共享提交及明确无代码项先按[代码归属协议](docs/demand-code-ownership.md)分流，不将单个子项通过视为整组可提交。默认定位当前工作区来源，`--worktree [路径]` 显式指定来源；最终目标单独确认，BOS 前须取得实仓 commit，own/parent/none 混合组逐项及整组分别核验完成；`--pass` 支持编号列表及多行“编号＋标题”人工通过结论。选用 BOS 写入时条件使用 bos-plugin。按项目 profile 接入并刷新 thin-index，已部署旧入口由更新器迁移。报告按[共享测试协议](agents/_shared/testing-protocol.md#结果与交接)分别统计人工补验与待用户验收结论，保留实际功能验证范围。处理报告固定包含本批全部需求号汇总（含基线已满足、无需新增代码项），状态分组另列；格式与完整性核对见 [编号汇总契约](plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#编号汇总契约)。
 
 ### coding-iris-plugin
 

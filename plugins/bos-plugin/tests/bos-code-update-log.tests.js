@@ -18,7 +18,7 @@ function git(repo, args) {
   assert.equal(r.status, 0, r.stderr); return r.stdout.trim();
 }
 function repo(root, name = 'repo') {
-  const dir = path.join(root, name); fs.mkdirSync(dir); git(dir, ['init']);
+  const dir = path.join(root, name); fs.mkdirSync(dir); git(dir, ['init', '-b', 'dev']);
   git(dir, ['config', 'user.name', 'synthetic-user']); git(dir, ['config', 'user.email', 'synthetic@example.invalid']);
   git(dir, ['config', 'core.hooksPath', path.join(root, 'empty-hooks')]);
   git(dir, ['remote', 'add', 'origin', `https://example.invalid/group/${name}.git`]);
@@ -70,16 +70,16 @@ test('real Git collection supports batched commits and interleaved repositories 
   const a1 = commit(a, '示例.txt', 'one\n', message());
   const b1 = commit(b, 'b.txt', 'two\n', message('1001', '菜单二', '说明二'));
   const a2 = commit(a, '示例.txt', 'one\nthree\n', message('1002'));
-  const select = [{ repo: a, hash: a1 }, { repo: b, hash: b1 }, { repo: a, hash: a2 }, { repo: a, hash: a1 }];
+  const select = [{ repo: a, hash: a1 }, { repo: b, hash: b1 }, { repo: a, hash: a2 }, { repo: a, hash: a1 }].map(item => ({ ...item, ref: 'refs/heads/dev' }));
   const records = log.selectRecords(select); assert.deepEqual(records.map(r => r.hash), [a1, b1, a2]);
   assert.equal(records[0].project, 'repo-a'); assert.equal(records[0].files[0].path, '示例.txt');
-  assert.equal(records[2].files[0].addLines, 1); assert.equal(log.listCommits(a, 1)[0].hash, a2);
+  assert.equal(records[2].files[0].addLines, 1); assert.equal(log.listCommits(a, 1, 'refs/heads/dev')[0].hash, a2);
   assert.deepEqual(log.listRepos(f.root, 1).map(r => r.name).sort(), ['repo-a', 'repo-b']);
   assert.throws(() => log.selectRecords([{ repo: a, hash: '--all' }]), /hash/);
 });
 test('plan and unconfirmed submit perform zero network requests; confirmed submit uses exactly the selected payload', async t => {
   const f = fixture(t), dir = repo(f.root), hash = commit(dir, 'a.txt', 'one\n', message());
-  const input = JSON.stringify({ select: [{ repo: dir, hash }] }); let requests = 0;
+  const input = JSON.stringify({ select: [{ repo: dir, ref: 'refs/heads/dev', hash }] }); let requests = 0;
   const fetchImpl = async (url, options) => {
     requests++; assert.equal(url, config.url); assert.equal(options.headers.Authorization, 'Bearer ' + config.token);
     assert.equal(options.redirect, 'error'); assert.equal(JSON.parse(options.body)[0].Repository[0].CodeRepositoryVersion, hash);
@@ -91,15 +91,17 @@ test('plan and unconfirmed submit perform zero network requests; confirmed submi
   const preview = await log.main(['submit', input], options); assert.equal(preview.ok, false); assert.equal(requests, 0);
   const result = await log.main(['submit', input, '--confirm'], options); assert.equal(result.submitted, true); assert.equal(requests, 1);
 });
-test('success requires HTTP 2xx and every ResultCode; errors are redacted and requests never retry', async () => {
+test('success requires HTTP 2xx and every ResultCode; errors are redacted and requests never retry', async t => {
+  const f = fixture(t), dir = repo(f.root), hash = commit(dir, 'a.txt', 'one\n', message());
+  const input = { select: [{ repo: dir, ref: 'refs/heads/dev', hash }] };
   let requests = 0;
   const response = (data, ok = true, status = 200) => async () => { requests++; return { ok, status, json: async () => data }; };
-  assert.deepEqual((await log.submit([], config, response([{ ResultCode: '000' }, { ResultCode: '000' }]))).resultCodes, ['000', '000']);
-  for (const data of [[], {}, null, { ResultCode: '500' }, [{ ResultCode: '000' }, { ResultCode: '500' }]]) await assert.rejects(log.submit([], config, response(data)), /失败/);
-  await assert.rejects(log.submit([], config, response({ Message: 'denied ' + config.token }, false, 401)), e => e.message.includes('HTTP 401') && !e.message.includes(config.token));
+  assert.deepEqual((await log.submit(input, config, response([{ ResultCode: '000' }, { ResultCode: '000' }]))).resultCodes, ['000', '000']);
+  for (const data of [[], {}, null, { ResultCode: '500' }, [{ ResultCode: '000' }, { ResultCode: '500' }]]) await assert.rejects(log.submit(input, config, response(data)), /失败/);
+  await assert.rejects(log.submit(input, config, response({ Message: 'denied ' + config.token }, false, 401)), e => e.message.includes('HTTP 401') && !e.message.includes(config.token));
   const before = requests;
-  await assert.rejects(log.submit([], config, async () => { requests++; const error = Error(config.token); error.name = 'TimeoutError'; throw error; }), /结果未知/);
+  await assert.rejects(log.submit(input, config, async () => { requests++; const error = Error(config.token); error.name = 'TimeoutError'; throw error; }), /结果未知/);
   assert.equal(requests, before + 1);
-  await assert.rejects(log.submit([], config, async () => { throw Error(config.token); }), e => !e.message.includes(config.token));
-  const success = await log.submit([], config, response({ ResultCode: '000', ResultMsg: config.token })); assert.ok(!JSON.stringify(success).includes(config.token));
+  await assert.rejects(log.submit(input, config, async () => { throw Error(config.token); }), e => !e.message.includes(config.token));
+  const success = await log.submit(input, config, response({ ResultCode: '000', ResultMsg: config.token })); assert.ok(!JSON.stringify(success).includes(config.token));
 });

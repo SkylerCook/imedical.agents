@@ -14,6 +14,8 @@ on:
       - 'plugins/bos-plugin/scripts/demand-entry*.js'
       - 'plugins/demand-delivery-plugin/tests/demand-commit.test.js'
       - 'scripts/lib/demand-code-binding.js'
+      - 'scripts/lib/real-repository-commit.js'
+      - 'scripts/tests/real-repository-commit.tests.js'
       - 'scripts/tests/demand-hierarchy.tests.js'
       - 'scripts/lib/workspace-context.js'
       - 'scripts/lib/WorkspaceContext.psm1'
@@ -38,6 +40,7 @@ jobs:
       - run: node --test scripts/tests/plugin-availability.tests.js
       - run: node --test plugins/bos-plugin/tests/*.tests.js scripts/tests/bos-plugin.tests.js plugins/demand-delivery-plugin/tests/demand-commit.test.js plugins/demand-delivery-plugin/tests/commit-upstream-check.test.js
       - run: node --test scripts/tests/demand-hierarchy.tests.js scripts/tests/workspace-context.tests.js scripts/tests/standard-demand-entry.tests.js
+      - run: node --test scripts/tests/real-repository-commit.tests.js plugins/demand-delivery-plugin/tests/acceptance-session.test.js
       - run: node --test --test-name-pattern="project links resolve" scripts/tests/documentation-layout.tests.js
       - if: runner.os == 'Windows'
         shell: powershell

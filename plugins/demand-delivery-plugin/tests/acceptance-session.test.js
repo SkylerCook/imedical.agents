@@ -30,13 +30,27 @@ function fixture(t, keys = ['api'], ids = ['10', '2'], deliveryActions = ['commi
   const claim = (id = '10', owner = 'worker-a', worktrees) => act('claim', { id, owner, worktrees });
   const publish = (id = '10', owner = 'worker-a') => act('publish', { id, owner });
   const prepare = () => { decision(); authorize(); claim(); publish(); };
+  const hashes = new Map();
   const commit = (id = '10') => {
     const item = state().demands.find(item => item.id === id);
-    return { status: 'verified', demand: id, repositories: item.repositories.map((repo, i) => ({
+    return { status: 'verified', demand: id, repositories: item.repositories.map(repo => {
+      const root = item.claim.worktrees[repo.key], cacheKey = root + ':' + id;
+      const git = args => {
+        const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', windowsHide: true });
+        assert.equal(result.status, 0, result.stderr); return result.stdout.trim();
+      };
+      if (!hashes.has(cacheKey)) {
+        if (!fs.existsSync(path.join(root, '.git'))) git(['init', '-b', 'dev']);
+        for (const [key, value] of [['user.name', 'Fixture'], ['user.email', 'fixture@example.invalid'], ['commit.gpgSign', 'false'], ['core.hooksPath', path.join(root, 'empty-hooks')]]) git(['config', key, value]);
+        fs.writeFileSync(path.join(root, 'changed.txt'), id + '\n'); git(['add', 'changed.txt']);
+        git(['commit', '-m', 'fix(' + id + '): synthetic\n修改说明: preserve scope']);
+        hashes.set(cacheKey, git(['rev-parse', 'HEAD']));
+      }
+      return {
       root: item.claim.worktrees[repo.key], files: repo.files,
       message: 'fix(' + id + '): synthetic\n修改说明: preserve scope\n',
-      execution: { status: 'verified', commit: String(i + 1).repeat(40) }
-    })) };
+      execution: { status: 'verified', commit: hashes.get(cacheKey) }
+    }; }) };
   };
   const record = (phase, status, receipt, extra = {}) => act('record', { id: '10', owner: 'worker-a', phase, status, receipt, ...extra });
   const commits = () => record('commit', 'succeeded', commit());
@@ -98,12 +112,12 @@ test('all repositories must have exact verified commits before a BOS receipt is 
 });
 test('unknown BOS outcome blocks retry until a direct user reconciliation for the exact selection', t => {
   const f = fixture(t); f.prepare(); f.commits();
-  f.record('bos', 'running'); f.record('bos', 'unknown', undefined, { evidenceRef: 'protected/transport.json' });
+  f.record('bos', 'running', { select: api.selection(f.state().demands[0]) }); f.record('bos', 'unknown', undefined, { evidenceRef: 'protected/transport.json' });
   assert.throws(() => f.record('bos', 'running'), /reconcile/);
   assert.throws(() => f.record('bos', 'succeeded', { select: [], submitted: true, resultCodes: ['000'] }), /Reconcile/);
   assert.throws(() => f.act('reconcile-bos', { id: '10', owner: 'worker-a', actor: 'agent', quote: 'probably saved', status: 'not-submitted' }), /direct user/);
   const selection = api.selection(f.state().demands[0]);
-  f.act('reconcile-bos', { id: '10', owner: 'worker-a', actor: 'user', quote: 'The exact two repository versions exist in BOS', status: 'succeeded', receipt: { select: selection, resultCodes: ['000'] } });
+  f.act('reconcile-bos', { id: '10', owner: 'worker-a', actor: 'user', quote: 'The exact two repository versions exist in BOS', status: 'succeeded', receipt: { select: selection, submitted: true, resultCodes: ['000'] } });
   f.record('push', 'succeeded', f.push('api'));
   assert.equal(api.summarize(f.state(), 'delivered').count, 1);
 });
@@ -122,10 +136,11 @@ test('partial push survives restart and does not require a second BOS write', t 
 test('integration preserves the BOS-linked business hash and requires verified ancestry', t => {
   const f = fixture(t); f.prepare(); f.commits(); f.bos();
   const receipt = f.push('api'); receipt.repositories[0].remoteHash = 'a'.repeat(40);
+  const hash = f.state().demands[0].delivery.commit.records[0].hash;
   assert.throws(() => f.record('push', 'succeeded', receipt), /containment/);
   receipt.repositories[0].containsVerified = true;
   f.record('push', 'succeeded', receipt);
-  assert.equal(f.state().demands[0].delivery.commit.records[0].hash, '1'.repeat(40));
+  assert.equal(f.state().demands[0].delivery.commit.records[0].hash, hash);
 });
 test('single-row and many-row summaries are exact BOS query input, with numeric ordering and deduplication', t => {
   const f = fixture(t); f.decision('10'); f.decision('2');
@@ -190,7 +205,7 @@ for (const refreshed of [false, true]) test('accepts the actual verified commit-
     const result = spawnSync(command, args, { cwd, encoding: 'utf8', windowsHide: true, timeout: 30000, env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' } });
     assert.equal(result.status, 0, result.stderr || result.stdout || result.error?.message); return result.stdout;
   };
-  run('git', ['init', '-b', 'main']);
+  run('git', ['init', '-b', 'dev']);
   run('git', ['config', 'user.name', 'Acceptance Fixture']);
   run('git', ['config', 'user.email', 'fixture@example.invalid']);
   run('git', ['config', 'commit.gpgSign', 'false']);
@@ -201,8 +216,8 @@ for (const refreshed of [false, true]) test('accepts the actual verified commit-
   const remote = path.join(f.root, 'commit-remote.git'), actor = path.join(f.root, 'commit-actor');
   if (refreshed) {
     run('git', ['init', '--bare', remote]);
-    run('git', ['remote', 'add', 'origin', remote]); run('git', ['push', '-u', 'origin', 'main']);
-    run('git', ['clone', '-b', 'main', remote, actor], f.root);
+    run('git', ['remote', 'add', 'origin', remote]); run('git', ['push', '-u', 'origin', 'dev']);
+    run('git', ['clone', '-b', 'dev', remote, actor], f.root);
     for (const [key,value] of [['user.name','Refresh Fixture'],['user.email','refresh@example.invalid'],
       ['commit.gpgSign','false'],['core.hooksPath',hooks]]) run('git',['config',key,value],actor);
   }
@@ -232,14 +247,14 @@ for (const refreshed of [false, true]) test('accepts the actual verified commit-
   f.record('commit', 'succeeded', verified);
   const item = f.state().demands[0];
   assert.equal(item.delivery.commit.records[0].hash, run('git', ['rev-parse', 'HEAD']).trim());
-  assert.deepEqual(api.selection(item), [{ repo, hash: verified.repositories[0].execution.commit }]);
+  assert.deepEqual(api.selection(item), [{ repo, ref: 'refs/heads/dev', hash: verified.repositories[0].execution.commit }]);
   assert.equal(api.summarize(f.state(), 'delivered').count, 0);
 });
 
 test('confirmed BOS readback recovers without user interruption and releases commit-plus-BOS ownership', t => {
   for (const actor of ['agent', 'user']) {
     const f = fixture(t, ['api'], ['10', '2'], ['commit', 'bos-log']);
-    f.prepare(); f.commits(); f.record('bos', 'running'); f.record('bos', 'unknown');
+    f.prepare(); f.commits(); f.record('bos', 'running', { select: api.selection(f.state().demands[0]) }); f.record('bos', 'unknown');
     const input = { id: '10', owner: 'worker-a', actor, status: 'succeeded', receipt: { select: api.selection(f.state().demands[0]), submitted: true, resultCodes: ['000'] } };
     if (actor === 'agent') {
       assert.throws(() => f.act('reconcile-bos', input), /readback/);

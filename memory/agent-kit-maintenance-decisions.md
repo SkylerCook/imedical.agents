@@ -123,7 +123,7 @@
 
 ## 跨插件一致性
 
-- 需求的业务拆分、代码归属、共享日志与验收分流统一由[代码归属协议](../docs/demand-code-ownership.md)维护，BOS 与交付 owner 共用；旧草稿和批次保留原契约，不自动升级或产生写入授权。维护说明引用该协议，不再用逐号独立提交概括全部交付类型。
+- BOS 代码日志统一以[实仓 commit 门禁](../plugins/bos-plugin/references/code-update-log.md#实仓-commit-门禁)为前提；worktree 阶段提交仅作来源恢复，parent 无独立提交仍须引用主实仓提交，none 才跳过。需求的业务拆分、代码归属、共享日志与验收分流统一由[代码归属协议](../docs/demand-code-ownership.md)维护，BOS 与交付 owner 共用；旧草稿和批次保留原契约，不自动升级或产生写入授权。维护说明引用该协议，不再用逐号独立提交概括全部交付类型。
 
 - availableDependencies 是按阶段触发的文件/入口依赖，允许 available/enabled，显式 disabled 停止对应阶段；不进入强依赖递归、版本范围或自动启用。声明在 manifest，执行协议见 docs/plugin-availability.md。
 

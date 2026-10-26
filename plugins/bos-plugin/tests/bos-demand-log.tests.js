@@ -62,7 +62,7 @@ for (const count of [1, 2]) test(`verified ${count}-repository commit result map
     assert.equal(repository.execution.status, 'verified');
     assert.match(repository.execution.commit, /^[0-9a-f]{40}$/);
   }
-  const input = JSON.stringify({ select: committed.repositories.map(repository => ({ repo: repository.root, hash: repository.execution.commit })) });
+  const input = JSON.stringify({ select: committed.repositories.map(repository => ({ repo: repository.root, ref: 'refs/heads/main', hash: repository.execution.commit })) });
   // A later commit must never replace the verified selection during authorization.
   const advancedRepo = committed.repositories[0].root;
   fs.writeFileSync(path.join(advancedRepo, 'later.txt'), 'outside this demand\n');
@@ -99,7 +99,7 @@ test('missing log configuration after verification performs no request and prese
   const f = fixture(t, 1);
   const committed = JSON.parse(apply(f).stdout);
   const selected = committed.repositories[0];
-  const input = JSON.stringify({ select: [{ repo: selected.root, hash: selected.execution.commit }] });
+  const input = JSON.stringify({ select: [{ repo: selected.root, ref: 'refs/heads/main', hash: selected.execution.commit }] });
   fs.writeFileSync(f.configFile, JSON.stringify({ 'bos-code-update-log': { token: 'TODO', linkProject: 'TODO', connection: 'company' } }));
   let requests = 0;
   await assert.rejects(log.main(['plan', input], { env: f.env, fetchImpl: async () => { requests++; } }), /token|TODO/);
