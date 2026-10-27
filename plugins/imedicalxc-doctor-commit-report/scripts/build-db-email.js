@@ -10,6 +10,89 @@ const DDL_DOC_NAME = '【腾讯文档】信创版HIS数据库升级脚本汇总�
 const STD_ENV_URL = 'http://82.156.104.202:32678/imedical/his/hos/login';
 const STD_ENV_NAME = '信创标准环境';
 
+// ========== 影响表映射逻辑（从 build-impact-table.js 复用） ==========
+const REPO_TO_SYSTEM = {
+  'src/backend/care/opcare-mediway-boot': '门诊诊疗信息系统',
+  'src/backend/care/ipcare-mediway-boot': '住院诊疗信息系统',
+  'src/backend/care/comoe-mediway': '门诊诊疗信息系统',
+  'src/backend/care/cfoe-mediway': '门诊诊疗信息系统',
+  'src/backend/care/commr-mediway': '门诊诊疗信息系统',
+  'src/backend/care/cfmr-mediway': '门诊诊疗信息系统',
+  'src/backend/care/aggcare-mediway-boot': '门诊诊疗信息系统',
+  'src/backend/public/his-mediway-boot': '公共模块',
+  'src/backend/public/hisbase-mediway': '公共模块',
+  'src/backend/public/hiscore-mediway-boot': '公共模块',
+  'src/backend/public/cf/hiscf-mediway-boot': '门诊诊疗信息系统',
+  'src/backend/public/cf/hiscfsv-mediway': '门诊诊疗信息系统',
+  'src/backend/public/ct/hisct-mediway-boot': '门诊诊疗信息系统',
+  'src/backend/public/ct/hisctsv-mediway': '门诊诊疗信息系统',
+  'src/backend/opreg-mediway-boot': '门诊服务信息系统（注册挂号）',
+  'src/backend/hispa-mediway-boot': '门诊服务信息系统（注册挂号）',
+  'src/backend/opalloc-mediway-boot': '门诊分诊系统',
+  'src/backend/ma-mediway-boot': '医务管理',
+  'src/backend/curc-mediway-boot': '康复治疗系统',
+  'src/frontend/hisfront': '前端'
+};
+
+const SYSTEM_TO_WORKSTATION = {
+  '门诊诊疗信息系统': '门诊诊疗医师工作站',
+  '住院诊疗信息系统': '住院诊疗医师工作站',
+  '门诊服务信息系统（注册挂号）': '注册挂号工作站',
+  '门诊分诊系统': '门诊分诊工作站',
+  '康复治疗系统': '康复治疗科室工作站',
+  '临床试验管理系统': '临床试验工作站',
+  '临床化疗系统': '临床化疗工作站',
+  '公共模块': '诊疗配置工作站',
+  '医务管理': '诊疗配置工作站',
+  '前端': '（前端通用）'
+};
+
+function determineWorkstation(repo, system) {
+  if (system && SYSTEM_TO_WORKSTATION[system]) return SYSTEM_TO_WORKSTATION[system];
+  if (repo.includes('opcare') || repo.includes('opreg') || repo.includes('opalloc')) return '门诊诊疗医师工作站';
+  if (repo.includes('ipcare')) return '住院诊疗医师工作站';
+  if (repo.includes('curc')) return '康复治疗科室工作站';
+  if (repo.includes('cf/') || repo.includes('ct/')) return '诊疗配置工作站';
+  return '（未分类）';
+}
+
+function determineModule(ev, mapping) {
+  const text = `${ev.impactScope || ''} ${ev.summary || ''}`;
+  if (text.includes('医嘱')) return '医嘱录入';
+  if (text.includes('诊断')) return '诊断录入';
+  if (text.includes('检验') || text.includes('检查')) return '检验检查申请';
+  if (text.includes('病历')) return '病历文书';
+  if (text.includes('配置')) return '常用维护';
+  if (text.includes('排班') || text.includes('挂号')) return '门诊挂号';
+  return '（待确认）';
+}
+
+function buildImpactRows(evaluations, rawCommits, mapping) {
+  if (!evaluations || evaluations.length === 0) return [];
+  const filesByHash = {};
+  if (rawCommits) {
+    for (const c of rawCommits) {
+      if (c.hash && c.files) filesByHash[c.hash] = c.files;
+    }
+  }
+  return evaluations.map((ev) => {
+    const system = REPO_TO_SYSTEM[ev.repo] || '（未分类）';
+    const workstation = determineWorkstation(ev.repo, system);
+    const funcModule = determineModule(ev, mapping);
+    const funcPoint = ev.impactScope || ev.summary || '（待分析）';
+    return {
+      workstation,
+      funcModule,
+      funcPoint,
+      reqType: ev.reqType || '代码变更',
+      author: ev.author || '—',
+      repo: ev.repo || '—',
+      changePoint: ev.summary || '—'
+    };
+  });
+}
+// ========== 影响表逻辑结束 ==========
+
 function buildRows(db) {
   const rows = [];
   for (const p of db.poChanges || []) {
@@ -70,6 +153,7 @@ function buildEmailMd(db, opts = {}) {
   const w = (db.meta && db.meta.window) || {};
   const range = w.since && w.until ? `${w.since} ~ ${w.until}` : (w.label || '');
   const rows = buildRows(db);
+  const impactRows = opts.impactRows || [];
   const lines = [];
   lines.push(`# ${SUBJECT}${opts.suffix || ''}`);
   lines.push('');
@@ -114,6 +198,18 @@ function buildEmailMd(db, opts = {}) {
   lines.push('');
   lines.push(`[信创标准环境](${STD_ENV_URL}) → 使用demo账户登录 → 打开【代码表缓存管理】，参照代码信息进行数据维护。`);
   lines.push('');
+  if (impactRows.length > 0) {
+    lines.push('## 三、功能变更影响表');
+    lines.push('');
+    lines.push('本期开发提交涉及以下功能变更，请相关岗位工作站负责人组织测试验证。');
+    lines.push('');
+    lines.push('| 岗位工作站 | 功能模组 | 功能模块 | 需求类型 | 提交人 | 仓库 | 改造功能点 |');
+    lines.push('|-----------|---------|---------|---------|-------|------|-----------|');
+    for (const r of impactRows) {
+      lines.push(`| ${r.workstation} | ${r.funcModule} | ${r.funcPoint} | ${r.reqType} | ${r.author} | ${r.repo} | ${r.changePoint} |`);
+    }
+    lines.push('');
+  }
   return lines.join('\n');
 }
 
@@ -122,6 +218,7 @@ function buildEmailHtml(db, opts = {}) {
   const w = (db.meta && db.meta.window) || {};
   const range = w.since && w.until ? `${w.since} ~ ${w.until}` : (w.label || '');
   const rows = buildRows(db);
+  const impactRows = opts.impactRows || [];
 
   const wrapStyle = 'max-width: 780px; margin: 0 auto; padding: 28px 32px 20px;'
     + " font-family: 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', Arial, sans-serif;"
@@ -133,6 +230,9 @@ function buildEmailHtml(db, opts = {}) {
   const thStyle = 'border: 1px solid #d9d9d9; background: #f2f6fa; padding: 8px 10px;'
     + ' text-align: left; font-weight: bold; color: #1f4e79; white-space: nowrap;';
   const tdStyle = 'border: 1px solid #d9d9d9; padding: 8px 10px; vertical-align: top; word-break: break-all;';
+  const impactThStyle = 'border: 1px solid #d9d9d9; background: #f2f6fa; padding: 6px 8px;'
+    + ' text-align: left; font-weight: bold; color: #1f4e79; white-space: nowrap; font-size: 12px;';
+  const impactTdStyle = 'border: 1px solid #d9d9d9; padding: 6px 8px; vertical-align: top; word-break: break-all; font-size: 12px;';
 
   let tableBlock;
   if (rows.length === 0) {
@@ -198,6 +298,41 @@ function buildEmailHtml(db, opts = {}) {
   lines.push(`    <h4 style="${h4Style}">4. 新增代码表缓存配置</h4>`);
   lines.push(`    <p style="margin: 0 0 10px;"><a href="${STD_ENV_URL}" style="color: #1f4e79;">信创标准环境</a> → 使用demo账户登录 → 打开【代码表缓存管理】，参照代码信息进行数据维护。</p>`);
   lines.push('');
+  if (impactRows.length > 0) {
+    lines.push(`    <h3 style="${h3Style}">三、功能变更影响表</h3>`);
+    lines.push(`    <p style="margin: 0 0 12px;">本期开发提交涉及以下功能变更，请相关岗位工作站负责人组织测试验证。</p>`);
+    const impactTrs = impactRows
+      .map((r) => `      <tr>
+        <td style="${impactTdStyle}">${escapeHtml(r.workstation)}</td>
+        <td style="${impactTdStyle}">${escapeHtml(r.funcModule)}</td>
+        <td style="${impactTdStyle}">${escapeHtml(r.funcPoint)}</td>
+        <td style="${impactTdStyle}">${escapeHtml(r.reqType)}</td>
+        <td style="${impactTdStyle}">${escapeHtml(r.author)}</td>
+        <td style="${impactTdStyle}">${escapeHtml(r.repo)}</td>
+        <td style="${impactTdStyle}">${escapeHtml(r.changePoint)}</td>
+      </tr>`)
+      .join('\n');
+    lines.push(`    <div style="overflow-x: auto;">`);
+    lines.push(`    <table style="border-collapse: collapse; width: 100%; font-size: 12px;">`);
+    lines.push('      <thead>');
+    lines.push('        <tr>');
+    lines.push(`          <th style="${impactThStyle}">岗位工作站</th>`);
+    lines.push(`          <th style="${impactThStyle}">功能模组</th>`);
+    lines.push(`          <th style="${impactThStyle}">功能模块</th>`);
+    lines.push(`          <th style="${impactThStyle}">需求类型</th>`);
+    lines.push(`          <th style="${impactThStyle}">提交人</th>`);
+    lines.push(`          <th style="${impactThStyle}">仓库</th>`);
+    lines.push(`          <th style="${impactThStyle}">改造功能点</th>`);
+    lines.push('        </tr>');
+    lines.push('      </thead>');
+    lines.push('      <tbody>');
+    lines.push(impactTrs);
+    lines.push('      </tbody>');
+    lines.push('    </table>');
+    lines.push('    </div>');
+    lines.push(`    <p style="margin: 8px 0 0; font-size: 11px; color: #999;">功能模块列基于静态映射，具体测试范围请结合实际变更确认。</p>`);
+    lines.push('');
+  }
   lines.push('    <p style="margin: 26px 0 0; padding-top: 12px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #999999;">本邮件由医生站信创产品迭代周报流程自动生成，请勿直接回复。</p>');
   lines.push('  </div>');
   lines.push('</body>');
@@ -209,7 +344,7 @@ function main() {
   const argv = process.argv.slice(2);
   const input = argv.find((a) => !a.startsWith('--'));
   if (!input) {
-    console.error('Usage: node build-db-email.js <db-changes-<label>.json> [--note=<更正说明>] [--subject-suffix=<标题后缀>]');
+    console.error('Usage: node build-db-email.js <db-changes-<label>.json> [--note=<更正说明>] [--subject-suffix=<标题后缀>] [--evaluations=<evaluations-<label>.json>] [--raw-commits=<raw-commits-<label>.json>]');
     process.exit(1);
   }
   const opt = (name) => {
@@ -218,6 +353,23 @@ function main() {
   };
   const opts = { note: opt('note'), suffix: opt('subject-suffix') };
   const db = JSON.parse(fs.readFileSync(input, 'utf8'));
+  
+  // 加载影响表数据
+  const evalPath = opt('evaluations');
+  const rawCommitsPath = opt('raw-commits');
+  let impactRows = [];
+  if (evalPath && fs.existsSync(evalPath)) {
+    const evalsRaw = JSON.parse(fs.readFileSync(evalPath, 'utf8'));
+    const evalList = Array.isArray(evalsRaw) ? evalsRaw : (evalsRaw.commits || evalsRaw.evaluations || []);
+    let rawCommits = null;
+    if (rawCommitsPath && fs.existsSync(rawCommitsPath)) {
+      const rawRaw = JSON.parse(fs.readFileSync(rawCommitsPath, 'utf8'));
+      rawCommits = rawRaw.commits || (Array.isArray(rawRaw) ? rawRaw : []);
+    }
+    impactRows = buildImpactRows(evalList, rawCommits, {});
+    opts.impactRows = impactRows;
+  }
+  
   const base = path.join(
     path.dirname(input),
     path.basename(input).replace(/^db-changes-/, 'db-change-email-').replace(/\.json$/, '')
@@ -228,6 +380,9 @@ function main() {
   console.log(`正文文件(MD): ${base}.md`);
   console.log(`正文文件(HTML): ${base}.html`);
   console.log(`变更行数: ${buildRows(db).length}`);
+  if (impactRows.length > 0) {
+    console.log(`影响表行数: ${impactRows.length}`);
+  }
 }
 
 main();
