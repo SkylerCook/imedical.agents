@@ -59,6 +59,56 @@ test('text requires no module code; bind reuses final BOSS title and canonical m
   assert.equal(draft.requirements[0].title, '模板校验');
   assert.throws(() => entry.bind(draft, 'r1', '7654321', 'another'), /已绑定不同需求/);
 });
+
+test('standard development labels survive code text and Excel without changing import fields', t => {
+  const { repo, temp } = fixture(t); const { spec } = draftFor(repo, temp);
+  const name = '{IRIS}[标版] 模板校验';
+  spec.requirements[0].name = name;
+  const draft = entry.prepare(spec, temp), item = draft.requirements[0];
+  assert.equal(draft.schema, 'iris-standard-demand/v2');
+  assert.equal(item.name, name);
+  assert.equal(item.title, '[标版] 模板校验');
+  assert.ok(entry.renderText(item).startsWith(`需求名称：\n\n${name}\n\n`));
+  const cell = (sheet, reference) => sheet.match(new RegExp(`<c r="${reference}"[^>]*><is><t[^>]*>([\\s\\S]*?)<\\/t><\\/is><\\/c>`))[1];
+  for (const common of [{ 模块编码: 'TEST' }, { 模块编码: 'TEST', 加入标准版: '否' }]) {
+    const sheet = unzipStored(buildWorkbook([item], common, entry.renderText))['xl/worksheets/sheet1.xml'];
+    assert.equal(cell(sheet, 'B2'), name);
+    assert.equal(cell(sheet, 'Q2'), entry.renderText(item, false));
+    assert.equal(cell(sheet, 'O2'), common.加入标准版 || '');
+  }
+  assert.deepEqual(item.fields, {});
+});
+
+test('explicit titles and final BOSS titles retain their exact labels during message generation', t => {
+  const { repo, temp } = fixture(t); const { spec } = draftFor(repo, temp);
+  spec.requirements[0].name = '{IRIS}[标版] 模板校验';
+  spec.requirements[0].title = '明确指定的内部标题';
+  for (const finalTitle of ['{IRIS}[标版] 最终模板校验', '{IRIS} BOSS 最终标题']) {
+    const draft = entry.prepare(spec, temp), item = draft.requirements[0];
+    assert.equal(item.title, '明确指定的内部标题');
+    entry.bind(draft, 'r1', '1234567', finalTitle);
+    assert.equal(item.boss.title, finalTitle);
+    assert.equal(entry.messages(draft, 'r1')[0].message,
+      `fix(1234567):模板维护\n修改说明:${modification}\n需求描述:1234567 ${finalTitle}\n`);
+    assert.equal(item.name, spec.requirements[0].name);
+  }
+});
+
+test('Git evidence for temporary demo data scripts does not add a standard development label', t => {
+  const { repo, temp } = fixture(t);
+  fs.writeFileSync(path.join(repo, 'demo-data.js'), 'console.log("synthetic demo data");\n');
+  const evidence = entry.collect({ repo, files: ['demo-data.js'] });
+  fs.writeFileSync(path.join(temp, 'demo-facts.json'), JSON.stringify(evidence));
+  const name = '{IRIS} 演示样例数据准备';
+  const draft = entry.prepare({ kind: 'standard', requirements: [{
+    key: 'demo', name, type: 'chore', subject: '演示数据准备',
+    description: { format: 'change', summary: '准备本次演示所需的样例数据，不改变产品功能。', steps: ['运行本次演示的数据准备脚本。'], expected: '获得本次演示使用的样例数据。' },
+    changes: [{ evidence: 'demo-facts.json', modification: '增加本次演示使用的样例数据准备脚本，输出合成数据供演示核对' }]
+  }] }, temp);
+  assert.equal(draft.requirements[0].name, name);
+  assert.equal(draft.requirements[0].title, '演示样例数据准备');
+  assert.doesNotMatch(entry.renderText(draft.requirements[0]), /\[标版\]/);
+});
 test('code or index drift blocks messages; unrelated files do not', (t) => {
   const { repo, temp } = fixture(t); const { draft } = draftFor(repo, temp); entry.bind(draft, 'r1', '123', '标题');
   fs.appendFileSync(path.join(repo, 'other.txt'), 'unrelated'); assert.doesNotThrow(() => entry.messages(draft, 'r1'));
@@ -274,6 +324,44 @@ function workFixture(t) {
   t.after(() => { assert.equal(path.dirname(temp), base); assert.ok(!fs.lstatSync(temp).isSymbolicLink()); fs.rmSync(temp, { recursive: true, force: true }); assert.ok(!fs.existsSync(temp)); });
   return temp;
 }
+
+test('work records keep meeting demo and data preparation names without standard labels', () => {
+  const spec = workSpec(), original = spec.requirements[0];
+  spec.requirements = ['演示方案会议', '功能演示', '演示样例数据准备'].map((goal, index) => ({
+    ...original, key: 'w' + index, name: '{IRIS} ' + goal,
+    description: { format: 'work', goal, activities: ['按已确认的工作范围开展' + goal] }
+  }));
+  const draft = entry.prepare(spec, '/missing-evidence', '/missing-project');
+  assert.equal(draft.schema, 'iris-standard-demand/v3');
+  assert.equal(draft.source, 'work');
+  for (const [index, item] of draft.requirements.entries()) {
+    assert.equal(item.name, spec.requirements[index].name);
+    assert.doesNotMatch(entry.renderText(item), /\[标版\]/);
+  }
+});
+test('work facts can describe standard development without relabeling another product', () => {
+  const spec = workSpec(), original = spec.requirements[0];
+  spec.requirements = [
+    { key: 'iris', name: '{IRIS}[标版] 登录提示改进', goal: '完成标版登录失败提示改进', activity: '调整产品登录界面的失败提示', result: '登录失败时显示明确的错误提示' },
+    { key: 'web', name: '{WEB} 演示方案会议', goal: '确认演示方案', activity: '讨论并确认演示范围', result: '形成已确认的演示方案' }
+  ].map(({ key, name, goal, activity, result }) => ({
+    ...original, key, name,
+    description: { format: 'work', goal, activities: [activity], outcome: { kind: 'result', text: result } },
+    sources: [{ kind: 'user', locator: '本轮合成工作说明', summary: result }],
+    progress: { status: 'completed', summary: '合成工作记录已明确完成结果' }, remarks: '已完成'
+  }));
+  const draft = entry.prepare(spec, '/missing-evidence', '/missing-project');
+  assert.equal(draft.schema, 'iris-standard-demand/v3');
+  assert.equal(draft.source, 'work');
+  for (const [index, item] of draft.requirements.entries()) {
+    assert.equal(item.name, spec.requirements[index].name);
+    assert.ok(entry.renderText(item).startsWith(`需求名称：\n\n${item.name}\n\n`));
+  }
+  assert.equal(draft.requirements[0].title, '[标版] 登录提示改进');
+  assert.equal(draft.requirements[1].title, '演示方案会议');
+  assert.doesNotMatch(entry.renderText(draft.requirements[1]), /\{IRIS\}|\[标版\]/);
+});
+
 test('work preparation needs no Git or submission project and preserves optional factual outcomes', () => {
   const spec = workSpec();
   const draft = entry.prepare(spec, '/missing-evidence', '/missing-project');
@@ -351,6 +439,22 @@ function requestSpec(format = 'bug') {
     progress: { status: 'planned', summary: '待接收组处理，未提供完成证据' }
   }] };
 }
+
+test('requests for standard development retain labels without requiring Git evidence', () => {
+  const spec = requestSpec('change'), name = '{IRIS}[标版] 登录失败提示改进';
+  spec.requirements[0].name = name;
+  const draft = entry.prepare(spec, '/missing-evidence', '/missing-project'), item = draft.requirements[0];
+  assert.equal(draft.schema, 'iris-standard-demand/v3');
+  assert.equal(draft.source, 'request');
+  assert.equal(item.name, name);
+  assert.equal(item.title, '[标版] 登录失败提示改进');
+  assert.ok(entry.renderText(item).startsWith(`需求名称：\n\n${name}\n\n`));
+  const sheet = unzipStored(buildWorkbook([item], spec.common, entry.renderText))['xl/worksheets/sheet1.xml'];
+  assert.ok(sheet.includes(name));
+  entry.bind(draft, 'r1', '1234567', name);
+  assert.equal(item.boss.title, name);
+  assert.throws(() => entry.messages(draft, 'r1', '/missing-project'), /无代码提交对象/);
+});
 
 test('request reuses bug/change prose without Git, prefix or submission dependencies', () => {
   for (const format of ['bug', 'change']) {

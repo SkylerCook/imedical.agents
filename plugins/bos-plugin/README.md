@@ -1,5 +1,7 @@
 # BOS Plugin
 
+0.18.0：需求名称按 [名称与标版标签规则](skills/bos-demand-entry/SKILL.md#需求名称与标版标签各类来源共用)区分标版产品开发与会议、演示、数据准备等工作，支持 `{IRIS}[标版] 标题`。脚本兼容旧名称，文本与 Excel 沿用同一 `name`；草稿 schema、CLI 和 Excel 分类字段不变，已确认的 BOS 最终标题保留原文。通过正常能力包更新并刷新已启用索引取得，无配置迁移、历史草稿改写或旧文件清理，不自动同步业务副本；已指向源技能的全局入口无需另改。
+
 0.17.0：BOS 日志以实仓 commit 为前置条件；select/bindings 必填实仓 repo、目标 ref 和完整 hash，plan/submit/最终写入均拒绝 worktree 来源及裸 payload。主子共享与无代码跳过按[代码归属](../../docs/demand-code-ownership.md)，CLI 迁移见[实仓门禁](references/code-update-log.md#实仓-commit-门禁)。完整更新两个 owner 及根 scripts/lib 后刷新已启用索引；旧回执保留，恢复前重新核实，不重发成功日志，无私有配置迁移或自动业务更新。
 
 0.16.1 补齐 manifest projectDirectories 的用途、典型产物、边界和生命周期，供项目受管目录说明复用。已接入工程通过普通更新刷新受管区；无标记 README 按[目录说明升级](../../docs/guides/project-knowledge-layout.md#持续目录说明)评审接管。目录默认值、显式配置和旧任务恢复位置沿原契约，不迁移或清理业务资料。

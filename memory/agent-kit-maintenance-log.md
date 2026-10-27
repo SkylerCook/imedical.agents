@@ -1,5 +1,14 @@
 # imedical.agents 维护日志
 
+## 2026-10-27 BOS 需求名称按产品交付目标区分标版标签
+
+- framework-maintenance，基点 `2101310d10170afbe910ca9f6732e52260385765`，按已确认计划实施。IRIS 标版代码、产品配置或 UI 开发使用 `{IRIS}[标版] 标题`；会议、演示、造数据及临时脚本/环境准备沿非标版工作命名。计划与已完成开发共用同一规则，三类来源逐条判断，不以 source、kind 或 Git 文件类型代替业务目标。
+- `bos-plugin` 0.17.0→0.18.0；复用 name，脚本仅扩展可选紧接标签的前缀校验。默认 title 只去产品标识、保留标签，显式 title 和 BOS 最终标题原样传递；文本/Excel 共用名称，“加入标准版”等分类、CLI、草稿 v2/v3/v4 和提交依赖不变。其它产品沿项目约定，旧草稿不自动改写。
+- 同步 owner AGENTS/README、协议、根 README、两份能力手册和不可变发布记录；规则事实源集中在 skill，维护入口和原 P2 队列引用。正常更新能力包并刷新已启用索引取得，全局适配入口已指向源技能无需另改；安装、更新及 thin-index 机制未改变，无需修改对应脚本或更新 runbook。
+- 本机 Windows、Node 24.14.1：`node --test --test-reporter=spec scripts/tests/standard-demand-entry.tests.js scripts/tests/demand-hierarchy.tests.js` 47/47 通过；审阅后新增 `work facts can describe standard development without relabeling another product`，按同名 pattern 定向补测 1/1 通过，共 48 个不同用例有通过结果，未机械重跑完整 48 例。覆盖三类来源、临时造数据 Git 脚本、新旧草稿、标题及 Excel 同源/分类保持。首次沙箱运行受隔离 Git 初始化权限限制，获批同命令重跑后通过；fixture 清理 hook 全部通过，无额外临时日志或脚本。
+- 独立源码审阅无阻断问题，11 个合成场景规则试读符合计划；文档链接专项 1/1、新增发布记录链接、JavaScript 语法与差异检查通过。`validation-evidence` 已保存 `bos-standard-label` 的两条原始命令及内容指纹，独立 check 返回 fingerprint-match，保留本机缓存供提交复用；沙箱缓存原子替换失败留下的本任务临时文件已精确清理并核实不存在。只读工作树版本预检唯一变更 owner 为 bos-plugin，和 HEAD 基线相比新增问题 0；仍有 imedicalxc-doctor-extend-engineer 1.0.2–1.0.4 发布记录 commit 的既有 6 条诊断，未改写历史。
+- 现有 standard-demand-entry / BOS CI 已覆盖本专项的 Windows/macOS/Linux × Node 22/24 矩阵；非本机结果、真实宿主逐条判断及 BOS 导入沿既有 P2 队列取证，不把规则试读或本机回归宣称为业务副本已生效。实施阶段未暂存、提交、推送、部署业务副本或操作真实 BOS；用户随后明确授权本批 c + p，提交前已核实功能指纹匹配、两端 master 均在实施基点，按本批 15 个路径精确暂存并执行 staged 版本门禁，随后按 README 约定同步 Gitee 与 GitHub；提交与推送结果以 Git 记录为准，业务副本升级仍独立授权。
+
 ## 2026-10-26 实仓提交门禁与主子需求闭环
 
 - framework-maintenance，按已确认计划实施。BOS 日志以实仓 repo/ref/完整 hash 为前置条件，plan/submit/最终写入共用只读 Git 门禁，拒绝 worktree 来源及裸 payload；凭据在来源验证后读取。

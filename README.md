@@ -261,7 +261,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 - [bos-init](plugins/bos-plugin/skills/bos-init/SKILL.md)：个人配置初始化与项目接入分别执行；Windows 可生成仓外私有配置并绑定用户环境变量，用户填写 TODO。项目接入才启用插件并生成四个日常入口。
 - [bos-demand-query](plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：默认个人待办，`--proj` 项目 / `--dev` 产品（非项目）可组合；`--todo [日期或范围]` 查个人开发待办（可不带日期，带日期按预计完成时间），`--workload 日期或范围` 查工作量（执行日期必填）；人员流转及状态组合见[个人查询口径](plugins/bos-plugin/references/usage.md#个人待办与工作量口径)。原人员/组、历史与编号详情查询继续可用；默认列表含创建时间，待办默认创建日期升序，可用 `--sort` / `--order` 指定其它日期及方向；必含需求号/标题，末尾默认追加发起人/发起组，可指定其它列或“只要需求串”，见[输出格式](plugins/bos-plugin/skills/bos-demand-query/SKILL.md#输出格式)。区分正文、图片和附件，不写回 BOS。
-- [bos-demand-entry](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md)：从 Git、主题及资料或工作记录生成标版文本/Excel；支持给其他组提需，回填编号后仅代码按需衔接提交；结合上下文判断完成状态，已完成条目追加备注；无需查询凭据。
+- [bos-demand-entry](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md)：从 Git、主题及资料或工作记录生成需求文本/Excel；名称按[标版标签规则](plugins/bos-plugin/skills/bos-demand-entry/SKILL.md#需求名称与标版标签各类来源共用)逐条判断；支持给其他组提需，回填编号后仅代码按需衔接提交；结合上下文判断完成状态，已完成条目追加备注；无需查询凭据。
 - [主子需求与代码归属](docs/demand-code-ownership.md)：业务按验收拆分，共享代码唯一归主需求，主子日志复用真实提交；明确无代码可跳过对应阶段。
 - [bos-code-update-log](plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)：仅从已核验实仓 commit 生成预览并按授权补录 BOS 代码更新日志，worktree 先合入实仓；独立凭据与需求查询共用私有文件。
 - [bos-demand-handle](plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：处理已有需求号或充分正文，主动读取相关媒体并按技术栈实施、自查和验证；全部实仓提交校验成功后复用本次 repo/ref/hash 准备日志计划，再按明确 BOS 授权补录。IRIS 专项直达，正式协作按条件加载。

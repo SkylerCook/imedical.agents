@@ -131,7 +131,7 @@ function normalizeDescription(raw, name, source = 'code') {
     throw new Error('description.format 必须与来源匹配：代码或主题提需为 bug/change，工作记录为 work');
   }
   name = oneLine(name, 'name');
-  if (source !== 'request' && !/^\{[^{}\r\n]+\} \S/.test(name)) throw new Error('需求名称须使用已确认的 {产品标识} 前缀并以空格分隔');
+  if (source !== 'request' && !/^\{[^{}\r\n]+\}(?:\[标版\])? \S/.test(name)) throw new Error('需求名称须使用已确认的 {产品标识} 前缀，可紧接 [标版]，再以空格分隔标题');
   if (work) {
     for (const key of Object.keys(raw)) if (!['format', 'goal', 'activities', 'outcome'].includes(key)) throw new Error(`未知工作描述字段: ${key}`);
     const goal = text(raw.goal);

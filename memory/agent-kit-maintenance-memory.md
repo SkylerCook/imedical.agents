@@ -4,6 +4,8 @@
 
 ## 当前接手
 
+- BOS 需求名称的 `[标版]` 按 IRIS 产品交付目标逐条判断，会议、演示及临时数据/环境准备沿非标版工作处理；三类来源共用 [skill 规则](../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md#需求名称与标版标签各类来源共用)。旧草稿名称不自动改写，升级及验证边界查 owner README 和维护日志。
+
 - BOS 代码日志必须来自实仓 commit；验收批次与独立补录共用 root/ref/hash 门禁，parent 引用主实仓提交、none 跳过，组状态独立计算。升级与恢复见[迁移说明](../docs/demand-delivery-migration.md#实仓提交门禁升级)，验证及未部署边界查维护日志。
 
 - 项目目录说明复用 owner `projectDirectories` 与本地 extensions；README 受管区可持续更新，无标记旧导航先 navigation-plan 精确评审接管。实现与升级边界见[目录治理](../docs/guides/project-knowledge-layout.md#持续目录说明)；目录、说明、逐文件归类分别判断，业务副本与跨平台结果独立取证。

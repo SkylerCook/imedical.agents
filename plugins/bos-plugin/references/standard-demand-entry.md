@@ -44,7 +44,9 @@ node demand-entry.js collect --repo <GitRoot> --range <base>..<head> --output <�
 }
 ```
 
-`evidence` 相对 spec 目录解析；prepare 将证据嵌入 draft，后续不依赖该临时文件。`key` 为稳定映射键；`name` 是 BOSS 需求名称，代码/工作来源须以已确认的 `{产品标识} ` 开头；主题来源的未知标识见下节协议，IRIS 不是所有来源的默认值。`title` 留作编号回填与提交衔接，不在新描述中重复输出；缺省取 name 去除前缀后的文字。每个 change 对应一个仓库的事实与修改说明。
+`evidence` 相对 spec 目录解析；prepare 将证据嵌入 draft，后续不依赖该临时文件。`key` 为稳定映射键；`name` 是 BOSS 需求名称，代码/工作来源须以已确认的 `{产品标识} ` 或 `{产品标识}[标版] ` 开头，标签按 [skill 的名称与标版标签规则](../skills/bos-demand-entry/SKILL.md#需求名称与标版标签各类来源共用)逐条判断，脚本只校验格式。主题来源的未知标识见下节协议，IRIS 不是所有来源的默认值；`source` 与 `kind=standard` 均不作为标签分类字段。每个 change 对应一个仓库的事实与修改说明。
+
+`title` 留作编号回填与提交衔接，不在新描述中重复输出；缺省仅移除 name 的 `{产品标识}` 及其后空白，保留 `[标版]`。例如 name 为 `{IRIS}[标版] 医生站-处方录入-完善必填校验` 时，默认 title 为 `[标版] 医生站-处方录入-完善必填校验`；显式 title 保留原文。标签复用现有 name，不新增草稿字段或 schema，旧名称继续可读且不自动补标签。
 
 新 spec 使用 `description`，`format` 按业务目的选择，与 Git 提交 `type` 分开：
 
@@ -88,7 +90,7 @@ node demand-entry.js message --project-root <WorkspaceRoot> --draft <bound.json>
 node demand-entry.js plan --draft <bound.json> --item r1 --project-root <WorkspaceRoot>
 ```
 
-bind 只记录用户给定编号与最终标题，不要求 Git 当前无漂移；message/plan 才校验，以便等待期间先保存编号。不同条目不能绑定同一编号；已绑定编号/标题不会静默覆盖。需要纠正时由 Agent 按用户明确指示复制并编辑新草稿中的 boss 映射，再校验，不修改证据。
+bind 只记录用户给定编号与最终标题，保留 boss.title 原文及其标签，不自动增删；不要求 Git 当前无漂移，message/plan 才校验，以便等待期间先保存编号。不同条目不能绑定同一编号；已绑定编号/标题不会静默覆盖。需要纠正时由 Agent 按用户明确指示复制并编辑新草稿中的 boss 映射，再校验，不修改证据。
 
 代码来源 prepare/message 的 --project-root 用于读取目标项目的依赖状态；省略时使用当前工作目录，跨工程调用应显式传入。代码 prepare/message/plan 在加载提交模块前检查 manifest 声明的可用性依赖，显式 disabled 或入口缺失只阻塞该阶段；主题/工作 prepare 不加载该依赖。
 
@@ -166,6 +168,7 @@ sources 至少一条，复用 user/note/meeting/report，主题来源另支持 d
 ```
 
 - 必填需求名称/模块编码；发起组与发起人可空，由 BOSS 登录信息处理。
+- 需求名称原样使用与文本相同的 name；名称中的 `[标版]` 不自动映射“加入标准版”或其它分类字段，这些字段继续按明确输入填写。
 - 指派人不设 horizontal=center，不复制示例行特殊白色填充；不含模板示例数据，数据后空一行保留原“注：”说明。
 - 难度系数限定 0.2/0.5/1/2/3/4/5，严重等级限定 1–5；日期为有效 `yyyy-mm-dd`，使用日期显示格式。未知列拒绝，避免拼写错误造成静默丢失。
 - 单元格文字按 inline string 写入，`=...` 等文本不会变成公式；单元格超过 Excel 32767 字符上限时停止。

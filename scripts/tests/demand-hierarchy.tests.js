@@ -50,6 +50,27 @@ test('one owner and three children render, bind and share evidence without indep
   assert.equal(f.git('status', '--porcelain'), before);
   assert.match(entry.relationText(draft), /c1 \| p \| parent \| 101/);
 });
+
+test('standard development names coexist with legacy names in v4 owner and child drafts', t => {
+  const f = fixture(t);
+  f.spec.requirements[0].name = '{IRIS}[标版] 操作图标统一';
+  f.spec.requirements[1].name = '{IRIS}[标版] 入口1图标统一';
+  const draft = entry.prepare(f.spec, f.root, f.repo);
+  assert.equal(draft.schema, 'iris-standard-demand/v4');
+  for (const [index, item] of draft.requirements.entries()) {
+    assert.equal(item.name, f.spec.requirements[index].name);
+    assert.ok(entry.renderText(item).startsWith(`需求名称：\n\n${item.name}\n\n`));
+  }
+  assert.equal(draft.requirements[0].title, '[标版] 操作图标统一');
+  assert.equal(draft.requirements[2].title, '入口2图标统一');
+  const finalTitle = '{IRIS}[标版] 操作图标统一';
+  entry.bind(draft, 'p', '100', finalTitle);
+  entry.bind(draft, 'c1', '101', '{IRIS}[标版] 入口1图标统一');
+  const route = entry.messages(draft, 'c1', f.repo);
+  assert.equal(route.status, 'references-parent');
+  assert.ok(route.messages[0].message.endsWith(`需求描述:100 ${finalTitle}\n`));
+  assert.equal(draft.requirements[1].boss.title, '{IRIS}[标版] 入口1图标统一');
+});
 test('hierarchy rejects invalid ownership, cycles and unrelated duplicate files; legacy remains readable', t => {
   const f = fixture(t);
   const clone = () => JSON.parse(JSON.stringify(f.spec));
