@@ -1,5 +1,13 @@
 # imedical.agents 维护日志
 
+## 2026-10-28 验收 Git 发布与 BOS 补录解耦
+
+- framework-maintenance，基点 `5282be440f7048cd88b01aa7b2649bb69d973cbd`；用户明确要求先提交推送、BOS 后补，并授权本轮 c + p。demand-delivery-plugin 0.8.0→0.8.1，默认 commit→push→BOS，兼容日志先于 push 的旧顺序。主子日志 pending/failed/running/unknown 均不阻塞 Git；全部约定 Git 动作成功即释放 publication 和 checkout 写入占有，保留日志交付者与原 worktrees 取证，部分 push 仍保护全部目标。
+- BOS 授权在自身 record 阶段校验；实仓 root/ref/hash、远端包含性、未知结果核对、成功不重发及全部适用回执才算完整交付的门禁保留。后续 Git 可继续，日志按原 hash 单独恢复，报告明确“代码已推送，BOS 待补”。旧 v1/v2 首次状态写入释放已完成 Git 的占有，不改 schema、scopeHash、授权或日志状态。
+- owner AGENTS/README/manifest、skill、批次协议、共享代码归属、迁移/更新说明、总览与能力手册同步；既有 P2 连续验收队列补充真实宿主及业务副本观察，无新增治理队列。普通完整能力包更新并刷新已启用索引取得，无配置迁移、旧文件清理、安装/更新算法或 BOS owner 实现变化，未更新业务副本或操作真实 BOS。
+- Windows、Node 24.14.1 最终三 suite 50/50 全过：`node --test --test-reporter=spec plugins/demand-delivery-plugin/tests/acceptance-session.test.js scripts/tests/demand-hierarchy.tests.js scripts/tests/real-repository-commit.tests.js`。覆盖四种待补日志、独立授权、旧占有释放、后续发布与原 hash 恢复、部分推送、主子迟到继承、无代码及实仓拒绝。隔离 Git 需沙箱外执行，提交计划限制使用系统临时目录；以实际路径消解 Windows 大小写断言差异。真实 BOS、其它宿主和非 Windows/Node22 矩阵仍沿原 P2 取证，现有两份 CI 已覆盖三平台 Node22/24。
+- 文档 `project links resolve` 定向 1/1、JavaScript 语法及差异检查通过；staged 版本门禁只涉及本 owner，0.8.0→0.8.1 无新增问题。功能证据按实际源码范围保存供复用。仅暂存本轮 19 个路径及共享文档片段，保留并排除并行 IRIS XML/基线改动；提交推送沿 README 双远端约定，GitHub 镜像另含已在 Gitee 发布的 `5282be4` 文档提交，实际结果以 Git 回执为准。
+
 ## 2026-10-27 BOS 需求名称按产品交付目标区分标版标签
 
 - framework-maintenance，基点 `2101310d10170afbe910ca9f6732e52260385765`，按已确认计划实施。IRIS 标版代码、产品配置或 UI 开发使用 `{IRIS}[标版] 标题`；会议、演示、造数据及临时脚本/环境准备沿非标版工作命名。计划与已完成开发共用同一规则，三类来源逐条判断，不以 source、kind 或 Git 文件类型代替业务目标。

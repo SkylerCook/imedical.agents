@@ -1,5 +1,7 @@
 # Demand Delivery Plugin
 
+0.8.1：验收默认先 commit/push，再按已保存的实仓 hash 补 BOS 日志；主子日志缺口或未知结果只暂停日志，Git 完成即释放发布权供后续需求继续。报告区分“代码已推送，BOS 待补”和完整交付。更新整个能力包并刷新已启用索引，旧 v1/v2 保留 schema、授权和回执，首次状态写入释放已完成的 Git 占有；旧顺序仍可续接，无配置迁移或旧文件清理。恢复接口见[批次协议](references/acceptance-session.md#回执与恢复)。
+
 0.8.0：BOS 批次只登记最终实仓 commit，日志与推送前重核 root/ref/hash；worktree 仅作准备来源。parent 引用主实仓提交逐项日志，own 子项独立交付，none 跳过；JSON groupCompletion 按全部成员计算整组完成。完整更新两个 owner 与根 scripts/lib，日志选择补 ref；旧批次保留回执并重新核实，不自动重发。接口迁移见[验收协议](references/acceptance-session.md)，无私有配置或业务副本自动迁移。
 
 本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。

@@ -96,16 +96,21 @@ function groupReady(state, item) {
 function applicable(item, phase) { return mode(item) !== 'none' && !(mode(item) === 'parent' && ['commit', 'push'].includes(phase)); }
 function codeReady(item) { return item.delivery.commit.status === 'succeeded' || (mode(item) === 'parent' && item.delivery.commit.status === 'inherited'); }
 function pushReady(item) { return item.delivery.push.status === 'succeeded' || (mode(item) === 'parent' && item.delivery.push.status === 'inherited'); }
+function gitFinished(state, item) { return codeReady(item) && (!state.scope.deliveryActions.includes('push') || pushReady(item)); }
 function refreshReferences(state) {
-  if (state.schema !== HIERARCHY_SCHEMA) return;
-  for (const item of state.demands.filter(entry => mode(entry) === 'parent' && entry.delivery.commit.status === 'inherited')) {
+  for (const item of state.demands.filter(entry => state.schema === HIERARCHY_SCHEMA && mode(entry) === 'parent' && entry.delivery.commit.status === 'inherited')) {
     const parent = codeOwner(state, item);
     if (parent.delivery.commit.status !== 'succeeded' || !sameSelection(selection(item, state), selection(parent, state))) fail('Inherited commit differs from its verified parent receipt');
     if (state.scope.deliveryActions.includes('push') && parent.delivery.push.status === 'succeeded') {
       item.delivery.push = { status: 'inherited', sourceDemand: parent.id, records: parent.delivery.push.records, at: parent.delivery.push.at };
     }
   }
-  for (const item of state.demands) if (completed(state, item)) { item.claim = null; item.publication = null; }
+  for (const item of state.demands) {
+    // Keep the log owner and original worktree evidence, but release Git as
+    // soon as its requested actions finish, including on legacy-session resume.
+    if (gitFinished(state, item)) item.publication = null;
+    if (completed(state, item)) { item.claim = null; item.publication = null; }
+  }
 }
 function validateBosTarget(state, item, receipt) {
   if (state.schema !== HIERARCHY_SCHEMA) return;
@@ -292,7 +297,7 @@ function applyCore(state, command, input) {
     for (const repo of item.repositories) {
       worktrees[repo.key] = path.resolve(input.worktrees?.[repo.key] || repo.root);
       if (!fs.existsSync(worktrees[repo.key])) fail('Prepare the actual worktree before claiming it');
-      for (const other of state.demands.filter(entry => entry.claim)) {
+      for (const other of state.demands.filter(entry => entry.claim && !gitFinished(state, entry))) {
         if (Object.values(other.claim.worktrees).some(root => canonical(root) === canonical(worktrees[repo.key]))) fail('Worktree is already in use; use an isolated checkout');
       }
     }
@@ -303,11 +308,12 @@ function applyCore(state, command, input) {
   if (command === 'publish') {
     const item = owned(state, input);
     if (!groupReady(state, item)) fail('Shared acceptance group is not ready');
-    for (const action of state.scope.deliveryActions) {
+    if (gitFinished(state, item)) return state;
+    for (const action of state.scope.deliveryActions.filter(action => action !== 'bos-log')) {
       if (state.authorizations[action]?.scopeHash !== state.scopeHash) fail(`Missing scoped authorization: ${action}`);
     }
     for (const other of state.demands.filter(entry => entry.publication && entry.id !== item.id)) {
-      if (other.repositories.some(a => item.repositories.some(b => canonical(a.root) === canonical(b.root) && a.remote === b.remote && a.ref === b.ref))) fail('Publication is busy; prepare independently and wait before commit/BOS/push');
+      if (other.repositories.some(a => item.repositories.some(b => canonical(a.root) === canonical(b.root) && a.remote === b.remote && a.ref === b.ref))) fail('Publication is busy; prepare independently and wait before commit/push');
     }
     item.publication = { owner: item.claim.owner, at: now() };
     return state;
@@ -355,23 +361,16 @@ function applyCore(state, command, input) {
   const item = owned(state, input), phase = input.phase;
   if (input.durationMs !== undefined && (!Number.isFinite(input.durationMs) || input.durationMs < 0)) fail('durationMs must be finite and non-negative');
   if (!PHASES.includes(phase) || !['running', 'failed', 'unknown', 'succeeded'].includes(input.status)) fail('Invalid delivery phase/status');
-  if (!item.publication) fail('Acquire publication ownership before side effects');
   const action = phase === 'bos' ? 'bos-log' : phase;
   if (!state.scope.deliveryActions.includes(action)) fail('Phase is outside the requested delivery actions');
+  if (state.authorizations[action]?.scopeHash !== state.scopeHash) fail(`Missing scoped authorization: ${action}`);
   if (!applicable(item, phase)) fail('Phase is not applicable; shared commit/push must be referenced from the parent');
+  if (!item.publication && !(phase === 'bos' && gitFinished(state, item))) fail('Acquire publication ownership before side effects');
   if (!groupReady(state, item)) fail('All related child demands must pass before delivery');
   if (phase !== 'commit' && !codeReady(item)) fail('Commit verification must finish first');
   if (state.scope.deliveryActions.includes('bos-log') && ['bos', 'push'].includes(phase) && ['running', 'succeeded'].includes(input.status)) {
     const actual = realSelection(state, item);
     if (mode(item) === 'parent' && !sameSelection(actual, realSelection(state, codeOwner(state, item)))) fail('Inherited real commits differ from the parent');
-  }
-  if (phase === 'push' && state.scope.deliveryActions.includes('bos-log') && state.demands.some(child => child.parentId === item.id && mode(child) === 'parent' && child.delivery.bos.status !== 'succeeded')) fail('All child BOS results must be confirmed before the single shared push');
-  if (phase === 'push' && state.scope.deliveryActions.includes('bos-log') && item.delivery.bos.status !== 'succeeded') fail('BOS result must be confirmed before push');
-  if (phase === 'push' && state.scope.deliveryActions.includes('bos-log') && ['running', 'succeeded'].includes(input.status)) {
-    if (!bosConfirmed(state, item)) fail('BOS result must confirm the real target selection before push');
-    for (const child of state.demands.filter(entry => entry.parentId === item.id && mode(entry) === 'parent')) {
-      if (!bosConfirmed(state, child)) fail('All child BOS receipts must confirm their real target selections before the single shared push');
-    }
   }
   const previous = item.delivery[phase];
   if (previous.status === 'succeeded') fail('Phase already succeeded; do not repeat the external action');
@@ -415,6 +414,9 @@ function applyCore(state, command, input) {
   return state;
 }
 function apply(state, command, input) {
+  // Reclaim legacy Git leases before checking another publisher; receipt and
+  // inherited-reference validation still runs after each successful mutation.
+  for (const item of state.demands) if (gitFinished(state, item)) item.publication = null;
   const result = applyCore(state, command, input);
   refreshReferences(state);
   return result;

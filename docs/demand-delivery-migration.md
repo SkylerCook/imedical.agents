@@ -1,5 +1,11 @@
 # 需求交付入口迁移
 
+## BOS 日志与 Git 发布解耦
+
+`demand-delivery-plugin 0.8.1` 默认先提交推送再补 BOS 日志，主子日志不再阻塞 Git。正常更新完整能力包并刷新已启用索引；旧 v1/v2 不改 schema、scopeHash、授权或已有回执，首次状态写入按 Git 成功回执释放 publication，claim 保留原日志交付者与来源证据但不再占有 checkout。部分 push 仍持有 Git 发布权；日志 unknown/running 仍须先核对，不能重发。旧顺序可恢复，完整交付仍核对全部适用阶段。无私有配置迁移、旧文件清理或业务副本自动更新，详见[批次协议](../plugins/demand-delivery-plugin/references/acceptance-session.md#回执与恢复)。
+
+## 旧交付入口归属迁移
+
 coding-iris-plugin 0.16.0 删除旧需求技能、CLI 和引用别名。框架内部统一使用新 owner；已部署项目通过更新器迁移，无需等待所有项目升级才移除源仓入口。
 
 | 旧入口 | 新入口 |

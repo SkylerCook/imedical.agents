@@ -105,10 +105,72 @@ test('all repositories must have exact verified commits before a BOS receipt is 
   const wrong = f.commit(); wrong.demand = '999';
   assert.throws(() => f.record('commit', 'succeeded', wrong), /this demand/);
   f.commits();
-  assert.throws(() => f.record('push', 'succeeded', f.push('api')), /BOS result/);
+  f.record('push', 'succeeded', f.push('api'));
+  assert.equal(f.state().demands[0].delivery.push.status, 'partial');
   assert.throws(() => f.record('bos', 'succeeded', { submitted: true, resultCodes: ['000'], select: [] }), /exact verified/);
   f.bos();
   assert.throws(() => f.bos(), /already succeeded/);
+});
+for (const status of ['pending', 'failed', 'running', 'unknown']) test('BOS ' + status + ' does not block push, the next Git publisher or later log recovery', t => {
+  const f = fixture(t); f.prepare(); f.commits();
+  if (status !== 'pending') {
+    f.record('bos', 'running', { select: api.selection(f.state().demands[0]) });
+    if (status !== 'running') f.record('bos', status);
+  }
+  const selection = api.selection(f.state().demands[0]);
+  f.record('push', 'running'); f.record('push', 'succeeded', f.push('api'));
+  assert.equal(f.state().demands[0].delivery.bos.status, status);
+  assert.equal(f.state().demands[0].publication, null);
+  assert.equal(f.state().demands[0].claim.owner, 'worker-a');
+  assert.equal(api.summarize(f.state(), 'delivered').count, 0);
+  f.decision('2'); f.claim('2', 'worker-b'); f.publish('2', 'worker-b');
+  f.act('record', { id: '2', owner: 'worker-b', phase: 'commit', status: 'succeeded', receipt: f.commit('2') });
+  f.publish(); // Resuming only BOS must not reacquire or wait for Git publication.
+  if (['running', 'unknown'].includes(status)) assert.throws(() => f.record('bos', 'running', { select: selection }), /reconcile/);
+  if (status === 'unknown') {
+    f.act('reconcile-bos', { id: '10', owner: 'worker-a', actor: 'agent', status: 'succeeded',
+      verification: { source: 'bos-readback', evidenceRef: 'evidence/readback.json' },
+      receipt: { select: selection, submitted: true, resultCodes: ['000'] } });
+  } else f.bos();
+  assert.equal(api.summarize(f.state(), 'delivered').csv, '10');
+  assert.deepEqual(api.selection(f.state().demands[0]), selection);
+  assert.equal(f.state().demands[1].publication.owner, 'worker-b');
+});
+test('BOS authorization is checked at its own phase while Git can finish first', t => {
+  const f = fixture(t); f.decision();
+  f.act('authorize', { actor: 'user', quote: 'Commit and push only for now', actions: ['commit', 'push'] });
+  f.claim(); f.publish(); f.commits();
+  assert.throws(() => f.bos(), /Missing scoped authorization: bos-log/);
+  f.record('push', 'succeeded', f.push('api'));
+  assert.throws(() => f.bos(), /Missing scoped authorization: bos-log/);
+  f.authorize(); f.bos();
+  assert.equal(api.summarize(f.state(), 'delivered').csv, '10');
+});
+test('commit-plus-BOS releases Git immediately and old published sessions recover without scope migration', t => {
+  const f = fixture(t, ['api'], ['10', '2'], ['commit', 'bos-log']); f.prepare(); f.commits();
+  assert.equal(f.state().demands[0].publication, null);
+  const file = path.join(f.directory, 'session.json'), old = f.state();
+  old.demands[0].publication = { owner: 'worker-a', at: old.updatedAt };
+  fs.writeFileSync(file, JSON.stringify(old));
+  f.decision('2'); f.claim('2', 'worker-b'); f.publish('2', 'worker-b');
+  assert.equal(f.state().scopeHash, old.scopeHash);
+  assert.equal(f.state().schema, old.schema);
+  f.bos();
+  assert.equal(api.summarize(f.state(), 'delivered').csv, '10');
+});
+test('partial push retains Git ownership until all targets finish even with BOS pending', t => {
+  const f = fixture(t, ['api', 'web']); f.prepare(); f.commits();
+  f.record('push', 'succeeded', f.push('api'));
+  assert.equal(f.state().demands[0].publication.owner, 'worker-a');
+  f.decision('2');
+  assert.throws(() => f.claim('2', 'worker-b'), /Worktree is already in use/);
+  const worktrees = {};
+  for (const key of ['api', 'web']) { worktrees[key] = path.join(f.root, key + '-isolated'); fs.mkdirSync(worktrees[key]); }
+  f.claim('2', 'worker-b', worktrees);
+  assert.throws(() => f.publish('2', 'worker-b'), /Publication is busy/);
+  f.record('push', 'succeeded', f.push('web'));
+  f.publish('2', 'worker-b');
+  assert.equal(f.state().demands[0].delivery.bos.status, 'pending');
 });
 test('unknown BOS outcome blocks retry until a direct user reconciliation for the exact selection', t => {
   const f = fixture(t); f.prepare(); f.commits();

@@ -128,7 +128,7 @@ function session(f, extra = []) {
   const bos = id => ({ requirementCode: id, codeOwnerRequirementCode: '100', select: acceptance.selection(item(id)), submitted: true, resultCodes: ['000'], linkProject: 'synthetic' });
   return { directory, state, act, load, passed, own, record, authorize, item, bos };
 }
-test('group acceptance gates shared commit, then child logs and one push inherit exact verified receipts', t => {
+test('group acceptance gates shared commit, one push can precede all logs and late children inherit its receipt', t => {
   const f = fixture(t), s = session(f), hash = f.commit();
   assert.equal(s.state.schema, 'demand-acceptance-session/v2');
   s.authorize(); s.passed('100'); s.passed('101');
@@ -137,9 +137,10 @@ test('group acceptance gates shared commit, then child logs and one push inherit
   s.passed('102'); s.passed('103'); s.own('100');
   const receipt = { status: 'verified', demand: '100', repositories: [{ root: f.repo, files: ['actions.js'], message: 'fix(100):操作图标\n修改说明:统一操作', execution: { status: 'verified', commit: hash } }] };
   s.record('100', 'commit', 'succeeded', receipt);
-  s.record('100', 'bos', 'succeeded', s.bos('100'));
   const push = { repositories: [{ key: 'ui', commit: hash, remote: 'origin', ref: 'refs/heads/dev', verified: true, remoteHash: hash }] };
-  assert.throws(() => s.record('100', 'push', 'running'), /All child BOS/);
+  s.record('100', 'push', 'running'); s.record('100', 'push', 'succeeded', push);
+  assert.equal(s.item('100').publication, null);
+  assert.equal(acceptance.summarize(s.load(), 'delivered').count, 0);
   for (const id of ['101','102','103']) {
     s.own(id); s.act('inherit', { id, owner: 'worker' });
     assert.equal(s.item(id).delivery.commit.status, 'inherited'); assert.equal(s.item(id).delivery.commit.records[0].hash, hash);
@@ -153,7 +154,7 @@ test('group acceptance gates shared commit, then child logs and one push inherit
       s.act('reconcile-bos', { id, owner: 'worker', actor: 'user', quote: '已核对相同目标及提交日志存在', status: 'succeeded', receipt: s.bos(id) });
     } else s.record(id, 'bos', 'succeeded', s.bos(id));
   }
-  s.record('100', 'push', 'succeeded', push);
+  s.record('100', 'bos', 'succeeded', s.bos('100'));
   assert.equal(acceptance.summarize(s.load(), 'delivered').count, 4);
   for (const id of ['101','102','103']) assert.equal(s.item(id).delivery.push.status, 'inherited');
   assert.throws(() => s.record('100', 'push', 'succeeded', push), /not claimed|already/);
@@ -207,7 +208,7 @@ test('an unaccepted group leaves unrelated demands eligible and scope cannot sil
   assert.throws(() => s.load(), /主需求必须自身|scope changed/);
 });
 
-test('official parent commit, individual mock BOS requests and a single local push complete the whole group', async t => {
+test('official parent commit and a single local push complete Git before individual mock BOS requests', async t => {
   const f = fixture(t), s = session(f);
   for (const [key, value] of [['user.name','Synthetic'], ['user.email','synthetic@example.invalid'], ['core.hooksPath',path.join(f.root,'hooks')], ['commit.gpgSign','false']]) f.git('config', key, value);
   s.authorize(); for (const id of ['100','101','102','103']) s.passed(id); s.own('100');
@@ -221,6 +222,12 @@ test('official parent commit, individual mock BOS requests and a single local pu
   const committed = run(['apply','--plan',plan.planPath,'--confirm-commit','--verify']);
   s.record('100','commit','succeeded',committed);
   const hash = committed.repositories[0].execution.commit;
+  const bare = path.join(f.root,'remote.git'); f.git('init','--bare',bare); f.git('remote','add','origin',bare);
+  s.record('100','push','running');
+  f.git('push','origin','HEAD:refs/heads/dev');
+  const remoteHash = f.git('--git-dir='+bare,'rev-parse','refs/heads/dev'); assert.equal(remoteHash,hash);
+  s.record('100','push','succeeded',{repositories:[{key:'ui',commit:hash,remote:'origin',ref:'refs/heads/dev',verified:true,remoteHash}]});
+  assert.equal(acceptance.summarize(s.load(),'delivered').count,0);
   const configFile = path.join(f.root,'private.json');
   fs.writeFileSync(configFile,JSON.stringify({ 'bos-code-update-log': { url:'https://example.invalid/code-log', token:randomBytes(24).toString('hex'), linkProject:'synthetic' } }));
   const requests = [];
@@ -237,11 +244,6 @@ test('official parent commit, individual mock BOS requests and a single local pu
   }
   assert.equal(requests.length,4); assert.deepEqual(requests.map(items=>items[0].RequirementCode),['100','101','102','103']);
   for (const payload of requests) assert.equal(payload[0].Repository[0].CodeRepositoryVersion,hash);
-  const bare = path.join(f.root,'remote.git'); f.git('init','--bare',bare); f.git('remote','add','origin',bare);
-  s.record('100','push','running');
-  f.git('push','origin','HEAD:refs/heads/dev');
-  const remoteHash = f.git('--git-dir='+bare,'rev-parse','refs/heads/dev'); assert.equal(remoteHash,hash);
-  s.record('100','push','succeeded',{repositories:[{key:'ui',commit:hash,remote:'origin',ref:'refs/heads/dev',verified:true,remoteHash}]});
   assert.equal(acceptance.summarize(s.load(),'delivered').csv,'100,101,102,103');
   assert.equal(s.item('101').delivery.commit.status,'inherited'); assert.equal(s.item('101').delivery.push.status,'inherited');
   assert.equal(f.git('rev-list','--count','HEAD'), '2');

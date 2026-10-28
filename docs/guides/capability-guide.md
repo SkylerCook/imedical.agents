@@ -105,7 +105,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 `demand-acceptance` 从当前工作区及上下文定位来源；`--worktree [路径]` 显式指定来源（兼容 `-worktree`）。最终实仓目标单独确认，来源为 worktree 时须先合入并取得实仓 commit 才能登记 BOS；省略来源参数不跳过这一步。接续已有批次保留原映射；明确调用复用既定范围内的合入及交付授权，缺目标先澄清，清理仍需独立授权。
 
-明确调用开展验收交付即授权该批次通过项提交、BOS 日志及推送，无需额外开关或反复选择范围；非 BOS 项目跳过日志。用户明确暂不交付时保留限制；仅查看技能、查询汇总或 Agent 自动加载不产生写入授权。默认复用台账；需要批次恢复时读 [验收索引协议](../../plugins/demand-delivery-plugin/references/acceptance-session.md)。更新能力包后刷新 thin-index 即可发现新入口，不自动部署业务改动或启动批次。
+明确调用开展验收交付即授权该批次通过项提交、BOS 日志及推送，无需额外开关或反复选择范围；默认先提交推送再补 BOS，日志失败或未知只暂停日志，Git 完成即释放发布权供下一条继续。代码已推送、BOS 待补须单列状态，全部适用回执成功才算完整交付；非 BOS 项目跳过日志。用户明确暂不交付时保留限制；仅查看技能、查询汇总或 Agent 自动加载不产生写入授权。默认复用台账；需要批次恢复时读 [验收索引协议](../../plugins/demand-delivery-plugin/references/acceptance-session.md)。更新能力包后刷新 thin-index 即可发现新入口，不自动部署业务改动或启动批次。
 
 ## Rule、reference 和脚本怎么用
 

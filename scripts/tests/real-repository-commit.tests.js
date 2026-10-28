@@ -134,8 +134,8 @@ for (const noCodeParent of [false, true]) test('mixed own/parent/none group comp
   if (!noCodeParent) {
     const shared = f.commit(f.repo, 'shared.txt');
     b.claim('100'); b.commit('100', 'shared.txt', shared); b.bos('100');
-    assert.throws(() => b.push('100', shared), /All child BOS/);
-    b.claim('101'); b.act('inherit', { id: '101', owner: 'worker' }); b.bos('101'); b.push('100', shared);
+    b.push('100', shared);
+    b.claim('101'); b.act('inherit', { id: '101', owner: 'worker' }); b.bos('101');
     assert.equal(b.item('101').delivery.push.status, 'inherited');
   }
   assert.equal(acceptance.summarize(b.state(), 'delivered').groupCompletion[0].completed, false);
@@ -171,7 +171,9 @@ test('a source claim registers only the final real commit and completion require
   f.git(f.repo, 'merge', '--ff-only', 'repair'); b.commit('100', 'shared.txt', hash); b.bos('100');
   b.claim('101'); b.act('inherit', { id: '101', owner: 'worker' }); b.bos('101');
   const corrupt = b.state(); corrupt.demands[1].delivery.bos.selection[0].ref = 'refs/heads/repair';
-  assert.throws(() => acceptance.apply(corrupt, 'record', { id: '100', owner: 'worker', phase: 'push', status: 'running' }), /All child BOS receipts/);
+  acceptance.apply(corrupt, 'record', { id: '100', owner: 'worker', phase: 'push', status: 'running' });
+  assert.equal(corrupt.demands[0].delivery.push.status, 'running');
+  assert.equal(acceptance.completed(corrupt, corrupt.demands[1]), false);
   b.push('100', hash);
   const state = b.state(), item = state.demands[0];
   assert.equal(acceptance.completed(state, item), true);

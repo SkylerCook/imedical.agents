@@ -1,5 +1,9 @@
 # .agents 安装与更新 Runbook
 
+## 验收先提交推送、后补 BOS 日志
+
+`demand-delivery-plugin 0.8.1` 解耦 Git 发布与 BOS 补录，按正常流程更新完整能力包并刷新已启用索引。旧 v1/v2 的 schema、scopeHash、授权和回执保持；首次状态写入释放已完成 Git 的发布权，BOS 交付者与来源证据保留。部分 push 仍串行保护；BOS 失败/未知只暂停日志，完整交付仍须全部适用回执。旧日志先于 push 的顺序可续接，无私有配置迁移、旧文件清理或安装/更新算法变更，详见[迁移说明](demand-delivery-migration.md#bos-日志与-git-发布解耦)。源仓更新不代表业务副本已升级。
+
 ## IRIS 项目按需导出开发（coding 0.21 / context 0.7）
 
 按正常更新取得已启用的 coding-iris-plugin、agent-context-kit、根 `scripts/*.js` 与 `scripts/lib/**`，刷新 enabled 薄索引后执行 Check。Overlay 更新共享 CapabilityRoot 一次，再由各模块原流程以 `-NoPull` 刷新 ContextRoot；新增脚本与模板沿现有 sparse 范围分发，不新增安装依赖、守护服务或自动远端调用。

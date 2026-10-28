@@ -48,7 +48,7 @@ BOS 批次的 repositories.root/ref 表示已确认实仓和完整目标分支�
 | authorize | `{"actor":"user","quote":"<本对话真实授权原话>","actions":["commit","bos-log","push"]}`，绑定本批次 scopeHash；仅记录已存在的授权 |
 | decide | `{"id":"123","actor":"user","quote":"<真实验收原话>","status":"passed"}`；可选 failed/deferred；自动证据不会产生人工结论 |
 | claim | `{"id":"123","owner":"delivery-a","worktrees":{"frontend":"<ActualWorktree>"}}`；单号唯一交付者，活动写入者不能共用同一 worktree |
-| publish | `{"id":"123","owner":"delivery-a"}`；先取得所涉仓库发布权再执行 commit/BOS/push |
+| publish | `{"id":"123","owner":"delivery-a"}`；核对 Git 动作授权并取得所涉仓库 commit/push 发布权；BOS 授权在自身 record 阶段检查 |
 | record | `{"id":"123","owner":"delivery-a","phase":"commit","status":"succeeded","receipt":{...},"durationMs":1250}`；phase 可选 commit/bos/push，status 可选 running/failed/unknown/succeeded |
 | release | `{"id":"123","owner":"delivery-a"}`；仅尚未产生提交时释放，不回退工作区 |
 | reconcile-bos | `{"id":"123","owner":"delivery-a","actor":"user","quote":"<核对结论原话>","status":"succeeded","receipt":{...}}` 或 status=not-submitted；用于未知结果的明确核对；已证实成功也可按下文使用 Agent 回读证据 |
@@ -57,7 +57,7 @@ BOS 批次的 repositories.root/ref 表示已确认实仓和完整目标分支�
 
 技能层 `--pass`（含多行“编号＋标题”）按[接收结论](../skills/demand-acceptance/SKILL.md#接收结论)由 Agent 逐号核对后转为 `decide` 的 `status=passed`，`quote` 保留真实用户原话；已有相同结论复用记录，不重复执行成功阶段。脚本 CLI 和 v1/v2 schema 不变。
 
-发布排他仅覆盖**同一 session 内**遵循协议的执行者，以注册的仓库 root/remote/ref 为键。它不是跨批次/跨工具的全局 Git 锁；复用一个批次索引并保留现有 upstream/HEAD/hook 检查，外部变更按实际证据恢复。独立 worktree 可提前准备，不能提前发布。
+发布排他仅覆盖**同一 session 内**遵循协议的执行者，以注册的仓库 root/remote/ref 为键。它不是跨批次/跨工具的全局 Git 锁；复用一个批次索引并保留现有 upstream/HEAD/hook 检查，外部变更按实际证据恢复。独立 worktree 可提前准备，不能提前发布。全部约定 Git 动作完成（commit 成功且 push 成功或不适用）后自动清空 publication；claim 保留日志交付者和原 worktrees 取证，但这些路径不再占有 Git 写入权。后续需求可复用已释放的 checkout；原交付者补录 BOS 时只读原实仓 commit，无需重新取得 Git 发布权。旧批次首次执行写命令也按已有成功回执释放，不改 schema/scopeHash 或日志状态；部分 push 仍保留占有直到全部目标成功。
 
 ## 回执与恢复
 
@@ -74,10 +74,10 @@ BOS：从本需求 verified 结果构造 `select`，字段为实仓 repo/ref/has
 push：每个已成功目标可单独登记，第二个仓失败保留第一个仓回执：
 
 ```json
-{"repositories":[{"key":"frontend","commit":"<已录BOS的业务hash>","remote":"origin","ref":"refs/heads/dev","verified":true,"remoteHash":"<真实远端tip>"}]}
+{"repositories":[{"key":"frontend","commit":"<已核验的实仓业务hash>","remote":"origin","ref":"refs/heads/dev","verified":true,"remoteHash":"<真实远端tip>"}]}
 ```
 
-tip 与业务 hash 不同但包含该提交时，独立验证 ancestry 后增加 `containsVerified:true`。这些 true 字段是实际核对结果，不是脚本自动证明。全部约定阶段成功后自动释放本需求占有；部分 push 只续未成功仓，不再写 BOS。
+tip 与业务 hash 不同但包含该提交时，独立验证 ancestry 后增加 `containsVerified:true`。这些 true 字段是实际核对结果，不是脚本自动证明。默认 commit→push→BOS，仍接受旧批次的 commit→BOS→push。BOS pending/failed/running/unknown 均不阻塞 push；实仓、完整目标及远端包含性验证继续执行。Git 完成即释放发布权，全部约定阶段成功后再清空 claim；部分 push 只续未成功仓，BOS 按自身状态独立补录，成功不重复、未知先核对。
 
 commit 的 unknown/失败应先读官方计划及实际 Git，判断是否已有提交；不要重跑副作用。已开始交付后修改人工结论或来源映射应保留原回执并显式核对修订需求，不能覆盖现有成果。需要用户协助时列出具体未完成阶段；其他需求继续接收。
 
@@ -109,6 +109,6 @@ BOS阶段每个主子需求各自运行。v2的bos/running输入receipt须包含
 
 目标号、主编号、完整选择及关联项目均需匹配；不能把主需求日志成功回执直接当子需求成功。running/unknown沿原停止与reconcile-bos契约，关联项目不能在恢复中偷偷替换。成功记录保留上述身份，不新建日志状态库。
 
-一个 own 代码归属者及所有引用它的 parent 子项日志确认成功后，该 own 执行一次 push；其它 own 子项独立交付，同仓串行，并按原规则验证远端包含主提交。已经inherit的子需求自动引用push回执并标记inherited，不再执行push；尚未登记引用的子需求可在主提交已存在时继续inherit并恢复各自日志。失败只恢复相应阶段，不能为日志重做Git提交。
+一个 own 代码归属者在实仓提交核验后即可执行一次 push，无需等待自身或 parent 子项日志；其它 own 子项独立交付，同仓 Git 发布串行，并按原规则验证远端包含主提交。已经 inherit 的子需求自动引用 push 回执并标记 inherited，不再执行 push；尚未登记引用的子需求可在主提交已存在时继续 inherit，自动取得已成功的共享 push 并恢复各自日志。主子日志逐项独立，待补时保留 claim 交付者但不占 Git 发布权；完整交付及 groupCompletion 仍须所有适用日志真实成功。失败只恢复相应阶段，不能为日志重做 Git 提交。
 
 none在创建时将commit/bos/push置not-applicable并保存原因；仅在人类passed且所有阶段确实不适用时算完成。其对应record调用被拒绝，不索取BOS凭据或创建空提交。父提交待完成、hash遗失及结果未知均不能转none；旧v1仍保留原适用阶段和回执格式。
