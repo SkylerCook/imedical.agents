@@ -6,18 +6,21 @@
 |---|---|---|
 | IRIS 内网源码导出与离线交付 | [iris-code-export](iris-code-export/README.md) | `dist/iris-code-export.zip` |
 
-导出包包含 `README.md`、`export-iris-code.ps1`、`source-delivery.ps1`、`files.example.txt` 和 `images/` 中的目录示例截图，不包含 XML 编辑器、框架文件、测试、连接配置或现场源码。XML 带回后由 AI 修改的流程继续归 coding 插件。
+导出包包含 `README.md`、`export-iris-code.ps1`、`export-version-baseline.ps1`、`source-delivery.ps1`、`files.example.txt`、生成的 `catalogs/` 与 `images/` 目录示例截图，不包含构建脚本、Node.js、XML 编辑器、框架文件、测试、连接配置或现场源码。XML 带回后由 AI 修改的流程继续归 coding 插件。
 
-维护者从仓库根重建 ZIP（PowerShell）：
+维护者从仓库根重建 ZIP（PowerShell，打包电脑需要 Node.js >=22.5.0；现场运行不需要）：
 
 ```powershell
-New-Item -ItemType Directory -Path tools/dist -Force | Out-Null
-Compress-Archive -LiteralPath tools/iris-code-export/README.md, tools/iris-code-export/export-iris-code.ps1, tools/iris-code-export/source-delivery.ps1, tools/iris-code-export/files.example.txt, tools/iris-code-export/images -DestinationPath tools/dist/iris-code-export.zip -Force
+& .\tools\iris-code-export\build-package.ps1
 ```
 
 只长期保留一份工具源码和一个 ZIP。`tools/dist/` 只放正式压缩包，由 Git 忽略；打包、解压验证均使用任务专属临时目录，完成后立即清理，不在 dist 保留解压副本。
 
-需要带现场连接示例时，在任务临时目录中复制四个文件及 images/，仅在临时 README 的 `local-atelier-example` 标记处填入已获授权的本机示例，打包至 dist，核对 ZIP 后删除临时目录。真实服务器地址只留在本机 ZIP 中，账号密码始终不写入文件；共享源 README 保留通用格式。独立测试直接解压 ZIP，与源脚本/清单、截图及 README 模板核对，不依赖打包暂存副本。
+需要保留已获授权的本机连接示例时，将示例文本放任务临时目录，用 -LocalExampleFile 指定；构建器仅替换临时 README 的 local-atelier-example 标记，不改共享源。真实地址只留本机被忽略的 ZIP，账号密码始终不写文件。构建器逐文件核对归档摘要后清理自己的暂存目录；示例临时文件由调用任务清理。独立测试直接解压实际 ZIP，核对源脚本、生成清单、截图及 README 模板。
+
+build-catalogs.js 是维护者构建步骤，复用 coding 的 XML 解析与类型规则，从 docs/reference/project-export-map/doctor 的唯一原清单和版本表生成包内执行清单。只合并相同规范身份，大小写冲突阻断，图片预筛并统计；生成清单不在 tools 再维护一份。source-delivery.ps1 从仓库唯一实现取入，兼容 owner 迁移前后的位置，出现两个实现则构建停止；ZIP 内名称固定。整个 tools/ 仍不随 .agents 部署。
+
+版本入口默认医生站，v9.2 仅允许显式 all-products；支持医院补充 TXT、显式 Web 前缀映射和离线 PlanOnly。选定版本、原清单、执行清单、补充和映射摘要写入导出回执，Resume 不允许变更选择。版本表达范围，实际内容来自当前医院；不自动识别版本、初始化源码 Git 或启动全量采集。
 
 新导出只记录必要的可读来源（Atelier URL 与 Namespace）；源码路线使用 source-delivery.ps1 的 Prepare/Pack/Verify 保存原件、增量源码/回退/说明及现场快照比较，全部离线阶段不需要框架或连接凭据。来源与现场代码仅保存在用户自己的导出/交付目录。
 

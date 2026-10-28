@@ -14,8 +14,10 @@
 ├─ iris-code-export\           解压后的工具目录
 │  ├─ README.md
 │  ├─ export-iris-code.ps1
+│  ├─ export-version-baseline.ps1  按版本选择范围后复用导出脚本
 │  ├─ source-delivery.ps1     离线保存原始基线与生成还回文件
 │  ├─ files.example.txt
+│  ├─ catalogs\              包内生成的版本清单和来源摘要
 │  └─ images\project-layout-example.png
 ├─ files.txt                   自己编写的导出清单
 └─ exported-code\              执行导出后生成，第一次执行前应不存在
@@ -252,6 +254,71 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\iris-code-export\sourc
 目标不同、必需对象没取到、快照文件与回执不符或内容已有并行修改时停止，先核实/合并。匹配只表示与所提供的新快照一致，不锁定服务器；不要用旧快照冒充当前读取。
 
 最后按项目既有方式导入类/例程、上传对应 Web 虚拟路径，再编译、验收。所有脚本均不自动上传、编译或提交。rollback 是带出的旧定义，回退前也须核对后续变化；它不能替代现场即时备份。
+
+## 八、按版本建立医院源码基线
+
+适合首次把一家医院某版本范围内的代码带回来。**版本只决定清单范围，取得的是医院当前源码，不是历史版本源码，也不保证覆盖医院所有定制和依赖。** 建议首次采一遍，日常按需求清单补导，避免每次重采数千个文件。
+
+### 1. 查看版本与范围
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\iris-code-export\export-version-baseline.ps1 -ListVersions
+```
+
+| 版本 | 范围 | 去重后代码对象数 | 已移除的完全重复条目 |
+|---|---|---:|---:|
+| v8.4 | 医生站 | 1296 | 75 |
+| v8.5 | 医生站 | 1520 | 74 |
+| v9.0 | 医生站 | 1745 | 82 |
+| v9.1 | 医生站 | 3295 | 0 |
+| v9.2 | 全仓 10 个产品 | 5352 | 0 |
+
+原 XML 不改写，打包时生成去重后的执行 TXT，并保留版本、原清单摘要、重复项及范围。没有对应版本就停止，不自动套用更高版本。默认范围为 doctor；v9.2 必须显式传入 -Scope all-products 才能使用，不提供虚假的 v9.2 医生站选项。
+
+### 2. 先预览，不连接服务器
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\iris-code-export\export-version-baseline.ps1 -Version v9.1 -OutputDirectory .\baseline-v9.1 -PlanOnly
+```
+
+预览列出数量、重复项数量、Web 路径分组及部分对象示例，不创建 baseline-v9.1。省略 -Version 时会列出版本并提示输入；不自动判断医院安装的版本。
+
+v9.1 同时含 /imedical/web/、/scripts/、/web/ 三类前缀。它们保留原清单含义，脚本不会猜哪一种应补上前缀；请现场核对实际 Web 虚拟路径。确认原路径可用后，正式命令需要加 -ConfirmWebPaths。
+
+### 3. 医院补充对象与显式路径映射
+
+医院自己的对象另写 UTF-8 的 hospital-extra.txt，格式沿第二节：后端完整对象名，前端以 / 开头的完整虚拟路径。追加 -SupplementListFile .\hospital-extra.txt 即可合并；相同对象去重并统计，不改公共清单。大小写不同但会落到同一路径的条目会停止，不能随意选一个覆盖。
+
+如果现场明确需要改 Web 前缀，可自己创建 UTF-8 的 web-map.json。例如下面表示两条明确的前缀替换规则，**仅作填写格式示例，不能不核对就照抄**：
+
+```json
+[
+  {"from":"/scripts/","to":"/imedical/web/scripts/"},
+  {"from":"/web/","to":"/imedical/web/"}
+]
+```
+
+from/to 必须以 / 开头和结尾。存在多条匹配时使用最长前缀，匹配区分大小写；每个对象只替换一次。原本已经完整的路径不受未命中的规则影响。加 -WebPathMapFile .\web-map.json 后先重新 PlanOnly，检查实际数量、mappedItemCount、mergedDuplicateCount 和示例路径；使用映射的正式执行同样要求 -ConfirmWebPaths。映射后的新增重复项会合并并统计，冲突或不安全路径停止。
+
+### 4. 小批验证，再恢复剩余对象
+
+只有确认 v9.1 的原路径可用后才执行下面这一行。它先取 1 个对象，来源输入、凭据和会话保护与第三至六节相同：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\iris-code-export\export-version-baseline.ps1 -Version v9.1 -OutputDirectory .\baseline-v9.1 -ConfirmWebPaths -MaxFilesPerRun 1
+```
+
+核对落盘、会话及 License 回落后，用新进程恢复；本行不再限制为 1 项：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\iris-code-export\export-version-baseline.ps1 -Version v9.1 -OutputDirectory .\baseline-v9.1 -ConfirmWebPaths -Resume
+```
+
+使用了补充 TXT 或映射 JSON 时，两条正式命令均追加同样参数，文件内容也必须保持一致。版本、范围、清单、补充和映射摘要绑定恢复记录；有变化换新输出目录，不通过手改摘要绕过。版本导出的断点必须继续走本入口，不能改用普通 TXT 入口抹掉版本选择。
+
+源码仍直接落在 baseline-v9.1/src，恢复记录仍为 baseline-state.json，不新增一套可编辑源码树。回执增加 versionSelection 和 versionSelectionHash，记录原清单、执行清单、版本范围、补充及映射摘要；它不证明医院当前版本。缺失项保留 partial，不能当删除决定或宣称完整医院工程。
+
+完成后把整个 baseline-v9.1 带回，按第七节 Prepare、开发、Review、Pack 和独立 Verify；该节命令的 ExportDirectory 换成实际 baseline-v9.1。不自动初始化 Git、提交或部署。
 
 ## 附：其它输入与结果保留
 

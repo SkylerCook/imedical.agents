@@ -19,6 +19,7 @@ AtelierUrl 为已启用 Atelier 应用的根 URL（以 /api/atelier/ 结尾）�
 param(
     [Parameter(Mandatory = $true, ParameterSetName = 'Catalog')][string]$Baseline,
     [Parameter(Mandatory = $true, ParameterSetName = 'List')][string]$ListFile,
+    [Parameter(ParameterSetName = 'List')][string]$VersionSelectionFile,
     [Parameter(Mandatory = $true)][string]$OutputDirectory,
     [string]$AtelierUrl,
     [string]$Namespace,
@@ -205,6 +206,17 @@ try {
         $uri.AbsolutePath -notmatch '/api/atelier/$' -or -not $Namespace -or $Namespace -match '[\x00-\x20/\\?#]') { throw 'invalid-atelier-target' }
     $target = Hash-Bytes ($utf8.GetBytes($uri.AbsoluteUri + '|' + $Namespace))
     $baselineHash = (Get-FileHash -LiteralPath $baselinePath -Algorithm SHA256).Hash
+    $versionSelection = $null; $versionSelectionHash = $null
+    if ($VersionSelectionFile) {
+        $selectionPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($VersionSelectionFile)
+        Assert-PlainPath $selectionPath
+        $selectionBytes = [IO.File]::ReadAllBytes($selectionPath)
+        $versionSelection = $utf8.GetString($selectionBytes) | ConvertFrom-Json
+        if ($versionSelection.schema -ne 'iris-version-selection/v1' -or $versionSelection.version -cnotmatch '^v\d+\.\d+$' -or
+            $versionSelection.scope -notin @('doctor','all-products') -or $versionSelection.filesSha256 -ne $baselineHash -or
+            $versionSelection.selectedFileCount -ne $items.Count) { throw 'version-selection-does-not-match-list' }
+        $versionSelectionHash = Hash-Bytes $selectionBytes
+    }
     $scopeHash = Hash-Bytes ($utf8.GetBytes(($items.document -join "`n")))
     $scriptHash = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash
     $statePath = Join-Path $root 'baseline-state.json'
@@ -221,6 +233,7 @@ try {
             $state = [IO.File]::ReadAllText($statePath, $utf8) | ConvertFrom-Json
             if ($state.schema -ne 'iris-standalone-baseline/v1' -or $state.target -ne $target -or $state.baselineHash -ne $baselineHash -or
                 $state.scopeHash -ne $scopeHash -or $state.scriptHash -ne $scriptHash -or $state.outputRoot -ne $root -or @($state.items).Count -ne $items.Count) { throw 'resume-source-or-scope-mismatch' }
+            if ($state.versionSelectionHash -cne $versionSelectionHash) { throw 'resume-version-selection-mismatch-use-the-original-version-entry' }
             for ($i = 0; $i -lt $items.Count; $i++) {
                 $old = $state.items[$i]; $expected = $items[$i]
                 if ($old.document -cne $expected.document -or $old.path -cne $expected.path) { throw 'resume-item-mismatch' }
@@ -238,6 +251,10 @@ try {
             $state = [pscustomobject]@{schema = 'iris-standalone-baseline/v1'; target = $target; source = [ordered]@{atelierUrl = $uri.AbsoluteUri; namespace = $Namespace}; baselineHash = $baselineHash; scopeHash = $scopeHash; scriptHash = $scriptHash;
                 outputRoot = $root; startedAt = [DateTime]::UtcNow.ToString('o'); updatedAt = $null; state = 'partial'; reason = $null;
                 excludedImages = @($excluded); excludedImageCount = $excluded.Count; items = @($items); logoutVerified = $false; logoutHttpStatus = $null; licenseReleaseVerified = $false}
+            if ($versionSelection) {
+                $state | Add-Member -MemberType NoteProperty -Name versionSelection -Value $versionSelection
+                $state | Add-Member -MemberType NoteProperty -Name versionSelectionHash -Value $versionSelectionHash
+            }
         }
         foreach ($entry in @{
             session = [pscustomobject]@{cookieVerified = $false; requestCount = 0; authenticationCount = 0}

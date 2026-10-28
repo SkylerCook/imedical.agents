@@ -8,11 +8,12 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 const {spawn} = require('node:child_process');
 const {parseExportXml} = require('../../plugins/coding-iris-plugin/scripts/iris-tools/xml-package-core');
+const {generate: versionCatalogs, helperSource} = require('../../tools/iris-code-export/build-catalogs');
 const windows = process.platform === 'win32';
 const shell = process.env.IRIS_TEST_POWERSHELL || 'powershell.exe';
 const repository = path.resolve(__dirname, '../..');
 let portableRoot, portableParent;
-const script = name => ['export-iris-code.ps1', 'source-delivery.ps1'].includes(name) ? path.join(portableRoot, name) : path.join(repository, 'plugins/coding-iris-plugin/scripts/iris-tools', name);
+const script = name => ['export-iris-code.ps1', 'export-version-baseline.ps1', 'source-delivery.ps1'].includes(name) ? path.join(portableRoot, name) : path.join(repository, 'plugins/coding-iris-plugin/scripts/iris-tools', name);
 const quote = value => "'" + String(value).replace(/'/g, "''") + "'";
 function run(file, args = [], extra = '') {
   const command = '[Console]::OutputEncoding = New-Object Text.UTF8Encoding($false); & ' + quote(script(file)) + ' ' + args.map(value => /^-[A-Za-z]+$/.test(value) ? value : quote(value)).join(' ') + ' ' + extra + '; if (-not $?) { if ($LASTEXITCODE) { exit $LASTEXITCODE }; exit 1 }';
@@ -41,12 +42,15 @@ test.before(async () => {
   const result = await invoke('Expand-Archive -LiteralPath ' + quote(zip) + ' -DestinationPath ' + quote(target) + ' -ErrorAction Stop');
   assert.equal(result.code, 0, result.stderr);
   portableRoot = target;
-  const names = ['README.md', 'export-iris-code.ps1', 'source-delivery.ps1', 'files.example.txt'].sort();
-  assert.deepEqual(fs.readdirSync(target).sort(), [...names, 'images'].sort(), 'ZIP must contain only the human export tool and its documentation image');
+  const names = ['README.md', 'export-iris-code.ps1', 'export-version-baseline.ps1', 'source-delivery.ps1', 'files.example.txt'].sort();
+  assert.deepEqual(fs.readdirSync(target).sort(), [...names, 'images', 'catalogs'].sort(), 'ZIP must contain only human runtime files and generated catalogs');
+  const expectedCatalogs = versionCatalogs().files;
+  assert.deepEqual(fs.readdirSync(path.join(target, 'catalogs')).sort(), [...expectedCatalogs.keys()].sort());
+  for (const [name, bytes] of expectedCatalogs) assert.deepEqual(fs.readFileSync(path.join(target, 'catalogs', name)), bytes, 'ZIP catalog drift: ' + name);
   assert.deepEqual(fs.readdirSync(path.join(target, 'images')), ['project-layout-example.png']);
   assert.deepEqual(fs.readFileSync(path.join(target, 'images/project-layout-example.png')), fs.readFileSync(path.join(repository, 'tools/iris-code-export/images/project-layout-example.png')), 'ZIP documentation image mismatch');
   for (const name of names) {
-    if (name !== 'README.md') assert.deepEqual(fs.readFileSync(path.join(target, name)), fs.readFileSync(path.join(repository, 'tools/iris-code-export', name)), 'ZIP/source mismatch: ' + name);
+    if (name !== 'README.md') assert.deepEqual(fs.readFileSync(path.join(target, name)), fs.readFileSync(name === 'source-delivery.ps1' ? helperSource() : path.join(repository, 'tools/iris-code-export', name)), 'ZIP/source mismatch: ' + name);
   }
   const [beforeExample, afterExample] = fs.readFileSync(path.join(repository, 'tools/iris-code-export/README.md'), 'utf8').split('<!-- local-atelier-example -->');
   const readme = fs.readFileSync(path.join(target, 'README.md'), 'utf8');
@@ -549,4 +553,65 @@ test('relative inputs and outputs follow PowerShell Set-Location rather than the
   const edited = path.join(f.root, 'edit/objects/000001.xml'); fs.writeFileSync(edited, fs.readFileSync(edited, 'utf8').replace('原始', '修改'));
   result = await invoke(prefix + quote(script('edit-export-xml.ps1')) + ' -Mode Pack -WorkDirectory .\\edit -NotesFile .\\notes.md -OutputDirectory .\\delivery; if (-not $?) { exit 1 }');
   assert.equal(result.code, 0, result.stderr); assert.equal(parseExportXml(fs.readFileSync(path.join(f.root, 'delivery/changes.xml'))).items.length, 1);
+});
+
+function versionFixture(f, {mixed = false} = {}) {
+  const directory = path.join(f.root, 'catalogs'); fs.mkdirSync(directory);
+  const text = 'Demo.A.cls\n' + (mixed ? '/scripts/a.js' : '/demo/a.js') + '\n';
+  fs.writeFileSync(path.join(directory, 'v1.0.txt'), text);
+  const index = {schema: 'iris-version-catalogs/v1', entries: [{version:'v1.0',scope:'doctor',scopeLabel:'医生站',project:'Fixture',sourcePath:'synthetic.xml',sourceSha256:'a'.repeat(64),
+    rawItemCount:2,duplicateCount:0,excludedImages:[],codeCount:2,webRoots:mixed?['/scripts/','/demo/']:['/demo/'],webPathsNeedConfirmation:mixed,
+    listFile:'v1.0.txt',listSha256:crypto.createHash('sha256').update(text).digest('hex')}]};
+  fs.writeFileSync(path.join(directory,'index.json'), JSON.stringify(index)); return directory;
+}
+test('all packaged version catalogs pass offline planning with scope and mixed Web paths disclosed', {skip: !windows}, async t => {
+  const f = fixture(t), output = path.join(f.root,'snapshot');
+  let result = await run('export-version-baseline.ps1', ['-ListVersions']);
+  assert.equal(result.code,0,result.stderr); assert.equal(JSON.parse(result.stdout).length,5);
+  for (const [version, count, scope] of [['v8.4',1296,'doctor'],['v8.5',1520,'doctor'],['v9.0',1745,'doctor'],['v9.1',3295,'doctor'],['v9.2',5352,'all-products']]) {
+    result = await run('export-version-baseline.ps1', ['-Version',version,'-Scope',scope,'-OutputDirectory',output,'-PlanOnly']);
+    assert.equal(result.code,0,result.stderr); const preview=JSON.parse(result.stdout);
+    assert.equal(preview.total,count); assert.equal(preview.webPathsNeedConfirmation,version==='v9.1'); assert.equal(fs.existsSync(output),false);
+    assert.equal(preview.selection.meaning,'version-defines-scope-content-from-current-instance');
+  }
+  for (const version of ['v9.2','v9.9']) {
+    result=await run('export-version-baseline.ps1',['-Version',version,'-OutputDirectory',output,'-PlanOnly']);
+    assert.equal(result.code,1); assert.match(result.stderr, version==='v9.2'?/scope-mismatch/:/not-available-no-fallback/);
+  }
+});
+test('version export merges hospital supplements, preserves selection provenance and resumes without a framework or Node', {skip: !windows}, async t => {
+  const f=fixture(t), catalogs=versionFixture(f), output=path.join(f.root,'snapshot'), supplement=f.put('extra.txt','\uFEFF# local scope\nDemo.B.cls\n/demo/a.js\n');
+  const s=await server(t,(req,res)=>{const name=decodeURIComponent(req.url.split('/doc/')[1]);send(res,name,name.endsWith('.cls')?[`Class ${name.slice(0,-4)} {}`]:['const value=1;']);});
+  const args=['-CatalogDirectory',catalogs,'-Version','v1.0','-SupplementListFile',supplement,'-OutputDirectory',output,'-AtelierUrl',s.url,'-Namespace','FIXTURE'];
+  let result=await run('export-version-baseline.ps1',[...args,'-MaxFilesPerRun','1'],credential);
+  assert.equal(result.code,2,result.stderr);
+  const stateFile=path.join(output,'baseline-state.json'), first=JSON.parse(fs.readFileSync(stateFile,'utf8'));
+  assert.equal(first.versionSelection.version,'v1.0'); assert.equal(first.versionSelection.selectedFileCount,3); assert.equal(first.versionSelection.mergedDuplicateCount,1);
+  assert.equal(first.items.filter(i=>i.status==='fetched').length,1); assert.match(first.versionSelectionHash,/^[a-f0-9]{64}$/);
+  // Resume in an independent process with no Node executable on PATH.
+  const command='$env:PATH=$env:SystemRoot+"\\System32;"+$env:SystemRoot+"\\System32\\WindowsPowerShell\\v1.0"; if(Get-Command node -ErrorAction SilentlyContinue){throw "unexpected-node-on-path"}; & '+quote(script('export-version-baseline.ps1'))+' '+[...args,'-Resume'].map(v=>/^-[A-Za-z]+$/.test(v)?v:quote(v)).join(' ')+' '+credential+'; if(-not $?){exit $LASTEXITCODE}';
+  result=await invoke(command); assert.equal(result.code,0,result.stderr);
+  const state=JSON.parse(fs.readFileSync(stateFile,'utf8')); assert.equal(state.state,'complete'); assert.equal(state.versionSelectionHash,first.versionSelectionHash);
+  assert.deepEqual(s.calls.filter(c=>c.method==='GET').map(c=>decodeURIComponent(c.url.split('/doc/')[1])),['Demo.A.cls','demo/a.js','Demo.B.cls']);
+  f.put('extra.txt','# changed provenance\nDemo.B.cls\n/demo/a.js\n'); const before=s.calls.length;
+  result=await run('export-version-baseline.ps1',[...args,'-Resume'],credential);
+  assert.equal(result.code,1); assert.match(result.stderr,/resume-version-selection-mismatch/); assert.equal(s.calls.length,before);
+});
+test('Web mappings are explicit and previewed, mixed paths require acknowledgement and collisions are reported', {skip: !windows}, async t => {
+  const f=fixture(t), catalogs=versionFixture(f,{mixed:true}), output=path.join(f.root,'snapshot'), map=f.put('web-map.json',JSON.stringify([{from:'/scripts/',to:'/demo/'}]));
+  const args=['-CatalogDirectory',catalogs,'-Version','v1.0','-OutputDirectory',output,'-WebPathMapFile',map];
+  let result=await run('export-version-baseline.ps1',[...args,'-PlanOnly']);
+  assert.equal(result.code,0,result.stderr); const preview=JSON.parse(result.stdout);
+  assert.equal(preview.mappedItemCount,1); assert.ok(preview.sample.includes('/demo/a.js')); assert.equal(preview.webPathsNeedConfirmation,true);
+  result=await run('export-version-baseline.ps1',args);
+  assert.equal(result.code,1); assert.match(result.stderr,/web-paths-confirmation-required/); assert.equal(fs.existsSync(output),false);
+  const s=await server(t,(req,res)=>{const name=decodeURIComponent(req.url.split('/doc/')[1]);send(res,name,name.endsWith('.cls')?['Class Demo.A {}']:['source']);});
+  result=await run('export-version-baseline.ps1',[...args,'-ConfirmWebPaths','-AtelierUrl',s.url,'-Namespace','FIXTURE'],credential);
+  assert.equal(result.code,0,result.stderr); assert.ok(s.calls.some(c=>c.url.endsWith('/doc/demo/a.js')));
+  const extra=f.put('extra.txt','/demo/A.js');
+  result=await run('export-version-baseline.ps1',[...args,'-SupplementListFile',extra,'-PlanOnly']);
+  assert.equal(result.code,1); assert.match(result.stderr,/case-conflict/);
+  fs.appendFileSync(path.join(catalogs,'v1.0.txt'),'Demo.Tampered.cls\n');
+  result=await run('export-version-baseline.ps1',[...args,'-PlanOnly']);
+  assert.equal(result.code,1); assert.match(result.stderr,/version-catalog-drift/);
 });
