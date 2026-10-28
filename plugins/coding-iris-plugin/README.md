@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+0.22.1 部署失败按[失败恢复与授权](references/deployment-protection.md#失败恢复与授权)先诊断，在原授权内完成有上限的安全恢复；明确编译错误返回诊断，未知写入与编译继续保护。逐文件入口记录 `recovery`；旧 SFTP 批量 worker 不自动重放。正常完整能力包更新取得，无配置迁移或旧文件清理；旧 unknown 会话仍按原协议核实，业务副本和真实服务另行验证。
+
 0.22.0 新增 [iris-xml-export](skills/iris-xml-export/SKILL.md) 与 [iris-code-baseline](skills/iris-code-baseline/SKILL.md)。前者按确认范围导出指定环境当前对象的 XML，支持专用类及无预部署类的系统执行通道；后者维护版本清单并采集当前实例代码，图片在请求前排除并统计，初始缺失保留 partial。两者复用 workspace、私有连接与受管资源；只有取得目标资格才启用只读多会话，版本 XML 不表示历史源码。
 
 按正常能力包更新并刷新 enabled 索引取得两个入口；Overlay 先更新共享 capability，再逐模块 `-NoPull` 刷新。可选 `DHCDoc.Util.XmlPackage` 需单独准备和授权部署，类缺失不阻断其它 coding 能力，普通更新不覆盖服务器类、创建 Git 或登记资格。基线状态归 ContextRoot/work/source-sync/baselines，XML 正式交付和恢复目录由 manifest `projectDirectories` 声明。旧全局技能按明确范围单列迁移；详细步骤见[更新说明](../../docs/update-agents.md#iris-xml-导出与代码基线coding-022)，实际项目、服务端和跨平台结果分别核实。
@@ -290,7 +292,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 
 缺少必要配置时脚本应直接报错，避免静默拼出错误路径。
 
-前端上传加编译固定使用 `scripts/iris-tools/deploy-frontend.js`：direct/guarded 共用单连接传输，逐文件最终目标校验通过后批量 Atelier 编译；失败停止，不临时生成脚本或自动换通道。参数及耗时口径见 `scripts/iris-tools/README.md`。
+前端上传加编译固定使用 `scripts/iris-tools/deploy-frontend.js`：direct/guarded 共用单连接传输，逐文件最终目标校验通过后批量 Atelier 编译；失败先诊断并按上述协议有限恢复，不临时生成脚本或自动换通道。参数及耗时口径见 `scripts/iris-tools/README.md`。
 
 后端编译成功后回读类定义，仅将核对通过的 Storage 回填到本次指定的本地类文件，覆盖新增表与字段演进；保留本地代码、BOM/换行和暂存区。回填失败报告远端已编译、本地未同步；受管夜跑源码变化按既有冻结版本门禁复审。已部署项目正常更新能力包即可取得，无配置迁移或旧文件清理；详见 [Storage 同步契约](references/deployment-protection.md#编译后-storage-同步)。
 

@@ -20,6 +20,8 @@ IRIS XML 包和源码基线统一归 coding owner：[iris-xml-export](plugins/co
 
 CSP 编译沿 coding owner 的[部署入口](plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md)选择：普通工程可使用 `compile-csp.js` 的 Atelier 通道；已确认 `project` ＋ `intent-first-on-demand-export` 的工程及受管夜跑须由对应部署链路编译，独立调用不能绕过 source plan、复审或运行门禁。
 
+部署失败先自动诊断并按[恢复协议](plugins/coding-iris-plugin/references/deployment-protection.md#失败恢复与授权)在原授权内有限恢复；仅实际人工决策才提问。逐文件读取和确证未发出的上传共用每批上限，未知写入/编译与公共熔断保留保护，旧 SFTP 批量 worker 不重放。完整能力包更新取得，旧 unknown 会话保持原恢复方式。
+
 SFTP 工具纳入 [vendor/sftp-server](vendor/sftp-server/README.md)：保留五个 MCP 工具名，补齐路径约束、内容比较、原子替换和 SHA-256 校验。`coding-iris-plugin` 为新项目提供默认禁用的配置；更新时自动迁移可识别的既有标准启动参数，显式 custom 或自定义参数保留，不要求 runtime opt-in，也不自动安装 Python 依赖。
 
 前端 CSP、HTML、JS、CSS 共用[前端命名与格式规范](plugins/coding-iris-plugin/references/frontend-coding-format.md)：默认 ES5、4 空格与双引号，混合语言分区审查，保留历史接口和主题契约。复用现有 Review、编码及 i18n 检查，不引入格式化器。[JS 页面组织模板](plugins/coding-iris-plugin/templates/javascript-page-template.md)按实际依赖和生命周期选择，不要求所有前端统一架构。

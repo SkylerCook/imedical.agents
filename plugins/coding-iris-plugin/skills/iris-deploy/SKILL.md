@@ -45,9 +45,11 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 
 ## 前端上传加编译
 
-优先直接调用 `scripts/iris-tools/deploy-frontend.js --source-root <frontend-root> --files <project-relative-file...> --execute`，非按需导出工程默认 direct，参数与失败语义见 `scripts/iris-tools/README.md`。已有明确授权、目标和有效配置时使用一条命令，不再单独生成临时脚本、重复预检或逐工具确认。固定完成上传、哈希回读和指定 CSP 编译；无 `--execute` 只生成本地计划。失败停止，不自动重试或扩大文件范围。
+优先直接调用 `scripts/iris-tools/deploy-frontend.js --source-root <frontend-root> --files <project-relative-file...> --execute`，非按需导出工程默认 direct，参数与失败语义见 `scripts/iris-tools/README.md`。已有明确授权、目标和有效配置时使用一条命令，不再单独生成临时脚本、重复预检或逐工具确认。固定完成上传、哈希回读和指定 CSP 编译；无 `--execute` 只生成本地计划。失败先暂停后续写入，按[失败恢复与授权](../../references/deployment-protection.md#失败恢复与授权)自动诊断并在原授权内有限恢复；仅命中人工边界才提问。
 
 ## 执行顺序
+
+自动恢复共享本次部署上限：首次执行之外最多重试 2 次，第二次仍失败立即停止并汇报原因、已完成与未执行步骤；不通过重跑命令或新建批次重置计数。用户后续明确要求继续处理才开始新一轮，具体边界见[失败恢复与授权](../../references/deployment-protection.md#失败恢复与授权)。
 
 仅编译 CSP 的固定入口（路径取部署清单中的 virtualPath）：
 
@@ -56,7 +58,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js --docu
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js --documents <virtualPath.csp...> --execute
 ```
 
-第一条仅本地计划；第二条在上传完成且用户已明确授权部署后执行一次批量编译。直接编译明确指定的 show.csp，不自动编译父页面。禁止把已授权部署机械拆成逐工具重复确认。输出 `elapsedMs` 为编译请求及回包耗时，不能当作包含检查/上传/验收的总耗时。失败或结果不明时不自动重试，也不回退到 `iris_execute`。
+第一条仅本地计划；第二条在上传完成且用户已明确授权部署后执行一次批量编译。直接编译明确指定的 show.csp，不自动编译父页面。禁止把已授权部署机械拆成逐工具重复确认。输出 `elapsedMs` 为编译请求及回包耗时，不能当作包含检查/上传/验收的总耗时。明确编译失败先诊断，原任务已授权修复时处理后经原门禁部署；结果不明先核实，编译请求不自动重放，不回退到 `iris_execute`。授权沿用、恢复上限和提问条件统一见上述协议。
 
 1. 读取配置和项目规则，确认目标环境事实来源。
 2. 核实文件清单，拆分后端类、CSP、Web 资源和其它文件；不强制另建清单产物。

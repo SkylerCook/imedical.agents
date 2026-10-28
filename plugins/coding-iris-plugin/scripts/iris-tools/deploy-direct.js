@@ -22,7 +22,8 @@ function prepare(file, local, remote) {
 }
 
 async function run({files, adapter, kind}) {
-  const result = {schema: 'iris-direct-deploy/v1', mode: 'direct', status: 'checking', files: []};
+  adapter = require('./deploy-recovery').wrap(adapter);
+  const result = {schema: 'iris-direct-deploy/v1', mode: 'direct', status: 'checking', files: [], recovery: adapter.deploymentRecovery};
   let stage = 'preflight', writing = false, activeFile, compiled = false;
   const storageSynced = [];
   try {
@@ -46,10 +47,13 @@ async function run({files, adapter, kind}) {
       if (!guard.readSource(file).equals(file.source)) guard.stop('local-changed-during-deploy', {file: file.remotePath});
       const latest = await adapter.read(file);
       if (guard.hash(latest) !== guard.hash(file.remoteBytes)) guard.stop('remote-changed-during-deploy', {file: file.remotePath});
+      if (!guard.readSource(file).equals(file.source)) guard.stop('local-changed-during-deploy', {file: file.remotePath});
       const unchanged = kind === 'backend' ? guard.text(latest) === file.content : guard.hash(latest) === guard.hash(file.bytes);
       if (!unchanged) {
+        const earlierWriting = writing;
         writing = true;
-        await adapter.put({...file, expected: guard.hash(latest)});
+        try { await adapter.put({...file, expected: guard.hash(latest)}); }
+        catch (error) { if (error.beforeSend === true) writing = earlierWriting; throw error; }
         const back = await adapter.read(file);
         const matches = kind === 'backend' ? guard.text(back) === file.content : guard.hash(back) === guard.hash(file.bytes);
         if (!matches) guard.stop('readback-mismatch', {file: file.remotePath});
@@ -88,17 +92,18 @@ async function run({files, adapter, kind}) {
     }
     return {...result, status: 'verified'};
   } catch (error) {
-    if ((writing || stage === 'compile' || compiled) && error.reason !== 'compile-failed' &&
+    const knownUnsent = error.deploymentOperation === 'put' && error.beforeSend === true && require('./deploy-recovery').transient(error);
+    if (!knownUnsent && (writing || stage === 'compile' || compiled) && error.reason !== 'compile-failed' &&
         !(compiled && /^(?:local-|frozen-storage-sync-requires-source-review)/.test(error.reason || ''))) {
       // A semantic readback failure is as important as a lost HTTP response.
       // Keep the participating pool closed until this attempt is reconciled.
       try {adapter.markUnknown?.(error.reason || error.code || 'deployment-outcome-unknown');} catch {}
     }
-    return {...result, status: compiled ? (kind === 'backend' ? 'storage-sync-incomplete' : 'failed-or-unknown') : error.reason === 'compile-failed' ? 'compile-failed' : writing || stage === 'compile' ? 'failed-or-unknown' : 'blocked',
+    return {...result, status: knownUnsent ? 'blocked' : compiled ? (kind === 'backend' ? 'storage-sync-incomplete' : 'failed-or-unknown') : error.reason === 'compile-failed' ? 'compile-failed' : writing || stage === 'compile' ? 'failed-or-unknown' : 'blocked',
       reason: error.reason || error.code || 'transport-or-configuration-failed', failedStage: stage, failedFile: activeFile,
       partialOrUnknown: writing || stage === 'compile' || compiled, details: error.details || {},
       ...(compiled ? {remoteCompilation: 'compiled', localStorageSync: {status: 'incomplete', files: storageSynced}} : {}),
-      message: 'No automatic retry or rollback. Inspect affected server files before continuing.'};
+      message: 'Safe recovery exhausted or inapplicable. Inspect affected server files; unknown writes and compilation are not replayed.'};
   }
 }
 

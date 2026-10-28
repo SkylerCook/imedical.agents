@@ -377,6 +377,8 @@ A:
 
 ## 前端固定部署入口
 
+部署失败先按[失败恢复与授权](../../references/deployment-protection.md#失败恢复与授权)读取诊断和逐文件状态；同范围已有授权继续有效。逐文件 direct/guarded 在本步骤有限恢复，回执附 `recovery`，明确编译错误不会进入 unknown resume；旧 SFTP 批量 worker 证据不足时仍停止。编译请求、未知写入及整批操作均不自动重放。
+
 前端上传加编译统一调用 `scripts/iris-tools/deploy-frontend.js`。默认生成本地计划；已有明确部署授权后加 `--execute`，无需逐步骤重复确认。禁止为常规部署临时生成上传脚本或逐次探索编译工具。
 
 ```bash

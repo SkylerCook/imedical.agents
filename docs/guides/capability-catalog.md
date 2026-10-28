@@ -113,7 +113,7 @@ IRIS 前后端开发、知识查询、XML 包、代码基线与部署，支持�
 | [iris-backend-coding](../../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md) | 按统一命名、格式及类/方法/变量注释规范实现、复核 ObjectScript 后端 | 日常入口 |
 | [iris-coding](../../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md) | 路由混合或边界不明的 IRIS 开发 | 日常入口 |
 | [iris-demand-promote](../../plugins/coding-iris-plugin/skills/iris-demand-promote/SKILL.md) | 将 DEV 已提交需求移植到 PRD 本地仓库 | 日常入口 |
-| [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 规划和执行 IRIS 远端部署，编译后仅回填核对通过的 Storage | 日常入口 |
+| [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 规划和执行 IRIS 部署，原授权内诊断及有限安全恢复，编译后仅回填核对通过的 Storage | 日常入口 |
 | [iris-xml-export](../../plugins/coding-iris-plugin/skills/iris-xml-export/SKILL.md) | 从确认环境导出准确对象范围的 XML 包，含图片，支持专用类／系统执行通道 | 日常入口；实际导出按目标和范围授权 |
 | [iris-code-baseline](../../plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md) | 维护版本清单并采集实例当前代码；图片预筛、缺失 partial、目标资格控制只读会话池 | 日常入口；纯采集与项目开发分支分别处理 |
 | [iris-frontend-coding](../../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md) | 按统一前端规范实现与复核 CSP、HTML、JavaScript、CSS、HISUI 前端 | 日常入口 |

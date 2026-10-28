@@ -1,5 +1,14 @@
 # imedical.agents 维护日志
 
+## 2026-10-28 IRIS 部署有限恢复与重复确认收敛
+
+- framework-maintenance，按用户确认实施部署失败分流；并行 XML/基线已在 `4960807` 独立提交，本次 coding-iris-plugin 0.22.0→0.22.1，新增独立发布记录并保持 0.22.0 不可变原文。用户随后明确授权本批 c + p，按 master 与 Gitee/GitHub 双远端约定执行，最终结果以 Git 回执为准；不更新业务副本或连接真实服务器。
+- direct/guarded 逐文件入口共用 deploy-recovery，瞬时读取与确证未发出的上传共享 2 次额外尝试（250/1000ms）；本地字节、远端快照、原通道、冻结发布及夜跑准入每次复核。部分上传和编译后读取在当前步骤继续，不整批重放；上传前补一次本地字节核对，防止恢复等待期间的修改被上传。回执记录 recovery；SFTP 批量 worker 无充分错误证据时仍停止，不重启或换通道。
+- guarded 明确编译失败返回 compile-failed 并保留已上传快照，原任务已授权修复时先诊断再走原入口，不强制 unknown resume。未知写入/编译、503、认证/TLS、并发、Storage 及生产冻结门禁保留；旧 unknown 的核实读取失败不会降级为普通 blocked。确证未发出的上传耗尽或写入前瞬时读取耗尽返回 blocked，避免把已知未执行误报为授权问题。
+- 用户补充停止边界已写入 skill 和唯一恢复协议：首次执行之外最多重试两次，第二次仍失败立即停止本次部署并汇报原因、已完成及未执行步骤；不通过重跑命令、重建 adapter 或另建批次重置额度，不自动开启下一轮。实际范围/覆盖/权限/未知结果决策才提问，技术失败不自动使已有授权失效。
+- Windows、Node 24.14.1 最终 10 个相邻测试文件 116/116 通过（恢复专项含子项 17 项）；覆盖有限调用次数/退避、共享额度、部分上传继续、编译不重放、等待期间本地/服务器修改、旧 unknown 不解锁、冻结/夜跑门禁、真实 127.0.0.1 Atelier 断连及原发布流程。功能证据沿 validation-evidence 绑定实际运行输入，停止文案单独经链接及语义核对；证据保存在测试运行器系统临时根的既有 imedical-agent-validation 缓存，并回读为 fingerprint-match。隔离 Git/本地 HTTP 测试需沙箱外；最终夹具位于 D:/tmp/Codex 任务目录，早期使用工具允许的系统临时目录，所有本任务夹具均已删除并核实。非 Windows/Node22 及真实项目仍归既有 P1/P2 队列，新增专项接入现有三平台 CI 矩阵，未执行远端 CI。
+- owner AGENTS/README、skill、checklist、保护协议、脚本帮助、总览、能力手册、维护入口与既有 P1/P2 队列同步。部署链接定向 1/1、JavaScript 语法与 diff 检查通过；组件工作区与 HEAD 基线均为同一组 6 条历史发布记录诊断，无新增版本问题。安装/更新/sparse/thin-index 算法与配置未变，正常完整能力包更新取得，未改写更新 runbook 的既有并行内容；旧 unknown 状态不自动迁移，无旧文件清理。提交前复用内容指纹匹配的 116 项功能证据，只补独立版本记录、精确暂存、staged 组件门禁及差异复核。
+
 ## 2026-10-28 验收 Git 发布与 BOS 补录解耦
 
 - framework-maintenance，基点 `5282be440f7048cd88b01aa7b2649bb69d973cbd`；用户明确要求先提交推送、BOS 后补，并授权本轮 c + p。demand-delivery-plugin 0.8.0→0.8.1，默认 commit→push→BOS，兼容日志先于 push 的旧顺序。主子日志 pending/failed/running/unknown 均不阻塞 Git；全部约定 Git 动作成功即释放 publication 和 checkout 写入占有，保留日志交付者与原 worktrees 取证，部分 push 仍保护全部目标。

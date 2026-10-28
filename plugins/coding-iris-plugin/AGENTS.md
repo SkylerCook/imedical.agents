@@ -32,6 +32,7 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 - MCP 作为辅助能力，用于补上下文、只读 SQL/远程读取、脚本未覆盖的能力，或用户明确要求用 MCP 的场景。
 - 涉及 MCP、上传、编译、远程读取或只读 SQL 验证时读取目标工程 `.mcp.json`。
 - 默认只做本地修改、只读验证和报告；上传、编译、远程写入、数据库变更必须由用户明确要求。
+- 部署失败先读[失败恢复与授权](references/deployment-protection.md#失败恢复与授权)：已授权范围内先诊断和有限恢复，明确编译错误与未知结果分开；仅实际人工决策才提问，冻结发布与公共熔断门禁继续适用。
 - `iris_test`、`iris_coverage`、`iris_execute_method`、容器切换和其它远端执行即使不直接改业务源码，也必须按远端状态变更取得任务级授权；上游 MCP 自带门禁不能代替本仓库授权边界。
 - 历史 CSP/JS/CSS 文件可能存在编码和特殊 EOF，修改前先确认实际编码和尾部格式，避免整文件重写。
 - 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`；`project-utf8` 仅作为兼容读取别名，`standard-gb2312` 仅服务用户明确指定的历史工程，实际文件字节检测始终是最终门禁。Overlay manifest 明确只声明 `backend` 时，profile 使用 `N/A (backend-only)`，不得伪造前端编码结论。

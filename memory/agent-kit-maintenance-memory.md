@@ -4,6 +4,8 @@
 
 ## 当前接手
 
+- IRIS 部署失败先按[恢复协议](../plugins/coding-iris-plugin/references/deployment-protection.md#失败恢复与授权)在原授权内诊断并有限恢复；明确编译错误与未知结果分开，旧 unknown 会话及公共熔断保留。实现与验证范围见维护日志，真实项目及跨平台沿既有 P1/P2 队列取证。
+
 - IRIS XML 与代码基线[本地接入实现](../maintenance/design/iris-xml-baseline-integration-plan.md)已完成：两个入口归 coding owner，版本 XML 表达范围、源码取实例当前状态；基线图片预筛统计，XML 图片沿无损样本回归。已交付本地实现、类源及[验收步骤](../docs/guides/iris-xml-baseline-acceptance.md)，用户随后授权本批提交推送，结果以 Git 回执为准；未更新项目／服务器，安装 XML 未生成，真实通道／资源资格、跨平台实跑与旧入口迁移沿既有 P1/P2 队列，已验范围查[日志](agent-kit-maintenance-log.md)。
 
 - BOS 需求名称的 `[标版]` 按 IRIS 产品交付目标逐条判断，会议、演示及临时数据/环境准备沿非标版工作处理；三类来源共用 [skill 规则](../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md#需求名称与标版标签各类来源共用)。旧草稿名称不自动改写，升级及验证边界查 owner README 和维护日志。

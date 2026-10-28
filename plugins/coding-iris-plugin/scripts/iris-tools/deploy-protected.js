@@ -258,6 +258,7 @@ async function main(kind,argv){
    const state=publication.load(sourcePlanPath);state.state='deploying';publication.save(state);publicationStarted=true;
   }
   adapter=nightExecution.boundAdapter(nightBinding,adapter);
+  adapter=require('./deploy-recovery').wrap(adapter);
   const prior=nightExecution.reusableDeployment(nightBinding);
   let reuse=false;
   if(prior&&!sourceBinding){
@@ -266,7 +267,7 @@ async function main(kind,argv){
   }
   if(reuse){await adapter.close?.();const result={status:'verified',reusedOperationId:prior.id,files:files.map(f=>({file:f.remotePath,status:'unchanged'}))};nightExecution.finish(nightBinding,result);nightBinding=null;console.log(JSON.stringify(result));return;}
   if(a.mode==='direct'||sourceBinding){
-   const result=sourceReview(adapter.batch?await adapter.batch():await require('./deploy-direct').run({files,adapter,kind}),nightBinding);
+   const result=sourceReview(adapter.batch?{...await adapter.batch(),recovery:adapter.deploymentRecovery}:await require('./deploy-direct').run({files,adapter,kind}),nightBinding);
    if(sourceBinding&&['verified','review-pending'].includes(result.status)&&result.localStorageSync?.files.length){result.deploymentStatus='compiled';result.status='post-compile-review';result.reason='storage-sync-requires-source-review';}
    if(sourceBinding){
     result.files=result.files.map(file=>({...file,document:file.document||files.find(item=>item.remotePath===file.file)?.publicationDocument||file.file}));

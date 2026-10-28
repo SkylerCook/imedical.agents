@@ -78,7 +78,7 @@ related:
 - 验证代表性页面可加载，核心业务调用可用。
 - 以上检查通过前，不得报告部署成功。
 
-前端上传加编译固定使用 `scripts/iris-tools/deploy-frontend.js`：全批差异预检、隔离产物上传、哈希回读后批量 Atelier 编译；失败停止，不临时生成脚本或自动换通道。参数及耗时口径见 `scripts/iris-tools/README.md`。
+前端上传加编译固定使用 `scripts/iris-tools/deploy-frontend.js`：全批差异预检、隔离产物上传、哈希回读后批量 Atelier 编译；失败按[失败恢复与授权](../references/deployment-protection.md#失败恢复与授权)暂停写入、诊断并有限恢复，不临时生成脚本或自动换通道。参数及耗时口径见 `scripts/iris-tools/README.md`。
 
 ## 开发部署与可选基线保护
 
