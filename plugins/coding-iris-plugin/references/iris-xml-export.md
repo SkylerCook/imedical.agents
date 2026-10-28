@@ -2,7 +2,7 @@
 
 本协议归 `coding-iris-plugin`。入口为 [iris-xml-export](../skills/iris-xml-export/SKILL.md)，实现参数以 `scripts/iris-tools/xml-export.js --help` 为准。
 
-现场已导出完整源码 XML、需要带出交给 AI 修改时，使用[离线拆分/编辑/回包](iris-offline-development.md#带出完整-xml-后离线修改)。该分支不连接实例，不自动导入或编译；本协议继续管理服务器生成 XML 的受管通道。
+现场已导出完整源码 XML、需要带出交给 AI 修改时，使用[离线拆分/编辑/回包](iris-offline-development.md#固定处理路径)。该分支不连接实例，不自动导入或编译；本协议继续管理服务器生成 XML 的受管通道。
 
 ## 命令入口
 

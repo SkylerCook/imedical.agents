@@ -38,13 +38,15 @@ IRIS 编码入口按边界选择：明确前端/后端任务直达专项 skill�
 
 轻量 SQL 使用固定参数绑定兼容层，修复上游 write 参数遗漏；事务内预检与实际影响行数均须为 1，写入授权包含 MCP 临时执行载体。一个明确授权的清空/恢复样本已通过，不代表普通部署允许清空或所有实例已验收。
 
-本仓库分三层：
+核心协作能力分三层：
 
 ```text
 agents/      # 厂商无关的智能体 canonical 定义
 workflows/   # 厂商无关的阶段化/多智能体协作流程
 plugins/     # 可复用能力实现：rules、skills、templates、scripts、references
 ```
+
+[tools/](tools/README.md) 是另行携带的人工工具源，独立于上述能力包分发；本机 ZIP 与已提交源文件分别管理，不把整个工具目录加入业务项目 `.agents`。
 
 核心原则：
 

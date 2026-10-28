@@ -16,6 +16,8 @@
 
 - XML 包与代码基线统一归 coding owner 的[导出协议](../plugins/coding-iris-plugin/references/iris-xml-export.md)和[基线协议](../plugins/coding-iris-plugin/references/iris-code-baseline.md)：版本 XML 定义范围，实例返回定义内容；包的二进制载荷与基线图片预筛分别验证。纯采集不自动进入项目 Git 状态机；单批内部只读会话池不改变跨进程排他或写入串行，资格依实际目标及运行时重新核验。专用类源、已验证安装 XML 与服务器实际能力分开；用户级旧入口沿显式迁移，普通更新不删除。XML 解析使用固定 vendor 依赖，来源与许可证归 vendor 说明，不扩大为业务 npm 安装。
 
+- 人工源码导出与带回 XML 编辑分别交付：独立 Windows PowerShell 工具无需 Agent／Node.js／MCP；完整源码 XML 的离线修改归 [coding 协议](../plugins/coding-iris-plugin/references/iris-offline-development.md)，按对象 XML 保留原包与元数据，生成同对象集合的增量、回退、说明和 manifest 并独立校验。范围清单不能补造源码，回退包不是现场即时备份；本地核对不授予导入/编译/发布权限，也不绕过已知资源阻断。一次现场证书、401 或兼容观察按样本保留，不推广为所有目标的处理规则。
+
 - 项目使用文档统一放 docs/ 并随能力包部署；源仓治理、设计历史和验证证据归 maintenance/，不进入 sparse。稳定操作入口保留，新增指南/参考分组。文档迁移优先依赖 Git 安全快进清除旧受管路径与空目录；自定义文件保留，本地改动停止，不新增宽泛删除。
 
 - 源仓普通提交采用暂存组件版本门禁，功能测试与版本校验独立取证；无关 HEAD 变化不使内容证据失效。已登记且未变化的历史发布结构问题保留技术债，不重复人工处理，不阻断无新增问题的局部提交；完整审计继续保留历史问题。规则唯一正文见 maintenance/governance/component-version-management.md。
@@ -77,6 +79,7 @@
 - overlay 的 shared path 与 SourceRoot 逻辑 path 必须是指向 manifest 精确目标的 Junction；local path 必须是物理目录。自动修复只允许作用于可证明受管且目标错误的 Junction，普通目录、文件或本地目录不得覆盖。
 - 根目录 `memory/` 是维护者记忆，不得加入 `scripts/install-agents.ps1` 或 `scripts/update-agents.ps1` 的 sparse checkout 路径。
 - 根目录 `releases/` 是维护者发布审计记录，不加入业务项目 sparse checkout。
+- 根 `tools/` 是另行交付的人工工具源，整体不加入业务项目 sparse 或 thin-index。说明、源码就近维护一份；`tools/dist/` 只保留被 Git 忽略的本机正式 ZIP，打包暂存与解压夹具按任务清理。已授权本机示例只留本机包，源仓提交不自动发布该 ZIP 或其私有内容；原包恢复材料沿所属任务保留。
 - `memory/plan/` 是维护者计划子目录，存放实施计划和设计文档，不部署到业务项目。
 - 根目录 `AGENTS.md` 只服务本仓库维护，不部署到业务项目 `.agents/`。
 - 根目录 `agents/` 和 `workflows/` 是能力包正式内容，已加入 `scripts/install-agents.ps1` 和 `scripts/update-agents.ps1` 的 sparse checkout 路径，部署到业务项目 `.agents/agents/` 和 `.agents/workflows/`。
