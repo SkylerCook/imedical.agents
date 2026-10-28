@@ -172,7 +172,9 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 [查看该插件清单](capability-catalog.md#coding-iris-plugin)。下面的示例发给 Agent，不在终端执行；路径、对象和范围替换为当前工程实际值。
 
-项目按需导出示例：“处理这份 project 需求，先核实相关服务器文件，保留本地修改，按现有授权完成合并和本地验证。”已确认 `project` ＋ `intent-first-on-demand-export` 才命中[项目开发协议](../../plugins/coding-iris-plugin/references/project-demand-development.md)；标版沿既有分支，contextMode 不决定需求类型。测试为日常默认，正式直接开发须明确授权；两环境各有本地 Git，远端读取资格、普通提交和发布授权分别核对。部署前再次同步并复审冻结，前端优先使用已确认支持的 Atelier。无需每需求全量刷新，也不以文件数量推断 License 安全。
+帮助请求先展示用法并结束；实际开发先按 developmentMode 分流。offline 示例：“按这批带回源码完成本地修改、Review 和增量/回退交付，列出现场待验项。”沿[离线协议](../../plugins/coding-iris-plugin/references/iris-offline-development.md)核对批次、范围与真实源码 Git，无需医院连接；打包目前要求 Windows PowerShell 5.1 或 Windows 上的 PowerShell 7。
+
+connected 项目按需导出示例：“处理这份 project 需求，先核实相关服务器文件，保留本地修改，按现有授权完成合并和本地验证。”已确认 `project` ＋ `intent-first-on-demand-export` 才命中[项目开发协议](../../plugins/coding-iris-plugin/references/project-demand-development.md)；标版沿既有分支，contextMode 不决定需求类型。测试为日常默认，正式直接开发须明确授权；两环境各有本地 Git，远端读取资格、普通提交和发布授权分别核对。部署前再次同步并复审冻结，前端优先使用已确认支持的 Atelier。无需每需求全量刷新，也不以文件数量推断 License 安全。
 
 | Skill | 请求示例 | 前提与预期结果 |
 |---|---|---|
@@ -180,7 +182,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 | [iris-backend-coding](../../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md) | 修改指定类方法以满足这份需求，保留分层和返回契约，按框架规范检查新增代码。 | 提供类方法、需求及范围，有项目显式规范时一并提供；编码与 Review 共用 CLS 规范，格式化只处理本次新增代码，不附带整理已有代码。新增注册类/DTO、表类及成员按统一标签说明职责和参数/返回契约，变量使用自然注释，复杂返回引用结构；Debug 只作为文档内容，属性说明及索引注释按需，保留历史兼容及 Storage。新建类核对 profile、同职责类和公共基类，适配模板 Extends，向 Review 提供继承依据。提取公共方法后核对规则复用和稳定标识归属；Parameter 声明/引用按语言合法性检查，静态歧义交人工核对。产出本地源码，分别报告 Agent 审查、脚本覆盖项及编译/运行证据。 |
 | [iris-coding](../../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md) | 修改这个功能，先查明前后端调用链，再完成范围内实现。 | 提供功能入口和需求；产出任务路由、相关前后端变更及验证说明。 |
 | [iris-demand-promote](../../plugins/coding-iris-plugin/skills/iris-demand-promote/SKILL.md) | 先评估将 DEV 的指定提交移植到指定 PRD 仓库的范围和基线。 | 明确两个仓库、提交及服务器基线读取范围；授权实施后形成 PRD 本地提交，不部署。 |
-| [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 将这些文件部署到已指定环境并检查编译。 | 已确认 project＋intent-first-on-demand-export 时先同步、合并复审并绑定 source plan；正式批准绑定当前冻结摘要。未命中该分支的工程沿原 direct/guarded 契约。失败先诊断并在原授权内有限恢复，明确编译错误与未知结果分开；实际人工决策才提问，详见[恢复协议](../../plugins/coding-iris-plugin/references/deployment-protection.md#失败恢复与授权)。分别报告上传、编译及最终回读、Storage 和业务验证；回填失败不能报告验证通过，冻结源码变化后复审。 |
+| [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 将这些文件部署到已指定环境并检查编译。 | connected 且已确认 project＋intent-first-on-demand-export 时先同步、合并复审并绑定 source plan；正式批准绑定当前冻结摘要。connected 下未命中该分支的工程沿原 direct/guarded 契约，offline 停止医院部署。失败先诊断并在原授权内有限恢复，明确编译错误与未知结果分开；实际人工决策才提问，详见[恢复协议](../../plugins/coding-iris-plugin/references/deployment-protection.md#失败恢复与授权)。分别报告上传、编译及最终回读、Storage 和业务验证；回填失败不能报告验证通过，冻结源码变化后复审。 |
 | [iris-xml-export](../../plugins/coding-iris-plugin/skills/iris-xml-export/SKILL.md) | 先和我确定这个模块需要的对象，再从确认环境导出一个 XML 部署包。 | Agent 分析候选、核对动态依赖并确认准确清单；包来自服务器当前对象，支持文本与图片。选择已准备的专用类或原生系统执行通道，逐项核对完整性，部署和导入另按授权。 |
 | [iris-code-baseline](../../plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md) | connected 按版本 XML 采当前源码；offline 用带回的回执源码、人工源码目录或完整 XML，完成修改、Review、增量/回退交付。 | [现场用法](../../plugins/coding-iris-plugin/references/iris-offline-development.md)；先解析独立 developmentMode，离线无需连接，材料清单不等于源码。原件在 incoming，编辑对象进入源码 Git，基线/恢复私有保存，独立 Verify 后待现场验收；人工 ZIP 无框架/Node 运行依赖。 |
 | [iris-frontend-coding](../../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md) | 调整指定 HISUI 页面的交互，或排查弹窗面板留白、裁切与滚动异常，保留现有数据和调用契约。 | 提供页面、行为要求及项目显式规范/兼容基线；编码与 Review 共用前端规范，仅对本次新增代码应用格式约定，按条件加载 i18n。分别报告静态检查、自审或独立 Review、实际页面验证；布局问题仍路由到 HISUI 样式参考；新建页面或审查初始化链路时，按依赖与容器契约选择 JS 组织模板。 |

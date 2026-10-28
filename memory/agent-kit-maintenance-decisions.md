@@ -151,7 +151,7 @@
 ## Agent 运行与反馈边界
 
 - 通用新运行使用 schema 2.0；`executionPath: fast|full|guarded` 与 `orchestrationMode: serial|subagent|multi-session` 正交。历史 schema 1.0–1.2 只读，不原地迁移。
-- 新夜跑在既有 run/workspace/test-result 上显式使用 schema 2.1，保留旧 2.0 契约；先保存用量基线、初筛并实际预检能力，再制定详细 PLAN、集中授权与启动。executionPlan、监督/恢复、联合版本和证据等级的正文归 docs/night-governance.md、docs/night-policy.md、docs/night-acceptance.md，不以宿主 ACK 或静态检查替代实际监督与业务验证。数据处置归项目 fixture authority，资源退出独立核验。
+- 新夜跑在既有 run/workspace/test-result 上显式使用 schema 2.1，保留旧 2.0 契约；先保存用量基线、初筛与基础探测，在原预算内补齐项目适配/用例并定向复验，再制定详细 PLAN、集中授权与启动。逐用例能力、缺口、executionPlan、监督/恢复、联合版本和证据等级的正文归 docs/night-governance.md、docs/night-policy.md、docs/night-acceptance.md，不以宿主 ACK 或静态检查替代实际监督与业务验证。数据处置归项目 fixture authority，资源退出独立核验。
 - `events.jsonl` 是事件事实源，`00-run-manifest.json` 是当前投影；Coordinator 是唯一状态和集成 owner，参与者通过 action result、message 和 handoff 返回。
 - multi-session 协作计划授权只覆盖当前 planHash；远程写入、commit、merge、push、部署和 feedback 写入分别授权。可写会话必须使用隔离 worktree 和互斥 scope。
 - schema 2.0 先以互斥 `taskKind` 分流：`business-demand` 使用 `implementing -> locally-verified -> acceptance-pending -> accepted`；`framework-maintenance` 使用 `maintaining -> locally-verified -> maintenance-complete`；`other` 不进入任一生命周期。业务需求与框架维护同时出现时建立独立记录，不共享验收、feedback 或完成状态。

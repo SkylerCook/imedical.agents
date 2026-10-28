@@ -4,12 +4,11 @@
 
 ## 当前接手
 
-- IRIS 开发方式独立于 contextMode，配置与兼容顺序见[离线协议](../plugins/coding-iris-plugin/references/iris-offline-development.md)和更新 runbook；源码助手已从独立工具提交基线迁入 coding owner 唯一实现。帮助先于模式与业务前置；Windows短名/长名比较修正见日志。新任务绑定批次/范围与实际源码 Git，XML 原包私有保存；旧任务原位恢复，不更新业务副本或把本地 Verify 当现场验收。首轮CI与帮助兼容修正见日志，矩阵余项沿backlog取证。
-
-- Overlay 实体 SourceRoot 的源仓扩展见 [runbook](../docs/workspace-overlay.md#sourceroot引用已有源码或持有本地源码)与维护日志；path/target 相同声明实体目录，旧 Junction 保持。先更新共享 capability 再按项目授权接入，不自动迁移医院源码或把离线工具已在源仓等同已部署。
-
-- 最近全局回看覆盖 `0984232..c233704`（2026-10-28，3 个提交），包含上轮文档收尾与人工导出／XML 离线交付。发现、修正和验证见[日志覆盖点](agent-kit-maintenance-log.md#全局回看覆盖点)；当前版本查 owner manifest，历史实施状态不作当前未提交结论。
-- XML／基线、目录受管说明、实仓日志与 Git/BOS 解耦、部署有限恢复均已在源仓实现；按下表条件读取 owner，区分源码交付、项目接入、有效授权和真实服务验证。类源不等同已验证安装 XML，目录通过不等同逐文件归类，Git 完成不等同全部适用交付完成。
+- 最近全局回看覆盖 `c233704..9a8996f`（2026-10-28，8 个提交）。发现、修正、CI 快照及验证见[日志覆盖点](agent-kit-maintenance-log.md#全局回看覆盖点)；版本查 owner manifest，历史实施状态不作当前未提交结论。
+- IRIS 帮助先于模式与业务前置；实际开发先按独立 developmentMode 分流，再选择在线项目同步或[离线交付](../plugins/coding-iris-plugin/references/iris-offline-development.md)。源码助手唯一实现归 coding owner，人工 ZIP 取同一核心；框架绑定批次/范围与源码 Git，原包私有保存，旧任务原位恢复。当前打包限 Windows，本地 Verify 与现场验收分别报告。
+- Overlay 实体 SourceRoot 见 [runbook](../docs/workspace-overlay.md#sourceroot引用已有源码或持有本地源码)：path/target 相同声明实体目录，旧 Junction 保持。先更新共享 capability 再按项目授权接入；物理等价路径不扩大源码范围，不自动初始化 Git 或迁移源码。
+- 夜跑准备先基础探测、原预算内补齐适配与用例、定向复验，再详细 PLAN；逐用例认证/写入副作用及缺口读[项目适配](../docs/night-acceptance.md#逐需求预检与补齐)。局部通过与共享资源退出分别核验，旧 run 和已确认降级保持。
+- XML／基线、目录受管说明、Git/BOS 解耦和部署有限恢复按下表读取 owner；类源、目录检查、Git 推送均保留各自完成边界。源仓实现不代表业务副本已部署。
 - 未完成的真实试点、资源资格、旧入口迁移和跨平台结果沿[治理队列](agent-kit-maintenance-backlog.md#治理优先级与执行顺序)原 P0–P3 顺序推进；源仓维护不自动更新业务工程或执行服务器操作。
 
 ## 按任务读取
@@ -23,9 +22,9 @@
 | 夜跑批次、预算、监督与恢复 | [治理顺序](../docs/night-governance.md)、[策略与兼容](../docs/night-policy.md)、[分层验收](../docs/night-acceptance.md)；先基础探测、预算内补齐及定向复验再详细 PLAN；逐用例能力与缺口诊断沿验收文档，旧 run 保留原契约 |
 | BOS 待办、工作量、来源与排序 | [查询 skill](../plugins/bos-plugin/skills/bos-demand-query/SKILL.md)与[使用契约](../plugins/bos-plugin/references/usage.md)；模式/日期/人员/项目或产品条件按当前定义，查询保持只读 |
 | BOS 提需、验收与交付 | [BOS owner](../plugins/bos-plugin/README.md)、[交付 owner](../plugins/demand-delivery-plugin/README.md)；名称标签读[产品交付规则](../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md#需求名称与标版标签各类来源共用)，主子/无代码、实仓日志、Git/BOS 独立恢复读[代码归属](../docs/demand-code-ownership.md)，提交漂移读[同步复核](../plugins/demand-delivery-plugin/references/commit-upstream-check.md) |
-| IRIS 编码、部署、MCP 或 HISUI | [编码 owner](../plugins/coding-iris-plugin/README.md)；已确认 project＋按需上下文先读[项目开发协议](../plugins/coding-iris-plugin/references/project-demand-development.md)，失败读[恢复与停止](../plugins/coding-iris-plugin/references/deployment-protection.md#失败恢复与授权)；菜单刷新读[采集协议](../plugins/coding-iris-plugin/references/menu-knowledge-sync.md#无人值守刷新)，vendor 升级读其 AGENTS/README |
+| IRIS 编码、部署、MCP 或 HISUI | [编码 owner](../plugins/coding-iris-plugin/README.md)先分流开发方式；connected＋project＋按需上下文读[项目开发协议](../plugins/coding-iris-plugin/references/project-demand-development.md)，offline 读[离线协议](../plugins/coding-iris-plugin/references/iris-offline-development.md)；在线失败读[恢复与停止](../plugins/coding-iris-plugin/references/deployment-protection.md#失败恢复与授权)，菜单刷新读[采集协议](../plugins/coding-iris-plugin/references/menu-knowledge-sync.md#无人值守刷新)，vendor 升级读其 AGENTS/README |
 | 受管 XML 导出、版本清单或源码基线 | [XML 导出](../plugins/coding-iris-plugin/references/iris-xml-export.md)与[代码基线](../plugins/coding-iris-plugin/references/iris-code-baseline.md)；范围清单／当前实例、包图片／代码预筛、纯采集／项目提交分别处理；真实类安装与资源资格读[验收步骤](../docs/guides/iris-xml-baseline-acceptance.md) |
-| 人工现场导出、源码离线交付或带回 XML 编辑 | 人工用[独立 ZIP](../tools/iris-code-export/README.md)，支持版本范围/补充 TXT/显式 Web 映射并绑定选择摘要，记录来源，以 Prepare/Pack/Verify 保留原件、交付修改后的源码和对应回退并比较现场新快照，不随 .agents 分发；版本不等同历史源码，v9.2 只声明全仓。带回完整源码 XML 后读[离线协议](../plugins/coding-iris-plugin/references/iris-offline-development.md)，按对象编辑并交付增量／回退／说明／manifest，独立 Verify；范围清单不能当源码，回退包不替代现场备份或漂移核对 |
+| 人工现场导出、源码离线交付或带回 XML 编辑 | 人工用[独立 ZIP](../tools/iris-code-export/README.md)：版本范围/补充 TXT/显式 Web 映射，选择摘要绑定恢复；版本不等同历史源码，v9.2 只声明全仓。带回回执源码、人工目录或完整 XML 后读[离线协议](../plugins/coding-iris-plugin/references/iris-offline-development.md)，沿唯一 helper 生成增量／回退／说明／manifest 并独立 Verify；范围清单不是源码，回退包不替代现场备份与漂移核对 |
 | 公司 UI、截图评审或 HISUI 标注/布局 | [通用 UI](../plugins/imedical-ui/README.md)、[IRIS 适配](../plugins/iris-ui/README.md)；按任务核对主题、基准与启用状态，原件更新读 [vendor 说明](../vendor/imedical-ui-standards/README.md) |
 | 项目上下文、技能适配或接续 | 目标项目 AGENTS 与 [project-context-maintenance](../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md)；规则断链按其路由维护走查；宿主发现读[适配指南](../docs/coding-agent-adaptation.md)，项目目录与用户级观察分开；显式交接读[task-handoff](../docs/task-handoff.md) |
 | 项目资料新建、目录说明接管或迁移 | [目录治理](../docs/guides/project-knowledge-layout.md)与 owner projectDirectories／本地 extensions；首次接入、旧导航接管、资料迁移分别评审，受管区更新保留人工正文；当前 ContextRoot/work、旧任务及显式路径分别处理 |

@@ -18,7 +18,7 @@ iMedical 知识资料已接入 [共享参考库](vendor/imedical-knowledge/READM
 
 技能归属：agent-context-kit 接管跨 Agent 适配，agent-framework-evolution 管理反馈与可复用内容打包。已部署项目保持原技能入口和运行时链接，首次更新步骤见 [迁移指南](docs/skill-plugin-migration.md)。
 
-IRIS XML 包和源码基线统一归 coding owner：[iris-xml-export](plugins/coding-iris-plugin/skills/iris-xml-export/SKILL.md) 从确认环境导出准确对象范围，支持图片；[iris-code-baseline](plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md) 按版本清单采集当前源码，图片预筛排除、初始缺失完整报告。专用类与系统执行通道无需 QTZ，受管只读多会话按目标资格启用；更新及旧全局入口迁移见[安装更新说明](docs/update-agents.md#iris-xml-导出与代码基线coding-022)，普通更新不部署服务端或登记资格。
+connected 下的 IRIS XML 包和源码基线统一归 coding owner：[iris-xml-export](plugins/coding-iris-plugin/skills/iris-xml-export/SKILL.md) 从确认环境导出准确对象范围，支持图片；[iris-code-baseline](plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md) 按版本清单采集当前源码，图片预筛排除、初始缺失完整报告。专用类与系统执行通道无需 QTZ，受管只读多会话按目标资格启用；更新及旧全局入口迁移见[安装更新说明](docs/update-agents.md#iris-xml-导出与代码基线coding-022)，普通更新不部署服务端或登记资格。
 
 人工内网源码导出使用[独立工具](tools/iris-code-export/README.md)，可将 ZIP 直接带入现场，按 UTF-8 TXT/XML 或选定版本清单导出到指定目录，支持医院补充 TXT、显式 Web 路径映射和范围预览；版本定义对象范围，取得的是医院当前源码，v9.2 全仓范围不冒充医生站。记录可读来源及清单摘要，离线保存原始基线并交付增量源码/对应回退/说明，支持用现场新快照比较；无需框架或 skill；导出与构建源在 tools/，交付助手从 coding 插件的唯一实现取入；整个 tools/ 不随 .agents 分发。另一路由用户将现场聚合 XML 带回，[交给本地 AI 按对象修改](plugins/coding-iris-plugin/references/iris-offline-development.md)，交付只含修改对象的 changes.xml、对应 rollback.xml、变更说明及摘要回执，再带回现场导入，无需独立 XML 工具包。
 
@@ -32,7 +32,7 @@ SFTP 工具纳入 [vendor/sftp-server](vendor/sftp-server/README.md)：保留五
 
 CLS 编码与 Review 共用 [命名与格式规范](plugins/coding-iris-plugin/references/cls-coding-format.md)：仅规范本次新增代码，原有代码即使被功能需求修改也不附带格式化，项目显式规范可覆盖默认值。新增类先核对项目基类并适配模板 Extends，Review 检查继承依据；Agent 审查命名、表达式及 [注册类、方法与变量注释](plugins/coding-iris-plugin/references/cls-coding-format.md#注释与空行)，共用清单补查提取后的重复业务规则及稳定业务标识归属；Parameter 语言合法性优先，可选脚本检查成员边界、EOF 和有限的 Parameter 声明/引用命名，不增加提交门禁。普通能力包更新分发，无业务代码迁移。
 
-IRIS 编码入口按边界选择：明确前端/后端任务直达专项 skill，混合或边界不明时使用 [iris-coding](plugins/coding-iris-plugin/skills/iris-coding/SKILL.md)。当前需求已明确为 `project` 且采用 `intent-first-on-demand-export` 时执行[项目按需导出开发协议](plugins/coding-iris-plugin/references/project-demand-development.md)，按范围刷新基线、保护现场并于部署前同步复审；标版沿既有分支，contextMode 不决定需求类型。公共角色、字节检查和远端准入共用，规则与 skill 条件加载。i18n 条件矩阵由前端规则统一维护；静态读取体量与真实提效分别验证，见[验证记录](maintenance/validation/agent-evolution.md)。
+IRIS 编码入口按边界选择：明确前端/后端任务直达专项 skill，混合或边界不明时使用 [iris-coding](plugins/coding-iris-plugin/skills/iris-coding/SKILL.md)。先按 developmentMode 分流；connected 且当前需求已明确为 `project`、采用 `intent-first-on-demand-export` 时执行[项目按需导出开发协议](plugins/coding-iris-plugin/references/project-demand-development.md)，按范围刷新基线、保护现场并于部署前同步复审；offline 复用开头的离线协议，标版沿既有分支，contextMode 不决定需求类型。公共角色与字节检查共用，远端准入仅在允许的在线动作中执行；规则与 skill 条件加载。i18n 条件矩阵由前端规则统一维护；静态读取体量与真实提效分别验证，见[验证记录](maintenance/validation/agent-evolution.md)。
 
 ## 快速理解
 
@@ -307,8 +307,6 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 跨技术栈的数字需求号提交与连续人工验收。demand-commit 支持 standard/project、精确文件计划、防漂移和本地提交校验；--plan 不提交，--commit 仅授权本地提交。[demand-acceptance](plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md) 接收连续验收与断点恢复；明确调用开展验收交付即授权该批次通过项提交、BOS 日志及推送，无需交付开关。独立需求逐号交付，主子共享提交及明确无代码项先按[代码归属协议](docs/demand-code-ownership.md)分流，不将单个子项通过视为整组可提交。默认定位当前工作区来源，`--worktree [路径]` 显式指定来源；最终目标单独确认，BOS 前须取得实仓 commit，own/parent/none 混合组逐项及整组分别核验完成；`--pass` 支持编号列表及多行“编号＋标题”人工通过结论。默认先提交推送再补 BOS，日志缺口只暂停日志，Git 完成即释放发布权；代码已推送但 BOS 待补时单列状态，完整交付仍须全部适用回执。选用 BOS 写入时条件使用 bos-plugin。按项目 profile 接入并刷新 thin-index，已部署旧入口由更新器迁移。报告按[共享测试协议](agents/_shared/testing-protocol.md#结果与交接)分别统计人工补验与待用户验收结论，保留实际功能验证范围。处理报告固定包含本批全部需求号汇总（含基线已满足、无需新增代码项），状态分组另列；格式与完整性核对见 [编号汇总契约](plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#编号汇总契约)。
 
 ### coding-iris-plugin
-
-当前维护修复统一 direct/guarded 索引路由、提交 verify 的重复执行及精确路径集合，并将 workspace 异常前置阻断。更新器在缺少独立 .agents Git 时以非零退出码停止生成；i18n 恢复真实技能描述并按混合 CSP 语言区域检查 helper。同步方式见 [更新说明](docs/update-agents.md)。
 
 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力：
 

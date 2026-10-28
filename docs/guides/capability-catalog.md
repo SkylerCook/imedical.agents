@@ -2,7 +2,7 @@
 
 查看任意自有 skill / Agent 的用法，可请求 `--help` 或“查看用法”，见[统一帮助](capability-help.md)。帮助覆盖 init、xc 和 Agent；本目录的非 xc 清单范围保持。
 
-[无人值守治理](../night-governance.md) 初筛后独立预检能力，在同一 run 上绑定实体 PLAN、角色上下文、双 Developer / 双 Tester、联合源码保护、持续认证及宿主监督 worker、周额度和分级成本报告；最低自检与证据等级分开，无新增 skill 或文件锁服务。
+[无人值守治理](../night-governance.md) 初筛后先基础探测、原预算内补齐项目适配与用例并定向复验，再制定详细 PLAN；[逐用例能力与缺口](../night-acceptance.md#逐需求预检与补齐)按实际认证和写入副作用取证。在同一 run 上绑定实体 PLAN、角色上下文、双 Developer / 双 Tester、联合源码保护、持续认证及宿主监督 worker、周额度和分级成本报告；最低自检与证据等级分开，无新增 skill 或文件锁服务。
 
 [夜跑决策策略](../night-policy.md)为现有 Coordinator 增加两阶段分级、投入复评与固定抽验，显式启用；复用原事件、验证指纹和 runner，不增加常驻角色或 skill。
 
@@ -105,7 +105,7 @@ BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调
 
 开发方式由当前 ContextRoot 的 `config/iris-development.json` 独立选择，profile 只引用。offline 路由[统一离线协议](../../plugins/coding-iris-plugin/references/iris-offline-development.md)：支持回执源码、人工目录和完整 XML，经冻结基线、本地修改/检查、Review、Pack 与独立 Verify 后交用户现场验证。connected 保留既有服务器同步与发布保护；普通更新不切换方式。源码/XML 薄入口与 PowerShell 核心随插件分发，人工导出仍单独取得 ZIP。
 
-IRIS 前后端开发、知识查询、XML 包、代码基线与部署，支持可选 DEV→PRD 需求移植。`iris-code-baseline` 负责版本范围和初始当前源码采集；`intent-first-on-demand-export` 的开发同步、现场保护及复审统一见[项目开发协议](../../plugins/coding-iris-plugin/references/project-demand-development.md)，继续由 source-sync.js 承接。通用提交归 demand-delivery-plugin，标版补录归 bos-plugin。详见[插件说明](../../plugins/coding-iris-plugin/README.md)和[manifest](../../plugins/coding-iris-plugin/.agents-plugin/plugin.json)；[使用示例](capability-guide.md#coding-iris-plugin)。
+IRIS 前后端开发、知识查询、XML 包、代码基线与部署，支持可选 DEV→PRD 需求移植。connected 下，`iris-code-baseline` 负责版本范围和初始当前源码采集；`intent-first-on-demand-export` 的开发同步、现场保护及复审统一见[项目开发协议](../../plugins/coding-iris-plugin/references/project-demand-development.md)，继续由 source-sync.js 承接。通用提交归 demand-delivery-plugin，标版补录归 bos-plugin。详见[插件说明](../../plugins/coding-iris-plugin/README.md)和[manifest](../../plugins/coding-iris-plugin/.agents-plugin/plugin.json)；[使用示例](capability-guide.md#coding-iris-plugin)。
 
 ### Skills
 
