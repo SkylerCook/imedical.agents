@@ -1,5 +1,11 @@
 # imedical.agents 维护日志
 
+## 2026-10-28 人工导出说明按现场操作重写
+
+- 按用户本次远程电脑操作方式，将人工 README 统一为项目目录放 files.txt、从 iris-code-export 子目录调用脚本，使用单行 PowerShell 命令；补齐路径与扩展名、PlanOnly、证书、匿名/导出/退出三个位置的 401、Resume 和完成判据。现场排查只记录为一次案例，不推断所有传输错误均由证书导致。
+- 经用户明确要求加入实际目录截图，README 使用相对图片引用，ZIP 与 CI 打包同步包含 images，独立验证入口检查图片与源文件一致。脚本逻辑、插件与版本、安装更新范围均未变化；本机 ZIP 中已有连接示例保留，ZIP 仍受 Git 忽略，未写入共享说明。
+- ZIP 四个文件、相对图片引用、脚本/清单字节及六条单行命令语法核对通过；Windows PowerShell 5.1 的 UTF-8 text list 定向用例 1/1 通过，包含解压/图片检查并自动清理夹具。复用既有功能证据，不重跑无关 XML 回归。用户授权本批 c + p；提交前确认 master 与 Gitee/GitHub 均在 ed7e954，按本批精确路径执行，结果以 Git 回执为准。
+
 ## 2026-10-28 内网独立导出与 XML 离线编辑
 
 - framework-maintenance，实施基点 `5698dd3da67a871a3115c58c2dca0a3f0e85b91b`。按用户明确选择补齐两条现场路径：独立 `export-iris-code.ps1` 按 UTF-8 TXT 或 ProjectItem XML 导出当前源码至指定目录；`edit-export-xml.ps1` 将完整源码 XML 拆分为单对象 XML，编辑后核对范围和身份回包。类保持完整 XML，不手工拼 UDL；两个脚本不依赖 Node.js、MCP、Agent 或外网，不自动导入、编译或提交。独立工具限 Windows，作为现场无 Node.js 的明确交付方式，不另建跨平台等价核心。

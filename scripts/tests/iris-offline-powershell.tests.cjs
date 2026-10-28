@@ -41,12 +41,15 @@ test.before(async () => {
   assert.equal(result.code, 0, result.stderr);
   portableRoot = target;
   const names = ['README.md', 'export-iris-code.ps1', 'files.example.txt'].sort();
-  assert.deepEqual(fs.readdirSync(target).sort(), names, 'ZIP must contain only the human export tool');
+  assert.deepEqual(fs.readdirSync(target).sort(), [...names, 'images'].sort(), 'ZIP must contain only the human export tool and its documentation image');
+  assert.deepEqual(fs.readdirSync(path.join(target, 'images')), ['project-layout-example.png']);
+  assert.deepEqual(fs.readFileSync(path.join(target, 'images/project-layout-example.png')), fs.readFileSync(path.join(repository, 'tools/iris-code-export/images/project-layout-example.png')), 'ZIP documentation image mismatch');
   for (const name of names) {
     if (name !== 'README.md') assert.deepEqual(fs.readFileSync(path.join(target, name)), fs.readFileSync(path.join(repository, 'tools/iris-code-export', name)), 'ZIP/source mismatch: ' + name);
   }
   const [beforeExample, afterExample] = fs.readFileSync(path.join(repository, 'tools/iris-code-export/README.md'), 'utf8').split('<!-- local-atelier-example -->');
   const readme = fs.readFileSync(path.join(target, 'README.md'), 'utf8');
+  assert.ok(readme.includes('](images/project-layout-example.png)'), 'README must reference its bundled image');
   assert.ok(readme.startsWith(beforeExample) && readme.endsWith(afterExample), 'localized README must preserve all public instructions');
   assert.deepEqual([...fs.readFileSync(path.join(target, 'export-iris-code.ps1')).subarray(0, 3)], [0xef, 0xbb, 0xbf]);
 });
