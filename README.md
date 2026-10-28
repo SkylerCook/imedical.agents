@@ -305,7 +305,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力：
 
 - ObjectScript 后端编码规则。
-- 准确对象范围的 XML 双通道导出、代码基线采集与版本清单维护；复用项目源同步及许可保护，源码内容来自当前实例，初始缺失明确 partial。
+- 准确对象范围的 [XML 双通道导出](plugins/coding-iris-plugin/references/iris-xml-export.md)与[代码基线采集](plugins/coding-iris-plugin/references/iris-code-baseline.md)：版本清单限定对象集合，内容取确认实例当前状态；XML 包可含图片，代码基线在请求前排除图片并统计，初始缺失明确 partial。纯采集不强制 project 或初始化 Git，项目开发仍按条件进入源同步与冻结发布；跨进程操作排他与单批内部已获资格的只读会话池分别管理，不能把 worker 数视为实际 License 用量。类源、安装 XML、服务器能力和资源资格分别验收，见[本地与真实验收步骤](docs/guides/iris-xml-baseline-acceptance.md)。
 - CSP、JavaScript、CSS、HISUI 前端统一使用 canonical `utf8`：标版、医院项目的源码、上传内容和服务器运行编码均为 UTF-8，实际文件字节检测是最终门禁；旧 GB2312 仅保留显式历史工程兼容，明确的 backend-only Overlay 则记录 `N/A (backend-only)`。
 - 前端任务按目标工程 `plugin_profile.md` 执行条件 i18n 门禁：只有 i18n 已启用且任务或 diff 命中翻译 helper、翻译 key 或用户可见文案时，才追加 i18n 规则与稳定 key 检查；普通前端需求不进入完整 i18n workflow。
 - 本地优先、按需上传/编译的工作流约束。后端编译后回读并仅回填 Storage，覆盖新增表和字段演进；失败区分远端已编译与本地未同步，受管夜跑保留源码冻结版本复审门禁，见 [部署契约](plugins/coding-iris-plugin/references/deployment-protection.md#编译后-storage-同步)。

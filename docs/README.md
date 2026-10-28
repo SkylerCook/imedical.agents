@@ -13,7 +13,7 @@
 | 选择场景、查看请求示例 | [使用指南](guides/capability-guide.md) |
 | 查服务地址、凭据来源或排查配置未生效 | [连接信息查看与排查](guides/connection-configuration.md) |
 | 安装或更新能力包、旧版迁移 | [安装更新](update-agents.md) |
-| 项目知识库骨架、能力目录、授权归类和恢复 | [项目目录治理](guides/project-knowledge-layout.md) |
+| 项目知识库骨架、用途说明、旧导航接管、授权归类和恢复 | [项目目录治理](guides/project-knowledge-layout.md) |
 | 多模块共享能力包 | [Workspace Overlay](workspace-overlay.md) |
 | 创建 worktree 并查看代码差异与历史 | [Worktree 审阅交付](guides/worktree-review.md) |
 | 在指定 Agent 宿主发现技能 | [技能适配](coding-agent-adaptation.md) |
@@ -28,7 +28,7 @@
 | 接入医生站 AI 插件 | [医生站 AI](guides/iris-imedical-doctor-ai.md) |
 | 按 UI 标注改造 HISUI 页面、排查布局与主题兼容 | [IRIS UI](../plugins/iris-ui/README.md) |
 | 公司 UI 共性规范、IHOS 海蓝/PURE 天蓝、截图或浏览器评审 | [iMedical UI](../plugins/imedical-ui/README.md) |
-| 按版本选择医生站导出清单 | [导出参考](reference/project-export-map/doctor/README.md) |
+| 选择医生站版本清单或 v9.2 全仓对象清单 | [导出参考](reference/project-export-map/doctor/README.md) |
 | 验收 XML 双通道导出、代码基线及资源资格 | [IRIS 导出与基线验收](guides/iris-xml-baseline-acceptance.md) |
 | IRIS 项目按需导出、现场合并、部署前同步和 License 准入 | [项目开发协议](../plugins/coding-iris-plugin/references/project-demand-development.md) |
 | 查看工作区 manifest 结构 | [capability schema](schemas/workspace-capability.schema.json) |
@@ -36,7 +36,7 @@
 ## 目录约定
 
 - guides/：能力使用与领域接入指南。
-- reference/：经核实可复用的参考资产；导出 XML 是历史版本清单，不代表当前工程完整源码，不据此自动访问服务器。
+- reference/：经核实可复用的参考资产；导出 XML 是带来源与范围的版本化对象清单，可来自服务器工程或离线 checkout。版本标签不证明当前实例版本或内容，实际取确认实例当前源码，不据此自动访问服务器；原有 doctor 路径中的 v9.2 为全仓 10 个产品范围，选择前核对清单口径。
 - schemas/：机器可读结构定义。
 - 根目录保留已被插件和既有工程引用的稳定操作入口；新增一般指南归入 guides/。
 

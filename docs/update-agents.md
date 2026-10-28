@@ -848,7 +848,7 @@ agent-context-kit 0.3.4 补齐 AGENTS 模板与定点维护流程。更新能力
 
 `agent-context-kit` 0.4.0 增加通用需求接续入口，具体使用见 [task-handoff](task-handoff.md)。能力包更新沿用现有流程，enabled 插件刷新薄索引后可显式调用；available/disabled 保留，不因目录存在自动启用。无需更改安装器、更新器或 sparse 规则：实现和模板属于既有 plugins 范围，共享 helper 属于既有 scripts/lib 与根 scripts/*.js 范围。
 
-项目自然语言发现路由仅在已授权初始化/上下文维护中按模板定点合并，普通更新不重写 AGENTS。具体需求首次启用时才建立项目 docs/handoff，并在管理该目录的业务 Git 仓库本地 exclude 精确排除；不是能力仓库生成层，不加入 `.agents` sparse。旧交接、正式 run 与个人 skill 不迁移、不清理，业务工程不自动同步。
+项目自然语言发现路由仅在已授权初始化/上下文维护中按模板定点合并，普通更新不重写 AGENTS。材料根由 [task-handoff 目录解析](../plugins/agent-context-kit/skills/task-handoff/references/tool-contract.md#目录解析)选择：已接入目录治理的新任务使用当前 ContextRoot/work/handoff，未接入或旧任务保留兼容 docs/handoff。普通需求不自动建档；首次目录接入可预建空父目录，具体交接资料只在启用时创建。本机 exclude 按实际解析位置和 Git 归属维护，运行资料不进入能力包 sparse 或共享能力资产。旧交接、正式 run 与个人 skill 不迁移、不清理，业务工程不自动同步。
 
 ## 纯初始化 skill 薄索引迁移
 

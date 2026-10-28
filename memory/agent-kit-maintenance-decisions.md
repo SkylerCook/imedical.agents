@@ -14,6 +14,8 @@
 
 - 远端准入复用本地共享目录的跨进程排他，不建设全局 License 服务；只覆盖已接入入口，原生 MCP、IDE 与其它客户端明示为外部边界。503 熔断、未知写不重放，恢复须核实 owner 和写结果。Cookie/keepalive、logout 或进程退出都不等于 License 回落；真实资格按目标、版本、通道和范围取证，单次观察不形成通用批量阈值。
 
+- XML 包与代码基线统一归 coding owner 的[导出协议](../plugins/coding-iris-plugin/references/iris-xml-export.md)和[基线协议](../plugins/coding-iris-plugin/references/iris-code-baseline.md)：版本 XML 定义范围，实例返回定义内容；包的二进制载荷与基线图片预筛分别验证。纯采集不自动进入项目 Git 状态机；单批内部只读会话池不改变跨进程排他或写入串行，资格依实际目标及运行时重新核验。专用类源、已验证安装 XML 与服务器实际能力分开；用户级旧入口沿显式迁移，普通更新不删除。XML 解析使用固定 vendor 依赖，来源与许可证归 vendor 说明，不扩大为业务 npm 安装。
+
 - 项目使用文档统一放 docs/ 并随能力包部署；源仓治理、设计历史和验证证据归 maintenance/，不进入 sparse。稳定操作入口保留，新增指南/参考分组。文档迁移优先依赖 Git 安全快进清除旧受管路径与空目录；自定义文件保留，本地改动停止，不新增宽泛删除。
 
 - 源仓普通提交采用暂存组件版本门禁，功能测试与版本校验独立取证；无关 HEAD 变化不使内容证据失效。已登记且未变化的历史发布结构问题保留技术债，不重复人工处理，不阻断无新增问题的局部提交；完整审计继续保留历史问题。规则唯一正文见 maintenance/governance/component-version-management.md。
@@ -80,7 +82,7 @@
 - 根目录 `agents/` 和 `workflows/` 是能力包正式内容，已加入 `scripts/install-agents.ps1` 和 `scripts/update-agents.ps1` 的 sparse checkout 路径，部署到业务项目 `.agents/agents/` 和 `.agents/workflows/`。
 - 更新器新增运行时依赖时必须兼容旧 sparse checkout 自举：新版脚本在加载新增运行时模块前，可在自更新恢复、`Write` 或允许拉取的 `DryRun` 中以当前完整运行时清单收敛干净的独立 capability Git checkout；`Check` 和显式 `DryRun -NoPull` 保持只读。恢复失败必须停止，不得覆盖 dirty checkout。
 - standard 更新器在 fetch 后必须按 `HEAD...@{upstream}` 区分相同、仅落后、仅领先和分叉：相同时报告 `agents-up-to-date` 并跳过 pull，仅落后时执行 `pull --ff-only` 并报告旧、新 hash；领先或分叉必须停止，不能统一误报为 `agents-updated`。无远端更新仍继续 sparse checkout 和项目本地生成层检查。普通 `DryRun` 保持“更新 capability 后预演本地生成层”的既有契约；严格不更新 capability 时使用 `Check` 或显式 `DryRun -NoPull`。
-- 根 `scripts/iris-mcp.js` 是无原生 MCP 工具运行器的可选 helper，必须随安装/更新部署；standard 项目直接使用 canonical 文件，workspace overlay 必须在本地 `ContextRoot/scripts/` 生成读取 manifest 并转发到 `CapabilityRoot` 的 JS adapter，不复制规则实现或嵌入 capability 绝对路径。原生 MCP 工具仍优先，helper 不得成为 canonical 规则源。helper 必须按当前 MCP schema 的 `mode` / `action` 区分读取与状态变更、默认拦截写入和远端执行，并把 `check_config` 风险作为诊断信号而非仅凭默认 namespace/port 阻断工具发现。
+- 根 `scripts/iris-mcp.js` 是通用 MCP 调用的可选 helper，必须随安装/更新部署；standard 项目直接使用 canonical 文件，workspace overlay 必须在本地 `ContextRoot/scripts/` 生成读取 manifest 并转发到 `CapabilityRoot` 的 JS adapter，不复制规则实现或嵌入 capability 绝对路径。通用查询优先可用的原生 MCP；XML 等受管主链按 owner 指定的通道、同进程会话与退出契约执行，不据“原生优先”换路。helper 不得成为 canonical 规则源，必须按当前 MCP schema 的 `mode` / `action` 区分读取与状态变更、默认拦截写入和远端执行，并把 `check_config` 风险作为诊断信号而非仅凭默认 namespace/port 阻断工具发现。
 - 根目录 `skills/` 是能力包正式内容，部署到业务项目 `.agents/skills/`，不再承载维护者专用例外。
 - 源仓根 `.agents/skills/agent-kit-maintenance/` 是受版本控制的仓库本地维护上下文，不在安装/更新 sparse checkout 部署清单内，也不参与 thin-index。业务项目中的 `.agents/` 仍是独立能力包仓库，不得把源仓 `.agents/` 部署成嵌套 `.agents/.agents/`。
 - `.agents/plugins/**` 默认全量拉取用于能力发现；插件目录存在只表示 `available`，是否已启用以目标项目 `.agents/config/plugin_profile.md` 为准。
@@ -112,7 +114,7 @@
 - Overlay manifest 明确至少声明一个 `backend` SourceRoot 且没有 `frontend` SourceRoot 时，profile 使用 canonical `N/A (backend-only)`；无法从声明证明 backend-only 时继续阻断，不扫描父目录或 sibling 猜测源码。后续新增 frontend 时必须重新通过字节门禁再规范化为 `utf8`。
 - 实际文件字节检测始终是修改与上传的最终门禁。UTF-8 或纯 ASCII 可安全规范化 profile；真实 GB2312、mixed、UTF-16 或 unknown 必须停止并报告，不自动批量转码业务源码。
 - 已部署插件配置迁移由 manifest 声明、根更新器通用调用；领域推导逻辑留在插件迁移脚本，不硬编码到根更新器。
-- 采用数字需求号与 standard/project 格式的需求提交由 demand-delivery-plugin 的 `demand-commit` 统一收尾；旧技能/CLI 已移除，更新器负责项目引用、owner 状态与默认配置迁移；支持自然语言及显式 `$demand-commit --plan|--commit`。`--plan` 只生成计划和完整 commit message，不执行 pull/commit，也不追问是否提交；`--commit` 视为本地提交明确授权并直接执行 plan/apply/verify。`standard/project` 默认值来自项目 AGENTS 指向的配置或当前用户明确指定，不得从目录、`contextMode`、remote 或代码量猜测。标版 commit 前必须对全部仓库执行 `pull --ff-only`，项目仓有 upstream 时同样执行、无 upstream 时允许 `local-only`；pull 改变 HEAD 后必须重新计划并再次确认，push 始终独立授权。
+- 采用数字需求号与 standard/project 格式的需求提交由 demand-delivery-plugin 的 `demand-commit` 统一收尾；旧技能/CLI 已移除，更新器负责项目引用、owner 状态与默认配置迁移；支持自然语言及显式 `$demand-commit --plan|--commit`。`--plan` 只生成计划和完整 commit message，不执行 pull/commit，也不追问是否提交；`--commit` 视为本地提交明确授权并直接执行 plan/apply/verify。`standard/project` 默认值来自项目 AGENTS 指向的配置或当前用户明确指定，不得从目录、`contextMode`、remote 或代码量猜测。标版 commit 前必须对全部仓库执行 `pull --ff-only`，项目仓有 upstream 时同样执行、无 upstream 时允许 `local-only`；HEAD 前进后按[同步复核](../plugins/demand-delivery-plugin/references/commit-upstream-check.md#head-前进后的自动接续)重新计划，符合无交集、内容/消息及语义核对条件时沿用有效授权有限接续；范围或业务取舍变化再确认，push 始终独立授权。
 - 需求提交的“修改说明”属于方案审计信息，必须同时表达修改对象、具体实现/交互方案和行为结果；仓库之间按实际职责分别归纳，不能用“优化功能”“修复问题”等泛化文本代替。
 
 - `AGENTS.md` 是工程级唯一主入口，必须存在。
@@ -123,7 +125,7 @@
 
 ## 跨插件一致性
 
-- BOS 代码日志统一以[实仓 commit 门禁](../plugins/bos-plugin/references/code-update-log.md#实仓-commit-门禁)为前提；worktree 阶段提交仅作来源恢复，parent 无独立提交仍须引用主实仓提交，none 才跳过。需求的业务拆分、代码归属、共享日志与验收分流统一由[代码归属协议](../docs/demand-code-ownership.md)维护，BOS 与交付 owner 共用；旧草稿和批次保留原契约，不自动升级或产生写入授权。维护说明引用该协议，不再用逐号独立提交概括全部交付类型。
+- BOS 代码日志统一以[实仓 commit 门禁](../plugins/bos-plugin/references/code-update-log.md#实仓-commit-门禁)为前提；worktree 阶段提交仅作来源恢复，parent 无独立提交仍须引用主实仓提交，none 才跳过。验收交付默认先完成 Git 再补 BOS；日志缺口不阻塞后续 Git，全部约定 Git 动作完成即释放发布权，完整交付仍须全部适用回执。独立日志入口不额外要求预先 push；恢复引用原实仓 hash，成功不重发、未知先核实。业务拆分、共享日志与验收分流统一由[代码归属协议](../docs/demand-code-ownership.md)维护；旧草稿/批次兼容沿 owner 迁移契约，不自动升级或产生写入授权。
 
 - availableDependencies 是按阶段触发的文件/入口依赖，允许 available/enabled，显式 disabled 停止对应阶段；不进入强依赖递归、版本范围或自动启用。声明在 manifest，执行协议见 docs/plugin-availability.md。
 
@@ -168,6 +170,8 @@
 ## 安全边界
 
 - 未命中项目按需分支的日常开发部署沿既有 direct/guarded 契约；已有有效授权不逐工具重复确认。已确认 `project` ＋ `intent-first-on-demand-export` 时，先按[项目开发协议](../plugins/coding-iris-plugin/references/project-demand-development.md)同步、复审和冻结发布，传输模式不能绕过该分支门禁。生产操作和领域专项授权独立核对，源码变更不自动同步业务副本。
+
+- 部署失败按[恢复协议](../plugins/coding-iris-plugin/references/deployment-protection.md#失败恢复与授权)保留同范围有效授权，只对确证安全的步骤有限恢复；额外尝试额度跨本批共享，耗尽即停止汇报，不以重跑命令或新批次清零。503、未知写入、并发与冻结门禁保留；本地可诊断编译错误、远端结果未知与需要用户决定分别处理，不把部署恢复额度推广为所有通道的统一重试策略。
 
 - 不写服务器地址、账号、密码、token、namespace、远程路径或任何敏感连接信息。
 - 不把业务项目私有事实写入本仓库插件、规则或记忆。
