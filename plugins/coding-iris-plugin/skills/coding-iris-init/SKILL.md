@@ -68,6 +68,8 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
      ```
    - 不要替用户生成真实 host、账号、密码、namespace 或本机 MCP 可执行文件路径。
    - `.agents/config/project-env.json` 和 `.mcp.json` 可能包含敏感信息，不得提交到业务项目版本库。
+   - 初始化 XML 导出时展示两种可选准备方式：按 [XML 导出协议](../../references/iris-xml-export.md)提供 canonical `DHCDoc.Util.XmlPackage` 类源及经验证的安装 XML（存在时），提示用户导入；也可选默认受管 WS terminal 的系统执行通道，先核对目标版本／API。HTTP MCP 须单独资格明确接受其内部重试，不自动 fallback。启用不自动上传、编译或连接服务器。可选类未部署只限制类通道，不阻断 coding 插件其它能力；类现状或契约不明时报告待验证，已存在的项目类先比对后处理。
+   - 需要代码基线时读取 [基线协议](../../references/iris-code-baseline.md)，只采代码并预筛图片，纯采集不自动初始化 Git。私有多会话资格必须经目标窗口验证后登记，不因模板或旧性能记录自动标记 verified。
 6. 生成 thin-index：
    - 先执行 DryRun：
      ```powershell
@@ -85,6 +87,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
    - thin-index 指向 `.agents/plugins/coding-iris-plugin/` 内真实 rules/skills。
    - 前端编码 wrapper 已存在于目标工程 `.agents/scripts/`，canonical 实现与迁移/提升脚本位于插件 `scripts/`。
    - IRIS 开发主力脚本位于插件 `.agents/plugins/coding-iris-plugin/scripts/iris-tools/`，不复制到根 `.agents/scripts/`。
+   - XML 和基线的两个 thin-index 指向各自真实 skill；所选 XML 通道准备状态、基础读取资格和多会话资格分别报告，文件落盘不等于远端可用。
    - standard 模式的 `.agents/.git/info/exclude` 已包含生成层忽略规则：`/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`；workspace-overlay 的 `ContextRoot` 不要求存在 `.git`，本地生成层由工作区仓库自己的忽略规则管理。
    - 插件中没有源工程服务器、namespace、远程路径、业务类名前缀。
 9. 更新插件状态：

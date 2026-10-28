@@ -144,10 +144,40 @@ test('initial baseline with only confirmed missing files does not force a commit
     assert.equal(result.execution.exportCommit, null); assert.equal(result.execution.demandCommit, null); assert.equal(sync.head(f.root), null);
 });
 
+test('initial partial baseline requires acceptance and never registers missing items as deletions', async t => {
+    const f = fixture(t, {empty: true, source: false}), paths = ['src/Demo/Sample.cls', 'src/Demo/Missing.cls'];
+    const p = f.plan({phase: 'initial-baseline', files: paths});
+    await sync.prepare(p.planPath, {client: {async readDocument(document) { return document === 'Demo.Missing.cls' ? null : {content: Buffer.from(f.original)}; }}});
+    const prepared = sync.load(p.planPath).plan;
+    assert.equal(prepared.files.length, 1); assert.equal(prepared.excludedReadItems.length, 1);
+    assert.throws(() => sync.apply(p.planPath, {confirmCommit: true}), /partial-acceptance-required/);
+    const result = sync.apply(p.planPath, {confirmCommit: true, acceptPartial: prepared.partialAcceptanceToken});
+    assert.ok(result.execution.exportCommit);
+    assert.equal(fs.existsSync(path.join(f.root, 'src/Demo/Missing.cls')), false);
+    const registry = fs.readFileSync(path.join(f.root, '.agents/work/source-sync/baselines.json'), 'utf8');
+    assert.equal(registry.includes('Demo.Missing.cls'), false);
+});
+
+test('daily server disappearance never silently deletes a confirmed local baseline', async t => {
+    const f = fixture(t), first = f.plan(); await f.prepare(first, f.original); sync.apply(first.planPath, {confirmCommit: true});
+    const p = f.plan();
+    await assert.rejects(f.prepare(p, null), /remote-document-missing/);
+    assert.equal(fs.readFileSync(f.file, 'utf8'), f.original);
+});
+
 test('bulk initialization needs explicit license evidence before any remote reads', async t => {
     const f = fixture(t), files = Array.from({length: 6}, (_, i) => `src/Demo/Other${i}.cls`);
     const p = f.plan({phase: 'initial-baseline', files});
     await assert.rejects(f.prepare(p, f.original), /bulk-license-qualification-required/); assert.equal(f.reads(), 0);
+});
+
+test('project map excludes images and invalid UTF-8 cannot create an altered document scope', t => {
+    const f = fixture(t), map = path.join(f.root, 'catalog.xml');
+    fs.writeFileSync(map, '<Export><Project><Items><ProjectItem name="Demo.Sample" type="CLS"/><ProjectItem name="web/images/a.png" type="CSP"/></Items></Project></Export>');
+    const p = f.plan({phase: 'initial-baseline', map});
+    assert.equal(p.files.length, 1); assert.equal(p.excludedImages.length, 1);
+    fs.writeFileSync(map, Buffer.from([0xc0, 0x80]));
+    assert.throws(() => f.plan({phase: 'initial-baseline', map}), /unsupported-project-xml/);
 });
 
 test('review binds a committed pre-deploy plan and does not grant production approval', async t => {

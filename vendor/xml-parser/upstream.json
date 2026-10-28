@@ -1,0 +1,22 @@
+{
+  "schema": "imedical-vendored-xml/v1",
+  "saxes": {
+    "version": "6.0.0",
+    "commit": "211fa0ebec9b628affc09219199639887174bfc3",
+    "license": "ISC",
+    "tarballIntegrity": "sha512-xAg7SOnEhrm5zI3puOOKyy1OMcMlIJZYNJY7xLBwSze0UjhPLnWfj2GF2EpT0jmzaJKIWKHLsaSSajf35bcYnA=="
+  },
+  "xmlchars": {
+    "version": "2.2.0",
+    "license": "MIT",
+    "tarballIntegrity": "sha512-JZnDKK8B0RCDw84FNdDAIpZK+JuJw+s7Lz8nksI7SIuU3UXJJslUthsi+uWBUYOwPFwW7W7PRLRfUKpxjtjFCw=="
+  },
+  "files": {
+    "saxes/saxes.js": "14ffa1fe0d809d7d5b2d11a1e87d2102730b3c7e62e6ac4c60b8f93b6a6773c8",
+    "xmlchars/xml/1.0/ed5.js": "ea350479ab6f6553c0c3395c30ec440fb39821f6902081939831ddf1b5e8fd0f",
+    "xmlchars/xml/1.1/ed2.js": "461d5c71cc6076dc16aebbfd2d3c506481df5a74f43631d82372a6ffdc239d69",
+    "xmlchars/xmlns/1.0/ed3.js": "ff14ffa3a2cdfdd1b6077c4a8443dc949f53d5bb56de5ed89d4dbc5d9fdf08f7",
+    "xmlchars/LICENSE": "45d196313c2647d313cc65ca9b093d2d6974b64d35ee7346f2c60c9d518dff2c",
+    "saxes/LICENSE": "0fac2374380621b22e6b50451057721a9c52935b02d16d106a9f04897f061d0e"
+  }
+}

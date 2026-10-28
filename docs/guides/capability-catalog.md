@@ -12,7 +12,7 @@
 
 面向使用者的插件、skill 与 rule 清单。先读[使用指南](capability-guide.md)，或按下面的插件定位具体入口。
 
-范围：当前非 `imedicalxc-*` 插件，共 **15 个插件、56 个 skill、37 个 rule**；skill 数包含初始化和兼容入口，不包含 vendor skills、Agent 生成入口或源仓维护 skill。xc 本轮未编入，后续单独补齐。清单按当前文件快照核对；版本和依赖范围以各插件 manifest 为准。
+范围：当前非 `imedicalxc-*` 插件，共 **15 个插件、58 个 skill、37 个 rule**；skill 数包含初始化和兼容入口，不包含 vendor skills、Agent 生成入口或源仓维护 skill。xc 本轮未编入，后续单独补齐。清单按当前文件快照核对；版本和依赖范围以各插件 manifest 为准。
 
 共享测试能力见 [测试运行时](../testing-runtime.md)：项目适配的会话检查/心跳、实际加载版本和资源收尾，不新增插件或日常 skill。
 
@@ -103,7 +103,7 @@ BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调
 
 ## coding-iris-plugin
 
-IRIS 前后端开发、知识查询、项目按需导出与部署，支持可选 DEV→PRD 需求移植。`intent-first-on-demand-export` 的基线、现场保护、复审和远端准入统一见[项目开发协议](../../plugins/coding-iris-plugin/references/project-demand-development.md)，由 source-sync.js 与既有编码/部署入口承接，不新增独立 skill。通用提交归 demand-delivery-plugin，标版补录归 bos-plugin。详见[插件说明](../../plugins/coding-iris-plugin/README.md)和[manifest](../../plugins/coding-iris-plugin/.agents-plugin/plugin.json)；[使用示例](capability-guide.md#coding-iris-plugin)。
+IRIS 前后端开发、知识查询、XML 包、代码基线与部署，支持可选 DEV→PRD 需求移植。`iris-code-baseline` 负责版本范围和初始当前源码采集；`intent-first-on-demand-export` 的开发同步、现场保护及复审统一见[项目开发协议](../../plugins/coding-iris-plugin/references/project-demand-development.md)，继续由 source-sync.js 承接。通用提交归 demand-delivery-plugin，标版补录归 bos-plugin。详见[插件说明](../../plugins/coding-iris-plugin/README.md)和[manifest](../../plugins/coding-iris-plugin/.agents-plugin/plugin.json)；[使用示例](capability-guide.md#coding-iris-plugin)。
 
 ### Skills
 
@@ -114,6 +114,8 @@ IRIS 前后端开发、知识查询、项目按需导出与部署，支持可选
 | [iris-coding](../../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md) | 路由混合或边界不明的 IRIS 开发 | 日常入口 |
 | [iris-demand-promote](../../plugins/coding-iris-plugin/skills/iris-demand-promote/SKILL.md) | 将 DEV 已提交需求移植到 PRD 本地仓库 | 日常入口 |
 | [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 规划和执行 IRIS 远端部署，编译后仅回填核对通过的 Storage | 日常入口 |
+| [iris-xml-export](../../plugins/coding-iris-plugin/skills/iris-xml-export/SKILL.md) | 从确认环境导出准确对象范围的 XML 包，含图片，支持专用类／系统执行通道 | 日常入口；实际导出按目标和范围授权 |
+| [iris-code-baseline](../../plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md) | 维护版本清单并采集实例当前代码；图片预筛、缺失 partial、目标资格控制只读会话池 | 日常入口；纯采集与项目开发分支分别处理 |
 | [iris-frontend-coding](../../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md) | 按统一前端规范实现与复核 CSP、HTML、JavaScript、CSS、HISUI 前端 | 日常入口 |
 | [iris-frontend-gb2312-promote](../../plugins/coding-iris-plugin/skills/iris-frontend-gb2312-promote/SKILL.md) | 提升明确历史 GB2312 工程的转换文件 | 日常入口 |
 | [iris-imedical-knowledge](../../plugins/coding-iris-plugin/skills/iris-imedical-knowledge/SKILL.md) | 检索 wiki、菜单与技术参考 | 日常入口 |

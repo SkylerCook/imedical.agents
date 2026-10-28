@@ -154,34 +154,19 @@ function classify(context, logicalPath, options = {}) {
     return {...mapped, kind: 'frontend', document};
 }
 
-function decodeXml(value) {
-    return value.replace(/&(#x[0-9a-f]+|#[0-9]+|amp|lt|gt|quot|apos);/gi, (_, entity) => {
-        if (entity[0] === '#') { const code = entity[1].toLowerCase() === 'x' ? parseInt(entity.slice(2), 16) : Number(entity.slice(1)); if (!code || code > 0x10ffff || code >= 0xd800 && code <= 0xdfff) stop('invalid-xml-entity'); return String.fromCodePoint(code); }
-        return {amp: '&', lt: '<', gt: '>', quot: '"', apos: "'"}[entity.toLowerCase()];
-    });
-}
 function parseProjectMap(xml) {
-    if (/<!DOCTYPE|<!ENTITY/i.test(xml) || /&(?!#x[0-9a-f]+;|#[0-9]+;|amp;|lt;|gt;|quot;|apos;)/i.test(xml)) stop('unsupported-project-xml');
-    const body = xml.replace(/<!--[\s\S]*?-->/g, '').replace(/<\?xml[^?]*\?>/g, '');
-    if (!/^\s*<Export\b[^>]*>\s*<Project\b[^>]*>\s*<Items\s*>[\s\S]*<\/Items>\s*<\/Project>\s*<\/Export>\s*$/.test(body)) stop('unsupported-project-xml');
-    const items = body.match(/<Items\s*>([\s\S]*)<\/Items>/)[1];
-    const result = [], seen = new Set();
-    const remaining = items.replace(/<ProjectItem\b([^<>]*?)(?:\/\s*>|>\s*<\/ProjectItem>)/g, (_, raw) => {
-        const attrs = {};
-        const tail = raw.replace(/([A-Za-z][A-Za-z0-9]*)\s*=\s*(["'])([\s\S]*?)\2/g, (all, key, quote, value) => {
-            if (Object.hasOwn(attrs, key)) stop('duplicate-project-attribute'); attrs[key] = decodeXml(value); return '';
-        });
-        if (tail.trim() || !attrs.name || !['CLS', 'MAC', 'INC', 'INT', 'CSP'].includes(attrs.type) || Object.keys(attrs).some(key => !['name', 'type'].includes(key))) stop('unsupported-project-item');
-        if (/[*?\\\x00-\x1f]/.test(attrs.name) || attrs.name.split('/').some(part => !part || part === '.' || part === '..')) stop('unsafe-project-item');
-        const key = `${attrs.type}:${attrs.name}`.toLowerCase(); if (seen.has(key)) stop('duplicate-project-item'); seen.add(key); result.push(attrs); return '';
-    });
-    if (remaining.trim() || !result.length) stop('unsupported-project-xml');
-    return result;
+    try { return require('./xml-package-core').parseProjectItems(xml); }
+    catch (error) {
+        if (error.code === 'duplicate-project-item') stop(error.code);
+        if (error.code === 'unsafe-document-name') stop('unsafe-project-item');
+        if (['unsupported-document-type', 'invalid-backend-document'].includes(error.code)) stop('unsupported-project-item');
+        stop('unsupported-project-xml');
+    }
 }
 function mapItems(context, xml) {
     const {config} = projectConfiguration(context), rootFor = name => context.sourceRoots.find(source => source.name === name) || context.sourceRoots[0];
     const logical = (source, relative) => slash(path.join(path.relative(context.workspaceRoot, source.path), relative));
-    return parseProjectMap(xml).map(item => {
+    return parseProjectMap(xml).filter(item => !require('./baseline-catalog').IMAGE_EXTENSIONS.has(path.posix.extname(item.name).toLowerCase())).map(item => {
         if (item.type !== 'CSP') {
             const extension = '.' + item.type.toLowerCase(), name = item.name.endsWith(extension) ? item.name.slice(0, -extension.length) : item.name;
             if (!/^[%A-Za-z][%A-Za-z0-9]*(?:\.[%A-Za-z][%A-Za-z0-9]*)*$/.test(name)) stop('unsupported-project-item');
@@ -248,7 +233,7 @@ function createPlan(options) {
         if (options.baselineRef.startsWith('-')) stop('invalid-baseline-ref');
         options = {...options, baselineRef: textGit(context.gitRoots[0], ['rev-parse', '--verify', `${options.baselineRef}^{commit}`])};
     }
-    const specs = options.map ? mapItems(context, fs.readFileSync(path.resolve(options.map), 'utf8')) : (options.files || []).map(value => typeof value === 'string' ? {path: value} : value);
+    const specs = options.map ? mapItems(context, fs.readFileSync(path.resolve(options.map))) : (options.files || []).map(value => typeof value === 'string' ? {path: value} : value);
     if (!specs.length) stop('source-files-required');
     const files = specs.map(spec => {
         const mapped = classify(context, spec.path, spec);
@@ -268,7 +253,8 @@ function createPlan(options) {
         expected: repositorySnapshot(gitRoot, active), planPath: path.join(directory, 'plan.json'),
         execution: {exportCommit: null, demandCommit: null, completedWrites: []}, createdAt: new Date().toISOString(),
         budget: {documents: active.length, requestCount: active.length, concurrent: 1},
-        mapSha256: options.map ? hash(fs.readFileSync(path.resolve(options.map))) : null};
+        mapSha256: options.map ? hash(fs.readFileSync(path.resolve(options.map))) : null,
+        excludedImages: options.map ? parseProjectMap(fs.readFileSync(path.resolve(options.map))).filter(item => require('./baseline-catalog').IMAGE_EXTENSIONS.has(path.posix.extname(item.name).toLowerCase())) : []};
     // Reference candidates do not silently become deployable files.
     plan.candidates = files.filter(file => file.tier !== 'required'); plan.files = active;
     const currentRegistry = registry(context);
@@ -311,26 +297,33 @@ async function prepare(planFile, options = {}) {
     if (plan.phase === 'initial-baseline' && plan.files.length > 5) {
         const policyFile = path.join(context.contextRoot, 'config', 'iris-remote-policy.json');
         const policy = fs.existsSync(policyFile) ? json(policyFile) : {};
-        if (policy.qualification?.status !== 'verified' || !policy.qualification?.reference || !policy.bulkQualification?.reference || policy.bulkQualification?.status !== 'verified' ||
-            !fs.existsSync(path.resolve(context.workspaceRoot, policy.bulkQualification.reference)) ||
-            !fs.statSync(path.resolve(context.workspaceRoot, policy.bulkQualification.reference)).isFile()) stop('bulk-license-qualification-required');
+        const legacyReference = policy.bulkQualification?.status === 'verified' ? policy.bulkQualification.reference : null;
+        const batchReference = policy.readBatch?.qualification?.status === 'verified' ? policy.readBatch.qualification.reference : null;
+        const reference = batchReference || legacyReference;
+        if (policy.qualification?.status !== 'verified' || !policy.qualification?.reference || !reference ||
+            !fs.existsSync(path.resolve(context.workspaceRoot, reference)) ||
+            !fs.statSync(path.resolve(context.workspaceRoot, reference)).isFile()) stop('bulk-license-qualification-required');
     }
-    const client = options.client || await openClient(context);
+    const client = options.client || require('../../../../scripts/lib/atelier-read-pool').createAtelierReadPool({context,
+        connection: require('./compile-csp').connection(config, projectConfiguration(context).mcp)});
     // A resumed slice must be observed again as a whole. Old completed reads are
     // recovery data, not a claim about the server at the new observation time.
     if (plan.state !== 'planned') for (const file of plan.files) delete file.remote;
     plan.state = 'reading'; save(plan);
     try {
-        for (const file of plan.files) {
-            if (file.remote !== undefined) continue;
+        async function observed(file, remote) {
             assertSnapshot(plan);
-            const remote = await client.readDocument(file.document);
             const bytes = remote === null ? null : Buffer.isBuffer(remote) ? remote : remote.content || remote.bytes || Buffer.from(remote.text, 'utf8');
+            if (bytes !== null && bytes.length === 0) stop('remote-document-empty');
+            // A missing document is not an approved server-side deletion. A new
+            // local file with a confirmed absent base remains a valid demand.
+            if (bytes === null && plan.phase !== 'initial-baseline' && file.base !== null) stop('remote-document-missing');
             if (bytes !== null) utf8(bytes);
             if (bytes !== null && file.kind === 'backend' && require('./backend-document').documentName(file.path, utf8(bytes)) !== file.document) stop('remote-document-identity-mismatch');
             file.remote = storeBytes(plan, 'remote', file, bytes);
             file.remoteTs = remote?.ts || null;
             file.representation = remote?.representation || 'atelier-utf8-lf';
+            file.readStatus = bytes === null ? 'missing' : 'fetched';
             file.observedAt = new Date().toISOString();
             if (!file.baselineKnown) {
                 const local = storedBytes(plan, 'local', file, file.local);
@@ -342,6 +335,29 @@ async function prepare(planFile, options = {}) {
                 }
             }
             save(plan);
+        }
+        if (typeof client.readAll === 'function') {
+            const batch = await client.readAll(plan.files.map(file => file.document), {onResult: async result => {
+                if (['fetched', 'missing', 'empty'].includes(result.status)) await observed(plan.files[result.index], result.status === 'missing' ? null : result.value);
+            }});
+            plan.budget.concurrent = batch.sessions;
+            plan.budget.requestCount = batch.requestCount;
+            plan.budget.serverInfoRequests = 1;
+        } else for (const file of plan.files) {
+            if (file.remote !== undefined) continue;
+            await observed(file, await client.readDocument(file.document));
+        }
+        if (plan.phase === 'initial-baseline') {
+            assertSnapshot(plan);
+            const missing = plan.files.filter(file => file.readStatus === 'missing');
+            if (missing.length) {
+                plan.excludedReadItems = missing;
+                plan.files = plan.files.filter(file => file.readStatus !== 'missing');
+                plan.expected.files = Object.fromEntries(plan.files.map(file => [file.path, plan.expected.files[file.path]]));
+                plan.collectionStatus = 'partial';
+                plan.partialAcceptanceToken = hash(canonical({mapSha256: plan.mapSha256, missing: missing.map(file => file.document),
+                    fetched: plan.files.map(file => [file.document, file.remote?.sha256])}));
+            }
         }
         plan.state = 'prepared';
         plan.reason = plan.files.some(file => !file.baselineKnown) ? 'baseline-confirmation-required' : null;
@@ -580,11 +596,15 @@ function apply(planFile, options = {}) {
     if (!['prepared', 'needs-user-input', 'baseline-committed', 'failed-or-unknown'].includes(plan.state)) stop('source-plan-not-applicable');
     if (plan.state === 'failed-or-unknown' && !options.continue) stop('explicit-local-recovery-required');
     if (plan.files.some(file => !file.baselineKnown)) stop('baseline-confirmation-required');
+    if (plan.collectionStatus === 'partial' && plan.files.length && (options.acceptPartial || plan.partialAcceptance?.token) !== plan.partialAcceptanceToken) stop('initial-partial-acceptance-required');
     const subject = options.subject || `feat(${plan.demand}):${options.title || '合并项目需求修改'}`;
     if (plan.phase !== 'initial-baseline' && !/^(?:feat|fix|refactor|chore|perf|test|docs)\([\d,]+\):[^\r\n]+$/.test(subject)) stop('invalid-demand-subject');
     return repositoryLock(plan.gitRoot, () => {
         if (options.continue && plan.state === 'failed-or-unknown') recoverPending(plan);
         assertSnapshot(plan);
+        if (plan.collectionStatus === 'partial' && plan.files.length && !plan.partialAcceptance) {
+            plan.partialAcceptance = {token: plan.partialAcceptanceToken, at: new Date().toISOString()}; save(plan);
+        }
         const changedBaselines = plan.files.filter(file => !file.baselineRef || contentHash(file, storedBytes(plan, 'remote', file, file.remote)) !== (file.base?.sha256 || null));
         const replay = !plan.execution.step ? prepareReplay(plan, changedBaselines, options) : Boolean(plan.replaySteps);
         if (replay === null) return plan;

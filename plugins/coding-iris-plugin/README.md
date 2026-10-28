@@ -1,5 +1,11 @@
 # coding-iris-plugin
 
+0.22.0 新增 [iris-xml-export](skills/iris-xml-export/SKILL.md) 与 [iris-code-baseline](skills/iris-code-baseline/SKILL.md)。前者按确认范围导出指定环境当前对象的 XML，支持专用类及无预部署类的系统执行通道；后者维护版本清单并采集当前实例代码，图片在请求前排除并统计，初始缺失保留 partial。两者复用 workspace、私有连接与受管资源；只有取得目标资格才启用只读多会话，版本 XML 不表示历史源码。
+
+按正常能力包更新并刷新 enabled 索引取得两个入口；Overlay 先更新共享 capability，再逐模块 `-NoPull` 刷新。可选 `DHCDoc.Util.XmlPackage` 需单独准备和授权部署，类缺失不阻断其它 coding 能力，普通更新不覆盖服务器类、创建 Git 或登记资格。基线状态归 ContextRoot/work/source-sync/baselines，XML 正式交付和恢复目录由 manifest `projectDirectories` 声明。旧全局技能按明确范围单列迁移；详细步骤见[更新说明](../../docs/update-agents.md#iris-xml-导出与代码基线coding-022)，实际项目、服务端和跨平台结果分别核实。
+
+0.22.0 同时收紧已有 source-sync 行为，标记为 breaking：超过 5 条需新版 readBatch 资格，旧 bulkQualification 文件不足；日常已知服务器基线对象 404 阻断；初始 partial 的成功子集 apply 需审阅并传 `--accept-partial` token。迁移说明见[更新 runbook](../../docs/update-agents.md#source-sync-022-迁移)。XML execute 默认 WS terminal（API v7／IRIS 2023.2+），HTTP `--executor mcp` 为单独资格选项，披露 vendor 最多 3 次内部尝试；客户端不自动换路或重复 Export。
+
 0.21.1 补齐 manifest projectDirectories 的用途、典型产物、边界和生命周期，供项目受管目录说明复用。已接入工程通过普通更新刷新受管区；无标记 README 按[目录说明升级](../../docs/guides/project-knowledge-layout.md#持续目录说明)评审接管。目录默认值、显式配置和旧任务恢复位置沿原契约，不迁移或清理业务资料。
 
 0.21.0：需求已明确为 `project` 且采用 `intent-first-on-demand-export` 时接入[项目开发协议](references/project-demand-development.md)，按需求刷新服务器基线、保护现场并分层提交，部署前重新同步和复审冻结。`standard` 沿既有分支；上下文模式不能推导需求类型。前端优先复用已确认支持的 Atelier，公共远端准入只覆盖已接入工具；真实 License 资格、旧服务器兼容及资源退出须在授权窗口取证。正常更新后，由授权项目维护配置私有策略和各环境本地 Git；不自动初始化 Git、启用模式、连接服务器或迁移旧恢复材料。

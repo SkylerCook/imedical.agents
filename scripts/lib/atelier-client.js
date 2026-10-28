@@ -15,13 +15,16 @@ function normalizeConnection(input = {}) {
   return { protocol, hostname, port, path: base, auth: input.auth || (input.username ? input.username + ':' + (input.password || '') : undefined), rejectUnauthorized: input.rejectUnauthorized ?? input.tlsVerify ?? true,
     ...(input.ca ? { ca: input.ca } : {}) };
 }
-function createAtelierClient({ connection, context, policy, owner: sharedOwner, timeoutMs = 60000, maxResponseBytes = 16 * 1024 * 1024 } = {}) {
+function createAtelierClient({ connection, context, policy, qualification, owner: sharedOwner, timeoutMs = 60000, maxResponseBytes = 16 * 1024 * 1024 } = {}) {
   const conn = normalizeConnection(connection);
-  const selected = remote.loadRemotePolicy(context || {}, { connection: conn, policy });
+  const selected = remote.loadRemotePolicy(context || {}, { connection: conn, policy, qualification });
   const owner = sharedOwner || remote.createRemoteOperation({ policy: selected, connection: conn, channel: 'atelier' });
   const agent = conn.protocol === 'https:' ? new https.Agent({ keepAlive: true, maxSockets: 1, rejectUnauthorized: conn.rejectUnauthorized, ...(conn.ca ? { ca: conn.ca } : {}) }) : new http.Agent({ keepAlive: true, maxSockets: 1 });
   const cookies = new Map();
+  const qualificationReads = qualification ? new Set(qualification.documents.map(name => 'doc/' + encodeURIComponent(name))) : null;
+  const qualificationSeen = new Set(), qualificationDeadline = qualification ? Date.now() + qualification.budgetMs : null;
   const logoutPath = conn.path.slice(0, conn.path.lastIndexOf('/api/atelier/') + '/api/atelier/'.length) + '?CacheLogout=end';
+  const serverInfoPath = logoutPath.slice(0, logoutPath.indexOf('?'));
   let busy = false, closed = false, closing;
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || !Number.isInteger(maxResponseBytes) || maxResponseBytes < 1) throw new remote.RemoteOperationError('atelier-limits-invalid');
   function raw(method, suffix, body, headers = {}, options = {}) {
@@ -30,7 +33,7 @@ function createAtelierClient({ connection, context, policy, owner: sharedOwner, 
       let sent = false;
       const fail = (code, details = {}) => reject(new remote.RemoteOperationError(code, { beforeSend: !sent, ...details }));
       const authenticatedHeaders = cookies.size || options.logout ? Object.fromEntries(Object.entries(headers).filter(([name]) => name.toLowerCase() !== 'authorization')) : headers;
-      const request = (conn.protocol === 'https:' ? https : http).request({ ...conn, path: options.logout ? logoutPath : conn.path + suffix, method, agent,
+      const request = (conn.protocol === 'https:' ? https : http).request({ ...conn, path: options.logout ? logoutPath : options.serverInfo ? serverInfoPath : conn.path + suffix, method, agent,
         auth: cookies.size || options.logout ? undefined : conn.auth, headers: { Accept: 'application/json', ...authenticatedHeaders,
           ...(cookies.size ? { Cookie: [...cookies].map(([name, value]) => name + '=' + value).join('; ') } : {}),
           ...(data ? { 'Content-Type': 'application/json', 'Content-Length': data.length } : {}) } }, response => {
@@ -63,6 +66,13 @@ function createAtelierClient({ connection, context, policy, owner: sharedOwner, 
   async function request(method, suffix, body, headers = {}, options = {}) {
     if (closed || closing) throw new remote.RemoteOperationError('atelier-client-closed', { beforeSend: true });
     if (busy) throw new remote.RemoteOperationError('atelier-client-busy', { beforeSend: true });
+    if (qualificationReads) {
+      const allowed = qualificationReads.has(suffix) || suffix === '@server-info' && options.serverInfo === true;
+      if (method !== 'GET' || !allowed || qualificationSeen.has(suffix) || options.effects && options.effects !== 'read-only') throw new remote.RemoteOperationError('atelier-qualification-read-only', {beforeSend: true});
+      if (Date.now() >= qualificationDeadline) throw new remote.RemoteOperationError('atelier-qualification-deadline', {beforeSend: true});
+      qualificationSeen.add(suffix);
+      options = {...options, effects: 'read-only', timeoutMs: Math.max(1, Math.min(options.timeoutMs || timeoutMs, qualificationDeadline - Date.now()))};
+    }
     busy = true;
     try { return await owner.run({ effects: options.effects || (['GET', 'HEAD'].includes(method) || suffix === 'docs' ? 'read-only' : 'write'), operation: options.operation || 'atelier-' + method.toLowerCase(), method, suffix }, () => raw(method, suffix, body, headers, options)); }
     finally { busy = false; }
@@ -77,7 +87,7 @@ function createAtelierClient({ connection, context, policy, owner: sharedOwner, 
   }
   async function readDocument(name, options = {}) {
     const identifier = typeof name === 'string' ? name : name.remotePath;
-    return document(identifier, await request('GET', 'doc/' + encodeURIComponent(identifier) + (options.binary ? '?binary=1' : ''), undefined, options.headers || {}, { effects: 'read-only' }));
+    return document(identifier, await request('GET', 'doc/' + encodeURIComponent(identifier) + (options.binary ? '?binary=1' : ''), undefined, options.headers || {}, { effects: 'read-only', ...(options.timeoutMs ? {timeoutMs: options.timeoutMs} : {}) }));
   }
   async function readDocuments(names) {
     const result = await request('POST', 'docs', names, {}, { effects: 'read-only' });
@@ -88,6 +98,13 @@ function createAtelierClient({ connection, context, policy, owner: sharedOwner, 
       entries.set(entry.name, entry);
     }
     return names.map(name => document(name, {result:entries.get(name)}));
+  }
+  async function serverInfo() {
+    const result = await request('GET', '@server-info', undefined, {}, {effects: 'read-only', serverInfo: true});
+    const value = result?.result?.content;
+    if (!value || typeof value.version !== 'string' || !value.version || value.version.length > 2048 ||
+        value.id !== undefined && typeof value.id !== 'string') throw new remote.RemoteOperationError('atelier-server-info-invalid');
+    return {version: value.version, instanceId: value.id || null, api: value.api ?? null};
   }
   async function writeDocument(name, bytes, { ts } = {}) {
     if (Buffer.isBuffer(bytes)) new TextDecoder('utf-8', {fatal:true,ignoreBOM:true}).decode(bytes);
@@ -114,7 +131,7 @@ function createAtelierClient({ connection, context, policy, owner: sharedOwner, 
     })();
     return closing;
   }
-  return { request, readDocument, readDocuments, writeDocument, compile: documents => request('POST', 'action/compile?flags=cuk&source=0', documents, {}, {effects:'write',allowErrors:true}), close,
+  return { request, readDocument, readDocuments, serverInfo, writeDocument, compile: documents => request('POST', 'action/compile?flags=cuk&source=0', documents, {}, {effects:'write',allowErrors:true}), close,
     markUnknown: reason => owner.markUnknown(reason), snapshot: () => ({ ...owner.snapshot(), cookiePresent: cookies.size > 0, closed }) };
 }
 function createAtelierRecoveryReader({connection, context, policy, documents, token, confirmRecovery, timeoutMs, maxResponseBytes} = {}) {

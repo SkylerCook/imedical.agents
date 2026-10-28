@@ -27,7 +27,22 @@ function instanceIdentity(connection = {}) {
   if (typeof host !== 'string' || !host || !Number.isInteger(Number(port)) || Number(port) < 1 || Number(port) > 65535) stop('remote-target-required');
   return digest(JSON.stringify([scheme.toLowerCase(), host.toLowerCase(), Number(port)]));
 }
-function loadRemotePolicy(context = {}, { connection, policy } = {}) {
+function targetIdentity(connection = {}) {
+  let base = connection.path || (connection.namespace ? '/api/atelier/v1/' + encodeURIComponent(connection.namespace) + '/' : '');
+  base = base.replace(/(?:action\/compile.*|doc\/.*|docs(?:\?.*)?)$/, '');
+  if (!base.endsWith('/')) base += '/';
+  return digest(JSON.stringify([instanceIdentity(connection), base]));
+}
+function validQualificationGrant(grant, connection) {
+  if (!grant || grant.confirm !== true || grant.targetHash !== targetIdentity(connection) ||
+      !Array.isArray(grant.documents) || grant.documents.length < 1 || grant.documents.length > 100000 ||
+      new Set(grant.documents).size !== grant.documents.length || grant.documents.some(name => typeof name !== 'string' || !name || /[\x00-\x1f]/.test(name)) ||
+      !Number.isInteger(grant.sessions) || grant.sessions < 1 || grant.sessions > 20 ||
+      !Number.isInteger(grant.intervalMs) || grant.intervalMs < 0 || grant.intervalMs > 60000 ||
+      !Number.isInteger(grant.budgetMs) || grant.budgetMs < 1 || grant.budgetMs > 3600000) stop('remote-qualification-grant-invalid');
+  return true;
+}
+function loadRemotePolicy(context = {}, { connection, policy, qualification } = {}) {
   const required = contextMode(context) === 'intent-first-on-demand-export';
   const contextRoot = context.contextRoot || path.join(context.workspaceRoot || process.cwd(), '.agents');
   let value = policy;
@@ -38,19 +53,24 @@ function loadRemotePolicy(context = {}, { connection, policy } = {}) {
       stop(error.code === 'ENOENT' ? 'remote-policy-required' : 'remote-policy-invalid');
     }
   }
+  if (qualification !== undefined) validQualificationGrant(qualification, connection);
   if (value?.enabled !== true) {
+    if (qualification !== undefined) stop('remote-qualification-policy-required');
     if (required) stop('remote-policy-required');
     return { enabled: false, required: false };
   }
   if (value.schema !== 'iris-remote-policy/v1' || !path.isAbsolute(value.coordinationRoot || '') ||
       typeof value.poolKey !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(value.poolKey) ||
       value.maxConcurrent !== undefined && value.maxConcurrent !== 1 ||
-      value.qualification?.status !== 'verified' || typeof value.qualification.reference !== 'string' || !value.qualification.reference.trim()) stop('remote-policy-invalid');
-  const reference = path.resolve(context.workspaceRoot || process.cwd(), value.qualification.reference);
-  try { if (!fs.statSync(reference).isFile()) stop('remote-qualification-required'); }
-  catch { stop('remote-qualification-required'); }
+      qualification === undefined && (value.qualification?.status !== 'verified' || typeof value.qualification.reference !== 'string' || !value.qualification.reference.trim())) stop('remote-policy-invalid');
+  const reference = qualification === undefined ? path.resolve(context.workspaceRoot || process.cwd(), value.qualification.reference) : null;
+  if (reference) {
+    try { if (!fs.statSync(reference).isFile()) stop('remote-qualification-required'); }
+    catch { stop('remote-qualification-required'); }
+  }
   const result = { ...value, required, coordinationRoot: path.resolve(value.coordinationRoot), maxConcurrent: 1,
-    instanceHash: connection ? instanceIdentity(connection) : null, evidenceReference: reference };
+    instanceHash: connection ? instanceIdentity(connection) : null, evidenceReference: reference,
+    ...(qualification ? {qualificationRun: true} : {}) };
   if (required && connection && (connection.rejectUnauthorized === false || String(connection.protocol || connection.scheme || connection.IRIS_SCHEME || 'https').replace(/:$/, '') !== 'https')) stop('remote-strict-tls-required');
   return result;
 }
@@ -93,8 +113,21 @@ function createRemoteOperation({ policy = { enabled: false }, connection, channe
   }
   function persist() { if (directory) atomicJson(path.join(directory, 'state.json'), state); }
   function markUnknown(reason = 'remote-outcome-unknown') {
-    acquire(); evidence.status = 'reconciliation-required';
+    acquire();
+    if (state?.status === 'circuit-open' || evidence.status === 'circuit-open') {
+      if (state) { (state.cleanupProblems ||= []).push(reason); state.updatedAt = new Date().toISOString(); persist(); }
+      return;
+    }
+    evidence.status = 'reconciliation-required';
     if (state) { state.status = 'reconciliation-required'; state.reason = reason; state.updatedAt = new Date().toISOString(); persist(); }
+  }
+  function checkpointBatch(batch) {
+    if (!active) stop('remote-owner-not-active');
+    if (state) { state.inFlight.batch = batch; state.updatedAt = new Date().toISOString(); persist(); }
+  }
+  function tripCircuit(reason = 'service-unavailable') {
+    acquire(); evidence.status = 'circuit-open';
+    if (state) { state.status = 'circuit-open'; state.reason = reason; state.updatedAt = new Date().toISOString(); persist(); }
   }
   async function run({ effects = 'read-only', operation: action = operation } = {}, callback) {
     acquire();
@@ -132,7 +165,7 @@ function createRemoteOperation({ policy = { enabled: false }, connection, channe
       cleanupVerified: exit.cleanupVerified !== false, licenseReleaseVerified: false, pendingOperation: false });
     return { ...evidence };
   }
-  return { acquire, run, markUnknown, close, snapshot: () => ({ ...evidence, pendingOperation: active }) };
+  return { acquire, run, markUnknown, checkpointBatch, tripCircuit, close, snapshot: () => ({ ...evidence, pendingOperation: active }) };
 }
 async function withRemoteOperation(options, callback) {
   const policy = options.policy || loadRemotePolicy(options.context || {}, { connection: options.connection });
@@ -269,4 +302,4 @@ function reconcileRemotePool({policy, token, evidenceFile, confirm = false, writ
     return {schema:'iris-remote-reconciliation/v1',status:'reconciled',licenseReleaseVerified:false};
   } finally { fs.closeSync(descriptor); fs.unlinkSync(recoveryLock); }
 }
-module.exports = { RemoteOperationError, contextMode, instanceIdentity, loadRemotePolicy, createRemoteOperation, createRecoveryReadOperation, withRemoteOperation, poolStatus, reconcileRemotePool };
+module.exports = { RemoteOperationError, contextMode, instanceIdentity, targetIdentity, validQualificationGrant, loadRemotePolicy, createRemoteOperation, createRecoveryReadOperation, withRemoteOperation, poolStatus, reconcileRemotePool };

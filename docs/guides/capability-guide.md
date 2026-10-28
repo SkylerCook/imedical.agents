@@ -179,6 +179,8 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 | [iris-coding](../../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md) | 修改这个功能，先查明前后端调用链，再完成范围内实现。 | 提供功能入口和需求；产出任务路由、相关前后端变更及验证说明。 |
 | [iris-demand-promote](../../plugins/coding-iris-plugin/skills/iris-demand-promote/SKILL.md) | 先评估将 DEV 的指定提交移植到指定 PRD 仓库的范围和基线。 | 明确两个仓库、提交及服务器基线读取范围；授权实施后形成 PRD 本地提交，不部署。 |
 | [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 将这些文件部署到已指定环境并检查编译。 | 已确认 project＋intent-first-on-demand-export 时先同步、合并复审并绑定 source plan；正式批准绑定当前冻结摘要。未命中该分支的工程沿原 direct/guarded 契约。分别报告上传、编译及最终回读、Storage 和业务验证；回填失败不能报告验证通过，冻结源码变化后复审。 |
+| [iris-xml-export](../../plugins/coding-iris-plugin/skills/iris-xml-export/SKILL.md) | 先和我确定这个模块需要的对象，再从确认环境导出一个 XML 部署包。 | Agent 分析候选、核对动态依赖并确认准确清单；包来自服务器当前对象，支持文本与图片。选择已准备的专用类或原生系统执行通道，逐项核对完整性，部署和导入另按授权。 |
+| [iris-code-baseline](../../plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md) | 按这份版本 XML 建立当前实例的代码基线，报告全部缺失；以后只更新本次需求范围。 | XML 限定集合，源码来自实例当前状态；图片请求前排除并统计，首次缺失保留 partial。纯采集不自动建 Git，项目分支复用 source-sync；已验证目标可启用受管只读多会话。 |
 | [iris-frontend-coding](../../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md) | 调整指定 HISUI 页面的交互，或排查弹窗面板留白、裁切与滚动异常，保留现有数据和调用契约。 | 提供页面、行为要求及项目显式规范/兼容基线；编码与 Review 共用前端规范，仅对本次新增代码应用格式约定，按条件加载 i18n。分别报告静态检查、自审或独立 Review、实际页面验证；布局问题仍路由到 HISUI 样式参考；新建页面或审查初始化链路时，按依赖与容器契约选择 JS 组织模板。 |
 | [iris-frontend-gb2312-promote](../../plugins/coding-iris-plugin/skills/iris-frontend-gb2312-promote/SKILL.md) | 这是仍需 GB2312 的历史工程，请先检查转换文件与源文件的替换范围。 | 必须明确历史编码要求及文件替换授权；产出源名提升结果，普通 UTF-8 工程不使用。 |
 | [iris-imedical-knowledge](../../plugins/coding-iris-plugin/skills/iris-imedical-knowledge/SKILL.md) | 查询这个业务概念的相关参考，再结合当前源码核实。 | 给出业务词或疑点；产出来源和适用性说明，现有信息足够时无需查询。 |

@@ -8,6 +8,19 @@
 - Windows、Node 24.14.1 最终三 suite 50/50 全过：`node --test --test-reporter=spec plugins/demand-delivery-plugin/tests/acceptance-session.test.js scripts/tests/demand-hierarchy.tests.js scripts/tests/real-repository-commit.tests.js`。覆盖四种待补日志、独立授权、旧占有释放、后续发布与原 hash 恢复、部分推送、主子迟到继承、无代码及实仓拒绝。隔离 Git 需沙箱外执行，提交计划限制使用系统临时目录；以实际路径消解 Windows 大小写断言差异。真实 BOS、其它宿主和非 Windows/Node22 矩阵仍沿原 P2 取证，现有两份 CI 已覆盖三平台 Node22/24。
 - 文档 `project links resolve` 定向 1/1、JavaScript 语法及差异检查通过；staged 版本门禁只涉及本 owner，0.8.0→0.8.1 无新增问题。功能证据按实际源码范围保存供复用。仅暂存本轮 19 个路径及共享文档片段，保留并排除并行 IRIS XML/基线改动；提交推送沿 README 双远端约定，GitHub 镜像另含已在 Gitee 发布的 `5282be4` 文档提交，实际结果以 Git 回执为准。
 
+## 2026-10-28 IRIS XML 与代码基线本地接入完成
+
+- framework-maintenance，实施基点 `5282be440f7048cd88b01aa7b2649bb69d973cbd`，按[已确认计划](../maintenance/design/iris-xml-baseline-integration-plan.md)在源仓实施。新增 `iris-xml-export`、`iris-code-baseline` 归 coding owner；版本 XML 仅约束范围，源码及包内容来自确认实例当前状态。基线只代码、图片预筛并统计；XML 图片使用既有无损样本回归，去除 QTZ 及隐含业务辅助类依赖。
+- owner 本地 manifest 与版本记录为 0.22.0，因 source-sync 新版批量资格、已知基线 404 阻断及 initial partial token 收紧标记 breaking／required Migration；七个直接消费者保留最低版本、扩展兼容上界并各升 patch。两个 skill、CLI 与专用类继承 owner 版本；单独协议标识不形成第二套版本。文档、init 提示、目录声明和版本记录与实现一并核对，本地记录不代表已发布。
+- 本地实现阶段交付 canonical 专用类源与[验收步骤](../docs/guides/iris-xml-baseline-acceptance.md)，用户随后明确授权本批 c + p；仅暂存 XML／基线相关文件及共享文档片段，排除并保留同仓并行部署恢复改动，按 README 双远端约定提交推送，结果以 Git 回执为准。未更新业务副本或部署服务器，专用类未真实编译、安装 XML 未生成。可选类未部署不阻断其它 coding 能力；多会话只能在目标资格通过后启用；全局旧入口沿 `skills-sync` 单列迁移，删除源前盘点所有依赖端并保留恢复。
+- 独立受管会话池专项 15/15 通过并按 pool/client/remote 实现及测试 scope 保存证据；覆盖真实本地并发、同 Cookie 单次 serverInfo、目标／版本／实例／配置／运行时绑定、503 持久熔断、资格只读范围与期限，fixture 清理通过。XML 执行默认同进程 WS terminal，HTTP MCP 为显式接受 vendor 内部最多 3 次尝试的选项；以上均为本地 mock／源码验证，未连接真实 IRIS。
+- Windows 完整 `update-agents.tests.ps1` 分别在 PowerShell 7 与 Windows PowerShell 5.1 通过，`plugin-thin-index-refresh.tests.ps1` 在 PowerShell 7 通过。沿既有 validation-evidence 登记 `update-agents-ps7`、`update-agents-ps51`、`plugin-thin-index-refresh`，按测试实际读取的脚本、公共库、文档和 manifest 计算 scope，并回读为 fingerprint-match；只使用任务临时根下的隔离 Git／Overlay fixture，测试自动清理。此回归不代替未提交 XML 新资产的新装／旧装 sparse 验收或真实宿主加载证明。
+- 本地共享与既有流程回归 74/74、新增组合回归 88/88、source-sync 差异回归 5/5 通过，结果分开记录，不合并计数或扩大为真实服务结果。新增组合包含当前工作树资产的新装／旧装 sparse 夹具 1/1，核对运行时、vendor、类源、两个 skill 与帮助入口；不代表实际项目已安装。跨平台矩阵只完成配置，未运行远端 CI。真实双通道、类编译及安装产物、资源资格、实际项目／宿主加载和旧全局入口迁移仍待验；缺口沿 backlog 既有 P1 第 4 项、P2 第 7 项及宿主适配队列推进。
+- 最终 MCP／XML 组合 34/34（MCP 6、XML 28）通过，覆盖新 `markUnknown` 用例及 10 秒强杀后的 unknown 收尾；基线／清单／范围专项 31/31 针对公共运行库更新后补跑通过，两组均登记当前内容指纹并回读匹配。38 个候选的 JavaScript 语法／JSON 检查通过；验收指南复核补齐资格试验实际采集、未完成计划恢复及 Web 导入隔离。以上为本地 fixture／生成测试，不是服务端编译或真实 IRIS 验收。组件 HEAD 基线与工作区均为既有 6 条历史诊断，本轮 `newIssues: []`，没有改写不可变历史记录或执行 staged 门禁。
+- 本轮本地实现交付完成，计划与 maintenance 导航已更新，下一步仅保留未完成的跨平台／真实试点、安装产物及另行授权的发布部署和旧入口迁移。源仓文件和本地回归不代表实际项目已更新。
+- 文档定向验证通过：`documentation-layout.tests.js` 的 `project links resolve` 1/1（部署链接／锚点与非 xc 全部 skill/rule 覆盖）；`capability-help.tests.js` 的 `every owned skill` 1/1（全部自有帮助先行路由）。两个新 skill 纳入当前 15 插件／58 skill／37 rule 清单，新增四个 CLI 的本地 `--help` 可读。组件完整检查本轮新增记录与依赖未报问题，全仓仍保留既有不可变发布记录债；本地实现阶段未暂存或执行 staged 门禁。
+- c + p 提交前补齐新文件差异检查，去除 saxes 发行包三个循环标签后的行尾空格并同步来源说明与摘要。Windows GitRoot 比较改用真实物理路径，覆盖同目录大小写变体及不同物理根拒绝；默认系统临时目录的新进程专项 11/11、最终新增能力组合 91/91 通过。暂存 72 个文件及精确片段，组件门禁检查 8 个变更 owner／11 个受影响组件通过；旧更新器证据在排除并行 README 段落后仍匹配，复用已有 PowerShell 7／5.1 结果。并行部署恢复文件和文档片段留工作树，不纳入本批提交。
+
 ## 2026-10-27 BOS 需求名称按产品交付目标区分标版标签
 
 - framework-maintenance，基点 `2101310d10170afbe910ca9f6732e52260385765`，按已确认计划实施。IRIS 标版代码、产品配置或 UI 开发使用 `{IRIS}[标版] 标题`；会议、演示、造数据及临时脚本/环境准备沿非标版工作命名。计划与已完成开发共用同一规则，三类来源逐条判断，不以 source、kind 或 Git 文件类型代替业务目标。

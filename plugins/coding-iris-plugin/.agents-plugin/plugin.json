@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.21.1",
+  "version": "0.22.0",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
@@ -89,6 +89,36 @@
   ],
   "projectDirectories": [
     {
+      "id": "iris-xml-export",
+      "base": "workspace",
+      "path": "docs/delivery/iris-xml",
+      "role": "delivery",
+      "create": "task",
+      "purpose": "已确认对象范围的 IRIS XML 部署包与逐项校验回执",
+      "examples": [
+        "对象清单",
+        "XML 合包或分文件",
+        "完整性校验回执"
+      ],
+      "boundary": "只保存当前工程正式交付；服务器任务身份、私有计划与恢复状态归 ContextRoot/work/iris-xml-export",
+      "lifecycle": "按任务创建并保留正式交付；不自动导入业务环境或清理历史附件"
+    },
+    {
+      "id": "iris-xml-export-state",
+      "base": "context",
+      "path": "work/iris-xml-export",
+      "role": "recovery",
+      "create": "task",
+      "purpose": "XML 导出计划、服务器产物归属、下载断点与清理回执",
+      "examples": [
+        "导出计划",
+        "任务产物清单",
+        "恢复与清理回执"
+      ],
+      "boundary": "私有状态受 Git 忽略；正式 XML 归 docs/delivery/iris-xml，不能写共享 CapabilityRoot",
+      "lifecycle": "按任务创建；未知结果核实前保留，不作为普通临时文件清理"
+    },
+    {
       "id": "source-sync",
       "base": "context",
       "path": "work/source-sync",
@@ -105,6 +135,8 @@
     }
   ],
   "defaultPrompt": [
+    "从已确认的 IRIS 环境导出准确对象范围的 XML 部署包",
+    "按版本 XML 范围采集指定实例当前代码基线并报告缺失",
     "Initialize IRIS coding support in this project",
     "Handle an IRIS coding request with the unified coding workflow",
     "Modify this ObjectScript class using IRIS backend rules",

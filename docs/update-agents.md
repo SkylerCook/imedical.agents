@@ -4,6 +4,34 @@
 
 `demand-delivery-plugin 0.8.1` 解耦 Git 发布与 BOS 补录，按正常流程更新完整能力包并刷新已启用索引。旧 v1/v2 的 schema、scopeHash、授权和回执保持；首次状态写入释放已完成 Git 的发布权，BOS 交付者与来源证据保留。部分 push 仍串行保护；BOS 失败/未知只暂停日志，完整交付仍须全部适用回执。旧日志先于 push 的顺序可续接，无私有配置迁移、旧文件清理或安装/更新算法变更，详见[迁移说明](demand-delivery-migration.md#bos-日志与-git-发布解耦)。源仓更新不代表业务副本已升级。
 
+## IRIS XML 导出与代码基线（coding 0.22）
+
+`coding-iris-plugin 0.22.0` 新增 [iris-xml-export](../plugins/coding-iris-plugin/skills/iris-xml-export/SKILL.md) 与 [iris-code-baseline](../plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md)。XML 从指定环境当前对象生成，支持图片；基线只采代码，图片预筛排除并统计，版本 XML 只表达范围。初始缺失保留完整 partial 报告；日常开发仍按需求刷新，项目分支继续使用 source-sync。
+
+新增脚本、两个 skill、reference、类源和固定 XML 解析 vendor 沿既有 `plugins/**`、`scripts/lib/**` 与 `vendor/**` 分发，无需业务项目 `npm install`。七个直接消费者的依赖范围随本批兼容声明更新，应取得完整能力包而不是只复制 owner 目录。版本校验仍仅用于源仓维护，不接入业务更新器或 hook。
+
+新项目沿安装、项目上下文和真实 `coding-iris-init` 接入；已有 standard 项目先核对能力包与业务 Git 现场，按正常 DryRun → Write → Check 取得并刷新已启用入口。严格只读预演使用 `-NoPull`；它只处理已取得 revision，不能替代前面的取版。Overlay 先更新共享 CapabilityRoot 一次，再逐模块按原完整流程以 `-NoPull` 刷新 ContextRoot。available／disabled 插件不因此启用。
+
+启用时提示两种 XML 准备方式：提供 canonical `DHCDoc.Util.XmlPackage` 源及经真实环境生成、导入验证的安装 XML（有可验证产物时），或选择已有获授权的 MCP／终端直接执行系统 Export。可选类缺失只限制类通道；普通更新不连接服务器、覆盖或编译类、不自动初始化业务 Git 或登记多会话资格。类现状不明先比较；本版 Dispatch/GetExportInfo 协议不兼容旧 ExportDocs/ListProjectItems/ImportFiles 签名，已有同名类必须先查调用方并形成迁移与恢复方案。选择类通道后核对 namespace、协议和实际方法能力。未取得真实安装 XML 时明确保留待验，不生成占位文件冒充可安装产物。
+
+新 XML delivery/recovery 目录由 coding owner `projectDirectories` 解析；正式产物归项目，私有状态归当前 ContextRoot。基线恢复资料位于 ContextRoot/work/source-sync/baselines。保留显式项目输出、原业务源码、私有连接和既有恢复材料，不自动搬迁或删除。多会话仅对资格所绑定的目标／版本／通道／上限有效；无多会话资格沿基础资格的单会话，模板不能成为 verified 证据。
+
+旧用户级 `iris-xml-package`／`iris-code-baseline` 沿 `skills-sync` 单列迁移。先盘点所有已登记宿主和链接，保存可核验恢复，再验证目标项目新入口；在明确授权范围移除旧链接后再次核对宿主加载，失败则恢复。仍有未迁移依赖时保留原源或已确认的只路由兼容入口，全部依赖核实后才处理实体源。项目更新器不删除用户级目录，用户级入口不链接某个项目副本。
+
+完成时分别报告 owner 与公共文件落盘、thin-index source、宿主发现、通道实测及多会话资格。源仓测试与版本范围不证明实际项目、旧 Caché、服务器类或 License 已验收；真实窗口、服务端更新、项目副本更新及提交推送沿各自有效授权执行。
+
+### source-sync 0.22 迁移
+
+此升级收紧已有调用，owner 的 0.22.0 按 `0.x` MINOR 声明 breaking／migration required。source-sync 已改用新的 read-pool；超过 5 个文档时，旧 `bulkQualification` 仅有 verified 与文件不再足够。保留旧证据和恢复现场，在获授权窗口用明确范围、会话、间隔及预算重新取证，资格试验先生成 pending；实际核对资源占用、退出及回落后才登记新版 readBatch 资格，不靠改字段伪造 verified。
+
+新版证据绑定 Atelier 通道、目标／namespace、连接配置及读取运行时指纹、服务器版本／实例、会话／间隔／文档上限和证据摘要。每批在原 Cookie 会话做一次根 serverInfo 探测；旧证据缺字段、内容变化或绑定不符即停止，不能以旧 bulk 文件绕过。普通读取已有基础资格但没有多会话资格时仍可在适用小范围用单会话，不自动升级完整批量许可。
+
+日常已有服务器基线的对象返回 404 会阻断同步，不再直接删除本地文件。初始 partial 在 `excludedReadItems` 保存完整缺失；存在已验证成功子集时，审阅这些排除项后，在原本地提交授权范围用 `source-sync.js apply --plan <plan.json> --confirm-commit --accept-partial <partialAcceptanceToken>` 应用成功项。该 token 与 code-baseline 的 `accept-partial` 回执分别管理，不扩大提交范围或把部分基线改成 complete。
+
+XML execute 默认同进程受管 WS terminal，需 IRIS 2023.2+／Atelier API v7+ 预检和目标资格；32KiB 命令超限时明确选择类通道。显式 `--executor mcp` 是 HTTP iris_execute，vendor v1.5.0 可内部最多尝试 3 次，只有适用的 `qualification.channels.mcp.acceptInternalRetries=true` 才开放，并在回执披露；不自动 fallback。源码采集的零自动重试契约不被扩大成所有 MCP 通道零重试。
+
+未知写或公共熔断后，先核实原服务器任务及资源，再沿 `iris-remote status/reconcile` 恢复公共 owner，随后才能 XML inspect；不能反过来用受阻普通 inspect 解除公共锁。本机 XML `recover-lock` 仅处理已证死进程的本地计划锁，不能代替公共恢复、清除活 owner 或重放 Export。没有目标真实资格、升级或恢复证据时保留待验，更新器不自动迁移旧计划或旧资格。
+
 ## IRIS 项目按需导出开发（coding 0.21 / context 0.7）
 
 按正常更新取得已启用的 coding-iris-plugin、agent-context-kit、根 `scripts/*.js` 与 `scripts/lib/**`，刷新 enabled 薄索引后执行 Check。Overlay 更新共享 CapabilityRoot 一次，再由各模块原流程以 `-NoPull` 刷新 ContextRoot；新增脚本与模板沿现有 sparse 范围分发，不新增安装依赖、守护服务或自动远端调用。

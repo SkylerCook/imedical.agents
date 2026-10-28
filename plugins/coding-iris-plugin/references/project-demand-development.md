@@ -92,7 +92,9 @@ Agent 先读候选前后源码并核对服务器合并意图，取得真实语�
 
 准入公共实现为能力包根 `scripts/lib/iris-remote-operations.js`，Atelier 会话复用由 `scripts/lib/atelier-client.js` 负责。私有配置 `ContextRoot/config/iris-remote-policy.json` 使用同一实例或**已确认共享许可池**的 `poolKey`、同一可达的本地 `coordinationRoot`。已确认跨实例共享时才显式设置 `allowSharedPool`；不同目录、不同机器或未接入工具不会自动协调。不是全局 License 预留服务，也不能机械拦截外部 IDE 或原生 MCP。
 
-`maxConcurrent` 固定为 1，整段操作跨进程排他，文件串行；503 重试为 0。一次 Atelier 生命周期复用 Cookie 与 keepalive，但不承诺占用 1 LU；批量 docs 也不证明会减少 License 单元。503 整批熔断，不能仅凭状态码断言一定是 License，也不逐文件或换通道重试。数据库写入与 Atelier 的历史打满是两类观察，不假定同根因。
+`maxConcurrent` 固定为 1，整段操作跨进程排他。源码获取可使用 `scripts/lib/atelier-read-pool.js` 在同一个 owner 内运行已验证预算的只读会话池；写入与编译仍串行。该池先在同 Cookie 上读取一次根 serverInfo，再核对资格的实例、namespace/API 路径、版本、配置和运行时指纹。无多会话资格使用已获基础资格的单会话，缺少基础策略则在请求前停止。完整字段与试验入口见[代码基线协议](iris-code-baseline.md)。
+
+直接 Atelier 读取的 503 重试为 0；发现 503 时先持久化熔断及在途集合、停止新派发，再收束并关闭各自会话。一次 Atelier 生命周期复用 Cookie 与 keepalive，但不承诺占用固定 LU；会话数与实际 License 单元分别取证。不能仅凭 503 断言一定是 License，也不逐文件或换通道重试。数据库写入与 Atelier 的历史打满是两类观察，不假定同根因。MCP 或终端执行的内部传输行为按对应通道资格单独判断，不能用外层零重试推导 vendor 内部也没有重试。
 
 准入须覆盖当前需求会使用的受管读取、上传编译、Broker/数据库调用与测试入口。已接入主链是 source-sync/promote/deploy、共享 Atelier client、受控 Broker 及根 `scripts/iris-mcp.js` 的公共 `tools/call`。其它插件自己的客户端、原生 MCP、SQL 工具和外部 IDE 是明确外部边界，使用前须核实其准入与退出资格；不能把共享库存在说成全部入口已受控。新模式不使用交互 legacy debugger 旁路。
 
@@ -101,6 +103,8 @@ Atelier 只关闭自己取得的 Cookie 会话，并返回 logout 请求/响应�
 会话设计参考 [VS Code ObjectScript 的 Atelier API](https://github.com/intersystems-community/vscode-objectscript/blob/master/src/api/index.ts)（2026-10-24 核对）：取得 Cookie 后不继续发送 Basic Authorization，注销使用路径前缀下 `/api/atelier/?CacheLogout=end`，不附 v1/namespace。只参考生命周期设计，未复制代码或引入其运行时；本地 mock 精确核对请求，目标服务器的退出与 License 回落仍需真实资格证据。
 
 `qualification.status: verified` 和存在的 `qualification.reference` 只是本地证据门禁，不自动证明真实 License 安全。证据至少区分通道、最小范围、前后占用、会话/连接归属、结束回落、异常和观察时间；验证只对该目标/版本/通道/范围有效。150–200 文件不是通用安全阈值，不能据一次客户端观察推广 VS Code Export 的 License 收益。资格未完成前保持禁用，不先批量试错。
+
+首次资格窗口通过 `code-baseline qualify` 接收明确目标、准确名单、会话数和时限预算，沿同一个锁执行受限读取；客户端仅允许该名单及一次 serverInfo 探测。回执维持 pending，资源观测和审核完成后才登记 verified。日常批次验证各自会话退出并引用资格，不因 `licenseReleaseVerified:false` 自动变为 unknown，也不宣称每批都实测了 LU 回落。
 
 写入超时、断连或结果不明保留 `failed-or-unknown` 与原始断点，不能自动重放。先使用根 `scripts/iris-remote.js status --project-root <workspace>` 读取本地状态/token。核实原 owner 已退出后，可以显式执行 `inspect`（别名 `read`）进行受管恢复读取：
 

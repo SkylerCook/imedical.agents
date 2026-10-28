@@ -6,7 +6,7 @@ const fs = require('node:fs');
 function args(argv) {
     const result = {command: argv[0], files: []};
     const flags = new Set(['confirm-commit', 'confirm-review', 'confirm-local-git', 'confirm-recovery', 'continue']);
-    const names = new Set(['project-root', 'phase', 'demand', 'kind', 'environment-alias', 'environment-type', 'baseline-ref', 'map', 'files', 'scope-file', 'plan', 'subject', 'title', 'modification', 'evidence', 'to', 'token', 'resolve-delete']);
+    const names = new Set(['project-root', 'phase', 'demand', 'kind', 'environment-alias', 'environment-type', 'baseline-ref', 'map', 'files', 'scope-file', 'plan', 'subject', 'title', 'modification', 'evidence', 'to', 'token', 'resolve-delete', 'accept-partial']);
     for (let i = 1; i < argv.length; i++) {
         const key = argv[i].replace(/^--/, '');
         if (flags.has(key)) { result[key.replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = true; continue; }
@@ -23,6 +23,7 @@ async function main(argv) {
     if (!argv.length || argv.includes('--help')) {
         console.log('source-sync.js init --project-root <workspace> --confirm-local-git\nsource-sync.js plan --project-root <workspace> --phase before-edit|pre-deploy|initial-baseline --environment-alias <alias> --environment-type test|production --demand <id> --files <logical-path...> [--baseline-ref <trusted-ref>] [--scope-file <json>] [--map <ProjectItem.xml>]\nsource-sync.js prepare --plan <plan.json>\nsource-sync.js apply|continue --plan <plan.json> --confirm-commit [--subject <subject>] [--modification <text>]\nsource-sync.js review --plan <plan.json> --confirm-review --evidence <review-reference>\nsource-sync.js finish --plan <plan.json> --confirm-review --confirm-commit --evidence <review-reference> [--continue]\nsource-sync.js rollback-plan --project-root <workspace> --demand <id> --to <commit> --files <logical-path...>\nsource-sync.js rollback-local --plan <plan.json> --confirm-commit [--continue]\nsource-sync.js recover-lock --plan <plan.json> --confirm-recovery --token <lock-token> --evidence <local-evidence-file>\nsource-sync.js status|verify --plan <plan.json>\nplan is local only; prepare reads remote; apply commits locally and never deploys. No content change means no empty commit.');
         console.log('Project branch only: supply --kind project or a confirmed project demand default. contextMode does not select demand kind. A deletion conflict is resolved with continue --resolve-delete <logical-path> after review.');
+        console.log('An initial partial baseline applies only verified fetched files; review excludedReadItems and pass --accept-partial <partialAcceptanceToken>. Missing daily documents never silently delete local source.');
         return;
     }
     const input = args(argv); let result;

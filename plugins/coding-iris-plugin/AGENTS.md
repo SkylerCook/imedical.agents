@@ -49,6 +49,8 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 - 前端 CSP/JS/HISUI 编码：`skills/iris-frontend-coding/SKILL.md`；编码与 Review 的 UI 条件读取统一按[前端规则门禁](rules/iris_coding_frontend.md#ui-条件门禁)，包括只从 rule 进入的审查。
 - 历史前端 GB2312 转换后替换源文件：`skills/iris-frontend-gb2312-promote/SKILL.md`
 - IRIS 远端部署编排：`skills/iris-deploy/SKILL.md`
+- 已确认范围的 XML 部署包导出：`skills/iris-xml-export/SKILL.md`；两条自有通道、任务文件与完整性契约归 `references/iris-xml-export.md`。
+- 版本清单维护、初始当前源码采集及基线恢复：`skills/iris-code-baseline/SKILL.md`；代码与图片筛选、partial 和目标多会话资格归 `references/iris-code-baseline.md`，项目开发同步继续沿原协议。
 - DEV→PRD 需求移植：`skills/iris-demand-promote/SKILL.md`
 - 标版/项目需求提交：`../demand-delivery-plugin/skills/demand-commit/SKILL.md`
 - 标版需求闭环：`../bos-plugin/skills/bos-demand-entry/SKILL.md`，用户模式 `--text / --bind / --plan / --commit / --help`，可选 `--excel` / `--Excel`；产品标识取项目配置，描述按缺陷或功能/改进使用简洁三段式，草稿仅支持 v2。历史来源用 `--rev`，不与提交授权混用。
@@ -111,6 +113,8 @@ SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项�
 `scripts/iris-tools/` 是 IRIS 开发主力脚本集合，包含部署清单生成、导出、编译、Broker 调试和环境配置同步。真实连接信息由目标工程本地私有配置承载：已有 `.mcp.json` 时反向补齐 `.agents/config/project-env.json`，没有 `.mcp.json` 时才从 `templates/project-env.template.json` 创建并用 `sync-env-config.js` 生成 `.mcp.json`。这些文件不得提交到版本库。
 
 `scripts/iris-tools/source-sync.js` 管理项目按需导出、现场保护、服务器层与需求层的独立提交及复审冻结；操作参数以 `--help` 为准。共享远端准入与 Atelier client 位于能力包根 `scripts/lib/`，本地状态检查/显式恢复使用根 `scripts/iris-remote.js`，具体边界归上述项目协议。
+
+`xml-export.js`／`xml-scope.js` 处理准确范围的服务器 XML 包及候选；`baseline-catalog.js` 维护版本清单，`code-baseline.js` 只采集代码并预筛排除图片。纯采集不强制 project 或 Git，项目提交状态机按原分支进入。新增能力随正常更新分发，初始化仅提示可选专用类与原生执行通道，不自动部署服务器类或开启多会话；详细使用与升级分别读取上述两个 reference。
 
 `prepare-deploy-manifest.js --from-git` 在 workspace-overlay 中按声明的 SourceRoot/GitRoot 分组执行 Git diff，并把结果映射回 WorkspaceRoot 逻辑路径；同名仓库相对路径必须保留各自 `sourceRoot`、`gitRoot`，不得互相覆盖。前端编码迁移只扫描 `sourceRoots[name=frontend]`；manifest 明确只有 `backend` 时规范化为 `N/A (backend-only)`，其它无法判定的缺失声明继续阻断。
 

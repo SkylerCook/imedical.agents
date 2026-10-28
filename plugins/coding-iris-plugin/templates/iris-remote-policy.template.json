@@ -5,12 +5,22 @@
   "poolKey": "verified-pool-alias",
   "maxConcurrent": 1,
   "allowSharedPool": false,
+  "readBatch": {
+    "sessions": 1,
+    "intervalMs": 200,
+    "qualification": {
+      "status": "pending",
+      "reference": "<reviewed-read-qualification-file>",
+      "sha256": "<reviewed-evidence-sha256>"
+    }
+  },
   "qualification": {
     "status": "pending",
     "reference": "<local-qualification-evidence-file>",
     "channels": {
       "mcp": {
-        "processExitVerified": false
+        "processExitVerified": false,
+        "acceptInternalRetries": false
       }
     }
   }

@@ -52,6 +52,10 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
 
 `.agents/config/project-env.json` 和 `.mcp.json` 可能包含敏感信息，不应提交到业务项目版本库。
 
+XML 导出有两个准备选项：部署能力包 `templates/DHCDoc/Util/XmlPackage.cls`（有经验证安装 XML 时一并提供），或选用默认受管 WS terminal 的系统 Export 通道（IRIS 2023.2+／Atelier API v7+ 预检）；HTTP MCP 是接受其内部重试的显式资格选项。初始化时会提示选择；启用插件不会自动导入编译服务器类，未部署可选类也不阻断其它编码能力。目标已有同名类先比对接口和内容，具体步骤见 [XML 协议](../references/iris-xml-export.md)。
+
+按版本清单采集当前实例代码使用 [iris-code-baseline](../skills/iris-code-baseline/SKILL.md)，图片预筛排除并统计。纯采集不强制项目提交状态机或自动建 Git；多会话必须取得当前目标资格后启用，不能仅按样例填写 verified。
+
 6. 生成 thin-index：
 
 ```powershell

@@ -16,6 +16,8 @@ iMedical 知识资料已接入 [共享参考库](vendor/imedical-knowledge/READM
 
 技能归属：agent-context-kit 接管跨 Agent 适配，agent-framework-evolution 管理反馈与可复用内容打包。已部署项目保持原技能入口和运行时链接，首次更新步骤见 [迁移指南](docs/skill-plugin-migration.md)。
 
+IRIS XML 包和源码基线统一归 coding owner：[iris-xml-export](plugins/coding-iris-plugin/skills/iris-xml-export/SKILL.md) 从确认环境导出准确对象范围，支持图片；[iris-code-baseline](plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md) 按版本清单采集当前源码，图片预筛排除、初始缺失完整报告。专用类与系统执行通道无需 QTZ，受管只读多会话按目标资格启用；更新及旧全局入口迁移见[安装更新说明](docs/update-agents.md#iris-xml-导出与代码基线coding-022)，普通更新不部署服务端或登记资格。
+
 CSP 编译沿 coding owner 的[部署入口](plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md)选择：普通工程可使用 `compile-csp.js` 的 Atelier 通道；已确认 `project` ＋ `intent-first-on-demand-export` 的工程及受管夜跑须由对应部署链路编译，独立调用不能绕过 source plan、复审或运行门禁。
 
 SFTP 工具纳入 [vendor/sftp-server](vendor/sftp-server/README.md)：保留五个 MCP 工具名，补齐路径约束、内容比较、原子替换和 SHA-256 校验。`coding-iris-plugin` 为新项目提供默认禁用的配置；更新时自动迁移可识别的既有标准启动参数，显式 custom 或自定义参数保留，不要求 runtime opt-in，也不自动安装 Python 依赖。
@@ -301,6 +303,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 负责 IRIS/ObjectScript/CSP/JavaScript/HISUI 编码能力：
 
 - ObjectScript 后端编码规则。
+- 准确对象范围的 XML 双通道导出、代码基线采集与版本清单维护；复用项目源同步及许可保护，源码内容来自当前实例，初始缺失明确 partial。
 - CSP、JavaScript、CSS、HISUI 前端统一使用 canonical `utf8`：标版、医院项目的源码、上传内容和服务器运行编码均为 UTF-8，实际文件字节检测是最终门禁；旧 GB2312 仅保留显式历史工程兼容，明确的 backend-only Overlay 则记录 `N/A (backend-only)`。
 - 前端任务按目标工程 `plugin_profile.md` 执行条件 i18n 门禁：只有 i18n 已启用且任务或 diff 命中翻译 helper、翻译 key 或用户可见文案时，才追加 i18n 规则与稳定 key 检查；普通前端需求不进入完整 i18n workflow。
 - 本地优先、按需上传/编译的工作流约束。后端编译后回读并仅回填 Storage，覆盖新增表和字段演进；失败区分远端已编译与本地未同步，受管夜跑保留源码冻结版本复审门禁，见 [部署契约](plugins/coding-iris-plugin/references/deployment-protection.md#编译后-storage-同步)。
