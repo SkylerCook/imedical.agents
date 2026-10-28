@@ -211,6 +211,41 @@ try {
   New-Item -ItemType Junction -Path (Join-Path $junctionContext.Root ".agents") -Target $outsideContext | Out-Null
   $junctionContextResults = @(Test-AgentWorkspaceContext -Context (Resolve-AgentWorkspaceContext -ProjectRoot $junctionContext.Root))
   Assert-Equal @(Get-Status -Results $junctionContextResults -Status "manifest-invalid").Count 1 "ContextRoot must not escape through a Junction"
+
+  $physical = New-OverlayFixture -Parent $testRoot -Name "physical-source" -BackendOnly -SkipLinks
+  $code = Join-Path $physical.Root "code"
+  New-Item -ItemType Directory -Path $code | Out-Null
+  & git -C $code init -q
+  if ($LASTEXITCODE -ne 0) { throw "Cannot initialize physical source fixture" }
+  $physicalManifest = Get-Content -LiteralPath (Join-Path $physical.Root ".agents/capability.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+  $physicalManifest.sourceRoots = @([pscustomobject]@{ name = "backend"; path = "code"; target = "code"; gitRoot = "code" })
+  Write-Utf8Json -Path (Join-Path $physical.Root ".agents/capability.json") -Value $physicalManifest
+  $physicalContext = Resolve-AgentWorkspaceContext -ProjectRoot $physical.Root
+  Assert-Equal @(Get-Status -Results @(Test-AgentWorkspaceContext -Context $physicalContext) -Status "source-directory-ok").Count 1 "physical source with its own Git should pass"
+  Assert-Equal (Resolve-AgentGitRoot -Context $physicalContext -Path (Join-Path $code "new/file.cls")).gitRoot $code "new source path maps to the declared Git"
+
+  $otherCode = Join-Path $physical.Root "frontend"
+  New-Item -ItemType Directory -Path $otherCode | Out-Null
+  & git -C $otherCode init -q
+  if ($LASTEXITCODE -ne 0) { throw "Cannot initialize second source fixture" }
+  $physicalManifest.sourceRoots += [pscustomobject]@{ name = "frontend"; path = "frontend"; target = "frontend"; gitRoot = "frontend" }
+  Write-Utf8Json -Path (Join-Path $physical.Root ".agents/capability.json") -Value $physicalManifest
+  Assert-Equal @(Get-Status -Results @(Test-AgentWorkspaceContext -Context (Resolve-AgentWorkspaceContext -ProjectRoot $physical.Root)) -Status "source-directory-ok").Count 2 "multiple physical Git roots should pass"
+
+  foreach ($entry in @(
+    @{ path = "code"; target = "code"; gitRoot = "." },
+    @{ path = ".agents"; target = ".agents"; gitRoot = ".agents" },
+    @{ path = "code/.git"; target = "code/.git"; gitRoot = "code" }
+  )) {
+    $physicalManifest.sourceRoots = @([pscustomobject]@{ name = "backend"; path = $entry.path; target = $entry.target; gitRoot = $entry.gitRoot })
+    Write-Utf8Json -Path (Join-Path $physical.Root ".agents/capability.json") -Value $physicalManifest
+    Assert-Equal @(Get-Status -Results @(Test-AgentWorkspaceContext -Context (Resolve-AgentWorkspaceContext -ProjectRoot $physical.Root)) -Status "source-directory-invalid").Count 1 "invalid physical source must block"
+  }
+  $alias = Join-Path $physical.Root "alias"
+  New-Item -ItemType Junction -Path $alias -Target $code | Out-Null
+  $physicalManifest.sourceRoots = @([pscustomobject]@{ name = "backend"; path = "alias"; target = "alias"; gitRoot = "code" })
+  Write-Utf8Json -Path (Join-Path $physical.Root ".agents/capability.json") -Value $physicalManifest
+  Assert-Equal @(Get-Status -Results @(Test-AgentWorkspaceContext -Context (Resolve-AgentWorkspaceContext -ProjectRoot $physical.Root)) -Status "source-directory-invalid").Count 1 "Junction cannot masquerade as physical source"
 }
 finally {
   if (Test-Path -LiteralPath $testRoot) {

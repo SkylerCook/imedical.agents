@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 function normalizePath(value, basePath = process.cwd()) {
   return path.normalize(path.resolve(basePath, value));
@@ -37,8 +38,12 @@ function pathChainHasReparsePoint(itemPath, rootPath) {
   let current = absoluteRoot;
   for (const segment of path.relative(absoluteRoot, absolutePath).split(path.sep).filter(Boolean)) {
     current = path.join(current, segment);
-    if (!fs.existsSync(current)) break;
-    if (fs.lstatSync(current).isSymbolicLink()) return true;
+    try {
+      if (fs.lstatSync(current).isSymbolicLink()) return true;
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      break;
+    }
   }
   return false;
 }
@@ -218,6 +223,40 @@ function junctionResult(itemPath, expectedTarget, nonJunctionStatus, missingStat
   return result('junction-ok', itemPath, expected, actualTarget, 'Junction target matches manifest');
 }
 
+function actualGitRoot(directory) {
+  const probe = spawnSync('git', ['--no-optional-locks', '-C', directory, 'rev-parse', '--show-toplevel'], {
+    encoding: 'utf8', windowsHide: true, timeout: 15000,
+  });
+  if (probe.error || probe.status !== 0 || !probe.stdout.trim()) throw new Error('Source directory is not in a readable Git repository');
+  return fs.realpathSync.native(probe.stdout.trim());
+}
+
+function sourcePathResult(context, source) {
+  if (comparable(source.path) !== comparable(source.target)) {
+    return junctionResult(source.path, source.target, 'source-path-not-junction', 'source-path-missing');
+  }
+  const invalid = reason => result('source-directory-invalid', source.path, source.gitRoot, '', reason);
+  if (!isPathWithin(source.path, context.workspaceRoot) || comparable(source.path) === comparable(context.workspaceRoot)
+    || !isPathWithin(source.gitRoot, context.workspaceRoot)
+    || !isPathWithin(source.path, source.gitRoot)) return invalid('Physical SourceRoot and GitRoot must stay inside WorkspaceRoot');
+  for (const reserved of [context.contextRoot, context.capabilityRoot]) {
+    if (isPathWithin(source.path, reserved) || isPathWithin(reserved, source.path)) return invalid('Physical SourceRoot overlaps context or capability');
+  }
+  if (path.relative(context.workspaceRoot, source.path).split(path.sep).some(part => part.toLowerCase() === '.git')
+    || path.relative(context.workspaceRoot, source.gitRoot).split(path.sep).some(part => part.toLowerCase() === '.git')) return invalid('Physical SourceRoot cannot use Git metadata');
+  if (pathChainHasReparsePoint(source.path, context.workspaceRoot) || pathChainHasReparsePoint(source.gitRoot, context.workspaceRoot)) {
+    return invalid('Physical SourceRoot or GitRoot crosses a link');
+  }
+  if (!fs.existsSync(source.path)) return result('source-path-missing', source.path, source.target, '', 'physical source directory is missing');
+  if (!fs.lstatSync(source.path).isDirectory()) return invalid('Physical SourceRoot must be a directory');
+  try {
+    const physicalGit = fs.realpathSync.native(source.gitRoot);
+    if (comparable(actualGitRoot(source.path)) !== comparable(physicalGit)) return invalid('SourceRoot GitRoot does not match actual repository');
+    if (!isPathWithin(fs.realpathSync.native(source.path), fs.realpathSync.native(context.workspaceRoot))) return invalid('Physical SourceRoot escapes WorkspaceRoot');
+  } catch (error) { return invalid(error.message); }
+  return result('source-directory-ok', source.path, source.target, source.path, 'physical SourceRoot matches manifest and GitRoot');
+}
+
 function validateWorkspaceContext(context) {
   const results = [];
   if (context.manifestError) return [result('manifest-invalid', context.manifestPath, '', context.manifestError, 'capability manifest is not valid JSON')];
@@ -239,7 +278,7 @@ function validateWorkspaceContext(context) {
   for (const sourceRoot of context.sourceRoots) {
     if (!fs.existsSync(sourceRoot.target) || !fs.statSync(sourceRoot.target).isDirectory()) results.push(result('source-root-missing', sourceRoot.target, sourceRoot.name, '', 'declared source target is missing'));
     if (!fs.existsSync(sourceRoot.gitRoot) || !fs.statSync(sourceRoot.gitRoot).isDirectory()) results.push(result('git-root-missing', sourceRoot.gitRoot, sourceRoot.name, '', 'declared GitRoot is missing'));
-    if (context.mode === 'workspace-overlay') results.push(junctionResult(sourceRoot.path, sourceRoot.target, 'source-path-not-junction', 'source-path-missing'));
+    if (context.mode === 'workspace-overlay') results.push(sourcePathResult(context, sourceRoot));
   }
   if (context.mode === 'workspace-overlay') {
     for (const shared of context.sharedDirectories) results.push(junctionResult(shared.path, shared.target, 'shared-path-not-junction', 'shared-path-missing'));
@@ -260,7 +299,7 @@ function validateWorkspaceContext(context) {
 // Deployment consumers reject all invalid results, including filesystem state.
 function workspaceContextBlockers(context) {
   return validateWorkspaceContext(context).filter(item =>
-    !['workspace-context-resolved', 'junction-ok', 'local-path-ok'].includes(item.status));
+    !['workspace-context-resolved', 'junction-ok', 'local-path-ok', 'source-directory-ok'].includes(item.status));
 }
 
 function resolveGitRootForPath(context, filePath) {
@@ -316,8 +355,8 @@ function resolveSourceFilePath(context, filePath) {
     .sort((a, b) => b.root.length - a.root.length);
   if (!matches.length) throw new Error('Path is not inside a declared SourceRoot: ' + file);
   const { source, root } = matches[0];
-  const check = junctionResult(source.path, source.target, 'source-path-not-junction', 'source-path-missing');
-  if (check.status !== 'junction-ok') throw new Error(check.status + ': ' + source.path);
+  const check = sourcePathResult(context, source);
+  if (!['junction-ok', 'source-directory-ok'].includes(check.status)) throw new Error(check.status + ': ' + source.path + ': ' + check.reason);
   const physicalRoot = fs.realpathSync.native(source.target);
   const physicalGit = fs.realpathSync.native(source.gitRoot);
   if (!isPathWithin(source.target, source.gitRoot) || !isPathWithin(physicalRoot, physicalGit)) {
@@ -326,6 +365,13 @@ function resolveSourceFilePath(context, filePath) {
   const mapped = path.join(source.target, path.relative(root, file));
   const resolved = physicalPath(mapped);
   if (!isPathWithin(resolved, physicalRoot)) throw new Error('Source link escapes declared SourceRoot: ' + file);
+  if (check.status === 'source-directory-ok') {
+    if (path.relative(physicalRoot, resolved).split(path.sep).some(part => part.toLowerCase() === '.git')) throw new Error('Source file uses Git metadata: ' + file);
+    let directory = resolved;
+    while (!fs.existsSync(directory)) directory = path.dirname(directory);
+    if (!fs.statSync(directory).isDirectory()) directory = path.dirname(directory);
+    if (comparable(actualGitRoot(directory)) !== comparable(physicalGit)) throw new Error('Source file GitRoot does not match actual repository: ' + file);
+  }
   return resolved;
 }
 

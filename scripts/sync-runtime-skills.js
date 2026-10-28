@@ -3,7 +3,7 @@
 // Project discovery adapters only. Never copy skills or modify the capability source.
 const fs = require('node:fs');
 const path = require('node:path');
-const { resolveWorkspaceContext, validateWorkspaceContext } = require('./lib/workspace-context.js');
+const { resolveWorkspaceContext, workspaceContextBlockers } = require('./lib/workspace-context.js');
 const adapters = { CodeBuddy: '.codebuddy', ClaudeCode: '.claude', Codex: null,
   Qoder: '.qoder', WorkBuddy: '.workbuddy', WorkBuddyDonghua: '.workbuddydonghua',
   OpenCode: null, Cursor: null, GeminiCLI: null, GitHubCopilot: null, Custom: null };
@@ -34,7 +34,7 @@ function sync({ projectRoot = '.', runtime, mode = 'DryRun', skillsDir }) {
   }
   const root = fs.realpathSync(projectRoot);
   const context = resolveWorkspaceContext(root);
-  const failures = validateWorkspaceContext(context).filter(x => !['workspace-context-resolved', 'junction-ok', 'local-path-ok'].includes(x.status));
+  const failures = workspaceContextBlockers(context);
   if (failures.length) throw new Error(`Invalid workspace context: ${failures.map(x => x.status).join(', ')}`);
   const source = path.join(context.contextRoot, 'skills');
   physicalChain(root, source);

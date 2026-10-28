@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
-const { resolveWorkspaceContext, validateWorkspaceContext } = require('../../../scripts/lib/workspace-context.js');
+const { resolveWorkspaceContext, workspaceContextBlockers } = require('../../../scripts/lib/workspace-context.js');
 const { resolveDirectory } = require('../../../scripts/lib/project-directories.js');
 const { check: checkEvidence } = require('../../../scripts/validation-evidence.js');
 
@@ -67,7 +67,7 @@ function workspace(projectRoot) {
   if (!fs.statSync(root).isDirectory()) fail('Project root must be a directory');
   const context = resolveWorkspaceContext(root);
   if (context.mode !== 'standard') {
-    const errors = validateWorkspaceContext(context).filter(item => !['workspace-context-resolved', 'junction-ok', 'local-path-ok'].includes(item.status));
+    const errors = workspaceContextBlockers(context);
     if (context.mode !== 'workspace-overlay' || errors.length) fail(`Invalid workspace context: ${JSON.stringify(errors)}`);
   }
   const legacy = path.join(root, 'docs/handoff');

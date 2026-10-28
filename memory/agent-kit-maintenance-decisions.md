@@ -76,7 +76,7 @@
 - 已部署业务工程的 `.agents/` 是独立能力包仓库；能力包更新后应先更新 `.agents`，再按启用插件重建 thin-index。
 - standard 模式保持业务根内独立 `.agents` Git；workspace-overlay 模式允许模块 `ContextRoot` 无 `.git`，但必须由 `WorkspaceRoot/.agents/capability.json` 明确声明共享 `CapabilityRoot`、local/shared 目录和 SourceRoot/GitRoot。解析器不得扫描父目录或 sibling 推断这些根。
 - workspace-overlay 采用 capability-once/context-many：先在 canonical 标版根更新 capability，再对各模块以 `-NoPull` 刷新 ContextRoot。模块刷新不得 fetch/pull 或改写 CapabilityRoot Git，只能维护 ContextRoot 本地生成层和 manifest 受管 Junction。
-- overlay 的 shared path 与 SourceRoot 逻辑 path 必须是指向 manifest 精确目标的 Junction；local path 必须是物理目录。自动修复只允许作用于可证明受管且目标错误的 Junction，普通目录、文件或本地目录不得覆盖。
+- overlay 的 shared path 必须是指向 manifest 精确目标的 Junction；SourceRoot 的 path/target 不同时保持精确目标 Junction，相同时允许工作区内实体目录并验证实际 Git 归属与路径隔离；local path 必须是物理目录。契约见 docs/workspace-overlay.md。自动修复只作用于 ContextRoot 内受管且目标错误的 shared Junction，不覆盖实体源码、普通目录、文件或本地目录。
 - 根目录 `memory/` 是维护者记忆，不得加入 `scripts/install-agents.ps1` 或 `scripts/update-agents.ps1` 的 sparse checkout 路径。
 - 根目录 `releases/` 是维护者发布审计记录，不加入业务项目 sparse checkout。
 - 根 `tools/` 是另行交付的人工工具源，整体不加入业务项目 sparse 或 thin-index。说明、源码就近维护一份；`tools/dist/` 只保留被 Git 忽略的本机正式 ZIP，打包暂存与解压夹具按任务清理。已授权本机示例只留本机包，源仓提交不自动发布该 ZIP 或其私有内容；原包恢复材料沿所属任务保留。

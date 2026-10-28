@@ -28,6 +28,8 @@
 
 同时支持传统 `standard` 工程与 `workspace-overlay` 模块工作区。Overlay 必须先解析 `.agents/capability.json`，上下文只写本地 `ContextRoot`，源码从 `SourceRoot` 开始调查；按需读取真实仓库与模块外写入授权遵循能力包根 `docs/workspace-overlay.md` 的“源码读取与修改范围”。Git 操作使用声明的真实 `GitRoot`；共享 `CapabilityRoot` 在模块维护流程中只读。
 
+Overlay 源码入口支持 Junction 与工作区实体目录，交接及宿主适配复用共享 workspace 校验；声明、Git 归属及旧入口迁移按能力包根 `docs/workspace-overlay.md` 的 SourceRoot 契约执行。
+
 不要在本插件中保存密钥、服务器凭据、一次性命令输出或源项目业务细节。
 
 ## Skills

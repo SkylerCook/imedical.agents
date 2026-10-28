@@ -70,6 +70,7 @@
           "path": {
             "type": "string",
             "minLength": 1,
+            "description": "Workspace-relative source entry. Equal normalized path and target declares a physical source directory; otherwise a Junction is required.",
             "pattern": "^(?![A-Za-z]:[\\\\/])(?![\\\\/])(?!.*(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$)).+$"
           },
           "target": {
@@ -78,7 +79,8 @@
           },
           "gitRoot": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "Declared source repository root. For a physical source it must be inside WorkspaceRoot and match the actual Git repository."
           }
         }
       }

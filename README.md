@@ -154,6 +154,8 @@ standard 模式的更新器在 fetch 后比较本地 `HEAD` 与 upstream：一�
 
 ### 多模块 Workspace Overlay
 
+Overlay 同时支持引用已有源码的 Junction 和工作区自有的实体源码 Git。实体目录用 `path == target` 声明，例如 `{"path":"code","target":"code","gitRoot":"code"}`；实际只有一个 `code/` 目录。先完整更新共享 capability，再按授权接入实体入口；已有模块 Junction 无需迁移，更新不移动源码或自动初始化 Git。详见 [SourceRoot 契约](docs/workspace-overlay.md#sourceroot引用已有源码或持有本地源码)。
+
 多个模块可以共享一个 canonical `CapabilityRoot`，同时把各自 `config`、`rules`、`memory` 和 `work` 保留在独立 `ContextRoot`。流程固定为 capability-once/context-many：先在标版根更新一次 capability，再对每个模块执行 `-NoPull` 的 DryRun/Write。模块 `.agents` 无须是 Git 仓库；其 `capability.json`、Junction 与 SourceRoot/GitRoot 必须通过解析和验证。刷新会在模块 `ContextRoot/scripts/` 生成 manifest-aware runtime adapter，包括将 `.agents/scripts/iris-mcp.js` 转发到共享 canonical helper；adapter 不写死 `CapabilityRoot` 绝对路径。
 
 模块默认修改范围为 SourceRoot；理解依赖和调用链时可按需只读查看已声明 GitRoot 或项目注册表映射的相关仓库，读取不扩大写入授权。完整命令、读写边界、旧入口迁移和安全恢复策略见 [docs/workspace-overlay.md](docs/workspace-overlay.md)。

@@ -393,6 +393,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `capability-pull-skipped-overlay` | 当前为 workspace overlay；按契约跳过 capability fetch/pull，只刷新 ContextRoot。 |
 | `workspace-context-resolved` | 已解析 standard 或 workspace-overlay 的五类根。 |
 | `junction-ok` / `local-path-ok` | overlay 的共享/源码 Junction 与本地物理目录符合 manifest。 |
+| `source-directory-ok` | Overlay 的实体 SourceRoot 与声明路径及实际 GitRoot 一致；详情见 [源码入口契约](workspace-overlay.md#sourceroot引用已有源码或持有本地源码)。先更新完整 CapabilityRoot，旧 Junction 无需迁移；采用实体入口另按项目授权调整，不自动移动源码或初始化 Git。 |
 | `exclude-ok` | `.agents/.git/info/exclude` 已包含生成层忽略规则。 |
 | `entrypoint-ok` | `CLAUDE.md`、`CODEBUDDY.md` 等可选兼容入口正常。 |
 | `entrypoint-missing` / `entrypoint-not-symlink` / `entrypoint-wrong-target` | 可选兼容入口缺失或异常；不阻塞安装/更新，脚本不会自动修复或复制。 |
@@ -452,6 +453,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `manifest-invalid` / `schema-version-unsupported` | 停止。修复 `capability.json` 后重新 DryRun。 |
 | `capability-root-missing` / `capability-git-missing` | 停止。共享 capability 根缺失或不是 Git 部署。 |
 | `junction-target-mismatch` / `shared-path-not-junction` / `source-path-not-junction` | 停止。只允许在确认 manifest 后显式安全修复 Junction；普通目录不得覆盖。 |
+| `source-directory-invalid` | 停止。核对实体 SourceRoot 的路径链、上下文／能力目录隔离与实际 GitRoot；保留源码与 Git，不使用 `-Repair` 替换目录。 |
 | `local-path-is-link` / `local-path-not-directory` | 停止。ContextRoot 本地层必须是物理目录。 |
 | `source-root-missing` / `git-root-missing` | 停止。声明的业务源码或真实 Git 根不存在。 |
 | `plugin-explicit-selection-disabled` | 停止。不得绕过项目显式 disabled 状态。 |

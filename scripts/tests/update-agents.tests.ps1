@@ -1192,6 +1192,27 @@ try {
   Assert-Contains $overlayNoPullOutput "capability-pull-skipped-overlay" "Overlay NoPull should remain explicitly idempotent"
   Assert-True (-not $overlayNoPullOutput.Contains("agents-git-missing")) "Overlay NoPull should not validate ContextRoot as a Git repo"
 
+  # The same shared capability also supports a workspace-owned source Git.
+  $physicalCode = Join-Path $overlayProject.WorkspaceRoot "code"
+  New-Item -ItemType Directory -Path $physicalCode | Out-Null
+  & git -C $physicalCode init -q
+  if ($LASTEXITCODE -ne 0) { throw "Cannot initialize physical source Git fixture" }
+  [IO.File]::WriteAllText((Join-Path $physicalCode "sample.cls"), "source must survive update")
+  $physicalManifestPath = Join-Path $overlayProject.ContextRoot "capability.json"
+  $physicalManifest = Get-Content -LiteralPath $physicalManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+  $physicalManifest.sourceRoots = @([pscustomobject]@{ name = "backend"; path = "code"; target = "code"; gitRoot = "code" })
+  [IO.File]::WriteAllText($physicalManifestPath, ($physicalManifest | ConvertTo-Json -Depth 10), [Text.UTF8Encoding]::new($false))
+  $physicalBefore = (& git -C $physicalCode status --porcelain=v1) -join "`n"
+  $physicalConfigBefore = [IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "rules/project.md"))
+  $physicalDry = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode DryRun -NoPull -Detailed | Out-String
+  Assert-Contains $physicalDry "source-directory-ok" "Overlay DryRun should validate physical source"
+  Assert-True (-not $physicalDry.Contains("workspace-overlay-blocked")) "physical source should not block Overlay update"
+  $physicalWrite = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode Write -NoPull -Detailed | Out-String
+  Assert-Contains $physicalWrite "source-directory-ok" "Overlay Write should preserve physical source"
+  Assert-True (([IO.File]::ReadAllText((Join-Path $physicalCode "sample.cls"))) -eq "source must survive update") "physical source bytes must survive update"
+  Assert-True (((& git -C $physicalCode status --porcelain=v1) -join "`n") -eq $physicalBefore) "source Git status must survive update"
+  Assert-True (([IO.File]::ReadAllText((Join-Path $overlayProject.ContextRoot "rules/project.md"))) -eq $physicalConfigBefore) "local project rules must survive update"
+
   Remove-Item -LiteralPath (Join-Path $overlayProject.CapabilityRoot ".git") -Recurse -Force
   $missingCapabilityGitOutput = & (Join-Path $overlayProject.ContextRoot "scripts/update-agents.ps1") -ProjectRoot $overlayProject.WorkspaceRoot -Mode Check -NoPull -Detailed | Out-String
   Assert-Contains $missingCapabilityGitOutput "capability-git-missing" "Overlay should reject CapabilityRoot without .git"

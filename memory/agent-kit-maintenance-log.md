@@ -1,5 +1,13 @@
 # imedical.agents 维护日志
 
+## 2026-10-28 Overlay 支持工作区实体源码
+
+- framework-maintenance，源仓实施；SourceRoot 规范化 path/target 相同时声明工作区实体源码，不同时沿用现有 Junction。实体目录验证 WorkspaceRoot 边界、ContextRoot/CapabilityRoot/Git 元数据隔离、父链及实际 GitRoot；文件映射拒绝越界/悬空链接与未声明嵌套 Git，保留新建和删除路径。初始化、更新和 Repair 不创建或迁移源码 Git、不替换未知实体目录。
+- 根 PowerShell/Node resolver 与 initializer 同步；宿主技能适配、task-handoff、菜单同步复用共享 Node blocker，避免成功状态清单分叉。agent-context-kit 0.8.0→0.8.1、coding-iris-plugin 0.23.1→0.23.2；manifest、schema 描述、AGENTS/README、Overlay/更新 runbook、能力指南及维护入口同步。能力目录无新增技能或调用方式，既有目录条目保持。
+- Windows、Node 24.14.1：源码/根解析/部署前置 7 项、交接/技能适配/菜单/UI/提交映射/目录 145 项均通过；文档链接 1/1 通过。PowerShell 7 与 Windows PowerShell 5.1 的 workspace-context、workspace-overlay、update-agents 完整回归均通过，覆盖实体源码 DryRun/Write、旧 Junction、多 GitRoot、源码字节和 Git 状态及项目规则保留。JSON/JS 语法、字节/BOM 和 diff 检查通过；首次沙箱拒绝夹具 Git/Junction，受控沙箱外执行；新增更新器断言改用既有 Assert-True 后两宿主全量通过。
+- 工作区组件与 HEAD 基线诊断一致，无新增 owner 版本、依赖或发布记录问题；不修改历史记录。专项已接入 runtime-skills 的三平台 Node 22/24 矩阵，Windows 双 PowerShell 仍验证更新器；未运行远端 CI，非 Windows 与真实宿主接入归原 P2 队列。功能证据按实际输入 scope 保存并读回为 fingerprint-match；隔离夹具和任务日志已清理并核实。
+- 已授权向医院目录设计会话反馈单实体 code、离线模式路由及 XML 编辑进入源码 Git 的建议。离线 XML 协议/工具自 coding 0.23.0 提供，本轮未修改或重验其实现；源仓存在不代表共享部署副本已更新。先完整更新 CapabilityRoot，再刷新 ContextRoot，实体目录迁移另行授权。用户后续授权本轮 c + p，按源仓双远端约定执行并以 Git 回执为准；不更新业务副本或迁移医院目录。
+
 ## 2026-10-28 人工导出说明按现场操作重写
 
 - 按用户本次远程电脑操作方式，将人工 README 统一为项目目录放 files.txt、从 iris-code-export 子目录调用脚本，使用单行 PowerShell 命令；补齐路径与扩展名、PlanOnly、证书、匿名/导出/退出三个位置的 401、Resume 和完成判据。现场排查只记录为一次案例，不推断所有传输错误均由证书导致。

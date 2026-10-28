@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+0.23.2：菜单同步复用共享 workspace 校验，兼容 Overlay 的实体源码目录；源码文件映射、部署预检与 XML 工具沿同一根解析器。先完整更新共享 CapabilityRoot，再刷新 ContextRoot；旧 Junction 无需迁移。实体入口另按 [Overlay 契约](../../docs/workspace-overlay.md#sourceroot引用已有源码或持有本地源码)接入，不改变离线协议、服务器能力或部署授权。
+
 0.23.1 修复 XML 导出协议进入[离线修改流程](references/iris-offline-development.md#固定处理路径)的失效锚点。完整更新能力包取得修正；脚本与人工 ZIP 不变，无配置迁移或旧文件清理。
 
 0.23.0 增加[现场聚合 XML 带回后由本地 AI 修改](references/iris-offline-development.md)：识别源码与 Project 元数据，按对象 XML 编辑，默认交付仅含修改对象的 changes.xml、对应 rollback.xml、变更说明及摘要 manifest。保留完整类结构和原包，以独立 Verify 核对，不连接实例、不自动导入编译。人工源码导出独立归源仓 tools/iris-code-export/，可直接带 ZIP，无需框架或 skill，不随 .agents 分发；普通能力包更新只取得 XML helper 与路由说明，无配置迁移或旧文件清理。

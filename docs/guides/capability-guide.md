@@ -35,6 +35,8 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 标准工程中，真实技能通常位于 `.agents/plugins/<插件>/skills/<技能>/SKILL.md`，生成的 `.agents/skills/<技能>/SKILL.md` 只是指向真实文件的薄索引。Workspace Overlay 必须先解析 `capability.json`，从实际 CapabilityRoot 读取能力、从 ContextRoot 读取模块配置；路径和操作方法见[Overlay 手册](../workspace-overlay.md)，不要按目录层级猜测。
 
+需要共享能力而独立持有源码时，Overlay 可声明单个实体源码 Git 目录；引用已有源码仍使用 Junction。先完整更新共享能力，再按[SourceRoot 契约](../workspace-overlay.md#sourceroot引用已有源码或持有本地源码)接入，不自动移动目录或初始化 Git。
+
 ## 按场景选择
 
 | 我想做什么 | 推荐入口 | 应提供的信息 |

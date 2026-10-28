@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+0.8.1：任务交接复用共享 workspace 校验，兼容 Overlay 的实体源码目录。先完整更新共享 CapabilityRoot，再刷新 ContextRoot；原 Junction 声明继续有效。实体入口与迁移边界见 [Overlay 契约](../../docs/workspace-overlay.md#sourceroot引用已有源码或持有本地源码)，不自动移动源码、修改项目配置或初始化 Git。
+
 v0.7.0：复用已有 `intent-first-on-demand-export` 模式，在当前需求已明确为 `project` 且 IRIS 插件已启用时条件路由到[项目开发协议](../coding-iris-plugin/references/project-demand-development.md)。上下文模式不决定标版／项目需求类型；公共角色和能力共用，只条件加载分支。本插件不复制 IRIS 同步/License/发布机制。已有工程授权维护时定点合并；普通更新不启用模式、不改私有配置或初始化 Git，无旧文件清理。
 
 本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。

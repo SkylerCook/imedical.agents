@@ -42,7 +42,7 @@
 3. P2：取得 night-acceptance CI 的固定依赖下载、Windows/macOS/Linux × Node 22/24 及最低 22.5.0 bundled Chromium 和可用 Agent 宿主的实际结果；不支持后台定时或子 Agent 的宿主验证恢复前检查与串行降级。
 
 
-- P2 Overlay 部署继承：Windows 本地验证后仍需 CI 在 macOS/Linux 的矩阵验证；导出/Broker/配置生成未纳入本轮部署继承范围。
+- P2 Overlay 部署继承与实体源码：Windows 本地验证后仍需 CI 在 macOS/Linux × Node 22/24 的矩阵验证；实体 SourceRoot 专项纳入 runtime-skills 矩阵，真实项目的共享能力更新、实体目录迁移及宿主调用须分别授权与验收。导出/Broker/配置生成未纳入部署继承范围；离线 XML 工具源仓交付不等同部署副本可用。
 
 本文件记录 `imedical.agents` 能力包仓库的后续计划、暂缓事项和治理优先级。入口摘要见 `agent-kit-maintenance-memory.md`，长期决策见 `agent-kit-maintenance-decisions.md`，近期维护流水见 `agent-kit-maintenance-log.md`。
 

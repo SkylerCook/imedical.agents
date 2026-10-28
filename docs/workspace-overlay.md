@@ -60,7 +60,20 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\CodeSpace\GIT\Gitlab\
 
 ## Manifest 与目录边界
 
-`capability.json` 必须声明 `schemaVersion: 1`、`mode: workspace-overlay`、`contextRoot`、`capabilityRoot`、`sharedDirectories`、`localDirectories` 和至少一个 `sourceRoots` 条目。`contextRoot` 和 SourceRoot `path` 必须是留在 `WorkspaceRoot` 内的相对路径；`WorkspaceRoot` 到 `ContextRoot` 的既有路径链不得经过 Junction 或其他 reparse point；shared/local 名称必须是单个安全目录名，不允许绝对路径、路径分隔符或 `..`。shared path 必须是指向 `CapabilityRoot` 对应目录的 Junction；local path 必须是物理目录；SourceRoot 逻辑路径必须是指向声明 `target` 的 Junction。任何 manifest 契约或边界错误都会在创建目录、Junction 或 runtime adapter 前阻断，`-Repair` 也只允许处理 `ContextRoot` 内的受管 Junction。
+`capability.json` 必须声明 `schemaVersion: 1`、`mode: workspace-overlay`、`contextRoot`、`capabilityRoot`、`sharedDirectories`、`localDirectories` 和至少一个 `sourceRoots` 条目。`contextRoot` 和 SourceRoot `path` 必须是留在 `WorkspaceRoot` 内的相对路径；`WorkspaceRoot` 到 `ContextRoot` 的既有路径链不得经过 Junction 或其他 reparse point；shared/local 名称必须是单个安全目录名，不允许绝对路径、路径分隔符或 `..`。shared path 必须是指向 `CapabilityRoot` 对应目录的 Junction；local path 必须是物理目录。SourceRoot 按下述两种声明验证。任何 manifest 契约或边界错误都会在创建目录、Junction 或 runtime adapter 前阻断，`-Repair` 也只允许处理 `ContextRoot` 内的受管 shared Junction。
+
+### SourceRoot：引用已有源码或持有本地源码
+
+- 规范化后的 `path != target`：保持原有链接式声明，逻辑入口必须是精确指向 `target` 的 Junction。已有模块 manifest 不需要修改。
+- 规范化后的 `path == target`：声明工作区自己的实体源码目录。例如下列声明只有一个 `code/` 目录，其中保存本地 Git；不再需要并列别名。保持 `schemaVersion: 1`，不新增工作区模式。
+
+```json
+{"name":"backend","path":"code","target":"code","gitRoot":"code"}
+```
+
+实体 SourceRoot 和 GitRoot 必须在 WorkspaceRoot 内，SourceRoot 不得与 ContextRoot、CapabilityRoot 或 Git 元数据重叠，入口和 GitRoot 的父链不得经过链接；SourceRoot 必须属于声明的实际 GitRoot。支持源码根位于该 Git 的子目录，也支持多个独立 GitRoot。文件映射继续检查真实路径，拒绝源码内越界链接、悬空链接、Git 元数据与未声明的嵌套仓库；新建和已删除文件按最近存在的父目录解析。
+
+源码目录和 Git 必须由项目按已有授权准备；初始化、更新和 `-Repair` 均不创建、迁移或替换源码，也不自动执行 `git init`。先完整更新共享 CapabilityRoot，再刷新各 ContextRoot，最后在授权的目录迁移中采用实体声明。旧运行时仍会拒绝实体目录，不能先改 manifest。目录调整须同时核对 Git 状态、真实目标与项目入口，不直接删除旧链接或源码。此扩展只处理源码位置，不改变项目的在线／离线路由、服务器能力或操作授权。
 
 更新器只允许：
 
@@ -74,7 +87,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\CodeSpace\GIT\Gitlab\
 
 出现以下任一情况立即停止，不进入 Write 或业务部署：
 
-- shared/SourceRoot Junction 指向错误，且尚未显式选择安全 `-Repair`；
+- SourceRoot Junction 指向错误，或 shared Junction 指向错误且尚未显式选择安全 `-Repair`；
+- 实体 SourceRoot／GitRoot 无效、经过链接、进入受保护目录或不匹配实际 Git 仓库；
 - shared path 被普通文件或普通目录占用；
 - local path 是 Junction、symlink、文件或其他非物理目录；
 - `CapabilityRoot` 不存在或没有 `.git`；
@@ -88,4 +102,4 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\CodeSpace\GIT\Gitlab\
 
 先保存 `WorkspaceRoot`、`CapabilityRoot` 和每个 `GitRoot` 的 `git status --short`。对错误 Junction，先核对 manifest 的精确目标；只有 Junction 本身且路径属于 manifest 受管项时才使用 `-Repair`。普通目录、文件、本地生成目录或含未知内容的路径不得自动删除或移动，应报告给用户处理。
 
-恢复后重复 DryRun，并比较所有 Git 状态。只有状态完全一致、所有 Junction 为 `junction-ok`、local path 为 `local-path-ok`，且没有 config/plugin 停止条件时，才允许 Write。
+恢复后重复 DryRun，并比较所有 Git 状态。只有状态完全一致、所有 Junction 为 `junction-ok`、实体 SourceRoot 为 `source-directory-ok`、local path 为 `local-path-ok`，且没有 config/plugin 停止条件时，才允许 Write。
