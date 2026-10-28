@@ -1,4 +1,5 @@
 'use strict';
+const {createTempDirectory,ownsTempDirectory}=require('./fixtures/temp-directory');
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -15,9 +16,7 @@ const sha = value => crypto.createHash('sha256').update(value).digest('hex');
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function fixture(t, respond = async () => ({})) {
-    const base = process.env.CODEX_TEST_TMP_ROOT || path.join(os.tmpdir(), 'Codex');
-    fs.mkdirSync(base, {recursive: true});
-    const root = fs.mkdtempSync(path.join(base, 'atelier-read-pool-'));
+    const root = createTempDirectory('atelier-read-pool-');
     const context = {workspaceRoot: root, contextRoot: path.join(root, '.agents')};
     fs.mkdirSync(path.join(context.contextRoot, 'config'), {recursive: true});
     fs.writeFileSync(path.join(root, 'base-qualification.json'), '{"synthetic":true}\n');
@@ -45,7 +44,7 @@ async function fixture(t, respond = async () => ({})) {
         server.closeAllConnections();
         await new Promise(resolve => server.close(resolve));
         const absolute = fs.realpathSync(root);
-        assert.equal(path.dirname(absolute).toLowerCase(), fs.realpathSync(base).toLowerCase());
+        assert.equal(ownsTempDirectory(absolute), true);
         fs.rmSync(absolute, {recursive: true, force: true});
         assert.equal(fs.existsSync(root), false);
     });

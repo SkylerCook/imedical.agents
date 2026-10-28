@@ -1,5 +1,12 @@
 # imedical.agents 维护日志
 
+## 2026-10-28 帮助优先与跨平台回归夹具修复
+
+- `7128e17` 已推送双远端，首轮 Sparse CI 的帮助契约检查发现前后端专项 skill 的模式段落先于帮助。已恢复统一帮助优先，正常执行仍先分流 developmentMode；coding 升 patch 0.24.1，0.24.0 发布记录保持不可变，七个依赖的既有 <0.25.0 范围继续兼容。
+- 按真实失败组补跑 sparse refresh、documentation layout/entry、capability-help，并联检 IRIS 路由和 fast path：Windows Node24 共42/42通过，覆盖全部自有帮助入口及新装/升级薄索引。只是文档顺序修复，源码助手/ZIP 字节和远端运行时未变，复用已匹配指纹的功能证据。
+- 首轮 Deployment CI 的 Linux Node22.5/22/24均已成功，macOS22的在线回归组因系统临时目录别名触发 local-git-required、remote-coordination-link 等保护，其余5项被 fail-fast 取消。受影响夹具统一复用已有 temp-directory helper 的物理路径；新增实际别名对照，显式链接仍拒绝，不修改生产保护。新矩阵另以回执核对，真实宿主及医院验证沿原队列。
+- 同因检查覆盖现有 Deployment 矩阵后续的 XML/基线、MCP 与部署夹具。主组最终105/105通过；后续组139项通过，读取池15项修正清理所有权断言后定向复验通过，另联检目录别名对照，共16/16。两处夹具清理钩子的遗留变量均已修正，失败夹具留在本任务临时根并于收尾精确清理；不把夹具问题推广为生产实现缺陷。测试组重叠不累计。
+
 ## 2026-10-28 IRIS 开发方式与离线交付闭环
 
 - framework-maintenance：developmentMode 独立于 contextMode，由当前 ContextRoot/config/iris-development.json 唯一声明。共享解析与受管远端拦截先于连接读取，缺省旧行为和在线门禁保留；本地旧 plan status/verify 不读连接，恢复远端仍核对配置漂移与未知结果，切换不清锁。

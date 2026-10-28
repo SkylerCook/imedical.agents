@@ -5,9 +5,9 @@ description: Implement or modify IRIS CSP, JavaScript, CSS, or HISUI frontend co
 
 # IRIS Frontend Coding
 
-开发方式先读取当前 ContextRoot 的 `config/iris-development.json`。`developmentMode: offline` 时按[离线开发协议](../../references/iris-offline-development.md)处理当前源码或完整 XML，保留前端字节、UI 和 i18n 条件门禁，完成本地检查和 Review 后交付用户现场验证；不要求医院连接，不上传、编译或调用原生 IRIS MCP。下文服务器同步只适用于 `connected`（含旧配置缺省）；非法值停止核对。
-
 帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
+开发方式先读取当前 ContextRoot 的 `config/iris-development.json`。`developmentMode: offline` 时按[离线开发协议](../../references/iris-offline-development.md)处理当前源码或完整 XML，保留前端字节、UI 和 i18n 条件门禁，完成本地检查和 Review 后交付用户现场验证；不要求医院连接，不上传、编译或调用原生 IRIS MCP。下文服务器同步只适用于 `connected`（含旧配置缺省）；非法值停止核对。
 
 修改 CSP、HTML、JS、CSS 前读取[前端命名与格式规范](../../references/frontend-coding-format.md)，最终 diff 后按同一规范复核。明确项目覆盖与 JS 兼容基线；格式规范只用于本次新增代码，原有代码的功能修改不附带格式化，历史代码不自动成为风格标准。
 

@@ -1,4 +1,5 @@
 'use strict';
+const {createTempDirectory,ownsTempDirectory}=require('./fixtures/temp-directory');
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -47,9 +48,7 @@ lines.on('close', () => {
 `;
 
 function fixture(t, {serverName = 'custom-iris', closeDelayMs = 0, hang = false, environment = {}} = {}) {
-    const parent = path.resolve(process.env.CODEX_TEST_TMP_ROOT || path.join(os.tmpdir(), 'Codex'));
-    fs.mkdirSync(parent, {recursive: true});
-    const root = path.join(parent, 'iris-mcp-session-' + crypto.randomUUID()); fs.mkdirSync(root);
+    const root = createTempDirectory('iris-mcp-session-');
     const contextRoot = path.join(root, '.agents'); fs.mkdirSync(path.join(contextRoot, 'config'), {recursive: true});
     const reference = 'qualification.fixture.json';
     fs.writeFileSync(path.join(root, reference), JSON.stringify({syntheticFixture: true, status: 'verified'}));
@@ -73,7 +72,7 @@ function fixture(t, {serverName = 'custom-iris', closeDelayMs = 0, hang = false,
     const poolStatus = () => remote.poolStatus({policy: remote.loadRemotePolicy(context, {connection})});
     t.after(async () => {
         for (const session of sessions) await session.close();
-        assert.equal(path.dirname(root), parent); assert.equal(fs.lstatSync(root).isSymbolicLink(), false);
+        assert.equal(ownsTempDirectory(root), true); assert.equal(fs.lstatSync(root).isSymbolicLink(), false);
         fs.rmSync(root, {recursive: true, force: true}); assert.equal(fs.existsSync(root), false);
     });
     return {root, contextRoot, serverName, configuration, policy, writePolicy, open, requests, poolStatus};

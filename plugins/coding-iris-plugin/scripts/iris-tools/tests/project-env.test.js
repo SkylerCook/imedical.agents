@@ -1,4 +1,5 @@
 'use strict';
+const {createTempDirectory,ownsTempDirectory}=require('../../../../../scripts/tests/fixtures/temp-directory');
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -8,7 +9,7 @@ const {readProjectEnv, validateTarget} = require('../project-env');
 const {spawnSync} = require('node:child_process');
 
 function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'iris-env-'));
+  const root = createTempDirectory('iris-env-');
   t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   const context = {mode: 'workspace-overlay', workspaceRoot: root,
     contextRoot: path.join(root, '.agents'), manifest: {projectEnvFallback: 'main/config.json'}};

@@ -1,4 +1,5 @@
 'use strict';
+const {createTempDirectory,ownsTempDirectory}=require('./fixtures/temp-directory');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -11,10 +12,8 @@ const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 function git(root, args, input) { return execFileSync('git', ['-C', root, ...args], {input, encoding: 'utf8', windowsHide: true, stdio: ['pipe', 'pipe', 'pipe']}); }
 
 test('new and upgraded sparse projects receive XML runtime, canonical class and both skill sources', t => {
-  const base = path.resolve(process.env.CODEX_TEST_TMP_ROOT || path.join(os.tmpdir(), 'Codex'));
-  fs.mkdirSync(base, {recursive: true});
-  const root = fs.mkdtempSync(path.join(base, 'iris-xml-distribution-'));
-  t.after(() => { assert.ok(path.resolve(root).startsWith(base + path.sep)); fs.rmSync(root, {recursive: true, force: true}); });
+  const root = createTempDirectory('iris-xml-distribution-');
+  t.after(() => { assert.ok(ownsTempDirectory(root)); fs.rmSync(root, {recursive: true, force: true}); });
   const source = path.join(root, 'source'); fs.mkdirSync(source);
   const sourceOnlyTools = ['tools/README.md', 'tools/iris-code-export/export-iris-code.ps1', 'tools/future-tool/new.txt', 'tools/dist/fixture.zip'];
   git(source, ['init']); git(source, ['config', 'user.name', 'Fixture']); git(source, ['config', 'user.email', 'fixture@example.invalid']);

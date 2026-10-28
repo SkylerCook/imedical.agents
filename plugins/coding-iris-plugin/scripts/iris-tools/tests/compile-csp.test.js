@@ -1,4 +1,5 @@
 'use strict';
+const {createTempDirectory,ownsTempDirectory}=require('../../../../../scripts/tests/fixtures/temp-directory');
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
@@ -70,7 +71,7 @@ test('connection uses MCP facts and explicit TLS setting, rejects namespace conf
 });
 
 test('CLI defaults to local plan without MCP config or remote connection', t => {
-  const root=fs.mkdtempSync(path.join(os.tmpdir(),'csp-plan-'));
+  const root=createTempDirectory('csp-plan-');
   t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
   fs.mkdirSync(path.join(root,'.agents/config'),{recursive:true});
   fs.mkdirSync(path.join(root,'.agents/.git'));
@@ -82,8 +83,7 @@ test('CLI defaults to local plan without MCP config or remote connection', t => 
 });
 
 test('on-demand standalone CSP compile branches by explicit demand kind without inferring it', async t => {
-  const parent = process.env.CODEX_TEST_TMP_ROOT || (process.platform === 'win32' ? 'D:\\tmp\\Codex' : os.tmpdir()); fs.mkdirSync(parent, {recursive: true});
-  const root = fs.mkdtempSync(path.join(parent, 'csp-demand-kind-')); t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  const root = createTempDirectory('csp-demand-kind-'); t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   const context = {workspaceRoot: root, contextRoot: path.join(root, '.agents')};
   fs.mkdirSync(path.join(context.contextRoot, 'config'), {recursive: true}); fs.mkdirSync(path.join(context.contextRoot, '.git'));
   fs.writeFileSync(path.join(context.contextRoot, 'config/project_context_profile.md'), '- contextMode: intent-first-on-demand-export\n');

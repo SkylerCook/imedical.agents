@@ -6,12 +6,12 @@ const os = require('node:os');
 const path = require('node:path');
 const {execFileSync} = require('node:child_process');
 const sync = require('../source-sync-core');
+const {createTempDirectory,ownsTempDirectory} = require('../../../../../scripts/tests/fixtures/temp-directory');
 
 function git(root, args) { return execFileSync('git', ['-C', root, ...args], {encoding: 'utf8', windowsHide: true}); }
 function fixture(t, {empty = false, ignored = true, source = true} = {}) {
-    const base = process.env.CODEX_TEST_TMP_ROOT || os.tmpdir(); fs.mkdirSync(base, {recursive: true});
-    const root = fs.mkdtempSync(path.join(base, 'iris-source-sync-'));
-    t.after(() => { const resolved = path.resolve(root); assert.ok(resolved.startsWith(path.resolve(base) + path.sep)); fs.rmSync(resolved, {recursive: true, force: true}); });
+    const root = createTempDirectory('iris-source-sync-');
+    t.after(() => { const resolved = path.resolve(root); assert.ok(ownsTempDirectory(root)); fs.rmSync(resolved, {recursive: true, force: true}); });
     git(root, ['init']); git(root, ['config', 'user.name', 'Fixture']); git(root, ['config', 'user.email', 'fixture@example.invalid']); git(root, ['config', 'core.autocrlf', 'false']);
     fs.mkdirSync(path.join(root, '.agents/config'), {recursive: true});
     git(path.join(root, '.agents'), ['init']);

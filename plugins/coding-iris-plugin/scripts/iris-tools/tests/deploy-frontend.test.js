@@ -1,3 +1,4 @@
+const {createTempDirectory,ownsTempDirectory}=require('../../../../../scripts/tests/fixtures/temp-directory');
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -30,7 +31,7 @@ test('static assets require no compiler',async()=>{
  const result=await execute({...plan,documents:[]},async()=>evidence,async()=>{throw Error('unexpected compile');});assert.equal(result.status,'verified');
 });
 test('local plan maps explicit files and rejects escapes, duplicate and invalid UTF8',()=>{
- const root=fs.mkdtempSync(path.join(os.tmpdir(),'frontend-plan-'));
+ const root=createTempDirectory('frontend-plan-');
  try {
   fs.mkdirSync(path.join(root,'csp'));fs.writeFileSync(path.join(root,'csp/page.csp'),'hello');
   const args={sourceRoot:root,files:['csp/page.csp']};const config={web:{cspBasePath:'web/csp'}};
@@ -50,7 +51,7 @@ test('execution and trust must be explicit',()=>{
 test('direct frontend adapter batches once through the existing worker',async()=>{
  const frontend=require('../deploy-frontend');
  const {frontendAdapter}=require('../deploy-protected');
- const root=fs.mkdtempSync(path.join(os.tmpdir(),'frontend-routing-'));
+ const root=createTempDirectory('frontend-routing-');
  const original=frontend.uploadBatch;
  try {
   fs.mkdirSync(path.join(root,'css'));fs.writeFileSync(path.join(root,'css/page.css'),'body{}');
@@ -68,7 +69,7 @@ test('direct frontend adapter batches once through the existing worker',async()=
 
 test('batch routing preserves JavaScript syntax preflight before connecting',()=>{
  const {frontendAdapter}=require('../deploy-protected');
- const root=fs.mkdtempSync(path.join(os.tmpdir(),'frontend-syntax-'));
+ const root=createTempDirectory('frontend-syntax-');
  try {
   fs.mkdirSync(path.join(root,'scripts'));fs.writeFileSync(path.join(root,'scripts/page.js'),'const = ;');
   assert.throws(()=>frontendAdapter({mode:'direct',sourceRoot:root,files:['scripts/page.js']},{},

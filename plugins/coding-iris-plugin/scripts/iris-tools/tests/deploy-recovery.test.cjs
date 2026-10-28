@@ -1,11 +1,12 @@
 'use strict';
+const {createTempDirectory,ownsTempDirectory}=require('../../../../../scripts/tests/fixtures/temp-directory');
 const {test} = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
 const recovery = require('../deploy-recovery'), guard = require('../deploy-guard');
 const {run} = require('../deploy-direct');
 const fault = (extra = {}) => Object.assign(new Error('synthetic connection failure'), {code: 'ECONNRESET', ...extra});
 function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'iris-recovery-'));
+  const root = createTempDirectory('iris-recovery-');
   t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   const files = ['A', 'B'].map(name => {
     const localPath = path.join(root, name + '.js');

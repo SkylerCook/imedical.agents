@@ -14,8 +14,9 @@ const promoteScript = path.join(toolRoot, 'promote-demand.js');
 const workspaceContextScript = path.resolve(toolRoot, '..', '..', '..', '..', 'scripts', 'lib', 'workspace-context.js');
 const promote = require('../promote-demand');
 const temporaryRoots = new Set();
+const {createTempDirectory} = require('../../../../../scripts/tests/fixtures/temp-directory');
 function temporary(prefix) {
-    const root = fs.mkdtempSync(path.join(process.env.CODEX_TEST_TMPDIR || os.tmpdir(), prefix));
+    const root = createTempDirectory(prefix);
     temporaryRoots.add(root);
     return root;
 }

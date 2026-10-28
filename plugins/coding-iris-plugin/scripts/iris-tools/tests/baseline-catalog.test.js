@@ -1,4 +1,5 @@
 'use strict';
+const {createTempDirectory,ownsTempDirectory}=require('../../../../../scripts/tests/fixtures/temp-directory');
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -9,10 +10,8 @@ const crypto = require('node:crypto');
 const catalog = require('../baseline-catalog');
 
 function fixture(t) {
-    const parent = path.resolve(process.env.CODEX_TEST_TMP_ROOT || path.join(os.tmpdir(), 'Codex'));
-    fs.mkdirSync(parent, {recursive: true});
-    const root = path.join(parent, 'baseline-catalog-' + crypto.randomUUID()); fs.mkdirSync(root);
-    t.after(() => { assert.equal(path.dirname(root), parent); assert.equal(fs.lstatSync(root).isSymbolicLink(), false); fs.rmSync(root, {recursive: true, force: true}); });
+    const root = createTempDirectory('baseline-catalog-');
+    t.after(() => { assert.equal(ownsTempDirectory(root), true); assert.equal(fs.lstatSync(root).isSymbolicLink(), false); fs.rmSync(root, {recursive: true, force: true}); });
     function put(relative, text) { const file = path.join(root, relative); fs.mkdirSync(path.dirname(file), {recursive: true}); fs.writeFileSync(file, text); return file; }
     return {root, put};
 }

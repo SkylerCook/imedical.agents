@@ -8,11 +8,10 @@ const { spawn } = require('node:child_process');
 const { spawnSync } = require('node:child_process');
 const remote = require('../lib/iris-remote-operations');
 const { createAtelierClient, createAtelierRecoveryReader } = require('../lib/atelier-client');
+const {createTempDirectory} = require('./fixtures/temp-directory');
 
 function fixture(t, onDemand = false) {
-  const base = process.env.CODEX_TEST_TMP_ROOT || path.join(os.tmpdir(), 'Codex');
-  fs.mkdirSync(base, { recursive: true });
-  const root = fs.mkdtempSync(path.join(base, 'iris-remote-'));
+  const root = createTempDirectory('iris-remote-');
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const context = { workspaceRoot: root, contextRoot: path.join(root, '.agents') };
   fs.mkdirSync(path.join(context.contextRoot, 'config'), { recursive: true });

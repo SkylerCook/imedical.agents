@@ -8,11 +8,10 @@ const {spawnSync} = require('node:child_process');
 const publication = require('../source-publication');
 const guard = require('../deploy-guard');
 const direct = require('../deploy-direct');
+const {createTempDirectory} = require('../../../../../scripts/tests/fixtures/temp-directory');
 
 function fixture(t, {environmentType = 'production', content = 'Class Demo\n{\n}\n', kind = 'backend'} = {}) {
-  const parent = process.platform === 'win32' ? 'D:\\tmp\\Codex' : os.tmpdir();
-  fs.mkdirSync(parent, {recursive: true});
-  const root = fs.mkdtempSync(path.join(parent, 'iris-publication-test-'));
+  const root = createTempDirectory('iris-publication-test-');
   t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   const git = (...args) => { const result = spawnSync('git', ['-C', root, ...args], {encoding: 'utf8', windowsHide: true}); assert.equal(result.status, 0, result.stderr); return result.stdout.trim(); };
   git('init'); git('config', 'user.name', 'Fixture'); git('config', 'user.email', 'fixture@example.invalid'); git('config', 'core.autocrlf', 'false');

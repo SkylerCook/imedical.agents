@@ -32,6 +32,14 @@ ZIP：`tools/dist/iris-code-export.zip`，SHA-256 `1FB53790DA0BAF135A83587861090
 
 ## 版本与待验
 
-coding 0.24.0、agent-context-kit 0.8.2，七个直接依赖扩展到 coding <0.25.0 并各升 patch。完整 worktree 审计与 HEAD 对照：9 个变更组件无新增问题；三份既有 imedicalxc-doctor-extend-engineer 发布记录 1.0.2/1.0.3/1.0.4 缺 commit 字段，产生相同 6 条历史错误，未修改不可变记录。提交前另以实际暂存区执行组件门禁。
+coding 0.24.0 新能力及 0.24.1 兼容修正、agent-context-kit 0.8.2，七个直接依赖扩展到 coding <0.25.0 并各升 patch。完整 worktree 审计与 HEAD 对照：首批9个变更组件无新增问题；三份既有 imedicalxc-doctor-extend-engineer 发布记录 1.0.2/1.0.3/1.0.4 缺 commit 字段，产生相同6条历史错误，未修改不可变记录。提交前另以实际暂存区执行组件门禁。
 
-已纳入 Windows/macOS/Linux × Node 22.5.0/22/24 矩阵；本轮尚未取得非 Windows、Node22 或远端 CI 实跑结果。原生 MCP/外部 IDE 不在脚本拦截范围，Agent 规则禁止离线医院调用；真实宿主加载/行为与授权医院接入、导入编译及验收仍需分别取证。沿既有 P1/P2 backlog，不把静态路由和本机模拟当真实服务通过。
+已纳入 Windows/macOS/Linux × Node 22.5.0/22/24 矩阵。`7128e17` 首轮 Deployment CI 的 Linux 22.5/22/24 成功，macOS22失败，另外5项被 fail-fast 取消，原因正在定位；不能宣称完整矩阵通过。原生 MCP/外部 IDE 不在脚本拦截范围，Agent 规则禁止离线医院调用；真实宿主加载/行为与授权医院接入、导入编译及验收仍需分别取证。沿既有 P1/P2 backlog，不把静态路由和本机模拟当真实服务通过。
+
+## 首轮 CI 与帮助兼容修正
+
+[Sparse CI](https://github.com/SkylerCook/imedical.agents/actions/runs/40703590340) 检出前后端专项 skill 的模式分流段落位于帮助前。0.24.1 只恢复统一帮助优先顺序，不变更运行时或 ZIP。对同组 sparse refresh、documentation layout/entry、capability-help 加 IRIS 路由和 fast path 的本机复验共42/42通过；新装与升级薄入口也已覆盖。0.24.0 的发布记录保留，0.24.1 新增兼容 patch 记录。
+
+[Deployment CI](https://github.com/SkylerCook/imedical.agents/actions/runs/40703590397) 的 macOS22 日志显示夹具经系统临时目录别名，触发 local-git-required、remote-coordination-link、publication-source-link-changed 等检查。受影响同步/发布/移植与远端测试复用已有 temp-directory helper，规范为物理路径；新增实际 Junction/符号链接对照，显式传给运行时的链接仍拒绝，未放宽安全检查。修正后矩阵结果沿后续 GitHub 回执核对。
+
+同因检查覆盖 Deployment 后续的读取池、MCP、XML/基线及部署夹具。主回归组最终105/105通过；后续组139项通过，读取池15项的清理断言修正后定向通过，与别名对照联检16/16。两处清理钩子的旧变量引用均已修正；不重复无变化的139项，不将各组重叠项累计为唯一用例总数。源码助手、XML打包实现及最终ZIP字节不因本次测试夹具修复变化。

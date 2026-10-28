@@ -1,11 +1,12 @@
 'use strict';
+const {createTempDirectory,ownsTempDirectory}=require('../../../../../scripts/tests/fixtures/temp-directory');
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {prepare,run}=require('../deploy-direct'),{parse,backendAdapter}=require('../deploy-protected');
 const {Attention}=require('../deploy-guard');
 
 function fixture(t,contents=['Class Demo.A\n{\n}\n']) {
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'iris-direct-test-'));
+ const dir=createTempDirectory('iris-direct-test-');
  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  const files=contents.map((content,i)=>{const localPath=path.join(dir,`Demo.${i}.cls`);fs.writeFileSync(localPath,content);return {localPath,remotePath:`Demo.${i}.cls`};});
  const remote=new Map(),events=[];

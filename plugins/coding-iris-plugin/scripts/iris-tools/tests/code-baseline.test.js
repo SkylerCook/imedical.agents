@@ -1,4 +1,5 @@
 'use strict';
+const {createTempDirectory,ownsTempDirectory}=require('../../../../../scripts/tests/fixtures/temp-directory');
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -12,10 +13,8 @@ const core = require('../code-baseline-core');
 const catalog = require('../baseline-catalog');
 
 function fixture(t, items = [{name: 'Demo.A', type: 'CLS'}]) {
-    const parent = path.resolve(process.env.CODEX_TEST_TMP_ROOT || path.join(os.tmpdir(), 'Codex'));
-    fs.mkdirSync(parent, {recursive: true});
-    const root = path.join(parent, 'code-baseline-' + crypto.randomUUID()); fs.mkdirSync(root);
-    t.after(() => { assert.equal(path.dirname(root), parent); assert.equal(fs.lstatSync(root).isSymbolicLink(), false); fs.rmSync(root, {recursive: true, force: true}); });
+    const root = createTempDirectory('code-baseline-');
+    t.after(() => { assert.equal(ownsTempDirectory(root), true); assert.equal(fs.lstatSync(root).isSymbolicLink(), false); fs.rmSync(root, {recursive: true, force: true}); });
     function put(relative, text) { const file = path.join(root, relative); fs.mkdirSync(path.dirname(file), {recursive: true}); fs.writeFileSync(file, text); return file; }
     const config = {iris: {scheme: 'https', host: 'synthetic.invalid', port: 443, namespace: 'FIXTURE'}, web: {basePath: 'fixture/web'}};
     const mcp = {mcpServers: {'iris-agentic-dev': {env: {IRIS_SCHEME: 'https', IRIS_HOST: 'synthetic.invalid', IRIS_WEB_PORT: '443', IRIS_NAMESPACE: 'FIXTURE', IRIS_USERNAME: 'fixture', IRIS_PASSWORD: 'fixture-secret'}}}};

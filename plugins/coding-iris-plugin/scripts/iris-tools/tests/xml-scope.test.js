@@ -1,4 +1,5 @@
 'use strict';
+const {createTempDirectory,ownsTempDirectory}=require('../../../../../scripts/tests/fixtures/temp-directory');
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -10,10 +11,8 @@ const {execFileSync, spawnSync} = require('node:child_process');
 const scope = require('../xml-scope');
 
 function fixture(t) {
-    const parent = path.resolve(process.env.CODEX_TEST_TMP_ROOT || path.join(os.tmpdir(), 'Codex'));
-    fs.mkdirSync(parent, {recursive: true});
-    const root = path.join(parent, 'xml-scope-' + crypto.randomUUID()); fs.mkdirSync(root);
-    t.after(() => { assert.equal(path.dirname(root), parent); assert.equal(fs.lstatSync(root).isSymbolicLink(), false); fs.rmSync(root, {recursive: true, force: true}); });
+    const root = createTempDirectory('xml-scope-');
+    t.after(() => { assert.equal(ownsTempDirectory(root), true); assert.equal(fs.lstatSync(root).isSymbolicLink(), false); fs.rmSync(root, {recursive: true, force: true}); });
     function put(relative, bytes) { const file = path.join(root, relative); fs.mkdirSync(path.dirname(file), {recursive: true}); fs.writeFileSync(file, bytes); return file; }
     put('.agents/config/project-env.json', JSON.stringify({web: {basePath: 'fixture/web'}}));
     const query = options => scope.query({projectRoot: root, ...options});

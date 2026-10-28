@@ -1,4 +1,5 @@
 'use strict';
+const {createTempDirectory,ownsTempDirectory}=require('../../../../../scripts/tests/fixtures/temp-directory');
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -9,13 +10,13 @@ const {spawnSync}=require('node:child_process');
 const core=require('../xml-export-core');
 const parser=require('../xml-package-core');
 const fixtures=[];
-test.after(()=>{for(const directory of fixtures){const base=path.join(os.tmpdir(),'Codex');const resolved=path.resolve(directory);
-    assert.ok(resolved.startsWith(path.resolve(base)+path.sep));assert.equal(fs.lstatSync(resolved).isSymbolicLink(),false);fs.rmSync(resolved,{recursive:true});assert.equal(fs.existsSync(resolved),false);}});
+test.after(()=>{for(const directory of fixtures){const resolved=path.resolve(directory);
+    assert.ok(ownsTempDirectory(directory));assert.equal(fs.lstatSync(resolved).isSymbolicLink(),false);fs.rmSync(resolved,{recursive:true});assert.equal(fs.existsSync(resolved),false);}});
 const classXml='<Class name="Demo.A"><Description><![CDATA[with <!DOCTYPE html> in code]]></Description></Class>';
 const cspXml='<CSPBase64 application="/web/" name="img/a.png">AAECA//+</CSPBase64>';
 const mixed=Buffer.from('<?xml version="1.0"?><Export generator="IRIS" version="26">'+classXml+cspXml+'</Export>');
 function fixture(options={}){
-    const directory=path.join(os.tmpdir(),'Codex','xml-export-'+crypto.randomUUID());fs.mkdirSync(directory,{recursive:true});fixtures.push(directory);
+    const directory=createTempDirectory('xml-export-');fixtures.push(directory);
     const context={workspaceRoot:directory,contextRoot:path.join(directory,'.agents'),capabilityRoot:path.join(directory,'.agents'),gitRoots:[]};
     const result=core.createPlan({projectRoot:directory,namespace:'TEST',serverRoot:'/private/exports',channel:'class',webApplication:'/web',
         items:[{name:'Demo.A',type:'CLS'},{name:'web/img/a.png',type:'CSP'}],...options},{context,skipPrivacyCheck:true});

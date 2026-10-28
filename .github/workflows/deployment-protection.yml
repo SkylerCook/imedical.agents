@@ -16,7 +16,7 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: node --test plugins/coding-iris-plugin/scripts/iris-tools/tests/cls-format.test.js
       - run: node --test scripts/tests/iris-version-catalogs.tests.cjs
-      - run: node --test scripts/tests/iris-development-mode.tests.js scripts/tests/iris-development-routing.tests.js
+      - run: node --test scripts/tests/iris-development-mode.tests.js scripts/tests/iris-development-routing.tests.js scripts/tests/temp-directory.tests.js
       - if: runner.os != 'Windows'
         run: node --test scripts/tests/iris-offline-source.tests.cjs
       - if: runner.os == 'Windows'

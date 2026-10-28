@@ -6,10 +6,10 @@ const os = require('node:os');
 const path = require('node:path');
 const {execFileSync} = require('node:child_process');
 const sync = require('../source-sync-core');
+const {createTempDirectory} = require('../../../../../scripts/tests/fixtures/temp-directory');
 
 function fixture(t) {
-    const parent = process.env.CODEX_TEST_TMP_ROOT || (process.platform === 'win32' ? 'D:\\tmp\\Codex' : os.tmpdir());
-    fs.mkdirSync(parent, {recursive: true}); const root = fs.mkdtempSync(path.join(parent, 'iris-transaction-test-'));
+    const root = createTempDirectory('iris-transaction-test-');
     t.after(() => fs.rmSync(root, {recursive: true, force: true}));
     const git = (...args) => execFileSync('git', ['-C', root, ...args], {encoding: 'utf8', windowsHide: true}).trimEnd();
     git('init'); git('config', 'user.name', 'Fixture'); git('config', 'user.email', 'fixture@example.invalid'); git('config', 'core.autocrlf', 'false');
