@@ -8,6 +8,8 @@
 
 Agent 从请求、已有授权和工程配置整理输入并生成批次及必要编排资料；用户无需手填 JSON。先自行核实，仍缺少的业务决定集中询问；生成文件不表示已授权执行其中的动作。
 
+预检发现接入缺口时，先按[事前准备](../docs/night-governance.md#事前形成可执行计划)完成基础探测、预算内补齐及定向复验，再决定可执行子集或降级。新需求用例可在准备中生成；不得把未实现、未尝试写成执行失败，也不得将写用例的数据要求机械套给只读项。
+
 新批次先探测 `night-execution-plan/v1`，按[PLAN 模板](../docs/templates/night-execution-plan.template.json)在编排计划顶层填写 `executionPlan:{version:1,...}`，旧批次不补字段。先取得并保留周额度真实基线，再集中批准 PLAN；`budget.weekly` 使用本批预算百分点、稳定 budgetId 与该基线引用，时间、token 和治理预算分别显式评估，不套用固定时长或比例。逐项保留需求原文、备注、用户初评、可执行性、复杂度、风险及含理由的最低测试方案，按实际行为选择层级。
 
 PLAN 绑定至少两名 Developer、功能 Tester 与浏览器 Tester 各一名及 Coordinator；明确实际客户端容量，Coordinator 计入会话数，四名容量须显式错峰两个 Tester。各 worker 的 `night-workspace` 请求设置 `executionPlanVersion:1`，以 owner 分配独占目录，绑定原项目入口、所需角色规则、源仓身份与固定 revision。已有 Git/Overlay 构建完成且 run 获授权后，显式执行 `node <capabilityRoot>/scripts/night-workspace.js materialize <workspace-plan.json>`，由当前 run 派生各 Overlay 和物理源码仓根的 `.agents/rules/night_run_plan.md` 与 `AGENTS.md` 引用，再运行只读 `check`。保留普通入口内容，只在已核实的 worker 自身链接上生成薄入口；共享 `.agents` 与原项目规则始终为只读来源。
@@ -28,7 +30,7 @@ Coordinator 核对需求编号或可复现查询范围、Workspace/Source/GitRoo
 
 commit、push、merge、上传/编译、测试数据写入和处置、BOS 日志/状态分别沿用明确授权。预授权不能替代宿主实际许可；被拒操作保留断点，不能换通道绕过。账号、服务器、票据不写入通用批次模板。
 
-worktree 复用原项目启用能力，领域选择沿用[单需求流程](bos-demand.workflow.md#编码体系选择)。计划的 requiredSkills、requiredRules、requiredScripts 只声明本批次实际需要的入口，覆盖适用的编码、部署与验证动作，不枚举全部插件。复用有效上下文与预检证据，不新增启动阶段或预检轮次；既有派发检查保留。插件启用不代表所有动作支持无人值守，计划内部署、设备与验收能力仍由原真实预检核实；缺口按既有缩小范围、人工留项或运行中挂起规则处理。
+worktree 复用原项目启用能力，领域选择沿用[单需求流程](bos-demand.workflow.md#编码体系选择)。计划的 requiredSkills、requiredRules、requiredScripts 只声明本批次实际需要的入口，覆盖适用的编码、部署与验证动作，不枚举全部插件。复用有效上下文与预检证据，只对已修复或失效范围定向复验；既有派发检查保留。插件启用不代表所有动作支持无人值守，计划内部署、设备与验收能力仍由原真实预检核实；缺口按既有缩小范围、人工留项或运行中挂起规则处理。
 
 ## 阶段
 

@@ -18,7 +18,7 @@
 | 安装、更新、sparse、vendor、thin-index | [更新 runbook](../docs/update-agents.md)；区分 standard/Overlay、严格只读、旧索引及配置迁移 |
 | 修改插件或独立 skill、准备提交 | owner AGENTS/README/manifest 与[组件版本治理](../maintenance/governance/component-version-management.md)；校验暂存内容，功能证据按 scope 复用 |
 | 修改 Agent、workflow 或共享协议 | [Agent registry](../agents/agent-registry.md)、[workflow registry](../workflows/workflow-registry.md)、对应 AGENT/bindings 与共享协议；adapter 和 canonical 分开 |
-| 夜跑批次、预算、监督与恢复 | [治理顺序](../docs/night-governance.md)、[策略与兼容](../docs/night-policy.md)、[分层验收](../docs/night-acceptance.md)；先初筛/能力预检再详细 PLAN，旧 run 保留原契约 |
+| 夜跑批次、预算、监督与恢复 | [治理顺序](../docs/night-governance.md)、[策略与兼容](../docs/night-policy.md)、[分层验收](../docs/night-acceptance.md)；先基础探测、预算内补齐及定向复验再详细 PLAN；逐用例能力与缺口诊断沿验收文档，旧 run 保留原契约 |
 | BOS 待办、工作量、来源与排序 | [查询 skill](../plugins/bos-plugin/skills/bos-demand-query/SKILL.md)与[使用契约](../plugins/bos-plugin/references/usage.md)；模式/日期/人员/项目或产品条件按当前定义，查询保持只读 |
 | BOS 提需、验收与交付 | [BOS owner](../plugins/bos-plugin/README.md)、[交付 owner](../plugins/demand-delivery-plugin/README.md)；名称标签读[产品交付规则](../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md#需求名称与标版标签各类来源共用)，主子/无代码、实仓日志、Git/BOS 独立恢复读[代码归属](../docs/demand-code-ownership.md)，提交漂移读[同步复核](../plugins/demand-delivery-plugin/references/commit-upstream-check.md) |
 | IRIS 编码、部署、MCP 或 HISUI | [编码 owner](../plugins/coding-iris-plugin/README.md)；已确认 project＋按需上下文先读[项目开发协议](../plugins/coding-iris-plugin/references/project-demand-development.md)，失败读[恢复与停止](../plugins/coding-iris-plugin/references/deployment-protection.md#失败恢复与授权)；菜单刷新读[采集协议](../plugins/coding-iris-plugin/references/menu-knowledge-sync.md#无人值守刷新)，vendor 升级读其 AGENTS/README |

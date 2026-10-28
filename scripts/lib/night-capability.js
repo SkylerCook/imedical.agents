@@ -4,10 +4,34 @@ const digest = file => crypto.createHash('sha256').update(fs.readFileSync(file))
 const { diagnosticFields, appendDiagnostics } = require('./night-client-diagnostics');
 const { probeClientLifecycle: clientProbe, createClientAdapter } = require('./night-client');
 const text = value => typeof value === 'string' && value.trim().length > 0;
+const REASONS = new Set(['implementation-missing', 'not-attempted', 'execution-failed', 'exit-unknown', 'not-applicable']);
+function requirementCapabilities(row) {
+    return [...new Set([...row.capabilities,
+        ...(row.level === 'ui' || row.authentication === 'browser-session' ? ['browser'] : []),
+        ...(row.authentication && row.authentication !== 'none' ? ['authentication'] : []),
+        ...(row.effects === 'write' ? ['fixture-authority', 'data-disposition'] : [])])];
+}
+function matchesCheck(check, row) {
+    return ['*', row.role].includes(check.role) && (!check.demandId || check.demandId === row.demandId) && (!check.caseId || check.caseId === row.caseId);
+}
+function reasonFields(check) {
+    return { ...(REASONS.has(check.reason) ? { reason: check.reason } : {}),
+        ...Object.fromEntries(['owner', 'recheckRef'].filter(key => text(check[key])).map(key => [key, check[key]])) };
+}
+function validCheck(check) {
+    return check && check.id !== 'browser-lifecycle' && text(check.id) && text(check.evidenceRef) &&
+        ['passed', 'blocked', 'failed'].includes(check.status) &&
+        ['demandId', 'caseId', 'role'].every(key => check[key] === undefined || text(check[key]));
+}
 const executableWork = (manifest, work) => work.status !== 'skipped' && work.night?.phase !== 'cleanup' && !manifest.executionPlan?.demands?.some(d => d.id === work.night?.demandId && ['blocked', 'unsupported'].includes(d.feasibility));
 async function probeCapabilities(profile, profileFile, { createExecutor = require('./playwright-runner').createTestExecutor, createClient = createClientAdapter, signal, onProgress } = {}) {
     const requirements = profile.capabilityRequirements;
     if (!Array.isArray(requirements) || !requirements.length || requirements.some(r => !text(r.demandId) || !text(r.role) || !Array.isArray(r.capabilities) || !r.capabilities.length || r.capabilities.some(c => !text(c)))) throw new Error('Initial demand capabilityRequirements required before detailed PLAN');
+    for (const row of requirements) {
+        if (row.effects !== undefined && !['read-only', 'write'].includes(row.effects) || row.caseId !== undefined && !text(row.caseId)) throw Error('Invalid capability requirement effects or caseId');
+        if (row.level !== undefined && !['static-review', 'internal-method', 'external-api', 'ui', 'manual', 'not-applicable'].includes(row.level) || row.authentication !== undefined && !['none', 'browser-session', 'api'].includes(row.authentication)) throw Error('Invalid capability requirement level or authentication');
+        if (['level', 'effects', 'authentication', 'caseId'].some(key => row[key] !== undefined) && !text(row.rationale)) throw Error('Case capability requirements need a rationale');
+    }
     const options = profile.options || {}, limit = Math.min(options.timeoutMs || 30000, (options.deadlineAt || 0) - Date.now());
     if (!Number.isFinite(limit) || limit <= 0 || typeof profile.preflight !== 'function') throw new Error('Bounded project preflight adapter required');
     const probeDeadline = Date.now() + limit;
@@ -52,16 +76,25 @@ async function probeCapabilities(profile, profileFile, { createExecutor = requir
     const configurationUnchanged = configurationFiles.every(f => digest(f.path) === f.sha256);
     const cleanupVerified = settled && clientExited && (!clientTask || clientLifecycle?.cleanupVerified === true) && data?.cleanupVerified === true && exits.every(r => r.exit.cleanupVerified === true && !r.exit.pendingOperations);
     const browserExited = cleanupVerified && exits.some(r => text(r.info?.browserVersion) && r.info.headless === true);
-    const checks = (Array.isArray(data?.checks) ? data.checks : []).filter(c => c.id !== 'browser-lifecycle' && text(c.id) && text(c.evidenceRef) && ['passed', 'blocked', 'failed'].includes(c.status)).map(c => ({ id: c.id, role: c.role || '*', status: c.status, nonInteractive: c.nonInteractive === true, evidenceRef: c.evidenceRef, ...diagnosticFields(c, 'capability'), ...(c.executor ? { executor: c.executor } : {}) }));
+    const checks = (Array.isArray(data?.checks) ? data.checks : []).filter(validCheck).map(c => ({ id: c.id, role: c.role || '*', status: c.reason && c.status === 'passed' ? 'blocked' : c.status, nonInteractive: c.nonInteractive === true, evidenceRef: c.evidenceRef, ...reasonFields(c), ...diagnosticFields(c, 'capability'), ...(text(c.demandId) ? { demandId: c.demandId } : {}), ...(text(c.caseId) ? { caseId: c.caseId } : {}), ...(c.executor ? { executor: c.executor } : {}) }));
     if (clientTask || requirements.some(r => r.capabilities.some(id => ['client-lifecycle', 'client-stop'].includes(id)))) {
         for (let index = checks.length - 1; index >= 0; index--) if (['client-lifecycle', 'client-stop'].includes(checks[index].id)) checks.splice(index, 1);
         checks.push(...(clientLifecycle?.checks || []));
     }
     checks.push({ id: 'browser-lifecycle', role: '*', status: browserExited ? 'passed' : 'blocked', nonInteractive: true, evidenceRef: 'probe:owned-browser-start-and-actual-close' });
     const assessments = requirements.map(r => {
-        const needed = [...new Set([...r.capabilities, ...(r.capabilities.includes('browser') ? ['browser-lifecycle'] : [])])];
-        const missing = needed.filter(id => !checks.some(c => c.id === id && ['*', r.role].includes(c.role) && c.status === 'passed' && c.nonInteractive && (id !== 'browser' || c.executor === 'playwright-headless')));
-        return { ...r, capabilities: needed, missing, executable: !failure && configurationUnchanged && cleanupVerified && !missing.length };
+        const declared = requirementCapabilities(r);
+        const needed = [...new Set([...declared, ...(declared.includes('browser') ? ['browser-lifecycle'] : [])])];
+        const missing = needed.filter(id => {
+            const applicable = checks.filter(c => c.id === id && matchesCheck(c, r));
+            return !applicable.some(c => c.status === 'passed' && c.nonInteractive && (id !== 'browser' || c.executor === 'playwright-headless')) || applicable.some(c => c.status !== 'passed');
+        });
+        const gaps = missing.map(id => {
+            const check = checks.find(c => c.id === id && matchesCheck(c, r) && c.status !== 'passed');
+            return { id, reason: check?.reason || (check?.status === 'failed' ? 'execution-failed' : 'unverified'), ...(check ? { evidenceRef: check.evidenceRef, ...reasonFields(check) } : {}) };
+        });
+        const blockers = [...(!configurationUnchanged ? ['configuration-changed'] : []), ...(!cleanupVerified ? ['exit-unknown'] : []), ...(failure ? [failure] : [])];
+        return { ...r, capabilities: needed, missing, gaps, blockers, executable: !blockers.length && !missing.length };
     });
     const ids = [...new Set(requirements.map(r => r.demandId))];
     const browserLifecycle = { verified: browserExited, instances: exits.map(r => ({ kind: r.info?.kind || 'unknown', nodeVersion: r.info?.nodeVersion || null, playwrightVersion: r.info?.playwrightVersion || null, browserVersion: r.info?.browserVersion || null, headless: r.info?.headless === true, cleanupVerified: r.exit.cleanupVerified === true, pendingOperations: r.exit.pendingOperations ?? null, failureStages: r.exit.failureStages || [] })) };

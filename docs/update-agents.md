@@ -74,6 +74,8 @@ Overlay 先更新共享 CapabilityRoot 一次，再由模块原完整流程以 `
 
 coding-iris-plugin 的 `web.frontendTransport:atelier` 为明确项目能力选择，复用既有保护/回读/编译；省略仍沿旧 SFTP，失败不自动换通道。依赖 owner 只扩大兼容范围；项目连接和认证配置仍私有。分发专项覆盖新增文件实际稀疏落盘，真实业务副本和各平台结果仍单独核验。本轮未修改安装/更新脚本。
 
+夜跑项目预检更新沿同一根运行时与 docs/workflows 分发；新 profile 可使用逐用例 effects/认证声明及需求级诊断，详见 [项目适配](night-acceptance.md#逐需求预检与补齐)。旧 profile、既有回执与 run 不迁移；更新不会重写私有适配器、自动重跑或将已降级批次重新入场，无旧文件清理。项目按原预算核对变化后用新回执路径定向复验，再绑定新的正式 PLAN。
+
 ## 夜跑收敛扩展
 
 正常更新根 scripts/lib、验收入口、共享协议和已启用插件薄索引后，新批次检查 `capabilities.features` 含 `night-convergence/v1`，从策略模板填写明确总时限；null 不可执行。旧 run 不迁移或补造记录，无旧文件删除。环境依赖的验收 profile 需实现真实 `verifyDependencies` 后再启用该依赖；其它需求复用原 profile。合成回归在 night-convergence/night-contract-v2 专项与现有三平台 CI，真实业务验证另按授权执行。本轮未改安装/更新脚本，部署布局沿既有 scripts/lib/** 与 scripts/*.js。

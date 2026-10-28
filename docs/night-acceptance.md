@@ -105,6 +105,38 @@ module.exports = async () => ({
 
 ## 2.1 项目适配与数据成本
 
+### 逐需求预检与补齐
+
+框架负责宿主生命周期、受管执行器、预算、回执及停止恢复；项目维护方提供可访问环境、业务权限、私有配置来源与数据限制；执行 Agent 负责发现已有资产、在授权内补项目适配和逐需求用例。使用现有 profile/case 契约，不另建测试运行器。
+
+`capabilityRequirements` 兼容原 `{demandId,role,capabilities}`。新逐用例条目可增加 `caseId,level,effects,authentication,rationale`；使用这些字段必须说明 rationale。level 沿最低测试层级，effects 为 read-only/write，authentication 为 none/api/browser-session。运行时为 ui 或 browser-session 加 browser，为非 none 认证加 authentication，为 write 加 fixture-authority/data-disposition，再为 browser 加实际启停检查。只读项不会自动要求造数和处置；明确声明的能力仍保留。effects 未知时先调查，不填 read-only 规避要求。
+
+checks 可按 `demandId`、`caseId`、role 限定证据范围；缺少限定表示该项检查真实覆盖全部对应需求/用例，须由项目证明。相同范围的失败或受阻记录优先于通过；一个用例通过不能放行另一个用例。无 caseId 的需求级声明不能消费限定 caseId 的证据。该需求所有声明都通过才进入 eligibleDemandIds；共享资源退出未知仍阻止整份回执放行。
+
+状态仍为 passed/blocked/failed；可选 reason 为 implementation-missing、not-attempted、execution-failed、exit-unknown、not-applicable，另附 owner 和 recheckRef（脱敏引用，不填命令或凭据）。evidenceRef 指向真实探测或已检查的源码缺口。reason 是未通过原因，不能与 passed 共同授予通过；未分类缺口在 gaps 中记 unverified，不推断为实际失败。无写入时在 rationale 说明为何不声明数据能力；将必需能力标成 not-applicable 仍阻断。CLI 同时给出受阻需求的 gaps 与全局 blockers，原始详细证据留项目私有位置。
+
+例如，两个独立需求分别声明：
+
+```js
+capabilityRequirements: [
+    { demandId: 'layout', caseId: 'layout-read', role: 'browser-tester',
+      level: 'ui', effects: 'read-only', authentication: 'browser-session',
+      capabilities: ['business-entry'], rationale: '展开查询区即可断言，无持久写入' },
+    { demandId: 'save', caseId: 'save-readback', role: 'functional-tester',
+      level: 'external-api', effects: 'write', authentication: 'api',
+      capabilities: ['business-entry'], rationale: '保存专用样本并独立回读，按授权保留' }
+]
+// 项目实际检查后的缺口，不是预填结论：
+// { id:'fixture-authority', demandId:'save', caseId:'save-readback',
+//   role:'functional-tester', status:'blocked', reason:'implementation-missing',
+//   nonInteractive:true, evidenceRef:'source:project-fixture-adapter-review',
+//   owner:'project-adapter', recheckRef:'profile:save-readback' }
+```
+
+接入包沿现有项目测试目录保存：配置引用说明、真实认证和身份/正常入口 adapter、一个只读 case、一个写入及处置 case、同一 profile 的 preflight 和调用说明。将影响执行的 adapter 文件列入 configurationFiles，认证不能使用无条件 true 的 ensureReady。模板和样例不构成真实接入证明。
+
+真实试点先选两条独立小需求，分别覆盖上述只读和写入链路；先取得认证、版本、断言、独立回读、数据处置及资源退出证据，再验证正式 PLAN 下双 Developer 实际执行、Tester 消费冻结版本、持续监督和一次停止/恢复。全部使用原 run、预算及三截止，未知写入先回读。准备/执行/恢复耗时、人工介入及受阻原因从持久记录统计；不能以串行完成或局部探针通过宣称受管夜跑成功。未取得真实证据的接入包标为待验。
+
 profile 可导出 `preflight({signal,createTestExecutor})`，使用同一实际认证、业务角色和正常入口验证能力，并在 finally 有界退出。返回结构见[预检回执](night-policy.md#schema-21-启动契约)。options.configurationFiles 显式列入适配器、环境配置及影响执行的项目文件；自动摘要不保存文件内容。preflight 受 timeoutMs/deadlineAt 限制；超时或退出不明不得启动，先核对探针资源。取消信号必须由适配器响应。
 
 UI case 在启动前的工作项中声明 `night.route: ui`（已有冻结后 UI 评估时可复用），使无头与视口能力进入预检；不能延后到运行时才发现 profile 需要浏览器。实际验收的 options.projectRoot 须为该 work owner 的 Overlay workspaceRoot，异步 profile 工厂可使用传入的 workItem/night 选择项目配置。

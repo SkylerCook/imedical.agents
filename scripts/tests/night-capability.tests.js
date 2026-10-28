@@ -8,6 +8,63 @@ function fixture(t) {
     const profile = { options: { deadlineAt: Date.now() + 3000, timeoutMs: 500, closeTimeoutMs: 30 }, capabilityRequirements: [{ demandId: 'API', role: 'doctor', capabilities: ['entry'] }, { demandId: 'UI', role: 'doctor', capabilities: ['browser'] }], preflight: async () => ({ cleanupVerified: true, checks: [{ id: 'entry', role: 'doctor', status: 'passed', nonInteractive: true, evidenceRef: 'actual:entry' }, { id: 'browser', role: 'doctor', status: 'blocked', nonInteractive: true, evidenceRef: 'actual:no-browser' }] }) };
     return { root, file, profile };
 }
+
+test('case effects derive minimum capabilities and a write gap leaves an independent read case eligible', async t => {
+    const f = fixture(t);
+    f.profile.capabilityRequirements = ['READ', 'WRITE'].map(demandId => ({ demandId, caseId: demandId + '-case', role: 'tester', capabilities: ['entry'], level: 'external-api', authentication: 'api', effects: demandId === 'WRITE' ? 'write' : 'read-only', rationale: 'Reviewed actual entry and effects' }));
+    f.profile.preflight = async () => ({ cleanupVerified: true, checks: [
+        ...['entry', 'authentication'].map(id => ({ id, status: 'passed', nonInteractive: true, evidenceRef: 'actual:' + id })),
+        { id: 'fixture-authority', demandId: 'WRITE', caseId: 'WRITE-case', status: 'blocked', reason: 'implementation-missing', owner: 'project-adapter', recheckRef: 'profile:write-case', evidenceRef: 'source:fixture-review' }
+    ] });
+    const result = await probeCapabilities(f.profile, f.file);
+    assert.deepEqual(result.eligibleDemandIds, ['READ']);
+    assert.deepEqual(result.requirements[0].capabilities, ['entry', 'authentication']);
+    const gap = result.requirements[1].gaps.find(g => g.id === 'fixture-authority');
+    assert.equal(gap.reason, 'implementation-missing'); assert.equal(gap.owner, 'project-adapter'); assert.equal(gap.recheckRef, 'profile:write-case');
+    assert.equal(result.requirements[1].gaps.find(g => g.id === 'data-disposition').reason, 'unverified');
+});
+
+test('scoped case evidence cannot certify another demand or case and blocked checks override broad pass labels', async t => {
+    const f = fixture(t);
+    f.profile.capabilityRequirements = [
+        { demandId: 'D', caseId: 'one', role: 'tester', capabilities: ['entry'], rationale: 'case one' },
+        { demandId: 'D', caseId: 'two', role: 'tester', capabilities: ['entry'], rationale: 'case two' },
+        { demandId: 'OTHER', role: 'tester', capabilities: ['entry'] }
+    ];
+    const checks = [{ id: 'entry', demandId: 'D', caseId: 'one', status: 'passed', nonInteractive: true, evidenceRef: 'actual:one' }];
+    f.profile.preflight = async () => ({ cleanupVerified: true, checks });
+    let result = await probeCapabilities(f.profile, f.file);
+    assert.deepEqual(result.requirements.map(r => r.executable), [true, false, false]); assert.deepEqual(result.eligibleDemandIds, []);
+    checks.push({ id: 'entry', demandId: '', status: 'passed', nonInteractive: true, evidenceRef: 'invalid:scope' });
+    result = await probeCapabilities(f.profile, f.file);
+    assert.deepEqual(result.eligibleDemandIds, []);
+    checks.push({ id: 'entry', status: 'passed', nonInteractive: true, evidenceRef: 'actual:shared' });
+    checks.push({ id: 'entry', demandId: 'D', caseId: 'two', status: 'failed', evidenceRef: 'actual:failed' });
+    result = await probeCapabilities(f.profile, f.file);
+    assert.deepEqual(result.eligibleDemandIds, ['OTHER']); assert.equal(result.requirements[1].gaps[0].reason, 'execution-failed');
+});
+
+test('not applicable never grants a required capability and unresolved resources block otherwise eligible cases', async t => {
+    const f = fixture(t);
+    f.profile.capabilityRequirements = [{ demandId: 'D', role: 'tester', capabilities: ['entry'] }];
+    f.profile.preflight = async () => ({ cleanupVerified: true, checks: [{ id: 'entry', status: 'passed', reason: 'not-applicable', nonInteractive: true, evidenceRef: 'review:omission' }] });
+    let result = await probeCapabilities(f.profile, f.file);
+    assert.deepEqual(result.eligibleDemandIds, []); assert.equal(result.requirements[0].gaps[0].reason, 'not-applicable');
+    f.profile.preflight = async () => ({ cleanupVerified: false, checks: [{ id: 'entry', status: 'passed', nonInteractive: true, evidenceRef: 'actual:entry' }] });
+    result = await probeCapabilities(f.profile, f.file);
+    assert.deepEqual(result.requirements[0].missing, []); assert.deepEqual(result.requirements[0].blockers, ['exit-unknown']); assert.deepEqual(result.eligibleDemandIds, []);
+});
+
+test('new requirement metadata needs valid effects and rationale and UI derives owned browser lifecycle', async t => {
+    const f = fixture(t);
+    f.profile.capabilityRequirements[0].effects = 'write';
+    await assert.rejects(probeCapabilities(f.profile, f.file), /rationale/);
+    Object.assign(f.profile.capabilityRequirements[0], { rationale: 'checked', effects: 'readonly' });
+    await assert.rejects(probeCapabilities(f.profile, f.file), /effects/);
+    Object.assign(f.profile.capabilityRequirements[0], { effects: 'read-only', level: 'ui', authentication: 'browser-session' });
+    const result = await probeCapabilities(f.profile, f.file);
+    for (const id of ['browser', 'authentication', 'browser-lifecycle']) assert.ok(result.requirements[0].missing.includes(id));
+});
 test('initial capability probe precedes any run and selects an API subset despite a browser gap', async t => {
     const f = fixture(t), receipt = await probeCapabilities(f.profile, f.file);
     assert.deepEqual(receipt.eligibleDemandIds, ['API']); assert.equal(receipt.cleanupVerified, true); assert.ok(receipt.requirements.find(r => r.demandId === 'UI').missing.includes('browser-lifecycle'));
@@ -47,6 +104,15 @@ test('probe CLI persists and reads back an independent receipt and never overwri
     fs.writeFileSync(f.file, `module.exports = {options:{deadlineAt:Date.now()+2000},capabilityRequirements:[{demandId:'D1',role:'doctor',capabilities:['entry']}],preflight:async()=>({cleanupVerified:true,checks:[{id:'entry',status:'passed',nonInteractive:true,evidenceRef:'actual:entry'}]})};`);
     const result = await main(['--profile', f.file, '--output', output]); assert.deepEqual(result.eligibleDemandIds, ['D1']); assert.equal(JSON.parse(fs.readFileSync(output)).schema, 'night-capability-probe/v1');
     await assert.rejects(main(['--profile', f.file, '--output', output]), /EEXIST/);
+});
+
+test('CLI exposes persisted scoped gap diagnostics without converting unattempted work into an execution failure', async t => {
+    const f = fixture(t), output = path.join(f.root, 'gap.json');
+    fs.writeFileSync(f.file, `module.exports = {options:{deadlineAt:Date.now()+2000},capabilityRequirements:[{demandId:'D',caseId:'C',role:'tester',capabilities:['entry'],rationale:'reviewed case'}],preflight:async()=>({cleanupVerified:true,checks:[{id:'entry',demandId:'D',caseId:'C',status:'blocked',reason:'not-attempted',owner:'project',recheckRef:'profile:C',evidenceRef:'source:review'}]})};`);
+    const result = await main(['--profile', f.file, '--output', output]);
+    assert.deepEqual(result.blockedDemandIds, ['D']); assert.equal(result.gaps[0].caseId, 'C');
+    assert.equal(result.gaps[0].gaps[0].reason, 'not-attempted');
+    assert.deepEqual(result.gaps[0].gaps, JSON.parse(fs.readFileSync(output)).requirements[0].gaps);
 });
 test('real headless initial probe owns the browser and verifies full exit before detailed planning', { skip: !process.env.PLAYWRIGHT_RUNTIME_MODULE && !process.env.REQUIRE_PLAYWRIGHT }, async t => {
     assert.ok(process.env.PLAYWRIGHT_RUNTIME_MODULE, 'An existing locked host runtime is required');

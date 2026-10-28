@@ -220,7 +220,7 @@ node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js
 - `scripts/agent-orchestrator.js`：schema 2.0 事件驱动调度 CLI，生成统一 adapter action，不直接调用产品 API。
 - 异步启动与完成分别通过 ACK/result 消费；可重复验收、按项目配置的空闲心跳与收尾见 [测试运行时](docs/testing-runtime.md)。默认串行可用，真实会话与业务验证独立取证。
 
-BOS 普通与夜跑按需求复用项目已启用的领域插件，支持不同及混合技术栈，入口见 [BOS workflow](workflows/bos-demand.workflow.md#编码体系选择)。通过 `$bos-demand-handle --night` 发起夜跑，在原调度器上显式使用 schema 2.1：按[治理顺序](docs/night-governance.md)先初筛和能力预检，再详细 PLAN、授权、实体规则与监督 worker；联合源码、返修上限、预算/容量/截止、恢复及旧 run 兼容见[夜跑策略](docs/night-policy.md)。[分层验收](docs/night-acceptance.md)区分后端与 UI，最低自检、可交接状态和实际证据等级分别报告；真实项目与宿主试点仍由维护队列取证。
+BOS 普通与夜跑按需求复用项目已启用的领域插件，支持不同及混合技术栈，入口见 [BOS workflow](workflows/bos-demand.workflow.md#编码体系选择)。通过 `$bos-demand-handle --night` 发起夜跑，在原调度器上显式使用 schema 2.1：按[治理顺序](docs/night-governance.md)先基础探测、原预算内补齐项目适配与用例、定向复验，再详细 PLAN、授权、实体规则与监督 worker；联合源码、返修上限、预算/容量/截止、恢复及旧 run 兼容见[夜跑策略](docs/night-policy.md)。[分层验收](docs/night-acceptance.md)区分后端与 UI，最低自检、可交接状态和实际证据等级分别报告；真实项目与宿主试点仍由维护队列取证。
 
 能力不足时按[退出夜跑转受监督串行](workflows/bos-demand-unattended.workflow.md#单-agent-降级)明确转换，保留隔离与原约束；客户端 RPC 诊断沿既有回执记录方法、错误类别和错误码，接口成功、停止确认与资源退出仍分别取证。[通用生命周期预检](docs/night-governance.md#客户端生命周期预检)已进入能力预检入口，启动事件、历史回读、ACK、终态与温和进程退出沿同一回执记录。
 

@@ -31,7 +31,7 @@ async function main(argv = process.argv.slice(2), { createClient } = {}) {
     } }); }
     finally { sealed = true; process.removeListener('SIGINT', cancel); process.removeListener('SIGTERM', cancel); }
     const body = persist(receipt);
-    return { output, sha256: crypto.createHash('sha256').update(body).digest('hex'), eligibleDemandIds: receipt.eligibleDemandIds, blockedDemandIds: [...new Set(receipt.requirements.filter(r => !r.executable).map(r => r.demandId))], cleanupVerified: receipt.cleanupVerified };
+    return { output, sha256: crypto.createHash('sha256').update(body).digest('hex'), eligibleDemandIds: receipt.eligibleDemandIds, blockedDemandIds: [...new Set(receipt.requirements.filter(r => !r.executable).map(r => r.demandId))], gaps: receipt.requirements.filter(r => !r.executable).map(({ demandId, role, caseId, gaps, blockers }) => ({ demandId, role, ...(caseId ? { caseId } : {}), gaps, blockers })), cleanupVerified: receipt.cleanupVerified };
 }
 if (require.main === module) main().then(result => { process.stdout.write(JSON.stringify(result) + '\n'); if (!result.cleanupVerified) process.exitCode = 1; }, () => { process.stderr.write('Capability probe unavailable; inspect the protected project adapter and reconcile probe resources.\n'); process.exitCode = 1; });
 module.exports = { main };
