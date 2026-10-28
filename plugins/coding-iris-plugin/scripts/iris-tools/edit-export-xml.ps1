@@ -30,7 +30,7 @@ $ErrorActionPreference = 'Stop'
 $utf8 = New-Object Text.UTF8Encoding($false, $true)
 $sourceKinds = @('Class', 'Routine', 'CSP', 'CSPBase64')
 
-function Full-Path([string]$Path) { return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path) }
+function Full-Path([string]$Path) { return [IO.Path]::GetFullPath($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)) }
 function Assert-PlainPath([string]$Path) {
     $current = [IO.Path]::GetFullPath($Path)
     while ($current) {

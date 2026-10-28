@@ -26,7 +26,7 @@
 | 更新器全套，PS5.1 / PS7 | 均通过；只用隔离项目，不更新真实工程 |
 | 文档项目链接与目录清单 | 1/1；最终 diff whitespace 检查通过 |
 
-ZIP：`tools/dist/iris-code-export.zip`，SHA-256 `1FB53790DA0BAF135A835878610907178797D012529B3E1EA25A691F0AE40980`。保留原 ZIP 的本机示例，私有内容未写入共享源；ZIP 由 Git 忽略。
+最终 ZIP：`tools/dist/iris-code-export.zip`，SHA-256 `0AE7D92B6DB994978801363543218CD07776BF8F62AF534B4AB408208390685A`。保留原 ZIP 的本机示例，私有内容未写入共享源；ZIP 由 Git 忽略。0.24.0/0.24.1 初轮包摘要保留于对应 Git 历史，短路径修正后已重建并解压复验。
 
 可重跑入口见 `.github/workflows/deployment-protection.yml`；新增专项为 scripts/tests/iris-development-mode.tests.js、iris-development-routing.tests.js、iris-offline-source.tests.cjs。沿 scripts/validation-evidence.js 保存与检查功能 scope 指纹；不要因无关 HEAD 变化重跑完整组。
 
@@ -43,3 +43,9 @@ coding 0.24.0 新能力及 0.24.1 兼容修正、agent-context-kit 0.8.2，七�
 [Deployment CI](https://github.com/SkylerCook/imedical.agents/actions/runs/40703590397) 的 macOS22 日志显示夹具经系统临时目录别名，触发 local-git-required、remote-coordination-link、publication-source-link-changed 等检查。受影响同步/发布/移植与远端测试复用已有 temp-directory helper，规范为物理路径；新增实际 Junction/符号链接对照，显式传给运行时的链接仍拒绝，未放宽安全检查。修正后矩阵结果沿后续 GitHub 回执核对。
 
 同因检查覆盖 Deployment 后续的读取池、MCP、XML/基线及部署夹具。主回归组最终105/105通过；后续组139项通过，读取池15项的清理断言修正后定向通过，与别名对照联检16/16。两处清理钩子的旧变量引用均已修正；不重复无变化的139项，不将各组重叠项累计为唯一用例总数。源码助手、XML打包实现及最终ZIP字节不因本次测试夹具修复变化。
+
+## Windows 8.3 路径最终修正
+
+`8434073` 的 Windows22.5 日志中，ZIP 构建成功，实际失败为两组源码测试的路径误拒绝。本机只读对照确认 Node native realpath 展开 8.3 名称而普通 realpath 保留短名；PowerShell5.1 的 provider path 保留短名而 IO.GetFullPath 展开长名。0.24.2 修正声明目标/物理目标匹配，以及根/子路径的一致比较，未放宽链接、越界或远端权限。
+
+修正后的实际 ZIP + 源码/XML全链路：PS5.1 与 PS7 各37通过、1非Windows项跳过；新增真实8.3源码归属、只读TEMP短名和越界拒绝对照。共享工作区/IRIS上下文及路由11/11通过。完整矩阵等待新回执，未验证医院导入编译与业务验收。已核对版本CI仍只报告既有三份xc发布记录缺 commit 的相同6条错误，不修改不可变历史记录。

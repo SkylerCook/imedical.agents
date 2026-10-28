@@ -30,9 +30,9 @@ function framework(f,mode,extra=[]){
  if(mode==='pack')args.push('--notes-file',f.notes);
  return spawnSync(process.execPath,[...args,...extra],{encoding:'utf8',windowsHide:true,timeout:30000});
 }
-function ps(name,args,withoutTools=false){
+function ps(name,args,withoutTools=false,overrides={}){
  const command='[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false); & '+quote(path.join(tools,name))+' '+args.map(value=>/^-[A-Za-z]+$/.test(value)?value:quote(value)).join(' ')+'; if (-not $?) { exit 1 }';
- const env={...process.env};if(path.basename(shell)==='powershell.exe')env.PSModulePath=path.join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/Modules');
+ const env={...process.env,...overrides};if(path.basename(shell)==='powershell.exe')env.PSModulePath=path.join(process.env.SystemRoot,'System32/WindowsPowerShell/v1.0/Modules');
  let executable=shell;
  if(withoutTools){const where=spawnSync('where.exe',[shell],{encoding:'utf8',windowsHide:true});assert.equal(where.status,0,where.stderr);executable=where.stdout.trim().split(/\r?\n/)[0];env.PATH=path.join(process.env.SystemRoot,'System32');}
  return spawnSync(executable,['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-EncodedCommand',Buffer.from(command,'utf16le').toString('base64')],{env,encoding:'utf8',windowsHide:true,timeout:30000});
@@ -40,6 +40,16 @@ function ps(name,args,withoutTools=false){
 function passed(r){assert.equal(r.status,0,r.stderr||r.stdout);return JSON.parse(r.stdout);}
 test('framework source helper exposes local help on every platform',()=>{
  const r=spawnSync(process.execPath,[path.join(tools,'source-delivery.js'),'--help'],{encoding:'utf8'});assert.equal(r.status,0,r.stderr);assert.match(r.stdout,/Local only/);
+});
+test('Windows short source aliases map to the same declared Git root',{skip:!windows||!fs.existsSync('C:/PROGRA~1')},()=>{
+ const alias='C:/PROGRA~1',physical=fs.realpathSync.native(alias),source={target:path.resolve(alias),gitRoot:path.resolve(alias)};
+ const resolve=require('../lib/workspace-context').resolveGitRootForPath;
+ assert.strictEqual(resolve({sourceRoots:[source]},path.join(physical,'sample.cls')),source);
+ assert.throws(()=>resolve({sourceRoots:[source]},path.join(path.parse(physical).root,'outside-scope.cls')),/not inside/);
+});
+test('PowerShell scope checks normalize an 8.3 TEMP alias without writing to it',{skip:!windows||!fs.existsSync('C:/PROGRA~1')},t=>{
+ const f=fixture(t);passed(ps('source-delivery.ps1',['-Mode','Prepare','-SourceDirectory',f.code,'-OriginalDirectory',f.original,'-BatchId','short-path','-ScopeFile',f.scope,'-BaselineDirectory',f.baseline],false,{TEMP:'C:\\PROGRA~1',TMP:'C:\\PROGRA~1'}));
+ assert.deepEqual(fs.readFileSync(path.join(f.baseline,f.a)),f.before);
 });
 test('non-Windows packaging stops explicitly before creating a baseline',{skip:windows},t=>{
  const f=fixture(t),r=framework(f,'prepare');assert.equal(r.status,1);assert.match(r.stderr,/source-delivery-windows-required/);assert.equal(fs.existsSync(f.baseline),false);

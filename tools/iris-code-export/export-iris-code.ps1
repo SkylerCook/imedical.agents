@@ -127,7 +127,7 @@ try {
     $inputFile = $Baseline
     if ($PSCmdlet.ParameterSetName -eq 'List') { $inputFile = $ListFile }
     $baselinePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($inputFile)
-    $root = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory).TrimEnd('\', '/')
+    $root = [IO.Path]::GetFullPath($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory)).TrimEnd('\', '/')
     if ($root -eq [IO.Path]::GetPathRoot($root).TrimEnd('\', '/')) { throw 'output-must-not-be-volume-root' }
     Assert-PlainPath $baselinePath
     Assert-PlainPath $root

@@ -32,7 +32,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $utf8 = New-Object Text.UTF8Encoding($false,$true)
 $temporary = $null
-function Full-Path([string]$Path) { return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path) }
+function Full-Path([string]$Path) { return [IO.Path]::GetFullPath($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)) }
 function Assert-Plain([string]$Path) {
     $part = [IO.Path]::GetFullPath($Path)
     while ($part) {

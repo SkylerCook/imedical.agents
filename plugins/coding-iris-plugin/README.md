@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+0.24.2：统一 Windows 8.3 短路径与长路径的比较，修复源码 Git 归属及独立源码/XML交付误报越界。共享根解析接受已声明目标的物理等价路径，PowerShell 根与子路径使用同一规范化方式；逃逸和链接保护保持。正常更新取得修复，人工 ZIP 重建取入同一核心；无业务配置或旧回执改写。
+
 0.24.1：前后端专项入口恢复帮助优先于开发方式与业务前置的顺序；帮助只展示协议后结束，正常执行仍先分流 developmentMode。同步回归夹具复用物理临时目录，兼容 macOS 系统临时路径别名，运行时的链接保护保持。普通更新取得 source 修正，已有 thin-index 继续指向同一 owner；无配置迁移或旧文件清理。
 
 0.24.0：[开发方式与离线交付](references/iris-offline-development.md)独立使用 `ContextRoot/config/iris-development.json` 的 developmentMode，不新增 contextMode。offline 提前阻断受管医院连接，connected 保留原同步、准入和发布；缺省旧行为不变，非法值停止。源码助手迁入插件唯一实现，支持回执/人工目录、真实 Git 归属与范围冻结；XML 编辑对象在源码 Git、冻结原包在私有任务区，均经 Review、Pack 和独立 Verify 后待现场验收。人工 ZIP 从同一助手构建，无 Node/框架运行依赖。完整更新能力包并刷新 ContextRoot，再由授权维护补齐开发方式；普通更新不改配置、连接、锁或旧任务，不自动迁移旧基线。

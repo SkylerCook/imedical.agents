@@ -305,10 +305,12 @@ function workspaceContextBlockers(context) {
 function resolveGitRootForPath(context, filePath) {
   const file = normalizePath(filePath);
   const matches = context.sourceRoots
-    .filter((sourceRoot) => isPathWithin(file, sourceRoot.target))
-    .sort((left, right) => right.target.length - left.target.length);
+    .flatMap(sourceRoot => [...new Set([sourceRoot.target,
+      fs.existsSync(sourceRoot.target) ? fs.realpathSync.native(sourceRoot.target) : sourceRoot.target])]
+      .filter(root => isPathWithin(file, root)).map(root => ({sourceRoot, root})))
+    .sort((left, right) => right.root.length - left.root.length);
   if (!matches.length) throw new Error(`Path is not inside a declared source root: ${file}`);
-  return matches[0];
+  return matches[0].sourceRoot;
 }
 
 

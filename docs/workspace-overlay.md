@@ -64,6 +64,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\CodeSpace\GIT\Gitlab\
 
 ### SourceRoot：引用已有源码或持有本地源码
 
+Windows 的 8.3 短名与长名可能指向同一目录。共享 GitRoot 映射同时核对声明目标及其物理等价路径，避免已解析的真实源码被误判越界；这不登记新的源码范围，也不放宽逃逸或链接保护。完整更新共享 CapabilityRoot 后刷新 ContextRoot 取得修正。
+
 - 规范化后的 `path != target`：保持原有链接式声明，逻辑入口必须是精确指向 `target` 的 Junction。已有模块 manifest 不需要修改。
 - 规范化后的 `path == target`：声明工作区自己的实体源码目录。例如下列声明只有一个 `code/` 目录，其中保存本地 Git；不再需要并列别名。保持 `schemaVersion: 1`，不新增工作区模式。
 

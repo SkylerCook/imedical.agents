@@ -33,7 +33,7 @@ param(
 )
 $ErrorActionPreference='Stop'
 $utf8=New-Object Text.UTF8Encoding($false,$true)
-function Full-Path([string]$Path) { return $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path) }
+function Full-Path([string]$Path) { return [IO.Path]::GetFullPath($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)) }
 function Hash-Bytes([byte[]]$Bytes) {
     $sha=[Security.Cryptography.SHA256]::Create()
     try { return ([BitConverter]::ToString($sha.ComputeHash($Bytes))).Replace('-','').ToLowerInvariant() } finally { $sha.Dispose() }
@@ -46,6 +46,7 @@ function Plain-Path([string]$Path) {
     }
 }
 function Join-Safe([string]$Root,[string]$Relative) {
+    $Root=[IO.Path]::GetFullPath($Root)
     if(-not $Relative -or [IO.Path]::IsPathRooted($Relative) -or $Relative.Contains('\')){throw 'unsafe-source-path'}
     foreach($segment in $Relative.Split('/')) {
         if(-not $segment -or $segment -in @('.','..') -or $segment -match '[<>:"|?*\x00-\x1f]' -or $segment -match '[. ]$' -or $segment -match '^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])($|\.)'){throw 'unsafe-source-path'}

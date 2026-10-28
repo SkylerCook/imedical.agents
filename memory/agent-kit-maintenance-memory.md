@@ -4,7 +4,7 @@
 
 ## 当前接手
 
-- IRIS 开发方式独立于 contextMode，配置与兼容顺序见[离线协议](../plugins/coding-iris-plugin/references/iris-offline-development.md)和更新 runbook；源码助手已从独立工具提交基线迁入 coding owner 唯一实现。帮助先于模式与业务前置。新任务绑定批次/范围与实际源码 Git，XML 原包私有保存；旧任务原位恢复，不更新业务副本或把本地 Verify 当现场验收。首轮CI与帮助兼容修正见日志，矩阵余项沿backlog取证。
+- IRIS 开发方式独立于 contextMode，配置与兼容顺序见[离线协议](../plugins/coding-iris-plugin/references/iris-offline-development.md)和更新 runbook；源码助手已从独立工具提交基线迁入 coding owner 唯一实现。帮助先于模式与业务前置；Windows短名/长名比较修正见日志。新任务绑定批次/范围与实际源码 Git，XML 原包私有保存；旧任务原位恢复，不更新业务副本或把本地 Verify 当现场验收。首轮CI与帮助兼容修正见日志，矩阵余项沿backlog取证。
 
 - Overlay 实体 SourceRoot 的源仓扩展见 [runbook](../docs/workspace-overlay.md#sourceroot引用已有源码或持有本地源码)与维护日志；path/target 相同声明实体目录，旧 Junction 保持。先更新共享 capability 再按项目授权接入，不自动迁移医院源码或把离线工具已在源仓等同已部署。
 

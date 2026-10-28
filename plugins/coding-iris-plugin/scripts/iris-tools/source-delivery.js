@@ -9,7 +9,12 @@ const workspace = require('../../../../scripts/lib/workspace-context');
 const development = require('../../../../scripts/lib/iris-remote-operations');
 const HELP = 'source-delivery.js prepare|pack|verify|xml-unpack|xml-pack|xml-verify --project-root <workspace> (--source-directory <editable-root> | --export-directory <export-root>) --baseline-directory <ContextRoot/work/task/baseline> [--original-directory <incoming-root> --batch-id <batch> --scope-file <files.json>] [--input-xml <incoming.xml>] [--out <delivery-directory> --notes-file <notes.md>] [--allow-partial] [--powershell powershell.exe|pwsh.exe]\nLocal only. Scope JSON: {"files":["relative/source.cls"]}; XML scope uses objects/000001.xml. Prepare/Unpack binds a declared SourceRoot/GitRoot; Pack/Verify reuse the frozen scope. No Git commits, hospital connections or object creation/deletion/renaming. PowerShell implementation requires Windows.';
 function fail(code) { throw new Error(code); }
-function within(root, file) { const relative = path.relative(root, file); return !relative || relative !== '..' && !relative.startsWith('..'+path.sep) && !path.isAbsolute(relative); }
+function physical(file) {
+  let probe=path.resolve(file);const suffix=[];
+  while(!fs.existsSync(probe)){const parent=path.dirname(probe);if(parent===probe)fail('path-root-unavailable');suffix.unshift(path.basename(probe));probe=parent;}
+  return path.join(fs.realpathSync.native(probe),...suffix);
+}
+function within(root, file) { const relative = path.relative(physical(root), physical(file)); return !relative || relative !== '..' && !relative.startsWith('..'+path.sep) && !path.isAbsolute(relative); }
 function same(left,right) { return process.platform === 'win32' ? left.toLowerCase() === right.toLowerCase() : left === right; }
 function git(root, args, optional=false, raw=false) {
   const r=spawnSync('git',['--no-optional-locks','-C',root,...args],{encoding:'utf8',windowsHide:true,timeout:15000,maxBuffer:64*1024*1024});
