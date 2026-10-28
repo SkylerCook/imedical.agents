@@ -24,6 +24,8 @@ description: Route IRIS coding requests with unclear frontend/backend boundaries
 
 ## 修改前
 
+先读取当前 ContextRoot 的 `config/iris-development.json`：`developmentMode: offline` 直接按[离线开发协议](../../references/iris-offline-development.md)处理人工源码或完整 XML，本地修改/检查/Review/交付后等待用户现场验证；禁止医院远端读取、执行与部署，也不调用原生 IRIS MCP。缺省或 `connected` 才执行下面的在线条件；未知值停止核对，普通更新不自动切换模式。
+
 当前需求类型为 `project` 且 `contextMode: intent-first-on-demand-export` 时，先读[项目开发协议](../../references/project-demand-development.md)，在需求范围内建立/刷新基线并保护现场；该分支优先于下列默认 direct。类型由用户本次指定或合法项目默认值确定，不能由 contextMode 推导；标版沿既有分支，后续均读取命中的专项规则。
 
 1. 读取目标工程 `.agents/config/iris_project_profile.md`、`.agents/config/plugin_profile.md`、[规则索引](../../rules/iris_coding_index.md)和[通用规则](../../rules/iris_coding_general.md)。复用仍持有且未变化的内容。

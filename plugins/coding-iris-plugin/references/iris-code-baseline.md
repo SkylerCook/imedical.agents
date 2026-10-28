@@ -4,6 +4,8 @@
 
 ## 命令入口
 
+先解析当前 `ContextRoot/config/iris-development.json` 的 developmentMode：offline 只做本地清单、状态和[离线交付](iris-offline-development.md)，不进入医院采集或资格检查；connected（含旧配置缺省）才继续远端分支，非法值停止。
+
 现场完整源码 XML 带回后可按[本地 AI 修改与回包流程](iris-offline-development.md)处理；此分支不连接现场实例。人工 TXT/XML 清单导出独立归源仓 tools/iris-code-export/，交付无框架依赖的 ZIP，不属于下面的受管采集，也不自动建立项目开发基线。
 
 ```text

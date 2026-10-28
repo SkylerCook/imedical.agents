@@ -14,14 +14,14 @@ related:
 
 本索引只负责按任务找到规则；完整门禁由对应 owner 维护。仍持有且未变化的资料可复用。
 
-`project_context_profile.md` 为 `intent-first-on-demand-export` 时，需求编码/补源码/部署先读[项目开发协议](../references/project-demand-development.md)；该模式的同步、准入与冻结发布优先于默认 direct。
+先读取 `ContextRoot/config/iris-development.json`：`developmentMode: offline` 进入[离线开发与交付协议](../references/iris-offline-development.md)，不读取医院连接或调用原生 MCP。仅 connected（含旧配置缺省）继续判断 `contextMode`：`intent-first-on-demand-export` 的 project 需求先读[项目开发协议](../references/project-demand-development.md)，同步、准入与冻结发布优先于默认 direct；非法开发方式停止。
 
 ## 必读顺序
 
 1. 目标工程 `AGENTS.md`
 2. `.agents/config/iris_project_profile.md`
 3. 本索引、通用编辑安全和任务对应规则文件
-4. 目标工程 `.mcp.json`，仅当任务涉及 MCP、上传、编译、远程读取或 SQL 验证
+4. 目标工程 `.mcp.json`，仅在 connected 且任务涉及 MCP、上传、编译、远程读取或 SQL 验证时读取
 
 ## 规则入口
 

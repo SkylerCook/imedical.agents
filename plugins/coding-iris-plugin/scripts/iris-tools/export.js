@@ -89,6 +89,7 @@ if (!fileIdentifier) {
 
 // Load configuration
 const workspaceContext = resolveWorkspaceContext(process.cwd());
+require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(workspaceContext);
 const workspaceRoot = workspaceContext.workspaceRoot;
 const configPath = path.join(workspaceContext.contextRoot, 'config', 'project-env.json');
 const profilePath = path.join(workspaceContext.contextRoot, 'config', 'iris_project_profile.md');

@@ -7,7 +7,7 @@ description: Use when an IRIS project needs remote deployment planning, upload, 
 
 帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
 
-已确认 `project` 需求且 `contextMode: intent-first-on-demand-export` 时，先读[项目开发协议](../../references/project-demand-development.md)，执行部署前服务器同步、合并复审和 source plan 冻结；正式发布决定绑定当前冻结摘要。不能从 contextMode 推导需求类型；标版沿既有分支，公共 License 准入仍适用。传输模式不能绕过项目发布门禁。
+先解析当前 `ContextRoot/config/iris-development.json` 的 `developmentMode`：offline 转入[离线开发与交付](../../references/iris-offline-development.md)，只打包和独立 Verify，不执行医院连接或部署。connected（含旧配置缺省）继续：`project` + `intent-first-on-demand-export` 先读[项目开发协议](../../references/project-demand-development.md)，同步、合并复审和 source plan 冻结；正式发布决定绑定冻结摘要。非法开发方式停止，标版沿既有分支，传输模式不能绕过发布门禁或产生权限。
 
 ## 核心边界
 

@@ -6,6 +6,8 @@
 
 ## 命令入口
 
+先解析当前 `ContextRoot/config/iris-development.json` 的 developmentMode：offline 不执行医院 XML 导出，已有实际源码或完整 XML 按[离线交付](iris-offline-development.md)处理；connected（含旧配置缺省）继续，非法值停止。本地清单比较和帮助无需医院连接。
+
 下列命令从已解析的 CapabilityRoot 定位脚本，`<...>` 替换为目标项目参数。先准备确认清单，最小结构为 `{"items":[{"name":"Example.Sample","type":"CLS"}]}`；Web／图片条目使用已核对的完整文档名和 `type: "CSP"`。`xml-scope.js` 的 items 与此结构共用。
 
 ```text

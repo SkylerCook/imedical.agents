@@ -2,6 +2,8 @@
 
 ## 触发与入口
 
+先从当前 ContextRoot 的 `config/iris-development.json` 读取 `developmentMode`，缺省沿旧 `connected` 行为。`offline` 优先进入[离线开发协议](iris-offline-development.md)，不执行本文的服务器同步、资格、冻结发布或远端验收，也不读取医院连接。只有 `connected` 才继续下表；它不产生任何远端授权。开发方式、需求类型和上下文完整性分别判断，不能由缺少连接自动降级为离线。
+
 先按当前用户指定的需求类型，其次按项目已确认的“默认需求交付类型”选择分支。`standard`／`project` 是需求类型，`contextMode` 是源码上下文模式，`taskKind` 是业务／框架任务分类，执行路径与操作授权另行判断，彼此不能推导。
 
 | 已确认条件 | 处理分支 |

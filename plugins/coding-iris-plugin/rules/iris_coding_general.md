@@ -8,6 +8,8 @@ task-affinity: [iris, coding, safety, editing]
 
 本文保存跨语言、跨模块通用的编辑约束。前端、后端和部署任务还必须读取各自专项规则。
 
+先读取当前 `ContextRoot/config/iris-development.json` 的 `developmentMode`。`offline` 统一执行[离线开发与交付协议](../references/iris-offline-development.md)，只用已接收材料和本地验证，禁止医院读取、原生 MCP 与远端操作；`connected` 或旧配置缺省时继续既有分支，非法值停止 IRIS 流程。开发方式不改变 `contextMode`、需求类型或授权。
+
 ## 统一任务分流
 
 所有通用、前端、后端和 i18n 编码入口使用本节，不复制另一套判定。
@@ -40,7 +42,7 @@ task-affinity: [iris, coding, safety, editing]
 - 保留原文件编码、换行风格和特殊 EOF。
 - 历史 CSP/JS/CSS/ObjectScript 文件避免整文件重写，优先局部补丁。
 - 生成或移动文件时遵循目标工程 profile 的目录与命名约定。
-- 本地缺少远程已有实现时，可用 MCP 只读读取远程内容补上下文，再按需落本地做增量修改。
+- connected 分支本地缺少远程已有实现时，可用 MCP 只读读取远程内容补上下文，再按需落本地做增量修改；offline 分支列出缺失材料交由用户现场补充。
 - 删除文件、批量覆盖、大范围同步、数据库变更等高风险操作必须先取得用户明确确认。
 
 ## 默认方法与质量建议

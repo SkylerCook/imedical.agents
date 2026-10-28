@@ -20,6 +20,28 @@ function contextMode(context = {}) {
     return text.match(/^\s*[-*]?\s*`?contextMode`?\s*[:：=]\s*`?([a-z-]+)/m)?.[1] || null;
   } catch (error) { if (error.code === 'ENOENT') return null; stop('remote-context-unreadable'); }
 }
+function developmentSettings(context = {}) {
+  const root = context.contextRoot || path.join(context.workspaceRoot || process.cwd(), '.agents');
+  let declaration;
+  try { declaration = readJson(path.join(root, 'config', 'iris-development.json')); }
+  catch (error) {
+    if (error.code === 'ENOENT') return {mode: 'connected', explicit: false};
+    stop('development-mode-invalid');
+  }
+  if (!declaration || typeof declaration !== 'object' || Array.isArray(declaration)) stop('development-mode-invalid');
+  if (!Object.hasOwn(declaration, 'developmentMode')) return {mode: 'connected', explicit: false};
+  if (!['connected', 'offline'].includes(declaration.developmentMode)) stop('development-mode-invalid');
+  return {mode: declaration.developmentMode, explicit: true};
+}
+function developmentMode(context = {}) { return developmentSettings(context).mode; }
+function assertRemoteAllowed(context = {}) {
+  if (developmentMode(context) === 'offline') stop('offline-development-remote-disabled');
+}
+// Missing declarations retain the exact legacy configuration fingerprint.
+function bindDevelopmentMode(context, configuration) {
+  const selected = developmentSettings(context);
+  return selected.explicit ? {...configuration, developmentMode: selected.mode} : configuration;
+}
 function instanceIdentity(connection = {}) {
   const host = connection.hostname || connection.host || connection.IRIS_HOST;
   const port = connection.port || connection.IRIS_WEB_PORT;
@@ -43,6 +65,7 @@ function validQualificationGrant(grant, connection) {
   return true;
 }
 function loadRemotePolicy(context = {}, { connection, policy, qualification } = {}) {
+  assertRemoteAllowed(context);
   const required = contextMode(context) === 'intent-first-on-demand-export';
   const contextRoot = context.contextRoot || path.join(context.workspaceRoot || process.cwd(), '.agents');
   let value = policy;
@@ -168,6 +191,7 @@ function createRemoteOperation({ policy = { enabled: false }, connection, channe
   return { acquire, run, markUnknown, checkpointBatch, tripCircuit, close, snapshot: () => ({ ...evidence, pendingOperation: active }) };
 }
 async function withRemoteOperation(options, callback) {
+  assertRemoteAllowed(options.context || {});
   const policy = options.policy || loadRemotePolicy(options.context || {}, { connection: options.connection });
   const owner = createRemoteOperation({ ...options, policy });
   try { return await owner.run(options, () => callback(owner)); }
@@ -193,6 +217,20 @@ function poolStatus({policy}) {
   return {schema: 'iris-remote-status/v1', status: state?.status || 'ready', reason: state?.reason || null,
     ownerPresent: !!owner, ownerAlive, pendingEffects: state?.inFlight?.effects || null,
     reconciliationToken: digest(JSON.stringify({state, owner}))};
+}
+function localPoolStatus(context = {}) {
+  const mode = developmentMode(context);
+  const root = context.contextRoot || path.join(context.workspaceRoot || process.cwd(), '.agents');
+  let policy;
+  try { policy = readJson(path.join(root, 'config', 'iris-remote-policy.json')); }
+  catch (error) {
+    if (error.code === 'ENOENT') return {schema: 'iris-remote-status/v1', status: 'unconfigured', developmentMode: mode, ownerPresent: false};
+    stop('remote-policy-invalid');
+  }
+  if (!policy || policy.schema !== 'iris-remote-policy/v1' || !path.isAbsolute(policy.coordinationRoot || '') ||
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(policy.poolKey || '')) stop('remote-policy-invalid');
+  // Status only reads existing coordination files; it cannot grant admission or release a lock.
+  return {...poolStatus({policy: {...policy, enabled: true}}), developmentMode: mode};
 }
 function createRecoveryReadOperation({policy, connection, token, confirmRecovery = false, documents} = {}) {
   const files = poolFiles(policy);
@@ -302,4 +340,4 @@ function reconcileRemotePool({policy, token, evidenceFile, confirm = false, writ
     return {schema:'iris-remote-reconciliation/v1',status:'reconciled',licenseReleaseVerified:false};
   } finally { fs.closeSync(descriptor); fs.unlinkSync(recoveryLock); }
 }
-module.exports = { RemoteOperationError, contextMode, instanceIdentity, targetIdentity, validQualificationGrant, loadRemotePolicy, createRemoteOperation, createRecoveryReadOperation, withRemoteOperation, poolStatus, reconcileRemotePool };
+module.exports = { RemoteOperationError, contextMode, developmentMode, assertRemoteAllowed, bindDevelopmentMode, localPoolStatus, instanceIdentity, targetIdentity, validQualificationGrant, loadRemotePolicy, createRemoteOperation, createRecoveryReadOperation, withRemoteOperation, poolStatus, reconcileRemotePool };

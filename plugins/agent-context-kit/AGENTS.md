@@ -30,6 +30,8 @@
 
 Overlay 源码入口支持 Junction 与工作区实体目录，交接及宿主适配复用共享 workspace 校验；声明、Git 归属及旧入口迁移按能力包根 `docs/workspace-overlay.md` 的 SourceRoot 契约执行。
 
+IRIS 项目启用 coding owner 时，开发方式由当前 `ContextRoot/config/iris-development.json` 的 `developmentMode` 独立声明，profile 只引用，不增加 contextMode 值。初始化按明确事实选 connected/offline，无法判断只询问一次；offline 不要求连接或环境资格，不生成医院连接。已有文字离线约定由授权维护补齐机器配置，普通更新不自动切换或迁移旧任务；路由复用 coding owner 的离线协议。
+
 不要在本插件中保存密钥、服务器凭据、一次性命令输出或源项目业务细节。
 
 ## Skills

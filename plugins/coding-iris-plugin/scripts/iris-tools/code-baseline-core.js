@@ -221,7 +221,9 @@ function recoverWrite(plan, item) {
     delete item.writeIntent;
 }
 async function capture(planFile, options = {}) {
-    const plan = load(planFile), source = assertSource(plan);
+    const plan = load(planFile);
+    require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(contextFor(plan.workspaceRoot));
+    const source = assertSource(plan);
     if (!['planned', 'reading', 'partial', 'interrupted', 'accepted-partial', 'blocked'].includes(plan.state)) stop('baseline-state-not-capturable');
     if (plan.state !== 'planned' && options.resume !== true) stop('baseline-resume-required');
     const release = acquirePlanLock(plan, options.resume === true);
@@ -276,7 +278,9 @@ async function capture(planFile, options = {}) {
 }
 function status(file) { return summary(load(file)); }
 async function qualify(planFile, options = {}) {
-    const plan = load(planFile), source = assertSource(plan), budgetMs = options.budgetMs;
+    const plan = load(planFile);
+    require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(contextFor(plan.workspaceRoot));
+    const source = assertSource(plan), budgetMs = options.budgetMs;
     if (plan.state !== 'planned' || options.confirm !== true || !Number.isInteger(budgetMs) || budgetMs < 1 || budgetMs > 3600000 || !plan.items.length) stop('baseline-qualification-budget-required');
     const pool = require('../../../../scripts/lib/atelier-read-pool');
     const connection = require('./compile-csp').connection(source.config, source.mcp);

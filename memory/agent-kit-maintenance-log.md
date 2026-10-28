@@ -1,5 +1,13 @@
 # imedical.agents 维护日志
 
+## 2026-10-28 IRIS 开发方式与离线交付闭环
+
+- framework-maintenance：developmentMode 独立于 contextMode，由当前 ContextRoot/config/iris-development.json 唯一声明。共享解析与受管远端拦截先于连接读取，缺省旧行为和在线门禁保留；本地旧 plan status/verify 不读连接，恢复远端仍核对配置漂移与未知结果，切换不清锁。
+- 按用户选择等待独立工具提交 adf2490 后，将源码助手迁入 coding owner 唯一实现，人工 ZIP 构建复用；支持无回执目录、明确批次/范围与真实源码 Git 绑定，原回执字节和未知字段保留。XML 对象进入源码 Git，原包与恢复快照私有保存；只交付已收到对象的实际修改，经 Review、本地检查、Pack 和独立 Verify 后待现场验收。
+- coding 0.24.0、agent-context-kit 0.8.2 及七个直接依赖 patch/范围/发布记录同步。owner、规则索引、Agent/workflow、初始化模板、手册和更新说明已对齐；普通更新不切换业务配置、不迁移源码或旧任务，整个 tools 仍不部署。
+- Windows Node24：在线两组 132 通过/1 浏览器跳过、109/109；最终旧 plan/发布复验 43/43，开发方式/远端 21/21，路由/分发 11/11，文档 1/1；最终实际 ZIP 的 PS5.1/PS7 各35/35，源码专项各9通过/1平台项跳过，更新器双宿主通过。组间重叠不累加；证据、ZIP 摘要及实际边界见[验证记录](../maintenance/validation/iris-offline-development-2026-10-28.md)。
+- 完整版本审计对照 HEAD 无新增问题，保留三份旧 xc 发布记录的相同6条错误；提交按实际暂存区门禁。非 Windows/Node22 矩阵、真实宿主与医院验证沿既有P1/P2待验；源仓实现不代表业务副本已升级。用户随后明确“优化完c+p”，本轮精确提交并核对完整出站范围；实际提交/推送以Git回执为准。
+
 ## 2026-10-28 夜跑项目准备与逐用例预检
 
 - framework-maintenance：在既有准备流程明确基础探测、原预算内补齐项目适配和新用例、定向复验后定稿 PLAN；保留已确认降级、原 run/预算/截止及未知资源，不新增调度器或准备状态库。共享源只记录通用契约，项目私有事实未带入。

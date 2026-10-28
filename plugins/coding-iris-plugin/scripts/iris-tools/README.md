@@ -6,6 +6,10 @@
 
 这些 Node.js 脚本用于生成部署清单、从 IRIS 服务器导出文件、编译类文件、调试方法调用以及同步环境配置。
 
+开发方式由当前 ContextRoot 的 `config/iris-development.json` 独立声明。offline 的受管远端入口在连接配置与客户端启动前停止；本地帮助、状态、分析、Review、源码/XML 打包保持可用。connected（含旧配置缺省）保留原同步、准入与发布保护；非法值停止。原生 MCP/外部 IDE 不在脚本机器拦截范围，Agent 仍禁止离线调用。详见[离线协议](../../references/iris-offline-development.md)。
+
+本地交付统一入口 `source-delivery.js prepare|pack|verify|xml-unpack|xml-pack|xml-verify --help` 校验真实 SourceRoot/GitRoot、输入批次和冻结范围。源码打包唯一实现为同目录 `source-delivery.ps1`；人工 ZIP 从这里取入，旧独立参数保持。XML 复用 `edit-export-xml.ps1`，新增私有 BaselineDirectory 与工作区绑定，旧任务原位恢复。两个 PowerShell 核心可独立运行，无 Node/框架/联网依赖；当前打包要求 Windows PowerShell 5.1 或 Windows 上的 PowerShell 7。
+
 已确认 `project` 需求且采用 `intent-first-on-demand-export` 时先读[项目开发协议](../../references/project-demand-development.md)，以 `source-sync.js` 管理范围、服务器基线、现场和复审；下文原始 export/direct 用法不替代该分支门禁。`standard` 沿既有流程，contextMode 不决定类型。`source-sync.js --help` 是操作参数入口，plan 本地只读，prepare 才读取服务器，提交与发布分别核对授权；无变化不建 export 或空提交。
 
 受管 Atelier 生命周期复用同一 client/Cookie 并串行执行，503 不重试，未知写保留断点。根 `scripts/iris-mcp.js` 接入公共 tools/call 准入，根 `scripts/iris-remote.js` 提供本地 status/reconcile 和显式受限 inspect；原生 MCP/IDE 和其它客户端不因此自动受控。按需上下文的已接入远端通道需 verified 私有策略、严格 TLS 及适用退出资格，真实 License 占用/回落不能由 keepalive、logout 回执或进程退出推定。

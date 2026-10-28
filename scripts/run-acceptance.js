@@ -21,6 +21,7 @@ function workCases(profile, manifest, item) {
     return cases;
 }
 async function runAcceptance(profile, execution = {}) {
+    require('./lib/iris-remote-operations').assertRemoteAllowed(require('./lib/workspace-context').resolveWorkspaceContext(execution.workspaceRoot || profile.options?.projectRoot || process.cwd()));
     if (!Array.isArray(profile.cases) || !profile.cases.length) throw new Error('Nonempty cases required');
     const lifecycle = execution.managed || managed;
     const binding = lifecycle.begin({ projectRoot: execution.workspaceRoot || profile.options.projectRoot || process.cwd(), ...execution, phase: 'verification', artifacts: [] });
@@ -71,6 +72,7 @@ async function runAcceptance(profile, execution = {}) {
 }
 function safeStage(stage) { return ['entry', 'authentication', 'browser-start', 'context-start', 'adapter-create', 'target', 'prepare', 'verifyVersion', 'execute', 'assert', 'sideEffects', 'observation-review', 'case-cleanup', 'context-close', 'browser-close', 'preflight', 'configuration'].includes(stage) ? stage : 'operation'; }
 async function runPreflight(profile, profileFile, runDirectory, execution = {}) {
+    require('./lib/iris-remote-operations').assertRemoteAllowed(require('./lib/workspace-context').resolveWorkspaceContext(execution.workspaceRoot || profile.options?.projectRoot || process.cwd()));
     if (!runDirectory || typeof profile.preflight !== 'function') throw new Error('Night preflight requires --run-directory and project preflight adapter');
     const lifecycle = execution.managed || managed;
     lifecycle.preflightStart(path.resolve(runDirectory), path.resolve(profileFile));
@@ -105,6 +107,8 @@ async function runPreflight(profile, profileFile, runDirectory, execution = {}) 
     return { ...receipt, state: night.preflight.state, issues: night.preflight.issues, evidenceFile: file };
 }
 async function main(argv = process.argv.slice(2)) {
+    if (argv.includes('--help')) { console.log('Usage: run-acceptance.js --profile <project module> [--preflight --run-directory <run>] [--work-item <id> --environment-alias <alias>]'); return 0; }
+    require('./lib/iris-remote-operations').assertRemoteAllowed(require('./lib/workspace-context').resolveWorkspaceContext(process.cwd()));
     const args = {}, keys = { '--profile': 'profile', '--run-directory': 'runDirectory', '--work-item': 'workItemId', '--environment-alias': 'environmentAlias' };
     for (let i = 0; i < argv.length; i++) {
         if (argv[i] === '--preflight') args.preflight = true;
@@ -130,5 +134,5 @@ async function main(argv = process.argv.slice(2)) {
         return result.status === 'scope-passed' || result.state === 'ready' ? 0 : 1;
     } finally { process.removeListener('SIGINT', cancel); process.removeListener('SIGTERM', cancel); }
 }
-if (require.main === module) main().then(code => { process.exitCode = code; }, () => { process.stderr.write('Acceptance runner failed; inspect protected project diagnostics and reconcile unfinished operations.\n'); process.exitCode = 1; });
+if (require.main === module) main().then(code => { process.exitCode = code; }, error => { process.stderr.write(['offline-development-remote-disabled', 'development-mode-invalid'].includes(error.code) ? error.code + '\n' : 'Acceptance runner failed; inspect protected project diagnostics and reconcile unfinished operations.\n'); process.exitCode = 1; });
 module.exports = { runAcceptance, runPreflight, main, safeStage, createAcceptanceWorker: options => require('./lib/acceptance-worker').createAcceptanceWorker(options) };

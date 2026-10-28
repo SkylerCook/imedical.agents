@@ -19,7 +19,12 @@ param(
     [string]$InputXml,
     [Parameter(Mandatory = $true)][string]$WorkDirectory,
     [string]$OutputDirectory,
-    [string]$NotesFile
+    [string]$NotesFile,
+    [string]$BaselineDirectory,
+    [string]$WorkspaceBinding,
+    [string]$BatchId,
+    [string]$ScopeFile,
+    [string]$WorkspaceEvidence
 )
 $ErrorActionPreference = 'Stop'
 $utf8 = New-Object Text.UTF8Encoding($false, $true)
@@ -166,16 +171,38 @@ function Verify-Delivery([string]$Directory, $Template, [string]$TemplateHash) {
 }
 
 $root = Full-Path $WorkDirectory; Assert-PlainPath $root
+$base = $root
+if ($BaselineDirectory) { $base = Full-Path $BaselineDirectory; Assert-PlainPath $base; if ($base -eq $root -or $base.StartsWith($root.TrimEnd('\','/') + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'baseline-must-be-outside-editable-xml' } }
+$bindingHash = $null
+if ($WorkspaceBinding) {
+    if (-not $BaselineDirectory) { throw 'private-baseline-required' }
+    try { $bindingBytes = [Convert]::FromBase64String($WorkspaceBinding); $binding = $utf8.GetString($bindingBytes) | ConvertFrom-Json } catch { throw 'workspace-binding-invalid' }
+    foreach ($field in @('workspaceRoot','sourceRoot','gitRoot')) { if (-not [IO.Path]::IsPathRooted([string]$binding.$field)) { throw 'workspace-binding-invalid' }; Assert-PlainPath $binding.$field }
+    foreach ($field in @('sourceRoot','gitRoot')) { $parent = $binding.$field.TrimEnd('\','/'); if ($root -ine $parent -and -not $root.StartsWith($parent + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'workspace-binding-source-mismatch' } }
+    $bindingHash = Hash-Bytes $bindingBytes
+}
+function Scope-Files($Inventory) {
+    $values = @($Inventory.objects | ForEach-Object { $_.file })
+    if ($Inventory.scopeFiles) { $values = @($Inventory.scopeFiles) }
+    if ($ScopeFile) { Assert-PlainPath (Full-Path $ScopeFile); $selection = [IO.File]::ReadAllText((Full-Path $ScopeFile), $utf8) | ConvertFrom-Json; $values = @($selection.files) }
+    $seen = @{}; foreach ($value in $values) { if ($value -isnot [string] -or $seen.ContainsKey($value) -or $value -cnotmatch '^objects/[0-9]{6}\.xml$' -or $value -cnotin @($Inventory.objects | ForEach-Object { $_.file })) { throw 'xml-scope-invalid' }; $seen[$value] = $true }
+    if (-not $values.Count) { throw 'xml-source-scope-empty' }; [Array]::Sort($values, [StringComparer]::Ordinal); return ,$values
+}
 if ($Mode -eq 'Unpack') {
     if (-not $InputXml) { throw 'InputXml-required' }
     $inputPath = Full-Path $InputXml; $doc = Read-Export $inputPath; $inputHash = Hash-File $inputPath
     if (Test-Path -LiteralPath $root) { throw 'work-directory-must-be-new' }
+    if ($BaselineDirectory -and (Test-Path -LiteralPath $base)) { throw 'development-baseline-already-exists' }
+    if ($WorkspaceBinding -and -not $BatchId) { throw 'xml-input-batch-required' }
     $stage = $root + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
+    $baseStage = $stage
+    if ($BaselineDirectory) { $baseStage = $base + '.' + [guid]::NewGuid().ToString('N') + '.tmp' }
     try {
         [void][IO.Directory]::CreateDirectory((Join-Path $stage 'objects'))
-        [IO.File]::Copy($inputPath, (Join-Path $stage 'package.xml'), $false)
-        if ((Hash-File (Join-Path $stage 'package.xml')) -ne $inputHash) { throw 'input-changed-during-unpack' }
-        $doc = Read-Export (Join-Path $stage 'package.xml')
+        [void][IO.Directory]::CreateDirectory($baseStage)
+        [IO.File]::Copy($inputPath, (Join-Path $baseStage 'package.xml'), $false)
+        if ((Hash-File (Join-Path $baseStage 'package.xml')) -ne $inputHash) { throw 'input-changed-during-unpack' }
+        $doc = Read-Export (Join-Path $baseStage 'package.xml')
         $inventory = @(); $index = 0
         foreach ($node in @(Get-Sources $doc)) {
             $index++; $single = New-Package $doc
@@ -188,22 +215,32 @@ if ($Mode -eq 'Unpack') {
         $projectCount = @(Get-Projects $doc).Count; $sourceKind = 'source'
         if ($projectCount) { $sourceKind = 'source-with-project' }
         $receipt = [ordered]@{schema = 'iris-offline-xml/v2'; templateSha256 = $inputHash; count = $index; sourceKind = $sourceKind; projectMetadataCount = $projectCount; objects = @($inventory)}
-        [IO.File]::WriteAllText((Join-Path $stage 'inventory.json'), ($receipt | ConvertTo-Json -Depth 8), $utf8)
+        if ($BaselineDirectory) { $scope = Scope-Files ([pscustomobject]$receipt); $receipt.scopeFiles = $scope; $receipt.scopeSha256 = Hash-Bytes ($utf8.GetBytes(($scope -join "`n"))); $receipt.workspaceBindingSha256 = $bindingHash; $receipt.batchId = $BatchId }
+        [IO.File]::WriteAllText((Join-Path $baseStage 'inventory.json'), ($receipt | ConvertTo-Json -Depth 8), $utf8)
+        if ($BaselineDirectory) { Assert-PlainPath $base; [IO.Directory]::Move($baseStage, $base) }
         Assert-PlainPath $root; [IO.Directory]::Move($stage, $root)
         $receipt | ConvertTo-Json -Depth 8
-    } finally { Remove-OwnedStage $stage $root }
+    } finally { Remove-OwnedStage $stage $root; if ($BaselineDirectory) { Remove-OwnedStage $baseStage $base } }
 } else {
-    $inventoryPath = Join-Path $root 'inventory.json'; $template = Join-Path $root 'package.xml'
+    $inventoryPath = Join-Path $base 'inventory.json'; $template = Join-Path $base 'package.xml'
     Assert-PlainPath $inventoryPath; Assert-PlainPath $template
     $inventory = [IO.File]::ReadAllText($inventoryPath, $utf8) | ConvertFrom-Json
     $templateHash = Hash-File $template
     if ($inventory.schema -ne 'iris-offline-xml/v2' -or $templateHash -ne $inventory.templateSha256) { throw 'template-drift' }
+    if ($inventory.workspaceBindingSha256 -ne $bindingHash) { throw 'workspace-binding-changed' }
+    $scope = @($inventory.objects | ForEach-Object { $_.file })
+    if ($inventory.scopeSha256) { $scope = Scope-Files $inventory; if ((Hash-Bytes ($utf8.GetBytes(($scope -join "`n")))) -ne $inventory.scopeSha256) { throw 'xml-scope-drift' } }
+    elseif ($ScopeFile -or $WorkspaceBinding) { throw 'legacy-baseline-needs-explicit-adoption' }
     $doc = Read-Export $template; $nodes = @(Get-Sources $doc)
     if ($nodes.Count -ne $inventory.count -or @($inventory.objects).Count -ne $nodes.Count -or @(Get-Projects $doc).Count -ne $inventory.projectMetadataCount) { throw 'inventory-scope-mismatch' }
     $output = Join-Path $root 'delivery'; if ($OutputDirectory) { $output = Full-Path $OutputDirectory }
     Assert-PlainPath $output
     if ($Mode -eq 'Verify') {
         $receipt = Verify-Delivery $output $doc $templateHash
+        if ($inventory.scopeSha256 -and ($receipt.scopeSha256 -ne $inventory.scopeSha256 -or $receipt.workspaceBindingSha256 -ne $bindingHash -or $receipt.batchId -cne $inventory.batchId)) { throw 'delivery-scope-binding-mismatch' }
+        $allowed = @($inventory.objects | Where-Object { $_.file -cin $scope } | ForEach-Object { $_.identity })
+        if (@($receipt.objects | Where-Object { $_.identity -cnotin $allowed }).Count) { throw 'delivery-outside-task-scope' }
+        if ($bindingHash -and ($receipt.localEvidence.schema -ne 'iris-local-delivery-evidence/v1' -or $receipt.localEvidence.gitDiffSha256 -cnotmatch '^[a-f0-9]{64}$' -or $receipt.localEvidence.hospitalAcceptance -ne 'pending')) { throw 'delivery-local-evidence-invalid' }
         [pscustomobject]@{state = 'verified'; changedCount = $receipt.changedCount; unchangedCount = $receipt.unchangedCount; irisImportVerified = $false} | ConvertTo-Json
     } else {
         if (Test-Path -LiteralPath $output) { throw 'output-directory-must-be-new' }
@@ -220,6 +257,7 @@ if ($Mode -eq 'Unpack') {
             if ($items.Count -ne 1 -or @(Get-Projects $part).Count -or (Get-Identity $items[0]) -cne (Get-Identity $old) -or $items[0].get_Name() -cne $old.get_Name()) { throw 'object-identity-changed' }
             if ($part.DocumentElement.CloneNode($false).OuterXml -cne $doc.DocumentElement.CloneNode($false).OuterXml) { throw 'object-container-changed' }
             $new = $items[0]; $beforeHash = Hash-Node $old; $afterHash = Hash-Node $new
+            if ($relative -cnotin $scope) { continue }
             if ($beforeHash -eq $afterHash) { continue }
             [void]$changes.DocumentElement.AppendChild($changes.ImportNode($new, $true))
             [void]$rollback.DocumentElement.AppendChild($rollback.ImportNode($old, $true))
@@ -254,6 +292,12 @@ if ($Mode -eq 'Unpack') {
                 $receipt = [ordered]@{schema = 'iris-offline-delivery/v1'; state = 'verified'; sourceSha256 = $templateHash; createdAt = [DateTime]::UtcNow.ToString('o');
                     changedCount = $entries.Count; unchangedCount = $nodes.Count - $entries.Count; projectMetadataExcluded = @(Get-Projects $doc).Count;
                     files = $fileHashes; objects = @($entries); irisImportVerified = $false; compileVerified = $false; businessVerified = $false; targetDriftVerified = $false}
+                if ($inventory.scopeSha256) { $receipt.scopeSha256 = $inventory.scopeSha256; $receipt.workspaceBindingSha256 = $bindingHash; $receipt.batchId = $inventory.batchId }
+                if ($WorkspaceEvidence) {
+                    try { $receipt.localEvidence = $utf8.GetString([Convert]::FromBase64String($WorkspaceEvidence)) | ConvertFrom-Json } catch { throw 'workspace-evidence-invalid' }
+                    foreach ($relative in $scope) { $matches = @($receipt.localEvidence.files | Where-Object { $_.path -ceq $relative -and $_.sha256 -eq (Hash-File (Join-Path $root $relative)) }); if ($matches.Count -ne 1) { throw 'delivery-git-evidence-mismatch' } }
+                }
+                if ($bindingHash -and $receipt.localEvidence.schema -ne 'iris-local-delivery-evidence/v1') { throw 'delivery-local-evidence-invalid' }
                 [IO.File]::WriteAllText((Join-Path $stage 'manifest.json'), ($receipt | ConvertTo-Json -Depth 10), $utf8)
                 [void](Verify-Delivery $stage $doc $templateHash)
                 if ((Hash-File $template) -ne $templateHash) { throw 'template-drift-during-pack' }

@@ -2,6 +2,12 @@
 
 源仓根 `tools/` 整体不部署到业务项目 `.agents`，包括源码、README、ZIP 及以后新增的人工工具。安装/更新继续按运行时白名单检出；人工需要时单独取得 ZIP，不将 tools 加入 sparse checkout。
 
+## IRIS 开发方式与离线交付（coding 0.24）
+
+完整更新 `coding-iris-plugin 0.24.0`、`agent-context-kit 0.8.2` 及直接依赖后刷新 ContextRoot。`ContextRoot/config/iris-development.json` 的 developmentMode 独立选择 connected/offline；普通更新不写该字段、不改业务连接、锁或旧任务。旧配置缺省保持原行为，非法值停止 IRIS 流程。已有文字离线约定由授权维护补齐；不因缺连接推断离线。
+
+offline 初始化不生成医院连接；既有连接只报告给授权维护。受管远端入口提前停止，原生 MCP/外部 IDE 仍需 Agent 规则约束。新增 `source-delivery.js` 本地入口与唯一 `source-delivery.ps1` 核心均随插件分发，人工 ZIP 构建取入同一核心，整个 tools 仍不部署。新源码/XML 任务绑定真实源码 Git、批次与范围，冻结原件放私有任务区；旧 v1 基线、XML 工作目录原位恢复，不自动重建或迁移。操作与限制见[离线协议](../plugins/coding-iris-plugin/references/iris-offline-development.md)。本地 Verify 和 Review 不代替现场验收。
+
 ## 验收先提交推送、后补 BOS 日志
 
 `demand-delivery-plugin 0.8.1` 解耦 Git 发布与 BOS 补录，按正常流程更新完整能力包并刷新已启用索引。旧 v1/v2 的 schema、scopeHash、授权和回执保持；首次状态写入释放已完成 Git 的发布权，BOS 交付者与来源证据保留。部分 push 仍串行保护；BOS 失败/未知只暂停日志，完整交付仍须全部适用回执。旧日志先于 push 的顺序可续接，无私有配置迁移、旧文件清理或安装/更新算法变更，详见[迁移说明](demand-delivery-migration.md#bos-日志与-git-发布解耦)。源仓更新不代表业务副本已升级。

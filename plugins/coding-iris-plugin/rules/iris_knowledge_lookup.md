@@ -11,6 +11,8 @@ related:
 
 ## MCP server 归属
 
+先解析当前 ContextRoot 的 `config/iris-development.json`。offline 禁止医院 MCP 与连接诊断，只用本地材料和公共官方资料；下列原生 MCP 优先级仅适用于 connected（含旧配置缺省）。非法值停止 IRIS 流程，不把缺少连接自动解释为 offline。
+
 - IRIS 类、方法、宏、SQL 投影和 namespace 元数据只路由到 `iris-agentic-dev` MCP server。
 - 当前运行器暴露 `mcp__iris_agentic_dev__*` 等原生入口时优先使用；工具前缀可以因运行器变化，但逻辑工具名和 server 归属必须可确认。
 - 运行器只暴露无前缀工具时，先通过 `tools/list` 或 `check_config` 确认它们来自 `iris-agentic-dev`，不要把其它 MCP 的搜索或文档工具误当作 IRIS 能力。

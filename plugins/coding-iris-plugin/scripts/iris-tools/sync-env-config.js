@@ -17,6 +17,10 @@ const scriptDir = __dirname;
 
 // Paths
 const workspaceContext = resolveWorkspaceContext(process.cwd());
+if (require('../../../../scripts/lib/iris-remote-operations').developmentMode(workspaceContext) === 'offline') {
+  console.log(JSON.stringify({status: 'skipped-offline', reason: 'Hospital connection generation is unavailable in offline development'}));
+  process.exit(0);
+}
 const workspaceRoot = workspaceContext.workspaceRoot;
 const configPath = path.join(workspaceContext.contextRoot, 'config', 'project-env.json');
 const templatePath = path.join(workspaceContext.capabilityRoot, 'plugins', 'coding-iris-plugin', 'templates', 'project-env.template.json');

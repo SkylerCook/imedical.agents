@@ -107,6 +107,7 @@ async function main(argv) {
   if(argv.includes('--help')) {console.log('Usage: node deploy-frontend.js --project-root <project> [--source-root <frontend-root>] --files <project-relative-files...> [--python <interpreter>] [--known-hosts <file> | --host-key-sha256 <trusted-SHA256:fingerprint>] [--execute] [--mode direct|guarded] [--demand <id>] [--source-plan <reviewed-plan.json>] [--publication-decision <publish-receipt.json>] [--run-directory <run> --work-item <id> --environment-alias <alias>]\nDefault: local plan. On-demand project mode requires a reviewed source plan, a local Git commit and a separate production publication receipt. Other projects retain direct/guarded compatibility. Upload/readback precedes CSP compilation and final batch readback. Up to two safe read/confirmed-unsent upload recoveries per per-file deployment; unknown writes and compilation are never replayed.');return;}
   if (argv.some(value=>['--execute','--demand','--mode','--decision','--source-plan','--publication-decision','--kind'].includes(value))) return require('./deploy-protected').main('frontend', argv);
   const args=parse(argv), context=resolveWorkspaceContext(args.projectRoot);
+  require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(context);
   if(workspaceContextBlockers(context).length)throw new Error('Invalid workspace context');
   const {config}=require('./project-env').readProjectEnv(context);
   const mcp=readJson(path.join(context.workspaceRoot,'.mcp.json'));
@@ -118,6 +119,9 @@ async function main(argv) {
   return;
 }
 module.exports={parse,buildPlan,execute,uploadBatch};
-if(require.main===module)main(process.argv.slice(2)).catch(()=>{
+if(require.main===module)main(process.argv.slice(2)).catch(error=>{
+  if (['offline-development-remote-disabled','development-mode-invalid'].includes(error.code)) {
+    console.error(JSON.stringify({schema:'iris-frontend-deploy/v1',status:'blocked',reason:error.code})); process.exitCode=1; return;
+  }
   console.error(JSON.stringify({schema:'iris-frontend-deploy/v1',status:'failed-or-unknown',message:'Check input files, source root, private configuration, interpreter and SSH trust; diagnose within existing authority before requesting a user decision',commandElapsedMs:Math.round(performance.now())}));process.exitCode=1;
 });

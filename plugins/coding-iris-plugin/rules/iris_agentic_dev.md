@@ -9,6 +9,8 @@ related:
 
 # iris-agentic-dev 使用约束
 
+执行前先解析当前 `ContextRoot/config/iris-development.json`。`developmentMode: offline` 禁止本页所有医院 MCP 调用（包括 check_config、tools/list），转入[离线协议](../references/iris-offline-development.md)；原生 MCP 和外部 IDE 不在脚本机器拦截范围，Agent 同样不得调用。非法值停止，旧配置缺省保持既有行为。下面的调用与优先级仅适用于 connected，不授予远端权限。
+
 `contextMode: intent-first-on-demand-export` 时先读[项目开发协议](../references/project-demand-development.md#license-准入与资源收尾)。根 `scripts/iris-mcp.js` 的公共 tools/call 已接准入；新模式需 verified 策略及 `qualification.channels.mcp.processExitVerified`，不使用 legacy debugger 绕过。下文原生 MCP 优先只适用于未要求受管准入的场景；原生 MCP/外部 IDE/其它独立客户端不被 helper 自动拦截，未核实其准入与退出资格时不得换路执行。
 
 ## MCP 能力矩阵

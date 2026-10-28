@@ -52,6 +52,7 @@ function validateResponse(response) {
   return {status: errors.length ? 'compile-failed' : 'compiled', errors, console: response.console};
 }
 async function compile(options, deployment, timeoutMs = 60000, remoteOptions = {}) {
+  require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(remoteOptions.context || {});
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 300000) throw new Error('Invalid timeout');
   if (remoteOptions.context && require('./source-publication').required(remoteOptions.context, {}, {kind: remoteOptions.kind}) &&
       (!remoteOptions.client || remoteOptions.reviewedDeployment !== true)) {
@@ -92,6 +93,7 @@ async function main(argv) {
   }
   const parsed = args(argv);
   const context = resolveWorkspaceContext(parsed.projectRoot);
+  require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(context);
   if (workspaceContextBlockers(context).length) {
     const error = new Error('Invalid workspace context');
     error.code = 'invalid-workspace-context';
@@ -116,7 +118,7 @@ async function main(argv) {
 }
 module.exports = {plan, connection, compile, validateResponse, args, main};
 if (require.main === module) main(process.argv.slice(2)).catch(error => {
-  if (['invalid-workspace-context', 'night-managed-frontend-required', 'on-demand-managed-compile-required', 'explicit-demand-kind-required', 'ambiguous-demand-kind'].includes(error.code)) {
+  if (['offline-development-remote-disabled', 'development-mode-invalid', 'invalid-workspace-context', 'night-managed-frontend-required', 'on-demand-managed-compile-required', 'explicit-demand-kind-required', 'ambiguous-demand-kind'].includes(error.code)) {
     console.error(JSON.stringify({schema: 'iris-csp-compile/v1', status: 'blocked', reason: error.code}));
     process.exitCode = 1;
     return;

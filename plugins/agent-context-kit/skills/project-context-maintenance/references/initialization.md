@@ -4,6 +4,8 @@
 
 ## 插件更新流程
 
+IRIS 项目接入 coding owner 时，开发方式独立于 contextMode，以当前 `ContextRoot/config/iris-development.json` 的 `developmentMode` 为唯一配置，profile 只引用。初始化按用户已明确的现场约束选择 connected/offline，无法判断时只询问一次；offline 创建最小模式配置，不要求环境资格、不生成医院连接，既有连接只报告给授权维护。已有文字离线约定需授权维护补齐，普通能力更新不自动切换或清理旧任务。编码/Review/交付继续复用 coding owner；其它技术栈不新增此配置。
+
 已部署业务工程更新 `.agents` 能力包时，优先使用统一更新脚本：
 
 ```powershell

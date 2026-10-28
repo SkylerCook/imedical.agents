@@ -31,6 +31,9 @@ function buildSftp(config, capabilityRoot) {
 function migrate(projectRoot, contextRoot, capabilityRoot, mode = 'DryRun') {
   const target = '.mcp.json';
   const result = (status, reason) => [{status: `config-migration-${status}`, target, reason}];
+  if (require('../../../../scripts/lib/iris-remote-operations').developmentMode({workspaceRoot: projectRoot, contextRoot}) === 'offline') {
+    return result('skipped', 'Offline development retains existing connection configuration for authorized maintenance');
+  }
   const configPath = path.join(contextRoot, 'config', 'project-env.json');
   const mcpPath = path.join(projectRoot, target);
   const config = fs.existsSync(configPath) ? JSON.parse(fs.readFileSync(configPath, 'utf8').replace(/^\uFEFF/, '')) : {};
@@ -71,7 +74,7 @@ if (require.main === module) {
     if (issues.length) throw new Error('Invalid workspace context');
     console.log(JSON.stringify(migrate(projectRoot, path.resolve(projectRoot, contextRoot), resolved.capabilityRoot, mode)));
   } catch (error) {
-    console.log(JSON.stringify([{status: 'config-migration-failed', target: '.mcp.json', reason: 'Invalid configuration or unavailable vendor runtime; no credentials logged'}]));
+    console.log(JSON.stringify([{status: 'config-migration-failed', target: '.mcp.json', reason: error.code === 'development-mode-invalid' ? error.code : 'Invalid configuration or unavailable vendor runtime; no credentials logged'}]));
     process.exitCode = 1;
   }
 }

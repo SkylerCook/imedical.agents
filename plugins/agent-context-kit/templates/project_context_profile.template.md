@@ -9,6 +9,8 @@
 - 代码来源：TODO: 本地完整维护 / 后续按需从服务器导出 / 其它。
 - 本地文件完整性：TODO: 代表全量工程 / 不代表全量工程 / 待确认。
 
+启用 IRIS coding owner 时，开发方式只引用同一 ContextRoot 的 `config/iris-development.json` 中 `developmentMode`；不在本文件另存 connected/offline 值。contextMode 描述上下文范围，不能替代开发方式；没有连接不自动切换模式。
+
 ## 辅助模式
 
 <!-- agents-update:optional-key guidanceMode -->

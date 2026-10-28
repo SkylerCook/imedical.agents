@@ -66,6 +66,10 @@ async function main(argv = process.argv.slice(2)) {
   }
   if (!['status','reconcile','inspect','read'].includes(command) || !args['project-root']) throw new Error('remote-status-command-required');
   const context = require('./lib/workspace-context').resolveWorkspaceContext(args['project-root']);
+  if (command === 'status' && remote.developmentMode(context) === 'offline') {
+    console.log(JSON.stringify(remote.localPoolStatus(context))); return;
+  }
+  if (command !== 'status') remote.assertRemoteAllowed(context);
   const mcp = JSON.parse(fs.readFileSync(path.join(context.workspaceRoot,'.mcp.json'),'utf8').replace(/^\uFEFF/,''));
   const {readProjectEnv,validateTarget} = require('../plugins/coding-iris-plugin/scripts/iris-tools/project-env');
   const config = readProjectEnv(context, {optional: !['inspect','read'].includes(command)}).config;

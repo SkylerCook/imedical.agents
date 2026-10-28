@@ -12,7 +12,7 @@ related:
 
 本文只保留 IRIS 开发脚本、MCP 使用边界和部署主流程。部署逐项检查和 legacy GB2312 提升细节已拆到独立规则，按任务需要读取，避免非部署任务加载过多上下文。
 
-已确认 `project` 需求且 `contextMode: intent-first-on-demand-export` 时先读取[项目开发协议](../references/project-demand-development.md)，该分支的需求基线和部署前同步复审优先于本页默认 direct；本地缺失且必要的上下文才经 MCP 只读补齐。`standard` 沿既有标版分支，contextMode 不决定需求类型；公共准入仍按远端通道执行。
+先解析 `ContextRoot/config/iris-development.json` 的 `developmentMode`。offline 进入[离线开发与交付协议](../references/iris-offline-development.md)，不执行下文远端流程或生成医院连接；缺材料由用户现场补充。connected（含旧配置缺省）才继续本页：已确认 `project` 且 `contextMode: intent-first-on-demand-export` 时先读取[项目开发协议](../references/project-demand-development.md)，同步复审优先于默认 direct。`standard` 沿既有分支；非法开发方式停止，contextMode 不决定需求类型或授权。
 
 ## 相关规则
 

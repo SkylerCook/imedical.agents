@@ -4,6 +4,8 @@
 
 ## 当前接手
 
+- IRIS 开发方式独立于 contextMode，配置与兼容顺序见[离线协议](../plugins/coding-iris-plugin/references/iris-offline-development.md)和更新 runbook；源码助手已从独立工具提交基线迁入 coding owner 唯一实现。新任务绑定批次/范围与实际源码 Git，XML 原包私有保存；旧任务原位恢复，不更新业务副本或把本地 Verify 当现场验收。
+
 - Overlay 实体 SourceRoot 的源仓扩展见 [runbook](../docs/workspace-overlay.md#sourceroot引用已有源码或持有本地源码)与维护日志；path/target 相同声明实体目录，旧 Junction 保持。先更新共享 capability 再按项目授权接入，不自动迁移医院源码或把离线工具已在源仓等同已部署。
 
 - 最近全局回看覆盖 `0984232..c233704`（2026-10-28，3 个提交），包含上轮文档收尾与人工导出／XML 离线交付。发现、修正和验证见[日志覆盖点](agent-kit-maintenance-log.md#全局回看覆盖点)；当前版本查 owner manifest，历史实施状态不作当前未提交结论。

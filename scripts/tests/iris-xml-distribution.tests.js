@@ -55,7 +55,7 @@ test('new and upgraded sparse projects receive XML runtime, canonical class and 
   const fresh = clone('fresh', installPatterns);
   for (const target of [fresh, upgraded]) {
     assert.equal(fs.existsSync(path.join(target, 'tools')), false, 'the entire source-only tools tree must stay out of projects');
-    for (const name of ['edit-export-xml.ps1']) {
+    for (const name of ['edit-export-xml.ps1', 'source-delivery.ps1']) {
       const bytes = fs.readFileSync(path.join(target, 'plugins/coding-iris-plugin/scripts/iris-tools', name));
       assert.deepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf], name + ' must support Windows PowerShell 5.1 UTF-8');
     }
@@ -63,7 +63,7 @@ test('new and upgraded sparse projects receive XML runtime, canonical class and 
     for (const relative of ['maintenance/should-not-deploy.md', 'scripts/tests/should-not-deploy.js', '.agents/local-only.md', ...sourceOnlyTools, 'plugins/coding-iris-plugin/scripts/iris-tools/export-iris-code.ps1']) assert.equal(fs.existsSync(path.join(target, relative)), false, relative);
     const core = require(path.join(target, 'plugins/coding-iris-plugin/scripts/iris-tools/xml-package-core'));
     assert.equal(core.parseExportXml('<Export><CSPBase64 application="/web/" name="a.png">AAECAw==</CSPBase64></Export>').items[0].payloadBytes.length, 4);
-    for (const cli of ['xml-export.js', 'xml-scope.js', 'code-baseline.js', 'baseline-catalog.js']) {
+    for (const cli of ['xml-export.js', 'xml-scope.js', 'code-baseline.js', 'baseline-catalog.js', 'source-delivery.js']) {
       const result = spawnSync(process.execPath, [path.join(target, 'plugins/coding-iris-plugin/scripts/iris-tools', cli), '--help'], {encoding: 'utf8', windowsHide: true});
       assert.equal(result.status, 0, cli + ': ' + result.stderr); assert.ok(result.stdout.length > 40);
     }

@@ -61,15 +61,16 @@ function validate(publication) {
   return publication;
 }
 function required(context, config = {}, options = {}) {
+  require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(context);
   const file = path.join(context.contextRoot, 'config', 'project_context_profile.md');
   const content = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
   const onDemand = config.contextMode === 'intent-first-on-demand-export' || /^\s*[-*]?\s*`?contextMode`?\s*[:：=]\s*`?intent-first-on-demand-export\b/mi.test(content);
   if (!onDemand) return false;
   return require('./source-sync-core').demandKind(context, options).kind === 'project';
 }
-function load(planPath) {
+function load(planPath, options = {}) {
   const plan = guard.read(path.resolve(planPath));
-  if (plan.schema === 'iris-source-sync/v1') return require('./source-sync-core').load(planPath).plan;
+  if (plan.schema === 'iris-source-sync/v1') return require('./source-sync-core').load(planPath, options).plan;
   if (plan.schema === 'iris-demand-promotion/v2') return require('./promote-demand').loadPlan(planPath);
   guard.stop('source-plan-schema-unsupported');
 }

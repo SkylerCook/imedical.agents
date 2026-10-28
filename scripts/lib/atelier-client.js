@@ -16,6 +16,7 @@ function normalizeConnection(input = {}) {
     ...(input.ca ? { ca: input.ca } : {}) };
 }
 function createAtelierClient({ connection, context, policy, qualification, owner: sharedOwner, timeoutMs = 60000, maxResponseBytes = 16 * 1024 * 1024 } = {}) {
+  remote.assertRemoteAllowed(context || {});
   const conn = normalizeConnection(connection);
   const selected = remote.loadRemotePolicy(context || {}, { connection: conn, policy, qualification });
   const owner = sharedOwner || remote.createRemoteOperation({ policy: selected, connection: conn, channel: 'atelier' });
@@ -64,6 +65,7 @@ function createAtelierClient({ connection, context, policy, qualification, owner
     });
   }
   async function request(method, suffix, body, headers = {}, options = {}) {
+    remote.assertRemoteAllowed(context || {});
     if (closed || closing) throw new remote.RemoteOperationError('atelier-client-closed', { beforeSend: true });
     if (busy) throw new remote.RemoteOperationError('atelier-client-busy', { beforeSend: true });
     if (qualificationReads) {
@@ -135,6 +137,7 @@ function createAtelierClient({ connection, context, policy, qualification, owner
     markUnknown: reason => owner.markUnknown(reason), snapshot: () => ({ ...owner.snapshot(), cookiePresent: cookies.size > 0, closed }) };
 }
 function createAtelierRecoveryReader({connection, context, policy, documents, token, confirmRecovery, timeoutMs, maxResponseBytes} = {}) {
+  remote.assertRemoteAllowed(context || {});
   const conn = normalizeConnection(connection), selected = remote.loadRemotePolicy(context || {}, {connection:conn, policy});
   const owner = remote.createRecoveryReadOperation({policy:selected, connection:conn, documents, token, confirmRecovery});
   const client = createAtelierClient({connection:conn, context, policy:selected, owner, timeoutMs, maxResponseBytes});

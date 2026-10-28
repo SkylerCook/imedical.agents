@@ -170,6 +170,7 @@ function remoteFiles(plan, reply) {
     });
 }
 function createTransport(plan, context, deps = {}) {
+    require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(context);
     const source = require('./source-sync-core');
     const configuration = deps.configuration || source.projectConfiguration(context);
     const connection = deps.connection || require('./compile-csp').connection(configuration.config, configuration.mcp);

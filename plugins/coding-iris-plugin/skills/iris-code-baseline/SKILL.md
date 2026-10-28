@@ -15,6 +15,8 @@ description: 按版本 XML 采集 IRIS 当前源码、维护版本清单；支�
 
 ## 执行
 
+先读取当前 ContextRoot 的 `config/iris-development.json`。`developmentMode: offline` 时优先按[离线开发协议](../../references/iris-offline-development.md)接收已带回的源码或完整 XML；本地清单 build/compare、既有任务状态检查可用，不请求医院连接或准入，不进入服务器采集、source-sync 或资格执行。缺省沿旧 `connected` 行为，未知值停止核对。
+
 用户带回完整源码 XML、要求本地 AI 修改后带回现场时，先读[现场源码带回与 XML 离线修改](../../references/iris-offline-development.md)，不要求连接配置或在线元数据。固定按对象 XML 编辑，以实际 notes.md 生成仅含修改对象的 changes.xml、对应 rollback.xml、变更说明和摘要 manifest，并用新进程 Verify 后交付；原包、Project 元数据及未修改对象受保护。类保留原生 XML，不自动导入、编译或提交。人工 TXT/XML 范围导出是源仓 `tools/iris-code-export/` 的独立 ZIP，不依赖本 skill 或框架，也不随 `.agents` 分发。
 
 1. 读取目标 AGENTS、上下文及 IRIS profile，解析 WorkspaceRoot、ContextRoot、CapabilityRoot、SourceRoot、GitRoot；读取[代码基线协议](../../references/iris-code-baseline.md)。先区分离线清单维护、纯源码采集与项目按需开发分支。

@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+0.8.2：IRIS 初始化与项目入口先引用 coding owner 的 developmentMode 配置，再按 contextMode/需求类型分流；offline 复用[离线协议](../coding-iris-plugin/references/iris-offline-development.md)。profile 不保存第二个模式值，普通更新不切换方式或改项目入口，已有文字约定由授权维护定点补齐。
+
 0.8.1：任务交接复用共享 workspace 校验，兼容 Overlay 的实体源码目录。先完整更新共享 CapabilityRoot，再刷新 ContextRoot；原 Junction 声明继续有效。实体入口与迁移边界见 [Overlay 契约](../../docs/workspace-overlay.md#sourceroot引用已有源码或持有本地源码)，不自动移动源码、修改项目配置或初始化 Git。
 
 v0.7.0：复用已有 `intent-first-on-demand-export` 模式，在当前需求已明确为 `project` 且 IRIS 插件已启用时条件路由到[项目开发协议](../coding-iris-plugin/references/project-demand-development.md)。上下文模式不决定标版／项目需求类型；公共角色和能力共用，只条件加载分支。本插件不复制 IRIS 同步/License/发布机制。已有工程授权维护时定点合并；普通更新不启用模式、不改私有配置或初始化 Git，无旧文件清理。

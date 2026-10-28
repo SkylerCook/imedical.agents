@@ -9,6 +9,8 @@ description: Use when querying InterSystems IRIS classes, methods, signatures, m
 
 ## 目标
 
+先解析当前 `ContextRoot/config/iris-development.json`。offline 只使用本地源码、已接收材料和公共官方资料，禁止医院 MCP（含 check_config/tools/list）；不要借公共文档查询启动医院客户端。connected（含缺省旧配置）再按下面规则选来源，非法值停止 IRIS 流程。
+
 使用目标 IRIS 实例、当前工作区源码和 InterSystems 官方文档交叉查询 IRIS 知识。不要把任一来源描述为绝对准确；必须记录实例 namespace、文档版本或本地源码范围。
 
 ## 必读入口

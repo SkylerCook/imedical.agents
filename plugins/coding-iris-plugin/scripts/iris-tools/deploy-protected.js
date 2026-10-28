@@ -207,6 +207,7 @@ async function main(kind,argv){
   nightMode=Boolean(context.manifest?.nightRunReference||a.runDirectory);
   const blockers=workspaceContextBlockers(context);
   if(blockers.length)guard.stop('invalid-workspace-context',{statuses:blockers.map(r=>r.status)});
+  require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(context);
   const {config,configPath,inherited}=require('./project-env').readProjectEnv(context),mcp=guard.read(path.join(context.workspaceRoot,'.mcp.json'));
   require('./project-env').validateTarget(config,mcp.mcpServers?.[config.mcp?.serverName||'iris-agentic-dev']?.env||{});
   const sourcePlanRequired=publication.required(context,config,{kind:a.demandKind});
@@ -214,7 +215,7 @@ async function main(kind,argv){
   if(sourcePlanRequired&&!a.sourcePlan)guard.stop('source-plan-required');
   if(a.publicationDecision&&!a.sourcePlan)guard.stop('publication-decision-requires-source-plan');
   if(a.sourcePlan&&a.decision)guard.stop('publication-overwrite-decision-not-allowed');
-  const execution={projectRoot:context.workspaceRoot,runDirectory:a.runDirectory,workItemId:a.workItemId,environmentAlias:a.environmentAlias,configurationFingerprint:nightExecution.fingerprint({config,mcp}),phase:'deployment'};
+  const execution={projectRoot:context.workspaceRoot,runDirectory:a.runDirectory,workItemId:a.workItemId,environmentAlias:a.environmentAlias,configurationFingerprint:nightExecution.fingerprint(require('../../../../scripts/lib/iris-remote-operations').bindDevelopmentMode(context,{config,mcp})),phase:'deployment'};
   const binding=nightExecution.resolveBinding(execution),artifacts=a.files.map(file=>path.resolve(context.workspaceRoot,file));
   if(binding&&typeof nightExecution.frozenArtifact==='function'){
    const mapped=artifacts.map(sourcePath=>({sourcePath,frozen:nightExecution.frozenArtifact(binding,sourcePath)})).filter(item=>item.frozen?.sha256);
@@ -240,7 +241,7 @@ async function main(kind,argv){
    sourcePlanPath=path.resolve(a.sourcePlan);
    releaseRepository=require('./source-sync-core').acquireRepositoryLock(publication.load(sourcePlanPath).gitRoot);
    sourceBinding=publication.assertReady({plan:publication.load(sourcePlanPath),context,files,kind,
-    configurationFingerprint:publication.fingerprint({config,mcp}),environmentAlias:a.environmentAlias,
+    configurationFingerprint:publication.fingerprint(require('../../../../scripts/lib/iris-remote-operations').bindDevelopmentMode(context,{config,mcp})),environmentAlias:a.environmentAlias,
     decision:a.publicationDecision?guard.read(path.resolve(a.publicationDecision)):null});
    files=sourceBinding.files;
   }

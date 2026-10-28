@@ -10,6 +10,7 @@
 - 长期项目规则放入 `.agents/rules/`。
 - 当前状态和长期经验放入 `.agents/memory/project-memory.md`。
 - 项目差异配置放入 `.agents/config/`。
+- IRIS 项目启用 coding owner 时，开发方式只引用当前 ContextRoot/config/iris-development.json 的 developmentMode；offline 进入 coding owner 离线协议，contextMode 仍只描述上下文。普通更新不自动改该配置或既有连接。
 - 可复用流程放入 `.agents/plugins/`。
 
 新建 `AGENTS.md` 时可参考 `.agents/plugins/agent-context-kit/templates/AGENTS.template.md`；已有 `AGENTS.md` 在授权范围内定点维护或去重重组，保留约束语义与用户定制，不用模板覆盖。普通编码不例行触发维护或插件接入。

@@ -55,6 +55,7 @@ function selectBudget(options, context, connection, policy) {
 // A batch is one remote owner. Each worker has its own cookie and serial HTTP
 // client, and receives only a GET facade rather than the owner's write API.
 function createAtelierReadPool(options = {}) {
+  remote.assertRemoteAllowed(options.context || {});
   const context = options.context || {}, connection = normalizeConnection(options.connection);
   const policy = remote.loadRemotePolicy(context, {connection, policy: options.policy, qualification: options.qualification});
   if (!policy.enabled) fail('read-pool-policy-required');

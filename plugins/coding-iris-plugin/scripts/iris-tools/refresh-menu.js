@@ -22,6 +22,7 @@ function write(file, value) {
 function checkpoint(file, state) { write(file, { state, checksum: hash(state) }); }
 function restore(file) { const saved = read(file); if (saved.checksum !== hash(saved.state)) fail('Checkpoint integrity failed'); return saved.state; }
 function target(workspace) {
+  require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(publisher.resolveProject(workspace));
   const server = read(path.join(workspace, '.mcp.json')).mcpServers?.['iris-agentic-dev'];
   const env = server?.env;
   if (!env?.IRIS_HOST || !env.IRIS_WEB_PORT || !env.IRIS_NAMESPACE) fail('Explicit IRIS configuration required');

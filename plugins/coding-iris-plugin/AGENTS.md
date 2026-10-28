@@ -24,6 +24,8 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 
 ## 使用约束
 
+- 先解析当前 `ContextRoot/config/iris-development.json` 的 `developmentMode`，profile 只引用该配置。offline 统一进入[离线开发与交付](references/iris-offline-development.md)，禁止医院远端读取、原生 MCP 和部署；下文所有连接、同步、准入及默认 direct 仅适用于 connected。缺省保持旧行为，非法值停止。普通更新不切换开发方式，不清旧任务、锁或未知结果。
+
 - 当前需求已明确为 `project` 且 `contextMode: intent-first-on-demand-export` 时，编码、需求上下文获取及发布先读取[项目按需导出开发协议](references/project-demand-development.md)；该分支的同步与冻结发布门禁优先于下文默认 direct。`standard` 沿既有标版分支；类型缺失先查合法默认值，不能从 contextMode 推导。公共远端准入仍按通道约束执行。
 - 不在插件 rules/skills 中硬编码服务器、namespace、账号、密码、token、远程路径、业务页面清单、业务类名前缀或项目专属基类。
 - `templates/profile-defaults/<type>.md` 只作为用户显式选择项目类型后的领域默认值来源；它不是通用规则，加载后仍需代码探索或用户确认校验。
@@ -53,7 +55,7 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 - IRIS 远端部署编排：`skills/iris-deploy/SKILL.md`
 - 已确认范围的 XML 部署包导出：`skills/iris-xml-export/SKILL.md`；两条自有通道、任务文件与完整性契约归 `references/iris-xml-export.md`。
 - 版本清单维护、初始当前源码采集及基线恢复：`skills/iris-code-baseline/SKILL.md`；代码与图片筛选、partial 和目标多会话资格归 `references/iris-code-baseline.md`，项目开发同步继续沿原协议。
-- 现场完整 XML 带回后由本地 AI 修改：同一基线 skill 路由 `references/iris-offline-development.md`；按对象 XML 修改，交付 changes.xml、对应 rollback.xml、实际变更说明及 manifest，经独立 Verify 核对，不重发未修改对象或 Project 元数据，不要求现场连接或自动导入编译。人工导出是源仓 tools/iris-code-export/ 的独立 ZIP，不依赖本 skill、不随 .agents 分发；两条路径均不绕过已知阻断，类 XML 不手工降级为 UDL。
+- 带回实际源码或完整 XML 后由本地 AI 修改：同一离线协议复用编码、Review 和交付。源码助手唯一实现为 `scripts/iris-tools/source-delivery.ps1`，框架薄入口校验 SourceRoot/GitRoot、批次与冻结范围；人工 ZIP 从同一脚本构建，无需 Node 或框架。XML 保留对象结构，不手工降级 UDL；可编辑对象进入源码 Git，冻结原件在私有任务区。Pack 只含本需求实际修改，独立 Verify 后停在 acceptance-pending；不宣称医院导入、编译或业务验收完成。
 - DEV→PRD 需求移植：`skills/iris-demand-promote/SKILL.md`
 - 标版/项目需求提交：`../demand-delivery-plugin/skills/demand-commit/SKILL.md`
 - 标版需求闭环：`../bos-plugin/skills/bos-demand-entry/SKILL.md`，用户模式 `--text / --bind / --plan / --commit / --help`，可选 `--excel` / `--Excel`；产品标识取项目配置，描述按缺陷或功能/改进使用简洁三段式，草稿仅支持 v2。历史来源用 `--rev`，不与提交授权混用。

@@ -28,6 +28,7 @@ function canonical(value) {
 
 // The executor owns the batch lifetime; individual deadlines only abort a case.
 function createTestExecutor(options) {
+    if (options.projectRoot) require('./iris-remote-operations').assertRemoteAllowed(require('./workspace-context').resolveWorkspaceContext(options.projectRoot));
     const { projectRoot, deadlineAt, signal, timeoutMs = 30000, closeTimeoutMs = 10000 } = options;
     if (!projectRoot || !Number.isFinite(deadlineAt) || deadlineAt <= Date.now() || deadlineAt - Date.now() > 2147483647 || !Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2147483647 || !Number.isFinite(closeTimeoutMs) || closeTimeoutMs <= 0 || closeTimeoutMs > 2147483647) throw new Error('Invalid executor limits');
     let browser, busy = false, stopped = false, closing, activeCase, legacySessionOwner;

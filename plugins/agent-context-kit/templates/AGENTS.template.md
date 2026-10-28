@@ -8,7 +8,7 @@ TODO: 用一句话说明业务用途和技术栈；只写已验证边界。初�
 
 上下文模式及本地代码范围见 `.agents/config/project_context_profile.md`。若为 `intent-first-on-demand-export`，少量已导出文件只代表需求上下文；不得推断完整架构，按任务获取必要源码后再处理。
 
-若当前需求已明确为 `project`、该模式下 `coding-iris-plugin` 已启用，编码、补齐需求源码及部署前先读 `.agents/plugins/coding-iris-plugin/references/project-demand-development.md`；标版沿既有分支，contextMode 不决定需求类型。公共远端资源保护仍按 owner 规则执行。
+若启用 `coding-iris-plugin`，先读取当前 `ContextRoot/config/iris-development.json` 的 `developmentMode`：offline 统一进入 coding owner 的 `references/iris-offline-development.md`，禁止医院远端调用（含原生 MCP），用人工材料完成本地修改、Review、打包和独立 Verify。connected（含旧配置缺省）才继续按 contextMode 与需求类型分流：project + 按需导出先读 `references/project-demand-development.md`；标版沿既有分支。非法开发方式停止 IRIS 流程，缺连接不自动判为离线，模式不产生远端授权。
 
 ## 开发路线
 

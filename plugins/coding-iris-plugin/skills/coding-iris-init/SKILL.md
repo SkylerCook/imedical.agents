@@ -18,6 +18,10 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
 - `updateAgents`：是否合入 `AGENTS.md` 片段；默认只给出建议，用户明确要求时再编辑。
 - `forceScriptOverwrite`：是否覆盖目标工程已有同名脚本；默认 false。
 
+## 开发方式
+
+先确定开发方式，唯一机器配置是当前 ContextRoot 的 `config/iris-development.json` 的 `developmentMode: connected | offline`。已有合法配置沿用；已有文件中的其它字段保留。用户明确人工交接、医院远端不可用时采用 `offline`；无法判断时集中询问一次。旧配置缺省不由普通更新补值，非法值或与当前明确约束冲突时停止相关初始化。离线初始化仅写明确的开发方式，不猜环境别名/类型，不要求连接或资格；跳过下面第 5 步的连接反填、MCP/SFTP 生成与在线检测，既有连接只报告给授权维护，不自动更改。profile 引用该文件，不另存模式副本；详细处理见[离线开发协议](../../references/iris-offline-development.md)。
+
 ## 必读
 
 先读取：
@@ -34,6 +38,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
 - 创建或补齐 profile 时，读取 `templates/iris_project_profile.template.md`；只有用户明确选择项目类型时，才读取 `templates/profile-defaults/<type>.md`。
 
 ## 初始化流程
+
 
 1. 解析工作区：
    - 先调用 capability 包 `scripts/lib/WorkspaceContext.psm1` 或 `scripts/lib/workspace-context.js` 解析 `WorkspaceRoot`、`ContextRoot`、`CapabilityRoot`、`SourceRoot` 和 `GitRoot`；不得自行向父目录或 sibling 扫描 `.agents`。

@@ -29,7 +29,7 @@
 | 按 UI 标注改造 HISUI 页面、排查布局与主题兼容 | [IRIS UI](../plugins/iris-ui/README.md) |
 | 公司 UI 共性规范、IHOS 海蓝/PURE 天蓝、截图或浏览器评审 | [iMedical UI](../plugins/imedical-ui/README.md) |
 | 选择医生站版本清单或 v9.2 全仓对象清单 | [导出参考](reference/project-export-map/doctor/README.md) |
-| 现场完整 XML 带回后，由本地 AI 编辑并生成增量/回退交付 | [XML 离线修改](../plugins/coding-iris-plugin/references/iris-offline-development.md) |
+| 按独立开发方式处理带回的源码/完整 XML，保存基线并生成增量/回退交付 | [IRIS 离线开发与交付](../plugins/coding-iris-plugin/references/iris-offline-development.md) |
 | 验收 XML 双通道导出、代码基线及资源资格 | [IRIS 导出与基线验收](guides/iris-xml-baseline-acceptance.md) |
 | IRIS 项目按需导出、现场合并、部署前同步和 License 准入 | [项目开发协议](../plugins/coding-iris-plugin/references/project-demand-development.md) |
 | 查看工作区 manifest 结构 | [capability schema](schemas/workspace-capability.schema.json) |

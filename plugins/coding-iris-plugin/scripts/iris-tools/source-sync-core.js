@@ -108,13 +108,14 @@ function demandKind(context, options = {}) {
     stop('explicit-demand-kind-required');
 }
 function projectConfiguration(context) {
+    require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(context);
     const {config} = readProjectEnv(context);
     const mcpFile = path.join(context.workspaceRoot, '.mcp.json');
     const mcp = fs.existsSync(mcpFile) ? json(mcpFile) : {};
     return {config, mcp};
 }
 function configurationFingerprint(context) {
-    return require('./source-publication').fingerprint(projectConfiguration(context));
+    return require('./source-publication').fingerprint(require('../../../../scripts/lib/iris-remote-operations').bindDevelopmentMode(context, projectConfiguration(context)));
 }
 function repositoryFor(context, logicalPath) {
     const normalized = slash(String(logicalPath || ''));
@@ -223,7 +224,9 @@ function resolveBaseline(context, plan, file, options, currentRegistry) {
 }
 
 function createPlan(options) {
-    const context = contextFor(options.projectRoot), env = environment(context, options);
+    const context = contextFor(options.projectRoot);
+    require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(context);
+    const env = environment(context, options);
     const kind = demandKind(context, options);
     if (kind.kind !== 'project') stop('source-sync-project-demand-required');
     const phase = options.phase || 'before-edit';
@@ -268,18 +271,19 @@ function createPlan(options) {
     }
     save(plan); return plan;
 }
-function load(planFile) {
+function load(planFile, {localOnly = false} = {}) {
     const plan = json(path.resolve(planFile));
     if (plan.schema !== SCHEMA || plan.integrity !== integrity(plan) || plan.planPath !== path.resolve(planFile)) stop('invalid-source-plan');
     const context = contextFor(plan.projectRoot);
-    environment(context, {environmentAlias: plan.environmentAlias, environmentType: plan.environmentType});
+    const offlineInspection = localOnly && require('../../../../scripts/lib/iris-remote-operations').developmentMode(context) === 'offline';
+    if (!offlineInspection) environment(context, {environmentAlias: plan.environmentAlias, environmentType: plan.environmentType});
     if (plan.demandKind !== 'project' || plan.demandKindSource !== 'explicit-task' && demandKind(context).kind !== 'project') stop('demand-kind-drift');
     if (context.contextRoot !== plan.contextRoot || path.dirname(plan.planPath) !== path.join(privateRoot(context, [plan.gitRoot]), 'tasks', plan.id)) stop('source-plan-identity-mismatch');
     for (const file of plan.files) {
         const actual = repositoryFor(context, file.path);
         if (actual.sourcePath !== file.sourcePath || actual.gitPath !== file.gitPath || actual.gitRoot !== plan.gitRoot) stop('source-plan-scope-mismatch');
     }
-    if (configurationFingerprint(context) !== plan.configurationFingerprint) stop('source-configuration-drift');
+    if (!offlineInspection && configurationFingerprint(context) !== plan.configurationFingerprint) stop('source-configuration-drift');
     return {plan, context};
 }
 async function openClient(context) {
@@ -673,7 +677,7 @@ function review(planFile, options = {}) {
     plan.state = 'ready-to-publish'; save(plan); return plan;
 }
 function verify(planFile) {
-    const publication = require('./source-publication'), plan = publication.load(planFile);
+    const publication = require('./source-publication'), plan = publication.load(planFile, {localOnly: true});
     if (plan.schema === 'iris-demand-promotion/v2') {
         if (!['review-pending', 'ready-to-publish', 'verified', 'closed'].includes(plan.state)) stop('source-sync-not-complete');
         if (head(plan.gitRoot) !== (plan.finalCommit || plan.publication.head)) stop('source-commit-mismatch');
@@ -789,7 +793,7 @@ function rollbackLocal(planFile, options = {}) {
     });
 }
 function status(planFile) {
-    const plan = require('./source-publication').load(planFile);
+    const plan = require('./source-publication').load(planFile, {localOnly: true});
     const common = textGit(plan.gitRoot, ['rev-parse', '--git-common-dir']);
     const file = path.resolve(plan.gitRoot, common, 'iris-source-sync.lock');
     const lock = fs.existsSync(file) && !fs.lstatSync(file).isSymbolicLink() ? fs.readFileSync(file) : null;

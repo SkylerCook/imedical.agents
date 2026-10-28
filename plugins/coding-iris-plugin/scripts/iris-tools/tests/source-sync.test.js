@@ -58,6 +58,26 @@ test('unchanged export creates no empty export or demand commit', async t => {
     assert.equal(result.execution.exportCommit, null); assert.equal(result.execution.demandCommit, null); assert.equal(f.count(), count);
     assert.equal(sync.verify(p.planPath).localVerified, true);
 });
+test('offline mode preserves local inspection of old plans without connection reads or remote approval', async t => {
+    const f = fixture(t), p = f.plan(); await f.prepare(p, f.original);
+    sync.apply(p.planPath, {confirmCommit: true});
+    const modeFile = path.join(f.root, '.agents/config/iris-development.json');
+    fs.writeFileSync(modeFile, JSON.stringify({developmentMode:'offline'}));
+    const originalRead = fs.readFileSync;
+    fs.readFileSync = function(file, ...args) {
+        if (/(?:project-env|\.mcp)\.json$/i.test(String(file))) throw new Error('connection-read-during-local-inspection');
+        return originalRead.call(this, file, ...args);
+    };
+    try {
+        assert.equal(sync.status(p.planPath).id, p.id);
+        assert.equal(sync.verify(p.planPath).localVerified, true);
+        await assert.rejects(sync.prepare(p.planPath, {client:f.client}), /offline-development-remote-disabled/);
+    } finally { fs.readFileSync = originalRead; }
+    fs.writeFileSync(modeFile, JSON.stringify({developmentMode:'connected'}));
+    assert.throws(() => sync.load(p.planPath), /source-configuration-drift/);
+    fs.unlinkSync(modeFile);
+    assert.equal(sync.load(p.planPath).plan.id, p.id);
+});
 
 test('missing local source is imported in one pure export commit', async t => {
     const f = fixture(t, {source: false}), p = f.plan(); await f.prepare(p, f.original);

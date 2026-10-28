@@ -53,6 +53,7 @@ function optionValue(name) {
 function findWorkspaceRoot() {
   let dir = process.cwd();
   while (true) {
+    if (fs.existsSync(path.join(dir, '.agents', 'capability.json')) || fs.existsSync(path.join(dir, '.agents', 'config', 'iris-development.json'))) return dir;
     if (fs.existsSync(path.join(dir, '.mcp.json'))) {
       return dir;
     }
@@ -506,6 +507,7 @@ async function callTool(client, toolName, toolArgs, options = {}) {
 async function createManagedMcpSession({projectRoot, context, serverName = 'iris-agentic-dev', expectedNamespace, timeoutMs = 60000} = {}) {
   const root = path.resolve(projectRoot || process.cwd());
   const selectedContext = context || require('./lib/workspace-context').resolveWorkspaceContext(root);
+  remoteOperations.assertRemoteAllowed(selectedContext);
   const configuration = JSON.parse(fs.readFileSync(path.join(root, '.mcp.json'), 'utf8').replace(/^\uFEFF/, ''));
   const selectedServer = configuration.mcpServers?.[serverName], settings = selectedServer?.env || {};
   if (!selectedServer?.command || !settings.IRIS_NAMESPACE || expectedNamespace && settings.IRIS_NAMESPACE !== expectedNamespace) throw new Error('remote-mcp-target-unverified');
@@ -535,6 +537,7 @@ async function createManagedMcpSession({projectRoot, context, serverName = 'iris
     if (check.connected !== true || String(check.host || '').toLowerCase() !== String(settings.IRIS_HOST).toLowerCase() ||
         Number(check.port) !== Number(settings.IRIS_WEB_PORT) || check.namespace !== settings.IRIS_NAMESPACE) throw new Error('remote-mcp-target-unverified');
     return {async call(name, args, options = {}) {
+      remoteOperations.assertRemoteAllowed(selectedContext);
       if (closing) throw new Error('remote-mcp-session-closed');
       if (args && Object.hasOwn(args, 'namespace') && args.namespace !== settings.IRIS_NAMESPACE) throw new Error('remote-mcp-namespace-mismatch');
       return callTool(client, name, args, {...options, timeoutMs: options.timeoutMs || timeoutMs, defaultNamespace: settings.IRIS_NAMESPACE});
@@ -561,6 +564,8 @@ async function main() {
   };
   let finishRequested = false;
   const finish = () => { finishRequested = true; };
+  workspaceRoot = findWorkspaceRoot();
+  remoteOperations.assertRemoteAllowed(require('./lib/workspace-context').resolveWorkspaceContext(workspaceRoot));
   loadWorkspaceContext();
   const context = require('./lib/workspace-context').resolveWorkspaceContext(workspaceRoot);
   const connection = {protocol:(env.IRIS_SCHEME || 'https')+':',hostname:env.IRIS_HOST,port:env.IRIS_WEB_PORT,

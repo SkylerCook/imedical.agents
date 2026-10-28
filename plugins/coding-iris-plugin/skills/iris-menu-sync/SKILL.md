@@ -9,6 +9,8 @@ description: 同步或刷新 imedical 菜单资料、安全组菜单树与本地
 
 ## 已登记来源与定期刷新
 
+先解析当前 `ContextRoot/config/iris-development.json`。offline 禁止医院采集、登记和原生 MCP，已有本地快照查询/人工材料发布仍沿原授权；不因已登记来源或定时任务绕过。connected（含旧配置缺省）才运行下列采集，非法开发方式停止。
+
 目标工程 `ContextRoot/config/menu-sync/<sourceId>.json` 已登记时，优先复用 `scripts/iris-tools/refresh-menu.js run --project-root <WorkspaceRoot> --source-id <sourceId> --execute`。它负责现有 MCP 采集、分页、JSON 分段适配、虚拟节点 ID、完整性和异常差异检查，再调用原离线发布器；不再临时编写采集脚本。未加 `--execute` 时仍采集并保存计划，但不切换 current。
 
 首次登记需用户明确授权当前环境持续只读采集与本地快照更新，并审阅服务端 `DHCDoc.Common.Menu` 的读取实现，再执行 `refresh-menu.js enroll --project-root <WorkspaceRoot> --source-id <sourceId> --allow-menu-read`。配置只记录摘要与采集策略，连接和凭据继续复用项目私有配置。环境或菜单类摘要变化时停止，人工核对后按[同步契约](../../references/menu-knowledge-sync.md#无人值守刷新)处理。

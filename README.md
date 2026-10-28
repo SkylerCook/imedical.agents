@@ -10,6 +10,8 @@
 
 文档入口：[项目使用文档](docs/README.md) · [框架维护资料](maintenance/README.md)。
 
+IRIS [开发方式与离线交付](plugins/coding-iris-plugin/references/iris-offline-development.md)独立于 contextMode：developmentMode 的唯一配置在当前 ContextRoot 的 config/iris-development.json。offline 用带回的回执源码、人工目录或完整 XML，复用编码、检查、Review、Pack、独立 Verify 与用户现场验证；受管医院远端入口提前阻断。源码助手唯一实现随 coding 插件分发，人工 ZIP 取同一核心；普通更新不自动切换方式或迁移业务源码/旧任务。
+
 使用入口：[能力目录（插件 / skill / rule）](docs/guides/capability-catalog.md) · [使用指南（场景选择 / 接入 / 全部技能示例）](docs/guides/capability-guide.md) · [统一帮助](docs/guides/capability-help.md) · [连接信息查看与排查](docs/guides/connection-configuration.md)。目录和场景手册当前覆盖非 xc 能力；xc 手册列入后续治理。统一帮助覆盖全部自有 skill（含 init、xc）和 Agent，以 `--help` 或“查看用法”请求，只展示说明；详细执行契约仍由各源定义维护，第三方 vendor 沿用原约定。
 
 iMedical 知识资料已接入 [共享参考库](vendor/imedical-knowledge/README.md)：通过 coding-iris-plugin 的 `iris-imedical-knowledge` 按需检索 wiki、菜单与技术资料，`iris-menu-sync` 刷新项目菜单快照；已登记来源可复用固定采集入口由宿主月度运行，异常保留旧快照。新装/更新沿现有 plugins/vendor 分发，项目资料保留在 ContextRoot；详见 [部署与使用](docs/guides/imedical-knowledge.md)。
@@ -18,7 +20,7 @@ iMedical 知识资料已接入 [共享参考库](vendor/imedical-knowledge/READM
 
 IRIS XML 包和源码基线统一归 coding owner：[iris-xml-export](plugins/coding-iris-plugin/skills/iris-xml-export/SKILL.md) 从确认环境导出准确对象范围，支持图片；[iris-code-baseline](plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md) 按版本清单采集当前源码，图片预筛排除、初始缺失完整报告。专用类与系统执行通道无需 QTZ，受管只读多会话按目标资格启用；更新及旧全局入口迁移见[安装更新说明](docs/update-agents.md#iris-xml-导出与代码基线coding-022)，普通更新不部署服务端或登记资格。
 
-人工内网源码导出使用[独立工具](tools/iris-code-export/README.md)，可将 ZIP 直接带入现场，按 UTF-8 TXT/XML 或选定版本清单导出到指定目录，支持医院补充 TXT、显式 Web 路径映射和范围预览；版本定义对象范围，取得的是医院当前源码，v9.2 全仓范围不冒充医生站。记录可读来源及清单摘要，离线保存原始基线并交付增量源码/对应回退/说明，支持用现场新快照比较；无需框架或 skill；工具只在源仓 tools/ 维护，不随 .agents 分发。另一路由用户将现场聚合 XML 带回，[交给本地 AI 按对象修改](plugins/coding-iris-plugin/references/iris-offline-development.md)，交付只含修改对象的 changes.xml、对应 rollback.xml、变更说明及摘要回执，再带回现场导入，无需独立 XML 工具包。
+人工内网源码导出使用[独立工具](tools/iris-code-export/README.md)，可将 ZIP 直接带入现场，按 UTF-8 TXT/XML 或选定版本清单导出到指定目录，支持医院补充 TXT、显式 Web 路径映射和范围预览；版本定义对象范围，取得的是医院当前源码，v9.2 全仓范围不冒充医生站。记录可读来源及清单摘要，离线保存原始基线并交付增量源码/对应回退/说明，支持用现场新快照比较；无需框架或 skill；导出与构建源在 tools/，交付助手从 coding 插件的唯一实现取入；整个 tools/ 不随 .agents 分发。另一路由用户将现场聚合 XML 带回，[交给本地 AI 按对象修改](plugins/coding-iris-plugin/references/iris-offline-development.md)，交付只含修改对象的 changes.xml、对应 rollback.xml、变更说明及摘要回执，再带回现场导入，无需独立 XML 工具包。
 
 CSP 编译沿 coding owner 的[部署入口](plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md)选择：普通工程可使用 `compile-csp.js` 的 Atelier 通道；已确认 `project` ＋ `intent-first-on-demand-export` 的工程及受管夜跑须由对应部署链路编译，独立调用不能绕过 source plan、复审或运行门禁。
 

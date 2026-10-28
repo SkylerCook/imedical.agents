@@ -16,6 +16,7 @@
 ## 执行
 
 1. 读取项目入口、plugin profile、共享调度协议和 `iris-change` workflow。
+   先从当前 ContextRoot 的 `config/iris-development.json` 读取 `developmentMode`；`offline` 路由 coding owner 的[离线开发协议](../../plugins/coding-iris-plugin/references/iris-offline-development.md)，不进入下文在线同步。向各角色传递同一配置引用，不维护模式副本；缺省沿旧 `connected` 行为，非法值停止。
    确认当前需求 `standard`／`project` 及其来源，并随 scope 传给各角色；它与 taskKind、contextMode、执行路径和授权独立。`project` ＋按需导出时读取[项目开发协议](../../plugins/coding-iris-plugin/references/project-demand-development.md)，标版沿原有分支；角色复用公共规则，只加载命中的分支。
 2. 展示任务图、参与者、worktree、scope 与未包含外部动作。
 3. 获得协作计划授权后，由 Coordinator 使用 `scripts/agent-orchestrator.js` 推进。

@@ -4,6 +4,8 @@
 
 ## 前置
 
+- 先读取当前 ContextRoot 的 `config/iris-development.json` 的 `developmentMode`。`offline` 按 coding owner 的[离线开发协议](../plugins/coding-iris-plugin/references/iris-offline-development.md)执行人工材料、本地修改/检查/Review、交付和待现场验收，不进入服务器同步或远端阶段；向角色传递同一配置引用。缺省沿旧 `connected` 行为，非法值停止。
+
 - 读取项目 `AGENTS.md`、plugin profile 和 IRIS project profile。
 - 读取 `workflows/standard-change.workflow.md`。
 - 使用 `iris-coding` 判断 `executionPath: fast | full | guarded`；它与 `orchestrationMode` 独立。

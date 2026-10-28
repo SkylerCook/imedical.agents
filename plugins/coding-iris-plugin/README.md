@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+0.24.0：[开发方式与离线交付](references/iris-offline-development.md)独立使用 `ContextRoot/config/iris-development.json` 的 developmentMode，不新增 contextMode。offline 提前阻断受管医院连接，connected 保留原同步、准入和发布；缺省旧行为不变，非法值停止。源码助手迁入插件唯一实现，支持回执/人工目录、真实 Git 归属与范围冻结；XML 编辑对象在源码 Git、冻结原包在私有任务区，均经 Review、Pack 和独立 Verify 后待现场验收。人工 ZIP 从同一助手构建，无 Node/框架运行依赖。完整更新能力包并刷新 ContextRoot，再由授权维护补齐开发方式；普通更新不改配置、连接、锁或旧任务，不自动迁移旧基线。
+
 0.23.2：菜单同步复用共享 workspace 校验，兼容 Overlay 的实体源码目录；源码文件映射、部署预检与 XML 工具沿同一根解析器。先完整更新共享 CapabilityRoot，再刷新 ContextRoot；旧 Junction 无需迁移。实体入口另按 [Overlay 契约](../../docs/workspace-overlay.md#sourceroot引用已有源码或持有本地源码)接入，不改变离线协议、服务器能力或部署授权。
 
 0.23.1 修复 XML 导出协议进入[离线修改流程](references/iris-offline-development.md#固定处理路径)的失效锚点。完整更新能力包取得修正；脚本与人工 ZIP 不变，无配置迁移或旧文件清理。

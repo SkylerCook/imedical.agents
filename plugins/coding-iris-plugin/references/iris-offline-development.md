@@ -1,6 +1,41 @@
-# 现场源码带回与 XML 离线修改
+# IRIS 离线开发与交付
 
-现场无法使用 AI 时分两条路径：人工源码导出使用源仓 `tools/iris-code-export/` 的独立 ZIP，无框架/skill 依赖、不随 `.agents` 分发；本协议负责用户从现场带回完整 XML、本地 AI 修改、交付 XML 再带回现场导入，不另打人工 XML 工具包。
+本协议统一处理人工交接的实际源码和完整源码 XML：确认材料与范围 → 保存基线 → 修改 → 本地检查 → Code Review → Pack → 独立 Verify → 用户现场验证。代码只从接收材料或已核对的本地事实取得，不连接医院补源码。
+
+## 开发方式与完成边界
+
+- 唯一机器事实源是当前 ContextRoot 的 `config/iris-development.json`：`developmentMode` 取 `connected` 或 `offline`。缺少文件或字段保持旧 `connected` 行为；非法值停止 IRIS 流程，不能降级为 direct。profile 只引用该配置，不维护另一份值。
+- `contextMode` 继续表达上下文及按需补齐策略，`standard/project` 继续表达需求类型；完整代码和少量代码都可离线开发。离线初始化可只声明 `{"developmentMode":"offline"}`，不猜环境别名或类型，不要求连接、资格或服务器类。
+- `offline` 禁止医院远端读取、导出、上传、编译、导入、调试、测试及菜单采集。受管入口在连接配置/客户端之前阻断；Agent 同样不得调用原生 IRIS MCP。原生 MCP、外部 IDE 不在脚本拦截边界，不能宣称全系统断网。Git 联网和公共资料查询仍按原授权处理。
+- 本地编辑、静态/本地测试、知识查询、清单比较、Review、打包及本地状态检查可用。医院验收 runner 不作为离线检查工具；本地状态与恢复材料检查不清除旧锁或未知结果。模式切换不释放旧任务，也不使旧发布批准重新有效；既有连接只报告，不自动改写或生成。
+- 本地 Verify、Review、Git 提交都不表示医院已导入、编译或验收。交付后进入 `acceptance-pending`，由用户现场验证并反馈。回退原件来自带回快照，现场导入/回退前仍须核对漂移并按现场流程备份。
+
+## 接收材料、源码与 Git
+
+原始材料保留在项目的 `incoming/<batch>`，不覆盖旧批次。可编辑源码和 XML 对象位于声明的 SourceRoot/GitRoot；私有任务基线、范围及恢复资料复用 ContextRoot 的 `work/source-sync/offline-edit/<task>`。先解析工作区，不扫描父目录推断其它项目，也不在共享 CapabilityRoot 写业务资料。Git 初始化、提交和推送各按现有授权，不由本流程自动执行。
+
+新材料先比较旧输入、当前修改和新输入，不覆盖未完成任务；缺失不表示删除。本轮只支持已接收对象修改：新增、删除、重命名明确报告暂不支持。只有 Project/ProjectItem 的 XML 是范围清单，不能当源码。源码类型、编码和对象身份不受目录名或少量文件推断。
+
+## 实际源码：基线、增量与回退
+
+唯一实现为本插件 `scripts/iris-tools/source-delivery.ps1`。框架使用同目录 `source-delivery.js` 薄入口，它只解析工作区、核对实际 Git 归属/范围并调用该 PowerShell 实现，不复制打包逻辑。人工 ZIP 构建也从同一 canonical 取入脚本，现场无需框架、Node.js、Git 或联网。当前打包实现要求 Windows PowerShell 5.1 或 Windows 上的 PowerShell 7；其它平台明确停止打包，不把能力缺失当已交付。
+
+- 带导出回执的源码使用 `--export-directory`，框架 Prepare 同样显式给出 `--batch-id`，原回执字节、未知新增字段和完整摘要保持；partial 需显式接受，未收到对象不补造。旧缺来源回执按原工具核对真实带出来源，不要求连接医院。
+- 无回执源码使用 `--source-directory`、`--original-directory`、`--batch-id` 与 `--scope-file`。原件必须与编辑目录分开；Prepare 对明确范围核对两边实际字节，已有改动不能反标为原件。来源 URL/namespace 可未知，不生成假的 `baseline-state.json`。
+- 范围 JSON 为 `{"files":["src/Example/Sample.cls"]}`，路径相对编辑根，保留原结构。框架调用的范围固定在一个声明的 SourceRoot/GitRoot；多个 Git 分别处理。范围外改动保留，不进入包。当前支持 CLS/MAC/INC/INT/CSP/CSR/JS/CSS/HTML/HTM 的无 BOM UTF-8 文本；异常编码报告限制，不自动转码。
+
+```powershell
+# 脚本从已解析的 CapabilityRoot 定位；以下相对路径属于当前目标工作区
+node <iris-tools>/source-delivery.js prepare --project-root . --source-directory code --original-directory incoming/batch-01 --batch-id batch-01 --scope-file .agents/work/source-sync/offline-edit/task-01/scope.json --baseline-directory .agents/work/source-sync/offline-edit/task-01/baseline
+node <iris-tools>/source-delivery.js pack --project-root . --source-directory code --baseline-directory .agents/work/source-sync/offline-edit/task-01/baseline --out docs/delivery/demands/task-01 --notes-file notes.md
+node <iris-tools>/source-delivery.js verify --project-root . --source-directory code --baseline-directory .agents/work/source-sync/offline-edit/task-01/baseline --out docs/delivery/demands/task-01
+```
+
+Prepare 冻结输入范围、原始摘要与工作区/GitRoot 绑定；恢复原任务沿用该基线，不覆盖重建。框架新增能力使用 v2 基线/交付记录，区分 `manual-source` 与 `export-receipt`；旧 v1 的独立脚本参数和严格验证继续可用，旧未绑定基线不自动升级为框架已绑定。
+
+修改后必须核对最终 Git 差异、调用影响和适用的编码规则，写真实 notes（实际 Review、已执行的本地检查和医院待验证项），再 Pack 和独立 Verify。框架将实际 Git HEAD、范围内 status/diff 摘要和逐文件字节摘要绑定到 manifest 的 localEvidence，说明文件另有摘要；这只证明材料对应关系，不自动判定 Review 或测试通过。无变化不创建空包；缺说明、原件/范围/身份/绑定漂移、删除或改名均停止。输出保留相对路径的 `changes/`、对应 `rollback/`、`files.txt`、变更说明和 manifest；人工目录的 `files.txt` 是相对文件清单，不冒充服务器对象清单。Verify 的 `-CurrentSourceDirectory` 或旧 `-CurrentExportDirectory` 只比较用户提供的新快照，不代表实时锁定现场。
+
+## 完整源码 XML
 
 ## 固定处理路径
 
@@ -17,19 +52,18 @@
 
 复用 [edit-export-xml.ps1](../scripts/iris-tools/edit-export-xml.ps1)。辅助脚本支持 Windows PowerShell 5.1 与 Windows 上的 PowerShell 7，无 Node.js、IRIS 或外网依赖。
 
-脚本从 CapabilityRoot 定位；工作目录复用当前 ContextRoot 的 `work/iris-xml-export/offline-edit/<task>` 私有恢复区域，正式输出复用 owner 的 XML 交付目录（默认目标工程 `docs/delivery/iris-xml/<task>`），均按目录解析器和目标约定取值。不要在共享能力包生成业务原包或交付物；用户显式路径保持有效。
+脚本从 CapabilityRoot 定位。框架使用同一 `source-delivery.js` 薄入口的 xml-unpack/xml-pack/xml-verify：可编辑目录在声明的源码 Git 内，`package.xml`、inventory 和冻结绑定在显式私有 BaselineDirectory。`--batch-id` 必填，`--scope-file` 可将聚合包限制到本需求的对象文件（如 objects/000001.xml）；缺省采用收到的全部对象，开工前核对范围。Pack 忽略范围外修改，Verify 核对冻结范围与工作区绑定；不维护派生 UDL。旧 `work/iris-xml-export/offline-edit/<task>` 任务沿旧参数原位恢复，不自动迁移或宣称已受 Git 管理。
 
 ```powershell
-# 以下仅展示参数；脚本从当前 CapabilityRoot 的插件目录解析
-.\edit-export-xml.ps1 -Mode Unpack -InputXml .\export.xml -WorkDirectory D:\work\iris-edit
+node <iris-tools>/source-delivery.js xml-unpack --project-root . --source-directory code/xml/task-01 --input-xml incoming/batch-01/export.xml --batch-id batch-01 --baseline-directory .agents/work/source-sync/offline-edit/task-01/xml-baseline
 ```
 
 工作目录必须不存在。成功后有：
 
 | 文件 | 用途 |
 |---|---|
-| `package.xml` | 输入原包，保留原始字节，禁止编辑 |
-| `inventory.json` | 原包摘要、来源类型、Project 数量、对象导航与原对象摘要 |
+| 私有基线的 `package.xml` | 输入原包，保留原始字节，禁止编辑 |
+| 私有基线的 `inventory.json` | 原包摘要、批次、冻结范围、工作区绑定、来源类型和对象导航 |
 | `objects/000001.xml` 等 | 每个文件对应一个完整源码对象，供本地 AI 编辑 |
 
 对象文件名固定编号，不由类名/虚拟路径生成。先用 inventory 定位对象，再读 XML 内的完整上下文。原包和每个对象的外层 Export 属性、身份及对象集合都受核对；不要编辑 inventory、改外层属性或将 XML 文件更名。
@@ -45,11 +79,11 @@ AI 必须编写 UTF-8 的 `notes.md`，说明实际改动、原因、依赖及�
 ### 4. 生成增量交付并独立核对
 
 ```powershell
-.\edit-export-xml.ps1 -Mode Pack -WorkDirectory D:\work\iris-edit -NotesFile .\notes.md -OutputDirectory D:\delivery\change
-.\edit-export-xml.ps1 -Mode Verify -WorkDirectory D:\work\iris-edit -OutputDirectory D:\delivery\change
+node <iris-tools>/source-delivery.js xml-pack --project-root . --source-directory code/xml/task-01 --baseline-directory .agents/work/source-sync/offline-edit/task-01/xml-baseline --out docs/delivery/demands/task-01 --notes-file notes.md
+node <iris-tools>/source-delivery.js xml-verify --project-root . --source-directory code/xml/task-01 --baseline-directory .agents/work/source-sync/offline-edit/task-01/xml-baseline --out docs/delivery/demands/task-01
 ```
 
-`-OutputDirectory` 默认工作目录下的 `delivery`，正式交付时应显式选择目标工程的 XML 交付路径。输出目录必须不存在，不覆盖已有交付。没有修改时返回 `state=unchanged`，不创建空包；有修改必须提供非空 NotesFile。
+框架入口必须显式选择源码树外、当前工作区内的正式 XML 交付路径。独立 PowerShell 原参数保持，新增 `-BaselineDirectory` 可分离冻结原包，未指定时沿旧工作目录布局。输出目录必须不存在，不覆盖已有交付。没有修改时返回 `state=unchanged`，不创建空包；有修改必须提供非空 NotesFile。
 
 | 交付文件 | 内容 |
 |---|---|
