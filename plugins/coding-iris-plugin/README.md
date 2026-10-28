@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+0.23.0 增加[现场聚合 XML 带回后由本地 AI 修改](references/iris-offline-development.md)：识别源码与 Project 元数据，按对象 XML 编辑，默认交付仅含修改对象的 changes.xml、对应 rollback.xml、变更说明及摘要 manifest。保留完整类结构和原包，以独立 Verify 核对，不连接实例、不自动导入编译。人工源码导出独立归源仓 tools/iris-code-export/，可直接带 ZIP，无需框架或 skill，不随 .agents 分发；普通能力包更新只取得 XML helper 与路由说明，无配置迁移或旧文件清理。
+
 0.22.1 部署失败按[失败恢复与授权](references/deployment-protection.md#失败恢复与授权)先诊断，在原授权内完成有上限的安全恢复；明确编译错误返回诊断，未知写入与编译继续保护。逐文件入口记录 `recovery`；旧 SFTP 批量 worker 不自动重放。正常完整能力包更新取得，无配置迁移或旧文件清理；旧 unknown 会话仍按原协议核实，业务副本和真实服务另行验证。
 
 0.22.0 新增 [iris-xml-export](skills/iris-xml-export/SKILL.md) 与 [iris-code-baseline](skills/iris-code-baseline/SKILL.md)。前者按确认范围导出指定环境当前对象的 XML，支持专用类及无预部署类的系统执行通道；后者维护版本清单并采集当前实例代码，图片在请求前排除并统计，初始缺失保留 partial。两者复用 workspace、私有连接与受管资源；只有取得目标资格才启用只读多会话，版本 XML 不表示历史源码。

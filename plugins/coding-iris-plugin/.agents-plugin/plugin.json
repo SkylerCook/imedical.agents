@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.22.1",
+  "version": "0.23.0",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
@@ -94,10 +94,11 @@
       "path": "docs/delivery/iris-xml",
       "role": "delivery",
       "create": "task",
-      "purpose": "已确认对象范围的 IRIS XML 部署包与逐项校验回执",
+      "purpose": "已确认对象范围的 IRIS XML 部署包、离线增量/回退 XML 与逐项校验回执",
       "examples": [
         "对象清单",
         "XML 合包或分文件",
+        "changes.xml / rollback.xml / 变更说明",
         "完整性校验回执"
       ],
       "boundary": "只保存当前工程正式交付；服务器任务身份、私有计划与恢复状态归 ContextRoot/work/iris-xml-export",
@@ -109,9 +110,10 @@
       "path": "work/iris-xml-export",
       "role": "recovery",
       "create": "task",
-      "purpose": "XML 导出计划、服务器产物归属、下载断点与清理回执",
+      "purpose": "XML 导出计划、离线编辑原包/对象与回执、服务器产物归属及恢复断点",
       "examples": [
         "导出计划",
+        "offline-edit/<task> 原包与对象 XML",
         "任务产物清单",
         "恢复与清理回执"
       ],

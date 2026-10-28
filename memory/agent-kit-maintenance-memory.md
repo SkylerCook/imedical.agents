@@ -6,6 +6,7 @@
 
 - 最近全局回看覆盖 `16a5b6f..0984232`（2026-10-24–28，8 个提交），包含上轮文档收尾与后续功能变更。发现、修正和验证见[日志覆盖点](agent-kit-maintenance-log.md#全局回看覆盖点)；当前版本查 owner manifest，历史实施状态不作当前未提交结论。
 - XML／基线、目录受管说明、实仓日志与 Git/BOS 解耦、部署有限恢复均已在源仓实现；按下表条件读取 owner，区分源码交付、项目接入、有效授权和真实服务验证。类源不等同已验证安装 XML，目录通过不等同逐文件归类，Git 完成不等同全部适用交付完成。
+- 人工现场源码导出独立归 [tools/iris-code-export](../tools/iris-code-export/README.md)，ZIP 无框架或 skill 依赖、不部署到 .agents；聚合 XML 带回后由本地 AI 按对象编辑，交付增量 changes.xml、对应 rollback.xml、说明/manifest 并独立 Verify，归 [coding 协议](../plugins/coding-iris-plugin/references/iris-offline-development.md)，不另打人工 XML 包、不自动导入编译。
 - 未完成的真实试点、资源资格、旧入口迁移和跨平台结果沿[治理队列](agent-kit-maintenance-backlog.md#治理优先级与执行顺序)原 P0–P3 顺序推进；源仓维护不自动更新业务工程或执行服务器操作。
 
 ## 按任务读取

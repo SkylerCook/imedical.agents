@@ -52,6 +52,7 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 - IRIS 远端部署编排：`skills/iris-deploy/SKILL.md`
 - 已确认范围的 XML 部署包导出：`skills/iris-xml-export/SKILL.md`；两条自有通道、任务文件与完整性契约归 `references/iris-xml-export.md`。
 - 版本清单维护、初始当前源码采集及基线恢复：`skills/iris-code-baseline/SKILL.md`；代码与图片筛选、partial 和目标多会话资格归 `references/iris-code-baseline.md`，项目开发同步继续沿原协议。
+- 现场完整 XML 带回后由本地 AI 修改：同一基线 skill 路由 `references/iris-offline-development.md`；按对象 XML 修改，交付 changes.xml、对应 rollback.xml、实际变更说明及 manifest，经独立 Verify 核对，不重发未修改对象或 Project 元数据，不要求现场连接或自动导入编译。人工导出是源仓 tools/iris-code-export/ 的独立 ZIP，不依赖本 skill、不随 .agents 分发；两条路径均不绕过已知阻断，类 XML 不手工降级为 UDL。
 - DEV→PRD 需求移植：`skills/iris-demand-promote/SKILL.md`
 - 标版/项目需求提交：`../demand-delivery-plugin/skills/demand-commit/SKILL.md`
 - 标版需求闭环：`../bos-plugin/skills/bos-demand-entry/SKILL.md`，用户模式 `--text / --bind / --plan / --commit / --help`，可选 `--excel` / `--Excel`；产品标识取项目配置，描述按缺陷或功能/改进使用简洁三段式，草稿仅支持 v2。历史来源用 `--rev`，不与提交授权混用。

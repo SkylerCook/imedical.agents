@@ -4,6 +4,8 @@
 
 ## 命令入口
 
+现场完整源码 XML 带回后可按[本地 AI 修改与回包流程](iris-offline-development.md)处理；此分支不连接现场实例。人工 TXT/XML 清单导出独立归源仓 tools/iris-code-export/，交付无框架依赖的 ZIP，不属于下面的受管采集，也不自动建立项目开发基线。
+
 ```text
 node <CapabilityRoot>/plugins/coding-iris-plugin/scripts/iris-tools/baseline-catalog.js build --project-root <WorkspaceRoot> --out <new-project-items.xml> --version <label> --source-ref <ref> --scope <description> --dry-run
 node <CapabilityRoot>/plugins/coding-iris-plugin/scripts/iris-tools/baseline-catalog.js compare --left <older.xml> --right <newer.xml>

@@ -1,10 +1,14 @@
 # .agents 安装与更新 Runbook
 
+源仓根 `tools/` 整体不部署到业务项目 `.agents`，包括源码、README、ZIP 及以后新增的人工工具。安装/更新继续按运行时白名单检出；人工需要时单独取得 ZIP，不将 tools 加入 sparse checkout。
+
 ## 验收先提交推送、后补 BOS 日志
 
 `demand-delivery-plugin 0.8.1` 解耦 Git 发布与 BOS 补录，按正常流程更新完整能力包并刷新已启用索引。旧 v1/v2 的 schema、scopeHash、授权和回执保持；首次状态写入释放已完成 Git 的发布权，BOS 交付者与来源证据保留。部分 push 仍串行保护；BOS 失败/未知只暂停日志，完整交付仍须全部适用回执。旧日志先于 push 的顺序可续接，无私有配置迁移、旧文件清理或安装/更新算法变更，详见[迁移说明](demand-delivery-migration.md#bos-日志与-git-发布解耦)。源仓更新不代表业务副本已升级。
 
 ## IRIS XML 导出与代码基线（coding 0.22）
+
+`coding-iris-plugin 0.23.0` 增加[现场完整 XML 带回后的本地 AI 修改流程](../plugins/coding-iris-plugin/references/iris-offline-development.md)，正常更新取得 `scripts/iris-tools/edit-export-xml.ps1` 与路由说明：Unpack 支持混合 Project/源码，Pack 用 NotesFile 生成增量 XML、对应回退包、说明及 manifest，Verify 独立回读。人工源码导出工具已独立至源仓 tools/iris-code-export/，交付 ZIP，不依赖框架或 skill，不随 .agents 的 sparse checkout 分发。未改安装/更新算法；无配置迁移或旧文件清理。
 
 `coding-iris-plugin 0.22.0` 新增 [iris-xml-export](../plugins/coding-iris-plugin/skills/iris-xml-export/SKILL.md) 与 [iris-code-baseline](../plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md)。XML 从指定环境当前对象生成，支持图片；基线只采代码，图片预筛排除并统计，版本 XML 只表达范围。初始缺失保留完整 partial 报告；日常开发仍按需求刷新，项目分支继续使用 source-sync。
 

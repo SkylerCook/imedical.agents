@@ -42,6 +42,7 @@
 - `docs/` 放随业务项目部署的接入、使用、运行协议及通用参考；入口为 `docs/README.md`。
 - `maintenance/` 放仅源仓使用的治理、设计历史与验证证据；入口为 `maintenance/README.md`。文档迁移按 `maintenance/governance/documentation-layout.md` 核对分发与旧副本收敛。
 - 根 `scripts/` 放能力包部署、更新和通用维护脚本；领域脚本放到对应插件。
+- 根 `tools/` 放面向人工使用、可独立携带的工具源与就近 README；不依赖 Agent skill 或业务项目 `.agents`，不随能力包安装/更新分发。`tools/dist/` 只保存本机生成的正式 ZIP 并由 Git 忽略；源码只维护一份，打包和解压暂存使用任务临时目录，完成后清理。
 - 根 `vendor/` 放第三方源码资产、共享运行时资产和 vendor skill fallback，部署到业务项目 `.agents/vendor/`；只有插件 manifest 声明的 required vendor skill 才生成 `.agents/skills` thin-index。
 - 根 `releases/` 放插件和根级独立 skill 的不可变发布记录，只服务源仓版本审计，不部署到业务项目。
 - 根 `memory/` 是维护者记忆，不部署到业务项目 `.agents/`，不生成 thin-index。
@@ -59,6 +60,7 @@
 - 根 `maintenance/`
 - 根 `.agents/`
 - 根 `releases/`
+- 根 `tools/`
 - 根 `README.md`、`LICENSE`
 - 根 `index.html`
 - `.github/`

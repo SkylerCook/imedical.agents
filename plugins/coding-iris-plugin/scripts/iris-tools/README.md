@@ -25,6 +25,8 @@
 
 ## 📁 脚本列表
 
+- `edit-export-xml.ps1`：辅助 AI 在本地拆分现场聚合 XML（可含 Project 元数据），直接编辑源码节点；Pack 按 NotesFile 生成 changes.xml、rollback.xml、变更说明和 manifest，Verify 独立核对。仅输出修改对象，原包和未修改对象受保护，不自动转换 UDL、导入或编译。流程见[现场源码带回与 XML 离线修改](../../references/iris-offline-development.md)。人工导出脚本独立归源仓 `tools/iris-code-export/`，不在本插件分发。
+
 - `query-knowledge.js`：从 CapabilityRoot 的共享参考库与指定 sourceId 的当前项目菜单中按字面量检索，返回来源、行号和有界片段。
 - `sync-menu.js`：接受完整采集 JSON，plan 只读比较，apply 校验指纹后写入 ContextRoot/work/menu-sync。采集由 iris-menu-sync skill 复用原生 MCP，脚本自身不联网。用法与输入见 [菜单同步](../../references/menu-knowledge-sync.md)。
 - `refresh-menu.js`：对已授权、已登记来源固定完成全量菜单与当前启用安全组采集，复用 sync-menu 原子发布；提供环境/源码摘要校验、断点和异常差异停止。enroll 需要人工审阅，run --execute 可由宿主定期调用，失败保留旧快照，指定组仍走原协议。

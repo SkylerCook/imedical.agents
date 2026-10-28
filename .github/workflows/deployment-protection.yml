@@ -15,6 +15,16 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: node --test plugins/coding-iris-plugin/scripts/iris-tools/tests/cls-format.test.js
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path tools/dist -Force | Out-Null
+          Compress-Archive -LiteralPath tools/iris-code-export/README.md, tools/iris-code-export/export-iris-code.ps1, tools/iris-code-export/files.example.txt -DestinationPath tools/dist/iris-code-export.zip -Force
+          node --test scripts/tests/iris-offline-powershell.tests.cjs
+      - if: runner.os == 'Windows'
+        env:
+          IRIS_TEST_POWERSHELL: pwsh.exe
+        run: node --test scripts/tests/iris-offline-powershell.tests.cjs
       - run: node --test plugins/coding-iris-plugin/scripts/iris-tools/tests/deploy-recovery.test.cjs
       - run: node --test scripts/tests/iris-remote-operations.tests.js scripts/tests/iris-export-encoding.tests.js scripts/tests/iris-coding-fast-path.tests.js plugins/coding-iris-plugin/scripts/iris-tools/tests/source-sync.test.js plugins/coding-iris-plugin/scripts/iris-tools/tests/source-sync-transaction.test.cjs plugins/coding-iris-plugin/scripts/iris-tools/tests/source-publication.test.cjs plugins/coding-iris-plugin/scripts/iris-tools/tests/iris-demand-promote.test.js
       - run: node --test scripts/tests/atelier-read-pool.tests.js scripts/tests/iris-mcp-session.tests.js scripts/tests/iris-xml-distribution.tests.js plugins/coding-iris-plugin/scripts/iris-tools/tests/xml-package-core.test.js plugins/coding-iris-plugin/scripts/iris-tools/tests/xml-export.test.js plugins/coding-iris-plugin/scripts/iris-tools/tests/xml-package-source.test.js plugins/coding-iris-plugin/scripts/iris-tools/tests/code-baseline.test.js plugins/coding-iris-plugin/scripts/iris-tools/tests/baseline-catalog.test.js plugins/coding-iris-plugin/scripts/iris-tools/tests/xml-scope.test.js

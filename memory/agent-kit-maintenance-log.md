@@ -1,5 +1,15 @@
 # imedical.agents 维护日志
 
+## 2026-10-28 内网独立导出与 XML 离线编辑
+
+- framework-maintenance，实施基点 `5698dd3da67a871a3115c58c2dca0a3f0e85b91b`。按用户明确选择补齐两条现场路径：独立 `export-iris-code.ps1` 按 UTF-8 TXT 或 ProjectItem XML 导出当前源码至指定目录；`edit-export-xml.ps1` 将完整源码 XML 拆分为单对象 XML，编辑后核对范围和身份回包。类保持完整 XML，不手工拼 UDL；两个脚本不依赖 Node.js、MCP、Agent 或外网，不自动导入、编译或提交。独立工具限 Windows，作为现场无 Node.js 的明确交付方式，不另建跨平台等价核心。
+- coding-iris-plugin 0.23.0 与七个直接消费者 PATCH/兼容上界同步；owner 入口、基线/XML 协议、TXT 示例、能力手册、根总览和更新说明同步。用户随后明确区分人工导出和 AI XML 修改：人工工具源移至 tools/iris-code-export/，ZIP 只含导出脚本、README、TXT 示例；XML helper 继续随插件更新，不另打 XML 包。工具源码只维护一份，整个根 tools/（含以后新增工具、README、ZIP）不随 .agents 分发。安装/更新白名单已分别核对；实际 sparse 新装/更新夹具验证整个 tools 目录缺席，静态门禁同时检查当前新文件与未来路径。无安装/更新算法、配置、thin-index 迁移或旧文件清理。独立工具的同目标/输出互斥不替代公共准入，已知阻断不得绕过；项目开发仍沿 source-sync。
+- Windows PowerShell 5.1、PowerShell 7 的同一 11 项回归均通过：实际本机 HTTP/Cookie、UTF-8 TXT 前后端四种例程/类与 Web 路径、分段编码、图片预筛、404/empty/503 零重试、独立进程恢复、局部改动保护、DTD/目录穿越/身份与范围漂移、XML 类元数据和二进制回包。新/旧 sparse 分发专项 1/1、project links resolve 1/1 通过；既有 CI 增加 Windows 双宿主专项，未运行远端 CI。
+- 用户授权的一个真实内网目标以最终脚本完成 3 对象小样本（CLS、JS、CSP），先独立进程取得 1 项，再以新 Windows PowerShell 5.1 进程恢复剩余 2 项，全部摘要及严格 UTF-8 独立回读通过。该样本发现整条 Web 路径编码导致 404，改为逐段编码并保留斜杠后成功；退出接口返回 401，按既有 CacheLogout 契约记回执，`licenseReleaseVerified:false`，未验证真实许可回落。只读样本不代表所有医院旧版本兼容；未上传、编译、改配置或更新业务副本，未把目标连接/私有源码写入源仓。
+- 版本工作区预检覆盖 8 个变更 owner，未出现本次版本或依赖新问题；全仓既有发布记录债保持原样。真实 XML 导入/编译、更多目标兼容及资源回落继续沿既有 P1 队列；实施阶段未暂存、提交或推送；用户随后授权本批 c + p，提交前核对 master 与两个远端均在实施基点，按本批精确范围及 README 双远端约定执行，结果以 Git 回执为准。测试临时目录按任务归属清理，功能证据供后续提交复用。
+
+- 人工包最终只含导出脚本、README、TXT 示例，从带中文/空格的隔离解压目录运行；用户指定示例写入人工 README 与清单，真实连接示例只留本机 ZIP 的 README；打包暂存副本已与 ZIP 逐文件核对后删除，tools/dist 只保留 ZIP，测试直接从 ZIP 解压验证。最终 ZIP 在一个授权目标成功取得指定的 CLS、JS、CSP 三项，摘要/UTF-8 回读通过。实际验收发现并修复 PowerShell Set-Location 与 .NET 进程当前目录不同导致的相对路径问题，导出与 XML helper 共因修正，新增两宿主相对路径回归。XML helper 已收敛为 Unpack/Pack/Verify：混合 Project/源码包仅拆分源码，NotesFile 承载实际说明，原包不变；changes.xml 与 rollback.xml 只含一一对应的修改对象，说明/manifest 记录范围与前后摘要，四文件校验后原子发布到新目录。Verify 独立进程核对载荷和交付漂移；无修改不产空包，有修改缺说明停止，不隐式新增/删除/重命名顶层对象。本地复用 XML 工作/交付目录，无服务连接、导入或编译。最新双宿主 11 项、新旧 sparse 分发与文档链接各 1 项通过；真实项目 XML 导入编译及现场漂移仍沿 P1，不把合成混合包当现场验收。
+
 ## 2026-10-28 IRIS 部署有限恢复与重复确认收敛
 
 - framework-maintenance，按用户确认实施部署失败分流；并行 XML/基线已在 `4960807` 独立提交，本次 coding-iris-plugin 0.22.0→0.22.1，新增独立发布记录并保持 0.22.0 不可变原文。用户随后明确授权本批 c + p，按 master 与 Gitee/GitHub 双远端约定执行，最终结果以 Git 回执为准；不更新业务副本或连接真实服务器。
