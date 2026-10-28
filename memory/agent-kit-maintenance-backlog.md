@@ -22,7 +22,7 @@
 
 ## P1 可重复验收真实接入
 
-- **P1 IRIS XML／基线试点与受管多会话资格**（并入治理表第 4 项，coding-iris owner）：本地实现已完成；在授权窗口按[验收指南](../docs/guides/iris-xml-baseline-acceptance.md)验证两条受管 XML 通道、完整取回/载荷校验、类源编译与安装 XML 隔离导入，补首采恢复、partial、图片预筛及绑定目标/配置/运行时的会话资源占用、退出和回落。混合包须用独立测试实例，或同时证明 namespace、Web 应用及物理目录隔离；请求 worker 数不是通用许可预算。人工独立导出已有单目标小样本，XML 离线增量/回退/Verify 已有本地合成证据；继续按[离线协议](../plugins/coding-iris-plugin/references/iris-offline-development.md)补真实带回材料、现场并行修改、导入/编译和回退前漂移核对，不把本地 Verify 或 logout 回执视为业务通过/许可回落。更多医院版本、实际工程更新、旧入口迁移及跨平台/宿主证据沿原第 4/7 项与技能适配队列，不另建序列；具体操作各自授权。
+- **P1 IRIS XML／基线试点与受管多会话资格**（并入治理表第 4 项，coding-iris owner）：本地实现已完成；在授权窗口按[验收指南](../docs/guides/iris-xml-baseline-acceptance.md)验证两条受管 XML 通道、完整取回/载荷校验、类源编译与安装 XML 隔离导入，补首采恢复、partial、图片预筛及绑定目标/配置/运行时的会话资源占用、退出和回落。混合包须用独立测试实例，或同时证明 namespace、Web 应用及物理目录隔离；请求 worker 数不是通用许可预算。人工独立导出已有单目标小样本，新会话保护仍须补真实 Cookie/网关兼容、退出与宽限后回落证据；共享 Atelier 客户端的宽松退出判定另行评审，本轮仅改人工导出器。源码 Prepare/Pack/Verify、现场新快照比对及 XML 离线增量/回退/Verify 已有本地模拟或合成证据。继续沿[人工说明](../tools/iris-code-export/README.md#七带回开发与还回现场)及[XML 离线协议](../plugins/coding-iris-plugin/references/iris-offline-development.md)补真实带回材料、现场并行修改、导入/编译和回退前漂移核对，不把本地 Verify 或 logout 回执视为业务通过/许可回落。更多医院版本、实际工程更新、旧入口迁移及跨平台/宿主证据沿原第 4/7 项与技能适配队列，不另建序列；具体操作各自授权。
 
 - P1 IRIS 按需项目与 License 资格（并入治理表第 3、4 项）：在明确授权窗口，对测试/正式各自本地 Git 与需求范围验证首次基线、上下游选择、服务器漂移后的追加提交/复审冻结、最终全批回读及 Storage；分别记录 Atelier CSP session、Broker 调用者会话和 MCP/数据库连接的实际占用、退出与结束回落。先以最小批次证明持久恢复和资源归属，再按证据扩批，不使用 150–200 通用阈值，不把数据库与 Atelier 两类历史打满推断为同根因。原生 MCP/IDE 与其它独立客户端沿显式外部边界，不宣称机器已统一拦截；旧 Caché、跨平台与真实宿主加载并入第 7 项 P2，本地 mock 不替代资格证据。
 

@@ -16,7 +16,9 @@
 
 - XML 包与代码基线统一归 coding owner 的[导出协议](../plugins/coding-iris-plugin/references/iris-xml-export.md)和[基线协议](../plugins/coding-iris-plugin/references/iris-code-baseline.md)：版本 XML 定义范围，实例返回定义内容；包的二进制载荷与基线图片预筛分别验证。纯采集不自动进入项目 Git 状态机；单批内部只读会话池不改变跨进程排他或写入串行，资格依实际目标及运行时重新核验。专用类源、已验证安装 XML 与服务器实际能力分开；用户级旧入口沿显式迁移，普通更新不删除。XML 解析使用固定 vendor 依赖，来源与许可证归 vendor 说明，不扩大为业务 npm 安装。
 
-- 人工源码导出与带回 XML 编辑分别交付：独立 Windows PowerShell 工具无需 Agent／Node.js／MCP；完整源码 XML 的离线修改归 [coding 协议](../plugins/coding-iris-plugin/references/iris-offline-development.md)，按对象 XML 保留原包与元数据，生成同对象集合的增量、回退、说明和 manifest 并独立校验。范围清单不能补造源码，回退包不是现场即时备份；本地核对不授予导入/编译/发布权限，也不绕过已知资源阻断。一次现场证书、401 或兼容观察按样本保留，不推广为所有目标的处理规则。
+- 人工源码导出与带回 XML 编辑分别交付：独立 Windows PowerShell 工具无需 Agent／Node.js／MCP；导出仅增加可读来源 URL 与 Namespace，原始字节由离线 Prepare 保存到 .baseline，Pack 只交付修改后的完整源码、对应原件、对象清单、说明与 manifest，Verify 可比较现场新快照。旧导出补来源须匹配原 target，不改原回执或脚本摘要；准备开发基线后另目录补采，不用 Resume 覆盖。完整源码 XML 的离线修改归 [coding 协议](../plugins/coding-iris-plugin/references/iris-offline-development.md)，按对象 XML 保留原包与元数据，生成同对象集合的增量、回退、说明和 manifest 并独立校验。范围清单不能补造源码，回退包不是现场即时备份；本地核对不授予导入/编译/发布权限，也不绕过已知资源阻断。一次现场证书、401 或兼容观察按样本保留，不推广为所有目标的处理规则。
+
+- 人工导出器串行复用真实 CSP 会话 Cookie；缺失、丢失、身份变化或歧义时停止，不逐文件重新认证。只对本次观察到的已知会话发送无凭据退出，响应符合预期与实际 License 回落分别记录；新进程空跑不能清除旧进程退出未核对的事实。传输诊断复用稳定错误码，仅记录异常链类型、系统状态和安全分类，不将原始异常消息写入回执。不同 Windows 登录会话、机器、入口别名与其它客户端仍是本机互斥的外部边界。
 
 - 项目使用文档统一放 docs/ 并随能力包部署；源仓治理、设计历史和验证证据归 maintenance/，不进入 sparse。稳定操作入口保留，新增指南/参考分组。文档迁移优先依赖 Git 安全快进清除旧受管路径与空目录；自定义文件保留，本地改动停止，不新增宽泛删除。
 

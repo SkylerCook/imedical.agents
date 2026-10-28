@@ -19,7 +19,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path tools/dist -Force | Out-Null
-          Compress-Archive -LiteralPath tools/iris-code-export/README.md, tools/iris-code-export/export-iris-code.ps1, tools/iris-code-export/files.example.txt, tools/iris-code-export/images -DestinationPath tools/dist/iris-code-export.zip -Force
+          Compress-Archive -LiteralPath tools/iris-code-export/README.md, tools/iris-code-export/export-iris-code.ps1, tools/iris-code-export/source-delivery.ps1, tools/iris-code-export/files.example.txt, tools/iris-code-export/images -DestinationPath tools/dist/iris-code-export.zip -Force
           node --test scripts/tests/iris-offline-powershell.tests.cjs
       - if: runner.os == 'Windows'
         env:

@@ -18,7 +18,7 @@ iMedical 知识资料已接入 [共享参考库](vendor/imedical-knowledge/READM
 
 IRIS XML 包和源码基线统一归 coding owner：[iris-xml-export](plugins/coding-iris-plugin/skills/iris-xml-export/SKILL.md) 从确认环境导出准确对象范围，支持图片；[iris-code-baseline](plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md) 按版本清单采集当前源码，图片预筛排除、初始缺失完整报告。专用类与系统执行通道无需 QTZ，受管只读多会话按目标资格启用；更新及旧全局入口迁移见[安装更新说明](docs/update-agents.md#iris-xml-导出与代码基线coding-022)，普通更新不部署服务端或登记资格。
 
-人工内网源码导出使用[独立工具](tools/iris-code-export/README.md)，可将 ZIP 直接带入现场，按 UTF-8 TXT/XML 清单导出到指定目录，无需框架或 skill；工具只在源仓 tools/ 维护，不随 .agents 分发。另一路由用户将现场聚合 XML 带回，[交给本地 AI 按对象修改](plugins/coding-iris-plugin/references/iris-offline-development.md)，交付只含修改对象的 changes.xml、对应 rollback.xml、变更说明及摘要回执，再带回现场导入，无需独立 XML 工具包。
+人工内网源码导出使用[独立工具](tools/iris-code-export/README.md)，可将 ZIP 直接带入现场，按 UTF-8 TXT/XML 清单导出到指定目录，记录可读来源，离线保存原始基线并交付增量源码/对应回退/说明，支持用现场新快照比较；无需框架或 skill；工具只在源仓 tools/ 维护，不随 .agents 分发。另一路由用户将现场聚合 XML 带回，[交给本地 AI 按对象修改](plugins/coding-iris-plugin/references/iris-offline-development.md)，交付只含修改对象的 changes.xml、对应 rollback.xml、变更说明及摘要回执，再带回现场导入，无需独立 XML 工具包。
 
 CSP 编译沿 coding owner 的[部署入口](plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md)选择：普通工程可使用 `compile-csp.js` 的 Atelier 通道；已确认 `project` ＋ `intent-first-on-demand-export` 的工程及受管夜跑须由对应部署链路编译，独立调用不能绕过 source plan、复审或运行门禁。
 

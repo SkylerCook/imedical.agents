@@ -65,6 +65,62 @@ function Get-Destination([string]$Relative) {
     return $file
 }
 
+function Get-TransportDiagnostic([Exception]$Exception) {
+    $types = @(); $codes = @(); $tls = $false; $dns = $false; $connection = $false; $timeout = $false; $cancelled = $false
+    for ($depth = 0; $Exception -and $depth -lt 16; $depth++) {
+        $types += $Exception.GetType().FullName
+        if ($Exception -is [Security.Authentication.AuthenticationException]) { $tls = $true }
+        if ($Exception -is [TimeoutException]) { $timeout = $true }
+        if ($Exception -is [OperationCanceledException]) { $cancelled = $true }
+        if ($Exception -is [Net.WebException]) {
+            $code = $Exception.Status.ToString(); $codes += 'WebExceptionStatus.' + $code
+            if ($code -in @('TrustFailure', 'SecureChannelFailure')) { $tls = $true }
+            if ($code -in @('NameResolutionFailure', 'ProxyNameResolutionFailure')) { $dns = $true }
+            if ($code -eq 'Timeout') { $timeout = $true }
+            if ($code -in @('ConnectFailure', 'ConnectionClosed', 'ReceiveFailure', 'SendFailure', 'KeepAliveFailure')) { $connection = $true }
+        }
+        if ($Exception -is [Net.Sockets.SocketException]) {
+            $code = $Exception.SocketErrorCode.ToString(); $codes += 'SocketError.' + $code
+            if ($code -in @('HostNotFound', 'TryAgain', 'NoData')) { $dns = $true }
+            if ($code -eq 'TimedOut') { $timeout = $true }
+            if ($code -in @('ConnectionRefused', 'ConnectionReset', 'ConnectionAborted', 'NetworkUnreachable', 'HostUnreachable', 'NetworkDown')) { $connection = $true }
+        }
+        $Exception = $Exception.InnerException
+    }
+    $category = 'transport'; $message = 'HTTP transport failed; inspect the local network and gateway.'
+    if ($tls) { $category = 'tls'; $message = 'TLS certificate validation or secure channel failed.' }
+    elseif ($dns) { $category = 'dns'; $message = 'Server name resolution failed.' }
+    elseif ($timeout -or $cancelled) { $category = 'timeout-or-cancelled'; $message = 'The request timed out or was cancelled.' }
+    elseif ($connection) { $category = 'connection'; $message = 'The connection was refused, interrupted or unreachable.' }
+    # Never persist raw exception messages: they can contain URLs, headers or credentials.
+    return [pscustomobject]@{category = $category; message = $message; exceptionTypes = @($types); nativeStatus = @($codes)}
+}
+function Get-SessionSnapshot([Net.CookieContainer]$Container, [uri]$BaseUri) {
+    $cookies = @($Container.GetCookies($BaseUri)); $sessionCookies = @($cookies | Where-Object { $_.Name -match '^CSPSESSION' -and $_.Value })
+    if (-not $sessionCookies.Count) { return $null }
+    $identity = Hash-Bytes ($utf8.GetBytes((($sessionCookies | ForEach-Object { $_.Name + '|' + $_.Domain + '|' + $_.Path + '|' + $_.Value } | Sort-Object) -join "`n")))
+    $copies = @($cookies | ForEach-Object { $copy = New-Object Net.Cookie($_.Name, $_.Value, $_.Path, $_.Domain); $copy.Secure = $_.Secure; $copy.HttpOnly = $_.HttpOnly; $copy })
+    return [pscustomobject]@{identity = $identity; count = $sessionCookies.Count; cookies = $copies}
+}
+function Close-SessionSnapshot($Snapshot) {
+    $result = [ordered]@{responseReceived = $false; httpStatus = $null; accepted = $false; reason = $null; diagnostic = $null}
+    $exitHandler = $null; $exitClient = $null; $exitRequest = $null; $exitResponse = $null
+    try {
+        # A separate cookie jar sends precisely this owned session, including after local expiry/rotation.
+        $exitHandler = New-Object Net.Http.HttpClientHandler
+        $exitHandler.AllowAutoRedirect = $false; $exitHandler.UseProxy = $false; $exitHandler.UseCookies = $true
+        foreach ($cookie in $Snapshot.cookies) { $exitHandler.CookieContainer.Add($uri, $cookie) }
+        $exitClient = New-Object Net.Http.HttpClient($exitHandler); $exitClient.Timeout = [TimeSpan]::FromSeconds([Math]::Min($TimeoutSec, 10))
+        $exitRequest = New-Object Net.Http.HttpRequestMessage([Net.Http.HttpMethod]::Head, ($uri.AbsoluteUri + '?CacheLogout=end'))
+        $exitResponse = $exitClient.SendAsync($exitRequest).GetAwaiter().GetResult()
+        $result.responseReceived = $true; $result.httpStatus = [int]$exitResponse.StatusCode
+        $result.accepted = (($result.httpStatus -ge 200 -and $result.httpStatus -lt 300) -or $result.httpStatus -eq 401)
+        if (-not $result.accepted) { $result.reason = 'atelier-logout-http-' + $result.httpStatus }
+    } catch { $result.reason = 'atelier-logout-transport-or-timeout'; $result.diagnostic = Get-TransportDiagnostic $_.Exception }
+    finally { if ($exitResponse) { $exitResponse.Dispose() }; if ($exitRequest) { $exitRequest.Dispose() }; if ($exitClient) { $exitClient.Dispose() }; if ($exitHandler) { $exitHandler.Dispose() } }
+    return [pscustomobject]$result
+}
+
 try {
     if ($env:OS -ne 'Windows_NT') { throw 'windows-powershell-required' }
     $inputFile = $Baseline
@@ -140,6 +196,7 @@ try {
         [pscustomobject]@{total = $items.Count; excludedImageCount = $excluded.Count; excludedImages = $excluded; items = $items} | ConvertTo-Json -Depth 8
         exit 0
     }
+    if ($Resume -and (Test-Path -LiteralPath (Join-Path $root '.baseline'))) { throw 'development-baseline-exists-do-not-resume' }
     if (-not $items.Count) { throw 'no-code-selected' }
     if (-not $AtelierUrl) { $AtelierUrl = Read-Host 'Atelier root URL (ending /api/atelier/)' }
     if (-not $Namespace) { $Namespace = Read-Host 'Namespace' }
@@ -174,13 +231,19 @@ try {
                 } elseif ($old.status -eq 'fetched') { throw 'local-source-missing' }
                 else { $old.status = 'pending'; $old.sha256 = $null }
             }
+            if (-not $state.logoutVerified -and -not @($state.items | Where-Object { $_.status -ne 'fetched' }).Count) { throw 'resume-previous-session-exit-unverified' }
         } else {
             if (Test-Path -LiteralPath $root) { throw 'output-directory-must-be-new-or-use-Resume' }
             [void][IO.Directory]::CreateDirectory($root)
-            $state = [pscustomobject]@{schema = 'iris-standalone-baseline/v1'; target = $target; baselineHash = $baselineHash; scopeHash = $scopeHash; scriptHash = $scriptHash;
+            $state = [pscustomobject]@{schema = 'iris-standalone-baseline/v1'; target = $target; source = [ordered]@{atelierUrl = $uri.AbsoluteUri; namespace = $Namespace}; baselineHash = $baselineHash; scopeHash = $scopeHash; scriptHash = $scriptHash;
                 outputRoot = $root; startedAt = [DateTime]::UtcNow.ToString('o'); updatedAt = $null; state = 'partial'; reason = $null;
                 excludedImages = @($excluded); excludedImageCount = $excluded.Count; items = @($items); logoutVerified = $false; logoutHttpStatus = $null; licenseReleaseVerified = $false}
         }
+        foreach ($entry in @{
+            session = [pscustomobject]@{cookieVerified = $false; requestCount = 0; authenticationCount = 0}
+            transportDiagnostic = $null; logoutRequested = $false; logoutResponseReceived = $false; logoutResults = @(); logoutReason = $null
+        }.GetEnumerator()) { $state | Add-Member -MemberType NoteProperty -Name $entry.Key -Value $entry.Value -Force }
+        $state.logoutHttpStatus = $null; $state.licenseReleaseVerified = $false
         Save-State
         if (-not $Credential) { $Credential = Get-Credential -Message 'IRIS read access (kept in memory only)' }
         if (-not $Credential) { throw 'credential-required' }
@@ -188,12 +251,14 @@ try {
         $handler = New-Object Net.Http.HttpClientHandler
         $handler.AllowAutoRedirect = $false
         $handler.UseProxy = $false
+        $handler.UseCookies = $true
         $handler.CookieContainer = New-Object Net.CookieContainer
         $client = New-Object Net.Http.HttpClient($handler)
         $client.Timeout = [TimeSpan]::FromSeconds($TimeoutSec)
         $client.MaxResponseContentBufferSize = 16777216
         $authorization = [Convert]::ToBase64String($utf8.GetBytes($Credential.UserName + ':' + $Credential.GetNetworkCredential().Password))
         $processed = 0; $state.reason = $null; $state.logoutVerified = $false
+        $sessionIdentity = $null; $knownSessions = @{}
         try {
             foreach ($item in $state.items) {
                 if ($item.status -eq 'fetched') { continue }
@@ -203,13 +268,28 @@ try {
                 $url = $uri.AbsoluteUri + 'v1/' + [uri]::EscapeDataString($Namespace) + '/doc/' + $encodedDocument
                 $request = New-Object Net.Http.HttpRequestMessage([Net.Http.HttpMethod]::Get, $url)
                 $request.Headers.Accept.ParseAdd('application/json')
-                if (-not $handler.CookieContainer.GetCookies($uri).Count) { $request.Headers.Authorization = New-Object Net.Http.Headers.AuthenticationHeaderValue('Basic', $authorization) }
                 $response = $null
                 try {
-                    try { $response = $client.SendAsync($request).GetAwaiter().GetResult() } catch { throw 'atelier-transport-or-timeout' }
+                    if ($sessionIdentity) {
+                        $currentSession = Get-SessionSnapshot $handler.CookieContainer $uri
+                        if (-not $currentSession) { throw 'atelier-session-lost' }
+                        if ($currentSession.identity -cne $sessionIdentity) { throw 'atelier-session-changed' }
+                    } else {
+                        $request.Headers.Authorization = New-Object Net.Http.Headers.AuthenticationHeaderValue('Basic', $authorization)
+                        $state.session.authenticationCount++
+                    }
+                    $state.session.requestCount++
+                    try { $response = $client.SendAsync($request).GetAwaiter().GetResult() }
+                    catch { $state.transportDiagnostic = Get-TransportDiagnostic $_.Exception; throw 'atelier-transport-or-timeout' }
+                    $currentSession = Get-SessionSnapshot $handler.CookieContainer $uri
+                    if ($currentSession -and $currentSession.count -eq 1) { $knownSessions[$currentSession.identity] = $currentSession }
                     $httpStatus = [int]$response.StatusCode
+                    if (($httpStatus -lt 200 -or $httpStatus -ge 300) -and $httpStatus -ne 404) { throw ('atelier-http-' + $httpStatus) }
+                    if (-not $currentSession) { if ($sessionIdentity) { throw 'atelier-session-lost' }; throw 'atelier-session-cookie-missing' }
+                    if ($currentSession.count -ne 1) { throw 'atelier-session-ambiguous' }
+                    if ($sessionIdentity -and $currentSession.identity -cne $sessionIdentity) { throw 'atelier-session-changed' }
+                    $sessionIdentity = $currentSession.identity; $state.session.cookieVerified = $true
                     if ($httpStatus -eq 404) { $item.status = 'missing'; Save-State; continue }
-                    if ($httpStatus -lt 200 -or $httpStatus -ge 300) { throw ('atelier-http-' + $httpStatus) }
                     try { $payload = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json } catch { throw 'atelier-json-invalid' }
                     $value = $payload.result
                     if ($payload.status.errors.Count -or $payload.status.summary -or ($value.status -and $value.status -ne 'OK')) { throw 'atelier-document-error' }
@@ -237,32 +317,35 @@ try {
                     Write-Host ('[{0}] {1}' -f $processed, $item.document)
                 } catch {
                     $item.status = 'failed'; $item.reason = $_.Exception.Message; $state.reason = $item.reason
+                    if ($item.reason -like 'atelier-session-*') { $state.session.cookieVerified = $false }
                     Save-State
                     break
                 } finally { if ($response) { $response.Dispose() }; $request.Dispose() }
             }
         } finally {
-            # Same session, no credentials on logout. A response is not proof of License release.
-            if ($handler.CookieContainer.GetCookies($uri).Count) {
-                $request = New-Object Net.Http.HttpRequestMessage([Net.Http.HttpMethod]::Head, ($uri.AbsoluteUri + '?CacheLogout=end'))
-                $response = $null
-                try {
-                    $response = $client.SendAsync($request).GetAwaiter().GetResult()
-                    $state.logoutHttpStatus = [int]$response.StatusCode
-                    # CacheLogout commonly challenges the now logged-out client with 401.
-                    $state.logoutVerified = ($state.logoutHttpStatus -ge 200 -and $state.logoutHttpStatus -lt 500)
-                }
-                catch { $state.logoutVerified = $false }
-                finally { if ($response) { $response.Dispose() }; $request.Dispose() }
-            } else { $state.logoutVerified = $true }
+            # Only observed, owned sessions; never send credentials or re-authenticate on exit.
+            # Response headers may have arrived even when buffering the response body timed out.
+            $lastSession = Get-SessionSnapshot $handler.CookieContainer $uri
+            if ($lastSession -and $lastSession.count -eq 1) { $knownSessions[$lastSession.identity] = $lastSession }
+            foreach ($snapshot in $knownSessions.Values) { $state.logoutRequested = $true; $state.logoutResults += Close-SessionSnapshot $snapshot }
+            if ($state.logoutRequested) {
+                $state.logoutResponseReceived = (@($state.logoutResults | Where-Object { -not $_.responseReceived }).Count -eq 0)
+                $state.logoutHttpStatus = $state.logoutResults[-1].httpStatus
+                $state.logoutVerified = (@($state.logoutResults | Where-Object { -not $_.accepted }).Count -eq 0)
+                if (-not $state.logoutVerified) { $state.logoutReason = 'atelier-logout-unverified' }
+            } elseif ($state.session.requestCount -eq 0) { $state.logoutVerified = $true; $state.logoutReason = 'atelier-no-request-sent' }
+            else { $state.logoutReason = 'atelier-session-cookie-unavailable' }
+            if (-not $state.logoutVerified -and -not $state.reason) { $state.reason = 'atelier-logout-unverified' }
             $authorization = $null; $client.Dispose(); $handler.Dispose()
             $state.state = 'partial'
             if (@($state.items | Where-Object { $_.status -ne 'fetched' }).Count -eq 0 -and $state.logoutVerified) { $state.state = 'complete' }
             Save-State
         }
-        $summary = [ordered]@{state = $state.state; total = @($state.items).Count; excludedImageCount = $state.excludedImageCount; logoutVerified = $state.logoutVerified; reason = $state.reason}
+        $summary = [ordered]@{state = $state.state; total = @($state.items).Count; excludedImageCount = $state.excludedImageCount; session = $state.session;
+            logoutRequested = $state.logoutRequested; logoutResponseReceived = $state.logoutResponseReceived; logoutVerified = $state.logoutVerified; logoutHttpStatus = $state.logoutHttpStatus;
+            logoutReason = $state.logoutReason; logoutResults = $state.logoutResults; licenseReleaseVerified = $false; reason = $state.reason; transportDiagnostic = $state.transportDiagnostic}
         foreach ($status in @('fetched', 'missing', 'empty', 'failed', 'pending', 'writing')) { $summary[$status] = @($state.items | Where-Object { $_.status -eq $status }).Count }
-        $summary | ConvertTo-Json
+        $summary | ConvertTo-Json -Depth 8
         $exitCode = 2; if ($state.state -eq 'complete') { $exitCode = 0 }
     } finally {
         if ($outputAcquired) { $outputMutex.ReleaseMutex() }; $outputMutex.Dispose()

@@ -1,4 +1,4 @@
-# IRIS 内网源码导出工具：人工操作说明
+# IRIS 内网源码导出与离线交付：人工操作说明
 
 把 ZIP 带到现场电脑或远程电脑，解压即可使用。需要 Windows PowerShell 5.1 或 Windows 上的 PowerShell 7，不需要 AI、框架技能、Node.js、Git 或 MCP。
 
@@ -14,6 +14,7 @@
 ├─ iris-code-export\           解压后的工具目录
 │  ├─ README.md
 │  ├─ export-iris-code.ps1
+│  ├─ source-delivery.ps1     离线保存原始基线与生成还回文件
 │  ├─ files.example.txt
 │  └─ images\project-layout-example.png
 ├─ files.txt                   自己编写的导出清单
@@ -24,7 +25,7 @@
 
 ![导出完成后的项目目录示例](images/project-layout-example.png)
 
-图中的 params.md.txt 是现场自建的操作说明，不是脚本必需文件；ZIP 自带说明位于工具目录内的 README.md。图片展示文件摆放，是否全部成功仍以终端的 complete 和文件数量为准。
+图中的 params.md.txt 是现场自建的操作说明，不是脚本必需文件；ZIP 自带说明位于工具目录内的 README.md。图片展示目录层次，实际脚本列表以本文目录树为准；是否全部成功仍以终端的 complete 和文件数量为准。
 
 **PowerShell 停留在项目目录，不是工具子目录。** 打开项目目录，点击资源管理器地址栏，输入 `powershell` 后回车。若解压后又套了一层文件夹，先整理到图中的结构，确保脚本位于 `iris-code-export\export-iris-code.ps1`。
 
@@ -98,6 +99,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\iris-code-export\expor
 
 使用与首次一致的清单、脚本版本、Atelier 地址和 Namespace。脚本先核对已保存文件，再读取未完成项；不要为了恢复而删除恢复记录、修改摘要或覆盖已有源码。
 
+会话缺失、变化或退出未核对时，先由现场核实 Web 应用、网关与本次遗留会话，再决定恢复，不连续重跑认证。若源码已全部取得、仅退出未核对，Resume 会以 `resume-previous-session-exit-unverified` 停止；一个未发送请求的新进程不能证明旧会话已经结束。保留原目录及回执，不手改状态清除提示。
+
 如果要改清单、换环境或重新导出当前最新内容，选一个不存在的新输出目录，例如 `-OutputDirectory .\exported-code-2`，不要将旧快照强行当成新快照。
 
 ## 五、怎样确认完成
@@ -106,12 +109,14 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\iris-code-export\expor
 
 结果在项目目录的 `exported-code\src\`。类 `Demo.Patient.cls` 保存为 `src\Demo\Patient.cls`，例程 `Demo.Tools.mac` 保存为 `src\routines\Demo.Tools.mac`，Web 文件保留虚拟路径的层级。代码以 UTF-8 保存，表示读取时实例返回的当前内容。
 
-`baseline-state.json` 是恢复记录，保存输入、目标、脚本及内容摘要、时间与逐项结果，不保存连接明文、账号密码或 Cookie。不要手工编辑或删除；导出源码被修改后，Resume 会停止以保护修改。
+`baseline-state.json` 是导出恢复记录。新导出还会保存可读的 `source.atelierUrl` 和 `source.namespace`，方便辨认来源；URL 已包含主机/IP、端口及入口路径，不再重复收集这些字段。输入/目标/脚本摘要、观察时间和逐项结果保持原有含义。账号密码和 Cookie 始终不保存。来源信息与现场源码一起按私有材料保管，不放公共仓库。
+
+会话字段分别表达：`session` 是本次请求数、认证次数与 Cookie 连续性检查；`logoutRequested` 表示尝试发送退出，`logoutResponseReceived` 表示收到全部退出响应，`logoutResults` 保留各次 HTTP 状态，`logoutVerified` 仅表示响应为 2xx 或退出后的 401 认证挑战。`licenseReleaseVerified` 始终为 false；这些字段不证明现场 License 已回落。
 
 | 退出码 / 状态 | 含义 |
 |---|---|
-| `0` / complete | 全部对象已取得，退出接口有回执 |
-| `2` / partial | 部分完成，按 missing、empty、failed、pending 排查 |
+| `0` / complete | 全部对象已取得，本次退出响应符合预期，或本次无需发送请求 |
+| `2` / partial | 源码未全部取得，或退出未核对；结合对象数量、reason 和 logoutResults 排查 |
 | `1` | 输入、输出目录、连接参数或恢复核对受阻 |
 
 ## 六、这次现场遇到的问题，按这个顺序查
@@ -122,7 +127,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\iris-code-export\expor
 
 ### 2. 传输失败：atelier-transport-or-timeout
 
-这个提示同时涵盖网络、超时和 HTTPS 传输异常，本身不能断定具体原因。**在实际运行导出的远程电脑**执行下面一整行，输入与导出相同的 Atelier URL：
+这个错误码保持稳定。新版本同时输出 `transportDiagnostic`，按异常链区分 `tls`、`dns`、`connection`、`timeout-or-cancelled` 或未分类的 `transport`，并列出 .NET 异常类型及可用的系统状态；退出传输错误的诊断在 `logoutResults` 内。诊断不保存原始异常消息、URL、Cookie 或认证头。分类是客户端证据，不能仅凭一个传输错误认定具体服务器故障。
+
+需要继续排查时，**在实际运行导出的远程电脑**执行下面一整行，输入与导出相同的 Atelier URL：
 
 ```powershell
 $probeUrl=Read-Host 'Atelier URL';$probeUri=[uri]$probeUrl;Test-NetConnection -ComputerName $probeUri.DnsSafeHost -Port $probeUri.Port
@@ -164,10 +171,87 @@ $r=[System.Net.HttpWebRequest]::Create($probeUrl);$r.Proxy=$null;$r.Timeout=1500
 | `missing` / 404 | 核对 Namespace、对象全名与大小写，以及前端完整 Web 虚拟路径；未取得不等于应删除本地文件 |
 | `empty` | 服务器返回空内容，单独核实，不能当成功 |
 | `atelier-http-503` | 先由现场核实服务/容量状态，再决定恢复；脚本不自动重试 |
+| `atelier-session-cookie-missing` | 首次响应没有可用于 Atelier 根入口的 CSP 会话 Cookie，脚本在下一文件前停止；检查网关是否丢弃 Set-Cookie、Cookie 的 Path/Secure 与 Web 应用会话设置。其它亲和 Cookie 不能代替 CSP 会话 |
+| `atelier-session-lost` / `atelier-session-changed` / `atelier-session-ambiguous` | 会话丢失、标识变化或存在多个会话 Cookie，停止后续读取；先现场核实，脚本不通过重新认证继续导出 |
+| `atelier-logout-unverified` | 退出响应不是 2xx/401，或传输失败/缺少可用会话 Cookie；查看 logoutResults/logoutReason，保留已取得的源码，先核实遗留会话 |
 | `local-source-drift` 等摘要不匹配 | 已导出文件有变化，保留源码与恢复记录，先核实；不要手改摘要绕过 |
 | 更换脚本后断点不匹配 | 用原脚本继续，或选择新目录重采；不要覆盖原现场 |
 
-默认串行读取，间隔 200ms；不要和其它大批量操作并行运行。退出回执不等于实际 License 已回落。本工具只读取与保存源码，修改后如何带回、部署和验收按项目原有流程处理。
+默认串行读取，间隔 200ms，正常复用一个 CSP 会话；缺少或丢失会话 Cookie 时停止，不逐文件反复认证。结束时只用本次观察到的会话 Cookie 发送退出，不附账号密码；会话发生变化时分别尝试退出已观察到的会话，不操作其它用户会话。
+
+本机互斥只覆盖同一 Windows 登录会话内的同一入口 URL；不同电脑、Windows 会话、入口别名及其它客户端不在这个锁内。不要和其它大批量操作并行运行。现场先用小批核对会话/License 增量、结束及宽限期后的回落，再扩大范围；强制结束进程或断网时，清理可能无法完成。退出回执不等于实际 License 已回落。导出脚本只读取与保存源码，离线交付按第七节执行；现场部署和验收仍按项目原有流程处理。
+
+## 七、带回开发与还回现场
+
+这条路线处理实际源码，交付实际源码；不强制转成 XML。只有一个不可省略的要求：**先保留原始内容，再开始修改**。摘要不能替代原文件。
+
+通常由现场人员导出并带回整个 exported-code，本地 AI 负责后续的 Prepare、开发、Pack 和交付前 Verify。下面的辅助命令也可人工执行，无需框架技能。只需要导出时，到第五节确认完成即可，不必执行本节。
+
+### 1. 导出后先准备原始基线
+
+本地 AI 接到导出目录后，先确认导出 complete，在第一次修改 src 之前运行：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\iris-code-export\source-delivery.ps1 -Mode Prepare -ExportDirectory .\exported-code
+```
+
+它不联网、不读取密码，不要求当前脚本与旧导出脚本的摘要相同。会核对当前源码是否仍与导出回执一致，再在 exported-code 内创建一次性的 .baseline，保存同一批原始文件、来源、时间窗口及摘要。它不是多余的打包副本：src 用于开发，.baseline 用于比较与回退；原 baseline-state.json 不改写。
+
+- 新导出直接沿用已记录的地址和 Namespace。
+- 旧完整导出没有 source 时，会提示填写原 Atelier URL 和 Namespace；输入必须与原 target 摘要匹配，不能从文件名猜来源。原回执和 scriptHash 保持原样，无需重导源码。
+- 原始文件已经被修改而没有可信原件时停止，不把修改后的内容冒充基线。
+- partial 默认停止。确实审阅并接受缺失项时才加 -AllowPartial；后续交付仍标明来源不完整，缺失对象不能当作删除。
+- Prepare 后不再对这个目录运行 Resume。需要补采或刷新现场内容，另建导出目录；旧的未完成导出仍使用原脚本恢复，不能手改脚本摘要绕过。
+
+整个 exported-code 可以换目录。原始路径不会限制离线开发；必须保留 baseline-state.json 与 .baseline。随后由 AI 修改 src 中的代码，并在项目目录编写 notes.md，说明实际改动、原因、依赖和验证情况。
+
+当前只处理清单内已有对象的修改。新增、删除、重命名对象需要另外明确交付方式；发现多出的文件、缺失文件、类声明被改名、编码错误或基线被改动会停止，不隐式覆盖或删除。
+
+### 2. 生成只含改动的交付目录
+
+本地 AI 完成开发及当前条件下可做的验证后，在准备还回现场时运行 Pack；没有现场编译条件的，在说明中如实标明待验证。生成动作由脚本完成，AI 负责调用并核对结果，不需要现场人员手工挑选文件：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\iris-code-export\source-delivery.ps1 -Mode Pack -ExportDirectory .\exported-code -NotesFile .\notes.md -OutputDirectory .\delivery
+```
+
+输出目录必须不存在。有修改必须提供实际说明，不能只写占位符；没有修改就返回 unchanged，不创建空交付。代码保持 UTF-8、无 BOM。
+
+| 文件/目录 | 用途 |
+|---|---|
+| changes/src/ | 只含修改后的完整源码，例如导出 100 个、修改 3 个，就只交付这 3 个；保留本地路径映射 |
+| rollback/src/ | 上述同一批对象修改前的原件，作为撤回修改时的参考 |
+| files.txt | 只含这些修改对象，可直接用于回现场重新读取 |
+| manifest.json | 来源地址/Namespace、观察窗口、对象映射、前后摘要及未完成的验证 |
+| 变更说明.md | notes.md 内容、实际范围、摘要和现场操作边界 |
+
+目录先在临时位置生成并校验，再一次发布；不覆盖已有交付，也不改原件。不要把 .baseline 或全部未修改的旧代码混入 changes。
+
+### 3. 独立核对并带回现场
+
+本地 AI 生成交付后执行下面的 Verify，核对通过再交付。它只核对交付内部一致性，不联网；换电脑后仍可执行：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\iris-code-export\source-delivery.ps1 -Mode Verify -OutputDirectory .\delivery
+```
+
+本地还保留原 exported-code 时，可追加 -ExportDirectory .\exported-code，与原始基线再核对一次。
+
+现场人员带回 delivery 后，先核对 manifest 中的来源地址和 Namespace。用交付中的 files.txt 把当前同一批对象读取到一个新的目录：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\iris-code-export\export-iris-code.ps1 -ListFile .\delivery\files.txt -OutputDirectory .\current-code
+```
+
+再比较现场这次读取的内容与带出时的 before 摘要：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\iris-code-export\source-delivery.ps1 -Mode Verify -OutputDirectory .\delivery -CurrentExportDirectory .\current-code
+```
+
+目标不同、必需对象没取到、快照文件与回执不符或内容已有并行修改时停止，先核实/合并。匹配只表示与所提供的新快照一致，不锁定服务器；不要用旧快照冒充当前读取。
+
+最后按项目既有方式导入类/例程、上传对应 Web 虚拟路径，再编译、验收。所有脚本均不自动上传、编译或提交。rollback 是带出的旧定义，回退前也须核对后续变化；它不能替代现场即时备份。
 
 ## 附：其它输入与结果保留
 

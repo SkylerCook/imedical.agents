@@ -5,13 +5,14 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const http = require('node:http');
+const crypto = require('node:crypto');
 const {spawn} = require('node:child_process');
 const {parseExportXml} = require('../../plugins/coding-iris-plugin/scripts/iris-tools/xml-package-core');
 const windows = process.platform === 'win32';
 const shell = process.env.IRIS_TEST_POWERSHELL || 'powershell.exe';
 const repository = path.resolve(__dirname, '../..');
 let portableRoot, portableParent;
-const script = name => name === 'export-iris-code.ps1' ? path.join(portableRoot, name) : path.join(repository, 'plugins/coding-iris-plugin/scripts/iris-tools', name);
+const script = name => ['export-iris-code.ps1', 'source-delivery.ps1'].includes(name) ? path.join(portableRoot, name) : path.join(repository, 'plugins/coding-iris-plugin/scripts/iris-tools', name);
 const quote = value => "'" + String(value).replace(/'/g, "''") + "'";
 function run(file, args = [], extra = '') {
   const command = '[Console]::OutputEncoding = New-Object Text.UTF8Encoding($false); & ' + quote(script(file)) + ' ' + args.map(value => /^-[A-Za-z]+$/.test(value) ? value : quote(value)).join(' ') + ' ' + extra + '; if (-not $?) { if ($LASTEXITCODE) { exit $LASTEXITCODE }; exit 1 }';
@@ -40,7 +41,7 @@ test.before(async () => {
   const result = await invoke('Expand-Archive -LiteralPath ' + quote(zip) + ' -DestinationPath ' + quote(target) + ' -ErrorAction Stop');
   assert.equal(result.code, 0, result.stderr);
   portableRoot = target;
-  const names = ['README.md', 'export-iris-code.ps1', 'files.example.txt'].sort();
+  const names = ['README.md', 'export-iris-code.ps1', 'source-delivery.ps1', 'files.example.txt'].sort();
   assert.deepEqual(fs.readdirSync(target).sort(), [...names, 'images'].sort(), 'ZIP must contain only the human export tool and its documentation image');
   assert.deepEqual(fs.readdirSync(path.join(target, 'images')), ['project-layout-example.png']);
   assert.deepEqual(fs.readFileSync(path.join(target, 'images/project-layout-example.png')), fs.readFileSync(path.join(repository, 'tools/iris-code-export/images/project-layout-example.png')), 'ZIP documentation image mismatch');
@@ -188,12 +189,13 @@ test('offline entry points reject DTD and catalog/full-source confusion before c
 });
 
 function catalog(names) { return '<Export><Project name="Fixture"><Items>' + names.map(([name, type = 'CLS']) => `<ProjectItem name="${name}" type="${type}"/>`).join('') + '</Items></Project></Export>'; }
-async function server(t, responder) {
+async function server(t, responder, options = {}) {
   const calls = [], service = http.createServer((req, res) => {
     calls.push({method: req.method, url: req.url, cookie: req.headers.cookie, authorization: req.headers.authorization});
-    if (req.method === 'HEAD') { res.setHeader('Set-Cookie', 'CSPSESSIONID=; Path=/api/atelier/; Max-Age=0'); res.writeHead(401); return res.end(); }
+    if (req.method === 'HEAD') { res.setHeader('Set-Cookie', 'CSPSESSIONID=; Path=/api/atelier/; Max-Age=0'); res.writeHead(options.logoutStatus ?? 401); return res.end(); }
     if (/%2f/i.test(req.url)) { res.writeHead(404); return res.end(); }
-    res.setHeader('Set-Cookie', 'CSPSESSIONID=fixture; Path=/api/atelier/; HttpOnly');
+    const cookie = options.cookies ? options.cookies(calls.filter(c => c.method === 'GET').length) : 'CSPSESSIONID=fixture; Path=/api/atelier/; HttpOnly';
+    if (cookie) res.setHeader('Set-Cookie', cookie);
     responder(req, res);
   });
   await new Promise(resolve => service.listen(0, '127.0.0.1', resolve));
@@ -202,6 +204,124 @@ async function server(t, responder) {
 }
 const credential = "-Credential (New-Object PSCredential('fixture', (ConvertTo-SecureString 'fixture-secret' -AsPlainText -Force)))";
 function send(res, name, lines) { res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify({status: {errors: [], summary: ''}, result: {name, content: lines, enc: false, ts: '2026-10-28 00:00:00'}})); }
+
+function sourceFixture(f, {legacy = false, partial = false} = {}) {
+  const root = path.join(f.root, 'snapshot'), url = 'https://synthetic.invalid/api/atelier/', namespace = 'FIXTURE';
+  const items = [['Demo.A.cls', 'src/Demo/A.cls', 'Class Demo.A\n{\nParameter Text = "BASE";\n}\n'], ['demo/a.js', 'src/demo/a.js', 'const text = "BASE";\n']].map(([document, relative, content]) => {
+    const file = path.join(root, relative); fs.mkdirSync(path.dirname(file), {recursive: true}); fs.writeFileSync(file, content);
+    return {document, path: relative, sha256: crypto.createHash('sha256').update(content).digest('hex'), bytes: Buffer.byteLength(content), status: 'fetched'};
+  });
+  if (partial) items.push({document: 'Demo.Missing.cls', path: 'src/Demo/Missing.cls', status: 'missing', sha256: null, bytes: 0});
+  const state = {schema: 'iris-standalone-baseline/v1', target: crypto.createHash('sha256').update(url + '|' + namespace).digest('hex'), source: {atelierUrl: url, namespace},
+    startedAt: '2026-10-28T00:00:00Z', updatedAt: '2026-10-28T00:01:00Z', state: partial ? 'partial' : 'complete', scriptHash: '0'.repeat(64), items};
+  if (legacy) delete state.source;
+  const stateFile = path.join(root, 'baseline-state.json'); fs.writeFileSync(stateFile, JSON.stringify(state));
+  return {root, url, namespace, state, stateFile};
+}
+
+test('source handoff prepares portable originals and publishes only changed files with independent rollback verification', {skip: !windows}, async t => {
+  const f = fixture(t), s = sourceFixture(f), moved = path.join(f.root, 'moved-snapshot');
+  fs.renameSync(s.root, moved);
+  const originalState = fs.readFileSync(path.join(moved, 'baseline-state.json')), original = fs.readFileSync(path.join(moved, 'src/Demo/A.cls'));
+  let result = await run('source-delivery.ps1', ['-Mode', 'Prepare', '-ExportDirectory', moved]);
+  assert.equal(result.code, 0, result.stderr); assert.equal(JSON.parse(result.stdout).originalCount, 2);
+  assert.deepEqual(fs.readFileSync(path.join(moved, '.baseline/src/Demo/A.cls')), original);
+  const notes = f.put('notes.md', '修改 Demo.A 的 Text；JS 不变。'), output = path.join(f.root, 'delivery');
+  result = await run('source-delivery.ps1', ['-Mode', 'Pack', '-ExportDirectory', moved, '-OutputDirectory', output]);
+  assert.equal(result.code, 0, result.stderr); assert.equal(JSON.parse(result.stdout).state, 'unchanged'); assert.equal(fs.existsSync(output), false);
+  fs.writeFileSync(path.join(moved, 'src/Demo/A.cls'), original.toString().replace('BASE', 'EDIT'));
+  result = await run('source-delivery.ps1', ['-Mode', 'Pack', '-ExportDirectory', moved, '-OutputDirectory', output, '-NotesFile', notes]);
+  assert.equal(result.code, 0, result.stderr);
+  const manifest = JSON.parse(fs.readFileSync(path.join(output, 'manifest.json'), 'utf8'));
+  assert.equal(manifest.changedCount, 1); assert.equal(manifest.items[0].document, 'Demo.A.cls'); assert.deepEqual(manifest.source, {atelierUrl: s.url, namespace: s.namespace});
+  assert.equal(manifest.observedFrom, s.state.startedAt); assert.equal(manifest.observedTo, s.state.updatedAt);
+  assert.deepEqual(fs.readFileSync(path.join(output, 'rollback/src/Demo/A.cls')), original);
+  assert.match(fs.readFileSync(path.join(output, 'changes/src/Demo/A.cls'), 'utf8'), /EDIT/);
+  assert.equal(fs.existsSync(path.join(output, 'changes/src/demo/a.js')), false);
+  assert.equal(fs.readFileSync(path.join(output, 'files.txt'), 'utf8'), 'Demo.A.cls\n');
+  assert.deepEqual(fs.readFileSync(path.join(moved, 'baseline-state.json')), originalState);
+  for (const args of [[], ['-ExportDirectory', moved]]) {
+    result = await run('source-delivery.ps1', ['-Mode', 'Verify', '-OutputDirectory', output, ...args]);
+    assert.equal(result.code, 0, result.stderr); assert.equal(JSON.parse(result.stdout).targetDriftVerified, false);
+  }
+  const current = path.join(f.root, 'current'); fs.mkdirSync(current);
+  fs.copyFileSync(path.join(moved, 'baseline-state.json'), path.join(current, 'baseline-state.json'));
+  fs.cpSync(path.join(moved, '.baseline/src'), path.join(current, 'src'), {recursive: true});
+  result = await run('source-delivery.ps1', ['-Mode', 'Verify', '-OutputDirectory', output, '-CurrentExportDirectory', current]);
+  assert.equal(result.code, 0, result.stderr); assert.equal(JSON.parse(result.stdout).currentSnapshot.matches, true);
+  const currentCls = path.join(current, 'src/Demo/A.cls'); fs.appendFileSync(currentCls, '// server changed\n');
+  const changedState = JSON.parse(fs.readFileSync(path.join(current, 'baseline-state.json'), 'utf8')); changedState.items[0].sha256 = crypto.createHash('sha256').update(fs.readFileSync(currentCls)).digest('hex'); changedState.items[0].bytes = fs.statSync(currentCls).size;
+  fs.writeFileSync(path.join(current, 'baseline-state.json'), JSON.stringify(changedState));
+  result = await run('source-delivery.ps1', ['-Mode', 'Verify', '-OutputDirectory', output, '-CurrentExportDirectory', current]);
+  assert.equal(result.code, 1); assert.match(result.stderr, /current-source-differs-from-baseline/);
+  fs.appendFileSync(path.join(output, 'rollback/src/Demo/A.cls'), '\n');
+  result = await run('source-delivery.ps1', ['-Mode', 'Verify', '-OutputDirectory', output]);
+  assert.equal(result.code, 1); assert.match(result.stderr, /delivery-file-drift/);
+  assert.deepEqual(fs.readdirSync(f.root).filter(name => name.endsWith('.tmp')), []);
+});
+
+test('legacy complete exports require a matching human source and keep old receipt bytes and runtime hash intact', {skip: !windows}, async t => {
+  const f = fixture(t), s = sourceFixture(f, {legacy: true}), before = fs.readFileSync(s.stateFile);
+  let result = await run('source-delivery.ps1', ['-Mode', 'Prepare', '-ExportDirectory', s.root, '-AtelierUrl', s.url, '-Namespace', 'WRONG']);
+  assert.equal(result.code, 1); assert.match(result.stderr, /source-target-mismatch/); assert.equal(fs.existsSync(path.join(s.root, '.baseline')), false);
+  result = await run('source-delivery.ps1', ['-Mode', 'Prepare', '-ExportDirectory', s.root, '-AtelierUrl', s.url, '-Namespace', s.namespace]);
+  assert.equal(result.code, 0, result.stderr); assert.deepEqual(fs.readFileSync(s.stateFile), before);
+  const baseline = JSON.parse(fs.readFileSync(path.join(s.root, '.baseline/manifest.json'), 'utf8'));
+  assert.deepEqual(baseline.source, {atelierUrl: s.url, namespace: s.namespace});
+});
+
+test('partial source export needs explicit acceptance and remains partial in its delivery', {skip: !windows}, async t => {
+  const f = fixture(t), s = sourceFixture(f, {partial: true});
+  let result = await run('source-delivery.ps1', ['-Mode', 'Prepare', '-ExportDirectory', s.root]);
+  assert.equal(result.code, 1); assert.match(result.stderr, /incomplete-export/);
+  result = await run('source-delivery.ps1', ['-Mode', 'Prepare', '-ExportDirectory', s.root, '-AllowPartial']);
+  assert.equal(result.code, 0, result.stderr); assert.equal(JSON.parse(result.stdout).complete, false);
+  fs.appendFileSync(path.join(s.root, 'src/demo/a.js'), '// change\n');
+  const notes = f.put('notes.md', '只修改已取得的 JS，明确缺少 Demo.Missing。'), output = path.join(f.root, 'delivery');
+  result = await run('source-delivery.ps1', ['-Mode', 'Pack', '-ExportDirectory', s.root, '-OutputDirectory', output, '-NotesFile', notes]);
+  assert.equal(result.code, 0, result.stderr);
+  const manifest = JSON.parse(fs.readFileSync(path.join(output, 'manifest.json'), 'utf8'));
+  assert.equal(manifest.completeSource, false); assert.equal(manifest.excluded[0].status, 'missing'); assert.equal(manifest.changedCount, 1);
+});
+
+test('source baseline refuses pre-edit drift, new/deleted files, class renames and damaged originals', {skip: !windows}, async t => {
+  const f = fixture(t), s = sourceFixture(f), cls = path.join(s.root, 'src/Demo/A.cls'), original = fs.readFileSync(cls), output = path.join(f.root, 'delivery'), notes = f.put('notes.md', '调整源码。');
+  fs.appendFileSync(cls, '// before preparation');
+  let result = await run('source-delivery.ps1', ['-Mode', 'Prepare', '-ExportDirectory', s.root]);
+  assert.equal(result.code, 1); assert.match(result.stderr, /source-changed-before-prepare/); assert.equal(fs.existsSync(path.join(s.root, '.baseline')), false);
+  fs.writeFileSync(cls, original);
+  assert.equal((await run('source-delivery.ps1', ['-Mode', 'Prepare', '-ExportDirectory', s.root])).code, 0);
+  const extra = path.join(s.root, 'src/extra.js'); fs.writeFileSync(extra, 'new');
+  const args = ['-Mode', 'Pack', '-ExportDirectory', s.root, '-OutputDirectory', output, '-NotesFile', notes];
+  result = await run('source-delivery.ps1', args); assert.match(result.stderr, /source-file-set-changed/); fs.unlinkSync(extra);
+  fs.unlinkSync(cls); result = await run('source-delivery.ps1', args); assert.match(result.stderr, /source-file-set-changed/);
+  fs.writeFileSync(cls, original.toString().replace('Demo.A', 'Demo.B')); result = await run('source-delivery.ps1', args); assert.match(result.stderr, /class-identity-mismatch/);
+  fs.writeFileSync(cls, original); fs.appendFileSync(path.join(s.root, '.baseline/src/Demo/A.cls'), 'broken');
+  result = await run('source-delivery.ps1', args); assert.match(result.stderr, /original-baseline-drift/); assert.equal(fs.existsSync(output), false);
+});
+
+test('prepared originals block export Resume and source delivery validates notes, encoding and reread list scope', {skip: !windows}, async t => {
+  const f = fixture(t), s = sourceFixture(f), cls = path.join(s.root, 'src/Demo/A.cls'), original = fs.readFileSync(cls), output = path.join(f.root, 'delivery');
+  assert.equal((await run('source-delivery.ps1', ['-Mode', 'Prepare', '-ExportDirectory', s.root])).code, 0);
+  let result = await run('source-delivery.ps1', ['-Mode', 'Prepare', '-ExportDirectory', s.root]);
+  assert.equal(result.code, 1); assert.match(result.stderr, /development-baseline-already-exists/);
+  const list = f.put('files.txt', 'Demo.A.cls');
+  result = await run('export-iris-code.ps1', ['-ListFile', list, '-OutputDirectory', s.root, '-Resume']);
+  assert.equal(result.code, 1); assert.match(result.stderr, /development-baseline-exists-do-not-resume/);
+  const args = ['-Mode', 'Pack', '-ExportDirectory', s.root, '-OutputDirectory', output];
+  fs.writeFileSync(cls, Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), original]));
+  result = await run('source-delivery.ps1', args); assert.match(result.stderr, /source-utf8-bom-forbidden/);
+  fs.writeFileSync(cls, original.toString().replace('BASE', 'EDIT'));
+  result = await run('source-delivery.ps1', args); assert.match(result.stderr, /NotesFile-required/); assert.equal(fs.existsSync(output), false);
+  const notes = f.put('notes.md', '修改 Text。');
+  result = await run('source-delivery.ps1', [...args, '-NotesFile', notes]); assert.equal(result.code, 0, result.stderr);
+  result = await run('source-delivery.ps1', [...args, '-NotesFile', notes]); assert.match(result.stderr, /output-directory-must-be-new/);
+  const manifestPath = path.join(output, 'manifest.json'), manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  fs.writeFileSync(path.join(output, 'files.txt'), 'Demo.Other.cls\n');
+  manifest.files['files.txt'] = crypto.createHash('sha256').update('Demo.Other.cls\n').digest('hex'); fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+  result = await run('source-delivery.ps1', ['-Mode', 'Verify', '-OutputDirectory', output]);
+  assert.equal(result.code, 1); assert.match(result.stderr, /delivery-list-scope-mismatch/);
+});
 
 test('standalone exporter saves UTF-8 source, excludes images, resumes in new process and protects local edits', {skip: !windows}, async t => {
   const f = fixture(t), baseline = f.put('scope.xml', catalog([['Demo.A'], ['Demo.B'], ['demo/a.js', 'CSP'], ['demo/a.png', 'CSP']])), out = path.join(f.root, 'snapshot');
@@ -223,11 +343,110 @@ test('standalone exporter saves UTF-8 source, excludes images, resumes in new pr
   assert.ok(s.calls.filter(c => c.method === 'HEAD').every(c => c.cookie && !c.authorization));
   assert.ok(s.calls.filter(c => c.method === 'GET' && c.cookie).every(c => !c.authorization));
   assert.match(fs.readFileSync(path.join(out, 'src/Demo/A.cls'), 'utf8'), /中文/);
-  assert.doesNotMatch(fs.readFileSync(stateFile, 'utf8'), /fixture-secret|127\.0\.0\.1|CSPSESSIONID/);
+  assert.deepEqual(state.source, {atelierUrl: s.url, namespace: 'FIXTURE'});
+  assert.doesNotMatch(fs.readFileSync(stateFile, 'utf8'), /fixture-secret|CSPSESSIONID|Basic /);
   fs.writeFileSync(path.join(out, 'src/Demo/A.cls'), 'local change');
   const count = s.calls.length;
   result = await run('export-iris-code.ps1', [...args, '-Resume'], credential);
   assert.equal(result.code, 1); assert.match(result.stderr, /local-source-drift/); assert.equal(s.calls.length, count);
+});
+
+test('batch export keeps one authenticated session and reports logout separately from actual license release', {skip: !windows}, async t => {
+  const f = fixture(t), names = Array.from({length: 48}, (_, i) => `Demo.B${i}.cls`), list = f.put('files.txt', names.join('\n')), out = path.join(f.root, 'snapshot');
+  const s = await server(t, (req, res) => {
+    const name = decodeURIComponent(req.url.split('/doc/')[1]); send(res, name, [`Class ${name.slice(0, -4)}`, '{', '}']);
+  });
+  const result = await run('export-iris-code.ps1', ['-ListFile', list, '-OutputDirectory', out, '-AtelierUrl', s.url, '-Namespace', 'FIXTURE', '-IntervalMs', '100'], credential);
+  assert.equal(result.code, 0, result.stderr);
+  const state = JSON.parse(fs.readFileSync(path.join(out, 'baseline-state.json'), 'utf8'));
+  assert.deepEqual(state.session, {cookieVerified: true, requestCount: 48, authenticationCount: 1});
+  assert.equal(s.calls.filter(c => c.authorization).length, 1); assert.equal(s.calls.filter(c => c.method === 'HEAD').length, 1);
+  assert.ok(s.calls.slice(1).every(c => c.cookie === 'CSPSESSIONID=fixture' && !c.authorization));
+  assert.equal(state.logoutRequested, true); assert.equal(state.logoutResponseReceived, true); assert.equal(state.licenseReleaseVerified, false);
+});
+
+test('missing CSP cookies, unrelated affinity cookies and incompatible cookie paths stop after one authentication', {skip: !windows}, async t => {
+  const f = fixture(t), list = f.put('files.txt', 'Demo.A.cls\nDemo.B.cls\nDemo.C.cls');
+  for (const [i, cookie] of [null, 'AFFINITY=fixture; Path=/api/atelier/', 'CSPSESSIONID=fixture; Path=/api/atelier/v1/FIXTURE/doc/'].entries()) {
+    const out = path.join(f.root, 'snapshot-' + i), s = await server(t, (req, res) => send(res, 'Demo.A.cls', ['Class Demo.A {}']), {cookies: () => cookie});
+    const result = await run('export-iris-code.ps1', ['-ListFile', list, '-OutputDirectory', out, '-AtelierUrl', s.url, '-Namespace', 'FIXTURE'], credential);
+    assert.equal(result.code, 2, result.stderr);
+    const state = JSON.parse(fs.readFileSync(path.join(out, 'baseline-state.json'), 'utf8'));
+    assert.equal(state.reason, 'atelier-session-cookie-missing'); assert.equal(state.session.authenticationCount, 1);
+    assert.equal(s.calls.length, 1); assert.equal(state.logoutRequested, false); assert.equal(state.logoutVerified, false);
+    assert.equal(state.logoutReason, 'atelier-session-cookie-unavailable'); assert.equal(fs.existsSync(path.join(out, 'src/Demo/B.cls')), false);
+  }
+});
+
+test('lost or changed session identity stops the next file and logs out only the observed owned sessions', {skip: !windows}, async t => {
+  const f = fixture(t), list = f.put('files.txt', 'Demo.A.cls\nDemo.B.cls\nDemo.C.cls');
+  for (const mode of ['lost', 'changed']) {
+    const out = path.join(f.root, mode), s = await server(t, (req, res) => {
+      const name = decodeURIComponent(req.url.split('/doc/')[1]); send(res, name, [`Class ${name.slice(0, -4)} {}`]);
+    }, {cookies: count => count === 1 ? 'CSPSESSIONID=first; Path=/api/atelier/' : mode === 'lost' ? 'CSPSESSIONID=; Path=/api/atelier/; Max-Age=0' : 'CSPSESSIONID=second; Path=/api/atelier/'});
+    const result = await run('export-iris-code.ps1', ['-ListFile', list, '-OutputDirectory', out, '-AtelierUrl', s.url, '-Namespace', 'FIXTURE'], credential);
+    assert.equal(result.code, 2, result.stderr);
+    const state = JSON.parse(fs.readFileSync(path.join(out, 'baseline-state.json'), 'utf8')), exits = s.calls.filter(c => c.method === 'HEAD');
+    assert.equal(state.reason, 'atelier-session-' + mode); assert.equal(state.session.cookieVerified, false);
+    assert.equal(s.calls.filter(c => c.method === 'GET').length, 2); assert.equal(s.calls.filter(c => c.authorization).length, 1);
+    assert.deepEqual(exits.map(c => c.cookie).sort(), mode === 'lost' ? ['CSPSESSIONID=first'] : ['CSPSESSIONID=first', 'CSPSESSIONID=second']);
+    assert.ok(exits.every(c => !c.authorization)); assert.equal(state.logoutVerified, true); assert.equal(state.licenseReleaseVerified, false);
+    assert.equal(state.items[0].status, 'fetched'); assert.equal(state.items[1].status, 'failed'); assert.equal(state.items[2].status, 'pending');
+    assert.doesNotMatch(fs.readFileSync(path.join(out, 'baseline-state.json'), 'utf8'), /CSPSESSIONID|fixture-secret/);
+  }
+});
+
+test('logout accepts only 2xx or the logout authentication challenge and Resume cannot clear an unknown prior exit', {skip: !windows}, async t => {
+  const f = fixture(t), list = f.put('files.txt', 'Demo.A.cls');
+  for (const status of [204, 302, 403, 404, 503]) {
+    const out = path.join(f.root, 'snapshot-' + status), s = await server(t, (req, res) => send(res, 'Demo.A.cls', ['Class Demo.A {}']), {logoutStatus: status});
+    const args = ['-ListFile', list, '-OutputDirectory', out, '-AtelierUrl', s.url, '-Namespace', 'FIXTURE'];
+    let result = await run('export-iris-code.ps1', args, credential);
+    assert.equal(result.code, status === 204 ? 0 : 2, result.stderr);
+    const stateFile = path.join(out, 'baseline-state.json'), bytes = fs.readFileSync(stateFile), state = JSON.parse(bytes);
+    assert.equal(state.items[0].status, 'fetched'); assert.equal(state.logoutHttpStatus, status);
+    assert.equal(state.logoutResponseReceived, true); assert.equal(state.logoutVerified, status === 204);
+    assert.equal(state.licenseReleaseVerified, false); assert.equal(s.calls.filter(c => c.method === 'HEAD').length, 1);
+    if (status !== 204) {
+      assert.equal(state.reason, 'atelier-logout-unverified'); assert.equal(state.logoutResults[0].reason, 'atelier-logout-http-' + status);
+      const count = s.calls.length;
+      result = await run('export-iris-code.ps1', [...args, '-Resume'], credential);
+      assert.equal(result.code, 1); assert.match(result.stderr, /resume-previous-session-exit-unverified/);
+      assert.equal(s.calls.length, count); assert.deepEqual(fs.readFileSync(stateFile), bytes);
+    }
+  }
+});
+
+test('transport diagnostics classify the exception chain without persisting raw messages or secrets', {skip: !windows}, async t => {
+  const command = 'Add-Type -AssemblyName System.Net.Http; $tokens=$null;$errors=$null;$ast=[Management.Automation.Language.Parser]::ParseFile(' + quote(script('export-iris-code.ps1')) + ',[ref]$tokens,[ref]$errors); ' +
+    '$definition=$ast.Find({param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq "Get-TransportDiagnostic"},$true); . ([scriptblock]::Create($definition.Extent.Text)); ' +
+    '$secret="https://user:fixture-secret@example.invalid/path?token=hidden CSPSESSIONID=private Authorization: Basic private"; ' +
+    '$cases=@((New-Object Security.Authentication.AuthenticationException($secret)),(New-Object Net.WebException($secret,[Net.WebExceptionStatus]::NameResolutionFailure)),(New-Object Net.Sockets.SocketException(10061)),(New-Object TimeoutException($secret,(New-Object Net.Sockets.SocketException(10053))))); ' +
+    '$cases | ForEach-Object { Get-TransportDiagnostic (New-Object Net.Http.HttpRequestException($secret,$_)) } | ConvertTo-Json -Depth 8';
+  const result = await invoke(command);
+  assert.equal(result.code, 0, result.stderr);
+  const diagnostics = JSON.parse(result.stdout);
+  assert.deepEqual(diagnostics.map(d => d.category), ['tls', 'dns', 'connection', 'timeout-or-cancelled']);
+  assert.ok(diagnostics.every(d => d.exceptionTypes.includes('System.Net.Http.HttpRequestException')));
+  assert.ok(diagnostics[3].exceptionTypes.includes('System.TimeoutException'));
+  assert.doesNotMatch(result.stdout, /fixture-secret|CSPSESSIONID|Authorization|example\.invalid|token=hidden/);
+});
+
+test('real connection refusal and request timeout retain the error code with safe transport diagnostics', {skip: !windows}, async t => {
+  const f = fixture(t), list = f.put('files.txt', 'Demo.A.cls');
+  const closed = http.createServer(); await new Promise(resolve => closed.listen(0, '127.0.0.1', resolve));
+  const closedUrl = `http://127.0.0.1:${closed.address().port}/api/atelier/`; await new Promise(resolve => closed.close(resolve));
+  const slow = await server(t, (req, res) => { res.setHeader('Content-Type', 'application/json'); res.flushHeaders(); setTimeout(() => { if (!res.destroyed) res.end('{}'); }, 1500); });
+  for (const [i, url, expected, timeout] of [[0, closedUrl, 'connection', 10], [1, slow.url, 'timeout-or-cancelled', 1]]) {
+    const out = path.join(f.root, 'snapshot-' + i);
+    const result = await run('export-iris-code.ps1', ['-ListFile', list, '-OutputDirectory', out, '-AtelierUrl', url, '-Namespace', 'FIXTURE', '-TimeoutSec', String(timeout)], credential);
+    assert.equal(result.code, 2, result.stderr);
+    const state = JSON.parse(fs.readFileSync(path.join(out, 'baseline-state.json'), 'utf8'));
+    assert.equal(state.reason, 'atelier-transport-or-timeout'); assert.equal(state.transportDiagnostic.category, expected);
+    assert.equal(state.session.authenticationCount, 1); assert.equal(state.logoutVerified, i === 1);
+    if (i === 1) assert.ok(slow.calls.some(c => c.method === 'HEAD' && c.cookie === 'CSPSESSIONID=fixture' && !c.authorization));
+    assert.doesNotMatch(JSON.stringify(state.transportDiagnostic), /fixture-secret|CSPSESSIONID|127\.0\.0\.1|Authorization/);
+  }
 });
 
 test('404/empty remain partial and 503 stops without retry while logging out its own session', {skip: !windows}, async t => {
@@ -269,6 +488,53 @@ test('UTF-8 text list exports exact backend and frontend names and rejects ambig
     f.put('invalid.txt', name);
     const invalid = await run('export-iris-code.ps1', ['-ListFile', path.join(f.root, 'invalid.txt'), '-OutputDirectory', path.join(f.root, 'unused'), '-PlanOnly']);
     assert.equal(invalid.code, 1, name); assert.equal(fs.existsSync(path.join(f.root, 'unused')), false);
+  }
+});
+
+test('exported sources complete the offline return flow and reject changed, missing or wrong-target onsite snapshots', {skip: !windows}, async t => {
+  const f = fixture(t), list = f.put('files.txt', 'Demo.A.cls\nDemo.mac\n/demo/a.js\n/demo/page.csp\n'), out = path.join(f.root, 'snapshot');
+  let onsite = 'original';
+  const s = await server(t, (req, res) => {
+    const name = decodeURIComponent(req.url.split('/doc/')[1]);
+    if (name === 'demo/a.js' && onsite === 'missing') { res.writeHead(404); return res.end(); }
+    const lines = {'Demo.A.cls': ['Class Demo.A', '{', 'Parameter Text = "BASE";', '}'], 'Demo.mac': ['Demo', ' quit'],
+      'demo/a.js': ['const text = "' + (onsite === 'changed' ? 'SERVER' : 'BASE') + '";'], 'demo/page.csp': ['<p>BASE</p>']};
+    send(res, name, lines[name]);
+  });
+  const connection = ['-AtelierUrl', s.url, '-Namespace', 'FIXTURE'];
+  let result = await run('export-iris-code.ps1', ['-ListFile', list, '-OutputDirectory', out, ...connection], credential);
+  assert.equal(result.code, 0, result.stderr);
+  const callsAfterExport = s.calls.length;
+  result = await run('source-delivery.ps1', ['-Mode', 'Prepare', '-ExportDirectory', out]);
+  assert.equal(result.code, 0, result.stderr);
+  for (const relative of ['src/Demo/A.cls', 'src/demo/a.js']) {
+    const file = path.join(out, relative); fs.writeFileSync(file, fs.readFileSync(file, 'utf8').replace('BASE', 'EDIT'));
+  }
+  const notes = f.put('notes.md', '调整类参数及页面脚本；例程和 CSP 不变。'), output = path.join(f.root, 'delivery');
+  result = await run('source-delivery.ps1', ['-Mode', 'Pack', '-ExportDirectory', out, '-OutputDirectory', output, '-NotesFile', notes]);
+  assert.equal(result.code, 0, result.stderr); assert.equal(s.calls.length, callsAfterExport, 'offline operations must not send HTTP');
+  const changedList = path.join(output, 'files.txt');
+  assert.equal(fs.readFileSync(changedList, 'utf8'), 'Demo.A.cls\n/demo/a.js\n');
+  for (const state of ['original', 'changed', 'missing']) {
+    onsite = state;
+    const current = path.join(f.root, 'current-' + state);
+    result = await run('export-iris-code.ps1', ['-ListFile', changedList, '-OutputDirectory', current, ...connection], credential);
+    assert.equal(result.code, state === 'missing' ? 2 : 0, result.stderr);
+    const verify = ['-Mode', 'Verify', '-OutputDirectory', output, '-CurrentExportDirectory', current];
+    result = await run('source-delivery.ps1', verify);
+    if (state === 'original') {
+      assert.equal(result.code, 0, result.stderr); assert.equal(JSON.parse(result.stdout).currentSnapshot.matches, true);
+      const js = path.join(current, 'src/demo/a.js'), original = fs.readFileSync(js);
+      fs.appendFileSync(js, '// edited snapshot');
+      result = await run('source-delivery.ps1', verify);
+      assert.equal(result.code, 1); assert.match(result.stderr, /current-export-file-drift/); fs.writeFileSync(js, original);
+      const receiptFile = path.join(current, 'baseline-state.json'), receipt = JSON.parse(fs.readFileSync(receiptFile, 'utf8'));
+      receipt.target = 'f'.repeat(64); fs.writeFileSync(receiptFile, JSON.stringify(receipt));
+      result = await run('source-delivery.ps1', verify);
+      assert.equal(result.code, 1); assert.match(result.stderr, /current-export-target-mismatch/);
+    } else {
+      assert.equal(result.code, 1); assert.match(result.stderr, state === 'changed' ? /current-source-differs-from-baseline/ : /current-source-not-fetched/);
+    }
   }
 });
 
