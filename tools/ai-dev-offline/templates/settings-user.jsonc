@@ -1,0 +1,17 @@
+{
+  // From the user's selected general settings; replace __PWSH_EXE__ with the chosen installed path.
+  // Merge only selected keys into the chosen user settings file. Do not replace the whole file.
+  "terminal.integrated.profiles.windows": {
+    "PowerShell 7": {
+      "path": "__PWSH_EXE__",
+      "icon": "terminal-powershell"
+    }
+  },
+  "terminal.integrated.defaultProfile.windows": "PowerShell 7",
+  "terminal.integrated.automationProfile.windows": {
+    "path": "__PWSH_EXE__",
+    "args": ["-NoLogo", "-NoProfile"]
+  },
+  "files.autoGuessEncoding": true,
+  "editor.detectIndentation": false
+}

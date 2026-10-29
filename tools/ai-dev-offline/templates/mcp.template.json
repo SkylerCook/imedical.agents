@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "iris-agentic-dev": {
+      "command": "__IRIS_AGENTIC_DEV_EXE__",
+      "args": [
+        "mcp",
+        "--config",
+        "__IRIS_CONFIG_FILE__"
+      ],
+      "env": {
+        "IRIS_HOST": "REPLACE_WITH_IRIS_HOST",
+        "IRIS_WEB_PORT": "52773",
+        "IRIS_SCHEME": "https",
+        "IRIS_NAMESPACE": "REPLACE_WITH_IRIS_NAMESPACE",
+        "IRIS_TLS_VERIFY": "true"
+      }
+    }
+  }
+}

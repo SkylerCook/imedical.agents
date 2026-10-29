@@ -1,0 +1,25 @@
+{
+  // Optional workspace-only draft. Fill the selected site's values locally before use.
+  // Schema checked against servermanager 3.14.2, vscode-objectscript 3.8.6,
+  // and intersystems.language-server 2.8.6; these extensions are NOT included in this bundle.
+  // Replace scheme, host and port as required; 52773 is the schema's default, not a verified site port.
+  "intersystems.servers": {
+    "hospital": {
+      "webServer": {
+        "scheme": "http",
+        "host": "REPLACE_WITH_HOST",
+        "port": 52773
+      }
+    }
+  },
+  "objectscript.conn": {
+    "server": "hospital",
+    "ns": "REPLACE_WITH_NAMESPACE",
+    "active": false
+  },
+  "objectscript.format": {
+    "commandCase": "word",
+    "functionCase": "word"
+  },
+  "intersystems.language-server.formatting.system.case": "lower"
+}

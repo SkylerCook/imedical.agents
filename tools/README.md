@@ -5,6 +5,7 @@
 | 工具 | 使用说明 | 交付包（本机生成） |
 |---|---|---|
 | IRIS 内网源码导出与离线交付 | [iris-code-export](iris-code-export/README.md) | `dist/iris-code-export.zip` |
+| AI 开发基础工具离线物料（Windows x64） | [ai-dev-offline](ai-dev-offline/README.md) | `dist/ai-dev-base-windows-x64-2026-10-29.zip` |
 
 导出包包含 `README.md`、`export-iris-code.ps1`、`export-version-baseline.ps1`、`source-delivery.ps1`、`files.example.txt`、生成的 `catalogs/` 与 `images/` 目录示例截图，不包含构建脚本、Node.js、XML 编辑器、框架文件、测试、连接配置或现场源码。XML 带回后由 AI 修改的流程继续归 coding 插件。
 

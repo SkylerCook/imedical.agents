@@ -1,0 +1,10 @@
+# Fill only the selected project's non-secret connection values locally.
+# Keep these values consistent with mcp.template.json's non-secret env fields.
+# 52773 is an example web port, not a verified target; choose http/https for the target.
+host = "REPLACE_WITH_IRIS_HOST"
+web_port = 52773
+scheme = "https"
+namespace = "REPLACE_WITH_IRIS_NAMESPACE"
+tls_verify = true
+# Supply credentials to the client process through IRIS_USERNAME / IRIS_PASSWORD,
+# or use an already approved secure credential provider. Do not add them to this template.

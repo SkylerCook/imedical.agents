@@ -48,7 +48,7 @@ workflows/   # 厂商无关的阶段化/多智能体协作流程
 plugins/     # 可复用能力实现：rules、skills、templates、scripts、references
 ```
 
-[tools/](tools/README.md) 是另行携带的人工工具源，独立于上述能力包分发；本机 ZIP 与已提交源文件分别管理，不把整个工具目录加入业务项目 `.agents`。
+[tools/](tools/README.md) 是另行携带的人工工具源，独立于上述能力包分发；本机 ZIP 与已提交源文件分别管理，不把整个工具目录加入业务项目 `.agents`。[AI 开发基础离线物料](tools/ai-dev-offline/README.md)提供 Windows x64 固定原包、CodeBuddy VSIX、settings／单 MCP／TOML 安全模板、所选 PATH 配置及本地校验入口；它不是已通过干净环境验收的一键安装器。
 
 核心原则：
 

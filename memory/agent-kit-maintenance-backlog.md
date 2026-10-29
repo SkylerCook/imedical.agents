@@ -1,5 +1,7 @@
 # imedical.agents 后续治理队列
 
+- **P2 AI 开发离线物料干净环境验收**（归治理表第 7 项兼容验证，tools/ai-dev-offline）：原包、CodeBuddy VSIX、settings／单 MCP／TOML 模板与 PATH 工具已准备；后续在获授权的干净 Windows 10/11 x64 断网验证完整安装、Python pip/venv、Machine PATH 管理员写入／环境通知、VS Code GUI及CodeBuddy激活附加资源与AI优先pwsh的真实加载。AI登录、MCP启动／信任／只读调用与医院运行时另验；本地哈希／Process子CMD不能替代现场结论。完整自动安装器和JSONC合并器仍未实现，按后续明确范围推进，不把制包扩大为本机系统变更或业务副本更新。
+
 - P2 项目知识库目录治理：受管用途说明、旧导航精确评审接管、普通 Write 更新与 Check 缺失/过期检查已在源仓实现；沿既有 CI 取得 Node22/24 × Windows/macOS/Linux矩阵实跑，并在获授权项目分别核实旧 README 接管、扩展说明及真实宿主查找/落盘行为。目录与说明通过不代表逐文件分类或业务内容现行；首次部署、具体资料迁移仍按各批授权取证。源仓实现不代表业务副本已升级。
 
 - **P1 项目同步发布真实验证与普通 direct 增量保护**（归下表第 4 项，coding-iris owner）：已确认 project＋按需上下文的分支在源仓实现 source-sync、服务器/需求分层、source plan 冻结发布及远端准入，仍需获授权目标的真实资格、同步/发布/Storage 恢复和旧版本证据。未命中分支的 direct 仍不合并部署前已有远端差异，guarded 仍有修改前基线前提；无可靠基线、远端独有修改、冲突/未知写及全部相同跳过策略分别按该分支缺口设计验证。保留普通 direct 兼容，不在 iris-ui 另建部署器，不把本地模拟当真实环境通过。沿本项补验真实瞬时故障下的两次共享额外尝试及耗尽后停止、禁止重跑清零、同范围授权沿用、guarded 已知编译失败诊断、旧 unknown 会话保护和原 SFTP 批量停止；非 Windows/Node22 矩阵仍归 P2 第 7 项，不新增恢复框架或独立队列。

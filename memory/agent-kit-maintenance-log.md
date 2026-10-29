@@ -1,5 +1,13 @@
 # imedical.agents 维护日志
 
+## 2026-10-29 AI 开发基础工具离线物料
+
+- 用户授权先准备离线包，随后明确 CodeBuddy 插件和从当前 settings.json 摘取模板。新增 `tools/ai-dev-offline/`，固定六项 Windows x64 官方原包与当前 CodeBuddy 4.12.39997873 VSIX；准备器持久断点、逐项校验，构建读回归档，正式 ZIP 仅进被忽略的 tools/dist。
+- 三个 settings 模板按白名单提取通用终端、编辑器、CodeBuddy 与 ObjectScript 偏好；医院连接仅占位、active=false。随后补单 server 的 MCP/TOML 非敏感模板与 AI 优先 pwsh 片段，省去凭据，不改现用文件。PATH 工具按所选路径 Plan/Apply/Verify/Rollback，Machine 默认与 Process 隔离可选，保存原值类型并验证子 CMD；不扫描全机或改 ComSpec。源仓／tools README 与 P2 待验同步；tools 不属于插件／独立 skill，不改版本／releases、安装更新器／thin-index 或分发手册，已部署工程无需迁移或清理。
+- PS5.1 与 PS7 各24项专项及一次真实Process/CMD集成通过：四命令、空格路径、重复配置、恢复及后来修改拒绝；Machine PATH未变。准备机 Node/npm/SQLite、Git临时仓库、Java编译运行、PowerShell和VS Code CLI通过，CodeBuddy隔离安装／列版通过，Python原包签名Valid。TOML标准解析与JSON/TOML字段一致；归档摘要、独立解压及Python测试夹具范围沿[准备回执](../tools/ai-dev-offline/PREPARATION-REPORT.md)。干净断网、Machine写入／通知、AI shell实际加载、GUI、扩展激活／AI登录、MCP宿主与真实依赖未验。没有本机正式安装、系统变量变更或医院部署；未执行提交／推送。
+- 用户解除首版 ZIP 占用后，独占访问确认可用；复用已验 r2 原包、对齐说明后重建并统一回原正式包名，独立解压核对全部20文件后清理重复 r2 和任务暂存，保留最新交付摘要。
+- 按用户要求扫描部署入口、canonical、插件／skills、docs、vendor及feedback：未发现框架运行代码依赖根 tools；实际路径引用仅为人工 ZIP 说明、源仓专项测试与 CI 构建，iris-tools 插件目录及 MCP tools 命令不属于该根目录。复用现有回归验证新增文件／本机 ZIP 均不入安装更新白名单，新装和升级 sparse 项目无 tools 仍可运行 XML／源码 helper，相关6项检查通过。用户随后授权 c+p，交付范围只含本轮源码、模板、说明、测试及维护记录，正式 ZIP 不入仓；实际提交／推送以 Git 回执为准。
+
 ## 2026-10-28 Windows 短路径兼容收尾
 
 - `8434073` 已同步双远端。后续 Windows22.5 CI 的打包步骤实际失败于源码/独立工具测试：Node native realpath 与普通 realpath、PowerShell provider path 与 IO.GetFullPath 对 8.3 名称返回不同表示，产生路径归属或 source-path-outside-root 误拒绝，ZIP 构建本身成功。
