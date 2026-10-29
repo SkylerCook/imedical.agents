@@ -26,7 +26,8 @@ const USAGE = `用法: node collect-commits.js [--months N | --since YYYY-MM-DD 
   --months N   汇总最近 N 个完整自然月（默认取配置 window.value）
   --since      自定义起始时间 YYYY-MM-DD 或 YYYY-MM-DDTHH:MM（--until 缺省为现在）
   --until      自定义结束时间 YYYY-MM-DD 或 YYYY-MM-DDTHH:MM（不含，缺省为现在）
-输出: <outputDir>/<YYYY-MM>/raw-commits-<YYYY-MM>.json（UTF-8 无 BOM）+ 控制台摘要`;
+输出: <outputDir>/<YYYY-MM>/raw-commits-<YYYY-MM>.json（UTF-8 无 BOM）+ 控制台摘要
+配置 ref: config 的 "ref" 字段（如 "origin/master"）指定采集源分支，缺省 HEAD`;
 
 // ---------- 时间窗 ----------
 
@@ -189,13 +190,16 @@ function discoverRepos(repoRoot) {
 
 // ---------- 单仓库采集 ----------
 
-async function collectRepo(repoRel, repoRoot, since, until) {
+async function collectRepo(repoRel, repoRoot, since, until, ref) {
   // 遍历起点放宽 45 天（远低于真实窗口起点），且不传 --until：
   // 让 git 遍历终止的近似误差发生在真实窗口之外，窗口边界由 filterWindow 按作者日期精确裁决。
+  // 遍历 ref 默认 HEAD（本地 checkout）；配置 ref 后从 origin/master 等远程跟踪分支采集，
+  // 不依赖本地分支同步进度，也不触碰工作区。
   const walkSince = toLocalYMD(new Date(parseTimestamp(since) - 45 * 86400000));
   const format = `%H${SEP}%an${SEP}%ae${SEP}%ad${SEP}%s`;
   const args = [
     'log', '--no-merges',
+    ...(ref && ref !== 'HEAD' ? [ref] : []),
     `--since=${walkSince}`,
     '--date=iso-strict',
     `--pretty=format:${format}`,
@@ -245,13 +249,14 @@ async function main() {
   const reporters = config.reporters || [];
   const authorIndex = buildAuthorIndex(reporters);
   const repos = discoverRepos(repoRoot);
+  const ref = config.ref || 'HEAD';
 
   const commits = [];
   const errors = [];
   let reposWithCommits = 0;
   for (const repo of repos) {
     try {
-      const raw = await collectRepo(repo, repoRoot, win.since, win.until);
+      const raw = await collectRepo(repo, repoRoot, win.since, win.until, ref);
       const matched = [];
       for (const c of raw) {
         const author = matchReporter(authorIndex, c.authorName, c.authorEmail);
@@ -296,6 +301,7 @@ async function main() {
       reposScanned: repos.length,
       reposWithCommits,
       totalCommits: commits.length,
+      sourceRef: ref,
       byPerson,
       byRepo,
       excludeMerges: config.excludeMerges !== false
