@@ -33,7 +33,7 @@ const queryOptions = {
 const pendingExcludedStatuses = new Set(['完成', '取消', '已拆分']);
 const workExcludedStatuses = new Set(['取消', '已拆分', '回置']);
 const todoStatuses = new Set(['新建', '分配', '分配(开发)', '活动', '修正']);
-const handedOffStatuses = new Set(['测试分配', '组内测试', '测试完成', '更新完成', '挂起']);
+const handedOffStatuses = new Set(['测试分配', '测试', '发布测试', '组内测试', '测试完成', '更新完成', '挂起']);
 const tool = {
   name: 'bos_demand_query', description: '只读查询 BOS 需求。todo 为个人开发待办，日期可省略，提供时按预计完成时间；workload 按必填执行日期统计工作量。两者组合接受人/当前人/状态并单列未知组合。原人员/组列表、pending/history、编号详情及字段说明继续可用，不保证上游无截断。',
   inputSchema: { type: 'object', properties: { ...Object.fromEntries(Object.entries(descriptions).map(([key, description]) => [key, { type: 'string', description }])), body: { type: 'object', description: '上游可选对象，内部结构未声明；仅透传调用者明确提供的 JSON 对象。' }, ...queryOptions }, additionalProperties: false }
@@ -138,9 +138,22 @@ function personalDecision(row, plan) {
   const range = plan.personal.range;
   if (range && (!validDate(day) || day < range.date || day > range.date2)) return 'outside-date';
   if (status === '完成') return plan.mode === 'workload' ? 'include' : 'closed';
+  // Test assignment marks development completion even before the current person changes.
+  if (status === '测试分配') return plan.mode === 'workload' ? 'include' : 'handed-off';
   if (current === plan.subject && todoStatuses.has(status)) return plan.mode === 'todo' ? 'include' : 'still-owned';
   if (current !== plan.subject && handedOffStatuses.has(status)) return plan.mode === 'workload' ? 'include' : 'handed-off';
   return 'unclassified';
+}
+
+function personalUnclassifiedReason(row, plan) {
+  const missing = ['接受人', '当前人', '状态'].filter(key => !String(row[key] ?? '').trim());
+  if (missing.length) return { code: 'missing-fields', reason: `缺少${missing.join('、')}` };
+  if (plan.personal.sourceScope !== 'all' && (typeof row['来源'] !== 'string' || !row['来源'].trim())) {
+    return { code: 'missing-source', reason: '所选来源口径下来源缺失或无效' };
+  }
+  const status = String(row['状态']).trim();
+  if (!todoStatuses.has(status) && !handedOffStatuses.has(status)) return { code: 'unknown-status', reason: `未识别状态：${status}` };
+  return { code: 'ownership-status-mismatch', reason: `状态与当前人组合待核对：${status}／${String(row['当前人']).trim() === plan.subject ? '本人' : '他人'}` };
 }
 
 function prepareQuery(input, defaultUser = '', defaultGroup = '', now = new Date()) {
@@ -261,7 +274,8 @@ function processList(result, plan) {
         missingSortDateCount: rows.filter(row => !sortDate(row)).length,
         ...(plan.personal ? { personal: { subject: plan.subject, ...plan.personal, excludedReasons: reasons,
           unclassifiedCount: unclassified.length, unclassified,
-          basis: plan.mode === 'todo' ? `接受人和当前人均为本人，状态为${[...todoStatuses].join('/')}` : '接受人为本人，有期间执行记录，已完成或已流转他人；取消/已拆分/回置排除',
+          unclassifiedDetails: unclassified.map((row, index) => ({ index, id: row['需求号'] ?? null, ...personalUnclassifiedReason(row, plan) })),
+          basis: plan.mode === 'todo' ? `接受人和当前人均为本人，状态为${[...todoStatuses].join('/')}` : `接受人为本人且有期间执行记录；完成/测试分配不要求当前人为他人，其余${[...handedOffStatuses].filter(status => status !== '测试分配').join('/')}须当前人为他人；取消/已拆分/回置排除`,
           dateBoundary: '向上游请求至截止日次日，再按原字段日期核对包含首尾两日；上游端点与截断仍待核对' } } : {}),
         completeness: '上游分页和总量限制未知；返回数不保证覆盖全部历史'
       }

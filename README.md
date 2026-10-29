@@ -269,6 +269,8 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 ### bos-plugin
 
+工作量测试阶段分类及页面数量差异按[个人查询与复核契约](plugins/bos-plugin/references/usage.md#工作量差异复核)处理；刷新原范围快照、比较编号集合，区分候选、计入及待核对。
+
 提供跨技术栈的 BOS 只读查询与已有需求处理，无 IRIS 插件强依赖：
 
 - [bos-init](plugins/bos-plugin/skills/bos-init/SKILL.md)：个人配置初始化与项目接入分别执行；Windows 可生成仓外私有配置并绑定用户环境变量，用户填写 TODO。项目接入才启用插件并生成四个日常入口。

@@ -348,6 +348,7 @@ test('source classification includes every non-project source and reports absent
       const meta = result._meta.bosDemandQuery;
       assert.equal(meta.personal.sourceScope, sourceScope);
       assert.equal(meta.personal.unclassifiedCount, sourceScope === 'all' ? 0 : 3);
+      assert.deepEqual(meta.personal.unclassifiedDetails.map(item => item.code), sourceScope === 'all' ? [] : ['missing-source', 'missing-source', 'missing-source']);
       assert.equal(meta.returnedCount, 8);
       assert.equal(meta.includedCount + meta.excludedCount, 8);
     }
@@ -503,6 +504,48 @@ test('workload counts handoffs including suspended and self-completed work, not 
   assert.equal(call.name, 'post_imedway_ylxt_bosdata'); assert.deepEqual(call.arguments, summary.filters);
   const narrowed = await query(config, { mode: 'workload', date: '2026-10-23', status: '修正' }, 'sample-user');
   assert.ok(!getRows(narrowed).some(x => x['状态'] === '修正'));
+});
+
+test('workload recognizes testing stages and self test assignment while retaining ownership and date guards', async t => {
+  const rows = [
+    ['1', '测试', 'sample-user', 'tester', '2026-10-23'],
+    ['2', '发布测试', 'sample-user', 'tester', '2026-10-23'],
+    ['3', '测试分配', 'sample-user', 'sample-user', '2026-10-23'],
+    ['4', '分配', 'sample-user', 'sample-user', '2026-10-23'],
+    ['5', '修正', 'sample-user', 'sample-user', '2026-10-23'],
+    ['6', '测试', 'other-developer', 'sample-user', '2026-10-23'],
+    ['7', '测试', 'sample-user', 'tester', '2026-10-24'],
+    ['8', '发布测试', 'sample-user', 'tester', ''],
+    ['9', '未知阶段', 'sample-user', 'tester', '2026-10-23'],
+    ['10', '测试', 'sample-user', 'sample-user', '2026-10-23'],
+    ['11', '发布测试', 'sample-user', 'sample-user', '2026-10-23'],
+    ['12', '测试分配', 'sample-user', '', '2026-10-23']
+  ].map(([id, status, receiver, current, day]) => ({ '需求号': id, '状态': status, '接受人': receiver, '当前人': current, '执行时间': day }));
+  t.mock.method(globalThis, 'fetch', mock({ result: listResult(rows) }).fetchImpl);
+  const result = await query(config, { mode: 'workload', date: '2026-10-23' }, 'sample-user');
+  assert.deepEqual(getRows(result).map(row => row['需求号']), ['1', '2', '3']);
+  const meta = result._meta.bosDemandQuery;
+  assert.equal(meta.returnedCount, 12); assert.equal(meta.includedCount, 3); assert.equal(meta.excludedCount, 9);
+  assert.equal(meta.personal.excludedReasons['still-owned'], 2);
+  assert.equal(meta.personal.excludedReasons['other-receiver'], 1);
+  assert.equal(meta.personal.excludedReasons['outside-date'], 2);
+  assert.equal(meta.personal.unclassifiedCount, 4);
+  assert.deepEqual(meta.personal.unclassifiedDetails.map(({ id, code }) => [id, code]), [
+    ['9', 'unknown-status'], ['10', 'ownership-status-mismatch'], ['11', 'ownership-status-mismatch'], ['12', 'missing-fields']
+  ]);
+  assert.match(meta.personal.unclassifiedDetails[0].reason, /未知阶段/);
+  const todo = await query(config, { mode: 'todo' }, 'sample-user');
+  assert.deepEqual(getRows(todo).map(row => row['需求号']), ['4', '5']);
+});
+
+test('requery classifies the current status and execution date instead of a previous snapshot', async t => {
+  const row = { '需求号': '1', '接受人': 'sample-user', '当前人': 'sample-user', '状态': '分配', '执行时间': '2026-10-22' };
+  t.mock.method(globalThis, 'fetch', mock({ result: listResult([row]) }).fetchImpl);
+  const input = { mode: 'workload', date: '2026-10-23' };
+  assert.equal(getRows(await query(config, input, 'sample-user')).length, 0);
+  Object.assign(row, { '当前人': 'tester', '状态': '发布测试', '执行时间': '2026-10-23' });
+  t.mock.method(globalThis, 'fetch', mock({ result: listResult([row]) }).fetchImpl);
+  assert.deepEqual(getRows(await query(config, input, 'sample-user')).map(item => item['需求号']), ['1']);
 });
 
 test('stdio exposes and executes the same personal workload mode', async t => {
