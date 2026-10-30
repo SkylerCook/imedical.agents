@@ -1,0 +1,120 @@
+diff --git a/crates/iris-agentic-dev-core/src/iris/connection.rs b/crates/iris-agentic-dev-core/src/iris/connection.rs
+index da3b01d..fd2230e 100644
+--- a/crates/iris-agentic-dev-core/src/iris/connection.rs
++++ b/crates/iris-agentic-dev-core/src/iris/connection.rs
+@@ -455,6 +455,10 @@ impl IrisConnection {
+             .await
+         {
+             let status = resp.status();
++            if std::env::var("IRIS_MANAGED_NO_RETRIES").as_deref() == Ok("1") && [401, 403, 503].contains(&status.as_u16()) {
++                eprintln!("IMEDICAL_HTTP_STOP={}", status.as_u16());
++                return;
++            }
+             if status.is_success() {
+                 if let Ok(body) = resp.json::<serde_json::Value>().await {
+                     tracing::debug!("Atelier root response: {}", body);
+@@ -498,6 +502,10 @@ impl IrisConnection {
+             .await;
+         let mode = match resp {
+             Ok(r) => {
++                if std::env::var("IRIS_MANAGED_NO_RETRIES").as_deref() == Ok("1") && [401, 403, 503].contains(&r.status().as_u16()) {
++                    eprintln!("IMEDICAL_HTTP_STOP={}", r.status().as_u16());
++                    return SystemMode::Unknown;
++                }
+                 if let Ok(body) = r.json::<serde_json::Value>().await {
+                     body["result"]["content"][0]["Value"]
+                         .as_str()
+@@ -537,6 +545,10 @@ impl IrisConnection {
+         client: &reqwest::Client,
+         prefix: &str,
+     ) -> anyhow::Result<String> {
++        // imedical managed sessions never replay a possibly executed write cycle.
++        if std::env::var("IRIS_MANAGED_NO_RETRIES").as_deref() == Ok("1") {
++            return self.execute_via_generator_once(code, namespace, client, prefix).await;
++        }
+         let delays = [
+             std::time::Duration::from_millis(100),
+             std::time::Duration::from_millis(200),
+@@ -703,6 +715,11 @@ impl IrisConnection {
+                 return Err(e.into());
+             }
+         };
++        if std::env::var("IRIS_MANAGED_NO_RETRIES").as_deref() == Ok("1") && !query_resp.status().is_success() {
++            let status = query_resp.status();
++            scratch.release(self, client).await;
++            anyhow::bail!("query HTTP {}", status);
++        }
+         let query_body: serde_json::Value = query_resp.json().await.unwrap_or_default();
+         // Atelier does not always hand the column back as a JSON string. When the captured output
+         // parses as JSON on its own — an array, an object, a number, a bare `true` — IRIS emits it
+diff --git a/crates/iris-agentic-dev-core/src/iris/csp_session.rs b/crates/iris-agentic-dev-core/src/iris/csp_session.rs
+index 2ab1502..1fa54a3 100644
+--- a/crates/iris-agentic-dev-core/src/iris/csp_session.rs
++++ b/crates/iris-agentic-dev-core/src/iris/csp_session.rs
+@@ -105,37 +105,30 @@ pub fn shared_cookie_store() -> Arc<CspSessionStore> {
+ /// runtime has returned and from `crate::exit` inside a tokio task alike.
+ pub fn logout_blocking(timeout: Duration) {
+     let urls = SHARED.logout_urls();
++    let attempted = urls.len();
++    let managed = std::env::var("IRIS_MANAGED_NO_RETRIES").as_deref() == Ok("1");
+     if urls.is_empty() {
++        if managed { eprintln!("IMEDICAL_LOGOUT={{\"attempted\":0,\"acknowledged\":0,\"completed\":true}}"); }
+         return;
+     }
+     let (done_tx, done_rx) = std::sync::mpsc::channel();
+     std::thread::spawn(move || {
+-        let Ok(rt) = tokio::runtime::Builder::new_current_thread()
+-            .enable_all()
+-            .build()
+-        else {
+-            return;
+-        };
+-        rt.block_on(async {
++        let Ok(rt) = tokio::runtime::Builder::new_current_thread().enable_all().build() else { return; };
++        let acknowledged = rt.block_on(async {
+             let Ok(client) = reqwest::Client::builder()
+-                .user_agent(super::connection::user_agent(
+-                    super::connection::caller_mode(),
+-                ))
++                .user_agent(super::connection::user_agent(super::connection::caller_mode()))
+                 .danger_accept_invalid_certs(super::connection::tls_insecure_from_env())
+-                .cookie_provider(SHARED.clone())
+-                .timeout(timeout)
+-                .build()
+-            else {
+-                return;
+-            };
++                .cookie_provider(SHARED.clone()).timeout(timeout).build() else { return 0; };
+             let sends = urls.iter().map(|u| client.get(u).send());
+-            for result in futures_util::future::join_all(sends).await {
+-                if let Err(e) = result {
+-                    tracing::debug!("CSP logout failed: {e}");
+-                }
+-            }
++            futures_util::future::join_all(sends).await.into_iter().filter(|r|
++                r.as_ref().map(|response| response.status().is_success() || response.status().as_u16() == 401).unwrap_or(false)
++            ).count()
+         });
+-        let _ = done_tx.send(());
++        let _ = done_tx.send(acknowledged);
+     });
+-    let _ = done_rx.recv_timeout(timeout);
++    let result = done_rx.recv_timeout(timeout);
++    if managed {
++        eprintln!("IMEDICAL_LOGOUT={{\"attempted\":{},\"acknowledged\":{},\"completed\":{}}}",
++            attempted, result.as_ref().copied().unwrap_or(0), result.is_ok());
++    }
+ }
+diff --git a/crates/iris-agentic-dev-core/src/telemetry/mod.rs b/crates/iris-agentic-dev-core/src/telemetry/mod.rs
+index 355a567..cb78d67 100644
+--- a/crates/iris-agentic-dev-core/src/telemetry/mod.rs
++++ b/crates/iris-agentic-dev-core/src/telemetry/mod.rs
+@@ -274,6 +274,8 @@ pub async fn write_durable(
+     client: &reqwest::Client,
+     config_dir: &Path,
+ ) {
++    // Managed read-only calls must never cause an implicit IRIS or local telemetry write.
++    if std::env::var("IRIS_MANAGED_NO_RETRIES").as_deref() == Ok("1") { return; }
+     match iris {
+         Some(iris) => {
+             let listbuild = encode_listbuild(record);

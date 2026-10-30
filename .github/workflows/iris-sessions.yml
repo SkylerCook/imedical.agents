@@ -1,0 +1,17 @@
+name: IRIS managed sessions
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        node: ['22', '24']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node --test scripts/tests/iris-session-manager.tests.js scripts/tests/iris-session-ipc.tests.js scripts/tests/iris-session-routing.tests.js scripts/tests/iris-session-migration.tests.js scripts/tests/iris-session-vendor.tests.js scripts/tests/iris-mcp-schema.tests.js scripts/tests/iris-mcp-session.tests.js scripts/tests/iris-remote-operations.tests.js scripts/tests/atelier-read-pool.tests.js

@@ -1,6 +1,6 @@
 {
   "name": "iris-interface-dev",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "displayName": "IRIS Interface Dev Plugin",
   "description": "Document-first IRIS interface workflow covering parsed document handoff, field matching, implementation planning, local ObjectScript/JavaScript implementation, offline review.",
   "entry": "AGENTS.md",
@@ -32,7 +32,7 @@
     },
     "coding-iris-plugin": {
       "minVersion": "0.3.0",
-      "maxVersionExclusive": "0.25.0"
+      "maxVersionExclusive": "0.26.0"
     }
   },
   "requiresProjectFiles": [

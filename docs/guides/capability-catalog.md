@@ -383,3 +383,5 @@ IRIS CSP＋HISUI 对公司UI规范的落地适配，正式依赖 imedical-ui；�
 无插件依赖。初始化：[mobile-dev-init](../../plugins/mobile-dev/skills/mobile-dev-init/SKILL.md)；日常：[mobile-dev](../../plugins/mobile-dev/skills/mobile-dev/SKILL.md)；规则：[mobile_dev](../../plugins/mobile-dev/rules/mobile_dev.md)。覆盖 Android 开发、构建和日志优先排障。
 
 建仓与现场交接：[mobile-project-repo](../../plugins/mobile-dev/skills/mobile-project-repo/SKILL.md)。
+
+IRIS 远端连接统一入口：[会话管理、既有项目更新与回退](iris-managed-sessions.md)。普通查询正常连接，由管理进程复用和回收；真实宿主回执与服务端资源证据分别验收。

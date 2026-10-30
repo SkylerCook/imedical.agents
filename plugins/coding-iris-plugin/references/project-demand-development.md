@@ -98,7 +98,16 @@ Agent 先读候选前后源码并核对服务器合并意图，取得真实语�
 
 ## License 准入与资源收尾
 
-准入公共实现为能力包根 `scripts/lib/iris-remote-operations.js`，Atelier 会话复用由 `scripts/lib/atelier-client.js` 负责。私有配置 `ContextRoot/config/iris-remote-policy.json` 使用同一实例或**已确认共享许可池**的 `poolKey`、同一可达的本地 `coordinationRoot`。已确认跨实例共享时才显式设置 `allowSharedPool`；不同目录、不同机器或未接入工具不会自动协调。不是全局 License 预留服务，也不能机械拦截外部 IDE 或原生 MCP。
+本节资源约束适用于所有 IRIS 远端开发操作，包含 standard、旧 contextMode 和只读查询；源码同步的 project 分支条件不限制本节适用范围。
+
+- 请求前先查本地源码与已有结果，明确最小远端范围；核实已进入统一会话管理。普通单会话查询允许资格 pending；批量/多会话另核对 verified 资格，显式禁用不自动解禁。
+- 同一许可池默认串行；多 Agent 不各自建立连接。批量操作复用现有受管 client、Cookie 与连接生命周期，禁止逐文件启动进程或新建会话。单进程、batch、keepalive 都不能单独证明服务器 Web session 复用或固定 LU 占用。
+- 503 或资源状态不明立即停止新请求，保存结果并关闭自有会话；用户说“继续”不等于服务器恢复证明，不换通道、不自动重试、不清除其他 owner。按现有 reconcile 协议核实后恢复。
+- finally 中收束自有资源；分别报告请求完成、会话退出及 License 回落证据。没有服务端观测不得声称许可已释放，不终止他人的会话。
+
+CLI、原生 MCP 适配入口及共享 Atelier client 由用户级管理进程协调；见[统一会话手册](../../../docs/guides/iris-managed-sessions.md)。外部 IDE、人工直连和任意 shell 不属于机器拦截范围，Agent 不得绕过规定路径。
+
+准入公共实现为能力包根 `scripts/lib/iris-remote-operations.js`，Atelier 会话复用由 `scripts/lib/atelier-client.js` 负责。私有配置 `ContextRoot/config/iris-remote-policy.json` 使用同一实例或**已确认共享许可池**的 `poolKey`、同一可达的本地 `coordinationRoot`。已确认跨实例共享时才显式设置 `allowSharedPool`；受管入口映射到同一系统用户的协调位置，保留原配置及旧 owner 检查；不同机器和未接入工具不会自动协调，不是 License 预留服务。
 
 `maxConcurrent` 固定为 1，整段操作跨进程排他。源码获取可使用 `scripts/lib/atelier-read-pool.js` 在同一个 owner 内运行已验证预算的只读会话池；写入与编译仍串行。该池先在同 Cookie 上读取一次根 serverInfo，再核对资格的实例、namespace/API 路径、版本、配置和运行时指纹。无多会话资格使用已获基础资格的单会话，缺少基础策略则在请求前停止。完整字段与试验入口见[代码基线协议](iris-code-baseline.md)。
 
@@ -106,11 +115,11 @@ Agent 先读候选前后源码并核对服务器合并意图，取得真实语�
 
 准入须覆盖当前需求会使用的受管读取、上传编译、Broker/数据库调用与测试入口。已接入主链是 source-sync/promote/deploy、共享 Atelier client、受控 Broker 及根 `scripts/iris-mcp.js` 的公共 `tools/call`。其它插件自己的客户端、原生 MCP、SQL 工具和外部 IDE 是明确外部边界，使用前须核实其准入与退出资格；不能把共享库存在说成全部入口已受控。新模式不使用交互 legacy debugger 旁路。
 
-Atelier 只关闭自己取得的 Cookie 会话，并返回 logout 请求/响应证据；keepalive 连接关闭不等于服务器 License 已释放。受控 Broker 需调用者提供已有 Cookie 和 `sessionOwnerReference`，会话创建与退出归该调用者，不隐式新建无主会话。根 MCP helper 需要 `qualification.channels.mcp.processExitVerified: true` 及真实退出资格证据，结束时核对自己启动的子进程退出；进程退出也不等于数据库连接或 License 已回落。其它通道同样按实际 CSP session / DB connection 所有者收尾。
+Atelier 只关闭自己取得的 Cookie 会话，并返回 logout 请求/响应证据；keepalive 连接关闭不等于服务器 License 已释放。受控 Broker 需调用者提供已有 Cookie 和 `sessionOwnerReference`，会话创建与退出归该调用者，不隐式新建无主会话。受管 MCP 不以历史 `qualification.channels.mcp.processExitVerified` 阻断普通查询；管理进程分开记录请求、进程退出和注销回执，服务器会话消失及 LU 回落另行观测。其它通道同样按实际 CSP session / DB connection 所有者收尾。
 
 会话设计参考 [VS Code ObjectScript 的 Atelier API](https://github.com/intersystems-community/vscode-objectscript/blob/master/src/api/index.ts)（2026-10-24 核对）：取得 Cookie 后不继续发送 Basic Authorization，注销使用路径前缀下 `/api/atelier/?CacheLogout=end`，不附 v1/namespace。只参考生命周期设计，未复制代码或引入其运行时；本地 mock 精确核对请求，目标服务器的退出与 License 回落仍需真实资格证据。
 
-`qualification.status: verified` 和存在的 `qualification.reference` 只是本地证据门禁，不自动证明真实 License 安全。证据至少区分通道、最小范围、前后占用、会话/连接归属、结束回落、异常和观察时间；验证只对该目标/版本/通道/范围有效。150–200 文件不是通用安全阈值，不能据一次客户端观察推广 VS Code Export 的 License 收益。资格未完成前保持禁用，不先批量试错。
+`qualification.status: verified` 和存在的 `qualification.reference` 只是本地证据门禁，不自动证明真实 License 安全。证据至少区分通道、最小范围、前后占用、会话/连接归属、结束回落、异常和观察时间；验证只对该目标/版本/通道/范围有效。150–200 文件不是通用安全阈值，不能据一次客户端观察推广 VS Code Export 的 License 收益。资格未完成前不扩展批量/多会话预算，不先批量试错；不因此禁用普通受管单会话查询。
 
 首次资格窗口通过 `code-baseline qualify` 接收明确目标、准确名单、会话数和时限预算，沿同一个锁执行受限读取；客户端仅允许该名单及一次 serverInfo 探测。回执维持 pending，资源观测和审核完成后才登记 verified。日常批次验证各自会话退出并引用资格，不因 `licenseReleaseVerified:false` 自动变为 unknown，也不宣称每批都实测了 LU 回落。
 

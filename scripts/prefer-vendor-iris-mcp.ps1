@@ -231,6 +231,13 @@ $filesToWrite = New-Object System.Collections.Generic.List[object]
 $targets = New-Object System.Collections.Generic.List[string]
 $observedTargets = New-Object System.Collections.Generic.List[string]
 
+# The vendor is now the manager's internal backend. Never turn its Node adapter
+# into a direct executable while retaining Node arguments.
+if (($null -ne $mcpServerEntry) -and (@($mcpServerEntry.server.args | Where-Object { [string]$_ -match '(^|[\\/])iris-session-mcp\.js$' }).Count -gt 0)) {
+  New-PreferenceResult -Status "mcp-vendor-managed-entry-preserved" -Target ".mcp.json" -Reason "Managed session adapter retained; backend upgrades are handled by the session migration"
+  return
+}
+
 if ($null -ne $mcpServerEntry) {
   $observedTargets.Add(".mcp.json")
   if ([string]$mcpServerEntry.server.command -ne $preferredCommand) {

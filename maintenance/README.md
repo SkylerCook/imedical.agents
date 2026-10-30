@@ -4,6 +4,7 @@
 
 | 任务 | 入口 |
 |---|---|
+| IRIS 统一会话候选与发布边界 | [本机验证及未完成项](validation/iris-managed-sessions-2026-10-30.md) |
 | IRIS XML 双通道导出、开发基线接入及实际项目升级 | [框架实施与部署计划](design/iris-xml-baseline-integration-plan.md)，本地实现已完成；[真实验收指南](../docs/guides/iris-xml-baseline-acceptance.md)，发布、实际项目更新和服务端部署未执行 |
 | 自有 skill / Agent 帮助及随更新分发 | [验证与实际调用边界](validation/capability-help-2026-10-22.md) |
 | 项目知识库目录治理的本机证据与未部署边界 | [源仓验证](validation/project-knowledge-layout-2026-10-24.md) |

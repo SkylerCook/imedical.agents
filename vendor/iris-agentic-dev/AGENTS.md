@@ -6,6 +6,10 @@
 
 不部署到业务项目 `.agents/`，不是业务项目的 Agent 入口。
 
+## 受管构建优先
+
+当前 exe 为固定上游加 `managed-sessions-v1` 补丁；先读 [UPSTREAM.md](UPSTREAM.md) 和 `managed-build.json`。以下官方资产检测/下载步骤只用于取得对照原件，不能覆盖已验证受管构建。版本号相同也须保留零自动重试、禁用隐式遥测写入、注销回执和真实 HTTP 计数验证。源码、补丁、许可证、构建及摘要必须一起更新。
+
 ## 前置条件
 
 - PowerShell 或 Bash（curl 为系统标配）

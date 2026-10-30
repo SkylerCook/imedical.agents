@@ -1,0 +1,13 @@
+{
+  "linker": "llvm-mingw-20261020-msvcrt-x86_64",
+  "schema": "iris-managed-vendor/v1",
+  "target": "x86_64-pc-windows-gnu",
+  "sha256": "2f912d4faa47890960d2125ce0e276de92e1819932f6a742ad3cffcae15e8787",
+  "bytes": 61741056,
+  "version": "1.5.0",
+  "rust": "1.92.0",
+  "upstreamCommit": "2b3e017b7fc73d6370fc1e89e7fa03f3de49a1a1",
+  "platform": "windows-x64",
+  "verification": "iris-session-vendor.tests.js",
+  "patch": "managed-sessions-v1"
+}

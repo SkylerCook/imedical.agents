@@ -468,7 +468,8 @@ $irisAgenticRuleContent = Get-Content -Raw -Encoding UTF8 -LiteralPath $irisAgen
 Assert-Contains $irisAgenticRuleContent 'SELECT 1 AS Probe' "MCP diagnostics should use a real query probe"
 Assert-Contains $irisAgenticRuleContent 'config_file=null' "MCP diagnostics should define the auto-discovery null-config boundary"
 Assert-Contains $irisAgenticRuleContent 'HTTP 404/405' "MCP diagnostics should not expand one endpoint failure to the whole MCP"
-Assert-Contains $irisAgenticRuleContent 'mcp__iris_agentic_dev__*' "MCP diagnostics should prefer native tools before the helper"
+Assert-Contains $irisAgenticRuleContent 'iris-session-mcp.js' "MCP diagnostics should use the managed adapter"
+Assert-Contains $irisAgenticRuleContent 'imedical/session' "MCP diagnostics should verify the actual managed route receipt"
 Assert-Contains $irisAgenticRuleContent 'iris_coverage' "MCP rules should document coverage execution"
 Assert-Contains $irisAgenticRuleContent 'disabled_tools' "MCP rules should document tool suppression"
 $irisMcpHelperContent = Get-Content -Raw -Encoding UTF8 -LiteralPath $irisMcpHelperUnderTest
@@ -595,6 +596,7 @@ Assert-True (@($interfaceDevManifest.configMigrations | Where-Object { $_.id -eq
 Assert-True ([version]$codingIrisManifest.version -ge [version]"0.6.0") "coding iris plugin manifest should expose guarded demand commit workflow"
 Assert-True (@($codingIrisManifest.configMigrations | Where-Object { $_.id -eq "demand-delivery-type-v1" }).Count -eq 1) "coding iris plugin should declare demand delivery type migration"
 Assert-True (@($codingIrisManifest.configMigrations | Where-Object { $_.id -eq "iris-development-config-v1" }).Count -eq 1) "coding iris plugin should register automatic development config completion in the existing update migration pipeline"
+Assert-True (@($codingIrisManifest.configMigrations | Where-Object { $_.id -eq "iris-managed-session-v1" }).Count -eq 1) "coding iris plugin should register managed session migration in the existing updater"
 Assert-True (Test-Path -LiteralPath (Join-Path $repoRoot "plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md") -PathType Leaf) "demand delivery plugin should include demand-commit"
 Assert-True ($cureFormDevManifest.name -eq "iris-cure-form-dev") "cure form plugin manifest should use the canonical name"
 Assert-True ([version]$cureFormDevManifest.version -ge [version]"0.7.2") "cure form plugin manifest should accept the coding iris v0.9 compatibility range"

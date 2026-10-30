@@ -74,6 +74,7 @@ Claude Code 可显示为 `Fetch(...)` 或 `WebFetch(...)`；其它运行器使�
 
 ## 降级路径
 
+- 原生 IRIS MCP 首次调用按[受管路由](../../rules/iris_agentic_dev.md)检查配置与回执，旧宿主先重启；不直连 vendor。
 - 原生 IRIS MCP 工具未暴露：目标工程存在 `.agents/scripts/iris-mcp.js` 时，使用 `check|tools|call` 薄封装。
 - MCP 不可用但本地源码存在：使用本地搜索并明确缺少运行时元数据。
 - 官方网页抓取失败：尝试官方文档搜索或让用户提供页面内容，不把抓取失败解释为知识不存在。

@@ -15,10 +15,13 @@ function normalizeConnection(input = {}) {
   return { protocol, hostname, port, path: base, auth: input.auth || (input.username ? input.username + ':' + (input.password || '') : undefined), rejectUnauthorized: input.rejectUnauthorized ?? input.tlsVerify ?? true,
     ...(input.ca ? { ca: input.ca } : {}) };
 }
-function createAtelierClient({ connection, context, policy, qualification, owner: sharedOwner, timeoutMs = 60000, maxResponseBytes = 16 * 1024 * 1024 } = {}) {
+function createAtelierClient({ connection, context, policy, qualification, owner: sharedOwner, managedHost = false, timeoutMs = 60000, maxResponseBytes = 16 * 1024 * 1024 } = {}) {
   remote.assertRemoteAllowed(context || {});
   const conn = normalizeConnection(connection);
-  const selected = remote.loadRemotePolicy(context || {}, { connection: conn, policy, qualification });
+  const transport = !managedHost && !qualification && !sharedOwner && context?.contextRoot &&
+    require('node:fs').existsSync(require('node:path').join(context.contextRoot, 'config', 'iris-session-backend.json'))
+    ? require('./iris-session-client').createAtelierTransport({context, connection: conn}) : null;
+  const selected = managedHost || transport ? {enabled:false} : remote.loadRemotePolicy(context || {}, { connection: conn, policy, qualification });
   const owner = sharedOwner || remote.createRemoteOperation({ policy: selected, connection: conn, channel: 'atelier' });
   const agent = conn.protocol === 'https:' ? new https.Agent({ keepAlive: true, maxSockets: 1, rejectUnauthorized: conn.rejectUnauthorized, ...(conn.ca ? { ca: conn.ca } : {}) }) : new http.Agent({ keepAlive: true, maxSockets: 1 });
   const cookies = new Map();
@@ -29,6 +32,7 @@ function createAtelierClient({ connection, context, policy, qualification, owner
   let busy = false, closed = false, closing;
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || !Number.isInteger(maxResponseBytes) || maxResponseBytes < 1) throw new remote.RemoteOperationError('atelier-limits-invalid');
   function raw(method, suffix, body, headers = {}, options = {}) {
+    if (transport) return transport.request([method,suffix,body,headers,options]);
     return new Promise((resolve, reject) => {
       const data = body === undefined ? null : Buffer.from(JSON.stringify(body));
       let sent = false;
@@ -115,6 +119,7 @@ function createAtelierClient({ connection, context, policy, qualification, owner
   }
   async function close() {
     if (closing) return closing;
+    if (transport) {closed = true; agent.destroy(); closing = transport.close(); return closing;}
     closing = (async () => {
       let exit = { logoutRequested: false, logoutResponseReceived: false, cleanupVerified: !busy, licenseReleaseVerified: false };
       try {

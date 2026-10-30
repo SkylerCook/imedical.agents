@@ -57,3 +57,5 @@
 - [需求场景验收](../plugins/bos-plugin/references/scenarios.md)：自动检查和真实宿主证据的边界。
 
 需求交付拆分与兼容更新见 [需求交付迁移](demand-delivery-migration.md)：新入口 demand-commit / bos-demand-entry，旧 IRIS 入口已删除，更新器定向迁移项目引用并接入缺失 owner；显式状态冲突阻断，旧数据格式保留。
+
+- [IRIS 统一会话](guides/iris-managed-sessions.md)：CLI/原生 MCP 接入、排队回收、项目升级与定向回退。

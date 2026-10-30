@@ -22,6 +22,7 @@ const argv = process.argv.slice(2);
 const command = argv[0];
 let workspaceRoot;
 let server;
+let selectedServerName='iris-agentic-dev';
 let env = {};
 let namespace;
 
@@ -33,7 +34,7 @@ function usage(exitCode = 1) {
   node .agents/scripts/iris-mcp.js call <toolName> <jsonArgs> [--allow-write] [--json]
   node .agents/scripts/iris-mcp.js call <toolName> --json-file <path> [--allow-write] [--json]
 
-tools and call include check_config; a separate check is only needed for diagnosis.
+Managed tools reads the local catalog without connecting; call includes check_config.
 --json emits one object on stdout; errors go to stderr with a nonzero exit code.`);
   process.exit(exitCode);
 }
@@ -68,7 +69,10 @@ function findWorkspaceRoot() {
 function loadWorkspaceContext() {
   workspaceRoot = findWorkspaceRoot();
   const mcpConfig = JSON.parse(fs.readFileSync(path.join(workspaceRoot, '.mcp.json'), 'utf8'));
-  server = mcpConfig.mcpServers && mcpConfig.mcpServers['iris-agentic-dev'];
+  const context=require('./lib/workspace-context').resolveWorkspaceContext(workspaceRoot);
+  const localEnv=path.join(context.contextRoot,'config','project-env.json');
+  if(fs.existsSync(localEnv))selectedServerName=JSON.parse(fs.readFileSync(localEnv,'utf8').replace(/^\uFEFF/,'')).mcp?.serverName || selectedServerName;
+  server = mcpConfig.mcpServers && mcpConfig.mcpServers[selectedServerName];
   if (!server) {
     throw new Error('MCP server iris-agentic-dev not found in .mcp.json');
   }
@@ -155,6 +159,7 @@ function summarizeCheck(data) {
     namespaceIsDefaultUser: data.namespace === 'USER',
     portIsDefault52773: String(data.port) === '52773',
     connected: data.connected === true,
+    ...(data.managedSession ? {managedSession:true,remoteConnectionVerified:data.remoteConnectionVerified === true} : {}),
     connectionSource: data.connection_source || null,
     workspaceHintLoaded: Boolean(data.objectscript_workspace),
     writeToolsEnabled: typeof data.write_tools_enabled === 'boolean' ? data.write_tools_enabled : null,
@@ -376,7 +381,7 @@ class JsonLineMcpClient {
 
     this.proc.stdout.on('data', (chunk) => this.onData(chunk));
     this.proc.stderr.on('data', (chunk) => {
-      this.stderr += chunk.toString('utf8');
+      this.stderr = (this.stderr + chunk.toString('utf8')).slice(-65536);
     });
     this.proc.on('exit', (code) => {
       for (const pending of this.pending.values()) {
@@ -403,6 +408,7 @@ class JsonLineMcpClient {
       } catch {
         continue;
       }
+      if (message.id === undefined && typeof message.method === 'string' && message.method.startsWith('notifications/')) this.onNotification?.(message);
       if (message.id && this.pending.has(message.id)) {
         const pending = this.pending.get(message.id);
         this.pending.delete(message.id);
@@ -449,14 +455,20 @@ class JsonLineMcpClient {
   }
 
   async close() {
-    if (!this.proc || this.proc.exitCode !== null || this.proc.signalCode) return {processExited:true, gracefulExit: !this.proc?.signalCode};
+    const receipt = (processExited, gracefulExit) => {
+      const line = this.stderr.split(/\r?\n/).filter(value=>value.startsWith('IMEDICAL_LOGOUT=')).at(-1);
+      let logout = null;
+      try {if(line)logout=JSON.parse(line.slice('IMEDICAL_LOGOUT='.length));} catch {}
+      return {processExited,gracefulExit,...(logout?{logout}: {})};
+    };
+    if (!this.proc || this.proc.exitCode !== null || this.proc.signalCode) return receipt(true, !this.proc?.signalCode && this.proc?.exitCode === 0);
     const exited = new Promise(resolve => this.proc.once('exit', () => resolve(true)));
     this.proc.stdin.end();
     let timer;
     const wait = ms => Promise.race([exited,new Promise(resolve => {timer=setTimeout(()=>resolve(false),ms);})]).finally(()=>clearTimeout(timer));
-    if (await wait(this.shutdownTimeoutMs)) return {processExited:true, gracefulExit:true};
+    if (await wait(this.shutdownTimeoutMs)) return receipt(true, this.proc.exitCode === 0);
     this.proc.kill();
-    return {processExited:await wait(1000), gracefulExit:false};
+    return receipt(await wait(1000), false);
   }
 }
 
@@ -511,6 +523,25 @@ async function createManagedMcpSession({projectRoot, context, serverName = 'iris
   const configuration = JSON.parse(fs.readFileSync(path.join(root, '.mcp.json'), 'utf8').replace(/^\uFEFF/, ''));
   const selectedServer = configuration.mcpServers?.[serverName], settings = selectedServer?.env || {};
   if (!selectedServer?.command || !settings.IRIS_NAMESPACE || expectedNamespace && settings.IRIS_NAMESPACE !== expectedNamespace) throw new Error('remote-mcp-target-unverified');
+  const sessions = require('./lib/iris-session-client');
+  if(sessions.managed(selectedServer) || /(?:^|[\\/])iris-agentic-dev(?:\.exe)?$/i.test(selectedServer.command)) {
+    const client=sessions.createClient({projectRoot:root,serverName,allowWrite:true});
+    let unknown=false,closed=false;
+    return {
+      async call(name,args,options={}) {
+        if(closed)throw new Error('remote-mcp-session-closed');
+        if(args?.namespace && args.namespace!==settings.IRIS_NAMESPACE)throw new Error('remote-mcp-namespace-mismatch');
+        return callTool(client,name,args,{...options,defaultNamespace:settings.IRIS_NAMESPACE,timeoutMs:options.timeoutMs || timeoutMs});
+      },
+      markUnknown(){unknown=true;},
+      snapshot(){return {schema:'iris-remote-operation/v1',channel:'mcp',status:unknown?'reconciliation-required':closed?'closed':'ready',managedSession:true,licenseReleaseVerified:false};},
+      async close(){
+        if(closed)return this.snapshot();closed=true;
+        try {if(unknown)await client.markUnknown();const result=await client.endSession();return {...this.snapshot(),...result.exit,status:result.blocked?'reconciliation-required':'closed'};}
+        finally{await client.close();}
+      }
+    };
+  }
   const connection = {protocol: (settings.IRIS_SCHEME || 'https') + ':', hostname: settings.IRIS_HOST,
     port: Number(settings.IRIS_WEB_PORT), rejectUnauthorized: String(settings.IRIS_TLS_VERIFY ?? 'true').toLowerCase() !== 'false'};
   const policy = remoteOperations.loadRemotePolicy(selectedContext, {connection});
@@ -565,9 +596,30 @@ async function main() {
   let finishRequested = false;
   const finish = () => { finishRequested = true; };
   workspaceRoot = findWorkspaceRoot();
-  remoteOperations.assertRemoteAllowed(require('./lib/workspace-context').resolveWorkspaceContext(workspaceRoot));
+  if (command !== 'tools') remoteOperations.assertRemoteAllowed(require('./lib/workspace-context').resolveWorkspaceContext(workspaceRoot));
   loadWorkspaceContext();
   const context = require('./lib/workspace-context').resolveWorkspaceContext(workspaceRoot);
+  const sessionClient = require('./lib/iris-session-client');
+  if (sessionClient.managed(server) || /(?:^|[\\/])iris-agentic-dev(?:\.exe)?$/i.test(server.command || '')) {
+    const managed = sessionClient.createClient({projectRoot: workspaceRoot, serverName:selectedServerName, allowWrite: hasFlag('--allow-write')});
+    try {
+      if (command !== 'tools') emit('CHECK', summarizeCheck(await callTool(managed, 'check_config', {}, {allowWrite: true})));
+      if (command === 'tools') {
+        const catalog = await listTools(managed);
+        const selected = names ? names.map(name => {const item = catalog.find(t => t.name === name); if (!item) throw new Error('Unknown MCP tool'); return item;}) : catalog;
+        emit('TOOLS', selected.map(t => t.name));
+        if (hasFlag('--schema')) emit('TOOL_SCHEMAS', selected.map(({name,inputSchema}) => ({name,inputSchema})));
+      } else if (command === 'call') {
+        const jsonFile = optionValue('--json-file');
+        const args = parseToolArgsInput(argv[2] && argv[2] !== '--json-file' ? argv[2] : null, jsonFile);
+        emit('RESULT', await callTool(managed, argv[1], args, {allowWrite: hasFlag('--allow-write'), timeoutMs: 60000}));
+        emit('REMOTE', managed.snapshot());
+      } else if (command !== 'check') throw new Error('Unknown command');
+      if(command==='check')emit('REMOTE',managed.snapshot());
+      if (hasFlag('--json')) console.log(JSON.stringify(output));
+    } finally {await managed.close();}
+    return;
+  }
   const connection = {protocol:(env.IRIS_SCHEME || 'https')+':',hostname:env.IRIS_HOST,port:env.IRIS_WEB_PORT,
     rejectUnauthorized:String(env.IRIS_TLS_VERIFY ?? 'true').toLowerCase()!=='false'};
   const policy = remoteOperations.loadRemotePolicy(context,{connection});
@@ -630,6 +682,9 @@ async function main() {
 }
 
 module.exports = {
+  JsonLineMcpClient,
+  buildMcpArgs,
+  extractToolText,
   callTool,
   listTools,
   isClassifiedTool,

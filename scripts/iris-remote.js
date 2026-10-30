@@ -55,7 +55,7 @@ async function inspectDocuments({context, connection, policy, documents, token, 
     documents:evidence.documents.map(({content,...summary})=>summary),remote:evidence.remote,writeEnabled:false,licenseReleaseVerified:false};
 }
 async function main(argv = process.argv.slice(2)) {
-  if (argv.includes('--help')) { console.log('Usage: node iris-remote.js status|reconcile --project-root <workspace> [--token <status-token> --evidence <absolute-file> --write-outcome verified-applied|verified-not-applied --confirm]\n       node iris-remote.js inspect|read --project-root <workspace> --token <status-token> --confirm-recovery --documents <1-to-5-documents...> --evidence <new-absolute-private-file>\nstatus/reconcile are local only. inspect performs only admitted GET doc reads and its own HEAD logout, saves private evidence under ContextRoot/work/source-sync, and keeps the circuit blocked. No write replay or license reservation.'); return; }
+  if (argv.includes('--help')) { console.log('Usage: node iris-remote.js status|sessions|close-sessions|reconcile-session|reconcile --project-root <workspace> [--token <status-token> --evidence <absolute-file> --write-outcome verified-applied|verified-not-applied --confirm]\n       node iris-remote.js inspect|read --project-root <workspace> --token <status-token> --confirm-recovery --documents <1-to-5-documents...> --evidence <new-absolute-private-file>\nstatus/reconcile are local only. inspect performs only admitted GET doc reads and its own HEAD logout, saves private evidence under ContextRoot/work/source-sync, and keeps the circuit blocked. No write replay or license reservation.'); return; }
   const command = argv.shift(), args = {};
   for (let i=0;i<argv.length;i++) {
     if (argv[i] === '--confirm') args.confirm = true;
@@ -64,12 +64,35 @@ async function main(argv = process.argv.slice(2)) {
     else if (['--project-root','--token','--evidence','--write-outcome'].includes(argv[i]) && argv[i+1]) args[argv[i].slice(2)] = argv[++i];
     else throw new Error('remote-status-argument-invalid');
   }
-  if (!['status','reconcile','inspect','read'].includes(command) || !args['project-root']) throw new Error('remote-status-command-required');
+  if (!['status','sessions','close-sessions','reconcile-session','reconcile','inspect','read'].includes(command) || !args['project-root']) throw new Error('remote-status-command-required');
   const context = require('./lib/workspace-context').resolveWorkspaceContext(args['project-root']);
-  if (command === 'status' && remote.developmentMode(context) === 'offline') {
-    console.log(JSON.stringify(remote.localPoolStatus(context))); return;
+  if(command==='status') {console.log(JSON.stringify(remote.localPoolStatus(context)));return;}
+  if(command==='reconcile') {
+    const policy=remote.localPolicy(context);
+    console.log(JSON.stringify(remote.reconcileRemotePool({policy,token:args.token,evidenceFile:args.evidence,confirm:args.confirm,writeOutcome:args['write-outcome']})));return;
   }
-  if (command !== 'status') remote.assertRemoteAllowed(context);
+  if(['sessions','close-sessions','reconcile-session'].includes(command)) {
+    const ipc=require('./lib/iris-session-ipc');let client;
+    try {
+      client=await ipc.connect({start:command==='reconcile-session'});
+      let params={projectRoot:context.workspaceRoot};
+      if(command==='reconcile-session') {
+        if(!args.confirm || !path.isAbsolute(args.evidence || ''))throw new Error('session-reconciliation-evidence-required');
+        const evidence=JSON.parse(fs.readFileSync(args.evidence,'utf8').replace(/^\uFEFF/,''));
+        const policy=remote.localPolicy(context), prior=remote.poolStatus({policy});
+        if(prior.ownerPresent || prior.status!=='ready')throw new Error('session-reconcile-admission-first');
+        params={...params,token:args.token,confirm:true,writeOutcome:args['write-outcome'],evidence:{cleanupVerified:evidence.cleanupVerified===true,reference:hash(fs.readFileSync(args.evidence))}};
+      }
+      console.log(JSON.stringify(await client.request(command==='sessions'?'status':command==='close-sessions'?'close':'reconcile',params)));
+    } catch(error) {
+      if(command==='sessions' && ['ENOENT','ECONNREFUSED'].includes(error.code)) {
+        const directory=path.join(ipc.location().root,'pools');
+        const pools=fs.existsSync(directory)?fs.readdirSync(directory).filter(n=>/^[a-f0-9]{64}\.json$/.test(n)).map(n=>({pool:n.slice(0,-5),...JSON.parse(fs.readFileSync(path.join(directory,n),'utf8'))})):[];
+        console.log(JSON.stringify({status:'not-running',pools,cleanupVerified:false}));
+      } else throw error;
+    } finally {client?.close();}return;
+  }
+  remote.assertRemoteAllowed(context);
   const mcp = JSON.parse(fs.readFileSync(path.join(context.workspaceRoot,'.mcp.json'),'utf8').replace(/^\uFEFF/,''));
   const {readProjectEnv,validateTarget} = require('../plugins/coding-iris-plugin/scripts/iris-tools/project-env');
   const config = readProjectEnv(context, {optional: !['inspect','read'].includes(command)}).config;

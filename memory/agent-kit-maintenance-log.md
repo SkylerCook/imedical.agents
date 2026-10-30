@@ -1105,6 +1105,10 @@ imedicalxc-doctor-data-extraction 1.1.0 新增 `feign-api-doc-audit` skill 与 `
 
 真实文档与源码全量验证：`paths=0`、`fields=0`、`io=0`、`lint=0`；负向样例可检出错误地址与虚构字段。thin-index dry-run 已识别并生成两个 skill 入口；组件版本校验识别 1.0.0→1.1.0，本插件无报错，完整审计仍被 `imedicalxc-doctor-extend-engineer` 既有发布记录问题阻断。能力手册未收录该插件，沿既有 P2 补齐，不将未收录等同本轮已完成手册；未同步业务副本。实现已随 `fd95083` 提交，当前版本仍以 manifest 为准。
 
+## 2026-10-30 IRIS 统一会话实施中
+
+coding-iris-plugin 0.25.0 工作区草稿新增用户级管理进程、CLI/MCP 适配、排队/租约/空闲注销、持久化恢复及 configMigrations。替换先前过宽的资格停止规则；普通单会话允许 pending，明确禁用及未知写入不解禁。会话、旧入口及实际补丁二进制 58 项隔离测试通过；配置生成保留入口的新增测试及 Windows PowerShell 5.1 更新器全套通过。vendor 构建与真实 503 请求计数通过，受管模式同时禁用原版隐式遥测写入；进程退出与注销回执分开记录。真实宿主、项目升级、跨平台矩阵和发布尚未完成，不标记维护完成或发布。
+
 ## 2026-10-30 mobile-dev 初版
 
 mobile-dev 0.1.0 新增 Android 日志优先排障、六类按需开发参考及项目建仓/现场 AI 提交交接，共三个 skill 和一个 rule。复用项目工具链与启用流程，不保存医院私有事实，不提供专用检查脚本。

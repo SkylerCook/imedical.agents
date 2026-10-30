@@ -95,7 +95,20 @@ function loadRemotePolicy(context = {}, { connection, policy, qualification } = 
     instanceHash: connection ? instanceIdentity(connection) : null, evidenceReference: reference,
     ...(qualification ? {qualificationRun: true} : {}) };
   if (required && connection && (connection.rejectUnauthorized === false || String(connection.protocol || connection.scheme || connection.IRIS_SCHEME || 'https').replace(/:$/, '') !== 'https')) stop('remote-strict-tls-required');
-  return result;
+  return managedPolicy(context, result);
+}
+function managedPolicy(context, policy, force = false) {
+  if (!policy?.enabled || !force && !fs.existsSync(path.join(context.contextRoot || '', 'config', 'iris-session-backend.json'))) return policy;
+  const coordinationRoot = path.join(os.homedir(), '.imedical', 'iris-sessions', 'admission');
+  return {...policy, coordinationRoot,
+    ...(path.resolve(policy.coordinationRoot) !== path.resolve(coordinationRoot) ? {legacyCoordinationRoot:policy.coordinationRoot} : {})};
+}
+function localPolicy(context = {}) {
+  const root=context.contextRoot || path.join(context.workspaceRoot || process.cwd(),'.agents');
+  const policy=readJson(path.join(root,'config','iris-remote-policy.json'));
+  if(policy?.schema!=='iris-remote-policy/v1' || !path.isAbsolute(policy.coordinationRoot || '') ||
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(policy.poolKey || ''))stop('remote-policy-invalid');
+  return managedPolicy(context,{...policy,enabled:true});
 }
 function assertNoLinks(target) {
   let current = path.parse(path.resolve(target)).root;
@@ -116,6 +129,10 @@ function createRemoteOperation({ policy = { enabled: false }, connection, channe
   function acquire() {
     if (closed) stop('remote-owner-closed');
     if (acquired || !policy.enabled) { acquired = true; return; }
+    if(policy.legacyCoordinationRoot) {
+      const previous=poolStatus({policy:{...policy,coordinationRoot:policy.legacyCoordinationRoot}});
+      if(previous.ownerPresent || previous.status!=='ready')stop('remote-legacy-pool-reconciliation-required');
+    }
     const instanceHash = policy.instanceHash || instanceIdentity(connection);
     assertNoLinks(policy.coordinationRoot);
     fs.mkdirSync(policy.coordinationRoot, { recursive: true, mode: 0o700 });
@@ -230,7 +247,9 @@ function localPoolStatus(context = {}) {
   if (!policy || policy.schema !== 'iris-remote-policy/v1' || !path.isAbsolute(policy.coordinationRoot || '') ||
     !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(policy.poolKey || '')) stop('remote-policy-invalid');
   // Status only reads existing coordination files; it cannot grant admission or release a lock.
-  return {...poolStatus({policy: {...policy, enabled: true}}), developmentMode: mode};
+  const effective=managedPolicy(context,{...policy,enabled:true});
+  return {...poolStatus({policy: effective}), developmentMode: mode,
+    ...(effective.legacyCoordinationRoot ? {legacy:poolStatus({policy:{...policy,enabled:true}})} : {})};
 }
 function createRecoveryReadOperation({policy, connection, token, confirmRecovery = false, documents} = {}) {
   const files = poolFiles(policy);
@@ -340,4 +359,4 @@ function reconcileRemotePool({policy, token, evidenceFile, confirm = false, writ
     return {schema:'iris-remote-reconciliation/v1',status:'reconciled',licenseReleaseVerified:false};
   } finally { fs.closeSync(descriptor); fs.unlinkSync(recoveryLock); }
 }
-module.exports = { RemoteOperationError, contextMode, developmentMode, assertRemoteAllowed, bindDevelopmentMode, localPoolStatus, instanceIdentity, targetIdentity, validQualificationGrant, loadRemotePolicy, createRemoteOperation, createRecoveryReadOperation, withRemoteOperation, poolStatus, reconcileRemotePool };
+module.exports = { RemoteOperationError, contextMode, developmentMode, assertRemoteAllowed, bindDevelopmentMode, localPoolStatus, localPolicy, instanceIdentity, targetIdentity, validQualificationGrant, loadRemotePolicy, managedPolicy, createRemoteOperation, createRecoveryReadOperation, withRemoteOperation, poolStatus, reconcileRemotePool };

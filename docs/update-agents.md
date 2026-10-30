@@ -2,6 +2,10 @@
 
 源仓根 `tools/` 整体不部署到业务项目 `.agents`，包括源码、README、ZIP 及以后新增的人工工具。安装/更新继续按运行时白名单检出；人工需要时单独取得 ZIP，不将 tools 加入 sparse checkout。
 
+## IRIS 统一会话（coding 0.25）
+
+coding 0.25.0 通过现有 configMigrations 迁移框架生成的 MCP 到本机受管入口，保留连接参数、disabled 和其它服务。无旧策略才生成单会话默认值；已有禁用不解禁，旧 owner 与恢复材料不清除。DryRun/Write/Check 只操作本地文件，完成后重启对应宿主 MCP 并检查真实调用回执；Overlay 先共享 CapabilityRoot 再逐 ContextRoot。自定义入口待适配，仍直连不能通过 Check。操作、回退及证据边界见[统一会话手册](guides/iris-managed-sessions.md)。
+
 ## IRIS 开发方式与离线交付（coding 0.24）
 
 coding 0.24.4 将必需配置的生成与 Check 纳入 `coding-iris-init` 默认接入步骤。已安装且 coding 插件为 enabled 的项目，普通 Write 更新通过既有 `configMigrations` 自动补缺文件，无需再单独运行初始化；available/disabled 不处理，DryRun/Check 只报告。缺失开发声明先生成 `{}`，保留旧模式缺省和旧计划指纹；已有配置逐字节保留，未核实的模式/环境集中报告，Agent 根据事实定点补字段。connected＋按需上下文同时生成禁用、资格 pending 的远端策略，真实资格和 before-edit 仍分别完成；更新不连接医院、不建 Git 或假基线，无旧材料迁移/清理。`work/source-sync/` 由真实任务创建；补显式模式前先核实旧恢复任务。需要单独接入时仍可执行[本地配置补齐](../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)的 `source-sync.js configure` Write/Check。

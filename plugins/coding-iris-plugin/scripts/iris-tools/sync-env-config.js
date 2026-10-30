@@ -117,7 +117,7 @@ if (sftpEnabled) {
 }
 
 const mcpPath = path.join(workspaceRoot, '.mcp.json');
-fs.writeFileSync(mcpPath, JSON.stringify(mcpConfig, null, 2) + '\n', 'utf8');
+require('../../../../scripts/lib/iris-session-migration').writeGenerated({context:workspaceContext,config:mcpConfig});
 console.log('[OK] .mcp.json generated');
 
 console.log('');
