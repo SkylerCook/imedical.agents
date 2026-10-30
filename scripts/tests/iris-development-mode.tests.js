@@ -57,7 +57,6 @@ for(const name of ['node:http','node:https','node:net']){const m=require(name);f
   const entries=[
     ['scripts/iris-mcp.js',['check','--json']],
     ['scripts/iris-remote.js',['inspect','--project-root',f.root]],
-    ['scripts/iris-remote.js',['reconcile','--project-root',f.root]],
     [tools+'compile.js',['--project-root',f.root,'--files','src/Sample.cls','--execute']],
     [tools+'compile-csp.js',['--project-root',f.root,'--documents','web/sample.csp','--execute']],
     [tools+'deploy-frontend.js',['--project-root',f.root,'--files','web/sample.js','--execute']],
@@ -81,6 +80,11 @@ test('offline help, connection generation and local status do not need a hospita
   }
   const status=spawnSync(process.execPath,[path.join(repo,'scripts/iris-remote.js'),'status','--project-root',f.root],{encoding:'utf8',windowsHide:true});
   assert.equal(status.status,0,status.stderr); assert.equal(JSON.parse(status.stdout).status,'unconfigured');
+  fs.writeFileSync(path.join(f.config,'iris-remote-policy.json'),JSON.stringify({schema:'iris-remote-policy/v1',enabled:false,coordinationRoot:path.join(f.root,'coordination'),poolKey:'fixture'}));
+  const reconcile=spawnSync(process.execPath,[path.join(repo,'scripts/iris-remote.js'),'reconcile','--project-root',f.root],{encoding:'utf8',windowsHide:true});
+  assert.equal(reconcile.status,1);
+  assert.doesNotMatch(reconcile.stderr,/offline-development-remote-disabled/);
+  assert.match(reconcile.stderr,/remote-reconcile-confirmation-required/);
   const generated=spawnSync(process.execPath,[path.join(repo,tools+'sync-env-config.js')],{cwd:f.root,encoding:'utf8',windowsHide:true});
   assert.equal(generated.status,0,generated.stderr); assert.equal(JSON.parse(generated.stdout).status,'skipped-offline');
   assert.equal(fs.existsSync(path.join(f.root,'.mcp.json')),false);

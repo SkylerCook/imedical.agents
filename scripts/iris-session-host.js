@@ -56,7 +56,12 @@ async function serve({root, open = backends.open, describe = backends.operation,
     await new Promise(resolve => server.close(resolve));
     if (fs.existsSync(lock) && JSON.parse(fs.readFileSync(lock, 'utf8')).pid === process.pid) fs.unlinkSync(lock);
   };
-  await new Promise((resolve, reject) => {server.once('error', reject); server.listen(loc.endpoint, resolve);});
+  try {
+    await new Promise((resolve, reject) => {server.once('error', reject); server.listen(loc.endpoint, resolve);});
+  } catch (error) {
+    if (fs.existsSync(lock) && JSON.parse(fs.readFileSync(lock, 'utf8')).pid === process.pid) fs.unlinkSync(lock);
+    throw error;
+  }
   if (process.platform !== 'win32') fs.chmodSync(loc.endpoint, 0o600);
   const timer = setInterval(async () => {
     if (ticking || closing) return; ticking = true;

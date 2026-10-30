@@ -2,6 +2,10 @@
 
 状态：0.25.0 验证分支候选，未发布或升级业务副本。
 
+候选 `2b4a69d` 首轮 [CI](https://github.com/SkylerCook/imedical.agents/actions/runs/41085026686) 暴露 macOS 临时路径下 Unix socket 名称过长；修正为短名称并在创建锁前校验 UTF-8 字节长度，启动监听失败清除自有锁。矩阵关闭 fail-fast，避免取消其它平台。offline 仍禁止远端调用；旧测试将纯本地 reconcile 也视为远端的断言已按新契约修正。本地定向 8 项通过、Unix 专项等待 macOS/Linux 验证。
+
+全仓其它 CI 不能宣称通过：例如 [基线技能迁移](https://github.com/SkylerCook/imedical.agents/actions/runs/41084978127) 在本轮改动前的 `93d775c` 已因夹具缺失 docs/README.md、imedical-ui 初始化断言失败；候选出现相同问题，保留为独立历史缺口。其余失败继续按日志逐项区分。
+
 - Windows / Node 24.14.1：`iris-session-{manager,ipc,routing,migration,vendor}.tests.js` 与既有 MCP schema/session、remote-operations、atelier-read-pool 共 58 项通过。
 - Windows PowerShell 5.1：现有 `scripts/tests/update-agents.tests.ps1` 全套通过；定向迁移测试确认受管 command 保留、旧明确禁用保留、回退 drift 拦截、生成器保留其它服务、真实 Node 后端跨客户端复用及通知不串路由。
 - 固定 vendor 补丁已构建并纳入候选。实际 HTTP 计数确认只读工具零 PUT；generator 503 只发一次 PUT；启动 503 不继续发 SystemMode 查询，队列取消；自有注销请求独立计数。完整摘要见 `vendor/iris-agentic-dev/managed-build.json`。

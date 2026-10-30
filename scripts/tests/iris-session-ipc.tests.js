@@ -3,6 +3,12 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const {createTempDirectory,ownsTempDirectory}=require('./fixtures/temp-directory');
 const {serve}=require('../iris-session-host');
 const {connect}=require('../lib/iris-session-ipc');
+test('Unix socket paths fit macOS limits and reject overlong UTF-8 roots before writing', {skip:process.platform==='win32'},()=>{
+  const {location}=require('../lib/iris-session-ipc');
+  const root='/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/Codex/iris-session-routing-jjCz5S/ipc';
+  assert.ok(Buffer.byteLength(location(root).endpoint)<=103);
+  assert.throws(()=>location('/'+ '界'.repeat(40)),{code:'session-ipc-root-too-long'});
+});
 test('two independent IPC clients share a backend; only opaque metadata persists',async t=>{
   const root=createTempDirectory('iris-session-ipc-');let opened=0,calls=0,closed=0;
   const host=await serve({root,describe:p=>({...p,pool:'same-instance',identity:'same-user'}),

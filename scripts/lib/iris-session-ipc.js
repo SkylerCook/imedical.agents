@@ -13,7 +13,11 @@ const RUNTIME = hash(['iris-session-ipc.js','iris-session-manager.js','iris-sess
 
 function location(root = path.join(os.homedir(), '.imedical', 'iris-sessions')) {
   root = path.resolve(root);
-  return {root, endpoint: process.platform === 'win32' ? '\\\\.\\pipe\\imedical-iris-' + hash([os.userInfo().username, root]).slice(0, 32) : path.join(root, 'manager.sock')};
+  const endpoint = process.platform === 'win32' ? '\\\\.\\pipe\\imedical-iris-' + hash([os.userInfo().username, root]).slice(0, 32) : path.join(root, 's');
+  // macOS sockaddr_un allows 103 pathname bytes plus the terminating NUL.
+  // Fail before creating a lock/key instead of truncating to another user's path.
+  if (process.platform !== 'win32' && Buffer.byteLength(endpoint) > 103) throw failure('session-ipc-root-too-long');
+  return {root, endpoint};
 }
 function privateDirectory(root) {
   let current = path.parse(root).root;
