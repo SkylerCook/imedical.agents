@@ -12,7 +12,7 @@
 
 面向使用者的插件、skill 与 rule 清单。先读[使用指南](capability-guide.md)，或按下面的插件定位具体入口。
 
-范围：当前非 `imedicalxc-*` 插件，共 **15 个插件、58 个 skill、37 个 rule**；skill 数包含初始化和兼容入口，不包含 vendor skills、Agent 生成入口或源仓维护 skill。xc 本轮未编入，后续单独补齐。清单按当前文件快照核对；版本和依赖范围以各插件 manifest 为准。
+范围：当前非 `imedicalxc-*` 插件，共 **16 个插件、61 个 skill、38 个 rule**；skill 数包含初始化和兼容入口，不包含 vendor skills、Agent 生成入口或源仓维护 skill。xc 本轮未编入，后续单独补齐。清单按当前文件快照核对；版本和依赖范围以各插件 manifest 为准。
 
 共享测试能力见 [测试运行时](../testing-runtime.md)：项目适配的会话检查/心跳、实际加载版本和资源收尾，不新增插件或日常 skill。
 
@@ -377,3 +377,9 @@ IRIS CSP＋HISUI 对公司UI规范的落地适配，正式依赖 imedical-ui；�
 ## 项目知识库目录
 
 项目知识库骨架、owner/扩展用途说明、README 受管区持续更新和授权迁移由 agent-context-kit 承接，入口见[目录治理](project-knowledge-layout.md)及 `project-context-maintenance`；旧说明接管复用 project-docs.js navigation-plan/apply，不新增并行插件。
+
+## mobile-dev
+
+无插件依赖。初始化：[mobile-dev-init](../../plugins/mobile-dev/skills/mobile-dev-init/SKILL.md)；日常：[mobile-dev](../../plugins/mobile-dev/skills/mobile-dev/SKILL.md)；规则：[mobile_dev](../../plugins/mobile-dev/rules/mobile_dev.md)。覆盖 Android 开发、构建和日志优先排障。
+
+建仓与现场交接：[mobile-project-repo](../../plugins/mobile-dev/skills/mobile-project-repo/SKILL.md)。

@@ -332,3 +332,11 @@ BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调
 ## 项目知识库目录
 
 项目资料增多、目录用途不清或更新提示待归类时，使用 project-context-maintenance 读取[目录治理](project-knowledge-layout.md)。例如“检查目录说明并补齐受管导航，保留人工正文”：先 DryRun 审查；无标记 README 用 navigation-plan 精确评审接管，之后普通 Write 更新受管区。首次部署、说明接管与资料迁移按各批计划执行；目录和说明通过不代表逐文件已分类，更新本身不产生搬移权限。
+
+## mobile-dev
+
+[查看插件清单](capability-catalog.md#mobile-dev)。先通过 [mobile-dev-init](../../plugins/mobile-dev/skills/mobile-dev-init/SKILL.md) 接入 Android 工程，日常使用 [mobile-dev](../../plugins/mobile-dev/skills/mobile-dev/SKILL.md)，再请求“排查应用闪退，先自行看 logcat”或“按现有变体实现并验证需求”。Agent 主动定位 adb、确认设备并读取有限日志；无设备仍可静态调查。预期交付证据、原因和验证缺口，安装、真实业务复现与发布按各自授权执行。
+
+mobile-dev 还可处理“检查当前构建环境与变体”“按同类页面实现需求”“核对接口响应到界面状态”“将指定标准功能移入定制仓”。同一日常 skill 按需读取专项流程；WebView/PDA 真机行为单独验收。当前复用已有工具，没有专用环境检查脚本。
+
+使用 [mobile-project-repo](../../plugins/mobile-dev/skills/mobile-project-repo/SKILL.md)：“给某项目旧版移动端建 git，源码在现场，建完给现场 AI 提交提示词”。已有平台/归属/命名从项目约定取得；历史未知不阻塞空私有仓创建。预期交付已核验仓库链接与填好目标的提示词；现场提交和推送分开授权。

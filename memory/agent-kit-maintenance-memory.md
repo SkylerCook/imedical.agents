@@ -44,3 +44,5 @@
 - 框架维护使用 [maintenance lifecycle](../agents/_shared/maintenance-lifecycle.md)，不继承业务验收或 feedback。提交/推送、远程写入与副本部署沿各自既有授权。
 
 完成归[日志](agent-kit-maintenance-log.md)，稳定约束归[决策](agent-kit-maintenance-decisions.md)，待验归[backlog](agent-kit-maintenance-backlog.md)；下轮合并替换本入口的过期状态。
+
+移动端开发入口：[mobile-dev](../plugins/mobile-dev/README.md)，Android 运行故障先主动取日志；真实接入沿 backlog P2，源仓新增不代表业务项目已启用。

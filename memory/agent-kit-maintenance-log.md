@@ -1104,3 +1104,9 @@ coding-iris-plugin 0.15.2 在成功 pull 及快照校验后，仅向 commit 传�
 imedicalxc-doctor-data-extraction 1.1.0 新增 `feign-api-doc-audit` skill 与 `feign-doc-audit.js`，覆盖已有 API 文档的服务地址、入参/出参类型、字段表、JSON 示例和格式基线检查。类型解析按 import、package、scope、module 顺序消歧；无显式类型的嵌套子表支持从父表行（如 `records`、`waitData`、`cureList`）推导类型。
 
 真实文档与源码全量验证：`paths=0`、`fields=0`、`io=0`、`lint=0`；负向样例可检出错误地址与虚构字段。thin-index dry-run 已识别并生成两个 skill 入口；组件版本校验识别 1.0.0→1.1.0，本插件无报错，完整审计仍被 `imedicalxc-doctor-extend-engineer` 既有发布记录问题阻断。能力手册未收录该插件，沿既有 P2 补齐，不将未收录等同本轮已完成手册；未同步业务副本。实现已随 `fd95083` 提交，当前版本仍以 manifest 为准。
+
+## 2026-10-30 mobile-dev 初版
+
+mobile-dev 0.1.0 新增 Android 日志优先排障、六类按需开发参考及项目建仓/现场 AI 提交交接，共三个 skill 和一个 rule。复用项目工具链与启用流程，不保存医院私有事实，不提供专用检查脚本。
+
+文档部署链接与 skill/rule 清单检查通过；worktree 版本检查未报告 mobile-dev 问题，全仓既有其他组件问题另行处理。真实宿主加载、设备采集、建仓交接与工具补齐沿 P2；未部署业务副本或操作设备。
