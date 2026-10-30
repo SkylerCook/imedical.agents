@@ -85,7 +85,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 ## demand-delivery-plugin
 
-使用 [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md) 的 `--plan` 为已验证改动生成方案，明确 `--commit` 才执行本地提交；push 独立授权。当前用户或项目约定须明确 standard/project、数字需求号、标题与精确文件，无需 IRIS profile。
+使用 [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md) 的 `--plan` 为已验证改动生成方案，明确 `--commit` 才执行本地提交；push 独立授权。当前用户或项目约定须明确 standard/project、标题与精确文件，默认要求数字需求号，无需 IRIS profile。project 提前开发尚无编号时，显式使用 `demand-commit --plan --no-id` 或 `demand-commit --commit --no-id`；仅该参数不产生提交授权，standard 仍须编号。
 
 上游更新与需求无交集、内容和消息未变时，按[同步复核协议](../../plugins/demand-delivery-plugin/references/commit-upstream-check.md#head-前进后的自动接续)由 Agent 重新 plan 后沿用已有授权接续。技能自行同步，有无 hook 均适用；`--plan` 仍不联网或提交。
 

@@ -19,6 +19,7 @@ function parseArgs(argv) {
     const token = argv[index];
     if (token === '--confirm-commit') args.confirmCommit = true;
     else if (token === '--verify') args.verify = true;
+    else if (token === '--no-id') args.noId = true;
     else if (token === '--file') args.files.push(requiredValue(argv, ++index, token));
     else if (token === '--modification') args.modifications.push(requiredValue(argv, ++index, token));
     else if (token.startsWith('--')) args[toCamel(token.slice(2))] = requiredValue(argv, ++index, token);
@@ -233,7 +234,8 @@ function modificationMap(values, repositories) {
 
 function buildMessage(args, modification) {
   const summary = String(args.subject || args.title).trim();
-  const subject = `${args.type}(${args.demand}):${summary}`;
+  const scope = args.noId ? '' : `(${args.demand})`;
+  const subject = `${args.type}${scope}:${summary}`;
   const lines = [subject, `修改说明:${modification}`];
   if (args.kind === 'standard') lines.push(`需求描述:${args.demand} ${args.title.trim()}`);
   return `${lines.join('\n')}\n`;
@@ -241,7 +243,8 @@ function buildMessage(args, modification) {
 
 function defaultPlanPath(projectRoot, demand) {
   const identity = hash(path.resolve(projectRoot)).slice(0, 16);
-  return path.join(os.tmpdir(), 'codex-iris-demand-commit', identity, `${demand}.json`);
+  const name = demand == null ? `no-id-${crypto.randomUUID()}` : demand;
+  return path.join(os.tmpdir(), 'codex-iris-demand-commit', identity, `${name}.json`);
 }
 
 function writeJson(filePath, value) {
@@ -259,7 +262,10 @@ function writeJson(filePath, value) {
 function planCommand(args) {
   const projectRoot = path.resolve(args.projectRoot || process.cwd());
   if (!KINDS.has(args.kind)) throw new Error('--kind 必须是 standard 或 project；TODO 必须先由用户补全');
-  if (!/^\d+$/.test(args.demand || '')) throw new Error('--demand 必须是单个数字需求号');
+  if (args.noId) {
+    if (args.demand !== undefined) throw new Error('--no-id 与 --demand 不能同时使用');
+    if (args.kind !== 'project') throw new Error('--no-id 仅支持 project 类型；standard 必须提供数字需求号');
+  } else if (!/^\d+$/.test(args.demand || '')) throw new Error('--demand 必须是单个数字需求号；project 暂无需求号时须显式使用 --no-id');
   if (!TYPES.has(args.type)) throw new Error('--type 必须是 feat/fix/refactor/docs/chore');
   if (!String(args.title || '').trim()) throw new Error('--title 不能为空');
   if (/\r|\n/.test(args.title)) throw new Error('--title 不能包含换行');
@@ -289,14 +295,15 @@ function planCommand(args) {
     info.execution = { status: 'planned', pull: 'pending', commit: '' };
     return info;
   });
-  const output = path.resolve(args.output || defaultPlanPath(projectRoot, args.demand));
+  const output = path.resolve(args.output || defaultPlanPath(projectRoot, args.noId ? null : args.demand));
   if (!isWithin(output, os.tmpdir())) throw new Error('--output 必须位于系统临时目录');
   const plan = {
     schema: SCHEMA,
     createdAt: new Date().toISOString(),
     projectRoot,
     kind: args.kind,
-    demand: args.demand,
+    demand: args.noId ? null : args.demand,
+    ...(args.noId ? { noId: true } : {}),
     subject: String(args.subject || args.title).trim(),
     title: args.title.trim(),
     type: args.type,

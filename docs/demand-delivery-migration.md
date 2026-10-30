@@ -1,5 +1,9 @@
 # 需求交付入口迁移
 
+## project 暂无需求号提交
+
+`demand-delivery-plugin 0.9.0` 新增显式 `--no-id`，用法及边界见 [demand-commit](../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md#暂无需求号project)。正常更新完整能力包并刷新已启用索引即可，无配置迁移或旧文件清理。数字编号 v1 计划仍可恢复；无编号计划不自动登记验收批次或写 BOS，真实业务副本不在本轮维护中更新。
+
 ## BOS 日志与 Git 发布解耦
 
 `demand-delivery-plugin 0.8.1` 默认先提交推送再补 BOS 日志，主子日志不再阻塞 Git。正常更新完整能力包并刷新已启用索引；旧 v1/v2 不改 schema、scopeHash、授权或已有回执，首次状态写入按 Git 成功回执释放 publication，claim 保留原日志交付者与来源证据但不再占有 checkout。部分 push 仍持有 Git 发布权；日志 unknown/running 仍须先核对，不能重发。旧顺序可恢复，完整交付仍核对全部适用阶段。无私有配置迁移、旧文件清理或业务副本自动更新，详见[批次协议](../plugins/demand-delivery-plugin/references/acceptance-session.md#回执与恢复)。

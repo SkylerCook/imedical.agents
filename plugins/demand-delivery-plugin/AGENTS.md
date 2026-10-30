@@ -6,7 +6,7 @@
 
 跨插件阶段依赖以 manifest 的 availableDependencies 为事实源；触发时按[可用性依赖协议](../../docs/plugin-availability.md)检查，缺口仅阻塞对应阶段，显式 disabled 保留。
 
-用户要求需求提交信息或明确提交时读取 [demand-commit](skills/demand-commit/SKILL.md)。使用项目已确认的数字需求号、standard/project 类型及精确文件范围；与项目提交规范冲突时停止并说明，不替换项目规范。
+用户要求需求提交信息或明确提交时读取 [demand-commit](skills/demand-commit/SKILL.md)。使用项目已确认的数字需求号、standard/project 类型及精确文件范围；project 暂无编号时支持显式 `--no-id`，执行模式及约束见技能。与项目提交规范冲突时停止并说明，不替换项目规范。
 
 连续人工验收、逐号交付或查询验收/交付编号汇总时，读取 [demand-acceptance](skills/demand-acceptance/SKILL.md)，复用已有台账。用户明确调用开展验收交付即授权该批次通过项提交、BOS 日志及推送，限制与自动加载边界见技能“调用与授权”；默认定位当前工作区来源，`--worktree [路径]` 显式指定来源；最终目标单独核实，BOS 前必须取得实仓 commit。`--pass` 支持编号列表和多行“编号＋标题”粘贴，解析及歧义边界见技能“接收结论”。明确批次用标准验收状态流，自定义台账保留取证；主子混合归属及整组完成按[代码归属](../../docs/demand-code-ownership.md)核对。提交与 BOS 日志继续由各自技能执行。
 

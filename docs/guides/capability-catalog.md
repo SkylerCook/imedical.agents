@@ -22,7 +22,7 @@
 
 | 插件 | 用途 | 接入入口 | 直接依赖 |
 |---|---|---|---|
-| [demand-delivery-plugin](#demand-delivery-plugin) | 数字需求号提交与连续人工验收 | demand-commit、demand-acceptance；无专用初始化 | 核心无依赖，BOS 阶段条件使用 bos-plugin |
+| [demand-delivery-plugin](#demand-delivery-plugin) | 需求提交（project 支持显式无编号）与连续人工验收 | demand-commit、demand-acceptance；无专用初始化 | 核心无依赖，BOS 阶段条件使用 bos-plugin |
 | [bos-plugin](#bos-plugin) | BOS 查询与跨技术栈需求处理 | [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md) | 无插件依赖 |
 | [agent-context-kit](#agent-context-kit) | 项目上下文、宿主技能接入、需求交接 | [project-context-maintenance](../../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md) | 无插件依赖 |
 | [agent-framework-evolution](#agent-framework-evolution) | 已验收业务需求反馈与通用能力打包 | [agent-framework-evolution-init](../../plugins/agent-framework-evolution/skills/agent-framework-evolution-init/SKILL.md) | 无插件依赖 |
@@ -44,7 +44,7 @@
 
 | Skill | 用途 | 类型 |
 |---|---|---|
-| [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md) | standard/project 提交计划、本地提交与验证，上游无交集时复核接续，无 IRIS 配置依赖 | 日常入口 |
+| [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md) | standard/project 提交计划、本地提交与验证，project 可显式 --no-id，上游无交集时复核接续，无 IRIS 配置依赖 | 日常入口 |
 | [demand-acceptance](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md) | 连续人工验收、实仓提交推送后补 BOS、主子混合交付/无代码跳过及编号汇总 | 明确调用即授权完整交付；`--pass` 支持编号列表/多行编号＋标题；默认当前工作区来源，最终实仓目标单独确认；`--worktree [路径]` 指定来源 |
 
 接入与已删除旧入口的迁移见 [迁移说明](../demand-delivery-migration.md)。

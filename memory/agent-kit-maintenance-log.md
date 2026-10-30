@@ -1,5 +1,11 @@
 # imedical.agents 维护日志
 
+## 2026-10-30 project 暂无需求号提交
+
+- framework-maintenance，demand-delivery-plugin 0.8.1→0.9.0：按用户确认新增显式布尔参数 `--no-id`，与 `--plan` / `--commit` 组合，仅支持 project 且与脚本 `--demand` 互斥；无编号消息省略需求号括号，仍保留方案型修改说明。普通调用和 standard 继续要求数字需求号，原授权、文件边界、漂移、pull、hook 及 verify 保持。
+- 无编号计划沿 v1 schema 记录 noId=true、demand=null，默认独立随机文件名避免覆盖；上游复核与重新 plan 保留该状态，旧数字编号计划原样恢复。不自动写 BOS、登记验收批次或改写历史。同步 owner AGENTS/README/manifest、skill、接续协议、根 README、能力手册和迁移说明；正常更新完整能力包并刷新已启用索引，无配置迁移或旧文件清理，未更新业务副本。安装更新算法、thin-index 生成和分发范围未变，无需修改 docs/update-agents.md 或更新器测试。
+- Windows Node 24.14.1 最终提交及 upstream 专项 45/45、文档链接 1/1、skill 格式和语法检查通过；覆盖无编号计划隔离、计划无副作用、实际提交/验证、新文件、计划外暂存保护、参数互斥/缺号/standard 拒绝、计划篡改与内容漂移、上游接续、不推送及原 hook/Overlay 回归。首次沙箱阻止临时 Git 写 config，沙箱外隔离仓库复验；新增反例夹具曾重复传修改说明，修正后最终全套通过。组件工作区校验与当前 HEAD 对照无新增问题，不宣称完整历史审计通过。其它平台/Node 22 与真实宿主沿原 P2 队列；用户随后授权本轮 c + p，仅提交本轮精确文件及共享文档片段，保留并行修改；提交与双远端推送结果以实际 Git 回执为准。
+
 ## 2026-10-30 修改前同步并提交服务器基线
 
 - framework-maintenance，基点 `94fe2f3`，coding-iris-plugin 0.24.2→0.24.3。落实既有 connected＋project＋按需分支：待修改文件无论本地是否存在，先完成 source-sync before-edit，有服务器变化／首次纳入先提交 export，再开始需求修改；普通 export 直写在远端请求和源码写入前停止，probe／独立 staging 用于参考。显式 `--kind` 优先于合法默认类型，未知基线、现场、冲突及提交授权沿原保护，不新增同步状态机。

@@ -1,5 +1,7 @@
 # Demand Delivery Plugin
 
+0.9.0：`demand-commit --plan|--commit --no-id` 显式支持 project 暂无需求号提交；标题省略需求号括号，修改说明及原提交校验保留。普通调用和 standard 仍要求数字需求号，不自动进入 BOS 或验收批次。正常更新完整能力包并刷新已启用索引，旧数字编号 v1 计划继续恢复；无配置迁移或旧文件清理，业务副本未自动更新。
+
 0.8.1：验收默认先 commit/push，再按已保存的实仓 hash 补 BOS 日志；主子日志缺口或未知结果只暂停日志，Git 完成即释放发布权供后续需求继续。报告区分“代码已推送，BOS 待补”和完整交付。更新整个能力包并刷新已启用索引，旧 v1/v2 保留 schema、授权和回执，首次状态写入释放已完成的 Git 占有；旧顺序仍可续接，无配置迁移或旧文件清理。恢复接口见[批次协议](references/acceptance-session.md#回执与恢复)。
 
 0.8.0：BOS 批次只登记最终实仓 commit，日志与推送前重核 root/ref/hash；worktree 仅作准备来源。parent 引用主实仓提交逐项日志，own 子项独立交付，none 跳过；JSON groupCompletion 按全部成员计算整组完成。完整更新两个 owner 与根 scripts/lib，日志选择补 ref；旧批次保留回执并重新核实，不自动重发。接口迁移见[验收协议](references/acceptance-session.md)，无私有配置或业务副本自动迁移。
@@ -10,7 +12,7 @@
 
 跨插件阶段依赖以 manifest 的 availableDependencies 为事实源；触发时按[可用性依赖协议](../../docs/plugin-availability.md)检查，缺口仅阻塞对应阶段，显式 disabled 保留。
 
-跨技术栈复用需求提交安全机制，入口为 [demand-commit](skills/demand-commit/SKILL.md)。支持数字需求号及 standard/project 格式，不要求 IRIS profile、MCP 或 BOS 凭据；这是组织需求交付约定，不是任意 Git 提交格式转换器。
+跨技术栈复用需求提交安全机制，入口为 [demand-commit](skills/demand-commit/SKILL.md)。支持数字需求号及 standard/project 格式，project 暂无编号时可显式使用 `--no-id`；不要求 IRIS profile、MCP 或 BOS 凭据。这是组织需求交付约定，不是任意 Git 提交格式转换器。
 
 连续验收使用 [demand-acceptance](skills/demand-acceptance/SKILL.md)：用户明确调用开展验收交付，即授权该批次通过项提交、补 BOS 日志并推送，无需额外开关或重复确认交付范围；明确“先登记、暂不交付”时遵从限制。用户逐号给出结论，Agent 持续接收、按目标仓库串行交付，报告可独立整理。仅查看技能、查询汇总或 Agent 自动加载不产生交付授权。人工通过和实际交付分别汇总；BOS 多需求号列表固定为数量在块外、`text` 块内单行升序去重、半角逗号无空格。普通单号复用已有台账，明确批次使用标准状态流和 [验收索引协议](references/acceptance-session.md)；不改变正式任务编排。BOS 日志阶段条件使用 bos-plugin，不增加通用提交的强制依赖。报告按[共享测试协议](../../agents/_shared/testing-protocol.md#结果与交接)分别统计人工补验与待用户验收结论，保留实际功能验证范围。处理报告固定包含本批全部需求号汇总（含基线已满足、无需新增代码项），状态分组另列；格式与完整性核对见 [编号汇总契约](skills/demand-acceptance/SKILL.md#编号汇总契约)。
 

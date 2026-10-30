@@ -1,6 +1,6 @@
 ---
 name: demand-commit
-description: Use after a standard or project demand is implemented and verified. Supports explicit --plan/-plan to generate repository-specific commit messages without committing, and --commit/-commit to create verified local commits after authorization; push remains separate.
+description: Use after standard or project changes are implemented and verified. Supports --plan/-plan for commit messages, --commit/-commit for authorized verified local commits, and explicit --no-id for project changes without a demand number; push remains separate.
 ---
 
 # Demand Commit
@@ -9,9 +9,9 @@ description: Use after a standard or project demand is implemented and verified.
 
 本 skill 在用户要求生成提交信息、直接提交，或显式调用 `$demand-commit --plan|--commit` 时加载。commit 可以在 `acceptance-pending` 阶段独立执行，但不得把生命周期推进到 `accepted`，也不得触发 feedback 审查或写入。
 
-适用于采用数字需求号及本技能 standard/project 提交格式的项目。项目提交规范与本格式冲突时先按项目规范处理，不强套此格式；不需要 IRIS、BOS 连接或领域初始化。新入口按项目 plugin profile 接入 demand-delivery-plugin；旧入口已移除，已部署项目由更新器迁移。
+适用于采用本技能 standard/project 提交格式的项目，默认使用数字需求号；project 暂无编号时可显式使用 `--no-id`。项目提交规范与本格式冲突时先按项目规范处理，不强套此格式；不需要 IRIS、BOS 连接或领域初始化。新入口按项目 plugin profile 接入 demand-delivery-plugin；旧入口已移除，已部署项目由更新器迁移。
 
-连续人工验收、多条交付排队或批次恢复时，由 [demand-acceptance](../demand-acceptance/SKILL.md) 接收结论与协调；本技能仍独立执行单号计划与提交。
+连续人工验收、多条交付排队或批次恢复时，由 [demand-acceptance](../demand-acceptance/SKILL.md) 接收结论与协调；本技能仍独立执行单个需求的计划与提交。
 
 ## 使用时机
 
@@ -29,6 +29,8 @@ description: Use after a standard or project demand is implemented and verified.
 ```text
 $demand-commit --plan
 $demand-commit --commit
+$demand-commit --plan --no-id
+$demand-commit --commit --no-id
 ```
 
 - `--plan` / `-plan`：只生成提交计划和每个仓库的完整 commit message。只运行 `plan`，不得执行 `pull`、`git add`、`git commit` 或 `verify`，不得继续询问是否提交；完成时明确报告“未创建本地 commit”。
@@ -36,7 +38,15 @@ $demand-commit --commit
 - 未提供参数时，根据用户当前请求判断：只要求“生成提交信息”“生成 commit”“查看 commit message”时进入 `--plan`；明确要求“提交”“直接提交”或 `commit` 时进入 `--commit`。
 - 同时出现两种模式、出现未知模式，或显式参数与自然语言意图冲突时停止，展示上述两种合法用法，不猜测执行模式。
 
-调用参数只决定是否创建本地 commit，不改变 `standard/project` 需求类型、文件边界、pull 门禁和独立 push 授权。
+`--plan` / `--commit` 决定是否创建本地 commit；`--no-id` 只控制需求号关联，不改变 `standard/project` 需求类型、文件边界、pull 门禁和独立 push 授权。
+
+### 暂无需求号（project）
+
+用户显式提供 `--no-id`（无值布尔参数，只有双横线形式）时，本次 project 提交暂不关联需求号，适用于提前开发、后补编号。它与 `--plan` / `--commit` 组合使用，自身不选择执行模式或授予提交权限；仅提供 `--no-id` 且无明确模式或有效授权时，沿下文裸调用规则选择模式。
+
+- 仍按项目或当前用户约定确定需求类型；仅 `project` 允许 `--no-id`，`standard` 继续要求数字需求号。
+- 脚本 `plan` 中 `--no-id` 与 `--demand <编号>` 互斥。未显式提供 `--no-id` 时仍要求真实数字需求号，不把缺失编号自动转为无编号提交，也不填入假编号。
+- 保留标题、精确文件、每仓修改说明与验证结果，消息使用下文无编号格式；本次不进入按需求号登记的验收批次或 BOS 写入。后续取得编号按另行授权关联已有提交，不自动 amend 或改写历史。
 
 ## 预先授权与裸调用
 
@@ -54,7 +64,7 @@ $demand-commit --commit
 
 1. 目标工程 `AGENTS.md`。
 2. 目标工程 AGENTS 或其指向的项目配置中已确认的默认需求交付类型；不要求 IRIS profile。
-3. 当前开发流程已确认的需求号、需求标题、需求描述、修改文件和验证结果。
+3. 当前开发流程已确认的需求号（或显式 `--no-id`）、需求标题、需求描述、修改文件和验证结果。
 4. 各修改文件所属 Git 仓库的 `AGENTS.md` 与提交约束。
 
 ## 需求类型
@@ -106,7 +116,14 @@ $demand-commit --commit
 修改说明:<方案型修改说明>
 ```
 
-用户指定的 `type` 优先；否则按实际变更选择：新增能力用 `feat`，修复缺陷用 `fix`，无行为变化的结构调整用 `refactor`，纯文档用 `docs`，构建或配置维护用 `chore`。一个计划只处理一个需求号；独立需求不得合并提交。已确认主子需求的共享代码按[代码归属协议](../../../../docs/demand-code-ownership.md)唯一绑定主需求号，子需求引用该结果；不为子项重复提交或改写阶段历史。
+project 显式使用 `--no-id` 时省略需求号括号，保留两行：
+
+```text
+<type>:<改动标题>
+修改说明:<方案型修改说明>
+```
+
+用户指定的 `type` 优先；否则按实际变更选择：新增能力用 `feat`，修复缺陷用 `fix`，无行为变化的结构调整用 `refactor`，纯文档用 `docs`，构建或配置维护用 `chore`。一个计划只处理一个需求号或一项明确无编号的 project 改动；独立需求不得合并提交。已确认主子需求的共享代码按[代码归属协议](../../../../docs/demand-code-ownership.md)唯一绑定主需求号，子需求引用该结果；不为子项重复提交或改写阶段历史。
 
 ## 仓库与文件边界
 
@@ -134,7 +151,9 @@ node .agents/plugins/demand-delivery-plugin/scripts/commit-demand.js plan `
   --modification <repo-root>::<方案型修改说明>
 ```
 
-单仓库时 `--modification` 可以只传说明正文。计划记录仓库 HEAD、branch、upstream、精确文件、状态/diff 指纹和拟用消息，并带完整性摘要，保存在系统临时目录。不得手工编辑或伪造计划；任何漂移都必须重新 plan。向用户展示每个仓库的文件与完整提交信息。
+project 暂无编号时，将上例的 `--demand <requirement-id>` 替换为 `--no-id`，其它参数照常提供。
+
+单仓库时 `--modification` 可以只传说明正文。计划记录仓库 HEAD、branch、upstream、精确文件、状态/diff 指纹和拟用消息，并带完整性摘要，保存在系统临时目录。无编号计划记录 `noId: true`、`demand: null`，默认文件名使用独立随机标识，避免多个无编号计划覆盖；已有数字编号 v1 计划保持原样恢复。不得手工编辑或伪造计划；任何漂移都必须重新 plan。向用户展示每个仓库的文件与完整提交信息。
 
 - `--plan` 模式到此结束，不询问是否提交，不进入 Apply。
 - `--commit` 模式已有明确授权，plan 成功后直接进入 Apply，不重复暂停确认。
@@ -176,6 +195,7 @@ node .agents/plugins/demand-delivery-plugin/scripts/commit-demand.js verify --pl
 
 - 本次调用模式：`--plan` 或 `--commit`，以及自然语言或显式参数来源。
 - 当前需求类型及其来源。
+- 关联的需求号，或显式 `--no-id`、本次暂不关联编号的状态。
 - 每个仓库的完整提交信息、精确文件和 pull 结果。
 - `--plan`：明确说明未执行 pull、未创建本地 commit，且未执行 push。
 - `--commit`：报告用户已通过明确请求或显式参数授权、本地 commit hash 或停止原因。
