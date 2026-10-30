@@ -1105,9 +1105,11 @@ imedicalxc-doctor-data-extraction 1.1.0 新增 `feign-api-doc-audit` skill 与 `
 
 真实文档与源码全量验证：`paths=0`、`fields=0`、`io=0`、`lint=0`；负向样例可检出错误地址与虚构字段。thin-index dry-run 已识别并生成两个 skill 入口；组件版本校验识别 1.0.0→1.1.0，本插件无报错，完整审计仍被 `imedicalxc-doctor-extend-engineer` 既有发布记录问题阻断。能力手册未收录该插件，沿既有 P2 补齐，不将未收录等同本轮已完成手册；未同步业务副本。实现已随 `fd95083` 提交，当前版本仍以 manifest 为准。
 
-## 2026-10-30 IRIS 统一会话实施中
+## 2026-10-31 IRIS 统一会话发布与授权试点
 
-coding-iris-plugin 0.25.0 工作区草稿新增用户级管理进程、CLI/MCP 适配、排队/租约/空闲注销、持久化恢复及 configMigrations。替换先前过宽的资格停止规则；普通单会话允许 pending，明确禁用及未知写入不解禁。会话、旧入口及实际补丁二进制 58 项隔离测试通过；配置生成保留入口的新增测试及 Windows PowerShell 5.1 更新器全套通过。vendor 构建与真实 503 请求计数通过，受管模式同时禁用原版隐式遥测写入；进程退出与注销回执分开记录。真实宿主、项目升级、跨平台矩阵和发布尚未完成，不标记维护完成或发布。
+coding-iris-plugin 0.25.0 新增用户级管理进程、CLI/MCP 适配、排队/租约/空闲注销、持久化恢复及 configMigrations，普通单会话允许 pending，明确禁用及未知写入不解禁。`2b4a69d` 实现、`f8e252d` 修复 macOS socket 边界、`b54edea` 收敛 Overlay 及跨副本身份；最终六组 Windows/macOS/Linux × Node22/24 专项通过后发布 Gitee 主线。PS5.1 更新器完整回归及授权 standard/Overlay 的正常更新、定向回退再升级通过，真实 CodeBuddy 工具调用与进程链已交叉核验；目标资料留项目私有目录。
+
+固定 vendor 实际 HTTP 计数确认只读零 PUT、503 单次执行及注销回执；受管模式禁用上游隐式遥测写入。客户端退出、注销、服务器消失及 License 分别记录，未观察到可归因的许可增量/回落，不宣称 License 普遍解决或继续批量推广。首次试点被宿主占用 exe 阻断，精确恢复本轮半更新、用户停止服务后正常重试；临时工具链已清理。全仓其它历史 CI 与 XML vendor Windows 摘要缺口单列，详见[专项验证](../maintenance/validation/iris-managed-sessions-2026-10-30.md)。
 
 ## 2026-10-30 mobile-dev 初版
 

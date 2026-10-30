@@ -47,4 +47,4 @@
 
 移动端开发入口：[mobile-dev](../plugins/mobile-dev/README.md)，Android 运行故障先主动取日志；真实接入沿 backlog P2，源仓新增不代表业务项目已启用。
 
-当前实施：IRIS 统一会话 0.25.0 工作区草稿尚未验收/发布；范围和未完成项见维护日志及 backlog 的会话入口事项。
+IRIS 统一会话 0.25.0 已发布，六组平台矩阵、standard/Overlay 升级回退及真实宿主调用已取证；License 归属变化仍有限制，暂不批量推广。详见维护日志、专项验证与 backlog 的会话入口事项。
