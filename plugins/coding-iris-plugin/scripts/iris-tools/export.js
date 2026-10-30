@@ -4,7 +4,7 @@
  * IRIS Universal Export Script
  * Automatically detects file type and exports from IRIS server
  * 
- * Usage: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <fileIdentifier> [outputDir] [namespace] [--basePath <prefix>] [--target-mode auto|source|staging] [--overwrite] [--probe] [--json] [--staging-dir <path>]
+ * Usage: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <fileIdentifier> [outputDir] [namespace] [--basePath <prefix>] [--target-mode auto|source|staging] [--overwrite] [--probe] [--json] [--staging-dir <path>] [--kind standard|project]
  * 
  * Examples:
  *   # Export class (detected by dot notation without path)
@@ -43,6 +43,7 @@ let overwrite = false;
 let probe = false;
 let jsonOutput = false;
 let stagingDir = '';
+let demandKind;
 
 // Parse optional arguments
 for (let i = 1; i < args.length; i++) {
@@ -58,6 +59,8 @@ for (let i = 1; i < args.length; i++) {
         jsonOutput = true;
     } else if (args[i] === '--staging-dir') {
         stagingDir = args[++i] || '';
+    } else if (args[i] === '--kind') {
+        demandKind = args[++i] || '';
     } else if (i === 1 && !args[i].startsWith('--') && !args[i].startsWith('-')) {
         outputDir = args[i];
     } else if (i === 2 && !args[i].startsWith('--') && !args[i].startsWith('-')) {
@@ -67,6 +70,10 @@ for (let i = 1; i < args.length; i++) {
 
 if (!['auto', 'source', 'staging'].includes(targetMode)) {
     console.error(`[错误] --target-mode 只允许 auto、source 或 staging，当前值: ${targetMode}`);
+    process.exit(1);
+}
+if (demandKind !== undefined && !['standard', 'project'].includes(demandKind)) {
+    console.error('[错误] --kind 只允许 standard 或 project');
     process.exit(1);
 }
 
@@ -299,6 +306,10 @@ function prependBasePath(filePath, prefix) {
  * Export file from IRIS server
  */
 function exportFile(fileInfo) {
+    if (!probe && !fileInfo.staging && contextMode(workspaceContext) === 'intent-first-on-demand-export' &&
+        require('./source-sync-core').demandKind(workspaceContext, {kind: demandKind}).kind === 'project') {
+        throw new Error('source-sync-before-edit-required: 项目按需开发的待修改文件，无论本地是否存在，都先执行 source-sync.js 的 before-edit plan / prepare / apply；有变化先提交 export 基线，再开始需求修改。只读参考可用 --probe 或独立 staging。');
+    }
     info(`[信息] 检测到文件类型: ${fileInfo.type}`);
     info(`[信息] 正在导出: ${fileInfo.displayName}`);
     if (!probe) info(`[信息] 目标文件: ${fileInfo.fullPath}`);

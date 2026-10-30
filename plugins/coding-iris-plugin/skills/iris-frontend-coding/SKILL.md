@@ -23,7 +23,7 @@ description: Implement or modify IRIS CSP, JavaScript, CSS, or HISUI frontend co
 
 ## 路由与默认方法
 
-已确认 `project` 需求且 `contextMode: intent-first-on-demand-export` 时，修改前先读[项目开发协议](../../references/project-demand-development.md)，执行需求基线、现场保护及部署前同步复审；已确认支持的 Atelier 是优先通道，能力失败不自动改用 SFTP。标版沿既有分支，不能从 contextMode 推导需求类型。
+已确认 `project` 需求且 `contextMode: intent-first-on-demand-export` 时，修改前先读[项目开发协议](../../references/project-demand-development.md#修改前与部署前同步)，待修改文件无论本地是否存在，都先完成 before-edit 同步，有变化先提交 export 基线，再开始需求修改；部署前再次同步复审。已确认支持的 Atelier 是优先通道，能力失败不自动改用 SFTP。标版沿既有分支，不能从 contextMode 推导需求类型。
 
 执行路径统一由 rules/iris_coding_general.md 判定；guidanceMode 按共享 execution-guidance 协议解析。步骤可合并、重排，硬约束不变；不因文件数自动升级、不因 full/guarded 自动建 run。
 

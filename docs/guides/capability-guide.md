@@ -174,7 +174,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 帮助请求先展示用法并结束；实际开发先按 developmentMode 分流。offline 示例：“按这批带回源码完成本地修改、Review 和增量/回退交付，列出现场待验项。”沿[离线协议](../../plugins/coding-iris-plugin/references/iris-offline-development.md)核对批次、范围与真实源码 Git，无需医院连接；打包目前要求 Windows PowerShell 5.1 或 Windows 上的 PowerShell 7。
 
-connected 项目按需导出示例：“处理这份 project 需求，先核实相关服务器文件，保留本地修改，按现有授权完成合并和本地验证。”已确认 `project` ＋ `intent-first-on-demand-export` 才命中[项目开发协议](../../plugins/coding-iris-plugin/references/project-demand-development.md)；标版沿既有分支，contextMode 不决定需求类型。测试为日常默认，正式直接开发须明确授权；两环境各有本地 Git，远端读取资格、普通提交和发布授权分别核对。部署前再次同步并复审冻结，前端优先使用已确认支持的 Atelier。无需每需求全量刷新，也不以文件数量推断 License 安全。
+connected 项目按需导出示例：“处理这份 project 需求，准备修改的文件即使本地已有也先核实服务器版本，有变化先提交独立 export，再开始需求修改，保留本地已有改动。”已确认 `project` ＋ `intent-first-on-demand-export` 才命中[项目开发协议](../../plugins/coding-iris-plugin/references/project-demand-development.md)；标版沿既有分支，contextMode 不决定需求类型。测试为日常默认，正式直接开发须明确授权；两环境各有本地 Git，远端读取资格、普通提交和发布授权分别核对。部署前再次同步并复审冻结，前端优先使用已确认支持的 Atelier。无需每需求全量刷新，也不以文件数量推断 License 安全。
 
 | Skill | 请求示例 | 前提与预期结果 |
 |---|---|---|

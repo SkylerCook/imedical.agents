@@ -42,7 +42,7 @@ task-affinity: [iris, coding, safety, editing]
 - 保留原文件编码、换行风格和特殊 EOF。
 - 历史 CSP/JS/CSS/ObjectScript 文件避免整文件重写，优先局部补丁。
 - 生成或移动文件时遵循目标工程 profile 的目录与命名约定。
-- connected 分支本地缺少远程已有实现时，可用 MCP 只读读取远程内容补上下文，再按需落本地做增量修改；offline 分支列出缺失材料交由用户现场补充。
+- connected 的 `project`＋按需导出分支，待修改文件无论本地是否存在，先完成[修改前同步](../references/project-demand-development.md#修改前与部署前同步)，有变化先提交 export 基线，再开始需求修改。MCP 读取只补参考上下文；其它 connected 分支沿原补源码流程，offline 分支由用户现场补齐缺失材料。
 - 删除文件、批量覆盖、大范围同步、数据库变更等高风险操作必须先取得用户明确确认。
 
 ## 默认方法与质量建议

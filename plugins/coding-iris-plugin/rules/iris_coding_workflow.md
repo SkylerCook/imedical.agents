@@ -72,7 +72,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 脚本使用规则：
 
 - 只有当 `.agents/config/project-env.json` 是配置事实来源时，修改后才运行 `sync-env-config.js` 同步 `.mcp.json`；若 `.mcp.json` 已是事实来源，不要用脚本覆盖它。
-- 需要导出源码时优先 `export.js`，本地已有最新源码时不要从远端覆盖本地。
+- 项目按需分支的待修改源码统一执行[修改前同步](../references/project-demand-development.md#修改前与部署前同步)，本地已有也先核对服务器、有变化先提交，再开始修改；其它分支沿 `export.js`。项目分支的普通导出只用于 probe 或独立 staging 参考，直接写源码会指向 source-sync。
 - 后端类小范围验证可用 `compile.js`；批量部署、有 Storage 的实体类、复杂依赖链，按部署清单先处理源码和依赖顺序，不要盲目逐个调用 `compile.js`。
 - CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 - 如果目标项目没有 `sftp-server` MCP，脚本体系仍可用于后端导出、编译、Broker 调试和环境同步；前端上传交给项目既有工具或用户手工处理。

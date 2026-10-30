@@ -48,6 +48,8 @@ XML execute 默认同进程受管 WS terminal，需 IRIS 2023.2+／Atelier API v
 
 当前需求已明确为 `project` 且采用 `intent-first-on-demand-export` 的 IRIS 工程在连接前须按[项目开发协议](../plugins/coding-iris-plugin/references/project-demand-development.md)补齐测试/正式各自的本地 Git、私有环境声明、verified 远端策略及资格证据，缺失时 fail closed。标版沿既有分支，contextMode 不决定类型；公共远端资源保护仍适用。授权维护时合入条件指针；普通更新不改项目 AGENTS/profile、连接或凭据，不自动初始化 Git、登记 License 资格、开启模式或转换旧计划。`work/source-sync` 是当前 ContextRoot 的私有 recovery/task 目录，既有恢复材料不搬移、不清理。
 
+coding 0.24.3 落实修改前同步：待修改文件无论本地是否存在，都先完成 source-sync before-edit，有变化先提交独立 export，再开始需求修改。普通 `export.js` 在该分支直接写源码会在请求前停止；旧直写调用改走 source-sync，只读参考保留 probe／独立 staging，`--kind` 可传本次明确类型。正常更新已启用规则和完整插件即可，无配置迁移、旧材料清理或自动提交授权。
+
 项目按需分支以 source-sync 的部署前同步、合并复审和冻结发布优先，正式批准绑定当前冻结摘要；其它分支保留既有 direct/guarded。MCP helper 公共 tools/call 已接准入，原生 MCP、外部 IDE 及其它独立客户端属于外部边界；不得换路避开 License 控制。源仓 mock/静态检查不等于目标 License、旧 Caché、业务副本或跨平台已验收。
 
 ## 统一 skill / Agent 帮助

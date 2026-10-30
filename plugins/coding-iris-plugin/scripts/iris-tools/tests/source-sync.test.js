@@ -88,6 +88,35 @@ test('missing local source is imported in one pure export commit', async t => {
     assert.equal(git(f.root, ['status', '--porcelain']).trim(), '');
 });
 
+test('before-edit refreshes existing source and commits only the changed server baseline before editing', async t => {
+    const f = fixture(t), first = f.plan(); await f.prepare(first, f.original);
+    sync.apply(first.planPath, {confirmCommit: true});
+    const before = f.count(), p = f.plan(), remote = f.original.replace('Value0 = "BASE"', 'Value0 = "SERVER"');
+    await f.prepare(p, remote);
+    assert.equal(fs.readFileSync(f.file, 'utf8'), f.original); assert.equal(f.count(), before);
+    const result = sync.apply(p.planPath, {confirmCommit: true});
+    assert.ok(result.execution.exportCommit); assert.equal(result.execution.demandCommit, null);
+    assert.equal(f.count(), before + 1);
+    assert.equal(git(f.root, ['log', '-1', '--format=%s']).trim(), 'export(127.0.0.1):从服务器同步最新文件');
+    assert.equal(git(f.root, ['show', `${result.execution.exportCommit}:src/Demo/Sample.cls`]), remote);
+    assert.equal(fs.readFileSync(f.file, 'utf8'), remote);
+    assert.equal(git(f.root, ['status', '--porcelain']).trim(), '');
+    assert.equal(sync.verify(p.planPath).localVerified, true);
+    fs.writeFileSync(f.file, remote.replace('Value14 = "BASE"', 'Value14 = "DEMAND"'));
+    assert.equal(git(f.root, ['show', `${result.execution.exportCommit}:src/Demo/Sample.cls`]), remote);
+});
+
+test('before-edit rechecks an existing unchanged baseline without making another commit', async t => {
+    const f = fixture(t), first = f.plan(); await f.prepare(first, f.original);
+    sync.apply(first.planPath, {confirmCommit: true});
+    const before = f.count(), reads = f.reads(), p = f.plan(); await f.prepare(p, f.original);
+    const result = sync.apply(p.planPath, {confirmCommit: true});
+    assert.equal(f.reads(), reads + 1); assert.equal(f.count(), before);
+    assert.equal(result.execution.exportCommit, null); assert.equal(result.execution.demandCommit, null);
+    assert.equal(fs.readFileSync(f.file, 'utf8'), f.original);
+    assert.equal(sync.verify(p.planPath).localVerified, true);
+});
+
 test('stale local source without a confirmed server baseline stops without overwriting it', async t => {
     const f = fixture(t), p = f.plan(), remote = f.original.replace('Value0 = "BASE"', 'Value0 = "SERVER"');
     await f.prepare(p, remote);

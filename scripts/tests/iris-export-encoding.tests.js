@@ -29,12 +29,17 @@ function run(args) {
   fs.mkdirSync(path.dirname(workspaceContextPath), { recursive: true });
   fs.mkdirSync(configRoot, { recursive: true });
   fs.copyFileSync(sourceScript, scriptPath);
+  for (const name of ['source-sync-core.js', 'project-env.js']) {
+    fs.copyFileSync(path.join(path.dirname(sourceScript), name), path.join(path.dirname(scriptPath), name));
+  }
   fs.copyFileSync(sourceWorkspaceContext, workspaceContextPath);
   for (const name of ['atelier-client.js', 'iris-remote-operations.js']) {
     fs.copyFileSync(path.join(repoRoot, 'scripts', 'lib', name), path.join(path.dirname(workspaceContextPath), name));
   }
 
+  let requests = 0;
   const server = http.createServer((req, res) => {
+    requests++;
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ result: { content: ['<div>患者姓名</div>'], db: '@FS' } }));
   });
@@ -86,6 +91,30 @@ function run(args) {
     assert.ok(backendOnlyResult.stderr.includes('N/A (backend-only)'), 'backend-only rejection should explain the canonical profile mode');
     assert.ok(!fs.existsSync(path.join(testRoot, 'src', 'imedical', 'web', 'csp', 'backend-only.csp')), 'backend-only export must not write frontend source');
     assert.ok(!fs.existsSync(path.join(testRoot, '.agents', 'work', 'iris-export', 'src', 'imedical', 'web', 'csp', 'backend-only.csp')), 'backend-only export must not write staging output');
+
+    fs.writeFileSync(path.join(configRoot, 'project_context_profile.md'), '- contextMode: intent-first-on-demand-export\n');
+    fs.writeFileSync(path.join(configRoot, 'iris_project_profile.md'), '- 前端编码模式：utf8\n- 默认需求交付类型：project\n');
+    const beforeRequests = requests;
+    for (const identifier of ['Existing.cls', 'Missing.cls', 'existing.csp', 'missing.csp']) {
+      const existing = identifier.toLowerCase().startsWith('existing');
+      const destination = identifier.endsWith('.cls') ? path.join(testRoot, 'src', identifier) : path.join(testRoot, 'src/imedical/web/csp', identifier);
+      if (existing) fs.writeFileSync(destination, 'local changes to preserve\n');
+      const refused = await run([identifier, '--overwrite']);
+      assert.notStrictEqual(refused.code, 0, identifier + ': source export must use source-sync');
+      assert.match(refused.stderr, /source-sync-before-edit-required/);
+      if (existing) assert.strictEqual(fs.readFileSync(destination, 'utf8'), 'local changes to preserve\n');
+      else assert.ok(!fs.existsSync(destination), identifier + ': refused export must not create source');
+      assert.strictEqual(requests, beforeRequests, identifier + ': refuse before remote reads');
+    }
+    const explicitStandard = await run(['Existing.cls', '--kind', 'standard']);
+    assert.match(explicitStandard.stderr, /--overwrite/, 'explicit task kind takes precedence over the project default');
+    fs.writeFileSync(path.join(configRoot, 'iris_project_profile.md'), '- 前端编码模式：utf8\n- 默认需求交付类型：standard\n');
+    const standardExisting = await run(['Existing.cls']);
+    assert.match(standardExisting.stderr, /--overwrite/, 'standard keeps its existing export entry');
+    assert.ok(!standardExisting.stderr.includes('source-sync-before-edit-required'));
+    const explicitProject = await run(['Existing.cls', '--kind', 'project', '--overwrite']);
+    assert.match(explicitProject.stderr, /source-sync-before-edit-required/);
+    assert.strictEqual(requests, beforeRequests);
   } finally {
     await new Promise(resolve => server.close(resolve));
     fs.rmSync(testRoot, { recursive: true, force: true });
