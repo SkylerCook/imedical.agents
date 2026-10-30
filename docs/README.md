@@ -8,6 +8,7 @@
 
 | 目的 | 文档 |
 |---|---|
+| **第一次使用：让 Agent 部署 / 更新 `.agents`、提请求、宿主适配** | **[团队使用手册](guides/usage-manual.md)** |
 | 查看任意自有 skill / Agent 的用法 | [统一帮助](guides/capability-help.md) |
 | 查插件、skill、rule | [能力目录](guides/capability-catalog.md) |
 | 选择场景、查看请求示例 | [使用指南](guides/capability-guide.md) |
