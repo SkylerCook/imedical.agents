@@ -1,5 +1,11 @@
 # imedical.agents 维护日志
 
+## 2026-10-30 IRIS 初始化与已部署项目自动补齐配置
+
+- framework-maintenance，基点 `2442d96`，coding-iris-plugin 0.24.3→0.24.4。复用 source-sync CLI 增加 configure：初始化默认按明确事实生成开发声明及按需禁用/pending 策略并 Check。已有 enabled 项目普通 Write 更新通过 manifest configMigrations 和 PS 薄入口复用同一 JavaScript 核心自动补缺文件，available/disabled 不处理、DryRun/Check 只读；兼容空声明保留旧模式缺省及旧计划指纹，未知模式/环境集中报告，Agent 按事实补字段，已有 JSON 字节/未知字段及恢复状态保持。私有文件忽略、跟踪与链接检查在生成前执行；显式配置前核实旧任务，不套示例环境。配置参数仅归 configure，避免在 prepare/apply 等命令静默忽略。
+- 初始化验收明确区分本地配置、远端资格与服务器基线；目录由实际同步任务创建，before-edit/提交/复审/发布保护保持。同步 owner AGENTS/README/manifest、init skill、人工指南、项目协议、脚本说明、根 README、能力手册/连接导航、更新 runbook、维护入口和既有 P2 待验队列，新增发布记录。更新器复用既有迁移扩展，算法、thin-index 和分发范围未变；未连接医院或同步业务副本。
+- Windows Node 24.14.1 配置/迁移专项最终 19/19（含 PS5.1/7 薄入口）、Windows PowerShell 5.1 更新器完整集成、编码入口 1/1、部署态文档链接 1/1、skill 格式及语法检查通过；此前 source-sync 核心完整回归 32/32，原核心未再改。覆盖实际 CLI Write/Check、新文件忽略、重复/只读/离线/Overlay、旧指纹与恢复状态、参数隔离和 enabled/available/disabled 普通更新；新增集成夹具曾缺 config 目录，修正后全套通过。沙箱限制隔离 Git 写 config，沙箱外复验通过，夹具和任务临时目录已清理。工作区组件校验与 HEAD 对照无新增版本/依赖问题，不宣称全仓历史审计通过。新专项纳入 Windows/macOS/Linux × Node22/24 runtime-skills CI，远端矩阵和真实宿主接入沿既有 P2 队列取证；用户随后授权 c+p，提交与远端结果以 Git 回执为准，保留并行修改。
+
 ## 2026-10-30 project 暂无需求号提交
 
 - framework-maintenance，demand-delivery-plugin 0.8.1→0.9.0：按用户确认新增显式布尔参数 `--no-id`，与 `--plan` / `--commit` 组合，仅支持 project 且与脚本 `--demand` 互斥；无编号消息省略需求号括号，仍保留方案型修改说明。普通调用和 standard 继续要求数字需求号，原授权、文件边界、漂移、pull、hook 及 verify 保持。

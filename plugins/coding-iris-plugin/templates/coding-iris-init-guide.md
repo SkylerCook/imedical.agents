@@ -33,6 +33,10 @@
 
 内容从 `templates/iris_project_profile.template.md` 填写。
 
+随后按 bootstrap skill 的[本地配置步骤](../skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)运行 `source-sync.js configure` 的 Write/Check，创建缺失的 `iris-development.json`；connected＋按需上下文同时生成禁用、资格 pending 的 `iris-remote-policy.json`。已有项目可以只执行此步骤补齐，已有文件保留；环境使用已确认事实，缺字段定点补齐。先确认文件受 Git 忽略，再生成。配置初始化不连接医院、不创建 Git、不建立基线；`work/source-sync/` 留给首次同步任务创建。
+
+已启用项目也可直接走正常 Write 更新，现有配置迁移会自动补缺文件；旧模式缺省与已有字节保持，无法确认的模式/环境及资格集中报告，由 Agent 根据事实补齐。available/disabled、DryRun/Check 不写入；不要求使用者手改 JSON 或每次重跑初始化。
+
 5. 准备 IRIS 开发主力脚本配置：
 
 `.agents/config/project-env.json` 是人类可读的配置副本，`.mcp.json` 是 MCP 运行时事实来源。两者共存但 `.mcp.json` 优先。
@@ -93,6 +97,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 ## 验证清单
 
 - 插件目录存在。
+- 本地配置 Check 为 `configurationReady: true`；远端资格 `pending` 单列待验证，服务器 before-edit 基线按任务建立，不能用空目录代替。
 - `check-frontend-encoding.ps1` wrapper 已生成到 `.agents/scripts/`；`convert-gb2312-upload.ps1` wrapper 只保留给明确的历史工程兼容流程。
 - 有 frontend SourceRoot 时，`.agents/config/iris_project_profile.md` 使用 canonical `utf8`，并已通过实际文件字节验证；旧 `project-utf8` 会规范化，真实 GB2312/mixed/unknown 会停止迁移。Overlay manifest 明确只有 `backend` 时使用 `N/A (backend-only)`。
 - `generate-plugin-thin-index.ps1` 保持在插件 `scripts/` 内并可直接调用。

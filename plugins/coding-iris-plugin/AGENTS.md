@@ -25,6 +25,7 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 ## 使用约束
 
 - 先解析当前 `ContextRoot/config/iris-development.json` 的 `developmentMode`，profile 只引用该配置。offline 统一进入[离线开发与交付](references/iris-offline-development.md)，禁止医院远端读取、原生 MCP 和部署；下文所有连接、同步、准入及默认 direct 仅适用于 connected。缺省保持旧行为，非法值停止。普通更新不切换开发方式，不清旧任务、锁或未知结果。
+- 初始化、重新部署或补齐配置时，执行 [coding-iris-init 的本地配置步骤](skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)，默认生成缺失配置并 Check；已启用项目普通更新沿 configMigrations 自动补缺文件。已有值与旧模式缺省保留，未确认模式/环境、资格 pending 与服务器基线分别报告。不能只完成薄索引就声称初始化完成。
 
 - 当前需求已明确为 `project` 且 `contextMode: intent-first-on-demand-export` 时，编码、需求上下文获取及发布先读取[项目按需导出开发协议](references/project-demand-development.md#修改前与部署前同步)；待修改文件无论本地是否存在，先完成 before-edit 同步，有变化先提交 export 基线，再开始需求修改。该分支的同步与冻结发布门禁优先于下文默认 direct。`standard` 沿既有标版分支；类型缺失先查合法默认值，不能从 contextMode 推导。公共远端准入仍按通道约束执行。
 - 不在插件 rules/skills 中硬编码服务器、namespace、账号、密码、token、远程路径、业务页面清单、业务类名前缀或项目专属基类。

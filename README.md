@@ -12,6 +12,8 @@
 
 IRIS [开发方式与离线交付](plugins/coding-iris-plugin/references/iris-offline-development.md)独立于 contextMode：developmentMode 的唯一配置在当前 ContextRoot 的 config/iris-development.json。offline 用带回的回执源码、人工目录或完整 XML，复用编码、检查、Review、Pack、独立 Verify 与用户现场验证；受管医院远端入口提前阻断。源码助手唯一实现随 coding 插件分发，人工 ZIP 取同一核心；普通更新不自动切换方式或迁移业务源码/旧任务。
 
+IRIS [初始化与配置补齐](plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)默认生成必要私有配置并 Check；已启用项目普通 Write 更新自动补缺文件，保留已有字节与旧模式缺省，无法确认的模式/环境集中报告，由 Agent 按事实填写。本地配置、远端资格和服务器基线分别验收，生成配置不连接医院或建立基线。
+
 使用入口：[团队使用手册（Agent 托管部署 / 更新 / 使用 / 宿主适配）](docs/guides/usage-manual.md) · [能力目录（插件 / skill / rule）](docs/guides/capability-catalog.md) · [使用指南（场景选择 / 接入 / 全部技能示例）](docs/guides/capability-guide.md) · [统一帮助](docs/guides/capability-help.md) · [连接信息查看与排查](docs/guides/connection-configuration.md)。目录和场景手册当前覆盖非 xc 能力；xc 手册列入后续治理。统一帮助覆盖全部自有 skill（含 init、xc）和 Agent，以 `--help` 或“查看用法”请求，只展示说明；详细执行契约仍由各源定义维护，第三方 vendor 沿用原约定。
 
 iMedical 知识资料已接入 [共享参考库](vendor/imedical-knowledge/README.md)：通过 coding-iris-plugin 的 `iris-imedical-knowledge` 按需检索 wiki、菜单与技术资料，`iris-menu-sync` 刷新项目菜单快照；已登记来源可复用固定采集入口由宿主月度运行，异常保留旧快照。新装/更新沿现有 plugins/vendor 分发，项目资料保留在 ContextRoot；详见 [部署与使用](docs/guides/imedical-knowledge.md)。

@@ -4,6 +4,7 @@
 
 ## 当前接手
 
+- IRIS 初始化/重新部署默认沿 [coding-iris-init](../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)生成必要配置并 Check；已启用项目普通更新沿既有迁移自动补缺文件，保留已有字节和旧模式缺省。未知模式/环境集中确认，策略初始禁用/pending，配置、资格、before-edit 基线分开报告；旧恢复材料先核实。
 - 人工 [AI 开发离线物料](../tools/ai-dev-offline/README.md)归 tools：固定原包、CodeBuddy、安全模板、PATH及用户默认PowerShell 7自动配置；后者用所选VS Code运行时和固定JSONC库，无需另装Node，含冲突保护和私有备份／增量恢复。文件写入／Process CMD与GUI／Machine／医院验收分开；不随`.agents`分发，没有完整安装或其它配置通用导入。
 - 最近全局回看覆盖 `c233704..9a8996f`（2026-10-28，8 个提交）。发现、修正、CI 快照及验证见[日志覆盖点](agent-kit-maintenance-log.md#全局回看覆盖点)；版本查 owner manifest，历史实施状态不作当前未提交结论。
 - IRIS 帮助先于模式与业务前置；实际开发先按独立 developmentMode 分流，再选择在线项目同步或[离线交付](../plugins/coding-iris-plugin/references/iris-offline-development.md)。在线项目按需分支的待修改文件，无论本地是否存在，先同步、有变化先提交 export，再开始修改；普通导出直写会指向 source-sync。源码助手唯一实现归 coding owner，人工 ZIP 取同一核心；框架绑定批次/范围与源码 Git，原包私有保存，旧任务原位恢复。当前打包限 Windows，本地 Verify 与现场验收分别报告。

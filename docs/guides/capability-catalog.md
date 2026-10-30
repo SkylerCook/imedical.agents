@@ -111,7 +111,7 @@ IRIS 前后端开发、知识查询、XML 包、代码基线与部署，支持�
 
 | 入口 | 中文用途 | 入口类型 |
 |---|---|---|
-| [coding-iris-init](../../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md) | 初始化 IRIS 编码能力 | 纯初始化，直接读取源文件 |
+| [coding-iris-init](../../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md) | 初始化 IRIS 编码能力，默认生成必要本地配置并 Check | 纯初始化，直接读取源文件；已启用项目更新自动补缺文件，资格与基线分别报告 |
 | [iris-backend-coding](../../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md) | 按统一命名、格式及类/方法/变量注释规范实现、复核 ObjectScript 后端 | 日常入口 |
 | [iris-coding](../../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md) | 路由混合或边界不明的 IRIS 开发 | 日常入口 |
 | [iris-demand-promote](../../plugins/coding-iris-plugin/skills/iris-demand-promote/SKILL.md) | 将 DEV 已提交需求移植到 PRD 本地仓库 | 日常入口 |

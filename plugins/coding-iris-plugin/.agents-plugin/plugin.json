@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.24.3",
+  "version": "0.24.4",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
@@ -21,6 +21,10 @@
     {
       "id": "demand-delivery-type-v1",
       "script": "scripts/migrate-demand-delivery-profile.ps1"
+    },
+    {
+      "id": "iris-development-config-v1",
+      "script": "scripts/migrate-development-config.ps1"
     }
   ],
   "skillDependencies": {

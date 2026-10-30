@@ -594,6 +594,7 @@ Assert-True ($interfaceDevManifest.name -eq "iris-interface-dev") "interface plu
 Assert-True (@($interfaceDevManifest.configMigrations | Where-Object { $_.id -eq "interface-output-root-v1" }).Count -eq 1) "interface plugin should declare the output-root migration"
 Assert-True ([version]$codingIrisManifest.version -ge [version]"0.6.0") "coding iris plugin manifest should expose guarded demand commit workflow"
 Assert-True (@($codingIrisManifest.configMigrations | Where-Object { $_.id -eq "demand-delivery-type-v1" }).Count -eq 1) "coding iris plugin should declare demand delivery type migration"
+Assert-True (@($codingIrisManifest.configMigrations | Where-Object { $_.id -eq "iris-development-config-v1" }).Count -eq 1) "coding iris plugin should register automatic development config completion in the existing update migration pipeline"
 Assert-True (Test-Path -LiteralPath (Join-Path $repoRoot "plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md") -PathType Leaf) "demand delivery plugin should include demand-commit"
 Assert-True ($cureFormDevManifest.name -eq "iris-cure-form-dev") "cure form plugin manifest should use the canonical name"
 Assert-True ([version]$cureFormDevManifest.version -ge [version]"0.7.2") "cure form plugin manifest should accept the coding iris v0.9 compatibility range"
@@ -1704,5 +1705,56 @@ try {
     Assert-True (@(Get-ChildItem -LiteralPath (Join-Path $invalidRoot '.agents') -Force).Count -eq 0) 'Preflight failure must prevent later generation'
   }
 } finally { Remove-Item -LiteralPath $invalidRoot -Recurse -Force }
+
+# Exercise the real IRIS migration through the ordinary enabled-plugin pipeline.
+$autoConfigProjectRoot = New-TestProject
+try {
+  $autoPluginRoot = Join-Path $autoConfigProjectRoot ".agents/plugins/sample-plugin"
+  $autoToolsRoot = Join-Path $autoPluginRoot "scripts/iris-tools"
+  New-Item -ItemType Directory -Force -Path $autoToolsRoot | Out-Null
+  foreach ($name in @("development-config.js", "source-sync-core.js", "project-env.js")) {
+    Copy-Item -LiteralPath (Join-Path $repoRoot ("plugins/coding-iris-plugin/scripts/iris-tools/" + $name)) -Destination (Join-Path $autoToolsRoot $name)
+  }
+  Copy-Item -LiteralPath (Join-Path $repoRoot "plugins/coding-iris-plugin/scripts/migrate-development-config.ps1") -Destination (Join-Path $autoPluginRoot "scripts/migrate-development-config.ps1")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "plugins/coding-iris-plugin/templates/iris-remote-policy.template.json") -Destination (Join-Path $autoPluginRoot "templates/iris-remote-policy.template.json")
+  $autoManifestPath = Join-Path $autoPluginRoot ".agents-plugin/plugin.json"
+  $autoManifest = Get-Content -LiteralPath $autoManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+  $autoManifest.configMigrations = @([PSCustomObject]@{ id = "iris-development-config-v1"; script = "scripts/migrate-development-config.ps1" })
+  $autoManifest | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $autoManifestPath -Encoding UTF8
+  $autoConfigRoot = Join-Path $autoConfigProjectRoot ".agents/config"
+  New-Item -ItemType Directory -Force -Path $autoConfigRoot | Out-Null
+  Set-Content -LiteralPath (Join-Path $autoConfigRoot "project_context_profile.md") -Encoding UTF8 -Value "- contextMode: intent-first-on-demand-export"
+  [System.IO.File]::WriteAllText((Join-Path $autoConfigRoot "iris_project_profile.md"), "- 默认需求交付类型：project`n", (New-Object System.Text.UTF8Encoding($false)))
+  # The fixture's business Git also owns the nested capability directory.
+  Add-Content -LiteralPath (Join-Path $autoConfigProjectRoot ".git/info/exclude") -Encoding UTF8 -Value "/.agents/"
+  $autoDevelopment = Join-Path $autoConfigRoot "iris-development.json"
+  $autoPolicy = Join-Path $autoConfigRoot "iris-remote-policy.json"
+  foreach ($state in @("available", "disabled")) {
+    & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-plugin-profile.ps1") -ProjectRoot $autoConfigProjectRoot -Plugin sample-plugin -Status $state | Out-Null
+    $inactiveOutput = & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $autoConfigProjectRoot -Mode Write -NoPull -Detailed | Out-String
+    Assert-True (-not (Test-Path -LiteralPath $autoDevelopment)) "Inactive plugins must not create development configuration"
+    Assert-True (-not (Test-Path -LiteralPath $autoPolicy)) "Inactive plugins must not create remote policies"
+  }
+  & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-plugin-profile.ps1") -ProjectRoot $autoConfigProjectRoot -Plugin sample-plugin -Status enabled | Out-Null
+  foreach ($readMode in @("DryRun", "Check")) {
+    $autoPreview = & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $autoConfigProjectRoot -Mode $readMode -NoPull -Detailed | Out-String
+    Assert-Contains $autoPreview "config-migration-planned" "Read-only update modes must report missing private configuration"
+    Assert-True (-not (Test-Path -LiteralPath $autoDevelopment)) "Read-only updates must not create development configuration"
+  }
+  $autoWritten = & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $autoConfigProjectRoot -Mode Write -NoPull -Detailed | Out-String
+  Assert-Contains $autoWritten "iris-development-config-v1" "Ordinary updates must execute the registered development migration"
+  Assert-Contains $autoWritten "config-migration-applied" "Write must automatically create missing private configuration"
+  Assert-True (Test-Path -LiteralPath $autoDevelopment) "Ordinary enabled-plugin update must create the development declaration"
+  Assert-True (Test-Path -LiteralPath $autoPolicy) "Ordinary enabled-plugin update must create the pending remote policy"
+  Assert-True (-not ((Get-Content -LiteralPath $autoDevelopment -Raw -Encoding UTF8 | ConvertFrom-Json).PSObject.Properties.Name -contains "developmentMode")) "Automatic completion must preserve legacy implicit mode bindings"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $autoConfigProjectRoot ".agents/work/source-sync"))) "Updating configuration must not manufacture a source baseline"
+  $autoDevelopmentBefore = [System.IO.File]::ReadAllBytes($autoDevelopment)
+  $autoPolicyBefore = [System.IO.File]::ReadAllBytes($autoPolicy)
+  $autoRepeated = & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $autoConfigProjectRoot -Mode Write -NoPull -Detailed | Out-String
+  Assert-True ([Convert]::ToBase64String($autoDevelopmentBefore) -eq [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoDevelopment))) "Repeated updates must preserve existing development bytes"
+  Assert-True ([Convert]::ToBase64String($autoPolicyBefore) -eq [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoPolicy))) "Repeated updates must preserve existing policy bytes"
+} finally {
+  Remove-Item -LiteralPath $autoConfigProjectRoot -Recurse -Force
+}
 
 Write-Host "update-agents tests passed"

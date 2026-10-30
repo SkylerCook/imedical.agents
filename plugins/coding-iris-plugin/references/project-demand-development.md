@@ -22,10 +22,12 @@
 
 ## 首次接入
 
+已启用项目普通 Write 更新会通过既有配置迁移自动补缺文件，保留已有字节及旧模式缺省；模式/环境待确认与资格 pending 由 Agent 集中处理。自动补文件不建立基线，已有项目无需为补文件重跑全部初始化，下面继续完成真实环境与资格接入。
+
 1. 核对测试/正式各自的本地 Git。无仓库时先获得初始化授权，再使用 `source-sync.js init`；不把初始化或阶段提交权限推导为任意后续提交权限。
-2. 以 `templates/iris-development.template.json` 创建被忽略的 `ContextRoot/config/iris-development.json`，声明 `environmentAlias` 与 `environmentType`（`test`、`development` 或 `production`）。连接事实继续由项目已有 `.mcp.json` 与 `project-env.json` 承载，冲突停止，不在新配置复制连接或凭据。
-3. 以 `templates/iris-remote-policy.template.json` 准备私有远端准入配置。先在获授权窗口以最小批次验证，再登记真实资格证据。模板的未验证状态不能用于连接；新模式缺失、禁用或不合格配置停止。
-4. 将 `ContextRoot/work/source-sync/`、准入协调目录、私有配置及资格证据保持 Git 忽略。目录声明为按任务创建的 recovery 资料；保存计划、内容快照、索引/HEAD 归属与恢复断点，不作为业务交付目录。首次 XML 批量基线须先验证持久落盘、读回与中断恢复，确认 License 增量与结束回落后才扩大批次。
+2. 按 [coding-iris-init 的本地配置步骤](../skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)执行 `source-sync.js configure`，默认创建被忽略的 `ContextRoot/config/iris-development.json`，声明已确认的开发方式、`environmentAlias` 与 `environmentType`（`test`、`development` 或 `production`）并 Check。已有文件保留，缺字段由 Agent 按明确事实局部补齐；不能套用示例环境代替真实声明。连接事实继续由项目已有 `.mcp.json` 与 `project-env.json` 承载，冲突停止，不在新配置复制连接或凭据。
+3. 同一步骤从 `templates/iris-remote-policy.template.json` 创建缺失的私有远端准入配置，保持禁用及资格 pending。先在获授权窗口以最小批次验证，再登记真实资格证据并启用。配置生成与资格就绪分别报告；未验证状态不能用于连接，新模式缺失、禁用或不合格配置停止。
+4. 将 `ContextRoot/work/source-sync/`、准入协调目录、私有配置及资格证据保持 Git 忽略。`work/source-sync/` 由实际同步任务创建，初始化无此目录不代表漏配，建空目录也不能证明基线成立。它保存计划、内容快照、索引/HEAD 归属与恢复断点，不作为业务交付目录。首次 XML 批量基线须先验证持久落盘、读回与中断恢复，确认 License 增量与结束回落后才扩大批次。
 
 Node.js 是 Agent 工具链依赖，不是 HIS 生产运行依赖。当前工具链版本及平台验证沿能力包更新说明，不以本机测试宣称所有平台或旧 Caché 版本已支持。
 
@@ -64,7 +66,7 @@ Node.js 是 Agent 工具链依赖，不是 HIS 生产运行依赖。当前工具
 
 上表命令均由 `source-sync.js` 执行。确认标志只是 CLI 接收已取得授权的入口，Agent 仍须核对当前任务的有效授权，不把标志本身作为用户批准。
 
-本流程不要求每次需求全量刷新服务器。没有取得读取资格、License 状态不明或来源链不可信时，可继续本地调查，但不能把旧快照报告为当前服务器基线。
+本流程不要求每次需求全量刷新服务器。没有取得读取资格、License 状态不明或来源链不可信时，可继续本地调查与范围计划，但不能把旧快照报告为当前服务器基线；待修改对象仍须完成上述 before-edit 后才能开始需求修改。
 
 ## 可选 DEV→PRD 移植的重放复核
 

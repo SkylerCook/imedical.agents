@@ -4,7 +4,9 @@
 
 ## IRIS 开发方式与离线交付（coding 0.24）
 
-完整更新 `coding-iris-plugin 0.24.2`、`agent-context-kit 0.8.2` 及直接依赖后刷新 ContextRoot。`ContextRoot/config/iris-development.json` 的 developmentMode 独立选择 connected/offline；普通更新不写该字段、不改业务连接、锁或旧任务。旧配置缺省保持原行为，非法值停止 IRIS 流程。已有文字离线约定由授权维护补齐；不因缺连接推断离线。
+coding 0.24.4 将必需配置的生成与 Check 纳入 `coding-iris-init` 默认接入步骤。已安装且 coding 插件为 enabled 的项目，普通 Write 更新通过既有 `configMigrations` 自动补缺文件，无需再单独运行初始化；available/disabled 不处理，DryRun/Check 只报告。缺失开发声明先生成 `{}`，保留旧模式缺省和旧计划指纹；已有配置逐字节保留，未核实的模式/环境集中报告，Agent 根据事实定点补字段。connected＋按需上下文同时生成禁用、资格 pending 的远端策略，真实资格和 before-edit 仍分别完成；更新不连接医院、不建 Git 或假基线，无旧材料迁移/清理。`work/source-sync/` 由真实任务创建；补显式模式前先核实旧恢复任务。需要单独接入时仍可执行[本地配置补齐](../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)的 `source-sync.js configure` Write/Check。
+
+完整更新 `coding-iris-plugin 0.24.4`、`agent-context-kit 0.8.2` 及直接依赖后刷新 ContextRoot。`ContextRoot/config/iris-development.json` 的 developmentMode 独立选择 connected/offline；普通更新不写该字段、不改业务连接、锁或旧任务。旧配置缺省保持原行为，非法值停止 IRIS 流程。已有文字离线约定由授权维护补齐；不因缺连接推断离线。
 
 offline 初始化不生成医院连接；既有连接只报告给授权维护。受管远端入口提前停止，原生 MCP/外部 IDE 仍需 Agent 规则约束。新增 `source-delivery.js` 本地入口与唯一 `source-delivery.ps1` 核心均随插件分发，人工 ZIP 构建取入同一核心，整个 tools 仍不部署。新源码/XML 任务绑定真实源码 Git、批次与范围，冻结原件放私有任务区；旧 v1 基线、XML 工作目录原位恢复，不自动重建或迁移。操作与限制见[离线协议](../plugins/coding-iris-plugin/references/iris-offline-development.md)。本地 Verify 和 Review 不代替现场验收。
 

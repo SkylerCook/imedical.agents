@@ -8,6 +8,10 @@
 
 开发方式由当前 ContextRoot 的 `config/iris-development.json` 独立声明。offline 的受管远端入口在连接配置与客户端启动前停止；本地帮助、状态、分析、Review、源码/XML 打包保持可用。connected（含旧配置缺省）保留原同步、准入与发布保护；非法值停止。原生 MCP/外部 IDE 不在脚本机器拦截范围，Agent 仍禁止离线调用。详见[离线协议](../../references/iris-offline-development.md)。
 
+初始化或已有项目补齐使用 `source-sync.js configure`：Write 创建缺失的开发声明及按条件需要的远端策略，Check/DryRun 只读；参数见 `--help`，流程见 [coding-iris-init](../../skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)。已有文件按字节保留，真实环境未知时报告缺项，不套用模板中的示例值。`configurationReady` 只表示本地配置齐全，`remoteAdmission` 单列本地策略状态；生成的策略禁用且资格 pending，不产生远端调用或服务器基线。缺声明却已有恢复材料时停止自动生成，避免改变旧任务指纹。
+
+已启用项目普通 Write 更新的配置迁移复用同一模块，仅补缺文件，保留已有 JSON 和旧模式缺省；兼容空声明 `{}` 不改变旧计划指纹，模式/环境待确认仍会明确报告。对应 Windows 薄入口为 `scripts/migrate-development-config.ps1`，不连接医院、不建立 Git 或基线，available/disabled 和只读更新不写入。
+
 本地交付统一入口 `source-delivery.js prepare|pack|verify|xml-unpack|xml-pack|xml-verify --help` 校验真实 SourceRoot/GitRoot、输入批次和冻结范围。源码打包唯一实现为同目录 `source-delivery.ps1`；人工 ZIP 从这里取入，旧独立参数保持。XML 复用 `edit-export-xml.ps1`，新增私有 BaselineDirectory 与工作区绑定，旧任务原位恢复。两个 PowerShell 核心可独立运行，无 Node/框架/联网依赖；当前打包要求 Windows PowerShell 5.1 或 Windows 上的 PowerShell 7。
 
 已确认 `project` 需求且采用 `intent-first-on-demand-export` 时先读[项目开发协议](../../references/project-demand-development.md#修改前与部署前同步)，以 `source-sync.js` 管理范围、服务器基线、现场和复审；待修改文件无论本地是否存在，都先完成 before-edit 同步，有变化先提交，再开始需求修改。普通 export 直接写源码会在请求前指向 source-sync；probe／独立 `--staging-dir` 只补参考。export 的 `--kind standard|project` 接收本次明确类型，未传时沿项目默认值。`standard` 沿既有流程，contextMode 不决定类型。`source-sync.js --help` 是操作参数入口，plan 本地只读，prepare 才读取服务器，提交与发布分别核对授权；无变化不建 export 或空提交。
