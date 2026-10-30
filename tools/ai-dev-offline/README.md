@@ -1,6 +1,6 @@
 # AI 开发基础工具离线物料包
 
-2026-10-29 候选组合，目标为 **Windows 10/11 x64**。本期准备六项基础工具；按用户后续补充，增加当前使用版本的 CodeBuddy VSIX、从现用配置摘取的安全模板与部署后的 PATH 配置入口。其它 AI 客户端后补；不含任何真实医院配置、凭据、项目源码或业务依赖。
+2026-10-29 固定物料组合，2026-10-30 补充用户设置自动配置，目标为 **Windows 10/11 x64**。本期准备六项基础工具、CodeBuddy VSIX、安全模板、PATH 配置及 PowerShell 7 用户终端配置入口。其它 AI 客户端后补；不含任何真实医院配置、凭据、项目源码或业务依赖。
 
 正式包统一为 `ai-dev-base-windows-x64-2026-10-29.zip`，已包含 MCP/TOML 模板与 PATH 工具；核对交付时提供的最新 SHA256，不按文件名推断内容版本。
 
@@ -52,7 +52,7 @@
 | Java 8 | 解压到 `Java/8u504-b01/`，保留 `jdk8u504-b01/` 层级；不升级医院现有 Java。 |
 | CodeBuddy | 在本次选择的 VS Code 中用 Extensions → Install from VSIX，选择包内 `Tencent-Cloud.coding-copilot-4.12.39997873.vsix`。适用 VS Code `^1.70.2`，本包固定 VS Code 满足声明范围。登录、服务连接与实际 AI 功能另行处理，不复制旧电脑账号数据。 |
 
-以上是手工安装指引。下文另提供部署后的 PATH 配置工具；完整自动安装、断点恢复安装器和 VS Code JSONC 自动导入仍未实现。
+以上是手工安装指引。下文另提供部署后的 PATH 工具和 PowerShell 7 用户终端自动配置；完整自动安装、断点恢复安装器及其它设置的通用导入仍未实现。
 
 ## 从现用 settings.json 摘取的可选模板
 
@@ -62,7 +62,38 @@
 - `templates/settings-codebuddy.jsonc`：按当前偏好关闭自动补全与浮动快捷入口，不携带自动执行、权限、安全类别或登录状态。
 - `templates/settings-iris-workspace.jsonc`：保留已用的 ObjectScript 格式偏好，连接结构按已安装 servermanager 3.14.2、vscode-objectscript 3.8.6、language-server 2.8.6 核对；连接值全部改为占位，`active=false`。这些 IRIS 扩展本期未随包携带，模板供后续选择相应扩展后使用。
 
-导入是独立可选操作：先选择用户或项目工作区作用域、备份所选文件、展示差异，仅合并所选键，保留现有注释和无关键；同名 profile/服务器对象也要按子键合并，不能用整个父对象覆盖其它条目。冲突由用户决定。IRIS 参数现场填入本机私有文件；用户名在连接时提供，密码使用扩展凭据提示／安全保存机制。模板不预留密码、token 或 API key 字段。不要复制原文件中的连接、代理、安全校验开关、自动执行权限、外部 formatter 引用或其它机器路径。本次未改你的实际 settings.json，也没有实现自动合并器。
+导入是独立可选操作。下节已实现 PowerShell 7 用户终端键的自动合并；编辑器偏好、CodeBuddy 与 IRIS 仍是手工模板，按所选作用域备份、预览、逐键合并，保留现有注释和无关键。IRIS 参数现场填入本机私有文件；用户名在连接时提供，密码使用扩展凭据提示／安全保存机制。模板不预留密码、token 或 API key 字段。不要复制原文件中的连接、代理、安全校验开关、自动执行权限、外部 formatter 引用或其它机器路径。
+
+## 自动设置 VS Code 用户默认 PowerShell 7
+
+安装完所选 VS Code 和 PowerShell 7 后，双击 **`configure-vscode.cmd`**，填写工具根目录，选择便携用户设置或普通安装用户设置；无需管理员权限。它自动使用本包约定的实际 `pwsh.exe` 路径，不再手工替换 `__PWSH_EXE__`。
+
+- 便携模式：目标为所选 `Code.exe` 旁的 `data/user-data/User/settings.json`，与本包 portable 部署方式一致。
+- 普通安装模式：目标为当前用户 `%APPDATA%/Code/User/settings.json`。
+- 使用其它安装目录或 VS Code profile 时，可明确提供 `-CodeExe`、`-PwshExe` 和 `-SettingsFile`；不扫描全机或推断其它 profile。
+
+脚本默认只预览；明确 Apply 才写入。交互入口遇到已有选定键不同，会列出冲突键并让用户决定是否只替换这些键；非交互调用需显式 `-ReplaceExisting`。预览不打印其它设置的内容。
+
+```powershell
+# 预览本包便携 VS Code 的用户终端配置。
+& .\configure-vscode.ps1 -ToolsRoot 'D:\Programs'
+# 无冲突时直接备份、增量写入并读回验证。
+& .\configure-vscode.ps1 -Action Apply -ToolsRoot 'D:\Programs'
+# 看过预览后，明确替换已有终端键；普通用户设置用 -UserDataMode Installed。
+& .\configure-vscode.ps1 -Action Apply -ToolsRoot 'D:\Programs' -ReplaceExisting
+```
+
+只维护 `terminal.integrated.profiles.windows` 中的 `PowerShell 7.path/icon`、默认 profile，以及 Windows automationProfile 的 path/args；已有同名 profile 使用 source 自动发现时，替换会移除该 source，确保选定 exe 生效。其它 profile、同名 profile 的其它字段、无关设置及注释保留；本入口不会顺带应用编辑器偏好、CodeBuddy 或医院连接模板。已有非法 JSONC、重复键、非对象父节点、链接路径或预览后的并发修改均停止。
+
+写入前，在所选用户设置目录的 `.ai-dev-settings-backups/<batch>/` 保存原始字节与回执并读回核对。恢复材料可能包含用户原有私密配置，只保存在本机，不进 Git、不随离线包转发；写入器拒绝在 Git worktree 中落设置或备份。恢复示例：
+
+```powershell
+& .\configure-vscode.ps1 -Action Rollback -ToolsRoot 'D:\Programs' -ReceiptFile '<回执中显示的 receipt.json 完整路径>'
+```
+
+Rollback 保留后来添加的无关设置；本次终端键已被他人修改时停止，不覆盖后续决定。未发生后续变化时可恢复原文件字节，包括 UTF-8 BOM、换行和注释；原来没有文件则恢复为不存在。重复 Apply 不生成多余备份。验证完成后，在所选 VS Code **新建终端**查看 PowerShell 7；已开的终端不会自动变换 shell，其它作用域的覆盖仍需按目标配置核对。
+
+实现复用微软 `jsonc-parser 3.3.1` 的最小 UMD 子集，来源、SHA512 与 MIT 许可证在 `vendor/jsonc-parser/UPSTREAM.json`／`LICENSE.md`。它只随独立工具 ZIP 携带，不进入框架运行分发；无需 npm install。入口采用所选 VS Code 的 `Code.exe` 加仅限子进程的 `ELECTRON_RUN_AS_NODE=1`，与官方 code.cmd 的运行机制一致，因此不要求现场额外安装 Node.js。源码和备份操作不访问医院服务。
 
 ## 项目 MCP 与 IRIS TOML 模板
 
@@ -105,7 +136,7 @@ pwsh --version
 
 Rollback 必须仍与本次写入结果一致才恢复；出现后来 PATH 修改则停止，保留回执供按项合并，不用旧整串覆盖。Java 的 `JAVA_HOME` 和 PATH 仍按现场选择单独配置，遇既有业务值冲突保留原值并报告；本工具当前仅实现上述四项命令，不机械创建 HOME。
 
-**AI 优先用 PowerShell 7**：选用 `settings-user.jsonc`，将 `__PWSH_EXE__` 替换为所选 `pwsh.exe` 的实际完整路径，默认终端即为 PowerShell 7。将 `templates/ai-shell-preference.md` 的短规则合并到目标项目既有 `AGENTS.md`，按目标 Agent 的现有适配机制加载；不创建同正文的独立 CODEBUDDY.md。CodeBuddy 如使用用户规则，可在其规则界面选择总是加载同一内容。新对话核对实际加载及一次命令的真实 shell，未核对时只报告模板已准备。PATH 可调用、编辑器默认终端和 AI 实际执行 shell 分别验收，不能仅凭 PATH 成功断言 AI 已切换。[CodeBuddy 官方规则说明](https://www.codebuddy.cn/docs/ide/User-guide/Rules)描述的是规则机制，不替代目标 VS Code 插件的实测。
+**AI 优先用 PowerShell 7**：运行 `configure-vscode.cmd` 自动设置所选用户的默认／自动化终端，或按 `settings-user.jsonc` 手工合并。将 `templates/ai-shell-preference.md` 的短规则合并到目标项目既有 `AGENTS.md`，按目标 Agent 的现有适配机制加载；不创建同正文的独立 CODEBUDDY.md。CodeBuddy 如使用用户规则，可在其规则界面选择总是加载同一内容。新对话核对实际加载及一次命令的真实 shell。PATH 可调用、用户设置已写入和 AI 实际执行 shell 分别验收，不能仅凭 PATH 成功断言 AI 已切换。[CodeBuddy 官方规则说明](https://www.codebuddy.cn/docs/ide/User-guide/Rules)描述的是规则机制，不替代目标 VS Code 插件的实测。
 
 重开终端／VS Code，再用**本次安装的完整路径**执行 manifest 中的验收命令，并核对实际命令解析位置。至少检查：VS Code 窗口启动；Git 本地临时仓库；PowerShell 版本；Node 与 npm；Python 的 pip 与项目 venv；Java 的 `java`、`javac` 及编译运行。项目级操作只在目标项目获准的目录进行，测试状态用完清理。未选组件标为跳过，AI 登录、医院连接和业务应用另行验收。
 

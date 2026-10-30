@@ -74,6 +74,7 @@ if ($Action -eq 'Download') { Write-Host "Downloads persisted and read back: $ch
 $actualNames = @(Get-ChildItem -LiteralPath $payload -Force | ForEach-Object { $_.Name })
 if (@(Compare-Object $actualNames @($manifest.components.file)).Count -ne 0) { throw 'unexpected-payload-content' }
 $packageFiles = @('README.md','manifest.json','verify-packages.ps1','verify.cmd','PREPARATION-REPORT.md','templates/settings-user.jsonc','templates/settings-codebuddy.jsonc','templates/settings-iris-workspace.jsonc','templates/mcp.template.json','templates/iris-agentic-dev.template.toml','templates/ai-shell-preference.md','configure-environment.ps1','configure-environment.cmd')
+$packageFiles += @('configure-vscode.js','configure-vscode.ps1','configure-vscode.cmd','vendor/jsonc-parser/main.js','vendor/jsonc-parser/impl/edit.js','vendor/jsonc-parser/impl/format.js','vendor/jsonc-parser/impl/parser.js','vendor/jsonc-parser/impl/scanner.js','vendor/jsonc-parser/impl/string-intern.js','vendor/jsonc-parser/LICENSE.md','vendor/jsonc-parser/UPSTREAM.json')
 foreach ($name in $packageFiles) {
     $destination = Join-Path $work $name
     [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($destination))

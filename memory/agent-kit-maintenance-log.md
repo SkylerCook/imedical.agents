@@ -1,5 +1,11 @@
 # imedical.agents 维护日志
 
+## 2026-10-30 VS Code 用户默认 PowerShell 7 自动配置
+
+- 沿用户明确要求补独立configure-vscode入口，使用所选Code.exe的Node模式，目标为便携或普通用户settings.json；只增量维护默认／自动化终端及同名profile路径，保留其它配置和注释，冲突显式选择、预览后漂移停止、私有原件备份及增量恢复。默认Plan，不写当前电脑用户配置；不改PATH、AI规则或其它设置模板。
+- 复用微软jsonc-parser 3.3.1最小UMD子集，固定npm官方SHA512、原文件摘要与MIT许可；无npm install，无额外Node前置。vendor仅在独立tools及ZIP，不加入框架sparse／thin-index；安装更新器、插件版本和部署手册无需变更，已有业务副本无迁移。
+- JSONC／恢复／链接保护19项通过，PS5.1/7各完成无Node PATH的真实入口Plan/Apply/幂等/Rollback；真实用户设置与Machine PATH指纹不变。初次沙箱文件rename受限，隔离沙箱外复验通过；生产逻辑未削弱。ZIP回读及独立解压沿准备回执，GUI新终端、CodeBuddy实际shell和干净环境仍归原P2；用户随后授权本轮c+p，实际提交／推送以Git回执为准。
+
 ## 2026-10-29 BOS 工作量测试阶段漏计修复
 
 - bos-plugin 0.18.1：按一次限定范围对照及用户确认，补“测试／发布测试”流转状态，测试分配允许当前人仍为本人；分配／修正且本人持有仍不计工作量。人员、执行日期、来源与终止状态边界保留，未知组合不扩大纳入。私有查询结果及身份未入仓。

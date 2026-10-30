@@ -1,0 +1,2 @@
+*.js -text
+LICENSE.md -text whitespace=cr-at-eol

@@ -2,6 +2,8 @@
 
 日期：2026-10-29（Asia/Shanghai）。组合：`ai-dev-base-windows-x64-2026-10-29`。
 
+更新：2026-10-30 补充 PowerShell 7 用户终端自动配置，七项原包版本和摘要保持原组合。
+
 本期准备六项基础工具，用户随后明确使用 CodeBuddy 插件，补入与本机同版本的官方 VSIX、三个 settings 模板、单 server MCP/TOML 模板及部署后的 PATH 配置入口。此回执记录准备机证据，不代表医院现场或干净环境部署已验收。
 
 ## 当前证据
@@ -16,12 +18,14 @@
 - MCP 模板只含 iris-agentic-dev，启动命令／TOML 路径为占位并显式指定 --config；TOML 只保留非敏感连接字段，账号密码字段省去，不复制现用值或其它 MCP。启动参数按源仓 vendor 1.5.0 的真实帮助及 helper 核对，不运行 MCP 服务或读取服务器数据。原项目配置未修改。
 - PATH 集成在 PS5.1、PS7 各通过一次：使用含空格的临时工具根，将 Node 22.23.4、Python 3.14.10、PortableGit 2.56.0.windows.4、PowerShell 7.6.9 放到部署约定路径，仅以 Scope=Process 执行 Apply，再用新子 CMD 的 where 与四条版本命令核验；重复 Apply 不重复 PATH，回执恢复原串，后来修改导致 Rollback 拒绝。本机 Machine PATH 前后相同。Python 使用同版本官方完整运行时 ZIP 作为测试夹具，按官方 windows-3.14.10.json 摘要校验，测试后删除且不加入正式包；这不代表 Python 安装器、pip/venv 已验收。
 - 构建器重新核对七个原包，并逐文件读回最终 ZIP 的流摘要；交付前另用 Windows PowerShell 5.1 解压 ZIP、运行包内校验器，再对全部文件与源文件／manifest 逐项比较。归档结果以本轮构建及独立校验回执为准，ZIP 外层 SHA256 由交付消息提供。
+- 用户终端配置新增19项 Node测试通过：JSONC注释／URL／尾逗号、其它profile和设置、UTF8 BOM、冲突停止、预览后漂移、幂等、备份／回执篡改保护、增量恢复／后来修改拒绝及目录链接拒绝。初次沙箱拒绝临时文件原子rename，改在隔离的沙箱外临时夹具复验通过，未绕过生产保护。
+- Windows PowerShell 5.1与7各完成真实入口的Plan/Apply/幂等/Rollback集成，运行时使用所选VS Code Code.exe；子进程PATH移除了Node和所有包路径，仍成功导入及按字节恢复测试设置。真实VS Code用户设置与Machine PATH前后指纹一致；没有对当前用户设置执行Apply。微软jsonc-parser 3.3.1按npm官方SHA512校验，只取6个UMD JS及许可证，未执行npm install。
 
 ## 待验边界
 
 - 干净 Windows 10/11 x64 断网完整安装尚未执行；医院老系统、权限、安全软件及业务运行时兼容性未验证。
 - Python 完整安装器未安装到本机；不以哈希通过替代 pip/venv 的干净环境验收。
 - VS Code GUI、CodeBuddy 激活时附加资源、AI 登录／服务连接、IRIS 连接及项目 npm/pip 依赖未验收。VSIX 安装通过仅证明本次隔离安装，不等于完整离线运行能力。
-- 本包提供 PATH Plan/Apply/Verify/Rollback；没有完整自动安装器、JSONC/MCP 自动导入、现场 doctor 或项目 launch 实现。Machine 作用域的管理员写入／Windows 环境通知仍需现场验收；本机测试只修改隔离进程的 PATH，未改系统 PATH。
-- VS Code 默认／automationProfile 的 PowerShell 7 设置与 AI shell 偏好片段已准备；目标 CodeBuddy 插件是否加载规则、实际是否执行 pwsh 仍需新对话取证。没有变更 ComSpec 或替换 Windows PowerShell 5.1。
+- 本包提供 PATH Plan/Apply/Verify/Rollback与PowerShell 7用户终端Plan/Apply/Rollback；没有完整自动安装器、其它设置／MCP的通用自动导入、现场doctor或项目launch。Machine作用域管理员写入／Windows环境通知仍需现场验收；本机只用隔离进程和临时用户设置测试，未改系统PATH。
+- 用户默认／automationProfile自动配置已验证到文件写入、JSONC语义及所选pwsh版本；VS Code GUI实际新终端、目标CodeBuddy规则加载及AI执行shell仍需目标会话取证。没有变更ComSpec或替换Windows PowerShell 5.1。
 - 未修改本机环境变量、安装注册或现有工具；未向医院或其它项目部署。

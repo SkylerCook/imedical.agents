@@ -4,7 +4,7 @@
 
 ## 当前接手
 
-- 人工 [AI 开发离线物料](../tools/ai-dev-offline/README.md)归 tools：六项 Windows x64 原包、CodeBuddy VSIX、settings／单 MCP／TOML 脱敏模板及所选 PATH 配置工具，ZIP 仅本机保存。原包／Process CMD 与 Machine 写入／干净断网／医院验收分开；没有完整自动安装或配置导入器，不随 `.agents` 分发。
+- 人工 [AI 开发离线物料](../tools/ai-dev-offline/README.md)归 tools：固定原包、CodeBuddy、安全模板、PATH及用户默认PowerShell 7自动配置；后者用所选VS Code运行时和固定JSONC库，无需另装Node，含冲突保护和私有备份／增量恢复。文件写入／Process CMD与GUI／Machine／医院验收分开；不随`.agents`分发，没有完整安装或其它配置通用导入。
 - 最近全局回看覆盖 `c233704..9a8996f`（2026-10-28，8 个提交）。发现、修正、CI 快照及验证见[日志覆盖点](agent-kit-maintenance-log.md#全局回看覆盖点)；版本查 owner manifest，历史实施状态不作当前未提交结论。
 - IRIS 帮助先于模式与业务前置；实际开发先按独立 developmentMode 分流，再选择在线项目同步或[离线交付](../plugins/coding-iris-plugin/references/iris-offline-development.md)。源码助手唯一实现归 coding owner，人工 ZIP 取同一核心；框架绑定批次/范围与源码 Git，原包私有保存，旧任务原位恢复。当前打包限 Windows，本地 Verify 与现场验收分别报告。
 - Overlay 实体 SourceRoot 见 [runbook](../docs/workspace-overlay.md#sourceroot引用已有源码或持有本地源码)：path/target 相同声明实体目录，旧 Junction 保持。先更新共享 capability 再按项目授权接入；物理等价路径不扩大源码范围，不自动初始化 Git 或迁移源码。
