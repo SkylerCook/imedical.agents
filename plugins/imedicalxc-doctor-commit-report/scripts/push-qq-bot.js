@@ -4,6 +4,7 @@
 //   --only    仅发送指定段落（逗号分隔；默认全部）
 //   --dry-run 仅打印消息不实际发送（试运行演练/发送前核验用）
 // 读取 .agents/plugins/imedicalxc-doctor-commit-report/config/commit-report-push.json 中的 qqbot 配置
+// 访问令牌不落 config，从环境变量 COMMIT_REPORT_QQBOT_TOKEN 读取（缺失时提示维护位置）
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -11,6 +12,7 @@ const http = require('node:http');
 const https = require('node:https');
 const os = require('node:os');
 const { pathToFileURL } = require('node:url');
+const { requireEnv } = require('./config-env');
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..', '..');
 const pushConfigPath = path.join(repoRoot, '.agents', 'plugins', 'imedicalxc-doctor-commit-report', 'config', 'commit-report-push.json');
@@ -30,7 +32,8 @@ function loadPushConfig() {
     console.error('当前仅支持 qqbot 通道，配置 channel:', cfg.channel);
     process.exit(1);
   }
-  return cfg.qqbot;
+  const apiToken = requireEnv('COMMIT_REPORT_QQBOT_TOKEN', 'QQ 机器人访问令牌');
+  return { ...cfg.qqbot, apiToken };
 }
 
 function loadReporterConfig() {

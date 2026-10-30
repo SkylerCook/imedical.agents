@@ -10,8 +10,19 @@
 ## 使用约束
 
 - 全程只读 git 仓库（log / show），不触发远端上传、编译、数据库写入；唯一例外：低星问题登记经 tencent_docs MCP 写入《信创版产品迭代每周问题登记》。
-- 推送凭据不落盘明文；推送配置 `config/commit-report-push.json` 本地不入库。
+- 令牌与个人邮箱不入库：QQ 令牌、提交人邮箱、收件人/抄送人一律从环境变量读取（见「环境变量」小节）；`config/commit-report-push.json`、`config/commit-report-state.json` 为本地文件，已被 `config/.gitignore` 忽略，模板为 `commit-report-push.template.json`。
 - 评估依赖 `imedicalxc-doctor-business-understanding` 插件做高风险提交的深度链路分析。
+
+## 环境变量（敏感配置，不入库）
+
+维护位置（任一即可；脚本优先读进程环境变量，其次读 `<仓库根>/.qoder/settings.local.json` 的 `commitReport.env`）：
+
+| 变量 | 必需性 | 用途 |
+|---|---|---|
+| `COMMIT_REPORT_QQBOT_TOKEN` | QQ 推送必需 | QQ 机器人 API 访问令牌；缺失时 `push-qq-bot.js` 报错并打印维护位置 |
+| `COMMIT_REPORT_REPORTER_EMAILS` | 可选 | 提交人姓名→邮箱 JSON 映射，用于 git 作者邮箱匹配；缺失时仅按姓名/别名匹配 |
+| `COMMIT_REPORT_EMAIL_RECIPIENTS` | 可选 | 逗号分隔收件人，覆盖实时解析 |
+| `COMMIT_REPORT_EMAIL_CC` | 可选 | 逗号分隔抄送人，覆盖实时解析 |
 
 ## Skill 路由
 
@@ -19,10 +30,11 @@
 
 ## 内置脚本
 
+- `scripts/config-env.js`：运行期敏感配置解析工具。`getEnv` / `requireEnv` / `getJsonEnv` 优先读进程环境变量，回退 `.qoder/settings.local.json` 的 `commitReport.env`；缺失时输出统一的「维护位置」提示（shell 或 settings 的 commitReport.env，详见 SKILL.md）。
 - `scripts/build-issue-rows.js`：读取某期 evaluations.json，筛出 1-2★（rating ≤ 2）条目，渲染《信创版产品迭代每周问题登记》9 列标准行值（含负责人=提交人、完成状态=未完成）；条目含 `issueItems`（多个独立问题的逐项明细，由评估环节产出）时按问题拆为多行，同一提交多行共享同一「提交」值，输出 `issue-rows-<label>.json`（含 fileId/sheetId），供 Agent 经 tencent_docs MCP 按「提交」列短哈希去重后批量写入。
-- `scripts/collect-commits.js`：遍历 src/ 下 20 个子仓库，按时间窗 + 11 人白名单过滤并排除 merge，输出 `raw-commits-<YYYY-MM>.json`（UTF-8 无 BOM）。
+- `scripts/collect-commits.js`：遍历 src/ 下 20 个子仓库，按时间窗 + 11 人白名单过滤并排除 merge，输出 `raw-commits-<YYYY-MM>.json`（UTF-8 无 BOM）。提交人邮箱从 `COMMIT_REPORT_REPORTER_EMAILS` 补充，不入库。
 - `scripts/detect-db-changes.js`：扫描 Java 提交 diff，检测四类数据库脚本执行提醒——PO 数据结构修改、新增系统标准配置（ST_CODE + 配置项）、新增系统标准提醒（HisBusinessException 字典表提醒码，含常量链、`其他常量 + "字面量"` 拼接式与静态导入/通配静态导入的跨类跨仓库解析）、新增代码表缓存配置（DocCacheUtils PO 首次使用；非首用的复用调用归入 `cacheReuses` 仅存档、不计入提醒；两类缓存记录均解析 PO 的 `@TableName` 表名，供按表名维护的代码表缓存管理使用），输出 `db-changes-<YYYY-MM>.json`。
-- `scripts/push-qq-bot.js`：QQ 机器人推送适配器（NapCat/OneBot HTTP API）。读取报告 Markdown 与同目录 `db-changes-<label>.json`，发送开场、提交人分布、数据库脚本执行提醒（四类计数 + 明细 + 执行方案推荐 + 试用阶段说明「当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询」，PO 改走腾讯文档 DDL 登记表格、其余三类经信创标准环境维护）、低星问题清单（@提交人）、问题处理提醒（经本机 tencent-docs MCP 只读《信创版产品迭代每周问题登记》，将未标识处理结果的问题按负责人去重 @ 并附登记表地址；读表失败或为空自动跳过）后上传报告文件。支持 `--only=<段>` 分段推送（opening/distribution/db/issues/pending/closing/upload，默认全部）与 `--dry-run` 预览（仅打印不发送；试运行演练/补推用）。配置见 `config/commit-report-push.json`。
-- `scripts/build-db-email.js`：从 `db-changes-<label>.json` 生成功能及数据变更通知邮件正文，双份输出——`db-change-email-<label>.html`（发送用正式排版 HTML，全部内联样式）与 `db-change-email-<label>.md`（Markdown 存档）。正文含试用阶段说明（「当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询」）、第一章功能变更影响（子章节格式，每条含岗位工作站/功能模组/需求类型/提交人/仓库/改造功能点/测试方式建议 7 项标注，测试方式建议取自 evaluations JSON 的 `testSuggestion` 字段——由 LLM 在步骤④评估时基于 diff 实际改动生成）与第二章数据变更（2.1 变更明细表 + 2.2 操作说明四子章节）。可选 `--note=<文本>` 在正文顶部插入高亮「更正说明」、`--subject-suffix=<文本>` 给标题加后缀（重发更正版用）；可选 `--evaluations=<evaluations-<label>.json>` 启用第一章。邮件经邮箱 MCP `send_email` 发送（标题固定「信创版功能及数据变更通知」，`body` 取 html 文件全文、`html` 为 `true`；改标题时把改过 subject 的配置副本经 `email-send-via-stdio.py --config` 传入，不改共享配置）；收件人/抄送人由 `scripts/resolve-email-recipients.py` 在发送前动态解析并写回 `config/commit-report-push.json` 的 `email.recipients` / `email.cc`。
+- `scripts/push-qq-bot.js`：QQ 机器人推送适配器（NapCat/OneBot HTTP API）。读取报告 Markdown 与同目录 `db-changes-<label>.json`，发送开场、提交人分布、数据库脚本执行提醒（四类计数 + 明细 + 执行方案推荐 + 试用阶段说明「当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询」，PO 改走腾讯文档 DDL 登记表格、其余三类经信创标准环境维护）、低星问题清单（@提交人）、问题处理提醒（经本机 tencent-docs MCP 只读《信创版产品迭代每周问题登记》，将未标识处理结果的问题按负责人去重 @ 并附登记表地址；读表失败或为空自动跳过）后上传报告文件。支持 `--only=<段>` 分段推送（opening/distribution/db/issues/pending/closing/upload，默认全部）与 `--dry-run` 预览（仅打印不发送；试运行演练/补推用）。配置见本地 `config/commit-report-push.json`；访问令牌取环境变量 `COMMIT_REPORT_QQBOT_TOKEN`，缺失时报错并提示维护位置。
+- `scripts/build-db-email.js`：从 `db-changes-<label>.json` 生成功能及数据变更通知邮件正文，双份输出——`db-change-email-<label>.html`（发送用正式排版 HTML，全部内联样式）与 `db-change-email-<label>.md`（Markdown 存档）。正文含试用阶段说明（「当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询」）、第一章功能变更影响（子章节格式，每条含岗位工作站/功能模组/需求类型/提交人/仓库/改造功能点/测试方式建议 7 项标注，测试方式建议取自 evaluations JSON 的 `testSuggestion` 字段——由 LLM 在步骤④评估时基于 diff 实际改动生成）与第二章数据变更（2.1 变更明细表 + 2.2 操作说明四子章节）。可选 `--note=<文本>` 在正文顶部插入高亮「更正说明」、`--subject-suffix=<文本>` 给标题加后缀（重发更正版用）；可选 `--evaluations=<evaluations-<label>.json>` 启用第一章。邮件经邮箱 MCP `send_email` 发送（标题固定「信创版功能及数据变更通知」，`body` 取 html 文件全文、`html` 为 `true`；改标题时把改过 subject 的配置副本经 `email-send-via-stdio.py --config` 传入，不改共享配置）；收件人/抄送人由 `scripts/resolve-email-recipients.py` 在发送前动态解析并写回本地 `commit-report-push.json` 的 `email.recipients` / `email.cc`（该文件不入库）；也可用 `COMMIT_REPORT_EMAIL_RECIPIENTS` / `COMMIT_REPORT_EMAIL_CC` 直接指定。
 - `scripts/build-impact-table.js`：独立功能变更影响表生成器。读 evaluations JSON + raw-commits JSON + `config/it-shape-mapping.json`（IT形态汇总.xlsx 提取的映射数据），输出 `impact-table-<label>.html`（邮件附件用）。测试方式建议列取自 evaluations 的 `testSuggestion` 字段（LLM 生成），缺失时显示「（待评估环节补充）」。
-- `scripts/resolve-email-recipients.py`：发送数据变更通知邮件前解析收件人/抄送人。收件人取腾讯文档【信创版HIS数据库升级脚本汇总表格】「脚本执行负责人」页签「负责人邮箱」列去重（OpenAPI：`GET /sheetbook/v2/{bookID}/sheets-info` + `GET /spreadsheet/v3/files/{fileID}/{sheetID}/{range}`）；抄送人取网易企业邮 CardDAV 通讯录「信创-研发-医生站」「信创-研发-监督人」分组（Apple 风格 group 卡片）成员邮箱去重。数据源与列位置见 `email.recipientSource` / `email.ccSource`；凭据运行时从环境变量或本机 Qoder 设置读取，不落盘脚本与配置。
+- `scripts/resolve-email-recipients.py`：发送数据变更通知邮件前解析收件人/抄送人。收件人取腾讯文档【信创版HIS数据库升级脚本汇总表格】「脚本执行负责人」页签「负责人邮箱」列去重（OpenAPI：`GET /sheetbook/v2/{bookID}/sheets-info` + `GET /spreadsheet/v3/files/{fileID}/{sheetID}/{range}`）；抄送人取网易企业邮 CardDAV 通讯录「信创-研发-医生站」「信创-研发-监督人」分组（Apple 风格 group 卡片）成员邮箱去重。数据源与列位置见 `email.recipientSource` / `email.ccSource`；凭据运行时从环境变量或本机 Qoder 设置读取，不落盘脚本与配置。收件人/抄送人可用 `COMMIT_REPORT_EMAIL_RECIPIENTS` / `COMMIT_REPORT_EMAIL_CC` 直接指定（优先于实时解析）。

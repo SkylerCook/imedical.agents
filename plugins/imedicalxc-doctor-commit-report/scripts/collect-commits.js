@@ -17,6 +17,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
+const { getJsonEnv, maintenanceHint } = require('./config-env');
 
 const execFileAsync = promisify(execFile);
 
@@ -85,6 +86,23 @@ function buildAuthorIndex(reporters) {
     for (const email of r.emails || []) index.set(String(email).toLowerCase(), r.name);
   }
   return index;
+}
+
+// 提交人邮箱属个人信息，不入库；从环境变量 COMMIT_REPORT_REPORTER_EMAILS（JSON: 姓名 -> 邮箱数组）补充
+function mergeReporterEmails(reporters) {
+  const map = getJsonEnv('COMMIT_REPORT_REPORTER_EMAILS');
+  if (!map) {
+    console.error('[提示] 未配置 COMMIT_REPORT_REPORTER_EMAILS，提交人仅按姓名/别名匹配（邮箱匹配已禁用）。');
+    console.error(maintenanceHint('COMMIT_REPORT_REPORTER_EMAILS', '提交人邮箱映射'));
+    return reporters;
+  }
+  return reporters.map((r) => {
+    const extra = map[r.name];
+    if (!extra) return r;
+    const list = Array.isArray(extra) ? extra : String(extra).split(',');
+    const merged = new Set([...(r.emails || []), ...list.map((s) => String(s).trim()).filter(Boolean)]);
+    return { ...r, emails: [...merged] };
+  });
 }
 
 function matchReporter(index, name, email) {
@@ -246,7 +264,7 @@ async function main() {
     win = monthWindow(months);
   }
 
-  const reporters = config.reporters || [];
+  const reporters = mergeReporterEmails(config.reporters || []);
   const authorIndex = buildAuthorIndex(reporters);
   const repos = discoverRepos(repoRoot);
   const ref = config.ref || 'HEAD';

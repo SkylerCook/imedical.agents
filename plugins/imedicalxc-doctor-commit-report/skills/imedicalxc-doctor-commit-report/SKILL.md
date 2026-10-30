@@ -33,6 +33,8 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/collect-commits.js 
 
 产出 `<outputDir>/<YYYY-MM>/raw-commits-<YYYY-MM>.json`，每条提交含 repo / hash / author（映射后中文名）/ authorRaw / date / subject / files / additions / deletions。检查 `meta.errors`：非空时先向用户报告错误仓库（错误不阻断整体），再继续。
 
+> 提交人邮箱属个人信息，不入库；需邮箱匹配时从环境变量 `COMMIT_REPORT_REPORTER_EMAILS`（JSON：`{"姓名":["邮箱",...]}`）补充。缺失时脚本打印维护位置提示，仅按姓名/别名匹配（不阻断）。
+
 ## 步骤 ②：数据库变更检测（确定性脚本）
 
 对步骤 ① 的产出做数据库脚本执行提醒检测：
@@ -273,10 +275,10 @@ git commit -m "docs: 新增 {label} 医生站信创产品迭代周报"
 
 ## 步骤 ⑦：推送
 
-读取 `.agents/plugins/imedicalxc-doctor-commit-report/config/commit-report-push.json`（不存在则视为未配置）：
+读取 `.agents/plugins/imedicalxc-doctor-commit-report/config/commit-report-push.json`（**本地文件，已被 config/.gitignore 忽略，不入库**；首次使用从 `commit-report-push.template.json` 复制，不存在则视为未配置）：
 
 - `enabled` 为 `false` 或文件不存在 → 输出「推送未配置，跳过」，流程结束
-- `enabled` 为 `true` 且 `channel` 为 `qqbot` → 执行推送脚本：
+- `enabled` 为 `true` 且 `channel` 为 `qqbot` → 先确认环境变量 `COMMIT_REPORT_QQBOT_TOKEN` 已配置（缺失时脚本会报错并提示维护位置），再执行推送脚本：
 
 ```bash
 node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <outputDir>/<YYYY-MM>/commit-report-<YYYY-MM>.md
@@ -299,11 +301,39 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <out
 2. 解析收件人/抄送人：`PYTHONIOENCODING=utf-8 python .agents/plugins/imedicalxc-doctor-commit-report/scripts/resolve-email-recipients.py`。
    - 收件人 = 腾讯文档【信创版HIS数据库升级脚本汇总表格】「脚本执行负责人」页签「负责人邮箱」列去重（`email.recipientSource`：bookId/sheetId/emailColumn）
    - 抄送人 = 通讯录分组「信创-研发-医生站」「信创-研发-监督人」成员邮箱去重（`email.ccSource.groups`）
-   - 脚本把结果写回 `email.recipients` / `email.cc`（含 `recipientsResolvedAt`）并输出 JSON 摘要；实时获取失败（如腾讯文档凭证过期、通讯录不可达）→ 自动回退 config 中上次解析的缓存结果继续发送，输出 JSON 的 `warnings` 数组标识哪些数据源使用了缓存，cron 执行时应将 warnings 内容输出到日志供排查。
+   - 也可用环境变量直接指定（优先于实时解析）：`COMMIT_REPORT_EMAIL_RECIPIENTS` / `COMMIT_REPORT_EMAIL_CC`（逗号分隔）。
+   - 脚本把结果写回**本地** `commit-report-push.json` 的 `email.recipients` / `email.cc`（含 `recipientsResolvedAt`，该文件不入库）并输出 JSON 摘要；实时获取失败（如腾讯文档凭证过期、通讯录不可达）→ 自动回退上次解析的缓存结果继续发送，输出 JSON 的 `warnings` 数组标识哪些数据源使用了缓存，cron 执行时应将 warnings 内容输出到日志供排查；无缓存且环境变量未配置时，报错并提示 `COMMIT_REPORT_EMAIL_RECIPIENTS` / `COMMIT_REPORT_EMAIL_CC` 的维护位置。
    - 地址白名单：收件人/抄送人须已在邮箱 MCP 的 `MCP_EMAIL_SERVER_ALLOWED_RECIPIENTS`（`.qoder/settings.local.json`）内；新增执行负责人或分组调整后需同步更新白名单并重载 MCP。
-3. 通过邮箱 MCP 调用 `send_email` 工具发送：`account_name` = `email.accountName`（默认 `default`）、`recipients` = `email.recipients`（列表）、`cc` = `email.cc`（列表）、`subject` = `email.subject`（统一「信创版功能及数据变更通知」）、`body` = 生成的 html 文件全文、`html` = `true`（HTML 渲染推送，避免客户端显示 markdown 源码）。
+3. 通过邮箱 MCP 调用 `send_email` 工具发送：`account_name` = `email.accountName`（默认 `default`）、`recipients` = 上一步解析结果（`email.recipients`）、`cc` = `email.cc`、`subject` = `email.subject`（统一「信创版功能及数据变更通知」）、`body` = 生成的 html 文件全文、`html` = `true`（HTML 渲染推送，避免客户端显示 markdown 源码）。
 4. 发送成功后把 `db-change-email-<label>.md` 与 `db-change-email-<label>.html` 一并提交入库（父仓库本地提交，不推送远端）。
 5. 邮箱 MCP 不可用（工具列表无 `send_email`）→ 降级用 stdio 直驱脚本发送：`PYTHONIOENCODING=utf-8 python .qoder/scripts/email-send-via-stdio.py --html <html 文件>`（等价于步骤 3：读 config 收件人/抄送、html=true；凭证运行时读取，不落盘）；仍失败 → 输出告警并继续，不影响 QQ 渠道结果。
+
+## 环境变量（敏感配置，不入库）
+
+令牌与个人邮箱一律不写入入库配置，运行时从环境变量读取。**维护位置**（二者任一即可，脚本优先读进程环境变量）：
+
+1. shell 环境变量（cron / CI 场景推荐）
+2. `<仓库根>/.qoder/settings.local.json` 的 `commitReport.env` 段，例如：
+
+```json
+{
+  "commitReport": {
+    "env": {
+      "COMMIT_REPORT_QQBOT_TOKEN": "<QQ 机器人访问令牌>",
+      "COMMIT_REPORT_REPORTER_EMAILS": "{\"姓名\":[\"邮箱\"]}"
+    }
+  }
+}
+```
+
+| 变量 | 必需性 | 用途 | 缺失时行为 |
+|---|---|---|---|
+| `COMMIT_REPORT_QQBOT_TOKEN` | QQ 推送必需 | QQ 机器人 API 访问令牌 | `push-qq-bot.js` 报错退出并打印维护位置 |
+| `COMMIT_REPORT_REPORTER_EMAILS` | 可选 | 提交人姓名→邮箱映射（JSON），用于 git 作者邮箱匹配 | 打印提示，仅按姓名/别名匹配 |
+| `COMMIT_REPORT_EMAIL_RECIPIENTS` | 可选 | 逗号分隔收件人，覆盖实时解析 | 自动回退腾讯文档解析 |
+| `COMMIT_REPORT_EMAIL_CC` | 可选 | 逗号分隔抄送人，覆盖实时解析 | 自动回退 CardDAV 解析 |
+
+> 配置模板：`config/commit-report-push.template.json`（不含令牌与邮箱）；实际使用的 `commit-report-push.json`、`commit-report-state.json` 已被 `config/.gitignore` 忽略，仅存本机。
 
 ## 约束
 

@@ -7,8 +7,13 @@
           的成员邮箱，去重（并剔除已出现在收件人中的人）后作为 Cc。
 
 数据源与列位置在 config/commit-report-push.json 的 email.recipientSource / email.ccSource 配置。
-成功后把结果写回 email.recipients / email.cc / email.recipientsResolvedAt（--no-write 可跳过），
+成功后将结果写回 email.recipients / email.cc / email.recipientsResolvedAt（该 config 为本地文件、不入库），
 并把摘要以 JSON 打印到 stdout；失败时非零退出、不覆盖已有配置（流程沿用上次结果并告警）。
+
+收件人/抄送人个人邮箱不写入入库配置，可用环境变量直接指定（优先于实时解析）：
+- COMMIT_REPORT_EMAIL_RECIPIENTS：逗号分隔的收件人邮箱
+- COMMIT_REPORT_EMAIL_CC：逗号分隔的抄送人邮箱
+环境变量缺失时回退 <仓库根>/.qoder/settings.local.json 的 commitReport.env 同名键。
 
 凭据运行时读取（不落盘到本脚本/配置）：
 - 腾讯文档：环境变量 TD_CLIENT_ID / TD_OPEN_ID / TD_ACCESS_TOKEN，
@@ -43,6 +48,31 @@ CARDDAV_HOST = "contacts.qiye.163.com"
 EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$")
 DAV = "{DAV:}"
 CD = "{urn:ietf:params:xml:ns:carddav}"
+
+
+def config_env(name):
+    """读取运行期配置：优先进程环境变量，其次 .qoder/settings.local.json 的 commitReport.env。"""
+    v = os.environ.get(name)
+    if v:
+        return v
+    try:
+        with open(PROJECT_SETTINGS, encoding="utf-8") as f:
+            env = (json.load(f).get("commitReport") or {}).get("env") or {}
+        v = env.get(name)
+        return str(v) if v else ""
+    except (OSError, ValueError):
+        return ""
+
+
+def config_env_hint(name, purpose):
+    return (
+        "缺少 %s（%s）。请在 shell 环境变量或 %s 的 commitReport.env 中配置。"
+        % (name, purpose, PROJECT_SETTINGS)
+    )
+
+
+def split_emails(raw):
+    return [s.strip() for s in re.split(r"[,;\s]+", raw or "") if s.strip()]
 
 
 def log(msg):
@@ -444,16 +474,21 @@ def main():
     cached_at = email_cfg.get("recipientsResolvedAt", "N/A")
     warnings = []
 
-    # --- 收件人：实时获取腾讯文档，失败回退缓存 ---
+    # --- 收件人：环境变量直填 > 实时获取腾讯文档 > 本地缓存 ---
     to_list = None
+    env_to = split_emails(config_env("COMMIT_REPORT_EMAIL_RECIPIENTS"))
+    if env_to:
+        to_list = env_to
+        log("收件人：使用环境变量 COMMIT_REPORT_EMAIL_RECIPIENTS（%d 个）" % len(to_list))
     # 路径 1：直连 API（Client-Id / Open-Id / Access-Token）
-    try:
-        td_headers = load_td_env()
-        if td_headers:
-            to_list = resolve_from_sheet(rec_src, td_headers)
-            log("收件人：直连 API 获取成功（%d 个）" % len(to_list))
-    except SystemExit:
-        pass
+    if to_list is None:
+        try:
+            td_headers = load_td_env()
+            if td_headers:
+                to_list = resolve_from_sheet(rec_src, td_headers)
+                log("收件人：直连 API 获取成功（%d 个）" % len(to_list))
+        except SystemExit:
+            pass
     # 路径 2：MCP HTTP 代理（TD_TOKEN + TD_MCP_URL）
     if to_list is None:
         try:
@@ -469,22 +504,29 @@ def main():
             log("WARNING: %s" % warnings[-1])
             to_list = list(cached_to)
         else:
-            fail("收件人：腾讯文档获取失败且无缓存可用")
+            fail("收件人：腾讯文档获取失败且无缓存可用。" + config_env_hint(
+                "COMMIT_REPORT_EMAIL_RECIPIENTS", "逗号分隔的收件人邮箱"))
 
-    # --- 抄送人：实时获取 CardDAV，失败回退缓存 ---
+    # --- 抄送人：环境变量直填 > 实时获取 CardDAV > 本地缓存 ---
     cc_list = None
-    try:
-        cc_list = resolve_from_carddav(cc_src.get("groups") or ["信创-研发-医生站", "信创-研发-监督人"])
-        log("抄送人：实时获取成功（%d 个）" % len(cc_list))
-    except SystemExit:
-        pass
+    env_cc = split_emails(config_env("COMMIT_REPORT_EMAIL_CC"))
+    if env_cc:
+        cc_list = env_cc
+        log("抄送人：使用环境变量 COMMIT_REPORT_EMAIL_CC（%d 个）" % len(cc_list))
+    if cc_list is None:
+        try:
+            cc_list = resolve_from_carddav(cc_src.get("groups") or ["信创-研发-医生站", "信创-研发-监督人"])
+            log("抄送人：实时获取成功（%d 个）" % len(cc_list))
+        except SystemExit:
+            pass
     if cc_list is None:
         if cached_cc:
             warnings.append("抄送人：CardDAV 获取失败，沿用缓存（%d 个，解析于 %s）" % (len(cached_cc), cached_at))
             log("WARNING: %s" % warnings[-1])
             cc_list = list(cached_cc)
         else:
-            fail("抄送人：CardDAV 获取失败且无缓存可用")
+            fail("抄送人：CardDAV 获取失败且无缓存可用。" + config_env_hint(
+                "COMMIT_REPORT_EMAIL_CC", "逗号分隔的抄送人邮箱"))
 
     # --- 去重：抄送人剔除收件人 ---
     to_low = {e.lower() for e in to_list}

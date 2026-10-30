@@ -1,0 +1,5 @@
+# 本地运行期文件：含解析出的个人邮箱 / 推送地址回填结果，不入库
+# 模板见 commit-report-push.template.json
+commit-report-push.json
+commit-report-state.json
+commit-report-runtime.json

@@ -1,0 +1,30 @@
+{
+  "reporters": [
+    { "name": "倪康",   "aliases": ["nikang", "hos_his"],                                           "emails": [] },
+    { "name": "周丹",   "aliases": ["zhoudan"],                                                     "emails": [] },
+    { "name": "周闯",   "aliases": ["zhouchuang"],                                                  "emails": [] },
+    { "name": "张天文", "aliases": ["zhangtianwen", "张天文"],                                       "emails": [] },
+    { "name": "张恒",   "aliases": ["zhangheng0226", "张恒0226"],                                    "emails": [] },
+    { "name": "李旭",   "aliases": ["lixu", "lixu0117"],                                            "emails": [] },
+    { "name": "杨厚林", "aliases": ["yanghoulin", "杨厚林"],                                         "emails": [] },
+    { "name": "梁路丰", "aliases": ["lianglufeng", "lianglufeng001"],                               "emails": [] },
+    { "name": "谭吉善", "aliases": ["tanjishan"],                                                   "emails": [] },
+    { "name": "邢凯乐", "aliases": ["xingkaile"],                                                   "emails": [] },
+    { "name": "陈龙",   "aliases": ["chenlong", "chenlong_cd", "chenlongwang2008", "'chenlong_cd'"], "emails": [] }
+  ],
+  "workstations": [
+    "门诊医生站", "住院医生站", "电子医嘱", "电子诊断", "治疗工作站",
+    "门诊挂号与排班", "分诊与资源分配", "患者管理", "抗菌药物管理",
+    "临床试验药理", "模块化医生站", "综合诊疗服务", "基础平台", "其他"
+  ],
+  "window": { "mode": "months", "value": 1 },
+  "ref": "origin/master",
+  "excludeMerges": true,
+  "outputDir": "docs/commit-reports",
+  "issueRegistration": {
+    "enabled": true,
+    "fileId": "300000000$XCyypyCGbagH",
+    "sheetId": "BB08J2",
+    "sheetUrl": "https://docs.qq.com/sheet/DWEN5eXB5Q0diYWdI?tab=BB08J2"
+  }
+}
