@@ -74,7 +74,11 @@ function migrate({projectRoot, mode='DryRun', serverName}={}) {
   if(mode==='Check')throw failure('session-direct-entry-detected');
   if(server.env?.IRIS_TOOLSET && server.env.IRIS_TOOLSET!=='merged')throw failure('session-toolset-review-required');
   if(!/(?:^|[\\/])iris-agentic-dev(?:\.exe)?$/i.test(server.command || ''))throw failure('session-custom-command-review-required');
-  const commandRelative=path.relative(context.capabilityRoot,path.resolve(context.workspaceRoot,server.command)).replace(/\\/g,'/');
+  const executable=path.resolve(context.workspaceRoot,server.command);
+  if(!fs.existsSync(executable))throw failure('session-backend-missing');
+  // Overlay vendor mappings are intentional links into the declared CapabilityRoot.
+  // Compare physical targets, while retaining the original command for rollback.
+  const commandRelative=path.relative(fs.realpathSync(context.capabilityRoot),fs.realpathSync(executable)).replace(/\\/g,'/');
   if(!/^vendor\/iris-agentic-dev\/[^/]+\/iris-agentic-dev(?:\.exe)?$/.test(commandRelative))throw failure('session-custom-command-review-required');
   const oldArgs=server.args || ['mcp'];
   if(oldArgs[0]!=='mcp')throw failure('session-custom-args-review-required');

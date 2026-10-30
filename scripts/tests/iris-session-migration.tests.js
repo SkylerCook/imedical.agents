@@ -33,6 +33,22 @@ test('custom entries and rollback drift stop without replacing user changes',t=>
   assert.throws(()=>migrate({projectRoot:f.root,mode:'Rollback'}),/rollback-drift/);
 });
 
+test('Overlay migrates a mapped vendor into shared capability while keeping local recovery',t=>{
+  const f=fixture(t),capability=path.join(f.root,'capability'),context=path.join(f.root,'.agents');
+  fs.mkdirSync(capability);fs.mkdirSync(path.join(capability,'.git'));
+  for(const name of ['vendor','scripts'])fs.renameSync(path.join(context,name),path.join(capability,name));
+  fs.symlinkSync(path.join(capability,'vendor'),path.join(context,'vendor'),process.platform==='win32'?'junction':'dir');
+  fs.writeFileSync(path.join(context,'capability.json'),JSON.stringify({schemaVersion:1,mode:'workspace-overlay',workspace:'fixture',contextRoot:'.agents',capabilityRoot:'capability',sharedDirectories:['vendor'],localDirectories:['config'],sourceRoots:[]}));
+  const before=fs.readFileSync(f.file,'utf8');
+  assert.equal(migrate({projectRoot:f.root}).status,'planned');assert.equal(fs.readFileSync(f.file,'utf8'),before);
+  assert.equal(migrate({projectRoot:f.root,mode:'Write'}).status,'applied');
+  const server=JSON.parse(fs.readFileSync(f.file)).mcpServers['iris-agentic-dev'];
+  assert.equal(server.args[0],path.join(capability,'scripts/iris-session-mcp.js'));
+  assert.equal(fs.existsSync(path.join(capability,'config/iris-session-backend.json')),false);
+  assert.equal(migrate({projectRoot:f.root,mode:'Check'}).managed,true);
+  migrate({projectRoot:f.root,mode:'Rollback'});assert.deepEqual(JSON.parse(fs.readFileSync(f.file)),f.config);
+});
+
 test('missing backend fails Check and explicit disabled survives migration',t=>{
   const f=fixture(t);f.config.mcpServers['iris-agentic-dev'].disabled=true;fs.writeFileSync(f.file,JSON.stringify(f.config));
   const directory=path.join(f.root,'.agents/config');fs.mkdirSync(directory,{recursive:true});
@@ -43,6 +59,17 @@ test('missing backend fails Check and explicit disabled survives migration',t=>{
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(directory,'iris-remote-policy.json'))),policy);
   fs.unlinkSync(f.config.mcpServers['iris-agentic-dev'].command);
   assert.throws(()=>migrate({projectRoot:f.root,mode:'Check'}),/backend-missing/);
+});
+
+test('identical verified vendor copies share identity across projects and env key order',t=>{
+  const a=fixture(t),b=fixture(t),describe=require('../lib/iris-session-backends').describe;
+  const sha256=require('node:crypto').createHash('sha256').update('fixture').digest('hex');
+  for(const f of [a,b])fs.writeFileSync(path.join(f.root,'.agents/vendor/iris-agentic-dev/managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v1',sha256}));
+  b.config.mcpServers['iris-agentic-dev'].env=Object.fromEntries(Object.entries(b.config.mcpServers['iris-agentic-dev'].env).reverse());
+  fs.writeFileSync(b.file,JSON.stringify(b.config));
+  assert.equal(describe(a.root).identity,describe(b.root).identity);
+  b.config.mcpServers['iris-agentic-dev'].env.IRIS_PASSWORD='another-identity';fs.writeFileSync(b.file,JSON.stringify(b.config));
+  assert.notEqual(describe(a.root).identity,describe(b.root).identity);
 });
 
 test('Windows PowerShell 5.1 wrapper and vendor preference retain the managed adapter',{skip:process.platform!=='win32'},t=>{

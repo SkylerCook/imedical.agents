@@ -43,7 +43,8 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
   }
   if (!backend || backend.schema !== 'iris-session-backend/v1' || backend.serverName !== serverName) throw failure('session-managed-entry-required');
   if (!backend.command || !Array.isArray(backend.args)) throw failure('session-backend-invalid');
-  const executable=path.resolve(context.workspaceRoot,backend.command),stat=fs.statSync(executable);
+  const executable=fs.realpathSync(path.resolve(context.workspaceRoot,backend.command)),stat=fs.statSync(executable);
+  let runtimeIdentity=[executable,stat.size,stat.mtimeMs];
   if(!localOnly && /(?:^|[\\/])iris-agentic-dev(?:\.exe)?$/i.test(executable)) {
     const metadata=path.join(path.dirname(executable),'..','managed-build.json');
     if(!fs.existsSync(metadata))throw failure('session-patched-vendor-required');
@@ -54,6 +55,7 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
       if(build.schema!=='iris-managed-vendor/v1' || build.patch!=='managed-sessions-v1' || actual!==build.sha256)throw failure('session-patched-vendor-mismatch');
       verifiedBinaries.set(fingerprint,true);
     }
+    runtimeIdentity=['managed-vendor',build.sha256];
   }
   backend={...backend,command:executable};
   const effectiveArgs=[];
@@ -65,7 +67,7 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
   }
   // Credentials are resolved here, in the user's process, never sent in CLI arguments or receipts.
   return {context, connection, env, backend, policy, pool: policy?.allowSharedPool === true ? policy.poolKey : instance,
-    identity: hash([instance, env, connection.rejectUnauthorized, {command:executable,args:effectiveArgs}, [stat.size,stat.mtimeMs], env.IRIS_NAMESPACE])};
+    identity: hash([instance, Object.fromEntries(Object.entries(env).sort(([a],[b])=>a.localeCompare(b))), connection.rejectUnauthorized, runtimeIdentity, effectiveArgs, env.IRIS_NAMESPACE])};
 }
 async function open(operation) {
   const d = describe(operation.projectRoot, operation.serverName);

@@ -6,6 +6,8 @@
 
 全仓其它 CI 不能宣称通过：例如 [基线技能迁移](https://github.com/SkylerCook/imedical.agents/actions/runs/41084978127) 在本轮改动前的 `93d775c` 已因夹具缺失 docs/README.md、imedical-ui 初始化断言失败；候选出现相同问题，保留为独立历史缺口。其余失败继续按日志逐项区分。
 
+`f8e252d` 的 [Windows/macOS/Linux × Node 22/24 六组矩阵](https://github.com/SkylerCook/imedical.agents/actions/runs/41086227692) 全部通过。随后试点路径核对补齐 Overlay 映射 vendor 的真实路径识别，以及相同已校验 vendor 在不同项目副本间按摘要复用、不同凭据隔离；新增定向测试连同实际 vendor HTTP 计数共 10 项通过，最终候选仍须重新经过矩阵。
+
 - Windows / Node 24.14.1：`iris-session-{manager,ipc,routing,migration,vendor}.tests.js` 与既有 MCP schema/session、remote-operations、atelier-read-pool 共 58 项通过。
 - Windows PowerShell 5.1：现有 `scripts/tests/update-agents.tests.ps1` 全套通过；定向迁移测试确认受管 command 保留、旧明确禁用保留、回退 drift 拦截、生成器保留其它服务、真实 Node 后端跨客户端复用及通知不串路由。
 - 固定 vendor 补丁已构建并纳入候选。实际 HTTP 计数确认只读工具零 PUT；generator 503 只发一次 PUT；启动 503 不继续发 SystemMode 查询，队列取消；自有注销请求独立计数。完整摘要见 `vendor/iris-agentic-dev/managed-build.json`。
