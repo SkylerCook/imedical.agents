@@ -7,7 +7,8 @@
  * 输入：evaluations-<label>.json + it-shape-mapping.json
  * 输出：impact-table-<label>.html（邮件附件）
  * 
- * 列：岗位工作站 / 功能模组 / 功能模块 / 需求类型 / 提交人 / 仓库 / 改造功能点
+ * 列：岗位工作站 / 功能模组 / 功能模块 / 需求类型 / 提交人 / 仓库 / 改造功能点 / 测试方式建议
+ * 测试方式建议取自 evaluations JSON 的 testSuggestion 字段（LLM 在步骤④评估时生成）
  */
 
 const fs = require('fs');
@@ -157,80 +158,6 @@ function determineModule(evalItem, mapping) {
   return { moduleName: '（待确认）', source: 'fallback' };
 }
 
-function generateTestSuggestion(ev) {
-  const text = `${ev.impactScope || ''} ${ev.summary || ''} ${ev.reqType || ''}`;
-  const suggestions = [];
-  
-  // 基础测试（最低限度）
-  suggestions.push('【必测】验证变更功能点正常');
-  
-  // 根据需求类型补充
-  if (ev.reqType === '流程修改') {
-    suggestions.push('完整流程走通（从入口到结束）');
-  } else if (ev.reqType === '业务调整') {
-    suggestions.push('配置生效验证（新配置/旧配置对比）');
-  }
-  
-  // 根据关键字补充测试范围
-  if (text.includes('医嘱')) {
-    suggestions.push('医嘱录入/修改/撤销/提交');
-    if (text.includes('模板')) suggestions.push('医嘱模板调用');
-    if (text.includes('草药') || text.includes('中药')) suggestions.push('草药医嘱专项流程');
-    if (text.includes('出院') || text.includes(' discharge')) suggestions.push('出院带药医嘱');
-  }
-  if (text.includes('诊断')) {
-    suggestions.push('诊断录入/修改/删除');
-    if (text.includes('主诊断')) suggestions.push('主诊断切换');
-  }
-  if (text.includes('检验') || text.includes('检查')) {
-    suggestions.push('检验检查申请/报告查看');
-  }
-  if (text.includes('病历')) {
-    suggestions.push('病历文书生成/查看/打印');
-  }
-  if (text.includes('配置') || text.includes('config')) {
-    suggestions.push('系统标准配置菜单验证');
-    suggestions.push('配置项导出/导入流程');
-  }
-  if (text.includes('排班')) {
-    suggestions.push('排班查询/预约/取消');
-    if (text.includes('停诊')) suggestions.push('停诊自动取消预约流程');
-  }
-  if (text.includes('挂号')) {
-    suggestions.push('挂号/退号流程');
-    if (text.includes('年龄') || text.includes('外来')) suggestions.push('特殊人群挂号校验');
-  }
-  if (text.includes('医保') || text.includes('处方')) {
-    suggestions.push('医保处方提交');
-    suggestions.push('自费原因字段验证');
-  }
-  if (text.includes('打印')) {
-    suggestions.push('打印模板/打印预览');
-  }
-  if (text.includes('提醒') || text.includes('警告') || text.includes('拦截')) {
-    suggestions.push('触发条件验证（应提醒/不应提醒）');
-  }
-  if (text.includes('缓存') || text.includes('cache')) {
-    suggestions.push('代码表缓存刷新验证');
-  }
-  if (text.includes('前端') || text.includes('页面') || text.includes('界面')) {
-    suggestions.push('前端页面功能验证');
-    suggestions.push('浏览器兼容性（Chrome/Edge）');
-  }
-  
-  // 关联影响提示
-  if (text.includes('跨仓库') || text.includes('接口') || text.includes('Feign')) {
-    suggestions.push('⚠️ 跨模块联调（上下游接口）');
-  }
-  if (ev.rating && ev.rating <= 2) {
-    suggestions.push('⚠️ 低风险提交，重点关注边界场景');
-  }
-  
-  // 去重并拼接
-  const unique = [...new Set(suggestions)];
-  return unique.join('；');
-}
-
 function mergeFilesIntoEvals(evaluations, rawCommits) {
   if (!rawCommits) return evaluations;
   const filesByHash = {};
@@ -263,7 +190,7 @@ function buildImpactRows(evaluations, mapping) {
       author: ev.author || '—',
       repo: ev.repo || '—',
       changePoint: ev.summary || '—',
-      testSuggestion: generateTestSuggestion(ev)
+      testSuggestion: ev.testSuggestion || '（待评估环节补充）'
     });
   }
   

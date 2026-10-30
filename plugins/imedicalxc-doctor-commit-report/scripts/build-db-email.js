@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const SUBJECT = '信创版数据变更通知-医生站';
+const SUBJECT = '信创版功能及数据变更通知';
 const DDL_URL = 'https://docs.qq.com/sheet/DSnJ5V0tYRG9jT1VL?tab=ipn52r';
 const DDL_DOC_NAME = '【腾讯文档】信创版HIS数据库升级脚本汇总表格';
 const STD_ENV_URL = 'http://82.156.104.202:32678/imedical/his/hos/login';
@@ -88,57 +88,9 @@ function buildImpactRows(evaluations, rawCommits, mapping) {
       author: ev.author || '—',
       repo: ev.repo || '—',
       changePoint: ev.summary || '—',
-      testSuggestion: generateTestSuggestion(ev)
+      testSuggestion: ev.testSuggestion || '（待评估环节补充）'
     };
   });
-}
-function generateTestSuggestion(ev) {
-  const text = `${ev.impactScope || ''} ${ev.summary || ''} ${ev.reqType || ''}`;
-  const suggestions = [];
-  suggestions.push('【必测】验证变更功能点正常');
-  if (ev.reqType === '流程修改') {
-    suggestions.push('完整流程走通（从入口到结束）');
-  } else if (ev.reqType === '业务调整') {
-    suggestions.push('配置生效验证（新配置/旧配置对比）');
-  }
-  if (text.includes('医嘱')) {
-    suggestions.push('医嘱录入/修改/撤销/提交');
-    if (text.includes('模板')) suggestions.push('医嘱模板调用');
-    if (text.includes('草药') || text.includes('中药')) suggestions.push('草药医嘱专项流程');
-    if (text.includes('出院') || text.includes(' discharge')) suggestions.push('出院带药医嘱');
-  }
-  if (text.includes('诊断')) {
-    suggestions.push('诊断录入/修改/删除');
-    if (text.includes('主诊断')) suggestions.push('主诊断切换');
-  }
-  if (text.includes('检验') || text.includes('检查')) suggestions.push('检验检查申请/报告查看');
-  if (text.includes('病历')) suggestions.push('病历文书生成/查看/打印');
-  if (text.includes('配置') || text.includes('config')) {
-    suggestions.push('系统标准配置菜单验证');
-    suggestions.push('配置项导出/导入流程');
-  }
-  if (text.includes('排班')) {
-    suggestions.push('排班查询/预约/取消');
-    if (text.includes('停诊')) suggestions.push('停诊自动取消预约流程');
-  }
-  if (text.includes('挂号')) {
-    suggestions.push('挂号/退号流程');
-    if (text.includes('年龄') || text.includes('外来')) suggestions.push('特殊人群挂号校验');
-  }
-  if (text.includes('医保') || text.includes('处方')) {
-    suggestions.push('医保处方提交');
-    suggestions.push('自费原因字段验证');
-  }
-  if (text.includes('打印')) suggestions.push('打印模板/打印预览');
-  if (text.includes('提醒') || text.includes('警告') || text.includes('拦截')) suggestions.push('触发条件验证（应提醒/不应提醒）');
-  if (text.includes('缓存') || text.includes('cache')) suggestions.push('代码表缓存刷新验证');
-  if (text.includes('前端') || text.includes('页面') || text.includes('界面')) {
-    suggestions.push('前端页面功能验证');
-    suggestions.push('浏览器兼容性（Chrome/Edge）');
-  }
-  if (text.includes('跨仓库') || text.includes('接口') || text.includes('Feign')) suggestions.push('⚠️ 跨模块联调（上下游接口）');
-  if (ev.rating && ev.rating <= 2) suggestions.push('⚠️ 低风险提交，重点关注边界场景');
-  return [...new Set(suggestions)].join('；');
 }
 
 // ========== 影响表逻辑结束 ==========
@@ -199,6 +151,11 @@ function cstNow() {
   return new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' (UTC+8)';
 }
 
+function splitSuggestions(s) {
+  if (!s) return [];
+  return s.split(/；|;/).map((x) => x.trim()).filter(Boolean);
+}
+
 function buildEmailMd(db, opts = {}) {
   const w = (db.meta && db.meta.window) || {};
   const range = w.since && w.until ? `${w.since} ~ ${w.until}` : (w.label || '');
@@ -215,9 +172,37 @@ function buildEmailMd(db, opts = {}) {
     lines.push(`> **更正说明**：${opts.note}`);
     lines.push('');
   }
+  lines.push('本期医生站开发提交涉及以下功能变更与数据变更。功能变更请相关岗位工作站负责人参照各条目的测试方式建议组织测试验证；数据变更请参照 2.2 操作说明进行维护。');
+  lines.push('');
   lines.push('说明：当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。');
   lines.push('');
-  lines.push('## 一、变更明细');
+  if (impactRows.length > 0) {
+    lines.push('## 一、功能变更影响');
+    lines.push('');
+    impactRows.forEach((r, i) => {
+      lines.push(`### ${i + 1}. ${r.author} — ${r.funcPoint}`);
+      lines.push('');
+      lines.push(`- **岗位工作站：** ${r.workstation}`);
+      if (r.funcModule && r.funcModule !== '（待确认）') {
+        lines.push(`- **功能模组：** ${r.funcModule}`);
+      }
+      lines.push(`- **需求类型：** ${r.reqType}`);
+      lines.push(`- **提交人：** ${r.author}`);
+      lines.push(`- **仓库：** ${r.repo}`);
+      lines.push(`- **改造功能点：** ${r.changePoint}`);
+      const tips = splitSuggestions(r.testSuggestion);
+      if (tips.length > 1) {
+        lines.push('- **测试方式建议：**');
+        for (const t of tips) lines.push(`  - ${t}`);
+      } else {
+        lines.push(`- **测试方式建议：** ${r.testSuggestion}`);
+      }
+      lines.push('');
+    });
+  }
+  lines.push('## 二、数据变更');
+  lines.push('');
+  lines.push('### 2.1 数据变更明细');
   lines.push('');
   if (rows.length === 0) {
     lines.push('本期无数据变更。');
@@ -229,37 +214,25 @@ function buildEmailMd(db, opts = {}) {
     }
   }
   lines.push('');
-  lines.push('## 二、变更的操作说明');
+  lines.push('### 2.2 数据变更操作说明');
   lines.push('');
-  lines.push('### 1. 数据库 DDL 脚本');
+  lines.push('#### 1. 数据库 DDL 脚本');
   lines.push('');
   lines.push(`建议参考${DDL_DOC_NAME} ${DDL_URL} 的描述进行执行。`);
   lines.push('');
-  lines.push('### 2. 新增系统标准提醒');
+  lines.push('#### 2. 新增系统标准提醒');
   lines.push('');
   lines.push(`[信创标准环境](${STD_ENV_URL}) → 使用demo账户登录 → 打开菜单【系统提示信息】，参照代码信息进行数据维护。`);
   lines.push('');
-  lines.push('### 3. 新增系统标准配置');
+  lines.push('#### 3. 新增系统标准配置');
   lines.push('');
   lines.push(`[信创标准环境](${STD_ENV_URL}) → 使用demo账户登录 → 打开【系统标准配置】菜单，筛选指定配置项导出文件，导入项目现场。`);
   lines.push('请勿直接维护，请使用导入功能，防止出现维护错误。');
   lines.push('');
-  lines.push('### 4. 新增代码表缓存配置');
+  lines.push('#### 4. 新增代码表缓存配置');
   lines.push('');
   lines.push(`[信创标准环境](${STD_ENV_URL}) → 使用demo账户登录 → 打开【代码表缓存管理】，参照代码信息进行数据维护。`);
   lines.push('');
-  if (impactRows.length > 0) {
-    lines.push('## 三、功能变更影响表');
-    lines.push('');
-    lines.push('本期开发提交涉及以下功能变更，请相关岗位工作站负责人组织测试验证。');
-    lines.push('');
-    lines.push('| 岗位工作站 | 功能模组 | 功能模块 | 需求类型 | 提交人 | 仓库 | 改造功能点 | 测试方式建议 |');
-    lines.push('|-----------|---------|---------|---------|-------|------|-----------|------------|');
-    for (const r of impactRows) {
-      lines.push(`| ${r.workstation} | ${r.funcModule} | ${r.funcPoint} | ${r.reqType} | ${r.author} | ${r.repo} | ${r.changePoint} | ${r.testSuggestion} |`);
-    }
-    lines.push('');
-  }
   return lines.join('\n');
 }
 
@@ -280,9 +253,7 @@ function buildEmailHtml(db, opts = {}) {
   const thStyle = 'border: 1px solid #d9d9d9; background: #f2f6fa; padding: 8px 10px;'
     + ' text-align: left; font-weight: bold; color: #1f4e79; white-space: nowrap;';
   const tdStyle = 'border: 1px solid #d9d9d9; padding: 8px 10px; vertical-align: top; word-break: break-all;';
-  const impactThStyle = 'border: 1px solid #d9d9d9; background: #f2f6fa; padding: 6px 8px;'
-    + ' text-align: left; font-weight: bold; color: #1f4e79; white-space: nowrap; font-size: 12px;';
-  const impactTdStyle = 'border: 1px solid #d9d9d9; padding: 6px 8px; vertical-align: top; word-break: break-all; font-size: 12px;';
+  const impactLabelStyle = 'display: inline-block; min-width: 90px; font-weight: bold; color: #555;';
 
   let tableBlock;
   if (rows.length === 0) {
@@ -332,59 +303,52 @@ function buildEmailHtml(db, opts = {}) {
     lines.push('    <p style="margin: 14px 0 0; padding: 10px 14px; background: #fff7e6; border-left: 4px solid #d48806; color: #613400;">'
       + `<strong>更正说明：</strong>${escapeHtml(opts.note)}</p>`);
   }
-  lines.push('    <p style="margin: 14px 0 18px;">本期医生站开发提交中检测到以下数据库相关变更，请相关负责人参照第二章操作说明进行处理。</p>');
+  lines.push('    <p style="margin: 14px 0 18px;">本期医生站开发提交涉及以下功能变更与数据变更。功能变更请相关岗位工作站负责人参照各条目的测试方式建议组织测试验证；数据变更请参照 2.2 操作说明进行维护。</p>');
   lines.push('    <p style="margin: 0 0 18px;"><strong>说明：</strong>当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。</p>');
   lines.push('');
-  lines.push(`    <h3 style="${h3Style}">一、变更明细</h3>`);
+  if (impactRows.length > 0) {
+    lines.push(`    <h3 style="${h3Style}">一、功能变更影响</h3>`);
+    impactRows.forEach((r, i) => {
+      lines.push(`    <h4 style="${h4Style}">${i + 1}. ${escapeHtml(r.author)} — ${escapeHtml(r.funcPoint)}</h4>`);
+      const fields = [
+        ['岗位工作站', r.workstation],
+        ...(r.funcModule && r.funcModule !== '（待确认）' ? [['功能模组', r.funcModule]] : []),
+        ['需求类型', r.reqType],
+        ['提交人', r.author],
+        ['仓库', r.repo],
+        ['改造功能点', r.changePoint]
+      ];
+      for (const [label, value] of fields) {
+        lines.push(`    <p style="margin: 2px 0 2px 16px;"><span style="${impactLabelStyle}">${label}：</span>${escapeHtml(value)}</p>`);
+      }
+      const tips = splitSuggestions(r.testSuggestion);
+      if (tips.length > 1) {
+        lines.push(`    <p style="margin: 2px 0 0 16px;"><span style="${impactLabelStyle}">测试方式建议：</span></p>`);
+        lines.push(`    <ul style="margin: 0 0 4px 16px; padding-left: 20px; list-style: disc;">`);
+        for (const t of tips) {
+          lines.push(`      <li style="margin: 2px 0; font-size: 13px;">${escapeHtml(t)}</li>`);
+        }
+        lines.push('    </ul>');
+      } else {
+        lines.push(`    <p style="margin: 2px 0 2px 16px;"><span style="${impactLabelStyle}">测试方式建议：</span>${escapeHtml(r.testSuggestion)}</p>`);
+      }
+      lines.push('');
+    });
+  }
+  lines.push(`    <h3 style="${h3Style}">二、数据变更</h3>`);
+  lines.push(`    <h4 style="${h4Style}">2.1 数据变更明细</h4>`);
   lines.push(`  ${tableBlock}`);
   lines.push('');
-  lines.push(`    <h3 style="${h3Style}">二、变更的操作说明</h3>`);
-  lines.push(`    <h4 style="${h4Style}">1. 数据库 DDL 脚本</h4>`);
+  lines.push(`    <h4 style="${h4Style}">2.2 数据变更操作说明</h4>`);
+  lines.push(`    <p style="margin: 0 0 6px; font-size: 13px; font-weight: bold; color: #333;">1. 数据库 DDL 脚本</p>`);
   lines.push(`    <p style="margin: 0 0 10px;">建议参考 <a href="${DDL_URL}" style="color: #1f4e79;">${escapeHtml(DDL_DOC_NAME)}</a> 的描述进行执行。</p>`);
-  lines.push(`    <h4 style="${h4Style}">2. 新增系统标准提醒</h4>`);
+  lines.push(`    <p style="margin: 0 0 6px; font-size: 13px; font-weight: bold; color: #333;">2. 新增系统标准提醒</p>`);
   lines.push(`    <p style="margin: 0 0 10px;"><a href="${STD_ENV_URL}" style="color: #1f4e79;">信创标准环境</a> → 使用demo账户登录 → 打开菜单【系统提示信息】，参照代码信息进行数据维护。</p>`);
-  lines.push(`    <h4 style="${h4Style}">3. 新增系统标准配置</h4>`);
+  lines.push(`    <p style="margin: 0 0 6px; font-size: 13px; font-weight: bold; color: #333;">3. 新增系统标准配置</p>`);
   lines.push(`    <p style="margin: 0 0 10px;"><a href="${STD_ENV_URL}" style="color: #1f4e79;">信创标准环境</a> → 使用demo账户登录 → 打开【系统标准配置】菜单，筛选指定配置项导出文件，导入项目现场。<br>请勿直接维护，请使用导入功能，防止出现维护错误。</p>`);
-  lines.push(`    <h4 style="${h4Style}">4. 新增代码表缓存配置</h4>`);
+  lines.push(`    <p style="margin: 0 0 6px; font-size: 13px; font-weight: bold; color: #333;">4. 新增代码表缓存配置</p>`);
   lines.push(`    <p style="margin: 0 0 10px;"><a href="${STD_ENV_URL}" style="color: #1f4e79;">信创标准环境</a> → 使用demo账户登录 → 打开【代码表缓存管理】，参照代码信息进行数据维护。</p>`);
   lines.push('');
-  if (impactRows.length > 0) {
-    lines.push(`    <h3 style="${h3Style}">三、功能变更影响表</h3>`);
-    lines.push(`    <p style="margin: 0 0 12px;">本期开发提交涉及以下功能变更，请相关岗位工作站负责人组织测试验证。</p>`);
-    const impactTrs = impactRows
-      .map((r) => `      <tr>
-        <td style="${impactTdStyle}">${escapeHtml(r.workstation)}</td>
-        <td style="${impactTdStyle}">${escapeHtml(r.funcModule)}</td>
-        <td style="${impactTdStyle}">${escapeHtml(r.funcPoint)}</td>
-        <td style="${impactTdStyle}">${escapeHtml(r.reqType)}</td>
-        <td style="${impactTdStyle}">${escapeHtml(r.author)}</td>
-        <td style="${impactTdStyle}">${escapeHtml(r.repo)}</td>
-        <td style="${impactTdStyle}">${escapeHtml(r.changePoint)}</td>
-        <td style="${impactTdStyle}">${escapeHtml(r.testSuggestion)}</td>
-      </tr>`)
-      .join('\n');
-    lines.push(`    <div style="overflow-x: auto;">`);
-    lines.push(`    <table style="border-collapse: collapse; width: 100%; font-size: 12px;">`);
-    lines.push('      <thead>');
-    lines.push('        <tr>');
-    lines.push(`          <th style="${impactThStyle}">岗位工作站</th>`);
-    lines.push(`          <th style="${impactThStyle}">功能模组</th>`);
-    lines.push(`          <th style="${impactThStyle}">功能模块</th>`);
-    lines.push(`          <th style="${impactThStyle}">需求类型</th>`);
-    lines.push(`          <th style="${impactThStyle}">提交人</th>`);
-    lines.push(`          <th style="${impactThStyle}">仓库</th>`);
-    lines.push(`          <th style="${impactThStyle}">改造功能点</th>`);
-    lines.push(`          <th style="${impactThStyle}">测试方式建议</th>`);
-    lines.push('        </tr>');
-    lines.push('      </thead>');
-    lines.push('      <tbody>');
-    lines.push(impactTrs);
-    lines.push('      </tbody>');
-    lines.push('    </table>');
-    lines.push('    </div>');
-    lines.push(`    <p style="margin: 8px 0 0; font-size: 11px; color: #999;">功能模块列基于静态映射，具体测试范围请结合实际变更确认。</p>`);
-    lines.push('');
-  }
   lines.push('    <p style="margin: 26px 0 0; padding-top: 12px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #999999;">本邮件由医生站信创产品迭代周报流程自动生成，请勿直接回复。</p>');
   lines.push('  </div>');
   lines.push('</body>');

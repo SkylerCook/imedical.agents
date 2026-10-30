@@ -56,28 +56,56 @@ def fail(msg):
 
 # ---------- 腾讯文档（收件人来源） ----------
 
+def _load_td_settings():
+    """从多个来源合并腾讯文档凭据，返回 (env_dict, source_label)"""
+    env = {}
+    for settings_path, label in [
+        (USER_SETTINGS, "user"),
+        (PROJECT_SETTINGS, "project"),
+    ]:
+        try:
+            with open(settings_path, encoding="utf-8") as f:
+                m = json.load(f).get("mcpServers", {}).get("tencent-docs", {}).get("env", {})
+            for k, v in m.items():
+                if v and k not in env:
+                    env[k] = v
+        except OSError:
+            pass
+    return env
+
+
 def load_td_env():
+    """加载直连 API 凭据（Client-Id / Open-Id / Access-Token）"""
     cid = os.environ.get("TD_CLIENT_ID")
     oid = os.environ.get("TD_OPEN_ID")
     tok = os.environ.get("TD_ACCESS_TOKEN")
     if not (cid and oid and tok):
-        try:
-            with open(USER_SETTINGS, encoding="utf-8") as f:
-                m = json.load(f).get("mcpServers", {}).get("tencent-docs", {}).get("env", {})
-            cid = cid or m.get("TD_CLIENT_ID")
-            oid = oid or m.get("TD_OPEN_ID")
-            tok = tok or m.get("TD_ACCESS_TOKEN")
-        except OSError as e:
-            log("读取 %s 失败: %s" % (USER_SETTINGS, e))
-    if not (cid and oid and tok):
-        fail("缺少腾讯文档凭据（环境变量 TD_* 或 %s 的 mcpServers['tencent-docs'].env）" % USER_SETTINGS)
-    return {
-        "Client-Id": cid,
-        "Open-Id": oid,
-        "Access-Token": tok,
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
+        env = _load_td_settings()
+        cid = cid or env.get("TD_CLIENT_ID")
+        oid = oid or env.get("TD_OPEN_ID")
+        tok = tok or env.get("TD_ACCESS_TOKEN")
+    if cid and oid and tok:
+        return {
+            "Client-Id": cid,
+            "Open-Id": oid,
+            "Access-Token": tok,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+    return None
+
+
+def load_td_mcp_env():
+    """加载 MCP HTTP 代理凭据（TD_TOKEN + TD_MCP_URL）"""
+    tok = os.environ.get("TD_TOKEN")
+    url = os.environ.get("TD_MCP_URL")
+    if not (tok and url):
+        env = _load_td_settings()
+        tok = tok or env.get("TD_TOKEN")
+        url = url or env.get("TD_MCP_URL") or "https://docs.qq.com/openapi/mcp"
+    if tok and url:
+        return {"token": tok, "url": url}
+    return None
 
 
 def td_get(path, headers):
@@ -96,6 +124,54 @@ def td_get(path, headers):
     if isinstance(data, dict) and data.get("ret") not in (None, 0):
         fail("腾讯文档接口 %s 返回 ret=%s msg=%s" % (path.split("?")[0], data.get("ret"), data.get("msg")))
     return data
+
+
+def _mcp_call(mcp_env, tool_name, arguments):
+    """通过 MCP HTTP 协议调用工具，返回 result content"""
+    session_id = None
+    # initialize
+    init_body = json.dumps({
+        "jsonrpc": "2.0", "id": 1, "method": "initialize",
+        "params": {"protocolVersion": "2024-11-05", "capabilities": {},
+                    "clientInfo": {"name": "resolve-recipients", "version": "1.0"}},
+    }).encode("utf-8")
+    req = urllib.request.Request(mcp_env["url"], data=init_body, method="POST", headers={
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+        "Authorization": mcp_env["token"],
+    })
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        session_id = resp.headers.get("mcp-session-id")
+        resp.read()
+
+    # tools/call
+    call_body = json.dumps({
+        "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+        "params": {"name": tool_name, "arguments": arguments},
+    }).encode("utf-8")
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+        "Authorization": mcp_env["token"],
+    }
+    if session_id:
+        headers["Mcp-Session-Id"] = session_id
+    req = urllib.request.Request(mcp_env["url"], data=call_body, method="POST", headers=headers)
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        raw = resp.read().decode("utf-8")
+
+    # parse SSE or JSON
+    text = raw.strip()
+    if text.startswith("event:"):
+        for line in text.split("\n"):
+            line = line.strip()
+            if line.startswith("data:"):
+                text = line[5:].strip()
+                break
+    result = json.loads(text)
+    if "error" in result:
+        fail("MCP %s 错误: %s" % (tool_name, result["error"]))
+    return result.get("result", {}).get("content", [])
 
 
 def col_letter(idx0):
@@ -162,6 +238,46 @@ def resolve_from_sheet(src, headers):
     if not out:
         fail("子表「%s」未解析到任何邮箱（emailColumn=%d）" % (target.get("title"), col))
     log("收件人来源子表「%s」（%d 行），解析 %d 个邮箱" % (target.get("title"), rows, len(out)))
+    return out
+
+
+def resolve_from_sheet_mcp(src, mcp_env):
+    """通过 MCP HTTP 协议从腾讯文档子表解析收件人邮箱"""
+    book = src["bookId"]
+    sheet_id = src.get("sheetId")
+    col = int(src.get("emailColumn", 2))
+
+    content = _mcp_call(mcp_env, "sheet.get_cell_data", {
+        "file_id": book,
+        "sheet_id": sheet_id,
+        "start_col": col,
+        "end_col": col,
+        "start_row": 0,
+        "end_row": 60,
+        "return_csv": True,
+    })
+    csv_text = ""
+    for item in content:
+        if item.get("type") == "text":
+            raw_text = item.get("text", "")
+            try:
+                parsed = json.loads(raw_text)
+                csv_text = parsed.get("csv_data", "")
+            except (json.JSONDecodeError, TypeError):
+                csv_text = raw_text
+            break
+    if not csv_text:
+        fail("MCP sheet.get_cell_data 返回空数据")
+
+    out, seen = [], set()
+    for line in csv_text.strip().split("\n"):
+        t = line.strip().strip('"')
+        if EMAIL_RE.match(t) and t.lower() not in seen:
+            seen.add(t.lower())
+            out.append(t)
+    if not out:
+        fail("MCP 子表「%s」未解析到任何邮箱（emailColumn=%d）" % (sheet_id, col))
+    log("收件人来源 MCP 子表「%s」，解析 %d 个邮箱" % (sheet_id, len(out)))
     return out
 
 
@@ -323,12 +439,63 @@ def main():
     if not cc_src:
         fail("email.ccSource 未配置")
 
-    to_list = resolve_from_sheet(rec_src, load_td_env())
-    cc_list = resolve_from_carddav(cc_src.get("groups") or ["信创-研发-医生站", "信创-研发-监督人"])
+    cached_to = email_cfg.get("recipients") or []
+    cached_cc = email_cfg.get("cc") or []
+    cached_at = email_cfg.get("recipientsResolvedAt", "N/A")
+    warnings = []
+
+    # --- 收件人：实时获取腾讯文档，失败回退缓存 ---
+    to_list = None
+    # 路径 1：直连 API（Client-Id / Open-Id / Access-Token）
+    try:
+        td_headers = load_td_env()
+        if td_headers:
+            to_list = resolve_from_sheet(rec_src, td_headers)
+            log("收件人：直连 API 获取成功（%d 个）" % len(to_list))
+    except SystemExit:
+        pass
+    # 路径 2：MCP HTTP 代理（TD_TOKEN + TD_MCP_URL）
+    if to_list is None:
+        try:
+            mcp_env = load_td_mcp_env()
+            if mcp_env:
+                to_list = resolve_from_sheet_mcp(rec_src, mcp_env)
+                log("收件人：MCP 代理获取成功（%d 个）" % len(to_list))
+        except SystemExit:
+            pass
+    if to_list is None:
+        if cached_to:
+            warnings.append("收件人：腾讯文档获取失败，沿用缓存（%d 个，解析于 %s）" % (len(cached_to), cached_at))
+            log("WARNING: %s" % warnings[-1])
+            to_list = list(cached_to)
+        else:
+            fail("收件人：腾讯文档获取失败且无缓存可用")
+
+    # --- 抄送人：实时获取 CardDAV，失败回退缓存 ---
+    cc_list = None
+    try:
+        cc_list = resolve_from_carddav(cc_src.get("groups") or ["信创-研发-医生站", "信创-研发-监督人"])
+        log("抄送人：实时获取成功（%d 个）" % len(cc_list))
+    except SystemExit:
+        pass
+    if cc_list is None:
+        if cached_cc:
+            warnings.append("抄送人：CardDAV 获取失败，沿用缓存（%d 个，解析于 %s）" % (len(cached_cc), cached_at))
+            log("WARNING: %s" % warnings[-1])
+            cc_list = list(cached_cc)
+        else:
+            fail("抄送人：CardDAV 获取失败且无缓存可用")
+
+    # --- 去重：抄送人剔除收件人 ---
     to_low = {e.lower() for e in to_list}
     cc_list = [e for e in cc_list if e.lower() not in to_low]
 
-    result = {"to": to_list, "cc": cc_list, "toCount": len(to_list), "ccCount": len(cc_list)}
+    result = {
+        "to": to_list, "cc": cc_list,
+        "toCount": len(to_list), "ccCount": len(cc_list),
+    }
+    if warnings:
+        result["warnings"] = warnings
     if not args.no_write:
         email_cfg["recipients"] = to_list
         email_cfg["cc"] = cc_list

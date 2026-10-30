@@ -65,6 +65,7 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/detect-db-changes.j
 | 优先级 | P0 全院阻断或数据错误；P1 核心流程不可用；P2 功能缺陷但有绕行方案；P3 体验优化 / 边缘场景 |
 | 提交人 | 采集结果的 author 字段（中文名） |
 | 改造内容总结 | 1-3 句：做了什么 + 改了哪里 |
+| 涉及功能范围 | 结合 diff 与文件路径，判定本次变更涉及的**具体功能点**（如「住院医嘱模板开立界面布局」「出院时间取值逻辑」「门诊排班停诊自动取消预约」）。应聚焦于**实际改动点**，避免笼统归入大功能模块（如仅改布局不应写「医嘱录入全流程」）。此字段供步骤 ④ 生成测试方式建议的依据 |
 
 工作站判定对照（同步维护于 config `workstations`）：
 
@@ -84,6 +85,26 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/detect-db-changes.j
 | 综合诊疗服务 | aggcare-mediway-boot | — |
 | 基础平台 | his、hisbase、hiscore、hiscf/hiscfsv、hisct/hisctsv 等 public 层 | base、hiscf、cf、ct |
 | 其他 | 兜底项：无法归入以上任何一项 | — |
+
+工作站与功能模组对照（数据来源：`config/it-shape-mapping.json` → `moduleToWorkstation`）：
+
+| 工作站 | 所属系统 | 功能模组 |
+|---|---|---|
+| 门诊医生站 → 门诊诊疗医师工作站 | 门诊诊疗信息系统 | 门诊诊疗医师预约、住院预约、门诊患者列表、门诊转诊、就诊登记、患者退费、完成接诊、总览&打印、草药录入、**医嘱录入**、**病历文书**、**诊断录入**、**检验检查申请**、治疗、会诊、过敏记录、检查报告、检验报告、危急值查询、公共卫生事件、病情总览、临床路径、不良事件管理、常用维护、统计查询、门诊诊疗医师首页 |
+| 住院医生站 → 住院诊疗医师工作站 | 住院诊疗信息系统 | 住院预约、草药录入、**医嘱录入**、**病历文书**、**诊断录入**、**检验检查申请**、治疗、会诊、过敏记录、检查报告、检验报告、危急值查询、公共卫生事件、病情总览、信息总览、住院患者列表、住院床位图、临床路径、住院处方打印、诊疗计划、VTE辅助评估、手术治疗、输血治疗、患者出入转、病历管理、不良事件管理、单病种管理、院感管理、常用维护、统计查询、住院诊疗医师首页 |
+| 电子医嘱 | （跨门诊/住院） | 医嘱录入（门诊+住院共用模组） |
+| 电子诊断 | （跨门诊/住院） | 诊断录入（门诊+住院共用模组） |
+| 治疗工作站 → 康复治疗科室工作站 | 康复治疗系统 | 治疗申请、治疗分诊、治疗预约、治疗执行、治疗处理、治疗站查询统计 |
+| 门诊挂号与排班 → 注册挂号工作站 | 门诊服务信息系统（注册挂号） | 注册挂号首页、门诊注册建卡、卡管理、排班维护、门诊预约、门诊挂号、预约登记查询统计 |
+| 分诊与资源分配 → 门诊分诊工作站 | 门诊分诊系统 | 分诊、分诊挂号、分诊统计查询 |
+| 临床试验药理 → 临床试验工作站 | 临床试验管理系统 | 药物临床试验管理、药物临床试验筛选及预警、临床受试者管理、临床药理项目管理、临床科研SAE、临床试验受试者登记 |
+| 患者管理 | — | （患者主索引，无独立功能模组列表） |
+| 抗菌药物管理 | — | （ma-ant 子模块，无独立功能模组列表） |
+| 模块化医生站 | — | （前端集成模块，无独立功能模组列表） |
+| 综合诊疗服务 | — | （聚合服务层，无独立功能模组列表） |
+| 基础平台 → 诊疗配置工作站 | 门诊/住院诊疗信息系统 | 基本设置、接收科室相关设置、科室功能设置、处方设置、医嘱/药学项设置、绑定医嘱设置、用法设置、诊断设置、数据处理、代码表维护与扩展、日志管理、项目化配置、安全组功能授权、组件配置、医生交班本、接口管理、检查医嘱配置 |
+
+> **说明**：「电子医嘱」「电子诊断」为跨门诊/住院的共用模组，前端有独立界面但后端分属 opcare/ipcare。「→」表示 SKILL 工作站名到 IT形态汇总 正式名称的映射。加粗模组名为邮件影响表中 `determineModule()` 关键词匹配的模组。
 
 ## 步骤 ④：评估（仅【流程修改 / 业务调整】类提交，混合式）
 
@@ -112,8 +133,14 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/detect-db-changes.j
 4. **评价描述**（1-3 句）
 5. **低星强制补充**：1-2★ 必须给出**至少一条具体问题评价**——引用文件:行号或 diff 片段，指明与业务设计冲突或遗漏之处。一条提交含**多个相互独立的问题**时，同时输出 `issueItems` 数组逐问题列出（每个元素恰对应一个问题，供步骤 ⑥ 按问题拆行登记；同一问题的对比说明保持为一个元素）
 6. **与第五章不重叠（口径排除）**：凡属「需完成新增系统标准配置登记 / 系统标准提醒维护 / 代码表缓存配置维护 / PO 表结构（DDL）执行」一类的**数据维护提醒**，已由步骤 ② 检测并在报告第五章「数据库脚本执行提醒」统一承担，**不得**作为 `specificIssue` / `issueItems` 的低星问题条目输出，也不得进入步骤 ⑥ 登记与第五章后的 QQ「低星问题」消息。仅当维护动作背后的**设计选择本身**构成冲突（例如新增开关默认值取 true 使主流程在升级瞬间被禁用）时，以该冲突事实计入问题，措辞不写「需登记/需维护」
+7. **测试方式建议**（`testSuggestion`）：基于 diff 实际改动内容与步骤 ③ 的「涉及功能范围」，给出具体的测试建议。要求：
+   - **贴合实际改动**：仅建议与本次变更直接相关的测试场景，不得笼统归入大功能模块的全流程测试（如：仅改前端布局 → 建议「验证界面布局显示正常」，不建议「医嘱录入/修改/撤销/提交全流程」；仅改注释 → 建议「确认无功能影响，代码审阅即可」）
+   - **标注最低限度**：以「【必测】」前缀标注最低限度测试项
+   - **补充关联影响**：当改动涉及上下游接口、跨仓库调用时，补充联调建议
+   - **低星追加**：1-2★ 提交追加「⚠️ 低风险提交，重点关注边界场景」
+   - 多条建议用中文分号「；」分隔
 
-评估结果落盘为同目录 `evaluations[-<label>].json`（同月多窗口期必须带 `-<label>` 后缀，避免覆盖其他窗口产物）（条目字段：hash / shortHash / subject / author / date / repo / highRiskCategory / impactScope / compliance / complianceReason / rating / evaluation / specificIssue / issueItems——1-2★ 且含多个独立问题时必填的逐问题明细数组），作为步骤 ⑥ 低星问题登记的数据源。
+评估结果落盘为同目录 `evaluations[-<label>].json`（同月多窗口期必须带 `-<label>` 后缀，避免覆盖其他窗口产物）（条目字段：hash / shortHash / subject / author / date / repo / highRiskCategory / impactScope / compliance / complianceReason / rating / evaluation / specificIssue / issueItems——1-2★ 且含多个独立问题时必填的逐问题明细数组 / testSuggestion——基于 diff 实际改动给出的具体测试方式建议），作为步骤 ⑥ 低星问题登记的数据源。
 
 ## 步骤 ⑤：归档
 
@@ -268,13 +295,13 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <out
 
 数据变更通知邮件（正文为正式排版的 HTML，另存 Markdown 存档），流程：
 
-1. 生成邮件正文：`node .agents/plugins/imedicalxc-doctor-commit-report/scripts/build-db-email.js <outputDir>/<YYYY-MM>/db-changes-<label>.json [--evaluations=<outputDir>/<YYYY-MM>/evaluations-<label>.json] [--raw-commits=<outputDir>/<YYYY-MM>/raw-commits-<label>.json]`，输出同目录 `db-change-email-<label>.md`（Markdown 存档）与 `db-change-email-<label>.html`（发送用 HTML 正文：标题 + 检测时间窗/生成时间 + 试用阶段说明（「说明：当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。」）+ 第一章变更明细表（变更类型/变更内容/变更负责人）+ 第二章固定操作说明四子章节：DDL 参考【腾讯文档】信创版HIS数据库升级脚本汇总表格、系统提示信息维护、系统标准配置导出导入、代码表缓存管理维护 + **第三章功能变更影响表**（当提供 `--evaluations` 参数时生成：岗位工作站/功能模组/功能模块/需求类型/提交人/仓库/改造功能点，基于 IT形态汇总.xlsx 映射）+ 自动生成页脚，全部内联样式）。
+1. 生成邮件正文：`node .agents/plugins/imedicalxc-doctor-commit-report/scripts/build-db-email.js <outputDir>/<YYYY-MM>/db-changes-<label>.json [--evaluations=<outputDir>/<YYYY-MM>/evaluations-<label>.json] [--raw-commits=<outputDir>/<YYYY-MM>/raw-commits-<label>.json]`，输出同目录 `db-change-email-<label>.md`（Markdown 存档）与 `db-change-email-<label>.html`（发送用 HTML 正文：标题 + 检测时间窗/生成时间 + 试用阶段说明（「说明：当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。」）+ **第一章功能变更影响**（当提供 `--evaluations` 参数时生成：子章节格式，每条提交独立展示并标注岗位工作站/功能模组/需求类型/提交人/仓库/改造功能点/测试方式建议 7 项，基于 IT形态汇总.xlsx 映射；测试方式建议取自 evaluations JSON 的 `testSuggestion` 字段——由步骤 ④ LLM 基于 diff 实际改动生成，非关键词匹配）+ **第二章数据变更**（含两个子章节：2.1 数据变更明细表（变更类型/变更内容/变更负责人）+ 2.2 数据变更操作说明四子项：DDL 参考【腾讯文档】信创版HIS数据库升级脚本汇总表格、系统提示信息维护、系统标准配置导出导入、代码表缓存管理维护）+ 自动生成页脚，全部内联样式）。
 2. 解析收件人/抄送人：`PYTHONIOENCODING=utf-8 python .agents/plugins/imedicalxc-doctor-commit-report/scripts/resolve-email-recipients.py`。
    - 收件人 = 腾讯文档【信创版HIS数据库升级脚本汇总表格】「脚本执行负责人」页签「负责人邮箱」列去重（`email.recipientSource`：bookId/sheetId/emailColumn）
    - 抄送人 = 通讯录分组「信创-研发-医生站」「信创-研发-监督人」成员邮箱去重（`email.ccSource.groups`）
-   - 脚本把结果写回 `email.recipients` / `email.cc`（含 `recipientsResolvedAt`）并输出 JSON 摘要；解析失败（如腾讯文档凭证过期、通讯录不可达）→ 输出告警，沿用 config 中上次解析结果继续发送。
+   - 脚本把结果写回 `email.recipients` / `email.cc`（含 `recipientsResolvedAt`）并输出 JSON 摘要；实时获取失败（如腾讯文档凭证过期、通讯录不可达）→ 自动回退 config 中上次解析的缓存结果继续发送，输出 JSON 的 `warnings` 数组标识哪些数据源使用了缓存，cron 执行时应将 warnings 内容输出到日志供排查。
    - 地址白名单：收件人/抄送人须已在邮箱 MCP 的 `MCP_EMAIL_SERVER_ALLOWED_RECIPIENTS`（`.qoder/settings.local.json`）内；新增执行负责人或分组调整后需同步更新白名单并重载 MCP。
-3. 通过邮箱 MCP 调用 `send_email` 工具发送：`account_name` = `email.accountName`（默认 `default`）、`recipients` = `email.recipients`（列表）、`cc` = `email.cc`（列表）、`subject` = `email.subject`（统一「信创版数据变更通知-医生站」）、`body` = 生成的 html 文件全文、`html` = `true`（HTML 渲染推送，避免客户端显示 markdown 源码）。
+3. 通过邮箱 MCP 调用 `send_email` 工具发送：`account_name` = `email.accountName`（默认 `default`）、`recipients` = `email.recipients`（列表）、`cc` = `email.cc`（列表）、`subject` = `email.subject`（统一「信创版功能及数据变更通知」）、`body` = 生成的 html 文件全文、`html` = `true`（HTML 渲染推送，避免客户端显示 markdown 源码）。
 4. 发送成功后把 `db-change-email-<label>.md` 与 `db-change-email-<label>.html` 一并提交入库（父仓库本地提交，不推送远端）。
 5. 邮箱 MCP 不可用（工具列表无 `send_email`）→ 降级用 stdio 直驱脚本发送：`PYTHONIOENCODING=utf-8 python .qoder/scripts/email-send-via-stdio.py --html <html 文件>`（等价于步骤 3：读 config 收件人/抄送、html=true；凭证运行时读取，不落盘）；仍失败 → 输出告警并继续，不影响 QQ 渠道结果。
 
