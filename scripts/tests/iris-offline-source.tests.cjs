@@ -72,7 +72,7 @@ test('manual source keeps original layout, a single Git tree and only the frozen
 });
 test('scope/baseline/artifact drift is rejected instead of widening delivery',{skip:!windows},t=>{
  const f=fixture(t);passed(framework(f,'prepare'));write(path.join(f.code,f.a),f.before.toString().replace('Quit 1','Quit 2'));
- write(f.scope,JSON.stringify({files:[f.a,f.b]}));let r=framework(f,'pack',['--scope-file',f.scope]);assert.equal(r.status,1);assert.match(r.stderr,/scope-drift/);
+ write(f.scope,JSON.stringify({files:[f.a,f.b]}));let r=framework(f,'pack',['--scope-file',f.scope]);assert.equal(r.status,1);assert.match(r.stderr,/scope-drift|source-git-baseline-scope-mismatch/);
  write(f.scope,JSON.stringify({files:[f.a]}));write(path.join(f.baseline,f.a),'tampered');r=framework(f,'pack');assert.equal(r.status,1);assert.match(r.stderr,/original-baseline-drift/);
  write(path.join(f.baseline,f.a),f.before);passed(framework(f,'pack'));write(path.join(f.output,'changes',f.a),'tampered');r=framework(f,'verify');assert.equal(r.status,1);assert.match(r.stderr,/delivery-file-drift/);
 });
@@ -107,6 +107,8 @@ test('managed XML keeps private originals and excludes objects outside the froze
  write(f.scope,JSON.stringify({files:['objects/000001.xml']}));
  const run=(mode,extra=[])=>spawnSync(process.execPath,[path.join(tools,'source-delivery.js'),'xml-'+mode,'--project-root',f.project,'--source-directory',work,'--baseline-directory',f.baseline,'--powershell',path.basename(shell),...extra],{encoding:'utf8',windowsHide:true,timeout:30000});
  const unpacked=passed(run('unpack',['--input-xml',input,'--batch-id','xml-batch','--scope-file',f.scope]));assert.equal(unpacked.count,2);
+ assert.equal(unpacked.gitBaselineReady,false);
+ git(f.code,'add','xml/task/objects');git(f.code,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','-c','core.hooksPath='+path.join(f.root,'no-hooks'),'commit','-qm','original XML');
  assert.equal(fs.existsSync(path.join(work,'package.xml')),false);assert.equal(fs.readFileSync(path.join(f.baseline,'package.xml'),'utf8'),fs.readFileSync(input,'utf8'));
  for(const name of ['000001.xml','000002.xml']){const file=path.join(work,'objects',name);write(file,fs.readFileSync(file,'utf8').replace('Quit 1','Quit 2'));}
  assert.match(git(f.code,'status','--porcelain=v1'),/xml/);
@@ -115,7 +117,7 @@ test('managed XML keeps private originals and excludes objects outside the froze
  passed(run('verify',['--out',f.output]));
  const inventory=JSON.parse(fs.readFileSync(path.join(f.baseline,'inventory.json'))),binding=Buffer.from(JSON.stringify({workspaceRoot:fs.realpathSync.native(f.project),sourceRoot:fs.realpathSync.native(f.code),gitRoot:fs.realpathSync.native(f.code)})).toString('base64');
  passed(ps('edit-export-xml.ps1',['-Mode','Verify','-WorkDirectory',work,'-BaselineDirectory',f.baseline,'-WorkspaceBinding',binding,'-OutputDirectory',f.output],true));
- write(f.scope,JSON.stringify({files:['objects/000002.xml']}));assert.match(run('verify',['--out',f.output,'--scope-file',f.scope]).stderr,/xml-scope-drift/);
+ write(f.scope,JSON.stringify({files:['objects/000002.xml']}));assert.match(run('verify',['--out',f.output,'--scope-file',f.scope]).stderr,/xml-scope-drift|source-git-baseline-scope-mismatch/);
  inventory.workspaceBindingSha256='0'.repeat(64);write(path.join(f.baseline,'inventory.json'),JSON.stringify(inventory));assert.match(run('verify',['--out',f.output]).stderr,/workspace-binding-changed/);
 });
 
@@ -126,6 +128,7 @@ test('scoped receipt source preserves unknown receipt fields and explicit partia
  const receipt={schema:'iris-standalone-baseline/v1',target:hash(source.atelierUrl+'|'+source.namespace),source,scriptHash:'fixture-script-unchanged',versionSelection:{scope:'fixture'},state:'partial',startedAt:'fixture-start',updatedAt:'fixture-end',items:[{document:'Demo.Receipt.cls',path:relative,status:'fetched',sha256:hash(bytes),bytes:bytes.length},{document:'Missing.cls',path:'src/Missing.cls',status:'failed'}]};
  const receiptFile=path.join(f.code,'baseline-state.json');write(receiptFile,JSON.stringify(receipt));const original=fs.readFileSync(receiptFile);write(f.scope,JSON.stringify({files:[relative]}));
  const run=(mode,extra=[])=>spawnSync(process.execPath,[path.join(tools,'source-delivery.js'),mode,'--project-root',f.project,'--export-directory',f.code,'--baseline-directory',f.baseline,'--powershell',path.basename(shell),...extra],{encoding:'utf8',windowsHide:true,timeout:30000});
+ git(f.code,'add',relative);git(f.code,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','-c','core.hooksPath='+path.join(f.root,'no-hooks'),'commit','-qm','receipt original');
  const args=['--scope-file',f.scope,'--batch-id','receipt-batch'];assert.match(run('prepare',args).stderr,/incomplete-export/);
  passed(run('prepare',[...args,'--allow-partial']));write(path.join(f.code,relative),'Class Demo.Receipt { /* edited */ }\n');
  passed(run('pack',['--out',f.output,'--notes-file',f.notes]));passed(run('verify',['--out',f.output]));assert.deepEqual(fs.readFileSync(receiptFile),original);
@@ -138,4 +141,48 @@ test('deleted, duplicate and escaping objects are refused',{skip:!windows},t=>{
  const f=fixture(t);write(path.join(f.original,f.b),f.before);write(path.join(f.code,f.b),f.before);write(f.scope,JSON.stringify({files:[f.a,f.b]}));assert.match(framework(f,'prepare').stderr,/duplicate-source-object/);
  write(f.scope,JSON.stringify({files:[f.a]}));passed(framework(f,'prepare'));fs.unlinkSync(path.join(f.code,f.a));assert.match(framework(f,'pack').stderr,/source-add-delete-rename-unsupported/);
  write(path.join(f.code,f.a),f.before);write(f.scope,JSON.stringify({files:['../outside.cls']}));assert.match(framework(f,'pack',['--scope-file',f.scope]).stderr,/source-scope-invalid/);
+});
+
+
+test('Git baseline requires committed originals and common ancestry',t=>{
+ const f=fixture(t),api=require(path.join(tools,'source-delivery.js'));
+ fs.mkdirSync(f.baseline,{recursive:true});
+ const state={gitRoot:f.code,source:f.code,scope:[f.a],baseline:f.baseline};
+ api.captureGitBaseline(state);const original=api.requireGitBaseline(state);
+ write(path.join(f.code,f.a),f.before.toString().replace('Quit 1','Quit 2'));
+ assert.equal(api.requireGitBaseline(state),original);
+ git(f.code,'add',f.a);git(f.code,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','-c','core.hooksPath='+path.join(f.root,'no-hooks'),'commit','-qm','business change');
+ assert.equal(api.requireGitBaseline(state),original);
+ const fresh='src/New.cls';write(path.join(f.code,fresh),'Class New {}');state.scope=[fresh];api.captureGitBaseline(state);
+ assert.throws(()=>api.requireGitBaseline(state),/baseline-untracked/);
+ write(path.join(f.code,fresh),'Class New { /* edited */ }');git(f.code,'add',fresh);git(f.code,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','-c','core.hooksPath='+path.join(f.root,'no-hooks'),'commit','-qm','wrong baseline');
+ assert.throws(()=>api.requireGitBaseline(state),/original-baseline-not-found/);
+ git(f.code,'checkout','--orphan','empty');git(f.code,'rm','-r','--cached','.');
+ assert.throws(()=>api.requireGitBaseline(state),/baseline-missing/);
+});
+
+test('managed pack blocks untracked originals without output',{skip:!windows},t=>{
+ const f=fixture(t);git(f.code,'rm','--cached',f.a);git(f.code,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid','-c','core.hooksPath='+path.join(f.root,'no-hooks'),'commit','-qm','remove tracked original');
+ assert.equal(passed(framework(f,'prepare')).gitBaselineReady,false);
+ write(path.join(f.code,f.a),f.before.toString().replace('Quit 1','Quit 2'));
+ assert.match(framework(f,'pack').stderr,/baseline-untracked/);assert.equal(fs.existsSync(f.output),false);
+});
+
+for(const format of ['CRLF','LF','BOM'])test('XML delivery preserves '+format+' and exact original rollback bytes',{skip:!windows},t=>{
+ const f=fixture(t); f.put=(name,value)=>{const file=path.join(f.root,name);write(file,value);return file;};
+ let raw='<?xml version="1.0" encoding="UTF-8"?>\r\n<Export generator="fixture">\r\n<Class name="Demo.Line"><Method name="Value"><Implementation><![CDATA[\r\n Quit 1\r\n]]></Implementation></Method></Class>\r\n</Export>\r\n';
+ if(format==='LF')raw=raw.replace(/\r\n/g,'\n');if(format==='BOM')raw='\uFEFF'+raw;
+ const input=f.put('input.xml',raw),work=path.join(f.root,'work'),output=path.join(f.root,'delivery'),notes=f.put('notes.md','Change return value.');
+ let result=ps('edit-export-xml.ps1',['-Mode','Unpack','-InputXml',input,'-WorkDirectory',work]);assert.equal(result.status,0,result.stderr);
+ const object=path.join(work,'objects/000001.xml');fs.writeFileSync(object,fs.readFileSync(object,'utf8').replace('Quit 1','Quit 2'));
+ result=ps('edit-export-xml.ps1',['-Mode','Pack','-WorkDirectory',work,'-OutputDirectory',output,'-NotesFile',notes]);assert.equal(result.status,0,result.stderr);
+ assert.deepEqual(fs.readFileSync(path.join(output,'rollback.xml')),Buffer.from(raw));
+ const changed=fs.readFileSync(path.join(output,'changes.xml'),'utf8');assert.equal(changed,raw.replace('Quit 1','Quit 2'));
+ result=ps('edit-export-xml.ps1',['-Mode','Verify','-WorkDirectory',work,'-OutputDirectory',output]);assert.equal(result.status,0,result.stderr);
+});
+
+test('managed verify rejects source changes after packaging',{skip:!windows},t=>{
+ const f=fixture(t);passed(framework(f,'prepare'));write(path.join(f.code,f.a),f.before.toString().replace('Quit 1','Quit 2'));passed(framework(f,'pack'));
+ write(path.join(f.code,f.a),f.before.toString().replace('Quit 1','Quit 3'));
+ const result=framework(f,'verify');assert.equal(result.status,1);assert.match(result.stderr,/delivery-source-drift/);
 });

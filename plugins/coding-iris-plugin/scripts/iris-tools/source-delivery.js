@@ -65,6 +65,33 @@ function preflight(options) {
   if(options['original-directory']&&within(source,path.resolve(context.workspaceRoot,options['original-directory'])))fail('manual-original-must-be-outside-editable-source');
   return {context,mode,source,gitRoot,baseline,scope,binding,output,xml};
 }
+// Capture original Git blobs only after the native helper verified/froze the input.
+function captureGitBaseline(state) {
+  const files=state.scope.map(file=>{
+    const relative=path.relative(state.gitRoot,path.join(state.source,file)).split(path.sep).join('/');
+    return {path:file,relative,blob:git(state.gitRoot,['hash-object','--path='+relative,path.join(state.source,file)])};
+  });
+  fs.writeFileSync(path.join(state.baseline,'git-baseline.json'),JSON.stringify({schema:'iris-git-baseline/v1',gitRoot:state.gitRoot,files},null,2)+'\n');
+}
+function requireGitBaseline(state) {
+  const head=git(state.gitRoot,['rev-parse','--verify','HEAD'],true);
+  if(!head)fail('source-git-baseline-missing: commit incoming originals before editing; do not commit modified files as baseline');
+  const file=path.join(state.baseline,'git-baseline.json');
+  if(!fs.existsSync(file))fail('source-git-baseline-record-missing: preserve existing work; re-establish originals in a separate task before migration');
+  const record=read(file);
+  if(record.schema!=='iris-git-baseline/v1'||!same(record.gitRoot,state.gitRoot)||JSON.stringify(record.files.map(x=>x.path))!==JSON.stringify(state.scope))fail('source-git-baseline-scope-mismatch');
+  for(const item of record.files){
+    const relative=path.relative(state.gitRoot,path.join(state.source,item.path)).split(path.sep).join('/');
+    if(relative!==item.relative||!/^[0-9a-f]{40,64}$/.test(item.blob))fail('source-git-baseline-record-invalid');
+    if(!git(state.gitRoot,['rev-parse','--verify',head+':'+relative],true))fail('source-git-baseline-untracked: '+relative);
+  }
+  const paths=record.files.map(x=>x.relative);
+  const commits=[head,...git(state.gitRoot,['log','-1000','--format=%H',head,'--',...paths]).split(/\r?\n/).filter(Boolean)];
+  for(const commit of new Set(commits)){
+    if(record.files.every(item=>git(state.gitRoot,['rev-parse','--verify',commit+':'+item.relative],true)===item.blob))return commit;
+  }
+  fail('source-git-original-baseline-not-found: no common ancestor contains the frozen originals; preserve work and commit original versions only');
+}
 function main(argv=process.argv.slice(2)) {
   if(!argv.length||argv.includes('--help')){console.log(HELP);return 0;}
   const options=parse(argv),state=preflight(options);
@@ -73,6 +100,16 @@ function main(argv=process.argv.slice(2)) {
   if(!['powershell.exe','pwsh.exe'].includes(shell))fail('source-delivery-powershell-invalid');
   const quote=value=>"'"+String(value).replace(/'/g,"''")+"'";
   const operation=options.command.replace(/^xml-/, '');
+  const gitBaselineCommit=['pack','verify'].includes(operation)?requireGitBaseline(state):null;
+  if(operation==='verify'){
+    const receipt=read(path.join(state.output,'manifest.json'));
+    const files=receipt.localEvidence?.files;
+    if(!Array.isArray(files)||JSON.stringify(files.map(x=>x.path))!==JSON.stringify(state.scope))fail('delivery-source-evidence-invalid');
+    for(const item of files){
+      const file=path.join(state.source,item.path);
+      if(!fs.existsSync(file)||crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')!==item.sha256)fail('delivery-source-drift: '+item.path);
+    }
+  }
   const parameters=['-Mode',quote(operation[0].toUpperCase()+operation.slice(1)),state.xml?'-WorkDirectory':options['source-directory']?'-SourceDirectory':'-ExportDirectory',quote(state.source),'-BaselineDirectory',quote(state.baseline),'-WorkspaceBinding',quote(Buffer.from(JSON.stringify(state.binding)).toString('base64'))];
   for(const [key,name] of [['original-directory','OriginalDirectory'],['scope-file','ScopeFile'],['notes-file','NotesFile'],['current-source-directory','CurrentSourceDirectory'],['current-export-directory','CurrentExportDirectory']])if(options[key])parameters.push('-'+name,quote(path.resolve(state.context.workspaceRoot,options[key])));
   if(options['batch-id'])parameters.push('-BatchId',quote(options['batch-id']));
@@ -82,7 +119,7 @@ function main(argv=process.argv.slice(2)) {
   if(operation==='pack'){
     const relative=state.scope.map(file=>path.relative(state.gitRoot,path.join(state.source,file)));
     const gitHead=git(state.gitRoot,['rev-parse','--verify','HEAD'],true);
-    const evidence={schema:'iris-local-delivery-evidence/v1',gitHead,
+    const evidence={gitBaselineCommit,schema:'iris-local-delivery-evidence/v1',gitHead,
       gitStatus:git(state.gitRoot,['status','--porcelain=v1','--untracked-files=all','--',...relative],false,true),
       gitDiffSha256:crypto.createHash('sha256').update(git(state.gitRoot,['diff','--no-ext-diff','--binary',...(gitHead?['HEAD']:[]),'--',...relative],false,true)).digest('hex'),
       files:state.scope.map(file=>({path:file,sha256:fs.existsSync(path.join(state.source,file))?crypto.createHash('sha256').update(fs.readFileSync(path.join(state.source,file))).digest('hex'):null})),
@@ -96,8 +133,11 @@ function main(argv=process.argv.slice(2)) {
   if(result.error||result.status!==0)fail(result.stderr.trim()||'source-delivery-helper-failed');
   const value=JSON.parse(result.stdout.replace(/^\uFEFF/,''));
   if(options.command==='xml-unpack')state.scope=read(path.join(state.baseline,'inventory.json')).scopeFiles;
-  console.log(JSON.stringify({...value,developmentMode:state.mode,gitRoot:state.gitRoot,gitHead:git(state.gitRoot,['rev-parse','--verify','HEAD'],true),gitStatus:git(state.gitRoot,['status','--porcelain=v1','--untracked-files=all','--',...state.scope.map(file=>path.relative(state.gitRoot,path.join(state.source,file)))])}));
+  if(['prepare','unpack'].includes(operation))captureGitBaseline(state);
+  let gitBaselineReady=true,gitBaselineReason=null;
+  try { requireGitBaseline(state); } catch(error) { gitBaselineReady=false;gitBaselineReason=error.message; }
+  console.log(JSON.stringify({...value,gitBaselineReady,gitBaselineReason,developmentMode:state.mode,gitRoot:state.gitRoot,gitHead:git(state.gitRoot,['rev-parse','--verify','HEAD'],true),gitStatus:git(state.gitRoot,['status','--porcelain=v1','--untracked-files=all','--',...state.scope.map(file=>path.relative(state.gitRoot,path.join(state.source,file)))])}));
   return 0;
 }
 if(require.main===module){try{process.exitCode=main();}catch(error){console.error(JSON.stringify({status:'blocked',reason:error.message}));process.exitCode=1;}}
-module.exports={main,preflight,parse};
+module.exports={main,preflight,parse,captureGitBaseline,requireGitBaseline};

@@ -1,5 +1,11 @@
 # imedical.agents 维护日志
 
+## 2026-10-31 离线 Git 基线与 XML 交付一致性
+
+- coding-iris-plugin 0.25.0→0.26.0：冻结原始 Git blob，pack/verify 检查共同祖先和已跟踪范围；verify 比对打包后的当前源码摘要。XML 保留输入换行、BOM、声明与容器空白，完整回退保留原字节；旧基线须按 owner 文档迁移，独立 PowerShell 核验不冒充框架 Git 门禁。
+- 补充实际生产者→序列化→后端字段与单位核对，以及双入口测试要求；对象 XML 是唯一编辑事实源。没有加入模型执行习惯规则。同步七个直接依赖上界和 patch 发布记录，未改变下游接口；安装更新算法和分发范围不变，未同步业务副本。
+- 验证覆盖真实 CLI 的原始基线、无 HEAD、未跟踪、新旧作用域、共同祖先、错误原始提交、源码漂移、XML 格式与回退字节；Windows PowerShell 5.1 最终 17 项通过、1 项平台跳过；PowerShell 7 主集 15 项通过、1 项跳过，追加 CRLF/LF/BOM 3 项通过；暂存组件门禁检查 11 个组件通过。便携导出测试前置 ZIP 与其他并行修改不一致，未覆盖该组或重建其产物；保留其他会话修改。
+
 ## 2026-10-30 IRIS 初始化与已部署项目自动补齐配置
 
 - framework-maintenance，基点 `2442d96`，coding-iris-plugin 0.24.3→0.24.4。复用 source-sync CLI 增加 configure：初始化默认按明确事实生成开发声明及按需禁用/pending 策略并 Check。已有 enabled 项目普通 Write 更新通过 manifest configMigrations 和 PS 薄入口复用同一 JavaScript 核心自动补缺文件，available/disabled 不处理、DryRun/Check 只读；兼容空声明保留旧模式缺省及旧计划指纹，未知模式/环境集中报告，Agent 按事实补字段，已有 JSON 字节/未知字段及恢复状态保持。私有文件忽略、跟踪与链接检查在生成前执行；显式配置前核实旧任务，不套示例环境。配置参数仅归 configure，避免在 prepare/apply 等命令静默忽略。

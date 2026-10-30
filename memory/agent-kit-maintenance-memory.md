@@ -4,6 +4,8 @@
 
 ## 当前接手
 
+- 离线交付检查原始 Git 共同基线及打包后源码漂移，XML 保留原换行/BOM；旧任务保留已有修改后按 [迁移入口](../plugins/coding-iris-plugin/references/iris-offline-development.md#git-原始基线与交付一致性)重建，模型执行习惯不纳入本次框架规则。
+
 - IRIS 初始化/重新部署默认沿 [coding-iris-init](../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)生成必要配置并 Check；已启用项目普通更新沿既有迁移自动补缺文件，保留已有字节和旧模式缺省。未知模式/环境集中确认，策略初始禁用/pending，配置、资格、before-edit 基线分开报告；旧恢复材料先核实。
 - 人工 [AI 开发离线物料](../tools/ai-dev-offline/README.md)归 tools：固定原包、CodeBuddy、安全模板、PATH及用户默认PowerShell 7自动配置；后者用所选VS Code运行时和固定JSONC库，无需另装Node，含冲突保护和私有备份／增量恢复。文件写入／Process CMD与GUI／Machine／医院验收分开；不随`.agents`分发，没有完整安装或其它配置通用导入。
 - 最近全局回看覆盖 `9a8996f..dadd6a9`（2026-10-30，48 个提交）。发现、修正、CI 快照及验证见[日志覆盖点](agent-kit-maintenance-log.md#全局回看覆盖点)；版本查 owner manifest，历史实施状态不作当前未提交结论。

@@ -129,6 +129,42 @@ function Write-NewXml($Doc, [string]$Path) {
         try { $Doc.Save($writer) } finally { $writer.Dispose() }
     } finally { $stream.Dispose() }
 }
+# Preserve the input container and newline convention; do not alter CDATA payload semantics.
+function Write-DeliveryXml($Selected, $Template, [string]$TemplatePath, [string]$Path, [bool]$Original) {
+    $selectedNodes = @(Get-Sources $Selected)
+    $allNodes = @(Get-Sources $Template)
+    if ($Original -and $selectedNodes.Count -eq $allNodes.Count -and @(Get-Projects $Template).Count -eq 0) {
+        [IO.File]::Copy($TemplatePath, $Path, $false)
+        return
+    }
+    $package = $Template.CloneNode($true)
+    $byIdentity = @{}
+    foreach ($node in $selectedNodes) { $byIdentity[(Get-Identity $node)] = $node }
+    foreach ($node in @($package.DocumentElement.ChildNodes)) {
+        if ($node.NodeType -ne [Xml.XmlNodeType]::Element) { continue }
+        if ($node.get_Name() -eq 'Project' -or -not $byIdentity.ContainsKey((Get-Identity $node))) {
+            [void]$package.DocumentElement.RemoveChild($node)
+        } else {
+            [void]$package.DocumentElement.ReplaceChild($package.ImportNode($byIdentity[(Get-Identity $node)], $true), $node)
+        }
+    }
+    $originalText = [IO.File]::ReadAllText($TemplatePath, $utf8)
+    $text = $package.OuterXml
+    if ($originalText.StartsWith('<?xml')) {
+        $declaration = [regex]::Match($originalText, '^<\?xml[^?]*\?>').Value
+        $text = [regex]::Replace($text, '^<\?xml[^?]*\?>', [Text.RegularExpressions.MatchEvaluator]{ param($m) $declaration })
+    }
+    $newline = "`n"
+    if ($originalText.Contains("`r`n")) { $newline = "`r`n" }
+    elseif ($originalText.Contains("`r")) { $newline = "`r" }
+    $text = $text.Replace("`r`n", "`n").Replace("`r", "`n").Replace("`n", $newline)
+    $bytes = $utf8.GetBytes($text)
+    $originalBytes = [IO.File]::ReadAllBytes($TemplatePath)
+    if ($originalBytes.Length -ge 3 -and $originalBytes[0] -eq 239 -and $originalBytes[1] -eq 187 -and $originalBytes[2] -eq 191) {
+        $bytes = [byte[]](@(239,187,191) + $bytes)
+    }
+    [IO.File]::WriteAllBytes($Path, $bytes)
+}
 function Remove-OwnedStage([string]$Stage, [string]$Destination) {
     if ([IO.Path]::GetDirectoryName($Stage) -ne [IO.Path]::GetDirectoryName($Destination) -or -not $Stage.StartsWith($Destination + '.') -or -not $Stage.EndsWith('.tmp')) { throw 'stage-path-invalid' }
     if (Test-Path -LiteralPath $Stage) {
@@ -275,8 +311,8 @@ if ($Mode -eq 'Unpack') {
             $stage = $output + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
             try {
                 [void][IO.Directory]::CreateDirectory($stage)
-                Write-NewXml $changes (Join-Path $stage 'changes.xml')
-                Write-NewXml $rollback (Join-Path $stage 'rollback.xml')
+                Write-DeliveryXml $changes $doc $template (Join-Path $stage 'changes.xml') $false
+                Write-DeliveryXml $rollback $doc $template (Join-Path $stage 'rollback.xml') $true
                 $lines = @('# 变更说明', '', $notes, '', '## 交付范围', '', ('- 修改对象：{0}；未修改对象：{1}。' -f $entries.Count, ($nodes.Count - $entries.Count)),
                     '- changes.xml 只含修改后的完整对象；rollback.xml 只含这些对象的原定义。', '- Project 元数据及未修改资源不进入交付。', ('- 原始 XML SHA-256：{0}' -f $templateHash), '', '## 对象摘要', '')
                 foreach ($entry in $entries) {

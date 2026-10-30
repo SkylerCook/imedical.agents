@@ -337,3 +337,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 部署配置支持 Overlay 显式 `projectEnvFallback`：模块文件优先，仅缺失时读取声明的主仓文件；具体范围、冲突停止与源码隔离规则以 [部署清单](rules/iris_deploy_checklist.md#部署配置继承) 为准，不切换项目根或生成副本。
 
 0.25.0：CLI 与原生 MCP 接入用户级会话管理，普通查询单会话复用、排队及空闲注销，不以历史批量资格 pending 一刀切阻断。已有项目通过 configMigrations 更新；保留明确禁用与旧恢复状态，自定义入口待适配。宿主重启和实际回执是验收项；见[统一会话手册](../../docs/guides/iris-managed-sessions.md)。
+
+离线交付自 0.26.0 起检查原始 Git 基线及打包后源码漂移，并保留输入 XML 换行格式；旧任务迁移见[离线开发](references/iris-offline-development.md#git-原始基线与交付一致性)。
