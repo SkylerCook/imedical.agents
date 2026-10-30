@@ -267,6 +267,10 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 这些 adapter 暂不实现；后续生成物也不是长期规则源。
 
+## 新增 xc 源目录接入状态
+
+新增 [业务理解](plugins/imedicalxc-doctor-business-understanding/AGENTS.md)与[提交周报](plugins/imedicalxc-doctor-commit-report/AGENTS.md)源目录尚缺插件 manifest、README 和发布记录，暂不作为已完成启用/依赖治理的能力。周报含文档登记、群消息及邮件发送，执行时须核对具体目标和有效授权；运行期配置外置不能证明 Git 历史已清理。接入与历史检查沿维护 backlog 推进。
+
 ## 插件概览
 
 ### bos-plugin

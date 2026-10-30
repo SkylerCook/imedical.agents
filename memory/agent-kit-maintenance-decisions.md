@@ -7,6 +7,8 @@
 - contextMode 只描述上下文范围，developmentMode 的唯一机器事实源是当前 ContextRoot/config/iris-development.json；profile 引用，不复制。缺省旧行为兼容，非法值阻断。offline 不要求连接/环境资格，缺连接不等于离线；connected 保留既有保护与授权，切换方式不释放锁或清除未知结果。
 - 离线复用编码、Review 与交付 owner，源码助手只维护 coding 插件 canonical，人工 ZIP 构建取同一份。输入原件、实际源码 Git、冻结私有快照分别保存；任务范围不扩大为其它需求，XML 不维护第二份可编辑 UDL。原生 MCP/IDE 的边界由 Agent 规则声明，机器拦截只覆盖受管入口；本地 Verify 不替代现场漂移核对、编译或验收。
 
+- IRIS 初始化默认生成必要私有配置并 Check；已启用项目普通 Write 更新只补缺文件，保留既有字节与缺省模式。配置完成、远端资格、before-edit 服务器基线分别报告；connected 项目按需分支先同步并提交变化的 export 基线再修改，不能以本地文件存在替代同步。细节统一归 coding owner。
+
 ## BOS 个人配置与分发
 
 - 默认个人查询是便捷入口，不是 BOS 只读能力的边界；同一适配层支持上游已声明参数，显式口径与默认值分别表达，参数支持与真实服务验收分别取证。字段契约与调用迁移由 bos-plugin 的 usage 维护。

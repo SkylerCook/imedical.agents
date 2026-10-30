@@ -257,7 +257,13 @@ Agent 应展示该技能的用途、常用参数、输入要求和调用示例�
 
 IRIS 连接事实按项目约定使用被忽略的 `.mcp.json`；BOS 使用 `BOS_MCP_CONFIG` 指向的仓外私有配置。不要将真实连接信息粘贴到共享手册或能力包中。具体来源与检查方式见[连接信息查看与排查](connection-configuration.md)。
 
-## 7. 需要更多细节时
+## 7. 项目开发与提交的补充分支
+
+connected、project 且采用按需导出上下文时，待修改文件即使已在本地，也先按[项目开发协议](../../plugins/coding-iris-plugin/references/project-demand-development.md)完成 before-edit 同步；基线有变化先按有效授权提交 export，再开始修改。配置 Check、远端资格、服务器基线分别核实，offline 仍沿离线材料流程。
+
+项目暂时没有需求号时，可显式请求 `$demand-commit --plan --no-id` 预览，获得本地提交授权后用 `$demand-commit --commit --no-id`。该分支只适用于 project，缺编号不会自动采用，standard 仍要求编号；push 和 BOS 写入各核对有效授权。详见[demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md)。
+
+## 8. 需要更多细节时
 
 | 目的 | 文档 |
 |---|---|

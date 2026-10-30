@@ -6,12 +6,14 @@
 
 - IRIS 初始化/重新部署默认沿 [coding-iris-init](../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)生成必要配置并 Check；已启用项目普通更新沿既有迁移自动补缺文件，保留已有字节和旧模式缺省。未知模式/环境集中确认，策略初始禁用/pending，配置、资格、before-edit 基线分开报告；旧恢复材料先核实。
 - 人工 [AI 开发离线物料](../tools/ai-dev-offline/README.md)归 tools：固定原包、CodeBuddy、安全模板、PATH及用户默认PowerShell 7自动配置；后者用所选VS Code运行时和固定JSONC库，无需另装Node，含冲突保护和私有备份／增量恢复。文件写入／Process CMD与GUI／Machine／医院验收分开；不随`.agents`分发，没有完整安装或其它配置通用导入。
-- 最近全局回看覆盖 `c233704..9a8996f`（2026-10-28，8 个提交）。发现、修正、CI 快照及验证见[日志覆盖点](agent-kit-maintenance-log.md#全局回看覆盖点)；版本查 owner manifest，历史实施状态不作当前未提交结论。
+- 最近全局回看覆盖 `9a8996f..dadd6a9`（2026-10-30，48 个提交）。发现、修正、CI 快照及验证见[日志覆盖点](agent-kit-maintenance-log.md#全局回看覆盖点)；版本查 owner manifest，历史实施状态不作当前未提交结论。
 - IRIS 帮助先于模式与业务前置；实际开发先按独立 developmentMode 分流，再选择在线项目同步或[离线交付](../plugins/coding-iris-plugin/references/iris-offline-development.md)。在线项目按需分支的待修改文件，无论本地是否存在，先同步、有变化先提交 export，再开始修改；普通导出直写会指向 source-sync。源码助手唯一实现归 coding owner，人工 ZIP 取同一核心；框架绑定批次/范围与源码 Git，原包私有保存，旧任务原位恢复。当前打包限 Windows，本地 Verify 与现场验收分别报告。
 - Overlay 实体 SourceRoot 见 [runbook](../docs/workspace-overlay.md#sourceroot引用已有源码或持有本地源码)：path/target 相同声明实体目录，旧 Junction 保持。先更新共享 capability 再按项目授权接入；物理等价路径不扩大源码范围，不自动初始化 Git 或迁移源码。
 - 夜跑准备先基础探测、原预算内补齐适配与用例、定向复验，再详细 PLAN；逐用例认证/写入副作用及缺口读[项目适配](../docs/night-acceptance.md#逐需求预检与补齐)。局部通过与共享资源退出分别核验，旧 run 和已确认降级保持。
 - XML／基线、目录受管说明、Git/BOS 解耦和部署有限恢复按下表读取 owner；类源、目录检查、Git 推送均保留各自完成边界。源仓实现不代表业务副本已部署。
 - 未完成的真实试点、资源资格、旧入口迁移和跨平台结果沿[治理队列](agent-kit-maintenance-backlog.md#治理优先级与执行顺序)原 P0–P3 顺序推进；源仓维护不自动更新业务工程或执行服务器操作。
+
+新增 xc 业务理解/提交周报目录尚待 manifest、发布与依赖治理；外部登记/发送与私有配置历史检查见 backlog，目录存在不作为可安装结论。团队日常入口见[使用手册](../docs/guides/usage-manual.md)。
 
 ## 按任务读取
 
