@@ -3,6 +3,16 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const {createTempDirectory,ownsTempDirectory}=require('./fixtures/temp-directory');
 const {serve}=require('../iris-session-host');
 const {connect}=require('../lib/iris-session-ipc');
+
+test('session uncertainty crosses IPC without leaking remote exception details',async t=>{
+  const root=createTempDirectory('iris-session-ipc-');
+  const host=await serve({root,describe:p=>({...p,pool:'same-instance',identity:'same-user',effects:'read-only'}),
+    open:async()=>({call:async()=>{throw Object.assign(new Error('private response'),{code:'atelier-session-identity-unverified',sessionUncertain:true,beforeSend:false,writeOutcome:'unknown',cookie:'private-cookie'});},close:async()=>({cleanupVerified:false})})});
+  const client=await connect({root,start:false});
+  t.after(async()=>{client.close();await host.stop();if(ownsTempDirectory(root))fs.rmSync(root,{recursive:true});});
+  await assert.rejects(client.request('call',{}),error=>error.sessionUncertain===true && error.beforeSend===false && error.writeOutcome==='unknown' && error.cookie===undefined && !error.message.includes('private'));
+  await assert.rejects(client.request('call',{}),error=>error.beforeSend===true && error.code==='session-identity-unverified');
+});
 test('Unix socket paths fit macOS limits and reject overlong UTF-8 roots before writing', {skip:process.platform==='win32'},()=>{
   const {location}=require('../lib/iris-session-ipc');
   const root='/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/Codex/iris-session-routing-jjCz5S/ipc';

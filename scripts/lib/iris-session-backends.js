@@ -67,7 +67,7 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
   }
   // Credentials are resolved here, in the user's process, never sent in CLI arguments or receipts.
   return {context, connection, env, backend, policy, pool: policy?.allowSharedPool === true ? policy.poolKey : instance,
-    identity: hash([instance, Object.fromEntries(Object.entries(env).sort(([a],[b])=>a.localeCompare(b))), connection.rejectUnauthorized, runtimeIdentity, effectiveArgs, env.IRIS_NAMESPACE])};
+    identity: hash([instance, Object.fromEntries(Object.entries(env).sort(([a],[b])=>a.localeCompare(b))), connection.rejectUnauthorized, runtimeIdentity, effectiveArgs, env.IRIS_NAMESPACE, policy?.sessionCookieFormat ?? 'opaque'])};
 }
 async function open(operation) {
   const d = describe(operation.projectRoot, operation.serverName);
@@ -76,19 +76,23 @@ async function open(operation) {
     ? remote.createRemoteOperation({policy:d.policy,connection:d.connection,channel:operation.channel}) : null;
   try {owner?.acquire();} catch(error) {error.beforeSend=true;throw error;}
   if (operation.channel === 'atelier') {
-    const client = require('./atelier-client').createAtelierClient({connection: operation.connection, context: d.context, managedHost:true,owner:owner || undefined});
+    const client = require('./atelier-client').createAtelierClient({connection: operation.connection, context: d.context, managedHost:true,owner:owner || undefined,sessionCookieFormat:d.policy?.sessionCookieFormat});
     return {call: op => {if(describe(op.projectRoot,op.serverName).identity!==d.identity)throw failure('session-configuration-changed');return client.request(...op.args);}, close: async () => {const exit=await client.close();return owner?owner.close(exit):exit;}};
   }
   const inherited=Object.fromEntries(Object.keys(process.env).filter(key=>key.startsWith('IRIS_')).map(key=>[key,undefined]));
-  const client = new mcp.JsonLineMcpClient(d.backend.command, d.backend.args, {...inherited,...d.env, IRIS_MANAGED_NO_RETRIES:'1'}, {cwd: d.context.workspaceRoot});
+  const client = new mcp.JsonLineMcpClient(d.backend.command, d.backend.args, {...inherited,...d.env, IRIS_MANAGED_NO_RETRIES:'1', IRIS_SESSION_COOKIE_FORMAT:d.policy?.sessionCookieFormat ?? 'opaque'}, {cwd: d.context.workspaceRoot});
+  const assertSession = () => {
+    if (client.stderr.includes('IMEDICAL_SESSION_STOP=identity-unverified')) throw Object.assign(failure('session-identity-unverified',false),{sessionUncertain:true,writeOutcome:'unknown'});
+  };
   try {
     await client.request('initialize', {protocolVersion: '2024-11-05', capabilities: {}, clientInfo: {name: 'imedical-session-manager', version: '1.0.0'}});
     client.notify('notifications/initialized', {});
     const check = mcp.extractToolText(await client.request('tools/call', {name: 'check_config', arguments: {}}));
     const stopped=client.stderr.match(/IMEDICAL_HTTP_STOP=(401|403|503)/);
     if(stopped)throw Object.assign(failure(stopped[1]==='503'?'session-service-unavailable':'session-authentication-failed',false),{status:Number(stopped[1])});
+    assertSession();
     if (check.connected !== true || String(check.host).toLowerCase() !== d.connection.hostname.toLowerCase() || Number(check.port) !== d.connection.port || check.namespace !== d.env.IRIS_NAMESPACE) throw failure('session-backend-target-mismatch');
-  } catch(e) {const exit=await client.close(); owner?.close({cleanupVerified:exit.processExited && exit.gracefulExit}); throw e;}
+  } catch(e) {const exit=await client.close(); owner?.close({cleanupVerified:exit.processExited && exit.gracefulExit && exit.logout?.completed===true && exit.logout.attempted===exit.logout.acknowledged && !client.stderr.includes('IMEDICAL_SESSION_STOP=')}); throw e;}
   return {
     async call(op) {
       // Re-read local authorization/configuration at dispatch, including queued requests.
@@ -102,7 +106,9 @@ async function open(operation) {
       if(params.name==='kb' && params.arguments?.path)params.arguments.path=path.resolve(current.context.workspaceRoot,params.arguments.path);
       if (params.arguments?.namespace && params.arguments.namespace !== d.env.IRIS_NAMESPACE) throw failure('session-namespace-mismatch');
       const execute = async () => {
+      assertSession();
       const result = await client.request(op.method, params, op.timeoutMs || 60000);
+      assertSession();
       if (result.error || result.result?.isError) {
         const unavailable = /(?:HTTP\s*503|503\s+Service Unavailable|"(?:httpStatus|statusCode)"\s*:\s*503)/i.test(JSON.stringify(result));
         if (unavailable) throw Object.assign(failure('session-service-unavailable', false), {status: 503});
@@ -117,7 +123,7 @@ async function open(operation) {
     },
     async close() {
       const receipt = await client.close();
-      const logoutAcknowledged = receipt.logout?.completed === true && receipt.logout.attempted === receipt.logout.acknowledged;
+      const logoutAcknowledged = receipt.logout?.completed === true && receipt.logout.attempted === receipt.logout.acknowledged && !client.stderr.includes('IMEDICAL_SESSION_STOP=');
       const exit = {...receipt, logoutAcknowledged, cleanupVerified: receipt.processExited && receipt.gracefulExit && logoutAcknowledged,
         serverSessionGoneVerified:false,licenseReleaseVerified: false};
       if(!exit.cleanupVerified)owner?.markUnknown('mcp-process-exit-unverified');

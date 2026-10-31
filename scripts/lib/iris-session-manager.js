@@ -100,6 +100,7 @@ class SessionManager {
     } catch (error) {
       if (error.status === 503) p.blocked = 'session-service-unavailable';
       else if (error.status === 401 || error.status === 403) p.blocked = 'session-authentication-failed';
+      else if (error.sessionUncertain === true) p.blocked = 'session-identity-unverified';
       else if (error.beforeSend !== true && (!p.session || item.operation.effects === 'write' || item.cancelled)) p.blocked ||= 'session-outcome-unverified';
       if (p.blocked) await this.closeSession(p);
       item.reject(error);

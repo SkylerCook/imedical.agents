@@ -1,0 +1,57 @@
+name: IRIS vendor candidate build
+on:
+  workflow_dispatch:
+  push:
+    branches: ['codex/iris-cookie-*']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: framework
+      - uses: actions/checkout@v4
+        with:
+          repository: intersystems-community/iris-agentic-dev
+          ref: 2b3e017b7fc73d6370fc1e89e7fa03f3de49a1a1
+          path: upstream
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Apply fixed patches
+        shell: pwsh
+        run: |
+          git -C upstream config core.autocrlf false
+          git -C upstream checkout-index -f -a
+          foreach ($name in @('managed-sessions-v1.patch', 'session-identity-v2.patch')) {
+            $source = Join-Path $env:GITHUB_WORKSPACE "framework/vendor/iris-agentic-dev/patches/$name"
+            $target = Join-Path $env:RUNNER_TEMP $name
+            [IO.File]::WriteAllText($target, [IO.File]::ReadAllText($source).Replace("`r`n", "`n"), [Text.UTF8Encoding]::new($false))
+            git -C upstream apply --check $target
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git -C upstream apply $target
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Build fixed Rust version
+        working-directory: upstream
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.92.0 --profile minimal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo +1.92.0 build --locked --release -p iris-agentic-dev --bin iris-agentic-dev
+          exit $LASTEXITCODE
+      - name: Verify actual binary against localhost
+        working-directory: framework
+        shell: pwsh
+        run: |
+          $env:IRIS_TEST_VENDOR_BINARY = Join-Path $env:GITHUB_WORKSPACE 'upstream/target/release/iris-agentic-dev.exe'
+          node --test scripts/tests/iris-session-vendor.tests.js
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iris-vendor-candidate-windows-x64
+          path: upstream/target/release/iris-agentic-dev.exe
+          retention-days: 7

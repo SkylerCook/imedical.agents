@@ -36,6 +36,17 @@ test('503 sends once and rejects queued work without opening another connection'
   assert.deepEqual(f.events, ['open:first','first','close']);
   await assert.rejects(f.call('third'), /session-service-unavailable/);
 });
+test('uncertain session identity blocks queued reads even after acknowledged logout', async t => {
+  const f = fixture(t); let release;
+  const wait = new Promise(resolve => {release = resolve;});
+  const first = f.call('first', {operation: {label: 'first', effects: 'read-only', wait,
+    error: Object.assign(new Error('cookie changed'), {sessionUncertain: true, beforeSend: false})}});
+  const second = f.call('second'); const results = Promise.allSettled([first, second]); release();
+  assert.deepEqual((await results).map(x => x.status), ['rejected', 'rejected']);
+  assert.deepEqual(f.events, ['open:first', 'first', 'close']);
+  await assert.rejects(f.call('third'), /session-identity-unverified/);
+});
+
 test('cancelled queue item is never sent and queue timeout is before-send', async t => {
   const f = fixture(t); let release; const wait = new Promise(resolve => {release = resolve;});
   const first = f.call('first', {operation: {label: 'first', wait}});

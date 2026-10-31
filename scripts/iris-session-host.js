@@ -45,7 +45,11 @@ async function serve({root, open = backends.open, describe = backends.operation,
         return manager.submit({pool: op.pool, identity: op.identity, client, operation: op, signal: ctrl.signal,
           lease: op.params?.name === 'iris_ws_open', releaseLease: op.params?.name === 'iris_ws_close'});
       })().then(result => {if (!socket.destroyed) socket.write(JSON.stringify({id: value.id, result}) + '\n');}, error => {
-        if (!socket.destroyed) socket.write(JSON.stringify({id: value.id, error: {code: /^[a-z0-9-]+$/.test(error.code || '') ? error.code : 'session-operation-failed', beforeSend: error.beforeSend === true}}) + '\n');
+        if (!socket.destroyed) socket.write(JSON.stringify({id: value.id, error: {
+          code: /^[a-z0-9-]+$/.test(error.code || '') ? error.code : 'session-operation-failed', beforeSend: error.beforeSend === true,
+          ...(error.sessionUncertain === true ? {sessionUncertain:true} : {}),
+          ...(['unknown','rejected'].includes(error.writeOutcome) ? {writeOutcome:error.writeOutcome} : {})
+        }}) + '\n');
       }).finally(() => {requests.delete(value.id); lastActive = Date.now();});
     });
   });
