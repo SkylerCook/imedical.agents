@@ -103,6 +103,8 @@ BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调
 
 ## coding-iris-plugin
 
+IRIS 远端连接统一入口：[会话管理、既有项目更新与回退](iris-managed-sessions.md)。普通查询正常连接，由管理进程复用和回收；真实宿主回执与服务端资源证据分别验收。
+
 开发方式由当前 ContextRoot 的 `config/iris-development.json` 独立选择，profile 只引用。offline 路由[统一离线协议](../../plugins/coding-iris-plugin/references/iris-offline-development.md)：支持回执源码、人工目录和完整 XML，经冻结基线、本地修改/检查、Review、Pack 与独立 Verify 后交用户现场验证。connected 保留既有服务器同步与发布保护；普通更新不切换方式。源码/XML 薄入口与 PowerShell 核心随插件分发，人工导出仍单独取得 ZIP。
 
 IRIS 前后端开发、知识查询、XML 包、代码基线与部署，支持可选 DEV→PRD 需求移植。connected 下，`iris-code-baseline` 负责版本范围和初始当前源码采集；`project`＋`intent-first-on-demand-export` 的开发同步、现场保护及复审统一见[项目开发协议](../../plugins/coding-iris-plugin/references/project-demand-development.md)，由 source-sync.js 对已有或缺失的待修改文件先同步、有变化先提交，再开始修改。通用提交归 demand-delivery-plugin，标版补录归 bos-plugin。详见[插件说明](../../plugins/coding-iris-plugin/README.md)和[manifest](../../plugins/coding-iris-plugin/.agents-plugin/plugin.json)；[使用示例](capability-guide.md#coding-iris-plugin)。
@@ -383,5 +385,3 @@ IRIS CSP＋HISUI 对公司UI规范的落地适配，正式依赖 imedical-ui；�
 无插件依赖。初始化：[mobile-dev-init](../../plugins/mobile-dev/skills/mobile-dev-init/SKILL.md)；日常：[mobile-dev](../../plugins/mobile-dev/skills/mobile-dev/SKILL.md)；规则：[mobile_dev](../../plugins/mobile-dev/rules/mobile_dev.md)。覆盖 Android 开发、构建和日志优先排障。
 
 建仓与现场交接：[mobile-project-repo](../../plugins/mobile-dev/skills/mobile-project-repo/SKILL.md)。
-
-IRIS 远端连接统一入口：[会话管理、既有项目更新与回退](iris-managed-sessions.md)。普通查询正常连接，由管理进程复用和回收；真实宿主回执与服务端资源证据分别验收。

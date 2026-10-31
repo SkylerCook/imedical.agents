@@ -26,6 +26,8 @@
 | 可重复验收、空闲会话保活与资源收尾 | [测试运行时](testing-runtime.md) |
 | 旧根级技能的插件归属迁移 | [迁移说明](skill-plugin-migration.md) |
 | 查询知识与刷新菜单 | [知识接入](guides/imedical-knowledge.md) |
+| IRIS CLI/原生 MCP 接入、排队回收、升级与回退 | [统一会话](guides/iris-managed-sessions.md) |
+| Android 开发、日志排障与现场建仓交接 | [mobile-dev](../plugins/mobile-dev/README.md) |
 | 接入医生站 AI 插件 | [医生站 AI](guides/iris-imedical-doctor-ai.md) |
 | 按 UI 标注改造 HISUI 页面、排查布局与主题兼容 | [IRIS UI](../plugins/iris-ui/README.md) |
 | 公司 UI 共性规范、IHOS 海蓝/PURE 天蓝、截图或浏览器评审 | [iMedical UI](../plugins/imedical-ui/README.md) |
@@ -57,5 +59,3 @@
 - [需求场景验收](../plugins/bos-plugin/references/scenarios.md)：自动检查和真实宿主证据的边界。
 
 需求交付拆分与兼容更新见 [需求交付迁移](demand-delivery-migration.md)：新入口 demand-commit / bos-demand-entry，旧 IRIS 入口已删除，更新器定向迁移项目引用并接入缺失 owner；显式状态冲突阻断，旧数据格式保留。
-
-- [IRIS 统一会话](guides/iris-managed-sessions.md)：CLI/原生 MCP 接入、排队回收、项目升级与定向回退。
