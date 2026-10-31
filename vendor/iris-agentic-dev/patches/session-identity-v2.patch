@@ -1,7 +1,8 @@
 diff --git a/crates/iris-agentic-dev-core/src/benchmark/container.rs b/crates/iris-agentic-dev-core/src/benchmark/container.rs
+index bb1eaaf..ab2fb36 100644
 --- a/crates/iris-agentic-dev-core/src/benchmark/container.rs
 +++ b/crates/iris-agentic-dev-core/src/benchmark/container.rs
-@@ -42,7 +42,7 @@
+@@ -42,7 +42,7 @@ pub async fn write_and_compile(
          .put(&put_url)
          .basic_auth(&iris.username, Some(&iris.password))
          .json(&serde_json::json!({"enc": false, "content": lines}))
@@ -10,16 +11,17 @@ diff --git a/crates/iris-agentic-dev-core/src/benchmark/container.rs b/crates/ir
          .await?;
      if !put_resp.status().is_success() {
          anyhow::bail!("PUT {doc_name} returned HTTP {}", put_resp.status());
-@@ -194,3 +194,5 @@
+@@ -194,3 +194,5 @@ mod tests {
          assert!(detail.contains("no result"));
      }
  }
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/generate.rs b/crates/iris-agentic-dev-core/src/generate.rs
+index 7862b1d..a8f2923 100644
 --- a/crates/iris-agentic-dev-core/src/generate.rs
 +++ b/crates/iris-agentic-dev-core/src/generate.rs
-@@ -152,7 +152,7 @@
+@@ -152,7 +152,7 @@ impl LlmClient {
                          content: user.to_string(),
                      }],
                  })
@@ -28,7 +30,7 @@ diff --git a/crates/iris-agentic-dev-core/src/generate.rs b/crates/iris-agentic-
                  .await
                  .context("Anthropic API request failed")?;
 
-@@ -192,7 +192,7 @@
+@@ -192,7 +192,7 @@ impl LlmClient {
                      },
                  ],
              })
@@ -37,7 +39,7 @@ diff --git a/crates/iris-agentic-dev-core/src/generate.rs b/crates/iris-agentic-
              .await
              .context("OpenAI API request failed")?;
 
-@@ -248,7 +248,7 @@
+@@ -248,7 +248,7 @@ impl LlmClient {
                          content: user.to_string(),
                      }],
                  })
@@ -46,7 +48,7 @@ diff --git a/crates/iris-agentic-dev-core/src/generate.rs b/crates/iris-agentic-
                  .await
                  .context("Anthropic API request failed")?;
 
-@@ -293,7 +293,7 @@
+@@ -293,7 +293,7 @@ impl LlmClient {
                      },
                  ],
              })
@@ -55,16 +57,17 @@ diff --git a/crates/iris-agentic-dev-core/src/generate.rs b/crates/iris-agentic-
              .await
              .context("OpenAI API request failed")?;
 
-@@ -559,3 +559,5 @@
+@@ -559,3 +559,5 @@ mod tests {
          assert!(usage.is_none());
      }
  }
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/iris/connection.rs b/crates/iris-agentic-dev-core/src/iris/connection.rs
+index 9043777..9bcd034 100644
 --- a/crates/iris-agentic-dev-core/src/iris/connection.rs
 +++ b/crates/iris-agentic-dev-core/src/iris/connection.rs
-@@ -192,7 +192,7 @@
+@@ -192,7 +192,7 @@ pub fn iris_http_client(
      insecure: bool,
      cookie_store: bool,
  ) -> anyhow::Result<reqwest::Client> {
@@ -73,7 +76,7 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/connection.rs b/crates/iris-a
          .user_agent(user_agent(caller_mode()))
          .danger_accept_invalid_certs(insecure)
          .tcp_keepalive(std::time::Duration::from_secs(20));
-@@ -451,7 +451,7 @@
+@@ -451,7 +451,7 @@ impl IrisConnection {
          if let Ok(resp) = client
              .get(&url)
              .basic_auth(&self.username, Some(&self.password))
@@ -82,7 +85,7 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/connection.rs b/crates/iris-a
              .await
          {
              let status = resp.status();
-@@ -498,7 +498,7 @@
+@@ -498,7 +498,7 @@ impl IrisConnection {
              .json(&serde_json::json!({
                  "query": "SELECT Value FROM %Library.Global_Get('%SYS', '^%SYS(\"SystemMode\")')"
              }))
@@ -91,7 +94,7 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/connection.rs b/crates/iris-a
              .await;
          let mode = match resp {
              Ok(r) => {
-@@ -651,7 +651,7 @@
+@@ -651,7 +651,7 @@ impl IrisConnection {
              .header(reqwest::header::USER_AGENT, &ua)
              .basic_auth(&self.username, Some(&self.password))
              .json(&serde_json::json!({"enc": false, "content": content}))
@@ -100,7 +103,7 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/connection.rs b/crates/iris-a
              .await?;
          if !put_resp.status().is_success() {
              scratch.disarm();
-@@ -665,7 +665,7 @@
+@@ -665,7 +665,7 @@ impl IrisConnection {
              .header(reqwest::header::USER_AGENT, &ua)
              .basic_auth(&self.username, Some(&self.password))
              .json(&serde_json::json!([doc_name]))
@@ -109,7 +112,7 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/connection.rs b/crates/iris-a
              .await;
          // The PUT stored the class, so every exit from here on removes it.
          let compile_resp = match compile_resp {
-@@ -705,7 +705,7 @@
+@@ -705,7 +705,7 @@ impl IrisConnection {
              .header(reqwest::header::USER_AGENT, &ua)
              .basic_auth(&self.username, Some(&self.password))
              .json(&serde_json::json!({"query": sql}))
@@ -118,7 +121,7 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/connection.rs b/crates/iris-a
              .await;
          // The class is compiled by now, so a failed send must still remove it before returning.
          let query_resp = match query_resp {
-@@ -825,7 +825,7 @@
+@@ -825,7 +825,7 @@ impl IrisConnection {
          let resp = client
              .delete(&url)
              .basic_auth(&self.username, Some(&self.password))
@@ -127,7 +130,7 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/connection.rs b/crates/iris-a
              .await?;
          if !resp.status().is_success() {
              anyhow::bail!("DELETE {doc_name} failed: HTTP {}", resp.status());
-@@ -951,7 +951,7 @@
+@@ -951,7 +951,7 @@ impl IrisConnection {
              .post(&url)
              .basic_auth(&self.username, Some(&self.password))
              .json(&serde_json::json!({"query": sql, "parameters": params}))
@@ -136,7 +139,7 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/connection.rs b/crates/iris-a
              .await?;
          // Check status before decoding: on auth failure IRIS/WebGateway returns an HTML
          // challenge page, not JSON. Decoding that first turned every 401/403 into a
-@@ -999,7 +999,7 @@
+@@ -999,7 +999,7 @@ impl IrisConnection {
              .post(&compile_url)
              .basic_auth(&self.username, Some(&self.password))
              .json(&serde_json::json!([doc_name]))
@@ -145,7 +148,7 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/connection.rs b/crates/iris-a
              .await?;
          if !resp.status().is_success() {
              anyhow::bail!("compile HTTP {}", resp.status());
-@@ -1037,7 +1037,7 @@
+@@ -1037,7 +1037,7 @@ impl IrisConnection {
      /// Short-timeout client used only for the startup probe — fail fast rather than hanging.
      pub fn probe_client() -> anyhow::Result<reqwest::Client> {
          let insecure = tls_insecure_from_env();
@@ -154,7 +157,7 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/connection.rs b/crates/iris-a
              .user_agent(user_agent(caller_mode()))
              .connect_timeout(std::time::Duration::from_secs(5))
              .timeout(std::time::Duration::from_secs(10))
-@@ -1050,7 +1050,7 @@
+@@ -1050,7 +1050,7 @@ impl IrisConnection {
      pub fn http_client() -> anyhow::Result<reqwest::Client> {
          // IRIS_INSECURE=true or IRIS_TLS_VERIFY=false both disable TLS cert validation.
          let insecure = tls_insecure_from_env();
@@ -163,7 +166,7 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/connection.rs b/crates/iris-a
              // Identifies agent traffic in Web Gateway / IIS / Apache access logs and to
              // `%request.CgiEnvs("HTTP_USER_AGENT")`. Without it IRIS sees an empty
              // User-Agent and an operator has nothing to filter on.
-@@ -1296,7 +1296,7 @@
+@@ -1296,7 +1296,7 @@ impl Drop for ScratchGuard {
                      .delete(&url)
                      .basic_auth(&user, Some(&pass))
                      .timeout(std::time::Duration::from_secs(5))
@@ -172,41 +175,40 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/connection.rs b/crates/iris-a
                      .await;
                  match sent {
                      Ok(r) if r.status().is_success() || r.status() == 404 => {}
-@@ -2142,3 +2142,5 @@
+@@ -2142,3 +2142,5 @@ mod additional_tests {
          assert!(!classify_error_as_retryable("   "));
      }
  }
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/iris/csp_session.rs b/crates/iris-agentic-dev-core/src/iris/csp_session.rs
+index addb2af..97fbe64 100644
 --- a/crates/iris-agentic-dev-core/src/iris/csp_session.rs
 +++ b/crates/iris-agentic-dev-core/src/iris/csp_session.rs
-@@ -44,6 +44,7 @@
+@@ -43,7 +43,8 @@ impl CspSessionStore {
+             .collect()
      }
 
-     fn record(&self, header: &HeaderValue, url: &Url) {
+-    fn record(&self, header: &HeaderValue, url: &Url) {
++    fn record(&self, header: &HeaderValue, url: &Url) {
 +        if std::env::var("IRIS_MANAGED_NO_RETRIES").as_deref()==Ok("1") {validate_scope(header,url);}
          let Ok(text) = header.to_str() else { return };
          let mut parts = text.split(';').map(str::trim);
          // `split` always yields one item, so a header with no name reads as an empty name.
-@@ -104,31 +105,137 @@
+@@ -103,32 +104,138 @@ pub fn shared_cookie_store() -> Arc<CspSessionStore> {
+ ///
  /// Runs on a thread of its own with its own runtime, so it can be called from `main` after the
  /// runtime has returned and from `crate::exit` inside a tokio task alike.
- pub fn logout_blocking(timeout: Duration) {
+-pub fn logout_blocking(timeout: Duration) {
 -    let urls = SHARED.logout_urls();
 -    let attempted = urls.len();
-     let managed = std::env::var("IRIS_MANAGED_NO_RETRIES").as_deref() == Ok("1");
+-    let managed = std::env::var("IRIS_MANAGED_NO_RETRIES").as_deref() == Ok("1");
 -    if urls.is_empty() {
 -        if managed { eprintln!("IMEDICAL_LOGOUT={{\"attempted\":0,\"acknowledged\":0,\"completed\":true}}"); }
 -        return;
 -    }
 -    let (done_tx, done_rx) = std::sync::mpsc::channel();
-+    let targets: Vec<(String,Option<HeaderValue>)> = if managed {
-+        MANAGED_LOGOUT.lock().unwrap().values().flat_map(|items|items.iter().cloned().map(|(u,c)|(u,Some(c)))).collect()
-+    } else {SHARED.logout_urls().into_iter().map(|u|(u,None)).collect()};
-+    let attempted=targets.len();
-+    let (done_tx,done_rx)=std::sync::mpsc::channel();
-     std::thread::spawn(move || {
+-    std::thread::spawn(move || {
 -        let Ok(rt) = tokio::runtime::Builder::new_current_thread().enable_all().build() else { return; };
 -        let acknowledged = rt.block_on(async {
 -            let Ok(client) = reqwest::Client::builder()
@@ -217,6 +219,23 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/csp_session.rs b/crates/iris-
 -            futures_util::future::join_all(sends).await.into_iter().filter(|r|
 -                r.as_ref().map(|response| response.status().is_success() || response.status().as_u16() == 401).unwrap_or(false)
 -            ).count()
+-        });
+-        let _ = done_tx.send(acknowledged);
+-    });
+-    let result = done_rx.recv_timeout(timeout);
+-    if managed {
+-        eprintln!("IMEDICAL_LOGOUT={{\"attempted\":{},\"acknowledged\":{},\"completed\":{}}}",
+-            attempted, result.as_ref().copied().unwrap_or(0), result.is_ok());
+-    }
+-}
++pub fn logout_blocking(timeout: Duration) {
++    let managed = std::env::var("IRIS_MANAGED_NO_RETRIES").as_deref() == Ok("1");
++    let targets: Vec<(String,Option<HeaderValue>)> = if managed {
++        MANAGED_LOGOUT.lock().unwrap().values().flat_map(|items|items.iter().cloned().map(|(u,c)|(u,Some(c)))).collect()
++    } else {SHARED.logout_urls().into_iter().map(|u|(u,None)).collect()};
++    let attempted=targets.len();
++    let (done_tx,done_rx)=std::sync::mpsc::channel();
++    std::thread::spawn(move || {
 +        let Ok(rt)=tokio::runtime::Builder::new_current_thread().enable_all().build() else {return;};
 +        let acknowledged=rt.block_on(async {
 +            let builder=reqwest::Client::builder().user_agent(super::connection::user_agent(super::connection::caller_mode()))
@@ -237,16 +256,9 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/csp_session.rs b/crates/iris-
 +                }
 +            }
 +            acknowledged
-         });
--        let _ = done_tx.send(acknowledged);
++        });
 +        let _=done_tx.send(acknowledged);
-     });
--    let result = done_rx.recv_timeout(timeout);
--    if managed {
--        eprintln!("IMEDICAL_LOGOUT={{\"attempted\":{},\"acknowledged\":{},\"completed\":{}}}",
--            attempted, result.as_ref().copied().unwrap_or(0), result.is_ok());
--    }
--}
++    });
 +    let result=done_rx.recv_timeout(timeout);
 +    if managed {eprintln!("IMEDICAL_LOGOUT={{\"attempted\":{},\"acknowledged\":{},\"completed\":{}}}",attempted,result.as_ref().copied().unwrap_or(0),result.is_ok()&&!MANAGED_UNCERTAIN.load(std::sync::atomic::Ordering::SeqCst));}
 +}
@@ -350,10 +362,13 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/csp_session.rs b/crates/iris-
 +    let mut known=MANAGED_SCOPES.lock().unwrap();
 +    if known.get(&key).is_some_and(|old|old!=&scope){let _=managed_error();return;}
 +    known.insert(key,scope);
-+}diff --git a/crates/iris-agentic-dev-core/src/iris/discovery.rs b/crates/iris-agentic-dev-core/src/iris/discovery.rs
++}
+\ No newline at end of file
+diff --git a/crates/iris-agentic-dev-core/src/iris/discovery.rs b/crates/iris-agentic-dev-core/src/iris/discovery.rs
+index c5ef7e1..9639e12 100644
 --- a/crates/iris-agentic-dev-core/src/iris/discovery.rs
 +++ b/crates/iris-agentic-dev-core/src/iris/discovery.rs
-@@ -68,7 +68,7 @@
+@@ -68,7 +68,7 @@ pub async fn probe_atelier_with_client(
      let resp = client
          .get(format!("{}/api/atelier/", base_url))
          .basic_auth(username, Some(password))
@@ -362,7 +377,7 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/csp_session.rs b/crates/iris-
          .await
          .ok()?;
 
-@@ -429,7 +429,7 @@
+@@ -429,7 +429,7 @@ async fn probe_atelier_for_container(
      let resp = match client
          .get(&url)
          .basic_auth(username, Some(password))
@@ -371,16 +386,17 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/csp_session.rs b/crates/iris-
          .await
      {
          Ok(r) => r,
-@@ -832,3 +832,5 @@
+@@ -832,3 +832,5 @@ mod tests {
          assert_eq!(score, 90);
      }
  }
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/iris/ws_session.rs b/crates/iris-agentic-dev-core/src/iris/ws_session.rs
+index 5567aca..c50a49b 100644
 --- a/crates/iris-agentic-dev-core/src/iris/ws_session.rs
 +++ b/crates/iris-agentic-dev-core/src/iris/ws_session.rs
-@@ -156,8 +156,8 @@
+@@ -156,8 +156,8 @@ impl WsSessionPool {
              .map_err(|e| McpError::internal_error(format!("invalid WS URL: {e}"), None))?;
          let request = ClientRequestBuilder::new(uri)
              .with_header("Cookie", &cookie_string)
@@ -390,7 +406,7 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/ws_session.rs b/crates/iris-a
 
          let (ws_stream, _response) = connect_async(request).await.map_err(|e| {
              let msg = e.to_string();
-@@ -368,14 +368,15 @@
+@@ -368,14 +368,15 @@ async fn get_csp_session_cookie(conn: &IrisConnection) -> Result<String, McpErro
      // Via the shared resolver: this copy read only IRIS_INSECURE, so IRIS_TLS_VERIFY=false could
      // not get a websocket its own cookie fetch (#127).
      let insecure = crate::iris::connection::tls_insecure_from_env();
@@ -408,7 +424,7 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/ws_session.rs b/crates/iris-a
          .await
          .map_err(|e| {
              McpError::internal_error(
-@@ -384,6 +385,11 @@
+@@ -384,6 +385,11 @@ async fn get_csp_session_cookie(conn: &IrisConnection) -> Result<String, McpErro
              )
          })?;
 
@@ -420,16 +436,17 @@ diff --git a/crates/iris-agentic-dev-core/src/iris/ws_session.rs b/crates/iris-a
      // Collect all Set-Cookie values into "k=v; k2=v2" format.
      let cookies: Vec<String> = resp
          .headers()
-@@ -729,3 +735,5 @@
+@@ -729,3 +735,5 @@ mod tests {
          );
      }
  }
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/manifest/resolve.rs b/crates/iris-agentic-dev-core/src/manifest/resolve.rs
+index 0bee032..47f460c 100644
 --- a/crates/iris-agentic-dev-core/src/manifest/resolve.rs
 +++ b/crates/iris-agentic-dev-core/src/manifest/resolve.rs
-@@ -205,7 +205,7 @@
+@@ -205,7 +205,7 @@ pub async fn resolve_github_version_async(
          .user_agent("iris-agentic-dev/resolver")
          .build()?;
 
@@ -438,16 +455,17 @@ diff --git a/crates/iris-agentic-dev-core/src/manifest/resolve.rs b/crates/iris-
      if resp.status() == reqwest::StatusCode::NOT_FOUND {
          anyhow::bail!("GitHub repo {}/{} not found", owner, repo);
      }
-@@ -967,3 +967,5 @@
+@@ -967,3 +967,5 @@ skills = []
          assert!(result.is_err());
      }
  }
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/skill_install/mod.rs b/crates/iris-agentic-dev-core/src/skill_install/mod.rs
+index 07d2689..ab60032 100644
 --- a/crates/iris-agentic-dev-core/src/skill_install/mod.rs
 +++ b/crates/iris-agentic-dev-core/src/skill_install/mod.rs
-@@ -344,7 +344,7 @@
+@@ -344,7 +344,7 @@ impl SkillPackInstaller {
  }
 
  async fn fetch_text(url: &str, client: &reqwest::Client) -> Result<String> {
@@ -456,16 +474,17 @@ diff --git a/crates/iris-agentic-dev-core/src/skill_install/mod.rs b/crates/iris
      if !resp.status().is_success() {
          anyhow::bail!("HTTP {} fetching {}", resp.status(), url);
      }
-@@ -361,3 +361,5 @@
+@@ -361,3 +361,5 @@ struct TomlProvides {
      #[serde(default)]
      skills: Vec<String>,
  }
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/skills/mod.rs b/crates/iris-agentic-dev-core/src/skills/mod.rs
+index a7c4068..969c045 100644
 --- a/crates/iris-agentic-dev-core/src/skills/mod.rs
 +++ b/crates/iris-agentic-dev-core/src/skills/mod.rs
-@@ -160,7 +160,7 @@
+@@ -160,7 +160,7 @@ struct TomlProvides {
  }
 
  async fn fetch_text(url: &str, client: &Client) -> Result<String> {
@@ -474,16 +493,17 @@ diff --git a/crates/iris-agentic-dev-core/src/skills/mod.rs b/crates/iris-agenti
      if !resp.status().is_success() {
          anyhow::bail!("HTTP {} fetching {}", resp.status(), url);
      }
-@@ -316,3 +316,5 @@
+@@ -316,3 +316,5 @@ kb_items = ["kb/item1.md"]
          assert!(manifest.provides.is_none());
      }
  }
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/tools/admin_tools.rs b/crates/iris-agentic-dev-core/src/tools/admin_tools.rs
+index 2bbe98e..5edc853 100644
 --- a/crates/iris-agentic-dev-core/src/tools/admin_tools.rs
 +++ b/crates/iris-agentic-dev-core/src/tools/admin_tools.rs
-@@ -248,7 +248,7 @@
+@@ -248,7 +248,7 @@ pub async fn iris_namespace_list_impl(
      match client
          .get(&url)
          .basic_auth(&iris.username, Some(&iris.password))
@@ -492,16 +512,17 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/admin_tools.rs b/crates/iris
          .await
      {
          Ok(resp) if resp.status().is_success() => {
-@@ -2524,3 +2524,5 @@
+@@ -2524,3 +2524,5 @@ mod tests {
      // test a guard that no longer exists at this layer while saying nothing about the eight tools
      // that never had one.
  }
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/tools/comparison_tools.rs b/crates/iris-agentic-dev-core/src/tools/comparison_tools.rs
+index ed5888d..1b9435f 100644
 --- a/crates/iris-agentic-dev-core/src/tools/comparison_tools.rs
 +++ b/crates/iris-agentic-dev-core/src/tools/comparison_tools.rs
-@@ -45,7 +45,7 @@
+@@ -45,7 +45,7 @@ pub async fn fetch_document_source(
      let resp = client
          .get(&url)
          .basic_auth(&iris.username, Some(&iris.password))
@@ -510,7 +531,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/comparison_tools.rs b/crates
          .await
          .map_err(|e| format!("HTTP error fetching {document}: {e}"))?;
      if !resp.status().is_success() {
-@@ -84,7 +84,7 @@
+@@ -84,7 +84,7 @@ pub async fn fetch_class_list(
      let resp = client
          .get(&url)
          .basic_auth(&iris.username, Some(&iris.password))
@@ -519,16 +540,17 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/comparison_tools.rs b/crates
          .await
          .map_err(|e| format!("HTTP error fetching class list: {e}"))?;
      if !resp.status().is_success() {
-@@ -285,3 +285,5 @@
+@@ -285,3 +285,5 @@ mod tests {
          assert!(d.is_empty() || !d.contains('-'));
      }
  }
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/tools/doc.rs b/crates/iris-agentic-dev-core/src/tools/doc.rs
+index ae8d227..c021705 100644
 --- a/crates/iris-agentic-dev-core/src/tools/doc.rs
 +++ b/crates/iris-agentic-dev-core/src/tools/doc.rs
-@@ -393,7 +393,7 @@
+@@ -393,7 +393,7 @@ async fn handle_get(
                  let result = c
                      .get(&url)
                      .basic_auth(&username, Some(&password))
@@ -537,7 +559,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/doc.rs b/crates/iris-agentic
                      .await;
                  (name, result)
              });
-@@ -429,7 +429,7 @@
+@@ -429,7 +429,7 @@ async fn handle_get(
      let resp = client
          .get(&url)
          .basic_auth(&iris.username, Some(&iris.password))
@@ -546,7 +568,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/doc.rs b/crates/iris-agentic
          .await
          .map_err(|e| rmcp::ErrorData::internal_error(format!("HTTP error: {e}"), None))?;
 
-@@ -677,7 +677,7 @@
+@@ -677,7 +677,7 @@ pub(crate) async fn fetch_doc_content(
      let resp = client
          .get(&url)
          .basic_auth(&iris.username, Some(&iris.password))
@@ -555,7 +577,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/doc.rs b/crates/iris-agentic
          .await
          .ok()?;
      if !resp.status().is_success() {
-@@ -839,7 +839,7 @@
+@@ -839,7 +839,7 @@ async fn do_write(
          .put(&url)
          .basic_auth(&iris.username, Some(&iris.password))
          .json(&serde_json::json!({"enc": false, "content": lines}))
@@ -564,7 +586,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/doc.rs b/crates/iris-agentic
          .await
          .map_err(|e| rmcp::ErrorData::internal_error(format!("HTTP error: {e}"), None))?;
 
-@@ -871,7 +871,7 @@
+@@ -871,7 +871,7 @@ async fn do_write(
              .post(&compile_url)
              .basic_auth(&iris.username, Some(&iris.password))
              .json(&serde_json::json!([name]))
@@ -573,7 +595,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/doc.rs b/crates/iris-agentic
              .await;
 
          let (compile_ok, compile_errors, compile_console) = match compile_resp {
-@@ -955,7 +955,7 @@
+@@ -955,7 +955,7 @@ async fn handle_delete(
              match client
                  .delete(&url)
                  .basic_auth(&iris.username, Some(&iris.password))
@@ -582,7 +604,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/doc.rs b/crates/iris-agentic
                  .await
              {
                  Ok(r) if r.status().is_success() => {
-@@ -991,7 +991,7 @@
+@@ -991,7 +991,7 @@ async fn handle_delete(
      let resp = client
          .delete(&url)
          .basic_auth(&iris.username, Some(&iris.password))
@@ -591,7 +613,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/doc.rs b/crates/iris-agentic
          .await
          .map_err(|e| rmcp::ErrorData::internal_error(format!("HTTP error: {e}"), None))?;
 
-@@ -1033,7 +1033,7 @@
+@@ -1033,7 +1033,7 @@ async fn handle_head(
      let resp = client
          .head(&url)
          .basic_auth(&iris.username, Some(&iris.password))
@@ -600,7 +622,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/doc.rs b/crates/iris-agentic
          .await
          .map_err(|e| rmcp::ErrorData::internal_error(format!("HTTP error: {e}"), None))?;
 
-@@ -1226,7 +1226,7 @@
+@@ -1226,7 +1226,7 @@ async fn fetch_doc_lines(
      let resp = match client
          .get(&url)
          .basic_auth(&iris.username, Some(&iris.password))
@@ -609,7 +631,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/doc.rs b/crates/iris-agentic
          .await
      {
          Ok(r) => r,
-@@ -1542,7 +1542,7 @@
+@@ -1542,7 +1542,7 @@ async fn handle_fragment(
      let resp = client
          .get(&url)
          .basic_auth(&iris.username, Some(&iris.password))
@@ -618,7 +640,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/doc.rs b/crates/iris-agentic
          .await
          .map_err(|e| rmcp::ErrorData::internal_error(format!("HTTP error: {e}"), None))?;
 
-@@ -1750,7 +1750,7 @@
+@@ -1750,7 +1750,7 @@ async fn fetch_docnames_for_cat(
      let resp = client
          .get(&url)
          .basic_auth(&iris.username, Some(&iris.password))
@@ -627,16 +649,17 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/doc.rs b/crates/iris-agentic
          .await
          .map_err(|e| format!("HTTP error: {e}"))?;
 
-@@ -3251,3 +3251,5 @@
+@@ -3251,3 +3251,5 @@ Storage Default
          assert_eq!(v["lines_added"], 2);
      }
  }
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/tools/doc_search.rs b/crates/iris-agentic-dev-core/src/tools/doc_search.rs
+index c6270d4..b8ee22f 100644
 --- a/crates/iris-agentic-dev-core/src/tools/doc_search.rs
 +++ b/crates/iris-agentic-dev-core/src/tools/doc_search.rs
-@@ -107,7 +107,7 @@
+@@ -107,7 +107,7 @@ pub async fn handle_iris_doc_search(client: &reqwest::Client, p: &IrisDocSearchP
          .header("X-Algolia-API-Key", ALGOLIA_SEARCH_KEY)
          .header("Content-Type", "application/json")
          .json(&body)
@@ -645,16 +668,17 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/doc_search.rs b/crates/iris-
          .await;
 
      match result {
-@@ -144,3 +144,5 @@
+@@ -144,3 +144,5 @@ pub async fn handle_iris_doc_search(client: &reqwest::Client, p: &IrisDocSearchP
          }
      }
  }
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/tools/info.rs b/crates/iris-agentic-dev-core/src/tools/info.rs
+index 9150737..91780d5 100644
 --- a/crates/iris-agentic-dev-core/src/tools/info.rs
 +++ b/crates/iris-agentic-dev-core/src/tools/info.rs
-@@ -206,7 +206,7 @@
+@@ -206,7 +206,7 @@ pub async fn handle_iris_info(
          let resp = client
              .get(&url)
              .basic_auth(&iris.username, Some(&iris.password))
@@ -663,7 +687,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/info.rs b/crates/iris-agenti
              .await
              .map_err(|e| rmcp::ErrorData::internal_error(format!("HTTP error: {e}"), None))?;
          if p.what != "sa_schema" || resp.status() != reqwest::StatusCode::ACCEPTED {
-@@ -460,7 +460,7 @@
+@@ -460,7 +460,7 @@ async fn macro_get(
      let resp = client
          .get(url)
          .basic_auth(&iris.username, Some(&iris.password))
@@ -672,7 +696,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/info.rs b/crates/iris-agenti
          .await
          .map_err(|e| format!("HTTP error: {e}"))?;
      let status = resp.status();
-@@ -484,7 +484,7 @@
+@@ -484,7 +484,7 @@ async fn macro_post(
          .post(url)
          .basic_auth(&iris.username, Some(&iris.password))
          .json(body)
@@ -681,7 +705,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/info.rs b/crates/iris-agenti
          .await
          .map_err(|e| format!("HTTP error: {e}"))?;
      let status = resp.status();
-@@ -791,7 +791,7 @@
+@@ -791,7 +791,7 @@ pub async fn handle_iris_generate(
                  .post(&query_url)
                  .basic_auth(&iris.username, Some(&iris.password))
                  .json(&serde_json::json!({"query": sql}))
@@ -690,7 +714,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/info.rs b/crates/iris-agenti
                  .await
                  .map_err(|e| rmcp::ErrorData::internal_error(format!("HTTP error: {e}"), None))?;
              let body: serde_json::Value = resp.json().await.unwrap_or_default();
-@@ -832,7 +832,7 @@
+@@ -832,7 +832,7 @@ pub async fn handle_iris_generate(
                  .post(&query_url)
                  .basic_auth(&iris.username, Some(&iris.password))
                  .json(&serde_json::json!({"query": sql}))
@@ -699,16 +723,17 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/info.rs b/crates/iris-agenti
                  .await
                  .map_err(|e| rmcp::ErrorData::internal_error(format!("HTTP error: {e}"), None))?;
              let body: serde_json::Value = resp.json().await.unwrap_or_default();
-@@ -1173,3 +1173,5 @@
+@@ -1173,3 +1173,5 @@ mod tests {
          assert!(r.is_err());
      }
  }
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/tools/interop.rs b/crates/iris-agentic-dev-core/src/tools/interop.rs
+index 8081cc3..0d7ac17 100644
 --- a/crates/iris-agentic-dev-core/src/tools/interop.rs
 +++ b/crates/iris-agentic-dev-core/src/tools/interop.rs
-@@ -2328,7 +2328,7 @@
+@@ -2328,7 +2328,7 @@ If $System.Status.IsError(sc)||('isInSC) {{ Write "NO_SCM" }} Else {{ Write "IN_
      let committed_items: Vec<(String, String, bool)> = match client
          .get(&doc_url)
          .basic_auth(&iris.username, Some(&iris.password))
@@ -717,16 +742,17 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/interop.rs b/crates/iris-age
          .await
      {
          Ok(resp) if resp.status().is_success() => {
-@@ -3561,3 +3561,5 @@
+@@ -3561,3 +3561,5 @@ mod tests {
          assert_eq!(v["array"].as_array().unwrap().len(), 3);
      }
  }
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/tools/mod.rs b/crates/iris-agentic-dev-core/src/tools/mod.rs
+index 3632979..e093205 100644
 --- a/crates/iris-agentic-dev-core/src/tools/mod.rs
 +++ b/crates/iris-agentic-dev-core/src/tools/mod.rs
-@@ -1874,7 +1874,7 @@
+@@ -1874,7 +1874,7 @@ async fn iris_query_explain(
          .post(&query_url)
          .basic_auth(&iris.username, Some(&iris.password))
          .json(&serde_json::json!({"query": explain_sql}))
@@ -735,7 +761,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/mod.rs b/crates/iris-agentic
          .await
          .map_err(|e| McpError::internal_error(format!("HTTP error: {e}"), None))?;
 
-@@ -1939,7 +1939,7 @@
+@@ -1939,7 +1939,7 @@ async fn iris_query_count(
          .post(&query_url)
          .basic_auth(&iris.username, Some(&iris.password))
          .json(&serde_json::json!({"query": count_sql}))
@@ -744,7 +770,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/mod.rs b/crates/iris-agentic
          .await
          .map_err(|e| McpError::internal_error(format!("HTTP error: {e}"), None))?;
 
-@@ -3707,7 +3707,7 @@
+@@ -3707,7 +3707,7 @@ impl IrisTools {
                      .put(&put_url)
                      .basic_auth(&iris.username, Some(&iris.password))
                      .json(&serde_json::json!({"enc": false, "content": lines}))
@@ -753,7 +779,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/mod.rs b/crates/iris-agentic
                      .await
                      .map_err(|e| McpError::internal_error(format!("Upload failed: {e}"), None))?;
                  if !put_resp.status().is_success() {
-@@ -3774,7 +3774,7 @@
+@@ -3774,7 +3774,7 @@ impl IrisTools {
              match client
                  .get(&list_url)
                  .basic_auth(&iris.username, Some(&iris.password))
@@ -762,7 +788,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/mod.rs b/crates/iris-agentic
                  .await
              {
                  Ok(resp) if resp.status().is_success() => {
-@@ -3843,7 +3843,7 @@
+@@ -3843,7 +3843,7 @@ impl IrisTools {
              .post(&compile_url)
              .basic_auth(&iris.username, Some(&iris.password))
              .json(&targets_with_ext)
@@ -771,7 +797,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/mod.rs b/crates/iris-agentic
              .await
              .map_err(|e| McpError::internal_error(format!("HTTP error: {e}"), None))?;
 
-@@ -4994,7 +4994,7 @@
+@@ -4994,7 +4994,7 @@ impl IrisTools {
              .post(&query_url)
              .basic_auth(&iris.username, Some(&iris.password))
              .json(&serde_json::json!({"query": p.query, "parameters": p.parameters}))
@@ -780,7 +806,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/mod.rs b/crates/iris-agentic
              .await
              .map_err(|e| McpError::internal_error(format!("HTTP error: {e}"), None))?;
 
-@@ -8515,7 +8515,7 @@
+@@ -8515,7 +8515,7 @@ Methods:
              .client
              .get(&url)
              .basic_auth(&conn.username, Some(&conn.password))
@@ -789,16 +815,17 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/mod.rs b/crates/iris-agentic
              .await
          {
              Err(e) => ok_json(serde_json::json!({
-@@ -11697,3 +11697,5 @@
+@@ -11697,3 +11697,5 @@ impl IrisTools {
          Err(format!("unknown tool: {tool}"))
      }
  }
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/tools/search.rs b/crates/iris-agentic-dev-core/src/tools/search.rs
+index 5c2b79c..571c1ed 100644
 --- a/crates/iris-agentic-dev-core/src/tools/search.rs
 +++ b/crates/iris-agentic-dev-core/src/tools/search.rs
-@@ -117,7 +117,7 @@
+@@ -117,7 +117,7 @@ pub async fn handle_iris_search(
      let sync_result = sync_client
          .get(&sync_url)
          .basic_auth(&iris.username, Some(&iris.password))
@@ -807,7 +834,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/search.rs b/crates/iris-agen
          .await;
 
      match sync_result {
-@@ -149,7 +149,7 @@
+@@ -149,7 +149,7 @@ pub async fn handle_iris_search(
                  .post(&post_url)
                  .basic_auth(&iris.username, Some(&iris.password))
                  .json(&post_body)
@@ -816,7 +843,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/search.rs b/crates/iris-agen
                  .await
                  .map_err(|e| {
                      rmcp::ErrorData::internal_error(format!("Search request failed: {e}"), None)
-@@ -198,7 +198,7 @@
+@@ -198,7 +198,7 @@ async fn poll_async_search(
          let resp = client
              .get(&poll_url)
              .basic_auth(&iris.username, Some(&iris.password))
@@ -825,16 +852,17 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/search.rs b/crates/iris-agen
              .await;
 
          match resp {
-@@ -671,3 +671,5 @@
+@@ -671,3 +671,5 @@ mod tests {
          assert_eq!(v["results"][0]["content"], "oldstyle");
      }
  }
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/tools/server_tools.rs b/crates/iris-agentic-dev-core/src/tools/server_tools.rs
+index 13e7ef8..0679b81 100644
 --- a/crates/iris-agentic-dev-core/src/tools/server_tools.rs
 +++ b/crates/iris-agentic-dev-core/src/tools/server_tools.rs
-@@ -149,7 +149,7 @@
+@@ -149,7 +149,7 @@ pub async fn probe_base_url(
 
      let result = tokio::time::timeout(
          std::time::Duration::from_secs(5),
@@ -843,7 +871,7 @@ diff --git a/crates/iris-agentic-dev-core/src/tools/server_tools.rs b/crates/iri
      )
      .await;
 
-@@ -354,3 +354,5 @@
+@@ -354,3 +354,5 @@ mod tests {
          );
      }
  }
