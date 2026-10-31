@@ -11,7 +11,7 @@
 .NOTES
 只需 Windows PowerShell 5.1；脚本可单独拷贝。连接地址、namespace 和凭据在运行时输入。
 AtelierUrl 为已启用 Atelier 应用的根 URL（以 /api/atelier/ 结尾），可含网关前缀。
-只串行 GET 源码和 HEAD 退出会话，不上传、编译或提交。使用系统证书校验，无外网请求。
+默认单会话 GET 源码和 HEAD 退出会话；显式多会话最多 10 个，不上传、编译或提交。使用系统证书校验，无外网请求。
 首次输出目录必须不存在。中断后原参数加 -Resume；本地已保存文件摘要变化时停止。
 先用 -MaxFilesPerRun 1 验证落盘，再用新进程 -Resume 继续。退出码 0 完整、2 部分、1 阻断。
 #>
@@ -26,9 +26,14 @@ param(
     [PSCredential]$Credential,
     [ValidateSet('CLS', 'MAC', 'INC', 'INT', 'CSP')][string[]]$Type = @('CLS', 'MAC', 'INC', 'INT', 'CSP'),
     [string]$Prefix = '',
-    [ValidateRange(100, 60000)][int]$IntervalMs = 200,
+    [ValidateRange(50, 60000)][int]$IntervalMs = 200,
     [ValidateRange(1, 600)][int]$TimeoutSec = 30,
     [ValidateRange(1, 2147483647)][int]$MaxFilesPerRun = 2147483647,
+    [ValidateRange(1, 10)][int]$Sessions = 1,
+    [switch]$SessionTrial,
+    [switch]$ConfirmedSessionBudget,
+    [string]$CancelFile,
+    [hashtable]$SessionContext,
     [switch]$PlanOnly,
     [switch]$Resume
 )
@@ -117,11 +122,12 @@ function Close-SessionSnapshot($Snapshot) {
         $result.responseReceived = $true; $result.httpStatus = [int]$exitResponse.StatusCode
         $result.accepted = (($result.httpStatus -ge 200 -and $result.httpStatus -lt 300) -or $result.httpStatus -eq 401)
         if (-not $result.accepted) { $result.reason = 'atelier-logout-http-' + $result.httpStatus }
-    } catch { $result.reason = 'atelier-logout-transport-or-timeout'; $result.diagnostic = Get-TransportDiagnostic $_.Exception }
+    } catch { $result.reason = 'atelier-logout-transport-or-timeout'; $result.diagnostic = & $diagnosticCallback $_.Exception }
     finally { if ($exitResponse) { $exitResponse.Dispose() }; if ($exitRequest) { $exitRequest.Dispose() }; if ($exitClient) { $exitClient.Dispose() }; if ($exitHandler) { $exitHandler.Dispose() } }
     return [pscustomobject]$result
 }
 
+$diagnosticCallback = ${function:Get-TransportDiagnostic}
 try {
     if ($env:OS -ne 'Windows_NT') { throw 'windows-powershell-required' }
     $inputFile = $Baseline
@@ -199,6 +205,9 @@ try {
     }
     if ($Resume -and (Test-Path -LiteralPath (Join-Path $root '.baseline'))) { throw 'development-baseline-exists-do-not-resume' }
     if (-not $items.Count) { throw 'no-code-selected' }
+    if ($Sessions -gt 1 -and -not $SessionTrial -and -not $ConfirmedSessionBudget) { throw 'multi-session-budget-confirmation-required' }
+    if ($SessionTrial) { $MaxFilesPerRun = $Sessions }
+    if ($CancelFile) { $CancelFile = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($CancelFile); Assert-PlainPath $CancelFile }
     if (-not $AtelierUrl) { $AtelierUrl = Read-Host 'Atelier root URL (ending /api/atelier/)' }
     if (-not $Namespace) { $Namespace = Read-Host 'Namespace' }
     $uri = [uri]($AtelierUrl.TrimEnd('/') + '/')
@@ -265,47 +274,72 @@ try {
         if (-not $Credential) { $Credential = Get-Credential -Message 'IRIS read access (kept in memory only)' }
         if (-not $Credential) { throw 'credential-required' }
         Add-Type -AssemblyName System.Net.Http
-        $handler = New-Object Net.Http.HttpClientHandler
-        $handler.AllowAutoRedirect = $false
-        $handler.UseProxy = $false
-        $handler.UseCookies = $true
-        $handler.CookieContainer = New-Object Net.CookieContainer
-        $client = New-Object Net.Http.HttpClient($handler)
-        $client.Timeout = [TimeSpan]::FromSeconds($TimeoutSec)
-        $client.MaxResponseContentBufferSize = 16777216
+        $identity = Hash-Bytes ($utf8.GetBytes($uri.AbsoluteUri + '|' + $Namespace + '|' + $Credential.UserName + '|' + $Credential.GetNetworkCredential().Password + '|' + $Sessions + '|' + $scriptHash))
+        if ($SessionContext -and $SessionContext.workers -and $SessionContext.identity -cne $identity) { throw 'retained-session-identity-changed-close-first' }
+        $workers = @()
+        if ($SessionContext -and $SessionContext.workers) { $workers = $SessionContext.workers }
+        for ($w = $workers.Count; $w -lt $Sessions; $w++) {
+            $handler = New-Object Net.Http.HttpClientHandler
+            $handler.AllowAutoRedirect = $false; $handler.UseProxy = $false; $handler.UseCookies = $true
+            $handler.CookieContainer = New-Object Net.CookieContainer
+            $client = New-Object Net.Http.HttpClient($handler)
+            $client.Timeout = [TimeSpan]::FromSeconds($TimeoutSec); $client.MaxResponseContentBufferSize = 16777216
+            $workers += [pscustomobject]@{handler=$handler;client=$client;identity=$null;task=$null;request=$null;item=$null;ready=[DateTime]::MinValue;requests=0}
+        }
         $authorization = [Convert]::ToBase64String($utf8.GetBytes($Credential.UserName + ':' + $Credential.GetNetworkCredential().Password))
         $processed = 0; $state.reason = $null; $state.logoutVerified = $false
-        $sessionIdentity = $null; $knownSessions = @{}
+        $state.session | Add-Member NoteProperty requestedSessions $Sessions -Force
+        $state.session | Add-Member NoteProperty intervalMs $IntervalMs -Force
+        $knownSessions = @{}; $stopDispatch = $false
+        if ($SessionContext -and $SessionContext.knownSessions) { $knownSessions = $SessionContext.knownSessions }
+        foreach ($worker in $workers) { $worker.requests = 0 }
+        if ($null -ne $SessionContext) {
+            $SessionContext.identity = $identity; $SessionContext.workers = $workers; $SessionContext.knownSessions = $knownSessions
+            $SessionContext.close = ${function:Close-SessionSnapshot}.GetNewClosure()
+            if (-not $SessionContext.mutex) { $SessionContext.mutex = $mutex; $acquired = $false }
+        }
+        $queue = New-Object Collections.Queue
+        foreach ($candidate in $state.items) { if ($candidate.status -ne 'fetched') { $queue.Enqueue($candidate) } }
         try {
-            foreach ($item in $state.items) {
-                if ($item.status -eq 'fetched') { continue }
-                if ($processed -ge $MaxFilesPerRun) { break }
-                if ($processed) { Start-Sleep -Milliseconds $IntervalMs }; $processed++
-                $encodedDocument = ($item.document.Split('/') | ForEach-Object { [uri]::EscapeDataString($_) }) -join '/'
-                $url = $uri.AbsoluteUri + 'v1/' + [uri]::EscapeDataString($Namespace) + '/doc/' + $encodedDocument
-                $request = New-Object Net.Http.HttpRequestMessage([Net.Http.HttpMethod]::Get, $url)
-                $request.Headers.Accept.ParseAdd('application/json')
-                $response = $null
-                try {
-                    if ($sessionIdentity) {
-                        $currentSession = Get-SessionSnapshot $handler.CookieContainer $uri
-                        if (-not $currentSession) { throw 'atelier-session-lost' }
-                        if ($currentSession.identity -cne $sessionIdentity) { throw 'atelier-session-changed' }
-                    } else {
-                        $request.Headers.Authorization = New-Object Net.Http.Headers.AuthenticationHeaderValue('Basic', $authorization)
-                        $state.session.authenticationCount++
+            while ($queue.Count -or @($workers | Where-Object { $_.task }).Count) {
+                if ($CancelFile -and (Test-Path -LiteralPath $CancelFile)) { $stopDispatch = $true; if (-not $state.reason) { $state.reason = 'cancelled-by-user' } }
+                foreach ($worker in $workers) {
+                    $handler = $worker.handler; $client = $worker.client
+                    if (-not $worker.task -and -not $stopDispatch -and $queue.Count -and $processed -lt $MaxFilesPerRun -and [DateTime]::UtcNow -ge $worker.ready -and (-not $SessionTrial -or $worker.requests -eq 0)) {
+                        $item = $queue.Dequeue(); $worker.item = $item
+                        $encodedDocument = ($item.document.Split('/') | ForEach-Object { [uri]::EscapeDataString($_) }) -join '/'
+                        $url = $uri.AbsoluteUri + 'v1/' + [uri]::EscapeDataString($Namespace) + '/doc/' + $encodedDocument
+                        $request = New-Object Net.Http.HttpRequestMessage([Net.Http.HttpMethod]::Get, $url)
+                        $request.Headers.Accept.ParseAdd('application/json'); $worker.request = $request
+                        try {
+                            if ($worker.identity) {
+                                $snapshot = Get-SessionSnapshot $handler.CookieContainer $uri
+                                if (-not $snapshot) { throw 'atelier-session-lost' }
+                                if ($snapshot.identity -cne $worker.identity) { throw 'atelier-session-changed' }
+                            } else {
+                                $request.Headers.Authorization = New-Object Net.Http.Headers.AuthenticationHeaderValue('Basic', $authorization)
+                                $state.session.authenticationCount++
+                            }
+                            $state.session.requestCount++; $processed++; $worker.requests++
+                            $worker.task = $client.SendAsync($request)
+                        } catch {
+                            $item.status = 'failed'; $item.reason = $_.Exception.Message; $state.reason = $item.reason; $stopDispatch = $true
+                            $request.Dispose(); $worker.request = $null; Save-State
+                        }
                     }
-                    $state.session.requestCount++
-                    try { $response = $client.SendAsync($request).GetAwaiter().GetResult() }
-                    catch { $state.transportDiagnostic = Get-TransportDiagnostic $_.Exception; throw 'atelier-transport-or-timeout' }
+                    if (-not $worker.task -or -not $worker.task.IsCompleted) { continue }
+                    $item = $worker.item; $request = $worker.request; $response = $null
+                    try {
+                        try { $response = $worker.task.GetAwaiter().GetResult() }
+                        catch { $state.transportDiagnostic = Get-TransportDiagnostic $_.Exception; throw 'atelier-transport-or-timeout' }
                     $currentSession = Get-SessionSnapshot $handler.CookieContainer $uri
                     if ($currentSession -and $currentSession.count -eq 1) { $knownSessions[$currentSession.identity] = $currentSession }
                     $httpStatus = [int]$response.StatusCode
                     if (($httpStatus -lt 200 -or $httpStatus -ge 300) -and $httpStatus -ne 404) { throw ('atelier-http-' + $httpStatus) }
-                    if (-not $currentSession) { if ($sessionIdentity) { throw 'atelier-session-lost' }; throw 'atelier-session-cookie-missing' }
+                    if (-not $currentSession) { if ($worker.identity) { throw 'atelier-session-lost' }; throw 'atelier-session-cookie-missing' }
                     if ($currentSession.count -ne 1) { throw 'atelier-session-ambiguous' }
-                    if ($sessionIdentity -and $currentSession.identity -cne $sessionIdentity) { throw 'atelier-session-changed' }
-                    $sessionIdentity = $currentSession.identity; $state.session.cookieVerified = $true
+                    if ($worker.identity -and $currentSession.identity -cne $worker.identity) { throw 'atelier-session-changed' }
+                    $worker.identity = $currentSession.identity; $state.session.cookieVerified = $true
                     if ($httpStatus -eq 404) { $item.status = 'missing'; Save-State; continue }
                     try { $payload = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json } catch { throw 'atelier-json-invalid' }
                     $value = $payload.result
@@ -332,18 +366,34 @@ try {
                     if ((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -ne $item.sha256) { throw 'write-readback-mismatch' }
                     $item.status = 'fetched'; Save-State
                     Write-Host ('[{0}] {1}' -f $processed, $item.document)
-                } catch {
-                    $item.status = 'failed'; $item.reason = $_.Exception.Message; $state.reason = $item.reason
-                    if ($item.reason -like 'atelier-session-*') { $state.session.cookieVerified = $false }
-                    Save-State
-                    break
-                } finally { if ($response) { $response.Dispose() }; $request.Dispose() }
+                    } catch {
+                        $item.status = 'failed'; $item.reason = $_.Exception.Message
+                        if (-not $state.reason -or $item.reason -eq 'atelier-http-503') { $state.reason = $item.reason }
+                        if ($item.reason -like 'atelier-session-*') { $state.session.cookieVerified = $false }
+                        $stopDispatch = $true; Save-State
+                    } finally {
+                        if ($response) { $response.Dispose() }; $request.Dispose()
+                        $worker.task = $null; $worker.request = $null; $worker.ready = [DateTime]::UtcNow.AddMilliseconds($IntervalMs)
+                    }
+                }
+                if (($stopDispatch -or $processed -ge $MaxFilesPerRun) -and -not @($workers | Where-Object { $_.task }).Count) { break }
+                Start-Sleep -Milliseconds 10
             }
         } finally {
             # Only observed, owned sessions; never send credentials or re-authenticate on exit.
             # Response headers may have arrived even when buffering the response body timed out.
-            $lastSession = Get-SessionSnapshot $handler.CookieContainer $uri
-            if ($lastSession -and $lastSession.count -eq 1) { $knownSessions[$lastSession.identity] = $lastSession }
+            foreach ($worker in $workers) {
+                $lastSession = Get-SessionSnapshot $worker.handler.CookieContainer $uri
+                if ($lastSession -and $lastSession.count -eq 1) { $knownSessions[$lastSession.identity] = $lastSession }
+            }
+            $retain = $null -ne $SessionContext
+            if ($retain) {
+                $state | Add-Member NoteProperty sessionRetained $true -Force
+                if (-not $SessionContext.receipts) { $SessionContext.receipts = @() }
+                if ($statePath -notin $SessionContext.receipts) { $SessionContext.receipts += $statePath }
+                $SessionContext.lastUsed = [DateTime]::UtcNow
+            }
+            if (-not $retain) {
             foreach ($snapshot in $knownSessions.Values) { $state.logoutRequested = $true; $state.logoutResults += Close-SessionSnapshot $snapshot }
             if ($state.logoutRequested) {
                 $state.logoutResponseReceived = (@($state.logoutResults | Where-Object { -not $_.responseReceived }).Count -eq 0)
@@ -353,7 +403,8 @@ try {
             } elseif ($state.session.requestCount -eq 0) { $state.logoutVerified = $true; $state.logoutReason = 'atelier-no-request-sent' }
             else { $state.logoutReason = 'atelier-session-cookie-unavailable' }
             if (-not $state.logoutVerified -and -not $state.reason) { $state.reason = 'atelier-logout-unverified' }
-            $authorization = $null; $client.Dispose(); $handler.Dispose()
+            $authorization = $null; foreach ($worker in $workers) { $worker.client.Dispose(); $worker.handler.Dispose() }
+            }
             $state.state = 'partial'
             if (@($state.items | Where-Object { $_.status -ne 'fetched' }).Count -eq 0 -and $state.logoutVerified) { $state.state = 'complete' }
             Save-State
@@ -366,7 +417,7 @@ try {
         $exitCode = 2; if ($state.state -eq 'complete') { $exitCode = 0 }
     } finally {
         if ($outputAcquired) { $outputMutex.ReleaseMutex() }; $outputMutex.Dispose()
-        if ($acquired) { $mutex.ReleaseMutex() }; $mutex.Dispose()
+        if ($acquired) { $mutex.ReleaseMutex() }; if ($null -eq $SessionContext -or $SessionContext.mutex -ne $mutex) { $mutex.Dispose() }
     }
     exit $exitCode
 } catch {

@@ -17,19 +17,25 @@ param(
     [string]$OutputDirectory,
     [string]$SupplementListFile,
     [string]$WebPathMapFile,
-    [string]$CatalogDirectory = (Join-Path $PSScriptRoot 'catalogs'),
+    [string]$CatalogDirectory,
     [string]$AtelierUrl,
     [string]$Namespace,
     [PSCredential]$Credential,
-    [ValidateRange(100,60000)][int]$IntervalMs = 200,
+    [ValidateRange(50,60000)][int]$IntervalMs = 200,
     [ValidateRange(1,600)][int]$TimeoutSec = 30,
     [ValidateRange(1,2147483647)][int]$MaxFilesPerRun = 2147483647,
+    [ValidateRange(1,10)][int]$Sessions = 1,
+    [switch]$SessionTrial,
+    [switch]$ConfirmedSessionBudget,
+    [string]$CancelFile,
+    [hashtable]$SessionContext,
     [switch]$ConfirmWebPaths,
     [switch]$PlanOnly,
     [switch]$ListVersions,
     [switch]$Resume
 )
 $ErrorActionPreference = 'Stop'
+if (-not $CatalogDirectory) { $CatalogDirectory = Join-Path $PSScriptRoot 'catalogs' }
 $utf8 = New-Object Text.UTF8Encoding($false,$true)
 $temporary = $null
 function Full-Path([string]$Path) { return [IO.Path]::GetFullPath($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)) }
@@ -128,7 +134,7 @@ try {
     Write-Host ('Version: {0} | Scope: {1} | Files: {2} | Web: {3}' -f $Version,$entry.scopeLabel,$resolved.Count,($webRoots -join ', '))
     $selectionFile = Join-Path $temporary 'selection.json'
     [IO.File]::WriteAllText($selectionFile,($selection | ConvertTo-Json -Compress -Depth 12)+"`n",$utf8)
-    $arguments = @{ListFile=$filesPath;VersionSelectionFile=$selectionFile;OutputDirectory=$output;IntervalMs=$IntervalMs;TimeoutSec=$TimeoutSec;MaxFilesPerRun=$MaxFilesPerRun;Resume=$Resume}
+    $arguments = @{ListFile=$filesPath;VersionSelectionFile=$selectionFile;OutputDirectory=$output;IntervalMs=$IntervalMs;TimeoutSec=$TimeoutSec;MaxFilesPerRun=$MaxFilesPerRun;Resume=$Resume;Sessions=$Sessions;SessionTrial=$SessionTrial;ConfirmedSessionBudget=$ConfirmedSessionBudget;CancelFile=$CancelFile;SessionContext=$SessionContext}
     if ($AtelierUrl) { $arguments.AtelierUrl=$AtelierUrl }; if ($Namespace) { $arguments.Namespace=$Namespace }; if ($Credential) { $arguments.Credential=$Credential }
     & $exporter @arguments
     exit $LASTEXITCODE

@@ -5,10 +5,11 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$OutputFile = (Join-Path $PSScriptRoot '../dist/iris-code-export.zip'),
+    [string]$OutputFile,
     [string]$LocalExampleFile
 )
 $ErrorActionPreference = 'Stop'
+if (-not $OutputFile) { $OutputFile = Join-Path $PSScriptRoot '../dist/iris-code-export.zip' }
 $stage = $null
 try {
     if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'build-requires-Node.js-22.5-or-newer-not-a-hospital-runtime-dependency' }
@@ -43,7 +44,9 @@ try {
         if ($files.Count -ne $entries.Count) { throw 'package-entry-count-mismatch' }
         foreach ($file in $files) {
             $relative = $file.FullName.Substring($stage.Length+1).Replace('\','/')
-            $entry = $archive.GetEntry($relative)
+            $entry = @($entries | Where-Object { $_.FullName.Replace('\','/') -ceq $relative })
+            if ($entry.Count -ne 1) { throw 'package-entry-missing-or-duplicate' }
+            $entry = $entry[0]
             if (-not $entry) { throw 'package-entry-missing' }
             $stream = $entry.Open(); $sha = [Security.Cryptography.SHA256]::Create()
             try { $packedHash = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-','') } finally { $sha.Dispose(); $stream.Dispose() }

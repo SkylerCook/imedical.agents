@@ -363,7 +363,7 @@ test('batch export keeps one authenticated session and reports logout separately
   const result = await run('export-iris-code.ps1', ['-ListFile', list, '-OutputDirectory', out, '-AtelierUrl', s.url, '-Namespace', 'FIXTURE', '-IntervalMs', '100'], credential);
   assert.equal(result.code, 0, result.stderr);
   const state = JSON.parse(fs.readFileSync(path.join(out, 'baseline-state.json'), 'utf8'));
-  assert.deepEqual(state.session, {cookieVerified: true, requestCount: 48, authenticationCount: 1});
+  assert.deepEqual(state.session, {cookieVerified: true, requestCount: 48, authenticationCount: 1, requestedSessions: 1, intervalMs: 100});
   assert.equal(s.calls.filter(c => c.authorization).length, 1); assert.equal(s.calls.filter(c => c.method === 'HEAD').length, 1);
   assert.ok(s.calls.slice(1).every(c => c.cookie === 'CSPSESSIONID=fixture' && !c.authorization));
   assert.equal(state.logoutRequested, true); assert.equal(state.logoutResponseReceived, true); assert.equal(state.licenseReleaseVerified, false);
