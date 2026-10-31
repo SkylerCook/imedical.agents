@@ -4,7 +4,7 @@ const {JsonLineMcpClient}=require('../iris-mcp');
 const {createTempDirectory,ownsTempDirectory}=require('./fixtures/temp-directory');
 const binary=process.env.IRIS_TEST_VENDOR_BINARY || path.resolve('vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe');
 
-for (const mode of ['deleted', 'replaced', 'scope-changed', 'missing', 'refresh']) {
+for (const mode of ['deleted', 'replaced', 'scope-changed', 'missing', 'refresh', 'auth-switched']) {
 test('actual vendor enforces cookie lifecycle: '+mode, {skip:process.platform!=='win32'&&!process.env.IRIS_TEST_VENDOR_BINARY}, async t => {
   const root=createTempDirectory('iris-session-cookie-vendor-'), seen=[];
   let removeCookie=false;
@@ -24,14 +24,18 @@ test('actual vendor enforces cookie lifecycle: '+mode, {skip:process.platform!==
   });
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const inherited=Object.fromEntries(Object.keys(process.env).filter(k=>k.startsWith('IRIS_')).map(k=>[k,undefined]));
-  const client=new JsonLineMcpClient(binary,['mcp','--no-skills'],{...inherited,IRIS_HOST:'127.0.0.1',IRIS_WEB_PORT:String(server.address().port),IRIS_SCHEME:'http',IRIS_NAMESPACE:'TEST',IRIS_USERNAME:'fixture',IRIS_PASSWORD:'fixture',IRIS_MANAGED_NO_RETRIES:'1',IRIS_SESSION_COOKIE_FORMAT:mode==='refresh'?'csp50-v1':'opaque'},{cwd:root});
+  const client=new JsonLineMcpClient(binary,['mcp','--no-skills'],{...inherited,IRIS_HOST:'127.0.0.1',IRIS_WEB_PORT:String(server.address().port),IRIS_SCHEME:'http',IRIS_NAMESPACE:'TEST',IRIS_USERNAME:'fixture',IRIS_PASSWORD:'fixture',IRIS_MANAGED_NO_RETRIES:'1',IRIS_SESSION_COOKIE_FORMAT:mode==='refresh'?'csp50-v1':'opaque',...(mode==='auth-switched'?{IRIS_SERVICE_USERNAME:'other-fixture',IRIS_SERVICE_PASSWORD:'other-fixture'}:{})},{cwd:root});
   t.after(async()=>{await client.close();await new Promise(resolve=>server.close(resolve));if(ownsTempDirectory(root))fs.rmSync(root,{recursive:true});});
   await client.request('initialize',{protocolVersion:'2024-11-05',capabilities:{},clientInfo:{name:'cookie-test',version:'1'}});client.notify('notifications/initialized',{});
   const query=()=>client.request('tools/call',{name:'iris_query',arguments:{query:'SELECT 1 AS probe',mode:'read',namespace:'TEST'}});
   const first=await query();
   if(mode!=='missing')assert.notEqual(first.result?.isError,true,'initial query must succeed');
   removeCookie=true;
-  await query().catch(()=>{});
+  const beforeChange=seen.length;
+  if(mode==='auth-switched') {
+    await client.request('tools/call',{name:'iris_execute',arguments:{code:'write 1',confirmed:true,namespace:'TEST'}}).catch(()=>{});
+    assert.equal(seen.length,beforeChange,'A different authentication identity must not reuse the current session');
+  } else await query().catch(()=>{});
   const before=seen.filter(r=>!r.url.includes('IRISLogout=end')).length;
   const last=await query().catch(()=>null);
   const after=seen.filter(r=>!r.url.includes('IRISLogout=end')).length;
@@ -71,12 +75,16 @@ test('actual patched vendor sends one generator PUT on 503 and acknowledges its 
   assert.equal(seen.at(-1).cookie,true);
 });
 
-test('actual startup 503 stops system-mode probe and queued operations',{skip:process.platform!=='win32'||!!process.env.IRIS_TEST_VENDOR_BINARY},async t=>{
+test('actual startup 503 stops system-mode probe and queued operations',{skip:process.platform!=='win32'&&!process.env.IRIS_TEST_VENDOR_BINARY},async t=>{
   const root=createTempDirectory('iris-session-startup-'),seen=[];
   fs.mkdirSync(path.join(root,'.agents/config'),{recursive:true});
+  const candidate=path.join(root,'vendor','bin',process.platform==='win32'?'iris-agentic-dev.exe':'iris-agentic-dev');
+  fs.mkdirSync(path.dirname(candidate),{recursive:true});fs.copyFileSync(binary,candidate);fs.chmodSync(candidate,0o700);
+  const sha256=require('node:crypto').createHash('sha256').update(fs.readFileSync(candidate)).digest('hex');
+  fs.writeFileSync(path.join(root,'vendor','managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v1',sha256}));
   const server=http.createServer((req,res)=>{seen.push(req.method+' '+req.url);res.setHeader('Set-Cookie','CSPSESSIONID-fixture=fixture; Path=/api/atelier/');res.writeHead(req.url.includes('IRISLogout=end')?401:503);res.end('{}');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  fs.writeFileSync(path.join(root,'.mcp.json'),JSON.stringify({mcpServers:{'iris-agentic-dev':{command:binary,args:['mcp','--no-skills'],env:{IRIS_HOST:'127.0.0.1',IRIS_WEB_PORT:String(server.address().port),IRIS_SCHEME:'http',IRIS_NAMESPACE:'TEST',IRIS_USERNAME:'fixture',IRIS_PASSWORD:'fixture'}}}}));
+  fs.writeFileSync(path.join(root,'.mcp.json'),JSON.stringify({mcpServers:{'iris-agentic-dev':{command:candidate,args:['mcp','--no-skills'],env:{IRIS_HOST:'127.0.0.1',IRIS_WEB_PORT:String(server.address().port),IRIS_SCHEME:'http',IRIS_NAMESPACE:'TEST',IRIS_USERNAME:'fixture',IRIS_PASSWORD:'fixture'}}}}));
   const host=await require('../iris-session-host').serve({root:path.join(root,'ipc')});
   const client=require('../lib/iris-session-client').createClient({projectRoot:root,root:path.join(root,'ipc')});
   t.after(async()=>{await client.close();await host.stop();await new Promise(resolve=>server.close(resolve));if(ownsTempDirectory(root))fs.rmSync(root,{recursive:true});});

@@ -155,7 +155,7 @@ index 9043777..9882a5f 100644
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/iris/csp_session.rs b/crates/iris-agentic-dev-core/src/iris/csp_session.rs
-index addb2af..18f3f85 100644
+index addb2af..647195e 100644
 --- a/crates/iris-agentic-dev-core/src/iris/csp_session.rs
 +++ b/crates/iris-agentic-dev-core/src/iris/csp_session.rs
 @@ -43,7 +43,8 @@ impl CspSessionStore {
@@ -168,7 +168,7 @@ index addb2af..18f3f85 100644
          let Ok(text) = header.to_str() else { return };
          let mut parts = text.split(';').map(str::trim);
          // `split` always yields one item, so a header with no name reads as an empty name.
-@@ -103,32 +104,131 @@ pub fn shared_cookie_store() -> Arc<CspSessionStore> {
+@@ -103,32 +104,137 @@ pub fn shared_cookie_store() -> Arc<CspSessionStore> {
  ///
  /// Runs on a thread of its own with its own runtime, so it can be called from `main` after the
  /// runtime has returned and from `crate::exit` inside a tokio task alike.
@@ -254,6 +254,7 @@ index addb2af..18f3f85 100644
 +static MANAGED_GUARD: LazyLock<tokio::sync::Mutex<()>> = LazyLock::new(|| tokio::sync::Mutex::new(()));
 +static MANAGED_UNCERTAIN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 +static MANAGED_BLOCKED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
++static MANAGED_AUTH: LazyLock<Mutex<std::collections::BTreeMap<String,HeaderValue>>> = LazyLock::new(||Mutex::new(std::collections::BTreeMap::new()));
 +static MANAGED_IDENTITIES: LazyLock<Mutex<std::collections::BTreeMap<String,String>>> = LazyLock::new(|| Mutex::new(std::collections::BTreeMap::new()));
 +fn managed_identity(url: &Url) -> Option<String> {
 +    let header = SHARED.cookies(url)?;
@@ -288,6 +289,11 @@ index addb2af..18f3f85 100644
 +        let _guard=MANAGED_GUARD.lock().await;
 +        if MANAGED_BLOCKED.load(std::sync::atomic::Ordering::SeqCst) {return Err(managed_error());}
 +        let key=url.origin().ascii_serialization();
++        if let Some(auth)=request.headers().get(reqwest::header::AUTHORIZATION) {
++            let mut known=MANAGED_AUTH.lock().unwrap();
++            if known.get(&key).is_some_and(|old|old!=auth) {return Err(managed_error());}
++            known.entry(key.clone()).or_insert_with(||auth.clone());
++        }
 +        let previous=MANAGED_IDENTITIES.lock().unwrap().get(&key).cloned();
 +        let current=managed_identity(&url);
 +        if previous.is_some() && current!=previous {return Err(managed_error());}
