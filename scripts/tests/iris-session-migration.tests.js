@@ -80,12 +80,14 @@ test('missing backend fails Check and explicit disabled survives migration',t=>{
 test('identical verified vendor copies share identity across projects and env key order',t=>{
   const a=fixture(t),b=fixture(t),describe=require('../lib/iris-session-backends').describe;
   const sha256=require('node:crypto').createHash('sha256').update('fixture').digest('hex');
-  for(const f of [a,b])fs.writeFileSync(path.join(f.root,'.agents/vendor/iris-agentic-dev/managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v1',sha256}));
+  for(const f of [a,b])fs.writeFileSync(path.join(f.root,'.agents/vendor/iris-agentic-dev/managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v2',sha256}));
   b.config.mcpServers['iris-agentic-dev'].env=Object.fromEntries(Object.entries(b.config.mcpServers['iris-agentic-dev'].env).reverse());
   fs.writeFileSync(b.file,JSON.stringify(b.config));
   assert.equal(describe(a.root).identity,describe(b.root).identity);
   b.config.mcpServers['iris-agentic-dev'].env.IRIS_PASSWORD='another-identity';fs.writeFileSync(b.file,JSON.stringify(b.config));
   assert.notEqual(describe(a.root).identity,describe(b.root).identity);
+  fs.writeFileSync(path.join(a.root,'.agents/vendor/iris-agentic-dev/managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v1',sha256}));
+  assert.throws(()=>describe(a.root),/session-patched-vendor-mismatch/,'Cached binary hash must not bypass the required patch version');
 });
 
 test('Windows PowerShell 5.1 wrapper and vendor preference retain the managed adapter',{skip:process.platform!=='win32'},t=>{

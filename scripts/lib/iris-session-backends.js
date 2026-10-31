@@ -50,10 +50,11 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
     const metadata=path.join(path.dirname(executable),'..','managed-build.json');
     if(!fs.existsSync(metadata))throw failure('session-patched-vendor-required');
     const build=JSON.parse(fs.readFileSync(metadata,'utf8').replace(/^\uFEFF/,''));
+    if(build.schema!=='iris-managed-vendor/v1' || build.patch!=='managed-sessions-v2')throw failure('session-patched-vendor-mismatch');
     const fingerprint=hash([executable,stat.size,stat.mtimeMs,build.sha256]);
     if(!verifiedBinaries.has(fingerprint)) {
       const actual=require('node:crypto').createHash('sha256').update(fs.readFileSync(executable)).digest('hex');
-      if(build.schema!=='iris-managed-vendor/v1' || build.patch!=='managed-sessions-v1' || actual!==build.sha256)throw failure('session-patched-vendor-mismatch');
+      if(actual!==build.sha256)throw failure('session-patched-vendor-mismatch');
       verifiedBinaries.set(fingerprint,true);
     }
     runtimeIdentity=['managed-vendor',build.sha256];
@@ -83,14 +84,14 @@ async function open(operation) {
   const inherited=Object.fromEntries(Object.keys(process.env).filter(key=>key.startsWith('IRIS_')).map(key=>[key,undefined]));
   const client = new mcp.JsonLineMcpClient(d.backend.command, d.backend.args, {...inherited,...d.env, IRIS_MANAGED_NO_RETRIES:'1', IRIS_SESSION_COOKIE_FORMAT:d.policy?.sessionCookieFormat ?? 'opaque'}, {cwd: d.context.workspaceRoot});
   const assertSession = () => {
+    const stopped=client.stderr.match(/IMEDICAL_HTTP_STOP=(401|403|503)/);
+    if(stopped)throw Object.assign(failure(stopped[1]==='503'?'session-service-unavailable':'session-authentication-failed',false),{status:Number(stopped[1])});
     if (client.stderr.includes('IMEDICAL_SESSION_STOP=identity-unverified')) throw Object.assign(failure('session-identity-unverified',false),{sessionUncertain:true,writeOutcome:'unknown'});
   };
   try {
     await client.request('initialize', {protocolVersion: '2024-11-05', capabilities: {}, clientInfo: {name: 'imedical-session-manager', version: '1.0.0'}});
     client.notify('notifications/initialized', {});
     const check = mcp.extractToolText(await client.request('tools/call', {name: 'check_config', arguments: {}}));
-    const stopped=client.stderr.match(/IMEDICAL_HTTP_STOP=(401|403|503)/);
-    if(stopped)throw Object.assign(failure(stopped[1]==='503'?'session-service-unavailable':'session-authentication-failed',false),{status:Number(stopped[1])});
     assertSession();
     if (check.connected !== true || String(check.host).toLowerCase() !== d.connection.hostname.toLowerCase() || Number(check.port) !== d.connection.port || check.namespace !== d.env.IRIS_NAMESPACE) throw failure('session-backend-target-mismatch');
   } catch(e) {const exit=await client.close(); owner?.close({cleanupVerified:exit.processExited && exit.gracefulExit && exit.logout?.completed===true && exit.logout.attempted===exit.logout.acknowledged && !client.stderr.includes('IMEDICAL_SESSION_STOP=')}); throw e;}

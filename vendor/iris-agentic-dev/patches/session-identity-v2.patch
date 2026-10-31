@@ -64,9 +64,18 @@ index 7862b1d..a8f2923 100644
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/iris/connection.rs b/crates/iris-agentic-dev-core/src/iris/connection.rs
-index 9043777..9882a5f 100644
+index 9043777..9bcd034 100644
 --- a/crates/iris-agentic-dev-core/src/iris/connection.rs
 +++ b/crates/iris-agentic-dev-core/src/iris/connection.rs
+@@ -192,7 +192,7 @@ pub fn iris_http_client(
+     insecure: bool,
+     cookie_store: bool,
+ ) -> anyhow::Result<reqwest::Client> {
+-    let mut b = reqwest::Client::builder()
++    let mut b = reqwest::Client::builder().redirect(if std::env::var("IRIS_MANAGED_NO_RETRIES").as_deref()==Ok("1") {reqwest::redirect::Policy::none()} else {reqwest::redirect::Policy::default()})
+         .user_agent(user_agent(caller_mode()))
+         .danger_accept_invalid_certs(insecure)
+         .tcp_keepalive(std::time::Duration::from_secs(20));
 @@ -451,7 +451,7 @@ impl IrisConnection {
          if let Ok(resp) = client
              .get(&url)
@@ -139,6 +148,24 @@ index 9043777..9882a5f 100644
              .await?;
          if !resp.status().is_success() {
              anyhow::bail!("compile HTTP {}", resp.status());
+@@ -1037,7 +1037,7 @@ impl IrisConnection {
+     /// Short-timeout client used only for the startup probe — fail fast rather than hanging.
+     pub fn probe_client() -> anyhow::Result<reqwest::Client> {
+         let insecure = tls_insecure_from_env();
+-        Ok(reqwest::Client::builder()
++        Ok(reqwest::Client::builder().redirect(if std::env::var("IRIS_MANAGED_NO_RETRIES").as_deref()==Ok("1") {reqwest::redirect::Policy::none()} else {reqwest::redirect::Policy::default()})
+             .user_agent(user_agent(caller_mode()))
+             .connect_timeout(std::time::Duration::from_secs(5))
+             .timeout(std::time::Duration::from_secs(10))
+@@ -1050,7 +1050,7 @@ impl IrisConnection {
+     pub fn http_client() -> anyhow::Result<reqwest::Client> {
+         // IRIS_INSECURE=true or IRIS_TLS_VERIFY=false both disable TLS cert validation.
+         let insecure = tls_insecure_from_env();
+-        Ok(reqwest::Client::builder()
++        Ok(reqwest::Client::builder().redirect(if std::env::var("IRIS_MANAGED_NO_RETRIES").as_deref()==Ok("1") {reqwest::redirect::Policy::none()} else {reqwest::redirect::Policy::default()})
+             // Identifies agent traffic in Web Gateway / IIS / Apache access logs and to
+             // `%request.CgiEnvs("HTTP_USER_AGENT")`. Without it IRIS sees an empty
+             // User-Agent and an operator has nothing to filter on.
 @@ -1296,7 +1296,7 @@ impl Drop for ScratchGuard {
                      .delete(&url)
                      .basic_auth(&user, Some(&pass))
@@ -155,7 +182,7 @@ index 9043777..9882a5f 100644
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/iris/csp_session.rs b/crates/iris-agentic-dev-core/src/iris/csp_session.rs
-index addb2af..647195e 100644
+index addb2af..97fbe64 100644
 --- a/crates/iris-agentic-dev-core/src/iris/csp_session.rs
 +++ b/crates/iris-agentic-dev-core/src/iris/csp_session.rs
 @@ -43,7 +43,8 @@ impl CspSessionStore {
@@ -168,7 +195,7 @@ index addb2af..647195e 100644
          let Ok(text) = header.to_str() else { return };
          let mut parts = text.split(';').map(str::trim);
          // `split` always yields one item, so a header with no name reads as an empty name.
-@@ -103,32 +104,137 @@ pub fn shared_cookie_store() -> Arc<CspSessionStore> {
+@@ -103,32 +104,138 @@ pub fn shared_cookie_store() -> Arc<CspSessionStore> {
  ///
  /// Runs on a thread of its own with its own runtime, so it can be called from `main` after the
  /// runtime has returned and from `crate::exit` inside a tokio task alike.
@@ -299,14 +326,15 @@ index addb2af..647195e 100644
 +        if previous.is_some() && current!=previous {return Err(managed_error());}
 +        if current.is_some() {remember_logout(&url,true);request.headers_mut().remove(reqwest::header::AUTHORIZATION);}
 +        let response=match client.execute(request).await {Ok(response)=>response,Err(error)=>{let _=managed_error();return Err(error);}};
-+        let after=managed_identity(&url);
-+        if MANAGED_UNCERTAIN.load(std::sync::atomic::Ordering::SeqCst) || after.is_none() || previous.is_some() && after!=previous {remember_logout(&url,false);return Err(managed_error());}
-+        remember_logout(&url,true);
-+        MANAGED_IDENTITIES.lock().unwrap().insert(key,after.unwrap());
 +        if [401,403,503].contains(&response.status().as_u16()) {
 +            MANAGED_BLOCKED.store(true,std::sync::atomic::Ordering::SeqCst);
 +            eprintln!("IMEDICAL_HTTP_STOP={}",response.status().as_u16());
 +        }
++        let after=managed_identity(&url);
++        if MANAGED_UNCERTAIN.load(std::sync::atomic::Ordering::SeqCst) || after.is_none() || previous.is_some() && after!=previous {remember_logout(&url,false);return Err(managed_error());}
++        remember_logout(&url,true);
++        MANAGED_IDENTITIES.lock().unwrap().insert(key,after.unwrap());
++
 +        Ok(response)
 +    }
 +}

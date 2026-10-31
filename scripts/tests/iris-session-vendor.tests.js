@@ -75,14 +75,20 @@ test('actual patched vendor sends one generator PUT on 503 and acknowledges its 
   assert.equal(seen.at(-1).cookie,true);
 });
 
-test('actual startup 503 stops system-mode probe and queued operations',{skip:process.platform!=='win32'&&!process.env.IRIS_TEST_VENDOR_BINARY},async t=>{
+for(const startupMode of ['503-cookie','503-no-cookie','redirect']) {
+test('actual startup stops probe and queued operations: '+startupMode,{skip:process.platform!=='win32'&&!process.env.IRIS_TEST_VENDOR_BINARY},async t=>{
   const root=createTempDirectory('iris-session-startup-'),seen=[];
   fs.mkdirSync(path.join(root,'.agents/config'),{recursive:true});
   const candidate=path.join(root,'vendor','bin',process.platform==='win32'?'iris-agentic-dev.exe':'iris-agentic-dev');
   fs.mkdirSync(path.dirname(candidate),{recursive:true});fs.copyFileSync(binary,candidate);fs.chmodSync(candidate,0o700);
   const sha256=require('node:crypto').createHash('sha256').update(fs.readFileSync(candidate)).digest('hex');
-  fs.writeFileSync(path.join(root,'vendor','managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v1',sha256}));
-  const server=http.createServer((req,res)=>{seen.push(req.method+' '+req.url);res.setHeader('Set-Cookie','CSPSESSIONID-fixture=fixture; Path=/api/atelier/');res.writeHead(req.url.includes('IRISLogout=end')?401:503);res.end('{}');});
+  fs.writeFileSync(path.join(root,'vendor','managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v2',sha256}));
+  const server=http.createServer((req,res)=>{
+    seen.push(req.method+' '+req.url);
+    if(startupMode==='503-cookie')res.setHeader('Set-Cookie','CSPSESSIONID-fixture=fixture; Path=/api/atelier/');
+    if(startupMode==='redirect')res.setHeader('Location','/redirected');
+    res.writeHead(req.url.includes('IRISLogout=end')?401:startupMode==='redirect'?302:503);res.end('{}');
+  });
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   fs.writeFileSync(path.join(root,'.mcp.json'),JSON.stringify({mcpServers:{'iris-agentic-dev':{command:candidate,args:['mcp','--no-skills'],env:{IRIS_HOST:'127.0.0.1',IRIS_WEB_PORT:String(server.address().port),IRIS_SCHEME:'http',IRIS_NAMESPACE:'TEST',IRIS_USERNAME:'fixture',IRIS_PASSWORD:'fixture'}}}}));
   const host=await require('../iris-session-host').serve({root:path.join(root,'ipc')});
@@ -91,6 +97,7 @@ test('actual startup 503 stops system-mode probe and queued operations',{skip:pr
   const results=await Promise.allSettled([1,2].map(()=>client.request('tools/call',{name:'iris_query',arguments:{query:'SELECT 1',mode:'read'}})));
   assert.deepEqual(results.map(x=>x.status),['rejected','rejected']);
   assert.equal(results[1].reason.beforeSend,true);
-  assert.deepEqual(seen,['GET /api/atelier/','GET /api/atelier/?IRISLogout=end']);
-  assert.equal(host.manager.status()[0].blocked,'session-service-unavailable');
+  assert.deepEqual(seen,startupMode==='503-cookie'?['GET /api/atelier/','GET /api/atelier/?IRISLogout=end']:['GET /api/atelier/']);
+  assert.equal(host.manager.status()[0].blocked,startupMode==='redirect'?'session-identity-unverified':'session-service-unavailable');
 });
+}
