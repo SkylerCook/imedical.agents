@@ -79,7 +79,7 @@ function buildImpactRows(evaluations, rawCommits, mapping) {
     const system = REPO_TO_SYSTEM[ev.repo] || '（未分类）';
     const workstation = determineWorkstation(ev.repo, system);
     const funcModule = determineModule(ev, mapping);
-    const funcPoint = ev.impactScope || ev.summary || '（待分析）';
+    const funcPoint = ev.subject || ev.impactScope || '（待分析）';
     return {
       workstation,
       funcModule,
@@ -87,7 +87,7 @@ function buildImpactRows(evaluations, rawCommits, mapping) {
       reqType: ev.reqType || '代码变更',
       author: ev.author || '—',
       repo: ev.repo || '—',
-      changePoint: ev.summary || '—',
+      changePoint: ev.evaluation || ev.impactScope || '—',
       testSuggestion: ev.testSuggestion || '（待评估环节补充）'
     };
   });
@@ -180,7 +180,7 @@ function buildEmailMd(db, opts = {}) {
     lines.push('## 一、功能变更影响');
     lines.push('');
     impactRows.forEach((r, i) => {
-      lines.push(`### ${i + 1}. ${r.author} — ${r.funcPoint}`);
+      lines.push(`### ${i + 1}. ${r.funcPoint}`);
       lines.push('');
       lines.push(`- **岗位工作站：** ${r.workstation}`);
       if (r.funcModule && r.funcModule !== '（待确认）') {
@@ -189,7 +189,11 @@ function buildEmailMd(db, opts = {}) {
       lines.push(`- **需求类型：** ${r.reqType}`);
       lines.push(`- **提交人：** ${r.author}`);
       lines.push(`- **仓库：** ${r.repo}`);
-      lines.push(`- **改造功能点：** ${r.changePoint}`);
+      lines.push('');
+      lines.push('#### 改造方案');
+      lines.push('');
+      lines.push(r.changePoint);
+      lines.push('');
       const tips = splitSuggestions(r.testSuggestion);
       if (tips.length > 1) {
         lines.push('- **测试方式建议：**');
@@ -309,18 +313,19 @@ function buildEmailHtml(db, opts = {}) {
   if (impactRows.length > 0) {
     lines.push(`    <h3 style="${h3Style}">一、功能变更影响</h3>`);
     impactRows.forEach((r, i) => {
-      lines.push(`    <h4 style="${h4Style}">${i + 1}. ${escapeHtml(r.author)} — ${escapeHtml(r.funcPoint)}</h4>`);
+      lines.push(`    <h4 style="${h4Style}">${i + 1}. ${escapeHtml(r.funcPoint)}</h4>`);
       const fields = [
         ['岗位工作站', r.workstation],
         ...(r.funcModule && r.funcModule !== '（待确认）' ? [['功能模组', r.funcModule]] : []),
         ['需求类型', r.reqType],
         ['提交人', r.author],
         ['仓库', r.repo],
-        ['改造功能点', r.changePoint]
       ];
       for (const [label, value] of fields) {
         lines.push(`    <p style="margin: 2px 0 2px 16px;"><span style="${impactLabelStyle}">${label}：</span>${escapeHtml(value)}</p>`);
       }
+      lines.push(`    <p style="margin: 8px 0 2px 16px;"><span style="${impactLabelStyle}">改造方案：</span></p>`);
+      lines.push(`    <p style="margin: 2px 0 2px 16px;">${escapeHtml(r.changePoint)}</p>`);
       const tips = splitSuggestions(r.testSuggestion);
       if (tips.length > 1) {
         lines.push(`    <p style="margin: 2px 0 0 16px;"><span style="${impactLabelStyle}">测试方式建议：</span></p>`);
