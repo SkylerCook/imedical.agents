@@ -4,7 +4,7 @@
 
 ## 当前接手
 
-- Cookie 生命周期修复已提交推送并完成两个试点正常升级；最终六组矩阵、实际 vendor 11 项、本机会话 84 项、真实复用与空闲回收及跨项目调用通过。新版 CodeBuddy 宿主加载回执仍待确认；证据与 License 观测限制见[专项记录](../maintenance/validation/iris-cookie-lifecycle-2026-10-31.md)。
+- Cookie 生命周期修复已提交推送并完成两个试点正常升级；最终六组矩阵、实际 vendor 11 项、本机会话 84 项、真实复用与空闲回收及跨项目调用通过。新版 CodeBuddy 宿主成功截图与本地管理状态已核实；证据与 License 观测限制见[专项记录](../maintenance/validation/iris-cookie-lifecycle-2026-10-31.md)。
 
 - 离线交付检查原始 Git 共同基线及打包后源码漂移，XML 保留原换行/BOM；旧任务保留已有修改后按 [迁移入口](../plugins/coding-iris-plugin/references/iris-offline-development.md#git-原始基线与交付一致性)重建，模型执行习惯不纳入本次框架规则。
 
