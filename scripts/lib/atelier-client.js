@@ -22,7 +22,7 @@ function createAtelierClient({ connection, context, policy, qualification, owner
     require('node:fs').existsSync(require('node:path').join(context.contextRoot, 'config', 'iris-session-backend.json'))
     ? require('./iris-session-client').createAtelierTransport({context, connection: conn}) : null;
   const selected = managedHost || transport ? {enabled:false} : remote.loadRemotePolicy(context || {}, { connection: conn, policy, qualification });
-  const cookieFormat = sessionCookieFormat ?? selected.sessionCookieFormat ?? 'opaque';
+  const cookieFormat = sessionCookieFormat ?? remote.sessionCookieFormat(selected, conn);
   if (!['opaque', 'csp50-v1'].includes(cookieFormat)) throw new remote.RemoteOperationError('atelier-cookie-format-invalid', {beforeSend:true});
   // Opt-in only: this layout must be verified against the target server version.
   const cookieIdentity = value => cookieFormat === 'csp50-v1' && /^[A-Za-z0-9_$]{50}$/.test(value)
@@ -46,7 +46,9 @@ function createAtelierClient({ connection, context, policy, qualification, owner
     if (transport) return transport.request([method,suffix,body,headers,options]);
     return new Promise((resolve, reject) => {
       const data = body === undefined ? null : Buffer.from(JSON.stringify(body));
-      const requestPath = options.logout ? conn.path + '?CacheLogout=end' : options.serverInfo ? serverInfoPath : conn.path + suffix;
+      const pathMatches = (target, scope) => target === scope || target.startsWith(scope.endsWith('/') ? scope : scope + '/');
+      const logoutTarget = sessionCookies(cookies).every(([name]) => pathMatches(serverInfoPath, cookieScopes.get(name)?.path || '/')) ? logoutPath : conn.path + '?CacheLogout=end';
+      const requestPath = options.logout ? logoutTarget : options.serverInfo ? serverInfoPath : conn.path + suffix;
       const matchesPath = path => requestPath.split('?')[0] === path || requestPath.startsWith(path.endsWith('/') ? path : path + '/');
       if (!options.logout && sessionCookies(cookies).some(([name]) => {
         const scope = cookieScopes.get(name);
@@ -123,7 +125,6 @@ function createAtelierClient({ connection, context, policy, qualification, owner
   async function request(method, suffix, body, headers = {}, options = {}) {
     remote.assertRemoteAllowed(context || {});
     if (closed || closing) throw new remote.RemoteOperationError('atelier-client-closed', { beforeSend: true });
-    if (sessionUncertain) throw new remote.RemoteOperationError('atelier-session-identity-unverified', {beforeSend: true, sessionUncertain: true});
     if (busy) throw new remote.RemoteOperationError('atelier-client-busy', { beforeSend: true });
     if (qualificationReads) {
       const allowed = qualificationReads.has(suffix) || suffix === '@server-info' && options.serverInfo === true;
@@ -133,7 +134,10 @@ function createAtelierClient({ connection, context, policy, qualification, owner
       options = {...options, effects: 'read-only', timeoutMs: Math.max(1, Math.min(options.timeoutMs || timeoutMs, qualificationDeadline - Date.now()))};
     }
     busy = true;
-    try { return await owner.run({ effects: options.effects || (['GET', 'HEAD'].includes(method) || suffix === 'docs' ? 'read-only' : 'write'), operation: options.operation || 'atelier-' + method.toLowerCase(), method, suffix }, () => raw(method, suffix, body, headers, options)); }
+    try { return await owner.run({ effects: options.effects || (['GET', 'HEAD'].includes(method) || suffix === 'docs' ? 'read-only' : 'write'), operation: options.operation || 'atelier-' + method.toLowerCase(), method, suffix }, () => {
+      if (sessionUncertain) throw new remote.RemoteOperationError('atelier-session-identity-unverified', {beforeSend: true, sessionUncertain: true});
+      return raw(method, suffix, body, headers, options);
+    }); }
     finally { busy = false; }
   }
   function document(name, result) {

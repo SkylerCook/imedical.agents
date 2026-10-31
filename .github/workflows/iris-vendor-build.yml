@@ -35,6 +35,12 @@ jobs:
             git -C upstream apply $target
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
+      - uses: actions/cache/restore@v4
+        id: cargo-cache
+        with:
+          path: upstream/target
+          key: iris-vendor-msvc-1.92-${{ hashFiles('upstream/Cargo.lock', 'framework/vendor/iris-agentic-dev/patches/*.patch') }}
+          restore-keys: iris-vendor-msvc-1.92-
       - name: Build fixed Rust version
         working-directory: upstream
         shell: pwsh
@@ -43,6 +49,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo +1.92.0 build --locked --release -p iris-agentic-dev --bin iris-agentic-dev
           exit $LASTEXITCODE
+      - uses: actions/cache/save@v4
+        if: always() && steps.cargo-cache.outputs.cache-hit != 'true'
+        with:
+          path: upstream/target
+          key: ${{ steps.cargo-cache.outputs.cache-primary-key }}
       - name: Verify actual binary against localhost
         working-directory: framework
         shell: pwsh
@@ -50,8 +61,16 @@ jobs:
           $env:IRIS_TEST_VENDOR_BINARY = Join-Path $env:GITHUB_WORKSPACE 'upstream/target/release/iris-agentic-dev.exe'
           node --test scripts/tests/iris-session-vendor.tests.js
           exit $LASTEXITCODE
+      - name: Record binary digest
+        shell: pwsh
+        run: |
+          $binary = 'upstream/target/release/iris-agentic-dev.exe'
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $binary).Hash.ToLowerInvariant()
+          [IO.File]::WriteAllText('upstream/target/release/SHA256.txt', "$hash  iris-agentic-dev.exe`n", [Text.UTF8Encoding]::new($false))
       - uses: actions/upload-artifact@v4
         with:
           name: iris-vendor-candidate-windows-x64
-          path: upstream/target/release/iris-agentic-dev.exe
+          path: |
+            upstream/target/release/iris-agentic-dev.exe
+            upstream/target/release/SHA256.txt
           retention-days: 7

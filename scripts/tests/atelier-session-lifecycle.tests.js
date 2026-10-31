@@ -3,6 +3,17 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const {createAtelierClient} = require('../lib/atelier-client');
+const remote = require('../lib/iris-remote-operations');
+
+test('format compatibility requires an explicit binding to the verified instance', () => {
+  const connection={protocol:'https:',hostname:'example.invalid',port:443};
+  assert.equal(remote.sessionCookieFormat({},connection),'opaque');
+  assert.throws(()=>remote.sessionCookieFormat({sessionCookieFormat:'guessed'},connection), e=>e.beforeSend===true);
+  assert.throws(()=>remote.sessionCookieFormat({sessionCookieFormat:'csp50-v1'},connection), /target-unverified/);
+  const policy={sessionCookieFormat:'csp50-v1',sessionCookieFormatInstance:remote.instanceIdentity(connection)};
+  assert.equal(remote.sessionCookieFormat(policy,connection),'csp50-v1');
+  assert.throws(()=>remote.sessionCookieFormat(policy,{...connection,port:8443}), /target-unverified/);
+});
 
 async function fixture(t, mode, options = {}) {
   const requests = []; let sequence = 0;

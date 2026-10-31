@@ -34,6 +34,7 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
     }
     policy=remote.managedPolicy(context,policy,true);
   }
+  if (!localOnly) remote.sessionCookieFormat(policy, connection);
   const backendFile = path.join(context.contextRoot, 'config', 'iris-session-backend.json');
   let backend;
   if (fs.existsSync(backendFile)) backend = JSON.parse(fs.readFileSync(backendFile, 'utf8'));

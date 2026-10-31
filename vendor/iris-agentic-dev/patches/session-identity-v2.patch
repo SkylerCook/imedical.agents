@@ -64,7 +64,7 @@ index 7862b1d..a8f2923 100644
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/iris/connection.rs b/crates/iris-agentic-dev-core/src/iris/connection.rs
-index fd2230e..ad517af 100644
+index 9043777..9882a5f 100644
 --- a/crates/iris-agentic-dev-core/src/iris/connection.rs
 +++ b/crates/iris-agentic-dev-core/src/iris/connection.rs
 @@ -451,7 +451,7 @@ impl IrisConnection {
@@ -155,27 +155,33 @@ index fd2230e..ad517af 100644
 +
 +use crate::iris::csp_session::ManagedSend;
 diff --git a/crates/iris-agentic-dev-core/src/iris/csp_session.rs b/crates/iris-agentic-dev-core/src/iris/csp_session.rs
-index 1fa54a3..b83e795 100644
+index addb2af..18f3f85 100644
 --- a/crates/iris-agentic-dev-core/src/iris/csp_session.rs
 +++ b/crates/iris-agentic-dev-core/src/iris/csp_session.rs
-@@ -104,31 +104,105 @@ pub fn shared_cookie_store() -> Arc<CspSessionStore> {
+@@ -43,7 +43,8 @@ impl CspSessionStore {
+             .collect()
+     }
+
+-    fn record(&self, header: &HeaderValue, url: &Url) {
++    fn record(&self, header: &HeaderValue, url: &Url) {
++        if std::env::var("IRIS_MANAGED_NO_RETRIES").as_deref()==Ok("1") {validate_scope(header,url);}
+         let Ok(text) = header.to_str() else { return };
+         let mut parts = text.split(';').map(str::trim);
+         // `split` always yields one item, so a header with no name reads as an empty name.
+@@ -103,32 +104,131 @@ pub fn shared_cookie_store() -> Arc<CspSessionStore> {
+ ///
  /// Runs on a thread of its own with its own runtime, so it can be called from `main` after the
  /// runtime has returned and from `crate::exit` inside a tokio task alike.
- pub fn logout_blocking(timeout: Duration) {
+-pub fn logout_blocking(timeout: Duration) {
 -    let urls = SHARED.logout_urls();
 -    let attempted = urls.len();
-     let managed = std::env::var("IRIS_MANAGED_NO_RETRIES").as_deref() == Ok("1");
+-    let managed = std::env::var("IRIS_MANAGED_NO_RETRIES").as_deref() == Ok("1");
 -    if urls.is_empty() {
 -        if managed { eprintln!("IMEDICAL_LOGOUT={{\"attempted\":0,\"acknowledged\":0,\"completed\":true}}"); }
 -        return;
 -    }
 -    let (done_tx, done_rx) = std::sync::mpsc::channel();
-+    let targets: Vec<(String,Option<HeaderValue>)> = if managed {
-+        MANAGED_LOGOUT.lock().unwrap().values().flat_map(|items|items.iter().cloned().map(|(u,c)|(u,Some(c)))).collect()
-+    } else {SHARED.logout_urls().into_iter().map(|u|(u,None)).collect()};
-+    let attempted=targets.len();
-+    let (done_tx,done_rx)=std::sync::mpsc::channel();
-     std::thread::spawn(move || {
+-    std::thread::spawn(move || {
 -        let Ok(rt) = tokio::runtime::Builder::new_current_thread().enable_all().build() else { return; };
 -        let acknowledged = rt.block_on(async {
 -            let Ok(client) = reqwest::Client::builder()
@@ -186,6 +192,23 @@ index 1fa54a3..b83e795 100644
 -            futures_util::future::join_all(sends).await.into_iter().filter(|r|
 -                r.as_ref().map(|response| response.status().is_success() || response.status().as_u16() == 401).unwrap_or(false)
 -            ).count()
+-        });
+-        let _ = done_tx.send(acknowledged);
+-    });
+-    let result = done_rx.recv_timeout(timeout);
+-    if managed {
+-        eprintln!("IMEDICAL_LOGOUT={{\"attempted\":{},\"acknowledged\":{},\"completed\":{}}}",
+-            attempted, result.as_ref().copied().unwrap_or(0), result.is_ok());
+-    }
+-}
++pub fn logout_blocking(timeout: Duration) {
++    let managed = std::env::var("IRIS_MANAGED_NO_RETRIES").as_deref() == Ok("1");
++    let targets: Vec<(String,Option<HeaderValue>)> = if managed {
++        MANAGED_LOGOUT.lock().unwrap().values().flat_map(|items|items.iter().cloned().map(|(u,c)|(u,Some(c)))).collect()
++    } else {SHARED.logout_urls().into_iter().map(|u|(u,None)).collect()};
++    let attempted=targets.len();
++    let (done_tx,done_rx)=std::sync::mpsc::channel();
++    std::thread::spawn(move || {
 +        let Ok(rt)=tokio::runtime::Builder::new_current_thread().enable_all().build() else {return;};
 +        let acknowledged=rt.block_on(async {
 +            let builder=reqwest::Client::builder().user_agent(super::connection::user_agent(super::connection::caller_mode()))
@@ -206,14 +229,9 @@ index 1fa54a3..b83e795 100644
 +                }
 +            }
 +            acknowledged
-         });
--        let _ = done_tx.send(acknowledged);
++        });
 +        let _=done_tx.send(acknowledged);
-     });
--    let result = done_rx.recv_timeout(timeout);
--    if managed {
--        eprintln!("IMEDICAL_LOGOUT={{\"attempted\":{},\"acknowledged\":{},\"completed\":{}}}",
--            attempted, result.as_ref().copied().unwrap_or(0), result.is_ok());
++    });
 +    let result=done_rx.recv_timeout(timeout);
 +    if managed {eprintln!("IMEDICAL_LOGOUT={{\"attempted\":{},\"acknowledged\":{},\"completed\":{}}}",attempted,result.as_ref().copied().unwrap_or(0),result.is_ok()&&!MANAGED_UNCERTAIN.load(std::sync::atomic::Ordering::SeqCst));}
 +}
@@ -230,8 +248,8 @@ index 1fa54a3..b83e795 100644
 +            if replace {items.clear();}
 +            if items.len()<2 && !items.iter().any(|(u,c)|u==&target&&c==&cookie) {items.push((target,cookie));}
 +        }
-     }
- }
++    }
++}
 +// Managed transport guard: all Atelier HTTP sends share this admission lock.
 +static MANAGED_GUARD: LazyLock<tokio::sync::Mutex<()>> = LazyLock::new(|| tokio::sync::Mutex::new(()));
 +static MANAGED_UNCERTAIN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -276,7 +294,7 @@ index 1fa54a3..b83e795 100644
 +        if current.is_some() {remember_logout(&url,true);request.headers_mut().remove(reqwest::header::AUTHORIZATION);}
 +        let response=match client.execute(request).await {Ok(response)=>response,Err(error)=>{let _=managed_error();return Err(error);}};
 +        let after=managed_identity(&url);
-+        if after.is_none() || previous.is_some() && after!=previous {remember_logout(&url,false);return Err(managed_error());}
++        if MANAGED_UNCERTAIN.load(std::sync::atomic::Ordering::SeqCst) || after.is_none() || previous.is_some() && after!=previous {remember_logout(&url,false);return Err(managed_error());}
 +        remember_logout(&url,true);
 +        MANAGED_IDENTITIES.lock().unwrap().insert(key,after.unwrap());
 +        if [401,403,503].contains(&response.status().as_u16()) {
@@ -285,6 +303,31 @@ index 1fa54a3..b83e795 100644
 +        }
 +        Ok(response)
 +    }
++}
++static MANAGED_SCOPES: LazyLock<Mutex<std::collections::BTreeMap<String,(String,String,bool)>>> = LazyLock::new(||Mutex::new(std::collections::BTreeMap::new()));
++fn validate_scope(header:&HeaderValue,url:&Url) {
++    let Ok(text)=header.to_str() else {let _=managed_error();return;};
++    let mut parts=text.split(';').map(str::trim);
++    let name=parts.next().unwrap_or("").split('=').next().unwrap_or("");
++    if !name.starts_with(SESSION_COOKIE_PREFIX) {return;}
++    let mut domain=url.host_str().unwrap_or("").to_ascii_lowercase();
++    let mut path=url.path()[..url.path().rfind('/').unwrap_or(0)].to_string();
++    if path.is_empty(){path="/".into();}
++    let mut secure=false;
++    for part in parts {
++        if part.eq_ignore_ascii_case("secure"){secure=true;}
++        if let Some((key,value))=part.split_once('=') {
++            if key.eq_ignore_ascii_case("domain"){domain=value.trim_start_matches('.').to_ascii_lowercase();}
++            if key.eq_ignore_ascii_case("path")&&value.starts_with('/'){path=value.to_string();}
++        }
++    }
++    let prefix=if path.ends_with('/') {path.clone()} else {format!("{path}/")};
++    if domain!=url.host_str().unwrap_or("").to_ascii_lowercase() || secure&&url.scheme()!="https" || !(url.path()==path || url.path().starts_with(&prefix)) {let _=managed_error();return;}
++    let key=format!("{}|{}",url.origin().ascii_serialization(),name);
++    let scope=(domain,path,secure);
++    let mut known=MANAGED_SCOPES.lock().unwrap();
++    if known.get(&key).is_some_and(|old|old!=&scope){let _=managed_error();return;}
++    known.insert(key,scope);
 +}
 \ No newline at end of file
 diff --git a/crates/iris-agentic-dev-core/src/iris/discovery.rs b/crates/iris-agentic-dev-core/src/iris/discovery.rs

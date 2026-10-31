@@ -4,7 +4,8 @@ const {JsonLineMcpClient}=require('../iris-mcp');
 const {createTempDirectory,ownsTempDirectory}=require('./fixtures/temp-directory');
 const binary=process.env.IRIS_TEST_VENDOR_BINARY || path.resolve('vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe');
 
-test('actual vendor stops business calls after session cookie deletion', {skip:process.platform!=='win32'&&!process.env.IRIS_TEST_VENDOR_BINARY}, async t => {
+for (const mode of ['deleted', 'replaced', 'scope-changed', 'missing', 'refresh']) {
+test('actual vendor enforces cookie lifecycle: '+mode, {skip:process.platform!=='win32'&&!process.env.IRIS_TEST_VENDOR_BINARY}, async t => {
   const root=createTempDirectory('iris-session-cookie-vendor-'), seen=[];
   let removeCookie=false;
   const server=http.createServer((req,res)=>{
@@ -12,22 +13,37 @@ test('actual vendor stops business calls after session cookie deletion', {skip:p
       seen.push({url:req.url,cookie:req.headers.cookie,authorization:!!req.headers.authorization});
       res.setHeader('Content-Type','application/json');
       if(req.url.includes('IRISLogout=end')){res.writeHead(401);res.end('{}');return;}
-      res.setHeader('Set-Cookie', removeCookie ? 'CSPSESSIONID-fixture=; Max-Age=0; Path=/api/atelier/' : 'CSPSESSIONID-fixture=fixture; Path=/api/atelier/');
+      let value='fixture', scope='/api/atelier/', expiry='';
+      if(mode==='refresh')value=(removeCookie?'B':'A').repeat(8)+'C'.repeat(14)+(removeCookie?'E':'D').repeat(28);
+      if(removeCookie && mode==='deleted'){value='';expiry='; Max-Age=0';}
+      if(removeCookie && mode==='replaced')value='replacement';
+      if(removeCookie && mode==='scope-changed')scope='/api/atelier/v1/TEST/';
+      if(mode!=='missing')res.setHeader('Set-Cookie',`CSPSESSIONID-fixture=${value}; Path=${scope}${expiry}`);
       res.end(JSON.stringify(req.method==='GET' ? {result:{content:{version:'IRIS for test',api:1}}} : {result:{content:[{probe:1,Value:'Development'}]}}));
     });
   });
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const inherited=Object.fromEntries(Object.keys(process.env).filter(k=>k.startsWith('IRIS_')).map(k=>[k,undefined]));
-  const client=new JsonLineMcpClient(binary,['mcp','--no-skills'],{...inherited,IRIS_HOST:'127.0.0.1',IRIS_WEB_PORT:String(server.address().port),IRIS_SCHEME:'http',IRIS_NAMESPACE:'TEST',IRIS_USERNAME:'fixture',IRIS_PASSWORD:'fixture',IRIS_MANAGED_NO_RETRIES:'1'},{cwd:root});
+  const client=new JsonLineMcpClient(binary,['mcp','--no-skills'],{...inherited,IRIS_HOST:'127.0.0.1',IRIS_WEB_PORT:String(server.address().port),IRIS_SCHEME:'http',IRIS_NAMESPACE:'TEST',IRIS_USERNAME:'fixture',IRIS_PASSWORD:'fixture',IRIS_MANAGED_NO_RETRIES:'1',IRIS_SESSION_COOKIE_FORMAT:mode==='refresh'?'csp50-v1':'opaque'},{cwd:root});
   t.after(async()=>{await client.close();await new Promise(resolve=>server.close(resolve));if(ownsTempDirectory(root))fs.rmSync(root,{recursive:true});});
   await client.request('initialize',{protocolVersion:'2024-11-05',capabilities:{},clientInfo:{name:'cookie-test',version:'1'}});client.notify('notifications/initialized',{});
   const query=()=>client.request('tools/call',{name:'iris_query',arguments:{query:'SELECT 1 AS probe',mode:'read',namespace:'TEST'}});
-  await query(); removeCookie=true;
+  const first=await query();
+  if(mode!=='missing')assert.notEqual(first.result?.isError,true,'initial query must succeed');
+  removeCookie=true;
   await query().catch(()=>{});
   const before=seen.filter(r=>!r.url.includes('IRISLogout=end')).length;
-  await query().catch(()=>{});
-  assert.equal(seen.filter(r=>!r.url.includes('IRISLogout=end')).length,before,'An unknown session must not authenticate or dispatch another business request');
+  const last=await query().catch(()=>null);
+  const after=seen.filter(r=>!r.url.includes('IRISLogout=end')).length;
+  if(mode==='refresh') {assert.ok(after>before);assert.notEqual(last?.result?.isError,true);}
+  else assert.equal(after,before,'An unknown session must not authenticate or dispatch another business request');
+  assert.equal(seen.filter(r=>r.authorization).length,1,'Only initial authentication is allowed');
+  const exit=await client.close();
+  assert.equal(exit.logout.completed,mode==='refresh');
+  if(mode==='deleted')assert.ok(seen.some(r=>r.url.includes('IRISLogout=end')&&r.cookie?.includes('fixture')),'deleted cookie must remain available for logout');
+  if(mode==='missing')assert.equal(seen.length,1);
 });
+}
 test('actual patched vendor sends one generator PUT on 503 and acknowledges its own logout',{skip:process.platform!=='win32'&&!process.env.IRIS_TEST_VENDOR_BINARY},async t=>{
   const root=createTempDirectory('iris-session-vendor-'),seen=[];
   const server=http.createServer((req,res)=>{

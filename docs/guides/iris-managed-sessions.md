@@ -26,6 +26,16 @@ CLI 退出只释放请求端；管理进程继续持有 vendor 及 Cookie。业�
 
 ## 已有项目更新
 
+### Cookie 生命周期修复候选的配置边界
+
+Cookie 修复尚在候选验收中，不能仅更新脚本后就宣称 vendor 通道已修复。交付版本须同时包含受测 vendor、匹配摘要、会话运行时及更新检查；更新后结束旧管理进程并重启宿主 MCP，再核对实际调用回执。旧熔断和未知结果保留，更新不能自动解除。
+
+普通查询不要求新增历史资格文件。没有 Cookie 格式配置时使用 `opaque`，仅允许完整值不变；Cookie 丢失、删除、作用域变化或身份无法确认会停止派发并进入恢复流程，不自动重新认证。相同会话的正常 Token 更新需要按目标验证其格式。
+
+已针对目标服务器验证固定身份布局后，才可在私有 `ContextRoot/config/iris-remote-policy.json` 设置 `sessionCookieFormat: "csp50-v1"`，并将 `sessionCookieFormatInstance` 绑定为框架 `instanceIdentity(connection)` 生成的目标摘要。该摘要只防止将格式配置误用于另一目标，不代表验证证据本身；保留现场版本与会话对照记录。服务器或网关升级后需重新核验，未知格式不可根据长度猜测。更新器保留已有配置，不自动启用此兼容选项。
+
+格式配置变化纳入会话身份，旧会话结束后才应用新值。无效配置在连接前停止，本地状态检查与恢复入口仍可用。发生 `session-identity-unverified` 时，注销 HTTP 回执不能解除身份异常；必须核实自有会话是否消失，未知写入另行核实，禁止重放。
+
 沿[现有更新流程](../update-agents.md)执行 DryRun → Write → Check。更新只读写本地文件。coding 插件的 `iris-managed-session-v1` 在开发配置补缺前运行：可识别的框架 vendor 配置自动迁移；已有策略逐值保留，没有策略才生成受管单会话默认值。服务名、env、disabled、其他 MCP 服务保留，自定义 command/args 返回待适配原因，不强行改写。仍直连时 Check 不通过。
 
 standard 直接正常更新；Overlay 先更新 CapabilityRoot，再刷新各 ContextRoot。不能复制源仓根 AGENTS 或维护者记忆到业务工程。更新后重启受影响宿主的 MCP，实际执行有界常量查询，检查回执及 `sessions`。共享宿主可能缓存旧 command，配置检查不能替代此步骤。

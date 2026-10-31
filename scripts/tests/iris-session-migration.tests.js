@@ -25,6 +25,22 @@ test('dry run, write, repeated update, Check and rollback preserve credentials a
   assert.equal(fs.readFileSync(path.join(f.root,'.agents/config/iris-session-backend.json'),'utf8').includes('private-sample'),false);
   migrate({projectRoot:f.root,mode:'Rollback'});assert.deepEqual(JSON.parse(fs.readFileSync(f.file,'utf8')),f.config);
 });
+test('updates and rollback preserve private cookie format bindings byte for byte',t=>{
+  const f=fixture(t),directory=path.join(f.root,'.agents/config');
+  fs.mkdirSync(directory,{recursive:true});
+  const file=path.join(directory,'iris-remote-policy.json');
+  const original=JSON.stringify({schema:'iris-remote-policy/v1',enabled:true,
+    poolKey:'fixture-cookie-policy',coordinationRoot:path.join(f.root,'coordination'),maxConcurrent:1,
+    qualification:{status:'pending'},sessionCookieFormat:'csp50-v1',
+    sessionCookieFormatInstance:require('../lib/iris-remote-operations').instanceIdentity(f.config.mcpServers['iris-agentic-dev'].env)},null,2)+'\n';
+  fs.writeFileSync(file,original);
+  for(const mode of ['DryRun','Write','Check','Write','Rollback']) {
+    migrate({projectRoot:f.root,mode});
+    assert.equal(fs.readFileSync(file,'utf8'),original,mode+' must not rewrite private policy');
+  }
+  assert.deepEqual(JSON.parse(fs.readFileSync(f.file)),f.config);
+});
+
 test('custom entries and rollback drift stop without replacing user changes',t=>{
   const f=fixture(t);f.config.mcpServers['iris-agentic-dev'].command='custom';fs.writeFileSync(f.file,JSON.stringify(f.config));
   assert.throws(()=>migrate({projectRoot:f.root,mode:'Write'}),/custom-command/);

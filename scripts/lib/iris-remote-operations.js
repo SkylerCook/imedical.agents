@@ -49,6 +49,14 @@ function instanceIdentity(connection = {}) {
   if (typeof host !== 'string' || !host || !Number.isInteger(Number(port)) || Number(port) < 1 || Number(port) > 65535) stop('remote-target-required');
   return digest(JSON.stringify([scheme.toLowerCase(), host.toLowerCase(), Number(port)]));
 }
+function sessionCookieFormat(policy, connection) {
+  const format = policy?.sessionCookieFormat ?? 'opaque';
+  if (!['opaque', 'csp50-v1'].includes(format)) stop('session-cookie-format-invalid', {beforeSend:true});
+  if (format !== 'opaque' && policy?.sessionCookieFormatInstance !== instanceIdentity(connection)) {
+    stop('session-cookie-format-target-unverified', {beforeSend:true});
+  }
+  return format;
+}
 function targetIdentity(connection = {}) {
   let base = connection.path || (connection.namespace ? '/api/atelier/v1/' + encodeURIComponent(connection.namespace) + '/' : '');
   base = base.replace(/(?:action\/compile.*|doc\/.*|docs(?:\?.*)?)$/, '');
@@ -359,4 +367,4 @@ function reconcileRemotePool({policy, token, evidenceFile, confirm = false, writ
     return {schema:'iris-remote-reconciliation/v1',status:'reconciled',licenseReleaseVerified:false};
   } finally { fs.closeSync(descriptor); fs.unlinkSync(recoveryLock); }
 }
-module.exports = { RemoteOperationError, contextMode, developmentMode, assertRemoteAllowed, bindDevelopmentMode, localPoolStatus, localPolicy, instanceIdentity, targetIdentity, validQualificationGrant, loadRemotePolicy, managedPolicy, createRemoteOperation, createRecoveryReadOperation, withRemoteOperation, poolStatus, reconcileRemotePool };
+module.exports = { RemoteOperationError, contextMode, developmentMode, assertRemoteAllowed, bindDevelopmentMode, localPoolStatus, localPolicy, instanceIdentity, sessionCookieFormat, targetIdentity, validQualificationGrant, loadRemotePolicy, managedPolicy, createRemoteOperation, createRecoveryReadOperation, withRemoteOperation, poolStatus, reconcileRemotePool };

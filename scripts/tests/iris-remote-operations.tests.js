@@ -105,7 +105,7 @@ test('Atelier reuses cookies, preserves bytes, conditionals and owns only its lo
   const server = require('node:http').createServer((req, res) => {
     events.push({ method: req.method, cookie: req.headers.cookie, auth: req.headers.authorization, path: req.url });
     if (req.url.includes('CacheLogout')) { res.writeHead(401); res.end(); return; }
-    res.setHeader('Set-Cookie', 'CSPSESSIONID=synthetic; Path=/api/atelier/; HttpOnly');
+    res.setHeader('Set-Cookie', 'CSPSESSIONID=synthetic; Path=/gateway/api/atelier/; HttpOnly');
     res.end(JSON.stringify({ status: { errors: [] }, result: { content: value.split('\n'), ts: '2026-10-24 01:02:03.000', db: '@FS', enc: false } }));
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -196,7 +196,11 @@ test('recovery read stops on another 503 without clearing the circuit or retryin
   assert.equal(remote.poolStatus({policy}).status,'circuit-open');
 });
 test('explicit inspection can claim a dead interrupted owner and preserves the unresolved write', async t => {
-  const f=fixture(t),server=require('node:http').createServer((_req,res)=>res.end(JSON.stringify({status:{errors:[]},result:{content:['observed'],ts:'2026-10-24 01:02:03.000'}})));
+  const f=fixture(t),server=require('node:http').createServer((req,res)=>{
+    if(req.method==='HEAD'){res.writeHead(401);res.end();return;}
+    res.setHeader('Set-Cookie','CSPSESSIONID=recovery; Path=/api/atelier/');
+    res.end(JSON.stringify({status:{errors:[]},result:{content:['observed'],ts:'2026-10-24 01:02:03.000'}}));
+  });
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(()=>{server.closeAllConnections();server.close();});
   const connection={protocol:'http:',hostname:'127.0.0.1',port:server.address().port,namespace:'TEST'},policy=remote.loadRemotePolicy(f.context,{policy:f.policy,connection});
   const source=`const r=require(${JSON.stringify(path.resolve(__dirname,'../lib/iris-remote-operations'))});const o=r.createRemoteOperation(${JSON.stringify({policy,connection})});o.run({effects:'write'},async()=>{process.stdout.write('ready\\n');process.stdin.resume();await new Promise(()=>{});});`;
