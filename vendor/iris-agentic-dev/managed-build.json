@@ -11,9 +11,9 @@
     "managed-sessions-v1.patch",
     "session-identity-v2.patch"
   ],
-  "sha256": "d2cf282d665d2c4ee1d62c8eef8b7b4e0f44c318288477951ed840a856d5fb3c",
-  "bytes": 50485248,
+  "sha256": "f4df03550ac39844cdfd980276861a95ab4ed145edd40b9d42a643ff007ea1b9",
+  "bytes": 50487808,
   "verification": "iris-session-vendor.tests.js",
-  "buildRun": "https://github.com/SkylerCook/imedical.agents/actions/runs/41214416705",
-  "frameworkCommit": "14ec83e1ce9da24fef0907ab3c236a052b78db2b"
+  "buildRun": "https://github.com/SkylerCook/imedical.agents/actions/runs/41217745429",
+  "frameworkCommit": "9654cf6d1aac9e9174adfc61ed979f2f4e7340a4"
 }
