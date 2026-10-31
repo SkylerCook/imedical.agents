@@ -26,7 +26,13 @@ jobs:
         run: |
           git -C upstream config core.autocrlf false
           git -C upstream checkout-index -f -a
+          # Changing autocrlf after checkout need not rewrite existing worktree bytes.
+          foreach ($relative in @(git -C upstream ls-files '*.rs')) {
+            $file = Join-Path 'upstream' $relative
+            [IO.File]::WriteAllText($file, [IO.File]::ReadAllText($file).Replace("`r`n", "`n"), [Text.UTF8Encoding]::new($false))
+          }
           foreach ($name in @('managed-sessions-v1.patch', 'session-identity-v2.patch')) {
+            Write-Host "Applying $name"
             $source = Join-Path $env:GITHUB_WORKSPACE "framework/vendor/iris-agentic-dev/patches/$name"
             $target = Join-Path $env:RUNNER_TEMP $name
             [IO.File]::WriteAllText($target, [IO.File]::ReadAllText($source).Replace("`r`n", "`n"), [Text.UTF8Encoding]::new($false))
