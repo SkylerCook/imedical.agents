@@ -339,3 +339,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 0.25.0：CLI 与原生 MCP 接入用户级会话管理，普通查询单会话复用、排队及空闲注销，不以历史批量资格 pending 一刀切阻断。已有项目通过 configMigrations 更新；保留明确禁用与旧恢复状态，自定义入口待适配。宿主重启和实际回执是验收项；见[统一会话手册](../../docs/guides/iris-managed-sessions.md)。
 
 离线交付自 0.26.0 起检查原始 Git 基线及打包后源码漂移，并保留输入 XML 换行格式；旧任务迁移见[离线开发](references/iris-offline-development.md#git-原始基线与交付一致性)。
+
+0.26.1 修复会话身份未知时的部署恢复：禁止重新认证，保留已有 Cookie 的有限只读恢复。更新须同时取得框架运行时与匹配的 `managed-sessions-v2` vendor，旧恢复材料和私有格式配置保留；接入、宿主重启及回执验证见[统一会话手册](../../docs/guides/iris-managed-sessions.md)。

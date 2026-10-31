@@ -4,6 +4,10 @@
 
 ## IRIS 统一会话（coding 0.25）
 
+Cookie 生命周期修复随 coding 0.26.1 配套发布：须完整更新框架脚本、`managed-sessions-v2` vendor 和摘要，新运行时拒绝旧补丁。旧进程结束并重启宿主后核对实际回执；更新保留私有格式绑定、原禁用和恢复材料，不自动清除未知状态。配置与验收边界见[统一会话手册](guides/iris-managed-sessions.md#已有项目更新)。
+
+统一会话迁移声明 `checkMode: "Check"`，通用更新器据此执行实际入口及 vendor 摘要校验；未声明的存量迁移仍用只读 DryRun，保持原兼容行为。Check 不连接服务器，也不以脚本退出成功替代实际宿主验收。
+
 coding 0.25.0 通过现有 configMigrations 迁移框架生成的 MCP 到本机受管入口，保留连接参数、disabled 和其它服务。无旧策略才生成单会话默认值；已有禁用不解禁，旧 owner 与恢复材料不清除。DryRun/Write/Check 只操作本地文件，完成后重启对应宿主 MCP 并检查真实调用回执；Overlay 先共享 CapabilityRoot 再逐 ContextRoot。自定义入口待适配，仍直连不能通过 Check。操作、回退及证据边界见[统一会话手册](guides/iris-managed-sessions.md)。
 
 ## IRIS 开发方式与离线交付（coding 0.24）

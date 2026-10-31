@@ -6,6 +6,21 @@ const {hash, failure} = require('./iris-session-manager');
 const mcp = require('../iris-mcp');
 const verifiedBinaries=new Map();
 
+function verifyVendor(executable) {
+  executable=fs.realpathSync(executable);
+  const stat=fs.statSync(executable),metadata=path.join(path.dirname(executable),'..','managed-build.json');
+  if(!fs.existsSync(metadata))throw failure('session-patched-vendor-required');
+  const build=JSON.parse(fs.readFileSync(metadata,'utf8').replace(/^\uFEFF/,''));
+  if(build.schema!=='iris-managed-vendor/v1' || build.patch!=='managed-sessions-v2')throw failure('session-patched-vendor-mismatch');
+  const fingerprint=hash([executable,stat.size,stat.mtimeMs,build.sha256]);
+  if(!verifiedBinaries.has(fingerprint)) {
+    const actual=require('node:crypto').createHash('sha256').update(fs.readFileSync(executable)).digest('hex');
+    if(actual!==build.sha256)throw failure('session-patched-vendor-mismatch');
+    verifiedBinaries.set(fingerprint,true);
+  }
+  return build;
+}
+
 function describe(projectRoot, serverName, {localOnly=false} = {}) {
   const context = require('./workspace-context').resolveWorkspaceContext(path.resolve(projectRoot));
   const localEnv=path.join(context.contextRoot,'config','project-env.json');
@@ -47,16 +62,7 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
   const executable=fs.realpathSync(path.resolve(context.workspaceRoot,backend.command)),stat=fs.statSync(executable);
   let runtimeIdentity=[executable,stat.size,stat.mtimeMs];
   if(!localOnly && /(?:^|[\\/])iris-agentic-dev(?:\.exe)?$/i.test(executable)) {
-    const metadata=path.join(path.dirname(executable),'..','managed-build.json');
-    if(!fs.existsSync(metadata))throw failure('session-patched-vendor-required');
-    const build=JSON.parse(fs.readFileSync(metadata,'utf8').replace(/^\uFEFF/,''));
-    if(build.schema!=='iris-managed-vendor/v1' || build.patch!=='managed-sessions-v2')throw failure('session-patched-vendor-mismatch');
-    const fingerprint=hash([executable,stat.size,stat.mtimeMs,build.sha256]);
-    if(!verifiedBinaries.has(fingerprint)) {
-      const actual=require('node:crypto').createHash('sha256').update(fs.readFileSync(executable)).digest('hex');
-      if(actual!==build.sha256)throw failure('session-patched-vendor-mismatch');
-      verifiedBinaries.set(fingerprint,true);
-    }
+    const build=verifyVendor(executable);
     runtimeIdentity=['managed-vendor',build.sha256];
   }
   backend={...backend,command:executable};
@@ -151,4 +157,4 @@ function operation(params) {
   if (write && params.allowWrite !== true) throw failure('session-write-authorization-required');
   return {...params, channel: 'mcp', effects: write ? 'write' : 'read-only', identity: d.identity, pool: d.pool};
 }
-module.exports = {describe, open, operation};
+module.exports = {describe, open, operation, verifyVendor};

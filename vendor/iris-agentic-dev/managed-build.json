@@ -1,13 +1,19 @@
 {
-  "linker": "llvm-mingw-20261020-msvcrt-x86_64",
   "schema": "iris-managed-vendor/v1",
-  "target": "x86_64-pc-windows-gnu",
-  "sha256": "2f912d4faa47890960d2125ce0e276de92e1819932f6a742ad3cffcae15e8787",
-  "bytes": 61741056,
   "version": "1.5.0",
-  "rust": "1.92.0",
   "upstreamCommit": "2b3e017b7fc73d6370fc1e89e7fa03f3de49a1a1",
   "platform": "windows-x64",
+  "target": "x86_64-pc-windows-msvc",
+  "rust": "1.92.0",
+  "linker": "Windows MSVC (windows-latest GitHub Actions)",
+  "patch": "managed-sessions-v2",
+  "patches": [
+    "managed-sessions-v1.patch",
+    "session-identity-v2.patch"
+  ],
+  "sha256": "d2cf282d665d2c4ee1d62c8eef8b7b4e0f44c318288477951ed840a856d5fb3c",
+  "bytes": 50485248,
   "verification": "iris-session-vendor.tests.js",
-  "patch": "managed-sessions-v1"
+  "buildRun": "https://github.com/SkylerCook/imedical.agents/actions/runs/41214416705",
+  "frameworkCommit": "14ec83e1ce9da24fef0907ab3c236a052b78db2b"
 }

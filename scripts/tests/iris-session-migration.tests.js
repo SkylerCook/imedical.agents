@@ -8,6 +8,7 @@ function fixture(t){
   fs.mkdirSync(path.join(root,'.agents/scripts'),{recursive:true});fs.writeFileSync(path.join(root,'.agents/scripts/iris-session-mcp.js'),'');
   const executable=path.join(root,'.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe');
   fs.mkdirSync(path.dirname(executable),{recursive:true});fs.writeFileSync(executable,'fixture');
+  fs.writeFileSync(path.join(path.dirname(executable),'../managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v2',sha256:require('node:crypto').createHash('sha256').update('fixture').digest('hex')}));
   const config={mcpServers:{'iris-agentic-dev':{command:executable,args:['mcp','--no-skills'],env:{IRIS_HOST:'example.invalid',IRIS_PASSWORD:'private-sample',IRIS_NAMESPACE:'TEST',IRIS_WEB_PORT:'443'}},other:{command:'keep'}}};
   const file=path.join(root,'.mcp.json');fs.writeFileSync(file,JSON.stringify(config));
   t.after(()=>{if(ownsTempDirectory(root))fs.rmSync(root,{recursive:true});});
@@ -25,6 +26,19 @@ test('dry run, write, repeated update, Check and rollback preserve credentials a
   assert.equal(fs.readFileSync(path.join(f.root,'.agents/config/iris-session-backend.json'),'utf8').includes('private-sample'),false);
   migrate({projectRoot:f.root,mode:'Rollback'});assert.deepEqual(JSON.parse(fs.readFileSync(f.file,'utf8')),f.config);
 });
+test('Check rejects old or modified vendor without connecting or changing private configuration',t=>{
+  const f=fixture(t);migrate({projectRoot:f.root,mode:'Write'});
+  const before=fs.readFileSync(f.file,'utf8'),executable=f.config.mcpServers['iris-agentic-dev'].command;
+  const metadata=path.join(path.dirname(executable),'../managed-build.json');
+  const build=JSON.parse(fs.readFileSync(metadata,'utf8'));
+  assert.equal(migrate({projectRoot:f.root,mode:'Check'}).managed,true);
+  fs.writeFileSync(metadata,JSON.stringify({...build,patch:'managed-sessions-v1'}));
+  assert.throws(()=>migrate({projectRoot:f.root,mode:'Check'}),/session-patched-vendor-mismatch/);
+  fs.writeFileSync(metadata,JSON.stringify(build));fs.appendFileSync(executable,'modified');
+  assert.throws(()=>migrate({projectRoot:f.root,mode:'Check'}),/session-patched-vendor-mismatch/);
+  assert.equal(fs.readFileSync(f.file,'utf8'),before);
+});
+
 test('updates and rollback preserve private cookie format bindings byte for byte',t=>{
   const f=fixture(t),directory=path.join(f.root,'.agents/config');
   fs.mkdirSync(directory,{recursive:true});
