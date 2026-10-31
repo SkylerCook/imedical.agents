@@ -4,7 +4,7 @@ const {JsonLineMcpClient}=require('../iris-mcp');
 const {createTempDirectory,ownsTempDirectory}=require('./fixtures/temp-directory');
 const binary=process.env.IRIS_TEST_VENDOR_BINARY || path.resolve('vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe');
 
-for (const mode of ['deleted', 'replaced', 'scope-changed', 'missing', 'refresh', 'auth-switched']) {
+for (const mode of ['deleted', 'replaced', 'scope-changed', 'missing', 'refresh', 'auth-switched', 'websocket']) {
 test('actual vendor enforces cookie lifecycle: '+mode, {skip:process.platform!=='win32'&&!process.env.IRIS_TEST_VENDOR_BINARY}, async t => {
   const root=createTempDirectory('iris-session-cookie-vendor-'), seen=[];
   let removeCookie=false;
@@ -19,9 +19,11 @@ test('actual vendor enforces cookie lifecycle: '+mode, {skip:process.platform!==
       if(removeCookie && mode==='replaced')value='replacement';
       if(removeCookie && mode==='scope-changed')scope='/api/atelier/v1/TEST/';
       if(mode!=='missing')res.setHeader('Set-Cookie',`CSPSESSIONID-fixture=${value}; Path=${scope}${expiry}`);
-      res.end(JSON.stringify(req.method==='GET' ? {result:{content:{version:'IRIS for test',api:1}}} : {result:{content:[{probe:1,Value:'Development'}]}}));
+      res.end(JSON.stringify(req.method==='GET' ? {result:{content:{version:'IRIS for test',api:mode==='websocket'?7:1}}} : {result:{content:[{probe:1,Value:'Development'}]}}));
     });
   });
+  const upgrades=[];
+  server.on('upgrade',(req,socket)=>{upgrades.push({cookie:req.headers.cookie,authorization:!!req.headers.authorization});socket.end('HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const inherited=Object.fromEntries(Object.keys(process.env).filter(k=>k.startsWith('IRIS_')).map(k=>[k,undefined]));
   const client=new JsonLineMcpClient(binary,['mcp','--no-skills'],{...inherited,IRIS_HOST:'127.0.0.1',IRIS_WEB_PORT:String(server.address().port),IRIS_SCHEME:'http',IRIS_NAMESPACE:'TEST',IRIS_USERNAME:'fixture',IRIS_PASSWORD:'fixture',IRIS_MANAGED_NO_RETRIES:'1',IRIS_SESSION_COOKIE_FORMAT:mode==='refresh'?'csp50-v1':'opaque',...(mode==='auth-switched'?{IRIS_SERVICE_USERNAME:'other-fixture',IRIS_SERVICE_PASSWORD:'other-fixture'}:{})},{cwd:root});
@@ -30,6 +32,14 @@ test('actual vendor enforces cookie lifecycle: '+mode, {skip:process.platform!==
   const query=()=>client.request('tools/call',{name:'iris_query',arguments:{query:'SELECT 1 AS probe',mode:'read',namespace:'TEST'}});
   const first=await query();
   if(mode!=='missing')assert.notEqual(first.result?.isError,true,'initial query must succeed');
+  if(mode==='websocket') {
+    await client.request('tools/call',{name:'iris_ws_open',arguments:{namespace:'TEST'}});
+    assert.equal(upgrades.length,1,'WebSocket handshake must reach the fixture');
+    assert.equal(upgrades[0].cookie,'CSPSESSIONID-fixture=fixture');
+    assert.equal(upgrades[0].authorization,false,'Managed WebSocket must not reauthenticate');
+    assert.ok(seen.slice(1).every(r=>r.cookie?.includes('CSPSESSIONID-fixture=fixture')),'Every HTTP request after authentication must reuse its cookie');
+    const exit=await client.close();assert.equal(exit.logout.completed,true);return;
+  }
   removeCookie=true;
   const beforeChange=seen.length;
   if(mode==='auth-switched') {
