@@ -17,6 +17,21 @@ function Save-Json($file,$data) {
         if(Test-Path -LiteralPath $file){[IO.File]::Replace($temp,$file,[System.Management.Automation.Language.NullString]::Value)}else{[IO.File]::Move($temp,$file)}
     } finally {if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Force}}
 }
+function Save-MissingList($receipt,$receiptFile) {
+    $file=Join-Path ([IO.Path]::GetDirectoryName($receiptFile)) 'missing-objects.txt'
+    if (([IO.FileInfo]::new($file)).Attributes -ne -1 -and (([IO.FileInfo]::new($file)).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'linked-missing-list-forbidden' }
+    $names=@($receipt.items | Where-Object {$_.status -eq 'missing'} | ForEach-Object {
+        $name=[string]$_.document
+        if($name.Contains('/') -and -not $name.StartsWith('/')){'/'+$name}else{$name}
+    })
+    $text=if($names.Count){($names -join "`r`n")+"`r`n"}else{''}
+    $temp=$file+'.'+[guid]::NewGuid().ToString('N')+'.tmp'
+    try {
+        [IO.File]::WriteAllText($temp,$text,$utf8)
+        if(Test-Path -LiteralPath $file){[IO.File]::Replace($temp,$file,[System.Management.Automation.Language.NullString]::Value)}else{[IO.File]::Move($temp,$file)}
+    } finally {if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Force}}
+    return $file
+}
 function Journal($active,$reason) { Save-Json $journal @{schema='iris-export-gui-session/v1';active=$active;blocked=$script:blocked;reason=$reason;at=[DateTime]::UtcNow.ToString('o')} }
 function Close-Pool {
     if(-not $pool.workers){return}
@@ -95,10 +110,21 @@ try {
             $receipt=$null
             if(-not $plan -and (Test-Path -LiteralPath $receiptFile)){$receipt=[IO.File]::ReadAllText($receiptFile,$utf8)|ConvertFrom-Json}
             if(-not $plan -and ($code -eq 1 -or $receipt.reason -or $message.trial)){
-                if($receipt.reason -and $receipt.reason -ne 'cancelled-by-user'){$blocked=$true}
+                  # Lost/changed session identity stops this batch; verified cleanup
+                # permits an explicit resume. Unknown cleanup still blocks below.
+                $recoverableSessionEnd=$receipt.reason -in @('atelier-session-lost','atelier-session-changed','atelier-text-document-invalid','atelier-base64-invalid','atelier-document-error','class-identity-mismatch')
+                if($receipt.reason -and $receipt.reason -ne 'cancelled-by-user' -and $receipt.reason -ne 'local-state-write-failed' -and -not $recoverableSessionEnd){$blocked=$true}
                 Close-Pool
             }
             if(-not $plan -and -not $pool.workers){Journal $false $(if($blocked){'blocked'}else{'idle'})}
+            if(-not $plan -and (Test-Path -LiteralPath $receiptFile)){
+                # Report the finalized receipt after cleanup, not the core's earlier snapshot.
+                $receipt=[IO.File]::ReadAllText($receiptFile,$utf8)|ConvertFrom-Json
+                $summary=[ordered]@{state=$receipt.state;total=@($receipt.items).Count;reason=$receipt.reason;session=$receipt.session;sessionRetained=$receipt.sessionRetained;logoutVerified=$receipt.logoutVerified;logoutReason=$receipt.logoutReason}
+                foreach($status in @('fetched','missing','empty','failed','pending','writing')){$summary[$status]=@($receipt.items|Where-Object{$_.status -eq $status}).Count}
+                try {$summary.missingListFile=Save-MissingList $receipt $receiptFile} catch {$summary.missingListError=$_.Exception.Message}
+                $output=$summary|ConvertTo-Json -Depth 6
+            }
             Emit 'result' @{exitCode=$code;plan=$plan;output=$output;batch=$job.batch;retained=[bool]$pool.workers;blocked=$blocked}
         } catch {Emit 'error' @{reason=$_.Exception.Message;blocked=$blocked}}
         finally {$pending=$reader.ReadLineAsync()}

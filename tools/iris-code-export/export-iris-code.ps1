@@ -47,25 +47,27 @@ function Hash-Bytes([byte[]]$Bytes) {
 function Assert-PlainPath([string]$Path) {
     $current = [IO.Path]::GetFullPath($Path)
     while ($current) {
-        if (Test-Path -LiteralPath $current) {
-            if ((Get-Item -Force -LiteralPath $current).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'linked-path-forbidden' }
-        }
+        # FileSystemInfo reads attributes directly, avoiding PowerShell provider setup
+        # for every ancestor of every object. Missing paths have attributes -1.
+        $attributes = ([IO.FileInfo]::new($current)).Attributes
+        if ([int]$attributes -ne -1 -and ($attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'linked-path-forbidden' }
         $current = [IO.Path]::GetDirectoryName($current)
     }
 }
 function Save-State {
     Assert-PlainPath $statePath
     $state.updatedAt = [DateTime]::UtcNow.ToString('o')
+    $state.checkpointCount++
     $tmp = $statePath + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
     try {
         [IO.File]::WriteAllText($tmp, ($state | ConvertTo-Json -Depth 12), $utf8)
         if (Test-Path -LiteralPath $statePath) { [IO.File]::Replace($tmp, $statePath, [System.Management.Automation.Language.NullString]::Value) }
         else { [IO.File]::Move($tmp, $statePath) }
-    } finally { if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force } }
+    } catch { throw 'local-state-write-failed' } finally { if (Test-Path -LiteralPath $tmp) { Remove-Item -LiteralPath $tmp -Force } }
 }
 function Get-Destination([string]$Relative) {
     if ([IO.Path]::IsPathRooted($Relative) -or $Relative.Contains('\') -or $Relative.Split('/') -contains '..') { throw 'unsafe-output-path' }
-    $file = [IO.Path]::GetFullPath((Join-Path $root $Relative))
+    $file = [IO.Path]::GetFullPath([IO.Path]::Combine($root, $Relative))
     if (-not $file.StartsWith($root + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'unsafe-output-path' }
     Assert-PlainPath $file
     return $file
@@ -104,9 +106,30 @@ function Get-TransportDiagnostic([Exception]$Exception) {
 function Get-SessionSnapshot([Net.CookieContainer]$Container, [uri]$BaseUri) {
     $cookies = @($Container.GetCookies($BaseUri)); $sessionCookies = @($cookies | Where-Object { $_.Name -match '^CSPSESSION' -and $_.Value })
     if (-not $sessionCookies.Count) { return $null }
-    $identity = Hash-Bytes ($utf8.GetBytes((($sessionCookies | ForEach-Object { $_.Name + '|' + $_.Domain + '|' + $_.Path + '|' + $_.Value } | Sort-Object) -join "`n")))
+    # Recognized CSP tokens contain variable gateway data (1-8), a fixed session
+    # identity (9-22), and a MAC (23-50). A trusted server response may renew the
+    # variable data and MAC while retaining the same session identity.
+    # Unknown formats retain exact-value identity checks.
+    $identity = Hash-Bytes ($utf8.GetBytes((($sessionCookies | ForEach-Object {
+        $token=$_.Value
+        if($token -cmatch '^[A-Za-z0-9_$]{50}$'){$token='csp50:'+ $token.Substring(8,14)}else{$token='exact:'+ $token}
+        $_.Name + '|' + $_.Domain + '|' + $_.Path + '|' + $token
+    } | Sort-Object) -join "`n")))
     $copies = @($cookies | ForEach-Object { $copy = New-Object Net.Cookie($_.Name, $_.Value, $_.Path, $_.Domain); $copy.Secure = $_.Secure; $copy.HttpOnly = $_.HttpOnly; $copy })
-    return [pscustomobject]@{identity = $identity; count = $sessionCookies.Count; cookies = $copies}
+    $values = Hash-Bytes ($utf8.GetBytes((($sessionCookies | ForEach-Object { $_.Value } | Sort-Object) -join "`n")))
+    $scopes = Hash-Bytes ($utf8.GetBytes((($sessionCookies | ForEach-Object { $_.Name + '|' + $_.Domain + '|' + $_.Path } | Sort-Object) -join "`n")))
+    return [pscustomobject]@{identity = $identity; valueHash = $values; scopeHash = $scopes; count = $sessionCookies.Count; cookies = $copies}
+}
+function Record-SessionChange($Worker, $Current, $Response, [string]$Phase) {
+    $before=$null;if($Worker.identity){$before=$knownSessions[$Worker.identity]}
+    $event=[pscustomobject]@{at=[DateTime]::UtcNow.ToString('o');phase=$Phase;worker=$Worker.number;workerRequests=$Worker.requests;
+        requestElapsedMs=if($Worker.started){[int]([DateTime]::UtcNow-$Worker.started).TotalMilliseconds}else{$null};
+        httpStatus=if($Response){[int]$Response.StatusCode}else{$null};
+        previousIdentity=$Worker.identity;currentIdentity=if($Current){$Current.identity}else{$null};
+        cookieValueChanged=if($before -and $Current){$before.valueHash -cne $Current.valueHash}else{$null};
+        cookieScopeChanged=if($before -and $Current){$before.scopeHash -cne $Current.scopeHash}else{$null};
+        responseSetsCookie=if($Response){$Response.Headers.Contains('Set-Cookie')}else{$false}}
+    $state | Add-Member NoteProperty sessionChange $event -Force
 }
 function Close-SessionSnapshot($Snapshot) {
     $result = [ordered]@{responseReceived = $false; httpStatus = $null; accepted = $false; reason = $null; diagnostic = $null}
@@ -164,7 +187,7 @@ try {
         @($xml.SelectNodes('/Export/Project/*')).Count -ne 1) { throw 'ProjectItem-catalog-required-full-export-use-edit-export-xml' }
     $nodes = @($xml.SelectNodes('/Export/Project/Items/*'))
     if (-not $nodes.Count) { throw 'empty-catalog' }
-    $items = @(); $excluded = @(); $seen = @{}; $paths = @{}
+    $items = New-Object 'Collections.Generic.List[object]'; $excluded = @(); $seen = @{}; $paths = @{}
     foreach ($node in $nodes) {
         $name = $node.GetAttribute('name'); $kind = $node.GetAttribute('type').ToUpperInvariant()
         if ($node.get_Name() -cne 'ProjectItem' -or $kind -notin @('CLS', 'MAC', 'INC', 'INT', 'CSP') -or
@@ -193,8 +216,9 @@ try {
         if ($kind -notin $Type -or -not $name.StartsWith($Prefix, [StringComparison]::OrdinalIgnoreCase)) { continue }
         if ($paths.ContainsKey($relative)) { throw 'output-path-collision' }; $paths[$relative] = $true
         [void](Get-Destination $relative)
-        $items += [pscustomobject]@{document = $document; path = $relative; status = 'pending'; sha256 = $null; bytes = 0; observedAt = $null; reason = $null}
+        $items.Add([pscustomobject]@{document = $document; path = $relative; status = 'pending'; sha256 = $null; bytes = 0; observedAt = $null; reason = $null})
     }
+    $items = $items.ToArray()
     foreach ($relative in $paths.Keys) {
         $parent = $relative
         while ($parent.Contains('/')) { $parent = $parent.Substring(0, $parent.LastIndexOf('/')); if ($paths.ContainsKey($parent)) { throw 'output-path-collision' } }
@@ -267,6 +291,7 @@ try {
         }
         foreach ($entry in @{
             session = [pscustomobject]@{cookieVerified = $false; requestCount = 0; authenticationCount = 0}
+            checkpointCount = 0
             transportDiagnostic = $null; logoutRequested = $false; logoutResponseReceived = $false; logoutResults = @(); logoutReason = $null
         }.GetEnumerator()) { $state | Add-Member -MemberType NoteProperty -Name $entry.Key -Value $entry.Value -Force }
         $state.logoutHttpStatus = $null; $state.licenseReleaseVerified = $false
@@ -284,7 +309,7 @@ try {
             $handler.CookieContainer = New-Object Net.CookieContainer
             $client = New-Object Net.Http.HttpClient($handler)
             $client.Timeout = [TimeSpan]::FromSeconds($TimeoutSec); $client.MaxResponseContentBufferSize = 16777216
-            $workers += [pscustomobject]@{handler=$handler;client=$client;identity=$null;task=$null;request=$null;item=$null;ready=[DateTime]::MinValue;requests=0}
+            $workers += [pscustomobject]@{number=$w;handler=$handler;client=$client;identity=$null;task=$null;request=$null;item=$null;ready=[DateTime]::MinValue;started=$null;requests=0}
         }
         $authorization = [Convert]::ToBase64String($utf8.GetBytes($Credential.UserName + ':' + $Credential.GetNetworkCredential().Password))
         $processed = 0; $state.reason = $null; $state.logoutVerified = $false
@@ -303,6 +328,8 @@ try {
         try {
             while ($queue.Count -or @($workers | Where-Object { $_.task }).Count) {
                 if ($CancelFile -and (Test-Path -LiteralPath $CancelFile)) { $stopDispatch = $true; if (-not $state.reason) { $state.reason = 'cancelled-by-user' } }
+                $pendingWrites = New-Object 'Collections.Generic.List[object]'
+                $stateChanged = $false
                 foreach ($worker in $workers) {
                     $handler = $worker.handler; $client = $worker.client
                     if (-not $worker.task -and -not $stopDispatch -and $queue.Count -and $processed -lt $MaxFilesPerRun -and [DateTime]::UtcNow -ge $worker.ready -and (-not $SessionTrial -or $worker.requests -eq 0)) {
@@ -315,16 +342,18 @@ try {
                             if ($worker.identity) {
                                 $snapshot = Get-SessionSnapshot $handler.CookieContainer $uri
                                 if (-not $snapshot) { throw 'atelier-session-lost' }
-                                if ($snapshot.identity -cne $worker.identity) { throw 'atelier-session-changed' }
+                                if ($snapshot.identity -cne $worker.identity) { Record-SessionChange $worker $snapshot $null 'before-request'; throw 'atelier-session-changed' }
                             } else {
                                 $request.Headers.Authorization = New-Object Net.Http.Headers.AuthenticationHeaderValue('Basic', $authorization)
                                 $state.session.authenticationCount++
                             }
                             $state.session.requestCount++; $processed++; $worker.requests++
+                            $worker.started = [DateTime]::UtcNow
+                            $worker.ready = $worker.started.AddMilliseconds($IntervalMs)
                             $worker.task = $client.SendAsync($request)
                         } catch {
                             $item.status = 'failed'; $item.reason = $_.Exception.Message; $state.reason = $item.reason; $stopDispatch = $true
-                            $request.Dispose(); $worker.request = $null; Save-State
+                            $request.Dispose(); $worker.request = $null; $stateChanged = $true
                         }
                     }
                     if (-not $worker.task -or -not $worker.task.IsCompleted) { continue }
@@ -332,50 +361,84 @@ try {
                     try {
                         try { $response = $worker.task.GetAwaiter().GetResult() }
                         catch { $state.transportDiagnostic = Get-TransportDiagnostic $_.Exception; throw 'atelier-transport-or-timeout' }
+                    $previousSession=$null;if($worker.identity){$previousSession=$knownSessions[$worker.identity]}
                     $currentSession = Get-SessionSnapshot $handler.CookieContainer $uri
                     if ($currentSession -and $currentSession.count -eq 1) { $knownSessions[$currentSession.identity] = $currentSession }
                     $httpStatus = [int]$response.StatusCode
                     if (($httpStatus -lt 200 -or $httpStatus -ge 300) -and $httpStatus -ne 404) { throw ('atelier-http-' + $httpStatus) }
                     if (-not $currentSession) { if ($worker.identity) { throw 'atelier-session-lost' }; throw 'atelier-session-cookie-missing' }
                     if ($currentSession.count -ne 1) { throw 'atelier-session-ambiguous' }
-                    if ($worker.identity -and $currentSession.identity -cne $worker.identity) { throw 'atelier-session-changed' }
+                    if ($worker.identity -and $currentSession.identity -cne $worker.identity) { Record-SessionChange $worker $currentSession $response 'after-response'; throw 'atelier-session-changed' }
+                    if($previousSession -and $previousSession.valueHash -cne $currentSession.valueHash){
+                        if(-not ($state.session.PSObject.Properties.Name -contains 'cookieRefreshCount')){$state.session|Add-Member NoteProperty cookieRefreshCount 0}
+                        $state.session.cookieRefreshCount++
+                    }
                     $worker.identity = $currentSession.identity; $state.session.cookieVerified = $true
-                    if ($httpStatus -eq 404) { $item.status = 'missing'; Save-State; continue }
+                    if ($httpStatus -eq 404) { $item.status = 'missing'; $item.reason = $null; $stateChanged = $true; continue }
                     try { $payload = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json } catch { throw 'atelier-json-invalid' }
                     $value = $payload.result
                     if ($payload.status.errors.Count -or $payload.status.summary -or ($value.status -and $value.status -ne 'OK')) { throw 'atelier-document-error' }
                     if (-not $value -or $value.content -isnot [array] -or ($value.name -and $value.name -cne $item.document) -or
-                        @($value.content | Where-Object { $_ -isnot [string] }).Count -or $value.enc) { throw 'atelier-text-document-invalid' }
-                    $content = $utf8.GetBytes(($value.content -join "`n"))
+                        @($value.content | Where-Object { $_ -isnot [string] }).Count -or
+                        ($null -ne $value.enc -and $value.enc -isnot [bool])) { throw 'atelier-text-document-invalid' }
+                    if ($value.enc) {
+                        # Each API chunk is independently base64 encoded (including padding).
+                        # Preserve original bytes rather than interpreting legacy Web encodings.
+                        $decoded = New-Object IO.MemoryStream
+                        try {
+                            foreach ($chunk in $value.content) {
+                                try { $part = [Convert]::FromBase64String($chunk) } catch { throw 'atelier-base64-invalid' }
+                                $decoded.Write($part, 0, $part.Length)
+                            }
+                            $content = $decoded.ToArray()
+                        } finally { $decoded.Dispose() }
+                        $item | Add-Member NoteProperty contentEncoding 'base64' -Force
+                    } else { $content = $utf8.GetBytes(($value.content -join "`n")) }
                     $item.observedAt = [DateTime]::UtcNow.ToString('o')
-                    if (-not $content.Length) { $item.status = 'empty'; Save-State; continue }
+                    if (-not $content.Length) { $item.status = 'empty'; $item.reason = $null; $stateChanged = $true; continue }
                     if ($item.document.EndsWith('.cls') -and $utf8.GetString($content) -notmatch ('(?m)^\s*Class\s+' + [regex]::Escape($item.document.Substring(0, $item.document.Length - 4)) + '(?=\s|\(|$)')) { throw 'class-identity-mismatch' }
                     $file = Get-Destination $item.path
                     if (Test-Path -LiteralPath $file) { throw 'existing-file-conflict' }
                     [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($file))
                     $item.sha256 = Hash-Bytes $content; $item.bytes = $content.Length; $item.status = 'writing'
-                    Save-State
-                    # Publish complete bytes only; CreateNew/Move never replace an existing source.
-                    $temporary = $file + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
-                    try {
-                        $stream = [IO.File]::Open($temporary, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
-                        try { $stream.Write($content, 0, $content.Length); $stream.Flush($true) } finally { $stream.Dispose() }
-                        Assert-PlainPath $file
-                        [IO.File]::Move($temporary, $file)
-                    } finally { if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force } }
-                    if ((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -ne $item.sha256) { throw 'write-readback-mismatch' }
-                    $item.status = 'fetched'; Save-State
-                    Write-Host ('[{0}] {1}' -f $processed, $item.document)
+                    $item.reason = $null
+                    $pendingWrites.Add([pscustomobject]@{item=$item;file=$file;content=$content;sequence=$processed})
+                    $stateChanged = $true
                     } catch {
                         $item.status = 'failed'; $item.reason = $_.Exception.Message
                         if (-not $state.reason -or $item.reason -eq 'atelier-http-503') { $state.reason = $item.reason }
                         if ($item.reason -like 'atelier-session-*') { $state.session.cookieVerified = $false }
-                        $stopDispatch = $true; Save-State
+                        $stopDispatch = $true; $stateChanged = $true
                     } finally {
                         if ($response) { $response.Dispose() }; $request.Dispose()
-                        $worker.task = $null; $worker.request = $null; $worker.ready = [DateTime]::UtcNow.AddMilliseconds($IntervalMs)
+                        $worker.task = $null; $worker.request = $null
                     }
                 }
+                if ($pendingWrites.Count) {
+                    # Persist all expected hashes before publishing any file in this group.
+                    Save-State
+                    foreach ($pending in $pendingWrites) {
+                        $item = $pending.item; $file = $pending.file; $content = $pending.content
+                        try {
+                            # Publish complete bytes only; CreateNew/Move never replace an existing source.
+                            $temporary = $file + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
+                            try {
+                                $stream = [IO.File]::Open($temporary, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+                                try { $stream.Write($content, 0, $content.Length); $stream.Flush($true) } finally { $stream.Dispose() }
+                                Assert-PlainPath $file
+                                [IO.File]::Move($temporary, $file)
+                            } finally { if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force } }
+                            if ((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -ne $item.sha256) { throw 'write-readback-mismatch' }
+                            $item.status = 'fetched'
+                            Write-Host ('[{0}] {1}' -f $pending.sequence, $item.document)
+                                } catch {
+                            $item.status = 'failed'; $item.reason = $_.Exception.Message
+                            if (-not $state.reason) { $state.reason = $item.reason }
+                            $stopDispatch = $true
+                        }
+                    }
+                }
+                if ($stateChanged) { Save-State }
                 if (($stopDispatch -or $processed -ge $MaxFilesPerRun) -and -not @($workers | Where-Object { $_.task }).Count) { break }
                 Start-Sleep -Milliseconds 10
             }
@@ -406,6 +469,7 @@ try {
             $authorization = $null; foreach ($worker in $workers) { $worker.client.Dispose(); $worker.handler.Dispose() }
             }
             $state.state = 'partial'
+            if($state.reason -like 'atelier-session-*'){$state.session.cookieVerified=$false}
             if (@($state.items | Where-Object { $_.status -ne 'fetched' }).Count -eq 0 -and $state.logoutVerified) { $state.state = 'complete' }
             Save-State
         }
