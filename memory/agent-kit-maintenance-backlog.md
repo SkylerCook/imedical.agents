@@ -1,5 +1,7 @@
 # imedical.agents 后续治理队列
 
+- **P1 Cookie 生命周期发布与现场恢复**：原候选六组矩阵及更新器回归通过；独立门户已核实自有会话并沿 reconcile 恢复，目标格式对照后三次查询及会话消失通过。WebSocket 修补后的 11 项 binary、本机 84 项和最终六组矩阵通过；15 次真实查询及默认空闲回收已核验，部署与宿主收尾尚未完成。完成受限真实查询/退出、standard 与 Overlay 更新/宿主验收后才能正式交付，不向其它项目批量推广。证据与剩余工作见[专项记录](../maintenance/validation/iris-cookie-lifecycle-2026-10-31.md)。
+
 - **P2 AI 开发离线物料干净环境验收**（归治理表第 7 项兼容验证，tools/ai-dev-offline）：原包、CodeBuddy、安全模板、PATH与用户终端自动配置已准备，JSONC增量写入及无Node PATH双宿主入口已有本地证据；后续在获授权干净Windows 10/11 x64断网验证完整安装、Python pip/venv、Machine PATH／通知、便携及普通VS Code新终端、CodeBuddy激活资源与AI shell实际加载。AI登录、MCP宿主和医院运行时另验；文件写入／Process子CMD不能替代现场。完整自动安装器及其它设置通用合并尚未实现，不把制包扩大为本机用户设置／系统变更或业务副本更新。
 
 - P2 项目知识库目录治理：受管用途说明、旧导航精确评审接管、普通 Write 更新与 Check 缺失/过期检查已在源仓实现；沿既有 CI 取得 Node22/24 × Windows/macOS/Linux矩阵实跑，并在获授权项目分别核实旧 README 接管、扩展说明及真实宿主查找/落盘行为。目录与说明通过不代表逐文件分类或业务内容现行；首次部署、具体资料迁移仍按各批授权取证。源仓实现不代表业务副本已升级。

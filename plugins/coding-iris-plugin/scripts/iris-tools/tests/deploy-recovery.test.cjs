@@ -183,12 +183,14 @@ test('guarded known compile failure needs diagnosis, and corrected source keeps 
   assert.equal((await guard.run(options)).reason, 'previous-result-unknown');
 });
 
-test('real Atelier transient GET failure recovers on the same client before a single write and compile', async t => {
+for(const established of [true,false]) {
+test('real Atelier read recovery requires established session: '+established, async t => {
   const http = require('node:http'), {backendAdapter} = require('../deploy-protected'), f = fixture(t);
   let content = ['// old'], gets = 0, puts = 0, compiles = 0;
   const server = http.createServer((request, response) => {
     let body = ''; request.on('data', chunk => { body += chunk; }); request.on('end', () => {
-      if (request.method === 'GET' && ++gets === 1) return request.socket.destroy();
+      if (request.method === 'GET' && ++gets === (established ? 2 : 1)) return request.socket.destroy();
+      response.setHeader('Set-Cookie','CSPSESSIONID=fixture; Path=/api/atelier/');
       if (request.method === 'PUT') { puts++; content = JSON.parse(body).content; }
       if (request.method === 'POST') compiles++;
       response.end(JSON.stringify({status: {errors: []}, result: {content: request.method === 'POST' ? [] : content, ts: '2026-01-01 00:00:00.000'}, console: []}));
@@ -198,7 +200,14 @@ test('real Atelier transient GET failure recovers on the same client before a si
   t.after(() => { server.closeAllConnections(); server.close(); });
   const adapter = backendAdapter({protocol: 'http:', hostname: '127.0.0.1', port: server.address().port, namespace: 'TEST'});
   t.after(() => adapter.close());
+  if(established)await adapter.read(f.files[0]);
   const result = await run({...f, files: [f.files[0]], adapter: fast(adapter), kind: 'frontend'});
-  assert.equal(result.status, 'verified', JSON.stringify(result)); assert.equal(puts, 1); assert.equal(compiles, 1);
-  assert.equal(result.recovery.attempts.length, 1);
+  if(established) {
+    assert.equal(result.status, 'verified', JSON.stringify(result)); assert.equal(puts, 1); assert.equal(compiles, 1);
+    assert.equal(result.recovery.attempts.length, 1);
+  } else {
+    assert.equal(result.status,'blocked'); assert.equal(gets,1); assert.equal(puts,0); assert.equal(compiles,0);
+    assert.equal(result.recovery.attempts.length,0);
+  }
 });
+}

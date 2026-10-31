@@ -4,6 +4,10 @@
 
 ## IRIS 统一会话（coding 0.25）
 
+Cookie 生命周期修复随 coding 0.26.1 配套发布：须完整更新框架脚本、`managed-sessions-v2` vendor 和摘要，新运行时拒绝旧补丁。旧进程结束并重启宿主后核对实际回执；更新保留私有格式绑定、原禁用和恢复材料，不自动清除未知状态。配置与验收边界见[统一会话手册](guides/iris-managed-sessions.md#已有项目更新)。
+
+统一会话迁移声明 `checkMode: "Check"`，通用更新器据此执行实际入口及 vendor 摘要校验；未声明的存量迁移仍用只读 DryRun，保持原兼容行为。Check 不连接服务器，也不以脚本退出成功替代实际宿主验收。
+
 coding 0.25.0 通过现有 configMigrations 迁移框架生成的 MCP 到本机受管入口，保留连接参数、disabled 和其它服务。无旧策略才生成单会话默认值；已有禁用不解禁，旧 owner 与恢复材料不清除。DryRun/Write/Check 只操作本地文件，完成后重启对应宿主 MCP 并检查真实调用回执；Overlay 先共享 CapabilityRoot 再逐 ContextRoot。自定义入口待适配，仍直连不能通过 Check。操作、回退及证据边界见[统一会话手册](guides/iris-managed-sessions.md)。
 
 ## IRIS 开发方式与离线交付（coding 0.24）
@@ -215,7 +219,7 @@ coding-iris-plugin 0.10.0 的部署保护随既有 plugins 与 vendor 分发。�
 4. 普通提示不要打断用户。只有停止条件需要用户确认。
 5. 不依赖特定模型或工具的 `@文件` 语法。只要能读取本文件，就按本文件执行。
 
-`Check` 是更新器的只读验收模式。调用插件配置迁移时，更新器会把 `Check` 映射为迁移契约中的 `DryRun`；插件迁移脚本仍只需支持 `DryRun` 和 `Write`。
+`Check` 是更新器的只读验收模式。配置迁移默认仍映射为 `DryRun`；manifest 明确声明 `checkMode: "Check"` 的迁移会执行其专用只读检查。统一会话迁移使用后者核验实际 vendor 版本与摘要，不能用预演代替验收。
 
 standard 模式下，普通 `DryRun` 是“更新 capability 后预演本地生成层”：它会执行 `fetch --prune`，仅在本地落后 upstream 时执行 `pull --ff-only`，并刷新 sparse checkout；配置迁移、thin-index 和 adapter 等项目本地生成层仍只报告计划、不写入。需要保持 capability checkout 不变时，使用 `Check`，或显式使用 `DryRun -NoPull`。workspace overlay 无论是否传 `-NoPull` 都不会访问 CapabilityRoot 远端。
 

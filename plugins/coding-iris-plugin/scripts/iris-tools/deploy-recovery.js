@@ -5,7 +5,7 @@ const {setTimeout: pause} = require('node:timers/promises');
 // The underlying publication/night/transport gates still run on every attempt.
 const TRANSIENT = new Set(['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EPIPE', 'EAI_AGAIN']);
 function transient(error) {
-  if (error.status || error.httpStatus || error.reason) return false;
+  if (error.sessionUncertain || error.status || error.httpStatus || error.reason) return false;
   if (TRANSIENT.has(error.code)) return true;
   if (error.code === 'atelier-transport-unknown') return TRANSIENT.has(error.transportCode);
   return ['atelier-response-error', 'atelier-deadline-outcome-unknown'].includes(error.code);

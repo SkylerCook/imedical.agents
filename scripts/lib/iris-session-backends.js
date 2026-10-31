@@ -6,6 +6,21 @@ const {hash, failure} = require('./iris-session-manager');
 const mcp = require('../iris-mcp');
 const verifiedBinaries=new Map();
 
+function verifyVendor(executable) {
+  executable=fs.realpathSync(executable);
+  const stat=fs.statSync(executable),metadata=path.join(path.dirname(executable),'..','managed-build.json');
+  if(!fs.existsSync(metadata))throw failure('session-patched-vendor-required');
+  const build=JSON.parse(fs.readFileSync(metadata,'utf8').replace(/^\uFEFF/,''));
+  if(build.schema!=='iris-managed-vendor/v1' || build.patch!=='managed-sessions-v2')throw failure('session-patched-vendor-mismatch');
+  const fingerprint=hash([executable,stat.size,stat.mtimeMs,build.sha256]);
+  if(!verifiedBinaries.has(fingerprint)) {
+    const actual=require('node:crypto').createHash('sha256').update(fs.readFileSync(executable)).digest('hex');
+    if(actual!==build.sha256)throw failure('session-patched-vendor-mismatch');
+    verifiedBinaries.set(fingerprint,true);
+  }
+  return build;
+}
+
 function describe(projectRoot, serverName, {localOnly=false} = {}) {
   const context = require('./workspace-context').resolveWorkspaceContext(path.resolve(projectRoot));
   const localEnv=path.join(context.contextRoot,'config','project-env.json');
@@ -34,6 +49,7 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
     }
     policy=remote.managedPolicy(context,policy,true);
   }
+  if (!localOnly) remote.sessionCookieFormat(policy, connection);
   const backendFile = path.join(context.contextRoot, 'config', 'iris-session-backend.json');
   let backend;
   if (fs.existsSync(backendFile)) backend = JSON.parse(fs.readFileSync(backendFile, 'utf8'));
@@ -46,15 +62,7 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
   const executable=fs.realpathSync(path.resolve(context.workspaceRoot,backend.command)),stat=fs.statSync(executable);
   let runtimeIdentity=[executable,stat.size,stat.mtimeMs];
   if(!localOnly && /(?:^|[\\/])iris-agentic-dev(?:\.exe)?$/i.test(executable)) {
-    const metadata=path.join(path.dirname(executable),'..','managed-build.json');
-    if(!fs.existsSync(metadata))throw failure('session-patched-vendor-required');
-    const build=JSON.parse(fs.readFileSync(metadata,'utf8').replace(/^\uFEFF/,''));
-    const fingerprint=hash([executable,stat.size,stat.mtimeMs,build.sha256]);
-    if(!verifiedBinaries.has(fingerprint)) {
-      const actual=require('node:crypto').createHash('sha256').update(fs.readFileSync(executable)).digest('hex');
-      if(build.schema!=='iris-managed-vendor/v1' || build.patch!=='managed-sessions-v1' || actual!==build.sha256)throw failure('session-patched-vendor-mismatch');
-      verifiedBinaries.set(fingerprint,true);
-    }
+    const build=verifyVendor(executable);
     runtimeIdentity=['managed-vendor',build.sha256];
   }
   backend={...backend,command:executable};
@@ -67,7 +75,7 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
   }
   // Credentials are resolved here, in the user's process, never sent in CLI arguments or receipts.
   return {context, connection, env, backend, policy, pool: policy?.allowSharedPool === true ? policy.poolKey : instance,
-    identity: hash([instance, Object.fromEntries(Object.entries(env).sort(([a],[b])=>a.localeCompare(b))), connection.rejectUnauthorized, runtimeIdentity, effectiveArgs, env.IRIS_NAMESPACE])};
+    identity: hash([instance, Object.fromEntries(Object.entries(env).sort(([a],[b])=>a.localeCompare(b))), connection.rejectUnauthorized, runtimeIdentity, effectiveArgs, env.IRIS_NAMESPACE, policy?.sessionCookieFormat ?? 'opaque'])};
 }
 async function open(operation) {
   const d = describe(operation.projectRoot, operation.serverName);
@@ -76,19 +84,23 @@ async function open(operation) {
     ? remote.createRemoteOperation({policy:d.policy,connection:d.connection,channel:operation.channel}) : null;
   try {owner?.acquire();} catch(error) {error.beforeSend=true;throw error;}
   if (operation.channel === 'atelier') {
-    const client = require('./atelier-client').createAtelierClient({connection: operation.connection, context: d.context, managedHost:true,owner:owner || undefined});
+    const client = require('./atelier-client').createAtelierClient({connection: operation.connection, context: d.context, managedHost:true,owner:owner || undefined,sessionCookieFormat:d.policy?.sessionCookieFormat});
     return {call: op => {if(describe(op.projectRoot,op.serverName).identity!==d.identity)throw failure('session-configuration-changed');return client.request(...op.args);}, close: async () => {const exit=await client.close();return owner?owner.close(exit):exit;}};
   }
   const inherited=Object.fromEntries(Object.keys(process.env).filter(key=>key.startsWith('IRIS_')).map(key=>[key,undefined]));
-  const client = new mcp.JsonLineMcpClient(d.backend.command, d.backend.args, {...inherited,...d.env, IRIS_MANAGED_NO_RETRIES:'1'}, {cwd: d.context.workspaceRoot});
+  const client = new mcp.JsonLineMcpClient(d.backend.command, d.backend.args, {...inherited,...d.env, IRIS_MANAGED_NO_RETRIES:'1', IRIS_SESSION_COOKIE_FORMAT:d.policy?.sessionCookieFormat ?? 'opaque'}, {cwd: d.context.workspaceRoot});
+  const assertSession = () => {
+    const stopped=client.stderr.match(/IMEDICAL_HTTP_STOP=(401|403|503)/);
+    if(stopped)throw Object.assign(failure(stopped[1]==='503'?'session-service-unavailable':'session-authentication-failed',false),{status:Number(stopped[1])});
+    if (client.stderr.includes('IMEDICAL_SESSION_STOP=identity-unverified')) throw Object.assign(failure('session-identity-unverified',false),{sessionUncertain:true,writeOutcome:'unknown'});
+  };
   try {
     await client.request('initialize', {protocolVersion: '2024-11-05', capabilities: {}, clientInfo: {name: 'imedical-session-manager', version: '1.0.0'}});
     client.notify('notifications/initialized', {});
     const check = mcp.extractToolText(await client.request('tools/call', {name: 'check_config', arguments: {}}));
-    const stopped=client.stderr.match(/IMEDICAL_HTTP_STOP=(401|403|503)/);
-    if(stopped)throw Object.assign(failure(stopped[1]==='503'?'session-service-unavailable':'session-authentication-failed',false),{status:Number(stopped[1])});
+    assertSession();
     if (check.connected !== true || String(check.host).toLowerCase() !== d.connection.hostname.toLowerCase() || Number(check.port) !== d.connection.port || check.namespace !== d.env.IRIS_NAMESPACE) throw failure('session-backend-target-mismatch');
-  } catch(e) {const exit=await client.close(); owner?.close({cleanupVerified:exit.processExited && exit.gracefulExit}); throw e;}
+  } catch(e) {const exit=await client.close(); owner?.close({cleanupVerified:exit.processExited && exit.gracefulExit && exit.logout?.completed===true && exit.logout.attempted===exit.logout.acknowledged && !client.stderr.includes('IMEDICAL_SESSION_STOP=')}); throw e;}
   return {
     async call(op) {
       // Re-read local authorization/configuration at dispatch, including queued requests.
@@ -102,7 +114,9 @@ async function open(operation) {
       if(params.name==='kb' && params.arguments?.path)params.arguments.path=path.resolve(current.context.workspaceRoot,params.arguments.path);
       if (params.arguments?.namespace && params.arguments.namespace !== d.env.IRIS_NAMESPACE) throw failure('session-namespace-mismatch');
       const execute = async () => {
+      assertSession();
       const result = await client.request(op.method, params, op.timeoutMs || 60000);
+      assertSession();
       if (result.error || result.result?.isError) {
         const unavailable = /(?:HTTP\s*503|503\s+Service Unavailable|"(?:httpStatus|statusCode)"\s*:\s*503)/i.test(JSON.stringify(result));
         if (unavailable) throw Object.assign(failure('session-service-unavailable', false), {status: 503});
@@ -117,7 +131,7 @@ async function open(operation) {
     },
     async close() {
       const receipt = await client.close();
-      const logoutAcknowledged = receipt.logout?.completed === true && receipt.logout.attempted === receipt.logout.acknowledged;
+      const logoutAcknowledged = receipt.logout?.completed === true && receipt.logout.attempted === receipt.logout.acknowledged && !client.stderr.includes('IMEDICAL_SESSION_STOP=');
       const exit = {...receipt, logoutAcknowledged, cleanupVerified: receipt.processExited && receipt.gracefulExit && logoutAcknowledged,
         serverSessionGoneVerified:false,licenseReleaseVerified: false};
       if(!exit.cleanupVerified)owner?.markUnknown('mcp-process-exit-unverified');
@@ -143,4 +157,4 @@ function operation(params) {
   if (write && params.allowWrite !== true) throw failure('session-write-authorization-required');
   return {...params, channel: 'mcp', effects: write ? 'write' : 'read-only', identity: d.identity, pool: d.pool};
 }
-module.exports = {describe, open, operation};
+module.exports = {describe, open, operation, verifyVendor};

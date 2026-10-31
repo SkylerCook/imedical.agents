@@ -769,7 +769,7 @@ async function createAtelierServer(contentForDocument, options = {}) {
         reads.push({document: documentName, cookie: request.headers.cookie || ''});
         const status = options.statusFor?.(documentName) || 200;
         if (status !== 200) { response.statusCode = status; response.end('{}'); return; }
-        if (options.cookie && !request.headers.cookie) response.setHeader('set-cookie', 'CSPSESSIONID=fixture; Path=/; HttpOnly');
+        if (!request.headers.cookie) response.setHeader('set-cookie', 'CSPSESSIONID=fixture; Path=/; HttpOnly');
         response.setHeader('content-type', 'application/json');
         if (content === null) {
             response.statusCode = 404;

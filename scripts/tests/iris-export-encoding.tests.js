@@ -39,8 +39,9 @@ function run(args) {
 
   let requests = 0;
   const server = http.createServer((req, res) => {
+    if(req.url.includes('CacheLogout')) {res.writeHead(401);res.end();return;}
     requests++;
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie':'CSPSESSIONID=fixture; Path=/api/atelier/' });
     res.end(JSON.stringify({ result: { content: ['<div>患者姓名</div>'], db: '@FS' } }));
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));

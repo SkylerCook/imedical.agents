@@ -68,6 +68,7 @@ function migrate({projectRoot, mode='DryRun', serverName}={}) {
     if(!existing || existing.serverName!==serverName || hash({command:server.command,args:server.args})!==existing.managedHash)throw failure('session-managed-config-drift');
     if(!fs.existsSync(args[0]))throw failure('session-adapter-missing');
     if(!fs.existsSync(path.resolve(context.workspaceRoot,existing.command)))throw failure('session-backend-missing');
+    if(mode==='Check')require('./iris-session-backends').verifyVendor(path.resolve(context.workspaceRoot,existing.command));
     if(hash({command:server.command,args:server.args})!==hash(expected))throw failure('session-managed-config-drift');
     return {status:'unchanged',managed:true,restartRequired:true};
   }

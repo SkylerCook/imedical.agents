@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.26.0",
+  "version": "0.26.1",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
@@ -12,6 +12,7 @@
   "configMigrations": [
     {
       "id": "iris-managed-session-v1",
+      "checkMode": "Check",
       "script": "scripts/migrate-session-config.ps1"
     },
     {

@@ -195,7 +195,7 @@ function New-TestProject {
     '  "skills": "skills/",',
     '  "templates": "templates/",',
     '  "scripts": "scripts/",',
-    '  "configMigrations": [{"id":"sample-v1","script":"scripts/migrate-sample.ps1"}],',
+    '  "configMigrations": [{"id":"sample-v1","script":"scripts/migrate-sample.ps1"},{"id":"checked-v1","script":"scripts/migrate-checked.ps1","checkMode":"Check"}],',
     '  "skillDependencies": {',
     '    "required": [{"capability":"test.vendor.required","provider":"test-vendor","name":"vendor-test-skill"}],',
     '    "optional": [{"capability":"test.vendor.optional","provider":"root-vendor","name":"root-vendor","trigger":"test-only"}]',
@@ -277,6 +277,10 @@ function New-TestProject {
     '[PSCustomObject]@{status=$status;target=".agents/config/sample_profile.md";reason=("sample migration received " + $Mode)} | ConvertTo-Json -Compress'
   )
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/vendor/root-vendor") | Out-Null
+  Set-Content -Encoding UTF8 -Path (Join-Path $pluginRoot "scripts/migrate-checked.ps1") -Value @(
+    'param([string]$ProjectRoot=".",[string]$AgentsRoot=".agents",[ValidateSet("DryRun", "Write", "Check")][string]$Mode="DryRun")',
+    '[PSCustomObject]@{status="config-migration-unchanged";target=".agents/config/sample_profile.md";reason=("checked migration received " + $Mode)} | ConvertTo-Json -Compress'
+  )
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/vendor/root-vendor/SKILL.md") -Value @(
     "---",
     "name: root-vendor",
@@ -1337,6 +1341,7 @@ try {
   $checkOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Check -NoPull -Detailed -Plugin sample-plugin | Out-String
   Assert-Contains $checkOutput "config-migration-unchanged" "Check should accept an unchanged plugin config migration"
   Assert-Contains $checkOutput "sample migration received DryRun" "Check should pass DryRun to plugin config migration"
+  Assert-Contains $checkOutput "checked migration received Check" "Check should invoke explicitly supported migration validation"
   Assert-True (-not $checkOutput.Contains("config-migration-failed")) "Check should not report config-migration-failed for a DryRun-only migration"
   Assert-True ((Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")) -eq $profileBeforeCheck) "Check must not modify plugin profile files"
   Assert-True ((Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/sample-skill/SKILL.md")) -eq $thinIndexBeforeCheck) "Check must not modify generated thin-index files"
