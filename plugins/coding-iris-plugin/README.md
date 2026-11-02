@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+0.26.2：普通部署复用脚本回执，按[验证契约](rules/iris_deploy_checklist.md#验证)分别报告文件部署与业务验收；附加通道异常按影响分流。正常能力包更新取得规则，已有 thin-index 入口不变，无配置迁移或旧文件清理；不改变 Cookie、上传及安全门禁。
+
 0.24.4：初始化及重新部署默认执行[本地配置生成与 Check](skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)。已启用项目的普通 Write 更新通过现有 `configMigrations` 自动创建缺失配置，available/disabled 不处理，DryRun/Check 只读；保留已有文件和旧模式缺省，不猜环境、不启用远端策略。机器声明缺失时先生成兼容旧默认值的空声明，模式/环境与真实资格集中报告待确认；Agent 按事实补字段，已有恢复材料先核实指纹。也可单独运行 `source-sync.js configure`；配置、资格与基线分别验收，不连接医院、不自动建 Git 或创建假基线，无旧材料迁移/清理。
 
 0.24.3：项目按需分支的待修改文件，无论本地是否存在，都先完成[before-edit 同步](references/project-demand-development.md#修改前与部署前同步)，有变化先提交 export 基线，再开始需求修改。普通 `export.js` 直接写源码在请求前指向 source-sync，probe／独立 staging 用于参考；`--kind` 接收本次明确类型，否则沿项目默认值。正常更新能力包及已启用规则取得修正，旧直写调用改走 source-sync，无配置或恢复资料迁移。

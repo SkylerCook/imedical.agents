@@ -1,5 +1,7 @@
 # imedical.agents
 
+普通 IRIS 文件部署按[验证契约](plugins/coding-iris-plugin/rules/iris_deploy_checklist.md#验证)复用已有回执，分别报告文件部署和业务验收；独立附加检查不拖延已验证部署的交付。
+
 > **让 AI Coding 的最佳实践成为团队共享的基础设施。**
 
 `imedical.agents` 是 imedical 的 AI Coding 能力包仓库，将实践中验证有效的 Agent 角色、协作流程、插件规则、skills、模板和辅助脚本沉淀为可治理、可一键分发、可持续演进的团队能力。它帮助团队成员缩小对 AI Coding 的认知与使用差异，让优秀经验被整个团队稳定复用。
