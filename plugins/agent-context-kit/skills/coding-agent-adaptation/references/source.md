@@ -1,10 +1,10 @@
 # 宿主技能目录与项目规则入口依据
 
-核对日期：2026-10-23。本文是 `coding-agent-adaptation` 的宿主发现参考；执行流程见 [SKILL.md](../SKILL.md)，命令及迁移见能力包 [runbook](../../../../../docs/coding-agent-adaptation.md)。它不是启用清单，当前脚本也不解析本文件。
+WorkBuddy 分支复核日期：2026-11-03；其它宿主记录沿用 2026-10-23 的核对范围。本文是 `coding-agent-adaptation` 的宿主发现参考；执行流程见 [SKILL.md](../SKILL.md)，命令及迁移见能力包 [runbook](../../../../../docs/coding-agent-adaptation.md)。它不是启用清单，当前脚本也不解析本文件。
 
 ## 如何使用
 
-- 先确定产品、IDE/CLI/桌面形态、版本及项目设置，再选对应记录。技能发现与项目规则加载分别判断；用户级目录不推导为项目级目录。
+- 先采用本次用户明确的项目目录，其次沿用目标项目已确认的目录配置；缺少这些事实时，再按产品、IDE/CLI/桌面形态、版本及项目设置选对应文档记录。现场已确认目录与文档不同时，保留现场适配，不以另一形态的兼容说明覆盖。技能发现与项目规则加载分别判断；用户级目录不推导为项目级目录。
 - **文档确认**表示官方当前声明；**本机历史观察**保留当时样本；**目录复核**只表示文件系统存在；**待确认**不填猜测值。这些证据均不能互相替代，宿主实际加载与任务行为独立验收。
 - 未登记、定制版或与现场不符时，由用户说明宿主形态、版本、项目技能目录和项目 MD；允许只确认其中一项，另一项继续留待确认。MD 未知不阻塞已确认技能目录的独立适配，交付时保留规则加载待验项。项目差异留目标工程配置或当前任务，不自动写成通用默认值，也不要求提供个人规则正文。
 - 登记不授予写入权限。优先复用已经生效的入口；确认需要新增时仍沿当前流程与用户授权执行，保留普通文件、自定义目录和错误链接。一个宿主有多个可发现目录时，不为凑齐目录而全部创建，避免同名技能冲突。
@@ -25,9 +25,9 @@
 | Cursor Agent | `.agents/skills`、`.cursor/skills`，兼容 `.claude/skills` / `.codex/skills` | `AGENTS.md`，另有 `.cursor/rules/*.mdc` | 规则不适用于 Cursor Tab；CLI、远程与云端按具体形态核对，不把纯 MD 当 `.mdc`。[Skills](https://cursor.com/help/customization/skills)、[Rules](https://cursor.com/docs/rules) |
 | Gemini CLI | `.agents/skills`、`.gemini/skills` | 默认 `GEMINI.md` | `AGENTS.md` 须通过 `context.fileName` 配置；skills 原生通用目录不代表 MD 同样原生。[Skills](https://geminicli.com/docs/cli/creating-skills/)、[上下文文件](https://geminicli.com/docs/cli/gemini-md/) |
 | GitHub Copilot CLI / VS Code Chat 等 | `.agents/skills`、`.github/skills`，兼容 `.claude/skills`，须核对所用产品支持情况 | `.github/copilot-instructions.md`；部分功能支持 `AGENTS.md` | 不能推广到全部 IDE/全部功能；CLI 的多 MD 合并见下节。[Skills](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/customize-cloud-agent/add-skills)、[支持矩阵](https://docs.github.com/en/copilot/reference/custom-instructions-support) |
-| WorkBuddy 代码开发项目 | `.codebuddy/skills` | `.codebuddy/CODEBUDDY.md`；兼容根 `CODEBUDDY.md`、`AGENTS.md` | 官方允许并存，未据此确认同源链接去重；与用户级四文件记忆分开。[项目配置](https://www.codebuddy.cn/docs/workbuddy/From-Beginner-to-Expert-Guide/Function-Description/Project) |
+| WorkBuddy 文档中的代码开发项目机制 | `.codebuddy/skills`（文档声明支持） | `.codebuddy/CODEBUDDY.md`；兼容根 `CODEBUDDY.md`、`AGENTS.md` | 仅作为该机制的接入依据；支持读取不等于所有桌面版、定制版均共用 CodeBuddy 目录，也不证明现有独立目录失效。目标项目已确认的目录优先；多入口去重仍待验。[项目配置](https://www.codebuddy.cn/docs/workbuddy/From-Beginner-to-Expert-Guide/Function-Description/Project) |
 | ZGSM / CoStrict VS Code 插件 | `.roo/skills` | 根 `AGENTS.md`，另有 `.roo/rules` 与模式规则 | `zgsm.useAgentRules` 默认开启但可被用户关闭；未新增命名 runtime，需接入时复用显式 Custom 目录。[Skills](https://docs.costrict.ai/en/plugin/product-features/skills)、[Rules](https://docs.costrict.ai/plugin/product-features/rules/) |
-| WorkBuddyDonghua / 未登记定制端 | 待用户说明项目目录 | 待用户说明项目 MD 与加载条件 | 本机用户级目录已有历史观察，但本轮未取得定制端项目发现的官方依据；不从产品名推导项目路径 |
+| WorkBuddyDonghua / 未登记定制端 | 沿用用户明确或项目已确认的目录，缺失时待说明 | 待核对项目 MD 与加载条件 | 未取得通用项目发现的官方依据，按目标项目确认；本机用户级历史观察不推导项目路径，命名 adapter 的使用条件见下文 |
 
 ## MD 的优先、合并与兼容入口
 
@@ -41,8 +41,8 @@
 本轮只维护参考与 Agent 路由，`scripts/sync-runtime-skills.js` 的命名映射和 CLI 未变。实际行为查 [执行器](../../../../../scripts/sync-runtime-skills.js) 的 `adapters` 与参数校验，不把文档表格当成机器配置。
 
 - 原生已能发现通用目录时直接复用，不补额外目录。需要链接时先比对目标版本的项目发现路径与脚本实际目标；`Check` 只证明目录状态，不证明 skills 调用或项目 MD 加载。
-- **WorkBuddy 的已知差异**：现有命名 adapter 建立 `.workbuddy/skills`，当前官方代码项目目录是 `.codebuddy/skills`。前者不能再标成项目发现已确认。用户确认使用上表代码项目机制后，可沿已有显式自定义路径能力用 `--runtime Custom --skills-dir .codebuddy/skills`，先 DryRun 再按授权 Write、Check；已有链接不自动移动或删除。
-- `WorkBuddyDonghua` 命名 adapter 的 `.workbuddydonghua/skills` 同样仅是当前脚本映射；用户级同名目录观察不证明其项目发现支持。项目路径未知时先请用户说明，不以成功建链作为加载证据。
+- **WorkBuddy 分形态选目录**：命名 adapter 建立 `.workbuddy/skills`。目标项目已确认该目录时直接使用 `--runtime WorkBuddy`；只有确认使用上表文档机制且目标目录为 `.codebuddy/skills` 时，才用 `--runtime Custom --skills-dir .codebuddy/skills`。官方声明支持后者，不否定前者在已确认项目中的适用性，也不产生两端共用一个目录的结论。未知项目仍先核对，已有链接不自动移动或删除。
+- `WorkBuddyDonghua` 命名 adapter 建立 `.workbuddydonghua/skills`；目标项目已明确该项目目录时直接使用 `--runtime WorkBuddyDonghua`，不重复索要已提供的信息。未知项目继续确认；用户级同名目录或成功建链不证明项目加载。各端按同一参数完成 DryRun、必要时 Write、Check，发现、规则加载和实际调用分别验收。
 
 ## 本机既有探索的脱敏摘要
 

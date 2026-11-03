@@ -77,7 +77,7 @@
 
 - 需求交付归属迁移（P2）：补取 project 显式 --no-id 的真实宿主调用、旧数字编号计划恢复及非 Windows / Node 22 矩阵证据，核对缺编号不自动放行、standard 拒绝和上游接续保留无编号状态；沿本项推进，不新增队列。demand-delivery-plugin / bos-demand-entry 的真实宿主与业务副本接入、需求入口更新迁移、standard-demand-entry 和通用提交的 Windows/macOS/Linux × Node 22/24 CI 实跑，以及三段式在用户侧 BOSS 文本/Excel 的真实录入与测试交接；补充主题/资料自然语言路由、接收组与产品标识区分、待解决问题不标完成的宿主样本。观察上游无交集且内容/消息未变时复用授权自动接续、两次上限和有无 hook 的独立同步；本地合成仓库不替代 Agent 实际复核轨迹。结构与本地 Git 测试不代表业务系统或真实宿主已验收。
 
-- P2 Windows/macOS/Linux × Node 22/24 的 runtime-skills / skill-plugin-migration CI 实跑，以及 Claude Code 和非 Windows 宿主实际发现验证；CodeBuddy 的 Windows 项目 Skills 页面已有用户确认样本，实际任务调用仍独立取证。沿第 7 项按 coding-agent-adaptation 的 source.md 核对目标版本的技能发现与项目 MD 加载、跨宿主多入口及去重；project-context-maintenance 的断链补齐、等价/直接路由复用及按需读取取得真实宿主样本，源码场景走查不替代加载/行为证据。WorkBuddy 现有命名映射与官方代码项目目录有差异，已有显式自定义路径可接入，后续取得目标版本证据再维护默认值；定制端项目路径未知由用户说明，不把本机用户级历史记录当项目契约。本轮只维护参考与路由，不自动创建兼容 MD 或改安装/更新器。
+- P2 Windows/macOS/Linux × Node 22/24 的 runtime-skills / skill-plugin-migration CI 实跑，以及 Claude Code 和非 Windows 宿主实际发现验证；CodeBuddy 的 Windows 项目 Skills 页面已有用户确认样本，实际任务调用仍独立取证。沿第 7 项按 coding-agent-adaptation 的 source.md 核对目标版本的技能发现与项目 MD 加载、跨宿主多入口及去重；project-context-maintenance 的断链补齐、等价/直接路由复用及按需读取取得真实宿主样本，源码场景走查不替代加载/行为证据。WorkBuddy/定制端按目标项目已确认目录接入，未知机制再核对文档和现场；补取不同形态的发现、规则加载与实际调用证据，不由文档兼容声明推导统一目录，也不把本机用户级历史记录当项目契约。现有命名映射保持，不自动创建兼容 MD 或改安装/更新器。
 
 ## 治理优先级与执行顺序
 

@@ -12,7 +12,7 @@ description: Connect installed project skills to coding agents through shared di
 ## 执行
 
 1. 读取目标工程 `AGENTS.md`。已有 `.agents` 才执行适配；尚未安装时按 `.agents/docs/update-agents.md` 或能力包内同名 runbook 安装。不要把源仓维护者 `.agents/skills` 当作业务技能来源。
-2. 识别宿主时先读 [source.md](references/source.md)，分别核对适用形态、项目技能目录、项目规则 MD 和证据状态。已知机制不等于当前项目已加载；未知项由用户说明，不能按宿主名称猜测。已确认技能目录即可独立适配，MD 未知只留待确认，不阻塞目录 DryRun/Write/Check；用户明确目录时不额外强求无关的版本或 MD 信息。用户提供的项目差异保留在项目配置或本次范围说明中，不直接反写共享 source.md。已有自定义配置保留。
+2. 先采用本次用户明确的项目目录，其次沿用目标项目已确认的配置，再读 [source.md](references/source.md) 补齐未知机制，分别核对适用形态、项目技能目录、项目规则 MD 和证据状态。文档声明支持某目录，不等于当前宿主必然使用该目录或多个产品共用目录；已有现场事实优先，未知项由用户说明。已确认技能目录即可独立适配，MD 未知只留待确认，不阻塞目录 DryRun/Write/Check；用户明确目录时不额外强求无关的版本或 MD 信息。用户提供的项目差异保留在项目配置或本次范围说明中，不直接反写共享 source.md。已有自定义配置保留。
 3. 本次明确指定目录时只处理该范围；否则读取目标 ContextRoot/config/project_context_profile.md 的“技能适配目录”章节。只读取该章节正文中的目录，跳过 HTML 注释内的模板示例。用户每行写一个项目相对目录，可用 Markdown 代码块包裹；忽略空行、去重，兼容行尾逗号。没有清单也没有明确宿主时，展示 runbook 中的三目录示例，请用户选择目标；不默认创建示例目录。
 4. 用户要求执行本技能即授权补齐所选技能目录清单。逐个用 `--runtime Custom --skills-dir <目录>` 执行 DryRun：planned 才执行 Write，unchanged/reused 跳过，conflict/blocked 保留并报告，继续处理其它安全条目。对成功条目执行 Check，报告新增、已存在、冲突和待验项；全部冲突不能报告完成。配置只由 Agent 在本技能执行时读取，不新增解析器、不让普通更新自动执行，也不因删除配置条目删除已有链接。
 5. 用户直接指定宿主而非目录时，按 source.md 对照上游机制、项目事实与执行器既有默认策略。默认路径与已确认的项目目录一致时使用命名 runtime；不一致时，在用户已明确目标目录后用 `--runtime Custom --skills-dir <目录>`，未知时由用户说明后再执行。以下为命令形态示例：

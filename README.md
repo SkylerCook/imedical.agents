@@ -152,7 +152,7 @@ standard 模式的更新器在 fetch 后比较本地 `HEAD` 与 upstream：一�
 - `-NoPull`：基于本地 `.agents` 内容检查或重建。
 - `-Plugin <name[]>`：只处理指定插件。
 - `-ExcludePlugin <name[]>`：跳过指定插件。
-- `-RuntimeAdapter <宿主>`：显式接入项目技能发现层，默认仅维护 `.agents/skills` 通用层，已有目录冲突保留。接入 skill 为 `coding-agent-adaptation`；先按 [source.md](plugins/agent-context-kit/skills/coding-agent-adaptation/references/source.md) 核对项目技能目录与项目 MD，未知项由用户说明，不从用户级路径推导项目路径。参考不改变脚本既有映射或创建规则入口；命令、已知映射差异与验证范围见 [技能适配](docs/coding-agent-adaptation.md)。
+- `-RuntimeAdapter <宿主>`：显式接入项目技能发现层，默认仅维护 `.agents/skills` 通用层，已有目录冲突保留。接入 skill 为 `coding-agent-adaptation`；先沿用用户明确的项目目录与项目已确认配置，未知机制再查 [source.md](plugins/agent-context-kit/skills/coding-agent-adaptation/references/source.md)，不把文档兼容说明推成多个产品共用目录。参考不改变脚本既有映射或创建规则入口；命令与验证范围见 [技能适配](docs/coding-agent-adaptation.md)。
 - 已启用插件的受管 skill/rule thin-index 在普通 `Write` 自动刷新描述等生成字段；一致时不重写，`Check` 对过期索引失败。自定义正文、来源冲突及链接保留并阻断，升级无需删除旧索引，详见 [更新机制](docs/update-agents.md#skill-thin-index-description)。
 - `-ForceThinIndex`：兼容转发至生成器；插件索引不再依赖它刷新，也不允许用它绕过归属保护；agent/vendor 索引沿用各自语义。
 - `-CleanupLegacyVendorSkills`：显式清理不再属于 enabled 插件 required 集合的受管 vendor thin-index；普通更新不清理。

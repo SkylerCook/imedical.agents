@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+0.8.3：修正宿主适配的证据顺序，用户明确的项目目录与项目已确认配置优先，WorkBuddy 文档中的兼容目录只适用于已核对的机制。现有命名 adapter 和链接保留；更新能力包即可取得指导，已部署项目仅在授权适配时调整目录，无自动迁移或清理。依据见 [source.md](skills/coding-agent-adaptation/references/source.md)。
+
 0.8.2：IRIS 初始化与项目入口先引用 coding owner 的 developmentMode 配置，再按 contextMode/需求类型分流；offline 复用[离线协议](../coding-iris-plugin/references/iris-offline-development.md)。profile 不保存第二个模式值，普通更新不切换方式或改项目入口，已有文字约定由授权维护定点补齐。
 
 0.8.1：任务交接复用共享 workspace 校验，兼容 Overlay 的实体源码目录。先完整更新共享 CapabilityRoot，再刷新 ContextRoot；原 Junction 声明继续有效。实体入口与迁移边界见 [Overlay 契约](../../docs/workspace-overlay.md#sourceroot引用已有源码或持有本地源码)，不自动移动源码、修改项目配置或初始化 Git。

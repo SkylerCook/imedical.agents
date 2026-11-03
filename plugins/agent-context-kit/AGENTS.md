@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+宿主技能适配先沿用用户明确的项目目录和目标项目已确认的配置，再按 `coding-agent-adaptation` 的来源参考补齐未知项。WorkBuddy 的文档兼容机制不推导为所有形态共用 CodeBuddy 目录；各端技能发现、规则加载与调用独立验收。
+
 本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
 
 需求启用交接、明确交接、发现或接续已有任务时使用 `skills/task-handoff/SKILL.md`。材料由 task-handoff 目录解析器定位，本机保留；普通需求不为交接建立正式 run。脚本只管理记录与检查现场，不调度会话或授予业务操作权限。
