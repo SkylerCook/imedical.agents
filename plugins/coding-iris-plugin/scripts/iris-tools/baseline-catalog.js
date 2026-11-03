@@ -11,23 +11,12 @@ const OBJECT_TYPES = new Map([['.cls', 'CLS'], ['.mac', 'MAC'], ['.inc', 'INC'],
 const TEXT_EXTENSIONS = new Set(['.csp', '.csr', '.js', '.css', '.html', '.htm']);
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.svg', '.webp', '.avif']);
 const WEB_SEGMENTS = new Set(['csp', 'css', 'js', 'scripts', 'html', 'htm']);
-const HELP = 'baseline-catalog.js build --project-root <workspace> --out <ProjectItem.xml> [--source-root <directory> ...] [--web-base <virtual-prefix>] [--project-name <name>] [--version <label>] [--source-ref <ref>] [--scope <description>] [--type CLS,CSP] [--prefix <name>] [--dry-run]\nbaseline-catalog.js compare --left <ProjectItem.xml> --right <ProjectItem.xml>\nOffline only; images are excluded and fully reported. Build does not publish or commit a catalog. Compare reports membership, not historical source contents.';
+const HELP = 'baseline-catalog.js build --project-root <workspace> --out <scope.txt> [--source-root <directory> ...] [--web-base <virtual-prefix>] [--project-name <name>] [--version <label>] [--source-ref <ref>] [--scope <description>] [--type CLS,CSP] [--prefix <name>] [--dry-run]\nbaseline-catalog.js compare --left <scope.txt> --right <scope.txt>\nOffline only; images are excluded and fully reported. Build does not publish or commit a catalog. Compare reports membership, not historical source contents.';
 
 function stop(code, details = {}) { throw Object.assign(new Error(code), {code, details}); }
 function xmlCore() { return require('./xml-package-core'); }
-function escapeXml(value) { return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;'); }
 function key(item) { return `${item.type}:${item.name}`.toLowerCase(); }
-function readItems(file) { return xmlCore().parseProjectItems(fs.readFileSync(path.resolve(file))); }
-function buildXml(items, options = {}) {
-    const projectName = options.projectName || 'IRISProject';
-    const timestamp = options.timestamp || new Date().toISOString();
-    const body = items.map(item => `    <ProjectItem name="${escapeXml(item.name)}" type="${escapeXml(item.type)}"/>`);
-    const metadata = JSON.stringify({version: options.version || '', sourceRef: options.sourceRef || '', scope: options.scope || ''}).replace(/--/g, '\\u002d\\u002d');
-    const xml = ['<?xml version="1.0" encoding="UTF-8"?>', `<!-- iris-baseline ${metadata} -->`, `<Export generator="IRIS" version="26" ts="${escapeXml(timestamp)}">`,
-        `<Project name="${escapeXml(projectName)}">`, '  <Items>', ...body, '  </Items>', '</Project>', '</Export>', ''].join('\n');
-    if (items.length) xmlCore().parseProjectItems(xml);
-    return xml;
-}
+function readItems(file) { return require('./scope-list').parseScopeList(fs.readFileSync(path.resolve(file))); }
 function checkPath(file) {
     const absolute = path.resolve(file);
     let current = path.parse(absolute).root;
@@ -131,8 +120,9 @@ function build(options = {}) {
     const metadata = {projectName: options.projectName || 'IRISProject', version: options.version || '', sourceRef: options.sourceRef || '', scope: options.scope || '', sourceRoots: result.sourceRoots};
     if (result.unresolved.length || result.duplicates.length || result.skippedLinks.length) return {...result, metadata, state: 'blocked', written: false};
     if (!result.items.length) return {...result, metadata, state: 'empty', written: false};
-    const xml = buildXml(result.items, options);
-    if (!options.dryRun) writeAtomic(path.resolve(options.out), xml);
+    if (path.extname(options.out).toLowerCase() !== '.txt') stop('scope-list-txt-required');
+    const text = require('./scope-list').buildScopeList(result.items);
+    if (!options.dryRun) writeAtomic(path.resolve(options.out), text);
     return {...result, metadata, state: options.dryRun ? 'planned' : 'built', written: !options.dryRun, out: path.resolve(options.out)};
 }
 function compare(options = {}) {
@@ -165,4 +155,4 @@ function main(argv = process.argv.slice(2)) {
     return result;
 }
 if (require.main === module) { try { main(); } catch (error) { console.error(JSON.stringify({status: 'blocked', reason: error.code || error.message, details: error.details || {}})); process.exitCode = 1; } }
-module.exports = {OBJECT_TYPES, TEXT_EXTENSIONS, IMAGE_EXTENSIONS, readItems, buildXml, localItem, collect, build, compare, checkPath, writeAtomic, args, main};
+module.exports = {OBJECT_TYPES, TEXT_EXTENSIONS, IMAGE_EXTENSIONS, readItems, localItem, collect, build, compare, checkPath, writeAtomic, args, main};

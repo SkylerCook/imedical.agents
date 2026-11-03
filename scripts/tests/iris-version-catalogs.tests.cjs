@@ -7,7 +7,7 @@ const os = require('node:os');
 const {spawnSync} = require('node:child_process');
 const crypto = require('node:crypto');
 const {generate, compileCatalog, packageSources, helperSource} = require('../../tools/iris-code-export/build-catalogs');
-const xml = nodes => '<Export><Project name="Fixture"><Items>' + nodes + '</Items></Project></Export>';
+
 test('preview validates all objects and rejects junction ancestors without contacting a server', {skip:process.platform!=='win32'}, t => {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'iris-preview-test-'));
   const link=path.join(dir,'linked');
@@ -21,24 +21,46 @@ test('preview validates all objects and rejects junction ancestors without conta
 test('packaged version scopes and normalized lists remain bound to the original catalogs', () => {
   const {index, files} = generate();
   assert.deepEqual(index.entries.map(e => [e.version, e.scope, e.codeCount, e.duplicateCount]), [
-    ['v8.4','doctor',1296,75], ['v8.5','doctor',1520,74], ['v9.0','doctor',1745,82], ['v9.1','doctor',3295,0], ['v9.2','all-products',5352,0]
+    ['v8.3','doctor',910,0], ['v8.4','doctor',2850,0], ['v8.5','doctor',3141,0], ['v9.0','doctor',3426,0], ['v9.0.2','doctor',3705,0], ['v9.1','doctor',4796,0], ['v9.2','all-products',5352,0]
   ]);
   for (const e of index.entries) {
     assert.equal(crypto.createHash('sha256').update(files.get(e.listFile)).digest('hex'), e.listSha256);
     assert.equal(e.rawItemCount, e.codeCount + e.duplicateCount + e.excludedImages.length);
     assert.equal(new Set(files.get(e.listFile).toString('utf8').trim().split('\n')).size, e.codeCount);
   }
-  assert.deepEqual(index.entries[3].webRoots, ['/imedical/web/', '/scripts/', '/web/']);
-  assert.equal(index.entries[3].webPathsNeedConfirmation, true);
-  assert.equal(index.entries[4].scopeLabel, '全仓 10 个产品');
+  assert.deepEqual(index.entries.find(e => e.version === 'v9.1').webRoots, ['/imedical/web/', '/scripts/', '/web/']);
+  assert.equal(index.entries.find(e => e.version === 'v9.1').webPathsNeedConfirmation, true);
+  assert.equal(index.entries.find(e => e.version === 'v9.2').scopeLabel, '全仓 10 个产品');
   assert.deepEqual([...generate().files], [...files], 'build data must be reproducible');
 });
-test('normalization removes only identical identities and reports binary exclusions', () => {
-  const compiled = compileCatalog(xml('<ProjectItem name="Demo.A.cls" type="CLS"/><ProjectItem name="Demo.A" type="CLS"/><ProjectItem name="/demo/a.png" type="CSP"/><ProjectItem name="demo/a.js" type="CSP"/>'));
-  assert.deepEqual(compiled.items, ['Demo.A.cls','/demo/a.js']);
-  assert.equal(compiled.duplicateCount, 1); assert.deepEqual(compiled.excludedImages, ['/demo/a.png']);
-  assert.throws(() => compileCatalog(xml('<ProjectItem name="demo/A.js" type="CSP"/><ProjectItem name="demo/a.js" type="CSP"/>')), /case-conflict/);
-  for (const input of ['<!DOCTYPE Export><Export/>', xml('<ProjectItem name="../a.js" type="CSP"/>'), '<Export><Class name="Demo.A"/></Export>', xml('<ProjectItem name="Demo.A" type="CLS"><Data/></ProjectItem>')]) assert.throws(() => compileCatalog(input));
+test('reconstructed v8.3 includes verified supplements without assuming missing objects exist', () => {
+  const list = generate().files.get('v8.3.txt').toString('utf8').trim().split('\n');
+  for (const document of ['web.DHCOEOrdItem.cls', 'web.DHCDocOrderEntry.cls', 'DHCOEOrdExec.mac', 'CHPAT13NEW.mac', 'appcom.OEOrdExec.cls', 'User.DHCDocCTModule.cls', '/imedical/web/scripts/dhcdoc/UDHCOEOrder.List.Custom.New.js']) assert.ok(list.includes(document), document);
+  for (const document of ['DHCDoc.DHCDocConfig.CodeTable.cls', 'DHCDoc.Order.Exec.cls']) assert.ok(!list.includes(document), document);
+  assert.equal(list.filter(d => d.endsWith('.cls')).length, 333);
+  assert.equal(list.filter(d => d.endsWith('.mac')).length, 2);
+  assert.equal(list.filter(d => d.startsWith('/')).length, 575);
+});
+test('tag strengthening binds every published list to its audit and preserves unrelated versions', () => {
+  const {index,files}=generate();
+  const audit=JSON.parse(fs.readFileSync(path.resolve(__dirname,'../../maintenance/validation/doctor-tag-baseline-2026-11-03.json')));
+  for(const r of audit.reports){
+    const entry=index.entries.find(e=>e.version===r.version);
+    assert.equal(entry.codeCount,r.after);
+    assert.equal(entry.listSha256,r.sha256);
+    const names=new Set(files.get(entry.listFile).toString('utf8').trim().split('\n'));
+    for(const item of r.added) assert.ok(names.has(item.document),item.document);
+    for(const item of r.retainedWithoutTagSource) assert.ok(names.has(item),item);
+  }
+  for(const [version,hash] of [['v8.3','42973a57db8bb0c782564697cfa115a40a4f7dc9d9847c0a5a2fe7fe96e058a5'],['v9.2','a45ff1a8d8b29fff0c84433d97b363bed76f4b3dafbcd17822fa222ebcda32dd']]) assert.equal(index.entries.find(e=>e.version===version).listSha256,hash);
+  assert.ok(index.entries.every(e=>e.sourcePath.endsWith('.txt')));
+  assert.equal(fs.readdirSync(path.resolve(__dirname,'../../docs/reference/project-export-map/doctor')).filter(n=>n.endsWith('.xml')).length,0);
+});
+test('TXT catalog rejects duplicates and XML while reporting binary exclusions', () => {
+  const compiled=compileCatalog('Demo.A.cls\n/demo/a.png\n/demo/a.js\n');
+  assert.deepEqual(compiled.items,['Demo.A.cls','/demo/a.js']);
+  assert.deepEqual(compiled.excludedImages,['/demo/a.png']);
+  for(const text of ['Demo.A.cls\nDemo.A.cls','/demo/A.js\n/demo/a.js','<Export/>','../a.js','demo/a.js']) assert.throws(()=>compileCatalog(text));
 });
 test('package staging contains no Node runtime or framework and copies the unique source helper', t => {
   const parent = process.env.CODEX_TEST_TMP_ROOT || path.join(os.tmpdir(), 'Codex'); fs.mkdirSync(parent, {recursive: true});

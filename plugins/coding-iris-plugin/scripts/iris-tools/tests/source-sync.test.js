@@ -33,15 +33,13 @@ function fixture(t, {empty = false, ignored = true, source = true} = {}) {
     return {root, file, original, files, plan, prepare, count, reads: () => reads};
 }
 
-test('project XML preserves declared types, rejects entities, duplicates and unsupported structures', () => {
-    const xml = '<Export><Project name="P"><Items><ProjectItem name="Demo.Sample" type="CLS"/><ProjectItem type="CSP" name="scripts/a.js"></ProjectItem></Items></Project></Export>';
-    assert.deepEqual(sync.parseProjectMap(xml), [{name: 'Demo.Sample', type: 'CLS'}, {name: 'scripts/a.js', type: 'CSP'}]);
-    assert.throws(() => sync.parseProjectMap('<!DOCTYPE Export SYSTEM "x">' + xml), /unsupported-project-xml/);
-    assert.throws(() => sync.parseProjectMap(xml.replace('scripts/a.js', '../a.js')), /unsafe-project-item/);
-    assert.throws(() => sync.parseProjectMap(xml.replace('type="CSP"', 'type="PKG"')), /unsupported-project-item/);
-    assert.throws(() => sync.parseProjectMap(xml.replace('</Items>', '<ProjectItem name="Demo.Sample" type="CLS"/></Items>')), /duplicate-project-item/);
-    const supplied = fs.readFileSync(path.resolve(__dirname, '../../../../..', 'docs/reference/project-export-map/doctor/prj_v9.1.xml'), 'utf8');
-    assert.equal(sync.parseProjectMap(supplied).length, 3295);
+test('TXT scope preserves types and rejects XML, duplicates and traversal', () => {
+    assert.deepEqual(sync.parseScopeMap('Demo.Sample.cls\n/scripts/a.js\n'), [{name:'Demo.Sample',type:'CLS'},{name:'scripts/a.js',type:'CSP'}]);
+    assert.throws(()=>sync.parseScopeMap('<Export/>'), /unsupported-scope-list/);
+    assert.throws(()=>sync.parseScopeMap('/../a.js'), /unsafe-project-item/);
+    assert.throws(()=>sync.parseScopeMap('Demo.A.cls\nDemo.A.cls'), /duplicate-scope-item/);
+    const supplied=fs.readFileSync(path.resolve(__dirname, '../../../../..', 'docs/reference/project-export-map/doctor/v9.1.txt'));
+    assert.equal(sync.parseScopeMap(supplied).length,4796);
 });
 
 test('plan is local-only and reference candidates do not enter the remote read set', t => {
@@ -221,12 +219,12 @@ test('bulk initialization needs explicit license evidence before any remote read
 });
 
 test('project map excludes images and invalid UTF-8 cannot create an altered document scope', t => {
-    const f = fixture(t), map = path.join(f.root, 'catalog.xml');
-    fs.writeFileSync(map, '<Export><Project><Items><ProjectItem name="Demo.Sample" type="CLS"/><ProjectItem name="web/images/a.png" type="CSP"/></Items></Project></Export>');
+    const f = fixture(t), map = path.join(f.root, 'catalog.txt');
+    fs.writeFileSync(map, 'Demo.Sample.cls\n/web/images/a.png\n');
     const p = f.plan({phase: 'initial-baseline', map});
     assert.equal(p.files.length, 1); assert.equal(p.excludedImages.length, 1);
     fs.writeFileSync(map, Buffer.from([0xc0, 0x80]));
-    assert.throws(() => f.plan({phase: 'initial-baseline', map}), /unsupported-project-xml/);
+    assert.throws(() => f.plan({phase: 'initial-baseline', map}), /unsupported-scope-list/);
 });
 
 test('review binds a committed pre-deploy plan and does not grant production approval', async t => {

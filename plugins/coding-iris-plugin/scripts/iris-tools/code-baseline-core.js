@@ -111,7 +111,7 @@ function createPlan(options = {}) {
     const baseline = path.resolve(options.baseline), outputRoot = catalog.checkPath(path.resolve(options.out));
     if (inside(context.capabilityRoot, outputRoot)) stop('baseline-output-in-capability');
     const baselineBytes = fs.readFileSync(catalog.checkPath(baseline));
-    const parsed = require('./xml-package-core').parseProjectItems(baselineBytes);
+    const parsed = require('./scope-list').parseScopeList(baselineBytes);
     const {selected, excludedImages} = selectItems(parsed, options);
     const sourceFingerprint = hash(canonical(source.identity));
     let previous;

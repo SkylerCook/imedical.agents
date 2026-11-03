@@ -5,7 +5,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const {parseXml, normalizeDocument} = require('../../plugins/coding-iris-plugin/scripts/iris-tools/xml-package-core');
+const {normalizeDocument} = require('../../plugins/coding-iris-plugin/scripts/iris-tools/xml-package-core');
 const {TEXT_EXTENSIONS, IMAGE_EXTENSIONS} = require('../../plugins/coding-iris-plugin/scripts/iris-tools/baseline-catalog');
 const hash = data => crypto.createHash('sha256').update(data).digest('hex');
 const catalogRoot = path.resolve(__dirname, '../../docs/reference/project-export-map/doctor');
@@ -16,41 +16,31 @@ function readVersions() {
   if (!rows.length) fail('version-table-missing');
   const versions = rows.map(line => {
     const cells = line.split('|').slice(1, -1).map(s => s.trim());
-    const [version, link, project, label] = cells, file = link?.match(/^\[[^\]]+\]\((prj_v\d+\.\d+\.xml)\)$/)?.[1];
+    const [version, link, project, label] = cells, file = link?.match(/^\[[^\]]+\]\((v\d+\.\d+(?:\.\d+)?\.txt)\)$/)?.[1];
     const scope = label === '医生站' ? 'doctor' : /^全仓 \d+ 个产品$/.test(label) ? 'all-products' : null;
-    if (!/^v\d+\.\d+$/.test(version) || !file || file !== `prj_${version}.xml` || !scope || !project) fail('version-table-invalid');
+    if (!/^v\d+\.\d+(?:\.\d+)?$/.test(version) || !file || file !== `${version}.txt` || !scope || !project) fail('version-table-invalid');
     return {version, file, project, scope, scopeLabel: label};
   });
   if (new Set(versions.map(v => v.version)).size !== versions.length) fail('duplicate-version');
   return {readme, versions};
 }
 function compileCatalog(bytes) {
-  const root = parseXml(bytes), project = root.children[0], list = project?.children[0];
-  const blank = n => n.content.every(c => typeof c !== 'string' || !c.trim());
-  if (root.tag !== 'Export' || root.children.length !== 1 || project?.tag !== 'Project' || project.children.length !== 1 || list?.tag !== 'Items' || !list.children.length || !blank(root) || !blank(project) || !blank(list)) fail('version-catalog-shape-invalid');
-  const seen = new Map(), duplicates = new Map(), items = [], excludedImages = [];
-  for (const node of list.children) {
-    if (node.tag !== 'ProjectItem' || node.children.length || !blank(node) || Object.keys(node.attributes).some(k => !['name', 'type'].includes(k))) fail('version-catalog-item-invalid');
-    const item = normalizeDocument(node.attributes), key = item.identity.toLowerCase();
-    if (seen.has(key)) {
-      if (seen.get(key) !== item.identity) fail('version-catalog-case-conflict');
-      duplicates.set(item.document, (duplicates.get(item.document) || 0) + 1); continue;
-    }
-    seen.set(key, item.identity);
+  const parsed = require('../../plugins/coding-iris-plugin/scripts/iris-tools/scope-list').parseScopeList(bytes);
+  const items = [], excludedImages = [];
+  for (const source of parsed) {
+    const item = normalizeDocument(source);
     const ext = path.posix.extname(item.document).toLowerCase();
     if (item.type === 'CSP' && IMAGE_EXTENSIONS.has(ext)) { excludedImages.push('/' + item.document); continue; }
     if (item.type === 'CSP' && !TEXT_EXTENSIONS.has(ext)) fail('version-catalog-unsupported-file');
     items.push(item.type === 'CSP' ? '/' + item.document : item.document);
   }
   const webRoots = [...new Set(items.filter(s => s.startsWith('/')).map(s => s.startsWith('/imedical/web/') ? '/imedical/web/' : '/' + s.slice(1).split('/')[0] + '/'))].sort();
-  return {project: project.attributes.name, items, rawItemCount: list.children.length,
-    duplicateCount: [...duplicates.values()].reduce((a, b) => a + b, 0), duplicates: [...duplicates].map(([document, removed]) => ({document, removed})), excludedImages, webRoots};
+  return {items, rawItemCount: parsed.length, duplicateCount: 0, duplicates: [], excludedImages, webRoots};
 }
 function generate() {
   const {readme, versions} = readVersions(), entries = [], files = new Map();
   for (const version of versions) {
     const bytes = fs.readFileSync(path.join(catalogRoot, version.file)), compiled = compileCatalog(bytes);
-    if (compiled.project !== version.project) fail('version-project-mismatch');
     const listName = version.version + '.txt', listBytes = Buffer.from(compiled.items.join('\n') + '\n');
     files.set(listName, listBytes);
     entries.push({version: version.version, scope: version.scope, scopeLabel: version.scopeLabel, project: version.project,

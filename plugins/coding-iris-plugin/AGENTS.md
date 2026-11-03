@@ -1,5 +1,7 @@
 # AGENTS.md
 
+版本/项目范围清单统一使用 UTF-8 TXT；生成、比较、采集及 source-sync 映射按[代码基线协议](references/iris-code-baseline.md)执行，不再读取 ProjectItem XML。实际源码 XML 导出与交付沿原协议。
+
 普通文件部署的回执复用、完成判定和附加检查失败分流统一按[部署验证契约](rules/iris_deploy_checklist.md#验证)，业务验收及发布门禁按实际任务继续。
 
 本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。

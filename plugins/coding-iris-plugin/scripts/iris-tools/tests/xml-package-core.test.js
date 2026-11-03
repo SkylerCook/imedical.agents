@@ -7,15 +7,10 @@ const crypto = require('node:crypto');
 const core = require('../xml-package-core');
 const project = items => '<Export><Project name="Test"><Items>' + items + '</Items></Project></Export>';
 
-test('ProjectItem parsing preserves entity content, independent attribute order and explicit types', () => {
-  assert.deepEqual(core.parseProjectItems(project("<ProjectItem type='CLS' name='Demo.Sample'/><ProjectItem name='web/a&amp;b.js' type='CSP'></ProjectItem>")),
-    [{name: 'Demo.Sample', type: 'CLS'}, {name: 'web/a&b.js', type: 'CSP'}]);
-  assert.equal(core.parseProjectItems(fs.readFileSync(path.resolve(__dirname, '../../../../..', 'docs/reference/project-export-map/doctor/prj_v9.2.xml'))).length, 5352);
-});
 test('malformed XML, DTD, unbound entities and resource abuse fail before producing a scope', () => {
   for (const xml of [project('<ProjectItem name="A" name="B" type="CLS"/>'), project('<ProjectItem name="&unknown;" type="CLS"/>'),
     '<!DOCTYPE Export SYSTEM "file:///not-read">' + project('<ProjectItem name="A" type="CLS"/>'), project('<ProjectItem name="A" type="CLS"></Items>')]) {
-    assert.throws(() => core.parseProjectItems(xml));
+    assert.throws(() => core.parseXml(xml));
   }
   assert.throws(() => core.parseXml('<a><b><c/></b></a>', {maxDepth: 2}), /structure-limit/);
   assert.throws(() => core.parseXml('<a/>', {maxBytes: 3}), /size-limit/);
@@ -26,7 +21,6 @@ test('document normalization rejects range expansion and traversal, including ne
     assert.throws(() => core.normalizeDocument({name, type: 'CSP'}));
   }
   assert.equal(core.normalizeDocument({name: '%Library.Sample', type: 'CLS'}).document, '%Library.Sample.cls');
-  assert.throws(() => core.parseProjectItems(project('<ProjectItem name="A" type="CLS"/><ProjectItem name="A.cls" type="CLS"/>')), /duplicate-project-item/);
 });
 test('compact Class, Routine and Web entries are parsed without line-based tag assumptions', () => {
   const xml = '<Export generator="IRIS" version="26"><Class name="A"/><Class name="B"/><Routine type="MAC" name="TEST"><![CDATA[TEST ; ]]>x</Routine><CSP application="/web/" name="a.js"><![CDATA[const text="</CSP>";]]></CSP></Export>';

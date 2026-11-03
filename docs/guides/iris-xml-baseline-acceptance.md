@@ -15,7 +15,7 @@
 
 核对本项目既有 `.mcp.json` 和 `project-env.json`，保持原凭据及配置来源；冲突先处理。为当前目标准备受忽略的 `iris-remote-policy.json`，参考 owner 的模板；正常更新不替用户填入真实目标或把 pending 改为 verified。
 
-先选择 3–5 个已知存在的代码对象组成小清单，明确授权本次读取和时限。用单会话生成计划，再运行受限试验；以下变量均须先解析为当前项目的实际值：
+先选择 3–5 个已知存在的代码对象组成 UTF-8 TXT 小清单（一行一个对象，Web 路径以 / 开头），明确授权本次读取和时限。用单会话生成计划，再运行受限试验；以下变量均须先解析为当前项目的实际值：
 
 ```powershell
 $tools = Join-Path $capabilityRoot 'plugins/coding-iris-plugin/scripts/iris-tools'

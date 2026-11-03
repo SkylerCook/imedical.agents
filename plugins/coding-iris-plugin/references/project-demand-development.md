@@ -27,7 +27,7 @@
 1. 核对测试/正式各自的本地 Git。无仓库时先获得初始化授权，再使用 `source-sync.js init`；不把初始化或阶段提交权限推导为任意后续提交权限。
 2. 按 [coding-iris-init 的本地配置步骤](../skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)执行 `source-sync.js configure`，默认创建被忽略的 `ContextRoot/config/iris-development.json`，声明已确认的开发方式、`environmentAlias` 与 `environmentType`（`test`、`development` 或 `production`）并 Check。已有文件保留，缺字段由 Agent 按明确事实局部补齐；不能套用示例环境代替真实声明。连接事实继续由项目已有 `.mcp.json` 与 `project-env.json` 承载，冲突停止，不在新配置复制连接或凭据。
 3. 同一步骤从 `templates/iris-remote-policy.template.json` 创建缺失的私有远端准入配置，保持禁用及资格 pending。先在获授权窗口以最小批次验证，再登记真实资格证据并启用。配置生成与资格就绪分别报告；未验证状态不能用于连接，新模式缺失、禁用或不合格配置停止。
-4. 将 `ContextRoot/work/source-sync/`、准入协调目录、私有配置及资格证据保持 Git 忽略。`work/source-sync/` 由实际同步任务创建，初始化无此目录不代表漏配，建空目录也不能证明基线成立。它保存计划、内容快照、索引/HEAD 归属与恢复断点，不作为业务交付目录。首次 XML 批量基线须先验证持久落盘、读回与中断恢复，确认 License 增量与结束回落后才扩大批次。
+4. 将 `ContextRoot/work/source-sync/`、准入协调目录、私有配置及资格证据保持 Git 忽略。`work/source-sync/` 由实际同步任务创建，初始化无此目录不代表漏配，建空目录也不能证明基线成立。它保存计划、内容快照、索引/HEAD 归属与恢复断点，不作为业务交付目录。首次按 TXT 清单采集批量基线须先验证持久落盘、读回与中断恢复，确认 License 增量与结束回落后才扩大批次。
 
 Node.js 是 Agent 工具链依赖，不是 HIS 生产运行依赖。当前工具链版本及平台验证沿能力包更新说明，不以本机测试宣称所有平台或旧 Caché 版本已支持。
 
@@ -36,7 +36,7 @@ Node.js 是 Agent 工具链依赖，不是 HIS 生产运行依赖。当前工具
 - 必须刷新准备修改的文件 W，即使本地已有也不能据此认定最新。无可信服务器基线时先核对服务器并保存现场，再处理差异。
 - 对直接影响入参、返回、数据结构、调用方式的关键上下游，按本次改动判断是否需要服务器核实。通用依赖优先使用本地参考；不递归全链刷新，不按文件数量猜测安全批量。
 - MCP 只读补齐需求链路上本地缺失且确有需要的源码或元数据。修改对象进入受控导出流程，不用 MCP/SQL 换路绕过 License 准入或覆盖源码。
-- XML 是明确范围的导出清单，不是可信版本证明。首次全量可以作为受控基线窗口，日常只刷新需求相关集合；mtime、Atelier ts、HTTP 条件请求只能辅助筛选，最终基线以实际内容摘要为准。不得假设旧版本具有 changed-since 或 XML 批量接口。
+- TXT 是明确范围的导出清单，不是可信版本证明。首次全量可以作为受控基线窗口，日常只刷新需求相关集合；mtime、Atelier ts、HTTP 条件请求只能辅助筛选，最终基线以实际内容摘要为准。不得假设旧版本具有 changed-since 或 XML 批量接口。
 
 ## 修改前与部署前同步
 

@@ -4,14 +4,16 @@
 
 ## 命令入口
 
+范围清单只接受 UTF-8 TXT，一行一个带扩展名的后端对象或以 `/` 开头的 Web 路径；允许 BOM、LF/CRLF、空行和 `#` 整行注释，重复项和非法路径停止。`build` 只生成 `.txt`，`compare`、`plan`、`project-plan` 与 source-sync `--map` 直接读取同一 TXT；不再接受 ProjectItem XML。来源、版本与范围说明放版本 README 或项目说明，实际执行仍绑定清单字节摘要。源码 XML 导出与交付协议不变。
+
 先解析当前 `ContextRoot/config/iris-development.json` 的 developmentMode：offline 只做本地清单、状态和[离线交付](iris-offline-development.md)，不进入医院采集或资格检查；connected（含旧配置缺省）才继续远端分支，非法值停止。
 
-现场完整源码 XML 带回后可按[本地 AI 修改与回包流程](iris-offline-development.md)处理；此分支不连接现场实例。人工 TXT/XML 清单导出独立归源仓 tools/iris-code-export/，交付无框架依赖的 ZIP，不属于下面的受管采集，也不自动建立项目开发基线。
+现场完整源码 XML 带回后可按[本地 AI 修改与回包流程](iris-offline-development.md)处理；此分支不连接现场实例。人工 TXT 清单导出独立归源仓 tools/iris-code-export/，交付无框架依赖的 ZIP，不属于下面的受管采集，也不自动建立项目开发基线。
 
 ```text
-node <CapabilityRoot>/plugins/coding-iris-plugin/scripts/iris-tools/baseline-catalog.js build --project-root <WorkspaceRoot> --out <new-project-items.xml> --version <label> --source-ref <ref> --scope <description> --dry-run
-node <CapabilityRoot>/plugins/coding-iris-plugin/scripts/iris-tools/baseline-catalog.js compare --left <older.xml> --right <newer.xml>
-node <CapabilityRoot>/plugins/coding-iris-plugin/scripts/iris-tools/code-baseline.js plan --project-root <WorkspaceRoot> --baseline <ProjectItem.xml> --out <source-snapshot-root> --sessions 1 --interval-ms 100
+node <CapabilityRoot>/plugins/coding-iris-plugin/scripts/iris-tools/baseline-catalog.js build --project-root <WorkspaceRoot> --out <new-scope.txt> --version <label> --source-ref <ref> --scope <description> --dry-run
+node <CapabilityRoot>/plugins/coding-iris-plugin/scripts/iris-tools/baseline-catalog.js compare --left <older.txt> --right <newer.txt>
+node <CapabilityRoot>/plugins/coding-iris-plugin/scripts/iris-tools/code-baseline.js plan --project-root <WorkspaceRoot> --baseline <scope.txt> --out <source-snapshot-root> --sessions 1 --interval-ms 100
 node <CapabilityRoot>/plugins/coding-iris-plugin/scripts/iris-tools/code-baseline.js capture --plan <plan.json>
 node <CapabilityRoot>/plugins/coding-iris-plugin/scripts/iris-tools/code-baseline.js status --plan <plan.json>
 node <CapabilityRoot>/plugins/coding-iris-plugin/scripts/iris-tools/code-baseline.js resume --plan <plan.json>
@@ -23,7 +25,7 @@ build 的 DryRun 核对范围后去掉 `--dry-run` 才写清单；可用 `--sour
 
 接受初始缺失时，先从 status 取得当前 acceptanceToken、审阅完整清单，再用 `accept-partial --plan <plan.json> --confirm --token <summary-token> --evidence <review-reference>` 保存真实接受结论。确认标志不替代有效授权，接受也不将缺失改成已取得。
 
-已满足项目分支前提时，用 `project-plan --project-root <WorkspaceRoot> --baseline <ProjectItem.xml> --phase initial-baseline|before-edit|pre-deploy --environment-alias <alias> --environment-type test|production` 委托 source-sync 创建计划；日常阶段另传 `--demand <id>`。此命令不执行 apply、commit 或部署，后续按原 source-sync CLI 和授权接续。
+已满足项目分支前提时，用 `project-plan --project-root <WorkspaceRoot> --baseline <scope.txt> --phase initial-baseline|before-edit|pre-deploy --environment-alias <alias> --environment-type test|production` 委托 source-sync 创建计划；日常阶段另传 `--demand <id>`。此命令不执行 apply、commit 或部署，后续按原 source-sync CLI 和授权接续。
 
 source-sync 的初始 partial 与纯采集的接受入口分别处理：prepare 会保留 `excludedReadItems` 和 `partialAcceptanceToken`；存在成功子集时，审阅排除项后在有效提交授权下执行 `source-sync.js apply --plan <plan.json> --confirm-commit --accept-partial <partialAcceptanceToken>`，只应用成功集合。该 token 不与上面 code-baseline 的 acceptanceToken 互换，也不产生提交权限。
 
@@ -31,7 +33,7 @@ source-sync 的初始 partial 与纯采集的接受入口分别处理：prepare 
 
 | 对象 | 含义 | 不能据此推导 |
 |---|---|---|
-| 版本 XML | 该清单声明的文件集合、来源及口径 | 所取内容必然是历史版本源码 |
+| 版本 TXT 清单 | 该清单声明的文件集合、来源及口径 | 所取内容必然是历史版本源码 |
 | 实例快照 | 指定实例在观察时间窗口内实际返回的源码 | 原子时点全库快照、所有请求同时一致 |
 | 开发基线 | 绑定目标及内容摘要、可用于后续同步的已核对源码层 | 任意本地旧文件天然可信、后续服务器没有变化 |
 

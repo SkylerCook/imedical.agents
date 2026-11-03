@@ -19,7 +19,7 @@ function fixture(t, items = [{name: 'Demo.A', type: 'CLS'}]) {
     const config = {iris: {scheme: 'https', host: 'synthetic.invalid', port: 443, namespace: 'FIXTURE'}, web: {basePath: 'fixture/web'}};
     const mcp = {mcpServers: {'iris-agentic-dev': {env: {IRIS_SCHEME: 'https', IRIS_HOST: 'synthetic.invalid', IRIS_WEB_PORT: '443', IRIS_NAMESPACE: 'FIXTURE', IRIS_USERNAME: 'fixture', IRIS_PASSWORD: 'fixture-secret'}}}};
     put('.agents/config/project-env.json', JSON.stringify(config)); put('.mcp.json', JSON.stringify(mcp));
-    const baseline = put('input.xml', catalog.buildXml(items));
+    const baseline = put('input.txt', require('../scope-list').buildScopeList(items));
     const out = path.join(root, 'snapshot');
     const plan = options => core.createPlan({projectRoot: root, baseline, out, ...options});
     return {root, put, config, mcp, baseline, out, plan};

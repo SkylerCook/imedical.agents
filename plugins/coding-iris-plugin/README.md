@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+0.27.0 将范围清单统一为 TXT，移除 ProjectItem XML 基线读取/生成；doctor 清单、框架与人工工具共用同一格式。迁移见[代码基线协议](references/iris-code-baseline.md)；源码 XML 导出与交付不变。
+
 0.26.2：普通部署复用脚本回执，按[验证契约](rules/iris_deploy_checklist.md#验证)分别报告文件部署与业务验收；附加通道异常按影响分流。正常能力包更新取得规则，已有 thin-index 入口不变，无配置迁移或旧文件清理；不改变 Cookie、上传及安全门禁。
 
 0.24.4：初始化及重新部署默认执行[本地配置生成与 Check](skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)。已启用项目的普通 Write 更新通过现有 `configMigrations` 自动创建缺失配置，available/disabled 不处理，DryRun/Check 只读；保留已有文件和旧模式缺省，不猜环境、不启用远端策略。机器声明缺失时先生成兼容旧默认值的空声明，模式/环境与真实资格集中报告待确认；Agent 按事实补字段，已有恢复材料先核实指纹。也可单独运行 `source-sync.js configure`；配置、资格与基线分别验收，不连接医院、不自动建 Git 或创建假基线，无旧材料迁移/清理。
@@ -20,7 +22,7 @@
 
 0.22.1 部署失败按[失败恢复与授权](references/deployment-protection.md#失败恢复与授权)先诊断，在原授权内完成有上限的安全恢复；明确编译错误返回诊断，未知写入与编译继续保护。逐文件入口记录 `recovery`；旧 SFTP 批量 worker 不自动重放。正常完整能力包更新取得，无配置迁移或旧文件清理；旧 unknown 会话仍按原协议核实，业务副本和真实服务另行验证。
 
-0.22.0 新增 [iris-xml-export](skills/iris-xml-export/SKILL.md) 与 [iris-code-baseline](skills/iris-code-baseline/SKILL.md)。前者按确认范围导出指定环境当前对象的 XML，支持专用类及无预部署类的系统执行通道；后者维护版本清单并采集当前实例代码，图片在请求前排除并统计，初始缺失保留 partial。两者复用 workspace、私有连接与受管资源；只有取得目标资格才启用只读多会话，版本 XML 不表示历史源码。
+0.22.0 新增 [iris-xml-export](skills/iris-xml-export/SKILL.md) 与 [iris-code-baseline](skills/iris-code-baseline/SKILL.md)。前者按确认范围导出指定环境当前对象的 XML，支持专用类及无预部署类的系统执行通道；后者维护版本清单并采集当前实例代码，图片在请求前排除并统计，初始缺失保留 partial。两者复用 workspace、私有连接与受管资源；只有取得目标资格才启用只读多会话，版本 TXT 清单 不表示历史源码。
 
 按正常能力包更新并刷新 enabled 索引取得两个入口；Overlay 先更新共享 capability，再逐模块 `-NoPull` 刷新。可选 `DHCDoc.Util.XmlPackage` 需单独准备和授权部署，类缺失不阻断其它 coding 能力，普通更新不覆盖服务器类、创建 Git 或登记资格。基线状态归 ContextRoot/work/source-sync/baselines，XML 正式交付和恢复目录由 manifest `projectDirectories` 声明。旧全局技能按明确范围单列迁移；详细步骤见[更新说明](../../docs/update-agents.md#iris-xml-导出与代码基线coding-022)，实际项目、服务端和跨平台结果分别核实。
 

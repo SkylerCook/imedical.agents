@@ -1,6 +1,6 @@
 ---
 name: iris-code-baseline
-description: 按版本 XML 采集 IRIS 当前源码、维护版本清单；支持将现场完整源码 XML 带回后由本地 AI 修改并回包。
+description: 按版本 TXT 清单 采集 IRIS 当前源码、维护版本清单；支持将现场完整源码 XML 带回后由本地 AI 修改并回包。
 ---
 
 # IRIS 代码基线
@@ -9,7 +9,7 @@ description: 按版本 XML 采集 IRIS 当前源码、维护版本清单；支�
 
 ## 输入与完成标准
 
-- 输入：目标工程、版本 XML 或明确子集、指定来源环境。XML 表达文件集合，内容是该实例采集时的当前源码。
+- 输入：目标工程、版本 TXT 清单 或明确子集、指定来源环境。TXT 表达文件集合，内容是该实例采集时的当前源码。
 - 输出：代码源码树、清单来源与摘要、观察时间窗口和逐项回执；图片在网络请求前排除并单独统计，源码基线只收代码。
 - 完成：请求范围与 fetched／reused／missing／empty／failed／cancelled 等结果守恒，内容和恢复摘要通过。缺失形成 `partial`；接受差异后仍保留部分基线的事实，不改报 complete。
 
@@ -17,7 +17,7 @@ description: 按版本 XML 采集 IRIS 当前源码、维护版本清单；支�
 
 先读取当前 ContextRoot 的 `config/iris-development.json`。`developmentMode: offline` 时优先按[离线开发协议](../../references/iris-offline-development.md)接收已带回的源码或完整 XML；本地清单 build/compare、既有任务状态检查可用，不请求医院连接或准入，不进入服务器采集、source-sync 或资格执行。缺省沿旧 `connected` 行为，未知值停止核对。
 
-用户带回完整源码 XML、要求本地 AI 修改后带回现场时，先读[现场源码带回与 XML 离线修改](../../references/iris-offline-development.md)，不要求连接配置或在线元数据。固定按对象 XML 编辑，以实际 notes.md 生成仅含修改对象的 changes.xml、对应 rollback.xml、变更说明和摘要 manifest，并用新进程 Verify 后交付；原包、Project 元数据及未修改对象受保护。类保留原生 XML，不自动导入、编译或提交。人工 TXT/XML 范围导出是源仓 `tools/iris-code-export/` 的独立 ZIP，不依赖本 skill 或框架，也不随 `.agents` 分发。
+用户带回完整源码 XML、要求本地 AI 修改后带回现场时，先读[现场源码带回与 XML 离线修改](../../references/iris-offline-development.md)，不要求连接配置或在线元数据。固定按对象 XML 编辑，以实际 notes.md 生成仅含修改对象的 changes.xml、对应 rollback.xml、变更说明和摘要 manifest，并用新进程 Verify 后交付；原包、Project 元数据及未修改对象受保护。类保留原生 XML，不自动导入、编译或提交。人工 TXT 范围导出是源仓 `tools/iris-code-export/` 的独立 ZIP，不依赖本 skill 或框架，也不随 `.agents` 分发。
 
 1. 读取目标 AGENTS、上下文及 IRIS profile，解析 WorkspaceRoot、ContextRoot、CapabilityRoot、SourceRoot、GitRoot；读取[代码基线协议](../../references/iris-code-baseline.md)。先区分离线清单维护、纯源码采集与项目按需开发分支。
 2. 离线 build／compare 使用 `baseline-catalog.js`，记录来源 ref、版本标签和范围差异。共享版本参考位于能力包 `docs/reference/project-export-map/`；项目增补清单留目标项目，不自动发布到框架。

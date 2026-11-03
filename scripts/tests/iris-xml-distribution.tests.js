@@ -18,7 +18,8 @@ test('new and upgraded sparse projects receive XML runtime, canonical class and 
   const sourceOnlyTools = ['tools/README.md', 'tools/iris-code-export/export-iris-code.ps1', 'tools/future-tool/new.txt', 'tools/dist/fixture.zip'];
   git(source, ['init']); git(source, ['config', 'user.name', 'Fixture']); git(source, ['config', 'user.email', 'fixture@example.invalid']);
   git(source, ['config', 'core.autocrlf', 'false']);
-  for (const file of ['docs/entry.md', 'maintenance/should-not-deploy.md', 'scripts/tests/should-not-deploy.js', '.agents/local-only.md', ...sourceOnlyTools]) {
+  const retiredCatalog = 'docs/reference/project-export-map/doctor/prj_v8.4.xml';
+  for (const file of ['docs/entry.md', retiredCatalog, 'maintenance/should-not-deploy.md', 'scripts/tests/should-not-deploy.js', '.agents/local-only.md', ...sourceOnlyTools]) {
     fs.mkdirSync(path.dirname(path.join(source, file)), {recursive: true}); fs.writeFileSync(path.join(source, file), 'fixture\n');
   }
   git(source, ['add', '.']); git(source, ['commit', '-m', 'fixture old capability']);
@@ -36,6 +37,7 @@ test('new and upgraded sparse projects receive XML runtime, canonical class and 
     git(target, ['checkout']); return target;
   }
   const upgraded = clone('upgraded');
+  assert.equal(fs.existsSync(path.join(upgraded, retiredCatalog)), true);
   assert.equal(fs.existsSync(path.join(upgraded, 'vendor/xml-parser')), false);
   const copied = new Map();
   function copy(relative) {
@@ -45,7 +47,8 @@ test('new and upgraded sparse projects receive XML runtime, canonical class and 
     if (!item.isFile()) return;
     const bytes = fs.readFileSync(original); fs.mkdirSync(path.dirname(target), {recursive: true}); fs.writeFileSync(target, bytes); copied.set(relative, sha(bytes));
   }
-  for (const relative of ['scripts/lib', 'scripts/iris-mcp.js', 'vendor/xml-parser', 'plugins/coding-iris-plugin/scripts/iris-tools',
+  fs.unlinkSync(path.join(source, retiredCatalog));
+  for (const relative of ['docs/reference/project-export-map/doctor', 'scripts/lib', 'scripts/iris-mcp.js', 'vendor/xml-parser', 'plugins/coding-iris-plugin/scripts/iris-tools',
     'plugins/coding-iris-plugin/templates/DHCDoc/Util/XmlPackage.cls', 'plugins/coding-iris-plugin/skills/iris-xml-export',
     'plugins/coding-iris-plugin/skills/iris-code-baseline', 'plugins/coding-iris-plugin/.agents-plugin/plugin.json',
     'plugins/coding-iris-plugin/references/iris-offline-development.md']) copy(relative);
@@ -53,6 +56,10 @@ test('new and upgraded sparse projects receive XML runtime, canonical class and 
   git(upgraded, ['pull', '--ff-only']);
   const fresh = clone('fresh', installPatterns);
   for (const target of [fresh, upgraded]) {
+    assert.equal(fs.existsSync(path.join(target, retiredCatalog)), false);
+    const scope = require(path.join(target, 'plugins/coding-iris-plugin/scripts/iris-tools/scope-list'));
+    assert.equal(scope.parseScopeList(fs.readFileSync(path.join(target, 'docs/reference/project-export-map/doctor/v8.4.txt'))).length, 2850);
+    assert.throws(() => scope.parseScopeList('<Export/>'), /scope-list-format-invalid/);
     assert.equal(fs.existsSync(path.join(target, 'tools')), false, 'the entire source-only tools tree must stay out of projects');
     for (const name of ['edit-export-xml.ps1', 'source-delivery.ps1']) {
       const bytes = fs.readFileSync(path.join(target, 'plugins/coding-iris-plugin/scripts/iris-tools', name));

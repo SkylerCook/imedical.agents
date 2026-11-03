@@ -155,19 +155,19 @@ function classify(context, logicalPath, options = {}) {
     return {...mapped, kind: 'frontend', document};
 }
 
-function parseProjectMap(xml) {
-    try { return require('./xml-package-core').parseProjectItems(xml); }
+function parseScopeMap(text) {
+    try { return require('./scope-list').parseScopeList(text); }
     catch (error) {
-        if (error.code === 'duplicate-project-item') stop(error.code);
+        if (error.code === 'duplicate-scope-item') stop(error.code);
         if (error.code === 'unsafe-document-name') stop('unsafe-project-item');
         if (['unsupported-document-type', 'invalid-backend-document'].includes(error.code)) stop('unsupported-project-item');
-        stop('unsupported-project-xml');
+        stop('unsupported-scope-list');
     }
 }
-function mapItems(context, xml) {
+function mapItems(context, text) {
     const {config} = projectConfiguration(context), rootFor = name => context.sourceRoots.find(source => source.name === name) || context.sourceRoots[0];
     const logical = (source, relative) => slash(path.join(path.relative(context.workspaceRoot, source.path), relative));
-    return parseProjectMap(xml).filter(item => !require('./baseline-catalog').IMAGE_EXTENSIONS.has(path.posix.extname(item.name).toLowerCase())).map(item => {
+    return parseScopeMap(text).filter(item => !require('./baseline-catalog').IMAGE_EXTENSIONS.has(path.posix.extname(item.name).toLowerCase())).map(item => {
         if (item.type !== 'CSP') {
             const extension = '.' + item.type.toLowerCase(), name = item.name.endsWith(extension) ? item.name.slice(0, -extension.length) : item.name;
             if (!/^[%A-Za-z][%A-Za-z0-9]*(?:\.[%A-Za-z][%A-Za-z0-9]*)*$/.test(name)) stop('unsupported-project-item');
@@ -257,7 +257,7 @@ function createPlan(options) {
         execution: {exportCommit: null, demandCommit: null, completedWrites: []}, createdAt: new Date().toISOString(),
         budget: {documents: active.length, requestCount: active.length, concurrent: 1},
         mapSha256: options.map ? hash(fs.readFileSync(path.resolve(options.map))) : null,
-        excludedImages: options.map ? parseProjectMap(fs.readFileSync(path.resolve(options.map))).filter(item => require('./baseline-catalog').IMAGE_EXTENSIONS.has(path.posix.extname(item.name).toLowerCase())) : []};
+        excludedImages: options.map ? parseScopeMap(fs.readFileSync(path.resolve(options.map))).filter(item => require('./baseline-catalog').IMAGE_EXTENSIONS.has(path.posix.extname(item.name).toLowerCase())) : []};
     // Reference candidates do not silently become deployable files.
     plan.candidates = files.filter(file => file.tier !== 'required'); plan.files = active;
     const currentRegistry = registry(context);
@@ -839,5 +839,5 @@ function initialize(options) {
 }
 
 module.exports = {SCHEMA, hash, canonical, git, head, contextFor, isOnDemand, privateRoot, projectConfiguration,
-    configurationFingerprint, parseProjectMap, mapItems, classify, repositorySnapshot, createPlan, load, save,
+    configurationFingerprint, parseScopeMap, mapItems, classify, repositorySnapshot, createPlan, load, save,
     prepare, apply, review, verify, finish, createRollbackPlan, rollbackLocal, recoverLock, status, initialize, scopedCommit, recoverPending, restoreTaskIndex, acquireRepositoryLock, repositoryLock, environment, demandKind, readBytes, utf8, stop};

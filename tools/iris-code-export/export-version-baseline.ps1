@@ -62,7 +62,7 @@ try {
     if ($index.schema -ne 'iris-version-catalogs/v1' -or -not @($index.entries).Count) { throw 'version-index-invalid' }
     $versions = @{}
     foreach ($entry in $index.entries) {
-        if ($entry.version -cnotmatch '^v\d+\.\d+$' -or $entry.scope -notin @('doctor','all-products') -or $versions.ContainsKey($entry.version)) { throw 'version-index-invalid' }
+        if ($entry.version -cnotmatch '^v\d+\.\d+(\.\d+)?$' -or $entry.scope -notin @('doctor','all-products') -or $versions.ContainsKey($entry.version)) { throw 'version-index-invalid' }
         $versions[$entry.version] = $entry
     }
     if ($ListVersions) { $index.entries | Select-Object version,scope,scopeLabel,codeCount,duplicateCount,webRoots,webPathsNeedConfirmation | ConvertTo-Json -Depth 5; exit 0 }

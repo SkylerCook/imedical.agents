@@ -1,11 +1,11 @@
 ﻿#requires -Version 5.1
 <#
 .SYNOPSIS
-按 ProjectItem XML 清单从内网 IRIS 读取当前源码，保存到指定本地目录。
+按 UTF-8 TXT 清单从内网 IRIS 读取当前源码，保存到指定本地目录。
 .EXAMPLE
-.\export-iris-code.ps1 -Baseline .\ProjectItem.xml -OutputDirectory D:\work\snapshot -PlanOnly
+.\export-iris-code.ps1 -ListFile .\files.txt -OutputDirectory D:\work\snapshot -PlanOnly
 .EXAMPLE
-.\export-iris-code.ps1 -Baseline .\ProjectItem.xml -OutputDirectory D:\work\snapshot
+.\export-iris-code.ps1 -ListFile .\files.txt -OutputDirectory D:\work\snapshot
 .EXAMPLE
 .\export-iris-code.ps1 -ListFile .\files.txt -OutputDirectory D:\work\snapshot
 .NOTES
@@ -15,11 +15,10 @@ AtelierUrl 为已启用 Atelier 应用的根 URL（以 /api/atelier/ 结尾）�
 首次输出目录必须不存在。中断后原参数加 -Resume；本地已保存文件摘要变化时停止。
 先用 -MaxFilesPerRun 1 验证落盘，再用新进程 -Resume 继续。退出码 0 完整、2 部分、1 阻断。
 #>
-[CmdletBinding(DefaultParameterSetName = 'Catalog')]
+[CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true, ParameterSetName = 'Catalog')][string]$Baseline,
-    [Parameter(Mandatory = $true, ParameterSetName = 'List')][string]$ListFile,
-    [Parameter(ParameterSetName = 'List')][string]$VersionSelectionFile,
+    [Parameter(Mandatory = $true)][string]$ListFile,
+    [string]$VersionSelectionFile,
     [Parameter(Mandatory = $true)][string]$OutputDirectory,
     [string]$AtelierUrl,
     [string]$Namespace,
@@ -153,45 +152,26 @@ function Close-SessionSnapshot($Snapshot) {
 $diagnosticCallback = ${function:Get-TransportDiagnostic}
 try {
     if ($env:OS -ne 'Windows_NT') { throw 'windows-powershell-required' }
-    $inputFile = $Baseline
-    if ($PSCmdlet.ParameterSetName -eq 'List') { $inputFile = $ListFile }
+    $inputFile = $ListFile
     $baselinePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($inputFile)
     $root = [IO.Path]::GetFullPath($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory)).TrimEnd('\', '/')
     if ($root -eq [IO.Path]::GetPathRoot($root).TrimEnd('\', '/')) { throw 'output-must-not-be-volume-root' }
     Assert-PlainPath $baselinePath
     Assert-PlainPath $root
-    if ($PSCmdlet.ParameterSetName -eq 'List') {
-        $xml = New-Object Xml.XmlDocument
-        $xml.LoadXml('<Export><Project><Items/></Project></Export>')
-        $lineNumber = 0
-        foreach ($line in $utf8.GetString([IO.File]::ReadAllBytes($baselinePath)).TrimStart([char]0xFEFF).Split("`n")) {
-            $lineNumber++; $entry = $line.Trim()
-            if (-not $entry -or $entry.StartsWith('#')) { continue }
-            if ($entry -match '\.(cls|mac|inc|int)$' -and -not $entry.Contains('/')) { $kind = $Matches[1].ToUpperInvariant() }
-            elseif ($entry.StartsWith('/') -and $entry -match '\.(csp|csr|js|css|html|htm)$') { $kind = 'CSP' }
-            else { throw ('list-format-invalid-line-' + $lineNumber) }
-            $itemNode = $xml.CreateElement('ProjectItem')
-            $itemNode.SetAttribute('name', $entry); $itemNode.SetAttribute('type', $kind)
-            [void]$xml.SelectSingleNode('/Export/Project/Items').AppendChild($itemNode)
-        }
-    } else {
-        $settings = New-Object Xml.XmlReaderSettings
-        $settings.DtdProcessing = [Xml.DtdProcessing]::Prohibit
-        $settings.XmlResolver = $null
-        $settings.MaxCharactersInDocument = 134217728
-        $reader = [Xml.XmlReader]::Create($baselinePath, $settings)
-        try { $xml = New-Object Xml.XmlDocument; $xml.XmlResolver = $null; $xml.Load($reader) } finally { $reader.Dispose() }
+    $nodes = New-Object 'Collections.Generic.List[object]'
+    $lineNumber = 0
+    foreach ($line in $utf8.GetString([IO.File]::ReadAllBytes($baselinePath)).TrimStart([char]0xFEFF).Split("`n")) {
+        $lineNumber++; $entry = $line.Trim()
+        if (-not $entry -or $entry.StartsWith('#')) { continue }
+        if ($entry -match '\.(cls|mac|inc|int)$' -and -not $entry.Contains('/')) { $kind = $Matches[1].ToUpperInvariant() }
+        elseif ($entry.StartsWith('/') -and $entry -match '\.(csp|csr|js|css|html|htm|png|jpg|jpeg|gif|ico|bmp|svg|webp|avif)$') { $kind = 'CSP' }
+        else { throw ('list-format-invalid-line-' + $lineNumber) }
+        $nodes.Add([pscustomobject]@{name=$entry;type=$kind})
     }
-    if ($xml.DocumentElement.Name -cne 'Export' -or @($xml.SelectNodes('/Export/Project')).Count -ne 1 -or
-        @($xml.SelectNodes('/Export/*')).Count -ne 1 -or @($xml.SelectNodes('/Export/Project/Items')).Count -ne 1 -or
-        @($xml.SelectNodes('/Export/Project/*')).Count -ne 1) { throw 'ProjectItem-catalog-required-full-export-use-edit-export-xml' }
-    $nodes = @($xml.SelectNodes('/Export/Project/Items/*'))
     if (-not $nodes.Count) { throw 'empty-catalog' }
     $items = New-Object 'Collections.Generic.List[object]'; $excluded = @(); $seen = @{}; $paths = @{}
     foreach ($node in $nodes) {
-        $name = $node.GetAttribute('name'); $kind = $node.GetAttribute('type').ToUpperInvariant()
-        if ($node.get_Name() -cne 'ProjectItem' -or $kind -notin @('CLS', 'MAC', 'INC', 'INT', 'CSP') -or
-            -not $name -or $name -cne $name.Trim() -or $node.InnerText.Trim() -or $node.SelectNodes('*').Count) { throw 'invalid-project-item' }
+        $name = $node.name; $kind = $node.type
         if ($kind -ne 'CSP') {
             $ext = '.' + $kind.ToLowerInvariant()
             if ($name.EndsWith($ext, [StringComparison]::OrdinalIgnoreCase)) { $name = $name.Substring(0, $name.Length - 4) }
@@ -200,7 +180,7 @@ try {
             if ($kind -eq 'CLS') { $relative = 'src/' + $name.Replace('.', '/') + $ext }
             else { $relative = 'src/routines/' + $document }
         } else {
-            $document = $name.TrimStart('/')
+            $document = $name.Substring(1)
             if ($document -match '[\\:%?#*,;\x00-\x1f\x7f]' -or $document.Split('/') -contains '' -or
                 $document.Split('/') -contains '.' -or $document.Split('/') -contains '..') { throw 'unsafe-web-name' }
             $relative = 'src/' + $document
@@ -210,7 +190,7 @@ try {
             if ($segment -match '[<>:"|?*\x00-\x1f]' -or $segment -match '[. ]$' -or $segment -match '^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])($|\.)') { throw 'unsafe-windows-name' }
         }
         $key = $kind + ':' + $document
-        if ($seen.ContainsKey($key)) { throw 'duplicate-project-item' }; $seen[$key] = $true
+        if ($seen.ContainsKey($key)) { throw 'duplicate-scope-item' }; $seen[$key] = $true
         if ($ext -in @('.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.svg', '.webp', '.avif')) { $excluded += $document; continue }
         if ($ext -notin @('.cls', '.mac', '.inc', '.int', '.csp', '.csr', '.js', '.css', '.html', '.htm')) { throw 'unsupported-code-type' }
         if ($kind -notin $Type -or -not $name.StartsWith($Prefix, [StringComparison]::OrdinalIgnoreCase)) { continue }

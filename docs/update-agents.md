@@ -26,7 +26,9 @@ offline 初始化不生成医院连接；既有连接只报告给授权维护。
 
 `coding-iris-plugin 0.23.0` 增加[现场完整 XML 带回后的本地 AI 修改流程](../plugins/coding-iris-plugin/references/iris-offline-development.md)，正常更新取得 `scripts/iris-tools/edit-export-xml.ps1` 与路由说明：Unpack 支持混合 Project/源码，Pack 用 NotesFile 生成增量 XML、对应回退包、说明及 manifest，Verify 独立回读。人工源码导出工具已独立至源仓 tools/iris-code-export/，交付 ZIP，不依赖框架或 skill，不随 .agents 的 sparse checkout 分发。未改安装/更新算法；无配置迁移或旧文件清理。
 
-`coding-iris-plugin 0.22.0` 新增 [iris-xml-export](../plugins/coding-iris-plugin/skills/iris-xml-export/SKILL.md) 与 [iris-code-baseline](../plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md)。XML 从指定环境当前对象生成，支持图片；基线只采代码，图片预筛排除并统计，版本 XML 只表达范围。初始缺失保留完整 partial 报告；日常开发仍按需求刷新，项目分支继续使用 source-sync。
+**0.27.0 范围清单迁移**：正常更新取得 TXT 清单及新 reader，受 Git 管理的旧 doctor ProjectItem XML 随更新删除；项目私有 XML 清单须先导出对象列为 UTF-8 TXT，再供 build/compare/plan/source-sync 使用，不能只改扩展名。更新器不扫描或删除私有文件。人工工具重新解压新版 ZIP，使用 `-ListFile`，旧 `-Baseline` 已移除。已有批次/资格绑定旧范围或运行时摘要，不修改回执绕过校验；先用旧工具完成旧任务，或保留成果并新建任务、按原协议重新核验资格。源码 XML 包不迁移。
+
+`coding-iris-plugin 0.22.0` 新增 [iris-xml-export](../plugins/coding-iris-plugin/skills/iris-xml-export/SKILL.md) 与 [iris-code-baseline](../plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md)。XML 从指定环境当前对象生成，支持图片；基线只采代码，图片预筛排除并统计，版本 TXT 清单 只表达范围。初始缺失保留完整 partial 报告；日常开发仍按需求刷新，项目分支继续使用 source-sync。
 
 新增脚本、两个 skill、reference、类源和固定 XML 解析 vendor 沿既有 `plugins/**`、`scripts/lib/**` 与 `vendor/**` 分发，无需业务项目 `npm install`。七个直接消费者的依赖范围随本批兼容声明更新，应取得完整能力包而不是只复制 owner 目录。版本校验仍仅用于源仓维护，不接入业务更新器或 hook。
 

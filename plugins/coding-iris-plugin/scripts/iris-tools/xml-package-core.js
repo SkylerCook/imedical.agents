@@ -63,23 +63,6 @@ function normalizeDocument(item) {
   if (!name || /[:\\]/.test(name) || name.split('/').some(part => !part || part === '.' || part === '..')) fail('unsafe-document-name');
   return {...item, name, type, document: name, identity: 'CSP:' + name};
 }
-function parseProjectItems(input) {
-  const root = parseXml(input);
-  if (root.tag !== 'Export') fail('unsupported-project-xml');
-  const projects = onlyChildren(root, 'Project');
-  if (projects.length !== 1) fail('unsupported-project-xml');
-  const lists = onlyChildren(projects[0], 'Items');
-  if (lists.length !== 1) fail('unsupported-project-xml');
-  const nodes = onlyChildren(lists[0], 'ProjectItem'), seen = new Set();
-  if (!nodes.length) fail('unsupported-project-xml');
-  return nodes.map(node => {
-    if (node.children.length || textContent(node).trim() || Object.keys(node.attributes).some(key => !['name', 'type'].includes(key))) fail('unsupported-project-item');
-    const {name, type} = node.attributes, normalized = normalizeDocument({name, type});
-    const key = normalized.identity.toLowerCase();
-    if (seen.has(key)) fail('duplicate-project-item');
-    seen.add(key); return {name, type: normalized.type};
-  });
-}
 function strictBase64(text) {
   const value = text.replace(/[\t\r\n ]/g, '');
   if (!value || value.length % 4 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) fail('invalid-csp-base64');
@@ -128,4 +111,4 @@ function validatePackage(input, expected) {
   if (missing.length || extra.length) fail('export-scope-mismatch', {missing, extra});
   return {...packageData, sha256: hash(Buffer.isBuffer(input) ? input : Buffer.from(input)), status: 'verified'};
 }
-module.exports = {parseXml, parseProjectItems, normalizeDocument, parseExportXml, validatePackage, strictBase64, hash};
+module.exports = {parseXml, normalizeDocument, parseExportXml, validatePackage, strictBase64, hash};

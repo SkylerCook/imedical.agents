@@ -1,0 +1,28 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const {createTempDirectory, ownsTempDirectory} = require('./fixtures/temp-directory');
+const {scan} = require('../../tools/iris-code-export/scan-tag-scope');
+test('tag scan reads every source XML object, UDL text and typed routines, without adding project-only references', t => {
+  const root=createTempDirectory('tag-scope-');
+  t.after(()=>{assert.ok(ownsTempDirectory(root));fs.rmSync(root,{recursive:true,force:true});});
+  const put=(p,text)=>{const f=path.join(root,p);fs.mkdirSync(path.dirname(f),{recursive:true});fs.writeFileSync(f,text);};
+  put('cls/bundle.xml','<Export><Project><Items><ProjectItem name="Missing" type="CLS"/></Items></Project><Class name="Demo.A"/><Class name="Demo.B"/><Routine name="DemoR" type="MAC"/><CSP application="/dthealth/web/" name="csp/page.csr"><![CDATA[<script src="../scripts/dhcdoc/a.2.js"></script>]]></CSP></Export>');
+  put('cls/not-the-name.txt','Class Demo.C Extends %RegisteredObject {}');
+  put('rountines/Utility.mac.txt','Utility ; routine');
+  put('rountines/Named.txt','; Named.mac\nNamed ; routine');
+  put('rountines/Unknown.txt','Unknown ; no type');
+  put('js/新增JS/a.2.js','var live=1;');
+  put('css/a.css','body{}');
+  put('js/live.2.js','var live=2;');
+  put('js/demo/a.js','var demo=1;');
+  put('js/live.bak.js','var old=1;');
+  put('csp/新增或导入csp/unresolved.csp','<p>unknown deployment location</p>');
+  const result=scan(root), names=[...result.found.keys()];
+  for(const name of ['Demo.A.cls','Demo.B.cls','Demo.C.cls','DemoR.mac','Utility.mac','Named.mac','/imedical/web/csp/page.csr','/imedical/web/scripts/dhcdoc/a.2.js','/imedical/web/css/a.css','/imedical/web/scripts/live.2.js']) assert.ok(names.includes(name),name);
+  assert.ok(!names.some(n=>/Missing|Unknown|demo\/|bak|新增/.test(n)));
+  assert.equal(result.report.xmlObjects,4);
+  assert.equal(result.report.unresolved.length,2);
+});

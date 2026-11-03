@@ -188,11 +188,11 @@ test('offline entry points reject DTD and catalog/full-source confusion before c
     assert.notEqual(result.code, 0); assert.equal(fs.existsSync(out), false);
   }
   const input = f.put('input.xml', packageXml), out = path.join(f.root, 'snapshot');
-  const result = await run('export-iris-code.ps1', ['-Baseline', input, '-OutputDirectory', out, '-PlanOnly']);
-  assert.notEqual(result.code, 0); assert.match(result.stderr.replace(/\r?\n/g, ''), /ProjectItem-catalog-required/); assert.equal(fs.existsSync(out), false);
+  const result = await run('export-iris-code.ps1', ['-ListFile', input, '-OutputDirectory', out, '-PlanOnly']);
+  assert.notEqual(result.code, 0); assert.match(result.stderr.replace(/\r?\n/g, ''), /list-format-invalid/); assert.equal(fs.existsSync(out), false);
 });
 
-function catalog(names) { return '<Export><Project name="Fixture"><Items>' + names.map(([name, type = 'CLS']) => `<ProjectItem name="${name}" type="${type}"/>`).join('') + '</Items></Project></Export>'; }
+function catalog(names) { return names.map(([name,type='CLS']) => type === 'CSP' ? '/' + name : name + '.' + type.toLowerCase()).join('\n') + '\n'; }
 async function server(t, responder, options = {}) {
   const calls = [], service = http.createServer((req, res) => {
     calls.push({method: req.method, url: req.url, cookie: req.headers.cookie, authorization: req.headers.authorization});
@@ -328,12 +328,12 @@ test('prepared originals block export Resume and source delivery validates notes
 });
 
 test('standalone exporter saves UTF-8 source, excludes images, resumes in new process and protects local edits', {skip: !windows}, async t => {
-  const f = fixture(t), baseline = f.put('scope.xml', catalog([['Demo.A'], ['Demo.B'], ['demo/a.js', 'CSP'], ['demo/a.png', 'CSP']])), out = path.join(f.root, 'snapshot');
+  const f = fixture(t), baseline = f.put('scope.txt', catalog([['Demo.A'], ['Demo.B'], ['demo/a.js', 'CSP'], ['demo/a.png', 'CSP']])), out = path.join(f.root, 'snapshot');
   const s = await server(t, (req, res) => {
     const name = decodeURIComponent(req.url.split('/doc/')[1]);
     send(res, name, name.endsWith('.cls') ? [`Class ${name.slice(0, -4)}`, '{', 'Parameter Text = "中文";', '}'] : ['const x = "中文";']);
   });
-  const args = ['-Baseline', baseline, '-OutputDirectory', out, '-AtelierUrl', s.url, '-Namespace', 'FIXTURE'];
+  const args = ['-ListFile', baseline, '-OutputDirectory', out, '-AtelierUrl', s.url, '-Namespace', 'FIXTURE'];
   let result = await run('export-iris-code.ps1', [...args, '-PlanOnly']);
   assert.equal(result.code, 0, result.stderr); assert.equal(s.calls.length, 0); assert.equal(fs.existsSync(out), false);
   result = await run('export-iris-code.ps1', [...args, '-MaxFilesPerRun', '1'], credential);
@@ -454,13 +454,13 @@ test('real connection refusal and request timeout retain the error code with saf
 });
 
 test('404/empty remain partial and 503 stops without retry while logging out its own session', {skip: !windows}, async t => {
-  const f = fixture(t), baseline = f.put('scope.xml', catalog([['Demo.Missing'], ['Demo.Empty'], ['Demo.Stop'], ['Demo.Unsent']])), out = path.join(f.root, 'snapshot');
+  const f = fixture(t), baseline = f.put('scope.txt', catalog([['Demo.Missing'], ['Demo.Empty'], ['Demo.Stop'], ['Demo.Unsent']])), out = path.join(f.root, 'snapshot');
   const s = await server(t, (req, res) => {
     if (req.url.includes('Missing')) { res.writeHead(404); return res.end(); }
     if (req.url.includes('Empty')) return send(res, 'Demo.Empty.cls', []);
     res.writeHead(503); res.end();
   });
-  const result = await run('export-iris-code.ps1', ['-Baseline', baseline, '-OutputDirectory', out, '-AtelierUrl', s.url, '-Namespace', 'FIXTURE'], credential);
+  const result = await run('export-iris-code.ps1', ['-ListFile', baseline, '-OutputDirectory', out, '-AtelierUrl', s.url, '-Namespace', 'FIXTURE'], credential);
   assert.equal(result.code, 2, result.stderr);
   const state = JSON.parse(fs.readFileSync(path.join(out, 'baseline-state.json'), 'utf8'));
   assert.deepEqual(state.items.map(i => i.status), ['missing', 'empty', 'failed', 'pending']);
@@ -471,8 +471,8 @@ test('404/empty remain partial and 503 stops without retry while logging out its
 test('unsafe paths, destination collisions and existing output are rejected without HTTP', {skip: !windows}, async t => {
   const f = fixture(t), out = path.join(f.root, 'snapshot');
   for (const names of [[['demo/../a.js', 'CSP']], [['Demo.A'], ['Demo/A.cls', 'CSP']], [['demo/CON.js', 'CSP']]]) {
-    const baseline = f.put('scope.xml', catalog(names));
-    const result = await run('export-iris-code.ps1', ['-Baseline', baseline, '-OutputDirectory', out, '-PlanOnly']);
+    const baseline = f.put('scope.txt', catalog(names));
+    const result = await run('export-iris-code.ps1', ['-ListFile', baseline, '-OutputDirectory', out, '-PlanOnly']);
     assert.equal(result.code, 1); assert.equal(fs.existsSync(out), false);
   }
 });
@@ -488,7 +488,7 @@ test('UTF-8 text list exports exact backend and frontend names and rejects ambig
   assert.deepEqual(s.calls.filter(c => c.method === 'GET').map(c => decodeURIComponent(c.url.split('/doc/')[1])), ['Demo.A.cls', 'Demo.mac', 'Demo.inc', 'Demo.int', 'demo/a.js', 'demo/page.csp']);
   assert.ok(fs.existsSync(path.join(out, 'src/routines/Demo.mac')));
   assert.ok(fs.existsSync(path.join(out, 'src/demo/page.csp')));
-  for (const name of ['demo/a.js', 'Demo.*.cls', 'C:\\src\\Demo.cls', 'Demo.A', '/demo/a.png', '/demo/../a.js']) {
+  for (const name of ['demo/a.js', 'Demo.*.cls', 'C:\\src\\Demo.cls', 'Demo.A', '//demo/a.js', '/demo/../a.js', '<Export/>']) {
     f.put('invalid.txt', name);
     const invalid = await run('export-iris-code.ps1', ['-ListFile', path.join(f.root, 'invalid.txt'), '-OutputDirectory', path.join(f.root, 'unused'), '-PlanOnly']);
     assert.equal(invalid.code, 1, name); assert.equal(fs.existsSync(path.join(f.root, 'unused')), false);
@@ -559,7 +559,7 @@ function versionFixture(f, {mixed = false} = {}) {
   const directory = path.join(f.root, 'catalogs'); fs.mkdirSync(directory);
   const text = 'Demo.A.cls\n' + (mixed ? '/scripts/a.js' : '/demo/a.js') + '\n';
   fs.writeFileSync(path.join(directory, 'v1.0.txt'), text);
-  const index = {schema: 'iris-version-catalogs/v1', entries: [{version:'v1.0',scope:'doctor',scopeLabel:'医生站',project:'Fixture',sourcePath:'synthetic.xml',sourceSha256:'a'.repeat(64),
+  const index = {schema: 'iris-version-catalogs/v1', entries: [{version:'v1.0',scope:'doctor',scopeLabel:'医生站',project:'Fixture',sourcePath:'synthetic.txt',sourceSha256:'a'.repeat(64),
     rawItemCount:2,duplicateCount:0,excludedImages:[],codeCount:2,webRoots:mixed?['/scripts/','/demo/']:['/demo/'],webPathsNeedConfirmation:mixed,
     listFile:'v1.0.txt',listSha256:crypto.createHash('sha256').update(text).digest('hex')}]};
   fs.writeFileSync(path.join(directory,'index.json'), JSON.stringify(index)); return directory;
@@ -567,8 +567,8 @@ function versionFixture(f, {mixed = false} = {}) {
 test('all packaged version catalogs pass offline planning with scope and mixed Web paths disclosed', {skip: !windows}, async t => {
   const f = fixture(t), output = path.join(f.root,'snapshot');
   let result = await run('export-version-baseline.ps1', ['-ListVersions']);
-  assert.equal(result.code,0,result.stderr); assert.equal(JSON.parse(result.stdout).length,5);
-  for (const [version, count, scope] of [['v8.4',1296,'doctor'],['v8.5',1520,'doctor'],['v9.0',1745,'doctor'],['v9.1',3295,'doctor'],['v9.2',5352,'all-products']]) {
+  assert.equal(result.code,0,result.stderr); assert.equal(JSON.parse(result.stdout).length,7);
+  for (const [version, count, scope] of [['v8.3',910,'doctor'],['v8.4',2850,'doctor'],['v8.5',3141,'doctor'],['v9.0',3426,'doctor'],['v9.0.2',3705,'doctor'],['v9.1',4796,'doctor'],['v9.2',5352,'all-products']]) {
     result = await run('export-version-baseline.ps1', ['-Version',version,'-Scope',scope,'-OutputDirectory',output,'-PlanOnly']);
     assert.equal(result.code,0,result.stderr); const preview=JSON.parse(result.stdout);
     assert.equal(preview.total,count); assert.equal(preview.webPathsNeedConfirmation,version==='v9.1'); assert.equal(fs.existsSync(output),false);
