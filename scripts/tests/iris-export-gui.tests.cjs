@@ -16,12 +16,13 @@ for(const invalid of [false,true])test('encoded Web chunks preserve bytes and re
   f.send({op:'run',job,user:'test',password:'not-a-secret',resume:true});await f.wait('result');assert.equal(f.stats().reads,1);
  }
 });
-async function fixture(t,{idle=120,failLogout=false,failAt=0,rotateAt=0,refreshAt=0,delay=40,documentResult=null,documentStatus=null}={}){
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'iris-gui-test-'));let auth=0,reads=0,active=0,peak=0,exits=0;const cookies=new Set(),starts=[];
+async function fixture(t,{idle=120,failLogout=false,failAt=0,rotateAt=0,refreshAt=0,rejectAt=0,rejectionCookie=false,delay=40,documentResult=null,documentStatus=null}={}){
+ const parent=path.join(os.tmpdir(),'Codex');fs.mkdirSync(parent,{recursive:true});
+ const dir=fs.mkdtempSync(path.join(parent,'iris-gui-test-'));let auth=0,reads=0,active=0,peak=0,exits=0;const cookies=new Set(),starts=[];
  const server=http.createServer((req,res)=>{
   if(req.method==='HEAD'){exits++; if(!failLogout)cookies.delete(req.headers.cookie);res.writeHead(failLogout?500:401);res.end();return;}
   starts.push(Date.now());reads++;const requestNumber=reads;active++;peak=Math.max(active,peak);let cookie=req.headers.cookie;
-  if(req.headers.authorization){auth++;cookie='CSPSESSIONID='+(refreshAt?'00000000ABCD'+String(auth).padStart(10,'0')+'M'.repeat(28):auth);cookies.add(cookie);res.setHeader('Set-Cookie',cookie+'; Path=/api/atelier/');}
+  if(req.headers.authorization){auth++;if(requestNumber===rejectAt&&!rejectionCookie){res.writeHead(401);res.end();active--;return;}cookie='CSPSESSIONID='+(refreshAt?'00000000ABCD'+String(auth).padStart(10,'0')+'M'.repeat(28):auth);cookies.add(cookie);res.setHeader('Set-Cookie',cookie+'; Path=/api/atelier/');if(requestNumber===rejectAt){res.writeHead(401);res.end();active--;return;}}
   if(!cookies.has(cookie)){res.writeHead(401);res.end();active--;return;}
   if(requestNumber===refreshAt){cookies.delete(cookie);cookie=cookie.replace('=00000000','=00000001').replace(/M{28}$/,'N'.repeat(28));cookies.add(cookie);res.setHeader('Set-Cookie',cookie+'; Path=/api/atelier/');}
   if(requestNumber===rotateAt){cookies.delete(cookie);cookie=refreshAt?cookie.replace('ABCD','WXYZ'):'CSPSESSIONID=rotated';cookies.add(cookie);res.setHeader('Set-Cookie',cookie+'; Path=/api/atelier/');}
@@ -137,4 +138,64 @@ test('missing TXT is importable, excludes other statuses, and refreshes after re
  const receipt=JSON.parse(fs.readFileSync(path.join(retry.batch,'export/baseline-state.json'),'utf8'));
  assert.equal(receipt.items.filter(x=>x.status==='fetched').length,2);
  assert.equal(fs.readFileSync(txt,'utf8'),'Demo.Missing.cls\r\n/app/Missing.js\r\n');
+});
+
+for(const rejectionCookie of [false,true])test('401 recovery depends on verified cleanup, never on assumed absence of sessions: '+rejectionCookie,{skip:process.platform!=='win32'},async t=>{
+ const f=await fixture(t,{rejectAt:1,rejectionCookie}),job=f.job('auth-rejected',1,2);
+ f.send({op:'run',job,user:'test',password:'not-a-secret'});const result=await f.wait('result');
+ const receipt=JSON.parse(fs.readFileSync(path.join(job.batch,'export/baseline-state.json'),'utf8'));
+ assert.equal(receipt.reason,'atelier-http-401');assert.equal(receipt.fetched,undefined);assert.equal(receipt.items.filter(x=>x.status==='fetched').length,0);
+ assert.equal(receipt.logoutVerified,rejectionCookie);assert.equal(result.data.blocked,!rejectionCookie);assert.equal(f.stats().auth,1);
+ f.send({op:'run',job,user:'test',password:'not-a-secret',resume:true});
+ if(rejectionCookie){assert.equal((await f.wait('result')).data.blocked,false);assert.equal(f.stats().auth,2);}
+ else {assert.match((await f.wait('error')).data.reason,/previous-session-unresolved/);assert.equal(f.stats().auth,1);}
+});
+
+test('confirmed missing is skipped on resume while raw 404 and partial remain, then can be retried explicitly',{skip:process.platform!=='win32'},async t=>{
+ const f=await fixture(t,{documentStatus:name=>name==='Demo.Missing.cls'?404:200}),job=f.job('confirmed-missing',1,3);
+ fs.writeFileSync(path.join(job.batch,'files.txt'),'Demo.Missing.cls\nDemo.Good.cls\nDemo.Other.cls');
+ f.send({op:'run',job,user:'test',password:'not-a-secret',trial:true});await f.wait('result');
+ await f.wait('closed');assert.equal(f.stats().reads,1);job.confirmedMissing=['Demo.Missing.cls'];
+ f.send({op:'run',job,user:'test',password:'not-a-secret',resume:true});const r=await f.wait('result');
+ assert.equal(f.stats().reads,3);assert.equal(JSON.parse(r.data.output).missing,1);assert.equal(JSON.parse(r.data.output).pending,0);
+ f.send({op:'close'});await f.wait('closed');
+ let receipt=JSON.parse(fs.readFileSync(path.join(job.batch,'export/baseline-state.json'),'utf8'));
+ assert.equal(receipt.state,'partial');assert.equal(receipt.logoutVerified,true);assert.equal(receipt.items[0].status,'missing');assert.equal(receipt.items[0].missingDisposition,'operator-confirmed-no-retry');
+ assert.equal(fs.readFileSync(path.join(job.batch,'export/missing-objects.txt'),'utf8'),'Demo.Missing.cls\r\n');
+ delete job.confirmedMissing;f.send({op:'run',job,user:'test',password:'not-a-secret',resume:true});await f.wait('result');assert.equal(f.stats().reads,4);
+ receipt=JSON.parse(fs.readFileSync(path.join(job.batch,'export/baseline-state.json'),'utf8'));assert.equal(receipt.items[0].missingDisposition,undefined);
+});
+
+test('a fabricated missing confirmation is rejected before another authentication',{skip:process.platform!=='win32'},async t=>{
+ const f=await fixture(t),job=f.job('invalid-confirmation',1,2);
+ f.send({op:'run',job,user:'test',password:'not-a-secret',trial:true});await f.wait('result');
+ job.confirmedMissing=['Demo.C1.cls'];f.send({op:'run',job,user:'test',password:'not-a-secret',resume:true});
+ const result=await f.wait('result');assert.equal(result.data.exitCode,1);assert.equal(JSON.parse(result.data.output).operationError,'confirmed-missing-must-match-previous-404');assert.equal(f.stats().auth,1);assert.equal(f.stats().reads,1);
+});
+
+test('closing an unused worker reports its no-request state without authentication',{skip:process.platform!=='win32'},async t=>{
+ const f=await fixture(t);f.send({op:'close'});assert.equal((await f.wait('closed')).data.cleanupVerified,true);assert.equal(f.stats().auth,0);assert.equal(f.stats().reads,0);
+});
+
+test('native GUI validates import, copy, summaries, confirmations and responsive layouts',{skip:process.platform!=='win32'},async t=>{
+ const parent=path.join(os.tmpdir(),'Codex');fs.mkdirSync(parent,{recursive:true});const dir=fs.mkdtempSync(path.join(parent,'iris-gui-native-'));
+ t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const compiler=path.join(process.env.WINDIR,'Microsoft.NET/Framework64/v4.0.30319/csc.exe'),exe=path.join(dir,'exporter.exe');
+ async function run(file,args){const child=spawn(file,args,{windowsHide:true});let output='';child.stdout.on('data',x=>output+=x);child.stderr.on('data',x=>output+=x);const code=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('exit',resolve)});return {code,output};}
+ const compiled=await run(compiler,['/nologo','/codepage:65001','/target:winexe','/platform:anycpu','/out:'+exe,'/r:System.Windows.Forms.dll','/r:System.Drawing.dll','/r:System.Web.Extensions.dll','/r:System.Security.dll','/r:System.Xml.dll',path.join(root,'ExporterForm.cs'),path.join(root,'ExporterWorkflow.cs'),path.join(root,'ExporterWorkbench.cs'),path.join(root,'ProjectBaseline.cs')]);assert.equal(compiled.code,0,compiled.output);
+ const state=path.join(dir,'state'),checked=await run(exe,['--self-test',state]);assert.equal(checked.code,0,fs.existsSync(path.join(state,'failed.txt'))?fs.readFileSync(path.join(state,'failed.txt'),'utf8'):checked.output);
+ assert.equal(fs.existsSync(path.join(state,'layout-1.5.png')),true);
+});
+
+test('first-item persistence and continuation share one run and one server cookie',{skip:process.platform!=='win32'},async t=>{
+ const f=await fixture(t),job=f.job('first-item',1,3);
+ f.send({op:'run',job,user:'test',password:'not-a-secret',maxFiles:1});
+ const first=await f.wait('result');assert.equal(first.data.retained,true);
+ const receipt=JSON.parse(fs.readFileSync(path.join(job.batch,'export/baseline-state.json'),'utf8'));
+ assert.equal(receipt.items.filter(x=>x.status==='fetched').length,1);assert.equal(f.stats().reads,1);
+ const item=receipt.items.find(x=>x.status==='fetched');
+ assert.equal(require('node:crypto').createHash('sha256').update(fs.readFileSync(path.join(job.batch,'export',item.path))).digest('hex').toLowerCase(),item.sha256.toLowerCase());
+ f.send({op:'run',job,user:'test',password:'not-a-secret',resume:true});
+ await f.wait('result');assert.equal(f.stats().reads,3);assert.equal(f.stats().auth,1);
+ f.send({op:'close'});assert.equal((await f.wait('closed')).data.cleanupVerified,true);
 });

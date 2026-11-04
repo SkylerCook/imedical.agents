@@ -16,7 +16,7 @@ try{
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'gui-worker.ps1') -Destination $stage
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'GUI.md') -Destination $stage
     $exe=Join-Path $stage 'IRISSourceExporter.exe'
-    & $compiler /nologo /target:winexe /platform:anycpu "/out:$exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.Security.dll (Join-Path $PSScriptRoot 'ExporterForm.cs')
+    & $compiler /nologo /codepage:65001 /target:winexe /platform:anycpu "/out:$exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.Security.dll /r:System.Xml.dll (Join-Path $PSScriptRoot 'ExporterForm.cs') (Join-Path $PSScriptRoot 'ExporterWorkflow.cs') (Join-Path $PSScriptRoot 'ExporterWorkbench.cs') (Join-Path $PSScriptRoot 'ProjectBaseline.cs')
     if($LASTEXITCODE -ne 0){throw 'gui-compile-failed'}
     $manifest=@{schema='iris-export-gui-package/v1';builtAt=[DateTime]::UtcNow.ToString('o');files=@()}
     foreach($file in Get-ChildItem -LiteralPath $stage -File -Recurse){$manifest.files+=@{path=$file.FullName.Substring($stage.Length+1).Replace('\','/');sha256=(Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash}}

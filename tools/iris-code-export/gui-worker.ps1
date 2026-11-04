@@ -6,7 +6,7 @@ if ($PSVersionTable.PSVersion.Major -eq 5) { $env:PSModulePath = Join-Path $PSHO
 [Console]::InputEncoding=New-Object Text.UTF8Encoding($false)
 [Console]::OutputEncoding=New-Object Text.UTF8Encoding($false)
 $utf8=New-Object Text.UTF8Encoding($false,$true)
-$pool=@{}; $blocked=$false; $stop=$false
+$pool=@{}; $blocked=$false; $stop=$false; $lastCleanupVerified=$true
 [void][IO.Directory]::CreateDirectory($StateDirectory)
 $journal=Join-Path $StateDirectory 'session-state.json'
 function Emit($kind,$value) { [Console]::Out.WriteLine((@{kind=$kind;data=$value}|ConvertTo-Json -Depth 15 -Compress)); [Console]::Out.Flush() }
@@ -34,7 +34,7 @@ function Save-MissingList($receipt,$receiptFile) {
 }
 function Journal($active,$reason) { Save-Json $journal @{schema='iris-export-gui-session/v1';active=$active;blocked=$script:blocked;reason=$reason;at=[DateTime]::UtcNow.ToString('o')} }
 function Close-Pool {
-    if(-not $pool.workers){return}
+    if(-not $pool.workers){Emit 'closed' @{cleanupVerified=$script:lastCleanupVerified;licenseReleaseVerified=$false;results=@();blocked=$script:blocked};return}
     $results=@(); $requests=0
     foreach($w in $pool.workers){$requests+=$w.requests}
     foreach($snapshot in $pool.knownSessions.Values){$results+= & $pool.close $snapshot}
@@ -52,6 +52,7 @@ function Close-Pool {
     foreach($w in $pool.workers){$w.client.Dispose();$w.handler.Dispose()}
     if($pool.mutex){$pool.mutex.ReleaseMutex();$pool.mutex.Dispose()}
     $pool.Clear()
+    $script:lastCleanupVerified=$verified
     if(-not $verified){$script:blocked=$true}
     Journal $false $(if($verified){'closed'}else{'exit-unverified'})
     Emit 'closed' @{cleanupVerified=$verified;licenseReleaseVerified=$false;results=$results;blocked=$script:blocked}
@@ -61,8 +62,8 @@ $owned=$false
 try {
     try{$owned=$owner.WaitOne(0)}catch [Threading.AbandonedMutexException]{$owned=$true}
     if(-not $owned){throw 'another-exporter-window-is-running'}
-    if(Test-Path -LiteralPath $journal){$prior=[IO.File]::ReadAllText($journal,$utf8)|ConvertFrom-Json;$blocked=[bool]($prior.active -or $prior.blocked)}
-    Emit 'ready' @{blocked=$blocked;idleSeconds=$IdleSeconds;maximumSessions=10}
+    if(Test-Path -LiteralPath $journal){$prior=[IO.File]::ReadAllText($journal,$utf8)|ConvertFrom-Json;$blocked=[bool]($prior.active -or $prior.blocked);$lastCleanupVerified=-not $blocked}
+    Emit 'ready' @{blocked=$blocked;idleSeconds=$IdleSeconds;maximumSessions=10;reason=if($blocked){$prior.reason}else{$null}}
     $reader=New-Object IO.StreamReader([Console]::OpenStandardInput(),$utf8)
     $pending=$reader.ReadLineAsync()
     while(-not $stop){
@@ -77,9 +78,9 @@ try {
             if($message.op -eq 'quit'){Close-Pool;$stop=$true;continue}
             if($message.op -eq 'close'){Close-Pool;continue}
             if($message.op -eq 'reconcile'){
-                if($pool.workers -or -not $message.confirm -or -not $message.evidence){throw 'onsite-cleanup-evidence-required'}
+                if($pool.workers -or -not $message.confirm -or -not $message.evidence -or ([string]$message.evidence).Trim().Length -lt 10){throw 'onsite-cleanup-evidence-required'}
                 Save-Json (Join-Path $StateDirectory ('reconciliation-'+[guid]::NewGuid().ToString('N')+'.json')) @{at=[DateTime]::UtcNow.ToString('o');evidence=$message.evidence;licenseReleaseVerified=$false}
-                $blocked=$false;Journal $false 'operator-reconciled';Emit 'reconciled' @{blocked=$false};continue
+                $blocked=$false;$lastCleanupVerified=$false;Journal $false 'operator-reconciled';Emit 'reconciled' @{blocked=$false};continue
             }
             if($message.op -ne 'run'){throw 'unknown-operation'}
             $job=$message.job
@@ -91,6 +92,8 @@ try {
             $identity=(@($job.url,$job.ns,$message.user,$message.password,$sessions)|ConvertTo-Json -Compress)
             if(-not $plan -and $pool.workers -and $pool.requestIdentity -cne $identity){Close-Pool;if($blocked){throw 'previous-session-unresolved'}}
             $arguments=@{OutputDirectory=(Join-Path $job.batch 'export');AtelierUrl=$job.url;Namespace=$job.ns;IntervalMs=[int]$job.interval;Sessions=$sessions;CancelFile=(Join-Path $job.batch 'stop.request');PlanOnly=$plan;Resume=[bool]$message.resume;SessionTrial=[bool]$message.trial;ConfirmedSessionBudget=[bool]$message.confirmed}
+            if ([int]$message.maxFiles -gt 0) { $arguments.MaxFilesPerRun = [int]$message.maxFiles }
+            if ($message.resume -and $job.confirmedMissing) { $arguments.ConfirmedMissing = [string[]]@($job.confirmedMissing) }
             if(-not $plan){
                 $secret=ConvertTo-SecureString $message.password -AsPlainText -Force
                 $arguments.Credential=New-Object Management.Automation.PSCredential($message.user,$secret)
@@ -104,15 +107,17 @@ try {
             }else{
                 $scriptFile=Join-Path $PSScriptRoot 'export-iris-code.ps1';$arguments.ListFile=Join-Path $job.batch 'files.txt'
             }
+            $pool.lastError=$null
             $output=@(& $scriptFile @arguments 6>&1)|Out-String
             $code=$LASTEXITCODE
+            $operationError=if($code -eq 1){$pool.lastError}else{$null}
             $receiptFile=Join-Path $job.batch 'export/baseline-state.json'
             $receipt=$null
             if(-not $plan -and (Test-Path -LiteralPath $receiptFile)){$receipt=[IO.File]::ReadAllText($receiptFile,$utf8)|ConvertFrom-Json}
             if(-not $plan -and ($code -eq 1 -or $receipt.reason -or $message.trial)){
                   # Lost/changed session identity stops this batch; verified cleanup
                 # permits an explicit resume. Unknown cleanup still blocks below.
-                $recoverableSessionEnd=$receipt.reason -in @('atelier-session-lost','atelier-session-changed','atelier-text-document-invalid','atelier-base64-invalid','atelier-document-error','class-identity-mismatch')
+                $recoverableSessionEnd=$receipt.reason -in @('atelier-http-401','atelier-session-lost','atelier-session-changed','atelier-text-document-invalid','atelier-base64-invalid','atelier-document-error','class-identity-mismatch')
                 if($receipt.reason -and $receipt.reason -ne 'cancelled-by-user' -and $receipt.reason -ne 'local-state-write-failed' -and -not $recoverableSessionEnd){$blocked=$true}
                 Close-Pool
             }
@@ -120,7 +125,7 @@ try {
             if(-not $plan -and (Test-Path -LiteralPath $receiptFile)){
                 # Report the finalized receipt after cleanup, not the core's earlier snapshot.
                 $receipt=[IO.File]::ReadAllText($receiptFile,$utf8)|ConvertFrom-Json
-                $summary=[ordered]@{state=$receipt.state;total=@($receipt.items).Count;reason=$receipt.reason;session=$receipt.session;sessionRetained=$receipt.sessionRetained;logoutVerified=$receipt.logoutVerified;logoutReason=$receipt.logoutReason}
+                $summary=[ordered]@{state=$receipt.state;total=@($receipt.items).Count;reason=$receipt.reason;operationError=$operationError;session=$receipt.session;sessionRetained=$receipt.sessionRetained;logoutVerified=$receipt.logoutVerified;logoutReason=$receipt.logoutReason}
                 foreach($status in @('fetched','missing','empty','failed','pending','writing')){$summary[$status]=@($receipt.items|Where-Object{$_.status -eq $status}).Count}
                 try {$summary.missingListFile=Save-MissingList $receipt $receiptFile} catch {$summary.missingListError=$_.Exception.Message}
                 $output=$summary|ConvertTo-Json -Depth 6

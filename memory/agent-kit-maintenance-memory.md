@@ -6,6 +6,8 @@
 
 ## 当前接手
 
+- 人工导出 GUI 已沿用户认可的[统一原型](../tools/iris-code-export/prototype/baseline-management.md)，11-04 使用原 WinForms / PowerShell 栈接入[项目基线工作台](../tools/iris-code-export/GUI.md)：同目录增补、重新采集比对、候选接纳/恢复、冻结副本及常驻计时；不增加现场依赖或自动安装。单目标系统类 / 专用缺失对象的 TXT→XML 增补、检查时间与内容时间分离及退出响应已实测；普通非空目录不接管，旧批次用原工具恢复。Win7 / Win10 实机、真实高 DPI、大范围恢复、多会话资格及 License 回落仍沿原队列。
+
 - 范围基线统一为 doctor/*.txt：coding 0.27.0 删除 ProjectItem XML 范围入口，框架和人工工具共用 TXT；源码 XML 包不变。标准版源码补强新增 v9.0.2，9.1 tag/trunk 核对与未确认项见[审计](../maintenance/validation/doctor-tag-baseline-2026-11-03.md)。旧任务及副本升级按[迁移说明](../docs/update-agents.md#iris-xml-导出与代码基线coding-022)，源仓变更尚未部署。
 
 - Cookie 生命周期修复已提交推送并完成两个试点正常升级；最终六组矩阵、实际 vendor 11 项、本机会话 84 项、真实复用与空闲回收及跨项目调用通过。新版 CodeBuddy 宿主成功截图与本地管理状态已核实；证据与 License 观测限制见[专项记录](../maintenance/validation/iris-cookie-lifecycle-2026-10-31.md)。

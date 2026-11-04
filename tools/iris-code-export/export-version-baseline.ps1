@@ -29,6 +29,7 @@ param(
     [switch]$ConfirmedSessionBudget,
     [string]$CancelFile,
     [hashtable]$SessionContext,
+    [string[]]$ConfirmedMissing = @(),
     [switch]$ConfirmWebPaths,
     [switch]$PlanOnly,
     [switch]$ListVersions,
@@ -134,11 +135,11 @@ try {
     Write-Host ('Version: {0} | Scope: {1} | Files: {2} | Web: {3}' -f $Version,$entry.scopeLabel,$resolved.Count,($webRoots -join ', '))
     $selectionFile = Join-Path $temporary 'selection.json'
     [IO.File]::WriteAllText($selectionFile,($selection | ConvertTo-Json -Compress -Depth 12)+"`n",$utf8)
-    $arguments = @{ListFile=$filesPath;VersionSelectionFile=$selectionFile;OutputDirectory=$output;IntervalMs=$IntervalMs;TimeoutSec=$TimeoutSec;MaxFilesPerRun=$MaxFilesPerRun;Resume=$Resume;Sessions=$Sessions;SessionTrial=$SessionTrial;ConfirmedSessionBudget=$ConfirmedSessionBudget;CancelFile=$CancelFile;SessionContext=$SessionContext}
+    $arguments = @{ListFile=$filesPath;VersionSelectionFile=$selectionFile;OutputDirectory=$output;IntervalMs=$IntervalMs;TimeoutSec=$TimeoutSec;MaxFilesPerRun=$MaxFilesPerRun;Resume=$Resume;Sessions=$Sessions;SessionTrial=$SessionTrial;ConfirmedSessionBudget=$ConfirmedSessionBudget;CancelFile=$CancelFile;SessionContext=$SessionContext;ConfirmedMissing=$ConfirmedMissing}
     if ($AtelierUrl) { $arguments.AtelierUrl=$AtelierUrl }; if ($Namespace) { $arguments.Namespace=$Namespace }; if ($Credential) { $arguments.Credential=$Credential }
     & $exporter @arguments
     exit $LASTEXITCODE
-} catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }
+} catch { if ($null -ne $SessionContext) { $SessionContext.lastError = $_.Exception.Message }; [Console]::Error.WriteLine($_.Exception.Message); exit 1 }
 finally {
     if ($temporary -and (Test-Path -LiteralPath $temporary)) {
         Assert-Plain $temporary

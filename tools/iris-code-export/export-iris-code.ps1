@@ -33,6 +33,7 @@ param(
     [switch]$ConfirmedSessionBudget,
     [string]$CancelFile,
     [hashtable]$SessionContext,
+    [string[]]$ConfirmedMissing = @(),
     [switch]$PlanOnly,
     [switch]$Resume
 )
@@ -247,6 +248,11 @@ try {
             if ($state.schema -ne 'iris-standalone-baseline/v1' -or $state.target -ne $target -or $state.baselineHash -ne $baselineHash -or
                 $state.scopeHash -ne $scopeHash -or $state.scriptHash -ne $scriptHash -or $state.outputRoot -ne $root -or @($state.items).Count -ne $items.Count) { throw 'resume-source-or-scope-mismatch' }
             if ($state.versionSelectionHash -cne $versionSelectionHash) { throw 'resume-version-selection-mismatch-use-the-original-version-entry' }
+            $skipMissing = New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+            foreach ($name in $ConfirmedMissing) {
+                if (-not @($state.items | Where-Object { $_.document -ceq $name -and $_.status -eq 'missing' }).Count) { throw 'confirmed-missing-must-match-previous-404' }
+                [void]$skipMissing.Add($name)
+            }
             for ($i = 0; $i -lt $items.Count; $i++) {
                 $old = $state.items[$i]; $expected = $items[$i]
                 if ($old.document -cne $expected.document -or $old.path -cne $expected.path) { throw 'resume-item-mismatch' }
@@ -255,10 +261,17 @@ try {
                     if (-not $old.sha256 -or (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -ne $old.sha256) { throw 'local-source-drift' }
                     $old.status = 'fetched'
                 } elseif ($old.status -eq 'fetched') { throw 'local-source-missing' }
-                else { $old.status = 'pending'; $old.sha256 = $null }
+                elseif ($old.status -eq 'missing' -and $skipMissing.Contains($old.document)) {
+                    $old | Add-Member NoteProperty missingDisposition 'operator-confirmed-no-retry' -Force
+                }
+                else {
+                    $old.status = 'pending'; $old.sha256 = $null
+                    if ($old.PSObject.Properties.Name -contains 'missingDisposition') { $old.PSObject.Properties.Remove('missingDisposition') }
+                }
             }
             if (-not $state.logoutVerified -and -not @($state.items | Where-Object { $_.status -ne 'fetched' }).Count) { throw 'resume-previous-session-exit-unverified' }
         } else {
+            if ($ConfirmedMissing.Count) { throw 'confirmed-missing-requires-resume' }
             if (Test-Path -LiteralPath $root) { throw 'output-directory-must-be-new-or-use-Resume' }
             [void][IO.Directory]::CreateDirectory($root)
             $state = [pscustomobject]@{schema = 'iris-standalone-baseline/v1'; target = $target; source = [ordered]@{atelierUrl = $uri.AbsoluteUri; namespace = $Namespace}; baselineHash = $baselineHash; scopeHash = $scopeHash; scriptHash = $scriptHash;
@@ -304,7 +317,9 @@ try {
             if (-not $SessionContext.mutex) { $SessionContext.mutex = $mutex; $acquired = $false }
         }
         $queue = New-Object Collections.Queue
-        foreach ($candidate in $state.items) { if ($candidate.status -ne 'fetched') { $queue.Enqueue($candidate) } }
+        foreach ($candidate in $state.items) {
+            if ($candidate.status -ne 'fetched' -and -not ($candidate.status -eq 'missing' -and $skipMissing -and $skipMissing.Contains($candidate.document))) { $queue.Enqueue($candidate) }
+        }
         try {
             while ($queue.Count -or @($workers | Where-Object { $_.task }).Count) {
                 if ($CancelFile -and (Test-Path -LiteralPath $CancelFile)) { $stopDispatch = $true; if (-not $state.reason) { $state.reason = 'cancelled-by-user' } }
@@ -465,6 +480,7 @@ try {
     }
     exit $exitCode
 } catch {
+    if ($null -ne $SessionContext) { $SessionContext.lastError = $_.Exception.Message }
     [Console]::Error.WriteLine($_.Exception.Message)
     exit 1
 }
