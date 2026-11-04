@@ -189,6 +189,6 @@ test('the final write boundary rechecks the target after configuration is loaded
     if (!changed) { f.git(f.repo, 'update-ref', ref, f.baseHash); changed = true; }
     return f.env.BOS_MCP_CONFIG;
   } });
-  await assert.rejects(log.main(['submit', JSON.stringify(f.input(hash)), '--confirm'], { env, fetchImpl: async () => { requests++; } }), /not contained/);
+  await assert.rejects(log.main(['submit', JSON.stringify(f.input(hash)), '--confirm', '--user', 'synthetic'], { env, fetchImpl: async () => { requests++; } }), /not contained/);
   assert.equal(requests, 0);
 });
