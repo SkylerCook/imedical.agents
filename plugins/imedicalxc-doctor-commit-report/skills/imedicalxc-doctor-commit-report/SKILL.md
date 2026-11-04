@@ -17,13 +17,30 @@ priority: high
 
 # 医生站信创产品迭代周报 — 工作流
 
-七步串行执行：① 采集 → ② 数据库变更检测 → ③ 分类 → ④ 评估 → ⑤ 归档 → ⑥ 低星问题登记 → ⑦ 推送。每步完成后再进入下一步。
+七步串行执行：① 采集 → ② 数据库变更检测 → ③ 分类 → ④ 评估 → ⑤ 归档 → ⑥ 低星问题登记 → ⑦ 推送。每步完成后再进入下一步。定时模式在 ⑦ 之后追加步骤 ⑧（回写 state）。
 
-**开始前必读**：`.agents/plugins/imedicalxc-doctor-commit-report/config/commit-report.json` —— 人员白名单（reporters）、岗位工作站清单（workstations）、时间窗（window）、输出目录（outputDir）。
+**开始前必读**：`.agents/plugins/imedicalxc-doctor-commit-report/config/commit-report.json` —— 人员白名单（reporters）、岗位工作站清单（workstations）、时间窗（window）、输出目录（outputDir）、采集源（ref）。
+
+## 执行模式
+
+| 模式 | 触发 | 时间窗 | 期号 label | 结束动作 |
+|---|---|---|---|---|
+| 交互模式（默认） | 用户按技能名 / 关键词触发 | config `window`（默认近 1 个完整自然月），或用户显式指定的 since / until | `YYYY-MM`（until 所在月） | 不写 state |
+| 定时模式 | 自动化提示词声明「定时模式」 | `since` = `commit-report-state.json` 的 `lastWindow.until`；`until` = 当前时间（精确到分钟） | `YYYY-MM-W<N>` | 执行步骤 ⑧ 回写 state |
+
+两种模式的差异仅限时间窗、期号与 state 回写；步骤 ①~⑦ 完全相同。
+
+定时模式补充规则：
+
+- **期号**：`N` = `docs/commit-reports/<YYYY-MM>/` 下已有 `commit-report-*.md` 数量 + 1（历史期次不追溯，11 月起从 W1 计）；产物目录按月取 `until` 所在月。
+- **窗口衔接**：`since` 必须衔接上一期 `until`，不重叠、不留空。state 不存在或 `lastWindow.until` 为空时回退交互模式（该月尚无归档时自然记为 `W1`）。
+- **幂等**：失败重跑前先确认上一期报告是否已完整归档；已归档则从 state 的 `until` 继续，不重复生成。
+- **采集源**：取 config `ref`（默认 `origin/master`），由 `collect-commits.js` 读取，命令中不硬编码分支。
+- **期号传递**：用 `collect-commits.js --label <label>` 指定期号，`raw-commits` / `db-changes` / `evaluations` / `issue-rows` / `commit-report` / `db-change-email` 必须使用同一 label。
 
 ## 步骤 ①：采集（确定性脚本）
 
-时间窗默认近 1 个完整自然月：
+交互模式时间窗默认近 1 个完整自然月：
 
 ```bash
 node .agents/plugins/imedicalxc-doctor-commit-report/scripts/collect-commits.js --months 1
@@ -31,7 +48,13 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/collect-commits.js 
 
 自定义窗口（尽量对齐自然月）：`--since 2026-09-01 --until 2026-10-01`。
 
-产出 `<outputDir>/<YYYY-MM>/raw-commits-<YYYY-MM>.json`，每条提交含 repo / hash / author（映射后中文名）/ authorRaw / date / subject / files / additions / deletions。检查 `meta.errors`：非空时先向用户报告错误仓库（错误不阻断整体），再继续。
+定时模式按「执行模式」的增量窗口采集，并显式指定期号：
+
+```bash
+node .agents/plugins/imedicalxc-doctor-commit-report/scripts/collect-commits.js --since <上一期 until> --until <当前时间-ISO> --label <YYYY-MM-W<N>>
+```
+
+产出 `<outputDir>/<label>/raw-commits-<label>.json`，每条提交含 repo / hash / author（映射后中文名）/ authorRaw / date / subject / files / additions / deletions。检查 `meta.errors`：非空时先向用户报告错误仓库（错误不阻断整体），再继续。
 
 > 提交人邮箱属个人信息，不入库；需邮箱匹配时从环境变量 `COMMIT_REPORT_REPORTER_EMAILS`（JSON：`{"姓名":["邮箱",...]}`）补充。缺失时脚本打印维护位置提示，仅按姓名/别名匹配（不阻断）。
 
@@ -40,10 +63,10 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/collect-commits.js 
 对步骤 ① 的产出做数据库脚本执行提醒检测：
 
 ```bash
-node .agents/plugins/imedicalxc-doctor-commit-report/scripts/detect-db-changes.js <outputDir>/<YYYY-MM>/raw-commits-<YYYY-MM>.json
+node .agents/plugins/imedicalxc-doctor-commit-report/scripts/detect-db-changes.js <outputDir>/<label>/raw-commits-<label>.json
 ```
 
-产出同目录 `db-changes-<YYYY-MM>.json`，检测结果（章节五的数据源，评估阶段可直接引用，不必重查 git）：
+产出同目录 `db-changes-<label>.json`，检测结果（章节五的数据源，评估阶段可直接引用，不必重查 git）：
 
 | 键 | 含义 | 检测方式 |
 |---|---|---|
@@ -142,11 +165,11 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/detect-db-changes.j
    - **低星追加**：1-2★ 提交追加「⚠️ 低风险提交，重点关注边界场景」
    - 多条建议用中文分号「；」分隔
 
-评估结果落盘为同目录 `evaluations[-<label>].json`（同月多窗口期必须带 `-<label>` 后缀，避免覆盖其他窗口产物）（条目字段：hash / shortHash / subject / author / date / repo / highRiskCategory / impactScope / compliance / complianceReason / rating / evaluation / specificIssue / issueItems——1-2★ 且含多个独立问题时必填的逐问题明细数组 / testSuggestion——基于 diff 实际改动给出的具体测试方式建议），作为步骤 ⑥ 低星问题登记的数据源。
+评估结果落盘为同目录 `evaluations-<label>.json`（同月多期必须带期号后缀，避免覆盖其他窗口产物）（条目字段：hash / shortHash / subject / author / date / repo / highRiskCategory / impactScope / compliance / complianceReason / rating / evaluation / specificIssue / issueItems——1-2★ 且含多个独立问题时必填的逐问题明细数组 / testSuggestion——基于 diff 实际改动给出的具体测试方式建议），作为步骤 ⑥ 低星问题登记的数据源。
 
 ## 步骤 ⑤：归档
 
-写入 `<outputDir>/<YYYY-MM>/commit-report-<YYYY-MM>.md`，结构：
+写入 `<outputDir>/<label>/commit-report-<label>.md`，结构：
 
 ```markdown
 # 医生站信创产品迭代周报 — {label}
@@ -261,7 +284,7 @@ git commit -m "docs: 新增 {label} 医生站信创产品迭代周报"
 
 将本期 1-2★ 低星问题经 tencent_docs MCP 登记到【腾讯文档】信创版产品迭代每周问题登记（https://docs.qq.com/sheet/DWEN5eXB5Q0diYWdI?tab=BB08J2 ，表格身份取自 config `issueRegistration`）：
 
-1. 运行行数据生成脚本（确定性）：`node .agents/plugins/imedicalxc-doctor-commit-report/scripts/build-issue-rows.js <outputDir>/<YYYY-MM>/evaluations[-<label>].json` → 同目录 `issue-rows-<label>.json`（已按 rating ≤ 2 过滤、渲染 9 列目标行值、含 fileId/sheetId；条目含 `issueItems` 时按问题拆为多行，同一提交多行共享同一「提交」值）。期号 label 优先从输入文件名 `evaluations-<label>.json` 解析（同月多窗口场景），无后缀时回退目录名；来源列写 `医生站信创产品迭代周报-<label>`。行内容不得包含第五章类「需登记 / 需维护」提醒（口径见步骤 ④ 第 6 条）。
+1. 运行行数据生成脚本（确定性）：`node .agents/plugins/imedicalxc-doctor-commit-report/scripts/build-issue-rows.js <outputDir>/<label>/evaluations-<label>.json` → 同目录 `issue-rows-<label>.json`（已按 rating ≤ 2 过滤、渲染 9 列目标行值、含 fileId/sheetId；条目含 `issueItems` 时按问题拆为多行，同一提交多行共享同一「提交」值）。期号 label 优先从输入文件名 `evaluations-<label>.json` 解析（同月多窗口场景），无后缀时回退目录名；来源列写 `医生站信创产品迭代周报-<label>`。行内容不得包含第五章类「需登记 / 需维护」提醒（口径见步骤 ④ 第 6 条）。
 2. 读取 config `issueRegistration`：不存在或 `enabled=false` → 输出「登记未启用，跳过」，进入步骤 ⑦。
 3. MCP 读取目标表：`sheet.get_sheet_info` 获取表容量；`sheet.get_cell_data`（列 A-D、行 0 至容量-1、return_csv=true）读取全表，解析「提交」列各行首 token 的 8 位十六进制短哈希集合（registry）。
 4. 过滤：`shortHash` 已在 registry 的行跳过；其余为待写入行。写入起始行 = 表中最后一个非空数据行 + 1（表头占第 0 行，空表从第 1 行开始）。
@@ -281,7 +304,7 @@ git commit -m "docs: 新增 {label} 医生站信创产品迭代周报"
 - `enabled` 为 `true` 且 `channel` 为 `qqbot` → 先确认环境变量 `COMMIT_REPORT_QQBOT_TOKEN` 已配置（缺失时脚本会报错并提示维护位置），再执行推送脚本：
 
 ```bash
-node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <outputDir>/<YYYY-MM>/commit-report-<YYYY-MM>.md
+node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <outputDir>/<label>/commit-report-<label>.md
 ```
 
 可选参数（试运行演练/补推用，日常周报不加）：`--only=<段>` 仅发送指定段落（`opening,distribution,db,issues,pending,closing,upload`，默认全部）；`--dry-run` 仅打印消息不实际发送（发送前核验）。
@@ -297,7 +320,7 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <out
 
 数据变更通知邮件（正文为正式排版的 HTML，另存 Markdown 存档），流程：
 
-1. 生成邮件正文：`node .agents/plugins/imedicalxc-doctor-commit-report/scripts/build-db-email.js <outputDir>/<YYYY-MM>/db-changes-<label>.json [--evaluations=<outputDir>/<YYYY-MM>/evaluations-<label>.json] [--raw-commits=<outputDir>/<YYYY-MM>/raw-commits-<label>.json]`，输出同目录 `db-change-email-<label>.md`（Markdown 存档）与 `db-change-email-<label>.html`（发送用 HTML 正文：标题 + 检测时间窗/生成时间 + 试用阶段说明（「说明：当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。」）+ **第一章功能变更影响**（当提供 `--evaluations` 参数时生成：子章节格式，每条提交独立展示并标注岗位工作站/功能模组/需求类型/提交人/仓库/改造功能点/测试方式建议 7 项，基于 IT形态汇总.xlsx 映射；测试方式建议取自 evaluations JSON 的 `testSuggestion` 字段——由步骤 ④ LLM 基于 diff 实际改动生成，非关键词匹配）+ **第二章数据变更**（含两个子章节：2.1 数据变更明细表（变更类型/变更内容/变更负责人）+ 2.2 数据变更操作说明四子项：DDL 参考【腾讯文档】信创版HIS数据库升级脚本汇总表格、系统提示信息维护、系统标准配置导出导入、代码表缓存管理维护）+ 自动生成页脚，全部内联样式）。
+1. 生成邮件正文：`node .agents/plugins/imedicalxc-doctor-commit-report/scripts/build-db-email.js <outputDir>/<label>/db-changes-<label>.json [--evaluations=<outputDir>/<label>/evaluations-<label>.json] [--raw-commits=<outputDir>/<label>/raw-commits-<label>.json]`，输出同目录 `db-change-email-<label>.md`（Markdown 存档）与 `db-change-email-<label>.html`（发送用 HTML 正文：标题 + 检测时间窗/生成时间 + 试用阶段说明（「说明：当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。」）+ **第一章功能变更影响**（当提供 `--evaluations` 参数时生成：子章节格式，每条提交独立展示并标注岗位工作站/功能模组/需求类型/提交人/仓库/改造功能点/测试方式建议 7 项，基于 IT形态汇总.xlsx 映射；测试方式建议取自 evaluations JSON 的 `testSuggestion` 字段——由步骤 ④ LLM 基于 diff 实际改动生成，非关键词匹配）+ **第二章数据变更**（含两个子章节：2.1 数据变更明细表（变更类型/变更内容/变更负责人）+ 2.2 数据变更操作说明四子项：DDL 参考【腾讯文档】信创版HIS数据库升级脚本汇总表格、系统提示信息维护、系统标准配置导出导入、代码表缓存管理维护）+ 自动生成页脚，全部内联样式）。
 2. 解析收件人/抄送人：`PYTHONIOENCODING=utf-8 python .agents/plugins/imedicalxc-doctor-commit-report/scripts/resolve-email-recipients.py`。
    - 收件人 = 腾讯文档【信创版HIS数据库升级脚本汇总表格】「脚本执行负责人」页签「负责人邮箱」列去重（`email.recipientSource`：bookId/sheetId/emailColumn）
    - 抄送人 = 通讯录分组「信创-研发-医生站」「信创-研发-监督人」成员邮箱去重（`email.ccSource.groups`）
@@ -307,6 +330,20 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <out
 3. 通过邮箱 MCP 调用 `send_email` 工具发送：`account_name` = `email.accountName`（默认 `default`）、`recipients` = 上一步解析结果（`email.recipients`）、`cc` = `email.cc`、`subject` = `email.subject`（统一「信创版功能及数据变更通知」）、`body` = 生成的 html 文件全文、`html` = `true`（HTML 渲染推送，避免客户端显示 markdown 源码）。
 4. 发送成功后把 `db-change-email-<label>.md` 与 `db-change-email-<label>.html` 一并提交入库（父仓库本地提交，不推送远端）。
 5. 邮箱 MCP 不可用（工具列表无 `send_email`）→ 降级用 stdio 直驱脚本发送：`PYTHONIOENCODING=utf-8 python .qoder/scripts/email-send-via-stdio.py --html <html 文件>`（等价于步骤 3：读 config 收件人/抄送、html=true；凭证运行时读取，不落盘）；仍失败 → 输出告警并继续，不影响 QQ 渠道结果。
+
+## 步骤 ⑧：回写状态（仅定时模式）
+
+七步完成后更新 `.agents/plugins/imedicalxc-doctor-commit-report/config/commit-report-state.json`（本地文件，已 gitignore，不入库），时间精确到分钟：
+
+```json
+{
+  "lastWindow": { "since": "<本期 since>", "until": "<本期 until>", "label": "<本期 label>" },
+  "lastRunAt": "<当前 ISO 时间含时区>",
+  "note": "<本期摘要：提交数、低星条数、登记与推送结果、异常降级说明>"
+}
+```
+
+交互模式不改写该文件。
 
 ## 环境变量（敏感配置，不入库）
 
