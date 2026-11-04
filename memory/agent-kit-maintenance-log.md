@@ -2,6 +2,8 @@
 
 ## 2026-11-04 同步子进程 stdin 兼容
 
+- 验证分支 e5027ec 首轮 CI 在既有 availability 夹具漏带 project-directories 处停止；补齐其真实依赖。将本次关联回归移至既有矩阵第一步，后续步骤去除重复套件，原完整检查仍保留，便于分别报告本次验证与其他失败。首轮其他工作流失败仍需定向归因，不宣称全仓 CI 通过。
+
 - bos-plugin 0.18.2、demand-delivery-plugin 0.9.1 与根 real-repository-commit 共五文件六调用点使用 ignore/pipe/pipe。逐处核对输入来自参数、文件或环境变量；Node 子进程为提交计划，PowerShell 为 NonInteractive。保留超时、buffer、env、非零退出及实仓门禁，不推广为所有子进程通用策略。
 - 三处 Git spawn 错误增加 EBUSY 宿主诊断和已有/补充工作目录；错误码不唯一证明 stdin 根因，不推荐长期预加载 shim。原报告为宿主行为对照，未独立确认 Node/libuv 内部失败点。
 - Windows 离线关联回归通过（sync-process-stdio、real-repository-commit、standard-demand-entry、bos-plugin、demand-commit）；六调用点成功/失败及三处 EBUSY 专项 9/9。追加实仓无效完整 hash 断言，单项复验通过，保留 status 128；文档链接 1/1 与 diff --check 通过。首次受限沙箱在夹具 git init 写 config 时被拒，沙箱外同范围合成回归通过。测试夹具由既有 after 清理，无业务 Git/BOS 操作。
