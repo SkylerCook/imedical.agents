@@ -23,11 +23,12 @@ const execFileAsync = promisify(execFile);
 
 const SEP = '\u001f'; // git pretty 格式字段分隔符（避免与 message 中的字符冲突）
 
-const USAGE = `用法: node collect-commits.js [--months N | --since YYYY-MM-DD [--until YYYY-MM-DD]]
+const USAGE = `用法: node collect-commits.js [--months N | --since YYYY-MM-DD [--until YYYY-MM-DD]] [--label LABEL]
   --months N   汇总最近 N 个完整自然月（默认取配置 window.value）
   --since      自定义起始时间 YYYY-MM-DD 或 YYYY-MM-DDTHH:MM（--until 缺省为现在）
   --until      自定义结束时间 YYYY-MM-DD 或 YYYY-MM-DDTHH:MM（不含，缺省为现在）
-输出: <outputDir>/<YYYY-MM>/raw-commits-<YYYY-MM>.json（UTF-8 无 BOM）+ 控制台摘要
+  --label      期号（产物文件名后缀），缺省取 since 所在月份 YYYY-MM
+输出: <outputDir>/<YYYY-MM>/raw-commits-<label>.json（UTF-8 无 BOM）+ 控制台摘要
 配置 ref: config 的 "ref" 字段（如 "origin/master"）指定采集源分支，缺省 HEAD`;
 
 // ---------- 时间窗 ----------
@@ -154,7 +155,7 @@ function parseGitLog(stdout) {
 // ---------- 命令行参数 ----------
 
 function parseArgs(argv) {
-  const opts = { months: null, since: null, until: null, help: false };
+  const opts = { months: null, since: null, until: null, label: null, help: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--help' || arg === '-h') {
@@ -171,6 +172,12 @@ function parseArgs(argv) {
         throw new Error(`${arg} 需为 YYYY-MM-DD 或 YYYY-MM-DDTHH:MM 格式，收到: ${v}`);
       }
       opts[arg === '--since' ? 'since' : 'until'] = v;
+    } else if (arg === '--label') {
+      const v = argv[++i];
+      if (!/^[A-Za-z0-9._-]+$/.test(v || '')) {
+        throw new Error(`--label 仅允许字母、数字、点、下划线与连字符，收到: ${v}`);
+      }
+      opts.label = v;
     } else {
       throw new Error(`未知参数: ${arg}`);
     }
@@ -258,10 +265,11 @@ async function main() {
     if (parseTimestamp(since) >= parseTimestamp(until)) {
       throw new Error(`--since (${since}) 必须早于 --until (${until})`);
     }
-    win = { since, until, label: since.slice(0, 7) };
+    win = { since, until, label: opts.label || since.slice(0, 7) };
   } else {
     const months = opts.months ?? (config.window && config.window.value) ?? 1;
     win = monthWindow(months);
+    if (opts.label) win.label = opts.label;
   }
 
   const reporters = mergeReporterEmails(config.reporters || []);
