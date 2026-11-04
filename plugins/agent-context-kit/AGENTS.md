@@ -1,6 +1,6 @@
 # Agent Context Kit
 
-宿主技能适配先沿用用户明确的项目目录和目标项目已确认的配置，再按 `coding-agent-adaptation` 的来源参考补齐未知项。WorkBuddy 的文档兼容机制不推导为所有形态共用 CodeBuddy 目录；各端技能发现、规则加载与调用独立验收。
+宿主技能适配先沿用用户明确的项目目录和目标项目已确认的配置，再按 `coding-agent-adaptation` 的来源参考补齐未知项。WorkBuddy 与 WorkBuddyDonghua 的命名 adapter 仅在项目 skills 共用 `.workbuddy/skills`；其它配置按宿主机制独立核对。各端技能发现、规则加载与调用分别验收。
 
 本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
 

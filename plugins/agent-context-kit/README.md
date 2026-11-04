@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+0.8.4：依据用户项目级 skills 实测，`WorkBuddyDonghua` 与 `WorkBuddy` 命名 adapter 共用 `.workbuddy/skills`。仅修正项目 skills，规则、记忆和用户级目录仍按各宿主机制核对。更新后显式重跑适配；旧配置及 `.workbuddydonghua/skills` 不自动迁移或清理，步骤见[更新说明](../../docs/update-agents.md#workbuddydonghua-项目-skills-目录纠正)。
+
 0.8.3：修正宿主适配的证据顺序，用户明确的项目目录与项目已确认配置优先，WorkBuddy 文档中的兼容目录只适用于已核对的机制。现有命名 adapter 和链接保留；更新能力包即可取得指导，已部署项目仅在授权适配时调整目录，无自动迁移或清理。依据见 [source.md](skills/coding-agent-adaptation/references/source.md)。
 
 0.8.2：IRIS 初始化与项目入口先引用 coding owner 的 developmentMode 配置，再按 contextMode/需求类型分流；offline 复用[离线协议](../coding-iris-plugin/references/iris-offline-development.md)。profile 不保存第二个模式值，普通更新不切换方式或改项目入口，已有文字约定由授权维护定点补齐。

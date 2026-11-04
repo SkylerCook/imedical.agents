@@ -21,7 +21,7 @@ source.md 是人工/Agent 查阅参考；执行器继续使用脚本内既有 ru
 
 ```text
 .qoder/skills
-.workbuddydonghua/skills
+.workbuddy/skills
 .codebuddy/skills
 ```
 ````
@@ -33,6 +33,8 @@ source.md 是人工/Agent 查阅参考；执行器继续使用脚本内既有 ru
 示例不是默认启用列表。普通安装/更新不会自动执行这份配置；移除清单条目不会删除旧链接。已确认可复用通用层的宿主不必填写。已部署项目更新能力包后手动添加此可选章节，再执行技能；不覆盖既有配置。
 
 ## 目录链接适配与边界
+
+项目级 skills 的命名映射中，`WorkBuddy` 与 `WorkBuddyDonghua` 共用 `.workbuddy/skills`，可复用同一个链接。这项修正依据用户的项目级 skills 实测；项目规则、记忆和用户级目录仍按各宿主机制核对。旧 `.workbuddydonghua/skills` 的处理见[更新说明](update-agents.md#workbuddydonghua-项目-skills-目录纠正)。
 
 命名宿主的接入目录及既有策略见 source.md；执行器默认路径须与已确认的项目目录一致，需要额外项目目录时再链接到同一批技能。两者不一致时，在用户已明确目标目录后使用 Node 的 `--runtime Custom --skills-dir <目录>`；未知时由用户说明后再执行。`RuntimeAdapter` 是命令行参数，使用前面的目录清单时无需填写。未列出的宿主也使用 `Custom` 和显式目录。
 

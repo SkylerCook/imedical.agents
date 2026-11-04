@@ -679,7 +679,15 @@ git config --unset core.hooksPath
 
 ## 跨 Agent skills 链接适配
 
-`-RuntimeAdapter <宿主>` 统一调用 `sync-runtime-skills.js`，保留既有命名映射；宿主真实项目目录、项目 MD 与映射差异统一查 [source.md](../plugins/agent-context-kit/skills/coding-agent-adaptation/references/source.md)。先核对目标版本与执行器实际目标，不从用户级目录推导项目路径；需要不同目录时使用 Node 入口的 `--runtime Custom --skills-dir`，不传给 PowerShell 更新器。普通目录、错误或失效链接保留并阻断适配，更新器以失败结束，已完成的其它更新步骤不回滚。Check 只读检查技能目录，缺失技能链接不算目录接入通过，不检查项目 MD 加载。首次安装脚本也支持同名参数；完整命令、平台证据与旧目录迁移见 [技能适配](coding-agent-adaptation.md)。
+`-RuntimeAdapter <宿主>` 统一调用 `sync-runtime-skills.js`，命名映射以执行器当前实现为准；宿主真实项目目录、项目 MD 与映射差异统一查 [source.md](../plugins/agent-context-kit/skills/coding-agent-adaptation/references/source.md)。先核对目标版本与执行器实际目标，不从用户级目录推导项目路径；需要不同目录时使用 Node 入口的 `--runtime Custom --skills-dir`，不传给 PowerShell 更新器。普通目录、错误或失效链接保留并阻断适配，更新器以失败结束，已完成的其它更新步骤不回滚。Check 只读检查技能目录，缺失技能链接不算目录接入通过，不检查项目 MD 加载。首次安装脚本也支持同名参数；完整命令、平台证据与旧目录迁移见 [技能适配](coding-agent-adaptation.md)。
+
+### WorkBuddyDonghua 项目 skills 目录纠正
+
+agent-context-kit 0.8.4 配合根 `scripts/sync-runtime-skills.js` 修正项目 skills 默认目录：`WorkBuddy` 与 `WorkBuddyDonghua` 均使用 `.workbuddy/skills`。依据为 2026-11-04 用户项目级 skills 实测报告，仅调整技能发现；规则、记忆和用户级目录分别保持原机制。
+
+已部署工程按正常流程完整更新能力包，Overlay 先更新共享能力，再刷新本地脚本。目标 profile 的“技能适配目录”若沿用旧 `.workbuddydonghua/skills`，在授权维护时改为 `.workbuddy/skills` 并去重；普通更新不改清单。对确认目录先 DryRun，必要时 Write，再 Check；旧脚本尚未刷新时可显式使用 `--runtime Custom --skills-dir .workbuddy/skills`。原 `WorkBuddyDonghua` 参数继续接受，两个命名 runtime 顺序执行复用同一链接。
+
+旧 `.workbuddydonghua/skills` 不自动删除或搬移。先核对它是否为链接、实际目标及内容归属；仅在明确属于本次纠错且已获授权时移除准确的旧链接本身，保留实体目录、自定义技能及同级 memory。安装/更新算法和其它宿主配置不变，源仓修正不代表业务副本已升级。
 
 ## Claude Code legacy 复制入口
 

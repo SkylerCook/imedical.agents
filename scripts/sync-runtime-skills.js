@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { resolveWorkspaceContext, workspaceContextBlockers } = require('./lib/workspace-context.js');
 const adapters = { CodeBuddy: '.codebuddy', ClaudeCode: '.claude', Codex: null,
-  Qoder: '.qoder', WorkBuddy: '.workbuddy', WorkBuddyDonghua: '.workbuddydonghua',
+  Qoder: '.qoder', WorkBuddy: '.workbuddy', WorkBuddyDonghua: '.workbuddy',
   OpenCode: null, Cursor: null, GeminiCLI: null, GitHubCopilot: null, Custom: null };
 const same = (a, b) => process.platform === 'win32'
   ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase()

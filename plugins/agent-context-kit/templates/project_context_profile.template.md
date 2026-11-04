@@ -20,7 +20,7 @@
 
 <!-- 可选：按需在本节逐行填写项目相对目录，执行 coding-agent-adaptation 时只补缺失链接。示例见能力包 docs/coding-agent-adaptation.md；以下注释不作为启用清单。
 .qoder/skills
-.workbuddydonghua/skills
+.workbuddy/skills
 .codebuddy/skills
 -->
 

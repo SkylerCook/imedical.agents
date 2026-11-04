@@ -1,6 +1,6 @@
 # 宿主技能目录与项目规则入口依据
 
-WorkBuddy 分支复核日期：2026-11-03；其它宿主记录沿用 2026-10-23 的核对范围。本文是 `coding-agent-adaptation` 的宿主发现参考；执行流程见 [SKILL.md](../SKILL.md)，命令及迁移见能力包 [runbook](../../../../../docs/coding-agent-adaptation.md)。它不是启用清单，当前脚本也不解析本文件。
+WorkBuddy 文档复核日期：2026-11-03，项目级 skills 的用户实测纠正日期：2026-11-04；其它宿主记录沿用 2026-10-23 的核对范围。本文是 `coding-agent-adaptation` 的宿主发现参考；执行流程见 [SKILL.md](../SKILL.md)，命令及迁移见能力包 [runbook](../../../../../docs/coding-agent-adaptation.md)。它不是启用清单，当前脚本也不解析本文件。
 
 ## 如何使用
 
@@ -27,7 +27,8 @@ WorkBuddy 分支复核日期：2026-11-03；其它宿主记录沿用 2026-10-23 
 | GitHub Copilot CLI / VS Code Chat 等 | `.agents/skills`、`.github/skills`，兼容 `.claude/skills`，须核对所用产品支持情况 | `.github/copilot-instructions.md`；部分功能支持 `AGENTS.md` | 不能推广到全部 IDE/全部功能；CLI 的多 MD 合并见下节。[Skills](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/customize-cloud-agent/add-skills)、[支持矩阵](https://docs.github.com/en/copilot/reference/custom-instructions-support) |
 | WorkBuddy 文档中的代码开发项目机制 | `.codebuddy/skills`（文档声明支持） | `.codebuddy/CODEBUDDY.md`；兼容根 `CODEBUDDY.md`、`AGENTS.md` | 仅作为该机制的接入依据；支持读取不等于所有桌面版、定制版均共用 CodeBuddy 目录，也不证明现有独立目录失效。目标项目已确认的目录优先；多入口去重仍待验。[项目配置](https://www.codebuddy.cn/docs/workbuddy/From-Beginner-to-Expert-Guide/Function-Description/Project) |
 | ZGSM / CoStrict VS Code 插件 | `.roo/skills` | 根 `AGENTS.md`，另有 `.roo/rules` 与模式规则 | `zgsm.useAgentRules` 默认开启但可被用户关闭；未新增命名 runtime，需接入时复用显式 Custom 目录。[Skills](https://docs.costrict.ai/en/plugin/product-features/skills)、[Rules](https://docs.costrict.ai/plugin/product-features/rules/) |
-| WorkBuddyDonghua / 未登记定制端 | 沿用用户明确或项目已确认的目录，缺失时待说明 | 待核对项目 MD 与加载条件 | 未取得通用项目发现的官方依据，按目标项目确认；本机用户级历史观察不推导项目路径，命名 adapter 的使用条件见下文 |
+| WorkBuddy / WorkBuddyDonghua 桌面项目 skills | `.workbuddy/skills`（两端共用） | 项目规则 MD、记忆目录分别核对 | 2026-11-04 用户实测报告，仅项目级 skills、未提供宿主版本；命名 adapter 沿此映射。此样本不推广到用户级目录、其它配置或所有版本 |
+| 未登记定制端 | 沿用用户明确或项目已确认的目录，缺失时待说明 | 待核对项目 MD 与加载条件 | 按目标项目确认，不从产品名或用户级历史目录推导项目路径 |
 
 ## MD 的优先、合并与兼容入口
 
@@ -38,11 +39,11 @@ WorkBuddy 分支复核日期：2026-11-03；其它宿主记录沿用 2026-10-23 
 
 ## 现有执行器与宿主依据的区别
 
-本轮只维护参考与 Agent 路由，`scripts/sync-runtime-skills.js` 的命名映射和 CLI 未变。实际行为查 [执行器](../../../../../scripts/sync-runtime-skills.js) 的 `adapters` 与参数校验，不把文档表格当成机器配置。
+实际行为查 [执行器](../../../../../scripts/sync-runtime-skills.js) 的 `adapters` 与参数校验，不把文档表格当成机器配置。2026-11-04 将 `WorkBuddyDonghua` 的项目 skills 默认入口修正为 `.workbuddy/skills`，CLI 参数和显式目录覆盖能力保持。
 
 - 原生已能发现通用目录时直接复用，不补额外目录。需要链接时先比对目标版本的项目发现路径与脚本实际目标；`Check` 只证明目录状态，不证明 skills 调用或项目 MD 加载。
-- **WorkBuddy 分形态选目录**：命名 adapter 建立 `.workbuddy/skills`。目标项目已确认该目录时直接使用 `--runtime WorkBuddy`；只有确认使用上表文档机制且目标目录为 `.codebuddy/skills` 时，才用 `--runtime Custom --skills-dir .codebuddy/skills`。官方声明支持后者，不否定前者在已确认项目中的适用性，也不产生两端共用一个目录的结论。未知项目仍先核对，已有链接不自动移动或删除。
-- `WorkBuddyDonghua` 命名 adapter 建立 `.workbuddydonghua/skills`；目标项目已明确该项目目录时直接使用 `--runtime WorkBuddyDonghua`，不重复索要已提供的信息。未知项目继续确认；用户级同名目录或成功建链不证明项目加载。各端按同一参数完成 DryRun、必要时 Write、Check，发现、规则加载和实际调用分别验收。
+- **WorkBuddy 分形态选目录**：`WorkBuddy` 与 `WorkBuddyDonghua` 命名 adapter 均使用 `.workbuddy/skills`，后执行者复用已有链接。该共用关系仅适用于项目 skills；CodeBuddy 的 `.codebuddy/skills` 独立处理。确认使用上表官方代码项目机制且目标目录不同的工程，沿已有 `--skills-dir` 显式覆盖能力接入。
+- 旧 `.workbuddydonghua/skills` 不自动移动或删除；已部署工程按[更新说明](../../../../../docs/update-agents.md#workbuddydonghua-项目-skills-目录纠正)核对配置和自定义内容。未知宿主继续确认；用户级同名目录或成功建链不证明项目加载。目录 Check、宿主发现、规则加载和实际调用分别验收。
 
 ## 本机既有探索的脱敏摘要
 
@@ -56,7 +57,7 @@ WorkBuddy 分支复核日期：2026-11-03；其它宿主记录沿用 2026-10-23 
 | Claude Code CLI | `~/.claude/skills` | `~/.claude/CLAUDE.md` | 技能目录曾为空，目录存在不等于发现过技能；用户规则与项目规则分开 |
 | CodeBuddy 桌面 / IDE 插件 | `~/.codebuddy/skills` | `~/.codebuddy/rules/*.mdc` | 历史记录中桌面、VS Code、JetBrains 的 rules 共用物理目录；skills 跨客户端共用有未实证项，不能从 rules 推导 |
 | WorkBuddy 桌面（历史 5.5.6 样本） | `~/.workbuddy/skills` | 用户级 `MEMORY.md` 及 `SOUL.md` / `USER.md` / `IDENTITY.md` 四文件体系 | 有历史实测；不是代码项目 MD 映射，也不据用户记忆目录创建项目 `.workbuddy` |
-| WorkBuddyDonghua 桌面（历史 5.2.6 样本） | `~/.workbuddydonghua/skills` | 同属用户级四文件体系 | 仅对应当时定制版样本；项目级 MD 与目录继续待用户说明 |
+| WorkBuddyDonghua 桌面（历史 5.2.6 样本） | `~/.workbuddydonghua/skills` | 同属用户级四文件体系 | 仅对应当时用户级样本；项目 skills 按上表后续实测报告，项目 MD 仍单独核对 |
 | Copilot JetBrains / Android Studio | `~/.copilot/intellij-skills` | `~/.copilot/instructions/*.instructions.md` | 历史目录与 SKILL.md 样本；不能套为 VS Code 或项目路径 |
 | Copilot VS Code | 历史未确认独立 skills 目录 | 用户 profile 的 `prompts/*.instructions.md` | 旧“无 skills”盘点不代表当前功能；当前能力按上表官方支持矩阵核对 |
 | ZGSM / CoStrict 插件 | `~/.roo/skills`（历史后续有部署记录） | `~/.roo/rules/*.md` | 后续记录与旧“未确认 skills”盘点分开；本轮只复核技能目录存在，当前项目机制见上表，不新增命名 runtime 或项目入口 |
