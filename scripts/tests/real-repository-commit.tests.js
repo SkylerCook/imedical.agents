@@ -12,7 +12,7 @@ const acceptance = require('../../plugins/demand-delivery-plugin/scripts/accepta
 const ref = 'refs/heads/dev';
 
 function fixture(t) {
-  const base = fs.realpathSync(process.env.AGENT_TEST_TMPDIR || os.tmpdir());
+  const base = fs.realpathSync.native(process.env.AGENT_TEST_TMPDIR || os.tmpdir());
   const root = fs.mkdtempSync(path.join(base, 'real-commit-'));
   t.after(() => { assert.equal(path.dirname(root), base); fs.rmSync(root, { recursive: true, force: true }); });
   const hooks = path.join(root, 'hooks'); fs.mkdirSync(hooks);
@@ -70,7 +70,7 @@ for (const strategy of ['merge', 'cherry-pick', 'squash']) test(strategy + ' log
     assert.throws(() => log.selectInput(f.input(original)), /not contained/);
   }
   const record = log.selectInput(f.input(finalHash))[0];
-  assert.equal(record.hash, finalHash); assert.equal(record.repo, fs.realpathSync(f.repo));
+  assert.equal(record.hash, finalHash); assert.equal(record.repo, fs.realpathSync.native(f.repo));
   assert.equal(record.ref, ref); assert.equal(record.files[0].path, 'feature.txt');
 });
 
@@ -87,7 +87,7 @@ test('explicit refs, exact roots, full hashes and detached checkouts fail closed
 test('physical aliases and real submodule gitdir files remain eligible', t => {
   const f = fixture(t), alias = path.join(f.root, 'alias');
   fs.symlinkSync(f.repo, alias, process.platform === 'win32' ? 'junction' : 'dir');
-  assert.equal(verifyRealCommits(alias, ref, [f.baseHash]).repo, fs.realpathSync(f.repo));
+  assert.equal(verifyRealCommits(alias, ref, [f.baseHash]).repo, fs.realpathSync.native(f.repo));
   f.git(f.repo, '-c', 'protocol.file.allow=always', 'submodule', 'add', f.repo, 'sub');
   const sub = path.join(f.repo, 'sub');
   f.git(sub, 'checkout', '-B', 'dev');

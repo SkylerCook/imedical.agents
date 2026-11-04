@@ -16,7 +16,7 @@ function git(repo, ...args) {
   return result.stdout.trim();
 }
 function fixture(t) {
-  const base = path.join(os.tmpdir(), 'codex'); fs.mkdirSync(base, { recursive: true });
+  const base = path.join(fs.realpathSync.native(os.tmpdir()), 'codex'); fs.mkdirSync(base, { recursive: true });
   const temp = fs.mkdtempSync(path.join(base, 'standard-demand-test-'));
   t.after(() => {
     assert.equal(path.dirname(temp), base);
@@ -319,7 +319,7 @@ function workSpec() {
   }] };
 }
 function workFixture(t) {
-  const base = path.join(os.tmpdir(), 'codex'); fs.mkdirSync(base, { recursive: true });
+  const base = path.join(fs.realpathSync.native(os.tmpdir()), 'codex'); fs.mkdirSync(base, { recursive: true });
   const temp = fs.mkdtempSync(path.join(base, 'work-demand-test-'));
   t.after(() => { assert.equal(path.dirname(temp), base); assert.ok(!fs.lstatSync(temp).isSymbolicLink()); fs.rmSync(temp, { recursive: true, force: true }); assert.ok(!fs.existsSync(temp)); });
   return temp;

@@ -2,7 +2,7 @@
 
 ## 2026-11-04 同步子进程 stdin 兼容
 
-- 验证分支 e5027ec 首轮 CI 在既有 availability 夹具漏带 project-directories 处停止；补齐其真实依赖。将本次关联回归移至既有矩阵第一步，后续步骤去除重复套件，原完整检查仍保留，便于分别报告本次验证与其他失败。第二轮实仓写边界测试暴露对本机 Git 用户的隐式依赖，显式传虚构 --user 以到达原断言。BOS updater 测试的 Unix NTFS Junction 断言失败留原检查，不修改 updater；将其恢复至其它 BOS 检查步骤，直接回归步骤保留六调用点、真实提交/计划及实仓校验。全仓 CI 失败不解释为本次验证通过，分别报告步骤证据。
+- 验证分支 e5027ec 首轮 CI 在既有 availability 夹具漏带 project-directories 处停止；补齐其真实依赖。将本次关联回归移至既有矩阵第一步，后续步骤去除重复套件，原完整检查仍保留，便于分别报告本次验证与其他失败。第二轮实仓写边界测试暴露对本机 Git 用户的隐式依赖，显式传虚构 --user 以到达原断言。BOS updater 测试的 Unix NTFS Junction 断言失败留原检查，不修改 updater；将其恢复至其它 BOS 检查步骤，直接回归步骤保留六调用点、真实提交/计划及实仓校验。Windows CI 另暴露 RUNNER~1 与 runneradmin 临时路径别名，实仓断言及标准需求夹具统一用 native realpath 创建/比较物理路径，生产路径门禁不放松。全仓 CI 失败不解释为本次验证通过，分别报告步骤证据。
 
 - bos-plugin 0.18.2、demand-delivery-plugin 0.9.1 与根 real-repository-commit 共五文件六调用点使用 ignore/pipe/pipe。逐处核对输入来自参数、文件或环境变量；Node 子进程为提交计划，PowerShell 为 NonInteractive。保留超时、buffer、env、非零退出及实仓门禁，不推广为所有子进程通用策略。
 - 三处 Git spawn 错误增加 EBUSY 宿主诊断和已有/补充工作目录；错误码不唯一证明 stdin 根因，不推荐长期预加载 shim。原报告为宿主行为对照，未独立确认 Node/libuv 内部失败点。
