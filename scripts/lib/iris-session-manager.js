@@ -99,7 +99,7 @@ class SessionManager {
         // Persist intent before opening: an abrupt crash cannot masquerade as a clean exit.
         p.generation++; p.exit = null; this.persist(p, true);
         item.opening = true;
-        p.session = await this.open(item.operation); p.identity = item.identity; item.opening = false;
+        p.session = await this.open({...item.operation, writeRiskFile:p.file}); p.identity = item.identity; item.opening = false;
       }
       if (item.lease) p.lease = item.client;
       p.pendingEffects = item.operation.effects;
@@ -171,7 +171,7 @@ class SessionManager {
   reconcile(pool, {token, confirm, evidence, writeOutcome, writeIds} = {}) {
     const p = this.pool(pool);
     if (!confirm || !p.blocked && !p.unresolvedWrites.length || p.running || p.queue.length || p.session || token !== this.summary(p).reconciliationToken ||
-        !evidence || !evidence.reference || evidence.cleanupVerified !== true && !(evidence.processExited === true && !p.unresolvedWrites.length) ||
+        !evidence || !evidence.reference || evidence.cleanupVerified !== true && evidence.processExited !== true && evidence.localResourcesClosed !== true ||
         p.unresolvedWrites.length && !['verified-applied','verified-not-applied'].includes(writeOutcome)) throw failure('session-reconciliation-evidence-required');
     if (p.unresolvedWrites.length > 1 && !writeIds) throw failure('reconciliation-write-id-required');
     const remaining = {unresolvedWrites:[...p.unresolvedWrites]};

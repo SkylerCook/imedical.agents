@@ -19,7 +19,7 @@
 
 - 上下文语义继续归 agent-context-kit；仅当前需求明确为 project、按需上下文且 IRIS 已启用时路由 coding owner 的单一项目开发协议。standard/project、contextMode、taskKind、执行路径与授权分别判断，公共角色和机制共用，rules/skills/agent 条件加载分支，不维护重复正文。该项目分支的部署前同步与冻结发布优先于旧 direct；服务器层与原子需求层分开追加、不重写历史，无变化不建空 export。两环境独立本地 Git，回滚追加新提交，提交与部署各自核有效授权。
 
-- 远端准入复用本地共享目录的跨进程排他，不建设全局 License 服务；只覆盖已接入入口，原生 MCP、IDE 与其它客户端明示为外部边界。503 熔断、未知写不重放，恢复须核实 owner 和写结果。Cookie/keepalive、logout 或进程退出都不等于 License 回落；真实资格按目标、版本、通道和范围取证，单次观察不形成通用批量阈值。
+- 远端准入复用本地共享目录的跨进程排他，不建设全局 License 服务；只覆盖已接入入口，原生 MCP、IDE 与其它客户端明示为外部边界。503 短时冷却、未知写不重放；受管新增写风险只归 SessionManager，公共准入保留排他与历史检查。恢复须核实本地退出和写结果，注销未确认只作警告；License 观测不作为普通业务门禁，普通交付聚焦业务结果。Cookie/keepalive、logout 或进程退出都不等于 License 回落；真实资格按目标、版本、通道和范围取证，单次观察不形成通用批量阈值。
 
 - XML 包与代码基线统一归 coding owner 的[导出协议](../plugins/coding-iris-plugin/references/iris-xml-export.md)和[基线协议](../plugins/coding-iris-plugin/references/iris-code-baseline.md)：版本 XML 定义范围，实例返回定义内容；包的二进制载荷与基线图片预筛分别验证。纯采集不自动进入项目 Git 状态机；单批内部只读会话池不改变跨进程排他或写入串行，资格依实际目标及运行时重新核验。专用类源、已验证安装 XML 与服务器实际能力分开；用户级旧入口沿显式迁移，普通更新不删除。XML 解析使用固定 vendor 依赖，来源与许可证归 vendor 说明，不扩大为业务 npm 安装。
 

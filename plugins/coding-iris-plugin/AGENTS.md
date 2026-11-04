@@ -26,7 +26,7 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 
 插件只承载可复用能力；目标工程差异必须写入目标工程 `.agents/config/iris_project_profile.md`，MCP 连接事实必须以目标工程 `.mcp.json` 为准。
 
-所有远端查询与开发操作使用[统一会话入口](rules/iris_agentic_dev.md)，通过配置 Check 和实际回执核对路径。普通单会话查询允许资格 pending；显式禁用和未解决熔断仍停止，不换路绕过。
+所有远端查询与开发操作使用[统一会话入口](rules/iris_agentic_dev.md)，通过配置 Check 和实际回执核对路径。普通受管单会话允许资格 pending；资源复用和清理由工具完成，License 未观测不阻断业务。错误分类、相关写保护和恢复沿该入口处理。
 
 ## 使用约束
 

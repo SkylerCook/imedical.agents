@@ -1,5 +1,13 @@
 # imedical.agents 维护日志
 
+## 2026-11-04 会话治理收缩
+
+- coding 0.27.2 将受管 MCP/Atelier 的新增未知写交由 SessionManager 单独持久化，公共准入保留排他、生命周期、既有风险并读取同一受管风险供独立入口判断；独立调用不变。历史两层记录不自动清理，新操作不再要求双重恢复。
+- 通过固定 vendor 对本机 HTTP 模拟端点的真实请求，核对 iris_execute 与 iris_execute_method 的不同错误码/封装及 PUT 405 后未编译；按精确阶段分类，保留原错误。Cookie 变化与 HTTP 拒绝共同发生时不制造未知写。已核实本地资源退出和写结果即可恢复，注销未知保留警告；普通业务不承担 License 观测与固定资源收尾清单。
+- Windows 关联测试累计 86 通过、1 Unix 路径测试跳过，覆盖原子状态、IPC、实际 vendor、未知写隔离、Cookie、失败恢复和串行复用；首次沙箱运行被文件原子重命名/IPC 权限限制，沙箱外同范围离线验证通过。macOS/Linux 沿既有矩阵待跑，业务副本/真实环境未更新或调用。
+- 文档链接检查通过。工作树组件版本校验识别 coding 0.27.1 → 0.27.2，报出的 7 项 xc 版本/历史发布记录问题与 HEAD 完全相同，本轮未新增或越界修正。新增测试沿既有 iris-sessions 三平台矩阵；迁移回归含 Windows PowerShell 5.1。
+- 已检查并同步 owner AGENTS/rule/README/manifest、根 README、更新与会话说明、维护入口/决策/队列和发布记录。能力目录与使用指南已有统一入口且调用方式未变，保持指针；不改安装器、配置迁移或 vendor 二进制。
+
 ## 2026-11-04 WorkBuddyDonghua 项目 skills 共用纠正
 
 - 用户纠正并限定实测范围为项目级 skills：WorkBuddyDonghua 使用 `.workbuddy/skills`，与 WorkBuddy 共用；规则、记忆和用户级目录不据此推导。agent-context-kit 0.8.4 配合根 adapter 修正默认映射，CLI 名称与显式目录覆盖保留；同步来源参考、配置模板、owner/根 README、使用指南和更新迁移说明，旧发布记录保持。

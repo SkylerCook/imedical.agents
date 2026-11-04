@@ -82,7 +82,7 @@ async function main(argv = process.argv.slice(2)) {
         const evidence=JSON.parse(fs.readFileSync(args.evidence,'utf8').replace(/^\uFEFF/,''));
         const policy=remote.localPolicy(context), prior=remote.poolStatus({policy});
         if(prior.ownerPresent)throw new Error('session-reconcile-admission-first');
-        params={...params,token:args.token,confirm:true,writeOutcome:args['write-outcome'],writeIds:args.writeIds,evidence:{cleanupVerified:evidence.cleanupVerified===true,processExited:evidence.processExited===true,reference:hash(fs.readFileSync(args.evidence))}};
+        params={...params,token:args.token,confirm:true,writeOutcome:args['write-outcome'],writeIds:args.writeIds,evidence:{cleanupVerified:evidence.cleanupVerified===true,processExited:evidence.processExited===true,localResourcesClosed:evidence.localResourcesClosed===true,reference:hash(fs.readFileSync(args.evidence))}};
       }
       console.log(JSON.stringify(await client.request(command==='sessions'?'status':command==='close-sessions'?'close':'reconcile',params)));
     } catch(error) {

@@ -58,7 +58,8 @@ test('actual vendor enforces cookie lifecycle: '+mode, {skip:process.platform!==
   if(mode==='missing')assert.equal(seen.length,1);
 });
 }
-test('actual patched vendor sends one generator PUT on 503 and acknowledges its own logout',{skip:process.platform!=='win32'&&!process.env.IRIS_TEST_VENDOR_BINARY},async t=>{
+for (const [status,tool] of [[405,'iris_execute'],[405,'iris_execute_method'],[503,'iris_execute']]) {
+test('actual patched vendor sends one generator PUT on '+status+' via '+tool+' and acknowledges its own logout',{skip:process.platform!=='win32'&&!process.env.IRIS_TEST_VENDOR_BINARY},async t=>{
   const root=createTempDirectory('iris-session-vendor-'),seen=[];
   const server=http.createServer((req,res)=>{
     let body='';req.on('data',b=>body+=b);req.on('end',()=>{
@@ -66,7 +67,7 @@ test('actual patched vendor sends one generator PUT on 503 and acknowledges its 
       res.setHeader('Content-Type','application/json');
       if(req.url.includes('IRISLogout=end')){res.writeHead(401);res.end('{}');return;}
       res.setHeader('Set-Cookie','CSPSESSIONID-fixture=fixture; Path=/api/atelier/');
-      if(req.method==='PUT'){res.writeHead(503);res.end('{}');return;}
+      if(req.method==='PUT'){res.writeHead(status);res.end('{}');return;}
       if(req.method==='GET'){res.end(JSON.stringify({result:{content:{version:'IRIS for test',api:1}}}));return;}
       res.end(JSON.stringify({result:{content:[{Value:'Development'}]}}));
     });
@@ -78,12 +79,20 @@ test('actual patched vendor sends one generator PUT on 503 and acknowledges its 
   await client.request('initialize',{protocolVersion:'2024-11-05',capabilities:{},clientInfo:{name:'isolated-test',version:'1'}});client.notify('notifications/initialized',{});
   await client.request('tools/call',{name:'iris_query',arguments:{query:'SELECT 1 AS probe',mode:'read',namespace:'TEST'}});
   assert.equal(seen.filter(r=>r.method==='PUT').length,0,'Read-only tools must not deploy telemetry classes');
-  const result=await client.request('tools/call',{name:'iris_execute',arguments:{code:'write 1',confirmed:true,namespace:'TEST'}});
-  assert.match(JSON.stringify(result),/503/);assert.equal(seen.filter(r=>r.method==='PUT').length,1,JSON.stringify(seen));
+  const result=await client.request('tools/call',{name:tool,arguments:tool==='iris_execute'?{code:'write 1',confirmed:true,namespace:'TEST'}:{class:'Demo.Test',method:'Run',namespace:'TEST'}});
+  assert.ok(JSON.stringify(result).includes(String(status)),JSON.stringify(result));assert.equal(seen.filter(r=>r.method==='PUT').length,1,JSON.stringify(seen));
+  if (status===405) {
+    const payload=require('../iris-mcp').extractToolText(result);
+    assert.equal(payload.error_code,tool==='iris_execute'?'HTTP_EXECUTION_FAILED':'IRIS_EXECUTE_ERROR');
+    if(tool==='iris_execute_method')assert.equal(payload.error,'PUT doc failed: HTTP 405 Method Not Allowed');
+    else assert.match(payload.error,/^iris_execute: HTTP\/Atelier execution failed \(PUT doc failed: HTTP 405 Method Not Allowed\)\. No docker fallback available \(IRIS_CONTAINER not set\)\./);
+    assert.equal(seen.filter(r=>r.url.includes('action/compile')).length,0);
+  }
   const exit=await client.close();assert.equal(exit.processExited,true);assert.deepEqual(exit.logout,{attempted:1,acknowledged:1,completed:true});
   assert.equal(seen.filter(r=>r.url.includes('IRISLogout=end')).length,1);
   assert.equal(seen.at(-1).cookie,true);
 });
+}
 
 for(const startupMode of ['503-cookie','503-no-cookie','redirect']) {
 test('actual startup stops probe and queued operations: '+startupMode,{skip:process.platform!=='win32'&&!process.env.IRIS_TEST_VENDOR_BINARY},async t=>{

@@ -21,6 +21,69 @@ function fixture(t, onDemand = false) {
   const connection = { protocol: 'https:', hostname: 'synthetic.invalid', port: 443, path: '/api/atelier/v1/TEST/', rejectUnauthorized: true };
   return { root, context, policy, connection, selected: () => remote.loadRemotePolicy(context, { policy, connection }) };
 }
+
+test('managed write risk has one durable owner and recovery does not require logout success', async t => {
+  const f = fixture(t), {SessionManager} = require('../lib/iris-session-manager');
+  const scope = require('../lib/iris-operation-scope').makeScope(f.connection,['Demo.A.cls']);
+  let fail = true, sends = 0;
+  const manager = new SessionManager({directory:path.join(f.root,'sessions'), open:async operation => {
+    const owner = remote.createRemoteOperation({policy:f.policy,connection:f.connection,writeRiskOwner:'session-manager',writeRiskFile:operation.writeRiskFile});
+    owner.acquire();
+    return {call:op => owner.run(op, async () => {
+      sends++;
+      const file = path.join(f.policy.coordinationRoot,fs.readdirSync(f.policy.coordinationRoot)[0],'state.json');
+      // Crash recovery must not manufacture a second record from delegated intent.
+      assert.equal(require('../lib/iris-operation-scope').pendingWrites(JSON.parse(fs.readFileSync(file))).length,0);
+      if (fail) {fail=false; throw new Error('synthetic connection lost');}
+      return 'ok';
+    }),close:async () => {owner.markUnknown('mcp-process-exit-unverified');return owner.close({processExited:true,cleanupVerified:false});}};
+  }});
+  t.after(()=>manager.stop());
+  const call = effects => manager.submit({pool:'pool',identity:'identity',client:'test',operation:{effects,scope}});
+  await assert.rejects(call('write'),/synthetic connection lost/);
+  assert.equal(remote.poolStatus({policy:f.policy}).unresolvedWrites.length,0);
+  assert.equal(manager.status()[0].unresolvedWrites.length,1);
+  const independent=remote.createRemoteOperation({policy:f.policy,connection:f.connection});
+  await assert.rejects(independent.run({effects:'write',scope},async()=>assert.fail('conflicting write sent')),/session-write-conflict-unresolved/);
+  assert.equal(await independent.run({effects:'read-only',scope},async()=>'read'),'read');
+  independent.close();
+  await assert.rejects(call('write'),/session-write-conflict-unresolved/);
+  assert.equal(sends,1);
+  assert.equal(await call('read-only'),'ok');
+  await manager.close('pool');
+  const state=manager.status()[0];
+  manager.reconcile('pool',{confirm:true,token:state.reconciliationToken,evidence:{reference:'synthetic',processExited:true,cleanupVerified:false},writeOutcome:'verified-not-applied'});
+  assert.equal(manager.status()[0].warning.reason,'session-logout-unverified');
+  assert.equal(await call('write'),'ok');
+  assert.equal(sends,3);
+  await manager.stop();
+  const resumed=remote.createRemoteOperation({policy:f.policy,connection:f.connection});
+  assert.equal(await resumed.run({effects:'write',scope},async()=>'resumed'),'resumed');
+  resumed.close();
+});
+
+test('cookie uncertainty does not turn a rejected PUT into an unknown write', async t => {
+  const f=fixture(t), http=require('node:http'); let puts=0;
+  const server=http.createServer((req,res)=>{
+    req.resume();
+    if(req.method==='HEAD'){res.writeHead(200);res.end('{}');return;}
+    res.setHeader('Set-Cookie','CSPSESSIONID='+(req.method==='PUT'?'replacement':'original')+'; Path=/');
+    if(req.method==='PUT'){puts++;res.writeHead(405);res.end('{}');return;}
+    res.end(JSON.stringify({result:{content:[]}}));
+  });
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const connection={...f.connection,protocol:'http:',hostname:'127.0.0.1',port:server.address().port};
+  const client=createAtelierClient({connection,context:f.context,policy:f.policy});
+  t.after(async()=>{await client.close();await new Promise(resolve=>server.close(resolve));});
+  await client.request('GET','probe');
+  await assert.rejects(client.writeDocument('Demo.A.cls','Class Demo.A {}'),e=>e.status===405 && e.sessionUncertain && e.writeOutcome==='rejected');
+  await client.close();
+  assert.equal(puts,1);
+  const state=remote.poolStatus({policy:f.policy});
+  assert.equal(state.unresolvedWrites.length,0);
+  assert.equal(state.ownerPresent,false);
+  assert.ok(state.warning);
+});
 test('on-demand policy fails closed before a remote request and legacy remains compatible', t => {
   const f = fixture(t, true);
   assert.throws(() => remote.loadRemotePolicy(f.context, { connection: f.connection }), /remote-policy-required/);

@@ -105,7 +105,7 @@ function createAtelierClient({ connection, context, policy, qualification, owner
           const status = response.statusCode;
           if (options.logout) return resolve({ httpStatus: status, responseReceived: true });
           if (!sessionCookies(cookies).length && (status >= 200 && status < 400 || status === 404)) invalidateSession();
-          if (sessionUncertain) return fail('atelier-session-identity-unverified', {sessionUncertain: true, status, writeOutcome: 'unknown'});
+          if (sessionUncertain) return fail('atelier-session-identity-unverified', {sessionUncertain: true, status, writeOutcome: status >= 400 && status < 500 ? 'rejected' : 'unknown'});
           if (method === 'GET' && status === 404) return resolve(null);
           if (method === 'GET' && status === 304) return resolve({ notModified: true });
           if (status < 200 || status >= 300) return fail('atelier-http-failed', { status, writeOutcome: status >= 400 && status < 500 ? 'rejected' : 'unknown' });

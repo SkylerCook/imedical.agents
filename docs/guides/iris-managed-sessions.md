@@ -57,15 +57,19 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/session-migration.js 
 
 状态区分 `warning`（清理未核实但已确认本地退出）、`retryAfter`（短时服务冷却）和 `unresolvedWrites`（按目标隔离的未知写）。精确文档 PUT 只限制冲突文档；编译、测试、任意执行及范围不明的 SQL 写不能假定局部，保留对应 namespace 的写保护。跨项目、身份变化或重启不能绕过相同资源的风险；只读和可证明不冲突的写可继续。没有范围的历史未知写不自动消失。
 
-恢复仍核对死 owner、当前 token、证据和实际写结果。存在多个风险时，`reconcile` 与 `reconcile-session` 必须用可重复的 `--write-id <id>` 明确本次核实项，仅移除这些项；公共准入和管理会话各用自身状态返回的 id/token，不相互代替。清理专用旧阻断可凭 `processExited:true` 的实际证据恢复，同时保留注销未核实警告。示例：
+受管 MCP/Atelier 的新增未知写只由 SessionManager 保存，使用 `reconcile-session` 恢复；公共准入保留排他，并读取同一份受管风险供独立入口判断冲突，不再重复登记；历史风险继续检查。独立入口仍由公共准入保存风险，使用 `reconcile`。升级前两层已有的记录保留，各自按状态返回的 id/token 核实，不自动删除或推断旧操作结果。
+
+恢复核对死 owner、当前 token、证据和实际写结果。多个风险用可重复的 `--write-id <id>` 指定本次核实项，仅移除这些项。本地资源已关闭（`processExited:true` 或 `localResourcesClosed:true`）即可配合已核实的写入结果恢复；HTTP 注销未确认保留为警告，不要求将 `cleanupVerified` 改成 true。示例：
 
 ```powershell
 node .agents/scripts/iris-remote.js reconcile-session --project-root . --token <当前token> --evidence <绝对证据路径> --confirm --write-outcome verified-not-applied --write-id <本次核实的风险id>
 ```
 
-证据 JSON 的 `cleanupVerified:true` 必须来自实际核实；未知写入还须选择 `verified-applied` 或 `verified-not-applied`。工具保存证据摘要与原状态，不重新执行原请求。没有证据继续阻断，用户说“继续”不是清理成功证明。
+证据 JSON 中的退出字段必须来自实际核实；未知写入还须选择 `verified-applied` 或 `verified-not-applied`。工具保存证据摘要与原状态，不重新执行原请求；证据不足时只保留相关冲突保护。
 
-收尾分别报告：请求结果、进程退出、HTTP 注销回执、服务器会话消失、License 观测。`cleanupVerified` 仅描述当前客户端可验证的资源收束，不等于服务器会话消失或许可回落；对应后两项仍分别标记。借用 Browser/Broker 会话归原 owner，框架不擅自注销。
+普通任务收尾报告业务结果及影响继续操作的异常；连接复用、排队和清理由工具处理。License 未观测或未确认回落仅作诊断信息，不作为普通任务完成或后续操作的门禁。只有专项资源排查才分别报告进程退出、HTTP 注销、服务器会话消失和 License 观测；`cleanupVerified` 不代表后两项。借用 Browser/Broker 会话归原 owner。
+
+coding 0.27.2 将固定 vendor 的两种执行工具在临时载体 PUT 阶段明确返回的 HTTP 405 识别为拒绝，保留原错误，不生成未知写风险。匹配工具、错误码和阶段，不将任意错误文本中的 405 视为未执行证明；超时、编译/执行中的未知结果仍保护。Cookie 异常退役会话，写风险由发送状态及响应决定，身份告警本身不另建风险。
 
 受管恢复读取修复（coding 0.27.1）：direct SFTP 部署将当前工作区及需求类型传入 CSP 编译；显式 `inspect/read` 在 managed-single-session 且资格 pending 时只允许声明文档的 GET 和自身注销。该入口保留共享阻断、当前 token、死 owner 与写结果核实，不接受普通写入，也不自动清锁或重放。更新需同时取得 owner 及根 scripts，保留私有配置和历史恢复资料；无需迁移。
 

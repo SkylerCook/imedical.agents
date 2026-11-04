@@ -135,7 +135,11 @@ function atomicJson(file, value) {
   try { fs.writeFileSync(temporary, JSON.stringify(value) + '\n', { flag: 'wx', mode: 0o600 }); fs.renameSync(temporary, file); }
   finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); }
 }
-function createRemoteOperation({ policy = { enabled: false }, connection, channel = 'atelier', operation = 'remote-operation' } = {}) {
+function createRemoteOperation({ policy = { enabled: false }, connection, channel = 'atelier', operation = 'remote-operation', writeRiskOwner = 'admission', writeRiskFile } = {}) {
+  // Managed backends already persist intent/outcome in SessionManager. Admission
+  // still serializes access and honors legacy risks, but must not duplicate them.
+  const tracksWrites = writeRiskOwner !== 'session-manager';
+  if (!tracksWrites && !path.isAbsolute(writeRiskFile || '')) stop('remote-write-risk-owner-required');
   let closed = false, active = false, acquired = false, state, directory, lock, token, activeScope;
   const defaultScope = risk.makeScope(connection);
   const evidence = { schema: 'iris-remote-operation/v1', channel, status: 'idle', cleanupVerified: false, licenseReleaseVerified: false };
@@ -176,6 +180,7 @@ function createRemoteOperation({ policy = { enabled: false }, connection, channe
       if (denied) stop(denied,{beforeSend:true});
       if (state.instances.length && !state.instances.includes(instanceHash) && policy.allowSharedPool !== true) stop('remote-pool-identity-mismatch');
       if (!state.instances.includes(instanceHash)) state.instances.push(instanceHash);
+      if (!tracksWrites) state.writeRiskFiles = [...new Set([...(state.writeRiskFiles || []), writeRiskFile])];
       atomicJson(stateFile, state); acquired = true; evidence.status = 'ready';
     } catch (error) { fs.unlinkSync(lock); throw error; }
   }
@@ -187,7 +192,9 @@ function createRemoteOperation({ policy = { enabled: false }, connection, channe
       return;
     }
     if (state) {
-      const cleanupOnly = /(?:exit|identity|session-scope)/.test(reason) && state.inFlight?.effects !== 'write';
+      // Identity uncertainty alone says nothing about a write. run() records
+      // the actual outcome, including before-send failures and HTTP rejection.
+      const cleanupOnly = !tracksWrites || /(?:identity|session-scope)/.test(reason) || /exit/.test(reason) && state.inFlight?.effects !== 'write';
       if (cleanupOnly) risk.warn(state, reason);
       else risk.addUnresolved(state, activeScope || defaultScope, reason, Date.now(), state.inFlight?.id);
       state.status = state.unresolvedWrites.length ? 'reconciliation-required' : 'ready'; state.reason = reason;
@@ -222,10 +229,23 @@ function createRemoteOperation({ policy = { enabled: false }, connection, channe
     }
     const denied = risk.admit(state || {}, {effects, scope});
     if (denied) stop(denied, {beforeSend:true});
+    // Independent/qualification clients read the same durable risk instead of
+    // bypassing it or requiring a second reconciliation record.
+    for (const file of effects === 'write' ? state?.writeRiskFiles || [] : []) {
+      if (!path.isAbsolute(file)) stop('remote-write-risk-state-invalid', {beforeSend:true});
+      let managed;
+      try { assertNoLinks(file); managed = readJson(file); }
+      catch { stop('remote-write-risk-state-unavailable', {beforeSend:true}); }
+      if (managed.schema !== 'iris-session-state/v1') stop('remote-write-risk-state-invalid', {beforeSend:true});
+      const shared = {unresolvedWrites:[...(managed.unresolvedWrites || [])]};
+      if (tracksWrites && managed.pendingEffects === 'write') risk.addUnresolved(shared, managed.pendingScope, 'session-interrupted-write');
+      const conflict = risk.admit(shared, {effects,scope});
+      if (conflict) stop(conflict, {beforeSend:true});
+    }
     if (!['read-only', 'write'].includes(effects)) stop('remote-effects-required');
     active = true; activeScope = scope;
     const operationId = crypto.randomUUID();
-    if (state) { state.inFlight = { id:operationId, token, effects, scope, operation: action, at: new Date().toISOString() }; persist(); }
+    if (state) { state.inFlight = { id:operationId, token, effects, scope, writeRiskOwner, operation: action, at: new Date().toISOString() }; persist(); }
     try {
       const result = await callback();
       if (state) { delete state.inFlight; persist(); }
@@ -234,12 +254,12 @@ function createRemoteOperation({ policy = { enabled: false }, connection, channe
       if (error.status === 503 || error.httpStatus === 503) {
         if (state) { state.status = 'circuit-open'; state.reason = 'service-unavailable'; state.retryAfter = Date.now() + risk.COOLDOWN_MS; }
         evidence.status = 'circuit-open';
-      } else if (effects === 'write' && error.beforeSend !== true && error.writeOutcome !== 'rejected') {
+      } else if (tracksWrites && effects === 'write' && error.beforeSend !== true && error.writeOutcome !== 'rejected') {
         if (state) { risk.addUnresolved(state, scope, 'remote-write-outcome-unknown', Date.now(), operationId); state.status = 'reconciliation-required'; state.reason = 'remote-write-outcome-unknown'; }
         evidence.status = 'reconciliation-required';
       }
       if (state) {
-        if (effects === 'write' && error.beforeSend !== true && error.writeOutcome !== 'rejected' && (error.status === 503 || error.httpStatus === 503)) risk.addUnresolved(state,scope,'remote-write-outcome-unknown',Date.now(),operationId);
+        if (tracksWrites && effects === 'write' && error.beforeSend !== true && error.writeOutcome !== 'rejected' && (error.status === 503 || error.httpStatus === 503)) risk.addUnresolved(state,scope,'remote-write-outcome-unknown',Date.now(),operationId);
         state.lastFailedOperation = state.inFlight; delete state.inFlight; persist();
       }
       throw error;
@@ -420,7 +440,7 @@ function reconcileRemotePool({policy, token, evidenceFile, confirm = false, writ
     // Keep a new lock visible until the state is ready; a competing admission
     // cannot pass between an interrupted owner's removal and the state update.
     if (!owner) fs.writeFileSync(files.owner, JSON.stringify({token:'reconciliation',pid:process.pid,machine:digest(os.hostname())}), {flag:'wx',mode:0o600});
-    atomicJson(files.state, {schema:'iris-remote-pool/v1',instances:state.instances,isolationVersion:1,unresolvedWrites:remaining.unresolvedWrites,status:remaining.unresolvedWrites.length?'reconciliation-required':'ready',warning:state.warning,lastReconciledAt:resolution.at,evidenceSha256:evidence});
+    atomicJson(files.state, {schema:'iris-remote-pool/v1',instances:state.instances,writeRiskFiles:state.writeRiskFiles,isolationVersion:1,unresolvedWrites:remaining.unresolvedWrites,status:remaining.unresolvedWrites.length?'reconciliation-required':'ready',warning:state.warning,lastReconciledAt:resolution.at,evidenceSha256:evidence});
     fs.unlinkSync(files.owner);
     return {schema:'iris-remote-reconciliation/v1',status:'reconciled',licenseReleaseVerified:false};
   } finally { fs.closeSync(descriptor); fs.unlinkSync(recoveryLock); }

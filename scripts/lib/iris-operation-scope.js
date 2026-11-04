@@ -48,7 +48,7 @@ function fromAtelier(connection, method, suffix, body) {
 }
 function pendingWrites(state) {
   const result = {unresolvedWrites:[...(state.unresolvedWrites || [])]};
-  if (state.inFlight?.effects === 'write') {
+  if (state.inFlight?.effects === 'write' && state.inFlight.writeRiskOwner !== 'session-manager') {
     const old = state.inFlight;
     addUnresolved(result,old.scope,'remote-interrupted-write',Date.parse(old.at || '') || 0,old.id || old.token || hash(old));
   }

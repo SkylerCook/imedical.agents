@@ -13,7 +13,7 @@ related:
 
 所有 IRIS 远端操作使用[统一会话入口](../../../docs/guides/iris-managed-sessions.md)：CLI 经 `scripts/iris-mcp.js`，宿主 MCP 经 `iris-session-mcp.js`，业务 Atelier 脚本经共享 client。先运行迁移 Check；首次业务回执必须包含 `_meta["imedical/session"]`（CLI 为 `REMOTE`）。配置字节和旧宿主显示的工具名不能证明受管入口生效；重启对应宿主 MCP 后复核。不得临时改用 curl、PowerShell HTTP、vendor exe 或未受管 MCP 绕过门禁。
 
-普通查询按单会话预算复用与排队，不要求历史批量资格 verified，也不得因 pending 就停止正常查询。显式 disabled、offline、未解决熔断和未知写入仍阻断。批量/多会话资格、写入授权、目标校验、源码同步和冻结要求分别保留；单会话预算不是固定 LU 承诺。
+普通受管单会话操作由工具复用、排队和清理，不要求历史批量资格 verified；pending、注销未确认或未观测 License 回落不阻断普通任务。未知写只保护冲突操作，只读与无冲突操作继续；明确禁用、offline、短时服务冷却及写入授权仍生效。恢复和错误分类统一按上述会话协议执行，普通收尾报告业务结果，不例行展开资源治理检查单。批量/多会话资格、目标校验、源码同步和冻结要求保持。
 
 ## MCP 能力矩阵
 

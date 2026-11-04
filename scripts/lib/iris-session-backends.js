@@ -81,7 +81,7 @@ async function open(operation) {
   const d = describe(operation.projectRoot, operation.serverName);
   if (d.identity !== (operation.configurationIdentity || operation.identity) || d.pool !== operation.pool) throw failure('session-configuration-changed');
   const owner = d.policy?.coordinationRoot && d.policy?.poolKey
-    ? remote.createRemoteOperation({policy:d.policy,connection:d.connection,channel:operation.channel}) : null;
+    ? remote.createRemoteOperation({policy:d.policy,connection:d.connection,channel:operation.channel,writeRiskOwner:'session-manager',writeRiskFile:operation.writeRiskFile}) : null;
   try {owner?.acquire();} catch(error) {error.beforeSend=true;throw error;}
   if (operation.channel === 'atelier') {
     const client = require('./atelier-client').createAtelierClient({connection: operation.connection, context: d.context, managedHost:true,owner:owner || undefined,sessionCookieFormat:d.policy?.sessionCookieFormat});
@@ -116,13 +116,24 @@ async function open(operation) {
       const execute = async () => {
       assertSession();
       const result = await client.request(op.method, params, op.timeoutMs || 60000);
-      assertSession();
+      const payload = mcp.extractToolText(result);
+      const carrierRejected = params.name === 'iris_execute_method' && payload?.error_code === 'IRIS_EXECUTE_ERROR' &&
+        payload.error === 'PUT doc failed: HTTP 405 Method Not Allowed' ||
+        params.name === 'iris_execute' && payload?.error_code === 'HTTP_EXECUTION_FAILED' &&
+        /^iris_execute: HTTP\/Atelier execution failed \(PUT doc failed: HTTP 405 Method Not Allowed\)\. No docker fallback available \(IRIS_CONTAINER not set\)\./.test(payload.error || '');
+      try { assertSession(); }
+      catch (error) {
+        if (carrierRejected) {error.writeOutcome = 'rejected'; error.toolResponse = result; error.toolErrorCode = payload.error_code;}
+        throw error;
+      }
       if (result.error || result.result?.isError) {
         const unavailable = /(?:HTTP\s*503|503\s+Service Unavailable|"(?:httpStatus|statusCode)"\s*:\s*503)/i.test(JSON.stringify(result));
         if (unavailable) throw Object.assign(failure('session-service-unavailable', false), {status: 503});
         if (/(?:HTTP\s*(401|403)|401\s+Unauthorized|403\s+Forbidden)/i.test(JSON.stringify(result))) throw Object.assign(failure('session-authentication-failed',false),{status:401});
-        const payload = mcp.extractToolText(result);
-        const rejected = result.error && [-32601, -32602].includes(result.error.code) ||
+        // A rejected temporary carrier upload has not reached compilation or
+        // execution. Match the vendor's exact phase, not an arbitrary HTTP error
+        // buried in user code or a multi-step tool's output.
+        const rejected = result.error && [-32601, -32602].includes(result.error.code) || carrierRejected ||
           params.name === 'iris_test' && payload?.error_code === 'NAMESPACE_NOT_FOUND';
         if (rejected) return result;
         if (op.effects === 'write') {

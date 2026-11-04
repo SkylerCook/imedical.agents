@@ -14,6 +14,7 @@ test('managed MCP clients reach one real subprocess and local tools/list never s
       if(m.params?.name==='iris_query')process.stdout.write(JSON.stringify({jsonrpc:'2.0',method:'notifications/progress',params:{progressToken:m.params.arguments.sql,progress:1}})+'\\n');
       let result={};if(m.method==='tools/call')result={content:[{type:'text',text:JSON.stringify(m.params.name==='check_config'?{connected:true,host:'example.invalid',port:443,namespace:'TEST'}:{pid:process.pid,name:m.params.name})}]};
       if(m.params?.name==='iris_test')result=m.params.arguments.pattern==='assertion'?{content:[{type:'text',text:JSON.stringify({success:false,total:1,passed:0,failed:1})}]}:{isError:true,content:[{type:'text',text:JSON.stringify({success:false,error_code:m.params.arguments.pattern==='rejected'?'NAMESPACE_NOT_FOUND':'TEST_EXECUTION_ERROR',error:'synthetic diagnosis'})}]};
+      if(m.params?.name==='iris_execute' || m.params?.name==='iris_execute_method')result={isError:true,content:[{type:'text',text:JSON.stringify({success:false,error_code:m.params.name==='iris_execute'?'HTTP_EXECUTION_FAILED':'IRIS_EXECUTE_ERROR',error:m.params.name==='iris_execute'?'iris_execute: HTTP/Atelier execution failed (PUT doc failed: HTTP 405 Method Not Allowed). No docker fallback available (IRIS_CONTAINER not set). Verify the Atelier REST endpoint.':'PUT doc failed: HTTP 405 Method Not Allowed'})}]};
       process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,result})+'\\n');});`);
   const config={mcpServers:{'iris-agentic-dev':{command:process.execPath,args:[path.resolve('scripts/iris-session-mcp.js')],env:{IRIS_HOST:'example.invalid',IRIS_WEB_PORT:'443',IRIS_SCHEME:'https',IRIS_NAMESPACE:'TEST'}}}};
   fs.writeFileSync(path.join(project,'.mcp.json'),JSON.stringify(config));
@@ -30,6 +31,12 @@ test('managed MCP clients reach one real subprocess and local tools/list never s
   assert.deepEqual(notesA.map(m=>m.params.progressToken),['SELECT 1']);
   assert.deepEqual(notesB.map(m=>m.params.progressToken),['SELECT 2']);
   assert.equal((await a.endSession()).exit.cleanupVerified,true);
+  for (const name of ['iris_execute','iris_execute_method']) {
+    const carrier = await a.request('tools/call',{name,arguments:{}});
+    assert.equal(carrier.result.isError,true);
+    assert.equal(JSON.parse(carrier.result.content[0].text).error_code,name==='iris_execute'?'HTTP_EXECUTION_FAILED':'IRIS_EXECUTE_ERROR');
+    assert.equal(host.manager.status()[0].unresolvedWrites.length,0);
+  }
   const failed=await a.request('tools/call',{name:'iris_test',arguments:{pattern:'assertion'}});
   assert.equal(JSON.parse(failed.result.content[0].text).failed,1);
   await b.request('tools/call',{name:'iris_query',arguments:{sql:'SELECT after_assertion'}});
