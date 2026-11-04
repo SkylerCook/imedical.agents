@@ -8,7 +8,7 @@ const {spawn, spawnSync} = require('node:child_process');
 const {hash, failure} = require('./iris-session-manager');
 const VERSION = 1, MAX_BYTES = 20 * 1024 * 1024;
 const RUNTIME = hash(['iris-session-ipc.js','iris-session-manager.js','iris-session-backends.js','iris-session-client.js',
-  '../iris-session-host.js','../iris-mcp.js','atelier-client.js','iris-remote-operations.js','workspace-context.js']
+  '../iris-session-host.js','../iris-mcp.js','iris-operation-scope.js','atelier-client.js','iris-remote-operations.js','workspace-context.js']
   .map(name => fs.readFileSync(path.join(__dirname,name),'utf8')));
 
 function location(root = path.join(os.homedir(), '.imedical', 'iris-sessions')) {

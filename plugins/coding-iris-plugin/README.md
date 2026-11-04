@@ -345,3 +345,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 离线交付自 0.26.0 起检查原始 Git 基线及打包后源码漂移，并保留输入 XML 换行格式；旧任务迁移见[离线开发](references/iris-offline-development.md#git-原始基线与交付一致性)。
 
 0.26.1 修复会话身份未知时的部署恢复：禁止重新认证，保留已有 Cookie 的有限只读恢复。更新须同时取得框架运行时与匹配的 `managed-sessions-v2` vendor，旧恢复材料和私有格式配置保留；接入、宿主重启及回执验证见[统一会话手册](../../docs/guides/iris-managed-sessions.md)。
+
+受管恢复读取修复（coding 0.27.1）：direct SFTP 部署将当前工作区及需求类型传入 CSP 编译；显式 `inspect/read` 在 managed-single-session 且资格 pending 时只允许声明文档的 GET 和自身注销。该入口保留共享阻断、当前 token、死 owner 与写结果核实，不接受普通写入，也不自动清锁或重放。更新需同时取得 owner 及根 scripts，保留私有配置和历史恢复资料；无需迁移。
+
+工具诊断补齐：正常测试断言失败继续返回原结果；JSON-RPC 无效参数/方法及明确 namespace 不存在的拒绝不触发未知写阻断。其它未知执行错误继续阻断，并经 IPC、原生 MCP 和 CLI --json 向原调用方保留工具响应与错误码；响应正文不写会话协调文件。共享实例仍串行执行，普通失败与仅注销未确认不再永久封锁全池；未知写按目标范围隔离，影响不明的脚本保留 namespace 写保护，只读诊断与无冲突操作继续。

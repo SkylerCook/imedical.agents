@@ -98,7 +98,7 @@ async function execute(plan, upload, compile) {
     result.status='verified';
     return result;
   } catch(error) {
-    return {...result,status:'failed-or-unknown',failedStage:result.status,errorType:error.name,message:'Inspect server state before retrying; completed uploads are not rolled back'};
+    return {...result,status:'failed-or-unknown',failedStage:result.status,errorType:error.name,...(typeof error.code==='string' && /^[a-z][a-z0-9-]+$/.test(error.code)?{reason:error.code}:{}),...(error.beforeSend===true?{beforeSend:true}:{}),message:'Inspect server state before retrying; completed uploads are not rolled back'};
   }
 }
 

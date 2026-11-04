@@ -55,10 +55,11 @@ async function inspectDocuments({context, connection, policy, documents, token, 
     documents:evidence.documents.map(({content,...summary})=>summary),remote:evidence.remote,writeEnabled:false,licenseReleaseVerified:false};
 }
 async function main(argv = process.argv.slice(2)) {
-  if (argv.includes('--help')) { console.log('Usage: node iris-remote.js status|sessions|close-sessions|reconcile-session|reconcile --project-root <workspace> [--token <status-token> --evidence <absolute-file> --write-outcome verified-applied|verified-not-applied --confirm]\n       node iris-remote.js inspect|read --project-root <workspace> --token <status-token> --confirm-recovery --documents <1-to-5-documents...> --evidence <new-absolute-private-file>\nstatus/reconcile are local only. inspect performs only admitted GET doc reads and its own HEAD logout, saves private evidence under ContextRoot/work/source-sync, and keeps the circuit blocked. No write replay or license reservation.'); return; }
+  if (argv.includes('--help')) { console.log('Usage: node iris-remote.js status|sessions|close-sessions|reconcile-session|reconcile --project-root <workspace> [--token <status-token> --evidence <absolute-file> --write-outcome verified-applied|verified-not-applied --write-id <unresolved-id> --confirm]\n       node iris-remote.js inspect|read --project-root <workspace> --token <status-token> --confirm-recovery --documents <1-to-5-documents...> --evidence <new-absolute-private-file>\nstatus/reconcile are local only. inspect performs only admitted GET doc reads and its own HEAD logout, saves private evidence under ContextRoot/work/source-sync, and keeps the circuit blocked. No write replay or license reservation.'); return; }
   const command = argv.shift(), args = {};
   for (let i=0;i<argv.length;i++) {
-    if (argv[i] === '--confirm') args.confirm = true;
+    if (argv[i] === '--write-id' && argv[i+1]) (args.writeIds ||= []).push(argv[++i]);
+    else if (argv[i] === '--confirm') args.confirm = true;
     else if (argv[i] === '--confirm-recovery') args.confirmRecovery = true;
     else if (argv[i] === '--documents') { args.documents = []; while (argv[i+1] && !argv[i+1].startsWith('--')) args.documents.push(argv[++i]); }
     else if (['--project-root','--token','--evidence','--write-outcome'].includes(argv[i]) && argv[i+1]) args[argv[i].slice(2)] = argv[++i];
@@ -69,7 +70,7 @@ async function main(argv = process.argv.slice(2)) {
   if(command==='status') {console.log(JSON.stringify(remote.localPoolStatus(context)));return;}
   if(command==='reconcile') {
     const policy=remote.localPolicy(context);
-    console.log(JSON.stringify(remote.reconcileRemotePool({policy,token:args.token,evidenceFile:args.evidence,confirm:args.confirm,writeOutcome:args['write-outcome']})));return;
+    console.log(JSON.stringify(remote.reconcileRemotePool({policy,token:args.token,evidenceFile:args.evidence,confirm:args.confirm,writeOutcome:args['write-outcome'],writeIds:args.writeIds})));return;
   }
   if(['sessions','close-sessions','reconcile-session'].includes(command)) {
     const ipc=require('./lib/iris-session-ipc');let client;
@@ -80,8 +81,8 @@ async function main(argv = process.argv.slice(2)) {
         if(!args.confirm || !path.isAbsolute(args.evidence || ''))throw new Error('session-reconciliation-evidence-required');
         const evidence=JSON.parse(fs.readFileSync(args.evidence,'utf8').replace(/^\uFEFF/,''));
         const policy=remote.localPolicy(context), prior=remote.poolStatus({policy});
-        if(prior.ownerPresent || prior.status!=='ready')throw new Error('session-reconcile-admission-first');
-        params={...params,token:args.token,confirm:true,writeOutcome:args['write-outcome'],evidence:{cleanupVerified:evidence.cleanupVerified===true,reference:hash(fs.readFileSync(args.evidence))}};
+        if(prior.ownerPresent)throw new Error('session-reconcile-admission-first');
+        params={...params,token:args.token,confirm:true,writeOutcome:args['write-outcome'],writeIds:args.writeIds,evidence:{cleanupVerified:evidence.cleanupVerified===true,processExited:evidence.processExited===true,reference:hash(fs.readFileSync(args.evidence))}};
       }
       console.log(JSON.stringify(await client.request(command==='sessions'?'status':command==='close-sessions'?'close':'reconcile',params)));
     } catch(error) {
@@ -102,7 +103,7 @@ async function main(argv = process.argv.slice(2)) {
   if (['inspect','read'].includes(command)) {
     if (require('./lib/workspace-context').workspaceContextBlockers(context).length) throw new remote.RemoteOperationError('invalid-workspace-context');
     const connection = require('../plugins/coding-iris-plugin/scripts/iris-tools/compile-csp').connection(config,mcp);
-    const policy = remote.loadRemotePolicy(context, {connection});
+    const policy = remote.loadRemotePolicy(context, {connection, recoveryRead:true});
     result = await inspectDocuments({context,connection,policy,documents:args.documents,token:args.token,confirmRecovery:args.confirmRecovery,evidenceFile:args.evidence});
     if (result.status !== 'inspected') process.exitCode = 2;
   } else {

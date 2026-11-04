@@ -6,6 +6,8 @@
 
 ## 当前接手
 
+- coding 0.27.1 修复部署编译上下文、pending 下显式恢复 GET 和错误诊断传递，源仓与授权副本已核对；最终关联 130 项通过、1 项平台跳过，文档链接另验通过。同批已补范围准入和清理警告：实例串行保留，未知写按目标保护；任意执行保持 namespace 写保护，只读可继续。退出缺回执不冒充清理成功；授权工程连续两轮 MCP→Atelier 只读切换通过、无硬阻断，历史注销警告保留；macOS/Linux 矩阵与 License 回落另验。
+
 - 人工导出 GUI 已沿用户认可的[统一原型](../tools/iris-code-export/prototype/baseline-management.md)，11-04 使用原 WinForms / PowerShell 栈接入[项目基线工作台](../tools/iris-code-export/GUI.md)：同目录增补、重新采集比对、候选接纳/恢复、冻结副本及常驻计时；不增加现场依赖或自动安装。单目标系统类 / 专用缺失对象的 TXT→XML 增补、检查时间与内容时间分离及退出响应已实测；普通非空目录不接管，旧批次用原工具恢复。Win7 / Win10 实机、真实高 DPI、大范围恢复、多会话资格及 License 回落仍沿原队列。
 
 - 范围基线统一为 doctor/*.txt：coding 0.27.0 删除 ProjectItem XML 范围入口，框架和人工工具共用 TXT；源码 XML 包不变。标准版源码补强新增 v9.0.2，9.1 tag/trunk 核对与未确认项见[审计](../maintenance/validation/doctor-tag-baseline-2026-11-03.md)。旧任务及副本升级按[迁移说明](../docs/update-agents.md#iris-xml-导出与代码基线coding-022)，源仓变更尚未部署。

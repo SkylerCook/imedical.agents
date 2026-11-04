@@ -134,7 +134,7 @@ function createAtelierClient({ connection, context, policy, qualification, owner
       options = {...options, effects: 'read-only', timeoutMs: Math.max(1, Math.min(options.timeoutMs || timeoutMs, qualificationDeadline - Date.now()))};
     }
     busy = true;
-    try { return await owner.run({ effects: options.effects || (['GET', 'HEAD'].includes(method) || suffix === 'docs' ? 'read-only' : 'write'), operation: options.operation || 'atelier-' + method.toLowerCase(), method, suffix }, () => {
+    try { return await owner.run({ effects: options.effects === 'write' || !(['GET','HEAD'].includes(method) || method === 'POST' && suffix === 'docs') ? 'write' : 'read-only', operation: options.operation || 'atelier-' + method.toLowerCase(), scope:require('./iris-operation-scope').fromAtelier(conn,method,suffix,body), method, suffix }, () => {
       if (sessionUncertain) throw new remote.RemoteOperationError('atelier-session-identity-unverified', {beforeSend: true, sessionUncertain: true});
       return raw(method, suffix, body, headers, options);
     }); }
@@ -178,7 +178,7 @@ function createAtelierClient({ connection, context, policy, qualification, owner
     if (closing) return closing;
     if (transport) {closed = true; agent.destroy(); closing = transport.close(); return closing;}
     closing = (async () => {
-      let exit = { logoutRequested: false, logoutResponseReceived: false, cleanupVerified: !busy && !attempted, licenseReleaseVerified: false };
+      let exit = { localResourcesClosed:true, logoutRequested: false, logoutResponseReceived: false, cleanupVerified: !busy && !attempted, licenseReleaseVerified: false };
       try {
         if (busy) { owner.markUnknown('atelier-owner-exit-in-flight'); exit.cleanupVerified = false; }
         else if ([...cookies.keys()].some(name => /^CSPSESSION/i.test(name))) {
@@ -201,9 +201,9 @@ function createAtelierClient({ connection, context, policy, qualification, owner
 }
 function createAtelierRecoveryReader({connection, context, policy, documents, token, confirmRecovery, timeoutMs, maxResponseBytes} = {}) {
   remote.assertRemoteAllowed(context || {});
-  const conn = normalizeConnection(connection), selected = remote.loadRemotePolicy(context || {}, {connection:conn, policy});
+  const conn = normalizeConnection(connection), selected = remote.loadRemotePolicy(context || {}, {connection:conn, policy, recoveryRead:true});
   const owner = remote.createRecoveryReadOperation({policy:selected, connection:conn, documents, token, confirmRecovery});
-  const client = createAtelierClient({connection:conn, context, policy:selected, owner, timeoutMs, maxResponseBytes});
+  const client = createAtelierClient({connection:conn, context, policy:selected, owner, managedHost:true, sessionCookieFormat:remote.sessionCookieFormat(selected,conn), timeoutMs, maxResponseBytes});
   const denied = async () => { throw new remote.RemoteOperationError('remote-recovery-read-only', {beforeSend:true}); };
   return {async readDocument(name) { try { return await client.readDocument(name); } catch (error) { if (owner.snapshot().reads.length) owner.markUnknown(error.code || 'remote-inspection-document-invalid'); throw error; } }, request:denied, readDocuments:denied, writeDocument:denied, compile:denied,
     snapshot:owner.snapshot,

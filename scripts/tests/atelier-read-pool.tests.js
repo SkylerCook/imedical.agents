@@ -112,8 +112,8 @@ test('one worker 503 stops dispatch and persists circuit plus batch records afte
     assert.equal(status.status, 'circuit-open');
     assert.equal(status.ownerPresent, false);
     const state = JSON.parse(fs.readFileSync(path.join(f.policy.coordinationRoot, sha(f.policy.poolKey), 'state.json'), 'utf8'));
-    assert.equal(state.inFlight.batch.completed.length, 4);
-    assert.throws(() => remote.createRemoteOperation({policy: f.selected(), connection: f.connection}).acquire(), /reconciliation-required/);
+    assert.equal(state.lastFailedOperation.batch.completed.length, 4);
+    assert.throws(() => remote.createRemoteOperation({policy: f.selected(), connection: f.connection}).acquire(), /cooling-down/);
 });
 
 test('default unqualified concurrency falls back to one for a small qualified-base batch', async t => {

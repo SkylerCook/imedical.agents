@@ -8,6 +8,7 @@ const crypto = require('node:crypto');
 const os = require('node:os');
 
 const digest = value => crypto.createHash('sha256').update(value).digest('hex');
+const risk = require('./iris-operation-scope');
 class RemoteOperationError extends Error {
   constructor(code, details = {}) { super(code); this.name = 'RemoteOperationError'; this.code = code; Object.assign(this, details); }
 }
@@ -72,7 +73,7 @@ function validQualificationGrant(grant, connection) {
       !Number.isInteger(grant.budgetMs) || grant.budgetMs < 1 || grant.budgetMs > 3600000) stop('remote-qualification-grant-invalid');
   return true;
 }
-function loadRemotePolicy(context = {}, { connection, policy, qualification } = {}) {
+function loadRemotePolicy(context = {}, { connection, policy, qualification, recoveryRead = false } = {}) {
   assertRemoteAllowed(context);
   const required = contextMode(context) === 'intent-first-on-demand-export';
   const contextRoot = context.contextRoot || path.join(context.workspaceRoot || process.cwd(), '.agents');
@@ -87,21 +88,24 @@ function loadRemotePolicy(context = {}, { connection, policy, qualification } = 
   if (qualification !== undefined) validQualificationGrant(qualification, connection);
   if (value?.enabled !== true) {
     if (qualification !== undefined) stop('remote-qualification-policy-required');
+    if (recoveryRead) stop('remote-policy-required');
     if (required) stop('remote-policy-required');
     return { enabled: false, required: false };
   }
+  const pendingRecovery = recoveryRead === true && qualification === undefined && value.admissionMode === 'managed-single-session' &&
+    value.qualification?.status === 'pending' && fs.existsSync(path.join(contextRoot, 'config/iris-session-backend.json'));
   if (value.schema !== 'iris-remote-policy/v1' || !path.isAbsolute(value.coordinationRoot || '') ||
       typeof value.poolKey !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(value.poolKey) ||
       value.maxConcurrent !== undefined && value.maxConcurrent !== 1 ||
-      qualification === undefined && (value.qualification?.status !== 'verified' || typeof value.qualification.reference !== 'string' || !value.qualification.reference.trim())) stop('remote-policy-invalid');
-  const reference = qualification === undefined ? path.resolve(context.workspaceRoot || process.cwd(), value.qualification.reference) : null;
+      qualification === undefined && !pendingRecovery && (value.qualification?.status !== 'verified' || typeof value.qualification.reference !== 'string' || !value.qualification.reference.trim())) stop('remote-policy-invalid');
+  const reference = qualification === undefined && !pendingRecovery ? path.resolve(context.workspaceRoot || process.cwd(), value.qualification.reference) : null;
   if (reference) {
     try { if (!fs.statSync(reference).isFile()) stop('remote-qualification-required'); }
     catch { stop('remote-qualification-required'); }
   }
   const result = { ...value, required, coordinationRoot: path.resolve(value.coordinationRoot), maxConcurrent: 1,
     instanceHash: connection ? instanceIdentity(connection) : null, evidenceReference: reference,
-    ...(qualification ? {qualificationRun: true} : {}) };
+    ...(qualification ? {qualificationRun: true} : {}), ...(pendingRecovery ? {recoveryReadOnly:true} : {}) };
   if (required && connection && (connection.rejectUnauthorized === false || String(connection.protocol || connection.scheme || connection.IRIS_SCHEME || 'https').replace(/:$/, '') !== 'https')) stop('remote-strict-tls-required');
   return managedPolicy(context, result);
 }
@@ -132,14 +136,16 @@ function atomicJson(file, value) {
   finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); }
 }
 function createRemoteOperation({ policy = { enabled: false }, connection, channel = 'atelier', operation = 'remote-operation' } = {}) {
-  let closed = false, active = false, acquired = false, state, directory, lock, token;
+  let closed = false, active = false, acquired = false, state, directory, lock, token, activeScope;
+  const defaultScope = risk.makeScope(connection);
   const evidence = { schema: 'iris-remote-operation/v1', channel, status: 'idle', cleanupVerified: false, licenseReleaseVerified: false };
   function acquire() {
+    if (policy.recoveryReadOnly) stop('remote-recovery-read-only', {beforeSend:true});
     if (closed) stop('remote-owner-closed');
     if (acquired || !policy.enabled) { acquired = true; return; }
     if(policy.legacyCoordinationRoot) {
       const previous=poolStatus({policy:{...policy,coordinationRoot:policy.legacyCoordinationRoot}});
-      if(previous.ownerPresent || previous.status!=='ready')stop('remote-legacy-pool-reconciliation-required');
+      if(previous.ownerPresent)stop('remote-legacy-pool-reconciliation-required');
     }
     const instanceHash = policy.instanceHash || instanceIdentity(connection);
     assertNoLinks(policy.coordinationRoot);
@@ -153,7 +159,21 @@ function createRemoteOperation({ policy = { enabled: false }, connection, channe
       const stateFile = path.join(directory, 'state.json');
       state = fs.existsSync(stateFile) ? readJson(stateFile) : { schema: 'iris-remote-pool/v1', instances: [], status: 'ready' };
       if (state.schema !== 'iris-remote-pool/v1' || !Array.isArray(state.instances)) stop('remote-pool-state-invalid');
-      if (state.status !== 'ready' || state.inFlight) stop('remote-pool-reconciliation-required');
+      if (!['ready','reconciliation-required','circuit-open'].includes(state.status)) stop('remote-pool-state-invalid');
+      if (state.localExitUnverified) stop('remote-local-exit-unverified',{beforeSend:true});
+      state.unresolvedWrites = risk.pendingWrites(state);
+      if (state.inFlight) {
+        state.lastInterruptedOperation = state.inFlight; delete state.inFlight;
+      }
+      if (!state.isolationVersion) {
+        if (state.reason === 'remote-write-outcome-unknown' && !state.unresolvedWrites.length) risk.addUnresolved(state, null, state.reason);
+        if (state.status === 'circuit-open' && !state.retryAfter) state.retryAfter = Date.parse(state.updatedAt || '') + risk.COOLDOWN_MS || Date.now() + risk.COOLDOWN_MS;
+        if (state.status !== 'ready') risk.warn(state, state.reason || state.status);
+        state.isolationVersion = 1;
+      }
+      state.status = state.unresolvedWrites.length ? 'reconciliation-required' : state.retryAfter > Date.now() ? 'circuit-open' : 'ready';
+      const denied = risk.admit(state,{effects:'read-only'});
+      if (denied) stop(denied,{beforeSend:true});
       if (state.instances.length && !state.instances.includes(instanceHash) && policy.allowSharedPool !== true) stop('remote-pool-identity-mismatch');
       if (!state.instances.includes(instanceHash)) state.instances.push(instanceHash);
       atomicJson(stateFile, state); acquired = true; evidence.status = 'ready';
@@ -166,8 +186,14 @@ function createRemoteOperation({ policy = { enabled: false }, connection, channe
       if (state) { (state.cleanupProblems ||= []).push(reason); state.updatedAt = new Date().toISOString(); persist(); }
       return;
     }
-    evidence.status = 'reconciliation-required';
-    if (state) { state.status = 'reconciliation-required'; state.reason = reason; state.updatedAt = new Date().toISOString(); persist(); }
+    if (state) {
+      const cleanupOnly = /(?:exit|identity|session-scope)/.test(reason) && state.inFlight?.effects !== 'write';
+      if (cleanupOnly) risk.warn(state, reason);
+      else risk.addUnresolved(state, activeScope || defaultScope, reason, Date.now(), state.inFlight?.id);
+      state.status = state.unresolvedWrites.length ? 'reconciliation-required' : 'ready'; state.reason = reason;
+      state.updatedAt = new Date().toISOString(); persist();
+    }
+    evidence.status = state?.unresolvedWrites?.length ? 'reconciliation-required' : 'warning';
   }
   function checkpointBatch(batch) {
     if (!active) stop('remote-owner-not-active');
@@ -175,28 +201,47 @@ function createRemoteOperation({ policy = { enabled: false }, connection, channe
   }
   function tripCircuit(reason = 'service-unavailable') {
     acquire(); evidence.status = 'circuit-open';
-    if (state) { state.status = 'circuit-open'; state.reason = reason; state.updatedAt = new Date().toISOString(); persist(); }
+    if (state) { state.status = 'circuit-open'; state.reason = reason; state.retryAfter = Date.now() + risk.COOLDOWN_MS; state.updatedAt = new Date().toISOString(); persist(); }
   }
-  async function run({ effects = 'read-only', operation: action = operation } = {}, callback) {
+  async function run({ effects = 'read-only', operation: action = operation, scope = defaultScope } = {}, callback) {
     acquire();
     if (active) stop('remote-owner-busy');
-    if (state?.status !== undefined && state.status !== 'ready') stop('remote-pool-reconciliation-required');
+    if (policy.legacyCoordinationRoot) {
+      const legacyPolicy = {...policy,coordinationRoot:policy.legacyCoordinationRoot};
+      const previous = poolStatus({policy:legacyPolicy});
+      if (previous.ownerPresent) stop('remote-legacy-pool-reconciliation-required',{beforeSend:true});
+      const legacyFile = poolFiles(legacyPolicy).state;
+      const raw = fs.existsSync(legacyFile) ? readJson(legacyFile) : {};
+      if (raw.localExitUnverified) stop('remote-local-exit-unverified',{beforeSend:true});
+      if (raw.schema && raw.schema !== 'iris-remote-pool/v1') stop('remote-pool-state-invalid',{beforeSend:true});
+      const legacy = {unresolvedWrites:[...(raw.unresolvedWrites || [])],retryAfter:raw.retryAfter || 0};
+      if (raw.inFlight?.effects === 'write' || raw.reason === 'remote-write-outcome-unknown' && !legacy.unresolvedWrites.length) risk.addUnresolved(legacy,raw.inFlight?.scope,'legacy-unknown-write');
+      if (raw.status === 'circuit-open' && !legacy.retryAfter) legacy.retryAfter = Date.parse(raw.updatedAt || '') + risk.COOLDOWN_MS || Date.now() + risk.COOLDOWN_MS;
+      const legacyDenied = risk.admit(legacy,{effects,scope});
+      if (legacyDenied) stop(legacyDenied,{beforeSend:true});
+    }
+    const denied = risk.admit(state || {}, {effects, scope});
+    if (denied) stop(denied, {beforeSend:true});
     if (!['read-only', 'write'].includes(effects)) stop('remote-effects-required');
-    active = true;
-    if (state) { state.inFlight = { token, effects, operation: action, at: new Date().toISOString() }; persist(); }
+    active = true; activeScope = scope;
+    const operationId = crypto.randomUUID();
+    if (state) { state.inFlight = { id:operationId, token, effects, scope, operation: action, at: new Date().toISOString() }; persist(); }
     try {
       const result = await callback();
       if (state) { delete state.inFlight; persist(); }
       return result;
     } catch (error) {
       if (error.status === 503 || error.httpStatus === 503) {
-        if (state) { state.status = 'circuit-open'; state.reason = 'service-unavailable'; }
+        if (state) { state.status = 'circuit-open'; state.reason = 'service-unavailable'; state.retryAfter = Date.now() + risk.COOLDOWN_MS; }
         evidence.status = 'circuit-open';
       } else if (effects === 'write' && error.beforeSend !== true && error.writeOutcome !== 'rejected') {
-        if (state) { state.status = 'reconciliation-required'; state.reason = 'remote-write-outcome-unknown'; }
+        if (state) { risk.addUnresolved(state, scope, 'remote-write-outcome-unknown', Date.now(), operationId); state.status = 'reconciliation-required'; state.reason = 'remote-write-outcome-unknown'; }
         evidence.status = 'reconciliation-required';
       }
-      if (state) { if (state.status === 'ready') delete state.inFlight; persist(); }
+      if (state) {
+        if (effects === 'write' && error.beforeSend !== true && error.writeOutcome !== 'rejected' && (error.status === 503 || error.httpStatus === 503)) risk.addUnresolved(state,scope,'remote-write-outcome-unknown',Date.now(),operationId);
+        state.lastFailedOperation = state.inFlight; delete state.inFlight; persist();
+      }
       throw error;
     } finally { active = false; }
   }
@@ -204,6 +249,11 @@ function createRemoteOperation({ policy = { enabled: false }, connection, channe
     if (closed) return { ...evidence };
     if (active) { markUnknown('remote-owner-exit-in-flight'); return { ...evidence, pendingOperation: true }; }
     closed = true;
+    if (acquired && lock && readJson(lock).token !== token) stop('remote-owner-identity-changed');
+    if (acquired && state && (exit.processExited === false || exit.localResourcesClosed === false)) {
+      state.localExitUnverified = true; state.status = 'reconciliation-required'; state.reason = 'remote-local-exit-unverified'; persist();
+    }
+    if (acquired && state) {state.lastExit = {processExited:exit.processExited,localResourcesClosed:exit.localResourcesClosed,cleanupVerified:exit.cleanupVerified};persist();}
     if (acquired && lock) {
       const held = readJson(lock);
       if (held.token !== token) stop('remote-owner-identity-changed');
@@ -211,6 +261,7 @@ function createRemoteOperation({ policy = { enabled: false }, connection, channe
     }
     Object.assign(evidence, exit, { status: evidence.status === 'ready' || evidence.status === 'idle' ? 'closed' : evidence.status,
       cleanupVerified: exit.cleanupVerified !== false, licenseReleaseVerified: false, pendingOperation: false });
+    if (state) Object.assign(evidence, {poolStatus:state.status, unresolvedWrites:state.unresolvedWrites, warning:state.warning || null});
     return { ...evidence };
   }
   return { acquire, run, markUnknown, checkpointBatch, tripCircuit, close, snapshot: () => ({ ...evidence, pendingOperation: active }) };
@@ -241,6 +292,7 @@ function poolStatus({policy}) {
   }
   return {schema: 'iris-remote-status/v1', status: state?.status || 'ready', reason: state?.reason || null,
     ownerPresent: !!owner, ownerAlive, pendingEffects: state?.inFlight?.effects || null,
+    localExitUnverified:state?.localExitUnverified === true, unresolvedWrites:state && ownerAlive === false ? risk.pendingWrites(state) : state?.unresolvedWrites || [], warning:state?.warning || null, retryAfter:state?.retryAfter || 0,
     reconciliationToken: digest(JSON.stringify({state, owner}))};
 }
 function localPoolStatus(context = {}) {
@@ -336,7 +388,7 @@ function createRecoveryReadOperation({policy, connection, token, confirmRecovery
   }
   return {acquire, run, markUnknown, close, snapshot:()=>({...evidence,pendingOperation:active})};
 }
-function reconcileRemotePool({policy, token, evidenceFile, confirm = false, writeOutcome}) {
+function reconcileRemotePool({policy, token, evidenceFile, confirm = false, writeOutcome, writeIds}) {
   const files = poolFiles(policy);
   if (confirm !== true || typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) stop('remote-reconcile-confirmation-required');
   if (!path.isAbsolute(evidenceFile || '')) stop('remote-reconcile-evidence-required');
@@ -354,7 +406,13 @@ function reconcileRemotePool({policy, token, evidenceFile, confirm = false, writ
     if (status.ownerAlive !== false) stop('remote-owner-still-live-or-unverified');
     const state = fs.existsSync(files.state) ? readJson(files.state) : {schema:'iris-remote-pool/v1',instances:[],status:'ready'};
     const owner = fs.existsSync(files.owner) ? readJson(files.owner) : null;
-    if ((state.inFlight?.effects === 'write' || state.reason === 'remote-write-outcome-unknown') && !['verified-applied','verified-not-applied'].includes(writeOutcome)) stop('remote-write-reconciliation-required');
+    if ((state.inFlight?.effects === 'write' || state.unresolvedWrites?.length || state.reason === 'remote-write-outcome-unknown') && !['verified-applied','verified-not-applied'].includes(writeOutcome)) stop('remote-write-reconciliation-required');
+    if (state.localExitUnverified) {
+      let proof; try {proof = readJson(evidenceFile);} catch {stop('remote-exit-evidence-required');}
+      if (proof.cleanupVerified !== true && proof.processExited !== true && proof.localResourcesClosed !== true) stop('remote-exit-evidence-required');
+    }
+    const remaining = {unresolvedWrites:risk.pendingWrites(state)};
+    if (remaining.unresolvedWrites.length) risk.resolveWrites(remaining,writeIds);
     const history = path.join(files.directory, 'history'); fs.mkdirSync(history, {recursive:true, mode:0o700});
     const resolution = {schema:'iris-remote-reconciliation/v1', at:new Date().toISOString(), previous:state, owner, token,
       evidenceSha256:evidence, evidenceFile, writeOutcome:writeOutcome || 'not-applicable'};
@@ -362,7 +420,7 @@ function reconcileRemotePool({policy, token, evidenceFile, confirm = false, writ
     // Keep a new lock visible until the state is ready; a competing admission
     // cannot pass between an interrupted owner's removal and the state update.
     if (!owner) fs.writeFileSync(files.owner, JSON.stringify({token:'reconciliation',pid:process.pid,machine:digest(os.hostname())}), {flag:'wx',mode:0o600});
-    atomicJson(files.state, {schema:'iris-remote-pool/v1',instances:state.instances,status:'ready',lastReconciledAt:resolution.at,evidenceSha256:evidence});
+    atomicJson(files.state, {schema:'iris-remote-pool/v1',instances:state.instances,isolationVersion:1,unresolvedWrites:remaining.unresolvedWrites,status:remaining.unresolvedWrites.length?'reconciliation-required':'ready',warning:state.warning,lastReconciledAt:resolution.at,evidenceSha256:evidence});
     fs.unlinkSync(files.owner);
     return {schema:'iris-remote-reconciliation/v1',status:'reconciled',licenseReleaseVerified:false};
   } finally { fs.closeSync(descriptor); fs.unlinkSync(recoveryLock); }

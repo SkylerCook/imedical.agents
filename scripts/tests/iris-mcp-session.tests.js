@@ -186,8 +186,8 @@ test('a child exceeding the default ten-second shutdown budget is terminated wit
     const receipt = await close;
     assert.ok(Date.now() - start >= 9500);
     assert.equal(receipt.processExited, true); assert.equal(receipt.gracefulExit, false); assert.equal(receipt.cleanupVerified, false);
-    assert.equal(receipt.licenseReleaseVerified, false); assert.equal(receipt.status, 'reconciliation-required');
+    assert.equal(receipt.licenseReleaseVerified, false); assert.equal(receipt.status, 'warning');
     assert.equal(fs.existsSync(path.join(f.root, 'cleaned.json')), false);
-    const status = f.poolStatus(); assert.equal(status.ownerPresent, false); assert.equal(status.status, 'reconciliation-required');
-    await assert.rejects(f.open(), /remote-pool-reconciliation-required/);
+    const status = f.poolStatus(); assert.equal(status.ownerPresent, false); assert.equal(status.status, 'ready');
+    assert.equal(status.warning.reason, 'mcp-process-exit-unverified');
 });

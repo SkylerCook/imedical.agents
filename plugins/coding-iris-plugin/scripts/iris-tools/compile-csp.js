@@ -62,13 +62,22 @@ async function compile(options, deployment, timeoutMs = 60000, remoteOptions = {
   const client = remoteOptions.client || require('../../../../scripts/lib/atelier-client').createAtelierClient({
     connection: options, context: remoteOptions.context, policy: remoteOptions.policy, owner: remoteOptions.owner, timeoutMs, maxResponseBytes: 4 * 1024 * 1024
   });
+  let failure, output;
   try {
     const result = validateResponse(await client.compile(deployment.documents));
-    return {...deployment, ...result, elapsedMs: Math.round(performance.now() - start)};
+    output = {...deployment, ...result, elapsedMs: Math.round(performance.now() - start)};
+    return output;
+  } catch (error) {
+    failure = error;
+    throw error;
   } finally {
     if (!remoteOptions.client) {
       const exit = await client.close();
-      if (!exit.cleanupVerified) throw new Error('remote-session-exit-unverified');
+      if (output) output.remoteExit = exit;
+      if (!exit.cleanupVerified) {
+        if (failure) failure.cleanupVerified = false;
+        else if (!exit.localResourcesClosed && !exit.processExited) throw new Error('remote-session-exit-unverified');
+      }
     }
   }
 }

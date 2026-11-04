@@ -77,3 +77,26 @@ test('batch routing preserves JavaScript syntax preflight before connecting',()=
    {workspaceRoot:root,sourceRoots:[{target:root}]}),e=>e.reason==='javascript-syntax-failed');
  }finally{fs.rmSync(root,{recursive:true,force:true});}
 });
+
+test('direct CSP batch passes workspace context and kind to exactly one compile', async () => {
+ const frontend=require('../deploy-frontend'), csp=require('../compile-csp');
+ const root=createTempDirectory('frontend-csp-context-');
+ const originalUpload=frontend.uploadBatch, originalCompile=csp.compile;
+ try {
+  fs.mkdirSync(path.join(root,'csp'));fs.writeFileSync(path.join(root,'csp/page.csp'),'hello');
+  const context={workspaceRoot:root,contextRoot:path.join(root,'.agents'),sourceRoots:[{target:root}]};
+  const config={iris:{namespace:'TEST'},web:{cspBasePath:'web/csp'}};
+  const mcp={mcpServers:{'sftp-server':{command:'python',env:{REMOTE_PATH:'/web'}},'iris-agentic-dev':{env:{IRIS_HOST:'synthetic.invalid',IRIS_WEB_PORT:'443',IRIS_SCHEME:'https',IRIS_NAMESPACE:'TEST',IRIS_USERNAME:'fixture',IRIS_PASSWORD:'fixture'}}}};
+  frontend.uploadBatch=async(_cmd,_worker,_env,plan)=>({status:'verified',files:plan.files.map(f=>({file:f.file,sha256:f.sha256,status:'uploaded'}))});
+  let count=0;
+  csp.compile=async(_conn,plan,timeout,options)=>{count++;assert.equal(options.context,context);assert.equal(options.kind,'standard');assert.equal(timeout,60000);assert.deepEqual(plan.documents,['web/csp/page.csp']);return {status:'compiled'};};
+  const adapter=require('../deploy-protected').frontendAdapter({mode:'direct',kind:'standard',sourceRoot:root,files:['csp/page.csp']},config,mcp,context);
+  assert.equal((await adapter.batch()).status,'verified');assert.equal(count,1);
+ } finally {frontend.uploadBatch=originalUpload;csp.compile=originalCompile;fs.rmSync(root,{recursive:true,force:true});}
+});
+
+test('compile dispatch diagnostics retain safe code without echoing exception messages', async () => {
+ let calls=0;
+ const result=await execute(plan,async()=>evidence,async()=>{calls++;throw Object.assign(new Error('private-value'),{code:'session-legacy-pool-unresolved',beforeSend:true});});
+ assert.equal(result.reason,'session-legacy-pool-unresolved');assert.equal(result.beforeSend,true);assert.equal(calls,1);assert.equal(JSON.stringify(result).includes('private-value'),false);
+});

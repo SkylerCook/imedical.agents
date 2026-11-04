@@ -48,7 +48,9 @@ async function serve({root, open = backends.open, describe = backends.operation,
         if (!socket.destroyed) socket.write(JSON.stringify({id: value.id, error: {
           code: /^[a-z0-9-]+$/.test(error.code || '') ? error.code : 'session-operation-failed', beforeSend: error.beforeSend === true,
           ...(error.sessionUncertain === true ? {sessionUncertain:true} : {}),
-          ...(['unknown','rejected'].includes(error.writeOutcome) ? {writeOutcome:error.writeOutcome} : {})
+          ...(['unknown','rejected'].includes(error.writeOutcome) ? {writeOutcome:error.writeOutcome} : {}),
+          ...(error.toolResponse ? {toolResponse:error.toolResponse} : {}),
+          ...(error.toolErrorCode ? {toolErrorCode:error.toolErrorCode} : {})
         }}) + '\n');
       }).finally(() => {requests.delete(value.id); lastActive = Date.now();});
     });

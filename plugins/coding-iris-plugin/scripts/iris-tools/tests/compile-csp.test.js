@@ -20,6 +20,8 @@ async function server(t, handler) {
 test('single batch compiles exactly requested CSPs with elapsed time', async t => {
   let calls = 0;
   const options = await server(t, (req,res) => {
+    if (req.method === 'HEAD') {res.writeHead(401);res.end();return;}
+    res.setHeader('Set-Cookie','CSPSESSIONID=compile-fixture; Path=/api/atelier/');
     calls++;
     assert.equal(req.method, 'POST');
     assert.equal(req.url, '/api/atelier/v1/TEST/action/compile?flags=cuk&source=0');
@@ -98,4 +100,15 @@ test('on-demand standalone CSP compile branches by explicit demand kind without 
   assert.equal(calls, 2);
   assert.equal(require('../compile-csp').args(['--kind', 'standard']).kind, 'standard');
   assert.throws(() => require('../compile-csp').args(['--kind', 'unknown']), /explicit-demand-kind-required/);
+});
+
+test('successful compile retains a logout warning without becoming an unknown compilation', async t => {
+  let compiles=0,logouts=0;
+  const options=await server(t,(req,res)=>{
+    if(req.method==='HEAD'){logouts++;res.writeHead(404);res.end();return;}
+    compiles++;res.setHeader('Set-Cookie','CSPSESSIONID=compile-warning; Path=/api/atelier/');res.end(JSON.stringify(good));
+  });
+  const result=await compile(options,plan(['web/csp/a.csp'],'web/csp'));
+  assert.equal(result.status,'compiled');assert.equal(result.remoteExit.cleanupVerified,false);assert.equal(result.remoteExit.localResourcesClosed,true);
+  assert.equal(compiles,1);assert.equal(logouts,1);
 });

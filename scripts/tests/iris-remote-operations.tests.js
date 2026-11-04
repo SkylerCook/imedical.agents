@@ -40,7 +40,7 @@ test('local status and reconciliation honor the configured MCP server name witho
     const run = args => spawnSync(process.execPath,[path.resolve(__dirname,'../iris-remote.js'),...args,'--project-root',f.root],{encoding:'utf8',windowsHide:true,timeout:10000});
     const status = run(['status']); assert.equal(status.status,0,status.stderr);
     const value = JSON.parse(status.stdout); assert.equal(value.status,'reconciliation-required');
-    const reconciled = run(['reconcile','--confirm','--token',value.reconciliationToken,'--evidence',path.join(f.root,'qualification.json')]);
+    const reconciled = run(['reconcile','--confirm','--token',value.reconciliationToken,'--evidence',path.join(f.root,'qualification.json'),'--write-outcome','verified-not-applied']);
     assert.equal(reconciled.status,0,reconciled.stderr); assert.equal(JSON.parse(reconciled.stdout).status,'reconciled');
   }
 });
@@ -75,7 +75,7 @@ test('503 opens a persistent circuit and unknown writes keep reconciliation evid
   const f = fixture(t), owner = remote.createRemoteOperation({ policy: f.selected(), connection: f.connection });
   await assert.rejects(owner.run({}, async () => { throw Object.assign(Error('unavailable'), { status: 503 }); }));
   assert.equal(owner.close().status, 'circuit-open');
-  assert.throws(() => remote.createRemoteOperation({ policy: f.selected(), connection: f.connection }).acquire(), /reconciliation-required/);
+  assert.throws(() => remote.createRemoteOperation({ policy: f.selected(), connection: f.connection }).acquire(), /cooling-down/);
   const second = fixture(t), writer = remote.createRemoteOperation({ policy: second.selected(), connection: second.connection });
   await assert.rejects(writer.run({ effects: 'write' }, async () => { throw Error('timeout'); }));
   assert.equal(writer.close().status, 'reconciliation-required');
@@ -129,7 +129,7 @@ test('Atelier 503 is not retried and prevents another batch call', async t => {
   t.after(() => { server.closeAllConnections(); server.close(); });
   const client = createAtelierClient({ context: f.context, policy: f.policy, connection: { protocol: 'http:', hostname: '127.0.0.1', port: server.address().port, namespace: 'TEST' } });
   await assert.rejects(client.readDocument('Demo.cls'), error => error.status === 503);
-  await assert.rejects(client.readDocument('Other.cls'), /reconciliation-required/);
+  await assert.rejects(client.readDocument('Other.cls'), /cooling-down/);
   await client.close(); assert.equal(calls, 1);
 });
 test('explicit recovery reads hold the blocked pool and cannot replay unknown writes or use stale tokens', async t => {
@@ -154,7 +154,9 @@ test('explicit recovery reads hold the blocked pool and cannot replay unknown wr
   assert.throws(()=>createAtelierRecoveryReader({...options,token,confirmRecovery:false}),/confirmation-required/);
   assert.throws(()=>createAtelierRecoveryReader({...options,token,documents:Array.from({length:6},(_,i)=>i+'.cls')}),/documents-invalid/);
   const ordinary=createAtelierClient({context:f.context,policy,connection});
-  await assert.rejects(ordinary.readDocument('Demo.cls',{recoveryRead:true,token,confirmRecovery:true}),/reconciliation-required/);await ordinary.close();
+  assert.equal((await ordinary.readDocument('Demo.cls')).text,'Class Demo {}');await ordinary.close();
+  token=remote.poolStatus({policy}).reconciliationToken;
+  const ordinaryEventCount=events.length;
   const reader=createAtelierRecoveryReader({...options,token});
   const restrictedOwner=remote.createRecoveryReadOperation({policy,connection,documents:['Demo.cls'],token,confirmRecovery:true});
   const generic=createAtelierClient({context:f.context,policy,connection,owner:restrictedOwner});
@@ -165,7 +167,7 @@ test('explicit recovery reads hold the blocked pool and cannot replay unknown wr
   await assert.rejects(reader.compile(['Demo.cls']),/read-only/);
   await assert.rejects(reader.request('POST','docs',['Demo.cls']),/read-only/);
   await assert.rejects(reader.readDocument('Undeclared.cls'),/read-only/);
-  assert.equal(events.length,0);
+  assert.equal(events.length,ordinaryEventCount);
   assert.equal((await reader.readDocument('Demo.cls')).text,'Class Demo {}');
   assert.equal(remote.poolStatus({policy}).ownerAlive,true);
   assert.equal(remote.poolStatus({policy}).status,'reconciliation-required');
@@ -174,12 +176,12 @@ test('explicit recovery reads hold the blocked pool and cannot replay unknown wr
   const receipt=await reader.close(), after=remote.poolStatus({policy});
   assert.equal(receipt.schema,'iris-remote-inspection/v1');assert.equal(receipt.writeEnabled,false);
   assert.equal(receipt.cleanupVerified,true);assert.equal(after.status,'reconciliation-required');
-  assert.equal(after.pendingEffects,'write');assert.notEqual(after.reconciliationToken,token);
-  assert.deepEqual(events.map(event=>event.method),['GET','HEAD']);
-  assert.equal(events[1].path,'/api/atelier/?CacheLogout=end');
+  assert.equal(after.unresolvedWrites.length,1);assert.notEqual(after.reconciliationToken,token);
+  assert.deepEqual(events.slice(ordinaryEventCount).map(event=>event.method),['GET','HEAD']);
+  assert.equal(events[ordinaryEventCount+1].path,'/api/atelier/?CacheLogout=end');
   const expired=createAtelierRecoveryReader({...options,token});
   await assert.rejects(expired.readDocument('Demo.cls'),/state-changed/);await expired.close();
-  assert.equal(events.length,2);
+  assert.equal(events.length,ordinaryEventCount+2);
   assert.throws(()=>remote.reconcileRemotePool({policy,token:after.reconciliationToken,evidenceFile:path.join(f.root,'qualification.json'),confirm:true}),/write-reconciliation-required/);
 });
 test('recovery read stops on another 503 without clearing the circuit or retrying', async t => {
@@ -247,7 +249,7 @@ test('recovery CLI reads at most declared docs, persists private evidence and le
   assert.equal(evidence.documents[1].found,false);assert.equal(output.remote.writeEnabled,false);assert.equal(output.remote.cleanupVerified,true);
   assert.equal(remote.poolStatus({policy}).status,'circuit-open');assert.notEqual(remote.poolStatus({policy}).reconciliationToken,token);
   assert.deepEqual(events.map(event=>event.method),['GET','GET','HEAD']);assert.equal(result.stdout.includes('synthetic-secret'),false);
-  assert.throws(()=>remote.createRemoteOperation({policy,connection}).acquire(),/reconciliation-required/);
+  assert.throws(()=>remote.createRemoteOperation({policy,connection}).acquire(),/cooling-down/);
 });
 test('Broker joins the same pool circuit and required policy blocks before network', async t => {
   const f = fixture(t); let calls = 0;
@@ -275,4 +277,33 @@ test('managed MCP qualifies process exit before spawn and keeps the pool circuit
   const checked=run('check');assert.equal(checked.status,0,checked.stderr);assert.equal(JSON.parse(checked.stdout).REMOTE.processExited,true);
   assert.equal(run('call','iris_doc','{}').status,1);
   const before=fs.readFileSync(path.join(f.root,'requests.jsonl'),'utf8');assert.equal(run('check').status,1);assert.equal(fs.readFileSync(path.join(f.root,'requests.jsonl'),'utf8'),before);
+});
+
+test('pending managed recovery admits only declared GETs and preserves unknown writes', async t => {
+ const f=fixture(t), priorHome=os.homedir;os.homedir=()=>f.root;t.after(()=>{os.homedir=priorHome;});
+ fs.writeFileSync(path.join(f.context.contextRoot,'config/iris-session-backend.json'),'{}');
+ const pending={...f.policy,admissionMode:'managed-single-session',qualification:{status:'pending'}};
+ const events=[];
+ const server=require('node:http').createServer((req,res)=>{
+  events.push(req.method);
+  if(req.method==='HEAD'){res.writeHead(401);res.end();return;}
+  res.setHeader('Set-Cookie','CSPSESSIONID=recovery; Path=/api/atelier/');
+  res.end(JSON.stringify({status:{errors:[]},result:{content:['read evidence'],ts:'2026-10-24 01:02:03.000'}}));
+ });
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(()=>{server.closeAllConnections();server.close();});
+ const connection={protocol:'http:',hostname:'127.0.0.1',port:server.address().port,namespace:'TEST'};
+ assert.throws(()=>remote.loadRemotePolicy(f.context,{policy:pending,connection}),/remote-policy-invalid/);
+ const selected=remote.loadRemotePolicy(f.context,{policy:pending,connection,recoveryRead:true});
+ assert.equal(selected.recoveryReadOnly,true);
+ assert.throws(()=>remote.createRemoteOperation({policy:selected,connection}).acquire(),/remote-recovery-read-only/);
+ const old=remote.createRemoteOperation({policy:{...selected,recoveryReadOnly:false},connection});
+ await assert.rejects(old.run({effects:'write'},async()=>{throw Error('lost old result');}));old.close();
+ const before=remote.poolStatus({policy:selected});
+ const reader=createAtelierRecoveryReader({context:f.context,policy:pending,connection,documents:['Demo.cls'],token:before.reconciliationToken,confirmRecovery:true});
+ assert.equal((await reader.readDocument('Demo.cls')).text,'read evidence');
+ await assert.rejects(reader.readDocument('Other.cls'),/read-only/);await assert.rejects(reader.compile(['Demo.cls']),/read-only/);
+ const exit=await reader.close();assert.equal(exit.cleanupVerified,true);
+ assert.equal(remote.poolStatus({policy:selected}).unresolvedWrites.length,1);assert.equal(remote.poolStatus({policy:selected}).status,'reconciliation-required');
+ assert.deepEqual(events,['GET','HEAD']);
+ const disabled={...pending,enabled:false};assert.throws(()=>remote.loadRemotePolicy(f.context,{policy:disabled,connection,recoveryRead:true}),/remote-policy-required|remote-policy-invalid/);
 });

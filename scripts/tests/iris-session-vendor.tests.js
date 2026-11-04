@@ -108,6 +108,8 @@ test('actual startup stops probe and queued operations: '+startupMode,{skip:proc
   assert.deepEqual(results.map(x=>x.status),['rejected','rejected']);
   assert.equal(results[1].reason.beforeSend,true);
   assert.deepEqual(seen,startupMode==='503-cookie'?['GET /api/atelier/','GET /api/atelier/?IRISLogout=end']:['GET /api/atelier/']);
-  assert.equal(host.manager.status()[0].blocked,startupMode==='redirect'?'session-identity-unverified':'session-service-unavailable');
+  assert.equal(host.manager.status()[0].blocked,null);
+  assert.ok(host.manager.status()[0].retryAfter>Date.now());
+  assert.equal(host.manager.status()[0].unresolvedWrites.length,0);
 });
 }

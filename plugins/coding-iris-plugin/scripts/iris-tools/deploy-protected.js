@@ -134,7 +134,7 @@ function frontendAdapter(a,config,mcp,context){
    try{for(const f of plan.files){const r=await probe.request({mode:'read',remotePath:f.remotePath});if(r.status!=='verified'||r.content===null||guard.hash(Buffer.from(r.content,'base64'))!==guard.hash(fs.readFileSync(f.localPath)))return false;}return true;}finally{await probe.close();}
   }, async batch(){
    const result=await frontend.execute(plan,p=>frontend.uploadBatch(a.python||server.command,batchPath,env,p),
-    documents=>csp.compile(conn,{documents}));
+    documents=>csp.compile(conn,{documents},60000,{context,kind:a.kind}));
    result.timings.localPreflightMs=localPreflightMs;
    return result;
   }};

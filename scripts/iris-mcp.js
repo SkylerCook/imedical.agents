@@ -537,7 +537,7 @@ async function createManagedMcpSession({projectRoot, context, serverName = 'iris
       snapshot(){return {schema:'iris-remote-operation/v1',channel:'mcp',status:unknown?'reconciliation-required':closed?'closed':'ready',managedSession:true,licenseReleaseVerified:false};},
       async close(){
         if(closed)return this.snapshot();closed=true;
-        try {if(unknown)await client.markUnknown();const result=await client.endSession();return {...this.snapshot(),...result.exit,status:result.blocked?'reconciliation-required':'closed'};}
+        try {if(unknown)await client.markUnknown();const result=await client.endSession();return {...this.snapshot(),...result.exit,unresolvedWrites:result.unresolvedWrites,warning:result.warning,status:result.blocked || result.unresolvedWrites?.length?'reconciliation-required':result.warning?'warning':'closed'};}
         finally{await client.close();}
       }
     };
@@ -696,6 +696,7 @@ module.exports = {
 
 if (require.main === module) {
   main().catch((error) => {
+    if (hasFlag('--json')) console.log(JSON.stringify({ERROR:{code:error.code || 'iris-operation-failed',beforeSend:error.beforeSend===true,...(error.toolResponse ? {toolResponse:error.toolResponse} : {}),...(error.toolErrorCode ? {toolErrorCode:error.toolErrorCode} : {})}}));
     console.error('ERROR=' + error.message);
     process.exitCode = 1;
   });

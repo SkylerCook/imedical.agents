@@ -53,7 +53,7 @@ function createAtelierTransport({context, connection, root}) {
     },
     async close() {
       if (!client) return {cleanupVerified:true,noRemoteRequests:true,licenseReleaseVerified:false};
-      try {const result = await client.request('close',{projectRoot:context.workspaceRoot});return {...result.exit,sessionRetained:result.active};}
+      try {const result = await client.request('close',{projectRoot:context.workspaceRoot});return {...result.exit,sessionRetained:result.active,unresolvedWrites:result.unresolvedWrites,warning:result.warning};}
       finally {client.close();client=null;}
     }
   };
