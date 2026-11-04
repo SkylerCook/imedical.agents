@@ -8,7 +8,7 @@ function fixture(t){
   fs.mkdirSync(path.join(root,'.agents/scripts'),{recursive:true});fs.writeFileSync(path.join(root,'.agents/scripts/iris-session-mcp.js'),'');
   const executable=path.join(root,'.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe');
   fs.mkdirSync(path.dirname(executable),{recursive:true});fs.writeFileSync(executable,'fixture');
-  fs.writeFileSync(path.join(path.dirname(executable),'../managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v2',sha256:require('node:crypto').createHash('sha256').update('fixture').digest('hex')}));
+  fs.writeFileSync(path.join(path.dirname(executable),'../managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v3',sha256:require('node:crypto').createHash('sha256').update('fixture').digest('hex')}));
   const config={mcpServers:{'iris-agentic-dev':{command:executable,args:['mcp','--no-skills'],env:{IRIS_HOST:'example.invalid',IRIS_PASSWORD:'private-sample',IRIS_NAMESPACE:'TEST',IRIS_WEB_PORT:'443'}},other:{command:'keep'}}};
   const file=path.join(root,'.mcp.json');fs.writeFileSync(file,JSON.stringify(config));
   t.after(()=>{if(ownsTempDirectory(root))fs.rmSync(root,{recursive:true});});
@@ -19,6 +19,9 @@ test('dry run, write, repeated update, Check and rollback preserve credentials a
   assert.equal(migrate({projectRoot:f.root}).status,'planned');assert.equal(fs.readFileSync(f.file,'utf8'),original);
   assert.throws(()=>migrate({projectRoot:f.root,mode:'Check'}),/direct-entry/);
   assert.equal(migrate({projectRoot:f.root,mode:'Write'}).status,'applied');
+  const policy=JSON.parse(fs.readFileSync(path.join(f.root,'.agents/config/iris-remote-policy.json')));
+  assert.equal(policy.qualification,undefined);
+  assert.equal(require('../lib/iris-remote-operations').loadRemotePolicy({workspaceRoot:f.root,contextRoot:path.join(f.root,'.agents')}).enabled,true);
   const updated=JSON.parse(fs.readFileSync(f.file,'utf8'));assert.deepEqual(updated.mcpServers.other,f.config.mcpServers.other);
   assert.deepEqual(updated.mcpServers['iris-agentic-dev'].env,f.config.mcpServers['iris-agentic-dev'].env);
   assert.equal(migrate({projectRoot:f.root,mode:'Check'}).managed,true);
@@ -94,7 +97,7 @@ test('missing backend fails Check and explicit disabled survives migration',t=>{
 test('identical verified vendor copies share identity across projects and env key order',t=>{
   const a=fixture(t),b=fixture(t),describe=require('../lib/iris-session-backends').describe;
   const sha256=require('node:crypto').createHash('sha256').update('fixture').digest('hex');
-  for(const f of [a,b])fs.writeFileSync(path.join(f.root,'.agents/vendor/iris-agentic-dev/managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v2',sha256}));
+  for(const f of [a,b])fs.writeFileSync(path.join(f.root,'.agents/vendor/iris-agentic-dev/managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v3',sha256}));
   b.config.mcpServers['iris-agentic-dev'].env=Object.fromEntries(Object.entries(b.config.mcpServers['iris-agentic-dev'].env).reverse());
   fs.writeFileSync(b.file,JSON.stringify(b.config));
   assert.equal(describe(a.root).identity,describe(b.root).identity);

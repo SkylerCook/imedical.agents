@@ -3,17 +3,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const {createAtelierClient} = require('../lib/atelier-client');
-const remote = require('../lib/iris-remote-operations');
-
-test('format compatibility requires an explicit binding to the verified instance', () => {
-  const connection={protocol:'https:',hostname:'example.invalid',port:443};
-  assert.equal(remote.sessionCookieFormat({},connection),'opaque');
-  assert.throws(()=>remote.sessionCookieFormat({sessionCookieFormat:'guessed'},connection), e=>e.beforeSend===true);
-  assert.throws(()=>remote.sessionCookieFormat({sessionCookieFormat:'csp50-v1'},connection), /target-unverified/);
-  const policy={sessionCookieFormat:'csp50-v1',sessionCookieFormatInstance:remote.instanceIdentity(connection)};
-  assert.equal(remote.sessionCookieFormat(policy,connection),'csp50-v1');
-  assert.throws(()=>remote.sessionCookieFormat(policy,{...connection,port:8443}), /target-unverified/);
-});
 
 async function fixture(t, mode, options = {}) {
   const requests = []; let sequence = 0;
@@ -29,10 +18,11 @@ async function fixture(t, mode, options = {}) {
     if (sequence === 2 && mode === 'deleted-cookie') headers['set-cookie'] = 'CSPSESSIONID=; Max-Age=0; Path=/';
     if (sequence === 2 && mode === 'rotation') headers['set-cookie'] = 'CSPSESSIONID=different-session; Path=/';
     if (mode === 'refresh') headers['set-cookie'] = 'CSPSESSIONID=' + (sequence === 1 ? 'A'.repeat(8) : 'B'.repeat(8)) + 'C'.repeat(14) + (sequence === 1 ? 'D'.repeat(28) : 'E'.repeat(28)) + '; Path=/';
+    if (mode === 'continuous-refresh') headers['set-cookie'] = 'CSPSESSIONID=token-' + sequence + '; Path=/';
     if (sequence === 2 && mode === 'scope-change') headers['set-cookie'] = 'CSPSESSIONID=first-session; Path=/api/atelier/';
     if (mode === 'foreign-domain') headers['set-cookie'] = 'CSPSESSIONID=first-session; Domain=example.invalid; Path=/';
     if (sequence === 2 && mode === 'expired-cookie') headers['set-cookie'] = 'CSPSESSIONID=first-session; Expires=Thu, 01 Jan 1970 00:00:01 GMT; Path=/';
-    res.writeHead(200, headers); res.end(JSON.stringify({result: {content: []}}));
+    res.writeHead(sequence > 1 && /^auth-/.test(mode) ? Number(mode.slice(5)) : 200, headers); res.end(JSON.stringify({result: {content: []}}));
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const client = createAtelierClient({managedHost: true, timeoutMs: 2000, connection: {
@@ -43,7 +33,7 @@ async function fixture(t, mode, options = {}) {
   return {client, requests, read: () => client.request('GET', 'probe')};
 }
 
-for (const mode of ['rotation', 'deleted-cookie', 'scope-change', 'expired-cookie']) {
+for (const mode of ['deleted-cookie', 'scope-change', 'expired-cookie']) {
   test(mode + ' stops further dispatch and retains an unverified cleanup state', async t => {
     const f = await fixture(t, mode); await f.read();
     await assert.rejects(f.read(), e => e.sessionUncertain === true && e.beforeSend === false);
@@ -53,17 +43,39 @@ for (const mode of ['rotation', 'deleted-cookie', 'scope-change', 'expired-cooki
     assert.equal((await f.client.close()).cleanupVerified, false);
   });
 }
-test('explicit verified format permits token renewal without authenticating again', async t => {
-  const f = await fixture(t, 'refresh', {sessionCookieFormat:'csp50-v1'});
+test('token renewal needs no cookie format registration or repeated authentication', async t => {
+  const f = await fixture(t, 'refresh');
   await f.read(); await f.read(); await f.read();
   assert.equal(f.requests.filter(r => r.authenticated).length, 1);
   assert.match(f.requests[2].cookie, /BBBBBBBB/);
   assert.equal((await f.client.close()).cleanupVerified, true);
 });
-test('unverified formats do not infer fixed identity from token length', async t => {
-  const f = await fixture(t, 'refresh'); await f.read();
-  await assert.rejects(f.read(), e => e.sessionUncertain === true);
+test('opaque rotation is reused even with obsolete format settings', async t => {
+  const f = await fixture(t, 'rotation', {policy:{sessionCookieFormat:'obsolete',sessionCookieFormatInstance:'stale'}});
+  await f.read(); await f.read(); await f.read();
+  assert.equal(f.requests[2].cookie,'CSPSESSIONID=different-session');
+  assert.equal(f.requests.filter(r=>r.authenticated).length,1);
+  assert.equal((await f.client.close()).cleanupVerified,true);
 });
+test('100 renewed tokens reuse one authentication and logout uses the latest cookie', async t => {
+  const f = await fixture(t, 'continuous-refresh');
+  for(let i=0;i<100;i++) await f.read();
+  assert.equal(f.requests.length,100);
+  assert.equal(f.requests.filter(r=>r.authenticated).length,1);
+  for(let i=1;i<100;i++) assert.equal(f.requests[i].cookie,'CSPSESSIONID=token-'+i);
+  await f.client.close();
+  assert.equal(f.requests.at(-1).method,'HEAD');
+  assert.equal(f.requests.at(-1).cookie,'CSPSESSIONID=token-100');
+});
+for (const status of [401,403]) {
+  test('authentication failure '+status+' stops without reauthenticating or replaying', async t => {
+    const f = await fixture(t, 'auth-'+status); await f.read();
+    await assert.rejects(f.read(), error=>error.status===status && error.sessionUncertain===true);
+    await assert.rejects(f.read(), error=>error.beforeSend===true);
+    assert.equal(f.requests.length,2);
+    assert.equal(f.requests.filter(r=>r.authenticated).length,1);
+  });
+}
 test('foreign-domain session cookie is never sent back', async t => {
   const f = await fixture(t, 'foreign-domain');
   await assert.rejects(f.read(), e => e.sessionUncertain === true);

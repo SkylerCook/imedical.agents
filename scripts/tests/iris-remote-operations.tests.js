@@ -62,7 +62,7 @@ test('managed write risk has one durable owner and recovery does not require log
   resumed.close();
 });
 
-test('cookie uncertainty does not turn a rejected PUT into an unknown write', async t => {
+test('cookie renewal does not turn a rejected PUT into an unknown write', async t => {
   const f=fixture(t), http=require('node:http'); let puts=0;
   const server=http.createServer((req,res)=>{
     req.resume();
@@ -76,14 +76,39 @@ test('cookie uncertainty does not turn a rejected PUT into an unknown write', as
   const client=createAtelierClient({connection,context:f.context,policy:f.policy});
   t.after(async()=>{await client.close();await new Promise(resolve=>server.close(resolve));});
   await client.request('GET','probe');
-  await assert.rejects(client.writeDocument('Demo.A.cls','Class Demo.A {}'),e=>e.status===405 && e.sessionUncertain && e.writeOutcome==='rejected');
+  await assert.rejects(client.writeDocument('Demo.A.cls','Class Demo.A {}'),e=>e.status===405 && !e.sessionUncertain && e.writeOutcome==='rejected');
   await client.close();
   assert.equal(puts,1);
   const state=remote.poolStatus({policy:f.policy});
   assert.equal(state.unresolvedWrites.length,0);
   assert.equal(state.ownerPresent,false);
-  assert.ok(state.warning);
+  assert.equal(state.warning,null);
 });
+test('ordinary Atelier reads uploads and compilation accept pending registration and rotating cookies', async t => {
+  const f=fixture(t), http=require('node:http'), requests=[];
+  f.policy.qualification={status:'pending',reference:'missing.json'};
+  const server=http.createServer((req,res)=>{
+    req.resume();
+    requests.push({method:req.method,authenticated:!!req.headers.authorization,cookie:req.headers.cookie});
+    if(req.method!=='HEAD')res.setHeader('Set-Cookie','CSPSESSIONID=token-'+requests.length+'; Path=/');
+    res.setHeader('Content-Type','application/json');
+    res.end(JSON.stringify({result:{name:'Demo.A.cls',content:[],ts:'2026-01-01 00:00:00'}}));
+  });
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const connection={...f.connection,protocol:'http:',hostname:'127.0.0.1',port:server.address().port,username:'synthetic',password:'synthetic'};
+  const client=createAtelierClient({connection,context:f.context,policy:f.policy});
+  t.after(async()=>{try {await client.close();} finally {server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}});
+  await client.readDocument('Demo.A.cls');
+  await client.writeDocument('Demo.A.cls','Class Demo.A {}');
+  await client.compile(['Demo.A.cls']);
+  await client.readDocument('Demo.A.cls');
+  assert.deepEqual(requests.map(r=>r.method),['GET','PUT','POST','GET']);
+  assert.equal(requests.filter(r=>r.authenticated).length,1);
+  assert.equal(requests[3].cookie,'CSPSESSIONID=token-3');
+  await client.close();
+  assert.equal(remote.poolStatus({policy:f.policy}).unresolvedWrites.length,0);
+});
+
 test('on-demand policy fails closed before a remote request and legacy remains compatible', t => {
   const f = fixture(t, true);
   assert.throws(() => remote.loadRemotePolicy(f.context, { connection: f.connection }), /remote-policy-required/);
@@ -328,14 +353,13 @@ test('Broker joins the same pool circuit and required policy blocks before netwo
   const required=fixture(t,true);
   assert.equal((await broker.callBroker({...options,context:required.context})).errorCode,'remote-policy-required');assert.equal(calls,1);
 });
-test('managed MCP qualifies process exit before spawn and keeps the pool circuit on 503', t => {
+test('managed MCP verifies actual process exit without historical qualification and keeps the pool circuit on 503', t => {
   const f=fixture(t,true), helper=path.resolve(__dirname,'../iris-mcp.js');
   fs.writeFileSync(path.join(f.root,'.mcp.json'),JSON.stringify({mcpServers:{'iris-agentic-dev':{command:process.execPath,env:{IRIS_HOST:'synthetic.invalid',IRIS_WEB_PORT:'443',IRIS_SCHEME:'https',IRIS_NAMESPACE:'TEST'}}}}));
   fs.writeFileSync(path.join(f.root,'mcp'),`const fs=require('node:fs');require('node:readline').createInterface({input:process.stdin}).on('line',line=>{const q=JSON.parse(line);fs.appendFileSync('requests.jsonl',line+'\\n');if(!q.id)return;let result={};if(q.method==='tools/list')result={tools:['check_config','iris_doc'].map(name=>({name,inputSchema:{type:'object',properties:{}}}))};if(q.method==='tools/call')result=q.params.name==='check_config'?{content:[{type:'text',text:'{"connected":true,"host":"synthetic.invalid","port":443,"namespace":"TEST"}'}]}:{isError:true,content:[{type:'text',text:'HTTP 503 Service Unavailable'}]};process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:q.id,result})+'\\n');});`);
   fs.writeFileSync(path.join(f.context.contextRoot,'config/iris-remote-policy.json'),JSON.stringify(f.policy));
   const run=(...args)=>spawnSync(process.execPath,[helper,...args,'--json'],{cwd:f.root,encoding:'utf8',timeout:10000});
-  assert.equal(run('check').status,1);assert.equal(fs.existsSync(path.join(f.root,'requests.jsonl')),false);
-  f.policy.qualification.channels={mcp:{processExitVerified:true}};
+  f.policy.qualification={status:'pending'};
   fs.writeFileSync(path.join(f.context.contextRoot,'config/iris-remote-policy.json'),JSON.stringify(f.policy));
   const checked=run('check');assert.equal(checked.status,0,checked.stderr);assert.equal(JSON.parse(checked.stdout).REMOTE.processExited,true);
   assert.equal(run('call','iris_doc','{}').status,1);
@@ -355,7 +379,7 @@ test('pending managed recovery admits only declared GETs and preserves unknown w
  });
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));t.after(()=>{server.closeAllConnections();server.close();});
  const connection={protocol:'http:',hostname:'127.0.0.1',port:server.address().port,namespace:'TEST'};
- assert.throws(()=>remote.loadRemotePolicy(f.context,{policy:pending,connection}),/remote-policy-invalid/);
+ assert.equal(remote.loadRemotePolicy(f.context,{policy:pending,connection}).enabled,true);
  const selected=remote.loadRemotePolicy(f.context,{policy:pending,connection,recoveryRead:true});
  assert.equal(selected.recoveryReadOnly,true);
  assert.throws(()=>remote.createRemoteOperation({policy:selected,connection}).acquire(),/remote-recovery-read-only/);

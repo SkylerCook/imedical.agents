@@ -15,18 +15,13 @@ function normalizeConnection(input = {}) {
   return { protocol, hostname, port, path: base, auth: input.auth || (input.username ? input.username + ':' + (input.password || '') : undefined), rejectUnauthorized: input.rejectUnauthorized ?? input.tlsVerify ?? true,
     ...(input.ca ? { ca: input.ca } : {}) };
 }
-function createAtelierClient({ connection, context, policy, qualification, owner: sharedOwner, managedHost = false, sessionCookieFormat, timeoutMs = 60000, maxResponseBytes = 16 * 1024 * 1024 } = {}) {
+function createAtelierClient({ connection, context, policy, qualification, owner: sharedOwner, managedHost = false, timeoutMs = 60000, maxResponseBytes = 16 * 1024 * 1024 } = {}) {
   remote.assertRemoteAllowed(context || {});
   const conn = normalizeConnection(connection);
   const transport = !managedHost && !qualification && !sharedOwner && context?.contextRoot &&
     require('node:fs').existsSync(require('node:path').join(context.contextRoot, 'config', 'iris-session-backend.json'))
     ? require('./iris-session-client').createAtelierTransport({context, connection: conn}) : null;
   const selected = managedHost || transport ? {enabled:false} : remote.loadRemotePolicy(context || {}, { connection: conn, policy, qualification });
-  const cookieFormat = sessionCookieFormat ?? remote.sessionCookieFormat(selected, conn);
-  if (!['opaque', 'csp50-v1'].includes(cookieFormat)) throw new remote.RemoteOperationError('atelier-cookie-format-invalid', {beforeSend:true});
-  // Opt-in only: this layout must be verified against the target server version.
-  const cookieIdentity = value => cookieFormat === 'csp50-v1' && /^[A-Za-z0-9_$]{50}$/.test(value)
-    ? 'csp50:' + value.slice(8, 22) : 'opaque:' + value;
   const owner = sharedOwner || remote.createRemoteOperation({ policy: selected, connection: conn, channel: 'atelier' });
   const agent = conn.protocol === 'https:' ? new https.Agent({ keepAlive: true, maxSockets: 1, rejectUnauthorized: conn.rejectUnauthorized, ...(conn.ca ? { ca: conn.ca } : {}) }) : new http.Agent({ keepAlive: true, maxSockets: 1 });
   const cookies = new Map();
@@ -89,12 +84,13 @@ function createAtelierClient({ connection, context, policy, qualification, owner
           else {nextCookies.set(name, content); nextScopes.set(name, scope);}
         }
         if (!options.logout) {
+          // Accept same-scope Set-Cookie renewal; opaque bytes are not license identity.
           const before = sessionCookies(cookies), after = sessionCookies(nextCookies);
-          if (before.length && (before.length !== after.length || before.some(([name, value]) => cookieIdentity(nextCookies.get(name) || '') !== cookieIdentity(value)))) invalidateSession();
+          if (before.length && (before.length !== after.length || before.some(([name]) => !nextCookies.has(name)))) invalidateSession();
           // Keep the last known cookie for best-effort logout after identity loss.
           // A later logout acknowledgement cannot prove the replacement session gone.
           if (!sessionUncertain) { cookies.clear(); cookieScopes.clear(); for (const [name, value] of nextCookies) cookies.set(name, value); for (const [name, scope] of nextScopes) cookieScopes.set(name, scope); }
-        } else if (sessionCookies(nextCookies).some(([name, value]) => !cookies.has(name) || cookieIdentity(value) !== cookieIdentity(cookies.get(name)))) {
+        } else if (sessionCookies(nextCookies).some(([name, value]) => !cookies.has(name) || value !== cookies.get(name))) {
           // A logout endpoint can create a fresh session; HTTP success alone is insufficient.
           invalidateSession();
         }
@@ -203,7 +199,7 @@ function createAtelierRecoveryReader({connection, context, policy, documents, to
   remote.assertRemoteAllowed(context || {});
   const conn = normalizeConnection(connection), selected = remote.loadRemotePolicy(context || {}, {connection:conn, policy, recoveryRead:true});
   const owner = remote.createRecoveryReadOperation({policy:selected, connection:conn, documents, token, confirmRecovery});
-  const client = createAtelierClient({connection:conn, context, policy:selected, owner, managedHost:true, sessionCookieFormat:remote.sessionCookieFormat(selected,conn), timeoutMs, maxResponseBytes});
+  const client = createAtelierClient({connection:conn, context, policy:selected, owner, managedHost:true, timeoutMs, maxResponseBytes});
   const denied = async () => { throw new remote.RemoteOperationError('remote-recovery-read-only', {beforeSend:true}); };
   return {async readDocument(name) { try { return await client.readDocument(name); } catch (error) { if (owner.snapshot().reads.length) owner.markUnknown(error.code || 'remote-inspection-document-invalid'); throw error; } }, request:denied, readDocuments:denied, writeDocument:denied, compile:denied,
     snapshot:owner.snapshot,

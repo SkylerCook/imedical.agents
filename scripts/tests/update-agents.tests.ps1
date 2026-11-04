@@ -88,6 +88,7 @@ function New-TestProject {
   Copy-Item -LiteralPath $overlayInitializerUnderTest -Destination (Join-Path $root ".agents/scripts/initialize-workspace-overlay.ps1")
   Copy-Item -LiteralPath $irisMcpHelperUnderTest -Destination (Join-Path $root ".agents/scripts/iris-mcp.js")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/iris-remote-operations.js") -Destination (Join-Path $root ".agents/scripts/lib/iris-remote-operations.js")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/iris-operation-scope.js") -Destination (Join-Path $root ".agents/scripts/lib/iris-operation-scope.js")
   Copy-Item -LiteralPath $agentOrchestratorUnderTest -Destination (Join-Path $root ".agents/scripts/agent-orchestrator.js")
   foreach ($runtimeFile in @(
     'lib/night-dispatch.js', 'lib/night-policy.js', 'lib/night-quota.js', 'lib/night-contract.js',
@@ -1752,7 +1753,8 @@ try {
   Assert-Contains $autoWritten "iris-development-config-v1" "Ordinary updates must execute the registered development migration"
   Assert-Contains $autoWritten "config-migration-applied" "Write must automatically create missing private configuration"
   Assert-True (Test-Path -LiteralPath $autoDevelopment) "Ordinary enabled-plugin update must create the development declaration"
-  Assert-True (Test-Path -LiteralPath $autoPolicy) "Ordinary enabled-plugin update must create the pending remote policy"
+  Assert-True (Test-Path -LiteralPath $autoPolicy) "Ordinary enabled-plugin update must create the minimal remote policy"
+  Assert-True (-not ((Get-Content -LiteralPath $autoPolicy -Raw -Encoding UTF8 | ConvertFrom-Json).PSObject.Properties.Name -contains "qualification")) "Fresh configuration must not manufacture license registration"
   Assert-True (-not ((Get-Content -LiteralPath $autoDevelopment -Raw -Encoding UTF8 | ConvertFrom-Json).PSObject.Properties.Name -contains "developmentMode")) "Automatic completion must preserve legacy implicit mode bindings"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $autoConfigProjectRoot ".agents/work/source-sync"))) "Updating configuration must not manufacture a source baseline"
   $autoDevelopmentBefore = [System.IO.File]::ReadAllBytes($autoDevelopment)
@@ -1760,6 +1762,24 @@ try {
   $autoRepeated = & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $autoConfigProjectRoot -Mode Write -NoPull -Detailed | Out-String
   Assert-True ([Convert]::ToBase64String($autoDevelopmentBefore) -eq [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoDevelopment))) "Repeated updates must preserve existing development bytes"
   Assert-True ([Convert]::ToBase64String($autoPolicyBefore) -eq [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoPolicy))) "Repeated updates must preserve existing policy bytes"
+  # Exercise the existing updater against an already deployed legacy policy.
+  $oldPolicy = [ordered]@{ schema = "iris-remote-policy/v1"; enabled = $false; poolKey = "fixture"; coordinationRoot = (Join-Path $autoConfigProjectRoot "coordination"); admissionMode = "managed-single-session"; maxConcurrent = 1; qualification = @{ status = "pending"; channels = @{ mcp = @{ processExitVerified = $false } } }; custom = "retain" }
+  $oldPolicy | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $autoPolicy -Encoding UTF8
+  $legacyBytes = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoPolicy))
+  foreach ($readMode in @("DryRun", "Check")) {
+    $previewCleanup = & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $autoConfigProjectRoot -Mode $readMode -NoPull -Detailed | Out-String
+    Assert-Contains $previewCleanup "Remove obsolete configuration" "Read-only updates must preview obsolete field cleanup"
+    Assert-True ($legacyBytes -eq [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoPolicy))) "Preview must not rewrite a deployed policy"
+  }
+  $cleanupOutput = & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $autoConfigProjectRoot -Mode Write -NoPull -Detailed | Out-String
+  Assert-Contains $cleanupOutput "Remove obsolete configuration" "Normal Write updates must clean existing obsolete fields"
+  $cleanPolicy = Get-Content -LiteralPath $autoPolicy -Raw -Encoding UTF8 | ConvertFrom-Json
+  Assert-True (-not ($cleanPolicy.PSObject.Properties.Name -contains "qualification")) "Unused license registration must be removed"
+  Assert-True (-not ($cleanPolicy.PSObject.Properties.Name -contains "admissionMode")) "Unused admissionMode must be removed"
+  Assert-True ($cleanPolicy.enabled -eq $false -and $cleanPolicy.custom -eq "retain") "Cleanup must preserve explicit disabled state and private additions"
+  $cleanBytes = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoPolicy))
+  & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $autoConfigProjectRoot -Mode Write -NoPull | Out-Null
+  Assert-True ($cleanBytes -eq [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoPolicy))) "Repeated cleanup must leave the policy byte-identical"
 } finally {
   Remove-Item -LiteralPath $autoConfigProjectRoot -Recurse -Force
 }

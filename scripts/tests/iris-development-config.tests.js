@@ -61,9 +61,10 @@ test('initialization creates required local configuration without reading connec
     assert.deepEqual(JSON.parse(fs.readFileSync(f.developmentFile)), {developmentMode: 'connected', environmentAlias: 'confirmed-test', environmentType: 'test'});
     const policy = JSON.parse(fs.readFileSync(f.policyFile));
     assert.equal(policy.enabled, false);
-    assert.equal(policy.qualification.status, 'pending');
+    assert.equal(policy.qualification, undefined);
+    assert.equal(policy.readBatch, undefined);
     assert.equal(result.remoteAdmission, 'pending');
-    assert.equal(result.remoteReason, 'remote-policy-not-qualified');
+    assert.equal(result.remoteReason, 'remote-policy-disabled');
     assert.throws(() => remote.loadRemotePolicy({contextRoot: f.contextRoot}), /remote-policy-required/);
     assert.equal(fs.existsSync(path.join(f.contextRoot, 'work/source-sync')), false);
     assert.equal(result.baseline, 'not-established-by-configure');
@@ -87,7 +88,7 @@ test('DryRun, Check and the default mode never create configuration or directori
     }
 });
 
-test('reruns preserve existing JSON bytes, unknown fields, pending qualification and recovery state', t => {
+test('configure preserves existing JSON bytes, unknown fields and recovery state', t => {
     const f = fixture(t);
     f.run();
     const development = '\ufeff{ "developmentMode": "connected", "environmentAlias": "confirmed-test", "environmentType": "test", "custom": 42 }\r\n';
@@ -282,6 +283,98 @@ test('automatic completion reports invalid or unignored configuration and perfor
     write(f.developmentFile, 'invalid JSON');
     assert.equal(migrate({projectRoot: f.root, mode: 'Write'})[0].reason, 'invalid-development-config');
     assert.equal(fs.existsSync(f.policyFile), false);
+});
+
+test('updating a deployed policy previews obsolete fields, cleans once and preserves live settings', t => {
+    const f=fixture(t); f.run();
+    const original={schema:'iris-remote-policy/v1',enabled:true,coordinationRoot:path.join(f.root,'coordination'),poolKey:'fixture',
+        admissionMode:'managed-single-session',maxConcurrent:1,allowSharedPool:false,sessionCookieFormat:'opaque',sessionCookieFormatInstance:'unused',
+        readBatch:{sessions:1,intervalMs:200,qualification:{status:'pending',reference:'<reviewed-read-qualification-file>',sha256:'<reviewed-evidence-sha256>'}},
+        qualification:{status:'pending',reference:'<local-qualification-evidence-file>',channels:{mcp:{processExitVerified:false,acceptInternalRetries:false}}},custom:{keep:true}};
+    write(f.policyFile,original);
+    const before=fs.readFileSync(f.policyFile), development=fs.readFileSync(f.developmentFile);
+    const recovery=path.join(f.contextRoot,'work/source-sync/tasks/old/plan.json');write(recovery,'existing recovery');
+    for (const mode of ['DryRun','Check']) {
+        const result=migrate({projectRoot:f.root,mode});
+        assert.ok(result.some(item=>item.status==='config-migration-planned' && item.reason.includes('processExitVerified')));
+        assert.deepEqual(fs.readFileSync(f.policyFile),before);
+    }
+    const result=migrate({projectRoot:f.root,mode:'Write'});
+    assert.ok(result.some(item=>item.status==='config-migration-applied' && item.reason.includes('admissionMode')));
+    const cleaned=JSON.parse(fs.readFileSync(f.policyFile));
+    assert.deepEqual(cleaned,{schema:original.schema,enabled:true,coordinationRoot:original.coordinationRoot,poolKey:'fixture',readBatch:{intervalMs:200},custom:{keep:true}});
+    assert.equal(remote.loadRemotePolicy({workspaceRoot:f.root,contextRoot:f.contextRoot}).enabled,true);
+    const after=fs.readFileSync(f.policyFile);
+    assert.ok(!migrate({projectRoot:f.root,mode:'Write'}).some(item=>item.status==='config-migration-applied'));
+    assert.deepEqual(fs.readFileSync(f.policyFile),after);
+    assert.deepEqual(fs.readFileSync(f.developmentFile),development);
+    assert.equal(fs.readFileSync(recovery,'utf8'),'existing recovery');
+});
+
+test('cleanup retains real export evidence, retry consent, shared pools and private fields', t => {
+    const f=fixture(t,{overlay:true});f.run();
+    const original={schema:'iris-remote-policy/v1',enabled:false,coordinationRoot:path.join(f.root,'pool'),poolKey:'shared',allowSharedPool:true,
+        sessionCookieFormat:'csp50-v1',sessionCookieFormatInstance:'fixture-bound-instance',
+        qualification:{status:'verified',reference:'base-evidence.json',channels:{mcp:{processExitVerified:true,acceptInternalRetries:true,custom:7}}},
+        readBatch:{sessions:4,intervalMs:500,qualification:{status:'verified',reference:'export-evidence.json',sha256:'existing-digest'}},
+        bulkQualification:{status:'verified',reference:'legacy-export.json'},custom:{keep:true}};
+    write(f.policyFile,original);
+    const expected=structuredClone(original);delete expected.qualification.channels.mcp.processExitVerified;delete expected.sessionCookieFormat;delete expected.sessionCookieFormatInstance;
+    const result=migrate({projectRoot:f.root,contextRoot:f.contextRoot,mode:'Write'});
+    assert.ok(result.some(item=>item.status==='config-migration-applied'));
+    assert.deepEqual(JSON.parse(fs.readFileSync(f.policyFile)),expected);
+    assert.equal(fs.existsSync(path.join(f.capabilityRoot,'config/iris-remote-policy.json')),false);
+});
+
+test('complete-code and offline deployed policies are cleaned without enabling remote access', t => {
+    for(const developmentMode of ['connected','offline']) {
+        const f=fixture(t,{onDemand:false});f.run({developmentMode,environmentAlias:undefined,environmentType:undefined});
+        write(f.policyFile,{schema:'iris-remote-policy/v1',enabled:false,qualification:{status:'pending'},admissionMode:'managed-single-session'});
+        const result=migrate({projectRoot:f.root,mode:'Write'});
+        assert.ok(result.some(item=>item.status==='config-migration-applied'));
+        assert.deepEqual(JSON.parse(fs.readFileSync(f.policyFile)),{schema:'iris-remote-policy/v1',enabled:false});
+        assert.equal(JSON.parse(fs.readFileSync(f.developmentFile)).developmentMode,developmentMode);
+    }
+});
+
+test('cleanup preserves pending real export evidence and never overwrites a concurrent edit', t => {
+    const f=fixture(t);f.run();
+    const original={schema:'iris-remote-policy/v1',enabled:false,qualification:{status:'pending',reference:'actual-trial.json'},admissionMode:'managed-single-session'};
+    write(f.policyFile,original);
+    const originalWrite=fs.writeFileSync;
+    fs.writeFileSync=function(file,...args) {
+        const result=originalWrite.call(this,file,...args);
+        if(String(file).startsWith(f.policyFile+'.') && String(file).endsWith('.tmp')) originalWrite.call(this,f.policyFile,JSON.stringify({...original,custom:'concurrent'}));
+        return result;
+    };
+    let result;
+    try {result=migrate({projectRoot:f.root,mode:'Write'});} finally {fs.writeFileSync=originalWrite;}
+    assert.ok(result.some(item=>item.reason==='development-config-concurrent-change'));
+    assert.equal(JSON.parse(fs.readFileSync(f.policyFile)).custom,'concurrent');
+    assert.equal(fs.readdirSync(path.dirname(f.policyFile)).filter(name=>name.endsWith('.tmp')).length,0);
+    migrate({projectRoot:f.root,mode:'Write'});
+    assert.deepEqual(JSON.parse(fs.readFileSync(f.policyFile)).qualification,original.qualification);
+});
+
+test('cleanup leaves unknown schemas, linked files and invalid private text untouched', t => {
+    const f=fixture(t,{onDemand:false});f.run({developmentMode:'offline'});
+    const future={schema:'iris-remote-policy/v2',admissionMode:'future',custom:true};write(f.policyFile,future);
+    migrate({projectRoot:f.root,mode:'Write'});
+    assert.deepEqual(JSON.parse(fs.readFileSync(f.policyFile)),future);
+    fs.writeFileSync(f.policyFile,'private-invalid-text');
+    const invalid=migrate({projectRoot:f.root,mode:'Write'});
+    assert.ok(invalid.some(item=>item.reason==='invalid-development-config'));
+    assert.equal(JSON.stringify(invalid).includes('private-invalid-text'),false);
+    assert.equal(fs.readFileSync(f.policyFile,'utf8'),'private-invalid-text');
+    const legacy={schema:'iris-remote-policy/v1',enabled:false,qualification:{status:'pending',reference:null,sha256:''}};
+    write(f.policyFile,legacy);
+    const linked=path.join(f.root,'hardlink.fixture');fs.linkSync(f.policyFile,linked);
+    const result=migrate({projectRoot:f.root,mode:'Write'});
+    assert.ok(result.some(item=>item.reason==='private-config-is-hardlink'));
+    assert.deepEqual(JSON.parse(fs.readFileSync(linked)),legacy);
+    fs.unlinkSync(linked);
+    migrate({projectRoot:f.root,mode:'Write'});
+    assert.deepEqual(JSON.parse(fs.readFileSync(f.policyFile)),{schema:'iris-remote-policy/v1',enabled:false});
 });
 
 test('Windows update migration wrapper forwards Write and DryRun and reports actionable pending facts', {skip: process.platform !== 'win32'}, t => {

@@ -1,5 +1,10 @@
 # imedical.agents 长期维护决策
 
+## 框架维护优先目标
+
+唯一原则入口为根 [AGENTS.md 的框架维护首要原则](../AGENTS.md#框架维护首要原则)。License 处理针对实际可能放大连接占用的批量操作；大量 SQL 插入、读写由工具复用连接、串行及退出处理。普通任务不要求资格登记、历史退出证明或 License 观测；已有文件导出治理保留，不为此次修复再造一套机制。
+
+
 本文件记录 `imedical.agents` 能力包仓库的长期决策和稳定边界。当前状态摘要见 `agent-kit-maintenance-memory.md`，近期维护流水见 `agent-kit-maintenance-log.md`，后续计划见 `agent-kit-maintenance-backlog.md`。
 
 ## IRIS 开发方式与离线材料

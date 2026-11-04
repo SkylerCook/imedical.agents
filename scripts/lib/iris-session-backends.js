@@ -11,7 +11,7 @@ function verifyVendor(executable) {
   const stat=fs.statSync(executable),metadata=path.join(path.dirname(executable),'..','managed-build.json');
   if(!fs.existsSync(metadata))throw failure('session-patched-vendor-required');
   const build=JSON.parse(fs.readFileSync(metadata,'utf8').replace(/^\uFEFF/,''));
-  if(build.schema!=='iris-managed-vendor/v1' || build.patch!=='managed-sessions-v2')throw failure('session-patched-vendor-mismatch');
+  if(build.schema!=='iris-managed-vendor/v1' || build.patch!=='managed-sessions-v3')throw failure('session-patched-vendor-mismatch');
   const fingerprint=hash([executable,stat.size,stat.mtimeMs,build.sha256]);
   if(!verifiedBinaries.has(fingerprint)) {
     const actual=require('node:crypto').createHash('sha256').update(fs.readFileSync(executable)).digest('hex');
@@ -49,7 +49,6 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
     }
     policy=remote.managedPolicy(context,policy,true);
   }
-  if (!localOnly) remote.sessionCookieFormat(policy, connection);
   const backendFile = path.join(context.contextRoot, 'config', 'iris-session-backend.json');
   let backend;
   if (fs.existsSync(backendFile)) backend = JSON.parse(fs.readFileSync(backendFile, 'utf8'));
@@ -75,7 +74,7 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
   }
   // Credentials are resolved here, in the user's process, never sent in CLI arguments or receipts.
   return {context, connection, env, backend, policy, pool: policy?.allowSharedPool === true ? policy.poolKey : instance,
-    identity: hash([instance, Object.fromEntries(Object.entries(env).sort(([a],[b])=>a.localeCompare(b))), connection.rejectUnauthorized, runtimeIdentity, effectiveArgs, env.IRIS_NAMESPACE, policy?.sessionCookieFormat ?? 'opaque'])};
+    identity: hash([instance, Object.fromEntries(Object.entries(env).sort(([a],[b])=>a.localeCompare(b))), connection.rejectUnauthorized, runtimeIdentity, effectiveArgs, env.IRIS_NAMESPACE])};
 }
 async function open(operation) {
   const d = describe(operation.projectRoot, operation.serverName);
@@ -84,11 +83,11 @@ async function open(operation) {
     ? remote.createRemoteOperation({policy:d.policy,connection:d.connection,channel:operation.channel,writeRiskOwner:'session-manager',writeRiskFile:operation.writeRiskFile}) : null;
   try {owner?.acquire();} catch(error) {error.beforeSend=true;throw error;}
   if (operation.channel === 'atelier') {
-    const client = require('./atelier-client').createAtelierClient({connection: operation.connection, context: d.context, managedHost:true,owner:owner || undefined,sessionCookieFormat:d.policy?.sessionCookieFormat});
+    const client = require('./atelier-client').createAtelierClient({connection: operation.connection, context: d.context, managedHost:true,owner:owner || undefined});
     return {call: op => {if(describe(op.projectRoot,op.serverName).identity!==d.identity)throw failure('session-configuration-changed');return client.request(...op.args);}, close: async () => {const exit=await client.close();return owner?owner.close(exit):exit;}};
   }
   const inherited=Object.fromEntries(Object.keys(process.env).filter(key=>key.startsWith('IRIS_')).map(key=>[key,undefined]));
-  const client = new mcp.JsonLineMcpClient(d.backend.command, d.backend.args, {...inherited,...d.env, IRIS_MANAGED_NO_RETRIES:'1', IRIS_SESSION_COOKIE_FORMAT:d.policy?.sessionCookieFormat ?? 'opaque'}, {cwd: d.context.workspaceRoot});
+  const client = new mcp.JsonLineMcpClient(d.backend.command, d.backend.args, {...inherited,...d.env, IRIS_MANAGED_NO_RETRIES:'1'}, {cwd: d.context.workspaceRoot});
   const assertSession = () => {
     const stopped=client.stderr.match(/IMEDICAL_HTTP_STOP=(401|403|503)/);
     if(stopped)throw Object.assign(failure(stopped[1]==='503'?'session-service-unavailable':'session-authentication-failed',false),{status:Number(stopped[1])});

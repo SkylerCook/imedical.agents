@@ -4,7 +4,7 @@ const {JsonLineMcpClient}=require('../iris-mcp');
 const {createTempDirectory,ownsTempDirectory}=require('./fixtures/temp-directory');
 const binary=process.env.IRIS_TEST_VENDOR_BINARY || path.resolve('vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe');
 
-for (const mode of ['deleted', 'replaced', 'scope-changed', 'missing', 'refresh', 'auth-switched', 'websocket']) {
+for (const mode of ['deleted', 'replaced', 'scope-changed', 'missing', 'refresh', 'continuous', 'auth-switched', 'websocket']) {
 test('actual vendor enforces cookie lifecycle: '+mode, {skip:process.platform!=='win32'&&!process.env.IRIS_TEST_VENDOR_BINARY}, async t => {
   const root=createTempDirectory('iris-session-cookie-vendor-'), seen=[];
   let removeCookie=false;
@@ -15,6 +15,7 @@ test('actual vendor enforces cookie lifecycle: '+mode, {skip:process.platform!==
       if(req.url.includes('IRISLogout=end')){res.writeHead(401);res.end('{}');return;}
       let value='fixture', scope='/api/atelier/', expiry='';
       if(mode==='refresh')value=(removeCookie?'B':'A').repeat(8)+'C'.repeat(14)+(removeCookie?'E':'D').repeat(28);
+      if(mode==='continuous')value='token-'+seen.length;
       if(removeCookie && mode==='deleted'){value='';expiry='; Max-Age=0';}
       if(removeCookie && mode==='replaced')value='replacement';
       if(removeCookie && mode==='scope-changed')scope='/api/atelier/v1/TEST/';
@@ -26,7 +27,7 @@ test('actual vendor enforces cookie lifecycle: '+mode, {skip:process.platform!==
   server.on('upgrade',(req,socket)=>{upgrades.push({cookie:req.headers.cookie,authorization:!!req.headers.authorization});socket.end('HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const inherited=Object.fromEntries(Object.keys(process.env).filter(k=>k.startsWith('IRIS_')).map(k=>[k,undefined]));
-  const client=new JsonLineMcpClient(binary,['mcp','--no-skills'],{...inherited,IRIS_HOST:'127.0.0.1',IRIS_WEB_PORT:String(server.address().port),IRIS_SCHEME:'http',IRIS_NAMESPACE:'TEST',IRIS_USERNAME:'fixture',IRIS_PASSWORD:'fixture',IRIS_MANAGED_NO_RETRIES:'1',IRIS_SESSION_COOKIE_FORMAT:mode==='refresh'?'csp50-v1':'opaque',...(mode==='auth-switched'?{IRIS_SERVICE_USERNAME:'other-fixture',IRIS_SERVICE_PASSWORD:'other-fixture'}:{})},{cwd:root});
+  const client=new JsonLineMcpClient(binary,['mcp','--no-skills'],{...inherited,IRIS_HOST:'127.0.0.1',IRIS_WEB_PORT:String(server.address().port),IRIS_SCHEME:'http',IRIS_NAMESPACE:'TEST',IRIS_USERNAME:'fixture',IRIS_PASSWORD:'fixture',IRIS_MANAGED_NO_RETRIES:'1',...(mode==='auth-switched'?{IRIS_SERVICE_USERNAME:'other-fixture',IRIS_SERVICE_PASSWORD:'other-fixture'}:{})},{cwd:root});
   t.after(async()=>{await client.close();await new Promise(resolve=>server.close(resolve));if(ownsTempDirectory(root))fs.rmSync(root,{recursive:true});});
   await client.request('initialize',{protocolVersion:'2024-11-05',capabilities:{},clientInfo:{name:'cookie-test',version:'1'}});client.notify('notifications/initialized',{});
   const query=()=>client.request('tools/call',{name:'iris_query',arguments:{query:'SELECT 1 AS probe',mode:'read',namespace:'TEST'}});
@@ -46,14 +47,19 @@ test('actual vendor enforces cookie lifecycle: '+mode, {skip:process.platform!==
     await client.request('tools/call',{name:'iris_execute',arguments:{code:'write 1',confirmed:true,namespace:'TEST'}}).catch(()=>{});
     assert.equal(seen.length,beforeChange,'A different authentication identity must not reuse the current session');
   } else await query().catch(()=>{});
+  if(mode==='continuous') {
+    for(let i=0;i<100;i++) assert.notEqual((await query()).result?.isError,true);
+    assert.ok(seen.slice(1).every((r,index)=>r.cookie==='CSPSESSIONID-fixture=token-'+(index+1)));
+  }
   const before=seen.filter(r=>!r.url.includes('IRISLogout=end')).length;
   const last=await query().catch(()=>null);
   const after=seen.filter(r=>!r.url.includes('IRISLogout=end')).length;
-  if(mode==='refresh') {assert.ok(after>before);assert.notEqual(last?.result?.isError,true);}
+  const renewed=['refresh','replaced','continuous'].includes(mode);
+  if(renewed) {assert.ok(after>before);assert.notEqual(last?.result?.isError,true);}
   else assert.equal(after,before,'An unknown session must not authenticate or dispatch another business request');
   assert.equal(seen.filter(r=>r.authorization).length,1,'Only initial authentication is allowed');
   const exit=await client.close();
-  assert.equal(exit.logout.completed,mode==='refresh');
+  assert.equal(exit.logout.completed,renewed);
   if(mode==='deleted')assert.ok(seen.some(r=>r.url.includes('IRISLogout=end')&&r.cookie?.includes('fixture')),'deleted cookie must remain available for logout');
   if(mode==='missing')assert.equal(seen.length,1);
 });
@@ -101,7 +107,7 @@ test('actual startup stops probe and queued operations: '+startupMode,{skip:proc
   const candidate=path.join(root,'vendor','bin',process.platform==='win32'?'iris-agentic-dev.exe':'iris-agentic-dev');
   fs.mkdirSync(path.dirname(candidate),{recursive:true});fs.copyFileSync(binary,candidate);fs.chmodSync(candidate,0o700);
   const sha256=require('node:crypto').createHash('sha256').update(fs.readFileSync(candidate)).digest('hex');
-  fs.writeFileSync(path.join(root,'vendor','managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v2',sha256}));
+  fs.writeFileSync(path.join(root,'vendor','managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v3',sha256}));
   const server=http.createServer((req,res)=>{
     seen.push(req.method+' '+req.url);
     if(startupMode==='503-cookie')res.setHeader('Set-Cookie','CSPSESSIONID-fixture=fixture; Path=/api/atelier/');

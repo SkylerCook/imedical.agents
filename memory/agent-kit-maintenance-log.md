@@ -1,5 +1,16 @@
 # imedical.agents 维护日志
 
+## 2026-11-04 普通 License 门槛删除（coding 0.27.3）
+
+- 根 AGENTS 增加框架维护首要原则，并从维护摘要与长期决策引用；减少无依据的配置、门槛和人工步骤。
+- 删除公共准入的 qualification.status/reference 检查与 MCP 历史 processExitVerified 检查；新迁移不生成 pending 登记，真实连接、导出证据和私有扩展保留；已有更新器自动清理废弃字段、空登记及冗余默认值。配置检查将显式禁用与资格缺失区分。保留目标、授权、资源复用、串行、真实退出与未知写保护。
+- 已有文件导出治理未改动；插件入口、初始化、主规则、按需协议、README 和升级说明同步。能力目录无新增/删除入口，无需改写目录。
+- Windows 本地关联测试累计 125 项通过，涵盖默认迁移、无资格/pending/失效引用的 MCP 实际子进程、按需 SFTP 适配器读写（模拟传输）、目标不符/禁用/503/未知写与清理。首次测试受沙箱子进程限制，沙箱外复验；新增 SFTP 夹具的 bytes 类型修正后该套 12 项通过。其中 55 项导出/基线/读取池测试通过，确认原批量资格保护仍生效；文档链接检查通过。版本差异正确识别 coding 0.27.2→0.27.3，全量版本审计仍报告既有 xc 的 7 项历史问题，本次未改动这些组件。没有医院连接或业务写入。
+- 已部署配置清理沿现有 iris-development-config-v1，不新增迁移入口或配置开关。新增 5 项清理测试覆盖旧模板、重复更新、完整/离线工程、Overlay、真实导出证据/预算/共享池保留、并发修改、未知 schema 与硬链接；最终配置/迁移/公共准入关联 51 项通过。Windows PowerShell 5.1 完整 update-agents 回归通过，真实更新入口覆盖 DryRun/Check 不写、Write 清理与二次更新字节稳定；旧夹具补齐 iris-operation-scope 运行依赖。macOS/Linux 沿已有 runtime-skills 矩阵，当前未取得本批远端运行结果。
+- 用户明确批准正常 Cookie 续期后，Node Atelier 与 vendor v3 改为接受同名同域同路径的值更新，删除格式登记与值不变身份推断，保留目标/账号隔离、失效检查与失败不重放。固定上游三段补丁完成本机 GNU 构建，真实 exe 的 14 项 localhost 回归通过，含连续 100 次 SQL 读取轮换 Cookie 且仅认证一次；Node 生命周期 12 项通过。构建来源和摘要见 vendor 元数据及 UPSTREAM，不能沿用旧 v2 CI 作为新二进制证明。
+- 普通 MCP 和 Atelier Web 查询、上传、编译均不要求 License 资格或 Cookie 格式登记。普通 Atelier 读取→上传→编译→回读在 pending 和持续 Cookie 续期下通过 localhost 验证。按用户最新确认，License 数量阻断只能依据实际 WebSession 占用超过 45 个；当前没有服务端计数入口，不新增猜测计数或配置门槛。源仓结果不等于副本生效；跨平台矩阵与部署后实际业务验证沿原 backlog，未宣称现场 Cookie 原因已证实或 License 已回落。用户负责业务副本部署，本批按授权完成源仓提交和推送。
+
+
 ## 2026-11-04 同步子进程 stdin 兼容
 
 - 用户补充完成标准为合回主分支，并授权主分支落地；刷新后本地/GitHub master 均为 3d93981，无分叉，按 fast-forward 合入本批提交并推送 github/master。功能内容沿 5010fdc 六组通过证据复用，后续仅维护记录变化。主分支既有多项 CI 失败，历史 BOS run 41596638681 确认同一 project-directories 夹具遗漏；其它失败涉及的 updater/夹具未因本批改变，仍保留失败说明，不声明全仓全绿。Gitee 同步、业务副本部署和 shim 退役不在本次落地范围。

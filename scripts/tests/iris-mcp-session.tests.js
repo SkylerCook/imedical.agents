@@ -134,16 +134,27 @@ test('an unverified tool session exit cannot be hidden by a graceful MCP process
     assert.equal(f.poolStatus().status, 'reconciliation-required');
 });
 
-test('policy, exit qualification and expected namespace are checked before any child is spawned', async t => {
-    for (const variant of ['disabled', 'missing-reference', 'unqualified-exit', 'wrong-namespace', 'missing-server']) {
+test('policy and expected namespace are checked before any child is spawned', async t => {
+    for (const variant of ['disabled', 'wrong-namespace', 'missing-server']) {
         const f = fixture(t);
         if (variant === 'disabled') f.policy.enabled = false;
-        if (variant === 'missing-reference') f.policy.qualification.reference = 'absent.fixture.json';
-        if (variant === 'unqualified-exit') f.policy.qualification.channels.mcp.processExitVerified = false;
         f.writePolicy();
         await assert.rejects(f.open(variant === 'wrong-namespace' ? {expectedNamespace: 'OTHER'} : variant === 'missing-server' ? {serverName: 'absent'} : {}));
         assert.equal(fs.existsSync(path.join(f.root, 'spawned.json')), false, variant);
         assert.equal(f.requests().length, 0, variant);
+    }
+});
+
+test('ordinary MCP calls need no license registration or historical exit evidence', async t => {
+    for (const qualification of [undefined, {status:'pending'}, {status:'verified',reference:'missing.json',channels:{mcp:{processExitVerified:false}}}]) {
+        const f = fixture(t);
+        f.policy.qualification = qualification; f.writePolicy();
+        const session = await f.open();
+        await session.call('iris_doc', {mode:'get',name:'Demo.Sample.cls'});
+        const exit = await session.close();
+        assert.equal(exit.processExited, true);
+        assert.equal(f.requests().filter(item => item.method === 'tools/call' && item.params.name === 'iris_doc').length, 1);
+        assert.equal(f.poolStatus().ownerPresent, false);
     }
 });
 

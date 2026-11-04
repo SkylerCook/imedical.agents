@@ -50,14 +50,6 @@ function instanceIdentity(connection = {}) {
   if (typeof host !== 'string' || !host || !Number.isInteger(Number(port)) || Number(port) < 1 || Number(port) > 65535) stop('remote-target-required');
   return digest(JSON.stringify([scheme.toLowerCase(), host.toLowerCase(), Number(port)]));
 }
-function sessionCookieFormat(policy, connection) {
-  const format = policy?.sessionCookieFormat ?? 'opaque';
-  if (!['opaque', 'csp50-v1'].includes(format)) stop('session-cookie-format-invalid', {beforeSend:true});
-  if (format !== 'opaque' && policy?.sessionCookieFormatInstance !== instanceIdentity(connection)) {
-    stop('session-cookie-format-target-unverified', {beforeSend:true});
-  }
-  return format;
-}
 function targetIdentity(connection = {}) {
   let base = connection.path || (connection.namespace ? '/api/atelier/v1/' + encodeURIComponent(connection.namespace) + '/' : '');
   base = base.replace(/(?:action\/compile.*|doc\/.*|docs(?:\?.*)?)$/, '');
@@ -92,20 +84,14 @@ function loadRemotePolicy(context = {}, { connection, policy, qualification, rec
     if (required) stop('remote-policy-required');
     return { enabled: false, required: false };
   }
-  const pendingRecovery = recoveryRead === true && qualification === undefined && value.admissionMode === 'managed-single-session' &&
-    value.qualification?.status === 'pending' && fs.existsSync(path.join(contextRoot, 'config/iris-session-backend.json'));
+  // Qualification describes optional capacity experiments, not permission to
+  // perform ordinary serialized work. Keep historical evidence as metadata.
   if (value.schema !== 'iris-remote-policy/v1' || !path.isAbsolute(value.coordinationRoot || '') ||
       typeof value.poolKey !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(value.poolKey) ||
-      value.maxConcurrent !== undefined && value.maxConcurrent !== 1 ||
-      qualification === undefined && !pendingRecovery && (value.qualification?.status !== 'verified' || typeof value.qualification.reference !== 'string' || !value.qualification.reference.trim())) stop('remote-policy-invalid');
-  const reference = qualification === undefined && !pendingRecovery ? path.resolve(context.workspaceRoot || process.cwd(), value.qualification.reference) : null;
-  if (reference) {
-    try { if (!fs.statSync(reference).isFile()) stop('remote-qualification-required'); }
-    catch { stop('remote-qualification-required'); }
-  }
+      value.maxConcurrent !== undefined && value.maxConcurrent !== 1) stop('remote-policy-invalid');
   const result = { ...value, required, coordinationRoot: path.resolve(value.coordinationRoot), maxConcurrent: 1,
-    instanceHash: connection ? instanceIdentity(connection) : null, evidenceReference: reference,
-    ...(qualification ? {qualificationRun: true} : {}), ...(pendingRecovery ? {recoveryReadOnly:true} : {}) };
+    instanceHash: connection ? instanceIdentity(connection) : null,
+    ...(qualification ? {qualificationRun: true} : {}), ...(recoveryRead ? {recoveryReadOnly:true} : {}) };
   if (required && connection && (connection.rejectUnauthorized === false || String(connection.protocol || connection.scheme || connection.IRIS_SCHEME || 'https').replace(/:$/, '') !== 'https')) stop('remote-strict-tls-required');
   return managedPolicy(context, result);
 }
@@ -445,4 +431,4 @@ function reconcileRemotePool({policy, token, evidenceFile, confirm = false, writ
     return {schema:'iris-remote-reconciliation/v1',status:'reconciled',licenseReleaseVerified:false};
   } finally { fs.closeSync(descriptor); fs.unlinkSync(recoveryLock); }
 }
-module.exports = { RemoteOperationError, contextMode, developmentMode, assertRemoteAllowed, bindDevelopmentMode, localPoolStatus, localPolicy, instanceIdentity, sessionCookieFormat, targetIdentity, validQualificationGrant, loadRemotePolicy, managedPolicy, createRemoteOperation, createRecoveryReadOperation, withRemoteOperation, poolStatus, reconcileRemotePool };
+module.exports = { RemoteOperationError, contextMode, developmentMode, assertRemoteAllowed, bindDevelopmentMode, localPoolStatus, localPolicy, instanceIdentity, targetIdentity, validQualificationGrant, loadRemotePolicy, managedPolicy, createRemoteOperation, createRecoveryReadOperation, withRemoteOperation, poolStatus, reconcileRemotePool };

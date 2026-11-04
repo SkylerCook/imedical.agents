@@ -8,7 +8,7 @@
 
 ## 受管构建优先
 
-当前 exe 为固定上游加 `managed-sessions-v1` 补丁；先读 [UPSTREAM.md](UPSTREAM.md) 和 `managed-build.json`。以下官方资产检测/下载步骤只用于取得对照原件，不能覆盖已验证受管构建。版本号相同也须保留零自动重试、禁用隐式遥测写入、注销回执和真实 HTTP 计数验证。源码、补丁、许可证、构建及摘要必须一起更新。
+当前 exe 为固定上游依次应用 v1、v2、v3 的 `managed-sessions-v3` 构建；先读 [UPSTREAM.md](UPSTREAM.md) 和 `managed-build.json`。普通 Cookie 续期不需要格式登记。以下官方资产检测/下载步骤只用于取得对照原件，不能覆盖已验证受管构建。版本号相同也须保留零自动重试、禁用隐式遥测写入、注销回执和真实 HTTP 计数验证。源码、补丁、许可证、构建及摘要必须一起更新。
 
 ## 前置条件
 

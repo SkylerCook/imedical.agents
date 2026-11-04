@@ -124,7 +124,7 @@ function configure(options = {}) {
         try { remote.loadRemotePolicy(context); remoteAdmission = 'locally-configured'; }
         catch (error) {
             remoteAdmission = 'pending';
-            remoteReason = fs.existsSync(policyFile) && error.code === 'remote-policy-required' ? 'remote-policy-not-qualified' : error.code || error.message;
+            remoteReason = fs.existsSync(policyFile) && error.code === 'remote-policy-required' ? 'remote-policy-disabled' : error.code || error.message;
         }
     }
     return {mode, contextRoot: context.contextRoot, developmentMode: selectedMode,
@@ -134,6 +134,70 @@ function configure(options = {}) {
         remoteAdmission, remoteReason, baseline: 'not-established-by-configure'};
 }
 
+// Remove only obsolete fields or unused template values. Real export evidence,
+// custom fields, connection identity and recovery files are not cleanup targets.
+function compactRemotePolicy(value) {
+    const next = structuredClone(value), removed = [];
+    const object = value => value && typeof value === 'object' && !Array.isArray(value);
+    const remove = (owner, key, prefix = '') => {
+        if (object(owner) && Object.hasOwn(owner, key)) { delete owner[key]; removed.push(prefix + key); }
+    };
+    const empty = (owner, key, prefix = '') => {
+        if (object(owner?.[key]) && !Object.keys(owner[key]).length) remove(owner, key, prefix);
+    };
+    remove(next, 'admissionMode');
+    if (next.maxConcurrent === 1) remove(next, 'maxConcurrent');
+    if (next.allowSharedPool === false) remove(next, 'allowSharedPool');
+    if (next.readBatch?.sessions === 1) remove(next.readBatch, 'sessions', 'readBatch.');
+    if (next.readBatch?.intervalMs === 100) remove(next.readBatch, 'intervalMs', 'readBatch.');
+    remove(next, 'sessionCookieFormat');
+    remove(next, 'sessionCookieFormatInstance');
+    const q = next.qualification;
+    remove(q?.channels?.mcp, 'processExitVerified', 'qualification.channels.mcp.');
+    if (q?.channels?.mcp?.acceptInternalRetries === false) remove(q.channels.mcp, 'acceptInternalRetries', 'qualification.channels.mcp.');
+    empty(q?.channels, 'mcp', 'qualification.channels.');
+    empty(q, 'channels', 'qualification.');
+    for (const [owner, prefix] of [[next, ''], [next.readBatch, 'readBatch.']]) {
+        const candidate = owner?.qualification;
+        if (!object(candidate) || candidate.status !== 'pending') continue;
+        const placeholders = {'reference': ['<local-qualification-evidence-file>', '<reviewed-read-qualification-file>'], 'sha256': ['<reviewed-evidence-sha256>']};
+        const unused = ['reference','sha256'].every(key => candidate[key] == null || typeof candidate[key] === 'string' && (!candidate[key].trim() || placeholders[key].includes(candidate[key])));
+        if (!unused) continue;
+        for (const key of ['status','reference','sha256']) remove(candidate, key, prefix + 'qualification.');
+        empty(owner, 'qualification', prefix);
+    }
+    empty(next, 'qualification');
+    empty(next.readBatch, 'qualification', 'readBatch.');
+    empty(next, 'readBatch');
+    return {value: next, removed};
+}
+function cleanupRemotePolicy(context, mode) {
+    const file = path.join(context.contextRoot, 'config/iris-remote-policy.json');
+    if (!fs.existsSync(file)) return null;
+    assertPhysical(context, file);
+    const before = fs.readFileSync(file, 'utf8');
+    let value;
+    try { value = JSON.parse(before.replace(/^\uFEFF/, '')); } catch { fail('invalid-development-config'); }
+    if (value?.schema !== 'iris-remote-policy/v1') return null;
+    const compacted = compactRemotePolicy(value);
+    if (!compacted.removed.length) return null;
+    assertIgnored(context, [file]);
+    if (fs.statSync(file).nlink !== 1) fail('private-config-is-hardlink');
+    if (mode === 'Write') {
+        const bytes = JSON.stringify(compacted.value, null, 2) + '\n';
+        const temporary = file + '.' + require('node:crypto').randomUUID() + '.tmp';
+        try {
+            fs.writeFileSync(temporary, bytes, {flag:'wx', mode:0o600});
+            assertPhysical(context, file);
+            if (fs.statSync(file).nlink !== 1 || fs.readFileSync(file, 'utf8') !== before) fail('development-config-concurrent-change');
+            fs.renameSync(temporary, file);
+            if (fs.readFileSync(file, 'utf8') !== bytes) fail('development-config-write-verification-failed');
+        } finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); }
+    }
+    return {status:mode === 'Write' ? 'config-migration-applied' : 'config-migration-planned',
+        target:path.relative(context.workspaceRoot, file).replace(/\\/g, '/'),
+        reason:'Remove obsolete configuration: ' + compacted.removed.join(', ')};
+}
 function migrate(options = {}) {
     const target = 'config/iris-development.json';
     const entry = (status, reason, file = target) => ({status, target: file, reason});
@@ -144,6 +208,15 @@ function migrate(options = {}) {
         const entries = result.files.map(file => entry(file.status === 'created' ? 'config-migration-applied' :
             file.status === 'missing' ? 'config-migration-planned' : 'config-migration-unchanged',
         file.status === 'preserved' ? 'Existing private configuration preserved byte-for-byte.' : 'Create missing private configuration without changing legacy mode defaults.', file.path));
+        try {
+            const cleanup = cleanupRemotePolicy(context, options.mode || 'DryRun');
+            if (cleanup) {
+                const index = entries.findIndex(item => item.target === cleanup.target);
+                if (index < 0) entries.push(cleanup); else entries[index] = cleanup;
+            }
+        } catch (error) {
+            entries.push(entry('config-migration-review-required', error.code || error.message, 'config/iris-remote-policy.json'));
+        }
         const pending = [...result.configurationGaps];
         if (result.remoteAdmission === 'pending') pending.push(result.remoteReason);
         if (pending.length) entries.push(entry('config-migration-review-required', [...new Set(pending)].join('; ')));

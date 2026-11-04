@@ -22,11 +22,11 @@
 
 ## 首次接入
 
-已启用项目普通 Write 更新会通过既有配置迁移自动补缺文件，保留已有字节及旧模式缺省；模式/环境待确认与资格 pending 由 Agent 集中处理。自动补文件不建立基线，已有项目无需为补文件重跑全部初始化，下面继续完成真实环境与资格接入。
+已启用项目普通 Write 更新会通过既有配置迁移自动补缺文件，保留有效设置及旧模式缺省，清理废弃 License 字段和空模板登记；必要模式/环境事实由 Agent 集中处理，普通任务不新增资格待办。自动补文件不建立基线，已有项目无需为补文件重跑全部初始化，下面继续完成真实环境接入；批量导出沿已有专项协议。
 
 1. 核对测试/正式各自的本地 Git。无仓库时先获得初始化授权，再使用 `source-sync.js init`；不把初始化或阶段提交权限推导为任意后续提交权限。
 2. 按 [coding-iris-init 的本地配置步骤](../skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)执行 `source-sync.js configure`，默认创建被忽略的 `ContextRoot/config/iris-development.json`，声明已确认的开发方式、`environmentAlias` 与 `environmentType`（`test`、`development` 或 `production`）并 Check。已有文件保留，缺字段由 Agent 按明确事实局部补齐；不能套用示例环境代替真实声明。连接事实继续由项目已有 `.mcp.json` 与 `project-env.json` 承载，冲突停止，不在新配置复制连接或凭据。
-3. 同一步骤从 `templates/iris-remote-policy.template.json` 创建缺失的私有远端准入配置，保持禁用及资格 pending。先在获授权窗口以最小批次验证，再登记真实资格证据并启用。配置生成与资格就绪分别报告；未验证状态不能用于连接，新模式缺失、禁用或不合格配置停止。
+3. 同一步骤从 `templates/iris-remote-policy.template.json` 创建缺失的私有远端准入配置，模板在缺少连接事实时保持禁用，不创建资格登记；受管会话迁移根据现有连接自动生成必要协调配置。配置生成与实际连接结果分开报告，Agent 按已授权连接事实完成接入；缺失或显式禁用的有效配置仍需处理，但普通操作不要求 License 资格证据。
 4. 将 `ContextRoot/work/source-sync/`、准入协调目录、私有配置及资格证据保持 Git 忽略。`work/source-sync/` 由实际同步任务创建，初始化无此目录不代表漏配，建空目录也不能证明基线成立。它保存计划、内容快照、索引/HEAD 归属与恢复断点，不作为业务交付目录。首次按 TXT 清单采集批量基线须先验证持久落盘、读回与中断恢复，确认 License 增量与结束回落后才扩大批次。
 
 Node.js 是 Agent 工具链依赖，不是 HIS 生产运行依赖。当前工具链版本及平台验证沿能力包更新说明，不以本机测试宣称所有平台或旧 Caché 版本已支持。
@@ -100,10 +100,10 @@ Agent 先读候选前后源码并核对服务器合并意图，取得真实语�
 
 本节资源约束适用于所有 IRIS 远端开发操作，包含 standard、旧 contextMode 和只读查询；源码同步的 project 分支条件不限制本节适用范围。
 
-- 请求前先查本地源码与已有结果，明确最小远端范围；核实已进入统一会话管理。普通单会话查询允许资格 pending；批量/多会话另核对 verified 资格，显式禁用不自动解禁。
+- 请求前先查本地源码与已有结果，明确最小远端范围；核实已进入统一会话管理。普通单会话查询、上传与编译不要求 License 资格登记或历史退出证明；批量/多会话另核对 verified 资格，显式禁用不自动解禁。
 - 同一许可池默认串行；多 Agent 不各自建立连接。批量操作复用现有受管 client、Cookie 与连接生命周期，禁止逐文件启动进程或新建会话。单进程、batch、keepalive 都不能单独证明服务器 Web session 复用或固定 LU 占用。
-- 503 或资源状态不明立即停止新请求，保存结果并关闭自有会话；用户说“继续”不等于服务器恢复证明，不换通道、不自动重试、不清除其他 owner。按现有 reconcile 协议核实后恢复。
-- finally 中收束自有资源；分别报告请求完成、会话退出及 License 回落证据。没有服务端观测不得声称许可已释放，不终止他人的会话。
+- 503 使当前操作失败，保存结果并关闭自有会话，短时冷却后允许独立请求探测；不自动重放原请求。仅实际未知写或仍活跃的旧资源沿恢复协议处理，不因缺少 License 观测要求额外登记或冻结普通任务。
+- finally 中收束自有资源；普通任务报告业务结果和影响继续操作的异常。只有专项资源排查才核对服务器会话及 License 观测，不要求日常任务补回落证明，不终止他人的会话。
 
 CLI、原生 MCP 适配入口及共享 Atelier client 由用户级管理进程协调；见[统一会话手册](../../../docs/guides/iris-managed-sessions.md)。外部 IDE、人工直连和任意 shell 不属于机器拦截范围，Agent 不得绕过规定路径。
 
@@ -113,7 +113,7 @@ CLI、原生 MCP 适配入口及共享 Atelier client 由用户级管理进程�
 
 直接 Atelier 读取的 503 重试为 0；发现 503 时先持久化熔断及在途集合、停止新派发，再收束并关闭各自会话。一次 Atelier 生命周期复用 Cookie 与 keepalive，但不承诺占用固定 LU；会话数与实际 License 单元分别取证。不能仅凭 503 断言一定是 License，也不逐文件或换通道重试。数据库写入与 Atelier 的历史打满是两类观察，不假定同根因。MCP 或终端执行的内部传输行为按对应通道资格单独判断，不能用外层零重试推导 vendor 内部也没有重试。
 
-准入须覆盖当前需求会使用的受管读取、上传编译、Broker/数据库调用与测试入口。已接入主链是 source-sync/promote/deploy、共享 Atelier client、受控 Broker 及根 `scripts/iris-mcp.js` 的公共 `tools/call`。其它插件自己的客户端、原生 MCP、SQL 工具和外部 IDE 是明确外部边界，使用前须核实其准入与退出资格；不能把共享库存在说成全部入口已受控。新模式不使用交互 legacy debugger 旁路。
+准入须覆盖当前需求会使用的受管读取、上传编译、Broker/数据库调用与测试入口。已接入主链是 source-sync/promote/deploy、共享 Atelier client、受控 Broker 及根 `scripts/iris-mcp.js` 的公共 `tools/call`。其它插件自己的客户端、原生 MCP、SQL 工具和外部 IDE 是明确外部边界，使用前核实真实连接复用与退出方式；不能把共享库存在说成全部入口已受控。新模式不使用交互 legacy debugger 旁路。
 
 Atelier 只关闭自己取得的 Cookie 会话，并返回 logout 请求/响应证据；keepalive 连接关闭不等于服务器 License 已释放。受控 Broker 需调用者提供已有 Cookie 和 `sessionOwnerReference`，会话创建与退出归该调用者，不隐式新建无主会话。受管 MCP 不以历史 `qualification.channels.mcp.processExitVerified` 阻断普通查询；管理进程分开记录请求、进程退出和注销回执，服务器会话消失及 LU 回落另行观测。其它通道同样按实际 CSP session / DB connection 所有者收尾。
 
@@ -129,7 +129,7 @@ Atelier 只关闭自己取得的 Cookie 会话，并返回 logout 请求/响应�
 node .agents/scripts/iris-remote.js inspect --project-root <workspace> --token <status-token> --confirm-recovery --documents <1-to-5-documents...> --evidence <new-absolute-private-file>
 ```
 
-证据新文件必须位于当前 `ContextRoot/work/source-sync/` 内，保持 Git 忽略。此入口仍要求有效私有准入资格，校验原 token、阻断状态及 owner 退出，取得同池排他锁后，只对声明的 1–5 个文档各执行一次 GET；不允许 POST docs、PUT、compile、额外目标或普通 client 的恢复 flag。已确认死亡的中断 owner 记录保存在恢复证据中；未核实、仍活跃或其它机器 owner 均停止。进程中断残留的原写操作继续保持待核实，不能因可读而清除。
+证据新文件必须位于当前 `ContextRoot/work/source-sync/` 内，保持 Git 忽略。此入口仍要求有效私有准入配置，校验原 token、阻断状态及 owner 退出，取得同池排他锁后，只对声明的 1–5 个文档各执行一次 GET；不允许 POST docs、PUT、compile、额外目标或普通 client 的恢复 flag。已确认死亡的中断 owner 记录保存在恢复证据中；未核实、仍活跃或其它机器 owner 均停止。进程中断残留的原写操作继续保持待核实，不能因可读而清除。
 
 读取期间持锁并复用本人 Cookie，退出只执行本人会话的 HEAD logout；再次 503 或读取失败立即停止，不重试其它文件。结果始终保留原 circuit/unknown 及 pending write，追加 inspection 记录并产生新状态 token，不开放写入。API/CLI 摘要 schema 为 `iris-remote-inspection/v1`，私有落盘证据为 `iris-remote-inspection-evidence/v1`，包含文档内容的 base64、hash/ts/表示和退出回执；stdout 只有摘要和证据路径，不输出源码正文。
 

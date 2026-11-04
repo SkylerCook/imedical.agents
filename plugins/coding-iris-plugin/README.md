@@ -1,5 +1,8 @@
 # coding-iris-plugin
 
+0.27.3：删除普通查询、上传和编译的 License 资格/证据门槛，移除 MCP 历史退出证明的前置检查；迁移不再生成 qualification.pending。保留连接复用、串行、实际退出与写冲突保护，既有大批量文件导出治理不变。普通 Cookie 续期直接复用新值，不再要求格式登记；完整更新根 scripts、插件与 managed-sessions-v3 vendor/摘要；既有更新迁移自动删除无效登记、历史退出证明和多余默认字段；已有真实导出证据、连接及私有扩展保留，无需人工清理，详见[更新说明](../../docs/update-agents.md)。
+
+
 0.27.2：收缩[会话阻断与恢复](../../docs/guides/iris-managed-sessions.md#状态与恢复)。受管未知写只保存一份记录；临时执行载体 PUT 的明确 405 拒绝不再封锁后续写入，Cookie 告警按实际请求结果判断风险。本地退出与写结果已核实时，注销未确认保留警告即可恢复；普通交付不要求 License 观测。完整更新根 scripts 与插件后结束旧管理会话、重启宿主 MCP，历史风险保留原核实流程，无私有配置迁移。
 
 0.27.0 将范围清单统一为 TXT，移除 ProjectItem XML 基线读取/生成；doctor 清单、框架与人工工具共用同一格式。迁移见[代码基线协议](references/iris-code-baseline.md)；源码 XML 导出与交付不变。

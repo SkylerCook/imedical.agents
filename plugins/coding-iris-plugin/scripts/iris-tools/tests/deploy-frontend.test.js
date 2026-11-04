@@ -100,3 +100,29 @@ test('compile dispatch diagnostics retain safe code without echoing exception me
  const result=await execute(plan,async()=>evidence,async()=>{calls++;throw Object.assign(new Error('private-value'),{code:'session-legacy-pool-unresolved',beforeSend:true});});
  assert.equal(result.reason,'session-legacy-pool-unresolved');assert.equal(result.beforeSend,true);assert.equal(calls,1);assert.equal(JSON.stringify(result).includes('private-value'),false);
 });
+
+test('on-demand SFTP reads and uploads with pending license registration', async () => {
+ const root=createTempDirectory('frontend-pending-policy-');
+ const worker=require('../sftp-worker'), original=worker.createSession;
+ const modulePath=require.resolve('../deploy-protected'), cached=require.cache[modulePath];
+ let adapter, closed=false; const calls=[];
+ try {
+  fs.mkdirSync(path.join(root,'scripts'));fs.writeFileSync(path.join(root,'scripts/page.js'),'window.fixture = 1;');
+  const context={workspaceRoot:root,contextRoot:path.join(root,'.agents'),sourceRoots:[{target:root}]};
+  fs.mkdirSync(path.join(context.contextRoot,'config'),{recursive:true});
+  fs.writeFileSync(path.join(context.contextRoot,'config/project_context_profile.md'),'- contextMode: intent-first-on-demand-export\n');
+  fs.writeFileSync(path.join(context.contextRoot,'config/iris-remote-policy.json'),JSON.stringify({schema:'iris-remote-policy/v1',enabled:true,poolKey:'fixture',coordinationRoot:path.join(root,'coordination'),maxConcurrent:1,qualification:{status:'pending'}}));
+  worker.createSession=()=>({stats:{},request:async payload=>{calls.push(payload.mode);return {status:'verified',content:null};},close:async()=>{closed=true;}});
+  delete require.cache[modulePath];
+  const mcp={mcpServers:{'sftp-server':{command:'fixture',env:{REMOTE_PATH:'/web'}},'iris-agentic-dev':{env:{IRIS_HOST:'synthetic.invalid',IRIS_WEB_PORT:'443',IRIS_SCHEME:'https',IRIS_NAMESPACE:'TEST',IRIS_USERNAME:'fixture',IRIS_PASSWORD:'fixture'}}}};
+  adapter=require('../deploy-protected').frontendAdapter({mode:'direct',sourceRoot:root,files:['scripts/page.js']},{iris:{namespace:'TEST'}},mcp,context);
+  assert.equal(await adapter.read(adapter.files[0]),null);
+  await adapter.put({...adapter.files[0],bytes:fs.readFileSync(adapter.files[0].localPath)});
+  await adapter.close();adapter=null;
+  assert.deepEqual(calls,['read','put']);assert.equal(closed,true);
+ } finally {
+  if(adapter)await adapter.close();
+  worker.createSession=original;delete require.cache[modulePath];if(cached)require.cache[modulePath]=cached;
+  fs.rmSync(root,{recursive:true,force:true});
+ }
+});

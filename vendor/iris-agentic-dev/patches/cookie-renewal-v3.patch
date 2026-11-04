@@ -1,0 +1,48 @@
+--- a/crates/iris-agentic-dev-core/src/iris/csp_session.rs
++++ b/crates/iris-agentic-dev-core/src/iris/csp_session.rs
+@@ -158,16 +158,16 @@
+ static MANAGED_UNCERTAIN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+ static MANAGED_BLOCKED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+ static MANAGED_AUTH: LazyLock<Mutex<std::collections::BTreeMap<String,HeaderValue>>> = LazyLock::new(||Mutex::new(std::collections::BTreeMap::new()));
+-static MANAGED_IDENTITIES: LazyLock<Mutex<std::collections::BTreeMap<String,String>>> = LazyLock::new(|| Mutex::new(std::collections::BTreeMap::new()));
+-fn managed_identity(url: &Url) -> Option<String> {
++static MANAGED_COOKIE_NAMES: LazyLock<Mutex<std::collections::BTreeMap<String,String>>> = LazyLock::new(|| Mutex::new(std::collections::BTreeMap::new()));
++fn managed_cookie_names(url: &Url) -> Option<String> {
+     let header = SHARED.cookies(url)?;
+     let text = header.to_str().ok()?;
+     let mut parts: Vec<String> = text.split(';').filter_map(|pair| {
+         let (name,value) = pair.trim().split_once('=')?;
+         if !name.starts_with(SESSION_COOKIE_PREFIX) || value.is_empty() {return None;}
+-        let fixed = std::env::var("IRIS_SESSION_COOKIE_FORMAT").as_deref() == Ok("csp50-v1")
+-            && value.len()==50 && value.bytes().all(|c| c.is_ascii_alphanumeric() || c==b'_' || c==b'$');
+-        Some(format!("{}={}",name,if fixed {&value[8..22]} else {value}))
++        // RFC 6265 permits renewal at the same cookie name/domain/path.
++        // Token bytes do not identify a server-side session or license unit.
++        Some(name.to_string())
+     }).collect();
+     parts.sort();
+     if parts.is_empty() {None} else {Some(parts.join(";"))}
+@@ -197,8 +197,8 @@
+             if known.get(&key).is_some_and(|old|old!=auth) {return Err(managed_error());}
+             known.entry(key.clone()).or_insert_with(||auth.clone());
+         }
+-        let previous=MANAGED_IDENTITIES.lock().unwrap().get(&key).cloned();
+-        let current=managed_identity(&url);
++        let previous=MANAGED_COOKIE_NAMES.lock().unwrap().get(&key).cloned();
++        let current=managed_cookie_names(&url);
+         if previous.is_some() && current!=previous {return Err(managed_error());}
+         if current.is_some() {remember_logout(&url,true);request.headers_mut().remove(reqwest::header::AUTHORIZATION);}
+         let response=match client.execute(request).await {Ok(response)=>response,Err(error)=>{let _=managed_error();return Err(error);}};
+@@ -206,10 +206,10 @@
+             MANAGED_BLOCKED.store(true,std::sync::atomic::Ordering::SeqCst);
+             eprintln!("IMEDICAL_HTTP_STOP={}",response.status().as_u16());
+         }
+-        let after=managed_identity(&url);
++        let after=managed_cookie_names(&url);
+         if MANAGED_UNCERTAIN.load(std::sync::atomic::Ordering::SeqCst) || after.is_none() || previous.is_some() && after!=previous {remember_logout(&url,false);return Err(managed_error());}
+         remember_logout(&url,true);
+-        MANAGED_IDENTITIES.lock().unwrap().insert(key,after.unwrap());
++        MANAGED_COOKIE_NAMES.lock().unwrap().insert(key,after.unwrap());
+
+         Ok(response)
+     }

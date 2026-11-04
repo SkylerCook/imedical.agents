@@ -92,9 +92,9 @@ function migrate({projectRoot, mode='DryRun', serverName}={}) {
     if(envKey && String(server.env?.[envKey])!==oldArgs[i])throw failure('session-target-config-conflict');
   }
   const policyFile=path.join(context.contextRoot,'config','iris-remote-policy.json');
-  const generatedPolicy=!fs.existsSync(policyFile)?{schema:'iris-remote-policy/v1',enabled:true,admissionMode:'managed-single-session',
+  const generatedPolicy=!fs.existsSync(policyFile)?{schema:'iris-remote-policy/v1',enabled:true,
     poolKey:require('./iris-remote-operations').instanceIdentity(server.env || {}),
-    coordinationRoot:path.join(require('./iris-session-ipc').location().root,'admission'),maxConcurrent:1,qualification:{status:'pending'}}:null;
+    coordinationRoot:path.join(require('./iris-session-ipc').location().root,'admission')}:null;
   assertInactive(context,server);
   privateFile(context.workspaceRoot,configFile); privateFile(context.workspaceRoot,backendFile);
   if(generatedPolicy)privateFile(context.workspaceRoot,policyFile);

@@ -1,5 +1,8 @@
 # imedical.agents 维护记忆入口
 
+维护先遵循根 [框架维护首要原则](../AGENTS.md#框架维护首要原则)：可靠完成任务，减少配置和人工介入。coding 0.27.3 移除普通 MCP/Atelier Web 调用的 License 资格与历史退出证明门槛，迁移/模板不再生成 pending，并沿既有更新器清理旧废弃字段与空登记；Node 与 vendor v3 支持正常 Cookie 续期且无需格式配置。部署后实际验证沿原队列，既有文件导出治理保持。
+
+
 普通部署按[验证契约](../plugins/coding-iris-plugin/rules/iris_deploy_checklist.md#验证)复用回执、分开报告文件部署与业务验收；0.26.2 源仓规则变更待业务副本更新与同类耗时验证。
 
 本文件只服务能力包源仓；规则以根 [AGENTS.md](../AGENTS.md) 为准。这里保留接手路由，当前版本查 owner manifest，完成记录查日志，未完成事项查 backlog。

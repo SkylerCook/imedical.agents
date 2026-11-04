@@ -32,7 +32,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
 
 按条件继续读取：
 
-- 需求类型明确为 `project` 且使用 `intent-first-on-demand-export` 时，读取[项目开发协议](../../references/project-demand-development.md)，按其接入测试/正式各自本地 Git、私有环境声明与准入资格；不自动启用策略、初始化 Git 或连接服务器。标版沿原分支，contextMode 不决定需求类型。
+- 需求类型明确为 `project` 且使用 `intent-first-on-demand-export` 时，读取[项目开发协议](../../references/project-demand-development.md)，按其接入测试/正式各自本地 Git、私有环境声明与准入配置；不自动启用策略、初始化 Git 或连接服务器。标版沿原分支，contextMode 不决定需求类型。
 - 需要人工安装说明或步骤对照时，读取 `templates/coding-iris-init-guide.md`；本文件是 Agent 执行指令，两者冲突时以本文件为准。
 - 生成或重建 thin-index 前，读取插件内置 `scripts/generate-plugin-thin-index.ps1` 的调用方式，不复制脚本实现。
 - 创建或补齐 profile 时，读取 `templates/iris_project_profile.template.md`；只有用户明确选择项目类型时，才读取 `templates/profile-defaults/<type>.md`。
@@ -91,7 +91,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
    - 将 `templates/AGENTS.coding-iris-snippet.md` 作为目标工程 `AGENTS.md` 的建议片段。
    - 合入前保留目标工程既有业务规则和 Git 规则。
 8. 验证：
-   - 本地配置 Check 的 `configurationReady` 为 true；connected＋project＋按需分支已声明真实环境并存在准入配置。`remoteAdmission: pending` 单列为远端资格待验证，不能当成远端可用。
+   - 本地配置 Check 的 `configurationReady` 为 true；connected＋project＋按需分支已声明真实环境并存在准入配置。`remoteAdmission: pending` 按 remoteReason 说明真实配置问题（如显式禁用），不能解释成缺少 License 资格；locally-configured 也不冒充连接实测成功。
    - thin-index 指向 `.agents/plugins/coding-iris-plugin/` 内真实 rules/skills。
    - 前端编码 wrapper 已存在于目标工程 `.agents/scripts/`，canonical 实现与迁移/提升脚本位于插件 `scripts/`。
    - IRIS 开发主力脚本位于插件 `.agents/plugins/coding-iris-plugin/scripts/iris-tools/`，不复制到根 `.agents/scripts/`。
@@ -99,7 +99,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
    - standard 模式的 `.agents/.git/info/exclude` 已包含生成层忽略规则：`/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`；workspace-overlay 的 `ContextRoot` 不要求存在 `.git`，本地生成层由工作区仓库自己的忽略规则管理。
    - 插件中没有源工程服务器、namespace、远程路径、业务类名前缀。
 9. 更新插件状态：
-   - 本地配置不完整时先补齐或集中确认必要事实，不能只因 thin-index 成功就完成接入。远端资格与首次同步分别列为待办，不由生成配置代替，也不阻塞已经验收的本地能力接入。
+   - 本地配置不完整时先补齐或集中确认必要事实，不能只因 thin-index 成功就完成接入。只有所选批量导出路径需要的资格与首次同步分别列为待办，不由生成配置代替，也不阻塞已经验收的本地能力接入。
    - 初始化闭环验收通过后，运行脚本机械维护 `.agents/config/plugin_profile.md`：
      ```powershell
      powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin coding-iris-plugin -Status enabled
@@ -113,7 +113,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
 
 首次初始化、重新部署或补齐配置时，默认执行同一个本地入口 `scripts/iris-tools/source-sync.js configure`；已有项目可直接执行本节，不必重跑连接反填、脚本迁移和 thin-index。参数以 `--help` 为准。
 
-已启用项目的普通 Write 更新会通过 manifest 的 `iris-development-config-v1` 迁移自动创建缺失文件；available/disabled 不处理，DryRun/Check 只报告。自动补齐保留已有字节和缺省模式绑定，缺声明时先写 `{}`，待确认的模式/环境与资格单列；Agent 根据已知事实补字段，未知事实集中确认，无需让用户手工编辑 JSON。首次初始化仍直接执行下面的明确配置步骤。
+已启用项目的普通 Write 更新会通过 manifest 的 `iris-development-config-v1` 迁移自动创建缺失文件；available/disabled 不处理，DryRun/Check 只报告。自动补齐保留有效设置和缺省模式绑定；Write 更新自动移除废弃 License 字段、空资格占位和冗余默认值，真实批量导出证据、私有扩展与恢复资料保留。未命中清理时保持原字节，缺声明时先写 `{}`，待确认的模式/环境单列，普通操作不新增 License 资格待办；Agent 根据已知事实补字段，未知事实集中确认，无需让用户手工编辑 JSON。首次初始化仍直接执行下面的明确配置步骤。
 
 1. 按已确认的开发方式及环境准备参数。环境别名与类型只用于 connected 项目分支，不从目录名或缺少连接推断。已知事实直接使用；必要事实无法查明时一次集中询问。已有合法开发方式沿用。
 2. 在本次初始化授权内直接 Write 创建缺失配置，再 Check 核验；只读请求使用 DryRun。connected 项目示例（环境参数替换为已确认值）：
@@ -124,9 +124,9 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
    ```
 
    offline 使用 `--development-mode offline`，省略环境参数；不创建或检查医院连接和远端策略。Overlay 从已解析 CapabilityRoot 定位同一脚本，它只写当前 ContextRoot。
-3. `iris-development.json` 按明确事实创建。connected＋按需上下文同时创建 `iris-remote-policy.json`，公共准入同样覆盖该上下文中的 standard 需求。初始策略保持 `enabled: false`、资格 `pending`，沿[首次接入协议](../../references/project-demand-development.md#首次接入)完成真实验证后启用。
-4. 已有文件按原字节保留；Check 报缺字段时，由 Agent 在已有配置维护授权内依据明确事实局部补齐，再 Check。模式或环境冲突、非法 JSON、未忽略/已跟踪的私有配置、链接重定向均先解决具体原因。缺少显式 developmentMode（含自动补齐的 `{}`）却已有 source-sync 恢复材料时，补显式声明前先按原任务核实配置指纹与恢复条件；普通更新的兼容空声明不改变旧绑定，不清理或改写旧计划。
-5. 完成后分别报告本地配置、远端资格及服务器基线。配置 Check 不建立服务器基线；`work/source-sync/` 由首次同步任务创建，初始化不创建空目录或假回执。connected 分支的待修改文件仍须先完成 before-edit，有变化先提交 export，再开始需求修改；资格未就绪时可继续本地调查与范围计划。
+3. `iris-development.json` 按明确事实创建。connected＋按需上下文同时创建 `iris-remote-policy.json`，公共准入同样覆盖该上下文中的 standard 需求。未取得连接事实的模板保持 `enabled: false`，不创建资格登记；受管会话迁移根据现有连接自动生成必要协调设置。按[首次接入协议](../../references/project-demand-development.md#首次接入)核对实际连接，不要求普通操作先验证 License。
+4. configure 保留已有文件；更新器仅清理上述已废弃字段，未命中时保持原字节。Check 报缺字段时，由 Agent 在已有配置维护授权内依据明确事实局部补齐，再 Check。模式或环境冲突、非法 JSON、未忽略/已跟踪的私有配置、链接重定向均先解决具体原因。缺少显式 developmentMode（含自动补齐的 `{}`）却已有 source-sync 恢复材料时，补显式声明前先按原任务核实配置指纹与恢复条件；普通更新的兼容空声明不改变旧绑定，不清理或改写旧计划。
+5. 完成后报告本地配置、实际连接及服务器基线；只有所选批量导出路径需要时报告其资格。配置 Check 不建立服务器基线；`work/source-sync/` 由首次同步任务创建，初始化不创建空目录或假回执。connected 分支的待修改文件仍须先完成 before-edit，有变化先提交 export，再开始需求修改；普通任务不因缺少 License 资格登记而停止。
 
 ## Git 忽略边界
 
@@ -137,7 +137,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
 - 初始化模式。
 - 脚本复制结果和插件内置 thin-index 脚本调用结果。
 - profile 创建或缺失项。
-- 本地配置 Write/Check 结果、远端资格待办与首次同步状态，三者分别报告。
+- 本地配置 Write/Check 结果、实际连接与首次同步状态；所选批量导出资格另按原协议报告。
 - thin-index DryRun/Write 结果。
 - `plugin_profile.md` 中 `coding-iris-plugin` 的最终状态。
 - 被跳过或冲突的文件。

@@ -546,7 +546,6 @@ async function createManagedMcpSession({projectRoot, context, serverName = 'iris
     port: Number(settings.IRIS_WEB_PORT), rejectUnauthorized: String(settings.IRIS_TLS_VERIFY ?? 'true').toLowerCase() !== 'false'};
   const policy = remoteOperations.loadRemotePolicy(selectedContext, {connection});
   if (!policy.enabled) throw new Error('remote-policy-required');
-  if (policy.qualification.channels?.mcp?.processExitVerified !== true) throw new Error('remote-mcp-exit-qualification-required');
   const owner = remoteOperations.createRemoteOperation({policy, connection, channel: 'mcp'});
   owner.acquire();
   let client, closing, exitUnverified = false;
@@ -623,7 +622,6 @@ async function main() {
   const connection = {protocol:(env.IRIS_SCHEME || 'https')+':',hostname:env.IRIS_HOST,port:env.IRIS_WEB_PORT,
     rejectUnauthorized:String(env.IRIS_TLS_VERIFY ?? 'true').toLowerCase()!=='false'};
   const policy = remoteOperations.loadRemotePolicy(context,{connection});
-  if (policy.enabled && policy.qualification.channels?.mcp?.processExitVerified !== true) throw new Error('remote-mcp-exit-qualification-required');
   const owner = remoteOperations.createRemoteOperation({policy,connection,channel:'mcp'});
   owner.acquire();
   const client = new JsonLineMcpClient(server.command, buildMcpArgs(), env, {remoteOwner:owner});
