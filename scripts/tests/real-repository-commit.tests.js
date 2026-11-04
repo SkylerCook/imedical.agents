@@ -77,6 +77,7 @@ for (const strategy of ['merge', 'cherry-pick', 'squash']) test(strategy + ' log
 test('explicit refs, exact roots, full hashes and detached checkouts fail closed', t => {
   const f = fixture(t);
   for (const input of [f.input(f.baseHash, f.repo, ''), f.input(f.baseHash.slice(0, 7)), f.input('f'.repeat(40))]) assert.throws(() => log.selectInput(input));
+  assert.throws(() => verifyRealCommits(f.repo, ref, ['f'.repeat(40)]), error => error.status === 128);
   const nested = path.join(f.repo, 'nested'); fs.mkdirSync(nested);
   assert.throws(() => verifyRealCommits(nested, ref, [f.baseHash]), /real Git root/);
   f.git(f.repo, 'checkout', '--detach');

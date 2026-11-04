@@ -29,10 +29,10 @@ const samePath = (a, b) => process.platform === 'win32' ? a.toLowerCase() === b.
 
 function git(repo, args) {
   const result = spawnSync('git', ['--literal-pathspecs', '-C', repo, ...args], {
-    encoding: 'utf8', windowsHide: true, timeout: 30000, maxBuffer: 32 * 1024 * 1024,
+    encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], timeout: 30000, maxBuffer: 32 * 1024 * 1024,
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0' },
   });
-  if (result.error || result.status !== 0) throw new Error(`Git 取证失败: ${result.error?.message || result.stderr}`);
+  if (result.error || result.status !== 0) throw new Error(`Git 取证失败: ${result.error?.message || result.stderr}${result.error?.code === 'EBUSY' ? `；工作目录 ${repo}：请检查宿主同步子进程环境（EBUSY 不唯一指向 stdin）` : ''}`);
   return result.stdout;
 }
 
@@ -526,7 +526,7 @@ function main(argv = process.argv.slice(2)) {
     } else if (args.command === 'plan') {
       const route = commitRoute(draft, args.item, args.projectRoot);
       if (route) { console.log(JSON.stringify(route, null, 2)); return; }
-      const child = spawnSync(process.execPath, [path.resolve(__dirname, '../../demand-delivery-plugin/scripts/commit-demand.js'), ...planArguments(draft, args.item, args.projectRoot)], { encoding: 'utf8', windowsHide: true, timeout: 120000, maxBuffer: 32 * 1024 * 1024 });
+      const child = spawnSync(process.execPath, [path.resolve(__dirname, '../../demand-delivery-plugin/scripts/commit-demand.js'), ...planArguments(draft, args.item, args.projectRoot)], { encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], timeout: 120000, maxBuffer: 32 * 1024 * 1024 });
       if (child.error || child.status !== 0) throw new Error(child.error?.message || child.stderr || child.stdout);
       process.stdout.write(child.stdout);
       return;

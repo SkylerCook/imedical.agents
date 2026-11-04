@@ -16,6 +16,7 @@ on:
       - 'scripts/lib/demand-code-binding.js'
       - 'scripts/lib/real-repository-commit.js'
       - 'scripts/tests/real-repository-commit.tests.js'
+      - 'scripts/tests/sync-process-stdio.tests.js'
       - 'scripts/tests/demand-hierarchy.tests.js'
       - 'scripts/lib/workspace-context.js'
       - 'scripts/lib/WorkspaceContext.psm1'
@@ -37,7 +38,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: node --test scripts/tests/plugin-availability.tests.js
+      - run: node --test scripts/tests/sync-process-stdio.tests.js scripts/tests/plugin-availability.tests.js
       - run: node --test plugins/bos-plugin/tests/*.tests.js scripts/tests/bos-plugin.tests.js plugins/demand-delivery-plugin/tests/demand-commit.test.js plugins/demand-delivery-plugin/tests/commit-upstream-check.test.js
       - run: node --test scripts/tests/demand-hierarchy.tests.js scripts/tests/workspace-context.tests.js scripts/tests/standard-demand-entry.tests.js
       - run: node --test scripts/tests/real-repository-commit.tests.js plugins/demand-delivery-plugin/tests/acceptance-session.test.js

@@ -1,5 +1,14 @@
 # imedical.agents 维护日志
 
+## 2026-11-04 同步子进程 stdin 兼容
+
+- bos-plugin 0.18.2、demand-delivery-plugin 0.9.1 与根 real-repository-commit 共五文件六调用点使用 ignore/pipe/pipe。逐处核对输入来自参数、文件或环境变量；Node 子进程为提交计划，PowerShell 为 NonInteractive。保留超时、buffer、env、非零退出及实仓门禁，不推广为所有子进程通用策略。
+- 三处 Git spawn 错误增加 EBUSY 宿主诊断和已有/补充工作目录；错误码不唯一证明 stdin 根因，不推荐长期预加载 shim。原报告为宿主行为对照，未独立确认 Node/libuv 内部失败点。
+- Windows 离线关联回归通过（sync-process-stdio、real-repository-commit、standard-demand-entry、bos-plugin、demand-commit）；六调用点成功/失败及三处 EBUSY 专项 9/9。追加实仓无效完整 hash 断言，单项复验通过，保留 status 128；文档链接 1/1 与 diff --check 通过。首次受限沙箱在夹具 git init 写 config 时被拒，沙箱外同范围合成回归通过。测试夹具由既有 after 清理，无业务 Git/BOS 操作。
+- 工作树版本校验识别两个 PATCH；7 项 xc 内部版本和历史 release 问题与 HEAD 对照相同，未新增错误。用户已授权仅在 codex/node-spawn-stdio 验证分支提交、推送 GitHub 并跟踪 CI；提交前按最终暂存范围运行 staged 门禁，不合并主分支或推送 Gitee。
+- 已核对 owner AGENTS、README、manifest、技能/协议与根 README；接口、授权、目录、安装更新算法及 thin-index 未变，既有 AGENTS/skills/docs 与能力目录/指南无需改写。README 与发布记录说明完整更新、无配置迁移及原宿主无 shim 复验后退役；业务副本未更新。
+- 新专项接入既有 bos-demand 三平台 Node22/24 矩阵，远端实跑和原 WorkBuddy 宿主结果待取。本机只读检查 WSL 列表成功但无发行版，未发现 docker 命令，不能用本机 Windows 结果替代 Linux/macOS；矩阵执行需将本次内容提交到获授权的远端分支。ObjectScript 已有控制结构/缩进审查入口，本次将点号启发式评估单独列 P1，未加入未经语法验证的扫描门禁或修改业务代码。后续对照 InterSystems legacy DO 官方说明确认：点号层级归无参数 DO，花括号不能作为点号加层依据，注释/空行也受块前缀规则约束；因此不采纳提案原文作为通用逐行判据，编译和运行验证仍待独立 owner 评估。
+
 ## 2026-11-04 会话治理收缩
 
 - coding 0.27.2 将受管 MCP/Atelier 的新增未知写交由 SessionManager 单独持久化，公共准入保留排他、生命周期、既有风险并读取同一受管风险供独立入口判断；独立调用不变。历史两层记录不自动清理，新操作不再要求双重恢复。

@@ -43,13 +43,13 @@ function runGit(root, args, options = {}) {
   if ((process.env.DEMAND_COMMIT_DEBUG === '1' || process.env.IRIS_DEMAND_COMMIT_DEBUG === '1')) process.stderr.write(`[git:start] ${root} :: ${args.join(' ')}\n`);
   const result = spawnSync('git', ['-C', root, ...args], {
     encoding: options.encoding || 'utf8',
-    windowsHide: true,
+    windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
     maxBuffer: 20 * 1024 * 1024,
     timeout: Math.min(options.timeout || 60000, remainingBudget),
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' },
   });
   if ((process.env.DEMAND_COMMIT_DEBUG === '1' || process.env.IRIS_DEMAND_COMMIT_DEBUG === '1')) process.stderr.write(`[git:end] status=${result.status} ${args[0]}\n`);
-  if (result.error) throw new Error(`git -C ${root} ${args.join(' ')} 执行异常: ${result.error.message}`);
+  if (result.error) throw new Error(`git -C ${root} ${args.join(' ')} 执行异常: ${result.error.message}${result.error.code === 'EBUSY' ? '；请检查宿主同步子进程环境（EBUSY 不唯一指向 stdin）' : ''}`);
   if (result.status !== 0 && !options.allowFailure) {
     const message = String(result.stderr || result.stdout || '').trim();
     throw new Error(`git -C ${root} ${args.join(' ')} 失败${message ? `: ${message}` : ''}`);

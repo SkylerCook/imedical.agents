@@ -16,7 +16,7 @@ function companyUrl(key = 'url') {
 }
 function windowsBinding(values) {
   const code = values ? "$v=$env:BOS_BINDING_INPUT | ConvertFrom-Json; foreach($p in $v.PSObject.Properties){[Environment]::SetEnvironmentVariable($p.Name,[string]$p.Value,'User')}; @{BOS_MCP_CONFIG=[Environment]::GetEnvironmentVariable('BOS_MCP_CONFIG','User')} | ConvertTo-Json -Compress" : "@{BOS_MCP_CONFIG=[Environment]::GetEnvironmentVariable('BOS_MCP_CONFIG','User')} | ConvertTo-Json -Compress";
-  const r = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', code], { windowsHide: true, encoding: 'utf8', env: { ...process.env, BOS_BINDING_INPUT: JSON.stringify(values || {}) }, timeout: 30000 });
+  const r = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', code], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8', env: { ...process.env, BOS_BINDING_INPUT: JSON.stringify(values || {}) }, timeout: 30000 });
   if (r.status !== 0) throw new Error('无法读写 Windows 用户环境变量；文件保留，修复权限后重试 bos-init');
   return JSON.parse(r.stdout.replace(/^\uFEFF/, ''));
 }

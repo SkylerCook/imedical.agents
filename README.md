@@ -279,6 +279,8 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 ### bos-plugin
 
+交付链路同步子进程关闭未使用的 stdin；正常更新完整能力包取得修复，宿主验证与临时 shim 退役边界见 [BOS 说明](plugins/bos-plugin/README.md)。
+
 工作量测试阶段分类及页面数量差异按[个人查询与复核契约](plugins/bos-plugin/references/usage.md#工作量差异复核)处理；刷新原范围快照、比较编号集合，区分候选、计入及待核对。
 
 提供跨技术栈的 BOS 只读查询与已有需求处理，无 IRIS 插件强依赖：

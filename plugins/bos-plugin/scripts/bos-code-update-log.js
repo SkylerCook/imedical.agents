@@ -25,10 +25,10 @@ function git(repoPath, args) {
   const result = spawnSync('git', ['-c', 'core.quotepath=false', ...args], {
     cwd: repoPath,
     encoding: 'utf8',
-    windowsHide: true,
+    windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
     maxBuffer: MAX_BUFFER
   });
-  if (result.error) throw new Error(`无法执行 git：${result.error.message}`);
+  if (result.error) throw new Error(`无法执行 git：${result.error.message}${result.error.code === 'EBUSY' ? `；工作目录 ${repoPath}：请检查宿主同步子进程环境（EBUSY 不唯一指向 stdin）` : ''}`);
   if (result.status !== 0) throw new Error(`git ${args[0]} 执行失败：${(result.stderr || '').trim() || `退出码 ${result.status}`}`);
   return result.stdout || '';
 }

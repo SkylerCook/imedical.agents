@@ -9,7 +9,7 @@ const physical = value => fs.realpathSync.native(path.resolve(value));
 const identity = value => process.platform === 'win32' ? physical(value).toLowerCase() : physical(value);
 function git(repo, args) {
   return execFileSync('git', ['-C', repo, ...args], {
-    encoding: 'utf8', windowsHide: true, stdio: 'pipe', timeout: 30000,
+    encoding: 'utf8', windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], timeout: 30000,
     env: { ...process.env, GIT_NO_REPLACE_OBJECTS: '1' }
   }).trim();
 }

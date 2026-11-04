@@ -1,6 +1,6 @@
 {
   "name": "demand-delivery-plugin",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "displayName": "Demand Delivery Plugin",
   "description": "跨技术栈的需求提交，支持 project 显式无编号提交，以及连续人工验收、逐号交付恢复。",
   "entry": "AGENTS.md",
