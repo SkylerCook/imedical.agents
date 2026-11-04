@@ -6,7 +6,7 @@
 
 ## 当前接手
 
-- BOS / demand-delivery 同步子进程 stdin 兼容修复已落源仓，范围为五文件六调用点；版本查 manifest，验证查维护日志，原宿主与跨平台证据沿 backlog。源仓修复不代表业务副本已更新或 shim 已退役。
+- BOS / demand-delivery 同步子进程 stdin 兼容修复已落源仓，范围为五文件六调用点；版本查 manifest，直接回归三平台 Node22/24 六组通过；完整 CI 仍有其它失败，证据查维护日志，原宿主与剩余兼容事项沿 backlog。源仓修复不代表业务副本已更新或 shim 已退役。
 
 - coding 0.27.2 收缩会话阻断：受管新增未知写只记一次，固定 vendor 的临时执行 PUT 405 保留诊断而不封锁后续写；本地退出及写结果核实后可在注销未确认下恢复，License 观测不阻断普通交付。Windows 关联回归累计 86 通过、1 平台跳过；副本同步、真实宿主与跨平台结果沿原队列，恢复边界见[统一会话](../docs/guides/iris-managed-sessions.md#状态与恢复)。
 

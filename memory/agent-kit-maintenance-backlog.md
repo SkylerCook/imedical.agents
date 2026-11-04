@@ -2,7 +2,7 @@
 
 - **P1 ObjectScript 点号层级评估**（coding-iris owner）：已有后端规则要求检查控制结构和缩进，先在该入口评估补充传统无参数 Do 点号块案例。已对照 [InterSystems legacy DO 文档](https://docs.intersystems.com/latest/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_cdo_legacy)：点号块属于无参数 DO，不能将花括号也视为点号加层依据；注释和空行也有点号要求。提案的逐行 +1 启发式未覆盖完整语法；准备合法/非法块、注释、嵌入 SQL 与花括号对照并核实编译及执行结果，再决定是否补 review 示例或扫描器；未核实命中不作缺陷，不批量修改代码。
 
-- **P2 同步子进程宿主兼容**（归既有跨平台/宿主验证）：源仓五文件六调用点关闭 stdin，专项接入 bos-demand 三平台 Node22/24 矩阵；取得 CI 实跑及原 WorkBuddy 宿主不预加载 shim 的计划/失败分支证据。业务副本更新和本机 shim 退役分别授权；本地合成测试不证明原宿主底层根因或所有 Git hook 均兼容无交互输入。
+- **P2 同步子进程宿主兼容**（归既有跨平台/宿主验证）：源仓五文件六调用点关闭 stdin，专项及直接回归已取得 bos-demand 三平台 Node22/24 六组通过证据（5010fdc，run 41826611235）。剩余为原 WorkBuddy 宿主不预加载 shim 的计划/失败分支证据；完整工作流的 Unix NTFS Junction 限制及其他 BOS/acceptance 测试临时路径别名问题沿既有兼容队列处理，不将直接步骤通过写成全仓 CI 通过。业务副本更新和本机 shim 退役分别授权；本地合成测试不证明原宿主底层根因或所有 Git hook 均兼容无交互输入。
 
 
 - **P2 AI 开发离线物料干净环境验收**（归治理表第 7 项兼容验证，tools/ai-dev-offline）：原包、CodeBuddy、安全模板、PATH与用户终端自动配置已准备，JSONC增量写入及无Node PATH双宿主入口已有本地证据；后续在获授权干净Windows 10/11 x64断网验证完整安装、Python pip/venv、Machine PATH／通知、便携及普通VS Code新终端、CodeBuddy激活资源与AI shell实际加载。AI登录、MCP宿主和医院运行时另验；文件写入／Process子CMD不能替代现场。完整自动安装器及其它设置通用合并尚未实现，不把制包扩大为本机用户设置／系统变更或业务副本更新。

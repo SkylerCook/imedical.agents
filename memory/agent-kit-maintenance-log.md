@@ -2,6 +2,8 @@
 
 ## 2026-11-04 同步子进程 stdin 兼容
 
+- 最终功能候选 `5010fdc` 的 [CI 41826611235](https://github.com/SkylerCook/imedical.agents/actions/runs/41826611235) 已结束：Windows/Linux/macOS × Node22/24 的 Stdio and affected delivery regressions 六组均通过（每组 90 项），随后 availability 六组均通过（每组 10 项）。完整 BOS 工作流仍失败：后续 updater 在 Unix 要求 NTFS Junction，Windows bos-demand-log 夹具的短/长临时路径导致独立修改说明键不匹配；其它工作流亦有失败，不宣称全仓 CI 通过。该批未修 updater 或其它插件测试，跟进归兼容队列；无业务副本部署、WorkBuddy 原宿主重验或 shim 清理。
+
 - 验证分支 e5027ec 首轮 CI 在既有 availability 夹具漏带 project-directories 处停止；补齐其真实依赖。将本次关联回归移至既有矩阵第一步，后续步骤去除重复套件，原完整检查仍保留，便于分别报告本次验证与其他失败。第二轮实仓写边界测试暴露对本机 Git 用户的隐式依赖，显式传虚构 --user 以到达原断言。BOS updater 测试的 Unix NTFS Junction 断言失败留原检查，不修改 updater；将其恢复至其它 BOS 检查步骤，直接回归步骤保留六调用点、真实提交/计划及实仓校验。Windows CI 另暴露 RUNNER~1 与 runneradmin 临时路径别名，实仓断言及标准需求夹具统一用 native realpath 创建/比较物理路径，生产路径门禁不放松。全仓 CI 失败不解释为本次验证通过，分别报告步骤证据。
 
 - bos-plugin 0.18.2、demand-delivery-plugin 0.9.1 与根 real-repository-commit 共五文件六调用点使用 ignore/pipe/pipe。逐处核对输入来自参数、文件或环境变量；Node 子进程为提交计划，PowerShell 为 NonInteractive。保留超时、buffer、env、非零退出及实仓门禁，不推广为所有子进程通用策略。
