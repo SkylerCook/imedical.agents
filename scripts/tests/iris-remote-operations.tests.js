@@ -111,8 +111,15 @@ test('ordinary Atelier reads uploads and compilation accept pending registration
 
 test('on-demand policy fails closed before a remote request and legacy remains compatible', t => {
   const f = fixture(t, true);
+  const {normalizeConnection} = require('../lib/atelier-client');
+  const connection = {...f.connection}; delete connection.rejectUnauthorized;
+  assert.equal(normalizeConnection(connection).rejectUnauthorized, true);
+  assert.equal(normalizeConnection({...connection,tlsVerify:false}).rejectUnauthorized, false);
+  assert.equal(normalizeConnection({...connection,rejectUnauthorized:true,tlsVerify:false}).rejectUnauthorized, true);
   assert.throws(() => remote.loadRemotePolicy(f.context, { connection: f.connection }), /remote-policy-required/);
-  assert.throws(() => remote.loadRemotePolicy(f.context, { connection: { ...f.connection, rejectUnauthorized: false }, policy: f.policy }), /remote-strict-tls-required/);
+  assert.equal(remote.loadRemotePolicy(f.context, { connection: { ...f.connection, rejectUnauthorized: false }, policy: f.policy }).enabled, true);
+  assert.equal(remote.loadRemotePolicy(f.context, { connection: f.connection, policy: f.policy }).enabled, true);
+  assert.throws(() => remote.loadRemotePolicy(f.context, { connection: { ...f.connection, protocol: 'http:' }, policy: f.policy }), /remote-strict-tls-required/);
   assert.throws(() => remote.loadRemotePolicy(f.context, { connection: f.connection, policy: { ...f.policy, maxConcurrent: 2 } }), /remote-policy-invalid/);
   assert.equal(remote.loadRemotePolicy({ contextRoot: path.join(f.root, 'legacy') }).enabled, false);
 });

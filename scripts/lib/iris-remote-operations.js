@@ -92,7 +92,9 @@ function loadRemotePolicy(context = {}, { connection, policy, qualification, rec
   const result = { ...value, required, coordinationRoot: path.resolve(value.coordinationRoot), maxConcurrent: 1,
     instanceHash: connection ? instanceIdentity(connection) : null,
     ...(qualification ? {qualificationRun: true} : {}), ...(recoveryRead ? {recoveryReadOnly:true} : {}) };
-  if (required && connection && (connection.rejectUnauthorized === false || String(connection.protocol || connection.scheme || connection.IRIS_SCHEME || 'https').replace(/:$/, '') !== 'https')) stop('remote-strict-tls-required');
+  // Certificate verification follows the project's explicit connection setting.
+  // Context mode must not silently override that setting; HTTPS is still required.
+  if (required && connection && String(connection.protocol || connection.scheme || connection.IRIS_SCHEME || 'https').replace(/:$/, '') !== 'https') stop('remote-strict-tls-required');
   return managedPolicy(context, result);
 }
 function managedPolicy(context, policy, force = false) {

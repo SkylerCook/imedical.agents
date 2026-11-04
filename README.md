@@ -1,5 +1,7 @@
 # imedical.agents
 
+普通按需 HTTPS 调用尊重项目显式 TLS 校验配置，缺省仍验证证书；更新根运行时后结束旧托管会话即可使用，详见[更新说明](docs/update-agents.md)。
+
 普通 IRIS 文件部署按[验证契约](plugins/coding-iris-plugin/rules/iris_deploy_checklist.md#验证)复用已有回执，分别报告文件部署和业务验收；独立附加检查不拖延已验证部署的交付。
 
 > **让 AI Coding 的最佳实践成为团队共享的基础设施。**
