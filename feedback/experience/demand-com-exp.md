@@ -431,6 +431,17 @@
   3. 子方法中的字典字段也需要翻译，翻译位置贴近原始字段来源
 - **已回归/已提升**：`plugins/i18n-iris-plugin/rules/i18n_verify.md`
 
+### 6.7 会话相关翻译方法的 `n` 排除列表必须保留 `%session`
+- 需求: #5963242 | 命中: 1
+- **问题**：`Not ProcedureBlock` 的 ClassMethod 里 `n (oeori)` 会 new 掉除 oeori 外的**全部**局部变量（含 `%session`）。之后调用依赖会话语言的翻译链（`DHCDoc.Common.Translate.GetTransXxx` 省略 languageId → `%TranslateTableFieldValue` → `..%LanguageID()` → `%SessionStr()`）时，`%SessionStr()` 检查 `'$d(%session)` 直接返回空 → langid 回落默认 20（中文）。**修复表面完成、不报任何错，但英/法语用户仍看到中文**——缺陷对中文测试不可见，本地静态检查也查不出来。
+- **修正**：`n` 排除列表补 `%session`（同时用页面级 `%Translate` 依赖 `%request` 取页面码时一并补 `%request`）：
+  ```objectscript
+  n (oeori,%session)   // 原 n (oeori)
+  ```
+- **判定线索**：同类已翻译方法全部正常、唯独新补翻译的方法不生效时，先核对该方法的 `n` 排除列表，再查翻译数据。同文件 7 个会话相关翻译方法均显式保留 `%session`（如 `QueryPartItmList` 的 `n (oeori,%session)`、`GetExaReqItemDesc` 的 `n (oeori, PartFlag, %session, %request)`）即为此惯例。
+- **边界**：方法无 `n` 行、或调用翻译时显式传入 languageId 时不适用；`ProcedureBlock` 方法 new 语义不同。本条基于代码链路证据与同类方法先例；`%session` 为空回落 20 的行为由 `DHCDoc.Util.RegisteredObject.%LanguageID`（第 6 段为空补 20）+ `%SessionStr`（`$d(%session)` 为假返回空串）代码链路证实。
+- **出处**：#5963242 `web.DHCAPPInterface.GetReqBillPartIDDesc`（风行以 `n (oeori)` 一句话点破）。
+
 ---
 
 ## 七、代码差异治理与提交卫生
@@ -481,3 +492,4 @@
 | #7060457 | 口腔技工单期望到件非法日期校验 | [1.5](#15-while-循环内不能-q--返回值), [1.9](#19-iris-日期时间转换成功不等于输入合法), [2.7](#27-弹窗边缘的-validatebox-校验提示不宜只调整展示方向), [2.8](#28-hisui-日期时间手工输入必须由业务层严格复核) |
 | #7060481 | 首次上传文件后空态提示未隐藏 | [2.9](#29-列表内容与独立空态必须在所有数量变化入口统一同步) |
 | #7060499 | 删除上传文件后再次选择同一文件 | [2.10](#210-webuploader-删除文件时必须同步清理内部队列), [2.11](#211-嵌套异步回调不能依赖外层的-this-绑定) |
+| #5963242 | 退费申请后多部位检查医嘱部位名称未翻译 | [6.7](#67-会话相关翻译方法的-n-排除列表必须保留-session) |
