@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY=false`），项目显式 `true` 仍保留。显式开启校验的 Atelier 在支持 API 的 Node 中合并默认与系统 CA；专用 CA 保持优先，不改全局信任。
+
 普通按需 HTTPS 调用遵循显式 TLS 配置，默认验证证书；本轮根运行时修正不改变 HTTPS 要求、不修改业务私有配置。详见更新 runbook 与维护日志。
 
 维护先遵循根 [框架维护首要原则](../AGENTS.md#框架维护首要原则)：可靠完成任务，减少配置和人工介入。coding 0.27.3 移除普通 MCP/Atelier Web 调用的 License 资格与历史退出证明门槛，迁移/模板不再生成 pending，并沿既有更新器清理旧废弃字段与空登记；Node 与 vendor v3 支持正常 Cookie 续期且无需格式配置。部署后实际验证沿原队列，既有文件导出治理保持。

@@ -29,12 +29,12 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
   const config = JSON.parse(fs.readFileSync(path.join(context.workspaceRoot, '.mcp.json'), 'utf8').replace(/^\uFEFF/, ''));
   const server = config.mcpServers?.[serverName];
   if (!server || !localOnly && server.disabled === true) throw failure('session-server-disabled-or-missing');
-  const env = server.env || {};
+  const env = {IRIS_TLS_VERIFY:'false', ...(server.env || {})};
   if(env.IRIS_TOOLSET && env.IRIS_TOOLSET!=='merged')throw failure('session-toolset-review-required');
   if (!env.IRIS_HOST || !env.IRIS_NAMESPACE || !env.IRIS_WEB_PORT) throw failure('session-target-incomplete');
   const connection = {protocol: (env.IRIS_SCHEME || 'https') + ':', hostname: env.IRIS_HOST, port: Number(env.IRIS_WEB_PORT),
     namespace: env.IRIS_NAMESPACE, username: env.IRIS_USERNAME, password: env.IRIS_PASSWORD,
-    rejectUnauthorized: String(env.IRIS_TLS_VERIFY ?? 'true').toLowerCase() !== 'false'};
+    rejectUnauthorized: String(env.IRIS_TLS_VERIFY ?? 'false').toLowerCase() !== 'false'};
   const instance = remote.instanceIdentity(connection);
   const policyFile = path.join(context.contextRoot, 'config', 'iris-remote-policy.json');
   let policy;

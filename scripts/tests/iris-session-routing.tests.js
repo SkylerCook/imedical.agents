@@ -19,6 +19,16 @@ test('managed MCP clients reach one real subprocess and local tools/list never s
   const config={mcpServers:{'iris-agentic-dev':{command:process.execPath,args:[path.resolve('scripts/iris-session-mcp.js')],env:{IRIS_HOST:'example.invalid',IRIS_WEB_PORT:'443',IRIS_SCHEME:'https',IRIS_NAMESPACE:'TEST'}}}};
   fs.writeFileSync(path.join(project,'.mcp.json'),JSON.stringify(config));
   fs.writeFileSync(path.join(project,'.agents/config/iris-session-backend.json'),JSON.stringify({schema:'iris-session-backend/v1',serverName:'iris-agentic-dev',command:process.execPath,args:[backend]}));
+  const defaults=require('../lib/iris-session-backends').describe(project);
+  assert.equal(defaults.connection.rejectUnauthorized,false);
+  assert.equal(defaults.env.IRIS_TLS_VERIFY,'false');
+  config.mcpServers['iris-agentic-dev'].env.IRIS_TLS_VERIFY='true';
+  fs.writeFileSync(path.join(project,'.mcp.json'),JSON.stringify(config));
+  const verified=require('../lib/iris-session-backends').describe(project);
+  assert.equal(verified.connection.rejectUnauthorized,true);
+  assert.equal(verified.env.IRIS_TLS_VERIFY,'true');
+  delete config.mcpServers['iris-agentic-dev'].env.IRIS_TLS_VERIFY;
+  fs.writeFileSync(path.join(project,'.mcp.json'),JSON.stringify(config));
   const host=await serve({root:path.join(root,'ipc')});
   const notesA=[],notesB=[];
   const a=createClient({projectRoot:project,root:path.join(root,'ipc'),allowWrite:true,onNotification:m=>notesA.push(m)}),b=createClient({projectRoot:project,root:path.join(root,'ipc'),onNotification:m=>notesB.push(m)});

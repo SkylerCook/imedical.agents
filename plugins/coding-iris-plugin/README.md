@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY=false`），项目显式 `true` 仍保留。显式开启校验的 Atelier 在支持 API 的 Node 中合并默认与系统 CA；专用 CA 保持优先，不改全局信任。
+
 0.27.3：删除普通查询、上传和编译的 License 资格/证据门槛，移除 MCP 历史退出证明的前置检查；迁移不再生成 qualification.pending。保留连接复用、串行、实际退出与写冲突保护，既有大批量文件导出治理不变。普通 Cookie 续期直接复用新值，不再要求格式登记；完整更新根 scripts、插件与 managed-sessions-v3 vendor/摘要；既有更新迁移自动删除无效登记、历史退出证明和多余默认字段；已有真实导出证据、连接及私有扩展保留，无需人工清理，详见[更新说明](../../docs/update-agents.md)。
 
 

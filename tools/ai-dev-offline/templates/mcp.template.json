@@ -12,7 +12,7 @@
         "IRIS_WEB_PORT": "52773",
         "IRIS_SCHEME": "https",
         "IRIS_NAMESPACE": "REPLACE_WITH_IRIS_NAMESPACE",
-        "IRIS_TLS_VERIFY": "true"
+        "IRIS_TLS_VERIFY": "false"
       }
     }
   }

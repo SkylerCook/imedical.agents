@@ -98,7 +98,7 @@ Rollback 保留后来添加的无关设置；本次终端键已被他人修改�
 ## 项目 MCP 与 IRIS TOML 模板
 
 - `templates/mcp.template.json`：基于现用项目 `.mcp.json` 的单个 server 结构，只包含 `iris-agentic-dev`；命令改为 `__IRIS_AGENTIC_DEV_EXE__`，参数保留 `mcp` 并显式添加 `--config __IRIS_CONFIG_FILE__`，避免依赖客户端工作目录。替换为目标项目内实际 vendor exe 和私有 TOML 的绝对路径；JSON 反斜线需转义。不复制其它 MCP。
-- `templates/iris-agentic-dev.template.toml`：基于现用 TOML 的顶层字段，保留 host、web_port、scheme、namespace、tls_verify；连接值为占位／示例，凭据字段省去。`52773` 不是现场已验证端口，scheme 按实际服务填写；模板不继承准备机的 TLS 例外。
+- `templates/iris-agentic-dev.template.toml`：基于现用 TOML 的顶层字段，保留 host、web_port、scheme、namespace、tls_verify；连接值为占位／示例，凭据字段省去。`52773` 不是现场已验证端口，scheme 按实际服务填写；MCP 与 TOML 模板统一默认关闭证书校验，显式开启时需使用受信证书。
 
 两份模板分别落到目标项目根的 `.mcp.json` 与 `.iris-agentic-dev.toml`；已有混合 MCP 文件时只合并该 server，不能整文件覆盖。MCP env 的非敏感连接字段与 TOML 填同一目标值，以兼容现有 helper 对 `env.IRIS_NAMESPACE` 的读取；不在模板中放用户名、密码或它们的空白填空字段。运行时凭据使用目标客户端继承的进程环境 `IRIS_USERNAME` / `IRIS_PASSWORD`，或目标工具已支持且现场批准的安全凭据机制，不把密码放命令行。实例文件须在目标项目被 Git 忽略，且只在本机填写。
 

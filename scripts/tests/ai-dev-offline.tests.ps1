@@ -64,9 +64,9 @@ try {
     $servers = @($mcp.mcpServers.PSObject.Properties.Name)
     $iris = $mcp.mcpServers.'iris-agentic-dev'
     if ($servers.Count -ne 1 -or $servers[0] -ne 'iris-agentic-dev' -or $iris.command -ne '__IRIS_AGENTIC_DEV_EXE__' -or ($iris.args -join '|') -ne 'mcp|--config|__IRIS_CONFIG_FILE__') { throw 'mcp-template-scope-or-launch-mismatch' }; $count++
-    if (@($iris.env.PSObject.Properties.Name|Where-Object{$_ -match 'USERNAME|PASSWORD|TOKEN|KEY'}).Count -or $iris.env.IRIS_HOST -ne 'REPLACE_WITH_IRIS_HOST' -or $iris.env.IRIS_NAMESPACE -ne 'REPLACE_WITH_IRIS_NAMESPACE' -or $iris.env.IRIS_TLS_VERIFY -ne 'true') { throw 'unsafe-mcp-template-env' }; $count++
+    if (@($iris.env.PSObject.Properties.Name|Where-Object{$_ -match 'USERNAME|PASSWORD|TOKEN|KEY'}).Count -or $iris.env.IRIS_HOST -ne 'REPLACE_WITH_IRIS_HOST' -or $iris.env.IRIS_NAMESPACE -ne 'REPLACE_WITH_IRIS_NAMESPACE' -or $iris.env.IRIS_TLS_VERIFY -ne 'false') { throw 'unsafe-mcp-template-env' }; $count++
     $toml = Get-Content -LiteralPath (Join-Path $source 'templates/iris-agentic-dev.template.toml') -Raw -Encoding UTF8
-    if ($toml -match '(?m)^\s*(username|password|token|api_key)\s*=' -or $toml -notmatch '(?m)^tls_verify = true$' -or $toml -notmatch 'host = "REPLACE_WITH_IRIS_HOST"' -or $toml -notmatch 'namespace = "REPLACE_WITH_IRIS_NAMESPACE"') { throw 'unsafe-toml-template' }; $count++
+    if ($toml -match '(?m)^\s*(username|password|token|api_key)\s*=' -or $toml -notmatch '(?m)^tls_verify = false$' -or $toml -notmatch 'host = "REPLACE_WITH_IRIS_HOST"' -or $toml -notmatch 'namespace = "REPLACE_WITH_IRIS_NAMESPACE"') { throw 'unsafe-toml-template' }; $count++
     $environment = Join-Path $source 'configure-environment.ps1'
     $toolsRoot = Join-Path $testRoot 'tools-root'
     $nodeVersion = ($manifest.components | Where-Object id -eq 'node').version

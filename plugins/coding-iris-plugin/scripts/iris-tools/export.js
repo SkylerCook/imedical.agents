@@ -426,7 +426,7 @@ function requestWithRetry(apiUrl, options, maxRetries, callback) {
     try {
         const required = contextMode(workspaceContext) === 'intent-first-on-demand-export';
         let connection = { protocol: irisScheme + ':', hostname: iris.host, port: irisPort,
-            namespace, auth: iris.username + ':' + iris.password, rejectUnauthorized: iris.tlsVerify !== false };
+            namespace, auth: iris.username + ':' + iris.password, rejectUnauthorized: String(iris.tlsVerify ?? false).toLowerCase() !== 'false' };
         const mcpPath = path.join(workspaceRoot, '.mcp.json');
         if (required) {
             const mcp = JSON.parse(fs.readFileSync(mcpPath, 'utf8').replace(/^\uFEFF/, ''));

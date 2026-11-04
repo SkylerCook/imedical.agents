@@ -1,6 +1,8 @@
 # .agents 安装与更新 Runbook
 
-普通按需操作的 HTTPS 证书验证遵循项目显式 TLS 配置，不再因 `tlsVerify=false` 被公共准入额外拦截。未配置时仍默认验证证书，按需模式仍要求 HTTPS。此修正只涉及根 `scripts/lib/iris-remote-operations.js`，无新增配置、无 vendor 重建或插件版本变化；正常更新框架脚本并结束旧托管会话后生效，不自动修改项目 TLS 配置。
+IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY=false`），项目显式 `true` 仍保留。显式开启校验的 Atelier 在支持 API 的 Node 中合并默认与系统 CA；专用 CA 保持优先，不改全局信任。
+
+普通按需操作的 HTTPS 证书验证遵循项目显式 TLS 配置，不再因 `tlsVerify=false` 被公共准入额外拦截。该历史修正当时未配置默认验证证书；当前 0.27.4 已统一缺省 false，按需模式仍要求 HTTPS。此修正只涉及根 `scripts/lib/iris-remote-operations.js`，无新增配置、无 vendor 重建或插件版本变化；正常更新框架脚本并结束旧托管会话后生效，不自动修改项目 TLS 配置。
 
 coding 0.27.3 删除普通查询、上传和编译的 License 登记门槛：公共准入不再要求 qualification.status/reference，MCP 不再要求历史 processExitVerified；实际连接、目标、退出、写入授权及冲突检查保留。正常整包更新根 scripts、coding owner、managed-sessions-v3 vendor 与对应摘要，结束旧管理会话、重启宿主 MCP 后使用新运行时；已启用 coding 的工程在既有 iris-development-config-v1 迁移中自动清理废弃字段：admissionMode、processExitVerified、sessionCookieFormat/sessionCookieFormatInstance、与默认值相同的容量/共享设置，以及空 pending 资格和模板占位证据；清理后删除空容器。DryRun/Check 只报告，Write 原子改写并读回，重复更新不改字节；未知 schema、链接文件或并发修改不覆盖。连接、真实导出证据（含实际 pending 试验引用）、显式禁用、有效共享池/非默认预算及私有扩展保持，不删除证据文件或恢复资料。新会话迁移和普通模板不再生成资格登记、通道历史证明或多余默认字段；显式禁用仍保留并准确报告 remote-policy-disabled。已有文件导出/多会话资格不迁移、不删除，源仓修复不代表业务副本已生效。
 
@@ -934,3 +936,5 @@ bos-plugin 随既有 /plugins/** 与 workflow 分发，默认 available；仅明
 普通更新从当前工作区调用 `project-docs.js update`，standard/Overlay 共用入口。未接入仅提示首次授权；已接入 Write 可补声明目录、缺失 README 并更新带标记的受管说明，Check/DryRun 只读并识别说明缺失/过期。人工正文、扩展配置与业务文件保留。无标记 README 提示 `navigation-plan`，评审后沿既有 apply 的精确批准与备份接管，再由普通 Write 持续维护；不使用 Force 覆盖旧导航。直接 CLI 的 `documentationChanges` 可审查受管区前后内容。
 
 异常报告待复核，不阻断其它更新；不自动迁移文件或改变 Git 策略。`docs-layout-ok` 只覆盖目录、受管说明和生成导航，未逐文件归类或验证全库人工链接。首次部署、扩展登记、旧工程说明升级、具体迁移与批次回退按[目录治理](guides/project-knowledge-layout.md)执行。CLI/lib 沿现有根 scripts 与 plugins 稀疏规则分发，业务副本需独立更新；Overlay 共享能力更新一次，各工作区分别刷新本地说明，源仓实现不代表已部署。
+
+coding 0.27.4：整包更新根 scripts 与 coding 插件，结束旧管理会话并重启宿主；无需修改私有连接配置，无 vendor 二进制变化。已有配置显式 true/false 都保留，缺失字段采用 false；离线安装工具的 MCP/TOML 模板同步为 false，需重新取得工具包源码或重新打包。源仓测试不代表业务部署完成。

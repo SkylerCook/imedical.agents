@@ -4,6 +4,27 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const {createAtelierClient} = require('../lib/atelier-client');
 
+test('HTTPS trust includes system CA locally, preserves explicit CA and supports older Node', async t => {
+  const tls=require('node:tls'),https=require('node:https'), OriginalAgent=https.Agent;
+  const cert=tls.rootCertificates[0], extra=tls.rootCertificates[1];
+  let options, reads=0;
+  t.mock.method(https,'Agent',function(value){options=value;return new OriginalAgent(value);});
+  const original=tls.getCACertificates;
+  t.after(()=>{tls.getCACertificates=original;});
+  tls.getCACertificates=kind=>{reads++;return kind==='system'?[cert,extra]:[cert];};
+  const connection={protocol:'https:',hostname:'synthetic.invalid',path:'/api/atelier/v1/TEST/'};
+  const make=overrides=>createAtelierClient({managedHost:true,connection:{...connection,...overrides}});
+  const client=make({tlsVerify:true});
+  assert.equal(options.rejectUnauthorized,true);assert.deepEqual(options.ca,[cert,extra]);
+  require('node:tls').createSecureContext({ca:options.ca});
+  await client.close();
+  reads=0;
+  const explicit=make({ca:[cert]});assert.deepEqual(options.ca,[cert]);assert.equal(reads,0);await explicit.close();
+  const disabled=make({tlsVerify:false});assert.equal(options.rejectUnauthorized,false);assert.equal(reads,0);await disabled.close();
+  tls.getCACertificates=undefined;
+  const legacy=make({tlsVerify:true});assert.equal(options.rejectUnauthorized,true);assert.equal(options.ca,undefined);await legacy.close();
+});
+
 async function fixture(t, mode, options = {}) {
   const requests = []; let sequence = 0;
   const server = http.createServer((req, res) => {

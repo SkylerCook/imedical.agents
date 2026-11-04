@@ -68,7 +68,11 @@ test('connection uses MCP facts and explicit TLS setting, rejects namespace conf
   const mcp={mcpServers:{iris:{env:{IRIS_HOST:'example.invalid',IRIS_SCHEME:'https',IRIS_WEB_PORT:'443',IRIS_USERNAME:'test',IRIS_PASSWORD:'fake',IRIS_NAMESPACE:'TEST',IRIS_TLS_VERIFY:'false'}}}};
   assert.equal(connection(config,mcp).rejectUnauthorized,false);
   delete mcp.mcpServers.iris.env.IRIS_TLS_VERIFY;
+  assert.equal(connection(config,mcp).rejectUnauthorized,false);
+  config.iris.tlsVerify=true;
   assert.equal(connection(config,mcp).rejectUnauthorized,true);
+  mcp.mcpServers.iris.env.IRIS_TLS_VERIFY='false';
+  assert.equal(connection(config,mcp).rejectUnauthorized,false);
   config.iris.namespace='OTHER'; assert.throws(()=>connection(config,mcp),/Namespace/);
 });
 

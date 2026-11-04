@@ -1,6 +1,7 @@
 'use strict';
 const http = require('node:http');
 const https = require('node:https');
+const tls = require('node:tls');
 const crypto = require('node:crypto');
 const remote = require('./iris-remote-operations');
 
@@ -12,7 +13,7 @@ function normalizeConnection(input = {}) {
   base = base.replace(/(?:action\/compile.*|doc\/.*|docs(?:\?.*)?)$/, '');
   if (!base.endsWith('/')) base += '/';
   if (!['http:', 'https:'].includes(protocol) || !hostname || !Number.isInteger(port) || port < 1 || port > 65535 || !/^\/.*\/api\/atelier\//.test('/' + base) && !base.startsWith('/api/atelier/') || /[\r\n]/.test(base)) throw new remote.RemoteOperationError('atelier-connection-invalid');
-  return { protocol, hostname, port, path: base, auth: input.auth || (input.username ? input.username + ':' + (input.password || '') : undefined), rejectUnauthorized: input.rejectUnauthorized ?? input.tlsVerify ?? true,
+  return { protocol, hostname, port, path: base, auth: input.auth || (input.username ? input.username + ':' + (input.password || '') : undefined), rejectUnauthorized: input.rejectUnauthorized ?? input.tlsVerify ?? false,
     ...(input.ca ? { ca: input.ca } : {}) };
 }
 function createAtelierClient({ connection, context, policy, qualification, owner: sharedOwner, managedHost = false, timeoutMs = 60000, maxResponseBytes = 16 * 1024 * 1024 } = {}) {
@@ -23,7 +24,11 @@ function createAtelierClient({ connection, context, policy, qualification, owner
     ? require('./iris-session-client').createAtelierTransport({context, connection: conn}) : null;
   const selected = managedHost || transport ? {enabled:false} : remote.loadRemotePolicy(context || {}, { connection: conn, policy, qualification });
   const owner = sharedOwner || remote.createRemoteOperation({ policy: selected, connection: conn, channel: 'atelier' });
-  const agent = conn.protocol === 'https:' ? new https.Agent({ keepAlive: true, maxSockets: 1, rejectUnauthorized: conn.rejectUnauthorized, ...(conn.ca ? { ca: conn.ca } : {}) }) : new http.Agent({ keepAlive: true, maxSockets: 1 });
+  // Resolve trust in the process actually issuing HTTPS, including the session host.
+  // Explicit CA retains Node's replacement semantics; never change global defaults.
+  const ca = conn.ca ?? (conn.protocol === 'https:' && conn.rejectUnauthorized && typeof tls.getCACertificates === 'function'
+    ? [...new Set([...tls.getCACertificates('default'), ...tls.getCACertificates('system')])] : undefined);
+  const agent = conn.protocol === 'https:' ? new https.Agent({ keepAlive: true, maxSockets: 1, rejectUnauthorized: conn.rejectUnauthorized, ...(ca !== undefined ? { ca } : {}) }) : new http.Agent({ keepAlive: true, maxSockets: 1 });
   const cookies = new Map();
   const cookieScopes = new Map();
   const qualificationReads = qualification ? new Set(qualification.documents.map(name => 'doc/' + encodeURIComponent(name))) : null;
@@ -114,7 +119,10 @@ function createAtelierClient({ connection, context, policy, qualification, owner
       });
       const timer = setTimeout(() => request.destroy(Object.assign(new Error('atelier-deadline'), {code:'ATELIER_DEADLINE'})), options.timeoutMs || timeoutMs);
       request.on('close', () => clearTimeout(timer));
-      request.on('error', error => fail(error.code === 'ATELIER_DEADLINE' ? 'atelier-deadline-outcome-unknown' : 'atelier-transport-unknown', { transportCode: /^[A-Z][A-Z0-9_]+$/.test(error.code || '') ? error.code : 'TRANSPORT_ERROR' }));
+      request.on('error', error => fail(error.code === 'ATELIER_DEADLINE' ? 'atelier-deadline-outcome-unknown' : 'atelier-transport-unknown', {
+        transportCode: /^[A-Z][A-Z0-9_]{0,79}$/.test(error.code || '') ? error.code : 'TRANSPORT_ERROR',
+        ...(conn.protocol === 'https:' && conn.rejectUnauthorized && typeof tls.getCACertificates !== 'function' && /CERT|SELF_SIGNED|ISSUER/.test(error.code || '') ? {diagnostic:'system-ca-api-unavailable'} : {})
+      }));
       sent = true; if (!options.logout) attempted = true; request.end(data);
     });
   }

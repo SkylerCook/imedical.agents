@@ -145,3 +145,5 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
 - 仍需目标工程填写的配置项。
 - `.mcp.json` 已存在时，`project-env.json` 反向填充结果。
 - project-memory.md 更新结果。
+
+TLS 初始化：缺省使用 false，已有显式值原样保留；部署沿用连接配置，不另设相反默认值。系统 CA 与升级方式见统一会话手册。

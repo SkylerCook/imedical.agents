@@ -5,6 +5,6 @@ host = "REPLACE_WITH_IRIS_HOST"
 web_port = 52773
 scheme = "https"
 namespace = "REPLACE_WITH_IRIS_NAMESPACE"
-tls_verify = true
+tls_verify = false
 # Supply credentials to the client process through IRIS_USERNAME / IRIS_PASSWORD,
 # or use an already approved secure credential provider. Do not add them to this template.

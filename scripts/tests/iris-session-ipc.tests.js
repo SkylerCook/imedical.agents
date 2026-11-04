@@ -4,6 +4,17 @@ const {createTempDirectory,ownsTempDirectory}=require('./fixtures/temp-directory
 const {serve}=require('../iris-session-host');
 const {connect}=require('../lib/iris-session-ipc');
 
+test('safe TLS diagnosis crosses host IPC without exposing raw error details',async t=>{
+  const root=createTempDirectory('iris-session-tls-');let transportCode='DEPTH_ZERO_SELF_SIGNED_CERT';
+  const host=await serve({root,describe:p=>({...p,pool:'tls',identity:'user',effects:'read-only'}),
+    open:async()=>({call:async()=>{throw Object.assign(new Error('private endpoint and credentials'),{code:'atelier-transport-unknown',transportCode,diagnostic:'system-ca-api-unavailable',cookie:'private'});},close:async()=>({cleanupVerified:true})})});
+  const client=await connect({root,start:false});
+  t.after(async()=>{client.close();await host.stop();if(ownsTempDirectory(root))fs.rmSync(root,{recursive:true});});
+  await assert.rejects(client.request('call',{}),e=>e.transportCode===transportCode && e.diagnostic==='system-ca-api-unavailable' && e.cookie===undefined && !e.message.includes('private'));
+  transportCode='https://private.invalid/secret';
+  await assert.rejects(client.request('call',{}),e=>e.transportCode===undefined);
+});
+
 test('session uncertainty crosses IPC and a locally closed read session does not fence a new generation',async t=>{
   const root=createTempDirectory('iris-session-ipc-');let calls=0;
   const host=await serve({root,describe:p=>({...p,pool:'same-instance',identity:'same-user',effects:'read-only'}),

@@ -77,7 +77,7 @@ function loadWorkspaceContext() {
     throw new Error('MCP server iris-agentic-dev not found in .mcp.json');
   }
 
-  env = server.env || {};
+  env = {IRIS_TLS_VERIFY:'false', ...(server.env || {})};
   namespace = env.IRIS_NAMESPACE;
   if (!namespace) {
     throw new Error('IRIS_NAMESPACE is missing from .mcp.json env');
@@ -521,7 +521,7 @@ async function createManagedMcpSession({projectRoot, context, serverName = 'iris
   const selectedContext = context || require('./lib/workspace-context').resolveWorkspaceContext(root);
   remoteOperations.assertRemoteAllowed(selectedContext);
   const configuration = JSON.parse(fs.readFileSync(path.join(root, '.mcp.json'), 'utf8').replace(/^\uFEFF/, ''));
-  const selectedServer = configuration.mcpServers?.[serverName], settings = selectedServer?.env || {};
+  const selectedServer = configuration.mcpServers?.[serverName], settings = {IRIS_TLS_VERIFY:'false', ...(selectedServer?.env || {})};
   if (!selectedServer?.command || !settings.IRIS_NAMESPACE || expectedNamespace && settings.IRIS_NAMESPACE !== expectedNamespace) throw new Error('remote-mcp-target-unverified');
   const sessions = require('./lib/iris-session-client');
   if(sessions.managed(selectedServer) || /(?:^|[\\/])iris-agentic-dev(?:\.exe)?$/i.test(selectedServer.command)) {
@@ -543,7 +543,7 @@ async function createManagedMcpSession({projectRoot, context, serverName = 'iris
     };
   }
   const connection = {protocol: (settings.IRIS_SCHEME || 'https') + ':', hostname: settings.IRIS_HOST,
-    port: Number(settings.IRIS_WEB_PORT), rejectUnauthorized: String(settings.IRIS_TLS_VERIFY ?? 'true').toLowerCase() !== 'false'};
+    port: Number(settings.IRIS_WEB_PORT), rejectUnauthorized: String(settings.IRIS_TLS_VERIFY ?? 'false').toLowerCase() !== 'false'};
   const policy = remoteOperations.loadRemotePolicy(selectedContext, {connection});
   if (!policy.enabled) throw new Error('remote-policy-required');
   const owner = remoteOperations.createRemoteOperation({policy, connection, channel: 'mcp'});
@@ -620,7 +620,7 @@ async function main() {
     return;
   }
   const connection = {protocol:(env.IRIS_SCHEME || 'https')+':',hostname:env.IRIS_HOST,port:env.IRIS_WEB_PORT,
-    rejectUnauthorized:String(env.IRIS_TLS_VERIFY ?? 'true').toLowerCase()!=='false'};
+    rejectUnauthorized:String(env.IRIS_TLS_VERIFY ?? 'false').toLowerCase()!=='false'};
   const policy = remoteOperations.loadRemotePolicy(context,{connection});
   const owner = remoteOperations.createRemoteOperation({policy,connection,channel:'mcp'});
   owner.acquire();
@@ -694,7 +694,7 @@ module.exports = {
 
 if (require.main === module) {
   main().catch((error) => {
-    if (hasFlag('--json')) console.log(JSON.stringify({ERROR:{code:error.code || 'iris-operation-failed',beforeSend:error.beforeSend===true,...(error.toolResponse ? {toolResponse:error.toolResponse} : {}),...(error.toolErrorCode ? {toolErrorCode:error.toolErrorCode} : {})}}));
+    if (hasFlag('--json')) console.log(JSON.stringify({ERROR:{code:error.code || 'iris-operation-failed',beforeSend:error.beforeSend===true,...(error.toolResponse ? {toolResponse:error.toolResponse} : {}),...(error.toolErrorCode ? {toolErrorCode:error.toolErrorCode} : {}),...(/^[A-Z][A-Z0-9_]{0,79}$/.test(error.transportCode || '') ? {transportCode:error.transportCode} : {}),...(error.diagnostic === 'system-ca-api-unavailable' ? {diagnostic:error.diagnostic} : {})}}));
     console.error('ERROR=' + error.message);
     process.exitCode = 1;
   });

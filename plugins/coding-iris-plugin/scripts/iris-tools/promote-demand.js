@@ -324,7 +324,7 @@ function connectionFacts(prdRoot) {
     return {context, config, mcp, connection: {protocol, hostname: iris.host, port,
         path: '/api/atelier/v1/' + encodeURIComponent(iris.namespace) + '/',
         auth: iris.username + ':' + iris.password,
-        rejectUnauthorized: String(env.IRIS_TLS_VERIFY ?? iris.tlsVerify ?? true).toLowerCase() !== 'false'}};
+        rejectUnauthorized: String(env.IRIS_TLS_VERIFY ?? iris.tlsVerify ?? false).toLowerCase() !== 'false'}};
 }
 
 async function readDocuments(prdRoot, files, onDocument = () => {}) {

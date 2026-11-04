@@ -1,5 +1,12 @@
 # imedical.agents 维护日志
 
+## 2026-11-04 IRIS TLS 默认值与系统 CA（coding 0.27.4）
+
+- 按用户明确要求将 IRIS 初始化、MCP、Atelier、编译、导出、晋级与 Broker 缺省 TLS 校验统一为 false，保留显式 true；vendor 启动环境同步同一缺省值。离线模板和 PS5.1 断言同步，无业务配置改写。
+- 显式开启校验的 Atelier 在实际 HTTPS Agent 中合并 Node 默认与系统 CA，专用 CA 优先；旧 Node 保留原信任，证书失败给出能力提示。采用官方 tls.getCACertificates API，不修改全局环境或证书库，不改变 Rust trust store。
+- transportCode 跨 host IPC、MCP adapter、CLI JSON 保留脱敏错误码。新增系统 CA、专用 CA、旧 Node、默认 false/显式 true 与 IPC 脱敏验证；离线工具 PS5.1 24 项通过。旧 warning、默认 TOML 发现与跨运行时配置优先级未扩大实施。
+
+
 ## 2026-11-04 显式 TLS 配置兼容
 
 - 用户明确批准尊重项目已有 TLS 配置后，移除按需公共准入对 `rejectUnauthorized=false` 的额外拒绝；HTTPS 要求、默认验证证书、会话身份和目标校验保留。修正范围为根运行时，不修改插件目录或 vendor，无需组件版本递增。

@@ -47,6 +47,8 @@ async function serve({root, open = backends.open, describe = backends.operation,
       })().then(result => {if (!socket.destroyed) socket.write(JSON.stringify({id: value.id, result}) + '\n');}, error => {
         if (!socket.destroyed) socket.write(JSON.stringify({id: value.id, error: {
           code: /^[a-z0-9-]+$/.test(error.code || '') ? error.code : 'session-operation-failed', beforeSend: error.beforeSend === true,
+          ...(/^[A-Z][A-Z0-9_]{0,79}$/.test(error.transportCode || '') ? {transportCode:error.transportCode} : {}),
+          ...(error.diagnostic === 'system-ca-api-unavailable' ? {diagnostic:error.diagnostic} : {}),
           ...(error.sessionUncertain === true ? {sessionUncertain:true} : {}),
           ...(['unknown','rejected'].includes(error.writeOutcome) ? {writeOutcome:error.writeOutcome} : {}),
           ...(error.toolResponse ? {toolResponse:error.toolResponse} : {}),

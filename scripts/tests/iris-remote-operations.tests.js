@@ -113,7 +113,7 @@ test('on-demand policy fails closed before a remote request and legacy remains c
   const f = fixture(t, true);
   const {normalizeConnection} = require('../lib/atelier-client');
   const connection = {...f.connection}; delete connection.rejectUnauthorized;
-  assert.equal(normalizeConnection(connection).rejectUnauthorized, true);
+  assert.equal(normalizeConnection(connection).rejectUnauthorized, false);
   assert.equal(normalizeConnection({...connection,tlsVerify:false}).rejectUnauthorized, false);
   assert.equal(normalizeConnection({...connection,rejectUnauthorized:true,tlsVerify:false}).rejectUnauthorized, true);
   assert.throws(() => remote.loadRemotePolicy(f.context, { connection: f.connection }), /remote-policy-required/);

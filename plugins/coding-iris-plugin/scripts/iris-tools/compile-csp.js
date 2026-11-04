@@ -36,7 +36,7 @@ function connection(config, mcp) {
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid IRIS_WEB_PORT');
   if (config.iris?.namespace && config.iris.namespace !== env.IRIS_NAMESPACE) throw new Error('Namespace differs between .mcp.json and project-env.json');
   require('./project-env').validateTarget(config, env);
-  const tls = String(env.IRIS_TLS_VERIFY ?? true).toLowerCase();
+  const tls = String(env.IRIS_TLS_VERIFY ?? config.iris?.tlsVerify ?? false).toLowerCase();
   if (!['true', 'false'].includes(tls)) throw new Error('Invalid IRIS_TLS_VERIFY');
   return {protocol: env.IRIS_SCHEME + ':', hostname: env.IRIS_HOST, port,
     path: '/api/atelier/v1/' + encodeURIComponent(env.IRIS_NAMESPACE) + '/action/compile?flags=cuk&source=0',

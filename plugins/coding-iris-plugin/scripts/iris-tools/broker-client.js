@@ -59,7 +59,7 @@ async function callBrokerTransport(options) {
         function abort() { req?.destroy(); finish('cancelled'); }
         try {
             req = (url.protocol === 'https:' ? https : http).request(url, {
-                method: 'POST', headers, rejectUnauthorized: true, ...(options.ca ? { ca: options.ca } : {})
+                method: 'POST', headers, rejectUnauthorized: options.tlsVerify ?? false, ...(options.ca ? { ca: options.ca } : {})
             }, res => {
                 const chunks = [];
                 result.httpStatus = res.statusCode;
@@ -114,7 +114,7 @@ async function callBroker(options) {
     const context = options.context || require('../../../../scripts/lib/workspace-context').resolveWorkspaceContext(options.projectRoot || process.cwd());
     let owner, result;
     try {
-        const connection = { protocol: url.protocol, hostname: url.hostname, port: Number(url.port || (url.protocol === 'https:' ? 443 : 80)), rejectUnauthorized: true };
+        const connection = { protocol: url.protocol, hostname: url.hostname, port: Number(url.port || (url.protocol === 'https:' ? 443 : 80)), rejectUnauthorized: options.tlsVerify ?? false };
         const policy = remote.loadRemotePolicy(context, {connection});
         if (policy.enabled && (!options.cookie || typeof options.sessionOwnerReference !== 'string' || !options.sessionOwnerReference.trim())) {
             throw new remote.RemoteOperationError('remote-broker-session-owner-required');

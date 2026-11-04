@@ -1,6 +1,8 @@
 # imedical.agents
 
-普通按需 HTTPS 调用尊重项目显式 TLS 校验配置，缺省仍验证证书；更新根运行时后结束旧托管会话即可使用，详见[更新说明](docs/update-agents.md)。
+IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY=false`），项目显式 `true` 仍保留。显式开启校验的 Atelier 在支持 API 的 Node 中合并默认与系统 CA；专用 CA 保持优先，不改全局信任。
+
+普通按需 HTTPS 调用尊重项目显式 TLS 校验配置，缺省关闭证书校验，显式 true 仍验证证书；更新根运行时后结束旧托管会话即可使用，详见[更新说明](docs/update-agents.md)。
 
 普通 IRIS 文件部署按[验证契约](plugins/coding-iris-plugin/rules/iris_deploy_checklist.md#验证)复用已有回执，分别报告文件部署和业务验收；独立附加检查不拖延已验证部署的交付。
 

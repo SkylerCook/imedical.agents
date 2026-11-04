@@ -28,7 +28,7 @@ CLI 退出只释放请求端；管理进程继续持有 vendor 及 Cookie。业�
 
 ### Cookie 生命周期修复的配置边界
 
-HTTPS 证书校验沿用项目显式连接配置：默认开启；项目明确设置 `tlsVerify=false` 时公共准入不再额外拒绝。按需模式仍要求 HTTPS，证书校验参数仍纳入会话身份与派发重检。缺少受信证书与 License 资格是不同问题，不把 TLS 配置改写成 License 登记要求。
+HTTPS 证书校验沿用项目显式连接配置：默认关闭，项目显式 true 时开启；项目明确设置 `tlsVerify=false` 时公共准入不再额外拒绝。按需模式仍要求 HTTPS，证书校验参数仍纳入会话身份与派发重检。缺少受信证书与 License 资格是不同问题，不把 TLS 配置改写成 License 登记要求。
 
 Cookie 修复必须整包更新，不能仅更新脚本后就宣称 vendor 通道已修复。交付版本同时包含受测 vendor、匹配摘要、会话运行时及更新检查；更新后结束旧管理进程并重启宿主 MCP，再核对实际调用回执。旧熔断和未知结果保留，更新不能自动解除。
 
@@ -74,3 +74,9 @@ coding 0.27.2 将固定 vendor 的两种执行工具在临时载体 PUT 阶段�
 受管恢复读取修复（coding 0.27.1）：direct SFTP 部署将当前工作区及需求类型传入 CSP 编译；显式 `inspect/read` 在 managed-single-session 且资格 pending 时只允许声明文档的 GET 和自身注销。该入口保留共享阻断、当前 token、死 owner 与写结果核实，不接受普通写入，也不自动清锁或重放。更新需同时取得 owner 及根 scripts，保留私有配置和历史恢复资料；无需迁移。
 
 工具诊断补齐：正常测试断言失败继续返回原结果；JSON-RPC 无效参数/方法及明确 namespace 不存在的拒绝不触发未知写阻断。其它未知执行错误继续阻断，并经 IPC、原生 MCP 和 CLI --json 向原调用方保留工具响应与错误码；响应正文不写会话协调文件。共享实例仍串行执行，普通失败与仅注销未确认不再永久封锁全池；未知写按目标范围隔离，影响不明的脚本保留 namespace 写保护，只读诊断与无冲突操作继续。
+
+### 系统 CA 与 TLS 诊断
+
+IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY=false`），项目显式 `true` 仍保留。显式开启校验的 Atelier 在支持 API 的 Node 中合并默认与系统 CA；专用 CA 保持优先，不改全局信任。 Node 22.15+ 提供 `tls.getCACertificates`；较旧版本继续原有信任来源，证书错误附带 `system-ca-api-unavailable`，建议升级或使用已有专用 CA。独立 Atelier 与长驻 host 使用同一 HTTPS Agent 实现，不依赖外层 CLI 参数。系统信任变更后结束旧托管会话再使用。Rust vendor 不使用 Node CA API。
+
+`transportCode` 经 host IPC、MCP adapter 和 CLI JSON 保留有限字符错误码，不包含原始异常、地址或凭据；HTTP 认证失败不与证书失败混同，不自动重放写入。

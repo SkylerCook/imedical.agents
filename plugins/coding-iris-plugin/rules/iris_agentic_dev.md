@@ -9,6 +9,8 @@ related:
 
 # iris-agentic-dev 使用约束
 
+IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY=false`），项目显式 `true` 仍保留。显式开启校验的 Atelier 在支持 API 的 Node 中合并默认与系统 CA；专用 CA 保持优先，不改全局信任。
+
 执行前先解析当前 `ContextRoot/config/iris-development.json`。`developmentMode: offline` 禁止本页所有医院 MCP 调用（包括 check_config；受管 tools/list 只读本地目录，不连接医院），转入[离线协议](../references/iris-offline-development.md)；原生 MCP 和外部 IDE 不在脚本机器拦截范围，Agent 同样不得调用。非法值停止，旧配置缺省保持既有行为。下面的调用与优先级仅适用于 connected，不授予远端权限。
 
 所有 IRIS 远端操作使用[统一会话入口](../../../docs/guides/iris-managed-sessions.md)：CLI 经 `scripts/iris-mcp.js`，宿主 MCP 经 `iris-session-mcp.js`，业务 Atelier 脚本经共享 client。先运行迁移 Check；首次业务回执必须包含 `_meta["imedical/session"]`（CLI 为 `REMOTE`）。配置字节和旧宿主显示的工具名不能证明受管入口生效；重启对应宿主 MCP 后复核。不得临时改用 curl、PowerShell HTTP、vendor exe 或未受管 MCP 绕过门禁。
