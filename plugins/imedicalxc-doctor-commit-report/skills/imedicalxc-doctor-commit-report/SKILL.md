@@ -36,7 +36,7 @@ priority: high
 - **窗口衔接**：`since` 必须衔接上一期 `until`，不重叠、不留空。state 不存在或 `lastWindow.until` 为空时回退交互模式（该月尚无归档时自然记为 `W1`）。
 - **幂等**：失败重跑前先确认上一期报告是否已完整归档；已归档则从 state 的 `until` 继续，不重复生成。
 - **采集源**：取 config `ref`（默认 `origin/master`），由 `collect-commits.js` 读取，命令中不硬编码分支。
-- **期号传递**：用 `collect-commits.js --label <label>` 指定期号，`raw-commits` / `db-changes` / `evaluations` / `issue-rows` / `commit-report` / `db-change-email` 必须使用同一 label。
+- **期号传递**：用 `collect-commits.js --label <label>` 指定期号，`raw-commits` / `db-changes` / `classification` / `evaluations` / `issue-rows` / `commit-report` / `db-change-email` 必须使用同一 label。
 
 ## 步骤 ①：采集（确定性脚本）
 
@@ -131,6 +131,19 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/detect-db-changes.j
 | 基础平台 → 诊疗配置工作站 | 门诊/住院诊疗信息系统 | 基本设置、接收科室相关设置、科室功能设置、处方设置、医嘱/药学项设置、绑定医嘱设置、用法设置、诊断设置、数据处理、代码表维护与扩展、日志管理、项目化配置、安全组功能授权、组件配置、医生交班本、接口管理、检查医嘱配置 |
 
 > **说明**：「电子医嘱」「电子诊断」为跨门诊/住院的共用模组，前端有独立界面但后端分属 opcare/ipcare。「→」表示 SKILL 工作站名到 IT形态汇总 正式名称的映射。加粗模组名为邮件影响表中 `determineModule()` 关键词匹配的模组。
+
+**落盘分类检查点**：逐条判定完成后写出同目录 `classification-<label>.json`，结构 `{ commits: [...] }`；数组顺序与 `raw-commits-<label>.json` 完全一致，哈希与采集结果一一对应。每条字段：
+
+| 字段 | 说明 |
+|---|---|
+| `hash` / `repo` / `author` / `date` / `subject` | 原样继承采集结果，不得改写（用于与 raw-commits 对账） |
+| `workstation` | 岗位工作站（上表取值） |
+| `reqType` | 需求类型 |
+| `priority` | 优先级 |
+| `summary` | 改造内容总结 |
+| `funcPoint` | 涉及功能范围（具体功能点） |
+
+该文件是步骤 ⑤ 渲染第一、二章的唯一数据源：提交总数、四类分布、提交明细均从中读取，不再依赖对话上下文。判定过程中如触发上下文压缩，以本文件为事实来源继续后续步骤；后续步骤不得再用「记忆里的分类」覆盖文件内容。
 
 ## 步骤 ③.5：代码影响取证（确定性脚本）
 
@@ -231,106 +244,43 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
 
 评估结果落盘为同目录 `evaluations-<label>.json`（同月多期必须带期号后缀，避免覆盖其他窗口产物）（条目字段：hash / shortHash / subject / author / date / repo / funcPoint——面向测试/交付的业务功能点标题，不出现类名、方法名、Feign 名（邮件与影响表的章节标题） / highRiskCategory / highRiskAuto——证据机械触发的类别，供复核 / impactScope——按证据四段式撰写 / impactEvidence——该提交在 `code-impact-<label>.json` 中的计数摘要：methods / entrypoints / workspaceCallers / externalCallers / downstreamFeigns / contract（`feignContracts` / `typeFiles` / `typeFeignMatches`） / downstream / confidence / indexFresh / skipped 原因 / compliance / complianceReason / rating——质量星级 / impactRating——影响范围评级（1-5★，邮件与影响表标题前缀、排序依据） / impactRatingReason——影响范围判定依据一句话 / impactDowngrade——非核心备用系统的降级说明（含为何不深度评估），非此类提交可省略 / changeSummary——面向交付的改造方案（只写变更内容，不写调用方/取证/测试信息；无业务逻辑变更时写「无业务逻辑变更」，缺失时回退 evaluation） / evaluation——评价描述 / specificIssue / issueItems——1-2★ 且含多个独立问题时必填的逐问题明细数组 / testSuggestion——四段式测试建议），作为步骤 ⑥ 低星问题登记的数据源。
 
-## 步骤 ⑤：归档
+## 步骤 ⑤：归档（确定性渲染）
 
-写入 `<outputDir>/<label>/commit-report-<label>.md`，结构：
+报告正文由脚本渲染，不手工拼装（避免计数漂移、排序不一致、字段漏写）：
 
-```markdown
-# 医生站信创产品迭代周报 — {label}
-
-> 时间窗：{since} ~ {until} · 生成时间：{generatedAt} · 扫描仓库：{reposScanned} 个（有提交：{reposWithCommits}）· 提交总数：{totalCommits}
-
-## 一、概览
-
-### 按提交人分布
-
-| 提交人 | 提交数 |
-|--------|--------|
-| … | … |
-
-### 按工作站分布
-
-| 工作站 | 提交数 |
-|--------|--------|
-| … | … |
-
-（按需求类型 / 按优先级同上，各为一个 `###` 小节 + 两列表格）
-
-> 「按提交人分布」小节标题与表格为 push-qq-bot.js 的解析锚点（`/^###\s+按提交人分布/`），改成行内列表会导致 QQ 推送跳过该段落。
-
-## 二、提交明细
-
-| # | 工作站 | 需求类型 | 优先级 | 提交人 | 日期 | 仓库 | 改造内容总结 | 评级 |
-|---|---|---|---|---|---|---|---|---|
-
-（BUG修复 / 新功能提交不评级，评级列填 —）
-
-## 三、评估详情（流程修改 / 业务调整）
-
-### {hash 前 8 位} {subject} — {author} · {date} · {repo}
-
-- **命中高风险类别**：{一类：重点业务的流程改造 / 二类：通用接口的改造 / 三类：其他 / 无}
-- **调用图证据**：入口 {N}（{Controller/Feign 名}）· 工作区调用方 {N} · 外部 Maven 调用方 {N} · 跨出 Feign {N} · 可信度 {graph/partial/none}（无证据时写「无调用图证据（原因：…）」）
-- **影响范围**：{一句中文功能点} → 入口 … / 工作区调用方 … / 外部调用方 … / 跨出 Feign …（启发式入口标注 `[启发式]`）
-- **业务设计流程符合性**：{符合 / 部分符合 / 不符合} —— 理由
-- **评级**：{N}★ —— 评价：…
-
-## 四、低星问题清单（1-2★）
-
-> 仅列代码 / 设计层面的问题。「需完成系统标准配置登记 / 标准提醒维护 / 代码表缓存配置维护 / PO 表结构（DDL）执行」类数据维护提醒统一由第五章承载，不在本章与步骤 ⑥ 登记中出现（口径见步骤 ④ 第 6 条）。
-
-| 提交 | 星级 | 具体问题（文件:行号 / diff 片段） |
-|---|---|---|
-
-## 五、数据库脚本执行提醒
-
-> 由步骤 ② `db-changes-<label>.json` 渲染。开头一行汇总：`本期检测：数据结构修改 N 处 · 新增系统标准配置 N 项 · 新增系统标准提醒 N 条 · 新增代码表缓存配置 N 项`。四小节全为空时整章写「本期无数据库脚本执行提醒」。
-
-### 5.1 数据结构修改（PO）
-
-| 提交 | 提交人 | 表名 | 文件 | 字段变更 |
-|---|---|---|---|---|
-
-（字段变更写法：`新增 name(Type, 列)` / `删除 name(Type, 列)`，多项用 `；` 分隔；新建 PO 标注 `新建`）
-
-### 5.2 新增系统标准配置
-
-| 提交 | 提交人 | 配置大类（ST_CODE） | 常量名 | 配置项 | 配置说明 | 检测依据 |
-|---|---|---|---|---|---|---|
-
-（检测依据：`docconfig 新增配置读取` / `行内 ST_CODE 字面量`；新增 ST_CODE 大类单列一行，常量名/配置项/配置说明填 —；配置说明取自 JSON `description` 字段，≤80 字）
-
-### 5.3 新增系统标准提醒
-
-| 提交 | 提交人 | 提醒码 | 提醒内容 | 文件:行号 |
-|---|---|---|---|---|
-
-（提醒码用 resolvedCode；为空时写 `expr + codeSuffix`。提醒内容为动态取值时写 `（动态）`）
-
-### 5.4 新增代码表缓存配置
-
-| 提交 | 提交人 | PO 类 | 表名 | 方法 | 文件:行号 |
-|---|---|---|---|---|---|
-
-（表名为 PO 的 `@TableName` 值——代码表缓存管理按表名维护；仅列 PO 首次使用的行——需要确认代码表缓存配置。缓存按 PO 维护，同一 PO 其他方法共享既有配置；既有缓存的复用调用存于 JSON `cacheReuses`，不列入本章。本节为空写「本期无新增代码表缓存配置。」）
-
-### 5.5 执行方案推荐
-
-> 按上表非空小节逐项输出对应类别的执行方案；四小节全空时本节省略。
-
-- **数据结构修改（PO）**：建议通过【腾讯文档】his 版本升级脚本汇总表格 https://docs.qq.com/sheet/DSnJ5V0tYRG9jT1VL?tab=BB08J2 的登记 DDL 进行执行。
-- **新增系统标准配置**：建议打开[信创标准环境](http://82.156.104.202:32678/imedical/his/hos/login)，使用demo账户登录后，打开系统标准配置菜单，筛选出指定的配置项导出文件，并导入到项目现场。
-  请勿直接维护，请使用导入功能，防止出现维护错误。
-- **新增系统标准提醒**：建议打开[信创标准环境](http://82.156.104.202:32678/imedical/his/hos/login)，使用demo账户登录后，打开系统提示信息，参照代码信息进行数据维护。
-- **新增代码表缓存配置**：建议打开[信创标准环境](http://82.156.104.202:32678/imedical/his/hos/login)，使用demo账户登录后，打开代码表缓存管理，参照代码信息进行数据维护。
-
-## 六、附录：深度评估摘要
-
-### {hash} {subject}（命中：{类别}）
-
-- 调用链要点：…
-- 结论：…
+```bash
+node .agents/plugins/imedicalxc-doctor-commit-report/scripts/render-report.js --label <label>
 ```
+
+产出 `<outputDir>/<label>/commit-report-<label>.md`。
+
+**输入**（同目录；缺必填项直接报错退出，不写文件；`code-impact` 可选）：
+
+| 文件 | 用途 |
+|---|---|
+| `raw-commits-<label>.json` | 提交总数与元信息（时间窗、扫描仓库数） |
+| `classification-<label>.json` | 第一章分布、第二章提交明细 |
+| `evaluations-<label>.json` | 第三章评估详情、第四章低星清单、第六章附录 |
+| `db-changes-<label>.json` | 第五章数据库脚本执行提醒 |
+| `code-impact-<label>.json` | 可选；校验 evaluations 中的证据计数与可信度 |
+
+**参数**：`--label`（必填）、`--output-dir`（默认 `docs/commit-reports`）、`--generated-at`（ISO 时间，默认当前时间）、`--config`（默认插件 `config/commit-report.json`）、`--no-preserve-registration`（不保留已有第七章）。
+
+**校验行为**：
+
+- 错误 → 打印全部错误后 `exit 1`，不生成文件。含：分类与采集结果的哈希缺失 / 重复 / 多余、工作站不在 config 清单、需求类型或优先级非法、总结为空、星级或影响范围评级越界、评估条目缺 `impactRatingReason` / `impactScope` / `compliance` / `evaluation` / `changeSummary` / `impactEvidence`、测试建议缺四段、低星缺具体问题、流程修改 / 业务调整漏评估、evaluations 与 classification 的需求类型不一致
+- 告警 → 继续渲染并在控制台列出：门急诊应急工作站影响评级超过 2★、证据计数或可信度与 `code-impact` 不符、工作站与分类不一致、多出未分类的评估条目。告警须逐条核对，不得静默通过
+- 修正时改上游 JSON 后重跑脚本，**不直接编辑报告 md**（除步骤 ⑥ 追加第七章外）
+- 再次渲染时自动保留原文件中的 `## 七、低星问题登记`（步骤 ⑥ 写入），避免覆盖登记结果
+
+**固定结构**（内容全部来自上述 JSON，脚本只排版与校验，不改写评价文字）：
+
+- 一、概览：按提交人 / 工作站 / 需求类型 / 优先级四张分布表（「按提交人分布」标题为 push-qq-bot.js 解析锚点，不要改标题），附影响范围评级标准
+- 二、提交明细：末列为「质量评级」（BUG修复 / 新功能提交填 —）；标题前缀 `[N★]` 才是影响范围评级
+- 三、评估详情：按影响范围评级降序、同档按质量星级降序（稳定排序），每条含降级说明（如有）、影响范围评级与依据、调用图证据、影响范围、符合性、评级；评级行固定为 `- **评级**：N★ —— 评价：…`（push-qq-bot.js 解析锚点，`评价：` 不可省略）
+- 四、低星问题清单：1-2★ 逐条列具体问题
+- 五、数据库脚本执行提醒：开头汇总计数；5.1–5.4 按非空小节输出；5.5 逐类给执行方案（四节全空则整节省略）
+- 六、附录：仅列命中高风险三类且未降级的提交（调用链要点 + 结论）
 
 追加索引 `<outputDir>/index.md`（首次创建，之后追加一行）：
 

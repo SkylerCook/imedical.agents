@@ -31,6 +31,7 @@
 ## 内置脚本
 
 - `scripts/config-env.js`：运行期敏感配置解析工具。`getEnv` / `requireEnv` / `getJsonEnv` 优先读进程环境变量，回退 `.qoder/settings.local.json` 的 `commitReport.env`；缺失时输出统一的「维护位置」提示（shell 或 settings 的 commitReport.env，详见 SKILL.md）。
+- `scripts/render-report.js`：确定性报告渲染器。读取同目录 `raw-commits` / `classification` / `evaluations` / `db-changes`（`code-impact` 可选，用于校验证据计数与可信度），渲染 `commit-report-<label>.md` 第一至第六章；渲染前做结构化校验——哈希三方对账、工作站与枚举合法性、评估必填字段、四段测试建议、低星具体问题、门急诊应急工作站 2★ 上限、证据计数一致性；错误 `exit 1` 且不写文件，告警打印后继续渲染。`--label` 必填，`--generated-at` 固定生成时间，`--output-dir` 改输出目录，`--config` 换配置，`--no-preserve-registration` 不保留已有第七章；默认重渲染自动保留步骤⑥写入的「七、低星问题登记」。
 - `scripts/build-issue-rows.js`：读取某期 evaluations.json，筛出 1-2★（rating ≤ 2）条目，渲染《信创版产品迭代每周问题登记》9 列标准行值（含负责人=提交人、完成状态=未完成）；条目含 `issueItems`（多个独立问题的逐项明细，由评估环节产出）时按问题拆为多行，同一提交多行共享同一「提交」值，输出 `issue-rows-<label>.json`（含 fileId/sheetId），供 Agent 经 tencent_docs MCP 按「提交」列短哈希去重后批量写入。
 - `scripts/collect-commits.js`：遍历 src/ 下 20 个子仓库，按时间窗 + 11 人白名单过滤并排除 merge，输出 `raw-commits-<label>.json`（UTF-8 无 BOM）。`--label` 显式指定期号（缺省取 since 所在月份 `YYYY-MM`），采集源取 config `ref`（默认 `origin/master`）。提交人邮箱从 `COMMIT_REPORT_REPORTER_EMAILS` 补充，不入库。
 - `scripts/detect-db-changes.js`：扫描 Java 提交 diff，检测四类数据库脚本执行提醒——PO 数据结构修改、新增系统标准配置（ST_CODE + 配置项）、新增系统标准提醒（HisBusinessException 字典表提醒码，含常量链、`其他常量 + "字面量"` 拼接式与静态导入/通配静态导入的跨类跨仓库解析）、新增代码表缓存配置（DocCacheUtils PO 首次使用；非首用的复用调用归入 `cacheReuses` 仅存档、不计入提醒；两类缓存记录均解析 PO 的 `@TableName` 表名，供按表名维护的代码表缓存管理使用），输出 `db-changes-<label>.json`。
