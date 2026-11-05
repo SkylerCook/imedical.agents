@@ -15,12 +15,24 @@
   "workstations": [
     "门诊医生站", "住院医生站", "电子医嘱", "电子诊断", "治疗工作站",
     "门诊挂号与排班", "分诊与资源分配", "患者管理", "抗菌药物管理",
-    "临床试验药理", "模块化医生站", "综合诊疗服务", "基础平台", "其他"
+    "临床试验药理", "模块化医生站", "综合诊疗服务", "基础平台",
+    "门急诊应急医师工作站", "其他"
   ],
   "window": { "mode": "months", "value": 1 },
   "ref": "origin/master",
   "excludeMerges": true,
   "outputDir": "docs/commit-reports",
+  "codegraph": {
+    "enabled": true,
+    "maxMethodsPerCommit": 10,
+    "depth": 10,
+    "riskThresholds": {
+      "methods": 5,
+      "entrypoints": 10,
+      "crossServiceCallers": 5,
+      "externalCallers": 5
+    }
+  },
   "issueRegistration": {
     "enabled": true,
     "fileId": "300000000$XCyypyCGbagH",

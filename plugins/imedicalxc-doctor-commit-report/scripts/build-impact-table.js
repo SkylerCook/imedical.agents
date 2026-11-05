@@ -60,6 +60,16 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
+const TIP_LABELS = ['【必测】', '【回归】', '【联调】', '【边界】'];
+
+function emphasizeTipHtml(text) {
+  let s = escapeHtml(text);
+  for (const label of TIP_LABELS) {
+    s = s.split(label).join(`<strong style="color: #1f4e79;">${label}</strong>`);
+  }
+  return s;
+}
+
 function loadMapping(mappingPath) {
   if (!fs.existsSync(mappingPath)) {
     console.warn(`警告：映射文件不存在 ${mappingPath}，将使用简化映射`);
@@ -99,7 +109,12 @@ function findModuleByFilePath(filePath, moduleDetails) {
   return null;
 }
 
-function determineWorkstation(repo, system) {
+const EMERGENCY_WORKSTATION = '门急诊应急医师工作站';
+
+function determineWorkstation(repo, system, ev) {
+  const subject = (ev && ev.subject) || '';
+  if (subject.includes('[信创门急诊应急系统]')) return EMERGENCY_WORKSTATION;
+  if (ev && ev.workstation === EMERGENCY_WORKSTATION) return EMERGENCY_WORKSTATION;
   // 优先从系统映射
   if (system && SYSTEM_TO_WORKSTATION[system]) {
     return SYSTEM_TO_WORKSTATION[system];
@@ -172,29 +187,35 @@ function mergeFilesIntoEvals(evaluations, rawCommits) {
 
 function buildImpactRows(evaluations, mapping) {
   const rows = [];
-  
+
   for (const ev of evaluations) {
     const system = REPO_TO_SYSTEM[ev.repo] || '（未分类）';
-    const workstation = determineWorkstation(ev.repo, system);
+    const workstation = determineWorkstation(ev.repo, system, ev);
     const moduleInfo = determineModule(ev, mapping);
     const funcModule = moduleInfo.moduleName;
-    
-    // 功能模块：从 impactScope 提取，或标记为待分析
-    const funcPoint = ev.impactScope || ev.summary || '（待分析）';
-    
+
+    // 功能模块：从业务功能点或 impactScope 提取，或标记为待分析
+    const funcPoint = ev.funcPoint || ev.impactScope || ev.summary || '（待分析）';
+    const impactRating = Number(ev.impactRating) || 0;
+
     rows.push({
       workstation,
       funcModule,
       funcPoint,
+      impactRating,
+      impactRatingReason: ev.impactRatingReason || '',
       reqType: ev.reqType || '代码变更',
       author: ev.author || '—',
       repo: ev.repo || '—',
-      changePoint: ev.summary || '—',
+      changePoint: ev.changeSummary || ev.evaluation || '—',
       testSuggestion: ev.testSuggestion || '（待评估环节补充）'
     });
   }
-  
-  return rows;
+
+  return rows
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => b.r.impactRating - a.r.impactRating || a.i - b.i)
+    .map(({ r }) => r);
 }
 
 function buildImpactHtml(rows, opts = {}) {
@@ -208,12 +229,12 @@ function buildImpactHtml(rows, opts = {}) {
   const trs = rows.map((r) => `      <tr>
         <td style="${tdStyle}">${escapeHtml(r.workstation)}</td>
         <td style="${tdStyle}">${escapeHtml(r.funcModule)}</td>
-        <td style="${tdStyle}">${escapeHtml(r.funcPoint)}</td>
+        <td style="${tdStyle}">${escapeHtml((r.impactRating ? `[${r.impactRating}★] ` : '') + r.funcPoint)}</td>
         <td style="${tdStyle}">${escapeHtml(r.reqType)}</td>
         <td style="${tdStyle}">${escapeHtml(r.author)}</td>
         <td style="${tdStyle}">${escapeHtml(r.repo)}</td>
         <td style="${tdStyle}">${escapeHtml(r.changePoint)}</td>
-        <td style="${tdStyle}">${escapeHtml(r.testSuggestion)}</td>
+        <td style="${tdStyle}">${emphasizeTipHtml(r.testSuggestion)}</td>
       </tr>`).join('\n');
 
   const lines = [];
@@ -231,6 +252,7 @@ function buildImpactHtml(rows, opts = {}) {
   }
   lines.push(`    <p style="margin: 0 0 16px; font-size: 12px; color: #666;">生成时间：${new Date().toISOString().slice(0, 16).replace('T', ' ')} (UTC+8)</p>`);
   lines.push('    <p style="margin: 0 0 16px;">本期医生站开发提交涉及以下功能变更，请相关岗位工作站负责人组织测试验证。</p>');
+  lines.push('    <p style="margin: 0 0 16px; font-size: 12px; color: #666;">改造功能点前缀 [N★] 为影响范围评级（假设该功能发生严重故障时的业务波及面）：5★ 核心业务阻断并形成大批量积压；4★ 核心业务严重受阻、需靠手工或备用入口绕行；3★ 单一核心模块受控中断；2★ 非核心业务受影响；1★ 几乎无业务感知。表内按影响从大到小排列。</p>');
   lines.push(`    <table style="border-collapse: collapse; width: 100%; font-size: 12px;">`);
   lines.push('      <thead>');
   lines.push('        <tr>');

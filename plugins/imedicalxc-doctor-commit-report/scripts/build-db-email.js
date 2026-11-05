@@ -10,6 +10,10 @@ const DDL_DOC_NAME = '【腾讯文档】信创版HIS数据库升级脚本汇总�
 const STD_ENV_URL = 'http://82.156.104.202:32678/imedical/his/hos/login';
 const STD_ENV_NAME = '信创标准环境';
 
+const BACKGROUND_TEXT = '为尽量减少发版可能引发的业务中断等系统问题，医生站结合本阶段代码提交，对可能受影响的业务场景进行推演，推演结果见本邮件。受各组仓库隔离、业务复杂等因素限制，推演覆盖范围无法涵盖全部实际影响范围，仅作为项目组已有测试用例的补充，不能替代项目组设计的正式测试场景。';
+const GOAL_TEXT = '请协调对应负责人在版本部署到正式库前，务必完成相关业务场景测试。医生站测试用例库与推演邮件将持续完善，感谢各位的理解与配合。';
+const READING_GUIDE = '本期邮件分为功能变更影响与数据变更两部分：功能变更请按第一章各条目的测试方式建议组织验证；数据变更请按第二章 2.2 操作说明维护。当前为试用运行阶段，更新阶段如有疑问可联系变更负责人。';
+
 // ========== 影响表映射逻辑（从 build-impact-table.js 复用） ==========
 const REPO_TO_SYSTEM = {
   'src/backend/care/opcare-mediway-boot': '门诊诊疗信息系统',
@@ -47,13 +51,31 @@ const SYSTEM_TO_WORKSTATION = {
   '前端': '（前端通用）'
 };
 
-function determineWorkstation(repo, system) {
+const EMERGENCY_WORKSTATION = '门急诊应急医师工作站';
+
+function determineWorkstation(repo, system, ev) {
+  const subject = (ev && ev.subject) || '';
+  if (subject.includes('[信创门急诊应急系统]')) return EMERGENCY_WORKSTATION;
+  if (ev && ev.workstation === EMERGENCY_WORKSTATION) return EMERGENCY_WORKSTATION;
   if (system && SYSTEM_TO_WORKSTATION[system]) return SYSTEM_TO_WORKSTATION[system];
   if (repo.includes('opcare') || repo.includes('opreg') || repo.includes('opalloc')) return '门诊诊疗医师工作站';
   if (repo.includes('ipcare')) return '住院诊疗医师工作站';
   if (repo.includes('curc')) return '康复治疗科室工作站';
   if (repo.includes('cf/') || repo.includes('ct/')) return '诊疗配置工作站';
   return '（未分类）';
+}
+
+function impactPrefix(r) {
+  return r && r.impactRating ? `[${r.impactRating}★] ` : '';
+}
+
+function buildRatingSummary(rows) {
+  const counts = {};
+  for (const r of rows) counts[r.impactRating] = (counts[r.impactRating] || 0) + 1;
+  return [5, 4, 3, 2, 1]
+    .filter((k) => counts[k])
+    .map((k) => `${k}★ ${counts[k]} 项`)
+    .join('、');
 }
 
 function determineModule(ev, mapping) {
@@ -75,22 +97,28 @@ function buildImpactRows(evaluations, rawCommits, mapping) {
       if (c.hash && c.files) filesByHash[c.hash] = c.files;
     }
   }
-  return evaluations.map((ev) => {
+  const rows = evaluations.map((ev) => {
     const system = REPO_TO_SYSTEM[ev.repo] || '（未分类）';
-    const workstation = determineWorkstation(ev.repo, system);
+    const workstation = determineWorkstation(ev.repo, system, ev);
     const funcModule = determineModule(ev, mapping);
-    const funcPoint = ev.subject || ev.impactScope || '（待分析）';
+    const funcPoint = ev.funcPoint || ev.impactScope || ev.subject || '（待分析）';
     return {
       workstation,
       funcModule,
       funcPoint,
+      impactRating: Number(ev.impactRating) || 0,
+      impactRatingReason: ev.impactRatingReason || '',
       reqType: ev.reqType || '代码变更',
       author: ev.author || '—',
       repo: ev.repo || '—',
-      changePoint: ev.evaluation || ev.impactScope || '—',
+      changePoint: ev.changeSummary || ev.evaluation || ev.impactScope || '—',
       testSuggestion: ev.testSuggestion || '（待评估环节补充）'
     };
   });
+  return rows
+    .map((r, i) => ({ r, i }))
+    .sort((a, b) => b.r.impactRating - a.r.impactRating || a.i - b.i)
+    .map(({ r }) => r);
 }
 
 // ========== 影响表逻辑结束 ==========
@@ -130,7 +158,7 @@ function buildRows(db) {
   for (const g of reminderGroups.values()) {
     let content = g.message ? `${g.code}（${g.message}）` : g.code;
     if (g.count > 1) content += ` ×${g.count} 处`;
-    if (g.unresolved) content += '（提醒码前缀常量未能自动解析，完整前缀见周报第五章该提交明细）';
+    if (g.unresolved) content += '（提醒码前缀常量未能自动解析，完整前缀见同批次周报该提交明细）';
     rows.push(['新增系统标准提醒', content, g.author]);
   }
   for (const cc of db.cacheConfigs || []) {
@@ -145,6 +173,22 @@ function escapeHtml(s) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+const TIP_LABELS = ['【必测】', '【回归】', '【联调】', '【边界】'];
+
+function emphasizeTipMd(text) {
+  let s = String(text == null ? '' : text);
+  for (const label of TIP_LABELS) s = s.split(label).join(`**${label}**`);
+  return s;
+}
+
+function emphasizeTipHtml(text) {
+  let s = escapeHtml(text);
+  for (const label of TIP_LABELS) {
+    s = s.split(label).join(`<strong style="color: #1f4e79;">${label}</strong>`);
+  }
+  return s;
 }
 
 function cstNow() {
@@ -172,15 +216,23 @@ function buildEmailMd(db, opts = {}) {
     lines.push(`> **更正说明**：${opts.note}`);
     lines.push('');
   }
-  lines.push('本期医生站开发提交涉及以下功能变更与数据变更。功能变更请相关岗位工作站负责人参照各条目的测试方式建议组织测试验证；数据变更请参照 2.2 操作说明进行维护。');
+  lines.push('## 背景与目标');
   lines.push('');
-  lines.push('说明：当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。');
+  lines.push(`**背景：**${BACKGROUND_TEXT}`);
+  lines.push('');
+  lines.push(`**目标：**${GOAL_TEXT}`);
+  lines.push('');
+  lines.push(`**阅读说明：**${READING_GUIDE}`);
   lines.push('');
   if (impactRows.length > 0) {
     lines.push('## 一、功能变更影响');
     lines.push('');
+    lines.push(`本期共 ${impactRows.length} 项功能变更，按影响范围从大到小排列（${buildRatingSummary(impactRows)}）。`);
+    lines.push('');
+    lines.push('影响范围评级说明（假设该功能发生严重故障时的业务波及面）：[5★] 核心业务阻断并形成大批量积压；[4★] 核心业务严重受阻、需靠手工或备用入口绕行；[3★] 单一核心模块受控中断；[2★] 非核心业务受影响；[1★] 几乎无业务感知。');
+    lines.push('');
     impactRows.forEach((r, i) => {
-      lines.push(`### ${i + 1}. ${r.funcPoint}`);
+      lines.push(`### ${i + 1}. ${impactPrefix(r)}${r.funcPoint}`);
       lines.push('');
       lines.push(`- **岗位工作站：** ${r.workstation}`);
       if (r.funcModule && r.funcModule !== '（待确认）') {
@@ -190,22 +242,30 @@ function buildEmailMd(db, opts = {}) {
       lines.push(`- **提交人：** ${r.author}`);
       lines.push(`- **仓库：** ${r.repo}`);
       lines.push('');
-      lines.push('#### 改造方案');
+      lines.push('**改造方案：**');
       lines.push('');
       lines.push(r.changePoint);
       lines.push('');
       const tips = splitSuggestions(r.testSuggestion);
-      if (tips.length > 1) {
-        lines.push('- **测试方式建议：**');
-        for (const t of tips) lines.push(`  - ${t}`);
+      lines.push('**测试方式建议：**');
+      lines.push('');
+      if (tips.length > 0) {
+        tips.forEach((t, idx) => {
+          const text = emphasizeTipMd(t);
+          lines.push(idx < tips.length - 1 ? `${text}  ` : text);
+        });
       } else {
-        lines.push(`- **测试方式建议：** ${r.testSuggestion}`);
+        lines.push(emphasizeTipMd(r.testSuggestion));
       }
       lines.push('');
     });
   }
   lines.push('## 二、数据变更');
   lines.push('');
+  if (rows.length > 0) {
+    lines.push(`本期数据变更共 ${rows.length} 项，请按 2.2 操作说明完成维护。`);
+    lines.push('');
+  }
   lines.push('### 2.1 数据变更明细');
   lines.push('');
   if (rows.length === 0) {
@@ -307,13 +367,19 @@ function buildEmailHtml(db, opts = {}) {
     lines.push('    <p style="margin: 14px 0 0; padding: 10px 14px; background: #fff7e6; border-left: 4px solid #d48806; color: #613400;">'
       + `<strong>更正说明：</strong>${escapeHtml(opts.note)}</p>`);
   }
-  lines.push('    <p style="margin: 14px 0 18px;">本期医生站开发提交涉及以下功能变更与数据变更。功能变更请相关岗位工作站负责人参照各条目的测试方式建议组织测试验证；数据变更请参照 2.2 操作说明进行维护。</p>');
-  lines.push('    <p style="margin: 0 0 18px;"><strong>说明：</strong>当前为试用运行阶段，更新阶段出现疑问可联系变更负责人咨询。</p>');
+  lines.push(`    <h3 style="${h3Style}">背景与目标</h3>`);
+  lines.push('    <div style="margin: 0 0 22px; padding: 14px 16px; background: #f5f8fc; border-left: 4px solid #1f4e79;">');
+  lines.push(`      <p style="margin: 0 0 9px;"><strong>背景：</strong>${escapeHtml(BACKGROUND_TEXT)}</p>`);
+  lines.push(`      <p style="margin: 0 0 9px;"><strong>目标：</strong>${escapeHtml(GOAL_TEXT)}</p>`);
+  lines.push(`      <p style="margin: 0;"><strong>阅读说明：</strong>${escapeHtml(READING_GUIDE)}</p>`);
+  lines.push('    </div>');
   lines.push('');
   if (impactRows.length > 0) {
     lines.push(`    <h3 style="${h3Style}">一、功能变更影响</h3>`);
+    lines.push(`    <p style="margin: 0 0 8px; font-size: 13px; color: #333333;">本期共 ${impactRows.length} 项功能变更，按影响范围从大到小排列（${escapeHtml(buildRatingSummary(impactRows))}）。</p>`);
+    lines.push('    <p style="margin: 0 0 14px; font-size: 13px; color: #595959;">影响范围评级说明（假设该功能发生严重故障时的业务波及面）：[5★] 核心业务阻断并形成大批量积压；[4★] 核心业务严重受阻、需靠手工或备用入口绕行；[3★] 单一核心模块受控中断；[2★] 非核心业务受影响；[1★] 几乎无业务感知。</p>');
     impactRows.forEach((r, i) => {
-      lines.push(`    <h4 style="${h4Style}">${i + 1}. ${escapeHtml(r.funcPoint)}</h4>`);
+      lines.push(`    <h4 style="${h4Style}">${i + 1}. ${escapeHtml(impactPrefix(r) + r.funcPoint)}</h4>`);
       const fields = [
         ['岗位工作站', r.workstation],
         ...(r.funcModule && r.funcModule !== '（待确认）' ? [['功能模组', r.funcModule]] : []),
@@ -327,20 +393,21 @@ function buildEmailHtml(db, opts = {}) {
       lines.push(`    <p style="margin: 8px 0 2px 16px;"><span style="${impactLabelStyle}">改造方案：</span></p>`);
       lines.push(`    <p style="margin: 2px 0 2px 16px;">${escapeHtml(r.changePoint)}</p>`);
       const tips = splitSuggestions(r.testSuggestion);
-      if (tips.length > 1) {
-        lines.push(`    <p style="margin: 2px 0 0 16px;"><span style="${impactLabelStyle}">测试方式建议：</span></p>`);
-        lines.push(`    <ul style="margin: 0 0 4px 16px; padding-left: 20px; list-style: disc;">`);
+      lines.push(`    <p style="margin: 8px 0 2px 16px;"><span style="${impactLabelStyle}">测试方式建议：</span></p>`);
+      if (tips.length > 0) {
         for (const t of tips) {
-          lines.push(`      <li style="margin: 2px 0; font-size: 13px;">${escapeHtml(t)}</li>`);
+          lines.push(`    <p style="margin: 2px 0 2px 16px;">${emphasizeTipHtml(t)}</p>`);
         }
-        lines.push('    </ul>');
       } else {
-        lines.push(`    <p style="margin: 2px 0 2px 16px;"><span style="${impactLabelStyle}">测试方式建议：</span>${escapeHtml(r.testSuggestion)}</p>`);
+        lines.push(`    <p style="margin: 2px 0 2px 16px;">${emphasizeTipHtml(r.testSuggestion)}</p>`);
       }
       lines.push('');
     });
   }
   lines.push(`    <h3 style="${h3Style}">二、数据变更</h3>`);
+  if (rows.length > 0) {
+    lines.push(`    <p style="margin: 0 0 14px; font-size: 13px; color: #333333;">本期数据变更共 ${rows.length} 项，请按 2.2 操作说明完成维护。</p>`);
+  }
   lines.push(`    <h4 style="${h4Style}">2.1 数据变更明细</h4>`);
   lines.push(`  ${tableBlock}`);
   lines.push('');
