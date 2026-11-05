@@ -206,6 +206,8 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
 
    > 5★ 必须同时满足「阻断」与「大批量」；仅调用方数量多、但业务可通过其他入口或人工流程完成时，最高评为 4★。
 
+   **非核心备用系统降级**：门急诊应急系统等仅在正常 HIS 不可用时才启用的备用系统，不属于「挂号→就诊→开方→收费→取药」核心链路，其提交的影响范围评级上限为 2★（初始化类整体不可用记 2★，单点数据或接口类记 1★），并在 `impactRatingReason` 写明「正常 HIS 不受影响、核心链路用户无感知」；此类提交即使命中高风险三类也**不触发深度评估**，按轻量评估处理，在 evaluations 中记 `impactDowngrade` 说明原因，报告附录不单列摘要。
+
    `impactRatingReason` 用一句话写明判定依据（受影响业务环节、是否阻断、是否存在可立即启动的绕行手段），不得只写星级。
 
 4. **评价描述**（1-3 句）
@@ -227,7 +229,7 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
    - **纯契约提交**：`contract.typeFeignMatches` 为空且无 Controller 证据时，【必测】直接写「无」，调用方缺失只记录在 `impactScope` / `impactEvidence`，不得写进测试建议；非空时只写「该类型由哪个 Feign 接口方法承载」及其业务场景，调用方是否存在须另查 `workspaceCallers` / `externalCallers`，页面入口仍须按上一条追到 Controller 后才可写。
    - **禁止推断**：任何「与 XX 页面联调」的表述都必须能回指一条 Controller/页面证据；回指不到就删除该表述，改用「无页面入口证据」。
 
-评估结果落盘为同目录 `evaluations-<label>.json`（同月多期必须带期号后缀，避免覆盖其他窗口产物）（条目字段：hash / shortHash / subject / author / date / repo / funcPoint——面向测试/交付的业务功能点标题，不出现类名、方法名、Feign 名（邮件与影响表的章节标题） / highRiskCategory / highRiskAuto——证据机械触发的类别，供复核 / impactScope——按证据四段式撰写 / impactEvidence——该提交在 `code-impact-<label>.json` 中的计数摘要：methods / entrypoints / workspaceCallers / externalCallers / downstreamFeigns / contract（`feignContracts` / `typeFiles` / `typeFeignMatches`） / downstream / confidence / indexFresh / skipped 原因 / compliance / complianceReason / rating——质量星级 / impactRating——影响范围评级（1-5★，邮件与影响表标题前缀、排序依据） / impactRatingReason——影响范围判定依据一句话 / changeSummary——面向交付的改造方案（只写变更内容，不写调用方/取证/测试信息；无业务逻辑变更时写「无业务逻辑变更」，缺失时回退 evaluation） / evaluation——评价描述 / specificIssue / issueItems——1-2★ 且含多个独立问题时必填的逐问题明细数组 / testSuggestion——四段式测试建议），作为步骤 ⑥ 低星问题登记的数据源。
+评估结果落盘为同目录 `evaluations-<label>.json`（同月多期必须带期号后缀，避免覆盖其他窗口产物）（条目字段：hash / shortHash / subject / author / date / repo / funcPoint——面向测试/交付的业务功能点标题，不出现类名、方法名、Feign 名（邮件与影响表的章节标题） / highRiskCategory / highRiskAuto——证据机械触发的类别，供复核 / impactScope——按证据四段式撰写 / impactEvidence——该提交在 `code-impact-<label>.json` 中的计数摘要：methods / entrypoints / workspaceCallers / externalCallers / downstreamFeigns / contract（`feignContracts` / `typeFiles` / `typeFeignMatches`） / downstream / confidence / indexFresh / skipped 原因 / compliance / complianceReason / rating——质量星级 / impactRating——影响范围评级（1-5★，邮件与影响表标题前缀、排序依据） / impactRatingReason——影响范围判定依据一句话 / impactDowngrade——非核心备用系统的降级说明（含为何不深度评估），非此类提交可省略 / changeSummary——面向交付的改造方案（只写变更内容，不写调用方/取证/测试信息；无业务逻辑变更时写「无业务逻辑变更」，缺失时回退 evaluation） / evaluation——评价描述 / specificIssue / issueItems——1-2★ 且含多个独立问题时必填的逐问题明细数组 / testSuggestion——四段式测试建议），作为步骤 ⑥ 低星问题登记的数据源。
 
 ## 步骤 ⑤：归档
 
