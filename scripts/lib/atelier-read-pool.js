@@ -1,4 +1,5 @@
 'use strict';
+const {encodeDocumentPath} = require('./atelier-document-path');
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -95,7 +96,7 @@ function createAtelierReadPool(options = {}) {
           for (let worker = 0; worker < count; worker++) {
             const facade = {
               async run({effects, method, suffix} = {}, callback) {
-                const permitted = probing ? worker === 0 && suffix === '@server-info' : active.has(worker) && suffix === 'doc/' + encodeURIComponent(documents[active.get(worker)]);
+                const permitted = probing ? worker === 0 && suffix === '@server-info' : active.has(worker) && suffix === 'doc/' + encodeDocumentPath(documents[active.get(worker)]);
                 if (effects !== 'read-only' || method !== 'GET' || !permitted) fail('read-pool-read-only', {beforeSend: true});
                 if (firstError) throw firstError;
                 receipt.requestCount++;

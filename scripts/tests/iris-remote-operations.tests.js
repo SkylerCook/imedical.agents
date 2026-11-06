@@ -211,7 +211,7 @@ test('Atelier reuses cookies, preserves bytes, conditionals and owns only its lo
   await client.writeDocument('web/scripts/test.js', doc.bytes, { ts: doc.ts });
   const receipt = await client.close();
   assert.equal(events[0].cookie, undefined); assert.equal(events[0].auth, 'Basic ' + Buffer.from('test:fake').toString('base64'));
-  assert.equal(events[0].path, '/gateway/api/atelier/v1/TEST/doc/web%2Fscripts%2Ftest.js');
+  assert.equal(events[0].path, '/gateway/api/atelier/v1/TEST/doc/web/scripts/test.js');
   assert.equal(events[1].cookie, 'CSPSESSIONID=synthetic'); assert.equal(events[1].auth, undefined);
   assert.equal(events[2].cookie, 'CSPSESSIONID=synthetic'); assert.equal(events[2].auth, undefined);
   assert.equal(events[2].method, 'HEAD'); assert.equal(events[2].path, '/gateway/api/atelier/?CacheLogout=end');

@@ -1,4 +1,5 @@
 'use strict';
+const {encodeDocumentPath} = require('./atelier-document-path');
 
 // Admission coordinates only participating local processes. It does not reserve
 // a server license or intercept an IDE/native MCP outside these entry points.
@@ -324,7 +325,7 @@ function createRecoveryReadOperation({policy, connection, token, confirmRecovery
   if (confirmRecovery !== true || !/^[a-f0-9]{64}$/.test(token || '')) stop('remote-inspection-confirmation-required');
   if (!Array.isArray(documents) || documents.length < 1 || documents.length > 5 || new Set(documents).size !== documents.length ||
       documents.some(name => typeof name !== 'string' || !name || name.length > 1024 || /[\\%?#\x00-\x1f\x7f]/.test(name) || name.split('/').includes('..'))) stop('remote-inspection-documents-invalid');
-  const allowed = new Map(documents.map(name => ['doc/' + encodeURIComponent(name), name]));
+  const allowed = new Map(documents.map(name => ['doc/' + encodeDocumentPath(name), name]));
   const instanceHash = policy.instanceHash || instanceIdentity(connection), id = crypto.randomUUID(), ownerToken = crypto.randomUUID();
   const evidence = {schema:'iris-remote-inspection/v1', id, status:'not-started', instanceHash,
     targetHash:digest(JSON.stringify([connection?.protocol || connection?.scheme,connection?.hostname || connection?.host,Number(connection?.port),connection?.path || connection?.namespace])), requestedDocuments:[...documents],

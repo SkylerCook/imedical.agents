@@ -80,3 +80,7 @@ coding 0.27.2 将固定 vendor 的两种执行工具在临时载体 PUT 阶段�
 IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY=false`），项目显式 `true` 仍保留。显式开启校验的 Atelier 在支持 API 的 Node 中合并默认与系统 CA；专用 CA 保持优先，不改全局信任。 Node 22.15+ 提供 `tls.getCACertificates`；较旧版本继续原有信任来源，证书错误附带 `system-ca-api-unavailable`，建议升级或使用已有专用 CA。独立 Atelier 与长驻 host 使用同一 HTTPS Agent 实现，不依赖外层 CLI 参数。系统信任变更后结束旧托管会话再使用。Rust vendor 不使用 Node CA API。
 
 `transportCode` 经 host IPC、MCP adapter 和 CLI JSON 保留有限字符错误码，不包含原始异常、地址或凭据；HTTP 认证失败不与证书失败混同，不自动重放写入。
+
+## Web 文档路径编码修复
+
+Atelier 的 Web 文档 GET/PUT 保留路径分隔符，逐段编码特殊字符；批量读取、资格范围与恢复读取使用同一转换。类名仍沿单段编码。已部署工程通过正常能力包更新同步根 scripts/lib 全部关联文件，无配置迁移或旧状态清理；更新后再继续原同步计划，尚未取得服务器基线的任务须重新核实读取结果。源仓修复不代表业务副本已更新。

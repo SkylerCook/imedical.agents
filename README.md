@@ -689,3 +689,5 @@ guidanceMode（auto/concise/assisted）、executionPath 和 orchestrationMode �
 mobile-dev 提供 mobile-project-repo 建仓入口：复用项目既有约定创建空私有仓，建完交付现场 AI 提交提示词，支持现场旧源码历史未知的纳管分支。
 
 IRIS 远端连接统一入口：[会话管理、既有项目更新与回退](docs/guides/iris-managed-sessions.md)。普通查询正常连接，由管理进程复用和回收；真实宿主回执与服务端资源证据分别验收。
+
+Atelier Web 文档路径编码修复及已部署工程更新方式见[统一会话说明](docs/guides/iris-managed-sessions.md#web-文档路径编码修复)。

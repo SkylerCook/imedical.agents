@@ -1,4 +1,5 @@
 'use strict';
+const {encodeDocumentPath} = require('./atelier-document-path');
 const http = require('node:http');
 const https = require('node:https');
 const tls = require('node:tls');
@@ -31,7 +32,7 @@ function createAtelierClient({ connection, context, policy, qualification, owner
   const agent = conn.protocol === 'https:' ? new https.Agent({ keepAlive: true, maxSockets: 1, rejectUnauthorized: conn.rejectUnauthorized, ...(ca !== undefined ? { ca } : {}) }) : new http.Agent({ keepAlive: true, maxSockets: 1 });
   const cookies = new Map();
   const cookieScopes = new Map();
-  const qualificationReads = qualification ? new Set(qualification.documents.map(name => 'doc/' + encodeURIComponent(name))) : null;
+  const qualificationReads = qualification ? new Set(qualification.documents.map(name => 'doc/' + encodeDocumentPath(name))) : null;
   const qualificationSeen = new Set(), qualificationDeadline = qualification ? Date.now() + qualification.budgetMs : null;
   const logoutPath = conn.path.slice(0, conn.path.lastIndexOf('/api/atelier/') + '/api/atelier/'.length) + '?CacheLogout=end';
   const serverInfoPath = logoutPath.slice(0, logoutPath.indexOf('?'));
@@ -154,7 +155,7 @@ function createAtelierClient({ connection, context, policy, qualification, owner
   }
   async function readDocument(name, options = {}) {
     const identifier = typeof name === 'string' ? name : name.remotePath;
-    return document(identifier, await request('GET', 'doc/' + encodeURIComponent(identifier) + (options.binary ? '?binary=1' : ''), undefined, options.headers || {}, { effects: 'read-only', ...(options.timeoutMs ? {timeoutMs: options.timeoutMs} : {}) }));
+    return document(identifier, await request('GET', 'doc/' + encodeDocumentPath(identifier) + (options.binary ? '?binary=1' : ''), undefined, options.headers || {}, { effects: 'read-only', ...(options.timeoutMs ? {timeoutMs: options.timeoutMs} : {}) }));
   }
   async function readDocuments(names) {
     const result = await request('POST', 'docs', names, {}, { effects: 'read-only' });
@@ -176,7 +177,7 @@ function createAtelierClient({ connection, context, policy, qualification, owner
   async function writeDocument(name, bytes, { ts } = {}) {
     if (Buffer.isBuffer(bytes)) new TextDecoder('utf-8', {fatal:true,ignoreBOM:true}).decode(bytes);
     const text = Buffer.isBuffer(bytes) ? bytes.toString('utf8') : String(bytes);
-    return request('PUT', 'doc/' + encodeURIComponent(name), { enc: false, content: text.split('\n') }, ts ? { 'IF-NONE-MATCH': ts } : {}, { effects: 'write' });
+    return request('PUT', 'doc/' + encodeDocumentPath(name), { enc: false, content: text.split('\n') }, ts ? { 'IF-NONE-MATCH': ts } : {}, { effects: 'write' });
   }
   async function close() {
     if (closing) return closing;

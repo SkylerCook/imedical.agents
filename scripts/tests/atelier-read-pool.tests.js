@@ -119,7 +119,7 @@ test('one worker 503 stops dispatch and persists circuit plus batch records afte
 test('default unqualified concurrency falls back to one for a small qualified-base batch', async t => {
     const f = await fixture(t);
     const pool = createAtelierReadPool({...f, sessions: 4, intervalMs: 0});
-    const result = await pool.readAll(['Demo.A.cls', 'Demo.B.cls']);
+    const result = await pool.readAll(['web/scripts/test.js', 'web/csp/test.csp']);
     assert.equal(result.sessions, 1);
     assert.equal(f.logouts.length, 1);
     assert.equal(new Set(f.requests.map(value => value.cookie)).size, 1);
@@ -172,13 +172,13 @@ test('qualification-only client cannot perform writes with a pending base policy
 
 test('qualification-only client reads each named document once and rejects extra reads and POST docs', async t => {
     const f = await fixture(t); f.policy.qualification.status = 'pending';
-    const qualification = {confirm: true, targetHash: readTargetHash(f.connection), documents: ['Demo.A.cls'], sessions: 1, intervalMs: 0, budgetMs: 1000};
+    const qualification = {confirm: true, targetHash: readTargetHash(f.connection), documents: ['web/scripts/test.js'], sessions: 1, intervalMs: 0, budgetMs: 1000};
     const client = createAtelierClient({...f, qualification});
     try {
         await assert.rejects(client.readDocument('Other.cls'), /qualification|read-only/);
-        await assert.rejects(client.readDocuments(['Demo.A.cls']), /qualification|read-only/);
-        assert.equal((await client.readDocument('Demo.A.cls')).document, 'Demo.A.cls');
-        await assert.rejects(client.readDocument('Demo.A.cls'), /qualification|read-only/);
+        await assert.rejects(client.readDocuments(['web/scripts/test.js']), /qualification|read-only/);
+        assert.equal((await client.readDocument('web/scripts/test.js')).document, 'web/scripts/test.js');
+        await assert.rejects(client.readDocument('web/scripts/test.js'), /qualification|read-only/);
     } finally { await client.close(); }
     assert.equal(f.requests.length, 1);
     assert.equal(f.logouts.length, 1);
