@@ -121,7 +121,7 @@ function assertReady({plan, context, configurationFingerprint, files, environmen
 function bindAdapter(adapter, publication, {context} = {}) {
   const checked = new Set(), originals = new Map(publication.files.map(file => [file.document, file]));
   const assertConfiguration = () => {
-    if (context && fingerprint(require('./source-sync-core').projectConfiguration(context)) !== publication.configurationFingerprint) guard.stop('publication-environment-changed');
+    if (context && require('./source-sync-core').configurationFingerprint(context) !== publication.configurationFingerprint) guard.stop('publication-environment-changed');
   };
   const bound = Object.create(adapter);
   bound.read = async file => {

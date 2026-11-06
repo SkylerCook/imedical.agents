@@ -138,3 +138,7 @@ node .agents/scripts/iris-remote.js inspect --project-root <workspace> --token <
 ## 完成与验证边界
 
 交付说明当前基线时间与范围、export/需求提交、冻结身份、复审主体/依据、上传编译及最终回读、Storage、业务验证、会话/连接退出与未知项。只读/本地 mock 通过不能替代目标环境资格、旧 Caché 兼容或跨平台实跑。普通本地修改完成仍按项目需求验收与提交 owner 收尾，不新增提交权限或重复审批。
+
+## 发布配置指纹一致性（0.27.5）
+
+发布适配器复用 source-sync 的配置指纹计算，包含显式 developmentMode，修复 connected 项目配置未变却在上传前误报 publication-environment-changed。缺省模式保持旧指纹；真实配置、模式、源码和服务器漂移仍阻断。正常更新 coding 插件即可，无配置迁移或历史状态清理；旧失败计划核实未写入后重新执行部署前同步和复审，不手改冻结记录。

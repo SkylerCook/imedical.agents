@@ -356,3 +356,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 受管恢复读取修复（coding 0.27.1）：direct SFTP 部署将当前工作区及需求类型传入 CSP 编译；显式 `inspect/read` 在 managed-single-session 且资格 pending 时只允许声明文档的 GET 和自身注销。该入口保留共享阻断、当前 token、死 owner 与写结果核实，不接受普通写入，也不自动清锁或重放。更新需同时取得 owner 及根 scripts，保留私有配置和历史恢复资料；无需迁移。
 
 工具诊断补齐：正常测试断言失败继续返回原结果；JSON-RPC 无效参数/方法及明确 namespace 不存在的拒绝不触发未知写阻断。其它未知执行错误继续阻断，并经 IPC、原生 MCP 和 CLI --json 向原调用方保留工具响应与错误码；响应正文不写会话协调文件。共享实例仍串行执行，普通失败与仅注销未确认不再永久封锁全池；未知写按目标范围隔离，影响不明的脚本保留 namespace 写保护，只读诊断与无冲突操作继续。
+
+## 发布配置指纹一致性（0.27.5）
+
+发布适配器复用 source-sync 的配置指纹计算，包含显式 developmentMode，修复 connected 项目配置未变却在上传前误报 publication-environment-changed。缺省模式保持旧指纹；真实配置、模式、源码和服务器漂移仍阻断。正常更新 coding 插件即可，无配置迁移或历史状态清理；旧失败计划核实未写入后重新执行部署前同步和复审，不手改冻结记录。

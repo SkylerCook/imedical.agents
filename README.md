@@ -691,3 +691,5 @@ mobile-dev 提供 mobile-project-repo 建仓入口：复用项目既有约定创
 IRIS 远端连接统一入口：[会话管理、既有项目更新与回退](docs/guides/iris-managed-sessions.md)。普通查询正常连接，由管理进程复用和回收；真实宿主回执与服务端资源证据分别验收。
 
 Atelier Web 文档路径编码修复及已部署工程更新方式见[统一会话说明](docs/guides/iris-managed-sessions.md#web-文档路径编码修复)。
+
+发布适配器配置指纹一致性修复见 [coding 插件说明](plugins/coding-iris-plugin/README.md#发布配置指纹一致性0275)。

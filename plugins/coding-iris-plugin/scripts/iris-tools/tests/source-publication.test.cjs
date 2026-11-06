@@ -232,3 +232,26 @@ test('mixed publication completes both kinds and rechecks earlier groups after t
     } finally {process.exitCode = previous;}
   });
 });
+
+for (const explicit of [false, true]) {
+  test('adapter shares sync fingerprint with ' + (explicit ? 'explicit connected mode' : 'legacy missing mode'), async t => {
+    const f = fixture(t, {environmentType:'test'});
+    const configDir=path.join(f.context.contextRoot,'config');
+    fs.mkdirSync(configDir,{recursive:true});
+    fs.writeFileSync(path.join(configDir,'project-env.json'),'{}');
+    fs.writeFileSync(path.join(f.root,'.mcp.json'),'{}');
+    const declaration=path.join(configDir,'iris-development.json');
+    if(explicit) fs.writeFileSync(declaration,JSON.stringify({developmentMode:'connected'}));
+    const core=require('../source-sync-core');
+    const approved=publication.freeze({...f.input,configurationFingerprint:core.configurationFingerprint(f.context)});
+    let reads=0,writes=0;
+    const adapter=publication.bindAdapter({read:async()=>{reads++;return null;},put:async()=>{writes++;}},approved,{context:f.context});
+    await adapter.read(f.file);
+    await adapter.put({...f.file,bytes:fs.readFileSync(f.file.localPath)});
+    assert.equal(reads,1);assert.equal(writes,1);
+    fs.writeFileSync(declaration,JSON.stringify({developmentMode:'offline'}));
+    await assert.rejects(()=>adapter.read(f.file),/offline-development-remote-disabled/);
+    await assert.rejects(()=>adapter.put({...f.file,bytes:fs.readFileSync(f.file.localPath)}),/offline-development-remote-disabled/);
+    assert.equal(reads,1);assert.equal(writes,1);
+  });
+}
