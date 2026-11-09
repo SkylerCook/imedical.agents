@@ -197,7 +197,28 @@ function cstNow() {
 
 function splitSuggestions(s) {
   if (!s) return [];
-  return s.split(/；|;/).map((x) => x.trim()).filter(Boolean);
+  const text = String(s).replace(/\r\n?/g, '\n').replace(/[ \t]{2,}/g, ' ').trim();
+  const parts = text.split(/(【必测】|【回归】|【联调】|【边界】)/).filter((x) => x && x.trim());
+  const out = [];
+  for (const part of parts) {
+    if (TIP_LABELS.includes(part)) out.push(part);
+    else if (out.length > 0 && TIP_LABELS.includes(out[out.length - 1])) out[out.length - 1] += part;
+    else out.push(part);
+  }
+  return out.map((x) => normalizeTip(x)).filter(Boolean);
+}
+
+function normalizeTip(tip) {
+  const lines = String(tip).split('\n').map((x) => x.trim().replace(/[；;]+$/, '')).filter(Boolean);
+  return lines.join('\n');
+}
+
+function tipLayout(tip) {
+  const chunks = String(tip).split(/[\n；]/).map((x) => x.trim()).filter(Boolean);
+  const tag = TIP_LABELS.find((label) => chunks[0] && chunks[0].startsWith(label));
+  if (!tag) return { tag: '', items: chunks };
+  const rest = chunks[0].slice(tag.length).trim();
+  return { tag, items: rest ? [rest, ...chunks.slice(1)] : chunks.slice(1) };
 }
 
 function buildEmailMd(db, opts = {}) {
@@ -251,8 +272,14 @@ function buildEmailMd(db, opts = {}) {
       lines.push('');
       if (tips.length > 0) {
         tips.forEach((t, idx) => {
-          const text = emphasizeTipMd(t);
-          lines.push(idx < tips.length - 1 ? `${text}  ` : text);
+          const { tag, items } = tipLayout(t);
+          const tail = idx < tips.length - 1 ? '  ' : '';
+          if (items.length > 1) {
+            if (tag) lines.push(`${emphasizeTipMd(tag)}${tail}`);
+            for (const item of items) lines.push(`  - ${item.replace(/[。；;]+$/, '')}${tail}`);
+          } else {
+            lines.push(`${emphasizeTipMd(`${tag}${items[0] || ''}`)}${tail}`);
+          }
         });
       } else {
         lines.push(emphasizeTipMd(r.testSuggestion));
@@ -318,6 +345,7 @@ function buildEmailHtml(db, opts = {}) {
     + ' text-align: left; font-weight: bold; color: #1f4e79; white-space: nowrap;';
   const tdStyle = 'border: 1px solid #d9d9d9; padding: 8px 10px; vertical-align: top; word-break: break-all;';
   const impactLabelStyle = 'display: inline-block; min-width: 90px; font-weight: bold; color: #555;';
+  const impactLabelNarrowStyle = 'display: inline-block; min-width: 60px; font-weight: bold; color: #555;';
 
   let tableBlock;
   if (rows.length === 0) {
@@ -380,23 +408,42 @@ function buildEmailHtml(db, opts = {}) {
     lines.push('    <p style="margin: 0 0 14px; font-size: 13px; color: #595959;">影响范围评级说明（假设该功能发生严重故障时的业务波及面）：[5★] 核心业务阻断并形成大批量积压；[4★] 核心业务严重受阻、需靠手工或备用入口绕行；[3★] 单一核心模块受控中断；[2★] 非核心业务受影响；[1★] 几乎无业务感知。</p>');
     impactRows.forEach((r, i) => {
       lines.push(`    <h4 style="${h4Style}">${i + 1}. ${escapeHtml(impactPrefix(r) + r.funcPoint)}</h4>`);
-      const fields = [
+      const leftFields = [
         ['岗位工作站', r.workstation],
         ...(r.funcModule && r.funcModule !== '（待确认）' ? [['功能模组', r.funcModule]] : []),
         ['需求类型', r.reqType],
-        ['提交人', r.author],
-        ['仓库', r.repo],
       ];
-      for (const [label, value] of fields) {
-        lines.push(`    <p style="margin: 2px 0 2px 16px;"><span style="${impactLabelStyle}">${label}：</span>${escapeHtml(value)}</p>`);
+      const rightFields = [['提交人', r.author], ['仓库', r.repo]];
+      lines.push('    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: collapse; margin: 2px 0;">');
+      lines.push('      <tr>');
+      lines.push('        <td style="width: 50%; padding: 2px 12px 2px 16px; vertical-align: top;">');
+      for (const [label, value] of leftFields) {
+        lines.push(`          <p style="margin: 2px 0;"><span style="${impactLabelStyle}">${label}：</span>${escapeHtml(value)}</p>`);
       }
+      lines.push('        </td>');
+      lines.push('        <td style="width: 50%; padding: 2px 0; vertical-align: top; word-break: normal; overflow-wrap: break-word;">');
+      for (const [label, value] of rightFields) {
+        lines.push(`          <p style="margin: 2px 0;"><span style="${impactLabelNarrowStyle}">${label}：</span>${escapeHtml(value)}</p>`);
+      }
+      lines.push('        </td>');
+      lines.push('      </tr>');
+      lines.push('    </table>');
       lines.push(`    <p style="margin: 8px 0 2px 16px;"><span style="${impactLabelStyle}">改造方案：</span></p>`);
       lines.push(`    <p style="margin: 2px 0 2px 16px;">${escapeHtml(r.changePoint)}</p>`);
       const tips = splitSuggestions(r.testSuggestion);
       lines.push(`    <p style="margin: 8px 0 2px 16px;"><span style="${impactLabelStyle}">测试方式建议：</span></p>`);
       if (tips.length > 0) {
         for (const t of tips) {
-          lines.push(`    <p style="margin: 2px 0 2px 16px;">${emphasizeTipHtml(t)}</p>`);
+          const { tag, items } = tipLayout(t);
+          if (items.length > 1) {
+            if (tag) lines.push(`    <p style="margin: 2px 0 2px 16px;">${emphasizeTipHtml(tag)}</p>`);
+            for (const item of items) {
+              const text = emphasizeTipHtml(item.replace(/[。；;]+$/, ''));
+              lines.push(`    <p style="margin: 2px 0 2px 30px;"><span style="color: #8c8c8c;">·</span> ${text}</p>`);
+            }
+          } else {
+            lines.push(`    <p style="margin: 2px 0 2px 16px;">${emphasizeTipHtml(`${tag}${items[0] || ''}`)}</p>`);
+          }
         }
       } else {
         lines.push(`    <p style="margin: 2px 0 2px 16px;">${emphasizeTipHtml(r.testSuggestion)}</p>`);

@@ -136,7 +136,28 @@ function evidenceCounts(impactCommit) {
   };
 }
 
-function validate({ raws, classification, evaluations, impactMap, config, errors, warnings }) {
+function uiCounts(frontCommit) {
+  if (!frontCommit) return null;
+  const entries = frontCommit.uiEntries || [];
+  const conf = new Map();
+  for (const item of entries) {
+    const page = item.page || '';
+    const level = (item.access && item.access.confidence) || 'none';
+    const rank = { menu: 0, parent: 1, none: 2 };
+    if (!conf.has(page) || rank[level] < rank[conf.get(page)]) conf.set(page, level);
+  }
+  const count = (level) => [...conf.values()].filter((v) => v === level).length;
+  return {
+    uiEntries: entries.length,
+    pages: conf.size,
+    withMenu: count('menu'),
+    withParentMenu: count('parent'),
+    noMenu: count('none'),
+    unmatchedEntrypoints: (frontCommit.unmatchedEntrypoints || []).length
+  };
+}
+
+function validate({ raws, classification, evaluations, impactMap, frontMap, config, errors, warnings }) {
   const rawByHash = new Map(raws.map((c) => [c.hash, c]));
   const clsByHash = new Map();
   const allowedWs = config && Array.isArray(config.workstations) ? config.workstations : null;
@@ -209,6 +230,19 @@ function validate({ raws, classification, evaluations, impactMap, config, errors
         warnings.push(`可信度与 code-impact 不一致：${shortHash(e.hash)} evaluations=${got.confidence} code-impact=${exp.confidence}`);
       }
     }
+    const uiExp = uiCounts(frontMap.get(e.hash));
+    if (uiExp) {
+      const got = e.impactEvidence.ui;
+      if (!got) {
+        warnings.push(`evaluations 缺少界面证据摘要 ui：${shortHash(e.hash)}（front-chains 已有数据）`);
+      } else {
+        for (const k of Object.keys(uiExp)) {
+          if (Number(got[k]) !== uiExp[k]) {
+            warnings.push(`界面证据与 front-chains 不一致：${shortHash(e.hash)} ${k} evaluations=${got[k]} front-chains=${uiExp[k]}`);
+          }
+        }
+      }
+    }
   }
 
   for (const c of classification) {
@@ -226,7 +260,7 @@ function validate({ raws, classification, evaluations, impactMap, config, errors
   }
 }
 
-function render({ label, raws, meta, classification, evaluations, db, impactMap, generatedAt }) {
+function render({ label, raws, meta, classification, evaluations, db, impactMap, frontMap, generatedAt }) {
   const evalByHash = new Map(evaluations.map((e) => [e.hash, e]));
   const lines = [];
 
@@ -306,8 +340,14 @@ function render({ label, raws, meta, classification, evaluations, db, impactMap,
     if (e.impactDowngrade) lines.push(`- **影响范围降级**：${e.impactDowngrade}`);
     lines.push(`- **影响范围评级**：${e.impactRating}★ —— ${e.impactRatingReason}`);
     lines.push(
-      `- **调用图证据**：入口 ${ie.entrypoints || 0} · 工作区调用方 ${ie.workspaceCallers || 0} · 外部 Maven 调用方 ${ie.externalCallers || 0} · 跨出 Feign ${ie.downstreamFeigns || 0} · 可信度 ${ie.confidence || 'none'}（方法 ${ie.methods || 0}，契约 Feign ${ie.feignContracts || 0}，契约文件 ${ie.typeFiles || 0}，截断 ${ie.truncated || 0}）`
+      `- **调用图证据**：入口 ${ie.entrypoints || 0} · 工作区调用方 ${ie.workspaceCallers || 0} · 外部 Maven 调用方 ${ie.externalCallers || 0} · 跨出 Feign ${ie.downstreamFeigns || 0} · 可信度 ${ie.confidence || 'none'}（方法 ${ie.methods || 0}，契约 Feign ${ie.feignContracts || 0}，契约文件 ${ie.typeFiles || 0}，契约 Controller ${ie.typeControllerMatches || 0}，截断 ${ie.truncated || 0}）`
     );
+    if (ie.ui) {
+      const ui = ie.ui;
+      lines.push(
+        `- **界面证据**：界面条目 ${ui.uiEntries || 0} · 页面 ${ui.pages || 0}（菜单登记 ${ui.withMenu || 0} / 父页面可达 ${ui.withParentMenu || 0} / 无菜单 ${ui.noMenu || 0}） · 无前端链路入口 ${ui.unmatchedEntrypoints || 0}`
+      );
+    }
     lines.push(`- **影响范围**：${e.impactScope}`);
     lines.push(`- **业务设计流程符合性**：${e.compliance} —— ${e.complianceReason}`);
     lines.push(`- **评级**：${e.rating}★ —— 评价：${e.evaluation}`);
@@ -521,9 +561,16 @@ function main() {
     for (const c of impact.commits || []) impactMap.set(c.hash, c);
   }
 
+  const frontPath = path.join(dir, `front-chains-${label}.json`);
+  const frontMap = new Map();
+  if (fs.existsSync(frontPath)) {
+    const front = JSON.parse(fs.readFileSync(frontPath, 'utf8'));
+    for (const c of front.commits || []) frontMap.set(c.hash, c);
+  }
+
   const errors = [];
   const warnings = [];
-  validate({ raws, classification, evaluations, impactMap, config, errors, warnings });
+  validate({ raws, classification, evaluations, impactMap, frontMap, config, errors, warnings });
 
   if (warnings.length) {
     console.warn(`[WARN] ${warnings.length} 条校验告警：`);
@@ -536,7 +583,7 @@ function main() {
   }
 
   const generatedAt = args['generated-at'] || new Date().toISOString();
-  let md = render({ label, raws, meta, classification, evaluations, db, impactMap, generatedAt });
+  let md = render({ label, raws, meta, classification, evaluations, db, impactMap, frontMap, generatedAt });
   const outPath = path.join(dir, `commit-report-${label}.md`);
   // 「七、低星问题登记」由步骤 ⑥ 追加；重渲染时原样保留，避免覆盖登记结果
   if (!args['no-preserve-registration'] && fs.existsSync(outPath)) {
