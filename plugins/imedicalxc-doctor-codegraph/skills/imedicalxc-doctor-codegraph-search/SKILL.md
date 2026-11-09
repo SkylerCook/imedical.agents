@@ -253,7 +253,12 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
                                        "feign": "QueryOeOrdItemClient", "feignFull": "...",
                                        "service": "...", "servicePath": "...",
                                        "method": "getOrdItemList", "http": "POST getOrdItemList",
-                                       "usage": ["parameter"]}],
+                                       "usage": ["parameter"]},
+                                      {"type": "FeignDiagnoseVO", "typeFqn": "<变更类型全限定名>",
+                                       "matchFqn": "<外层命中类型全限定名>",
+                                       "nestedVia": ["FeignDiagnoseVO", "FeignEncounterVO", "FeignOrderLisReturnVO", "FeignIBUSLisBaseReturnVO"],
+                                       "feign": "AggcareLisInfoClient", "method": "getLISRequest",
+                                       "usage": ["return"]}],
                  "typeFeignCallers": [{"caller": "Class.method", "service": "aggcare",
                                        "types": ["FeignQueryOeOrdDTO"],
                                        "feigns": ["QueryOeOrdItemClient.getOrdItemList"],
@@ -265,6 +270,14 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
                                             "controllerFqn": "com.mediway.his.opcare...",
                                             "method": "getApplyInfoList",
                                             "http": "POST opcare/oeord/opcareoeorditemupdate/getapplyinfolist",
+                                            "usage": ["return"]},
+                                           {"type": "FeignRisRequestVO",
+                                            "typeFqn": "<变更类型全限定名>",
+                                            "matchFqn": "<外层命中类型全限定名>",
+                                            "nestedVia": ["FeignRisRequestVO", "FeignOrderRisReturnVO", "FeignIBUSRisBaseReturnVO"],
+                                            "controller": "AggcareRisInfoClientController",
+                                            "method": "getRISRequest",
+                                            "http": "POST aggcare/api/doc/aggcarerisinfoclient/getrisrequest",
                                             "usage": ["return"]}]},
     "downstream": {"count": 3337, "aggregate": "workspace_reachable_methods",
                    "services": ["comoe", "..."]},
@@ -276,15 +289,15 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
 
 字段语义：
 
-- `entrypoints` = 上游入口（入口方法自身是 Feign 接口时计入口；Controller 端点含 Feign 映射与 HTTP 路径）
+- `entrypoints` = 上游入口（入口方法自身是 Feign 接口时计入口；Controller 端点含 Feign 映射与 HTTP 路径）。三类 `indirect=true` 入口：工作区 Feign 调用方上溯（`via` 带 `feign:<接口>.<方法>`）、契约类型命中（`via` 带 `type:<类型>`）、**Maven 外部调用方 `rootType=controller`**（用 `maven_controller_endpoints.json` 反查注解 URL，`via` 带 `feign:<接口>.<方法>`）。外部调用方入口让药房（ph）、护理（ipnur）、医保（insu）等非工作区服务也能进入前端页面反查；`rootType=method` 的方法根没有 URL，不产入口。
 - `workspaceCallers` = 工作区经 Feign 的回调方；`sameService` 区分同服务/跨服务
 - `externalCallers` = Maven 外部调用方（`penetration_db` 入站链路，`rootType=method` 表示无 Controller 上游）
 - `caller` 是调用方方法名证据；面向测试/交付的文案须由消费方翻译为业务场景（如 `PracticeOrderAbstract.insertPracticeOrder` → 「实习生开立医嘱」），不得直接粘贴方法名或契约名
 - `downstreamFeigns` = 该方法**跨出**的 Feign 边界，不是入口契约，不要与 `contract.feignInterfaces` 混用
-- `contract.typeFeignMatches` = 契约类型**全限定名**在 Feign 方法签名（`return_type` / `parameters`）中的使用明细（接口侧按源码 package / 显式 import / 通配 import 解析，`typeFqn` 给出实际命中类型）；`usage` 区分 `return` / `parameter`。它只证明「该类型是哪个 Feign 接口的形状」，**不代表存在调用方**；要确认调用方仍须走 `query_who_calls_feign.py` / `typeFeignCallers` / `externalCallers`。未命中不代表无使用：嵌套在 VO 字段里的类型不出现在签名中；跨模块同名 DTO（如 ipcare/opcare 各自的 `FeignOeStopMultiDTO`）不会互相命中。
+- `contract.typeFeignMatches` = 契约类型**全限定名**在 Feign 方法签名（`return_type` / `parameters`）中的使用明细（接口侧按源码 package / 显式 import / 通配 import 解析，`typeFqn` 给出实际命中类型）；`usage` 区分 `return` / `parameter`。它只证明「该类型是哪个 Feign 接口的形状」，**不代表存在调用方**；要确认调用方仍须走 `query_who_calls_feign.py` / `typeFeignCallers` / `externalCallers`。签名里没直接出现的类型会按 `type_nesting.json` 沿字段组合向上展开最多 4 层：命中明细带 `matchFqn`（外层类型）与 `nestedVia`（`["变更类型", …, "外层类型"]`），`typeFqn` 仍是变更类型自身——报告写到这类命中时必须说明是字段嵌套命中，不能写成直接签名命中。局部变量、方法体内临时类型与泛型擦除后的运行时类型仍不在范围内；跨模块同名 DTO（如 ipcare/opcare 各自的 `FeignOeStopMultiDTO`）不会互相命中。
 - `contract.typeFeignCallers` = 命中的 Feign 契约方法 → 工作区调用方方法的明细（`types` / `feigns` / `entrypoints` 为该调用方上溯到的入口数）；命中时沿调用方再跑一次入口分析，把结果并入 `entrypoints[]` 并标 `indirect=true`、`via` 以 `feign:<接口>.<方法>` 开头（例如 opreg 排班契约经 opalloc `SchedulePortalClientAbstract.getScheduleInfo` 上溯到「护士分诊」页）。
-- `contract.typeControllerMatches` = 契约类型**全限定名**在工作区 Controller 方法签名中的使用明细（Controller 侧按显式 import / 同包 / 通配 import 解析，`typeFqn` 给出实际命中的类型）；命中的类型会同时以 `entrypoints[]`（`kind=controller`、`heuristic=true`、`via=["type:<类型>"]`、带 `http`）出现，可直接交给 `commit-impact` 衔接到页面。它代表类型的影响面，不是方法级可达；`entrypoints[].heuristic=true` 必须标注。
-- `entrypoints[].indirect=true` = 该入口不是直调契约，而是「页面 → 本地 Controller → BLH → Feign」间接链路的上游；`indirect` 且 `heuristic` 的入口是兜底候选，`commit-impact` 不会据此产出 `uiEntries`，不能当界面证据。
+- `contract.typeControllerMatches` = 契约类型**全限定名**在工作区 Controller 方法签名中的使用明细（Controller 侧按显式 import / 同包 / 通配 import 解析，`typeFqn` 给出实际命中的类型）；字段嵌套命中的行带 `matchFqn` / `nestedVia`（口径同 `typeFeignMatches`）。命中的类型会同时以 `entrypoints[]`（`kind=controller`、`heuristic=true`、`via=["type:<变更类型>"]`，字段嵌套命中再追加 `via=["nested:<变更类型>><…>><外层类型>"]`、带 `http`）出现，可直接交给 `commit-impact` 衔接到页面。它代表类型的影响面，不是方法级可达；`entrypoints[].heuristic=true` 必须标注。综合诊疗对 LIS/PIS/RIS、患者信息、医保的一批 `*InfoClientController` 属对外集成接口，命中它们不等于有医生站页面。
+- `entrypoints[].indirect=true` = 该入口不是直调契约，而是「页面 → 本地 Controller → BLH → Feign」间接链路的上游；`indirect` 且 `heuristic` 的入口是兜底候选，`commit-impact` 不会据此产出 `uiEntries`，不能当界面证据。外部 Maven 调用方入口是 `heuristic=false` 的真实 Controller 端点，可以交给 `commit-impact` 反查页面；反查不到页面时归入 `no-front-call`，它只说明前端链路没有可绑定到该 URL 的按钮/回调，不等于该组没有页面。外部服务的 Controller 不在 `controller_endpoints.json` 里，`commit-impact` 对 URL 命中但 backend 为空的链路用入口自带的类.方法补全（`uiEntries[].backend.source=entrypoint`）。
 - `contract.feignInterfaces` = 方法级入口对应的 Feign 契约与类型签名命中的 Feign 接口合集
 - `downstream.count` = 各改动方法可达工作区方法数的最大值（已按 `WORKSPACE_SERVICES` 过滤），仅作规模参考，不是并集、也不等于回归范围
 - `confidence`：`graph` 有方法级证据；`partial` 仅契约文件（DTO/VO/PO）命中；`none` 无可入图方法
@@ -422,7 +435,7 @@ python query_front_back_chain.py commit-impact \
 }
 ```
 
-`jsPath[]` 的命名口径：普通函数 `name` 为源码中的方法名；扫描器合成的匿名 handler / 页面顶层代码没有源码同名函数，此时 `name` 为空、`kind` 为 `handler` 或 `top_level`，只保留真实文件与行号。展示时用「匿名事件处理」「页面顶层代码」，不得把 `__handler_N` / `__top_level__` 当作 JS 方法名写进报告。
+`jsPath[]` 的命名口径：普通函数 `name` 为源码中的方法名；扫描器合成的匿名 handler / 页面顶层代码没有源码同名函数，此时 `name` 为空、`kind` 为 `handler` 或 `top_level`，只保留真实文件与行号。展示时用「匿名事件处理」「页面顶层代码」，不得把 `__handler_N` / `__top_level__` 当作 JS 方法名写进报告。`kind="callback"` 表示这一步经回调实参推进（如 `ShowChangeCookType(win, DoExchange, prescNo)` 后的 `DoExchange`），方法名是真实函数，照常展示。
 
 `access.confidence` 的消费口径：
 

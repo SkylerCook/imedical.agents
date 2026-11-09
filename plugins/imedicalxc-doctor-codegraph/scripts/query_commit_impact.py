@@ -10,7 +10,8 @@
   2. 检索: 一次加载 impact_db + penetration_db，批量做影响分析
   3. 契约补充: 对仅命中 DTO/VO/PO 的提交，先按 feign_interfaces.json 方法签名
      产出 typeFeignMatches，再按 controller_endpoints.json 的 Controller 方法签名
-     反查（返回类型/入参）合成 Controller 入口，弥补方法图无入口的问题
+     反查（返回类型/入参）合成 Controller 入口，弥补方法图无入口的问题；
+     签名里没直接出现的类型再按 type_nesting.json 反向展开字段嵌套（≤4 层）
   4. 聚合: 按提交去重合并入口 / 本组调用方 / 外部调用方，同一证据保留 via 来源方法
 
 证据边界（写入输出 meta.boundaries，供报告如实标注）:
@@ -68,6 +69,11 @@ def git_show(repo_abs, rev, path=None):
 
 
 HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+
+# 单个 Feign 目标最多登记的外部调用方入口；与工作区调用方的 max_callers 同口径
+MAX_MAVEN_CALLERS = 40
+# 同一 Controller 方法可能挂在多个 URL（数组映射/多服务），逐个登记，避免漏页面
+MAX_URLS_PER_CONTROLLER = 4
 
 
 def parse_diff(diff_text):
@@ -363,8 +369,92 @@ def load_feign_type_index():
     return index
 
 
-def match_type_feigns(type_files, type_index, repo_abs):
-    """按类型全限定名匹配 Feign 方法签名，返回 (feign 短名集合, 明细列表)"""
+_MAVEN_CONTROLLER_URLS = None
+
+
+def load_maven_controller_urls():
+    """Controller 全限定方法 → 注解 URL（Maven 侧调用方的界面入口反查）
+
+    inbound_feign 链只给出调用方 Controller 的类.方法，没有 URL；这里用
+    maven_controller_endpoints.json 反查，才能把药房、护理、医保等非工作区
+    服务的页面接进前端链路。URL 按「注解 path」原样保留，匹配交由前端链路
+    做大小写无关的后缀比对。
+    """
+    global _MAVEN_CONTROLLER_URLS
+    if _MAVEN_CONTROLLER_URLS is not None:
+        return _MAVEN_CONTROLLER_URLS
+    index = defaultdict(list)
+    path = OUTPUT_DIR / "maven_controller_endpoints.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        _MAVEN_CONTROLLER_URLS = index
+        return index
+    for items in (data.get("endpoints") or {}).values():
+        for item in items:
+            fqn = item.get("controller_fqn") or ""
+            method = item.get("method") or ""
+            if not fqn or not method:
+                continue
+            url = f'{item.get("http") or ""} {item.get("path") or ""}'.strip()
+            index[f"{fqn}.{method}"].append(url)
+    _MAVEN_CONTROLLER_URLS = index
+    return index
+
+
+TYPE_NESTING_FILE = OUTPUT_DIR / "type_nesting.json"
+MAX_NESTING_DEPTH = 4
+
+
+def load_type_nesting():
+    """字段类型 → 外层类型 反向索引（build_type_nesting.py 产出）。
+
+    索引缺失时返回空表，反查退回只看方法签名，保持旧口径可用。
+    """
+    try:
+        data = json.loads(TYPE_NESTING_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data.get("edges") or {}
+
+
+def expand_type_fqns(type_files, repo_abs, nesting):
+    """变更类型 → {外层全限定名: {root, file, chain}}，最多 MAX_NESTING_DEPTH 层。
+
+    只沿字段嵌套向上展开；层级越浅越先登记，同一外层类型保留最短链。
+    """
+    out = {}
+    if not nesting:
+        return out
+    for rel in type_files:
+        start = type_full_name(repo_abs, rel)
+        if not start or start not in nesting:
+            continue
+        frontier = [(start, [Path(rel).stem])]
+        seen = {start}
+        for _ in range(MAX_NESTING_DEPTH):
+            nxt = []
+            for fqn, chain in frontier:
+                for enclosing, _field in nesting.get(fqn) or []:
+                    if enclosing in seen:
+                        continue
+                    seen.add(enclosing)
+                    new_chain = chain + [enclosing.rsplit(".", 1)[-1]]
+                    out.setdefault(enclosing, {
+                        "root": start, "file": rel, "chain": new_chain})
+                    nxt.append((enclosing, new_chain))
+            if not nxt:
+                break
+            frontier = nxt
+    return out
+
+
+def match_type_feigns(type_files, type_index, repo_abs, nesting=None):
+    """按类型全限定名匹配 Feign 方法签名，返回 (feign 短名集合, 明细列表)
+
+    签名里没有的类型按 type_nesting.json 沿字段嵌套向上展开，命中外层类型
+    的签名时在明细里带 nestedVia 链；直接命中不带该字段。
+    """
     feigns = set()
     matches = {}
     for rel in type_files:
@@ -375,7 +465,19 @@ def match_type_feigns(type_files, type_index, repo_abs):
             key = (full, fname, method)
             if key not in matches:
                 matches[key] = {"file": rel, "type": simple, "typeFqn": full, **rec}
-    rows = sorted(matches.values(), key=lambda x: (x["feign"], x["method"], x["type"]))
+    for fqn, info in expand_type_fqns(type_files, repo_abs, nesting).items():
+        for (fname, method), rec in (type_index.get(fqn) or {}).items():
+            feigns.add(fname)
+            key = (fqn, fname, method)
+            if key in matches:
+                continue
+            matches[key] = {
+                "file": info["file"], "type": info["chain"][0],
+                "typeFqn": info["root"], "matchFqn": fqn,
+                "nestedVia": info["chain"], **rec,
+            }
+    rows = sorted(matches.values(), key=lambda x: (
+        x["feign"], x["method"], x["type"], ">".join(x.get("nestedVia") or [])))
     return feigns, rows
 
 
@@ -445,47 +547,61 @@ def type_full_name(repo_abs, rel):
     return f"{m.group(1)}.{simple}" if m else simple
 
 
-def match_type_controllers(type_files, type_index, repo_abs):
+def match_type_controllers(type_files, type_index, repo_abs, nesting=None):
     """按类型全限定名反查 Controller 签名，合成 Controller 入口
 
     纯契约提交没有方法节点，方法图给不出入口；这里用返回类型/入参命中
     直接产出 Controller 入口，交给前端链路衔接页面。heuristic=true 标明
     该入口来自签名反查而非调用图追踪。按全限定名匹配，避免跨模块同名
     DTO（如 ipcare/opcare 各自的 FeignOeStopMultiDTO）串到对方 Controller。
+    签名里没有的类型沿 type_nesting.json 展开，命中时入口 via 带嵌套链。
     """
     entrypoints, matches = [], {}
+
+    def add(rel, simple, full, rec, nested_via=None):
+        key = (full, rec["controller_fqn"], rec["method"], rec["path"])
+        if key in matches:
+            return
+        http = f'{rec["http"]} {rec["path"]}'.strip()
+        extra = {"nestedVia": nested_via, "matchFqn": full} if nested_via else {}
+        matches[key] = {
+            "file": rel,
+            "type": simple,
+            "typeFqn": full,
+            "controller": rec["controller"],
+            "controllerFqn": rec["controller_fqn"],
+            "method": rec["method"],
+            "http": http,
+            "usage": rec["usage"],
+            **extra,
+        }
+        via = [f"type:{simple}"]
+        if nested_via:
+            via.append(f"nested:{'>'.join(nested_via)}")
+        entrypoints.append({
+            "kind": "controller",
+            "controller": f'{rec["controller"]}.{rec["method"]}',
+            "service": get_service(rec["controller_fqn"]),
+            "feign": "",
+            "http": http,
+            "heuristic": True,
+            "depth": 0,
+            "via": via,
+            "type": simple,
+            "typeFqn": full,
+            "usage": rec["usage"],
+        })
+
     for rel in type_files:
         simple = Path(rel).stem
         full = type_full_name(repo_abs, rel)
         for rec in type_index.get(full) or []:
-            key = (full, rec["controller_fqn"], rec["method"], rec["path"])
-            if key in matches:
-                continue
-            http = f'{rec["http"]} {rec["path"]}'.strip()
-            matches[key] = {
-                "file": rel,
-                "type": simple,
-                "typeFqn": full,
-                "controller": rec["controller"],
-                "controllerFqn": rec["controller_fqn"],
-                "method": rec["method"],
-                "http": http,
-                "usage": rec["usage"],
-            }
-            entrypoints.append({
-                "kind": "controller",
-                "controller": f'{rec["controller"]}.{rec["method"]}',
-                "service": get_service(rec["controller_fqn"]),
-                "feign": "",
-                "http": http,
-                "heuristic": True,
-                "depth": 0,
-                "via": [f"type:{simple}"],
-                "type": simple,
-                "typeFqn": full,
-                "usage": rec["usage"],
-            })
-    rows = sorted(matches.values(), key=lambda x: (x["controllerFqn"], x["method"], x["http"]))
+            add(rel, simple, full, rec)
+    for fqn, info in expand_type_fqns(type_files, repo_abs, nesting).items():
+        for rec in type_index.get(fqn) or []:
+            add(info["file"], info["chain"][0], info["root"], rec, info["chain"])
+    rows = sorted(matches.values(), key=lambda x: (
+        x["controllerFqn"], x["method"], x["http"], ">".join(x.get("nestedVia") or [])))
     entrypoints.sort(key=lambda x: (x["controller"], x["http"]))
     return entrypoints, rows
 
@@ -557,6 +673,7 @@ def analyze_method(db, nid, depth, with_maven):
     workspace_callers = []
     external_callers = []
     if with_maven:
+        maven_urls = load_maven_controller_urls()
         seen = set()
         for iface, method in inbound_targets:
             if not iface or (iface, method) in seen:
@@ -574,7 +691,11 @@ def analyze_method(db, nid, depth, with_maven):
                     "sameService": c.get("service") == svc,
                     "feign": iface.rsplit(".", 1)[-1],
                 })
-            for c in ext.get("maven_biz", []):
+            maven_biz = sorted(
+                ext.get("maven_biz", []),
+                key=lambda x: (x.get("service", ""), x.get("controller", ""), x.get("caller", "")),
+            )
+            for c in maven_biz[:MAX_MAVEN_CALLERS]:
                 external_callers.append({
                     "service": c.get("service", ""),
                     "module": get_module_for_service(c.get("service", "")),
@@ -584,6 +705,23 @@ def analyze_method(db, nid, depth, with_maven):
                     "feign": iface.rsplit(".", 1)[-1],
                     "path": (c.get("paths") or [[]])[0][-1] if c.get("paths") else "",
                 })
+                # 外部调用方的 Controller 也是页面入口：药房、护理、医保等服务的页面
+                # 调用本方 Controller → Feign → 本方法，只有把调用方 Controller 的
+                # 注解 URL 并进 entrypoints，前端链路才能反查到这些组的页面。
+                ctrl = c.get("controller") or ""
+                if (c.get("root_type") or "") == "controller" and ctrl:
+                    for url in maven_urls.get(ctrl, [])[:MAX_URLS_PER_CONTROLLER]:
+                        entrypoints.append({
+                            "kind": "controller",
+                            "controller": get_class_method(ctrl),
+                            "service": c.get("service") or get_service(ctrl),
+                            "feign": iface.rsplit(".", 1)[-1],
+                            "http": url,
+                            "heuristic": False,
+                            "depth": 1,
+                            "indirect": True,
+                            "via": [f"feign:{iface.rsplit('.', 1)[-1]}.{method}"],
+                        })
 
     return {
         "entry": {"id": nid, "class_method": get_class_method(nid), "service": svc},
@@ -737,6 +875,7 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
     by_file = load_graph_index(db)
     feign_type_index = load_feign_type_index()
     controller_type_index = load_controller_type_index()
+    type_nesting = load_type_nesting()
     index_mtime = impact_path.stat().st_mtime
 
     result_commits = []
@@ -757,7 +896,9 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
             ev = analyze_method(db, m["id"], depth, with_maven)
             cm = m["class_method"]
             for e in ev["entrypoints"]:
-                entrypoints.append({**e, "via": [cm]})
+                # 保留入口自带的上游标记（如外部 Maven 调用方的 feign:<接口>.<方法>），
+                # 只在其后追加改动方法；丢掉它会让「为什么药房页面出现在这里」无从追溯
+                entrypoints.append({**e, "via": [cm] + [v for v in (e.get("via") or []) if v != cm]})
             for c in ev["workspaceCallers"]:
                 workspace.append({**c, "via": [cm]})
             for c in ev["externalCallers"]:
@@ -794,9 +935,10 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
         downstream_feigns.sort(key=lambda x: (x["feign"], x["method"], x["caller"]))
 
         type_files = [s["file"] for s in skipped if s.get("reason") == "type_contract"]
-        type_feigns, type_matches = match_type_feigns(type_files, feign_type_index, repo_abs)
+        type_feigns, type_matches = match_type_feigns(
+            type_files, feign_type_index, repo_abs, type_nesting)
         type_entrypoints, type_controller_matches = match_type_controllers(
-            type_files, controller_type_index, repo_abs)
+            type_files, controller_type_index, repo_abs, type_nesting)
         type_feign_entrypoints, type_feign_callers = feign_caller_entrypoints(
             db, type_matches, depth, with_maven)
         synthesized = type_entrypoints + type_feign_entrypoints
@@ -856,9 +998,10 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
                 "BLH 反射分发可能断链，追踪器以同名覆写与启发式补链",
                 "Maven 侧只保留直调医生站 Feign 的服务，未命中不等于无交互",
                 "下游数量为入口方法可达方法数，不代表全部需回归范围",
-                "契约类型的 Feign 使用方按 feign_interfaces.json 方法签名 + 接口源码 package/import 解析的全限定类型名匹配，不同模块同名 DTO 不会串口；嵌套在 VO 字段里的类型不在签名中，未命中不等于无使用方",
+                "契约类型的 Feign 使用方按 feign_interfaces.json 方法签名 + 接口源码 package/import 解析的全限定类型名匹配，不同模块同名 DTO 不会串口；签名未直接出现的类型按 type_nesting.json 反向展开字段嵌套（最多 4 层，nestedVia 记录链路），仍只按全限定名命中，局部变量与泛型擦除后的运行时类型不在范围内",
                 "契约类型命中的 Feign 接口会再沿工作区调用方上溯入口（indirect=true、via 带 feign:<接口>.<方法>），补出「页面 → 本地 Controller → BLH → Feign」的间接链路",
-                "契约类型的 Controller 使用方按 controller_endpoints.json 的全限定类型名反查（heuristic 入口）；仅出现在 VO 嵌套字段、局部变量或实现类内部时不在签名中，未命中不等于无页面入口",
+                "契约类型的 Controller 使用方按 controller_endpoints.json 的全限定类型名反查（heuristic 入口），字段嵌套同样按 type_nesting.json 展开 4 层并以 nestedVia 记录；仅出现在局部变量或实现类内部时不在签名中，未命中不等于无页面入口",
+                "外部 Maven 调用方中 rootType=controller 的调用链根按 maven_controller_endpoints.json 反查注解 URL，作为 indirect 入口参与前端页面反查（药房、护理、医保等服务由此可达）；rootType=method 的方法根没有 URL，不产生入口",
             ],
         },
         "commits": result_commits,

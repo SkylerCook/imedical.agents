@@ -1226,8 +1226,14 @@ class _Scanner:
             if is_request or callee in NOISE_CALLEES or (callee.rsplit(".", 1)[-1] in NOISE_METHODS and "." in callee):
                 pass  # 请求封装/通用库方法不记录普通调用边
             else:
-                calls.append({"callee": callee, "kind": "call", "member": member,
-                              "idx": start, "line": line})
+                call = {"callee": callee, "kind": "call", "member": member,
+                        "idx": start, "line": line}
+                # 回调实参：`ShowChangeCookType("Win", DoExchange, prescNo)` 把同文件函数
+                # 作为引用传出，真正的请求写在 DoExchange 里；不记录这条边请求就不可达
+                callbacks = self._callback_args(i)
+                if callbacks:
+                    call["callbacks"] = callbacks
+                calls.append(call)
 
             req = self._request_at(i, callee, start, line)
             if not req:
@@ -1235,6 +1241,24 @@ class _Scanner:
             if req:
                 requests.append(req)
         return calls, requests, opens
+
+    def _callback_args(self, i):
+        """调用实参里的裸函数标识符（`f(win, DoExchange)` 的 DoExchange）。
+
+        只认单 token 标识符，字符串/成员访问/字面量都不算；是否真的是本文件函数
+        由导出阶段按 def_meta 过滤，避免把数据参数当成回调。
+        """
+        out = []
+        for start, end in _call_args(self.tokens, i) or []:
+            if end - start != 1:
+                continue
+            kind, value, line = self.tokens[start]
+            if kind != "id" or value in KEYWORDS:
+                continue
+            if start >= 1 and self.tokens[start - 1][1] in (".", "new"):
+                continue
+            out.append({"name": value, "line": line})
+        return out
 
     def _open_at(self, i, callee, start, line):
         """页面弹出/跳转：websys_showModal({url}) / ShowHISUIWindow(src) / window.open(url)…
@@ -1636,6 +1660,28 @@ class _Scanner:
             calls_by_owner.setdefault(owner, []).append(
                 {"callee": callee, "kind": c["kind"],
                  "member": c.get("member", False), "line": c["line"]})
+        # 回调实参只在「本文件确有同名函数声明」时保留；形参/局部变量同名的是局部引用
+        declared = {d["name"] for d in self.def_meta.values()
+                    if d.get("name") and d["name"] != "__top_level__"}
+        callbacks_by_owner = {}
+        for c in self.calls:
+            if not c.get("callbacks"):
+                continue
+            owner = c.get("owner", "")
+            meta = self.def_meta.get(owner) or {}
+            seen = set()
+            for cb in c["callbacks"]:
+                name = cb["name"]
+                if name not in declared:
+                    continue
+                if name in meta.get("params", ()) or name in meta.get("locals", ()):
+                    continue
+                pair = (name, c["callee"])
+                if pair in seen:
+                    continue
+                seen.add(pair)
+                callbacks_by_owner.setdefault(owner, []).append(
+                    {"name": name, "via": c["callee"], "line": cb["line"]})
         req_by_owner = {}
         for r in self.requests:
             req_by_owner.setdefault(r.get("owner", ""), []).append({
@@ -1660,6 +1706,7 @@ class _Scanner:
                 "parent": d.get("parent", ""),
                 "line": d["line"],
                 "calls": calls_by_owner.get(qual, []),
+                "callbacks": callbacks_by_owner.get(qual, []),
                 "requests": req_by_owner.get(qual, []),
                 "opens": open_by_owner.get(qual, []),
             })

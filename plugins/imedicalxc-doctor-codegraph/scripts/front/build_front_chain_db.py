@@ -277,6 +277,7 @@ class ChainBuilder:
         self.top_vars_by_file = {}
         self._resolve_cache = {}
         self._handler_cache = {}
+        self.callback_edges = set()
         self.dropped_prefixes = set()
 
     # ── 载入 ────────────────────────────────────────────────────
@@ -307,6 +308,24 @@ class ChainBuilder:
             self.inline_by_file[file] = rec.get("inline_elements", [])
             self.bar_by_file[file] = rec.get("bar_bindings", [])
             self.config_by_file[file] = rec.get("config_calls", [])
+
+    def resolve_callbacks(self):
+        """回调实参边：只认同文件唯一同名函数，不跨文件回退。
+
+        `ShowChangeCookType("Win", DoExchange, prescNo)` 把 DoExchange 作为引用传出，
+        请求写在 DoExchange 里；普通调用边不包含实参，这条边不补请求就不可达。
+        """
+        for fid, fn in self.fn_by_id.items():
+            targets = []
+            for cb in fn.get("callbacks") or []:
+                tid = self._resolve_call(fn["file"], fn["qualified"], cb["name"],
+                                         None, True)
+                if not tid or tid == fid or tid not in self.fn_by_id:
+                    continue
+                if tid not in targets:
+                    targets.append(tid)
+                self.callback_edges.add((fid, tid))
+            fn["callback_targets"] = targets
 
     # ── 方法解析 ────────────────────────────────────────────────
     def resolve_call(self, file, owner_qual, callee, allowed_files=None, member=False):
@@ -674,7 +693,74 @@ class ChainBuilder:
                     continue
                 seen_fn.add(target)
                 queue.append((target, path + [target]))
+        self._explore_callbacks(seen_fn, results, opens, seen_req, seen_open, allowed_files)
         return results, opens
+
+    def _explore_callbacks(self, seen_fn, results, opens, seen_req, seen_open, allowed_files):
+        """第二阶段：回调预算。
+
+        回调实参边在主 BFS 之后单独展开，避免新增请求挤占 `max_requests` 名额、
+        让原有链路凭空消失；预算与主配额同额，按访问顺序确定性推进。
+        """
+        budget = self.max_requests
+        for fid in list(seen_fn):
+            if budget <= 0:
+                break
+            fn = self.fn_by_id.get(fid)
+            if not fn:
+                continue
+            for target in fn.get("callback_targets") or []:
+                if budget <= 0:
+                    break
+                if target in seen_fn or target not in self.fn_by_id:
+                    continue
+                seen_fn.add(target)
+                queue = deque([(target, [fid, target])])
+                while queue and budget > 0:
+                    cfid, cpath = queue.popleft()
+                    cfn = self.fn_by_id.get(cfid)
+                    if not cfn:
+                        continue
+                    for idx, req in enumerate(cfn["requests"]):
+                        sig = (cfid, idx)
+                        if sig in seen_req:
+                            continue
+                        seen_req.add(sig)
+                        results.append((list(cpath), cfn, req, idx))
+                        budget -= 1
+                        if budget <= 0:
+                            break
+                    if budget <= 0:
+                        break
+                    for idx, op in enumerate(cfn.get("opens", [])):
+                        sig = (cfid, idx)
+                        if sig in seen_open:
+                            continue
+                        seen_open.add(sig)
+                        opens.append((list(cpath), cfn, op, idx))
+                    if len(cpath) - 1 >= self.max_depth:
+                        continue
+                    for call in cfn["calls"]:
+                        t = self.resolve_call(cfn["file"], cfn["qualified"],
+                                              call["callee"], allowed_files,
+                                              call.get("member", False))
+                        if not t or t in seen_fn or t not in self.fn_by_id:
+                            continue
+                        seen_fn.add(t)
+                        queue.append((t, cpath + [t]))
+
+    def path_steps(self, path):
+        """链路步骤；回调实参推进的那一步标 `kind=callback`。"""
+        steps, prev = [], None
+        for fid in path:
+            fn = self.fn_by_id[fid]
+            step = {"function": fid, "name": fn["name"],
+                    "file": fn["file"], "line": fn["line"]}
+            if prev is not None and (prev, fid) in self.callback_edges:
+                step["kind"] = "callback"
+            steps.append(step)
+            prev = fid
+        return steps
 
     def open_records(self, page_file, fn, op, page_set, allowed_files=None, module_hint=""):
         variants = self.resolve_term_variants(fn["file"], op.get("url_terms"),
@@ -735,6 +821,7 @@ class ChainBuilder:
     # ── 主构建 ──────────────────────────────────────────────────
     def build(self, pages, elements, menu_snapshot, config_snapshot):
         self.load()
+        self.resolve_callbacks()
         page_menu = (menu_snapshot or {}).get("page_menu", {})
         buttons_by_bar = defaultdict(list)
         for btn in (menu_snapshot or {}).get("buttons", []):
@@ -1074,10 +1161,7 @@ class ChainBuilder:
                         "label": elem.get("label", ""),
                         "event": elem["event"],
                         "source": elem["handler_source"],
-                        "path": [{"function": fid,
-                                  "name": self.fn_by_id[fid]["name"],
-                                  "file": self.fn_by_id[fid]["file"],
-                                  "line": self.fn_by_id[fid]["line"]} for fid in path],
+                        "path": self.path_steps(path),
                         "request": rec["id"],
                         "method": rec["method"],
                         "url_path": rec["url_path"],
@@ -1120,10 +1204,7 @@ class ChainBuilder:
                         "label": "页面加载",
                         "event": "load",
                         "source": "page_load",
-                        "path": [{"function": fid,
-                                  "name": self.fn_by_id[fid]["name"],
-                                  "file": self.fn_by_id[fid]["file"],
-                                  "line": self.fn_by_id[fid]["line"]} for fid in path],
+                        "path": self.path_steps(path),
                         "request": rec["id"],
                         "method": rec["method"],
                         "url_path": rec["url_path"],

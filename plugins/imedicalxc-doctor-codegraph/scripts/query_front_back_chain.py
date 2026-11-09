@@ -199,7 +199,7 @@ def step_name(step, functions=None):
     源码里没有同名函数；这类步骤只保留真实文件与行号，名称留空由 kind 说明。"""
     name = (step.get("name") or "").strip()
     if name and not name.startswith("__"):
-        return name, ""
+        return name, ("callback" if step.get("kind") == "callback" else "")
     func = (functions or {}).get(step.get("function") or "") or {}
     kind = func.get("kind") or ("handler" if name.startswith("__handler_") else "top_level")
     return "", kind
@@ -402,6 +402,7 @@ def build_ui_entry(chain, req, backend, entry, db, registry, incoming, depth, la
             "path": backend.get("path") or "",
             "file": backend.get("file") or "",
             "line": backend.get("line"),
+            "source": backend.get("source") or "endpoint-index",
         },
         "entrypoint": {
             "controller": entry.get("controller") or "",
@@ -438,6 +439,22 @@ def _ui_preference(ui_entry):
 def _entry_key(entry):
     controller = (entry.get("controller") or "").strip()
     return controller if "." in controller else ""
+
+
+def _entry_backend(entry):
+    """URL 命中但端点索引未收录该服务时，用入口自带的类.方法作为后端证据。"""
+    controller = (entry.get("controller") or "").strip()
+    if "." not in controller:
+        return None
+    return {
+        "controller": controller,
+        "controller_fqn": "",
+        "method": controller.rsplit(".", 1)[-1],
+        "http": entry.get("http") or "",
+        "path": "",
+        "file": "",
+        "source": "entrypoint",
+    }
 
 
 def _normalize_http(value):
@@ -568,7 +585,14 @@ def cmd_commit_impact(records, index, db, args):
                         if key else [])
                 if not hits:
                     for chain, req, backends in _http_hits(http_index, cand):
-                        hits.extend((chain, req, backend, "http") for backend in backends)
+                        if backends:
+                            hits.extend((chain, req, backend, "http") for backend in backends)
+                        else:
+                            # 外部服务（药房/护理/收费/医保等）的 Controller 不在工作区端点索引里，
+                            # 但入口本身已给出类.方法与 URL，URL 命中即可作为界面证据
+                            fallback = _entry_backend(cand)
+                            if fallback:
+                                hits.append((chain, req, fallback, "http"))
                 if hits:
                     resolved = cand
                     break

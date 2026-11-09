@@ -34,6 +34,7 @@ HIS 医生站代码调用图分析框架，拆分为三个 skill：
 | `build_maven_biz_graph.py` | Step 3: Maven biz jar 并发扫描（javatools ASM）；解析 Controller 映射注解输出 `maven_controller_endpoints.json` |
 | `merge_call_graphs.py` | Step 4: 合并工作区 + Maven 数据 |
 | `scan_controller_endpoints.py` | Step 5: 解析 Controller 映射注解，生成 URL ↔ 方法索引（`--check` 校验） |
+| `build_type_nesting.py` | Step 5b: 扫描 DTO/VO/PO 实例字段，生成「字段类型 → 外层类型」反向索引 `type_nesting.json`（契约类型按字段嵌套向上展开） |
 | `build_impact_db.py` | Step 6: 生成影响分析索引（Controller 节点附 `endpoints`） |
 | `build_penetration_db.py` | Step 7: 生成两部分穿透数据库与入站 Feign GraphML |
 | `export_full_graphml.py` | 可选：工作区 + Maven 合并全量 GraphML（仅供布局参考） |
@@ -73,6 +74,7 @@ HIS 医生站代码调用图分析框架，拆分为三个 skill：
 | `maven_controller_endpoints.json` | **Maven 工件 URL ↔ Controller 方法索引**（类级/方法级映射注解；穿透链路与工作区外按钮匹配的 URL 来源） | ~3MB |
 | `merged_call_graph.jsonl` | 合并后调用图 | ~29MB |
 | `controller_endpoints.json` | **URL ↔ 后端方法索引**（由 Controller 类级/方法级映射注解解析） | ~5.5MB |
+| `type_nesting.json` | **字段类型 → 外层类型反向索引**（DTO/VO 字段组合，供契约类型向上展开） | ~2.7MB |
 | `impact_db.json` | 影响分析索引（基础查询数据源，Controller 节点带 `endpoints`） | ~51MB |
 | `penetration_db.json` | **两部分穿透数据库（穿透查询数据源）** | ~41MB |
 | `inbound_feign_penetration.graphml` | 图 2：Maven 调用方 → 本工作区 Feign | ~260KB |
@@ -104,7 +106,7 @@ HIS 医生站代码调用图分析框架，拆分为三个 skill：
 ```bash
 # 后端七步
 cd .agents/plugins/imedicalxc-doctor-codegraph/scripts
-python feign_scanner.py && python build_method_graph.py && python build_maven_biz_graph.py && python merge_call_graphs.py && python scan_controller_endpoints.py && python build_impact_db.py && python build_penetration_db.py
+python feign_scanner.py && python build_method_graph.py && python build_maven_biz_graph.py && python merge_call_graphs.py && python scan_controller_endpoints.py && python build_type_nesting.py && python build_impact_db.py && python build_penetration_db.py
 
 # 前端五步（菜单快照与配置注入可选，凭据走环境变量或 MCP）
 cd front

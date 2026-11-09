@@ -1,7 +1,7 @@
 ---
 name: imedicalxc-doctor-codegraph-gen
 description: |
-  HIS 医生站代码调用图索引构建与增量更新。执行 7 步流水线：Feign 接口扫描 → 工作区方法级调用图 → Maven biz jar 扫描 → 合并 → Controller 注解端点索引（controller_endpoints.json）→ 影响分析索引（impact_db.json）→ 两部分穿透数据库（penetration_db.json）。
+  HIS 医生站代码调用图索引构建与增量更新。执行流水线：Feign 接口扫描 → 工作区方法级调用图 → Maven biz jar 扫描 → 合并 → Controller 注解端点索引（controller_endpoints.json）→ 类型嵌套索引（type_nesting.json）→ 影响分析索引（impact_db.json）→ 两部分穿透数据库（penetration_db.json）。
   Use when 首次初始化 codegraph 数据、拉取子仓库或升级 Maven 依赖后重建/增量更新索引、impact_db.json / penetration_db.json 缺失或过期、或需要重新生成调用图数据。
   纯查询与影响分析请使用 imedicalxc-doctor-codegraph-search。
 ---
@@ -38,6 +38,7 @@ python feign_scanner.py \
   && python build_maven_biz_graph.py \
   && python merge_call_graphs.py \
   && python scan_controller_endpoints.py \
+  && python build_type_nesting.py \
   && python build_impact_db.py \
   && python build_penetration_db.py
 ```
@@ -49,6 +50,7 @@ python feign_scanner.py \
 | Step 3 | `build_maven_biz_graph.py` | ~4s | `maven_biz_call_graph.jsonl`、`maven_biz_reverse_index.json`、`maven_biz_dispatch.json`、`maven_controller_endpoints.json`、`maven_biz_scan_stats.json` |
 | Step 4 | `merge_call_graphs.py` | ~2s | `merged_call_graph.jsonl`、`merged_reverse_index.json`、`merged_service_boundary.json` |
 | Step 5 | `scan_controller_endpoints.py` | ~6s | `controller_endpoints.json`（方法记录含 `return_type` / `parameters`，类级 `type_scopes`） |
+| Step 5b | `build_type_nesting.py` | ~40-60s | `type_nesting.json`（字段类型 → 外层类型反向索引，供契约类型向上展开嵌套） |
 | Step 6 | `build_impact_db.py` | ~1-2s | `impact_db.json`（Controller 节点带注解 URL） |
 | Step 7 | `build_penetration_db.py` | ~5-10s | `penetration_db.json`、`inbound_feign_penetration.graphml` |
 
@@ -58,6 +60,16 @@ Step 5 把类级 `@RequestMapping` + 方法级 `@XxxMapping` 的 URL 关系固�
 2. **其他组 Maven jar → 本工作区 Feign**：从对方 Controller 出发，沿真实调用 + 接口/父类分派桥追溯到调用本工作区发布 Feign 接口的调用点；无 Controller 可达时退化为方法入口（`root_type=method`），并把上游片段写入 `partial_paths`。
 
 `maven_penetration_graph.graphml` 已废弃（它按“保留服务内所有 Controller”扫全图，会把 `getFormwork` 这类与 Feign 无关的节点带进来）。
+
+### 类型嵌套索引（Step 5b）
+
+契约类型常以**字段**形式嵌在别的 DTO/VO 里（`FeignDiagnoseVO` 在 `FeignEncounterVO.diagnose`，再进 `FeignOrderLisReturnVO` → `FeignIBUSLisBaseReturnVO`）。只按方法签名反查会漏掉这类使用方，Step 5b 从工作区源码抽出「字段类型 → 外层类型」反向边，写成 `type_nesting.json`：
+
+- 只登记 `class` / `interface` / `enum` / `record` 的实例字段（`static` 字段跳过），按 package / 显式 import / 通配 import 还原全限定名；同包猜测只接受已扫到的类，避免把 `List`、`String` 猜成 `pkg.List`
+- 只沿**字段组合**向上展开，不展开 `extends` / `implements`；查询期最多 4 层（`query_commit_impact.MAX_NESTING_DEPTH`）
+- 当前规模：38,768 源文件 / 38,534 类 / 7,782 个被嵌套类型 / 23,112 条边（2.7 MB）
+
+查询侧（`query_commit_impact.py`）对变更类型先做签名直接匹配，再按本索引向外层类型补一轮；命中的明细带 `nestedVia`（如 `["FeignDiagnoseVO","FeignEncounterVO","FeignOrderLisReturnVO","FeignIBUSLisBaseReturnVO"]`）与 `matchFqn`，报告据此说明「是字段嵌套命中，不是直接签名」。索引缺失时自动退回只匹配签名，不报错。
 
 ### Maven 工件端点索引（Step 3）
 
@@ -95,6 +107,7 @@ Step 3 导出前会剔除与医生站无关的 Maven 节点，规则：
 | 变更源 | 需重跑 | 说明 |
 |---|---|---|
 | 工作区 Java 源码（业务逻辑，Controller 映射未变） | Step 2 → Step 4 → Step 6 → Step 7 | Step 2 重建工作区图；Step 4 重建合并数据与服务边界；Step 7 重建两部分穿透 |
+| 新增/修改 DTO/VO/PO 字段或类型 | Step 5b | 只重建 `type_nesting.json`；契约提交取证前必须刷新，否则字段嵌套命中会缺失 |
 | 新增/修改 Controller 或映射注解 | Step 5 → Step 6 | Step 5 刷新注解 URL 索引；Step 6 把 URL 挂到方法节点。缺失产物时查询脚本仍可用 `--refresh-endpoints` 临时重建 |
 | 工作区 `@FeignClient` 接口定义 | Step 1 → Step 4 → Step 6 → Step 7 | Step 1 刷新接口/路径，Step 4 刷新 Controller 映射，Step 7 刷新入站链路 |
 | Maven 本地仓库 biz jar（依赖升级、新增 jar） | Step 3 → Step 4 → Step 6 → Step 7 | 重新扫描字节码并合并；相关性过滤与分派桥自动重算 |
@@ -132,6 +145,7 @@ find "$MAVEN_REPO/com/mediway" -name '*.jar' \
 | `merged_reverse_index.json` | 合并后反向索引 | Step 4 |
 | `merged_service_boundary.json` | Controller → Feign 映射 | Step 4 |
 | `controller_endpoints.json` | Controller 注解 URL 索引：`endpoints`（URL → 方法，方法记录含 `return_type` / `parameters`）、`type_scopes`（Controller 的 package / import / 通配 import，供全限定名解析）与 `meta`（源文件数/摘要）；`type_index()` 可据此按类型全限定名反查 Controller 签名 | Step 5 |
+| `type_nesting.json` | 字段类型 → 外层类型的反向索引（`edges[fqn] = [[enclosingFqn, fieldName], ...]`），供契约类型按字段嵌套向上展开；`query_commit_impact.py` 直接读取 | Step 5b |
 | `impact_db.json` | 影响分析索引数据库（查询主入口）；Controller 方法节点带 `endpoints`（注解 URL） | Step 6 |
 | `penetration_db.json` | **两部分穿透数据库（查询主数据源）** | Step 7 |
 | `inbound_feign_penetration.graphml` | 第二部分可视化（Maven Controller → 本工作区 Feign） | Step 7 |
@@ -149,6 +163,9 @@ python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DI
 
 # 3. 端点索引与源码一致（exit 0 = 一致）
 python scan_controller_endpoints.py --check
+
+# 3b. 类型嵌套索引（应输出 38768 38534 7782 23112）
+python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DIR; m=json.load(open(OUTPUT_DIR/'type_nesting.json'))['meta']; print(m['files'], m['classes'], m['types'], m['edges'])"
 
 # 4. Maven 工件端点索引（应输出 1666 9255 9260）
 python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DIR; m=json.load(open(OUTPUT_DIR/'maven_controller_endpoints.json'))['meta']; print(m['controllers'], m['endpoints'], m['mappings'])"
@@ -196,6 +213,7 @@ python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DI
 | 穿透链路的 Controller 根带注解 URL | 342 / 353（其余 11 条映射声明在父类/接口，字节码不携带） |
 | 合并全图节点 / 边 | 125,508 / 202,919 |
 | `controller_endpoints.json` | 7.5 MB（1,681 源文件 / 1,680 Controller / 11,514 URL / 11,520 方法映射 + 1,680 类型作用域） |
+| `type_nesting.json` | 2.7 MB（38,768 源文件 / 38,534 类 / 7,782 个被嵌套类型 / 23,112 条字段边） |
 | `maven_controller_endpoints.json` | 3.1 MB（326 jar / 1,666 Controller / 9,255 URL / 9,260 方法映射） |
 | `impact_db.json` | 50.8 MB（含 Controller 方法注解 URL） |
 | `penetration_db.json` | 41.6 MB |
@@ -221,3 +239,4 @@ python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DI
 15. **URL 只认注解不认方法名**：方法名与 URL 末段经常不同（`preOpRegist` 在类级 `/opreg/adm/opregBroker` 下），`scan_controller_endpoints.py` 必须同时解析类级 `@RequestMapping` 与方法级注解；`@RequestMapping` 的 `value/path` 之外的 `produces`/`consumes`/`name` 字符串不是 URL，不能当成端点。数组映射逐个产出端点，同一方法可对应多条 URL。
 16. **端点索引是构建产物，不要在查询期重扫**：Step 5 的 `controller_endpoints.json` 带源码摘要；查询脚本默认直接读它，只有 `--refresh-endpoints` 或产物缺失时才扫描。把摘要校验放回每次查询会让单次查询退化到 30s+。
 17. **Maven 工件的注解值要用常量池解引用**：`javatools` 的 `JavaAnnotation` 是 dict，值形如 `('s', idx)` 或 `('[', [...])`，字符串要经 `cpool.deref_const(idx)` 还原；`@RequestMapping` 的 `method` 是 `('e', (type_idx, const_idx))` 枚举。只解析 `value`/`path`，`@PostMapping` 等直接映射为对应动词。lambda 合成方法无注解，按 `lambda$<方法>$N` 回退到外层方法；父类/接口上声明的映射字节码不携带，这类链路保持无 URL，不要按方法名猜 URL。
+18. **类型嵌套索引按类名集合解析，不按同名猜包**：`build_type_nesting.py` 先扫一遍所有 `class/interface/enum/record` 的全限定名，字段类型只在「显式 import → 同包 → 通配 import」里取命中集合的名字。第一版省掉集合校验，`List`、`String`、`LocalDate` 被猜成 `pkg.List` 等 1.5 万条假边。字段正则要跳过 `static`，否则常量表会把大量无关类串进来；只做字段组合，不展开 `extends`（继承由方法图的 `parent`/`ancestors` 负责）。
