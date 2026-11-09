@@ -12,7 +12,7 @@ description: |
 
 - 本 skill 只负责**生成/刷新前端链路数据**（离线批处理）与**链路查询脚本**。
 - 链路口径：`页面 HTML → 操作元素（按钮/链接/输入控件）→ 事件 handler → JS 方法调用链 → HTTP 请求`。
-- 界面之间也存在指向边：`界面 →(弹出) 界面`（`websys_showModal` / `ShowHISUIWindow` / `windowOpenFrame` / `commonShowWin` / `addTab` / `window.open` 等弹窗或新开页）、`界面 →(内嵌) 界面`（静态 `<iframe src>`）、`界面 →(跳转) 界面`（配置下发的纯跳转项）。三类边与请求链路并存，写入 `page_links` 与 GraphML。
+- 界面之间也存在指向边：`界面 →(弹出) 界面`（`websys_showModal` / `ShowHISUIWindow` / `windowOpenFrame` / `commonShowWin` / `addTab` / `window.open` 等弹窗或新开页）、`界面 →(内嵌) 界面`（静态 `<iframe src>`）、`界面 →(跳转) 界面`（配置下发的纯跳转项）、`界面 →(包含) 界面`（服务端 `csp-include` 片段）。四类边与请求链路并存，写入 `page_links` 与 GraphML。
 - 字面量钩子分派（`Common_ControlObj.BeforeUpdate("X")` → `BeforeUpdateFuncs.X`、`Interface("X")` → 插件 `Funcs.X`）属于链路的一部分；由 `cf_doc_interface_product` / `cf_doc_interface_modulelink` 在运行时下发的插件脚本本身尚未按配置展开，插件的 `OEOrd.BeforeUpdate` 等钩子实现只在 `comoe/interface/**` 内可见、不挂到具体页面。
 - 请求只记录 URL 表达式与解析后的路径，**不关联后端 Controller / Feign**。后端影响分析使用 `imedicalxc-doctor-codegraph-gen` / `-search`；需要「HTML 页面 → 元素 → JS → 请求 → Controller」的完整五段链路时，用 search skill 的 `query_front_back_chain.py`（查询 8），它消费本 skill 产出的 `front_chain_db.json`，不回写。
 - 扫描范围：`src/frontend/hisfront/static` 下**全部** HTML/JS（跳过 `scripts_lib`、`lib`、`node_modules`、`dist` 等第三方/构建目录）。
@@ -66,6 +66,16 @@ python html_scan.py && python js_scan.py && python build_front_chain_db.py
 
 Step 1 / Step 2 互相独立，可并行；Step 3、Step 4 只依赖数据库，可与 Step 1/2 并行；Step 5 必须在 Step 1、2 之后。
 
+### 实体存在性约束（必须保持）
+
+链路里的界面和方法都必须是前端仓库中真实存在的东西，不允许用名称联想补出来：
+
+- **页面集合只来自磁盘扫描**：`pages` = `static/` 下实际扫描到的 HTML。菜单快照、配置注入、URL 模板都不能新增页面；弹窗 / 跳转 / iframe 目标不在页面集合时只计数（`unresolved_open_targets` / `open_targets_non_page`），不建边。
+- **`.csp` / `.rpx` / 接口 / 外部协议不是页面**：归入 `open_targets_non_page`，不得进入 `pages`、`page_links` 或菜单归属。旧菜单快照里的 `.csp` 名称只代表历史产品页面。
+- **脚本必须存在**：`pages[].scripts`、`chains[].path[].file` 都应是 `static/` 下的实体文件；解析不到文件的脚本引用不写入链路。
+- **合成节点不是方法名**：`__handler_N`（匿名事件处理）和 `__top_level__`（页面顶层代码）是扫描器内部编号，源码中没有同名函数。`functions` 里以 `kind` 区分，下游展示时名称留空并用「匿名事件处理 / 页面顶层代码」说明，不得当作 JS 方法名引用。
+- **构建后校验**：运行 `audit_front_coverage.py --json`，`existence.missing` 必须为空；出现缺失说明构建引入了非实体页面/脚本，先修扫描或归一化逻辑，不放行。
+
 数据库 MCP 不可直连时，用 `explore_config_injection.py --emit-sql` 取 SQL，经 MCP 查询后 `--from-json` 导入（MCP 单次最多 500 行，需按 `LIMIT 500 OFFSET n` 分页合并）：
 
 ```bash
@@ -100,45 +110,49 @@ find src/frontend/hisfront/static \( -name '*.html' -o -name '*.js' \) \
 
 | 文件 | 内容 | 来源 |
 |---|---|---|
-| `front_pages.jsonl` | 每页标题、注释标题、模块、脚本引用、iframe/导航引用、页面内元素 | Step 1 |
+| `front_pages.jsonl` | 每页标题、注释标题、模块、脚本引用、iframe/导航引用、`csp-include` 片段引用（`includes`）、页面内元素 | Step 1 |
 | `front_elements.jsonl` | 扁平化操作元素（页面、id/name、标签、文案、事件、handler 表达式） | Step 1 |
-| `front_js_index.jsonl` | 每文件函数定义（含 parent/calls/requests）、URL 常量、事件绑定、`marybtnbar` 配置、JS 字符串内联元素 | Step 2 |
+| `front_js_index.jsonl` | 每文件函数定义（含 parent/calls/requests）、URL 常量、事件绑定、datagrid 工具栏按钮、`marybtnbar` 配置、JS 字符串内联元素 | Step 2 |
 | `menu_snapshot.json` | 菜单 → 页面、配置按钮栏 → handler；可选 | Step 3 |
 | `config_injection_snapshot.json` | 服务端配置下发的按钮/菜单快照：场景 → 分组 → 配置项（handler/url/院区）；可选 | Step 4 |
-| `front_chain_db.json` | **查询主数据源**：pages / elements / functions / requests / chains / page_links | Step 5 |
+| `front_chain_db.json` | **查询主数据源**：pages / elements / functions / requests / chains / page_links；页面带 `includes` 与合并后的 `scripts` 计数，片段带入的元素带 `origin_page`，请求记录带 `url_prefix`（未能静态解析的运行时前缀） | Step 5 |
 | `front_chains.jsonl` | 每条链路的扁平视图（页面、元素、调用路径、请求） | Step 5 |
 | `front_scan_stats.json` | 页面/元素/可达函数/请求/链路/界面关系规模与未解析计数 | Step 5 |
-| `front_chain.graphml` | 有向图（Gephi）：节点=界面 / JS方法 / HTTP请求（界面节点另带标题/模块/页面角色/菜单/JS方法/HTTP请求地址/链路数属性）；边=界面→方法→请求调用链 + 界面→界面关系；工具类方法已剔除，当前 6,253 界面 / 18,335 JS方法 / 7,122 HTTP请求 / 41,902 边（界面→界面 1,031） | Step 5 `--graphml` |
+| `front_chain.graphml` | 有向图（Gephi）：节点=界面 / JS方法 / HTTP请求（界面节点另带标题/模块/页面角色/菜单/JS方法/HTTP请求地址/链路数属性）；边=界面→方法→请求调用链 + 界面→界面关系；工具类方法已剔除，当前 6,243 界面 / 19,050 JS方法 / 7,346 HTTP请求 / 44,070 边（界面→界面 1,570） | Step 5 `--graphml` |
 
-`front_js_index.jsonl` 是函数级全量索引（约 183 MB），用于重算链路；日常查询只读 `front_chain_db.json`。
+`front_js_index.jsonl` 是函数级全量索引（约 177 MB），用于重算链路；日常查询只读 `front_chain_db.json`。
 
 ## 链路口径与解析规则
 
 ### 操作元素来源（优先级）
 
 1. **HTML 内联 handler**：`onclick="saveCon()"`、`href="javascript:..."`、`data-options="onClick:fn"`。
-2. **JS 事件绑定**：`$('#save').click(saveCon)`、`.on('click', fn)`、`.on('click', '#id', fn)`、`.bind`、`.delegate`、hisui 插件 `linkbutton({onClick:fn})` 等。绑定按「页面 `<script src>` 列表」归属到页面，元素按 `#id` 对齐。
+2. **JS 事件绑定**：`$('#save').click(saveCon)`、`.on('click', fn)`、`.on('click', '#id', fn)`、`.bind`、`.delegate`、hisui 插件 `$("#x").linkbutton({onClick:fn})` 与 `$HUI.linkbutton("#x", {onClick:fn})`（`linkbutton`/`button`/`panel`/`datagrid` 等）。绑定按「页面 `<script src>` 列表」归属到页面，元素按 `#id` 对齐。
 3. **JS 字符串拼出的元素**：业务 JS 里拼接的 `onclick=...` HTML，按所在脚本归属页面；元素 id 未知时用 `#__jsstr_<line>_<n>`。
-4. **配置按钮栏**：`marybtnbar({queryParams:{code:'xxx'}})` 声明 bar code，链接 `cf_doc_config_btnbar_item.click_handler`；仅当 bar code 与页面脚本声明一致时并入。
-5. **页面加载**：每个页面脚本的 `__top_level__` 作为合成元素 `#__page_load__`，覆盖初始化请求。
+4. **datagrid 工具栏按钮**：`$("#dg").datagrid({toolbar: [{text:'保存', handler:saveClick}]})` 或 `toolbar` 指向同文件数组变量（含 `cond ? toolbar : []` 三元）；HTML 里没有对应元素，合成 `#__toolbar_<line>_<n>`，`source=js_toolbar`。
+5. **配置按钮栏**：`marybtnbar({queryParams:{code:'xxx'}})` 声明 bar code，链接 `cf_doc_config_btnbar_item.click_handler`；仅当 bar code 与页面脚本声明一致时并入。
+6. **页面加载**：每个页面脚本的 `__top_level__` 作为合成元素 `#__page_load__`，覆盖初始化请求。
+7. **`csp-include` 片段元素**：`<csp-include Page="x.html">` 是服务端片段包含，片段本身没有 `<script>`。构建时把片段（递归 ≤3 层、去环）的元素并入父页面，`origin_page` 标注来源片段；片段元素因此与父页面脚本绑定，不再成为孤立元素。
 
 ### 界面关系（页面 → 页面）
 
-`page_links` 记录界面之间的三种指向边，每条边带来源与触发点：
+`page_links` 记录界面之间的四种指向边，每条边带来源与触发点：
 
 | 类型 | 来源 | 采集方式 |
 |---|---|---|
 | `弹出` | 操作元素 / 页面加载 | JS 里调用页面打开 API，实参中的 URL 解析后落到现存页面 |
 | `内嵌` | 静态 iframe | HTML `<iframe src>` / `frames` |
-| `跳转` | 配置注入 | `config_injection_snapshot.json` 中 `merge: True` 且只有 `url` 的导航项 |
+| `跳转` | 配置注入 / 动态 iframe | 配置注入中 `merge: True` 且只有 `url` 的导航项；`$("#TabMain").attr("src", url)` 换主框架内容（opener=`iframe_src`） |
+| `包含` | 服务端片段 | `<csp-include Page="x.html">`（opener=`csp-include`）；片段的脚本与元素在父页面同样生效，行为按父页面归属 |
 
-- 识别的页面打开 API（`js_scan.py` 的 `_PAGE_OPENERS`）：`websys_showModal({url})`、`ShowHISUIWindow(title, src, …)` 或对象实参 `{src|url}`、`showHISUIWindow` / `openHISUIWindow`、`websys_addTab({url})`、`windowOpenFrame({url})`、`windowTopOpenFrame({url})`、`commonShowWin({url})`、`addTab(id, title, url, selected)`、`window.open(url)`（仅 `window.open` / `globalThis.open` / `top.open`，普通 `.open(...)` 不算）。
+- 识别的页面打开 API（`js_scan.py` 的 `_PAGE_OPENERS`）：`websys_showModal({url})`、`ShowHISUIWindow(title, src, …)` 或对象实参 `{src|url}`、`showHISUIWindow` / `openHISUIWindow`、`websys_addTab({url})`、`windowOpenFrame({url})`、`windowTopOpenFrame({url})`、`commonShowWin({url})`、`addTab(id, title, url, selected)`、`window.open(url)`（仅 `window.open` / `globalThis.open` / `top.open`，普通 `.open(...)` 不算）；`$(...).attr("src", url)` / `.prop("src", url)` 记为主框架换页（`opener=iframe_src`）。
 - 地址先归一化再比对：剥 `${websys_frontPathCombine("x.html")}` 模板串（含尾随 `?query`）、`<iframe src='x.html'>` 片段、`x.htmlinput=` 拼接残留；绝对地址去掉 `/` 与 `/static/` 前缀，并逐层剥掉 `../` 与部署上下文前缀（`his/`、`imedical/his/`），按 `his/bsp/...`、`imedical/his/nr/...`、`../../his/opcare/...` 三种写法都能落到 static 内路径。
 - 地址回退顺序：页面所在目录 → `base/`（多数弹窗按 base 解析，`../opcare/x.html` 即 `opcare/x.html`）→ 去 `./` 的裸相对路径；绝对地址先按 static 根、再按本页目录解释（`/referral.html`）。逐个候选与页面集合比对，命中的第一个才建边。
 - 直接候选全不命中时依次尝试：路径尾段唯一匹配（解决部署根不同，`../../insu/ip/...` → `ar/insu/ip/...`；区域变体 `injr/43` 不会连到 `bj`）→ 首段不同但其余目录一致的唯一匹配（模块改名，`opspcol/nurm/exec` → `emnur/nurm/exec`）→ 同目录单字符差异的唯一页面（拼写错误，`single_docment.html` → `single_document.html`）→ 唯一同名页面。任一环节多义即放弃，不猜。
 - 弹出 URL 的实参若是 `websys_frontPathCombine(...)` / `encodeURIComponent(...)` 等纯包装，剥一层继续解析。
 - `websys_showModal("close" | "options")` 这类命令字符串不是 URL，直接忽略。
-- 未落地的打开地址分三类计数：`open_targets_runtime`（无地址或运行时变量，如 `url` 形参）、`open_targets_non_page`（`.csp`/`.rpx` 报表、接口、外部协议）、`unresolved_open_targets`（看着像页面但工程内确实没有，或同名多义）。当前 17 处 → 12 个目标：HNIS 外部登录页（`hnis/login/loginCtrl.htm` 等 8 处）、已下线页面（`pateduquote.html`、`dic.import.api.html`、`bill.ip.patientinfo.html`、`bill.ip.uppatinfo.html`、`insuipreg.html`、`insu.tableimportceshi.html`，以及只在 `hispa/pat` 存在的 `doc.cardverification.html`）、区域变体（`injr/43` 只有 `bj` 实现）、同名多义（`scoreformview.html` 有 phipca/phopca 两份）。
+- 未落地的打开地址分三类计数：`open_targets_runtime`（无地址或运行时变量，如 `url` 形参）、`open_targets_non_page`（`.csp`/`.rpx` 报表、接口、外部协议）、`unresolved_open_targets`（看着像页面但工程内确实没有，或同名多义）。当前 37 处，典型目标：HNIS 外部登录页（`hnis/login/loginCtrl.htm`）、已下线页面（`pateduquote.html`、`dic.import.api.html`、`bill.ip.patientinfo.html`、`bill.ip.uppatinfo.html`、`insuipreg.html`、`insu.tableimportceshi.html`，以及只在 `hispa/pat` 存在的 `doc.cardverification.html`）、区域变体（`injr/43` 只有 `bj` 实现）、同名多义（`scoreformview.html` 有 phipca/phopca 两份）。
+- `包含` 边不做 URL 落地比对：父页面实际执行的脚本 = 自身脚本 + 片段闭包内脚本（去重保序），事件绑定、配置分组、页面加载都按这份有效脚本列表归属；片段元素在链路里以父页面出现，`origin_page` 保留片段的原始路径。
 - 边是**静态可达**语义：同一页面脚本里被多个元素共享的弹窗方法会挂到多个元素上，表示「该元素可达此界面」，不代表必触发。
 
 ### 服务端配置注入场景
@@ -162,17 +176,20 @@ find src/frontend/hisfront/static \( -name '*.html' -o -name '*.js' \) \
 
 - 同名函数先在**页面脚本列表**内解析；页面内不唯一或不存在时再退回全局唯一名。
 - `this.method` / `self.method` 按所属对象/类前缀展开。
+- 事件绑定是**包装器调用**时解包首参：`DocToolsHUI.btn.throttle(fn, 300)`、`debounce/proxy/wrap(fn)` 取 `fn`；函数表达式登记为 `__handler_<n>` 匿名节点，限定名原样使用。单参调用（`loadTable("1")` 这类工厂）不解包，仍按无法静态解析处理。
 - 调用链 BFS（按调用深度逐层展开）默认深度 6、单元素最多 40 个请求，并做环检测。**不要改回深度优先**：主操作（如保存）通常由 handler 直接调用，DFS 会让前面分支的深层请求先占满配额，把保存请求挤出链路。
-- 链路库只保留**从界面可达**的函数（当前约 3.8 万 / 全量 19.2 万），未解析的库/DOM 调用只计数不建边。
+- 链路库只保留**从界面可达**的函数（当前约 4.0 万 / 全量 19.3 万），未解析的库/DOM 调用只计数不建边。
 
 ### URL 解析
 
 - 支持 `$ipost/$iget/$iput/$idelete/$ipost_enc/$iget_enc`、`$iexport`、`$.ajax/$.post/$.get/$.getJSON`、`fetch`、`XMLHttpRequest.open`。
 - URL 常量按同文件递归回填（最多 6 层），覆盖对象成员（`urlObj.saveOrUpdateIpBook`）与普通赋值（`let appPath = menuWin.baseAppPath + "opcare/ipbook/ipBookCreate/"`）。同名常量优先取**当前函数作用域**的定义，其次取文件顶层，避免局部 `url` 串到别的函数。
 - 函数体内的局部常量要单独补扫：`_scan_body_constants()` 遍历每个 def（含箭头函数、函数声明）的赋值语句，主循环只覆盖对象字面量方法体。弹窗与请求共用同一套 `url_terms` 解析。
-- 未解析的裸变量（跨文件定义的 `rootUrl`、`menuWin.baseAppPath` 等）在拼接时丢弃，避免产生 `rootUrlar/...` 这类伪路径；只有能解析成路径常量的引用才保留。
+- 未解析的裸变量（跨文件定义的 `rootUrl`、`menuWin.baseAppPath` 等）在拼接时丢弃，避免产生 `rootUrlar/...` 这类伪路径；只有能解析成路径常量的引用才保留。被丢弃的引用若是**前缀位**（`baseAppPath`、`appPath`、`baseURL` 等），记入请求记录的 `url_prefix`（逗号分隔、排序去重），作为「该接口前缀由哪个运行时变量提供」的定位线索，不参与链路。
 - 解析结果必须是路径字符集（无空格、括号、引号），且长度 ≤ 300；不满足则视为未解析。
-- 输出两个字段：`url_expr`（源码表达式）与 `url_path`（解析后的路径）。`url_path` 为空表示常量无法静态解析，该请求不进入链路（计入 `unresolved_urls`）。
+- 输出 `url_expr`（源码表达式）与 `url_paths`（全部可静态解析的路径；`url_path` 保留首个，兼容旧查询）。`url_paths` 为空表示常量无法静态解析，该请求不进入链路（计入 `unresolved_urls`）。
+- 多路径变体的来源：① 等长三元分支无法按页面模块收敛时全部保留（`comoe/exam` 的 `PAAdmType=="I" ? "ipcare" : "opcare"` → 同时登记 ipcare / opcare 两个服务前缀）；② 同一函数作用域内同名变量多次赋值（`switchMainSrc` 里 if/else 给 `LinkUrl` 赋三个页面地址 → 三个跳转目标）。三元词项带条件文本，同一条件出现多次时收敛到同一分支，避免拼出 `ipcare + Opcare` 这类不可能组合。
+- 单条请求最多保留 8 个 URL 变体（`MAX_URL_VARIANTS`）；页面模块能唯一匹配三元分支时（`opcare/...` 页面）只保留该分支，不产生跨服务噪声。
 
 ### 页面角色
 
@@ -235,6 +252,11 @@ python audit_front_coverage.py --json
 # 8. 原始统计（未解析计数；从项目根执行）
 cd "$(git rev-parse --show-toplevel)"
 python -c "import json; print(json.load(open('docs/agents/imedicalxc-doctor-front-codegraph/front_scan_stats.json')))"
+
+# 9. 片段合并冒烟：挂号主页包含 adm/appt 两个 csp-include 片段
+python query_front_chain.py page doc.opregistmain
+#   期望「指向界面: 包含 2（doc.opregistadm.html, doc.opregistappt.html）」；
+#   片段元素在 front_chain_db.json 的 elements 里带 origin_page（如 #Update → doc.opregistadm.html）
 ```
 
 `audit_front_coverage.py` 的五段口径：
@@ -255,7 +277,7 @@ python query_front_chain.py page <路径片段>          # 页面元素与操作
 python query_front_chain.py element <id或文案>       # 操作元素 → 处理函数 → 请求
 python query_front_chain.py function <方法名>        # 函数定义、调用方、相关链路
 python query_front_chain.py url <URL片段>            # 请求 → 触发入口与调用路径（每条链路带 [HTML 页面]）
-python query_front_chain.py links <路径片段>         # 界面 → 界面：出边与入边（弹出/内嵌/跳转）
+python query_front_chain.py links <路径片段>         # 界面 → 界面：出边与入边（弹出/内嵌/跳转/包含）
 python query_front_chain.py menu <菜单名片段>         # 菜单 → 页面（需菜单快照）
 ```
 
@@ -273,36 +295,39 @@ python query_front_chain.py menu <菜单名片段>         # 菜单 → 页面�
 | `OUTPUT_DIR` | 从插件 manifest 的 `front-codegraph-index` 解析 |
 | `CONFIG_INJECTION_FILE` | 配置注入快照路径（`OUTPUT_DIR/config_injection_snapshot.json`） |
 
-## 当前规模（2026-11-06 全量构建）
+## 当前规模（2026-11-09 全量构建）
 
 | 指标 | 数值 |
 |---|---|
-| HTML 页面 | 6,253 |
-| 操作元素（HTML 解析） | 184,945（其中可交互 23,011；链路库元素记录 29,091） |
-| handler 解析 | 22,825 个元素带 handler：21,588 绑定到函数，1,410 未解析（`front_scan_stats.json` 为表达式级计数） |
+| HTML 页面 | 6,243 |
+| 操作元素（HTML 解析） | 183,361（其中可交互 27,535；链路库元素记录 33,603，含 `csp-include` 片段带入元素） |
+| handler 解析 | 27,520 个 handler 槽位：26,022 绑定到函数，1,498 未解析（归属审计口径：27,345 个元素带 handler，1,485 未解析） |
 | JS 文件 | 9,810 发现 / 9,328 扫描 / 482 跳过（压缩、超限、pdf.js / babel-polyfill 等第三方包） |
-| 函数定义（全量） | 188,414 |
-| 可达函数（进入链路库） | 36,242（业务 35,437 / 工具类 805） |
-| 工具类方法进入链路 | 230 个节点 / 7,652 条入边（按 `category` 过滤，GraphML 剔除并重连） |
-| HTTP 请求（已解析 URL） | 12,212 / 7,122 个 URL 路径（方法+路径去重；未解析 URL 5,696） |
-| 链路 | 28,711 |
-| 界面→界面关系 | 1,031 条（弹出 942 / 内嵌 81 / 跳转 8），有弹出关系的界面 440 |
-| 配置注入 | 5 场景 / 99 组 / 409 项；并入链路 115 组 / 350 项（跳转 13 / 页面跳转边 8） |
-| 未解析被调方法 | 236,995 |
-| `front_chain_db.json` | 52.4 MiB（`front_js_index.jsonl` 183 MB，不进链路库交付口径） |
-| `front_chain.graphml` | ~19 MB（6,253 界面 / 18,335 JS方法 / 7,122 HTTP请求节点 / 41,902 边，其中界面→界面 1,031 条，`--graphml` 生成） |
+| 函数定义（全量） | 193,188 |
+| 可达函数（进入链路库） | 39,633（业务 38,812 / 工具类 821） |
+| 工具类方法进入链路 | 236 个节点（按 `category` 过滤，GraphML 剔除并重连） |
+| HTTP 请求（已解析 URL） | 12,515 / 7,346 个「方法+路径」（未解析 URL 5,751） |
+| 链路 | 30,323 |
+| 界面→界面关系 | 1,570 条（弹出 1,045 / 跳转 416 / 内嵌 81 / 包含 28），有弹出关系的界面 461 |
+| 配置注入 | 5 场景 / 99 组 / 366 项并入链路（跳转 15 / 页面跳转边 10），缺失分组 0 |
+| 未解析被调方法 | 240,526 |
+| `front_chain_db.json` | 60.5 MiB（`front_js_index.jsonl` 177 MB，不进链路库交付口径） |
+| `front_chain.graphml` | ~18.8 MB（6,243 界面 / 19,050 JS方法 / 7,346 HTTP请求节点 / 44,070 边，其中界面→界面 1,570 条，`--graphml` 生成） |
 
-### 归属审计结果（2026-11-06）
+> 页面数比 2026-11-06 少 10 个、元素少 1,584 个，来自 pdf.js 目录跳过规则（踩坑 30），与包装器解包 / 片段合并改造无关。
+
+### 归属审计结果（2026-11-09）
 
 | 口径 | 结果 |
 |---|---|
-| 已解析 URL 的归属 | 12,212 条请求全部进入链路，0 条无链路；页面/元素/函数引用 0 悬空 |
+| 已解析 URL 的归属 | 12,515 条请求全部进入链路，0 条无链路；页面/元素/函数引用 0 悬空 |
+| 实体存在性 | 页面 / JS 文件 / 界面关系端点 0 缺失（`existence.ok=true`） |
 | handler 作用域 | 120 条链路（24 页 / 51 个 URL）的入口方法不在页面 `<script src>` 列表内（`<addins>` 运行时注入的公共脚本） |
-| 界面可达但 URL 未解析 | 1,266 处 / 1,085 个函数 / 572 种表达式（运行时变量 545、其他 363、成员常量 153、拼接含未解析项 151、字面量校验 54） |
-| 无界面入口的请求点 | 7,253 处（库/共享函数，不属于任何页面操作链路） |
-| 有可操作元素但无链路的页面 | 1,018 |
-| 有 handler 但 0 请求的元素 | 17,048：URL 全部未解析 246 / handler 本身不发请求 16,802 |
-| 界面关系 | 1,031 条边；有弹出关系 440 页；无任何界面关系 5,417 页；弹窗/跳转地址未落地 17 处（运行时变量 271 / 非静态页面 161） |
+| 界面可达但 URL 未解析 | 1,240 处 / 1,056 个函数 / 567 种表达式（运行时变量 525、其他 359、成员常量 158、拼接含未解析项 146、字面量校验 52） |
+| 无界面入口的请求点 | 7,150 处（库/共享函数，不属于任何页面操作链路） |
+| 有可操作元素但无链路的页面 | 1,067 |
+| 有 handler 但 0 请求的元素 | 20,273：URL 全部未解析 231 / handler 本身不发请求 20,042 |
+| 界面关系 | 1,570 条边；有弹出关系 461 页；无任何界面关系 5,163 页；弹窗/跳转地址未落地 37 处（运行时变量 771 / 非静态页面 379） |
 
 ## 构建踩坑
 
@@ -338,5 +363,7 @@ python query_front_chain.py menu <菜单名片段>         # 菜单 → 页面�
 30. **第三方库不参与业务链路**：pdf.js 内部的 `call()` 命中业务文件里的 `call` 函数（pdfview 等页 42 条假链路）。`iter_front_files` 跳过 `pdfjs*` 目录与 `babel-polyfill*`；全量函数 197,908→188,414、假 `call` 节点消失。排除后仍保留页面自己的 `pdfview.js` / `FS.PDFView.Util.js` 链路。
 31. **成员调用不能回退到裸全局名**：`dg.datagrid(...)` 曾解析到 `common.dict.js::datagrid`（3,560 条入边）。`_resolve_call` 对 member 的裸方法名只认同文件唯一定义；`Obj.method` 先按命名空间后缀唯一匹配，再用「定义文件确实声明了该顶层变量」守卫的 2 段回退（兼容 `var X=(function(){...return{"GetAccInfo":GetAccInfo}})()`）。
 32. **命名空间扩展要扫对象字面量实参**：`BILL_INF.apply(BILL_INF,{ showCheckout(){...} })` 的方法体若不算独立 def，内部调用会挂到 `__top_level__`，产生支付弹窗假链路。`_scan_namespace_extends()` 识别 `X.apply/X.extend/Object.assign(X,{...})` 并把方法登记为 `X.method`。
-33. **工具方法按「方法 + 归属文件」双重判定**：只看方法名（`init`/`get`/`save`）会误杀业务初始化与保存；只看文件名会误杀 `common.js` 里的业务公共逻辑。当前 805 个工具方法 / 7,652 条入边被排除（`loader_script` 占 241 条，`common_component` 134 条），业务入度 Top 均为读卡、医嘱、挂号、结算等真实枢纽。`front_chains.jsonl` 保留含工具节点的完整路径，作为原始证据。
+33. **工具方法按「方法 + 归属文件」双重判定**：只看方法名（`init`/`get`/`save`）会误杀业务初始化与保存；只看文件名会误杀 `common.js` 里的业务公共逻辑。当前 822 个工具方法被标记 `category=utility` 并在 GraphML 中排除（`loader_script` 占 241 个节点、`common_component` 134 个），业务入度 Top 均为读卡、医嘱、挂号、结算等真实枢纽。`front_chains.jsonl` 保留含工具节点的完整路径，作为原始证据。
 34. **初始化里注册的回调仍按页面加载计入**：`card.common.control.js::Init` 通过 `marybtnbar({onClick: ...})` 注册读卡回调，回调里的 `GetAccInfo` 会让「页面加载 → 读卡接口 / 选择卡类型」成立，实际要用户点读卡按钮。当前保留这类链路以维持弹窗可达性（`doc.cardtypelist.html` 的 153 条入边里 90 条来自此路径），查询时应结合 `source=page_load` 与调用路径中的 `Init` 判断是否真在加载时执行；如需严格区分，后续可把对象字面量回调登记为匿名 handler 节点。
+35. **包装器绑定必须解包首参**：`DocToolsHUI.btn.throttle(function(){...})`、`debounce(fn, 300)` 按旧逻辑「以 `)` 结尾的调用无法解析」直接丢弃，元素就没有 handler。`js_scan.py::_unwrap_handler_call` 取调用的第一个实参：函数表达式 / 箭头函数登记为 `__handler_<n>`，限定名原样使用；只在 callee 是 `throttle/debounce/proxy/wrap` 或调用带多个实参时才解包，避免把 `loadTable("1")` 的工厂实参误当 handler。改后 11 个空 handler 解出 10 个。
+36. **`csp-include` 片段不是独立页面**：片段 HTML 没有 `<script>`，元素按页面归属会变成孤立元素——`doc.opregistmain.html` 的「更新/保存」等按钮在旧索引里完全查不到链路，挂号改造影响面因此评估偏小。构建时按 `includes` 建「包含」边，把片段闭包（≤3 层、去环）的元素并入父页面，事件绑定 / 配置分组 / 页面加载改用「自身脚本 + 片段脚本」的有效脚本列表；片段元素保留 `origin_page`（`doc.opregistmain` 合并后元素 16→137、链路 174→288）。`includes` 里可能混有 `CustomObj.InPageFlag` 这类非页面引用，构建时按页面集合过滤，不建边；不要给片段单独建页面节点，那会把同一按钮算两次。

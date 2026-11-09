@@ -57,7 +57,7 @@ python -c "import sys; sys.path.insert(0,'.'); from config import OUTPUT_DIR; pr
 | 前后端链路覆盖率、命中最多的 Controller？ | `query_front_back_chain.py stats` |
 | 需要图布局/人工探索 | Gephi 导入 `.graphml` |
 
-`impact_analyzer.py` 直接读 `impact_db.json`（~51 MB，加载数秒），优先用它；`query_callers.py` / `query_method_feign.py` 是逐行扫描 36.5 MB JSONL 的轻量脚本；`query_who_calls_feign.py` 读 `penetration_db.json`（~41 MB）；`query_front_back_chain.py` 读 `front_chain_db.json`（~60 MB）+ `controller_endpoints.json`（5.8 MB）+ `maven_controller_endpoints.json`（3.1 MB，按需加载），单次查询约 1 秒。
+`impact_analyzer.py` 直接读 `impact_db.json`（~51 MB，加载数秒），优先用它；`query_callers.py` / `query_method_feign.py` 是逐行扫描 36.5 MB JSONL 的轻量脚本；`query_who_calls_feign.py` 读 `penetration_db.json`（~41 MB）；`query_front_back_chain.py` 读 `front_chain_db.json`（~60 MB）+ `controller_endpoints.json`（7.5 MB）+ `maven_controller_endpoints.json`（3.1 MB，按需加载），单次查询约 1 秒。
 
 ## 查询 1：变更影响分析（`--impact`，推荐）
 
@@ -247,11 +247,25 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
                          "path": "...", "via": ["..."]}],
     "downstreamFeigns": [{"feign": "...", "method": "...", "caller": "...", "via": ["..."]}],
     "contract": {"feignInterfaces": ["..."], "typeFiles": ["...DTO.java", "...PO.java"],
-                 "typeFeignMatches": [{"type": "FeignQueryOeOrdDTO", "file": ".../FeignQueryOeOrdDTO.java",
+                 "typeFeignMatches": [{"type": "FeignQueryOeOrdDTO",
+                                       "typeFqn": "com.mediway.his.ipcare.api.oeord.model.dto.FeignQueryOeOrdDTO",
+                                       "file": ".../FeignQueryOeOrdDTO.java",
                                        "feign": "QueryOeOrdItemClient", "feignFull": "...",
                                        "service": "...", "servicePath": "...",
                                        "method": "getOrdItemList", "http": "POST getOrdItemList",
-                                       "usage": ["parameter"]}]},
+                                       "usage": ["parameter"]}],
+                 "typeFeignCallers": [{"caller": "Class.method", "service": "aggcare",
+                                       "types": ["FeignQueryOeOrdDTO"],
+                                       "feigns": ["QueryOeOrdItemClient.getOrdItemList"],
+                                       "entrypoints": 44}],
+                 "typeControllerMatches": [{"type": "GetDocBusinessDataChangeApplyVO",
+                                            "typeFqn": "com.mediway.his.comoe.ordservice.model.vo.doc.GetDocBusinessDataChangeApplyVO",
+                                            "file": ".../GetDocBusinessDataChangeApplyVO.java",
+                                            "controller": "OpcareOeOrdItemUpdateController",
+                                            "controllerFqn": "com.mediway.his.opcare...",
+                                            "method": "getApplyInfoList",
+                                            "http": "POST opcare/oeord/opcareoeorditemupdate/getapplyinfolist",
+                                            "usage": ["return"]}]},
     "downstream": {"count": 3337, "aggregate": "workspace_reachable_methods",
                    "services": ["comoe", "..."]},
     "skippedFiles": [{"file": "...", "reason": "frontend|type_contract|public_layer|not_in_graph|no_method_change|resource|parse_failed|binary|repo_unavailable|commit_unavailable"}],
@@ -267,7 +281,10 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
 - `externalCallers` = Maven 外部调用方（`penetration_db` 入站链路，`rootType=method` 表示无 Controller 上游）
 - `caller` 是调用方方法名证据；面向测试/交付的文案须由消费方翻译为业务场景（如 `PracticeOrderAbstract.insertPracticeOrder` → 「实习生开立医嘱」），不得直接粘贴方法名或契约名
 - `downstreamFeigns` = 该方法**跨出**的 Feign 边界，不是入口契约，不要与 `contract.feignInterfaces` 混用
-- `contract.typeFeignMatches` = 契约类型短名在 Feign 方法签名（`return_type` / `parameters`）中的使用明细；`usage` 区分 `return` / `parameter`。它只证明「该类型是哪个 Feign 接口的形状」，**不代表存在调用方**；要确认调用方仍须走 `query_who_calls_feign.py` / `externalCallers`。未命中不代表无使用：嵌套在 VO 字段里的类型不出现在签名中，同名类型也可能合并。
+- `contract.typeFeignMatches` = 契约类型**全限定名**在 Feign 方法签名（`return_type` / `parameters`）中的使用明细（接口侧按源码 package / 显式 import / 通配 import 解析，`typeFqn` 给出实际命中类型）；`usage` 区分 `return` / `parameter`。它只证明「该类型是哪个 Feign 接口的形状」，**不代表存在调用方**；要确认调用方仍须走 `query_who_calls_feign.py` / `typeFeignCallers` / `externalCallers`。未命中不代表无使用：嵌套在 VO 字段里的类型不出现在签名中；跨模块同名 DTO（如 ipcare/opcare 各自的 `FeignOeStopMultiDTO`）不会互相命中。
+- `contract.typeFeignCallers` = 命中的 Feign 契约方法 → 工作区调用方方法的明细（`types` / `feigns` / `entrypoints` 为该调用方上溯到的入口数）；命中时沿调用方再跑一次入口分析，把结果并入 `entrypoints[]` 并标 `indirect=true`、`via` 以 `feign:<接口>.<方法>` 开头（例如 opreg 排班契约经 opalloc `SchedulePortalClientAbstract.getScheduleInfo` 上溯到「护士分诊」页）。
+- `contract.typeControllerMatches` = 契约类型**全限定名**在工作区 Controller 方法签名中的使用明细（Controller 侧按显式 import / 同包 / 通配 import 解析，`typeFqn` 给出实际命中的类型）；命中的类型会同时以 `entrypoints[]`（`kind=controller`、`heuristic=true`、`via=["type:<类型>"]`、带 `http`）出现，可直接交给 `commit-impact` 衔接到页面。它代表类型的影响面，不是方法级可达；`entrypoints[].heuristic=true` 必须标注。
+- `entrypoints[].indirect=true` = 该入口不是直调契约，而是「页面 → 本地 Controller → BLH → Feign」间接链路的上游；`indirect` 且 `heuristic` 的入口是兜底候选，`commit-impact` 不会据此产出 `uiEntries`，不能当界面证据。
 - `contract.feignInterfaces` = 方法级入口对应的 Feign 契约与类型签名命中的 Feign 接口合集
 - `downstream.count` = 各改动方法可达工作区方法数的最大值（已按 `WORKSPACE_SERVICES` 过滤），仅作规模参考，不是并集、也不等于回归范围
 - `confidence`：`graph` 有方法级证据；`partial` 仅契约文件（DTO/VO/PO）命中；`none` 无可入图方法
@@ -279,8 +296,8 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
 
 - **优先走确定性联动**：把 `code-impact-<label>.json` 直接交给查询 8.1 的 `commit-impact`，一次产出每个提交的 `uiEntries[]`（页面 / 元素 / 请求 / Controller / 菜单访问位置）与 `unmatchedEntrypoints[]`。周报不要逐条手工 grep；只有脚本缺失或需要核对单条链路时才用下面的手工方式。
 - **手工兜底**：`entrypoints[].http` 或 `controller` 方法名可拿到 `src/frontend/hisfront/static/` 检索，命中后记录文件与行号（例：`cardReportOrCancelLoss` → `static/opreg/opreg-pat/scripts/doc.reportloss.js:9` 卡挂失/启用）。通用方法名（如 `getScheduleInfo`、`getDrugList`）会大量误命中，必须叠加服务目录或完整 HTTP 路径消歧。
-- **Feign 不可直接搜前端**：Feign 接口名不出现在前端代码中。要落到页面，须先经 `workspaceCallers` / `externalCallers` 找到消费方 Controller，再用 Controller 证据检索；找不到消费方时只能写「无页面入口证据」，不得把 Feign 名当成页面。
-- **纯契约提交**：`typeFeignMatches` 为空且无 Controller 证据时写「未发现活动调用方，代码审阅即可」；非空时只写命中的 Feign 方法及其业务场景，调用方是否存在须另查 `workspaceCallers` / `externalCallers`，页面入口仍须追到 Controller 后才可写。
+- **Feign 不可直接搜前端**：Feign 接口名不出现在前端代码中。先查 `contract.typeFeignCallers`（契约方法 → 工作区调用方），把 `indirect=true` 入口交给 `commit-impact` 落到页面；没有 `typeFeignCallers` 时再经 `workspaceCallers` / `externalCallers` 找消费方 Controller 检索。上溯为空或只剩 `indirect+heuristic` 兜底候选时才写「无页面入口证据」，不得把 Feign 名当成页面。
+- **纯契约提交**：先看 `typeControllerMatches` / `typeFeignCallers`——非空说明该类型被 Controller 签名使用或被工作区 Feign 调用方使用，页面入口按命中的 Controller 或 `indirect=true` 入口走 `commit-impact` 衔接，衔接不到才写「页面未登记，按接口验证」；三者与 `typeFeignMatches` 均为空、`entrypoints` 也为空时，才写「未发现活动调用方，代码审阅即可」。Feign 命中只写命中的方法及其业务场景，调用方是否存在须另查 `workspaceCallers` / `externalCallers`。
 
 ## 查询 8：前后端链路衔接（`query_front_back_chain.py`）
 
@@ -325,7 +342,7 @@ python query_front_back_chain.py stats --refresh-endpoints
 
 **注解兜底（URL 名 ≠ 方法名）**：`url` / `method` 在前端链路库查不到时，从 `controller_endpoints.json`（工作区）与 `maven_controller_endpoints.json`（Maven 工件）输出注解声明的端点并标注「无前端链路」/「Maven jar」。例：`url regPreAccount` 命中工作区 ESB 端点；`method PatchecklevController.saveGroupHurtData` 命中 Maven 工件端点 `emtr/trim/trbu/patchecklev/savegrouphurtdata`。这类端点多是对外 ESB / 内部接口，前端没有页面，不能据此写成「链路缺失」。
 
-**`stats` 口径（2026-11-09 复跑，19 仓库）**：1,680 个 Controller / 11,457 条 URL；6,243 页面 / 30,120 链路 / 12,474 请求；**9,371 条链路落到工作区 Controller**（页面加载 4,343 / js_binding 2,250 / config_bar 1,218 / js_toolbar 863 / inline 603 / js_string 63 / 护理执行单配置 31），涉及 2,073 个页面；URL 路径命中 2,384 / 7,442 = **32.0%**，覆盖 699 个 Controller / 2,496 个方法。只扫 12 个业务仓库时为 639 Controller / 3,051 端点、2,895 条链路、7.8%，可见基础设施仓库占前端调用面的大头。
+**`stats` 口径（2026-11-09 复跑，19 仓库）**：1,680 个 Controller / 11,514 条 URL；6,243 页面 / 30,120 链路 / 12,474 请求；**9,371 条链路落到工作区 Controller**（页面加载 4,343 / js_binding 2,250 / config_bar 1,218 / js_toolbar 863 / inline 603 / js_string 63 / 护理执行单配置 31），涉及 2,073 个页面；URL 路径命中 2,384 / 7,442 = **32.0%**，覆盖 699 个 Controller / 2,496 个方法。只扫 12 个业务仓库时为 639 Controller / 3,051 端点、2,895 条链路、7.8%，可见基础设施仓库占前端调用面的大头。
 
 **为什么只有 32.0%**：剩余前端 URL 首段集中在 `api` / `ar` / `msup` / `mrm` / `mchs` / `phkm` / `comcph` / `emnur` / `ipnur-station` / `cons` / `phpreadt` / `ipnur` / `cbph` / `emrq` / `phprev`，这些医疗/药事/护理/接口平台产品不在本地 19 个后端仓库里。这些链路在前端库里仍是完整的「页面 → 元素 → JS → 请求」，只是本工作区没有对应 Controller 源码。报告里必须写成「不属于本工作区后端仓库」，不能写成「链路缺失」。
 
@@ -357,6 +374,8 @@ python query_front_back_chain.py impact /tmp/impact.json
 
 周报联动专用：消费查询 7 的 `code-impact-<label>.json`，把每个提交的 `entrypoints[]` 反查成前端链路，再叠加《前端界面入口登记表》的菜单信息，输出 `front-chains-<label>.json`。只给证据，不写测试结论。
 
+**实体存在性硬约束**：输出的每个 `page`、`parents[].page`、`jsPath[].file` 都必须能在 `src/frontend/hisfront/static/` 下找到实体文件；登记表中 `.csp` 行和指向不存在 HTML 的行一律忽略，不做名称归并。页面或脚本找不到时该条目不输出，不得用名称猜测替代。
+
 ```bash
 python query_front_back_chain.py commit-impact \
   docs/agents/commit-reports/<label>/code-impact-<label>.json --label <label>
@@ -368,12 +387,12 @@ python query_front_back_chain.py commit-impact \
 
 ```json
 {
-  "meta": {"label": "...", "stats": {"commits": 123, "commitsWithUi": 37, "entrypoints": 1230,
-           "matchedEntrypoints": 494, "pages": 106, "pagesWithMenu": 16, "pagesViaCsp": 13,
-           "pagesWithParentMenu": 20, "pagesNoMenu": 70,
-           "unmatchedEntrypoints": 736, "unmatchedUnique": 321,
-           "unmatchedReasons": {"client-controller": 224, "cross-service-same-name": 12,
-                                "feign-interface-mapping": 2, "no-front-call": 498}}},
+  "meta": {"label": "...", "stats": {"commits": 117, "commitsWithUi": 33, "entrypoints": 921,
+           "matchedEntrypoints": 309, "pages": 74, "pagesWithMenu": 25,
+           "pagesWithParentMenu": 11, "pagesNoMenu": 38,
+           "unmatchedEntrypoints": 607, "unmatchedUnique": 321,
+           "unmatchedReasons": {"client-controller": 179, "cross-service-same-name": 5,
+                                "feign-interface-mapping": 4, "no-front-call": 419}}},
   "commits": [{
     "hash": "...", "shortHash": "...", "subject": "...", "entrypoints": 8,
     "uiEntries": [{
@@ -387,14 +406,13 @@ python query_front_back_chain.py commit-impact \
       "entrypoint": {"controller": "IpcareExamEntryController.saveExamApply", "service": "ipcare",
                      "http": "POST ...", "httpResolved": false,
                      "kind": "controller", "heuristic": false},
-      "access": {"confidence": "menu|parent|none", "via": "html|csp|",
-                 "menus": [{"name": "...", "parentPath": "...", "mode": "安全组菜单|标准配置菜单|系统标准配置", "groups": "...", "csp": "仅 via=csp 时存在"}],
-                 "csp": ["仅 confidence=menu 且 via=csp 时存在"],
+      "access": {"confidence": "menu|parent|none", "via": "html|",
+                 "menus": [{"name": "...", "parentPath": "...", "mode": "安全组菜单|标准配置菜单|系统标准配置", "groups": "..."}],
                  "parents": [{"page": "...", "type": "弹出|跳转|内嵌|包含", "linkSource": "element|page_load",
                               "element": "...", "elementLabel": "...", "elementEvent": "...",
                               "elementSource": "inline|js_binding|config_bar|...",
-                              "opener": "...", "via": "html|csp", "csp": ["..."], "menus": ["..."]}]},
-      "jsPath": [{"name": "sendExaReq", "file": "...", "line": 1525}],
+                              "opener": "...", "via": "html", "menus": ["..."]}]},
+      "jsPath": [{"name": "sendExaReq", "kind": "", "file": "...", "line": 1525}],
       "match": "controller|http"
     }],
     "unmatchedEntrypoints": [{"controller": "...", "http": "...", "httpResolved": false,
@@ -404,15 +422,17 @@ python query_front_back_chain.py commit-impact \
 }
 ```
 
+`jsPath[]` 的命名口径：普通函数 `name` 为源码中的方法名；扫描器合成的匿名 handler / 页面顶层代码没有源码同名函数，此时 `name` 为空、`kind` 为 `handler` 或 `top_level`，只保留真实文件与行号。展示时用「匿名事件处理」「页面顶层代码」，不得把 `__handler_N` / `__top_level__` 当作 JS 方法名写进报告。
+
 `access.confidence` 的消费口径：
 
 | 取值 | 含义 | 周报怎么写 |
 |---|---|---|
-| `menu` | 页面本身在登记表中（`via="html"`），或其 `.csp` 菜单入口按 stem 唯一归并到该页面（`via="csp"`，`menus[].csp` 指回登记的 `.csp` 行） | 用 `父菜单路径 / 界面名称` 作为访问位置；`via="csp"` 时可注明「菜单入口为旧 `.csp` 名称」 |
-| `parent` | 页面未登记，但沿 `page_links` 上溯到的父页面已登记（父页面同样支持 `.csp` 归并，`parents[].via` 区分来源） | 用父页面菜单 + `element` + `linkSource` 还原打开路径；`page_load` 表示打开父页面即自动弹出 |
-| `none` | 页面与父页面都没有菜单登记（多为工作区内嵌 / 弹窗页） | 写「无菜单登记（内嵌/弹窗页）」，只写页面标题 + 元素，不得编造菜单路径 |
+| `menu` | 页面本身在登记表中，且该 HTML 在 static 下真实存在（`via="html"`） | 用 `父菜单路径 / 界面名称` 作为访问位置 |
+| `parent` | 页面未登记，但沿 `page_links` 上溯到的父页面已登记且 HTML 真实存在 | 用父页面菜单 + `element` + `linkSource` 还原打开路径；`page_load` 表示打开父页面即自动弹出 |
+| `none` | 页面与父页面都没有可用菜单登记（多为工作区内嵌 / 弹窗页） | 写「无菜单登记（内嵌/弹窗页）」，只写页面标题 + 元素，不得编造菜单路径 |
 
-`.csp` 归并规则：页面 stem（去 `.html`/`.hui`/非字母数字）≥ 10 且唯一命中登记表中的 `.csp` stem（≥ 6，精确优先、双向后缀兜底）；命中多个不同 `.csp` 视为歧义，保持 `none`。归并只影响访问位置，不增加 `matchedEntrypoints`。
+登记表过滤规则：只接受 HTML 落在 `static/` 下的行；`.csp` 是旧产品菜单的页面名，前端仓库中不存在，不再按名称归并（`via="csp"` 已移除）。登记表本身可能继续保留历史 `.csp` 行，消费方以查询输出为准。
 
 边界：
 
@@ -422,7 +442,8 @@ python query_front_back_chain.py commit-impact \
 - `page_load` 条目是页面加载自动请求，能证明「打开该页面会触发」，不等于用户点击；写操作步骤时优先用 `inline` / `js_binding` / `config_bar` 条目。
 - 同一相对 URL 在 opcare / ipcare 都有实现时会保留多条 `backend`，需按页面所属服务或业务场景取舍，不能当成两个不同界面。
 - `code-impact` 的入口可能只有「控制器 + 方法」没有 `http`（映射声明在父类 / 接口或注解未被调用图采集）。此时按端点索引的 `控制器短名 + 方法` 补全 URL 再匹配，命中的条目 `entrypoint.httpResolved=true`；仍无命中则照常列入 `unmatchedEntrypoints`。
-- 实测（2026-11-W1，123 个提交）：1,230 个入口命中前端 494 个，得到 106 个页面；菜单登记 16 个（其中 `.csp` 归并 13 个）、父页面可达 20 个、70 个无菜单登记。736 个未命中入口按原因分为 ClientController 224 / 跨服务同名 12 / Feign 接口映射 2 / 页面未调用 498。登记表只覆盖 152 个 HTML 页面，多数业务子页面通过弹窗 / 内嵌承载，属于预期口径，不是脚本漏匹配。
+- 实测（2026-11-pentest4，117 个提交）：1,685 个入口命中前端 343 个，得到 85 个页面；菜单登记 29 个、父页面可达 11 个、45 个无菜单登记；1,330 个未命中入口按原因分为 ClientController 458 / 跨服务同名 44 / Feign 接口映射 4 / 页面未调用 824。登记表只覆盖 507 个真实存在的 HTML 页面，多数业务子页面通过弹窗 / 内嵌承载，属于预期口径，不是脚本漏匹配。
+- 间接链路（`indirect=true`）只有在 Feign 调用方上溯到真实入口（`depth>=0`）时才产出界面证据；`indirect+heuristic`（`depth=-1` 的同名兜底候选）会命中大量无关必填下拉/配置页，`commit-impact` 直接丢弃这些命中，只保留在 `entrypoints` 里供复核。
 
 ## 数据格式
 

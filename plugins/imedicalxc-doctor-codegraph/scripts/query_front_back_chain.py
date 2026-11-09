@@ -38,7 +38,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from config import WORKSPACE_ROOT
-from front.config import DB_FILE as FRONT_DB_FILE
+from front.config import DB_FILE as FRONT_DB_FILE, FRONT_ROOT
 import scan_controller_endpoints as endpoints_index
 
 ENDPOINT_FILE = endpoints_index.ENDPOINT_FILE
@@ -191,9 +191,27 @@ def chain_records(db, endpoints, seg_index=None):
     return out
 
 
-def js_path(chain):
-    return " → ".join(f"{s['name']} ({s['file'].split('/')[-1]}:{s.get('line', '')})"
-                      for s in chain.get("path") or [])
+ANONYMOUS_STEP_LABELS = {"handler": "匿名事件处理", "top_level": "页面顶层代码"}
+
+
+def step_name(step, functions=None):
+    """链路步骤的展示名。`__handler_N` / `__top_level__` 是扫描器的内部编号，
+    源码里没有同名函数；这类步骤只保留真实文件与行号，名称留空由 kind 说明。"""
+    name = (step.get("name") or "").strip()
+    if name and not name.startswith("__"):
+        return name, ""
+    func = (functions or {}).get(step.get("function") or "") or {}
+    kind = func.get("kind") or ("handler" if name.startswith("__handler_") else "top_level")
+    return "", kind
+
+
+def js_path(chain, functions=None):
+    parts = []
+    for step in chain.get("path") or []:
+        name, kind = step_name(step, functions)
+        label = name or ANONYMOUS_STEP_LABELS.get(kind, "未命名")
+        parts.append(f"{label} ({step['file'].split('/')[-1]}:{step.get('line', '')})")
+    return " → ".join(parts)
 
 
 def service_hint(url_path):
@@ -236,29 +254,17 @@ def _strip_code(value):
     return value[1:-1] if value.startswith("`") and value.endswith("`") else value
 
 
-CSP_MIN_PAGE_STEM = 10
-CSP_MIN_TARGET_STEM = 6
-
-
-def _stem(value):
-    """页面 / 菜单入口归一化：去扩展名与 .hui，只留字母数字。"""
-    value = (value or "").strip().lower()
-    value = re.sub(r"\.(?:html?|csp)$", "", value)
-    value = re.sub(r"\.hui$", "", value)
-    return re.sub(r"[^a-z0-9]", "", value)
-
-
 def load_registry(path):
-    """解析「前端界面入口登记表」的 Markdown 表格。
+    """解析「前端界面入口登记表」的 Markdown 表格，返回 html -> 菜单行列表。
 
-    返回 (html -> 菜单行列表, stem -> [(csp 入口, 菜单行)])。`.csp` 是菜单配置
-    里的旧入口名，仓库中没有对应文件，只能按归一化 stem 归并到 HTML 页面。
+    只接受能在 `static/` 下找到文件的 HTML 行。`.csp` 是旧产品菜单里的页面名，
+    前端仓库中不存在，不再按名称归并，避免菜单证据挂到不存在的页面上。
     该表由 build-front-registry.mjs 确定性生成，列固定为
     界面 HTML / 界面名称 / 父菜单路径 / 菜单管理模式 / 授权安全组。
     """
-    rows, csp = {}, {}
+    rows = {}
     if not path or not Path(path).exists():
-        return rows, csp
+        return rows
     for line in Path(path).read_text(encoding="utf-8").splitlines():
         if not line.startswith("|"):
             continue
@@ -268,6 +274,8 @@ def load_registry(path):
         html = _strip_code(cells[0])
         if html in {"界面 HTML", "---", ""} or set(html) <= {"-"}:
             continue
+        if html.lower().endswith(".csp") or not (FRONT_ROOT / html).is_file():
+            continue
         row = {
             "name": cells[1],
             "parentPath": cells[2],
@@ -275,40 +283,7 @@ def load_registry(path):
             "groups": cells[4],
         }
         rows.setdefault(html, []).append(row)
-        if html.lower().endswith(".csp"):
-            stem = _stem(html.rsplit("/", 1)[-1])
-            if stem:
-                csp.setdefault(stem, []).append((html, row))
-    return rows, csp
-
-
-def _csp_menus(page, csp_index):
-    """页面 HTML 未直接登记时，用 stem 命中唯一 `.csp` 菜单入口。
-
-    精确 stem 优先；否则双向后缀匹配。命中多个不同 `.csp` 时视为歧义，返回 None。
-    """
-    if not csp_index:
-        return None
-    stem = _stem(page.rsplit("/", 1)[-1])
-    if len(stem) < CSP_MIN_PAGE_STEM:
-        return None
-    hits = list(csp_index.get(stem) or [])
-    if not hits:
-        for target_stem, items in csp_index.items():
-            if len(target_stem) >= CSP_MIN_TARGET_STEM and (
-                    target_stem.endswith(stem) or stem.endswith(target_stem)):
-                hits.extend(items)
-    targets = {target for target, _ in hits}
-    if len(targets) != 1:
-        return None
-    target = next(iter(targets))
-    return {
-        "confidence": "menu",
-        "via": "csp",
-        "menus": [dict(row, csp=target) for _, row in hits],
-        "csp": [target],
-        "parents": [],
-    }
+    return rows
 
 
 def incoming_page_links(db):
@@ -340,13 +315,10 @@ def element_labels(db):
     return labels
 
 
-def access_for_page(page, registry, incoming, depth, labels=None, csp_index=None):
-    """页面 → 菜单访问位置。自身未登记（含 `.csp` 归并）时沿 page_links 上溯父页面。"""
+def access_for_page(page, registry, incoming, depth, labels=None):
+    """页面 → 菜单访问位置。自身未登记时沿 page_links 上溯父页面。"""
     if page in registry:
         return {"confidence": "menu", "via": "html", "menus": registry[page], "parents": []}
-    csp_hit = _csp_menus(page, csp_index)
-    if csp_hit:
-        return csp_hit
     seen = {page}
     queue = deque([(page, 0)])
     parents = []
@@ -376,14 +348,7 @@ def access_for_page(page, registry, incoming, depth, labels=None, csp_index=None
                 item["via"] = "html"
                 parents.append(item)
             else:
-                csp_hit = _csp_menus(source, csp_index)
-                if csp_hit:
-                    item["menus"] = csp_hit["menus"]
-                    item["csp"] = csp_hit["csp"]
-                    item["via"] = "csp"
-                    parents.append(item)
-                else:
-                    queue.append((source, level + 1))
+                queue.append((source, level + 1))
     if parents:
         # 元素触发的入口优先于页面加载自动弹出的入口；同一父页面只保留一条。
         parents.sort(key=lambda p: (p["linkSource"] == "page_load", p["page"], p["element"]))
@@ -395,12 +360,23 @@ def access_for_page(page, registry, incoming, depth, labels=None, csp_index=None
     return {"confidence": "none", "via": "", "menus": [], "parents": []}
 
 
-def build_ui_entry(chain, req, backend, entry, db, registry, incoming, depth, labels,
-                   csp_index=None):
+def build_ui_entry(chain, req, backend, entry, db, registry, incoming, depth, labels):
     page = chain.get("page") or ""
     page_meta = (db.get("pages") or {}).get(page) or {}
     elem = chain.get("element") or ""
     elem_id = elem.split("#", 1)[-1]
+    functions = db.get("functions") or {}
+    js_steps = []
+    for step in chain.get("path") or []:
+        if not step.get("file") or not (FRONT_ROOT / step["file"]).is_file():
+            continue
+        name, kind = step_name(step, functions)
+        js_steps.append({
+            "name": name,
+            "kind": kind,
+            "file": step["file"],
+            "line": step.get("line"),
+        })
     return {
         "page": page,
         "pageTitle": page_meta.get("title") or "",
@@ -411,14 +387,7 @@ def build_ui_entry(chain, req, backend, entry, db, registry, incoming, depth, la
             "label": chain.get("label") or elem_id,
             "event": chain.get("event") or "",
         },
-        "jsPath": [
-            {
-                "name": step.get("name") or "",
-                "file": step.get("file") or "",
-                "line": step.get("line"),
-            }
-            for step in (chain.get("path") or [])
-        ],
+        "jsPath": js_steps,
         "request": {
             "method": req.get("method") or "",
             "paths": request_paths(req),
@@ -442,7 +411,7 @@ def build_ui_entry(chain, req, backend, entry, db, registry, incoming, depth, la
             "kind": entry.get("kind") or "",
             "heuristic": bool(entry.get("heuristic")),
         },
-        "access": access_for_page(page, registry, incoming, depth, labels, csp_index),
+        "access": access_for_page(page, registry, incoming, depth, labels),
         "match": "controller",
     }
 
@@ -564,7 +533,7 @@ def cmd_commit_impact(records, index, db, args):
     if not impact_path.exists():
         sys.exit(f"提交取证文件不存在: {impact_path}")
     impact = json.loads(impact_path.read_text(encoding="utf-8"))
-    registry, csp_index = load_registry(args.registry)
+    registry = load_registry(args.registry)
     incoming = incoming_page_links(db)
     labels = element_labels(db)
     chain_index = build_chain_index(records)
@@ -578,7 +547,6 @@ def cmd_commit_impact(records, index, db, args):
               "unmatchedReasons": defaultdict(int)}
     unmatched_keys = set()
     page_conf = {}
-    page_via = {}
     for commit in impact.get("commits") or []:
         totals["commits"] += 1
         entrypoints = commit.get("entrypoints") or []
@@ -604,6 +572,10 @@ def cmd_commit_impact(records, index, db, args):
                 if hits:
                     resolved = cand
                     break
+            # 间接链路（Feign 调用方上溯）若只上溯到启发式入口（depth=-1 的兜底候选），
+            # 页面与该 Feign 之间没有真实调用边，不能作为界面证据，只保留在取证入口里
+            if hits and resolved.get("indirect") and resolved.get("heuristic"):
+                hits = []
             entry = resolved
             if hits:
                 matched.add(key or entry.get("http") or "")
@@ -621,8 +593,10 @@ def cmd_commit_impact(records, index, db, args):
                     "reason": "",
                 })
             for chain, req, backend, match in hits:
+                if not (FRONT_ROOT / (chain.get("page") or "")).is_file():
+                    continue
                 ui_entry = build_ui_entry(chain, req, backend, entry, db, registry, incoming,
-                                          args.ancestor_depth, labels, csp_index)
+                                          args.ancestor_depth, labels)
                 ui_entry["match"] = match
                 dedup = (ui_entry["page"], ui_entry["element"]["id"],
                          tuple(ui_entry["request"]["paths"]),
@@ -669,7 +643,6 @@ def cmd_commit_impact(records, index, db, args):
             rank = CONFIDENCE_RANK.get(item["access"]["confidence"], 9)
             if current is None or rank < CONFIDENCE_RANK.get(current, 9):
                 page_conf[page] = item["access"]["confidence"]
-                page_via[page] = item["access"].get("via") or ""
         if ui:
             totals["commitsWithUi"] += 1
         totals["matchedEntrypoints"] += len(matched)
@@ -699,7 +672,6 @@ def cmd_commit_impact(records, index, db, args):
                 "matchedEntrypoints": totals["matchedEntrypoints"],
                 "pages": len(page_conf),
                 "pagesWithMenu": sum(1 for v in page_conf.values() if v == "menu"),
-                "pagesViaCsp": sum(1 for v in page_via.values() if v == "csp"),
                 "pagesWithParentMenu": sum(1 for v in page_conf.values() if v == "parent"),
                 "pagesNoMenu": sum(1 for v in page_conf.values() if v == "none"),
                 "unmatchedEntrypoints": totals["unmatchedEntrypoints"],
@@ -717,9 +689,8 @@ def cmd_commit_impact(records, index, db, args):
     print(f"[front-chains] {dest}")
     print(f"  提交 {stats['commits']}（有界面证据 {stats['commitsWithUi']}） · "
           f"入口 {stats['entrypoints']}（命中前端 {stats['matchedEntrypoints']}） · "
-          f"页面 {stats['pages']}（菜单登记 {stats['pagesWithMenu']}，其中 csp 归并 "
-          f"{stats['pagesViaCsp']} / 父页面可达 {stats['pagesWithParentMenu']} / "
-          f"无菜单 {stats['pagesNoMenu']}）")
+          f"页面 {stats['pages']}（菜单登记 {stats['pagesWithMenu']} / "
+          f"父页面可达 {stats['pagesWithParentMenu']} / 无菜单 {stats['pagesNoMenu']}）")
     reasons = " / ".join(f"{k} {v}" for k, v in stats["unmatchedReasons"].items())
     print(f"  未命中 {stats['unmatchedEntrypoints']}（唯一 controller+http "
           f"{stats['unmatchedUnique']}）：{reasons or '无'}")

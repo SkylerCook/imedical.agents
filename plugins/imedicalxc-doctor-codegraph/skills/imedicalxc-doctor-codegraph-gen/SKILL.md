@@ -1,7 +1,7 @@
 ---
 name: imedicalxc-doctor-codegraph-gen
 description: |
-  HIS 医生站代码调用图索引构建与增量更新。执行 6 步流水线：Feign 接口扫描 → 工作区方法级调用图 → Maven biz jar 扫描 → 合并 → 影响分析索引（impact_db.json）→ 两部分穿透数据库（penetration_db.json）。
+  HIS 医生站代码调用图索引构建与增量更新。执行 7 步流水线：Feign 接口扫描 → 工作区方法级调用图 → Maven biz jar 扫描 → 合并 → Controller 注解端点索引（controller_endpoints.json）→ 影响分析索引（impact_db.json）→ 两部分穿透数据库（penetration_db.json）。
   Use when 首次初始化 codegraph 数据、拉取子仓库或升级 Maven 依赖后重建/增量更新索引、impact_db.json / penetration_db.json 缺失或过期、或需要重新生成调用图数据。
   纯查询与影响分析请使用 imedicalxc-doctor-codegraph-search。
 ---
@@ -37,6 +37,7 @@ python feign_scanner.py \
   && python build_method_graph.py \
   && python build_maven_biz_graph.py \
   && python merge_call_graphs.py \
+  && python scan_controller_endpoints.py \
   && python build_impact_db.py \
   && python build_penetration_db.py
 ```
@@ -45,17 +46,26 @@ python feign_scanner.py \
 |---|---|---|---|
 | Step 1 | `feign_scanner.py` | ~30s | `feign_interfaces.json` |
 | Step 2 | `build_method_graph.py` | ~30-60s（2026-11-04 实测，旧环境可能 5-10min） | `method_call_graph.jsonl` + `.graphml` |
-| Step 3 | `build_maven_biz_graph.py` | ~2s | `maven_biz_call_graph.jsonl`、`maven_biz_reverse_index.json`、`maven_biz_dispatch.json`、`maven_biz_scan_stats.json` |
+| Step 3 | `build_maven_biz_graph.py` | ~4s | `maven_biz_call_graph.jsonl`、`maven_biz_reverse_index.json`、`maven_biz_dispatch.json`、`maven_controller_endpoints.json`、`maven_biz_scan_stats.json` |
 | Step 4 | `merge_call_graphs.py` | ~2s | `merged_call_graph.jsonl`、`merged_reverse_index.json`、`merged_service_boundary.json` |
-| Step 5 | `build_impact_db.py` | ~1-2s | `impact_db.json` |
-| Step 6 | `build_penetration_db.py` | ~5-10s | `penetration_db.json`、`inbound_feign_penetration.graphml` |
+| Step 5 | `scan_controller_endpoints.py` | ~6s | `controller_endpoints.json`（方法记录含 `return_type` / `parameters`，类级 `type_scopes`） |
+| Step 6 | `build_impact_db.py` | ~1-2s | `impact_db.json`（Controller 节点带注解 URL） |
+| Step 7 | `build_penetration_db.py` | ~5-10s | `penetration_db.json`、`inbound_feign_penetration.graphml` |
 
-Step 5 与 Step 6 都是查询 skill 的数据源，不要省略。`penetration_db.json` 是穿透口径的**唯一契约**，只包含两部分：
+Step 5 把类级 `@RequestMapping` + 方法级 `@XxxMapping` 的 URL 关系固化成构建产物，同时记录方法的 `return_type` 与 `parameters`，并记录每个 Controller 的类型作用域（`type_scopes`：显式 import / 同包 / 通配 import）：前后端衔接与影响分析直接读取不再重扫，`scan_controller_endpoints.type_index()` 还能在内存里按类型**全限定名**反查 Controller 方法签名（纯 DTO/VO/PO 提交据此拿到契约入口），跨模块同名 DTO（如 ipcare/opcare 各自的 `FeignOeStopMultiDTO`）不会串号。Step 6、Step 7 都是查询 skill 的数据源，不要省略；Step 6 依赖 Step 5 的端点索引，缺失时只输出「跳过 Controller URL 关联」。`penetration_db.json` 是穿透口径的**唯一契约**，只包含两部分：
 
 1. **工作区业务仓库内部调用关系**：`WORKSPACE_SERVICES`（comoe / ipcare / opcare / commr 等 13 个服务）方法之间的调用；调用 hiscore / hiscf 等外部仓库方法时，外部方法仅作为叶子节点保留，不继续展开。
 2. **其他组 Maven jar → 本工作区 Feign**：从对方 Controller 出发，沿真实调用 + 接口/父类分派桥追溯到调用本工作区发布 Feign 接口的调用点；无 Controller 可达时退化为方法入口（`root_type=method`），并把上游片段写入 `partial_paths`。
 
 `maven_penetration_graph.graphml` 已废弃（它按“保留服务内所有 Controller”扫全图，会把 `getFormwork` 这类与 Feign 无关的节点带进来）。
+
+### Maven 工件端点索引（Step 3）
+
+Step 3 扫描 jar 时同步解析 Controller 的类级 `@RequestMapping` 与方法级映射注解，输出 `maven_controller_endpoints.json`（与 Step 5 的工作区索引同结构、同 URL 归一化口径）。它是**穿透链路的 URL 来源**：Step 7 给 `root_type=controller` 的链路附上 `endpoints`，查询 skill 的 `impact` 用它精确匹配工作区外按钮，取代「类名去 Controller + 方法名」的猜测。
+
+- 只认 `value` / `path` 元素，忽略 `produces` / `consumes` / `name`；`@RequestMapping` 未声明 `method` 时记为 `ANY`
+- lambda 合成方法（`lambda$xxx$N`）没有注解，回溯外层方法 `xxx` 取 URL
+- 父类 / 接口上声明的映射暂不回溯（javac 字节码只携带本类声明），这类方法在穿透链路里仍无 URL；当前 353 条 Controller 根链路中 342 条带 URL
 
 ### Maven jar 选择（Step 3）
 
@@ -80,13 +90,14 @@ Step 3 导出前会剔除与医生站无关的 Maven 节点，规则：
 
 ## 增量更新
 
-脚本不按文件粒度做增量；增量 = **只重跑受影响的流水线段**。Step 3/4/5/6 均为秒级到半分钟，无需节省。
+脚本不按文件粒度做增量；增量 = **只重跑受影响的流水线段**。Step 3 之后均为秒级到半分钟，无需节省。
 
 | 变更源 | 需重跑 | 说明 |
 |---|---|---|
-| 工作区 Java 源码（业务逻辑） | Step 2 → Step 4 → Step 5 → Step 6 | Step 2 重建工作区图；Step 4 重建合并数据与服务边界；Step 6 重建两部分穿透 |
-| 工作区 `@FeignClient` 接口定义 | Step 1 → Step 4 → Step 5 → Step 6 | Step 1 刷新接口/路径，Step 4 刷新 Controller 映射，Step 6 刷新入站链路 |
-| Maven 本地仓库 biz jar（依赖升级、新增 jar） | Step 3 → Step 4 → Step 5 → Step 6 | 重新扫描字节码并合并；相关性过滤与分派桥自动重算 |
+| 工作区 Java 源码（业务逻辑，Controller 映射未变） | Step 2 → Step 4 → Step 6 → Step 7 | Step 2 重建工作区图；Step 4 重建合并数据与服务边界；Step 7 重建两部分穿透 |
+| 新增/修改 Controller 或映射注解 | Step 5 → Step 6 | Step 5 刷新注解 URL 索引；Step 6 把 URL 挂到方法节点。缺失产物时查询脚本仍可用 `--refresh-endpoints` 临时重建 |
+| 工作区 `@FeignClient` 接口定义 | Step 1 → Step 4 → Step 6 → Step 7 | Step 1 刷新接口/路径，Step 4 刷新 Controller 映射，Step 7 刷新入站链路 |
+| Maven 本地仓库 biz jar（依赖升级、新增 jar） | Step 3 → Step 4 → Step 6 → Step 7 | 重新扫描字节码并合并；相关性过滤与分派桥自动重算 |
 | `config.py` 中的描述/映射常量 | 不重建 | `SERVICE_MODULE_MAP` / `METHOD_DESCRIPTION_MAP` / `FEIGN_INTERFACE_DESC` 由查询脚本运行时读取 |
 | 无法判断 | 全量 | 直接执行初始化一键命令 |
 
@@ -116,12 +127,14 @@ find "$MAVEN_REPO/com/mediway" -name '*.jar' \
 | `maven_biz_call_graph.jsonl` | Maven biz 方法调用图（仅保留与医生站相关的服务） | Step 3 |
 | `maven_biz_reverse_index.json` | Maven biz 反向索引 | Step 3 |
 | `maven_biz_dispatch.json` | 接口/父类方法 → 实现/覆写方法的分派桥，以及方法 → 其 lambda 合成方法桥 | Step 3 |
+| `maven_controller_endpoints.json` | Maven 工件 Controller 注解 URL 索引（`endpoints` URL → 方法）；穿透链路与工作区外按钮匹配的 URL 来源 | Step 3 |
 | `merged_call_graph.jsonl` | 合并后调用图 | Step 4 |
 | `merged_reverse_index.json` | 合并后反向索引 | Step 4 |
 | `merged_service_boundary.json` | Controller → Feign 映射 | Step 4 |
-| `impact_db.json` | 影响分析索引数据库（查询主入口） | Step 5 |
-| `penetration_db.json` | **两部分穿透数据库（查询主数据源）** | Step 6 |
-| `inbound_feign_penetration.graphml` | 第二部分可视化（Maven Controller → 本工作区 Feign） | Step 6 |
+| `controller_endpoints.json` | Controller 注解 URL 索引：`endpoints`（URL → 方法，方法记录含 `return_type` / `parameters`）、`type_scopes`（Controller 的 package / import / 通配 import，供全限定名解析）与 `meta`（源文件数/摘要）；`type_index()` 可据此按类型全限定名反查 Controller 签名 | Step 5 |
+| `impact_db.json` | 影响分析索引数据库（查询主入口）；Controller 方法节点带 `endpoints`（注解 URL） | Step 6 |
+| `penetration_db.json` | **两部分穿透数据库（查询主数据源）** | Step 7 |
+| `inbound_feign_penetration.graphml` | 第二部分可视化（Maven Controller → 本工作区 Feign） | Step 7 |
 | `full_call_graph.graphml` | 可选：工作区 + Maven 合并全图，仅供全景布局参考；含保留服务的服务内部边，**不能用作穿透口径** | `export_full_graphml.py` |
 
 ## 构建后验证
@@ -134,13 +147,22 @@ python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DI
 # 2. 主数据源可加载（30s 内）
 python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DIR; d=json.load(open(OUTPUT_DIR/'impact_db.json')); print('edges:', len(d['ws_edges']), 'maven:', len(d['maven_edges']))"
 
-# 3. 查询冒烟（正式查询见 search skill）
+# 3. 端点索引与源码一致（exit 0 = 一致）
+python scan_controller_endpoints.py --check
+
+# 4. Maven 工件端点索引（应输出 1666 9255 9260）
+python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DIR; m=json.load(open(OUTPUT_DIR/'maven_controller_endpoints.json'))['meta']; print(m['controllers'], m['endpoints'], m['mappings'])"
+
+# 5. 穿透链路的 Controller 根带 URL（应输出 353 342）
+python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DIR; s=json.load(open(OUTPUT_DIR/'penetration_db.json'))['stats']['inbound']; print(s['controller_rooted'], s['controller_rooted_with_url'])"
+
+# 6. 查询冒烟（正式查询见 search skill）
 python impact_analyzer.py insertMultiple --impact --select 1
 
-# 4. 穿透两部分冒烟（应输出 workspace/inbound 节点/边与入站调用点）
+# 7. 穿透两部分冒烟（应输出 workspace/inbound 节点/边与入站调用点）
 python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DIR; d=json.load(open(OUTPUT_DIR/'penetration_db.json')); print('workspace:', len(d['workspace']['nodes']), len(d['workspace']['edges'])); print('inbound:', d['stats']['inbound'])"
 
-# 5. 相关性过滤生效（应输出 55 和 148676）
+# 8. 相关性过滤生效（应输出 55 和 148676）
 python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DIR; s=json.load(open(OUTPUT_DIR/'maven_biz_scan_stats.json')); print(len(s['filter']['kept_services']), s['call_relations'])"
 ```
 
@@ -151,29 +173,32 @@ python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DI
 | `WORKSPACE_REPOS` | 12 个业务子仓库（相对 `src/backend`） |
 | `SYSTEM_PACKAGES` | 43 个系统/框架包前缀，扫描时过滤 |
 | `MAVEN_REPO_PATHS` | Maven 仓库解析顺序 |
-| `OUTPUT_DIR` | `PROJECT_ROOT.parent / docs / imedicalxc-doctor-codegraph`，基于 `Path(__file__)` 推导 |
+| `OUTPUT_DIR` | 由插件 manifest 的 `projectDirectories[id=codegraph-index]` 解析（当前为 `docs/agents/imedicalxc-doctor-codegraph`），不要写死目录 |
 | `SERVICE_MODULE_MAP` | 服务名 → 工程模块名（55 条），仅查询期使用 |
 | `METHOD_DESCRIPTION_MAP` | 方法名 → 业务场景描述，仅查询期使用 |
 | `FEIGN_INTERFACE_DESC` | Feign 接口 → 功能描述（219 条，来源腾讯文档《信创版微服务接口清单》），仅查询期使用 |
 
 新增 Maven biz 服务时，同步补 `SERVICE_MODULE_MAP`；新增高频业务方法时补 `METHOD_DESCRIPTION_MAP`，否则影响分析报告只显示方法名。
 
-## 当前规模（2026-11-04 相关性过滤后测量）
+## 当前规模（2026-11-09 修复 this/super 自调用后测量）
 
 | 指标 | 数值 |
 |---|---|
-| 工作区节点 / 边（JSONL 原始签名） | 16,326 / 87,531 |
-| `method_call_graph.graphml` 节点 / 边 | 53,354（16,100 声明 + 37,254 占位）/ 87,125（去重后） |
-| impact_db 工作区节点 | 16,100（去重去参后） |
+| 工作区节点 / 边（JSONL 原始签名） | 16,326 / 88,199 |
+| `method_call_graph.graphml` 节点 / 边 | 53,357（16,100 声明 + 37,257 占位）/ 87,788（去重后） |
+| impact_db 工作区节点 / 边 | 16,100（去重去参后）/ 88,199 |
 | Maven biz jar / 类 / 方法（扫描原始调用） | 326 / 12,120 / 137,396（459,260） |
 | Maven 相关性过滤后服务 / 边 | 55 个服务保留（33 个直接调用 Feign + 22 个上游）、44 个剔除 / 148,676 边 |
 | 服务边界映射 | 184 |
 | Feign 接口 / 方法 | 226 / 404（226 个由本工作区业务仓库发布） |
-| 穿透第一部分（工作区业务仓库 + 外部叶子） | 53,354 节点（9,947 个外部叶子）/ 87,125 边 |
+| 穿透第一部分（工作区业务仓库 + 外部叶子） | 53,357 节点（9,948 个外部叶子）/ 87,788 边 |
 | 穿透第二部分（Maven 入站 Feign） | 396 个调用点（353 条 Controller 根 / 43 条方法根）/ 90 个 Feign 接口 / 33 个 Maven 服务 / 约 630 条分派桥边（以 `stats.dispatch_edges_used` 为准） |
-| 合并全图节点 / 边 | 125,415 / 202,251 |
-| `impact_db.json` | 51.1 MB |
-| `penetration_db.json` | 41.4 MB |
+| 穿透链路的 Controller 根带注解 URL | 342 / 353（其余 11 条映射声明在父类/接口，字节码不携带） |
+| 合并全图节点 / 边 | 125,508 / 202,919 |
+| `controller_endpoints.json` | 7.5 MB（1,681 源文件 / 1,680 Controller / 11,514 URL / 11,520 方法映射 + 1,680 类型作用域） |
+| `maven_controller_endpoints.json` | 3.1 MB（326 jar / 1,666 Controller / 9,255 URL / 9,260 方法映射） |
+| `impact_db.json` | 50.8 MB（含 Controller 方法注解 URL） |
+| `penetration_db.json` | 41.6 MB |
 
 保留的服务（55 个）：`admission`、`anappointment`、`ansurgeryschedule`、`api`、`appointment`、`arinv`、`audt`、`chpc`、`comar`、`comcons`、`comem`、`comemr`、`cons`、`cpw`、`dayappointment`、`daysurgeryschedule`、`daysurgerystation`、`emar`、`emcare`、`emdt`、`emnur`、`emph`、`emrdata`、`emrq`、`emsd`、`emtr`、`hisbsp`、`hispay`、`hissyscf`、`infoclct`、`insu`、`ipar`、`ipbmc`、`ipemr`、`ipnemr`、`ipnur`、`opar`、`opemr`、`opspcol`、`outappointment`、`outsurgeryschedule`、`ph`、`phm`、`plannedoperation`、`postopdiagnosis`、`preopdiagnosis`、`requ`、`rmis`、`server`、`stat`、`statistic`、`stro`、`surgeryschedule`、`trau`、`trbu`。
 
@@ -192,3 +217,7 @@ python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DI
 11. **lambda 不是普通调用边**：javac 把 lambda 体编译成 `lambda$<方法名>$N` 合成方法，通过 `invokedynamic` + `LambdaMetafactory` 调用，字节码里没有“所在方法 → lambda 方法”的 `invoke*` 边。Step 3 需要解析类的 `BootstrapMethods` 属性（引导方法第 2 个参数是实现方法的 `MethodHandle`），把桥写入 `maven_biz_dispatch.json`；否则反向追踪停在 lambda 节点，透传链被误判为 `root_type=method`。
 12. **入口工件不只在 biz jar**：`-esb` / `-api` / `-mobile` 等工件都可能含 Controller；手机端还存在 `Contoller` 拼写。jar 选择与 `is_controller` 判断都要兼容，否则链路没有 Controller 根。
 13. **method-rooted 不一定是漏扫**：`root_type=method` 的剩余链路通常是外部入口（apiout/ESB/HTTP 适配器）、BLH 按名反射调用、Spring 回调（如 `afterCompletion`）或公开服务方法。判断方法：在全部候选 jar 的常量池里按全限定名/方法名反查引用；无任何静态调用方即为动态或外部入口，记录在 `partial_paths` 即可。
+14. **`this.` / `super.` 调用不要按关键字过滤**：接收者正则能匹配 `this.foo()` / `super.foo()`，而 `JAVA_KEYWORDS` 同时包含 `this`、`super`；若在进入 `_handle_receiver_call` 前统一跳过关键字，同类自调用（如 `opRegistAll → this.preOpRegist`）会整段丢边。当前只放行这两个接收者，其余关键字仍跳过。边存在不代表反向能覆盖：BLH 父子实现（`OpregBrokerAbstract` 与 `OpregistBrokerAbstract`）是不同的节点，查询侧要按实现族展开（见 search skill）。
+15. **URL 只认注解不认方法名**：方法名与 URL 末段经常不同（`preOpRegist` 在类级 `/opreg/adm/opregBroker` 下），`scan_controller_endpoints.py` 必须同时解析类级 `@RequestMapping` 与方法级注解；`@RequestMapping` 的 `value/path` 之外的 `produces`/`consumes`/`name` 字符串不是 URL，不能当成端点。数组映射逐个产出端点，同一方法可对应多条 URL。
+16. **端点索引是构建产物，不要在查询期重扫**：Step 5 的 `controller_endpoints.json` 带源码摘要；查询脚本默认直接读它，只有 `--refresh-endpoints` 或产物缺失时才扫描。把摘要校验放回每次查询会让单次查询退化到 30s+。
+17. **Maven 工件的注解值要用常量池解引用**：`javatools` 的 `JavaAnnotation` 是 dict，值形如 `('s', idx)` 或 `('[', [...])`，字符串要经 `cpool.deref_const(idx)` 还原；`@RequestMapping` 的 `method` 是 `('e', (type_idx, const_idx))` 枚举。只解析 `value`/`path`，`@PostMapping` 等直接映射为对应动词。lambda 合成方法无注解，按 `lambda$<方法>$N` 回退到外层方法；父类/接口上声明的映射字节码不携带，这类链路保持无 URL，不要按方法名猜 URL。

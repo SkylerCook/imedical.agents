@@ -69,7 +69,7 @@
    - 扫描 `src/frontend/hisfront/static` 全部 HTML/JS（跳过 `scripts_lib`、`lib`、`node_modules`、`dist`）
    - 操作元素来源：HTML 内联 `on*`、JS 事件绑定（`click/on/bind/delegate`、hisui 插件）、JS 字符串拼出的元素、服务端配置注入、页面加载入口
    - 服务端配置注入按场景登记（`config_injection.py`）：按钮栏 `doc_btnbar`、医嘱右键菜单 `oe_view_right_menu`、医嘱列表菜单 `oe_view_menu`、护理执行单按钮 `nurse_exec_button`、通用页面配置 `page_config`；各场景的配置表、前端识别方式、分组键都不同
-   - 零依赖 JS 词法分析：函数定义/调用、URL 常量回填、请求封装（`$ipost/$iget/$iexport/$.ajax/fetch` 等）
+   - 零依赖 JS 词法分析：函数定义/调用、URL 常量回填、请求封装（`$ipost/$iget/$iexport/$.ajax/fetch` 等）；同文件透传包装（`function $ipostAsync(url, data) { $ipost(url, data, ...) }`）按调用点实参登记请求；可选链 `obj?.method()` / `fn?.(...)` 按普通成员调用解析
    - 菜单快照可选：`hos_sys_resource` 路由匹配页面；配置注入快照可选：配置表 → handler / 跳转地址
    - 调用链按调用深度 BFS 展开（主操作请求优先），本期只输出 URL 路径，不关联后端 Controller / Feign
 
@@ -91,8 +91,8 @@
 - Maven biz: 326 jar, 12,120 类, 137,396 方法；原始调用 459,260，过滤后 148,676（55 个相关服务 = 33 直接调用者 + 22 上游 / 44 个剔除）
 - 工作区方法图: 16,326 节点 / 88,199 边；GraphML 53,357 节点 / 87,788 边
 - 合并后: 125,508 节点 / 202,919 边, 184 服务边界
-- 端点索引: 工作区 1,681 个源文件 → 1,680 个 Controller / 11,457 条 URL / 11,463 个方法映射；Maven 工件 326 jar → 1,666 个 Controller / 9,255 条 URL / 9,260 个方法映射；`impact_db` 中 3,043 个 Controller 节点带 `endpoints`
-- `controller_endpoints.json`: 5.8 MB；`maven_controller_endpoints.json`: 3.1 MB
+- 端点索引: 工作区 1,681 个源文件 → 1,680 个 Controller / 11,514 条 URL / 11,520 个方法映射；Maven 工件 326 jar → 1,666 个 Controller / 9,255 条 URL / 9,260 个方法映射；`impact_db` 中 3,043 个 Controller 节点带 `endpoints`
+- `controller_endpoints.json`: 7.5 MB；`maven_controller_endpoints.json`: 3.1 MB
 - `impact_db.json`: 50.8 MB（过滤前 85.8 MB）
 - 穿透第一部分: 53,357 节点（9,948 个外部叶子）/ 87,788 边
 - 穿透第二部分: 396 个调用点（353 条 Controller 根，其中 342 条带注解 URL / 43 条方法根）/ 90 个 Feign 接口 / 33 个 Maven 服务 / 约 630 条分派桥边（以 stats 为准）

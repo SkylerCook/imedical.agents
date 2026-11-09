@@ -8,8 +8,9 @@
 流程:
   1. 定位: git show -U0 取新旧侧变更行 → 解析对应版本源码的方法区间 → 变更方法 Class.method
   2. 检索: 一次加载 impact_db + penetration_db，批量做影响分析
-  3. 契约补充: 对仅命中 DTO/VO/PO 的提交，扫描 feign_interfaces.json 方法签名，
-     产出 typeFeignMatches（类型 → Feign 接口方法），弥补方法图无入口的问题
+  3. 契约补充: 对仅命中 DTO/VO/PO 的提交，先按 feign_interfaces.json 方法签名
+     产出 typeFeignMatches，再按 controller_endpoints.json 的 Controller 方法签名
+     反查（返回类型/入参）合成 Controller 入口，弥补方法图无入口的问题
   4. 聚合: 按提交去重合并入口 / 本组调用方 / 外部调用方，同一证据保留 via 来源方法
 
 证据边界（写入输出 meta.boundaries，供报告如实标注）:
@@ -32,6 +33,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from config import OUTPUT_DIR, PROJECT_ROOT, WORKSPACE_SERVICES, get_module_for_service, to_repo_relative  # noqa: E402
 from impact_analyzer import ImpactDB, get_class_method, get_service  # noqa: E402
+import scan_controller_endpoints as endpoints_index  # noqa: E402
 
 REPO_ROOT = PROJECT_ROOT.parent
 COMMIT_REPORT_CONFIG = PROJECT_ROOT / "plugins" / "imedicalxc-doctor-commit-report" / "config" / "commit-report.json"
@@ -273,15 +275,49 @@ def feign_http(db, iface_full, method_name):
 
 
 TYPE_TOKEN_RE = re.compile(r"(?<!@)\b[A-Z][A-Za-z0-9_$]*\b")
+JAVA_PKG_RE = re.compile(r"^\s*package\s+([\w.]+);", re.M)
+JAVA_IMPORT_RE = re.compile(r"^\s*import\s+(?!static\b)([\w.]+?)(\.\*)?\s*;", re.M)
+
+
+def java_type_scope(path):
+    """读取 Java 源文件的 package / 显式 import / 通配 import，用于类型全限定名解析。"""
+    try:
+        text = Path(path).read_text(encoding="utf-8", errors="ignore")[:8000]
+    except OSError:
+        return {}
+    pkg = JAVA_PKG_RE.search(text)
+    imports, wildcards = {}, []
+    for m in JAVA_IMPORT_RE.finditer(text):
+        target, wildcard = m.group(1), m.group(2)
+        if wildcard:
+            wildcards.append(target)
+        else:
+            imports[target.rsplit(".", 1)[-1]] = target
+    return {"package": pkg.group(1) if pkg else "", "imports": imports, "wildcards": wildcards}
+
+
+def resolve_java_type(scope, name):
+    """签名类型短名 → 候选全限定名（显式 import / 同包 / 通配 import）。"""
+    if not scope:
+        return {name}
+    fqns = set()
+    if name in (scope.get("imports") or {}):
+        fqns.add(scope["imports"][name])
+    if scope.get("package"):
+        fqns.add(f"{scope['package']}.{name}")
+    for wildcard in scope.get("wildcards") or []:
+        fqns.add(f"{wildcard}.{name}")
+    return fqns
 
 
 def load_feign_type_index():
-    """类型短名 → Feign 接口方法签名的使用关系
+    """类型全限定名 → Feign 接口方法签名的使用关系
 
-    扫描 feign_interfaces.json 的 return_type / parameters，解决纯 DTO/VO 变更
-    在方法调用图里没有入口的问题。返回:
-      {type_simple_name: {(feign, method): {feign, feignFull, service, servicePath,
-                                             method, http, usage[]}}}
+    扫描 feign_interfaces.json 的 return_type / parameters，再按接口源码的
+    package / import 解析成全限定名；避免不同模块同名 DTO 串到对方 Feign 接口。
+    接口源码缺失时退化为 package_name + 短名。返回:
+      {type_fqn: {(feign, method): {feign, feignFull, service, servicePath,
+                                    method, http, usage[]}}}
     """
     path = OUTPUT_DIR / "feign_interfaces.json"
     if not path.exists():
@@ -297,6 +333,9 @@ def load_feign_type_index():
         full = iface.get("full_name") or ""
         service = iface.get("service_name") or ""
         service_path = iface.get("service_path") or ""
+        scoped = iface.get("file_path") and Path(iface["file_path"]).exists()
+        scope = java_type_scope(iface["file_path"]) if scoped else {
+            "package": iface.get("package_name") or "", "imports": {}, "wildcards": []}
         for m in iface.get("methods", []):
             ret_types = set(TYPE_TOKEN_RE.findall(m.get("return_type") or ""))
             param_types = set()
@@ -308,34 +347,147 @@ def load_feign_type_index():
                     + (["parameter"] if t in param_types else [])
                 )
                 key = (fname, m.get("name") or "")
-                rec = index[t].get(key)
-                if rec is None:
-                    rec = index[t][key] = {
-                        "feign": fname,
-                        "feignFull": full,
-                        "service": service,
-                        "servicePath": service_path,
-                        "method": m.get("name") or "",
-                        "http": f"{m.get('http_method') or ''} {m.get('path') or ''}".strip(),
-                        "usage": [],
-                    }
-                rec["usage"] = sorted(set(rec["usage"]) | set(usage))
+                for fqn in resolve_java_type(scope, t):
+                    rec = index[fqn].get(key)
+                    if rec is None:
+                        rec = index[fqn][key] = {
+                            "feign": fname,
+                            "feignFull": full,
+                            "service": service,
+                            "servicePath": service_path,
+                            "method": m.get("name") or "",
+                            "http": f"{m.get('http_method') or ''} {m.get('path') or ''}".strip(),
+                            "usage": [],
+                        }
+                    rec["usage"] = sorted(set(rec["usage"]) | set(usage))
     return index
 
 
-def match_type_feigns(type_files, type_index):
-    """按类型文件短名匹配 Feign 方法签名，返回 (feign 短名集合, 明细列表)"""
+def match_type_feigns(type_files, type_index, repo_abs):
+    """按类型全限定名匹配 Feign 方法签名，返回 (feign 短名集合, 明细列表)"""
     feigns = set()
     matches = {}
     for rel in type_files:
         simple = Path(rel).stem
-        for (fname, method), rec in (type_index.get(simple) or {}).items():
+        full = type_full_name(repo_abs, rel)
+        for (fname, method), rec in (type_index.get(full) or {}).items():
             feigns.add(fname)
-            key = (simple, fname, method)
+            key = (full, fname, method)
             if key not in matches:
-                matches[key] = {"file": rel, "type": simple, **rec}
+                matches[key] = {"file": rel, "type": simple, "typeFqn": full, **rec}
     rows = sorted(matches.values(), key=lambda x: (x["feign"], x["method"], x["type"]))
     return feigns, rows
+
+
+def feign_caller_entrypoints(db, type_matches, depth, with_maven, max_callers=40):
+    """类型命中的 Feign 接口 → 工作区调用方 → 入口，补出间接页面链路。
+
+    纯契约提交的直接 Controller 入口只覆盖服务端签名；页面经「本服务
+    Controller → BLH → Feign」调用契约时，链路上没有 DTO 节点，需要在
+    Feign 接口的调用方方法上再跑一次上游入口分析。合成的入口带
+    indirect=true 与 feign:<接口>.<方法>，表示页面不直调该契约。
+    """
+    targets = {}
+    for m in type_matches:
+        key = (m.get("feignFull", ""), m.get("method", ""))
+        targets.setdefault(key, set()).add(m.get("type", ""))
+
+    callers = {}
+    for edge in getattr(db, "ws_feign_edges", []):
+        target = (edge.get("t") or "").split("(", 1)[0]
+        cls, _, method = target.rpartition(".")
+        for (feign_full, feign_method), types in targets.items():
+            if cls == feign_full and method == feign_method:
+                rec = callers.setdefault(edge["s"], {"types": set(), "feigns": set()})
+                rec["types"].update(types)
+                rec["feigns"].add(f"{feign_full.rsplit('.', 1)[-1]}.{feign_method}")
+
+    entrypoints, rows = [], []
+    for caller in sorted(callers)[:max_callers]:
+        info = callers[caller]
+        ev = analyze_method(db, caller, depth, with_maven)
+        via = [f"type:{t}" for t in sorted(info["types"])] + \
+              [f"feign:{f}" for f in sorted(info["feigns"])]
+        for ep in ev["entrypoints"]:
+            entrypoints.append({
+                **ep,
+                "heuristic": bool(ep.get("heuristic")),
+                "indirect": True,
+                "via": via + list(ep.get("via") or [])[:1],
+            })
+        rows.append({
+            "caller": caller,
+            "service": get_service(caller),
+            "types": sorted(info["types"]),
+            "feigns": sorted(info["feigns"]),
+            "entrypoints": len(ev["entrypoints"]),
+        })
+    rows.sort(key=lambda x: (x["service"], x["caller"]))
+    return entrypoints, rows
+
+
+def load_controller_type_index():
+    """类型全限定名 → Controller 方法签名使用关系（来自 controller_endpoints.json）"""
+    data = endpoints_index.load()
+    if not data:
+        return {}
+    return endpoints_index.type_index(data["endpoints"], data.get("type_scopes"))
+
+
+def type_full_name(repo_abs, rel):
+    """按类型文件的 package 声明还原全限定名，供 Controller 签名反查。"""
+    try:
+        text = (repo_abs / rel).read_text(encoding="utf-8", errors="ignore")[:2000]
+    except OSError:
+        return ""
+    m = re.search(r"^\s*package\s+([\w.]+);", text, re.M)
+    simple = Path(rel).stem
+    return f"{m.group(1)}.{simple}" if m else simple
+
+
+def match_type_controllers(type_files, type_index, repo_abs):
+    """按类型全限定名反查 Controller 签名，合成 Controller 入口
+
+    纯契约提交没有方法节点，方法图给不出入口；这里用返回类型/入参命中
+    直接产出 Controller 入口，交给前端链路衔接页面。heuristic=true 标明
+    该入口来自签名反查而非调用图追踪。按全限定名匹配，避免跨模块同名
+    DTO（如 ipcare/opcare 各自的 FeignOeStopMultiDTO）串到对方 Controller。
+    """
+    entrypoints, matches = [], {}
+    for rel in type_files:
+        simple = Path(rel).stem
+        full = type_full_name(repo_abs, rel)
+        for rec in type_index.get(full) or []:
+            key = (full, rec["controller_fqn"], rec["method"], rec["path"])
+            if key in matches:
+                continue
+            http = f'{rec["http"]} {rec["path"]}'.strip()
+            matches[key] = {
+                "file": rel,
+                "type": simple,
+                "typeFqn": full,
+                "controller": rec["controller"],
+                "controllerFqn": rec["controller_fqn"],
+                "method": rec["method"],
+                "http": http,
+                "usage": rec["usage"],
+            }
+            entrypoints.append({
+                "kind": "controller",
+                "controller": f'{rec["controller"]}.{rec["method"]}',
+                "service": get_service(rec["controller_fqn"]),
+                "feign": "",
+                "http": http,
+                "heuristic": True,
+                "depth": 0,
+                "via": [f"type:{simple}"],
+                "type": simple,
+                "typeFqn": full,
+                "usage": rec["usage"],
+            })
+    rows = sorted(matches.values(), key=lambda x: (x["controllerFqn"], x["method"], x["http"]))
+    entrypoints.sort(key=lambda x: (x["controller"], x["http"]))
+    return entrypoints, rows
 
 
 def analyze_method(db, nid, depth, with_maven):
@@ -583,7 +735,8 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
         raise SystemExit(f"[ERROR] 缺少索引: {impact_path}，请先运行 imedicalxc-doctor-codegraph-gen")
     db = ImpactDB()
     by_file = load_graph_index(db)
-    type_index = load_feign_type_index()
+    feign_type_index = load_feign_type_index()
+    controller_type_index = load_controller_type_index()
     index_mtime = impact_path.stat().st_mtime
 
     result_commits = []
@@ -641,7 +794,19 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
         downstream_feigns.sort(key=lambda x: (x["feign"], x["method"], x["caller"]))
 
         type_files = [s["file"] for s in skipped if s.get("reason") == "type_contract"]
-        type_feigns, type_matches = match_type_feigns(type_files, type_index)
+        type_feigns, type_matches = match_type_feigns(type_files, feign_type_index, repo_abs)
+        type_entrypoints, type_controller_matches = match_type_controllers(
+            type_files, controller_type_index, repo_abs)
+        type_feign_entrypoints, type_feign_callers = feign_caller_entrypoints(
+            db, type_matches, depth, with_maven)
+        synthesized = type_entrypoints + type_feign_entrypoints
+        if synthesized:
+            entrypoints = merge_unique(
+                entrypoints + synthesized,
+                lambda x: (x["kind"], x.get("service", ""), x["controller"], x.get("http", "")))
+            entrypoints.sort(key=lambda x: (
+                x["kind"], x.get("service", ""), x["controller"], x.get("http", ""),
+                x.get("depth", -1), bool(x.get("heuristic")), bool(x.get("indirect"))))
         kept_methods = [m for m in methods if m["inGraph"]]
         confidence = "graph" if kept_methods else ("partial" if type_files else "none")
 
@@ -664,6 +829,8 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
                 "feignInterfaces": sorted(feigns | type_feigns),
                 "typeFiles": type_files,
                 "typeFeignMatches": type_matches,
+                "typeFeignCallers": type_feign_callers,
+                "typeControllerMatches": type_controller_matches,
             },
             "downstream": {"count": downstream_count, "services": sorted(s for s in downstream_services if s)},
             "skippedFiles": skipped,
@@ -674,6 +841,8 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
         stats["withGraphEvidence"] += 1 if kept_methods else 0
         stats["skippedFiles"] += len(skipped)
         stats["typeFeignMatches"] += len(type_matches)
+        stats["typeFeignCallers"] += len(type_feign_callers)
+        stats["typeControllerMatches"] += len(type_controller_matches)
 
     doc = {
         "meta": {
@@ -687,7 +856,9 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
                 "BLH 反射分发可能断链，追踪器以同名覆写与启发式补链",
                 "Maven 侧只保留直调医生站 Feign 的服务，未命中不等于无交互",
                 "下游数量为入口方法可达方法数，不代表全部需回归范围",
-                "契约类型的 Feign 使用方按 feign_interfaces.json 方法签名的类型短名匹配，同名类型可能合并；嵌套在 VO 字段里的类型不在签名中，未命中不等于无使用方",
+                "契约类型的 Feign 使用方按 feign_interfaces.json 方法签名 + 接口源码 package/import 解析的全限定类型名匹配，不同模块同名 DTO 不会串口；嵌套在 VO 字段里的类型不在签名中，未命中不等于无使用方",
+                "契约类型命中的 Feign 接口会再沿工作区调用方上溯入口（indirect=true、via 带 feign:<接口>.<方法>），补出「页面 → 本地 Controller → BLH → Feign」的间接链路",
+                "契约类型的 Controller 使用方按 controller_endpoints.json 的全限定类型名反查（heuristic 入口）；仅出现在 VO 嵌套字段、局部变量或实现类内部时不在签名中，未命中不等于无页面入口",
             ],
         },
         "commits": result_commits,
