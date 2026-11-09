@@ -21,7 +21,7 @@
   "window": { "mode": "months", "value": 1 },
   "ref": "origin/master",
   "excludeMerges": true,
-  "outputDir": "docs/commit-reports",
+  "outputDir": "docs/agents/commit-reports",
   "codegraph": {
     "enabled": true,
     "maxMethodsPerCommit": 10,

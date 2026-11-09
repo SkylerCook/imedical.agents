@@ -15,10 +15,10 @@ priority: high
 ## 概述
 ## 输出目录结构
 
-所有分析报告、AST JSON 文件、评估文档统一输出到 `docs/imedicalxc-doctor-business-understanding/` 下，按阶段分目录存放。文件命名格式：`{YYYY-MM-DD}-{主题}.md`（日期 + 主题名称）。
+所有分析报告、AST JSON 文件、评估文档统一输出到 `docs/agents/imedicalxc-doctor-business-understanding/` 下，按阶段分目录存放。文件命名格式：`{YYYY-MM-DD}-{主题}.md`（日期 + 主题名称）。
 
 ```
-docs/imedicalxc-doctor-business-understanding/
+docs/agents/imedicalxc-doctor-business-understanding/
 ├── phase1-initial-explore/          # 初步探索
 │   └── YYYY-MM-DD-初步探索报告.md
 ├── phase2-brainstorming/            # 需求头脑风暴
@@ -228,7 +228,7 @@ $script = ".agents/plugins/imedicalxc-doctor-business-understanding/scripts/fron
 # 前端静态目录（按需替换为具体模块路径，如 opcare/adm）
 $frontendDir = "src/frontend/hisfront/static/opcare"
 # 输出目录（按阶段自动创建）
-$outputDir = "docs/imedicalxc-doctor-business-understanding/phase2-frontend-trace"
+$outputDir = "docs/agents/imedicalxc-doctor-business-understanding/phase2-frontend-trace"
 # 工作名称（用于文件命名，如 opcare_adm）
 $workName = "module_name"
 

@@ -336,7 +336,7 @@ async function main() {
     errors
   };
 
-  const outDirAbs = path.join(repoRoot, config.outputDir || 'docs/commit-reports', win.label);
+  const outDirAbs = path.join(repoRoot, config.outputDir || 'docs/agents/commit-reports', win.label);
   fs.mkdirSync(outDirAbs, { recursive: true });
   const outFile = path.join(outDirAbs, `raw-commits-${win.label}.json`);
   fs.writeFileSync(outFile, JSON.stringify(output, null, 2) + '\n', 'utf8');

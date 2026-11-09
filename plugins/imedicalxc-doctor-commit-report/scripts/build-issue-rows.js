@@ -20,7 +20,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const USAGE = `用法: node build-issue-rows.js <evaluations.json> [--date YYYY-MM-DD]
-  <evaluations.json>  某期评估产物，如 docs/commit-reports/2026-10/evaluations.json
+  <evaluations.json>  某期评估产物，如 docs/agents/commit-reports/2026-10/evaluations.json
   --date YYYY-MM-DD   登记日期（默认取当天）
 输出: <同目录>/issue-rows-<label>.json（UTF-8 无 BOM）+ 控制台摘要`;
 

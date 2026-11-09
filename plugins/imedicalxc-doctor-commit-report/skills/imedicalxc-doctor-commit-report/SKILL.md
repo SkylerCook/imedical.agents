@@ -32,7 +32,7 @@ priority: high
 
 定时模式补充规则：
 
-- **期号**：`N` = `docs/commit-reports/<YYYY-MM>/` 下已有 `commit-report-*.md` 数量 + 1（历史期次不追溯，11 月起从 W1 计）；产物目录按月取 `until` 所在月。
+- **期号**：`N` = `docs/agents/commit-reports/<YYYY-MM>/` 下已有 `commit-report-*.md` 数量 + 1（历史期次不追溯，11 月起从 W1 计）；产物目录按月取 `until` 所在月。
 - **窗口衔接**：`since` 必须衔接上一期 `until`，不重叠、不留空。state 不存在或 `lastWindow.until` 为空时回退交互模式（该月尚无归档时自然记为 `W1`）。
 - **幂等**：失败重跑前先确认上一期报告是否已完整归档；已归档则从 state 的 `until` 继续，不重复生成。
 - **采集源**：取 config `ref`（默认 `origin/master`），由 `collect-commits.js` 读取，命令中不硬编码分支。
@@ -156,7 +156,7 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
 
 产出同目录 `code-impact-<label>.json`。参数默认值取自 config `codegraph`（`maxMethodsPerCommit`、`depth`），需要临时调整时再用 `--max-methods-per-commit` / `--depth` / `--no-maven` 覆盖；`enabled=false` 时整步跳过。对应 codegraph-search 的「查询 7：提交级批量取证」。
 
-- 前置数据：`docs/imedicalxc-doctor-codegraph/impact_db.json` + `penetration_db.json` + `feign_interfaces.json`
+- 前置数据：`docs/agents/imedicalxc-doctor-codegraph/impact_db.json` + `penetration_db.json` + `feign_interfaces.json`
 - 缺失时先执行 `imedicalxc-doctor-codegraph-gen`；本次仍缺失 → 告警并跳过，步骤 ④ 统一写「无调用图证据（索引缺失）」，**不阻断**
 
 **证据结构**（提交级聚合，方法级明细并列；一个提交改多个方法不会拆成多份结论）：
@@ -264,7 +264,7 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/render-report.js --
 | `db-changes-<label>.json` | 第五章数据库脚本执行提醒 |
 | `code-impact-<label>.json` | 可选；校验 evaluations 中的证据计数与可信度 |
 
-**参数**：`--label`（必填）、`--output-dir`（默认 `docs/commit-reports`）、`--generated-at`（ISO 时间，默认当前时间）、`--config`（默认插件 `config/commit-report.json`）、`--no-preserve-registration`（不保留已有第七章）。
+**参数**：`--label`（必填）、`--output-dir`（默认 `docs/agents/commit-reports`）、`--generated-at`（ISO 时间，默认当前时间）、`--config`（默认插件 `config/commit-report.json`）、`--no-preserve-registration`（不保留已有第七章）。
 
 **校验行为**：
 
@@ -291,7 +291,7 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/render-report.js --
 归档后在父仓库本地提交（**不推送远端**）：
 
 ```bash
-git add docs/commit-reports/
+git add docs/agents/commit-reports/
 git commit -m "docs: 新增 {label} 医生站信创产品迭代周报"
 ```
 
@@ -305,7 +305,7 @@ git commit -m "docs: 新增 {label} 医生站信创产品迭代周报"
 4. 过滤：`shortHash` 已在 registry 的行跳过；其余为待写入行。写入起始行 = 表中最后一个非空数据行 + 1（表头占第 0 行，空表从第 1 行开始）。
 5. MCP 批量写入：`sheet.set_range_value`（value_type=STRING、0-based 行列；空值单元格跳过不写）；若 起始行 + 行数 超出表容量，先 `sheet.insert_dimension` 扩容再写。
 6. 在报告 md 末尾追加「七、低星问题登记」小节：登记表链接、新增 N 行（涉及 C 个提交，短哈希清单）、跳过 M 条（已登记提交）、异常说明。
-7. 父仓库本地提交（`git add docs/commit-reports/`，含 issue-rows JSON 与报告 md；不推送远端）。
+7. 父仓库本地提交（`git add docs/agents/commit-reports/`，含 issue-rows JSON 与报告 md；不推送远端）。
 
 **失败语义（非阻断）**：`evaluations.json` 缺失或读表失败 → 告警并跳过写入（**禁止盲写**，防止重复登记）；写入失败 → 告警；两种情况均继续步骤 ⑦（推送不受影响）。
 

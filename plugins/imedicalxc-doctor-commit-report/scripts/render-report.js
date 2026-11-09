@@ -491,7 +491,7 @@ function main() {
   const args = parseArgs(process.argv.slice(2));
   const label = args.label;
   if (!label || label === true) throw new Error('缺少 --label <期号>');
-  const outputDir = args['output-dir'] || 'docs/commit-reports';
+  const outputDir = args['output-dir'] || 'docs/agents/commit-reports';
   const dir = path.join(outputDir, label);
   const configPath = args.config || path.join(__dirname, '..', 'config', 'commit-report.json');
 
