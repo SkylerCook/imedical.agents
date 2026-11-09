@@ -45,11 +45,13 @@
    - 使用 javatools 纯 Python 字节码分析（替代 javap 子进程调用，~240x 加速）
    - 按 CPU 核数分配并发进程（多进程，326 jar ~2 秒）
    - 提取类信息、注解、方法声明、方法调用关系
+   - 解析 Controller 类级/方法级映射注解，输出 `maven_controller_endpoints.json`（URL ↔ 方法）；`@RequestMapping` 未声明 method 记为 `ANY`，lambda 合成方法回溯外层方法
    - 导出前做相关性过滤：保留直接调用医生站 Feign 接口的服务及其上游调用方，剔除外部库目标边（`--no-filter` 可关闭）
 
 3. **数据合并与索引生成**
    - 合并工作区与 Maven 数据，构建 Controller → Feign 服务边界映射
-   - 生成 `impact_db.json`（基础查询数据源）
+   - 解析 Controller 类级 / 方法级映射注解，生成 `controller_endpoints.json`（URL ↔ 后端方法），查询期不再扫源码
+   - 生成 `impact_db.json`（基础查询数据源，Controller 节点带 `endpoints`）
    - 生成 `penetration_db.json`（穿透查询数据源，只有两部分：工作区业务仓库内部调用 + Maven Controller → 本工作区 Feign 入站链路）
    - 支持按变更源只重跑受影响的流水线段（增量更新）
 
@@ -73,35 +75,39 @@
 
 ## 流水线
 
-### 后端六步
+### 后端七步
 
 | 步骤 | 脚本 | 耗时 | 输出 |
 |---|---|---|---|
 | Step 1 | `feign_scanner.py` | ~30s | `feign_interfaces.json` |
 | Step 2 | `build_method_graph.py` | ~30-60s（本机实测） | `method_call_graph.jsonl` / `.graphml` |
-| Step 3 | `build_maven_biz_graph.py` | ~2s | `maven_biz_*.jsonl/json`（含 `maven_biz_dispatch.json`） |
+| Step 3 | `build_maven_biz_graph.py` | ~4s | `maven_biz_*.jsonl/json`（含 `maven_biz_dispatch.json`）、`maven_controller_endpoints.json` |
 | Step 4 | `merge_call_graphs.py` | ~2s | `merged_*.jsonl/json` |
-| Step 5 | `build_impact_db.py` | ~1-2s | `impact_db.json` |
-| Step 6 | `build_penetration_db.py` | ~5-10s | `penetration_db.json`、`inbound_feign_penetration.graphml` |
+| Step 5 | `scan_controller_endpoints.py` | ~2s | `controller_endpoints.json`（URL ↔ Controller 方法） |
+| Step 6 | `build_impact_db.py` | ~1-2s | `impact_db.json`（依赖 Step 5 的端点索引） |
+| Step 7 | `build_penetration_db.py` | ~5-10s | `penetration_db.json`、`inbound_feign_penetration.graphml` |
 
-**当前规模（2026-11, javatools 方案 + 相关性过滤）**:
+**当前规模（2026-11-09, javatools 方案 + 相关性过滤）**:
 - Maven biz: 326 jar, 12,120 类, 137,396 方法；原始调用 459,260，过滤后 148,676（55 个相关服务 = 33 直接调用者 + 22 上游 / 44 个剔除）
-- 合并后: 158,928 调用关系, 161 服务边界
-- `impact_db.json`: 58.5 MB（过滤前 85.8 MB）
-- 穿透第一部分: 103,136 节点（62 个外部叶子）/ 118,258 边
-- 穿透第二部分: 396 个调用点（353 条 Controller 根 / 43 条方法根）/ 90 个 Feign 接口 / 33 个 Maven 服务 / 约 630 条分派桥边（以 stats 为准）
+- 工作区方法图: 16,326 节点 / 88,199 边；GraphML 53,357 节点 / 87,788 边
+- 合并后: 125,508 节点 / 202,919 边, 184 服务边界
+- 端点索引: 工作区 1,681 个源文件 → 1,680 个 Controller / 11,457 条 URL / 11,463 个方法映射；Maven 工件 326 jar → 1,666 个 Controller / 9,255 条 URL / 9,260 个方法映射；`impact_db` 中 3,043 个 Controller 节点带 `endpoints`
+- `controller_endpoints.json`: 5.8 MB；`maven_controller_endpoints.json`: 3.1 MB
+- `impact_db.json`: 50.8 MB（过滤前 85.8 MB）
+- 穿透第一部分: 53,357 节点（9,948 个外部叶子）/ 87,788 边
+- 穿透第二部分: 396 个调用点（353 条 Controller 根，其中 342 条带注解 URL / 43 条方法根）/ 90 个 Feign 接口 / 33 个 Maven 服务 / 约 630 条分派桥边（以 stats 为准）
 
 ### 前端五步
 
 | 步骤 | 脚本 | 耗时 | 输出 |
 |---|---|---|---|
-| Step 1 | `html_scan.py` | ~30s（6,253 页） | `front_pages.jsonl`、`front_elements.jsonl` |
+| Step 1 | `html_scan.py` | ~30s（6,243 页） | `front_pages.jsonl`、`front_elements.jsonl` |
 | Step 2 | `js_scan.py` | ~3min（9,810 JS / 8 进程） | `front_js_index.jsonl` |
 | Step 3（可选） | `import_menu_snapshot.py --from-db` | ~5s | `menu_snapshot.json` |
 | Step 4（可选） | `explore_config_injection.py --from-db` | ~10s（5 场景） | `config_injection_snapshot.json` |
 | Step 5 | `build_front_chain_db.py [--graphml]` | ~2-3min | `front_chain_db.json`、`front_chains.jsonl`、`front_scan_stats.json`、`front_chain.graphml`（可选） |
 
-**当前规模（2026-11-06 全量构建，含动态分派与界面关系）**：6,253 页面 / 184,945 元素（23,011 可交互）/ 22,825 个元素带 handler（1,410 未解析）；188,414 函数（36,242 可达，其中工具类 805）；12,212 请求（7,122 个 URL 路径）；28,711 链路；界面→界面 1,031 条（弹出 942 / 内嵌 81 / 跳转 8，440 页有弹出关系；地址未落地 17 处 / 运行时变量 271 / 非静态页面 161）；配置注入 5 场景 / 99 组 / 409 项（并入链路 115 组 / 350 项）；`front_chain_db.json` 52.4 MiB。GraphML 导出剔除工具类方法（18,335 JS方法节点 / 7,122 HTTP请求节点 / 41,902 边）。
+**当前规模（2026-11-09 全量构建，含动态分派、片段合并与界面关系）**：6,243 页面 / 183,361 元素（27,535 可交互）/ handler 27,520（26,022 绑定函数 / 1,498 未解析）；193,188 函数（39,645 可达，其中工具类 822）；12,474 请求（7,318 个「方法+路径」）；30,120 链路；界面→界面 1,570 条（弹出 1,045 / 跳转 416 / 内嵌 81 / 包含 28，461 页有弹出关系；地址未落地 37 处 / 运行时变量 766 / 非静态页面 384）；配置注入 5 场景 / 99 组 / 366 项并入链路（跳转 15 / 页面跳转边 10）；`front_chain_db.json` 59.8 MiB。GraphML 导出剔除工具类方法（19,019 JS方法节点 / 7,318 HTTP请求节点 / 43,955 边）。
 
 ## 脚本位置
 
@@ -111,14 +117,15 @@
 |---|---|
 | `feign_scanner.py` | Step 1: 扫描工作区 Feign 接口定义 |
 | `build_method_graph.py` | Step 2: 构建工作区方法级调用图 |
-| `build_maven_biz_graph.py` | Step 3: Maven biz jar 并发扫描 |
+| `build_maven_biz_graph.py` | Step 3: Maven biz jar 并发扫描；解析 Controller 映射注解输出 `maven_controller_endpoints.json` |
 | `merge_call_graphs.py` | Step 4: 合并工作区 + Maven 数据 |
-| `build_impact_db.py` | Step 5: 生成影响分析索引 |
-| `build_penetration_db.py` | Step 6: 生成两部分穿透数据库 |
+| `scan_controller_endpoints.py` | Step 5: 解析 Controller 类级/方法级映射注解，生成 URL ↔ 方法索引（`--check` 校验一致性） |
+| `build_impact_db.py` | Step 6: 生成影响分析索引（Controller 节点附 `endpoints`） |
+| `build_penetration_db.py` | Step 7: 生成两部分穿透数据库 |
 | `impact_analyzer.py` | 变更影响分析 / 影响范围分析 |
 | `query_*.py` | 调用者、Feign 调用、Feign 使用方查询 |
 | `query_commit_impact.py` | 提交级批量取证：定位改动方法 → 入站/下游取证 → 按提交聚合（周报联动） |
-| `query_front_back_chain.py` | 前后端链路衔接：HTML 页面 → 操作元素 → JS 方法 → HTTP 请求 → 后端 Controller |
+| `query_front_back_chain.py` | 前后端链路衔接：HTML 页面 → 操作元素 → JS 方法 → HTTP 请求 → 后端 Controller；`impact` 子命令从后端方法反查受影响按钮（含跨仓库 Feign 间接入口），`commit-impact` 子命令把提交入口批量落到界面与菜单访问位置 |
 | `export_full_graphml.py` | 可选：合并全图（仅供布局参考） |
 | `build_recursive_feign_chain.py` | 可选：递归跨服务穿透（历史脚本） |
 
@@ -152,7 +159,7 @@
 ```bash
 # 后端
 cd .agents/plugins/imedicalxc-doctor-codegraph/scripts
-python feign_scanner.py && python build_method_graph.py && python build_maven_biz_graph.py && python merge_call_graphs.py && python build_impact_db.py && python build_penetration_db.py
+python feign_scanner.py && python build_method_graph.py && python build_maven_biz_graph.py && python merge_call_graphs.py && python scan_controller_endpoints.py && python build_impact_db.py && python build_penetration_db.py
 
 # 前端（菜单快照与配置注入可选，凭据只走环境变量或 Kingbase MCP）
 cd front
@@ -176,6 +183,11 @@ python html_scan.py && python js_scan.py && python build_front_chain_db.py
 13. **配置快照的 MCP 查询单次最多 500 行**: `truncated: true` 时必须 `LIMIT 500 OFFSET n` 分页合并，否则配置项被静默截断。
 14. **调用链遍历必须是 BFS**: 保存类请求由 handler 直接调用，DFS 会被前面分支的深层请求挤掉（表现为「保存按钮查不到 saveOeOrdItem」）。
 15. **前端正则字面量必须整体词法化**: `/\\'/g`、`/"/g` 交给字符串规则会吞掉后文并破坏括号配对，`_find_matching` 返回 EOF 后文件尾部被静默丢弃；2026-11-05 因此漏掉 477 个文件的尾部（约 2.3 万函数）。改词法层后用 `audit_front_coverage.py` 复核。
+16. **URL 只能从映射注解取**: Controller 的 URL 来自类级 `@RequestMapping` + 方法级 `@PostMapping/@GetMapping/@PutMapping/@DeleteMapping/@RequestMapping`，与 Java 方法名无关（`regPreAccount` ↔ `/opregist/regPreAccount` 只是巧合）；`produces` / `consumes` / `name` 里的字符串不是路径，解析时要忽略。`scan_controller_endpoints.py` 是唯一来源，查询期不要另写正则。
+17. **端点索引是构建产物**: `controller_endpoints.json` 由 Step 5 生成并被 Step 6 和 `query_front_back_chain.py` 直接读取；接口改动后按增量表重跑 Step 5 → Step 6，临时排查才用 `--refresh-endpoints` 现场重扫，否则会出现「索引有、图里没有」的不一致。
+18. **实现族按 `extends` 展开，不要按方法名合并**: `this.`/`super.` 自调用边已在图内（按 `info.fqn` 解析）。`build_method_graph.py` 的节点带 `parent` / `ancestors`（完整继承链，跨过无方法的中间类）并记录 `@BLH(value=...)` 为 `blh_name`；`impact_analyzer.py::_find_blh_family` 由此沿继承链取**同名覆写子类**（如 `ExamQueryAbstract.getExaReqPrintData` → `Ipcare/OpcareExamQueryAbstract`），兜底仅保留「同服务 + 同名方法 + 图上已有直连边」（`OpregBrokerAbstract` / `OpregistBrokerAbstract` 这类无继承关系的父子）。曾用「全工程同名 Abstract 一起反向追」兜底，会把无关类并进同一族：一次应急初始化方法变更因此挂出 13 个 tr-pilot 页面、`changePreOrdType` 变更挂出 27 个收费/检查申请入口。索引缺继承字段时才回退旧的类名后缀口径。
+19. **前端扫描不要迭代 `set`**: `js_scan.py` 的 `PLUGIN_KEYS` 曾用 `set`，`for key in PLUGIN_KEYS` 的顺序随进程哈希种子变化，同一文件里两个回调的 `__handler_N` 编号会在两次构建间互换，并沿 `max_requests` 截断传导成链路数漂移（实测 ±70 条）。现改为有序 `tuple`；新增的键集合若参与迭代，一律用 `tuple`/有序列表，`set` 只用于成员判断。
+20. **`commit-impact` 的菜单归并与截断**: 登记表的 `.csp` 入口按 stem 唯一归并到 HTML 页面（`access.via="csp"`，`menus[].csp` 指回原行），父页面上溯同样适用；归并只改访问位置，不增加 `matchedEntrypoints`。单提交 `uiEntries` 截断按「来源 → 页面 → 元素」选条目，不能把 `access.confidence` 放进截断排序——它是元数据，参与排序会让补登记连带换掉页面集合。未命中入口的 `reason` 按 `client-controller` → `feign-interface-mapping` → `cross-service-same-name` → `no-front-call` 互斥归类，其中跨服务同名只解释未命中，不得转成链路。
 
 ## 依赖
 

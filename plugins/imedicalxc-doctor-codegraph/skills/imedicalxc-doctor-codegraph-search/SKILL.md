@@ -1,8 +1,8 @@
 ---
 name: imedicalxc-doctor-codegraph-search
 description: |
-  HIS 医生站代码调用图检索。基于已生成的 impact_db.json / penetration_db.json / 调用图 JSONL / 前端链路库，提供变更影响分析（6 段式）、方法调用者与被调用者查询、Feign 接口使用方查询、跨服务依赖追踪、提交级批量取证（周报联动）、前后端链路衔接（HTML 页面 → 操作元素 → JS 方法 → HTTP 请求 → 后端 Controller）。
-  Use when 查谁调用了某方法、某方法影响哪些下游、某 Controller 对应哪个 Feign 接口、某 Feign 被哪些工作区服务或 Maven 模块调用、需要按服务/模块汇总影响范围、给定一批 git 提交需要结构化的入口/调用方/下游 Feign 证据、或需要从某个 HTML 页面/按钮/URL 追到后端 Controller 的完整链路。
+  HIS 医生站代码调用图检索。基于已生成的 impact_db.json / penetration_db.json / 调用图 JSONL / 前端链路库，提供变更影响分析（6 段式）、方法调用者与被调用者查询、Feign 接口使用方查询、跨服务依赖追踪、提交级批量取证（周报联动）、前后端链路衔接（HTML 页面 → 操作元素 → JS 方法 → HTTP 请求 → 后端 Controller），后端方法 → 受影响按钮（含经 Feign 间接入口），以及提交级入口 → 界面 → 菜单访问位置联动（结合前端界面入口登记）。
+  Use when 查谁调用了某方法、某方法影响哪些下游、某 Controller 对应哪个 Feign 接口、某 Feign 被哪些工作区服务或 Maven 模块调用、需要按服务/模块汇总影响范围、给定一批 git 提交需要结构化的入口/调用方/下游 Feign 证据、需要从某个 HTML 页面/按钮/URL 追到后端 Controller 的完整链路、需要从改动的方法反查受影响的按钮、或需要把提交入口批量落到界面与菜单访问位置。
   索引未生成或已过期时，先用 imedicalxc-doctor-codegraph-gen 构建；前端链路库缺失时先用 imedicalxc-doctor-codegraph-front-gen 构建。
 ---
 
@@ -10,7 +10,7 @@ description: |
 
 ## 职责边界
 
-- 本 skill 只**消费**已生成的数据，不构建索引；唯一例外是 `query_front_back_chain.py` 会按需缓存 Controller 端点索引（见查询 8），它只是源码扫描缓存，不改变调用图口径。
+- 本 skill 只**消费**已生成的数据，不构建索引；唯一例外是 `query_front_back_chain.py` 在产物缺失或显式 `--refresh-endpoints` 时会重建 Controller 注解索引（见查询 8），并可按周报请求输出 `front-chains-<label>.json`（见查询 8.1），两者都不改变调用图口径。
 - 后端索引缺失、`impact_db.json` 过期或源码有更新 → 先执行 `imedicalxc-doctor-codegraph-gen`。
 - 前端链路库 `front_chain_db.json` 缺失或前端有更新 → 先执行 `imedicalxc-doctor-codegraph-front-gen`；本 skill 只消费，不重新扫描前端。
 - 脚本目录：`.agents/plugins/imedicalxc-doctor-codegraph/scripts`；产物目录：`docs/agents/imedicalxc-doctor-codegraph/`（manifest `projectDirectories` 的 `codegraph-index` 声明）。
@@ -33,7 +33,9 @@ python -c "import sys; sys.path.insert(0,'.'); from config import OUTPUT_DIR; pr
 | `query_feign_client.py` / `query_method_feign.py` | `method_call_graph.jsonl` |
 | `query_who_calls_feign.py` | `penetration_db.json` |
 | `query_commit_impact.py`（提交批量取证） | `impact_db.json` + `penetration_db.json` + `feign_interfaces.json`（另需目标仓库本地检出，用 `git show` 读提交版本源码） |
-| `query_front_back_chain.py`（前后端衔接） | `docs/agents/imedicalxc-doctor-front-codegraph/front_chain_db.json` + 工作区 19 个后端仓库（12 业务 + 7 基础设施）的 `*Controller.java`（端点索引自动缓存为 `docs/agents/imedicalxc-doctor-codegraph/front_back_endpoints.json`） |
+| `query_front_back_chain.py`（前后端衔接） | `docs/agents/imedicalxc-doctor-front-codegraph/front_chain_db.json` + `docs/agents/imedicalxc-doctor-codegraph/controller_endpoints.json`（gen 的 Step 5 产物；缺失时自动重建）+ `maven_controller_endpoints.json`（Step 3 产物，工作区外 Controller 的注解 URL，可选） |
+| `query_front_back_chain.py impact`（后端方法 → 按钮） | 同上，另加 `impact_analyzer.py --impact --json` 导出文件 |
+| `query_front_back_chain.py commit-impact`（提交 → 界面） | 同上，另加周报的 `code-impact-<label>.json` 与 `docs/knowledge/前端界面入口登记/界面入口登记表.md`（菜单与访问位置） |
 | Gephi 可视化 | 对应 `.graphml` |
 
 ## 查询选型
@@ -47,13 +49,15 @@ python -c "import sys; sys.path.insert(0,'.'); from config import OUTPUT_DIR; pr
 | 这个 Feign 接口被谁调用？ | `query_who_calls_feign.py <Client>`（工作区 + Maven 入站链路） |
 | 这个 Feign Client 的调用面有多大？ | `query_feign_client.py <Client>` |
 | 一批提交分别影响了哪些入口/调用方？（周报联动） | `query_commit_impact.py <raw-commits.json>` |
+| 一批提交分别影响哪些界面/按钮、从哪个菜单进入？（周报联动） | `query_front_back_chain.py commit-impact <code-impact.json> --label <label>` |
 | 这个 HTML 页面/按钮最终落到哪个后端 Controller？ | `query_front_back_chain.py page <页面片段>` / `element <id或文案>` |
 | 这个后端 Controller 方法被哪些页面/按钮触发？ | `query_front_back_chain.py controller <名>` / `method <Class.method>` |
+| 改了这个后端方法，哪些按钮/页面受影响？（含间接入口，推荐） | `impact_analyzer.py <方法> --impact --json out.json` → `query_front_back_chain.py impact out.json` |
 | 某个前端请求 URL 的完整「页面 → 元素 → JS → Controller」链路？ | `query_front_back_chain.py url <片段> --detail` |
 | 前后端链路覆盖率、命中最多的 Controller？ | `query_front_back_chain.py stats` |
 | 需要图布局/人工探索 | Gephi 导入 `.graphml` |
 
-`impact_analyzer.py` 直接读 `impact_db.json`（~51 MB，加载数秒），优先用它；`query_callers.py` / `query_method_feign.py` 是逐行扫描 36.5 MB JSONL 的轻量脚本；`query_who_calls_feign.py` 读 `penetration_db.json`（~41 MB）；`query_front_back_chain.py` 读 `front_chain_db.json`（~52 MB）+ 端点缓存（约 5.5 MB，命中约 2 秒）。
+`impact_analyzer.py` 直接读 `impact_db.json`（~51 MB，加载数秒），优先用它；`query_callers.py` / `query_method_feign.py` 是逐行扫描 36.5 MB JSONL 的轻量脚本；`query_who_calls_feign.py` 读 `penetration_db.json`（~41 MB）；`query_front_back_chain.py` 读 `front_chain_db.json`（~60 MB）+ `controller_endpoints.json`（5.8 MB）+ `maven_controller_endpoints.json`（3.1 MB，按需加载），单次查询约 1 秒。
 
 ## 查询 1：变更影响分析（`--impact`，推荐）
 
@@ -117,9 +121,10 @@ python impact_analyzer.py insertMultiple --impact --select 1 --json result.json
 
 **BLH 框架处理**：
 
-- 正向 BFS 每遇到 `Abstract` 方法都会展开跨服务同名实现；类名相近（如 `InsertOeOrdItemAbstract` ↔ `IpCareInsertOeOrdItemAbstract`）的覆写计入下游并标注 `[BLH覆写]`，避免抽象方法本身无方法体导致漏算。
+- 实现族按类继承展开：节点带 `parent` / `ancestors`（完整 `extends` 链，跨过无方法的中间类），沿链取**同名覆写子类**（如 `ExamQueryAbstract.getExaReqPrintData` → `Ipcare/OpcareExamQueryAbstract`）。
+- 正向 BFS 每遇到带后代的 `Abstract` 方法都会把同名覆写子类一并展开并标注 `[BLH覆写]`，避免抽象方法本身无方法体导致漏算。
 - 下游列表先输出一行 `BLH 覆写/并行实现 (N 个)`，列出被展开的方法及服务；这些方法是并行入口，深度为 `L0` 或与抽象方法同级。
-- 反向追踪使用更宽的匹配（同名 + 双方均在 Abstract 类中，不要求类名相近），以兼容 `OpCareSaveOeOrdItemAbstract` 这类类名不同但承载入口的 BLH 类。
+- 反向追踪兜底只认「同服务 + 同名方法 + 图上已有直连边」（如 `OpregBrokerAbstract` / `OpregistBrokerAbstract` 这类无继承关系的父子）。不要按「全工程同名 Abstract」合并：BLH 里同名方法极多（`getData` / `save*` / `getInfo`），会把无关业务并进同一族，实测会让一次应急初始化变更挂出 13 个 tr-pilot 页面。
 - BLH 通过反射调用，静态图可能无法连到 Controller；此时降级为按类名/方法名关键词做启发式匹配。
 - 启发式结果标注 `[启发式]`，深度显示 `??`，需要在报告中明确其不确定性。
 
@@ -270,9 +275,10 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
 
 > 不是所有改动都能入图：前端（hisfront）、DTO/VO/PO、public 基础设施不在图内；BLH 反射断链以同名覆写 + 启发式补链（`heuristic=true`）。消费方（周报）必须在结论中标注「无调用图证据」，不得把空结果解读为「无影响」。
 
-**从证据落到前端页面**（消费方写【回归】/【联调】前执行）：
+**从证据落到前端页面**（消费方写【必测】/【回归】/【联调】前执行）：
 
-- **Controller 可搜前端**：把 `entrypoints[].http` 的路径或 `controller` 的方法名拿到 `src/frontend/hisfront/static/` 检索，命中后记录文件与行号（例：`cardReportOrCancelLoss` → `static/opreg/opreg-pat/scripts/doc.reportloss.js:9` 卡挂失/启用）。通用方法名（如 `getScheduleInfo`、`getDrugList`）会大量误命中，必须叠加服务目录或完整 HTTP 路径消歧。
+- **优先走确定性联动**：把 `code-impact-<label>.json` 直接交给查询 8.1 的 `commit-impact`，一次产出每个提交的 `uiEntries[]`（页面 / 元素 / 请求 / Controller / 菜单访问位置）与 `unmatchedEntrypoints[]`。周报不要逐条手工 grep；只有脚本缺失或需要核对单条链路时才用下面的手工方式。
+- **手工兜底**：`entrypoints[].http` 或 `controller` 方法名可拿到 `src/frontend/hisfront/static/` 检索，命中后记录文件与行号（例：`cardReportOrCancelLoss` → `static/opreg/opreg-pat/scripts/doc.reportloss.js:9` 卡挂失/启用）。通用方法名（如 `getScheduleInfo`、`getDrugList`）会大量误命中，必须叠加服务目录或完整 HTTP 路径消歧。
 - **Feign 不可直接搜前端**：Feign 接口名不出现在前端代码中。要落到页面，须先经 `workspaceCallers` / `externalCallers` 找到消费方 Controller，再用 Controller 证据检索；找不到消费方时只能写「无页面入口证据」，不得把 Feign 名当成页面。
 - **纯契约提交**：`typeFeignMatches` 为空且无 Controller 证据时写「未发现活动调用方，代码审阅即可」；非空时只写命中的 Feign 方法及其业务场景，调用方是否存在须另查 `workspaceCallers` / `externalCallers`，页面入口仍须追到 Controller 后才可写。
 
@@ -281,7 +287,7 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
 把前端链路库（HTML 页面 → 操作元素 → JS 方法 → HTTP 请求）与工作区 19 个后端仓库（12 业务 + 7 基础设施）的 Controller 端点按 URL 对齐，输出完整链路：**HTML 页面 → 元素 → JS 调用路径 → 请求 → Controller 方法**。这是唯一跨前端/后端索引的查询。基础设施仓库必须纳入：`cfsv` / `ct` / `hiscf` 等公共配置接口是每个页面加载都会调用的，漏扫会把本地源码误标成「工作区外」。
 
 ```bash
-# 覆盖率与规模（首次运行自动构建端点索引）
+# 覆盖率与规模（读 gen 的 Step 5 端点产物）
 python query_front_back_chain.py stats
 
 # 页面 → 元素 → JS → 请求 → Controller（页面视角）
@@ -297,8 +303,8 @@ python query_front_back_chain.py url saveExamApply --detail
 python query_front_back_chain.py controller AntApplyController
 python query_front_back_chain.py method AntApplyController.getPoisonControl
 
-# 端点索引重建（新增/修改 Controller 后）
-python query_front_back_chain.py stats --rebuild
+# 端点索引重建（新增/修改 Controller 后；正常应走 gen 的 Step 5 → Step 6）
+python query_front_back_chain.py stats --refresh-endpoints
 ```
 
 输出形态（默认一行一条，`--detail` 展开调用栈）：
@@ -315,13 +321,108 @@ python query_front_back_chain.py stats --rebuild
 
 **对齐规则**：前端 URL 与 `类级 @RequestMapping + 方法级 @PostMapping/@GetMapping/...` 拼出的路径比对，先精确匹配，再逐段剥离网关/服务前缀做后缀匹配（前端常带 `ipcare/`、`ma/` 等服务前缀，后端类级路径不含）。`path`/`value` 属性都识别，`produces`/`consumes` 等字符串属性不参与路径。同一路径对应多个 Controller 时全部列出。
 
-**未命中不要从结果里消失**：`page` / `element` / `url` 输出该页面（元素 / URL）的**全部**链路，工作区没有对应 Controller 的条目落在行尾标注 `→ (工作区外: <URL 首段>)`，例如 `mrdia` / `his` / `phm`。只有 `stats` 的覆盖率按「命中工作区 Controller」统计。验证示例：`page doc.diagnos.entry` 返回 9 条，其中 6 条是配置按钮打 `mrdia/mrDiagnosEntry/*`，标注为工作区外。
+**未命中不要从结果里消失**：`page` / `element` / `url` 输出该页面（元素 / URL）的**全部**链路，工作区没有对应 Controller 的条目落在行尾标注 `→ (工作区外: <URL 首段>)`，例如 `his` / `phm` / `api`。只有 `stats` 的覆盖率按「命中工作区 Controller」统计。验证示例：`page doc.diagnos.entry` 返回 9 条，其中 6 条配置按钮的 `mrdia/mrDiagnosEntry/*` 经控制器段匹配落到 `opcare-mrdia` 的 `MRDiagnosEntryController`（`mrdia` 模块本身在 `ipcare`/`opcare` 仓库内）；同页 `his/api/...` 与 `phm/sys/...` 两条标注为工作区外。
 
-**`stats` 口径（2026-11 实测，19 仓库）**：1,680 个 Controller / 11,457 个端点；6,253 页面 / 28,711 链路 / 12,212 请求；**7,431 条链路落到工作区 Controller**（页面加载 4,416 / js_binding 1,883 / inline 585 / config_bar 457 / js_string 59 / 护理执行单配置 31），涉及 1,963 个页面；URL 路径命中 1,938 / 7,093 = **27.3%**，覆盖 571 个 Controller / 1,933 个方法。只扫 12 个业务仓库时为 639 Controller / 3,051 端点、2,895 条链路、7.8%，可见基础设施仓库占前端调用面的大头。
+**注解兜底（URL 名 ≠ 方法名）**：`url` / `method` 在前端链路库查不到时，从 `controller_endpoints.json`（工作区）与 `maven_controller_endpoints.json`（Maven 工件）输出注解声明的端点并标注「无前端链路」/「Maven jar」。例：`url regPreAccount` 命中工作区 ESB 端点；`method PatchecklevController.saveGroupHurtData` 命中 Maven 工件端点 `emtr/trim/trbu/patchecklev/savegrouphurtdata`。这类端点多是对外 ESB / 内部接口，前端没有页面，不能据此写成「链路缺失」。
 
-**为什么只有 27.3%**：剩余前端 URL 首段集中在 `api` / `ar` / `msup` / `mrm` / `mchs` / `phkm` / `comcph` / `emnur` / `ipnur-station` / `cons` / `phpreadt` / `ipnur` / `cbph` / `emrq` / `phprev`，这些医疗/药事/护理/接口平台产品不在本地 19 个后端仓库里。这些链路在前端库里仍是完整的「页面 → 元素 → JS → 请求」，只是本工作区没有对应 Controller 源码。报告里必须写成「不属于本工作区后端仓库」，不能写成「链路缺失」。
+**`stats` 口径（2026-11-09 复跑，19 仓库）**：1,680 个 Controller / 11,457 条 URL；6,243 页面 / 30,120 链路 / 12,474 请求；**9,371 条链路落到工作区 Controller**（页面加载 4,343 / js_binding 2,250 / config_bar 1,218 / js_toolbar 863 / inline 603 / js_string 63 / 护理执行单配置 31），涉及 2,073 个页面；URL 路径命中 2,384 / 7,442 = **32.0%**，覆盖 699 个 Controller / 2,496 个方法。只扫 12 个业务仓库时为 639 Controller / 3,051 端点、2,895 条链路、7.8%，可见基础设施仓库占前端调用面的大头。
 
-**端点缓存**：`front_back_endpoints.json`（`codegraph-index` 目录）记录 `meta.source_digest / sources / repos / controllers / endpoints / mappings` 与 `endpoints[path] = [{http, controller, controller_fqn, method, file, line}]`。新鲜度按 19 个仓库 `*Controller.java` 的**内容摘要**判定（不看 mtime），摘要一致直接复用，不一致自动重建；整表约 5.5 MB，重建约 3.7 秒，命中缓存约 2 秒。内容确定性生成（路径与映射排序），可与源码版本一起比对。它是查询侧缓存，不是调用图口径，不影响 `impact_db.json` / `penetration_db.json`。
+**为什么只有 32.0%**：剩余前端 URL 首段集中在 `api` / `ar` / `msup` / `mrm` / `mchs` / `phkm` / `comcph` / `emnur` / `ipnur-station` / `cons` / `phpreadt` / `ipnur` / `cbph` / `emrq` / `phprev`，这些医疗/药事/护理/接口平台产品不在本地 19 个后端仓库里。这些链路在前端库里仍是完整的「页面 → 元素 → JS → 请求」，只是本工作区没有对应 Controller 源码。报告里必须写成「不属于本工作区后端仓库」，不能写成「链路缺失」。
+
+**端点索引（构建产物）**：`controller_endpoints.json`（`codegraph-index` 目录，gen 的 Step 5）记录 `meta.source_digest / sources / repos / controllers / endpoints / mappings` 与 `endpoints[path] = [{http, controller, controller_fqn, method, class_path, method_path, file, line}]`。查询脚本默认直接读它（约 1 秒/次）；只有产物缺失或 `--refresh-endpoints` 时才重扫 19 个仓库的 `*Controller.java`（约 2 秒）并按内容摘要写回。它是构建产物、不是调用图口径，不影响 `impact_db.json` / `penetration_db.json`。
+
+**Maven 工件端点索引**：`maven_controller_endpoints.json`（gen 的 Step 3）同结构，`meta.origin = "maven_biz"`，覆盖 326 个 jar 的 1,666 个 Controller / 9,255 条 URL，没有 `file/line`（来源是字节码）。它同时被 `penetration_db.json` 使用：`root_type=controller` 的链路带 `endpoints`（353 条中 342 条有 URL，其余映射声明在父类/接口，字节码不携带）。
+
+### 查询 8.2：后端方法 → 受影响按钮（`impact`，含间接入口）
+
+改动后端方法后，正确方向是从方法出发：先由影响分析拿到上游 Controller（已按 BLH 实现族展开反向追踪），再由注解 URL 和 Feign 入站链路落到按钮。
+
+```bash
+# 1) 影响分析 + 导出（上游 Controller 带注解 URL）
+python impact_analyzer.py OpregBrokerAbstract.preOpRegist --impact --json /tmp/impact.json
+
+# 2) 落到按钮
+python query_front_back_chain.py impact /tmp/impact.json
+```
+
+`impact` 命令同时做三类匹配：
+
+1. **工作区 Controller**：用 `upstream_controllers[].endpoints` 的注解 URL 与前端请求精确比对。
+2. **工作区外 Maven 入站 Controller**（如 `trbu.PatchecklevController`）：只认 Feign 目标落在上游 Controller 上的链路（`<X>Client` ↔ `<X>ClientController`）；优先用 `maven_controller_endpoints.json` 里该方法的注解 URL 精确比对，注解缺失时才退回 `类名去 Controller + 方法名` 匹配 URL 末两段。`--detail` 中分别标注「Maven jar 注解」与「启发式匹配」。
+3. **`--reverse` 的 BLH 实现族**：入口在 `OpregBrokerAbstract.preOpRegist` 时，反向会同时展开 `OpregistBrokerAbstract.preOpRegist`，因此 `opRegistAll → this.preOpRegist` 这条同业务另一入口也会被找到。族成员在报告「四、反向追踪」中单列；`--json` 输出在 `blh_family`。
+
+验证场景（改「预挂号」）：直接 5 个页面（`doc.opregistmain` / `doc.allocopregist` / `doc.rapidregist` / `iphis.doc.rapidregist` / `doc.pilotpro.rapidregist`）+ `dhcem.patchecklev.hisui`（确认/保存/分诊，经 `PatchecklevController.savePatcheckData → OpregistBrokerClient.opRegistAll` 间接进入）。全流程约 2 秒（影响分析 0.6s + 按钮反查 1.0s）。
+
+### 查询 8.1：提交级入口 → 界面 → 菜单访问位置（`commit-impact`）
+
+周报联动专用：消费查询 7 的 `code-impact-<label>.json`，把每个提交的 `entrypoints[]` 反查成前端链路，再叠加《前端界面入口登记表》的菜单信息，输出 `front-chains-<label>.json`。只给证据，不写测试结论。
+
+```bash
+python query_front_back_chain.py commit-impact \
+  docs/agents/commit-reports/<label>/code-impact-<label>.json --label <label>
+```
+
+可选：`--output <path>`（默认与 code-impact 同目录）、`--max-ui-entries 40`（单提交上限；截断按「来源 → 页面 → 元素」选条目，不受菜单置信度影响，保证补登记不会换掉页面集合）、`--ancestor-depth 2`（沿 `page_links` 上溯层数）、`--registry <md>`（默认 `docs/knowledge/前端界面入口登记/界面入口登记表.md`）。
+
+输出结构：
+
+```json
+{
+  "meta": {"label": "...", "stats": {"commits": 123, "commitsWithUi": 37, "entrypoints": 1230,
+           "matchedEntrypoints": 494, "pages": 106, "pagesWithMenu": 16, "pagesViaCsp": 13,
+           "pagesWithParentMenu": 20, "pagesNoMenu": 70,
+           "unmatchedEntrypoints": 736, "unmatchedUnique": 321,
+           "unmatchedReasons": {"client-controller": 224, "cross-service-same-name": 12,
+                                "feign-interface-mapping": 2, "no-front-call": 498}}},
+  "commits": [{
+    "hash": "...", "shortHash": "...", "subject": "...", "entrypoints": 8,
+    "uiEntries": [{
+      "page": "comoe/exam/html/doc.examapply.html", "pageTitle": "检查申请单集成界面", "module": "comoe",
+      "source": "inline",
+      "element": {"id": "bt_sendreq", "label": "发送", "event": "click"},
+      "request": {"method": "POST", "paths": ["ipcare/exam/examEntryController/saveExamApply"]},
+      "backend": {"controller": "com.mediway.his.ipcare...IpcareExamEntryController",
+                  "method": "saveExamApply", "http": "POST",
+                  "path": "ipcare/exam/examentrycontroller/saveexamapply", "file": "...", "line": 74},
+      "entrypoint": {"controller": "IpcareExamEntryController.saveExamApply", "service": "ipcare",
+                     "http": "POST ...", "httpResolved": false,
+                     "kind": "controller", "heuristic": false},
+      "access": {"confidence": "menu|parent|none", "via": "html|csp|",
+                 "menus": [{"name": "...", "parentPath": "...", "mode": "安全组菜单|标准配置菜单|系统标准配置", "groups": "...", "csp": "仅 via=csp 时存在"}],
+                 "csp": ["仅 confidence=menu 且 via=csp 时存在"],
+                 "parents": [{"page": "...", "type": "弹出|跳转|内嵌|包含", "linkSource": "element|page_load",
+                              "element": "...", "elementLabel": "...", "elementEvent": "...",
+                              "elementSource": "inline|js_binding|config_bar|...",
+                              "opener": "...", "via": "html|csp", "csp": ["..."], "menus": ["..."]}]},
+      "jsPath": [{"name": "sendExaReq", "file": "...", "line": 1525}],
+      "match": "controller|http"
+    }],
+    "unmatchedEntrypoints": [{"controller": "...", "http": "...", "httpResolved": false,
+                              "kind": "controller|feign",
+                              "reason": "client-controller|cross-service-same-name|feign-interface-mapping|no-front-call"}]
+  }]
+}
+```
+
+`access.confidence` 的消费口径：
+
+| 取值 | 含义 | 周报怎么写 |
+|---|---|---|
+| `menu` | 页面本身在登记表中（`via="html"`），或其 `.csp` 菜单入口按 stem 唯一归并到该页面（`via="csp"`，`menus[].csp` 指回登记的 `.csp` 行） | 用 `父菜单路径 / 界面名称` 作为访问位置；`via="csp"` 时可注明「菜单入口为旧 `.csp` 名称」 |
+| `parent` | 页面未登记，但沿 `page_links` 上溯到的父页面已登记（父页面同样支持 `.csp` 归并，`parents[].via` 区分来源） | 用父页面菜单 + `element` + `linkSource` 还原打开路径；`page_load` 表示打开父页面即自动弹出 |
+| `none` | 页面与父页面都没有菜单登记（多为工作区内嵌 / 弹窗页） | 写「无菜单登记（内嵌/弹窗页）」，只写页面标题 + 元素，不得编造菜单路径 |
+
+`.csp` 归并规则：页面 stem（去 `.html`/`.hui`/非字母数字）≥ 10 且唯一命中登记表中的 `.csp` stem（≥ 6，精确优先、双向后缀兜底）；命中多个不同 `.csp` 视为歧义，保持 `none`。归并只影响访问位置，不增加 `matchedEntrypoints`。
+
+边界：
+
+- 只覆盖落到工作区 Controller 的链路。`unmatchedEntrypoints[].reason` 按优先级互斥归类：`client-controller`（`*ClientController` 服务间门面）→ `feign-interface-mapping`（`http` 为空，映射声明在 Feign 接口）→ `cross-service-same-name`（前端有末两段候选但有效服务不同）→ `no-front-call`（其余）。这些条目都没有页面入口证据，不得据此推断界面。
+- `cross-service-same-name` 只用于解释未命中，不产生链路。禁止把 `_norm_controller_seg` 直接加进 URL 匹配，否则会把 ipcare 入口挂到 opcare 页面。
+- `feign-interface-mapping` 的 `http` 必须保持为空；不要为了让它有 URL 去扫 Feign 接口注解，那会把接口当 Controller。
+- `page_load` 条目是页面加载自动请求，能证明「打开该页面会触发」，不等于用户点击；写操作步骤时优先用 `inline` / `js_binding` / `config_bar` 条目。
+- 同一相对 URL 在 opcare / ipcare 都有实现时会保留多条 `backend`，需按页面所属服务或业务场景取舍，不能当成两个不同界面。
+- `code-impact` 的入口可能只有「控制器 + 方法」没有 `http`（映射声明在父类 / 接口或注解未被调用图采集）。此时按端点索引的 `控制器短名 + 方法` 补全 URL 再匹配，命中的条目 `entrypoint.httpResolved=true`；仍无命中则照常列入 `unmatchedEntrypoints`。
+- 实测（2026-11-W1，123 个提交）：1,230 个入口命中前端 494 个，得到 106 个页面；菜单登记 16 个（其中 `.csp` 归并 13 个）、父页面可达 20 个、70 个无菜单登记。736 个未命中入口按原因分为 ClientController 224 / 跨服务同名 12 / Feign 接口映射 2 / 页面未调用 498。登记表只覆盖 152 个 HTML 页面，多数业务子页面通过弹窗 / 内嵌承载，属于预期口径，不是脚本漏匹配。
 
 ## 数据格式
 
@@ -379,9 +480,9 @@ python query_front_back_chain.py stats --rebuild
     "nodes": {"方法ID": {"service":"ipnur","is_feign":false,"is_controller":true}},
     "edges": [{"s":"调用方","t":"被调方","svc":"ipnur","ct":"call|dispatch|feign"}],
     "chains": [{"feign":"本工作区Feign方法","publisher":"ipcare","caller":"Maven调用点","service":"ipnur","root_type":"controller|method","controller":"Controller方法","paths":[["Controller","…","调用点"]],"partial_paths":[["最深上游","…","调用点"]]}],
-    "stats": {"call_sites":396,"controller_rooted":353,"method_rooted":43,"method_rooted_with_upstream":43,"feign_interfaces":90,"services":["ipnur","…"],"dispatch_edges_used":638}
+    "stats": {"call_sites":396,"controller_rooted":353,"method_rooted":43,"method_rooted_with_upstream":43,"feign_interfaces":90,"services":["ipnur","…"],"dispatch_edges_used":634}
   },
-  "stats": {"workspace_nodes":53354,"workspace_edges":87125,"workspace_external_nodes":9947,"inbound":{}}
+  "stats": {"workspace_nodes":53357,"workspace_edges":87788,"workspace_external_nodes":9948,"inbound":{}}
 }
 ```
 
@@ -405,17 +506,20 @@ python query_front_back_chain.py stats --rebuild
 11. **入站 ≠ 下游**：`entrypoints` / `workspaceCallers` / `externalCallers` 表示「谁调用了它」，`downstreamFeigns` 表示「它又调了谁」。给入口方法做影响评估时，前者是调用方、后者是下游，不可互换。
 12. **提交批量取证的方法定位按提交版本**：`query_commit_impact.py` 用 `git show <hash>:<path>` 解析方法边界，同一文件在后续提交被重构时（如方法拆分）行区间会不同，以证据里的 `changedLines` / `classMethod` 为准，不要拿当前工作区源码核对行号。
 13. **前后端链路结论必须五段齐全**：HTML 页面 → 操作元素 → JS 方法 → HTTP 请求 → Controller。缺任一段要说明原因：`config_bar` 元素无 HTML id（来自配置表）、URL 属于工作区外产品（无后端源码，行尾标注 `(工作区外: <URL 首段>)`）、内联 `onclick` 无元素 id。只给「元素 → URL」或「URL → Controller」的结论都不是前端链路。
+14. **提交级界面证据以 `front-chains` 为准**：`uiEntries[].access.confidence=none` 不得升级成菜单路径；`page_load` 条目只在证明页面加载行为时使用，写点击步骤优先用元素触发条目；`unmatchedEntrypoints` 必须原样反映「无页面入口证据」，不能因为同一提交的其他入口有界面就省略。
 
 ## 检索踩坑
 
 1. **Feign 匹配不能只看最后一段**：target 格式为 `FeignClass.method`，`split('.')[-1]` 是方法名；需检查全部路径段与 `.feign.` 包路径。
 2. **正向穿透而非反向追踪**：从 `method → Feign → 目标服务 Controller` 是正向；从 Feign 反查调用方会形成循环。
-3. **BLH 覆写检测不要用 `Abstract` 过滤**：覆写方法恰好定义在各服务的 `XxxAbstract` 中，应按“同名方法出现在不同服务”判定。
+3. **BLH 覆写检测不要用「同名 Abstract」一刀切**：覆写方法定义在各服务的 `XxxAbstract` 中，但同名方法（`getData` / `getInfo` / `save*`）遍布全工程；按 `extends` 链取同名覆写子类，兜底只认同服务且图上有直连边，否则会引入大量假入口。
 4. **启发式 Controller 匹配要跨服务**：入口在 `comoe`，Controller 可能在 `opcare`/`ipcare`；搜索范围必须包含入口服务与 BLH 覆写所在服务。
 5. **排除 DTO/VO 误命中**：关键词（如 `save`）会命中方法签名里的 `SaveMultipleOeOrdItemDTO`；匹配 Controller 时过滤 `DTO`/`VO`/`Model`/`Entity`。
 6. **大文件加载**：`impact_db.json` 约 51 MB、`penetration_db.json` 约 41 MB，首次加载数秒属正常；`query_callers.py` / `query_method_feign.py` 每次全量扫描 JSONL，重复查询优先用 `impact_analyzer.py`。
 7. **前后端衔接必须带页面路径**：`query_front_back_chain.py` 的每条链路都以 `[HTML 页面]` 开头；只给元素和 URL 的结论无法回到界面，验收时会被当作后端结论。用 `--detail` 展开调用栈。
 8. **`config_bar` 元素在 HTML 里查不到 id 是正常的**：按钮来自 `doc_btnbar` 配置表（`config_injection_snapshot.json`），运行期由 `getBtnCfgData` 注入页面；核验应查配置快照里的 `code` / `handler` / `name`，不要到 HTML 里搜 id 后判定「链路错误」。`config_bar` 链路按 handler 的静态可达请求展开，多个按钮共用初始化函数（如 `GetPromptHtml`）时会出现相同 URL 列表，判断「这个按钮到底发哪个请求」需回源码或抓包确认。
-9. **`page_load` 链路也是真实入口**：`stats` 里 1,305 条落到 Controller 的链路来自页面加载，不是按钮触发；评估「这个页面调了哪些接口」时不能只看 `inline` / `js_binding` / `config_bar`。
-10. **27.3% 是跨仓库口径不是漏扫**：URL 首段为 `api` / `ar` / `msup` / `mrm` / `mchs` / `phkm` / `comcph` / `emnur` / `ipnur-station` 等的请求不在本地 19 个后端仓库内，前端链路仍然完整；报告须写「不属于本工作区后端仓库」，不能写「无链路」。
-11. **端点索引与接口改动同步**：新增或改了 Controller 映射后，`front_back_endpoints.json` 会在下次查询时自动重建；若查询结果仍是旧路径，先 `--rebuild` 再判断是否真的不匹配。`produces` / `consumes` 里的字符串不是路径，不要把它们当端点核对。
+9. **`page_load` 链路也是真实入口**：`stats` 里 4,343 条落到 Controller 的链路来自页面加载，不是按钮触发；评估「这个页面调了哪些接口」时不能只看 `inline` / `js_binding` / `config_bar`。
+10. **32.0% 是跨仓库口径不是漏扫**：URL 首段为 `api` / `ar` / `msup` / `mrm` / `mchs` / `phkm` / `comcph` / `emnur` / `ipnur-station` 等的请求不在本地 19 个后端仓库内，前端链路仍然完整；报告须写「不属于本工作区后端仓库」，不能写「无链路」。
+11. **端点索引与接口改动同步**：新增或改了 Controller 映射后，先跑 gen 的 Step 5 → Step 6；临时排查可用 `--refresh-endpoints` 让查询脚本重扫，不要长期依赖查询期重建。`produces` / `consumes` 里的字符串不是路径，不要把它们当端点核对。
+12. **`this.` 自调用边存在，缺的是反向的实现族展开**：`method_call_graph.jsonl` 里 `OpregistBrokerAbstract.opRegistAll → this.preOpRegist` 是真实边（同类边 3,970 条），手工 grep 能看到；但 BLH 父子实现（`OpregBrokerAbstract` / `OpregistBrokerAbstract`）在图上是两个节点，只反查其中一个会漏掉另一条入口链路。`--reverse` 现在自动展开实现族，结论里要说明「已计入同业务另一实现」。
+13. **工作区外 Controller 的按钮走 Feign 入站链路**：`trbu` / `emtr` 等产品不在本地源码内，URL 来自 gen 的 Step 3 产物 `maven_controller_endpoints.json`；`impact` 先按 `<X>Client ↔ <X>ClientController` 锁定上游 Feign，再用该方法的注解 URL 精确匹配。只有注解缺失（映射声明在父类/接口）时才退回「类名去 Controller + 方法名」匹配末两段，此时必须在报告中标注「启发式」，不能和注解精确命中混为一谈。
