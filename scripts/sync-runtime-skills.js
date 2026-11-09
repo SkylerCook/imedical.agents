@@ -70,18 +70,23 @@ function sync({ projectRoot = '.', runtime, mode = 'DryRun', skillsDir }) {
 }
 function main(args) {
   if (args.includes('--help')) {
-    console.log(`Usage: node sync-runtime-skills.js --project-root <project> --runtime ${Object.keys(adapters).join('|')} [--skills-dir .host/skills] --mode Check|DryRun|Write`);
+    console.log(`Usage: node sync-runtime-skills.js --project-root <project> --runtime ${Object.keys(adapters).join('|')} [--skills-dir .host/skills] [--agent] --mode Check|DryRun|Write\nDefault: skills discovery. --agent: native Agent adaptation (Codex, CodeBuddy, WorkBuddy); cannot combine with --skills-dir.`);
     return;
   }
   const options = {};
+  const agentMode = args.includes('--agent');
+  if (args.filter(x => x === '--agent').length > 1) throw new Error('Duplicate --agent');
+  args = args.filter(x => x !== '--agent');
   const keys = { '--project-root': 'projectRoot', '--runtime': 'runtime', '--mode': 'mode', '--skills-dir': 'skillsDir' };
   for (let i = 0; i < args.length; i += 2) {
     if (!keys[args[i]] || !args[i + 1] || args[i + 1].startsWith('--') || Object.hasOwn(options, keys[args[i]])) throw new Error('Invalid or duplicate argument');
     options[keys[args[i]]] = args[i + 1];
   }
-  const result = sync(options);
+  if (agentMode && options.skillsDir !== undefined) throw new Error('--agent cannot combine with --skills-dir');
+  if (agentMode && !options.runtime) throw new Error('--agent requires --runtime');
+  const result = agentMode ? require('./sync-runtime-agents.js').sync(options) : sync(options);
   console.log(JSON.stringify(result));
-  if (result.status === 'runtime-adapter-conflict' || (options.mode === 'Check' && result.status === 'runtime-adapter-planned')) process.exitCode = 1;
+  if (result.failed || result.status === 'runtime-adapter-conflict' || (options.mode === 'Check' && result.status === 'runtime-adapter-planned')) process.exitCode = 1;
 }
 if (require.main === module) {
   try { main(process.argv.slice(2)); } catch (error) {

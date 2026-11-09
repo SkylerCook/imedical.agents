@@ -40,7 +40,7 @@
 
 - 治疗表单插件的项目任务产物和运行态由 owner 目录契约解析，已接入治理的新任务使用 ContextRoot/work，未接入或旧任务兼容 `docs/work/cure-form/<task>/`，以 Map/source/preview/verification/manual-deploy 与 private 分层；框架能力及项目配置/规则保持其原归属，已接入治理的新任务运行态进入当前工作区的 ContextRoot/work，旧任务沿兼容路径恢复，均不写共享能力资产。该决策不迁移 Overlay 配置，不移动既有备份/凭证，显式旧输出路径保持兼容。预览 HTTP 只读挂载受允许的 vendor 根，并隔离 private；自动与手动部署是独立选择，原 RowID 覆盖与灰度是另一策略维度。
 
-- `agents/` 放厂商无关的智能体 canonical 定义，包括 agent registry、`AGENT.md`、`bindings.yaml` 和共享交接协议；不放工具专属生成物或业务项目私有事实。
+- `agents/` 放厂商无关的智能体 canonical 定义，包括 agent registry、`AGENT.md`（含 YAML frontmatter） 和共享交接协议；不放工具专属生成物或业务项目私有事实。
 - `workflows/` 放厂商无关的多智能体/阶段化 workflow canonical 定义，包括 workflow registry 和 `*.workflow.md`；workflow 必须支持不具备子代理能力时的单 Agent 串行降级。
 - `rules/` 只放长期约束、工作流规则和任务路由，不放大体量查找表、API 目录或源码索引。
 - `references/` 放按需查阅的参考资料，例如查找表、控件/API 目录和源码索引；默认不参与 rule thin-index 生成。
@@ -57,7 +57,7 @@
 - reference 文件使用 kebab-case。
 - script 文件使用 kebab-case。
 - 智能体目录使用 kebab-case + `-agent` 后缀，例如 `coordinator-agent`、`i18n-agent`。
-- 智能体主定义固定为 `AGENT.md`，绑定索引固定为 `bindings.yaml`。
+- 智能体主定义固定为 `AGENT.md`，结构化元数据统一放在该文件的 YAML frontmatter。
 - workflow 文件使用 kebab-case + `.workflow.md` 后缀，例如 `i18n-change.workflow.md`、`standard-change.workflow.md`。
 - 交接报告模板使用 kebab-case + `.template.md` 后缀，例如 `fact-report.template.md`。
 - 插件包目录和 manifest `name` 使用稳定能力包名，允许采用“能力/对象 + 技术域 + plugin/kit”的历史命名，例如 `agent-context-kit`、`coding-iris-plugin`、`i18n-iris-plugin`；已部署插件目录名不为风格统一重命名。
@@ -73,7 +73,7 @@
 - 各插件同名脚本只能作为 wrapper 转发参数，避免插件之间产生运行时依赖和脚本副本漂移。
 - stale 清理只应删除由插件生成、且源文件已失效的 thin-index；不得删除业务项目自定义 `.agents/rules/`。
 - 独立分发单个插件时，若仍使用 `plugin-reference-thin-index`，必须同时带上根 canonical 脚本，否则选择 `copy` 或手工 thin-index。
-- Agent thin-index 不复用 `generate-plugin-thin-index.ps1`；由独立 `scripts/generate-agent-thin-index.ps1` 从 `agents/*/AGENT.md` 和 `bindings.yaml` 生成 `.agents/skills/<agent-name>/SKILL.md`，只做浅层 skill 路由。
+- Agent thin-index 不复用 `generate-plugin-thin-index.ps1`；由独立 `scripts/generate-agent-thin-index.ps1` 从 `agents/*/AGENT.md` 和 `AGENT.md` 的 YAML frontmatter 生成 `.agents/skills/<agent-name>/SKILL.md`，只做浅层 skill 路由。
 - 调度内核不硬编码产品 API；`serial`、`subagent`、`codex-session`、`human` 统一使用 action/result contract，由宿主 capability probe 后执行。工具原生配置生成仍不作为 canonical 来源，能力不可用时按 workflow 串行或人工降级。
 
 ## 组件版本治理
@@ -228,3 +228,7 @@
 ## UI 经验回归的源仓待审边界（2026-10-23）
 
 公司视觉规范、IRIS布局机制与HISUI API参数分别归各owner，来源范围和技术实现范围分别判断。自动待审补丁授权只按 [feedback skill](../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#写入授权与自动待审补丁)核对，入口不另写授权状态机；普通加载保持只读。源节点提炼和真实使用回归见[验证记录](../maintenance/validation/ui-framework-optimization-2026-10-23.md)，接入效果按后续真实任务取证。
+
+- Codex 原生 Agent 复用 coding-agent-adaptation 入口，独立 sync-runtime-agents.js 生成 TOML；源为 AGENT.md，模型和权限继承宿主，不改用户配置或项目信任。显式接入后普通更新刷新受管文件，手改与自定义冲突保留；技能目录适配范围不自动扩大。
+
+- 宿主适配入口默认仅 Skill；--agent 显式选择原生 Agent，PowerShell 对应 -Agent，不因指定 Codex 自动扩大适配范围。已接入的受管生成文件仍由普通更新维护。其他宿主先核对格式及加载行为，优先直接复用，未知能力不猜测生成。

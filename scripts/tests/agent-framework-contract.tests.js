@@ -21,7 +21,18 @@ const maintenance = read(".agents/skills/agent-kit-maintenance/SKILL.md");
 for (const role of ["coordinator", "explorer", "planner", "coding", "review", "testing"]) {
   assert(registry.includes(`${role}-agent`));
   assert(fs.existsSync(path.join(root, "agents", `${role}-agent`, "AGENT.md")));
-  assert(fs.existsSync(path.join(root, "agents", `${role}-agent`, "bindings.yaml")));
+  assert(read(`agents/${role}-agent/AGENT.md`).startsWith("---"));
+  assert(!fs.existsSync(path.join(root, "agents", `${role}-agent`, "bindings.yaml")));
+}
+for (const entry of fs.readdirSync(path.join(root, "agents")).filter(name => name.endsWith("-agent"))) {
+  const definition = read(`agents/${entry}/AGENT.md`);
+  const header = definition.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  assert(header, `${entry}: frontmatter required`);
+  assert(header[1].includes(`name: ${entry}`));
+  assert(/^description: .+/m.test(header[1]));
+  const workflow = header[1].match(/^defaultWorkflow: (.+)/m)?.[1].trim();
+  assert(workflow && fs.existsSync(path.join(root, "workflows", `${workflow}.workflow.md`)));
+  assert(!fs.existsSync(path.join(root, "agents", entry, "bindings.yaml")));
 }
 assert(registry.includes("iris-change-agent"));
 assert(workflowRegistry.includes("standard-change"));

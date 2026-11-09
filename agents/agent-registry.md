@@ -10,7 +10,7 @@
 2. 再读取本注册表确认可用智能体。
 3. 按任务读取目标 `agents/<name>-agent/AGENT.md`。
 4. 按 `defaultWorkflow` 读取 `workflows/<workflow>.workflow.md`。
-5. 按 `bindings.yaml` 读取需要的插件 rules、skills 或 templates。
+5. 按 `AGENT.md` 的 YAML frontmatter 读取需要的插件 rules、skills 或 templates。
 
 明确请求 `--help` 或查看用法时，读到真实定义后按[统一帮助协议](../docs/guides/capability-help.md)展示并结束；后续 workflow、bindings 和业务前置仅在实际任务中加载。
 
@@ -29,7 +29,7 @@
 
 ## 扩展约定
 
-- 通用 Agent：跨领域复用，`bindings.yaml` 中 `plugins` 为空或只依赖基础上下文插件。
+- 通用 Agent：跨领域复用，`AGENT.md` 的 YAML frontmatter 中 `plugins` 为空或只依赖基础上下文插件。
 - 领域 Agent：绑定一个或多个领域插件，例如 `i18n-agent`。
 - 工具专属 Agent：由 adapter 生成，不在本注册表作为 canonical 源维护。
 
@@ -38,3 +38,7 @@
 通用角色可由正式 workflow 分配给同会话子 Agent、多会话任务、人工参与者或单 Agent 串行执行。它们不是“必须启动子 Agent”的别名。
 
 无人值守 executionPlan 复用这些角色，Developer 至少两个独立 owner，Testing 按功能/浏览器分工；Reviewer 由未参与对应实现的现有角色短审，见 [治理契约](../docs/night-governance.md)。无法满足本批并发时先报告能力缺口，不能把通用串行降级默认为已批准夜跑方案。
+
+## 定义格式
+
+正式 Agent 使用 `AGENT.md`：YAML frontmatter 是身份、依赖和执行绑定的唯一事实源，正文保留行为指令。元数据保持厂商无关，不代表宿主原生加载格式。无法解析 YAML 时按文本读取头部字段和正文，沿 workflow 的串行降级执行。

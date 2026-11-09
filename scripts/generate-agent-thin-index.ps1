@@ -1,4 +1,4 @@
-param(
+﻿param(
     [string]$ProjectRoot = ".",
     [string]$ContextRoot = "",
     [string]$CapabilityRoot = "",
@@ -176,17 +176,12 @@ Get-ChildItem -LiteralPath $agentsSource -Directory | Sort-Object Name | ForEach
     }
 
     $sourceFile = Join-Path $_.FullName "AGENT.md"
-    $bindingsFile = Join-Path $_.FullName "bindings.yaml"
     $targetFile = Join-Path (Join-Path $skillsTarget $agentName) "SKILL.md"
     $sourceRel = ".agents/" + (Get-RelativePathPortable -From $capabilityRootFull -To $sourceFile).TrimStart("/")
     $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
 
     if (-not (Test-Path -LiteralPath $sourceFile -PathType Leaf)) {
         $results.Add((Write-Result -Status "missing" -Target $targetRel -Source $sourceRel -Reason "agent directory has no AGENT.md"))
-        return
-    }
-    if (-not (Test-Path -LiteralPath $bindingsFile -PathType Leaf)) {
-        $results.Add((Write-Result -Status "missing" -Target $targetRel -Source (".agents/" + (Get-RelativePathPortable -From $capabilityRootFull -To $bindingsFile).TrimStart("/")) -Reason "agent directory has no bindings.yaml"))
         return
     }
     if (Test-Path -LiteralPath (Split-Path -Parent $targetFile) -PathType Leaf) {
@@ -198,7 +193,13 @@ Get-ChildItem -LiteralPath $agentsSource -Directory | Sort-Object Name | ForEach
         return
     }
 
-    $bindingLines = [System.IO.File]::ReadAllLines($bindingsFile, [System.Text.Encoding]::UTF8)
+    $definition = [System.IO.File]::ReadAllText($sourceFile, [System.Text.Encoding]::UTF8)
+    $header = [regex]::Match($definition, '\A---\r?\n(?<yaml>[\s\S]*?)\r?\n---(?:\r?\n|$)')
+    if (-not $header.Success) {
+        $results.Add((Write-Result -Status "missing" -Target $targetRel -Source $sourceRel -Reason "AGENT.md has no YAML frontmatter"))
+        return
+    }
+    $bindingLines = $header.Groups["yaml"].Value -split '\r?\n'
     $bindingName = Get-YamlScalarValue -Lines $bindingLines -Key "name"
     if ([string]::IsNullOrWhiteSpace($bindingName)) {
         $bindingName = $agentName
@@ -213,7 +214,6 @@ Get-ChildItem -LiteralPath $agentsSource -Directory | Sort-Object Name | ForEach
         $requiredPlugins = @(Get-YamlListValues -Lines $bindingLines -Key "plugins")
     }
 
-    $bindingsRel = ".agents/" + (Get-RelativePathPortable -From $capabilityRootFull -To $bindingsFile).TrimStart("/")
     $workflowRel = ""
     if (-not [string]::IsNullOrWhiteSpace($defaultWorkflow)) {
         $workflowPath = Join-Path $workflowsSource ($defaultWorkflow + ".workflow.md")
@@ -237,8 +237,7 @@ Get-ChildItem -LiteralPath $agentsSource -Directory | Sort-Object Name | ForEach
     $contentLines.Add("")
     $contentLines.Add("Agent instruction: after reading this file, continue reading these canonical files before executing the target project task.")
     $contentLines.Add("")
-    $contentLines.Add("- Role definition: ``$sourceRel``")
-    $contentLines.Add("- Binding index: ``$bindingsRel``")
+    $contentLines.Add("- Role definition and YAML metadata: ``$sourceRel``")
     if (-not [string]::IsNullOrWhiteSpace($workflowRel)) {
         $contentLines.Add("- Default workflow: ``$workflowRel``")
     }

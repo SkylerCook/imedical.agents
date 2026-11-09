@@ -99,3 +99,33 @@ node .agents/scripts/sync-runtime-skills.js --project-root . --runtime Custom --
 - 宿主机制、用户样本的范围及来源记录见 source.md；单个发现样本不能证明其它宿主或实际任务调用通过。
 - CI 已配置 Windows/macOS/Linux × Node 22/24；工作流配置不等于矩阵已实跑通过。macOS/Linux 链接及宿主发现仍需对应 runner/宿主证据。
 - Check 只证明技能目录状态；宿主技能发现、项目规则 MD 加载，以及真实任务执行分别取证。缺少宿主访问或未知 MD 时报告未验证。
+
+## Codex 原生 Agent
+
+复用 coding-agent-adaptation 技能：默认只适配 Skill，显式 `--agent` 只适配原生 Agent。指定 Codex 不隐含原生 Agent 创建。Node 统一入口 sync-runtime-skills.js 按开关转发到独立生成器，`--agent` 不与 `--skills-dir` 混用。项目已安装能力包后执行：
+
+```powershell
+node .agents/scripts/sync-runtime-skills.js --agent --project-root . --runtime Codex --mode DryRun
+node .agents/scripts/sync-runtime-skills.js --agent --project-root . --runtime Codex --mode Write
+node .agents/scripts/sync-runtime-skills.js --agent --project-root . --runtime Codex --mode Check
+```
+
+Overlay 直接调用 CapabilityRoot/scripts 下同名脚本并传模块 ProjectRoot。生成项目 `.codex/agents/<name>.toml`；源为 CapabilityRoot/agents 的 AGENT.md。生成 name、description、developer_instructions，完整保留 canonical 定义并声明源路径作为相对引用基准。name、description 当前支持单行普通字符串或单/双引号字符串；不接受块标量。框架元数据不是宿主配置，modelHint 不自动映射具体模型，permissions 不代替沙箱。模型、权限、MCP 继承父会话。
+
+已有自定义文件、手改生成文件及链接保持并报告；内容摘要只用于识别未手改生成物，不是安全签名。源删除只移除未手改的对应生成物。Check/DryRun 不写入。首次显式使用 `update-agents.ps1 -RuntimeAdapter Codex -Agent` 接入；以后普通更新检测已有受管文件并刷新，不修改用户级 config.toml。仅请求 Skill 发现时仍使用 sync-runtime-skills.js，不生成原生 Agent。
+
+Codex 加载还受项目信任和客户端版本影响；生成器不自动信任项目、不改全局 feature 或模型设置。按宿主提示确认信任并在新会话验证角色发现/调用。原生 Agent 不可用时沿通用 Skill 路由和 workflow 串行降级；生成成功、加载成功、业务调用成功分别报告。
+
+官方格式：[Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents)。本机 2026-11-09 样本：桌面端 26.1103.4239.0、后端 0.167.0-alpha.3.2；隔离 HOME 中受信任项目接受三字段 TOML，无效 TOML 对照产生 malformed agent role 警告。不需要桌面专属生成格式；该证据不代表所有版本或实际模型调用已验收。
+
+## WorkBuddy / CodeBuddy 原生 Agent
+
+使用 `coding-agent-adaptation --agent WorkBuddy` 或 `--agent CodeBuddy`。两者复用项目 `.codebuddy/agents/*.md` 薄入口，name/description 来自 canonical 定义；agentMode=agentic、enabled=true、enabledAutoRun=false。正文要求先读项目 AGENTS.md，再读取实际解析的源路径及完整 YAML/正文，不复制行为正文。共享入口避免两宿主交替更新产生不同内容。
+
+```powershell
+node .agents/scripts/sync-runtime-skills.js --agent --runtime WorkBuddy --project-root . --mode DryRun
+node .agents/scripts/sync-runtime-skills.js --agent --runtime WorkBuddy --project-root . --mode Write
+node .agents/scripts/sync-runtime-skills.js --agent --runtime CodeBuddy --project-root . --mode Check
+```
+
+更新器使用 `-RuntimeAdapter WorkBuddy -Agent` 或 CodeBuddy，普通更新刷新已受管入口。手改、自定义文件和链接保留；源移除只清理未手改生成物。默认 Skill 不变。CodeBuddy 字段来自官方 IDE 定义及本机内置样例；WorkBuddy 代码项目按官方兼容 CodeBuddy 机制接入，客户端实际发现/调用仍需分别验收，东华版不自动归入标准版验证结论。

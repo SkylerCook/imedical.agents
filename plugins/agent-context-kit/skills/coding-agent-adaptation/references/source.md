@@ -65,3 +65,20 @@ WorkBuddy 文档复核日期：2026-11-03，项目级 skills 的用户实测纠�
 另有能力包既有维护记录：Windows CodeBuddy 项目 Skills 页面曾获用户确认一个链接发现样本。原记录未给出精确宿主版本和所有技能调用证据；保留该层级，不扩为所有宿主、本轮升级或项目规则加载通过。
 
 维护本文件时更新受影响行的依据、条件与日期；来源冲突保留产品/版本与观察范围。没有可靠新证据时继续标待确认，由用户补充，不把历史猜测提升成默认映射。
+
+## 原生 Agent 格式与适配判断（2026-11-09）
+
+Skill 目录不能推导原生 Agent 目录；以下为官方格式核对，不代表本机版本加载或符号链接实测。执行器当前支持 Codex、WorkBuddy、CodeBuddy，未知宿主不自动创建入口。
+
+| 宿主 | 原生定义与适配判断 | 官方来源 |
+|---|---|---|
+| Claude Code | `.claude/agents/<name>.md`，YAML 头和正文；优先验证直接文件链接。仍需确认额外字段、源相对路径及完整框架元数据是否进入执行上下文，不能仅凭扩展名判定完全兼容。 | [Subagents](https://code.claude.com/docs/en/sub-agents) |
+| Qoder IDE | `.qoder/agents/<name>.md`，name/description 必填，模型可继承；与 CLI 形态分别核对，旧版本是否具备当前文档能力待验。优先验证源链接。 | [IDE Custom Agent](https://docs.qoder.com/extensions/subagent)、[CLI Subagent](https://docs.qoder.com/cli/subagent) |
+| CodeBuddy IDE / 插件 | 官方 IDE 示例除 name/description 外还有 agentMode、enabled、enabledAutoRun，存在 agentic/manual 行为差异；需确认当前插件 schema，不直接套 CLI 或自动开启 Auto Run。 | [IDE Subagents](https://www.codebuddy.cn/docs/ide/Features/Subagents) |
+| WorkBuddy 代码项目机制 | 官方声明读取 `.codebuddy/agents/`，行为与 CodeBuddy Code 一致；不能从 `.workbuddy/skills` 推导 `.workbuddy/agents`。定制版须单独核实。 | [项目配置](https://www.codebuddy.cn/docs/workbuddy/From-Beginner-to-Expert-Guide/Function-Description/Project)、[CodeBuddy CLI](https://www.codebuddy.ai/docs/cli/sub-agents) |
+| CoStrict 插件 | 官网描述自定义模式和角色、规则、工具配置；本轮未确认兼容 AGENT.md 文件发现协议，暂沿 Skill 路由，不生成猜测目录或模式配置。 | [智能体](https://docs.costrict.ai/plugin/product-features/ai-agent/) |
+| VS Code / Copilot | `.github/agents/*.agent.md`（也接受 .md），YAML 头和正文；IDE 与 CLI 安装、加载分别验证，shim 存在不等于 CLI 已安装。 | [文件参考](https://code.visualstudio.com/docs/agents/reference/custom-agent-file-reference) |
+
+跨宿主共用原则：先验证已有源定义和文件 symlink；只有已证实字段或语义不兼容时才引入最小 adapter。宿主忽略框架元数据不等于完整角色契约已加载。不会仅为 Markdown 格式再维护一份正文。
+
+第一版 WorkBuddy/CodeBuddy 采用共用薄入口，额外 IDE 字段保持 Auto Run 关闭；正文读取 canonical 完整定义以避免自定义 YAML 字段被宿主忽略导致契约丢失。文件生成与维护已回归，客户端发现和实际调用仍待验。

@@ -1,5 +1,25 @@
 # imedical.agents 维护日志
 
+- WorkBuddy/CodeBuddy 第一版复用 --agent、共享 .codebuddy/agents 薄入口，Auto Run 关闭，源引用解析及手改保护保持。30 项适配测试通过；真实宿主调用与跨平台实跑待验，未部署或提交。
+
+## 2026-11-09 适配模式显式分流与宿主核对
+
+- coding-agent-adaptation 默认仅 Skill，显式 --agent 转原生 Agent；Node 统一入口同样分流，安装/更新使用 -Agent。仅指定 Codex 不再创建原生角色，已接入生成物继续随普通更新维护。未提交 0.9.0 发布草稿沿最终范围同步，不新增重复版本。
+- 官方资料核对 Claude/Qoder Markdown、CodeBuddy IDE 模式字段、WorkBuddy 代码项目 .codebuddy/agents、CoStrict 自定义模式及 Copilot 入口；结论写入既有 source.md，未证实链接兼容或旧客户端能力的项保持待验，未写客户端配置。
+- 29 项适配回归、文档链接与 diff 空白检查通过；完整更新器、版本历史和跨平台限制沿上一条记录，不重复运行已知受阻全套。
+
+## 2026-11-09 Codex 原生 Agent 适配
+
+- agent-context-kit 0.9.0 扩展既有适配 skill；独立根脚本从 AGENT.md 生成 TOML，保护自定义/手改文件、清理未手改旧生成物，更新器显式接入后自动刷新；三平台矩阵已增加用例，尚未远端执行。
+- Windows 新增 5 项通过；既有 runtime-skills 23 项通过，文档链接检查通过。本机桌面 26.1103.4239.0 / 后端 0.167.0-alpha.3.2 隔离 HOME 对照证实受信任项目加载角色 TOML，无效文件被警告跳过；未调用模型或修改用户配置。
+- 更新器 PS5.1 全套在既有 Overlay iris-mcp helper 模块加载处失败；组件版本检查识别本轮 0.8.4→0.9.0，但被 xc 插件既有独立版本和历史 release 缺 commit 阻断。未修改无关问题，未提交、推送或更新业务副本。
+
+## 2026-11-09 Agent 元数据收敛
+
+- 8 个正式 Agent 将 bindings.yaml 元数据原样合入 AGENT.md YAML frontmatter，移除独立绑定文件；薄索引只读取头部，正文保持。registry、README、更新说明、维护路由和测试同步。厂商适配格式及部署边界不变。
+- 已验证：8 项迁移内容等价、框架契约、Windows PowerShell 5.1 生成全部 8 个薄索引、Overlay 帮助回归及 diff 空白检查。临时生成目录已删除。
+- 帮助套件的新装和已有 sparse 更新在无关 xc 插件缺失前置帮助入口处失败，未宣称全套通过；跨平台实跑仍沿既有 P2 队列。本轮不修改插件能力，无组件版本变动；未提交或更新业务副本。
+
 ## 2026-11-06 发布适配器配置指纹（coding 0.27.5）
 
 - 发布适配器复用 source-sync 的配置指纹，修复显式 connected 模式在冻结后因复核漏绑定模式而被误判环境变化。旧缺省、真实配置变化和 offline 保护保留。

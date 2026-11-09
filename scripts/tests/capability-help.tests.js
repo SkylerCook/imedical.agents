@@ -97,7 +97,7 @@ function fixture(t) {
     const { paragraph } = firstParagraph(content, file);
     write(upstream, file, paragraph.includes('capability-help.md') ? content.replace(paragraph, '') : content);
   }
-  for (const file of ['scripts/generate-plugin-thin-index.ps1', 'scripts/generate-agent-thin-index.ps1', 'agents/explorer-agent/bindings.yaml', 'workflows/standard-change.workflow.md', 'plugins/bos-plugin/.agents-plugin/plugin.json']) write(upstream, file, fs.readFileSync(path.join(repo, file)));
+  for (const file of ['scripts/generate-plugin-thin-index.ps1', 'scripts/generate-agent-thin-index.ps1', 'workflows/standard-change.workflow.md', 'plugins/bos-plugin/.agents-plugin/plugin.json']) write(upstream, file, fs.readFileSync(path.join(repo, file)));
   write(upstream, maintenanceSkill, read(maintenanceSkill));
   write(upstream, 'docs/README.md', '# Project docs\n');
   for (const file of ['AGENTS.md', 'memory/private.md', 'maintenance/private.md', 'releases/plugin/test/1.0.0.md', 'scripts/tests/private.js']) write(upstream, file, 'Source-only fixture\n');

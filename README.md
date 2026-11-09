@@ -225,7 +225,7 @@ node .agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js
 - `agents/coordinator-agent/`、`explorer-agent/`、`planner-agent/`、`coding-agent/`、`review-agent/`、`testing-agent/`：通用角色定义。
 - `agents/iris-change-agent/AGENT.md`：IRIS 复杂变更的正式协作入口。
 - `agents/i18n-agent/AGENT.md`：IRIS 国际化需求处理智能体，复用通用调度内核和角色，保留领域阶段。
-- `agents/i18n-agent/bindings.yaml`：i18n-agent 的插件、规则、skill 和阶段绑定。
+- `agents/i18n-agent/AGENT.md`：i18n-agent 的插件、规则、skill 和阶段绑定。
 - `workflows/standard-change.workflow.md`：通用任务图、通信、恢复、验证和验收流程。
 - `workflows/iris-change.workflow.md`：IRIS 领域协作流程。
 - `workflows/i18n-change.workflow.md`：IRIS i18n 领域流程。
@@ -262,7 +262,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 .agents/skills/<agent-name>/SKILL.md
 ```
 
-该入口只负责把只发现浅层 skill 的 Agent 路由到 `.agents/agents/<agent-name>/AGENT.md`、`bindings.yaml` 和默认 workflow；它不是工具专属 adapter。
+该入口只负责把只发现浅层 skill 的 Agent 路由到 `.agents/agents/<agent-name>/AGENT.md`、`AGENT.md` 的 YAML frontmatter 和默认 workflow；它不是工具专属 adapter。
 
 后续如需工具原生入口，再从 canonical 生成：
 
@@ -693,3 +693,7 @@ IRIS 远端连接统一入口：[会话管理、既有项目更新与回退](doc
 Atelier Web 文档路径编码修复及已部署工程更新方式见[统一会话说明](docs/guides/iris-managed-sessions.md#web-文档路径编码修复)。
 
 发布适配器配置指纹一致性修复见 [coding 插件说明](plugins/coding-iris-plugin/README.md#发布配置指纹一致性0275)。
+
+Codex 原生 Agent：显式 `-RuntimeAdapter Codex -Agent` 首次生成项目 TOML，普通更新刷新已有受管文件；自定义内容保留。技能操作入口复用 coding-agent-adaptation，说明见 [宿主适配](docs/coding-agent-adaptation.md#codex-原生-agent)。
+
+WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codebuddy/agents 薄入口；PowerShell 显式 -RuntimeAdapter WorkBuddy（或 CodeBuddy）-Agent，默认仍为 Skill。源定义只维护 AGENT.md，客户端实际调用待验。

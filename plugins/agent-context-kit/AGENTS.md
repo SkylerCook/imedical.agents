@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+Codex 原生 Agent 适配复用 `coding-agent-adaptation`，生成器为根 `scripts/sync-runtime-agents.js`；技能目录与原生 Agent 分开执行和验收，规则见能力包 `docs/coding-agent-adaptation.md`。
+
 宿主技能适配先沿用用户明确的项目目录和目标项目已确认的配置，再按 `coding-agent-adaptation` 的来源参考补齐未知项。WorkBuddy 与 WorkBuddyDonghua 的命名 adapter 仅在项目 skills 共用 `.workbuddy/skills`；其它配置按宿主机制独立核对。各端技能发现、规则加载与调用分别验收。
 
 本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
@@ -65,3 +67,5 @@ IRIS 项目启用 coding owner 时，开发方式由当前 `ContextRoot/config/i
 ## 项目知识库目录
 
 项目资料归属、用途说明、README 受管区更新、首次接入及授权迁移见[项目知识库目录治理](../../docs/guides/project-knowledge-layout.md)。`project-context-maintenance` 负责接入与维护，根 `scripts/project-docs.js` 复用目录声明与本地扩展。无标记旧说明用 navigation-plan 精确评审后追加受管区；普通 Write 保留人工正文并更新已受管说明。目录检查不代表逐文件归类；未接入项目保持旧默认，已有交接路径按其工具契约发现。
+
+WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codebuddy/agents 薄入口；PowerShell 显式 -RuntimeAdapter WorkBuddy（或 CodeBuddy）-Agent，默认仍为 Skill。源定义只维护 AGENT.md，客户端实际调用待验。

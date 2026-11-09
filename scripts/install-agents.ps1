@@ -1,9 +1,11 @@
 ﻿param(
   [ValidateSet("ClaudeCode", "Codex", "CodeBuddy", "WorkBuddy", "WorkBuddyDonghua", "OpenCode", "Cursor", "GeminiCLI", "GitHubCopilot", "Qoder")]
-  [string[]]$RuntimeAdapter = @()
+  [string[]]$RuntimeAdapter = @(),
+  [switch]$Agent
 )
 
 $ErrorActionPreference = "Stop"
+if ($Agent -and (($RuntimeAdapter.Count -ne 1) -or ($RuntimeAdapter[0] -notin @("Codex", "CodeBuddy", "WorkBuddy")))) { throw "-Agent requires one RuntimeAdapter: Codex, CodeBuddy or WorkBuddy" }
 
 $repo = "https://gitee.com/skyler-cook/imedical.agents.git"
 $target = ".agents"
@@ -190,5 +192,5 @@ if (Test-Path ".git") {
 Write-PostInstallGuidance
 
 if ($RuntimeAdapter.Count -gt 0) {
-  & (Join-Path $target "scripts/update-agents.ps1") -ProjectRoot (Get-Location).Path -Mode Write -NoPull -RuntimeAdapter $RuntimeAdapter
+  & (Join-Path $target "scripts/update-agents.ps1") -ProjectRoot (Get-Location).Path -Mode Write -NoPull -RuntimeAdapter $RuntimeAdapter -Agent:$Agent
 }

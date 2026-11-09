@@ -94,7 +94,7 @@ function New-TestProject {
     'lib/night-dispatch.js', 'lib/night-policy.js', 'lib/night-quota.js', 'lib/night-contract.js',
     'lib/night-convergence.js', 'lib/night-plan.js', 'lib/night-integration.js', 'lib/night-capability.js', 'lib/night-client-diagnostics.js',
     'lib/night-client.js', 'lib/night-codex-client.js', 'lib/playwright-runner.js', 'lib/test-evidence.js',
-    'night-workspace.js'
+    'night-workspace.js', 'sync-runtime-agents.js'
   )) {
     Copy-Item -LiteralPath (Join-Path $repoRoot ('scripts/' + $runtimeFile)) -Destination (Join-Path $root ('.agents/scripts/' + $runtimeFile))
   }
@@ -104,17 +104,9 @@ function New-TestProject {
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/workflow-registry.md") -Value "# Workflow Registry"
   New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/agents/i18n-agent") | Out-Null
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/i18n-agent/AGENT.md") -Value @(
-    "# i18n-agent",
-    "",
-    "IRIS i18n agent."
-  )
-  Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/i18n-agent/bindings.yaml") -Value @(
-    "name: i18n-agent",
-    "description: IRIS i18n agent.",
-    "defaultWorkflow: i18n-change",
-    "requiredPlugins:",
-    "  - coding-iris-plugin",
-    "  - i18n-iris-plugin"
+    "---", "name: i18n-agent", "description: IRIS i18n agent.",
+    "defaultWorkflow: i18n-change", "requiredPlugins:",
+    "  - coding-iris-plugin", "  - i18n-iris-plugin", "---", "# i18n-agent"
   )
   Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/i18n-change.workflow.md") -Value "# i18n-change"
   foreach ($agent in @(
@@ -122,12 +114,11 @@ function New-TestProject {
     @{ Name = "iris-change-agent"; Workflow = "iris-change"; Description = "IRIS change agent." }
   )) {
     New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/agents/$($agent.Name)") | Out-Null
-    Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/$($agent.Name)/AGENT.md") -Value "# $($agent.Name)"
-    Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/$($agent.Name)/bindings.yaml") -Value @(
-      "name: $($agent.Name)",
+    Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/agents/$($agent.Name)/AGENT.md") -Value @(
+      "---", "name: $($agent.Name)",
       "description: $($agent.Description)",
       "defaultWorkflow: $($agent.Workflow)",
-      "serialFallback: true"
+      "serialFallback: true", "---", "# $($agent.Name)"
     )
     Set-Content -Encoding UTF8 -Path (Join-Path $root ".agents/workflows/$($agent.Workflow).workflow.md") -Value "# $($agent.Workflow)"
   }
@@ -1346,6 +1337,11 @@ try {
   Assert-True (-not $checkOutput.Contains("config-migration-failed")) "Check should not report config-migration-failed for a DryRun-only migration"
   Assert-True ((Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")) -eq $profileBeforeCheck) "Check must not modify plugin profile files"
   Assert-True ((Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/sample-skill/SKILL.md")) -eq $thinIndexBeforeCheck) "Check must not modify generated thin-index files"
+  $nativeWrite = & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -RuntimeAdapter Codex -Agent -Detailed | Out-String
+  Assert-Contains $nativeWrite "runtime-agent-ready" "Codex native adaptation should succeed"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".codex/agents/i18n-agent.toml")) "Codex native Agent should be generated"
+  $nativeCheck = & $scriptUnderTest -ProjectRoot $projectRoot -Mode Check -NoPull -Detailed | Out-String
+  Assert-Contains $nativeCheck "runtime-agent-ready" "ordinary updates should inspect managed native Agents"
   $runtimeDry = & $scriptUnderTest -ProjectRoot $projectRoot -Mode DryRun -NoPull -RuntimeAdapter CodeBuddy -Detailed | Out-String
   Assert-Contains $runtimeDry "runtime-adapter-planned" "Runtime DryRun should plan a link"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".codebuddy"))) "Runtime DryRun must not create a directory"
@@ -1360,7 +1356,7 @@ try {
   Assert-True ((Get-Content -Raw (Join-Path $projectRoot ".claude/skills/vendor-test-skill/SKILL.md")).Contains("Existing user skill")) "Runtime conflict must preserve custom skills"
   $agentSkillThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/i18n-agent/SKILL.md")
   Assert-Contains $agentSkillThinIndex ".agents/agents/i18n-agent/AGENT.md" "Agent thin-index should point to canonical AGENT.md"
-  Assert-Contains $agentSkillThinIndex ".agents/agents/i18n-agent/bindings.yaml" "Agent thin-index should point to bindings.yaml"
+  Assert-Contains $agentSkillThinIndex "YAML metadata" "Agent thin-index should route to embedded metadata"
   Assert-Contains $agentSkillThinIndex ".agents/workflows/i18n-change.workflow.md" "Agent thin-index should point to default workflow"
   Assert-True (-not $agentSkillThinIndex.Contains(".codex/agents")) "Agent thin-index must not generate tool adapter content"
   $coordinatorThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/coordinator-agent/SKILL.md")

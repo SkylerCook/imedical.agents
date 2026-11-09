@@ -1,5 +1,9 @@
 # imedical.agents 后续治理队列
 
+- **P2 WorkBuddy/CodeBuddy 原生适配**（沿宿主验证队列）：第一版生成及维护回归通过，补两客户端发现、读取 canonical 与调用证据，东华版独立核实；不以静态格式或本机测试替代跨平台结果。
+
+- **P2 Codex 原生 Agent 适配验收**（归既有跨平台/宿主队列）：取得新增 runtime-agents 的三平台 Node22/24 CI 结果；在授权业务项目新会话验证角色实际调用与普通更新自动刷新。Windows 本机 5 项专项通过、真实后端信任/无效 TOML 对照已完成；更新器全套在既有 Overlay iris-mcp helper 缺模块处停止，须补齐夹具后再验，不把局部验证写成端到端通过。
+
 - **P1 ObjectScript 点号层级评估**（coding-iris owner）：已有后端规则要求检查控制结构和缩进，先在该入口评估补充传统无参数 Do 点号块案例。已对照 [InterSystems legacy DO 文档](https://docs.intersystems.com/latest/csp/docbook/DocBook.UI.Page.cls?KEY=RCOS_cdo_legacy)：点号块属于无参数 DO，不能将花括号也视为点号加层依据；注释和空行也有点号要求。提案的逐行 +1 启发式未覆盖完整语法；准备合法/非法块、注释、嵌入 SQL 与花括号对照并核实编译及执行结果，再决定是否补 review 示例或扫描器；未核实命中不作缺陷，不批量修改代码。
 
 - **P2 同步子进程宿主兼容**（归既有跨平台/宿主验证）：源仓五文件六调用点关闭 stdin，专项及直接回归已取得 bos-demand 三平台 Node22/24 六组通过证据（5010fdc，run 41826611235）。剩余为原 WorkBuddy 宿主不预加载 shim 的计划/失败分支证据；完整工作流的 Unix NTFS Junction 限制及其他 BOS/acceptance 测试临时路径别名问题沿既有兼容队列处理，不将直接步骤通过写成全仓 CI 通过。业务副本更新和本机 shim 退役分别授权；本地合成测试不证明原宿主底层根因或所有 Git hook 均兼容无交互输入。

@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: node --test scripts/tests/runtime-skills.tests.js scripts/tests/skill-plugin-migration.tests.js scripts/tests/workspace-source-directory.tests.js
+      - run: node --test scripts/tests/runtime-agents.tests.js scripts/tests/runtime-skills.tests.js scripts/tests/skill-plugin-migration.tests.js scripts/tests/workspace-source-directory.tests.js
       - run: node --test scripts/tests/iris-development-config.tests.js
       - name: Plugin thin-index refresh
         shell: pwsh

@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+Codex 原生 Agent 适配复用 `coding-agent-adaptation`，生成器为根 `scripts/sync-runtime-agents.js`；技能目录与原生 Agent 分开执行和验收，规则见能力包 `docs/coding-agent-adaptation.md`。
+
 0.8.4：依据用户项目级 skills 实测，`WorkBuddyDonghua` 与 `WorkBuddy` 命名 adapter 共用 `.workbuddy/skills`。仅修正项目 skills，规则、记忆和用户级目录仍按各宿主机制核对。更新后显式重跑适配；旧配置及 `.workbuddydonghua/skills` 不自动迁移或清理，步骤见[更新说明](../../docs/update-agents.md#workbuddydonghua-项目-skills-目录纠正)。
 
 0.8.3：修正宿主适配的证据顺序，用户明确的项目目录与项目已确认配置优先，WorkBuddy 文档中的兼容目录只适用于已核对的机制。现有命名 adapter 和链接保留；更新能力包即可取得指导，已部署项目仅在授权适配时调整目录，无自动迁移或清理。依据见 [source.md](skills/coding-agent-adaptation/references/source.md)。
@@ -133,3 +135,5 @@ schema 2.0 的运行时命令由 `.agents/scripts/agent-orchestrator.js` 提供�
 ## 项目知识库目录
 
 0.8.0 补齐 owner/扩展驱动的目录用途、典型产物、边界与生命周期说明。总导航、主要用途入口、扩展和本地 work 入口使用同一受管区，普通更新可检测缺失/过期并刷新，保留人工正文。旧 README 用 navigation-plan 沿既有精确批准与备份流程接管；首次接入和存量迁移仍独立授权。升级命令及检查范围见[项目知识库目录治理](../../docs/guides/project-knowledge-layout.md)，现有任务与业务恢复资料不移动或清理。
+
+WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codebuddy/agents 薄入口；PowerShell 显式 -RuntimeAdapter WorkBuddy（或 CodeBuddy）-Agent，默认仍为 Skill。源定义只维护 AGENT.md，客户端实际调用待验。

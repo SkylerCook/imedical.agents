@@ -1,13 +1,27 @@
 ---
 name: coding-agent-adaptation
-description: Connect installed project skills to coding agents through shared discovery or directory links; use for new hosts, custom project skill paths and broken-link diagnosis.
+description: Adapt project skills and native Codex Agents to the requested host; use for host setup, discovery, generated Agent refresh and conflict diagnosis.
 ---
 
 # Coding Agent Adaptation
 
 帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
 
-将项目通用技能入口接入用户指定的 coding agent。执行器只适配技能发现目录；项目规则 MD 的加载机制独立核对，不安装宿主，不修改 MCP、hooks、原生子代理或插件启用状态。
+将项目通用技能入口接入用户指定的 coding agent。技能执行器适配发现目录，Codex 原生 Agent 使用独立生成器；项目规则 MD 的加载机制独立核对，不安装宿主，不修改 MCP、hooks 或插件启用状态。
+
+## 参数与路由
+
+- 默认：适配 Skill；指定 Codex 也只检查通用技能发现，不创建原生 Agent。
+- `--agent`：只适配原生 Agent，当前执行器支持 Codex、WorkBuddy、CodeBuddy；其它宿主先按 references/source.md 核对，未实现时明确报告，不降级执行 Skill 写入。
+- `--help` 优先于任何写入。`--agent` 与技能目录清单、`--skills-dir` 不混用；有冲突时先明确本次范围。
+
+示例：`coding-agent-adaptation Codex` 适配技能；`coding-agent-adaptation --agent Codex` 适配原生角色。这是 Skill 调用参数；对应 Node 入口也支持 `--agent`，PowerShell 安装/更新入口对应 `-Agent`。
+
+## Codex 原生 Agent
+
+仅传 `--agent` 或明确要求原生 Agent 时，先核对实际客户端形态和版本，再执行 `node <CapabilityRoot>/scripts/sync-runtime-skills.js --agent --project-root <ProjectRoot> --runtime Codex --mode DryRun`，按已有授权执行 Write 和 Check。只要求技能目录时仍走下方技能流程，不扩大为原生 Agent 写入。
+
+生成项目 `.codex/agents/*.toml`，从 canonical AGENT.md 获取身份和完整指令，继承宿主模型、权限及 MCP。不写全局 config.toml，不把框架 permissions 当成宿主沙箱。已有自定义或手改文件保留并报告；详细迁移、客户端加载与降级见能力包 `docs/coding-agent-adaptation.md` 的“Codex 原生 Agent”。源仓维护不将维护者 .agents 作为业务 capability。
 
 ## 执行
 
@@ -44,3 +58,15 @@ Overlay 从 manifest 解析 ContextRoot，链接到模块本地 skills；若本�
 ## 完成判定
 
 Check 只验证技能目录的文件系统状态；在本次请求范围内区分目录适配、宿主发现、项目规则 MD 加载和实际调用。MD 未知或缺少宿主访问时只报告对应待验项，不否定已完成的目录适配，不以技能可见推定规则已加载。
+
+## WorkBuddy / CodeBuddy 原生 Agent
+
+使用 `coding-agent-adaptation --agent WorkBuddy` 或 `--agent CodeBuddy`。两者复用项目 `.codebuddy/agents/*.md` 薄入口，name/description 来自 canonical 定义；agentMode=agentic、enabled=true、enabledAutoRun=false。正文要求先读项目 AGENTS.md，再读取实际解析的源路径及完整 YAML/正文，不复制行为正文。共享入口避免两宿主交替更新产生不同内容。
+
+```powershell
+node .agents/scripts/sync-runtime-skills.js --agent --runtime WorkBuddy --project-root . --mode DryRun
+node .agents/scripts/sync-runtime-skills.js --agent --runtime WorkBuddy --project-root . --mode Write
+node .agents/scripts/sync-runtime-skills.js --agent --runtime CodeBuddy --project-root . --mode Check
+```
+
+更新器使用 `-RuntimeAdapter WorkBuddy -Agent` 或 CodeBuddy，普通更新刷新已受管入口。手改、自定义文件和链接保留；源移除只清理未手改生成物。默认 Skill 不变。CodeBuddy 字段来自官方 IDE 定义及本机内置样例；WorkBuddy 代码项目按官方兼容 CodeBuddy 机制接入，客户端实际发现/调用仍需分别验收，东华版不自动归入标准版验证结论。

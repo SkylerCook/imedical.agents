@@ -7,6 +7,7 @@
   [string[]]$ExpectedEnabledPlugin,
   [ValidateSet("ClaudeCode", "Codex", "CodeBuddy", "WorkBuddy", "WorkBuddyDonghua", "OpenCode", "Cursor", "GeminiCLI", "GitHubCopilot", "Qoder")]
   [string[]]$RuntimeAdapter = @(),
+  [switch]$Agent,
   [switch]$ForceThinIndex,
   [switch]$CleanupLegacyVendorSkills,
   [switch]$NoPull,
@@ -20,6 +21,7 @@
 )
 
 $ErrorActionPreference = "Stop"
+if ($Agent -and (($RuntimeAdapter.Count -ne 1) -or ($RuntimeAdapter[0] -notin @("Codex", "CodeBuddy", "WorkBuddy")))) { throw "-Agent requires one RuntimeAdapter: Codex, CodeBuddy or WorkBuddy" }
 $minimumGitSparseCheckoutVersion = [version]"2.25.0"
 
 $runtimeSparsePaths = @(
@@ -1193,6 +1195,7 @@ elseif ((-not $NoPull) -and ($Mode -ne "Check")) {
       Plugin = $Plugin
       ExcludePlugin = $ExcludePlugin
       RuntimeAdapter = $RuntimeAdapter
+      Agent = $Agent
       NoPull = $true
       ResumedAfterSelfUpdate = $true
       ResumedGitStatus = [string]$gitResults[0].status
@@ -1517,7 +1520,7 @@ else {
 
 $runtimeAdapterFailed = $false
 $runtimeSkillsScript = Join-Path $capabilityRoot "scripts/sync-runtime-skills.js"
-foreach ($runtime in @($RuntimeAdapter | Select-Object -Unique)) {
+foreach ($runtime in @($RuntimeAdapter | Select-Object -Unique | Where-Object { -not $Agent })) {
   if (-not (Test-Path -LiteralPath $runtimeSkillsScript -PathType Leaf)) {
     $results.Add((Write-UpdateResult -Status "runtime-adapter-blocked" -Target $runtimeSkillsScript -Reason "runtime skills adapter missing; update capability first" -Phase "runtime-adapter"))
     $runtimeAdapterFailed = $true
@@ -1529,6 +1532,31 @@ foreach ($runtime in @($RuntimeAdapter | Select-Object -Unique)) {
   $runtimeResult = ($runtimeOutput -join "`n") | ConvertFrom-Json
   $results.Add((Write-UpdateResult -Status $runtimeResult.status -Target $runtimeResult.target -Source $runtimeResult.source -Reason $runtimeResult.reason -Phase "runtime-adapter"))
   if ($runtimeExit -ne 0) { $runtimeAdapterFailed = $true }
+}
+# Native Agent files are opt-in; refresh an existing managed Codex adapter on updates.
+$nativeAgentScript = Join-Path $capabilityRoot "scripts/sync-runtime-agents.js"
+foreach ($nativeRuntime in @("Codex", "CodeBuddy")) {
+$nativeDir = if ($nativeRuntime -eq "Codex") { ".codex/agents" } else { ".codebuddy/agents" }
+$nativeAgentDirectory = Join-Path $projectRootFull $nativeDir
+$hasManagedNativeAgent = $false
+if (Test-Path -LiteralPath $nativeAgentDirectory -PathType Container) {
+  $hasManagedNativeAgent = @(Get-ChildItem -LiteralPath $nativeAgentDirectory -File | Where-Object {
+    (Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8) -match 'imedical\.agents (Codex|CodeBuddy) adapter v1 sha256='
+  }).Count -gt 0
+}
+if (($Agent -and (($RuntimeAdapter -contains $nativeRuntime) -or (($nativeRuntime -eq "CodeBuddy") -and ($RuntimeAdapter -contains "WorkBuddy")))) -or $hasManagedNativeAgent) {
+  if (Test-Path -LiteralPath $nativeAgentScript -PathType Leaf) {
+    Assert-AgentsNodeRuntime
+    $nativeOutput = & node $nativeAgentScript --project-root $projectRootFull --runtime $nativeRuntime --mode $Mode
+    $nativeExit = $LASTEXITCODE
+    $nativeResult = ($nativeOutput -join "`n") | ConvertFrom-Json
+    $results.Add((Write-UpdateResult -Status $nativeResult.status -Target $nativeResult.target -Source $nativeResult.source -Reason ($nativeResult | ConvertTo-Json -Depth 6 -Compress) -Phase "runtime-adapter"))
+    if ($nativeExit -ne 0) { $runtimeAdapterFailed = $true }
+  } else {
+    $runtimeAdapterFailed = $true
+    $results.Add((Write-UpdateResult -Status "runtime-agent-blocked" -Target $nativeAgentScript -Reason "native Agent adapter missing; update capability first" -Phase "runtime-adapter"))
+  }
+}
 }
 if ($RuntimeAdapter.Count -eq 0) {
   $results.Add((Write-UpdateResult -Status "runtime-adapter-skipped" -Target ".agents/skills" -Reason "project discovery layer is canonical; adapters are opt-in via -RuntimeAdapter" -Phase "runtime-adapter"))

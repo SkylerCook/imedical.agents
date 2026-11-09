@@ -73,7 +73,7 @@ node --test --test-name-pattern="project links resolve" scripts/tests/documentat
 
 1. 读取 `memory/agent-kit-maintenance-log.md`，确定上次维护记录覆盖到的提交。
 2. 用 `git log` 和 `git show --name-status` 检查此后提交；按实际文件判断影响面，不只依赖 commit message。
-3. 对 canonical agent/workflow 变更，同步检查 registry、`AGENT.md`、`bindings.yaml`、workflow、共享 handoff/feedback 协议、仓库 README、验证文档和专项测试。
+3. 对 canonical agent/workflow 变更，同步检查 registry、`AGENT.md`（含 YAML frontmatter）、workflow、共享 handoff/feedback 协议、仓库 README、验证文档和专项测试。
 4. 对需求经验或框架反馈机制变更，同步检查 `plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md`、`agents/_shared/feedback-protocol.md`、项目入口模板、owner rule、维护记忆和提交/推送授权边界。
 5. 已完成事项写入维护日志；仍未完成的真实验证或治理工作留在 backlog。不要把已完成事项继续写成“下一步”。
 

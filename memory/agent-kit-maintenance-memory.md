@@ -1,5 +1,9 @@
 # imedical.agents 维护记忆入口
 
+- 原生适配扩展 WorkBuddy/CodeBuddy 共享薄入口，仍默认 Skill；实际客户端调用待验。
+
+coding-agent-adaptation 默认 Skill、--agent 显式进入 Codex 原生适配，独立 TOML 生成器保持；显式接入后普通更新刷新。客户端信任条件、版本样本和验证限制见 docs/coding-agent-adaptation.md。
+
 IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY=false`），项目显式 `true` 仍保留。显式开启校验的 Atelier 在支持 API 的 Node 中合并默认与系统 CA；专用 CA 保持优先，不改全局信任。
 
 普通按需 HTTPS 调用遵循显式 TLS 配置，默认验证证书；本轮根运行时修正不改变 HTTPS 要求、不修改业务私有配置。详见更新 runbook 与维护日志。
@@ -45,7 +49,7 @@ IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY
 | 维护本仓、审计提交 | [维护 skill](../.agents/skills/agent-kit-maintenance/SKILL.md)与[日志覆盖点](agent-kit-maintenance-log.md#全局回看覆盖点)；按实际变更核对 owner、手册及测试 |
 | 安装、更新、sparse、vendor、thin-index | [更新 runbook](../docs/update-agents.md)；区分 standard/Overlay、严格只读、旧索引及配置迁移 |
 | 修改插件或独立 skill、准备提交 | owner AGENTS/README/manifest 与[组件版本治理](../maintenance/governance/component-version-management.md)；校验暂存内容，功能证据按 scope 复用 |
-| 修改 Agent、workflow 或共享协议 | [Agent registry](../agents/agent-registry.md)、[workflow registry](../workflows/workflow-registry.md)、对应 AGENT/bindings 与共享协议；adapter 和 canonical 分开 |
+| 修改 Agent、workflow 或共享协议 | [Agent registry](../agents/agent-registry.md)、[workflow registry](../workflows/workflow-registry.md)、对应 AGENT frontmatter 与共享协议；adapter 和 canonical 分开 |
 | 夜跑批次、预算、监督与恢复 | [治理顺序](../docs/night-governance.md)、[策略与兼容](../docs/night-policy.md)、[分层验收](../docs/night-acceptance.md)；先基础探测、预算内补齐及定向复验再详细 PLAN；逐用例能力与缺口诊断沿验收文档，旧 run 保留原契约 |
 | BOS 待办、工作量、来源与排序 | [查询 skill](../plugins/bos-plugin/skills/bos-demand-query/SKILL.md)与[使用契约](../plugins/bos-plugin/references/usage.md)；测试阶段按个人口径分类，数量差异刷新原范围并逐号复核，查询保持只读 |
 | BOS 提需、验收与交付 | [BOS owner](../plugins/bos-plugin/README.md)、[交付 owner](../plugins/demand-delivery-plugin/README.md)；名称标签读[产品交付规则](../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md#需求名称与标版标签各类来源共用)，project 暂无编号提交读[demand-commit](../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md)的显式 --no-id；主子/无代码、实仓日志、Git/BOS 独立恢复读[代码归属](../docs/demand-code-ownership.md)，提交漂移读[同步复核](../plugins/demand-delivery-plugin/references/commit-upstream-check.md) |

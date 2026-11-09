@@ -558,7 +558,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/generate-age
 .agents/skills/<agent-name>/SKILL.md
 ```
 
-这些文件只做路由：要求继续读取 canonical `AGENT.md`、`bindings.yaml`、默认 workflow、agent registry 和 workflow registry。它们不是 Codex、Claude Code、OpenCode 或 CodeBuddy 的工具 adapter，也不复制插件规则全文。
+这些文件只做路由：要求继续读取 canonical `AGENT.md`（含 YAML frontmatter）、默认 workflow、agent registry 和 workflow registry。它们不是 Codex、Claude Code、OpenCode 或 CodeBuddy 的工具 adapter，也不复制插件规则全文。
 
 已部署项目不需要重新安装；常规 `update-agents.ps1 -Mode DryRun` 会报告缺失的 agent thin-index，确认无停止条件后执行 `-Mode Write` 即可补齐。若 canonical agent 被删除，脚本只清理带有 agent thin-index 标记且指向 `.agents/agents/*/AGENT.md` 的过期入口，不会删除插件 skill thin-index 或项目自定义 skill。
 
@@ -836,7 +836,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - `.agents/scripts/lib/WorkspaceContext.psm1` 存在；跨旧版 sparse checkout 更新时可出现一次 `workspace-context-resolver-restored`，后续 Check 不应再报告缺失。
 - `.agents/agents/agent-registry.md` 存在。
 - `.agents/workflows/workflow-registry.md` 存在。
-- `.agents/skills/<agent-name>/SKILL.md` 中的 agent thin-index 存在或 dry-run 明确报告将生成；至少验证 `i18n-agent`、`iris-change-agent` 和 `coordinator-agent` 分别指向对应 canonical `AGENT.md`、`bindings.yaml` 与默认 workflow。
+- `.agents/skills/<agent-name>/SKILL.md` 中的 agent thin-index 存在或 dry-run 明确报告将生成；至少验证 `i18n-agent`、`iris-change-agent` 和 `coordinator-agent` 分别指向对应 canonical `AGENT.md`（含 YAML frontmatter） 与默认 workflow。
 - `.agents/scripts/agent-orchestrator.js` 已部署，`node .agents/scripts/agent-orchestrator.js help` 可运行；它只生成 adapter actions，不直接执行产品 API。
 - 业务项目 `.agents/skills/agent-kit-maintenance/` 不存在；该维护者专用 skill 只保留在能力包源仓根 `.agents/skills/agent-kit-maintenance/`，源仓 `.agents/` 不在 sparse checkout 部署清单内。若历史部署或手工 full clone 已遗留该目录，执行 `update-agents.ps1 -Mode Write` 会继续清理并报告 `maintenance-only-skill-removed`。
 - enabled 插件 required vendor thin-index 已存在或 DryRun 明确报告生成计划；optional 只显示 trigger。
@@ -938,3 +938,11 @@ bos-plugin 随既有 /plugins/** 与 workflow 分发，默认 available；仅明
 异常报告待复核，不阻断其它更新；不自动迁移文件或改变 Git 策略。`docs-layout-ok` 只覆盖目录、受管说明和生成导航，未逐文件归类或验证全库人工链接。首次部署、扩展登记、旧工程说明升级、具体迁移与批次回退按[目录治理](guides/project-knowledge-layout.md)执行。CLI/lib 沿现有根 scripts 与 plugins 稀疏规则分发，业务副本需独立更新；Overlay 共享能力更新一次，各工作区分别刷新本地说明，源仓实现不代表已部署。
 
 coding 0.27.4：整包更新根 scripts 与 coding 插件，结束旧管理会话并重启宿主；无需修改私有连接配置，无 vendor 二进制变化。已有配置显式 true/false 都保留，缺失字段采用 false；离线安装工具的 MCP/TOML 模板同步为 false，需重新取得工具包源码或重新打包。源仓测试不代表业务部署完成。
+
+### Agent 元数据合并迁移
+
+元数据由 `bindings.yaml` 原样迁入同目录 `AGENT.md` 的 YAML frontmatter。正常 Git 更新移除旧受跟踪文件，随后重新生成 agent thin-index；无需重新安装。本地有修改时先处理更新冲突，不手工覆盖。自定义读取器改读头部；宿主 adapter 格式不变。
+
+Codex 原生 Agent：显式 `-RuntimeAdapter Codex -Agent` 首次生成项目 TOML，普通更新刷新已有受管文件；自定义内容保留。技能操作入口复用 coding-agent-adaptation，说明见 [宿主适配](coding-agent-adaptation.md#codex-原生-agent)。
+
+WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codebuddy/agents 薄入口；PowerShell 显式 -RuntimeAdapter WorkBuddy（或 CodeBuddy）-Agent，默认仍为 Skill。源定义只维护 AGENT.md，客户端实际调用待验。
