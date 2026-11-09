@@ -258,7 +258,9 @@ class ImpactDB:
 
             targets = set(self.ws_forward.get(cur, set()))
             targets.update(self._find_impl_family(cur))
-            for tgt in targets:
+            # 排序后展开：set 迭代顺序随进程哈希种子变化，会让 BFS 深度归属与
+            # crossings 顺序在重跑间漂移，进而改变取证产物
+            for tgt in sorted(targets):
                 if tgt not in visited:
                     visited.add(tgt)
                     depth_map[tgt] = d + 1
@@ -438,7 +440,7 @@ class ImpactDB:
                     "endpoints": self.ws_nodes.get(cur, {}).get("endpoints", []),
                 })
                 continue
-            for caller in self.ws_reverse.get(cur, set()):
+            for caller in sorted(self.ws_reverse.get(cur, set())):
                 if caller not in visited:
                     visited.add(caller)
                     queue.append((caller, d + 1))

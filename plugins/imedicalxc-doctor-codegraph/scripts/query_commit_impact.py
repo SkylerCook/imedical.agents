@@ -624,10 +624,21 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
                 "downstream": ev["downstream"]["count"],
             })
 
-        entrypoints = merge_unique(entrypoints, lambda x: (x["kind"], x["controller"], x.get("http", "")))
+        # 去重键必须带 service：门诊/住院存在同名 Controller（如 MRDiagnosEntryController），
+        # 只按类名+方法+URL 合并会把两个服务的入口吞成一个，保留谁取决于遍历顺序
+        entrypoints = merge_unique(
+            entrypoints, lambda x: (x["kind"], x.get("service", ""), x["controller"], x.get("http", "")))
         workspace = merge_unique(workspace, lambda x: (x["service"], x["caller"]))
         external = merge_unique(external, lambda x: (x["service"], x["caller"]))
         downstream_feigns = merge_unique(downstream_feigns, lambda x: (x["feign"], x["method"]))
+
+        # 取证产物按稳定键排序，保证同一份数据重跑逐条一致（报告取首条证据）
+        entrypoints.sort(key=lambda x: (
+            x["kind"], x.get("service", ""), x["controller"], x.get("http", ""),
+            x.get("depth", -1), bool(x.get("heuristic"))))
+        workspace.sort(key=lambda x: (x["service"], x["caller"], x["feign"]))
+        external.sort(key=lambda x: (x["service"], x["caller"], x["feign"], x.get("path", "")))
+        downstream_feigns.sort(key=lambda x: (x["feign"], x["method"], x["caller"]))
 
         type_files = [s["file"] for s in skipped if s.get("reason") == "type_contract"]
         type_feigns, type_matches = match_type_feigns(type_files, type_index)
