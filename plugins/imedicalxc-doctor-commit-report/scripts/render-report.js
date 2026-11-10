@@ -23,6 +23,10 @@ const RATING_STANDARD = `### 影响范围评级标准
 
 > 5★ 必须同时满足「阻断」与「大批量」；仅调用方数量多、但业务可通过其他入口或人工流程完成时，最高评为 4★。`;
 
+const STAGE_PRELIMINARY = `> **评级时点**：报告生成时测试用例 / 联调用例尚未产出，本期影响范围星级为**初评**，仅用于排序与提醒。用例产出后按回评模式（步骤 ⑨）定档；定档前不据初评对外定性，低星问题登记延后至定档后执行。`;
+
+const STAGE_FINAL = `> **评级时点**：本期影响范围星级已按测试用例 / 联调用例回评定档。`;
+
 const EXEC_PLAN = {
   po: '- **数据结构修改（PO）**：建议通过【腾讯文档】his 版本升级脚本汇总表格 https://docs.qq.com/sheet/DSnJ5V0tYRG9jT1VL?tab=BB08J2 的登记 DDL 进行执行。',
   config:
@@ -167,8 +171,13 @@ function uiPageTitles(frontCommit) {
   return [...titles];
 }
 
-function validate({ raws, classification, evaluations, impactMap, frontMap, config, errors, warnings }) {
+function validate({ raws, classification, evaluations, impactMap, frontMap, config, impactRatingStage, errors, warnings }) {
   const rawByHash = new Map(raws.map((c) => [c.hash, c]));
+  if (impactRatingStage == null) {
+    warnings.push('evaluations 未标注 impactRatingStage（旧产物按已定档处理）；新一期应写 preliminary 或 final');
+  } else if (!['preliminary', 'final'].includes(impactRatingStage)) {
+    errors.push(`impactRatingStage 非法：${impactRatingStage}（应为 preliminary / final）`);
+  }
   const clsByHash = new Map();
   const allowedWs = config && Array.isArray(config.workstations) ? config.workstations : null;
   const reqTypes = ['BUG修复', '新功能提交', '流程修改', '业务调整', '其他'];
@@ -213,6 +222,9 @@ function validate({ raws, classification, evaluations, impactMap, frontMap, conf
       errors.push(`影响范围评级非法：${shortHash(e.hash)} → ${e.impactRating}`);
     }
     if (!e.impactRatingReason) errors.push(`缺少 impactRatingReason：${shortHash(e.hash)}`);
+    if (e.impactRatingInitial != null && !(Number(e.impactRatingInitial) >= 1 && Number(e.impactRatingInitial) <= 5)) {
+      errors.push(`初评星级 impactRatingInitial 非法：${shortHash(e.hash)} → ${e.impactRatingInitial}`);
+    }
     if (!e.impactScope) errors.push(`缺少 impactScope：${shortHash(e.hash)}`);
     if (!e.compliance) errors.push(`缺少 compliance：${shortHash(e.hash)}`);
     if (!e.evaluation) errors.push(`缺少 evaluation：${shortHash(e.hash)}`);
@@ -281,8 +293,10 @@ function validate({ raws, classification, evaluations, impactMap, frontMap, conf
   }
 }
 
-function render({ label, raws, meta, classification, evaluations, db, impactMap, frontMap, generatedAt }) {
+function render({ label, raws, meta, classification, evaluations, db, impactMap, frontMap, generatedAt, impactRatingStage }) {
   const evalByHash = new Map(evaluations.map((e) => [e.hash, e]));
+  const isPreliminary = impactRatingStage === 'preliminary';
+  const stageNote = isPreliminary ? STAGE_PRELIMINARY : impactRatingStage === 'final' ? STAGE_FINAL : '';
   const lines = [];
 
   lines.push(`# 医生站信创产品迭代周报 — ${label}`);
@@ -322,6 +336,10 @@ function render({ label, raws, meta, classification, evaluations, db, impactMap,
   lines.push('');
   lines.push(RATING_STANDARD);
   lines.push('');
+  if (stageNote) {
+    lines.push(stageNote);
+    lines.push('');
+  }
 
   // 二、提交明细
   lines.push('## 二、提交明细');
@@ -348,6 +366,10 @@ function render({ label, raws, meta, classification, evaluations, db, impactMap,
   // 三、评估详情
   lines.push('## 三、评估详情（流程修改 / 业务调整）');
   lines.push('');
+  if (isPreliminary) {
+    lines.push('> 本章影响范围星级为初评，测试用例 / 联调用例产出后回评定档，定档结果更新本报告。');
+    lines.push('');
+  }
   const sorted = [...evaluations].sort((a, b) => Number(b.impactRating) - Number(a.impactRating) || Number(b.rating) - Number(a.rating));
   if (sorted.length === 0) {
     lines.push('本期无需评估的流程修改 / 业务调整提交。');
@@ -359,7 +381,12 @@ function render({ label, raws, meta, classification, evaluations, db, impactMap,
     lines.push('');
     lines.push(`- **命中高风险类别**：${e.highRiskCategory || '无'}`);
     if (e.impactDowngrade) lines.push(`- **影响范围降级**：${e.impactDowngrade}`);
-    lines.push(`- **影响范围评级**：${e.impactRating}★ —— ${e.impactRatingReason}`);
+    const ratingStageTag = isPreliminary ? '（初评）' : '';
+    const initialTag =
+      !isPreliminary && Number(e.impactRatingInitial) >= 1 && Number(e.impactRatingInitial) !== Number(e.impactRating)
+        ? `（初评 ${e.impactRatingInitial}★ → 定档 ${e.impactRating}★）`
+        : '';
+    lines.push(`- **影响范围评级**：${e.impactRating}★${ratingStageTag}${initialTag} —— ${e.impactRatingReason}`);
     lines.push(
       `- **调用图证据**：入口 ${ie.entrypoints || 0} · 工作区调用方 ${ie.workspaceCallers || 0} · 外部 Maven 调用方 ${ie.externalCallers || 0} · 跨出 Feign ${ie.downstreamFeigns || 0} · 可信度 ${ie.confidence || 'none'}（方法 ${ie.methods || 0}，契约 Feign ${ie.feignContracts || 0}，契约文件 ${ie.typeFiles || 0}，契约 Controller ${ie.typeControllerMatches || 0}，截断 ${ie.truncated || 0}）`
     );
@@ -379,7 +406,10 @@ function render({ label, raws, meta, classification, evaluations, db, impactMap,
   lines.push('## 四、低星问题清单（1-2★）');
   lines.push('');
   lines.push(
-    '> 仅列代码 / 设计层面的问题。「需完成系统标准配置登记 / 标准提醒维护 / 代码表缓存配置维护 / PO 表结构（DDL）执行」类数据维护提醒统一由第五章承载，不在本章与步骤 ⑥ 登记中出现。'
+    '> 仅列代码 / 设计层面的问题。「需完成系统标准配置登记 / 标准提醒维护 / 代码表缓存配置维护 / PO 表结构（DDL）执行」类数据维护提醒统一由第五章承载，不在本章与步骤 ⑥ 登记中出现。' +
+      (isPreliminary
+        ? '本期影响范围星级为初评，本章仅作报告内提示；测试用例 / 联调用例产出并回评定档后，再执行低星问题登记。'
+        : '')
   );
   lines.push('');
   const low = sorted.filter((e) => Number(e.rating) <= 2);
@@ -574,6 +604,8 @@ function main() {
   const meta = rawData.meta || {};
   const classification = normalizeClassification(clsData);
   const evaluations = normalizeEvaluations(evalData);
+  const impactRatingStage =
+    evalData && !Array.isArray(evalData) && evalData.impactRatingStage ? String(evalData.impactRatingStage) : null;
 
   const impactPath = path.join(dir, `code-impact-${label}.json`);
   const impactMap = new Map();
@@ -591,7 +623,7 @@ function main() {
 
   const errors = [];
   const warnings = [];
-  validate({ raws, classification, evaluations, impactMap, frontMap, config, errors, warnings });
+  validate({ raws, classification, evaluations, impactMap, frontMap, config, impactRatingStage, errors, warnings });
 
   if (warnings.length) {
     console.warn(`[WARN] ${warnings.length} 条校验告警：`);
@@ -604,7 +636,7 @@ function main() {
   }
 
   const generatedAt = args['generated-at'] || new Date().toISOString();
-  let md = render({ label, raws, meta, classification, evaluations, db, impactMap, frontMap, generatedAt });
+  let md = render({ label, raws, meta, classification, evaluations, db, impactMap, frontMap, generatedAt, impactRatingStage });
   const outPath = path.join(dir, `commit-report-${label}.md`);
   // 「七、低星问题登记」由步骤 ⑥ 追加；重渲染时原样保留，避免覆盖登记结果
   if (!args['no-preserve-registration'] && fs.existsSync(outPath)) {
@@ -615,7 +647,7 @@ function main() {
   fs.writeFileSync(outPath, md, 'utf8');
   console.log(`已生成报告：${outPath}`);
   console.log(
-    `提交 ${classification.length} 条 · 评估 ${evaluations.length} 条（低星 ${evaluations.filter((e) => Number(e.rating) <= 2).length}）· 数据库提醒 ${(db.poChanges || []).length + (db.configItems || []).length + (db.reminders || []).length + (db.cacheConfigs || []).length} 项`
+    `提交 ${classification.length} 条 · 评估 ${evaluations.length} 条（低星 ${evaluations.filter((e) => Number(e.rating) <= 2).length}）· 数据库提醒 ${(db.poChanges || []).length + (db.configItems || []).length + (db.reminders || []).length + (db.cacheConfigs || []).length} 项 · 评级时点 ${impactRatingStage || '未标注'}`
   );
 }
 

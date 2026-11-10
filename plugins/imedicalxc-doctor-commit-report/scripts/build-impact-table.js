@@ -252,7 +252,10 @@ function buildImpactHtml(rows, opts = {}) {
   }
   lines.push(`    <p style="margin: 0 0 16px; font-size: 12px; color: #666;">生成时间：${new Date().toISOString().slice(0, 16).replace('T', ' ')} (UTC+8)</p>`);
   lines.push('    <p style="margin: 0 0 16px;">本期医生站开发提交涉及以下功能变更，请相关岗位工作站负责人组织测试验证。</p>');
-  lines.push('    <p style="margin: 0 0 16px; font-size: 12px; color: #666;">改造功能点前缀 [N★] 为影响范围评级（假设该功能发生严重故障时的业务波及面）：5★ 核心业务阻断并形成大批量积压；4★ 核心业务严重受阻、需靠手工或备用入口绕行；3★ 单一核心模块受控中断；2★ 非核心业务受影响；1★ 几乎无业务感知。表内按影响从大到小排列。</p>');
+  const stageNote = ratingStageNote(opts.impactRatingStage);
+  lines.push(
+    `    <p style="margin: 0 0 16px; font-size: 12px; color: #666;">改造功能点前缀 [N★] 为影响范围评级（假设该功能发生严重故障时的业务波及面）：5★ 核心业务阻断并形成大批量积压；4★ 核心业务严重受阻、需靠手工或备用入口绕行；3★ 单一核心模块受控中断；2★ 非核心业务受影响；1★ 几乎无业务感知。表内按影响从大到小排列。${stageNote ? `${escapeHtml(stageNote)}` : ''}</p>`
+  );
   lines.push(`    <table style="border-collapse: collapse; width: 100%; font-size: 12px;">`);
   lines.push('      <thead>');
   lines.push('        <tr>');
@@ -275,6 +278,12 @@ function buildImpactHtml(rows, opts = {}) {
   lines.push('</body>');
   lines.push('</html>');
   return lines.join('\n');
+}
+
+function ratingStageNote(stage) {
+  if (stage === 'preliminary') return '报告生成时测试用例 / 联调用例尚未产出，本期星级为初评，用例产出后回评定档。';
+  if (stage === 'final') return '本期星级已按测试用例 / 联调用例回评定档。';
+  return '';
 }
 
 function main() {
@@ -314,6 +323,7 @@ function main() {
   const range = w.since && w.until ? `${w.since} ~ ${w.until}` : (w.label || '');
   
   const rows = buildImpactRows(evalList, mapping);
+  const impactRatingStage = !Array.isArray(evaluationsRaw) && evaluationsRaw.impactRatingStage ? String(evaluationsRaw.impactRatingStage) : null;
   
   // 输出文件名：与 evaluations 同目录，impact-table-<label>.html
   const base = path.join(
@@ -322,7 +332,7 @@ function main() {
   );
   const outputPath = `${base}.html`;
   
-  fs.writeFileSync(outputPath, buildImpactHtml(rows, { title, range }), 'utf8');
+  fs.writeFileSync(outputPath, buildImpactHtml(rows, { title, range, impactRatingStage }), 'utf8');
   
   console.log(`影响表标题: ${title}`);
   console.log(`输出文件: ${outputPath}`);

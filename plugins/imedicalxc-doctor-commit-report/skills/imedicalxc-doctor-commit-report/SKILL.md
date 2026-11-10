@@ -1,7 +1,7 @@
 ---
 name: imedicalxc-doctor-commit-report
 description: |
-  HIS 医生站信创产品迭代周报。采集 src/ 下 20 个子仓库在指定时间窗内 11 位医生站同事的 git 提交，输出五要素汇总（岗位工作站 / 需求类型 / 优先级 / 提交人 / 改造内容总结），评估前经 codegraph 调用图批量取证（改动方法 → 入口 / 工作区调用方 / 外部 Maven 调用方 / 下游 Feign → 前端界面 / 操作元素 / 菜单访问位置，结构化 JSON），再对【流程修改 / 业务调整】类提交做混合式评估（轻量全覆盖 + 高风险三类自动升级深度评估，1-5 星评级，1-2★ 必须给出至少一条具体问题评价，测试建议四段式且标注界面、访问位置、操作步骤并可追溯到证据），并自动检测数据库脚本执行提醒（PO 数据结构修改 / 新增系统标准配置 / 新增系统标准提醒 / 新增代码表缓存配置），归档 Markdown 报告，将 1-2★ 低星问题经 tencent_docs MCP 登记到《信创版产品迭代每周问题登记》（多个独立问题的提交按问题拆行），并按配置尝试推送。用于周度定时汇总或按需汇总提交记录。
+  HIS 医生站信创产品迭代周报。采集 src/ 下 20 个子仓库在指定时间窗内 11 位医生站同事的 git 提交，输出五要素汇总（岗位工作站 / 需求类型 / 优先级 / 提交人 / 改造内容总结），评估前经 codegraph 调用图批量取证（改动方法 → 入口 / 工作区调用方 / 外部 Maven 调用方 / 下游 Feign → 前端界面 / 操作元素 / 菜单访问位置，结构化 JSON），再对【流程修改 / 业务调整】类提交做混合式评估（轻量全覆盖 + 高风险三类自动升级深度评估，1-5 星评级，报告期只给初评、测试用例 / 联调用例产出后回评定档，1-2★ 必须给出至少一条具体问题评价，测试建议四段式且标注界面、访问位置、操作步骤并可追溯到证据），并自动检测数据库脚本执行提醒（PO 数据结构修改 / 新增系统标准配置 / 新增系统标准提醒 / 新增代码表缓存配置），归档 Markdown 报告，将 1-2★ 低星问题经 tencent_docs MCP 登记到《信创版产品迭代每周问题登记》（多个独立问题的提交按问题拆行），并按配置尝试推送。用于周度定时汇总或按需汇总提交记录。
 triggers:
   - 提交汇总
   - 提交记录汇总
@@ -19,6 +19,8 @@ priority: high
 
 七步串行执行：① 采集 → ② 数据库变更检测 → ③ 分类 → ③.5 代码影响取证（codegraph 批量检索：后端调用图 + 前端界面 / 菜单访问位置，输出结构化证据） → ④ 评估（基于证据 + diff） → ⑤ 归档 → ⑥ 低星问题登记 → ⑦ 推送。每步完成后再进入下一步。定时模式在 ⑦ 之后追加步骤 ⑧（回写 state）。
 
+测试用例 / 联调用例产出后，再按回评模式（步骤 ⑨）对该期影响范围星级定档；定档前报告只标注**初评**，步骤 ⑥ 登记延后。
+
 **开始前必读**：`.agents/plugins/imedicalxc-doctor-commit-report/config/commit-report.json` —— 人员白名单（reporters）、岗位工作站清单（workstations）、时间窗（window）、输出目录（outputDir）、采集源（ref）。
 
 ## 执行模式
@@ -27,8 +29,9 @@ priority: high
 |---|---|---|---|---|
 | 交互模式（默认） | 用户按技能名 / 关键词触发 | config `window`（默认近 1 个完整自然月），或用户显式指定的 since / until | `YYYY-MM`（until 所在月） | 不写 state |
 | 定时模式 | 自动化提示词声明「定时模式」 | `since` = `commit-report-state.json` 的 `lastWindow.until`；`until` = 当前时间（精确到分钟） | `YYYY-MM-W<N>` | 执行步骤 ⑧ 回写 state |
+| 回评模式 | 用户提供测试用例 / 联调用例后触发（关键词「回评」「定档」） | 不采集，沿用该期已归档窗口 | 沿用该期 label | 更新 evaluations 为定档、重渲染报告与邮件/影响表，随后执行步骤 ⑥ ⑦ |
 
-两种模式的差异仅限时间窗、期号与 state 回写；步骤 ①~⑦ 完全相同。
+交互模式与定时模式的差异仅限时间窗、期号与 state 回写；步骤 ①~⑦ 完全相同。回评模式不重新采集，只对已归档期次重评星级（步骤 ⑨），不改 state。
 
 定时模式补充规则：
 
@@ -247,6 +250,8 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_front_back_chai
 
    `impactRatingReason` 用一句话写明判定依据（受影响业务环节、是否阻断、是否存在可立即启动的绕行手段），不得只写星级。
 
+   **评级时点（初评 / 定档）**：报告生成时测试用例 / 联调用例尚未产出，上述星级只能依据 diff 与调用图推演，属于**初评**。`evaluations-<label>.json` 顶层固定写 `"impactRatingStage": "preliminary"`；`impactRatingReason` 只陈述业务推演结论，不得写成「已确认」「无风险」，也不得因调用方数量多就上调到 5★。初评星级仅用于报告排序与提醒，不作为对外定性依据，且**不触发步骤 ⑥ 低星登记**。测试用例 / 联调用例产出后按回评模式（步骤 ⑨）定档：维持、上调或下调评级，被调整的条目补 `impactRatingInitial`（原初评星级），顶层改为 `"impactRatingStage": "final"` 并记录 `impactRatingFinalizedAt`。
+
 4. **评价描述**（1-3 句）
 5. **低星强制补充**：1-2★ 必须给出**至少一条具体问题评价**——引用文件:行号或 diff 片段，指明与业务设计冲突或遗漏之处。一条提交含**多个相互独立的问题**时，同时输出 `issueItems` 数组逐问题列出（每个元素恰对应一个问题，供步骤 ⑥ 按问题拆行登记；同一问题的对比说明保持为一个元素）
 6. **与第五章不重叠（口径排除）**：凡属「需完成新增系统标准配置登记 / 系统标准提醒维护 / 代码表缓存配置维护 / PO 表结构（DDL）执行」一类的**数据维护提醒**，已由步骤 ② 检测并在报告第五章「数据库脚本执行提醒」统一承担，**不得**作为 `specificIssue` / `issueItems` 的低星问题条目输出，也不得进入步骤 ⑥ 登记与第五章后的 QQ「低星问题」消息。仅当维护动作背后的**设计选择本身**构成冲突（例如新增开关默认值取 true 使主流程在升级瞬间被禁用）时，以该冲突事实计入问题，措辞不写「需登记/需维护」
@@ -275,7 +280,7 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_front_back_chai
    - **手工兜底**（仅 `front-chains` 缺失 / 不可用时）：证据中出现 Controller 方法名或 HTTP 路径时，才允许到 `src/frontend/hisfront/static/` 检索；必须用完整路径或「方法名 + 服务 / 目录前缀」消歧，并在 `impactEvidence` 记录命中的前端文件与行号（如「前端证据：`static/opreg/opreg-pat/scripts/doc.reportloss.js:9` 卡挂失 / 启用」）。仅凭 `getScheduleInfo`、`getDrugList` 这类通用方法名命中即下结论视为无效证据。Feign 名不能直接搜前端，必须先追消费方 Controller。
    - **禁止推断**：任何「与 XX 页面联调」的表述都必须能回指一条 `uiEntries` 条目或 Controller/页面证据；回指不到就删除该表述，改用「无页面入口证据」。
 
-评估结果落盘为同目录 `evaluations-<label>.json`（同月多期必须带期号后缀，避免覆盖其他窗口产物）（条目字段：hash / shortHash / subject / author / date / repo / funcPoint——面向测试/交付的业务功能点标题，不出现类名、方法名、Feign 名（邮件与影响表的章节标题） / highRiskCategory / highRiskAuto——证据机械触发的类别，供复核 / impactScope——按证据四段式撰写 / impactEvidence——该提交在 `code-impact-<label>.json` 中的计数摘要：methods / entrypoints / workspaceCallers / externalCallers / downstreamFeigns / contract（`feignContracts` / `typeFiles` / `typeFeignMatches` / `typeFeignCallers` / `typeControllerMatches`） / downstream / confidence / indexFresh / skipped 原因；并附 `ui`——该提交在 `front-chains-<label>.json` 中的界面证据摘要：uiEntries / pages / withMenu / withParentMenu / noMenu / unmatchedEntrypoints（未命中入口数，取该提交 `unmatchedEntrypoints[]` 的长度） / compliance / complianceReason / rating——质量星级 / impactRating——影响范围评级（1-5★，邮件与影响表标题前缀、排序依据） / impactRatingReason——影响范围判定依据一句话 / impactDowngrade——非核心备用系统的降级说明（含为何不深度评估），非此类提交可省略 / changeSummary——面向交付的改造方案（只写变更内容，不写调用方/取证/测试信息；无业务逻辑变更时写「无业务逻辑变更」，缺失时回退 evaluation） / evaluation——评价描述 / specificIssue / issueItems——1-2★ 且含多个独立问题时必填的逐问题明细数组 / testSuggestion——四段式测试建议），作为步骤 ⑥ 低星问题登记的数据源。
+评估结果落盘为同目录 `evaluations-<label>.json`（同月多期必须带期号后缀，避免覆盖其他窗口产物）（条目字段：hash / shortHash / subject / author / date / repo / funcPoint——面向测试/交付的业务功能点标题，不出现类名、方法名、Feign 名（邮件与影响表的章节标题） / highRiskCategory / highRiskAuto——证据机械触发的类别，供复核 / impactScope——按证据四段式撰写 / impactEvidence——该提交在 `code-impact-<label>.json` 中的计数摘要：methods / entrypoints / workspaceCallers / externalCallers / downstreamFeigns / contract（`feignContracts` / `typeFiles` / `typeFeignMatches` / `typeFeignCallers` / `typeControllerMatches`） / downstream / confidence / indexFresh / skipped 原因；并附 `ui`——该提交在 `front-chains-<label>.json` 中的界面证据摘要：uiEntries / pages / withMenu / withParentMenu / noMenu / unmatchedEntrypoints（未命中入口数，取该提交 `unmatchedEntrypoints[]` 的长度） / compliance / complianceReason / rating——质量星级 / impactRating——影响范围评级（1-5★，邮件与影响表标题前缀、排序依据） / impactRatingReason——影响范围判定依据一句话 / impactRatingInitial——回评调整时记录的原初评星级（仅调整过的条目） / impactDowngrade——非核心备用系统的降级说明（含为何不深度评估），非此类提交可省略 / changeSummary——面向交付的改造方案（只写变更内容，不写调用方/取证/测试信息；无业务逻辑变更时写「无业务逻辑变更」，缺失时回退 evaluation） / evaluation——评价描述 / specificIssue / issueItems——1-2★ 且含多个独立问题时必填的逐问题明细数组 / testSuggestion——四段式测试建议），作为步骤 ⑥ 低星问题登记的数据源。
 
 ## 步骤 ⑤：归档（确定性渲染）
 
@@ -302,17 +307,17 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/render-report.js --
 
 **校验行为**：
 
-- 错误 → 打印全部错误后 `exit 1`，不生成文件。含：分类与采集结果的哈希缺失 / 重复 / 多余、工作站不在 config 清单、需求类型或优先级非法、总结为空、星级或影响范围评级越界、评估条目缺 `impactRatingReason` / `impactScope` / `compliance` / `evaluation` / `changeSummary` / `impactEvidence`、测试建议缺四段、低星缺具体问题、流程修改 / 业务调整漏评估、evaluations 与 classification 的需求类型不一致
-- 告警 → 继续渲染并在控制台列出：门急诊应急工作站影响评级超过 2★、证据计数或可信度与 `code-impact` 不符、界面证据计数与 `front-chains` 不符、工作站与分类不一致、多出未分类的评估条目。告警须逐条核对，不得静默通过
+- 错误 → 打印全部错误后 `exit 1`，不生成文件。含：分类与采集结果的哈希缺失 / 重复 / 多余、工作站不在 config 清单、需求类型或优先级非法、总结为空、星级或影响范围评级越界、`impactRatingStage` 非 `preliminary` / `final`、`impactRatingInitial` 越界、评估条目缺 `impactRatingReason` / `impactScope` / `compliance` / `evaluation` / `changeSummary` / `impactEvidence`、测试建议缺四段、低星缺具体问题、流程修改 / 业务调整漏评估、evaluations 与 classification 的需求类型不一致
+- 告警 → 继续渲染并在控制台列出：evaluations 未标注 `impactRatingStage`（旧产物按已定档处理）、门急诊应急工作站影响评级超过 2★、证据计数或可信度与 `code-impact` 不符、界面证据计数与 `front-chains` 不符、工作站与分类不一致、多出未分类的评估条目。告警须逐条核对，不得静默通过
 - 修正时改上游 JSON 后重跑脚本，**不直接编辑报告 md**（除步骤 ⑥ 追加第七章外）
 - 再次渲染时自动保留原文件中的 `## 七、低星问题登记`（步骤 ⑥ 写入），避免覆盖登记结果
 
 **固定结构**（内容全部来自上述 JSON，脚本只排版与校验，不改写评价文字）：
 
-- 一、概览：按提交人 / 工作站 / 需求类型 / 优先级四张分布表（「按提交人分布」标题为 push-qq-bot.js 解析锚点，不要改标题），附影响范围评级标准
+- 一、概览：按提交人 / 工作站 / 需求类型 / 优先级四张分布表（「按提交人分布」标题为 push-qq-bot.js 解析锚点，不要改标题），附影响范围评级标准与评级时点说明（初评 / 已按用例定档）
 - 二、提交明细：末列为「质量评级」（BUG修复 / 新功能提交填 —）；标题前缀 `[N★]` 才是影响范围评级
-- 三、评估详情：按影响范围评级降序、同档按质量星级降序（稳定排序），每条含降级说明（如有）、影响范围评级与依据、调用图证据、界面证据（有 `impactEvidence.ui` 时）、影响范围、符合性、评级；评级行固定为 `- **评级**：N★ —— 评价：…`（push-qq-bot.js 解析锚点，`评价：` 不可省略）
-- 四、低星问题清单：1-2★ 逐条列具体问题
+- 三、评估详情：按影响范围评级降序、同档按质量星级降序（稳定排序），每条含降级说明（如有）、影响范围评级与依据、调用图证据、界面证据（有 `impactEvidence.ui` 时）、影响范围、符合性、评级；`impactRatingStage=preliminary` 时影响范围评级行带「（初评）」，定档且与初评不同时显示「初评 N★ → 定档 M★」；评级行固定为 `- **评级**：N★ —— 评价：…`（push-qq-bot.js 解析锚点，`评价：` 不可省略）
+- 四、低星问题清单：1-2★ 逐条列具体问题；初评阶段注明「登记延后至回评定档后」
 - 五、数据库脚本执行提醒：开头汇总计数；5.1–5.4 按非空小节输出；5.5 逐类给执行方案（四节全空则整节省略）
 - 六、附录：仅列命中高风险三类且未降级的提交（调用链要点 + 结论）
 
@@ -329,7 +334,9 @@ git add docs/agents/commit-reports/
 git commit -m "docs: 新增 {label} 医生站信创产品迭代周报"
 ```
 
-## 步骤 ⑥：低星问题登记（报告归档后、推送前）
+## 步骤 ⑥：低星问题登记（报告归档后、推送前；需已完成回评定档）
+
+**前置条件**：`evaluations-<label>.json` 的 `impactRatingStage` 必须为 `final`（已按测试用例 / 联调用例回评定档）。为 `preliminary` 时输出「影响范围星级仍为初评，登记延后至回评定档」，跳过本步 1~7 直接进入步骤 ⑦；`build-issue-rows.js` 对 `preliminary` 直接报错拦截。旧期次未标注该字段的产物按历史口径放行，仅用于补登。
 
 将本期 1-2★ 低星问题经 tencent_docs MCP 登记到【腾讯文档】信创版产品迭代每周问题登记（https://docs.qq.com/sheet/DWEN5eXB5Q0diYWdI?tab=BB08J2 ，表格身份取自 config `issueRegistration`）：
 
@@ -394,6 +401,18 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <out
 
 交互模式不改写该文件。
 
+## 步骤 ⑨：回评（回评模式，测试用例 / 联调用例产出后）
+
+前置：该期报告已归档，用户提供测试用例与联调用例（Excel / 文档路径或腾讯文档链接）。不重新采集提交，不改分类与测试建议，只重评星级并重渲染对外产物。
+
+1. **用例取证**：对 `evaluations-<label>.json` 中 `rating ≤ 2` 及 `impactRating ≥ 3` 的条目，用 `funcPoint` 的业务功能点在测试用例中检索命中的用例编号与业务场景；联调用例按 `externalCallers` / `downstreamFeigns` 的服务与业务场景检索。取证结果写入回评说明（`impactRatingReason` 或评估备注），不得只写「已核对用例」。
+2. **复核质量星级 `rating`**：用例证明问题会破坏流程或产生错误数据的维持低星；用例显示问题不成立（推演误判、实际不可达）的上调并在 `evaluation` 说明；用例暴露的新问题按步骤 ④ 规则补 `specificIssue` / `issueItems`。
+3. **定档影响范围 `impactRating`**：先按用例覆盖判断受影响环节是否属核心链路、是否有替代入口、是否形成积压，再按步骤 ④ 的 5★~1★ 表定档。与原初评不一致时，把原值写入 `impactRatingInitial`（仅调整过的条目写），并重写 `impactRatingReason`，写明用例依据（如「用例覆盖窗口挂号→收费链路，失败时无法开方，且有手工退费兜底」）。
+4. **写回评测文件**：顶层 `"impactRatingStage"` 改为 `"final"`，新增 `"impactRatingFinalizedAt": "<ISO 时间>"`；`evaluations[]` 顺序与哈希不变。
+5. **重渲染与对外产物**：`render-report.js --label <label>`（自动保留第七章）、`build-db-email.js <db-changes> --evaluations=<evaluations> --raw-commits=<raw-commits>`、`build-impact-table.js <evaluations>` 重新生成；报告第一章评级时点改为已定档，第三章显示「初评 N★ → 定档 M★」。重发邮件需用户明确授权。
+6. **后续步骤**：定档后执行步骤 ⑥（低星登记）与步骤 ⑦（推送）；归档仍按步骤 ⑤ 口径在父仓库本地提交（不推送远端）。
+7. **无用例覆盖的条目**：写「无用例覆盖，维持初评 / 下调为 N★」并给理由；联调用例缺失时，跨服务工作区调用方 / 外部 Maven 调用方维持原评级并注明「联调用例未覆盖」，不得把「无用例」当成「无影响」。
+
 ## 环境变量（敏感配置，不入库）
 
 令牌与个人邮箱一律不写入入库配置，运行时从环境变量读取。**维护位置**（二者任一即可，脚本优先读进程环境变量）：
@@ -427,4 +446,5 @@ node .agents/plugins/imedicalxc-doctor-commit-report/scripts/push-qq-bot.js <out
 - 唯一例外：步骤 ⑥ 经 tencent_docs MCP 将低星问题写入【信创版产品迭代每周问题登记】表。
 - 11 人白名单过滤在采集脚本内完成，评估阶段不再扩大范围。
 - 名单外作者（cuixy、Codex 等）的提交不纳入报告。
+- 影响范围星级在报告期为初评（`impactRatingStage=preliminary`），只能依据 diff 与调用图推演；测试用例 / 联调用例产出并回评定档（`final`）后，才登记低星问题、才可按星级对外定性。初评不得写成「已确认 / 无风险」。
 - 职责边界：步骤 ③.5 只取证（JSON），步骤 ④ 才做业务判断；评估中每条入口 / 调用方 / 联调 / 界面建议都必须能追溯到证据，无证据时明说「无调用图证据」或「无页面入口证据」，不得编造菜单、页面或调用方。

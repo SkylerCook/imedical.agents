@@ -146,9 +146,16 @@ function main() {
   if (!fs.existsSync(inputPath)) {
     throw new Error(`输入文件不存在: ${inputPath}`);
   }
-  const evaluations = normalizeEvaluations(JSON.parse(fs.readFileSync(inputPath, 'utf8')));
+  const parsed = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
+  const evaluations = normalizeEvaluations(parsed);
   if (!evaluations) {
     throw new Error(`输入文件应为评估条目数组或 { evaluations: [...] } 结构: ${inputPath}`);
+  }
+  const impactRatingStage = parsed && !Array.isArray(parsed) && parsed.impactRatingStage ? String(parsed.impactRatingStage) : null;
+  if (impactRatingStage === 'preliminary') {
+    throw new Error(
+      '影响范围星级仍为初评（impactRatingStage=preliminary）：测试用例 / 联调用例产出后先回评定档，再登记低星问题。'
+    );
   }
 
   const label = labelOf(inputPath);
@@ -170,6 +177,7 @@ function main() {
       label,
       registrationDate: date,
       threshold: `rating <= ${RATING_MAX}`,
+      impactRatingStage: impactRatingStage || 'unmarked',
       count: rows.length,
       commitCount
     },
@@ -186,7 +194,7 @@ function main() {
   fs.writeFileSync(outPath, JSON.stringify(output, null, 2) + '\n', 'utf8');
 
   console.log(`来源: ${inputPath}`);
-  console.log(`期号: ${label} · 登记日期: ${date} · 阈值: rating <= ${RATING_MAX}`);
+  console.log(`期号: ${label} · 登记日期: ${date} · 阈值: rating <= ${RATING_MAX} · 评级时点: ${impactRatingStage || 'unmarked'}`);
   console.log(`低星提交: ${commitCount} 条 · 登记行: ${rows.length} 行`);
   for (const r of rows) {
     console.log(`  ${r.shortHash} · ${r.values[5]} · ${r.values[2]} · ${r.values[3].slice(0, 60)}`);

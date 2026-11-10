@@ -69,6 +69,12 @@ function impactPrefix(r) {
   return r && r.impactRating ? `[${r.impactRating}★] ` : '';
 }
 
+function ratingStageNote(stage) {
+  if (stage === 'preliminary') return '；报告生成时测试用例 / 联调用例尚未产出，本期星级为初评，用例产出后回评定档。';
+  if (stage === 'final') return '；本期星级已按测试用例 / 联调用例回评定档。';
+  return '';
+}
+
 function buildRatingSummary(rows) {
   const counts = {};
   for (const r of rows) counts[r.impactRating] = (counts[r.impactRating] || 0) + 1;
@@ -250,7 +256,11 @@ function buildEmailMd(db, opts = {}) {
     lines.push('');
     lines.push(`本期共 ${impactRows.length} 项功能变更，按影响范围从大到小排列（${buildRatingSummary(impactRows)}）。`);
     lines.push('');
-    lines.push('影响范围评级说明（假设该功能发生严重故障时的业务波及面）：[5★] 核心业务阻断并形成大批量积压；[4★] 核心业务严重受阻、需靠手工或备用入口绕行；[3★] 单一核心模块受控中断；[2★] 非核心业务受影响；[1★] 几乎无业务感知。');
+    lines.push(
+      '影响范围评级说明（假设该功能发生严重故障时的业务波及面）：[5★] 核心业务阻断并形成大批量积压；[4★] 核心业务严重受阻、需靠手工或备用入口绕行；[3★] 单一核心模块受控中断；[2★] 非核心业务受影响；[1★] 几乎无业务感知' +
+        ratingStageNote(opts.impactRatingStage) +
+        '。'
+    );
     lines.push('');
     impactRows.forEach((r, i) => {
       lines.push(`### ${i + 1}. ${impactPrefix(r)}${r.funcPoint}`);
@@ -405,7 +415,9 @@ function buildEmailHtml(db, opts = {}) {
   if (impactRows.length > 0) {
     lines.push(`    <h3 style="${h3Style}">一、功能变更影响</h3>`);
     lines.push(`    <p style="margin: 0 0 8px; font-size: 13px; color: #333333;">本期共 ${impactRows.length} 项功能变更，按影响范围从大到小排列（${escapeHtml(buildRatingSummary(impactRows))}）。</p>`);
-    lines.push('    <p style="margin: 0 0 14px; font-size: 13px; color: #595959;">影响范围评级说明（假设该功能发生严重故障时的业务波及面）：[5★] 核心业务阻断并形成大批量积压；[4★] 核心业务严重受阻、需靠手工或备用入口绕行；[3★] 单一核心模块受控中断；[2★] 非核心业务受影响；[1★] 几乎无业务感知。</p>');
+    lines.push(
+      `    <p style="margin: 0 0 14px; font-size: 13px; color: #595959;">影响范围评级说明（假设该功能发生严重故障时的业务波及面）：[5★] 核心业务阻断并形成大批量积压；[4★] 核心业务严重受阻、需靠手工或备用入口绕行；[3★] 单一核心模块受控中断；[2★] 非核心业务受影响；[1★] 几乎无业务感知${escapeHtml(ratingStageNote(opts.impactRatingStage))}。</p>`
+    );
     impactRows.forEach((r, i) => {
       lines.push(`    <h4 style="${h4Style}">${i + 1}. ${escapeHtml(impactPrefix(r) + r.funcPoint)}</h4>`);
       const leftFields = [
@@ -503,6 +515,7 @@ function main() {
     }
     impactRows = buildImpactRows(evalList, rawCommits, {});
     opts.impactRows = impactRows;
+    opts.impactRatingStage = !Array.isArray(evalsRaw) && evalsRaw.impactRatingStage ? String(evalsRaw.impactRatingStage) : null;
   }
   
   const base = path.join(
