@@ -1,6 +1,12 @@
 # BOS Plugin
 
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
+主子需求拆分、共享提交或明确无代码时，先按[代码归属协议](../../docs/demand-code-ownership.md)核对业务与代码归属；skill和脚本采用新协议，旧草稿/批次保持原语义。业务有独立验收价值不因共享文件强制合并，子需求也不重复拥有代码。
+
 新夜跑入口要求 `night-convergence/v1`，启动前明确总时限，问题与按需依赖沿[共享夜跑接口](../../docs/night-policy.md#返修收敛与按需依赖)记录；旧 run 不静默升级。
+
+新批次同时按 [无人值守治理](../../docs/night-governance.md) 生成并批准 executionPlan：先周额度基线、逐条评级与最低测试，再确定双 Developer、双 Tester、worktree 与授权；派发前 materialize 实体 PLAN 和角色上下文。治理投入计入预算，取消默认全量 UI，旧批次不迁移。
 
 跨插件阶段依赖以 manifest 的 availableDependencies 为事实源；触发时按[可用性依赖协议](../../docs/plugin-availability.md)检查，缺口仅阻塞对应阶段，显式 disabled 保留。
 
@@ -8,10 +14,20 @@ BOS 能力独立于技术栈。目录存在仅表示 available；项目使用前
 
 标版需求的本地文本/Excel 补录和提交衔接不要求 BOS 凭据；查询仍使用原配置。提交实现来自随能力包分发的 demand-delivery-plugin，仅在需要提交时加载，不将其启用状态变成只读查询的前置条件。
 
+生成代码、主题或工作记录需求时，逐条按 [名称与标版标签规则](skills/bos-demand-entry/SKILL.md#需求名称与标版标签各类来源共用)判断名称；`standard` 流程和材料来源不直接决定标签。
+
+生成标版需求文件前按 [需求交付与私有草稿目录](references/demand-directories.md) 解析；已启用治理时正式文本/Excel 与本机恢复草稿分离，旧调用和明确项目约定保留。
+
 ## 路由
 
-- 默认从 Git 补丁，或显式 --work 从工作记录生成标版需求文本/Excel并回填编号（`--split` 审查拆分，`--split --excel` 拆分并导出）：[bos-demand-entry](skills/bos-demand-entry/SKILL.md)。
-- 按发起人、接受人、当前人及对应组只读查询需求列表、详情、图片及附件元数据：[bos-demand-query](skills/bos-demand-query/SKILL.md)。
+- 工作量漏计或页面数量差异沿[差异复核](references/usage.md#工作量差异复核)：刷新原范围快照，比较编号集合并解释分类；测试阶段与测试分配的当前人条件沿同文个人口径。
+
+- 待办默认创建日期升序，个人查询 `--sort` / `--order` 可指定其它日期及方向；默认列表含创建时间，沿[日期排序口径](references/usage.md#日期排序口径)执行，排序与筛选独立。
+
+- 个人查询默认待办；`--proj` 项目 / `--dev` 产品（非项目）可独立调用或与待办/工作量组合，沿[查询 skill](skills/bos-demand-query/SKILL.md)及[来源口径](references/usage.md#项目与产品非项目来源口径)，与旧 project-pending 区分。
+
+- 从 Git 补录、根据主题及资料向本组/其他组提需，或显式 --work 整理工作记录，生成需求文本/Excel并回填编号（`--split` 审查拆分，`--split --excel` 拆分并导出）：[bos-demand-entry](skills/bos-demand-entry/SKILL.md)。主题提需无需 Git，不自动发送或指派。
+- 个人开发待办 `bos-demand-query --todo [日期或范围]`、工作量 `--workload 日期或范围`，或按人员/组查询列表及编号详情：[bos-demand-query](skills/bos-demand-query/SKILL.md)。人员流转、状态组合和日期口径归[查询协议](references/usage.md#个人待办与工作量口径)，workload 必须给执行日期；只读并展示实际口径。
 - 已有需求号或正文，需要调查、实施、验证，以及提交后的日志衔接：[bos-demand-handle](skills/bos-demand-handle/SKILL.md)。
 - `$bos-demand-handle --night` 或明确自然语言夜跑：经同一技能进入共享夜跑 workflow，由 Agent 准备批次资料；参数仅选择流程，沿用既有授权。
 - 已有本地提交补录为 BOS 代码更新日志：[bos-code-update-log](skills/bos-code-update-log/SKILL.md)。
@@ -26,4 +42,6 @@ BOS 能力独立于技术栈。目录存在仅表示 available；项目使用前
 
 新夜跑采用[2.1 启动契约](../../docs/night-policy.md#schema-21-启动契约)：一个批次一个多仓 run，全部必需授权与实际能力在开始前核验；运行中受阻分支挂起并交接，不请求新授权、不代批宿主。既有 2.0 run 保持原行为。
 
-代码更新日志的 plan 只读本地 Git；submit 是独立 BOS 写入，需明确授权与 --confirm，不代替本地 commit/push 或需求状态。需求处理的全部提交校验成功后自动准备日志计划，复用精确 repo/hash，再按已有授权执行或请求授权；失败恢复与去重由 [bos-demand workflow](../../workflows/bos-demand.workflow.md#提交后的-bos-代码更新日志) 定义。
+代码更新日志先按[实仓 commit 门禁](references/code-update-log.md#实仓-commit-门禁)核实最终来源，plan 只读实仓 Git；submit 是独立 BOS 写入，需明确授权与 --confirm，不代替本地 commit/push 或需求状态。需求处理的全部实仓提交校验成功后自动准备日志计划，复用精确 repo/ref/hash，再按已有授权执行或请求授权；失败恢复与去重由 [bos-demand workflow](../../workflows/bos-demand.workflow.md#提交后的-bos-代码更新日志) 定义。
+
+夜跑降级的唯一契约是[退出夜跑转受监督串行](../../workflows/bos-demand-unattended.workflow.md#单-agent-降级)；入口和场景说明只引用该段，不维护另一套降级步骤。

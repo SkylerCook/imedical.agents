@@ -5,6 +5,8 @@ description: Use when translating XML print template files whose visible text is
 
 # XML Template I18N - XML 打印模板翻译
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 本 Skill 只处理 XML 打印模板。核心目标是：翻译 `defaultvalue` 中的用户可见文本，同时避免编码乱码和英文 label/value 版面覆盖。
 
 ## 必读规则
@@ -22,7 +24,7 @@ description: Use when translating XML print template files whose visible text is
 
 - `targetLanguage`：目标语言代码；默认使用 project profile 配置，通常为 `EN`。
 - `sourceFiles`：一个或多个 XML 打印模板文本文件。
-- `outputDir`：输出目录；未指定时使用 project profile 或 `docs/xmlPrintTemp/`。
+- `outputDir`：本次明确输出目录；同步 manifest 已提供时直接复用，否则按 [目录选择](../../references/project-directories.md) 的 `xml` 解析取得 `outputDir`，保留 profile 覆盖、治理启用条件及 legacy 兼容。
 
 ## 输出产物
 

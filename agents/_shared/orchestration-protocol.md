@@ -38,7 +38,7 @@
 
 可写的 multi-session 参与者必须使用不同隔离 worktree，并拥有互斥文件或模块范围；Coordinator 是唯一集成 owner。冲突按源码、可复现结果和测试证据裁决，无法裁决时请求用户决策。
 
-创建 worktree 时按[审阅交付规范](../../docs/guides/worktree-review.md)同时交付实际仓库查看入口、固定创建基点及提交归属；多仓或 Overlay 覆盖工作区文件与直接打开容器的方式，记录 Git 验证和界面验证限制。无子 Agent 时由当前 Agent 执行同一要求。
+创建或接续 worktree 时按[审阅交付规范](../../docs/guides/worktree-review.md)核对实际仓库查看入口、固定创建基点及提交归属；阶段完成或交接时执行其中[阶段提交与恢复点](../../docs/guides/worktree-review.md#阶段提交与恢复点)。多仓或 Overlay 覆盖工作区文件与直接打开容器的方式，记录 Git 验证和界面验证限制。无子 Agent 时由当前 Agent 执行同一要求。
 
 ## Adapter contract
 

@@ -4,7 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { resolveWorkspaceContext, validateWorkspaceContext } = require('../../../../scripts/lib/workspace-context');
+const { resolveWorkspaceContext, workspaceContextBlockers } = require('../../../../scripts/lib/workspace-context');
 const SCHEMA = 'iris-menu-snapshot/v1';
 const hash = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
@@ -103,7 +103,7 @@ function render(snapshot) {
   }
   return files;
 }
-function sync({ root, input, write = false, allowEmpty = false, expectHash, expectInput }) {
+function sync({ root, input, write = false, allowEmpty = false, expectHash, expectInput, acquisition }) {
   noLinks(root);
   if (!write) { const p = prepare(root,input,allowEmpty); return { status:'planned', revision:p.previous.revision,inputHash:p.inputHash,changes:p.changes }; }
   fs.mkdirSync(root,{recursive:true}); const lock = path.join(root,'.lock'); fs.mkdirSync(lock);
@@ -117,6 +117,7 @@ function sync({ root, input, write = false, allowEmpty = false, expectHash, expe
     for (const [name,content] of Object.entries(render(p.snapshot))) {
       const file = path.join(dir,name); fs.mkdirSync(path.dirname(file),{recursive:true}); fs.writeFileSync(file,content,{flag:'wx'});
     }
+    if (acquisition !== undefined) fs.writeFileSync(path.join(dir,'acquisition.json'), JSON.stringify(acquisition,null,2)+'\n',{flag:'wx'});
     const revision = hash(p.snapshot); pointerTemp = path.join(root,`${generation}.tmp`);
     fs.writeFileSync(pointerTemp,JSON.stringify({schema:'iris-menu-current/v1',generation,revision,previous:p.previous.generation || null})+'\n',{flag:'wx'});
     fs.renameSync(pointerTemp,path.join(root,'current.json')); published = true;
@@ -131,8 +132,7 @@ function resolveProject(workspace) {
   const context = resolveWorkspaceContext(path.resolve(workspace));
   if (context.mode === 'invalid') fail('Invalid workspace context');
   if (context.mode !== 'standard') {
-    const checks = validateWorkspaceContext(context);
-    if (checks.some(c => !['workspace-context-resolved','junction-ok','local-path-ok'].includes(c.status))) fail('Overlay must pass workspace context validation');
+    if (workspaceContextBlockers(context).length) fail('Overlay must pass workspace context validation');
   }
   if (fs.existsSync(path.join(context.workspaceRoot,'plugins','coding-iris-plugin','.agents-plugin','plugin.json'))) fail('Choose a business project, not the capability repository');
   return context;

@@ -1,5 +1,7 @@
 # AGENTS.md
 
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 ## 插件定位
 
 `extract-doc` 提供可复用的文档读取与落盘能力：把 PDF、DOC、DOCX、XLS、XLSX 文档转换为 Markdown、接口字段 JSON、字段摘要和诊断文件；业务插件需要原始版面事实时，可额外生成领域无关的 `structure.json`。
@@ -8,7 +10,7 @@
 
 ## 使用约束
 
-- 解析结果默认写入目标项目 `docs/interface/<doc-name>/`，不得把完整文档内容默认塞进会话上下文。
+- 解析结果按 `skills/extract-doc-ingest/SKILL.md` 的输出契约写入目标项目；显式输出路径优先，不得把完整文档内容默认塞进会话上下文。
 - MarkItDown 只是可选转换器；不可用时使用脚本内置 DOCX、PDF、XLSX 解析链路。
 - `.doc` 文件只做可选转换；缺少可用转换器时提示用户另存为 DOCX。
 - 现有 `parsed.json` 保持接口字段识别语义；`structure.json` 只记录段落、表格、单元格、页面、图片等通用结构，不写入具体业务领域判断。

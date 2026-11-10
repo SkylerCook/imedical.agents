@@ -5,6 +5,8 @@ description: Use when building or querying the local IRIS/ObjectScript code grap
 
 # IRIS CodeGraph
 
+Help requests (`--help`, show usage): first read the [shared help protocol](../../../../docs/guides/capability-help.md), show help from the current definition, then stop; if Overlay does not map `docs/`, locate the protocol through `CapabilityRoot` in `.agents/capability.json`; execution arguments supplied alongside help do not enter the business workflow.
+
 ## Required Context
 
 1. Read `.agents/plugins/iris-codegraph/rules/iris_codegraph_usage.md`.

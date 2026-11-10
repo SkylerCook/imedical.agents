@@ -56,18 +56,20 @@ related:
 
 ## 翻译表输出
 
+生成文件前按 [目录选择](../references/project-directories.md) 的 `terms` 命令取得 `path` 作为 `termsDir`；显式项目覆盖优先，治理未启用时仍为 `docs`。
+
 `HIS系统最佳目标语言翻译` 列必须按 `i18n_translation_quality.md` 生成。
 
 默认输出：
 
 ```text
-docs/i18n_terms_EN_YYYYMMDD_HHMM.md
+{termsDir}/i18n_terms_EN_YYYYMMDD_HHMM.md
 ```
 
 指定目标语言时：
 
 ```text
-docs/i18n_terms_FR_YYYYMMDD_HHMM.md
+{termsDir}/i18n_terms_FR_YYYYMMDD_HHMM.md
 ```
 
 固定列：

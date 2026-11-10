@@ -9,6 +9,16 @@ related:
 
 # iris-agentic-dev 使用约束
 
+IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY=false`），项目显式 `true` 仍保留。显式开启校验的 Atelier 在支持 API 的 Node 中合并默认与系统 CA；专用 CA 保持优先，不改全局信任。
+
+执行前先解析当前 `ContextRoot/config/iris-development.json`。`developmentMode: offline` 禁止本页所有医院 MCP 调用（包括 check_config；受管 tools/list 只读本地目录，不连接医院），转入[离线协议](../references/iris-offline-development.md)；原生 MCP 和外部 IDE 不在脚本机器拦截范围，Agent 同样不得调用。非法值停止，旧配置缺省保持既有行为。下面的调用与优先级仅适用于 connected，不授予远端权限。
+
+所有 IRIS 远端操作使用[统一会话入口](../../../docs/guides/iris-managed-sessions.md)：CLI 经 `scripts/iris-mcp.js`，宿主 MCP 经 `iris-session-mcp.js`，业务 Atelier 脚本经共享 client。先运行迁移 Check；首次业务回执必须包含 `_meta["imedical/session"]`（CLI 为 `REMOTE`）。配置字节和旧宿主显示的工具名不能证明受管入口生效；重启对应宿主 MCP 后复核。不得临时改用 curl、PowerShell HTTP、vendor exe 或未受管 MCP 绕过门禁。
+
+普通受管单会话操作由工具复用、排队和清理，不要求 License 资格登记、历史退出证明或证据文件；qualification 缺失、pending、引用失效、注销未确认或未观测 License 回落不阻断普通任务。大量 SQL 插入、读写沿同一会话串行执行，由工具收束资源，不向用户增加资格手续。未知写只保护冲突操作，只读与无冲突操作继续；明确禁用、offline、短时服务冷却及写入授权仍生效。恢复和错误分类统一按上述会话协议执行，普通收尾报告业务结果，不例行展开资源治理检查单。批量/多会话资格、目标校验、源码同步和冻结要求保持。
+
+普通 MCP 与 Atelier Web 工作均适用上述约定。License 数量阻断只能依据可信的服务端实际 WebSession 占用，超过 45 个时才考虑阻断继续增加会话的操作；45 个及以下不因数量阻断。请求次数、Cookie 更新次数、空登记及不可得的计数都不能代替实际占用。当前工具没有服务端计数入口，不新增猜测计数或用户配置门槛；真实 HTTP 错误和未知写入冲突仍按原错误处理，既有大文件导出保护保留。
+
 ## MCP 能力矩阵
 
 本矩阵基于 `tools/list`、2026-06-01 的目标项目冒烟测试和 2026-10-16 对仓库内置 `iris-agentic-dev 1.5.0` 的断连本地 schema 复核整理。完整合并 toolset 返回 81 个工具；本仓库 helper 与新生成的 `.mcp.json` 默认使用 `--no-skills`，返回 70 个工具。本文只记录通用能力，不得从 `.mcp.json` 复制 host、用户名、密码、namespace、token 或私有路径。
@@ -107,7 +117,7 @@ related:
 - `iris_info what=documents` 使用顶层 `documents`，不再嵌套 `result.content`；`ALL` 包含全部文档类型，`inline=true` 默认最多 500 项。检查 `truncated/total_count`，不把截断列表当完整清单。
 - `iris_info what=sa_schema` 的 `name` 是 http(s) XData namespace URL，不是 SQL Analytics schema 或 cube 名称；区分 `INVALID_PARAMS`、`SA_SCHEMA_NOT_FOUND` 和后台构建未完成的 `SA_SCHEMA_PENDING`。
 - `iris_execute_method` 的错误 %Status 返回 `METHOD_RETURNED_ERROR`；HTTP `iris_execute` 原样发送嵌入式 SQL，不再返回 `sql_translated/translated_code`。核对业务结果，不能只看传输成功。
-- 原生 CLI 的单次 `tool` 拒绝 `iris_ws_open`、`iris_ws_exec`、`iris_ws_close`；持久会话须在同一 MCP 进程或原生 `batch` 中完成。根 helper 每次启动独立进程，不能跨调用复用 session token。
+- 原生 CLI 的单次 `tool` 拒绝 `iris_ws_open`、`iris_ws_exec`、`iris_ws_close`；持久会话须在同一 MCP 进程或原生 `batch` 中完成。管理进程持有后端，但 WS token 仍绑定原客户端租约；不能从另一个 CLI 进程借用。
 - 正常退出新增 CSP 会话注销和临时类清理等待；强制终止不等于已清理。CLI 可能增加约 3 秒退出耗时，真实资源释放需目标侧验证。
 - vendor skill 的 `iris_doc put`、编译与测试示例必须服从项目部署入口、Storage 保护和既有远程动作授权；上游原文不覆盖项目契约。
 
@@ -153,7 +163,7 @@ related:
 
 ## 诊断
 
-- 原生 `mcp__iris_agentic_dev__*` 工具优先。只有当前运行器没有暴露原生工具且目标工程确实存在 `.agents/scripts/iris-mcp.js` 时，才使用 `node .agents/scripts/iris-mcp.js check|tools|call ...`；helper 不存在时报告入口缺失，不得假定它已部署。
+- 远端调用优先使用已部署且接入公共准入的入口；根 `scripts/iris-mcp.js` 的 tools/call 使用前核实本页首段要求。原生工具可用不代表准入合格；helper 缺失或资格不明时停止，不自行编写替代连接脚本。
 - helper 的 `tools` / `call` 已内置 `check_config`，正常调用直接使用这两个入口，独立 `check` 留给配置诊断。参数已知时直接 `call`；需要核实参数时使用 `tools --names iris_global,iris_execute_method,iris_doc --schema --json`，将名单换成本次实际需要的工具。`--json` 的 stdout 为单个 JSON 对象，含 `CHECK` 与 `TOOLS` / `TOOL_SCHEMAS` 或 `RESULT`，无需落盘截取；失败检查退出码和 stderr。工具名不可用时明确报错，不回退到猜参数。目录仅在本次进程内复用，无跨会话缓存。
 - `check_config` 只说明配置解析结果，不发起 IRIS 网络调用。先确认目标 host、namespace、`connection_source`、`fallback_warning`、`objectscript_workspace` 和 `capabilities` 是否合理，再立即执行 `iris_query("SELECT 1 AS Probe")` 作为最小无副作用网络探针。
 - `capabilities.compile_path=docker_exec` 时，允许 `iris_compile` 使用上游自动路由，不要先把 Atelier REST 不可用扩大为整个 MCP 不可用；`capabilities` 仍是连接状态推导，不替代真实工具调用验证。

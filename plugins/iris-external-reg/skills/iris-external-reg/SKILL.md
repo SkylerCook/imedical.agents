@@ -5,6 +5,8 @@ description: 按照 HIS 标准自助机预约挂号程序规范开发第三方�
 
 # IRIS 第三方预约挂号接口开发
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 核心目标
 
 在 `DHCDoc.Interface.Outside.RegInterface` 中实现第三方预约挂号接口。该包作为外部平台翻译层，将省平台或第三方平台请求转换为 `DHCExternalService` XML 调用，或从 HIS Global 读取业务数据后调用平台接口。
@@ -36,7 +38,6 @@ description: 按照 HIS 标准自助机预约挂号程序规范开发第三方�
      python .agents/plugins/extract-doc/scripts/extract-doc-ingest.py `
        --file <document-path> `
        --project-root . `
-       --output-root docs/output/iris-external-reg `
        --schema-version iris-external-reg/v1
      ```
      对话中只汇报产物路径、字段数量、转换器和诊断摘要，不粘贴完整文档。
@@ -97,3 +98,5 @@ TODO 未确认前，相关代码必须保留 `; TODO: 待确认 - ...` 注释，
 | `../../references/xml-to-obj.md` | 需要处理 XML 与对象互转时 |
 | `../../references/reginterface-wiki-index.md` | 需要快速确认核心类、方法、TradeCode、Entity 时 |
 | `../../references/reginterface-wiki.md` | 索引不足，需要查看 `DHCExternalService.RegInterface` 详细方法说明时 |
+
+默认摄取目录由 extract-doc 解析，项目显式 `--output-root` 保持优先；目录治理接入不会移动已有接口资料。

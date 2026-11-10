@@ -18,3 +18,4 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: node --test scripts/tests/iris-knowledge-menu.tests.js
+      - run: node --test scripts/tests/iris-menu-refresh.tests.js

@@ -1,0 +1,5 @@
+{
+  "developmentMode": "connected",
+  "environmentAlias": "test-local",
+  "environmentType": "test"
+}

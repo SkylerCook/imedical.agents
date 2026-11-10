@@ -1,4 +1,27 @@
+---
+name: iris-change-agent
+type: domain
+description: 复用通用角色和调度内核的 IRIS 复杂变更协作入口。
+defaultWorkflow: iris-change
+plugins:
+  - coding-iris-plugin
+requiredPlugins:
+  - coding-iris-plugin
+roles:
+  - coordinator-agent
+  - explorer-agent
+  - planner-agent
+  - coding-agent
+  - review-agent
+  - testing-agent
+runtime: scripts/agent-orchestrator.js
+serialFallback: true
+multiSessionRequiresExplicitAuthorization: true
+---
+
 # IRIS Change Agent
+
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
 
 ## 职责
 
@@ -14,6 +37,8 @@
 ## 执行
 
 1. 读取项目入口、plugin profile、共享调度协议和 `iris-change` workflow。
+   先从当前 ContextRoot 的 `config/iris-development.json` 读取 `developmentMode`；`offline` 路由 coding owner 的[离线开发协议](../../plugins/coding-iris-plugin/references/iris-offline-development.md)，不进入下文在线同步。向各角色传递同一配置引用，不维护模式副本；缺省沿旧 `connected` 行为，非法值停止。
+   确认当前需求 `standard`／`project` 及其来源，并随 scope 传给各角色；它与 taskKind、contextMode、执行路径和授权独立。`project` ＋按需导出时读取[项目开发协议](../../plugins/coding-iris-plugin/references/project-demand-development.md)，标版沿原有分支；角色复用公共规则，只加载命中的分支。
 2. 展示任务图、参与者、worktree、scope 与未包含外部动作。
 3. 获得协作计划授权后，由 Coordinator 使用 `scripts/agent-orchestrator.js` 推进。
 4. 本 Agent 的业务需求 run 固定设置 `taskKind=business-demand`；等待用户验收且命中反馈信号后才进行只读 feedback 审查。纯框架维护必须建立独立 `framework-maintenance` 记录，不得复用本 run 的验收或 feedback 状态。

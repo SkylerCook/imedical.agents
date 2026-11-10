@@ -16,11 +16,13 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const remoteOperations = require('./lib/iris-remote-operations');
 
 const argv = process.argv.slice(2);
 const command = argv[0];
 let workspaceRoot;
 let server;
+let selectedServerName='iris-agentic-dev';
 let env = {};
 let namespace;
 
@@ -32,7 +34,7 @@ function usage(exitCode = 1) {
   node .agents/scripts/iris-mcp.js call <toolName> <jsonArgs> [--allow-write] [--json]
   node .agents/scripts/iris-mcp.js call <toolName> --json-file <path> [--allow-write] [--json]
 
-tools and call include check_config; a separate check is only needed for diagnosis.
+Managed tools reads the local catalog without connecting; call includes check_config.
 --json emits one object on stdout; errors go to stderr with a nonzero exit code.`);
   process.exit(exitCode);
 }
@@ -52,6 +54,7 @@ function optionValue(name) {
 function findWorkspaceRoot() {
   let dir = process.cwd();
   while (true) {
+    if (fs.existsSync(path.join(dir, '.agents', 'capability.json')) || fs.existsSync(path.join(dir, '.agents', 'config', 'iris-development.json'))) return dir;
     if (fs.existsSync(path.join(dir, '.mcp.json'))) {
       return dir;
     }
@@ -66,27 +69,30 @@ function findWorkspaceRoot() {
 function loadWorkspaceContext() {
   workspaceRoot = findWorkspaceRoot();
   const mcpConfig = JSON.parse(fs.readFileSync(path.join(workspaceRoot, '.mcp.json'), 'utf8'));
-  server = mcpConfig.mcpServers && mcpConfig.mcpServers['iris-agentic-dev'];
+  const context=require('./lib/workspace-context').resolveWorkspaceContext(workspaceRoot);
+  const localEnv=path.join(context.contextRoot,'config','project-env.json');
+  if(fs.existsSync(localEnv))selectedServerName=JSON.parse(fs.readFileSync(localEnv,'utf8').replace(/^\uFEFF/,'')).mcp?.serverName || selectedServerName;
+  server = mcpConfig.mcpServers && mcpConfig.mcpServers[selectedServerName];
   if (!server) {
     throw new Error('MCP server iris-agentic-dev not found in .mcp.json');
   }
 
-  env = server.env || {};
+  env = {IRIS_TLS_VERIFY:'false', ...(server.env || {})};
   namespace = env.IRIS_NAMESPACE;
   if (!namespace) {
     throw new Error('IRIS_NAMESPACE is missing from .mcp.json env');
   }
 }
 
-function buildMcpArgs() {
+function buildMcpArgs(root = workspaceRoot, settings = env) {
   const args = ['mcp'];
-  const tomlPath = path.join(workspaceRoot, '.iris-agentic-dev.toml');
+  const tomlPath = path.join(root, '.iris-agentic-dev.toml');
   if (fs.existsSync(tomlPath)) args.push('--config', tomlPath);
-  if (env.IRIS_HOST) args.push('--host', env.IRIS_HOST);
-  if (env.IRIS_WEB_PORT) args.push('--web-port', String(env.IRIS_WEB_PORT));
-  if (env.IRIS_SCHEME) args.push('--scheme', env.IRIS_SCHEME);
-  if (env.IRIS_NAMESPACE) args.push('--namespace', env.IRIS_NAMESPACE);
-  const noSkills = normalizedValue(env.IRIS_NO_SKILLS, 'true');
+  if (settings.IRIS_HOST) args.push('--host', settings.IRIS_HOST);
+  if (settings.IRIS_WEB_PORT) args.push('--web-port', String(settings.IRIS_WEB_PORT));
+  if (settings.IRIS_SCHEME) args.push('--scheme', settings.IRIS_SCHEME);
+  if (settings.IRIS_NAMESPACE) args.push('--namespace', settings.IRIS_NAMESPACE);
+  const noSkills = normalizedValue(settings.IRIS_NO_SKILLS, 'true');
   if (!new Set(['false', '0', 'no']).has(noSkills)) args.push('--no-skills');
   return args;
 }
@@ -153,6 +159,7 @@ function summarizeCheck(data) {
     namespaceIsDefaultUser: data.namespace === 'USER',
     portIsDefault52773: String(data.port) === '52773',
     connected: data.connected === true,
+    ...(data.managedSession ? {managedSession:true,remoteConnectionVerified:data.remoteConnectionVerified === true} : {}),
     connectionSource: data.connection_source || null,
     workspaceHintLoaded: Boolean(data.objectscript_workspace),
     writeToolsEnabled: typeof data.write_tools_enabled === 'boolean' ? data.write_tools_enabled : null,
@@ -358,9 +365,12 @@ function isWriteLike(toolName, toolArgs) {
 }
 
 class JsonLineMcpClient {
-  constructor(commandPath, args, childEnv) {
+  constructor(commandPath, args, childEnv, { remoteOwner, cwd = workspaceRoot, shutdownTimeoutMs = 10000 } = {}) {
+    this.remoteOwner = remoteOwner;
+    this.shutdownTimeoutMs = shutdownTimeoutMs;
     this.proc = spawn(commandPath, args, {
-      cwd: workspaceRoot,
+      cwd,
+      windowsHide: true,
       env: { ...process.env, ...childEnv },
       stdio: ['pipe', 'pipe', 'pipe']
     });
@@ -371,12 +381,16 @@ class JsonLineMcpClient {
 
     this.proc.stdout.on('data', (chunk) => this.onData(chunk));
     this.proc.stderr.on('data', (chunk) => {
-      this.stderr += chunk.toString('utf8');
+      this.stderr = (this.stderr + chunk.toString('utf8')).slice(-65536);
     });
     this.proc.on('exit', (code) => {
       for (const pending of this.pending.values()) {
         pending.reject(new Error(`MCP exited ${code}`));
       }
+      this.pending.clear();
+    });
+    this.proc.on('error', () => {
+      for (const pending of this.pending.values()) pending.reject(new Error('MCP process failed'));
       this.pending.clear();
     });
   }
@@ -394,6 +408,7 @@ class JsonLineMcpClient {
       } catch {
         continue;
       }
+      if (message.id === undefined && typeof message.method === 'string' && message.method.startsWith('notifications/')) this.onNotification?.(message);
       if (message.id && this.pending.has(message.id)) {
         const pending = this.pending.get(message.id);
         this.pending.delete(message.id);
@@ -403,6 +418,18 @@ class JsonLineMcpClient {
   }
 
   request(method, params, timeoutMs = 30000) {
+    if (!this.remoteOwner || method !== 'tools/call') return this.requestRaw(method, params, timeoutMs);
+    return this.remoteOwner.run({effects:isWriteLike(params.name,params.arguments || {})?'write':'read-only',operation:'mcp-tools-call'}, async () => {
+      const result = await this.requestRaw(method, params, timeoutMs);
+      if (result.error || result.result?.isError) {
+        const failure = JSON.stringify(result);
+        throw new remoteOperations.RemoteOperationError('mcp-remote-tool-failed', /(?:HTTP\s*503|503\s+Service Unavailable|"(?:httpStatus|statusCode)"\s*:\s*503)/i.test(failure) ? {status:503} : {});
+      }
+      return result;
+    });
+  }
+
+  requestRaw(method, params, timeoutMs = 30000) {
     const id = this.nextId++;
     this.proc.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n');
     return new Promise((resolve, reject) => {
@@ -427,11 +454,21 @@ class JsonLineMcpClient {
     this.proc.stdin.write(JSON.stringify({ jsonrpc: '2.0', method, params }) + '\n');
   }
 
-  close() {
-    if (this.proc) {
-      this.proc.stdin.end();
-      this.proc.kill();
-    }
+  async close() {
+    const receipt = (processExited, gracefulExit) => {
+      const line = this.stderr.split(/\r?\n/).filter(value=>value.startsWith('IMEDICAL_LOGOUT=')).at(-1);
+      let logout = null;
+      try {if(line)logout=JSON.parse(line.slice('IMEDICAL_LOGOUT='.length));} catch {}
+      return {processExited,gracefulExit,...(logout?{logout}: {})};
+    };
+    if (!this.proc || this.proc.exitCode !== null || this.proc.signalCode) return receipt(true, !this.proc?.signalCode && this.proc?.exitCode === 0);
+    const exited = new Promise(resolve => this.proc.once('exit', () => resolve(true)));
+    this.proc.stdin.end();
+    let timer;
+    const wait = ms => Promise.race([exited,new Promise(resolve => {timer=setTimeout(()=>resolve(false),ms);})]).finally(()=>clearTimeout(timer));
+    if (await wait(this.shutdownTimeoutMs)) return receipt(true, this.proc.exitCode === 0);
+    this.proc.kill();
+    return receipt(await wait(1000), false);
   }
 }
 
@@ -477,6 +514,70 @@ async function callTool(client, toolName, toolArgs, options = {}) {
   return extractToolText(response);
 }
 
+// One command may make many bounded calls, but owns just one MCP process and
+// the participating pool lock until graceful shutdown has completed.
+async function createManagedMcpSession({projectRoot, context, serverName = 'iris-agentic-dev', expectedNamespace, timeoutMs = 60000} = {}) {
+  const root = path.resolve(projectRoot || process.cwd());
+  const selectedContext = context || require('./lib/workspace-context').resolveWorkspaceContext(root);
+  remoteOperations.assertRemoteAllowed(selectedContext);
+  const configuration = JSON.parse(fs.readFileSync(path.join(root, '.mcp.json'), 'utf8').replace(/^\uFEFF/, ''));
+  const selectedServer = configuration.mcpServers?.[serverName], settings = {IRIS_TLS_VERIFY:'false', ...(selectedServer?.env || {})};
+  if (!selectedServer?.command || !settings.IRIS_NAMESPACE || expectedNamespace && settings.IRIS_NAMESPACE !== expectedNamespace) throw new Error('remote-mcp-target-unverified');
+  const sessions = require('./lib/iris-session-client');
+  if(sessions.managed(selectedServer) || /(?:^|[\\/])iris-agentic-dev(?:\.exe)?$/i.test(selectedServer.command)) {
+    const client=sessions.createClient({projectRoot:root,serverName,allowWrite:true});
+    let unknown=false,closed=false;
+    return {
+      async call(name,args,options={}) {
+        if(closed)throw new Error('remote-mcp-session-closed');
+        if(args?.namespace && args.namespace!==settings.IRIS_NAMESPACE)throw new Error('remote-mcp-namespace-mismatch');
+        return callTool(client,name,args,{...options,defaultNamespace:settings.IRIS_NAMESPACE,timeoutMs:options.timeoutMs || timeoutMs});
+      },
+      markUnknown(){unknown=true;},
+      snapshot(){return {schema:'iris-remote-operation/v1',channel:'mcp',status:unknown?'reconciliation-required':closed?'closed':'ready',managedSession:true,licenseReleaseVerified:false};},
+      async close(){
+        if(closed)return this.snapshot();closed=true;
+        try {if(unknown)await client.markUnknown();const result=await client.endSession();return {...this.snapshot(),...result.exit,unresolvedWrites:result.unresolvedWrites,warning:result.warning,status:result.blocked || result.unresolvedWrites?.length?'reconciliation-required':result.warning?'warning':'closed'};}
+        finally{await client.close();}
+      }
+    };
+  }
+  const connection = {protocol: (settings.IRIS_SCHEME || 'https') + ':', hostname: settings.IRIS_HOST,
+    port: Number(settings.IRIS_WEB_PORT), rejectUnauthorized: String(settings.IRIS_TLS_VERIFY ?? 'false').toLowerCase() !== 'false'};
+  const policy = remoteOperations.loadRemotePolicy(selectedContext, {connection});
+  if (!policy.enabled) throw new Error('remote-policy-required');
+  const owner = remoteOperations.createRemoteOperation({policy, connection, channel: 'mcp'});
+  owner.acquire();
+  let client, closing, exitUnverified = false;
+  const close = async () => {
+    if (closing) return closing;
+    closing = (async () => {
+      const result = client ? await client.close() : {processExited: true, gracefulExit: true};
+      const cleanupVerified = result.processExited && result.gracefulExit !== false && !exitUnverified;
+      if (!cleanupVerified) owner.markUnknown('mcp-process-exit-unverified');
+      return owner.close({...result, cleanupVerified});
+    })();
+    return closing;
+  };
+  try {
+    client = new JsonLineMcpClient(selectedServer.command, buildMcpArgs(root, settings), settings, {remoteOwner: owner, cwd: root});
+    await client.request('initialize', {protocolVersion: '2024-11-05', capabilities: {}, clientInfo: {name: 'iris-managed-session', version: '1.0.0'}}, timeoutMs);
+    client.notify('notifications/initialized', {});
+    const check = await callTool(client, 'check_config', {}, {allowWrite: true, timeoutMs, defaultNamespace: settings.IRIS_NAMESPACE});
+    if (check.connected !== true || String(check.host || '').toLowerCase() !== String(settings.IRIS_HOST).toLowerCase() ||
+        Number(check.port) !== Number(settings.IRIS_WEB_PORT) || check.namespace !== settings.IRIS_NAMESPACE) throw new Error('remote-mcp-target-unverified');
+    return {async call(name, args, options = {}) {
+      remoteOperations.assertRemoteAllowed(selectedContext);
+      if (closing) throw new Error('remote-mcp-session-closed');
+      if (args && Object.hasOwn(args, 'namespace') && args.namespace !== settings.IRIS_NAMESPACE) throw new Error('remote-mcp-namespace-mismatch');
+      return callTool(client, name, args, {...options, timeoutMs: options.timeoutMs || timeoutMs, defaultNamespace: settings.IRIS_NAMESPACE});
+    }, close, markUnknown(reason = 'mcp-exit-unverified') {
+      exitUnverified = true;
+      owner.markUnknown(/^[a-z0-9-]+$/.test(reason) ? reason : 'mcp-exit-unverified');
+    }, snapshot: owner.snapshot};
+  } catch (error) { await close(); throw error; }
+}
+
 async function main() {
   if (!command || command === '-h' || command === '--help') {
     usage(command ? 0 : 1);
@@ -491,9 +592,39 @@ async function main() {
     output[key] = value;
     if (!hasFlag('--json')) printJson(key, value);
   };
-  const finish = () => { if (hasFlag('--json')) console.log(JSON.stringify(output)); };
+  let finishRequested = false;
+  const finish = () => { finishRequested = true; };
+  workspaceRoot = findWorkspaceRoot();
+  if (command !== 'tools') remoteOperations.assertRemoteAllowed(require('./lib/workspace-context').resolveWorkspaceContext(workspaceRoot));
   loadWorkspaceContext();
-  const client = new JsonLineMcpClient(server.command, buildMcpArgs(), env);
+  const context = require('./lib/workspace-context').resolveWorkspaceContext(workspaceRoot);
+  const sessionClient = require('./lib/iris-session-client');
+  if (sessionClient.managed(server) || /(?:^|[\\/])iris-agentic-dev(?:\.exe)?$/i.test(server.command || '')) {
+    const managed = sessionClient.createClient({projectRoot: workspaceRoot, serverName:selectedServerName, allowWrite: hasFlag('--allow-write')});
+    try {
+      if (command !== 'tools') emit('CHECK', summarizeCheck(await callTool(managed, 'check_config', {}, {allowWrite: true})));
+      if (command === 'tools') {
+        const catalog = await listTools(managed);
+        const selected = names ? names.map(name => {const item = catalog.find(t => t.name === name); if (!item) throw new Error('Unknown MCP tool'); return item;}) : catalog;
+        emit('TOOLS', selected.map(t => t.name));
+        if (hasFlag('--schema')) emit('TOOL_SCHEMAS', selected.map(({name,inputSchema}) => ({name,inputSchema})));
+      } else if (command === 'call') {
+        const jsonFile = optionValue('--json-file');
+        const args = parseToolArgsInput(argv[2] && argv[2] !== '--json-file' ? argv[2] : null, jsonFile);
+        emit('RESULT', await callTool(managed, argv[1], args, {allowWrite: hasFlag('--allow-write'), timeoutMs: 60000}));
+        emit('REMOTE', managed.snapshot());
+      } else if (command !== 'check') throw new Error('Unknown command');
+      if(command==='check')emit('REMOTE',managed.snapshot());
+      if (hasFlag('--json')) console.log(JSON.stringify(output));
+    } finally {await managed.close();}
+    return;
+  }
+  const connection = {protocol:(env.IRIS_SCHEME || 'https')+':',hostname:env.IRIS_HOST,port:env.IRIS_WEB_PORT,
+    rejectUnauthorized:String(env.IRIS_TLS_VERIFY ?? 'false').toLowerCase()!=='false'};
+  const policy = remoteOperations.loadRemotePolicy(context,{connection});
+  const owner = remoteOperations.createRemoteOperation({policy,connection,channel:'mcp'});
+  owner.acquire();
+  const client = new JsonLineMcpClient(server.command, buildMcpArgs(), env, {remoteOwner:owner});
   try {
     await client.request('initialize', {
       protocolVersion: '2024-11-05',
@@ -503,6 +634,8 @@ async function main() {
     client.notify('notifications/initialized', {});
 
     const check = await callTool(client, 'check_config', {}, { allowWrite: true });
+    if (policy.enabled && (check.connected !== true || String(check.host || '').toLowerCase() !== String(env.IRIS_HOST).toLowerCase() ||
+        Number(check.port) !== Number(env.IRIS_WEB_PORT) || check.namespace !== env.IRIS_NAMESPACE)) throw new Error('remote-mcp-target-unverified');
     const checkSummary = summarizeCheck(check);
     emit('CHECK', checkSummary);
 
@@ -536,21 +669,32 @@ async function main() {
 
     throw new Error(`Unknown command: ${command}`);
   } finally {
-    client.close();
+    const exit = await client.close();
+    if ((!exit.processExited || exit.gracefulExit === false) && policy.enabled) owner.markUnknown('mcp-process-exit-unverified');
+    const receipt = owner.close({cleanupVerified:exit.processExited && exit.gracefulExit !== false,processExited:exit.processExited,gracefulExit:exit.gracefulExit});
+    if (finishRequested && hasFlag('--json')) {
+      if (policy.enabled || command === 'call') output.REMOTE = receipt;
+      console.log(JSON.stringify(output));
+    }
   }
 }
 
 module.exports = {
+  JsonLineMcpClient,
+  buildMcpArgs,
+  extractToolText,
   callTool,
   listTools,
   isClassifiedTool,
   isWriteLike,
   parseToolArgsInput,
-  summarizeCheck
+  summarizeCheck,
+  createManagedMcpSession
 };
 
 if (require.main === module) {
   main().catch((error) => {
+    if (hasFlag('--json')) console.log(JSON.stringify({ERROR:{code:error.code || 'iris-operation-failed',beforeSend:error.beforeSend===true,...(error.toolResponse ? {toolResponse:error.toolResponse} : {}),...(error.toolErrorCode ? {toolErrorCode:error.toolErrorCode} : {}),...(/^[A-Z][A-Z0-9_]{0,79}$/.test(error.transportCode || '') ? {transportCode:error.transportCode} : {}),...(error.diagnostic === 'system-ca-api-unavailable' ? {diagnostic:error.diagnostic} : {})}}));
     console.error('ERROR=' + error.message);
     process.exitCode = 1;
   });

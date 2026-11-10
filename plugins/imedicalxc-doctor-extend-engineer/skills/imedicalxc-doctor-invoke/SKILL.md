@@ -25,6 +25,8 @@ output-format: code
 
 # iMedicalXC Doctor Station Internal Team Invoke Guidelines
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 医生站组(opcare/ipcare/aggcare/comoe/commr)调用**东华医为内部其他产品组**接口时的规范指南。
 
 **适用范围**: 仅适用于东华医为内部产品组之间的对接（收费组、护理组、手术组、药房组、患者组、病案组、物资组、床位组等）

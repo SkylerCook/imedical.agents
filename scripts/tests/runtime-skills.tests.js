@@ -56,6 +56,37 @@ for (const runtime of ['CodeBuddy', 'ClaudeCode', 'WorkBuddy', 'WorkBuddyDonghua
   assert.equal(fs.existsSync(path.join(first.target, 'new-skill')), true);
   assert.equal(run(root, runtime, 'Check').status, 'runtime-adapter-unchanged');
 });
+test('WorkBuddy and WorkBuddyDonghua share project skills in either order and preserve other host data', () => {
+  for (const order of [['WorkBuddy', 'WorkBuddyDonghua'], ['WorkBuddyDonghua', 'WorkBuddy']]) {
+    const root = fixture('shared-' + order[0]);
+    const memory = path.join(root, '.workbuddydonghua', 'memory', 'MEMORY.md');
+    const legacy = path.join(root, '.workbuddydonghua', 'skills', 'custom', 'SKILL.md');
+    fs.mkdirSync(path.dirname(memory), { recursive: true });
+    fs.mkdirSync(path.dirname(legacy), { recursive: true });
+    fs.writeFileSync(memory, 'keep memory');
+    fs.writeFileSync(legacy, 'keep custom skill');
+    const target = path.join(root, '.workbuddy', 'skills');
+    const first = run(root, order[0]);
+    assert.equal(first.target, target);
+    assert.equal(first.status, 'runtime-adapter-linked');
+    const second = run(root, order[1]);
+    assert.equal(second.target, target);
+    assert.equal(second.status, 'runtime-adapter-unchanged');
+    fs.writeFileSync(path.join(first.source, 'sample', 'SKILL.md'), 'shared update');
+    assert.equal(fs.readFileSync(path.join(second.target, 'sample', 'SKILL.md'), 'utf8'), 'shared update');
+    for (const runtime of order) assert.equal(run(root, runtime, 'Check').status, 'runtime-adapter-unchanged');
+    assert.equal(fs.readFileSync(memory, 'utf8'), 'keep memory');
+    assert.equal(fs.readFileSync(legacy, 'utf8'), 'keep custom skill');
+  }
+});
+
+test('WorkBuddyDonghua only creates the shared skills entry on a new project', () => {
+  const root = fixture('donghua-new-project');
+  assert.equal(run(root, 'WorkBuddyDonghua').target, path.join(root, '.workbuddy', 'skills'));
+  assert.equal(fs.existsSync(path.join(root, '.workbuddydonghua')), false);
+  assert.deepEqual(fs.readdirSync(path.join(root, '.workbuddy')), ['skills']);
+});
+
 test('Codex reuses source without creating .codex', () => {
   const root = fixture('codex');
   assert.equal(run(root, 'Codex').status, 'runtime-adapter-reused');

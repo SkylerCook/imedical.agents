@@ -1,5 +1,7 @@
 # AGENTS.md
 
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 ## 插件定位
 
 `i18n-iris-plugin` 提供 IRIS/ObjectScript/CSP/HISUI 工程的通用 i18n agent 能力。
@@ -18,6 +20,10 @@
 - canonical 类模板位于 `templates/DHCDoc/I18n/PageTranslationSeed.cls`。目标文件不存在时只能在明确的页面翻译种子实现任务中按模板创建；已有文件必须校验并增量修改，不得由初始化器或更新器覆盖。
 - 前端翻译 helper 的 key 必须保持稳定字面量；运行时值只能作为占位符参数传入。修改 JS/CSP helper 后使用 `scripts/check-i18n-helper-usage.js` 做只读静态检查，失败不得继续交付。
 - i18n 业务需求开工时设置 `taskKind=business-demand`；本地验证、commit、部署均不得代表用户验收，交付后停在 `acceptance-pending`。只有用户明确验收后才允许只读 feedback 审查，任何经验写入、命中次数更新、framework feedback 或 rule 提升仍需用户逐项授权。纯框架维护使用独立 `framework-maintenance` 记录，不进入需求验收或 feedback。
+
+## 项目目录
+
+生成 XML、术语表或 CSP 同步恢复副本前，按 [目录选择](references/project-directories.md) 解析；显式参数和有效项目 profile 优先，治理未启用时保留 legacy 路径。页面翻译 seed 仍归 backend SourceRoot。
 
 ## Skill 路由
 

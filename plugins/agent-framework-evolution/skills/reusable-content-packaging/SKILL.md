@@ -5,6 +5,8 @@ description: Use when packaging validated project or conversation knowledge into
 
 # Reusable Content Packaging
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 触发条件
 
 当用户要求把某段会话沉淀、工程能力、规则体系、脚本流程、模板集合或专项经验打包为可复用 plugin/kit 时，使用本 skill。

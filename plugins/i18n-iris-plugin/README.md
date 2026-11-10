@@ -1,5 +1,9 @@
 # i18n-iris-plugin
 
+0.3.2 补齐 manifest projectDirectories 的用途、典型产物、边界和生命周期，供项目受管目录说明复用。已接入工程通过普通更新刷新受管区；无标记 README 按[目录说明升级](../../docs/guides/project-knowledge-layout.md#持续目录说明)评审接管。目录默认值、显式配置和旧任务恢复位置沿原契约，不迁移或清理业务资料。
+
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 0.2.6：修正四个种子/同步技能的 frontmatter 首行，正常更新并刷新 thin-index 后恢复真实 description，无配置迁移或清理。helper 检查对 `.js` 扫描 JavaScript；对 `.csp`/`.html`/`.htm` 仅扫描客户端 script 和 on* 事件属性，排除服务端 script、`<% %>`、`#(...)#`/`##(...)##`、普通 HTML 文本及属性。模板 `${...}` 内调用同样检查；诊断行列对应原文件。它是静态检查，不替代 CSP 编译或浏览器运行验证。
 
 `i18n-iris-plugin` 是面向 IRIS/ObjectScript/CSP/HISUI 工程的通用 i18n Agent 能力包，覆盖：
@@ -18,6 +22,10 @@
 - 新工程 i18n 初始化。
 - i18n 任务 Step 0 启动契约：开工即确定运行模式、创建 manifest、声明文件所有权，并分别确认翻译数据写入与业务代码部署授权。
 - 需求交付遵循共享生命周期：i18n 业务需求设置 `taskKind=business-demand`，本地验证后停在 `acceptance-pending`；只有用户明确验收后才做 feedback 只读审查，经验新增、命中更新和框架反馈仍需逐项授权。纯框架维护使用独立 `framework-maintenance` 生命周期，不进入需求验收或 feedback。
+
+## 项目目录治理（0.3.0）
+
+本插件通过 manifest 的 projectDirectories 声明 XML 打印模板、原文、术语表和 CSP 同步恢复目录。目标项目明确启用目录治理后，默认归入 docs/delivery；未接入项目保留旧路径，显式参数及有效 i18n profile 优先。首次接入、预建与存量迁移需分别授权，普通更新不移动文件。解析命令、目录优先级与旧任务恢复见 [项目 i18n 产物目录](references/project-directories.md)。
 
 ## 设计原则
 

@@ -1,0 +1,306 @@
+{
+  "date": "2026-10-21",
+  "scope": "anonymous HISUI fixture; no business flow",
+  "themes": [
+    "pure",
+    "vben",
+    "lite"
+  ],
+  "containerInputs": [
+    625,
+    360
+  ],
+  "phases": [
+    "initial",
+    "filled",
+    "collapsed",
+    "expanded"
+  ],
+  "loadedThemes": [
+    {
+      "theme": "pure",
+      "width": 625,
+      "stylesheet": "/hisui/css/hisui.pure.css",
+      "status": 200,
+      "failedRequests": 0
+    },
+    {
+      "theme": "vben",
+      "width": 625,
+      "stylesheet": "/hisui/css/hisui.vben.css",
+      "status": 200,
+      "failedRequests": 0
+    },
+    {
+      "theme": "lite",
+      "width": 625,
+      "stylesheet": "/hisui/css/hisui.lite.css",
+      "status": 200,
+      "failedRequests": 0
+    },
+    {
+      "theme": "pure",
+      "width": 360,
+      "stylesheet": "/hisui/css/hisui.pure.css",
+      "status": 200,
+      "failedRequests": 0
+    },
+    {
+      "theme": "vben",
+      "width": 360,
+      "stylesheet": "/hisui/css/hisui.vben.css",
+      "status": 200,
+      "failedRequests": 0
+    },
+    {
+      "theme": "lite",
+      "width": 360,
+      "stylesheet": "/hisui/css/hisui.lite.css",
+      "status": 200,
+      "failedRequests": 0
+    }
+  ],
+  "measurements": [
+    {
+      "theme": "pure",
+      "width": 625,
+      "phase": "initial",
+      "clientWidth": 630,
+      "scrollWidth": 630,
+      "vertical": false,
+      "headerWidth": 554,
+      "optionWidth": 554
+    },
+    {
+      "theme": "pure",
+      "width": 625,
+      "phase": "filled",
+      "clientWidth": 614,
+      "scrollWidth": 614,
+      "vertical": true,
+      "headerWidth": 538,
+      "optionWidth": 538
+    },
+    {
+      "theme": "pure",
+      "width": 625,
+      "phase": "collapsed",
+      "clientWidth": 776,
+      "scrollWidth": 776,
+      "vertical": true,
+      "headerWidth": 700,
+      "optionWidth": 700
+    },
+    {
+      "theme": "pure",
+      "width": 625,
+      "phase": "expanded",
+      "clientWidth": 614,
+      "scrollWidth": 614,
+      "vertical": true,
+      "headerWidth": 538,
+      "optionWidth": 538
+    },
+    {
+      "theme": "vben",
+      "width": 625,
+      "phase": "initial",
+      "clientWidth": 630,
+      "scrollWidth": 630,
+      "vertical": false,
+      "headerWidth": 554,
+      "optionWidth": 554
+    },
+    {
+      "theme": "vben",
+      "width": 625,
+      "phase": "filled",
+      "clientWidth": 614,
+      "scrollWidth": 614,
+      "vertical": true,
+      "headerWidth": 538,
+      "optionWidth": 538
+    },
+    {
+      "theme": "vben",
+      "width": 625,
+      "phase": "collapsed",
+      "clientWidth": 776,
+      "scrollWidth": 776,
+      "vertical": true,
+      "headerWidth": 700,
+      "optionWidth": 700
+    },
+    {
+      "theme": "vben",
+      "width": 625,
+      "phase": "expanded",
+      "clientWidth": 614,
+      "scrollWidth": 614,
+      "vertical": true,
+      "headerWidth": 538,
+      "optionWidth": 538
+    },
+    {
+      "theme": "lite",
+      "width": 625,
+      "phase": "initial",
+      "clientWidth": 630,
+      "scrollWidth": 630,
+      "vertical": false,
+      "headerWidth": 554,
+      "optionWidth": 554
+    },
+    {
+      "theme": "lite",
+      "width": 625,
+      "phase": "filled",
+      "clientWidth": 614,
+      "scrollWidth": 614,
+      "vertical": true,
+      "headerWidth": 538,
+      "optionWidth": 538
+    },
+    {
+      "theme": "lite",
+      "width": 625,
+      "phase": "collapsed",
+      "clientWidth": 776,
+      "scrollWidth": 776,
+      "vertical": true,
+      "headerWidth": 700,
+      "optionWidth": 700
+    },
+    {
+      "theme": "lite",
+      "width": 625,
+      "phase": "expanded",
+      "clientWidth": 614,
+      "scrollWidth": 614,
+      "vertical": true,
+      "headerWidth": 538,
+      "optionWidth": 538
+    },
+    {
+      "theme": "pure",
+      "width": 360,
+      "phase": "initial",
+      "clientWidth": 365,
+      "scrollWidth": 365,
+      "vertical": false,
+      "headerWidth": 289,
+      "optionWidth": 289
+    },
+    {
+      "theme": "pure",
+      "width": 360,
+      "phase": "filled",
+      "clientWidth": 349,
+      "scrollWidth": 349,
+      "vertical": true,
+      "headerWidth": 273,
+      "optionWidth": 273
+    },
+    {
+      "theme": "pure",
+      "width": 360,
+      "phase": "collapsed",
+      "clientWidth": 511,
+      "scrollWidth": 511,
+      "vertical": true,
+      "headerWidth": 435,
+      "optionWidth": 435
+    },
+    {
+      "theme": "pure",
+      "width": 360,
+      "phase": "expanded",
+      "clientWidth": 349,
+      "scrollWidth": 349,
+      "vertical": true,
+      "headerWidth": 273,
+      "optionWidth": 273
+    },
+    {
+      "theme": "vben",
+      "width": 360,
+      "phase": "initial",
+      "clientWidth": 365,
+      "scrollWidth": 365,
+      "vertical": false,
+      "headerWidth": 289,
+      "optionWidth": 289
+    },
+    {
+      "theme": "vben",
+      "width": 360,
+      "phase": "filled",
+      "clientWidth": 349,
+      "scrollWidth": 349,
+      "vertical": true,
+      "headerWidth": 273,
+      "optionWidth": 273
+    },
+    {
+      "theme": "vben",
+      "width": 360,
+      "phase": "collapsed",
+      "clientWidth": 511,
+      "scrollWidth": 511,
+      "vertical": true,
+      "headerWidth": 435,
+      "optionWidth": 435
+    },
+    {
+      "theme": "vben",
+      "width": 360,
+      "phase": "expanded",
+      "clientWidth": 349,
+      "scrollWidth": 349,
+      "vertical": true,
+      "headerWidth": 273,
+      "optionWidth": 273
+    },
+    {
+      "theme": "lite",
+      "width": 360,
+      "phase": "initial",
+      "clientWidth": 365,
+      "scrollWidth": 365,
+      "vertical": false,
+      "headerWidth": 289,
+      "optionWidth": 289
+    },
+    {
+      "theme": "lite",
+      "width": 360,
+      "phase": "filled",
+      "clientWidth": 349,
+      "scrollWidth": 349,
+      "vertical": true,
+      "headerWidth": 273,
+      "optionWidth": 273
+    },
+    {
+      "theme": "lite",
+      "width": 360,
+      "phase": "collapsed",
+      "clientWidth": 511,
+      "scrollWidth": 511,
+      "vertical": true,
+      "headerWidth": 435,
+      "optionWidth": 435
+    },
+    {
+      "theme": "lite",
+      "width": 360,
+      "phase": "expanded",
+      "clientWidth": 349,
+      "scrollWidth": 349,
+      "vertical": true,
+      "headerWidth": 273,
+      "optionWidth": 273
+    }
+  ],
+  "consoleErrors": []
+}

@@ -21,7 +21,18 @@ const maintenance = read(".agents/skills/agent-kit-maintenance/SKILL.md");
 for (const role of ["coordinator", "explorer", "planner", "coding", "review", "testing"]) {
   assert(registry.includes(`${role}-agent`));
   assert(fs.existsSync(path.join(root, "agents", `${role}-agent`, "AGENT.md")));
-  assert(fs.existsSync(path.join(root, "agents", `${role}-agent`, "bindings.yaml")));
+  assert(read(`agents/${role}-agent/AGENT.md`).startsWith("---"));
+  assert(!fs.existsSync(path.join(root, "agents", `${role}-agent`, "bindings.yaml")));
+}
+for (const entry of fs.readdirSync(path.join(root, "agents")).filter(name => name.endsWith("-agent"))) {
+  const definition = read(`agents/${entry}/AGENT.md`);
+  const header = definition.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  assert(header, `${entry}: frontmatter required`);
+  assert(header[1].includes(`name: ${entry}`));
+  assert(/^description: .+/m.test(header[1]));
+  const workflow = header[1].match(/^defaultWorkflow: (.+)/m)?.[1].trim();
+  assert(workflow && fs.existsSync(path.join(root, "workflows", `${workflow}.workflow.md`)));
+  assert(!fs.existsSync(path.join(root, "agents", entry, "bindings.yaml")));
 }
 assert(registry.includes("iris-change-agent"));
 assert(workflowRegistry.includes("standard-change"));
@@ -38,9 +49,15 @@ assert.equal(plan.feedbackReviewApplicable, false);
 assert.equal(manifest.acceptance.status, "not-applicable");
 assert.equal(manifest.maintenance.status, "not-applicable");
 assert.equal(manifest.feedbackDecision.applicable, false);
-for (const marker of ["implementing", "locally-verified", "acceptance-pending", "accepted", "逐项授权"]) assert(lifecycle.includes(marker));
+for (const marker of ["implementing", "locally-verified", "acceptance-pending", "accepted", "默认只读"]) assert(lifecycle.includes(marker));
+assert(lifecycle.includes("../../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#写入授权与自动待审补丁"));
 for (const marker of ["taskKind=framework-maintenance", "maintaining", "locally-verified", "maintenance-complete", "不触发或提示需求 feedback", "拆成两个独立记录"]) assert(maintenanceLifecycle.includes(marker));
-for (const marker of ["feedbackReviewApplicable=true", "只读审查", "acceptance-pending", "不得读取 experience 文件", "必须由用户逐项授权", "纯 `imedical.agents` 框架维护"]) assert(feedback.includes(marker));
+for (const marker of ["feedbackReviewApplicable=true", "只读审查", "acceptance-pending", "不得读取 experience 文件", "纯 `imedical.agents` 框架维护"]) assert(feedback.includes(marker));
+const authorization = feedback.split("## 写入授权与自动待审补丁")[1]?.split(/\n## /)[0];
+assert(authorization, "feedback authorization must have an authoritative section");
+for (const marker of ["只读审查是默认模式", "人类用户的明确指令", "动作授权", "自动待审补丁模式", "源仓身份", "允许的 owner/动作范围", "独立 worktree/branch", "无需逐项重复询问", "提交、推送、发布、合并、部署及业务工程更新各自核对授权"]) {
+  assert(authorization.includes(marker), `feedback authorization must preserve ${marker}`);
+}
 assert(maintenance.includes("不触发 `agent-framework-feedback`"));
 assert(maintenance.includes("不在收尾时向用户建议 feedback"));
 assert(maintenance.includes("taskKind=framework-maintenance"));

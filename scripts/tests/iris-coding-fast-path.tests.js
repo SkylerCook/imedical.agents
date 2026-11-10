@@ -24,12 +24,22 @@ assert(skill.includes("本地验证完成不自动加载该 skill"));
 assert(skill.includes("acceptance-pending"));
 assert(lifecycle.includes("commit、merge、push、部署"));
 assert(feedback.includes("不得读取 experience 文件"));
-assert(feedback.includes("必须由用户逐项授权"));
+assert(feedback.includes("当前有效授权"));
 for (const content of [deploySkill, i18nSkill]) {
   assert(content.includes("用户明确"));
   assert(content.includes("acceptance-pending"));
-  assert(content.includes("只读审查"));
-  assert(content.includes("逐项授权"));
+  assert.match(content, /只读.{0,12}审查/);
+  assert(content.includes("#写入授权与自动待审补丁") || content.includes("agents/_shared/delivery-lifecycle.md"));
+}
+for (const relative of [
+  'plugins/coding-iris-plugin/skills/iris-coding/SKILL.md',
+  'plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md',
+  'plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md',
+  'plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md',
+]) {
+  const line = read(relative).split('\n').find(value => value.includes('project-demand-development.md'));
+  assert(line && line.includes('`project`') && line.includes('intent-first-on-demand-export'), relative + ': both independent branch conditions are required');
+  checkLocalPointers(relative, line);
 }
 assert(!i18nSkill.includes("需求处理完成后，检查本次是否产生可跨需求复用的经验，并按需更新"));
 for (const forbidden of ["完成本地验证后读取“默认需求交付类型”", "需求完成后由 `iris-coding` 路由 `iris-demand-commit`"]) assert(!skill.includes(forbidden));
@@ -59,7 +69,7 @@ function checkLocalPointers(relative, content) {
   for (const match of content.matchAll(/\]\(([^)]+)\)/g)) {
     const [target, anchor] = match[1].split("#");
     if (/^[a-z]+:/i.test(target)) continue;
-    const resolved = path.resolve(root, path.dirname(relative), target);
+    const resolved = target ? path.resolve(root, path.dirname(relative), target) : path.resolve(root, relative);
     assert(fs.existsSync(resolved), `${relative}: missing ${target}`);
     if (anchor) {
       const headings = [...fs.readFileSync(resolved, "utf8").matchAll(/^#{1,6} (.+)$/gm)]

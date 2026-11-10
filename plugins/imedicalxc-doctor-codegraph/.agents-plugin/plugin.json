@@ -1,0 +1,56 @@
+{
+  "name": "imedicalxc-doctor-codegraph",
+  "version": "0.1.0",
+  "displayName": "iMedicalXC Doctor CodeGraph",
+  "description": "HIS 医生站代码调用图索引与检索插件。构建工作区方法级调用图、扫描 Maven biz jar 并生成影响分析与两部分穿透索引（impact_db.json / penetration_db.json），提供变更影响分析、调用者与被调用者、Feign 使用方、跨服务依赖与提交级批量取证查询；同时构建前端「界面→操作→JS 方法→HTTP 请求」链路索引。",
+  "entry": "AGENTS.md",
+  "skills": "skills/",
+  "scripts": "scripts/",
+  "initSkill": "imedicalxc-doctor-codegraph-gen",
+  "requiresProjectFiles": [
+    "AGENTS.md"
+  ],
+  "defaultPrompt": [
+    "初始化或增量更新医生站调用图索引",
+    "分析某个改动的影响范围",
+    "查询某方法被谁调用",
+    "查询 Feign 接口被哪些服务或模块调用",
+    "按提交批量取证调用链证据",
+    "初始化或增量更新前端界面操作链路索引"
+  ],
+  "projectDirectories": [
+    {
+      "id": "codegraph-index",
+      "base": "workspace",
+      "path": "docs/agents/imedicalxc-doctor-codegraph",
+      "role": "knowledge",
+      "create": "setup",
+      "purpose": "调用图索引产物：影响分析库、两部分穿透库、方法级调用图与 Feign 接口清单",
+      "examples": [
+        "impact_db.json",
+        "penetration_db.json",
+        "method_call_graph.jsonl",
+        "feign_interfaces.json"
+      ],
+      "boundary": "确定性生成的派生产物，随源码版本提交；节点 file_path 为工作区相对路径，不随克隆位置变化",
+      "lifecycle": "随索引重建整体覆盖，可随时全量重生成；不手工编辑，中间产物只在构建期存在于本目录"
+    },
+    {
+      "id": "front-codegraph-index",
+      "base": "workspace",
+      "path": "docs/agents/imedicalxc-doctor-front-codegraph",
+      "role": "knowledge",
+      "create": "setup",
+      "purpose": "前端链路索引产物：页面、操作元素、JS 方法、HTTP 请求及其触发/调用关系；可选菜单快照",
+      "examples": [
+        "front_chain_db.json",
+        "front_chains.jsonl",
+        "front_pages.jsonl",
+        "front_elements.jsonl",
+        "menu_snapshot.json"
+      ],
+      "boundary": "确定性生成的派生产物，随源码版本提交；节点路径为 src/frontend/hisfront/static 相对路径，不随克隆位置变化",
+      "lifecycle": "随索引重建整体覆盖，可随时全量重生成；不手工编辑，中间产物只在构建期存在于本目录"
+    }
+  ]
+}

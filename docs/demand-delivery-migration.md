@@ -1,5 +1,15 @@
 # 需求交付入口迁移
 
+## project 暂无需求号提交
+
+`demand-delivery-plugin 0.9.0` 新增显式 `--no-id`，用法及边界见 [demand-commit](../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md#暂无需求号project)。正常更新完整能力包并刷新已启用索引即可，无配置迁移或旧文件清理。数字编号 v1 计划仍可恢复；无编号计划不自动登记验收批次或写 BOS，真实业务副本不在本轮维护中更新。
+
+## BOS 日志与 Git 发布解耦
+
+`demand-delivery-plugin 0.8.1` 默认先提交推送再补 BOS 日志，主子日志不再阻塞 Git。正常更新完整能力包并刷新已启用索引；旧 v1/v2 不改 schema、scopeHash、授权或已有回执，首次状态写入按 Git 成功回执释放 publication，claim 保留原日志交付者与来源证据但不再占有 checkout。部分 push 仍持有 Git 发布权；日志 unknown/running 仍须先核对，不能重发。旧顺序可恢复，完整交付仍核对全部适用阶段。无私有配置迁移、旧文件清理或业务副本自动更新，详见[批次协议](../plugins/demand-delivery-plugin/references/acceptance-session.md#回执与恢复)。
+
+## 旧交付入口归属迁移
+
 coding-iris-plugin 0.16.0 删除旧需求技能、CLI 和引用别名。框架内部统一使用新 owner；已部署项目通过更新器迁移，无需等待所有项目升级才移除源仓入口。
 
 | 旧入口 | 新入口 |
@@ -9,21 +19,25 @@ coding-iris-plugin 0.16.0 删除旧需求技能、CLI 和引用别名。框架�
 | coding-iris-plugin/scripts/iris-tools/commit-demand.js | demand-delivery-plugin/scripts/commit-demand.js |
 | coding-iris-plugin/scripts/iris-tools/demand-entry.js、demand-entry-xlsx.js | bos-plugin/scripts/ 下同名脚本 |
 
+## 实仓提交门禁升级
+
+demand-delivery-plugin 0.8.0 与 bos-plugin 0.17.0 收敛 BOS 日志来源。完整更新两个 owner 和根 scripts/lib 后刷新已启用索引；select/bindings.select 须明确实仓 repo、完整目标 ref 和40位 hash，commits 增加 --ref，导出的 submit 接收 select/bindings 而非裸 payload。worktree 阶段提交先合实仓再核验；parent 引用主实仓提交，none 保留原因并跳过。旧 v1/v2 回执保留原貌，恢复与完成判定重新核验，原目标不符须显式修订，不重发已成功日志或自动清理旧记录。无私有配置迁移，不改安装/更新算法。详细行为见[实仓门禁](../plugins/bos-plugin/references/code-update-log.md#实仓-commit-门禁)与[验收协议](../plugins/demand-delivery-plugin/references/acceptance-session.md)。
+
 ## 已部署项目更新
 
 在目标 WorkspaceRoot 按 [更新说明](update-agents.md)执行完整更新：先 DryRun 检查，再 Write，最后 Check。首次迁移不要使用 -Plugin / -ExcludePlugin 过滤掉需要的新 owner。只有源仓改动提交并同步到目标能力包后，目标项目才取得迁移代码；本轮维护不会自动更新真实业务项目。
 
 更新器在生成普通薄索引前调用根 scripts/migrate-demand-ownership.js；识别逻辑不读取已删除的 IRIS 源文件：
 
-1. 检查工作区内普通目录中的 AGENTS.md，以及 ContextRoot/config、rules、skills、workflows 中的本地文档与配置，同时检查项目 scripts 与 .github 中的自动化引用。排除 .git、node_modules、vendor、dist、build，不递归目录链接；Overlay 声明且指向正确 CapabilityRoot 的共享框架目录不改写。源码仓库 Junction 内的项目入口属于另外的上下文，不跨工作区修改。
-2. 定向替换 Markdown 中明确的旧技能名称、完整旧路径和可解析的相对链接，保留其它文字、UTF-8 BOM 与换行。非 Markdown 配置含旧引用、非 UTF-8 文件、链接、自定义旧/新索引或未知内容报告具体位置并阻断；不覆盖后宣称成功。任务草稿、历史计划、业务数据和外部用户级配置不扫描或改写。
+1. 检查工作区内普通目录中的 AGENTS.md，以及 ContextRoot/config、rules、skills、workflows 中的本地文档与配置，同时检查项目 scripts 与 .github 中的自动化引用。排除 .git、node_modules、vendor、dist、build，不递归目录链接；Overlay 声明且指向正确 CapabilityRoot 的共享框架目录不改写。源码仓库 Junction 内的项目入口属于另外的上下文，不跨工作区修改。 ContextRoot/skills 的直接子项若为指向工作区外目录的自定义技能链接，且 SKILL.md 是实体文件，则属于独立来源：不遍历、不读取内容、不改写目标，以 skippedWorkspaces / external-linked-skill 报告；其中旧需求入口及其必须的新入口仍保留链接冲突保护。外部技能的旧引用由其源 owner 维护。
+2. 定向替换 Markdown 中明确的旧技能名称、完整旧路径和可解析的相对链接，保留其它文字、UTF-8 BOM 与换行。非 Markdown 配置含旧引用、非 UTF-8 文件、上述独立技能边界以外的链接、自定义旧/新索引或未知内容报告具体位置并阻断；不覆盖后宣称成功。任务草稿、历史计划、业务数据和外部用户级配置不扫描或改写。
 3. 仅根据旧入口或旧引用的实际证据接入对应 owner。plugin_profile 尚无该 owner 时写 enabled；既有 enabled 保持；明确 available/disabled 保留并报告冲突，需按项目意图解决后重试。仅安装 coding-iris-plugin 不会自动启用两种新能力。旧 owner 已明确 available/disabled 时，不从残留入口推断启用新 owner，报告待明确选择。
 4. 将旧配置中明确的 standard/project 交付类型复制到缺失的 demand_delivery_profile.md；旧补录入口的 IRIS 默认产品标识成为项目配置。已有该配置不覆盖；无法确定交付类型保留 TODO，新技能在生成计划前要求确认。
 5. 使用现有 canonical 薄索引生成器生成新 owner 入口，验证可达后迁移引用和 profile，再删除已识别的旧受管入口。自定义旧目录不删除；新生成失败时旧入口保留，迁移未完成并返回非零。更新中断后可以重试，已完成迁移再次执行无额外改动。
 
 项目接入只登记启用与发现入口，不自动执行 BOS 个人凭据初始化、不连接 BOS、不注册客户端 MCP。demand-delivery-plugin 没有专用 init；BOS 本地补录无需查询凭据。需要查询时再按 bos-init 完成个人配置。
 
-嵌套工作区按事实标记停止递归：子目录存在 `.git`（仓库目录或 worktree/submodule 指针文件）、自己的 `.agents/capability.json`、`.agents/.git`，或 `.agents` 本身为链接时，归其独立上下文处理。当前 WorkspaceRoot 不因此跳过；不读取嵌套入口或跟随其中链接，也不以 `.worktrees` 等目录名作为豁免。JSON `skippedWorkspaces` 和更新器 `demand-workspace-skipped` 报告边界与原因，调用方按需独立更新这些工作区；标记存在不代表该工作区配置已验证。普通子目录仍扫描，当前项目范围内的自定义链接仍报冲突。
+嵌套工作区按事实标记停止递归：子目录存在 `.git`（仓库目录或 worktree/submodule 指针文件）、自己的 `.agents/capability.json`、`.agents/.git`，或 `.agents` 本身为链接时，归其独立上下文处理。当前 WorkspaceRoot 不因此跳过；不读取嵌套入口或跟随其中链接，也不以 `.worktrees` 等目录名作为豁免。JSON `skippedWorkspaces` 和更新器 `demand-workspace-skipped` 报告边界与原因，调用方按需独立更新这些工作区；标记存在不代表该工作区配置已验证。普通子目录仍扫描；除上述外部独立技能目录外，当前项目范围内的自定义链接仍报冲突。失效链接、工作区内目标、缺失或非实体 SKILL.md 均不属于独立来源。
 
 更新器的检查范围有明确边界：工程外的个人脚本、复制到其它位置的入口及不在上述范围中的调用方，需由其 owner 切换旧 CLI 路径。DryRun 显示文件级迁移清单；不输出项目配置全文。冲突报告代表迁移尚未完成，不能把能力包 Git 更新成功当作项目入口已生效。Git 拉取可能已移除旧源文件；保留下来的旧索引用于定位和恢复，并不保证旧命令仍可执行。解决报告的冲突并重新 Write / Check 后再继续使用。
 

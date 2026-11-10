@@ -141,3 +141,94 @@ for (const filename of ['jquery.hisui.js', 'jquery.hisui.min.js']) {
     } finally { dom.window.close(); }
   });
 }
+
+for (const filename of ['jquery.hisui.js', 'jquery.hisui.min.js']) {
+  for (const theme of ['hisui.pure.css', 'hisui.vben.css']) {
+    test(`real ${filename} with ${theme} preserves tree modes, panel border ownership and native fit dimensions`, { skip: !process.env.HISUI_BUILD_TOOLS }, async () => {
+      const req = createRequire(path.join(path.resolve(process.env.HISUI_BUILD_TOOLS), 'package.json'));
+      const { JSDOM, VirtualConsole } = req('jsdom'), errors = [];
+      const console = new VirtualConsole(); console.on('jsdomError', error => errors.push(error.message));
+      const dom = new JSDOM('<!doctype html><html><head></head><body><div id="owner" style="width:400px;height:180px;padding:20px;border:1px solid"><div id="fitChild"></div></div><div id="borderPanel"></div><table id="borderGrid"></table><ul id="ordinaryTree"></ul><ul id="linesTree"></ul><div id="nativeLayout" style="width:400px;height:160px"><div data-options="region:&quot;center&quot;"></div></div></body></html>',
+        { url: 'http://127.0.0.1/', runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole: console });
+      try {
+        const styleCode = theme === 'hisui.vben.css' ? 'vben' : 'pure';
+        dom.window.HISUIStyleCode = styleCode;
+        dom.window.HISUITheme = styleCode === 'vben' ? 'bgseablue' : '';
+        dom.window.document.body.setAttribute('data-theme', dom.window.HISUITheme);
+        const style = dom.window.document.createElement('style');
+        style.textContent = fs.readFileSync(path.join(vendor, 'dist/css', theme), 'utf8');
+        dom.window.document.head.appendChild(style);
+        // jsdom has no auto text layout; an explicit synthetic title height exercises the native positive-height branch without replacing its API.
+        const fixtureStyle = dom.window.document.createElement('style');
+        fixtureStyle.textContent = '.tree-title { height: 40px; }';
+        dom.window.document.head.appendChild(fixtureStyle);
+        dom.window.eval(fs.readFileSync(path.join(vendor, 'dist/js/jquery-1.11.3.min.js'), 'utf8'));
+        dom.window.eval(fs.readFileSync(path.join(vendor, 'dist/js', filename), 'utf8'));
+        const $ = dom.window.jQuery;
+        assert.equal($.hisui.getHisuiStyle(), styleCode);
+        assert.equal(dom.window.document.body.getAttribute('data-theme'), styleCode === 'vben' ? 'bgseablue' : '');
+        assert.equal($.fn.tree.defaults.lines, false);
+        assert.equal($.fn.tree.defaults.autoNodeHeight, false);
+        const data = [{ id: 1, text: 'Synthetic folder', children: [{ id: 2, text: 'Synthetic leaf' }] }];
+        $('#ordinaryTree').tree({ data, lines: false, autoNodeHeight: false });
+        const folder = $('#ordinaryTree .tree-folder'), leaf = $('#ordinaryTree .tree-file');
+        assert.equal(folder.length, 1); assert.equal(leaf.length, 1);
+        assert.equal(folder.hasClass('tree-folder-open'), true);
+        const rules = Array.from(style.sheet.cssRules);
+        const folderCss = rules.filter(rule => rule.selectorText === '.tree-folder').map(rule => rule.style.cssText).join('\n');
+        const lineCss = rules.filter(rule => rule.selectorText === '.tree-lines .tree-folder.tree-folder-open.tree-icon-lines').map(rule => rule.style.cssText).join('\n');
+        if (styleCode === 'vben') {
+          assert.match(folderCss, /var\(--tree-icons-img-url\)/);
+          assert.match(lineCss, /var\(--tree-lines-img-url\)/);
+          const bodyRule = rules.find(rule => rule.selectorText === 'body' && rule.style.getPropertyValue('--tree-icons-img-url'));
+          assert.ok(bodyRule, 'native default sea-blue resource variables exist');
+          assert.match(bodyRule.style.getPropertyValue('--tree-icons-img-url'), /tree_icons_seablue\.png/);
+          assert.match(bodyRule.style.getPropertyValue('--tree-lines-img-url'), /tree_lines_seablue\.png/);
+          assert.equal(bodyRule.style.getPropertyValue('--primary-color').trim(), '#3047A9');
+        } else { assert.match(folderCss, /tree_icons/); assert.match(lineCss, /tree_lines/); }
+        $('#ordinaryTree').tree('collapse', $('#ordinaryTree').tree('find', 1).target);
+        assert.equal(folder.hasClass('tree-folder-open'), false);
+        $('#ordinaryTree').tree('expand', $('#ordinaryTree').tree('find', 1).target);
+        assert.equal(folder.hasClass('tree-folder-open'), true);
+        const customData = [{ id: 1, text: 'Custom folder', iconCls: 'icon-search', children: [{ id: 2, text: 'Custom leaf', iconCls: 'icon-search' }] }];
+        $('#ordinaryTree').tree({ data: customData, lines: true, autoNodeHeight: false });
+        assert.equal($('#ordinaryTree .tree-icon-lines').length, 0);
+        assert.equal($('#ordinaryTree .tree-icon.icon-search').length, 2);
+        $('#linesTree').tree({ data: customData, lines: true, autoNodeHeight: true });
+        await new Promise(resolve => dom.window.setTimeout(resolve, 0));
+        const lineIcons = $('#linesTree .tree-icon');
+        assert.equal($('#linesTree').hasClass('tree-lines'), true);
+        assert.equal(lineIcons.length, 2);
+        assert.equal(lineIcons.filter('.tree-icon-lines').length, 2);
+        assert.equal(lineIcons.filter('.icon-search').length, 0, 'the native variable-height branch does not append iconCls');
+        // Sprite references were checked above; jsdom does not resolve every theme CSS variable into pixels.
+        $('#borderPanel').panel({ width: 240, height: 100, border: false });
+        assert.equal($('#borderPanel').hasClass('panel-body-noborder'), true);
+        $('#borderPanel').panel({ border: true });
+        assert.equal($('#borderPanel').hasClass('panel-body-noborder'), false);
+        assert.equal($('#borderPanel').css('borderTopWidth'), '1px');
+        $('#borderGrid').datagrid({ width: 240, height: 100, border: true, columns: [[{ field: 'value', title: 'Value', width: 100 }]], data: [] });
+        const gridBody = $('#borderGrid').datagrid('getPanel');
+        assert.equal(gridBody.hasClass('panel-body'), true);
+        assert.equal(gridBody.parent().hasClass('datagrid'), true);
+        assert.notEqual(gridBody[0], gridBody.parent()[0]);
+        assert.equal(gridBody.panel('options').border, true);
+        assert.equal(gridBody.hasClass('panel-body-noborder'), false);
+        $('#nativeLayout').layout();
+        $('#nativeLayout').layout('resize', { width: 300 });
+        assert.equal($('#nativeLayout').width(), 400, 'layout.resize ignores the panel-style second argument');
+        $('#nativeLayout').width(300).layout('resize');
+        assert.equal($('#nativeLayout').width(), 300);
+        const fit = $('#fitChild')._fit(false);
+        assert.equal(fit.width, $('#owner').width()); assert.equal(fit.height, $('#owner').height());
+        assert.equal(fit.width, 400); assert.equal(fit.height, 180);
+        $('#owner').css({ width: 300, height: 140 });
+        const resized = $('#fitChild')._fit(false);
+        assert.equal(resized.width, 300); assert.equal(resized.height, 140);
+        // jsdom does not expand the sprite background shorthand; inspect the actual theme rule, leaving paint/scrollbars/corners to browser validation.
+        await new Promise(resolve => dom.window.setTimeout(resolve, 30));
+        assert.deepEqual(errors, []);
+      } finally { dom.window.close(); }
+    });
+  }
+}

@@ -8,6 +8,8 @@ description: |
 
 # iMedicalXC 医生站集成数据格式
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 后端数据格式标准：VO/DTO 设计、Jackson 注解、XmlMapper/ObjectMapper 使用方式。
 
 ## VO/DTO 设计标准

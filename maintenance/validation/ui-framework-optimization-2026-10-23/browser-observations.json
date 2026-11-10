@@ -1,0 +1,133 @@
+{
+  "context": {
+    "source": "anonymous HISUI fixture via existing loopback server",
+    "runtime": "Windows, desktop in-app browser",
+    "requestedViewports": [
+      {
+        "width": 578,
+        "height": 900
+      },
+      {
+        "width": 1280,
+        "height": 1000
+      }
+    ],
+    "styleIdentities": [
+      {
+        "style": "pure",
+        "theme": "",
+        "css": "/hisui/css/hisui.pure.css"
+      },
+      {
+        "style": "vben",
+        "theme": "bgseablue",
+        "css": "/hisui/css/hisui.vben.css"
+      }
+    ],
+    "allCssLoaded": true,
+    "consoleWarningsOrErrors": [],
+    "network": {
+      "statuses": [
+        200
+      ],
+      "failed": [],
+      "truncated": false
+    }
+  },
+  "narrowAtDpr1": {
+    "viewportWidth": 578,
+    "documentClientWidth": 562,
+    "documentScrollWidth": 562,
+    "layoutWidth": 530,
+    "contentWidth": 317,
+    "cycle": [
+      {
+        "groups": 1,
+        "contentClientWidth": 317,
+        "contentScrollHeight": 170,
+        "comboSlot": 242.859375,
+        "comboWrapper": 243
+      },
+      {
+        "groups": 24,
+        "contentClientWidth": 301,
+        "contentScrollHeight": 2137,
+        "comboSlot": 226.859375,
+        "comboWrapper": 227
+      },
+      {
+        "groups": 1,
+        "contentClientWidth": 317,
+        "contentScrollHeight": 170,
+        "comboSlot": 242.859375,
+        "comboWrapper": 243
+      }
+    ],
+    "collapsed": {
+      "contentWidth": 451,
+      "comboSlot": 376.859375,
+      "comboWrapper": 377
+    },
+    "restored": {
+      "contentWidth": 317,
+      "comboSlot": 242.859375,
+      "comboWrapper": 243
+    }
+  },
+  "wideAtDpr1": {
+    "documentClientWidth": 1264,
+    "documentScrollWidth": 1264,
+    "layoutWidth": 845
+  },
+  "otherObservedScale": {
+    "devicePixelRatio": 1.100000023841858,
+    "documentClientWidth": 1148,
+    "documentScrollWidth": 1148,
+    "layoutWidth": 845,
+    "narrowDocumentClientWidth": 510,
+    "narrowDocumentScrollWidth": 510,
+    "narrowLayoutWidth": 477.99713134765625
+  },
+  "dynamic": {
+    "actualNativeRadios": 24,
+    "lastOptionSelectable": true,
+    "lastCheckedValue": "24",
+    "lastParagraphReached": {
+      "scrollTop": 1967,
+      "lastTop": 440.390625,
+      "lastBottom": 459.390625,
+      "contentTop": 303.390625,
+      "contentBottom": 473.390625
+    },
+    "invalidSelectionAfterShrink": "1",
+    "bothThemesNativeCloseReopenCount": 2
+  },
+  "surfaces": {
+    "pure": {
+      "background": "rgb(255, 255, 255)",
+      "bodyBottomRadius": "6px",
+      "matchedParentBackground": "rgb(255, 255, 255)"
+    },
+    "vben": {
+      "background": "rgba(0, 0, 0, 0)",
+      "bodyBottomRadius": "0px",
+      "matchedParentBackground": "rgba(0, 0, 0, 0)"
+    },
+    "panelBorderTrueVsFalse": [
+      "1px side/bottom",
+      "0px"
+    ],
+    "datagridBodyBorderTrueVsFalse": [
+      "1px",
+      "0px"
+    ],
+    "treeAutoNodeHeightTrue": "tree-icon-lines sprite branch",
+    "treeAutoNodeHeightFalse": "native iconCls branch"
+  },
+  "limits": [
+    "Viewport override and display scale varied; assertions use actual DOM dimensions, not requested width alone.",
+    "The 578-DPR1 numeric cycle matched both themes; a later host-change recheck also covered the 510-CSS-pixel content viewport.",
+    "Browser evidence does not prove business integration or formal UI acceptance.",
+    "Native screenshots inspected in the session; no patient or business screenshots retained."
+  ]
+}

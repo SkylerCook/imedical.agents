@@ -1,0 +1,48 @@
+{
+  "schema": "imedical-ui-originals-catalog/v1",
+  "policy": "local-only-no-distribution",
+  "snapshots": [
+    {
+      "snapshot": "2026-10-21",
+      "root": "originals/2026-10-21",
+      "representation": "expanded",
+      "totalFiles": 2650,
+      "totalBytes": 266900286,
+      "groups": [
+        {
+          "name": "BS端iMedical iHOS风格",
+          "files": 1524,
+          "bytes": 181149498,
+          "sha256": "8d7d9e72d35926230dc167843badc4e84804bc8a06cc890d476df26c55587a60",
+          "entries": [
+            "【iMedical iHOS】三种主题登录页默认插画",
+            "【iMedical+iHOS】（夜间）控件+布局标注-2026.07.10",
+            "【iMedical+iHOS】（天蓝）控件+布局标注-2026.06.22",
+            "【iMedical+iHOS】（海蓝）控件+布局标注-2026.06.22",
+            "产品UI+iMedical+iHOS风格规范说明书V1.0.pdf"
+          ]
+        },
+        {
+          "name": "BS端纯净风格",
+          "files": 924,
+          "bytes": 56226475,
+          "sha256": "54006cc6286d7378e2e273c74d49d9674911c34b68cc19b3bc2858de2c07b053",
+          "entries": [
+            "【纯净】布局标注-2025.10.15",
+            "【纯净】控件标注-2025.10.15"
+          ]
+        },
+        {
+          "name": "手机端活力蓝",
+          "files": 202,
+          "bytes": 29524313,
+          "sha256": "8e4cd3f2eb46c32c877b28a47bdb9fb64b9a427cf5740af62a46201df64afc30",
+          "entries": [
+            "Q_HDYIW009-2023+东华医为活力蓝风格产品视觉和布局规范.pdf",
+            "【活力蓝】控件+布局标注-2026.08.20"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 # imedicalxc-doctor-perf-analysis-engineer
 
+帮助请求（`--help`、查看用法）先于业务前置检查，按[统一帮助协议](../../docs/guides/capability-help.md)展示后结束。源定义随正常能力包更新分发，既有 thin-index 继续指向源文件；查看帮助不自动启用插件。
+
 HIS 医生站接口性能分析与优化能力包，覆盖前后端全链路追踪、N+1/批量调用优化、Graylog 日志分析和报告输出。
 
 ## 能力范围

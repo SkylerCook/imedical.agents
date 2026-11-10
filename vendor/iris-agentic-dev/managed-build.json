@@ -1,0 +1,25 @@
+{
+  "schema": "iris-managed-vendor/v1",
+  "version": "1.5.0",
+  "upstreamCommit": "2b3e017b7fc73d6370fc1e89e7fa03f3de49a1a1",
+  "platform": "windows-x64",
+  "target": "x86_64-pc-windows-gnu",
+  "rust": "1.92.0",
+  "linker": "LLVM MinGW 20261020 MSVCRT / clang 23.1.4; Rust self-contained GNU runtime",
+  "patch": "managed-sessions-v3",
+  "patches": [
+    "managed-sessions-v1.patch",
+    "session-identity-v2.patch",
+    "cookie-renewal-v3.patch"
+  ],
+  "patchSha256": {
+    "managed-sessions-v1.patch": "c5a60263e300fb83fc9db9eff5258f324556708957c5806d358a215ae70dcb4d",
+    "session-identity-v2.patch": "54033b4b252891df3e7268cb621c029bac6f8fcc3709f504f9f738c7dd9b2cdd",
+    "cookie-renewal-v3.patch": "51b870dd6d4327032714f6a33835252845fcae5efc049d4709ed69cfd93471ae"
+  },
+  "sha256": "1d573d018a99278e70fbd310caf70aeecbd19930038d5d113e5f6b6c943ea4fe",
+  "bytes": 61572096,
+  "verification": "iris-session-vendor.tests.js: 14 localhost tests passed",
+  "buildRecipe": "UPSTREAM.md#cookie-renewal-patch-v3",
+  "sourceBaseCommit": "c86ca2c81801622f2f81f12a4a8312a2b2c53a78"
+}

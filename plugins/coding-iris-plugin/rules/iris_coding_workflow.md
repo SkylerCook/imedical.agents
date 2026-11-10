@@ -10,7 +10,11 @@ related:
 
 # IRIS 脚本、MCP 与部署工作流规则
 
+所有服务器操作（含只读查询）使用[统一会话入口](iris_agentic_dev.md)，由框架复用、排队和回收；临时脚本不得绕过。
+
 本文只保留 IRIS 开发脚本、MCP 使用边界和部署主流程。部署逐项检查和 legacy GB2312 提升细节已拆到独立规则，按任务需要读取，避免非部署任务加载过多上下文。
+
+先解析 `ContextRoot/config/iris-development.json` 的 `developmentMode`。offline 进入[离线开发与交付协议](../references/iris-offline-development.md)，不执行下文远端流程或生成医院连接；缺材料由用户现场补充。connected（含旧配置缺省）才继续本页：已确认 `project` 且 `contextMode: intent-first-on-demand-export` 时先读取[项目开发协议](../references/project-demand-development.md)，同步复审优先于默认 direct。`standard` 沿既有分支；非法开发方式停止，contextMode 不决定需求类型或授权。
 
 ## 相关规则
 
@@ -27,7 +31,7 @@ related:
 5. MCP 用于补上下文、只读 SQL/远程读取、脚本未覆盖的能力，或用户明确要求使用 MCP 的场景。
 6. 在本地完成最小范围修改。
 7. 仅当用户明确要求时，执行上传、编译、远程写入、Broker 调用或数据库变更。
-8. 业务需求开工时设置 `taskKind=business-demand`；本地验证完成后按 `.agents/agents/_shared/delivery-lifecycle.md` 停在 `acceptance-pending`。只有用户明确验收后才做 feedback 只读审查，任何经验或框架反馈写入仍需用户逐项授权；纯框架维护必须建立独立 `framework-maintenance` 记录，不复用需求状态。
+8. 业务需求开工时设置 `taskKind=business-demand`；本地验证完成后按 `.agents/agents/_shared/delivery-lifecycle.md` 停在 `acceptance-pending`。只有用户明确验收后才做 feedback 只读审查，写入前按[反馈授权](../../agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#写入授权与自动待审补丁)核对当前有效授权；纯框架维护必须建立独立 `framework-maintenance` 记录，不复用需求状态。
 
 ## IRIS 开发主力脚本
 
@@ -70,7 +74,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 脚本使用规则：
 
 - 只有当 `.agents/config/project-env.json` 是配置事实来源时，修改后才运行 `sync-env-config.js` 同步 `.mcp.json`；若 `.mcp.json` 已是事实来源，不要用脚本覆盖它。
-- 需要导出源码时优先 `export.js`，本地已有最新源码时不要从远端覆盖本地。
+- 项目按需分支的待修改源码统一执行[修改前同步](../references/project-demand-development.md#修改前与部署前同步)，本地已有也先核对服务器、有变化先提交，再开始修改；其它分支沿 `export.js`。项目分支的普通导出只用于 probe 或独立 staging 参考，直接写源码会指向 source-sync。
 - 后端类小范围验证可用 `compile.js`；批量部署、有 Storage 的实体类、复杂依赖链，按部署清单先处理源码和依赖顺序，不要盲目逐个调用 `compile.js`。
 - CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 - 如果目标项目没有 `sftp-server` MCP，脚本体系仍可用于后端导出、编译、Broker 调试和环境同步；前端上传交给项目既有工具或用户手工处理。
@@ -152,6 +156,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 
 ## 开发部署与可选基线保护
 
-日常开发部署默认 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留编码、Storage、并发变化、回读和编译检查。需要三方合并时显式使用 `--mode guarded --demand <id>` 并建立会话。旧命令仅带 `--demand` 继续使用 guarded。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 只生成本地计划。
+非按需导出工程日常开发部署默认 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留编码、Storage、并发变化、回读和编译检查。需要三方合并时显式使用 `--mode guarded --demand <id>` 并建立会话。旧命令仅带 `--demand` 继续使用 guarded。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 只生成本地计划。
 
 部署配置支持 Overlay 显式 `projectEnvFallback`：模块文件优先，仅缺失时读取声明的主仓文件；具体范围、冲突停止与源码隔离规则以 [部署清单](iris_deploy_checklist.md#部署配置继承) 为准，不切换项目根或生成副本。

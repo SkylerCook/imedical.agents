@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.19.7",
+  "version": "0.27.5",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
@@ -10,6 +10,11 @@
   "templates": "templates/",
   "scripts": "scripts/",
   "configMigrations": [
+    {
+      "id": "iris-managed-session-v1",
+      "checkMode": "Check",
+      "script": "scripts/migrate-session-config.ps1"
+    },
     {
       "id": "sftp-vendor-v1",
       "script": "scripts/migrate-sftp-vendor.ps1"
@@ -21,6 +26,10 @@
     {
       "id": "demand-delivery-type-v1",
       "script": "scripts/migrate-demand-delivery-profile.ps1"
+    },
+    {
+      "id": "iris-development-config-v1",
+      "script": "scripts/migrate-development-config.ps1"
     }
   ],
   "skillDependencies": {
@@ -78,14 +87,67 @@
   },
   "initSkill": "coding-iris-init",
   "thinIndex": {
-    "excludeSkills": ["coding-iris-init"]
+    "excludeSkills": [
+      "coding-iris-init"
+    ]
   },
   "requiresProjectFiles": [
     "AGENTS.md",
     ".mcp.json",
     ".agents/config/iris_project_profile.md"
   ],
+  "projectDirectories": [
+    {
+      "id": "iris-xml-export",
+      "base": "workspace",
+      "path": "docs/delivery/iris-xml",
+      "role": "delivery",
+      "create": "task",
+      "purpose": "已确认对象范围的 IRIS XML 部署包、离线增量/回退 XML 与逐项校验回执",
+      "examples": [
+        "对象清单",
+        "XML 合包或分文件",
+        "changes.xml / rollback.xml / 变更说明",
+        "完整性校验回执"
+      ],
+      "boundary": "只保存当前工程正式交付；服务器任务身份、私有计划与恢复状态归 ContextRoot/work/iris-xml-export",
+      "lifecycle": "按任务创建并保留正式交付；不自动导入业务环境或清理历史附件"
+    },
+    {
+      "id": "iris-xml-export-state",
+      "base": "context",
+      "path": "work/iris-xml-export",
+      "role": "recovery",
+      "create": "task",
+      "purpose": "XML 导出计划、离线编辑原包/对象与回执、服务器产物归属及恢复断点",
+      "examples": [
+        "导出计划",
+        "offline-edit/<task> 原包与对象 XML",
+        "任务产物清单",
+        "恢复与清理回执"
+      ],
+      "boundary": "私有状态受 Git 忽略；正式 XML 归 docs/delivery/iris-xml，不能写共享 CapabilityRoot",
+      "lifecycle": "按任务创建；未知结果核实前保留，不作为普通临时文件清理"
+    },
+    {
+      "id": "source-sync",
+      "base": "context",
+      "path": "work/source-sync",
+      "role": "recovery",
+      "create": "task",
+      "purpose": "项目按需导出的私有基线、现场保护与恢复断点",
+      "examples": [
+        "同步基线",
+        "冻结计划",
+        "恢复断点"
+      ],
+      "boundary": "仅保存按需同步的私有现场与基线；业务源码归 SourceRoot，正式交付归 docs/delivery",
+      "lifecycle": "按任务创建；按 source-sync 恢复与发布契约保留，不作为普通临时文件清理"
+    }
+  ],
   "defaultPrompt": [
+    "从已确认的 IRIS 环境导出准确对象范围的 XML 部署包",
+    "按版本 XML 范围采集指定实例当前代码基线并报告缺失",
     "Initialize IRIS coding support in this project",
     "Handle an IRIS coding request with the unified coding workflow",
     "Modify this ObjectScript class using IRIS backend rules",

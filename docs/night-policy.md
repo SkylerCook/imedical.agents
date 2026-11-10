@@ -2,9 +2,19 @@
 
 适用范围和分级语义见[分层验收](night-acceptance.md)。本接口扩展既有编排 run；不启动业务操作、不授予权限，也不替代 Coordinator 对需求、证据和独立审查真实性的核验。
 
+新批次的实体 PLAN、双 Developer / 双 Tester、冻结版本、周额度基线和持续浏览器 worker 见 [无人值守治理](night-governance.md)。仅显式启用 executionPlan；旧 run 保持原投影。新模板容量为 4，以下旧接口不改变存量 run 的容量。
+
 ## 启用与执行
 
 新批次启用下述 `night-convergence/v1` 精简扩展；旧 run 不补字段、不迁移计数。扩展复用本 run 的事件、计时和源码指纹，不增加调度器、通用交付组或资源锁。
+
+### 运行中调整容量
+
+已有 schema 2.1 run 可在用户明确授权后，由 Coordinator 通过原 `night-record` 记录容量增长；默认 `maxInFlight:1` 保持。输入为 `{kind:'policy-update',changes:{maxInFlight:2},expectedMaxInFlight:1,userAuthorization:{actor:'user',reference:<用户事实引用>},boundary:{runtimeOperationsSettled:true,sourceWritesSettled:true,fixtureWritesSettled:true},rationale,evidenceRefs}`。用户事实引用必须列入非空 evidenceRefs，调用者核实其确来自人类；结构字段本身不是授权。仅允许这一个字段增长，旧值不符、下降、同值或其他策略/授权/期限变化均拒绝。
+
+先核实真实写入和资源均已收尾：没有运行中的 work、operation、preflight 或待执行/阻断 action，没有未知写或待处置资源，且原 preflight 的配置、角色、源码及权限仍有效。所有会重绑的 grant 都须当前有效，包含未被 work 使用者；撤销、过期、来源引用或环境不一致均拒绝。只变更现有效授权的 scopeHash，保留原来源、授予人、时间和其他元数据，不借此授予或恢复权限。边界声明不能证明框架外操作已停止，Coordinator 必须独立核实。
+
+事件沿既有锁、planHash、追加日志和原子投影链执行，在 `night.policyChanges` 保留旧/新值、前后摘要、用户引用和边界证据；既有候选、回执、问题与计时历史不清零，截止不延长。旧 run 不迁移，不手改投影；工具返回异常时先回读事件和策略，不重放未知结果。升级前的工具没有此事件，保持原容量；已部署项目应在安全边界更新匹配的运行时文件后再调用。
 
 ## 返修收敛与按需依赖
 
@@ -127,7 +137,7 @@ assessment 包含 `businessCertainty: confirmed|uncertain|disputed`、`risk: low
 
 ## 计时与复评
 
-timingSegments 每项为 `{phase,startedAt,endedAt?}`，phase 使用 preparation/diagnosis/execute/wait/evidence/cleanup。只有 preparation/diagnosis 消耗单需求探索预算。开放段按当前时间计费，关闭时不得倒填到已观察时点之前；已关闭段和失败历史只可追加。复评前关闭当前计时段，不能通过复评重置投入。
+timingSegments 每项为 `{phase,startedAt,endedAt?}`，phase 使用 preparation/diagnosis/execute/wait/evidence/cleanup。只有 preparation/diagnosis 消耗单需求探索预算。开放段按当前时间计费，关闭时不得倒填到已观察时点之前；已关闭段和失败历史只可追加。复评前关闭 preparation/diagnosis 计费段；其余正在进行的 execute/wait/evidence/cleanup 段可保持真实开放状态，不能通过复评重置投入。完整重评仍须精确匹配当前 usedMinutes、failureCount、源码版本及证据；收敛总时限另按其原有区间规则计算，不因这项探索复评放宽。
 
 failures 每项包含 `category/evidenceFingerprint`。连续两次相同类别及相同证据触发复评。reassessments 每项绑定 `trigger`（demand-budget-exhausted 或 repeated-failure-no-new-evidence）、当前 `usedMinutes/failureCount/scopeFingerprint/frozenVersion`，并有 rationale/evidenceRefs；新的投入或证据变化需要新评估。
 

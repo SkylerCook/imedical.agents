@@ -1,5 +1,7 @@
 # AGENTS.md
 
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 ## 插件定位
 
 `iris-external-reg` 提供 IRIS 第三方预约挂号接口开发工作流，覆盖接口规范解析、执行计划编写、公共组件抽取、ObjectScript 实现、`DHCExternalService.RegInterface` 对接和测试验证。
@@ -33,3 +35,5 @@
 ## 内置脚本
 
 - `scripts/generate-plugin-thin-index.ps1`：thin-index wrapper，只委托根 `.agents/scripts/generate-plugin-thin-index.ps1`。
+
+项目知识库接入后，文档摄取复用 extract-doc 的目录声明；已有显式输出保持。目录及授权见[项目知识库目录治理](../../docs/guides/project-knowledge-layout.md)。

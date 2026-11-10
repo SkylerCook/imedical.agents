@@ -26,10 +26,12 @@ function fixture(t, overlay, singleShared = false) {
   fs.mkdirSync(context, { recursive: true });
   fs.mkdirSync(capability, { recursive: true });
   run('git', ['init'], capability);
-  for (const name of ['scripts', 'hooks', 'agents', 'workflows']) {
+  for (const name of ['scripts', 'hooks', 'agents', 'workflows', 'docs']) {
     fs.cpSync(path.join(repo, name), path.join(capability, name), { recursive: true, filter: p => !p.includes(path.join('scripts', 'tests')) });
   }
   for (const name of ['bos-plugin', 'demand-delivery-plugin']) fs.cpSync(path.join(repo, 'plugins', name), path.join(capability, 'plugins', name), { recursive: true });
+  assert.ok(fs.existsSync(path.join(capability, 'scripts/lib/demand-code-binding.js')), 'shared ownership runtime must be distributed');
+  assert.ok(fs.existsSync(path.join(capability, 'scripts/lib/real-repository-commit.js')), 'real commit gate must be distributed');
   // Runtime preflight reads assets from HEAD; model an installed capability checkout.
   run('git', ['add', '.'], capability);
   run('git', ['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', '-c', `core.hooksPath=${path.join(root, 'empty-hooks')}`, 'commit', '-qm', 'fixture runtime'], capability);
@@ -113,7 +115,7 @@ test('BOS workflow routes verified commits to scoped, separately authorized log 
   const workflow = read('workflows/bos-demand.workflow.md');
   const phase = workflow.slice(workflow.indexOf('## 提交后的 BOS 代码更新日志'));
   for (const marker of ['bos-code-update-log/SKILL.md', 'status=verified', 'repositories[].root',
-    'repositories[].execution.commit', 'select[].repo', 'select[].hash', 'BOS 补录预授权',
+    'repositories[].execution.commit', 'select[].repo', 'select[].ref', 'select[].hash', '实仓 commit 门禁', 'BOS 补录预授权',
     'submit --confirm', '结果未知', '不回滚', '已确认接口成功', '任一仓提交失败', '仅要求预览时交付计划']) {
     assert.ok(phase.includes(marker), marker);
   }

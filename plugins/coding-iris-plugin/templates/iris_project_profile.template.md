@@ -31,6 +31,8 @@ workspace-overlay 若在 `capability.json` 中明确只声明 `backend`、未声
 
 ### 部署能力
 
+开发方式的唯一机器事实源为当前 ContextRoot 的 `config/iris-development.json`，字段 `developmentMode` 取 `connected` 或 `offline`；缺省保持旧行为。这里引用配置，不另存一份值。离线时只做本地分析、修改、检查、Review 与交付，医院服务器操作不可用；源码上下文完整性仍由 `contextMode` 表达，规则见[离线开发协议](../references/iris-offline-development.md)。
+
 - 编码时从 `.mcp.json` 确认可用的 MCP 工具（iris_doc、iris_compile、sftp-server 等）
 - CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 

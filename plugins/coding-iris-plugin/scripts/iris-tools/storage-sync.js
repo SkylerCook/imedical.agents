@@ -103,9 +103,10 @@ async function reconcile(files, adapter, {onFile = () => {}, beforeWrite = () =>
   // Read/check the whole batch before changing any local file.
   for (const file of files) {
     onFile(file);
-    const compiled = guard.text(await adapter.read(file));
+    const compiledBytes = await adapter.read(file), compiled = guard.text(compiledBytes);
     if (compiled === null) stop('post-compile-source-missing', {file: file.remotePath});
-    const plan = {file, compiled, bytes: file.source, synced: false};
+    const plan = {file, compiled, compiledBytes, bytes: file.source, synced: false};
+    if (!/\.(cls|mac|inc)$/i.test(file.remotePath) && guard.hash(compiledBytes) !== guard.hash(file.bytes)) stop('post-compile-source-changed', {file: file.remotePath});
     if (/\.cls$/i.test(file.remotePath)) {
       if (file.content === compiled && storage(guard.text(file.source)) === storage(compiled)) { plans.push(plan); continue; }
       const uploaded = inspect(file.content), remote = inspect(compiled);
@@ -116,6 +117,7 @@ async function reconcile(files, adapter, {onFile = () => {}, beforeWrite = () =>
       if (storage(guard.text(file.source)) !== storage(compiled)) {
         plan.bytes = backfill(file.source.toString('utf8'), compiled);
         plan.synced = !plan.bytes.equals(file.source);
+        if (plan.synced && file.immutablePath) stop('frozen-storage-sync-requires-source-review', {file: file.remotePath, sourcePath: file.localPath, snapshotReadOnly: true, storageBackfillRequired: true});
       }
     } else if (compiled !== file.content) stop('post-compile-source-changed', {file: file.remotePath});
     plans.push(plan);
@@ -126,7 +128,7 @@ async function reconcile(files, adapter, {onFile = () => {}, beforeWrite = () =>
   }
   for (const plan of plans) {
     onFile(plan.file);
-    if (!fs.readFileSync(plan.file.localPath).equals(plan.file.source)) stop('local-changed-during-deploy', {file: plan.file.remotePath});
+    if (!guard.readSource(plan.file).equals(plan.file.source)) stop('local-changed-during-deploy', {file: plan.file.remotePath});
   }
   beforeWrite(plans);
   for (const plan of plans) {

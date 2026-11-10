@@ -1,3 +1,4 @@
+const {createTempDirectory,ownsTempDirectory}=require('../../../../../scripts/tests/fixtures/temp-directory');
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),{spawnSync}=require('node:child_process');
 const g=require('../deploy-guard');
 test('direct deployment and identical server need no merge',()=>{
@@ -27,7 +28,7 @@ test('invalid bytes and storage differences stop',()=>{
 });
 test('source syntax is checked',()=>assert.throws(()=>g.validate('a.js','const =;', '', ''),/syntax/));
 test('persisted state survives reload; second overwrite and stale decision stop',async()=>{
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'guard-test-')),repo=path.join(dir,'repo'),state=path.join(dir,'home');
+ const dir=createTempDirectory('guard-test-'),repo=path.join(dir,'repo'),state=path.join(dir,'home');
  fs.mkdirSync(repo);fs.mkdirSync(state);const originalHome=os.homedir;os.homedir=()=>state;
  const git=(...args)=>{const r=spawnSync('git',['-C',repo,...args],{encoding:'utf8'});assert.equal(r.status,0,r.stderr);return r.stdout.trim();};
  try{
@@ -84,7 +85,7 @@ test('Atelier adapter uses isolated content and checks compile errors',async()=>
  }finally{await new Promise(r=>server.close(r));}
 });
 test('Git update stops before remote access and batch conflict stops all writes',async()=>{
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'guard-batch-')),repo=path.join(dir,'repo');
+ const dir=createTempDirectory('guard-batch-'),repo=path.join(dir,'repo');
  fs.mkdirSync(repo);const home=os.homedir;os.homedir=()=>dir;
  const git=(...a)=>{const r=spawnSync('git',['-C',repo,...a],{encoding:'utf8',timeout:60000,windowsHide:true});assert.ifError(r.error);assert.equal(r.status,0,r.stderr);};
  try{
@@ -103,7 +104,7 @@ test('Git update stops before remote access and batch conflict stops all writes'
 });
 
 test('partial upload is recorded, repeat is blocked, and source stays untouched',async()=>{
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'guard-partial-')),repo=path.join(dir,'repo');fs.mkdirSync(repo);
+ const dir=createTempDirectory('guard-partial-'),repo=path.join(dir,'repo');fs.mkdirSync(repo);
  const home=os.homedir;os.homedir=()=>dir;
  const git=(...a)=>{const r=spawnSync('git',['-C',repo,...a],{encoding:'utf8',timeout:30000});assert.equal(r.status,0,r.stderr);return r.stdout;};
  try{
@@ -129,7 +130,7 @@ test('partial upload is recorded, repeat is blocked, and source stays untouched'
 });
 
 test('guarded backfills Storage only, retains merged server code privately, and deploys again',async t=>{
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'guard-storage-')),repo=path.join(dir,'repo');fs.mkdirSync(repo);
+ const dir=createTempDirectory('guard-storage-'),repo=path.join(dir,'repo');fs.mkdirSync(repo);
  const home=os.homedir;os.homedir=()=>dir;t.after(()=>{os.homedir=home;fs.rmSync(dir,{recursive:true,force:true});});
  const git=(...a)=>{const r=spawnSync('git',['-C',repo,...a],{encoding:'utf8',windowsHide:true});assert.equal(r.status,0,r.stderr);return r.stdout;};
  git('init');git('config','user.name','Test');git('config','user.email','test@example.invalid');

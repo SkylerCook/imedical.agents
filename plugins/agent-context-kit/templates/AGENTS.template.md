@@ -8,6 +8,8 @@ TODO: 用一句话说明业务用途和技术栈；只写已验证边界。初�
 
 上下文模式及本地代码范围见 `.agents/config/project_context_profile.md`。若为 `intent-first-on-demand-export`，少量已导出文件只代表需求上下文；不得推断完整架构，按任务获取必要源码后再处理。
 
+若启用 `coding-iris-plugin`，先读取当前 `ContextRoot/config/iris-development.json` 的 `developmentMode`：offline 统一进入 coding owner 的 `references/iris-offline-development.md`，禁止医院远端调用（含原生 MCP），用人工材料完成本地修改、Review、打包和独立 Verify。connected（含旧配置缺省）才继续按 contextMode 与需求类型分流：project + 按需导出先读 `references/project-demand-development.md`；标版沿既有分支。非法开发方式停止 IRIS 流程，缺连接不自动判为离线，模式不产生远端授权。
+
 ## 开发路线
 
 TODO: 按项目实际情况填写高频任务的源码入口/参考实现，以及已有构建、运行或验证文档的链接；缺少文档且命令已验证时写最小命令与前置条件。不要复制专项文档，不虚构未验证的工具链。
@@ -22,12 +24,13 @@ TODO: 只保留项目实际需要的高频保护，如所属 Git 仓库、用户
 
 ## 按任务读取
 
+- 创建或接续 worktree、完成一批改动或准备交接时，读取并执行[阶段提交与恢复点](.agents/docs/guides/worktree-review.md#阶段提交与恢复点)，核对本地提交授权和最后恢复点；本入口不授予提交权限。
 - 能力包使用、操作指南或连接配置排查：先读取 [.agents 文档入口](.agents/docs/README.md)，再按问题进入对应指南。
 
-- 需求交接：确认 `agent-context-kit` 为 enabled（无 profile 时沿用基础 enabled）且入口可用后，启用交接、生成交接或接续已有需求时读取 `.agents/skills/task-handoff/SKILL.md`；从项目 `docs/handoff/` 定位任务，启用后关键节点持续维护，普通需求不自动建档。
+- 需求交接：确认 `agent-context-kit` 为 enabled（无 profile 时沿用基础 enabled）且入口可用后，启用交接、生成交接或接续已有需求时读取 `.agents/skills/task-handoff/SKILL.md`；通过 task-handoff 工具解析当前工作区交接根并定位任务，启用后关键节点持续维护，普通需求不自动建档。
 
 - 工程任务读取 `.agents/memory/project-memory.md` 的简短入口，仅跟进相关领域链接；自包含的措辞/翻译等问题不额外加载工程资料。
-- 任务路由统一放 `.agents/rules/index.md`，按场景读取专项 rules、skills 和 profile；此处不复制完整路由表。
+- 工程任务先读取[规则索引](.agents/rules/index.md)，按触发条件读取专项 rules、skills 和 profile；只加载命中项，已持有且未变化的内容复用。
 - 上下文模式不明或维护配置时读 `project_context_profile.md`；使用项目插件前查 `plugin_profile.md`，目录存在不代表 enabled。私有连接配置仅在连接、远端能力或实际配置问题时读取。
 - 按 `.agents/agents/_shared/execution-guidance.md` 执行，guidanceMode 缺省 auto；复用仍持有且未变化的资料，动态状态按当前操作核对。
 
@@ -36,4 +39,6 @@ TODO: 只保留项目实际需要的高频保护，如所属 Git 仓库、用户
 ## 收尾
 
 - 仅稳定事实变化、入口失效、配置变化或用户要求初始化/维护/优化时加载 `.agents/skills/project-context-maintenance/SKILL.md`，普通修改不例行维护或推荐插件。
-- 开工时先设置互斥的 `taskKind`：业务需求为 `business-demand`，框架能力、版本和治理维护为 `framework-maintenance`，其它任务为 `other`。业务需求本地验证后进入 `acceptance-pending`，仅在用户明确验收且发现框架缺陷、规则冲突、可复用新经验或用户要求时调用 `.agents/skills/agent-framework-feedback/SKILL.md` 做只读审查；框架维护走 `maintaining -> locally-verified -> maintenance-complete`，不创建需求验收状态，也不触发或提示 feedback。两类工作同时出现时必须分开记录。任何 feedback 写入或 rule 提升仍需用户逐项授权。
+- 开工时先设置互斥的 `taskKind`：业务需求为 `business-demand`，框架能力、版本和治理维护为 `framework-maintenance`，其它任务为 `other`。业务需求本地验证后进入 `acceptance-pending`，仅在用户明确验收且发现框架缺陷、规则冲突、可复用新经验或用户要求时调用 `.agents/skills/agent-framework-feedback/SKILL.md` 做只读审查；框架维护走 `maintaining -> locally-verified -> maintenance-complete`，不创建需求验收状态，也不触发或提示 feedback。两类工作同时出现时必须分开记录。任何 feedback 写入或 rule 提升按 feedback skill 核对当前有效授权；默认只读，已明确授权的源仓隔离待审补丁模式在批准范围内执行。
+
+- 查找、新建或整理项目资料时先读已存在的 `docs/README.md`；首次接入目录治理或迁移旧文件时，读取能力包 `docs/guides/project-knowledge-layout.md` 并取得明确授权。

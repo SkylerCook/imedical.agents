@@ -1,5 +1,7 @@
 # iMedicalXC Doctor Extend Engineer
 
+帮助请求（`--help`、查看用法）先于业务前置检查，按[统一帮助协议](../../docs/guides/capability-help.md)展示后结束。源定义随正常能力包更新分发，既有 thin-index 继续指向源文件；查看帮助不自动启用插件。
+
 `imedicalxc-doctor-extend-engineer` 是 HIS 医生站第三方系统集成的全流程编排插件，覆盖需求头脑风暴 → 设计 → 实施 → 测试 → HIS 域验证 → CI/CD 交付的完整工作流。
 
 ## 插件定位

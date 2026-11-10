@@ -18,6 +18,21 @@ related:
 - UI 框架：HISUI，除非目标工程 profile 明确关闭。
 - jQuery/HISUI 版本、主题、源码路径以 `.agents/config/iris_project_profile.md` 为准。
 
+## UI 条件门禁
+
+本节是前端 UI 条件读取的唯一入口。编码与 Review（包括只从本 rule 进入的审查）均读取当前 Context 的 `.agents/config/plugin_profile.md`，在修改前与最终 diff 后各判断一次；纯 Review 按任务与待审 diff 判断。目录存在只表示 `available`，不等于已启用。
+
+UI 信号包括标注/原型还原、布局/滚动/尺寸、字体/颜色/边框/圆角、控件视觉与状态、标题图标、操作图标及树节点图标、按主题切换控件、弹窗适配、主题条件变更、主题兼容及首屏闪烁。
+
+| iris-ui 状态 | 任务或 diff | 行为 |
+|---|---|---|
+| `enabled` | 无 UI 信号 | 继续普通前端流程，不追加 UI 专项规则 |
+| `enabled` | 命中 UI 信号 | 读取 [UI 专项规则](../../iris-ui/rules/iris_ui.md)，由其核对当前启用集合、manifest 依赖版本与公司规范，再继续当前编码或 Review 流程 |
+| `available`、`disabled` 或 profile 缺失 | 任意前端任务 | 保留原流程和项目已有约束，不自动加载或启用 UI 插件；不能将普通前端检查报告为公司 UI 规范已核对 |
+| `enabled` | 命中 UI 信号且规则/依赖缺失或版本不兼容 | 报告能力包不完整或依赖不兼容，暂停依赖该能力的 UI 阶段；沿[已有更新流程](../../../docs/update-agents.md)补齐，保留显式禁用，不自行改启用集合 |
+
+本门禁只条件读取规则，不自动切换完整 UI workflow，也不自动更新能力包或业务副本。门禁命中且依赖满足时，标题图标的面性/线性语义统一查[公司图标规范](../../imedical-ui/references/forms-and-actions.md#图标及业务确认)，HISUI 资源与状态实现查本规则的复用指针；不在编码层复制公司规范。
+
 ## 条件 i18n 门禁
 
 前端任务必须读取目标工程 `.agents/config/plugin_profile.md`，并在修改前与最终 diff 后各判断一次。插件目录存在只表示 `available`，只有 `i18n-iris-plugin` 状态为 `enabled` 才能自动追加 i18n 能力。
@@ -66,7 +81,7 @@ node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
 - 按钮的普通、主操作、悬浮、焦点、禁用及等待状态，由 HISUI 控件 API 和当前主题提供的语义 class 管理。优先组合现有 class，不为修复某个状态另写业务版 hover/disabled 配色、透明度、滤镜或文字颜色。
 - 出现悬浮文字消失、禁用对比异常等问题时，先核对实际主题、控件初始化、语义 class 和业务选择器优先级；优先移除冲突覆盖，恢复完整的原生状态组合，而非继续叠加更高优先级或 `!important`。
 - 业务 CSS 主要负责间距、分组、尺寸和对齐；状态标签也先查框架现有能力。只有确认现有能力不足时才做局部最小适配，说明缺口，遵循下列主题复用原则，不更改控件的禁用语义。
-- 修改控件样式后，在实际主题和控件中核对普通、hover、键盘焦点、disabled、waiting（适用时）及其组合，检查文字可读性和禁用点击行为。静态 CSS 检查不能代替运行态验证。
+- 本次差异改变控件视觉状态或交互时，在实际主题和控件中核对受影响的普通、hover、键盘焦点、disabled、waiting 状态及必要组合，检查文字可读性和禁用点击行为。容器间距或已明确的局部配置修改按[验证范围与停止条件](../../../agents/_shared/testing-protocol.md#验证范围与停止条件)选择检查；静态 CSS 检查不能冒充运行态验证。
 
 ### 通用复用顺序
 
@@ -123,8 +138,8 @@ node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
 
 ## 验证
 
-- 默认做本地结构和引用检查。
-- 最终 diff 按前端规范检查命名、格式、兼容基线及范围；独立 Review 传递规范路径、用户/项目覆盖与已有检查结果，无独立 Agent 时明确报告串行自审。
+- 默认做本地结构和引用检查；运行场景与结束条件统一按[共享测试协议](../../../agents/_shared/testing-protocol.md#验证范围与停止条件)选择。
+- 最终 diff 按前端规范检查命名、格式、兼容基线及范围，并重新执行[UI 条件门禁](#ui-条件门禁)；独立 Review 传递规则与规范路径、用户/项目覆盖、UI 启用状态及已有检查结果，无独立 Agent 时明确报告串行自审。
 - 前端文件变更后按 `utf8` 复检所有触碰文件；正常时只报告模式、文件数和保持的编码。
 - 调整 DataGrid 列定义后，检查保存、校验、行编辑和回显逻辑中的 editor/列下标是否仍对应正确字段。
 - 用户明确要求部署时，先通过 UTF-8 字节门禁，再直接上传原始源文件并验证。

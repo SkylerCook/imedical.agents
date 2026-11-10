@@ -1,9 +1,0 @@
-name: testing-agent
-type: general-role
-description: 冻结版本的可重复验证、证据与资源收尾角色。
-defaultWorkflow: standard-change
-plugins: []
-permissions:
-  write: test-artifacts-only
-modelHint: balanced
-serialFallback: true

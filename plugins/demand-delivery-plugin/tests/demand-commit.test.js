@@ -57,6 +57,80 @@ function plan(repo, kind, modification = '调整模板必填校验，使用字�
   return JSON.parse(result.stdout);
 }
 
+function noIdPlan(repo, extra = []) {
+  return JSON.parse(runCli([
+    'plan', '--project-root', repo, '--kind', 'project', '--no-id', '--type', 'fix',
+    '--title', '模板维护-内容校验', '--file', 'target.txt', '--modification',
+    '增加模板空内容保存校验并聚焦输入框，确保用户及时补全模板内容', ...extra,
+  ], repo).stdout);
+}
+
+test('no-id plans are distinct and commit verified project changes without a demand scope', () => {
+  const f = createRepo();
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'early development\n');
+  fs.writeFileSync(path.join(f.root, 'new.txt'), 'new project file\n');
+  fs.writeFileSync(path.join(f.root, 'unrelated.txt'), 'outside staged\n');
+  git(f.root, ['add', 'unrelated.txt']);
+  const head = git(f.root, ['rev-parse', 'HEAD']).stdout;
+  const status = git(f.root, ['status', '--short']).stdout;
+  const cached = git(f.root, ['diff', '--cached', '--binary']).stdout;
+  const first = noIdPlan(f.root, ['--file', 'new.txt']);
+  const second = noIdPlan(f.root, ['--file', 'new.txt']);
+  assert.notEqual(first.planPath, second.planPath);
+  assert.deepEqual(JSON.parse(fs.readFileSync(first.planPath, 'utf8')), first);
+  assert.equal(first.noId, true);
+  assert.equal(first.demand, null);
+  assert.equal(first.kind, 'project');
+  assert.equal(first.repositories[0].message, 'fix:模板维护-内容校验\n修改说明:增加模板空内容保存校验并聚焦输入框，确保用户及时补全模板内容\n');
+  assert.equal(git(f.root, ['rev-parse', 'HEAD']).stdout, head);
+  assert.equal(git(f.root, ['status', '--short']).stdout, status);
+  assert.equal(git(f.root, ['diff', '--cached', '--binary']).stdout, cached);
+  const unauthorized = runCli(['apply', '--plan', first.planPath, '--no-id'], f.root, true);
+  assert.equal(unauthorized.status, 1);
+  assert.match(unauthorized.stderr, /confirm-commit/);
+  runCli(['apply', '--plan', first.planPath, '--confirm-commit', '--verify'], f.root);
+  const verified = JSON.parse(runCli(['verify', '--plan', first.planPath], f.root).stdout);
+  assert.equal(verified.status, 'verified');
+  assert.equal(verified.repositories[0].execution.pull, 'local-only');
+  assert.equal(git(f.root, ['show', '-s', '--format=%B']).stdout.trim(), first.repositories[0].message.trim());
+  assert.deepEqual(git(f.root, ['show', '--format=', '--name-only']).stdout.trim().split(/\r?\n/), ['new.txt', 'target.txt']);
+  assert.equal(git(f.root, ['diff', '--cached', '--binary']).stdout, cached);
+});
+
+test('no-id is explicit, mutually exclusive with demand and limited to project', () => {
+  const f = createRepo();
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'planned change\n');
+  const base = ['plan', '--project-root', f.root, '--kind', 'project', '--type', 'fix',
+    '--title', '模板维护', '--file', 'target.txt'];
+  for (const [extra, expected, modification = '增加模板空内容保存校验并聚焦输入框，确保用户及时补全模板内容'] of [
+    [[], /必须是单个数字需求号/],
+    [['--demand', 'TODO'], /必须是单个数字需求号/],
+    [['--no-id', '--demand', '123'], /不能同时使用/],
+    [['--demand', '123', '--no-id'], /不能同时使用/],
+    [['--no-id', '--kind', 'standard'], /仅支持 project/],
+    [['--no-id'], /过于简略|过于泛化/, '优化功能'],
+  ]) {
+    const result = runCli([...base, '--modification', modification, ...extra], f.root, true);
+    assert.equal(result.status, 1, extra.join(' '));
+    assert.match(result.stderr, expected);
+  }
+  assert.equal(git(f.root, ['log', '--format=%s']).stdout.trim(), 'initial');
+  assert.equal(git(f.root, ['diff', '--cached', '--name-only']).stdout.trim(), '');
+});
+
+test('no-id plans retain integrity and file drift checks', () => {
+  const f = createRepo();
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'planned change\n');
+  const planned = noIdPlan(f.root);
+  fs.writeFileSync(planned.planPath, JSON.stringify({ ...planned, noId: false }));
+  assert.match(runCli(['apply', '--plan', planned.planPath, '--confirm-commit'], f.root, true).stderr, /计划内容已被修改/);
+  fs.writeFileSync(planned.planPath, JSON.stringify(planned));
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'concurrent change\n');
+  assert.match(runCli(['apply', '--plan', planned.planPath, '--confirm-commit'], f.root, true).stderr, /计划文件状态已变化/);
+  assert.equal(git(f.root, ['log', '--format=%s']).stdout.trim(), 'initial');
+  assert.equal(git(f.root, ['diff', '--cached', '--name-only']).stdout.trim(), '');
+});
+
 test('standard and project messages use three and two lines', () => {
   const module = require('../scripts/commit-demand');
   const args = { type: 'fix', demand: '7060418', subject: '口腔技工单-模板维护', title: '模板内容的必填提示显示不全', kind: 'standard' };
@@ -198,6 +272,223 @@ test('standard apply pulls, commits three-line message, verifies, and does not p
   assert.equal(message.length, 3);
   assert.equal(git(bare, ['rev-parse', 'refs/heads/main']).stdout.trim(), remoteBefore);
   assert.notEqual(git(fixture.root, ['rev-parse', 'HEAD']).stdout.trim(), remoteBefore);
+});
+
+function withUpstream(fixture = createRepo('source')) {
+  const bare = path.join(fixture.parent, 'refresh-remote.git');
+  run('git', ['init', '--bare', bare], fixture.parent);
+  git(fixture.root, ['remote', 'add', 'origin', bare]);
+  git(fixture.root, ['push', '-u', 'origin', 'main']);
+  const actor = path.join(fixture.parent, 'refresh-actor');
+  run('git', ['clone', '-b', 'main', bare, actor], fixture.parent);
+  for (const [key, value] of [['user.name', 'Refresh Fixture'], ['user.email', 'refresh@example.invalid'],
+    ['commit.gpgSign', 'false'], ['core.hooksPath', path.join(fixture.parent, 'empty-hooks')]]) git(actor, ['config', key, value]);
+  return { ...fixture, bare, actor };
+}
+
+function actorCommit(fixture, message) {
+  git(fixture.actor, ['add', '--all']);
+  git(fixture.actor, ['commit', '-m', message]);
+  git(fixture.actor, ['push']);
+}
+
+function replan(previous, attempt) {
+  return JSON.parse(runCli(['plan', '--project-root', previous.projectRoot, '--kind', previous.kind,
+    ...(previous.noId ? ['--no-id'] : ['--demand', previous.demand]),
+    '--type', previous.type, '--subject', previous.subject, '--title', previous.title,
+    ...previous.repositories.flatMap(repo => ['--modification', `${repo.root}::${repo.modification}`,
+      ...repo.files.flatMap(file => ['--file', path.join(repo.root, file)])]),
+    '--output', path.join(path.dirname(previous.planPath), `${path.basename(previous.planPath, '.json')}-refresh-${attempt}.json`)],
+  previous.projectRoot).stdout);
+}
+
+test('no-id upstream refresh retains unnumbered identity and resumes without pushing', () => {
+  const f = withUpstream();
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'early development\n');
+  const planned = noIdPlan(f.root);
+  fs.writeFileSync(path.join(f.actor, 'incoming.txt'), 'unrelated upstream change\n');
+  actorCommit(f, 'incoming update');
+  const applied = runCli(['apply', '--plan', planned.planPath, '--confirm-commit', '--verify'], f.root, true);
+  assert.equal(applied.status, 3, applied.stderr);
+  assert.equal(JSON.parse(applied.stdout).status, 'refresh-required');
+  assert.equal(git(f.root, ['log', '-1', '--format=%s']).stdout.trim(), 'incoming update');
+  const next = replan(planned, 1);
+  assert.equal(next.noId, true);
+  assert.equal(next.demand, null);
+  assert.equal(next.repositories[0].message, planned.repositories[0].message);
+  const remoteHead = git(f.bare, ['rev-parse', 'refs/heads/main']).stdout;
+  runCli(['apply', '--plan', next.planPath, '--confirm-commit', '--verify'], f.root);
+  const verified = JSON.parse(fs.readFileSync(next.planPath, 'utf8'));
+  assert.equal(verified.status, 'verified');
+  assert.equal(verified.repositories[0].execution.pull, 'up-to-date');
+  assert.equal(git(f.root, ['rev-parse', 'HEAD^']).stdout, remoteHead);
+  assert.equal(git(f.bare, ['rev-parse', 'refs/heads/main']).stdout, remoteHead);
+});
+
+function incomingPaths(root, before, after) {
+  const commits = git(root, ['rev-list', `${before}..${after}`]).stdout.trim().split(/\r?\n/).filter(Boolean);
+  return [...new Set(commits.flatMap(commit => git(root,
+    ['diff-tree', '--root', '-r', '-m', '--no-commit-id', '--name-only', '--no-renames', '-z', commit])
+    .stdout.split('\0').filter(Boolean)))];
+}
+
+test('two disjoint upstream advances preserve three-file plans and resume with the same commit authorization', () => {
+  const f = withUpstream();
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'demand update\n');
+  fs.writeFileSync(path.join(f.root, '新增 文件.txt'), 'new demand content\n');
+  fs.writeFileSync(path.join(f.root, 'third.txt'), 'third demand content\n');
+  fs.writeFileSync(path.join(f.root, 'unrelated.txt'), 'outside staged\n');
+  git(f.root, ['add', 'unrelated.txt']);
+  fs.appendFileSync(path.join(f.root, 'unrelated.txt'), 'outside unstaged\n');
+  fs.writeFileSync(path.join(f.root, 'outside-untracked.txt'), 'outside untracked\n');
+  const cachedOutside = git(f.root, ['diff', '--cached', '--binary', '--', 'unrelated.txt']).stdout;
+  const worktreeOutside = fs.readFileSync(path.join(f.root, 'unrelated.txt'), 'utf8');
+  let planned = JSON.parse(runCli(['plan', '--project-root', f.root, '--kind', 'standard', '--demand', '123',
+    '--type', 'fix', '--subject', '合成功能', '--title', '合成需求', '--modification',
+    '通过校验输入内容并保留原始值，确保保存时显示正确结果',
+    ...['target.txt', '新增 文件.txt', 'third.txt'].flatMap(file => ['--file', file])], f.root).stdout);
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    fs.writeFileSync(path.join(f.actor, `remote-${attempt}.txt`), `independent update ${attempt}\n`);
+    actorCommit(f, `upstream ${attempt}`);
+    const applied = runCli(['apply', '--plan', planned.planPath, '--confirm-commit', '--verify'], f.root, true);
+    assert.equal(applied.status, 3, applied.stderr);
+    assert.equal(JSON.parse(applied.stdout).status, 'refresh-required');
+    const after = git(f.root, ['rev-parse', 'HEAD']).stdout.trim();
+    assert.equal(incomingPaths(f.root, planned.repositories[0].head, after)
+      .some(file => planned.repositories[0].files.includes(file)), false);
+    const next = replan(planned, attempt);
+    for (const key of ['kind', 'demand', 'type', 'subject', 'title']) assert.equal(next[key], planned[key]);
+    for (const key of ['root', 'branch', 'upstream', 'files', 'states', 'fingerprint', 'message']) {
+      assert.deepEqual(next.repositories[0][key], planned.repositories[0][key], key);
+    }
+    assert.equal(next.repositories[0].head, after);
+    assert.equal(git(f.root, ['log', '-1', '--format=%s']).stdout.trim(), `upstream ${attempt}`);
+    planned = next;
+  }
+  const remoteHead = git(f.bare, ['rev-parse', 'refs/heads/main']).stdout.trim();
+  runCli(['apply', '--plan', planned.planPath, '--confirm-commit', '--verify'], f.root);
+  const verified = JSON.parse(fs.readFileSync(planned.planPath, 'utf8'));
+  assert.equal(verified.status, 'verified');
+  assert.equal(git(f.root, ['rev-parse', 'HEAD^']).stdout.trim(), remoteHead);
+  assert.equal(git(f.bare, ['rev-parse', 'refs/heads/main']).stdout.trim(), remoteHead);
+  assert.equal(git(f.root, ['diff', '--cached', '--binary', '--', 'unrelated.txt']).stdout, cachedOutside);
+  assert.equal(fs.readFileSync(path.join(f.root, 'unrelated.txt'), 'utf8'), worktreeOutside);
+  assert.equal(fs.readFileSync(path.join(f.root, 'outside-untracked.txt'), 'utf8'), 'outside untracked\n');
+});
+
+for (const change of ['edit-reverted', 'rename-reverted']) {
+  test('incoming commit paths reveal planned-file intersections hidden by net diff: ' + change, () => {
+    const f = withUpstream();
+    fs.writeFileSync(path.join(f.root, 'target.txt'), 'local demand\n');
+    const planned = plan(f.root, 'standard');
+    if (change === 'edit-reverted') fs.writeFileSync(path.join(f.actor, 'target.txt'), 'upstream edit\n');
+    else fs.renameSync(path.join(f.actor, 'target.txt'), path.join(f.actor, '移动 文件.txt'));
+    actorCommit(f, 'touch planned path');
+    if (change === 'edit-reverted') fs.writeFileSync(path.join(f.actor, 'target.txt'), 'initial\n');
+    else fs.renameSync(path.join(f.actor, '移动 文件.txt'), path.join(f.actor, 'target.txt'));
+    actorCommit(f, 'restore upstream tree');
+    assert.equal(runCli(['apply', '--plan', planned.planPath, '--confirm-commit'], f.root, true).status, 3);
+    const after = git(f.root, ['rev-parse', 'HEAD']).stdout.trim();
+    assert.equal(git(f.root, ['diff', '--name-only', planned.repositories[0].head, after]).stdout, '');
+    const paths = incomingPaths(f.root, planned.repositories[0].head, after);
+    assert.ok(paths.includes('target.txt'));
+    if (change === 'rename-reverted') assert.ok(paths.includes('移动 文件.txt'));
+    const candidate = replan(planned, 1);
+    assert.equal(candidate.repositories[0].fingerprint, planned.repositories[0].fingerprint);
+    assert.equal(git(f.root, ['log', '-1', '--format=%s']).stdout.trim(), 'restore upstream tree');
+  });
+}
+
+test('plan does not contact an unavailable configured upstream', () => {
+  const f = withUpstream();
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'demand\n');
+  git(f.root, ['remote', 'set-url', 'origin', path.join(f.parent, 'missing-remote.git')]);
+  const head = git(f.root, ['rev-parse', 'HEAD']).stdout;
+  const status = git(f.root, ['status', '--porcelain']).stdout;
+  assert.equal(plan(f.root, 'standard').status, 'planned');
+  assert.equal(git(f.root, ['rev-parse', 'HEAD']).stdout, head);
+  assert.equal(git(f.root, ['status', '--porcelain']).stdout, status);
+});
+
+test('diverged upstream is not retried or integrated and preserves demand changes', () => {
+  const f = withUpstream();
+  fs.writeFileSync(path.join(f.root, 'local.txt'), 'local commit\n');
+  git(f.root, ['add', 'local.txt']); git(f.root, ['commit', '-m', 'local advance']);
+  fs.writeFileSync(path.join(f.actor, 'remote.txt'), 'remote commit\n'); actorCommit(f, 'remote advance');
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'demand\n');
+  const planned = plan(f.root, 'standard'), head = git(f.root, ['rev-parse', 'HEAD']).stdout;
+  const applied = runCli(['apply', '--plan', planned.planPath, '--confirm-commit', '--verify'], f.root, true);
+  assert.equal(applied.status, 1); assert.match(applied.stderr, /pull --ff-only/);
+  assert.equal(git(f.root, ['rev-parse', 'HEAD']).stdout, head);
+  assert.equal(fs.readFileSync(path.join(f.root, 'target.txt'), 'utf8'), 'demand\n');
+});
+
+for (const drift of ['content', 'index', 'message', 'head', 'branch', 'upstream']) {
+  test('apply rejects an unreviewed planned-state change: ' + drift, () => {
+    const f = withUpstream();
+    fs.writeFileSync(path.join(f.root, 'target.txt'), 'demand\n');
+    const planned = plan(f.root, 'standard');
+    if (drift === 'content') fs.appendFileSync(path.join(f.root, 'target.txt'), 'other work\n');
+    if (drift === 'index') git(f.root, ['add', 'target.txt']);
+    if (drift === 'message') {
+      planned.repositories[0].message = 'changed without authorization';
+      fs.writeFileSync(planned.planPath, JSON.stringify(planned));
+    }
+    if (drift === 'head') {
+      fs.writeFileSync(path.join(f.root, 'parallel.txt'), 'parallel commit\n');
+      git(f.root, ['add', 'parallel.txt']); git(f.root, ['commit', '-m', 'parallel advance']);
+    }
+    if (drift === 'branch') git(f.root, ['checkout', '-b', 'other']);
+    if (drift === 'upstream') {
+      git(f.root, ['update-ref', 'refs/remotes/origin/other', 'HEAD']);
+      git(f.root, ['branch', '--set-upstream-to=origin/other']);
+    }
+    const head = git(f.root, ['rev-parse', 'HEAD']).stdout;
+    const status = git(f.root, ['status', '--porcelain']).stdout;
+    const applied = runCli(['apply', '--plan', planned.planPath, '--confirm-commit'], f.root, true);
+    assert.equal(applied.status, 1); assert.match(applied.stderr, /重新 plan/);
+    assert.equal(git(f.root, ['rev-parse', 'HEAD']).stdout, head);
+    assert.equal(git(f.root, ['status', '--porcelain']).stdout, status);
+  });
+}
+
+function installSyntheticHook(f, reject) {
+  const hooks = path.join(f.parent, 'synthetic-hooks'); fs.mkdirSync(hooks);
+  const log = path.join(f.parent, 'hook.log');
+  const quotedLog = "'" + log.replace(/\\/g, '/').replace(/'/g, "'\\''") + "'";
+  fs.writeFileSync(path.join(hooks, 'pre-commit'), '#!/bin/sh\n' +
+    'enabled=$(git config --bool --get hooks.requireUpToDate)\n' +
+    'printf "%s\\n" "$enabled" >> ' + quotedLog + '\n' +
+    'if [ "$enabled" = true ]; then git rev-parse --verify "@{upstream}" >/dev/null || exit 1; git fetch --quiet --no-tags origin || exit 1; fi\n' +
+    (reject ? 'echo "synthetic remaining check rejected" >&2\nexit 1\n' : 'exit 0\n'), {mode:0o755});
+  git(f.root, ['config', 'core.hooksPath', hooks]);
+  git(f.root, ['config', 'hooks.requireUpToDate', 'true']);
+  return log;
+}
+
+for (const reject of [false, true]) {
+  test('compatible hook only skips freshness and keeps other checks: ' + (reject ? 'reject' : 'allow'), () => {
+    const f = withUpstream(), log = installSyntheticHook(f, reject);
+    fs.writeFileSync(path.join(f.root, 'target.txt'), 'demand\n');
+    const planned = plan(f.root, 'standard'), head = git(f.root, ['rev-parse', 'HEAD']).stdout;
+    const applied = runCli(['apply', '--plan', planned.planPath, '--confirm-commit', '--verify'], f.root, true);
+    assert.equal(applied.status, reject ? 1 : 0, applied.stderr);
+    assert.equal(fs.readFileSync(log, 'utf8'), 'false\n');
+    assert.equal(git(f.root, ['config', '--bool', 'hooks.requireUpToDate']).stdout.trim(), 'true');
+    if (reject) assert.equal(git(f.root, ['rev-parse', 'HEAD']).stdout, head);
+    else assert.equal(JSON.parse(applied.stdout).status, 'verified');
+  });
+}
+
+test('project local-only respects a user hook that requires an upstream', () => {
+  const f = createRepo(), log = installSyntheticHook(f, false);
+  fs.writeFileSync(path.join(f.root, 'target.txt'), 'local-only demand\n');
+  const planned = plan(f.root, 'project'), head = git(f.root, ['rev-parse', 'HEAD']).stdout;
+  const applied = runCli(['apply', '--plan', planned.planPath, '--confirm-commit', '--verify'], f.root, true);
+  assert.equal(applied.status, 1);
+  assert.equal(fs.readFileSync(log, 'utf8'), 'true\n');
+  assert.equal(git(f.root, ['rev-parse', 'HEAD']).stdout, head);
+  assert.equal(git(f.root, ['config', '--bool', 'hooks.requireUpToDate']).stdout.trim(), 'true');
 });
 
 function overlayFixture() {

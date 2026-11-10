@@ -111,6 +111,31 @@ try {
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $dry.ContextRoot "plugins"))) "DryRun must not create shared Junction"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $dry.ContextRoot "config"))) "DryRun must not create local directory"
 
+  $physicalSource = New-OverlayFixture -Parent $testRoot -Name "physical-source"
+  $code = Join-Path $physicalSource.Root "code"
+  New-Item -ItemType Directory -Path $code | Out-Null
+  & git -C $code init -q
+  if ($LASTEXITCODE -ne 0) { throw "Cannot initialize physical source fixture" }
+  [IO.File]::WriteAllText((Join-Path $code "sample.cls"), "original source")
+  $physicalManifestPath = Join-Path $physicalSource.ContextRoot "capability.json"
+  $physicalManifest = Get-Content -LiteralPath $physicalManifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+  $physicalManifest.sourceRoots = @([pscustomobject]@{ name = "backend"; path = "code"; target = "code"; gitRoot = "code" })
+  Write-Utf8Json -Path $physicalManifestPath -Value $physicalManifest
+  $sourceStatus = & git -C $code status --porcelain=v1
+  $physicalDry = @(& $scriptUnderTest -WorkspaceRoot $physicalSource.Root -Mode DryRun)
+  Assert-Equal @(Get-Status -Results $physicalDry -Status "source-directory-ok").Count 1 "physical source must pass DryRun"
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $physicalSource.ContextRoot "config"))) "physical source DryRun stays read-only"
+  $physicalWrite = @(& $scriptUnderTest -WorkspaceRoot $physicalSource.Root -Mode Write)
+  Assert-Equal @(Get-Status -Results $physicalWrite -Status "junction-created").Count 2 "shared paths remain Junctions"
+  Assert-Equal @(Get-Status -Results $physicalWrite -Status "source-directory-ok").Count 1 "physical source must pass Write"
+  Assert-True (-not ((Get-Item -LiteralPath $code).Attributes -band [IO.FileAttributes]::ReparsePoint)) "source must remain physical"
+  Assert-Equal ([IO.File]::ReadAllText((Join-Path $code "sample.cls"))) "original source" "initializer preserves source"
+  Assert-Equal ((& git -C $code status --porcelain=v1) -join "`n") ($sourceStatus -join "`n") "initializer preserves source Git state"
+  $physicalManifest.sourceRoots[0].gitRoot = "."
+  Write-Utf8Json -Path $physicalManifestPath -Value $physicalManifest
+  $invalidPhysical = @(& $scriptUnderTest -WorkspaceRoot $physicalSource.Root -Mode Write -Repair)
+  Assert-Equal @(Get-Status -Results $invalidPhysical -Status "workspace-overlay-blocked").Count 1 "Repair must not replace invalid physical source"
+
   $write = New-OverlayFixture -Parent $testRoot -Name "write"
   $writeResults = @(& $scriptUnderTest -WorkspaceRoot $write.Root -Mode Write)
   Assert-Equal @(Get-Status -Results $writeResults -Status "junction-created").Count 2 "Write shared Junction creation"

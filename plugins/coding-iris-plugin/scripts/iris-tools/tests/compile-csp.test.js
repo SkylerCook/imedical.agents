@@ -1,4 +1,5 @@
 'use strict';
+const {createTempDirectory,ownsTempDirectory}=require('../../../../../scripts/tests/fixtures/temp-directory');
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
@@ -19,6 +20,8 @@ async function server(t, handler) {
 test('single batch compiles exactly requested CSPs with elapsed time', async t => {
   let calls = 0;
   const options = await server(t, (req,res) => {
+    if (req.method === 'HEAD') {res.writeHead(401);res.end();return;}
+    res.setHeader('Set-Cookie','CSPSESSIONID=compile-fixture; Path=/api/atelier/');
     calls++;
     assert.equal(req.method, 'POST');
     assert.equal(req.url, '/api/atelier/v1/TEST/action/compile?flags=cuk&source=0');
@@ -65,12 +68,16 @@ test('connection uses MCP facts and explicit TLS setting, rejects namespace conf
   const mcp={mcpServers:{iris:{env:{IRIS_HOST:'example.invalid',IRIS_SCHEME:'https',IRIS_WEB_PORT:'443',IRIS_USERNAME:'test',IRIS_PASSWORD:'fake',IRIS_NAMESPACE:'TEST',IRIS_TLS_VERIFY:'false'}}}};
   assert.equal(connection(config,mcp).rejectUnauthorized,false);
   delete mcp.mcpServers.iris.env.IRIS_TLS_VERIFY;
+  assert.equal(connection(config,mcp).rejectUnauthorized,false);
+  config.iris.tlsVerify=true;
   assert.equal(connection(config,mcp).rejectUnauthorized,true);
+  mcp.mcpServers.iris.env.IRIS_TLS_VERIFY='false';
+  assert.equal(connection(config,mcp).rejectUnauthorized,false);
   config.iris.namespace='OTHER'; assert.throws(()=>connection(config,mcp),/Namespace/);
 });
 
 test('CLI defaults to local plan without MCP config or remote connection', t => {
-  const root=fs.mkdtempSync(path.join(os.tmpdir(),'csp-plan-'));
+  const root=createTempDirectory('csp-plan-');
   t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
   fs.mkdirSync(path.join(root,'.agents/config'),{recursive:true});
   fs.mkdirSync(path.join(root,'.agents/.git'));
@@ -79,4 +86,33 @@ test('CLI defaults to local plan without MCP config or remote connection', t => 
   assert.equal(result.status,0,result.stderr);
   assert.equal(JSON.parse(result.stdout).status,'planned');
   assert.equal(fs.existsSync(path.join(root,'.mcp.json')),false);
+});
+
+test('on-demand standalone CSP compile branches by explicit demand kind without inferring it', async t => {
+  const root = createTempDirectory('csp-demand-kind-'); t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+  const context = {workspaceRoot: root, contextRoot: path.join(root, '.agents')};
+  fs.mkdirSync(path.join(context.contextRoot, 'config'), {recursive: true}); fs.mkdirSync(path.join(context.contextRoot, '.git'));
+  fs.writeFileSync(path.join(context.contextRoot, 'config/project_context_profile.md'), '- contextMode: intent-first-on-demand-export\n');
+  let calls = 0; const client = {compile: async () => {calls++; return good;}};
+  const deployment = plan(['web/csp/a.csp'], 'web/csp');
+  await assert.rejects(compile({}, deployment, 60000, {context, client}), /explicit-demand-kind-required/); assert.equal(calls, 0);
+  await assert.rejects(compile({}, deployment, 60000, {context, client, kind: 'project'}), /on-demand CSP compilation/); assert.equal(calls, 0);
+  assert.equal((await compile({}, deployment, 60000, {context, client, kind: 'standard'})).status, 'compiled'); assert.equal(calls, 1);
+  fs.writeFileSync(path.join(context.contextRoot, 'config/iris_project_profile.md'), '- 默认需求交付类型：standard\n');
+  assert.equal((await compile({}, deployment, 60000, {context, client})).status, 'compiled'); assert.equal(calls, 2);
+  await assert.rejects(require('../compile-csp').main(['--project-root', root, '--documents', 'web/csp/a.csp', '--execute', '--kind', 'project']), error => error.code === 'on-demand-managed-compile-required');
+  assert.equal(calls, 2);
+  assert.equal(require('../compile-csp').args(['--kind', 'standard']).kind, 'standard');
+  assert.throws(() => require('../compile-csp').args(['--kind', 'unknown']), /explicit-demand-kind-required/);
+});
+
+test('successful compile retains a logout warning without becoming an unknown compilation', async t => {
+  let compiles=0,logouts=0;
+  const options=await server(t,(req,res)=>{
+    if(req.method==='HEAD'){logouts++;res.writeHead(404);res.end();return;}
+    compiles++;res.setHeader('Set-Cookie','CSPSESSIONID=compile-warning; Path=/api/atelier/');res.end(JSON.stringify(good));
+  });
+  const result=await compile(options,plan(['web/csp/a.csp'],'web/csp'));
+  assert.equal(result.status,'compiled');assert.equal(result.remoteExit.cleanupVerified,false);assert.equal(result.remoteExit.localResourcesClosed,true);
+  assert.equal(compiles,1);assert.equal(logouts,1);
 });

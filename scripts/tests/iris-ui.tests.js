@@ -1,0 +1,219 @@
+"use strict";
+
+const { test } = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
+const { spawnSync } = require("node:child_process");
+const repo = path.resolve(__dirname, "../..");
+const plugin = path.join(repo, "plugins/iris-ui");
+const source = fs.readFileSync(path.join(plugin, "scripts/collect-ui-metrics.js"), "utf8");
+
+function fixture(overrides = {}) {
+    const style = Object.freeze({ boxSizing: "border-box", paddingTop: "10px", paddingRight: "12px",
+        paddingBottom: "10px", paddingLeft: "12px", borderTopWidth: "1px", borderRightWidth: "1px",
+        borderBottomWidth: "1px", borderLeftWidth: "1px", marginTop: "0px", marginRight: "0px",
+        marginBottom: "0px", marginLeft: "0px", display: "block", position: "static",
+        overflowX: "auto", overflowY: "auto", visibility: "visible", opacity: "1" });
+    const element = Object.freeze(Object.defineProperties({ clientWidth: 300, clientHeight: 100,
+        scrollWidth: 300, scrollHeight: 100, offsetWidth: 302, offsetHeight: 102,
+        getBoundingClientRect: () => ({ left: 10, top: 20, width: 302, height: 102 }),
+        getClientRects: () => [{}], ...overrides }, Object.fromEntries(
+        ["textContent", "innerHTML", "value", "href", "src", "id", "className"].map(key => [key,
+            { get() { throw new Error("Sensitive property must not be read: " + key); } }]))));
+    const win = Object.freeze({ innerWidth: 1366, innerHeight: 768, devicePixelRatio: 1.25,
+        getComputedStyle: target => { assert.equal(target, element); return style; } });
+    const doc = Object.freeze({ defaultView: win, querySelectorAll: selector => {
+        if (selector === "#invalid[") throw new Error("selector contains private diagnostic data");
+        if (selector === ".missing") return [];
+        if (selector === ".many") return [element, element];
+        if (selector === "#inaccessible") return [null];
+        return [element];
+    } });
+    const context = vm.createContext({ document: doc, window: win, module: { exports: {} } });
+    vm.runInContext(source, context);
+    const collect = options => JSON.parse(JSON.stringify(context.module.exports(options)));
+    collect.realm = context;
+    return collect;
+}
+
+test("metrics collect only explicit geometry and never business values or selector strings", () => {
+    const collect = fixture();
+    const result = collect({ targets: [{ name: "content", selector: "#private-patient-selector" }] });
+    assert.deepEqual(result.viewport, { width: 1366, height: 768, devicePixelRatio: 1.25 });
+    assert.equal(result.targets[0].metrics.rect.x, 10);
+    assert.deepEqual(result.targets[0].metrics.client, { width: 300, height: 100 });
+    assert.deepEqual(result.targets[0].warnings, []);
+    assert.equal(JSON.stringify(result).includes("private-patient-selector"), false);
+});
+
+test("missing, ambiguous and malformed selectors are reported without guessing", () => {
+    const result = fixture()({ targets: [
+        { name: "missing", selector: ".missing" }, { name: "many", selector: ".many" },
+        { name: "invalid", selector: "#invalid[" }, { name: "inaccessible", selector: "#inaccessible" }
+    ] });
+    assert.deepEqual(result.targets.map(target => target.warnings[0]),
+        ["target-not-found", "multiple-matches", "invalid-selector", "measurement-unavailable"]);
+    assert.ok(result.targets.every(target => target.metrics === null));
+    assert.equal(JSON.stringify(result).includes("private diagnostic data"), false);
+});
+
+test("overflow, hidden state and invalid numbers remain distinct diagnostic observations", () => {
+    const result = fixture({ scrollWidth: 316, scrollHeight: 150, getClientRects: () => [],
+        getBoundingClientRect: () => ({ x: NaN, y: 0, width: 0, height: 0 }) })({ targets: [{ name: "panel", selector: "#panel" }] });
+    assert.deepEqual(result.targets[0].warnings, ["no-client-rect", "horizontal-overflow", "vertical-overflow"]);
+    assert.equal(result.targets[0].metrics.rect.x, null);
+});
+
+test("invalid target lists stop before reading any target", () => {
+    const collect = fixture();
+    for (const options of [null, {}, { targets: [] }, { targets: [{}] },
+        { targets: [{ name: "same", selector: "#a" }, { name: "same", selector: "#b" }] }]) {
+        assert.throws(() => collect(options), /targets|target|Target/);
+    }
+    const context = vm.createContext({ module: { exports: {} } });
+    vm.runInContext(source, context);
+    assert.throws(() => context.module.exports({ targets: [{ name: "x", selector: "#x" }] }), /frame/);
+});
+
+test("browser global entry and function source are both callable in the selected frame", () => {
+    const context = vm.createContext({ window: {} });
+    vm.runInContext(source, context);
+    assert.equal(typeof context.window.collectUiMetrics, "function");
+    assert.throws(() => context.window.collectUiMetrics({}), /frame/);
+    const exported = require(path.join(plugin, "scripts/collect-ui-metrics.js"));
+    const selectedFrame = fixture().realm;
+    const fromSource = vm.runInContext("(" + exported.toString() + ")", selectedFrame);
+    const measured = fromSource({ targets: [{ name: "selected-frame", selector: "#panel" }] });
+    assert.equal(measured.targets[0].metrics.client.width, 300);
+    assert.equal(measured.targets[0].name, "selected-frame");
+    assert.equal(/fetch\(|XMLHttpRequest|setInterval|addEventListener|MutationObserver|ResizeObserver|innerHTML\s*=/.test(source), false);
+});
+
+test("plugin discovery and optional UI routing preserve ownership and enabled boundary", () => {
+    const manifest = JSON.parse(fs.readFileSync(path.join(plugin, ".agents-plugin/plugin.json"), "utf8"));
+    assert.equal(manifest.name, "iris-ui");
+    assert.deepEqual(manifest.dependencies, ["coding-iris-plugin", "imedical-ui"]);
+    assert.deepEqual(manifest.thinIndex.excludeSkills, ["iris-ui-init"]);
+    for (const entry of [manifest.entry, "skills/iris-ui/SKILL.md", "skills/iris-ui-init/SKILL.md", "rules/iris_ui.md"]) {
+        assert.ok(fs.existsSync(path.join(plugin, entry)), entry);
+    }
+    const coding = JSON.parse(fs.readFileSync(path.join(repo, "plugins/coding-iris-plugin/.agents-plugin/plugin.json"), "utf8"));
+    for (const name of ["iris-ui", "imedical-ui"]) {
+        assert.equal((coding.dependencies || []).includes(name), false, name + " remains optional to coding");
+        assert.equal(Object.hasOwn(coding.dependencyVersions || {}, name), false, name + " has no reverse required range");
+    }
+});
+
+test("frontend UI instruction gate covers rule-only review, both checkpoints and optional states", () => {
+    const coding = path.join(repo, "plugins/coding-iris-plugin");
+    const rule = fs.readFileSync(path.join(coding, "rules/iris_coding_frontend.md"), "utf8");
+    const gate = /^## UI 条件门禁\r?\n([\s\S]*?)(?=^## )/m.exec(rule)?.[1];
+    assert.ok(gate, "one authoritative frontend UI gate");
+    assert.match(gate, /只从本 rule 进入/);
+    assert.match(gate, /修改前与最终 diff 后各判断一次/);
+    assert.match(gate, /当前 Context/);
+    for (const trigger of ["标注/原型还原", "布局/滚动/尺寸", "操作图标", "按主题切换控件", "弹窗适配", "主题条件变更"]) {
+        assert.ok(gate.includes(trigger), trigger);
+    }
+    const rows = gate.split(/\r?\n/).filter(line => line.startsWith("|"));
+    const noSignal = rows.find(line => line.includes("无 UI 信号"));
+    const enabled = rows.find(line => line.includes("命中 UI 信号 |"));
+    const optional = rows.find(line => line.includes("profile 缺失"));
+    const incomplete = rows.find(line => line.includes("版本不兼容"));
+    assert.match(noSignal, /enabled.*不追加 UI 专项规则/);
+    assert.match(enabled, /enabled.*\.\.\/\.\.\/iris-ui\/rules\/iris_ui\.md.*manifest 依赖版本/);
+    for (const state of ["available", "disabled", "profile 缺失"]) assert.ok(optional.includes(state), state);
+    assert.match(optional, /不自动加载或启用.*不能.*已核对/);
+    assert.match(incomplete, /规则\/依赖缺失.*版本不兼容.*暂停.*已有更新流程.*保留显式禁用/);
+    assert.match(gate, /不自动切换完整 UI workflow/);
+    assert.match(gate, /imedical-ui\/references\/forms-and-actions\.md#图标及业务确认/);
+    assert.equal((rule.match(/^## UI 条件门禁$/gm) || []).length, 1);
+    for (const entry of ["skills/iris-frontend-coding/SKILL.md", "skills/iris-coding/SKILL.md",
+        "rules/iris_coding_index.md", "AGENTS.md", "README.md"]) {
+        const text = fs.readFileSync(path.join(coding, entry), "utf8");
+        assert.match(text, /iris_coding_frontend\.md#ui-条件门禁/, entry);
+        assert.equal(text.includes("UI 信号包括"), false, entry + " points to the owner instead of copying the gate");
+    }
+});
+
+test("enabled UI dependency contract rejects missing and incompatible providers", () => {
+    const manifest = JSON.parse(fs.readFileSync(path.join(plugin, ".agents-plugin/plugin.json"), "utf8"));
+    const { inRange } = require("../../.agents/skills/agent-kit-maintenance/scripts/validate-component-versions.js");
+    const rule = fs.readFileSync(path.join(plugin, "rules/iris_ui.md"), "utf8");
+    assert.match(rule, /均为 enabled/);
+    assert.match(rule, /实际版本满足本插件 manifest/);
+    assert.match(rule, /缺失、available、disabled 或版本不兼容/);
+    for (const name of manifest.dependencies) {
+        const providerPath = path.join(repo, "plugins", name, ".agents-plugin/plugin.json");
+        assert.ok(fs.existsSync(providerPath), name);
+        const provider = JSON.parse(fs.readFileSync(providerPath, "utf8"));
+        const range = manifest.dependencyVersions[name];
+        assert.ok(inRange(provider.version, range.minVersion, range.maxVersionExclusive), name + " current version");
+        assert.ok(inRange(range.minVersion, range.minVersion, range.maxVersionExclusive), name + " lower boundary");
+        assert.equal(inRange(range.maxVersionExclusive, range.minVersion, range.maxVersionExclusive), false, name + " incompatible boundary");
+    }
+    // The gate is an Agent instruction contract, not an executable plugin auto-enabler.
+});
+
+test("UI implementation routes final theme review to one owner and reuses the task record", () => {
+    const read = relative => fs.readFileSync(path.join(plugin, relative), "utf8");
+    const rule = read("rules/iris_ui.md");
+    const skill = read("skills/iris-ui/SKILL.md");
+    assert.match(skill, /rules\/iris_ui\.md#最终差异核对/);
+    assert.match(rule, /README\.md#只读主题范围扫描/);
+    assert.match(rule, /零候选不代表/);
+    assert.match(rule, /优先级/);
+    const task = read("templates/ui-task.md");
+    for (const field of ["共性落点", "差异依据", "兼容基准"]) assert.ok(task.includes(field), field);
+    assert.ok(fs.existsSync(path.join(plugin, "scripts/check-theme-scope.js")));
+});
+
+for (const shell of (process.platform === "win32" ? ["pwsh.exe", "powershell.exe"] : [])) {
+    test(`thin-index preview, repeat and custom protection with source mapping (${shell})`, () => {
+        let tempParent = process.env.IRIS_UI_TEST_TMP || (process.platform === "win32" ? "D:/tmp/Codex" : require("node:os").tmpdir());
+        let root;
+        try {
+            fs.mkdirSync(tempParent, { recursive: true });
+            root = fs.mkdtempSync(path.join(tempParent, "iris-ui-test-"));
+        } catch (error) {
+            if (process.env.IRIS_UI_TEST_TMP) throw error;
+            tempParent = path.join(require("node:os").tmpdir(), "Codex");
+            fs.mkdirSync(tempParent, { recursive: true });
+            root = fs.mkdtempSync(path.join(tempParent, "iris-ui-test-"));
+        }
+        const context = path.join(root, ".agents");
+        const wrapper = path.join(plugin, "scripts/generate-plugin-thin-index.ps1");
+        const run = mode => spawnSync(shell, ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", wrapper,
+            "-PluginPath", plugin, "-ProjectRoot", root, "-ContextRoot", context, "-CapabilityRoot", repo,
+            "-Mode", mode], { encoding: "utf8", timeout: 30000, windowsHide: true });
+        try {
+            assert.equal(run("DryRun").status, 0);
+            assert.equal(fs.existsSync(context), false);
+            const first = run("Write");
+            assert.equal(first.status, 0, first.stderr || first.stdout);
+            const skill = path.join(context, "skills/iris-ui/SKILL.md");
+            const rule = path.join(context, "rules/iris_ui.md");
+            assert.equal(fs.existsSync(path.join(context, "skills/iris-ui-init")), false);
+            const before = [skill, rule].map(file => fs.readFileSync(file, "utf8"));
+            for (const text of before) {
+                assert.match(text, /thin-index: true/);
+                const target = /^source: (.+)$/m.exec(text)[1].trim().replace(/^\.agents\//, "");
+                assert.ok(fs.existsSync(path.resolve(repo, target)), target);
+            }
+            assert.equal(run("Write").status, 0);
+            assert.deepEqual([skill, rule].map(file => fs.readFileSync(file, "utf8")), before);
+            const custom = "# Project custom rule\nPreserve this text.\n";
+            fs.writeFileSync(rule, custom);
+            const conflict = run("Write");
+            assert.equal(fs.readFileSync(rule, "utf8"), custom);
+            assert.ok(conflict.status !== 0 || /preserv|conflict|skip|custom/i.test(conflict.stdout));
+        } finally {
+            assert.equal(path.dirname(fs.realpathSync(root)).toLowerCase(), fs.realpathSync(tempParent).toLowerCase());
+            assert.equal(fs.lstatSync(root).isSymbolicLink(), false);
+            fs.rmSync(root, { recursive: true, force: true });
+            assert.equal(fs.existsSync(root), false);
+        }
+    });
+}

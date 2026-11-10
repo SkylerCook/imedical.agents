@@ -4,7 +4,7 @@
  * IRIS Universal Export Script
  * Automatically detects file type and exports from IRIS server
  * 
- * Usage: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <fileIdentifier> [outputDir] [namespace] [--basePath <prefix>] [--target-mode auto|source|staging] [--overwrite] [--probe] [--json] [--staging-dir <path>]
+ * Usage: node .agents/plugins/coding-iris-plugin/scripts/iris-tools/export.js <fileIdentifier> [outputDir] [namespace] [--basePath <prefix>] [--target-mode auto|source|staging] [--overwrite] [--probe] [--json] [--staging-dir <path>] [--kind standard|project]
  * 
  * Examples:
  *   # Export class (detected by dot notation without path)
@@ -29,6 +29,8 @@ const https = require('https');
 const http = require('http');
 const crypto = require('crypto');
 const { resolveWorkspaceContext } = require('../../../../scripts/lib/workspace-context');
+const { createAtelierClient } = require('../../../../scripts/lib/atelier-client');
+const { contextMode } = require('../../../../scripts/lib/iris-remote-operations');
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -41,6 +43,7 @@ let overwrite = false;
 let probe = false;
 let jsonOutput = false;
 let stagingDir = '';
+let demandKind;
 
 // Parse optional arguments
 for (let i = 1; i < args.length; i++) {
@@ -56,6 +59,8 @@ for (let i = 1; i < args.length; i++) {
         jsonOutput = true;
     } else if (args[i] === '--staging-dir') {
         stagingDir = args[++i] || '';
+    } else if (args[i] === '--kind') {
+        demandKind = args[++i] || '';
     } else if (i === 1 && !args[i].startsWith('--') && !args[i].startsWith('-')) {
         outputDir = args[i];
     } else if (i === 2 && !args[i].startsWith('--') && !args[i].startsWith('-')) {
@@ -65,6 +70,10 @@ for (let i = 1; i < args.length; i++) {
 
 if (!['auto', 'source', 'staging'].includes(targetMode)) {
     console.error(`[错误] --target-mode 只允许 auto、source 或 staging，当前值: ${targetMode}`);
+    process.exit(1);
+}
+if (demandKind !== undefined && !['standard', 'project'].includes(demandKind)) {
+    console.error('[错误] --kind 只允许 standard 或 project');
     process.exit(1);
 }
 
@@ -87,6 +96,7 @@ if (!fileIdentifier) {
 
 // Load configuration
 const workspaceContext = resolveWorkspaceContext(process.cwd());
+require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(workspaceContext);
 const workspaceRoot = workspaceContext.workspaceRoot;
 const configPath = path.join(workspaceContext.contextRoot, 'config', 'project-env.json');
 const profilePath = path.join(workspaceContext.contextRoot, 'config', 'iris_project_profile.md');
@@ -296,6 +306,10 @@ function prependBasePath(filePath, prefix) {
  * Export file from IRIS server
  */
 function exportFile(fileInfo) {
+    if (!probe && !fileInfo.staging && contextMode(workspaceContext) === 'intent-first-on-demand-export' &&
+        require('./source-sync-core').demandKind(workspaceContext, {kind: demandKind}).kind === 'project') {
+        throw new Error('source-sync-before-edit-required: 项目按需开发的待修改文件，无论本地是否存在，都先执行 source-sync.js 的 before-edit plan / prepare / apply；有变化先提交 export 基线，再开始需求修改。只读参考可用 --probe 或独立 staging。');
+    }
     info(`[信息] 检测到文件类型: ${fileInfo.type}`);
     info(`[信息] 正在导出: ${fileInfo.displayName}`);
     if (!probe) info(`[信息] 目标文件: ${fileInfo.fullPath}`);
@@ -334,7 +348,7 @@ function exportFile(fileInfo) {
         }
 
         if (statusCode === 503) {
-            emitFailure('unavailable', '多次重试后仍收到 503 Service Unavailable，可能 License 已耗尽', 1);
+            emitFailure('unavailable', '收到 503 Service Unavailable；已停止，不自动重试。请核对许可与服务状态。', 1);
             process.exit(1);
         }
 
@@ -400,63 +414,36 @@ function exportFile(fileInfo) {
     });
 }
 
-// Shared session cookie to avoid license exhaustion
-let sharedCookie = null;
-
-/**
- * Retry delay (ms) for 503 errors: 2s → 5s → 10s
- */
-const RETRY_DELAYS = [2000, 5000, 10000];
+// A one-file CLI still uses the same bounded client as batch/source-sync.
+// No 503 replay: the shared admission owner preserves a pool-wide circuit.
+const RETRY_DELAYS = [];
 
 /**
  * Execute an HTTP request with cookie session reuse and 503 retry.
  */
 function requestWithRetry(apiUrl, options, maxRetries, callback) {
-    const client = irisScheme === 'https' ? https : http;
-
-    // Inject session cookie and keep-alive
-    const reqOptions = Object.assign({}, options, {
-        headers: Object.assign({}, options.headers, {
-            'Connection': 'keep-alive'
-        })
-    });
-    if (sharedCookie) {
-        reqOptions.headers['Cookie'] = sharedCookie;
-    }
-
-    const attempt = (retryCount) => {
-        info('[信息] 正在连接 IRIS 服务器...');
-
-        client.get(apiUrl, reqOptions, (res) => {
-            // Capture session cookie from first response
-            if (!sharedCookie) {
-                const setCookie = res.headers['set-cookie'];
-                if (setCookie) {
-                    const sessionEntry = setCookie.find(c => c.startsWith('CSPSESSIONID'));
-                    if (sessionEntry) {
-                        sharedCookie = sessionEntry.split(';')[0];
-                        info('[信息] 已获取 Session Cookie，后续请求将复用该会话');
-                    }
-                }
-            }
-
-            // Handle 503 with retry
-            if (res.statusCode === 503 && retryCount < maxRetries) {
-                const delay = RETRY_DELAYS[retryCount] || RETRY_DELAYS[RETRY_DELAYS.length - 1];
-                info(`[警告] 收到 503，${delay / 1000}秒后重试 (${retryCount + 1}/${maxRetries})...`);
-                setTimeout(() => attempt(retryCount + 1), delay);
-                return;
-            }
-
-            let data = '';
-            res.on('data', (chunk) => { data += chunk; });
-            res.on('end', () => callback(null, res.statusCode, data));
-        }).on('error', (error) => {
-            callback(error);
-        });
-    };
-
-    attempt(0);
+    let client;
+    try {
+        const required = contextMode(workspaceContext) === 'intent-first-on-demand-export';
+        let connection = { protocol: irisScheme + ':', hostname: iris.host, port: irisPort,
+            namespace, auth: iris.username + ':' + iris.password, rejectUnauthorized: String(iris.tlsVerify ?? false).toLowerCase() !== 'false' };
+        const mcpPath = path.join(workspaceRoot, '.mcp.json');
+        if (required) {
+            const mcp = JSON.parse(fs.readFileSync(mcpPath, 'utf8').replace(/^\uFEFF/, ''));
+            connection = require('./compile-csp').connection(config, mcp);
+            if (namespace !== iris.namespace) throw new Error('remote-namespace-override-rejected');
+        }
+        client = createAtelierClient({ connection, context: workspaceContext });
+        const name = new URL(apiUrl).pathname.split('/doc/')[1];
+        client.request('GET', 'doc/' + name).then(async result => {
+            const exit = await client.close();
+            if (!exit.cleanupVerified) return callback(new Error('remote-session-exit-unverified'));
+            callback(null, result === null ? 404 : 200, result === null ? '{}' : JSON.stringify(result));
+        }, async error => {
+            await client.close();
+            callback(error.status === 503 ? null : error, error.status, '{}');
+        }).catch(error => callback(error));
+    } catch (error) { callback(error); }
 }
 
 function info(message) {

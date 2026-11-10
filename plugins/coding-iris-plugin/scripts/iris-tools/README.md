@@ -6,9 +6,23 @@
 
 这些 Node.js 脚本用于生成部署清单、从 IRIS 服务器导出文件、编译类文件、调试方法调用以及同步环境配置。
 
+开发方式由当前 ContextRoot 的 `config/iris-development.json` 独立声明。offline 的受管远端入口在连接配置与客户端启动前停止；本地帮助、状态、分析、Review、源码/XML 打包保持可用。connected（含旧配置缺省）保留原同步、准入与发布保护；非法值停止。原生 MCP/外部 IDE 不在脚本机器拦截范围，Agent 仍禁止离线调用。详见[离线协议](../../references/iris-offline-development.md)。
+
+初始化或已有项目补齐使用 `source-sync.js configure`：Write 创建缺失的开发声明及按条件需要的远端策略，Check/DryRun 只读；参数见 `--help`，流程见 [coding-iris-init](../../skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)。已有文件按字节保留，真实环境未知时报告缺项，不套用模板中的示例值。`configurationReady` 只表示本地配置齐全，`remoteAdmission` 单列本地策略状态；生成的策略禁用且资格 pending，不产生远端调用或服务器基线。缺声明却已有恢复材料时停止自动生成，避免改变旧任务指纹。
+
+已启用项目普通 Write 更新的配置迁移复用同一模块，仅补缺文件，保留已有 JSON 和旧模式缺省；兼容空声明 `{}` 不改变旧计划指纹，模式/环境待确认仍会明确报告。对应 Windows 薄入口为 `scripts/migrate-development-config.ps1`，不连接医院、不建立 Git 或基线，available/disabled 和只读更新不写入。
+
+本地交付统一入口 `source-delivery.js prepare|pack|verify|xml-unpack|xml-pack|xml-verify --help` 校验真实 SourceRoot/GitRoot、输入批次和冻结范围。源码打包唯一实现为同目录 `source-delivery.ps1`；人工 ZIP 从这里取入，旧独立参数保持。XML 复用 `edit-export-xml.ps1`，新增私有 BaselineDirectory 与工作区绑定，旧任务原位恢复。两个 PowerShell 核心可独立运行，无 Node/框架/联网依赖；当前打包要求 Windows PowerShell 5.1 或 Windows 上的 PowerShell 7。
+
+已确认 `project` 需求且采用 `intent-first-on-demand-export` 时先读[项目开发协议](../../references/project-demand-development.md#修改前与部署前同步)，以 `source-sync.js` 管理范围、服务器基线、现场和复审；待修改文件无论本地是否存在，都先完成 before-edit 同步，有变化先提交，再开始需求修改。普通 export 直接写源码会在请求前指向 source-sync；probe／独立 `--staging-dir` 只补参考。export 的 `--kind standard|project` 接收本次明确类型，未传时沿项目默认值。`standard` 沿既有流程，contextMode 不决定类型。`source-sync.js --help` 是操作参数入口，plan 本地只读，prepare 才读取服务器，提交与发布分别核对授权；无变化不建 export 或空提交。
+
+受管 Atelier 生命周期复用同一 client/Cookie 并串行执行，503 不重试，未知写保留断点。根 `scripts/iris-mcp.js` 接入公共 tools/call 准入，根 `scripts/iris-remote.js` 提供本地 status/reconcile 和显式受限 inspect；原生 MCP/IDE 和其它客户端不因此自动受控。按需上下文的已接入远端通道需 verified 私有策略、严格 TLS 及适用退出资格，真实 License 占用/回落不能由 keepalive、logout 回执或进程退出推定。
+
+项目按需分支的 CSP 编译随已复审 deploy-frontend 执行，独立 `compile-csp.js --execute` 停止；其它分支保留既有单独编译及有效授权，公共 License 准入不豁免。Storage 复审收尾、追加本地回滚和锁恢复均复用 source-sync 当前 CLI，不重新部署或 rewind 历史。
+
 ## 配置说明
 
-所有脚本都从业务项目 `.agents/config/project-env.json` 读取连接参数。首次使用前先确认配置事实来源：已有 `.mcp.json` 时，从 `.mcp.json` 反向生成或补齐 `project-env.json`；没有 `.mcp.json` 时，才从 `.agents/plugins/coding-iris-plugin/templates/project-env.template.json` 复制并填写真实环境，再运行 `sync-env-config.js` 生成 `.mcp.json`。模板默认使用内置 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe` 作为后端 MCP server 路径。这些文件包含敏感信息，不应提交到版本控制系统。
+项目连接来自现有 `.mcp.json` 与 `.agents/config/project-env.json`，各入口按其契约核对目标；首次使用前先确认配置事实来源：已有 `.mcp.json` 时，从 `.mcp.json` 反向生成或补齐 `project-env.json`；没有 `.mcp.json` 时，才从 `.agents/plugins/coding-iris-plugin/templates/project-env.template.json` 复制并填写真实环境，再运行 `sync-env-config.js` 生成 `.mcp.json`。模板默认使用内置 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe` 作为后端 MCP server 路径。这些文件包含敏感信息，不应提交到版本控制系统。
 
 工具优先级：
 
@@ -19,8 +33,11 @@
 
 ## 📁 脚本列表
 
+- `edit-export-xml.ps1`：辅助 AI 在本地拆分现场聚合 XML（可含 Project 元数据），直接编辑源码节点；Pack 按 NotesFile 生成 changes.xml、rollback.xml、变更说明和 manifest，Verify 独立核对。仅输出修改对象，原包和未修改对象受保护，不自动转换 UDL、导入或编译。流程见[现场源码带回与 XML 离线修改](../../references/iris-offline-development.md)。人工导出脚本独立归源仓 `tools/iris-code-export/`，不在本插件分发。
+
 - `query-knowledge.js`：从 CapabilityRoot 的共享参考库与指定 sourceId 的当前项目菜单中按字面量检索，返回来源、行号和有界片段。
 - `sync-menu.js`：接受完整采集 JSON，plan 只读比较，apply 校验指纹后写入 ContextRoot/work/menu-sync。采集由 iris-menu-sync skill 复用原生 MCP，脚本自身不联网。用法与输入见 [菜单同步](../../references/menu-knowledge-sync.md)。
+- `refresh-menu.js`：对已授权、已登记来源固定完成全量菜单与当前启用安全组采集，复用 sync-menu 原子发布；提供环境/源码摘要校验、断点和异常差异停止。enroll 需要人工审阅，run --execute 可由宿主定期调用，失败保留旧快照，指定组仍走原协议。
 
 ### 1. export.js - 通用导出脚本（推荐）
 
@@ -370,13 +387,19 @@ A:
 
 ## 前端固定部署入口
 
+部署失败先按[失败恢复与授权](../../references/deployment-protection.md#失败恢复与授权)读取诊断和逐文件状态；同范围已有授权继续有效。逐文件 direct/guarded 在本步骤有限恢复，回执附 `recovery`，明确编译错误不会进入 unknown resume；旧 SFTP 批量 worker 证据不足时仍停止。编译请求、未知写入及整批操作均不自动重放。
+
 前端上传加编译统一调用 `scripts/iris-tools/deploy-frontend.js`。默认生成本地计划；已有明确部署授权后加 `--execute`，无需逐步骤重复确认。禁止为常规部署临时生成上传脚本或逐次探索编译工具。
 
 ```bash
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/deploy-frontend.js --source-root <frontend-root> --files <project-relative-file...> --execute
 ```
 
-`--source-root` 对应包含 `csp/`、`scripts/`、`css/` 的目录，映射到私有配置 `REMOTE_PATH`；省略时读取 SFTP 的 `LOCAL_PATH`。文件列表必须明确，CSP 虚拟路径取 `web.cspBasePath`。direct 固定顺序：本地 UTF-8/语法/路径/配置校验 → 一次 SFTP 连接整批比较 SHA-256 → 仅差异文件原子上传并立即校验最终目标 → 汇总全部逐文件证据 → 一次 Atelier 编译指定 CSP。保留上传前本地与远端变化检查，并在临时文件上传完成、替换前再次检查远端摘要；连接中断即停止，不重新连接。未变化 CSP 仍执行编译；JS/CSS 不触发编译。不自动扩展父页面，不重试、不切换通道；部分上传成功后失败不自动回滚。
+`--source-root` 对应包含 `csp/`、`scripts/`、`css/` 的目录，文件列表必须明确。项目已确认 Web doc 支持时，私有配置 `web.frontendTransport="atelier"` 优先复用现有 Atelier 时间戳导出、条件 PUT、最终 SHA-256 回读和 CSP 批量编译；目标使用 `web.basePath`、`web.cspBasePath`。该模式需显式 `--source-root`，无 SFTP/Python 依赖；失败停止，服务器规范化 BOM/换行导致字节不一致也停止。
+
+SFTP fallback 使用 `web.frontendTransport="sftp"`，旧项目省略字段沿用该通道。它把本地根映射到私有 `REMOTE_PATH`；省略 `--source-root` 时读取 SFTP 的 `LOCAL_PATH`。direct 维持一次连接比较 SHA-256、差异原子上传、最终回读和一次 CSP 编译；替换前复核远端摘要。绑定只读发布快照时复用现有逐文件保护会话读取快照产物，不从继续开发的原工作区取上传字节。两通道均保留整批 UTF-8/语法/路径预检和上传前变化检查；未变化 CSP 仍编译，JS/CSS 不编译。不自动扩展父页面，不重试、不切换通道，部分成功后不自动回滚；guarded 继续使用原 Git 基线与合并状态。完整边界见[部署保护](../../references/deployment-protection.md#前端通道选择)。
+
+事前本地计划输出每文件 `targetId`，供受管 PLAN 声明 `deploymentTargets`；执行前重新解析并核对实际目标集合。SFTP 静态目标用摘要标识，不在 PLAN 或 Agent 规则保存物理路径；通道/配置变化需重新预检。
 
 Python 默认使用 `.mcp.json` 对应 SFTP 的 `command`，可用 `--python <interpreter>` 明确覆盖；解释器须已安装 vendor 锁定依赖。可信主机密钥使用配置或 `--known-hosts <file>`；本次明确核实的指纹可用 `--host-key-sha256 <SHA256:fingerprint>`，不写入信任库，不自动接受未知密钥。两个参数互斥。
 
@@ -386,7 +409,7 @@ Python 默认使用 `.mcp.json` 对应 SFTP 的 `command`，可用 `--python <in
 
 ## 开发部署与可选基线保护
 
-日常开发部署默认 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留编码、Storage、并发变化、回读和编译检查。需要三方合并时显式使用 `--mode guarded --demand <id>` 并建立会话。旧命令仅带 `--demand` 继续使用 guarded。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 只生成本地计划。
+非按需导出工程日常开发部署默认 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留编码、Storage、并发变化、回读和编译检查。需要三方合并时显式使用 `--mode guarded --demand <id>` 并建立会话。旧命令仅带 `--demand` 继续使用 guarded。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 只生成本地计划。
 
 部署 Question 兼容：停止结果提供工具无关 question 协议，固定决定代码；Agent 按能力采用选项或文字确认。暂停/查看/无效决定不写入。详见 references/deployment-protection.md。
 

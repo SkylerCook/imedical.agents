@@ -5,6 +5,8 @@ description: Use when exporting, verifying, or explicitly syncing page-level tra
 
 # CSP Translation Sync — CSP 页面翻译导出与校验
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 触发条件
 
 当需要以下任一操作时使用本 Skill：
@@ -103,7 +105,7 @@ description: Use when exporting, verifying, or explicitly syncing page-level tra
 1. 执行 Verify 模式的页面展开、语言解析、服务器查询、过滤与排序。
 2. 按 project profile 的页面组和方法组生成写入/回滚方法体。
 3. 重写本地种子文件中 profile 指定的方法体内部代码，文件其余部分保持不变。
-4. 重写前按 profile 指定备份目录保存方法体备份。
+4. 重写前按 [目录选择](../../references/project-directories.md) 的 `csp-backups` 命令解析目录，再保存方法体备份；现有 profile 备份目录优先。这是业务恢复副本，与框架目录迁移的回退备份分别管理。
 5. 输出变更摘要；不自动部署，除非用户明确要求。
 
 ### Sync 模式

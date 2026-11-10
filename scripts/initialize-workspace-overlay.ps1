@@ -227,6 +227,7 @@ $blockingStatuses = @(
   "git-root-missing",
   "source-path-missing",
   "source-path-not-junction",
+  "source-directory-invalid",
   "shared-path-not-junction",
   "local-path-is-link",
   "local-path-not-directory"

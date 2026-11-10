@@ -5,6 +5,10 @@ description: 处理已有 BOS 需求号或正文，复用项目已启用领域�
 
 # BOS 需求处理
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
+按[代码归属协议](../../../../docs/demand-code-ownership.md)处理主子需求及明确无代码条目：验收范围分别记录，共享代码只提交主需求；主子各自日志复用真实主提交，none跳过代码交付阶段并保留原因。先完成该判断，再加载日志配置或索取凭据。
+
 进入通用提交或连续验收前，按[可用性依赖协议](../../../../docs/plugin-availability.md)检查调用方 bos-plugin 的 demand-commit 或 demand-acceptance 阶段；缺口只阻塞对应阶段。
 
 只查详情、待办或历史时使用 [bos-demand-query](../bos-demand-query/SKILL.md)。先有代码再补录标版需求时使用 [bos-demand-entry](../bos-demand-entry/SKILL.md)，不倒转本入口。
@@ -14,6 +18,10 @@ description: 处理已有 BOS 需求号或正文，复用项目已启用领域�
 输入是当前需求编号、正文或已确认事实，以及目标工作区和原始授权。复用对话中已确认内容，不要求重复提供。普通任务不落盘需求档案；仅用户明确要求交接时调用 task-handoff，正式 run 引用自身状态。
 
 ## 夜跑入口
+
+新批次执行 [事前治理](../../../../docs/night-governance.md)：由 Agent 生成结构化 executionPlan、周额度基线和逐需求最低测试；批准后在独立 worktree materialize 实体 PLAN，再以角色分片上下文实际派发。核实至少两个 Developer 的并发与两个 Tester 分工，治理和人工负担计入总成本。缺必要并发、用量或停止能力时保留具体缺口，不能静默按单开发或全量 UI 执行。
+
+需要单 Agent 降级时，读取[退出夜跑转受监督串行契约](../../../../workflows/bos-demand-unattended.workflow.md#单-agent-降级)，在确认范围、核对遗留资源并完成独立工作区检查后进入普通处理。
 
 `$bos-demand-handle --night` 是本技能的显式夜跑选择，不是交给 BOS 查询脚本的 CLI 参数。也接受“今晚处理这些需求”“批量夜跑”等明确自然语言请求；未指定夜跑时继续普通单需求流程。
 
@@ -27,6 +35,6 @@ description: 处理已有 BOS 需求号或正文，复用项目已启用领域�
 
 实施前按 workflow 的“入口、输入与事实”核对完整标题、描述及媒体，主动读取影响需求理解的截图和附件；不等待用户单独要求看图或分析附件。已有读取证据可复用，关键资料无法读取时按该流程处理缺口。
 
-全部本地提交校验成功后，按 workflow 的“提交后的 BOS 代码更新日志”复用本次仓库与 hash，自动调用 [bos-code-update-log](../bos-code-update-log/SKILL.md) 准备计划。展示具体计划后复用明确的 BOS 补录预授权；普通处理缺少授权时可请求一次，2.1 夜跑缺少启动前授权则保留交接。配置缺失、拒绝或接口失败只保留日志待办，恢复时核对已有结果。
+全部实仓提交校验成功后，按 workflow 的“提交后的 BOS 代码更新日志”复用本次实仓、目标 ref 与完整 hash，自动调用 [bos-code-update-log](../bos-code-update-log/SKILL.md) 准备计划。展示具体计划后复用明确的 BOS 补录预授权；普通处理缺少授权时可请求一次，2.1 夜跑缺少启动前授权则保留交接。配置缺失、拒绝或接口失败只保留日志待办，恢复时核对已有结果。
 
 完成输出包括实际修改、证据类型、局限、验收步骤及已执行/待授权的动作，分别报告本地提交与 BOS 日志结果。测试通过不表示用户已验收，用户验收不表示已提交；日志补录也不改变 BOS 需求状态。

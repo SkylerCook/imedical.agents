@@ -5,6 +5,8 @@ description: 当需要基于接口解析产物生成阶段化实施计划，并�
 
 # IRIS 接口开发计划
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 用于把接口解析、字段诊断和人工确认项整理成可执行的开发计划。v1 不直接承诺生成可编译 ObjectScript。
 
 ## 必读
@@ -35,4 +37,4 @@ description: 当需要基于接口解析产物生成阶段化实施计划，并�
 
 ## 输出
 
-默认写入 `docs/interface/<doc-name>/implementation-plan.md`。用户指定其他目标项目本地路径时，以用户路径为准。
+默认在当前文档实际 `parsed.json` 所在目录写入 `implementation-plan.md`，复用解析阶段的目录选择。用户指定其他目标项目本地路径时，以用户路径为准。

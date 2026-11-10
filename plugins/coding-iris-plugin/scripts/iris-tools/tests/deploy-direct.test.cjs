@@ -1,11 +1,12 @@
 'use strict';
+const {createTempDirectory,ownsTempDirectory}=require('../../../../../scripts/tests/fixtures/temp-directory');
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {prepare,run}=require('../deploy-direct'),{parse,backendAdapter}=require('../deploy-protected');
 const {Attention}=require('../deploy-guard');
 
 function fixture(t,contents=['Class Demo.A\n{\n}\n']) {
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'iris-direct-test-'));
+ const dir=createTempDirectory('iris-direct-test-');
  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  const files=contents.map((content,i)=>{const localPath=path.join(dir,`Demo.${i}.cls`);fs.writeFileSync(localPath,content);return {localPath,remotePath:`Demo.${i}.cls`};});
  const remote=new Map(),events=[];
@@ -165,8 +166,13 @@ test('compiler errors return diagnostics and never report verified',async t=>{
 
 test('frontend preserves UTF8 BOM and CRLF; syntax failures stop before upload',async t=>{
  const f=fixture(t,[Buffer.from('\uFEFFconst x = "中文";\r\n')]);f.files[0].remotePath='/web/scripts/a.js';
+ f.files[0].publicationDocument='web/scripts/a.js';
  const bytes=fs.readFileSync(f.files[0].localPath);
- assert.equal((await run({...f,kind:'frontend'})).status,'verified');
+ const receipt=await run({...f,kind:'frontend'});
+ assert.equal(receipt.status,'verified');
+ assert.equal(receipt.files[0].document,'web/scripts/a.js');
+ assert.equal(receipt.files[0].localSha256,require('../deploy-guard').hash(bytes));
+ assert.equal(receipt.files[0].postCompileSha256,receipt.files[0].localSha256);
  assert.deepEqual(f.remote.get(f.files[0].remotePath),bytes);
  fs.writeFileSync(f.files[0].localPath,'const =;');f.events.length=0;
  assert.equal((await run({...f,kind:'frontend'})).reason,'javascript-syntax-failed');
@@ -219,7 +225,7 @@ test('compile CLI backfills generated Storage without Git, and plan never connec
  // Source backfill must not bypass managed night frozen-version review.
  fs.writeFileSync(f.files[0].localPath,original);
  const night=require('../../../../../scripts/lib/night-execution'),output=[],receipts=[];
- t.mock.method(night,'begin',()=>({operation:{id:'synthetic'}}));t.mock.method(night,'reusableDeployment',()=>null);
+ t.mock.method(night,'begin',()=>({manifest:{},operation:{id:'synthetic'}}));t.mock.method(night,'reusableDeployment',()=>null);
  t.mock.method(night,'finish',(_binding,result)=>receipts.push(result));t.mock.method(console,'log',line=>output.push(JSON.parse(line)));
  const exitCode=process.exitCode;
  try{

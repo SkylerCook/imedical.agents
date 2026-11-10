@@ -311,6 +311,44 @@ function Test-AgentJunction {
   return New-AgentValidationResult -Status "junction-ok" -Path $Path -Expected $expectedFull -Actual $actualTarget -Reason "Junction target matches manifest"
 }
 
+function Test-AgentSourcePath {
+  param([object]$Context, [object]$Source)
+  if (-not $Source.path.Equals($Source.target, [System.StringComparison]::OrdinalIgnoreCase)) {
+    return Test-AgentJunction -Path $Source.path -ExpectedTarget $Source.target -NonJunctionStatus "source-path-not-junction" -MissingStatus "source-path-missing"
+  }
+  $reason = ""
+  if (-not (Test-AgentPathWithin -Path $Source.path -Root $Context.workspaceRoot) -or $Source.path.Equals($Context.workspaceRoot, [System.StringComparison]::OrdinalIgnoreCase) -or
+    -not (Test-AgentPathWithin -Path $Source.gitRoot -Root $Context.workspaceRoot) -or -not (Test-AgentPathWithin -Path $Source.path -Root $Source.gitRoot)) {
+    $reason = "Physical SourceRoot and GitRoot must stay inside WorkspaceRoot"
+  }
+  foreach ($reserved in @($Context.contextRoot, $Context.capabilityRoot)) {
+    if ((Test-AgentPathWithin -Path $Source.path -Root $reserved) -or (Test-AgentPathWithin -Path $reserved -Root $Source.path)) {
+      $reason = "Physical SourceRoot overlaps context or capability"
+    }
+  }
+  if (@(($Source.path + [System.IO.Path]::DirectorySeparatorChar + $Source.gitRoot) -split '[\\/]' | Where-Object { $_ -ieq '.git' }).Count -gt 0) {
+    $reason = "Physical SourceRoot cannot use Git metadata"
+  }
+  if ((Test-AgentPathChainHasReparsePoint -Path $Source.path -Root $Context.workspaceRoot) -or (Test-AgentPathChainHasReparsePoint -Path $Source.gitRoot -Root $Context.workspaceRoot)) {
+    $reason = "Physical SourceRoot or GitRoot crosses a link"
+  }
+  if ($reason) { return New-AgentValidationResult -Status "source-directory-invalid" -Path $Source.path -Expected $Source.gitRoot -Reason $reason }
+  if (-not (Test-Path -LiteralPath $Source.path)) {
+    return New-AgentValidationResult -Status "source-path-missing" -Path $Source.path -Expected $Source.target -Reason "physical source directory is missing"
+  }
+  if (-not (Test-Path -LiteralPath $Source.path -PathType Container)) {
+    return New-AgentValidationResult -Status "source-directory-invalid" -Path $Source.path -Reason "Physical SourceRoot must be a directory"
+  }
+  try {
+    $actualRoot = @(& git --no-optional-locks -C $Source.path rev-parse --show-toplevel 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $actualRoot.Count -ne 1 -or -not (ConvertTo-AgentFullPath -Path ([string]$actualRoot[0])).Equals($Source.gitRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+      throw "SourceRoot GitRoot does not match actual repository"
+    }
+  }
+  catch { return New-AgentValidationResult -Status "source-directory-invalid" -Path $Source.path -Expected $Source.gitRoot -Reason $_.Exception.Message }
+  return New-AgentValidationResult -Status "source-directory-ok" -Path $Source.path -Expected $Source.target -Actual $Source.path -Reason "physical SourceRoot matches manifest and GitRoot"
+}
+
 function Test-AgentWorkspaceContext {
   [CmdletBinding()]
   param([Parameter(Mandatory = $true)][object]$Context)
@@ -351,7 +389,7 @@ function Test-AgentWorkspaceContext {
       $results.Add((New-AgentValidationResult -Status "git-root-missing" -Path $source.gitRoot -Expected $source.name -Reason "declared GitRoot is missing"))
     }
     if ($Context.mode -eq "workspace-overlay") {
-      $results.Add((Test-AgentJunction -Path $source.path -ExpectedTarget $source.target -NonJunctionStatus "source-path-not-junction" -MissingStatus "source-path-missing"))
+      $results.Add((Test-AgentSourcePath -Context $Context -Source $source))
     }
   }
 

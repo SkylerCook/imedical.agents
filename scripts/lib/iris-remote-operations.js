@@ -1,0 +1,437 @@
+'use strict';
+const {encodeDocumentPath} = require('./atelier-document-path');
+
+// Admission coordinates only participating local processes. It does not reserve
+// a server license or intercept an IDE/native MCP outside these entry points.
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const os = require('node:os');
+
+const digest = value => crypto.createHash('sha256').update(value).digest('hex');
+const risk = require('./iris-operation-scope');
+class RemoteOperationError extends Error {
+  constructor(code, details = {}) { super(code); this.name = 'RemoteOperationError'; this.code = code; Object.assign(this, details); }
+}
+function stop(code, details) { throw new RemoteOperationError(code, details); }
+function readJson(file) { return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')); }
+function contextMode(context = {}) {
+  const root = context.contextRoot || path.join(context.workspaceRoot || process.cwd(), '.agents');
+  try {
+    const text = fs.readFileSync(path.join(root, 'config', 'project_context_profile.md'), 'utf8');
+    return text.match(/^\s*[-*]?\s*`?contextMode`?\s*[:：=]\s*`?([a-z-]+)/m)?.[1] || null;
+  } catch (error) { if (error.code === 'ENOENT') return null; stop('remote-context-unreadable'); }
+}
+function developmentSettings(context = {}) {
+  const root = context.contextRoot || path.join(context.workspaceRoot || process.cwd(), '.agents');
+  let declaration;
+  try { declaration = readJson(path.join(root, 'config', 'iris-development.json')); }
+  catch (error) {
+    if (error.code === 'ENOENT') return {mode: 'connected', explicit: false};
+    stop('development-mode-invalid');
+  }
+  if (!declaration || typeof declaration !== 'object' || Array.isArray(declaration)) stop('development-mode-invalid');
+  if (!Object.hasOwn(declaration, 'developmentMode')) return {mode: 'connected', explicit: false};
+  if (!['connected', 'offline'].includes(declaration.developmentMode)) stop('development-mode-invalid');
+  return {mode: declaration.developmentMode, explicit: true};
+}
+function developmentMode(context = {}) { return developmentSettings(context).mode; }
+function assertRemoteAllowed(context = {}) {
+  if (developmentMode(context) === 'offline') stop('offline-development-remote-disabled');
+}
+// Missing declarations retain the exact legacy configuration fingerprint.
+function bindDevelopmentMode(context, configuration) {
+  const selected = developmentSettings(context);
+  return selected.explicit ? {...configuration, developmentMode: selected.mode} : configuration;
+}
+function instanceIdentity(connection = {}) {
+  const host = connection.hostname || connection.host || connection.IRIS_HOST;
+  const port = connection.port || connection.IRIS_WEB_PORT;
+  const scheme = String(connection.protocol || connection.scheme || connection.IRIS_SCHEME || 'https').replace(/:$/, '');
+  if (typeof host !== 'string' || !host || !Number.isInteger(Number(port)) || Number(port) < 1 || Number(port) > 65535) stop('remote-target-required');
+  return digest(JSON.stringify([scheme.toLowerCase(), host.toLowerCase(), Number(port)]));
+}
+function targetIdentity(connection = {}) {
+  let base = connection.path || (connection.namespace ? '/api/atelier/v1/' + encodeURIComponent(connection.namespace) + '/' : '');
+  base = base.replace(/(?:action\/compile.*|doc\/.*|docs(?:\?.*)?)$/, '');
+  if (!base.endsWith('/')) base += '/';
+  return digest(JSON.stringify([instanceIdentity(connection), base]));
+}
+function validQualificationGrant(grant, connection) {
+  if (!grant || grant.confirm !== true || grant.targetHash !== targetIdentity(connection) ||
+      !Array.isArray(grant.documents) || grant.documents.length < 1 || grant.documents.length > 100000 ||
+      new Set(grant.documents).size !== grant.documents.length || grant.documents.some(name => typeof name !== 'string' || !name || /[\x00-\x1f]/.test(name)) ||
+      !Number.isInteger(grant.sessions) || grant.sessions < 1 || grant.sessions > 20 ||
+      !Number.isInteger(grant.intervalMs) || grant.intervalMs < 0 || grant.intervalMs > 60000 ||
+      !Number.isInteger(grant.budgetMs) || grant.budgetMs < 1 || grant.budgetMs > 3600000) stop('remote-qualification-grant-invalid');
+  return true;
+}
+function loadRemotePolicy(context = {}, { connection, policy, qualification, recoveryRead = false } = {}) {
+  assertRemoteAllowed(context);
+  const required = contextMode(context) === 'intent-first-on-demand-export';
+  const contextRoot = context.contextRoot || path.join(context.workspaceRoot || process.cwd(), '.agents');
+  let value = policy;
+  if (value === undefined) {
+    try { value = readJson(path.join(contextRoot, 'config', 'iris-remote-policy.json')); }
+    catch (error) {
+      if (error.code === 'ENOENT' && !required) return { enabled: false, required: false };
+      stop(error.code === 'ENOENT' ? 'remote-policy-required' : 'remote-policy-invalid');
+    }
+  }
+  if (qualification !== undefined) validQualificationGrant(qualification, connection);
+  if (value?.enabled !== true) {
+    if (qualification !== undefined) stop('remote-qualification-policy-required');
+    if (recoveryRead) stop('remote-policy-required');
+    if (required) stop('remote-policy-required');
+    return { enabled: false, required: false };
+  }
+  // Qualification describes optional capacity experiments, not permission to
+  // perform ordinary serialized work. Keep historical evidence as metadata.
+  if (value.schema !== 'iris-remote-policy/v1' || !path.isAbsolute(value.coordinationRoot || '') ||
+      typeof value.poolKey !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(value.poolKey) ||
+      value.maxConcurrent !== undefined && value.maxConcurrent !== 1) stop('remote-policy-invalid');
+  const result = { ...value, required, coordinationRoot: path.resolve(value.coordinationRoot), maxConcurrent: 1,
+    instanceHash: connection ? instanceIdentity(connection) : null,
+    ...(qualification ? {qualificationRun: true} : {}), ...(recoveryRead ? {recoveryReadOnly:true} : {}) };
+  // Certificate verification follows the project's explicit connection setting.
+  // Context mode must not silently override that setting; HTTPS is still required.
+  if (required && connection && String(connection.protocol || connection.scheme || connection.IRIS_SCHEME || 'https').replace(/:$/, '') !== 'https') stop('remote-strict-tls-required');
+  return managedPolicy(context, result);
+}
+function managedPolicy(context, policy, force = false) {
+  if (!policy?.enabled || !force && !fs.existsSync(path.join(context.contextRoot || '', 'config', 'iris-session-backend.json'))) return policy;
+  const coordinationRoot = path.join(os.homedir(), '.imedical', 'iris-sessions', 'admission');
+  return {...policy, coordinationRoot,
+    ...(path.resolve(policy.coordinationRoot) !== path.resolve(coordinationRoot) ? {legacyCoordinationRoot:policy.coordinationRoot} : {})};
+}
+function localPolicy(context = {}) {
+  const root=context.contextRoot || path.join(context.workspaceRoot || process.cwd(),'.agents');
+  const policy=readJson(path.join(root,'config','iris-remote-policy.json'));
+  if(policy?.schema!=='iris-remote-policy/v1' || !path.isAbsolute(policy.coordinationRoot || '') ||
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(policy.poolKey || ''))stop('remote-policy-invalid');
+  return managedPolicy(context,{...policy,enabled:true});
+}
+function assertNoLinks(target) {
+  let current = path.parse(path.resolve(target)).root;
+  for (const part of path.resolve(target).slice(current.length).split(path.sep).filter(Boolean)) {
+    current = path.join(current, part);
+    if (fs.existsSync(current) && fs.lstatSync(current).isSymbolicLink()) stop('remote-coordination-link');
+  }
+}
+function atomicJson(file, value) {
+  assertNoLinks(file);
+  const temporary = file + '.' + crypto.randomUUID() + '.tmp';
+  try { fs.writeFileSync(temporary, JSON.stringify(value) + '\n', { flag: 'wx', mode: 0o600 }); fs.renameSync(temporary, file); }
+  finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); }
+}
+function createRemoteOperation({ policy = { enabled: false }, connection, channel = 'atelier', operation = 'remote-operation', writeRiskOwner = 'admission', writeRiskFile } = {}) {
+  // Managed backends already persist intent/outcome in SessionManager. Admission
+  // still serializes access and honors legacy risks, but must not duplicate them.
+  const tracksWrites = writeRiskOwner !== 'session-manager';
+  if (!tracksWrites && !path.isAbsolute(writeRiskFile || '')) stop('remote-write-risk-owner-required');
+  let closed = false, active = false, acquired = false, state, directory, lock, token, activeScope;
+  const defaultScope = risk.makeScope(connection);
+  const evidence = { schema: 'iris-remote-operation/v1', channel, status: 'idle', cleanupVerified: false, licenseReleaseVerified: false };
+  function acquire() {
+    if (policy.recoveryReadOnly) stop('remote-recovery-read-only', {beforeSend:true});
+    if (closed) stop('remote-owner-closed');
+    if (acquired || !policy.enabled) { acquired = true; return; }
+    if(policy.legacyCoordinationRoot) {
+      const previous=poolStatus({policy:{...policy,coordinationRoot:policy.legacyCoordinationRoot}});
+      if(previous.ownerPresent)stop('remote-legacy-pool-reconciliation-required');
+    }
+    const instanceHash = policy.instanceHash || instanceIdentity(connection);
+    assertNoLinks(policy.coordinationRoot);
+    fs.mkdirSync(policy.coordinationRoot, { recursive: true, mode: 0o700 });
+    directory = path.join(policy.coordinationRoot, digest(policy.poolKey));
+    assertNoLinks(directory); fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+    lock = path.join(directory, 'owner.lock'); token = crypto.randomUUID();
+    try { fs.writeFileSync(lock, JSON.stringify({ token, pid: process.pid, machine: digest(os.hostname()), instanceHash, channel, startedAt: new Date().toISOString() }), { flag: 'wx', mode: 0o600 }); }
+    catch (error) { if (error.code === 'EEXIST') stop('remote-pool-busy-or-unresolved'); throw error; }
+    try {
+      const stateFile = path.join(directory, 'state.json');
+      state = fs.existsSync(stateFile) ? readJson(stateFile) : { schema: 'iris-remote-pool/v1', instances: [], status: 'ready' };
+      if (state.schema !== 'iris-remote-pool/v1' || !Array.isArray(state.instances)) stop('remote-pool-state-invalid');
+      if (!['ready','reconciliation-required','circuit-open'].includes(state.status)) stop('remote-pool-state-invalid');
+      if (state.localExitUnverified) stop('remote-local-exit-unverified',{beforeSend:true});
+      state.unresolvedWrites = risk.pendingWrites(state);
+      if (state.inFlight) {
+        state.lastInterruptedOperation = state.inFlight; delete state.inFlight;
+      }
+      if (!state.isolationVersion) {
+        if (state.reason === 'remote-write-outcome-unknown' && !state.unresolvedWrites.length) risk.addUnresolved(state, null, state.reason);
+        if (state.status === 'circuit-open' && !state.retryAfter) state.retryAfter = Date.parse(state.updatedAt || '') + risk.COOLDOWN_MS || Date.now() + risk.COOLDOWN_MS;
+        if (state.status !== 'ready') risk.warn(state, state.reason || state.status);
+        state.isolationVersion = 1;
+      }
+      state.status = state.unresolvedWrites.length ? 'reconciliation-required' : state.retryAfter > Date.now() ? 'circuit-open' : 'ready';
+      const denied = risk.admit(state,{effects:'read-only'});
+      if (denied) stop(denied,{beforeSend:true});
+      if (state.instances.length && !state.instances.includes(instanceHash) && policy.allowSharedPool !== true) stop('remote-pool-identity-mismatch');
+      if (!state.instances.includes(instanceHash)) state.instances.push(instanceHash);
+      if (!tracksWrites) state.writeRiskFiles = [...new Set([...(state.writeRiskFiles || []), writeRiskFile])];
+      atomicJson(stateFile, state); acquired = true; evidence.status = 'ready';
+    } catch (error) { fs.unlinkSync(lock); throw error; }
+  }
+  function persist() { if (directory) atomicJson(path.join(directory, 'state.json'), state); }
+  function markUnknown(reason = 'remote-outcome-unknown') {
+    acquire();
+    if (state?.status === 'circuit-open' || evidence.status === 'circuit-open') {
+      if (state) { (state.cleanupProblems ||= []).push(reason); state.updatedAt = new Date().toISOString(); persist(); }
+      return;
+    }
+    if (state) {
+      // Identity uncertainty alone says nothing about a write. run() records
+      // the actual outcome, including before-send failures and HTTP rejection.
+      const cleanupOnly = !tracksWrites || /(?:identity|session-scope)/.test(reason) || /exit/.test(reason) && state.inFlight?.effects !== 'write';
+      if (cleanupOnly) risk.warn(state, reason);
+      else risk.addUnresolved(state, activeScope || defaultScope, reason, Date.now(), state.inFlight?.id);
+      state.status = state.unresolvedWrites.length ? 'reconciliation-required' : 'ready'; state.reason = reason;
+      state.updatedAt = new Date().toISOString(); persist();
+    }
+    evidence.status = state?.unresolvedWrites?.length ? 'reconciliation-required' : 'warning';
+  }
+  function checkpointBatch(batch) {
+    if (!active) stop('remote-owner-not-active');
+    if (state) { state.inFlight.batch = batch; state.updatedAt = new Date().toISOString(); persist(); }
+  }
+  function tripCircuit(reason = 'service-unavailable') {
+    acquire(); evidence.status = 'circuit-open';
+    if (state) { state.status = 'circuit-open'; state.reason = reason; state.retryAfter = Date.now() + risk.COOLDOWN_MS; state.updatedAt = new Date().toISOString(); persist(); }
+  }
+  async function run({ effects = 'read-only', operation: action = operation, scope = defaultScope } = {}, callback) {
+    acquire();
+    if (active) stop('remote-owner-busy');
+    if (policy.legacyCoordinationRoot) {
+      const legacyPolicy = {...policy,coordinationRoot:policy.legacyCoordinationRoot};
+      const previous = poolStatus({policy:legacyPolicy});
+      if (previous.ownerPresent) stop('remote-legacy-pool-reconciliation-required',{beforeSend:true});
+      const legacyFile = poolFiles(legacyPolicy).state;
+      const raw = fs.existsSync(legacyFile) ? readJson(legacyFile) : {};
+      if (raw.localExitUnverified) stop('remote-local-exit-unverified',{beforeSend:true});
+      if (raw.schema && raw.schema !== 'iris-remote-pool/v1') stop('remote-pool-state-invalid',{beforeSend:true});
+      const legacy = {unresolvedWrites:[...(raw.unresolvedWrites || [])],retryAfter:raw.retryAfter || 0};
+      if (raw.inFlight?.effects === 'write' || raw.reason === 'remote-write-outcome-unknown' && !legacy.unresolvedWrites.length) risk.addUnresolved(legacy,raw.inFlight?.scope,'legacy-unknown-write');
+      if (raw.status === 'circuit-open' && !legacy.retryAfter) legacy.retryAfter = Date.parse(raw.updatedAt || '') + risk.COOLDOWN_MS || Date.now() + risk.COOLDOWN_MS;
+      const legacyDenied = risk.admit(legacy,{effects,scope});
+      if (legacyDenied) stop(legacyDenied,{beforeSend:true});
+    }
+    const denied = risk.admit(state || {}, {effects, scope});
+    if (denied) stop(denied, {beforeSend:true});
+    // Independent/qualification clients read the same durable risk instead of
+    // bypassing it or requiring a second reconciliation record.
+    for (const file of effects === 'write' ? state?.writeRiskFiles || [] : []) {
+      if (!path.isAbsolute(file)) stop('remote-write-risk-state-invalid', {beforeSend:true});
+      let managed;
+      try { assertNoLinks(file); managed = readJson(file); }
+      catch { stop('remote-write-risk-state-unavailable', {beforeSend:true}); }
+      if (managed.schema !== 'iris-session-state/v1') stop('remote-write-risk-state-invalid', {beforeSend:true});
+      const shared = {unresolvedWrites:[...(managed.unresolvedWrites || [])]};
+      if (tracksWrites && managed.pendingEffects === 'write') risk.addUnresolved(shared, managed.pendingScope, 'session-interrupted-write');
+      const conflict = risk.admit(shared, {effects,scope});
+      if (conflict) stop(conflict, {beforeSend:true});
+    }
+    if (!['read-only', 'write'].includes(effects)) stop('remote-effects-required');
+    active = true; activeScope = scope;
+    const operationId = crypto.randomUUID();
+    if (state) { state.inFlight = { id:operationId, token, effects, scope, writeRiskOwner, operation: action, at: new Date().toISOString() }; persist(); }
+    try {
+      const result = await callback();
+      if (state) { delete state.inFlight; persist(); }
+      return result;
+    } catch (error) {
+      if (error.status === 503 || error.httpStatus === 503) {
+        if (state) { state.status = 'circuit-open'; state.reason = 'service-unavailable'; state.retryAfter = Date.now() + risk.COOLDOWN_MS; }
+        evidence.status = 'circuit-open';
+      } else if (tracksWrites && effects === 'write' && error.beforeSend !== true && error.writeOutcome !== 'rejected') {
+        if (state) { risk.addUnresolved(state, scope, 'remote-write-outcome-unknown', Date.now(), operationId); state.status = 'reconciliation-required'; state.reason = 'remote-write-outcome-unknown'; }
+        evidence.status = 'reconciliation-required';
+      }
+      if (state) {
+        if (tracksWrites && effects === 'write' && error.beforeSend !== true && error.writeOutcome !== 'rejected' && (error.status === 503 || error.httpStatus === 503)) risk.addUnresolved(state,scope,'remote-write-outcome-unknown',Date.now(),operationId);
+        state.lastFailedOperation = state.inFlight; delete state.inFlight; persist();
+      }
+      throw error;
+    } finally { active = false; }
+  }
+  function close(exit = {}) {
+    if (closed) return { ...evidence };
+    if (active) { markUnknown('remote-owner-exit-in-flight'); return { ...evidence, pendingOperation: true }; }
+    closed = true;
+    if (acquired && lock && readJson(lock).token !== token) stop('remote-owner-identity-changed');
+    if (acquired && state && (exit.processExited === false || exit.localResourcesClosed === false)) {
+      state.localExitUnverified = true; state.status = 'reconciliation-required'; state.reason = 'remote-local-exit-unverified'; persist();
+    }
+    if (acquired && state) {state.lastExit = {processExited:exit.processExited,localResourcesClosed:exit.localResourcesClosed,cleanupVerified:exit.cleanupVerified};persist();}
+    if (acquired && lock) {
+      const held = readJson(lock);
+      if (held.token !== token) stop('remote-owner-identity-changed');
+      fs.unlinkSync(lock);
+    }
+    Object.assign(evidence, exit, { status: evidence.status === 'ready' || evidence.status === 'idle' ? 'closed' : evidence.status,
+      cleanupVerified: exit.cleanupVerified !== false, licenseReleaseVerified: false, pendingOperation: false });
+    if (state) Object.assign(evidence, {poolStatus:state.status, unresolvedWrites:state.unresolvedWrites, warning:state.warning || null});
+    return { ...evidence };
+  }
+  return { acquire, run, markUnknown, checkpointBatch, tripCircuit, close, snapshot: () => ({ ...evidence, pendingOperation: active }) };
+}
+async function withRemoteOperation(options, callback) {
+  assertRemoteAllowed(options.context || {});
+  const policy = options.policy || loadRemotePolicy(options.context || {}, { connection: options.connection });
+  const owner = createRemoteOperation({ ...options, policy });
+  try { return await owner.run(options, () => callback(owner)); }
+  finally { owner.close(); }
+}
+function poolFiles(policy) {
+  if (!policy.enabled) stop('remote-policy-not-enabled');
+  const directory = path.join(policy.coordinationRoot, digest(policy.poolKey));
+  assertNoLinks(directory);
+  assertNoLinks(path.join(directory, 'state.json'));
+  assertNoLinks(path.join(directory, 'owner.lock'));
+  assertNoLinks(path.join(directory, 'history'));
+  return {directory, state: path.join(directory, 'state.json'), owner: path.join(directory, 'owner.lock')};
+}
+function poolStatus({policy}) {
+  const files = poolFiles(policy), state = fs.existsSync(files.state) ? readJson(files.state) : null,
+    owner = fs.existsSync(files.owner) ? readJson(files.owner) : null;
+  let ownerAlive = false;
+  if (owner) {
+    if (owner.machine !== digest(os.hostname())) ownerAlive = 'unverified-other-machine';
+    else try { process.kill(owner.pid, 0); ownerAlive = true; } catch (error) { ownerAlive = error.code === 'ESRCH' ? false : 'unverified'; }
+  }
+  return {schema: 'iris-remote-status/v1', status: state?.status || 'ready', reason: state?.reason || null,
+    ownerPresent: !!owner, ownerAlive, pendingEffects: state?.inFlight?.effects || null,
+    localExitUnverified:state?.localExitUnverified === true, unresolvedWrites:state && ownerAlive === false ? risk.pendingWrites(state) : state?.unresolvedWrites || [], warning:state?.warning || null, retryAfter:state?.retryAfter || 0,
+    reconciliationToken: digest(JSON.stringify({state, owner}))};
+}
+function localPoolStatus(context = {}) {
+  const mode = developmentMode(context);
+  const root = context.contextRoot || path.join(context.workspaceRoot || process.cwd(), '.agents');
+  let policy;
+  try { policy = readJson(path.join(root, 'config', 'iris-remote-policy.json')); }
+  catch (error) {
+    if (error.code === 'ENOENT') return {schema: 'iris-remote-status/v1', status: 'unconfigured', developmentMode: mode, ownerPresent: false};
+    stop('remote-policy-invalid');
+  }
+  if (!policy || policy.schema !== 'iris-remote-policy/v1' || !path.isAbsolute(policy.coordinationRoot || '') ||
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(policy.poolKey || '')) stop('remote-policy-invalid');
+  // Status only reads existing coordination files; it cannot grant admission or release a lock.
+  const effective=managedPolicy(context,{...policy,enabled:true});
+  return {...poolStatus({policy: effective}), developmentMode: mode,
+    ...(effective.legacyCoordinationRoot ? {legacy:poolStatus({policy:{...policy,enabled:true}})} : {})};
+}
+function createRecoveryReadOperation({policy, connection, token, confirmRecovery = false, documents} = {}) {
+  const files = poolFiles(policy);
+  if (confirmRecovery !== true || !/^[a-f0-9]{64}$/.test(token || '')) stop('remote-inspection-confirmation-required');
+  if (!Array.isArray(documents) || documents.length < 1 || documents.length > 5 || new Set(documents).size !== documents.length ||
+      documents.some(name => typeof name !== 'string' || !name || name.length > 1024 || /[\\%?#\x00-\x1f\x7f]/.test(name) || name.split('/').includes('..'))) stop('remote-inspection-documents-invalid');
+  const allowed = new Map(documents.map(name => ['doc/' + encodeDocumentPath(name), name]));
+  const instanceHash = policy.instanceHash || instanceIdentity(connection), id = crypto.randomUUID(), ownerToken = crypto.randomUUID();
+  const evidence = {schema:'iris-remote-inspection/v1', id, status:'not-started', instanceHash,
+    targetHash:digest(JSON.stringify([connection?.protocol || connection?.scheme,connection?.hostname || connection?.host,Number(connection?.port),connection?.path || connection?.namespace])), requestedDocuments:[...documents],
+    originalToken:token, reads:[], cleanupVerified:false, licenseReleaseVerified:false, writeEnabled:false};
+  let acquired = false, closed = false, active = false, stopped = false, state;
+  function acquire() {
+    if (closed) stop('remote-owner-closed');
+    if (acquired) return;
+    fs.mkdirSync(files.directory, {recursive:true, mode:0o700});
+    const admissionLock = path.join(files.directory, 'reconcile.lock'); let descriptor, previousOwner;
+    try { descriptor = fs.openSync(admissionLock, 'wx', 0o600); }
+    catch { stop('remote-reconcile-busy'); }
+    try {
+      const status = poolStatus({policy});
+      if (status.reconciliationToken !== token) stop('remote-inspection-state-changed');
+      if (status.ownerAlive !== false) stop('remote-owner-still-live-or-unverified');
+      state = readJson(files.state);
+      if (state.schema !== 'iris-remote-pool/v1' || !Array.isArray(state.instances) ||
+          !['circuit-open','reconciliation-required'].includes(state.status) && !(state.status === 'ready' && state.inFlight)) stop('remote-inspection-blocked-state-required');
+      if (!state.instances.includes(instanceHash) && policy.allowSharedPool !== true) stop('remote-pool-identity-mismatch');
+      previousOwner = fs.existsSync(files.owner) ? fs.readFileSync(files.owner) : null;
+      // This explicit recovery action may replace only the confirmed dead owner.
+      // Its complete record remains in the durable inspection evidence.
+      if (previousOwner) fs.unlinkSync(files.owner);
+      try {
+        fs.writeFileSync(files.owner, JSON.stringify({token:ownerToken,pid:process.pid,machine:digest(os.hostname()),instanceHash,channel:'atelier-recovery-read',startedAt:new Date().toISOString()}), {flag:'wx',mode:0o600});
+        evidence.originalStatus = state.status;
+        evidence.originalPendingEffects = state.inFlight?.effects || null;
+        if (state.status === 'ready') { state.status = 'reconciliation-required'; state.reason = 'remote-owner-interrupted'; }
+        evidence.blockedStatus = state.status;
+        state.inspectionInFlight = {id, originalToken:token, documents:[...documents], startedAt:new Date().toISOString(),
+          interruptedInspection:state.inspectionInFlight || null, previousOwner:previousOwner ? JSON.parse(previousOwner.toString('utf8')) : null};
+        atomicJson(files.state, state); acquired = true; evidence.status = 'inspecting';
+      } catch (error) {
+        if (fs.existsSync(files.owner) && readJson(files.owner).token === ownerToken) fs.unlinkSync(files.owner);
+        if (previousOwner && !fs.existsSync(files.owner)) fs.writeFileSync(files.owner, previousOwner, {flag:'wx',mode:0o600});
+        throw error;
+      }
+    } finally { fs.closeSync(descriptor); fs.unlinkSync(admissionLock); }
+  }
+  async function run({effects, method, suffix} = {}, callback) {
+    if (effects !== 'read-only' || method !== 'GET' || !allowed.has(suffix)) stop('remote-recovery-read-only', {beforeSend:true});
+    if (active || stopped || evidence.reads.some(read => read.document === allowed.get(suffix))) stop('remote-inspection-read-stopped', {beforeSend:true});
+    acquire(); active = true;
+    const read = {document:allowed.get(suffix), status:'started'}; evidence.reads.push(read);
+    try { const result = await callback(); read.status = result === null ? 'not-found' : 'read'; return result; }
+    catch (error) { stopped = true; read.status = 'failed'; read.reason = error.code || 'remote-inspection-read-failed'; if (error.status) read.httpStatus = error.status; throw error; }
+    finally { active = false; }
+  }
+  function markUnknown(reason) { stopped = true; evidence.reason = reason; evidence.cleanupVerified = false; }
+  function close(exit = {}) {
+    if (closed) return {...evidence};
+    if (active) { markUnknown('remote-inspection-exit-in-flight'); return {...evidence,pendingOperation:true}; }
+    closed = true;
+    Object.assign(evidence, exit, {schema:'iris-remote-inspection/v1', status:stopped || exit.cleanupVerified === false ? 'inspection-incomplete' : acquired ? 'inspected' : 'not-started',
+      cleanupVerified:acquired && exit.cleanupVerified !== false, licenseReleaseVerified:false, writeEnabled:false, pendingOperation:false});
+    if (acquired) {
+      if (readJson(files.owner).token !== ownerToken) stop('remote-owner-identity-changed');
+      const current = readJson(files.state);
+      if (current.inspectionInFlight?.id !== id || current.status !== evidence.blockedStatus) stop('remote-inspection-state-changed');
+      current.lastInspection = {...evidence, completedAt:new Date().toISOString(), previousOwner:current.inspectionInFlight.previousOwner, interruptedInspection:current.inspectionInFlight.interruptedInspection};
+      delete current.inspectionInFlight;
+      atomicJson(files.state, current);
+      fs.unlinkSync(files.owner);
+      evidence.poolStatus = current.status;
+      evidence.reconciliationToken = poolStatus({policy}).reconciliationToken;
+    }
+    return {...evidence};
+  }
+  return {acquire, run, markUnknown, close, snapshot:()=>({...evidence,pendingOperation:active})};
+}
+function reconcileRemotePool({policy, token, evidenceFile, confirm = false, writeOutcome, writeIds}) {
+  const files = poolFiles(policy);
+  if (confirm !== true || typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) stop('remote-reconcile-confirmation-required');
+  if (!path.isAbsolute(evidenceFile || '')) stop('remote-reconcile-evidence-required');
+  let evidence;
+  try { if (!fs.statSync(evidenceFile).isFile()) stop('remote-reconcile-evidence-required'); evidence = digest(fs.readFileSync(evidenceFile)); }
+  catch { stop('remote-reconcile-evidence-required'); }
+  fs.mkdirSync(files.directory, {recursive: true, mode: 0o700});
+  const recoveryLock = path.join(files.directory, 'reconcile.lock');
+  let descriptor;
+  try { descriptor = fs.openSync(recoveryLock, 'wx', 0o600); }
+  catch { stop('remote-reconcile-busy'); }
+  try {
+    const status = poolStatus({policy});
+    if (status.reconciliationToken !== token) stop('remote-reconcile-state-changed');
+    if (status.ownerAlive !== false) stop('remote-owner-still-live-or-unverified');
+    const state = fs.existsSync(files.state) ? readJson(files.state) : {schema:'iris-remote-pool/v1',instances:[],status:'ready'};
+    const owner = fs.existsSync(files.owner) ? readJson(files.owner) : null;
+    if ((state.inFlight?.effects === 'write' || state.unresolvedWrites?.length || state.reason === 'remote-write-outcome-unknown') && !['verified-applied','verified-not-applied'].includes(writeOutcome)) stop('remote-write-reconciliation-required');
+    if (state.localExitUnverified) {
+      let proof; try {proof = readJson(evidenceFile);} catch {stop('remote-exit-evidence-required');}
+      if (proof.cleanupVerified !== true && proof.processExited !== true && proof.localResourcesClosed !== true) stop('remote-exit-evidence-required');
+    }
+    const remaining = {unresolvedWrites:risk.pendingWrites(state)};
+    if (remaining.unresolvedWrites.length) risk.resolveWrites(remaining,writeIds);
+    const history = path.join(files.directory, 'history'); fs.mkdirSync(history, {recursive:true, mode:0o700});
+    const resolution = {schema:'iris-remote-reconciliation/v1', at:new Date().toISOString(), previous:state, owner, token,
+      evidenceSha256:evidence, evidenceFile, writeOutcome:writeOutcome || 'not-applicable'};
+    atomicJson(path.join(history, crypto.randomUUID() + '.json'), resolution);
+    // Keep a new lock visible until the state is ready; a competing admission
+    // cannot pass between an interrupted owner's removal and the state update.
+    if (!owner) fs.writeFileSync(files.owner, JSON.stringify({token:'reconciliation',pid:process.pid,machine:digest(os.hostname())}), {flag:'wx',mode:0o600});
+    atomicJson(files.state, {schema:'iris-remote-pool/v1',instances:state.instances,writeRiskFiles:state.writeRiskFiles,isolationVersion:1,unresolvedWrites:remaining.unresolvedWrites,status:remaining.unresolvedWrites.length?'reconciliation-required':'ready',warning:state.warning,lastReconciledAt:resolution.at,evidenceSha256:evidence});
+    fs.unlinkSync(files.owner);
+    return {schema:'iris-remote-reconciliation/v1',status:'reconciled',licenseReleaseVerified:false};
+  } finally { fs.closeSync(descriptor); fs.unlinkSync(recoveryLock); }
+}
+module.exports = { RemoteOperationError, contextMode, developmentMode, assertRemoteAllowed, bindDevelopmentMode, localPoolStatus, localPolicy, instanceIdentity, targetIdentity, validQualificationGrant, loadRemotePolicy, managedPolicy, createRemoteOperation, createRecoveryReadOperation, withRemoteOperation, poolStatus, reconcileRemotePool };

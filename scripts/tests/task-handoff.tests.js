@@ -46,6 +46,18 @@ function repository(root, commit = true) {
   if (commit) { git(root, ['add', '.']); git(root, ['-c', 'core.hooksPath=', 'commit', '-qm', 'fixture']); }
   return root;
 }
+
+function enableDirectories(root, capabilityRoot = path.join(root, '.agents')) {
+  write(path.join(root, '.agents/config/plugin_profile.md'), '| agent-context-kit | enabled | fixture |\n');
+  write(path.join(root, '.agents/config/documentation-layout.json'), JSON.stringify({
+    schema: 'imedical-documentation-layout/v1', enabled: true, workspaceRoot: path.resolve(root), extensions: []
+  }));
+  write(path.join(capabilityRoot, 'plugins/agent-context-kit/.agents-plugin/plugin.json'), JSON.stringify({
+    name: 'agent-context-kit',
+    projectDirectories: [{ id: 'handoff', base: 'context', path: 'work/handoff', role: 'runtime', create: 'setup', legacyPaths: ['docs/handoff'] }]
+  }));
+}
+
 function create(root, input, options = {}) {
   const ws = handoff.workspace(root);
   const created = handoff.init(ws, { title: '需求接续', taskKind: 'business-demand', ...options }, input || { repositories: [{ root, scopes: ['src'] }], entrypoints: ['AGENTS.md'] });
@@ -234,6 +246,13 @@ test('invalid and valid Overlay contexts respect declared SourceRoot and GitRoot
   const { directory } = create(root, input); finish(ws, directory);
   assert.equal(handoff.validate(ws, directory).valid, true);
   assert.throws(() => handoff.normalizeInputs(ws, { repositories: [{ root: capability, scopes: [] }] }), /SourceRoot/);
+  enableDirectories(root, capability);
+  const governed = create(root, input);
+  assert.equal(path.dirname(governed.directory), path.join(root, '.agents/work/handoff'));
+  finish(governed.ws, governed.directory);
+  assert.equal(handoff.validate(governed.ws, governed.directory).valid, true);
+  assert.deepEqual(new Set(handoff.list(governed.ws).tasks.map(item => item.directory)), new Set([directory, governed.directory]));
+  assert.equal(fs.existsSync(path.join(capability, 'work')), false);
   manifest.sourceRoots[0].gitRoot = capability;
   write(path.join(root, '.agents/capability.json'), JSON.stringify(manifest));
   assert.throws(() => handoff.inspect(handoff.workspace(root), directory), /Git root differs/);
@@ -310,7 +329,7 @@ test('snapshot relocates Markdown links, preserves code and resolves timestamp c
 test('sparse deployment includes runtime dependencies and preserves local handoffs', t => {
   const base = fixture(t), origin = repository(path.join(base, 'origin')), project = path.join(base, 'project');
   fs.cpSync(path.join(repo, 'plugins/agent-context-kit'), path.join(origin, 'plugins/agent-context-kit'), { recursive: true });
-  for (const file of ['scripts/lib/workspace-context.js', 'scripts/validation-evidence.js']) {
+  for (const file of ['scripts/lib/workspace-context.js', 'scripts/lib/project-directories.js', 'scripts/validation-evidence.js']) {
     write(path.join(origin, file), fs.readFileSync(path.join(repo, file)));
   }
   git(origin, ['add', '.']); git(origin, ['-c', 'core.hooksPath=', 'commit', '-qm', 'capability']);
@@ -354,3 +373,93 @@ for (const shell of process.platform === 'win32' ? ['pwsh.exe', 'powershell.exe'
     assert.equal(fs.readFileSync(file, 'utf8'), before);
   });
 }
+
+test('directory governance stays opt-in and discovery does not create handoff roots', t => {
+  const root = repository(fixture(t));
+  const ws = handoff.workspace(root);
+  assert.equal(ws.base, path.join(root, 'docs/handoff'));
+  assert.deepEqual(ws.bases, [ws.base]);
+  assert.deepEqual(handoff.list(ws), { tasks: [], errors: [] });
+  assert.equal(fs.existsSync(path.join(root, 'docs')), false);
+  assert.equal(fs.existsSync(path.join(root, '.agents')), false);
+});
+
+test('governed tasks use the runtime root while legacy records remain discoverable and recoverable', t => {
+  const root = repository(fixture(t)), legacy = create(root);
+  finish(legacy.ws, legacy.directory);
+  const original = fs.readFileSync(path.join(legacy.directory, 'handoff.md'), 'utf8');
+  enableDirectories(root);
+  const ws = handoff.workspace(root), runtime = path.join(root, '.agents/work/handoff');
+  assert.equal(ws.base, runtime);
+  assert.deepEqual(handoff.list(ws).tasks.map(item => item.directory), [legacy.directory]);
+  assert.equal(fs.existsSync(runtime), false);
+  assert.equal(fs.readFileSync(path.join(legacy.directory, 'handoff.md'), 'utf8'), original);
+  assert.notEqual(handoff.inspect(ws, legacy.directory).stateError, 'Invalid state identity');
+  finish(ws, legacy.directory);
+  assert.equal(handoff.validate(ws, legacy.directory).valid, true);
+  assert.equal(path.dirname(path.dirname(handoff.snapshot(ws, legacy.directory).file)), legacy.directory);
+  fs.unlinkSync(path.join(legacy.directory, 'state.json'));
+  assert.equal(handoff.inspect(ws, legacy.directory).valid, false);
+  handoff.checkpoint(ws, legacy.directory, { repositories: [{ root, scopes: ['src'] }], entrypoints: ['AGENTS.md'] });
+  assert.equal(handoff.validate(ws, legacy.directory).valid, true);
+  const current = create(root);
+  assert.equal(path.dirname(current.directory), runtime);
+  finish(current.ws, current.directory);
+  assert.equal(handoff.validate(current.ws, current.directory).valid, true);
+  handoff.snapshot(current.ws, current.directory);
+  assert.equal(handoff.validate(current.ws, current.directory).valid, true);
+  assert.deepEqual(new Set(handoff.list(ws).tasks.map(item => item.directory)), new Set([legacy.directory, current.directory]));
+  assert.equal(fs.existsSync(legacy.directory), true);
+});
+
+test('governed local exclusion belongs to the installed capability checkout', t => {
+  const root = repository(fixture(t)), installed = repository(path.join(root, '.agents'));
+  enableDirectories(root);
+  const before = fs.readFileSync(path.join(root, '.git/info/exclude'), 'utf8');
+  const current = create(root);
+  assert.equal(fs.realpathSync(current.created.ignored.file), fs.realpathSync(path.join(installed, '.git/info/exclude')));
+  assert.match(fs.readFileSync(current.created.ignored.file, 'utf8'), /\/work\/handoff\//);
+  assert.equal(fs.readFileSync(path.join(root, '.git/info/exclude'), 'utf8'), before);
+  assert.equal(git(installed, ['check-ignore', '--quiet', '--', current.directory]), '');
+  finish(current.ws, current.directory);
+  handoff.snapshot(current.ws, current.directory);
+  assert.equal(handoff.validate(current.ws, current.directory).valid, true);
+});
+
+test('governed handoff roots reject linked roots, linked tasks, nested tasks and sibling workspaces', t => {
+  const base = fixture(t), root = repository(path.join(base, 'project')), sibling = repository(path.join(base, 'sibling'));
+  const foreign = create(sibling);
+  finish(foreign.ws, foreign.directory);
+  const baseline = fs.readFileSync(path.join(foreign.directory, 'state.json'), 'utf8');
+  enableDirectories(root);
+  const current = create(root);
+  finish(current.ws, current.directory);
+  for (const command of ['inspect', 'checkpoint', 'snapshot', 'validate']) {
+    assert.throws(() => handoff[command](current.ws, foreign.directory), /direct child/);
+    assert.throws(() => handoff[command](current.ws, path.join(current.directory, 'nested')), /direct child/);
+  }
+  const linked = path.join(current.ws.base, 'linked-task');
+  fs.symlinkSync(foreign.directory, linked, process.platform === 'win32' ? 'junction' : 'dir');
+  assert.throws(() => handoff.checkpoint(current.ws, linked), /Linked path/);
+  const listed = handoff.list(current.ws);
+  assert.deepEqual(listed.tasks.map(item => item.directory), [current.directory]);
+  assert.equal(listed.errors.length, 1);
+  assert.match(listed.errors[0].error, /Linked path/);
+  assert.equal(fs.readFileSync(path.join(foreign.directory, 'state.json'), 'utf8'), baseline);
+  fs.unlinkSync(linked);
+  fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+  fs.symlinkSync(path.dirname(foreign.directory), path.join(root, 'docs/handoff'), process.platform === 'win32' ? 'junction' : 'dir');
+  assert.throws(() => handoff.workspace(root), /Linked path/);
+});
+
+test('governed runtime roots reject directory links before creation', t => {
+  const base = fixture(t), root = repository(path.join(base, 'project')), foreign = path.join(base, 'foreign');
+  fs.mkdirSync(foreign);
+  enableDirectories(root);
+  const ws = handoff.workspace(root);
+  fs.mkdirSync(path.join(root, '.agents/work'), { recursive: true });
+  fs.symlinkSync(foreign, path.join(root, '.agents/work/handoff'), process.platform === 'win32' ? 'junction' : 'dir');
+  assert.throws(() => handoff.workspace(root), /Linked path|link|reparse/i);
+  assert.throws(() => handoff.init(ws, { title: 'Linked runtime', taskKind: 'other' }, { repositories: [{ root, scopes: ['src'] }] }), /Linked path|link|reparse/i);
+  assert.deepEqual(fs.readdirSync(foreign), []);
+});

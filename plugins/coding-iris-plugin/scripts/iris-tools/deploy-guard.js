@@ -18,6 +18,11 @@ function text(bytes) {
  if(s.includes('\0')||s.includes('\uFFFD'))stop('binary-or-invalid-text');
  return s.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n');
 }
+function readSource(file) {
+ const bytes=fs.readFileSync(file.immutablePath||file.localPath);
+ if(file.immutablePath&&(!/^[0-9a-f]{64}$/.test(file.immutableSha256||'')||hash(bytes)!==file.immutableSha256))stop('frozen-source-changed',{file:file.remotePath});
+ return bytes;
+}
 function merge(base,local,remote) {
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'iris-merge-'));
  try {
@@ -104,7 +109,7 @@ function initialize(repo,demand,baseRef,confirm) {
  }finally{fs.closeSync(fd);fs.unlinkSync(lock);}
 }
 function snapshot(repo,files) {
- return {head:git(repo,['rev-parse','HEAD']),index:git(repo,['ls-files','--stage']),files:files.map(f=>[f.localPath,hash(fs.readFileSync(f.localPath))])};
+ return {head:git(repo,['rev-parse','HEAD']),index:git(repo,['ls-files','--stage']),files:files.map(f=>[f.localPath,hash(readSource(f))])};
 }
 function checkGit(repo) {
  git(repo,['fetch','--no-tags']);
@@ -134,11 +139,12 @@ function validate(file,content,base,remote) {
 async function run({repo,demand,files,target,adapter,decision,checkUpdates=checkGit}) {
  const invalid=decisionError(decision);
  if(invalid)return needsInput(invalid);
+  adapter=require('./deploy-recovery').wrap(adapter);
  const loc=location(repo,demand);
  fs.mkdirSync(loc.dir,{recursive:true,mode:0o700});
  const lock=path.join(loc.dir,'lock'); let fd;
  try{fd=fs.openSync(lock,'wx',0o600);}catch{stop('session-busy-or-interrupted');}
- let state,targetState,before,attempt=false,recoveryObservations,activeFile,compilation,compiled=false;
+ let state,targetState,before,attempt=false,recovering=false,recoveryObservations,activeFile,compilation,compiled=false;
  const storageSynced=[];
  try {
   state=read(loc.file);
@@ -146,11 +152,11 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
   if(state.schema!==1||state.repo!==loc.repo||state.demand!==demand)stop('state-identity-mismatch');
   const key=digest(target);
   targetState=state.targets[key] ||= {files:{},status:'ready'};
-  const recovering=['writing','failed-or-unknown'].includes(targetState.status);
+  recovering=['writing','failed-or-unknown'].includes(targetState.status);
   if(decision?.action==='resume'&&!recovering)stop('decision-expired');
   if(recovering){
    const observations=[];
-   for(const f of files)observations.push([f.remotePath,hash(await adapter.read(f)),hash(fs.readFileSync(f.localPath))]);
+   for(const f of files)observations.push([f.remotePath,hash(await adapter.read(f)),hash(readSource(f))]);
    const token=digest(JSON.stringify({repo:loc.repo,demand,key,base:state.base,observations,files:targetState.files}));
    if(decision?.action!=='resume'||decision.token!==token)stop('previous-result-unknown',{token});
    recoveryObservations=observations;
@@ -158,7 +164,7 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
   checkUpdates(repo);
   const names=new Set();
   for(const f of files) {
-   f.localPath=fs.realpathSync(f.localPath);
+   f.localPath=f.immutablePath?path.resolve(f.localPath):fs.realpathSync(f.localPath);
    const rel=path.relative(loc.repo,f.localPath);
    if(rel.startsWith('..')||path.isAbsolute(rel))stop('file-outside-repository');
    if(names.has(f.remotePath))stop('duplicate-remote-target'); names.add(f.remotePath);
@@ -176,8 +182,8 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
   const prepared=[];let decisionApplied=false;
   for(const f of files) {
    activeFile=f;
-   const raw=await adapter.read(f), remote=text(raw), source=fs.readFileSync(f.localPath), local=text(source);
-   if(recoveryObservations){const observed=recoveryObservations.find(x=>x[0]===f.remotePath);if(observed[1]!==hash(raw)||observed[2]!==hash(fs.readFileSync(f.localPath)))stop('recovery-confirmation-expired',{file:f.relative});}
+   const raw=await adapter.read(f), remote=text(raw), source=readSource(f), local=text(source);
+   if(recoveryObservations){const observed=recoveryObservations.find(x=>x[0]===f.remotePath);if(observed[1]!==hash(raw)||observed[2]!==hash(readSource(f)))stop('recovery-confirmation-expired',{file:f.relative});}
    const base=baseline(repo,state.base,f.relative), previous=targetState.files[f.remotePath];
    const token=digest(JSON.stringify({repo:loc.repo,demand,base:state.base,local,remote,previous:previous||null,target:key,file:f.remotePath}));
    const allowed=decision?.token===token && ['merge','overwrite'].includes(decision.action)?decision.action:null;
@@ -198,6 +204,7 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
   for(const f of prepared) {
    activeFile=f;
    if(hash(await adapter.read(f))!==f.expected)stop('remote-changed-before-upload',{file:f.relative});
+   if(!readSource(f).equals(f.source))stop('local-source-changed',{file:f.relative});
    const evidence=f.skip?undefined:await adapter.put(f);
    if(!verifiedPut(evidence,f,hash) && text(await adapter.read(f))!==f.content)stop('readback-mismatch',{file:f.relative});
    adapter.record?.(f,f.skip?'unchanged':'uploaded');
@@ -226,18 +233,21 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
   const expected={...before,files:plans.map(p=>[p.file.localPath,hash(p.bytes)])};
   if(JSON.stringify(snapshot(repo,files))!==JSON.stringify(expected))stop('local-source-changed');
   targetState.status='verified'; delete targetState.attention; delete targetState.pending; write(loc.file,state);
-  return {status:'verified',compilation,localStorageSync:{status:'verified',files:storageSynced},files:plans.map(p=>({file:p.file.relative,sha256:hash(/\.(cls|mac|inc)$/i.test(p.file.remotePath)?p.compiled:p.file.bytes),localSha256:hash(p.bytes),storageSynced:p.synced,merged:p.file.merged,status:p.file.skip?'unchanged':'uploaded'})),sourceUnchanged:storageSynced.length===0};
+  return {status:'verified',compilation,recovery:adapter.deploymentRecovery,localStorageSync:{status:'verified',files:storageSynced},files:plans.map(p=>({file:p.file.relative,document:p.file.publicationDocument||p.file.document||p.file.remotePath,sha256:hash(/\.(cls|mac|inc)$/i.test(p.file.remotePath)?p.compiled:p.file.bytes),uploadSha256:hash(p.file.bytes),postCompileSha256:hash(p.compiledBytes),localSha256:hash(p.bytes),storageSynced:p.synced,merged:p.file.merged,status:p.file.skip?'unchanged':'uploaded'})),sourceUnchanged:storageSynced.length===0};
  }catch(e){
+  const knownUnsent=e.deploymentOperation==='put'&&e.beforeSend===true&&require('./deploy-recovery').transient(e);
+  if(attempt&&!knownUnsent&&e.reason!=='compile-failed'){try{adapter.markUnknown?.(e.reason||e.code||'deployment-outcome-unknown');}catch{}}
   adapter.recordFailure?.(activeFile,e);
   let sourceUnchanged;
   if(before){try{sourceUnchanged=JSON.stringify(snapshot(repo,files))===JSON.stringify(before);}catch{sourceUnchanged=false;}}
-  const result=needsInput(e instanceof Attention?e.reason:'transport-or-compile-failed',e instanceof Attention?e.details:{},{sourceUnchanged,partialOrUnknown:attempt,stateFile:loc.file,
+  const knownFailure=e.reason==='compile-failed',readBlocked=!recovering&&(knownUnsent||!attempt&&require('./deploy-recovery').transient(e));
+  const result=knownFailure||readBlocked?{status:knownFailure?'compile-failed':'blocked',reason:e.reason||e.code,details:e.details||{},...(knownFailure?{compilation:e.details.compilation}:{}),sourceUnchanged,partialOrUnknown:false,stateFile:loc.file,recovery:adapter.deploymentRecovery}:needsInput(e instanceof Attention?e.reason:e.code||'transport-or-compile-failed',e instanceof Attention?e.details:{},{sourceUnchanged,partialOrUnknown:attempt,stateFile:loc.file,recovery:adapter.deploymentRecovery,
    ...(compiled?{remoteCompilation:'compiled',compilation,localStorageSync:{status:'incomplete',files:storageSynced}}:{})});
-  if(state&&targetState){targetState.status=attempt||['writing','failed-or-unknown'].includes(targetState.status)?'failed-or-unknown':'needs-user-input';targetState.attention=result;write(loc.file,state);}
+  if(state&&targetState){targetState.status=['compile-failed','blocked'].includes(result.status)?result.status:attempt||['writing','failed-or-unknown'].includes(targetState.status)?'failed-or-unknown':'needs-user-input';targetState.attention=result;write(loc.file,state);}
   return result;
  }finally{fs.closeSync(fd);fs.unlinkSync(lock);}
 }
-module.exports={Attention,stop,digest,hash,text,storage,merge,choose,initialize,run,checkGit,validate,read,write,location};
+module.exports={Attention,stop,digest,hash,text,readSource,storage,merge,choose,initialize,run,checkGit,validate,read,write,location};
 if(require.main===module){
  const [command,repo,demand,base,confirmation]=process.argv.slice(2);
  try {

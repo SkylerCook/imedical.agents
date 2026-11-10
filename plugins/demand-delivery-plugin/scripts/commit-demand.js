@@ -19,6 +19,7 @@ function parseArgs(argv) {
     const token = argv[index];
     if (token === '--confirm-commit') args.confirmCommit = true;
     else if (token === '--verify') args.verify = true;
+    else if (token === '--no-id') args.noId = true;
     else if (token === '--file') args.files.push(requiredValue(argv, ++index, token));
     else if (token === '--modification') args.modifications.push(requiredValue(argv, ++index, token));
     else if (token.startsWith('--')) args[toCamel(token.slice(2))] = requiredValue(argv, ++index, token);
@@ -42,13 +43,13 @@ function runGit(root, args, options = {}) {
   if ((process.env.DEMAND_COMMIT_DEBUG === '1' || process.env.IRIS_DEMAND_COMMIT_DEBUG === '1')) process.stderr.write(`[git:start] ${root} :: ${args.join(' ')}\n`);
   const result = spawnSync('git', ['-C', root, ...args], {
     encoding: options.encoding || 'utf8',
-    windowsHide: true,
+    windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
     maxBuffer: 20 * 1024 * 1024,
     timeout: Math.min(options.timeout || 60000, remainingBudget),
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true' },
   });
   if ((process.env.DEMAND_COMMIT_DEBUG === '1' || process.env.IRIS_DEMAND_COMMIT_DEBUG === '1')) process.stderr.write(`[git:end] status=${result.status} ${args[0]}\n`);
-  if (result.error) throw new Error(`git -C ${root} ${args.join(' ')} 执行异常: ${result.error.message}`);
+  if (result.error) throw new Error(`git -C ${root} ${args.join(' ')} 执行异常: ${result.error.message}${result.error.code === 'EBUSY' ? '；请检查宿主同步子进程环境（EBUSY 不唯一指向 stdin）' : ''}`);
   if (result.status !== 0 && !options.allowFailure) {
     const message = String(result.stderr || result.stdout || '').trim();
     throw new Error(`git -C ${root} ${args.join(' ')} 失败${message ? `: ${message}` : ''}`);
@@ -233,7 +234,8 @@ function modificationMap(values, repositories) {
 
 function buildMessage(args, modification) {
   const summary = String(args.subject || args.title).trim();
-  const subject = `${args.type}(${args.demand}):${summary}`;
+  const scope = args.noId ? '' : `(${args.demand})`;
+  const subject = `${args.type}${scope}:${summary}`;
   const lines = [subject, `修改说明:${modification}`];
   if (args.kind === 'standard') lines.push(`需求描述:${args.demand} ${args.title.trim()}`);
   return `${lines.join('\n')}\n`;
@@ -241,7 +243,8 @@ function buildMessage(args, modification) {
 
 function defaultPlanPath(projectRoot, demand) {
   const identity = hash(path.resolve(projectRoot)).slice(0, 16);
-  return path.join(os.tmpdir(), 'codex-iris-demand-commit', identity, `${demand}.json`);
+  const name = demand == null ? `no-id-${crypto.randomUUID()}` : demand;
+  return path.join(os.tmpdir(), 'codex-iris-demand-commit', identity, `${name}.json`);
 }
 
 function writeJson(filePath, value) {
@@ -259,7 +262,10 @@ function writeJson(filePath, value) {
 function planCommand(args) {
   const projectRoot = path.resolve(args.projectRoot || process.cwd());
   if (!KINDS.has(args.kind)) throw new Error('--kind 必须是 standard 或 project；TODO 必须先由用户补全');
-  if (!/^\d+$/.test(args.demand || '')) throw new Error('--demand 必须是单个数字需求号');
+  if (args.noId) {
+    if (args.demand !== undefined) throw new Error('--no-id 与 --demand 不能同时使用');
+    if (args.kind !== 'project') throw new Error('--no-id 仅支持 project 类型；standard 必须提供数字需求号');
+  } else if (!/^\d+$/.test(args.demand || '')) throw new Error('--demand 必须是单个数字需求号；project 暂无需求号时须显式使用 --no-id');
   if (!TYPES.has(args.type)) throw new Error('--type 必须是 feat/fix/refactor/docs/chore');
   if (!String(args.title || '').trim()) throw new Error('--title 不能为空');
   if (/\r|\n/.test(args.title)) throw new Error('--title 不能包含换行');
@@ -289,14 +295,15 @@ function planCommand(args) {
     info.execution = { status: 'planned', pull: 'pending', commit: '' };
     return info;
   });
-  const output = path.resolve(args.output || defaultPlanPath(projectRoot, args.demand));
+  const output = path.resolve(args.output || defaultPlanPath(projectRoot, args.noId ? null : args.demand));
   if (!isWithin(output, os.tmpdir())) throw new Error('--output 必须位于系统临时目录');
   const plan = {
     schema: SCHEMA,
     createdAt: new Date().toISOString(),
     projectRoot,
     kind: args.kind,
-    demand: args.demand,
+    demand: args.noId ? null : args.demand,
+    ...(args.noId ? { noId: true } : {}),
     subject: String(args.subject || args.title).trim(),
     title: args.title.trim(),
     type: args.type,
@@ -380,7 +387,6 @@ function applyCommand(args) {
     const after = repo.stateVersion === 2
       ? repositoryInfo(repo.root, repo.files)
       : { head: gitText(repo.root, ['rev-parse', 'HEAD']) };
-    checked.set(comparable(repo.root), after);
     repo.execution.pull = before === after.head ? 'up-to-date' : 'fast-forwarded';
     if (before !== after.head) refreshed = true;
   }
@@ -393,13 +399,14 @@ function applyCommand(args) {
   }
 
   for (const repo of plan.repositories) {
-    if (repo.stateVersion === 2) assertSnapshotMatches(repo, checked.get(comparable(repo.root)));
-    else assertRepoUnchanged(repo);
+    // A later repository's pull may have taken time; read the live snapshot again.
+    assertRepoUnchanged(repo);
   }
   assertPlanScope(plan);
   plan.status = 'committing';
   writeJson(plan.planPath, plan);
   for (const repo of plan.repositories) {
+    assertRepoUnchanged(repo);
     runGit(repo.root, ['add', '--all', '--', ...repo.files]);
     const messageFile = path.join(path.dirname(plan.planPath), `${hash(repo.root).slice(0, 12)}.message.txt`);
     fs.writeFileSync(messageFile, repo.message, 'utf8');

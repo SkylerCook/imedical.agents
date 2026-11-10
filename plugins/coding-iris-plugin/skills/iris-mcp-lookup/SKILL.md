@@ -5,7 +5,11 @@ description: Use when querying InterSystems IRIS classes, methods, signatures, m
 
 # IRIS MCP Lookup
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 目标
+
+先解析当前 `ContextRoot/config/iris-development.json`。offline 只使用本地源码、已接收材料和公共官方资料，禁止医院 MCP（含 check_config/tools/list）；不要借公共文档查询启动医院客户端。connected（含缺省旧配置）再按下面规则选来源，非法值停止 IRIS 流程。
 
 使用目标 IRIS 实例、当前工作区源码和 InterSystems 官方文档交叉查询 IRIS 知识。不要把任一来源描述为绝对准确；必须记录实例 namespace、文档版本或本地源码范围。
 
@@ -70,6 +74,7 @@ Claude Code 可显示为 `Fetch(...)` 或 `WebFetch(...)`；其它运行器使�
 
 ## 降级路径
 
+- 原生 IRIS MCP 首次调用按[受管路由](../../rules/iris_agentic_dev.md)检查配置与回执，旧宿主先重启；不直连 vendor。
 - 原生 IRIS MCP 工具未暴露：目标工程存在 `.agents/scripts/iris-mcp.js` 时，使用 `check|tools|call` 薄封装。
 - MCP 不可用但本地源码存在：使用本地搜索并明确缺少运行时元数据。
 - 官方网页抓取失败：尝试官方文档搜索或让用户提供页面内容，不把抓取失败解释为知识不存在。

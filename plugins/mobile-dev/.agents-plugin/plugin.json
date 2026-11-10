@@ -1,0 +1,26 @@
+{
+  "name": "mobile-dev",
+  "version": "0.1.0",
+  "displayName": "移动端开发",
+  "description": "Android 项目开发与日志优先排障，复用项目工具链和设备证据。",
+  "entry": "AGENTS.md",
+  "rules": "rules/",
+  "references": "references/",
+  "skills": "skills/",
+  "initSkill": "mobile-dev-init",
+  "thinIndex": {
+    "excludeSkills": [
+      "mobile-dev-init"
+    ]
+  },
+  "dependencies": [],
+  "dependencyVersions": {},
+  "requiresProjectFiles": [
+    "AGENTS.md"
+  ],
+  "defaultPrompt": [
+    "排查移动端闪退，先主动读取日志",
+    "按当前 Android 工程实现并验证需求",
+    "为现场旧版移动端建私有仓，并给现场 AI 源码纳管提交提示词"
+  ]
+}

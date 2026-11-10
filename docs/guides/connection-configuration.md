@@ -13,6 +13,8 @@
 | MCP 名称、启动命令、URL、headers、启用状态 | 当前客户端实际加载的用户级或项目级 MCP 配置 | 核对客户端工具发现结果，文件存在不等于已加载 |
 | IRIS MCP 目标、凭据来源和启动参数 | 当前工程已有 `.mcp.json`、客户端实际注册与 `check_config`；是否使用 `.iris-agentic-dev.toml` 以运行时来源为准 | 按 [IRIS 诊断](../../plugins/coding-iris-plugin/rules/iris_agentic_dev.md#诊断)检查 `connection_source` 等字段 |
 | IRIS 部署、导出、Web/Broker 脚本参数 | 当前 `ContextRoot/config/project-env.json` | 按[工具说明](../../plugins/coding-iris-plugin/scripts/iris-tools/README.md)核对，Overlay 回退规则见下节 |
+| IRIS 开发方式与项目环境 | 当前 `ContextRoot/config/iris-development.json` | [初始化](../../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)或已启用项目更新自动补缺文件；模式和环境按明确事实由 Agent 填写，旧缺省保留 |
+| IRIS 远端准入与资格证据 | 当前 `ContextRoot/config/iris-remote-policy.json` | connected 按需上下文自动生成缺失骨架，保持禁用/pending；协调目录、许可池及资格证据沿[接入协议](../../plugins/coding-iris-plugin/references/project-demand-development.md#首次接入)准备，真实验证后启用 |
 | 其它 MCP 或服务 | 先查实际调用入口及 owner 文档，再定位客户端注册、引用的环境变量、文件或系统凭据项 | 按对应读取代码判断，不套用 BOS 或 IRIS 优先级 |
 
 需要查看敏感值时，在自己的本地编辑器或凭据管理器打开原始来源。聊天、截图和排查报告默认隐藏密码、Token、Authorization、Cookie，以及 URL 查询参数中的密钥；不输出配置全文。分享时只保留字段名、来源、是否已填写和脱敏结果。

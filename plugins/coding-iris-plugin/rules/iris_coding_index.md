@@ -14,20 +14,22 @@ related:
 
 本索引只负责按任务找到规则；完整门禁由对应 owner 维护。仍持有且未变化的资料可复用。
 
+先读取 `ContextRoot/config/iris-development.json`：`developmentMode: offline` 进入[离线开发与交付协议](../references/iris-offline-development.md)，不读取医院连接或调用原生 MCP。仅 connected（含旧配置缺省）继续判断 `contextMode`：`intent-first-on-demand-export` 的 project 需求先读[项目开发协议](../references/project-demand-development.md)，同步、准入与冻结发布优先于默认 direct；非法开发方式停止。
+
 ## 必读顺序
 
 1. 目标工程 `AGENTS.md`
 2. `.agents/config/iris_project_profile.md`
 3. 本索引、通用编辑安全和任务对应规则文件
-4. 目标工程 `.mcp.json`，仅当任务涉及 MCP、上传、编译、远程读取或 SQL 验证
+4. 目标工程 `.mcp.json`，仅在 connected 且任务涉及 MCP、上传、编译、远程读取或 SQL 验证时读取
 
 ## 规则入口
 
 - [通用编辑安全](iris_coding_general.md)：所有编码任务必读，包含风险分流、授权、最小改动与 diff 检查；业务知识资料按其“自主使用知识资料”查询。
 - [后端 ObjectScript 编码](iris_coding_backend.md)：BLH/DATA/SQL、ObjectScript 风格、Broker、SQL 执行层。
-- [前端 CSP/JS/HISUI 编码](iris_coding_frontend.md)：前端任务必读，包含修改前与最终 diff 后的条件 i18n 门禁、字节检测、HISUI 复用和页面验证。
+- [前端 CSP/JS/HISUI 编码](iris_coding_frontend.md)：前端编码与 Review 必读，包含修改前与最终 diff 后的[UI 条件门禁](iris_coding_frontend.md#ui-条件门禁)、条件 i18n 门禁、字节检测、HISUI 复用和页面验证；只从 rule 进入也执行同一门禁。
 - [MCP 与部署工作流](iris_coding_workflow.md)：仅使用 MCP、上传、编译、远程读取或 SQL 验证时读取。
-- [Git 基线与部署保护](../references/deployment-protection.md#建立会话)：开发部署默认 direct，不要求基线会话；仅在用户或项目要求 guarded 时，在第一次修改前读取，部署时复用会话。
+- [Git 基线与部署保护](../references/deployment-protection.md#建立会话)：非按需导出工程开发部署默认 direct，不要求基线会话；仅在用户或项目要求 guarded 时，在第一次修改前读取，部署时复用会话。
 - [IRIS 知识查询与 MCP 路由](iris_knowledge_lookup.md)：IRIS 类、方法签名、宏、SQL 元数据和官方文档的数据源选择；仅查询任务读取。
 - [IRIS 部署执行清单](iris_deploy_checklist.md)：上传、编译、部署和远端验证的逐项检查清单；仅部署任务读取。
 - [Legacy GB2312 提升流程](iris_gb2312_workflow.md)：仅在用户明确处理已确认的历史 GB2312 工程，并要求将 `{name}.gb2312.{ext}` 替换回原始文件名时读取。

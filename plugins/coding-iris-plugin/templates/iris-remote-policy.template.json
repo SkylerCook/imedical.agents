@@ -1,0 +1,6 @@
+{
+  "schema": "iris-remote-policy/v1",
+  "enabled": false,
+  "coordinationRoot": "<absolute-private-coordination-directory>",
+  "poolKey": "instance-pool-alias"
+}

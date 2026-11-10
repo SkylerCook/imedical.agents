@@ -29,17 +29,20 @@ function buildPlan(args, config, env, context) {
   let source=args.sourceRoot || env.LOCAL_PATH;
   if(!source)throw new Error('Missing LOCAL_PATH; use --source-root');
   for(const token of ['__PROJECT_ROOT__','${workspaceFolder}','${cwd}'])source=source.replaceAll(token,context.workspaceRoot);
-  const root=fs.realpathSync(path.resolve(context.workspaceRoot,source));
+  const requestedRoot=path.resolve(context.workspaceRoot,source);
+  const root=fs.existsSync(requestedRoot)?fs.realpathSync(requestedRoot):requestedRoot;
   if(!context.sourceRoots.some(s=>inside(root,fs.realpathSync(s.target))))throw new Error('Source root outside declared workspace');
   const remote=env.REMOTE_PATH;
   if(typeof remote!=='string' || !remote.startsWith('/') || /[\\\x00-\x1f]/.test(remote) || remote.split('/').includes('..'))throw new Error('Invalid REMOTE_PATH');
   const files=[],seen=new Set();
   for(const input of args.files) {
-    const local=fs.realpathSync(path.resolve(context.workspaceRoot,input));
-    if(!inside(local,root) || !fs.statSync(local).isFile())throw new Error('Source outside upload root or not a file');
+    const requested=path.resolve(context.workspaceRoot,input);
+    const immutable=context.deploymentArtifacts?.get(requested)||(fs.existsSync(requested)?context.deploymentArtifacts?.get(fs.realpathSync(requested)):undefined);
+    const local=immutable?.sourcePath||(immutable?requested:fs.realpathSync(requested));
+    if(!inside(local,root) || !fs.statSync(immutable?.immutablePath||local).isFile())throw new Error('Source outside upload root or not a file');
     const relative=path.relative(root,local).split(path.sep).join('/');
     if(!/^(csp|scripts|css)\//.test(relative) || !/\.(csp|js|css|html|htm)$/i.test(relative))throw new Error('Unsupported frontend path');
-    const bytes=fs.readFileSync(local);
+    const bytes=immutable?require('./deploy-guard').readSource({localPath:local,...immutable}):fs.readFileSync(local);
     const text=new TextDecoder('utf-8',{fatal:true}).decode(bytes);
     if(text.includes('\uFFFD'))throw new Error('Replacement characters in source');
     const destination=path.posix.join(remote,relative);
@@ -50,7 +53,8 @@ function buildPlan(args, config, env, context) {
       if(!relative.startsWith('csp/'))throw new Error('CSP must be below source-root/csp');
       document=csp.plan([config.web.cspBasePath.replace(/\/$/,'')+'/'+relative.slice(4)],config.web.cspBasePath).documents[0];
     }
-    files.push({file:relative,localPath:local,remotePath:destination,bytes:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex'),document});
+    const sourceGitRoot=context.sourceRoots.find(s=>inside(local,fs.realpathSync(s.target)))?.gitRoot;
+    files.push({file:relative,localPath:local,...immutable,...(sourceGitRoot?{sourceGitRoot}:{}),remotePath:destination,bytes:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex'),document});
   }
   return {schema:'iris-frontend-deploy/v1',status:'planned',sourceRoot:root,files,documents:files.map(f=>f.document).filter(Boolean)};
 }
@@ -76,7 +80,11 @@ async function execute(plan, upload, compile) {
   try {
     const sent=await upload(plan);
     result.timings.uploadVerifyMs=Math.round(performance.now()-tick);
-    result.files=sent.files || [];
+    result.files=(sent.files || []).map(file => {
+      const source = plan.files.find(planned => planned.file === file.file);
+      return {...file, document: file.document || source?.publicationDocument || source?.document || null,
+        ...(source ? {localSha256: source.sha256} : {})};
+    });
     if (sent.transport) result.transport = sent.transport;
     if(sent.status!=='verified')return {...result,status:'upload-failed',failedStage:sent.failedStage,failedFile:sent.failedFile,errorType:sent.errorType};
     // Only complete, ordered evidence for every planned file permits compilation.
@@ -90,27 +98,30 @@ async function execute(plan, upload, compile) {
     result.status='verified';
     return result;
   } catch(error) {
-    return {...result,status:'failed-or-unknown',failedStage:result.status,errorType:error.name,message:'Inspect server state before retrying; completed uploads are not rolled back'};
+    return {...result,status:'failed-or-unknown',failedStage:result.status,errorType:error.name,...(typeof error.code==='string' && /^[a-z][a-z0-9-]+$/.test(error.code)?{reason:error.code}:{}),...(error.beforeSend===true?{beforeSend:true}:{}),message:'Inspect server state before retrying; completed uploads are not rolled back'};
   }
 }
 
 async function main(argv) {
-  if(argv.includes('--help')) {console.log('Usage: node deploy-frontend.js --project-root <project> [--source-root <frontend-root>] --files <project-relative-files...> [--python <interpreter>] [--known-hosts <file> | --host-key-sha256 <trusted-SHA256:fingerprint>] [--execute] [--mode direct|guarded] [--demand <id>] [--run-directory <run> --work-item <id> --environment-alias <alias>]\nDefault: local plan; authorized execution uses direct mode without a Git session. --demand without --mode retains guarded behavior. Upload/readback precedes CSP compilation. No automatic retries.');return;}
-  if (argv.includes('--execute') || argv.includes('--demand') || argv.includes('--mode') || argv.includes('--decision')) return require('./deploy-protected').main('frontend', argv);
+  if(argv.includes('--help')) console.log('--kind standard|project: explicit task type overrides the project default. Project + on-demand mode requires a source plan; License admission remains shared.');
+  if(argv.includes('--help')) {console.log('Usage: node deploy-frontend.js --project-root <project> [--source-root <frontend-root>] --files <project-relative-files...> [--python <interpreter>] [--known-hosts <file> | --host-key-sha256 <trusted-SHA256:fingerprint>] [--execute] [--mode direct|guarded] [--demand <id>] [--source-plan <reviewed-plan.json>] [--publication-decision <publish-receipt.json>] [--run-directory <run> --work-item <id> --environment-alias <alias>]\nDefault: local plan. On-demand project mode requires a reviewed source plan, a local Git commit and a separate production publication receipt. Other projects retain direct/guarded compatibility. Upload/readback precedes CSP compilation and final batch readback. Up to two safe read/confirmed-unsent upload recoveries per per-file deployment; unknown writes and compilation are never replayed.');return;}
+  if (argv.some(value=>['--execute','--demand','--mode','--decision','--source-plan','--publication-decision','--kind'].includes(value))) return require('./deploy-protected').main('frontend', argv);
   const args=parse(argv), context=resolveWorkspaceContext(args.projectRoot);
+  require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(context);
   if(workspaceContextBlockers(context).length)throw new Error('Invalid workspace context');
   const {config}=require('./project-env').readProjectEnv(context);
   const mcp=readJson(path.join(context.workspaceRoot,'.mcp.json'));
   require('./project-env').validateTarget(config,mcp.mcpServers?.[config.mcp?.serverName||'iris-agentic-dev']?.env||{});
-  const server=mcp.mcpServers?.[config.sftp?.serverName || 'sftp-server'];
-  if(!server || server.disabled===true)throw new Error('SFTP configuration missing or disabled');
-  const env={...server.env};
-  const plan=buildPlan(args,config,env,context);
+  const protectedDeploy=require('./deploy-protected');
+  const plan=protectedDeploy.frontendPlan(args,config,mcp,context);
   // This branch is plan-only; execution returned through deploy-protected above.
   console.log(JSON.stringify(plan));
   return;
 }
 module.exports={parse,buildPlan,execute,uploadBatch};
-if(require.main===module)main(process.argv.slice(2)).catch(()=>{
-  console.error(JSON.stringify({schema:'iris-frontend-deploy/v1',status:'failed-or-unknown',message:'Check input files, source root, private configuration, interpreter and SSH trust; no automatic retry',commandElapsedMs:Math.round(performance.now())}));process.exitCode=1;
+if(require.main===module)main(process.argv.slice(2)).catch(error=>{
+  if (['offline-development-remote-disabled','development-mode-invalid'].includes(error.code)) {
+    console.error(JSON.stringify({schema:'iris-frontend-deploy/v1',status:'blocked',reason:error.code})); process.exitCode=1; return;
+  }
+  console.error(JSON.stringify({schema:'iris-frontend-deploy/v1',status:'failed-or-unknown',message:'Check input files, source root, private configuration, interpreter and SSH trust; diagnose within existing authority before requesting a user decision',commandElapsedMs:Math.round(performance.now())}));process.exitCode=1;
 });

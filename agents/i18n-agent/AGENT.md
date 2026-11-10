@@ -1,5 +1,107 @@
+---
+name: i18n-agent
+type: domain
+description: IRIS 国际化需求处理智能体，按链路定位、字段分类、编码/模板/种子和验证阶段执行。
+defaultWorkflow: i18n-change
+plugins:
+  - i18n-iris-plugin
+  - coding-iris-plugin
+requiredPlugins:
+  - coding-iris-plugin
+  - i18n-iris-plugin
+initSkills:
+  coding-iris-plugin: plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md
+  i18n-iris-plugin: plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md
+requiredProjectFiles:
+  - AGENTS.md
+  - .agents/config/i18n_project_profile.md
+optionalProjectFiles:
+  - .mcp.json
+stages:
+  explorer:
+    role: link tracing and impact discovery
+    rules:
+      - plugins/i18n-iris-plugin/rules/i18n_link_tracing.md
+    output: docs/agent-reports/{ticket-or-topic}/10-explorer.md
+    modelHint: strong
+  classifier:
+    role: user-visible text classification
+    rules:
+      - plugins/i18n-iris-plugin/rules/i18n_field_classification.md
+      - plugins/i18n-iris-plugin/rules/i18n_dict_translate_facade.md
+    input: docs/agent-reports/{ticket-or-topic}/10-explorer.md
+    output: docs/agent-reports/{ticket-or-topic}/11-classifier.md
+    modelHint: strong
+  coder:
+    role: frontend/backend i18n coding changes
+    skills:
+      - plugins/i18n-iris-plugin/skills/i18n-coding/SKILL.md
+    rules:
+      - plugins/i18n-iris-plugin/rules/i18n_coding_frontend.md
+      - plugins/i18n-iris-plugin/rules/i18n_coding_backend.md
+      - plugins/i18n-iris-plugin/rules/i18n_coding_print_backend.md
+    input: docs/agent-reports/{ticket-or-topic}/11-classifier.md
+    outputs:
+      backend: docs/agent-reports/{ticket-or-topic}/20-backend-coder.md
+      frontend: docs/agent-reports/{ticket-or-topic}/21-frontend-coder.md
+    modelHint: balanced
+  templateSeed:
+    role: translation seed, dictionary seed, or XML template handling
+    condition: explorer or classifier output confirms page seed, dictionary seed, XML template, or CSP translation sync is required
+    skills:
+      - plugins/i18n-iris-plugin/skills/i18n-page-trans-seed/SKILL.md
+      - plugins/i18n-iris-plugin/skills/i18n-bdp-trans-seed/SKILL.md
+      - plugins/i18n-iris-plugin/skills/i18n-xml-template/SKILL.md
+      - plugins/i18n-iris-plugin/skills/i18n-xml-print-template-sync/SKILL.md
+      - plugins/i18n-iris-plugin/skills/i18n-csp-trans-sync/SKILL.md
+    output: docs/agent-reports/{ticket-or-topic}/22-template-seed.md
+    modelHint: balanced
+  verifier:
+    role: i18n verification and residual risk report
+    rules:
+      - plugins/i18n-iris-plugin/rules/i18n_verify.md
+    output: docs/agent-reports/{ticket-or-topic}/30-verifier.md
+    modelHint: balanced
+handoffProtocol: agents/_shared/handoff-protocol.md
+deliveryProtocol: agents/_shared/delivery-lifecycle.md
+orchestrationProtocol: agents/_shared/orchestration-protocol.md
+runtime: scripts/agent-orchestrator.js
+genericRoles:
+  - coordinator-agent
+  - explorer-agent
+  - planner-agent
+  - coding-agent
+  - review-agent
+  - testing-agent
+serialFallback: true
+executionModes:
+  - serial
+  - subagent
+  - multi-session
+legacyReadOnlyModes:
+  - retrospective
+  - multi-agent
+multiAgentRequiresExplicitAuthorization: true
+runManifest: docs/agent-reports/{ticket-or-topic}/00-run-manifest.json
+summaryOutput: docs/agent-reports/{ticket-or-topic}/40-summary.md
+reportMode:
+  validation: per-stage
+  productionSerialFastPath: consolidated
+sensitiveDataPolicy:
+  forbid:
+    - server host
+    - account
+    - password
+    - token
+    - namespace
+    - remote path
+    - patient sample
+---
+
 
 # i18n-agent
+
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
 
 `i18n-agent` 是 IRIS 国际化需求处理的领域 Agent。它把通用阶段化协作模型绑定到 `i18n-iris-plugin` 和 `coding-iris-plugin` 的规则、skills、templates 与验证约束。
 
@@ -142,7 +244,7 @@ Root Coordinator
 
 ## 框架反馈
 
-业务需求 run 固定设置 `taskKind=business-demand`，由此派生 feedback 适用性。技术流程完成后按 `agents/_shared/delivery-lifecycle.md` 进入 `acceptance-pending`。只有用户明确确认验收且命中反馈信号后，才调用 `plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md` 做只读审查；任何经验或 framework feedback 写入仍需用户逐项授权。纯框架维护必须建立独立 `framework-maintenance` 记录，不得复用本 run 的验收或 feedback 状态。
+业务需求 run 固定设置 `taskKind=business-demand`，由此派生 feedback 适用性。技术流程完成后按 `agents/_shared/delivery-lifecycle.md` 进入 `acceptance-pending`。只有用户明确确认验收且命中反馈信号后，才调用 `plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md` 做只读审查；任何经验或 framework feedback 写入按 feedback skill 核对当前有效授权。纯框架维护必须建立独立 `framework-maintenance` 记录，不得复用本 run 的验收或 feedback 状态。
 
 ## 降级执行
 

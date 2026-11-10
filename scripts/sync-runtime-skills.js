@@ -3,9 +3,9 @@
 // Project discovery adapters only. Never copy skills or modify the capability source.
 const fs = require('node:fs');
 const path = require('node:path');
-const { resolveWorkspaceContext, validateWorkspaceContext } = require('./lib/workspace-context.js');
+const { resolveWorkspaceContext, workspaceContextBlockers } = require('./lib/workspace-context.js');
 const adapters = { CodeBuddy: '.codebuddy', ClaudeCode: '.claude', Codex: null,
-  Qoder: '.qoder', WorkBuddy: '.workbuddy', WorkBuddyDonghua: '.workbuddydonghua',
+  Qoder: '.qoder', WorkBuddy: '.workbuddy', WorkBuddyDonghua: '.workbuddy',
   OpenCode: null, Cursor: null, GeminiCLI: null, GitHubCopilot: null, Custom: null };
 const same = (a, b) => process.platform === 'win32'
   ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase()
@@ -34,7 +34,7 @@ function sync({ projectRoot = '.', runtime, mode = 'DryRun', skillsDir }) {
   }
   const root = fs.realpathSync(projectRoot);
   const context = resolveWorkspaceContext(root);
-  const failures = validateWorkspaceContext(context).filter(x => !['workspace-context-resolved', 'junction-ok', 'local-path-ok'].includes(x.status));
+  const failures = workspaceContextBlockers(context);
   if (failures.length) throw new Error(`Invalid workspace context: ${failures.map(x => x.status).join(', ')}`);
   const source = path.join(context.contextRoot, 'skills');
   physicalChain(root, source);
@@ -70,18 +70,23 @@ function sync({ projectRoot = '.', runtime, mode = 'DryRun', skillsDir }) {
 }
 function main(args) {
   if (args.includes('--help')) {
-    console.log(`Usage: node sync-runtime-skills.js --project-root <project> --runtime ${Object.keys(adapters).join('|')} [--skills-dir .host/skills] --mode Check|DryRun|Write`);
+    console.log(`Usage: node sync-runtime-skills.js --project-root <project> --runtime ${Object.keys(adapters).join('|')} [--skills-dir .host/skills] [--agent] --mode Check|DryRun|Write\nDefault: skills discovery. --agent: native Agent adaptation (Codex, CodeBuddy, WorkBuddy); cannot combine with --skills-dir.`);
     return;
   }
   const options = {};
+  const agentMode = args.includes('--agent');
+  if (args.filter(x => x === '--agent').length > 1) throw new Error('Duplicate --agent');
+  args = args.filter(x => x !== '--agent');
   const keys = { '--project-root': 'projectRoot', '--runtime': 'runtime', '--mode': 'mode', '--skills-dir': 'skillsDir' };
   for (let i = 0; i < args.length; i += 2) {
     if (!keys[args[i]] || !args[i + 1] || args[i + 1].startsWith('--') || Object.hasOwn(options, keys[args[i]])) throw new Error('Invalid or duplicate argument');
     options[keys[args[i]]] = args[i + 1];
   }
-  const result = sync(options);
+  if (agentMode && options.skillsDir !== undefined) throw new Error('--agent cannot combine with --skills-dir');
+  if (agentMode && !options.runtime) throw new Error('--agent requires --runtime');
+  const result = agentMode ? require('./sync-runtime-agents.js').sync(options) : sync(options);
   console.log(JSON.stringify(result));
-  if (result.status === 'runtime-adapter-conflict' || (options.mode === 'Check' && result.status === 'runtime-adapter-planned')) process.exitCode = 1;
+  if (result.failed || result.status === 'runtime-adapter-conflict' || (options.mode === 'Check' && result.status === 'runtime-adapter-planned')) process.exitCode = 1;
 }
 if (require.main === module) {
   try { main(process.argv.slice(2)); } catch (error) {

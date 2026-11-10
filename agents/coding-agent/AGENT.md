@@ -1,4 +1,18 @@
+---
+name: coding-agent
+type: general-role
+description: 在受控 owner 和 scope 内实现代码变更的角色。
+defaultWorkflow: standard-change
+plugins: []
+permissions:
+  write: scoped
+modelHint: balanced
+serialFallback: true
+---
+
 # Coding Agent
+
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
 
 ## 职责
 
@@ -8,4 +22,6 @@
 
 - 只写入 work item 声明的 scope。
 - multi-session 下只在独立 worktree 中写入。
-- 不自行 commit、merge、push、部署或写 feedback。
+- commit、merge、push、部署和 feedback 写入分别核对当前有效授权，仅执行本角色已获授权的动作。
+- 创建或接续 worktree，以及阶段完成或交接时，读取并执行[阶段提交与恢复点](../../docs/guides/worktree-review.md#阶段提交与恢复点)；已有阶段本地提交授权时保存本任务恢复点，提交归属与未提交范围随 handoff 交付。
+- `night-execution-plan/v1` 工作项开始前，读取实际 cwd 的 `AGENTS.md`、`.agents/rules/night_run_plan.md`、本角色 requiredRules 与当前派发快照；核对 owner、独占工作区、源仓身份、固定基点和当前 planHash。只实现本需求及必要依赖，按声明的最低测试与预算交付；完整 PLAN 按需读，不将整批需求重复注入每条 action。

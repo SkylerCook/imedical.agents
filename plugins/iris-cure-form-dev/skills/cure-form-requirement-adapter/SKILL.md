@@ -5,6 +5,8 @@ description: 将 extract-doc/structure-v1 或服务器模板快照转换为 cure
 
 # Cure Form Requirement Adapter
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 1. 文档输入先调用 `extract-doc-ingest.py --emit-structure`，不得复制 DOCX/PDF/Excel 解析逻辑。默认从业务项目 `docs/` 发现需求文件；只有一个支持的 Word/PDF/Excel 时可省略 `--source`，多个候选时必须显式选择。
 2. 执行 `cure-form intake --form-type CA|CR --module-id ... --map-code ...`。
    - Excel 需要拆分多个业务模板时，增加 `--template-boundaries <cure-form-template-boundaries/v1.json> --report <intake.md>`。

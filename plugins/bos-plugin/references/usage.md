@@ -23,7 +23,7 @@
 
 用户级绑定不会改变已运行客户端环境。当前验证命令显式注入返回路径，客户端重启后继承 BOS_MCP_CONFIG。凭据填写后分别运行对应脚本 defaults 离线校验；使用默认个人查询前确认 cuser/cgroup 不是 TODO，明确其它口径时可清除不用的默认值；日志 defaults 校验 token/linkProject。命令成功不代表真实连接或 BOS 写入成功，网络操作按独立授权执行。
 
-当前人优先级：显式 cuser（含空字符串）→ BOS_CUSER → 本技能段 cuser；当前组优先级：显式 cgroup（含空字符串）→ BOS_CGROUP → 本技能段 cgroup。显式空字符串分别清除对应默认条件。access_key/Token 的 TODO 阻止查询连接；实际采用的人员/组为 TODO 时阻止列表，编号查询不要求身份。个人待办缺少所在组时停止，主动传 cgroup: "" 表示跨组；sgroup / tgroup 是独立的发起组 / 接受组筛选。
+当前人优先级：显式 cuser（含空字符串）→ BOS_CUSER → 本技能段 cuser；当前组优先级：显式 cgroup（含空字符串）→ BOS_CGROUP → 本技能段 cgroup。显式空字符串分别清除对应默认条件。access_key/Token 的 TODO 阻止查询连接；实际采用的人员/组为 TODO 时阻止列表，编号查询不要求身份。旧 pending / project-pending 待办缺少所在组时停止，主动传 cgroup: "" 表示跨组；sgroup / tgroup 是独立的发起组 / 接受组筛选。
 
 ## 命令
 
@@ -41,6 +41,8 @@
 如需原生 MCP 工具，按 [客户端 MCP 注册](client-mcp.md)获取无凭据配置示例和验收步骤；无需每项目配置。本 skill 不自动改宿主 MCP 设置，也不认为文件链接成功等于宿主已加载。
 
 ## 查询参数契约
+
+个人 `todo` / `workload` 的固定人员条件与日期处理优先按下节[个人查询口径](#个人待办与工作量口径)执行；本节默认人员/组及宽创建日期说明适用于旧通用模式。
 
 上游工具为 post_imedway_ylxt_bosdata。以下上游声明是 2026-10-14 维护时提供的 tools/list 读取结果快照；本地支持与处理已对照 bos-demand-query.js，不代表本轮重新连接上游或逐字段完成真实查询。上游变化时重新核对 schema 与适配层，不将快照当作实时发现。
 
@@ -68,7 +70,7 @@
 | mod | 产品模块 | 支持并透传 |
 | body | 可选对象；schema 未定义内部字段 | 支持 JSON 对象并原样透传；省略则不发送，不推断内部结构，也不把内部字段当作已确认的人员/组条件 |
 
-普通列表至少需要一个非空人员或组条件：suser / tuser / cuser / sgroup / tgroup / cgroup 均可；全空、仅空白或 TODO 停止。字段说明请求保留上游返回，由上游判断传入 explain 值是否有效，不套列表口径。只查询“我的待办”时继续默认本人＋所在组；默认本人缺失且未明确其它查询口径时停止，不悄悄退化为整组查询。
+普通列表至少需要一个非空人员或组条件：suser / tuser / cuser / sgroup / tgroup / cgroup 均可；全空、仅空白或 TODO 停止。字段说明请求保留上游返回，由上游判断传入 explain 值是否有效，不套列表口径。旧 pending 查询继续默认本人＋所在组；默认本人缺失且未明确其它查询口径时停止，不悄悄退化为整组查询。
 
 ### 人员与组口径示例
 
@@ -89,12 +91,61 @@
 
 | 参数 | 取值与本地作用 |
 |---|---|
-| mode | list / pending / project-pending / history；默认 list，选择日期生成与待办过滤行为 |
+| mode | list / pending / project-pending / history / todo / workload；默认 list，个人两模式见下节 |
+| sourceScope | all / project / non-project；仅用于个人 todo/workload，提供且省略 mode 时默认 todo，见来源口径 |
 | timezone | 有效 IANA 时区；默认 Asia/Shanghai，用于生成截止日 |
-| sort | 创建时间 / 预计完成时间；默认创建时间，对返回列表排序 |
+| sort | 创建时间 / 预计完成时间 / 分配时间 / 执行时间 / 操作时间；todo 和通用模式默认创建时间，workload 默认执行时间 |
 | order | asc / desc；默认 asc，控制日期排序方向 |
 
 详细模式、日期优先级与排序规则见下节“查询模式”。
+
+## 个人待办与工作量口径
+
+`--todo [日期或范围]` 与 `--workload 日期或范围` 是 skill 和脚本 CLI 的日常入口；JSON/MCP 分别使用 `mode: "todo"` / `"workload"`。单日为 `YYYY-MM-DD`，范围为两个日期或一个 `YYYY-MM-DD~YYYY-MM-DD`。JSON 单日只传 date，date2 省略时等于 date；范围显式传两者，首尾两日均包含。CLI 两入口互斥，格式无效或缺少 workload 日期时在读取配置/联网前停止。
+
+人员以已配置的本人为 subject；JSON 明确 tuser 可指定统计对象。缺少本人或仍为 TODO 时停止，不猜身份。两模式清除默认 cgroup，todo 固定 tuser/cuser 均为 subject，workload 固定 tuser 为 subject、cuser 为空，避免已转测试/项目组的工作被裁剪。与固定人员、组或日期字段冲突的入参停止；额外显式筛选仍保留，status 仅缩小上游查询，不绕过本地分类。
+
+| 模式 | 日期筛选 | 本地纳入条件 |
+|---|---|---|
+| todo | 无日期时不限制预计完成时间，含预计完成时间为空的需求；有日期时按预计完成时间 | 接受人和当前人均为 subject，状态为新建 / 分配 / 分配(开发) / 活动 / 修正；已有执行时间的返工或重新分配仍纳入 |
+| workload | 必填执行日期或范围 | 接受人为 subject，期间有合法执行时间；状态为完成 / 测试分配（当前人可仍为本人），或当前人已转他人且状态为测试 / 发布测试 / 组内测试 / 测试完成 / 更新完成 / 挂起 |
+
+取消、已拆分、回置不计工作量或开发待办。接受人为别人、当前人为本人不构成本人开发工作。缺少人员/状态或不符合上述组合的条目进入待核对清单，不默认为完成，也不悄悄丢弃新状态；它们不计入已确认条数。该口径依据人员职责流转与已观察状态，是当前可执行规则，新增状态/转派语义须另行核对。
+
+带日期时向上游请求 date 至截止日次日，再按返回的原日期字段截取 YYYY-MM-DD 做包含首尾两日的校验，排除次日及无效/缺失日期。无日期 todo 用宽创建日期（1900-01-01 至用户时区今天次日）获取候选，不用预计完成时间预筛，因此保留未填写/未来预计完成的待办。此策略兼容常见含/不含上界的服务端实现，不证明上游没有分页、截断或其它端点差异。
+
+结果仍在 data，汇总仍在 `_meta.bosDemandQuery`；personal 含 subject、dateField、range（全部待办为 null）、basis、excludedReasons、unclassifiedCount 和原待核对条目 unclassified。新增 unclassifiedDetails 与 unclassified 同序，每项含从零开始的 index、原需求号 id（缺失为 null）、code 和 reason；code 为 missing-fields / missing-source / unknown-status / ownership-status-mismatch。保留原条目和计数契约，便于逐条解释缺少字段、来源无效、未识别状态或状态与当前人组合异常。回复必须展示实际人员、日期字段/范围、人员/状态组合口径、已确认条数，并单列待核对项。字段缺失和上游完整性限制如实说明；工作量是本次快照下已完成开发环节的需求数，不是最终验收数、工时或历史流转次数，执行时间被覆盖时不能还原此前工作量。
+
+完成与测试分配表示开发环节已交付，不以当前人已转他人为必要条件；仍需人员字段完整及合法期间执行时间。测试 / 发布测试补入已有流转白名单，当前人仍为本人时保持待核对；不由状态名称推断其它未知组合。分配 / 修正且当前人为本人，即使有执行时间也不计入工作量。本轮修复依据一次限定日期范围的页面与接口逐号对照及用户确认；它支持已观察组合，不证明所有历史状态语义或上游完整性。
+
+旧 pending / project-pending 保留原当前人＋所在组及状态排除行为；明确个人开发待办使用 todo。旧 list/history、按编号详情、explain 与私有配置结构不变。正常更新能力包并刷新已启用索引即可取得新入口，无配置迁移或旧文件清理，不自动部署业务副本。
+
+## 工作量差异复核
+
+用户指出漏计、页面数量不同或再次核对同一范围时：
+
+1. 保留原人员、执行日期、来源及其它显式筛选重新查询，记录本次快照时间；前次状态、当前人和执行时间只作历史证据。重查失败保留旧快照标识，不能将旧结果当成当前结果。
+2. 区分接口候选、已计入、待核对及其余已排除项。`returnedCount = includedCount + excludedCount`，待核对是 excludedCount 的子集；用 excludedReasons 解释其它接受人、仍属开发待办、取消、越界等原因。展示契约见[输出格式](../skills/bos-demand-query/SKILL.md#输出格式)。
+3. 有页面对照时核实其人员口径、执行日期、来源、状态和每页记录；按需求号去重、比较双向差集及重复项，不只比较总数或末行序号。页面可能包含接受人为他人的需求，不能直接套为本人工作量。现有候选不足以逐号核对时，在原人员/日期/来源范围内使用通用列表，显式清空不需要的默认 cuser/cgroup；页面读取沿可用浏览器能力及已有授权，不改变 BOS 数据。
+4. 对前后差异核对状态、接受人、当前人及执行时间的变化，按最新快照重算日期分布。未知状态保留具体原因与原条目；仅有一次观察时说明适用样本，不自动把所有未知状态或所有有执行时间的需求算完成。两侧本次编号一致只证明该范围该快照吻合，分页及其它日期完整性仍需独立证据。
+
+## 项目与产品非项目来源口径
+
+skill 无参数默认 todo；脚本保留无参数启动 serve 的兼容行为，Agent 显式调用 `--todo`。`--proj` / `--dev` 是互斥来源开关，可单独使用（默认 todo），也可在 `--todo` / `--workload` 和日期前后组合。日期语义不变，workload 始终要求日期。JSON/MCP 使用本地 sourceScope（all / project / non-project），提供且省略 mode 时默认 todo，非个人模式显式传该字段停止；原 query JSON 未给 mode/sourceScope 仍为 list。
+
+- project：上游 source 固定“项目”，并在本地核对返回来源；冲突的显式 source 停止。
+- non-project：产品按“非项目”理解，包含产品、用户、实施、产品部及其它实际非空非项目来源。上游 source 不限，再本地排除项目；明确给非项目 source 时保留该精确条件，给 source: "项目" 时停止。不猜测上游排除、多选或逻辑表达式语法。
+- all：保留原 source 精确筛选及不限来源的语义，不作额外分类。
+
+来源范围与原人员/状态/日期等条件组合生效，不切换至旧 project-pending 模式。仅在选择来源口径时，缺失、空白或非字符串来源进入 personal.unclassified，不自动归入产品；不匹配的已知来源记 outside-source。返回 data 仍是已处理结果，personal.sourceScope / sourceBasis 展示采用口径，returnedCount / includedCount / excludedCount 及 excludedReasons 反映上游候选与本地排除。分类不证明服务端返回全量；来源缺失的候选也可能受上游 source 预筛影响，不能从 project 查询声称已发现全部缺失来源。
+
+## 日期排序口径
+
+所有 todo 默认 sort: "创建时间"、order: "asc"，与来源 all/project/non-project 无关。workload 默认执行时间升序；通用列表默认值保持创建时间升序。JSON/MCP 可指定五个日期字段和 asc/desc；个人 CLI/skill 使用 `--sort <字段> --order asc|desc`，可与模式、来源和日期范围任意先后组合。未知值、缺值或同一参数重复在联网前停止。比如 `--proj --sort 预计完成时间 --order asc` 按到期日期排序，`--todo --sort 分配时间 --order desc` 按分配日期倒序。
+
+比较原字段 YYYY-MM-DD，按选择方向排序，同日需求号数值升序，缺失或无效日期始终置后；创建日期在各默认列表中展示，字段缺失标“未返回”，空值标“空”。排序只重排纳入结果，不改变来源、人员、状态分类、计数或日期筛选：todo 的筛选日期仍为预计完成时间，workload 仍为执行时间。实际选择以 `_meta.bosDemandQuery.sort/order` 为准，Agent 不二次重排；需求号串仍按原约定编号升序。
+
+0.15.0 将 todo 原默认预计完成时间升序改为创建时间升序；需要保持原顺序的调用显式传 sort: "预计完成时间", order: "asc"，或 CLI 追加 `--sort 预计完成时间 --order asc`。日期筛选、返回结构与私有配置不变。正常更新能力包并刷新已启用索引取得；无需数据迁移或旧文件清理。
 
 ## 参数异常与验证边界
 
@@ -104,7 +155,7 @@
 
 ## 查询模式
 
-- `query '{"mode":"pending"}'`：本人所在组待办。
+- `query '{"mode":"pending"}'`：旧当前人/所在组待办；个人开发待办使用 todo。
 - `query '{"mode":"project-pending"}'`：另限来源为“项目”。
 - `query '{"mode":"history"}'`：历史列表，不过滤待办状态。
 - `list` 或省略 mode：明确提供完整日期范围。

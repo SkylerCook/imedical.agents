@@ -12,7 +12,7 @@
 | `iris-change` | 在通用调度之上增加 IRIS 领域路由 | `workflows/iris-change.workflow.md` | `iris-change-agent` | 是 |
 | `i18n-change` | IRIS 国际化需求处理，从链路定位到验证的领域流程 | `workflows/i18n-change.workflow.md` | `i18n-agent` | 是 |
 | `bos-demand` | 跨技术栈 BOS 需求处理、可重复验收与资源收尾、授权提交，提交后准备并按授权补录代码日志 | `workflows/bos-demand.workflow.md` | `coordinator-agent` | 是 |
-| `bos-demand-unattended` | 明确批次授权下的夜跑、分层验收、截止和收尾 | `workflows/bos-demand-unattended.workflow.md` | `coordinator-agent` | 是 |
+| `bos-demand-unattended` | 事前实体 PLAN、并行开发、分层验收、冻结交付、预算与收尾 | `workflows/bos-demand-unattended.workflow.md` | `coordinator-agent` | 能力不足可串行规划/交接；改变批准并发须重订计划 |
 
 ## 扩展约定
 

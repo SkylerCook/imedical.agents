@@ -1,0 +1,8 @@
+# UTF-8；每行一个准确对象。以下为用户指定的项目示例。
+# 其它现场必须替换实际对象名和 Web 路径；前缀不是脚本固定值。
+# 后端：对象全名＋扩展名，不写磁盘目录。
+DHCDoc.Util.RegisteredObject.cls
+
+# 前端：以 / 开头的完整 Web 虚拟路径。
+/imedical/web/scripts/udhcfavitem.edit.newshow.js
+/imedical/web/csp/chemo.aform.main.csp

@@ -1,0 +1,7040 @@
+{
+  "classToModule": [
+    {
+      "className": "AuthConfig",
+      "system": "临床试验管理系统",
+      "module": "GCP权限配置",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "GetPilotDrugWarningExternalClient",
+      "system": "临床试验管理系统",
+      "module": "临床试验对外数据服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "GetPilotEntryExternalClient",
+      "system": "临床试验管理系统",
+      "module": "临床试验对外数据服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "GetPilotOrderFeeExternalClient",
+      "system": "临床试验管理系统",
+      "module": "临床试验对外数据服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "GetPilotPatManagerExternalClient",
+      "system": "临床试验管理系统",
+      "module": "临床试验对外数据服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "SavePilotAdmManagerExternalClient",
+      "system": "临床试验管理系统",
+      "module": "临床试验对外数据服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "ImportPilotProjectClient",
+      "system": "临床试验管理系统",
+      "module": "临床试验项目服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "TrPilotProjectClient",
+      "system": "临床试验管理系统",
+      "module": "临床试验项目服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "TrPilotProjectDrugListClient",
+      "system": "临床试验管理系统",
+      "module": "临床试验项目服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "UpdatePilotBalanceClient",
+      "system": "临床试验管理系统",
+      "module": "临床试验项目服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "tr_pilot_project/detail",
+      "system": "临床试验管理系统",
+      "module": "临床试验项目立项",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "tr_pilot_project_freeord",
+      "system": "临床试验管理系统",
+      "module": "免费医嘱",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "tr_pilotpro_warn_type_ck",
+      "system": "临床试验管理系统",
+      "module": "警告/禁用类型",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "tr_pilotpro_warn_control_ck",
+      "system": "临床试验管理系统",
+      "module": "警告控制",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "tr_pilot_project_cro",
+      "system": "临床试验管理系统",
+      "module": "项目CRO",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "tr_pilot_project_partners",
+      "system": "临床试验管理系统",
+      "module": "项目合作方",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "tr_pilot_project_pat_state_ck",
+      "system": "临床试验管理系统",
+      "module": "项目患者状态",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "tr_pilot_project_status_ck",
+      "system": "临床试验管理系统",
+      "module": "项目状态",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "tr_pilot_project_dept",
+      "system": "临床试验管理系统",
+      "module": "项目科室/主要研究者",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "tr_pilot_project_drug",
+      "system": "临床试验管理系统",
+      "module": "项目药品配置",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "tr_pilot_project_warn",
+      "system": "临床试验管理系统",
+      "module": "项目警告（禁用药品）",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "tr_pilot_project_payment",
+      "system": "临床试验管理系统",
+      "module": "项目费用/付费",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "tr_pilot_project_stage",
+      "system": "临床试验管理系统",
+      "module": "项目阶段",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "IpCareCfOeClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱协同服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareMigrateOPExecClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱协同服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareReturnOrdExecClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱协同服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "UpdateOrderStatusForConsClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱协同服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareQueryOeOrdExecForEmrqClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱协同服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "UpdateOrderStatusForMDTClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱协同服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareQueryOeOrdItemForNurClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱协同服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "ArcimWardAppendClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareCtOeCmCookmodeTakeMethodClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareGetOeOrdItemCMClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareGetOrderPriceClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareLookUpItemClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareOeDailyTaskClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareOeOrdAppendItemCMClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareOeOrdArcosViewClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareOeOrdItemCMEntryClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareOeOrdItemEntryClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "QueryOeOrdItemClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "QueryOrderExecClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "UpdateOrderExecClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "UpdateOrderStatusClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareCtOeDriveComClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱驱动服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareCtOeRecLocDriveComClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱驱动服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareCtUnitDriveComClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱驱动服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareOeOrdApplyDriveComClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱驱动服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareOeOrdItemCMDriveComClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱驱动服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareOeOrdItemDoseQtyDriveComClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱驱动服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareOrderFreqDriveComClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱驱动服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCarePrescriptionClient",
+      "system": "住院诊疗信息系统",
+      "module": "医嘱驱动服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "GetAdmThreeCheckDocClient",
+      "system": "住院诊疗信息系统",
+      "module": "接诊管理服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "InsertDefinedThreeCheckClient",
+      "system": "住院诊疗信息系统",
+      "module": "接诊管理服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpDocPatListClient",
+      "system": "住院诊疗信息系统",
+      "module": "接诊管理服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpPaAdmTransferInfoClient",
+      "system": "住院诊疗信息系统",
+      "module": "接诊管理服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "PaAdmIpDischargeInfoClient",
+      "system": "住院诊疗信息系统",
+      "module": "接诊管理服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "ct/exam/position",
+      "system": "住院诊疗信息系统",
+      "module": "检查体位",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "ct/exam/otheropt",
+      "system": "住院诊疗信息系统",
+      "module": "检查其它项目",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "ct/exam/dispmedthod",
+      "system": "住院诊疗信息系统",
+      "module": "检查后处理方法",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "ct/exam/itemtemp",
+      "system": "住院诊疗信息系统",
+      "module": "检查项目模板",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "IpCareExamDealClient",
+      "system": "住院诊疗信息系统",
+      "module": "检验检查服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareExamEntryClient",
+      "system": "住院诊疗信息系统",
+      "module": "检验检查服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareExamQueryClient",
+      "system": "住院诊疗信息系统",
+      "module": "检验检查服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareLisDealClient",
+      "system": "住院诊疗信息系统",
+      "module": "检验检查服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpcarePisEntryClient",
+      "system": "住院诊疗信息系统",
+      "module": "检验检查服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "ct/oe/durexceed",
+      "system": "住院诊疗信息系统",
+      "module": "疗程超量",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "DeleteIpCareMRDiagnosClient",
+      "system": "住院诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "MrDiagnosIhdDataSaveClient",
+      "system": "住院诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpCareMRSpecialDiagFormClient",
+      "system": "住院诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "LongInsertToIpCareDiagnosClient",
+      "system": "住院诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "LookUpICDClient",
+      "system": "住院诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "MRDiagnosEntryClient",
+      "system": "住院诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "QueryIpAdmOtherInfoClient",
+      "system": "住院诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "QueryIpCareMRDiagnosClient",
+      "system": "住院诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "QueryIpCarePrescDiagnosClient",
+      "system": "住院诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "SaveIpCareMRDiagnosClient",
+      "system": "住院诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "UpdateIpCareMRDiagnosClient",
+      "system": "住院诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "CuRcApplyClient",
+      "system": "康复治疗系统",
+      "module": "治疗申请服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "CuRcCancelApplyClient",
+      "system": "康复治疗系统",
+      "module": "治疗申请服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "CuRcDealApplyDataClient",
+      "system": "康复治疗系统",
+      "module": "治疗申请服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "CuRcGetApplyDataClient",
+      "system": "康复治疗系统",
+      "module": "治疗申请服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "SelfAppointInterfaceClient",
+      "system": "康复治疗系统",
+      "module": "自助预约服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "ct_paadm_op_alloc_two_cfg",
+      "system": "门诊分诊系统",
+      "module": "二次分诊设置",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "ct_paadm_op_alloc_borough",
+      "system": "门诊分诊系统",
+      "module": "分诊区优先级维护",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "ct_paadm_op_alloc_borough",
+      "system": "门诊分诊系统",
+      "module": "分诊区维护",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "ct_paadm_op_alloc_fstate",
+      "system": "门诊分诊系统",
+      "module": "分诊状态",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "OpallocGetPatWaitClient",
+      "system": "门诊分诊系统",
+      "module": "分诊队列服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpallocQueueClient",
+      "system": "门诊分诊系统",
+      "module": "分诊队列服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpAllocQueueQueryClient",
+      "system": "门诊分诊系统",
+      "module": "分诊队列服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "ct_paadm_op_alloc_depmark",
+      "system": "门诊分诊系统",
+      "module": "医生号别对照",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "paadm_op_queue/queue_status_log",
+      "system": "门诊分诊系统",
+      "module": "就诊队列状态",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "ct_paadm_op_alloc_exabdep/exabuser/exabuser_group",
+      "system": "门诊分诊系统",
+      "module": "操作员诊区对照",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "ct_paadm_op_alloc_borexa_room",
+      "system": "门诊分诊系统",
+      "module": "检查诊室",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "ct_paadm_op_alloc_exapath",
+      "system": "门诊分诊系统",
+      "module": "检查路径",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "ct_paadm_op_alloc_room/roomip",
+      "system": "门诊分诊系统",
+      "module": "诊室计算机设置",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "OPAllocInterfaceClient",
+      "system": "门诊分诊系统",
+      "module": "集成平台标准接口",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "doc.ipbook.dictionary",
+      "system": "门诊诊疗信息系统",
+      "module": "住院证字典",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "IpBookCtOrgClient",
+      "system": "门诊诊疗信息系统",
+      "module": "住院证服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpBookMedicalRecordClient",
+      "system": "门诊诊疗信息系统",
+      "module": "住院证服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpBookPortalClient",
+      "system": "门诊诊疗信息系统",
+      "module": "住院证服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpBookQueryStandardClient",
+      "system": "门诊诊疗信息系统",
+      "module": "住院证服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpBookUpdateClient",
+      "system": "门诊诊疗信息系统",
+      "module": "住院证服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpBookUpdateForArClient",
+      "system": "门诊诊疗信息系统",
+      "module": "住院证服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "IpBookUpdateForNurseClient",
+      "system": "门诊诊疗信息系统",
+      "module": "住院证服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "doc.ipbook.depcfg",
+      "system": "门诊诊疗信息系统",
+      "module": "住院证管控配置",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "OpCareCfOeClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱协同服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareCheckAllergyOrderCanBeChargeClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱协同服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareHRPGetDataClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱协同服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareStopItemClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱协同服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "UpdateOrderStatusForConsClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱协同服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpcareInsertAdmDiagOrdClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱协同服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareOeOrdItemGetDataForInsuClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱协同服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "UpdateOrderStatusForMDTClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱协同服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "UpdateOrderStatusForMuspClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱协同服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareQueryOeOrdItemForNurClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱协同服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareCtOeCmCookmodeTakeMethodClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareDiagLinkToPrseClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareGetOeOrdItemCMClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareGetOrderPriceClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareLookUpItemClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareOeOrdAppendItemCMClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareOeOrdApplyDriveComClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareOeOrdItemCMEntryClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareOeOrdItemDealAfterRegClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareOeOrdItemEntryClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareOeOrdItemTemplateClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCarePracticeDocPreOrderViewClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareUpdateOrdItemClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "QueryOeOrdItemClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "QueryOrderExecClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "UpdateOrderExecClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "UpdateOrderStatusClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareCtOeDriveComClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱驱动服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareCtOeRecLocDriveComClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱驱动服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareCtUnitDriveComClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱驱动服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareOeOrdItemCMDriveComClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱驱动服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareOrderDurationDriveComClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱驱动服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareOrderQtyDriveComClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱驱动服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCarePrescriptionClient",
+      "system": "门诊诊疗信息系统",
+      "module": "医嘱驱动服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "MultimediaCallClient",
+      "system": "门诊诊疗信息系统",
+      "module": "多媒体叫号服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "doc.config.patguide",
+      "system": "门诊诊疗信息系统",
+      "module": "导诊单配置",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "ContingClientClient",
+      "system": "门诊诊疗信息系统",
+      "module": "应急接诊服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "InitOeClient",
+      "system": "门诊诊疗信息系统",
+      "module": "应急接诊服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "InitPaadmClient",
+      "system": "门诊诊疗信息系统",
+      "module": "应急接诊服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "ImportClient",
+      "system": "门诊诊疗信息系统",
+      "module": "应急接诊服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "doc.patientinfoconfig",
+      "system": "门诊诊疗信息系统",
+      "module": "患者信息展示配置",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "doc.treatprintmainconfig",
+      "system": "门诊诊疗信息系统",
+      "module": "打印目录信息配置",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "ReceivePatientClient",
+      "system": "门诊诊疗信息系统",
+      "module": "接诊服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "ReceivePatientListClient",
+      "system": "门诊诊疗信息系统",
+      "module": "接诊服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpcareExamDealClient",
+      "system": "门诊诊疗信息系统",
+      "module": "检验检查服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareExamEntryClient",
+      "system": "门诊诊疗信息系统",
+      "module": "检验检查服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareExamQueryClient",
+      "system": "门诊诊疗信息系统",
+      "module": "检验检查服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpcareLisDealClient",
+      "system": "门诊诊疗信息系统",
+      "module": "检验检查服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpcarePisDealClient",
+      "system": "门诊诊疗信息系统",
+      "module": "检验检查服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpcarePisEntryClient",
+      "system": "门诊诊疗信息系统",
+      "module": "检验检查服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "DeleteOpCareMRDiagnosClient",
+      "system": "门诊诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "GetHistoryDiagnosClient",
+      "system": "门诊诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpcareLookUpICDClient",
+      "system": "门诊诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpCareMRSpecialDiagFormClient",
+      "system": "门诊诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "QueryAdmOtherInfoClient",
+      "system": "门诊诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "QueryMRDiagnosClient",
+      "system": "门诊诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "QueryOpcarePrescDiagnosClient",
+      "system": "门诊诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "SaveOpCareMRDiagnosClient",
+      "system": "门诊诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "SpecLocDataClient",
+      "system": "门诊诊疗信息系统",
+      "module": "诊断服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "doc.config.btnbar",
+      "system": "门诊诊疗信息系统",
+      "module": "门诊功能区按钮配置",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "doc.showinfoconfig.main",
+      "system": "门诊诊疗信息系统",
+      "module": "门诊框架显示信息配置",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "doc.workflow.config",
+      "system": "门诊诊疗信息系统",
+      "module": "门诊流程信息展示",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "doc.outpatientlistconfig",
+      "system": "门诊诊疗信息系统",
+      "module": "门诊队列设置",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "majorloc",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "主科室设置",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "othernametype",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "姓名类型",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "restorqueueno",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "恢复队列号",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "OpregPatClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "患者信息服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "admdiscount",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号减免配置",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "regtitlesrv",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号职称服务",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "ApptionmentClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号预约服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "ChgAdmReasonClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号预约服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "UpdateRegistionFeeInvClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号预约服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "AppointmentIhdDataSaveClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号预约服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "GetApptInfoClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号预约服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "GetInsuOPRegistInfoClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号预约服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "GetOpRegistInfoClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号预约服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "GetScheduleInfoClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号预约服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpDoctorRegistClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号预约服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpregAdmDriveClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号预约服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpregDealAdmClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号预约服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpregDealAppClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号预约服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpregistBrokerClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号预约服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpregistClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号预约服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "OpRegWaitClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号预约服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "SavePatAndApptionmentClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "挂号预约服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "empoweradm/locdoc/main/schedule",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "授权配置",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "rbspecgroup",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "排班专业组",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "rbtimerange",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "排班时间段",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "ScheduleImportClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "排班服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "SchedulePortalClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "排班服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "ScheduleTemplateImportClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "排班服务",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "rbservgroup",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "排班服务组",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "rbschdstatus",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "排班状态",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "rblocspec",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "排班科室专业",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "oprbresourceext",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "排班资源扩展",
+      "moduleClass": "基础配置"
+    },
+    {
+      "className": "othercredtype",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "证件类型",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "returnreason",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "退号原因",
+      "moduleClass": "基础数据"
+    },
+    {
+      "className": "CardInterfaceClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "集成平台标准接口",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "DocRegInterfaceClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "集成平台标准接口",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "QueryInterfaceClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "集成平台标准接口",
+      "moduleClass": "服务模组"
+    },
+    {
+      "className": "RegInterfaceClient",
+      "system": "门诊服务信息系统（注册挂号）",
+      "module": "集成平台标准接口",
+      "moduleClass": "服务模组"
+    }
+  ],
+  "moduleToWorkstation": [
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "门诊诊疗医师预约",
+      "systemModule": "门诊诊疗医师预约",
+      "versionName": "appointment-op"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "住院预约",
+      "systemModule": "住院预约",
+      "versionName": "appointment-ip"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "门诊患者列表",
+      "systemModule": "门诊患者列表",
+      "versionName": "patient-list-op"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "门诊转诊",
+      "systemModule": "门诊转诊",
+      "versionName": "patient-transfer-op"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "就诊登记",
+      "systemModule": "就诊登记",
+      "versionName": "patient-admission-op"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "患者退费",
+      "systemModule": "患者退费",
+      "versionName": "patient-refund-op"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "完成接诊",
+      "systemModule": "完成接诊",
+      "versionName": "complete-op"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "总览&打印",
+      "systemModule": "总览&打印",
+      "versionName": "browse-print"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "草药录入",
+      "systemModule": "草药录入",
+      "versionName": "cmorder-entry"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "医嘱录入",
+      "systemModule": "医嘱录入",
+      "versionName": "order-entry"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "病历文书",
+      "systemModule": "病历文书",
+      "versionName": "medical-record-doc"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "诊断录入",
+      "systemModule": "诊断录入",
+      "versionName": "diagnos-entry"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "检验检查申请",
+      "systemModule": "检验检查申请",
+      "versionName": "inspection-apply"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "治疗",
+      "systemModule": "治疗",
+      "versionName": "cure-handle"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "会诊",
+      "systemModule": "会诊",
+      "versionName": "consultation-handle"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "过敏记录",
+      "systemModule": "过敏记录",
+      "versionName": "allergy"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "检查报告",
+      "systemModule": "检查报告",
+      "versionName": "inspection-report"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "检验报告",
+      "systemModule": "检验报告",
+      "versionName": "test-report"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "危急值查询",
+      "systemModule": "危急值查询",
+      "versionName": "critical-value"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "公共卫生事件",
+      "systemModule": "公共卫生事件",
+      "versionName": "public-health"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "病情总览",
+      "systemModule": "病情总览",
+      "versionName": "patient-overview"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "临床路径",
+      "systemModule": "临床路径",
+      "versionName": "clinical-pathway"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "不良事件管理",
+      "systemModule": "不良事件管理",
+      "versionName": "ae-mgmt"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "常用维护",
+      "systemModule": "常用维护",
+      "versionName": "maintenance"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "统计查询",
+      "systemModule": "统计查询",
+      "versionName": "analytics"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "门诊诊疗医师首页",
+      "systemModule": "门诊诊疗医师首页",
+      "versionName": "home-op"
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "基本设置",
+      "systemModule": "基本设置",
+      "versionName": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "接收科室相关设置",
+      "systemModule": "接收科室相关设置",
+      "versionName": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "科室功能设置",
+      "systemModule": "科室功能设置",
+      "versionName": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "处方设置",
+      "systemModule": "处方设置",
+      "versionName": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "医嘱/药学项设置",
+      "systemModule": "医嘱/药学项设置",
+      "versionName": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "绑定医嘱设置",
+      "systemModule": "绑定医嘱设置",
+      "versionName": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "用法设置",
+      "systemModule": "用法设置",
+      "versionName": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "诊断设置",
+      "systemModule": "诊断设置",
+      "versionName": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "数据处理",
+      "systemModule": "数据处理",
+      "versionName": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "代码表维护与扩展",
+      "systemModule": "代码表维护与扩展",
+      "versionName": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "日志管理",
+      "systemModule": "日志管理",
+      "versionName": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "门诊诊疗",
+      "systemModule": "门诊诊疗",
+      "versionName": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "项目化配置",
+      "systemModule": "项目化配置",
+      "versionName": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "安全组功能授权",
+      "systemModule": "安全组功能授权",
+      "versionName": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "组件配置",
+      "systemModule": "组件配置",
+      "versionName": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "医生交班本",
+      "systemModule": "医生交班本",
+      "versionName": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "接口管理",
+      "systemModule": "接口管理",
+      "versionName": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "检查医嘱配置",
+      "systemModule": "检查医嘱配置",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院预约",
+      "systemModule": "住院预约",
+      "versionName": "appointment-ip"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "草药录入",
+      "systemModule": "草药录入",
+      "versionName": "cmorder-entry"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "医嘱录入",
+      "systemModule": "医嘱录入",
+      "versionName": "order-entry"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "病历文书",
+      "systemModule": "病历文书",
+      "versionName": "medical-record-doc"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "诊断录入",
+      "systemModule": "诊断录入",
+      "versionName": "diagnos-entry"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "检验检查申请",
+      "systemModule": "检验检查申请",
+      "versionName": "inspection-apply"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "治疗",
+      "systemModule": "治疗",
+      "versionName": "cure-handle"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "会诊",
+      "systemModule": "会诊",
+      "versionName": "consultation-handle"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "过敏记录",
+      "systemModule": "过敏记录",
+      "versionName": "allergy"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "检查报告",
+      "systemModule": "检查报告",
+      "versionName": "inspection-report"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "检验报告",
+      "systemModule": "检验报告",
+      "versionName": "test-report"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "危急值查询",
+      "systemModule": "危急值查询",
+      "versionName": "critical-value"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "公共卫生事件",
+      "systemModule": "公共卫生事件",
+      "versionName": "public-health"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "病情总览",
+      "systemModule": "病情总览",
+      "versionName": "patient-overview"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "信息总览",
+      "systemModule": "信息总览",
+      "versionName": "patient-ord-overview"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院患者列表",
+      "systemModule": "住院患者列表",
+      "versionName": "patient-list-ip"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院床位图",
+      "systemModule": "住院床位图",
+      "versionName": "patient-bedlist-ip"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "临床路径",
+      "systemModule": "临床路径",
+      "versionName": "clinical-pathway"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院处方打印",
+      "systemModule": "住院处方打印",
+      "versionName": "prescription-print"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "诊疗计划",
+      "systemModule": "诊疗计划",
+      "versionName": "treatment-plan"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "VTE辅助评估",
+      "systemModule": "VTE辅助评估",
+      "versionName": "vte-assess"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "手术治疗",
+      "systemModule": "手术治疗",
+      "versionName": "operation"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "输血治疗",
+      "systemModule": "输血治疗",
+      "versionName": "transfusion"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "患者出入转",
+      "systemModule": "患者出入转",
+      "versionName": "patient-admission-discharge-transfer"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "病历管理",
+      "systemModule": "病历管理",
+      "versionName": "emr-mgmt"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "不良事件管理",
+      "systemModule": "不良事件管理",
+      "versionName": "ae-mgmt"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "单病种管理",
+      "systemModule": "单病种管理",
+      "versionName": "single-disease-mgmt"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "院感管理",
+      "systemModule": "院感管理",
+      "versionName": "hosp-infection-mgmt"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "常用维护",
+      "systemModule": "常用维护",
+      "versionName": "maintenance"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "统计查询",
+      "systemModule": "统计查询",
+      "versionName": "analytics"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院诊疗医师首页",
+      "systemModule": "住院诊疗医师首页",
+      "versionName": "home-ip"
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "基本设置",
+      "systemModule": "基本设置",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "接收科室相关设置",
+      "systemModule": "接收科室相关设置",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "科室功能设置",
+      "systemModule": "科室功能设置",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "处方设置",
+      "systemModule": "处方设置",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "医嘱/药学项设置",
+      "systemModule": "医嘱/药学项设置",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "绑定医嘱设置",
+      "systemModule": "绑定医嘱设置",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "用法设置",
+      "systemModule": "用法设置",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "诊断设置",
+      "systemModule": "诊断设置",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "数据处理",
+      "systemModule": "数据处理",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "代码表维护与扩展",
+      "systemModule": "代码表维护与扩展",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "日志管理",
+      "systemModule": "日志管理",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "项目化配置",
+      "systemModule": "项目化配置",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "安全组功能授权",
+      "systemModule": "安全组功能授权",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "组件配置",
+      "systemModule": "组件配置",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "住院诊疗",
+      "systemModule": "住院诊疗",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "医生交班本",
+      "systemModule": "医生交班本",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "接口管理",
+      "systemModule": "接口管理",
+      "versionName": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": "检查医嘱配置",
+      "systemModule": "检查医嘱配置",
+      "versionName": ""
+    },
+    {
+      "system": "门诊服务信息系统（注册挂号）",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "注册挂号首页",
+      "systemModule": "注册挂号首页",
+      "versionName": "opreg-home"
+    },
+    {
+      "system": "门诊服务信息系统（注册挂号）",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "门诊注册建卡",
+      "systemModule": "门诊注册建卡",
+      "versionName": "patient-creat"
+    },
+    {
+      "system": "门诊服务信息系统（注册挂号）",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "卡管理",
+      "systemModule": "卡管理",
+      "versionName": "patient-card"
+    },
+    {
+      "system": "门诊服务信息系统（注册挂号）",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "排班维护",
+      "systemModule": "排班维护",
+      "versionName": "opreg-schedule"
+    },
+    {
+      "system": "门诊服务信息系统（注册挂号）",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "门诊预约",
+      "systemModule": "门诊预约",
+      "versionName": "opreg-app"
+    },
+    {
+      "system": "门诊服务信息系统（注册挂号）",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "门诊挂号",
+      "systemModule": "门诊挂号",
+      "versionName": "opreg-adm"
+    },
+    {
+      "system": "门诊服务信息系统（注册挂号）",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "预约登记查询统计",
+      "systemModule": "预约登记查询统计",
+      "versionName": "opreg-inquiry"
+    },
+    {
+      "system": "门诊服务信息系统（注册挂号）",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": "卡管理",
+      "systemModule": "卡管理配置",
+      "versionName": ""
+    },
+    {
+      "system": "门诊服务信息系统（注册挂号）",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": "患者注册",
+      "systemModule": "患者注册",
+      "versionName": ""
+    },
+    {
+      "system": "门诊服务信息系统（注册挂号）",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": "挂号设置",
+      "systemModule": "挂号设置",
+      "versionName": ""
+    },
+    {
+      "system": "门诊服务信息系统（注册挂号）",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": "排班管理",
+      "systemModule": "排班管理",
+      "versionName": ""
+    },
+    {
+      "system": "门诊服务信息系统（注册挂号）",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": "排班审批",
+      "systemModule": "排班审批",
+      "versionName": ""
+    },
+    {
+      "system": "门诊分诊系统",
+      "workstation": "门诊分诊工作站",
+      "workstationModule": "分诊",
+      "systemModule": "分诊",
+      "versionName": "opalloc-mgmt"
+    },
+    {
+      "system": "门诊分诊系统",
+      "workstation": "门诊分诊工作站",
+      "workstationModule": "分诊挂号",
+      "systemModule": "分诊挂号",
+      "versionName": "opalloc-reg"
+    },
+    {
+      "system": "门诊分诊系统",
+      "workstation": "门诊分诊工作站",
+      "workstationModule": "分诊统计查询",
+      "systemModule": "分诊统计查询",
+      "versionName": "opalloc-inquiry"
+    },
+    {
+      "system": "门诊分诊系统",
+      "workstation": "门诊分诊配置工作站",
+      "workstationModule": "分诊区维护",
+      "systemModule": "分诊区维护",
+      "versionName": ""
+    },
+    {
+      "system": "门诊分诊系统",
+      "workstation": "门诊分诊配置工作站",
+      "workstationModule": "分诊配置",
+      "systemModule": "分诊配置",
+      "versionName": ""
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "药物临床试验管理",
+      "systemModule": "药物临床试验管理",
+      "versionName": "pilot-mgmt"
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "药物临床试验筛选及预警",
+      "systemModule": "药物临床试验筛选及预警",
+      "versionName": "pilot-drug-screening"
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "临床受试者管理",
+      "systemModule": "临床受试者管理",
+      "versionName": "pilot-pat-list"
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "临床药理项目管理",
+      "systemModule": "临床药理项目管理",
+      "versionName": "pilot-doc-mgmt"
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "临床科研SAE",
+      "systemModule": "临床科研SAE",
+      "versionName": "pilot-sae"
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "临床试验受试者登记",
+      "systemModule": "临床试验受试者登记",
+      "versionName": "pilot-opadm-reg"
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验配置工作站",
+      "workstationModule": "药理试验配置",
+      "systemModule": "药理试验配置",
+      "versionName": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗申请",
+      "systemModule": "治疗申请",
+      "versionName": "curc-apply"
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗分诊",
+      "systemModule": "治疗分诊",
+      "versionName": "curc-alloc"
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗预约",
+      "systemModule": "治疗预约",
+      "versionName": "curc-app"
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗执行",
+      "systemModule": "治疗执行",
+      "versionName": "curc-execute"
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗处理",
+      "systemModule": "治疗处理",
+      "versionName": "curc-deal"
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗站查询统计",
+      "systemModule": "治疗站查询统计",
+      "versionName": "curc-inquiry"
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗配置工作站",
+      "workstationModule": "治疗科室配置",
+      "systemModule": "治疗科室配置",
+      "versionName": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗工作站",
+      "workstationModule": "化疗单",
+      "systemModule": "化疗单",
+      "versionName": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗工作站",
+      "workstationModule": "化疗床位管理",
+      "systemModule": "化疗床位管理",
+      "versionName": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗工作站",
+      "workstationModule": "化疗统计",
+      "systemModule": "化疗统计",
+      "versionName": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗配置工作站",
+      "workstationModule": "化疗模板配置",
+      "systemModule": "化疗模板配置",
+      "versionName": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗配置工作站",
+      "workstationModule": "化疗系统配置",
+      "systemModule": "化疗系统配置",
+      "versionName": ""
+    }
+  ],
+  "moduleDetails": [
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "门诊诊疗医师预约",
+      "moduleName": "预约&加号",
+      "versionName": "admission-appointment",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "门诊诊疗医师预约",
+      "moduleName": "就诊登记",
+      "versionName": "admission-reg",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "住院预约",
+      "moduleName": "住院证查询",
+      "versionName": "appointment-ip-search",
+      "description": "获取住院证标准数据模型列表",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "住院预约",
+      "moduleName": "开住院证",
+      "versionName": "appointment-ip-ins",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "门诊患者列表",
+      "moduleName": "患者列表",
+      "versionName": "diagnos-entry-this",
+      "description": "查询门诊患者列表",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "门诊患者列表",
+      "moduleName": "叫号及状态变更",
+      "versionName": "call-status-op",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "门诊转诊",
+      "moduleName": "转诊申请",
+      "versionName": "patient-transfer-op-application",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "门诊转诊",
+      "moduleName": "我的转诊",
+      "versionName": "patient-transfer-op-list",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "门诊转诊",
+      "moduleName": "我的接收",
+      "versionName": "patient-transfer-op-reception",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "就诊登记",
+      "moduleName": null,
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "患者退费",
+      "moduleName": "患者退费",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "完成接诊",
+      "moduleName": "完成接诊及跳转",
+      "versionName": "complete-op-redirect",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "完成接诊",
+      "moduleName": "接诊信息",
+      "versionName": "complete-op-info",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "总览&打印",
+      "moduleName": "总览&打印",
+      "versionName": "browse-print",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "草药录入",
+      "moduleName": "医嘱模板",
+      "versionName": "cmorder-entry-template",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "草药录入",
+      "moduleName": "处方明细草药录入",
+      "versionName": "cmorder-entry-this",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "草药录入",
+      "moduleName": "处方列表",
+      "versionName": "cmorder-entry-list",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "草药录入",
+      "moduleName": "医嘱字典库查询",
+      "versionName": "order-entry-dict-search",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "医嘱录入",
+      "moduleName": "医嘱模板",
+      "versionName": "order-entry-template",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "医嘱录入",
+      "moduleName": "医嘱列表",
+      "versionName": "order-entry-list",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "医嘱录入",
+      "moduleName": "本次医嘱录入",
+      "versionName": "order-entry-this",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "病历文书",
+      "moduleName": "病历文书",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "诊断录入",
+      "moduleName": "诊断模板",
+      "versionName": "diagnos-entry-template",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "诊断录入",
+      "moduleName": "历史诊断",
+      "versionName": "diagnos-entry-history",
+      "description": "获取历史诊断",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "诊断录入",
+      "moduleName": "本次诊断",
+      "versionName": "diagnos-entry-this",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "检验检查申请",
+      "moduleName": "申请单列表",
+      "versionName": "inspection-apply-list",
+      "description": "查询本次就诊的检查检验申请",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "检验检查申请",
+      "moduleName": "检查申请",
+      "versionName": "inspection-apply-exam",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "检验检查申请",
+      "moduleName": "检验申请",
+      "versionName": "inspection-apply-lab",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "检验检查申请",
+      "moduleName": "病理申请",
+      "versionName": "inspection-apply-pathology",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "治疗",
+      "moduleName": "治疗申请单",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "治疗",
+      "moduleName": "治疗状态查询",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "治疗",
+      "moduleName": "治疗医嘱执行",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "治疗",
+      "moduleName": "治疗申请工作量统计",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "会诊",
+      "moduleName": "会诊",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "过敏记录",
+      "moduleName": "过敏记录",
+      "versionName": "allergy-record",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "检查报告",
+      "moduleName": "检查报告查询",
+      "versionName": "inspection-report-list",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "检验报告",
+      "moduleName": "检验报告查询",
+      "versionName": "test-report-list",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "危急值查询",
+      "moduleName": "危急值查询",
+      "versionName": "critical-value-list",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "公共卫生事件",
+      "moduleName": "公共卫生事件",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "病情总览",
+      "moduleName": "病情总览",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "临床路径",
+      "moduleName": "临床路径",
+      "versionName": "",
+      "description": "获取住院患者临床路径信息",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "不良事件管理",
+      "moduleName": "不良事件管理",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "常用维护",
+      "moduleName": "诊断模板维护",
+      "versionName": "maintenance-diagnos",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "常用维护",
+      "moduleName": "医嘱模板维护",
+      "versionName": "maintenance-order",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "常用维护",
+      "moduleName": "医嘱套维护",
+      "versionName": "maintenance-ordsets",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "常用维护",
+      "moduleName": "常用用法维护",
+      "versionName": "maintenance-usage",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "常用维护",
+      "moduleName": "诊疗计划单模板维护",
+      "versionName": "treatment-plan-template-ct",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "统计查询",
+      "moduleName": "患者查询",
+      "versionName": "analytics-patient-search",
+      "description": "获取患者查询列表",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "统计查询",
+      "moduleName": "检验报告批量查询",
+      "versionName": "analytics-report-lab",
+      "description": "批量查询检查报告",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "统计查询",
+      "moduleName": "检查报告批量查询",
+      "versionName": "analytics-report-exam",
+      "description": "批量查询检验报告",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "统计查询",
+      "moduleName": "日间手术统计",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "统计查询",
+      "moduleName": "化疗方案查询",
+      "versionName": "analytics-chemotherapy",
+      "description": "化疗方案查询",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "统计查询",
+      "moduleName": "传染病报告查询",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "门诊诊疗医师首页",
+      "moduleName": "任务列表",
+      "versionName": "home-op-task",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "门诊诊疗医师首页",
+      "moduleName": "管理待办",
+      "versionName": "home-op-processing",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "门诊诊疗医师首页",
+      "moduleName": "关键指标",
+      "versionName": "home-op-kpi",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊诊疗信息系统",
+      "workstation": "门诊诊疗医师工作站",
+      "workstationModule": "门诊诊疗医师首页",
+      "moduleName": "消息列表",
+      "versionName": "home-op-message",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "常规设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医嘱子类扩展设定",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "草药录入设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医院设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检验绑定规则设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "批量补录医嘱设置（项目用）",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "皮试设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "停医嘱设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "草药加工方式收费设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "费别扩展设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "HOS门户指标设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医嘱首日设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "取药/出院带药接收科室定义",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "节假日接收科室定义",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "用法关联接收科室设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "科室扩展设定",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "科室费用限制（项目用）",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "接收科室药房设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "专科表单设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "血透科室",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "处方类型维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "病人类别与费别的对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "费别与处方的对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "分处方设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医嘱分类管控设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医嘱项扩展设定",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "出院带药医嘱扩展设定",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "自备药医嘱扩展设定",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "仅可开医嘱类型设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医嘱项条件医嘱设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "附加医嘱设定（按医嘱）",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "附加医嘱设定（按子类）",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "用法扩展设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "特殊用法设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "特殊诊断分类",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "药品适应症维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "诊断疗程限制",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "孕周诊断维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "诊断分类控制",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "复诊规则维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "常用维护中医嘱项替换",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医生模板数据导入导出",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "批量修改医嘱信息",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "数据取值与转换工具",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "疗程超量原因配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "门诊医生暂时离开原因",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码模块数据维护-模块代码及数据",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码模块数据维护-使用说明",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码模块数据维护-安全组授权",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "列扩展设定",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "业务更新日志设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "业务更新日志查询",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "错误代码注册",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "程序错误日志查询",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "操作日志注册",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "操作日志查询",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医嘱录入数据逻辑监测",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "住院证字典维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "住院证管控配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "门急诊导诊单配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "框架显示配置-患者信息显示配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "框架显示配置-门诊流程信息配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "框架显示配置-按钮栏配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "框架显示配置-打印目录信息配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "本地化参数设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "门诊医生站",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "住院医生站",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "诊断录入设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医嘱录入设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "诊疗页面设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码模块授权",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "页面表格列设置-页面表格列设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "页面元素属性设置-页面DOM设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "页面元素属性设置-页面消息设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "页面元素属性设置-页面快捷键设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "HISUI表格列设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "班次维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "班次类型",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "班次信息",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "交班类型配置-交班类型",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "交班类型配置-关联科室",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "交班类型配置-模板定义",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "交班类型配置-病人类型",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "交班类型配置-规则配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "数据源配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "模板配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "外部数据对照-代码表可对照字段维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "外部数据对照-代码表外部数据对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "外部数据对照-文本字段对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "外部接口服务配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "对外接口服务测试",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "外部接口接入管理-业务模块列表",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "外部接口接入管理-数据模块列表",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "内部接口注册",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查树维护-检查分类树维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查树维护-检查项目",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查树维护-部位",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查树数据导入",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查分类维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查检验系统设置-基本配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查检验系统设置-检查申请单配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查检验系统设置-检验申请单配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查检验系统设置-检查检验医嘱套设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码表维护与扩展-部位维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码表维护与扩展-体位维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码表维护与扩展-后处理方法维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码表维护与扩展-其它项目维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码表维护与扩展-注意事项维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医嘱项部位关联配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "多部位及申请单",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "病理申请配置-病理申请字典维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "病理申请配置-病理标本字典维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "病理申请配置-病理申请单维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "病理申请配置-病理申请状态维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "病理申请配置-PIS状态对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "病理申请配置-病理申请系统设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "病理申请配置-分子检测项目类型关联",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查报告图像阅读路径",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院预约",
+      "moduleName": "住院证查询",
+      "versionName": "appointment-ip-search",
+      "description": "获取住院证标准数据模型列表",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院预约",
+      "moduleName": "开住院证",
+      "versionName": "appointment-ip-ins",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "草药录入",
+      "moduleName": "医嘱模板",
+      "versionName": "cmorder-entry-template",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "草药录入",
+      "moduleName": "处方明细草药录入",
+      "versionName": "cmorder-entry-this",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "草药录入",
+      "moduleName": "处方列表",
+      "versionName": "cmorder-entry-list",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "草药录入",
+      "moduleName": "医嘱字典库查询",
+      "versionName": "order-entry-dict-search",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "医嘱录入",
+      "moduleName": "医嘱模板",
+      "versionName": "order-entry-template",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "医嘱录入",
+      "moduleName": "医嘱列表",
+      "versionName": "order-entry-list",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "医嘱录入",
+      "moduleName": "本次医嘱录入",
+      "versionName": "order-entry-this",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "病历文书",
+      "moduleName": "病历文书",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "诊断录入",
+      "moduleName": "诊断模板",
+      "versionName": "diagnos-entry-template",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "诊断录入",
+      "moduleName": "历史诊断",
+      "versionName": "diagnos-entry-history",
+      "description": "获取历史诊断",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "诊断录入",
+      "moduleName": "本次诊断",
+      "versionName": "diagnos-entry-this",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "检验检查申请",
+      "moduleName": "申请单列表",
+      "versionName": "inspection-apply-list",
+      "description": "查询本次就诊的检查检验申请",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "检验检查申请",
+      "moduleName": "检查申请",
+      "versionName": "inspection-apply-exam",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "检验检查申请",
+      "moduleName": "检验申请",
+      "versionName": "inspection-apply-lab",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "检验检查申请",
+      "moduleName": "病理申请",
+      "versionName": "inspection-apply-pathology",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "治疗",
+      "moduleName": "治疗申请单",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "治疗",
+      "moduleName": "治疗状态查询",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "治疗",
+      "moduleName": "治疗医嘱执行",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "治疗",
+      "moduleName": "治疗申请工作量统计",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "会诊",
+      "moduleName": "会诊",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "过敏记录",
+      "moduleName": "过敏记录",
+      "versionName": "allergy-record",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "检查报告",
+      "moduleName": "检查报告查询",
+      "versionName": "inspection-report-list",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "检验报告",
+      "moduleName": "检验报告查询",
+      "versionName": "test-report-list",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "危急值查询",
+      "moduleName": "危急值查询",
+      "versionName": "critical-value-list",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "公共卫生事件",
+      "moduleName": "公共卫生事件",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "病情总览",
+      "moduleName": "病情总览",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "信息总览",
+      "moduleName": "病历质控",
+      "versionName": "patient-ord-overview-quality",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "信息总览",
+      "moduleName": "患者诊疗信息",
+      "versionName": "patient-ord-overview-treatment-information",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "信息总览",
+      "moduleName": "患者医嘱处理列表",
+      "versionName": "patient-ord-overview-operation",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院患者列表",
+      "moduleName": "住院患者列表",
+      "versionName": "patient-list-ip-details",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院床位图",
+      "moduleName": "住院床位图",
+      "versionName": "patient-bedlist-ip-details",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "临床路径",
+      "moduleName": "临床路径",
+      "versionName": "",
+      "description": "获取住院患者临床路径信息",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院处方打印",
+      "moduleName": "住院处方打印",
+      "versionName": "prescription-print-ip",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "诊疗计划",
+      "moduleName": "诊疗计划单",
+      "versionName": "treatment-plan",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "诊疗计划",
+      "moduleName": "诊疗计划单模板",
+      "versionName": "treatment-plan-template",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "VTE辅助评估",
+      "moduleName": "VTE辅助评估",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "手术治疗",
+      "moduleName": "手术治疗",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "输血治疗",
+      "moduleName": "输血治疗",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "患者出入转",
+      "moduleName": "患者出入转",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "病历管理",
+      "moduleName": "病历管理",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "不良事件管理",
+      "moduleName": "不良事件管理",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "单病种管理",
+      "moduleName": "单病种管理",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "院感管理",
+      "moduleName": "院感管理",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "常用维护",
+      "moduleName": "诊断模板维护",
+      "versionName": "maintenance-diagnos",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "常用维护",
+      "moduleName": "医嘱模板维护",
+      "versionName": "maintenance-order",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "常用维护",
+      "moduleName": "医嘱套维护",
+      "versionName": "maintenance-ordsets",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "常用维护",
+      "moduleName": "常用用法维护",
+      "versionName": "maintenance-usage",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "常用维护",
+      "moduleName": "诊疗计划单模板维护",
+      "versionName": "treatment-plan-template-ct",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "统计查询",
+      "moduleName": "患者查询",
+      "versionName": "analytics-patient-search",
+      "description": "获取患者查询列表",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "统计查询",
+      "moduleName": "检验报告批量查询",
+      "versionName": "analytics-report-lab",
+      "description": "批量查询检查报告",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "统计查询",
+      "moduleName": "检查报告批量查询",
+      "versionName": "analytics-report-exam",
+      "description": "批量查询检验报告",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "统计查询",
+      "moduleName": "日间手术统计",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "统计查询",
+      "moduleName": "化疗方案查询",
+      "versionName": "analytics-chemotherapy",
+      "description": "化疗方案查询",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "统计查询",
+      "moduleName": "传染病报告查询",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院诊疗医师首页",
+      "moduleName": "任务列表",
+      "versionName": "home-ip-task",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院诊疗医师首页",
+      "moduleName": "入出院人次",
+      "versionName": "home-ip",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院诊疗医师首页",
+      "moduleName": "护理级别",
+      "versionName": "home-ip",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院诊疗医师首页",
+      "moduleName": "病危病重",
+      "versionName": "home-ip",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院诊疗医师首页",
+      "moduleName": "病历质控",
+      "versionName": "home-ip",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院诊疗医师首页",
+      "moduleName": "管理待办",
+      "versionName": "home-ip-processing",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院诊疗医师首页",
+      "moduleName": "关键指标",
+      "versionName": "home-ip-kpi",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "住院诊疗信息系统",
+      "workstation": "住院诊疗医师工作站",
+      "workstationModule": "住院诊疗医师首页",
+      "moduleName": "消息列表",
+      "versionName": "home-ip-message",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "常规设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医嘱子类扩展设定",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "草药录入设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医院设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检验绑定规则设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "批量补录医嘱设置（项目用）",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "皮试设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "停医嘱设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "草药加工方式收费设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "费别扩展设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "HOS门户指标设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医嘱首日设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "取药/出院带药接收科室定义",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "节假日接收科室定义",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "用法关联接收科室设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "科室扩展设定",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "科室费用限制（项目用）",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "接收科室药房设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "专科表单设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "血透科室",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "处方类型维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "病人类别与费别的对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "费别与处方的对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "分处方设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医嘱分类管控设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医嘱项扩展设定",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "出院带药医嘱扩展设定",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "自备药医嘱扩展设定",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "仅可开医嘱类型设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医嘱项条件医嘱设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "附加医嘱设定（按医嘱）",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "附加医嘱设定（按子类）",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "用法扩展设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "特殊用法设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "特殊诊断分类",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "药品适应症维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "诊断疗程限制",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "孕周诊断维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "诊断分类控制",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "复诊规则维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "常用维护中医嘱项替换",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医生模板数据导入导出",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "批量修改医嘱信息",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "数据取值与转换工具",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "疗程超量原因配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "门诊医生暂时离开原因",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码模块数据维护-模块代码及数据",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码模块数据维护-使用说明",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码模块数据维护-安全组授权",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "列扩展设定",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "业务更新日志设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "业务更新日志查询",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "错误代码注册",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "程序错误日志查询",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "操作日志注册",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "操作日志查询",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医嘱录入数据逻辑监测",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "本地化参数设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "门诊医生站",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "住院医生站",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "诊断录入设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医嘱录入设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "诊疗页面设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码模块授权",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "页面表格列设置-页面表格列设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "页面元素属性设置-页面DOM设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "页面元素属性设置-页面消息设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "页面元素属性设置-页面快捷键设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "HISUI表格列设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "住院信息总览设置-病人在院长嘱归类",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "住院信息总览设置-特殊医嘱归类",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "住院信息总览设置-医疗待办",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "班次维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "班次类型",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "班次信息",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "交班类型配置-交班类型",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "交班类型配置-关联科室",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "交班类型配置-模板定义",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "交班类型配置-病人类型",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "交班类型配置-规则配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "数据源配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "模板配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "外部数据对照-代码表可对照字段维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "外部数据对照-代码表外部数据对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "外部数据对照-文本字段对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "外部接口服务配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "对外接口服务测试",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "外部接口接入管理-业务模块列表",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "外部接口接入管理-数据模块列表",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "内部接口注册",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查树维护-检查分类树维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查树维护-检查项目",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查树维护-部位",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查树数据导入",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查分类维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查检验系统设置-基本配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查检验系统设置-检查申请单配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查检验系统设置-检验申请单配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查检验系统设置-检查检验医嘱套设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码表维护与扩展-部位维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码表维护与扩展-体位维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码表维护与扩展-后处理方法维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码表维护与扩展-其它项目维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "代码表维护与扩展-注意事项维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "医嘱项部位关联配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "多部位及申请单",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "病理申请配置-病理申请字典维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "病理申请配置-病理标本字典维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "病理申请配置-病理申请单维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "病理申请配置-病理申请状态维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "病理申请配置-PIS状态对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "病理申请配置-病理申请系统设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "病理申请配置-分子检测项目类型关联",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "诊疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "检查报告图像阅读路径",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "注册挂号首页",
+      "moduleName": null,
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "门诊注册建卡",
+      "moduleName": "建立患者基本信息",
+      "versionName": "patient-creat-base",
+      "description": "登记患者个人信息，包括姓名、性别、证件等",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "门诊注册建卡",
+      "moduleName": "建立患者社会信息",
+      "versionName": "patient-creat-social",
+      "description": "登记患者社会关系信息，包括婚姻、学历、工作等信息",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "门诊注册建卡",
+      "moduleName": "建立患者住址信息",
+      "versionName": "patient-creat-base",
+      "description": "登记住址信息，包括现住址、户籍地、户口地等信息",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "门诊注册建卡",
+      "moduleName": "登记患者预交金账户信息",
+      "versionName": "patient-creat-acc",
+      "description": "填写患者预缴费相关信息，创建个人院内账户，并提前充值一定金额。",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "门诊注册建卡",
+      "moduleName": "患者信息浏览",
+      "versionName": "patient-list",
+      "description": "通过各类组合条件，查询库中已存在的患者信息",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "卡管理",
+      "moduleName": "患者个人信息合并",
+      "versionName": "patient-card-merge",
+      "description": "用于治理主索引唯一性，将同一患者因重复建档、跨系统就诊、昏迷收治等情况下产生的多条重复档案，合并为唯一、完整、连续的主档案",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "卡管理",
+      "moduleName": "患者信息修改",
+      "versionName": "patient-card-update",
+      "description": "调整患者个人信息",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "卡管理",
+      "moduleName": "卡操作",
+      "versionName": "patient-card-operation",
+      "description": "为确保患者个人信息的安全性，部分患者的院内唯一凭证遗失或更换后，可以基于卡操作功能进行挂失、补卡、换卡等操作",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "排班维护",
+      "moduleName": "分时段信息维护模块",
+      "versionName": "opreg-schedule-timerange-edit",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "排班维护",
+      "moduleName": "分时段模板维护",
+      "versionName": "opreg-schedule-timerange-template",
+      "description": "考虑到各科室、医生的诊疗特殊性，可通过预设“院区-科室-医生”的分时段出诊模板，规范管理各号源的投放规则，提供维护号源分时段信息的便捷功能",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "排班维护",
+      "moduleName": "门诊医生出诊信息维护模块",
+      "versionName": "opreg-schedule-detail-edit",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "排班维护",
+      "moduleName": "门诊医生出诊的排班模板浏览模块",
+      "versionName": "opreg-schedule-template-find",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "排班维护",
+      "moduleName": "门诊医生出诊的排班模板",
+      "versionName": "opreg-schedule-template",
+      "description": "基于门诊医生出诊的基本规律，维护其具体医生的出诊周期、放号人数、放号渠道等信息，最终整理成一份便于后续生成坐诊记录的排班模板",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "排班维护",
+      "moduleName": "排班模板批量修改",
+      "versionName": "opreg-schedule-template-batch",
+      "description": "因医生离职、职称调整等原因，批量处理已维护的模板",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "排班维护",
+      "moduleName": "生成门诊医生出诊记录",
+      "versionName": "opreg-schedule-batchcreat",
+      "description": "基于排班模板的数据，生成未来一段时间内的医生出诊记录，用于患者在各渠道进行预约挂号",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "排班维护",
+      "moduleName": "复制出诊记录",
+      "versionName": "opreg-schedule-copy",
+      "description": "将一段时间的出诊信息，批量复制到指定日期内",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "排班维护",
+      "moduleName": "门诊医生出诊信息调整",
+      "versionName": "opreg-schedule-update",
+      "description": "可针对已生成排班进行修改出诊限额、停诊、替诊、补诊、撤销停诊、撤销替诊、停号等操作，也可以新增临时出诊记录。主要用于处理门诊出诊时的计划外情况，是排班人员的主要工作内容",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "排班维护",
+      "moduleName": "门诊医生出诊信息审批",
+      "versionName": "opreg-schedule-approve",
+      "description": "可选功能，由科室自行调整的排班，包括新增、停诊、加诊、补诊等操作，需要由门办统一审批后才能生效",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "排班维护",
+      "moduleName": "长时段停诊",
+      "versionName": "opreg-schedule-longstop",
+      "description": "因进修、调岗等原因，针对某科室医生做长时间停诊",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "排班维护",
+      "moduleName": "坐诊信息批量处理",
+      "versionName": "opreg-schedule-batch",
+      "description": "批量处理已生成的医生坐诊信息，包括停诊、撤销听证、替诊、撤销替诊、删除排班等",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "门诊预约",
+      "moduleName": "患者查询模块",
+      "versionName": "opreg-pat-find",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "门诊预约",
+      "moduleName": "科室查询模块",
+      "versionName": "opreg-loc-find",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "门诊预约",
+      "moduleName": "排班记录查询模块",
+      "versionName": "opreg-schedule-find",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "门诊预约",
+      "moduleName": "预约",
+      "versionName": "opreg-app-creat",
+      "description": "提供多渠道预约方式，供患者提前锁定门诊出诊号源",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "门诊预约",
+      "moduleName": "预约信息一栏表",
+      "versionName": "opreg-app-find",
+      "description": "查询预约记录",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "门诊预约",
+      "moduleName": "取消预约",
+      "versionName": "opreg-app-cancel",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "门诊挂号",
+      "moduleName": "挂号",
+      "versionName": "opreg-adm-creat",
+      "description": "完成患者就诊资格确认、时段分配与费用收取，为后续诊疗环节提供合法有效的就诊凭证。包含预约挂号和现场挂号，既是预约患者的取号入口，也是无预约患者的即时就诊通道。",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "门诊挂号",
+      "moduleName": "退号",
+      "versionName": "opreg-adm-cancel",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "预约登记查询统计",
+      "moduleName": "门诊医生出诊查询",
+      "versionName": "opreg-inquiry-schedule-find",
+      "description": "查询医生具体的出诊信息，包括剩余号、已挂出数等信息",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "预约登记查询统计",
+      "moduleName": "办卡退卡统计",
+      "versionName": "opreg-inquiry-card-caseload",
+      "description": "统计一段时间内的办卡退卡量",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "预约登记查询统计",
+      "moduleName": "患者信息修改查询",
+      "versionName": "opreg-inquiry-patient-update-log",
+      "description": "患者个人信息的调整日志记录",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "预约登记查询统计",
+      "moduleName": "患者个人信息合并查询",
+      "versionName": "opreg-inquiry-patient-merge-log",
+      "description": "查询主索引合并日志信息",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "预约登记查询统计",
+      "moduleName": "卡查询",
+      "versionName": "opreg-inquiry-patient-card-find",
+      "description": "基于患者提供的部分信息进行检索，查询是否进行过内院主索引登记",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "预约登记查询统计",
+      "moduleName": "卡管理查询",
+      "versionName": "opreg-inquiry-patient-card-update-log",
+      "description": "查询卡操作的日志记录",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "预约登记查询统计",
+      "moduleName": "停替诊查询",
+      "versionName": "opreg-inquiry-schedule-update",
+      "description": "查询门诊出诊的停替诊信息",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "预约登记查询统计",
+      "moduleName": "号源信息汇总查询",
+      "versionName": "opreg-inquiry-schedule-left",
+      "description": "汇总一段时间内各科室的放号总数与剩余号总数信息",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "预约登记查询统计",
+      "moduleName": "挂号查询",
+      "versionName": "opreg-inquiry-adm-caseload",
+      "description": "查询历史挂号记录，支持多种组合查询条件",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊服务信息系统",
+      "workstation": "注册挂号工作站",
+      "workstationModule": "预约登记查询统计",
+      "moduleName": "建/换/补卡统计",
+      "versionName": "opreg-inquiry-card-update-caseload-details",
+      "description": "查询某段时间内的患者信息操作明细",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "购入",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "发放",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "设备类型维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "卡类型配置-基本操作",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "卡类型配置-卡类型维护页面元素说明",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "卡类型配置-卡类型功能按钮说明",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "设备接口参数配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "注册配置-页面基本元素",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "注册配置-全局配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "注册配置-基础数据排序",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "注册权限配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "特殊患者管理",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "挂号系统参数设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "挂号优惠设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "科室扩展设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "挂号授权",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "排序规则定义",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "挂号附加医嘱设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "黑名单类型维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "释放号源设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "专业组维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "科室与专业组对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "护士站加号权限维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "退号原因维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "患者黑名单维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "一二级科室维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "跨科诊间预约号别配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "挂号看诊数量实时汇总",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "医保上传代码对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "医护人员类型与职称对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "医生号别对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "出诊级别设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "出诊时段维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "医生默认设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "基于出诊记录的挂号及分诊常规配置数据监测",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "排班服务组",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "排班状态维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "班次信息维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "分时段模板维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "排班模板",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "排班模板批量修改",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "医生坐诊信息",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "生成坐诊信息",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "复制出诊记录",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "迁移出诊记录",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "长时段停诊",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "坐诊信息批量处理",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "排班报表",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "排班审批配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "排班申请查询",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "注册挂号配置工作站",
+      "workstationModule": null,
+      "moduleName": "排班申请审批",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊分诊系统",
+      "workstation": "门诊分诊工作站",
+      "workstationModule": "分诊",
+      "moduleName": "诊区患者浏览模块",
+      "versionName": "opalloc-find",
+      "description": "从多维度调取当前诊区患者排队与诊室接诊数据，为诊区现场调度、患者咨询解答、就诊秩序维护提供数据支撑",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊分诊系统",
+      "workstation": "门诊分诊工作站",
+      "workstationModule": "分诊",
+      "moduleName": "分诊操作模块",
+      "versionName": "opalloc-status-update",
+      "description": "患者抵达分诊台后，护士根据其不同的就诊需求，调整分诊状态，可以选择报到、复诊、优先、指定医生等操作",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊分诊系统",
+      "workstation": "门诊分诊工作站",
+      "workstationModule": "分诊",
+      "moduleName": "辅助检查模块",
+      "versionName": "opalloc-auxiliary-exam",
+      "description": "分诊护士在医生接诊前，对患者的生命体征等信息做辅助检查登记",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊分诊系统",
+      "workstation": "门诊分诊工作站",
+      "workstationModule": "分诊挂号",
+      "moduleName": "分诊挂号",
+      "versionName": "opalloc-reg",
+      "description": "完成患者就诊资格确认、时段分配与费用收取，为后续诊疗环节提供合法有效的就诊凭证。",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊分诊系统",
+      "workstation": "门诊分诊工作站",
+      "workstationModule": "分诊统计查询",
+      "moduleName": "分诊工作量统计",
+      "versionName": "opalloc-caseload",
+      "description": "统计各分诊人员一段时间内的分诊工作量",
+      "interfaceClass": ""
+    },
+    {
+      "system": "门诊分诊系统",
+      "workstation": "门诊分诊工作站",
+      "workstationModule": "分诊统计查询",
+      "moduleName": "队列状态改变查询",
+      "versionName": "opalloc-status-log",
+      "description": "查询患者的分诊日志信息",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "门诊分诊配置工作站",
+      "workstationModule": null,
+      "moduleName": "分诊区维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": "ct_paadm_op_alloc_borough"
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "门诊分诊配置工作站",
+      "workstationModule": null,
+      "moduleName": "分诊区诊室对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": "ct_paadm_op_alloc_borough"
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "门诊分诊配置工作站",
+      "workstationModule": null,
+      "moduleName": "分诊区科室对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": "ct_paadm_op_alloc_borough"
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "门诊分诊配置工作站",
+      "workstationModule": null,
+      "moduleName": "分诊区号别对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": "ct_paadm_op_alloc_borough"
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "门诊分诊配置工作站",
+      "workstationModule": null,
+      "moduleName": "患者待诊列表排序规则",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": "ct_paadm_op_alloc_borough"
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "门诊分诊配置工作站",
+      "workstationModule": null,
+      "moduleName": "操作员诊区对照",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "门诊分诊配置工作站",
+      "workstationModule": null,
+      "moduleName": "分诊状态维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "门诊分诊配置工作站",
+      "workstationModule": null,
+      "moduleName": "分诊优先级维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "门诊分诊配置工作站",
+      "workstationModule": null,
+      "moduleName": "二次分诊设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "药物临床试验管理",
+      "moduleName": "建立临床药物试验基本信息模块",
+      "versionName": "pilot-creat-base",
+      "description": "登记临床试验的基本信息",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "药物临床试验管理",
+      "moduleName": "建立临床药物试验CRO信息模块",
+      "versionName": "pilot-creat-cro",
+      "description": "登记临床试验的CRO信息",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "药物临床试验管理",
+      "moduleName": "立项",
+      "versionName": "pilot-creat",
+      "description": "登记临床试验的相关内容",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "药物临床试验管理",
+      "moduleName": "项目查询模块",
+      "versionName": "pilot-find",
+      "description": "按照各类组合条件，检索符合条件的立项项目",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "药物临床试验管理",
+      "moduleName": "项目浏览模块",
+      "versionName": "pilot-list",
+      "description": "以列表的形式展示符合条件的立项项目及详细内容",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "药物临床试验管理",
+      "moduleName": "项目管理",
+      "versionName": "pilot-update",
+      "description": "调整已登记的临床试验项目，增加相关付款记录，填报免费药品范围及禁用药品范围等内容",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "药物临床试验筛选及预警",
+      "moduleName": "筛选指标填报",
+      "versionName": "pilot-drug-screening-target",
+      "description": "从患者基本信息、诊疗内容、检验结果等多个方向，管理筛选指标",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "药物临床试验筛选及预警",
+      "moduleName": "筛选结果",
+      "versionName": "pilot-drug-screening-result",
+      "description": "根据指标内容，定期生成筛选结果，管理人可以在手工浏览患者诊疗视图，进行二次手工筛选",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "临床受试者管理",
+      "moduleName": "临床受试者列表",
+      "versionName": "pilot-pat-list",
+      "description": "临床试验项目组成员浏览在组患者，查看各患者受试详情信息。",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "临床受试者管理",
+      "moduleName": "加入科研受试项目",
+      "versionName": "pilot-pat-add",
+      "description": "招募新患者至临床受试项目",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "临床受试者管理",
+      "moduleName": "入组状态变更",
+      "versionName": "pilot-pat-update",
+      "description": "根据患者受试阶段，调整患者受试状态，包括完成试验、中途推出、撤销受试",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "临床受试者管理",
+      "moduleName": "阶段变更",
+      "versionName": "pilot-pat-phase",
+      "description": "调整患者受试阶段",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "临床药理项目管理",
+      "moduleName": "项目参与人维护",
+      "versionName": "pilot-doc-mgmt",
+      "description": "有项目负责人或项目骨干成员，维护所属项目的参与人员，包括添加、删除等。",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "临床科研SAE",
+      "moduleName": null,
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床试验管理系统",
+      "workstation": "临床试验工作站",
+      "workstationModule": "临床试验受试者登记",
+      "moduleName": "临床试验受试者登记",
+      "versionName": "pilot-opadm-reg",
+      "description": "给在组试验患者做就诊登记，衔接后续诊疗活动",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "临床试验配置工作站",
+      "workstationModule": null,
+      "moduleName": "药理试验-系统参数设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "临床试验配置工作站",
+      "workstationModule": null,
+      "moduleName": "药理试验-科研专业组设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "临床试验配置工作站",
+      "workstationModule": null,
+      "moduleName": "药理试验-立项",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "临床试验配置工作站",
+      "workstationModule": null,
+      "moduleName": "药理试验-项目管理-主界面",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "临床试验配置工作站",
+      "workstationModule": null,
+      "moduleName": "药理试验-项目管理-立项",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "临床试验配置工作站",
+      "workstationModule": null,
+      "moduleName": "药理试验-项目管理-修改项目",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "临床试验配置工作站",
+      "workstationModule": null,
+      "moduleName": "药理试验-项目管理-阶段设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "临床试验配置工作站",
+      "workstationModule": null,
+      "moduleName": "药理试验-项目管理-免费医嘱设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "临床试验配置工作站",
+      "workstationModule": null,
+      "moduleName": "药理试验-项目管理-一键复制免费医嘱",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "临床试验配置工作站",
+      "workstationModule": null,
+      "moduleName": "药理试验-项目管理-付款记录",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "临床试验配置工作站",
+      "workstationModule": null,
+      "moduleName": "药理试验-项目管理-药品维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "临床试验配置工作站",
+      "workstationModule": null,
+      "moduleName": "药理试验-项目管理-医嘱录入限制",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "临床试验配置工作站",
+      "workstationModule": null,
+      "moduleName": "药理试验审核权限配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗申请",
+      "moduleName": "治疗项目申请模块",
+      "versionName": "curc-apply-item",
+      "description": "临床医师提交治疗项目申请",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗申请",
+      "moduleName": "治疗评定申请模块",
+      "versionName": "curc-apply-assess",
+      "description": "临床医师提交治疗评估申请",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗申请",
+      "moduleName": "治疗申请模板",
+      "versionName": "curc-apply-template",
+      "description": "在提交申请时，可以使用的便捷模板，供医师选择使用",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗申请",
+      "moduleName": "治疗申请浏览",
+      "versionName": "curc-apply-list",
+      "description": "浏览已经提交的治疗申请，查看治疗进度",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗申请",
+      "moduleName": "治疗申请详情浏览模块",
+      "versionName": "curc-apply-detail",
+      "description": "以表单形式展示治疗申请的详情信息",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗申请",
+      "moduleName": "治疗医嘱执行",
+      "versionName": "curc-apply-execute",
+      "description": "部分治疗医嘱不需要治疗科室参与，可以通过医嘱执行功能做便捷操作",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗分诊",
+      "moduleName": "治疗分配模块",
+      "versionName": "curc-alloc-do",
+      "description": "治疗分诊护士根据病人实际情况、治理医师当前已分配的人数调整并分配治疗申请到相应的治疗医师，给病人完成分诊操作。分配后也可进行相应的撤销操作",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗分诊",
+      "moduleName": "治疗分流浏览模块",
+      "versionName": "curc-status-find",
+      "description": "从多维度调取当前诊区患者排队信息，为诊区现场调度、患者咨询解答、就诊秩序维护提供数据支撑",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗分诊",
+      "moduleName": "治疗分流操作模块",
+      "versionName": "curc-status-update",
+      "description": "患者按照预约时间，抵达治疗诊区后先报到，后等待就诊，包括报到、取消报到",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗预约",
+      "moduleName": "治疗预约资源浏览",
+      "versionName": "curc-app-schedule",
+      "description": "浏览预约资源",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗预约",
+      "moduleName": "治疗预约",
+      "versionName": "curc-app-do",
+      "description": "选择可用的预约资源，做治疗预约。住院患者一般按医嘱时间自动预约。",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗执行",
+      "moduleName": "治疗查询模块",
+      "versionName": "curc-item-find",
+      "description": "按照各类组合条件，查询符合条件的治疗记录",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗执行",
+      "moduleName": "治疗患者浏览模块",
+      "versionName": "curc-pat-list",
+      "description": "汇总展示符合查询条件的患者队列",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗执行",
+      "moduleName": "治疗申请浏览模块",
+      "versionName": "curc-item-list",
+      "description": "展示符合条件的治疗申请记录",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗执行",
+      "moduleName": "治疗接诊模块",
+      "versionName": "curc-receive",
+      "description": "治疗医师按照患者队列，有序呼叫患者进入治疗室进行处置，包括加号、过号功能",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗执行",
+      "moduleName": "治疗费用补录",
+      "versionName": "curc-addfee",
+      "description": "补录费用",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗执行",
+      "moduleName": "治疗记录浏览",
+      "versionName": "curc-execute-list",
+      "description": "按申请查看治疗执行记录",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗执行",
+      "moduleName": "治疗执行模块",
+      "versionName": "curc-execute-item-do",
+      "description": "操作患者治疗记录，包括执行、撤销执行",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗执行",
+      "moduleName": "治疗评估",
+      "versionName": "curc-execute-assess",
+      "description": "进行治疗评估，填写治疗评估单",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗处理",
+      "moduleName": "治疗处理接诊模块",
+      "versionName": "curc-deal-patlist",
+      "description": "预约到当天治疗的患者列表，顺序呼叫接诊",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗站查询统计",
+      "moduleName": "治疗站工作量统计",
+      "versionName": "curc-inquiry-caseload",
+      "description": "治疗工作量统计，可按个人、科室进行统计，查看治疗项目完成率",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗站查询统计",
+      "moduleName": "治疗资源时间表",
+      "versionName": "curc-inquiry-schedule",
+      "description": "查看各科室治疗预约资源",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗站查询统计",
+      "moduleName": "治疗患者申请查询",
+      "versionName": "curc-inquiry-pat-apply-list",
+      "description": "按各类组合条件，查询患者申请信息",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗站查询统计",
+      "moduleName": "治疗预约患者查询",
+      "versionName": "curc-inquiry-app-list",
+      "description": "查询患者预约记录",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗站查询统计",
+      "moduleName": "患者治疗记录图片查询",
+      "versionName": "curc-inquiry-apply-recordimage",
+      "description": "查询历史治疗记录图片",
+      "interfaceClass": ""
+    },
+    {
+      "system": "康复治疗系统",
+      "workstation": "康复治疗科室工作站",
+      "workstationModule": "治疗站查询统计",
+      "moduleName": "治疗记录结果查询",
+      "versionName": "curc-inquiry-record-report",
+      "description": "查询历史治疗结果",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "康复治疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "治疗-系统参数配置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "康复治疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "治疗-分类设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "康复治疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "治疗-服务组维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "康复治疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "治疗-项目设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "康复治疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "治疗-科室扩展设置",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "康复治疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "治疗-单据模板维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "康复治疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "治疗-报到状态",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "康复治疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "治疗-评定量表维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "康复治疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "治疗-部位/穴位维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "iDIP_医院信息管理系统",
+      "workstation": "康复治疗配置工作站",
+      "workstationModule": null,
+      "moduleName": "治疗-部位/穴位组维护",
+      "versionName": "",
+      "description": "",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗工作站",
+      "workstationModule": "化疗单",
+      "moduleName": "当前方案",
+      "versionName": "chemo-aform-plan-cur",
+      "description": "查询当前有效的化疗方案",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗工作站",
+      "workstationModule": "化疗单",
+      "moduleName": "历史方案",
+      "versionName": "chemo-aform-plan-his",
+      "description": "查询历史的化疗方案记录",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗工作站",
+      "workstationModule": "化疗单",
+      "moduleName": "化疗模板",
+      "versionName": "chemo-aform-plan-template",
+      "description": "查询当前用户可用的化疗方案模板",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗工作站",
+      "workstationModule": "化疗单",
+      "moduleName": "化疗日期变更",
+      "versionName": "chemo-aform-plan-date",
+      "description": "调整化疗单的化疗开始日期、化疗结束日期、添加化疗日期等。",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗工作站",
+      "workstationModule": "化疗单",
+      "moduleName": "化疗医嘱录入",
+      "versionName": "chemo-aform-plan-order",
+      "description": "根据模版调整化疗医嘱，包括删除、修改、添加等功能。",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗工作站",
+      "workstationModule": "化疗单",
+      "moduleName": "化疗方案状态变更",
+      "versionName": "chemo-aform-plan-status",
+      "description": "对化疗方案进行删除、完成、暂存等操作。",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗工作站",
+      "workstationModule": "化疗单",
+      "moduleName": "化疗基本信息",
+      "versionName": "chemo-aform-plan-baseinfo",
+      "description": "化疗基本信息：包括知情同意书、癌症分期、癌症诊断、治疗类别、检验检查备注、生命体征信息等。",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗工作站",
+      "workstationModule": "化疗床位管理",
+      "moduleName": "患者列表",
+      "versionName": "chemo-bed-patlist",
+      "description": "展示化疗未预约患者、已预约患者列表",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗工作站",
+      "workstationModule": "化疗床位管理",
+      "moduleName": "床位预约",
+      "versionName": "chemo-bed-appoint",
+      "description": "预约化疗床位、可以进行查询、清空、预约、加床。",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗工作站",
+      "workstationModule": "化疗床位管理",
+      "moduleName": "关联化疗方案",
+      "versionName": "chemo-bed-plan",
+      "description": "对已预约的化疗床位进行化疗方案的关联，自动带出化疗用药信息。",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗工作站",
+      "workstationModule": "化疗统计",
+      "moduleName": "化疗方案查询",
+      "versionName": "chemo-data-findplan",
+      "description": "根据筛选条件，查询符合要求的化疗方案信息，以及可以查看具体明细内容。",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗工作站",
+      "workstationModule": "化疗统计",
+      "moduleName": "化疗预约数量查询",
+      "versionName": "chemo-data-appointnum",
+      "description": "可以查询一段日期内的化疗预约数量，以及科室分布情况。",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗工作站",
+      "workstationModule": "化疗统计",
+      "moduleName": "门诊患者预约一览表",
+      "versionName": "chemo-data-oplist",
+      "description": "可以查询出门诊患者预约的情况，以表格展示，可以进行打印操作。",
+      "interfaceClass": ""
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗配置工作站",
+      "workstationModule": "化疗模板配置",
+      "moduleName": "化疗模版-方案整体信息",
+      "versionName": "chemo-config-plan",
+      "description": "",
+      "interfaceClass": null
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗配置工作站",
+      "workstationModule": "化疗模板配置",
+      "moduleName": "化疗模版-化疗周期",
+      "versionName": "chemo-config-plan-stage",
+      "description": "",
+      "interfaceClass": null
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗配置工作站",
+      "workstationModule": "化疗模板配置",
+      "moduleName": "化疗模版-化疗组",
+      "versionName": "chemo-config-plan-group",
+      "description": "",
+      "interfaceClass": null
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗配置工作站",
+      "workstationModule": "化疗模板配置",
+      "moduleName": "化疗模版-化疗项目",
+      "versionName": "chemo-config-plan-item",
+      "description": "",
+      "interfaceClass": null
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗配置工作站",
+      "workstationModule": "化疗系统配置",
+      "moduleName": "化疗变更原因",
+      "versionName": "chemo-config-chgreason",
+      "description": "",
+      "interfaceClass": null
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗配置工作站",
+      "workstationModule": "化疗系统配置",
+      "moduleName": "化疗药品",
+      "versionName": "chemo-config-drug",
+      "description": "",
+      "interfaceClass": null
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗配置工作站",
+      "workstationModule": "化疗系统配置",
+      "moduleName": "化疗系统参数",
+      "versionName": "chemo-config-param-os",
+      "description": "",
+      "interfaceClass": null
+    },
+    {
+      "system": "临床化疗系统",
+      "workstation": "临床化疗配置工作站",
+      "workstationModule": "化疗系统配置",
+      "moduleName": "化疗功能参数",
+      "versionName": "chemo-config-param-func",
+      "description": "",
+      "interfaceClass": null
+    }
+  ]
+}

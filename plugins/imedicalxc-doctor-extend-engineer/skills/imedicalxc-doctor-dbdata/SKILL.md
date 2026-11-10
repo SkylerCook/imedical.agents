@@ -30,6 +30,8 @@ output-format: code
 
 # iMedicalXC 医生站数据库查询规范
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 医生站团队数据库查询开发专用技能。本技能提供查询不同类型数据的全面规范，以及组织数据库访问代码的指南，特别关注 comoe-mediway Service 模式。
 
 ## 概述

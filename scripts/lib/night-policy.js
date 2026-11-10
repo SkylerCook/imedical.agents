@@ -36,7 +36,7 @@ function elapsedMinutes(segments, now) {
     }
     return milliseconds / 60000;
 }
-function assessDemand(record, stage, inputPolicy = {}, now = Date.now()) {
+function assessDemand(record, stage, inputPolicy = {}, now = Date.now(), options = {}) {
     const policy = normalizePolicy(inputPolicy);
     if (!['pre', 'post', 'cleanup'].includes(stage) || !Number.isFinite(now)) throw new TypeError('Invalid stage or now');
     if (!record || !text(record.id)) throw new TypeError('Demand id required');
@@ -49,7 +49,7 @@ function assessDemand(record, stage, inputPolicy = {}, now = Date.now()) {
     }
     if (a.businessCertainty !== 'confirmed') reasons.push('business-question');
     if (record.blocked === true) reasons.push('demand-blocked');
-    if (a.changeKinds.includes('module-refactor') || a.risk === 'high') reasons.push('collaboration-required');
+    if ((a.changeKinds.includes('module-refactor') || a.risk === 'high') && !options.collaborationReady) reasons.push('collaboration-required');
     if (!text(record.implementationOwnerId)) reasons.push('implementation-owner-required');
     if (stage === 'post') {
         if (a.reviewerId === record.implementationOwnerId) reasons.push('independent-review-required');
@@ -61,7 +61,7 @@ function assessDemand(record, stage, inputPolicy = {}, now = Date.now()) {
     if (record.resources?.polluted || record.resources?.pending) reasons.push('resource-reconciliation-required');
     let usedMinutes = null;
     try { usedMinutes = elapsedMinutes(record.timingSegments, now); } catch { reasons.push('timing-invalid'); }
-    const reassessed = trigger => Array.isArray(record.timingSegments) && record.timingSegments.every(s => s.endedAt !== undefined) && Array.isArray(record.reassessments) && record.reassessments.some(r => r && r.trigger === trigger && r.usedMinutes === usedMinutes && r.failureCount === record.failures?.length && text(r.rationale) && list(r.evidenceRefs) && text(record.scopeFingerprint) && text(record.frozenVersion) && r.scopeFingerprint === record.scopeFingerprint && r.frozenVersion === record.frozenVersion);
+    const reassessed = trigger => Array.isArray(record.timingSegments) && record.timingSegments.filter(s => ['preparation', 'diagnosis'].includes(s.phase)).every(s => s.endedAt !== undefined) && Array.isArray(record.reassessments) && record.reassessments.some(r => r && r.trigger === trigger && r.usedMinutes === usedMinutes && r.failureCount === record.failures?.length && text(r.rationale) && list(r.evidenceRefs) && text(record.scopeFingerprint) && text(record.frozenVersion) && r.scopeFingerprint === record.scopeFingerprint && r.frozenVersion === record.frozenVersion);
     if (usedMinutes !== null && usedMinutes >= policy.demandBudgetMinutes && !reassessed('demand-budget-exhausted')) reasons.push('demand-budget-exhausted');
     if (!Array.isArray(record.failures) || record.failures.some(f => !f || !text(f.category) || !text(f.evidenceFingerprint))) reasons.push('failure-history-invalid');
     else if (record.failures.length >= 2 && record.failures.at(-1).category === record.failures.at(-2).category && record.failures.at(-1).evidenceFingerprint === record.failures.at(-2).evidenceFingerprint && !reassessed('repeated-failure-no-new-evidence')) reasons.push('repeated-failure-no-new-evidence');

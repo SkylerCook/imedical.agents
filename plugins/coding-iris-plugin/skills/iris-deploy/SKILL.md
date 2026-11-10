@@ -5,11 +5,21 @@ description: Use when an IRIS project needs remote deployment planning, upload, 
 
 # IRIS Deploy
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
+先解析当前 `ContextRoot/config/iris-development.json` 的 `developmentMode`：offline 转入[离线开发与交付](../../references/iris-offline-development.md)，只打包和独立 Verify，不执行医院连接或部署。connected（含旧配置缺省）继续：`project` + `intent-first-on-demand-export` 先读[项目开发协议](../../references/project-demand-development.md)，同步、合并复审和 source plan 冻结；正式发布决定绑定冻结摘要。非法开发方式停止，标版沿既有分支，传输模式不能绕过发布门禁或产生权限。
+
 ## 核心边界
 
 本 Skill 是 IRIS 项目部署编排入口。仅分析或未获写入授权时只做本地计划和只读验证；用户明确要求部署且目标、文件范围已清楚时直接执行，不再重复确认。上传、编译、SFTP 同步、远端命令、数据库变更或生产环境动作须有覆盖当前范围的明确授权。
 
 不要在插件内容中写入服务器地址、namespace、账号、密码、token、Cookie、远端绝对路径、业务页面清单、业务类名前缀或项目专属基类。这些事实只能来自目标工程本地配置和用户当次确认。
+
+## 普通部署路径
+
+目标、文件和授权明确时，先复用本会话已读取且仍有效的项目规则与配置，仅补核对变化项。读完下列必需输入后按文件类型直接执行 compile 或 deploy-frontend；参数不明时只查 README 对应命令段。完整 workflow、夜跑、guarded、底层会话实现仅在命中对应分支或必要故障诊断时读取。脚本自带计划和保护时无需另跑无 execute 的计划命令。
+
+执行后立即按[验证](../../rules/iris_deploy_checklist.md#验证)判定部署状态并交付；额外验收与异常分流也由该节统一定义。
 
 ## 必读输入
 
@@ -41,9 +51,11 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 
 ## 前端上传加编译
 
-优先直接调用 `scripts/iris-tools/deploy-frontend.js --source-root <frontend-root> --files <project-relative-file...> --execute`，默认 direct，参数与失败语义见 `scripts/iris-tools/README.md`。已有明确授权、目标和有效配置时使用一条命令，不再单独生成临时脚本、重复预检或逐工具确认。固定完成上传、哈希回读和指定 CSP 编译；无 `--execute` 只生成本地计划。失败停止，不自动重试或扩大文件范围。
+优先直接调用 `scripts/iris-tools/deploy-frontend.js --source-root <frontend-root> --files <project-relative-file...> --execute`，非按需导出工程默认 direct，参数与失败语义见 `scripts/iris-tools/README.md`。已有明确授权、目标和有效配置时使用一条命令，不再单独生成临时脚本、重复预检或逐工具确认。固定完成上传、哈希回读和指定 CSP 编译；无 `--execute` 只生成本地计划。失败先暂停后续写入，按[失败恢复与授权](../../references/deployment-protection.md#失败恢复与授权)自动诊断并在原授权内有限恢复；仅命中人工边界才提问。
 
 ## 执行顺序
+
+自动恢复共享本次部署上限：首次执行之外最多重试 2 次，第二次仍失败立即停止并汇报原因、已完成与未执行步骤；不通过重跑命令或新建批次重置计数。用户后续明确要求继续处理才开始新一轮，具体边界见[失败恢复与授权](../../references/deployment-protection.md#失败恢复与授权)。
 
 仅编译 CSP 的固定入口（路径取部署清单中的 virtualPath）：
 
@@ -52,7 +64,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js --docu
 node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js --documents <virtualPath.csp...> --execute
 ```
 
-第一条仅本地计划；第二条在上传完成且用户已明确授权部署后执行一次批量编译。直接编译明确指定的 show.csp，不自动编译父页面。禁止把已授权部署机械拆成逐工具重复确认。输出 `elapsedMs` 为编译请求及回包耗时，不能当作包含检查/上传/验收的总耗时。失败或结果不明时不自动重试，也不回退到 `iris_execute`。
+第一条仅本地计划；第二条在上传完成且用户已明确授权部署后执行一次批量编译。直接编译明确指定的 show.csp，不自动编译父页面。禁止把已授权部署机械拆成逐工具重复确认。输出 `elapsedMs` 为编译请求及回包耗时，不能当作包含检查/上传/验收的总耗时。明确编译失败先诊断，原任务已授权修复时处理后经原门禁部署；结果不明先核实，编译请求不自动重放，不回退到 `iris_execute`。授权沿用、恢复上限和提问条件统一见上述协议。
 
 1. 读取配置和项目规则，确认目标环境事实来源。
 2. 核实文件清单，拆分后端类、CSP、Web 资源和其它文件；不强制另建清单产物。
@@ -60,7 +72,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js --docu
 4. 后端类按 `iris_deploy_checklist.md` 执行：实体类先处理 Storage Default 风险，完整依赖切片先上传，再按依赖顺序编译；编译后回读并核对 Storage 回填结果，失败时区分远端已编译与本地未同步，按 [部署保护](../../references/deployment-protection.md#编译后-storage-同步) 停止处理。
 5. Web 资源通过 UTF-8 字节门禁后，使用共享保护生成独立部署产物并上传；只有用户明确指定历史 `standard-gb2312` 工程时，GB2312 临时文件才可作为上传内容，远端目标名仍保持原始文件名。
 6. CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
-7. 执行远端只读验证，确认类编译状态、CSP 生成类参数、代表性页面加载和核心业务调用。
+7. 按部署清单的验证章节消费已有回执，仅补缺失证据；分别报告文件部署与业务验收状态。
 
 ## 工具优先级
 
@@ -75,13 +87,13 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js --docu
 
 ## 完成标准
 
-部署完成前必须逐项检查 `rules/iris_deploy_checklist.md` 的验证章节。没有完成验证时，只能报告“已执行上传/编译步骤，验证未完成”，不得报告部署成功。
+完成标准统一见[部署清单的验证章节](../../rules/iris_deploy_checklist.md#验证)。按该节区分文件部署、业务验收与附加通道异常，不以业务待验收否定已验证的文件部署，也不把上传成功当作业务通过。
 
-部署和本地验证完成后仍停在 `acceptance-pending`。部署过程中产生可跨场景复用的新经验时，也必须遵循 `.agents/agents/_shared/delivery-lifecycle.md` 和 `agent-framework-feedback`：用户明确验收后先做只读审查，只有逐项授权后才按 `feedback/experience/deploy-com-exp.md` 维护；不要写入敏感连接信息、完整命令输出或一次性排障流水。
+部署和本地验证完成后仍停在 `acceptance-pending`。部署过程中产生可跨场景复用的新经验时，也必须遵循 `.agents/agents/_shared/delivery-lifecycle.md` 和 `agent-framework-feedback`：用户明确验收后先做只读审查，按 [feedback skill 的有效授权](../../../agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#写入授权与自动待审补丁)核对后，才在授权范围按 `feedback/experience/deploy-com-exp.md` 维护；不要写入敏感连接信息、完整命令输出或一次性排障流水。
 
 ## 开发部署与可选基线保护
 
-日常开发部署默认使用 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留路径、编码、Storage、并发变化、回读和编译检查。需要跨版本三方合并时显式选择 `--mode guarded --demand <id>` 并建立保护会话。旧命令仅带 `--demand` 时继续按 guarded 执行，不静默降低已有保护。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 始终只生成本地计划。
+非按需导出工程日常开发部署默认使用 direct：明确目标、文件和授权后执行，不要求需求号、Git 基线会话或 fetch/pull；保留路径、编码、Storage、并发变化、回读和编译检查。需要跨版本三方合并时显式选择 `--mode guarded --demand <id>` 并建立保护会话。旧命令仅带 `--demand` 时继续按 guarded 执行，不静默降低已有保护。完整契约见 references/deployment-protection.md（从插件根解析）；无 `--execute` 始终只生成本地计划。
 
 ## 提问工具的兼容与降级
 

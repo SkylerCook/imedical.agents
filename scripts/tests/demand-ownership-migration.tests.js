@@ -177,3 +177,55 @@ test('linked old entry and custom successor are preserved', t => {
   write(path.join(f.local, 'skills/demand-commit/SKILL.md'), '# User-owned skill\n');
   assert.ok(plan(f.context).conflicts.some(x => x.includes('custom new skill')));
 });
+
+for (const overlay of [false, true]) test('external custom skill links remain independent during migration and Check: ' + overlay, t => {
+  const f = fixture(t, overlay), external = path.join(f.root, '..', 'shared-product-skill');
+  const entry = '---\nname: product-planning\n---\nExternal owner still documents iris-demand-entry.\n';
+  write(path.join(external, 'SKILL.md'), entry);
+  write(path.join(external, 'helper.js'), 'const legacy = "iris-demand-commit";\n');
+  const link = path.join(f.local, 'skills/product-planning');
+  fs.symlinkSync(external, link, process.platform === 'win32' ? 'junction' : 'dir');
+  const p = plan(f.context);
+  assert.deepEqual(p.conflicts, []);
+  assert.ok(p.skippedWorkspaces.some(item => item.directory === link && item.reason === 'external-linked-skill'));
+  assert.ok(![...p.changes, ...p.removals].some(item => item.file.startsWith(link + path.sep) || item.file.startsWith(external + path.sep)));
+  for (const owner of p.owners) f.generate(owner);
+  apply(f.context, p);
+  assert.ok(fs.lstatSync(link).isSymbolicLink());
+  assert.equal(fs.readFileSync(path.join(external, 'SKILL.md'), 'utf8'), entry);
+  assert.equal(fs.readFileSync(path.join(external, 'helper.js'), 'utf8'), 'const legacy = "iris-demand-commit";\n');
+  assert.deepEqual(check(f.context), []);
+  assert.deepEqual(plan(f.context).owners, []);
+  assert.deepEqual(plan(f.context).conflicts, []);
+});
+
+test('linked demand entries and invalid or project-owned custom skill links still block', t => {
+  const f = fixture(t), external = path.join(f.root, '..', 'external-skill');
+  write(path.join(external, 'SKILL.md'), '# External skill\n');
+  const internal = path.join(f.root, 'team-skill');
+  write(path.join(internal, 'SKILL.md'), '# Project-owned skill\n');
+  const noEntry = path.join(f.root, '..', 'not-a-skill');
+  write(path.join(noEntry, 'README.md'), '# No skill entry\n');
+  for (const [name, target] of [['demand-commit', external], ['bos-demand-entry', external],
+    ['internal-skill', internal], ['missing-entry', noEntry], ['broken-skill', path.join(f.root, '..', 'absent-skill')]]) {
+    const link = path.join(f.local, 'skills', name);
+    fs.symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir');
+    try { assert.ok(plan(f.context).conflicts.some(message => message.includes(link)), name + ' must remain protected'); }
+    finally { fs.unlinkSync(link); }
+  }
+});
+
+test('custom skill link ownership uses physical workspace paths', t => {
+  const f = fixture(t), parent = path.dirname(f.root), alias = path.join(parent, 'parent-alias');
+  const internal = path.join(f.root, 'local-skill');
+  write(path.join(internal, 'SKILL.md'), '# Project-owned skill\n');
+  fs.symlinkSync(parent, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  const aliasedRoot = path.join(alias, path.basename(f.root));
+  const context = { ...f.context, workspaceRoot: aliasedRoot, contextRoot: path.join(aliasedRoot, '.agents') };
+  const entry = path.join(f.local, 'skills', 'internal-via-alias');
+  fs.symlinkSync(internal, entry, process.platform === 'win32' ? 'junction' : 'dir');
+  try {
+    const expected = path.join(context.contextRoot, 'skills', 'internal-via-alias');
+    assert.ok(plan(context).conflicts.some(message => message.includes(expected)), 'physical in-workspace target must not become external through a parent path alias');
+  } finally { fs.unlinkSync(entry); fs.unlinkSync(alias); }
+});

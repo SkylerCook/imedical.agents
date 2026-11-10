@@ -7,6 +7,7 @@
   [string[]]$ExpectedEnabledPlugin,
   [ValidateSet("ClaudeCode", "Codex", "CodeBuddy", "WorkBuddy", "WorkBuddyDonghua", "OpenCode", "Cursor", "GeminiCLI", "GitHubCopilot", "Qoder")]
   [string[]]$RuntimeAdapter = @(),
+  [switch]$Agent,
   [switch]$ForceThinIndex,
   [switch]$CleanupLegacyVendorSkills,
   [switch]$NoPull,
@@ -20,6 +21,7 @@
 )
 
 $ErrorActionPreference = "Stop"
+if ($Agent -and (($RuntimeAdapter.Count -ne 1) -or ($RuntimeAdapter[0] -notin @("Codex", "CodeBuddy", "WorkBuddy")))) { throw "-Agent requires one RuntimeAdapter: Codex, CodeBuddy or WorkBuddy" }
 $minimumGitSparseCheckoutVersion = [version]"2.25.0"
 
 $runtimeSparsePaths = @(
@@ -344,7 +346,7 @@ function Invoke-PluginConfigMigrations {
       continue
     }
     try {
-      $migrationMode = if ($Mode -eq "Check") { "DryRun" } else { $Mode }
+      $migrationMode = if ($Mode -eq "Check" -and [string]$migration.checkMode -ne "Check") { "DryRun" } else { $Mode }
       $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $migrationPath -ProjectRoot $ProjectRootFull -AgentsRoot $AgentsRoot -Mode $migrationMode | Out-String
       if ($LASTEXITCODE -ne 0) {
         throw "migration exited with code $LASTEXITCODE"
@@ -911,6 +913,15 @@ function Write-UpdateSummary {
     }
   }
 
+  $projectDocsNotes = @($Results | Where-Object { $_.phase -eq "project-docs" })
+  if ($projectDocsNotes.Count -gt 0) {
+    Write-Output ""
+    Write-Output "Project documentation:"
+    foreach ($item in $projectDocsNotes) {
+      Write-Output ("- {0} {1}: {2}" -f $item.status, $item.target, $item.reason)
+    }
+  }
+
   Write-Output ""
   Write-Output "Use -Detailed to print every result item."
 }
@@ -1184,6 +1195,7 @@ elseif ((-not $NoPull) -and ($Mode -ne "Check")) {
       Plugin = $Plugin
       ExcludePlugin = $ExcludePlugin
       RuntimeAdapter = $RuntimeAdapter
+      Agent = $Agent
       NoPull = $true
       ResumedAfterSelfUpdate = $true
       ResumedGitStatus = [string]$gitResults[0].status
@@ -1508,7 +1520,7 @@ else {
 
 $runtimeAdapterFailed = $false
 $runtimeSkillsScript = Join-Path $capabilityRoot "scripts/sync-runtime-skills.js"
-foreach ($runtime in @($RuntimeAdapter | Select-Object -Unique)) {
+foreach ($runtime in @($RuntimeAdapter | Select-Object -Unique | Where-Object { -not $Agent })) {
   if (-not (Test-Path -LiteralPath $runtimeSkillsScript -PathType Leaf)) {
     $results.Add((Write-UpdateResult -Status "runtime-adapter-blocked" -Target $runtimeSkillsScript -Reason "runtime skills adapter missing; update capability first" -Phase "runtime-adapter"))
     $runtimeAdapterFailed = $true
@@ -1521,12 +1533,58 @@ foreach ($runtime in @($RuntimeAdapter | Select-Object -Unique)) {
   $results.Add((Write-UpdateResult -Status $runtimeResult.status -Target $runtimeResult.target -Source $runtimeResult.source -Reason $runtimeResult.reason -Phase "runtime-adapter"))
   if ($runtimeExit -ne 0) { $runtimeAdapterFailed = $true }
 }
+# Native Agent files are opt-in; refresh an existing managed Codex adapter on updates.
+$nativeAgentScript = Join-Path $capabilityRoot "scripts/sync-runtime-agents.js"
+foreach ($nativeRuntime in @("Codex", "CodeBuddy")) {
+$nativeDir = if ($nativeRuntime -eq "Codex") { ".codex/agents" } else { ".codebuddy/agents" }
+$nativeAgentDirectory = Join-Path $projectRootFull $nativeDir
+$hasManagedNativeAgent = $false
+if (Test-Path -LiteralPath $nativeAgentDirectory -PathType Container) {
+  $hasManagedNativeAgent = @(Get-ChildItem -LiteralPath $nativeAgentDirectory -File | Where-Object {
+    (Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8) -match 'imedical\.agents (Codex|CodeBuddy) adapter v1 sha256='
+  }).Count -gt 0
+}
+if (($Agent -and (($RuntimeAdapter -contains $nativeRuntime) -or (($nativeRuntime -eq "CodeBuddy") -and ($RuntimeAdapter -contains "WorkBuddy")))) -or $hasManagedNativeAgent) {
+  if (Test-Path -LiteralPath $nativeAgentScript -PathType Leaf) {
+    Assert-AgentsNodeRuntime
+    $nativeOutput = & node $nativeAgentScript --project-root $projectRootFull --runtime $nativeRuntime --mode $Mode
+    $nativeExit = $LASTEXITCODE
+    $nativeResult = ($nativeOutput -join "`n") | ConvertFrom-Json
+    $results.Add((Write-UpdateResult -Status $nativeResult.status -Target $nativeResult.target -Source $nativeResult.source -Reason ($nativeResult | ConvertTo-Json -Depth 6 -Compress) -Phase "runtime-adapter"))
+    if ($nativeExit -ne 0) { $runtimeAdapterFailed = $true }
+  } else {
+    $runtimeAdapterFailed = $true
+    $results.Add((Write-UpdateResult -Status "runtime-agent-blocked" -Target $nativeAgentScript -Reason "native Agent adapter missing; update capability first" -Phase "runtime-adapter"))
+  }
+}
+}
 if ($RuntimeAdapter.Count -eq 0) {
   $results.Add((Write-UpdateResult -Status "runtime-adapter-skipped" -Target ".agents/skills" -Reason "project discovery layer is canonical; adapters are opt-in via -RuntimeAdapter" -Phase "runtime-adapter"))
 }
 
 if (($allPlugins.Count -eq 0) -or (($Plugin.Count -gt 0) -and ($matchedPluginCount -eq 0))) {
   $results.Add((Write-UpdateResult -Status "plugin-none" -Target (Get-RelativePathPortable -From $projectRootFull -To (Join-Path $agentsRoot "plugins")) -Reason "no installed plugins matched filters" -Phase "plugin"))
+}
+
+# Ordinary updates only maintain directories from an explicitly approved docs setup.
+# The canonical script resolves this workspace's ContextRoot and never visits siblings.
+$projectDocsScript = Join-Path $capabilityRoot "scripts/project-docs.js"
+if (-not (Test-Path -LiteralPath $projectDocsScript -PathType Leaf)) {
+  $results.Add((Write-UpdateResult -Status "docs-layout-skipped" -Target "docs" -Reason "project-docs.js is unavailable in this capability version; update capability before explicit setup" -Phase "project-docs"))
+}
+else {
+  try {
+    $projectDocsText = & node $projectDocsScript update --project-root $projectRootFull --mode $Mode 2>&1 | Out-String
+    $projectDocsExit = $LASTEXITCODE
+    $projectDocsResult = $projectDocsText | ConvertFrom-Json
+    if (($projectDocsExit -ne 0) -or ([string]$projectDocsResult.status -notmatch '^docs-layout-')) {
+      throw ("project-docs update requires review (exit {0}): {1}" -f $projectDocsExit, [string]$projectDocsResult.reason)
+    }
+    $results.Add((Write-UpdateResult -Status ([string]$projectDocsResult.status) -Target ([string]$projectDocsResult.target) -Reason ([string]$projectDocsResult.reason) -Phase "project-docs"))
+  }
+  catch {
+    $results.Add((Write-UpdateResult -Status "docs-layout-review-required" -Target "docs" -Reason $_.Exception.Message -Phase "project-docs"))
+  }
 }
 
 if ($Detailed) {

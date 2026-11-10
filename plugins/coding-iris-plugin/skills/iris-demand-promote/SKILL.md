@@ -5,7 +5,11 @@ description: Promote committed IRIS demand changes from a DEV on-demand-export r
 
 # IRIS Demand Promote
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## Purpose
+
+For an explicitly classified `project` demand with `contextMode: intent-first-on-demand-export`, first read the [project demand development protocol](../../references/project-demand-development.md). Demand kind comes from the current user instruction or confirmed project default; contextMode alone does not select it. This skill is the optional DEV-to-PRD path within project development; test and production each require their own local Git, admitted remote reads, and a reviewed source plan before publishing. Standard demands keep their existing delivery branch. This skill does not authorize production deployment.
 
 Use this skill when a requirement already committed in a DEV Git workspace must be transferred to a separate PRD Git workspace. Both repositories may contain only files exported on demand and have unrelated Git histories.
 
@@ -18,8 +22,9 @@ PRD is a production environment context. This skill may update and commit only t
 The CLI is the source of truth for selection, baseline hashes, commit grouping, and verification. This contract applies to every Agent or model:
 
 - Do not hand-edit a plan JSON, fabricate a plan, bypass a CLI stop, or replace the scripted commit sequence with ad hoc Git commands.
+- When replay provenance requires semantic review, follow the [source-review contract](../../references/project-demand-development.md#可选-devprd-移植的重放复核): inspect the private candidates, record the actual decision in a separate review JSON, then re-plan with `--source-review`. Never select newer commits automatically or treat review evidence as commit/deploy authorization.
 - Do not infer that comma-separated demand numbers may be combined. The CLI must validate the DEV subject declarations before any server export or PRD write.
-- Present the plan and obtain explicit confirmation before `apply`. Treat changed HEAD, dirty worktrees, remote hash drift, unsupported files, provenance ambiguity, or a failed invariant as a hard stop.
+- Present the concrete plan and verify valid local commit authorization before `apply`; reuse authorization already covering this plan rather than asking again. Treat changed HEAD, dirty worktrees, remote hash drift, unsupported files, provenance ambiguity, or a failed invariant as a hard stop.
 - During conflict resolution, preserve the PRD server baseline and apply only the DEV demand semantics. Never choose an entire DEV file merely to remove conflict markers.
 - `verify` must pass before reporting completion. Local commits are not evidence of remote deployment.
 
@@ -54,7 +59,7 @@ For a batch of independent demands, use this fixed sequence:
 
 1. Read both repositories' `AGENTS.md`, project profiles, and IRIS workflow rules.
 2. Run the promotion CLI in `plan` mode. Present the selected DEV commits, duplicate assessment, file classification, PRD server probes, risks, and proposed commit messages.
-3. Wait for explicit confirmation before `apply`. That confirmation authorizes only local PRD source changes and Git commits.
+3. Verify explicit authorization before `apply`, reusing an existing authorization that covers this plan. That authorization covers only local PRD source changes and Git commits.
 4. Run `apply` with the generated plan file. For every planned document that exists on the PRD server, export it even when the corresponding PRD local file already exists. Export every baseline into the temporary staging directory first; only after all exports succeed, replace the PRD local copies.
 5. Stage the refreshed PRD baseline before applying any DEV patch. If it differs from the current PRD commit, create `export(<PRD IP>):从服务器同步最新文件`; if it is identical, do not create an empty commit.
 6. Apply the DEV requirement patches only after the baseline commit decision is complete.

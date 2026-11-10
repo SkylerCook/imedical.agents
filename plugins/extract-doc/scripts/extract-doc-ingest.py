@@ -1359,6 +1359,67 @@ def diagnostics_markdown(parsed: dict[str, Any]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
+
+def _layout_path(project_root: Path, file: Path) -> Path:
+    """Inspect only local layout metadata before the canonical Node resolver runs."""
+    relative = file.relative_to(project_root)
+    current = project_root
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            raise ValueError(f"Linked layout metadata is not allowed: {current}")
+        if current.exists() and current.is_file() and current.stat().st_nlink != 1:
+            raise ValueError(f"Linked layout metadata is not allowed: {current}")
+    return file
+
+
+def resolve_output_root(project_root: Path, explicit: str | None = None) -> Path:
+    if explicit is not None:
+        return project_root / explicit
+
+    context_root = project_root / ".agents"
+    manifest = _layout_path(project_root, context_root / "capability.json")
+    if manifest.exists():
+        context_value = json.loads(manifest.read_text(encoding="utf-8-sig")).get("contextRoot", ".agents")
+        if not isinstance(context_value, str) or not context_value.strip():
+            raise ValueError("Invalid workspace contextRoot")
+        candidate = project_root / context_value
+        if candidate.is_absolute() and not candidate.is_relative_to(project_root):
+            raise ValueError("Workspace contextRoot must stay inside the project")
+        if ".." in candidate.relative_to(project_root).parts:
+            raise ValueError("Workspace contextRoot must stay inside the project")
+        context_root = candidate
+
+    config_file = _layout_path(project_root, context_root / "config" / "documentation-layout.json")
+    if not config_file.exists():
+        return project_root / "docs/interface"
+    config = json.loads(config_file.read_text(encoding="utf-8-sig"))
+    if (config.get("schema") != "imedical-documentation-layout/v1"
+            or type(config.get("enabled")) is not bool
+            or not isinstance(config.get("workspaceRoot"), str)
+            or not config["workspaceRoot"].strip()
+            or Path(config["workspaceRoot"]).resolve() != project_root
+            or not isinstance(config.get("extensions"), list)):
+        raise ValueError("Invalid documentation layout config; preserve and review")
+    if not config["enabled"]:
+        return project_root / "docs/interface"
+
+    node = shutil.which("node")
+    if not node:
+        raise RuntimeError("Node.js >=22.5.0 is required by enabled project directory governance")
+    resolver = Path(__file__).resolve().parents[3] / "scripts" / "project-docs.js"
+    result = subprocess.run(
+        [node, str(resolver), "resolve", "--project-root", str(project_root),
+         "--owner", "extract-doc", "--id", "document-ingest", "--fallback", "docs/interface"],
+        capture_output=True, text=True, encoding="utf-8", timeout=30, check=False,
+    )
+    if result.returncode:
+        raise RuntimeError(result.stderr.strip() or "Project directory resolution failed")
+    output = Path(json.loads(result.stdout)["path"])
+    if not output.is_absolute() or not output.is_relative_to(project_root):
+        raise ValueError("Resolved document output must stay inside the project")
+    return output
+
 def write_artifacts(source: Path, project_root: Path, output_root: str, schema_version: str, emit_structure: bool = False) -> dict[str, Path]:
     markdown, views, diagnostics, converter = parse_document(source)
     doc_name = slugify(source)
@@ -1387,7 +1448,7 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Parse document artifacts to disk.")
     parser.add_argument("--file", required=True, help="Source DOCX/PDF/XLSX/DOC file")
     parser.add_argument("--project-root", default=".", help="Target project root")
-    parser.add_argument("--output-root", default="docs/interface", help="Output root relative to project root")
+    parser.add_argument("--output-root", default=None, help="Explicit output root; otherwise use the project directory policy or legacy default")
     parser.add_argument("--schema-version", default="extract-doc/v1", help="Schema version written to parsed.json")
     parser.add_argument("--emit-structure", action="store_true", help="Also write extract-doc/structure-v1 to structure.json")
     return parser.parse_args(argv)
@@ -1402,7 +1463,8 @@ def main(argv: Iterable[str]) -> int:
         return 2
 
     try:
-        paths = write_artifacts(source, project_root, args.output_root, args.schema_version, args.emit_structure)
+        output_root = resolve_output_root(project_root, args.output_root)
+        paths = write_artifacts(source, project_root, output_root, args.schema_version, args.emit_structure)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

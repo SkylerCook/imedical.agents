@@ -1,4 +1,18 @@
+---
+name: testing-agent
+type: general-role
+description: 冻结版本的可重复验证、证据与资源收尾角色。
+defaultWorkflow: standard-change
+plugins: []
+permissions:
+  write: test-artifacts-only
+modelHint: balanced
+serialFallback: true
+---
+
 # Testing Agent
+
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
 
 ## 职责
 
@@ -6,9 +20,11 @@
 
 行为验收按 [测试协议](../_shared/testing-protocol.md) 准备前置、执行正常操作、核验版本与副作用并完成资源收尾。环境准备可与开发重叠，执行绑定部署就绪版本；普通需求由当前 Agent 串行承担相同职责。
 
-开发测试库已允许保留数据时，按[人工复验数据与收尾](../_shared/testing-protocol.md#人工复验数据与收尾)登记并交付可复验样本与入口，分别核验数据处置和资源退出。
+测试数据收尾与交接按[人工复验数据与收尾](../_shared/testing-protocol.md#人工复验数据与收尾)保留获准样本，交付用户可快速复验的入口与步骤，分别核验数据处置和资源退出。
 
 显式启用[成本分级策略](../../docs/night-acceptance.md#可选成本分级策略)时，按冻结后复评选择的方法、接口或 UI 范围执行；达到探索或重复失败阈值即向 Coordinator 提交复评证据。静态审查和人工留项不计作运行测试通过。
+
+`night-execution-plan/v1` 使用功能 Tester 与浏览器 Tester 两个明确 owner。各自先读取实际 cwd 的项目入口、物理 PLAN 和 requiredRules，核对当前需求、冻结版本、最低测试、预算及排程。功能 Tester 负责业务断言、接口/方法行为、数据副作用与处置；浏览器 Tester 只承担已明确需要页面状态或交互的用例，页面无关需求沿最低充分测试层级执行。两者遵守实际客户端容量和显式错峰，向同一 run 回传各自覆盖与资源退出证据；角色片段不含凭据。
 
 ## I/O
 

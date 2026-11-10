@@ -1,0 +1,114 @@
+{
+  "schema": "imedical-validation-evidence/v1",
+  "repository": "D:\\CodeSpace\\GIT\\Gitee\\imedical.agents",
+  "suites": {
+    "capability-help-ps7": {
+      "suite": "capability-help-ps7",
+      "command": "$env:TEST_POWERSHELL='pwsh.exe'; node --test scripts/tests/capability-help.tests.js",
+      "status": "passed",
+      "completedAt": "2026-10-22T07:14:29.825Z",
+      "algorithm": "content-v2",
+      "head": "9682193122902e55ba1111ee14208c3f49db1d5e",
+      "scopes": [
+        ".agents/skills/agent-kit-maintenance/SKILL.md",
+        ".github/workflows/sparse-refresh.yml",
+        "agents",
+        "docs",
+        "maintenance/governance/documentation-layout.json",
+        "plugins",
+        "scripts"
+      ],
+      "fingerprint": "d7199dd37f2dcd053349d7ac14d82adff193c852172646d37ac45926938ffdb2"
+    },
+    "capability-help-ps51": {
+      "suite": "capability-help-ps51",
+      "command": "$env:TEST_POWERSHELL='powershell.exe'; node --test scripts/tests/capability-help.tests.js",
+      "status": "passed",
+      "completedAt": "2026-10-22T07:14:30.309Z",
+      "algorithm": "content-v2",
+      "head": "9682193122902e55ba1111ee14208c3f49db1d5e",
+      "scopes": [
+        ".agents/skills/agent-kit-maintenance/SKILL.md",
+        ".github/workflows/sparse-refresh.yml",
+        "agents",
+        "docs",
+        "maintenance/governance/documentation-layout.json",
+        "plugins",
+        "scripts"
+      ],
+      "fingerprint": "d7199dd37f2dcd053349d7ac14d82adff193c852172646d37ac45926938ffdb2"
+    },
+    "capability-help-documentation": {
+      "suite": "capability-help-documentation",
+      "command": "node --test scripts/tests/documentation-layout.tests.js",
+      "status": "passed",
+      "completedAt": "2026-10-22T07:14:30.817Z",
+      "algorithm": "content-v2",
+      "head": "9682193122902e55ba1111ee14208c3f49db1d5e",
+      "scopes": [
+        ".agents/skills/agent-kit-maintenance/SKILL.md",
+        ".github/workflows/sparse-refresh.yml",
+        "agents",
+        "docs",
+        "maintenance/governance/documentation-layout.json",
+        "plugins",
+        "scripts"
+      ],
+      "fingerprint": "d7199dd37f2dcd053349d7ac14d82adff193c852172646d37ac45926938ffdb2"
+    },
+    "capability-help-index-ps51": {
+      "suite": "capability-help-index-ps51",
+      "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/tests/plugin-thin-index-refresh.tests.ps1",
+      "status": "passed",
+      "completedAt": "2026-10-22T07:14:31.312Z",
+      "algorithm": "content-v2",
+      "head": "9682193122902e55ba1111ee14208c3f49db1d5e",
+      "scopes": [
+        ".agents/skills/agent-kit-maintenance/SKILL.md",
+        ".github/workflows/sparse-refresh.yml",
+        "agents",
+        "docs",
+        "maintenance/governance/documentation-layout.json",
+        "plugins",
+        "scripts"
+      ],
+      "fingerprint": "d7199dd37f2dcd053349d7ac14d82adff193c852172646d37ac45926938ffdb2"
+    },
+    "capability-help-update-ps7": {
+      "suite": "capability-help-update-ps7",
+      "command": "pwsh.exe -NoProfile -File scripts/tests/update-agents.tests.ps1",
+      "status": "passed",
+      "completedAt": "2026-10-22T07:14:31.815Z",
+      "algorithm": "content-v2",
+      "head": "9682193122902e55ba1111ee14208c3f49db1d5e",
+      "scopes": [
+        ".agents/skills/agent-kit-maintenance/SKILL.md",
+        ".github/workflows/sparse-refresh.yml",
+        "agents",
+        "docs",
+        "maintenance/governance/documentation-layout.json",
+        "plugins",
+        "scripts"
+      ],
+      "fingerprint": "d7199dd37f2dcd053349d7ac14d82adff193c852172646d37ac45926938ffdb2"
+    },
+    "capability-help-update-ps51": {
+      "suite": "capability-help-update-ps51",
+      "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/tests/update-agents.tests.ps1",
+      "status": "passed",
+      "completedAt": "2026-10-22T07:14:32.309Z",
+      "algorithm": "content-v2",
+      "head": "9682193122902e55ba1111ee14208c3f49db1d5e",
+      "scopes": [
+        ".agents/skills/agent-kit-maintenance/SKILL.md",
+        ".github/workflows/sparse-refresh.yml",
+        "agents",
+        "docs",
+        "maintenance/governance/documentation-layout.json",
+        "plugins",
+        "scripts"
+      ],
+      "fingerprint": "d7199dd37f2dcd053349d7ac14d82adff193c852172646d37ac45926938ffdb2"
+    }
+  }
+}

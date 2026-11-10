@@ -1,5 +1,7 @@
 # codegraph-query
 
+For help requests (`--help`, show usage), all skills owned by this plugin follow the [shared help protocol](../../docs/guides/capability-help.md) and stop before enablement, connection checks, or business preconditions. Normal capability updates distribute the source definitions; existing thin indexes continue reading their source. Help does not enable the plugin.
+
 `codegraph-query` exposes a lightweight read-only CLI and Agent routing entries for querying `.codegraph/codegraph.db`.
 
 ## Capabilities

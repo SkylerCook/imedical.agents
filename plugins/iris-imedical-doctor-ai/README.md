@@ -1,10 +1,18 @@
 # IRIS iMedical Doctor AI
 
+0.4.2 补齐 manifest projectDirectories 的用途、典型产物、边界和生命周期，供项目受管目录说明复用。已接入工程通过普通更新刷新受管区；无标记 README 按[目录说明升级](../../docs/guides/project-knowledge-layout.md#持续目录说明)评审接管。目录默认值、显式配置和旧任务恢复位置沿原契约，不迁移或清理业务资料。
+
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
 面向医生站 AI 集成开发，支持嵌入、外挂、旁路接入的分析与适配，优先覆盖诊断等业务服务复用。依赖 coding-iris-plugin，不绑定某个工程、原型版本或 AI 框架实现。
 
 ## 使用
 
 通过现有安装/更新流程取得插件，调用 iris-imedical-doctor-ai-init 核对能力并启用，再使用 iris-imedical-doctor-ai。目录存在仅表示 available。主 skill 按医生站 AI 接入、诊断推荐与采纳、卡片、流式对话、病历联动及相关框架改进的业务意图触发，普通 HIS 开发不触发。
+
+## 项目产物目录（0.4.0）
+
+主 skill 在落盘前调用共享目录解析器。目标工程已启用 docs 治理且无明确目录覆盖时，使用 docs/delivery/ai-integration；未接入时保留 docs/work/ai-integration。目录可按任务细分，首次预建或存量迁移需独立授权；普通能力包更新不生成业务产物。
 
 ## 内容
 

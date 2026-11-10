@@ -2,6 +2,8 @@
 
 入口为 [夜跑 workflow](../workflows/bos-demand-unattended.workflow.md)，基础契约见 [测试运行时](testing-runtime.md)。本方案不是后台调度服务；Coordinator 负责阶段与授权，工具负责有限执行、会话和清理。
 
+新批次使用 [无人值守治理](night-governance.md) 落盘 executionPlan，并选择两类 Tester、持续 worker/v2 预检及认证复用；旧单次入口兼容。第一批真实治理试跑最多 5 条，授权与预算另在目标项目 PLAN 确定；下文历史 10 候选抽验用于后续扩大阶段。
+
 ## 选择最小充分的验收层级
 
 批次显式启用成本分级策略时，先执行下节的两次评估，再选择本表中的运行层级；未启用时沿用现有流程。分级不改变授权、业务验收状态或领域硬约束。
@@ -103,6 +105,38 @@ module.exports = async () => ({
 
 ## 2.1 项目适配与数据成本
 
+### 逐需求预检与补齐
+
+框架负责宿主生命周期、受管执行器、预算、回执及停止恢复；项目维护方提供可访问环境、业务权限、私有配置来源与数据限制；执行 Agent 负责发现已有资产、在授权内补项目适配和逐需求用例。使用现有 profile/case 契约，不另建测试运行器。
+
+`capabilityRequirements` 兼容原 `{demandId,role,capabilities}`。新逐用例条目可增加 `caseId,level,effects,authentication,rationale`；使用这些字段必须说明 rationale。level 沿最低测试层级，effects 为 read-only/write，authentication 为 none/api/browser-session。运行时为 ui 或 browser-session 加 browser，为非 none 认证加 authentication，为 write 加 fixture-authority/data-disposition，再为 browser 加实际启停检查。只读项不会自动要求造数和处置；明确声明的能力仍保留。effects 未知时先调查，不填 read-only 规避要求。
+
+checks 可按 `demandId`、`caseId`、role 限定证据范围；缺少限定表示该项检查真实覆盖全部对应需求/用例，须由项目证明。相同范围的失败或受阻记录优先于通过；一个用例通过不能放行另一个用例。无 caseId 的需求级声明不能消费限定 caseId 的证据。该需求所有声明都通过才进入 eligibleDemandIds；共享资源退出未知仍阻止整份回执放行。
+
+状态仍为 passed/blocked/failed；可选 reason 为 implementation-missing、not-attempted、execution-failed、exit-unknown、not-applicable，另附 owner 和 recheckRef（脱敏引用，不填命令或凭据）。evidenceRef 指向真实探测或已检查的源码缺口。reason 是未通过原因，不能与 passed 共同授予通过；未分类缺口在 gaps 中记 unverified，不推断为实际失败。无写入时在 rationale 说明为何不声明数据能力；将必需能力标成 not-applicable 仍阻断。CLI 同时给出受阻需求的 gaps 与全局 blockers，原始详细证据留项目私有位置。
+
+例如，两个独立需求分别声明：
+
+```js
+capabilityRequirements: [
+    { demandId: 'layout', caseId: 'layout-read', role: 'browser-tester',
+      level: 'ui', effects: 'read-only', authentication: 'browser-session',
+      capabilities: ['business-entry'], rationale: '展开查询区即可断言，无持久写入' },
+    { demandId: 'save', caseId: 'save-readback', role: 'functional-tester',
+      level: 'external-api', effects: 'write', authentication: 'api',
+      capabilities: ['business-entry'], rationale: '保存专用样本并独立回读，按授权保留' }
+]
+// 项目实际检查后的缺口，不是预填结论：
+// { id:'fixture-authority', demandId:'save', caseId:'save-readback',
+//   role:'functional-tester', status:'blocked', reason:'implementation-missing',
+//   nonInteractive:true, evidenceRef:'source:project-fixture-adapter-review',
+//   owner:'project-adapter', recheckRef:'profile:save-readback' }
+```
+
+接入包沿现有项目测试目录保存：配置引用说明、真实认证和身份/正常入口 adapter、一个只读 case、一个写入及处置 case、同一 profile 的 preflight 和调用说明。将影响执行的 adapter 文件列入 configurationFiles，认证不能使用无条件 true 的 ensureReady。模板和样例不构成真实接入证明。
+
+真实试点先选两条独立小需求，分别覆盖上述只读和写入链路；先取得认证、版本、断言、独立回读、数据处置及资源退出证据，再验证正式 PLAN 下双 Developer 实际执行、Tester 消费冻结版本、持续监督和一次停止/恢复。全部使用原 run、预算及三截止，未知写入先回读。准备/执行/恢复耗时、人工介入及受阻原因从持久记录统计；不能以串行完成或局部探针通过宣称受管夜跑成功。未取得真实证据的接入包标为待验。
+
 profile 可导出 `preflight({signal,createTestExecutor})`，使用同一实际认证、业务角色和正常入口验证能力，并在 finally 有界退出。返回结构见[预检回执](night-policy.md#schema-21-启动契约)。options.configurationFiles 显式列入适配器、环境配置及影响执行的项目文件；自动摘要不保存文件内容。preflight 受 timeoutMs/deadlineAt 限制；超时或退出不明不得启动，先核对探针资源。取消信号必须由适配器响应。
 
 UI case 在启动前的工作项中声明 `night.route: ui`（已有冻结后 UI 评估时可复用），使无头与视口能力进入预检；不能延后到运行时才发现 profile 需要浏览器。实际验收的 options.projectRoot 须为该 work owner 的 Overlay workspaceRoot，异步 profile 工厂可使用传入的 workItem/night 选择项目配置。
@@ -124,7 +158,7 @@ if ($projectExit -ne 0) { throw "Project check failed: $projectExit" }
 
 finalizeData 接收 `{policy,status}`，项目返回 `{status: retained|reset|deleted,verified,evidenceRefs}`；无本轮数据时可明确 not-applicable 并附依据。未知写结果先独立回读，不自动重放。处置使用关闭预算，仍须在原授权范围内；随后独立调用 close 退出资源。结果 `dataDisposition` 与 `cleanup.verified` 分开：保留且已核验可以通过，关闭成功不证明数据删除，处置失败也不能隐藏退出失败。
 
-已允许新增、保留测试数据的开发测试库按[人工复验数据与收尾](../agents/_shared/testing-protocol.md#人工复验数据与收尾)优先保留验收样本，沿用授权并通过现有 evidenceRefs 引用批次、记录 ID、场景与页面入口。删除用例单独核验指定对象；成本对照试验不作为获准保留数据交付的前置门禁，无需新增 schema 或同义台账。
+开发测试库按[人工复验数据与收尾](../agents/_shared/testing-protocol.md#人工复验数据与收尾)保留获准样本，供用户后续快速验收；沿用授权，通过现有 evidenceRefs 引用需求号、批次、记录 ID、场景、页面入口及复验步骤。删除用例单独核验指定对象；成本对照试验不作为获准保留数据交付的前置门禁，无需新增 schema 或同义台账。
 
 授权测试项目采用同一用例集、角色和数据规模，对 retain、reset、delete 各完成至少三轮全周期，共至少九轮；以项目既有 profile/fixture 适配执行，不建立新调度器。逐轮保留准备、执行、独立读回、处置、资源退出、人工介入次数/耗时，以及运行前后记录数/字节增长。prepare/fixtureReadiness、execute、assert/sideEffects、dataDisposition、close 取实际 durations；人工介入和数据量由项目独立采样，缺项为 unknown。比较各策略总耗时中位数、范围及增长，再由项目选择策略；不同规模、首次造数和重复复用分别统计，不把合成测试当作清理收益。本轮框架测试不执行真实造数或这九轮项目成本试验。
 

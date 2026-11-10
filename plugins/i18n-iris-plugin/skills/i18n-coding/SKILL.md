@@ -5,6 +5,8 @@ description: Use when applying frontend or backend internationalization coding c
 
 # I18N Coding — 国际化编码改造
 
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
 ## 触发条件
 
 当任务要求对单文件、多文件、目录或整个工程做国际化编码改造时使用本 Skill。

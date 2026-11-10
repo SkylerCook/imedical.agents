@@ -1,13 +1,11 @@
 # iris-agentic-dev
 
-当前版本：**1.5.0**
+当前版本：**1.5.0 + managed-sessions-v1**。
 
-来源：[官方 v1.5.0 Release](https://github.com/intersystems-community/iris-agentic-dev/releases/tag/v1.5.0)，Windows x86_64 资产大小 `52344832` 字节。
-已核对官方 SHA-256：`6aee62484c7bb557466778889ba3520aa5ddbb470d99b10803a489f60be9e213`。
-
+固定上游、许可证、补丁、构建方法及验证边界见 [UPSTREAM.md](UPSTREAM.md)，当前二进制摘要见 [managed-build.json](managed-build.json)。受管模式关闭自动重试及隐式遥测写入，并提供独立注销回执。不得用官方未打补丁的同版本 exe 覆盖；管理入口会检查二进制摘要。
 升级兼容性：`iris_macro`、`iris_info`、`iris_execute_method` 和 HTTP `iris_execute` 的部分响应契约发生变化，详见[上游发布说明](https://github.com/intersystems-community/iris-agentic-dev/blob/v1.5.0/docs/release-notes/v1.5.0.md#breaking-changes)。本仓 helper 保留 MCP 转发和未分类工具 fail-closed 门禁；本地断连目录验证为默认 70 个工具、显式开启内置 skill 后 81 个。真实服务器行为需在目标工程验证。
 
-已部署工程通过既有能力包更新流程取得新版，并重启持有旧 exe 的 MCP 进程；无需配置迁移或旧文件清理。独立的 `iris-agentic-dev-skills` 固定快照亦已同步至 v1.5.0 的既有 8 项，来源与边界见其 `UPSTREAM.md`；不执行 `skill install` 或同步业务副本。
+已部署工程通过既有能力包更新流程取得新版，并重启持有旧 exe 的 MCP 进程；受管入口需要配置迁移，见[统一会话手册](../../docs/guides/iris-managed-sessions.md)。独立的 `iris-agentic-dev-skills` 固定快照亦已同步至 v1.5.0 的既有 8 项，来源与边界见其 `UPSTREAM.md`；不执行 `skill install` 或同步业务副本。
 
 This directory vendors the Windows x64 `iris-agentic-dev` MCP server used by IRIS/ObjectScript workflows.
 
@@ -15,7 +13,7 @@ This directory vendors the Windows x64 `iris-agentic-dev` MCP server used by IRI
 
 Agent 自动更新请读取同级 `AGENTS.md`，按 runbook 执行版本检测 → 下载 → 验证 → 文档同步。
 
-### 手工更新
+### 官方原件下载（仅供上游比对，不可覆盖受管构建）
 
 在项目根目录执行以下命令下载最新版本：
 
@@ -43,6 +41,6 @@ In deployed business projects the executable is available at:
 .agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe
 ```
 
-Use that path as the `command` in the target project's `.mcp.json`, or as `mcp.serverPath` in `.agents/config/project-env.json` when generating `.mcp.json` with `sync-env-config.js`.
+Use this executable only as the managed backend. The project MCP command is the Node session adapter; retain `mcp.serverPath` as the internal vendor source for the configuration generator.
 
 Do not store IRIS hosts, namespaces, usernames, passwords, tokens, TLS settings, or remote paths in this directory. Those connection facts belong only in the target project's local `.mcp.json` or equivalent private environment variables.

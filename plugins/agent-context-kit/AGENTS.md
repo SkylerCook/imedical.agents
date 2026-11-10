@@ -1,14 +1,24 @@
 # Agent Context Kit
 
-需求启用交接、明确交接、发现或接续已有任务时使用 `skills/task-handoff/SKILL.md`。材料在项目 `docs/handoff/`，本机保留；普通需求不为交接建立正式 run。脚本只管理记录与检查现场，不调度会话或授予业务操作权限。
+Codex 原生 Agent 适配复用 `coding-agent-adaptation`，生成器为根 `scripts/sync-runtime-agents.js`；技能目录与原生 Agent 分开执行和验收，规则见能力包 `docs/coding-agent-adaptation.md`。
+
+宿主技能适配先沿用用户明确的项目目录和目标项目已确认的配置，再按 `coding-agent-adaptation` 的来源参考补齐未知项。WorkBuddy 与 WorkBuddyDonghua 的命名 adapter 仅在项目 skills 共用 `.workbuddy/skills`；其它配置按宿主机制独立核对。各端技能发现、规则加载与调用分别验收。
+
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
+需求启用交接、明确交接、发现或接续已有任务时使用 `skills/task-handoff/SKILL.md`。材料由 task-handoff 目录解析器定位，本机保留；普通需求不为交接建立正式 run。脚本只管理记录与检查现场，不调度会话或授予业务操作权限。
 
 项目上下文支持初始化、事实维护与日常优化，按目标选择流程。入口去重、领域记忆分层和旧快照标记保留用户约束；普通维护不自动扫描或启用插件。主入口见 `skills/project-context-maintenance/SKILL.md`，初始化/优化细节按其中 references 条件读取。已部署项目只有在授权维护时定点调整，能力包更新保留业务上下文；仅对缺失的文档导航追加 `.agents/docs/README.md` 入口，更新与冲突处理见能力包根 `docs/update-agents.md`。
+
+规则入口缺失、断链或本次维护调整读取路径时，按主 skill 的[规则路由维护](skills/project-context-maintenance/SKILL.md#规则路由维护)复用实际入口、补齐引用并走查到正文；等价索引或小工程直接路由保持，文件链走查与客户端加载分别报告。
 
 技能归属迁移（0.3.2）：`coding-agent-adaptation` 由本插件承接，执行器仍在根 scripts。项目 `.agents/skills/coding-agent-adaptation/SKILL.md` 路径保持不变，由插件薄索引提供。旧版原文仅在历史内容哈希匹配时转换，自定义内容保留并报告冲突。迁移说明见 `docs/skill-plugin-migration.md`（能力包根）。
 
 迁移 `scripts/migrate-execution-entry.js` 默认报告，显式 `--write` 才替换已知旧句并补齐缺失的辅助协议路由；不写 profile。guidanceMode 是可选配置，未配置按 auto 处理；模板只声明 optional-key，不提供可自动合并的默认配置行。
 
 用于初始化和维护 Agent 项目上下文文件的通用插件。
+
+当前需求已明确为 `project`、`project_context_profile.md` 为 `intent-first-on-demand-export` 且 coding-iris-plugin 已启用时，将[IRIS 项目开发协议](../coding-iris-plugin/references/project-demand-development.md)作为编码、补源码和发布的条件入口。标版沿既有分支，通用模式不决定需求类型；IRIS 细节只由 coding owner 维护，普通更新不自动改写项目入口或配置。
 
 ## 能力范围
 
@@ -21,6 +31,10 @@
 - 暴露插件 skills 的 thin-index 文件。
 
 同时支持传统 `standard` 工程与 `workspace-overlay` 模块工作区。Overlay 必须先解析 `.agents/capability.json`，上下文只写本地 `ContextRoot`，源码从 `SourceRoot` 开始调查；按需读取真实仓库与模块外写入授权遵循能力包根 `docs/workspace-overlay.md` 的“源码读取与修改范围”。Git 操作使用声明的真实 `GitRoot`；共享 `CapabilityRoot` 在模块维护流程中只读。
+
+Overlay 源码入口支持 Junction 与工作区实体目录，交接及宿主适配复用共享 workspace 校验；声明、Git 归属及旧入口迁移按能力包根 `docs/workspace-overlay.md` 的 SourceRoot 契约执行。
+
+IRIS 项目启用 coding owner 时，开发方式由当前 `ContextRoot/config/iris-development.json` 的 `developmentMode` 独立声明，profile 只引用，不增加 contextMode 值。初始化按明确事实选 connected/offline，无法判断只询问一次；offline 不要求连接或环境资格，不生成医院连接。已有文字离线约定由授权维护补齐机器配置，普通更新不自动切换或迁移旧任务；路由复用 coding owner 的离线协议。
 
 不要在本插件中保存密钥、服务器凭据、一次性命令输出或源项目业务细节。
 
@@ -44,6 +58,14 @@
 
 知识库入口：初始化或授权维护时，为已启用 coding-iris-plugin 的工程在 AGENTS.md 合并一条自主查询指引；具体条件见 project-context-maintenance 的 initialization.md。完整索引随能力包更新，普通更新不覆盖工程入口。
 
-项目技能适配使用 `skills/coding-agent-adaptation/SKILL.md`：支持 WorkBuddy/WorkBuddyDonghua/Qoder 命名目录、OpenCode/Cursor/GeminiCLI/GitHubCopilot 通用层复用，以及受项目边界约束的自定义发现目录；执行器和参数说明归能力包根 `docs/coding-agent-adaptation.md`。用户级分发独立管理，宿主加载与文件系统检查分别取证。
+项目技能适配使用 `skills/coding-agent-adaptation/SKILL.md`；宿主目录、项目 MD、形态/版本条件及本机历史观察统一查 [source.md](skills/coding-agent-adaptation/references/source.md)，执行器和参数说明归能力包根 `docs/coding-agent-adaptation.md`。用户级路径不推导项目路径，未知项由用户说明，技能发现与规则加载分别取证；参考登记不扩大创建权限或改变脚本默认映射。
 
 用户可在项目配置 `project_context_profile.md` 的“技能适配目录”章节逐行填写目录，再执行 coding-agent-adaptation 补齐缺失链接。示例和冲突处理见能力包根 `docs/coding-agent-adaptation.md`；普通更新不自动执行清单。
+
+反馈写入授权以 [feedback skill](../agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#写入授权与自动待审补丁) 为准；项目模板只保留入口，不维护第二套逐项或批次授权契约。
+
+## 项目知识库目录
+
+项目资料归属、用途说明、README 受管区更新、首次接入及授权迁移见[项目知识库目录治理](../../docs/guides/project-knowledge-layout.md)。`project-context-maintenance` 负责接入与维护，根 `scripts/project-docs.js` 复用目录声明与本地扩展。无标记旧说明用 navigation-plan 精确评审后追加受管区；普通 Write 保留人工正文并更新已受管说明。目录检查不代表逐文件归类；未接入项目保持旧默认，已有交接路径按其工具契约发现。
+
+WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codebuddy/agents 薄入口；PowerShell 显式 -RuntimeAdapter WorkBuddy（或 CodeBuddy）-Agent，默认仍为 Skill。源定义只维护 AGENT.md，客户端实际调用待验。

@@ -69,11 +69,15 @@
 - 生成种子调用时使用全类名：`##class(<seedClass>).<method>(...)`。
 - 字典翻译 SQL 和 XML 模板同步不进入本类。
 
+## 产物目录
+
+XML、术语表及业务恢复副本按 `.agents/plugins/i18n-iris-plugin/references/project-directories.md` 解析。仅项目确有目录差异时填写该文档的可选键；不把模板示例写成项目覆盖。普通更新不启用治理、不改已有路径、不迁移文件。
+
 ## CSP 翻译同步配置
 
 - 默认语言：`EN`。
 - 默认行为：先输出差异报告；只有用户明确要求时才重写本地种子文件或部署到服务器。
-- 备份目录：`docs/i18n-csp-trans-sync/backups/`。
+- 备份选择：按 `.agents/plugins/i18n-iris-plugin/references/project-directories.md` 的 `csp-backups` 解析；未接入治理保留 legacy 默认。项目已有明确目录值时保留。
 - 页面组：
   - `TODO`：
     - `TODO.main.csp`

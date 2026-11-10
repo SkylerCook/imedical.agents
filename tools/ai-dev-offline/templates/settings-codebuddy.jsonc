@@ -1,0 +1,6 @@
+{
+  // Matches the user's preferences, checked against Tencent-Cloud.coding-copilot 4.12.39997873.
+  // Optional user-level settings. Login and service connectivity are separate operations.
+  "codingcopilot.enableAutoCompletions": false,
+  "codingcopilot.enableFloatShortcut": false
+}

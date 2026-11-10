@@ -1,10 +1,16 @@
 # 能力使用指南（非 xc）
 
+新夜跑先按 [治理接入](../night-governance.md) 记录用量基线，在初筛后基础探测、预算内补齐适配与用例、定向复验并确定可执行子集，再规划逐条最低测试、预算、真实容量与独立 worktree，批准并 materialize executionPlan；宿主使用 client worker 持续监督，浏览器 Tester 使用验收 worker 复用认证。报告分开最低自检和实际证据。旧 run 不迁移，首次真实试跑最多 5 条另行授权。
+
+预检失败需单人继续时，使用[退出夜跑转受监督串行](../../workflows/bos-demand-unattended.workflow.md#单-agent-降级)，默认保留独立 worktree、原预算与截止及恢复证据；不按单人夜跑派发。新项目预检通过[通用客户端探针](../night-governance.md#客户端生命周期预检)提供生命周期/停止证据，不再另写即时中断脚本；旧已批准 run 及回执保留。
+
+需要调整已有 2.1 夜跑容量时，先取得用户明确授权，在真实安全边界使用原 `night-record` 事件增加 `maxInFlight`；默认、权限、截止及历史保留，未使用的授权也必须有效。条件和字段见[运行中调整容量](../night-policy.md#运行中调整容量)。
+
 新夜跑启动前明确每需求总时限（可用批次统一值），问题返修默认最多 4 次；独立需求沿原流程，有依赖才补消费版本和验证绑定。耗尽项交接、独立项继续；最终集成由 Coordinator 按现有协议完成，不新增自动合并服务。配置及限制见[夜跑接口](../night-policy.md#返修收敛与按需依赖)。
 
 找不到服务地址、凭据来源，或配置修改后未生效时，使用者和 Agent 从[连接信息查看与排查](connection-configuration.md)定位；Agent 自行核对来源与读取顺序，不要求使用者先解释配置目录。
 
-创建 worktree 时同时交付实际仓库的 VS Code 查看入口和固定基点；多仓容器兼顾工作区文件与直接打开目录，查看未提交差异、本批提交及集成归属，见[审阅交付规范](worktree-review.md)。
+创建或接续 worktree 时核对实际仓库的 VS Code 查看入口和固定基点；阶段完成及交接时执行已授权的本地提交并明确剩余未提交范围，见[审阅交付规范](worktree-review.md#阶段提交与恢复点)。通用编码规则和项目入口模板提供条件路由；模板不授予权限，已有项目在授权维护时合并入口。多仓容器兼顾工作区文件与直接打开目录，区分本批提交及集成归属。
 
 新 BOS 夜跑先集中核验授权与实际能力，前后端共用 schema 2.1 run；受管部署/验收携带 work item，回执和计时自动归档。运行中异常分支挂起交接，数据保留/重置/删除与资源退出分开报告。旧 2.0 run 不迁移，接入见[启动契约](../night-policy.md#schema-21-启动契约)。
 
@@ -29,6 +35,8 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 标准工程中，真实技能通常位于 `.agents/plugins/<插件>/skills/<技能>/SKILL.md`，生成的 `.agents/skills/<技能>/SKILL.md` 只是指向真实文件的薄索引。Workspace Overlay 必须先解析 `capability.json`，从实际 CapabilityRoot 读取能力、从 ContextRoot 读取模块配置；路径和操作方法见[Overlay 手册](../workspace-overlay.md)，不要按目录层级猜测。
 
+需要共享能力而独立持有源码时，Overlay 可声明单个实体源码 Git 目录；引用已有源码仍使用 Junction。先完整更新共享能力，再按[SourceRoot 契约](../workspace-overlay.md#sourceroot引用已有源码或持有本地源码)接入，不自动移动目录或初始化 Git。
+
 ## 按场景选择
 
 | 我想做什么 | 推荐入口 | 应提供的信息 |
@@ -50,6 +58,8 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 | 新建 CA/CR 或改造已有表单 | [iris-cure-form-dev](#iris-cure-form-dev) | 文档或模板、CA/CR 类型、目标设备 |
 | 页面、字典或打印国际化 | [i18n-iris-plugin](#i18n-iris-plugin) | 页面或模板、语言、文案类别 |
 | 开发医生站 AI 集成 | [iris-imedical-doctor-ai](#iris-imedical-doctor-ai) | 现有宿主、业务服务、交互要求 |
+| UI 标注还原、布局或主题兼容诊断 | [iris-ui](#iris-ui) | 原型/标注或复现步骤、页面范围和目标主题 |
+| 公司UI规范、截图或浏览器评审 | [imedical-ui](#imedical-ui) | 截图/页面或规范问题、目标风格与范围 |
 | 整理标版需求、提交或移植 | [需求入口](#coding-iris-plugin) | Git 改动或提交、编号、仓库角色 |
 | 发布 IRIS 文件或治疗表单 | [iris-deploy](#coding-iris-plugin)、[cure-form-deploy](#iris-cure-form-dev) | 明确对象、目标、交付方式和授权范围 |
 | 沉淀已验证的通用经验 | [agent-framework-evolution](#agent-framework-evolution) | 已验证材料；业务反馈还须满足验收条件 |
@@ -62,7 +72,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 宿主支持技能选择器或 `$技能名` 时，也可以使用其原生入口。`$技能名` 不是 PowerShell 命令，也不是所有 Agent 工具都支持的通用语法。宿主没有技能发现能力时，让 Agent 直接读取真实 `SKILL.md` 并按其流程执行；这不改变插件启用与授权条件。宿主发现适配见[技能适配说明](../coding-agent-adaptation.md)。
 
-只有 skill 明确声明的参数才可使用。例如下面是给 Agent 的请求：
+全部自有 skill（含 init、xc）和 Agent 支持 `--help` 或“查看用法”，默认展示简明用途、输入、已声明参数、示例和指南链接；这是 Agent 层的请求，不进入业务流程。完整帮助、路径解析和更新方式见[统一帮助协议](capability-help.md)。除这项公共约定外，只有 skill 明确声明的参数才可使用。例如下面是给 Agent 的请求：
 
 ```text
 使用 bos-demand-entry --text，从当前标版改动生成需求录入文本。
@@ -75,13 +85,29 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 ## demand-delivery-plugin
 
+使用 [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md) 的 `--plan` 为已验证改动生成方案，明确 `--commit` 才执行本地提交；push 独立授权。当前用户或项目约定须明确 standard/project、标题与精确文件，默认要求数字需求号，无需 IRIS profile。project 提前开发尚无编号时，显式使用 `demand-commit --plan --no-id` 或 `demand-commit --commit --no-id`；仅该参数不产生提交授权，standard 仍须编号。
+
+上游更新与需求无交集、内容和消息未变时，按[同步复核协议](../../plugins/demand-delivery-plugin/references/commit-upstream-check.md#head-前进后的自动接续)由 Agent 重新 plan 后沿用已有授权接续。技能自行同步，有无 hook 均适用；`--plan` 仍不联网或提交。
+
 已有需求需要提交时使用 [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md)。用户连续验收多个需求时使用 [demand-acceptance](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md)。报告按[共享测试协议](../../agents/_shared/testing-protocol.md#结果与交接)分别统计人工补验与待用户验收结论，保留实际功能验证范围。处理报告固定包含本批全部需求号汇总（含基线已满足、无需新增代码项），状态分组另列；格式与完整性核对见 [编号汇总契约](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#编号汇总契约)。
 
-> 使用 demand-acceptance，我逐号报验收结论，通过后依次提交、补 BOS 日志并 push，报告整理不阻塞下一条。汇总时分别给人工通过和已交付编号，用能直接粘贴到 BOS 的单行逗号格式。
+> 使用 demand-acceptance，我逐号报验收结论：独立需求通过后交付；主子需求共享代码时，整组通过后取得主需求实仓提交并共享 push 一次，再为各引用需求分别补 BOS 日志，日志缺口不阻塞后续 Git；own 子项独立交付，整组完成仍须所有成员的适用回执齐备。明确无代码项登记原因并跳过代码阶段。汇总时分别给人工通过和已交付编号，用能直接粘贴到 BOS 的单行逗号格式。
 
-新任务用 `demand-acceptance` 验收当前工作区；从其他 worktree 接收变更用 `demand-acceptance --worktree`，或 `demand-acceptance --worktree "<来源路径>"`（兼容 `-worktree`）。来源与目标核实后才合入；当前目录是 worktree 不代表要合回其他仓库。接续已有批次保留原映射；来源参数只选择来源，交付授权来自用户明确调用，清理仍需独立授权。
+主子组的阻塞、共享回执和无代码阶段按[代码归属协议](../demand-code-ownership.md)处理，单个子项通过不提前提交共享代码，其它独立需求可继续；明确无代码也须人工验收，缺失或未知提交不作为无代码跳过。帮助请求只展示说明，沿[统一帮助协议](capability-help.md)结束，不进入交付。
 
-明确调用开展验收交付即授权该批次通过项提交、BOS 日志及推送，无需额外开关或反复选择范围；非 BOS 项目跳过日志。用户明确暂不交付时保留限制；仅查看技能、查询汇总或 Agent 自动加载不产生写入授权。默认复用台账；需要批次恢复时读 [验收索引协议](../../plugins/demand-delivery-plugin/references/acceptance-session.md)。更新能力包后刷新 thin-index 即可发现新入口，不自动部署业务改动或启动批次。
+快捷登记人工通过推荐保留“编号＋标题”，先按编号定位再用标题复核；也支持纯编号列表 `/demand-acceptance --pass 123,124`。多行粘贴示例：
+
+```text
+/demand-acceptance --pass
+123 示例需求标题
+124 另一条示例需求标题
+```
+
+已进入验收会话后可省略技能名，直接发送 `--pass` 加上述多行列表。裸 `--pass` 仅在上下文唯一定位一个待验收需求时使用，多候选只澄清编号；详细解析、重复结论续接和暂停边界见技能“接收结论”。以上为调用示例，帮助或讨论示例不执行交付。
+
+`demand-acceptance` 从当前工作区及上下文定位来源；`--worktree [路径]` 显式指定来源（兼容 `-worktree`）。最终实仓目标单独确认，来源为 worktree 时须先合入并取得实仓 commit 才能登记 BOS；省略来源参数不跳过这一步。接续已有批次保留原映射；明确调用复用既定范围内的合入及交付授权，缺目标先澄清，清理仍需独立授权。
+
+明确调用开展验收交付即授权该批次通过项提交、BOS 日志及推送，无需额外开关或反复选择范围；默认先提交推送再补 BOS，日志失败或未知只暂停日志，Git 完成即释放发布权供下一条继续。代码已推送、BOS 待补须单列状态，全部适用回执成功才算完整交付；非 BOS 项目跳过日志。用户明确暂不交付时保留限制；仅查看技能、查询汇总或 Agent 自动加载不产生写入授权。默认复用台账；需要批次恢复时读 [验收索引协议](../../plugins/demand-delivery-plugin/references/acceptance-session.md)。更新能力包后刷新 thin-index 即可发现新入口，不自动部署业务改动或启动批次。
 
 ## Rule、reference 和脚本怎么用
 
@@ -100,8 +126,8 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 | 文档新建治疗表单 | `extract-doc-ingest` 提取结构 → `cure-form-requirement-adapter` 生成规格 → 人工确认且 unresolved 清零 → CA 用 `cure-assess-form-dev`，CR 用 `cure-record-form-dev` → 预览与交互验证 → 按范围进入 `cure-form-deploy` |
 | 现有表单响应式 | `cure-form-responsive` 检查模板并保留契约 → 完整预览与验证 → 需要发布时进入部署流程；新任务不必使用旧名称 |
 | 页面国际化 | 定位链路和分类 → `i18n-coding` / `i18n-text-extract` → 页面非字典文案用 `i18n-page-trans-seed`，字典项用 `i18n-bdp-trans-seed` → 核验；已有服务器翻译迁移用 `i18n-csp-trans-sync` |
-| 标版需求录入 | `bos-demand-entry --text`（可用 `--split` 审查拆合，`--split --excel` 拆分并导出，省略模式默认 `--text`）→ 用户录入 BOSS → 回填编号与标题 → `--bind` / `--plan` → 明确提交时 `--commit`；完整参数见[需求录入协议](../../plugins/bos-plugin/references/standard-demand-entry.md) |
-| 已有 BOS 需求处理 | `bos-demand-handle` → 获取并复用需求与相关媒体 → 按技术栈实施、自查和验证 → 用户验收 → 按授权提交并校验全部仓库 → 自动准备本次提交的日志计划 → 复用 BOS 补录预授权或请求授权 → 提交 BOS 日志；需求状态更新独立授权 |
+| 标版需求录入 | `bos-demand-entry --text`（代码补录，或自然语言指定“提需求给某组”及主题/资料；`--work` 工作记录；可叠加 `--split`、`--excel`）→ 用户录入 BOSS → `--bind` 回填编号与标题；仅代码来源再按需 `--plan` / 明确 `--commit`，完整参数见[需求录入协议](../../plugins/bos-plugin/references/standard-demand-entry.md) |
+| 已有 BOS 需求处理 | `bos-demand-handle` → 获取并复用需求与相关媒体 → 按技术栈实施、自查和验证 → 用户验收 → 按授权合入实仓并校验全部目标 commit → 自动准备实仓提交的日志计划 → 复用 BOS 补录预授权或请求授权 → 提交 BOS 日志；需求状态更新独立授权 |
 | 跨会话继续需求 | 启用 `task-handoff` → 执行 Agent 在关键节点维护 → 明确交接时保存快照 → 新会话读取记录、inspect 核实现场 → 继续已授权范围；详见[交接说明](../task-handoff.md) |
 
 这些路线允许在已有可信产物处接续，不要求重复完成前置工作。表单的规格批准、交互验证、版本哈希及部署门禁仍按[交付协议](../../plugins/iris-cure-form-dev/references/cure-form-delivery-workflow.md)执行；批量脚本化表单交互的授权要求见其[交互测试协议](../../plugins/iris-cure-form-dev/references/cure-form-interaction-test-v1.md)。
@@ -128,9 +154,9 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 | Skill | 请求示例 | 前提与预期结果 |
 |---|---|---|
-| [coding-agent-adaptation](../../plugins/agent-context-kit/skills/coding-agent-adaptation/SKILL.md) | 按项目配置中逐行填写的目录清单补齐缺失技能链接；也支持指定宿主。 | 已有 .agents，明确宿主；产出链接检查结果，已有冲突内容保留。 |
-| [project-context-maintenance](../../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md) | 检查当前工程上下文，更新已过时的事实并精简重复说明。 | 提供目标工程和维护范围；产出适用的 AGENTS、规则、记忆或配置变更。 |
-| [task-handoff](../../plugins/agent-context-kit/skills/task-handoff/SKILL.md) | 为当前需求启用交接；下次从交接记录继续。 | 同机同工作区、串行接续；产出 docs/handoff 下正文及现场记录，明确交接时留快照。 |
+| [coding-agent-adaptation](../../plugins/agent-context-kit/skills/coding-agent-adaptation/SKILL.md) | 按项目配置中逐行填写的目录清单补齐缺失技能链接；默认处理 Skill，`--agent` 处理 Codex TOML 或 WorkBuddy/CodeBuddy 薄入口。 | 已有 .agents，优先沿用用户明确目录及项目已确认配置，未知机制再查 [source.md](../../plugins/agent-context-kit/skills/coding-agent-adaptation/references/source.md)。WorkBuddy/WorkBuddyDonghua 命名入口仅共用项目 skills；发现、项目规则加载和实际调用独立验证，已有自定义内容保留。 |
+| [project-context-maintenance](../../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md) | 核对工程入口到专项规则的读取路径，修复断链并精简重复说明。 | 提供目标工程和维护范围；保留约束及等价路由，按[规则路由维护](../../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md#规则路由维护)检查受影响链并走查代表任务；客户端加载按实际证据报告。 |
+| [task-handoff](../../plugins/agent-context-kit/skills/task-handoff/SKILL.md) | 为当前需求启用交接；下次从交接记录继续。 | 同机同工作区、串行接续；材料由目录解析器定位，已接入治理的新任务用 ContextRoot/work/handoff，未接入沿 docs/handoff，旧任务原位恢复；明确交接时留快照。 |
 
 ## agent-framework-evolution
 
@@ -139,27 +165,31 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 | Skill | 请求示例 | 前提与预期结果 |
 |---|---|---|
 | [agent-framework-evolution-init](../../plugins/agent-framework-evolution/skills/agent-framework-evolution-init/SKILL.md) | 在当前工程启用 agent-framework-evolution，检查技能入口。 | 保留显式插件状态；只接入入口，不执行反馈或打包。 |
-| [agent-framework-feedback](../../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md) | 这个业务需求已验收，请只读审查本次框架反馈候选。 | 业务需求已明确验收且反馈适用；仅给通过 skill 共享准入的候选，无合格项正常结束；局部经验留项目内，写入和提升另按授权执行；框架维护不触发。 |
+| [agent-framework-feedback](../../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md) | 这个业务需求已验收，请只读审查本次框架反馈候选。 | 业务需求已明确验收且反馈适用；仅给通过 skill 共享准入的候选，无合格项正常结束；局部经验留项目内；明确授权自动模式时在确认源仓隔离分支形成待审补丁，否则写入和提升按动作授权；框架维护不触发。 |
 | [reusable-content-packaging](../../plugins/agent-framework-evolution/skills/reusable-content-packaging/SKILL.md) | 把这份已验证的通用流程整理成能力包，去掉项目私有信息。 | 提供经验来源、验证证据与目标范围；产出通用能力文件及接入说明。 |
 
 ## coding-iris-plugin
 
 [查看该插件清单](capability-catalog.md#coding-iris-plugin)。下面的示例发给 Agent，不在终端执行；路径、对象和范围替换为当前工程实际值。
 
+帮助请求先展示用法并结束；实际开发先按 developmentMode 分流。offline 示例：“按这批带回源码完成本地修改、Review 和增量/回退交付，列出现场待验项。”沿[离线协议](../../plugins/coding-iris-plugin/references/iris-offline-development.md)核对批次、范围与真实源码 Git，无需医院连接；打包目前要求 Windows PowerShell 5.1 或 Windows 上的 PowerShell 7。
+
+connected 项目按需导出示例：“处理这份 project 需求，准备修改的文件即使本地已有也先核实服务器版本，有变化先提交独立 export，再开始需求修改，保留本地已有改动。”已确认 `project` ＋ `intent-first-on-demand-export` 才命中[项目开发协议](../../plugins/coding-iris-plugin/references/project-demand-development.md)；标版沿既有分支，contextMode 不决定需求类型。测试为日常默认，正式直接开发须明确授权；两环境各有本地 Git，远端读取资格、普通提交和发布授权分别核对。部署前再次同步并复审冻结，前端优先使用已确认支持的 Atelier。无需每需求全量刷新，也不以文件数量推断 License 安全。
+
 | Skill | 请求示例 | 前提与预期结果 |
 |---|---|---|
-| [coding-iris-init](../../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md) | 为当前 IRIS 工程接入 coding-iris-plugin，检查现有配置和脚本入口。 | 目标工程与实际配置可核实；产出 profile、脚本及薄索引检查结果，保留已有值。 |
+| [coding-iris-init](../../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md) | 为当前 IRIS 工程接入 coding-iris-plugin，生成必要配置并 Check；已启用项目普通更新自动补缺文件，也可单独补齐。 | 使用已确认开发方式和环境；缺失文件默认创建、已有值与旧模式缺省保留，未知事实集中确认，分别报告配置、远端资格和服务器基线。 |
 | [iris-backend-coding](../../plugins/coding-iris-plugin/skills/iris-backend-coding/SKILL.md) | 修改指定类方法以满足这份需求，保留分层和返回契约，按框架规范检查新增代码。 | 提供类方法、需求及范围，有项目显式规范时一并提供；编码与 Review 共用 CLS 规范，格式化只处理本次新增代码，不附带整理已有代码。新增注册类/DTO、表类及成员按统一标签说明职责和参数/返回契约，变量使用自然注释，复杂返回引用结构；Debug 只作为文档内容，属性说明及索引注释按需，保留历史兼容及 Storage。新建类核对 profile、同职责类和公共基类，适配模板 Extends，向 Review 提供继承依据。提取公共方法后核对规则复用和稳定标识归属；Parameter 声明/引用按语言合法性检查，静态歧义交人工核对。产出本地源码，分别报告 Agent 审查、脚本覆盖项及编译/运行证据。 |
 | [iris-coding](../../plugins/coding-iris-plugin/skills/iris-coding/SKILL.md) | 修改这个功能，先查明前后端调用链，再完成范围内实现。 | 提供功能入口和需求；产出任务路由、相关前后端变更及验证说明。 |
-| [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md) | 使用 demand-commit --plan，为已验证改动生成提交方案。 | 实现已验证；--plan 不提交，明确 --commit 才执行本地提交；push 独立授权。 |
-| [bos-demand-entry](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md) | 使用 bos-demand-entry --text，根据当前改动整理标版需求录入文本。 | 仅 standard；输出项目产品标识前缀的名称和三段式描述，缺陷为操作/预期/实际，功能改进为说明/操作/预期；用户、安全组、科室按需补充。`--split` 展示价值、验收点、代码归属、依赖及拆合理由；`--split --excel` 用同一批条目导出。共享文件不能隔离时先交候选文本，暂不生成该批 draft/Excel。人工录 BOSS 后回填编号，再衔接提交。代码草稿 v2 保持可用；`--work --split --excel` 从明确工作记录生成 v3，无需 Git，按目标/内容/可选成果及实际进度整理，编号回填不进入提交或改写来源；输出限工程临时目录或正式需求目录，不写入 `.agents/` 或能力包源码。 |
 | [iris-demand-promote](../../plugins/coding-iris-plugin/skills/iris-demand-promote/SKILL.md) | 先评估将 DEV 的指定提交移植到指定 PRD 仓库的范围和基线。 | 明确两个仓库、提交及服务器基线读取范围；授权实施后形成 PRD 本地提交，不部署。 |
-| [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 将这些文件部署到已指定环境并检查编译。 | 明确目标、文件和授权范围后直接执行，默认 direct，无需 Git 基线会话；需要三方合并时选 guarded，分别报告上传、编译后回读、Storage 本地回填及业务验证；回填失败不能报告部署验证通过，受管夜跑源码变化后复审冻结版本。 |
+| [iris-deploy](../../plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md) | 将这些文件部署到已指定环境并检查编译。 | connected 且已确认 project＋intent-first-on-demand-export 时先同步、合并复审并绑定 source plan；正式批准绑定当前冻结摘要。connected 下未命中该分支的工程沿原 direct/guarded 契约，offline 停止医院部署。失败先诊断并在原授权内有限恢复，明确编译错误与未知结果分开；实际人工决策才提问，详见[恢复协议](../../plugins/coding-iris-plugin/references/deployment-protection.md#失败恢复与授权)。按[验证契约](../../plugins/coding-iris-plugin/rules/iris_deploy_checklist.md#验证)复用回执并分流附加检查，分别报告上传、编译及最终回读、Storage 和业务验证；回填失败不能报告验证通过，冻结源码变化后复审。 |
+| [iris-xml-export](../../plugins/coding-iris-plugin/skills/iris-xml-export/SKILL.md) | 先和我确定这个模块需要的对象，再从确认环境导出一个 XML 部署包。 | Agent 分析候选、核对动态依赖并确认准确清单；包来自服务器当前对象，支持文本与图片。选择已准备的专用类或原生系统执行通道，逐项核对完整性，部署和导入另按授权。 |
+| [iris-code-baseline](../../plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md) | connected 按版本 TXT 清单 采当前源码；offline 用带回的回执源码、人工源码目录或完整 XML，完成修改、Review、增量/回退交付。 | [现场用法](../../plugins/coding-iris-plugin/references/iris-offline-development.md)；先解析独立 developmentMode，离线无需连接，材料清单不等于源码。原件在 incoming，编辑对象进入源码 Git，基线/恢复私有保存，独立 Verify 后待现场验收；人工 ZIP 无框架/Node 运行依赖。 |
 | [iris-frontend-coding](../../plugins/coding-iris-plugin/skills/iris-frontend-coding/SKILL.md) | 调整指定 HISUI 页面的交互，或排查弹窗面板留白、裁切与滚动异常，保留现有数据和调用契约。 | 提供页面、行为要求及项目显式规范/兼容基线；编码与 Review 共用前端规范，仅对本次新增代码应用格式约定，按条件加载 i18n。分别报告静态检查、自审或独立 Review、实际页面验证；布局问题仍路由到 HISUI 样式参考；新建页面或审查初始化链路时，按依赖与容器契约选择 JS 组织模板。 |
 | [iris-frontend-gb2312-promote](../../plugins/coding-iris-plugin/skills/iris-frontend-gb2312-promote/SKILL.md) | 这是仍需 GB2312 的历史工程，请先检查转换文件与源文件的替换范围。 | 必须明确历史编码要求及文件替换授权；产出源名提升结果，普通 UTF-8 工程不使用。 |
 | [iris-imedical-knowledge](../../plugins/coding-iris-plugin/skills/iris-imedical-knowledge/SKILL.md) | 查询这个业务概念的相关参考，再结合当前源码核实。 | 给出业务词或疑点；产出来源和适用性说明，现有信息足够时无需查询。 |
 | [iris-mcp-lookup](../../plugins/coding-iris-plugin/skills/iris-mcp-lookup/SKILL.md) | 核实这个 IRIS 类方法的签名和当前可用能力，注明来源。 | 给出类方法或文档线索；依当前 MCP、本地源码或官方文档返回证据，不猜签名。无原生入口时使用 [helper 按需 schema 与 JSON 输出](../../plugins/coding-iris-plugin/rules/iris_agentic_dev.md#诊断)，正常调用已内置配置检查；使用 v1.5.0 时按同一规则中的响应契约处理列表截断、方法错误和持久会话。 |
-| [iris-menu-sync](../../plugins/coding-iris-plugin/skills/iris-menu-sync/SKILL.md) | 刷新指定安全组的菜单资料快照，先检查采集范围。 | 明确全部或指定组及读取范围；产出本地快照和差异，不修改 HIS 菜单或权限。 |
+| [iris-menu-sync](../../plugins/coding-iris-plugin/skills/iris-menu-sync/SKILL.md) | 刷新全部或指定安全组快照；已审阅并登记的全量来源可由宿主每月调用固定采集入口。 | 明确来源及读取范围；产出本地快照和差异，异常保留旧快照。定期运行动态读取启用组，不自动部署或修改 HIS 权限。 |
 
 ## extract-doc
 
@@ -224,6 +254,35 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 |---|---|---|
 | [iris-external-reg](../../plugins/iris-external-reg/skills/iris-external-reg/SKILL.md) | 依据指定平台协议制定预约挂号接入计划，核对 HIS 标准能力。 | 提供规范与工程入口；产出解析与计划；计划确认后进入获授权的实现，复用 RegInterface。 |
 
+## imedical-ui
+
+[查看插件清单](capability-catalog.md#imedical-ui)。技术栈无关，只需项目入口和既有插件配置；来源固定为IHOS海蓝与PURE天蓝，详细规范按场景读取。
+
+| Skill | 请求示例 | 前提与预期结果 |
+|---|---|---|
+| [imedical-ui](../../plugins/imedical-ui/skills/imedical-ui/SKILL.md) | 按两套规范核对这个查询页，共性一次适配，差异按需补；目前只有 PURE 截图。 | 使用现有组件/技术栈，按对象语义和责任层归类；截图风格不自动限定业务共性的实现范围，规范推广仍须对应来源证据，业务行为变化另列。 |
+| [imedical-ui-review](../../plugins/imedical-ui/skills/imedical-ui-review/SKILL.md) | 用这些截图评审UI，或核对指定浏览器标签里的实际页面。 | 只审查提供的证据，报告位置、事实、来源和建议；截图看不到的交互、比例未知和缺失风格保持未覆盖，AI结论不等同正式UI验收。 |
+| [imedical-ui-init](../../plugins/imedical-ui/skills/imedical-ui-init/SKILL.md) | 按框架更新流程接入公司UI规范与评审能力。 | 保留现有配置，核对注册/profile，生成日常入口；不隐含业务修改、公共CSS修改或远端操作授权。 |
+
+业务实现通过目标适配能力完成；IRIS CSP＋HISUI 使用 iris-ui。未来 Java/HTML 适配直接依赖通用层，不需要 IRIS 配置。本期规范底稿不含完整查看器或其它主题导出。
+
+## iris-ui
+
+[查看该插件清单](capability-catalog.md#iris-ui)。0.2.0正式依赖 imedical-ui 与 coding-iris-plugin 均已启用且兼容；首次接入直接读插件init，已有工程同步核对注册/profile后走正常完整更新。更新不会自动启用依赖，不能只看退出码判定成功。
+
+| Skill | 请求示例 | 前提与预期结果 |
+|---|---|---|
+| [iris-ui](../../plugins/iris-ui/skills/iris-ui/SKILL.md) | 按这份 UI 标注改造指定 HISUI 页面，共性共用、差异有据，保留已验收主题和业务契约。 | 提供原型/标注或故障复现入口及范围；修改前归类，最终 diff 核对主题限定和直接调用者；按共享协议选取 CSS 优先级、初始化及动态阶段证据并及时停止，用户视觉/业务验收分别记录。 |
+| [iris-ui-init](../../plugins/iris-ui/skills/iris-ui-init/SKILL.md) | 在当前工程按框架更新流程接入 iris-ui，复用现有 IRIS 配置并检查日常入口。 | 依赖已启用且兼容；Overlay 先更新共享能力，再按项目模块管理流程刷新 Context；保留自定义配置，不以手工同步或单独生成薄索引代替正式更新。 |
+
+诊断请求示例：“首屏出现横向滚动，展开查询后消失，请比较实际容器尺寸与生命周期。”插件只读辅助 `collectUiMetrics({targets:[{name,selector}]})` 采集显式目标的几何与样式证据；浏览器控制仍使用宿主现有能力，无法读取的 frame/控件报告未采集。图片与标注、实际加载资源、Console/Network 和交互验证按任务补齐，数值采集成功不代表布局已通过。
+
+相关 UI 修改的最终 diff 后，使用 [主题条件扫描器](../../plugins/iris-ui/scripts/check-theme-scope.js)辅助核对新增或受影响的主题限定：`node <iris-ui>/scripts/check-theme-scope.js --project-root <WorkspaceRoot> --file <精确文件>`，多文件重复 `--file`。工具只读 CSP、CSR、HTML、JS、CSS 显式文件，输出 JSON 候选与覆盖限制；成功返回 0（包括发现候选），输入或读取失败返回 2。Agent 判断共性或有据差异，并沿现有搜索核对未覆盖的封装；不遍历全仓，不自动修改或阻断。相关内容未变时复用已有结果，零候选不等于 UI 通过。
+
+现有前端入口的条件加载以 [前端 rule 的 UI 门禁](../../plugins/coding-iris-plugin/rules/iris_coding_frontend.md#ui-条件门禁)为准，skill 和只走规则的审查复用同一入口。部署继续使用原 owner；需要保留服务器已有修改时，先按 [部署保护](../../plugins/coding-iris-plugin/references/deployment-protection.md)核对可用基线与合并条件，不能把 UI 插件启用当成部署授权或新增保护能力。
+
+验收后的经验回归沿 [iris-ui](../../plugins/iris-ui/skills/iris-ui/SKILL.md) 的 ui-self-regression 阶段和 [统一授权契约](../../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#写入授权与自动待审补丁)。例如：“本项目明确授权，已验收且合格的 UI 经验在已确认源仓的隔离分支自动形成待审补丁，允许的 owner 及动作范围为……”。源仓身份、范围或证据不足时仅交候选；业务工程更新和提交发布另行授权。
+
 ## iris-imedical-doctor-ai
 
 [查看该插件清单](capability-catalog.md#iris-imedical-doctor-ai)。下面的示例发给 Agent，不在终端执行；路径、对象和范围替换为当前工程实际值。
@@ -243,30 +302,43 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 |---|---|---|
 | [iris-interface-build](../../plugins/iris-interface-dev/skills/iris-interface-build/SKILL.md) | 按已确认计划实现接口方法和前端调用，并做离线审查。 | 已有字段确认和实施计划；产出本地 .cls、.js、.csp 及配置项，远端动作交给 coding-iris。 |
 | [iris-interface-dev-plan](../../plugins/iris-interface-dev/skills/iris-interface-dev-plan/SKILL.md) | 基于解析和字段匹配结果生成接口开发计划。 | 提供 parsed.json、fields.md、diagnostics.md 及确认结果；产出 implementation-plan.md，编码转 iris-interface-build。 |
-| [iris-interface-doc-ingest](../../plugins/iris-interface-dev/skills/iris-interface-doc-ingest/SKILL.md) | 解析指定厂家接口文档，生成后续字段匹配所需产物。 | 提供文档并可用 extract-doc；产出 docs/interface 下的解析文件，使用接口专用 schema。 |
+| [iris-interface-doc-ingest](../../plugins/iris-interface-dev/skills/iris-interface-doc-ingest/SKILL.md) | 解析指定厂家接口文档，生成后续字段匹配所需产物。 | 提供文档并可用 extract-doc；复用其目录契约，已接入治理默认 docs/modules/interfaces，未接入兼容 docs/interface，显式 outputRoot 优先。使用接口专用 schema，后续处理使用工具返回的实际路径。 |
 | [iris-interface-field-match](../../plugins/iris-interface-dev/skills/iris-interface-field-match/SKILL.md) | 对已解析接口字段做匹配，列出低置信候选和人工确认项。 | 提供 parsed.json、fields.md 和可选本地反馈；产出 field-match.json、field-match.md，不擅自确认歧义。 |
 | [iris-interface-init](../../plugins/iris-interface-dev/skills/iris-interface-init/SKILL.md) | 为当前工程接入接口开发能力，检查解析和编码依赖。 | 依赖 extract-doc 与 coding-iris；产出 profile、输出目录和薄索引状态。 |
 
 ## bos-plugin
+
+主子需求按[代码归属协议](../demand-code-ownership.md)：例如“按三个入口拆子需求，共享代码挂主需求；全部通过后取得主实仓提交，主子各自日志复用这次提交”。Agent准备草稿和映射，用户逐项回填编号即可；明确无代码的条目保留原因并跳过代码交付，不需日志凭据。
 
 BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调用检查见[可用性依赖](../plugin-availability.md)。
 
 前提：Node.js >=22.5.0；项目内使用时明确启用插件，个人查询可使用已接入的用户级入口。在线查询与日志补录使用 BOS_MCP_CONFIG 指向的共享私有文件，各自读取按 skill 命名的段，已有充分需求正文的本地处理不依赖在线查询。
 
 - [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md)：请求“初始化 BOS 个人配置”，Windows 创建或复用分段私有配置，仅绑定 BOS_MCP_CONFIG；旧平铺文件须明确 migrate-config 原地迁移，用户补全 TODO 后离线核对；这不启用项目。请求“为当前项目接入 BOS 查询与需求处理”才更新 profile 并生成四个日常发现入口。详见[配置说明](../../plugins/bos-plugin/references/usage.md)；非 Windows 使用显式配置，不自动注册客户端 MCP。
-- [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：请求“查看 BOS 12345 详情”“查询我的待办”“查询我发起的历史”或“查询指定接受组的待办”。个人待办默认本人＋所在组；切换人员/组口径时明确清除不用的默认条件，字段说明与 body 按[查询参数契约](../../plugins/bos-plugin/references/usage.md#查询参数契约)处理。旧 cuser: "" 调用升级后表示清除当前人，继承本人应省略该字段。结果区分正文、图片与附件链接，不改业务代码或 BOS 状态。
-- [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：请求“处理 BOS 12345”，主动读取相关媒体并按项目技术栈实现与验证；“验收后提交”授权本地提交，全部校验成功后自动准备本次日志计划，再请求 BOS 补录授权。“验收后提交并将本次提交补录到 BOS 代码更新日志”可提前明确两项授权。配置缺失、拒绝或补录失败保留本地已提交结果；完整正文可在 BOS 不可用时继续本地工作。
+- [bos-demand-entry](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md)：请求“根据当前标版改动补需求”“整理这份工作记录”或“提需求给支持组，解决演示系统登录问题”，可补资料。仅 standard，名称按[标版标签规则](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md#需求名称与标版标签各类来源共用)逐条判断；扁平Git代码用v2，主子代码用v4，`--work` 工作和自然语言主题提需用 v3；主题不要求 Git，接收组与产品标识分开核实。默认文本，`--split` 审查拆合、`--excel` 导出同源草稿、`--bind` 回填编号，仅代码按授权衔接提交。已完成条目追加备注，文本写完不代表问题已解决。本地生成无需 BOS 凭据，不自动发送或录入；产物归目标工程需求目录或任务临时目录。旧 `iris-demand-entry` / `iris-demand-commit` 已删除，改用当前 owner，数据兼容与项目引用迁移见[迁移说明](../demand-delivery-migration.md)。
+- [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：默认开发待办，`--proj` 仅项目来源，`--dev` 产品（所有非项目来源），可独立调用或与带日期的 `--workload` 组合，完整说明见[来源口径](../../plugins/bos-plugin/references/usage.md#项目与产品非项目来源口径)。`--todo` 查全部个人开发待办，`--todo 2026-10-23` 按预计完成时间查单日；`--workload 2026-10-01 2026-10-23` 按执行时间查工作量，日期必填，范围也可写为 `2026-10-01~2026-10-23`。新入口按接受人、当前人和状态组合分类，清除默认当前组，输出实际口径及待核对项，见[个人查询口径](../../plugins/bos-plugin/references/usage.md#个人待办与工作量口径)。所有待办默认创建日期升序，个人查询支持 `--sort 预计完成时间 --order asc` 等五类日期排序，排序与筛选独立，见[日期排序口径](../../plugins/bos-plugin/references/usage.md#日期排序口径)。默认列表含创建时间、需求号/完整标题，末尾默认追加发起人/发起组，可指定其它列或“只要需求串”（单行半角逗号分隔编号），格式选择仅影响 Agent 展示，完整契约见[输出格式](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md#输出格式)。原编号详情、发起/接受/当前人员或组及历史查询继续可用，旧通用 pending 仍按默认当前人＋所在组；切换筛选明确清除不用的默认条件。结果区分正文、图片与附件链接，不改业务代码或 BOS 状态。更新能力包并刷新已启用索引取得新入口，无私有配置迁移或旧文件清理。
+- [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：请求“处理 BOS 12345”，主动读取相关媒体并按项目技术栈实现与验证；“验收后提交”授权本地提交，全部实仓提交校验成功后自动准备本次日志计划，再请求 BOS 补录授权。“验收后提交并将本次提交补录到 BOS 代码更新日志”可提前明确两项授权。配置缺失、拒绝或补录失败保留本地已提交结果；完整正文可在 BOS 不可用时继续本地工作。
 
-- [bos-code-update-log](../../plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)：请求“预览这些提交的 BOS 代码更新日志”只运行 plan；明确“把这些提交补录到 BOS”才执行 submit。只读已有 Git 提交，跨仓说明全部保留，不执行本地 commit/push；token 与 linkProject 使用本技能配置段，缺失不影响需求查询。
+- [bos-code-update-log](../../plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)：请求“预览这些提交的 BOS 代码更新日志”只运行 plan；明确“把这些提交补录到 BOS”才执行 submit。只读已核验的实仓 commit，选择须明确 repo/ref/完整 hash；worktree 先合实仓，跨仓说明全部保留，不执行本地 commit/push；token 与 linkProject 使用本技能配置段，缺失不影响需求查询。
+
+工作量漏计或页面数量不同，按[差异复核](../../plugins/bos-plugin/references/usage.md#工作量差异复核)刷新原范围、逐号比较并解释待核对原因；输出并列候选、计入与待核对数，开发测试阶段按当前个人口径判断。
 
 普通与夜跑复用项目已启用领域能力，按需求范围选择入口，支持不同及混合技术栈；新增体系不要求修改 BOS 分支或增加启动扫描。简单任务由当前 Agent 连续修改、自查和目标验证；IRIS 前端/后端范围明确时直达专项技能，混合或边界不明时进入 iris-coding，非 IRIS 沿用项目规范。回归按实际改动选择，正式协作按条件加载已有协议；只有明确要求交接才建交接记录。提交仍按原授权执行。新进程可读入口、真实宿主发现及简单需求提效分别验证，见 [场景](../../plugins/bos-plugin/references/scenarios.md)。
-
-## demand-delivery-plugin
-
-启用新入口后使用 [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md) 的 `--plan` 生成提交信息，明确 `--commit` 执行本地提交。当前用户或项目约定须明确 standard/project、数字需求号、标题与精确文件；无须 IRIS profile。其它提交格式沿用项目规范。
-
-BOS 补录使用 [bos-demand-entry](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md) 的 `--text`，按需加 `--excel`；产品标识来自项目或用户确认，录入后用 `--bind` 回填，再独立授权提交。本地补录不要求 BOS 凭据。本文旧 iris-demand-* 示例仍作为兼容调用可用。详见 [迁移说明](../demand-delivery-migration.md)。
 
 ## 可重复 BOS 验收
 
 需求实现前按 [测试协议](../../agents/_shared/testing-protocol.md) 明确角色、数据、动作、断言与恢复。需要接入已有 runner 时使用 [测试运行时](../testing-runtime.md)，例如“为本需求准备可重复的验收，沿用项目认证和数据，在部署版本就绪后执行并清理”。心跳必须先验证项目端点和空闲时限，更新能力包不会自动启用；真实服务器操作仍需对应授权。普通任务可串行执行，工具通过不等于用户验收。
+
+## 项目知识库目录
+
+项目资料增多、目录用途不清或更新提示待归类时，使用 project-context-maintenance 读取[目录治理](project-knowledge-layout.md)。例如“检查目录说明并补齐受管导航，保留人工正文”：先 DryRun 审查；无标记 README 用 navigation-plan 精确评审接管，之后普通 Write 更新受管区。首次部署、说明接管与资料迁移按各批计划执行；目录和说明通过不代表逐文件已分类，更新本身不产生搬移权限。
+
+## mobile-dev
+
+[查看插件清单](capability-catalog.md#mobile-dev)。先通过 [mobile-dev-init](../../plugins/mobile-dev/skills/mobile-dev-init/SKILL.md) 接入 Android 工程，日常使用 [mobile-dev](../../plugins/mobile-dev/skills/mobile-dev/SKILL.md)，再请求“排查应用闪退，先自行看 logcat”或“按现有变体实现并验证需求”。Agent 主动定位 adb、确认设备并读取有限日志；无设备仍可静态调查。预期交付证据、原因和验证缺口，安装、真实业务复现与发布按各自授权执行。
+
+mobile-dev 还可处理“检查当前构建环境与变体”“按同类页面实现需求”“核对接口响应到界面状态”“将指定标准功能移入定制仓”。同一日常 skill 按需读取专项流程；WebView/PDA 真机行为单独验收。当前复用已有工具，没有专用环境检查脚本。
+
+使用 [mobile-project-repo](../../plugins/mobile-dev/skills/mobile-project-repo/SKILL.md)：“给某项目旧版移动端建 git，源码在现场，建完给现场 AI 提交提示词”。已有平台/归属/命名从项目约定取得；历史未知不阻塞空私有仓创建。预期交付已核验仓库链接与填好目标的提示词；现场提交和推送分开授权。
+
+IRIS 远端连接统一入口：[会话管理、既有项目更新与回退](iris-managed-sessions.md)。普通查询正常连接，由管理进程复用和回收；真实宿主回执与服务端资源证据分别验收。

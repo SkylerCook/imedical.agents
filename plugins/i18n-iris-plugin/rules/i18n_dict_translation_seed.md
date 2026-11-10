@@ -49,11 +49,13 @@ related:
 
 ## 生成文件
 
+生成文件前按 [目录选择](../references/project-directories.md) 的 `terms` 命令取得 `path` 作为 `termsDir`。
+
 文件命名以项目 profile 指定的输出目录和目标语言为准。推荐形态：
 
 ```text
-docs/i18n_terms_{LANG}_dict_YYYYMMDD_HHMM.md
-docs/i18n_{LANG}_dict_insert_YYYYMMDD_HHMM.sql
+{termsDir}/i18n_terms_{LANG}_dict_YYYYMMDD_HHMM.md
+{termsDir}/i18n_{LANG}_dict_insert_YYYYMMDD_HHMM.sql
 ```
 
 生成 SQL 时必须按目标数据库和 SQL 字符串规则正确转义目标语言翻译中的 `'`、`"`、换行和其它特殊字符。

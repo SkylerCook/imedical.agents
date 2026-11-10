@@ -1,0 +1,84 @@
+{
+  "schema": "imedical-validation-evidence/v1",
+  "repository": "D:\\CodeSpace\\GIT\\Gitee\\imedical.agents",
+  "suites": {
+    "source-identity-final": {
+      "suite": "source-identity-final",
+      "command": "node --test --test-name-pattern \"interrupted reads|mismatched backend\" plugins/coding-iris-plugin/scripts/iris-tools/tests/source-sync.test.js",
+      "status": "passed",
+      "completedAt": "2026-10-23T17:38:59.785Z",
+      "algorithm": "content-v2",
+      "head": "2073a97334fdb44a67438187244f91da66d02a3c",
+      "scopes": [
+        "plugins/coding-iris-plugin/scripts/iris-tools/backend-document.js",
+        "plugins/coding-iris-plugin/scripts/iris-tools/project-env.js",
+        "plugins/coding-iris-plugin/scripts/iris-tools/source-sync-core.js",
+        "plugins/coding-iris-plugin/scripts/iris-tools/source-sync.js",
+        "plugins/coding-iris-plugin/scripts/iris-tools/tests/source-sync.test.js",
+        "scripts/lib/workspace-context.js"
+      ],
+      "fingerprint": "4ff6480c28aabc6ea484f0312da862987b03512e6feeb77563df89e365a53a15"
+    },
+    "iris-remote-final": {
+      "suite": "iris-remote-final",
+      "command": "node --test scripts/tests/iris-remote-operations.tests.js",
+      "status": "passed",
+      "completedAt": "2026-10-23T17:38:33.713Z",
+      "algorithm": "content-v2",
+      "head": "2073a97334fdb44a67438187244f91da66d02a3c",
+      "scopes": [
+        "plugins/coding-iris-plugin/scripts/iris-tools/broker-client.js",
+        "plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js",
+        "plugins/coding-iris-plugin/scripts/iris-tools/debugger-legacy.js",
+        "plugins/coding-iris-plugin/scripts/iris-tools/source-publication.js",
+        "plugins/coding-iris-plugin/scripts/iris-tools/source-sync-core.js",
+        "scripts/iris-mcp.js",
+        "scripts/iris-remote.js",
+        "scripts/lib/atelier-client.js",
+        "scripts/lib/iris-remote-operations.js",
+        "scripts/tests/iris-remote-operations.tests.js"
+      ],
+      "fingerprint": "d6f3b8a47a8bb9fa8c06723e21cc567a3bc93c049e9b197819062717ce5216b5"
+    },
+    "iris-routing-final": {
+      "suite": "iris-routing-final",
+      "command": "node --test scripts/tests/iris-coding-fast-path.tests.js",
+      "status": "passed",
+      "completedAt": "2026-10-23T17:38:33.946Z",
+      "algorithm": "content-v2",
+      "head": "2073a97334fdb44a67438187244f91da66d02a3c",
+      "scopes": [
+        "agents/_shared/delivery-lifecycle.md",
+        "agents/_shared/execution-guidance.md",
+        "agents/iris-change-agent",
+        "plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md",
+        "plugins/coding-iris-plugin/AGENTS.md",
+        "plugins/coding-iris-plugin/references",
+        "plugins/coding-iris-plugin/rules",
+        "plugins/coding-iris-plugin/skills",
+        "plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md",
+        "plugins/i18n-iris-plugin/skills/i18n-coding/SKILL.md",
+        "scripts/tests/iris-coding-fast-path.tests.js",
+        "workflows/iris-change.workflow.md"
+      ],
+      "fingerprint": "0db301df1a151f94e87986b4d01600e1bba9de09f40f0e95b7f8cbf44aa6998d"
+    },
+    "iris-remote-name-final": {
+      "suite": "iris-remote-name-final",
+      "command": "node --test --test-name-pattern \"local status and reconciliation|recovery CLI\" scripts/tests/iris-remote-operations.tests.js",
+      "status": "passed",
+      "completedAt": "2026-10-23T17:44:34.238Z",
+      "algorithm": "content-v2",
+      "head": "2073a97334fdb44a67438187244f91da66d02a3c",
+      "scopes": [
+        "plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js",
+        "plugins/coding-iris-plugin/scripts/iris-tools/project-env.js",
+        "scripts/iris-remote.js",
+        "scripts/lib/atelier-client.js",
+        "scripts/lib/iris-remote-operations.js",
+        "scripts/tests/iris-remote-operations.tests.js"
+      ],
+      "fingerprint": "ef90aaa2f008eb13943366378d24ee677e3fe8c073fe5a8372f51ff603824e2b"
+    }
+  }
+}

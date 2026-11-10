@@ -18,6 +18,14 @@ function patterns(file, name) {
 const install = patterns('scripts/install-agents.ps1', 'sparsePaths');
 const update = patterns('scripts/update-agents.ps1', 'runtimeSparsePaths');
 function covered(file, list) { return list.some(p => new RegExp('^' + p.slice(1).split('**').map(s => s.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replaceAll('*', '[^/]*')).join('.*') + '$').test(file)); }
+test('human tools including new files and local packages are excluded from both project deployment lists', () => {
+  const files = execFileSync('git', ['-C', repo, 'ls-files', '--cached', '--others', '--exclude-standard', '-z', '--', 'tools'], {encoding: 'utf8'}).split('\0').filter(Boolean);
+  assert.ok(files.includes('tools/iris-code-export/export-iris-code.ps1'));
+  for (const file of [...files, 'tools/future-tool/new-file.ps1', 'tools/dist/local-package.zip']) {
+    assert.equal(covered(file, install), false, 'install must exclude ' + file);
+    assert.equal(covered(file, update), false, 'update must exclude ' + file);
+  }
+});
 function anchors(text) {
   const counts = new Map();
   return new Set(text.split(/\r?\n/).filter(l => /^#{1,6} /.test(l)).map(l => {
@@ -42,6 +50,10 @@ test('CLS fixes remain covered by both install and update distribution', () => {
 
 test('exact destinations, absent old files and stable runtime entries', () => {
   assert.deepEqual(install, update);
+  for (const file of ['scripts/project-docs.js', 'scripts/lib/project-docs-navigation.js', 'scripts/lib/project-directories.js', 'scripts/sync-documentation-entry.js', 'scripts/lib/workspace-context.js', 'scripts/lib/real-repository-commit.js']) {
+    assert.ok(fs.existsSync(path.join(repo, file)), file);
+    assert.ok(covered(file, install) && covered(file, update), 'project docs runtime: ' + file);
+  }
   assert.equal(layout.moves.length, new Set(layout.moves.map(m => m.to)).size);
   for (const m of layout.moves) {
     assert.ok(!fs.existsSync(path.join(repo, m.from)), m.from);

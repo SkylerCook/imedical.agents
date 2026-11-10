@@ -1,0 +1,31 @@
+{
+  "_comment": "复制为 commit-report-push.json（本地文件，已被 config/.gitignore 忽略，不入库）。敏感值不写入本文件：QQ 机器人令牌用环境变量 COMMIT_REPORT_QQBOT_TOKEN；收件人/抄送人由 resolve-email-recipients.py 自动解析，也可用 COMMIT_REPORT_EMAIL_RECIPIENTS / COMMIT_REPORT_EMAIL_CC 直接指定。环境变量可放在 shell，或 .qoder/settings.local.json 的 commitReport.env 段。",
+  "enabled": true,
+  "channel": "qqbot",
+  "qqbot": {
+    "apiBaseUrl": "http://medicaldoc.i234.me:21009",
+    "groupId": "925219048"
+  },
+  "email": {
+    "enabled": true,
+    "accountName": "default",
+    "subject": "信创版功能及数据变更通知",
+    "recipientSource": {
+      "type": "tencent-sheet",
+      "bookId": "300000000$JryWKXDocOUK",
+      "sheetId": "ipn52r",
+      "sheetTitle": "脚本执行负责人",
+      "emailColumn": 2
+    },
+    "ccSource": {
+      "type": "carddav-groups",
+      "groups": [
+        "信创-研发-医生站",
+        "信创-研发-监督人"
+      ]
+    },
+    "recipients": [],
+    "cc": []
+  },
+  "retry": 1
+}

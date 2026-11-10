@@ -15,6 +15,12 @@ node <tool> snapshot --project-root <WorkspaceRoot> --task-directory <目录>
 
 工具总是输出 JSON；`--json` 是显式兼容选项。成功退出 0，错误或 validate 不通过退出 1。inspect 出现漂移仍返回 0，调用者必须检查 valid/changes；它不执行任何修复。list 默认排除 closed，用 --all 查询历史；损坏任务单列 errors，不隐藏正常候选。
 
+## 目录解析
+
+工具复用工作区的目录治理配置和 owner `projectDirectories` 声明。未接入治理时保持项目 `docs/handoff/`；接入后，新任务使用 `agent-context-kit/handoff` 的解析结果，当前为本工作区 `ContextRoot/work/handoff/`。配置无效、owner 未启用或路径不安全时停止，不静默改用另一目录。
+
+每个任务是上述根目录的直接子目录，名称为 `<首次本地毫秒时间戳>-<需求ID或00000>`。`list` 同时检查本工作区当前根与历史 `docs/handoff/`；`inspect/checkpoint/validate/snapshot` 均接受两处已有任务，继续在原位置维护。查询不创建目录，不扫描相邻工作区。普通更新或目录搭建不搬迁历史任务；迁移已有材料需用户对具体计划明确授权。
+
 ## Context 输入
 
 context-file 是调用时的输入；最终归档到 state.inputs。更新 scopes、关联仓库或证据时传入完整替换内容，不能把不相关仓库带入。一次性输入文件使用任务专属临时目录，写入后清理，不修改全局环境配置。
@@ -27,7 +33,7 @@ context-file 是调用时的输入；最终归档到 state.inputs。更新 scope
 }
 ```
 
-省略 context 时只列当前工程/Overlay 声明的源码根，scopes 为空并报告 no-content-scopes。这个默认值不证明源码内容未变；Agent 必须补充实际涉及范围，或在纯讨论需求中说明无源码检查范围。关联工程仅接受显式绝对路径；Overlay 限定 SourceRoot/GitRoot。scopes 使用相对路径，可包含已删除路径；目录递归检查，跳过 `.git`、`.agents`、`node_modules` 和本项目交接目录，避免自引用。需要验证工具链文件时引用实际 canonical 根并显式声明范围。目录 scopes 应尽量小，避免无关扫描。
+省略 context 时只列当前工程/Overlay 声明的源码根，scopes 为空并报告 no-content-scopes。这个默认值不证明源码内容未变；Agent 必须补充实际涉及范围，或在纯讨论需求中说明无源码检查范围。关联工程仅接受显式绝对路径；Overlay 限定 SourceRoot/GitRoot。scopes 使用相对路径，可包含已删除路径；目录递归检查，跳过 `.git`、`.agents`、`node_modules` 和本工作区当前及历史交接目录，避免自引用。需要验证工具链文件时引用实际 canonical 根并显式声明范围。目录 scopes 应尽量小，避免无关扫描。
 
 entrypoints 相对 WorkspaceRoot 或为已声明根内的绝对路径。正文普通 Markdown 文件链接同时检查存在性，HTTP 等外链不联网验证；脚本不检查锚点语义或证明目标内容正确。验证证据使用已有 validation-evidence check，未绑定证据不产生通过结论；证据丢失/失效只是明确的未验证项，不阻止如实交接失败状态。
 
@@ -43,7 +49,7 @@ state.json 保存 schema、任务身份、项目根、采集时间、正文 hash
 
 ## 降级与本地保存
 
-init 在实际管理 docs/handoff 的仓库追加精确 `.git/info/exclude` 规则（通过 Git 解析路径，支持 worktree），保留已有内容；不改共享 `.gitignore`。已跟踪交接文件停止初始化并报告，交由用户决定跟踪策略，不自动 git rm。非 Git 工程无需 ignore；Git 缺失或读取异常无法确认排除时停止 init，人工解决后继续。
+init 在实际管理当前交接根的仓库追加精确 `.git/info/exclude` 规则（通过 Git 解析路径，支持 worktree 与独立 `.agents` checkout），保留已有内容；不改共享 `.gitignore`。已跟踪交接文件停止初始化并报告，交由用户决定跟踪策略，不自动 git rm。非 Git 工程无需 ignore；Git 缺失或读取异常无法确认排除时停止 init，人工解决后继续。
 
 已有记录在 Git 不可用或无首个提交时仍可只读 inspect，明确报告 Git 未验证；无 Git 时 scopes 文件仍可比较。路径越界、符号链接/目录联接和无效 Overlay 阻止工具访问；这是数据边界，不是会话所有权锁。被声明的根及 scopes 改变后必须重新核实，不能用另一个同名目录冒充原 checkout。
 

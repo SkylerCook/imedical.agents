@@ -1,5 +1,54 @@
 # coding-iris-plugin
 
+IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY=false`），项目显式 `true` 仍保留。显式开启校验的 Atelier 在支持 API 的 Node 中合并默认与系统 CA；专用 CA 保持优先，不改全局信任。
+
+0.27.3：删除普通查询、上传和编译的 License 资格/证据门槛，移除 MCP 历史退出证明的前置检查；迁移不再生成 qualification.pending。保留连接复用、串行、实际退出与写冲突保护，既有大批量文件导出治理不变。普通 Cookie 续期直接复用新值，不再要求格式登记；完整更新根 scripts、插件与 managed-sessions-v3 vendor/摘要；既有更新迁移自动删除无效登记、历史退出证明和多余默认字段；已有真实导出证据、连接及私有扩展保留，无需人工清理，详见[更新说明](../../docs/update-agents.md)。
+
+
+0.27.2：收缩[会话阻断与恢复](../../docs/guides/iris-managed-sessions.md#状态与恢复)。受管未知写只保存一份记录；临时执行载体 PUT 的明确 405 拒绝不再封锁后续写入，Cookie 告警按实际请求结果判断风险。本地退出与写结果已核实时，注销未确认保留警告即可恢复；普通交付不要求 License 观测。完整更新根 scripts 与插件后结束旧管理会话、重启宿主 MCP，历史风险保留原核实流程，无私有配置迁移。
+
+0.27.0 将范围清单统一为 TXT，移除 ProjectItem XML 基线读取/生成；doctor 清单、框架与人工工具共用同一格式。迁移见[代码基线协议](references/iris-code-baseline.md)；源码 XML 导出与交付不变。
+
+0.26.2：普通部署复用脚本回执，按[验证契约](rules/iris_deploy_checklist.md#验证)分别报告文件部署与业务验收；附加通道异常按影响分流。正常能力包更新取得规则，已有 thin-index 入口不变，无配置迁移或旧文件清理；不改变 Cookie、上传及安全门禁。
+
+0.24.4：初始化及重新部署默认执行[本地配置生成与 Check](skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)。已启用项目的普通 Write 更新通过现有 `configMigrations` 自动创建缺失配置，available/disabled 不处理，DryRun/Check 只读；保留已有文件和旧模式缺省，不猜环境、不启用远端策略。机器声明缺失时先生成兼容旧默认值的空声明，模式/环境与真实资格集中报告待确认；Agent 按事实补字段，已有恢复材料先核实指纹。也可单独运行 `source-sync.js configure`；配置、资格与基线分别验收，不连接医院、不自动建 Git 或创建假基线，无旧材料迁移/清理。
+
+0.24.3：项目按需分支的待修改文件，无论本地是否存在，都先完成[before-edit 同步](references/project-demand-development.md#修改前与部署前同步)，有变化先提交 export 基线，再开始需求修改。普通 `export.js` 直接写源码在请求前指向 source-sync，probe／独立 staging 用于参考；`--kind` 接收本次明确类型，否则沿项目默认值。正常更新能力包及已启用规则取得修正，旧直写调用改走 source-sync，无配置或恢复资料迁移。
+
+0.24.2：统一 Windows 8.3 短路径与长路径的比较，修复源码 Git 归属及独立源码/XML交付误报越界。共享根解析接受已声明目标的物理等价路径，PowerShell 根与子路径使用同一规范化方式；逃逸和链接保护保持。正常更新取得修复，人工 ZIP 重建取入同一核心；无业务配置或旧回执改写。
+
+0.24.1：前后端专项入口恢复帮助优先于开发方式与业务前置的顺序；帮助只展示协议后结束，正常执行仍先分流 developmentMode。同步回归夹具复用物理临时目录，兼容 macOS 系统临时路径别名，运行时的链接保护保持。普通更新取得 source 修正，已有 thin-index 继续指向同一 owner；无配置迁移或旧文件清理。
+
+0.24.0：[开发方式与离线交付](references/iris-offline-development.md)独立使用 `ContextRoot/config/iris-development.json` 的 developmentMode，不新增 contextMode。offline 提前阻断受管医院连接，connected 保留原同步、准入和发布；缺省旧行为不变，非法值停止。源码助手迁入插件唯一实现，支持回执/人工目录、真实 Git 归属与范围冻结；XML 编辑对象在源码 Git、冻结原包在私有任务区，均经 Review、Pack 和独立 Verify 后待现场验收。人工 ZIP 从同一助手构建，无 Node/框架运行依赖。完整更新能力包并刷新 ContextRoot，再由授权维护补齐开发方式；普通更新不改配置、连接、锁或旧任务，不自动迁移旧基线。
+
+0.23.2：菜单同步复用共享 workspace 校验，兼容 Overlay 的实体源码目录；源码文件映射、部署预检与 XML 工具沿同一根解析器。先完整更新共享 CapabilityRoot，再刷新 ContextRoot；旧 Junction 无需迁移。实体入口另按 [Overlay 契约](../../docs/workspace-overlay.md#sourceroot引用已有源码或持有本地源码)接入，不改变离线协议、服务器能力或部署授权。
+
+0.23.1 修复 XML 导出协议进入[离线修改流程](references/iris-offline-development.md#固定处理路径)的失效锚点。完整更新能力包取得修正；脚本与人工 ZIP 不变，无配置迁移或旧文件清理。
+
+0.23.0 增加[现场聚合 XML 带回后由本地 AI 修改](references/iris-offline-development.md)：识别源码与 Project 元数据，按对象 XML 编辑，默认交付仅含修改对象的 changes.xml、对应 rollback.xml、变更说明及摘要 manifest。保留完整类结构和原包，以独立 Verify 核对，不连接实例、不自动导入编译。人工源码导出独立归源仓 tools/iris-code-export/，可直接带 ZIP，无需框架或 skill，不随 .agents 分发；普通能力包更新只取得 XML helper 与路由说明，无配置迁移或旧文件清理。
+
+0.22.1 部署失败按[失败恢复与授权](references/deployment-protection.md#失败恢复与授权)先诊断，在原授权内完成有上限的安全恢复；明确编译错误返回诊断，未知写入与编译继续保护。逐文件入口记录 `recovery`；旧 SFTP 批量 worker 不自动重放。正常完整能力包更新取得，无配置迁移或旧文件清理；旧 unknown 会话仍按原协议核实，业务副本和真实服务另行验证。
+
+0.22.0 新增 [iris-xml-export](skills/iris-xml-export/SKILL.md) 与 [iris-code-baseline](skills/iris-code-baseline/SKILL.md)。前者按确认范围导出指定环境当前对象的 XML，支持专用类及无预部署类的系统执行通道；后者维护版本清单并采集当前实例代码，图片在请求前排除并统计，初始缺失保留 partial。两者复用 workspace、私有连接与受管资源；只有取得目标资格才启用只读多会话，版本 TXT 清单 不表示历史源码。
+
+按正常能力包更新并刷新 enabled 索引取得两个入口；Overlay 先更新共享 capability，再逐模块 `-NoPull` 刷新。可选 `DHCDoc.Util.XmlPackage` 需单独准备和授权部署，类缺失不阻断其它 coding 能力，普通更新不覆盖服务器类、创建 Git 或登记资格。基线状态归 ContextRoot/work/source-sync/baselines，XML 正式交付和恢复目录由 manifest `projectDirectories` 声明。旧全局技能按明确范围单列迁移；详细步骤见[更新说明](../../docs/update-agents.md#iris-xml-导出与代码基线coding-022)，实际项目、服务端和跨平台结果分别核实。
+
+0.22.0 同时收紧已有 source-sync 行为，标记为 breaking：超过 5 条需新版 readBatch 资格，旧 bulkQualification 文件不足；日常已知服务器基线对象 404 阻断；初始 partial 的成功子集 apply 需审阅并传 `--accept-partial` token。迁移说明见[更新 runbook](../../docs/update-agents.md#source-sync-022-迁移)。XML execute 默认 WS terminal（API v7／IRIS 2023.2+），HTTP `--executor mcp` 为单独资格选项，披露 vendor 最多 3 次内部尝试；客户端不自动换路或重复 Export。
+
+0.21.1 补齐 manifest projectDirectories 的用途、典型产物、边界和生命周期，供项目受管目录说明复用。已接入工程通过普通更新刷新受管区；无标记 README 按[目录说明升级](../../docs/guides/project-knowledge-layout.md#持续目录说明)评审接管。目录默认值、显式配置和旧任务恢复位置沿原契约，不迁移或清理业务资料。
+
+0.21.0：需求已明确为 `project` 且采用 `intent-first-on-demand-export` 时接入[项目开发协议](references/project-demand-development.md)，按需求刷新服务器基线、保护现场并分层提交，部署前重新同步和复审冻结。`standard` 沿既有分支；上下文模式不能推导需求类型。前端优先复用已确认支持的 Atelier，公共远端准入只覆盖已接入工具；真实 License 资格、旧服务器兼容及资源退出须在授权窗口取证。正常更新后，由授权项目维护配置私有策略和各环境本地 Git；不自动初始化 Git、启用模式、连接服务器或迁移旧恢复材料。
+
+本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
+
+前端编码与 Review 的 UI 条件读取统一由[前端规则门禁](rules/iris_coding_frontend.md#ui-条件门禁)维护，覆盖修改前、最终 diff 和只走 rule 的入口；HISUI 参考补充 Tree 模式、panel 边框及原生内容尺寸口径。通过正常更新取得，无配置迁移、自动启用或业务资源发布。
+
+0.20.3：前后端必读的通用规则增加 worktree 创建、接续、阶段完成及交接时的[恢复点路由](../../docs/guides/worktree-review.md#阶段提交与恢复点)，已有本地阶段提交授权按约定执行，验收与合并/push 等权限保持独立。正常更新后由通用编码入口读取，无项目配置迁移或运行器变更。
+
+0.20.2：前端验证按[共享协议的风险与停止条件](../../agents/_shared/testing-protocol.md#验证范围与停止条件)选择，控件状态检查限定本次实际改变的表现。已明确的局部配置可完成必要静态检查后交付，未测效果保留待验；沿正常更新取得，无配置迁移或运行时变更。
+
+0.20.1：前端入口按项目启用状态与 UI 信号条件读取 [iris-ui 专项规则](../iris-ui/rules/iris_ui.md)，普通前端任务保持原流程。规则加载条件以[前端规则门禁](rules/iris_coding_frontend.md#ui-条件门禁)为准；通过正常更新取得能力，显式启用 UI 插件后生效，无配置迁移或旧文件清理。
+
 0.19.7：受管部署接入可选 `night-convergence/v1` 剩余预算，在现有 transport 边界复核并限制等待；超时保留未知写及收尾，不能据此宣称远端已取消。普通调用及未启用扩展的旧批次保持原行为。正常更新能力包后新批次按[收敛接口](../../docs/night-policy.md#返修收敛与按需依赖)准备，旧 run 不迁移，无私有配置或旧文件清理。
 
 0.19.0：夜跑绑定的 compile/deploy-frontend/run-acceptance 在执行前复核预检、授权、多仓来源、额度与截止，并自动归档真实回执。使用 `--work-item <id> --environment-alias <alias>`；run 从 Overlay 取得，可用 `--run-directory` 显式复核。普通非夜跑入口兼容。CLS 清单和部署共用 Class 声明解析，解析失败明确停止。通过正常能力包更新取得，新 profile 接入见[夜跑契约](../../docs/night-policy.md#schema-21-启动契约)，不修改私有配置或自动启动业务测试。
@@ -10,7 +59,9 @@
 
 0.16.0：移除需求交付旧入口，更新器负责已部署项目的引用与启用状态迁移。此前 0.15.9：部署、CSP 编译和 SFTP 配置入口共用 workspace 校验结果；目录缺失、错误链接及无效 manifest 在配置读取和远端连接前停止并返回非零退出码。能力包必须为有效安装（含 CapabilityRoot 的 .git）；direct 仍不要求业务源码 Git 仓库或基线会话。 `commit-demand verify` 可对 committed/verified 计划重复执行，并精确比较提交与计划的文件集合（含中文路径和重命名两端）。随正常能力包更新生效，无配置迁移或清理。
 
-前端 SFTP 工具已纳入 `.agents/vendor/sftp-server/`：修复路径/忽略规则、原子上传与 SHA-256 回读校验、超时及结构化错误。新项目默认禁用 SFTP；旧项目更新时自动迁移可识别的 SFTP 启动路径（显式 custom 除外），保留连接参数。Python 依赖按带哈希锁文件单独安装，升级器不自动安装依赖。主机密钥与服务器原子替换兼容要求见 [SFTP runtime](../../vendor/sftp-server/README.md)。这不提供无 SFTP 服务器的上传替代通道。
+前端项目确认支持 Atelier Web doc 读写后，可通过私有 `web.frontendTransport="atelier"` 复用受保护导出、条件上传、SHA-256 回读和 CSP 编译；SFTP 为明确选择的 fallback，旧项目省略字段保留 SFTP。失败停止，不自动换通道；通道、字节和冻结发布边界见[部署保护](references/deployment-protection.md#前端通道选择)。
+
+前端 SFTP 工具已纳入 `.agents/vendor/sftp-server/`：修复路径/忽略规则、原子上传与 SHA-256 回读校验、超时及结构化错误。新项目默认禁用 SFTP；旧项目更新时自动迁移可识别的 SFTP 启动路径（显式 custom 除外），保留连接参数。Python 依赖按带哈希锁文件单独安装，升级器不自动安装依赖。主机密钥与服务器原子替换兼容要求见 [SFTP runtime](../../vendor/sftp-server/README.md)。正常更新取得新入口，既有配置不自动迁移或清理，业务副本需自行同步。
 
 CLS 编码与 Review 共用[命名与格式规范](references/cls-coding-format.md)：用户明确要求、项目显式规范、框架默认值依次适用；历史代码只提供业务与兼容证据。格式化仅处理本次真正新增代码，原有代码的功能修改不附带风格调整；diff 的 + 行不自动等同新增代码。新建类先按后端流程核对 profile、同职责类和公共基类，适配模板 Extends，Review 核对继承依据。Agent 检查命名和表达式，共用清单检查提取后的业务规则重复和稳定标识归属；Parameter 默认使用合法的 UpperCamelCase。可选脚本检查成员边界、EOF 及有限的 Parameter 声明/引用命名，歧义提示人工核对，不替代 IRIS 编译，不作为提交门禁。新增注册类/DTO、表类及成员共用 [注释约定](references/cls-coding-format.md#注释与空行)：非表类明确职责，方法说明参数/返回契约并引用结构，变量用自然语言说明非显然含义；Param 按参数名区分，属性补充说明和索引注释按需，兼容历史标签。完整方法头示例保留空参数、返回状态和 Debug 调用形式，使用通用类名；不执行其中调用。Agent 完成注释 Review，现有格式脚本不承担标签解析或文档生成。
 
@@ -29,11 +80,14 @@ CSP、HTML、JS、CSS 编码与 Review 共用[前端规范](references/frontend-
 - iMedical 知识检索：[iris-imedical-knowledge](skills/iris-imedical-knowledge/SKILL.md) 使用共享 vendor 参考与项目当前菜单。模型根据任务信息缺口自主决定是否查询，无需用户点名，不固定为开发前置步骤；源码核实优先。指定来源但菜单快照缺失时返回警告并继续查询共享参考，不要求先同步菜单；损坏快照仍报错。
 - 菜单资料同步：[iris-menu-sync](skills/iris-menu-sync/SKILL.md) 通过已有 MCP 采集，sync-menu.js 提供离线 plan/apply、差异、完整性校验与原子快照切换；支持全量及指定组。更新后重建 enabled 插件 thin-index；无需新连接或 npm，项目快照不会被 vendor 更新覆盖。协议见 [menu-knowledge-sync](references/menu-knowledge-sync.md)。
 
+  已审阅并登记的全量来源由 `refresh-menu.js` 固定完成启用组动态采集、完整性检查、断点恢复和异常差异停止，可由宿主月度调用；无变化不通知。0.20.6 补齐既有采集流程的可重复入口，正常更新能力包后按协议登记，不迁移或清理旧快照，不自动部署服务端。
+
 - ObjectScript 后端编码规则：BLH/DATA/SQL 分层、SQL 返回约定、ObjectScript 语法风格、Broker 接口习惯。
 - CSP/JavaScript/HISUI 前端编码规则：框架页/内容页拆分、HISUI 控件及原生视觉状态优先（含悬浮/焦点/禁用/等待）、JS 组织方式、前端数据回显。
 - 工作流规则：本地优先；导出、编译、Broker 调试和配置同步优先使用 IRIS 开发主力脚本；MCP 作为辅助能力补上下文、只读验证或覆盖脚本未覆盖场景。
 - 部署编排：`skills/iris-deploy/SKILL.md` 负责远端部署入口、清单生成、确认门禁和验证编排，上传、编译、部署和远端验证按 `rules/iris_deploy_checklist.md` 逐项执行。
-- 需求移植：`skills/iris-demand-promote/SKILL.md` 将已提交的 DEV 需求补丁移植到独立 PRD 按需导出仓库；先导出 PRD 服务器基线，再做三方应用，只创建本地 PRD 提交。
+- 项目开发：[source-sync 协议](references/project-demand-development.md)管理测试默认、正式显式授权、按需导出及双环境独立本地 Git；已有需求历史追加 export/需求层，不重写提交。
+- 需求移植：`skills/iris-demand-promote/SKILL.md` 将已提交的 DEV 需求补丁移植到独立 PRD 按需导出仓库；先导出 PRD 服务器基线，再做三方应用，只创建本地 PRD 提交。它是项目开发的一条可选路径。
 
 
 - 前端统一编码：当前标版、医院项目的源码、上传内容和服务器运行编码统一使用 canonical `utf8`。
@@ -117,7 +171,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-
 
 workspace-overlay 模式不在每个模块中重复拉取插件：先更新共享 `CapabilityRoot`，再从 capability 脚本入口用 `-NoPull` 刷新模块 `ContextRoot`。IRIS 工具统一解析 workspace context：`project-env.json` 与 profile 来自 `ContextRoot`，插件/模板/vendor 来自 `CapabilityRoot`，工具源码写入限制在声明的 SourceRoot，`--from-git` 在各自 GitRoot 执行并映射回 WorkspaceRoot 逻辑路径。Agent 可按当前需求只读搜索和查看已声明 GitRoot 或项目注册表明确映射的相关仓库，读取不扩大修改或部署权限；边界与旧项目入口迁移见能力包根 `docs/workspace-overlay.md`。前端编码迁移只扫描 `sourceRoots[name=frontend]`；明确只有 `backend` 时写入 `N/A (backend-only)`，无法从 manifest 判定业务类型时才要求人工复核，不通过扫描父目录或 sibling 猜测源码根。
 
-0.15.0 将日常开发部署默认改为 direct，无需需求号或 Git 基线会话。`--mode guarded --demand <id>` 保留三方合并，旧命令仅带 `--demand` 保持 guarded。更新能力包后生效，无配置和历史会话迁移；已有明确部署授权不重复确认。
+0.15.0 将日常开发部署默认改为 direct，无需需求号或 Git 基线会话；0.21.0 起此默认仅适用于非按需导出工程。`--mode guarded --demand <id>` 保留三方合并，旧命令仅带 `--demand` 保持 guarded。已有明确部署授权不重复确认；按需导出工程先执行上述项目协议。
 
 重建脚本委托根 canonical thin-index 脚本执行：生成阶段只处理当前 `PluginPath`，stale 清理阶段会扫描 `.agents/rules/` 中所有指向 `.agents/plugins/*/rules/*.md` 的 thin-index，并移除源文件已不存在的旧 rule 入口，例如迁移到 `references/` 的 HISUI 控件参考入口。目标工程自定义规则不会被清理。
 
@@ -127,7 +181,7 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 2. 基于 `templates/iris_project_profile.template.md` 创建 `.agents/config/iris_project_profile.md`。
 3. 检查目标工程 `.mcp.json` 是否包含实际需要的 IRIS/SFTP 能力。
 4. 运行 thin-index dry-run，确认无冲突后再 write。
-5. 前后端边界不明或混合编码任务使用 `iris-coding`；明确前端/后端任务直接使用专项 skill。开发部署默认 direct，仅要求 guarded 时在首次修改前完成或复用 Git 基线；i18n 条件矩阵和检查命令统一由前端规则维护，入口保留修改前与最终 diff 后两个检查时点。
+5. 前后端边界不明或混合编码任务使用 `iris-coding`；明确前端/后端任务直接使用专项 skill。按需导出模式先执行项目开发协议，其它工程默认 direct，仅要求 guarded 时在首次修改前完成或复用 Git 基线；i18n 条件矩阵和检查命令统一由前端规则维护。
 6. `iris-coding` 本地验证后进入 `acceptance-pending`，不自动加载 `demand-commit`；只有用户要求生成提交信息、明确要求提交，或显式调用 `$demand-commit --plan|--commit` 时才读取交付类型并路由，commit 不改变验收状态。
 7. `fast/full/guarded` 只决定开发路径深度，不跳过项目入口、profile、通用安全规则和命中的前后端/i18n/HISUI 规则。轻量并行仅允许最多两个临时只读子 Agent，主 Agent保持唯一写入者。
 7. 明确的纯后端任务可直接使用 `iris-backend-coding`，明确的纯前端任务可直接使用 `iris-frontend-coding`。
@@ -265,7 +319,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 
 缺少必要配置时脚本应直接报错，避免静默拼出错误路径。
 
-前端上传加编译固定使用 `scripts/iris-tools/deploy-frontend.js`：direct/guarded 共用单连接传输，逐文件最终目标校验通过后批量 Atelier 编译；失败停止，不临时生成脚本或自动换通道。参数及耗时口径见 `scripts/iris-tools/README.md`。
+前端上传加编译固定使用 `scripts/iris-tools/deploy-frontend.js`：direct/guarded 共用单连接传输，逐文件最终目标校验通过后批量 Atelier 编译；失败先诊断并按上述协议有限恢复，不临时生成脚本或自动换通道。参数及耗时口径见 `scripts/iris-tools/README.md`。
 
 后端编译成功后回读类定义，仅将核对通过的 Storage 回填到本次指定的本地类文件，覆盖新增表与字段演进；保留本地代码、BOM/换行和暂存区。回填失败报告远端已编译、本地未同步；受管夜跑源码变化按既有冻结版本门禁复审。已部署项目正常更新能力包即可取得，无配置迁移或旧文件清理；详见 [Storage 同步契约](references/deployment-protection.md#编译后-storage-同步)。
 
@@ -292,3 +346,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 提交计划支持 Overlay SourceRoot 的 Junction 入口和真实路径，并在 Apply 前重新核验归属；新增、删除文件沿最近现存父目录解析，逃逸链接或声明范围不符时停止。无需业务配置迁移，普通框架更新分发修复。
 
 部署配置支持 Overlay 显式 `projectEnvFallback`：模块文件优先，仅缺失时读取声明的主仓文件；具体范围、冲突停止与源码隔离规则以 [部署清单](rules/iris_deploy_checklist.md#部署配置继承) 为准，不切换项目根或生成副本。
+
+0.25.0：CLI 与原生 MCP 接入用户级会话管理，普通查询单会话复用、排队及空闲注销，不以历史批量资格 pending 一刀切阻断。已有项目通过 configMigrations 更新；保留明确禁用与旧恢复状态，自定义入口待适配。宿主重启和实际回执是验收项；见[统一会话手册](../../docs/guides/iris-managed-sessions.md)。
+
+离线交付自 0.26.0 起检查原始 Git 基线及打包后源码漂移，并保留输入 XML 换行格式；旧任务迁移见[离线开发](references/iris-offline-development.md#git-原始基线与交付一致性)。
+
+0.26.1 修复会话身份未知时的部署恢复：禁止重新认证，保留已有 Cookie 的有限只读恢复。更新须同时取得框架运行时与匹配的 `managed-sessions-v2` vendor，旧恢复材料和私有格式配置保留；接入、宿主重启及回执验证见[统一会话手册](../../docs/guides/iris-managed-sessions.md)。
+
+受管恢复读取修复（coding 0.27.1）：direct SFTP 部署将当前工作区及需求类型传入 CSP 编译；显式 `inspect/read` 在 managed-single-session 且资格 pending 时只允许声明文档的 GET 和自身注销。该入口保留共享阻断、当前 token、死 owner 与写结果核实，不接受普通写入，也不自动清锁或重放。更新需同时取得 owner 及根 scripts，保留私有配置和历史恢复资料；无需迁移。
+
+工具诊断补齐：正常测试断言失败继续返回原结果；JSON-RPC 无效参数/方法及明确 namespace 不存在的拒绝不触发未知写阻断。其它未知执行错误继续阻断，并经 IPC、原生 MCP 和 CLI --json 向原调用方保留工具响应与错误码；响应正文不写会话协调文件。共享实例仍串行执行，普通失败与仅注销未确认不再永久封锁全池；未知写按目标范围隔离，影响不明的脚本保留 namespace 写保护，只读诊断与无冲突操作继续。
+
+## 发布配置指纹一致性（0.27.5）
+
+发布适配器复用 source-sync 的配置指纹计算，包含显式 developmentMode，修复 connected 项目配置未变却在上传前误报 publication-environment-changed。缺省模式保持旧指纹；真实配置、模式、源码和服务器漂移仍阻断。正常更新 coding 插件即可，无配置迁移或历史状态清理；旧失败计划核实未写入后重新执行部署前同步和复审，不手改冻结记录。

@@ -9,6 +9,8 @@
 - 代码来源：TODO: 本地完整维护 / 后续按需从服务器导出 / 其它。
 - 本地文件完整性：TODO: 代表全量工程 / 不代表全量工程 / 待确认。
 
+启用 IRIS coding owner 时，开发方式只引用同一 ContextRoot 的 `config/iris-development.json` 中 `developmentMode`；不在本文件另存 connected/offline 值。contextMode 描述上下文范围，不能替代开发方式；没有连接不自动切换模式。
+
 ## 辅助模式
 
 <!-- agents-update:optional-key guidanceMode -->
@@ -18,13 +20,15 @@
 
 <!-- 可选：按需在本节逐行填写项目相对目录，执行 coding-agent-adaptation 时只补缺失链接。示例见能力包 docs/coding-agent-adaptation.md；以下注释不作为启用清单。
 .qoder/skills
-.workbuddydonghua/skills
+.workbuddy/skills
 .codebuddy/skills
 -->
 
 ## 使用范围
 
 初始化时按 project-context-maintenance 判断模式并填充上述字段，删除无信息占位；日常沿用已确定模式，用户明确变更工程定位时再调整。`intent-first-on-demand-export` 下少量已导出文件不代表完整工程，不据此推断完整架构。
+
+当前需求已明确为 `project`、该模式且 `coding-iris-plugin` 已启用时，IRIS 需求处理读取能力包 `plugins/coding-iris-plugin/references/project-demand-development.md`。标版沿既有分支；本 profile 只声明上下文语义，不决定需求类型，也不复制 IRIS 连接、License 策略或发布规则。
 
 ## 待确认项
 

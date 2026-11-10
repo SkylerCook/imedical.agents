@@ -9,6 +9,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const personal = require('./personal-config');
+const { verifyRealCommits } = require('../../../scripts/lib/real-repository-commit');
 const DEFAULT_TIMEOUT = 30000;
 const MAX_BUFFER = 64 * 1024 * 1024;
 const REQUIREMENT_PREFIX = /^\w+\((\d+)\):/;
@@ -24,10 +25,10 @@ function git(repoPath, args) {
   const result = spawnSync('git', ['-c', 'core.quotepath=false', ...args], {
     cwd: repoPath,
     encoding: 'utf8',
-    windowsHide: true,
+    windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
     maxBuffer: MAX_BUFFER
   });
-  if (result.error) throw new Error(`无法执行 git：${result.error.message}`);
+  if (result.error) throw new Error(`无法执行 git：${result.error.message}${result.error.code === 'EBUSY' ? `；工作目录 ${repoPath}：请检查宿主同步子进程环境（EBUSY 不唯一指向 stdin）` : ''}`);
   if (result.status !== 0) throw new Error(`git ${args[0]} 执行失败：${(result.stderr || '').trim() || `退出码 ${result.status}`}`);
   return result.stdout || '';
 }
@@ -177,10 +178,11 @@ function listRepos(workspaceRoot, maxDepth = 3) {
   return found.map(repoPath => ({ path: repoPath, name: repoName(repoPath) }));
 }
 
-function listCommits(repoPath, limit = 30) {
+function listCommits(repoPath, limit = 30, ref) {
   const count = Number(limit);
   if (!Number.isInteger(count) || count <= 0) throw new Error('--limit 必须为正整数');
-  const stdout = git(repoPath, ['log', `-${count}`, '--pretty=format:%H%x1f%h%x1f%s%x1f%an%x1f%ad', '--date=format:%Y-%m-%d %H:%M']);
+  const target = verifyRealCommits(repoPath, ref, []);
+  const stdout = git(target.repo, ['log', `-${count}`, '--pretty=format:%H%x1f%h%x1f%s%x1f%an%x1f%ad', '--date=format:%Y-%m-%d %H:%M', target.ref]);
   return stdout
     .split('\n')
     .filter(line => line.trim())
@@ -230,13 +232,16 @@ function selectRecords(select) {
     if (!item.repo) throw new Error('提交记录缺少 repo');
     if (typeof item.repo !== 'string') throw new Error('repo 必须为仓库路径字符串');
     const repo = fs.realpathSync(path.resolve(item.repo));
-    if (!byRepo.has(repo)) byRepo.set(repo, []);
+    if (!byRepo.has(repo)) byRepo.set(repo, { ref: item.ref, hashes: [] });
+    if (byRepo.get(repo).ref !== item.ref) throw new Error('同一实仓不能在一次日志选择中声明不同目标分支');
     const hash = assertHash(item.hash);
-    if (!byRepo.get(repo).includes(hash)) byRepo.get(repo).push(hash);
+    if (!byRepo.get(repo).hashes.includes(hash)) byRepo.get(repo).hashes.push(hash);
     order.push({ repo, hash });
   }
   const records = [];
-  for (const [repo, hashes] of byRepo) records.push(...commitRecords(repo, hashes));
+  // Validate every repository before collecting any log or loading credentials.
+  for (const [repo, target] of byRepo) verifyRealCommits(repo, target.ref, target.hashes);
+  for (const [repo, target] of byRepo) records.push(...commitRecords(repo, target.hashes).map(record => ({ ...record, ref: target.ref })));
   const seen = new Set();
   return order.map(item => {
     const record = records.find(record => record.repo === item.repo && record.hash.toLowerCase().startsWith(item.hash.toLowerCase()));
@@ -248,6 +253,35 @@ function selectRecords(select) {
   }).filter(Boolean);
 }
 
+// Explicit target/owner bindings reuse immutable commits without rewriting their messages.
+function selectInput(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('日志输入必须为对象');
+  if (Object.hasOwn(input, 'select') && Object.hasOwn(input, 'bindings')) throw new Error('select 与 bindings 互斥');
+  if (!Object.hasOwn(input, 'bindings')) return selectRecords(input.select);
+  if (!Array.isArray(input.bindings) || !input.bindings.length) throw new Error('bindings 不能为空；明确无代码的条目在流程中记录不适用');
+  const owners = new Map(), selections = [];
+  for (const binding of input.bindings) {
+    if (!binding || typeof binding !== 'object' || Array.isArray(binding) ||
+        typeof binding.requirementCode !== 'string' || typeof binding.codeOwnerRequirementCode !== 'string' ||
+        !/^\d+$/.test(binding.requirementCode) || !/^\d+$/.test(binding.codeOwnerRequirementCode)) throw new Error('日志映射须明确目标需求号与代码所属主需求号');
+    const requirementCode = String(binding.requirementCode), owner = String(binding.codeOwnerRequirementCode);
+    if (owners.has(requirementCode) && owners.get(requirementCode) !== owner) throw new Error('同一目标需求不能映射不同代码归属');
+    owners.set(requirementCode, owner);
+    if (!Array.isArray(binding.select) || !binding.select.length || binding.select.some(item => !/^[0-9a-f]{40}$/i.test(item?.hash || ''))) throw new Error('日志映射须提供明确仓库和完整提交hash');
+    selections.push({ binding: { requirementCode, codeOwnerRequirementCode: owner }, select: binding.select });
+  }
+  const records = selectRecords(selections.flatMap(item => item.select)), result = [], seen = new Set();
+  for (const { binding, select } of selections) for (const selected of select) {
+    const repo = fs.realpathSync(path.resolve(selected.repo));
+    const record = records.find(item => item.repo === repo && item.hash.toLowerCase() === selected.hash.toLowerCase());
+    const parsed = parseCommitMessage(record.message);
+    if (parsed.error || parsed.requirementCode !== binding.codeOwnerRequirementCode) throw new Error('真实提交需求号与声明的代码所属主需求不一致');
+    const gitRoot = fs.realpathSync(gitDirOf(repo));
+    const identity = [binding.requirementCode, process.platform === 'win32' ? gitRoot.toLowerCase() : gitRoot, record.hash].join('\0');
+    if (!seen.has(identity)) { seen.add(identity); result.push({ ...record, logBinding: binding }); }
+  }
+  return result;
+}
 // 按需求号聚合：同一需求号的多个仓库合并进同一个 Repository 数组，与 BOS 接口契约一致。
 function buildPayload(records, { linkProject, userCode }) {
   const groups = new Map();
@@ -261,6 +295,12 @@ function buildPayload(records, { linkProject, userCode }) {
       AddLines: record.files.reduce((sum, file) => sum + file.addLines, 0),
       DelLines: record.files.reduce((sum, file) => sum + file.delLines, 0)
     };
+    const binding = record.logBinding;
+    if (binding) {
+      if (parsed.requirementCode !== binding.codeOwnerRequirementCode) throw new Error('提交与主需求归属不一致');
+      parsed.requirementCode = binding.requirementCode;
+      if (binding.requirementCode !== binding.codeOwnerRequirementCode) parsed.modifyDesc += `\n复用主需求 ${binding.codeOwnerRequirementCode} 的提交 ${record.hash}。`;
+    }
     const group = groups.get(parsed.requirementCode);
     if (group) {
       group.Repository.push(repository);
@@ -296,7 +336,11 @@ function serverMessage(data) {
     .join('；');
 }
 
-async function submit(payload, config, fetchImpl = fetch) {
+async function submit(input, config, fetchImpl = fetch, userCode = '') {
+  // The public write boundary accepts selections, never an unbound payload.
+  // Re-read real commits immediately before generating the request.
+  const records = selectInput(input);
+  const payload = buildPayload(records, { linkProject: config.linkProject, userCode: resolveUserCode(records, userCode) });
   if (!config.token || /^(TODO|xxxxx)$/i.test(config.token.trim())) throw new Error('代码更新日志 token 尚未配置');
   const redact = value => {
     let text = String(value);
@@ -339,7 +383,13 @@ async function submit(payload, config, fetchImpl = fetch) {
   if (codes.some(code => code !== '000')) {
     throw new Error(`提交失败：${messages || `ResultCode ${codes.join('、')}`}`);
   }
-  return { ok: true, resultCodes: codes, resultMessages: messages ? [messages] : [] };
+  return { ok: true, resultCodes: codes, resultMessages: messages ? [messages] : [], summary: describe(records, payload) };
+}
+
+function describe(records, payload) {
+  const summary = summarize(payload);
+  if (records.some(record => record.logBinding)) for (const item of summary) item.codeOwnerRequirementCode = records.find(record => record.logBinding?.requirementCode === item.requirementCode).logBinding.codeOwnerRequirementCode;
+  return summary;
 }
 
 function resolveUserCode(records, explicit = '') {
@@ -383,11 +433,12 @@ function option(argv, name) {
 }
 
 const USAGE = [
+  'bos-code-update-log plan|submit 接受 select 或 bindings（含requirementCode、codeOwnerRequirementCode、select），二者互斥',
   'bos-code-update-log defaults',
   'bos-code-update-log repos [--workspace <目录>] [--depth <层数>]',
-  'bos-code-update-log commits --repo <仓库路径> [--limit <条数>]',
-  'bos-code-update-log plan \'{"select":[{"repo":"<仓库路径>","hash":"<提交>"}]}\' [--user <Git用户>]',
-  'bos-code-update-log submit \'{"select":[{"repo":"<仓库路径>","hash":"<提交>"}]}\' --confirm [--user <Git用户>]'
+  'bos-code-update-log commits --repo <实仓路径> --ref refs/heads/<目标分支> [--limit <条数>]',
+  'bos-code-update-log plan \'{"select":[{"repo":"<实仓路径>","ref":"refs/heads/<目标分支>","hash":"<完整实仓提交>"}]}\' [--user <Git用户>]',
+  'bos-code-update-log submit \'{"select":[{"repo":"<实仓路径>","ref":"refs/heads/<目标分支>","hash":"<完整实仓提交>"}]}\' --confirm [--user <Git用户>]'
 ].join('\n');
 
 async function main(argv, { env = process.env, fetchImpl = fetch } = {}) {
@@ -405,20 +456,20 @@ async function main(argv, { env = process.env, fetchImpl = fetch } = {}) {
   if (command === 'commits') {
     const repo = option(argv, '--repo');
     if (!repo) throw new Error('commits 需要 --repo <仓库路径>');
-    return { ok: true, repo: path.resolve(repo), commits: listCommits(repo, option(argv, '--limit') || 30) };
+    return { ok: true, repo: path.resolve(repo), ref: option(argv, '--ref'), commits: listCommits(repo, option(argv, '--limit') || 30, option(argv, '--ref')) };
   }
   if (command === 'plan' || command === 'submit') {
     const input = parseJsonArgument(argv[1], USAGE);
+    const records = selectInput(input);
     const settings = loadConfig(env);
-    const records = selectRecords(input.select);
     const payload = buildPayload(records, { linkProject: settings.linkProject, userCode: resolveUserCode(records, option(argv, '--user')) });
-    const summary = summarize(payload);
+    const summary = describe(records, payload);
     if (command === 'plan') return { ok: true, submitted: false, url: settings.url, configSource: settings.configSource, tokenConfigured: Boolean(settings.token), payload, summary };
     if (!argv.includes('--confirm')) {
       return { ok: false, submitted: false, error: '提交为写操作，需要显式传 --confirm', url: settings.url, configSource: settings.configSource, summary };
     }
-    const result = await submit(payload, settings, fetchImpl);
-    return { ok: true, submitted: true, url: settings.url, configSource: settings.configSource, resultCodes: result.resultCodes, resultMessages: result.resultMessages, summary };
+    const result = await submit(input, settings, fetchImpl, option(argv, '--user'));
+    return { ok: true, submitted: true, url: settings.url, configSource: settings.configSource, resultCodes: result.resultCodes, resultMessages: result.resultMessages, summary: result.summary };
   }
   throw new Error(`未知命令。用法：\n${USAGE}`);
 }
@@ -447,6 +498,7 @@ module.exports = {
   listCommits,
   commitRecords,
   selectRecords,
+  selectInput,
   buildPayload,
   summarize,
   submit,

@@ -1,0 +1,4628 @@
+{
+  "schema": "iris-tool-catalog/v1",
+  "vendorVersion": "1.5.0",
+  "tools": [
+    {
+      "name": "capability_matrix",
+      "description": "Show the roles assigned to a user on an IRIS instance. user: optional username (default: current user). server: optional registered instance name. Returns {user, full_name, roles: [...]}. Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          },
+          "user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Account to look up. Defaults to the connected user."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "check_config",
+      "description": "Return the active IRIS connection state without making any IRIS network calls. Always succeeds — never returns IRIS_UNREACHABLE. Use to: (1) diagnose connection issues, (2) verify hot-reload completed, (3) confirm which container/host is active, (4) confirm which build of this MCP server is actually running (server_version) when multiple installs/forks may be registered. To switch connection mid-session without restart: call check_config first to get config_watch_path, then write a .iris-agentic-dev.toml to that exact path, then call any tool — the reload fires automatically. Fields: server_version, connected, connection_source (http|docker|disconnected), host, port, namespace, container, config_file, config_watch_path, config_loaded_at, iris_version, write_tools_enabled, write_tools_source, destructive_tools_enabled, destructive_tools_source, tls_verify, capabilities. The two *_source fields say what decided each gate (operator_env|config_file|legacy_allow_prod|inferred_system_mode|inferred_namespace|inferred_default|fail_closed), so a gate you did not ask for is one field lookup rather than a guess. Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "compare_document",
+      "description": "Compare the source of a document (class, routine, etc.) across two registered IRIS servers. Returns {same: bool, diff: string, server_a, server_b, document, namespace}. Use iris_servers to see registered instances. Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "document": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Document to compare, e.g. `MyApp.Foo.cls` or `MyRoutine.mac`."
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Namespace to read the document from on both instances. Defaults to `server_a`'s namespace."
+          },
+          "server_a": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of the first registered instance (`iris_servers` lists them)."
+          },
+          "server_b": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of the second registered instance."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "compare_namespace",
+      "description": "Compare all classes in a namespace across two registered IRIS servers. Returns {only_in_a, only_in_b, different, same_count}. Use iris_servers to see registered instances. Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Namespace to compare on both instances. Defaults to `server_a`'s namespace."
+          },
+          "server_a": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of the first registered instance."
+          },
+          "server_b": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of the second registered instance."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "docs_introspect",
+      "description": "Introspect an ObjectScript class — returns methods, properties, and type information. Methods include FormalSpec as a structured array of {name, type, byref, output, default} objects and a ReturnType field. For BPL and DTL classes, an xdata_flow field describes the process steps (BPL: kind=bpl, steps array with Call/Code/If/Other entries, has_dynamic_dispatch flag; DTL: kind=dtl, source_class, target_class, subtransforms, assign_count). Skill: objectscript-navigation. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "class_name": {
+            "type": "string"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "required": [
+          "class_name"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "extract_message_map_routing",
+      "description": "Extract routing from a compiled Ensemble class. For MessageMap routers: returns message_type → method dispatch table (confidence 0.9). For BPL classes (Ens.BusinessProcessBPL): returns kind=bpl with routes derived from Call steps (confidence 0.8); includes note when dynamic dispatch ($classmethod) is detected. For DTL classes (Ens.DataTransformDTL): returns kind=dtl with source_class, target_class, and empty routes. Returns NOT_FOUND for plain classes with no routing. Results cached 60s per session. Skill: ensemble-production. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "class_name": {
+            "description": "Fully qualified Ensemble class name (e.g. \"HS.Flash.Router\").",
+            "type": "string"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "required": [
+          "class_name"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "find_subclass_implementations",
+      "description": "Find all concrete subclass implementations of a method in the full inheritance hierarchy. Given base class names and a method name, expands to all descendants at any depth and returns classes where the method is defined (Origin = parent, not inherited). Use to resolve polymorphic dispatch: adapter.Execute() → find all EnsLib.*.Adapter subclasses that implement Execute. Results cached 60s per session. Skill: objectscript-navigation. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "base_classes": {
+            "description": "Base classes to expand — all descendants searched (e.g. [\"Ens.BusinessProcess\"]).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Max results. Defaults to 100."
+          },
+          "method_name": {
+            "description": "Method name (e.g. \"OnProcessInput\", \"Execute\").",
+            "type": "string"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "required": [
+          "method_name",
+          "base_classes"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "global_kill",
+      "description": "Kill (delete) an entire IRIS global. Destructive tier: requires IRIS_DESTRUCTIVE_TOOLS_ENABLED=1. Requires a confirm_token from global_preview (valid 5 minutes). global: global name. confirm_token: token from global_preview. server: optional registered instance name. Error codes: CONFIRM_REQUIRED (call global_preview first), CONFIRM_EXPIRED (token expired), CONFIRM_MISMATCH (token for different global/server). Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "confirm_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Token from `global_preview`, valid five minutes.\n\nOptional on purpose: omitting it must keep producing `CONFIRM_REQUIRED`, which names the\npreview call to make, rather than a deserialization error."
+          },
+          "global": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Global name, with or without the leading `^`."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "global_preview",
+      "description": "Preview the contents of an IRIS global before deleting it. Returns the first N subscripts plus a confirm_token (valid 5 minutes) required by global_kill. global: name of the global (with or without ^). count: max entries to preview (default 20, max 100). server: optional registered instance name. Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "anyOf": [
+              {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Maximum entries to preview. Default 20, clamped to 1–100.\n\nRead as an integer today, so `\"count\": \"50\"` is currently discarded in favour of the default.\nDeclaring the type turns that silent discard into a rejection (FR-008)."
+          },
+          "global": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Global name, with or without the leading `^`."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "hl7_schema_inspect",
+      "description": "Inspect an HL7 schema's message structures or a specific segment's fields. Returns HL7_NOT_AVAILABLE if EnsLib.HL7.Schema is absent. schema: schema name (e.g. '2.5'). segment: optional segment name to inspect fields. namespace: optional. server: optional registered instance name. Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Namespace to read the schema from. Omit to use the connection's."
+          },
+          "schema": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "HL7 schema name, e.g. `2.5`. Without it the tool has nothing to inspect."
+          },
+          "segment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Segment to describe, e.g. `MSH`. Omit to list the schema's message structures instead."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "hl7_schema_list",
+      "description": "List available HL7 schemas on an IRIS/HealthShare instance. Returns HL7_NOT_AVAILABLE if EnsLib.HL7.Schema is absent. namespace: optional (defaults to the connection namespace, IRIS_NAMESPACE). server: optional registered instance name. Returns {schemas: [...], count: N}. Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Namespace to list HL7 schemas from. Omit to use the connection's."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_add_server",
+      "description": "Add a new IRIS server to the iad-native configuration. Pass `web_prefix` (e.g. \"/hs20261\") for an instance behind a shared web gateway — without it the entry resolves to the gateway root and every call goes to the wrong place; registering the same name again updates the entry. The credential is stored in the OS keychain when available. On headless hosts (MCP in Claude Desktop, Remote SSH, CI) where no keychain exists, the credential is stored in plaintext in servers.json as a fallback — the response includes stored_plaintext: true and a warning in that case. Call `iris_reload_pool` afterwards to make it available via the `server` param in the running server; no restart needed. Returns {added: true, name, note}.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional human-readable description."
+          },
+          "host": {
+            "description": "Hostname or IP address.",
+            "type": "string"
+          },
+          "name": {
+            "description": "Unique name for this server (used in the `server` param of other tools).",
+            "type": "string"
+          },
+          "namespace": {
+            "description": "Default IRIS namespace (e.g. `\"USER\"`).",
+            "type": "string"
+          },
+          "password": {
+            "description": "IRIS password — stored in OS keychain, never written to disk.",
+            "type": "string"
+          },
+          "port": {
+            "description": "Web port (e.g. 52773 or 443).",
+            "format": "uint16",
+            "maximum": 65535,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "scheme": {
+            "anyOf": [
+              {
+                "enum": [
+                  "http",
+                  "https"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "URL scheme: `\"http\"` (default) or `\"https\"`."
+          },
+          "username": {
+            "description": "IRIS username.",
+            "type": "string"
+          },
+          "web_prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "URL path prefix the web server is served under, e.g. `\"/hs20261\"` when Atelier answers at\n`/hs20261/api/atelier/`. Required for instances behind a shared gateway; omit for an\ninstance served at the root. A path only — no scheme or host."
+          }
+        },
+        "required": [
+          "name",
+          "host",
+          "port",
+          "namespace",
+          "username",
+          "password"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_admin",
+      "description": "IRIS administration dispatcher. Read actions (always available): list_namespaces, list_databases, list_users, list_roles, list_user_roles, check_permission, list_webapps, get_webapp, view_locks, view_processes, journal_search, namespace_mappings, database_status. Write actions (require IRIS_WRITE_TOOLS_ENABLED=1): clear_password_change_flag, unlock_user, fresh_container_setup, mirror_add_async. mirror_add_async joins this IRIS instance to an existing mirror set as an async DR member. Params: mirror_name (required), primary_host (required), primary_port (default 2188), instance_name (default IRIS), async_member_type (0=DR, 1=ReadOnly, 2=ReadWrite; default 0). Destructive actions (require IRIS_DESTRUCTIVE_TOOLS_ENABLED=1): create_user, update_user, delete_user, create_namespace, delete_namespace, create_webapp, delete_webapp, mirror_failover. create_user, update_user, delete_user, create_namespace, delete_namespace, create_webapp, delete_webapp, clear_password_change_flag, unlock_user and fresh_container_setup also require IRIS_ADMIN_TOOLS=1, a second switch the handler checks after the tier gate. mirror_failover promotes this backup member to primary (irreversible without manual recovery). Params: confirm (required, must be true). fresh_container_setup runs the full first-boot sequence on a fresh IRIS container: clears the forced-password-change flag and unlocks the default account. clear_password_change_flag params: username (default _SYSTEM), password (default SYS), new_password (optional). unlock_user params: username (required). fresh_container_setup params: username (default _SYSTEM), password (default SYS), new_password (optional). All operations run in %SYS namespace. check_permission checks the currently connected user (IRIS_USERNAME). view_processes requires dataPolicy param (block/redact/allow). journal_search requires dataPolicy=allow and at least one of global_pattern or time_range. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "Which administration action to run. The enum is the dispatch table itself — any value\noutside it reaches the catch-all arm and comes back as `INVALID_ACTION`.",
+            "enum": [
+              "list_namespaces",
+              "list_databases",
+              "list_users",
+              "list_roles",
+              "list_webapps",
+              "list_user_roles",
+              "get_webapp",
+              "check_permission",
+              "create_user",
+              "update_user",
+              "delete_user",
+              "create_namespace",
+              "delete_namespace",
+              "create_webapp",
+              "delete_webapp",
+              "view_locks",
+              "view_processes",
+              "journal_search",
+              "namespace_mappings",
+              "database_status",
+              "clear_password_change_flag",
+              "unlock_user",
+              "fresh_container_setup",
+              "mirror_add_async",
+              "mirror_failover"
+            ],
+            "type": "string"
+          },
+          "async_member_type": {
+            "anyOf": [
+              {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`mirror_add_async`: 0 = DR, 1 = read-only reporting, 2 = read-write reporting. Defaults to 0."
+          },
+          "code_database": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`create_namespace`: existing database to hold routines and classes."
+          },
+          "confirm": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`mirror_failover`: must be `true`. The failover is irreversible without manual recovery."
+          },
+          "data_database": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`create_namespace`: existing database to hold globals."
+          },
+          "dispatch_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`create_webapp`: the REST dispatch class the application routes to."
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether the user or web application is enabled."
+          },
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Display name for `create_user` / `update_user`."
+          },
+          "global_pattern": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`journal_search`: global reference pattern. `*` and `?` are stripped before the search, which\nmatches substrings."
+          },
+          "instance_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`mirror_add_async`: instance name on the primary host. Defaults to `IRIS`."
+          },
+          "max_records": {
+            "anyOf": [
+              {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`journal_search`: cap on returned records. Defaults to 100, capped at 1000."
+          },
+          "mirror_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`mirror_add_async`: name of the mirror set to join."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Namespace name for `create_namespace` / `delete_namespace`, or database name for\n`database_status`."
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Namespace filter or target, depending on the action."
+          },
+          "new_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`clear_password_change_flag` / `fresh_container_setup`: the replacement password. Omit to keep\nthe current one."
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Password for `create_user`, or the current password for `clear_password_change_flag` and\n`fresh_container_setup`."
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Web application path, e.g. `/api/atelier`. Used by `get_webapp`, `create_webapp`,\n`delete_webapp`."
+          },
+          "permission": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`check_permission`: the privilege to test. Defaults to `USE`."
+          },
+          "primary_host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`mirror_add_async`: hostname of the primary member."
+          },
+          "primary_port": {
+            "anyOf": [
+              {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`mirror_add_async`: superserver port of the primary member. Defaults to 2188."
+          },
+          "resource": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`check_permission`: the resource to test, e.g. `%DB_IRISSYS`."
+          },
+          "roles": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Comma-separated role names for `create_user` / `update_user`."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          },
+          "time_range": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "from": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Lower bound, ISO 8601 (`2026-09-06T00:00:00Z`). Records before it are skipped."
+                  },
+                  "to": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Upper bound, ISO 8601. Records after it are skipped."
+                  }
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`journal_search`: time window. At least one of `global_pattern` or `time_range` is required."
+          },
+          "type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "REST",
+                  "CSP"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`list_webapps`: keep only applications of this type (`REST`, `CSP`). Matched\ncase-insensitively against the type IRIS reports, so a value outside the set filters\neverything out rather than erroring."
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The account to act on. Required by the user actions and by `unlock_user`."
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "iris_business_rule_info",
+      "description": "List or inspect Ensemble business rules (Ens.Rule.RuleSet). action=list returns all rule sets with name/description/modified. action=get with rule_name returns conditions/actions counts for that rule set. Returns INTEROP_NOT_AVAILABLE if Ensemble is not installed. Skill: ensemble-production (merged toolset only). `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "enum": [
+                  "list",
+                  "get"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`list` for every rule set, or `get` for one."
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Interop namespace. Omit to use the connection's."
+          },
+          "rule_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`action=get`: the rule set to describe."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_compile",
+      "description": "Compile an ObjectScript class, routine, or wildcard package on IRIS via Atelier REST. Supports 'MyApp.*.cls' for package-level compilation. Also accepts a local file path as `target` — uploads it first, then compiles. Returns structured errors with line numbers, columns, and severity. On a successful single-document compile, `content` carries the post-compile source (the compiler can rewrite it beyond what was submitted, e.g. auto-mapping a new property into Storage) — use it to sync a local file without a separate `iris_doc(get)`; `content` is omitted for wildcard/package compiles. No Python required. Skill: objectscript-tdd for the compile-test-fix loop. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "default": false,
+            "description": "Set to true to confirm execution on a subject-role instance (role-gate bypass).",
+            "type": "boolean"
+          },
+          "flags": {
+            "default": "cuk",
+            "type": "string"
+          },
+          "force_writable": {
+            "default": false,
+            "type": "boolean"
+          },
+          "inline": {
+            "default": false,
+            "description": "If true, bypass the log store and return all errors/warnings inline regardless of count.",
+            "type": "boolean"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          },
+          "target": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "target"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_containers",
+      "description": "Container lifecycle dispatcher (merged). action: list=list running IRIS containers, select=validate container connection, start=start sandbox container via iris-devtester.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "enum": [
+                  "list",
+                  "select",
+                  "start"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`list`, `select`, or `start`. Defaults to `list`."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Container name, for `select` and `start`."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_coverage",
+      "description": "Measure ObjectScript line coverage using %Monitor.System.LineByLine. mode=run: start monitoring + run compiled test suite + stop + return per-class and total coverage in one call (use this for most tasks). mode=check: verify the monitor is available by doing a dry Start() — if BBSIZ_NOT_CONFIGURED is returned, increase gmheap to 256+ in Management Portal > System Administration > Configuration > Additional Settings > Advanced Memory, then restart IRIS. mode=start/stop/report: manual multi-step control. Provide either classes=['MyApp.MyClass',...] or package='MyApp' (auto-discovers concrete classes). test_path must be a compiled class pattern (e.g. 'MyApp.Tests') — /noload always used. Returns {total_pct, hits, total, classes:[{class,routine,hit,total,pct}], meets_target, target_pct}. Error codes: BBSIZ_NOT_CONFIGURED (gmheap too small), MONITOR_IN_USE, MISSING_PARAM. Skill: objectscript-coverage (merged toolset only). `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "classes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Explicit list of class names (without .1) — mutually exclusive with package"
+          },
+          "cobertura_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Write Cobertura XML to this path (requires TestCoverage IPM package)"
+          },
+          "mode": {
+            "description": "Mode: \"start\" | \"stop\" | \"report\" | \"run\" | \"check\"",
+            "enum": [
+              "start",
+              "stop",
+              "report",
+              "run",
+              "check"
+            ],
+            "type": "string"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "IRIS namespace (defaults to connection default)"
+          },
+          "package": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Auto-discover all concrete classes in package via %Dictionary.ClassDefinition"
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          },
+          "target_pct": {
+            "anyOf": [
+              {
+                "format": "double",
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Coverage target percentage (default 90.0)"
+          },
+          "test_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Compiled class pattern for mode=run (e.g. \"MyApp.Tests\"); /noload always used"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_credential_list",
+      "description": "List all Ensemble credentials (IDs and usernames only — passwords never returned). namespace: optional.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Interop namespace to list credentials from. Omit to use the connection's."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_credential_manage",
+      "description": "Create, update, or delete an Ensemble credential. action: create|update|delete. id: credential ID (required). username/password: required for create, optional for update. namespace: optional. Destructive tier: create/update/delete require IRIS_DESTRUCTIVE_TOOLS_ENABLED=1, and are suppressed on Live instances unless IRIS_ALLOW_PROD=1.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "enum": [
+                  "create",
+                  "update",
+                  "delete"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`create`, `update`, or `delete`."
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Credential ID, as it appears in the Credentials page of the Management Portal."
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Interop namespace. Omit to use the connection's."
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Password to store. Required for `create`, optional for `update`. Never returned by any tool."
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Username to store. Required for `create`, optional for `update`."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "iris_database_list",
+      "description": "List all databases (directories) on an IRIS instance. server: optional registered instance name. Returns {databases: [{directory, mounted, size_mb, free_space_mb, free_pct, max_size_mb}], count: N}. Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_database_stats",
+      "description": "Get disk usage statistics for IRIS databases. db: optional directory path to limit to one database; if omitted returns all. server: optional registered instance name. Returns {stats: [{directory, free_space_mb, free_blocks}]}. Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "db": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Database directory to report on. Omit for every database."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_debug",
+      "description": "IRIS debug tools. action=map_int maps a runtime error offset to source line, action=error_logs fetches recent error log entries, action=capture captures current error state, action=source_map builds .INT to .CLS mapping. Skill: objectscript-debugging. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "Action: map_int, error_logs, capture, source_map",
+            "enum": [
+              "map_int",
+              "error_logs",
+              "capture",
+              "source_map"
+            ],
+            "type": "string"
+          },
+          "class_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Class name for source_map"
+          },
+          "error_string": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Error string for map_int e.g. \"<UNDEFINED>x+3^MyApp.Foo.1\""
+          },
+          "limit": {
+            "default": 20,
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_doc",
+      "description": "Read/write/delete IRIS documents. mode: get (fetch source), put (write, auto SCM checkout), delete, head (existence), fragment (read lines start..end), compiled (read INT), list (glob `pattern`), insert (splice `content` before 1-based `line`; omit `line` to append), delete_lines (remove start..end). `name` is required for all single-document modes; `line`/`start`/`end` are integers. For insert with an explicit `line` and for delete_lines, pass `expected` (current text at the target lines) or the edit is refused with STALE_CONTENT. Edits return the re-numbered post-write `content` to chain from, plus a `diff` field (git-style unified diff of the change) — render it to the user inside a ```diff fenced code block. Batch via `names`; SCM dialogs resume via elicitation_id/elicitation_answer. Skill: objectscript-navigation to locate documents before editing. Storage blocks on %Persistent/%SerialObject classes: never stripped or regenerated — written verbatim, exactly like Studio/VS Code. Treat the Storage definition as off-limits: when removing a property, leave its Storage entry alone (the compiler leaves it as a harmless orphan; do not delete or edit it). Exception — renaming a property: you may update the corresponding Storage entry's name to match, in the same edit. A full storage reset (submitting content with no Storage block for a class that has one) is refused with STORAGE_RESET_REQUIRES_CONFIRMATION unless allow_storage_regeneration:true is set — only set this after the user has explicitly confirmed the reset is intentional for this session; the response then reports the pre-reset property list so you can decide how to clean up any existing data (e.g. %KillExtent). `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "allow_storage_regeneration": {
+            "default": false,
+            "description": "Confirms it's safe to drop this class's existing Storage definition\nentirely (letting IRIS regenerate it from scratch on next compile).\nOnly ever set this after the user has explicitly confirmed the reset\nis intentional for this session — never infer it. Required whenever\n`content` omits a Storage block the server-side document currently\nhas; the write is otherwise refused with\nSTORAGE_RESET_REQUIRES_CONFIRMATION.",
+            "type": "boolean"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "enum": [
+                  "CLS",
+                  "MAC",
+                  "INT",
+                  "INC",
+                  "ALL"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Document category filter: \"CLS\", \"MAC\", \"INT\", \"INC\", or \"ALL\" (default \"ALL\")"
+          },
+          "compile": {
+            "default": false,
+            "description": "If true and mode=put, compile the document after writing (default false).\nSaves a round-trip vs calling iris_doc(put) then iris_compile separately.",
+            "type": "boolean"
+          },
+          "compiled_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "INT"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Compiled form type. Only \"INT\" (the default) is implemented; \"OBJ\" is rejected with\nINVALID_PARAMS, so the enum offers the one value that works."
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Source content (required for mode=put)"
+          },
+          "elicitation_answer": {
+            "anyOf": [
+              {
+                "enum": [
+                  "yes",
+                  "no"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "User's answer to the elicitation question (\"yes\" or \"no\")"
+          },
+          "elicitation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Elicitation resume ID (from a prior elicitation_required response)"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Fragment/delete end line, 1-based inclusive (required for mode=fragment and mode=delete_lines)"
+          },
+          "expected": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stale-edit guard. The text you expect to currently occupy the targeted lines\n(for delete_lines: the `start`..`end` block; for insert: the single line currently\nat `line`). If it does not match the live document, the edit is refused with\nSTALE_CONTENT instead of silently editing the wrong lines. Compared line-by-line\nafter trimming trailing whitespace.\n\nREQUIRED for mode=delete_lines and for a positional insert (when `line` is set).\nOnly omit it for an append (mode=insert with no `line`), which is non-destructive."
+          },
+          "include_scratch": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "mode=list: include iad's own `IrisDevTmp.*` scratch classes (hidden by default unless the\npattern starts with `IrisDevTmp`)"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Insertion point for mode=insert: `content` is spliced *before* this 1-based line.\nUse 1 to prepend, or total_lines+1 (or omit) to append at end of file."
+          },
+          "max_results": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Max results for mode=list (default 200, max 1000)"
+          },
+          "mode": {
+            "default": "get",
+            "description": "Operation, one of: get, put, delete, head, fragment, compiled, list, insert,\ndelete_lines. Defaults to \"get\". get=fetch source, put=write whole doc,\ndelete=remove, head=check existence, fragment=read a line range, compiled=read\nINT form, list=glob docnames, insert=splice `content` before 1-based `line`\n(omit `line` to append at EOF), delete_lines=remove inclusive `start`..`end`\n(requires `expected`).",
+            "enum": [
+              "get",
+              "put",
+              "delete",
+              "head",
+              "fragment",
+              "compiled",
+              "list",
+              "insert",
+              "delete_lines"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Document name e.g. 'MyApp.Patient.cls'"
+          },
+          "names": {
+            "default": [],
+            "description": "Multiple document names for batch get/delete",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "pattern": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Glob pattern for mode=list (required, e.g. \"User.*\" or \"MyApp.*.cls\")"
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          },
+          "start": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Fragment/delete start line, 1-based inclusive (required for mode=fragment and mode=delete_lines)"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_doc_search",
+      "description": "Search the InterSystems documentation site (docs.intersystems.com) via its Algolia index. Returns ranked hits with title, URL, content excerpt, and breadcrumbs. Use for discovery questions ('what are all the ways to run SQL in IRIS?'), API lookups ('what does SQLCODE -30 mean?'), and any question where the answer lives in official docs. Optionally filter by version (e.g. '2025.1') and product (e.g. 'InterSystems IRIS'). Returns {query, total_hits, hits:[{title, url, excerpt, breadcrumbs, version, product}]}. Note: docs.intersystems.com is a JS SPA — do NOT use WebFetch or curl on DocBook URLs; they return only nav shell. This tool uses the real Algolia search index and returns actual documentation content. Skill: iris-docs for live IRIS class reference; iris-agentic-dev for connection setup.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "hits": {
+            "anyOf": [
+              {
+                "format": "uint8",
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "query": {
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_execute",
+      "description": "Execute arbitrary ObjectScript code on IRIS and return stdout. Two execution paths: (1) HTTP primary — wraps code in a temporary class method body (CodeMode=objectgenerator), compiles it via Atelier REST, runs it, deletes the class. Block syntax (`{}`) works here because class method bodies support it. (2) docker exec fallback — used when IRIS_CONTAINER env var is set and HTTP fails, or when the connection sets `docker_only = true` in `.iris-agentic-dev.toml` (a config-file key, not a parameter of this tool — passing docker_only in the tool arguments does nothing). This path pipes code into `iris session` stdin, which is a line-by-line terminal interpreter. Block syntax (`{}`) is NOT supported in terminal mode — `If cond { ... }` causes a `<SYNTAX>` error. Use classic terminal-compatible form instead: `If cond Write x`. For complex multi-line scripts that require `{}` on a docker exec path, write a .mac routine with `iris_doc` (mode=put) and compile it with `iris_compile`, then call `iris_execute Do entry^RoutineName`. That needs Atelier REST for `iris_doc`; under `docker_only` the routine must already be on the server. The destructive gate covers tool calls, not the code this tool runs: only a literal `Kill ^global` is checked, so for a hard limit connect as an IRIS user without delete privileges. &sql(...) embedded SQL runs natively on the HTTP path. The docker exec path has no &sql, so there it is translated to %SQL.Statement calls (set translate_sql: false to disable), and the response includes sql_translated: true and translated_code. Example: code='write $ZVERSION,!' returns the IRIS version string. Classes in Security.*, Config.* and SYS.* (web applications, users, roles, namespaces, databases) exist only in %SYS: pass namespace: \"%SYS\" for them. Skill: objectscript-tdd for the compile-execute-fix loop. Session state: set use_session: true to enable the %ctx carrier (%DynamicObject). Store values in %ctx.key between calls — scalars, %DynamicObject, and %Persistent objects (stored as OID stubs and re-opened on restore). The response includes session_state (opaque Base64 token); pass it back as session_state on the next call to restore %ctx. Nothing is written to IRIS — the token is held by the client. Error codes: SESSION_INVALID (bad token), SESSION_RESTORE_FAILED (missing class or bad OID), SESSION_SERIALIZE_FAILED (serialization error), TERMINAL_SYNTAX_UNSUPPORTED (block syntax on docker exec path). `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "confirmed": {
+            "default": false,
+            "type": "boolean"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          },
+          "session_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Opaque session token from a prior `iris_execute` call with `use_session: true`.\nRestores `%ctx` at the start of execution. Ignored when `use_session: false`."
+          },
+          "timeout": {
+            "default": 120,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "translate_sql": {
+            "default": true,
+            "description": "If true (default), rewrite &sql(...) embedded SQL macros to %SQL.Statement calls on the docker\nexec path, whose terminal has no &sql. The HTTP path always runs &sql as written.\nSet to false to send code as-is for debugging.",
+            "type": "boolean"
+          },
+          "use_session": {
+            "default": false,
+            "description": "Enable session state. When true, `%ctx` (%DynamicObject) is injected before user code\nand serialized to `session_state` in the response after user code runs. Pass the prior\ncall's `session_state` to restore `%ctx` across calls — no state is written to IRIS.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_execute_method",
+      "description": "Invoke a ClassMethod directly by class+method+args without writing ObjectScript boilerplate. Returns the string return value. Execute-gated: blocked on mcpTemplate=live and mcpTemplate=test. v1 limitation: only string-returning methods. Skill: objectscript-navigation (merged toolset only). `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "args": {
+            "default": [],
+            "description": "Positional string arguments passed to the method",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "class": {
+            "description": "Class name e.g. \"%Library.Integer\" or \"MyApp.Utils\"",
+            "type": "string"
+          },
+          "method": {
+            "description": "Method name e.g. \"IsValid\" or \"FormatDate\"",
+            "type": "string"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "required": [
+          "class",
+          "method"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_generate",
+      "description": "Prepare context for generating an ObjectScript class or %UnitTest. Returns a ready-to-use prompt plus IRIS namespace context (existing class names, method signatures). No API key needed — the calling AI agent does the generation using the returned prompt, then saves with iris_doc(mode=put) and compiles with iris_compile. gen_type=class for new classes, gen_type=test for %UnitTest scaffolding. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "class_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Existing class name to generate tests for (gen_type=test only)"
+          },
+          "description": {
+            "description": "What to generate — natural language description, e.g. \"a Patient class with Name and DOB properties\"",
+            "type": "string"
+          },
+          "gen_type": {
+            "default": "class",
+            "description": "Type: \"class\" (default) or \"test\"",
+            "enum": [
+              "class",
+              "test"
+            ],
+            "type": "string"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "required": [
+          "description"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_generate_class",
+      "description": "Generate an ObjectScript class from a natural language description. Requires IRIS_GENERATE_CLASS_MODEL + OPENAI_API_KEY env vars. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "overwrite": {
+            "default": false,
+            "type": "boolean"
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "required": [
+          "description"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_generate_test",
+      "description": "Generate a %UnitTest.TestCase for an existing ObjectScript class. Introspects the class first. Requires IRIS_GENERATE_CLASS_MODEL + OPENAI_API_KEY. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "class_name": {
+            "type": "string"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "required": [
+          "class_name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_get_log",
+      "description": "Retrieve a stored result by log_id from the progressive disclosure store. With id: returns the full result (optionally paginated with limit/offset). Without id: lists all stored log entries with their IDs, tools, timestamps, and total counts. Use after any tool returns truncated:true.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "UUID of a stored log entry. If omitted, lists all stored entries."
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Max entries to return from the stored result. Must be > 0 if provided."
+          },
+          "offset": {
+            "default": 0,
+            "description": "Start index into the stored result. Default 0.",
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_global",
+      "description": "Read, write, kill, or list IRIS global nodes. action: get=read a node or subtree, set=write a node, kill=delete a node/subtree, list=enumerate subscripts. kill is a destructive action (requires IRIS_DESTRUCTIVE_TOOLS_ENABLED=1). PHI and system-blocklist gates enforced before any IRIS call. Pass acknowledgePhi=true to bypass per-global PHI gate. Skill: iris-agentic-dev. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "acknowledgePhi": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Bypass PHI name gate (per spec 051)"
+          },
+          "action": {
+            "description": "Action: get, set, kill, list",
+            "enum": [
+              "get",
+              "set",
+              "kill",
+              "list"
+            ],
+            "type": "string"
+          },
+          "global_name": {
+            "description": "Global name (with or without leading ^)",
+            "type": "string"
+          },
+          "max_nodes": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "get+subtree: max nodes returned (default 100, max 1000)"
+          },
+          "max_subscripts": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "list: max subscripts returned (default 50, max 500)"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "IRIS namespace (defaults to connection default)"
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          },
+          "subscripts": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Subscripts (each must match ^[a-zA-Z0-9 _.:\\-]+$)"
+          },
+          "subtree": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "get only: return all descendant nodes"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Value to set (required for action=set)"
+          }
+        },
+        "required": [
+          "action",
+          "global_name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_import_servers",
+      "description": "Import IRIS server definitions from VS Code / Cursor Server Manager into the iad-native config. Reads intersystems.servers from VS Code and Cursor settings.json. Servers already present in the iad-native config are skipped (no overwrite). Passwords are resolved from the OS keychain; servers where no keychain entry exists are imported without a password (listed in no_keychain). Returns {imported, skipped, no_keychain: [...]}. Call `iris_reload_pool` after importing to make them routable.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_info",
+      "description": "Discover IRIS namespace contents. what=documents lists all docs, what=modified lists recently changed, what=namespace returns config, what=metadata returns IRIS version, what=jobs lists active jobs, what=csp_apps lists CSP apps, what=csp_debug returns debug ID, what=sa_schema returns the Studio Assist grammar for an XData namespace URL (name=http://www.intersystems.com/deepsee); it does not list or describe cubes, which %DeepSee.Utils %GetCubeList and %GetDimensionList do through iris_execute. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "doc_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Document type filter for what=documents: CLS, MAC, INT, INC, CSP, ALL (default ALL)"
+          },
+          "include_scratch": {
+            "default": false,
+            "description": "what=documents: include iad's own `IrisDevTmp.*` scratch classes (hidden by default)",
+            "type": "boolean"
+          },
+          "inline": {
+            "default": false,
+            "description": "If true, bypass the log store and return all results inline regardless of count.",
+            "type": "boolean"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "XData namespace URL for what=sa_schema, e.g. http://www.intersystems.com/deepsee. Not a cube\nname: cubes are listed by %DeepSee.Utils %GetCubeList through iris_execute."
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          },
+          "what": {
+            "description": "What to fetch: documents, modified, namespace, metadata, jobs, csp_apps, csp_debug, sa_schema",
+            "enum": [
+              "documents",
+              "modified",
+              "namespace",
+              "metadata",
+              "jobs",
+              "csp_apps",
+              "csp_debug",
+              "sa_schema"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "what"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_interop_query",
+      "description": "Interoperability query dispatcher (merged). what (REQUIRED): logs=Event Log entries, queues=message queue depths, messages=message archive (Ens.MessageHeader). Anything else returns INVALID_ACTION. To trace one session, use what=messages with session_id=<n>. Filters: component=<config item> narrows logs and messages; session_id=<n> and since_id=<n> (tails after a watermark) narrow messages. what=messages can also search message CONTENT: (a) body_class=<msg class> + body_where=<SQL fragment on body table> + body_select=[cols] joins the body table server-side (SQL name resolved for you); (b) search_table={prop, value|value_like, class?, extent?} searches an indexed Search Table field (extent default EnsLib.HL7.SearchTable; errors list searchable props). Pass namespace=<ns> for a non-default interop namespace. Skill: ensemble-production. `server` (optional): name of a registered IRIS instance.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "body_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`what=messages`: body class to join, e.g. `Ens.StringContainer`. Its SQL table name is\nresolved server-side."
+          },
+          "body_select": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`what=messages`: body-table columns to add to each row."
+          },
+          "body_where": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`what=messages`: SQL predicate on the joined body table, e.g. `StringValue LIKE 'A%'`."
+          },
+          "component": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Config item name to narrow `logs` and `messages` to."
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Row cap, default 50."
+          },
+          "log_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`what=logs`: comma-separated severities, default `error,warning`."
+          },
+          "message_class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`what=messages`: match on `MessageBodyClassName`."
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Interop namespace. Omit to use the connection's."
+          },
+          "search_table": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "class": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Message body class to restrict the search to."
+                  },
+                  "extent": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Search Table extent to search. Defaults to `EnsLib.HL7.SearchTable`."
+                  },
+                  "prop": {
+                    "description": "Indexed Search Table property to match, e.g. `PatientID`. An unknown name comes back as\n`SEARCH_PROP_NOT_FOUND` listing what the extent does have.",
+                    "type": "string"
+                  },
+                  "value": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Exact value to match. Exactly one of `value` or `value_like` is required."
+                  },
+                  "value_like": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "SQL `LIKE` pattern to match, e.g. `MRN12%`. Exactly one of `value` or `value_like`."
+                  }
+                },
+                "required": [
+                  "prop"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`what=messages`: search an indexed Search Table field instead of the body table."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "format": "int64",
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "An integer that may arrive as a JSON number or as a decimal string.\n\nTwo parameters need this: `iris_interop_query`'s `session_id` and `since_id`. Their handlers\nread `as_i64().or_else(|| as_str().and_then(|s| s.parse().ok()))`, so both `12345` and `\"12345\"`\nwork today and declaring either type alone would reject calls that currently succeed.\n\nEverything else numeric on the surface is read as `as_u64()` only, and gets a plain\n`Option<u32>` — a string there is discarded today, so declaring it correctly turns a silent\ndiscard into a rejection. That is the one intentional behaviour change in this feature.",
+                "type": [
+                  "integer",
+                  "string"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`what=messages`: one session's messages. A number or a decimal string."
+          },
+          "since_id": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "format": "int64",
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "An integer that may arrive as a JSON number or as a decimal string.\n\nTwo parameters need this: `iris_interop_query`'s `session_id` and `since_id`. Their handlers\nread `as_i64().or_else(|| as_str().and_then(|s| s.parse().ok()))`, so both `12345` and `\"12345\"`\nwork today and declaring either type alone would reject calls that currently succeed.\n\nEverything else numeric on the surface is read as `as_u64()` only, and gets a plain\n`Option<u32>` — a string there is discarded today, so declaring it correctly turns a silent\ndiscard into a rejection. That is the one intentional behaviour change in this feature.",
+                "type": [
+                  "integer",
+                  "string"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`what=messages`: tail after this header ID. A number or a decimal string."
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`what=messages`: match on `SourceConfigName`."
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`what=messages`: match on `TargetConfigName`."
+          },
+          "what": {
+            "anyOf": [
+              {
+                "enum": [
+                  "logs",
+                  "queues",
+                  "messages"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which sub-query to run: `logs` (Event Log), `queues` (queue depths), or `messages`\n(`Ens.MessageHeader`). Defaults to `logs`; anything else is `INVALID_ACTION`."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_lookup_manage",
+      "description": "Read, write, delete, or list Ensemble lookup table entries. action: get|set|delete|list_keys|list_tables. table: table name (required except list_tables). key: required for get/set/delete. value: required for set. namespace: optional. get/list_keys/list_tables always available; set/delete are destructive actions (require IRIS_DESTRUCTIVE_TOOLS_ENABLED=1). Skill: ensemble-production.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "enum": [
+                  "get",
+                  "set",
+                  "delete",
+                  "list_keys",
+                  "list_tables"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`get`, `set`, `delete`, `list_keys`, or `list_tables`. The first, fourth and fifth are\nread-only; `set` and `delete` need the destructive tier, and so does any value this list does\nnot contain."
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Entry key. Required for `get`, `set`, and `delete`."
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Interop namespace. Omit to use the connection's."
+          },
+          "table": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lookup table name. Required for everything except `list_tables`."
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Value to store. Required for `set`."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "iris_lookup_transfer",
+      "description": "Export or import an Ensemble lookup table as XML. action: export|import. table: table name. xml: XML string (required for import). namespace: optional. export always available; import write-gated. Skill: ensemble-production.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "enum": [
+                  "export",
+                  "import"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`export` (read-only) or `import` (write-gated)."
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Interop namespace. Omit to use the connection's."
+          },
+          "table": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lookup table name to export from or import into."
+          },
+          "xml": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`action=import`: the `<lookupTable>` XML to load, in the form `export` returns."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_macro",
+      "description": "Inspect IRIS macros. action=list returns the include files, or with `includes` the macros they define; action=signature returns parameters, action=location finds definition file/line, action=definition returns text, action=expand expands with arguments. `includes` (optional) names the include files to look in, e.g. [\"EnsConstants\"]; if omitted, the include that defines the macro is found for you. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "Action: list, signature, location, definition, expand",
+            "enum": [
+              "list",
+              "signature",
+              "location",
+              "definition",
+              "expand"
+            ],
+            "type": "string"
+          },
+          "args": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "includes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Include files to resolve the macro in, e.g. [\"EnsConstants\"]. If omitted, iad finds the\ninclude that defines it. With action=list, lists the macros these includes define."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_message_body",
+      "description": "Read an Ensemble/Interoperability message body by message ID. Handles plain-text and stream-backed bodies (Ens.StreamContainer, %Stream.Object). PHI-gated: dataPolicy=block returns PHI_POLICY_BLOCKED; dataPolicy=allow requires acknowledgePhi=true; dataPolicy=redact scrubs HL7 v2 PID/MSH fields. max_bytes default 65536, clamped to 1048576. Skill: ensemble-production (merged toolset only). `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "acknowledgePhi": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required with `dataPolicy=allow`: acknowledges that the body may contain PHI."
+          },
+          "dataPolicy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`block` (default), `allow`, or `redact`. The server's own policy is applied first, so this\ncannot widen what a `.iris-agentic-dev.toml` has restricted."
+          },
+          "max_bytes": {
+            "anyOf": [
+              {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Body bytes to return, default 65536, clamped to 1048576."
+          },
+          "message_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`Ens.MessageHeader` ID whose body to read."
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Interop namespace. Omit to use the connection's."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_mirror_status",
+      "description": "Report mirror membership and role for the connected IRIS instance. Returns {is_member, mirror_name, member_type, is_primary}. Non-mirror instances return {is_member: false}. Useful as a pre-flight check before operations that require a primary. server: optional registered instance name. Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_namespace_create",
+      "description": "Create a new namespace on an IRIS instance. Destructive tier: requires IRIS_DESTRUCTIVE_TOOLS_ENABLED=1. name: namespace name. db_path: optional database directory (defaults to name). server: optional registered instance name. Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "db_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Existing database to use for globals. Defaults to a database named after the namespace."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of the namespace to create."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "iris_namespace_list",
+      "description": "List all namespaces on an IRIS instance. server: optional registered instance name. Returns {namespaces: [...], count: N}. Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_production",
+      "description": "Interoperability production lifecycle (merged). action: status=get current state, start=start named production, stop=stop production, update=hot-apply config, check=check if update needed, recover=recover troubled production. `namespace` (optional): IRIS namespace for production operations. Defaults to the connection namespace. Use when the interop production lives in a different namespace than the default connection. Skill: ensemble-production. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "default": "status",
+            "description": "Action to perform: status, start, stop, update, check, recover, get_autostart, set_autostart.",
+            "enum": [
+              "status",
+              "start",
+              "stop",
+              "update",
+              "check",
+              "recover",
+              "get_autostart",
+              "set_autostart"
+            ],
+            "type": "string"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Enable autostart for a production (set_autostart action only)."
+          },
+          "force": {
+            "default": false,
+            "description": "Force stop even if production is busy (stop action only).",
+            "type": "boolean"
+          },
+          "full": {
+            "default": false,
+            "description": "Return full production config detail (status action only).",
+            "type": "boolean"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace for production operations. Defaults to the connection namespace.\nUse when the interop production lives in a different namespace than the default connection."
+          },
+          "production": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Production to configure for autostart (set_autostart action only)."
+          },
+          "production_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Production class name (used by start/stop)."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          },
+          "timeout": {
+            "default": 30,
+            "description": "Stop timeout in seconds (stop action only, default 30).",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_production_diff",
+      "description": "Diff the running Interoperability production config against the last source-controlled version. Returns in_sync:true with changes:[] when no drift, or a changes array of {item_name, item_type, status} where status is added/removed/modified. Returns NO_SCM if no source control is configured. Skill: ensemble-production (merged toolset only). `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Interop namespace. Omit to use the connection's."
+          },
+          "production": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Production to diff. Defaults to the running one."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_production_item",
+      "description": "Enable, disable, or inspect/modify settings of an individual Interoperability production config item. action: enable|disable|get_settings|set_settings. item: exact config item name. namespace: optional. settings: key-value map (for set_settings). Works via HTTP, no Docker required. Skill: ensemble-production. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "enum": [
+                  "enable",
+                  "disable",
+                  "get_settings",
+                  "set_settings"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`enable`, `disable`, `get_settings`, or `set_settings`."
+          },
+          "item": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Exact config item name, as it appears in the production definition."
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Interop namespace. Omit to use the connection's."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`action=set_settings`: setting name to value. Values are strings — the handler reads\n`as_str()` on each and skips anything else, so a number here is dropped."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_query",
+      "description": "Execute SQL against IRIS via Atelier REST. mode=\"read\" (default): SELECT only, destructive SQL blocked unless force=true. mode=\"explain\": returns the IRIS query plan for a SELECT (plan_text, query_hash), no rows. mode=\"count\": returns a row count for `table` or `query` without transferring rows. mode=\"write\": executes INSERT/UPDATE/DELETE/CALL/TRUNCATE (Execute-gated, blocked on mcpTemplate=live/test); UPDATE/DELETE are pre-checked against max_rows_affected (default 1000, max 10000) before executing. Skill: objectscript-sql-patterns for IRIS SQL quirks. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "default": false,
+            "description": "Set to true to confirm execution on a subject-role instance (role-gate bypass).",
+            "type": "boolean"
+          },
+          "force": {
+            "default": false,
+            "description": "If true, bypass SQL safety validation. Use only for intentional administrative queries.\nHas no effect on production IRIS instances (where write tools are disabled).\nIgnored in mode=\"write\" — see `force_ignored` in the response.",
+            "type": "boolean"
+          },
+          "max_rows_affected": {
+            "anyOf": [
+              {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Max rows an UPDATE/DELETE may affect in mode=\"write\" before ROWS_LIMIT_EXCEEDED.\nDefault 1000, clamped to [1, 10000]. 0 is treated as the default."
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "read",
+                  "explain",
+                  "count",
+                  "write"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Execution mode: \"read\" (default), \"explain\", \"count\", or \"write\"."
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "parameters": {
+            "default": [],
+            "description": "Query parameters as strings (e.g. [\"Alice\", \"42\"])",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "query": {
+            "default": "",
+            "description": "SQL statement. Required for read/explain/write; optional for count (use `table` instead).",
+            "type": "string"
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          },
+          "table": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Table name for mode=\"count\" when `query` is not provided."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_reload_pool",
+      "description": "Hot-reload the IRIS connection pool from disk without restarting iad. Re-reads the workspace TOML config and the iad-native servers list, then atomically replaces the in-memory pool. Servers added or removed in the config file are available immediately. Returns {success, servers_loaded, servers, note} on success, or {success: false, error_code, error, note} if the config file cannot be parsed (the existing pool is preserved on parse errors). Error codes: TOML_PARSE_ERROR.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_remove_server",
+      "description": "Remove a server from the iad-native configuration. Destructive tier: requires IRIS_DESTRUCTIVE_TOOLS_ENABLED=1. Only servers with source=iad-native can be removed (vscode, fleet, and env sources are read-only). Also removes the OS keychain entry. Call `iris_reload_pool` afterwards to drop it from the running pool. Returns {removed: true, name, note}. Error codes: REMOVE_NOT_ALLOWED (source is not iad-native), SERVER_NOT_FOUND (not in pool).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "Name of the server to remove. Must be sourced from the iad-native config.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "destructiveHint": true
+      }
+    },
+    {
+      "name": "iris_search",
+      "description": "Full-text search across IRIS documents via Atelier REST v2. Auto-upgrades to async polling for large namespaces. Supports regex, case sensitivity, category filter (CLS/MAC/INT/INC/ALL), and wildcard document scopes. Skill: objectscript-navigation. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "case_sensitive": {
+            "default": false,
+            "type": "boolean"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Filter to document category: CLS, MAC, INT, INC, or ALL (default)"
+          },
+          "documents": {
+            "default": [],
+            "description": "REQUIRED wildcard document scope, e.g. [\"Region.**.*.cls\"] or [\"HS.FHIR.*.cls\"].\nAtelier search is a sequential grep — an empty scope greps the whole namespace\nand times out server-side, so at least one scope must be provided.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "inline": {
+            "default": false,
+            "description": "If true, bypass the log store and return all results inline regardless of count.",
+            "type": "boolean"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "query": {
+            "type": "string"
+          },
+          "regex": {
+            "default": false,
+            "type": "boolean"
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_servers",
+      "description": "List all IRIS server instances registered in the connection pool. Returns an array of {name, host, port, base_url, namespace, username, source, reachable} objects, plus `web_prefix` for any instance served under a URL path prefix rather than at the web server's root. `base_url` is the URL iad actually calls, prefix included: two instances behind one gateway share a host and port, so it is the field that tells them apart. `source` values: iad-native (added via iris_add_server), vscode (from VS Code/Cursor Server Manager), fleet (from workspace TOML), env (from IRIS_HOST env var). Default: `reachable` is null (fast path). Pass `probe: true` to probe all servers in parallel (5 s timeout each) and include reachable, auth, latency_ms, error fields.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "probe": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "When `true`, probe each server for reachability and include\n`reachable`, `latency_ms`, and `error` fields in the response.\nDefault `false` (or absent) — fast path, `reachable: null` per entry."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_source_control",
+      "description": "IRIS source control operations. action=status checks lock state and owner, action=menu lists available SCM actions, action=checkout checks out the document, action=execute runs a specific SCM action by ID. Handles elicitation for interactive SCM dialogs. Pass elicitation_id+answer to resume a pending SCM interaction. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "Action: status, menu, checkout, execute",
+            "enum": [
+              "status",
+              "menu",
+              "checkout",
+              "execute"
+            ],
+            "type": "string"
+          },
+          "action_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SCM action ID for action=execute"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Elicitation resume answer"
+          },
+          "confirm": {
+            "default": false,
+            "description": "Set to true to confirm write on a subject-role instance. Has no effect: source_control\nwrites on subject instances are always hard-blocked regardless of confirm.",
+            "type": "boolean"
+          },
+          "document": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "elicitation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_symbols",
+      "description": "Search for ObjectScript classes matching a query in the IRIS namespace. Query supports: plain substring ('Patient'), package prefix ('HT.*' or 'HT.'), mid-glob ('HT.*.Service'), or bare '*' for all. Skill: objectscript-navigation. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "default": 20,
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "query": {
+            "type": "string"
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_symbols_local",
+      "description": "Search for ObjectScript symbols in local .cls/.mac/.inc files on disk — no IRIS connection required. query: glob pattern (MyApp.*, *Service, MyApp.Foo.Do*). workspace_path: optional path (defaults to OBJECTSCRIPT_WORKSPACE or cwd). limit: max symbols to return (default 50). kinds: optional filter on symbol kind (class, method, property, parameter, index, xdata, query, trigger, relationship, foreignkey, projection, storage, routine, label). Each symbol includes a line field (1-based source line). Skill: objectscript-navigation.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "kinds": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "limit": {
+            "default": 50,
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "query": {
+            "type": "string"
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          },
+          "workspace_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_system_performance",
+      "description": "Manage and read IRIS SystemPerformance (pbuttons) profiles and runs. mode: start | status | last_runid | list_profiles | add_profile | delete_profile | list_runs | report. profile: for mode=start, one of test (5 min, the default), 30mins, 4hours, 8hours, 12hours, 24hours, or any instance-defined profile; for add_profile/delete_profile, the profile to create or remove. run_id: required for mode=status; optional for mode=report (omit for the newest completed run). description, interval_seconds, sample_count: required for mode=add_profile. Returns {success, mode, profile, run_id} for start; {success, mode, run_id, in_progress} for last_runid (in_progress=true means the run is still collecting and has no report yet); {success, mode, run_id, wait_time} for status; {success, mode, profiles, count} for list_profiles, each with name, interval_seconds, sample_count, duration_minutes, description; {success, mode, runs, count} for list_runs, newest first, each with run_id, completed_at, output_dir, profile; {success, mode, run_id, completed_at, output_dir, report_path, size_bytes, exists} for report. Works on community and Enterprise builds. server: optional registered instance name. Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`mode=add_profile`: what the profile is for. Shows up in `list_profiles` and in the\nManagement Portal. Required."
+          },
+          "interval_seconds": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`mode=add_profile`: seconds between samples. The shipped profiles use 1 to 60."
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "start",
+                  "status",
+                  "last_runid",
+                  "list_profiles",
+                  "add_profile",
+                  "delete_profile",
+                  "list_runs",
+                  "report"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`start` (begin a profile run), `status` (poll one), `last_runid` (the most recent),\n`list_profiles`, `add_profile`, `delete_profile`, `list_runs` (completed runs, newest\nfirst), or `report` (locate the HTML a completed run wrote)."
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`mode=start`: profile to run, default `test` (5 minutes). IRIS ships `test`, `30mins`,\n`4hours`, `8hours`, `12hours`, `24hours`, and an instance may define its own — any name of\nletters, digits and underscore is accepted, which is why this is not an enum.\n`mode=add_profile` / `delete_profile`: the profile to create or remove. IRIS silently\nstrips characters outside that set, so anything else is rejected here."
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`mode=status`: the run to poll. `waittime^SystemPerformance` answers an unknown ID with\n`-2^no such runid`. `mode=report`: the run to locate; omit for the newest completed run."
+          },
+          "sample_count": {
+            "anyOf": [
+              {
+                "format": "int64",
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`mode=add_profile`: how many samples to take. `interval_seconds * sample_count` is how\nlong the run lasts."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_table_info",
+      "description": "Inspect a SQL table: returns whether it is a class-projected table or DDL-created, the backing data/index globals, and (optionally) an approximate row count. Works for both class-projected tables (with real storage globals from %Dictionary.CompiledStorage) and DDL tables (globals inferred by IRIS naming convention). Use include_row_count=true to add a COUNT(*) estimate. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "include_row_count": {
+            "default": false,
+            "description": "Include approximate row count (runs SELECT COUNT(*) — may be slow on large tables).",
+            "type": "boolean"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace to query. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          },
+          "table": {
+            "description": "SQL table name in Schema.Table format (e.g. \"SQLUser.MyTable\" or \"MyApp.Orders\").",
+            "type": "string"
+          }
+        },
+        "required": [
+          "table"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_test",
+      "description": "Run %UnitTest.Manager or %UnitTest.TestProduction tests on IRIS and return structured pass/fail results. Uses pure-HTTP execution via Atelier REST — works with or without IRIS_CONTAINER. Pass a class name pattern like 'MyApp.Tests' or 'ISC.sql.TestFoo' to run already-compiled test classes (uses /noload automatically). Pass a directory path like 'MyApp/Tests' to load from disk. Returns suite-level summary inline plus log_id for per-test-case detail via iris_get_log. `test_type` (optional): 'auto' (default) auto-detects %UnitTest.TestProduction subclasses and calls .Run(); 'testcase' forces RunTest(); 'testproduction' forces .Run(). Skill: objectscript-unit-test for test scaffolding; objectscript-tdd for the full loop. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "coverage": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set true to also measure line coverage inline (wraps iris_coverage mode=run)"
+          },
+          "coverage_classes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Explicit class list for coverage; if omitted, derived from pattern package"
+          },
+          "coverage_target_pct": {
+            "anyOf": [
+              {
+                "format": "double",
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Coverage target percentage threshold"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "pattern": {
+            "type": "string"
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          },
+          "test_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "auto",
+                  "testcase",
+                  "testproduction"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Test class type override. Values: \"auto\" (default), \"testcase\", \"testproduction\".\n\"auto\" detects %UnitTest.TestProduction subclasses and uses .Run() automatically.\n\"testcase\" forces %UnitTest.Manager::RunTest(). \"testproduction\" forces .Run()."
+          },
+          "timeout": {
+            "default": 60,
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "pattern"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_test_server",
+      "description": "Probe an IRIS server for reachability. Performs GET /api/atelier/ with timing. Does not modify the active connection. Returns {name, reachable, atelier_version, iris_version, latency_ms} on success, or {name, reachable: false, error} on failure. Ad-hoc probe: pass `host` (+ optional `web_port`, `username`, `password`) instead of `name` to probe a server not in the pool. Error codes: SERVER_NOT_FOUND (name not in pool), MISSING_PARAMS (neither name nor host provided).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Hostname or IP for an ad-hoc probe (not required to be in the pool)."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of a registered server to probe. Mutually exclusive with `host`."
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS password for the ad-hoc probe."
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS username for the ad-hoc probe."
+          },
+          "web_port": {
+            "anyOf": [
+              {
+                "format": "uint16",
+                "maximum": 65535,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Web port for the ad-hoc probe (defaults to 52773 when omitted)."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "iris_ws_close",
+      "description": "Close a WebSocket terminal session and release server resources.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "session": {
+            "description": "Session token returned by `iris_ws_open`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_ws_exec",
+      "description": "Execute ObjectScript code in a persistent WebSocket terminal session. Variables and state persist across calls within the same session. Returns the terminal output.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "description": "ObjectScript code to execute in the terminal session.",
+            "type": "string"
+          },
+          "confirmed": {
+            "default": false,
+            "description": "Set to true to confirm execution on a subject-role instance (role-gate bypass).",
+            "type": "boolean"
+          },
+          "session": {
+            "description": "Session token returned by `iris_ws_open`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session",
+          "code"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "iris_ws_open",
+      "description": "Open a persistent WebSocket terminal session on an IRIS instance. Returns a session token. Use server to target a specific registered instance; defaults to the active connection. Requires IRIS 2023.2+ (Atelier API v7).",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace for the terminal session. Defaults to the connection's default namespace."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "journal_search",
+      "description": "Search the IRIS journal for SetKill records. start/end: optional ISO timestamp filters. global_pattern: optional substring filter on GlobalReference. max_entries: default 100, max 500. server: optional registered instance name. Returns {entries: [{timestamp, type, job_id, global}]}. Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Upper bound on the record timestamp, ISO 8601."
+          },
+          "global_pattern": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Substring the global reference must contain, e.g. `^MyApp`."
+          },
+          "max_entries": {
+            "anyOf": [
+              {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cap on returned records. Defaults to 100, clamped to 1–500."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lower bound on the record timestamp, ISO 8601."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "kb",
+      "description": "Knowledge base tools. action=index reads markdown/text files and stores them in ^KBCHUNKS, action=recall searches the KB for relevant content by keyword.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "description": "Action: index or recall",
+            "enum": [
+              "index",
+              "recall"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "File path for index, query for recall"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "top_k": {
+            "default": 5,
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "mermaid_class",
+      "description": "Generate a Mermaid classDiagram for an ObjectScript class, walking the superclass chain up to `depth` levels (default 3, max 5). Returns a string starting with 'classDiagram'. class: fully qualified class name. depth: optional traversal depth. namespace: optional. server: optional registered instance name. Skill: objectscript-navigation.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fully qualified class name to diagram."
+          },
+          "depth": {
+            "anyOf": [
+              {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Superclass levels to walk, default 3, clamped to 5. The answer echoes the value actually\nused, so a request for 9 comes back as 5."
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Namespace to resolve the class in. Omit to use the connection's."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "mermaid_production",
+      "description": "Generate a Mermaid flowchart for an Ensemble/Interoperability production, showing all configured items. production: full production class name. namespace: optional. server: optional registered instance name. Returns a Mermaid flowchart TD string. Skill: ensemble-production.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Interop namespace. Omit to use the connection's."
+          },
+          "production": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Full production class name. A name with no production behind it draws a single node rather\nthan erroring."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "my_access",
+      "description": "Show the current user's username, full name, and assigned roles on an IRIS instance. server: optional registered instance name. Returns {username, full_name, roles: [...]}. Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "query_audit_log",
+      "description": "Query the IRIS audit log (%SYS.Audit). user: filter by username. event_type: filter by event type. start/end: ISO timestamp filters. limit: max rows (default 100, max 500). server: optional registered instance name. Returns {entries: [{event, event_type, username, timestamp}]}. Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Upper bound on `UTCTimeStamp`, inclusive."
+          },
+          "event_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Exact match on the `EventType` column, e.g. `%Login`. `Login` will not find `LoginFailure`."
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Max rows. Defaults to 100, clamped to 1–500."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          },
+          "start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Lower bound on `UTCTimeStamp`, inclusive."
+          },
+          "user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Exact match on the `Username` column — not a substring match."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "resolve_dynamic_dispatch",
+      "description": "Resolve ObjectScript dynamic dispatch: find all compiled classes that implement a given method. Use when you see $classmethod(var, method) or ##class({variable}).Method() and need to know the possible targets. Returns candidates with confidence scores (fewer matches = higher confidence). Confidence: 1 match=0.90, 2-5=0.75, 6-20=0.55, >20=0.30. Results cached 60s per session. Skill: objectscript-navigation. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "anyOf": [
+              {
+                "format": "uint",
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Max candidates to return. Defaults to 50."
+          },
+          "method_name": {
+            "description": "Method name to search for (e.g. \"ExecuteQuery\", \"Connect\", \"OnProcessInput\").",
+            "type": "string"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "IRIS namespace. Defaults to the connection namespace (IRIS_NAMESPACE)."
+          },
+          "package_prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional package prefix to restrict search (e.g. \"EnsLib\", \"HS\")."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "required": [
+          "method_name"
+        ],
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "resolve_storage",
+      "description": "Resolve storage definitions for an ObjectScript class — returns global maps (data, id, index locations) from %Dictionary.CompiledStorage. class: fully qualified class name. namespace: optional. server: optional registered instance name. Returns {class, storages: [{name, type, data_location, id_location, index_location}]}. Skill: objectscript-navigation.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "class": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fully qualified class name whose global maps to resolve. A class with no compiled storage\ncomes back with an empty list, not an error."
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Namespace to resolve the class in. Omit to use the connection's."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "stream_inspect",
+      "description": "Inspect the content of an IRIS stream object by OID. oid: the stream OID (integer string). namespace: optional namespace (defaults to the connection namespace, IRIS_NAMESPACE). server: optional registered instance name. Returns {content, type: 'text'|'binary', size, oid}. Skill: iris-agentic-dev.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Namespace holding the stream. Omit to use the connection's."
+          },
+          "oid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Stream OID — an integer as a string. Tried against `%Stream.GlobalCharacter` first, then\n`%Stream.GlobalBinary`."
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Route this call to a named registered IRIS instance. If omitted, uses the default connection."
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "telemetry_export_trace",
+      "description": "Export recorded tool-call data as {from, to, via, count, ts} dispatch-trace records, aggregating repeated identical edges into a single record with an incremented count. The record shape is a graph-ingestion format; no tool in this server consumes it yet.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    },
+    {
+      "name": "telemetry_query",
+      "description": "Query the durable telemetry record (beyond the current process's in-memory agent_history) by tool name, session id, and/or time range. Reads from the IRIS-global durable sink when connected, or the local JSONL file sink when not.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "default": 500,
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "tool_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true
+      }
+    }
+  ]
+}

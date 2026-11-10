@@ -1,0 +1,139 @@
+﻿#requires -Version 5.1
+[CmdletBinding()]
+param([Parameter(Mandatory=$true)][string]$StateDirectory,[ValidateRange(1,600)][int]$IdleSeconds=120)
+$ErrorActionPreference='Stop'
+if ($PSVersionTable.PSVersion.Major -eq 5) { $env:PSModulePath = Join-Path $PSHOME 'Modules' }
+[Console]::InputEncoding=New-Object Text.UTF8Encoding($false)
+[Console]::OutputEncoding=New-Object Text.UTF8Encoding($false)
+$utf8=New-Object Text.UTF8Encoding($false,$true)
+$pool=@{}; $blocked=$false; $stop=$false; $lastCleanupVerified=$true
+[void][IO.Directory]::CreateDirectory($StateDirectory)
+$journal=Join-Path $StateDirectory 'session-state.json'
+function Emit($kind,$value) { [Console]::Out.WriteLine((@{kind=$kind;data=$value}|ConvertTo-Json -Depth 15 -Compress)); [Console]::Out.Flush() }
+function Save-Json($file,$data) {
+    $temp=$file+'.'+[guid]::NewGuid().ToString('N')+'.tmp'
+    try {
+        [IO.File]::WriteAllText($temp,($data|ConvertTo-Json -Depth 15),$utf8)
+        if(Test-Path -LiteralPath $file){[IO.File]::Replace($temp,$file,[System.Management.Automation.Language.NullString]::Value)}else{[IO.File]::Move($temp,$file)}
+    } finally {if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Force}}
+}
+function Save-MissingList($receipt,$receiptFile) {
+    $file=Join-Path ([IO.Path]::GetDirectoryName($receiptFile)) 'missing-objects.txt'
+    if (([IO.FileInfo]::new($file)).Attributes -ne -1 -and (([IO.FileInfo]::new($file)).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'linked-missing-list-forbidden' }
+    $names=@($receipt.items | Where-Object {$_.status -eq 'missing'} | ForEach-Object {
+        $name=[string]$_.document
+        if($name.Contains('/') -and -not $name.StartsWith('/')){'/'+$name}else{$name}
+    })
+    $text=if($names.Count){($names -join "`r`n")+"`r`n"}else{''}
+    $temp=$file+'.'+[guid]::NewGuid().ToString('N')+'.tmp'
+    try {
+        [IO.File]::WriteAllText($temp,$text,$utf8)
+        if(Test-Path -LiteralPath $file){[IO.File]::Replace($temp,$file,[System.Management.Automation.Language.NullString]::Value)}else{[IO.File]::Move($temp,$file)}
+    } finally {if(Test-Path -LiteralPath $temp){Remove-Item -LiteralPath $temp -Force}}
+    return $file
+}
+function Journal($active,$reason) { Save-Json $journal @{schema='iris-export-gui-session/v1';active=$active;blocked=$script:blocked;reason=$reason;at=[DateTime]::UtcNow.ToString('o')} }
+function Close-Pool {
+    if(-not $pool.workers){Emit 'closed' @{cleanupVerified=$script:lastCleanupVerified;licenseReleaseVerified=$false;results=@();blocked=$script:blocked};return}
+    $results=@(); $requests=0
+    foreach($w in $pool.workers){$requests+=$w.requests}
+    foreach($snapshot in $pool.knownSessions.Values){$results+= & $pool.close $snapshot}
+    $verified=($results.Count -gt 0 -and @($results|Where-Object{-not $_.accepted}).Count -eq 0) -or ($requests -eq 0 -and $pool.knownSessions.Count -eq 0)
+    foreach($file in $pool.receipts){
+        $receipt=[IO.File]::ReadAllText($file,$utf8)|ConvertFrom-Json
+        $receipt.logoutRequested=($results.Count -gt 0);$receipt.logoutResponseReceived=($results.Count -gt 0 -and @($results|Where-Object{-not $_.responseReceived}).Count -eq 0)
+        $receipt.logoutResults=$results;$receipt.logoutVerified=$verified
+        $receipt.logoutReason=if($verified){$null}else{'atelier-logout-unverified'}
+        if($results.Count){$receipt.logoutHttpStatus=$results[-1].httpStatus}
+        $receipt.sessionRetained=$false
+        $receipt.state=if($verified -and @($receipt.items|Where-Object{$_.status -ne 'fetched'}).Count -eq 0){'complete'}else{'partial'}
+        Save-Json $file $receipt
+    }
+    foreach($w in $pool.workers){$w.client.Dispose();$w.handler.Dispose()}
+    if($pool.mutex){$pool.mutex.ReleaseMutex();$pool.mutex.Dispose()}
+    $pool.Clear()
+    $script:lastCleanupVerified=$verified
+    if(-not $verified){$script:blocked=$true}
+    Journal $false $(if($verified){'closed'}else{'exit-unverified'})
+    Emit 'closed' @{cleanupVerified=$verified;licenseReleaseVerified=$false;results=$results;blocked=$script:blocked}
+}
+$owner=New-Object Threading.Mutex($false,'Local\ImedicalSourceExporterGui')
+$owned=$false
+try {
+    try{$owned=$owner.WaitOne(0)}catch [Threading.AbandonedMutexException]{$owned=$true}
+    if(-not $owned){throw 'another-exporter-window-is-running'}
+    if(Test-Path -LiteralPath $journal){$prior=[IO.File]::ReadAllText($journal,$utf8)|ConvertFrom-Json;$blocked=[bool]($prior.active -or $prior.blocked);$lastCleanupVerified=-not $blocked}
+    Emit 'ready' @{blocked=$blocked;idleSeconds=$IdleSeconds;maximumSessions=10;reason=if($blocked){$prior.reason}else{$null}}
+    $reader=New-Object IO.StreamReader([Console]::OpenStandardInput(),$utf8)
+    $pending=$reader.ReadLineAsync()
+    while(-not $stop){
+        if(-not $pending.IsCompleted){
+            if($pool.lastUsed -and ([DateTime]::UtcNow-$pool.lastUsed).TotalSeconds -ge $IdleSeconds){Close-Pool}
+            Start-Sleep -Milliseconds 100;continue
+        }
+        $line=$pending.GetAwaiter().GetResult()
+        if($null -eq $line){break}
+        try {
+            $message=$line|ConvertFrom-Json
+            if($message.op -eq 'quit'){Close-Pool;$stop=$true;continue}
+            if($message.op -eq 'close'){Close-Pool;continue}
+            if($message.op -eq 'reconcile'){
+                if($pool.workers -or -not $message.confirm -or -not $message.evidence -or ([string]$message.evidence).Trim().Length -lt 10){throw 'onsite-cleanup-evidence-required'}
+                Save-Json (Join-Path $StateDirectory ('reconciliation-'+[guid]::NewGuid().ToString('N')+'.json')) @{at=[DateTime]::UtcNow.ToString('o');evidence=$message.evidence;licenseReleaseVerified=$false}
+                $blocked=$false;$lastCleanupVerified=$false;Journal $false 'operator-reconciled';Emit 'reconciled' @{blocked=$false};continue
+            }
+            if($message.op -ne 'run'){throw 'unknown-operation'}
+            $job=$message.job
+            $plan=[bool]$message.plan
+            if(-not $plan -and $blocked){throw 'previous-session-unresolved-inspect-before-reconcile'}
+            $sessions=[int]$job.sessions
+            if($sessions -lt 1 -or $sessions -gt 10){throw 'sessions-must-be-1-through-10'}
+            if(-not $plan -and (-not $message.user -or -not $message.password)){throw 'username-and-password-required'}
+            $identity=(@($job.url,$job.ns,$message.user,$message.password,$sessions)|ConvertTo-Json -Compress)
+            if(-not $plan -and $pool.workers -and $pool.requestIdentity -cne $identity){Close-Pool;if($blocked){throw 'previous-session-unresolved'}}
+            $arguments=@{OutputDirectory=(Join-Path $job.batch 'export');AtelierUrl=$job.url;Namespace=$job.ns;IntervalMs=[int]$job.interval;Sessions=$sessions;CancelFile=(Join-Path $job.batch 'stop.request');PlanOnly=$plan;Resume=[bool]$message.resume;SessionTrial=[bool]$message.trial;ConfirmedSessionBudget=[bool]$message.confirmed}
+            if ([int]$message.maxFiles -gt 0) { $arguments.MaxFilesPerRun = [int]$message.maxFiles }
+            if (-not $plan -and [int]$message.sampleLimit -gt 0) { $arguments.SampleLimit = [int]$message.sampleLimit }
+            if ($message.resume -and $job.confirmedMissing) { $arguments.ConfirmedMissing = [string[]]@($job.confirmedMissing) }
+            if(-not $plan){
+                $secret=ConvertTo-SecureString $message.password -AsPlainText -Force
+                $arguments.Credential=New-Object Management.Automation.PSCredential($message.user,$secret)
+                $arguments.SessionContext=$pool;Journal $true 'active';$pool.requestIdentity=$identity
+            }
+            if($message.PSObject.Properties.Name -contains 'password'){$message.password=$null};$identity=$null
+            if($job.version){
+                $scriptFile=Join-Path $PSScriptRoot 'export-version-baseline.ps1'
+                $arguments.Version=$job.version;$arguments.Scope=$job.scope;$arguments.CatalogDirectory=Join-Path $PSScriptRoot 'catalogs';$arguments.ConfirmWebPaths=[bool]$job.confirmWeb
+                if(Test-Path -LiteralPath (Join-Path $job.batch 'files.txt')){$arguments.SupplementListFile=Join-Path $job.batch 'files.txt'}
+            }else{
+                $scriptFile=Join-Path $PSScriptRoot 'export-iris-code.ps1';$arguments.ListFile=Join-Path $job.batch 'files.txt'
+            }
+            $pool.lastError=$null
+            $output=@(& $scriptFile @arguments 6>&1)|Out-String
+            $code=$LASTEXITCODE
+            $operationError=if($code -eq 1){$pool.lastError}else{$null}
+            $receiptFile=Join-Path $job.batch 'export/baseline-state.json'
+            $receipt=$null
+            if(-not $plan -and (Test-Path -LiteralPath $receiptFile)){$receipt=[IO.File]::ReadAllText($receiptFile,$utf8)|ConvertFrom-Json}
+            if(-not $plan -and ($code -eq 1 -or $receipt.reason -or $message.trial)){
+                  # Lost/changed session identity stops this batch; verified cleanup
+                # permits an explicit resume. Unknown cleanup still blocks below.
+                $recoverableSessionEnd=$receipt.reason -in @('atelier-http-401','atelier-session-lost','atelier-session-changed','atelier-text-document-invalid','atelier-base64-invalid','atelier-document-error','class-identity-mismatch')
+                if($receipt.reason -and $receipt.reason -ne 'cancelled-by-user' -and $receipt.reason -ne 'local-state-write-failed' -and -not $recoverableSessionEnd){$blocked=$true}
+                Close-Pool
+            }
+            if(-not $plan -and -not $pool.workers){Journal $false $(if($blocked){'blocked'}else{'idle'})}
+            if(-not $plan -and (Test-Path -LiteralPath $receiptFile)){
+                # Report the finalized receipt after cleanup, not the core's earlier snapshot.
+                $receipt=[IO.File]::ReadAllText($receiptFile,$utf8)|ConvertFrom-Json
+                $summary=[ordered]@{state=$receipt.state;total=@($receipt.items).Count;reason=$receipt.reason;operationError=$operationError;session=$receipt.session;sessionRetained=$receipt.sessionRetained;logoutVerified=$receipt.logoutVerified;logoutReason=$receipt.logoutReason}
+                foreach($status in @('fetched','missing','empty','failed','pending','writing')){$summary[$status]=@($receipt.items|Where-Object{$_.status -eq $status}).Count}
+                try {$summary.missingListFile=Save-MissingList $receipt $receiptFile} catch {$summary.missingListError=$_.Exception.Message}
+                $output=$summary|ConvertTo-Json -Depth 6
+            }
+            Emit 'result' @{exitCode=$code;plan=$plan;output=$output;batch=$job.batch;retained=[bool]$pool.workers;blocked=$blocked}
+        } catch {Emit 'error' @{reason=$_.Exception.Message;blocked=$blocked}}
+        finally {$pending=$reader.ReadLineAsync()}
+    }
+} catch {Emit 'fatal' @{reason=$_.Exception.Message}}
+finally {if($owned){try{Close-Pool}finally{$owner.ReleaseMutex()}};$owner.Dispose()}

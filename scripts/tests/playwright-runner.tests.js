@@ -82,7 +82,13 @@ test('headless UI: login, navigation, frames, popup, response version, API and c
         timeoutMs: 10000, deadlineAt: Date.now() + 60000, viewport: { width: 1200, height: 800 }, resourceKey: req => ({ '/app.js': 'app', '/popup': 'popup' })[new URL(req.url()).pathname] || null }));
     t.after(() => runner.stop());
     function uiCase(expected) {
-        return specification({ level: 'ui', entry: 'normal-menu', strictData: true, effects: 'read-only', version: expected, createAdapter: ({ context, collector, apiRequest }) => {
+        return specification({ level: 'ui', entry: 'normal-menu', strictData: true, effects: 'read-only', version: expected,
+            assertTarget: async ({ context, viewport }) => {
+                const page = context.pages().find(p => p.url() === base + '/view');
+                if (!page || !await page.getByRole('heading', { name: 'Visible result' }).isVisible()) return false;
+                const actual = await page.mainFrame().evaluate(() => ({ width: innerWidth, height: innerHeight }));
+                return actual.width === viewport.width && actual.height === viewport.height;
+            }, createAdapter: ({ context, collector, apiRequest }) => {
             contexts.add(context); let page, visible = false, business = false;
             return adapter({
                 prepare: async () => {
@@ -115,7 +121,7 @@ test('headless UI: login, navigation, frames, popup, response version, API and c
     assert.equal((await runner.run(uiCase(hash))).failureCategory, 'version');
     assert.equal((await runner.run(uiCase(createHash('sha256').update(script).digest('hex')))).status, 'passed');
     assert.equal(contexts.size, 1); assert.equal(pageReads >= 3, true);
-    assert.equal((await runner.stop()).cleanupVerified, true);
+    const stopped = await runner.stop(); assert.equal(stopped.cleanupVerified, true, JSON.stringify(stopped));
 });
 
 test('synthetic idle session: expiry, effective activity, heartbeat, recovery and stop', async t => {

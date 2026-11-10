@@ -5,6 +5,7 @@ const { main, parseArgs, toRequestPath } = require('./debugger-legacy');
 const { callBroker } = require('./broker-client');
 
 async function machineMain() {
+    require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(require('../../../../scripts/lib/workspace-context').resolveWorkspaceContext(process.cwd()));
     // Explicit machine mode never reads private config or waits for interactive answers.
     let bytes = 0;
     const chunks = [];
@@ -28,8 +29,8 @@ if (require.main === module) {
     const action = machine
         ? (process.argv.includes('--stdin') && process.argv.includes('--json') ? machineMain() : Promise.reject(new Error('stdin-and-json-required')))
         : main();
-    action.catch(() => {
-        process.stderr.write(machine ? 'Broker machine input or execution failed\n' : 'Broker debug failed\n');
+    action.catch(error => {
+        process.stderr.write(['offline-development-remote-disabled', 'development-mode-invalid'].includes(error.code) ? error.code + '\n' : machine ? 'Broker machine input or execution failed\n' : 'Broker debug failed\n');
         process.exitCode = 1;
     });
 }

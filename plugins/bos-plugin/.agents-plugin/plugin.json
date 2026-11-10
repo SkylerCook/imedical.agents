@@ -1,6 +1,6 @@
 {
   "name": "bos-plugin",
-  "version": "0.10.2",
+  "version": "0.18.2",
   "displayName": "BOS Demand Plugin",
   "description": "跨技术栈的 BOS 只读查询、需求处理、标版补录、代码更新日志与通用提交衔接。",
   "entry": "AGENTS.md",
@@ -15,14 +15,17 @@
     ]
   },
   "defaultPrompt": [
-    "查询 BOS 我的待办或按编号查看需求",
+    "使用 bos-demand-query --proj 查询项目待办，--dev 查询产品（非项目）待办；可组合 --workload 日期范围",
+    "使用 bos-demand-query --todo 查询全部开发待办，或提供日期按预计完成时间查询",
+    "使用 bos-demand-query --workload 日期或日期范围查询我的工作量",
     "处理 BOS 需求，使用当前项目开发规范",
     "$bos-demand-handle --night，按当前项目和已确认范围处理夜跑需求",
     "处理这个需求，验收通过后提交并准备 BOS 代码日志补录计划",
     "处理这个 BOS 需求，验收后提交并将本次提交补录到 BOS 代码更新日志",
     "为当前项目接入 BOS 查询与需求处理",
     "把已有 Git 提交补录到 BOS 代码更新日志",
-    "使用 bos-demand-entry 从 Git 改动生成标版需求文本并回填编号"
+    "使用 bos-demand-entry 从 Git 改动生成标版需求文本并回填编号",
+    "提需求给支持组，根据主题和资料生成需求文本"
   ],
   "availableDependencies": [
     {
@@ -37,7 +40,7 @@
     {
       "plugin": "demand-delivery-plugin",
       "stage": "standard-demand-entry",
-      "trigger": "代码来源标版补录 prepare、message 或 plan 复用提交能力；工作来源不需要该依赖",
+      "trigger": "代码来源标版补录 prepare、message 或 plan 复用提交能力；主题和工作来源不需要该依赖",
       "entries": [
         "scripts/commit-demand.js"
       ]
@@ -49,6 +52,36 @@
       "entries": [
         "skills/demand-acceptance/SKILL.md"
       ]
+    }
+  ],
+  "projectDirectories": [
+    {
+      "id": "demand-delivery",
+      "base": "workspace",
+      "path": "docs/delivery/demands",
+      "role": "delivery",
+      "create": "setup",
+      "purpose": "BOS 需求正式文本和 Excel 交付",
+      "examples": [
+        "需求文本.md",
+        "需求导入.xlsx"
+      ],
+      "boundary": "保存评审或录入使用的正式材料；私有待办草稿归本地 work/standard-demand",
+      "lifecycle": "正式交付；按需求保留，不因提交 BOS 自动清理"
+    },
+    {
+      "id": "demand-drafts",
+      "base": "context",
+      "path": "work/standard-demand",
+      "role": "runtime",
+      "create": "setup",
+      "purpose": "BOS 私有需求草稿与恢复状态",
+      "examples": [
+        "需求草稿.json",
+        "恢复状态.json"
+      ],
+      "boundary": "保留私有编写与恢复状态；选定正式文本和 Excel 归 docs/delivery/demands",
+      "lifecycle": "本机运行资料；旧草稿与显式输出位置保持，不自动外传或删除"
     }
   ]
 }

@@ -1,5 +1,7 @@
 # imedicalxc-doctor-print-template-design
 
+帮助请求（`--help`、查看用法）先于业务前置检查，按[统一帮助协议](../../docs/guides/capability-help.md)展示后结束。源定义随正常能力包更新分发，既有 thin-index 继续指向源文件；查看帮助不自动启用插件。
+
 HIS 打印模板设计和生成插件。覆盖从 Word/docx 参考文档到可导入 `.xlsx` 模板文件的完整 11 步工作流。
 
 ## 入口

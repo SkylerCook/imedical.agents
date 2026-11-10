@@ -38,3 +38,7 @@ BOS 的提交、连续验收，以及补录脚本的 prepare/message/plan 分别
 ## 已部署工程
 
 通过既有更新流程取得完整能力包，再执行 Check 或 DryRun -NoPull 查看提示，Write -NoPull 刷新已启用插件索引。根 `scripts/*.js` 与插件文件已在 sparse 分发范围，无新增私有配置、自动启用或旧文件清理。旧框架不会检查新字段；应一起更新根脚本与插件，不能只复制 manifest。
+
+## UI 经验回归
+
+`iris-ui` 的 `ui-self-regression` 阶段按需读取 `agent-framework-evolution` 的 feedback skill。可用性检查仍只保证入口可读及未显式禁用；兼容版本、业务验收、经验准入和写入授权由 [iris-ui](../plugins/iris-ui/skills/iris-ui/SKILL.md) 与 [feedback 授权契约](../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#写入授权与自动待审补丁)继续核对。缺失仅暂停经验回归阶段，普通 UI 实施不因此扩大依赖或自动启用插件。
