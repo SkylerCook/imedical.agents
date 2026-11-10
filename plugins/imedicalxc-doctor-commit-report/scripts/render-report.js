@@ -157,6 +157,16 @@ function uiCounts(frontCommit) {
   };
 }
 
+function uiPageTitles(frontCommit) {
+  if (!frontCommit) return [];
+  const titles = new Set();
+  for (const item of frontCommit.uiEntries || []) {
+    const title = String(item.pageTitle || '').trim();
+    if (title && title !== 'Document') titles.add(title);
+  }
+  return [...titles];
+}
+
 function validate({ raws, classification, evaluations, impactMap, frontMap, config, errors, warnings }) {
   const rawByHash = new Map(raws.map((c) => [c.hash, c]));
   const clsByHash = new Map();
@@ -232,6 +242,16 @@ function validate({ raws, classification, evaluations, impactMap, frontMap, conf
       }
     }
     const uiExp = uiCounts(frontMap.get(e.hash));
+    const pageTitles = uiPageTitles(frontMap.get(e.hash));
+    if (pageTitles.length > 0) {
+      const testText = String(e.testSuggestion || '');
+      if (!pageTitles.some((t) => testText.includes(t))) {
+        warnings.push(`测试建议未引用任何界面证据页面（front-chains 有 ${pageTitles.length} 个页面）：${shortHash(e.hash)} 页面示例：${pageTitles.slice(0, 3).join('、')}`);
+      }
+      if (testText.includes('无直接界面证据')) {
+        warnings.push(`测试建议声称无直接界面证据，但 front-chains 有页面：${shortHash(e.hash)} 页面示例：${pageTitles.slice(0, 3).join('、')}`);
+      }
+    }
     if (uiExp) {
       const got = e.impactEvidence.ui;
       if (!got) {
