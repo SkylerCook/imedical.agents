@@ -30,10 +30,12 @@ param(
     [ValidateRange(1, 2147483647)][int]$MaxFilesPerRun = 2147483647,
     [ValidateRange(1, 10)][int]$Sessions = 1,
     [switch]$SessionTrial,
+    [ValidateRange(0, 100)][int]$SampleLimit = 0,
     [switch]$ConfirmedSessionBudget,
     [string]$CancelFile,
     [hashtable]$SessionContext,
     [string[]]$ConfirmedMissing = @(),
+    [switch]$DisableTiming,
     [switch]$PlanOnly,
     [switch]$Resume
 )
@@ -210,7 +212,8 @@ try {
     }
     if ($Resume -and (Test-Path -LiteralPath (Join-Path $root '.baseline'))) { throw 'development-baseline-exists-do-not-resume' }
     if (-not $items.Count) { throw 'no-code-selected' }
-    if ($Sessions -gt 1 -and -not $SessionTrial -and -not $ConfirmedSessionBudget) { throw 'multi-session-budget-confirmation-required' }
+    if ($SampleLimit -gt 0 -and $items.Count -gt $SampleLimit) { throw 'sample-scope-exceeds-limit' }
+    if ($Sessions -gt 1 -and $SampleLimit -eq 0 -and -not $SessionTrial -and -not $ConfirmedSessionBudget) { throw 'multi-session-budget-confirmation-required' }
     if ($SessionTrial) { $MaxFilesPerRun = $Sessions }
     if ($CancelFile) { $CancelFile = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($CancelFile); Assert-PlainPath $CancelFile }
     if (-not $AtelierUrl) { $AtelierUrl = Read-Host 'Atelier root URL (ending /api/atelier/)' }
@@ -302,7 +305,7 @@ try {
             $handler.CookieContainer = New-Object Net.CookieContainer
             $client = New-Object Net.Http.HttpClient($handler)
             $client.Timeout = [TimeSpan]::FromSeconds($TimeoutSec); $client.MaxResponseContentBufferSize = 16777216
-            $workers += [pscustomobject]@{number=$w;handler=$handler;client=$client;identity=$null;task=$null;request=$null;item=$null;ready=[DateTime]::MinValue;started=$null;requests=0}
+            $workers += [pscustomobject]@{number=$w;handler=$handler;client=$client;identity=$null;task=$null;request=$null;item=$null;ready=[DateTime]::MinValue;started=$null;clock=$null;requests=0}
         }
         $authorization = [Convert]::ToBase64String($utf8.GetBytes($Credential.UserName + ':' + $Credential.GetNetworkCredential().Password))
         $processed = 0; $state.reason = $null; $state.logoutVerified = $false
@@ -345,6 +348,11 @@ try {
                             $state.session.requestCount++; $processed++; $worker.requests++
                             $worker.started = [DateTime]::UtcNow
                             $worker.ready = $worker.started.AddMilliseconds($IntervalMs)
+                            $worker.clock = $null
+                            if (-not $DisableTiming) {
+                                $worker.clock = [Diagnostics.Stopwatch]::StartNew()
+                                $item | Add-Member NoteProperty timing ([pscustomobject]@{schema='export-item-timing/v1';worker=$worker.number;startedAt=$worker.started.ToString('o');responseObservedMs=$null;parseValidateMs=$null;writeVerifyMs=$null;totalMs=$null}) -Force
+                            }
                             $worker.task = $client.SendAsync($request)
                         } catch {
                             $item.status = 'failed'; $item.reason = $_.Exception.Message; $state.reason = $item.reason; $stopDispatch = $true
@@ -353,6 +361,8 @@ try {
                     }
                     if (-not $worker.task -or -not $worker.task.IsCompleted) { continue }
                     $item = $worker.item; $request = $worker.request; $response = $null
+                    if ($worker.clock) { $item.timing.responseObservedMs = $worker.clock.Elapsed.TotalMilliseconds }
+                    $parseClock = if ($worker.clock) { [Diagnostics.Stopwatch]::StartNew() } else { $null }
                     try {
                         try { $response = $worker.task.GetAwaiter().GetResult() }
                         catch { $state.transportDiagnostic = Get-TransportDiagnostic $_.Exception; throw 'atelier-transport-or-timeout' }
@@ -397,7 +407,7 @@ try {
                     [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($file))
                     $item.sha256 = Hash-Bytes $content; $item.bytes = $content.Length; $item.status = 'writing'
                     $item.reason = $null
-                    $pendingWrites.Add([pscustomobject]@{item=$item;file=$file;content=$content;sequence=$processed})
+                    $pendingWrites.Add([pscustomobject]@{item=$item;file=$file;content=$content;sequence=$processed;clock=$worker.clock})
                     $stateChanged = $true
                     } catch {
                         $item.status = 'failed'; $item.reason = $_.Exception.Message
@@ -405,6 +415,10 @@ try {
                         if ($item.reason -like 'atelier-session-*') { $state.session.cookieVerified = $false }
                         $stopDispatch = $true; $stateChanged = $true
                     } finally {
+                        if ($worker.clock) {
+                            $item.timing.parseValidateMs = $parseClock.Elapsed.TotalMilliseconds
+                            $item.timing.totalMs = $worker.clock.Elapsed.TotalMilliseconds
+                        }
                         if ($response) { $response.Dispose() }; $request.Dispose()
                         $worker.task = $null; $worker.request = $null
                     }
@@ -414,6 +428,7 @@ try {
                     Save-State
                     foreach ($pending in $pendingWrites) {
                         $item = $pending.item; $file = $pending.file; $content = $pending.content
+                        $writeClock = if ($pending.clock) { [Diagnostics.Stopwatch]::StartNew() } else { $null }
                         try {
                             # Publish complete bytes only; CreateNew/Move never replace an existing source.
                             $temporary = $file + '.' + [guid]::NewGuid().ToString('N') + '.tmp'
@@ -430,6 +445,11 @@ try {
                             $item.status = 'failed'; $item.reason = $_.Exception.Message
                             if (-not $state.reason) { $state.reason = $item.reason }
                             $stopDispatch = $true
+                        } finally {
+                            if ($pending.clock) {
+                                $item.timing.writeVerifyMs = $writeClock.Elapsed.TotalMilliseconds
+                                $item.timing.totalMs = $pending.clock.Elapsed.TotalMilliseconds
+                            }
                         }
                     }
                 }

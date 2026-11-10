@@ -199,3 +199,25 @@ test('first-item persistence and continuation share one run and one server cooki
  await f.wait('result');assert.equal(f.stats().reads,3);assert.equal(f.stats().auth,1);
  f.send({op:'close'});assert.equal((await f.wait('closed')).data.cleanupVerified,true);
 });
+
+test('per-item timing captures delayed response and persists without extra requests', {skip:process.platform!=='win32'},async t=>{
+ const f=await fixture(t,{delay:180}),job=f.job('timing',1,2);
+ f.send({op:'run',job,user:'test',password:'not-a-secret'});await f.wait('result');
+ const r=JSON.parse(fs.readFileSync(path.join(job.batch,'export/baseline-state.json'),'utf8'));
+ assert.equal(f.stats().reads,2);
+ for(const item of r.items){const x=item.timing;assert.equal(x.schema,'export-item-timing/v1');assert.ok(x.responseObservedMs>=150);assert.ok(x.parseValidateMs>=0);assert.equal(typeof x.writeVerifyMs,'number');assert.ok(x.writeVerifyMs>=0);assert.ok(x.totalMs>=x.responseObservedMs+x.parseValidateMs);}
+});
+test('timing on off comparison retains equal requests and checkpoints', {skip:process.platform!=='win32'},async t=>{
+ const f=await fixture(t,{delay:5}),samples={on:[],off:[]};
+ for(let round=0;round<4;round++)for(const enabled of (round%2?[false,true]:[true,false])){
+  const job=f.job('bench-'+round+'-'+enabled,4,20);
+  const quote=s=>"'"+s.replaceAll("'","''")+"'";
+  const command="$env:PSModulePath=Join-Path $PSHOME 'Modules'; $c=New-Object PSCredential('test',(ConvertTo-SecureString 'synthetic' -AsPlainText -Force)); & "+quote(path.join(root,'export-iris-code.ps1'))+" -ListFile "+quote(path.join(job.batch,'files.txt'))+" -OutputDirectory "+quote(path.join(job.batch,'export'))+" -AtelierUrl "+quote(job.url)+" -Namespace TEST -Credential $c -Sessions 4 -IntervalMs 50 -ConfirmedSessionBudget"+(enabled?'':' -DisableTiming');
+  const start=performance.now();const child=spawn('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-EncodedCommand',Buffer.from(command,'utf16le').toString('base64')],{windowsHide:true});let errors='';child.stdout.resume();child.stderr.on('data',b=>errors+=b);
+  const code=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('exit',resolve)});assert.equal(code,0,errors);
+  const elapsed=performance.now()-start;if(round>0)samples[enabled?'on':'off'].push(Math.round(elapsed));
+  const r=JSON.parse(fs.readFileSync(path.join(job.batch,'export/baseline-state.json'),'utf8'));assert.equal(r.session.requestCount,20);assert.equal(r.logoutVerified,true);assert.equal(!!r.items[0].timing,enabled);
+  assert.ok(r.checkpointCount>0);
+ }
+ t.diagnostic(JSON.stringify(samples));assert.equal(f.stats().reads,160);
+});

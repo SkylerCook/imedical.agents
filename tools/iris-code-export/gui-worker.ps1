@@ -93,6 +93,7 @@ try {
             if(-not $plan -and $pool.workers -and $pool.requestIdentity -cne $identity){Close-Pool;if($blocked){throw 'previous-session-unresolved'}}
             $arguments=@{OutputDirectory=(Join-Path $job.batch 'export');AtelierUrl=$job.url;Namespace=$job.ns;IntervalMs=[int]$job.interval;Sessions=$sessions;CancelFile=(Join-Path $job.batch 'stop.request');PlanOnly=$plan;Resume=[bool]$message.resume;SessionTrial=[bool]$message.trial;ConfirmedSessionBudget=[bool]$message.confirmed}
             if ([int]$message.maxFiles -gt 0) { $arguments.MaxFilesPerRun = [int]$message.maxFiles }
+            if (-not $plan -and [int]$message.sampleLimit -gt 0) { $arguments.SampleLimit = [int]$message.sampleLimit }
             if ($message.resume -and $job.confirmedMissing) { $arguments.ConfirmedMissing = [string[]]@($job.confirmedMissing) }
             if(-not $plan){
                 $secret=ConvertTo-SecureString $message.password -AsPlainText -Force

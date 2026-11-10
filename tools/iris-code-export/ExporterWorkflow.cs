@@ -99,6 +99,7 @@ public sealed partial class ExporterForm {
     void ValidateBudget(int sessions) {
         if (sessions > 1 && !trial.Checked && !budget.Checked) {
             budget.Visible = true; budget.Focus();
+            if(projectUI && !legacyMode) throw new InvalidOperationException("当前选择了 " + sessions + " 个并发会话。请在连接设置确认可用资源预算，或切回“安全 · 1 会话”后继续。试采成功不代表已确认服务器资源预算。");
             throw new InvalidOperationException((trialIdentity == CurrentTrialIdentity(sessions) ? "本次已完成小批试读。" : "预览只解析本地清单；如未实际试读，请先勾选“小批试读”。") + "\n正式导出还缺：人工核实 " + sessions + " 会话的预算与资源回落，然后勾选对应确认项。");
         }
     }
@@ -280,7 +281,7 @@ public sealed partial class ExporterForm {
         if (f.resultRows[0].SubItems[1].Text != "未找到（已确认不补取）" || f.PendingMissingNames().Count != 1 || f.CopyText(f.resultRows, false) != "Demo.Missing.cls\r\n/app/missing.js") throw new Exception("missing-ack-must-preserve-copy-and-exclude-only-retries");
         var restored = f.json.Deserialize<Dictionary<string, object>>(File.ReadAllText(Path.Combine(f.batch, "job.json"))); if (Value(restored, "confirmedMissing") == null) throw new Exception("missing-ack-not-persisted");
         f.speed.SelectedIndex = 1; f.trial.Checked = false; f.budget.Checked = false; f.trialIdentity = f.CurrentTrialIdentity(4);
-        try { f.ValidateBudget(4); throw new Exception("budget-guard-missing"); } catch (InvalidOperationException e) { if (!e.Message.Contains("本次已完成小批试读") || !e.Message.Contains("还缺")) throw; }
+        try { f.ValidateBudget(4); throw new Exception("budget-guard-missing"); } catch (InvalidOperationException e) { if (!e.Message.Contains("资源预算")) throw; }
         f.password.Text += "changed"; if (f.trialIdentity != null || f.budget.Checked) throw new Exception("credential-change-must-invalidate-trial-and-budget");
         var xml = Path.Combine(directory, "classes.xml"); int duplicates, ignored;
         File.WriteAllText(xml, "<Export><Class name=\"Demo.First\"><Method name=\"M\"><Implementation><![CDATA[<Class name=\"Not.Real\"/>]]></Implementation></Method></Class><Class name=\"Demo.First\"/><Routine name=\"Example\" type=\"MAC\"/><Class name=\"Demo.Last\"/></Export>", Encoding.UTF8);
@@ -305,6 +306,16 @@ public sealed partial class ExporterForm {
                 }
                 using (var bitmap = new Bitmap(view.Width, view.Height)) { view.DrawToBitmap(bitmap, new Rectangle(Point.Empty, view.Size)); bitmap.Save(Path.Combine(directory, "layout-" + scale.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".png")); }
                 using (var bitmap = new Bitmap(view.windowLayout.Width, view.windowLayout.Height)) { view.windowLayout.DrawToBitmap(bitmap, new Rectangle(Point.Empty, bitmap.Size)); bitmap.Save(Path.Combine(directory, "surface-" + scale.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".png")); }
+                using(var capture = new Timer {Interval=100}) {
+                    capture.Tick += (sender, args) => {
+                        capture.Stop();
+                        foreach(Form dialog in Application.OpenForms) if(dialog.Text == "增补到当前基线") {
+                            using(var bitmap=new Bitmap(dialog.Width,dialog.Height)) {dialog.DrawToBitmap(bitmap,new Rectangle(Point.Empty,dialog.Size));bitmap.Save(Path.Combine(directory,"add-"+scale.ToString(System.Globalization.CultureInfo.InvariantCulture)+".png"));}
+                            dialog.Close();break;
+                        }
+                    };
+                    capture.Start();view.ShowAddDialog(false);
+                }
                 view.Close();
             }
         }

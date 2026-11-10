@@ -20,6 +20,7 @@ public sealed partial class ExporterForm {
     readonly FlowLayoutPanel workbenchActions = new FlowLayoutPanel();
     readonly List<Button> workbenchInputs = new List<Button>();
     readonly Panel projectBody = new Panel();
+    Button remaining;
     bool projectUI = true, legacyMode, projectImporting;
     long elapsedBeforeResume, lastElapsedSaved;
     string lastProjectReceipt;
@@ -68,6 +69,9 @@ public sealed partial class ExporterForm {
         historyProject.Text = "更新记录"; historyProject.AutoSize = true; historyProject.Click += (s, e) => Guard(ShowProjectHistory); browse.Controls.Add(historyProject); side.Controls.Add(browse);
         var sideNote = Note("同一来源、同一目录持续增补。\r\n检查时间与内容更新时间分别记录。"); sideNote.MaximumSize = new Size(210, 0); side.Controls.Add(sideNote);
         body.Controls.Add(side, 0, 0);
+        var wheelRouter = new WorkbenchWheelRouter(body);
+        Application.AddMessageFilter(wheelRouter);
+        Disposed += (s, e) => Application.RemoveMessageFilter(wheelRouter);
         projectBody.Dock = DockStyle.Fill; projectBody.AutoScroll = true; body.Controls.Add(projectBody, 1, 0);
         var main = new TableLayoutPanel {Dock = DockStyle.Top, AutoSize = true, ColumnCount = 1, RowCount = 6};
         main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
@@ -97,6 +101,14 @@ public sealed partial class ExporterForm {
         continueCurrent.Click += (s, e) => Guard(() => {if (legacyMode) ContinueCurrent(); else ResumeProjectRun();}); stop.Click += (s, e) => Guard(RequestStop);
         closePool.Click += (s, e) => Guard(() => {closingPool = true; UpdateButtons(); Send(new {op = "close"});}); retryMissing.Click += (s, e) => Guard(() => {if (legacyMode) {PrepareMissingRetry(); Begin(false);} else BeginProject("retry");});
         diagnosticToggle.Click += (s, e) => {diagnostics.Visible = !diagnostics.Visible;};
+        remaining = ActionButton("继续增补剩余项", () => {
+            if(busy) throw new IOException("请先等待采集结束或暂停。");
+            string full = batch == null ? "" : Path.Combine(batch, "sample-full-scope.txt");
+            if(!File.Exists(full)) throw new IOException("当前记录不是试采，请先在增补源码中选择试采。");
+            documents.Text = File.ReadAllText(full, Encoding.UTF8); version.SelectedIndex=0;
+            BeginProject("append");
+        }, false);
+        workbenchActions.Controls.Add(remaining);
         activity.Controls.Add(activityLayout); main.Controls.Add(activity, 0, 2);
         var filters = new TableLayoutPanel {Dock = DockStyle.Fill, ColumnCount = 4}; filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 114)); filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112)); filters.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); filters.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         resultFilter.DropDownStyle = fileKind.DropDownStyle = ComboBoxStyle.DropDownList;
@@ -124,7 +136,7 @@ public sealed partial class ExporterForm {
         Add(connectionFields, "Atelier URL", url, 0, 0); Add(connectionFields, "Namespace", ns, 0, 1); Add(connectionFields, "用户名", user, 0, 2); Add(connectionFields, "密码", password, 0, 3); Add(connectionFields, "项目目录", destination, 0, 4);
         password.UseSystemPasswordChar = true; remember.Text = "本机加密记住密码"; remember.AutoSize = true; connectionFields.Controls.Add(remember, 1, 5);
         Add(connectionFields, "采集速度", speed, 0, 6); speed.DropDownStyle = ComboBoxStyle.DropDownList; speed.Items.AddRange(new object[] {"安全 · 1 会话 / 200ms", "均衡 · 4 会话 / 100ms", "快速 · 10 会话 / 50ms"}); speed.SelectedIndex = 0;
-        trial.Text = "多会话先做小批验证"; trial.AutoSize = true; budget.Text = "已核实多会话预算与资源回落"; budget.AutoSize = true; var advanced = new FlowLayoutPanel {AutoSize = true, Dock = DockStyle.Top}; advanced.Controls.Add(trial); advanced.Controls.Add(budget); connectionFields.Controls.Add(advanced, 1, 7);
+        trial.Text = "多会话先做小批验证"; trial.AutoSize = true; budget.Text = "已核实多会话预算与资源回落"; budget.AutoSize = true; var advanced = new FlowLayoutPanel {AutoSize = true, Dock = DockStyle.Top}; advanced.Controls.Add(budget); connectionFields.Controls.Add(advanced, 1, 7);
         web.Text = "已核对版本 Web 路径"; web.AutoSize = true; version.DropDownStyle = ComboBoxStyle.DropDownList; version.Items.AddRange(new object[] {"自定义清单", "v8.3 医生站（重建）", "v8.4 医生站", "v8.5 医生站", "v9.0 医生站", "v9.0.2 医生站", "v9.1 医生站", "v9.2 全产品"}); version.SelectedIndex = 0;
         documents.Multiline = true; documents.ScrollBars = ScrollBars.Both; documents.WordWrap = false;
         version.SelectedIndexChanged += (s, e) => UpdateInputSummary(); documents.TextChanged += (s, e) => UpdateInputSummary();
@@ -192,7 +204,13 @@ public sealed partial class ExporterForm {
             documents.Dock = DockStyle.Fill; documents.MinimumSize = new Size(0, 220); layout.Controls.Add(documents, 0, 2);
             var hint = Note("每行一个完整对象名，自动合并重复项；已取得文件跳过。\r\n继续写入当前项目目录，连接检查包含在本次采集中。"); layout.Controls.Add(hint, 0, 3);
             var buttons = new FlowLayoutPanel {Dock = DockStyle.Top, AutoSize = true};
-            buttons.Controls.Add(ActionButton("取消", () => dialog.Close(), false)); buttons.Controls.Add(ActionButton("增补到当前基线", () => {BeginProject("append"); dialog.Close();}, true)); layout.Controls.Add(buttons, 0, 4); dialog.Controls.Add(layout);
+            var sample = new CheckBox {Text="先试采前", AutoSize=true, Checked=project == null || project.Index.items.Count == 0};
+            var count = new NumericUpDown {Minimum=1, Maximum=100, Value=10, Width=65};
+            buttons.Controls.Add(sample); buttons.Controls.Add(count); buttons.Controls.Add(Note("项"));
+            buttons.Controls.Add(ActionButton("取消", () => dialog.Close(), false));
+            var submit = ActionButton(sample.Checked ? "开始试采" : "增补到当前基线", () => {BeginProjectSample("append", sample.Checked ? (int)count.Value : 0); dialog.Close();}, true);
+            count.Enabled=sample.Checked; sample.CheckedChanged += (s,e) => {count.Enabled=sample.Checked;submit.Text=sample.Checked ? "开始试采" : "增补到当前基线";};
+            buttons.Controls.Add(submit); layout.Controls.Add(buttons, 0, 4); dialog.Controls.Add(layout);
             if (pickFile) dialog.Shown += (s, e) => Guard(() => {using (var file = new OpenFileDialog {Filter = "对象清单或源码 XML|*.txt;*.xml"}) if (file.ShowDialog(dialog) == DialogResult.OK) LoadProjectList(file.FileName);});
             try {dialog.ShowDialog(this);} finally {layout.Controls.Remove(documents); line.Controls.Remove(version); line.Controls.Remove(web); layout.Controls.Remove(inputTitle);}
         }
@@ -239,10 +257,11 @@ public sealed partial class ExporterForm {
         if (String.IsNullOrWhiteSpace(user.Text) || String.IsNullOrWhiteSpace(password.Text)) throw new IOException("请在连接设置中填写用户名和密码。");
         if (!Uri.TryCreate(url.Text.Trim(), UriKind.Absolute, out uri) || (uri.Scheme != "http" && uri.Scheme != "https") || !uri.AbsolutePath.TrimEnd('/').EndsWith("/api/atelier", StringComparison.Ordinal) || uri.UserInfo != "" || uri.Query != "" || uri.Fragment != "") throw new IOException("请填写有效的 Atelier 根 URL，以 /api/atelier/ 结尾。");
     }
-    void BeginProject(string mode) {
+    void BeginProject(string mode) {BeginProjectSample(mode, 0);}
+    void BeginProjectSample(string mode, int sampleLimit) {
         if(projectImporting)throw new IOException("清单仍在读取或解析，请等待完成后增补。");
         ValidateConnection(); EnsureProject(); legacyMode = false;
-        int sessions = new[] {1, 4, 10}[speed.SelectedIndex]; ValidateBudget(sessions);
+        int sessions = new[] {1, 4, 10}[speed.SelectedIndex]; if(sampleLimit == 0) ValidateBudget(sessions);
         string list = documents.Text;
         if (mode != "append") {
             var names = new List<string>(); foreach (var entry in project.Index.items) if (mode == "check" || String.IsNullOrEmpty(entry.sha256)) names.Add(ImportableName(entry.document));
@@ -250,9 +269,12 @@ public sealed partial class ExporterForm {
         }
         int duplicateCount; list = Deduplicate(list, out duplicateCount);
         if (mode != "append" && String.IsNullOrWhiteSpace(list) || mode == "append" && version.SelectedIndex == 0 && String.IsNullOrWhiteSpace(list)) throw new IOException("没有需要采集的对象。请先粘贴或导入清单。");
+        var previousRun = project.FindRun(project.Index.activeRun);
+        if(previousRun != null && previousRun.documents.Count == 0 && previousRun.state != "running") project.EndRun(previousRun);
         projectRun = project.NewRun(mode); batch = project.RunDirectory(projectRun.id);
         job = new Dictionary<string, object> {{"batch", batch}, {"url", url.Text.Trim()}, {"ns", ns.Text.Trim()}, {"sessions", sessions}, {"interval", new[] {200, 100, 50}[speed.SelectedIndex]}, {"version", mode == "append" && version.SelectedIndex > 0 ? version.Text.Split(' ')[0] : ""}, {"scope", version.Text.StartsWith("v9.2 ") ? "all-products" : "doctor"}, {"confirmWeb", web.Checked}, {"inputSource", inputSource}, {"projectRun", projectRun.id}};
         if (!String.IsNullOrWhiteSpace(list)) File.WriteAllText(Path.Combine(batch, "files.txt"), list, new UTF8Encoding(false));
+        job["sampleLimit"] = sampleLimit;
         SaveJob(); busy = true;runClock.Reset();elapsedBeforeResume=0;elapsedLabel.Text="本次用时：00分00秒";progress.Value=0;errorBanner.Visible = false; lastProjectReceipt = null; status.Text = "正在解析范围 · 不连接服务器"; summary.Text = mode == "check" ? "检查更新 · 准备中" : "增补源码 · 准备中"; UpdateButtons(); Send(new {op = "run", job, plan = true});
     }
     bool IsProjectJob {get {return !legacyMode && project != null && projectRun != null && job != null && TextValue(job, "projectRun") == projectRun.id;}}
@@ -262,7 +284,16 @@ public sealed partial class ExporterForm {
             if (Flag(envelope, "plan")) {
                 if (Number(envelope, "exitCode") != 0) throw new IOException(output.Trim());
                 var plan = json.Deserialize<Dictionary<string, object>>(output);
-                var queue = project.Plan(projectRun, (IEnumerable)plan["items"], inputSource);
+                if(!plan.ContainsKey("items") || !(plan["items"] is IEnumerable)) throw new IOException("范围解析结果缺少对象清单，请使用完整解压的新版工具重试。");
+                var items = new List<object>();
+                var fullNames = new List<string>();
+                int limit = Number(job, "sampleLimit");
+                foreach(Dictionary<string, object> item in (IEnumerable)plan["items"]) {
+                    fullNames.Add(ImportableName(Convert.ToString(item["document"])));
+                    if(limit <= 0 || items.Count < limit) items.Add(item);
+                }
+                if(limit > 0) ProjectBaseline.Atomic(Path.Combine(batch, "sample-full-scope.txt"), new UTF8Encoding(false).GetBytes(String.Join("\r\n", fullNames)));
+                var queue = project.Plan(projectRun, items, inputSource);
                 if (queue.Count == 0) {busy = false; status.Text = "已有文件均已取得，本次没有新增请求；检查更新可核实服务器变化。"; RenderProject(); return;}
                 var names = new List<string>(); foreach (var name in queue) names.Add(ImportableName(name));
                 File.WriteAllText(Path.Combine(batch, "files.txt"), String.Join("\r\n", names), new UTF8Encoding(false)); job["version"] = ""; SaveJob(); StartProjectReading(false);
@@ -278,7 +309,7 @@ public sealed partial class ExporterForm {
                 else {projectRun.state = "paused"; projectRun.reason = lastReason; project.Save();}
                 var session=Value(result,"session") as Dictionary<string,object>;
                 if(runningTrial&&String.IsNullOrEmpty(lastReason)&&Flag(result,"logoutVerified")&&Flag(session,"cookieVerified"))trialIdentity=CurrentTrialIdentity(Number(job,"sessions"));
-                if(!Flag(job,"firstVerified")&&Number(job,"sessions")==1&&String.IsNullOrEmpty(lastReason)&&Flag(session,"cookieVerified")&&File.Exists(receiptFile)){
+                if((!Flag(job,"firstVerified")&&Number(job,"sessions")==1 || runningTrial)&&String.IsNullOrEmpty(lastReason)&&Flag(session,"cookieVerified")&&File.Exists(receiptFile)){
                     job["firstVerified"]=true;SaveJob();RenderProject();
                     if(!String.IsNullOrEmpty(project.Index.activeRun)&&!closeRequested&&!blocked){StartProjectReading(true);return;}
                 }
@@ -289,7 +320,8 @@ public sealed partial class ExporterForm {
             }
         } catch (Exception ex) {
             busy = reading = false; runClock.Stop();
-            if (projectRun != null) {projectRun.state = "paused"; projectRun.reason = ex.Message; project.Save();}
+            if (projectRun != null) {projectRun.reason = ex.Message; if(projectRun.documents.Count == 0) project.EndRun(projectRun); else {projectRun.state = "paused"; project.Save();}}
+            summary.Text = "采集未完成"; status.Text = projectRun != null && projectRun.documents.Count == 0 ? "尚未读取服务器；请修正后重新增补。" : "已保存进度，可继续上次采集。";
             ShowWorkbenchError(ex.Message); if (closeRequested && !shuttingDown) StartClosing();
         } finally {UpdateButtons();}
     }
@@ -298,10 +330,10 @@ public sealed partial class ExporterForm {
         elapsedBeforeResume = projectRun.elapsedMs; runClock.Restart(); lastElapsedSaved = 0;
         projectRun.state = "running"; project.Save(); job["resume"] = resuming; SaveJob();
         string cancel = Path.Combine(batch, "stop.request"); if (File.Exists(cancel)) File.Delete(cancel);
-        runningTrial = Number(job, "sessions") > 1 && trial.Checked;
+        runningTrial = false;
         summary.Text = projectRun.mode == "check" ? "检查更新 · 正在读取并对比" : "增补源码 · 正在读取、保存和核对";status.Text = "正在读取 · 0 / " + projectRun.documents.Count;
         lastProjectReceipt=null;PaintProjectProgress();
-        Send(new {op = "run", job, user = user.Text, password = password.Text, resume = resuming, trial = runningTrial, confirmed = budget.Checked, maxFiles = Number(job,"sessions")==1&&!Flag(job,"firstVerified")?1:0}); UpdateButtons();
+        Send(new {op = "run", job, user = user.Text, password = password.Text, resume = resuming, trial = false, sampleLimit = Number(job,"sampleLimit"), confirmed = budget.Checked, maxFiles = Number(job,"sessions")==1&&!Flag(job,"firstVerified")?1:0}); UpdateButtons();
     }
     void ResumeProjectRun() {
         ValidateConnection(); EnsureProject();
@@ -312,7 +344,7 @@ public sealed partial class ExporterForm {
         job = json.Deserialize<Dictionary<string, object>>(File.ReadAllText(file, Encoding.UTF8));
         if(!String.Equals(TextValue(job,"batch"),batch,StringComparison.OrdinalIgnoreCase))throw new IOException("项目目录已移动，不能用新路径续传原采集。请保留原路径和原工具，或结束该记录后重新检查更新。");
         if (TextValue(job, "url") != url.Text.Trim() || TextValue(job, "ns") != ns.Text.Trim()) throw new IOException("请切回该项目的原始连接再继续。");
-        ValidateBudget(Number(job, "sessions")); legacyMode = false;
+        if(Number(job, "sampleLimit") == 0) ValidateBudget(Number(job, "sessions")); legacyMode = false;
         if (projectRun.documents.Count == 0) {busy = true; Send(new {op = "run", job, plan = true});} else StartProjectReading(File.Exists(Path.Combine(batch, "export/baseline-state.json")));
     }
     void SaveProjectElapsed() {
@@ -332,7 +364,7 @@ public sealed partial class ExporterForm {
             if (text == lastProjectReceipt) return;
             var receipt = json.Deserialize<Dictionary<string, object>>(text); int total = 0, success = 0, missing = 0, failed = 0, pending = 0;
             foreach (Dictionary<string, object> item in (IEnumerable)receipt["items"]) {total++; string value = TextValue(item, "status"); if (value == "fetched") success++; else if (value == "missing") missing++; else if (value == "pending" || value == "writing") pending++; else failed++;}
-            summary.Text = (projectRun.mode == "check" ? "检查更新" : "增补源码") + (reading ? " · 进行中" : projectRun.state == "paused" ? " · 已暂停" : " · 已结束");
+            summary.Text = (projectRun.mode == "check" ? "检查更新" : Number(job,"sampleLimit") > 0 ? "试采" : "增补源码") + (reading ? " · 进行中" : projectRun.state == "paused" ? " · 已暂停" : " · 已结束");
             status.Text = "已处理 " + (total - pending) + " / " + total + "   成功 " + success + "   未找到 " + missing + "   失败 " + failed;
             progress.Value = total == 0 ? 0 : (total - pending) * 100 / total; lastProjectReceipt = text;
         } catch (IOException) {/* Atomic receipt replacement: retain visible progress and read on the next timer tick. */}
@@ -356,12 +388,16 @@ public sealed partial class ExporterForm {
     static string ProjectOutcome(string outcome) {
         switch (outcome) {case "candidate-new": return "新增 · 待接纳"; case "candidate-change": return "服务器变化 · 待接纳"; case "local-conflict": return "本地变动 · 已保护"; case "kept-local": return "已保留当前版本"; case "not-accepted": return "未接纳"; default: return Outcome(outcome);}
     }
-    void ShowWorkbenchError(string reason) {errorBanner.Text = reason + "\r\n请核对连接设置或展开诊断详情；已保存的基线不会因此删除。"; errorBanner.Visible = true; diagnostics.Visible = true; Append(reason); UpdateWorkbench();}
+    void ShowWorkbenchError(string reason) {errorBanner.Text = reason + "\r\n已保存的文件和进度会保留；技术信息可点“诊断详情”查看。"; errorBanner.Visible = true; Append(reason); UpdateWorkbench();}
     void UpdateWorkbench() {
         if (!projectUI) return;
         bool idle = !busy && !closingPool && !closeRequested && !projectImporting, ready = idle && !blocked && worker != null && !worker.HasExited;
         if (!legacyMode) {start.Text = "增补源码"; continueCurrent.Text = "继续上次采集"; resume.Text = "打开项目目录…";}
         start.Enabled=ready;
+        if(remaining != null) {
+            remaining.Visible = project != null && projectRun != null && projectRun.state == "complete" && batch != null && File.Exists(Path.Combine(batch, "sample-full-scope.txt"));
+            remaining.Enabled = ready && remaining.Visible;
+        }
         checkUpdates.Enabled = ready && project != null && project.Index.items.Count > 0; resume.Enabled = idle;
         foreach (var input in workbenchInputs) input.Enabled = ready;
         freezeProject.Enabled = idle && project != null; historyProject.Enabled = idle && project != null;
@@ -428,6 +464,57 @@ public sealed partial class ExporterForm {
         return null;
     }
     static string RunLabel(string value){switch(value){case"planning":return"正在解析范围";case"ready":case"running":return"采集中";case"paused":return"已暂停";default:return"已结束";}}
+}
+// Route wheel input by pointer location, preserving native inner scrolling until its edge.
+public sealed class WorkbenchWheelRouter : IMessageFilter {
+    readonly Control root;
+    int remainder;
+    ScrollableControl previous;
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    struct ScrollInfo {public uint size, mask; public int min, max; public uint page; public int pos, track;}
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern bool GetScrollInfo(IntPtr hwnd, int bar, ref ScrollInfo info);
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    static extern IntPtr SendMessage(IntPtr hwnd, int msg, IntPtr wparam, IntPtr lparam);
+    public WorkbenchWheelRouter(Control root) {this.root = root;}
+    public bool PreFilterMessage(ref Message message) {
+        if(message.Msg != 0x020A || root.IsDisposed || !root.Visible || !root.ContainsFocus && Form.ActiveForm != root.FindForm()) return false;
+        Point point = Control.MousePosition;
+        if(!root.RectangleToScreen(root.ClientRectangle).Contains(point)) return false;
+        Control target = root;
+        while(true) {
+            Control child = target.GetChildAtPoint(target.PointToClient(point));
+            if(child == null) break;
+            target = child;
+        }
+        var combo = target as ComboBox;
+        if(combo != null && combo.DroppedDown) return false;
+        int delta = unchecked((short)((message.WParam.ToInt64() >> 16) & 65535));
+        if(delta == 0) return false;
+        for(Control current = target; current != null && current != root; current = current.Parent) {
+            var panel = current as ScrollableControl;
+            if(panel != null && panel.AutoScroll && panel.VerticalScroll.Visible) {
+                int position = -panel.AutoScrollPosition.Y;
+                int maximum = Math.Max(0, panel.VerticalScroll.Maximum - panel.VerticalScroll.LargeChange + 1);
+                if(delta > 0 ? position > 0 : position < maximum) {
+                    if(previous != panel) {remainder = 0; previous = panel;}
+                    remainder += delta;
+                    int steps = remainder / 120; remainder %= 120;
+                    int lines = SystemInformation.MouseWheelScrollLines;
+                    int distance = lines < 0 ? panel.ClientSize.Height : lines * Math.Max(1, panel.VerticalScroll.SmallChange);
+                    panel.AutoScrollPosition = new Point(-panel.AutoScrollPosition.X, Math.Max(0, Math.Min(maximum, position - steps * distance)));
+                    return true;
+                }
+            } else if(current is ListView || current is TextBoxBase) {
+                var info = new ScrollInfo {size = (uint)System.Runtime.InteropServices.Marshal.SizeOf(typeof(ScrollInfo)), mask = 7};
+                if(GetScrollInfo(current.Handle, 1, ref info) && (delta > 0 ? info.pos > info.min : info.pos < info.max - Math.Max(0, (int)info.page - 1))) {
+                    SendMessage(current.Handle, message.Msg, message.WParam, message.LParam);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }
 public sealed class SearchBox:TextBox {
     [System.Runtime.InteropServices.DllImport("user32.dll",CharSet=System.Runtime.InteropServices.CharSet.Unicode)]

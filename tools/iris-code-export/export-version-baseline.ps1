@@ -127,7 +127,7 @@ try {
         supplementSha256=$supplementHash;supplementItemCount=$supplementLines.Count;webMapSha256=$mapHash;webMap=@($maps);mappedItemCount=$mappedCount;
         mergedDuplicateCount=$mergedDuplicates;selectedFileCount=$resolved.Count;filesSha256=(Hash-Bytes $filesBytes);webRoots=$webRoots;
         webPathsConfirmed=[bool]$ConfirmWebPaths;meaning='version-defines-scope-content-from-current-instance'}
-    $preview = [ordered]@{version=$Version;scope=$entry.scope;scopeLabel=$entry.scopeLabel;total=$plan.total;catalogDuplicateCount=$entry.duplicateCount;
+    $preview = [ordered]@{version=$Version;scope=$entry.scope;scopeLabel=$entry.scopeLabel;total=$plan.total;items=@($plan.items);catalogDuplicateCount=$entry.duplicateCount;
         mergedDuplicateCount=$mergedDuplicates;supplementItemCount=$supplementLines.Count;mappedItemCount=$mappedCount;webRoots=$webRoots;
         webPathsNeedConfirmation=$needsConfirmation;webPathsConfirmed=[bool]$ConfirmWebPaths;sample=@($resolved | Select-Object -First 8);selection=$selection}
     if ($PlanOnly) { $preview | ConvertTo-Json -Depth 10; exit 0 }

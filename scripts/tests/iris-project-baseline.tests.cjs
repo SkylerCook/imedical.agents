@@ -54,7 +54,8 @@ test('native workbench runs append/check/accept with one persistent worker and s
     child.once('error',e=>{clearTimeout(timeout);reject(e);});child.once('exit',c=>{clearTimeout(timeout);resolve(c);});
   });
   assert.equal(code,0,output);assert.match(output,/gui-flow-passed/);
-  assert.equal(auth,1,'one cookie reused across trial-free append and refresh');
+  assert.equal(auth,5,'single-session plus four reused concurrent cookies');
+  for(let i=0;i<11;i++)assert.equal(counts.get('Trial.Item'+i+'.cls'),1,'trial and continuation must not reread verified files');
   assert.equal(counts.get('Demo.A.cls'),2,'existing A is skipped during append and re-read during check');
-  assert.equal(reads,6);assert.equal(exits,1);
+  assert.equal(reads,17);assert.equal(exits,5);
 });

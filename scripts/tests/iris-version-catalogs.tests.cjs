@@ -71,3 +71,17 @@ test('package staging contains no Node runtime or framework and copies the uniqu
   assert.deepEqual(fs.readFileSync(path.join(target,'source-delivery.ps1')), fs.readFileSync(helperSource()));
   assert.throws(() => packageSources(target), /must-be-new/);
 });
+
+test('version preview exposes complete document and path contract for workbench planning', {skip:process.platform!=='win32'}, t => {
+  const parent=path.join(os.tmpdir(),'Codex');fs.mkdirSync(parent,{recursive:true});
+  const dir=fs.mkdtempSync(path.join(parent,'version-plan-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+  const catalog=path.join(dir,'catalogs');fs.mkdirSync(catalog);
+  for(const [name,bytes] of generate().files)fs.writeFileSync(path.join(catalog,name),bytes);
+  for(const [version,scope] of [['v8.3','doctor'],['v9.2','all-products']]) {
+    const result=spawnSync('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.resolve(__dirname,'../../tools/iris-code-export/export-version-baseline.ps1'),'-Version',version,'-Scope',scope,'-CatalogDirectory',catalog,'-OutputDirectory',path.join(dir,'output'),'-PlanOnly'],{encoding:'utf8',windowsHide:true,timeout:30000,maxBuffer:16*1024*1024});
+    assert.equal(result.status,0,result.stderr);const plan=JSON.parse(result.stdout);
+    assert.equal(plan.items.length,plan.total);assert.ok(plan.total>100);
+    for(const item of plan.items){assert.equal(typeof item.document,'string');assert.equal(typeof item.path,'string');}
+    assert.equal(fs.existsSync(path.join(dir,'output')),false);
+  }
+});
