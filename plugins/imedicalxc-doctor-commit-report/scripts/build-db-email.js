@@ -79,7 +79,7 @@ function buildRatingSummary(rows) {
 }
 
 function determineModule(ev, mapping) {
-  const text = `${ev.impactScope || ''} ${ev.summary || ''}`;
+  const text = `${ev.funcPoint || ''} ${ev.impactScope || ''} ${ev.summary || ''}`;
   if (text.includes('医嘱')) return '医嘱录入';
   if (text.includes('诊断')) return '诊断录入';
   if (text.includes('检验') || text.includes('检查')) return '检验检查申请';

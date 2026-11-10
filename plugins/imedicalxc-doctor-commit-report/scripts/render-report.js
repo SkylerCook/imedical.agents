@@ -208,6 +208,7 @@ function validate({ raws, classification, evaluations, impactMap, frontMap, conf
     if (!e.evaluation) errors.push(`缺少 evaluation：${shortHash(e.hash)}`);
     if (!e.changeSummary) errors.push(`缺少 changeSummary：${shortHash(e.hash)}`);
     if (!e.impactEvidence) errors.push(`缺少 impactEvidence：${shortHash(e.hash)}`);
+    if (!e.funcPoint) errors.push(`缺少 funcPoint（邮件需求标题）：${shortHash(e.hash)}`);
     const ts = String(e.testSuggestion || '');
     for (const seg of ['【必测】', '【回归】', '【联调】', '【边界】']) {
       if (!ts.includes(seg)) errors.push(`测试方式建议缺少 ${seg}：${shortHash(e.hash)}`);
