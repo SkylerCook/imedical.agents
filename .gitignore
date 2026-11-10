@@ -2,3 +2,9 @@
 /work/source-sync/
 /tools/dist/
 .workbuddydonghua/
+
+__pycache__/
+*.pyc
+
+# 本地迁移前快照，仅供本机回滚，不入库
+backups/
