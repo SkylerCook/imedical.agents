@@ -121,7 +121,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install-agents.ps1
 
 脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/`，并拉取 `plugins/`、`agents/`、`workflows/` 等能力包内容，让用户和 Agent 能看到可用能力。
 
-插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认把 `agent-context-kit` 和承接原根级技能的 `agent-framework-evolution` 作为基础能力处理（显式 available/disabled 保留）；`bos-plugin`、`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`、`iris-imedical-doctor-ai`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
+插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认把 `agent-context-kit` 和承接原根级技能的 `agent-framework-evolution` 作为基础能力处理（显式 available/disabled 保留）；`bos-plugin`、`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`、`iris-imedical-doctor-ai`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`、`imedicalxc-doctor-card-reader` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
 
 ### 更新已部署 `.agents`
 
@@ -525,6 +525,22 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 - `imedicalxc-doctor-print-template-design`
 
+### imedicalxc-doctor-card-reader
+
+负责 HIS 医生站读卡设备接入配置：
+
+- 根据设备厂商、型号生成厂商/型号通用字典数据（`ct_dic_commondict`）。
+- 生成设备接口参数配置（`ct_pa_card_hard_manager`），关联厂商、型号和版本字典。
+- 字典目录、操作人、厂商/型号/版本关联均按 code 动态解析，不写死 id。
+- `run_prefix` 默认 `C:/Program Files (x86)/Java/jdk-1.8/bin/java.exe`，目标库现状明确不同时先确认。
+- 默认只生成 SQL；写库需明确授权，连接信息不进入插件。
+- 当前仅支持 SQL 操作，后续读卡操作按新 skill 扩展。
+- thin-index wrapper 暴露 `imedicalxc-doctor-card-reader` 入口。
+
+常用 skill：
+
+- `imedicalxc-doctor-card-reader`
+
 ## 推荐接入流程
 
 完成 `.agents/` clone 只代表能力包已进入业务项目，不代表项目上下文已完成。
@@ -543,7 +559,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
    - `.agents/memory/project-memory.md`
 6. 先 dry-run，再 write 生成 `agent-context-kit` thin-index。
 7. 查看 `.agents/config/plugin_profile.md`；未启用插件保持 `available`，不要自动生成它们的 thin-index。
-8. 按依赖顺序初始化需要的领域插件，例如先启用 `coding-iris-plugin`、`extract-doc`，再启用依赖它们的 `iris-codegraph`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`、`iris-imedical-doctor-ai`；其它可选插件包括 `codegraph-query`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`。
+8. 按依赖顺序初始化需要的领域插件，例如先启用 `coding-iris-plugin`、`extract-doc`，再启用依赖它们的 `iris-codegraph`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`、`iris-imedical-doctor-ai`；其它可选插件包括 `codegraph-query`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`、`imedicalxc-doctor-card-reader`。
 9. 如需启用提交前差异降噪 hook，由用户在业务项目根目录显式运行 `.agents/scripts/install-git-hooks.ps1 -ProjectRoot .`；安装/更新 `.agents` 只分发 hook 模板和脚本，不自动修改 `core.hooksPath`。
 10. 按需要读取 `agents/agent-registry.md` 和 `workflows/workflow-registry.md` 使用顶层智能体。
 

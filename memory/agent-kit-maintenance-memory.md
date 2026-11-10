@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- 读卡设备接入：imedicalxc-doctor-card-reader 1.0.0 新增设备厂商/型号字典与 `ct_pa_card_hard_manager` 设备配置 SQL 生成 skill。目录、admin 用户、厂商/型号/版本关联均按 code 动态解析；`run_prefix` 默认 `C:/Program Files (x86)/Java/jdk-1.8/bin/java.exe`；默认只生成 SQL，后续读卡操作按新 skill 扩展。入口见插件 README、SKILL 与 release record。
+
 - Feign 文档审计：imedicalxc-doctor-data-extraction 1.1.0 新增 `feign-api-doc-audit` skill 与 `feign-doc-audit.js`（paths/fields/io/lint/all）。按 import、package、scope、module 消歧同名 Feign 类型，嵌套子表支持从父表行推导类型；真实文档全量校验 paths/fields/io/lint 均为 0。入口见插件 README 与 release record。
 
 - 夜跑精简收敛：新批次探测 night-convergence/v1，明确批次统一总时限/需求覆盖，问题默认最多 4 次尝试；按需绑定依赖版本和范围，实际环境依赖由 profile 前后核验。沿用 run 事件与最终集成协议，不增加交付组/资源锁。BOS 0.10.2、coding 0.19.7 接入入口和部署预算；旧 run 不迁移。接口见 docs/night-policy.md；本机合成回归与真实/非 Windows 待验边界见日志及既有 P1/P2 队列。

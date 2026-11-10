@@ -594,3 +594,11 @@ coding-iris-plugin 0.15.2 在成功 pull 及快照校验后，仅向 commit 传�
 imedicalxc-doctor-data-extraction 1.1.0 新增 `feign-api-doc-audit` skill 与 `feign-doc-audit.js`，覆盖已有 API 文档的服务地址、入参/出参类型、字段表、JSON 示例和格式基线检查。类型解析按 import、package、scope、module 顺序消歧；无显式类型的嵌套子表支持从父表行（如 `records`、`waitData`、`cureList`）推导类型。
 
 真实文档与源码全量验证：`paths=0`、`fields=0`、`io=0`、`lint=0`；负向样例可检出错误地址与虚构字段。thin-index dry-run 已识别并生成两个 skill 入口；组件版本校验识别 1.0.0→1.1.0，本插件无报错，完整审计仍被 `imedicalxc-doctor-extend-engineer` 既有发布记录问题阻断。能力手册未收录该插件，无需同步；未同步业务副本、未提交或发布。
+
+## 2026-10-20 读卡设备接入配置插件
+
+imedicalxc-doctor-card-reader 1.0.0 新增读卡设备接入配置 skill，覆盖厂商/型号通用字典与 `ct_pa_card_hard_manager` 设备接口参数配置 SQL 生成。目录 id、admin 用户、厂商/型号/版本关联均按 code 动态解析；时间字段使用数据库当前值；插入带 code/displayname 与厂商+型号+版本防重复检查；`py_code` / `wb_code` 按中文首字母或编码大写推导。默认只生成 SQL，写库需明确授权，连接信息不进入插件。后续读卡操作约定为独立 skill 扩展。
+
+初始 1.0.0 同时包含 `ct_pa_card_hard_manager.run_prefix` 默认值 `C:/Program Files (x86)/Java/jdk-1.8/bin/java.exe`，已同步 SKILL 输入契约、执行步骤、SQL 模板参数说明、字段默认值表、跨项目适配清单、AGENTS/README 与 release record；目标库现状明确不同时仍先确认。该组件尚未提交，默认值补充并入初始发布草稿，不单独产生补丁版本。
+
+同步插件 manifest、AGENTS、README、SKILL、SQL 模板参考、release record、根 README 和维护摘要。能力手册沿用非 xc 边界，不新增条目；安装/更新脚本、plugin profile 和 sparse checkout 无变化。未连接数据库、未执行任何 SQL、未同步业务副本、未提交或发布；组件版本校验结果见本轮验证记录。

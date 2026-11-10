@@ -1,0 +1,22 @@
+{
+  "name": "imedicalxc-doctor-card-reader",
+  "version": "1.0.0",
+  "displayName": "iMedicalXC Doctor Card Reader",
+  "description": "HIS 医生站读卡设备接入配置插件。根据设备厂商、型号动态解析通用字典目录，生成厂商/型号通用字典与设备接口参数配置 SQL，并完成结果校验。当前仅支持 SQL 操作，后续读卡相关操作按新 skill 扩展。",
+  "entry": "AGENTS.md",
+  "skills": "skills/",
+  "scripts": "scripts/",
+  "initSkill": "imedicalxc-doctor-card-reader",
+  "requiresProjectFiles": [
+    "AGENTS.md"
+  ],
+  "defaultPrompt": [
+    "读卡设备接入",
+    "新增读卡厂商",
+    "新增读卡型号",
+    "设备接口参数配置",
+    "读卡器配置SQL",
+    "厂商型号字典",
+    "ct_pa_card_hard_manager"
+  ]
+}
