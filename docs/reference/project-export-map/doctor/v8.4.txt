@@ -2848,3 +2848,17 @@ web.UDHCPrescriptQueryCM.cls
 web.UDHCStopOrder.cls
 web.UDHCStopOrderLook.cls
 websys.Preferences.cls
+DHCDoc.DHCDocCure.Android.ActionProxy.cls
+DHCDoc.DHCDocCure.Android.Adapter.cls
+DHCDoc.DHCDocCure.Android.BusinessDic.cls
+DHCDoc.DHCDocCure.Android.COM.Super.cls
+DHCDoc.DHCDocCure.Android.Config.cls
+DHCDoc.DHCDocCure.Android.InternalInvoke.cls
+DHCDoc.DHCDocCure.Android.Methods.cls
+DHCDoc.DHCDocCure.Android.Public.cls
+DHCDoc.DHCDocCure.Android.PublicOrd.cls
+DHCDoc.DHCDocCure.Android.Service.CureInterface.cls
+DHCDoc.DHCDocCure.Android.Util.cls
+DHCDoc.Util.ArrayData.cls
+DHCDoc.Util.ListData.cls
+DHCDoc.Util.RegisteredObject.cls

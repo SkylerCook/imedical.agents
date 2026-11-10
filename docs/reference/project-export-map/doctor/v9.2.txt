@@ -5350,3 +5350,4 @@ web.UDHCPrescript.cls
 web.UDHCPrescriptQueryCM.cls
 web.UDHCStopOrder.cls
 web.UDHCStopOrderLook.cls
+DHCDoc.DHCDocCure.Android.CALogin.cls

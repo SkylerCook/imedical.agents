@@ -1,0 +1,884 @@
+{
+  "date": "2026-11-10",
+  "boundary": "<9.0 legacy; >=9.0 current standard; excludes Test namespace",
+  "sourceSets": {
+    "legacy": {
+      "DHCDoc.DHCDocCure.Android.ActionProxy.cls": {
+        "source": "DHCDoc/DHCDocCure/Android/ActionProxy.cls",
+        "sha256": "21d309de1211afcf7c73fdf380e3388bdb9e709160dcf2e85ce3e14498b436d6"
+      },
+      "DHCDoc.DHCDocCure.Android.Adapter.cls": {
+        "source": "DHCDoc/DHCDocCure/Android/Adapter.cls",
+        "sha256": "13bd12f81b41485e7ae23788b23a31a62f0d7828e4be8a969e3776c71d521dd7"
+      },
+      "DHCDoc.DHCDocCure.Android.BusinessDic.cls": {
+        "source": "DHCDoc/DHCDocCure/Android/BusinessDic.cls",
+        "sha256": "23bc6a42472799ddc641ec35fa0c1b5a751f33fb7f86d30a9b5b6ec6a18e8d35"
+      },
+      "DHCDoc.DHCDocCure.Android.Config.cls": {
+        "source": "DHCDoc/DHCDocCure/Android/Config.cls",
+        "sha256": "f36ab1591acae6e2e0bc060371e8faa1a089f364c725d7a6a661310521576174"
+      },
+      "DHCDoc.DHCDocCure.Android.InternalInvoke.cls": {
+        "source": "DHCDoc/DHCDocCure/Android/InternalInvoke.cls",
+        "sha256": "538737fe8a1b3b3a1d3af225dc7f0a1df7444b1671db741933b4171493674d44"
+      },
+      "DHCDoc.DHCDocCure.Android.Methods.cls": {
+        "source": "DHCDoc/DHCDocCure/Android/Methods.cls",
+        "sha256": "f9a9821e8e3872362d08f8bb7450b8b8a056370c73e827a4c59df86e16e1e2ff"
+      },
+      "DHCDoc.DHCDocCure.Android.Public.cls": {
+        "source": "DHCDoc/DHCDocCure/Android/Public.cls",
+        "sha256": "1b853c9945b495825fe48bda9e4ddedb88357b373eeebf23d0b3531984ddbbe6"
+      },
+      "DHCDoc.DHCDocCure.Android.PublicOrd.cls": {
+        "source": "DHCDoc/DHCDocCure/Android/PublicOrd.cls",
+        "sha256": "a1ed237a0fca0a6d9d126a344e2a6bcc0fa774c9a6d3e762d7d8ab8836c35d32"
+      },
+      "DHCDoc.DHCDocCure.Android.Util.cls": {
+        "source": "DHCDoc/DHCDocCure/Android/Util.cls",
+        "sha256": "0242af66532302d0cdac0a05c37f75de4d82d521d0a133dcd3ed8fa7849d7ece"
+      },
+      "DHCDoc.DHCDocCure.Android.COM.Super.cls": {
+        "source": "DHCDoc/DHCDocCure/Android/COM/Super.cls",
+        "sha256": "0c5945013446cc6b334ea3c3872eea8b7ce859d1b00c6bdabe30ad7260bfc7fd"
+      },
+      "DHCDoc.DHCDocCure.Android.Service.CureInterface.cls": {
+        "source": "DHCDoc/DHCDocCure/Android/Service/CureInterface.cls",
+        "sha256": "2b9fac3f9692e8b73fb2596bc975c7902da79f2714679a70ff8f6ddae8c9043a"
+      },
+      "DHCDoc.DHCDocCure.Apply.cls": {
+        "source": "DHCDoc/DHCDocCure/Apply.cls",
+        "sha256": "2c82c3d22eb003cd9486b473919c595413d7e546bf03652c374951624dee18b4"
+      },
+      "DHCDoc.DHCDocCure.Appointment.cls": {
+        "source": "DHCDoc/DHCDocCure/Appointment.cls",
+        "sha256": "5c6c66214dc6963da1908b0c8fa046daa25bd2cbb367afb483ab37fa20dc0847"
+      },
+      "DHCDoc.DHCDocCure.Assessment.cls": {
+        "source": "DHCDoc/DHCDocCure/Assessment.cls",
+        "sha256": "86cf9c51a49183c48625c8d1974b74eaf8bd041216cb06683410e878e1dbfc7a"
+      },
+      "DHCDoc.DHCDocCure.CureItemSet.cls": {
+        "source": "DHCDoc/DHCDocCure/CureItemSet.cls",
+        "sha256": "7ca3e8226fe2d957ada274c7711ad749cc340a6755260b59ba5e302cebec3ead"
+      },
+      "DHCDoc.DHCDocCure.ExecApply.cls": {
+        "source": "DHCDoc/DHCDocCure/ExecApply.cls",
+        "sha256": "8eba9636e07116637e2f209f0c6f7679106038d5fd01a51975b03f995817c79b"
+      },
+      "DHCDoc.DHCDocCure.OutInterface.cls": {
+        "source": "DHCDoc/DHCDocCure/OutInterface.cls",
+        "sha256": "338e2045b358fbd1db0d04d193000fa9b46dda2f242a093e4107aae369fd6aa3"
+      },
+      "DHCDoc.DHCDocCure.RBCResSchdule.cls": {
+        "source": "DHCDoc/DHCDocCure/RBCResSchdule.cls",
+        "sha256": "6ff24bcb2b099359e39584e89faf6ffd0a53c09cbfc3e5c7e3761d545ec12cbc"
+      },
+      "DHCDoc.DHCDocCure.Record.cls": {
+        "source": "DHCDoc/DHCDocCure/Record.cls",
+        "sha256": "454d83b65cac48a04f0c16dae2dc9f593dc4b78c98e59b0dae8cf558a8e2fdb3"
+      },
+      "DHCDoc.Util.ArrayData.cls": {
+        "source": "DHCDoc/Util/ArrayData.cls",
+        "sha256": "10485d6018e20233b825ceb6171b38fb22c27133b865aa159c00d06da77db5a4"
+      },
+      "DHCDoc.Util.FromJSON.cls": {
+        "source": "DHCDoc/Util/FromJSON.cls",
+        "sha256": "cd71ecea75f2e470367d55c280bede4bdc9d9b787bb3b29d5b9ffcef17980542"
+      },
+      "DHCDoc.Util.ListData.cls": {
+        "source": "DHCDoc/Util/ListData.cls",
+        "sha256": "6d7d81cd10ba3aec64b5937de4f41489d3ce8628108f97b99dd0503fba06142e"
+      },
+      "DHCDoc.Util.RegisteredObject.cls": {
+        "source": "DHCDoc/Util/RegisteredObject.cls",
+        "sha256": "4f409a0009dcdbbc1d8208c3017dbf0a21473fb57a2e7f10b4dffb226d139462"
+      }
+    },
+    "standard": {
+      "DHCDoc.DHCDocCure.AIChat.cls": {
+        "source": "AIChat.cls",
+        "sha256": "e5b5ced76c77426da9c435a54f49aa472e806aa9e9c40976a5bfcf1f7296fd75"
+      },
+      "DHCDoc.DHCDocCure.Alloc.cls": {
+        "source": "Alloc.cls",
+        "sha256": "40f9101ef99854f32ff488ada0ab106111397f642c920000345d7296e5e546cd"
+      },
+      "DHCDoc.DHCDocCure.Apply.cls": {
+        "source": "Apply.cls",
+        "sha256": "a8a4a76d2fb69a165918d90e203da86bac0251f003c6b80b4c4245272c8d6f45"
+      },
+      "DHCDoc.DHCDocCure.ApplyTree.cls": {
+        "source": "ApplyTree.cls",
+        "sha256": "a3653b641b482d31a1019fa2b6b01b4eff057ac0f6904bf658854d25e50bfe1f"
+      },
+      "DHCDoc.DHCDocCure.Appointment.cls": {
+        "source": "Appointment.cls",
+        "sha256": "26b7f9cfe03bbb69435b4b9b4c40013c498b7213213abed6502809b82235ca69"
+      },
+      "DHCDoc.DHCDocCure.AppointmentV2.cls": {
+        "source": "AppointmentV2.cls",
+        "sha256": "f2a3379b65b144e1855771ecac7fe4e430dbee48142bf07bc853df980d61aae0"
+      },
+      "DHCDoc.DHCDocCure.Assessment.cls": {
+        "source": "Assessment.cls",
+        "sha256": "bc48cbb1f37aafffd9bcca5dfc9f6ad06d1522946d3593f6916a21a393282ca1"
+      },
+      "DHCDoc.DHCDocCure.AssessRefAss.cls": {
+        "source": "AssessRefAss.cls",
+        "sha256": "617f6df657c854d0729999f552f9b5ae8c5433b21e130d32c88ae35811c59755"
+      },
+      "DHCDoc.DHCDocCure.AssScale.cls": {
+        "source": "AssScale.cls",
+        "sha256": "83f912550412d59d2b304fbc3b50b7539f2d103dc5a2effda3379d74fc38db85"
+      },
+      "DHCDoc.DHCDocCure.AssScaleConfig.cls": {
+        "source": "AssScaleConfig.cls",
+        "sha256": "30c38c76c0d4ff79209e43226a0a3a673014c2b938d915d177b60ff48f8232ee"
+      },
+      "DHCDoc.DHCDocCure.BodySet.cls": {
+        "source": "BodySet.cls",
+        "sha256": "31624e3e6dff6707854eadca98279b8cdd860c9b1effe06ef6be9b6335c8e4e1"
+      },
+      "DHCDoc.DHCDocCure.BSExtend.cls": {
+        "source": "BSExtend.cls",
+        "sha256": "337ed5159d58b7ec2199f629fa7da3689d7878b2f410872c013c2f780bdfcc31"
+      },
+      "DHCDoc.DHCDocCure.Common.cls": {
+        "source": "Common.cls",
+        "sha256": "b308d66f4879e3fbc6901caeefdfa31114778b292f7393f65066e804161edf20"
+      },
+      "DHCDoc.DHCDocCure.Config.cls": {
+        "source": "Config.cls",
+        "sha256": "195dc378859413f1fc00930de774238382187a8bef51a61ac8e1c6f33e561942"
+      },
+      "DHCDoc.DHCDocCure.Constant.cls": {
+        "source": "Constant.cls",
+        "sha256": "6c657ffb222491fcc63aaa11ce045a36f9a5022412ea3782f176e768b6772fcf"
+      },
+      "DHCDoc.DHCDocCure.CureCall.cls": {
+        "source": "CureCall.cls",
+        "sha256": "f109feb52ca1c81a59376c472814d28ce1d4a372e15d3142e265aa5058b11d81"
+      },
+      "DHCDoc.DHCDocCure.CureItemSet.cls": {
+        "source": "CureItemSet.cls",
+        "sha256": "b6eb88e31a13ff143e0eaeeeaade46be2eb64851c1e058603ebf25faefb1971e"
+      },
+      "DHCDoc.DHCDocCure.ExecApply.cls": {
+        "source": "ExecApply.cls",
+        "sha256": "8d0af9e39afc1ae8c59b2a01c7ceb2a353470f77b7a68624f3972be9792eac9c"
+      },
+      "DHCDoc.DHCDocCure.FollowUp.cls": {
+        "source": "FollowUp.cls",
+        "sha256": "311e366d07cc92f0d997033f5b8094f865cd15afe1ed024e59cd7dd01233e102"
+      },
+      "DHCDoc.DHCDocCure.Indicate.cls": {
+        "source": "Indicate.cls",
+        "sha256": "0d80b7a4894a0a65883701a075fa075cecdd98f7da59af30263ebcdd5192f2e4"
+      },
+      "DHCDoc.DHCDocCure.Invoke.cls": {
+        "source": "Invoke.cls",
+        "sha256": "fdf55636b07d4944fa8d8b0c0300cf13721d3f081b26429fe401fa27fc70156a"
+      },
+      "DHCDoc.DHCDocCure.ItemRuleSet.cls": {
+        "source": "ItemRuleSet.cls",
+        "sha256": "caa71d177f093ccd97486e2358e11e10cb73d4dd5f89a435a4254a93e7918514"
+      },
+      "DHCDoc.DHCDocCure.OnlineSupport.cls": {
+        "source": "OnlineSupport.cls",
+        "sha256": "9d003b4a52891e22c7ff89655d4036e1ad10ef9e7f6dd6834768f113d4708412"
+      },
+      "DHCDoc.DHCDocCure.OutInterface.cls": {
+        "source": "OutInterface.cls",
+        "sha256": "0a9d86c04620e727d01cd44fe217de8f7c8c2c7833bef0cc64af861adf277faf"
+      },
+      "DHCDoc.DHCDocCure.RBCResPlan.cls": {
+        "source": "RBCResPlan.cls",
+        "sha256": "45b79a911aee01c7a6204ddaea9660ca1fbee9a096236797dce4f54da12162f7"
+      },
+      "DHCDoc.DHCDocCure.RBCResSchdule.cls": {
+        "source": "RBCResSchdule.cls",
+        "sha256": "fb870037a4a83f395e125f7082030c014d82023b3aebd14c5a0155415feb7113"
+      },
+      "DHCDoc.DHCDocCure.RBCServiceGroupRef.cls": {
+        "source": "RBCServiceGroupRef.cls",
+        "sha256": "8e0feda4823a3e474004d32f73a8f61aca482d64a84bbcaab6757fb94b081b77"
+      },
+      "DHCDoc.DHCDocCure.RBCServiceGroupSet.cls": {
+        "source": "RBCServiceGroupSet.cls",
+        "sha256": "88f81ea89f8b0eb79b1df29cfd7a2d9e619e5ccaa183aa653ac013b4d1a1f02d"
+      },
+      "DHCDoc.DHCDocCure.RBCTimePeriodSet.cls": {
+        "source": "RBCTimePeriodSet.cls",
+        "sha256": "012966f126ee32272c3c4801dbf97a92b8a2fa9da8109164ead6fb62a8428d1f"
+      },
+      "DHCDoc.DHCDocCure.Record.cls": {
+        "source": "Record.cls",
+        "sha256": "8cf8cd9adfbd6a28ee198d9a5ef7679a34853d05c28ecc6cf75e138f7fc78a7d"
+      },
+      "DHCDoc.DHCDocCure.RecordFile.cls": {
+        "source": "RecordFile.cls",
+        "sha256": "527635629d61aac99d42b1fb2325be650a67a756422bd4a65315537018ff4164"
+      },
+      "DHCDoc.DHCDocCure.RecordPatSign.cls": {
+        "source": "RecordPatSign.cls",
+        "sha256": "327007b665282957b44799cf6dc6312aeaa841416c2dc8bf0aa329b2252e8435"
+      },
+      "DHCDoc.DHCDocCure.RecordTrace.cls": {
+        "source": "RecordTrace.cls",
+        "sha256": "5e7186487d8bb16d3be574607209a461a6cc7ac7fe29bf9dabb6e4567497717c"
+      },
+      "DHCDoc.DHCDocCure.ScheduleTR.cls": {
+        "source": "ScheduleTR.cls",
+        "sha256": "4bb9a1abb5a4971f8e24d592b32ce5c877fdbdb7a2883ba0df57b0098e4e29c5"
+      },
+      "DHCDoc.DHCDocCure.Service.cls": {
+        "source": "Service.cls",
+        "sha256": "3208de83fece3111d8b210ef8da0160e77142ae5b2e070a9591e58c911cacce5"
+      },
+      "DHCDoc.DHCDocCure.Triage.cls": {
+        "source": "Triage.cls",
+        "sha256": "349caacb9398d60ec77d6780ade8acebcb0d860e8c2b5a348d010558e9c91c41"
+      },
+      "DHCDoc.DHCDocCure.Util.cls": {
+        "source": "Util.cls",
+        "sha256": "5c5b165af67c8f9503d2ba8e350b511c236638a604efc15a5fbffed7bc5dab2c"
+      },
+      "DHCDoc.DHCDocCure.VersionControl.cls": {
+        "source": "VersionControl.cls",
+        "sha256": "ada37f3b614424c57aea6bbe9e98d9d2a9599962ad43cd9f4cf9df0aa4a7183c"
+      },
+      "DHCDoc.DHCDocCure.WordReport.cls": {
+        "source": "WordReport.cls",
+        "sha256": "113d637ecb5495192838594e7843b05223c604a73b4a23882df7df2a04bc44ca"
+      },
+      "DHCDoc.DHCDocCure.Android.ActionProxy.cls": {
+        "source": "Android/ActionProxy.cls",
+        "sha256": "4ea5caa6c71798ba3a0978c37b28a45378f154bce2c1534af9230d2e52bb215f"
+      },
+      "DHCDoc.DHCDocCure.Android.Adapter.cls": {
+        "source": "Android/Adapter.cls",
+        "sha256": "5c3f59b5dc38b14bcd361ccfdc62a5ee95ddceeaf31b9310a761562662512a06"
+      },
+      "DHCDoc.DHCDocCure.Android.BusinessDic.cls": {
+        "source": "Android/BusinessDic.cls",
+        "sha256": "683cd34f1966243e433651999ca9cb93478bb1d2cce217fadd080c52a53ba0a5"
+      },
+      "DHCDoc.DHCDocCure.Android.CALogin.cls": {
+        "source": "Android/CALogin.cls",
+        "sha256": "4b7000262ce1bf5db40615ab224b4ba3dbf746b8a1065170ce9bef67e697b50e"
+      },
+      "DHCDoc.DHCDocCure.Android.CFBase.cls": {
+        "source": "Android/CFBase.cls",
+        "sha256": "93bf9cd848fb71ab18cb44e5a65a0969b5472214954e4de972105d68f2c245b5"
+      },
+      "DHCDoc.DHCDocCure.Android.Config.cls": {
+        "source": "Android/Config.cls",
+        "sha256": "8493d3f43285b8f86789d4a40c3014aca1c774509515e3e116bc9281d186387c"
+      },
+      "DHCDoc.DHCDocCure.Android.DateUtil.cls": {
+        "source": "Android/DateUtil.cls",
+        "sha256": "bb7ee1fc32d76335c4f73df95709ac79f53cff3614d99e192867aa5b223d68dc"
+      },
+      "DHCDoc.DHCDocCure.Android.Invoke.cls": {
+        "source": "Android/Invoke.cls",
+        "sha256": "790c3a8b6547cf00be764fb22caa09f9d25ab800259c317b05cc06b305747ebd"
+      },
+      "DHCDoc.DHCDocCure.Android.InvokeMR.cls": {
+        "source": "Android/InvokeMR.cls",
+        "sha256": "aa234a0f8504c24364c15fc61979a95b8039c40d8ec0e5dae21a240e2848665a"
+      },
+      "DHCDoc.DHCDocCure.Android.InvokeOE.cls": {
+        "source": "Android/InvokeOE.cls",
+        "sha256": "d3495da065a3593c3661df3d2e0cd26a8f0037f56289853eccaa7920ce1700d6"
+      },
+      "DHCDoc.DHCDocCure.Android.InvokePA.cls": {
+        "source": "Android/InvokePA.cls",
+        "sha256": "214dec735a2668cc0e5300b32f4dcd2c8712f31a3c8d23d5c71f911a042f37b4"
+      },
+      "DHCDoc.DHCDocCure.Android.InvokePAAdm.cls": {
+        "source": "Android/InvokePAAdm.cls",
+        "sha256": "a38e590b9572a19e37ee0e33188d74a782ed7ed8eed871086c551161d57ef753"
+      },
+      "DHCDoc.DHCDocCure.Android.Methods.cls": {
+        "source": "Android/Methods.cls",
+        "sha256": "30dfbde6f40b45136ad6a354d2679831d6a308076c6bb1024fd5548c4a6032f8"
+      },
+      "DHCDoc.DHCDocCure.Entity.Assessment.cls": {
+        "source": "Entity/Assessment.cls",
+        "sha256": "f9655b77d794f732a4477571950e7abc0ae6d077b3bae2ec259309ffd88d26bf"
+      },
+      "DHCDoc.DHCDocCure.Entity.AssScale.cls": {
+        "source": "Entity/AssScale.cls",
+        "sha256": "2f772d3e3d16f3916c9da5e7c8ec7dd1512b8294664b116c317602933f595c72"
+      },
+      "DHCDoc.DHCDocCure.Entity.AssScaleForm.cls": {
+        "source": "Entity/AssScaleForm.cls",
+        "sha256": "6fb31085ec723cfeac1c6945339936ae85475cb16f50e66703bef725621c19be"
+      },
+      "DHCDoc.DHCDocCure.Entity.AssScore.cls": {
+        "source": "Entity/AssScore.cls",
+        "sha256": "3a46dbd0af47d68316c4761df34addbd759c0d3c43ed88336f51aa348926951c"
+      },
+      "DHCDoc.DHCDocCure.Entity.BLTemplate.cls": {
+        "source": "Entity/BLTemplate.cls",
+        "sha256": "2795551c51f4c392f8808addba013eada950f812917f5547ab2e2a67dd3f1533"
+      },
+      "DHCDoc.DHCDocCure.Entity.BLTemplateItem.cls": {
+        "source": "Entity/BLTemplateItem.cls",
+        "sha256": "fab6d65d1fa5d1243c9343d2278db76d3bfb103ecc1942c4b199469da3f4452f"
+      },
+      "DHCDoc.DHCDocCure.Entity.Record.cls": {
+        "source": "Entity/Record.cls",
+        "sha256": "c2e4f95dbf5d7cde91e03eb0bdb4299d7289b7c6993dcb67aa4d14e242f97821"
+      },
+      "DHCDoc.DHCDocCure.Interface.LocalParam.cls": {
+        "source": "Interface/LocalParam.cls",
+        "sha256": "8fd7e0d5b75f6865ae3141af2ca0c75996231970ad5d6b18490d16c5b2bd0648"
+      },
+      "DHCDoc.DHCDocCure.Interface.Public.cls": {
+        "source": "Interface/Public.cls",
+        "sha256": "a3e3ec0159a56de8eb3aeddc74d2564549623d816aca983cb6dc8f88b581b7ed"
+      },
+      "DHCDoc.DHCDocCure.Interface.SelfMethods.cls": {
+        "source": "Interface/SelfMethods.cls",
+        "sha256": "3a045ed4097c548d3d4696104fdcfe2b2a9f12307b9e91cddef2725ca2d3de6c"
+      },
+      "DHCDoc.DHCDocCure.Interface.UtilMethods.cls": {
+        "source": "Interface/UtilMethods.cls",
+        "sha256": "44f3953616b8d9d58161e2bc874d4aaf80abd69738f408d4bae879a237d4fc8a"
+      },
+      "DHCDoc.DHCDocCure.Interface.InSide.Record.cls": {
+        "source": "Interface/InSide/Record.cls",
+        "sha256": "619c5014dd66cb3088349b04f570895c203d65dc7bd5c0edb49cb1d120984684"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.SelfAppService.cls": {
+        "source": "Interface/OutSide/SelfAppService.cls",
+        "sha256": "3a8e67a05bb029bfd5791ff80adb2e449d709c5944ea8ea3a134a210169986a9"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppCancleRp.cls": {
+        "source": "Interface/OutSide/Entity/CureAppCancleRp.cls",
+        "sha256": "a45c430d67a0604039db5bf9a694dace1c9de0b7984c2965b4aac1f853aaebbc"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppCancleRq.cls": {
+        "source": "Interface/OutSide/Entity/CureAppCancleRq.cls",
+        "sha256": "47bc5b63b67358af6f71ab5aa0e15ca7c6723efe94cf1807da155182d30c3989"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppointRp.cls": {
+        "source": "Interface/OutSide/Entity/CureAppointRp.cls",
+        "sha256": "c3f8c3fd3586f2b01eed77c65348e67b05d8cc391c7c97dd5ff1a54e5add6255"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppointRq.cls": {
+        "source": "Interface/OutSide/Entity/CureAppointRq.cls",
+        "sha256": "de6f6c85cc98e8783685000be6391a0b88aa5190fd75646190bf958d84a77f4e"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppReportRp.cls": {
+        "source": "Interface/OutSide/Entity/CureAppReportRp.cls",
+        "sha256": "f651b9b6381a10fedb18887b3f588d897533030a0dd54c7ee5815836fbcba52f"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureListRp.cls": {
+        "source": "Interface/OutSide/Entity/CureListRp.cls",
+        "sha256": "5519b8ce05a4aac90c801b8773c4d644d5ef683d9c489661bcf50fafce97eb22"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureAppListRp.cls": {
+        "source": "Interface/OutSide/Entity/GetCureAppListRp.cls",
+        "sha256": "55d6aaaef07a5ce409467c50f3720ba3ef59d9d4ad1df964db2ca26add15bb0f"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureAppListRq.cls": {
+        "source": "Interface/OutSide/Entity/GetCureAppListRq.cls",
+        "sha256": "51eb80b9be2bfafdbde639cc687a2bdb4eb9307df187b78f65ab388a8a2bc0fe"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureScheduleListRp.cls": {
+        "source": "Interface/OutSide/Entity/GetCureScheduleListRp.cls",
+        "sha256": "0b8aa58fa6b9098a10b3473db2c7b62787ae74d3c6e6b982069b33a900323ced"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureScheduleListRq.cls": {
+        "source": "Interface/OutSide/Entity/GetCureScheduleListRq.cls",
+        "sha256": "97e87380eb5c4436f6f688d4a9d1089a83b21551705bc71db2086fdcf9a5d765"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureScheduleTRListRp.cls": {
+        "source": "Interface/OutSide/Entity/GetCureScheduleTRListRp.cls",
+        "sha256": "07f0af8f962605b9f1a094933861e75b2e19a148de50854b219d10a568547e04"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureScheduleTRListRq.cls": {
+        "source": "Interface/OutSide/Entity/GetCureScheduleTRListRq.cls",
+        "sha256": "f71950c66f7a30974db08cb45ae54c8af55866f9c680dea732cec39cb5ff726b"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetPatCureListRp.cls": {
+        "source": "Interface/OutSide/Entity/GetPatCureListRp.cls",
+        "sha256": "ae94919dec204418d0b02638617f035d05c4fdb166cce42963be7a8536a0f248"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetPatCureListRq.cls": {
+        "source": "Interface/OutSide/Entity/GetPatCureListRq.cls",
+        "sha256": "0ec2186cea0c75a925a89623921a824e4e32c6f514ec266c4e570f5b9734cdde"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetPatInfoRp.cls": {
+        "source": "Interface/OutSide/Entity/GetPatInfoRp.cls",
+        "sha256": "4bf8228c2efa6889a1e9cd7bec97045634d6023d141cf863a64a109924d8dc11"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetPatInfoRq.cls": {
+        "source": "Interface/OutSide/Entity/GetPatInfoRq.cls",
+        "sha256": "ef343faafd4b904980724fe85ede8c766a4f2caa67672f11e60f55dc3454c127"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.SaveFollowUpRp.cls": {
+        "source": "Interface/OutSide/Entity/SaveFollowUpRp.cls",
+        "sha256": "27ea5e6d6578ad3eda1c435c0c773141290030141203a504ed7fb6d4547413ad"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.SaveFollowUpRq.cls": {
+        "source": "Interface/OutSide/Entity/SaveFollowUpRq.cls",
+        "sha256": "61ec3e8ed9ebaafeb969bd1c80a63fc2e08ddfe51cf5692cd384de1ce49c17be"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureAppInfo.cls": {
+        "source": "Interface/OutSide/Entity/List/CureAppInfo.cls",
+        "sha256": "e04bd76fdc9359e02189806fd06f953e349f508bede62d1678473403299a9e94"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureAppointInfo.cls": {
+        "source": "Interface/OutSide/Entity/List/CureAppointInfo.cls",
+        "sha256": "b6a0c93579d36f39b6a28498898c5fd788229876c7a465f3b2b2db231e1ae940"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureGroupInfo.cls": {
+        "source": "Interface/OutSide/Entity/List/CureGroupInfo.cls",
+        "sha256": "2ba4e9c20a57147aefe51ad21aa7c9baae5aef8178f22d4e4e7e53c2ffc77e99"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureInfo.cls": {
+        "source": "Interface/OutSide/Entity/List/CureInfo.cls",
+        "sha256": "15649fc3ceadabae40d4a5424c0239fff8c372e7fcdd460a5a2ea9003fb1f68d"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureScheduleInfo.cls": {
+        "source": "Interface/OutSide/Entity/List/CureScheduleInfo.cls",
+        "sha256": "7d4742f77e664e9ccf39101e82130f969bd97dda5ed8707baa775fbb3fd67afa"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureScheduleTRInfo.cls": {
+        "source": "Interface/OutSide/Entity/List/CureScheduleTRInfo.cls",
+        "sha256": "eb268193b437a5afa711a05038f286b68b59d47876383b385f8a4fece0be298a"
+      },
+      "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.PatInfo.cls": {
+        "source": "Interface/OutSide/Entity/List/PatInfo.cls",
+        "sha256": "54fd0bdf4fbf44eaa93928682f5ebcb160d43fddfaeac603064ac0fa3ed3e980"
+      },
+      "DHCDoc.DHCDocCure.Android.COM.Super.cls": {
+        "source": "Android/COM/Super.cls",
+        "sha256": "0c5945013446cc6b334ea3c3872eea8b7ce859d1b00c6bdabe30ad7260bfc7fd"
+      },
+      "DHCDoc.DHCDocCure.Android.COM.Version.cls": {
+        "source": "Android/COM/Version.cls",
+        "sha256": "d5f841e3cbda453938c3f407c942a98e224982821388bd8c28c95e3fc3a1d50b"
+      },
+      "DHCDoc.DHCDocCure.Android.Soap.WebService.cls": {
+        "source": "Android/Soap/WebService.cls",
+        "sha256": "549e0633ba13db7ad7e603b388a94900802489043f29332602b02c29ac86fa7f"
+      },
+      "DHCDoc.DHCDocCure.Android.V9.Adapter.cls": {
+        "source": "Android/V9/Adapter.cls",
+        "sha256": "3a20026e176a718260301bc22618dac112e01e4624c8d53582f6c996b85ad88d"
+      },
+      "DHCDoc.DHCDocCure.Android.V9.BusinessDic.cls": {
+        "source": "Android/V9/BusinessDic.cls",
+        "sha256": "3e42ebb06ace73255f3b1ffca2823d1d94b2707ed5eef439af7ed8c85520182e"
+      },
+      "DHCDoc.DHCDocCure.Android.V9.CFBase.cls": {
+        "source": "Android/V9/CFBase.cls",
+        "sha256": "70067611cba7628642b72a79d8462d623470d30d50760f9378a41b6a47580da9"
+      },
+      "DHCDoc.DHCDocCure.Android.V9.Invoke.cls": {
+        "source": "Android/V9/Invoke.cls",
+        "sha256": "df79a32378e01a2ab6396b86694f40f97582358398b68357e2528c63b92687f3"
+      },
+      "DHCDoc.DHCDocCure.Android.V9.InvokeMR.cls": {
+        "source": "Android/V9/InvokeMR.cls",
+        "sha256": "78d34e5c0aa77805f025c897ad09b82a95587a98a9f91717a0191188db977be7"
+      },
+      "DHCDoc.DHCDocCure.Android.V9.InvokeOE.cls": {
+        "source": "Android/V9/InvokeOE.cls",
+        "sha256": "2cf629351547208d3e65fa91a09dfc78b2ef7becb711c0b1f0c608bf69e01336"
+      },
+      "DHCDoc.DHCDocCure.Android.V9.InvokePA.cls": {
+        "source": "Android/V9/InvokePA.cls",
+        "sha256": "c649da19099bc886c097277d975164373125e9cd6bb9e5a43a22a934dc5fac2b"
+      },
+      "DHCDoc.DHCDocCure.Android.V9.InvokePAAdm.cls": {
+        "source": "Android/V9/InvokePAAdm.cls",
+        "sha256": "2a84ab5031c7c5bc0d004224316e131b4d4d72b4191c3ad99e07e36c7e652e8e"
+      },
+      "DHCDoc.DHCDocCure.Android.V9.Methods.cls": {
+        "source": "Android/V9/Methods.cls",
+        "sha256": "8d28c72b55f5798fa49f47cfe22dd19ce96cf88e0c2accd83c7f72facabc8b6c"
+      },
+      "DHCDoc.DHCDocCure.Android.V9.PAInvoke.cls": {
+        "source": "Android/V9/PAInvoke.cls",
+        "sha256": "590a3215039a9b24f9feba28c67fa937901503933a2c7723972fb96ebf245b31"
+      },
+      "DHCDoc.DHCDocCure.Android.Soap.WebService.HISApi.cls": {
+        "source": "Android/Soap/WebService/HISApi.cls",
+        "sha256": "2b04de0542e795a8dcd65bae403a20036524f6385032fc12a81bfbb7f7954599"
+      }
+    }
+  },
+  "reports": [
+    {
+      "version": "v8.3",
+      "sourceGroup": "legacy",
+      "before": 910,
+      "after": 929,
+      "added": [
+        "DHCDoc.DHCDocCure.Android.ActionProxy.cls",
+        "DHCDoc.DHCDocCure.Android.Adapter.cls",
+        "DHCDoc.DHCDocCure.Android.BusinessDic.cls",
+        "DHCDoc.DHCDocCure.Android.COM.Super.cls",
+        "DHCDoc.DHCDocCure.Android.Config.cls",
+        "DHCDoc.DHCDocCure.Android.InternalInvoke.cls",
+        "DHCDoc.DHCDocCure.Android.Methods.cls",
+        "DHCDoc.DHCDocCure.Android.Public.cls",
+        "DHCDoc.DHCDocCure.Android.PublicOrd.cls",
+        "DHCDoc.DHCDocCure.Android.Service.CureInterface.cls",
+        "DHCDoc.DHCDocCure.Android.Util.cls",
+        "DHCDoc.DHCDocCure.Appointment.cls",
+        "DHCDoc.DHCDocCure.Assessment.cls",
+        "DHCDoc.DHCDocCure.CureItemSet.cls",
+        "DHCDoc.DHCDocCure.RBCResSchdule.cls",
+        "DHCDoc.DHCDocCure.Record.cls",
+        "DHCDoc.Util.ArrayData.cls",
+        "DHCDoc.Util.ListData.cls",
+        "DHCDoc.Util.RegisteredObject.cls"
+      ],
+      "beforeSha256": "42973a57db8bb0c782564697cfa115a40a4f7dc9d9847c0a5a2fe7fe96e058a5"
+    },
+    {
+      "version": "v8.4",
+      "sourceGroup": "legacy",
+      "before": 2850,
+      "after": 2864,
+      "added": [
+        "DHCDoc.DHCDocCure.Android.ActionProxy.cls",
+        "DHCDoc.DHCDocCure.Android.Adapter.cls",
+        "DHCDoc.DHCDocCure.Android.BusinessDic.cls",
+        "DHCDoc.DHCDocCure.Android.COM.Super.cls",
+        "DHCDoc.DHCDocCure.Android.Config.cls",
+        "DHCDoc.DHCDocCure.Android.InternalInvoke.cls",
+        "DHCDoc.DHCDocCure.Android.Methods.cls",
+        "DHCDoc.DHCDocCure.Android.Public.cls",
+        "DHCDoc.DHCDocCure.Android.PublicOrd.cls",
+        "DHCDoc.DHCDocCure.Android.Service.CureInterface.cls",
+        "DHCDoc.DHCDocCure.Android.Util.cls",
+        "DHCDoc.Util.ArrayData.cls",
+        "DHCDoc.Util.ListData.cls",
+        "DHCDoc.Util.RegisteredObject.cls"
+      ],
+      "beforeSha256": "ed6b67e75c8f85aff319f13187877d4af29d12d0471558d3393fc6b45be769f3"
+    },
+    {
+      "version": "v8.5",
+      "sourceGroup": "legacy",
+      "before": 3141,
+      "after": 3152,
+      "added": [
+        "DHCDoc.DHCDocCure.Android.ActionProxy.cls",
+        "DHCDoc.DHCDocCure.Android.Adapter.cls",
+        "DHCDoc.DHCDocCure.Android.BusinessDic.cls",
+        "DHCDoc.DHCDocCure.Android.COM.Super.cls",
+        "DHCDoc.DHCDocCure.Android.Config.cls",
+        "DHCDoc.DHCDocCure.Android.InternalInvoke.cls",
+        "DHCDoc.DHCDocCure.Android.Methods.cls",
+        "DHCDoc.DHCDocCure.Android.Public.cls",
+        "DHCDoc.DHCDocCure.Android.PublicOrd.cls",
+        "DHCDoc.DHCDocCure.Android.Service.CureInterface.cls",
+        "DHCDoc.DHCDocCure.Android.Util.cls"
+      ],
+      "beforeSha256": "14e2949f229b5b6918e46da10874a7f704ac9bd124048d74378245ac50aebe9f"
+    },
+    {
+      "version": "v9.0.2",
+      "sourceGroup": "standard",
+      "before": 3705,
+      "after": 3791,
+      "added": [
+        "DHCDoc.DHCDocCure.AIChat.cls",
+        "DHCDoc.DHCDocCure.Alloc.cls",
+        "DHCDoc.DHCDocCure.Android.ActionProxy.cls",
+        "DHCDoc.DHCDocCure.Android.Adapter.cls",
+        "DHCDoc.DHCDocCure.Android.BusinessDic.cls",
+        "DHCDoc.DHCDocCure.Android.CALogin.cls",
+        "DHCDoc.DHCDocCure.Android.CFBase.cls",
+        "DHCDoc.DHCDocCure.Android.COM.Super.cls",
+        "DHCDoc.DHCDocCure.Android.COM.Version.cls",
+        "DHCDoc.DHCDocCure.Android.Config.cls",
+        "DHCDoc.DHCDocCure.Android.DateUtil.cls",
+        "DHCDoc.DHCDocCure.Android.Invoke.cls",
+        "DHCDoc.DHCDocCure.Android.InvokeMR.cls",
+        "DHCDoc.DHCDocCure.Android.InvokeOE.cls",
+        "DHCDoc.DHCDocCure.Android.InvokePA.cls",
+        "DHCDoc.DHCDocCure.Android.InvokePAAdm.cls",
+        "DHCDoc.DHCDocCure.Android.Methods.cls",
+        "DHCDoc.DHCDocCure.Android.Soap.WebService.HISApi.cls",
+        "DHCDoc.DHCDocCure.Android.Soap.WebService.cls",
+        "DHCDoc.DHCDocCure.Android.V9.Adapter.cls",
+        "DHCDoc.DHCDocCure.Android.V9.BusinessDic.cls",
+        "DHCDoc.DHCDocCure.Android.V9.CFBase.cls",
+        "DHCDoc.DHCDocCure.Android.V9.Invoke.cls",
+        "DHCDoc.DHCDocCure.Android.V9.InvokeMR.cls",
+        "DHCDoc.DHCDocCure.Android.V9.InvokeOE.cls",
+        "DHCDoc.DHCDocCure.Android.V9.InvokePA.cls",
+        "DHCDoc.DHCDocCure.Android.V9.InvokePAAdm.cls",
+        "DHCDoc.DHCDocCure.Android.V9.Methods.cls",
+        "DHCDoc.DHCDocCure.Android.V9.PAInvoke.cls",
+        "DHCDoc.DHCDocCure.AppointmentV2.cls",
+        "DHCDoc.DHCDocCure.AssScale.cls",
+        "DHCDoc.DHCDocCure.AssScaleConfig.cls",
+        "DHCDoc.DHCDocCure.AssessRefAss.cls",
+        "DHCDoc.DHCDocCure.BodySet.cls",
+        "DHCDoc.DHCDocCure.Constant.cls",
+        "DHCDoc.DHCDocCure.CureCall.cls",
+        "DHCDoc.DHCDocCure.Entity.AssScale.cls",
+        "DHCDoc.DHCDocCure.Entity.AssScaleForm.cls",
+        "DHCDoc.DHCDocCure.Entity.AssScore.cls",
+        "DHCDoc.DHCDocCure.Entity.Assessment.cls",
+        "DHCDoc.DHCDocCure.Entity.BLTemplate.cls",
+        "DHCDoc.DHCDocCure.Entity.BLTemplateItem.cls",
+        "DHCDoc.DHCDocCure.Entity.Record.cls",
+        "DHCDoc.DHCDocCure.FollowUp.cls",
+        "DHCDoc.DHCDocCure.Indicate.cls",
+        "DHCDoc.DHCDocCure.Interface.InSide.Record.cls",
+        "DHCDoc.DHCDocCure.Interface.LocalParam.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppCancleRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppCancleRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppReportRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppointRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppointRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureListRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureAppListRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureAppListRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureScheduleListRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureScheduleListRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureScheduleTRListRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureScheduleTRListRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetPatCureListRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetPatCureListRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetPatInfoRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetPatInfoRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureAppInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureAppointInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureGroupInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureScheduleInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureScheduleTRInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.PatInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.SaveFollowUpRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.SaveFollowUpRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.SelfAppService.cls",
+        "DHCDoc.DHCDocCure.Interface.Public.cls",
+        "DHCDoc.DHCDocCure.Interface.SelfMethods.cls",
+        "DHCDoc.DHCDocCure.Interface.UtilMethods.cls",
+        "DHCDoc.DHCDocCure.Invoke.cls",
+        "DHCDoc.DHCDocCure.ItemRuleSet.cls",
+        "DHCDoc.DHCDocCure.OnlineSupport.cls",
+        "DHCDoc.DHCDocCure.RBCServiceGroupRef.cls",
+        "DHCDoc.DHCDocCure.RecordFile.cls",
+        "DHCDoc.DHCDocCure.RecordPatSign.cls",
+        "DHCDoc.DHCDocCure.RecordTrace.cls",
+        "DHCDoc.DHCDocCure.ScheduleTR.cls",
+        "DHCDoc.DHCDocCure.Service.cls",
+        "DHCDoc.DHCDocCure.VersionControl.cls"
+      ],
+      "beforeSha256": "68b90902100cdd41f63f8dcc58703208298dc33100a6bf9efba8e36de584f715"
+    },
+    {
+      "version": "v9.0",
+      "sourceGroup": "standard",
+      "before": 3426,
+      "after": 3512,
+      "added": [
+        "DHCDoc.DHCDocCure.AIChat.cls",
+        "DHCDoc.DHCDocCure.Alloc.cls",
+        "DHCDoc.DHCDocCure.Android.ActionProxy.cls",
+        "DHCDoc.DHCDocCure.Android.Adapter.cls",
+        "DHCDoc.DHCDocCure.Android.BusinessDic.cls",
+        "DHCDoc.DHCDocCure.Android.CALogin.cls",
+        "DHCDoc.DHCDocCure.Android.CFBase.cls",
+        "DHCDoc.DHCDocCure.Android.COM.Super.cls",
+        "DHCDoc.DHCDocCure.Android.COM.Version.cls",
+        "DHCDoc.DHCDocCure.Android.Config.cls",
+        "DHCDoc.DHCDocCure.Android.DateUtil.cls",
+        "DHCDoc.DHCDocCure.Android.Invoke.cls",
+        "DHCDoc.DHCDocCure.Android.InvokeMR.cls",
+        "DHCDoc.DHCDocCure.Android.InvokeOE.cls",
+        "DHCDoc.DHCDocCure.Android.InvokePA.cls",
+        "DHCDoc.DHCDocCure.Android.InvokePAAdm.cls",
+        "DHCDoc.DHCDocCure.Android.Methods.cls",
+        "DHCDoc.DHCDocCure.Android.Soap.WebService.HISApi.cls",
+        "DHCDoc.DHCDocCure.Android.Soap.WebService.cls",
+        "DHCDoc.DHCDocCure.Android.V9.Adapter.cls",
+        "DHCDoc.DHCDocCure.Android.V9.BusinessDic.cls",
+        "DHCDoc.DHCDocCure.Android.V9.CFBase.cls",
+        "DHCDoc.DHCDocCure.Android.V9.Invoke.cls",
+        "DHCDoc.DHCDocCure.Android.V9.InvokeMR.cls",
+        "DHCDoc.DHCDocCure.Android.V9.InvokeOE.cls",
+        "DHCDoc.DHCDocCure.Android.V9.InvokePA.cls",
+        "DHCDoc.DHCDocCure.Android.V9.InvokePAAdm.cls",
+        "DHCDoc.DHCDocCure.Android.V9.Methods.cls",
+        "DHCDoc.DHCDocCure.Android.V9.PAInvoke.cls",
+        "DHCDoc.DHCDocCure.AppointmentV2.cls",
+        "DHCDoc.DHCDocCure.AssScale.cls",
+        "DHCDoc.DHCDocCure.AssScaleConfig.cls",
+        "DHCDoc.DHCDocCure.AssessRefAss.cls",
+        "DHCDoc.DHCDocCure.BodySet.cls",
+        "DHCDoc.DHCDocCure.Constant.cls",
+        "DHCDoc.DHCDocCure.CureCall.cls",
+        "DHCDoc.DHCDocCure.Entity.AssScale.cls",
+        "DHCDoc.DHCDocCure.Entity.AssScaleForm.cls",
+        "DHCDoc.DHCDocCure.Entity.AssScore.cls",
+        "DHCDoc.DHCDocCure.Entity.Assessment.cls",
+        "DHCDoc.DHCDocCure.Entity.BLTemplate.cls",
+        "DHCDoc.DHCDocCure.Entity.BLTemplateItem.cls",
+        "DHCDoc.DHCDocCure.Entity.Record.cls",
+        "DHCDoc.DHCDocCure.FollowUp.cls",
+        "DHCDoc.DHCDocCure.Indicate.cls",
+        "DHCDoc.DHCDocCure.Interface.InSide.Record.cls",
+        "DHCDoc.DHCDocCure.Interface.LocalParam.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppCancleRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppCancleRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppReportRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppointRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppointRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureListRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureAppListRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureAppListRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureScheduleListRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureScheduleListRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureScheduleTRListRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureScheduleTRListRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetPatCureListRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetPatCureListRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetPatInfoRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetPatInfoRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureAppInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureAppointInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureGroupInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureScheduleInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureScheduleTRInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.PatInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.SaveFollowUpRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.SaveFollowUpRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.SelfAppService.cls",
+        "DHCDoc.DHCDocCure.Interface.Public.cls",
+        "DHCDoc.DHCDocCure.Interface.SelfMethods.cls",
+        "DHCDoc.DHCDocCure.Interface.UtilMethods.cls",
+        "DHCDoc.DHCDocCure.Invoke.cls",
+        "DHCDoc.DHCDocCure.ItemRuleSet.cls",
+        "DHCDoc.DHCDocCure.OnlineSupport.cls",
+        "DHCDoc.DHCDocCure.RBCServiceGroupRef.cls",
+        "DHCDoc.DHCDocCure.RecordFile.cls",
+        "DHCDoc.DHCDocCure.RecordPatSign.cls",
+        "DHCDoc.DHCDocCure.RecordTrace.cls",
+        "DHCDoc.DHCDocCure.ScheduleTR.cls",
+        "DHCDoc.DHCDocCure.Service.cls",
+        "DHCDoc.DHCDocCure.VersionControl.cls"
+      ],
+      "beforeSha256": "145be9b745b15c5293b55e6c74e7935929f3f2c042f6c36a01a8f394053db088"
+    },
+    {
+      "version": "v9.1",
+      "sourceGroup": "standard",
+      "before": 4796,
+      "after": 4880,
+      "added": [
+        "DHCDoc.DHCDocCure.AIChat.cls",
+        "DHCDoc.DHCDocCure.Alloc.cls",
+        "DHCDoc.DHCDocCure.Android.ActionProxy.cls",
+        "DHCDoc.DHCDocCure.Android.Adapter.cls",
+        "DHCDoc.DHCDocCure.Android.BusinessDic.cls",
+        "DHCDoc.DHCDocCure.Android.CALogin.cls",
+        "DHCDoc.DHCDocCure.Android.CFBase.cls",
+        "DHCDoc.DHCDocCure.Android.COM.Super.cls",
+        "DHCDoc.DHCDocCure.Android.COM.Version.cls",
+        "DHCDoc.DHCDocCure.Android.Config.cls",
+        "DHCDoc.DHCDocCure.Android.DateUtil.cls",
+        "DHCDoc.DHCDocCure.Android.Invoke.cls",
+        "DHCDoc.DHCDocCure.Android.InvokeMR.cls",
+        "DHCDoc.DHCDocCure.Android.InvokeOE.cls",
+        "DHCDoc.DHCDocCure.Android.InvokePA.cls",
+        "DHCDoc.DHCDocCure.Android.InvokePAAdm.cls",
+        "DHCDoc.DHCDocCure.Android.Methods.cls",
+        "DHCDoc.DHCDocCure.Android.Soap.WebService.HISApi.cls",
+        "DHCDoc.DHCDocCure.Android.Soap.WebService.cls",
+        "DHCDoc.DHCDocCure.Android.V9.Adapter.cls",
+        "DHCDoc.DHCDocCure.Android.V9.BusinessDic.cls",
+        "DHCDoc.DHCDocCure.Android.V9.CFBase.cls",
+        "DHCDoc.DHCDocCure.Android.V9.Invoke.cls",
+        "DHCDoc.DHCDocCure.Android.V9.InvokeMR.cls",
+        "DHCDoc.DHCDocCure.Android.V9.InvokeOE.cls",
+        "DHCDoc.DHCDocCure.Android.V9.InvokePA.cls",
+        "DHCDoc.DHCDocCure.Android.V9.InvokePAAdm.cls",
+        "DHCDoc.DHCDocCure.Android.V9.Methods.cls",
+        "DHCDoc.DHCDocCure.Android.V9.PAInvoke.cls",
+        "DHCDoc.DHCDocCure.AppointmentV2.cls",
+        "DHCDoc.DHCDocCure.AssScale.cls",
+        "DHCDoc.DHCDocCure.AssScaleConfig.cls",
+        "DHCDoc.DHCDocCure.AssessRefAss.cls",
+        "DHCDoc.DHCDocCure.BodySet.cls",
+        "DHCDoc.DHCDocCure.Constant.cls",
+        "DHCDoc.DHCDocCure.CureCall.cls",
+        "DHCDoc.DHCDocCure.Entity.AssScale.cls",
+        "DHCDoc.DHCDocCure.Entity.AssScaleForm.cls",
+        "DHCDoc.DHCDocCure.Entity.AssScore.cls",
+        "DHCDoc.DHCDocCure.Entity.Assessment.cls",
+        "DHCDoc.DHCDocCure.Entity.Record.cls",
+        "DHCDoc.DHCDocCure.FollowUp.cls",
+        "DHCDoc.DHCDocCure.Indicate.cls",
+        "DHCDoc.DHCDocCure.Interface.InSide.Record.cls",
+        "DHCDoc.DHCDocCure.Interface.LocalParam.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppCancleRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppCancleRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppReportRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppointRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureAppointRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.CureListRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureAppListRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureAppListRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureScheduleListRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureScheduleListRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureScheduleTRListRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetCureScheduleTRListRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetPatCureListRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetPatCureListRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetPatInfoRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.GetPatInfoRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureAppInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureAppointInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureGroupInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureScheduleInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.CureScheduleTRInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.List.PatInfo.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.SaveFollowUpRp.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.Entity.SaveFollowUpRq.cls",
+        "DHCDoc.DHCDocCure.Interface.OutSide.SelfAppService.cls",
+        "DHCDoc.DHCDocCure.Interface.Public.cls",
+        "DHCDoc.DHCDocCure.Interface.SelfMethods.cls",
+        "DHCDoc.DHCDocCure.Interface.UtilMethods.cls",
+        "DHCDoc.DHCDocCure.Invoke.cls",
+        "DHCDoc.DHCDocCure.ItemRuleSet.cls",
+        "DHCDoc.DHCDocCure.OnlineSupport.cls",
+        "DHCDoc.DHCDocCure.RBCServiceGroupRef.cls",
+        "DHCDoc.DHCDocCure.RecordFile.cls",
+        "DHCDoc.DHCDocCure.RecordPatSign.cls",
+        "DHCDoc.DHCDocCure.RecordTrace.cls",
+        "DHCDoc.DHCDocCure.ScheduleTR.cls",
+        "DHCDoc.DHCDocCure.Service.cls",
+        "DHCDoc.DHCDocCure.VersionControl.cls"
+      ],
+      "beforeSha256": "3f0c66b96a83d31c0a646a9a28edc8fb941b7492ea6c27bda0c8831dda6cd6cb"
+    },
+    {
+      "version": "v9.2",
+      "sourceGroup": "standard",
+      "before": 5352,
+      "after": 5353,
+      "added": [
+        "DHCDoc.DHCDocCure.Android.CALogin.cls"
+      ],
+      "beforeSha256": "a45ff1a8d8b29fff0c84433d97b363bed76f4b3dafbcd17822fa222ebcda32dd"
+    }
+  ]
+}
