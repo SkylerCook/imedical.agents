@@ -2,7 +2,7 @@
 
 HIS 医生站代码调用图分析框架，拆分为三个 skill：
 
-- `imedicalxc-doctor-codegraph-gen` — 后端索引构建与增量更新（七步流水线）
+- `imedicalxc-doctor-codegraph-gen` — 后端索引构建与增量更新（流水线）
 - `imedicalxc-doctor-codegraph-search` — 调用关系检索与变更影响分析
 - `imedicalxc-doctor-codegraph-front-gen` — 前端「界面 → 操作 → JS 方法 → HTTP 请求」链路构建（五步流水线）
 
@@ -35,6 +35,7 @@ HIS 医生站代码调用图分析框架，拆分为三个 skill：
 | `merge_call_graphs.py` | Step 4: 合并工作区 + Maven 数据 |
 | `scan_controller_endpoints.py` | Step 5: 解析 Controller 映射注解，生成 URL ↔ 方法索引（`--check` 校验） |
 | `build_type_nesting.py` | Step 5b: 扫描 DTO/VO/PO 实例字段，生成「字段类型 → 外层类型」反向索引 `type_nesting.json`（契约类型按字段嵌套向上展开） |
+| `build_type_usage.py` | Step 5c: 扫描方法图节点签名，生成「类型 → 使用该类型作入参的方法」反向索引 `type_usage.json`（契约类型反查 BLH/Service 参数） |
 | `build_impact_db.py` | Step 6: 生成影响分析索引（Controller 节点附 `endpoints`） |
 | `build_penetration_db.py` | Step 7: 生成两部分穿透数据库与入站 Feign GraphML |
 | `export_full_graphml.py` | 可选：工作区 + Maven 合并全量 GraphML（仅供布局参考） |
@@ -75,6 +76,7 @@ HIS 医生站代码调用图分析框架，拆分为三个 skill：
 | `merged_call_graph.jsonl` | 合并后调用图 | ~29MB |
 | `controller_endpoints.json` | **URL ↔ 后端方法索引**（由 Controller 类级/方法级映射注解解析） | ~5.5MB |
 | `type_nesting.json` | **字段类型 → 外层类型反向索引**（DTO/VO 字段组合，供契约类型向上展开） | ~2.7MB |
+| `type_usage.json` | **类型 → 方法签名入参使用索引**（键与方法图节点 ID 同形，供契约类型反查 BLH/Service 参数） | ~1.4MB |
 | `impact_db.json` | 影响分析索引（基础查询数据源，Controller 节点带 `endpoints`） | ~51MB |
 | `penetration_db.json` | **两部分穿透数据库（穿透查询数据源）** | ~41MB |
 | `inbound_feign_penetration.graphml` | 图 2：Maven 调用方 → 本工作区 Feign | ~260KB |
@@ -104,9 +106,9 @@ HIS 医生站代码调用图分析框架，拆分为三个 skill：
 
 直接运行流水线：
 ```bash
-# 后端七步
+# 后端流水线
 cd .agents/plugins/imedicalxc-doctor-codegraph/scripts
-python feign_scanner.py && python build_method_graph.py && python build_maven_biz_graph.py && python merge_call_graphs.py && python scan_controller_endpoints.py && python build_type_nesting.py && python build_impact_db.py && python build_penetration_db.py
+python feign_scanner.py && python build_method_graph.py && python build_maven_biz_graph.py && python merge_call_graphs.py && python scan_controller_endpoints.py && python build_type_nesting.py && python build_type_usage.py && python build_impact_db.py && python build_penetration_db.py
 
 # 前端五步（菜单快照与配置注入可选，凭据走环境变量或 MCP）
 cd front

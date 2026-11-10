@@ -11,7 +11,8 @@
   3. 契约补充: 对仅命中 DTO/VO/PO 的提交，先按 feign_interfaces.json 方法签名
      产出 typeFeignMatches，再按 controller_endpoints.json 的 Controller 方法签名
      反查（返回类型/入参）合成 Controller 入口，弥补方法图无入口的问题；
-     签名里没直接出现的类型再按 type_nesting.json 反向展开字段嵌套（≤4 层）
+     签名里没直接出现的类型再按 type_nesting.json 反向展开字段嵌套（≤4 层）；
+     类型只当 BLH/Service 方法入参时，按 type_usage.json 取 seed 反向追 Controller
   4. 聚合: 按提交去重合并入口 / 本组调用方 / 外部调用方，同一证据保留 via 来源方法
 
 证据边界（写入输出 meta.boundaries，供报告如实标注）:
@@ -25,7 +26,7 @@ import json
 import re
 import subprocess
 import sys
-from collections import defaultdict
+from collections import defaultdict, deque
 from datetime import datetime
 from pathlib import Path
 
@@ -166,7 +167,7 @@ CONTROL_WORDS = {
     "if", "for", "while", "switch", "catch", "return", "new", "else", "do",
     "try", "throw", "assert", "case", "super", "this", "synchronized",
 }
-SIG_RE = re.compile(r"([A-Za-z_$][\w$]*)\s*\(([^()]*)\)\s*(?:throws\s+[\w.,\s<>\[\]]+)?$")
+SIG_RE = re.compile(r"([A-Za-z_$][\w$]*)\s*\(((?:[^()]|\([^()]*\))*)\)\s*(?:throws\s+[\w.,\s<>\[\]]+)?$")
 CLASS_RE = re.compile(
     r"(?:public\s+|protected\s+|private\s+|static\s+|final\s+|abstract\s+|sealed\s+|non-sealed\s+)*"
     r"(class|interface|enum|record|@interface)\s+(\w+)"
@@ -257,6 +258,22 @@ def intersect_methods(methods, lines):
         if cnt:
             hits.append({**m, "changedLines": cnt})
     return hits
+
+
+def parse_mapper_xml(content):
+    """返回 (namespace, statement 区间)；statement id 与 Mapper 接口方法同名"""
+    ns = re.search(r'<mapper\b[^>]*\bnamespace="([\w.]+)"', content)
+    statements = []
+    for m in re.finditer(r'<(select|insert|update|delete)\b[^>]*\bid="([\w$]+)"[^>]*>', content):
+        close = re.search(rf'</{m.group(1)}\s*>', content[m.end():])
+        end_pos = m.end() + close.end() if close else m.end()
+        statements.append({
+            "name": m.group(2),
+            "start": content.count("\n", 0, m.start()) + 1,
+            "end": content.count("\n", 0, end_pos) + 1,
+            "signature_only": False,
+        })
+    return (ns.group(1) if ns else ""), statements
 
 
 # ────────────────────────────────────────────────────────────────
@@ -418,8 +435,8 @@ def load_type_nesting():
     return data.get("edges") or {}
 
 
-def expand_type_fqns(type_files, repo_abs, nesting):
-    """变更类型 → {外层全限定名: {root, file, chain}}，最多 MAX_NESTING_DEPTH 层。
+def expand_type_fqns(type_files, repo_abs, nesting, max_depth=MAX_NESTING_DEPTH):
+    """变更类型 → {外层全限定名: {root, file, chain}}，最多 max_depth 层。
 
     只沿字段嵌套向上展开；层级越浅越先登记，同一外层类型保留最短链。
     """
@@ -432,7 +449,7 @@ def expand_type_fqns(type_files, repo_abs, nesting):
             continue
         frontier = [(start, [Path(rel).stem])]
         seen = {start}
-        for _ in range(MAX_NESTING_DEPTH):
+        for _ in range(max_depth):
             nxt = []
             for fqn, chain in frontier:
                 for enclosing, _field in nesting.get(fqn) or []:
@@ -606,6 +623,149 @@ def match_type_controllers(type_files, type_index, repo_abs, nesting=None):
     return entrypoints, rows
 
 
+TYPE_USAGE_FILE = OUTPUT_DIR / "type_usage.json"
+# 类型使用反查：变更类型 + 字段嵌套 1 级外壳作 seed，反向 BFS 到 Controller
+TYPE_USAGE_SEED_DEPTH = 1
+TYPE_USAGE_BFS_DEPTH = 6
+TYPE_USAGE_MAX_NODES = 500
+TYPE_USAGE_MAX_CONTROLLERS = 40
+
+
+def load_type_usage():
+    """类型全限定名 → 使用该方法签名参数的方法（build_type_usage.py 产出）。
+
+    索引缺失时返回空表，反查退回 Controller 签名，保持旧口径可用。
+    """
+    try:
+        data = json.loads(TYPE_USAGE_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data.get("types") or {}
+
+
+_WORKSPACE_CONTROLLER_URLS = None
+
+
+def load_workspace_controller_urls():
+    """Controller 全限定方法 → 注解 URL 列表（controller_endpoints.json）"""
+    global _WORKSPACE_CONTROLLER_URLS
+    if _WORKSPACE_CONTROLLER_URLS is not None:
+        return _WORKSPACE_CONTROLLER_URLS
+    data = endpoints_index.load()
+    _WORKSPACE_CONTROLLER_URLS = endpoints_index.method_index(data["endpoints"]) if data else {}
+    return _WORKSPACE_CONTROLLER_URLS
+
+
+def usage_seeds(type_files, repo_abs, nesting):
+    """变更类型自身 + 字段嵌套 1 级外壳 → {全限定名: {file, chain}}"""
+    seeds = {}
+    for rel in type_files:
+        full = type_full_name(repo_abs, rel)
+        if full:
+            seeds.setdefault(full, {"file": rel, "chain": [Path(rel).stem]})
+    for fqn, info in expand_type_fqns(
+            type_files, repo_abs, nesting, max_depth=TYPE_USAGE_SEED_DEPTH).items():
+        seeds.setdefault(fqn, {"file": info["file"], "chain": info["chain"]})
+    return seeds
+
+
+def match_type_usage(type_files, usage, repo_abs, nesting, db):
+    """类型出现在 BLH/Service 方法签名上时，沿方法图反向追 Controller 入口。
+
+    契约 DTO 常常只出现在方法入参里（如 FeignPCAInfoDTO 是
+    SaveIhdPaPatDataAbstract#setPatientInfo 的入参，而 FeignPaPatMedicalInfoDTO
+    又是它的字段），Controller 签名与 Feign 签名都不含它，图里也没有 DTO 节点。
+    这里按 type_usage.json 取 seed，反向 BFS 到 Controller，再按
+    controller_endpoints.json 补注解 URL；入口带 heuristic=true、indirect=true
+    与 usedBy:<方法>，说明它是签名反查合成而非调用图直连。
+    """
+    if not usage:
+        return [], []
+
+    seed_methods = {}
+    for fqn, info in sorted(usage_seeds(type_files, repo_abs, nesting).items()):
+        for mid in usage.get(fqn) or []:
+            seed_methods.setdefault(mid, {"chain": info["chain"], "file": info["file"],
+                                          "typeFqn": fqn})
+    if not seed_methods:
+        return [], []
+
+    visited = set(seed_methods)
+    origins = {mid: {mid} for mid in seed_methods}
+    depth_map = {mid: 0 for mid in seed_methods}
+    queue = deque(seed_methods)
+    urls = load_workspace_controller_urls()
+    controllers = []
+    while queue and len(visited) <= TYPE_USAGE_MAX_NODES and len(controllers) < TYPE_USAGE_MAX_CONTROLLERS:
+        cur = queue.popleft()
+        d = depth_map[cur]
+        if d >= TYPE_USAGE_BFS_DEPTH:
+            continue
+        if "Controller" in cur:
+            # 只把有注解 URL 的 Controller 计入上限，无 URL 的对外/内部端点不挤占名额
+            if urls.get(cur):
+                controllers.append(cur)
+            continue
+        for caller in sorted(db.ws_reverse.get(cur, set())):
+            if caller not in visited:
+                visited.add(caller)
+                depth_map[caller] = d + 1
+                queue.append(caller)
+            origins.setdefault(caller, set()).update(origins.get(cur, set()))
+
+    entrypoints, rows = [], {}
+    for cid in sorted(controllers):
+        urls_hit = urls[cid][:MAX_URLS_PER_CONTROLLER]
+        hits = [(mid, seed_methods[mid]) for mid in origins.get(cid, set())]
+        if not hits:
+            hits = list(seed_methods.items())
+        hits.sort(key=lambda x: (x[0], len(x[1]["chain"])))
+        used_by = sorted({mid for mid, _ in hits})
+        seeds_detail = sorted({
+            (rec["typeFqn"], ">".join(rec["chain"])) for _, rec in hits
+        })
+        for url in urls_hit:
+            http = f'{url["http"]} {url["path"]}'.strip()
+            key = (cid, http)
+            if key in rows:
+                continue
+            via = []
+            for fqn, chain in seeds_detail:
+                simple = fqn.rsplit(".", 1)[-1]
+                via.append(f"type:{simple}")
+                if ">" in chain:
+                    via.append(f"nested:{chain}")
+            via.extend(f"usedBy:{get_class_method(mid)}" for mid in used_by)
+            rows[key] = {
+                "file": hits[0][1]["file"],
+                "type": seeds_detail[0][0].rsplit(".", 1)[-1],
+                "typeFqn": seeds_detail[0][0],
+                "seedMethods": used_by,
+                "controller": cid.rsplit(".", 1)[0].rsplit(".", 1)[-1],
+                "controllerFqn": cid.rsplit(".", 1)[0],
+                "method": cid.rsplit(".", 1)[-1].split("(")[0],
+                "http": http,
+                "depth": depth_map.get(cid, -1),
+            }
+            entrypoints.append({
+                "kind": "controller",
+                "controller": get_class_method(cid),
+                "service": get_service(cid),
+                "feign": "",
+                "http": http,
+                "heuristic": True,
+                "indirect": True,
+                "depth": depth_map.get(cid, -1),
+                "via": via,
+                "type": rows[key]["type"],
+                "typeFqn": rows[key]["typeFqn"],
+            })
+    rows = sorted(rows.values(), key=lambda x: (
+        x["controllerFqn"], x["method"], x["http"], x["typeFqn"]))
+    entrypoints.sort(key=lambda x: (x["controller"], x["http"]))
+    return entrypoints, rows
+
+
 def analyze_method(db, nid, depth, with_maven):
     """返回单方法的精简证据（不含中文结论）
 
@@ -770,8 +930,8 @@ def classify_skip(rel_path, exists_in_graph):
     return "no_method_change"
 
 
-def locate_commit(repo_abs, commit, by_file, max_methods):
-    """返回 (methods, skipped, truncated)"""
+def locate_commit(repo_abs, commit, by_file, max_methods, db=None):
+    """返回 (methods, skipped, truncated)；Mapper/XML 可回映到反向边中的接口 seed"""
     all_files = commit.get("files", [])
     ok = git(repo_abs, "rev-parse", "--is-inside-work-tree")
     if ok.returncode != 0:
@@ -780,11 +940,14 @@ def locate_commit(repo_abs, commit, by_file, max_methods):
     if exists.returncode != 0:
         return [], [{"file": f["path"], "reason": "commit_unavailable"} for f in all_files], []
 
-    java_files = [f["path"] for f in all_files if str(f.get("path", "")).endswith(".java")]
-    if not java_files:
+    source_files = [
+        f["path"] for f in all_files
+        if str(f.get("path", "")).endswith(".java") or str(f.get("path", "")).endswith("Mapper.xml")
+    ]
+    if not source_files:
         return [], [{"file": f["path"], "reason": classify_skip(f["path"], False)} for f in all_files], []
 
-    diff = git(repo_abs, "show", "-U0", "--pretty=format:", "--no-color", commit["hash"], "--", *java_files).stdout
+    diff = git(repo_abs, "show", "-U0", "--pretty=format:", "--no-color", commit["hash"], "--", *source_files).stdout
     ranges = parse_diff(diff)
 
     candidates = []
@@ -793,23 +956,39 @@ def locate_commit(repo_abs, commit, by_file, max_methods):
         if r.get("binary"):
             skipped.append({"file": rel, "reason": "binary"})
             continue
-        graph_methods = by_file.get(normalize(to_repo_relative(Path(repo_abs) / rel)), {})
-        if not graph_methods:
-            skipped.append({"file": rel, "reason": classify_skip(rel, False)})
-            continue
 
         new_content = git_show(repo_abs, f"{commit['hash']}:{rel}")
         old_content = git_show(repo_abs, f"{commit['hash']}^:{rel}") if r["old"] else ""
-        pkg, cls, kind = class_info(new_content or old_content)
+        is_xml = rel.endswith("Mapper.xml")
+        if is_xml:
+            pkg, new_statements = parse_mapper_xml(new_content)
+            _, old_statements = parse_mapper_xml(old_content) if old_content else ("", [])
+            cls = pkg.rsplit(".", 1)[-1] if pkg else ""
+            pkg = pkg.rsplit(".", 1)[0] if "." in pkg else ""
+            kind = "interface"
+        else:
+            pkg, cls, kind = class_info(new_content or old_content)
         if not cls:
             skipped.append({"file": rel, "reason": "parse_failed"})
             continue
 
+        graph_methods = by_file.get(normalize(to_repo_relative(Path(repo_abs) / rel)), {})
+        is_mapper = cls.endswith("Mapper")
+        if not graph_methods and not is_mapper:
+            skipped.append({"file": rel, "reason": classify_skip(rel, False)})
+            continue
+
         hits = []
-        if new_content and r["new"]:
-            hits += intersect_methods(parse_methods(new_content, kind == "interface"), r["new"])
-        if old_content and r["old"]:
-            hits += intersect_methods(parse_methods(old_content, kind == "interface"), r["old"])
+        if is_xml:
+            if new_content and r["new"]:
+                hits += intersect_methods(new_statements, r["new"])
+            if old_content and r["old"]:
+                hits += intersect_methods(old_statements, r["old"])
+        else:
+            if new_content and r["new"]:
+                hits += intersect_methods(parse_methods(new_content, kind == "interface"), r["new"])
+            if old_content and r["old"]:
+                hits += intersect_methods(parse_methods(old_content, kind == "interface"), r["old"])
 
         seen = set()
         for h in hits:
@@ -817,10 +996,14 @@ def locate_commit(repo_abs, commit, by_file, max_methods):
             if cm in seen:
                 continue
             seen.add(cm)
-            nid = graph_methods.get(cm)
+            nid = graph_methods.get(cm) or ""
+            if not nid and is_mapper and db is not None:
+                candidate = f"{pkg}.{cm}"
+                if candidate in db.ws_reverse or candidate in db.ws_forward:
+                    nid = candidate
             candidates.append({
                 "class_method": cm,
-                "id": nid or "",
+                "id": nid,
                 "file": rel,
                 "startLine": h["start"],
                 "endLine": h["end"],
@@ -830,6 +1013,17 @@ def locate_commit(repo_abs, commit, by_file, max_methods):
         if not hits:
             skipped.append({"file": rel, "reason": "no_method_change"})
 
+    deduped = {}
+    for c in candidates:
+        key = (c["id"] or f"{c['file']}:{c['class_method']}", c["class_method"])
+        if key not in deduped:
+            deduped[key] = c
+            continue
+        prev = deduped[key]
+        prev["changedLines"] += c["changedLines"]
+        if c["file"].endswith(".java") and prev["file"].endswith("Mapper.xml"):
+            prev.update({"file": c["file"], "startLine": c["startLine"], "endLine": c["endLine"]})
+    candidates = list(deduped.values())
     candidates.sort(key=lambda x: x["changedLines"], reverse=True)
     in_graph = [c for c in candidates if c["inGraph"]]
     out_graph = [c for c in candidates if not c["inGraph"]]
@@ -876,13 +1070,14 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
     feign_type_index = load_feign_type_index()
     controller_type_index = load_controller_type_index()
     type_nesting = load_type_nesting()
+    type_usage = load_type_usage()
     index_mtime = impact_path.stat().st_mtime
 
     result_commits = []
     stats = defaultdict(int)
     for commit in commits:
         repo_abs = (REPO_ROOT / commit["repo"]).resolve()
-        methods, skipped, truncated = locate_commit(repo_abs, commit, by_file, max_methods)
+        methods, skipped, truncated = locate_commit(repo_abs, commit, by_file, max_methods, db)
 
         entrypoints = []
         workspace = []
@@ -941,7 +1136,9 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
             type_files, controller_type_index, repo_abs, type_nesting)
         type_feign_entrypoints, type_feign_callers = feign_caller_entrypoints(
             db, type_matches, depth, with_maven)
-        synthesized = type_entrypoints + type_feign_entrypoints
+        type_usage_entrypoints, type_usage_matches = match_type_usage(
+            type_files, type_usage, repo_abs, type_nesting, db)
+        synthesized = type_entrypoints + type_feign_entrypoints + type_usage_entrypoints
         if synthesized:
             entrypoints = merge_unique(
                 entrypoints + synthesized,
@@ -973,6 +1170,8 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
                 "typeFeignMatches": type_matches,
                 "typeFeignCallers": type_feign_callers,
                 "typeControllerMatches": type_controller_matches,
+                "typeUsageEntrypoints": type_usage_entrypoints,
+                "typeUsageMatches": type_usage_matches,
             },
             "downstream": {"count": downstream_count, "services": sorted(s for s in downstream_services if s)},
             "skippedFiles": skipped,
@@ -985,6 +1184,7 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
         stats["typeFeignMatches"] += len(type_matches)
         stats["typeFeignCallers"] += len(type_feign_callers)
         stats["typeControllerMatches"] += len(type_controller_matches)
+        stats["typeUsageMatches"] += len(type_usage_matches)
 
     doc = {
         "meta": {
@@ -1001,6 +1201,7 @@ def build(raw_path, output_path, label, max_methods, depth, with_maven):
                 "契约类型的 Feign 使用方按 feign_interfaces.json 方法签名 + 接口源码 package/import 解析的全限定类型名匹配，不同模块同名 DTO 不会串口；签名未直接出现的类型按 type_nesting.json 反向展开字段嵌套（最多 4 层，nestedVia 记录链路），仍只按全限定名命中，局部变量与泛型擦除后的运行时类型不在范围内",
                 "契约类型命中的 Feign 接口会再沿工作区调用方上溯入口（indirect=true、via 带 feign:<接口>.<方法>），补出「页面 → 本地 Controller → BLH → Feign」的间接链路",
                 "契约类型的 Controller 使用方按 controller_endpoints.json 的全限定类型名反查（heuristic 入口），字段嵌套同样按 type_nesting.json 展开 4 层并以 nestedVia 记录；仅出现在局部变量或实现类内部时不在签名中，未命中不等于无页面入口",
+                "契约类型出现在 BLH/Service 方法签名入参时，按 type_usage.json 取「变更类型 + 字段嵌套 1 级外壳」作 seed，沿方法图反向 BFS ≤6 跳追到 Controller（节点上限 500、每提交至多 40 个 Controller），只登记有注解 URL 的 Controller（heuristic=true、indirect=true、via 带 usedBy:<方法>）；方法体局部变量中没有该类型签名时不在范围内",
                 "外部 Maven 调用方中 rootType=controller 的调用链根按 maven_controller_endpoints.json 反查注解 URL，作为 indirect 入口参与前端页面反查（药房、护理、医保等服务由此可达）；rootType=method 的方法根没有 URL，不产生入口",
             ],
         },

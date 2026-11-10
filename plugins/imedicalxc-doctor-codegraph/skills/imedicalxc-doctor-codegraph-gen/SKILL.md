@@ -1,7 +1,7 @@
 ---
 name: imedicalxc-doctor-codegraph-gen
 description: |
-  HIS 医生站代码调用图索引构建与增量更新。执行流水线：Feign 接口扫描 → 工作区方法级调用图 → Maven biz jar 扫描 → 合并 → Controller 注解端点索引（controller_endpoints.json）→ 类型嵌套索引（type_nesting.json）→ 影响分析索引（impact_db.json）→ 两部分穿透数据库（penetration_db.json）。
+  HIS 医生站代码调用图索引构建与增量更新。执行流水线：Feign 接口扫描 → 工作区方法级调用图 → Maven biz jar 扫描 → 合并 → Controller 注解端点索引（controller_endpoints.json）→ 类型嵌套索引（type_nesting.json）→ 类型使用索引（type_usage.json）→ 影响分析索引（impact_db.json）→ 两部分穿透数据库（penetration_db.json）。
   Use when 首次初始化 codegraph 数据、拉取子仓库或升级 Maven 依赖后重建/增量更新索引、impact_db.json / penetration_db.json 缺失或过期、或需要重新生成调用图数据。
   纯查询与影响分析请使用 imedicalxc-doctor-codegraph-search。
 ---
@@ -39,6 +39,7 @@ python feign_scanner.py \
   && python merge_call_graphs.py \
   && python scan_controller_endpoints.py \
   && python build_type_nesting.py \
+  && python build_type_usage.py \
   && python build_impact_db.py \
   && python build_penetration_db.py
 ```
@@ -51,8 +52,11 @@ python feign_scanner.py \
 | Step 4 | `merge_call_graphs.py` | ~2s | `merged_call_graph.jsonl`、`merged_reverse_index.json`、`merged_service_boundary.json` |
 | Step 5 | `scan_controller_endpoints.py` | ~6s | `controller_endpoints.json`（方法记录含 `return_type` / `parameters`，类级 `type_scopes`） |
 | Step 5b | `build_type_nesting.py` | ~40-60s | `type_nesting.json`（字段类型 → 外层类型反向索引，供契约类型向上展开嵌套） |
+| Step 5c | `build_type_usage.py` | ~30s | `type_usage.json`（类型 → 使用该类型作方法签名参数的方法，供契约类型反向追 Controller） |
 | Step 6 | `build_impact_db.py` | ~1-2s | `impact_db.json`（Controller 节点带注解 URL） |
 | Step 7 | `build_penetration_db.py` | ~5-10s | `penetration_db.json`、`inbound_feign_penetration.graphml` |
+
+Step 2 的节点除 `parent` / `ancestors` 外还带 `interfaces`，供查询侧在实现类、父类与接口声明之间展开同名方法。服务实现类继承 `BaseServiceImpl<Mapper, PO>` 时记录 Mapper 泛型，`this.baseMapper.xxx()` / `baseMapper.xxx()` 均生成 Mapper 调用边，不能只靠字段类型解析。
 
 Step 5 把类级 `@RequestMapping` + 方法级 `@XxxMapping` 的 URL 关系固化成构建产物，同时记录方法的 `return_type` 与 `parameters`，并记录每个 Controller 的类型作用域（`type_scopes`：显式 import / 同包 / 通配 import）：前后端衔接与影响分析直接读取不再重扫，`scan_controller_endpoints.type_index()` 还能在内存里按类型**全限定名**反查 Controller 方法签名（纯 DTO/VO/PO 提交据此拿到契约入口），跨模块同名 DTO（如 ipcare/opcare 各自的 `FeignOeStopMultiDTO`）不会串号。Step 6、Step 7 都是查询 skill 的数据源，不要省略；Step 6 依赖 Step 5 的端点索引，缺失时只输出「跳过 Controller URL 关联」。`penetration_db.json` 是穿透口径的**唯一契约**，只包含两部分：
 
@@ -70,6 +74,16 @@ Step 5 把类级 `@RequestMapping` + 方法级 `@XxxMapping` 的 URL 关系固�
 - 当前规模：38,768 源文件 / 38,534 类 / 7,782 个被嵌套类型 / 23,112 条边（2.7 MB）
 
 查询侧（`query_commit_impact.py`）对变更类型先做签名直接匹配，再按本索引向外层类型补一轮；命中的明细带 `nestedVia`（如 `["FeignDiagnoseVO","FeignEncounterVO","FeignOrderLisReturnVO","FeignIBUSLisBaseReturnVO"]`）与 `matchFqn`，报告据此说明「是字段嵌套命中，不是直接签名」。索引缺失时自动退回只匹配签名，不报错。
+
+### 类型使用索引（Step 5c）
+
+契约类型还常**只出现在 BLH/Service 方法的入参**里，Controller 签名与 Feign 签名都不含它。典型链路：`FeignPaPatMedicalInfoDTO`（字段嵌套）→ `FeignPCAInfoDTO` → `SaveIhdPaPatDataAbstract#setPatientInfo(FeignPCAInfoDTO)` → `savePaPatData` → `PaPatIhdDataSaveClientController#save`。方法图里没有 DTO 节点，反向追不到这种「参数类型」关系，Step 5c 从方法图节点签名（`pkg.Class.method(SimpleType param, ...)` 的括号段）抽出「类型全限定名 → 使用它的方法」索引，写成 `type_usage.json`：
+
+- 只登记**方法签名参数**，方法体里的局部变量不在内；短名按文件 import / 同包 / 通配 import 解析，且必须命中源码里真实存在的类
+- 键与方法图节点 ID 一致（去参形式 `pkg.Class.method`），查询期可直接作反向 BFS 的 seed
+- 当前规模：16,326 方法 / 3,224 个类型 / 12,784 条引用（1.4 MB）；5 个方法因源文件已删除/改名取不到作用域，3,642 个参数类型未解析到已知类（多为 JDK/框架类型）
+
+查询侧（`query_commit_impact.py`）取「变更类型自身 + 字段嵌套 1 级外壳」作 seed（链长 ≤2 的外层），沿方法图反向 BFS ≤6 跳追 Controller（节点上限 500、每提交至多登记 40 个 Controller），只收有注解 URL 的 Controller，入口 `heuristic=true`、`indirect=true`、`via` 带 `usedBy:<Class.method>`。索引缺失时自动退回 Controller 签名反查，不报错。
 
 ### Maven 工件端点索引（Step 3）
 
@@ -108,6 +122,7 @@ Step 3 导出前会剔除与医生站无关的 Maven 节点，规则：
 |---|---|---|
 | 工作区 Java 源码（业务逻辑，Controller 映射未变） | Step 2 → Step 4 → Step 6 → Step 7 | Step 2 重建工作区图；Step 4 重建合并数据与服务边界；Step 7 重建两部分穿透 |
 | 新增/修改 DTO/VO/PO 字段或类型 | Step 5b | 只重建 `type_nesting.json`；契约提交取证前必须刷新，否则字段嵌套命中会缺失 |
+| 新增/修改方法签名（BLH/Service 入参类型） | Step 2 → Step 5c | Step 5c 依赖方法图节点签名，方法图重建后必须刷新 `type_usage.json`，否则参数类型反查会缺 seed 或指向旧方法 |
 | 新增/修改 Controller 或映射注解 | Step 5 → Step 6 | Step 5 刷新注解 URL 索引；Step 6 把 URL 挂到方法节点。缺失产物时查询脚本仍可用 `--refresh-endpoints` 临时重建 |
 | 工作区 `@FeignClient` 接口定义 | Step 1 → Step 4 → Step 6 → Step 7 | Step 1 刷新接口/路径，Step 4 刷新 Controller 映射，Step 7 刷新入站链路 |
 | Maven 本地仓库 biz jar（依赖升级、新增 jar） | Step 3 → Step 4 → Step 6 → Step 7 | 重新扫描字节码并合并；相关性过滤与分派桥自动重算 |
@@ -146,6 +161,7 @@ find "$MAVEN_REPO/com/mediway" -name '*.jar' \
 | `merged_service_boundary.json` | Controller → Feign 映射 | Step 4 |
 | `controller_endpoints.json` | Controller 注解 URL 索引：`endpoints`（URL → 方法，方法记录含 `return_type` / `parameters`）、`type_scopes`（Controller 的 package / import / 通配 import，供全限定名解析）与 `meta`（源文件数/摘要）；`type_index()` 可据此按类型全限定名反查 Controller 签名 | Step 5 |
 | `type_nesting.json` | 字段类型 → 外层类型的反向索引（`edges[fqn] = [[enclosingFqn, fieldName], ...]`），供契约类型按字段嵌套向上展开；`query_commit_impact.py` 直接读取 | Step 5b |
+| `type_usage.json` | 类型 → 使用该类型作方法签名参数的方法（`types[fqn] = ["pkg.Class.method", ...]`），键与方法图节点 ID 同形，供契约类型反查 BLH/Service 参数并反向追 Controller；`query_commit_impact.py` 直接读取 | Step 5c |
 | `impact_db.json` | 影响分析索引数据库（查询主入口）；Controller 方法节点带 `endpoints`（注解 URL） | Step 6 |
 | `penetration_db.json` | **两部分穿透数据库（查询主数据源）** | Step 7 |
 | `inbound_feign_penetration.graphml` | 第二部分可视化（Maven Controller → 本工作区 Feign） | Step 7 |
@@ -166,6 +182,9 @@ python scan_controller_endpoints.py --check
 
 # 3b. 类型嵌套索引（应输出 38768 38534 7782 23112）
 python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DIR; m=json.load(open(OUTPUT_DIR/'type_nesting.json'))['meta']; print(m['files'], m['classes'], m['types'], m['edges'])"
+
+# 3c. 类型使用索引（应输出 16326 3224 12784 5）
+python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DIR; m=json.load(open(OUTPUT_DIR/'type_usage.json'))['meta']; print(m['methods'], m['types'], m['refs'], m['missingScopeMethods'])"
 
 # 4. Maven 工件端点索引（应输出 1666 9255 9260）
 python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DIR; m=json.load(open(OUTPUT_DIR/'maven_controller_endpoints.json'))['meta']; print(m['controllers'], m['endpoints'], m['mappings'])"
@@ -214,6 +233,7 @@ python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DI
 | 合并全图节点 / 边 | 125,508 / 202,919 |
 | `controller_endpoints.json` | 7.5 MB（1,681 源文件 / 1,680 Controller / 11,514 URL / 11,520 方法映射 + 1,680 类型作用域） |
 | `type_nesting.json` | 2.7 MB（38,768 源文件 / 38,534 类 / 7,782 个被嵌套类型 / 23,112 条字段边） |
+| `type_usage.json` | 1.4 MB（16,326 方法签名 / 3,224 个被使用类型 / 12,784 条引用 / 5 个无作用域方法 / 3,642 个未解析参数类型） |
 | `maven_controller_endpoints.json` | 3.1 MB（326 jar / 1,666 Controller / 9,255 URL / 9,260 方法映射） |
 | `impact_db.json` | 50.8 MB（含 Controller 方法注解 URL） |
 | `penetration_db.json` | 41.6 MB |
@@ -240,3 +260,4 @@ python -c "import sys,json; sys.path.insert(0,'.'); from config import OUTPUT_DI
 16. **端点索引是构建产物，不要在查询期重扫**：Step 5 的 `controller_endpoints.json` 带源码摘要；查询脚本默认直接读它，只有 `--refresh-endpoints` 或产物缺失时才扫描。把摘要校验放回每次查询会让单次查询退化到 30s+。
 17. **Maven 工件的注解值要用常量池解引用**：`javatools` 的 `JavaAnnotation` 是 dict，值形如 `('s', idx)` 或 `('[', [...])`，字符串要经 `cpool.deref_const(idx)` 还原；`@RequestMapping` 的 `method` 是 `('e', (type_idx, const_idx))` 枚举。只解析 `value`/`path`，`@PostMapping` 等直接映射为对应动词。lambda 合成方法无注解，按 `lambda$<方法>$N` 回退到外层方法；父类/接口上声明的映射字节码不携带，这类链路保持无 URL，不要按方法名猜 URL。
 18. **类型嵌套索引按类名集合解析，不按同名猜包**：`build_type_nesting.py` 先扫一遍所有 `class/interface/enum/record` 的全限定名，字段类型只在「显式 import → 同包 → 通配 import」里取命中集合的名字。第一版省掉集合校验，`List`、`String`、`LocalDate` 被猜成 `pkg.List` 等 1.5 万条假边。字段正则要跳过 `static`，否则常量表会把大量无关类串进来；只做字段组合，不展开 `extends`（继承由方法图的 `parent`/`ancestors` 负责）。
+19. **参数里的类型要单独反查，不要指望调用边**：`new FeignPaPatMedicalInfoDTO().setId(..).setBirthTime(..)` 这类链式 builder 的接收者是 `new X()`，方法图接收者正则只认标识符，构造链一条边都不产生；DTO 也不是图节点。`FeignPaPatMedicalInfoDTO` 之所以能落到 `PaPatIhdDataSaveClientController#save`，靠的是它嵌在 `FeignPCAInfoDTO` 里、后者是 `SaveIhdPaPatDataAbstract#setPatientInfo` 的入参——`type_usage.json`（Step 5c）从方法签名参数取 seed 才能反向追到 Controller。seed 只取变更类型 + 1 级外壳：展开更多层会把整条患者域的共享 DTO 都拉进来，入口数翻倍且大多无页面。

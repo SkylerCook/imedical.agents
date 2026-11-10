@@ -39,6 +39,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from config import WORKSPACE_ROOT
 from front.config import DB_FILE as FRONT_DB_FILE, FRONT_ROOT
+from front.config import SERVICE_SEG_PREFIXES, norm_controller_seg
 import scan_controller_endpoints as endpoints_index
 
 ENDPOINT_FILE = endpoints_index.ENDPOINT_FILE
@@ -87,18 +88,9 @@ def load_index(refresh=False):
     return index, True
 
 
-SERVICE_SEG_PREFIXES = (
-    "opalloc", "opcare", "ipcare", "aggcare", "hispa", "comoe", "commr",
-    "cfoe", "cfmr", "curc", "opreg", "ma", "tr",
-)
-
-
 def _norm_controller_seg(seg):
     """前端常用相对 URL（appPath 运行期才拼），控制器段缺少服务前缀。"""
-    for prefix in SERVICE_SEG_PREFIXES:
-        if seg.startswith(prefix) and len(seg) > len(prefix):
-            return seg[len(prefix):]
-    return seg
+    return norm_controller_seg(seg)
 
 
 def _prefer_page_service(candidates, page):
@@ -532,16 +524,23 @@ def build_loose_index(records):
     return index
 
 
-def _unmatched_reason(entry, loose_index):
+def _unmatched_reason(entry, loose_index, orphan_keys=None):
     """未命中原因，按优先级互斥归类；不改变匹配结果。"""
     controller = entry.get("controller") or ""
     if "ClientController" in controller.rsplit(".", 1)[0]:
         return "client-controller"
     if not (entry.get("http") or "").strip():
         return "feign-interface-mapping"
+    # depth=-1 的兜底候选是方法名/类名关键词猜出来的控制器，与页面之间没有真实调用边
+    if entry.get("indirect") and entry.get("heuristic") and entry.get("depth", -1) == -1:
+        return "indirect-heuristic"
     key = _loose_key(entry.get("http"))
     if key and loose_index.get(key):
         return "cross-service-same-name"
+    # 请求只出现在未被任何页面装载的脚本里（厂商接口层运行时注入），
+    # 有前端调用代码但没有静态可达的页面元素
+    if key and orphan_keys and f"{key[0]}/{key[1]}" in orphan_keys:
+        return "front-orphan"
     return "no-front-call"
 
 
@@ -556,6 +555,7 @@ def cmd_commit_impact(records, index, db, args):
     chain_index = build_chain_index(records)
     http_index = build_http_index(records)
     loose_index = build_loose_index(records)
+    orphan_keys = set(db.get("orphan_request_keys") or ())
     method_index = build_method_index(index.get("endpoints") or {})
 
     out_commits = []
@@ -597,8 +597,11 @@ def cmd_commit_impact(records, index, db, args):
                     resolved = cand
                     break
             # 间接链路（Feign 调用方上溯）若只上溯到启发式入口（depth=-1 的兜底候选），
-            # 页面与该 Feign 之间没有真实调用边，不能作为界面证据，只保留在取证入口里
-            if hits and resolved.get("indirect") and resolved.get("heuristic"):
+            # 页面与该 Feign 之间没有真实调用边，不能作为界面证据，只保留在取证入口里。
+            # Step 5c 类型使用反查得到的入口虽然也是 heuristic+indirect，但有真实调用边（depth≥2），
+            # URL 命中即页面可达，不能一并清空。
+            if (hits and resolved.get("indirect") and resolved.get("heuristic")
+                    and resolved.get("depth", -1) == -1):
                 hits = []
             entry = resolved
             if hits:
@@ -614,6 +617,8 @@ def cmd_commit_impact(records, index, db, args):
                     "httpResolved": bool(source.get("httpResolved")),
                     "kind": entry.get("kind") or "",
                     "heuristic": bool(entry.get("heuristic")),
+                    "indirect": bool(entry.get("indirect")),
+                    "depth": entry.get("depth") if entry.get("indirect") else None,
                     "reason": "",
                 })
             for chain, req, backend, match in hits:
@@ -633,7 +638,7 @@ def cmd_commit_impact(records, index, db, args):
                     ui_best[dedup] = (rank, ui_entry)
         ui = [item for _, item in ui_best.values()]
         for item in unmatched:
-            item["reason"] = _unmatched_reason(item, loose_index)
+            item["reason"] = _unmatched_reason(item, loose_index, orphan_keys)
             totals["unmatchedReasons"][item["reason"]] += 1
             unmatched_keys.add((item["controller"], item["http"]))
         unmatched.sort(key=lambda item: (
@@ -651,7 +656,25 @@ def cmd_commit_impact(records, index, db, args):
             tuple(item["request"]["paths"]),
         ))
         if len(ui) > args.max_ui_entries:
-            ui = ui[:args.max_ui_entries]
+            # 按后端（控制器+方法）轮转取，不直接截断：同一控制器的几十个页面
+            # 不能把其它后端仅存的一条证据挤出产物
+            groups = {}
+            for item in ui:
+                groups.setdefault(
+                    (item["backend"]["controller"], item["backend"]["method"]), []).append(item)
+            picked, round_no = [], 0
+            while len(picked) < args.max_ui_entries:
+                added = False
+                for items in groups.values():
+                    if round_no < len(items):
+                        picked.append(items[round_no])
+                        added = True
+                        if len(picked) >= args.max_ui_entries:
+                            break
+                if not added:
+                    break
+                round_no += 1
+            ui = picked
         ui.sort(key=lambda item: (
             CONFIDENCE_RANK.get(item["access"]["confidence"], 9),
             SOURCE_RANK.get(item["source"], 5),

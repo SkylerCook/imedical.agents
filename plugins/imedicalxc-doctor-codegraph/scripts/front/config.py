@@ -23,6 +23,29 @@ MINIFIED_LINE_LEN = 1000
 HTML_EXTS = {".html", ".htm"}
 JS_EXTS = {".js"}
 
+# 运行期路径前缀变量：取值（菜单基址）静态解析不出，拼接时丢弃；
+# 页面内联脚本（如 var appPath = menuWin.baseAppPath + "ipcare/oeord/ipCare"）
+# 提供的字面量部分会回填到该页加载的 JS 常量解析中
+PREFIX_VARS = {
+    "appPath", "AppPath", "websys_appPath", "websys_apppath", "webPath", "basePath",
+    "baseAppPath", "ctx", "contextPath", "rootPath", "requestPath", "urlPrefix",
+    "frontPath",
+}
+
+# Controller 路径首段的微服务标识：前端相对 URL 常省略该段
+SERVICE_SEG_PREFIXES = (
+    "opalloc", "opcare", "ipcare", "aggcare", "hispa", "comoe", "commr",
+    "cfoe", "cfmr", "curc", "opreg", "ma", "tr",
+)
+
+
+def norm_controller_seg(seg: str) -> str:
+    """控制器路径段去掉服务前缀，用于前后端 URL 的宽松对齐。"""
+    for prefix in SERVICE_SEG_PREFIXES:
+        if seg.startswith(prefix) and len(seg) > len(prefix):
+            return seg[len(prefix):]
+    return seg
+
 
 def _declared_output_dir() -> Path:
     manifest = Path(__file__).resolve().parents[2] / ".agents-plugin" / "plugin.json"

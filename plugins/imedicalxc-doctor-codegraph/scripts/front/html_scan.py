@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from config import (
-    ELEMENTS_FILE, HTML_EXTS, MAX_HTML_FILE_MB, OUTPUT_DIR, PAGES_FILE,
+    ELEMENTS_FILE, HTML_EXTS, MAX_HTML_FILE_MB, OUTPUT_DIR, PAGES_FILE, PREFIX_VARS,
     is_probably_minified, iter_front_files, module_of, normalize_router,
     read_text, to_front_relative,
 )
@@ -141,6 +141,57 @@ def _page_comment_title(text):
     return ""
 
 
+def _inline_script_constants(text):
+    """页面内联脚本里的路径前缀变量（appPath 等）。
+
+    JS 里 `appPath + "OeOrdItemCMEntry/xxx"` 的前缀由页面决定（同一份 JS 被
+    门诊 / 住院页面共用），这里按页收集字面量部分，供链路构建时回填。
+    """
+    from js_scan import scan_text
+
+    cands = []
+    for i, m in enumerate(_SCRIPT_BLOCK_RE.finditer(text)):
+        block = m.group(0)
+        open_end = block.find(">")
+        if open_end < 0 or re.search(r"\bsrc\s*=", block[:open_end + 1], re.I):
+            continue
+        code = block[open_end + 1:]
+        close = code.lower().rfind("</script")
+        code = code[:close] if close >= 0 else code
+        try:
+            rec = scan_text(f"inline#{i}", code)
+        except Exception:  # 内联脚本语法怪异不影响页面其余信息
+            continue
+        base_line = text.count("\n", 0, m.start())
+        for con in rec.get("constants", []):
+            name = con.get("name") or ""
+            if name.rsplit(".", 1)[-1] not in PREFIX_VARS:
+                continue
+            cands.append({
+                "name": name,
+                "expr": con.get("expr") or "",
+                "terms": con.get("terms") or [],
+                "line": base_line + (con.get("line") or 1),
+                "owner": con.get("owner") or "",
+            })
+    # 页面级前缀变量在初始化函数里可能被再次赋值：门/住院共用页按 admType
+    # 切换 `appPath`，两条前缀都是该页运行时可取值，不能只留首条声明。
+    top_level = {c["name"] for c in cands
+                 if c["owner"] in ("", "__top_level__")}
+    out, seen = [], set()
+    for c in cands:
+        if c["owner"] not in ("", "__top_level__") and c["name"] not in top_level:
+            continue
+        key = (c["name"], c["expr"])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"name": c["name"], "expr": c["expr"],
+                    "terms": c["terms"], "line": c["line"]})
+    out.sort(key=lambda item: (item["line"], item["name"], item["expr"]))
+    return out
+
+
 def scan_page(rel_path, text):
     masked = _mask(text)
     # 提取脚本/内嵌页面引用时只屏蔽注释，不能把 script 标签本身一起屏蔽掉
@@ -251,6 +302,8 @@ def scan_page(rel_path, text):
             rec = dict(base, event=event, handler=handler)
             elements.append(rec)
 
+    inline_constants = _inline_script_constants(text)
+
     return {
         "file": rel_path,
         "module": module_of(rel_path),
@@ -259,9 +312,10 @@ def scan_page(rel_path, text):
         "scripts": scripts,
         "frames": frames,
         "includes": includes,
+        "inline_constants": inline_constants,
         "elements": elements,
         "stats": {"bytes": len(text), "elements": len(elements),
-                  "includes": len(includes)},
+                  "includes": len(includes), "inline_constants": len(inline_constants)},
     }
 
 

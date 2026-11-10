@@ -280,6 +280,8 @@ class ClassInfo:
     imports: Dict[str, str]
     outer: str = ""
     extends_raw: str = ""
+    implements_raw: List[str] = field(default_factory=list)
+    mapper_raw: str = ""
     blh_name: str = ""
     is_feign: bool = False
     fields: Dict[str, str] = field(default_factory=dict)
@@ -312,6 +314,7 @@ class MethodGraphBuilder:
         self.methods_by_class: Dict[str, Dict[str, List[MethodNode]]] = defaultdict(lambda: defaultdict(list))
         self.simple_to_fqns: Dict[str, List[str]] = defaultdict(list)
         self.parents: Dict[str, str] = {}
+        self.interfaces: Dict[str, List[str]] = {}
         self.file_types: Dict[str, List[str]] = defaultdict(list)
 
         self._seen_edges: Set[Tuple[str, str, str, str]] = set()
@@ -320,7 +323,7 @@ class MethodGraphBuilder:
         self.package_pattern = re.compile(r'^\s*package\s+([\w.]+)\s*;', re.MULTILINE)
         self.import_pattern = re.compile(r'^\s*import\s+(?!static\b)([\w.]+)\s*;', re.MULTILINE)
         self.type_pattern = re.compile(r'(?<![\w@])(class|interface|enum|record)\s+([A-Za-z_]\w*)')
-        self.receiver_call_pattern = re.compile(r'(?<![\w.$])([A-Za-z_]\w*)\s*\.\s*([A-Za-z_]\w*)\s*\(')
+        self.receiver_call_pattern = re.compile(r'(?<![\w.$])((?:this\.)?[A-Za-z_]\w*)\s*\.\s*([A-Za-z_]\w*)\s*\(')
         self.bare_call_pattern = re.compile(r'(?<![\w.$@])([A-Za-z_]\w*)\s*\(')
         self.local_var_pattern = re.compile(
             r'(?<![\w.$])(?:final\s+)?'
@@ -444,6 +447,8 @@ class MethodGraphBuilder:
                 imports=imports,
                 outer=outer.fqn if outer else "",
                 extends_raw=extends_raw,
+                implements_raw=self._parse_implements(header),
+                mapper_raw=self._parse_base_mapper(header),
                 blh_name=_parse_blh_name(content, stripped, match.start()),
                 is_feign=is_feign_file,
             )
@@ -480,6 +485,22 @@ class MethodGraphBuilder:
         first = re.sub(r'<.*>', '', first).strip()
         first = first.split()[0] if first.split() else ''
         return first if first and first not in JAVA_KEYWORDS else ""
+
+    def _parse_implements(self, header: str) -> List[str]:
+        m = re.search(r'\bimplements\b([^{]*)', header)
+        if not m:
+            return []
+        names = []
+        for part in _split_top_level(m.group(1)):
+            name = re.sub(r'<.*>', '', part).strip()
+            name = name.split()[0] if name.split() else ''
+            if name and name not in JAVA_KEYWORDS:
+                names.append(name)
+        return names
+
+    def _parse_base_mapper(self, header: str) -> str:
+        m = re.search(r'\bextends\s+[\w.]*BaseServiceImpl\s*<\s*([\w.]+)', header)
+        return m.group(1) if m else ""
 
     def _parse_members(self, info: ClassInfo, stripped: str):
         depth = 0
@@ -575,13 +596,19 @@ class MethodGraphBuilder:
             self.simple_to_fqns[simple].append(fqn)
 
         for fqn, info in self.class_info.items():
-            if not info.extends_raw:
-                continue
-            parent = self._resolve_simple(info.extends_raw, info)
-            if parent and parent != fqn:
-                self.parents[fqn] = parent
+            if info.extends_raw:
+                parent = self._resolve_simple(info.extends_raw, info)
+                if parent and parent != fqn:
+                    self.parents[fqn] = parent
+            resolved = []
+            for raw in info.implements_raw:
+                iface = self._resolve_simple(raw, info)
+                if iface and iface != fqn and iface not in resolved:
+                    resolved.append(iface)
+            if resolved:
+                self.interfaces[fqn] = resolved
 
-        logger.info(f"类型: {len(self.class_info)}，其中带父类: {len(self.parents)}")
+        logger.info(f"类型: {len(self.class_info)}，其中带父类: {len(self.parents)}，带接口: {len(self.interfaces)}")
 
     # ── 第二遍：调用分析 ────────────────────────────────────────
 
@@ -652,6 +679,7 @@ class MethodGraphBuilder:
         var_types: Dict[str, str],
         feign_fields: Dict[str, str],
     ):
+        receiver = receiver.removeprefix('this.')
         if receiver in feign_fields:
             feign_fqn = feign_fields[receiver]
             signature = self._find_feign_method_signature(feign_fqn, called)
@@ -660,6 +688,12 @@ class MethodGraphBuilder:
             else:
                 self._skipped_calls += 1
             return
+
+        if receiver == 'baseMapper' and info.mapper_raw:
+            mapper_class = self._resolve_type(info.mapper_raw, info)
+            if mapper_class:
+                self._add_edge(method.full_name, f"{mapper_class}.{called}", "internal")
+                return
 
         target_class = self._resolve_receiver_class(receiver, info, var_types)
         if not target_class:
@@ -962,6 +996,7 @@ class MethodGraphBuilder:
                     'file_path': to_repo_relative(node.file_path),
                     'parent': self.parents.get(node.class_name, ''),
                     'ancestors': self._ancestor_chain(node.class_name),
+                    'interfaces': self.interfaces.get(node.class_name, []),
                     'blh_name': class_info.blh_name if class_info else '',
                 }
                 f.write(json.dumps(node_data, ensure_ascii=False, sort_keys=True) + '\n')

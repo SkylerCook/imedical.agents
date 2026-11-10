@@ -101,8 +101,11 @@ class ImpactDB:
             base = cls[:-len("Abstract")] if cls.endswith("Abstract") else cls
             self.blh_method_index[method].append((base, nid, get_service(nid)))
 
-        # 类继承索引：按 extends 链（含无方法的中间类）还原实现族
+        # 类继承索引：按 extends 链（含无方法的中间类）还原实现族；
+        # implements 也入索引：调用方面向接口，实现类方法需要能反查接口声明
         self.class_children = defaultdict(set)
+        self.class_ancestors = {}
+        self.class_interfaces = {}
         self._hierarchy_loaded = False
         for nid, info in self.ws_nodes.items():
             cls = nid.rsplit(".", 1)[0]
@@ -110,8 +113,14 @@ class ImpactDB:
             parent = info.get("parent") or ""
             if parent and parent not in ancestors:
                 ancestors.append(parent)
+            interfaces = list(info.get("interfaces") or ())
+            self.class_ancestors.setdefault(cls, ancestors)
+            self.class_interfaces.setdefault(cls, interfaces)
             for anc in ancestors:
                 self.class_children[anc].add(cls)
+                self._hierarchy_loaded = True
+            for iface in interfaces:
+                self.class_children[iface].add(cls)
                 self._hierarchy_loaded = True
 
         for e in db.get("ws_edges", []):
@@ -315,6 +324,36 @@ class ImpactDB:
             return self._find_override_descendants(entry)
         return self._find_blh_overrides(entry)
 
+    def _find_declaration_family(self, entry: str) -> list:
+        """entry 的同名声明方法：沿 extends / implements 上溯。
+
+        静态图把「调用方 → 接口/父类方法」记在声明上，实现类或覆写方法自身
+        没有入边；只向下找实现族会让改动 Impl/Override 的提交取不到入口。
+        框架基类（hos/database、MyBatis-Plus、JDK）不展开，避免把通用
+        BaseService 的全部调用方算成入口。
+        """
+        if entry not in self.ws_nodes:
+            return []
+        entry_cls = entry.rsplit(".", 1)[0]
+        method_name = entry.rsplit(".", 1)[-1]
+
+        skip_prefix = ("com.mediway.hos.", "com.baomidou.", "java.", "javax.", "org.")
+        declarations = []
+        seen = {entry_cls}
+        queue = deque([entry_cls])
+        while queue:
+            cur = queue.popleft()
+            candidates = list(self.class_ancestors.get(cur, ())) + list(self.class_interfaces.get(cur, ()))
+            for anc in sorted(candidates):
+                if anc in seen or anc.startswith(skip_prefix):
+                    continue
+                seen.add(anc)
+                queue.append(anc)
+                nid = f"{anc}.{method_name}"
+                if nid in self.ws_nodes:
+                    declarations.append(nid)
+        return declarations
+
     def _find_blh_family(self, entry: str) -> list:
         """
         同一业务的实现族（含 entry 自身）。
@@ -325,6 +364,9 @@ class ImpactDB:
         父子实现，如 OpregBrokerAbstract 与 OpregistBrokerAbstract）。
         """
         family = [entry]
+        for nid in self._find_declaration_family(entry):
+            if nid not in family:
+                family.append(nid)
         for nid in self._find_impl_family(entry):
             if nid not in family:
                 family.append(nid)
@@ -354,6 +396,11 @@ class ImpactDB:
 
         while queue:
             cur, d = queue.popleft()
+            for declaration in self._find_declaration_family(cur):
+                if declaration not in visited:
+                    visited.add(declaration)
+                    depth_map[declaration] = d
+                    queue.append((declaration, d))
             if d >= max_depth:
                 continue
             for caller in self.ws_reverse.get(cur, set()):
@@ -431,6 +478,10 @@ class ImpactDB:
 
         while queue:
             cur, d = queue.popleft()
+            for declaration in self._find_declaration_family(cur):
+                if declaration not in visited:
+                    visited.add(declaration)
+                    queue.append((declaration, d))
             if d >= max_depth:
                 continue
             if "Controller" in cur:

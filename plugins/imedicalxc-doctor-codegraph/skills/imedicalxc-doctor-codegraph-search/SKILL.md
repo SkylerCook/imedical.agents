@@ -121,8 +121,9 @@ python impact_analyzer.py insertMultiple --impact --select 1 --json result.json
 
 **BLH 框架处理**：
 
-- 实现族按类继承展开：节点带 `parent` / `ancestors`（完整 `extends` 链，跨过无方法的中间类），沿链取**同名覆写子类**（如 `ExamQueryAbstract.getExaReqPrintData` → `Ipcare/OpcareExamQueryAbstract`）。
+- 实现族按类继承与接口实现展开：节点带 `parent` / `ancestors`（完整 `extends` 链，跨过无方法的中间类）与 `interfaces`（直接及继承得到的接口），沿链取**同名覆写子类**（如 `ExamQueryAbstract.getExaReqPrintData` → `Ipcare/OpcareExamQueryAbstract`），实现类方法也能回映到接口或父类声明。
 - 正向 BFS 每遇到带后代的 `Abstract` 方法都会把同名覆写子类一并展开并标注 `[BLH覆写]`，避免抽象方法本身无方法体导致漏算。
+- 反向 BFS 不只在 seed 展开声明族：每到一个中间实现方法，都以**相同深度**继续展开其父类/接口声明，再处理反向调用边；否则链路会在「调用方 → 接口声明 → 中间实现类」处停住，漏掉更上游 Controller。
 - 下游列表先输出一行 `BLH 覆写/并行实现 (N 个)`，列出被展开的方法及服务；这些方法是并行入口，深度为 `L0` 或与抽象方法同级。
 - 反向追踪兜底只认「同服务 + 同名方法 + 图上已有直连边」（如 `OpregBrokerAbstract` / `OpregistBrokerAbstract` 这类无继承关系的父子）。不要按「全工程同名 Abstract」合并：BLH 里同名方法极多（`getData` / `save*` / `getInfo`），会把无关业务并进同一族，实测会让一次应急初始化变更挂出 13 个 tr-pilot 页面。
 - BLH 通过反射调用，静态图可能无法连到 Controller；此时降级为按类名/方法名关键词做启发式匹配。
@@ -209,7 +210,7 @@ grep '"call_type": "feign"' docs/agents/imedicalxc-doctor-codegraph/method_call_
 
 ## 查询 7：提交级批量取证（周报联动，`query_commit_impact.py`）
 
-给 commit-report 的周报提供证据：输入 `raw-commits-<label>.json`，对每条提交定位改动的 Java 方法（按提交版本源码计算方法行区间，与 diff 变更行求交），再逐方法做入站/下游取证，最后按提交聚合。输出 JSON，**不做业务判断**。
+给 commit-report 的周报提供证据：输入 `raw-commits-<label>.json`，对每条提交定位改动的 Java 方法与 `*Mapper.xml` statement（按提交版本源码计算方法/statement 行区间，与 diff 变更行求交），再逐方法做入站/下游取证，最后按提交聚合。XML statement 按 mapper namespace + statement id 回映到 Mapper 接口方法；Java 与 XML 命中同一方法时合并 changedLines、只分析一次并优先保留 Java 位置。Java 方法签名解析支持 `@Param("...")` 等参数注解的一层嵌套括号。输出 JSON，**不做业务判断**。
 
 ```bash
 # 在仓库根目录执行
@@ -278,7 +279,23 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
                                             "controller": "AggcareRisInfoClientController",
                                             "method": "getRISRequest",
                                             "http": "POST aggcare/api/doc/aggcarerisinfoclient/getrisrequest",
-                                            "usage": ["return"]}]},
+                                            "usage": ["return"]}],
+                 "typeUsageEntrypoints": [{"controller": "PaPatIhdDataSaveClientController.save",
+                                           "service": "hispa",
+                                           "http": "POST hispa/api/pat/papatihddatasaveclient/save",
+                                           "heuristic": true, "indirect": true, "depth": 4,
+                                           "via": ["type:FeignPCAInfoDTO",
+                                                   "nested:FeignPaPatMedicalInfoDTO>FeignPCAInfoDTO",
+                                                   "usedBy:SaveIhdPaPatDataAbstract.setPatientInfo"]}],
+                 "typeUsageMatches": [{"type": "FeignPCAInfoDTO",
+                                       "typeFqn": "com.mediway.his.hispa.api.pat.model.dto.FeignPCAInfoDTO",
+                                       "file": ".../FeignPaPatMedicalInfoDTO.java",
+                                       "seedMethods": ["SaveIhdPaPatDataAbstract.setPatientInfo"],
+                                       "controller": "PaPatIhdDataSaveClientController",
+                                       "controllerFqn": "com.mediway.his.hispa.pat.controller.external.forBspIhd.PaPatIhdDataSaveClientController",
+                                       "method": "save",
+                                       "http": "POST hispa/api/pat/papatihddatasaveclient/save",
+                                       "depth": 4}]},
     "downstream": {"count": 3337, "aggregate": "workspace_reachable_methods",
                    "services": ["comoe", "..."]},
     "skippedFiles": [{"file": "...", "reason": "frontend|type_contract|public_layer|not_in_graph|no_method_change|resource|parse_failed|binary|repo_unavailable|commit_unavailable"}],
@@ -289,7 +306,7 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
 
 字段语义：
 
-- `entrypoints` = 上游入口（入口方法自身是 Feign 接口时计入口；Controller 端点含 Feign 映射与 HTTP 路径）。三类 `indirect=true` 入口：工作区 Feign 调用方上溯（`via` 带 `feign:<接口>.<方法>`）、契约类型命中（`via` 带 `type:<类型>`）、**Maven 外部调用方 `rootType=controller`**（用 `maven_controller_endpoints.json` 反查注解 URL，`via` 带 `feign:<接口>.<方法>`）。外部调用方入口让药房（ph）、护理（ipnur）、医保（insu）等非工作区服务也能进入前端页面反查；`rootType=method` 的方法根没有 URL，不产入口。
+- `entrypoints` = 上游入口（入口方法自身是 Feign 接口时计入口；Controller 端点含 Feign 映射与 HTTP 路径）。四类 `indirect=true` 入口：工作区 Feign 调用方上溯（`via` 带 `feign:<接口>.<方法>`）、契约类型命中（`via` 带 `type:<类型>`）、契约类型方法入参反查（`via` 带 `usedBy:<Class.method>`）、**Maven 外部调用方 `rootType=controller`**（用 `maven_controller_endpoints.json` 反查注解 URL，`via` 带 `feign:<接口>.<方法>`）。外部调用方入口让药房（ph）、护理（ipnur）、医保（insu）等非工作区服务也能进入前端页面反查；`rootType=method` 的方法根没有 URL，不产入口。
 - `workspaceCallers` = 工作区经 Feign 的回调方；`sameService` 区分同服务/跨服务
 - `externalCallers` = Maven 外部调用方（`penetration_db` 入站链路，`rootType=method` 表示无 Controller 上游）
 - `caller` 是调用方方法名证据；面向测试/交付的文案须由消费方翻译为业务场景（如 `PracticeOrderAbstract.insertPracticeOrder` → 「实习生开立医嘱」），不得直接粘贴方法名或契约名
@@ -297,6 +314,7 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
 - `contract.typeFeignMatches` = 契约类型**全限定名**在 Feign 方法签名（`return_type` / `parameters`）中的使用明细（接口侧按源码 package / 显式 import / 通配 import 解析，`typeFqn` 给出实际命中类型）；`usage` 区分 `return` / `parameter`。它只证明「该类型是哪个 Feign 接口的形状」，**不代表存在调用方**；要确认调用方仍须走 `query_who_calls_feign.py` / `typeFeignCallers` / `externalCallers`。签名里没直接出现的类型会按 `type_nesting.json` 沿字段组合向上展开最多 4 层：命中明细带 `matchFqn`（外层类型）与 `nestedVia`（`["变更类型", …, "外层类型"]`），`typeFqn` 仍是变更类型自身——报告写到这类命中时必须说明是字段嵌套命中，不能写成直接签名命中。局部变量、方法体内临时类型与泛型擦除后的运行时类型仍不在范围内；跨模块同名 DTO（如 ipcare/opcare 各自的 `FeignOeStopMultiDTO`）不会互相命中。
 - `contract.typeFeignCallers` = 命中的 Feign 契约方法 → 工作区调用方方法的明细（`types` / `feigns` / `entrypoints` 为该调用方上溯到的入口数）；命中时沿调用方再跑一次入口分析，把结果并入 `entrypoints[]` 并标 `indirect=true`、`via` 以 `feign:<接口>.<方法>` 开头（例如 opreg 排班契约经 opalloc `SchedulePortalClientAbstract.getScheduleInfo` 上溯到「护士分诊」页）。
 - `contract.typeControllerMatches` = 契约类型**全限定名**在工作区 Controller 方法签名中的使用明细（Controller 侧按显式 import / 同包 / 通配 import 解析，`typeFqn` 给出实际命中的类型）；字段嵌套命中的行带 `matchFqn` / `nestedVia`（口径同 `typeFeignMatches`）。命中的类型会同时以 `entrypoints[]`（`kind=controller`、`heuristic=true`、`via=["type:<变更类型>"]`，字段嵌套命中再追加 `via=["nested:<变更类型>><…>><外层类型>"]`、带 `http`）出现，可直接交给 `commit-impact` 衔接到页面。它代表类型的影响面，不是方法级可达；`entrypoints[].heuristic=true` 必须标注。综合诊疗对 LIS/PIS/RIS、患者信息、医保的一批 `*InfoClientController` 属对外集成接口，命中它们不等于有医生站页面。
+- `contract.typeUsageEntrypoints` / `contract.typeUsageMatches` = 契约类型出现在 **BLH/Service 方法签名入参**时的反查结果（读 Step 5c 的 `type_usage.json`）。变更类型自身 + 字段嵌套 1 级外壳作 seed，沿方法图反向 BFS ≤6 跳追 Controller（节点上限 500、每提交至多 40 个 Controller），只登记有注解 URL 的 Controller；入口并入 `entrypoints[]`，`heuristic=true`、`indirect=true`、`via` 带 `usedBy:<Class.method>`（seed 方法）与可选 `nested:<类型>><外壳>`。明细行字段：`typeFqn` / `seedMethods` / `controllerFqn` / `method` / `http` / `depth`。它补的是「DTO 只当方法入参」这类链路（如 `FeignPaPatMedicalInfoDTO` → `FeignPCAInfoDTO` 入参 `SaveIhdPaPatDataAbstract#setPatientInfo` → `PaPatIhdDataSaveClientController#save`），链式 builder（`new X().setA()`）不产生调用边，不要试图从调用图找；seed 只取 1 级外壳，更深的共享 DTO 会把无关入口一起拉进来。
 - `entrypoints[].indirect=true` = 该入口不是直调契约，而是「页面 → 本地 Controller → BLH → Feign」间接链路的上游；`indirect` 且 `heuristic` 的入口是兜底候选，`commit-impact` 不会据此产出 `uiEntries`，不能当界面证据。外部 Maven 调用方入口是 `heuristic=false` 的真实 Controller 端点，可以交给 `commit-impact` 反查页面；反查不到页面时归入 `no-front-call`，它只说明前端链路没有可绑定到该 URL 的按钮/回调，不等于该组没有页面。外部服务的 Controller 不在 `controller_endpoints.json` 里，`commit-impact` 对 URL 命中但 backend 为空的链路用入口自带的类.方法补全（`uiEntries[].backend.source=entrypoint`）。
 - `contract.feignInterfaces` = 方法级入口对应的 Feign 契约与类型签名命中的 Feign 接口合集
 - `downstream.count` = 各改动方法可达工作区方法数的最大值（已按 `WORKSPACE_SERVICES` 过滤），仅作规模参考，不是并集、也不等于回归范围
@@ -310,7 +328,7 @@ python .agents/plugins/imedicalxc-doctor-codegraph/scripts/query_commit_impact.p
 - **优先走确定性联动**：把 `code-impact-<label>.json` 直接交给查询 8.1 的 `commit-impact`，一次产出每个提交的 `uiEntries[]`（页面 / 元素 / 请求 / Controller / 菜单访问位置）与 `unmatchedEntrypoints[]`。周报不要逐条手工 grep；只有脚本缺失或需要核对单条链路时才用下面的手工方式。
 - **手工兜底**：`entrypoints[].http` 或 `controller` 方法名可拿到 `src/frontend/hisfront/static/` 检索，命中后记录文件与行号（例：`cardReportOrCancelLoss` → `static/opreg/opreg-pat/scripts/doc.reportloss.js:9` 卡挂失/启用）。通用方法名（如 `getScheduleInfo`、`getDrugList`）会大量误命中，必须叠加服务目录或完整 HTTP 路径消歧。
 - **Feign 不可直接搜前端**：Feign 接口名不出现在前端代码中。先查 `contract.typeFeignCallers`（契约方法 → 工作区调用方），把 `indirect=true` 入口交给 `commit-impact` 落到页面；没有 `typeFeignCallers` 时再经 `workspaceCallers` / `externalCallers` 找消费方 Controller 检索。上溯为空或只剩 `indirect+heuristic` 兜底候选时才写「无页面入口证据」，不得把 Feign 名当成页面。
-- **纯契约提交**：先看 `typeControllerMatches` / `typeFeignCallers`——非空说明该类型被 Controller 签名使用或被工作区 Feign 调用方使用，页面入口按命中的 Controller 或 `indirect=true` 入口走 `commit-impact` 衔接，衔接不到才写「页面未登记，按接口验证」；三者与 `typeFeignMatches` 均为空、`entrypoints` 也为空时，才写「未发现活动调用方，代码审阅即可」。Feign 命中只写命中的方法及其业务场景，调用方是否存在须另查 `workspaceCallers` / `externalCallers`。
+- **纯契约提交**：先看 `typeControllerMatches` / `typeUsageEntrypoints` / `typeFeignCallers`——非空说明该类型被 Controller 签名使用、被 BLH/Service 方法当入参或被执行工作区 Feign 调用方使用，页面入口按命中的 Controller 或 `indirect=true` 入口走 `commit-impact` 衔接，衔接不到才写「页面未登记，按接口验证」；三者与 `typeFeignMatches` 均为空、`entrypoints` 也为空时，才写「未发现活动调用方，代码审阅即可」。Feign 命中只写命中的方法及其业务场景，调用方是否存在须另查 `workspaceCallers` / `externalCallers`。
 
 ## 查询 8：前后端链路衔接（`query_front_back_chain.py`）
 
@@ -430,7 +448,7 @@ python query_front_back_chain.py commit-impact \
     }],
     "unmatchedEntrypoints": [{"controller": "...", "http": "...", "httpResolved": false,
                               "kind": "controller|feign",
-                              "reason": "client-controller|cross-service-same-name|feign-interface-mapping|no-front-call"}]
+                              "reason": "client-controller|feign-interface-mapping|indirect-heuristic|cross-service-same-name|front-orphan|no-front-call"}]
   }]
 }
 ```
@@ -449,13 +467,14 @@ python query_front_back_chain.py commit-impact \
 
 边界：
 
-- 只覆盖落到工作区 Controller 的链路。`unmatchedEntrypoints[].reason` 按优先级互斥归类：`client-controller`（`*ClientController` 服务间门面）→ `feign-interface-mapping`（`http` 为空，映射声明在 Feign 接口）→ `cross-service-same-name`（前端有末两段候选但有效服务不同）→ `no-front-call`（其余）。这些条目都没有页面入口证据，不得据此推断界面。
+- 只覆盖落到工作区 Controller 的链路。`unmatchedEntrypoints[].reason` 按优先级互斥归类：`client-controller`（`*ClientController` 服务间门面）→ `feign-interface-mapping`（`http` 为空，映射声明在 Feign 接口）→ `indirect-heuristic`（`indirect+heuristic` 且 `depth=-1` 的兜底入口，与页面没有真实调用边）→ `cross-service-same-name`（前端有末两段候选但有效服务不同）→ `front-orphan`（该 URL 只出现在没有任何页面装载的 JS 里，多为厂商接口层运行时注入）→ `no-front-call`（其余）。这些条目都没有页面入口证据，不得据此推断界面。
+- `front-orphan` 消费前端链路库顶层 `orphan_request_keys`（构建期按「控制器段去服务前缀/方法」收集未装载脚本中的请求，已扣除可达请求）。键统一小写后再去服务前缀（如 `opcare/oeord/opCareOeOrdArcosDriveCom/itemBillUom` → `oeordarcosdrivecom/itembilluom`），查询侧也先小写再比对，避免大小写差异导致归因恒为 0。它只解释未命中，不产生链路；判定口径必须与后端 `seg_index` 的 `_norm_controller_seg` 一致（同源于 `front/config.py`）。
 - `cross-service-same-name` 只用于解释未命中，不产生链路。禁止把 `_norm_controller_seg` 直接加进 URL 匹配，否则会把 ipcare 入口挂到 opcare 页面。
 - `feign-interface-mapping` 的 `http` 必须保持为空；不要为了让它有 URL 去扫 Feign 接口注解，那会把接口当 Controller。
 - `page_load` 条目是页面加载自动请求，能证明「打开该页面会触发」，不等于用户点击；写操作步骤时优先用 `inline` / `js_binding` / `config_bar` 条目。
 - 同一相对 URL 在 opcare / ipcare 都有实现时会保留多条 `backend`，需按页面所属服务或业务场景取舍，不能当成两个不同界面。
 - `code-impact` 的入口可能只有「控制器 + 方法」没有 `http`（映射声明在父类 / 接口或注解未被调用图采集）。此时按端点索引的 `控制器短名 + 方法` 补全 URL 再匹配，命中的条目 `entrypoint.httpResolved=true`；仍无命中则照常列入 `unmatchedEntrypoints`。
-- 实测（2026-11-pentest4，117 个提交）：1,685 个入口命中前端 343 个，得到 85 个页面；菜单登记 29 个、父页面可达 11 个、45 个无菜单登记；1,330 个未命中入口按原因分为 ClientController 458 / 跨服务同名 44 / Feign 接口映射 4 / 页面未调用 824。登记表只覆盖 507 个真实存在的 HTML 页面，多数业务子页面通过弹窗 / 内嵌承载，属于预期口径，不是脚本漏匹配。
+- 实测（2026-11-pentest4 窗口 2026-11-02~11-09，2026-11-10 复跑）：157 个提交、1,907 个入口，命中前端 557 个，得到 122 个页面；菜单登记 66 个、父页面可达 22 个、34 个无菜单登记；1,317 个未命中入口（唯一 controller+http 561）按原因分为 ClientController 450 / 跨服务同名 18 / Feign 接口映射 4 / 未装载脚本 24 / 页面未调用 821。登记表只覆盖真实存在的 HTML 页面，多数业务子页面通过弹窗 / 内嵌承载，属于预期口径，不是脚本漏匹配。
 - 间接链路（`indirect=true`）只有在 Feign 调用方上溯到真实入口（`depth>=0`）时才产出界面证据；`indirect+heuristic`（`depth=-1` 的同名兜底候选）会命中大量无关必填下拉/配置页，`commit-impact` 直接丢弃这些命中，只保留在 `entrypoints` 里供复核。
 
 ## 数据格式
@@ -468,9 +487,9 @@ python query_front_back_chain.py commit-impact \
 
 ### `method_call_graph.jsonl`
 
-节点字段：`id`（`package.Class.method(params)returnType`）、`label`（`Class.method`）、`class`、`method`、`package`、`service`、`is_feign`、`file_path`。
+节点字段：`id`（`package.Class.method(params)returnType`）、`label`（`Class.method`）、`class`、`method`、`package`、`service`、`is_feign`、`file_path`、`parent` / `ancestors`（父类链）、`interfaces`（接口声明）、`blh_name`。
 
-边字段：`source`、`target`、`call_type`（`internal` / `feign`）、`feign_interface`（仅 feign 边）。
+边字段：`source`、`target`、`call_type`（`internal` / `feign`）、`feign_interface`（仅 feign 边）。MyBatis-Plus 服务实现类从 `BaseServiceImpl<Mapper, PO>` 泛型还原 `baseMapper` 类型，`this.baseMapper.xxx()` 与 `baseMapper.xxx()` 都生成到 `Mapper.xxx` 的内部调用边。
 
 ### `maven_biz_call_graph.jsonl`
 

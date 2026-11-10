@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from config import (
     CHAINS_FILE, CONFIG_INJECTION_FILE, DB_FILE, ELEMENTS_FILE, FRONT_ROOT_REL,
     GRAPHML_FILE, JS_INDEX_FILE, MENU_SNAPSHOT_FILE, OUTPUT_DIR, PAGES_FILE,
-    STATS_FILE, normalize_router, utility_reason,
+    PREFIX_VARS, STATS_FILE, norm_controller_seg, normalize_router, utility_reason,
 )
 from config_injection import DYNAMIC_SCENARIOS, NO_MERGE_SCENARIOS
 
@@ -42,11 +42,7 @@ _JS_STATEMENTS = {
 }
 _IDENT_RE = re.compile(r"^([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)")
 _CALL_EXPR_RE = re.compile(r"^([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\s*\(")
-_PREFIX_VARS = {
-    "appPath", "AppPath", "websys_appPath", "websys_apppath", "webPath", "basePath",
-    "baseAppPath", "ctx", "contextPath", "rootPath", "requestPath", "urlPrefix",
-    "frontPath",
-}
+_PREFIX_VARS = PREFIX_VARS
 _URL_RUN_RE = re.compile(r"[A-Za-z0-9_$@.~/:-]+")
 _PATH_CHARS_RE = re.compile(r"[A-Za-z0-9_$@.~:/%+-]+")
 _CALL_VAR_RE = re.compile(r"^[A-Za-z_$][\w$]*\(\)$")
@@ -65,6 +61,14 @@ def _read_jsonl(path):
             if line:
                 records.append(json.loads(line))
     return records
+
+
+def _request_key(path):
+    """(控制器段去服务前缀, 方法) → 与后端 seg_index 同一口径的分组键。"""
+    segs = [s.lower() for s in (path or "").strip("/").split("/") if s]
+    if len(segs) < 2:
+        return ""
+    return f"{norm_controller_seg(segs[-2])}/{segs[-1]}"
 
 
 def _handler_ident(expr):
@@ -279,6 +283,7 @@ class ChainBuilder:
         self._handler_cache = {}
         self.callback_edges = set()
         self.dropped_prefixes = set()
+        self.page_prefixes = {}
 
     # ── 载入 ────────────────────────────────────────────────────
     def load(self):
@@ -308,6 +313,15 @@ class ChainBuilder:
             self.inline_by_file[file] = rec.get("inline_elements", [])
             self.bar_by_file[file] = rec.get("bar_bindings", [])
             self.config_by_file[file] = rec.get("config_calls", [])
+        # 页面内联脚本的前缀变量（var appPath = ...）：同一 JS 被多页复用时按页回填
+        self.page_prefixes = {}
+        for rec in _read_jsonl(PAGES_FILE):
+            consts = rec.get("inline_constants") or []
+            if not consts:
+                continue
+            bucket = self.page_prefixes.setdefault(rec.get("file", ""), {})
+            for con in consts:
+                bucket.setdefault(con.get("name", ""), []).append(con)
 
     def resolve_callbacks(self):
         """回调实参边：只认同文件唯一同名函数，不跨文件回退。
@@ -481,17 +495,24 @@ class ChainBuilder:
         """同一作用域内的全部同名常量：一个函数里的多次赋值代表运行时可选取值。"""
         scope = owner
         while scope:
-            hits = [con for con in consts if con.get("owner") == scope]
+            hits = [con for con in consts if (con.get("owner") or "") == scope]
             if hits:
                 return hits
             scope = scope.rsplit(".", 1)[0] if "." in scope else ""
-        return [con for con in consts if con.get("owner") in ("", "__top_level__")][:1]
+        # 页面内联脚本抽出的常量没有 owner，等同于顶层；
+        # 同名多条是共用页的运行时前缀分支（门/住院 appPath），全部保留。
+        return [con for con in consts
+                if (con.get("owner") or "") in ("", "__top_level__")]
 
-    def _find_constant(self, file, key, allowed_files=None):
-        """常量回填：同文件优先，跨文件只认限定名（UrlList.xxx），避免裸变量串味。"""
+    def _find_constant(self, file, key, allowed_files=None, page_file=""):
+        """常量回填：同文件优先，其次页面内联脚本（appPath 等），跨文件只认限定名。"""
         consts = self.constants_by_file.get(file, {}).get(key)
         if consts:
             return file, consts
+        if page_file and "." not in key:
+            page_consts = self.page_prefixes.get(page_file, {}).get(key)
+            if page_consts:
+                return page_file, page_consts
         if "." not in key or not allowed_files:
             return None, None
         for other in allowed_files:
@@ -503,7 +524,7 @@ class ChainBuilder:
         return None, None
 
     def resolve_term_variants(self, file, terms, owner="", depth=0, seen=None,
-                              allowed_files=None, module_hint=""):
+                              allowed_files=None, module_hint="", page_file=""):
         """把词项解析成所有可能的 URL 取值。
 
         与只取一条路径的旧逻辑相比，两类并列关系会展开成多个变体：
@@ -513,7 +534,7 @@ class ChainBuilder:
         运行时不可能的组合。
         """
         variants = self._expand_terms(file, terms, owner, depth, seen,
-                                      allowed_files, module_hint, {})
+                                      allowed_files, module_hint, {}, page_file)
         out = []
         for value, _assign in variants:
             if value and value not in out:
@@ -521,7 +542,7 @@ class ChainBuilder:
         return out[:MAX_URL_VARIANTS]
 
     def _expand_terms(self, file, terms, owner, depth, seen, allowed_files,
-                      module_hint, assign):
+                      module_hint, assign, page_file=""):
         """返回 [(值, 三元分支选择)]；assign 记录已确定的 `<条件> → 分支下标`。"""
         if depth > 6:
             return [("", dict(assign))]
@@ -532,7 +553,8 @@ class ChainBuilder:
             merged = []
             for prefix, current in variants:
                 for value, update in self._term_options(
-                        file, term, owner, depth, seen, allowed_files, module_hint, current):
+                        file, term, owner, depth, seen, allowed_files, module_hint,
+                        current, page_file):
                     next_assign = dict(current)
                     next_assign.update(update)
                     merged.append((prefix + value, next_assign))
@@ -541,7 +563,7 @@ class ChainBuilder:
         return variants
 
     def _term_options(self, file, term, owner, depth, seen, allowed_files,
-                      module_hint, assign):
+                      module_hint, assign, page_file=""):
         kind = term.get("t")
         value = term.get("v", "")
         if kind == "s":
@@ -564,7 +586,7 @@ class ChainBuilder:
                 update = {cond: i} if cond else {}
                 for val, inner in self._expand_terms(
                         file, branches[i], owner, depth + 1, seen,
-                        allowed_files, module_hint, {**assign, **update}):
+                        allowed_files, module_hint, {**assign, **update}, page_file):
                     if val:
                         out.append((val, {**inner, **update}))
             return out
@@ -583,7 +605,7 @@ class ChainBuilder:
             prefix = owner.rsplit(".", 1)[0] if "." in owner else ""
             if prefix:
                 key = prefix + ref[4:]
-        con_file, consts = self._find_constant(file, key, allowed_files)
+        con_file, consts = self._find_constant(file, key, allowed_files, page_file)
         if not consts or (con_file, key) in seen:
             # 运行时前缀（menuWin.baseAppPath 等）解析不出，但不影响后续字面量拼接
             if self._is_prefix_ref(ref):
@@ -593,7 +615,8 @@ class ChainBuilder:
         for con in self.scope_constants(consts, owner):
             for val, inner in self._expand_terms(
                     con_file, con.get("terms"), owner, depth + 1,
-                    seen | {(con_file, key)}, allowed_files, module_hint, assign):
+                    seen | {(con_file, key)}, allowed_files, module_hint, assign,
+                    page_file):
                 if val and (val, tuple(sorted(inner.items()))) not in out:
                     out.append((val, inner))
         return out
@@ -626,12 +649,25 @@ class ChainBuilder:
             return ""
         return text
 
-    def request_record(self, fn, req, idx, allowed_files=None, module_hint=""):
+    @staticmethod
+    def _store_request(out_requests, rec, page_file):
+        """同一 JS 被多页装载时 appPath 前缀不同，同一函数请求不能互相覆盖。"""
+        rid = rec["id"]
+        prev = out_requests.get(rid)
+        if prev is not None and prev["url_paths"] != rec["url_paths"]:
+            rid = f"{rid}@{page_file}"
+            rec["id"] = rid
+        out_requests[rid] = rec
+        return rid
+
+    def request_record(self, fn, req, idx, allowed_files=None, module_hint="",
+                       page_file=""):
         self.dropped_prefixes = set()
         variants = self.resolve_term_variants(fn["file"], req.get("url_terms"),
                                               fn["qualified"],
                                               allowed_files=allowed_files,
-                                              module_hint=module_hint)
+                                              module_hint=module_hint,
+                                              page_file=page_file)
         paths = []
         for variant in variants:
             path = self.url_path(variant, req.get("url_expr", ""))
@@ -664,6 +700,7 @@ class ChainBuilder:
         seen_req = set()
         seen_open = set()
         seen_fn = {start_id}
+        visit_order = [start_id]
         queue = deque([(start_id, [start_id])])
         while queue and len(results) < self.max_requests:
             fn_id, path = queue.popleft()
@@ -692,18 +729,22 @@ class ChainBuilder:
                 if not target or target in seen_fn or target not in self.fn_by_id:
                     continue
                 seen_fn.add(target)
+                visit_order.append(target)
                 queue.append((target, path + [target]))
-        self._explore_callbacks(seen_fn, results, opens, seen_req, seen_open, allowed_files)
+        self._explore_callbacks(visit_order, seen_fn, results, opens, seen_req, seen_open,
+                                allowed_files)
         return results, opens
 
-    def _explore_callbacks(self, seen_fn, results, opens, seen_req, seen_open, allowed_files):
+    def _explore_callbacks(self, visit_order, seen_fn, results, opens, seen_req, seen_open,
+                           allowed_files):
         """第二阶段：回调预算。
 
         回调实参边在主 BFS 之后单独展开，避免新增请求挤占 `max_requests` 名额、
-        让原有链路凭空消失；预算与主配额同额，按访问顺序确定性推进。
+        让原有链路凭空消失；预算与主配额同额，按 BFS 访问顺序确定性推进
+        （不能用 set 迭代，哈希种子会让每次构建选到不同回调）。
         """
         budget = self.max_requests
-        for fid in list(seen_fn):
+        for fid in list(visit_order):
             if budget <= 0:
                 break
             fn = self.fn_by_id.get(fid)
@@ -766,7 +807,8 @@ class ChainBuilder:
         variants = self.resolve_term_variants(fn["file"], op.get("url_terms"),
                                               fn["qualified"],
                                               allowed_files=allowed_files,
-                                              module_hint=module_hint)
+                                              module_hint=module_hint,
+                                              page_file=page_file)
         recs = []
         seen = set()
         for variant in variants or [""]:
@@ -935,6 +977,18 @@ class ChainBuilder:
         page_bindings = {}
         page_inline = {}
         page_config_calls = {}
+        # 页面可用的前缀变量：自身 + csp-include 片段内联脚本定义（按页隔离，
+        # 同一份 JS 被门诊/住院页面共用时各页取自己的 appPath）
+        own_prefixes = dict(self.page_prefixes)
+        for page_file in sorted(page_map):
+            merged = {}
+            for frag in [page_file] + included_pages(page_file):
+                for name, consts in own_prefixes.get(frag, {}).items():
+                    merged.setdefault(name, []).extend(consts)
+            if merged:
+                self.page_prefixes[page_file] = merged
+            else:
+                self.page_prefixes.pop(page_file, None)
         for page_file, page in page_map.items():
             bind_map = defaultdict(list)
             inline_list = []
@@ -1146,13 +1200,14 @@ class ChainBuilder:
                 chain_reqs = []
                 for path, fn, req, idx in found:
                     reachable.update(path)
-                    rec = self.request_record(fn, req, idx, page_scripts, page_file.split("/")[0])
+                    rec = self.request_record(fn, req, idx, page_scripts,
+                                                  page_file.split("/")[0], page_file)
                     if not rec["url_path"]:
                         unresolved["urls"] += 1
                         continue
-                    out_requests[rec["id"]] = rec
-                    page_req_ids.add(rec["id"])
-                    chain_reqs.append({"id": rec["id"], "method": rec["method"],
+                    rid = self._store_request(out_requests, rec, page_file)
+                    page_req_ids.add(rid)
+                    chain_reqs.append({"id": rid, "method": rec["method"],
                                        "url_path": rec["url_path"],
                                        "url_paths": rec["url_paths"]})
                     chains.append({
@@ -1162,7 +1217,7 @@ class ChainBuilder:
                         "event": elem["event"],
                         "source": elem["handler_source"],
                         "path": self.path_steps(path),
-                        "request": rec["id"],
+                        "request": rid,
                         "method": rec["method"],
                         "url_path": rec["url_path"],
                         "url_paths": rec["url_paths"],
@@ -1189,13 +1244,14 @@ class ChainBuilder:
                 load_found, load_opened = self.explore(fn_id, page_scripts)
                 for path, fn, req, idx in load_found:
                     reachable.update(path)
-                    rec = self.request_record(fn, req, idx, page_scripts, page_file.split("/")[0])
+                    rec = self.request_record(fn, req, idx, page_scripts,
+                                                  page_file.split("/")[0], page_file)
                     if not rec["url_path"]:
                         unresolved["urls"] += 1
                         continue
-                    out_requests[rec["id"]] = rec
-                    page_req_ids.add(rec["id"])
-                    load_reqs.append({"id": rec["id"], "method": rec["method"],
+                    rid = self._store_request(out_requests, rec, page_file)
+                    page_req_ids.add(rid)
+                    load_reqs.append({"id": rid, "method": rec["method"],
                                       "url_path": rec["url_path"],
                                       "url_paths": rec["url_paths"]})
                     chains.append({
@@ -1205,7 +1261,7 @@ class ChainBuilder:
                         "event": "load",
                         "source": "page_load",
                         "path": self.path_steps(path),
-                        "request": rec["id"],
+                        "request": rid,
                         "method": rec["method"],
                         "url_path": rec["url_path"],
                         "url_paths": rec["url_paths"],
@@ -1282,8 +1338,36 @@ class ChainBuilder:
         for el in out_elements.values():
             el["requests"].sort(key=lambda r: r["id"])
 
+        # 未被任何页面装载的脚本（多为厂商接口层，运行时动态注入）里出现的请求：
+        # 后端入口没有静态页面链路，但也不能判成「无前端调用」。
+        loaded_files = set()
+        for page_file in page_map:
+            loaded_files.update(effective_scripts(page_file))
+        reachable_keys = set()
+        for req in out_requests.values():
+            for path in req.get("url_paths") or ():
+                key = _request_key(path)
+                if key:
+                    reachable_keys.add(key)
+        orphan_keys = set()
+        orphan_files = set()
+        for fn in self.fn_by_id.values():
+            file = fn["file"]
+            if file in loaded_files:
+                continue
+            for idx, req in enumerate(fn.get("requests") or ()):
+                orphan_files.add(file)
+                rec = self.request_record(fn, req, idx)
+                for path in rec.get("url_paths") or ():
+                    key = _request_key(path)
+                    if key:
+                        orphan_keys.add(key)
+        orphan_keys -= reachable_keys
+
         stats = self.stats(page_map, elements, chains, out_functions, out_requests,
                            unresolved, total_actionable, resolved_handlers, config_stats)
+        stats["orphan_js_files"] = len(orphan_files)
+        stats["orphan_request_keys"] = len(orphan_keys)
         stats["page_links"] = len(page_links)
         stats["page_links_popup"] = link_stats.get("弹出", 0)
         stats["page_links_config"] = link_stats.get("跳转", 0)
@@ -1308,6 +1392,7 @@ class ChainBuilder:
             "requests": out_requests,
             "chains": chains,
             "page_links": page_link_list,
+            "orphan_request_keys": sorted(orphan_keys),
         }
         return db, stats
 

@@ -42,6 +42,12 @@ SIMPLE_REQUESTS = {
 }
 _AJAX_CALLEES = {"$.ajax", "$.post", "$.get", "$.getJSON", "$.postJSON"}
 
+# EasyUI 组件的远程数据源配置（url 选项 / options().url 赋值）：渲染即请求
+_EASYUI_URL_COMPONENTS = {
+    "datagrid", "treegrid", "edatagrid", "propertygrid", "datalist",
+    "combobox", "combotree", "combogrid", "combotreegrid", "tree",
+}
+
 # 通用库方法，不作为业务调用边记录（避免把 jQuery/DOM 调用塞进调用图）
 NOISE_CALLEES = {
     "$", "jQuery",
@@ -117,6 +123,10 @@ _ASSIGN_BLOCKERS = set("=!<>+-*/%&|^?:")
 _INLINE_ON_RE = re.compile(
     r"""on(click|change|blur|focus|keydown|keyup|mousedown|mouseup)\s*=\s*
         (?:"([^"]*)"|'([^']*)')""", re.X | re.S)
+# 属性值在字符串拼接处被截断（onclick="ns.fn(this,\'' + x + '\')"）时只认调用前缀
+_INLINE_ON_CALL_RE = re.compile(
+    r"""on(click|change|blur|focus|keydown|keyup|mousedown|mouseup)\s*=\s*
+        (["'])([A-Za-z_$][\w$.]*)\s*\(""", re.X)
 _INLINE_LABEL_RE = re.compile(r">\s*([^<>{}]{1,40}?)\s*<")
 _JAVASCRIPT_HREF_RE = re.compile(r"""href\s*=\s*(?:"javascript:([^"]*)"|'javascript:([^']*)')""", re.I)
 _DATA_OPTIONS_ONCLICK_RE = re.compile(r"""onClick\s*:\s*([A-Za-z_$][\w$.]*)""")
@@ -1240,7 +1250,67 @@ class _Scanner:
                 req = self._wrapper_request_at(i, callee, start, line, wrappers)
             if req:
                 requests.append(req)
+        requests.extend(self._scan_easyui_urls())
         return calls, requests, opens
+
+    def _scan_easyui_urls(self):
+        """EasyUI 组件的远程数据源：`datagrid({url: ...})` / `datagrid("options").url = ...`。
+
+        组件渲染即发请求，调用点常常没有显式 ajax 形态；不登记就漏掉「页面一打开就
+        加载的列表」这类后端入口。地址值照常交给构建期解析。
+        """
+        tokens = self.tokens
+        n = len(tokens)
+        out, seen = [], set()
+
+        def add(value_range, line, method):
+            start, end = value_range
+            expr = _render(tokens, start, end)
+            if not expr or expr == "null":
+                return
+            terms = _parse_url_terms(tokens, start, end)
+            if not terms:
+                return
+            key = (expr, method, start)
+            if key in seen:
+                return
+            seen.add(key)
+            out.append({
+                "method": method, "url_terms": terms, "url_expr": expr,
+                "param_keys": [], "idx": start, "line": line, "wrapper": "easyui-url",
+            })
+
+        for i in range(1, n - 1):
+            kind, value, line = tokens[i]
+            if kind != "id" or tokens[i - 1][1] != ".":
+                continue
+            if value not in _EASYUI_URL_COMPONENTS or tokens[i + 1][1] != "(":
+                continue
+            args = _arg_ranges(tokens, i + 1)
+            if not args:
+                continue
+            # $HUI.datagrid("#id", {url: ...}) 的选项是最后一个对象实参
+            for start, end in args:
+                if tokens[start][1] != "{" or end - start < 2:
+                    continue
+                value_range = _object_value(tokens, start, end, "url")
+                if not value_range or value_range[0] >= value_range[1]:
+                    continue
+                method = "GET"
+                method_range = _object_value(tokens, start, end, "method")
+                if method_range and method_range[1] - method_range[0] == 1 \
+                        and tokens[method_range[0]][0] == "str":
+                    method = tokens[method_range[0]][1].upper()
+                add(value_range, line, method)
+
+            # $("#grid").datagrid("options").url = <expr>：关闭后重置数据源
+            close = _find_matching(tokens, i + 1)
+            if (close + 4 < n and tokens[close + 1][1] == "."
+                    and tokens[close + 2][1] == "url"
+                    and tokens[close + 3][1] == "="):
+                vend = _statement_end(tokens, close + 4, n)
+                add((close + 4, vend + 1), line, "GET")
+        return out
 
     def _callback_args(self, i):
         """调用实参里的裸函数标识符（`f(win, DoExchange)` 的 DoExchange）。
@@ -1725,10 +1795,20 @@ class _Scanner:
             data_opts = _DATA_OPTIONS_ONCLICK_RE.search(value)
             if data_opts:
                 handlers.append(("click", data_opts.group(1)))
+            # 属性值被字符串拼接截断时（onclick="ns.fn(this,\'' + x + '\')"），
+            # 完整属性正则匹配不到，按「事件 + 调用前缀」补一次
+            for m in _INLINE_ON_CALL_RE.finditer(value):
+                handlers.append(("on" + m.group(1), m.group(3)))
+            seen_heads = set()
             for event, handler in handlers:
                 handler = (handler or "").strip()
                 if not handler:
                     continue
+                head = re.match(r"[A-Za-z_$][\w$.]*", handler)
+                head = head.group(0) if head else handler
+                if (event, head) in seen_heads:
+                    continue
+                seen_heads.add((event, head))
                 label_m = _INLINE_LABEL_RE.search(value)
                 label = label_m.group(1) if label_m else ""
                 self.inline_elements.append({

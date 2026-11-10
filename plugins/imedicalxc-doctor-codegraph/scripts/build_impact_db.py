@@ -54,6 +54,8 @@ def build():
                 }
                 if obj.get("ancestors"):
                     ws_nodes[nid]["ancestors"] = obj["ancestors"]
+                if obj.get("interfaces"):
+                    ws_nodes[nid]["interfaces"] = obj["interfaces"]
                 if obj.get("blh_name"):
                     ws_nodes[nid]["blh_name"] = obj["blh_name"]
                 if obj.get("is_feign"):
