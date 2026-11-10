@@ -946,3 +946,7 @@ coding 0.27.4：整包更新根 scripts 与 coding 插件，结束旧管理会�
 Codex 原生 Agent：显式 `-RuntimeAdapter Codex -Agent` 首次生成项目 TOML，普通更新刷新已有受管文件；自定义内容保留。技能操作入口复用 coding-agent-adaptation，说明见 [宿主适配](coding-agent-adaptation.md#codex-原生-agent)。
 
 WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codebuddy/agents 薄入口；PowerShell 显式 -RuntimeAdapter WorkBuddy（或 CodeBuddy）-Agent，默认仍为 Skill。源定义只维护 AGENT.md，客户端实际调用待验。
+
+### 工作区外自定义技能目录链接
+
+需求归属迁移沿同一更新流程识别外部独立技能目录，保留链接并报告 external-linked-skill；不扫描或改写其内容。旧/新需求入口及其它链接保护不变，完整边界见[需求入口迁移](demand-delivery-migration.md#已部署项目更新)。已部署副本需取得更新后的 scripts/migrate-demand-ownership.js，再按 DryRun → Write → Check 刷新；没有新增配置或链接清理。

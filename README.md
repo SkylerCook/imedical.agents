@@ -170,7 +170,7 @@ Overlay 同时支持引用已有源码的 Junction 和工作区自有的实体�
 
 多个模块可以共享一个 canonical `CapabilityRoot`，同时把各自 `config`、`rules`、`memory` 和 `work` 保留在独立 `ContextRoot`。流程固定为 capability-once/context-many：先在标版根更新一次 capability，再对每个模块执行 `-NoPull` 的 DryRun/Write。模块 `.agents` 无须是 Git 仓库；其 `capability.json`、Junction 与 SourceRoot/GitRoot 必须通过解析和验证。刷新会在模块 `ContextRoot/scripts/` 生成 manifest-aware runtime adapter，包括将 `.agents/scripts/iris-mcp.js` 转发到共享 canonical helper；adapter 不写死 `CapabilityRoot` 绝对路径。
 
-模块默认修改范围为 SourceRoot；理解依赖和调用链时可按需只读查看已声明 GitRoot 或项目注册表映射的相关仓库，读取不扩大写入授权。完整命令、读写边界、旧入口迁移和安全恢复策略见 [docs/workspace-overlay.md](docs/workspace-overlay.md)。
+模块默认修改范围为 SourceRoot；理解依赖和调用链时可按需只读查看已声明 GitRoot 或项目注册表映射的相关仓库，读取不扩大写入授权。完整命令、读写边界、旧入口迁移和安全恢复策略见 [docs/workspace-overlay.md](docs/workspace-overlay.md)。 需求迁移保留工作区外的独立自定义技能目录链接，识别与保护边界见[需求入口迁移](docs/demand-delivery-migration.md#已部署项目更新)。
 
 安装和更新先根据 enabled 插件 manifest 解析 `skillDependencies`，只为 required vendor skill 生成 `.agents/skills/<name>/SKILL.md` 项目通用入口；optional skill 由任务场景触发。常规流程不再写用户级 skill 目录；用户级 Claude Code/Codex vendor 同步必须显式指定 runtime 和 skill。项目技能适配支持命名宿主与显式自定义项目目录，见 [技能适配](docs/coding-agent-adaptation.md)；尚未核实发现机制的宿主直接读取技能源降级。
 

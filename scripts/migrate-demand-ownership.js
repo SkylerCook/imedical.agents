@@ -83,6 +83,18 @@ function plan(context, selected = [], excluded = [], expectedEnabled) {
       changes.push({ file, before, after });
     } catch (e) { conflicts.push(e.message); }
   }
+  function skipExternalSkillLink(dir, file, name) {
+    // External custom skills have their own owner. Only classify the link;
+    // never scan or rewrite its contents, and retain demand-entry protection.
+    if (dir !== path.join(local, 'skills') || Object.hasOwn(names, name) || Object.values(names).some(([next]) => next === name)) return false;
+    try {
+      const target = fs.realpathSync(file), relative = path.relative(fs.realpathSync(root), target);
+      const outside = relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative);
+      if (!outside || !fs.statSync(file).isDirectory() || !fs.lstatSync(path.join(file, 'SKILL.md')).isFile()) return false;
+      skippedWorkspaces.set(file, { directory: file, reason: 'external-linked-skill' });
+      return true;
+    } catch { return false; }
+  }
   function walk(dir, all) {
     if (!exists(dir)) return;
     try { safe(dir, dir.startsWith(local) ? local : root); } catch (e) { conflicts.push(e.message); return; }
@@ -100,7 +112,10 @@ function plan(context, selected = [], excluded = [], expectedEnabled) {
     for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
       if (['.git', 'node_modules', '.agents', 'vendor', 'dist', 'build'].includes(item.name)) continue;
       const file = path.join(dir, item.name);
-      if (item.isSymbolicLink()) { if (all || item.name === 'AGENTS.md') conflicts.push('linked path requires review: ' + file); continue; }
+      if (item.isSymbolicLink()) {
+        if (!skipExternalSkillLink(dir, file, item.name) && (all || item.name === 'AGENTS.md')) conflicts.push('linked path requires review: ' + file);
+        continue;
+      }
       if (item.isDirectory()) walk(file, all);
       else if (!oldFiles.has(file) && (all || item.name === 'AGENTS.md')) {
         if (/\.(md|json|ya?ml|toml|js|ps1|sh)$/i.test(file)) inspect(file, /\.md$/i.test(file));

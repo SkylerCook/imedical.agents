@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- 需求归属迁移按物理路径识别工作区外的独立自定义技能目录链接，保留链接、不跟随内容；旧/新需求入口和无效链接保护不变，更新边界见 docs/demand-delivery-migration.md。
+
 - 原生适配扩展 WorkBuddy/CodeBuddy 共享薄入口，仍默认 Skill；实际客户端调用待验。
 
 coding-agent-adaptation 默认 Skill、--agent 显式进入 Codex 原生适配，独立 TOML 生成器保持；显式接入后普通更新刷新。客户端信任条件、版本样本和验证限制见 docs/coding-agent-adaptation.md。
