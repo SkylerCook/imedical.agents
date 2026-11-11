@@ -203,7 +203,7 @@ function main(args) {
   if (options.action === 'apply') return apply({file, pwsh, replace, expected: options['expected-sha']});
   const snapshot = load(file); return summary(file, pwsh, snapshot, plan(snapshot, pwsh));
 }
-module.exports = {parse, document, load, plan, edit, apply, rollback, main};
+module.exports = {parse, document, load, plan, edit, apply, rollback, main, safePath, encode, spec, checkPwsh};
 if (require.main === module) {
   try { process.stdout.write(JSON.stringify(main(process.argv.slice(2))) + '\n'); }
   catch (error) { process.stderr.write((error.code || error.message) + '\n'); process.exitCode = 1; }

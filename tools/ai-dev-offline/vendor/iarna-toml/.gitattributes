@@ -1,0 +1,4 @@
+# Preserve the upstream bytes verified in UPSTREAM.json.
+* -text whitespace=cr-at-eol
+# The upstream license includes a final empty line; keep its verified bytes.
+LICENSE whitespace=cr-at-eol,-blank-at-eof

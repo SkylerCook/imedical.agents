@@ -1,0 +1,21 @@
+{
+  "name": "@iarna/toml",
+  "version": "2.2.5",
+  "license": "ISC",
+  "source": "https://github.com/iarna/iarna-toml",
+  "tarball": "https://registry.npmjs.org/@iarna/toml/-/toml-2.2.5.tgz",
+  "integrity": "sha512-trnsAYxU3xnS1gPHPyU961coFyLkh4gAD/0zQ5mymY4yOZ+CYvsPqUbOFSw0aDM4y0tV7tiFxL/1XfXPNC6IPg==",
+  "scope": "Unmodified synchronous parser and its dependencies only. Offline project TOML validation.",
+  "files": {
+    "parse-string.js": "cd9e497870ffda7ad1e266b86580c270388a45c2d04e75acd985a42a0597fdb0",
+    "parse-pretty-error.js": "4e9783b41b343c62be4d3bf3b21fb7972bfc27523e913a782c4624c008a80eb1",
+    "lib/toml-parser.js": "805ffd1b4e183566a15546024ca98b3f94ee39778ff43782d432c7c981c32191",
+    "lib/parser.js": "175e4cc273aea2e0505e0f0000bcba471f8da041d219a9ab73978567e8f66029",
+    "lib/create-date.js": "3941f4748f25f11c5ccf55c85ddc41e06e85379482e5885a8aff8b964d6a2ad8",
+    "lib/create-datetime.js": "b83215e9dd32e34332c7ddd9b868e03e321dcb28cde830d1b7951df68325bbbf",
+    "lib/create-datetime-float.js": "aa5ac5619fafcb487edf249d3a8bbd9d672626299966eba6945afbc96470c6c1",
+    "lib/create-time.js": "2d40222ea3f60c1c95cf3f60e3b1554f39cc3a0d5ef5ff8bfb031635fa987707",
+    "lib/format-num.js": "b4f02ed3ea839792827aacd1bd1492f0150f53024a006832579cd6ec43e92801",
+    "LICENSE": "d4dc58571be1260e45f2fb8ab174e0a838c9ca361720e1b0e2ca020c037988b2"
+  }
+}

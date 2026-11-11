@@ -60,7 +60,7 @@ workflows/   # 厂商无关的阶段化/多智能体协作流程
 plugins/     # 可复用能力实现：rules、skills、templates、scripts、references
 ```
 
-[tools/](tools/README.md) 是另行携带的人工工具源，独立于上述能力包分发；本机 ZIP 与已提交源文件分别管理，不把整个工具目录加入业务项目 `.agents`。[AI 开发基础离线物料](tools/ai-dev-offline/README.md)提供 Windows x64 固定原包、CodeBuddy VSIX、安全模板、PATH及VS Code用户默认PowerShell 7自动配置；它不是已通过干净环境验收的一键安装器。
+[tools/](tools/README.md) 是另行携带的人工工具源，独立于上述能力包分发；本机 ZIP 与已提交源文件分别管理，不把整个工具目录加入业务项目 `.agents`。[AI 开发基础离线物料](tools/ai-dev-offline/README.md)提供 Windows x64 固定原包、CodeBuddy VSIX、安全模板、PATH及VS Code用户默认PowerShell 7自动配置；另有 [GUI 安装与项目配置助手](tools/ai-dev-offline/GUI.md)，六项工具可选安装，支持程序路径自动定位、IRIS/Caché 项目连接与 VS Code 用户设置合并、日志导出和备份恢复。GUI 包去除 CodeBuddy，干净环境与远端验收边界见工具说明。
 
 核心原则：
 

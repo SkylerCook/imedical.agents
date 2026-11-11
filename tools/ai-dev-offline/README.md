@@ -1,8 +1,10 @@
 # AI 开发基础工具离线物料包
 
+面向安装人员的新入口见 [GUI 安装助手](GUI.md)。GUI ZIP 包含六项可选工具，提供安装并配置、仅安装、复用已有程序及变量恢复。r4 增加项目配置，可自动定位程序、回填已有 IRIS/Caché 连接，预览后合并 VS Code 用户偏好、项目设置、MCP 与 TOML，并支持备份恢复。下文保留原物料包及命令入口说明。
+
 2026-10-29 固定物料组合，2026-10-30 补充用户设置自动配置，目标为 **Windows 10/11 x64**。本期准备六项基础工具、CodeBuddy VSIX、安全模板、PATH 配置及 PowerShell 7 用户终端配置入口。其它 AI 客户端后补；不含任何真实医院配置、凭据、项目源码或业务依赖。
 
-正式包统一为 `ai-dev-base-windows-x64-2026-10-29.zip`，已包含 MCP/TOML 模板与 PATH 工具；核对交付时提供的最新 SHA256，不按文件名推断内容版本。
+正式物料包固定为 `tools/dist/ai-dev-base-windows-x64.zip`，包含 MCP/TOML 模板与 PATH 工具。GUI 包固定为 `tools/dist/ai-dev-offline-gui-win10-x64.zip`，当前为 r4，支持项目配置、自动日志和导出。这里的路径相对于仓库根目录。旧版与现场更新包放在 `tools/dist/history/ai-dev-offline/`，交付时核对对应 SHA256。
 
 这是可带到现场的官方原包集合，附本地校验、手工部署步骤和显式调用的环境变量配置工具。**不是已经通过干净环境验收的一键安装器**。包完整性通过、工具能够启动、项目能够工作是三个不同结论；当前实际证据见 [PREPARATION-REPORT.md](PREPARATION-REPORT.md)。制包不改变准备机安装或系统变量；现场工具只处理明确选择的组件，不自动扫描电脑或探测未选组件。
 
@@ -52,7 +54,7 @@
 | Java 8 | 解压到 `Java/8u504-b01/`，保留 `jdk8u504-b01/` 层级；不升级医院现有 Java。 |
 | CodeBuddy | 在本次选择的 VS Code 中用 Extensions → Install from VSIX，选择包内 `Tencent-Cloud.coding-copilot-4.12.39997873.vsix`。适用 VS Code `^1.70.2`，本包固定 VS Code 满足声明范围。登录、服务连接与实际 AI 功能另行处理，不复制旧电脑账号数据。 |
 
-以上是手工安装指引。下文另提供部署后的 PATH 工具和 PowerShell 7 用户终端自动配置；完整自动安装、断点恢复安装器及其它设置的通用导入仍未实现。
+以上是物料包的手工安装指引。安装人员可使用 GUI 完成可选安装、已安装组件复用和项目配置，下文的 PATH 工具及 PowerShell 7 用户终端脚本继续提供命令入口。
 
 ## 从现用 settings.json 摘取的可选模板
 

@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+- AI 开发工具新增 [独立 GUI](../tools/ai-dev-offline/GUI.md)，六项可选、仅安装、已有路径配置和恢复。r4 增加程序路径自动定位、项目连接回填、VS Code 用户偏好与 IRIS/Caché 项目配置、私有备份恢复和脱敏日志。固定 ZIP 入口见工具说明，旧版归 tools/dist/history；一个 Win10 现场样本已验证三项 User PATH 和 Java 8 完整路径运行，剩余远端与干净环境验收见维护日志。Win7 独立包列为 P3 暂缓，遇到实际项目需求后启动。
+
 coding 0.27.6 修复原生 XML 导出预检的启动竞态。managed-sessions-v4 vendor 完成连接发现后再建立工具服务，连接不可用与目标不一致分别报告。预检明确未派发时保留实际退出回执，历史警告带 generation/historical 标记。
 
 - 需求归属迁移按物理路径识别工作区外的独立自定义技能目录链接，保留链接、不跟随内容；旧/新需求入口和无效链接保护不变，更新边界见 docs/demand-delivery-migration.md。
@@ -38,7 +40,7 @@ IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY
 - 离线交付检查原始 Git 共同基线及打包后源码漂移，XML 保留原换行/BOM；旧任务保留已有修改后按 [迁移入口](../plugins/coding-iris-plugin/references/iris-offline-development.md#git-原始基线与交付一致性)重建，模型执行习惯不纳入本次框架规则。
 
 - IRIS 初始化/重新部署默认沿 [coding-iris-init](../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)生成必要配置并 Check；已启用项目普通更新沿既有迁移自动补缺文件，保留已有字节和旧模式缺省。未知模式/环境集中确认，统一会话迁移先于补缺：无旧策略才生成受管单会话默认值，已有禁用保留；配置、资格、before-edit 基线分开报告；旧恢复材料先核实。
-- 人工 [AI 开发离线物料](../tools/ai-dev-offline/README.md)归 tools：固定原包、CodeBuddy、安全模板、PATH及用户默认PowerShell 7自动配置；后者用所选VS Code运行时和固定JSONC库，无需另装Node，含冲突保护和私有备份／增量恢复。文件写入／Process CMD与GUI／Machine／医院验收分开；不随`.agents`分发，没有完整安装或其它配置通用导入。
+- 人工 [AI 开发离线物料](../tools/ai-dev-offline/README.md)归 tools：固定原包、CodeBuddy、安全模板、PATH及用户默认PowerShell 7自动配置；后者用所选VS Code运行时和固定JSONC库，无需另装Node，含冲突保护和私有备份／增量恢复。GUI r4 的项目配置复用该编辑器，并携带固定 TOML 解析器，文件验证、宿主加载与医院连接分别验收；工具仅随独立 ZIP 交付。
 - 最近全局回看覆盖 `dadd6a9..9a13586`（2026-10-31，9 个提交）。发现、修正、CI 快照及验证见[日志覆盖点](agent-kit-maintenance-log.md#全局回看覆盖点)；版本查 owner manifest，历史实施状态不作当前未提交结论。
 - IRIS 帮助先于模式与业务前置；实际开发先按独立 developmentMode 分流，再选择在线项目同步或[离线交付](../plugins/coding-iris-plugin/references/iris-offline-development.md)。在线项目按需分支的待修改文件，无论本地是否存在，先同步、有变化先提交 export，再开始修改；普通导出直写会指向 source-sync。源码助手唯一实现归 coding owner，人工 ZIP 取同一核心；框架绑定批次/范围与源码 Git，原包私有保存，旧任务原位恢复。当前打包限 Windows，本地 Verify 与现场验收分别报告。
 - Overlay 实体 SourceRoot 见 [runbook](../docs/workspace-overlay.md#sourceroot引用已有源码或持有本地源码)：path/target 相同声明实体目录，旧 Junction 保持。先更新共享 capability 再按项目授权接入；物理等价路径不扩大源码范围，不自动初始化 Git 或迁移源码。

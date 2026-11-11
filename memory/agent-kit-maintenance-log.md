@@ -1,5 +1,14 @@
 # imedical.agents 维护日志
 
+## 2026-11-11 AI 开发工具 GUI
+
+- 独立 WinForms 安装助手串联六项原包校验、可选安装、仅安装、已有路径配置及恢复，GUI 包移除 CodeBuddy。扩展原环境脚本 User 作用域、VS Code/Java 路径及 JAVA_HOME，提供安装目录互斥与记录续用。r3 后台采用进程级 RemoteSigned，记录启动阶段、Windows 错误码、退出码和自动落盘日志，支持导出及日志目录不可写时的用户目录回落。
+- Windows PowerShell 5.1 既有 24 项与 GUI 28 项通过，覆盖中文空格路径、安装复用、已有程序、损坏包、未知目录、并发与恢复、日志导出和互联网来源脚本签名限制。五项便携原包在隔离目录实际解压、Process PATH/固定版本与重试通过，真实 GUI 完成 Node 仅安装及日志另存，导出文件摘要一致。
+- 一个 Windows 10 x64 现场样本已通过 VS Code、PowerShell 7、Node.js 安装和 User PATH 配置，Java 8 完整路径运行成功。旧 Java 命令优先级使默认版本切换验证停止。Python 安装注册、Machine 写入、持久环境恢复、业务兼容及 Win11 干净环境仍待验。2026-11-11 用户确认暂未遇到 Win7 需求，独立包转为 P3 暂缓待办，实际项目需要时再制作并验证。
+- r4 在原 GUI 增加项目配置，使用选定 Code.exe 运行时增量合并用户偏好、项目 `.vscode/settings.json`、MCP 和 TOML。保留其他 MCP、已识别的受管 Node 入口及禁用状态，标准受管后端参数同步。程序路径按安装选择、安装根、上次目录、PATH 与常见位置定位，项目选择后自动回填，目录记忆只保存路径。DPAPI 保护临时密码，私有实例和备份核对 Git 忽略，日志省略连接值及凭据。
+- 项目配置 10 项、既有用户设置 19 项、GUI 30 项及 Windows PowerShell 5.1 真实 Code.exe 后台 27 项通过。覆盖 HTTP/HTTPS、TOML 多行／注释／额外字段、其他 MCP 保留、受管入口、重试、漂移、失败恢复和中文凭据。GUI 已完成读取→预览→应用→恢复，恢复字节一致，日志无测试凭据。成品同源目录另跑后台 27 项通过，VS Code 扩展登录、MCP 实际加载及 Caché 远端能力沿现场验收。
+- 固定交付为 tools/dist/ai-dev-offline-gui-win10-x64.zip（r4），旧 r3 已核对原 SHA256 后归档。原物料包固定为 tools/dist/ai-dev-base-windows-x64.zip，历史包归 tools/dist/history/ai-dev-offline/。GUI 构建校验六项原包与全部 ZIP 文件；项目配置使用固定 jsonc-parser 3.3.1 和 @iarna/toml 2.2.5 同步解析器最小子集，保留来源摘要与许可证。变更仅影响人工独立工具，就近 README/GUI、仓库入口和维护记忆同步，业务能力手册与安装更新流程沿原边界。
+
 ## 2026-11-11 原生导出启动竞态修复（coding 0.27.6）
 
 - 固定上游 v1.5.0 在两秒后构造工具服务并复制连接，后续发现完成不会更新该服务。延迟 localhost 响应超过两秒可复现旧 vendor 永久空配置。新增 v4 补丁等待发现任务完成，沿既有 CI 构建。

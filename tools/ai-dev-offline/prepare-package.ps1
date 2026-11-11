@@ -9,7 +9,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $sourceRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-if (-not $OutputFile) { $OutputFile = Join-Path $sourceRoot '../dist/ai-dev-base-windows-x64-2026-10-29.zip' }
+if (-not $OutputFile) { $OutputFile = Join-Path $sourceRoot '../dist/ai-dev-base-windows-x64.zip' }
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $work = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($WorkRoot)
@@ -84,7 +84,7 @@ foreach ($name in $packageFiles) {
 if (-not $?) { throw 'staged-verification-failed' }
 $out = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputFile)
 Assert-NoLink $out
-if (Test-Path -LiteralPath $out) { throw 'output-already-exists-use-new-name' }
+if (Test-Path -LiteralPath $out) { throw 'output-already-exists: archive the previous package under tools/dist/history before rebuilding' }
 [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($out))
 $partialZip = $out + '.partial'
 if (Test-Path -LiteralPath $partialZip) { throw 'partial-output-already-exists' }
