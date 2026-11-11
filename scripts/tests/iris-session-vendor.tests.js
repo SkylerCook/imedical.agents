@@ -128,3 +128,23 @@ test('actual startup stops probe and queued operations: '+startupMode,{skip:proc
   assert.equal(host.manager.status()[0].unresolvedWrites.length,0);
 });
 }
+
+test('actual vendor asynchronous discovery becomes ready within one process', {skip:process.platform!=='win32'&&!process.env.IRIS_TEST_VENDOR_BINARY}, async t=>{
+  const root=createTempDirectory('iris-ready-vendor-');let authenticated=0;
+  const server=http.createServer((req,res)=>{
+    req.resume();
+    if(req.url.includes('IRISLogout=end')){res.writeHead(401);res.end('{}');return;}
+    if(req.headers.authorization)authenticated++;
+    setTimeout(()=>{res.setHeader('Content-Type','application/json');res.setHeader('Set-Cookie','CSPSESSIONID-fixture=ready; Path=/api/atelier/');res.end(JSON.stringify({result:{content:{version:'IRIS for test',api:1}}}));},2600);
+  });
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const inherited=Object.fromEntries(Object.keys(process.env).filter(k=>k.startsWith('IRIS_')).map(k=>[k,undefined]));
+  const client=new JsonLineMcpClient(binary,['mcp','--no-skills'],{...inherited,IRIS_HOST:'127.0.0.1',IRIS_WEB_PORT:String(server.address().port),IRIS_SCHEME:'http',IRIS_NAMESPACE:'TEST',IRIS_USERNAME:'fixture',IRIS_PASSWORD:'fixture',IRIS_MANAGED_NO_RETRIES:'1'},{cwd:root});
+  t.after(async()=>{await client.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));if(ownsTempDirectory(root))fs.rmSync(root,{recursive:true});});
+  await client.request('initialize',{protocolVersion:'2024-11-05',capabilities:{},clientInfo:{name:'readiness-test',version:'1'}});client.notify('notifications/initialized',{});
+  const first=require('../iris-mcp').extractToolText(await client.request('tools/call',{name:'check_config',arguments:{}}));
+  assert.equal(first.connected,true);
+  const ready=first;
+  assert.equal(ready.connected,true);assert.equal(authenticated,1);
+  const exit=await client.close();assert.equal(exit.processExited,true);assert.equal(exit.logout.completed,true);
+});

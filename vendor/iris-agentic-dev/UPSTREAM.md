@@ -27,6 +27,10 @@ Neither these simulations nor successful process shutdown prove a hospital sessi
 
 ## Cookie renewal patch v3
 
+## Startup readiness candidate v4
+
+The incremental `patches/startup-readiness-v4.patch` joins the initial discovery task before constructing the tool service. Upstream v1.5.0 otherwise snapshots the connection after two seconds and never applies a later successful discovery to that service. The candidate test delays localhost discovery beyond two seconds and requires a connected first `check_config` response. Binary integration and build identity are recorded in `managed-build.json` when the candidate is promoted.
+
 The current binary applies v3 after v1 and v2. Same-name/domain/path Cookie value renewal is accepted without an instance format setting; subsequent requests use the latest Cookie without Basic authentication. Cookie values are opaque tokens, not proof of a server-side License identity. Missing, deleted, expired or out-of-scope session cookies, changed account/target, and authentication failures still stop the affected call. Automatic replay and durable telemetry remain disabled. This replaces v2's token-comparison and `csp50-v1` behavior.
 
 The distributed v3 executable was built locally from the pinned upstream commit with Rust 1.92.0 Windows GNU and LLVM MinGW 20261020 MSVCRT (clang 23.1.4). Rust's official `rustc`, `cargo`, `rust-std` and `rust-mingw` component archives were checksum-verified. The LLVM archive SHA-256 is `52a3e3f584a74c3cde8ceb0c6960549683178e03b36818cb02b7ed109a68ff67`. Build identity, normalized-LF patch digests and executable digest are in `managed-build.json`; this local build does not claim the historical v2 CI run as provenance.
