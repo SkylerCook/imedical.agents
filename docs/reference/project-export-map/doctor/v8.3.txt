@@ -927,3 +927,17 @@ DHCDoc.DHCDocCure.Record.cls
 DHCDoc.Util.ArrayData.cls
 DHCDoc.Util.ListData.cls
 DHCDoc.Util.RegisteredObject.cls
+DHCDoc.DHCDocCure.ApplyTree.cls
+DHCDoc.DHCDocCure.BSExtend.cls
+DHCDoc.DHCDocCure.BodySet.cls
+DHCDoc.DHCDocCure.Config.cls
+DHCDoc.DHCDocCure.CureCall.cls
+DHCDoc.DHCDocCure.CureFormJSVer.cls
+DHCDoc.DHCDocCure.Invoke.cls
+DHCDoc.DHCDocCure.OnlineSupport.cls
+DHCDoc.DHCDocCure.RBCResPlan.cls
+DHCDoc.DHCDocCure.RBCServiceGroupSet.cls
+DHCDoc.DHCDocCure.RBCTimePeriodSet.cls
+DHCDoc.DHCDocCure.Service.cls
+DHCDoc.DHCDocCure.Util.cls
+DHCDoc.Util.FromXML.cls

@@ -3150,3 +3150,9 @@ DHCDoc.DHCDocCure.Android.Public.cls
 DHCDoc.DHCDocCure.Android.PublicOrd.cls
 DHCDoc.DHCDocCure.Android.Service.CureInterface.cls
 DHCDoc.DHCDocCure.Android.Util.cls
+DHCDoc.DHCDocCure.BodySet.cls
+DHCDoc.DHCDocCure.CureCall.cls
+DHCDoc.DHCDocCure.CureFormJSVer.cls
+DHCDoc.DHCDocCure.Invoke.cls
+DHCDoc.DHCDocCure.OnlineSupport.cls
+DHCDoc.DHCDocCure.Service.cls

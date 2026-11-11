@@ -1,0 +1,87 @@
+{
+  "date": "2026-11-11",
+  "source": "gzbrain/code/src",
+  "scope": "<9.0 treatment class identities and directly referenced FromXML; excludes Test namespace",
+  "versions": {
+    "v8.3": {
+      "added": [
+        "DHCDoc.DHCDocCure.ApplyTree.cls",
+        "DHCDoc.DHCDocCure.BSExtend.cls",
+        "DHCDoc.DHCDocCure.BodySet.cls",
+        "DHCDoc.DHCDocCure.Config.cls",
+        "DHCDoc.DHCDocCure.CureCall.cls",
+        "DHCDoc.DHCDocCure.CureFormJSVer.cls",
+        "DHCDoc.DHCDocCure.Invoke.cls",
+        "DHCDoc.DHCDocCure.OnlineSupport.cls",
+        "DHCDoc.DHCDocCure.RBCResPlan.cls",
+        "DHCDoc.DHCDocCure.RBCServiceGroupSet.cls",
+        "DHCDoc.DHCDocCure.RBCTimePeriodSet.cls",
+        "DHCDoc.DHCDocCure.Service.cls",
+        "DHCDoc.DHCDocCure.Util.cls",
+        "DHCDoc.Util.FromXML.cls"
+      ],
+      "total": 943
+    },
+    "v8.4": {
+      "added": [
+        "DHCDoc.DHCDocCure.BodySet.cls",
+        "DHCDoc.DHCDocCure.CureCall.cls",
+        "DHCDoc.DHCDocCure.CureFormJSVer.cls",
+        "DHCDoc.DHCDocCure.Invoke.cls",
+        "DHCDoc.DHCDocCure.OnlineSupport.cls",
+        "DHCDoc.DHCDocCure.Service.cls",
+        "DHCDoc.Util.FromXML.cls"
+      ],
+      "total": 2871
+    },
+    "v8.5": {
+      "added": [
+        "DHCDoc.DHCDocCure.BodySet.cls",
+        "DHCDoc.DHCDocCure.CureCall.cls",
+        "DHCDoc.DHCDocCure.CureFormJSVer.cls",
+        "DHCDoc.DHCDocCure.Invoke.cls",
+        "DHCDoc.DHCDocCure.OnlineSupport.cls",
+        "DHCDoc.DHCDocCure.Service.cls"
+      ],
+      "total": 3158
+    }
+  },
+  "sourceHashes": {
+    "DHCDoc.DHCDocCure.Android.ActionProxy.cls": "25aa5ecf4db03022e4679bc01d901821fae931c5e76852e89d869491df768a93",
+    "DHCDoc.DHCDocCure.Android.Adapter.cls": "dc4cfa7ce1bbb425ee653cd6eae815004b695e0917652e30b95c82fc89d3c5dc",
+    "DHCDoc.DHCDocCure.Android.BusinessDic.cls": "23bc6a42472799ddc641ec35fa0c1b5a751f33fb7f86d30a9b5b6ec6a18e8d35",
+    "DHCDoc.DHCDocCure.Android.COM.Super.cls": "0c5945013446cc6b334ea3c3872eea8b7ce859d1b00c6bdabe30ad7260bfc7fd",
+    "DHCDoc.DHCDocCure.Android.Config.cls": "23d94b5693b6641aebcf0b74a12438532e61ceffa9b346395a8ed4cd8e50329a",
+    "DHCDoc.DHCDocCure.Android.InternalInvoke.cls": "538737fe8a1b3b3a1d3af225dc7f0a1df7444b1671db741933b4171493674d44",
+    "DHCDoc.DHCDocCure.Android.Methods.cls": "3e86fbb4be0025ddd5cb1c46afadb2590a952b435b5c7974da35ae11eea15d9d",
+    "DHCDoc.DHCDocCure.Android.Public.cls": "1b853c9945b495825fe48bda9e4ddedb88357b373eeebf23d0b3531984ddbbe6",
+    "DHCDoc.DHCDocCure.Android.PublicOrd.cls": "a1ed237a0fca0a6d9d126a344e2a6bcc0fa774c9a6d3e762d7d8ab8836c35d32",
+    "DHCDoc.DHCDocCure.Android.Service.CureInterface.cls": "2b9fac3f9692e8b73fb2596bc975c7902da79f2714679a70ff8f6ddae8c9043a",
+    "DHCDoc.DHCDocCure.Android.Util.cls": "9b82910cd282caf0deef97c1c8c8ae7f0414c47811e412c30a65a2c59aab9d63",
+    "DHCDoc.DHCDocCure.Apply.cls": "2c82c3d22eb003cd9486b473919c595413d7e546bf03652c374951624dee18b4",
+    "DHCDoc.DHCDocCure.ApplyTree.cls": "4434a41bd54ba81628e348ef98c9a3c933007e9fac6bfee4321699a93fc51fc6",
+    "DHCDoc.DHCDocCure.Appointment.cls": "5c6c66214dc6963da1908b0c8fa046daa25bd2cbb367afb483ab37fa20dc0847",
+    "DHCDoc.DHCDocCure.Assessment.cls": "86cf9c51a49183c48625c8d1974b74eaf8bd041216cb06683410e878e1dbfc7a",
+    "DHCDoc.DHCDocCure.BSExtend.cls": "337ed5159d58b7ec2199f629fa7da3689d7878b2f410872c013c2f780bdfcc31",
+    "DHCDoc.DHCDocCure.BodySet.cls": "8f254ab8627a462e14d0cc95ab04705ebf651ab770110d3bfd714f841d05e52a",
+    "DHCDoc.DHCDocCure.Common.cls": "5b93bfa190380642fc7367bdc94f83fb9c1cdd4fdb3db973be6ae1dbb50f3204",
+    "DHCDoc.DHCDocCure.Config.cls": "49c51f3ed257eb1409b3887a5a975db2f32e628a604a1c9aed16ddc551b88be3",
+    "DHCDoc.DHCDocCure.CureCall.cls": "8146ea22978b81bfbf03da46deddf3c2df86916943e7b331be896940478446e7",
+    "DHCDoc.DHCDocCure.CureFormJSVer.cls": "9cef80bccdfe71ae390f6b3b2d4edda72522367eef83333b8bcbff9b5b43d45f",
+    "DHCDoc.DHCDocCure.CureItemSet.cls": "7ca3e8226fe2d957ada274c7711ad749cc340a6755260b59ba5e302cebec3ead",
+    "DHCDoc.DHCDocCure.ExecApply.cls": "8eba9636e07116637e2f209f0c6f7679106038d5fd01a51975b03f995817c79b",
+    "DHCDoc.DHCDocCure.Invoke.cls": "71883003ff6e0a74409fa9624210ceb8a6d0be78425c1f0afd2c0b41e92c562d",
+    "DHCDoc.DHCDocCure.OnlineSupport.cls": "d749733dbcab99e6d80aa54751f511dc62232fa493e95e17a282354b96e2078c",
+    "DHCDoc.DHCDocCure.OutInterface.cls": "338e2045b358fbd1db0d04d193000fa9b46dda2f242a093e4107aae369fd6aa3",
+    "DHCDoc.DHCDocCure.RBCResPlan.cls": "cc288624981e7b0edd727c0e34846993e270c9705710bf2f687fb634cc2ac0e6",
+    "DHCDoc.DHCDocCure.RBCResSchdule.cls": "6ff24bcb2b099359e39584e89faf6ffd0a53c09cbfc3e5c7e3761d545ec12cbc",
+    "DHCDoc.DHCDocCure.RBCServiceGroupSet.cls": "d8078057f681708712f5770b15b2042ab15e99ccc2701839ceed7fcd7d9c0ae8",
+    "DHCDoc.DHCDocCure.RBCTimePeriodSet.cls": "e8151b4aeed96c7707b11a33187bb3de149f88bfa933989f4b85d0baed9f7e84",
+    "DHCDoc.DHCDocCure.Record.cls": "454d83b65cac48a04f0c16dae2dc9f593dc4b78c98e59b0dae8cf558a8e2fdb3",
+    "DHCDoc.DHCDocCure.Service.cls": "8afa50dd92319c84f8769e942ed1ba9184e85b5e878488464553da724de96055",
+    "DHCDoc.DHCDocCure.Triage.cls": "6624a0c0b0453fc34da33325db10947b01ab96f8791a085b96939d6da3fed559",
+    "DHCDoc.DHCDocCure.Util.cls": "10ab249c0c265fa6050db27cf954968eb37daa90d7a4314817daf503b873ee22",
+    "DHCDoc.DHCDocCure.WordReport.cls": "1b9306f9a0a6c8629c150d313947ebd7f2650783e196e564af38acb2e4322500",
+    "DHCDoc.Util.FromXML.cls": "a644607c21abad2aedb1197c88b4ec79d65a1915899b42926455fb95497bf90e"
+  }
+}
