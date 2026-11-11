@@ -1,8 +1,22 @@
 # 开发工具离线安装助手
 
-Windows 10/11 x64，使用系统 Windows PowerShell 5.1 和 .NET Framework。完整解压 ZIP 后双击 `开发工具安装助手.exe`。
+Windows 10/11 x64，使用系统 Windows PowerShell 5.1 和 .NET Framework。当前为 r6，工具能力和离线安装原包分别交付。
 
-正式交付固定为仓库根目录下 `tools/dist/ai-dev-offline-gui-win10-x64.zip`，当前为 r4，增加项目配置与目录自动回填。旧版及历史更新包保存在 `tools/dist/history/ai-dev-offline/`。
+正式工具包为仓库根目录下 `tools/dist/ai-dev-offline-tools.zip`，安装原包为 `tools/dist/ai-dev-offline-packages.zip`。首次使用时将两份 ZIP 解压到同一个目录，得到以下结构，双击 `tools/开发工具安装助手.exe`。
+
+```text
+开发环境工具包/
+├─ tools/
+│  ├─ 开发工具安装助手.exe
+│  ├─ manifest.json
+│  └─ 配置脚本、解析库和说明文件
+└─ packages/
+   └─ VS Code、Git、PowerShell、Node.js、Python 和 Java 的六项原包
+```
+
+后续只需关闭助手，用新版工具 ZIP 覆盖 `tools/`。`packages/` 可以长期复用，所选组件原包版本变化时才补充对应原包。manifest 随工具能力交付，用于安装前校验版本、大小和 SHA256。
+
+旧版目录中已有 `开发工具安装助手.exe` 和 `payload/` 时，将工具 ZIP 内 **tools 文件夹里面的全部内容** 复制到旧助手目录，替换同名文件、合并 vendor 即可。助手优先复用旧版 `payload/`，也支持把它在同一磁盘内移动为与 tools 并列的 `packages/`。旧版完整包及历史更新包保存在 `tools/dist/history/ai-dev-offline/`。
 
 1. 选择安装目录，默认优先 D 盘。没有 D 盘时使用当前用户的程序目录。
 2. 逐项选择“安装并配置”、“已有工具，仅配置”或“仅安装，保留环境”。已有工具用“选择”按钮定位对应 exe。全部工具默认跳过。
@@ -32,9 +46,9 @@ GUI 运行自身脚本时，为后台进程设置 `RemoteSigned` 执行策略，
 1. 选择项目根目录。已有配置会自动读取，也可点击“读取已有”重新载入。
 2. 核对自动找到的 VS Code、PowerShell 7、Git、Node 和 MCP 路径。程序路径优先使用安装助手中选定的已有工具，再检查安装根目录、上次确认过的路径、PATH 与常见安装位置。VS Code 的便携／普通安装模式根据 `data/` 目录自动选择。
 3. 核对服务器名称、主机、HTTP／HTTPS、Web 端口及命名空间。首次配置填写现场值，端口使用管理门户对应的 Web 端口。服务器名称支持 `~` 等普通字符，方便保留现场既有命名。
-4. 按需勾选常用编码与 ObjectScript 格式、PowerShell 7 默认终端，以及项目 MCP/TOML。首次配置 MCP 时选择 `iris-agentic-dev.exe`，并填写本机账号密码。已有 MCP/TOML 凭据一致时可直接沿用。
+4. 按需勾选常用编码与 ObjectScript 格式、PowerShell 7 默认终端，以及项目 MCP/TOML。首次配置 MCP 时可选择已有 `iris-agentic-dev.exe`，也可沿用自动填入的待部署路径，并填写本机账号密码。已有 MCP/TOML 凭据一致时可直接沿用。项目尚未部署 `.agents` 或 MCP 程序时，可以先保存整套配置，预览和结果会提示“MCP 程序待安装”。
 5. 点击“预览配置”，核对目标和文件清单，再点击“应用配置”。修改输入后需要重新预览。成功应用后记住目录与程序路径，下次打开自动填入。
-6. 在 VS Code 打开该项目并重新加载窗口。首次连接在扩展提示框中登录，可将密码保存到系统凭据管理器。重启使用该项目的 MCP 客户端后验证其实际连接。
+6. 在 VS Code 打开该项目并重新加载窗口。首次连接在扩展提示框中登录，可将密码保存到系统凭据管理器。MCP 程序安装到配置路径后，重启使用该项目的 MCP 客户端并验证连接；若采用项目能力包，再沿其部署流程完成受管入口接入。
 
 | 配置落点 | 内容 |
 |---|---|
@@ -50,13 +64,15 @@ JSONC 增量合并保留其他配置与注释，TOML 合并后校验所有字段
 
 当前入口支持本地文件夹、便携或普通 VS Code 用户设置，以及已识别的直接 MCP／标准 `.agents` 受管入口。自定义 VS Code profile、Overlay 后端位置及未知 MCP 启动器需要按各自实际配置处理。
 
-使用前需要在所选 VS Code 安装 InterSystems ObjectScript、Server Manager 和 Language Server 扩展。GUI ZIP 提供配置功能，扩展 VSIX 与 MCP 运行程序由现场已有环境或项目能力包提供。官方扩展支持 Caché／Ensemble 2016.2 及以上和各版本 IRIS，服务端需提供可用的 `/api/atelier`。HTTP、HTTPS 和任意有效 Web 端口均可配置，MCP 在旧 Caché 的实际功能仍需现场验证。[官方支持范围](https://docs.intersystems.com/components/csp/docbook/DocBook.UI.Page.cls?KEY=GVSCO_intro)
+实际通过 VS Code 连接服务器时，需要安装 InterSystems ObjectScript、Server Manager 和 Language Server 扩展。配置可以先行保存，扩展 VSIX 与 MCP 运行程序由现场已有环境或项目能力包提供。官方扩展支持 Caché／Ensemble 2016.2 及以上和各版本 IRIS，服务端需提供可用的 `/api/atelier`。HTTP、HTTPS 和任意有效 Web 端口均可配置，MCP 在旧 Caché 的实际功能仍需现场验证。[官方支持范围](https://docs.intersystems.com/components/csp/docbook/DocBook.UI.Page.cls?KEY=GVSCO_intro)
 
 本机已验证配置合并、重试、并发修改保护、失败恢复、日志脱敏、真实 VS Code 运行时及 GUI 应用／恢复。远端登录、证书信任、权限、MCP 宿主加载和业务能力在目标环境验收。
 
 ## 维护者
 
-运行 `build-gui.ps1` 从 `../dist/ai-dev-base-windows-x64.zip` 提取六项固定原包，重新校验 SHA256，编译 GUI 并生成 `../dist/ai-dev-offline-gui-win10-x64.zip`。重建前将需保留的旧包归档至 `../dist/history/ai-dev-offline/`，再生成固定名称的最新版。安装参数依据 [Git 官方自解压器实现](https://github.com/git-for-windows/7-Zip/blob/master/CPP/7zip/Bundles/SFXSetup/SfxSetup.cpp) 和 [Python 官方 Windows 安装说明](https://docs.python.org/3.14/using/windows.html)。
+运行 `build-gui.ps1` 生成 `../dist/ai-dev-offline-tools.zip`，同时准备或校验复用 `../dist/ai-dev-offline-packages.zip`。首次准备原包 ZIP 时从 `../dist/ai-dev-base-windows-x64.zip` 提取六项固定原包，逐项重新校验 SHA256。原包 ZIP 已存在且与 manifest 一致时保留其原始字节和修改时间；版本不一致时提示归档旧原包后再构建。
+
+只更新工具能力时使用 `build-gui.ps1 -ToolsOnly`，该模式只编译并校验工具 ZIP，可以在没有大体积物料包的环境中执行。工具 ZIP 统一包含 tools/，原包 ZIP 统一包含 packages/。构建器验证条目数量、路径与逐文件摘要，预览参数只生成 tools/ 运行目录。旧工具 ZIP 先归档至 `../dist/history/ai-dev-offline/`，再生成固定名称最新版。安装参数依据 [Git 官方自解压器实现](https://github.com/git-for-windows/7-Zip/blob/master/CPP/7zip/Bundles/SFXSetup/SfxSetup.cpp) 和 [Python 官方 Windows 安装说明](https://docs.python.org/3.14/using/windows.html)。
 
 项目配置复用本目录的 JSONC 编辑器及 `jsonc-parser 3.3.1`。TOML 校验使用固定 `@iarna/toml 2.2.5` 的同步解析器及其最小依赖，来源、发布摘要、逐文件 SHA256 和 ISC 许可证保存在 `vendor/iarna-toml/`，现场无需 npm install。该库面向 TOML 0.5，遇到超出支持语法的配置会报告解析失败并保留原件。[上游源码](https://github.com/iarna/iarna-toml)
 

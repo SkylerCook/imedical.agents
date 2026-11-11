@@ -1,6 +1,6 @@
 # imedical.agents 维护记忆入口
 
-- AI 开发工具新增 [独立 GUI](../tools/ai-dev-offline/GUI.md)，六项可选、仅安装、已有路径配置和恢复。r4 增加程序路径自动定位、项目连接回填、VS Code 用户偏好与 IRIS/Caché 项目配置、私有备份恢复和脱敏日志。固定 ZIP 入口见工具说明，旧版归 tools/dist/history；一个 Win10 现场样本已验证三项 User PATH 和 Java 8 完整路径运行，剩余远端与干净环境验收见维护日志。Win7 独立包列为 P3 暂缓，遇到实际项目需求后启动。
+- AI 开发工具新增 [独立 GUI](../tools/ai-dev-offline/GUI.md)，六项可选、仅安装、已有路径配置和恢复。r6 支持程序路径自动定位、项目连接回填、VS Code 用户偏好与 IRIS/Caché 项目配置、私有备份恢复和脱敏日志，允许先保存配置再部署 MCP。交付拆分 tools/ 与 packages/，后续只更新小型工具 ZIP，旧 payload 布局兼容。固定 ZIP 入口见工具说明，旧版归 tools/dist/history；一个 Win10 现场样本已验证三项 User PATH 和 Java 8 完整路径运行，剩余远端与干净环境验收见维护日志。Win7 独立包列为 P3 暂缓，遇到实际项目需求后启动。
 
 coding 0.27.6 修复原生 XML 导出预检的启动竞态。managed-sessions-v4 vendor 完成连接发现后再建立工具服务，连接不可用与目标不一致分别报告。预检明确未派发时保留实际退出回执，历史警告带 generation/historical 标记。
 

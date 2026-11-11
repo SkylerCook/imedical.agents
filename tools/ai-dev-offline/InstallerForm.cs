@@ -129,7 +129,7 @@ namespace AiDevOffline {
                 new[]{"java8","Java 8","Java 开发与运行环境，含 JDK","java.exe"}
             };
             for(int index=0; index<tools.Length; index++) AddTool(tools[index],48+index*68);
-            Label note=TextLabel("已有工具请选择对应的可执行文件。安装位置已有其它内容时会提示更换目录。",9,false);
+            Label note=TextLabel("原包放在 tools 旁的 packages 中，旧版 payload 仍可用。已有工具请选择对应 exe。",9,false);
             note.Location=new Point(32,584);Controls.Add(note);
             status.SetBounds(32,616,700,25);status.Text="选择工具后开始";status.ForeColor=ink;Controls.Add(status);
             progress.SetBounds(32,646,916,5);progress.Anchor=AnchorStyles.Left|AnchorStyles.Right|AnchorStyles.Top;Controls.Add(progress);
@@ -243,7 +243,7 @@ namespace AiDevOffline {
                 runLog=InstallLog.Create(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"logs"),
                     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"AiDevOffline","Logs"));
                 logFile=runLog.FilePath;exportLog.Enabled=true;
-                Record("安装助手 r4 · CLR "+Environment.Version+" · 64 位进程="+Environment.Is64BitProcess);
+                Record("安装助手 r6 · CLR "+Environment.Version+" · 64 位进程="+Environment.Is64BitProcess);
                 Record("日志文件："+logFile);
                 Dictionary<string,object> projectRequest=request as Dictionary<string,object>;
                 if(projectRequest!=null && projectRequest.ContainsKey("action") && ((string)projectRequest["action"]).StartsWith("project"))

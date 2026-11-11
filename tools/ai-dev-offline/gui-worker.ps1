@@ -59,6 +59,7 @@ try {
             if($process.ExitCode -ne 0){throw $errorText.Trim()}
             $parsed=$result|ConvertFrom-Json
             Say ('项目配置结果：'+$parsed.state)
+            if($parsed.warnings){foreach($warning in $parsed.warnings){Say ('提示：'+$warning)}}
             if($parsed.files){foreach($file in $parsed.files){Say ($file.operation+' '+$file.file+' ['+($file.keys -join ', ')+']')}}
             if($parsed.receiptFile){Say ('配置回执：'+$parsed.receiptFile)}
             Say ('PROJECT_RESULT:'+($parsed|ConvertTo-Json -Depth 12 -Compress))
@@ -94,7 +95,9 @@ try {
             Say "正在处理 $($component.name)…"
             if($item.mode -in @('install','installOnly')){
                 Say '校验离线安装包…'
-                & "$PSScriptRoot/verify-packages.ps1" -PackageRoot $PSScriptRoot -Components $item.id | Out-Null
+                $verified=@(& "$PSScriptRoot/verify-packages.ps1" -PackageRoot $PSScriptRoot -Components $item.id)
+                $archive=$verified[0].path
+                Say ('原包位置：'+$archive)
                 $folder=@{vscode='VSCode';git='Git';powershell='PowerShell';node='Node';python='Python';java8='Java'}[$item.id]
                 $target=SafePath (Join-Path $root "$folder/$($component.version)")
                 $exe=Join-Path $target $component.command
@@ -109,7 +112,6 @@ try {
                 }
                 $owned=Get-Content -LiteralPath $marker -Raw -Encoding UTF8 | ConvertFrom-Json
                 if($owned.state -ne 'complete' -or -not(Test-Path -LiteralPath $exe)){
-                    $archive=Join-Path "$PSScriptRoot/payload" $component.file
                     Say "安装到 $target"
                     switch($item.id){
                         git { Run $archive ('-y -o"'+$target+'"') }

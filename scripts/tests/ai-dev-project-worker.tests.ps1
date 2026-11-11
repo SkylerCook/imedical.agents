@@ -14,7 +14,6 @@ try {
     [void][IO.Directory]::CreateDirectory((Join-Path $root 'project'))
     $requestFile=Join-Path $root 'request.json'
     $fakeMcp=Join-Path $root 'iris-agentic-dev.exe'
-    [IO.File]::WriteAllText($fakeMcp,'fixture; never executed')
     Add-Type -AssemblyName System.Security
     $secret='fixture-only-password-中文'
     $protected=[Security.Cryptography.ProtectedData]::Protect([Text.Encoding]::UTF8.GetBytes($secret),$null,[Security.Cryptography.DataProtectionScope]::CurrentUser)
@@ -44,10 +43,12 @@ try {
     }
     $plan=Invoke-Worker
     Assert ($plan.state -eq 'planned') 'plan failed'
+    Assert ($plan.mcpProgramPresent -eq $false -and @($plan.warnings).Count -gt 0) 'missing MCP should allow preparation with a notice'
     Assert (-not(Test-Path -LiteralPath (Join-Path $root 'project/.mcp.json'))) 'plan wrote configuration'
     $request.action='projectApply';$request.fingerprint=$plan.fingerprint
     $result=Invoke-Worker
     Assert ($result.state -eq 'applied') 'apply failed'
+    Assert ($result.mcpProgramPresent -eq $false) 'missing MCP result not reported'
     $mcp=Get-Content -LiteralPath (Join-Path $root 'project/.mcp.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert ($mcp.mcpServers.'iris-agentic-dev'.env.IRIS_PASSWORD -ceq $secret) 'protected credential did not roundtrip'
     $settings=Get-Content -LiteralPath (Join-Path $root 'AppData/Code/User/settings.json') -Raw -Encoding UTF8 | ConvertFrom-Json

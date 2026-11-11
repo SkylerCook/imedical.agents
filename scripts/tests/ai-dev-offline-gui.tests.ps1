@@ -138,6 +138,14 @@ try {
     Set-Content -LiteralPath (Join-Path $request.root 'Node/1.8.0/user.txt') -Value 'preserve'
     Invoke-Worker
     Assert ($workerExit -ne 0 -and (Test-Path -LiteralPath (Join-Path $request.root 'Node/1.8.0/user.txt'))) 'unknown directory was overwritten'
+    $splitPackages=Join-Path $testRoot 'packages'
+    foreach($movePath in @($payload,$splitPackages)){if(-not [IO.Path]::GetFullPath($movePath).StartsWith($testRoot+[IO.Path]::DirectorySeparatorChar)){throw 'unsafe fixture move'}}
+    Move-Item -LiteralPath $payload -Destination $splitPackages
+    $request.root=Join-Path $testRoot 'split-install';$request.items[0].mode='installOnly'
+    Invoke-Worker
+    Assert ($workerExit -eq 0 -and (Test-Path -LiteralPath (Join-Path $request.root 'Node/1.8.0/node-v1.8.0-win-x64/node.exe'))) "split packages install failed: $workerOutput"
+    Move-Item -LiteralPath $splitPackages -Destination $payload
+    $request.items[0].mode='install'
     $request.root=Join-Path $testRoot 'damaged'
     [IO.File]::AppendAllText("$payload/node.zip",'corrupt')
     Invoke-Worker

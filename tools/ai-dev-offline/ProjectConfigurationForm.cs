@@ -108,7 +108,7 @@ namespace AiDevOffline {
             nodeExe.SetBounds(490,430,258,26);inputs.Controls.Add(nodeExe);Choose(nodeExe,758,430,false,"node.exe");
             preview.SetBounds(28,578,904,118);preview.Multiline=true;preview.ReadOnly=true;preview.ScrollBars=ScrollBars.Vertical;preview.BackColor=Color.White;
             preview.Anchor=AnchorStyles.Top|AnchorStyles.Bottom|AnchorStyles.Left|AnchorStyles.Right;Controls.Add(preview);
-            preview.Text="选择项目后可读取已有连接。首次配置填写现场参数。\r\nVS Code 首次连接时在扩展提示框中登录，可保存到系统凭据管理器。\r\n需要已安装 ObjectScript、Server Manager 和 Language Server 扩展。";
+            preview.Text="选择项目后可读取已有连接。MCP 程序可后安装，当前可先保存配置。\r\nVS Code 首次连接时在扩展提示框中登录，可保存到系统凭据管理器。\r\n需要已安装 ObjectScript、Server Manager 和 Language Server 扩展。";
             status.SetBounds(28,702,900,25);status.Anchor=AnchorStyles.Bottom|AnchorStyles.Left;status.Text="预览会列出本次修改的文件和配置项。";Controls.Add(status);
             restoreButton.Text="恢复配置…";restoreButton.SetBounds(28,742,130,34);restoreButton.Anchor=AnchorStyles.Bottom|AnchorStyles.Left;restoreButton.Click+=Restore;Controls.Add(restoreButton);
             planButton.Text="预览配置";planButton.SetBounds(638,738,130,38);planButton.Anchor=AnchorStyles.Bottom|AnchorStyles.Right;planButton.Click+=Plan;Controls.Add(planButton);
@@ -185,7 +185,7 @@ namespace AiDevOffline {
             Run(BaseRequest("projectInspect"),delegate(Dictionary<string,object> result){
                 alias.Text=Value(result,"alias");host.Text=Value(result,"host");port.Text=Value(result,"port")=="0"?"":Value(result,"port");ns.Text=Value(result,"namespace");
                 scheme.SelectedIndex=Value(result,"scheme")=="https"?1:0;description.Text=Value(result,"description");tls.Checked=Value(result,"tlsVerify")=="True";
-                if(File.Exists(Value(result,"mcpExe")))mcpExe.Text=Value(result,"mcpExe");
+                if(!String.IsNullOrWhiteSpace(Value(result,"mcpExe")))mcpExe.Text=Value(result,"mcpExe");
                 loadedProject=projectRoot.Text;
                 password.Clear();credentials.Checked=false;status.Text="已读取连接参数。已有凭据将沿用，需要更新时勾选账号密码选项。";
             });
@@ -208,6 +208,7 @@ namespace AiDevOffline {
             Run(request,delegate(Dictionary<string,object> result){
                 var lines=new StringBuilder();
                 lines.AppendLine("项目  "+projectRoot.Text);lines.AppendLine("连接  "+scheme.Text+" / "+host.Text+" / "+port.Text+" / "+ns.Text);
+                if(result.ContainsKey("warnings"))foreach(object warning in (IEnumerable)result["warnings"])lines.AppendLine("提示  "+warning);
                 foreach(object entry in (IEnumerable)result["files"]) {
                     var file=(Dictionary<string,object>)entry;lines.AppendLine(Value(file,"operation")+"  "+Value(file,"file"));
                     foreach(object key in (IEnumerable)file["keys"])lines.AppendLine("    "+key);
@@ -215,7 +216,8 @@ namespace AiDevOffline {
                 lines.AppendLine("修改前保存本机备份。VS Code 登录由扩展提示框处理。已有 MCP 禁用状态沿用。");
                 preview.Text=lines.ToString();
                 request["fingerprint"]=result["fingerprint"];request["action"]="projectApply";plannedRequest=request;
-                applyButton.Enabled=Value(result,"state")!="unchanged";status.Text=applyButton.Enabled?"请核对文件与连接目标，然后应用配置。":"所选配置已经一致。";
+                applyButton.Enabled=Value(result,"state")!="unchanged";
+                status.Text=applyButton.Enabled?"请核对文件与连接目标，然后应用配置。":Value(result,"mcpProgramPresent")=="False"?"配置已经一致，MCP 程序待安装。":"所选配置已经一致。";
             });
         }
         void Apply(object sender,EventArgs e) {
@@ -223,7 +225,7 @@ namespace AiDevOffline {
             var accepted=plannedRequest;
             Run(accepted,delegate(Dictionary<string,object> result){
                 receiptFile=Value(result,"receiptFile");InvalidatePlan();password.Clear();credentials.Checked=false;
-                status.Text="配置已写入并读回校验。重新加载 VS Code 后连接验证。";
+                status.Text=Value(result,"mcpProgramPresent")=="False"?"配置已保存并校验，MCP 程序待安装。":"配置已写入并读回校验。重新加载 VS Code 后连接验证。";
                 if(receiptFile.Length>0)preview.AppendText(Environment.NewLine+"恢复回执  "+receiptFile);
                 try {ToolLocations.Save(ToolLocations.PreferenceFile(),accepted);}
                 catch(Exception){status.Text+=" 上次目录未能保存，可下次重新选择。";}

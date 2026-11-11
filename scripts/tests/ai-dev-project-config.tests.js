@@ -39,6 +39,35 @@ test('HTTP Caché and HTTPS IRIS configurations use selected endpoint without pe
   assert.ok(next['intersystems.servers']['cache~test']); assert.ok(next['intersystems.servers']['iris~test']);
   assert.ok(!JSON.stringify(result).includes('test-user')); assert.ok(!JSON.stringify(result).includes('fixture-only'));
 });
+test('projects without .agents can prepare all connection files and later locate the installed MCP', t => {
+  const f = fixture(t);
+  f.request.mcpExe = '';
+  assert.equal(fs.existsSync(path.join(f.root,'.agents')),false);
+  const planned = config.main({...f.request,action:'projectPlan'});
+  assert.equal(planned.mcpProgramPresent,false);
+  assert.ok(planned.warnings.some(w=>w.includes('待安装')));
+  const result=f.apply();
+  assert.equal(result.state,'applied'); assert.equal(result.mcpProgramPresent,false);
+  const command=config.object(f.read('.mcp.json')).mcpServers['iris-agentic-dev'].command;
+  assert.equal(command,path.join(f.root,'.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe'));
+  assert.equal(fs.existsSync(path.join(f.root,'.agents')),false);
+  assert.equal(toml(f.read('.iris-agentic-dev.toml')).namespace,'TEST');
+  assert.equal(config.object(f.read('.vscode/settings.json'))['objectscript.conn'].ns,'TEST');
+  assert.equal(f.apply().state,'unchanged');
+  assert.equal(config.inspect(f.request).mcpExe,command);
+  fs.mkdirSync(path.dirname(command),{recursive:true});fs.writeFileSync(command,'fixture; never executed');
+  const installed=config.main({...f.request,action:'projectPlan'});
+  assert.equal(installed.state,'unchanged');assert.equal(installed.mcpProgramPresent,true);assert.deepEqual(installed.warnings,[]);
+});
+test('an absent custom MCP path is preserved on reread and an invalid path is still explained', t => {
+  const f=fixture(t);
+  f.request.mcpExe=path.join(f.root,'later','iris-agentic-dev.exe');
+  f.apply();assert.equal(config.inspect(f.request).mcpExe,f.request.mcpExe);
+  assert.equal(config.main({...f.request,action:'projectPlan'}).mcpProgramPresent,false);
+  config.rollback({...f.request,receiptFile:path.join(f.root,'.ai-dev-config-backups',fs.readdirSync(path.join(f.root,'.ai-dev-config-backups'))[0],'receipt.json')});
+  f.request.mcpExe=path.join(f.root,'wrong-program.exe');
+  assert.throws(()=>config.plan(f.request),/完整路径/);
+});
 test('JSONC comments, unrelated MCP servers and disabled state survive repeated apply', t => {
   const f = fixture(t);
   const mcp = {mcpServers: {'iris-agentic-dev': {command: f.request.mcpExe, args: ['mcp','--host','old.invalid','--namespace=OLD','--no-skills'], disabled: true, env: {KEEP: 'yes'}},

@@ -1,0 +1,17 @@
+开发工具离线安装助手 r6
+
+目录分离
+
+开发环境工具包/
+  tools/       助手程序、配置脚本、manifest 与解析库
+  packages/    六项离线安装原包
+
+首次使用：将 ai-dev-offline-tools.zip 和 ai-dev-offline-packages.zip 解压到同一目录，再运行 tools/开发工具安装助手.exe。
+后续更新：关闭助手，将新版 ai-dev-offline-tools.zip 解压到同一目录，覆盖 tools。packages 可继续复用，只有所选组件版本变化时才需要补充相应原包。
+
+旧版更新方式
+
+如果旧目录里直接放着开发工具安装助手.exe 和 payload 文件夹，可把本 ZIP 的 tools 文件夹里面的全部内容复制到旧助手目录，替换同名文件、合并 vendor。助手继续识别原 payload。
+若希望改为分离目录，可在同一磁盘内把旧 payload 文件夹移动为与 tools 并列的 packages，再使用 tools 内的新版助手。
+
+本版本也支持尚未部署 .agents / MCP 程序的项目先保存 VS Code、MCP 和 TOML 配置。缺少程序时提示“MCP 程序待安装”。部署到配置路径后，重启 MCP 客户端并验证连接。

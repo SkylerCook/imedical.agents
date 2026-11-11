@@ -1,8 +1,9 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 [CmdletBinding()]
 param(
     [string]$PackageRoot,
-    [string[]]$Components
+    [string[]]$Components,
+    [string]$PayloadRoot
 )
 $ErrorActionPreference = 'Stop'
 if (-not $PackageRoot) { $PackageRoot = Split-Path -Parent $MyInvocation.MyCommand.Path }
@@ -24,15 +25,23 @@ if ($Components) {
     foreach ($id in $Components) { if ($id -notin $known) { throw "unknown-component: $id" } }
     $selected = @($manifest.components | Where-Object { $_.id -in $Components })
 } else { $selected = @($manifest.components) }
+if (-not $PayloadRoot) {
+    $legacy = Join-Path $root 'payload'
+    $sibling = Join-Path (Split-Path -Parent $root) 'packages'
+    $PayloadRoot = if (Test-Path -LiteralPath $legacy -PathType Container) { $legacy } else { $sibling }
+}
+$payload = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($PayloadRoot)
+Assert-NoLink $payload
+if (-not (Test-Path -LiteralPath $payload -PathType Container)) { throw 'offline-packages-directory-missing: extract the packages ZIP beside tools, or retain the existing payload folder' }
 $results = @()
 foreach ($c in $selected) {
     if ($c.file -notmatch '^[A-Za-z0-9._-]+$' -or $c.sha256 -notmatch '^[a-f0-9]{64}$' -or $c.bytes -le 0) { throw "invalid-component-entry: $($c.id)" }
-    $file = Join-Path (Join-Path $root 'payload') $c.file
+    $file = Join-Path $payload $c.file
     Assert-NoLink $file
     if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { throw "missing-package: $($c.id)" }
     if ((Get-Item -LiteralPath $file).Length -ne $c.bytes) { throw "package-size-mismatch: $($c.id)" }
     if ((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash -ne $c.sha256) { throw "package-sha256-mismatch: $($c.id)" }
-    $results += [pscustomobject]@{component=$c.id;version=$c.version;bytes=$c.bytes;state='package-verified'}
+    $results += [pscustomobject]@{component=$c.id;version=$c.version;bytes=$c.bytes;state='package-verified';path=$file}
 }
 $results
 # Pure local byte verification: no executable launch, installed-tool detection, network or environment writes.

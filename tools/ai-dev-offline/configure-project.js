@@ -173,6 +173,7 @@ function ensurePrivate(root, files, gitExe, requireIgnored = false) {
 }
 function plan(request) {
   const root = projectRoot(request), c = connection(request), changes = [];
+  let mcpProgram = '';
   const add = (file, bytes, keys) => {
     const before = snapshot(file);
     if (before.exists && before.bytes.equals(bytes)) return;
@@ -195,7 +196,8 @@ function plan(request) {
     const m = ['mcpServers', 'iris-agentic-dev'];
     const updates = [];
     if (!server) {
-      if (!request.mcpExe || !path.isAbsolute(request.mcpExe) || path.basename(request.mcpExe).toLowerCase() !== 'iris-agentic-dev.exe' || !fs.existsSync(request.mcpExe)) failure('首次配置 MCP 需要选择 iris-agentic-dev.exe。');
+      mcpProgram = request.mcpExe || path.join(root, '.agents', 'vendor', 'iris-agentic-dev', 'windows-x64', 'iris-agentic-dev.exe');
+      if (!path.isAbsolute(mcpProgram) || path.basename(mcpProgram).toLowerCase() !== 'iris-agentic-dev.exe') failure('请填写 iris-agentic-dev.exe 的完整路径，也可以使用自动填入的待部署路径。');
       const adapter = path.join(root, '.agents', 'scripts', 'iris-session-mcp.js');
       if (fs.existsSync(adapter)) {
         if (!request.nodeExe || !path.isAbsolute(request.nodeExe) || !fs.existsSync(request.nodeExe)) failure('此项目使用受管 MCP，请选择已安装的 node.exe。');
@@ -205,15 +207,17 @@ function plan(request) {
         server = {command: request.nodeExe, args: [adapter, '--project-root', root, '--server-name', 'iris-agentic-dev']};
         const backendFile = path.join(root, '.agents', 'config', 'iris-session-backend.json');
         if (fs.existsSync(backendFile)) failure('项目已有受管后端记录但缺少 MCP 入口，请先核对该记录。');
-        const backend = {schema: 'iris-session-backend/v1', serverName: 'iris-agentic-dev', command: request.mcpExe,
+        const backend = {schema: 'iris-session-backend/v1', serverName: 'iris-agentic-dev', command: mcpProgram,
           args: ['mcp', '--config', configFile], originalArgsPresent: true, managedHash: sha(Buffer.from(JSON.stringify(server)))};
         add(backendFile, Buffer.from(JSON.stringify(backend, null, 2) + '\n'), ['command', 'args', 'managedHash']);
-      } else server = {command: request.mcpExe, args: ['mcp', '--config', configFile]};
+      } else server = {command: mcpProgram, args: ['mcp', '--config', configFile]};
       updates.push({path: m, value: server});
     } else if (Array.isArray(server.args) && server.args.some(a => /(?:^|[\\/])iris-session-mcp\.js$/.test(a))) {
       const backendFile = path.join(root, '.agents', 'config', 'iris-session-backend.json');
       const backendBefore = snapshot(backendFile), backend = object(backendBefore.text);
       if (backend.schema !== 'iris-session-backend/v1' || backend.serverName !== 'iris-agentic-dev') failure('未找到所选项目的受管 MCP 后端记录。');
+      if (typeof backend.command !== 'string' || !backend.command.trim()) failure('受管 MCP 后端记录缺少程序路径，请先核对。');
+      mcpProgram = path.resolve(root, backend.command);
       const identity = sha(Buffer.from(JSON.stringify({command: server.command, args: server.args})));
       if (backend.managedHash !== identity) failure('受管 MCP 入口与后端记录不一致，请先核对。');
       const rootIndex = server.args.indexOf('--project-root');
@@ -221,6 +225,7 @@ function plan(request) {
       add(backendFile, jsonChanges(backendBefore, [{path: ['args'], value: updateArgs(backend.args, c, configFile)}]), ['args']);
     } else {
       if (!/(?:^|[\\/])iris-agentic-dev(?:\.exe)?$/i.test(server.command || '')) failure('现有 MCP 启动方式尚未识别，请保留该入口并单独配置 VS Code。');
+      mcpProgram = path.resolve(root, server.command);
       updates.push({path: [...m, 'args'], value: updateArgs(server.args || ['mcp'], c, configFile)});
     }
     const environment = {IRIS_HOST: c.host, IRIS_WEB_PORT: String(c.port), IRIS_SCHEME: c.scheme,
@@ -273,10 +278,13 @@ function plan(request) {
     changes.unshift({file: ignore.file, before: ignore, bytes: editor.encode(text, ignore.bom), keys: ['本机配置和备份忽略规则']});
   }
   const fingerprint = sha(Buffer.from(JSON.stringify(changes.map(c => [c.file, c.before.hash, sha(c.bytes)]))));
-  return {root, changes, fingerprint, privateFiles};
+  const mcpProgramPresent = mcpProgram ? fs.existsSync(mcpProgram) && fs.statSync(mcpProgram).isFile() : null;
+  const warnings = mcpProgramPresent === false ? ['MCP 程序待安装，当前可先保存配置。部署到所选路径后，重新启动 MCP 客户端并验证连接。'] : [];
+  return {root, changes, fingerprint, privateFiles, mcpProgramPresent, warnings};
 }
 function summary(planned, state = 'planned') {
   return {state: planned.changes.length ? state : 'unchanged', fingerprint: planned.fingerprint,
+    mcpProgramPresent: planned.mcpProgramPresent, warnings: planned.warnings,
     files: planned.changes.map(c => ({file: c.file, operation: c.before.exists ? '更新' : '新增', keys: c.keys}))};
 }
 function writeFile(file, bytes, expected) {

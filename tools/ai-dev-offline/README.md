@@ -4,7 +4,7 @@
 
 2026-10-29 固定物料组合，2026-10-30 补充用户设置自动配置，目标为 **Windows 10/11 x64**。本期准备六项基础工具、CodeBuddy VSIX、安全模板、PATH 配置及 PowerShell 7 用户终端配置入口。其它 AI 客户端后补；不含任何真实医院配置、凭据、项目源码或业务依赖。
 
-正式物料包固定为 `tools/dist/ai-dev-base-windows-x64.zip`，包含 MCP/TOML 模板与 PATH 工具。GUI 包固定为 `tools/dist/ai-dev-offline-gui-win10-x64.zip`，当前为 r4，支持项目配置、自动日志和导出。这里的路径相对于仓库根目录。旧版与现场更新包放在 `tools/dist/history/ai-dev-offline/`，交付时核对对应 SHA256。
+原命令行物料包固定为 `tools/dist/ai-dev-base-windows-x64.zip`，包含 MCP/TOML 模板与 PATH 工具。GUI r6 分为工具能力包 `tools/dist/ai-dev-offline-tools.zip` 和安装原包 `tools/dist/ai-dev-offline-packages.zip`，解压到同一目录后形成 tools/ 与 packages/。后续仅更新小型工具包，原包按版本复用。支持先配置后部署 MCP，旧版 payload 布局也可直接更新。这里的路径相对于仓库根目录，历史包放在 `tools/dist/history/ai-dev-offline/`。
 
 这是可带到现场的官方原包集合，附本地校验、手工部署步骤和显式调用的环境变量配置工具。**不是已经通过干净环境验收的一键安装器**。包完整性通过、工具能够启动、项目能够工作是三个不同结论；当前实际证据见 [PREPARATION-REPORT.md](PREPARATION-REPORT.md)。制包不改变准备机安装或系统变量；现场工具只处理明确选择的组件，不自动扫描电脑或探测未选组件。
 

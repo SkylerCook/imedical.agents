@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $source = Join-Path $repo 'tools/ai-dev-offline'
@@ -32,6 +32,16 @@ try {
     Copy-Item -LiteralPath $verify -Destination $copiedVerify
     $defaultRoot = @(& $copiedVerify -Components a)
     if ($defaultRoot.Count -ne 1 -or $defaultRoot[0].state -ne 'package-verified') { throw 'default-package-root-failed' }; $count++
+    $splitTools=Join-Path $testRoot 'split/tools'
+    $splitPackages=Join-Path $testRoot 'split/packages'
+    [void][IO.Directory]::CreateDirectory($splitTools)
+    [void][IO.Directory]::CreateDirectory($splitPackages)
+    Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $splitTools 'manifest.json')
+    Copy-Item -LiteralPath $fixture -Destination (Join-Path $splitPackages 'a.zip')
+    $separated=@(& $verify -PackageRoot $splitTools -Components a)
+    if($separated.Count -ne 1 -or $separated[0].path -ne (Join-Path $splitPackages 'a.zip')){throw 'sibling-packages-not-discovered'};$count++
+    $explicit=@(& $verify -PackageRoot $testRoot -Components a -PayloadRoot $splitPackages)
+    if($explicit[0].path -ne (Join-Path $splitPackages 'a.zip')){throw 'explicit-packages-path-not-used'};$count++
     Expect-Failure { & $verify -PackageRoot $testRoot } 'missing-package: b'
     Expect-Failure { & $verify -PackageRoot $testRoot -Components unknown } 'unknown-component'
     [IO.File]::WriteAllBytes($fixture,[byte[]]@(1,2,3,5))
