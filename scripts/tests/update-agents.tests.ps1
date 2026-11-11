@@ -89,6 +89,7 @@ function New-TestProject {
   Copy-Item -LiteralPath $irisMcpHelperUnderTest -Destination (Join-Path $root ".agents/scripts/iris-mcp.js")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/iris-remote-operations.js") -Destination (Join-Path $root ".agents/scripts/lib/iris-remote-operations.js")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/iris-operation-scope.js") -Destination (Join-Path $root ".agents/scripts/lib/iris-operation-scope.js")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/atelier-document-path.js") -Destination (Join-Path $root ".agents/scripts/lib/atelier-document-path.js")
   Copy-Item -LiteralPath $agentOrchestratorUnderTest -Destination (Join-Path $root ".agents/scripts/agent-orchestrator.js")
   foreach ($runtimeFile in @(
     'lib/night-dispatch.js', 'lib/night-policy.js', 'lib/night-quota.js', 'lib/night-contract.js',
@@ -702,6 +703,8 @@ try {
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $upgradeSourceVendorExe) | Out-Null
   [System.IO.File]::WriteAllBytes($upgradeSourceVendorExe, [byte[]](1, 2, 3))
 
+  $upgradeSourceMetadata = Join-Path $upgradeSourceAgentsRoot "vendor/iris-agentic-dev/managed-build.json"
+  [IO.File]::WriteAllText($upgradeSourceMetadata, '{"schema":"iris-managed-vendor/v1","patch":"managed-sessions-v3"}', [Text.UTF8Encoding]::new($false))
   $currentUpdaterText = [System.IO.File]::ReadAllText($scriptUnderTest, [System.Text.Encoding]::UTF8)
   $preferenceBlockStart = $currentUpdaterText.IndexOf('$preferVendorIrisMcpScript = Join-Path $capabilityRoot "scripts/prefer-vendor-iris-mcp.ps1"')
   $preferenceBlockEnd = $currentUpdaterText.IndexOf('foreach ($item in (Get-GitHooksStatus', $preferenceBlockStart)
@@ -779,7 +782,10 @@ try {
 
   [System.IO.File]::WriteAllText($upgradeSourceUpdater, $currentUpdaterText, (New-Object System.Text.UTF8Encoding($false)))
   Copy-Item -LiteralPath $preferVendorIrisMcpScriptUnderTest -Destination $upgradeSourcePreferenceScript
-  git -C $upgradeSourceAgentsRoot add scripts/update-agents.ps1 scripts/prefer-vendor-iris-mcp.ps1
+  [IO.File]::WriteAllBytes($upgradeSourceVendorExe, [byte[]](4, 5, 6))
+  $upgradeDigest = (Get-FileHash -LiteralPath $upgradeSourceVendorExe -Algorithm SHA256).Hash.ToLowerInvariant()
+  [IO.File]::WriteAllText($upgradeSourceMetadata, ('{"schema":"iris-managed-vendor/v1","patch":"managed-sessions-v4","sha256":"' + $upgradeDigest + '"}'), [Text.UTF8Encoding]::new($false))
+  git -C $upgradeSourceAgentsRoot add scripts/update-agents.ps1 scripts/prefer-vendor-iris-mcp.ps1 vendor/iris-agentic-dev
   Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should stage the new updater runtime"
   git -C $upgradeSourceAgentsRoot commit -m "test: publish vendor MCP preference" | Out-Null
   Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should commit the new updater runtime"
@@ -806,6 +812,11 @@ try {
   Assert-True ($deployedMcpAfterUpgrade.mcpServers.'deployed-other'.command -eq "node") "Deployed upgrade must preserve unrelated MCP servers"
   Assert-True ($deployedProjectEnvAfterUpgrade.iris.password -eq $deployedSyntheticCredential) "Deployed upgrade must preserve project-env connection fields"
   Assert-True ($deployedProjectEnvAfterUpgrade.preservedObject.value -eq "keep-me") "Deployed upgrade must preserve unrelated project-env objects"
+
+  $deployedBuild = Get-Content -LiteralPath (Join-Path $deployedAgentsRoot "vendor/iris-agentic-dev/managed-build.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+  Assert-True ($deployedBuild.patch -eq "managed-sessions-v4") "Normal update must replace deployed v3 build metadata"
+  $deployedDigest = (Get-FileHash -LiteralPath (Join-Path $deployedAgentsRoot "vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
+  Assert-True ($deployedDigest -eq $deployedBuild.sha256 -and $deployedDigest -eq $upgradeDigest) "Normal update must distribute matching vendor bytes and metadata"
 
   $deployedMcpStable = [System.IO.File]::ReadAllText($deployedMcpPath, [System.Text.Encoding]::UTF8)
   $deployedProjectEnvStable = [System.IO.File]::ReadAllText($deployedProjectEnvPath, [System.Text.Encoding]::UTF8)

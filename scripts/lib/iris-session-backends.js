@@ -11,7 +11,7 @@ function verifyVendor(executable) {
   const stat=fs.statSync(executable),metadata=path.join(path.dirname(executable),'..','managed-build.json');
   if(!fs.existsSync(metadata))throw failure('session-patched-vendor-required');
   const build=JSON.parse(fs.readFileSync(metadata,'utf8').replace(/^\uFEFF/,''));
-  if(build.schema!=='iris-managed-vendor/v1' || build.patch!=='managed-sessions-v3')throw failure('session-patched-vendor-mismatch');
+  if(build.schema!=='iris-managed-vendor/v1' || build.patch!=='managed-sessions-v4')throw failure('session-patched-vendor-mismatch');
   const fingerprint=hash([executable,stat.size,stat.mtimeMs,build.sha256]);
   if(!verifiedBinaries.has(fingerprint)) {
     const actual=require('node:crypto').createHash('sha256').update(fs.readFileSync(executable)).digest('hex');
@@ -76,6 +76,18 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
   return {context, connection, env, backend, policy, pool: policy?.allowSharedPool === true ? policy.poolKey : instance,
     identity: hash([instance, Object.fromEntries(Object.entries(env).sort(([a],[b])=>a.localeCompare(b))), connection.rejectUnauthorized, runtimeIdentity, effectiveArgs, env.IRIS_NAMESPACE])};
 }
+async function verifyBackendConfiguration(client, expected, assertSession) {
+  assertSession();
+  const response = await client.request('tools/call', {name:'check_config', arguments:{}});
+  assertSession();
+  if (response.error || response.result?.isError) throw failure('session-backend-config-check-failed');
+  const check = mcp.extractToolText(response);
+  if (check.connected !== true) throw failure('session-backend-connection-unavailable');
+  if (String(check.host).toLowerCase() !== expected.hostname.toLowerCase() || Number(check.port) !== expected.port || check.namespace !== expected.namespace) {
+    throw failure('session-backend-target-mismatch');
+  }
+  return check;
+}
 async function open(operation) {
   const d = describe(operation.projectRoot, operation.serverName);
   if (d.identity !== (operation.configurationIdentity || operation.identity) || d.pool !== operation.pool) throw failure('session-configuration-changed');
@@ -96,10 +108,15 @@ async function open(operation) {
   try {
     await client.request('initialize', {protocolVersion: '2024-11-05', capabilities: {}, clientInfo: {name: 'imedical-session-manager', version: '1.0.0'}});
     client.notify('notifications/initialized', {});
-    const check = mcp.extractToolText(await client.request('tools/call', {name: 'check_config', arguments: {}}));
-    assertSession();
-    if (check.connected !== true || String(check.host).toLowerCase() !== d.connection.hostname.toLowerCase() || Number(check.port) !== d.connection.port || check.namespace !== d.env.IRIS_NAMESPACE) throw failure('session-backend-target-mismatch');
-  } catch(e) {const exit=await client.close(); owner?.close({cleanupVerified:exit.processExited && exit.gracefulExit && exit.logout?.completed===true && exit.logout.attempted===exit.logout.acknowledged && !client.stderr.includes('IMEDICAL_SESSION_STOP=')}); throw e;}
+    await verifyBackendConfiguration(client, {...d.connection, namespace:d.env.IRIS_NAMESPACE}, assertSession);
+  } catch(e) {
+    const exit = await client.close();
+    e.beforeSend = true;
+    e.backendExit = {processExited:exit.processExited, localResourcesClosed:exit.processExited,
+      cleanupVerified:exit.processExited && exit.gracefulExit && exit.logout?.completed===true && exit.logout.attempted===exit.logout.acknowledged && !client.stderr.includes('IMEDICAL_SESSION_STOP=')};
+    owner?.close(e.backendExit);
+    throw e;
+  }
   return {
     async call(op) {
       // Re-read local authorization/configuration at dispatch, including queued requests.
@@ -178,4 +195,4 @@ function operation(params) {
   if (write && params.allowWrite !== true) throw failure('session-write-authorization-required');
   return {...params, scope, channel: 'mcp', effects: write ? 'write' : 'read-only', identity: d.identity, pool: d.pool};
 }
-module.exports = {describe, open, operation, verifyVendor};
+module.exports = {describe, open, operation, verifyVendor, verifyBackendConfiguration};

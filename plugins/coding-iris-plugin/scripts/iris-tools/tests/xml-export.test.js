@@ -235,3 +235,28 @@ test('known native export failures preserve every outcome and block package deli
     assert.equal(core.status(f.planPath).state,'export-failed');assert.equal(core.status(f.planPath).outcomes[0].exportOk,0);
     await assert.rejects(core.download(f.planPath,f.deps),/needs-inspect/);assert.equal(fs.existsSync(core.load(f.planPath).output),false);
 });
+
+test('terminal startup rejected before send does not manufacture unknown writes or replace the original error',async()=>{
+    const f=fixture({channel:'execute'}),plan=core.load(f.planPath),unknown=[];
+    const transport=core.createTransport(plan,f.context,{skipQualification:true,
+        configuration:{config:{},mcp:{mcpServers:{'iris-agentic-dev':{env:{IRIS_NAMESPACE:'TEST'}}}}},
+        connection:{protocol:'https:',hostname:'example.invalid',port:443},
+        async sessionFactory(){return {async call(){throw Object.assign(Error('session-backend-connection-unavailable'),{code:'session-backend-connection-unavailable',beforeSend:true});},
+          markUnknown(reason){unknown.push(reason);},async close(){return {cleanupVerified:true,processExited:true};}};}});
+    await assert.rejects(core.preflight(f.planPath,{context:f.context,transport}),{code:'session-backend-connection-unavailable'});
+    assert.deepEqual(unknown,[]);
+    const result=core.load(f.planPath);
+    assert.equal(result.state,'planned');assert.equal(result.failure,'session-backend-connection-unavailable');
+    assert.equal(result.exit.terminalCloseVerified,true);assert.equal(result.exit.cleanupVerified,true);
+});
+
+
+test('cleanup exceptions preserve the preflight cause and persist a separate cleanup receipt',async()=>{
+    const f=fixture({channel:'execute'});
+    const transport={call:async()=>{throw Object.assign(Error('session-backend-connection-unavailable'),{code:'session-backend-connection-unavailable',beforeSend:true});},
+        close:async()=>{throw Object.assign(Error('private detail'),{code:'session-close-failed'});}};
+    await assert.rejects(core.preflight(f.planPath,{context:f.context,transport}),{code:'session-backend-connection-unavailable'});
+    const plan=core.load(f.planPath);
+    assert.equal(plan.failure,'session-backend-connection-unavailable');
+    assert.deepEqual(plan.exit,{cleanupVerified:false,failure:'session-close-failed'});
+});

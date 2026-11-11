@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+coding 0.27.6 修复原生 XML 导出预检的启动竞态。managed-sessions-v4 vendor 完成连接发现后再建立工具服务，连接不可用与目标不一致分别报告。预检明确未派发时保留实际退出回执，历史警告带 generation/historical 标记。
+
 - 需求归属迁移按物理路径识别工作区外的独立自定义技能目录链接，保留链接、不跟随内容；旧/新需求入口和无效链接保护不变，更新边界见 docs/demand-delivery-migration.md。
 
 - 读卡设备接入：imedicalxc-doctor-card-reader 1.0.0 新增设备厂商/型号字典与 `ct_pa_card_hard_manager` 设备配置 SQL 生成 skill。目录、admin 用户、厂商/型号/版本关联均按 code 动态解析；`run_prefix` 默认 `C:/Program Files (x86)/Java/jdk-1.8/bin/java.exe`；默认只生成 SQL，后续读卡操作按新 skill 扩展。入口见插件 README、SKILL 与 release record。

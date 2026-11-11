@@ -34,7 +34,8 @@ function addUnresolved(state, scope, reason, now = Date.now(), id = crypto.rando
   return item;
 }
 function warn(state, reason, now = Date.now()) {
-  state.warning = {reason, at: new Date(now).toISOString(), cleanupVerified: false};
+  state.warning = {reason, at: new Date(now).toISOString(), cleanupVerified: false,
+    ...(Number.isInteger(state.generation) ? {generation:state.generation} : {})};
 }
 function admit(state, operation, now = Date.now()) {
   if (state.retryAfter > now) return 'session-service-cooling-down';

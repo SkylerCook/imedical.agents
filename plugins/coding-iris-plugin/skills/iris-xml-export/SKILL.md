@@ -24,3 +24,5 @@ description: 导出指定 IRIS 环境当前对象的 XML 部署包；将已确�
 5. 用结构化 XML 校验逐项比对范围，图片等二进制载荷按字节摘要核对。保存正式交付物，按回执清理本任务服务器文件与临时会话，分别报告导出、校验和清理状态。
 
 CLI 位于 CapabilityRoot 的 `plugins/coding-iris-plugin/scripts/iris-tools/xml-export.js`；参数以其 `--help` 为准。需要本地源码基线时使用 [iris-code-baseline](../iris-code-baseline/SKILL.md)；上传、编译及正式部署沿 [iris-deploy](../iris-deploy/SKILL.md)。本入口只导出包，不提供导入能力。
+
+预检若在工具派发前失败，按实际退出回执报告，计划仍为 planned。连接不可用、真实目标不一致及导出后结果未知分别处理。历史 warning 的时间和 generation/historical 字段用于判断归属，不能把历史警告当成本次新发生的写入。升级须取得完整运行时、vendor v4 与匹配摘要。

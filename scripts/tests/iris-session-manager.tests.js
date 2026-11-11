@@ -132,3 +132,32 @@ test('a successful prior generation cannot certify a later failed close across r
   try {await assert.rejects(recovered.submit({pool:'pool',identity:'identity',operation:{effects:'read-only'}}),/exit-unverified/);}
   finally {await recovered.stop();}
 });
+
+test('backend configuration distinguishes unavailable connection and target mismatch',async()=>{
+  const {verifyBackendConfiguration}=require('../lib/iris-session-backends');
+  const expected={hostname:'fixture.invalid',port:443,namespace:'TEST'};
+  const client={request:async()=>({connected:true,host:expected.hostname,port:443,namespace:'TEST'})};
+  await verifyBackendConfiguration(client,expected,()=>{});
+  await assert.rejects(verifyBackendConfiguration(client,{...expected,namespace:'OTHER'},()=>{}),{code:'session-backend-target-mismatch',beforeSend:true});
+  await assert.rejects(verifyBackendConfiguration({request:async()=>({connected:false})},expected,()=>{}),{code:'session-backend-connection-unavailable',beforeSend:true});
+  await assert.rejects(verifyBackendConfiguration(client,expected,()=>{throw Object.assign(Error(),{code:'session-service-unavailable'});}),{code:'session-service-unavailable'});
+});
+
+test('failed startup keeps its actual exit receipt without creating a pending write',async t=>{
+  const exit={processExited:true,localResourcesClosed:true,cleanupVerified:true};
+  const f=fixture(t,{open:async()=>{throw Object.assign(Error('startup'),{code:'session-backend-connection-unavailable',beforeSend:true,backendExit:exit});}});
+  await assert.rejects(f.call('write',{operation:{effects:'write'}}),{code:'session-backend-connection-unavailable'});
+  assert.deepEqual(f.manager.status()[0].exit,exit);
+  assert.equal(f.manager.status()[0].unresolvedWrites.length,0);
+});
+
+
+test('warning receipts identify the originating generation and historical state',async t=>{
+  const f=fixture(t);
+  await assert.rejects(f.call('failed-read',{operation:{error:Object.assign(Error('failed'),{beforeSend:false})}}));
+  const first=f.manager.status()[0];
+  assert.equal(first.warning.generation,first.generation);assert.equal(first.warning.historical,false);
+  await f.call('next-read');
+  const next=f.manager.status()[0];assert.equal(next.warning.historical,true);
+  assert.equal(next.warning.generation,first.generation);assert.equal(next.warning.at,first.warning.at);
+});

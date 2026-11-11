@@ -1,5 +1,7 @@
 # .agents 安装与更新 Runbook
 
+coding 0.27.6 更新须同时取得根 scripts、coding 插件、managed-sessions-v4 vendor 与匹配的 managed-build.json。沿现有更新入口同步，源仓不新增私有配置。已部署项目保留 MCP 连接、TLS 值及既有恢复资料。结束旧托管会话后再更新被占用的 exe，并重启对应宿主 MCP。Check 校验新版补丁与文件摘要，拒绝混装旧 v3。新项目按正常初始化路径使用同一套包。旧 planned 导出在确认目标和现有未知写记录后沿原计划继续预检，更新不自动清除旧风险记录。
+
 IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY=false`），项目显式 `true` 仍保留。显式开启校验的 Atelier 在支持 API 的 Node 中合并默认与系统 CA；专用 CA 保持优先，不改全局信任。
 
 普通按需操作的 HTTPS 证书验证遵循项目显式 TLS 配置，不再因 `tlsVerify=false` 被公共准入额外拦截。该历史修正当时未配置默认验证证书；当前 0.27.4 已统一缺省 false，按需模式仍要求 HTTPS。此修正只涉及根 `scripts/lib/iris-remote-operations.js`，无新增配置、无 vendor 重建或插件版本变化；正常更新框架脚本并结束旧托管会话后生效，不自动修改项目 TLS 配置。

@@ -7,6 +7,8 @@ const path = require('node:path');
 const risk = require('./iris-operation-scope');
 const hash = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const failure = (code, beforeSend = true) => Object.assign(new Error(code), {code, beforeSend});
+const warningSummary = pool => pool.warning ? {...pool.warning,
+  historical: pool.warning.generation === undefined || pool.warning.generation !== pool.generation} : null;
 
 class SessionManager {
   constructor({directory, open, idleMs = 120000, queueMs = 60000, now = Date.now}) {
@@ -110,7 +112,7 @@ class SessionManager {
       if (p.retireAfterCall) {p.retireAfterCall = false; throw failure('session-lease-owner-disconnected', false);}
       if (p.blocked) throw failure(p.blocked, false);
       if(item.operation.channel==='mcp' && result?.result && typeof result.result==='object') {
-        result.result._meta={...result.result._meta,'imedical/session':{schema:'iris-managed-route/v1',managed:true,pool:p.id,generation:p.generation,request:p.completed+1,runtime:item.operation.runtime,warning:p.warning,unresolvedWriteCount:p.unresolvedWrites.length}};
+        result.result._meta={...result.result._meta,'imedical/session':{schema:'iris-managed-route/v1',managed:true,pool:p.id,generation:p.generation,request:p.completed+1,runtime:item.operation.runtime,warning:warningSummary(p),unresolvedWriteCount:p.unresolvedWrites.length}};
       }
       if (item.releaseLease) p.lease = null;
       p.completed++;
@@ -118,6 +120,11 @@ class SessionManager {
       p.pendingEffects = null; p.pendingScope = null;
       item.resolve(result);
     } catch (error) {
+      if (item.opening && error.beforeSend === true && error.backendExit) {
+        p.exit = error.backendExit;
+        if (!p.exit.cleanupVerified) risk.warn(p, 'session-exit-unverified', this.now());
+        if (!p.exit.processExited && !p.exit.localResourcesClosed) p.blocked = 'session-exit-unverified';
+      }
       const unknownWrite = item.dispatched === true && error.beforeSend !== true && error.writeOutcome !== 'rejected' && item.operation.effects === 'write';
       if (unknownWrite) risk.addUnresolved(p, item.operation.scope, 'session-outcome-unverified', this.now());
       p.pendingEffects = null; p.pendingScope = null;
@@ -164,7 +171,7 @@ class SessionManager {
     }
   }
   summary(p) { return {pool: p.id, active: !!p.session, running: p.running, queued: p.queue.length,
-    leased: !!p.lease, blocked: p.blocked, warning:p.warning, unresolvedWrites:p.unresolvedWrites, retryAfter:p.retryAfter, pendingEffects:p.pendingEffects, generation: p.generation, completed: p.completed, exit: p.exit || null,
+    leased: !!p.lease, blocked: p.blocked, warning:warningSummary(p), unresolvedWrites:p.unresolvedWrites, retryAfter:p.retryAfter, pendingEffects:p.pendingEffects, generation: p.generation, completed: p.completed, exit: p.exit || null,
     reconciliationToken: fs.existsSync(p.file) ? hash(fs.readFileSync(p.file, 'utf8')) : null}; }
   status() { return [...this.pools.values()].map(p => this.summary(p)); }
   markUnknown(pool) {const p=this.pool(pool);risk.addUnresolved(p,p.pendingScope,'session-outcome-unverified',this.now());this.persist(p);return this.summary(p);}

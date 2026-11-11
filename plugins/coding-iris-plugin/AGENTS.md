@@ -1,5 +1,7 @@
 # AGENTS.md
 
+coding 0.27.6 修复原生 XML 导出预检的启动竞态。managed-sessions-v4 vendor 完成连接发现后再建立工具服务，连接不可用与目标不一致分别报告。预检明确未派发时保留实际退出回执，历史警告带 generation/historical 标记。
+
 IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY=false`），项目显式 `true` 仍保留。显式开启校验的 Atelier 在支持 API 的 Node 中合并默认与系统 CA；专用 CA 保持优先，不改全局信任。
 
 版本/项目范围清单统一使用 UTF-8 TXT；生成、比较、采集及 source-sync 映射按[代码基线协议](references/iris-code-baseline.md)执行，不再读取 ProjectItem XML。实际源码 XML 导出与交付沿原协议。

@@ -84,3 +84,9 @@ IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY
 ## Web 文档路径编码修复
 
 Atelier 的 Web 文档 GET/PUT 保留路径分隔符，逐段编码特殊字符；批量读取、资格范围与恢复读取使用同一转换。类名仍沿单段编码。已部署工程通过正常能力包更新同步根 scripts/lib 全部关联文件，无配置迁移或旧状态清理；更新后再继续原同步计划，尚未取得服务器基线的任务须重新核实读取结果。源仓修复不代表业务副本已更新。
+
+### 启动配置与历史警告
+
+managed-sessions-v4 修复初始发现超出两秒时工具服务永久保留空连接的问题。服务在初次发现完成后响应初始化，连接未建立返回 session-backend-connection-unavailable，已连接但字段不符返回 session-backend-target-mismatch。失败发生在业务派发前时记录真实子进程退出回执。
+
+warning 保留发生时间并记录 generation，回执的 historical 表示是否来自旧代；旧记录缺少 generation 时标为历史。新成功请求与关闭回执可独立判断，不把历史告警提升为普通任务准入门槛。

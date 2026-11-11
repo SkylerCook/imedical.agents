@@ -4,7 +4,7 @@
 - Tag: `v1.5.0`
 - Commit: `2b3e017b7fc73d6370fc1e89e7fa03f3de49a1a1`
 - License: MIT, retained in [LICENSE](LICENSE).
-- Local patch chain: [managed-sessions-v1.patch](patches/managed-sessions-v1.patch), [session-identity-v2.patch](patches/session-identity-v2.patch), then [cookie-renewal-v3.patch](patches/cookie-renewal-v3.patch).
+- Local patch chain: [managed-sessions-v1.patch](patches/managed-sessions-v1.patch), [session-identity-v2.patch](patches/session-identity-v2.patch), [cookie-renewal-v3.patch](patches/cookie-renewal-v3.patch), then [startup-readiness-v4.patch](patches/startup-readiness-v4.patch).
 - Catalog snapshots: `tools-full.json` (81), `tools-no-skills.json` (70), captured from the pinned upstream executable without a hospital connection.
 
 The patch only enables changed behavior when `IRIS_MANAGED_NO_RETRIES=1`: no automatic generator replay, startup 401/403/503 stops further probing, generator query HTTP errors remain errors, and shutdown emits a redacted `IMEDICAL_LOGOUT` receipt. A successful logout HTTP response does not establish server session disappearance or license release.
@@ -27,14 +27,17 @@ Neither these simulations nor successful process shutdown prove a hospital sessi
 
 ## Cookie renewal patch v3
 
-## Startup readiness candidate v4
-
-The incremental `patches/startup-readiness-v4.patch` joins the initial discovery task before constructing the tool service. Upstream v1.5.0 otherwise snapshots the connection after two seconds and never applies a later successful discovery to that service. The candidate test delays localhost discovery beyond two seconds and requires a connected first `check_config` response. Binary integration and build identity are recorded in `managed-build.json` when the candidate is promoted.
-
-The current binary applies v3 after v1 and v2. Same-name/domain/path Cookie value renewal is accepted without an instance format setting; subsequent requests use the latest Cookie without Basic authentication. Cookie values are opaque tokens, not proof of a server-side License identity. Missing, deleted, expired or out-of-scope session cookies, changed account/target, and authentication failures still stop the affected call. Automatic replay and durable telemetry remain disabled. This replaces v2's token-comparison and `csp50-v1` behavior.
+The historical v3 binary applied v3 after v1 and v2. Same-name/domain/path Cookie value renewal is accepted without an instance format setting; subsequent requests use the latest Cookie without Basic authentication. Cookie values are opaque tokens, not proof of a server-side License identity. Missing, deleted, expired or out-of-scope session cookies, changed account/target, and authentication failures still stop the affected call. Automatic replay and durable telemetry remain disabled. This replaces v2's token-comparison and `csp50-v1` behavior.
 
 The distributed v3 executable was built locally from the pinned upstream commit with Rust 1.92.0 Windows GNU and LLVM MinGW 20261020 MSVCRT (clang 23.1.4). Rust's official `rustc`, `cargo`, `rust-std` and `rust-mingw` component archives were checksum-verified. The LLVM archive SHA-256 is `52a3e3f584a74c3cde8ceb0c6960549683178e03b36818cb02b7ed109a68ff67`. Build identity, normalized-LF patch digests and executable digest are in `managed-build.json`; this local build does not claim the historical v2 CI run as provenance.
 
 Use task-local tools and apply all three patches in order. Set process-local `CARGO_HOME`, `RUSTC`, `CC_x86_64_pc_windows_gnu` and `AR_x86_64_pc_windows_gnu`. Put the portable Rust and LLVM `bin` directories on that process's PATH. Set `RUSTFLAGS` to `-C linker=<llvm-bin>/x86_64-w64-mingw32-clang.exe -C link-self-contained=yes -L native=<rust-target-lib>/self-contained -L native=<llvm-root>/x86_64-w64-mingw32/lib`, including host build scripts. Verify that the Rust self-contained directory contains `libgcc.a` and `libgcc_eh.a`, then run `cargo build --locked --release -p iris-agentic-dev --bin iris-agentic-dev`. Do not install or change the user's global toolchain.
 
 The executable starts successfully and passes all 14 localhost vendor tests, including 100 successive SQL reads with rotating Cookie values and only one authentication, normal renewal without configuration, cookie loss/scope change, account isolation, WebSocket reuse and failure request counts. These local tests do not establish the cause or resolution of any hospital-specific error; deployment and live business verification remain separate.
+
+## Startup readiness patch v4
+
+The incremental `patches/startup-readiness-v4.patch` joins the initial discovery task before constructing the tool service. Upstream v1.5.0 otherwise snapshots the connection after two seconds and never applies a later successful discovery to that service. The real executable test delays localhost discovery beyond two seconds and requires a connected first `check_config` response. The distributed Windows MSVC build passed all 15 vendor tests in CI run 42963817212 at framework commit a064dc43d6a0781260156a86df1a0e56ba933c98. Its digest and fixed upstream/patch identity are recorded in `managed-build.json`.
+
+
+The build retains all v1/v2/v3 protections and tool schemas. The deployment requires matching runtime and metadata. No project connection fields are embedded in the executable.

@@ -206,7 +206,9 @@ function createTransport(plan, context, deps = {}) {
         if(plan.executor==='terminal'){
             if(!wsToken){
                 wsAttempted=true;
-                const opened=await session.call('iris_ws_open',{namespace:plan.namespace},{allowWrite:true});
+                let opened;
+                try { opened=await session.call('iris_ws_open',{namespace:plan.namespace},{allowWrite:true}); }
+                catch(error) { if(error.beforeSend===true)wsAttempted=false; throw error; }
                 if(typeof opened?.session!=='string' || !opened.session.startsWith('ws:') || opened.namespace!==plan.namespace){
                     terminalUnknown=true;session.markUnknown?.('xml-terminal-open-unverified');stop('xml-terminal-open-unverified');}
                 wsToken=opened.session;
@@ -235,17 +237,28 @@ function createTransport(plan, context, deps = {}) {
 async function withPlan(file, deps, callback) {
     let plan = load(file);const context = deps.context || contextFor(plan.projectRoot);
     if (context.workspaceRoot!==plan.projectRoot || context.contextRoot!==plan.contextRoot || context.capabilityRoot!==plan.capabilityRoot) stop('xml-workspace-drift');
-    const release=acquireLock(plan);plan=load(file);let transport;
+    const release=acquireLock(plan);plan=load(file);let transport, operationError;
     try {
         transport=deps.transport || createTransport(plan,context,deps);
         return await callback(plan, async (operation,extra)=>assertReply(plan,operation,await transport.call(operation,extra)));
     } catch(error) {
+        operationError=error;
         plan.failure=/^[a-z0-9-]+$/.test(error.code || error.message)?(error.code || error.message):'xml-operation-failed-or-unknown';
         if (plan.state==='exporting') plan.state='export-outcome-unknown';
         save(plan); throw error;
     } finally {
-        try { if(transport){ plan.exit=await transport.close(); save(plan); if(plan.exit?.cleanupVerified!==true) stop('xml-remote-session-exit-unverified'); } }
-        finally { release(); }
+        try {
+            if (transport) {
+                try { plan.exit=await transport.close(); }
+                catch (cleanupError) {
+                    plan.exit={cleanupVerified:false, failure:/^[a-z0-9-]+$/.test(cleanupError.code || '') ? cleanupError.code : 'xml-session-close-failed'};
+                    save(plan);
+                    if (!operationError) throw cleanupError;
+                }
+                save(plan);
+                if (plan.exit?.cleanupVerified!==true && !operationError) stop('xml-remote-session-exit-unverified');
+            }
+        } finally { release(); }
     }
 }
 async function preflight(file,deps={}) {

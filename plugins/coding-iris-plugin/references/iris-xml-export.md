@@ -82,3 +82,7 @@ XML 解析复用能力包固定分发的 `saxes 6.0.0` 与 `xmlchars 2.2.0`，�
 ## 升级
 
 按 [安装更新 runbook](../../../docs/update-agents.md#iris-xml-导出与代码基线coding-022) 取得完整 owner、根公共库和薄索引；缺失入口先核对 enabled 状态。全局旧名 `iris-xml-package` 沿 `skills-sync` 明确迁移，项目更新器不删除用户级原件或链接。
+
+### 启动预检与失败回执
+
+0.27.6 配套 vendor v4 在初始连接发现完成后才发布工具服务。session-backend-connection-unavailable 表示连接发现未成功，session-backend-target-mismatch 表示已连接但目标字段不匹配。WS open 的 beforeSend=true 失败没有派发终端操作，不新增未知写记录。关闭回执保留独立清理结果，发生业务错误时优先返回原始错误。已有未知写记录仍沿原核实流程处理。
