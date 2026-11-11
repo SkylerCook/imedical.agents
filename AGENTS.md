@@ -55,6 +55,7 @@
 - `maintenance/` 放仅源仓使用的治理、设计历史与验证证据；入口为 `maintenance/README.md`。文档迁移按 `maintenance/governance/documentation-layout.md` 核对分发与旧副本收敛。
 - 根 `scripts/` 放能力包部署、更新和通用维护脚本；领域脚本放到对应插件。
 - 根 `tools/` 放面向人工使用、可独立携带的工具源与就近 README；不依赖 Agent skill 或业务项目 `.agents`，不随能力包安装/更新分发。`tools/dist/` 只保存本机生成的正式 ZIP 并由 Git 忽略；源码只维护一份，打包和解压暂存使用任务临时目录，完成后清理。
+- 工具交付同一功能、同一形态只保留一个固定名称的最新版；命令行与 GUI 可各保留一个。旧但有保留价值的包移入 `tools/dist/history/`，确认无用或内容完全重复的产物删除；不在交付根目录并列日期版、修订版、计时版或解压副本。文件占用时先报告阻碍，不以新增“最新版”文件名绕过。清理前核对内容、归属、链接和运行占用。
 - 根 `vendor/` 放第三方源码资产、共享运行时资产和 vendor skill fallback，部署到业务项目 `.agents/vendor/`；只有插件 manifest 声明的 required vendor skill 才生成 `.agents/skills` thin-index。
 - 根 `releases/` 放插件和根级独立 skill 的不可变发布记录，只服务源仓版本审计，不部署到业务项目。
 - 根 `memory/` 是维护者记忆，不部署到业务项目 `.agents/`，不生成 thin-index。

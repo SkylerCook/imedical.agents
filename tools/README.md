@@ -17,7 +17,7 @@
 & .\tools\iris-code-export\build-package.ps1
 ```
 
-只长期保留一份工具源码和一个 ZIP。`tools/dist/` 只放正式压缩包，由 Git 忽略；打包、解压验证均使用任务专属临时目录，完成后立即清理，不在 dist 保留解压副本。
+同一功能、同一形态只保留一份源码和一个固定名称的最新 ZIP。源码导出工具固定为命令行版 `dist/iris-code-export.zip` 与 GUI 版 `dist/iris-code-export-gui.zip`；旧但有用的包放 `dist/history/`，无用或已核实完全重复的产物删除，不再并列日期版、计时版等入口。`tools/dist/` 只放正式压缩包，由 Git 忽略；打包、解压验证均使用任务专属临时目录，完成后立即清理，不在 dist 保留解压副本。
 
 需要保留已获授权的本机连接示例时，将示例文本放任务临时目录，用 -LocalExampleFile 指定；构建器仅替换临时 README 的 local-atelier-example 标记，不改共享源。真实地址只留本机被忽略的 ZIP，账号密码始终不写文件。构建器逐文件核对归档摘要后清理自己的暂存目录；示例临时文件由调用任务清理。独立测试直接解压实际 ZIP，核对源脚本、生成清单、截图及 README 模板。
 
