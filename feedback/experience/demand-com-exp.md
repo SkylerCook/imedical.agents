@@ -2,6 +2,16 @@
 
 > 积累自实际需求实施过程的通用检验清单与踩坑记录，按分类组织。
 
+## 本轮审计状态（2026-11-12）
+
+- 5.4/5.6 已修正源仓脚本，字符边界独立编码、逐块解码入流、完整回读比较及空响应兼容导出共用现有入口；真实旧 IRIS 验收仍待取得。
+- 1.5 循环退出部分已覆盖于 `plugins/coding-iris-plugin/references/cls-coding-format.md`；1.6 已覆盖于后端规则；3.3 已覆盖于 iris-coding 的调用链定位。
+- 6.1 当前执行入口为 `plugins/coding-iris-plugin/references/frontend-encoding.md`，下方旧转换步骤仅作历史记录。
+- 2.6 单方初始化结论仅保留为原现场观察，bundled HISUI 支持更新已有 combobox options；需核对 parser 时序、版本及 url/data 交互后再提升。
+- 2.5 密码星号回填依赖项目约定；7.1 历史替换仅适用于明确授权的历史整理。
+- 6.7、1.9/2.8、2.7、2.10、1.10 保留为待验证候选；补语言、格式、组件版本和语法边界证据后再评估 owner 提升。
+- 5.2 数字实体适用于已确认传输乱码的路径；5.3 须区分字符输入与字节输入及转换层，历史表述不能直接作为通用约束。
+
 ## 维护规则
 
 新增、命中计数与提升先遵循 [feedback skill 的共享准入](../../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#需求经验分支)，通过筛选并获授权后才按下列格式维护。历史条目不视为已通过新准入，不自动清理或重新计数。
@@ -31,9 +41,9 @@
 ### 1.1 新增字段必须追加到末尾
 - 需求: #6990066 | 命中: 1
 - **规则**：`%Persistent` 类新增 Property 只能放在已有属性之后（updateDateTime 之后），绝不能插入中间位置。
-- **原因**：ObjectScript Storage 使用 `$lg(global(id), position)` 按位置存取，中间插入会导致历史数据全部错位。
-- **Storage 块**：编译持久化类时自动重新生成，无需手动修改 `<Value>` 节点。新增字段后编译器会自动追加到 Storage。
-- **SqlColumnNumber**：新字段使用当前最大值 +1（如原最大 20，新字段用 21），但实际 SQL 映射由编译器管理，手动标注仅作文档用途。
+- **原因**：ObjectScript Storage 使用 `$lg(global(id), position)` 按位置存取，实际存储位置被重排会导致历史数据错位；属性声明顺序与 Storage 映射须分别核对。
+- **Storage 块**：保留既有映射，默认存储由编译器扩展新增属性；自定义 Storage 按目标契约处理，禁止无依据删除重建。
+- **SqlColumnNumber**：控制 SQL 投影列序，影响 `SELECT *` 和省略列清单的写入。保留历史列号并检查调用方；Storage 映射单独核对。
 - **已回归/已提升**：`plugins/coding-iris-plugin/rules/iris_coding_backend.md`
 
 ### 1.2 SQL 语句同步
@@ -347,7 +357,7 @@
 - **判断**：必须检查 MCP 返回的内部 stdout/status。出现临时类 `Execute+...<SYNTAX>` 是 ObjectScript 代码载荷编译失败，不是 MCP 传输失败；已经完成的本地模板、manifest 和备份仍然有效，不应重新查询、导出或翻译。
 - **收敛策略**：确认该错误后停止继续试探长段脚本，优先调用项目现有模板保存接口；没有可复用接口时，将 XML 分成多个短块，每块独立 Base64 编码后写入带唯一任务键的临时 Global，最终逐块解码并按顺序写入目标 CharacterStream，随后清理临时 Global。不要先在 ObjectScript 中合并成长 Base64/长 XML 字符串；旧实例可能发生截断或内容拼接损坏。
 - **验收**：保存完成后只执行一次只读查询/导出，核对目标记录元数据、XML 可解析性和 `defaultvalue` 源语言残留，然后汇总结果。
-- **自动化状态**：`sync-xml-print-template.ps1` 已实现临时类 `<SYNTAX>` 识别、分块暂存、`finally` 清理和只读验收；#6096063 发现“先合并再解码”的旧 fallback 仍可能损坏长流，待把实现收敛为逐块独立解码/写流并补充内容精确回读回归。
+- **自动化状态**：`sync-xml-print-template.ps1` 已实现临时类 `<SYNTAX>` 识别、分块暂存、`finally` 清理和只读验收；#6096063 发现“先合并再解码”的旧 fallback 仍可能损坏长流，本轮已收敛为字符边界独立编码、逐块解码写流并比较完整回读内容；真实旧实例验证待补。
 - **已回归/已提升**：`plugins/i18n-iris-plugin/skills/i18n-xml-print-template-sync/SKILL.md`、`plugins/i18n-iris-plugin/scripts/sync-xml-print-template.ps1`、`plugins/i18n-iris-plugin/scripts/tests/sync-xml-print-template.Tests.ps1`
 
 ### 5.5 MCP 必须按当次真实能力探针判断
@@ -362,7 +372,7 @@
 - **问题**：部分旧 IRIS 实例通过临时 `iris_execute` 调用 `%DynamicArray/%DynamicObject.%ToJSON()` 时，MCP 返回 `success=true` 但 `output` 为空；同步脚本随后把空结果解释成源模板和目标模板都不存在。
 - **判断**：模板存在性必须与 JSON 序列化/传输成功分开判断。`success=true + output=""` 不是有效的“模板不存在”证据。
 - **降级**：先用只读 SQL 核对模板记录及元数据；导出内容时可按已确认记录 ID 打开 CharacterStream 并直接输出文本。写回前仍要备份旧流，写回后按 XML 语义 DOM、元数据和源语言残留做回读验证。
-- **待提升**：同步脚本应检测空 JSON 输出并自动切换到兼容导出路径，同时增加旧 IRIS 返回空 output 的离线回归。
+- **已回归**：空 JSON 自动切换到带边界标记的直接流输出，备份/导出/Verify/保存回读共用；无效结果报存在性未知。离线回归已补，旧实例实测待补。
 
 ---
 
@@ -401,8 +411,8 @@
 ### 6.6 远程动作终态前不得启动 Independent Verifier
 - 需求: #6097891 | 命中: 1
 - **问题**：Template/Seed 或远程翻译仍在恢复和冲突处理中就生成 Verifier/summary，后续修改使验证结论失效并造成整段流程重跑。
-- **规则**：瞬时故障以同一阶段的 `suspended` attempt 保持运行开放，恢复时追加 attempt；只有所有远程动作终态、无 suspended attempt 且验证范围冻结后，才设置 `finalization.ready=true` 并启动 Verifier。
-- **版本边界**：业务代码、本地 i18n 产物和授权远程读回属于 verification scope；manifest、报告、summary 和 feedback 不属于业务验证版本。
+- **规则**：瞬时故障以同一阶段的 `suspended` attempt 保持运行开放，恢复时追加 attempt；此处为旧运行协议，当前启动条件见下条当前契约。
+- **当前契约**：按 `workflows/i18n-change.workflow.md` 执行，2.0 在启动 Verifier 前要求实现与远程动作终态、无 pending/blocked action、验证范围冻结；旧 `suspended`/`finalization.ready` 描述仅供历史追溯。
 - **已回归/已提升**：`agents/i18n-agent/AGENT.md`、`workflows/i18n-change.workflow.md`、`plugins/agent-context-kit/scripts/validate-agent-run.ps1`
 
 ### 6.3 新增字典翻译方法的规范

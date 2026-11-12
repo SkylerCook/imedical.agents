@@ -4,6 +4,8 @@
 
 ## 当前重点
 
+- 需求经验审计回归见维护日志，XML 长流与空输出已补离线验证；旧 IRIS 与候选规则取证沿 backlog。
+
 - BOS 更新日志当前仅适用于标版需求，其它类型跳过且不列补录待办。范围归 [BOS owner](../plugins/bos-plugin/references/code-update-log.md#适用范围)，普通开发与连续验收共用。
 
 - 0.28.3 覆盖 profile 混合换行/Pending、需求类型和导出覆盖表单 CR、前端原字节导出及恢复错误优先级。验证见维护日志 2026-11-12，升级同时取得 coding 插件和根 scripts。

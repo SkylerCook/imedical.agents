@@ -101,7 +101,7 @@ Useful modes:
 
 `-Apply` 默认先沿用兼容的单次内联保存。若 MCP 内层返回临时类
 `Execute+...<SYNTAX>`，脚本会自动切换为分块 fallback；可通过
-`-ApplyChunkSize` 调整 Base64 分块大小，默认每块 `6000` 个字符。
+`-ApplyChunkSize` 调整 Base64 分块大小，默认预算 `6000`，实际按 Unicode 字符边界生成独立 UTF-8/Base64 分块。
 
 ## Workflow
 
@@ -133,7 +133,7 @@ When the source query, export, and local translation have succeeded but server s
 - A generated temporary class error such as `Execute+...<SYNTAX>` is an ObjectScript payload compilation failure, not an MCP transport failure.
 - If the failing payload embeds a complete XML document or Base64 string, do not repeatedly retry equivalent long inline code. One retry is allowed only for an obvious, bounded quoting defect; otherwise converge immediately.
 - Prefer a project-provided template save API when one is already available and verified for the target record type.
-- Otherwise use the script's automatic chunked fallback: it splits the Base64 payload across multiple short MCP calls into `^CacheTemp`, keyed by a unique task token. One final short `iris_execute` call validates the chunk count, concatenates, decodes, and saves the target record. The script cleans the task node in `finally`, including save failures.
+- Otherwise use the script's automatic chunked fallback: it encodes XML character chunks independently as UTF-8/Base64 across multiple short MCP calls into `^CacheTemp`, keyed by a unique task token. One final short `iris_execute` call validates the chunk count, decodes each chunk into a character stream, and saves the target record. The script cleans the task node in `finally`, including save failures.
 - Reuse the existing translated XML, manifest, and overwrite backup. Do not regenerate them during the save fallback.
 - After a successful fallback save, perform one read-only metadata query/export and complete XML parse/residue verification. Do not repeat the earlier discovery and translation stages.
 
@@ -175,3 +175,5 @@ Before reporting success, state:
 - XML parse result.
 - `defaultvalue` source-language residue count.
 - Whether layout files or backup files were generated.
+
+Empty JSON export output triggers a framed direct-stream compatibility read for export, backup and verification. Invalid or incomplete responses leave existence unknown. Fallback saves compare the full returned XML with the translated input.

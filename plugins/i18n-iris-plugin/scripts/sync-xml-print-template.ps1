@@ -141,6 +141,9 @@ function Get-ObjectPropertyValue($Object, [string]$Name, $Default = "") {
 }
 
 function ConvertFrom-JsonArray([string]$Json) {
+    if ([string]::IsNullOrWhiteSpace($Json)) {
+        throw "IRIS returned empty JSON output. Template existence is unknown; verify the record with a read-only query before retrying."
+    }
     $items = @($Json | ConvertFrom-Json)
     if ($items.Count -eq 1 -and $items[0] -is [System.Array]) {
         return @($items[0])
@@ -487,6 +490,51 @@ write out.%ToJSON()
 "@
 }
 
+function Invoke-ExportTemplates($Client, $Tool, [string[]]$Names) {
+    $json = Invoke-IrisObjectScript $Client $Tool (New-ExportTemplatesCode $Names)
+    if (-not [string]::IsNullOrWhiteSpace($json)) {
+        $records = @(ConvertFrom-JsonArray $json)
+        foreach ($name in $Names) {
+            $matched = @($records | Where-Object { $_.name -ceq $name })
+            if ($matched.Count -ne 1 -or $matched[0].exists -notin @(0, 1)) {
+                throw "Invalid template export response for $name."
+            }
+        }
+        return $json
+    }
+    $records = foreach ($name in $Names) {
+        $escapedName = Escape-OsString $name
+        $marker = [guid]::NewGuid().ToString('N')
+        $code = @"
+set id=`$order(^User.DHCXMLPConfigI("XPCFlagIndex"," "_`$zconvert("$escapedName","U"),0))
+write "$marker",id,"$marker"
+if id'="" {
+ set obj=##class(User.DHCXMLPConfig).%OpenId(id)
+ for field="XPCNote1","XPCLangCode","XPCOriginFlag" {
+  set value=""
+  try { set value=`$property(obj,field) } catch ex { }
+  write value,"$marker"
+ }
+ if `$isobject(obj.XPCFileData) {
+  do obj.XPCFileData.Rewind()
+  while 'obj.XPCFileData.AtEnd { write obj.XPCFileData.Read(16000) }
+ }
+}
+write "$marker"
+"@
+        $raw = Invoke-IrisObjectScript $Client $Tool $code
+        $parts = $raw.Split(@($marker), [StringSplitOptions]::None)
+        if ($parts.Count -eq 4 -and $parts[0] -eq '' -and $parts[1] -eq '' -and $parts[2] -eq '' -and $parts[3] -eq '') {
+            [pscustomobject]@{ name = $name; id = ''; exists = 0 }
+        } elseif ($parts.Count -eq 7 -and $parts[0] -eq '' -and $parts[6] -eq '' -and $parts[1] -ne '') {
+            [pscustomobject]@{ name = $name; id = $parts[1]; exists = 1; XPCNote1 = $parts[2]; XPCLangCode = $parts[3]; XPCOriginFlag = $parts[4]; xml = $parts[5] }
+        } else {
+            throw "Compatibility export failed for $name; template existence is unknown."
+        }
+    }
+    return ConvertTo-Json -InputObject @($records) -Depth 10
+}
+
 function New-ExportTemplatesCode([string[]]$Names) {
     $joined = ($Names | ForEach-Object { Escape-OsString $_ }) -join ";"
     return @"
@@ -618,7 +666,7 @@ write ret.%ToJSON()
 }
 
 function New-ApplyTemplateCode([string]$SourceName, [string]$TargetName, [string]$XmlBase64, [bool]$OverwriteFlag, [string]$TargetLanguage, [hashtable]$LanguageDisplayMap = @{}) {
-    $xmlLoadCode = 'set xml=$system.Encryption.Base64Decode("' + $XmlBase64 + '")'
+    $xmlLoadCode = 'set xml=$zconvert($system.Encryption.Base64Decode("' + $XmlBase64 + '"),"I","UTF8")'
     return New-ApplyTemplateCodeBody $SourceName $TargetName $xmlLoadCode $OverwriteFlag $TargetLanguage $LanguageDisplayMap
 }
 
@@ -657,14 +705,15 @@ write ret.%ToJSON()
 function New-ApplyTemplateFromChunksCode([string]$SourceName, [string]$TargetName, [string]$TaskToken, [int]$ExpectedChunkCount, [bool]$OverwriteFlag, [string]$TargetLanguage, [hashtable]$LanguageDisplayMap = @{}) {
     $token = Escape-OsString $TaskToken
     $xmlLoadCode = @"
-set xmlBase64=""
+set xmlStream=##class(%Stream.TmpCharacter).%New()
 set chunkIndex=0
 set chunkCount=0
 for {
  set chunkIndex=`$order(^CacheTemp("i18nXmlPrintTemplateSync","$token",chunkIndex))
  quit:chunkIndex=""
  set chunkCount=chunkCount+1
- set xmlBase64=xmlBase64_`$get(^CacheTemp("i18nXmlPrintTemplateSync","$token",chunkIndex))
+ set chunk=`$get(^CacheTemp("i18nXmlPrintTemplateSync","$token",chunkIndex))
+ do xmlStream.Write(`$zconvert(`$system.Encryption.Base64Decode(chunk),"I","UTF8"))
 }
 if chunkCount'=$ExpectedChunkCount {
  set ret.status="incomplete-staging"
@@ -673,22 +722,31 @@ if chunkCount'=$ExpectedChunkCount {
  write ret.%ToJSON()
  quit
 }
-set xml=`$system.Encryption.Base64Decode(xmlBase64)
+do xmlStream.Rewind()
 "@
-    return New-ApplyTemplateCodeBody $SourceName $TargetName $xmlLoadCode $OverwriteFlag $TargetLanguage $LanguageDisplayMap
+    $code = New-ApplyTemplateCodeBody $SourceName $TargetName $xmlLoadCode $OverwriteFlag $TargetLanguage $LanguageDisplayMap
+    return $code.Replace('do target.XPCFileData.Write(xml)', 'set sc=target.XPCFileData.CopyFrom(xmlStream)' + "`n" + 'if $system.Status.IsError(sc) { throw ##class(%Exception.StatusException).CreateFromStatus(sc) }')
 }
 
 function Invoke-ChunkedTemplateApply($Client, $Tool, [string]$SourceName, [string]$TargetName, [string]$XmlBase64, [bool]$OverwriteFlag, [string]$TargetLanguage, [hashtable]$LanguageDisplayMap = @{}, [int]$ChunkSize = 6000) {
     $taskToken = [guid]::NewGuid().ToString("N")
-    $chunkCount = [int][Math]::Ceiling($XmlBase64.Length / [double]$ChunkSize)
+    if ($ChunkSize -lt 4) { throw "ApplyChunkSize must be at least 4." }
+    $xmlText = [System.Text.UTF8Encoding]::new($false, $true).GetString([Convert]::FromBase64String($XmlBase64))
+    $charactersPerChunk = [Math]::Max(1, [int][Math]::Floor($ChunkSize / 8))
+    $chunks = [System.Collections.Generic.List[string]]::new()
+    for ($offset = 0; $offset -lt $xmlText.Length;) {
+        $length = [Math]::Min($charactersPerChunk, $xmlText.Length - $offset)
+        if ([char]::IsHighSurrogate($xmlText[$offset + $length - 1])) { $length++ }
+        $chunks.Add([Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($xmlText.Substring($offset, $length))))
+        $offset += $length
+    }
+    $chunkCount = $chunks.Count
     try {
         $initText = Invoke-IrisObjectScript $Client $Tool (New-InitializeTemplateChunksCode $taskToken)
         if (Test-IrisTemporarySyntaxFailure $initText) { throw "Chunk initialization failed with temporary ObjectScript <SYNTAX>." }
 
         for ($index = 0; $index -lt $chunkCount; $index++) {
-            $offset = $index * $ChunkSize
-            $length = [Math]::Min($ChunkSize, $XmlBase64.Length - $offset)
-            $chunk = $XmlBase64.Substring($offset, $length)
+            $chunk = $chunks[$index]
             $stageText = Invoke-IrisObjectScript $Client $Tool (New-StageTemplateChunkCode $taskToken ($index + 1) $chunk)
             if (Test-IrisTemporarySyntaxFailure $stageText) {
                 throw "Chunk $($index + 1)/$chunkCount failed with temporary ObjectScript <SYNTAX>."
@@ -856,7 +914,7 @@ try {
         $verifyNames = @($verifyNames | Select-Object -Unique)
         $records = @()
         foreach ($verifyName in $verifyNames) {
-            $verifyJson = Invoke-IrisObjectScript $client $osTool (New-ExportTemplatesCode @($verifyName))
+            $verifyJson = Invoke-ExportTemplates $client $osTool @($verifyName)
             if ($TraceIrisOutput) {
                 Write-Host "Raw verify output for ${verifyName}:"
                 Write-Host $verifyJson
@@ -887,7 +945,7 @@ try {
         return
     }
 
-    $exportJson = Invoke-IrisObjectScript $client $osTool (New-ExportTemplatesCode $names)
+    $exportJson = Invoke-ExportTemplates $client $osTool $names
     if ($TraceIrisOutput) {
         Write-Host "Raw export output:"
         Write-Host $exportJson
@@ -936,8 +994,9 @@ try {
         if ($Overwrite) {
             $backupDir = Join-Path $outDir "backups"
             [System.IO.Directory]::CreateDirectory($backupDir) | Out-Null
-            $existingJson = Invoke-IrisObjectScript $client $osTool (New-ExportTemplatesCode @($targetName))
-            $existing = @($existingJson | ConvertFrom-Json)[0]
+            $existingJson = Invoke-ExportTemplates $client $osTool @($targetName)
+            $existing = @(ConvertFrom-JsonArray $existingJson)[0]
+            if ($null -eq $existing) { throw "Backup returned no template record; existence is unknown." }
             if ($existing.exists -eq 1) {
                 $existingXml = [string]$existing.xml
                 Write-XmlTextFile (Join-Path $backupDir "$targetName.$(Get-Date -Format yyyyMMddHHmmss).txt") $existingXml
@@ -953,12 +1012,13 @@ try {
         }
 
         if ($applyOutcome.UsedFallback -and $applyResult.status -eq "saved") {
-            $verifyJson = Invoke-IrisObjectScript $client $osTool (New-ExportTemplatesCode @($targetName))
+            $verifyJson = Invoke-ExportTemplates $client $osTool @($targetName)
             $verified = @(ConvertFrom-JsonArray $verifyJson)[0]
             if ($null -eq $verified -or $verified.exists -ne 1) { throw "Fallback verification could not read target template: $targetName" }
             if ([string](Get-ObjectPropertyValue $verified "XPCLangCode") -ne $TargetLanguage) { throw "Fallback verification found unexpected XPCLangCode for $targetName." }
             if ([string](Get-ObjectPropertyValue $verified "XPCOriginFlag") -ne [string]$rec.name) { throw "Fallback verification found unexpected XPCOriginFlag for $targetName." }
             $verifiedXml = [string](Get-ObjectPropertyValue $verified "xml")
+            if ($verifiedXml -cne $translatedXml) { throw "Fallback verification found different XML content for $targetName." }
             Assert-XmlParseable $verifiedXml $targetName
             $residueCount = Get-ChineseDefaultValueCount $verifiedXml
             Write-Host "Fallback verification $targetName : XML parseable, Chinese defaultvalue residue=$residueCount"

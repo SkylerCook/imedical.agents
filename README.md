@@ -691,3 +691,5 @@ WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codeb
 ## 会话故障恢复更新（0.28.1）
 
 发送阶段诊断、框架会话预算与更新步骤见 [统一会话指南](docs/guides/iris-managed-sessions.md)。
+
+需求经验审计已回归 XML 同步长流、空响应兼容处理和 SQL 列序说明，详见各 owner README 及维护日志。
