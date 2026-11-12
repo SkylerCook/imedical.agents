@@ -1,5 +1,7 @@
 # imedical.agents 维护记忆入口
 
+每轮治理先回读根 [框架维护首要原则](../AGENTS.md#框架维护首要原则)，再进入任务路由，按该原则评价用户负担、完成效率和交付质量。
+
 - AI 开发工具新增 [独立 GUI](../tools/ai-dev-offline/GUI.md)，六项可选、仅安装、已有路径配置和恢复。r6 支持程序路径自动定位、项目连接回填、VS Code 用户偏好与 IRIS/Caché 项目配置、私有备份恢复和脱敏日志，允许先保存配置再部署 MCP。交付拆分 tools/ 与 packages/，后续只更新小型工具 ZIP，旧 payload 布局兼容。固定 ZIP 入口见工具说明，旧版归 tools/dist/history；一个 Win10 现场样本已验证三项 User PATH 和 Java 8 完整路径运行，剩余远端与干净环境验收见维护日志。Win7 独立包列为 P3 暂缓，遇到实际项目需求后启动。
 
 coding 0.27.6 修复原生 XML 导出预检的启动竞态。managed-sessions-v4 vendor 完成连接发现后再建立工具服务，连接不可用与目标不一致分别报告。预检明确未派发时保留实际退出回执，历史警告带 generation/historical 标记。
@@ -16,7 +18,7 @@ IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY
 
 普通按需 HTTPS 调用遵循显式 TLS 配置，默认验证证书；本轮根运行时修正不改变 HTTPS 要求、不修改业务私有配置。详见更新 runbook 与维护日志。
 
-维护先遵循根 [框架维护首要原则](../AGENTS.md#框架维护首要原则)：可靠完成任务，减少配置和人工介入。coding 0.27.3 移除普通 MCP/Atelier Web 调用的 License 资格与历史退出证明门槛，迁移/模板不再生成 pending，并沿既有更新器清理旧废弃字段与空登记；Node 与 vendor v3 支持正常 Cookie 续期且无需格式配置。部署后实际验证沿原队列，既有文件导出治理保持。
+coding 0.27.3 移除普通 MCP/Atelier Web 调用的 License 资格与历史退出证明门槛，迁移/模板不再生成 pending，并沿既有更新器清理旧废弃字段与空登记；Node 与 vendor v3 支持正常 Cookie 续期且无需格式配置。部署后实际验证沿原队列，既有文件导出治理保持。
 
 
 普通部署按[验证契约](../plugins/coding-iris-plugin/rules/iris_deploy_checklist.md#验证)复用回执、分开报告文件部署与业务验收；0.26.2 源仓规则变更待业务副本更新与同类耗时验证。
