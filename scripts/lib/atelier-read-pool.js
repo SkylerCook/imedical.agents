@@ -1,5 +1,5 @@
 'use strict';
-const {encodeDocumentPath} = require('./atelier-document-path');
+const {documentReadPath} = require('./atelier-document-path');
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -72,6 +72,7 @@ function createAtelierReadPool(options = {}) {
     if (!Array.isArray(documents) || !documents.length || new Set(documents).size !== documents.length ||
         documents.some(name => typeof name !== 'string' || !name || /[\\%?#\x00-\x1f]/.test(name.replace(/^%/, '')) || name.split('/').some(part => !part || part === '.' || part === '..'))) fail('read-pool-documents-invalid');
     if (options.qualification && JSON.stringify(documents) !== JSON.stringify(options.qualification.documents)) fail('remote-qualification-scope-mismatch');
+    if (!Array.isArray(binaryDocuments) || binaryDocuments.some(name => !documents.includes(name))) fail('read-pool-binary-documents-invalid', {beforeSend:true});
     if (!options.qualification && budget.maxDocuments !== null && documents.length > budget.maxDocuments) fail('read-pool-document-budget-exceeded');
     if (policy.enabled && !options.qualification && documents.length > 5 && budget.maxDocuments === null) fail('bulk-license-qualification-required');
     used = true; running = true;
@@ -98,7 +99,8 @@ function createAtelierReadPool(options = {}) {
           for (let worker = 0; worker < count; worker++) {
             const facade = {
               async run({effects, method, suffix} = {}, callback) {
-                const permitted = probing ? worker === 0 && suffix === '@server-info' : active.has(worker) && suffix === 'doc/' + encodeDocumentPath(documents[active.get(worker)]);
+                const current = documents[active.get(worker)];
+                const permitted = probing ? worker === 0 && suffix === '@server-info' : active.has(worker) && suffix === documentReadPath(current, {binary:binaryDocuments.includes(current)});
                 if (effects !== 'read-only' || method !== 'GET' || !permitted) fail('read-pool-read-only', {beforeSend: true});
                 if (firstError) throw firstError;
                 receipt.requestCount++;

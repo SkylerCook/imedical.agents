@@ -981,3 +981,7 @@ WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codeb
 ## 会话故障恢复更新（0.28.1）
 
 正常更新同步共享 scripts、coding 插件和 managed-sessions-v5 vendor 后，重启 MCP 加载新运行时。远端策略缺省 maxFrameworkSessions 自动使用 12，已有显式配置保留。行为与验证边界见 [统一会话指南](guides/iris-managed-sessions.md)。
+
+### 前端二进制读池兼容修复
+
+`source-sync prepare` 返回 `read-pool-read-only` 且请求为声明范围内的前端 binary GET 时，更新 `scripts/lib/atelier-read-pool.js`、`atelier-client.js` 和 `atelier-document-path.js`。发送端与读池共用同一读取路径生成逻辑，允许指定文档的 `?binary=1`，同时保留 GET、只读及文档范围限制。服务器编码配置保持已确认值，失败的未完成 prepare 可按现有恢复入口重新执行。

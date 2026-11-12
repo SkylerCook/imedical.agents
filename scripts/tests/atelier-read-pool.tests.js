@@ -31,8 +31,8 @@ async function fixture(t, respond = async () => ({})) {
             res.end(JSON.stringify({result: {content: {version: 'synthetic-1', id: 'synthetic-instance', api: 1}}}));
             return;
         }
-        const document = decodeURIComponent(req.url.split('/doc/')[1] || '');
-        const item = {method: req.method, document, cookie}; requests.push(item);
+        const document = decodeURIComponent((req.url.split('/doc/')[1] || '').split('?')[0]);
+        const item = {method: req.method, document, cookie, binary: new URL(req.url, 'http://localhost').searchParams.get('binary') === '1'}; requests.push(item);
         try {
             const response = await respond(item, requests);
             res.writeHead(response.status || 200, {'content-type': 'application/json', 'set-cookie': cookie + '; Path=/'});
@@ -251,4 +251,32 @@ test('framework-owned session limit defaults to twelve and caps qualified worker
     assert.equal(new Set(f.requests.map(value => value.cookie)).size, 1);
     assert.equal(f.logouts.length, 1);
     assert.equal(result.cleanupVerified, true);
+});
+
+test('mixed source-sync batch reads declared frontend binary bytes through the real pool', async t => {
+    const bytes=Buffer.from('d6d0cec4','hex');
+    const f=await fixture(t,async item=>item.binary?{body:{result:{name:item.document,ts:'2026-10-28 01:00:00',enc:true,content:[bytes.toString('base64')]}}}:{});
+    const pool=createAtelierReadPool({...f,sessions:1});
+    const documents=['Demo.A.cls','web/scripts/a.js','web/csp/page.csp','web/css/style.css','web/page.html'];
+    const result=await pool.readAll(documents,{binaryDocuments:documents.slice(1)});
+    assert.deepEqual(result.items.map(item=>item.status),documents.map(()=>'fetched'));
+    assert.deepEqual(f.requests.map(item=>item.binary),[false,true,true,true,true]);
+    for(const item of result.items.slice(1))assert.deepEqual(item.value.bytes,bytes);
+    assert.equal(new Set(f.requests.map(item=>item.cookie)).size,1);
+    await pool.close();
+});
+
+test('readDocument binary option uses the same admitted read-pool path',async t=>{
+    const bytes=Buffer.from([0x94,0x39,0xfc,0x36]);
+    const f=await fixture(t,async item=>({body:{result:{name:item.document,ts:'2026-10-28 01:00:00',enc:true,content:[bytes.toString('base64')]}}}));
+    const pool=createAtelierReadPool({...f,sessions:1});
+    const result=await pool.readDocument('web/scripts/one.js',{binary:true});
+    assert.deepEqual(result.bytes,bytes);assert.equal(f.requests[0].binary,true);
+    await pool.close();
+});
+
+test('binary options cannot add documents outside the declared read batch',async t=>{
+ const f=await fixture(t);const pool=createAtelierReadPool({...f,sessions:1});
+ await assert.rejects(pool.readAll(['Demo.A.cls'],{binaryDocuments:['web/other.js']}),{code:'read-pool-binary-documents-invalid',beforeSend:true});
+ assert.equal(f.requests.length,0);assert.equal(f.infoRequests.length,0);await pool.close();
 });

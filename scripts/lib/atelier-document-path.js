@@ -4,4 +4,7 @@
 function encodeDocumentPath(name) {
   return name.split('/').map(segment => encodeURIComponent(segment)).join('/');
 }
-module.exports = {encodeDocumentPath};
+function documentReadPath(name, {binary = false} = {}) {
+  return 'doc/' + encodeDocumentPath(name) + (binary ? '?binary=1' : '');
+}
+module.exports = {encodeDocumentPath, documentReadPath};

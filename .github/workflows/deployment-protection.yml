@@ -14,6 +14,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
+      - run: node --test scripts/tests/source-sync-read-pool.tests.js
       - run: node --test plugins/coding-iris-plugin/scripts/iris-tools/tests/frontend-encoding.test.js plugins/coding-iris-plugin/scripts/iris-tools/tests/deploy-atelier-frontend.test.js
       - run: node --test plugins/coding-iris-plugin/scripts/iris-tools/tests/cls-format.test.js
       - run: node --test scripts/tests/iris-version-catalogs.tests.cjs scripts/tests/iris-tag-scope.tests.cjs

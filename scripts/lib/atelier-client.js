@@ -1,5 +1,5 @@
 'use strict';
-const {encodeDocumentPath} = require('./atelier-document-path');
+const {encodeDocumentPath, documentReadPath} = require('./atelier-document-path');
 const http = require('node:http');
 const https = require('node:https');
 const tls = require('node:tls');
@@ -157,7 +157,7 @@ function createAtelierClient({ connection, context, policy, qualification, owner
   }
   async function readDocument(name, options = {}) {
     const identifier = typeof name === 'string' ? name : name.remotePath;
-    return document(identifier, await request('GET', 'doc/' + encodeDocumentPath(identifier) + (options.binary ? '?binary=1' : ''), undefined, options.headers || {}, { effects: 'read-only', ...(options.timeoutMs ? {timeoutMs: options.timeoutMs} : {}) }));
+    return document(identifier, await request('GET', documentReadPath(identifier, options), undefined, options.headers || {}, { effects: 'read-only', ...(options.timeoutMs ? {timeoutMs: options.timeoutMs} : {}) }));
   }
   async function readDocuments(names) {
     const result = await request('POST', 'docs', names, {}, { effects: 'read-only' });
