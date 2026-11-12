@@ -58,6 +58,7 @@ try {
     $compiler=Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
     & $compiler /nologo /codepage:65001 /target:winexe /platform:x64 "/out:$tools/开发工具安装助手.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.Security.dll (Join-Path $PSScriptRoot 'InstallerForm.cs') (Join-Path $PSScriptRoot 'ProjectConfigurationForm.cs')
     if($LASTEXITCODE -ne 0){throw 'gui-compile-failed'}
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'GUI.md') -Destination (Join-Path $tools 'README.md')
     $toolsPartial=New-PartialPath $OutputFile
     $files=@(Get-ChildItem -LiteralPath $tools -File -Recurse -Force)
     $zip=[IO.Compression.ZipFile]::Open($toolsPartial,[IO.Compression.ZipArchiveMode]::Create)
