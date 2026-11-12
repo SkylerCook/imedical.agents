@@ -104,8 +104,9 @@ const protection = read("plugins/coding-iris-plugin/references/deployment-protec
 for (const marker of ["已有会话复用", "Question", "不自动 stash/rebase", "pull --ff-only", "--confirm-baseline", "不得自行把 HEAD"]) {
   assert(protection.includes(marker), marker);
 }
-assert(general.includes("直接上传 UTF-8 源文件"));
-assert(!general.includes("按工作流转换编码"));
+assert(general.includes("../references/frontend-encoding.md"));
+assert(general.includes("首次确认服务器编码"));
+assert(general.includes("按目标编码生成并验证产物"));
 // These assertions check routing contracts only; actual model behavior needs execution traces.
 
 // Check that the backend entry points resolve to one canonical standard.

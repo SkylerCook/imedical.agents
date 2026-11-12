@@ -4,6 +4,8 @@
 
 ## 当前重点
 
+- 0.28.3 覆盖 profile 混合换行/Pending、需求类型和导出覆盖表单 CR、前端原字节导出及恢复错误优先级。验证见维护日志 2026-11-12，升级同时取得 coding 插件和根 scripts。
+
 - 初始化与更新结果优化见[审计及实施记录](../maintenance/validation/framework-user-burden-audit-2026-11-12.md)。配置缺失集中诊断，必要迁移失败返回非成功，已有配置及自定义 MCP 字段保留。
 - 前端源码与服务器编码分开配置，首次确认后复用，具体条件及旧配置兼容归[编码契约](../plugins/coding-iris-plugin/references/frontend-encoding.md)。
 - 会话发送阶段恢复、v5 vendor、资源预算和部署方式归[统一会话指南](../docs/guides/iris-managed-sessions.md)。真实故障恢复沿既有 P1 队列，普通工作按当前配置与回执执行。

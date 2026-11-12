@@ -1,5 +1,9 @@
 # AGENTS.md
 
+0.28.3 同时兼容需求类型和导出覆盖表的单 CR，已确认服务器编码的前端导出通过原字节保持末尾换行，具体边界见[编码契约](references/frontend-encoding.md)。
+
+编码配置支持 CRLF、LF 和单 CR 读取。confirm 按文件主要换行风格写入，普通更新复用并合并受管 Pending 区块，保留项目值和人工说明。
+
 初始化及重新生成配置沿 [coding-iris-init](skills/coding-iris-init/SKILL.md) 复用已确认事实，集中诊断缺项，授权内生成受管索引；源码与服务器编码统一引用 owner 契约。配置生成保留其它 MCP、扩展字段和显式禁用。
 
 coding 0.27.6 修复原生 XML 导出预检的启动竞态。managed-sessions-v4 vendor 完成连接发现后再建立工具服务，连接不可用与目标不一致分别报告。预检明确未派发时保留实际退出回执，历史警告带 generation/historical 标记。

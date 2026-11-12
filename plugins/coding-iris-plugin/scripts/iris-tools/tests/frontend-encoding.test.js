@@ -73,6 +73,21 @@ test('CLI records confirmation once and rejects edits before confirmation or aft
     assert.equal(confirmed.status,0,confirmed.stderr);
     for(let i=0;i<2;i++)assert.equal(run('check','--files','new.js').status,0);
     assert.equal(fs.existsSync(path.join(root,'new.js')),false);
+    const profile = path.join(root,'.agents/config/iris_project_profile.md');
+    for (const separator of ['\r\n', '\n', '\r']) {
+        fs.writeFileSync(profile, '\ufeff' + ['- 前端源码编码：utf8','- 前端服务器编码：gbk','- 前端服务器编码确认：confirmed','- 前端服务器编码确认环境：old'].join(separator));
+        const changed = run('confirm','--source','utf8','--target','gb18030','--confirm');
+        assert.equal(changed.status,0,changed.stderr);
+        const bytes = fs.readFileSync(profile,'utf8');
+        assert.equal(bytes.charCodeAt(0),0xfeff);
+        assert.doesNotMatch(bytes,/\r(?!\n)/);
+        assert.match(bytes,/- 前端服务器编码：gb18030/);
+        assert.equal((bytes.match(/前端源码编码/g) || []).length,1);
+        assert.equal(run('check','--files','new.js').status,0);
+        assert.equal(run('confirm','--source','utf8','--target','gb18030','--confirm').status,0);
+        assert.equal(fs.readFileSync(profile,'utf8'),bytes);
+    }
+
     fs.writeFileSync(path.join(root,'.agents/config/project-env.json'),JSON.stringify({iris:{namespace:'CHANGED'}}));
     const drift=run('check','--files','new.js');
     assert.equal(drift.status,1);assert.match(drift.stderr,/confirmation-required/);

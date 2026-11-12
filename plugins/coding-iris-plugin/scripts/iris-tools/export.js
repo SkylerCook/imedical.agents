@@ -131,7 +131,7 @@ function readFrontendEncodingProfile() {
     }
     const modeMatch = text.match(/^\s*-\s*前端编码模式\s*[：:]\s*([^\r\n]+?)\s*$/m);
     const overrides = [];
-    for (const line of text.split(/\r?\n/)) {
+    for (const line of text.split(/\r\n|\r|\n/)) {
         const match = line.match(/^\s*\|\s*`?([^|`]+?)`?\s*\|\s*(utf8|standard-gb2312|project-utf8)\s*\|\s*$/);
         if (match) {
             overrides.push({ root: match[1].trim().replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, ''), mode: normalizeFrontendMode(match[2]) });
@@ -168,6 +168,7 @@ function prepareOutputTarget(fileInfo) {
             fullPath: finalPath,
             intendedDestination: null,
             frontendMode: fileInfo.frontend ? resolveFrontendMode(fileInfo.projectRelativePath) : null,
+            encodingPolicy: fileInfo.frontend ? require('./frontend-encoding').resolve(workspaceContext, fileInfo.fullPath, {requireConfirmed:false,projectTask:demandKind==='project'}) : null,
             staging: true,
             conversionRequired: false
         });
@@ -327,7 +328,8 @@ function exportFile(fileInfo) {
     }
 
     // Build API URL
-    const apiUrl = `${irisScheme}://${iris.host}:${irisPort}/api/atelier/v1/${namespace}/doc/${fileInfo.apiUrlPath}`;
+    const binaryExport = !!fileInfo.encodingPolicy?.confirmed && !!fileInfo.encodingPolicy?.serverEncoding;
+    const apiUrl = `${irisScheme}://${iris.host}:${irisPort}/api/atelier/v1/${namespace}/doc/${fileInfo.apiUrlPath}${binaryExport ? '?binary=1' : ''}`;
 
     // Prepare authentication
     const auth = Buffer.from(`${iris.username}:${iris.password}`).toString('base64');
@@ -377,6 +379,7 @@ function exportFile(fileInfo) {
                 }
                 process.exit(3);
             }
+            if (!Array.isArray(response.result.content) || !response.result.content.every(line => typeof line === 'string')) throw new Error('atelier-document-invalid');
 
             // Check db field
             const dbType = response.result.db;
@@ -384,12 +387,25 @@ function exportFile(fileInfo) {
                 info('[信息] 文件存储类型: 文件系统 (@FS)');
             }
 
-            if (response.result.enc) throw new Error('atelier-text-export-required');
-            const content = response.result.content.join('\n');
             const encoding = require('./frontend-encoding');
+            let content;
+            let representation = 'atelier-text';
+            let serverSha256 = null;
+            if (binaryExport) {
+                if (!response.result.enc) throw new Error('frontend-raw-read-unavailable');
+                const encoded = response.result.content.join('');
+                const bytes = Buffer.from(encoded, 'base64');
+                if (bytes.toString('base64') !== encoded) throw new Error('atelier-binary-content-invalid');
+                content = encoding.decode(bytes, fileInfo.encodingPolicy.serverEncoding, fileInfo.fullPath);
+                serverSha256 = crypto.createHash('sha256').update(bytes).digest('hex');
+                representation = 'atelier-binary';
+            } else {
+                if (response.result.enc) throw new Error('frontend-server-encoding-confirmation-required');
+                content = response.result.content.join('\n');
+            }
             const localEncoding = fileInfo.encodingPolicy && !fileInfo.staging ? fileInfo.encodingPolicy.sourceEncoding : 'utf8';
             const contentBuffer = encoding.encode(content, localEncoding, fileInfo.fullPath);
-            const encodingReceipt = {encoding:localEncoding,localEncoding,serverEncoding:fileInfo.encodingPolicy?.serverEncoding||null,serverEncodingConfirmed:!!fileInfo.encodingPolicy?.confirmed,representation:'atelier-text',hashRepresentation:'local-output-bytes'};
+            const encodingReceipt = {encoding:localEncoding,localEncoding,serverEncoding:fileInfo.encodingPolicy?.serverEncoding||null,serverEncodingConfirmed:!!fileInfo.encodingPolicy?.confirmed,representation,serverSha256,hashRepresentation:'local-output-bytes'};
             const contentHash = crypto.createHash('sha256').update(contentBuffer).digest('hex').toUpperCase();
             if (probe) {
                 emitResult({ status: 'found', type: fileInfo.type, document: fileInfo.apiUrlPath, db: dbType || '', ...encodingReceipt, length: contentBuffer.length, sha256: contentHash });
@@ -438,8 +454,9 @@ function requestWithRetry(apiUrl, options, maxRetries, callback) {
             if (namespace !== iris.namespace) throw new Error('remote-namespace-override-rejected');
         }
         client = createAtelierClient({ connection, context: workspaceContext });
-        const name = new URL(apiUrl).pathname.split('/doc/')[1];
-        client.request('GET', 'doc/' + name).then(async result => {
+        const url = new URL(apiUrl);
+        const name = url.pathname.split('/doc/')[1];
+        client.request('GET', 'doc/' + name + url.search).then(async result => {
             const exit = await client.close();
             if (!exit.cleanupVerified) return callback(new Error('remote-session-exit-unverified'));
             callback(null, result === null ? 404 : 200, result === null ? '{}' : JSON.stringify(result));

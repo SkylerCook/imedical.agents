@@ -4,6 +4,51 @@ const {createTempDirectory,ownsTempDirectory}=require('./fixtures/temp-directory
 const {describe}=require('../lib/iris-session-backends');
 const {serve}=require('../iris-session-host');
 const {createClient}=require('../lib/iris-session-client');
+
+test('normal recovery entry loads durable pools after host restart and distinguishes missing pools', async t => {
+  const root = createTempDirectory('iris-session-recovery-');
+  const project = path.join(root, 'project');
+  const ipcRoot = path.join(root, 'ipc');
+  fs.mkdirSync(path.join(project, '.agents/config'), {recursive:true});
+  fs.writeFileSync(path.join(project, '.mcp.json'), JSON.stringify({mcpServers:{'iris-agentic-dev':{
+    command:process.execPath, env:{IRIS_HOST:'example.invalid', IRIS_WEB_PORT:'443', IRIS_NAMESPACE:'TEST'}
+  }}}));
+  fs.writeFileSync(path.join(project, '.agents/config/iris-session-backend.json'), JSON.stringify({
+    schema:'iris-session-backend/v1', serverName:'iris-agentic-dev', command:process.execPath, args:[]
+  }));
+  fs.writeFileSync(path.join(project, '.agents/config/iris-remote-policy.json'), JSON.stringify({
+    schema:'iris-remote-policy/v1', enabled:true, coordinationRoot:path.join(root,'admission'), poolKey:'fixture'
+  }));
+  t.mock.method(require('node:os'), 'homedir', () => root);
+  const ipc = require('../lib/iris-session-ipc');
+  const connect = ipc.connect;
+  t.mock.method(ipc, 'connect', options => connect({...options, root:ipcRoot}));
+  let host = await serve({root:ipcRoot});
+  t.after(async () => {await host.stop(); if (ownsTempDirectory(root)) fs.rmSync(root,{recursive:true});});
+  const pool = describe(project, undefined, {localOnly:true}).pool;
+  host.manager.markUnknown(pool);
+  const expectedId = host.manager.status()[0].pool;
+  assert.notEqual(expectedId, pool);
+  await host.stop();
+  host = await serve({root:ipcRoot});
+  assert.equal(host.manager.status().length, 1);
+  const outputs = [];
+  t.mock.method(console, 'log', text => outputs.push(JSON.parse(text)));
+  const main = require('../iris-remote').main;
+  await main(['status','--project-root',project]);
+  assert.equal(outputs.at(-1).poolId, expectedId);
+  assert.equal(outputs.at(-1).session.pool, expectedId);
+  assert.equal(outputs.at(-1).status, 'reconciliation-required');
+  await assert.rejects(main(['reconcile-session','--project-root',project,'--confirm']), {code:'session-reconciliation-evidence-path-required'});
+  const evidence = path.join(root,'evidence.json');
+  fs.writeFileSync(evidence, JSON.stringify({processExited:true}));
+  await main(['reconcile-session','--project-root',project,'--confirm','--evidence',evidence,'--write-outcome','verified-not-applied']);
+  assert.equal(outputs.at(-1).unresolvedWrites.length, 0);
+  const config = JSON.parse(fs.readFileSync(path.join(project,'.mcp.json')));
+  config.mcpServers['iris-agentic-dev'].env.IRIS_HOST = 'different.invalid';
+  fs.writeFileSync(path.join(project,'.mcp.json'),JSON.stringify(config));
+  await assert.rejects(main(['reconcile-session','--project-root',project,'--confirm']), {code:'session-reconciliation-pool-not-found'});
+});
 test('managed MCP clients reach one real subprocess and local tools/list never starts it',async t=>{
   const root=createTempDirectory('iris-session-routing-'),project=path.join(root,'project');
   fs.mkdirSync(path.join(project,'.agents/config'),{recursive:true});

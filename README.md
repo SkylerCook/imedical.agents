@@ -1,5 +1,7 @@
 # imedical.agents
 
+配置更新复用受管 Pending 区块并保留人工内容；编码确认支持混合换行，升级步骤见[更新说明](docs/update-agents.md)。
+
 `imedical.agents` 为团队提供可复用的 Agent 角色、协作流程、插件、skills、模板和辅助脚本。项目差异与连接留在目标工程，能力包通过现有安装更新入口分发。
 
 | 要完成的工作 | 入口 |

@@ -30,6 +30,19 @@ function Invoke-Migration {
 try {
   New-Item -ItemType Directory -Force -Path $testRoot | Out-Null
 
+  foreach ($separator in @("`r`n", "`n", "`r")) {
+    $known = New-Fixture -Name ([guid]::NewGuid().ToString('N')) -IrisContext 'project'
+    $knownPath = Join-Path $known '.agents/config/iris_project_profile.md'
+    $knownText = "# Profile" + $separator + '- 默认需求交付类型：project' + $separator
+    [IO.File]::WriteAllText($knownPath, $knownText, [Text.UTF8Encoding]::new($true))
+    $knownBytes = [Convert]::ToBase64String([IO.File]::ReadAllBytes($knownPath))
+    foreach ($mode in @('DryRun','Write')) {
+      $result = Invoke-Migration -Root $known -Mode $mode
+      Assert-True ($result[0].status -eq 'config-migration-unchanged') 'Known delivery type must survive all newline styles'
+      Assert-True ($knownBytes -eq [Convert]::ToBase64String([IO.File]::ReadAllBytes($knownPath))) 'Known profile must preserve bytes'
+    }
+  }
+
   $standard = New-Fixture -Name "standard" -IrisContext "通用多产品 HIS 组合工程"
   $dryRun = Invoke-Migration -Root $standard -Mode "DryRun"
   Assert-True ($dryRun[0].status -eq "config-migration-planned") "standard context should be planned"

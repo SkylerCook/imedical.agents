@@ -32,6 +32,35 @@ $utf8 = [System.Text.UTF8Encoding]::new($false)
 $gb2312 = [System.Text.Encoding]::GetEncoding(936)
 
 try {
+  foreach ($separator in @("`r`n", "`n", "`r")) {
+    $confirmed = Join-Path $testRoot ([guid]::NewGuid().ToString("N"))
+    New-TestProject -Root $confirmed
+    $confirmedPath = Join-Path $confirmed ".agents/config/iris_project_profile.md"
+    $confirmedText = "# Profile`r`n" + ((@('- 前端编码模式：utf8','- 前端服务器编码：gbk','- 前端源码编码：utf8','- 前端服务器编码确认：confirmed','- 前端服务器编码确认环境：fixture-hash')) -join $separator)
+    [IO.File]::WriteAllText($confirmedPath, $confirmedText, $utf8)
+    foreach ($hostName in @('powershell','pwsh')) {
+      foreach ($checkMode in @('DryRun','Write')) {
+        $confirmedOutput = & $hostName -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -ProjectRoot $confirmed -Mode $checkMode | Out-String
+        Assert-True ($LASTEXITCODE -eq 0) "Confirmed profile migration should succeed"
+        Assert-True ($confirmedOutput.Contains('explicit source and server encoding contract is preserved')) "All newline styles must preserve the explicit contract"
+        Assert-True ([IO.File]::ReadAllText($confirmedPath) -ceq $confirmedText) "Confirmed profile bytes must remain unchanged"
+      }
+    }
+  }
+  $legacyCr = Join-Path $testRoot 'legacy-cr'
+  New-TestProject -Root $legacyCr
+  $legacyPath = Join-Path $legacyCr '.agents/config/iris_project_profile.md'
+  [IO.File]::WriteAllText($legacyPath, "# Profile`r- 前端编码模式：utf8`r`r## Frontend encoding v2 (managed)`r", $utf8)
+  Write-EncodedFile -Path (Join-Path $legacyCr 'src/frontend/web/page.js') -Text 'var example = 1;' -Encoding $utf8
+  $legacyOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -ProjectRoot $legacyCr -Mode Write | Out-String
+  Assert-True ($LASTEXITCODE -eq 0) 'Legacy CR migration should succeed'
+  $legacyAfter = [IO.File]::ReadAllText($legacyPath)
+  Assert-True (([regex]::Matches($legacyAfter,'前端编码模式')).Count -eq 1) 'Legacy CR field must be replaced without duplication'
+  Assert-True (-not $legacyAfter.Contains('encoding v2')) 'Legacy CR marker must be removed'
+  Assert-True (-not [regex]::IsMatch($legacyAfter,"`r(?!`n)")) 'Legacy migration must emit regular line endings'
+  & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -ProjectRoot $legacyCr -Mode Write | Out-Null
+  Assert-True ([IO.File]::ReadAllText($legacyPath) -ceq $legacyAfter) 'Legacy CR migration must be idempotent'
+
   $hospital = Join-Path $testRoot "hospital"
   New-TestProject -Root $hospital
   Write-EncodedFile -Path (Join-Path $hospital "src/imedical/web/csp/page.csp") -Text '<div>患者姓名</div>' -Encoding $utf8

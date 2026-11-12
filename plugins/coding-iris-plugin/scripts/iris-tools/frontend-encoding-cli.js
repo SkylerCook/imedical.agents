@@ -50,13 +50,20 @@ async function main(argv) {
         const context = resolveWorkspaceContext(options.projectRoot);
         if (workspaceContextBlockers(context).length) throw new Error('invalid-workspace-context');
         const filename = path.join(context.contextRoot,'config','iris_project_profile.md');
-        let text = fs.readFileSync(filename,'utf8');
+        const original = fs.readFileSync(filename,'utf8');
+        const crlfCount = (original.match(/\r\n/g) || []).length;
+        const lfCount = (original.match(/(?<!\r)\n/g) || []).length;
+        const newline = lfCount > crlfCount ? '\n' : '\r\n';
+        const bom = original.startsWith('\ufeff') ? '\ufeff' : '';
+        let text = original.replace(/^\ufeff/, '').replace(/\r\n|\r/g, '\n');
         const fields = {'前端源码编码':encoding.normalize(options.source),'前端服务器编码':encoding.normalize(options.target),
             '前端服务器编码确认':'confirmed','前端服务器编码确认环境':encoding.targetIdentity(context)};
         for (const [name,value] of Object.entries(fields)) {
-            const pattern = new RegExp('^\\s*-\\s*'+name+'\\s*[：:][^\\r\\n]*','m');
+            const pattern = new RegExp('^[ \\t]*-[ \\t]*'+name+'[ \\t]*[：:][^\\r\\n]*','m');
             text = pattern.test(text) ? text.replace(pattern,'- '+name+'：'+value) : text.trimEnd()+'\n- '+name+'：'+value+'\n';
         }
+        text = bom + text.replace(/\n/g, newline);
+        if (fs.readFileSync(filename,'utf8') !== original) throw new Error('frontend-profile-concurrent-change');
         const temporary = filename+'.'+require('node:crypto').randomUUID()+'.tmp';
         try { fs.writeFileSync(temporary,text,{flag:'wx'}); fs.renameSync(temporary,filename); }
         finally { if(fs.existsSync(temporary)) fs.unlinkSync(temporary); }

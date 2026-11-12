@@ -1,4 +1,5 @@
 ﻿$ErrorActionPreference = "Stop"
+& (Join-Path $PSScriptRoot "profile-merge.tests.ps1")
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
 $scriptUnderTest = Join-Path $repoRoot "scripts/update-agents.ps1"

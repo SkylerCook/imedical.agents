@@ -389,3 +389,5 @@ IRIS CSP＋HISUI 对公司UI规范的落地适配，正式依赖 imedical-ui；�
 建仓与现场交接：[mobile-project-repo](../../plugins/mobile-dev/skills/mobile-project-repo/SKILL.md)。
 
 前端修改、导出和部署的编码策略见[前端编码契约](../../plugins/coding-iris-plugin/references/frontend-encoding.md)。按需项目确认一次后复用配置，上传按服务器目标生成无损产物。
+
+前端导出在服务器编码已确认时从原字节解码并保留末尾换行，未确认文本 staging 用于调查。恢复状态使用工具返回的 poolId，按实际写结果核实后继续。具体入口见[编码契约](../../plugins/coding-iris-plugin/references/frontend-encoding.md)和[统一会话](iris-managed-sessions.md)。

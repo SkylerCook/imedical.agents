@@ -306,21 +306,53 @@ function Merge-ConfigTemplate {
     }
   }
 
-  if (($Mode -eq "Write") -and ($missingLines.Count -gt 0)) {
-    $existing = [System.IO.File]::ReadAllText($TargetPath, [System.Text.Encoding]::UTF8)
-    $appendLines = New-Object System.Collections.Generic.List[string]
-    if (-not $existing.EndsWith([Environment]::NewLine)) {
-      $appendLines.Add("")
+  $existing = [System.IO.File]::ReadAllText($TargetPath, [System.Text.Encoding]::UTF8)
+  $normalized = $existing.Replace("`r`n", "`n").Replace("`r", "`n")
+  $header = "## Pending config items merged by update-agents.ps1"
+  $notice = "Review these non-sensitive project settings. Existing values were preserved."
+  $pattern = '(?m)^' + [regex]::Escape($header) + '[ \t]*(?:\n|$)(?<body>[\s\S]*?)(?=^##[ \t]|\z)'
+  $blocks = [regex]::Matches($normalized, $pattern)
+  if ($missingLines.Count -gt 0 -or $blocks.Count -gt 1) {
+    if ($blocks.Count -gt 1) {
+      $mergeStatus = if ($Mode -eq "Write") { "config-pending-merged" } else { "config-pending-merge-planned" }
+      $results.Add((Write-UpdateResult -Status $mergeStatus -Target $targetRel -Source $templateRel -Reason "consolidate repeated managed Pending sections and preserve their content" -PluginName $PluginName -Phase "config"))
     }
-    $appendLines.Add("")
-    $appendLines.Add("## Pending config items merged by update-agents.ps1")
-    $appendLines.Add("")
-    $appendLines.Add("Review these non-sensitive project settings. Existing values were preserved.")
-    $appendLines.Add("")
-    foreach ($line in $missingLines) {
-      $appendLines.Add($line)
+    if ($Mode -eq "Write") {
+      $bodies = New-Object System.Collections.Generic.List[string]
+      foreach ($block in $blocks) {
+        $body = $block.Groups["body"].Value
+        # Only the exact generated notice is redundant. User prose and values remain.
+        $body = [regex]::Replace($body, '(?m)^' + [regex]::Escape($notice) + '\n?', '')
+        if ($body.Trim().Length -gt 0) { $bodies.Add($body.Trim("`n")) }
+      }
+      foreach ($line in $missingLines) { $bodies.Add($line) }
+      $section = $header + "`n`n" + $notice + "`n`n" + ($bodies -join "`n") + "`n`n"
+      if ($blocks.Count -eq 0) {
+        $updated = $normalized.TrimEnd("`n") + "`n`n" + $section
+      } else {
+        $updated = $normalized
+        for ($index = $blocks.Count - 1; $index -ge 0; $index--) {
+          $block = $blocks[$index]
+          $replacement = if ($index -eq 0) { $section } else { "" }
+          $updated = $updated.Remove($block.Index, $block.Length).Insert($block.Index, $replacement)
+        }
+      }
+      $crlfCount = [regex]::Matches($existing, "`r`n").Count
+      $lfCount = [regex]::Matches($existing, "(?<!`r)`n").Count
+      $newline = if ($lfCount -gt $crlfCount) { "`n" } else { "`r`n" }
+      $updated = $updated.Replace("`n", $newline)
+      $bytes = [System.IO.File]::ReadAllBytes($TargetPath)
+      $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 239 -and $bytes[1] -eq 187 -and $bytes[2] -eq 191
+      if ([System.IO.File]::ReadAllText($TargetPath, [System.Text.Encoding]::UTF8) -ne $existing) { throw "Configuration changed during merge: $targetRel" }
+      $temporary = $TargetPath + "." + [guid]::NewGuid().ToString("N") + ".tmp"
+      try {
+        [System.IO.File]::WriteAllText($temporary, $updated, [System.Text.UTF8Encoding]::new($hasBom))
+        if ([System.IO.File]::ReadAllText($TargetPath, [System.Text.Encoding]::UTF8) -ne $existing) { throw "Configuration changed during merge: $targetRel" }
+        [System.IO.File]::Replace($temporary, $TargetPath, [NullString]::Value)
+      } finally {
+        if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force }
+      }
     }
-    Add-Content -Encoding UTF8 -Path $TargetPath -Value $appendLines
   }
 
   return $results

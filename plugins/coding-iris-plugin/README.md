@@ -1,5 +1,9 @@
 # coding-iris-plugin
 
+0.28.3 同时兼容需求类型和导出覆盖表的单 CR，已确认服务器编码的前端导出通过原字节保持末尾换行，具体边界见[编码契约](references/frontend-encoding.md)。
+
+coding 0.28.3 修复 confirm 替换字段时吞掉 CRLF 中 LF 的问题，兼容历史单 CR；更新器复用 Pending 区块并合并重复区块。普通更新同时取得插件与根 scripts 后生效，已确认编码的迁移检查保持原文件字节。
+
 初始化在有效授权内复用已知连接、定位本机运行时并生成受管索引，缺项集中确认。配置生成器先校验结构并报告全部必要字段，保留已有 MCP 扩展设置。源码和目标编码沿 [编码契约](references/frontend-encoding.md) 分开配置，旧工程普通更新即可取得修复。
 
 coding 0.27.6 修复原生 XML 导出预检的启动竞态。managed-sessions-v4 vendor 完成连接发现后再建立工具服务，连接不可用与目标不一致分别报告。预检明确未派发时保留实际退出回执，历史警告带 generation/historical 标记。

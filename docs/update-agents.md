@@ -1,5 +1,10 @@
 # .agents 安装与更新 Runbook
 
+
+0.28.3 还包含需求类型/旧导出覆盖表的单 CR 兼容、已确认编码的前端原字节导出，以及 `iris-remote.js status` 的 poolId 和恢复错误优先级。普通更新同时取得 coding 插件和根 scripts，已有配置值保留；以实际宿主加载与对应业务入口复验。未确认编码的文本 staging 仅用于调查，确认后重新导出才能取得服务器原字节摘要。
+
+coding 0.28.3 与根更新器共同修复 profile 混合换行和重复 Pending 区块。普通更新取得完整 scripts 与插件，Write 合并已有受管区块并补字段，沿主要 CRLF/LF 风格写入并保留 BOM；Check/DryRun 保持只读。已确认编码的迁移检查识别单 CR 且不改原文件。后续 confirm 修复既有单 CR 并避免再次产生，重复执行保持幂等。
+
 ## 按任务选择入口
 
 在目标工程根目录调用现有 `scripts/update-agents.ps1`，先按目的选择模式。

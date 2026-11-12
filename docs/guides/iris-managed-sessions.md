@@ -1,5 +1,8 @@
 # IRIS 统一会话接入与恢复
 
+
+恢复先执行 `iris-remote.js status --project-root <workspace>`，输出的 `poolId` 对应当前配置的持久记录文件名。该值由共享管理器对逻辑 pool 的 JSON 表示计算，直接使用回执，无需手工对字符串再做 SHA-256。`reconcile-session` 先核对当前 pool，再检查 evidence 路径及内容，目标不匹配返回 `session-reconciliation-pool-not-found`。host 重启后仍加载已有待核实写记录；按原核实流程提交退出与写结果证据后恢复，保留历史记录。语法/运行时错误可能发生于部分写入之后，自动放行继续依据明确未派发、拒绝或已验证结果。
+
 正常查询通过框架连接服务器。CLI、宿主 MCP 和共享 Atelier client 将操作交给同机、同一系统用户的按需管理进程；不用安装系统服务。Node.js 是 Agent 工具链依赖，不是医院业务运行依赖。最低 Node 版本沿仓库基线，实际通过的平台及版本以发布验收记录为准。
 
 ## 接入路径

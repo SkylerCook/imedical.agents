@@ -85,7 +85,7 @@ async function main(argv = process.argv.slice(2)) {
     } finally {client?.close();}
     const sessionBlocked=!!session?.blocked || !!session?.unresolvedWrites?.length;
     console.log(JSON.stringify({...admission,status:sessionBlocked?'reconciliation-required':admission.status,
-      admission,session,maxFrameworkSessions:remote.frameworkSessionLimit(description.policy),
+      admission,session,poolId,maxFrameworkSessions:remote.frameworkSessionLimit(description.policy),
       ...(sessionBlocked?{recoveryCommand:'reconcile-session'}:{})}));
     return;
   }
@@ -100,15 +100,15 @@ async function main(argv = process.argv.slice(2)) {
       let params={projectRoot:context.workspaceRoot};
       if(command==='reconcile-session') {
         if(!args.confirm)throw new remote.RemoteOperationError('session-reconciliation-confirmation-required');
-        if(!path.isAbsolute(args.evidence || ''))throw new remote.RemoteOperationError('session-reconciliation-evidence-path-required');
-        let evidence;
-        try {evidence=JSON.parse(fs.readFileSync(args.evidence,'utf8').replace(/^\uFEFF/,''));}
-        catch {throw new remote.RemoteOperationError('session-reconciliation-evidence-invalid');}
         const description=require('./lib/iris-session-backends').describe(context.workspaceRoot,undefined,{localOnly:true});
         const poolId=require('./lib/iris-session-manager').hash(description.pool);
         const status=await client.request('status',{});
         const selected=status.pools.find(pool=>pool.pool===poolId);
         if(!selected)throw new remote.RemoteOperationError('session-reconciliation-pool-not-found');
+        if(!path.isAbsolute(args.evidence || ''))throw new remote.RemoteOperationError('session-reconciliation-evidence-path-required');
+        let evidence;
+        try {evidence=JSON.parse(fs.readFileSync(args.evidence,'utf8').replace(/^\uFEFF/,''));}
+        catch {throw new remote.RemoteOperationError('session-reconciliation-evidence-invalid');}
         const token=args.token || selected.reconciliationToken;
         const policy=remote.localPolicy(context), prior=remote.poolStatus({policy});
         if(prior.ownerPresent)throw new Error('session-reconcile-admission-first');

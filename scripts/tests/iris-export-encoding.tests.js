@@ -42,11 +42,17 @@ function run(args) {
 
   fs.writeFileSync(path.join(testRoot,'.mcp.json'),'{}');
   let requests = 0;
+  let serverText = '<div>患者姓名</div>';
+  let serverEncoding = 'utf8';
+  const encoding = require(path.join(path.dirname(sourceScript), 'frontend-encoding'));
+  let binaryAvailable = true;
   const server = http.createServer((req, res) => {
     if(req.url.includes('CacheLogout')) {res.writeHead(401);res.end();return;}
     requests++;
     res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie':'CSPSESSIONID=fixture; Path=/api/atelier/' });
-    res.end(JSON.stringify({ result: { content: ['<div>患者姓名</div>'], db: '@FS' } }));
+    const binary = req.url.includes('binary=1') && binaryAvailable;
+    const content = binary ? [encoding.encode(serverText,serverEncoding,'fixture').toString('base64')] : [serverText.replace(/\n$/, '')];
+    res.end(JSON.stringify({ result: { content, enc:binary, db: '@FS' } }));
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const port = server.address().port;
@@ -65,12 +71,14 @@ function run(args) {
       '|---|---|',
       '| `src/imedical/web` | utf8 |',
       ''
-    ].join('\n'), 'utf8');
+    ].join('\r'), 'utf8');
     const projectResult = await run(['project.csp']);
     assert.strictEqual(projectResult.code, 0, projectResult.stderr || projectResult.stdout);
     const projectPath = path.join(testRoot, 'src', 'imedical', 'web', 'csp', 'project.csp');
     assert.ok(fs.existsSync(projectPath), 'utf8 should export directly to source');
     assert.ok(projectResult.stdout.includes('"staging":false'), 'utf8 JSON should report source output');
+
+    assert.ok(projectResult.stdout.includes('"preset":"utf8"'));
 
     const overwriteResult = await run(['project.csp']);
     assert.notStrictEqual(overwriteResult.code, 0, 'existing source should require --overwrite');
@@ -96,6 +104,36 @@ function run(args) {
     assert.ok(backendOnlyResult.stderr.includes('N/A (backend-only)'), 'backend-only rejection should explain the canonical profile mode');
     assert.ok(!fs.existsSync(path.join(testRoot, 'src', 'imedical', 'web', 'csp', 'backend-only.csp')), 'backend-only export must not write frontend source');
     assert.ok(!fs.existsSync(path.join(testRoot, '.agents', 'work', 'iris-export', 'src', 'imedical', 'web', 'csp', 'backend-only.csp')), 'backend-only export must not write staging output');
+
+    for (const ending of ['\r\n', '\n', '\r', '']) {
+      serverText = '/* 患者 © */\r\n}' + ending;
+      serverEncoding = 'gb18030';
+      fs.writeFileSync(path.join(configRoot,'iris_project_profile.md'), '- 前端源码编码：utf8\r- 前端服务器编码：gb18030\r- 前端服务器编码确认：confirmed\r');
+      const rawExport = await run(['line-ending.css', '--overwrite']);
+      assert.equal(rawExport.code,0,rawExport.stderr || rawExport.stdout);
+      const exported = fs.readFileSync(path.join(testRoot,'src/imedical/web/line-ending.css'),'utf8');
+      assert.equal(exported,serverText);
+      assert.deepEqual(encoding.encode(exported,'gb18030','fixture'),encoding.encode(serverText,'gb18030','fixture'));
+      assert.ok(rawExport.stdout.includes('atelier-binary'));
+    }
+    const stagedRoot = path.join(testRoot, '.agents/work/export-check');
+    serverText = '/* staging */\r\n';
+    const staged = await run(['stage.css', '--staging-dir', stagedRoot]);
+    assert.equal(staged.code, 0, staged.stderr || staged.stdout);
+    assert.equal(fs.readFileSync(path.join(stagedRoot, 'imedical/web/stage.css'), 'utf8'), serverText);
+    const probeOnly = await run(['probe.css', '--probe', '--json']);
+    assert.equal(probeOnly.code, 0, probeOnly.stderr || probeOnly.stdout);
+    const receipt = JSON.parse(probeOnly.stdout.trim());
+    assert.equal(receipt.serverSha256, require('crypto').createHash('sha256').update(encoding.encode(serverText,serverEncoding,'fixture')).digest('hex'));
+    assert.equal(fs.existsSync(path.join(testRoot,'src/imedical/web/probe.css')),false);
+    binaryAvailable = false;
+    const noRaw = await run(['unsupported.css']);
+    assert.notEqual(noRaw.code,0);
+    assert.match(noRaw.stderr,/frontend-raw-read-unavailable/);
+    assert.equal(fs.existsSync(path.join(testRoot,'src/imedical/web/unsupported.css')),false);
+    binaryAvailable = true;
+    serverText = '<div>患者姓名</div>';
+    serverEncoding = 'utf8';
 
     fs.writeFileSync(path.join(configRoot, 'project_context_profile.md'), '- contextMode: intent-first-on-demand-export\n');
     fs.writeFileSync(path.join(configRoot, 'iris_project_profile.md'), '- 前端编码模式：utf8\n- 默认需求交付类型：project\n');

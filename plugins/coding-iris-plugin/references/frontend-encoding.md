@@ -1,5 +1,13 @@
 # 前端源码与服务器编码
 
+## 现场判断与配置维护
+
+CSP 的 HTTP `charset` 描述响应编码，输出可由 `%response.CharSet` 转换。源码编码应以 Atelier 原字节和项目约定独立核实。例如响应声明 GB18030、probe 同时给出 GB2312/GBK/GB18030 时，三者都是字节兼容候选，具体目标仍需开发人员确认。响应声明和估算字节数均不足以唯一确定源码编码。[InterSystems 官方说明](https://docs.intersystems.com/irislatest/csp/documatic/%25CSP.Documatic.cls?CLASSNAME=%25CSP.Response&LIBRARY=%25SYS)
+
+选择目标前核对所选范围的 probe 候选和文本语义。只有 GB18030 候选的文件需要进一步核实其字符及服务器实际约定，直接选择 GBK 可能无法转换。先按已确认目标执行 convert 检查不可表示字符，遇到例外使用下述路径覆盖配置。候选不自动改变项目配置，历史误解码仍需可靠原文核对。
+
+profile 读取兼容 CRLF、LF 和单 CR。confirm 按主要 CRLF/LF 风格写入并修复单 CR，字段匹配仅消费行内空白；已确认配置的迁移检查保持原文件字节。普通更新复用并合并受管 Pending 区块，保留人工说明及已有值。
+
 ## 首次确认与修改前检查
 
 标版使用 UTF-8。按需导出项目首次修改 CSP、JS、CSS、HTML、HTM 前，先核对实际目标、服务器原始文件或静态资源字节、项目约定及开发人员说明，再请开发人员确认目标编码。正常项目确认一次，随后按配置运行。
@@ -41,7 +49,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/frontend-encoding-cli
 
 ## 导出与证据
 
-Atelier 文本导出默认产生 UTF-8 文件，已有明确源码编码时按其无损写入。服务器确认缺失时只写 staging。按需项目修改对象继续走 source-sync，保留本地修改和既有同步顺序。
+前端服务器编码已确认时，export 通过 Atelier binary 读取原字节，按服务器编码解码，再按本地源码编码写入，保留末尾换行。显式 staging 使用同一已确认解码配置并输出 UTF-8。回执 serverSha256 表示服务器原字节摘要，本地 sha256 表示本地输出摘要；不同编码的摘要可不同。原始通道不可用时报告 frontend-raw-read-unavailable。服务器确认缺失时保留文本 staging 调查路径，其内容为 Atelier 文本表示，不能用于证明服务器字节一致。按需项目修改对象继续走 source-sync。
 
 导出回执 `encoding`／`localEncoding` 表示本地输出，`serverEncoding` 表示配置的目标，`serverEncodingConfirmed` 表示确认状态。`representation` 与 `hashRepresentation` 明确内容来源及摘要对象。Atelier JSON 的 UTF-8、单个响应 charset 或 GB 解码成功均不足以证明物理文件编码。
 

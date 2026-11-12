@@ -30,7 +30,7 @@ function Read-Utf8Text {
 
 function Get-ExistingType {
   param([string]$Text)
-  $match = [regex]::Match($Text, '(?m)^\s*-\s*默认需求交付类型\s*[：:]\s*(?<value>[^\r\n]+)')
+  $match = [regex]::Match($Text, '(?<![^\r\n])[ \t]*-[ \t]*默认需求交付类型[ \t]*[：:][ \t]*(?<value>[^\r\n]+)')
   if ($match.Success) { return $match.Groups['value'].Value.Trim() }
   return $null
 }
@@ -38,7 +38,7 @@ function Get-ExistingType {
 function Get-ProfileEvidence {
   param([string]$Text, [string[]]$Fields)
   if ([string]::IsNullOrWhiteSpace($Text)) { return "" }
-  $lines = $Text -split "`r?`n"
+  $lines = $Text -split "`r`n|`r|`n"
   $escaped = @($Fields | ForEach-Object { [regex]::Escape($_) }) -join '|'
   $selected = @($lines | Where-Object { $_ -match ("^\s*-\s*(" + $escaped + ")\s*[：:]") })
   return ($selected -join "`n")
@@ -47,6 +47,7 @@ function Get-ProfileEvidence {
 function Get-AgentsProjectIntro {
   param([string]$Text)
   if ([string]::IsNullOrWhiteSpace($Text)) { return "" }
+  $Text = $Text.Replace("`r`n", "`n").Replace("`r", "`n")
   $match = [regex]::Match($Text, '(?ms)^##\s+项目简介\s*$\s*(?<body>.*?)(?=^##\s|\z)')
   if ($match.Success) { return $match.Groups['body'].Value.Trim() }
   return ""
@@ -55,11 +56,11 @@ function Get-AgentsProjectIntro {
 function Set-DeliveryType {
   param([string]$Text, [string]$Value)
   $line = "- 默认需求交付类型：$Value"
-  $pattern = '(?m)^\s*-\s*默认需求交付类型\s*[：:]\s*[^\r\n]+'
+  $pattern = '(?<![^\r\n])[ \t]*-[ \t]*默认需求交付类型[ \t]*[：:][ \t]*[^\r\n]+'
   if ([regex]::IsMatch($Text, $pattern)) {
     return [regex]::Replace($Text, $pattern, $line, 1)
   }
-  $header = [regex]::Match($Text, '(?m)^##\s+通用配置\s*$')
+  $header = [regex]::Match($Text, '(?<![^\r\n])##[ \t]+通用配置[ \t]*(?=\r|\n|$)')
   if ($header.Success) {
     $insertAt = $header.Index + $header.Length
     return $Text.Substring(0, $insertAt) + [Environment]::NewLine + [Environment]::NewLine + $line + $Text.Substring($insertAt)

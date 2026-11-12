@@ -1,5 +1,8 @@
 ﻿# IRIS 开发主力脚本集合
 
+
+前端 export 在服务器编码已确认时请求 Atelier binary，按配置解码和本地编码保存，保留末尾换行并返回 serverSha256。显式 staging 同样复用已确认目标编码；未确认的文本 staging 用于调查，回执表示类型决定可验证的范围。旧编码路径覆盖表支持 CRLF、LF 和单 CR。
+
 夜跑/非交互验收使用 `debugger.js --json --stdin` 或导出的 callBroker；输入、退出码、脱敏和严格 TLS 契约见 [分层验收](../../../../docs/night-acceptance.md)。旧交互调试输出和 HTTP 退出码不作为业务验收证据，`--path` 兼容 `--url`。
 
 需求提交与补录已移交独立 owner，原 CLI 已移除。使用 CapabilityRoot 下 plugins/demand-delivery-plugin/scripts/commit-demand.js 与 plugins/bos-plugin/scripts/demand-entry.js。
