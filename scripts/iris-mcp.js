@@ -694,7 +694,7 @@ module.exports = {
 
 if (require.main === module) {
   main().catch((error) => {
-    if (hasFlag('--json')) console.log(JSON.stringify({ERROR:{code:error.code || 'iris-operation-failed',beforeSend:error.beforeSend===true,...(error.toolResponse ? {toolResponse:error.toolResponse} : {}),...(error.toolErrorCode ? {toolErrorCode:error.toolErrorCode} : {}),...(/^[A-Z][A-Z0-9_]{0,79}$/.test(error.transportCode || '') ? {transportCode:error.transportCode} : {}),...(error.diagnostic === 'system-ca-api-unavailable' ? {diagnostic:error.diagnostic} : {})}}));
+    if (hasFlag('--json')) console.log(JSON.stringify({ERROR:{code:error.code || 'iris-operation-failed',...require('./lib/iris-operation-scope').failureDetails(error),...(error.toolResponse ? {toolResponse:error.toolResponse} : {}),...(/^[a-f0-9-]{36}$/.test(error.pendingWriteId || '') ? {pendingWriteId:error.pendingWriteId} : {}),...(error.diagnostic === 'system-ca-api-unavailable' ? {diagnostic:error.diagnostic} : {})}}));
     console.error('ERROR=' + error.message);
     process.exitCode = 1;
   });

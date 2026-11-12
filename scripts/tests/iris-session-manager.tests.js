@@ -147,7 +147,7 @@ test('failed startup keeps its actual exit receipt without creating a pending wr
   const exit={processExited:true,localResourcesClosed:true,cleanupVerified:true};
   const f=fixture(t,{open:async()=>{throw Object.assign(Error('startup'),{code:'session-backend-connection-unavailable',beforeSend:true,backendExit:exit});}});
   await assert.rejects(f.call('write',{operation:{effects:'write'}}),{code:'session-backend-connection-unavailable'});
-  assert.deepEqual(f.manager.status()[0].exit,exit);
+  assert.deepEqual(f.manager.status()[0].exit,{...exit,generation:1,at:new Date(0).toISOString(),channel:undefined});
   assert.equal(f.manager.status()[0].unresolvedWrites.length,0);
 });
 
@@ -175,4 +175,55 @@ test('reconciliation gives actionable reasons and is idempotent after verified r
   assert.throws(()=>f.manager.reconcile('pool',params),{code:'session-reconciliation-write-outcome-required'});
   assert.equal(f.manager.reconcile('pool',{...params,writeOutcome:'verified-not-applied'}).unresolvedWrites.length,0);
   assert.equal(f.manager.reconcile('pool',params).status,'not-required');
+});
+
+test('runtime failure after an effect requires explicit outcome and reuses a current close receipt',async t=>{
+  let writes=0;
+  const f=fixture(t,{open:async()=>({call:async op=>{
+    if(op.effects==='write') {writes++;throw Object.assign(Error('private SQL and output'),{code:'session-write-outcome-unverified',toolErrorCode:'IRIS_RUNTIME_ERROR',beforeSend:false});}
+    return 'ok';
+  },close:async()=>({processExited:true,cleanupVerified:false})})});
+  await assert.rejects(f.call('write',{operation:{effects:'write',channel:'mcp'}}));
+  let state=f.manager.status()[0];
+  assert.equal(writes,1);
+  assert.equal(state.nextAction,'verify-write-outcome');
+  assert.equal(state.lastFailedOperation.toolErrorCode,'IRIS_RUNTIME_ERROR');
+  assert.equal(state.lastFailedOperation.id,state.unresolvedWrites[0].id);
+  assert.equal(state.blockingReasons[0].affects,'conflicting-writes');
+  assert.throws(()=>f.manager.reconcile('pool',{confirm:true,token:state.reconciliationToken}),{code:'session-reconciliation-write-outcome-required'});
+  const pool=f.manager.pool('pool'),persist=f.manager.persist.bind(f.manager);
+  f.manager.persist=()=>{throw Error('synthetic disk failure');};
+  assert.throws(()=>f.manager.reconcile('pool',{confirm:true,token:state.reconciliationToken,writeOutcome:'verified-applied'}),/disk failure/);
+  assert.equal(pool.unresolvedWrites.length,1);
+  f.manager.persist=persist;
+  state=f.manager.reconcile('pool',{confirm:true,token:state.reconciliationToken,writeOutcome:'verified-applied'});
+  assert.equal(state.unresolvedWrites.length,0);
+  assert.equal(f.manager.reconcile('pool',{confirm:true}).status,'not-required');
+  assert.equal(await f.call('read'),'ok');
+  assert.equal(await f.call('read-again'),'ok');
+  assert.equal(writes,1);
+  const history=fs.readdirSync(f.directory).filter(x=>x.endsWith('.resolved'));
+  for(const name of history) {
+    const raw=fs.readFileSync(require('node:path').join(f.directory,name),'utf8');
+    assert.equal(raw.includes('private SQL'),false);
+    assert.equal(JSON.parse(raw).evidence.source,'local-close-receipt');
+  }
+});
+
+test('legacy warnings remain unknown and old close receipts cannot certify a new generation',async t=>{
+  const risk=require('../lib/iris-operation-scope');
+  const warning={reason:'old',at:'2026-01-01T00:00:00Z'};
+  assert.equal(risk.warningSummary({warning,generation:2}).historical,null);
+  assert.equal(risk.warningSummary({warning,lastReconciledAt:'2026-01-02T00:00:00Z'}).historical,true);
+  assert.equal(risk.exitEvidence({generation:2,exit:{generation:1,processExited:true}}),null);
+  assert.equal(risk.exitEvidence({generation:2,exit:{cleanupVerified:true}}),null);
+  assert.equal(risk.exitEvidence({generation:2,exit:{generation:2,processExited:false,localResourcesClosed:true}}),null);
+  assert.deepEqual(risk.failureDetails({code:'private SQL text',beforeSend:true,status:'500',message:'secret'}),{errorCode:'operation-failed',beforeSend:true});
+  const f=fixture(t);
+  await f.call('read');
+  const token=f.manager.status()[0].reconciliationToken;
+  await f.call('read-again');
+  // Status tokens bind state, while close rechecks the token in the host dispatch.
+  await assert.rejects(f.manager.close('pool','client','stale'),{code:'session-reconciliation-token-stale'});
+  assert.ok(token);
 });

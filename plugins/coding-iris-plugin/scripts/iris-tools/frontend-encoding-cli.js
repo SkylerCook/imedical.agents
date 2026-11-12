@@ -50,6 +50,12 @@ async function main(argv) {
         const context = resolveWorkspaceContext(options.projectRoot);
         if (workspaceContextBlockers(context).length) throw new Error('invalid-workspace-context');
         const filename = path.join(context.contextRoot,'config','iris_project_profile.md');
+        // Validate supplied local source text before changing the encoding contract.
+        // Byte-compatible server candidates alone cannot describe a proposed transcode.
+        for (const file of options.files) {
+            const bytes = fs.readFileSync(path.resolve(context.workspaceRoot,file));
+            encoding.encode(encoding.decode(bytes,options.source,file),options.target,file);
+        }
         const original = fs.readFileSync(filename,'utf8');
         const crlfCount = (original.match(/\r\n/g) || []).length;
         const lfCount = (original.match(/(?<!\r)\n/g) || []).length;
@@ -67,7 +73,8 @@ async function main(argv) {
         const temporary = filename+'.'+require('node:crypto').randomUUID()+'.tmp';
         try { fs.writeFileSync(temporary,text,{flag:'wx'}); fs.renameSync(temporary,filename); }
         finally { if(fs.existsSync(temporary)) fs.unlinkSync(temporary); }
-        console.log(JSON.stringify({status:'confirmed',sourceEncoding:fields['前端源码编码'],serverEncoding:fields['前端服务器编码']}));
+        console.log(JSON.stringify({status:'confirmed',sourceEncoding:fields['前端源码编码'],serverEncoding:fields['前端服务器编码'],
+            validatedFiles:options.files, ...(options.files.length ? {} : {guidance:'Use confirm --files <local-source-files...> to validate target representability before upload; GB18030-only content may not fit GBK.'})}));
         return;
     }
     if (command === 'convert') {

@@ -4,6 +4,8 @@
 
 ## 当前重点
 
+- coding 0.29.0 的诊断、自动本地退出证据及调度测量见[实施记录](../maintenance/validation/iris-session-governance-2026-11-13.md)。源码运行时已完成授权只读试点，业务副本升级与平台矩阵按记录分别验收。
+
 - 需求经验审计回归见维护日志，XML 长流与空输出已补离线验证；旧 IRIS 与候选规则取证沿 backlog。
 
 - BOS 更新日志当前仅适用于标版需求，其它类型跳过且不列补录待办。范围归 [BOS owner](../plugins/bos-plugin/references/code-update-log.md#适用范围)，普通开发与连续验收共用。

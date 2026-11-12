@@ -149,6 +149,7 @@ async function open(operation) {
           delete error.writeOutcome;
         }
         if (typeof payload?.error_code === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(payload.error_code)) error.toolErrorCode = payload.error_code;
+        if (payload?.error_code === 'SERVER_ERROR' && /error sending request/i.test(payload.error || '')) error.transportError = 'request-failed';
         if (carrierRejected) error.writeOutcome = 'rejected';
         if (!result.error && !result.result?.isError && payload?.success === true) error.writeOutcome = 'verified-applied';
         throw error;
@@ -169,6 +170,11 @@ async function open(operation) {
           if (typeof payload?.error_code === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(payload.error_code)) error.toolErrorCode = payload.error_code;
           throw error;
         }
+        const error = failure('session-tool-failed', false);
+        error.toolResponse = result;
+        if (/^[A-Z][A-Z0-9_]{0,79}$/.test(payload?.error_code || '')) error.toolErrorCode = payload.error_code;
+        if (payload?.error_code === 'SERVER_ERROR' && /error sending request/i.test(payload.error || '')) error.transportError = 'request-failed';
+        throw error;
       }
       return result;
       };

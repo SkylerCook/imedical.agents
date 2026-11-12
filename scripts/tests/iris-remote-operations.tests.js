@@ -22,6 +22,34 @@ function fixture(t, onDemand = false) {
   return { root, context, policy, connection, selected: () => remote.loadRemotePolicy(context, { policy, connection }) };
 }
 
+test('admission generations retain historical warnings and recover using local exit evidence',async t=>{
+  const f=fixture(t);
+  const first=remote.createRemoteOperation({policy:f.policy,connection:f.connection,channel:'atelier'});
+  await assert.rejects(first.run({effects:'write'},async()=>{throw Object.assign(Error('secret response'),{code:'atelier-transport-unknown',transportCode:'ECONNRESET',beforeSend:false});}));
+  first.markUnknown('atelier-logout-session-rotated',{phase:'logout'});
+  first.close({localResourcesClosed:true,cleanupVerified:false});
+  const status=remote.poolStatus({policy:f.policy});
+  assert.equal(status.generation,1);
+  assert.equal(status.warning.historical,false);
+  assert.equal(status.warning.phase,'logout');
+  assert.equal(status.lastFailedOperation.beforeSend,false);
+  assert.equal(status.lastFailedOperation.transportCode,'ECONNRESET');
+  assert.equal(status.lastFailedOperation.httpStatus,undefined);
+  assert.throws(()=>remote.reconcileRemotePool({policy:f.policy,token:status.reconciliationToken,confirm:true}),{code:'remote-write-reconciliation-required'});
+  remote.reconcileRemotePool({policy:f.policy,token:status.reconciliationToken,confirm:true,writeOutcome:'verified-not-applied'});
+  const second=remote.createRemoteOperation({policy:f.policy,connection:f.connection});
+  await second.run({effects:'read-only'},async()=>{});
+  second.close({localResourcesClosed:true,cleanupVerified:true});
+  const next=remote.poolStatus({policy:f.policy});
+  assert.equal(next.generation,2);
+  assert.equal(next.warning.historical,true);
+  assert.equal(next.warning.at,status.warning.at);
+  assert.deepEqual(next.blockingReasons,[]);
+  assert.equal(next.reason,null);
+  assert.equal(next.warning.reason,'atelier-logout-session-rotated');
+  assert.equal(next.nextAction,'continue');
+});
+
 test('managed write risk has one durable owner and recovery does not require logout success', async t => {
   const f = fixture(t), {SessionManager} = require('../lib/iris-session-manager');
   const scope = require('../lib/iris-operation-scope').makeScope(f.connection,['Demo.A.cls']);

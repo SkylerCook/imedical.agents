@@ -121,4 +121,6 @@ test('successful logout that creates a different session remains unverified', as
   const exit = await f.client.close();
   assert.equal(exit.logoutHttpStatus, 200);
   assert.equal(exit.cleanupVerified, false);
+  assert.equal(exit.warning.reason, 'atelier-logout-session-rotated');
+  assert.equal(exit.warning.phase, 'logout');
 });

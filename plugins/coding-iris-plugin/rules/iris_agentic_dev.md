@@ -9,6 +9,8 @@ related:
 
 # iris-agentic-dev 使用约束
 
+遇到会话错误，按统一会话指南读取 status 的 blockingReasons、nextAction 和 lastFailedOperation，只收集明确缺口，复用原授权执行 reconcile-session/reconcile 并验证恢复。工具自动整理同代本地退出回执，未知写仍核实业务效果。iris_execute 沿写能力使用，临时类编译与运行时失败的效果需独立确认，常见只读探查优先复用 SELECT 和文档读取入口。
+
 IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY=false`），项目显式 `true` 仍保留。显式开启校验的 Atelier 在支持 API 的 Node 中合并默认与系统 CA；专用 CA 保持优先，不改全局信任。
 
 执行前先解析当前 `ContextRoot/config/iris-development.json`。`developmentMode: offline` 禁止本页所有医院 MCP 调用（包括 check_config；受管 tools/list 只读本地目录，不连接医院），转入[离线协议](../references/iris-offline-development.md)；原生 MCP 和外部 IDE 不在脚本机器拦截范围，Agent 同样不得调用。非法值停止，旧配置缺省保持既有行为。下面的调用与优先级仅适用于 connected，不授予远端权限。

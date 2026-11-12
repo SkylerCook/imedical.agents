@@ -92,7 +92,7 @@ Atelier 的 Web 文档 GET/PUT 保留路径分隔符，逐段编码特殊字符�
 
 managed-sessions-v4 修复初始发现超出两秒时工具服务永久保留空连接的问题。服务在初次发现完成后响应初始化，连接未建立返回 session-backend-connection-unavailable，已连接但字段不符返回 session-backend-target-mismatch。失败发生在业务派发前时记录真实子进程退出回执。
 
-warning 保留发生时间并记录 generation，回执的 historical 表示是否来自旧代；旧记录缺少 generation 时标为历史。新成功请求与关闭回执可独立判断，不把历史告警提升为普通任务准入门槛。
+warning 保留发生时间、通道和 generation，回执 historical 为 true 表示旧代，false 表示当前代。旧记录缺少 generation 时，仅在已有核实时间足以证明过期时返回 true，否则为 null。generation 描述资源生命周期，服务器问题是否消失仍以当前请求和观测为依据。
 
 ## 会话故障恢复更新（0.28.1）
 
@@ -101,3 +101,43 @@ warning 保留发生时间并记录 generation，回执的 historical 表示是�
 远端策略 maxFrameworkSessions 默认 12，可按项目调整正整数。托管同实例请求串行复用，受管读取批次按该上限缩减 worker。服务端其他用户会话数只用于观测。
 
 已有项目执行正常框架更新，同步共享 scripts、coding 插件和 managed-sessions-v5 vendor 后重启 MCP。缺省配置自动使用 12，已有显式配置保留。运行中的旧 MCP 需结束后加载新运行时。
+
+## 诊断与自动恢复证据（0.29.0）
+
+`status` 与 `sessions` 只观察本地状态。它们不会启动 daemon、认证或取得准入锁。先看 `blockingReasons` 的 code、affects 与 writeIds，再看 `nextAction`。`conflicting-writes` 只保护有冲突的写，历史 warning 单独保留。活动 owner 的排他作用归 admission，managed 队列与租约在 session 中展示。
+
+| nextAction | 后续动作 |
+|---|---|
+| continue | 按现有授权继续业务 |
+| wait-active-task | 等待活动任务、租约或冷却结束后重新查询 |
+| verify-write-outcome | 核对指定 writeIds 的业务效果，给出 verified-applied 或 verified-not-applied |
+| obtain-local-exit-evidence | 核实旧进程退出或本地资源关闭，使用原证据入口 |
+| reconcile | 调用对应层的现有恢复命令 |
+
+`lastFailedOperation` 保留 operation ID、errorCode、beforeSend，以及实际取得的 httpStatus、toolErrorCode、transportCode。beforeSend 为 null 表示没有足够事实判断派发阶段。批量 checkpoint 的 failed 只表示该项失败，发送阶段由该项 error.beforeSend 判断。`transportError=request-failed` 且无 httpStatus 表示传输失败，服务端处理结果待确认。仅凭某条调用成功无法排除另一条请求的网络或服务异常。
+
+注销收到新 Cookie 时返回 `atelier-logout-session-rotated` 与 `phase=logout`，cleanupVerified 保持 false。活动请求身份丢失仍收束当前会话。`verificationCapabilities` 说明本地关闭回执可观测，服务器会话消失与 License 释放当前未观测，对应兼容布尔字段保持 false。
+
+### 正常使用与发送前失败
+
+正常调用直接使用原业务入口。仅出现历史 warning 且 blockingReasons 为空时可继续。beforeSend=true 的失败按具体配置、排队或认证原因处理后重新发起原授权操作，核对状态中是否另有既存未知写。
+
+### 未知写恢复
+
+Agent 先读取状态，收集状态明确指出的缺口，在原授权内核实，再调用恢复并验证后续正常调用。语法及运行时错误、注销成功或进程退出均不能单独证明业务写入结果。
+
+```powershell
+node .agents/scripts/iris-remote.js status --project-root .
+node .agents/scripts/iris-remote.js reconcile-session --project-root . --confirm --write-outcome verified-applied --write-id <已核实id>
+node .agents/scripts/iris-remote.js status --project-root .
+```
+
+省略 --evidence 时，工具采用当前 generation 的 processExited=true 或 localResourcesClosed=true 回执。明确恢复请求可关闭空闲、无排队、无租约的相关会话取得回执，关闭及恢复都校验状态 token。未知写仍需显式 write-outcome，多条记录须按 write-id 选择。工具先保存恢复历史，再解除对应保护，历史记录包含证据来源、generation、选中 ID、核实字段和摘要。重复执行已完成恢复返回 not-required。
+
+公共准入记录使用 `reconcile --token <当前admission令牌> --confirm`，同样支持自动本地回执及 write-outcome/write-id。受管记录使用 reconcile-session。状态 token 漂移时重新查询并复核选择范围，工具保留原记录。
+
+### 旧状态与证据缺失
+
+没有同代可靠回执时返回 evidence-required，先核实本地进程退出或资源关闭。可沿既有 `--evidence <绝对路径>` 输入实际证据 JSON。退出字段为 processExited、localResourcesClosed、cleanupVerified，按实际核实填写。旧无 generation 记录继续支持人工证据。恢复保留 pool 文件和历史，通过现有命令完成。
+
+`iris_execute` 是写能力入口。当前 Atelier 实现通过临时类载体上传、编译和执行，失败可能涉及业务写入或元数据残留。`<SYNTAX>` 定位只能辅助定位失败位置，无法给出已执行命令数量或回滚证明。classCreated、classCleaned、executedCommandCount、显式事务状态当前没有可靠结构化回执，协调层保持未知。常见只读探查复用 iris_query 的 SELECT、iris_doc 的读取以及 Atelier 文档接口，按工具能力选择。

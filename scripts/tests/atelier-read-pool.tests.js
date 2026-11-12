@@ -113,6 +113,10 @@ test('one worker 503 stops dispatch and persists circuit plus batch records afte
     assert.equal(status.ownerPresent, false);
     const state = JSON.parse(fs.readFileSync(path.join(f.policy.coordinationRoot, sha(f.policy.poolKey), 'state.json'), 'utf8'));
     assert.equal(state.lastFailedOperation.batch.completed.length, 4);
+    const failed=state.lastFailedOperation.batch.completed.find(item=>item.status==='failed');
+    assert.equal(failed.error.beforeSend,false);
+    assert.equal(failed.error.httpStatus,503);
+    assert.equal(state.lastFailedOperation.httpStatus,503);
     assert.throws(() => remote.createRemoteOperation({policy: f.selected(), connection: f.connection}).acquire(), /cooling-down/);
 });
 

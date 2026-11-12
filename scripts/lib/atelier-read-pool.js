@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const remote = require('./iris-remote-operations');
+const {failureDetails} = require('./iris-operation-scope');
 const {normalizeConnection, createAtelierClient} = require('./atelier-client');
 const digest = value => crypto.createHash('sha256').update(value).digest('hex');
 const fail = (code, details) => { throw new remote.RemoteOperationError(code, details); };
@@ -81,7 +82,7 @@ function createAtelierReadPool(options = {}) {
     const started = Date.now(), deadline = started + (options.qualification?.budgetMs || options.budgetMs || 3600000);
     const checkpoint = () => owner.checkpointBatch({id: batchId, documents, sessions: budget.sessions,
       inFlight: [...active.entries()].map(([worker, index]) => ({worker, index, document: documents[index]})),
-      completed: records.filter(Boolean).map(({index, document, status}) => ({index, document, status}))});
+      completed: records.filter(Boolean).map(({index, document, status, error}) => ({index, document, status, ...(error ? {error} : {})}))});
     function stopOn(error) {
       firstError ||= error;
       if (error.status === 503 || error.httpStatus === 503) owner.tripCircuit();
@@ -128,7 +129,8 @@ function createAtelierReadPool(options = {}) {
                 await record({index, document, status: value === null ? 'missing' : value.bytes.length === 0 ? 'empty' : 'fetched', ...(value === null ? {} : {value})});
               } catch (error) {
                 stopOn(error);
-                try { await record({index, document, status: 'failed', error: {code: error.code || 'read-failed', ...(error.status ? {status: error.status} : {})}}); }
+                const details = failureDetails(error);
+                try { await record({index, document, status: 'failed', error: {...details, code:details.errorCode}}); }
                 catch (storageError) { firstError = storageError; }
               } finally { active.delete(worker); checkpoint(); }
             }
@@ -147,13 +149,18 @@ function createAtelierReadPool(options = {}) {
             catch (error) { owner.markUnknown('remote-session-exit-unverified'); return {worker, cleanupVerified: false, reason: error.code || 'close-failed'}; }
           }));
           receipt.cleanupVerified = receipt.workers.every(worker => worker.cleanupVerified === true);
-          if (!receipt.cleanupVerified) { owner.markUnknown('remote-session-exit-unverified'); firstError ||= new remote.RemoteOperationError('remote-session-exit-unverified'); }
+          if (!receipt.cleanupVerified) {
+            const warning=receipt.workers.find(worker=>worker.warning?.reason==='atelier-logout-session-rotated')?.warning;
+            owner.markUnknown(warning?.reason || 'remote-session-exit-unverified', {phase:warning?.phase || 'close'});
+            if (receipt.workers.some(worker=>worker.localResourcesClosed!==true && worker.processExited!==true)) firstError ||= new remote.RemoteOperationError('remote-session-exit-unverified');
+          }
           receipt.items = records; receipt.elapsedMs = Date.now() - started;
         }
         if (firstError) throw Object.assign(firstError, {batchResult: receipt});
         return receipt;
       });
-    } finally { running = false; exit = owner.close({cleanupVerified: receipt.cleanupVerified}); closed = true; receipt.remote = exit; }
+    } finally { running = false; exit = owner.close({cleanupVerified: receipt.cleanupVerified,
+      localResourcesClosed:receipt.workers.every(worker=>worker.localResourcesClosed===true || worker.processExited===true)}); closed = true; receipt.remote = exit; }
   }
   return {readAll, async readDocument(document, options = {}) { const batch = await readAll([document], {binaryDocuments: options.binary ? [document] : []}); return batch.items[0].status === 'missing' ? null : batch.items[0].value; },
     async close() { if (running) fail('read-pool-in-flight'); if (!closed) { exit = owner.close({cleanupVerified: true}); closed = true; } return {...receipt, remote: exit}; },

@@ -36,7 +36,7 @@ function createAtelierClient({ connection, context, policy, qualification, owner
   const qualificationSeen = new Set(), qualificationDeadline = qualification ? Date.now() + qualification.budgetMs : null;
   const logoutPath = conn.path.slice(0, conn.path.lastIndexOf('/api/atelier/') + '/api/atelier/'.length) + '?CacheLogout=end';
   const serverInfoPath = logoutPath.slice(0, logoutPath.indexOf('?'));
-  let busy = false, closed = false, closing, attempted = false, sessionUncertain = false;
+  let busy = false, closed = false, closing, attempted = false, sessionUncertain = false, logoutRotated = false;
   const sessionCookies = values => [...values].filter(([name]) => /^CSPSESSION/i.test(name));
   function invalidateSession() {
     sessionUncertain = true;
@@ -98,7 +98,8 @@ function createAtelierClient({ connection, context, policy, qualification, owner
           if (!sessionUncertain) { cookies.clear(); cookieScopes.clear(); for (const [name, value] of nextCookies) cookies.set(name, value); for (const [name, scope] of nextScopes) cookieScopes.set(name, scope); }
         } else if (sessionCookies(nextCookies).some(([name, value]) => !cookies.has(name) || value !== cookies.get(name))) {
           // A logout endpoint can create a fresh session; HTTP success alone is insufficient.
-          invalidateSession();
+          logoutRotated = true;
+          owner.markUnknown('atelier-logout-session-rotated', {phase:'logout'});
         }
         const chunks = []; let size = 0;
         response.on('data', chunk => { size += chunk.length; if (size > maxResponseBytes) request.destroy(Object.assign(new Error('atelier-response-too-large'), {code:'ATELIER_RESPONSE_TOO_LARGE'})); else chunks.push(chunk); });
@@ -201,8 +202,9 @@ function createAtelierClient({ connection, context, policy, qualification, owner
         }
       } catch { exit.cleanupVerified = false; }
       finally { closed = true; cookies.clear(); agent.destroy(); }
-      if (sessionUncertain) exit.cleanupVerified = false;
-      if (!exit.cleanupVerified && selected.enabled) owner.markUnknown('remote-session-exit-unverified');
+      if (sessionUncertain || logoutRotated) exit.cleanupVerified = false;
+      if (logoutRotated) exit.warning = {reason:'atelier-logout-session-rotated', phase:'logout', channel:'atelier'};
+      if (!exit.cleanupVerified && selected.enabled && !logoutRotated) owner.markUnknown('remote-session-exit-unverified');
       return sharedOwner ? { ...owner.snapshot(), ...exit } : owner.close(exit);
     })();
     return closing;

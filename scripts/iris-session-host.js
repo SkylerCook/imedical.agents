@@ -32,7 +32,7 @@ async function serve({root, open = backends.open, describe = backends.operation,
       const ctrl = new AbortController(); requests.set(value.id, ctrl); lastActive = Date.now();
       (async () => {
         if (value.method === 'status') return {protocolVersion: ipc.VERSION, pools: manager.status()};
-        if (value.method === 'close') {const d = backends.describe(value.params.projectRoot, value.params.serverName,{localOnly:true}); return manager.close(d.pool, client);}
+        if (value.method === 'close') {const d = backends.describe(value.params.projectRoot, value.params.serverName,{localOnly:true}); return manager.close(d.pool, client, value.params.token);}
         if (value.method === 'markUnknown') {const d=backends.describe(value.params.projectRoot,value.params.serverName,{localOnly:true});return manager.markUnknown(d.pool);}
         if (value.method === 'reconcile') {
           const d = backends.describe(value.params.projectRoot, value.params.serverName,{localOnly:true});
@@ -47,6 +47,7 @@ async function serve({root, open = backends.open, describe = backends.operation,
       })().then(result => {if (!socket.destroyed) socket.write(JSON.stringify({id: value.id, result}) + '\n');}, error => {
         if (!socket.destroyed) socket.write(JSON.stringify({id: value.id, error: {
           code: /^[a-z0-9-]+$/.test(error.code || '') ? error.code : 'session-operation-failed', beforeSend: error.beforeSend === true,
+          ...require('./lib/iris-operation-scope').failureDetails(error),
           ...(/^[A-Z][A-Z0-9_]{0,79}$/.test(error.transportCode || '') ? {transportCode:error.transportCode} : {}),
           ...(error.diagnostic === 'system-ca-api-unavailable' ? {diagnostic:error.diagnostic} : {}),
           ...(error.sessionUncertain === true ? {sessionUncertain:true} : {}),

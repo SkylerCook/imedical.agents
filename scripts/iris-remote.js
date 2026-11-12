@@ -5,7 +5,14 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const {spawnSync} = require('node:child_process');
 const remote = require('./lib/iris-remote-operations');
+const risk = require('./lib/iris-operation-scope');
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
+function offlineSession(file, pool) {
+  const saved=JSON.parse(fs.readFileSync(file,'utf8'));
+  const state={...saved, pool, hostRunning:false, running:false, queued:0, leased:false,
+    blocked:saved.blocked || (saved.active ? 'session-exit-unverified' : null)};
+  return {...state,...risk.statusDetails(state)};
+}
 function evidenceTarget(context, input) {
   if (!path.isAbsolute(input || '')) throw new remote.RemoteOperationError('remote-inspection-evidence-required');
   const root = path.resolve(context.contextRoot, 'work/source-sync'), target = path.resolve(input), relative = path.relative(root, target);
@@ -70,7 +77,7 @@ async function main(argv = process.argv.slice(2)) {
   if(command==='status') {
     const admission=remote.localPoolStatus(context);
     const backendFile=path.join(context.contextRoot,'config','iris-session-backend.json');
-    if (!fs.existsSync(backendFile)) {console.log(JSON.stringify(admission));return;}
+    if (!fs.existsSync(backendFile)) {console.log(JSON.stringify({...risk.statusDetails(admission), ...admission}));return;}
     const ipc=require('./lib/iris-session-ipc');
     const description=require('./lib/iris-session-backends').describe(context.workspaceRoot,undefined,{localOnly:true});
     const poolId=require('./lib/iris-session-manager').hash(description.pool);
@@ -81,10 +88,13 @@ async function main(argv = process.argv.slice(2)) {
     } catch(error) {
       if (!['ENOENT','ECONNREFUSED'].includes(error.code)) throw error;
       const file=path.join(ipc.location().root,'pools',poolId+'.json');
-      if (fs.existsSync(file)) session={...JSON.parse(fs.readFileSync(file,'utf8')),pool:poolId,hostRunning:false};
+      if (fs.existsSync(file)) session=offlineSession(file,poolId);
     } finally {client?.close();}
     const sessionBlocked=!!session?.blocked || !!session?.unresolvedWrites?.length;
-    console.log(JSON.stringify({...admission,status:sessionBlocked?'reconciliation-required':admission.status,
+    const details = risk.statusDetails({...admission, ...session, ownerPresent:admission.ownerPresent, ownerAlive:admission.ownerAlive,
+      localExitUnverified:admission.localExitUnverified, retryAfter:Math.max(admission.retryAfter || 0,session?.retryAfter || 0),
+      unresolvedWrites:[...(admission.unresolvedWrites || []), ...(session?.unresolvedWrites || [])]});
+    console.log(JSON.stringify({...admission, ...details, blockingReasons:[...(admission.blockingReasons || []), ...(session?.blockingReasons || [])], status:sessionBlocked?'reconciliation-required':admission.status,
       admission,session,poolId,maxFrameworkSessions:remote.frameworkSessionLimit(description.policy),
       ...(sessionBlocked?{recoveryCommand:'reconcile-session'}:{})}));
     return;
@@ -103,22 +113,30 @@ async function main(argv = process.argv.slice(2)) {
         const description=require('./lib/iris-session-backends').describe(context.workspaceRoot,undefined,{localOnly:true});
         const poolId=require('./lib/iris-session-manager').hash(description.pool);
         const status=await client.request('status',{});
-        const selected=status.pools.find(pool=>pool.pool===poolId);
+        let selected=status.pools.find(pool=>pool.pool===poolId);
         if(!selected)throw new remote.RemoteOperationError('session-reconciliation-pool-not-found');
-        if(!path.isAbsolute(args.evidence || ''))throw new remote.RemoteOperationError('session-reconciliation-evidence-path-required');
         let evidence;
-        try {evidence=JSON.parse(fs.readFileSync(args.evidence,'utf8').replace(/^\uFEFF/,''));}
-        catch {throw new remote.RemoteOperationError('session-reconciliation-evidence-invalid');}
-        const token=args.token || selected.reconciliationToken;
+        if(args.evidence !== undefined) {
+          if(!path.isAbsolute(args.evidence || ''))throw new remote.RemoteOperationError('session-reconciliation-evidence-path-required');
+          try {
+            const bytes=fs.readFileSync(args.evidence);
+            const parsed=JSON.parse(bytes.toString('utf8').replace(/^\uFEFF/,''));
+            evidence={cleanupVerified:parsed.cleanupVerified===true,processExited:parsed.processExited===true,localResourcesClosed:parsed.localResourcesClosed===true,reference:hash(bytes)};
+          } catch {throw new remote.RemoteOperationError('session-reconciliation-evidence-invalid');}
+        }
+        if(args.token && args.token !== selected.reconciliationToken)throw new remote.RemoteOperationError('session-reconciliation-token-stale');
+        if(selected.running || selected.queued || selected.leased)throw new remote.RemoteOperationError('session-pool-busy');
+        if(selected.active) selected=await client.request('close',{...params,token:selected.reconciliationToken});
+        const token=selected.reconciliationToken;
         const policy=remote.localPolicy(context), prior=remote.poolStatus({policy});
         if(prior.ownerPresent)throw new Error('session-reconcile-admission-first');
-        params={...params,token,confirm:true,writeOutcome:args['write-outcome'],writeIds:args.writeIds,evidence:{cleanupVerified:evidence.cleanupVerified===true,processExited:evidence.processExited===true,localResourcesClosed:evidence.localResourcesClosed===true,reference:hash(fs.readFileSync(args.evidence))}};
+        params={...params,token,confirm:true,writeOutcome:args['write-outcome'],writeIds:args.writeIds,evidence};
       }
       console.log(JSON.stringify(await client.request(command==='sessions'?'status':command==='close-sessions'?'close':'reconcile',params)));
     } catch(error) {
       if(command==='sessions' && ['ENOENT','ECONNREFUSED'].includes(error.code)) {
         const directory=path.join(ipc.location().root,'pools');
-        const pools=fs.existsSync(directory)?fs.readdirSync(directory).filter(n=>/^[a-f0-9]{64}\.json$/.test(n)).map(n=>({pool:n.slice(0,-5),...JSON.parse(fs.readFileSync(path.join(directory,n),'utf8'))})):[];
+        const pools=fs.existsSync(directory)?fs.readdirSync(directory).filter(n=>/^[a-f0-9]{64}\.json$/.test(n)).map(n=>offlineSession(path.join(directory,n),n.slice(0,-5))):[];
         console.log(JSON.stringify({status:'not-running',pools,cleanupVerified:false}));
       } else throw error;
     } finally {client?.close();}return;

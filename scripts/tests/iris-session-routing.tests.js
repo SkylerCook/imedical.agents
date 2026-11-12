@@ -5,6 +5,42 @@ const {describe}=require('../lib/iris-session-backends');
 const {serve}=require('../iris-session-host');
 const {createClient}=require('../lib/iris-session-client');
 
+test('read transport failure retains its cause through IPC without inventing HTTP status or write risk',async t=>{
+  const root=createTempDirectory('iris-session-transport-'),project=path.join(root,'project');
+  fs.mkdirSync(path.join(project,'.agents/config'),{recursive:true});
+  const backend=path.join(root,'backend.js');
+  fs.writeFileSync(backend,`const r=require('readline').createInterface({input:process.stdin});
+    r.on('close',()=>process.stderr.write('IMEDICAL_LOGOUT={"attempted":0,"acknowledged":0,"completed":true}\\n'));
+    r.on('line',line=>{const m=JSON.parse(line);if(m.id===undefined)return;
+      let result={};
+      if(m.method==='tools/call'){
+        const check=m.params.name==='check_config';
+        const payload=check?{connected:true,host:'example.invalid',port:443,namespace:'TEST'}:
+          {error_code:'SERVER_ERROR',error:'failed to fetch CLS docnames: HTTP error: error sending request for url (private-secret)'};
+        if(!check)process.stderr.write('IMEDICAL_SESSION_STOP=identity-unverified\\n');
+        result={isError:!check,content:[{type:'text',text:JSON.stringify(payload)}]};
+      }
+      process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,result})+'\\n');
+    });`);
+  fs.writeFileSync(path.join(project,'.mcp.json'),JSON.stringify({mcpServers:{'iris-agentic-dev':{command:process.execPath,env:{IRIS_HOST:'example.invalid',IRIS_WEB_PORT:'443',IRIS_NAMESPACE:'TEST'}}}}));
+  fs.writeFileSync(path.join(project,'.agents/config/iris-session-backend.json'),JSON.stringify({schema:'iris-session-backend/v1',serverName:'iris-agentic-dev',command:process.execPath,args:[backend]}));
+  const host=await serve({root:path.join(root,'ipc')}),client=createClient({projectRoot:project,root:path.join(root,'ipc')});
+  t.after(async()=>{await client.close();await host.stop();if(ownsTempDirectory(root))fs.rmSync(root,{recursive:true});});
+  await assert.rejects(client.request('tools/call',{name:'iris_doc',arguments:{mode:'list',doc_type:'CLS'}}),error=>{
+    assert.equal(error.code,'session-identity-unverified');
+    assert.equal(error.transportError,'request-failed');
+    assert.equal(error.toolErrorCode,'SERVER_ERROR');
+    assert.equal(error.httpStatus,undefined);
+    assert.equal(error.beforeSend,false);
+    return true;
+  });
+  const pool=host.manager.status()[0];
+  assert.equal(pool.unresolvedWrites.length,0);
+  assert.equal(pool.lastFailedOperation.transportError,'request-failed');
+  assert.equal(JSON.stringify(pool).includes('private-secret'),false);
+  assert.equal(fs.readFileSync(path.join(root,'ipc/pools',pool.pool+'.json'),'utf8').includes('private-secret'),false);
+});
+
 test('normal recovery entry loads durable pools after host restart and distinguishes missing pools', async t => {
   const root = createTempDirectory('iris-session-recovery-');
   const project = path.join(root, 'project');
@@ -22,7 +58,10 @@ test('normal recovery entry loads durable pools after host restart and distingui
   t.mock.method(require('node:os'), 'homedir', () => root);
   const ipc = require('../lib/iris-session-ipc');
   const connect = ipc.connect;
-  t.mock.method(ipc, 'connect', options => connect({...options, root:ipcRoot}));
+  const starts=[];
+  t.mock.method(ipc, 'connect', options => {starts.push(options.start);return connect({...options, root:ipcRoot});});
+  const location=ipc.location;
+  t.mock.method(ipc,'location',root=>location(root || ipcRoot));
   let host = await serve({root:ipcRoot});
   t.after(async () => {await host.stop(); if (ownsTempDirectory(root)) fs.rmSync(root,{recursive:true});});
   const pool = describe(project, undefined, {localOnly:true}).pool;
@@ -39,11 +78,31 @@ test('normal recovery entry loads durable pools after host restart and distingui
   assert.equal(outputs.at(-1).poolId, expectedId);
   assert.equal(outputs.at(-1).session.pool, expectedId);
   assert.equal(outputs.at(-1).status, 'reconciliation-required');
-  await assert.rejects(main(['reconcile-session','--project-root',project,'--confirm']), {code:'session-reconciliation-evidence-path-required'});
+  await assert.rejects(main(['reconcile-session','--project-root',project,'--confirm']), {code:'session-reconciliation-evidence-required'});
   const evidence = path.join(root,'evidence.json');
   fs.writeFileSync(evidence, JSON.stringify({processExited:true}));
   await main(['reconcile-session','--project-root',project,'--confirm','--evidence',evidence,'--write-outcome','verified-not-applied']);
   assert.equal(outputs.at(-1).unresolvedWrites.length, 0);
+  host.manager.open=async()=>({call:async()=> 'ok',close:async()=>({processExited:true,cleanupVerified:false})});
+  await host.manager.submit({pool,identity:'fixture',client:'fixture',operation:{effects:'read-only'}});
+  host.manager.markUnknown(pool);
+  const before=host.manager.status()[0].reconciliationToken;
+  await assert.rejects(main(['reconcile-session','--project-root',project,'--confirm','--token','stale','--write-outcome','verified-not-applied']),{code:'session-reconciliation-token-stale'});
+  assert.equal(host.manager.status()[0].active,true);
+  await main(['reconcile-session','--project-root',project,'--confirm','--token',before,'--write-outcome','verified-not-applied']);
+  assert.equal(outputs.at(-1).unresolvedWrites.length,0);
+  assert.equal(outputs.at(-1).active,false);
+  await main(['reconcile-session','--project-root',project,'--confirm']);
+  assert.equal(outputs.at(-1).status,'not-required');
+  await host.stop();
+  const durable=fs.readFileSync(path.join(ipcRoot,'pools',expectedId+'.json'));
+  starts.length=0;
+  await main(['status','--project-root',project]);
+  await main(['sessions','--project-root',project]);
+  assert.deepEqual(starts,[false,false]);
+  assert.deepEqual(fs.readFileSync(path.join(ipcRoot,'pools',expectedId+'.json')),durable);
+  assert.equal(fs.existsSync(path.join(ipcRoot,'host.json')),false);
+  host=await serve({root:ipcRoot});
   const config = JSON.parse(fs.readFileSync(path.join(project,'.mcp.json')));
   config.mcpServers['iris-agentic-dev'].env.IRIS_HOST = 'different.invalid';
   fs.writeFileSync(path.join(project,'.mcp.json'),JSON.stringify(config));

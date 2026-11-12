@@ -7,8 +7,7 @@ const path = require('node:path');
 const risk = require('./iris-operation-scope');
 const hash = value => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const failure = (code, beforeSend = true) => Object.assign(new Error(code), {code, beforeSend});
-const warningSummary = pool => pool.warning ? {...pool.warning,
-  historical: pool.warning.generation === undefined || pool.warning.generation !== pool.generation} : null;
+const warningSummary = risk.warningSummary;
 
 class SessionManager {
   constructor({directory, open, idleMs = 120000, queueMs = 60000, now = Date.now}) {
@@ -26,11 +25,12 @@ class SessionManager {
       const prior = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
       const p = {id, file, queue: [], running: false, session: null, lease: null,
         blocked: null, unresolvedWrites: prior?.unresolvedWrites || [], warning: prior?.warning || null,
-        retryAfter: prior?.retryAfter || 0, exit: prior?.exit || null,
+        retryAfter: prior?.retryAfter || 0, exit: prior?.exit || null, lastReconciledAt:prior?.lastReconciledAt,
+        lastFailedOperation:prior?.lastFailedOperation || null, channel:prior?.channel,
         pendingEffects: null, pendingScope: null, lastUsed: this.now(), completed: 0, generation: prior?.generation || 0};
       if (prior?.pendingEffects === 'write') risk.addUnresolved(p, prior.pendingScope, 'session-interrupted-write', this.now());
       if (prior?.blocked || prior?.active) {
-        risk.warn(p, prior.blocked || 'session-exit-unverified', this.now());
+        if (!p.warning) risk.warn(p, prior.blocked || 'session-exit-unverified', this.now());
         if (prior.blocked === 'session-state-write-failed' || prior.exit?.processExited === false) p.blocked = prior.blocked || 'session-process-exit-unverified';
         else if (prior.active && prior.pendingEffects !== 'write' || prior.blocked === 'session-exit-unverified' && !prior.exit) p.blocked = 'session-exit-unverified';
         if (prior.blocked === 'session-service-unavailable' && !p.retryAfter) p.retryAfter = this.now() + risk.COOLDOWN_MS;
@@ -44,8 +44,9 @@ class SessionManager {
     const tmp = p.file + '.' + crypto.randomUUID();
     try {
       fs.writeFileSync(tmp, JSON.stringify({schema: 'iris-session-state/v1', active, blocked: p.blocked || (p.unresolvedWrites.length ? 'session-write-conflict-unresolved' : null),
-        generation: p.generation, inFlight: p.running, pendingEffects: p.pendingEffects, pendingScope:p.pendingScope,
-        unresolvedWrites:p.unresolvedWrites, warning:p.warning, retryAfter:p.retryAfter, exit:p.exit ? {processExited:p.exit.processExited,localResourcesClosed:p.exit.localResourcesClosed,cleanupVerified:p.exit.cleanupVerified,logoutAcknowledged:p.exit.logoutAcknowledged} : null, updatedAt: new Date().toISOString()}), {flag: 'wx', mode: 0o600});
+        generation: p.generation, channel:p.channel, lastFailedOperation:p.lastFailedOperation, lastReconciledAt:p.lastReconciledAt,
+        inFlight: p.running, pendingEffects: p.pendingEffects, pendingScope:p.pendingScope,
+        unresolvedWrites:p.unresolvedWrites, warning:p.warning, retryAfter:p.retryAfter, exit:p.exit ? {processExited:p.exit.processExited,localResourcesClosed:p.exit.localResourcesClosed,cleanupVerified:p.exit.cleanupVerified,logoutAcknowledged:p.exit.logoutAcknowledged,generation:p.exit.generation,at:p.exit.at,channel:p.exit.channel} : null, updatedAt: new Date().toISOString()}), {flag: 'wx', mode: 0o600});
       fs.renameSync(tmp, p.file);
     } finally { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); }
   }
@@ -55,7 +56,7 @@ class SessionManager {
     const denied = p.blocked || risk.admit(p, operation, this.now());
     if (denied) return Promise.reject(failure(denied));
     return new Promise((resolve, reject) => {
-      const item = {identity: hash(identity), client, operation, resolve, reject, lease, releaseLease, started: false};
+      const item = {id:crypto.randomUUID(), identity: hash(identity), client, operation, resolve, reject, lease, releaseLease, started: false};
       const remove = code => {
         if (item.started) { item.cancelled = true; return; }
         const i = p.queue.indexOf(item); if (i >= 0) p.queue.splice(i, 1);
@@ -75,9 +76,9 @@ class SessionManager {
     const session = p.session; p.session = null;
     try {
       const receipt = await session.close();
-      p.exit = receipt;
+      p.exit = {...receipt, generation:p.generation, at:new Date(this.now()).toISOString(), channel:p.channel};
       if (!receipt || receipt.cleanupVerified !== true) {
-        risk.warn(p, 'session-exit-unverified', this.now());
+        risk.warn(p, receipt?.warning?.reason || 'session-exit-unverified', this.now(), {channel:p.channel, phase:receipt?.warning?.phase || 'close'});
         if (!receipt || receipt.processExited === false || !receipt.processExited && !receipt.localResourcesClosed) p.blocked ||= 'session-exit-unverified';
       }
     } catch { p.exit = {processExited:false,cleanupVerified:false}; p.blocked ||= 'session-exit-unverified'; }
@@ -99,7 +100,7 @@ class SessionManager {
       if (p.blocked) throw failure(p.blocked);
       if (!p.session) {
         // Persist intent before opening: an abrupt crash cannot masquerade as a clean exit.
-        p.generation++; p.exit = null; this.persist(p, true);
+        p.generation++; p.exit = null; p.channel = item.operation.channel; this.persist(p, true);
         item.opening = true;
         p.session = await this.open({...item.operation, writeRiskFile:p.file}); p.identity = item.identity; item.opening = false;
       }
@@ -121,13 +122,13 @@ class SessionManager {
       item.resolve(result);
     } catch (error) {
       if (item.opening && error.beforeSend === true && error.backendExit) {
-        p.exit = error.backendExit;
+        p.exit = {...error.backendExit, generation:p.generation, at:new Date(this.now()).toISOString(), channel:p.channel};
         if (!p.exit.cleanupVerified) risk.warn(p, 'session-exit-unverified', this.now());
         if (!p.exit.processExited && !p.exit.localResourcesClosed) p.blocked = 'session-exit-unverified';
       }
       const unknownWrite = item.dispatched === true && error.beforeSend !== true && !['rejected','verified-applied'].includes(error.writeOutcome) && item.operation.effects === 'write';
       if (unknownWrite) {
-        const record=risk.addUnresolved(p, item.operation.scope, 'session-outcome-unverified', this.now());
+        const record=risk.addUnresolved(p, item.operation.scope, 'session-outcome-unverified', this.now(), item.id);
         record.operation={channel:item.operation.channel || 'unknown',
           tool:item.operation.params?.name || item.operation.args?.[0] || 'unknown',
           requestHash:hash(item.operation.params || item.operation.args || {}),generation:p.generation};
@@ -137,10 +138,12 @@ class SessionManager {
         if (/^[A-Z][A-Z0-9_]{0,79}$/.test(error.toolErrorCode || '')) record.toolErrorCode=error.toolErrorCode;
         error.pendingWriteId=record.id;
       }
+      p.lastFailedOperation = {id:item.id, channel:item.operation.channel, generation:p.generation,
+        at:new Date(this.now()).toISOString(), ...risk.failureDetails(error)};
       p.pendingEffects = null; p.pendingScope = null;
       if (item.opening || error.status === 503 || error.httpStatus === 503) p.retryAfter = this.now() + risk.COOLDOWN_MS;
       if (error.sessionUncertain || error.status === 503 || error.status === 401 || error.status === 403 || error.beforeSend !== true) {
-        risk.warn(p, error.code || (error.status === 503 ? 'session-service-unavailable' : 'session-operation-failed'), this.now());
+        risk.warn(p, error.code || (error.status === 503 ? 'session-service-unavailable' : 'session-operation-failed'), this.now(), {channel:p.channel, phase:'operation'});
         await this.closeSession(p);
       }
       if (error.writeOutcome === 'verified-applied' && error.toolResponse?.result && !error.toolResponse.error && !error.toolResponse.result.isError) {
@@ -155,8 +158,9 @@ class SessionManager {
       void this.drain(p).catch(() => this.storageFailure(p));
     }
   }
-  async close(pool, client) {
+  async close(pool, client, token) {
     const p = this.pool(pool);
+    if (token && token !== this.summary(p).reconciliationToken) throw failure('session-reconciliation-token-stale');
     if (p.running || p.queue.length || p.lease && p.lease !== client) throw failure('session-pool-busy');
     p.running = true;
     try {await this.closeSession(p);}
@@ -187,6 +191,7 @@ class SessionManager {
   }
   summary(p) { return {pool: p.id, active: !!p.session, running: p.running, queued: p.queue.length,
     leased: !!p.lease, blocked: p.blocked, warning:warningSummary(p), unresolvedWrites:p.unresolvedWrites, retryAfter:p.retryAfter, pendingEffects:p.pendingEffects, generation: p.generation, completed: p.completed, exit: p.exit || null,
+    lastFailedOperation:p.lastFailedOperation, ...risk.statusDetails({...p, queued:p.queue.length, leased:!!p.lease}, this.now()),
     reconciliationToken: fs.existsSync(p.file) ? hash(fs.readFileSync(p.file, 'utf8')) : null}; }
   status() { return [...this.pools.values()].map(p => this.summary(p)); }
   markUnknown(pool) {const p=this.pool(pool);risk.addUnresolved(p,p.pendingScope,'session-outcome-unverified',this.now());this.persist(p);return this.summary(p);}
@@ -195,9 +200,10 @@ class SessionManager {
     const id = hash(pool);
     if (!this.pools.has(id) && !fs.existsSync(path.join(this.directory, id + '.json'))) throw failure('session-reconciliation-pool-not-found');
     const p = this.poolById(id);
-    if (p.running || p.queue.length || p.session) throw failure('session-reconciliation-session-active');
+    if (p.running || p.queue.length || p.session || p.lease) throw failure('session-reconciliation-session-active');
     if (!p.blocked && !p.unresolvedWrites.length) return {...this.summary(p), status:'not-required'};
     if (token !== this.summary(p).reconciliationToken) throw failure('session-reconciliation-token-stale');
+    evidence ||= risk.exitEvidence(p);
     if (!evidence || !evidence.reference) throw failure('session-reconciliation-evidence-required');
     if (evidence.cleanupVerified !== true && evidence.processExited !== true && evidence.localResourcesClosed !== true) throw failure('session-reconciliation-exit-evidence-required');
     if (p.unresolvedWrites.length && !['verified-applied','verified-not-applied'].includes(writeOutcome)) throw failure('session-reconciliation-write-outcome-required');
@@ -205,10 +211,17 @@ class SessionManager {
     const remaining = {unresolvedWrites:[...p.unresolvedWrites]};
     if (p.unresolvedWrites.length) risk.resolveWrites(remaining, writeIds);
     const history = p.file + '.' + crypto.randomUUID() + '.resolved';
-    fs.writeFileSync(history, JSON.stringify({previous:JSON.parse(fs.readFileSync(p.file,'utf8')), evidenceHash:hash(evidence), writeOutcome, at:new Date().toISOString()}), {flag:'wx',mode:0o600});
+    const at = new Date(this.now()).toISOString();
+    const resolvedWriteIds = p.unresolvedWrites.filter(x => !remaining.unresolvedWrites.includes(x)).map(x => x.id);
+    fs.writeFileSync(history, JSON.stringify({previous:JSON.parse(fs.readFileSync(p.file,'utf8')), evidenceHash:hash(evidence),
+      evidence: {source:evidence.source === 'local-close-receipt' ? evidence.source : 'external', generation:p.generation,
+        processExited:evidence.processExited === true, localResourcesClosed:evidence.localResourcesClosed === true, cleanupVerified:evidence.cleanupVerified === true},
+      resolvedWriteIds, writeOutcome, at}), {flag:'wx',mode:0o600});
+    const previous = {...p};
     p.blocked = null; p.pendingEffects = null; p.pendingScope = null; p.unresolvedWrites = remaining.unresolvedWrites; p.lease = null;
+    p.lastReconciledAt = at;
     if (evidence.cleanupVerified !== true) risk.warn(p,'session-logout-unverified',this.now());
-    this.persist(p, false);
+    try {this.persist(p, false);} catch (error) {Object.assign(p, previous); throw error;}
     return {...this.summary(p), licenseReleaseVerified:false};
   }
   async stop() {

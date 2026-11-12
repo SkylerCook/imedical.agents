@@ -1,5 +1,7 @@
 # .agents 安装与更新 Runbook
 
+coding 0.29.0 增加会话诊断和自动恢复证据。沿本页现有安装/更新路径同时同步共享 scripts 与 coding 插件，待受管任务结束后关闭旧会话并重启宿主 MCP，核对真实调用的 runtime 回执。旧配置无需补 generation，已有风险与恢复历史保留。更新后通过 status 查看 blockingReasons/nextAction，可靠同代本地退出回执由 reconcile-session/reconcile 自动采用，未知写仍明确提供已核实结果。说明见[统一会话指南](guides/iris-managed-sessions.md)。
+
 
 0.28.3 还包含需求类型/旧导出覆盖表的单 CR 兼容、已确认编码的前端原字节导出，以及 `iris-remote.js status` 的 poolId 和恢复错误优先级。普通更新同时取得 coding 插件和根 scripts，已有配置值保留；以实际宿主加载与对应业务入口复验。未确认编码的文本 staging 仅用于调查，确认后重新导出才能取得服务器原字节摘要。
 

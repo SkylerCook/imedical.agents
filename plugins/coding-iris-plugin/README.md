@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+0.29.0 增加状态下一步指引、失败发送阶段和自动本地退出证据，旧配置可直接读取，实际更新步骤见[统一会话指南](../../docs/guides/iris-managed-sessions.md#诊断与自动恢复证据0290)。编码 confirm 可附带 --files 在写配置前校验目标可表示性。
+
 0.28.3 同时兼容需求类型和导出覆盖表的单 CR，已确认服务器编码的前端导出通过原字节保持末尾换行，具体边界见[编码契约](references/frontend-encoding.md)。
 
 coding 0.28.3 修复 confirm 替换字段时吞掉 CRLF 中 LF 的问题，兼容历史单 CR；更新器复用 Pending 区块并合并重复区块。普通更新同时取得插件与根 scripts 后生效，已确认编码的迁移检查保持原文件字节。
