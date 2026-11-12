@@ -136,6 +136,16 @@ for (const status of ['pending', 'failed', 'running', 'unknown']) test('BOS ' + 
   assert.deepEqual(api.selection(f.state().demands[0]), selection);
   assert.equal(f.state().demands[1].publication.owner, 'worker-b');
 });
+test('non-standard delivery completes with BOS not applicable', t => {
+  const f = fixture(t, ['api'], ['10'], ['commit', 'push']);
+  f.prepare();
+  assert.equal(f.state().demands[0].delivery.bos.status, 'not-applicable');
+  f.commits();
+  f.record('push', 'succeeded', f.push('api'));
+  assert.equal(api.summarize(f.state(), 'delivered').csv, '10');
+  assert.equal(f.state().demands[0].delivery.bos.status, 'not-applicable');
+});
+
 test('BOS authorization is checked at its own phase while Git can finish first', t => {
   const f = fixture(t); f.decision();
   f.act('authorize', { actor: 'user', quote: 'Commit and push only for now', actions: ['commit', 'push'] });

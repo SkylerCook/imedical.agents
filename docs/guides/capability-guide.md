@@ -93,7 +93,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 已有需求需要提交时使用 [demand-commit](../../plugins/demand-delivery-plugin/skills/demand-commit/SKILL.md)。用户连续验收多个需求时使用 [demand-acceptance](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md)。报告按[共享测试协议](../../agents/_shared/testing-protocol.md#结果与交接)分别统计人工补验与待用户验收结论，保留实际功能验证范围。处理报告固定包含本批全部需求号汇总（含基线已满足、无需新增代码项），状态分组另列；格式与完整性核对见 [编号汇总契约](../../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#编号汇总契约)。
 
-> 使用 demand-acceptance，我逐号报验收结论：独立需求通过后交付；主子需求共享代码时，整组通过后取得主需求实仓提交并共享 push 一次，再为各引用需求分别补 BOS 日志，日志缺口不阻塞后续 Git；own 子项独立交付，整组完成仍须所有成员的适用回执齐备。明确无代码项登记原因并跳过代码阶段。汇总时分别给人工通过和已交付编号，用能直接粘贴到 BOS 的单行逗号格式。
+> 使用 demand-acceptance，我逐号报验收结论：独立需求通过后交付；主子需求共享代码时，整组通过后取得主需求实仓提交并共享 push 一次，再为适用的标版引用需求分别补 BOS 日志，日志缺口不阻塞后续 Git；own 子项独立交付，整组完成仍须所有成员的适用回执齐备。明确无代码项登记原因并跳过代码阶段。汇总时分别给人工通过和已交付编号，用能直接粘贴到 BOS 的单行逗号格式。
 
 主子组的阻塞、共享回执和无代码阶段按[代码归属协议](../demand-code-ownership.md)处理，单个子项通过不提前提交共享代码，其它独立需求可继续；明确无代码也须人工验收，缺失或未知提交不作为无代码跳过。帮助请求只展示说明，沿[统一帮助协议](capability-help.md)结束，不进入交付。
 
@@ -109,7 +109,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 `demand-acceptance` 从当前工作区及上下文定位来源；`--worktree [路径]` 显式指定来源（兼容 `-worktree`）。最终实仓目标单独确认，来源为 worktree 时须先合入并取得实仓 commit 才能登记 BOS；省略来源参数不跳过这一步。接续已有批次保留原映射；明确调用复用既定范围内的合入及交付授权，缺目标先澄清，清理仍需独立授权。
 
-明确调用开展验收交付即授权该批次通过项提交、BOS 日志及推送，无需额外开关或反复选择范围；默认先提交推送再补 BOS，日志失败或未知只暂停日志，Git 完成即释放发布权供下一条继续。代码已推送、BOS 待补须单列状态，全部适用回执成功才算完整交付；非 BOS 项目跳过日志。用户明确暂不交付时保留限制；仅查看技能、查询汇总或 Agent 自动加载不产生写入授权。默认复用台账；需要批次恢复时读 [验收索引协议](../../plugins/demand-delivery-plugin/references/acceptance-session.md)。更新能力包后刷新 thin-index 即可发现新入口，不自动部署业务改动或启动批次。
+明确调用开展验收交付即授权该批次通过项提交、标版 BOS 日志及推送，无需额外开关或反复选择范围；默认先提交推送再补 BOS，日志失败或未知只暂停日志，Git 完成即释放发布权供下一条继续。代码已推送、BOS 待补须单列状态，全部适用回执成功才算完整交付；非标版需求或非 BOS 项目跳过日志。用户明确暂不交付时保留限制；仅查看技能、查询汇总或 Agent 自动加载不产生写入授权。默认复用台账；需要批次恢复时读 [验收索引协议](../../plugins/demand-delivery-plugin/references/acceptance-session.md)。更新能力包后刷新 thin-index 即可发现新入口，不自动部署业务改动或启动批次。
 
 ## Rule、reference 和脚本怎么用
 
@@ -129,7 +129,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 | 现有表单响应式 | `cure-form-responsive` 检查模板并保留契约 → 完整预览与验证 → 需要发布时进入部署流程；新任务不必使用旧名称 |
 | 页面国际化 | 定位链路和分类 → `i18n-coding` / `i18n-text-extract` → 页面非字典文案用 `i18n-page-trans-seed`，字典项用 `i18n-bdp-trans-seed` → 核验；已有服务器翻译迁移用 `i18n-csp-trans-sync` |
 | 标版需求录入 | `bos-demand-entry --text`（代码补录，或自然语言指定“提需求给某组”及主题/资料；`--work` 工作记录；可叠加 `--split`、`--excel`）→ 用户录入 BOSS → `--bind` 回填编号与标题；仅代码来源再按需 `--plan` / 明确 `--commit`，完整参数见[需求录入协议](../../plugins/bos-plugin/references/standard-demand-entry.md) |
-| 已有 BOS 需求处理 | `bos-demand-handle` → 获取并复用需求与相关媒体 → 按技术栈实施、自查和验证 → 用户验收 → 按授权合入实仓并校验全部目标 commit → 自动准备实仓提交的日志计划 → 复用 BOS 补录预授权或请求授权 → 提交 BOS 日志；需求状态更新独立授权 |
+| 已有 BOS 需求处理 | `bos-demand-handle` → 获取并复用需求与相关媒体 → 按技术栈实施、自查和验证 → 用户验收 → 按授权合入实仓并校验全部目标 commit → 仅标版自动准备实仓提交的日志计划 → 复用 BOS 补录预授权或请求授权 → 提交 BOS 日志；需求状态更新独立授权 |
 | 跨会话继续需求 | 启用 `task-handoff` → 执行 Agent 在关键节点维护 → 明确交接时保存快照 → 新会话读取记录、inspect 核实现场 → 继续已授权范围；详见[交接说明](../task-handoff.md) |
 
 这些路线允许在已有可信产物处接续，不要求重复完成前置工作。表单的规格批准、交互验证、版本哈希及部署门禁仍按[交付协议](../../plugins/iris-cure-form-dev/references/cure-form-delivery-workflow.md)执行；批量脚本化表单交互的授权要求见其[交互测试协议](../../plugins/iris-cure-form-dev/references/cure-form-interaction-test-v1.md)。
@@ -319,9 +319,9 @@ BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调
 - [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md)：请求“初始化 BOS 个人配置”，Windows 创建或复用分段私有配置，仅绑定 BOS_MCP_CONFIG；旧平铺文件须明确 migrate-config 原地迁移，用户补全 TODO 后离线核对；这不启用项目。请求“为当前项目接入 BOS 查询与需求处理”才更新 profile 并生成四个日常发现入口。详见[配置说明](../../plugins/bos-plugin/references/usage.md)；非 Windows 使用显式配置，不自动注册客户端 MCP。
 - [bos-demand-entry](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md)：请求“根据当前标版改动补需求”“整理这份工作记录”或“提需求给支持组，解决演示系统登录问题”，可补资料。仅 standard，名称按[标版标签规则](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md#需求名称与标版标签各类来源共用)逐条判断；扁平Git代码用v2，主子代码用v4，`--work` 工作和自然语言主题提需用 v3；主题不要求 Git，接收组与产品标识分开核实。默认文本，`--split` 审查拆合、`--excel` 导出同源草稿、`--bind` 回填编号，仅代码按授权衔接提交。已完成条目追加备注，文本写完不代表问题已解决。本地生成无需 BOS 凭据，不自动发送或录入；产物归目标工程需求目录或任务临时目录。旧 `iris-demand-entry` / `iris-demand-commit` 已删除，改用当前 owner，数据兼容与项目引用迁移见[迁移说明](../demand-delivery-migration.md)。
 - [bos-demand-query](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md)：默认开发待办，`--proj` 仅项目来源，`--dev` 产品（所有非项目来源），可独立调用或与带日期的 `--workload` 组合，完整说明见[来源口径](../../plugins/bos-plugin/references/usage.md#项目与产品非项目来源口径)。`--todo` 查全部个人开发待办，`--todo 2026-10-23` 按预计完成时间查单日；`--workload 2026-10-01 2026-10-23` 按执行时间查工作量，日期必填，范围也可写为 `2026-10-01~2026-10-23`。新入口按接受人、当前人和状态组合分类，清除默认当前组，输出实际口径及待核对项，见[个人查询口径](../../plugins/bos-plugin/references/usage.md#个人待办与工作量口径)。所有待办默认创建日期升序，个人查询支持 `--sort 预计完成时间 --order asc` 等五类日期排序，排序与筛选独立，见[日期排序口径](../../plugins/bos-plugin/references/usage.md#日期排序口径)。默认列表含创建时间、需求号/完整标题，末尾默认追加发起人/发起组，可指定其它列或“只要需求串”（单行半角逗号分隔编号），格式选择仅影响 Agent 展示，完整契约见[输出格式](../../plugins/bos-plugin/skills/bos-demand-query/SKILL.md#输出格式)。原编号详情、发起/接受/当前人员或组及历史查询继续可用，旧通用 pending 仍按默认当前人＋所在组；切换筛选明确清除不用的默认条件。结果区分正文、图片与附件链接，不改业务代码或 BOS 状态。更新能力包并刷新已启用索引取得新入口，无私有配置迁移或旧文件清理。
-- [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：请求“处理 BOS 12345”，主动读取相关媒体并按项目技术栈实现与验证；“验收后提交”授权本地提交，全部实仓提交校验成功后自动准备本次日志计划，再请求 BOS 补录授权。“验收后提交并将本次提交补录到 BOS 代码更新日志”可提前明确两项授权。配置缺失、拒绝或补录失败保留本地已提交结果；完整正文可在 BOS 不可用时继续本地工作。
+- [bos-demand-handle](../../plugins/bos-plugin/skills/bos-demand-handle/SKILL.md)：请求“处理 BOS 12345”，主动读取相关媒体并按项目技术栈实现与验证；“验收后提交”授权本地提交，标版需求全部实仓提交校验成功后自动准备本次日志计划，再请求 BOS 补录授权。“验收后提交并将本次提交补录到 BOS 代码更新日志”可提前明确两项授权。配置缺失、拒绝或补录失败保留本地已提交结果；完整正文可在 BOS 不可用时继续本地工作。
 
-- [bos-code-update-log](../../plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)：请求“预览这些提交的 BOS 代码更新日志”只运行 plan；明确“把这些提交补录到 BOS”才执行 submit。只读已核验的实仓 commit，选择须明确 repo/ref/完整 hash；worktree 先合实仓，跨仓说明全部保留，不执行本地 commit/push；token 与 linkProject 使用本技能配置段，缺失不影响需求查询。
+- [bos-code-update-log](../../plugins/bos-plugin/skills/bos-code-update-log/SKILL.md)：仅标版适用，其他类型跳过且不列日志待办。请求“预览这些提交的 BOS 代码更新日志”只运行 plan；明确“把这些提交补录到 BOS”才执行 submit。只读已核验的实仓 commit，选择须明确 repo/ref/完整 hash；worktree 先合实仓，跨仓说明全部保留，不执行本地 commit/push；token 与 linkProject 使用本技能配置段，缺失不影响需求查询。
 
 工作量漏计或页面数量不同，按[差异复核](../../plugins/bos-plugin/references/usage.md#工作量差异复核)刷新原范围、逐号比较并解释待核对原因；输出并列候选、计入与待核对数，开发测试阶段按当前个人口径判断。
 

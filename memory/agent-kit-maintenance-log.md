@@ -1,5 +1,14 @@
 # imedical.agents 维护日志
 
+## 2026-11-12 BOS 更新日志仅适用于标版
+
+- 按用户当前要求，BOS owner 将日志计划与提交限定为标版 standard，其它需求日志不适用且不列待补。普通处理、独立补录、连续验收及主子代码归属入口同步引用该范围。
+- 复用 acceptance-session 现有 deliveryActions，非标版省略 bos-log 即可完成 Git 交付。旧批次沿既有范围变更协议保留回执并复用已核验 Git 结果。未新增配置或运行时机制。
+- bos-plugin 0.18.3、demand-delivery-plugin 0.9.2，同步发布记录、README、能力手册与更新说明。业务副本需正常更新后生效。
+- BOS workflow 契约 2 项、非标版日志不适用交付回归 1 项、项目文档链接检查 1 项通过，diff 空白检查通过。全工作区组件版本校验本轮两个 owner 无新增问题，整体仍受既有 xc 版本问题阻塞。
+- 已核对 backlog，沿既有治理队列保留历史问题，本轮无新增治理事项。
+
+
 ## 2026-11-12 profile 换行与 Pending 合并
 
 - coding 0.28.3 在 confirm 使用行内空白匹配，修复 JavaScript 多行锚点在 CR 与 LF 之间起始、随后 \s 吞掉 LF 的可复现缺陷；源仓原更新器在 PS5.1/7 对照均输出 CRLF，未复现其生成单 CR。

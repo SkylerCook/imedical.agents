@@ -19,6 +19,8 @@ node <script> report --directory <task-dir> --kind delivered --format csv
 
 `<script>` 表示上述脚本路径；每个写命令从 `--input-file` 或 `--stdin` 二选一读取 JSON。输入文件按任务临时文件约定保存并收尾清理，也可用工具结构化 stdin 避免 Shell 引号错误。只读命令无需输入。
 
+下方示例用于标版 BOS 批次。按[日志适用范围](../../bos-plugin/references/code-update-log.md#适用范围)判定，非标版使用 `deliveryActions: ["commit", "push"]`，authorize 同样只记录适用动作，脚本会将 BOS 标为 `not-applicable`。混合需求按适用动作分批；旧非标版批次含 bos-log 时，沿本节动作范围变化约定另建当前批次，复用并核验已有 Git 回执、保留旧日志取证，避免重复 Git 写入，当前交付不再等待旧日志。
+
 `init` 输入（路径替换为目标工程事实，仓库文件须精确到相对路径）：
 
 ```json

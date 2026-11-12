@@ -64,10 +64,12 @@ push、部署、上传、远端编译、BOS 代码更新日志、BOS 状态更�
 
 ## 提交后的 BOS 代码更新日志
 
+先按[日志适用范围](../plugins/bos-plugin/references/code-update-log.md#适用范围)核对需求类型，仅标版进入本节；其它类型日志记为不适用并继续交付。
+
 先按[代码归属协议](../docs/demand-code-ownership.md)分流：own复用本条实仓 verified 提交；parent待主需求组全部通过后复用主实仓提交，为目标子需求生成显式bindings；none记录commit/日志/push不适用及原因，不调用日志工具或读取凭据。未完成或证据不明不能跳过。主子有共同目标且代码难隔离时可保留业务拆分，不强行拆代码。
 
 
-当前 BOS 需求的全部实仓提交校验成功后，自动进入 [bos-code-update-log](../plugins/bos-plugin/skills/bos-code-update-log/SKILL.md) 准备补录计划，再按授权提交 BOS。只生成提交计划、尚未取得已核实的提交结果、任一仓提交失败或校验未完成时不进入此阶段；framework-maintenance 和脱离本 workflow 的通用 demand-commit 不触发此编排。
+当前标版 BOS 需求的全部实仓提交校验成功后，自动进入 [bos-code-update-log](../plugins/bos-plugin/skills/bos-code-update-log/SKILL.md) 准备补录计划，再按授权提交 BOS。只生成提交计划、尚未取得已核实的提交结果、任一仓提交失败或校验未完成时不进入此阶段；framework-maintenance 和脱离本 workflow 的通用 demand-commit 不触发此编排。
 
 1. 先按[实仓 commit 门禁](../plugins/bos-plugin/references/code-update-log.md#实仓-commit-门禁)核实来源与目标；worktree 先合入既定实仓，取得最终提交，不把阶段恢复点当交付结果。复用 demand-commit 的最终结果：整体 `status=verified`，且每项 `repositories[].execution.status=verified`、`repositories[].execution.commit` 为完整 commit hash。按原仓库顺序将 `repositories[].root` 映射到 `select[].repo`，将 `repositories[].execution.commit` 映射到 `select[].hash`，并将已确认的完整目标分支传入 `select[].ref`，作为日志 CLI 的 JSON 输入 `{"select":[{"repo":"<实仓 GitRoot>","ref":"refs/heads/<目标分支>","hash":"<实仓完整 commit hash>"}]}`。其它项目提交工具或用户自行提交时先按项目规范核实等价的仓库、完整 hash、文件范围和提交信息，缺少证据则保留待补录。不得用 HEAD、latest、历史搜索或目录扫描替换本次结果，也不加入未参与本次提交的仓库。
 2. 核对当前上下文或已有交接/run 中这些 repo/hash 的补录结果。按目标需求号、关联项目、仓库与完整hash已确认接口成功的选择不得再次提交；结果未知的选择先核对 BOS 记录，不自动重试。仅处理尚未提交的明确选择，不为普通需求另建状态库或在 commit 计划中写入 BOS 状态。

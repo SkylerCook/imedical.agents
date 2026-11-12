@@ -1,11 +1,13 @@
 ---
 name: bos-code-update-log
-description: 将已核验的实仓 commit 补录为 BOS 代码更新日志，支持主子共享提交、只读预览与授权提交；worktree 提交先合实仓，明确无代码项跳过。
+description: 将标版需求已核验的实仓 commit 补录为 BOS 代码更新日志，支持主子共享提交、只读预览与授权提交；worktree 提交先合实仓，明确无代码项跳过。
 ---
 
 # BOS 代码更新日志补录
 
 帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
+
+先按[日志适用范围](../../references/code-update-log.md#适用范围)核对需求类型，仅标版继续；其它类型直接结束，日志记为不适用。
 
 消费已存在且位于既定实仓目标分支中的 commit，完成「实仓已提交 → BOS 记录」。先读取[实仓 commit 门禁](../../references/code-update-log.md#实仓-commit-门禁)。commit、合入、push、部署和 BOS 写入沿用各自有效授权。提交格式来自 [demand-commit](../../../demand-delivery-plugin/skills/demand-commit/SKILL.md)，不要求启用该插件才能补录历史提交。
 

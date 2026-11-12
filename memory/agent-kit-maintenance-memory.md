@@ -4,6 +4,8 @@
 
 ## 当前重点
 
+- BOS 更新日志当前仅适用于标版需求，其它类型跳过且不列补录待办。范围归 [BOS owner](../plugins/bos-plugin/references/code-update-log.md#适用范围)，普通开发与连续验收共用。
+
 - 0.28.3 覆盖 profile 混合换行/Pending、需求类型和导出覆盖表单 CR、前端原字节导出及恢复错误优先级。验证见维护日志 2026-11-12，升级同时取得 coding 插件和根 scripts。
 
 - 初始化与更新结果优化见[审计及实施记录](../maintenance/validation/framework-user-burden-audit-2026-11-12.md)。配置缺失集中诊断，必要迁移失败返回非成功，已有配置及自定义 MCP 字段保留。

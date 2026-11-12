@@ -114,6 +114,14 @@ test('BOS workflow delegates lifecycle, domains and authorization without a seco
 test('BOS workflow routes verified commits to scoped, separately authorized log submission', () => {
   const workflow = read('workflows/bos-demand.workflow.md');
   const phase = workflow.slice(workflow.indexOf('## 提交后的 BOS 代码更新日志'));
+  assert.ok(phase.includes('仅标版进入本节'));
+  const scope = read('plugins/bos-plugin/references/code-update-log.md');
+  for (const marker of ['当前仅标版（`standard`）', '其它类型（包括 `project`）', '不列补录待办', '主子需求分别按自身类型判定']) assert.ok(scope.includes(marker), marker);
+  const acceptance = read('plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md');
+  assert.ok(acceptance.includes('deliveryActions 省略 `bos-log`'));
+  assert.ok(acceptance.includes('非标版需求或非 BOS 项目按自身适用阶段判定'));
+  assert.ok(read('plugins/bos-plugin/skills/bos-code-update-log/SKILL.md').includes('#适用范围'));
+  assert.ok(read('plugins/demand-delivery-plugin/references/acceptance-session.md').includes('deliveryActions: ["commit", "push"]'));
   for (const marker of ['bos-code-update-log/SKILL.md', 'status=verified', 'repositories[].root',
     'repositories[].execution.commit', 'select[].repo', 'select[].ref', 'select[].hash', '实仓 commit 门禁', 'BOS 补录预授权',
     'submit --confirm', '结果未知', '不回滚', '已确认接口成功', '任一仓提交失败', '仅要求预览时交付计划']) {

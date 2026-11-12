@@ -1,5 +1,7 @@
 # Demand Delivery Plugin
 
+当前 BOS 日志仅适用于标版需求，其它类型按日志不适用完成交付。已部署工程正常更新能力包并刷新已启用索引，旧批次按[验收索引协议](references/acceptance-session.md)核对动作范围并复用已有 Git 回执。
+
 0.9.1：同步子进程明确关闭未使用的 stdin，继续捕获 stdout/stderr，保留非零退出与实仓 commit 门禁；Git EBUSY 提示检查宿主环境，不将错误码直接归因为 stdin。正常更新完整能力包（含根 scripts/lib）取得，无配置迁移或旧文件清理。使用临时 shim 的项目应先在原宿主不预加载 shim 验证计划与失败分支，再按其本机配置退役；不自动更新业务副本或移除 shim。
 
 0.9.0：`demand-commit --plan|--commit --no-id` 显式支持 project 暂无需求号提交；标题省略需求号括号，修改说明及原提交校验保留。普通调用和 standard 仍要求数字需求号，不自动进入 BOS 或验收批次。正常更新完整能力包并刷新已启用索引，旧数字编号 v1 计划继续恢复；无配置迁移或旧文件清理，业务副本未自动更新。
@@ -16,7 +18,7 @@
 
 跨技术栈复用需求提交安全机制，入口为 [demand-commit](skills/demand-commit/SKILL.md)。支持数字需求号及 standard/project 格式，project 暂无编号时可显式使用 `--no-id`；不要求 IRIS profile、MCP 或 BOS 凭据。这是组织需求交付约定，不是任意 Git 提交格式转换器。
 
-连续验收使用 [demand-acceptance](skills/demand-acceptance/SKILL.md)：用户明确调用开展验收交付，即授权该批次通过项提交、补 BOS 日志并推送，无需额外开关或重复确认交付范围；明确“先登记、暂不交付”时遵从限制。用户逐号给出结论，Agent 持续接收、按目标仓库串行交付，报告可独立整理。仅查看技能、查询汇总或 Agent 自动加载不产生交付授权。人工通过和实际交付分别汇总；BOS 多需求号列表固定为数量在块外、`text` 块内单行升序去重、半角逗号无空格。普通单号复用已有台账，明确批次使用标准状态流和 [验收索引协议](references/acceptance-session.md)；不改变正式任务编排。BOS 日志阶段条件使用 bos-plugin，不增加通用提交的强制依赖。报告按[共享测试协议](../../agents/_shared/testing-protocol.md#结果与交接)分别统计人工补验与待用户验收结论，保留实际功能验证范围。处理报告固定包含本批全部需求号汇总（含基线已满足、无需新增代码项），状态分组另列；格式与完整性核对见 [编号汇总契约](skills/demand-acceptance/SKILL.md#编号汇总契约)。
+连续验收使用 [demand-acceptance](skills/demand-acceptance/SKILL.md)：用户明确调用开展验收交付，即授权该批次通过项提交、按适用范围补标版 BOS 日志并推送，无需额外开关或重复确认交付范围；明确“先登记、暂不交付”时遵从限制。用户逐号给出结论，Agent 持续接收、按目标仓库串行交付，报告可独立整理。仅查看技能、查询汇总或 Agent 自动加载不产生交付授权。人工通过和实际交付分别汇总；BOS 多需求号列表固定为数量在块外、`text` 块内单行升序去重、半角逗号无空格。普通单号复用已有台账，明确批次使用标准状态流和 [验收索引协议](references/acceptance-session.md)；不改变正式任务编排。标版 BOS 日志阶段条件使用 bos-plugin，不增加通用提交的强制依赖。报告按[共享测试协议](../../agents/_shared/testing-protocol.md#结果与交接)分别统计人工补验与待用户验收结论，保留实际功能验证范围。处理报告固定包含本批全部需求号汇总（含基线已满足、无需新增代码项），状态分组另列；格式与完整性核对见 [编号汇总契约](skills/demand-acceptance/SKILL.md#编号汇总契约)。
 
 `demand-acceptance` 默认定位当前工作区来源，最终实仓目标单独确认，来源为 worktree 时仍须合入实仓；`demand-acceptance --worktree [路径]` 从已确认的来源接收变更，兼容 `-worktree`。这是技能层参数，索引脚本不接收该开关；接续与映射见技能“代码来源”，授权见“调用与授权”。已有工程正常更新能力包并刷新已启用索引，无配置迁移或旧文件清理；新调用采用完整交付契约，旧批次保留已确认的授权范围和暂停限制。
 
