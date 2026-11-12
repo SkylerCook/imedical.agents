@@ -41,13 +41,26 @@ function xmlEnd(source, start) {
 }
 
 function inspect(source) {
-  const blocks = [];
-  let depth = 0, blockComment = false, quote = false, close = -1;
+  const blocks = [], separators = [];
+  let depth = 0, blockComment = false, quote = false, close = -1, methodBody = false;
   const fragment = /^\s*Storage\b/i.test(source);
   for (let i = 0; i < source.length; i++) {
     const c = source[i], next = source[i + 1];
     if (blockComment) { if (c === '*' && next === '/') { blockComment = false; i++; } continue; }
     if (quote) { if (c === '"') { if (next === '"') i++; else quote = false; } continue; }
+    if (depth === 1 && (i === 0 || source[i - 1] === '\n')) {
+      const blank = /^[ \t]*\n/.exec(source.slice(i));
+      if (blank) { separators.push({start: i, end: i + blank[0].length}); i += blank[0].length - 1; continue; }
+      if (/^[ \t]*(?:ClassMethod|Method|Trigger)\s/i.test(source.slice(i))) methodBody = true;
+    }
+    if (c === '}' && depth === 2 && methodBody) {
+      const lineStart = source.lastIndexOf('\n', i - 1) + 1;
+      if (/^[ \t]*$/.test(source.slice(lineStart, i))) {
+        const blank = /(?:\n[ \t]*)+\n$/.exec(source.slice(0, lineStart));
+        if (blank) separators.push({start: blank.index + 1, end: lineStart});
+      }
+      methodBody = false;
+    }
     if (c === '"') { quote = true; continue; }
     if ((c === '/' && next === '/') || c === ';' && depth > 1) { const end = source.indexOf('\n', i); if (end < 0) break; i = end; continue; }
     if (c === '/' && next === '*') { blockComment = true; i++; continue; }
@@ -66,7 +79,7 @@ function inspect(source) {
     if (c === '}') { depth--; if (depth === 0) close = i; if (depth < 0) stop('storage-format-unknown'); }
   }
   if (depth || quote || blockComment || new Set(blocks.map(b => b.name)).size !== blocks.length) stop('storage-format-unknown');
-  return {blocks, close};
+  return {blocks, close, separators};
 }
 
 function storage(source) {
@@ -74,25 +87,26 @@ function storage(source) {
   return inspect(source || '').blocks.map(b => b.content).join('\n');
 }
 
+// Only class-member separators and trailing empty ObjectScript method lines
+// are serialization trivia. Strings, comments, XML and method interiors stay exact.
+function normalize(source, parsed = inspect(source)) {
+  if (/\bLanguage\s*=\s*(?!objectscript\b)[A-Za-z]+/i.test(source)) return source;
+  for (const range of [...parsed.separators].reverse()) {
+    source = source.slice(0, range.start) + source.slice(range.end);
+  }
+  return source;
+}
+
 function body(source, parsed) {
   for (const b of [...parsed.blocks].reverse()) source = source.slice(0, b.start) + source.slice(b.end);
-  // The compiler may add blank separators before its trailing Storage members.
-  // Only that class-tail whitespace is ignored; methods/comments stay exact.
-  return source.replace(/(?:\n[ \t]*)+(?=\}[ \t]*(?:\n)?$)/, '\n');
+  return normalize(source);
 }
 
 function uploadMatches(file, expected, actual) {
   if (expected === actual) return true;
-  if (!/\.cls$/i.test(file) || actual === null || !storage(expected)) return false;
-  function normalize(source) {
-    const parsed = inspect(source);
-    for (const block of [...parsed.blocks].reverse()) {
-      const prefix = source.slice(0, block.start).replace(/(?:\n[ \t]*)+$/, '\n');
-      source = prefix + source.slice(block.start);
-    }
-    return source;
-  }
-  return normalize(expected) === normalize(actual);
+  if (!/\.cls$/i.test(file) || actual === null) return false;
+  try { return normalize(expected) === normalize(actual); }
+  catch { return false; }
 }
 
 function backfill(source, compiled) {
@@ -122,17 +136,18 @@ async function reconcile(files, adapter, {onFile = () => {}, beforeWrite = () =>
     const plan = {file, compiled, compiledBytes, bytes: file.source, synced: false};
     if (!/\.(cls|mac|inc)$/i.test(file.remotePath) && guard.hash(compiledBytes) !== guard.hash(file.bytes)) stop('post-compile-source-changed', {file: file.remotePath});
     if (/\.cls$/i.test(file.remotePath)) {
-      if (file.content === compiled && storage(guard.text(file.source)) === storage(compiled)) { plans.push(plan); continue; }
+      if (guard.text(file.source) === compiled && file.content === compiled) { plans.push(plan); continue; }
       const uploaded = inspect(file.content), remote = inspect(compiled);
       if (body(file.content, uploaded) !== body(compiled, remote)) stop('post-compile-source-changed', {file: file.remotePath});
       if (uploaded.blocks.some(b => !remote.blocks.some(r => r.name === b.name))) stop('post-compile-storage-removed', {file: file.remotePath});
       const knownNames = new Set(uploaded.blocks.map(b => b.name));
       if (JSON.stringify(remote.blocks.filter(b => knownNames.has(b.name)).map(b => b.name)) !== JSON.stringify(uploaded.blocks.map(b => b.name))) stop('post-compile-storage-reordered', {file: file.remotePath});
-      if (storage(guard.text(file.source)) !== storage(compiled)) {
-        plan.bytes = backfill(file.source.toString('utf8'), compiled);
-        plan.synced = !plan.bytes.equals(file.source);
-        if (plan.synced && file.immutablePath) stop('frozen-storage-sync-requires-source-review', {file: file.remotePath, sourcePath: file.localPath, snapshotReadOnly: true, storageBackfillRequired: true});
-      }
+      const original = file.source.toString('utf8');
+      const newline = original.includes('\r\n') ? '\r\n' : '\n';
+      const bom = original.startsWith('\uFEFF') ? '\uFEFF' : '';
+      plan.bytes = Buffer.from(bom + compiled.replace(/\n/g, newline));
+      plan.synced = !plan.bytes.equals(file.source);
+      if (plan.synced && file.immutablePath) stop('frozen-storage-sync-requires-source-review', {file: file.remotePath, sourcePath: file.localPath, snapshotReadOnly: true, storageBackfillRequired: true});
     } else if (compiled !== file.content) stop('post-compile-source-changed', {file: file.remotePath});
     plans.push(plan);
   }

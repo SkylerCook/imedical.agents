@@ -181,7 +181,9 @@ test('frontend preserves UTF8 BOM and CRLF; syntax failures stop before upload',
 
 test('real Atelier adapter uses read timestamp and surfaces per-document errors',async t=>{
  const http=require('node:http');const f=fixture(t);let content=['Class Demo.Old','{','}'],conditional=false;
- const server=http.createServer((req,res)=>{let body='';req.on('data',x=>body+=x);req.on('end',()=>{
+ const server=http.createServer((req,res)=>{
+  if(req.method==='HEAD'){res.writeHead(401);res.end();return;}
+  res.setHeader('Set-Cookie','CSPSESSIONID=deploy-fixture; Path=/api/atelier/');let body='';req.on('data',x=>body+=x);req.on('end',()=>{
   if(req.method==='PUT'){conditional=req.headers['if-none-match']==='2026-01-01 00:00:00.000';content=JSON.parse(body).content;}
   const payload=req.url.includes('/action/compile')?{status:{errors:[]},result:{content:[{name:'Demo.0.cls',status:'compile error'}]},console:['syntax error']}:{status:{errors:[]},result:{content,ts:'2026-01-01 00:00:00.000',enc:false}};
   res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify(payload));
@@ -196,7 +198,9 @@ test('real Atelier adapter uses read timestamp and surfaces per-document errors'
 test('compile CLI backfills generated Storage without Git, and plan never connects',async t=>{
  const {spawn}=require('node:child_process'),http=require('node:http');
  const f=fixture(t);let content=['Class Demo.Old','{','}'],requests=0,puts=0,compiles=0;
- const server=http.createServer((req,res)=>{let body='';req.on('data',x=>body+=x);req.on('end',()=>{
+ const server=http.createServer((req,res)=>{
+  if(req.method==='HEAD'){res.writeHead(401);res.end();return;}
+  res.setHeader('Set-Cookie','CSPSESSIONID=deploy-fixture; Path=/api/atelier/');let body='';req.on('data',x=>body+=x);req.on('end',()=>{
   requests++;
   if(req.method==='PUT'){puts++;content=JSON.parse(body).content;}
   if(req.url.includes('/action/compile')){compiles++;if(!content.includes('Storage Default'))content.splice(content.lastIndexOf('}'),0,'Storage Default','{','<Type>%Storage.Persistent</Type>','}');}
@@ -288,3 +292,23 @@ test('late local/server changes block sync and partial local sync is explicitly 
  assert.equal(uploadMatches('A.cls', content, content.replace('%Storage.Persistent', 'Other')), false);
  assert.equal(uploadMatches('A.js', content, content.replace('\n\n\nStorage', '\nStorage')), false);
  });
+
+test('method boundary formatting synchronizes local compiled source and makes retry unchanged', async t => {
+ const content = 'Class Demo.A\n{\n\nClassMethod Run()\n{\n set x = "a  b"\n\n quit x\n    \n}\n}\n';
+ const formatted = content.replace('{\n\nClassMethod', '{\nClassMethod').replace(' quit x\n    \n}\n}', ' quit x\n}\n\n}');
+ const f = fixture(t, [content]);let puts = 0;
+ f.adapter.put = async file => { puts++;f.remote.set(file.remotePath, Buffer.from(formatted)); };
+ let result = await run({...f,kind:'backend'});
+ assert.equal(result.status,'verified',JSON.stringify(result));
+ assert.equal(fs.readFileSync(f.files[0].localPath,'utf8'),formatted);
+ result = await run({...f,kind:'backend'});
+ assert.equal(result.status,'verified');assert.equal(result.files[0].status,'unchanged');assert.equal(puts,1);
+ const {uploadMatches}=require('../storage-sync');
+ for (const changed of [formatted.replace('a  b','a b'),formatted.replace('quit x','quit 1'),formatted.replace('\n\n quit','\n quit')]) {
+  assert.equal(uploadMatches('A.cls',content,changed),false);
+ }
+ for (const member of ['/*\n\n*/','XData Sample\n{\n<A>\n\n</A>\n}']) {
+  const original='Class Demo.A\n{\n'+member+'\n}\n';
+  assert.equal(uploadMatches('A.cls',original,original.replace('\n\n','\n')),false);
+ }
+});

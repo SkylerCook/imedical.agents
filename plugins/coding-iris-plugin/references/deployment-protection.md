@@ -48,13 +48,13 @@ Atelier 按 UTF-8 原产物发送 BOM 与换行；服务器若规范化字节使
 
 ## 编译后 Storage 同步
 
-后端 direct/guarded 共用 Atelier doc 回读。编译成功后检查整个文件批次：以实际上传产物为参照，类定义只允许 Storage 新增或更新（兼容类尾分隔空行），非 Storage 内容须一致；Storage 删除、既有块顺序变化、重复名称或无法可靠解析均停止。宏/include 必须保持回读一致。解析区分 UDL 注释、方法字符串和 XML/CDATA；不支持的结构保留现场，不猜测修改。
+后端 direct/guarded 共用 Atelier doc 回读。上传校验及编译后校验共用成员边界解析，兼容类成员之间及 ObjectScript 方法结束前的空行格式化。方法内部空行、字符串、注释、XData 和 Storage XML 内容保持严格比较；无法识别的语言或结构保留严格比较。编译后以实际上传产物为参照，额外允许 Storage 新增或更新；Storage 删除、既有块顺序变化、重复名称及业务代码变化均停止。宏/include 必须保持回读一致。
 
-整批检查通过后，复核待回填类的服务器快照及全部本地原始字节，按名称替换或追加 Storage。只回填本次部署明确指定的类，不自动扩展编译器涉及的其它类；不根据直接继承 %Persistent 的正则决定范围，间接继承及 serial 类生成的 Storage 也使用同一检查。保留本地方法、注释、BOM 和原有换行，不整类覆盖，不手工生成或重排映射。每个文件在原目录创建独占临时文件，替换前再次比较原字节，原子替换后回读，finally 清理本次临时文件。检查与替换间仍有竞争窗口，文件批次不保证事务性，失败可能已经同步部分文件。
+整批验证通过后，复核服务器快照及全部本地原始字节，将本次明确部署的类同步为已验证的编译后源码，保留本地 UTF-8 BOM 和换行习惯。包括服务器格式化结果、生成的 Storage，以及 guarded 已成功合并并部署的内容。本地源码与服务器内容一致后才报告 verified，普通部署自动完成此步骤。每个文件在原目录创建独占临时文件，替换前再次比较原字节，原子替换后回读，finally 清理本次临时文件。并发修改停止覆盖，文件批次不保证事务性，失败可能已经同步部分文件。
 
-新建持久化类首次编译、已有类新增字段，以及本地缺 Storage 但服务器已有映射均走同一流程；Storage 相同不写本地。现有类部署前的 Storage 冲突仍阻断。guarded 将编译后 deployed 与仅含 Storage 回填的 local 快照保存到原私有会话，后续按最近部署快照检查 Storage，基线 Git 历史不改写；服务器合并代码不进入本地。
+新建持久化类、已有类新增字段、无 Storage 的普通业务类及相同内容重复部署均走同一流程。内容一致时不写本地；部署前 Storage 冲突仍阻断。guarded 保存同步后的 local 和 deployed 快照，供下次增量部署使用，Git 历史和暂存区保持原状。
 
-结果包含 localStorageSync.status/files、逐文件 storageSynced/localSha256；后端 sha256 对应编译后回读内容（规范化 UTF-8 文本），localSha256 对应实际本地字节。direct 编译后核对或回填失败返回 storage-sync-incomplete，remoteCompilation=compiled；guarded 保留 needs-user-input 和未知结果恢复门禁，并报告同样的远端编译与本地同步状态。不得把远端已编译但同步未完成报告为 verified，也不自动重传、重编译或回滚。
+结果包含 localStorageSync.status/files、逐文件 storageSynced/localSha256（兼容旧字段名，storageSynced 表示已回写编译后源码）；后端 sha256 对应编译后回读内容（规范化 UTF-8 文本），localSha256 对应实际本地字节。direct 编译后核对或回填失败返回 storage-sync-incomplete，remoteCompilation=compiled；guarded 保留 needs-user-input 和未知结果恢复门禁，并报告同样的远端编译与本地同步状态。不得把远端已编译但同步未完成报告为 verified，也不自动重传、重编译或回滚。
 
 受管夜跑仍保留冻结版本门禁：本地回填改变源码指纹时返回 review-pending、deploymentStatus=verified、reason=storage-sync-requires-source-review，并归档回执、挂起交接。需按既有流程复审并重新冻结后继续，不把 Storage 同步伪装为原版本验收，也不自动放宽授权或重置状态。普通部署不增加确认步骤。
 
@@ -62,7 +62,7 @@ Atelier 按 UTF-8 原产物发送 BOM 与换行；服务器若规范化字节使
 
 ## 可选基线保护（guarded）
 
-以下会话、三方合并、人工决定及状态管理仅适用于 guarded。前后端上传共用 deploy-guard.js。服务器合并代码只进入用户私有状态目录和临时部署产物；编译后 Storage 按上文核对回填，其他内容不能复制回源码或暂存区。Git 提交工具不读取这些内容。
+以下会话、三方合并、人工决定及状态管理仅适用于 guarded。前后端上传共用 deploy-guard.js。服务器合并代码先进入私有部署产物，编译验证通过后按上文同步到本地源码；暂存和提交继续遵守独立授权。
 
 ## 建立会话
 

@@ -68,6 +68,8 @@ test('Atelier adapter uses isolated content and checks compile errors',async()=>
  const http=require('node:http'),{backendAdapter}=require('../deploy-protected');
  let content=['Class Demo.Test','{','}'],fail=false,puts=0;
  const server=http.createServer((req,res)=>{
+  if(req.method==='HEAD'){res.writeHead(401);res.end();return;}
+  res.setHeader('Set-Cookie','CSPSESSIONID=deploy-fixture; Path=/api/atelier/');
   const chunks=[];req.on('data',x=>chunks.push(x));req.on('end',()=>{
    res.setHeader('Content-Type','application/json');
    if(req.method==='PUT'){assert.equal(req.headers['if-none-match'],'2026-09-16 00:00:00.000');puts++;content=JSON.parse(Buffer.concat(chunks)).content;}
@@ -129,7 +131,7 @@ test('partial upload is recorded, repeat is blocked, and source stays untouched'
  }finally{os.homedir=home;fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test('guarded backfills Storage only, retains merged server code privately, and deploys again',async t=>{
+test('guarded synchronizes verified compiled source including merged code and deploys again',async t=>{
  const dir=createTempDirectory('guard-storage-'),repo=path.join(dir,'repo');fs.mkdirSync(repo);
  const home=os.homedir;os.homedir=()=>dir;t.after(()=>{os.homedir=home;fs.rmSync(dir,{recursive:true,force:true});});
  const git=(...a)=>{const r=spawnSync('git',['-C',repo,...a],{encoding:'utf8',windowsHide:true});assert.equal(r.status,0,r.stderr);return r.stdout;};
@@ -145,7 +147,7 @@ test('guarded backfills Storage only, retains merged server code privately, and 
  }};
  const opts={repo,demand:'900',files:[{localPath,remotePath:'Demo.A.cls'}],target:'backend:mock',adapter,checkUpdates:()=>{}};
  let result=await g.run(opts);assert.equal(result.status,'verified',JSON.stringify(result));assert.equal(result.sourceUnchanged,false);assert.equal(result.files[0].merged,true);
- let local=fs.readFileSync(localPath,'utf8');assert.ok(local.includes(block(1)));assert.ok(local.includes('server base'));assert.ok(!local.includes('server edit'));assert.ok(remote.toString().includes('server edit'));
+ let local=fs.readFileSync(localPath,'utf8');assert.ok(local.includes(block(1)));assert.equal(local,remote.toString());assert.ok(local.includes('server edit'));
  let session=g.read(g.location(repo,'900').file),stored=Object.values(session.targets)[0].files['Demo.A.cls'];assert.equal(stored.local,local);assert.equal(stored.deployed,remote.toString());
  version=2;fs.writeFileSync(localPath,local.replace('local edit','local next').replace('Property Name As %String;', 'Property Name As %String;\nProperty Added As %String;'));
  result=await g.run(opts);assert.equal(result.status,'verified',JSON.stringify(result));assert.equal(puts,2);assert.ok(fs.readFileSync(localPath,'utf8').includes(block(2)));assert.ok(remote.toString().includes('server edit'));
