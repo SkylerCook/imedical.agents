@@ -81,6 +81,20 @@ function body(source, parsed) {
   return source.replace(/(?:\n[ \t]*)+(?=\}[ \t]*(?:\n)?$)/, '\n');
 }
 
+function uploadMatches(file, expected, actual) {
+  if (expected === actual) return true;
+  if (!/\.cls$/i.test(file) || actual === null || !storage(expected)) return false;
+  function normalize(source) {
+    const parsed = inspect(source);
+    for (const block of [...parsed.blocks].reverse()) {
+      const prefix = source.slice(0, block.start).replace(/(?:\n[ \t]*)+$/, '\n');
+      source = prefix + source.slice(block.start);
+    }
+    return source;
+  }
+  return normalize(expected) === normalize(actual);
+}
+
 function backfill(source, compiled) {
   const local = inspect(source), remote = inspect(compiled);
   if (local.close < 0 || remote.close < 0) stop('storage-format-unknown');
@@ -156,4 +170,4 @@ async function reconcile(files, adapter, {onFile = () => {}, beforeWrite = () =>
   return plans;
 }
 
-module.exports = {storage, inspect, body, backfill, reconcile};
+module.exports = {uploadMatches, storage, inspect, body, backfill, reconcile};

@@ -277,3 +277,14 @@ test('late local/server changes block sync and partial local sync is explicitly 
   assert.deepEqual(fs.readFileSync(f.files[1].localPath),before[1]);assert.equal(fs.readdirSync(f.dir).length,2);
  });
 });
+
+ test('upload tolerates Storage separator formatting while rejecting content changes', async t => {
+ const content = 'Class Demo.A\n{\nProperty Name As %String;\n\n\nStorage Default\n{\n<Type>%Storage.Persistent</Type>\n}\n}\n';
+ const f = fixture(t, [content]);
+ f.adapter.put = async file => f.remote.set(file.remotePath, Buffer.from(file.content.replace('\n\n\nStorage', '\nStorage')));
+ assert.equal((await run({...f, kind:'backend'})).status, 'verified');
+ const {uploadMatches} = require('../storage-sync');
+ assert.equal(uploadMatches('A.cls', content, content.replace('%String', '%Integer')), false);
+ assert.equal(uploadMatches('A.cls', content, content.replace('%Storage.Persistent', 'Other')), false);
+ assert.equal(uploadMatches('A.js', content, content.replace('\n\n\nStorage', '\nStorage')), false);
+ });

@@ -48,14 +48,14 @@ async function run({files, adapter, kind}) {
       const latest = await adapter.read(file);
       if (guard.hash(latest) !== guard.hash(file.remoteBytes)) guard.stop('remote-changed-during-deploy', {file: file.remotePath});
       if (!guard.readSource(file).equals(file.source)) guard.stop('local-changed-during-deploy', {file: file.remotePath});
-      const unchanged = kind === 'backend' ? guard.text(latest) === file.content : guard.hash(latest) === guard.hash(file.bytes);
+      const unchanged = kind === 'backend' ? require('./storage-sync').uploadMatches(file.remotePath, file.content, guard.text(latest)) : guard.hash(latest) === guard.hash(file.bytes);
       if (!unchanged) {
         const earlierWriting = writing;
         writing = true;
         try { await adapter.put({...file, expected: guard.hash(latest)}); }
         catch (error) { if (error.beforeSend === true) writing = earlierWriting; throw error; }
         const back = await adapter.read(file);
-        const matches = kind === 'backend' ? guard.text(back) === file.content : guard.hash(back) === guard.hash(file.bytes);
+        const matches = kind === 'backend' ? require('./storage-sync').uploadMatches(file.remotePath, file.content, guard.text(back)) : guard.hash(back) === guard.hash(file.bytes);
         if (!matches) guard.stop('readback-mismatch', {file: file.remotePath});
       }
       result.files.push({file: file.remotePath, document: file.publicationDocument || file.document || file.remotePath,

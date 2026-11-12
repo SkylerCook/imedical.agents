@@ -206,7 +206,7 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
    if(hash(await adapter.read(f))!==f.expected)stop('remote-changed-before-upload',{file:f.relative});
    if(!readSource(f).equals(f.source))stop('local-source-changed',{file:f.relative});
    const evidence=f.skip?undefined:await adapter.put(f);
-   if(!verifiedPut(evidence,f,hash) && text(await adapter.read(f))!==f.content)stop('readback-mismatch',{file:f.relative});
+   if(!verifiedPut(evidence,f,hash) && !require('./storage-sync').uploadMatches(f.remotePath,f.content,text(await adapter.read(f))))stop('readback-mismatch',{file:f.relative});
    adapter.record?.(f,f.skip?'unchanged':'uploaded');
    // Persist each successful write; failure cannot silently reset merge history.
    targetState.files[f.remotePath]={local:f.local,deployed:f.content,merged:f.merged};
