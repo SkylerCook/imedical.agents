@@ -65,7 +65,7 @@ function createAtelierReadPool(options = {}) {
   const receipt = {schema: 'iris-read-batch/v1', ...budget, targetHash: readTargetHash(connection), channel: 'atelier',
     configurationFingerprint: readConfigurationHash(connection), runtimeFingerprint: readRuntimeHash(), requestCount: 0, items: [], workers: [], cleanupVerified: false, licenseReleaseVerified: false};
   let running = false, used = false, closed = false, exit;
-  async function readAll(documents, {onResult} = {}) {
+  async function readAll(documents, {onResult, binaryDocuments = []} = {}) {
     if (closed || used || running) fail('read-pool-already-used');
     if (!Array.isArray(documents) || !documents.length || new Set(documents).size !== documents.length ||
         documents.some(name => typeof name !== 'string' || !name || /[\\%?#\x00-\x1f]/.test(name.replace(/^%/, '')) || name.split('/').some(part => !part || part === '.' || part === '..'))) fail('read-pool-documents-invalid');
@@ -120,7 +120,7 @@ function createAtelierReadPool(options = {}) {
               if (Date.now() >= deadline) { stopOn(new remote.RemoteOperationError('read-pool-deadline')); break; }
               const index = cursor++, document = documents[index]; active.set(worker, index); checkpoint(); lastStarted = Date.now();
               try {
-                const value = await client.readDocument(document, {timeoutMs: Math.max(1, Math.min(options.timeoutMs || 60000, deadline - Date.now()))});
+                const value = await client.readDocument(document, {binary: binaryDocuments.includes(document), timeoutMs: Math.max(1, Math.min(options.timeoutMs || 60000, deadline - Date.now()))});
                 await record({index, document, status: value === null ? 'missing' : value.bytes.length === 0 ? 'empty' : 'fetched', ...(value === null ? {} : {value})});
               } catch (error) {
                 stopOn(error);
@@ -151,7 +151,7 @@ function createAtelierReadPool(options = {}) {
       });
     } finally { running = false; exit = owner.close({cleanupVerified: receipt.cleanupVerified}); closed = true; receipt.remote = exit; }
   }
-  return {readAll, async readDocument(document) { const batch = await readAll([document]); return batch.items[0].status === 'missing' ? null : batch.items[0].value; },
+  return {readAll, async readDocument(document, options = {}) { const batch = await readAll([document], {binaryDocuments: options.binary ? [document] : []}); return batch.items[0].status === 'missing' ? null : batch.items[0].value; },
     async close() { if (running) fail('read-pool-in-flight'); if (!closed) { exit = owner.close({cleanupVerified: true}); closed = true; } return {...receipt, remote: exit}; },
     snapshot: () => ({...receipt, running, closed, remote: owner.snapshot()})};
 }

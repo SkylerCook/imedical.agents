@@ -32,11 +32,14 @@ async function run({files, adapter, kind}) {
       activeFile = file.remotePath;
       if (names.has(file.remotePath)) guard.stop('duplicate-remote-path', {file: file.remotePath});
       names.add(file.remotePath);
-      const source = guard.readSource(file), local = guard.text(source);
-      const remoteBytes = await adapter.read(file), remote = guard.text(remoteBytes);
+      const encoding = require('./frontend-encoding');
+      const source = guard.readSource(file);
+      const local = file.encodingPolicy ? encoding.decode(source, file.encodingPolicy.sourceEncoding, file.localPath) : guard.text(source);
+      const remoteBytes = await adapter.read(file);
+      const remote = file.encodingPolicy ? encoding.decode(remoteBytes, file.encodingPolicy.serverEncoding, file.remotePath) : guard.text(remoteBytes);
       const content = prepare(file.remotePath, local, remote);
       // Frontend files keep original UTF-8 bytes, BOM and newlines.
-      const bytes = kind === 'backend' ? Buffer.from(content) : source;
+      const bytes = file.encodingPolicy ? encoding.artifact(source, file.encodingPolicy, file.localPath) : kind === 'backend' ? Buffer.from(content) : source;
       if (file.publicationArtifactSha256 && guard.hash(bytes) !== file.publicationArtifactSha256) guard.stop('publication-artifact-changed', {file: file.remotePath});
       prepared.push({...file, source, content, bytes, remoteBytes});
     }
@@ -59,7 +62,8 @@ async function run({files, adapter, kind}) {
         if (!matches) guard.stop('readback-mismatch', {file: file.remotePath});
       }
       result.files.push({file: file.remotePath, document: file.publicationDocument || file.document || file.remotePath,
-        status: unchanged ? 'unchanged' : 'uploaded', sha256: guard.hash(file.bytes), uploadSha256: guard.hash(file.bytes), localSha256: guard.hash(file.source)});
+        status: unchanged ? 'unchanged' : 'uploaded', sha256: guard.hash(file.bytes), uploadSha256: guard.hash(file.bytes), localSha256: guard.hash(file.source),
+        ...(file.encodingPolicy ? {sourceEncoding:file.encodingPolicy.sourceEncoding,serverEncoding:file.encodingPolicy.serverEncoding,verification:adapter.verification?.(file)||'server-byte-readback'} : {})});
     }
     stage = 'compile';
     activeFile = undefined;

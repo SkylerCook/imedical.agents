@@ -1,4 +1,4 @@
-<#
+﻿<#
 Legacy compatibility only: detect encoding and convert UTF-8 files to GB2312 for upload.
 Current standard frontend source, upload, and server runtime encoding are UTF-8; do not call this script unless the user explicitly identifies a historical GB2312 project.
 - GB2312 files → skip, upload source directly
@@ -70,13 +70,9 @@ foreach ($file in $Files) {
             throw "GB2312 output already exists: $outPath"
         }
         $content = [IO.File]::ReadAllText($resolved, $utf8)
-        try {
-            $convertedBytes = $gb.GetBytes($content)
-        }
-        catch {
-            throw "File contains characters that cannot be represented in GB2312/CP936: $resolved. $($_.Exception.Message)"
-        }
-        [IO.File]::WriteAllBytes($outPath, $convertedBytes)
+        $converter = Join-Path $PSScriptRoot 'iris-tools/frontend-encoding-cli.js'
+        $conversion = & node $converter convert --file $resolved.Path --source utf8 --target gbk --output $outPath
+        if ($LASTEXITCODE -ne 0) { throw "Legacy CP936 conversion failed: $resolved. $conversion" }
         $results += @{
             file = $resolved
             encoding = "utf8"

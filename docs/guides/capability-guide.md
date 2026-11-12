@@ -342,3 +342,5 @@ mobile-dev 还可处理“检查当前构建环境与变体”“按同类页面
 使用 [mobile-project-repo](../../plugins/mobile-dev/skills/mobile-project-repo/SKILL.md)：“给某项目旧版移动端建 git，源码在现场，建完给现场 AI 提交提示词”。已有平台/归属/命名从项目约定取得；历史未知不阻塞空私有仓创建。预期交付已核验仓库链接与填好目标的提示词；现场提交和推送分开授权。
 
 IRIS 远端连接统一入口：[会话管理、既有项目更新与回退](iris-managed-sessions.md)。普通查询正常连接，由管理进程复用和回收；真实宿主回执与服务端资源证据分别验收。
+
+前端修改、导出和部署的编码策略见[前端编码契约](../../plugins/coding-iris-plugin/references/frontend-encoding.md)。按需项目确认一次后复用配置，上传按服务器目标生成无损产物。

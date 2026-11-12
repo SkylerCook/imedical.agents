@@ -115,7 +115,7 @@ function projectConfiguration(context) {
     return {config, mcp};
 }
 function configurationFingerprint(context) {
-    return require('./source-publication').fingerprint(require('../../../../scripts/lib/iris-remote-operations').bindDevelopmentMode(context, projectConfiguration(context)));
+    return require('./source-publication').fingerprint({...require('../../../../scripts/lib/iris-remote-operations').bindDevelopmentMode(context, projectConfiguration(context))});
 }
 function repositoryFor(context, logicalPath) {
     const normalized = slash(String(logicalPath || ''));
@@ -143,7 +143,11 @@ function classify(context, logicalPath, options = {}) {
         if (supplied && document !== supplied) stop('source-document-mismatch');
         return {...mapped, kind: 'backend', document};
     }
-    if (!['.js', '.csp', '.css', '.html', '.htm'].includes(extension)) stop('unsupported-source-type');
+    return classifyFrontend(context,mapped,options);
+}
+function classifyFrontend(context, mapped, options = {}) {
+    let document;
+    if (!['.js', '.csp', '.css', '.html', '.htm'].includes(path.extname(mapped.path).toLowerCase())) stop('unsupported-source-type');
     const {config} = projectConfiguration(context);
     const frontSource = context.sourceRoots.find(source => source.name === 'frontend');
     const relative = frontSource ? slash(path.relative(frontSource.target, mapped.sourcePath)) : mapped.path.replace(/^src\//, '');
@@ -241,6 +245,7 @@ function createPlan(options) {
     const files = specs.map(spec => {
         const mapped = classify(context, spec.path, spec);
         const tier = spec.tier || 'required';
+        if(mapped.kind==='frontend' && tier==='required') mapped.encodingPolicy=require('./frontend-encoding').resolve(context,mapped.sourcePath,{projectTask:true});
         if (!['required', 'conditional', 'reference'].includes(tier)) stop('invalid-refresh-tier');
         return {...mapped, tier, reason: spec.reason || (tier === 'required' ? 'explicit-task-file' : ''), mode: fileMode(mapped.gitRoot, mapped)};
     });
@@ -281,6 +286,7 @@ function load(planFile, {localOnly = false} = {}) {
     if (context.contextRoot !== plan.contextRoot || path.dirname(plan.planPath) !== path.join(privateRoot(context, [plan.gitRoot]), 'tasks', plan.id)) stop('source-plan-identity-mismatch');
     for (const file of plan.files) {
         const actual = repositoryFor(context, file.path);
+        if(file.encodingPolicy && JSON.stringify(require('./frontend-encoding').resolve(context,file.sourcePath,{projectTask:true}))!==JSON.stringify(file.encodingPolicy)) stop('source-encoding-configuration-drift');
         if (actual.sourcePath !== file.sourcePath || actual.gitPath !== file.gitPath || actual.gitRoot !== plan.gitRoot) stop('source-plan-scope-mismatch');
     }
     if (!offlineInspection && configurationFingerprint(context) !== plan.configurationFingerprint) stop('source-configuration-drift');
@@ -317,12 +323,19 @@ async function prepare(planFile, options = {}) {
     try {
         async function observed(file, remote) {
             assertSnapshot(plan);
-            const bytes = remote === null ? null : Buffer.isBuffer(remote) ? remote : remote.content || remote.bytes || Buffer.from(remote.text, 'utf8');
+            let bytes = remote === null ? null : Buffer.isBuffer(remote) ? remote : remote.content || remote.bytes || Buffer.from(remote.text, 'utf8');
             if (bytes !== null && bytes.length === 0) stop('remote-document-empty');
             // A missing document is not an approved server-side deletion. A new
             // local file with a confirmed absent base remains a valid demand.
             if (bytes === null && plan.phase !== 'initial-baseline' && file.base !== null) stop('remote-document-missing');
-            if (bytes !== null) utf8(bytes);
+            if (bytes !== null && file.kind==='frontend') {
+                const encoding=require('./frontend-encoding');
+                const text=encoding.decode(bytes, remote?.enc ? file.encodingPolicy.serverEncoding : 'utf8',file.path);
+                file.remoteServerSha256=remote?.enc ? hash(bytes) : null;
+                file.remoteTextSha256=hash(Buffer.from(text));
+                file.remoteRepresentation=remote?.enc?'binary':'text';
+                bytes=encoding.encode(text,file.encodingPolicy.sourceEncoding,file.path);
+            } else if (bytes !== null) utf8(bytes);
             if (bytes !== null && file.kind === 'backend' && require('./backend-document').documentName(file.path, utf8(bytes)) !== file.document) stop('remote-document-identity-mismatch');
             file.remote = storeBytes(plan, 'remote', file, bytes);
             file.remoteTs = remote?.ts || null;
@@ -341,7 +354,7 @@ async function prepare(planFile, options = {}) {
             save(plan);
         }
         if (typeof client.readAll === 'function') {
-            const batch = await client.readAll(plan.files.map(file => file.document), {onResult: async result => {
+            const batch = await client.readAll(plan.files.map(file => file.document), {binaryDocuments:plan.files.filter(file=>file.kind==='frontend').map(file=>file.document),onResult: async result => {
                 if (['fetched', 'missing', 'empty'].includes(result.status)) await observed(plan.files[result.index], result.status === 'missing' ? null : result.value);
             }});
             plan.budget.concurrent = batch.sessions;
@@ -349,7 +362,7 @@ async function prepare(planFile, options = {}) {
             plan.budget.serverInfoRequests = 1;
         } else for (const file of plan.files) {
             if (file.remote !== undefined) continue;
-            await observed(file, await client.readDocument(file.document));
+            await observed(file, await client.readDocument(file.document,{binary:file.kind==='frontend'}));
         }
         if (plan.phase === 'initial-baseline') {
             assertSnapshot(plan);
@@ -434,7 +447,7 @@ function prepareReplay(plan, changed, options) {
             plan.replayResolutions ||= {}; plan.replayResolutions[key] = {content: null}; plan.replayConflict = null; save(plan); return null;
         }
         if (options.continue && prior?.path === file.path && prior.category === category && fs.existsSync(target)) {
-            const bytes = fs.readFileSync(target); validateSource(bytes);
+            const bytes = fs.readFileSync(target); validateSource(bytes, file);
             plan.replayResolutions ||= {}; plan.replayResolutions[key] = {content: storeBytes(plan, category + '-resolved', file, bytes)};
             plan.replayConflict = null; save(plan); return bytes;
         }
@@ -446,7 +459,7 @@ function prepareReplay(plan, changed, options) {
         for (const file of plan.files.filter(file => source.paths.includes(file.path))) {
             const result = mergeLayer(plan, file, blobAt(plan.gitRoot, source.parent, file), blobAt(plan.gitRoot, source.source, file), current.get(file.path), category);
             const bytes = resolve(file, result, category); if (bytes === undefined) return null;
-            validateSource(bytes); records.push({path: file.path, content: storeBytes(plan, category + '-result', file, bytes)}); current.set(file.path, bytes);
+            validateSource(bytes, file); records.push({path: file.path, content: storeBytes(plan, category + '-result', file, bytes)}); current.set(file.path, bytes);
         }
         steps.push({...source, category: category + '-result', files: records});
     }
@@ -454,12 +467,12 @@ function prepareReplay(plan, changed, options) {
         const category = 'replay-working';
         const result = mergeLayer(plan, file, blobAt(plan.gitRoot, plan.expected.head, file), storedBytes(plan, 'local', file, file.local), current.get(file.path), category);
         const bytes = resolve(file, result, category); if (bytes === undefined) return null;
-        validateSource(bytes); file.merged = storeBytes(plan, 'merged', file, bytes);
+        validateSource(bytes, file); file.merged = storeBytes(plan, 'merged', file, bytes);
     }
     plan.replaySteps = steps; plan.replayConflict = null; save(plan); return true;
 }
-function validateSource(bytes) {
-    const text = utf8(bytes);
+function validateSource(bytes, file) {
+    const text = file?.encodingPolicy ? require('./frontend-encoding').decode(bytes,file.encodingPolicy.sourceEncoding,file.path) : utf8(bytes);
     if (text !== null && /^(?:<{7}|={7}|>{7})(?: |$)/m.test(text)) stop('unresolved-source-conflict');
 }
 function acquireRepositoryLock(root) {
@@ -619,11 +632,11 @@ function apply(planFile, options = {}) {
             else if (options.continue && file.conflict && options.resolveDelete?.includes(file.path)) result = {bytes: null, conflict: false};
             else if (options.continue && file.conflict) {
                 if (!file.resolutionPath || file.resolutionPath !== dataPath(plan, 'merged', file)) stop('resolution-identity-mismatch');
-                const bytes = fs.readFileSync(file.resolutionPath); validateSource(bytes); result = {bytes, conflict: false};
+                const bytes = fs.readFileSync(file.resolutionPath); validateSource(bytes, file); result = {bytes, conflict: false};
             } else if (options.continue && file.merged !== undefined && plan.execution.step) result = {bytes: storedBytes(plan, 'merged', file, file.merged), conflict: false};
             else result = mergeFile(plan, file);
             if (result.conflict) { file.conflict = true; file.resolutionPath = result.resolutionPath; file.conflictReason = result.reason; conflict = true; }
-            else { validateSource(result.bytes); file.conflict = false; file.merged = storeBytes(plan, 'merged', file, result.bytes); merged.set(file.path, result.bytes); }
+            else { validateSource(result.bytes, file); file.conflict = false; file.merged = storeBytes(plan, 'merged', file, result.bytes); merged.set(file.path, result.bytes); }
         }
         if (conflict) { plan.state = 'needs-user-input'; plan.reason = 'merge-conflict'; save(plan); return plan; }
         try {
@@ -672,7 +685,7 @@ function review(planFile, options = {}) {
     plan.publication = publication.freeze({gitRoot: plan.gitRoot, head: head(plan.gitRoot), configurationFingerprint: plan.configurationFingerprint,
         environmentAlias: plan.environmentAlias, environmentType: plan.environmentType,
         files: plan.files.map(file => ({path: file.path, sourcePath: file.sourcePath, gitPath: file.gitPath, document: file.document, kind: file.kind,
-            localSha256: hash(fs.readFileSync(file.sourcePath)), remoteSha256: file.remote?.sha256 || null, remoteTs: file.remoteTs}))});
+            localSha256: hash(fs.readFileSync(file.sourcePath)), remoteSha256: file.remoteServerSha256 || file.remoteTextSha256 || file.remote?.sha256 || null, remoteTs: file.remoteTs, encodingPolicy:file.encodingPolicy,remoteRepresentation:file.remoteRepresentation}))});
     plan.review = {evidence: options.evidence, head: head(plan.gitRoot), at: new Date().toISOString()};
     plan.state = 'ready-to-publish'; save(plan); return plan;
 }
@@ -731,7 +744,7 @@ async function finish(planFile, options = {}) {
         for (const file of transaction.files) {
             const before = blobAt(plan.gitRoot, plan.publication.head, file), after = readBytes(file.sourcePath), receipt = receipts.get(file.document);
             if (!receipt) { if (!after || hash(after) !== file.localSha256) stop('post-compile-undeployed-source-drift'); continue; }
-            if (!after || hash(after) !== receipt.localSha256 || contentHash(file, after) !== receipt.postCompileSha256) stop('post-compile-receipt-mismatch');
+            if (!after || hash(after) !== receipt.localSha256 || (file.encodingPolicy ? hash(require('./frontend-encoding').artifact(after,file.encodingPolicy,file.path)) : contentHash(file, after)) !== receipt.postCompileSha256) stop('post-compile-receipt-mismatch');
             if (file.kind === 'backend' && path.extname(file.path).toLowerCase() === '.cls') {
                 const first = utf8(comparisonBytes(file, before)), second = utf8(comparisonBytes(file, after));
                 if (storage.body(first, storage.inspect(first)) !== storage.body(second, storage.inspect(second))) stop('post-compile-non-storage-change');
@@ -742,7 +755,7 @@ async function finish(planFile, options = {}) {
         transaction.execution.step = 'storage-commit'; persist(transaction);
         client = options.client || await openClient(context);
         for (const file of files) {
-            const remote = await client.readDocument(file.document), bytes = remote?.content || remote?.bytes || null;
+            const remote = await client.readDocument(file.document,{binary:file.kind==='frontend'}), bytes = remote?.content || remote?.bytes || null;
             if (contentHash(file, bytes) !== receipts.get(file.document).postCompileSha256) stop('post-compile-remote-drift');
             assertSnapshot(transaction);
         }
@@ -783,7 +796,7 @@ function rollbackLocal(planFile, options = {}) {
         try {
             if (!plan.execution.step || ['rollback-writing', 'rollback-commit'].includes(plan.execution.step)) {
                 plan.execution.step = 'rollback-writing'; save(plan);
-                for (const file of plan.files) { const bytes = storedBytes(plan, 'restored', file, file.restored); validateSource(bytes); writeTarget(plan, file, bytes); }
+                for (const file of plan.files) { const bytes = storedBytes(plan, 'restored', file, file.restored); validateSource(bytes, file); writeTarget(plan, file, bytes); }
                 plan.execution.step = 'rollback-commit'; save(plan);
                 if (!plan.execution.demandCommit) plan.execution.demandCommit = scopedCommit(plan, plan.files, `chore(${plan.demand}):恢复指定本地版本\n\n修改说明: 以新提交恢复明确文件，保留原有历史；未部署服务器。\n\nRollback-Of: ${plan.rollbackCommit}\nSource-Sync-Plan: ${plan.id}`);
                 plan.execution.step = 'rollback-index-sync'; save(plan);
@@ -839,5 +852,5 @@ function initialize(options) {
 }
 
 module.exports = {SCHEMA, hash, canonical, git, head, contextFor, isOnDemand, privateRoot, projectConfiguration,
-    configurationFingerprint, parseScopeMap, mapItems, classify, repositorySnapshot, createPlan, load, save,
+    configurationFingerprint, parseScopeMap, mapItems, classify, classifyFrontend, repositorySnapshot, createPlan, load, save,
     prepare, apply, review, verify, finish, createRollbackPlan, rollbackLocal, recoverLock, status, initialize, scopedCommit, recoverPending, restoreTaskIndex, acquireRepositoryLock, repositoryLock, environment, demandKind, readBytes, utf8, stop};

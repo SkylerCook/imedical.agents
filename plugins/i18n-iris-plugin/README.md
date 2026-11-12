@@ -9,7 +9,7 @@
 `i18n-iris-plugin` 是面向 IRIS/ObjectScript/CSP/HISUI 工程的通用 i18n Agent 能力包，覆盖：
 
 - 前后端 i18n 编码改造。
-- 前端复用 coding-iris 的 canonical `utf8` 与字节检测门禁，不单独按标版、医院项目或目录角色推断编码；旧模式只按兼容边界读取。
+- 前端复用 coding owner 的[编码契约](../coding-iris-plugin/references/frontend-encoding.md)，按需项目首次确认后持续按源码与服务器目标配置检查、转换及部署。
 - 前端翻译 helper 稳定 key 门禁：静态 helper 只接收字面量，运行时值通过占位符 helper 参数传入，并由只读 Node.js 检查器阻断动态 key。
 - 用户可见文本提取和翻译表生成。
 - 页面级非字典翻译种子生成。

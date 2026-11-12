@@ -29,14 +29,18 @@ function run(args) {
   fs.mkdirSync(path.dirname(workspaceContextPath), { recursive: true });
   fs.mkdirSync(configRoot, { recursive: true });
   fs.copyFileSync(sourceScript, scriptPath);
-  for (const name of ['source-sync-core.js', 'project-env.js']) {
+  fs.cpSync(path.join(repoRoot,'scripts/lib'),path.dirname(workspaceContextPath),{recursive:true});
+  fs.cpSync(path.dirname(sourceScript),path.dirname(scriptPath),{recursive:true,filter:file=>!file.split(path.sep).includes('tests')});
+  for (const name of ['source-sync-core.js', 'project-env.js', 'frontend-encoding.js']) {
     fs.copyFileSync(path.join(path.dirname(sourceScript), name), path.join(path.dirname(scriptPath), name));
   }
+  fs.cpSync(path.join(repoRoot,'vendor/frontend-encoding'),path.join(testRoot,'.agents/vendor/frontend-encoding'),{recursive:true});
   fs.copyFileSync(sourceWorkspaceContext, workspaceContextPath);
   for (const name of ['atelier-client.js', 'iris-remote-operations.js']) {
     fs.copyFileSync(path.join(repoRoot, 'scripts', 'lib', name), path.join(path.dirname(workspaceContextPath), name));
   }
 
+  fs.writeFileSync(path.join(testRoot,'.mcp.json'),'{}');
   let requests = 0;
   const server = http.createServer((req, res) => {
     if(req.url.includes('CacheLogout')) {res.writeHead(401);res.end();return;}
@@ -95,6 +99,7 @@ function run(args) {
 
     fs.writeFileSync(path.join(configRoot, 'project_context_profile.md'), '- contextMode: intent-first-on-demand-export\n');
     fs.writeFileSync(path.join(configRoot, 'iris_project_profile.md'), '- 前端编码模式：utf8\n- 默认需求交付类型：project\n');
+    fs.appendFileSync(path.join(configRoot,'iris_project_profile.md'),'- 前端源码编码：utf8\n- 前端服务器编码：gbk\n- 前端服务器编码确认：confirmed\n- 前端服务器编码确认环境：'+require(path.join(path.dirname(sourceScript),'frontend-encoding')).targetIdentity({workspaceRoot:testRoot,contextRoot:path.join(testRoot,'.agents')})+'\n');
     const beforeRequests = requests;
     for (const identifier of ['Existing.cls', 'Missing.cls', 'existing.csp', 'missing.csp']) {
       const existing = identifier.toLowerCase().startsWith('existing');

@@ -150,7 +150,9 @@ function createAtelierClient({ connection, context, policy, qualification, owner
     const value = result.result;
     if (value?.name && value.name !== name) throw new remote.RemoteOperationError('atelier-document-identity-mismatch');
     if (!value || !Array.isArray(value.content) || !value.content.every(line => typeof line === 'string') || typeof value.ts !== 'string' || !/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d(?:\.\d+)?$/.test(value.ts)) throw new remote.RemoteOperationError('atelier-document-invalid');
-    const bytes = value.enc ? Buffer.concat(value.content.map(line => Buffer.from(line, 'base64'))) : Buffer.from(value.content.join('\n'), 'utf8');
+    const encoded = value.enc ? value.content.join('') : null;
+    const bytes = value.enc ? Buffer.from(encoded, 'base64') : Buffer.from(value.content.join('\n'), 'utf8');
+    if (value.enc && bytes.toString('base64') !== encoded) throw new remote.RemoteOperationError('atelier-binary-content-invalid');
     return { document: name, content: bytes, bytes, text: bytes.toString('utf8'), lines: value.content, sha256: crypto.createHash('sha256').update(bytes).digest('hex'), ts: value.ts, db: value.db || '', enc: !!value.enc, representation: value.enc ? 'atelier-binary' : 'atelier-text-utf8' };
   }
   async function readDocument(name, options = {}) {
@@ -174,7 +176,11 @@ function createAtelierClient({ connection, context, policy, qualification, owner
         value.id !== undefined && typeof value.id !== 'string') throw new remote.RemoteOperationError('atelier-server-info-invalid');
     return {version: value.version, instanceId: value.id || null, api: value.api ?? null};
   }
-  async function writeDocument(name, bytes, { ts } = {}) {
+  async function writeDocument(name, bytes, { ts, binary = false } = {}) {
+    if (binary) {
+      if (!name.includes('/') || !Buffer.isBuffer(bytes)) throw new remote.RemoteOperationError('atelier-binary-web-document-required');
+      return request('PUT', 'doc/' + encodeDocumentPath(name), {enc: true, content: [bytes.toString('base64')]}, ts ? {'IF-NONE-MATCH': ts} : {}, {effects: 'write'});
+    }
     if (Buffer.isBuffer(bytes)) new TextDecoder('utf-8', {fatal:true,ignoreBOM:true}).decode(bytes);
     const text = Buffer.isBuffer(bytes) ? bytes.toString('utf8') : String(bytes);
     return request('PUT', 'doc/' + encodeDocumentPath(name), { enc: false, content: text.split('\n') }, ts ? { 'IF-NONE-MATCH': ts } : {}, { effects: 'write' });

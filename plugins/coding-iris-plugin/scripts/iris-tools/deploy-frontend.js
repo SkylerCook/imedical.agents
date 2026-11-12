@@ -43,8 +43,9 @@ function buildPlan(args, config, env, context) {
     const relative=path.relative(root,local).split(path.sep).join('/');
     if(!/^(csp|scripts|css)\//.test(relative) || !/\.(csp|js|css|html|htm)$/i.test(relative))throw new Error('Unsupported frontend path');
     const bytes=immutable?require('./deploy-guard').readSource({localPath:local,...immutable}):fs.readFileSync(local);
-    const text=new TextDecoder('utf-8',{fatal:true}).decode(bytes);
-    if(text.includes('\uFFFD'))throw new Error('Replacement characters in source');
+    const encoding = require('./frontend-encoding');
+    const encodingPolicy = encoding.resolve(context, local, {projectTask:args.demandKind==='project'||!!args.sourcePlan});
+    const artifact = encoding.artifact(bytes, encodingPolicy, local);
     const destination=path.posix.join(remote,relative);
     if(seen.has(destination))throw new Error('Duplicate remote destination');
     seen.add(destination);
@@ -54,7 +55,7 @@ function buildPlan(args, config, env, context) {
       document=csp.plan([config.web.cspBasePath.replace(/\/$/,'')+'/'+relative.slice(4)],config.web.cspBasePath).documents[0];
     }
     const sourceGitRoot=context.sourceRoots.find(s=>inside(local,fs.realpathSync(s.target)))?.gitRoot;
-    files.push({file:relative,localPath:local,...immutable,...(sourceGitRoot?{sourceGitRoot}:{}),remotePath:destination,bytes:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex'),document});
+    files.push({file:relative,localPath:local,...immutable,...(sourceGitRoot?{sourceGitRoot}:{}),remotePath:destination,bytes:artifact.length,sha256:encoding.digest(artifact),localSha256:encoding.digest(bytes),encodingPolicy,document});
   }
   return {schema:'iris-frontend-deploy/v1',status:'planned',sourceRoot:root,files,documents:files.map(f=>f.document).filter(Boolean)};
 }

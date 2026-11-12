@@ -744,6 +744,7 @@ function installExportFixture(prdRoot, port) {
 }
 
 function installSharedRuntime(root) {
+    fs.cpSync(path.dirname(workspaceContextScript),path.join(root,'.agents/scripts/lib'),{recursive:true});
     for (const name of ['atelier-client.js', 'iris-remote-operations.js']) {
         fs.copyFileSync(path.join(path.dirname(workspaceContextScript), name), path.join(root, '.agents', 'scripts', 'lib', name));
     }
@@ -757,6 +758,7 @@ function writeProjectConfig(root, port) {
         web: { basePath: 'imedical/web', cspBasePath: 'imedical/web/csp' }
     }, null, 2));
     fs.writeFileSync(path.join(configDir, 'iris_project_profile.md'), '- 前端源码根目录：`src/imedical/web`\n- 前端编码模式：utf8\n');
+    fs.appendFileSync(path.join(configDir,'iris_project_profile.md'),'- 前端源码编码：utf8\n- 前端服务器编码：utf8\n- 前端服务器编码确认：confirmed\n- 前端服务器编码确认环境：'+require('../frontend-encoding').targetIdentity({workspaceRoot:root,contextRoot:path.join(root,'.agents')})+'\n');
 }
 
 async function createAtelierServer(contentForDocument, options = {}) {
@@ -764,7 +766,7 @@ async function createAtelierServer(contentForDocument, options = {}) {
     const server = http.createServer((request, response) => {
         if (request.url.includes('CacheLogout')) { logouts++; response.statusCode = 200; response.end(); return; }
         const marker = '/doc/';
-        const documentName = decodeURIComponent(request.url.slice(request.url.indexOf(marker) + marker.length));
+        const documentName = decodeURIComponent(request.url.slice(request.url.indexOf(marker) + marker.length).split('?')[0]);
         const content = contentForDocument(documentName);
         reads.push({document: documentName, cookie: request.headers.cookie || ''});
         const status = options.statusFor?.(documentName) || 200;
@@ -775,7 +777,7 @@ async function createAtelierServer(contentForDocument, options = {}) {
             response.statusCode = 404;
             response.end(JSON.stringify({ status: { errors: [`Document ${documentName} does not exist`] }, result: {} }));
         } else {
-            response.end(JSON.stringify({ status: { errors: [] }, result: { db: '@FS', ts: '2026-10-24 10:00:00.000', content: String(content).split('\n') } }));
+            response.end(JSON.stringify({ status: { errors: [] }, result: { db: '@FS', ts: '2026-10-24 10:00:00.000', enc:request.url.includes('binary=1'),content:request.url.includes('binary=1')?[Buffer.from(String(content)).toString('base64')]:String(content).split('\n') } }));
         }
     });
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));

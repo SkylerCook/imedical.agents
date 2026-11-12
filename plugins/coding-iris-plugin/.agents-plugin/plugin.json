@@ -1,6 +1,6 @@
 {
   "name": "coding-iris-plugin",
-  "version": "0.27.8",
+  "version": "0.28.0",
   "displayName": "IRIS Coding Plugin",
   "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
   "entry": "AGENTS.md",
@@ -143,6 +143,19 @@
       ],
       "boundary": "仅保存按需同步的私有现场与基线；业务源码归 SourceRoot，正式交付归 docs/delivery",
       "lifecycle": "按任务创建；按 source-sync 恢复与发布契约保留，不作为普通临时文件清理"
+    },
+    {
+      "id": "iris-deploy-state",
+      "base": "context",
+      "path": "work/iris-deploy",
+      "role": "recovery",
+      "create": "task",
+      "purpose": "普通前端部署的私有编码产物及失败恢复材料",
+      "examples": [
+        "upload/<task> 转码产物"
+      ],
+      "boundary": "实际任务创建，成功清理，失败保留并在回执返回目录；受管发布产物复用 source-sync 任务目录",
+      "lifecycle": "保持 Git 忽略，原字节回读完成后清理本任务产物"
     }
   ],
   "defaultPrompt": [

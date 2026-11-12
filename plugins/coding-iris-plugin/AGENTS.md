@@ -48,7 +48,7 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 - 部署失败先读[失败恢复与授权](references/deployment-protection.md#失败恢复与授权)：已授权范围内先诊断和有限恢复，明确编译错误与未知结果分开；仅实际人工决策才提问，冻结发布与公共熔断门禁继续适用。
 - `iris_test`、`iris_coverage`、`iris_execute_method`、容器切换和其它远端执行即使不直接改业务源码，也必须按远端状态变更取得任务级授权；上游 MCP 自带门禁不能代替本仓库授权边界。
 - 历史 CSP/JS/CSS 文件可能存在编码和特殊 EOF，修改前先确认实际编码和尾部格式，避免整文件重写。
-- 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`；`project-utf8` 仅作为兼容读取别名，`standard-gb2312` 仅服务用户明确指定的历史工程，实际文件字节检测始终是最终门禁。Overlay manifest 明确只声明 `backend` 时，profile 使用 `N/A (backend-only)`，不得伪造前端编码结论。
+- 前端修改、导出与部署必须执行[编码契约](references/frontend-encoding.md)。按需项目首次确认服务器编码并保存配置后才允许修改前端，后续复用确认。部署入口强制按服务器目标编码上传，标准版沿 UTF-8。
 - 在 workspace-overlay 中统一通过 capability 包的 workspace context resolver 获取 `WorkspaceRoot`、`ContextRoot`、`CapabilityRoot`、`SourceRoot` 和 `GitRoot`；profile 只从 ContextRoot 读取，部署配置按下述显式继承契约选择，插件/模板/vendor 从 CapabilityRoot 读取。允许按当前需求只读调查已声明 GitRoot 或项目注册表明确映射的相关仓库；默认源码修改、Git 暂存/提交和部署仍限定在 SourceRoot 与任务授权内。具体边界遵循能力包根 `docs/workspace-overlay.md`，不得扫描父目录或 sibling 猜测根路径。
 - `compile.js` 接受 workspace-overlay 的 `backend/src/...` WorkspaceRoot 逻辑路径时，必须在声明的 backend SourceRoot target 下解析本地文件；CLS 远端文档名从实际 Class 声明解析，不得把逻辑目录误作为类包名。
 - Overlay 既可引用源码 Junction，也可持有本地实体源码 Git；文件映射、菜单同步与部署预检复用共享 workspace 校验，声明及兼容顺序见能力包根 `docs/workspace-overlay.md`。源码形态不决定在线／离线能力。

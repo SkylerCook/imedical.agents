@@ -20,6 +20,8 @@
 
 先读取项目 `AGENTS.md`、上下文与 IRIS profile、插件启用状态，解析工作区的 `WorkspaceRoot`、`ContextRoot`、`SourceRoot`、`GitRoot`，再定位需求入口。配置、恢复状态归当前 ContextRoot，源码归声明的 SourceRoot；不得扫描父目录猜测其它环境或写共享 CapabilityRoot。
 
+前端文件首次接入时先按[编码契约](frontend-encoding.md)确认服务器编码。正常确认一次，修改前与发布入口持续读取配置，未确认只允许调查和暂存。
+
 ## 首次接入
 
 已启用项目普通 Write 更新会通过既有配置迁移自动补缺文件，保留有效设置及旧模式缺省，清理废弃 License 字段和空模板登记；必要模式/环境事实由 Agent 集中处理，普通任务不新增资格待办。自动补文件不建立基线，已有项目无需为补文件重跑全部初始化，下面继续完成真实环境接入；批量导出沿已有专项协议。

@@ -67,11 +67,10 @@ node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
 
 ## 编码策略
 
-- 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`，不再按标版、医院项目、目录形状或 Git 仓库角色区分编码模式。
+- 修改前运行 `frontend-encoding-cli.js check`，部署按[编码契约](../references/frontend-encoding.md)的服务器目标生成并验证产物。
 - `project-utf8` 是 `utf8` 的兼容读取别名；`standard-gb2312` 只服务已明确确认的历史分支或旧工程，不得作为新任务或标版目录的默认候选。
 - 每个触碰文件修改前后必须运行 `check-frontend-encoding.ps1 -ExpectedEncoding utf8 -ErrorOnMismatch`；ASCII 与 UTF-8 字节兼容，可以按已确认的 `utf8` profile 继续。
-- 检测到 GB2312、UTF-16、unknown、mixed 或 profile 冲突时停止并报告，不得自动批量转码业务源码。
-- canonical `utf8` 源文件直接以 UTF-8 上传，禁止调用 GB2312 转换器。
+- 修改前运行 `frontend-encoding-cli.js check`，部署按[编码契约](../references/frontend-encoding.md)的服务器目标生成并验证产物。
 - 正常完成只输出一行编码摘要；仅异常时展开 frontendRoot、候选来源、期望编码、检测编码和冲突原因。
 
 ## HISUI 优先原则
@@ -140,11 +139,11 @@ node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
 
 - 默认做本地结构和引用检查；运行场景与结束条件统一按[共享测试协议](../../../agents/_shared/testing-protocol.md#验证范围与停止条件)选择。
 - 最终 diff 按前端规范检查命名、格式、兼容基线及范围，并重新执行[UI 条件门禁](#ui-条件门禁)；独立 Review 传递规则与规范路径、用户/项目覆盖、UI 启用状态及已有检查结果，无独立 Agent 时明确报告串行自审。
-- 前端文件变更后按 `utf8` 复检所有触碰文件；正常时只报告模式、文件数和保持的编码。
+- 前端文件变更后按配置的源码编码复检所有触碰文件，正常时只报告配置、文件数和保持的编码。
 - 调整 DataGrid 列定义后，检查保存、校验、行编辑和回显逻辑中的 editor/列下标是否仍对应正确字段。
 - 用户明确要求部署时，先通过 UTF-8 字节门禁，再直接上传原始源文件并验证。
 - CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
-- 只有任务明确指定已确认的历史 `standard-gb2312` 工程时，才允许进入 legacy GB2312 转换流程；若生成 `*.gb2312.*` 临时文件，只上传其内容到原始远端文件名，验证和编译仍以原始 `.csp` 文件名为准。
+- 修改前运行 `frontend-encoding-cli.js check`，部署按[编码契约](../references/frontend-encoding.md)的服务器目标生成并验证产物。
 
 ## 前后端接口契约与旧调用迁移
 

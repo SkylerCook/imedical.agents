@@ -39,9 +39,9 @@ description: Implement or modify IRIS CSP, JavaScript, CSS, or HISUI frontend co
 4. HISUI 控件选型或 API 不确定时，读取 `references/hisui-widget-index.md` 并继续检查 `.agents/vendor/hisui/dist/js/jquery.hisui.js`；样式、图标或多语言资源不确定时，读取 `references/hisui-style-index.md` 并检查对应主题 CSS、locale CSS 和页面实际引入关系。
 5. 仅当任务涉及上传、编码转换、远程读取或 CSP 编译时，再读取 `.mcp.json` 和 `rules/iris_coding_workflow.md`。
 6. 本地搜索 HISUI 已有能力、现有页面和同类组件；控件、交互、状态、样式及视觉资源按“框架能力 → 目标工程公共能力 → 页面级最小实现”的顺序复用。
-7. 内部解析目标路径对应的前端编码模式；canonical `utf8` 与兼容别名 `project-utf8` 都保持 UTF-8。每个文件修改前后均执行字节检测，正常时静默，异常时停止并报告。
+7. 修改或新增前端文件前执行 [编码契约](../../references/frontend-encoding.md) 的 `frontend-encoding-cli.js check`。按需项目未确认服务端编码时停止源码修改，仅调查和暂存导出。正常确认一次，后续按配置执行。
 8. 最终 diff 后再次执行同一 UI 条件门禁与条件 i18n 门禁；命中时完成 owner 规则要求的核对及 helper 静态检查，失败必须停止。
-9. 默认只做本地修改；当前部署链直接上传通过门禁的 UTF-8 源文件。只有用户明确指定历史 `standard-gb2312` 工程时才允许调用 legacy 转换器。
+9. 默认只做本地修改，授权部署时由入口按已确认服务器编码生成无损产物并回读核验。
 10. 用户已授权的 CSP 上传后，按[前端验证规则](../../rules/iris_coding_frontend.md#验证)执行指定目标编译及页面验证。
 
 ## 完成检查

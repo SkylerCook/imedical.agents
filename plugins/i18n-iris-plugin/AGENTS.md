@@ -11,7 +11,7 @@
 ## 使用约束
 
 - 不在插件 rules/skills 中硬编码服务器、namespace、账号、密码、远程路径或业务页面清单。页面翻译种子默认使用 canonical `DHCDoc.I18n.PageTranslationSeed`；目标工程已有兼容机制时才在 profile 中覆盖类名、相对源码路径或方法名。
-- 前端编码必须复用 coding-iris profile 的 canonical `utf8` 模式；`project-utf8` 仅兼容读取，`standard-gb2312` 仅用于用户明确指定的历史工程，实际文件字节检测是最终门禁。
+- 前端编码复用 coding owner 的[编码契约](../coding-iris-plugin/references/frontend-encoding.md)，按需项目首次确认服务端编码后才修改前端，部署自动按配置转换。
 - 涉及项目差异时读取目标工程 `.agents/config/i18n_project_profile.md`。
 - 涉及服务器操作时读取目标工程 `.mcp.json`。
 - 默认先做只读提取、生成和 report-only 校验；远程翻译数据写入与业务代码部署必须分别获得当前运行、目标环境和明确 scope 的授权，扩大范围、覆盖、删除或回滚需重新确认。

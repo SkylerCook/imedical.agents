@@ -13,6 +13,8 @@ const guard = require('../deploy-guard');
 async function fixture(t, options = {}) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'iris-atelier-frontend-'));
     t.after(() => fs.rmSync(root, {recursive: true, force: true}));
+    fs.mkdirSync(path.join(root,'.agents/config'),{recursive:true});
+    fs.writeFileSync(path.join(root,'.agents/config/iris_project_profile.md'),'- 前端源码编码：utf8\n- 前端服务器编码：'+(options.serverEncoding||'utf8')+'\n- 前端服务器编码确认：confirmed\n');
     const local = options.files || {'csp/page.csp': '<p>UTF8 中文</p>\n', 'scripts/page.js': '\uFEFFvar message = "中文";\r\n', 'css/page.css': 'body {}\n'};
     for (const [file, content] of Object.entries(local)) {
         fs.mkdirSync(path.dirname(path.join(root, file)), {recursive: true});
@@ -22,22 +24,25 @@ async function fixture(t, options = {}) {
     const events = [], bodies = [], conditionals = [];
     let reads = 0;
     const server = http.createServer((request, response) => {
+        if(request.url.includes('CacheLogout')){response.writeHead(401);response.end();return;}
+        response.setHeader('Set-Cookie','CSPSESSIONID=encoding-test; Path=/');
         let body = '';
         request.on('data', data => body += data);
         request.on('end', () => {
-            const document = decodeURIComponent(request.url.split('/doc/')[1] || '');
+            const document = decodeURIComponent((request.url.split('/doc/')[1] || '').split('?')[0]);
             const compile = request.url.includes('/action/compile');
-            events.push({method: request.method, document, compile});
+            events.push({method: request.method, document, compile,authenticated:!!request.headers.authorization,cookie:!!request.headers.cookie,connection:request.socket.remotePort});
             if (request.method === 'PUT') {
                 conditionals.push(request.headers['if-none-match']);
                 if (options.rejectPut) { response.writeHead(412); response.end('{}'); return; }
                 const payload = JSON.parse(body); bodies.push(payload);
-                const value = payload.content.join('\n');
+                const value = payload.enc ? require('../frontend-encoding').decode(Buffer.from(payload.content.join(''),'base64'),options.serverEncoding||'utf8') : payload.content.join('\n');
                 content.set(document, options.normalizeReadback ? value.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n') : value);
             }
             if (request.method === 'GET' && ++reads === options.changeOnRead) content.set(document, '// external change\n');
             const result = compile ? {content: options.compileFailure ? [{name: 'web/csp/page.csp', status: 'compile error'}] : []} :
-                {content: (content.get(document) || '').split('\n'), enc: false, ...(options.missingTimestamp ? {} : {ts: '2026-10-19 01:00:00.000'})};
+                {content: options.noBinary?(content.get(document)||'').split('\n'):[require('../frontend-encoding').encode(content.get(document)||'',options.serverEncoding||'utf8').toString('base64')], enc: !options.noBinary, ...(options.missingTimestamp ? {} : {ts: '2026-10-19 01:00:00.000'})};
+            if(options.binaryChunks && !compile){const encoded=result.content[0];result.content=[encoded.slice(0,7),encoded.slice(7)];}
             if (compile) bodies.push(JSON.parse(body));
             response.setHeader('Content-Type', 'application/json');
             response.end(JSON.stringify({status: {errors: []}, result, console: []}));
@@ -57,10 +62,13 @@ test('explicit Atelier selection reuses protected doc writes without an SFTP dep
     const f = await fixture(t);
     const original = f.args.files.map(file => fs.readFileSync(path.join(f.root, file)));
     const result = await direct.run({files: f.adapter.files, adapter: f.adapter, kind: 'frontend'});
-    assert.equal(result.status, 'verified');
+    assert.equal(result.status, 'verified', JSON.stringify(result));
     assert.equal(f.events.filter(event => event.method === 'PUT').length, 3);
     assert.ok(f.conditionals.every(value => value === '2026-10-19 01:00:00.000'));
     assert.equal(f.events.filter(event => event.compile).length, 1);
+    assert.equal(f.events.filter(event=>event.authenticated).length,1);
+    assert.ok(f.events.slice(1).every(event=>event.cookie));
+    assert.equal(new Set(f.events.map(event=>event.connection)).size,1);
     assert.deepEqual(f.bodies.at(-1), ['web/csp/page.csp']);
     for (const [index, file] of f.args.files.entries()) {
         assert.deepEqual(Buffer.from(f.content.get('web/' + file)), original[index]);
@@ -81,7 +89,7 @@ test('project selection and source mapping are explicit and no failure silently 
     assert.equal(sftp.files[0].targetId, 'deployment-target:' + guard.digest('/synthetic-physical/css/page.css'));
     assert.equal(sftp.files[0].targetId.includes('synthetic-physical'), false);
     const result = await direct.run({files: f.adapter.files, adapter: f.adapter, kind: 'frontend'});
-    assert.equal(result.status, 'verified'); assert.equal(f.events.some(event => event.compile), false);
+    assert.equal(result.status, 'verified', JSON.stringify(result)); assert.equal(f.events.some(event => event.compile), false);
 });
 test('remote timestamp and readback checks block mutations or prevent false verification', async t => {
     const noTimestamp = await fixture(t, {files: {'css/page.css': 'body {}\n'}, missingTimestamp: true});
@@ -120,7 +128,7 @@ test('Atelier frontend keeps guarded merge, original sources and post-compile ve
     const adapter = frontendAdapter({...f.args, mode: 'guarded'}, f.config, f.mcp, f.context);
     const head = git('rev-parse', 'HEAD');
     const result = await guard.run({repo: f.root, demand: '123', target: 'frontend:' + adapter.target, files: adapter.files, adapter, checkUpdates() {}});
-    assert.equal(result.status, 'verified'); assert.equal(result.files[0].merged, true);
+    assert.equal(result.status, 'verified', JSON.stringify(result)); assert.equal(result.files[0].merged, true);
     assert.equal(f.content.get('web/scripts/page.js'), '// A\n// b\n// C\n');
     assert.equal(fs.existsSync(path.join(f.root, 'scripts/page.js')), false);
     assert.deepEqual(fs.readFileSync(immutablePath), approved);
@@ -179,6 +187,86 @@ test('frontend CLI plan needs no SFTP and execute passes through existing night 
     t.mock.method(night, 'finish', (_binding, result) => receipts.push(result));
     t.mock.method(console, 'log', value => output.push(JSON.parse(value)));
     await require('../deploy-protected').main('frontend', ['--project-root', f.root, '--source-root', f.root, '--files', 'csp/page.csp', '--work-item', 'frontend', '--environment-alias', 'synthetic', '--execute']);
-    assert.equal(bound, true); assert.equal(receipts[0].status, 'verified'); assert.equal(output[0].transport.kind, 'atelier');
+    assert.equal(bound, true); assert.equal(receipts[0].status, 'verified'); assert.equal(output[0].transport.kind, 'atelier-binary');
     assert.equal(f.content.get('web/csp/page.csp'), frozenBytes.toString()); assert.equal(fs.readFileSync(original, 'utf8'), '<p>continued development</p>\n');
+});
+
+for (const serverEncoding of ['gb2312','gbk','gb18030']) test('UTF-8 source uploads as '+serverEncoding+' through binary Atelier without FTP', async t => {
+    const text=serverEncoding==='gb18030'?'var text="中文😀";\r\n':serverEncoding==='gbk'?'var text="中文丂";\r\n':'var text="中文";\r\n';
+    const f=await fixture(t,{files:{'scripts/page.js':text},serverEncoding});
+    const result=await direct.run({files:f.adapter.files,adapter:f.adapter,kind:'frontend'});
+    assert.equal(result.status,'verified',JSON.stringify(result));
+    const upload=f.bodies.find(body=>body.enc===true);
+    const expected=require('../frontend-encoding').encode(text,serverEncoding);
+    assert.deepEqual(Buffer.from(upload.content.join(''),'base64'),expected);
+    assert.equal(fs.readFileSync(path.join(f.root,'scripts/page.js'),'utf8'),text);
+    assert.equal(result.files[0].serverEncoding,serverEncoding);
+    assert.equal(result.files[0].uploadSha256,guard.hash(expected));
+    await f.adapter.close();
+});
+
+test('unrelated profile notes do not invalidate upload', async t => {
+    const f=await fixture(t,{files:{'scripts/page.js':'var text="中文";\n'}});
+    fs.appendFileSync(path.join(f.root,'.agents/config/iris_project_profile.md'),'\nChanged after plan\n');
+    const result=await direct.run({files:f.adapter.files,adapter:f.adapter,kind:'frontend'});
+    assert.equal(result.status,'verified',JSON.stringify(result));
+    assert.equal(f.events.some(event=>event.method==='PUT'),true);
+    await f.adapter.close();
+});
+
+test('unsupported raw read blocks before any server write',async t=>{
+    const f=await fixture(t,{files:{'scripts/page.js':'var text="中文";\n'},noBinary:true,serverEncoding:'gbk'});
+    const result=await direct.run({files:f.adapter.files,adapter:f.adapter,kind:'frontend'});
+    assert.equal(result.reason,'frontend-target-encoding-channel-unavailable');
+    assert.equal(f.events.some(event=>event.method==='PUT'),false);
+    await f.adapter.close();
+});
+
+test('GBK guarded deployment preserves UTF-8 source and verifies server bytes',async t=>{
+    const f=await fixture(t,{files:{'scripts/page.js':'\uFEFF// 中文旧\n'},serverEncoding:'gbk'});
+    const git=(...args)=>{const r=spawnSync('git',['-C',f.root,...args],{encoding:'utf8'});assert.equal(r.status,0,r.stderr);return r.stdout.trim();};
+    git('init');git('config','user.name','Test');git('config','user.email','test@example.invalid');git('add','.');git('commit','-m','base');
+    t.mock.method(os,'homedir',()=>f.root);
+    guard.initialize(f.root,'456','HEAD',true);
+    f.content.set('web/scripts/page.js','// 中文旧\n');
+    fs.writeFileSync(path.join(f.root,'scripts/page.js'),'\uFEFF// 中文新\n');
+    const adapter=frontendAdapter({...f.args,mode:'guarded'},f.config,f.mcp,f.context);
+    const result=await guard.run({repo:f.root,demand:'456',target:'frontend:'+adapter.target,files:adapter.files,adapter,checkUpdates(){}});
+    assert.equal(result.status,'verified',JSON.stringify(result));
+    assert.equal(f.content.get('web/scripts/page.js'),'// 中文新\n');
+    assert.equal(fs.readFileSync(path.join(f.root,'scripts/page.js'),'utf8'),'\uFEFF// 中文新\n');
+    const repeated=await guard.run({repo:f.root,demand:'456',target:'frontend:'+adapter.target,files:adapter.files,adapter,checkUpdates(){}});
+    assert.equal(repeated.status,'verified',JSON.stringify(repeated));
+    assert.equal(f.events.filter(event=>event.method==='PUT').length,1);
+    await adapter.close();
+});
+
+test('probe reads CSP source bytes before confirmation without executing the CSP page',async t=>{
+    const f=await fixture(t,{files:{'csp/page.csp':'<p>中文</p>\n'},serverEncoding:'gbk'});
+    fs.mkdirSync(path.join(f.root,'.agents/.git'));
+    fs.writeFileSync(path.join(f.root,'.agents/config/project-env.json'),JSON.stringify(f.config));
+    fs.writeFileSync(path.join(f.root,'.mcp.json'),JSON.stringify(f.mcp));
+    fs.writeFileSync(path.join(f.root,'.agents/config/iris_project_profile.md'),'- 前端源码编码：utf8\n- 前端服务器编码：pending\n');
+    f.content.set('web/csp/page.csp','<p>中文</p>\n');
+    const output=[];t.mock.method(console,'log',value=>output.push(JSON.parse(value)));
+    await require('../frontend-encoding-cli').main(['probe','--project-root',f.root,'--files','csp/page.csp']);
+    assert.equal(output[0].files[0].representation,'atelier-binary');
+    assert.deepEqual(output[0].files[0].candidates,['gb2312','gbk','gb18030']);
+    assert.equal(f.events.filter(event=>event.method==='PUT').length,0);
+});
+
+test('binary response fragments reconstruct the original bytes across base64 boundaries',async t=>{
+    const f=await fixture(t,{files:{'scripts/page.js':'var text="中文";\n'},serverEncoding:'gbk',binaryChunks:true});
+    const result=await direct.run({files:f.adapter.files,adapter:f.adapter,kind:'frontend'});
+    assert.equal(result.status,'verified',JSON.stringify(result));
+    await f.adapter.close();
+});
+
+test('confirmed UTF-8 retains the existing text channel when binary read is unavailable',async t=>{
+ const f=await fixture(t,{files:{'scripts/page.js':'var text="中文";\n'},noBinary:true});
+ const result=await direct.run({files:f.adapter.files,adapter:f.adapter,kind:'frontend'});
+ assert.equal(result.status,'verified',JSON.stringify(result));
+ assert.equal(result.files[0].verification,'text-readback');
+ assert.equal(f.bodies.find(body=>!Array.isArray(body)).enc,false);
+ await f.adapter.close();
 });

@@ -117,6 +117,10 @@ function checkGit(repo) {
  const counts=git(repo,['rev-list','--left-right','--count',upstream+'...HEAD']).split(/\s+/).map(Number);
  if(counts[0])stop('git-upstream-update',{behind:counts[0],ahead:counts[1]});
 }
+function gitBytes(repo,base,relative) {
+ const result=spawnSync('git',['-C',repo,'show',base+':'+relative],{encoding:null,windowsHide:true});
+ if(result.status!==0)return null;return result.stdout;
+}
 function baseline(repo,base,relative) {
  const entry=git(repo,['ls-tree',base,'--',relative]);
  if(!entry)return null;
@@ -182,9 +186,16 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
   const prepared=[];let decisionApplied=false;
   for(const f of files) {
    activeFile=f;
-   const raw=await adapter.read(f), remote=text(raw), source=readSource(f), local=text(source);
+   const encoding=require('./frontend-encoding');
+   const raw=await adapter.read(f), source=readSource(f);
+   const remote=f.encodingPolicy?encoding.decode(raw,f.encodingPolicy.serverEncoding,f.remotePath):text(raw);
+   let local=f.encodingPolicy?encoding.decode(source,f.encodingPolicy.sourceEncoding,f.localPath):text(source);
+   const stripSourceBom=f.encodingPolicy?.sourceEncoding==='utf8'&&f.encodingPolicy.serverEncoding!=='utf8';
+   if(stripSourceBom)local=local.replace(/^\uFEFF/,'');
    if(recoveryObservations){const observed=recoveryObservations.find(x=>x[0]===f.remotePath);if(observed[1]!==hash(raw)||observed[2]!==hash(readSource(f)))stop('recovery-confirmation-expired',{file:f.relative});}
-   const base=baseline(repo,state.base,f.relative), previous=targetState.files[f.remotePath];
+   let base=f.encodingPolicy?encoding.decode(gitBytes(repo,state.base,f.relative),f.encodingPolicy.sourceEncoding,f.relative):baseline(repo,state.base,f.relative);
+   if(stripSourceBom&&base!==null)base=base.replace(/^\uFEFF/,'');
+   const previous=targetState.files[f.remotePath];
    const token=digest(JSON.stringify({repo:loc.repo,demand,base:state.base,local,remote,previous:previous||null,target:key,file:f.remotePath}));
    const allowed=decision?.token===token && ['merge','overwrite'].includes(decision.action)?decision.action:null;
    if(allowed)decisionApplied=true;
@@ -192,7 +203,7 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
    try {
     const selected=choose(base,local,remote,previous,allowed);
     validate(f.relative,selected.content,previous?previous.deployed:base,remote);
-    prepared.push({...f,...selected,local,source,expected:hash(raw),skip:remote===selected.content,bytes:remote===selected.content?raw:selected.content===local?source:Buffer.from(selected.content),token});
+    prepared.push({...f,...selected,local,source,expected:hash(raw),skip:remote===selected.content,bytes:remote===selected.content?raw:f.encodingPolicy?encoding.uploadText(selected.content,f.encodingPolicy,f.relative):selected.content===local?source:Buffer.from(selected.content),token});
    }catch(e){if(e instanceof Attention)e.details={...e.details,file:f.relative,token,localHash:hash(local),remoteHash:hash(raw),base:state.base};throw e;}
   }
   if(['merge','overwrite'].includes(decision?.action)&&!decisionApplied)stop('decision-expired');
@@ -206,7 +217,7 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
    if(hash(await adapter.read(f))!==f.expected)stop('remote-changed-before-upload',{file:f.relative});
    if(!readSource(f).equals(f.source))stop('local-source-changed',{file:f.relative});
    const evidence=f.skip?undefined:await adapter.put(f);
-   if(!verifiedPut(evidence,f,hash) && !require('./storage-sync').uploadMatches(f.remotePath,f.content,text(await adapter.read(f))))stop('readback-mismatch',{file:f.relative});
+   if(!verifiedPut(evidence,f,hash) && !(f.encodingPolicy ? hash(await adapter.read(f))===hash(f.bytes) : require('./storage-sync').uploadMatches(f.remotePath,f.content,text(await adapter.read(f)))))stop('readback-mismatch',{file:f.relative});
    adapter.record?.(f,f.skip?'unchanged':'uploaded');
    // Persist each successful write; failure cannot silently reset merge history.
    targetState.files[f.remotePath]={local:f.local,deployed:f.content,merged:f.merged};
@@ -236,7 +247,7 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
   return {status:'verified',compilation,recovery:adapter.deploymentRecovery,localStorageSync:{status:'verified',files:storageSynced},files:plans.map(p=>({file:p.file.relative,document:p.file.publicationDocument||p.file.document||p.file.remotePath,sha256:hash(/\.(cls|mac|inc)$/i.test(p.file.remotePath)?p.compiled:p.file.bytes),uploadSha256:hash(p.file.bytes),postCompileSha256:hash(p.compiledBytes),localSha256:hash(p.bytes),storageSynced:p.synced,merged:p.file.merged,status:p.file.skip?'unchanged':'uploaded'})),sourceUnchanged:storageSynced.length===0};
  }catch(e){
   const knownUnsent=e.deploymentOperation==='put'&&e.beforeSend===true&&require('./deploy-recovery').transient(e);
-  if(attempt&&!knownUnsent&&e.reason!=='compile-failed'){try{adapter.markUnknown?.(e.reason||e.code||'deployment-outcome-unknown');}catch{}}
+  if(attempt&&e.beforeSend!==true&&!knownUnsent&&e.reason!=='compile-failed'){try{adapter.markUnknown?.(e.reason||e.code||'deployment-outcome-unknown');}catch{}}
   adapter.recordFailure?.(activeFile,e);
   let sourceUnchanged;
   if(before){try{sourceUnchanged=JSON.stringify(snapshot(repo,files))===JSON.stringify(before);}catch{sourceUnchanged=false;}}
