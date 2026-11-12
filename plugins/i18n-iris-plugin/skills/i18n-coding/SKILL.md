@@ -43,7 +43,7 @@ description: Use when applying frontend or backend internationalization coding c
 - 目录。
 - 工程范围。
 
-开始前先解析 coding profile 的前端编码模式并检测实际字节。当前前端统一保持 canonical UTF-8；历史乱码或 GB2312 文件停止并报告，只有用户明确指定旧工程时才进入 legacy 流程。
+开始前按 coding owner 的[编码契约](../../../coding-iris-plugin/references/frontend-encoding.md)运行修改前检查。按需项目首次确认服务端编码后持续复用配置，本地源码和服务器目标分别处理。
 
 ## 前端改造
 

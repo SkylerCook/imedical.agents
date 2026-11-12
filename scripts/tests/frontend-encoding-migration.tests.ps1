@@ -75,8 +75,15 @@ try {
   $conflictOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -ProjectRoot $conflict -AgentsRoot ".agents" -Mode Write | Out-String
   $conflictProfile = [System.IO.File]::ReadAllText((Join-Path $conflict ".agents/config/iris_project_profile.md"))
   Assert-True ($conflictOutput.Contains("config-migration-applied")) "legacy profile should normalize when bytes are UTF-8"
-  Assert-True ($conflictProfile.Contains("前端编码模式：utf8")) "legacy mode should normalize to utf8"
+  Assert-True ($conflictProfile.Contains("前端编码模式：standard-gb2312")) "explicit legacy mode must be preserved"
   Assert-True (-not $conflictProfile.Contains("Frontend encoding v2")) "v2 managed block should be replaced"
+
+  $confirmedFields = "`n- 前端源码编码：utf8`n- 前端服务器编码：gbk`n- 前端服务器编码确认：confirmed`n- 前端服务器编码确认环境：fixture-target`n"
+  [System.IO.File]::AppendAllText((Join-Path $conflict ".agents/config/iris_project_profile.md"), $confirmedFields, [System.Text.UTF8Encoding]::new($false))
+  $null = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -ProjectRoot $conflict -AgentsRoot ".agents" -Mode Write
+  $confirmedProfile = [System.IO.File]::ReadAllText((Join-Path $conflict ".agents/config/iris_project_profile.md"))
+  Assert-True ($confirmedProfile.Contains("前端服务器编码：gbk")) "migration must preserve confirmed server encoding after managed marker"
+  Assert-True ($confirmedProfile.Contains("前端服务器编码确认环境：fixture-target")) "migration must preserve confirmation identity"
 
   $legacyBytes = Join-Path $testRoot "legacy-bytes"
   New-TestProject -Root $legacyBytes

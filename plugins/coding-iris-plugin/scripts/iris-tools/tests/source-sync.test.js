@@ -19,6 +19,7 @@ function fixture(t, {empty = false, ignored = true, source = true} = {}) {
     fs.writeFileSync(path.join(root, '.agents/config/project_context_profile.md'), '- contextMode：intent-first-on-demand-export\n');
     fs.writeFileSync(path.join(root, '.agents/config/iris_project_profile.md'), '- 默认需求交付类型：project\n');
     fs.writeFileSync(path.join(root, '.agents/config/project-env.json'), JSON.stringify({iris: {scheme: 'http', host: '127.0.0.1', port: 1, namespace: 'FIXTURE'}, web: {basePath: 'fixture/web', cspBasePath: 'fixture/web/csp'}}));
+    fs.appendFileSync(path.join(root,'.agents/config/iris_project_profile.md'),'- 前端源码编码：utf8\n- 前端服务器编码：utf8\n- 前端服务器编码确认：confirmed\n- 前端服务器编码确认环境：'+require('../frontend-encoding').targetIdentity({workspaceRoot:root,contextRoot:path.join(root,'.agents')})+'\n');
     fs.writeFileSync(path.join(root, '.gitignore'), ignored ? '.agents/\n' : '.agents/config/\n.agents/.git/\n');
     const file = path.join(root, 'src/Demo/Sample.cls'); fs.mkdirSync(path.dirname(file), {recursive: true});
     const original = 'Class Demo.Sample\n{\n' + Array.from({length: 15}, (_, index) => `Parameter Value${index} = "BASE";`).join('\n') + '\n}\n';
@@ -356,4 +357,34 @@ test('committed-demand replay conflict is resolved privately before any baseline
     const result = sync.apply(p.planPath, {confirmCommit: true}); assert.equal(result.state, 'needs-user-input'); assert.equal(sync.head(f.root), before); assert.equal(fs.readFileSync(f.file, 'utf8'), local);
     fs.writeFileSync(result.replayConflict.resolutionPath, local.replace('DEMAND_A', 'REVIEWED_COMBINED'));
     const continued = sync.apply(p.planPath, {confirmCommit: true, continue: true}); assert.equal(continued.state, 'change-committed'); assert.match(fs.readFileSync(f.file, 'utf8'), /REVIEWED_COMBINED/);
+});
+
+for (const sourceEncoding of ['utf8','gbk']) test('frontend sync preserves '+sourceEncoding+' source and freezes GBK upload bytes', async t => {
+    const f=fixture(t),encoding=require('../frontend-encoding');
+    const profile=path.join(f.root,'.agents/config/iris_project_profile.md');
+    const text=fs.readFileSync(profile,'utf8').replace('前端源码编码：utf8','前端源码编码：'+sourceEncoding).replace('前端服务器编码：utf8','前端服务器编码：gbk');
+    fs.writeFileSync(profile,text);
+    const relative='scripts/a.js',filename=path.join(f.root,relative),body='var text="中文";\r\n';
+    fs.mkdirSync(path.dirname(filename),{recursive:true});fs.writeFileSync(filename,encoding.encode(body,sourceEncoding));
+    git(f.root,['add',relative]);git(f.root,['commit','-m','fixture frontend']);
+    const plan=f.plan({phase:'pre-deploy',files:[relative]});
+    await sync.prepare(plan.planPath,{client:{readDocument:async()=>({bytes:encoding.encode(body,'gbk'),enc:true,ts:'2026-01-01 00:00:00.000',representation:'atelier-binary'})}});
+    sync.apply(plan.planPath,{confirmCommit:true});
+    const reviewed=sync.review(plan.planPath,{confirmReview:true,evidence:'local-test'});
+    assert.equal(reviewed.publication.files[0].artifactSha256,sync.hash(encoding.encode(body,'gbk')));
+    assert.equal(reviewed.publication.files[0].remoteSha256,sync.hash(encoding.encode(body,'gbk')));
+    assert.deepEqual(fs.readFileSync(filename),encoding.encode(body,sourceEncoding));
+});
+
+test('Atelier text observation never fabricates a physical server byte hash',async t=>{
+ const f=fixture(t),profile=path.join(f.root,'.agents/config/iris_project_profile.md');
+ fs.writeFileSync(profile,fs.readFileSync(profile,'utf8').replace('前端服务器编码：utf8','前端服务器编码：gbk'));
+ const relative='scripts/text.js',body='var text="中文";\n';
+ fs.mkdirSync(path.join(f.root,'scripts'),{recursive:true});fs.writeFileSync(path.join(f.root,relative),body);
+ git(f.root,['add',relative]);git(f.root,['commit','-m','fixture text']);
+ const plan=f.plan({files:[relative]});
+ const prepared=await sync.prepare(plan.planPath,{client:{readDocument:async()=>({bytes:Buffer.from(body),enc:false,representation:'atelier-text-utf8'})}});
+ assert.equal(prepared.files[0].remoteServerSha256,null);
+ assert.equal(prepared.files[0].remoteTextSha256,sync.hash(Buffer.from(body)));
+ assert.equal(prepared.files[0].remoteRepresentation,'text');
 });

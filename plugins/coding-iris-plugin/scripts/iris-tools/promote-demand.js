@@ -202,7 +202,7 @@ function basePlan(values) {
         projectRoot: context.workspaceRoot, contextRoot: context.contextRoot, gitRoot: values.prdRoot,
         guarded: require('./source-sync-core').isOnDemand(context) || config.contextMode === 'intent-first-on-demand-export',
         demandKind: 'project', demandKindSource: values.demandKindSource || 'legacy-promotion',
-        configurationFingerprint: require('./source-publication').fingerprint(require('../../../../scripts/lib/iris-remote-operations').bindDevelopmentMode(context, {config, mcp})),
+        configurationFingerprint: require('./source-sync-core').configurationFingerprint(context),
         version: PLAN_VERSION,
         createdAt: new Date().toISOString(),
         planPath: path.join(planDir, 'plan.json'),
@@ -334,8 +334,19 @@ async function readDocuments(prdRoot, files, onDocument = () => {}) {
     try {
         // One bounded client/lease, serial requests and no per-document processes.
         for (const file of files) {
-            const document = await client.readDocument(file.document);
-            const bytes = document === null ? null : document.bytes;
+            const document = await client.readDocument(file.document,{binary:file.kind==='frontend'});
+            let bytes = document === null ? null : document.bytes;
+            if(file.kind==='frontend'){
+                const encoding=require('./frontend-encoding');
+                file.encodingPolicy=encoding.resolve(context,safeRepoFile(prdRoot,file.path),{projectTask:true});
+                if(bytes!==null){
+                    const text=encoding.decode(bytes,document.enc?file.encodingPolicy.serverEncoding:'utf8',file.path);
+                    file.remoteServerSha256=document.enc?sha(bytes):null;
+                    file.remoteTextSha256=sha(Buffer.from(text));
+                    file.remoteRepresentation=document.enc?'binary':'text';
+                    bytes=encoding.encode(text,file.encodingPolicy.sourceEncoding,file.path);
+                }
+            }
             if (bytes !== null && !Buffer.isBuffer(bytes)) throw new Error('atelier-export-format-unknown');
             const result = {bytes, summary: bytes === null ? {status: 'not-found'} : {
                 status: 'found', document: file.document, sha256: sha(bytes).toUpperCase(),
@@ -696,7 +707,7 @@ function assertPlanReady(plan, expected) {
     if (plan.version === PLAN_VERSION) {
         const {context, config, mcp} = connectionFacts(plan.prdRoot);
         const guarded = require('./source-sync-core').isOnDemand(context) || config.contextMode === 'intent-first-on-demand-export';
-        if (require('./source-publication').fingerprint(require('../../../../scripts/lib/iris-remote-operations').bindDevelopmentMode(context, {config, mcp})) !== plan.configurationFingerprint || guarded !== plan.guarded) throw new Error('promotion-configuration-changed');
+        if (require('./source-sync-core').configurationFingerprint(context) !== plan.configurationFingerprint || guarded !== plan.guarded) throw new Error('promotion-configuration-changed');
         if (plan.guarded) require('./source-sync-core').environment(context, plan.environment || {});
         if (plan.sourceReview) {
             const candidates = replayReviewCandidates(plan, plan.devMatches);
@@ -979,10 +990,10 @@ function freezePublication(plan) {
         return;
     }
     plan.publication = helper.freeze({environmentAlias, environmentType,
-        configurationFingerprint: helper.fingerprint(require('../../../../scripts/lib/iris-remote-operations').bindDevelopmentMode(context, {config, mcp})), gitRoot: plan.prdRoot, head: plan.execution.demandCommit,
+        configurationFingerprint: require('./source-sync-core').configurationFingerprint(context), gitRoot: plan.prdRoot, head: plan.execution.demandCommit,
         files: plan.files.map(file => ({path: file.path, sourcePath: safeRepoFile(plan.prdRoot, file.path), gitPath: file.path,
             document: file.document, kind: file.kind, localSha256: sha(fs.readFileSync(safeRepoFile(plan.prdRoot, file.path))),
-            remoteSha256: file.remote.status === 'found' ? file.remote.sha256.toLowerCase() : null, remoteTs: file.remote.ts ?? null}))});
+            remoteSha256: file.remote.status === 'found' ? file.remoteServerSha256 || file.remoteTextSha256 || file.remote.sha256.toLowerCase() : null, remoteTs: file.remote.ts ?? null,encodingPolicy:file.encodingPolicy,remoteRepresentation:file.remoteRepresentation}))});
 }
 
 function safeRepoFile(root, relative) {

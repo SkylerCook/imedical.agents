@@ -9,6 +9,8 @@ description: Use when an IRIS project needs remote deployment planning, upload, 
 
 先解析当前 `ContextRoot/config/iris-development.json` 的 `developmentMode`：offline 转入[离线开发与交付](../../references/iris-offline-development.md)，只打包和独立 Verify，不执行医院连接或部署。connected（含旧配置缺省）继续：`project` + `intent-first-on-demand-export` 先读[项目开发协议](../../references/project-demand-development.md)，同步、合并复审和 source plan 冻结；正式发布决定绑定冻结摘要。非法开发方式停止，标版沿既有分支，传输模式不能绕过发布门禁或产生权限。
 
+涉及前端初始化、修改或部署时，先读取[编码契约](../../references/frontend-encoding.md)。按需项目首次确认后保存并复用配置，未确认时仅调查和暂存导出。
+
 ## 核心边界
 
 本 Skill 是 IRIS 项目部署编排入口。仅分析或未获写入授权时只做本地计划和只读验证；用户明确要求部署且目标、文件范围已清楚时直接执行，不再重复确认。上传、编译、SFTP 同步、远端命令、数据库变更或生产环境动作须有覆盖当前范围的明确授权。

@@ -92,7 +92,7 @@ CSP、HTML、JS、CSS 编码与 Review 共用[前端规范](references/frontend-
 - 需求移植：`skills/iris-demand-promote/SKILL.md` 将已提交的 DEV 需求补丁移植到独立 PRD 按需导出仓库；先导出 PRD 服务器基线，再做三方应用，只创建本地 PRD 提交。它是项目开发的一条可选路径。
 
 
-- 前端统一编码：当前标版、医院项目的源码、上传内容和服务器运行编码统一使用 canonical `utf8`。
+- 前端源码与服务器目标编码分别配置，标版采用 UTF-8，按需项目首次确认后复用。
 - 前端编码保护：实际文件字节检测是最终门禁；正常任务静默处理，完成时只报告一行摘要。
 - 前端 i18n 条件门禁：以目标工程 `plugin_profile.md` 为事实来源，只有 i18n 已启用且任务或 diff 命中翻译 helper、翻译 key 或用户可见文案时才追加 i18n 规则和稳定 key 检查；普通前端需求不加载完整 i18n workflow。
 - 兼容读取：旧 `project-utf8` 规范化为 `utf8`；旧 `standard-gb2312` 只服务用户明确指定的历史工程，不能再由目录或仓库角色推断。
@@ -280,22 +280,13 @@ MCP helper 的 `tools` / `call` 已包含配置检查，已知参数可直接调
 
 ## 前端编码保护
 
-当前前端编码以目标工程 `.agents/config/iris_project_profile.md` 的 canonical `utf8` 为准；`project-utf8` 仅作为兼容读取别名，`standard-gb2312` 仅作为用户明确指定的历史工程状态。每个文件修改前后仍必须通过实际字节检测。
+前端编码配置、首次确认、修改前检查与上传转换统一按[编码契约](references/frontend-encoding.md)执行。
 
 前端流程同时读取 `.agents/config/plugin_profile.md`：只有 `i18n-iris-plugin` 状态为 `enabled` 且修改前或最终 diff 命中 `$g`、`$trans`、翻译 key、用户可见文案或 `placeholder` / `title` / `tooltip` / `alt` 时，才追加 i18n profile、规则与 helper 静态检查。明确 i18n 需求切换到 `i18n-coding`；普通业务需求只应用轻量门禁，不自动进入完整 workflow。未启用 i18n 时不猜测 helper 语义，也不因插件目录存在而加载能力。
 
-明确的 backend-only Overlay 不适用前端字节门禁，profile 固定使用 `N/A (backend-only)`，前端导出入口会明确停止且不写 source/staging。若 manifest 后续新增 `frontend` SourceRoot，必须重新运行迁移并通过 UTF-8 字节检测，不能手工把 N/A 直接改成 `utf8`。
+明确的 backend-only Overlay 不适用前端字节门禁，profile 固定使用 `N/A (backend-only)`，前端导出入口会明确停止且不写 source/staging。若 manifest 后续新增 `frontend` SourceRoot，须按编码契约确认目标并验证实际源码。
 
-当前 `utf8` 收尾检查：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-frontend-encoding.ps1 -Files @(
-  "path/to/page.csp",
-  "path/to/page.js"
-) -ExpectedEncoding utf8 -ErrorOnMismatch
-```
-
-通过后直接上传原始 UTF-8 源文件，不运行 GB2312 转换器。正常任务最终只报告“模式、文件数、保持编码”一行；检测到 GB2312、UTF-16、unknown、mixed 或配置冲突时停止并展开诊断。
+修改前后执行 `frontend-encoding-cli.js check --project-root . --files <files...>`。上传由部署入口按已确认目标编码生成产物，编码冲突与不可表示字符会阻止上传。
 
 ## 去项目化边界
 
@@ -304,7 +295,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 
 - 共享部署保护保留 Storage 原文；B/L/R 的 Storage 有差异或无法可靠解析时停止并 Question。不得为通过上传而自动删除或重新生成 Storage，不能回退直接 iris_doc put 绕过保护。
 - 类文件部署先整组上传依赖切片，再按依赖顺序编译；不要边上传边逐个编译。
-- 当前前端文件通过 UTF-8 门禁后直接上传原始源文件，不生成编码转换临时件。
+- 前端部署自动按服务器目标编码转换，严格回读上传字节，源码保持原样。
 - Legacy GB2312 转换只用于用户明确指定的历史工程；临时件远端文件名仍映射回原始目标文件名，不能据此推断当前标版仍使用 GB2312。
 - CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 - 插件不保存服务器地址、账号、namespace、token、Cookie 或远端绝对路径。
@@ -362,3 +353,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-fronte
 ## 发布配置指纹一致性（0.27.5）
 
 发布适配器复用 source-sync 的配置指纹计算，包含显式 developmentMode，修复 connected 项目配置未变却在上传前误报 publication-environment-changed。缺省模式保持旧指纹；真实配置、模式、源码和服务器漂移仍阻断。正常更新 coding 插件即可，无配置迁移或历史状态清理；旧失败计划核实未写入后重新执行部署前同步和复审，不手改冻结记录。
+
+## 前端编码确认与部署
+
+前端修改、导出和部署沿[编码契约](references/frontend-encoding.md)。按需项目首次确认后复用配置，UTF-8 本地源码可部署为 GB2312、GBK 或 GB18030。CSP 同样适用，上传后编译并回读。升级步骤见[更新说明](../../docs/update-agents.md#前端编码分离coding-028)。

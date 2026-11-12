@@ -115,25 +115,9 @@ MCP 工具名称和连接参数以目标工程 `.mcp.json` 为准；插件只描
 - 只读读取远程 `.csp` / `.js` / `.css` 文件。
 - 用户明确要求时上传部署本地文件。
 
-## 前端 UTF-8 上传
+## 前端编码与上传
 
-当前前端源码、上传内容和服务器运行编码统一为 canonical `utf8`。`project-utf8` 只作为兼容读取别名；`standard-gb2312` 只允许用于用户明确指定的历史工程，不得由目录或仓库角色自动推断。
-
-触碰前端文件后，先按目标工程 profile 检查实际字节：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/check-frontend-encoding.ps1 -Files @(
-    "path/to/page.csp",
-    "path/to/page.js"
-) -ExpectedEncoding utf8 -ErrorOnMismatch
-```
-
-上传策略：
-
-- `utf8` 与兼容别名 `project-utf8`：直接上传通过 UTF-8 字节检查的原始源文件，不生成编码转换临时件。
-- ASCII 文件与 UTF-8 字节兼容，在已确认的 `utf8` profile 下可直接上传。
-- GB2312、UTF-16、unknown、mixed、配置缺失或 profile 冲突时停止，不上传、不静默转码。
-- 只有用户明确处理历史 `standard-gb2312` 工程时，才按 `iris_gb2312_workflow.md` 调用转换脚本；不得把该流程重新用作标版默认。
+修改、导出或部署前端时执行[前端编码契约](../references/frontend-encoding.md)。按需项目首次确认服务器编码后持续复用配置，未确认时只允许调查和 staging 导出。源码与服务器目标分别配置，部署入口自动无损转换并核验目标字节。
 
 ## CSP 编译
 

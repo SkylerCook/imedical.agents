@@ -75,23 +75,50 @@ function atelierFrontendPlan(a,config,context){
 function atelierFrontendAdapter(a,config,mcp,context){
  const started=performance.now(),plan=atelierFrontendPlan(a,config,context);
  if(a.python||a.knownHosts||a.fingerprint)guard.stop('sftp-options-require-sftp-transport');
- for(const file of plan.files)require('./deploy-direct').prepare(file.remotePath,guard.text(guard.readSource(file)),null);
- const conn=csp.connection(config,mcp),docs=backendAdapter(conn,{context});
+ const encoding = require('./frontend-encoding');
+ for (const file of plan.files) require('./deploy-direct').prepare(file.remotePath, encoding.decode(guard.readSource(file), file.encodingPolicy.sourceEncoding, file.localPath), null);
+ const conn=csp.connection(config,mcp);
+ const client=require('../../../../scripts/lib/atelier-client').createAtelierClient({connection:conn,context});
+ const versions=new Map();
+ const textDocuments=new Set();
+ const artifacts=encoding.uploadArtifacts(context,a.sourcePlan);
+ async function read(file) {
+  const name=file.remotePath||file.document;
+  const value=await client.readDocument(name,{binary:true});
+  if(value===null){versions.set(name,null);return null;}
+  if(!value.enc){
+   const selected=plan.files.find(item=>item.remotePath===name)||file;
+   if(selected.encodingPolicy?.serverEncoding!=='utf8')guard.stop('frontend-target-encoding-channel-unavailable',{file:name});
+   textDocuments.add(name);
+  }
+  versions.set(name,value.ts);return value.bytes;
+ }
  const timings={localPreflightMs:Math.round(performance.now()-started)};
- return {files:plan.files,metrics:{kind:'atelier'},timings,
+ return {files:plan.files,metrics:{kind:'atelier-binary'},timings,finishArtifacts:result=>artifacts.finish(result),
   target:JSON.stringify([conn.protocol,conn.hostname,conn.port,conn.path.replace(/action\/compile.*$/,'')]),
-  read:docs.read,readPublished:docs.readPublished,close:docs.close,markUnknown:docs.markUnknown,
+  read,verification:file=>textDocuments.has(file.remotePath)?'text-readback':'server-byte-readback',
+  async readPublished(file){
+   if(file.kind==='backend'){
+    const value=await client.readDocument(file.document);
+    return value?.bytes??null;
+   }
+   return read(file);
+  },
+  close:()=>client.close(),markUnknown:reason=>client.markUnknown(reason),
   async put(file){
-   // Keep the frontend artifact's BOM/newlines. A server that normalizes these
-   // bytes fails readback rather than silently changing the upload contract.
-   await docs.put({...file,content:file.bytes.toString('utf8')});
-   const back=await docs.read(file),sha256=guard.hash(file.bytes);
+   encoding.validateUpload(context,file);
+   if(!versions.has(file.remotePath))guard.stop('frontend-read-required');
+   const converted=file.encodingPolicy.sourceEncoding!==file.encodingPolicy.serverEncoding;
+   const bytes=converted?fs.readFileSync(artifacts.write(file)):file.bytes;
+   await client.writeDocument(file.remotePath,bytes,{ts:versions.get(file.remotePath),binary:!textDocuments.has(file.remotePath)});
+   versions.delete(file.remotePath);
+   const back=await read(file),sha256=guard.hash(file.bytes);
    if(guard.hash(back)!==sha256)guard.stop('readback-mismatch',{file:file.remotePath});
    return {status:'verified',verification:'final-target-sha256',remotePath:file.remotePath,sha256};
   },
   async compile(files){
    const startedCompile=performance.now();
-   try{const targets=files.filter(file=>/\.csp$/i.test(file.remotePath));if(targets.length)return await docs.compile(targets);}
+   try{const targets=files.filter(file=>/\.csp$/i.test(file.remotePath));if(targets.length){const result=csp.validateResponse(await client.compile(targets.map(file=>file.remotePath)));if(result.status!=='compiled')guard.stop('compile-failed');return result;}}
    finally{timings.compileMs=Math.round(performance.now()-startedCompile);}
   }
  };
@@ -119,9 +146,9 @@ function frontendAdapter(a,config,mcp,context){
  if(a.sourcePlan){const canonical=atelierFrontendPlan(a,config,context).files;for(const file of plan.files)file.publicationDocument=canonical.find(item=>item.localPath===file.localPath).remotePath;}
  // Source-plan publication must use per-target reads below. The legacy batch
  // shortcut has no baseline/approval hooks and is unavailable to this path.
- if(a.mode==='direct'&&!a.sourcePlan&&!onDemand&&!context.deploymentArtifacts?.size){
+ if(a.mode==='direct'&&!a.sourcePlan&&!onDemand&&!context.deploymentArtifacts?.size&&plan.files.every(file=>file.encodingPolicy.sourceEncoding===file.encodingPolicy.serverEncoding)){
   for(const file of plan.files){
-   const content=guard.text(guard.readSource(file));
+   const content=require('./frontend-encoding').decode(guard.readSource(file),file.encodingPolicy.sourceEncoding,file.localPath);
    require('./deploy-direct').prepare(file.remotePath,content,null);
   }
   const frontend=require('./deploy-frontend');
@@ -133,6 +160,7 @@ function frontendAdapter(a,config,mcp,context){
    const probe=createSession(a.python||server.command,path.resolve(__dirname,'../../../../vendor/sftp-server/src/protected-file.py'),env);
    try{for(const f of plan.files){const r=await probe.request({mode:'read',remotePath:f.remotePath});if(r.status!=='verified'||r.content===null||guard.hash(Buffer.from(r.content,'base64'))!==guard.hash(fs.readFileSync(f.localPath)))return false;}return true;}finally{await probe.close();}
   }, async batch(){
+   for(const file of plan.files){const encoding=require('./frontend-encoding');if(JSON.stringify(encoding.resolve(context,file.localPath))!==JSON.stringify(file.encodingPolicy))guard.stop('frontend-encoding-configuration-changed');const bytes=encoding.artifact(guard.readSource(file),file.encodingPolicy,file.localPath);if(guard.hash(bytes)!==file.sha256)guard.stop('local-source-changed');}
    const result=await frontend.execute(plan,p=>frontend.uploadBatch(a.python||server.command,batchPath,env,p),
     documents=>csp.compile(conn,{documents},60000,{context,kind:a.kind}));
    result.timings.localPreflightMs=localPreflightMs;
@@ -179,8 +207,11 @@ function frontendAdapter(a,config,mcp,context){
          reason:error.reason||'validation-failed',...(previous.verified?{previousVerification:previous}:{})};
  },target:JSON.stringify([env.TARGET_HOST,env.TARGET_PORT,env.REMOTE_PATH]),
   async read(f){const r=await call({mode:'read',remotePath:f.remotePath});return r.content===null?null:Buffer.from(r.content,'base64');},
-  async readPublished(file){const value=await compileClient.readDocument(file.document);return value?.bytes??null;},
-  async put(f){const localPath=path.join(dir,guard.digest(f.remotePath));fs.writeFileSync(localPath,f.bytes,{mode:0o600});
+  async readPublished(file){const value=await compileClient.readDocument(file.document,{binary:file.kind==='frontend'});if(value && file.kind==='frontend' && !value.enc)guard.stop('frontend-raw-read-unavailable');return value?.bytes??null;},
+  async put(f){
+   require('./frontend-encoding').validateUpload(context,f);
+   const localPath=path.join(dir,guard.digest(f.remotePath));
+   fs.writeFileSync(localPath,f.bytes,{mode:0o600});
    return await call({mode:'put',remotePath:f.remotePath,localPath,expected:f.expected,sha256:guard.hash(f.bytes)});},
   async compile(){
       const started=performance.now();
@@ -241,7 +272,7 @@ async function main(kind,argv){
    sourcePlanPath=path.resolve(a.sourcePlan);
    releaseRepository=require('./source-sync-core').acquireRepositoryLock(publication.load(sourcePlanPath).gitRoot);
    sourceBinding=publication.assertReady({plan:publication.load(sourcePlanPath),context,files,kind,
-    configurationFingerprint:publication.fingerprint(require('../../../../scripts/lib/iris-remote-operations').bindDevelopmentMode(context,{config,mcp})),environmentAlias:a.environmentAlias,
+    configurationFingerprint:require('./source-sync-core').configurationFingerprint(context),environmentAlias:a.environmentAlias,
     decision:a.publicationDecision?guard.read(path.resolve(a.publicationDecision)):null});
    files=sourceBinding.files;
   }
@@ -282,8 +313,9 @@ async function main(kind,argv){
    }
    const exit=await adapter.close?.();
    if(exit){result.remoteExit=exit;if(exit.cleanupVerified===false){result.status='failed-or-unknown';result.reason='remote-session-exit-unverified';}}
+   adapter.finishArtifacts?.(result);
    if(sourceBinding){result.publicationSha256=sourceBinding.publication.sha256;publication.record(sourcePlanPath,result,{kind});}
-   if(adapter.metrics)result.transport=adapter.metrics;
+  if(adapter.metrics)result.transport=adapter.metrics;
    result.timings={...result.timings,...adapter.timings,totalMs:Math.round(performance.now()-started)};
    nightExecution.finish(nightBinding,{...result,...(result.status==='group-verified'?{status:'verified'}:{}),...(result.partialOrUnknown?{failureCategory:'execution-unknown'}:{})});nightBinding=null;
     let output=JSON.stringify(result);
@@ -296,12 +328,13 @@ async function main(kind,argv){
   const decision=a.decision?guard.read(path.resolve(a.decision)):null;
   const result=sourceReview(await guard.run({repo:roots[0],demand:a.demand,files,target:kind+':'+target,adapter,decision}),nightBinding);
   await adapter.close?.();
+  adapter.finishArtifacts?.(result);
   if(adapter.metrics)result.transport=adapter.metrics;
   if(adapter.results && !result.files)result.files=adapter.results;
   result.timings={...result.timings,...adapter.timings,totalMs:Math.round(performance.now()-started)};
   nightExecution.finish(nightBinding,{...result,...(result.partialOrUnknown?{failureCategory:'execution-unknown'}:{})});nightBinding=null;
    console.log(JSON.stringify(result));if(result.status!=='verified')process.exitCode=1;
- }catch(e){if(publicationStarted){try{publication.record(sourcePlanPath,{status:'failed-or-unknown',reason:e.reason||e.code||'publication-incomplete'},{kind});}catch{}}if(nightBinding){try{nightExecution.finish(nightBinding,{status:'review-pending',failureCategory:'execution-unknown'});}catch{}}console.log(JSON.stringify(nightMode?{status:'blocked',reason:e.reason||e.code||'night-execution-unverified',handoff:true}:needsInput(e.reason||e.code||'configuration-or-transport-failed',e.details||{})));process.exitCode=1;}
+ }catch(e){const recovery={status:'failed-or-unknown'};adapter?.finishArtifacts?.(recovery);if(recovery.uploadArtifacts)e.details={...e.details,uploadArtifacts:recovery.uploadArtifacts};if(publicationStarted){try{publication.record(sourcePlanPath,{status:'failed-or-unknown',reason:e.reason||e.code||'publication-incomplete',details:e.details||{}},{kind});}catch{}}if(nightBinding){try{nightExecution.finish(nightBinding,{status:'review-pending',failureCategory:'execution-unknown'});}catch{}}console.log(JSON.stringify(nightMode?{status:'blocked',reason:e.reason||e.code||'night-execution-unverified',handoff:true}:needsInput(e.reason||e.code||'configuration-or-transport-failed',e.details||{})));process.exitCode=1;}
  finally{try{await adapter?.close?.();}finally{releaseRepository?.();}}
 }
 module.exports={main,parse,request,backendAdapter,frontendAdapter,frontendTransport,atelierFrontendPlan,frontendPlan};

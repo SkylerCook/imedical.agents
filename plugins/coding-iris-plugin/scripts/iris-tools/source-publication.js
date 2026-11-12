@@ -38,10 +38,10 @@ function freeze(input) {
     if (!artifactSha256) {
       const source = fs.readFileSync(sourcePath);
       if (guard.hash(source) !== localSha256) guard.stop('publication-local-source-changed', {file: file.path});
-      artifactSha256 = guard.hash(file.kind === 'backend' ? Buffer.from(guard.text(source)) : source);
+      artifactSha256 = guard.hash(file.encodingPolicy ? require('./frontend-encoding').artifact(source,file.encodingPolicy,file.path) : file.kind === 'backend' ? Buffer.from(guard.text(source)) : source);
     }
     return {path: file.path.replace(/\\/g, '/'), sourcePath, gitPath, document: file.document, kind: file.kind,
-      localSha256, artifactSha256: checkedHash(artifactSha256, 'artifactSha256'),
+      localSha256, ...(file.remoteRepresentation?{remoteRepresentation:file.remoteRepresentation}:{}), ...(file.encodingPolicy?{encodingPolicy:file.encodingPolicy}:{}), artifactSha256: checkedHash(artifactSha256, 'artifactSha256'),
       remoteSha256: checkedHash(file.remoteSha256, 'remoteSha256', true), remoteTs: file.remoteTs ?? null};
   }).sort((a, b) => a.path.localeCompare(b.path));
   if (!files?.length || new Set(files.map(file => file.path)).size !== files.length ||
@@ -107,6 +107,7 @@ function assertReady({plan, context, configurationFingerprint, files, environmen
   if (files.length !== selectedFiles.length) guard.stop('publication-file-set-changed');
   const selected = files.map(file => {
     const published = selectedFiles.find(item => samePath(item.sourcePath, file.localPath));
+    if(published?.encodingPolicy && JSON.stringify(file.encodingPolicy)!==JSON.stringify(published.encodingPolicy)) guard.stop('publication-encoding-changed');
     if (!published || published.document !== (file.publicationDocument || file.remotePath) || guard.hash(guard.readSource(file)) !== published.localSha256) guard.stop('publication-local-source-changed', {file: file.remotePath});
     if (git(publication.gitRoot, ['status', '--porcelain', '--untracked-files=all', '--', published.gitPath])) guard.stop('publication-uncommitted-source', {file: published.path});
     return {...file, publicationArtifactSha256: published.artifactSha256};
@@ -128,7 +129,9 @@ function bindAdapter(adapter, publication, {context} = {}) {
     assertConfiguration();
     const bytes = await adapter.read(file);
     if (!checked.has(file.remotePath)) {
-      if (guard.hash(bytes) !== originals.get(file.publicationDocument || file.remotePath)?.remoteSha256) guard.stop('publication-remote-baseline-changed', {file: file.remotePath});
+      const original=originals.get(file.publicationDocument || file.remotePath);
+      const compared=bytes!==null&&original?.remoteRepresentation==='text' ? Buffer.from(require('./frontend-encoding').decode(bytes,original.encodingPolicy.serverEncoding).replace(/\r\n/g,'\n')) : bytes;
+      if (guard.hash(compared) !== original?.remoteSha256) guard.stop('publication-remote-baseline-changed', {file: file.remotePath});
       checked.add(file.remotePath);
     }
     return bytes;

@@ -70,7 +70,7 @@ test('foreign staging and configuration changes stop the next write without rest
   // Build another reviewed binding that includes the known foreign index.
   fs.mkdirSync(path.join(f.context.contextRoot, 'config'), {recursive: true});
   fs.writeFileSync(path.join(f.context.contextRoot, 'config/project-env.json'), '{}'); fs.writeFileSync(path.join(f.root, '.mcp.json'), '{}');
-  const approved = publication.freeze({...f.input, configurationFingerprint: publication.fingerprint({config: {}, mcp: {}})});
+  const approved = publication.freeze({...f.input, configurationFingerprint: require('../source-sync-core').configurationFingerprint(f.context)});
   let writes = 0;
   const adapter = publication.bindAdapter({read: async () => null, put: async () => {writes++;}}, approved, {context: f.context});
   await adapter.read(f.file);
@@ -153,7 +153,7 @@ test('approved CLI publication persists verified evidence and cannot replay a co
   // is replaced so the test exercises the CLI and persistence gates only.
   t.mock.method(require('../compile-csp'), 'connection', () => ({protocol: 'https:', hostname: 'fixture.invalid', port: 443, path: '/api/atelier/v1/FIXTURE/'}));
   const plan = core.createPlan({projectRoot: f.root, environmentAlias: 'fixture', environmentType: 'production', phase: 'pre-deploy', demand: '123', files: ['Demo.cls']});
-  plan.publication = publication.freeze({...f.input, head: f.git('rev-parse', 'HEAD'), configurationFingerprint: publication.fingerprint({config, mcp})});
+  plan.publication = publication.freeze({...f.input, head: f.git('rev-parse', 'HEAD'), configurationFingerprint: require('../source-sync-core').configurationFingerprint(f.context)});
   plan.state = 'ready-to-publish'; core.save(plan);
   let clients = 0, writes = 0, compiles = 0, closes = 0, remote = null;
   t.mock.method(require('../../../../../scripts/lib/atelier-client'), 'createAtelierClient', () => {
@@ -196,14 +196,15 @@ test('mixed publication completes both kinds and rechecks earlier groups after t
     fs.writeFileSync(path.join(f.context.contextRoot, 'config/project_context_profile.md'), '- contextMode: intent-first-on-demand-export\n');
     fs.writeFileSync(path.join(f.context.contextRoot, 'config/iris_project_profile.md'), '- 默认需求交付类型：project\n');
     t.mock.method(require('../compile-csp'), 'connection', () => ({protocol: 'https:', hostname: 'fixture.invalid', port: 443, path: '/api/atelier/v1/FIXTURE/'}));
+    fs.appendFileSync(path.join(f.context.contextRoot,'config/iris_project_profile.md'),'- 前端源码编码：utf8\n- 前端服务器编码：utf8\n- 前端服务器编码确认：confirmed\n- 前端服务器编码确认环境：'+require('../frontend-encoding').targetIdentity(f.context)+'\n');
     const plan = core.createPlan({projectRoot: f.root, environmentAlias: 'fixture', environmentType: 'production', phase: 'pre-deploy', demand: '123', files: ['Demo.cls', 'scripts/a.js']});
-    plan.publication = publication.freeze({...f.input, head: f.git('rev-parse', 'HEAD'), configurationFingerprint: publication.fingerprint({config, mcp}), files: [
+    plan.publication = publication.freeze({...f.input, head: f.git('rev-parse', 'HEAD'), configurationFingerprint: require('../source-sync-core').configurationFingerprint(f.context), files: [
       f.input.files[0], {path: 'scripts/a.js', sourcePath: script, document: 'web/scripts/a.js', kind: 'frontend', localSha256: guard.hash(fs.readFileSync(script)), remoteSha256: null}
     ]}); plan.state = 'ready-to-publish'; core.save(plan);
     const receipt = path.join(f.context.contextRoot, 'config/publish.json'); fs.writeFileSync(receipt, JSON.stringify({schema: 'iris-publication-decision/v1', action: 'publish', token: plan.publication.sha256}));
     const remote = new Map(); let clients = 0, compiles = 0, unknown = 0;
     t.mock.method(require('../../../../../scripts/lib/atelier-client'), 'createAtelierClient', () => {
-      clients++; return {readDocument: async name => remote.has(name) ? {bytes: remote.get(name), ts: '2026-01-01 00:00:00.000', enc: false} : null,
+      clients++; return {readDocument: async name => remote.has(name) ? {bytes: remote.get(name), ts: '2026-01-01 00:00:00.000', enc: name.includes('/')} : null,
         writeDocument: async (name, bytes) => remote.set(name, bytes), compile: async () => {compiles++; return {status: {errors: []}, result: {content: []}, console: []};},
         markUnknown: () => {unknown++;}, close: async () => ({cleanupVerified: true})};
     });

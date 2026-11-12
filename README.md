@@ -715,3 +715,5 @@ Atelier Web 文档路径编码修复及已部署工程更新方式见[统一会�
 Codex 原生 Agent：显式 `-RuntimeAdapter Codex -Agent` 首次生成项目 TOML，普通更新刷新已有受管文件；自定义内容保留。技能操作入口复用 coding-agent-adaptation，说明见 [宿主适配](docs/coding-agent-adaptation.md#codex-原生-agent)。
 
 WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codebuddy/agents 薄入口；PowerShell 显式 -RuntimeAdapter WorkBuddy（或 CodeBuddy）-Agent，默认仍为 Skill。源定义只维护 AGENT.md，客户端实际调用待验。
+
+前端按需项目首次确认服务端编码后复用配置，修改前和部署入口执行检查，UTF-8 本地源码按服务器目标无损上传。见[编码契约](plugins/coding-iris-plugin/references/frontend-encoding.md)。

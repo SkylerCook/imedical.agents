@@ -1,0 +1,20 @@
+{
+  "iconvLiteVersion": "0.6.3",
+  "source": "https://github.com/ashtuchkin/iconv-lite/tree/v0.6.3",
+  "license": "MIT",
+  "adaptation": "dbcs-codec.js uses node:buffer instead of safer-buffer; trailing whitespace normalized; LF enforced",
+  "strictGb2312": {
+    "generator": "CPython 3.13.12 gb2312 strict codec",
+    "entries": 7445
+  },
+  "sha256": {
+    "cp936.json": "8225bb693efd380279ed7280b8f8419fd069c5f018d20d5946bf187ad92c0cf7",
+    "dbcs-codec.js": "3a946dcc6adf343081eb5efb29ca65990d53ade9ddcb337acf24b51b929b0fbc",
+    "gb18030-ranges.json": "5a3cc11e38f05a0908442acbf1c921d0b73f2a304fb6a9e4484e26eb1ca07d76",
+    "gb2312.json": "5810a0ae9ec986c02ac1f7a6461e512473e0a82aaa455197e706ac0a4d800183",
+    "gbk-added.json": "10cbb08708f3a431977271887b2663f734390a22cedf90875fac9fdbd4bb5317",
+    "index.js": "7fd69b838836004ee6e0fa1b01ad761135e8432ee23d3c4fcfbfdbc2b8c74dba",
+    "LICENSE": "f9c6da891840e8951696e472b3c7d6f6d3ab2c7325f1dd30c0813244c15b288c",
+    "PYTHON-LICENSE.txt": "ff0a1e8e668432c3f424df84079ea715a619da4471c4ebdcfa43be91a288d95d"
+  }
+}

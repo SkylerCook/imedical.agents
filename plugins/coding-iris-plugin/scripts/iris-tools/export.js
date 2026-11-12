@@ -190,17 +190,17 @@ function prepareOutputTarget(fileInfo) {
     if (frontendMode === 'backend-only') {
         throw new Error('当前 profile 为 N/A (backend-only)，没有可导出的 frontend SourceRoot。');
     }
-    let useStaging = targetMode === 'staging' || (targetMode === 'auto' && frontendMode !== 'utf8');
-    if (targetMode === 'source' && frontendMode !== 'utf8') {
-        throw new Error('只有已确认的 utf8 前端允许直接导出到源码；legacy standard-gb2312 或未确认模式必须使用 staging。');
-    }
+    const encodingPolicy = require('./frontend-encoding').resolve(workspaceContext, intendedPath, {requireConfirmed:false,projectTask:demandKind==='project'});
+    const useStaging = targetMode === 'staging' || !encodingPolicy.confirmed || !encodingPolicy.serverEncoding;
+    if (targetMode === 'source' && useStaging) throw new Error('frontend-server-encoding-confirmation-required');
     const finalPath = useStaging ? path.join(workspaceContext.contextRoot, 'work', 'iris-export', relativeTarget) : intendedPath;
     return Object.assign({}, fileInfo, {
         fullPath: finalPath,
         intendedDestination: intendedPath,
         frontendMode,
         staging: useStaging,
-        conversionRequired: frontendMode === 'standard-gb2312'
+        encodingPolicy,
+        conversionRequired: encodingPolicy.sourceEncoding !== encodingPolicy.serverEncoding
     });
 }
 
@@ -384,23 +384,27 @@ function exportFile(fileInfo) {
                 info('[信息] 文件存储类型: 文件系统 (@FS)');
             }
 
-            let content = response.result.content.join('\n');
-            const contentBuffer = Buffer.from(content, 'utf8');
+            if (response.result.enc) throw new Error('atelier-text-export-required');
+            const content = response.result.content.join('\n');
+            const encoding = require('./frontend-encoding');
+            const localEncoding = fileInfo.encodingPolicy && !fileInfo.staging ? fileInfo.encodingPolicy.sourceEncoding : 'utf8';
+            const contentBuffer = encoding.encode(content, localEncoding, fileInfo.fullPath);
+            const encodingReceipt = {encoding:localEncoding,localEncoding,serverEncoding:fileInfo.encodingPolicy?.serverEncoding||null,serverEncodingConfirmed:!!fileInfo.encodingPolicy?.confirmed,representation:'atelier-text',hashRepresentation:'local-output-bytes'};
             const contentHash = crypto.createHash('sha256').update(contentBuffer).digest('hex').toUpperCase();
             if (probe) {
-                emitResult({ status: 'found', type: fileInfo.type, document: fileInfo.apiUrlPath, db: dbType || '', encoding: 'utf8', length: contentBuffer.length, sha256: contentHash });
+                emitResult({ status: 'found', type: fileInfo.type, document: fileInfo.apiUrlPath, db: dbType || '', ...encodingReceipt, length: contentBuffer.length, sha256: contentHash });
                 return;
             }
 
             // Write file
-            fs.writeFileSync(fileInfo.fullPath, content, 'utf8');
+            fs.writeFileSync(fileInfo.fullPath, contentBuffer);
 
             info(`[成功] ${fileInfo.type} 文件已导出到: ${fileInfo.fullPath}`);
             emitResult({
                 status: 'exported',
                 path: fileInfo.fullPath,
                 intendedDestination: fileInfo.intendedDestination || fileInfo.fullPath,
-                encoding: 'utf8',
+                ...encodingReceipt,
                 preset: fileInfo.frontendMode,
                 staging: Boolean(fileInfo.staging),
                 conversionRequired: Boolean(fileInfo.conversionRequired),

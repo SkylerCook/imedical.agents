@@ -952,3 +952,11 @@ WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codeb
 ### 工作区外自定义技能目录链接
 
 需求归属迁移沿同一更新流程识别外部独立技能目录，保留链接并报告 external-linked-skill；不扫描或改写其内容。旧/新需求入口及其它链接保护不变，完整边界见[需求入口迁移](demand-delivery-migration.md#已部署项目更新)。已部署副本需取得更新后的 scripts/migrate-demand-ownership.js，再按 DryRun → Write → Check 刷新；没有新增配置或链接清理。
+
+## 前端编码分离（coding 0.28）
+
+升级须同时同步 coding 插件、根 scripts/lib 和 vendor/frontend-encoding。更新器保留已确认的服务器编码及本地源码，不从本地 UTF-8 推导服务器编码。
+
+按需导出项目首次修改前端前，按[编码契约](../plugins/coding-iris-plugin/references/frontend-encoding.md)调查并确认一次，运行 confirm 保存源码编码、服务器目标及目标指纹。后续自动复用，目标变化或范围冲突才处理异常。旧 `standard-gb2312` 表示 CP936／GBK，确认时选准确编码。
+
+已有 UTF-8 源码保持原样，旧发布计划因配置指纹变更需要重新同步及复审。既有缺省前端通道保持 SFTP，新项目根据实际可用能力显式选择 Atelier，显式 SFTP 配置保留。GB 系列目标通过 Atelier binary/enc 保持目标字节，既有已确认 UTF-8 的文本通道继续可用并标注文本回读。CSP 另行编译。真实服务器支持范围由目标工程试点验证，本地协议测试不能替代现场验收。

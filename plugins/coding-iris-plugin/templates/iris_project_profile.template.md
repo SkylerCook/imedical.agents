@@ -25,9 +25,11 @@
 - 前端编码模式：utf8
 - 前端编码冲突处理：stop-and-report
 
-`project-utf8` 仅作为旧 profile 的兼容读取别名；`standard-gb2312` 仅用于用户明确指定的历史工程。新项目和当前标版不得按路径或仓库角色改写 `utf8` 默认值。
+- 前端源码编码：utf8
+- 前端服务器编码：pending
+- 前端服务器编码确认：pending
 
-workspace-overlay 若在 `capability.json` 中明确只声明 `backend`、未声明 `frontend` SourceRoot，应将“前端编码模式”规范化为 `N/A (backend-only)`；不得保留旧 `TODO` 双模式提示，也不得扫描父目录或 sibling 猜测前端源码。若后续新增 `frontend` SourceRoot，重新运行迁移并通过实际字节门禁后再写回 `utf8`。
+标版初始化按 UTF-8 配置。按需项目先调查并取得开发人员一次确认，再运行 `frontend-encoding-cli.js confirm` 写入服务器编码及目标指纹。已有 UTF-8 源码保持原样，部署按目标编码转换，详见[编码契约](../references/frontend-encoding.md)。backend-only 工程继续沿 N/A 约定。
 
 ### 部署能力
 

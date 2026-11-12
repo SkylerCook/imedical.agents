@@ -32,9 +32,10 @@ test('static assets require no compiler',async()=>{
 });
 test('local plan maps explicit files and rejects escapes, duplicate and invalid UTF8',()=>{
  const root=createTempDirectory('frontend-plan-');
+ fs.mkdirSync(path.join(root,'.agents/config'),{recursive:true});fs.writeFileSync(path.join(root,'.agents/config/iris_project_profile.md'),'- 前端源码编码：utf8\n- 前端服务器编码：utf8\n- 前端服务器编码确认：confirmed\n- 前端服务器编码确认环境：'+require('../frontend-encoding').targetIdentity({workspaceRoot:root,contextRoot:path.join(root,'.agents')})+'\n');
  try {
   fs.mkdirSync(path.join(root,'csp'));fs.writeFileSync(path.join(root,'csp/page.csp'),'hello');
-  const args={sourceRoot:root,files:['csp/page.csp']};const config={web:{cspBasePath:'web/csp'}};
+  const args={sourceRoot:root,files:['csp/page.csp']};const config={web:{cspBasePath:'web/csp',frontendTransport:'sftp'}};
   const context={workspaceRoot:root,sourceRoots:[{target:root}]};const env={REMOTE_PATH:'/web'};
   const p=buildPlan(args,config,env,context);assert.equal(p.files[0].remotePath,'/web/csp/page.csp');assert.deepEqual(p.documents,['web/csp/page.csp']);
   assert.throws(()=>buildPlan({...args,files:[...args.files,...args.files]},config,env,context));
@@ -52,6 +53,7 @@ test('direct frontend adapter batches once through the existing worker',async()=
  const frontend=require('../deploy-frontend');
  const {frontendAdapter}=require('../deploy-protected');
  const root=createTempDirectory('frontend-routing-');
+ fs.mkdirSync(path.join(root,'.agents/config'),{recursive:true});fs.writeFileSync(path.join(root,'.agents/config/iris_project_profile.md'),'- 前端源码编码：utf8\n- 前端服务器编码：utf8\n- 前端服务器编码确认：confirmed\n- 前端服务器编码确认环境：'+require('../frontend-encoding').targetIdentity({workspaceRoot:root,contextRoot:path.join(root,'.agents')})+'\n');
  const original=frontend.uploadBatch;
  try {
   fs.mkdirSync(path.join(root,'css'));fs.writeFileSync(path.join(root,'css/page.css'),'body{}');
@@ -60,7 +62,7 @@ test('direct frontend adapter batches once through the existing worker',async()=
    calls++;assert.match(worker,/upload-batch\.py$/);assert.equal(env.LOCAL_PATH,root);
    return {status:'verified',files:plan.files.map(f=>({file:f.file,sha256:f.sha256,status:'unchanged'}))};
   };
-  const adapter=frontendAdapter({mode:'direct',sourceRoot:root,files:['css/page.css']}, {},
+  const adapter=frontendAdapter({mode:'direct',sourceRoot:root,files:['css/page.css']}, {web:{frontendTransport:'sftp'}},
    {mcpServers:{'sftp-server':{command:'python',env:{REMOTE_PATH:'/web'}}}},
    {workspaceRoot:root,sourceRoots:[{target:root}]});
   assert.equal((await adapter.batch()).status,'verified');assert.equal(calls,1);assert.equal(adapter.read,undefined);
@@ -70,9 +72,10 @@ test('direct frontend adapter batches once through the existing worker',async()=
 test('batch routing preserves JavaScript syntax preflight before connecting',()=>{
  const {frontendAdapter}=require('../deploy-protected');
  const root=createTempDirectory('frontend-syntax-');
+ fs.mkdirSync(path.join(root,'.agents/config'),{recursive:true});fs.writeFileSync(path.join(root,'.agents/config/iris_project_profile.md'),'- 前端源码编码：utf8\n- 前端服务器编码：utf8\n- 前端服务器编码确认：confirmed\n- 前端服务器编码确认环境：'+require('../frontend-encoding').targetIdentity({workspaceRoot:root,contextRoot:path.join(root,'.agents')})+'\n');
  try {
   fs.mkdirSync(path.join(root,'scripts'));fs.writeFileSync(path.join(root,'scripts/page.js'),'const = ;');
-  assert.throws(()=>frontendAdapter({mode:'direct',sourceRoot:root,files:['scripts/page.js']},{},
+  assert.throws(()=>frontendAdapter({mode:'direct',sourceRoot:root,files:['scripts/page.js']},{web:{frontendTransport:'sftp'}},
    {mcpServers:{'sftp-server':{command:'python',env:{REMOTE_PATH:'/web'}}}},
    {workspaceRoot:root,sourceRoots:[{target:root}]}),e=>e.reason==='javascript-syntax-failed');
  }finally{fs.rmSync(root,{recursive:true,force:true});}
@@ -81,11 +84,12 @@ test('batch routing preserves JavaScript syntax preflight before connecting',()=
 test('direct CSP batch passes workspace context and kind to exactly one compile', async () => {
  const frontend=require('../deploy-frontend'), csp=require('../compile-csp');
  const root=createTempDirectory('frontend-csp-context-');
+ fs.mkdirSync(path.join(root,'.agents/config'),{recursive:true});fs.writeFileSync(path.join(root,'.agents/config/iris_project_profile.md'),'- 前端源码编码：utf8\n- 前端服务器编码：utf8\n- 前端服务器编码确认：confirmed\n- 前端服务器编码确认环境：'+require('../frontend-encoding').targetIdentity({workspaceRoot:root,contextRoot:path.join(root,'.agents')})+'\n');
  const originalUpload=frontend.uploadBatch, originalCompile=csp.compile;
  try {
   fs.mkdirSync(path.join(root,'csp'));fs.writeFileSync(path.join(root,'csp/page.csp'),'hello');
   const context={workspaceRoot:root,contextRoot:path.join(root,'.agents'),sourceRoots:[{target:root}]};
-  const config={iris:{namespace:'TEST'},web:{cspBasePath:'web/csp'}};
+  const config={iris:{namespace:'TEST'},web:{cspBasePath:'web/csp',frontendTransport:'sftp'}};
   const mcp={mcpServers:{'sftp-server':{command:'python',env:{REMOTE_PATH:'/web'}},'iris-agentic-dev':{env:{IRIS_HOST:'synthetic.invalid',IRIS_WEB_PORT:'443',IRIS_SCHEME:'https',IRIS_NAMESPACE:'TEST',IRIS_USERNAME:'fixture',IRIS_PASSWORD:'fixture'}}}};
   frontend.uploadBatch=async(_cmd,_worker,_env,plan)=>({status:'verified',files:plan.files.map(f=>({file:f.file,sha256:f.sha256,status:'uploaded'}))});
   let count=0;
@@ -103,6 +107,7 @@ test('compile dispatch diagnostics retain safe code without echoing exception me
 
 test('on-demand SFTP reads and uploads with pending license registration', async () => {
  const root=createTempDirectory('frontend-pending-policy-');
+ fs.mkdirSync(path.join(root,'.agents/config'),{recursive:true});fs.writeFileSync(path.join(root,'.agents/config/iris_project_profile.md'),'- 前端源码编码：utf8\n- 前端服务器编码：utf8\n- 前端服务器编码确认：confirmed\n- 前端服务器编码确认环境：'+require('../frontend-encoding').targetIdentity({workspaceRoot:root,contextRoot:path.join(root,'.agents')})+'\n');
  const worker=require('../sftp-worker'), original=worker.createSession;
  const modulePath=require.resolve('../deploy-protected'), cached=require.cache[modulePath];
  let adapter, closed=false; const calls=[];
@@ -115,9 +120,9 @@ test('on-demand SFTP reads and uploads with pending license registration', async
   worker.createSession=()=>({stats:{},request:async payload=>{calls.push(payload.mode);return {status:'verified',content:null};},close:async()=>{closed=true;}});
   delete require.cache[modulePath];
   const mcp={mcpServers:{'sftp-server':{command:'fixture',env:{REMOTE_PATH:'/web'}},'iris-agentic-dev':{env:{IRIS_HOST:'synthetic.invalid',IRIS_WEB_PORT:'443',IRIS_SCHEME:'https',IRIS_NAMESPACE:'TEST',IRIS_USERNAME:'fixture',IRIS_PASSWORD:'fixture'}}}};
-  adapter=require('../deploy-protected').frontendAdapter({mode:'direct',sourceRoot:root,files:['scripts/page.js']},{iris:{namespace:'TEST'}},mcp,context);
+  adapter=require('../deploy-protected').frontendAdapter({mode:'direct',sourceRoot:root,files:['scripts/page.js']},{iris:{namespace:'TEST'},web:{frontendTransport:'sftp'}},mcp,context);
   assert.equal(await adapter.read(adapter.files[0]),null);
-  await adapter.put({...adapter.files[0],bytes:fs.readFileSync(adapter.files[0].localPath)});
+  await adapter.put({...adapter.files[0],bytes:fs.readFileSync(adapter.files[0].localPath),content:fs.readFileSync(adapter.files[0].localPath,'utf8')});
   await adapter.close();adapter=null;
   assert.deepEqual(calls,['read','put']);assert.equal(closed,true);
  } finally {
