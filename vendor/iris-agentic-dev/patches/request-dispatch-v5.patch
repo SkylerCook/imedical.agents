@@ -1,0 +1,19 @@
+--- a/crates/iris-agentic-dev-core/src/iris/csp_session.rs
++++ b/crates/iris-agentic-dev-core/src/iris/csp_session.rs
+@@ -156,6 +156,7 @@
+ // Managed transport guard: all Atelier HTTP sends share this admission lock.
+ static MANAGED_GUARD: LazyLock<tokio::sync::Mutex<()>> = LazyLock::new(|| tokio::sync::Mutex::new(()));
+ static MANAGED_UNCERTAIN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
++static MANAGED_HTTP_SENDS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+ static MANAGED_BLOCKED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+ static MANAGED_AUTH: LazyLock<Mutex<std::collections::BTreeMap<String,HeaderValue>>> = LazyLock::new(||Mutex::new(std::collections::BTreeMap::new()));
+ static MANAGED_COOKIE_NAMES: LazyLock<Mutex<std::collections::BTreeMap<String,String>>> = LazyLock::new(|| Mutex::new(std::collections::BTreeMap::new()));
+@@ -201,6 +202,8 @@
+         let current=managed_cookie_names(&url);
+         if previous.is_some() && current!=previous {return Err(managed_error());}
+         if current.is_some() {remember_logout(&url,true);request.headers_mut().remove(reqwest::header::AUTHORIZATION);}
++        let sequence = MANAGED_HTTP_SENDS.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
++        eprintln!("IMEDICAL_HTTP_SEND={sequence}");
+         let response=match client.execute(request).await {Ok(response)=>response,Err(error)=>{let _=managed_error();return Err(error);}};
+         if [401,403,503].contains(&response.status().as_u16()) {
+             MANAGED_BLOCKED.store(true,std::sync::atomic::Ordering::SeqCst);

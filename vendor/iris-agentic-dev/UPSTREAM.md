@@ -41,3 +41,7 @@ The incremental `patches/startup-readiness-v4.patch` joins the initial discovery
 
 
 The build retains all v1/v2/v3 protections and tool schemas. The deployment requires matching runtime and metadata. No project connection fields are embedded in the executable.
+
+## Dispatch evidence candidate v5
+
+The incremental request-dispatch-v5.patch emits a monotonic count immediately before managed Atelier HTTP sends. Only the count is logged. It lets the wrapper distinguish a tool call rejected before its first HTTP request from a dispatched operation. A localhost test expires the cookie between calls and verifies zero additional HTTP requests or dispatch increments. The candidate keeps prior startup, reuse and replay behavior.

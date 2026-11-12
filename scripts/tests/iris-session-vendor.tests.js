@@ -148,3 +148,28 @@ test('actual vendor asynchronous discovery becomes ready within one process', {s
   assert.equal(ready.connected,true);assert.equal(authenticated,1);
   const exit=await client.close();assert.equal(exit.processExited,true);assert.equal(exit.logout.completed,true);
 });
+
+
+test('actual vendor counts HTTP dispatches and rejects an expired session before sending the next carrier', {skip:process.platform!=='win32'&&!process.env.IRIS_TEST_VENDOR_BINARY}, async t=>{
+  const root=createTempDirectory('iris-dispatch-vendor-'),seen=[];
+  const server=http.createServer((req,res)=>{
+    req.resume();seen.push(req.method);
+    if(req.url.includes('IRISLogout=end')){res.writeHead(401);res.end('{}');return;}
+    res.setHeader('Content-Type','application/json');
+    res.setHeader('Set-Cookie','CSPSESSIONID-fixture=dispatch; Path=/api/atelier/; Max-Age=1');
+    res.end(JSON.stringify(req.method==='GET'?{result:{content:{version:'IRIS for test',api:1}}}:{result:{content:[{probe:1}]}}));
+  });
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const inherited=Object.fromEntries(Object.keys(process.env).filter(k=>k.startsWith('IRIS_')).map(k=>[k,undefined]));
+  const client=new JsonLineMcpClient(binary,['mcp','--no-skills'],{...inherited,IRIS_HOST:'127.0.0.1',IRIS_WEB_PORT:String(server.address().port),IRIS_SCHEME:'http',IRIS_NAMESPACE:'TEST',IRIS_USERNAME:'fixture',IRIS_PASSWORD:'fixture',IRIS_MANAGED_NO_RETRIES:'1'},{cwd:root});
+  t.after(async()=>{await client.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));if(ownsTempDirectory(root))fs.rmSync(root,{recursive:true});});
+  await client.request('initialize',{protocolVersion:'2024-11-05',capabilities:{},clientInfo:{name:'dispatch-test',version:'1'}});client.notify('notifications/initialized',{});
+  await client.request('tools/call',{name:'iris_query',arguments:{query:'SELECT 1',mode:'read'}});
+  await new Promise(resolve=>setTimeout(resolve,1500));
+  const before=seen.length;
+  const markers=()=>[...client.stderr.matchAll(/IMEDICAL_HTTP_SEND=(\d+)/g)].map(m=>Number(m[1]));
+  const baseline=markers();assert.equal(baseline.length,before);
+  const response=await client.request('tools/call',{name:'iris_execute',arguments:{code:'write 1',namespace:'TEST',confirmed:true}});
+  assert.equal(response.result.isError,true);assert.match(client.stderr,/IMEDICAL_SESSION_STOP=identity-unverified/);
+  assert.equal(seen.length,before);assert.deepEqual(markers(),baseline);
+});
