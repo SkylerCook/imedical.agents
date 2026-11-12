@@ -50,7 +50,8 @@ async function serve({root, open = backends.open, describe = backends.operation,
           ...(/^[A-Z][A-Z0-9_]{0,79}$/.test(error.transportCode || '') ? {transportCode:error.transportCode} : {}),
           ...(error.diagnostic === 'system-ca-api-unavailable' ? {diagnostic:error.diagnostic} : {}),
           ...(error.sessionUncertain === true ? {sessionUncertain:true} : {}),
-          ...(['unknown','rejected'].includes(error.writeOutcome) ? {writeOutcome:error.writeOutcome} : {}),
+          ...(/^[a-f0-9-]{36}$/.test(error.pendingWriteId || '') ? {pendingWriteId:error.pendingWriteId} : {}),
+          ...(['unknown','rejected','verified-applied'].includes(error.writeOutcome) ? {writeOutcome:error.writeOutcome} : {}),
           ...(error.toolResponse ? {toolResponse:error.toolResponse} : {}),
           ...(error.toolErrorCode ? {toolErrorCode:error.toolErrorCode} : {})
         }}) + '\n');

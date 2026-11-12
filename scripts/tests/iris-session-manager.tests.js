@@ -96,7 +96,7 @@ test('cancellation after send preserves unknown write and does not replay',async
   assert.equal(state.blocked,null);assert.equal(state.unresolvedWrites.length,1);
   await assert.rejects(f.call('same-target',{operation:{effects:'write',scope}}),error=>error.beforeSend===true && error.code==='session-write-conflict-unresolved');
   assert.equal(f.events.includes('same-target'),false);
-  assert.throws(()=>f.manager.reconcile('pool',{confirm:true,token:state.reconciliationToken,evidence:{cleanupVerified:true,reference:'evidence'}}),/evidence-required/);
+  assert.throws(()=>f.manager.reconcile('pool',{confirm:true,token:state.reconciliationToken,evidence:{cleanupVerified:true,reference:'evidence'}}),/write-outcome-required/);
   f.manager.reconcile('pool',{confirm:true,token:state.reconciliationToken,evidence:{cleanupVerified:true,reference:'evidence'},writeOutcome:'verified-not-applied'});
   assert.equal(f.manager.status()[0].blocked,null);assert.equal(f.events.filter(e=>e==='write').length,1);
 });
@@ -160,4 +160,19 @@ test('warning receipts identify the originating generation and historical state'
   await f.call('next-read');
   const next=f.manager.status()[0];assert.equal(next.warning.historical,true);
   assert.equal(next.warning.generation,first.generation);assert.equal(next.warning.at,first.warning.at);
+});
+
+test('reconciliation gives actionable reasons and is idempotent after verified recovery',async t=>{
+  const f=fixture(t),scope=makeScope({host:'fixture',port:443,namespace:'TEST'},['A.cls']);
+  assert.throws(()=>f.manager.reconcile('missing',{confirm:true}),{code:'session-reconciliation-pool-not-found'});
+  await assert.rejects(f.call('write',{operation:{effects:'write',scope,error:Object.assign(Error('lost'),{beforeSend:false})}}));
+  const state=f.manager.status()[0],token=state.reconciliationToken;
+  assert.throws(()=>f.manager.reconcile('pool',{}),{code:'session-reconciliation-confirmation-required'});
+  assert.throws(()=>f.manager.reconcile('pool',{confirm:true,token:'stale'}),{code:'session-reconciliation-token-stale'});
+  assert.throws(()=>f.manager.reconcile('pool',{confirm:true,token}),{code:'session-reconciliation-evidence-required'});
+  assert.throws(()=>f.manager.reconcile('pool',{confirm:true,token,evidence:{reference:'fixture'}}),{code:'session-reconciliation-exit-evidence-required'});
+  const params={confirm:true,token,evidence:{reference:'fixture',processExited:true}};
+  assert.throws(()=>f.manager.reconcile('pool',params),{code:'session-reconciliation-write-outcome-required'});
+  assert.equal(f.manager.reconcile('pool',{...params,writeOutcome:'verified-not-applied'}).unresolvedWrites.length,0);
+  assert.equal(f.manager.reconcile('pool',params).status,'not-required');
 });

@@ -5,23 +5,25 @@
   "platform": "windows-x64",
   "target": "x86_64-pc-windows-msvc",
   "rust": "1.92.0",
-  "patch": "managed-sessions-v4",
+  "patch": "managed-sessions-v5",
   "patches": [
     "managed-sessions-v1.patch",
     "session-identity-v2.patch",
     "cookie-renewal-v3.patch",
-    "startup-readiness-v4.patch"
+    "startup-readiness-v4.patch",
+    "request-dispatch-v5.patch"
   ],
   "patchSha256": {
     "managed-sessions-v1.patch": "c5a60263e300fb83fc9db9eff5258f324556708957c5806d358a215ae70dcb4d",
     "session-identity-v2.patch": "54033b4b252891df3e7268cb621c029bac6f8fcc3709f504f9f738c7dd9b2cdd",
     "cookie-renewal-v3.patch": "51b870dd6d4327032714f6a33835252845fcae5efc049d4709ed69cfd93471ae",
-    "startup-readiness-v4.patch": "57013aff34a301d720dabf1ee7b66b5b4831fdee084cbbcfb52a1c9873ec4e1b"
+    "startup-readiness-v4.patch": "57013aff34a301d720dabf1ee7b66b5b4831fdee084cbbcfb52a1c9873ec4e1b",
+    "request-dispatch-v5.patch": "14e5a8e247c53264d90b816723dbab00d39cba06f8b4b25a7b7c0538f45e5c04"
   },
-  "sha256": "7937bee3538f3d0704e41cdbc6232008f370369476dda1f19cf92a8ff73f158b",
-  "bytes": 50510336,
-  "frameworkCommit": "a064dc43d6a0781260156a86df1a0e56ba933c98",
-  "buildRun": "https://github.com/SkylerCook/imedical.agents/actions/runs/42963817212",
-  "verification": "iris-session-vendor.tests.js: 15 localhost tests passed",
+  "sha256": "9d4409911be284da28460c4b4f8f997dd2badf6016906d5674883d93a1b7b016",
+  "bytes": 50501632,
+  "frameworkCommit": "7d8de7c3dcaf1387e10741e871e87fba0866da6d",
+  "buildRun": "https://github.com/SkylerCook/imedical.agents/actions/runs/43211499309",
+  "verification": "iris-session-vendor.tests.js: 16 localhost tests passed",
   "buildRecipe": ".github/workflows/iris-vendor-build.yml"
 }

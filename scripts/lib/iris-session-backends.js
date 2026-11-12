@@ -11,7 +11,7 @@ function verifyVendor(executable) {
   const stat=fs.statSync(executable),metadata=path.join(path.dirname(executable),'..','managed-build.json');
   if(!fs.existsSync(metadata))throw failure('session-patched-vendor-required');
   const build=JSON.parse(fs.readFileSync(metadata,'utf8').replace(/^\uFEFF/,''));
-  if(build.schema!=='iris-managed-vendor/v1' || build.patch!=='managed-sessions-v4')throw failure('session-patched-vendor-mismatch');
+  if(build.schema!=='iris-managed-vendor/v1' || build.patch!=='managed-sessions-v5')throw failure('session-patched-vendor-mismatch');
   const fingerprint=hash([executable,stat.size,stat.mtimeMs,build.sha256]);
   if(!verifiedBinaries.has(fingerprint)) {
     const actual=require('node:crypto').createHash('sha256').update(fs.readFileSync(executable)).digest('hex');
@@ -42,6 +42,7 @@ function describe(projectRoot, serverName, {localOnly=false} = {}) {
     policy = JSON.parse(fs.readFileSync(policyFile, 'utf8').replace(/^\uFEFF/, ''));
     if (!localOnly && policy.enabled !== true) throw failure('session-policy-explicitly-disabled');
     if (policy.schema !== 'iris-remote-policy/v1') throw failure('session-policy-invalid');
+    remote.frameworkSessionLimit(policy);
     if(!require('node:path').isAbsolute(policy.coordinationRoot || '') || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(policy.poolKey || '') || policy.maxConcurrent!==undefined && policy.maxConcurrent!==1)throw failure('session-policy-invalid');
     if (!localOnly && policy.coordinationRoot && policy.poolKey) {
       // Resource admission belongs to owner.run/SessionManager after effects and scope are derived.
@@ -100,10 +101,10 @@ async function open(operation) {
   }
   const inherited=Object.fromEntries(Object.keys(process.env).filter(key=>key.startsWith('IRIS_')).map(key=>[key,undefined]));
   const client = new mcp.JsonLineMcpClient(d.backend.command, d.backend.args, {...inherited,...d.env, IRIS_MANAGED_NO_RETRIES:'1'}, {cwd: d.context.workspaceRoot});
-  const assertSession = () => {
+  const assertSession = (beforeSend = true) => {
     const stopped=client.stderr.match(/IMEDICAL_HTTP_STOP=(401|403|503)/);
-    if(stopped)throw Object.assign(failure(stopped[1]==='503'?'session-service-unavailable':'session-authentication-failed',false),{status:Number(stopped[1])});
-    if (client.stderr.includes('IMEDICAL_SESSION_STOP=identity-unverified')) throw Object.assign(failure('session-identity-unverified',false),{sessionUncertain:true,writeOutcome:'unknown'});
+    if(stopped)throw Object.assign(failure(stopped[1]==='503'?'session-service-unavailable':'session-authentication-failed',beforeSend),{status:Number(stopped[1])});
+    if (client.stderr.includes('IMEDICAL_SESSION_STOP=identity-unverified')) throw Object.assign(failure('session-identity-unverified',beforeSend),{sessionUncertain:true,...(beforeSend ? {} : {writeOutcome:'unknown'})});
   };
   try {
     await client.request('initialize', {protocolVersion: '2024-11-05', capabilities: {}, clientInfo: {name: 'imedical-session-manager', version: '1.0.0'}});
@@ -131,15 +132,25 @@ async function open(operation) {
       if (params.arguments?.namespace && params.arguments.namespace !== d.env.IRIS_NAMESPACE) throw failure('session-namespace-mismatch');
       const execute = async () => {
       assertSession();
+      const dispatchBefore = [...client.stderr.matchAll(/IMEDICAL_HTTP_SEND=(\d+)/g)].at(-1)?.[1];
       const result = await client.request(op.method, params, op.timeoutMs || 60000);
       const payload = mcp.extractToolText(result);
       const carrierRejected = params.name === 'iris_execute_method' && payload?.error_code === 'IRIS_EXECUTE_ERROR' &&
         payload.error === 'PUT doc failed: HTTP 405 Method Not Allowed' ||
         params.name === 'iris_execute' && payload?.error_code === 'HTTP_EXECUTION_FAILED' &&
         /^iris_execute: HTTP\/Atelier execution failed \(PUT doc failed: HTTP 405 Method Not Allowed\)\. No docker fallback available \(IRIS_CONTAINER not set\)\./.test(payload.error || '');
-      try { assertSession(); }
+      try { assertSession(false); }
       catch (error) {
-        if (carrierRejected) {error.writeOutcome = 'rejected'; error.toolResponse = result; error.toolErrorCode = payload.error_code;}
+        error.toolResponse = result;
+        const dispatchAfter = [...client.stderr.matchAll(/IMEDICAL_HTTP_SEND=(\d+)/g)].at(-1)?.[1];
+        const atelierExecution = payload?.execution_path === 'atelier' || params.name === 'iris_execute' && payload?.error_code === 'HTTP_EXECUTION_FAILED';
+        if (atelierExecution && dispatchBefore !== undefined && dispatchAfter === dispatchBefore) {
+          error.beforeSend = true;
+          delete error.writeOutcome;
+        }
+        if (typeof payload?.error_code === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(payload.error_code)) error.toolErrorCode = payload.error_code;
+        if (carrierRejected) error.writeOutcome = 'rejected';
+        if (!result.error && !result.result?.isError && payload?.success === true) error.writeOutcome = 'verified-applied';
         throw error;
       }
       if (result.error || result.result?.isError) {

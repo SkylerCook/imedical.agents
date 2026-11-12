@@ -112,3 +112,34 @@ test('two projects on one instance can read unknown A and write B while another 
   assert.equal(host.manager.status()[0].blocked,null);
   assert.equal(host.manager.status()[0].unresolvedWrites.length,1);
 });
+
+test('stopped vendor rejects the next call before send and known success survives session retirement',async t=>{
+  const root=createTempDirectory('iris-session-send-phase-'),project=path.join(root,'project');
+  fs.mkdirSync(path.join(project,'.agents/config'),{recursive:true});
+  const backend=path.join(root,'backend.js'),calls=path.join(root,'calls.jsonl');
+  fs.writeFileSync(backend,`const fs=require('fs'),r=require('readline').createInterface({input:process.stdin});
+    r.on('close',()=>process.stderr.write('IMEDICAL_LOGOUT={"attempted":0,"acknowledged":0,"completed":true}\\n'));
+    r.on('line',line=>{const m=JSON.parse(line);if(m.id===undefined)return;
+      const name=m.params?.name;
+      if(m.method==='tools/call'&&name!=='check_config')fs.appendFileSync(${JSON.stringify(calls)},name+'\\n');
+      const payload=name==='check_config'?{connected:true,host:'example.invalid',port:443,namespace:'TEST'}:{success:true};
+      const emit=()=>process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,result:{content:[{type:'text',text:JSON.stringify(payload)}]}})+'\\n');
+      if(name==='iris_execute'){process.stderr.write('IMEDICAL_SESSION_STOP=identity-unverified\\n');setTimeout(emit,40);}
+      else {emit();if(name==='iris_query')setTimeout(()=>process.stderr.write('IMEDICAL_SESSION_STOP=identity-unverified\\n'),40);}
+    });`);
+  fs.writeFileSync(path.join(project,'.mcp.json'),JSON.stringify({mcpServers:{'iris-agentic-dev':{command:process.execPath,args:[path.resolve('scripts/iris-session-mcp.js')],env:{IRIS_HOST:'example.invalid',IRIS_WEB_PORT:'443',IRIS_SCHEME:'https',IRIS_NAMESPACE:'TEST'}}}}));
+  fs.writeFileSync(path.join(project,'.agents/config/iris-session-backend.json'),JSON.stringify({schema:'iris-session-backend/v1',serverName:'iris-agentic-dev',command:process.execPath,args:[backend]}));
+  const host=await serve({root:path.join(root,'ipc')});
+  const client=createClient({projectRoot:project,root:path.join(root,'ipc'),allowWrite:true});
+  t.after(async()=>{await client.close();await host.stop();if(ownsTempDirectory(root))fs.rmSync(root,{recursive:true});});
+  await client.request('tools/call',{name:'iris_query',arguments:{query:'SELECT 1'}});
+  await new Promise(resolve=>setTimeout(resolve,100));
+  await assert.rejects(client.request('tools/call',{name:'iris_execute',arguments:{code:'write 1'}}),e=>e.code==='session-identity-unverified'&&e.beforeSend===true);
+  assert.deepEqual(fs.readFileSync(calls,'utf8').trim().split('\n'),['iris_query']);
+  assert.equal(host.manager.status()[0].unresolvedWrites.length,0);
+  const success=await client.request('tools/call',{name:'iris_execute',arguments:{code:'write 1'}});
+  assert.equal(JSON.parse(success.result.content[0].text).success,true);
+  assert.equal(success.result._meta['imedical/session'].sessionRetired,true);
+  assert.equal(host.manager.status()[0].unresolvedWrites.length,0);
+  assert.equal(host.manager.status()[0].active,false);
+});

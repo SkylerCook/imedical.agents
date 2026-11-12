@@ -67,7 +67,28 @@ async function main(argv = process.argv.slice(2)) {
   }
   if (!['status','sessions','close-sessions','reconcile-session','reconcile','inspect','read'].includes(command) || !args['project-root']) throw new Error('remote-status-command-required');
   const context = require('./lib/workspace-context').resolveWorkspaceContext(args['project-root']);
-  if(command==='status') {console.log(JSON.stringify(remote.localPoolStatus(context)));return;}
+  if(command==='status') {
+    const admission=remote.localPoolStatus(context);
+    const backendFile=path.join(context.contextRoot,'config','iris-session-backend.json');
+    if (!fs.existsSync(backendFile)) {console.log(JSON.stringify(admission));return;}
+    const ipc=require('./lib/iris-session-ipc');
+    const description=require('./lib/iris-session-backends').describe(context.workspaceRoot,undefined,{localOnly:true});
+    const poolId=require('./lib/iris-session-manager').hash(description.pool);
+    let client, session=null;
+    try {
+      client=await ipc.connect({start:false});
+      session=(await client.request('status',{})).pools.find(pool=>pool.pool===poolId) || null;
+    } catch(error) {
+      if (!['ENOENT','ECONNREFUSED'].includes(error.code)) throw error;
+      const file=path.join(ipc.location().root,'pools',poolId+'.json');
+      if (fs.existsSync(file)) session={...JSON.parse(fs.readFileSync(file,'utf8')),pool:poolId,hostRunning:false};
+    } finally {client?.close();}
+    const sessionBlocked=!!session?.blocked || !!session?.unresolvedWrites?.length;
+    console.log(JSON.stringify({...admission,status:sessionBlocked?'reconciliation-required':admission.status,
+      admission,session,maxFrameworkSessions:remote.frameworkSessionLimit(description.policy),
+      ...(sessionBlocked?{recoveryCommand:'reconcile-session'}:{})}));
+    return;
+  }
   if(command==='reconcile') {
     const policy=remote.localPolicy(context);
     console.log(JSON.stringify(remote.reconcileRemotePool({policy,token:args.token,evidenceFile:args.evidence,confirm:args.confirm,writeOutcome:args['write-outcome'],writeIds:args.writeIds})));return;
@@ -78,11 +99,20 @@ async function main(argv = process.argv.slice(2)) {
       client=await ipc.connect({start:command==='reconcile-session'});
       let params={projectRoot:context.workspaceRoot};
       if(command==='reconcile-session') {
-        if(!args.confirm || !path.isAbsolute(args.evidence || ''))throw new Error('session-reconciliation-evidence-required');
-        const evidence=JSON.parse(fs.readFileSync(args.evidence,'utf8').replace(/^\uFEFF/,''));
+        if(!args.confirm)throw new remote.RemoteOperationError('session-reconciliation-confirmation-required');
+        if(!path.isAbsolute(args.evidence || ''))throw new remote.RemoteOperationError('session-reconciliation-evidence-path-required');
+        let evidence;
+        try {evidence=JSON.parse(fs.readFileSync(args.evidence,'utf8').replace(/^\uFEFF/,''));}
+        catch {throw new remote.RemoteOperationError('session-reconciliation-evidence-invalid');}
+        const description=require('./lib/iris-session-backends').describe(context.workspaceRoot,undefined,{localOnly:true});
+        const poolId=require('./lib/iris-session-manager').hash(description.pool);
+        const status=await client.request('status',{});
+        const selected=status.pools.find(pool=>pool.pool===poolId);
+        if(!selected)throw new remote.RemoteOperationError('session-reconciliation-pool-not-found');
+        const token=args.token || selected.reconciliationToken;
         const policy=remote.localPolicy(context), prior=remote.poolStatus({policy});
         if(prior.ownerPresent)throw new Error('session-reconcile-admission-first');
-        params={...params,token:args.token,confirm:true,writeOutcome:args['write-outcome'],writeIds:args.writeIds,evidence:{cleanupVerified:evidence.cleanupVerified===true,processExited:evidence.processExited===true,localResourcesClosed:evidence.localResourcesClosed===true,reference:hash(fs.readFileSync(args.evidence))}};
+        params={...params,token,confirm:true,writeOutcome:args['write-outcome'],writeIds:args.writeIds,evidence:{cleanupVerified:evidence.cleanupVerified===true,processExited:evidence.processExited===true,localResourcesClosed:evidence.localResourcesClosed===true,reference:hash(fs.readFileSync(args.evidence))}};
       }
       console.log(JSON.stringify(await client.request(command==='sessions'?'status':command==='close-sessions'?'close':'reconcile',params)));
     } catch(error) {
@@ -112,5 +142,5 @@ async function main(argv = process.argv.slice(2)) {
   }
   console.log(JSON.stringify(result));
 }
-if (require.main === module) main().catch(error => { console.error(JSON.stringify({schema:'iris-remote-inspection/v1',status:'blocked',reason:error.code || 'remote-coordination-invalid'})); process.exitCode=1; });
+if (require.main === module) main().catch(error => { console.error(JSON.stringify({schema:'iris-remote-inspection/v1',status:'blocked',reason:error.code || (/^[a-z][a-z0-9-]{0,99}$/.test(error.message || '') ? error.message : 'remote-coordination-invalid'),diagnostic:{type:error.name || 'Error',...(typeof error.syscall==='string'?{syscall:error.syscall}:{})}})); process.exitCode=1; });
 module.exports = {main,inspectDocuments};

@@ -125,15 +125,30 @@ class SessionManager {
         if (!p.exit.cleanupVerified) risk.warn(p, 'session-exit-unverified', this.now());
         if (!p.exit.processExited && !p.exit.localResourcesClosed) p.blocked = 'session-exit-unverified';
       }
-      const unknownWrite = item.dispatched === true && error.beforeSend !== true && error.writeOutcome !== 'rejected' && item.operation.effects === 'write';
-      if (unknownWrite) risk.addUnresolved(p, item.operation.scope, 'session-outcome-unverified', this.now());
+      const unknownWrite = item.dispatched === true && error.beforeSend !== true && !['rejected','verified-applied'].includes(error.writeOutcome) && item.operation.effects === 'write';
+      if (unknownWrite) {
+        const record=risk.addUnresolved(p, item.operation.scope, 'session-outcome-unverified', this.now());
+        record.operation={channel:item.operation.channel || 'unknown',
+          tool:item.operation.params?.name || item.operation.args?.[0] || 'unknown',
+          requestHash:hash(item.operation.params || item.operation.args || {}),generation:p.generation};
+        record.beforeSend=false;
+        record.responseReceived=!!error.toolResponse;
+        record.errorCode=/^[A-Za-z0-9_-]{1,80}$/.test(error.code || '') ? error.code : 'session-operation-failed';
+        if (/^[A-Z][A-Z0-9_]{0,79}$/.test(error.toolErrorCode || '')) record.toolErrorCode=error.toolErrorCode;
+        error.pendingWriteId=record.id;
+      }
       p.pendingEffects = null; p.pendingScope = null;
       if (item.opening || error.status === 503 || error.httpStatus === 503) p.retryAfter = this.now() + risk.COOLDOWN_MS;
       if (error.sessionUncertain || error.status === 503 || error.status === 401 || error.status === 403 || error.beforeSend !== true) {
         risk.warn(p, error.code || (error.status === 503 ? 'session-service-unavailable' : 'session-operation-failed'), this.now());
         await this.closeSession(p);
       }
-      item.reject(error);
+      if (error.writeOutcome === 'verified-applied' && error.toolResponse?.result && !error.toolResponse.error && !error.toolResponse.result.isError) {
+        p.completed++;
+        const response=error.toolResponse;
+        response.result._meta={...response.result._meta,'imedical/session':{schema:'iris-managed-route/v1',managed:true,pool:p.id,generation:p.generation,request:p.completed,runtime:item.operation.runtime,warning:warningSummary(p),unresolvedWriteCount:p.unresolvedWrites.length,sessionRetired:true}};
+        item.resolve(response);
+      } else item.reject(error);
     } finally {
       item.dispose(); p.running = false; p.lastUsed = this.now(); this.persist(p);
       if (p.blocked) for (const queued of p.queue.splice(0)) { queued.dispose(); queued.reject(failure(p.blocked)); }
@@ -176,10 +191,16 @@ class SessionManager {
   status() { return [...this.pools.values()].map(p => this.summary(p)); }
   markUnknown(pool) {const p=this.pool(pool);risk.addUnresolved(p,p.pendingScope,'session-outcome-unverified',this.now());this.persist(p);return this.summary(p);}
   reconcile(pool, {token, confirm, evidence, writeOutcome, writeIds} = {}) {
-    const p = this.pool(pool);
-    if (!confirm || !p.blocked && !p.unresolvedWrites.length || p.running || p.queue.length || p.session || token !== this.summary(p).reconciliationToken ||
-        !evidence || !evidence.reference || evidence.cleanupVerified !== true && evidence.processExited !== true && evidence.localResourcesClosed !== true ||
-        p.unresolvedWrites.length && !['verified-applied','verified-not-applied'].includes(writeOutcome)) throw failure('session-reconciliation-evidence-required');
+    if (!confirm) throw failure('session-reconciliation-confirmation-required');
+    const id = hash(pool);
+    if (!this.pools.has(id) && !fs.existsSync(path.join(this.directory, id + '.json'))) throw failure('session-reconciliation-pool-not-found');
+    const p = this.poolById(id);
+    if (p.running || p.queue.length || p.session) throw failure('session-reconciliation-session-active');
+    if (!p.blocked && !p.unresolvedWrites.length) return {...this.summary(p), status:'not-required'};
+    if (token !== this.summary(p).reconciliationToken) throw failure('session-reconciliation-token-stale');
+    if (!evidence || !evidence.reference) throw failure('session-reconciliation-evidence-required');
+    if (evidence.cleanupVerified !== true && evidence.processExited !== true && evidence.localResourcesClosed !== true) throw failure('session-reconciliation-exit-evidence-required');
+    if (p.unresolvedWrites.length && !['verified-applied','verified-not-applied'].includes(writeOutcome)) throw failure('session-reconciliation-write-outcome-required');
     if (p.unresolvedWrites.length > 1 && !writeIds) throw failure('reconciliation-write-id-required');
     const remaining = {unresolvedWrites:[...p.unresolvedWrites]};
     if (p.unresolvedWrites.length) risk.resolveWrites(remaining, writeIds);

@@ -1,6 +1,7 @@
 {
   "schema": "iris-remote-policy/v1",
   "enabled": false,
+  "maxFrameworkSessions": 12,
   "coordinationRoot": "<absolute-private-coordination-directory>",
   "poolKey": "instance-pool-alias"
 }

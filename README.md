@@ -717,3 +717,7 @@ Codex 原生 Agent：显式 `-RuntimeAdapter Codex -Agent` 首次生成项目 TO
 WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codebuddy/agents 薄入口；PowerShell 显式 -RuntimeAdapter WorkBuddy（或 CodeBuddy）-Agent，默认仍为 Skill。源定义只维护 AGENT.md，客户端实际调用待验。
 
 前端按需项目首次确认服务端编码后复用配置，修改前和部署入口执行检查，UTF-8 本地源码按服务器目标无损上传。见[编码契约](plugins/coding-iris-plugin/references/frontend-encoding.md)。
+
+## 会话故障恢复更新（0.28.1）
+
+发送阶段诊断、框架会话预算与更新步骤见 [统一会话指南](docs/guides/iris-managed-sessions.md)。

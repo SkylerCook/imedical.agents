@@ -44,3 +44,5 @@ In deployed business projects the executable is available at:
 Use this executable only as the managed backend. The project MCP command is the Node session adapter; retain `mcp.serverPath` as the internal vendor source for the configuration generator.
 
 Do not store IRIS hosts, namespaces, usernames, passwords, tokens, TLS settings, or remote paths in this directory. Those connection facts belong only in the target project's local `.mcp.json` or equivalent private environment variables.
+
+当前固定运行时为 managed-sessions-v5，增加无敏感信息的 HTTP 发送计数，供托管入口识别发送前拒绝。构建来源及摘要见 managed-build.json。

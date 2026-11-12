@@ -66,6 +66,11 @@ function validQualificationGrant(grant, connection) {
       !Number.isInteger(grant.budgetMs) || grant.budgetMs < 1 || grant.budgetMs > 3600000) stop('remote-qualification-grant-invalid');
   return true;
 }
+function frameworkSessionLimit(policy) {
+  const limit = policy?.maxFrameworkSessions ?? 12;
+  if (!Number.isSafeInteger(limit) || limit < 1) stop('remote-session-limit-invalid', {beforeSend:true});
+  return limit;
+}
 function loadRemotePolicy(context = {}, { connection, policy, qualification, recoveryRead = false } = {}) {
   assertRemoteAllowed(context);
   const required = contextMode(context) === 'intent-first-on-demand-export';
@@ -90,6 +95,7 @@ function loadRemotePolicy(context = {}, { connection, policy, qualification, rec
   if (value.schema !== 'iris-remote-policy/v1' || !path.isAbsolute(value.coordinationRoot || '') ||
       typeof value.poolKey !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(value.poolKey) ||
       value.maxConcurrent !== undefined && value.maxConcurrent !== 1) stop('remote-policy-invalid');
+  frameworkSessionLimit(value);
   const result = { ...value, required, coordinationRoot: path.resolve(value.coordinationRoot), maxConcurrent: 1,
     instanceHash: connection ? instanceIdentity(connection) : null,
     ...(qualification ? {qualificationRun: true} : {}), ...(recoveryRead ? {recoveryReadOnly:true} : {}) };
@@ -434,4 +440,4 @@ function reconcileRemotePool({policy, token, evidenceFile, confirm = false, writ
     return {schema:'iris-remote-reconciliation/v1',status:'reconciled',licenseReleaseVerified:false};
   } finally { fs.closeSync(descriptor); fs.unlinkSync(recoveryLock); }
 }
-module.exports = { RemoteOperationError, contextMode, developmentMode, assertRemoteAllowed, bindDevelopmentMode, localPoolStatus, localPolicy, instanceIdentity, targetIdentity, validQualificationGrant, loadRemotePolicy, managedPolicy, createRemoteOperation, createRecoveryReadOperation, withRemoteOperation, poolStatus, reconcileRemotePool };
+module.exports = { RemoteOperationError, contextMode, developmentMode, assertRemoteAllowed, bindDevelopmentMode, localPoolStatus, localPolicy, instanceIdentity, targetIdentity, validQualificationGrant, frameworkSessionLimit, loadRemotePolicy, managedPolicy, createRemoteOperation, createRecoveryReadOperation, withRemoteOperation, poolStatus, reconcileRemotePool };

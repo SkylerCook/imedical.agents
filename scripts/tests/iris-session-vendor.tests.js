@@ -107,7 +107,7 @@ test('actual startup stops probe and queued operations: '+startupMode,{skip:proc
   const candidate=path.join(root,'vendor','bin',process.platform==='win32'?'iris-agentic-dev.exe':'iris-agentic-dev');
   fs.mkdirSync(path.dirname(candidate),{recursive:true});fs.copyFileSync(binary,candidate);fs.chmodSync(candidate,0o700);
   const sha256=require('node:crypto').createHash('sha256').update(fs.readFileSync(candidate)).digest('hex');
-  fs.writeFileSync(path.join(root,'vendor','managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v4',sha256}));
+  fs.writeFileSync(path.join(root,'vendor','managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v5',sha256}));
   const server=http.createServer((req,res)=>{
     seen.push(req.method+' '+req.url);
     if(startupMode==='503-cookie')res.setHeader('Set-Cookie','CSPSESSIONID-fixture=fixture; Path=/api/atelier/');

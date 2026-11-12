@@ -237,3 +237,18 @@ test('legacy qualification missing a required runtime binding is invalid before 
     assert.equal(f.infoRequests.length, 0);
     assert.equal(f.requests.length, 0);
 });
+
+test('framework-owned session limit defaults to twelve and caps qualified workers', async t => {
+    assert.equal(remote.frameworkSessionLimit({}), 12);
+    assert.throws(() => remote.frameworkSessionLimit({maxFrameworkSessions: 0}));
+    const f = await fixture(t);
+    f.qualify({sessions: 20});
+    assert.equal(selectBudget({}, f.context, f.connection, f.policy).sessions, 12);
+    f.policy.maxFrameworkSessions = 1;
+    const pool = createAtelierReadPool({...f, sessions: 20, intervalMs: 0});
+    const result = await pool.readAll(['Demo.A.cls', 'Demo.B.cls', 'Demo.C.cls']);
+    assert.equal(result.items.length, 3);
+    assert.equal(new Set(f.requests.map(value => value.cookie)).size, 1);
+    assert.equal(f.logouts.length, 1);
+    assert.equal(result.cleanupVerified, true);
+});

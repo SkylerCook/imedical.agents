@@ -90,3 +90,11 @@ Atelier 的 Web 文档 GET/PUT 保留路径分隔符，逐段编码特殊字符�
 managed-sessions-v4 修复初始发现超出两秒时工具服务永久保留空连接的问题。服务在初次发现完成后响应初始化，连接未建立返回 session-backend-connection-unavailable，已连接但字段不符返回 session-backend-target-mismatch。失败发生在业务派发前时记录真实子进程退出回执。
 
 warning 保留发生时间并记录 generation，回执的 historical 表示是否来自旧代；旧记录缺少 generation 时标为历史。新成功请求与关闭回执可独立判断，不把历史告警提升为普通任务准入门槛。
+
+## 会话故障恢复更新（0.28.1）
+
+请求发送前的会话拒绝保留 beforeSend，明确成功的工具结果在会话退出后仍保留成功状态。未知写入记录增加脱敏操作标识，MCP 错误正文保留原始工具响应，status 汇总 admission 与会话状态，reconcile-session 自动选取当前状态令牌。
+
+远端策略 maxFrameworkSessions 默认 12，可按项目调整正整数。托管同实例请求串行复用，受管读取批次按该上限缩减 worker。服务端其他用户会话数只用于观测。
+
+已有项目执行正常框架更新，同步共享 scripts、coding 插件和 managed-sessions-v5 vendor 后重启 MCP。缺省配置自动使用 12，已有显式配置保留。运行中的旧 MCP 需结束后加载新运行时。

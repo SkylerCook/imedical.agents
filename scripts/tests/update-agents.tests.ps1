@@ -784,7 +784,7 @@ try {
   Copy-Item -LiteralPath $preferVendorIrisMcpScriptUnderTest -Destination $upgradeSourcePreferenceScript
   [IO.File]::WriteAllBytes($upgradeSourceVendorExe, [byte[]](4, 5, 6))
   $upgradeDigest = (Get-FileHash -LiteralPath $upgradeSourceVendorExe -Algorithm SHA256).Hash.ToLowerInvariant()
-  [IO.File]::WriteAllText($upgradeSourceMetadata, ('{"schema":"iris-managed-vendor/v1","patch":"managed-sessions-v4","sha256":"' + $upgradeDigest + '"}'), [Text.UTF8Encoding]::new($false))
+  [IO.File]::WriteAllText($upgradeSourceMetadata, ('{"schema":"iris-managed-vendor/v1","patch":"managed-sessions-v5","sha256":"' + $upgradeDigest + '"}'), [Text.UTF8Encoding]::new($false))
   git -C $upgradeSourceAgentsRoot add scripts/update-agents.ps1 scripts/prefer-vendor-iris-mcp.ps1 vendor/iris-agentic-dev
   Assert-True ($LASTEXITCODE -eq 0) "Upgrade fixture should stage the new updater runtime"
   git -C $upgradeSourceAgentsRoot commit -m "test: publish vendor MCP preference" | Out-Null
@@ -814,7 +814,7 @@ try {
   Assert-True ($deployedProjectEnvAfterUpgrade.preservedObject.value -eq "keep-me") "Deployed upgrade must preserve unrelated project-env objects"
 
   $deployedBuild = Get-Content -LiteralPath (Join-Path $deployedAgentsRoot "vendor/iris-agentic-dev/managed-build.json") -Raw -Encoding UTF8 | ConvertFrom-Json
-  Assert-True ($deployedBuild.patch -eq "managed-sessions-v4") "Normal update must replace deployed v3 build metadata"
+  Assert-True ($deployedBuild.patch -eq "managed-sessions-v5") "Normal update must replace deployed v3 build metadata"
   $deployedDigest = (Get-FileHash -LiteralPath (Join-Path $deployedAgentsRoot "vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
   Assert-True ($deployedDigest -eq $deployedBuild.sha256 -and $deployedDigest -eq $upgradeDigest) "Normal update must distribute matching vendor bytes and metadata"
 

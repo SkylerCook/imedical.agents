@@ -15,12 +15,14 @@ const readRuntimeHash = () => digest(JSON.stringify([process.version, process.pl
 
 function selectBudget(options, context, connection, policy) {
   const requestedSessions = options.sessions ?? policy.readBatch?.sessions ?? 1;
+  const maxFrameworkSessions = remote.frameworkSessionLimit(policy);
   let intervalMs = options.intervalMs ?? policy.readBatch?.intervalMs ?? 100;
   const requestedIntervalMs = intervalMs;
   if (!Number.isInteger(requestedSessions) || requestedSessions < 1 || requestedSessions > 20 ||
       !Number.isInteger(intervalMs) || intervalMs < 0 || intervalMs > 60000) fail('read-pool-budget-invalid');
   if (options.qualification) {
     const grant = options.qualification;
+    if (requestedSessions > maxFrameworkSessions) fail('read-pool-qualification-exceeds-session-limit', {beforeSend:true});
     if (grant.sessions !== requestedSessions || grant.intervalMs !== intervalMs) fail('remote-qualification-grant-invalid');
     return {requestedSessions, sessions: requestedSessions, intervalMs, maxDocuments: grant.documents.length, qualification: true};
   }
@@ -48,7 +50,7 @@ function selectBudget(options, context, connection, policy) {
   }
   const authorized = qualified && requestedSessions <= qualified.sessions && intervalMs >= qualified.intervalMs;
   if (requestedSessions > 1 && !authorized && options.explicitSessions === true) fail('read-pool-qualification-required');
-  return {requestedSessions, requestedIntervalMs, sessions: requestedSessions > 1 && authorized ? requestedSessions : 1, intervalMs,
+  return {requestedSessions, requestedIntervalMs, sessions: Math.min(requestedSessions > 1 && authorized ? requestedSessions : 1, maxFrameworkSessions), maxFrameworkSessions, intervalMs,
     maxDocuments: qualified?.maxDocuments || null, qualification: false, qualificationReference: policy.readBatch?.qualification?.reference || null,
     qualifiedServerVersion: qualified?.serverVersion || null, qualifiedInstanceId: qualified?.instanceId || null};
 }

@@ -960,3 +960,7 @@ WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codeb
 按需导出项目首次修改前端前，按[编码契约](../plugins/coding-iris-plugin/references/frontend-encoding.md)调查并确认一次，运行 confirm 保存源码编码、服务器目标及目标指纹。后续自动复用，目标变化或范围冲突才处理异常。旧 `standard-gb2312` 表示 CP936／GBK，确认时选准确编码。
 
 已有 UTF-8 源码保持原样，旧发布计划因配置指纹变更需要重新同步及复审。既有缺省前端通道保持 SFTP，新项目根据实际可用能力显式选择 Atelier，显式 SFTP 配置保留。GB 系列目标通过 Atelier binary/enc 保持目标字节，既有已确认 UTF-8 的文本通道继续可用并标注文本回读。CSP 另行编译。真实服务器支持范围由目标工程试点验证，本地协议测试不能替代现场验收。
+
+## 会话故障恢复更新（0.28.1）
+
+正常更新同步共享 scripts、coding 插件和 managed-sessions-v5 vendor 后，重启 MCP 加载新运行时。远端策略缺省 maxFrameworkSessions 自动使用 12，已有显式配置保留。行为与验证边界见 [统一会话指南](guides/iris-managed-sessions.md)。

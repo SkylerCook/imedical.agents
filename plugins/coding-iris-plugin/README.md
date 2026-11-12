@@ -357,3 +357,7 @@ MCP helper 的 `tools` / `call` 已包含配置检查，已知参数可直接调
 ## 前端编码确认与部署
 
 前端修改、导出和部署沿[编码契约](references/frontend-encoding.md)。按需项目首次确认后复用配置，UTF-8 本地源码可部署为 GB2312、GBK 或 GB18030。CSP 同样适用，上传后编译并回读。升级步骤见[更新说明](../../docs/update-agents.md#前端编码分离coding-028)。
+
+## 会话故障恢复更新（0.28.1）
+
+请求发送前拒绝与已确认成功结果的处理、默认 12 的框架会话预算及项目升级步骤见 [统一会话指南](../../docs/guides/iris-managed-sessions.md)。

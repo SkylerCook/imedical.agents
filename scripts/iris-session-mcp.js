@@ -26,7 +26,11 @@ async function main(args = process.argv.slice(2)) {
     })().then(response => {
       emit({jsonrpc:'2.0', ...response, id:message.id, ...(controller.signal.aborted ? {error:{code:-32800,message:'Cancelled; execution outcome requires verification'},result:undefined} : {})});
     }, error => emit({jsonrpc:'2.0',id:message.id,error:{code:-32000,
-      message:/^[a-z0-9-]+$/.test(error.code || error.message || '') ? error.code || error.message : 'session-operation-failed',
+      message:JSON.stringify({code:/^[a-z0-9-]+$/.test(error.code || error.message || '') ? error.code || error.message : 'session-operation-failed',beforeSend:error.beforeSend===true,
+        ...(['unknown','rejected','verified-applied'].includes(error.writeOutcome)?{writeOutcome:error.writeOutcome}:{}),
+        ...(/^[a-f0-9-]{36}$/.test(error.pendingWriteId || '') ? {pendingWriteId:error.pendingWriteId} : {}),
+        ...(error.toolErrorCode ? {toolErrorCode:error.toolErrorCode} : {}),
+        ...(error.toolResponse ? {toolResponse:error.toolResponse} : {})}),
       data:{beforeSend:error.beforeSend===true,...(error.toolResponse ? {toolResponse:error.toolResponse} : {}),...(error.toolErrorCode ? {toolErrorCode:error.toolErrorCode} : {}),...(/^[A-Z][A-Z0-9_]{0,79}$/.test(error.transportCode || '') ? {transportCode:error.transportCode} : {}),...(error.diagnostic === 'system-ca-api-unavailable' ? {diagnostic:error.diagnostic} : {})}}})).finally(() => clients.delete(message.id));
   });
   lines.on('close', () => {for (const controller of clients.values()) controller.abort(); client.close();});

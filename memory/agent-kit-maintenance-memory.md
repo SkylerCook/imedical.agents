@@ -86,3 +86,5 @@ coding 0.27.3 移除普通 MCP/Atelier Web 调用的 License 资格与历史退�
 - 框架维护使用 [maintenance lifecycle](../agents/_shared/maintenance-lifecycle.md)，不继承业务验收或 feedback。提交/推送、远程写入与副本部署沿各自既有授权。
 
 完成归[日志](agent-kit-maintenance-log.md)，稳定约束归[决策](agent-kit-maintenance-decisions.md)，待验归[backlog](agent-kit-maintenance-backlog.md)；下轮合并替换本入口的过期状态。
+
+- 会话发送阶段恢复及 v5 更新见 managed sessions 指南和维护日志 2026-11-12 条目，框架会话预算默认 12。
