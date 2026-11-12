@@ -21,6 +21,26 @@ public sealed partial class ExporterForm {
     readonly List<Button> workbenchInputs = new List<Button>();
     readonly Panel projectBody = new Panel();
     Button remaining;
+    readonly TextBox connectionHost = new TextBox(), connectionPort = new TextBox();
+    readonly ComboBox connectionScheme = new ComboBox();
+    string connectionPath = "/api/atelier/";
+    void ReadConnectionAddress() {
+        Uri address;
+        if(!Uri.TryCreate(url.Text, UriKind.Absolute, out address)) return;
+        connectionHost.Text = address.Host;
+        connectionPort.Text = address.Port.ToString();
+        connectionScheme.SelectedItem = address.Scheme;
+        connectionPath = address.AbsolutePath;
+    }
+    string BuildConnectionAddress() {
+        string host = connectionHost.Text.Trim();
+        if(host.Contains("://")) return ExporterConnection.Normalize(host);
+        int port;
+        if(!Int32.TryParse(connectionPort.Text, out port) || port < 1 || port > 65535) throw new IOException("请填写 1–65535 之间的 Web 端口。");
+        if(String.IsNullOrWhiteSpace(host) || host.IndexOfAny(new[]{'/', '\\', '?', '#', '@', ' '}) >= 0) throw new IOException("请填写服务器主机名或 IP。");
+        return ExporterConnection.Normalize(new UriBuilder(connectionScheme.Text, host, port, connectionPath).Uri.AbsoluteUri);
+    }
+
     bool projectUI = true, legacyMode, projectImporting;
     long elapsedBeforeResume, lastElapsedSaved;
     string lastProjectReceipt;
@@ -133,7 +153,18 @@ public sealed partial class ExporterForm {
         projectBody.SizeChanged += (s, e) => {main.Width = Math.Max(500, projectBody.ClientSize.Width - SystemInformation.VerticalScrollBarWidth); main.RowStyles[4].Height = Math.Max(260, projectBody.ClientSize.Height - 367);};
         connectionFields = new TableLayoutPanel {Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 9, Padding = new Padding(16)};
         connectionFields.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); connectionFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        Add(connectionFields, "Atelier URL", url, 0, 0); Add(connectionFields, "Namespace", ns, 0, 1); Add(connectionFields, "用户名", user, 0, 2); Add(connectionFields, "密码", password, 0, 3); Add(connectionFields, "项目目录", destination, 0, 4);
+        var addressFields = new FlowLayoutPanel {AutoSize=true, Dock=DockStyle.Fill, WrapContents=true};
+        connectionHost.Width=250; connectionPort.Width=70;
+        connectionScheme.DropDownStyle=ComboBoxStyle.DropDownList;connectionScheme.Items.AddRange(new object[]{"http","https"});connectionScheme.SelectedIndex=0;connectionScheme.Width=80;
+        addressFields.Controls.Add(connectionHost);addressFields.Controls.Add(connectionScheme);addressFields.Controls.Add(Note("Web 端口"));addressFields.Controls.Add(connectionPort);
+        Add(connectionFields, "主机 / IP", addressFields, 0, 0);
+        connectionHost.Leave += (s,e) => {if(connectionHost.Text.Contains("://")) Guard(()=>{url.Text=ExporterConnection.Normalize(connectionHost.Text);ReadConnectionAddress();});};
+        var advancedAddress = new FlowLayoutPanel {AutoSize=true,Dock=DockStyle.Fill,FlowDirection=FlowDirection.TopDown};
+        var showAddress = new CheckBox {Text="高级设置 · 完整 Atelier 地址",AutoSize=true};url.Width=520;url.Visible=false;
+        showAddress.CheckedChanged += (s,e)=>{if(showAddress.Checked)Guard(()=>{url.Text=BuildConnectionAddress();});url.Visible=showAddress.Checked;};
+        url.Leave += (s,e)=>Guard(()=>{url.Text=ExporterConnection.Normalize(url.Text);ReadConnectionAddress();});
+        advancedAddress.Controls.Add(showAddress);advancedAddress.Controls.Add(url);connectionFields.Controls.Add(advancedAddress,1,8);
+         Add(connectionFields, "命名空间", ns, 0, 1); Add(connectionFields, "用户名", user, 0, 2); Add(connectionFields, "密码", password, 0, 3); Add(connectionFields, "源码保存目录", destination, 0, 4);
         password.UseSystemPasswordChar = true; remember.Text = "本机加密记住密码"; remember.AutoSize = true; connectionFields.Controls.Add(remember, 1, 5);
         Add(connectionFields, "采集速度", speed, 0, 6); speed.DropDownStyle = ComboBoxStyle.DropDownList; speed.Items.AddRange(new object[] {"安全 · 1 会话 / 200ms", "均衡 · 4 会话 / 100ms", "快速 · 10 会话 / 50ms"}); speed.SelectedIndex = 0;
         trial.Text = "多会话先做小批验证"; trial.AutoSize = true; budget.Text = "已核实多会话预算与资源回落"; budget.AutoSize = true; var advanced = new FlowLayoutPanel {AutoSize = true, Dock = DockStyle.Top}; advanced.Controls.Add(budget); connectionFields.Controls.Add(advanced, 1, 7);
@@ -147,12 +178,20 @@ public sealed partial class ExporterForm {
     }
     void ShowConnectionSettings() {
         if (busy) throw new InvalidOperationException("请先暂停当前采集。");
-        using (var dialog = new Form {Text = "项目连接设置", Size = new Size(800, 570), MinimumSize = new Size(720, 520), StartPosition = FormStartPosition.CenterParent, Font = Font}) {
+        ReadConnectionAddress();
+        using (var dialog = new Form {Text = "项目连接设置", Size = new Size(900, 650), MinimumSize = new Size(800, 600), StartPosition = FormStartPosition.CenterParent, Font = Font}) {
             var footer = new FlowLayoutPanel {Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(10)};
             var nameLine=new FlowLayoutPanel {Dock=DockStyle.Top,AutoSize=true,Padding=new Padding(16,10,16,0)};
             nameLine.Controls.Add(Note("项目 / 环境名称"));var projectName=new TextBox {Text=profiles.Text,Width=420};nameLine.Controls.Add(projectName);
-            footer.Controls.Add(ActionButton("选择项目目录…", () => {using (var picker = new FolderBrowserDialog {Description = "选择已有项目基线，或新的空目录"}) if (picker.ShowDialog(dialog) == DialogResult.OK) destination.Text = picker.SelectedPath;}, false));
-            footer.Controls.Add(ActionButton("保存设置", () => {profiles.Text=projectName.Text.Trim();SaveProfile(); if (project != null) {project.Dispose(); project = null;} TryOpenSavedProject(); dialog.Close();}, true));
+            footer.Controls.Add(ActionButton("选择源码保存目录…", () => {using (var picker = new FolderBrowserDialog {Description = "选择已有项目基线，或新的空目录"}) if (picker.ShowDialog(dialog) == DialogResult.OK) destination.Text = picker.SelectedPath;}, false));
+            footer.Controls.Add(ActionButton("从已有项目读取连接…", () => {
+                using(var picker = new FolderBrowserDialog {Description="选择已配置连接的项目文件夹"}) if(picker.ShowDialog(dialog)==DialogResult.OK) {
+                    var imported=ExporterConnection.ReadProject(picker.SelectedPath);
+                    url.Text=imported["url"];ns.Text=imported["namespace"];projectName.Text=imported["name"];
+                    user.Clear();password.Clear();remember.Checked=false;ReadConnectionAddress();
+                }
+            }, false));
+            footer.Controls.Add(ActionButton("保存设置", () => {url.Text=BuildConnectionAddress();ReadConnectionAddress();if(String.IsNullOrWhiteSpace(ns.Text))throw new IOException("请填写命名空间。");profiles.Text=projectName.Text.Trim();SaveProfile(); if (project != null) {project.Dispose(); project = null;} TryOpenSavedProject(); dialog.Close();}, true));
             footer.Controls.Add(ActionButton("核查会话", Reconcile, false));
             footer.Controls.Add(ActionButton("恢复旧批次…", () => {legacyMode = true; Begin(true); dialog.Close();}, false));
             footer.Controls.Add(ActionButton("使用说明",()=>Process.Start("notepad.exe","\""+Path.Combine(home,"GUI.md")+"\""),false));
@@ -540,5 +579,39 @@ public sealed class WorkbenchProgress:ProgressBar {
         using(var background=new SolidBrush(Color.FromArgb(229,235,245)))e.Graphics.FillRectangle(background,ClientRectangle);
         int width=Maximum<=Minimum?0:(int)((long)(Value-Minimum)*Width/(Maximum-Minimum));
         using(var fill=new SolidBrush(Color.FromArgb(40,100,220)))e.Graphics.FillRectangle(fill,0,0,width,Height);
+    }
+}
+
+public static class ExporterConnection {
+    public static string Normalize(string text) {
+        Uri address;
+        if(!Uri.TryCreate(text.Trim(),UriKind.Absolute,out address) || (address.Scheme!="http" && address.Scheme!="https") || address.UserInfo!="" || address.Query!="" || address.Fragment!="") throw new IOException("请填写有效的 HTTP/HTTPS 地址，账号密码请填写在对应输入框。");
+        var builder=new UriBuilder(address);
+        string path=address.AbsolutePath.TrimEnd('/');
+        if(!path.EndsWith("/api/atelier",StringComparison.Ordinal))path+="/api/atelier";
+        builder.Path=path+"/";return builder.Uri.AbsoluteUri;
+    }
+    static Dictionary<string,object> Map(object value) {return value as Dictionary<string,object> ?? new Dictionary<string,object>();}
+    static object Get(Dictionary<string,object> value,string key) {object result;return value.TryGetValue(key,out result)?result:null;}
+    static Dictionary<string,object> Read(string file) {
+        if(!File.Exists(file))return new Dictionary<string,object>();
+        string text=File.ReadAllText(file,Encoding.UTF8);
+        // Preserve quoted strings while removing JSONC comments and trailing commas.
+        text=System.Text.RegularExpressions.Regex.Replace(text,@"""(?:\\.|[^""\\])*""|//[^\r\n]*|/\*[\s\S]*?\*/",m=>m.Value.StartsWith("\"")?m.Value:"");
+        text=System.Text.RegularExpressions.Regex.Replace(text,@"""(?:\\.|[^""\\])*""|,\s*(?=[}\]])",m=>m.Value.StartsWith("\"")?m.Value:"");
+        return new System.Web.Script.Serialization.JavaScriptSerializer().Deserialize<Dictionary<string,object>>(text);
+    }
+    public static Dictionary<string,string> ReadProject(string root) {
+        var settings=Read(Path.Combine(root,".vscode/settings.json"));
+        var conn=Map(Get(settings,"objectscript.conn"));string name=Convert.ToString(Get(conn,"server"));
+        var server=Map(Get(Map(Get(settings,"intersystems.servers")),name));var web=Map(Get(server,"webServer"));
+        var mcp=conn.Count == 0 ? Read(Path.Combine(root,".mcp.json")) : new Dictionary<string,object>();var env=Map(Get(Map(Get(Map(Get(mcp,"mcpServers")),"iris-agentic-dev")),"env"));
+        string host=Convert.ToString(Get(web,"host")??Get(conn,"host")??Get(env,"IRIS_HOST"));
+        string port=Convert.ToString(Get(web,"port")??Get(conn,"port")??Get(env,"IRIS_WEB_PORT"));
+        string ns=Convert.ToString(Get(conn,"ns")??Get(env,"IRIS_NAMESPACE"));
+        string scheme=Convert.ToString(Get(web,"scheme")??Get(env,"IRIS_SCHEME")??(Object.Equals(Get(conn,"https"),true)?"https":"http"));
+        int number;if(String.IsNullOrWhiteSpace(host)||!Int32.TryParse(port,out number)||number<1||number>65535||String.IsNullOrWhiteSpace(ns))throw new IOException("项目中未找到完整连接，请填写主机、Web 端口和命名空间。");
+        string prefix=Convert.ToString(Get(server,"pathPrefix")??Get(web,"pathPrefix"));
+        return new Dictionary<string,string>{{"url",Normalize(new UriBuilder(scheme,host,number,prefix).Uri.AbsoluteUri)},{"namespace",ns},{"name",String.IsNullOrWhiteSpace(name)?new DirectoryInfo(root).Name:name}};
     }
 }

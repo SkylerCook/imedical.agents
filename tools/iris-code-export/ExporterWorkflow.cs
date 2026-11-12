@@ -275,6 +275,17 @@ public sealed partial class ExporterForm {
     }
 
     static void WorkflowSelfTest(ExporterForm f, string directory) {
+        if(ExporterConnection.Normalize("http://example.test:52773")!="http://example.test:52773/api/atelier/")throw new Exception("atelier-suffix-not-added");
+        if(ExporterConnection.Normalize("https://example.test/gateway/api/atelier/")!="https://example.test/gateway/api/atelier/")throw new Exception("gateway-prefix-not-preserved");
+        foreach(var invalid in new[]{"ftp://example.test", "http://user:pass@example.test", "http://example.test/?token=x"}) {
+            bool rejected=false;try{ExporterConnection.Normalize(invalid);}catch(IOException){rejected=true;}
+            if(!rejected)throw new Exception("invalid-address-accepted");
+        }
+        var importRoot=Path.Combine(directory,"connection-project");Directory.CreateDirectory(Path.Combine(importRoot,".vscode"));
+        File.WriteAllText(Path.Combine(importRoot,".vscode/settings.json"),"{ // saved connection\n \"objectscript.conn\":{\"server\":\"demo\",\"ns\":\"TEST\",}, \"intersystems.servers\":{\"demo\":{\"webServer\":{\"host\":\"example.test\",\"port\":52773,\"scheme\":\"https\"},\"pathPrefix\":\"/gateway\"}}}");
+        var imported=ExporterConnection.ReadProject(importRoot);
+        if(imported["url"]!="https://example.test:52773/gateway/api/atelier/"||imported["namespace"]!="TEST"||imported["name"]!="demo")throw new Exception("project-jsonc-import-failed");
+
         if (f.CopyText(f.resultRows, false) != "Demo.Missing.cls\r\n/app/missing.js") throw new Exception("copy-names-must-be-importable-and-preserve-slash");
         f.busy = true; f.UpdateButtons(); if (!f.documents.Enabled || !f.documents.ReadOnly) throw new Exception("running-list-must-remain-selectable-and-readonly"); f.busy = false; f.UpdateButtons(); if (f.documents.ReadOnly) throw new Exception("idle-list-must-allow-paste");
         f.job["confirmedMissing"] = new[] {"Demo.Missing.cls"}; f.SaveJob(); f.displayedReceipt = null; f.RefreshReceipt();
@@ -315,6 +326,16 @@ public sealed partial class ExporterForm {
                         }
                     };
                     capture.Start();view.ShowAddDialog(false);
+                }
+                using(var capture = new Timer {Interval=100}) {
+                    capture.Tick += (sender, args) => {
+                        capture.Stop();
+                        foreach(Form dialog in Application.OpenForms) if(dialog.Text == "项目连接设置") {
+                            using(var bitmap=new Bitmap(dialog.Width,dialog.Height)) {dialog.DrawToBitmap(bitmap,new Rectangle(Point.Empty,dialog.Size));bitmap.Save(Path.Combine(directory,"connection-"+scale.ToString(System.Globalization.CultureInfo.InvariantCulture)+".png"));}
+                            dialog.Close();break;
+                        }
+                    };
+                    capture.Start();view.ShowConnectionSettings();
                 }
                 view.Close();
             }
