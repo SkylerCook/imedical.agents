@@ -23,7 +23,7 @@
 ## 按需资料
 
 - [标注读取](references/design-annotations.md)：确认画板、尺寸、视觉目标与业务边界。
-- [布局生命周期](references/layout-lifecycle.md)：公共接入、承载留白、动态尺寸、首屏及重复打开。
+- [布局生命周期](references/layout-lifecycle.md)：公共接入、承载留白、多行输入框标签首行对齐、动态尺寸、首屏及重复打开。
 - [已验证案例](references/verified-cases.md)：有前后对照的匿名机制与适用限制。
 - [UI 任务模板](templates/ui-task.md)：较长任务需要落盘时复用；已有台账可直接补充相应字段。
 
