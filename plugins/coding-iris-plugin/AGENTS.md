@@ -1,5 +1,7 @@
 # AGENTS.md
 
+初始化及重新生成配置沿 [coding-iris-init](skills/coding-iris-init/SKILL.md) 复用已确认事实，集中诊断缺项，授权内生成受管索引；源码与服务器编码统一引用 owner 契约。配置生成保留其它 MCP、扩展字段和显式禁用。
+
 coding 0.27.6 修复原生 XML 导出预检的启动竞态。managed-sessions-v4 vendor 完成连接发现后再建立工具服务，连接不可用与目标不一致分别报告。预检明确未派发时保留实际退出回执，历史警告带 generation/historical 标记。
 
 IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY=false`），项目显式 `true` 仍保留。显式开启校验的 Atelier 在支持 API 的 Node 中合并默认与系统 CA；专用 CA 保持优先，不改全局信任。

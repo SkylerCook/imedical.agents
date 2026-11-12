@@ -1594,6 +1594,9 @@ else {
   Write-UpdateSummary -Results $results -Mode $Mode
 }
 if ($runtimeAdapterFailed) { throw "Runtime skill adaptation incomplete; resolve the reported status before retrying." }
+if (@($results | Where-Object { $_.status -in @("config-migration-failed", "config-migration-conflict") }).Count -gt 0) {
+  throw "Required plugin configuration migration incomplete; completed steps are retained. Resolve the reported plugin conflict or failure and rerun the update."
+}
 if (@($results | Where-Object { $_.status -eq "thin-index-conflict" -or ($Mode -eq "Check" -and $_.status -eq "thin-index-stale") }).Count -gt 0) {
   throw "Plugin thin-index verification incomplete; refresh stale indexes with Write and resolve preserved conflicts."
 }

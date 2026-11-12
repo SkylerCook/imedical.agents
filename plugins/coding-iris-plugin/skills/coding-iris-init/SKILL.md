@@ -63,7 +63,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
      - `通用`（或用户未指定）：基于 `templates/iris_project_profile.template.md` 创建，按探索流程填充可确定字段，确实无法确定的标 TODO。
    - `templates/profile-defaults/<type>.md` 只在用户显式选择对应项目类型后加载；它是领域默认值，不是通用规则。加载后仍需用代码探索或用户确认校验，不能自动套用到未确认项目。
    - profile 中只能保存项目差异，不保存账号、密码、token。
-   - 当前前端源码、上传内容和服务器运行编码统一使用 canonical `utf8`。`project-utf8` 仅作为兼容读取别名；`standard-gb2312` 仅用于用户明确指定的历史工程。实际文件字节检测是最终门禁。Overlay manifest 明确只声明 `backend` 时，profile 使用 `N/A (backend-only)`；若后续新增 frontend，必须重新运行迁移并通过字节门禁。
+   - 前端源码与服务器编码按[编码契约](../../references/frontend-encoding.md)分别配置，沿用已有有效确认及路径覆盖。标版使用 UTF-8，按需项目首次确认服务器编码后保存。Overlay manifest 仅声明 `backend` 时使用 `N/A (backend-only)`，新增 frontend 后按同一契约补齐。
    - 运行 `scripts/migrate-demand-delivery-profile.ps1`：从 profile、项目上下文和 `AGENTS.md` 的明确语义填充 `standard/project`；结果仍为 `TODO` 时提示用户确认工程默认需求交付类型，不按目录、`contextMode` 或 Git remote 猜测。
    - 执行下文“本地配置初始化与已有项目补齐”，生成必要的开发方式和准入配置并 Check；配置缺失不能留到日常开发才反复提示。
    - **多仓库工作区**：若目标工程是平铺多仓库架构（如 `corePro-flat`），工作区级别 profile 只填通用项（Web 技术、编码策略、HISUI 基础路径）；仓库特有项（namespace、包前缀、目录路径、命名模板）标注"按仓库填写"，不要填入单一仓库的值当作全局事实。
@@ -71,11 +71,11 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
    - `.agents/config/project-env.json` 是人类可读的配置副本，`.mcp.json` 是 MCP 运行时事实来源；两者共存但 `.mcp.json` 优先。
    - **若 `.mcp.json` 已存在**：从 `.mcp.json` 反向填充 `project-env.json`（Agent 直接读取 `.mcp.json` 提取 iris/sftp/mcp 字段），web.* 部分无法从 `.mcp.json` 推导的标注 TODO。无需运行 `sync-env-config.js`。
    - SFTP 默认禁用。新建配置可选择 `sftp.runtime: vendor`，使用 CapabilityRoot 内置运行时；先按 `vendor/sftp-server/README.md` 准备 Python 依赖及可信主机密钥。已有可识别的 legacy 启动路径在更新时自动迁移 vendor；显式 custom 保持不变。`knownHosts`、`keyFile`、`allowRemoteCommands` 分别映射对应私有环境字段，不写入可复用文档。
-   - **若 `.mcp.json` 不存在**：提示用户从 `.agents/plugins/coding-iris-plugin/templates/project-env.template.json` 复制后填写，填写完成后运行：
+   - **若 `.mcp.json` 不存在**：在本次初始化授权内，基于模板创建被忽略的 `project-env.json`，复用当前工程已确认的连接事实。必需且无法确定的字段集中询问，齐备后运行：
      ```powershell
      node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js
      ```
-   - 不要替用户生成真实 host、账号、密码、namespace 或本机 MCP 可执行文件路径。
+   - 连接身份和目标使用用户确认或当前工程已有事实。MCP 路径从 CapabilityRoot 与本机平台解析并验证文件存在，显式 custom 路径保留；缺运行时只报告对应依赖。凭据通过现有私有配置或安全输入取得，诊断只显示字段名。
    - `.agents/config/project-env.json` 和 `.mcp.json` 可能包含敏感信息，不得提交到业务项目版本库。
    - 初始化 XML 导出时展示两种可选准备方式：按 [XML 导出协议](../../references/iris-xml-export.md)提供 canonical `DHCDoc.Util.XmlPackage` 类源及经验证的安装 XML（存在时），提示用户导入；也可选默认受管 WS terminal 的系统执行通道，先核对目标版本／API。HTTP MCP 须单独资格明确接受其内部重试，不自动 fallback。启用不自动上传、编译或连接服务器。可选类未部署只限制类通道，不阻断 coding 插件其它能力；类现状或契约不明时报告待验证，已存在的项目类先比对后处理。
    - 需要代码基线时读取 [基线协议](../../references/iris-code-baseline.md)，只采代码并预筛图片，纯采集不自动初始化 Git。私有多会话资格必须经目标窗口验证后登记，不因模板或旧性能记录自动标记 verified。
@@ -85,7 +85,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
      powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-plugin/scripts/generate-plugin-thin-index.ps1 -PluginPath .agents/plugins/coding-iris-plugin -ProjectRoot . -Mode DryRun -ExcludeSkill coding-iris-init
      ```
    - **若 DryRun 全部 skipped**：补充提示"所有 thin-index 已存在且指向正确插件路径，无需更新。如需强制重建，使用 `-Force` 参数。"然后跳到步骤 7。
-   - 若有需要写入的条目，用户确认后执行 Write：
+   - 若有需要写入的受管条目且初始化授权已覆盖，直接执行 Write；自定义文件冲突先展示具体差异并取得决定。只读请求保留 DryRun 结果。
      ```powershell
      powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/coding-iris-plugin/scripts/generate-plugin-thin-index.ps1 -PluginPath .agents/plugins/coding-iris-plugin -ProjectRoot . -Mode Write -ExcludeSkill coding-iris-init
      ```

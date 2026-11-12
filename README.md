@@ -1,50 +1,18 @@
 # imedical.agents
 
-coding 0.27.6 修复原生 XML 导出预检的启动竞态。managed-sessions-v4 vendor 完成连接发现后再建立工具服务，连接不可用与目标不一致分别报告。预检明确未派发时保留实际退出回执，历史警告带 generation/historical 标记。
+`imedical.agents` 为团队提供可复用的 Agent 角色、协作流程、插件、skills、模板和辅助脚本。项目差异与连接留在目标工程，能力包通过现有安装更新入口分发。
 
-IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY=false`），项目显式 `true` 仍保留。显式开启校验的 Atelier 在支持 API 的 Node 中合并默认与系统 CA；专用 CA 保持优先，不改全局信任。
+| 要完成的工作 | 入口 |
+|---|---|
+| 安装、更新、排查部署 | [更新 runbook](docs/update-agents.md) |
+| 按业务任务选择能力 | [团队使用手册](docs/guides/usage-manual.md)、[能力目录](docs/guides/capability-catalog.md)、[使用指南](docs/guides/capability-guide.md) |
+| 初始化 IRIS 项目 | [coding-iris-init](plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md)，复用已知配置，必要缺项集中确认，授权内生成索引 |
+| IRIS 部署与故障恢复 | [部署入口](plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md)、[统一会话](docs/guides/iris-managed-sessions.md) |
+| 离线源码与 XML 交付 | [离线协议](plugins/coding-iris-plugin/references/iris-offline-development.md)、[人工工具](tools/README.md) |
+| 连接与用法查询 | [连接配置](docs/guides/connection-configuration.md)、[统一帮助](docs/guides/capability-help.md) |
+| 框架维护、变更历史与待办 | [维护入口](memory/agent-kit-maintenance-memory.md)、[维护资料](maintenance/README.md) |
 
-普通按需 HTTPS 调用尊重项目显式 TLS 校验配置，缺省关闭证书校验，显式 true 仍验证证书；更新根运行时后结束旧托管会话即可使用，详见[更新说明](docs/update-agents.md)。
-
-普通 IRIS 文件部署按[验证契约](plugins/coding-iris-plugin/rules/iris_deploy_checklist.md#验证)复用已有回执，分别报告文件部署和业务验收；独立附加检查不拖延已验证部署的交付。
-
-> **让 AI Coding 的最佳实践成为团队共享的基础设施。**
-
-`imedical.agents` 是 imedical 的 AI Coding 能力包仓库，将实践中验证有效的 Agent 角色、协作流程、插件规则、skills、模板和辅助脚本沉淀为可治理、可一键分发、可持续演进的团队能力。它帮助团队成员缩小对 AI Coding 的认知与使用差异，让优秀经验被整个团队稳定复用。
-
-仓库同时帮助 Codex、Claude Code、OpenCode、CodeBuddy、WorkBuddy、Hermes 等不同 AI 开发工具快速获得正确上下文，并区分通用能力、项目差异、连接信息和临时经验。
-
-项目更新会为已有 `AGENTS.md` 补齐缺失的按需文档导航；保留自定义内容，冲突停止，详见 [更新说明](docs/update-agents.md)。
-
-文档入口：[项目使用文档](docs/README.md) · [框架维护资料](maintenance/README.md)。
-
-IRIS [开发方式与离线交付](plugins/coding-iris-plugin/references/iris-offline-development.md)独立于 contextMode：developmentMode 的唯一配置在当前 ContextRoot 的 config/iris-development.json。offline 用带回的回执源码、人工目录或完整 XML，复用编码、检查、Review、Pack、独立 Verify 与用户现场验证；受管医院远端入口提前阻断。源码助手唯一实现随 coding 插件分发，人工 ZIP 取同一核心；普通更新不自动切换方式或迁移业务源码/旧任务。
-
-IRIS [初始化与配置补齐](plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)默认生成必要私有配置并 Check；已启用项目普通 Write 更新自动补缺文件，保留已有字节与旧模式缺省，无法确认的模式/环境集中报告，由 Agent 按事实填写。本地配置、远端资格和服务器基线分别验收，生成配置不连接医院或建立基线。
-
-IRIS [统一会话](docs/guides/iris-managed-sessions.md)由工具复用、排队和清理；受管新增未知写只记录一次，明确拒绝不封锁后续操作，真实未知写按范围保护且不重放。已核实本地退出及写结果即可恢复，注销未确认保留警告；License 登记、历史退出证据和观测不阻断普通查询、上传与编译；已部署工程正常更新自动清理相关废弃字段和空模板登记；大量 SQL 读写由工具复用连接并串行执行，普通交付聚焦业务结果。完整更新运行时与 owner 并重启宿主核对回执，历史风险按原证据核实。
-
-使用入口：[团队使用手册（Agent 托管部署 / 更新 / 使用 / 宿主适配）](docs/guides/usage-manual.md) · [能力目录（插件 / skill / rule）](docs/guides/capability-catalog.md) · [使用指南（场景选择 / 接入 / 全部技能示例）](docs/guides/capability-guide.md) · [统一帮助](docs/guides/capability-help.md) · [连接信息查看与排查](docs/guides/connection-configuration.md)。目录和场景手册当前覆盖非 xc 能力；xc 手册列入后续治理。统一帮助覆盖全部自有 skill（含 init、xc）和 Agent，以 `--help` 或“查看用法”请求，只展示说明；详细执行契约仍由各源定义维护，第三方 vendor 沿用原约定。
-
-iMedical 知识资料已接入 [共享参考库](vendor/imedical-knowledge/README.md)：通过 coding-iris-plugin 的 `iris-imedical-knowledge` 按需检索 wiki、菜单与技术资料，`iris-menu-sync` 刷新项目菜单快照；已登记来源可复用固定采集入口由宿主月度运行，异常保留旧快照。新装/更新沿现有 plugins/vendor 分发，项目资料保留在 ContextRoot；详见 [部署与使用](docs/guides/imedical-knowledge.md)。
-
-技能归属：agent-context-kit 接管跨 Agent 适配，agent-framework-evolution 管理反馈与可复用内容打包。已部署项目保持原技能入口和运行时链接，首次更新步骤见 [迁移指南](docs/skill-plugin-migration.md)。
-
-connected 下的 IRIS XML 包和源码基线统一归 coding owner：[iris-xml-export](plugins/coding-iris-plugin/skills/iris-xml-export/SKILL.md) 从确认环境导出准确对象范围，支持图片；[iris-code-baseline](plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md) 按版本清单采集当前源码，图片预筛排除、初始缺失完整报告。专用类与系统执行通道无需 QTZ，受管只读多会话按目标资格启用；更新及旧全局入口迁移见[安装更新说明](docs/update-agents.md#iris-xml-导出与代码基线coding-022)，普通更新不部署服务端或登记资格。
-
-人工内网源码导出使用[独立工具](tools/iris-code-export/README.md)，另有 [Windows 图形 EXE](tools/iris-code-export/GUI.md) 便携包，沿现有 WinForms/PowerShell 栈支持同目录持续增补、TXT/源码 XML 去重、检查更新与候选接纳、历史恢复及冻结交付副本；支持统一的前 N 项试采（默认 10 项）及同目录继续剩余项，解析失败可直接重试；提供加密连接配置、常驻进度计时、结果查找复制与安全关闭，提供 1/4/10 会话速度；同一窗口跨批复用，空闲注销与异常阻断，实际 License 回落另行核实。可将 ZIP 直接带入现场，按 UTF-8 TXT 或选定版本清单导出到指定目录，支持医院补充 TXT、显式 Web 路径映射和范围预览；版本定义对象范围，取得的是医院当前源码，v9.2 全仓范围不冒充医生站。记录可读来源及清单摘要，离线保存原始基线并交付增量源码/对应回退/说明，支持用现场新快照比较；无需框架或 skill；导出与构建源在 tools/，交付助手从 coding 插件的唯一实现取入；整个 tools/ 不随 .agents 分发。另一路由用户将现场聚合 XML 带回，[交给本地 AI 按对象修改](plugins/coding-iris-plugin/references/iris-offline-development.md)，交付只含修改对象的 changes.xml、对应 rollback.xml、变更说明及摘要回执，再带回现场导入，无需独立 XML 工具包。
-
-CSP 编译沿 coding owner 的[部署入口](plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md)选择：普通工程可使用 `compile-csp.js` 的 Atelier 通道；已确认 `project` ＋ `intent-first-on-demand-export` 的工程及受管夜跑须由对应部署链路编译，独立调用不能绕过 source plan、复审或运行门禁。
-
-部署失败先自动诊断并按[恢复协议](plugins/coding-iris-plugin/references/deployment-protection.md#失败恢复与授权)在原授权内有限恢复；仅实际人工决策才提问。逐文件读取和确证未发出的上传共用每批上限，未知写入/编译与公共熔断保留保护，旧 SFTP 批量 worker 不重放。完整能力包更新取得，旧 unknown 会话保持原恢复方式。
-
-SFTP 工具纳入 [vendor/sftp-server](vendor/sftp-server/README.md)：保留五个 MCP 工具名，补齐路径约束、内容比较、原子替换和 SHA-256 校验。`coding-iris-plugin` 为新项目提供默认禁用的配置；更新时自动迁移可识别的既有标准启动参数，显式 custom 或自定义参数保留，不要求 runtime opt-in，也不自动安装 Python 依赖。
-
-前端 CSP、HTML、JS、CSS 共用[前端命名与格式规范](plugins/coding-iris-plugin/references/frontend-coding-format.md)：默认 ES5、4 空格与双引号，混合语言分区审查，保留历史接口和主题契约。复用现有 Review、编码及 i18n 检查，不引入格式化器。[JS 页面组织模板](plugins/coding-iris-plugin/templates/javascript-page-template.md)按实际依赖和生命周期选择，不要求所有前端统一架构。
-
-CLS 编码与 Review 共用 [命名与格式规范](plugins/coding-iris-plugin/references/cls-coding-format.md)：仅规范本次新增代码，原有代码即使被功能需求修改也不附带格式化，项目显式规范可覆盖默认值。新增类先核对项目基类并适配模板 Extends，Review 检查继承依据；Agent 审查命名、表达式及 [注册类、方法与变量注释](plugins/coding-iris-plugin/references/cls-coding-format.md#注释与空行)，共用清单补查提取后的重复业务规则及稳定业务标识归属；Parameter 语言合法性优先，可选脚本检查成员边界、EOF 和有限的 Parameter 声明/引用命名，不增加提交门禁。普通能力包更新分发，无业务代码迁移。
-
-IRIS 编码入口按边界选择：明确前端/后端任务直达专项 skill，混合或边界不明时使用 [iris-coding](plugins/coding-iris-plugin/skills/iris-coding/SKILL.md)。先按 developmentMode 分流；connected 且当前需求已明确为 `project`、采用 `intent-first-on-demand-export` 时执行[项目按需导出开发协议](plugins/coding-iris-plugin/references/project-demand-development.md)，待修改文件即使本地已有也先同步，有变化先提交 export 基线再开始修改，保护现场并于部署前同步复审；offline 复用开头的离线协议，标版沿既有分支，contextMode 不决定需求类型。公共角色与字节检查共用，远端准入仅在允许的在线动作中执行；规则与 skill 条件加载。i18n 条件矩阵由前端规则统一维护；静态读取体量与真实提效分别验证，见[验证记录](maintenance/validation/agent-evolution.md)。
+项目文档统一由 [docs](docs/README.md) 导航。版本更新细节和验收证据归维护日志与 owner 协议，当前版本查 manifest。xc 手册及待接入能力沿既有治理队列。
 
 ## 快速理解
 

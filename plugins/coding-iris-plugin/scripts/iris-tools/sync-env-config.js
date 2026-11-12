@@ -13,8 +13,6 @@ const path = require('path');
 const { resolveWorkspaceContext } = require('../../../../scripts/lib/workspace-context');
 const { buildSftp } = require('./sftp-config');
 
-const scriptDir = __dirname;
-
 // Paths
 const workspaceContext = resolveWorkspaceContext(process.cwd());
 if (require('../../../../scripts/lib/iris-remote-operations').developmentMode(workspaceContext) === 'offline') {
@@ -34,25 +32,49 @@ try {
   const configContent = fs.readFileSync(configPath, 'utf8').replace(/^\uFEFF/, '');
   config = JSON.parse(configContent);
 } catch (err) {
-  console.error(`[ERROR] Failed to read config: ${err.message}`);
-  console.error(`[TIP] Copy ${templatePath} to ${configPath}, then fill in your local IRIS and MCP settings.`);
+  console.error(`[ERROR] Configuration ${err.code === 'ENOENT' ? 'file missing' : err instanceof SyntaxError ? 'JSON invalid' : 'read failed'}`);
+  console.error(`[TIP] Initialize ${configPath} using ${templatePath} and confirmed project settings.`);
   process.exit(1);
 }
 
-const { iris, mcp, sftp } = config;
+function isObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+if (!isObject(config)) {
+  console.error('[ERROR] Configuration must be a JSON object');
+  process.exit(1);
+}
+
+const errors = [];
+for (const section of ['iris', 'mcp', 'sftp']) {
+  if (config[section] !== undefined && !isObject(config[section])) {
+    errors.push(`${section}: expected object`);
+  }
+}
+const iris = isObject(config.iris) ? config.iris : {};
+const mcp = isObject(config.mcp) ? { ...config.mcp } : {};
+const sftp = isObject(config.sftp) ? config.sftp : {};
+if (mcp.serverName === undefined) mcp.serverName = 'iris-agentic-dev';
+if (mcp.serverPath === undefined && process.platform === 'win32' && process.arch === 'x64') {
+  const vendorPath = path.join(workspaceContext.capabilityRoot, 'vendor', 'iris-agentic-dev', 'windows-x64', 'iris-agentic-dev.exe');
+  if (fs.existsSync(vendorPath)) mcp.serverPath = vendorPath;
+}
 const irisScheme = iris.scheme || 'https';
 const irisPort = iris.port || 2443;
 const irisTlsVerify = String(iris.tlsVerify ?? false);
-const sftpEnabled = Boolean(sftp && sftp.enabled);
+const sftpEnabled = sftp.enabled === true;
+if (sftp.enabled !== undefined && typeof sftp.enabled !== 'boolean') {
+  errors.push('sftp.enabled: expected boolean');
+}
 
 function isMissing(value) {
   return value === undefined || value === null || String(value).trim() === '' || String(value).trim().startsWith('TODO');
 }
 
 function requireValue(section, key, value) {
-  if (isMissing(value)) {
-    console.error(`[ERROR] Missing config: ${section}.${key}`);
-    process.exit(1);
+  if (isMissing(value) || typeof value !== 'string') {
+    errors.push(`${section}.${key}: required non-empty string`);
   }
 }
 
@@ -62,6 +84,18 @@ requireValue('iris', 'password', iris && iris.password);
 requireValue('iris', 'namespace', iris && iris.namespace);
 requireValue('mcp', 'serverName', mcp && mcp.serverName);
 requireValue('mcp', 'serverPath', mcp && mcp.serverPath);
+
+if (sftpEnabled) {
+  for (const key of ['serverName', 'command', 'host', 'username', 'localPath', 'remotePath']) {
+    requireValue('sftp', key, sftp[key]);
+  }
+  if (isMissing(sftp.keyFile)) requireValue('sftp', 'password', sftp.password);
+  if (sftp.serverName === mcp.serverName) errors.push('sftp.serverName: must differ from mcp.serverName');
+}
+if (errors.length) {
+  console.error('[ERROR] Invalid configuration fields:\n' + errors.map(error => `- ${error}`).join('\n'));
+  process.exit(1);
+}
 
 console.log(`[INFO] IRIS config loaded: ${irisScheme}, port=${irisPort}, host/user/namespace redacted`);
 console.log(`[INFO] Backend MCP: ${mcp.serverName}`);
@@ -105,18 +139,9 @@ const mcpConfig = {
 };
 
 if (sftpEnabled) {
-  requireValue('sftp', 'serverName', sftp.serverName);
-  requireValue('sftp', 'command', sftp.command);
-  requireValue('sftp', 'host', sftp.host);
-  requireValue('sftp', 'username', sftp.username);
-  if (isMissing(sftp.keyFile)) requireValue('sftp', 'password', sftp.password);
-  requireValue('sftp', 'localPath', sftp.localPath);
-  requireValue('sftp', 'remotePath', sftp.remotePath);
-
   mcpConfig.mcpServers[sftp.serverName] = buildSftp(sftp, workspaceContext.capabilityRoot);
 }
 
-const mcpPath = path.join(workspaceRoot, '.mcp.json');
 require('../../../../scripts/lib/iris-session-migration').writeGenerated({context:workspaceContext,config:mcpConfig});
 console.log('[OK] .mcp.json generated');
 

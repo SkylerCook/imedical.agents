@@ -1,5 +1,7 @@
 # 能力目录（非 xc）
 
+IRIS 初始化的配置补缺、诊断和受管索引生成由 [coding-iris-init](../../plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md) 统一编排，源码与服务器编码由同一 owner 契约管理。
+
 查看任意自有 skill / Agent 的用法，可请求 `--help` 或“查看用法”，见[统一帮助](capability-help.md)。帮助覆盖 init、xc 和 Agent；本目录的非 xc 清单范围保持。
 
 [无人值守治理](../night-governance.md) 初筛后先基础探测、原预算内补齐项目适配与用例并定向复验，再制定详细 PLAN；[逐用例能力与缺口](../night-acceptance.md#逐需求预检与补齐)按实际认证和写入副作用取证。在同一 run 上绑定实体 PLAN、角色上下文、双 Developer / 双 Tester、联合源码保护、持续认证及宿主监督 worker、周额度和分级成本报告；最低自检与证据等级分开，无新增 skill 或文件锁服务。

@@ -1348,6 +1348,25 @@ try {
   Assert-True (-not $checkOutput.Contains("config-migration-failed")) "Check should not report config-migration-failed for a DryRun-only migration"
   Assert-True ((Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")) -eq $profileBeforeCheck) "Check must not modify plugin profile files"
   Assert-True ((Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/sample-skill/SKILL.md")) -eq $thinIndexBeforeCheck) "Check must not modify generated thin-index files"
+  $migrationFixturePath = Join-Path $projectRoot ".agents/plugins/sample-plugin/scripts/migrate-sample.ps1"
+  $migrationFixtureBytes = [IO.File]::ReadAllBytes($migrationFixturePath)
+  try {
+    foreach ($failureBody in @('exit 9', 'Write-Output "invalid-json"', 'Write-Output ''{"status":"config-migration-conflict","target":"test","reason":"fixture conflict"}''')) {
+      [IO.File]::WriteAllText($migrationFixturePath, $failureBody)
+      $ErrorActionPreference = "Continue"
+      $migrationFailure = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -ProjectRoot $projectRoot -Mode Check -NoPull -Detailed -Plugin sample-plugin 2>&1 | Out-String
+      $ErrorActionPreference = "Stop"
+      Assert-True ($LASTEXITCODE -ne 0) "Required migration failures must fail the updater process"
+      Assert-Contains $migrationFailure "Required plugin configuration migration incomplete" "Migration failure should explain retained progress"
+      Assert-True ((Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/sample_profile.md")) -eq $profileBeforeCheck) "Failed Check must preserve configuration"
+    }
+  }
+  finally {
+    $ErrorActionPreference = "Stop"
+    [IO.File]::WriteAllBytes($migrationFixturePath, $migrationFixtureBytes)
+  }
+  $migrationRecovered = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptUnderTest -ProjectRoot $projectRoot -Mode Check -NoPull -Detailed -Plugin sample-plugin 2>&1 | Out-String
+  Assert-True ($LASTEXITCODE -eq 0) "Correcting the migration should allow an ordinary retry"
   $nativeWrite = & $scriptUnderTest -ProjectRoot $projectRoot -Mode Write -NoPull -RuntimeAdapter Codex -Agent -Detailed | Out-String
   Assert-Contains $nativeWrite "runtime-agent-ready" "Codex native adaptation should succeed"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".codex/agents/i18n-agent.toml")) "Codex native Agent should be generated"

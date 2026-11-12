@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+初始化在有效授权内复用已知连接、定位本机运行时并生成受管索引，缺项集中确认。配置生成器先校验结构并报告全部必要字段，保留已有 MCP 扩展设置。源码和目标编码沿 [编码契约](references/frontend-encoding.md) 分开配置，旧工程普通更新即可取得修复。
+
 coding 0.27.6 修复原生 XML 导出预检的启动竞态。managed-sessions-v4 vendor 完成连接发现后再建立工具服务，连接不可用与目标不一致分别报告。预检明确未派发时保留实际退出回执，历史警告带 generation/historical 标记。
 
 IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY=false`），项目显式 `true` 仍保留。显式开启校验的 Atelier 在支持 API 的 Node 中合并默认与系统 CA；专用 CA 保持优先，不改全局信任。

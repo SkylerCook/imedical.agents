@@ -119,10 +119,20 @@ function preserveManaged({context,config}) {
   if(!fs.existsSync(file))return undo;
   const existing=read(file);
   const generated=config.mcpServers || {};
+  for (const [key, value] of Object.entries(existing)) {
+    if (!Object.hasOwn(config, key)) config[key] = value;
+  }
   config.mcpServers={...existing.mcpServers,...generated};
   for(const [name,current] of Object.entries(existing.mcpServers || {})) {
-    if(!managed(current))continue;
     const replacement=generated[name];
+    if (!managed(current)) {
+      if (replacement) {
+        config.mcpServers[name] = {...current, ...replacement,
+          env: {...current.env, ...replacement.env},
+          ...(Object.hasOwn(current, 'disabled') ? {disabled: current.disabled} : {})};
+      }
+      continue;
+    }
     if(!replacement)throw failure('session-generator-server-rename-review-required');
     const backendFile=path.join(context.contextRoot,'config','iris-session-backend.json');
     privateFile(context.workspaceRoot,backendFile);
@@ -142,6 +152,7 @@ function preserveManaged({context,config}) {
 }
 function writeGenerated({context,config}) {
   const file=path.join(context.workspaceRoot,'.mcp.json');
+  privateFile(context.workspaceRoot, file);
   const before=fs.existsSync(file)?fs.readFileSync(file,'utf8'):undefined;
   const undo=preserveManaged({context,config});
   try {write(file,config,before);}

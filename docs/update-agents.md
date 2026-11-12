@@ -1,5 +1,22 @@
 # .agents 安装与更新 Runbook
 
+## 按任务选择入口
+
+在目标工程根目录调用现有 `scripts/update-agents.ps1`，先按目的选择模式。
+
+| 目的 | 参数 | capability 是否变化 |
+|---|---|---|
+| 只读检查当前副本 | `-ProjectRoot . -Mode Check` | 保持原状 |
+| 只读预演生成层 | `-ProjectRoot . -Mode DryRun -NoPull` | 保持原状 |
+| 更新 capability 并预演生成层 | `-ProjectRoot . -Mode DryRun` | standard 可 fetch、快进 pull 和刷新 sparse |
+| 执行已授权更新 | `-ProjectRoot . -Mode Write` | standard 更新 capability 并收敛生成层 |
+
+现有两步更新按[更新流程](#更新已安装-agents)执行，同一授权范围内摘要无阻塞即可继续。Overlay 使用[两阶段更新](#workspace-overlay-两阶段更新)，共享能力包只更新一次。版本专项说明仅在命中对应迁移时读取。
+
+必要插件迁移的 `config-migration-failed` 或 `config-migration-conflict` 会返回非成功，摘要保留插件、阶段及已完成结果。解决具体原因后重跑原入口。可选 docs 维护警告沿原兼容行为报告。
+
+coding 0.28.2 初始化复用已知事实并集中报告缺项，受管薄索引在初始化授权内直接生成。配置生成保留其它 MCP、同名服务扩展字段和显式禁用，旧项目普通更新取得代码即可，无新增配置迁移。
+
 coding 0.27.6 更新须同时取得根 scripts、coding 插件、managed-sessions-v4 vendor 与匹配的 managed-build.json。沿现有更新入口同步，源仓不新增私有配置。已部署项目保留 MCP 连接、TLS 值及既有恢复资料。结束旧托管会话后再更新被占用的 exe，并重启对应宿主 MCP。Check 校验新版补丁与文件摘要，拒绝混装旧 v3。新项目按正常初始化路径使用同一套包。旧 planned 导出在确认目标和现有未知写记录后沿原计划继续预检，更新不自动清除旧风险记录。
 
 IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY=false`），项目显式 `true` 仍保留。显式开启校验的 Atelier 在支持 API 的 Node 中合并默认与系统 CA；专用 CA 保持优先，不改全局信任。
