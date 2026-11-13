@@ -29,6 +29,10 @@ description: Use when maintaining the imedical.agents repository itself, especia
 
 根 `AGENTS.md` 是维护约束的事实来源；本 skill 将约束转为检查流程，不维护第二套规则。开始时区分只读审计与实施范围，检查工作区已有修改；审计只交付发现，不自动修复、提交或同步业务副本。
 
+## 知识库维护路由
+
+更新被索引的业务知识、UI/HISUI 参考，首次向量建库或恢复中断构建时，执行 [knowledge-maintenance](../knowledge-maintenance/SKILL.md)。它复用当前范围与授权，负责资料和索引一致性；完成后继续本 skill 的维护收尾。
+
 ## 插件提交同步门禁
 
 提交任何插件能力变更前，必须检查并按需更新：

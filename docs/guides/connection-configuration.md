@@ -10,6 +10,7 @@
 |---|---|---|
 | BOS 查询地址、访问密钥、Token、人员和组 | `BOS_MCP_CONFIG` 指向的私有文件中 `bos-demand-query` 段，字段见下节 | `defaults` 离线校验；`check` 连接远端并发现查询工具 |
 | BOS 代码日志地址、Token、关联项目 | 同一文件的 `bos-code-update-log` 段 | 按[日志说明](../../plugins/bos-plugin/references/code-update-log.md)使用 `defaults`，两类 Token 不互相代用 |
+| 知识检索提供方、公司网关和 Embedding 凭据 | `KNOWLEDGE_RAG_CONFIG` 指向的仓外 JSON，按 providers 分段，默认 company | 无服务时直接本地检索；配置与公司索引选装见[检索指南](knowledge-retrieval.md) |
 | MCP 名称、启动命令、URL、headers、启用状态 | 当前客户端实际加载的用户级或项目级 MCP 配置 | 核对客户端工具发现结果，文件存在不等于已加载 |
 | IRIS MCP 目标、凭据来源和启动参数 | 当前工程已有 `.mcp.json`、客户端实际注册与 `check_config`；是否使用 `.iris-agentic-dev.toml` 以运行时来源为准 | 按 [IRIS 诊断](../../plugins/coding-iris-plugin/rules/iris_agentic_dev.md#诊断)检查 `connection_source` 等字段 |
 | IRIS 部署、导出、Web/Broker 脚本参数 | 当前 `ContextRoot/config/project-env.json` | 按[工具说明](../../plugins/coding-iris-plugin/scripts/iris-tools/README.md)核对，Overlay 回退规则见下节 |

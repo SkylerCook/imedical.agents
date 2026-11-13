@@ -20,3 +20,5 @@
 ## 工程发现入口
 
 新工程初始化与已有工程授权维护时，由 project-context-maintenance 将 AGENTS 模板的“知识资料”一条合并到工程入口；仅适用于已启用 coding-iris-plugin 且 thin-index 可达的工程。已有等价指引复用，完整索引不复制到 AGENTS。模型仍自主决定是否查询。
+
+业务知识和 UI 自然语言查询、索引及外发范围配置见[轻量混合检索](knowledge-retrieval.md)，日常由已有 knowledge/UI skill 路由。

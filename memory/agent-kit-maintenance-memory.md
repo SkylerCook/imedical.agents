@@ -22,6 +22,7 @@
 | 任务 | 必读入口与关键分支 |
 |---|---|
 | 维护本仓、审计提交 | [维护 skill](../.agents/skills/agent-kit-maintenance/SKILL.md)与[日志覆盖点](agent-kit-maintenance-log.md#全局回看覆盖点) |
+| 更新共享知识或 UI/HISUI 参考、建库或续建 | [知识库维护 skill](../.agents/skills/knowledge-maintenance/SKILL.md)串联来源审查、增量构建、验证和导出 |
 | 安装、更新、sparse、vendor、thin-index | [更新 runbook](../docs/update-agents.md) |
 | 修改插件或独立 skill、准备提交 | owner AGENTS/README/manifest 与[组件版本治理](../maintenance/governance/component-version-management.md) |
 | 修改 Agent、workflow 或共享协议 | [Agent registry](../agents/agent-registry.md)、[workflow registry](../workflows/workflow-registry.md)、对应 AGENT frontmatter 与共享协议 |
@@ -45,3 +46,5 @@
 ## 维护与部署边界
 
 源仓目录与部署白名单按根 AGENTS.md。Overlay 先更新共享 CapabilityRoot，再刷新各 ContextRoot；配置、生成物、宿主加载和业务验收分别核实。框架维护沿 [maintenance lifecycle](../agents/_shared/maintenance-lifecycle.md)，真实服务操作按目标项目授权执行。
+
+- 轻量 RAG 默认本地检索、公司向量选装、JSON 配置及验证缺口见[实施记录](../maintenance/validation/knowledge-rag-2026-11-13.md)，使用归[检索指南](../docs/guides/knowledge-retrieval.md)。

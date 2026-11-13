@@ -4,7 +4,7 @@ const fs=require('node:fs'), path=require('node:path'), os=require('node:os'), c
 const {spawnSync}=require('node:child_process');
 const repo=path.resolve(__dirname,'../..');
 const tool=require('../../plugins/coding-iris-plugin/scripts/iris-tools/sync-menu');
-const {search}=require('../../plugins/coding-iris-plugin/scripts/iris-tools/query-knowledge');
+const {search,hybridSearch}=require('../../plugins/coding-iris-plugin/scripts/iris-tools/query-knowledge');
 const {sanitize}=require('../../.agents/skills/agent-kit-maintenance/scripts/import-imedical-knowledge');
 function fixture(t){const parent=path.join(fs.realpathSync.native(os.tmpdir()),'codex');fs.mkdirSync(parent,{recursive:true});const dir=fs.mkdtempSync(path.join(parent,'knowledge-menu-'));t.after(()=>{assert.equal(path.dirname(dir),parent);fs.rmSync(dir,{recursive:true,force:true});});return dir;}
 function input(){return {schema:'iris-menu-snapshot/v1',sourceId:'demo',complete:true,scope:'all',capturedAt:'2026-09-18T00:00:00Z',catalog:[{id:'1',text:'Diagnosis',url:'diag.csp'}],groups:[{id:'10',name:'Doctor',menus:[{id:'1',text:'Diagnosis',url:'diag.csp',children:[]}]},{id:'20',name:'Other',menus:[]}]};}
@@ -71,7 +71,8 @@ test('query rejects corrupted project snapshots instead of falling back',t=>{
 });
 function install(root){const context=path.join(root,'.agents');fs.mkdirSync(path.join(context,'scripts/lib'),{recursive:true});fs.mkdirSync(path.join(context,'.git'),{recursive:true});
  for(const folder of ['plugins/coding-iris-plugin','vendor/imedical-knowledge'])fs.cpSync(path.join(repo,folder),path.join(context,folder),{recursive:true});
- fs.copyFileSync(path.join(repo,'scripts/lib/workspace-context.js'),path.join(context,'scripts/lib/workspace-context.js'));return context;}
+ for(const name of ['workspace-context.js','knowledge-sources.js','knowledge-embedding.js','knowledge-retrieval.js'])fs.copyFileSync(path.join(repo,'scripts/lib',name),path.join(context,'scripts/lib',name));
+ fs.copyFileSync(path.join(repo,'scripts/knowledge-query.js'),path.join(context,'scripts/knowledge-query.js'));return context;}
 test('installed standard project runs CLI and refresh preserves project data',t=>{
  const project=fixture(t),context=install(project),file=path.join(project,'input.json');fs.writeFileSync(file,JSON.stringify(input()));
  const script=path.join(context,'plugins/coding-iris-plugin/scripts/iris-tools/sync-menu.js');
@@ -81,8 +82,11 @@ test('installed standard project runs CLI and refresh preserves project data',t=
  install(project);assert.equal(fs.readFileSync(marker,'utf8'),before);
  const results=search({context:tool.resolveProject(project),sourceId:'demo',query:'Diagnosis',limit:2});assert.equal(results.matches[0].kind,'project-menu');
  const shared=search({context:tool.resolveProject(project),query:'诊断',limit:3});assert.equal(shared.matches.length,3);assert.equal(shared.matches[0].kind,'upstream-reference');
+ const hybrid=spawnSync(process.execPath,[path.join(context,'plugins/coding-iris-plugin/scripts/iris-tools/query-knowledge.js'),'--project-root',project,'--query','Diagnosis','--source-id','demo','--mode','hybrid'],{encoding:'utf8'});
+ assert.equal(hybrid.status,0,hybrid.stderr);assert.equal(JSON.parse(hybrid.stdout).matches[0].kind,'project-menu');
+ assert.equal(fs.readFileSync(marker,'utf8'),before);
 });
-test('overlay reads shared knowledge and writes only local ContextRoot',t=>{
+test('overlay reads shared knowledge and writes only local ContextRoot',async t=>{
  const base=fixture(t),project=path.join(base,'project');fs.mkdirSync(project);const capability=install(path.join(base,'capability'));
  const context=path.join(project,'.agents');fs.mkdirSync(path.join(context,'work'),{recursive:true});
  const source=path.join(base,'source');fs.mkdirSync(source);fs.mkdirSync(path.join(source,'.git'));
@@ -90,6 +94,8 @@ test('overlay reads shared knowledge and writes only local ContextRoot',t=>{
  fs.writeFileSync(path.join(context,'capability.json'),JSON.stringify({schemaVersion:1,mode:'workspace-overlay',workspace:'sample',contextRoot:'.agents',capabilityRoot:capability,sharedDirectories:[],localDirectories:['work'],sourceRoots:[{name:'backend',path:'backend',target:source,gitRoot:source}]}));
  const ctx=tool.resolveProject(project);assert.equal(ctx.capabilityRoot,capability);const root=path.join(ctx.contextRoot,'work/menu-sync/demo');apply(root,input());
  assert.equal(fs.existsSync(path.join(capability,'work/menu-sync')),false);assert.ok(search({context:ctx,query:'诊断',limit:1}).matches.length);
+ const hybrid=await hybridSearch({context:ctx,query:'Diagnosis',sourceId:'demo'});
+ assert.equal(hybrid.matches[0].kind,'project-menu');assert.equal(fs.existsSync(path.join(capability,'work/menu-sync')),false);
 });
 test('knowledge manifest covers all imported text and has no raw environment endpoints',()=>{
  const root=path.join(repo,'vendor/imedical-knowledge'),manifest=JSON.parse(fs.readFileSync(path.join(root,'sources.json')));assert.equal(manifest.files.length,218);

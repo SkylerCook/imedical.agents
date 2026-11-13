@@ -40,3 +40,5 @@
 源仓测试：`node --test scripts/tests/imedical-ui.tests.js scripts/tests/iris-ui.tests.js`。检查覆盖来源字节、30 画板、引用图层、文档路径、依赖拓扑和隔离 Context 的发现行为，并将真实源节点的有效 paint、祖先透明度、标签/选择项间距及标题/树/表格/按钮变体与 MD 结论对照。文档或薄索引检查不能替代真实模型读取、业务页面运行或 UI 评审。
 
 原始证据见 [vendor 说明](../../vendor/imedical-ui-standards/README.md)。本期没有新增查询 CLI、自动 CSS 生成、完整查看器、业务页面补丁或自动部署。
+
+业务知识、UI 规范与 HISUI 自然语言查找可使用[轻量混合检索](../../docs/guides/knowledge-retrieval.md)，复用根 scripts、本机授权策略和离线降级。

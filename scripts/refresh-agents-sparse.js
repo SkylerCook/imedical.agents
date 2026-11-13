@@ -31,6 +31,46 @@ function validatePatterns(patterns) {
   }
 }
 
+function selectedKnowledgeIndexes(root) {
+  const result = spawnSync('git', ['-C', root, 'config', '--local', '--get', 'imedical.knowledgeVectors'], { encoding: 'utf8' });
+  if (result.status !== 0 && result.status !== 1) throw new Error('Cannot read knowledge index selection');
+  const names = (result.stdout || '').trim().split(',').filter(Boolean);
+  if (names.some(name => !/^[a-z][a-z0-9-]{0,47}$/.test(name))) throw new Error('Invalid knowledge index selection');
+  return names;
+}
+
+function knowledgeIndexFile(provider) {
+  return 'vendor/knowledge-index/' + (provider === 'openai' ? 'index' : provider) + '.sqlite';
+}
+
+function indexIncluded(file, selected) {
+  return !/^vendor\/knowledge-index\/[^/]+\.sqlite$/.test(file) || selected.has(file);
+}
+
+function selectKnowledgeIndex(root, provider, enabled) {
+  if (!/^[a-z][a-z0-9-]{0,47}$/.test(provider)) throw new Error('Invalid knowledge provider');
+  const top = fs.realpathSync(git(root, ['rev-parse', '--show-toplevel']).trim());
+  const actual = fs.realpathSync(root);
+  if ((process.platform === 'win32' ? top.toLowerCase() !== actual.toLowerCase() : top !== actual)) throw new Error('Expected capability Git root');
+  if (git(root, ['config', '--bool', 'core.sparseCheckout']).trim() !== 'true') throw new Error('Index selection requires an installed sparse capability checkout');
+  if (git(root, ['status', '--porcelain']).trim()) throw new Error('Cannot change index selection in a dirty capability checkout');
+  const file = knowledgeIndexFile(provider);
+  if (enabled && !git(root, ['ls-tree', '--name-only', 'HEAD', '--', file]).trim()) throw new Error('Selected index is not included in this release');
+  const original = selectedKnowledgeIndexes(root);
+  const selected = new Set(original);
+  if (enabled) selected.add(provider); else selected.delete(provider);
+  const patterns = git(root, ['sparse-checkout', 'list']).trim().split(/\r?\n/)
+    .filter(pattern => pattern && !pattern.startsWith('!') && !/^\/vendor\/knowledge-index\/[^/]+\.sqlite$/.test(pattern));
+  git(root, ['config', '--local', 'imedical.knowledgeVectors', [...selected].join(',')]);
+  try { refresh(root, patterns); }
+  catch (error) {
+    git(root, ['config', '--local', 'imedical.knowledgeVectors', original.join(',')]);
+    refresh(root, patterns);
+    throw error;
+  }
+  return { providers: [...selected], installed: enabled, file };
+}
+
 function rawBytes(root, entries, repair) {
   if (!entries.length) return { checked: 0, repaired: 0 };
   // --cached uses tracked attributes even if a legacy sparse checkout omits them.
@@ -103,8 +143,9 @@ function rawBytes(root, entries, repair) {
 
 function verify(root, patterns, options = {}) {
   validatePatterns(patterns);
+  const selected = new Set(selectedKnowledgeIndexes(root).map(knowledgeIndexFile));
   const specs = patterns.map(pattern => `:(glob)${pattern.replace(/^\//, '')}`);
-  const entries = git(root, ['ls-files', '-t', '-z', '--', ...specs]).split('\0').filter(Boolean);
+  const entries = git(root, ['ls-files', '-t', '-z', '--', ...specs]).split('\0').filter(Boolean).filter(entry => indexIncluded(entry.slice(2), selected));
   const missing = entries.filter(entry => entry.startsWith('S ') || !fs.existsSync(path.join(root, entry.slice(2))));
   if (missing.length) throw new Error(`Sparse runtime files not materialized: ${missing.slice(0, 10).map(entry => entry.slice(2)).join(', ')}`);
   // A --no-checkout clone can have an empty index: do not accept vacuous success.
@@ -113,7 +154,7 @@ function verify(root, patterns, options = {}) {
     const match = /^(\d+) \w+ ([a-f0-9]+)\t([\s\S]+)$/.exec(record);
     if (!match) throw new Error('Invalid runtime tree entry');
     return { mode: match[1], oid: match[2], file: match[3] };
-  }).filter(entry => matchers.some(re => re.test(entry.file)));
+  }).filter(entry => matchers.some(re => re.test(entry.file)) && indexIncluded(entry.file, selected));
   const expected = tree.map(entry => entry.file);
   const absent = expected.filter(file => !fs.existsSync(path.join(root, file)));
   if (absent.length) throw new Error(`Sparse HEAD files not materialized: ${absent.slice(0, 10).join(', ')}`);
@@ -126,13 +167,14 @@ function refresh(root, patterns, initial = false) {
   validatePatterns(patterns);
   if (!initial && git(root, ['status', '--porcelain']).trim()) throw new Error('Cannot refresh a dirty capability checkout');
   // Argument input is independent of PowerShell $OutputEncoding and its UTF-8 BOM.
+  const selected = selectedKnowledgeIndexes(root).map(name => '/' + knowledgeIndexFile(name));
   git(root, ['sparse-checkout', 'init', '--no-cone']);
-  git(root, ['sparse-checkout', 'set', '--no-cone', '--', ...patterns]);
+  git(root, ['sparse-checkout', 'set', '--no-cone', '--', ...patterns, '!/vendor/knowledge-index/*.sqlite', ...selected]);
   if (initial) git(root, ['checkout']);
   verify(root, patterns, { repairRawBytes: true });
 }
 
-module.exports = { refresh, verify };
+module.exports = { refresh, verify, selectKnowledgeIndex };
 if (require.main === module || process.argv[1] === '--sparse-bootstrap') {
   try {
     const args = process.argv.slice(3);

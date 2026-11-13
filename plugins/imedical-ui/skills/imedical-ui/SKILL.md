@@ -31,3 +31,11 @@ description: 按公司 BS 端 IHOS 海蓝和 PURE 天蓝规范开发或核对 UI
 4. 核对同一份业务实现的两个评审基准，按涉及的布局、控件状态及动态阶段取得匹配证据。确认结果可观察，再记录技术验证、未测项及人工评审状态；技术结果不替代用户结论。
 
 完成条件：采用的规则均已落到实际对象并有对应核查，缺口注明原因和下一步；共性保留一份，差异限定适用范围。若任务仅要求规则查询或只读审查，交付对应出处和差异，不执行页面修改。
+
+## 自然语言查找规范
+
+专题不明确时使用 CapabilityRoot 下 `scripts/knowledge-query.js --project-root <workspace> --query <问题> --domain ui`，按需要加 `--theme pure|ihos|common`。读取结果的正文与 documentContext，结合 evidence 和引用核实规范、案例及图稿的适用范围。已获外发授权的通用问题可加 `--query-public`；工程私有问题保持本地。
+
+索引与授权见[检索指南](../../../../docs/guides/knowledge-retrieval.md)。已有明确参考时直接读对应章节。
+
+项目默认使用 Markdown 与本地 BM25，无需 Embedding 配置或数据库。已配置 KNOWLEDGE_RAG_CONFIG 私有 JSON 且选装公司索引时，通用并获准外发的问题加 --query-public；可用 --provider 显式选择提供方，默认 company。服务失败返回本地结果及 warnings。选装与配置按检索指南执行。

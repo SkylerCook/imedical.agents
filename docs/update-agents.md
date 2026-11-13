@@ -992,3 +992,11 @@ WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codeb
 ### 前端二进制读池兼容修复
 
 `source-sync prepare` 返回 `read-pool-read-only` 且请求为声明范围内的前端 binary GET 时，更新 `scripts/lib/atelier-read-pool.js`、`atelier-client.js` 和 `atelier-document-path.js`。发送端与读池共用同一读取路径生成逻辑，允许指定文档的 `?binary=1`，同时保留 GET、只读及文档范围限制。服务器编码配置保持已确认值，失败的未完成 prepare 可按现有恢复入口重新执行。
+
+## 轻量知识检索更新
+
+coding-iris-plugin 0.30.0 与 imedical-ui 0.2.0 使用根 `scripts/knowledge-query.js` 和 `scripts/lib/knowledge-*.js`，随现有 scripts sparse 白名单分发。更新时取得根脚本与对应插件并刷新 thin-index。既有 literal 调用保持兼容。
+
+本机 `.knowledge-cache/` 保存索引及授权策略，缓存自带忽略规则。Overlay 共享索引归 CapabilityRoot，外发策略归各 ContextRoot，项目菜单沿原目录隔离。首次云端建库按[检索指南](guides/knowledge-retrieval.md)确认范围；旧业务资料保持原路径，过期片段按摘要退出候选。
+
+知识检索默认分发资料与根脚本。共享 sparse helper 默认排除 `vendor/knowledge-index/*.sqlite`，具备公司服务时通过 `knowledge-query.js --action install-index --provider company` 选装当前公司索引。选择保存在 CapabilityRoot 的本地 Git 配置，升级与 Overlay 刷新复用。旧版已检出的数据库在干净 checkout 更新后按新选择收敛，历史 Git 对象仍按 Git 管理。安装器的 blob:none 仅在远端支持 partial clone 时避免未选数据库下载。连接统一读取 KNOWLEDGE_RAG_CONFIG 私有 JSON，具体操作见[检索指南](guides/knowledge-retrieval.md)。

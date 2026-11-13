@@ -59,3 +59,5 @@
 - [需求场景验收](../plugins/bos-plugin/references/scenarios.md)：自动检查和真实宿主证据的边界。
 
 需求交付拆分与兼容更新见 [需求交付迁移](demand-delivery-migration.md)：新入口 demand-commit / bos-demand-entry，旧 IRIS 入口已删除，更新器定向迁移项目引用并接入缺失 owner；显式状态冲突阻断，旧数据格式保留。
+
+业务知识、公司 UI 与 HISUI 的检索、建库和本机授权见[轻量混合检索](guides/knowledge-retrieval.md)。

@@ -29,6 +29,7 @@
 1. `memory/agent-kit-maintenance-memory.md`：入口摘要、必读路由和当前重点。
 2. 按任务继续读取：
    - `.agents/skills/agent-kit-maintenance/SKILL.md`：仓库本地维护 skill，处理插件提交同步、记忆更新、README/docs 对齐和部署边界检查；它不部署到业务项目。
+   - `.agents/skills/knowledge-maintenance/SKILL.md`：更新共享知识或 UI/HISUI 参考、首次向量建库及恢复中断构建时读取，完成资料与索引的一致性维护。
    - `memory/agent-kit-maintenance-decisions.md`：长期决策和边界。
    - `memory/agent-kit-maintenance-log.md`：近期维护记录和验证摘要。
    - `memory/agent-kit-maintenance-backlog.md`：后续治理队列。
@@ -53,7 +54,7 @@
 - `workflows/` 放厂商无关的阶段化或多智能体协作流程；workflow 必须支持无子代理能力时的单 Agent 串行降级。
 - `plugins/` 放可复用能力包；插件内可以包含 rules、skills、references、templates、scripts、commands、agents 或 hooks。
 - `skills/` 放仓库级通用 skill，属于能力包正式内容并部署到业务项目 `.agents/skills/`。
-- `.agents/skills/agent-kit-maintenance/` 是受版本控制的仓库本地维护 skill，只服务本仓库维护；源仓根 `.agents/` 不加入业务项目 sparse checkout，也不生成 thin-index。
+- `.agents/skills/` 放受版本控制的仓库本地维护 skill，包含框架维护和知识库维护入口；源仓根 `.agents/` 不加入业务项目 sparse checkout，也不生成 thin-index。
 - `rules/` 是仓库级通用规则预留入口；当前通用规则主要沉淀在插件内。
 - `docs/` 放随业务项目部署的接入、使用、运行协议及通用参考；入口为 `docs/README.md`。
 - `maintenance/` 放仅源仓使用的治理、设计历史与验证证据；入口为 `maintenance/README.md`。文档迁移按 `maintenance/governance/documentation-layout.md` 核对分发与旧副本收敛。

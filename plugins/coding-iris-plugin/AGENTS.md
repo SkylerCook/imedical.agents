@@ -169,3 +169,5 @@ SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项�
 BOS 查询和已有需求处理归独立 bos-plugin；项目已启用时从其 bos-demand-handle 路由到本插件。直接正文开发无需 BOS 配置。事实和有效预授权复用；验收后提交及裸调用语义由 demand-commit 统一维护，不另建提交机制。
 
 部署配置支持 Overlay 显式 `projectEnvFallback`：模块文件优先，仅缺失时读取声明的主仓文件；具体范围、冲突停止与源码隔离规则以 [部署清单](rules/iris_deploy_checklist.md#部署配置继承) 为准，不切换项目根或生成副本。
+
+业务知识、UI 规范与 HISUI 自然语言查找可使用[轻量混合检索](../../docs/guides/knowledge-retrieval.md)，复用根 scripts、本机授权策略和离线降级。

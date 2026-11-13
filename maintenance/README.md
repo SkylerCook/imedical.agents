@@ -30,7 +30,7 @@
 | 客户端启动、停止回执与温和退出 | [修复及验证边界](validation/night-client-lifecycle-2026-10-23.md) |
 | 夜跑成果保护、监督与成本回归 | [六处修复及验证边界](validation/night-cost-regression-2026-10-20.md) |
 | 第三次无人值守需求处理的框架观察 | [原始观察记录](validation/bos-night-run-3-observations-2026-10-18.md)，本轮治理实施与限制见上方验证 |
-| 知识资产来源更新 | [知识资产维护](governance/imedical-knowledge.md) |
+| 知识资料更新、向量增量维护与中断续建 | [知识库维护 skill](../.agents/skills/knowledge-maintenance/SKILL.md)、[来源导入说明](governance/imedical-knowledge.md) |
 | HISUI 固定提交资产升级与校验 | [HISUI 源仓构建](hisui-build/README.md) |
 
 历史案例和旧运行记录只保留证据语义，不作为当前脚本调用或生产部署指令。新业务项目的部署计划、私有脚本和运行记录应归目标项目；已获用户授权删除的旧部署样本不在维护区保留副本。

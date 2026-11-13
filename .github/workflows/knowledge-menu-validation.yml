@@ -19,3 +19,6 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: node --test scripts/tests/iris-knowledge-menu.tests.js
       - run: node --test scripts/tests/iris-menu-refresh.tests.js
+      - run: node --test scripts/tests/knowledge-retrieval.tests.js
+      - run: node --test scripts/tests/knowledge-deployment.tests.js
+      - run: node --test scripts/tests/knowledge-embedding.tests.js scripts/tests/refresh-agents-sparse.tests.js

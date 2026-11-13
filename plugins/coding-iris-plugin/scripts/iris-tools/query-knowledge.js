@@ -34,11 +34,37 @@ function search({context,query,sourceId,limit=20}) {
   }
   return {matches,limit,reachedLimit:matches.length===limit,...(warnings.length?{warnings}:{})};
 }
-function main(argv) {
-  if(argv.includes('--help')){console.log('query-knowledge.js --project-root <workspace> --query <literal> [--source-id <project-menu-source>] [--limit 20]');return;}
-  const opts={}; while(argv.length){const key=argv.shift();if(!['--project-root','--query','--source-id','--limit'].includes(key)||!argv.length||opts[key])throw new Error('Invalid arguments');opts[key]=argv.shift();}
+async function hybridSearch({context,query,sourceId,...options}) {
+  const retrieval = require('../../../../scripts/lib/knowledge-retrieval');
+  const projectDocuments = [];
+  const warnings = [];
+  if (sourceId) {
+    id(sourceId);
+    const root = path.join(context.contextRoot,'work','menu-sync',sourceId);
+    const state = current(root);
+    if (!state.snapshot) warnings.push({code:'project-menu-missing',sourceId});
+    else for (const [file,content] of Object.entries(render(state.snapshot))) {
+      projectDocuments.push({path:['work/menu-sync',sourceId,state.generation,file].join('/'),content,
+        hash:state.revision,revision:state.revision,scope:'project',sourceId,kind:'project-menu',domain:'business',evidence:'project-snapshot'});
+    }
+  }
+  const result = await retrieval.search(context,query,{...options,sourceId,projectDocuments});
+  result.warnings.push(...warnings);
+  while(result.matches.length && JSON.stringify(result).length>result.maxChars){result.matches.pop();result.truncated=true;}
+  return result;
+}
+async function main(argv) {
+  if(argv.includes('--help')){console.log('query-knowledge.js --project-root <workspace> --query <text> [--source-id <project-menu-source>] [--limit 20] [--mode literal|hybrid] [--domain business|ui|all] [--theme pure|ihos|common] [--max-chars 12000] [--query-public] [--provider company|openai]; hybrid defaults to limit 6');return;}
+  const opts={}; while(argv.length){const key=argv.shift();if(key==='--query-public'&&!opts[key]){opts[key]=true;continue;}if(!['--project-root','--query','--source-id','--limit','--mode','--domain','--theme','--max-chars','--provider'].includes(key)||!argv.length||opts[key])throw new Error('Invalid arguments');opts[key]=argv.shift();}
   if(!opts['--project-root'])throw new Error('Explicit project root required');
+  if(opts['--mode'] && !['literal','hybrid'].includes(opts['--mode']))throw new Error('Invalid mode');
+  if(opts['--mode']==='hybrid') {
+    console.log(JSON.stringify(await hybridSearch({context:resolveProject(opts['--project-root']),query:opts['--query'],sourceId:opts['--source-id'],
+      provider:opts['--provider'],domain:opts['--domain']||'business',theme:opts['--theme'],queryPublic:!!opts['--query-public'],
+      limit:opts['--limit']===undefined?undefined:Number(opts['--limit']),maxChars:opts['--max-chars']===undefined?undefined:Number(opts['--max-chars'])})));
+    return;
+  }
   console.log(JSON.stringify(search({context:resolveProject(opts['--project-root']),query:opts['--query'],sourceId:opts['--source-id'],limit:opts['--limit']?Number(opts['--limit']):20}),null,2));
 }
-module.exports={search,main};
-if(require.main===module){try{main(process.argv.slice(2));}catch(e){console.error(e.message);process.exitCode=1;}}
+module.exports={search,hybridSearch,main};
+if(require.main===module){main(process.argv.slice(2)).catch(e=>{console.error(e.message);process.exitCode=1;});}

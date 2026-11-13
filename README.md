@@ -623,6 +623,8 @@ scripts/generate-plugin-thin-index.ps1
 
 - 维护本仓库自身时，优先读取根 `AGENTS.md` 和 `.agents/skills/agent-kit-maintenance/SKILL.md`；源仓根 `.agents/` 是受版本控制的仓库本地上下文，不在业务项目 sparse checkout 部署清单内。业务项目如果历史遗留 `.agents/skills/agent-kit-maintenance/`，运行 `.agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Write` 仍会兼容清理该目录。
 - 新增长期通用能力时，先判断应放入 `agents/`、`workflows/`、`plugins/`、`rules/`、`references/`、`skills/`、`templates/` 还是 `scripts/`。
+- 更新共享知识、UI/HISUI 参考或恢复向量构建时，使用源仓 [knowledge-maintenance](.agents/skills/knowledge-maintenance/SKILL.md)，复用现有导入和检索脚本完成资料与索引一致性维护。
+
 - 修改插件目录结构时，同步检查 `.agents-plugin/plugin.json`、插件 `AGENTS.md`、插件 README、仓库 README 和相关 docs。
 - 提交插件能力变更时，同步检查并按需更新插件 `AGENTS.md`、插件 README、manifest、相关 skill/rule/reference/template、仓库 README、维护记忆、相关 docs 和测试；不要只提交插件实现而遗漏说明、记忆或验证入口。
 - 如果插件变更影响业务项目安装、更新、thin-index、vendor 同步、启用状态或兼容清理，必须同步更新 runbook 或测试，并说明已部署项目的处理方式。
@@ -695,3 +697,5 @@ WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codeb
 发送阶段诊断、框架会话预算与更新步骤见 [统一会话指南](docs/guides/iris-managed-sessions.md)。
 
 需求经验审计已回归 XML 同步长流、空响应兼容处理和 SQL 列序说明，详见各 owner README 及维护日志。
+
+业务知识、UI 规范与 HISUI 参考支持[轻量混合检索](docs/guides/knowledge-retrieval.md)，默认提供无需 API 或数据库的 BM25 与来源引用；公司向量库按需选装，连接通过 KNOWLEDGE_RAG_CONFIG 私有 JSON 管理，OpenAI 保留按需接入。

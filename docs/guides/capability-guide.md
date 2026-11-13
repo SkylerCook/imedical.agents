@@ -348,3 +348,5 @@ IRIS 远端连接统一入口：[会话管理、既有项目更新与回退](iri
 前端修改、导出和部署的编码策略见[前端编码契约](../../plugins/coding-iris-plugin/references/frontend-encoding.md)。按需项目确认一次后复用配置，上传按服务器目标生成无损产物。
 
 会话失败时读取 status 的 blockingReasons/nextAction，收集明确缺口，在原授权内核实并恢复。可靠本地退出证据由工具自动整理，未知写保留明确结果与指定 ID 的要求。编码 confirm 可附带 --files 提前验证目标可表示性。具体入口见[编码契约](../../plugins/coding-iris-plugin/references/frontend-encoding.md)和[统一会话](iris-managed-sessions.md)。
+
+业务知识和 UI 自然语言查询、索引及外发范围配置见[轻量混合检索](knowledge-retrieval.md)，日常由已有 knowledge/UI skill 路由。

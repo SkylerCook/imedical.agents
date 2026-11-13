@@ -371,3 +371,5 @@ MCP helper 的 `tools` / `call` 已包含配置检查，已知参数可直接调
 请求发送前拒绝与已确认成功结果的处理、默认 12 的框架会话预算及项目升级步骤见 [统一会话指南](../../docs/guides/iris-managed-sessions.md)。
 
 持久化字段变更按后端规则分别核对属性声明、Storage 映射和 SQL 列序；`SqlColumnNumber` 实际控制 SQL 投影列顺序。
+
+业务知识、UI 规范与 HISUI 自然语言查找可使用[轻量混合检索](../../docs/guides/knowledge-retrieval.md)，复用根 scripts、本机授权策略和离线降级。
