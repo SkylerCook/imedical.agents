@@ -1,5 +1,7 @@
 # AI 开发基础工具离线物料包
 
+r7 增加 ObjectScript 扩展安装入口，支持已有与便携 VS Code，固定用户指定的 3.8.3-SNAPSHOT 并禁用其自动更新。扩展原包单独交付 `tools/dist/ai-dev-offline-extensions.zip`，包含缺少时补装的 Server Manager。
+
 面向安装人员的新入口见 [GUI 安装助手](GUI.md)。GUI ZIP 包含六项可选工具，提供安装并配置、仅安装、复用已有程序及变量恢复。r4 增加项目配置，可自动定位程序、回填已有 IRIS/Caché 连接，预览后合并 VS Code 用户偏好、项目设置、MCP 与 TOML，并支持备份恢复。下文保留原物料包及命令入口说明。
 
 2026-10-29 固定物料组合，2026-10-30 补充用户设置自动配置，目标为 **Windows 10/11 x64**。本期准备六项基础工具、CodeBuddy VSIX、安全模板、PATH 配置及 PowerShell 7 用户终端配置入口。其它 AI 客户端后补；不含任何真实医院配置、凭据、项目源码或业务依赖。

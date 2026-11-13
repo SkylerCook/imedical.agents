@@ -1,3 +1,11 @@
+r7：ObjectScript 离线安装
+
+更新 tools ZIP，并将 ai-dev-offline-extensions.zip 解压到同一根目录，形成 packages/extensions。
+主窗口点击“ObjectScript 扩展…”，选择已有或便携版 Code.exe，点击“安装并禁用自动更新”。
+固定安装 3.8.3-SNAPSHOT，仅禁用该扩展自动更新；缺少 Server Manager 时补装随包依赖。
+要求 VS Code 1.109.0 及以上的 1.x 版本。已有六项基础安装原包继续复用。
+安装完成后重新加载 VS Code。详细说明见 README.md。
+
 开发工具离线安装助手 r6
 
 目录分离

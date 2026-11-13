@@ -1,0 +1,19 @@
+{
+  "minimumCodeVersion": "1.109.0",
+  "extensions": [
+    {
+      "id": "intersystems-community.servermanager",
+      "version": "3.16.0",
+      "file": "servermanager-3.16.0.vsix",
+      "bytes": 148330,
+      "sha256": "9e908b7c0656b78efbe4c47e46fa21064638726c748e2fb9042b6725e24a9daf"
+    },
+    {
+      "id": "intersystems-community.vscode-objectscript",
+      "version": "3.8.3-SNAPSHOT",
+      "file": "vscode-objectscript-3.8.3-SNAPSHOT.vsix",
+      "bytes": 630012,
+      "sha256": "8a0fa0fd1d75cef8b638aa5432630e1af65b785a9a5a9c392c22603e58aa8d4a"
+    }
+  ]
+}

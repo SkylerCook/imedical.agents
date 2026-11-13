@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
@@ -242,4 +242,40 @@ namespace AiDevOffline {
             }
         }
     }
+    sealed class ObjectScriptInstallForm : Form {
+        readonly TextBox code=new TextBox();
+        readonly Label result=new Label();
+        readonly Button install=new Button(),browse=new Button();
+        bool busy;
+        public ObjectScriptInstallForm(string root,string version,string selected,Action<object,Action<bool,string>> execute) {
+            Text="安装 ObjectScript 离线扩展";Font=new Font("Microsoft YaHei UI",9);
+            BackColor=Color.FromArgb(245,247,251);ClientSize=new Size(760,310);
+            FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;StartPosition=FormStartPosition.CenterParent;
+            Controls.Add(new Label {Text="ObjectScript 3.8.3-SNAPSHOT",Font=new Font(Font.FontFamily,17,FontStyle.Bold),AutoSize=true,Location=new Point(24,22)});
+            Controls.Add(new Label {Text="安装到所选 VS Code，并禁用 ObjectScript 自动更新。",AutoSize=true,Location=new Point(26,68)});
+            Controls.Add(new Label {Text="VS Code",Location=new Point(26,110),AutoSize=true});
+            code.SetBounds(100,106,550,27);Controls.Add(code);
+            browse.Text="选择…";browse.SetBounds(664,104,70,31);Controls.Add(browse);
+            browse.Click+=delegate {using(OpenFileDialog dialog=new OpenFileDialog()){dialog.Filter="VS Code|Code.exe";if(dialog.ShowDialog(this)==DialogResult.OK)code.Text=dialog.FileName;}};
+            var previous=ToolLocations.Read(ToolLocations.PreferenceFile());
+            string command=ToolLocations.FromPath("code.cmd");
+            string fromCommand=String.IsNullOrEmpty(command)?"":Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(command)),"Code.exe");
+            code.Text=ToolLocations.FirstFile(selected,Path.Combine(root,"VSCode",version,"Code.exe"),previous.ContainsKey("codeExe")?previous["codeExe"]:"",ToolLocations.FromPath("Code.exe"),fromCommand,ToolLocations.RegisteredCode(),Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Programs","Microsoft VS Code","Code.exe"),Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"Microsoft VS Code","Code.exe"));
+            result.Text="支持普通安装与便携版，要求 VS Code 1.109.0 及以上。\r\n已有 Server Manager 自动复用，缺少时安装随包版本。\r\n安装会替换现有 ObjectScript 版本，完成后重新加载 VS Code。";
+            result.SetBounds(26,150,708,90);Controls.Add(result);
+            install.Text="安装并禁用自动更新";install.SetBounds(500,258,234,36);
+            install.BackColor=Color.FromArgb(37,99,235);install.ForeColor=Color.White;Controls.Add(install);
+            install.Click+=delegate {
+                if(!File.Exists(code.Text) || !String.Equals(Path.GetFileName(code.Text),"Code.exe",StringComparison.OrdinalIgnoreCase)){MessageBox.Show(this,"请选择已安装的 Code.exe。");return;}
+                if(MessageBox.Show(this,"将 ObjectScript 安装为 3.8.3-SNAPSHOT 并禁用其自动更新。\r\n目标："+code.Text,"确认安装",MessageBoxButtons.OKCancel)!=DialogResult.OK)return;
+                busy=true;code.Enabled=browse.Enabled=install.Enabled=false;result.Text="正在安装并核验，请稍候…";
+                execute(new Dictionary<string,object>{{"action","extensionInstall"},{"codeExe",code.Text.Trim()}},delegate(bool success,string output){
+                    busy=false;code.Enabled=browse.Enabled=install.Enabled=true;
+                    result.Text=success?"安装完成，ObjectScript 版本与禁用自动更新状态已核验。请重新加载 VS Code。":"安装未完成，请查看主窗口日志，修正后重试。\r\n"+output;
+                });
+            };
+            FormClosing+=delegate(object sender,FormClosingEventArgs e){if(busy){e.Cancel=true;MessageBox.Show(this,"请等待扩展安装完成。");}};
+        }
+    }
+
 }

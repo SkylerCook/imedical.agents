@@ -30,7 +30,7 @@ function SafePath([string]$Path) {
 }
 try {
     $request=Get-Content -LiteralPath $RequestFile -Raw -Encoding UTF8 | ConvertFrom-Json
-    if($request.action -in @('projectInspect','projectPlan','projectApply','projectRollback')){
+    if($request.action -in @('projectInspect','projectPlan','projectApply','projectRollback','extensionInstall')){
         if(-not (Test-Path -LiteralPath $request.codeExe -PathType Leaf) -or [IO.Path]::GetFileName($request.codeExe) -ine 'Code.exe'){throw '请选择已安装的 Code.exe。'}
         if($request.connection -and $request.connection.writeCredentials){
             Add-Type -AssemblyName System.Security
@@ -41,7 +41,8 @@ try {
         }
         $info=New-Object Diagnostics.ProcessStartInfo
         $info.FileName=$request.codeExe
-        $info.Arguments='"'+(Join-Path $PSScriptRoot 'configure-project.js')+'"'
+        $scriptName=if($request.action -eq 'extensionInstall'){'install-objectscript.js'}else{'configure-project.js'}
+        $info.Arguments='"'+(Join-Path $PSScriptRoot $scriptName)+'"'
         $info.UseShellExecute=$false;$info.CreateNoWindow=$true
         $info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
         $info.StandardOutputEncoding=New-Object Text.UTF8Encoding($false)
@@ -58,7 +59,8 @@ try {
             $result=$output.GetAwaiter().GetResult();$errorText=$errors.GetAwaiter().GetResult()
             if($process.ExitCode -ne 0){throw $errorText.Trim()}
             $parsed=$result|ConvertFrom-Json
-            Say ('项目配置结果：'+$parsed.state)
+            Say ('操作结果：'+$parsed.state)
+            if($request.action -eq 'extensionInstall'){Say ('ObjectScript '+$parsed.version+'；自动更新已禁用；扩展目录：'+$parsed.extensionsDirectory)}
             if($parsed.warnings){foreach($warning in $parsed.warnings){Say ('提示：'+$warning)}}
             if($parsed.files){foreach($file in $parsed.files){Say ($file.operation+' '+$file.file+' ['+($file.keys -join ', ')+']')}}
             if($parsed.receiptFile){Say ('配置回执：'+$parsed.receiptFile)}

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -56,6 +56,7 @@ namespace AiDevOffline {
         readonly Button restore = new Button();
         readonly Button exportLog = new Button();
         readonly Button project = new Button();
+        readonly Button extension = new Button();
         readonly Label status = new Label();
         readonly ProgressBar progress = new ProgressBar();
         readonly Panel settings = new Panel();
@@ -149,6 +150,16 @@ namespace AiDevOffline {
                 using(ProjectConfigurationForm dialog=new ProjectConfigurationForm(root.Text,components,selected,Execute)) dialog.ShowDialog(this);
             };
             Controls.Add(project);
+            extension.Text="ObjectScript 扩展…";extension.SetBounds(478,712,165,34);
+            extension.Anchor=AnchorStyles.Bottom|AnchorStyles.Left;
+            extension.Click+=delegate {
+                if(running || confirming)return;
+                string selected="";
+                foreach(ToolRow row in rows)if(row.Id=="vscode" && row.Mode.SelectedIndex==2)selected=row.Path.Text;
+                string version=Array.Find(components,delegate(Component c){return c.id=="vscode";}).version;
+                using(ObjectScriptInstallForm dialog=new ObjectScriptInstallForm(root.Text,version,selected,Execute))dialog.ShowDialog(this);
+            };
+            Controls.Add(extension);
             start=ButtonAt("开始安装与配置",738,710,210);start.Height=38;start.Anchor=AnchorStyles.Bottom|AnchorStyles.Right;
             start.BackColor=blue;start.ForeColor=Color.White;start.FlatAppearance.BorderSize=0;start.Click+=Start;Controls.Add(start);
             FormClosing+=delegate(object sender,FormClosingEventArgs e){
@@ -243,7 +254,7 @@ namespace AiDevOffline {
                 runLog=InstallLog.Create(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"logs"),
                     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"AiDevOffline","Logs"));
                 logFile=runLog.FilePath;exportLog.Enabled=true;
-                Record("安装助手 r6 · CLR "+Environment.Version+" · 64 位进程="+Environment.Is64BitProcess);
+                Record("安装助手 r7 · CLR "+Environment.Version+" · 64 位进程="+Environment.Is64BitProcess);
                 Record("日志文件："+logFile);
                 Dictionary<string,object> projectRequest=request as Dictionary<string,object>;
                 if(projectRequest!=null && projectRequest.ContainsKey("action") && ((string)projectRequest["action"]).StartsWith("project"))
@@ -312,7 +323,7 @@ namespace AiDevOffline {
                     else {if(completed!=null && e.Data!=null)lock(projectOutput){projectOutput.AppendLine(e.Data);} Append(e.Data);}
                 };
                 process.ErrorDataReceived+=delegate(object s,DataReceivedEventArgs e){Append(e.Data);};
-                running=true;settings.Enabled=start.Enabled=restore.Enabled=project.Enabled=false;status.Text="正在处理，请稍候…";
+                running=true;settings.Enabled=start.Enabled=restore.Enabled=project.Enabled=extension.Enabled=false;status.Text="正在处理，请稍候…";
                 progress.Style=ProgressBarStyle.Marquee;
                 stage="启动 PowerShell";
                 Record(stage+" · "+process.StartInfo.FileName+" · RemoteSigned");
@@ -328,7 +339,7 @@ namespace AiDevOffline {
                 if(started) {
                     status.Text="日志连接失败 · 等待后台任务结束";
                 } else {
-                    running=false;settings.Enabled=start.Enabled=restore.Enabled=project.Enabled=true;
+                    running=false;settings.Enabled=start.Enabled=restore.Enabled=project.Enabled=extension.Enabled=true;
                     progress.Style=ProgressBarStyle.Blocks;progress.Value=0;
                     status.Text="启动失败 · 查看错误详情";
                     if(process!=null) process.Dispose();
@@ -344,10 +355,10 @@ namespace AiDevOffline {
                     catch(Exception error) {waitError=error.Message;}
                     finally {process.Dispose();}
                     BeginInvoke((Action)delegate {
-                        running=false;settings.Enabled=start.Enabled=restore.Enabled=project.Enabled=true;
+                        running=false;settings.Enabled=start.Enabled=restore.Enabled=project.Enabled=extension.Enabled=true;
                         bool success=code==0 && outputReady && waitError==null;
                         progress.Style=ProgressBarStyle.Blocks;progress.Value=success?100:0;
-                        status.Text=success?(completed==null?"处理完成 · 请重新打开终端":"项目配置操作完成"):"任务未确认完成 · 查看日志后再处理";
+                        status.Text=success?(completed==null?"处理完成 · 请重新打开终端":"操作完成"):"任务未确认完成 · 查看日志后再处理";
                         Record("后台退出码："+code);
                         if(waitError!=null) Record("等待后台任务失败："+waitError);
                         Record(status.Text);

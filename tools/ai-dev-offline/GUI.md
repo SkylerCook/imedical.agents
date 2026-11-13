@@ -1,6 +1,6 @@
 # 开发工具离线安装助手
 
-Windows 10/11 x64，使用系统 Windows PowerShell 5.1 和 .NET Framework。当前为 r6，工具能力和离线安装原包分别交付。
+Windows 10/11 x64，使用系统 Windows PowerShell 5.1 和 .NET Framework。当前为 r7，工具能力和离线安装原包分别交付。
 
 正式工具包为仓库根目录下 `tools/dist/ai-dev-offline-tools.zip`，安装原包为 `tools/dist/ai-dev-offline-packages.zip`。首次使用时将两份 ZIP 解压到同一个目录，得到以下结构，双击 `tools/开发工具安装助手.exe`。
 
@@ -49,11 +49,26 @@ GUI 运行自身脚本时，为后台进程设置 `RemoteSigned` 执行策略，
 4. 按需配置 MCP/TOML 和账号密码，点击“预览配置”，核对后点击“应用配置”。尚未部署 MCP 时允许先保存，结果会显示待安装。
 5. 用所选 VS Code 打开项目，重新加载窗口并验证连接。每个项目分别执行第 3～5 步。
 
-实际连接还需要 InterSystems ObjectScript、Server Manager 和 Language Server 扩展，离线现场应提前准备对应 VSIX，通过 VS Code 扩展菜单的“从 VSIX 安装”安装。MCP 功能还需要把 `iris-agentic-dev.exe` 部署到配置中的路径，再重启 MCP 客户端。这些扩展和 MCP 程序由现场环境或项目能力包提供。
+实际连接使用 InterSystems 扩展。ObjectScript 与 Server Manager 可通过下文的扩展补充包安装，Language Server 按现场需要提前准备 VSIX，通过 VS Code 扩展菜单的“从 VSIX 安装”安装。MCP 功能还需要把 `iris-agentic-dev.exe` 部署到配置中的路径，再重启 MCP 客户端。这些扩展和 MCP 程序由现场环境或项目能力包提供。
 
 项目配置会按勾选项更新项目 `.vscode/settings.json`、`.mcp.json`、`.iris-agentic-dev.toml` 以及所选 VS Code 用户设置。连接凭据与配置备份留在本机，详细落点和恢复方法见下文。
 
 以后更新时关闭助手，将新的 `ai-dev-offline-tools.zip` 解压到相同工具根目录并覆盖 `tools`。安装原包版本匹配时继续复用 `packages`。遇到错误点击主窗口“导出日志…”，将日志和错误截图反馈。
+
+## 安装固定版本 ObjectScript 扩展
+
+现场需要 `ai-dev-offline-tools.zip` 与 `ai-dev-offline-extensions.zip`，两份解压到同一个工具根目录。扩展补充包约 761 KiB，形成 `packages/extensions/`，其中包含用户指定的 ObjectScript `3.8.3-SNAPSHOT` 和其必需依赖 Server Manager `3.16.0`。已有六项基础原包继续复用；首次还需要安装 VS Code 等工具时，再携带 `ai-dev-offline-packages.zip`。
+
+1. 打开 `tools/开发工具安装助手.exe`，点击底部“ObjectScript 扩展…”。
+2. 核对自动找到的 VS Code，也可选择现场已有或新安装便携版的 `Code.exe`。这个 VSIX 要求 VS Code 1.109.0 及以上的 1.x 版本。
+3. 点击“安装并禁用自动更新”，确认目标路径。已有 ObjectScript 将替换为指定快照版，已有 Server Manager 复用，缺少时补装。
+4. 成功后重新加载 VS Code。助手已读回版本和该扩展的 `pinned` 状态，确认 ObjectScript 自动更新关闭。已有其他扩展更新状态保留，新补装的 Server Manager 恢复常规更新资格。
+
+普通安装使用当前 Windows 用户的默认扩展目录，便携版使用选定 `Code.exe` 旁 `data/extensions`。此入口面向默认 Profile，使用自定义 Profile 或自定义扩展目录时应在对应 VS Code 窗口手动安装 VSIX。扩展包仅提供 ObjectScript 和 Server Manager，Language Server 按现场需要另备。
+
+安装前核对原包大小和 SHA256，使用选定 VS Code 自带 CLI 安装，再核验版本及更新状态。部分失败可直接重试，日志从主窗口导出。工作窗口重载后完成服务器连接和现场问题回归；本机安装检查不覆盖用户报告的高版本业务缺陷。
+
+扩展 CLI 的 VSIX 安装默认固定版本，工具复用此能力。新补装依赖的更新标记通过局部 JSON 编辑恢复，保留 BOM、原有换行及其他字段，并记录可重试的中间状态。[VS Code 官方说明](https://code.visualstudio.com/updates/v1_92)
 
 ## 项目配置
 
@@ -80,7 +95,7 @@ JSONC 增量合并保留其他配置与注释，TOML 合并后校验所有字段
 
 当前入口支持本地文件夹、便携或普通 VS Code 用户设置，以及已识别的直接 MCP／标准 `.agents` 受管入口。自定义 VS Code profile、Overlay 后端位置及未知 MCP 启动器需要按各自实际配置处理。
 
-实际通过 VS Code 连接服务器时，需要安装 InterSystems ObjectScript、Server Manager 和 Language Server 扩展。配置可以先行保存，扩展 VSIX 与 MCP 运行程序由现场已有环境或项目能力包提供。官方扩展支持 Caché／Ensemble 2016.2 及以上和各版本 IRIS，服务端需提供可用的 `/api/atelier`。HTTP、HTTPS 和任意有效 Web 端口均可配置，MCP 在旧 Caché 的实际功能仍需现场验证。[官方支持范围](https://docs.intersystems.com/components/csp/docbook/DocBook.UI.Page.cls?KEY=GVSCO_intro)
+实际通过 VS Code 连接服务器时，需要安装 InterSystems ObjectScript、Server Manager 和 Language Server 扩展。配置可以先行保存，ObjectScript 与 Server Manager 可由扩展补充包安装，Language Server VSIX 与 MCP 运行程序由现场已有环境或项目能力包提供。官方扩展支持 Caché／Ensemble 2016.2 及以上和各版本 IRIS，服务端需提供可用的 `/api/atelier`。HTTP、HTTPS 和任意有效 Web 端口均可配置，MCP 在旧 Caché 的实际功能仍需现场验证。[官方支持范围](https://docs.intersystems.com/components/csp/docbook/DocBook.UI.Page.cls?KEY=GVSCO_intro)
 
 本机已验证配置合并、重试、并发修改保护、失败恢复、日志脱敏、真实 VS Code 运行时及 GUI 应用／恢复。远端登录、证书信任、权限、MCP 宿主加载和业务能力在目标环境验收。
 
@@ -95,6 +110,8 @@ JSONC 增量合并保留其他配置与注释，TOML 合并后校验所有字段
 本机可进行 GUI、解压、已有路径配置及 Process 环境隔离检查。真实 User/Machine 环境写入、Python 安装注册和干净 Windows 10/11 断网完整流程应在获授权的验证机验收。
 
 当前包适用 Windows 10/11 x64。Win7 独立兼容包已列为暂缓待办，实际项目需要时再启动制作与验证。
+
+扩展补充包通过 `build-extensions.ps1` 构建，原始 VSIX 位于 `assets/`，来源与许可证说明见 `assets/README.md`，固定身份与摘要由 `extensions.json` 维护。小工具更新使用 `build-gui.ps1 -ToolsOnly`，扩展内容变化时单独重建补充包。
 
 ## 现场验收
 
