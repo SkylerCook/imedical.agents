@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const {spawnSync} = require('node:child_process');
 const {isDeepStrictEqual} = require('node:util');
 const editor = require('./configure-vscode');
+const runtime = require('./operation-runtime');
 const jsonc = require('./vendor/jsonc-parser/main');
 const parseToml = require('./vendor/iarna-toml/parse-string');
 const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
@@ -118,7 +119,7 @@ function inspect(request) {
     port: server.webServer?.port || Number(env.IRIS_WEB_PORT) || config.web_port || 0,
     scheme: server.webServer?.scheme || env.IRIS_SCHEME || config.scheme || 'http',
     namespace: conn.ns || env.IRIS_NAMESPACE || config.namespace || '', description: server.description || '',
-    hasCredentials: !!(env.IRIS_PASSWORD || config.password), hasMcp: !!mcp.mcpServers?.['iris-agentic-dev'], mcpExe: executable,
+    hasCredentials: !!((env.IRIS_PASSWORD || config.password) && (env.IRIS_USERNAME || config.username)), hasMcp: !!mcp.mcpServers?.['iris-agentic-dev'], mcpExe: executable,
     tlsVerify: String(env.IRIS_TLS_VERIFY ?? config.tls_verify ?? false).toLowerCase() === 'true'};
 }
 function connection(request) {
@@ -299,15 +300,6 @@ function writeFile(file, bytes, expected) {
     if (snapshot(file).hash !== sha(bytes)) failure('配置写入后读回校验失败。');
   } finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); }
 }
-function withLock(root, operation) {
-  const file = path.join(root, LOCK);
-  editor.safePath(file);
-  let descriptor;
-  try { descriptor = fs.openSync(file, 'wx', 0o600); }
-  catch { failure('项目配置正在处理，或上次进程留下锁文件。请确认原任务退出后移除 .ai-dev-config.lock 再重试。'); }
-  try { return operation(); }
-  finally { fs.closeSync(descriptor); fs.unlinkSync(file); }
-}
 function saveReceipt(file, receipt) {
   const bytes = Buffer.from(JSON.stringify(receipt, null, 2) + '\n');
   writeFile(file, bytes, snapshot(file).hash);
@@ -326,9 +318,39 @@ function restoreEntries(entries) {
     else writeFile(entry.file, Buffer.from(entry.original, 'base64'), current.hash);
   }
 }
+function validateReceipt(request, root, receipt) {
+    if (receipt.schema !== 1 || receipt.tool !== 'ai-dev-project' || receipt.projectRoot !== root || !['applied', 'prepared'].includes(receipt.state) || !Array.isArray(receipt.entries)) failure('回执无效或已经恢复。');
+    const allowed = [path.join(root, '.vscode', 'settings.json'), path.join(root, '.mcp.json'), path.join(root, '.iris-agentic-dev.toml'), path.join(root, '.agents', 'config', 'iris-session-backend.json')];
+    if (request.codeExe) allowed.push(userSettings(request));
+    const used = new Set();
+    for (const entry of receipt.entries) {
+      if (!allowed.includes(entry.file) || used.has(entry.file)) failure('回执文件范围不匹配，请核对 VS Code 用户设置模式。');
+      used.add(entry.file);
+      const original = Buffer.from(entry.original, 'base64');
+      if (entry.beforeHash !== 'absent' && sha(original) !== entry.beforeHash || entry.beforeHash === 'absent' && original.length) failure('原配置备份校验失败。');
+    }
+ }
+function recoverPrepared(request, root) {
+  const directory = path.join(root, BACKUPS);
+  if (!fs.existsSync(directory)) return;
+  editor.safePath(directory);
+  for (const name of fs.readdirSync(directory)) {
+    if (!/^[a-f0-9-]{36}$/.test(name)) continue;
+    const file = path.join(directory, name, 'receipt.json');
+    if (!fs.existsSync(file)) continue;
+    const receipt = object(snapshot(file).text);
+    if (receipt.state !== 'prepared') continue;
+    validateReceipt(request, root, receipt);
+    runtime.progress(request, '正在恢复上次未完成的项目配置…', false);
+    restoreEntries(receipt.entries);
+    receipt.state = 'reverted-after-interruption'; saveReceipt(file, receipt);
+  }
+}
 function apply(request, dependencies = {}) {
   const root = projectRoot(request);
-  return withLock(root, () => {
+  return runtime.withLock(root, request, () => {
+    runtime.progress(request, '正在核对并应用项目配置…', false);
+    recoverPrepared(request, root);
     const planned = plan(request);
     if (!request.fingerprint || request.fingerprint !== planned.fingerprint) failure('配置或输入已变化，请重新预览。');
     if (!planned.changes.length) return summary(planned);
@@ -358,32 +380,28 @@ function apply(request, dependencies = {}) {
       throw error;
     }
     return {...summary(planned, 'applied'), receiptFile};
-  });
+  }, path.join(root, LOCK));
 }
 function rollback(request) {
   const root = projectRoot(request);
   const file = path.resolve(request.receiptFile || '');
   if (path.dirname(path.dirname(file)) !== path.join(root, BACKUPS) || path.basename(file) !== 'receipt.json') failure('请选择本项目的配置回执。');
-  return withLock(root, () => {
+  return runtime.withLock(root, request, () => {
     const receipt = object(snapshot(file).text);
-    if (receipt.schema !== 1 || receipt.tool !== 'ai-dev-project' || receipt.projectRoot !== root || !['applied', 'prepared'].includes(receipt.state) || !Array.isArray(receipt.entries)) failure('回执无效或已经恢复。');
-    const allowed = [path.join(root, '.vscode', 'settings.json'), path.join(root, '.mcp.json'), path.join(root, '.iris-agentic-dev.toml'), path.join(root, '.agents', 'config', 'iris-session-backend.json')];
-    if (request.codeExe) allowed.push(userSettings(request));
-    const used = new Set();
-    for (const entry of receipt.entries) {
-      if (!allowed.includes(entry.file) || used.has(entry.file)) failure('回执文件范围不匹配，请核对 VS Code 用户设置模式。');
-      used.add(entry.file);
-      const original = Buffer.from(entry.original, 'base64');
-      if (entry.beforeHash !== 'absent' && sha(original) !== entry.beforeHash || entry.beforeHash === 'absent' && original.length) failure('原配置备份校验失败。');
-    }
+    validateReceipt(request, root, receipt);
     restoreEntries(receipt.entries);
     receipt.state = 'rolled-back'; saveReceipt(file, receipt);
     return {state: 'rolled-back', receiptFile: file};
-  });
+  }, path.join(root, LOCK));
 }
 function main(request) {
-  if (request.action === 'projectInspect') return inspect(request);
-  if (request.action === 'projectPlan') return summary(plan(request));
+  if (request.action === 'projectInspect' || request.action === 'projectPlan') {
+    const root = projectRoot(request);
+    return runtime.withLock(root, request, () => {
+      recoverPrepared(request, root);
+      return request.action === 'projectInspect' ? inspect(request) : summary(plan(request));
+    }, path.join(root, LOCK));
+  }
   if (request.action === 'projectApply') return apply(request);
   if (request.action === 'projectRollback') return rollback(request);
   failure('无效的项目配置操作。');
@@ -393,8 +411,8 @@ if (require.main === module) {
   let input = '';
   process.stdin.setEncoding('utf8');
   process.stdin.on('data', chunk => { input += chunk; });
-  process.stdin.on('end', () => {
-    try { process.stdout.write(JSON.stringify(main(JSON.parse(input))) + '\n'); }
+  process.stdin.on('end', async () => {
+    try { process.stdout.write(JSON.stringify(await main(JSON.parse(input))) + '\n'); }
     catch (error) {
       // Parser/OS exceptions can contain source text or a private path.
       const message = /^[\u3400-\u9fff]/.test(error.message) ? error.message : '项目配置失败，请检查目录权限、配置语法和所选程序。';

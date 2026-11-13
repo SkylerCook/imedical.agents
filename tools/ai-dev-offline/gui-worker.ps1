@@ -1,9 +1,42 @@
 ﻿#requires -Version 5.1
-param([Parameter(Mandatory=$true)][string]$RequestFile)
+param([Parameter(Mandatory=$true)][string]$RequestFile,[string]$StartGate,[int]$ParentProcessId)
 $ErrorActionPreference = 'Stop'
+$RequestFile=[IO.Path]::GetFullPath($RequestFile)
+if($StartGate){
+    $deadline=[DateTime]::UtcNow.AddSeconds(30)
+    while(-not(Test-Path -LiteralPath $StartGate)){
+        try {[void][Diagnostics.Process]::GetProcessById($ParentProcessId)} catch {exit 1223}
+        if([DateTime]::UtcNow -gt $deadline){throw '后台任务未能接入进程管理，请重新启动。'}
+        Start-Sleep -Milliseconds 100
+    }
+}
+$cancelFile=Join-Path (Split-Path -Parent $RequestFile) 'cancel'
+$progressFile=Join-Path (Split-Path -Parent $RequestFile) 'progress.jsonl'
+$script:progressRead=0
+[IO.File]::WriteAllText($progressFile,'',(New-Object Text.UTF8Encoding($false)))
 [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
 function Say([string]$Message) { [Console]::WriteLine($Message) }
+function Check-Cancelled {
+    if(Test-Path -LiteralPath $cancelFile){throw (New-Object OperationCanceledException('操作已取消，可以重新开始。'))}
+}
+function Stage([string]$Text,[bool]$CanStop=$true) {
+    $script:canStop=$CanStop
+    Say ('TASK_STAGE:'+(@{text=$Text;canStop=$CanStop}|ConvertTo-Json -Compress))
+}
+function Forward-Progress {
+    try {$lines=[IO.File]::ReadAllLines($progressFile,[Text.Encoding]::UTF8)} catch [IO.IOException] {return}
+    while($script:progressRead -lt $lines.Length){
+        $line=$lines[$script:progressRead]
+        if($line){try {[void]($line|ConvertFrom-Json)}catch{return};Say ('TASK_STAGE:'+$line)}
+        $script:progressRead++
+    }
+}
+function Wait-Child($Process) {
+    while(-not $Process.WaitForExit(200)){Forward-Progress;if($script:canStop){Check-Cancelled}}
+    Forward-Progress
+}
 function Run([string]$Exe,[string]$Arguments) {
+    Check-Cancelled
     $info = New-Object Diagnostics.ProcessStartInfo
     $info.FileName=$Exe; $info.Arguments=$Arguments; $info.UseShellExecute=$false; $info.CreateNoWindow=$true
     $info.RedirectStandardOutput=$true; $info.RedirectStandardError=$true
@@ -12,7 +45,7 @@ function Run([string]$Exe,[string]$Arguments) {
     try {
         [void]$process.Start()
         $output=$process.StandardOutput.ReadToEndAsync(); $errors=$process.StandardError.ReadToEndAsync()
-        $process.WaitForExit()
+        Wait-Child $process
         $text=$output.GetAwaiter().GetResult()+$errors.GetAwaiter().GetResult()
         if($process.ExitCode -notin @(0,3010)){throw "程序退出码 $($process.ExitCode) $text"}
         if($text.Trim()){Say $text.Trim()}
@@ -30,7 +63,11 @@ function SafePath([string]$Path) {
 }
 try {
     $request=Get-Content -LiteralPath $RequestFile -Raw -Encoding UTF8 | ConvertFrom-Json
-    if($request.action -in @('projectInspect','projectPlan','projectApply','projectRollback','extensionInstall')){
+    Check-Cancelled
+    Stage '正在准备任务…'
+    $request | Add-Member -NotePropertyName cancelFile -NotePropertyValue $cancelFile -Force
+    $request | Add-Member -NotePropertyName progressFile -NotePropertyValue $progressFile -Force
+    if($request.action -in @('projectInspect','projectPlan','projectApply','projectRollback','extensionInspect','extensionInstall','extensionRestore')){
         if(-not (Test-Path -LiteralPath $request.codeExe -PathType Leaf) -or [IO.Path]::GetFileName($request.codeExe) -ine 'Code.exe'){throw '请选择已安装的 Code.exe。'}
         if($request.connection -and $request.connection.writeCredentials){
             Add-Type -AssemblyName System.Security
@@ -39,9 +76,21 @@ try {
             finally {[Array]::Clear($secretBytes,0,$secretBytes.Length)}
             $request.connection.PSObject.Properties.Remove('protectedPassword')
         }
+        if($request.action -eq 'extensionInstall'){
+            Stage '正在查找并校验扩展原包…'
+            $extensionManifest=Get-Content -LiteralPath "$PSScriptRoot/extensions.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+            $archives=@{};$archiveErrors=@{}
+            foreach($entry in $extensionManifest.extensions){
+                $found=& "$PSScriptRoot/resolve-package.ps1" -Kind extensions -Id $entry.id -Location $request.materialsPath -CancelFile $cancelFile -Optional
+                if($found.path){$archives[$entry.id]=$found.path}else{$archiveErrors[$entry.id]=$found.error}
+            }
+            $request | Add-Member -NotePropertyName archives -NotePropertyValue $archives -Force
+            $request | Add-Member -NotePropertyName archiveErrors -NotePropertyValue $archiveErrors -Force
+        }
+        Stage ('正在处理 '+$request.action) ($request.action -notin @('projectApply','projectRollback'))
         $info=New-Object Diagnostics.ProcessStartInfo
         $info.FileName=$request.codeExe
-        $scriptName=if($request.action -eq 'extensionInstall'){'install-objectscript.js'}else{'configure-project.js'}
+        $scriptName=if($request.action -like 'extension*'){'install-objectscript.js'}else{'configure-project.js'}
         $info.Arguments='"'+(Join-Path $PSScriptRoot $scriptName)+'"'
         $info.UseShellExecute=$false;$info.CreateNoWindow=$true
         $info.RedirectStandardInput=$true;$info.RedirectStandardOutput=$true;$info.RedirectStandardError=$true
@@ -55,7 +104,7 @@ try {
             $inputBytes=[Text.Encoding]::UTF8.GetBytes(($request|ConvertTo-Json -Depth 12 -Compress))
             try {$process.StandardInput.BaseStream.Write($inputBytes,0,$inputBytes.Length)}
             finally {[Array]::Clear($inputBytes,0,$inputBytes.Length);$process.StandardInput.Close()}
-            $process.WaitForExit()
+            Wait-Child $process
             $result=$output.GetAwaiter().GetResult();$errorText=$errors.GetAwaiter().GetResult()
             if($process.ExitCode -ne 0){throw $errorText.Trim()}
             $parsed=$result|ConvertFrom-Json
@@ -90,15 +139,16 @@ try {
     if($selected.Count -eq 0){throw '请先选择至少一个工具。'}
     $failed=0
     foreach($item in $selected){
+        Check-Cancelled
         try {
             $component=@($manifest.components | Where-Object id -eq $item.id)
             if($component.Count -ne 1 -or $item.id -eq 'codebuddy'){throw '不支持的工具。'}
             $component=$component[0]
-            Say "正在处理 $($component.name)…"
+            Stage "正在处理 $($component.name)…"
             if($item.mode -in @('install','installOnly')){
-                Say '校验离线安装包…'
-                $verified=@(& "$PSScriptRoot/verify-packages.ps1" -PackageRoot $PSScriptRoot -Components $item.id)
-                $archive=$verified[0].path
+                Stage '正在查找并校验离线安装包…'
+                $resolved=& "$PSScriptRoot/resolve-package.ps1" -Id $item.id -Location $request.materialsPath -CancelFile $cancelFile
+                $archive=$resolved.path
                 Say ('原包位置：'+$archive)
                 $folder=@{vscode='VSCode';git='Git';powershell='PowerShell';node='Node';python='Python';java8='Java'}[$item.id]
                 $target=SafePath (Join-Path $root "$folder/$($component.version)")
@@ -115,6 +165,8 @@ try {
                 $owned=Get-Content -LiteralPath $marker -Raw -Encoding UTF8 | ConvertFrom-Json
                 if($owned.state -ne 'complete' -or -not(Test-Path -LiteralPath $exe)){
                     Say "安装到 $target"
+                    Check-Cancelled
+                    Stage ("正在安装 "+$component.name) ($item.id -ne 'python')
                     switch($item.id){
                         git { Run $archive ('-y -o"'+$target+'"') }
                         python {
@@ -139,16 +191,18 @@ try {
                 Say "[成功] $($component.name) 已安装，现有环境变量保持原值。"
                 continue
             }
-            Say '配置环境变量并检查命令…'
+            Check-Cancelled
+            Stage '正在配置环境变量并检查命令…' $false
             [void][IO.Directory]::CreateDirectory($root)
             $paths=@{}
             if($item.mode -eq 'existing'){$paths[$item.id]=$exe}
             & "$PSScriptRoot/configure-environment.ps1" -Action Apply -Root $root -Components $item.id -Scope $request.scope -ExecutablePaths $paths | Out-String | ForEach-Object { Say $_ }
             Say "[成功] $($component.name)"
-        } catch {$failed++; Say "[失败] $($item.id) — $($_.Exception.Message)"}
+        } catch {if($_.Exception -is [OperationCanceledException]){throw};$failed++; Say "[失败] $($item.id) — $($_.Exception.Message)"}
     }
+    Check-Cancelled
     if($failed){Say "有 $failed 项未完成。处理原因后重新点击开始，已安装的工具将复用。";exit 1}
     Say '所选工具已处理完成。请关闭并重新打开终端，使环境变量生效。'
-} catch {Say $_.Exception.Message;exit 1}
+} catch {Say $_.Exception.Message;if($_.Exception -is [OperationCanceledException]){exit 1223};exit 1}
 
 finally { if($locked){$mutex.ReleaseMutex()}; if($mutex){$mutex.Dispose()} }

@@ -53,7 +53,7 @@ try {
     $manifest.components=@($manifest.components|Where-Object id -ne 'codebuddy')
     $manifest.bundleId='ai-dev-offline-gui-windows-x64'
     $manifest|ConvertTo-Json -Depth 10|Set-Content -LiteralPath "$tools/manifest.json" -Encoding UTF8
-    foreach($file in @('gui-worker.ps1','configure-environment.ps1','verify-packages.ps1','GUI.md','configure-project.js','configure-vscode.js','install-objectscript.js','extensions.json','update-notes.txt')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $tools}
+    foreach($file in @('gui-worker.ps1','configure-environment.ps1','verify-packages.ps1','GUI.md','configure-project.js','configure-vscode.js','install-objectscript.js','operation-runtime.js','resolve-package.ps1','package-extension.ps1','extensions.json','update-notes.txt')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination $tools}
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'vendor') -Destination $tools -Recurse
     $compiler=Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
     & $compiler /nologo /codepage:65001 /target:winexe /platform:x64 "/out:$tools/开发工具安装助手.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.Security.dll (Join-Path $PSScriptRoot 'InstallerForm.cs') (Join-Path $PSScriptRoot 'ProjectConfigurationForm.cs')

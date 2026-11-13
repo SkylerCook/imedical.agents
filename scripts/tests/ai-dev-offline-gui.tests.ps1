@@ -29,6 +29,12 @@ try {
     & "$source/configure-environment.ps1" -Action Rollback -Scope Process -ReceiptFile $receipt
     Assert ($env:JAVA_HOME -eq 'original-java') 'JAVA_HOME rollback failed'
     Assert ($env:PATH -ceq $beforePath) 'PATH rollback failed'
+    $partialReceipt=Get-Content -LiteralPath $receipt -Raw -Encoding UTF8 | ConvertFrom-Json
+    $partialReceipt.state='prepared'
+    $partialReceipt|ConvertTo-Json -Depth 8|Set-Content -LiteralPath $receipt -Encoding UTF8
+    $env:JAVA_HOME=$partialReceipt.javaAfter
+    & "$source/configure-environment.ps1" -Action Rollback -Scope Process -ReceiptFile $receipt
+    Assert ($env:JAVA_HOME -eq 'original-java' -and $env:PATH -ceq $beforePath) 'partially written environment receipt did not recover'
     $form=Get-Content -LiteralPath "$source/InstallerForm.cs" -Raw -Encoding UTF8
     Assert ($form.Contains('installOnly')) 'install-only entry missing'
     $worker=Get-Content -LiteralPath "$source/gui-worker.ps1" -Raw -Encoding UTF8
@@ -80,7 +86,7 @@ try {
     [void][IO.Directory]::CreateDirectory($payload)
     [void][IO.Directory]::CreateDirectory($archiveRoot)
     Copy-Item -LiteralPath "$testRoot/java/bin/java.exe" -Destination "$archiveRoot/node.exe"
-    foreach($name in @('gui-worker.ps1','configure-environment.ps1','verify-packages.ps1')){
+    foreach($name in @('gui-worker.ps1','configure-environment.ps1','verify-packages.ps1','resolve-package.ps1')){
         Copy-Item -LiteralPath (Join-Path $source $name) -Destination $fixture
     }
     Compress-Archive -LiteralPath $archiveRoot -DestinationPath "$payload/node.zip"

@@ -6,8 +6,60 @@ using System.IO;
 using System.Text;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
+using System.Runtime.InteropServices;
 
 namespace AiDevOffline {
+    // Windows job ownership keeps the worker and all of its descendants together.
+    sealed class TaskJob : IDisposable {
+        [StructLayout(LayoutKind.Sequential)] struct BasicLimits {
+            public long ProcessTime,JobTime;
+            public uint Flags;
+            public UIntPtr MinimumWorkingSet,MaximumWorkingSet;
+            public uint ActiveProcessLimit;
+            public UIntPtr Affinity;
+            public uint Priority,Scheduling;
+        }
+        [StructLayout(LayoutKind.Sequential)] struct IoCounters {public ulong ReadOperations,WriteOperations,OtherOperations,ReadBytes,WriteBytes,OtherBytes;}
+        [StructLayout(LayoutKind.Sequential)] struct ExtendedLimits {
+            public BasicLimits Basic;
+            public IoCounters Io;
+            public UIntPtr ProcessMemory,JobMemory,PeakProcessMemory,PeakJobMemory;
+        }
+        [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern IntPtr CreateJobObject(IntPtr attributes,string name);
+        [DllImport("kernel32.dll",SetLastError=true)] static extern bool SetInformationJobObject(IntPtr job,int kind,ref ExtendedLimits limits,uint length);
+        [DllImport("kernel32.dll",SetLastError=true)] static extern bool AssignProcessToJobObject(IntPtr job,IntPtr process);
+        [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+        IntPtr handle;
+        public TaskJob() {
+            handle=CreateJobObject(IntPtr.Zero,null);
+            if(handle==IntPtr.Zero)throw new System.ComponentModel.Win32Exception();
+            var limits=new ExtendedLimits();limits.Basic.Flags=0x2000;
+            if(!SetInformationJobObject(handle,9,ref limits,(uint)Marshal.SizeOf(limits))){int error=Marshal.GetLastWin32Error();Dispose();throw new System.ComponentModel.Win32Exception(error);}
+        }
+        public void Attach(Process process) {if(!AssignProcessToJobObject(handle,process.Handle))throw new System.ComponentModel.Win32Exception();}
+        public void Dispose() {if(handle!=IntPtr.Zero){CloseHandle(handle);handle=IntPtr.Zero;}}
+    }
+    sealed class TaskProgressForm : Form {
+        readonly Label stage=new Label(),elapsed=new Label();
+        readonly Button stop=new Button();
+        readonly Timer timer=new Timer();
+        readonly Stopwatch watch=Stopwatch.StartNew();
+        readonly Action cancel;
+        bool finished,canStop;
+        public TaskProgressForm(Action onCancel) {
+            cancel=onCancel;Text="任务进度";Font=new Font("Microsoft YaHei UI",9);BackColor=Color.FromArgb(245,247,251);
+            ClientSize=new Size(580,180);FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;MinimizeBox=false;StartPosition=FormStartPosition.CenterParent;
+            stage.SetBounds(24,24,532,62);stage.Text="准备启动…";Controls.Add(stage);
+            elapsed.SetBounds(24,98,330,48);Controls.Add(elapsed);
+            stop.Text="停止任务";stop.SetBounds(390,112,166,36);stop.Click+=delegate{cancel();};Controls.Add(stop);
+            timer.Interval=1000;timer.Tick+=delegate{elapsed.Text="已用时 "+watch.Elapsed.ToString(@"hh\:mm\:ss")+Environment.NewLine+(canStop?"可安全停止，稍后可以重试。":"正在完成当前步骤，取消请求会在安全位置生效。");};timer.Start();
+            FormClosing+=delegate(object sender,FormClosingEventArgs e){if(!finished){e.Cancel=true;cancel();}};
+            FormClosed+=delegate{timer.Dispose();};
+        }
+        public void SetStage(string text,bool interruptible) {stage.Text=text;canStop=interruptible;}
+        public void Cancelling(bool interruptible) {stop.Enabled=false;stage.Text=interruptible?"正在停止本次后台任务…":"已请求取消，等待当前步骤安全结束…";}
+        public void Complete() {finished=true;Close();Dispose();}
+    }
     sealed class InstallLog : IDisposable {
         readonly StreamWriter writer;
         readonly object sync=new object();
@@ -57,6 +109,8 @@ namespace AiDevOffline {
         readonly Button exportLog = new Button();
         readonly Button project = new Button();
         readonly Button extension = new Button();
+        readonly Button materials = new Button();
+        string materialsPath="";
         readonly Label status = new Label();
         readonly ProgressBar progress = new ProgressBar();
         readonly Panel settings = new Panel();
@@ -66,6 +120,10 @@ namespace AiDevOffline {
         string requestFile;
         InstallLog runLog;
         string logFile;
+        TaskJob activeJob;
+        TaskProgressForm taskProgress;
+        bool canStop,cancelRequested;
+        string cancelFile;
 
         [STAThread]
         static void Main(string[] args) {
@@ -130,7 +188,7 @@ namespace AiDevOffline {
                 new[]{"java8","Java 8","Java 开发与运行环境，含 JDK","java.exe"}
             };
             for(int index=0; index<tools.Length; index++) AddTool(tools[index],48+index*68);
-            Label note=TextLabel("原包放在 tools 旁的 packages 中，旧版 payload 仍可用。已有工具请选择对应 exe。",9,false);
+            Label note=TextLabel("原包 ZIP 放在助手附近即可自动识别，其他位置点击「离线包…」。已有工具可直接选择 exe。",9,false);
             note.Location=new Point(32,584);Controls.Add(note);
             status.SetBounds(32,616,700,25);status.Text="选择工具后开始";status.ForeColor=ink;Controls.Add(status);
             progress.SetBounds(32,646,916,5);progress.Anchor=AnchorStyles.Left|AnchorStyles.Right|AnchorStyles.Top;Controls.Add(progress);
@@ -160,10 +218,19 @@ namespace AiDevOffline {
                 using(ObjectScriptInstallForm dialog=new ObjectScriptInstallForm(root.Text,version,selected,Execute))dialog.ShowDialog(this);
             };
             Controls.Add(extension);
+            materials.Text="离线包…";materials.SetBounds(650,712,80,34);materials.Anchor=AnchorStyles.Bottom|AnchorStyles.Left;
+            materials.Click+=delegate {using(MaterialLocationForm dialog=new MaterialLocationForm(materialsPath)){
+                if(dialog.ShowDialog(this)==DialogResult.OK){materialsPath=dialog.SelectedPath;
+                    try {ToolLocations.Save(ToolLocations.PreferenceFile(),new Dictionary<string,object>{{"materialsPath",materialsPath}});}
+                    catch(Exception error){MessageBox.Show(this,"物料位置可用于本次操作，但未能记住："+error.Message);}
+                }
+            }};Controls.Add(materials);
+            var remembered=ToolLocations.Read(ToolLocations.PreferenceFile());
+            if(remembered.ContainsKey("materialsPath"))materialsPath=remembered["materialsPath"];
             start=ButtonAt("开始安装与配置",738,710,210);start.Height=38;start.Anchor=AnchorStyles.Bottom|AnchorStyles.Right;
             start.BackColor=blue;start.ForeColor=Color.White;start.FlatAppearance.BorderSize=0;start.Click+=Start;Controls.Add(start);
             FormClosing+=delegate(object sender,FormClosingEventArgs e){
-                if(running){e.Cancel=true;MessageBox.Show(this,"正在处理工具，请等待当前任务完成后关闭。","任务进行中");}
+                if(running){e.Cancel=true;CancelTask();}
             };
             FormClosed+=delegate {if(runLog!=null) runLog.Dispose();};
         }
@@ -254,7 +321,7 @@ namespace AiDevOffline {
                 runLog=InstallLog.Create(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"logs"),
                     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"AiDevOffline","Logs"));
                 logFile=runLog.FilePath;exportLog.Enabled=true;
-                Record("安装助手 r7 · CLR "+Environment.Version+" · 64 位进程="+Environment.Is64BitProcess);
+                Record("安装助手 r8 · CLR "+Environment.Version+" · 64 位进程="+Environment.Is64BitProcess);
                 Record("日志文件："+logFile);
                 Dictionary<string,object> projectRequest=request as Dictionary<string,object>;
                 if(projectRequest!=null && projectRequest.ContainsKey("action") && ((string)projectRequest["action"]).StartsWith("project"))
@@ -301,8 +368,30 @@ namespace AiDevOffline {
             if(!String.IsNullOrEmpty(executable)) message+=Environment.NewLine+"后台程序："+executable;
             return message;
         }
+        void CancelTask() {
+            if(!running || cancelRequested)return;
+            try {
+                File.WriteAllText(cancelFile,"cancel",new UTF8Encoding(false));
+                cancelRequested=true;
+                if(taskProgress!=null)taskProgress.Cancelling(canStop);
+                Record(canStop?"已请求停止本次任务，可重新开始。":"已请求取消，当前步骤完成后停止后续操作。");
+            }catch(Exception error){Record("停止请求未完成："+error.Message);cancelRequested=false;}
+        }
+        void WorkerStage(string data) {
+            try {
+                var stage=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(data);
+                canStop=stage.ContainsKey("canStop") && (bool)stage["canStop"];
+                string text=Convert.ToString(stage["text"]);status.Text=text;
+                if(taskProgress!=null)taskProgress.SetStage(text,canStop);
+                if(cancelRequested && taskProgress!=null)taskProgress.Cancelling(canStop);
+                Record(text);
+            }catch(Exception error){Record("进度状态无法读取："+error.Message);}
+        }
         void Execute(object request) {Execute(request,null);}
         void Execute(object request,Action<bool,string> completed) {
+            var serializer=new JavaScriptSerializer();
+            var requestValues=serializer.Deserialize<Dictionary<string,object>>(serializer.Serialize(request));
+            requestValues["materialsPath"]=materialsPath;request=requestValues;
             string stage="创建临时目录";
             Process process=null;
             bool started=false;
@@ -311,24 +400,33 @@ namespace AiDevOffline {
             StringBuilder projectOutput=new StringBuilder();
             log.Clear();
             BeginLog(request);
+            cancelRequested=false;canStop=false;
             try {
                 string temp=Path.Combine(Directory.Exists("D:\\tmp")?"D:\\tmp":Path.GetTempPath(),"Codex","ai-dev-gui-"+Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(temp);requestFile=Path.Combine(temp,"request.json");
                 stage="写入安装请求";
                 File.WriteAllText(requestFile,new JavaScriptSerializer().Serialize(request),new UTF8Encoding(false));
+                cancelFile=Path.Combine(temp,"cancel");
+                activeJob=new TaskJob();
                 process=new Process();
                 process.StartInfo=CreateWorkerStartInfo(AppDomain.CurrentDomain.BaseDirectory,requestFile);
+                string startGate=Path.Combine(temp,"start");
+                process.StartInfo.Arguments+=" -StartGate \""+startGate+"\" -ParentProcessId "+Process.GetCurrentProcess().Id;
                 process.OutputDataReceived+=delegate(object s,DataReceivedEventArgs e){
-                    if(e.Data!=null && e.Data.StartsWith("PROJECT_RESULT:")) resultJson=e.Data.Substring(15);
+                    if(e.Data!=null && e.Data.StartsWith("TASK_STAGE:")){string stageData=e.Data.Substring(11);BeginInvoke((Action)delegate{WorkerStage(stageData);});}
+                    else if(e.Data!=null && e.Data.StartsWith("PROJECT_RESULT:")) resultJson=e.Data.Substring(15);
                     else {if(completed!=null && e.Data!=null)lock(projectOutput){projectOutput.AppendLine(e.Data);} Append(e.Data);}
                 };
                 process.ErrorDataReceived+=delegate(object s,DataReceivedEventArgs e){Append(e.Data);};
-                running=true;settings.Enabled=start.Enabled=restore.Enabled=project.Enabled=extension.Enabled=false;status.Text="正在处理，请稍候…";
+                running=true;settings.Enabled=start.Enabled=restore.Enabled=project.Enabled=extension.Enabled=materials.Enabled=false;status.Text="正在处理，请稍候…";
                 progress.Style=ProgressBarStyle.Marquee;
                 stage="启动 PowerShell";
                 Record(stage+" · "+process.StartInfo.FileName+" · RemoteSigned");
                 process.Start();
                 started=true;
+                try {activeJob.Attach(process);} catch {process.Kill();throw;}
+                File.WriteAllText(startGate,"start");
+                taskProgress=new TaskProgressForm(CancelTask);taskProgress.Show(Form.ActiveForm ?? this);
                 Record("后台进程已启动，PID="+process.Id);
                 stage="连接后台日志";
                 process.BeginOutputReadLine();process.BeginErrorReadLine();
@@ -339,10 +437,11 @@ namespace AiDevOffline {
                 if(started) {
                     status.Text="日志连接失败 · 等待后台任务结束";
                 } else {
-                    running=false;settings.Enabled=start.Enabled=restore.Enabled=project.Enabled=extension.Enabled=true;
+                    running=false;settings.Enabled=start.Enabled=restore.Enabled=project.Enabled=extension.Enabled=materials.Enabled=true;
                     progress.Style=ProgressBarStyle.Blocks;progress.Value=0;
                     status.Text="启动失败 · 查看错误详情";
                     if(process!=null) process.Dispose();
+                    if(activeJob!=null){activeJob.Dispose();activeJob=null;}
                     CleanupRequest();
                 }
                 MessageBox.Show(this,details,started?"日志连接失败":"无法启动");
@@ -351,26 +450,39 @@ namespace AiDevOffline {
                 if(started) System.Threading.ThreadPool.QueueUserWorkItem(delegate {
                     int code=-1;
                     string waitError=null;
-                    try {process.WaitForExit();code=process.ExitCode;}
+                    try {
+                        while(!process.WaitForExit(250)) {}
+                        code=process.ExitCode;
+                        // Descendants can inherit redirected handles. Close the job
+                        // before waiting for asynchronous output readers to drain.
+                        if(activeJob!=null)activeJob.Dispose();
+                        process.WaitForExit();
+                    }
                     catch(Exception error) {waitError=error.Message;}
                     finally {process.Dispose();}
                     BeginInvoke((Action)delegate {
-                        running=false;settings.Enabled=start.Enabled=restore.Enabled=project.Enabled=extension.Enabled=true;
-                        bool success=code==0 && outputReady && waitError==null;
+                        if(activeJob!=null){activeJob.Dispose();activeJob=null;}
+                        if(taskProgress!=null){taskProgress.Complete();taskProgress=null;}
+                        running=false;settings.Enabled=start.Enabled=restore.Enabled=project.Enabled=extension.Enabled=materials.Enabled=true;
+                        bool success=code==0 && outputReady && waitError==null && !cancelRequested;
                         progress.Style=ProgressBarStyle.Blocks;progress.Value=success?100:0;
-                        status.Text=success?(completed==null?"处理完成 · 请重新打开终端":"操作完成"):"任务未确认完成 · 查看日志后再处理";
+                        status.Text=cancelRequested || code==1223?"已停止本次任务 · 已完成的步骤保留，可重新开始":success?(completed==null?"处理完成 · 请重新打开终端":"操作完成"):"任务未确认完成 · 查看日志后再处理";
                         Record("后台退出码："+code);
                         if(waitError!=null) Record("等待后台任务失败："+waitError);
                         Record(status.Text);
                         CleanupRequest();
-                        if(completed!=null)completed(success,success?resultJson:projectOutput.ToString());
+                        if(completed!=null)completed(success,success?resultJson:cancelRequested?"操作已取消，可以重新开始。":projectOutput.ToString());
                     });
                 });
             }
         }
         void CleanupRequest() {
             if(requestFile==null)return;
-            try {File.Delete(requestFile);Directory.Delete(Path.GetDirectoryName(requestFile));requestFile=null;}
+            try {
+                string directory=Path.GetDirectoryName(requestFile);
+                foreach(string name in new[]{"request.json","start","cancel","progress.jsonl"})File.Delete(Path.Combine(directory,name));
+                Directory.Delete(directory);requestFile=null;
+            }
             catch(Exception error){Record("临时文件清理失败 "+requestFile+" "+error.Message);}
         }
     }

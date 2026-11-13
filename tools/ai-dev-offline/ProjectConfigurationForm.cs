@@ -11,7 +11,7 @@ using Microsoft.Win32;
 
 namespace AiDevOffline {
     static class ToolLocations {
-        static readonly string[] fields={"projectRoot","codeExe","pwshExe","gitExe","nodeExe","mcpExe"};
+        static readonly string[] fields={"projectRoot","codeExe","pwshExe","gitExe","nodeExe","mcpExe","materialsPath"};
         internal static string PreferenceFile() {
             string local=Environment.GetEnvironmentVariable("LOCALAPPDATA");
             if(String.IsNullOrEmpty(local))local=Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -27,7 +27,7 @@ namespace AiDevOffline {
             return result;
         }
         internal static void Save(string file,Dictionary<string,object> request) {
-            var values=new Dictionary<string,string>();
+            var values=Read(file);
             foreach(string key in fields)if(request.ContainsKey(key) && request[key] is string)values[key]=(string)request[key];
             Directory.CreateDirectory(Path.GetDirectoryName(file));
             string temp=file+"."+Guid.NewGuid().ToString("N")+".tmp";
@@ -71,7 +71,7 @@ namespace AiDevOffline {
         readonly Timer autoLoad=new Timer();
         Dictionary<string,object> plannedRequest;
         string receiptFile;
-        bool busy;
+        bool busy,hasSavedCredentials;
         string loadedProject;
 
         public ProjectConfigurationForm(string toolsRoot,Component[] components,Dictionary<string,string> selected,Action<object,Action<bool,string>> run) {
@@ -100,7 +100,7 @@ namespace AiDevOffline {
             LabelAt("账号",0,284);username.SetBounds(128,282,220,26);inputs.Controls.Add(username);
             LabelAt("密码",380,284);password.SetBounds(508,282,240,26);password.UseSystemPasswordChar=true;inputs.Controls.Add(password);
             credentials.CheckedChanged+=delegate {username.Enabled=password.Enabled=credentials.Checked;InvalidatePlan();};username.Enabled=password.Enabled=false;
-            mcp.Text="同时配置项目 MCP 和 TOML";mcp.Checked=true;mcp.SetBounds(0,318,310,26);inputs.Controls.Add(mcp);
+            mcp.Text="同时配置项目 MCP 和 TOML";mcp.Checked=false;mcp.SetBounds(0,318,310,26);inputs.Controls.Add(mcp);
             Field("MCP 程序",mcpExe,0,352,620);Choose(mcpExe,758,352,false,"iris-agentic-dev.exe");
             terminal.Text="默认终端 PowerShell 7";terminal.SetBounds(0,390,240,26);inputs.Controls.Add(terminal);
             pwshExe.SetBounds(250,388,498,26);inputs.Controls.Add(pwshExe);Choose(pwshExe,758,388,false,"pwsh.exe");
@@ -131,9 +131,11 @@ namespace AiDevOffline {
                 CheckBox check=control as CheckBox;if(check!=null)check.CheckedChanged+=delegate {InvalidatePlan();};
                 ComboBox combo=control as ComboBox;if(combo!=null)combo.SelectedIndexChanged+=delegate {InvalidatePlan();};
             }
+            mcp.CheckedChanged+=delegate {UpdateCredentialFields();};
+            UpdateCredentialFields();
             codeExe.TextChanged+=delegate {if(File.Exists(codeExe.Text))userMode.SelectedIndex=Directory.Exists(Path.Combine(Path.GetDirectoryName(codeExe.Text),"data"))?0:1;ScheduleLoad();};
             projectRoot.TextChanged+=delegate {
-                password.Clear();credentials.Checked=false;loadedProject=null;
+                password.Clear();username.Clear();hasSavedCredentials=false;mcp.Checked=false;UpdateCredentialFields();loadedProject=null;
                 alias.Text="project";host.Clear();port.Clear();ns.Clear();description.Clear();tls.Checked=false;
                 if(Directory.Exists(projectRoot.Text))mcpExe.Text=Path.Combine(projectRoot.Text,".agents","vendor","iris-agentic-dev","windows-x64","iris-agentic-dev.exe");
                 ScheduleLoad();
@@ -162,6 +164,14 @@ namespace AiDevOffline {
                 else {using(OpenFileDialog dialog=new OpenFileDialog()){dialog.Filter=name+"|"+name;if(dialog.ShowDialog(this)==DialogResult.OK)field.Text=dialog.FileName;}}
             };
         }
+        void UpdateCredentialFields() {
+            credentials.Enabled=mcp.Checked && hasSavedCredentials;
+            if(!mcp.Checked)credentials.Checked=false;
+            else if(!hasSavedCredentials)credentials.Checked=true;
+            username.Enabled=password.Enabled=mcp.Checked && credentials.Checked;
+            mcpExe.Enabled=mcp.Checked;
+            credentials.Text=mcp.Checked && !hasSavedCredentials?"首次配置 MCP，请填写本机账号密码":"更新本机 MCP 账号密码（保存到项目私有配置）";
+        }
         void InvalidatePlan() {plannedRequest=null;applyButton.Enabled=false;}
         void Busy(bool value) {autoLoad.Stop();busy=value;inputs.Enabled=planButton.Enabled=restoreButton.Enabled=!value;applyButton.Enabled=!value && plannedRequest!=null;}
         Dictionary<string,object> BaseRequest(string action) {
@@ -187,12 +197,19 @@ namespace AiDevOffline {
                 scheme.SelectedIndex=Value(result,"scheme")=="https"?1:0;description.Text=Value(result,"description");tls.Checked=Value(result,"tlsVerify")=="True";
                 if(!String.IsNullOrWhiteSpace(Value(result,"mcpExe")))mcpExe.Text=Value(result,"mcpExe");
                 loadedProject=projectRoot.Text;
-                password.Clear();credentials.Checked=false;status.Text="已读取连接参数。已有凭据将沿用，需要更新时勾选账号密码选项。";
+                password.Clear();credentials.Checked=false;
+                hasSavedCredentials=Value(result,"hasCredentials")=="True";
+                mcp.Checked=Value(result,"hasMcp")=="True";UpdateCredentialFields();
+                status.Text=mcp.Checked && !hasSavedCredentials?"已读取连接，MCP 需要填写账号密码。也可取消 MCP 选项，先配置 VS Code。":"已读取连接参数，已有凭据将沿用。";
             });
         }
         void Plan(object sender,EventArgs e) {
             int number;
             if(!Int32.TryParse(port.Text,out number)){MessageBox.Show(this,"请填写 Web 端口。","检查输入");return;}
+            if(mcp.Checked && credentials.Checked && (String.IsNullOrWhiteSpace(username.Text) || String.IsNullOrEmpty(password.Text))){
+                status.Text="请填写 MCP 账号密码，或取消 MCP 选项，先完成 VS Code 配置。";
+                if(String.IsNullOrWhiteSpace(username.Text))username.Focus();else password.Focus();return;
+            }
             Dictionary<string,object> request=BaseRequest("projectPlan");
             var connection=new Dictionary<string,object>{{"alias",alias.Text.Trim()},{"host",host.Text.Trim()},{"port",number},{"scheme",scheme.Text},{"namespace",ns.Text.Trim()},
                 {"description",description.Text.Trim()},{"tlsVerify",tls.Checked},{"writeCredentials",credentials.Checked}};
@@ -224,7 +241,7 @@ namespace AiDevOffline {
             if(plannedRequest==null)return;
             var accepted=plannedRequest;
             Run(accepted,delegate(Dictionary<string,object> result){
-                receiptFile=Value(result,"receiptFile");InvalidatePlan();password.Clear();credentials.Checked=false;
+                receiptFile=Value(result,"receiptFile");InvalidatePlan();password.Clear();hasSavedCredentials=mcp.Checked;credentials.Checked=false;UpdateCredentialFields();
                 status.Text=Value(result,"mcpProgramPresent")=="False"?"配置已保存并校验，MCP 程序待安装。":"配置已写入并读回校验。重新加载 VS Code 后连接验证。";
                 if(receiptFile.Length>0)preview.AppendText(Environment.NewLine+"恢复回执  "+receiptFile);
                 try {ToolLocations.Save(ToolLocations.PreferenceFile(),accepted);}
@@ -243,16 +260,19 @@ namespace AiDevOffline {
         }
     }
     sealed class ObjectScriptInstallForm : Form {
-        readonly TextBox code=new TextBox();
-        readonly Label result=new Label();
-        readonly Button install=new Button(),browse=new Button();
+        readonly TextBox code=new TextBox(),result=new TextBox();
+        readonly Button install=new Button(),browse=new Button(),inspect=new Button(),restore=new Button();
+        readonly Timer autoInspect=new Timer();
+        readonly Action<object,Action<bool,string>> execute;
+        Dictionary<string,object> current;
         bool busy;
-        public ObjectScriptInstallForm(string root,string version,string selected,Action<object,Action<bool,string>> execute) {
-            Text="安装 ObjectScript 离线扩展";Font=new Font("Microsoft YaHei UI",9);
-            BackColor=Color.FromArgb(245,247,251);ClientSize=new Size(760,310);
+        string inspectedCode;
+        public ObjectScriptInstallForm(string root,string version,string selected,Action<object,Action<bool,string>> run) {
+            execute=run;Text="ObjectScript 离线扩展";Font=new Font("Microsoft YaHei UI",9);
+            BackColor=Color.FromArgb(245,247,251);ClientSize=new Size(760,358);
             FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;StartPosition=FormStartPosition.CenterParent;
             Controls.Add(new Label {Text="ObjectScript 3.8.3-SNAPSHOT",Font=new Font(Font.FontFamily,17,FontStyle.Bold),AutoSize=true,Location=new Point(24,22)});
-            Controls.Add(new Label {Text="安装到所选 VS Code，并禁用 ObjectScript 自动更新。",AutoSize=true,Location=new Point(26,68)});
+            Controls.Add(new Label {Text="选择 VS Code，检查后安装。替换前自动备份旧版本。",AutoSize=true,Location=new Point(26,68)});
             Controls.Add(new Label {Text="VS Code",Location=new Point(26,110),AutoSize=true});
             code.SetBounds(100,106,550,27);Controls.Add(code);
             browse.Text="选择…";browse.SetBounds(664,104,70,31);Controls.Add(browse);
@@ -261,20 +281,66 @@ namespace AiDevOffline {
             string command=ToolLocations.FromPath("code.cmd");
             string fromCommand=String.IsNullOrEmpty(command)?"":Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(command)),"Code.exe");
             code.Text=ToolLocations.FirstFile(selected,Path.Combine(root,"VSCode",version,"Code.exe"),previous.ContainsKey("codeExe")?previous["codeExe"]:"",ToolLocations.FromPath("Code.exe"),fromCommand,ToolLocations.RegisteredCode(),Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Programs","Microsoft VS Code","Code.exe"),Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"Microsoft VS Code","Code.exe"));
-            result.Text="支持普通安装与便携版，要求 VS Code 1.109.0 及以上。\r\n已有 Server Manager 自动复用，缺少时安装随包版本。\r\n安装会替换现有 ObjectScript 版本，完成后重新加载 VS Code。";
-            result.SetBounds(26,150,708,90);Controls.Add(result);
-            install.Text="安装并禁用自动更新";install.SetBounds(500,258,234,36);
+            result.Multiline=true;result.ReadOnly=true;result.ScrollBars=ScrollBars.Vertical;result.BackColor=Color.White;result.SetBounds(26,150,708,132);Controls.Add(result);
+            result.Text="支持普通安装与便携版，要求 VS Code 1.109.0 及以上。\r\n已有 Server Manager 自动复用，缺少时安装随包版本。";
+            inspect.Text="重新检查";inspect.SetBounds(26,306,110,36);inspect.Click+=delegate {Run("extensionInspect");};Controls.Add(inspect);
+            restore.Text="恢复上次版本";restore.SetBounds(150,306,150,36);restore.Enabled=false;Controls.Add(restore);
+            restore.Click+=delegate {
+                if(current==null)return;
+                if(MessageBox.Show(this,"恢复 ObjectScript 为 "+Value("backupVersion")+"，并恢复替换前的自动更新状态？","恢复版本",MessageBoxButtons.OKCancel)==DialogResult.OK)Run("extensionRestore");
+            };
+            install.Text="安装并禁用自动更新";install.SetBounds(500,306,234,36);install.Enabled=false;
             install.BackColor=Color.FromArgb(37,99,235);install.ForeColor=Color.White;Controls.Add(install);
             install.Click+=delegate {
-                if(!File.Exists(code.Text) || !String.Equals(Path.GetFileName(code.Text),"Code.exe",StringComparison.OrdinalIgnoreCase)){MessageBox.Show(this,"请选择已安装的 Code.exe。");return;}
-                if(MessageBox.Show(this,"将 ObjectScript 安装为 3.8.3-SNAPSHOT 并禁用其自动更新。\r\n目标："+code.Text,"确认安装",MessageBoxButtons.OKCancel)!=DialogResult.OK)return;
-                busy=true;code.Enabled=browse.Enabled=install.Enabled=false;result.Text="正在安装并核验，请稍候…";
-                execute(new Dictionary<string,object>{{"action","extensionInstall"},{"codeExe",code.Text.Trim()}},delegate(bool success,string output){
-                    busy=false;code.Enabled=browse.Enabled=install.Enabled=true;
-                    result.Text=success?"安装完成，ObjectScript 版本与禁用自动更新状态已核验。请重新加载 VS Code。":"安装未完成，请查看主窗口日志，修正后重试。\r\n"+output;
-                });
+                if(current==null || inspectedCode!=code.Text){Run("extensionInspect");return;}
+                string message="目标："+code.Text+"\r\n"+Value("backupDescription")+"\r\n安装 3.8.3-SNAPSHOT，仅禁用 ObjectScript 自动更新。";
+                if(MessageBox.Show(this,message,"确认安装",MessageBoxButtons.OKCancel)==DialogResult.OK)Run("extensionInstall");
             };
-            FormClosing+=delegate(object sender,FormClosingEventArgs e){if(busy){e.Cancel=true;MessageBox.Show(this,"请等待扩展安装完成。");}};
+            autoInspect.Interval=650;autoInspect.Tick+=delegate {autoInspect.Stop();if(!busy && File.Exists(code.Text))Run("extensionInspect");};
+            code.TextChanged+=delegate {current=null;install.Enabled=restore.Enabled=false;autoInspect.Stop();if(IsHandleCreated)autoInspect.Start();};
+            Shown+=delegate {autoInspect.Start();};
+            FormClosing+=delegate(object sender,FormClosingEventArgs e){if(busy){e.Cancel=true;MessageBox.Show(this,"请在任务进度窗口停止任务，结束后即可关闭。");}};
+            FormClosed+=delegate {autoInspect.Dispose();};
+        }
+        string Value(string key) {return current!=null && current.ContainsKey(key)?Convert.ToString(current[key]):"";}
+        void Run(string action) {
+            if(busy)return;
+            autoInspect.Stop();
+            if(!File.Exists(code.Text) || !String.Equals(Path.GetFileName(code.Text),"Code.exe",StringComparison.OrdinalIgnoreCase)){result.Text="请选择已安装的 Code.exe。";return;}
+            var request=new Dictionary<string,object>{{"action",action},{"codeExe",code.Text.Trim()}};
+            if(action=="extensionRestore")request["receiptFile"]=Value("receiptFile");
+            busy=true;code.Enabled=browse.Enabled=install.Enabled=restore.Enabled=inspect.Enabled=false;
+            execute(request,delegate(bool success,string output){
+                busy=false;code.Enabled=browse.Enabled=inspect.Enabled=true;
+                if(!success){current=null;result.Text="操作未完成，可重新检查后重试。\r\n"+output;return;}
+                try {
+                    current=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(output);inspectedCode=code.Text;
+                    bool fixedVersion=Value("version")=="3.8.3-SNAPSHOT" && Value("autoUpdate")=="False";
+                    install.Enabled=!fixedVersion || Value("dependencyPresent")!="True";restore.Enabled=Value("restoreAvailable")=="True";
+                    result.Text="当前版本  "+(Value("version").Length==0?"尚未安装":Value("version"))+"\r\nObjectScript 自动更新  "+(Value("autoUpdate")=="False"?"已禁用":"沿 VS Code 设置")+"\r\n"+Value("backupDescription");
+                    if(restore.Enabled)result.AppendText("\r\n可恢复版本  "+Value("backupVersion"));
+                    if(Value("dependencyPresent")!="True")result.AppendText("\r\nServer Manager 尚未安装，点击安装可补齐。");
+                    if(current.ContainsKey("warnings"))foreach(object warning in (IEnumerable)current["warnings"])result.AppendText("\r\n提示  "+warning);
+                    if(action!="extensionInspect")result.AppendText("\r\n操作已核验，请重新加载 VS Code。");
+                }catch(Exception error){current=null;result.Text="结果无法读取，请查看日志。"+error.Message;}
+            });
+        }
+    }
+    sealed class MaterialLocationForm : Form {
+        readonly TextBox location=new TextBox();
+        public string SelectedPath {get {return location.Text.Trim();}}
+        public MaterialLocationForm(string current) {
+            Text="离线物料位置";Font=new Font("Microsoft YaHei UI",9);BackColor=Color.FromArgb(245,247,251);
+            ClientSize=new Size(680,210);StartPosition=FormStartPosition.CenterParent;FormBorderStyle=FormBorderStyle.FixedDialog;MaximizeBox=false;
+            Controls.Add(new Label {Text="选择 ZIP 或所在目录，助手自动查找、校验并提取所需文件。",AutoSize=true,Location=new Point(22,24)});
+            location.SetBounds(22,64,636,27);location.Text=current;Controls.Add(location);
+            Button zip=new Button {Text="选择 ZIP…",Location=new Point(22,106),Size=new Size(126,32)};
+            zip.Click+=delegate {using(OpenFileDialog dialog=new OpenFileDialog()){dialog.Filter="离线压缩包|*.zip";if(dialog.ShowDialog(this)==DialogResult.OK)location.Text=dialog.FileName;}};Controls.Add(zip);
+            Button folder=new Button {Text="选择目录…",Location=new Point(160,106),Size=new Size(126,32)};
+            folder.Click+=delegate {using(FolderBrowserDialog dialog=new FolderBrowserDialog()){if(dialog.ShowDialog(this)==DialogResult.OK)location.Text=dialog.SelectedPath;}};Controls.Add(folder);
+            Button automatic=new Button {Text="自动查找",Location=new Point(298,106),Size=new Size(110,32)};
+            automatic.Click+=delegate {location.Clear();};Controls.Add(automatic);
+            Button save=new Button {Text="使用此位置",Location=new Point(520,160),Size=new Size(138,34),DialogResult=DialogResult.OK};Controls.Add(save);AcceptButton=save;
         }
     }
 

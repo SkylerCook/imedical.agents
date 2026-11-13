@@ -54,7 +54,11 @@ function Require-Admin {
 }
 function Save-Receipt($Data,[string]$File) {
     $utf8 = New-Object Text.UTF8Encoding($false)
-    [IO.File]::WriteAllText($File,($Data | ConvertTo-Json -Depth 8),$utf8)
+    $temporary=$File+'.'+[guid]::NewGuid().ToString('N')+'.tmp'
+    try {
+        [IO.File]::WriteAllText($temporary,($Data | ConvertTo-Json -Depth 8),$utf8)
+        if(Test-Path -LiteralPath $File){[IO.File]::Replace($temporary,$File,[System.Management.Automation.Language.NullString]::Value)}else{[IO.File]::Move($temporary,$File)}
+    } finally {if(Test-Path -LiteralPath $temporary){Remove-Item -LiteralPath $temporary -Force}}
 }
 function Notify-EnvironmentChange {
     if ($Scope -ne 'Process') {
@@ -79,13 +83,16 @@ if ($Action -eq 'Rollback') {
     if (-not $ReceiptFile) { throw 'receipt-file-required' }
     Assert-NoLink $ReceiptFile
     $receipt = Get-Content -LiteralPath $ReceiptFile -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($receipt.schema -ne 1 -or $receipt.tool -ne 'ai-dev-path' -or $receipt.scope -notin @('Machine','User','Process') -or $receipt.state -ne 'applied') { throw 'invalid-environment-receipt' }
+    if ($receipt.schema -ne 1 -or $receipt.tool -ne 'ai-dev-path' -or $receipt.scope -notin @('Machine','User','Process') -or $receipt.state -notin @('applied','prepared')) { throw 'invalid-environment-receipt' }
     if ($receipt.scope -ne $Scope) { throw 'receipt-scope-mismatch' }
     Require-Admin
     $now = Read-PathState
-    if ($now.value -cne $receipt.after.value -or $now.kind -ne $receipt.after.kind) { throw 'path-changed-since-apply: preserve later edits; inspect receipt before manual merge' }
+    $pathAfter=$now.value -ceq $receipt.after.value -and $now.kind -eq $receipt.after.kind
+    $pathBefore=$now.value -ceq $receipt.before.value -and $now.kind -eq $receipt.before.kind
+    if(-not $pathAfter -and -not($receipt.state -eq 'prepared' -and $pathBefore)){throw 'path-changed-since-apply: preserve later edits; inspect receipt before manual merge'}
     if ($receipt.PSObject.Properties['javaChanged'] -and $receipt.javaChanged) {
-        if ((Read-JavaHome) -cne $receipt.javaAfter) { throw 'JAVA_HOME-changed-since-apply' }
+        $javaNow=Read-JavaHome
+        if($javaNow -cne $receipt.javaAfter -and -not($receipt.state -eq 'prepared' -and $javaNow -ceq $receipt.javaBefore)){throw 'JAVA_HOME-changed-since-apply'}
         Write-JavaHome $receipt.javaBefore
     }
     Write-PathState $receipt.before
@@ -124,6 +131,24 @@ foreach ($id in $Components) {
     Assert-NoLink $exe
     if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw "selected-executable-missing: $id; expected $exe" }
     $tools += [pscustomobject]@{id=$id;version=$version;custom=$custom;exe=$exe;directory=$(if($id -eq 'vscode'){Join-Path ([IO.Path]::GetDirectoryName($exe)) 'bin'}else{[IO.Path]::GetDirectoryName($exe)});command=$command}
+}
+$ownerSid=''
+if($Scope -eq 'User'){
+    $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
+    try {$ownerSid=$identity.User.Value} finally {$identity.Dispose()}
+}
+if($Action -eq 'Apply' -and $Scope -ne 'Process'){
+    $pendingDirectory=Join-Path $rootPath '.ai-dev-environment'
+    Assert-NoLink $pendingDirectory
+    if(Test-Path -LiteralPath $pendingDirectory){
+        foreach($file in @(Get-ChildItem -LiteralPath $pendingDirectory -File -Filter '*.json')){
+            Assert-NoLink $file.FullName
+            $pending=Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8|ConvertFrom-Json
+            if($pending.tool -eq 'ai-dev-path' -and $pending.state -eq 'prepared' -and $pending.scope -eq $Scope -and $pending.root -eq $rootPath -and ($Scope -eq 'Machine' -or $pending.ownerSid -eq $ownerSid)){
+                & $MyInvocation.MyCommand.Path -Action Rollback -Scope $Scope -ReceiptFile $file.FullName
+            }
+        }
+    }
 }
 $javaChanged = 'java8' -in $Components
 $javaBefore = Read-JavaHome
@@ -199,7 +224,7 @@ $stateRoot = Join-Path $rootPath '.ai-dev-environment'
 Assert-NoLink $stateRoot
 [void][IO.Directory]::CreateDirectory($stateRoot)
 $ReceiptFile = Join-Path $stateRoot (([guid]::NewGuid().ToString('N'))+'.json')
-$receipt = [pscustomobject]@{schema=1;tool='ai-dev-path';state='prepared';scope=$Scope;mode=$Mode;root=$rootPath;components=$Components;before=$before;after=$after;javaChanged=$javaChanged;javaBefore=$javaBefore;javaAfter=$javaAfter}
+$receipt = [pscustomobject]@{schema=1;tool='ai-dev-path';state='prepared';scope=$Scope;ownerSid=$ownerSid;mode=$Mode;root=$rootPath;components=$Components;before=$before;after=$after;javaChanged=$javaChanged;javaBefore=$javaBefore;javaAfter=$javaAfter}
 Save-Receipt $receipt $ReceiptFile
 $readback = Get-Content -LiteralPath $ReceiptFile -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($readback.before.value -cne $before.value -or $readback.after.value -cne $after.value) { throw 'backup-readback-failed' }
