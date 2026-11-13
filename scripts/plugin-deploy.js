@@ -21,10 +21,11 @@ function preserveAvailable(context, names) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     const before = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '# Plugin Profile\n\n| plugin | status | initSkill | dependsOn | notes |\n|---|---|---|---|---|\n';
     const newline = before.includes('\r\n') ? '\r\n' : '\n';
-    const value = deployment.catalog(context.capabilityRoot), statuses = deployment.profile(context.contextRoot);
+    const value = deployment.catalog(context.capabilityRoot), { statuses, retained } = deployment.profileContext(context.capabilityRoot, context.contextRoot);
     let next = before;
     for (const name of names) {
         const item = deployment.find(value, name);
+        if (retained.includes(item.manifest.name)) continue;
         if ([name, item.directory, ...(item.manifest.legacyNames || [])].some(alias => statuses.has(alias))) continue;
         if (!next.endsWith('\n')) next += newline;
         next += `| ${name} | available | ${item.manifest.initSkill || '-'} | ${(item.manifest.dependencies || []).join(', ') || '-'} | awaiting initialization |` + newline;
@@ -180,6 +181,10 @@ function main(argv) {
         } else throw new Error('Invalid deployment argument: ' + key);
     }
     if (action === 'initialize') return initialize(path.resolve(options['capability-root']), path.resolve(options['context-root']), options['auto-install'] === 'true');
+    if (action === 'profile-history' && options['capability-root'] && options['context-root']) {
+        const current = deployment.profileContext(path.resolve(options['capability-root']), path.resolve(options['context-root']));
+        return { retained: current.retained };
+    }
     if (options['capability-root'] && ['acquire-lock','release-lock'].includes(action)) {
         const root = path.resolve(options['capability-root']);
         if (action === 'acquire-lock') return fs.existsSync(path.join(root,'.git')) ? deployment.acquireLock(root,Number(options.pid)) : {token:null};

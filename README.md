@@ -702,4 +702,4 @@ WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codeb
 
 新项目默认基础安装，插件与必需 vendor 资源按需落盘。支持通用／IRIS／XC／UI 组合和“全选排除 XC”，依赖冲突展示完整链路。已有项目通过显式迁移接入，见[插件按需部署](docs/guides/plugin-deployment.md)。
 
-项目插件管理入口：[plugin-management](plugins/agent-context-kit/skills/plugin-management/SKILL.md)，支持体系选择、补装、启用、禁用和恢复；按需启用自动生成并验证发现入口，停用前展示受影响依赖。
+项目插件管理入口：[plugin-management](plugins/agent-context-kit/skills/plugin-management/SKILL.md)，支持体系选择、补装、启用、禁用和恢复；按需启用自动生成并验证发现入口，入口更新保护其它插件与自定义内容，停用前展示受影响依赖。

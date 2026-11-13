@@ -208,54 +208,58 @@ function Test-IsUnderPath {
     return $pathFull.StartsWith($parentFull, [System.StringComparison]::OrdinalIgnoreCase)
 }
 
-function Get-ThinIndexSourcePath {
-    param(
-        [string]$TargetFile,
-        [string]$ProjectRoot,
-        [ValidateSet("rule", "skill")]
-        [string]$Kind
-    )
-    $content = [System.IO.File]::ReadAllText($TargetFile, [System.Text.Encoding]::UTF8)
-    if ($content -notmatch "thin-index") {
-        return $null
-    }
+function Get-RuleThinIndexBody {
+    param([string]$RuleName, [string]$SourceRel)
+    return @(
+        "$(Convert-FromUtf8Base64 'IyDoloTntKLlvJXvvJo=')$RuleName",
+        "",
+        "$(Convert-FromUtf8Base64 '5pys5paH5Lu25pivIHRoaW4taW5kZXggLyDoloTntKLlvJXvvIzkuI3ljIXlkKvlrozmlbTop4TliJnjgII=')",
+        "",
+        "$(Convert-FromUtf8Base64 'QWdlbnQg5oyH5Luk77ya6K+75Y+W5pys5paH5Lu25ZCO77yM5b+F6aG757un57ut6K+75Y+W5bm26YG15b6q5o+S5Lu25YaF55yf5a6e6KeE5YiZ5paH5Lu277ya')",
+        "",
+        "- ``$sourceRel``",
+        "",
+        "$(Convert-FromUtf8Base64 '5aaC5Lu75Yqh5raJ5Y+K6aG555uu5beu5byC5oiW5pyN5Yqh5Zmo6IO95Yqb77yM6L+Y6ZyA6KaB6K+75Y+W77ya')",
+        "",
+        "- ``.agents/config/``",
+        "- ``.mcp.json``",
+        "",
+        "$(Convert-FromUtf8Base64 '5LiN6KaB5oqKIE1DUCDov57mjqXkv6Hmga/lpI3liLbliLDmnKzmlofku7bjgII=')"
+    ) -join [Environment]::NewLine
+}
 
-    $candidates = New-Object System.Collections.Generic.List[string]
-    $codeSpanMatches = [System.Text.RegularExpressions.Regex]::Matches($content, '`{1,2}(?<source>[^`]+?)`{1,2}')
-    foreach ($match in $codeSpanMatches) {
-        $candidates.Add($match.Groups["source"].Value.Trim())
-    }
+function Get-SkillThinIndexBody {
+    param([string]$SkillName, [string]$SourceRel)
+    return @(
+        "$(Convert-FromUtf8Base64 'IyDoloTntKLlvJXvvJo=')$skillName",
+        "",
+        "$(Convert-FromUtf8Base64 '5pys5paH5Lu25pivIHRoaW4taW5kZXggLyDoloTntKLlvJXvvIzkuI3ljIXlkKvlrozmlbQgc2tpbGzjgII=')",
+        "",
+        "$(Convert-FromUtf8Base64 'QWdlbnQg5oyH5Luk77ya6K+75Y+W5pys5paH5Lu25ZCO77yM5b+F6aG757un57ut6K+75Y+W5bm26YG15b6q5o+S5Lu25YaF55yf5a6eIHNraWxs77ya')",
+        "",
+        "- ``$sourceRel``",
+        "",
+        "$(Convert-FromUtf8Base64 '5aaC5Lu75Yqh5raJ5Y+K6aG555uu5beu5byC5oiW5pyN5Yqh5Zmo6IO95Yqb77yM6L+Y6ZyA6KaB6K+75Y+W77ya')",
+        "",
+        "- ``.agents/config/``",
+        "- ``.mcp.json``",
+        "",
+        "$(Convert-FromUtf8Base64 '5LiN6KaB5oqKIE1DUCDov57mjqXkv6Hmga/lpI3liLbliLDmnKzmlofku7bjgII=')"
+    ) -join [Environment]::NewLine
+}
 
-    $sourcePattern = if ($Kind -eq "rule") {
-        '(?<source>\.agents/plugins/[^\s`]+/rules/[^\s`]+\.md)'
-    }
-    else {
-        '(?<source>\.agents/plugins/[^\s`]+/skills/[^\s`]+/SKILL\.md)'
-    }
-    foreach ($line in ($content -split "`r?`n")) {
-        $sourceLineMatch = [System.Text.RegularExpressions.Regex]::Match($line, $sourcePattern)
-        if ($sourceLineMatch.Success) {
-            $candidates.Add($sourceLineMatch.Groups["source"].Value.Trim())
-        }
-    }
-
-    foreach ($candidate in $candidates) {
-        if ([string]::IsNullOrWhiteSpace($candidate)) {
-            continue
-        }
-        $normalized = $candidate -replace "\\", "/"
-        $isExpectedSource = if ($Kind -eq "rule") {
-            $normalized.Contains("/rules/") -and $normalized.EndsWith(".md")
-        }
-        else {
-            $normalized.Contains("/skills/") -and $normalized.EndsWith("/SKILL.md")
-        }
-        if ($normalized.Contains(".agents/plugins/") -and $isExpectedSource) {
-            return Resolve-FullPathFromBase -BasePath $ProjectRoot -Path $candidate
-        }
-    }
-
-    return $null
+function Get-ManagedThinIndexMetadata {
+    param([string]$Content, [string[]]$Fields = @('name', 'description', 'thin-index', 'source'))
+    $normalized = $Content.Replace("`r`n", "`n").TrimStart([char]0xFEFF)
+    $header = [regex]::Match($normalized, '\A---\n(?<header>[\s\S]*?)\n---(?:\n|$)(?<body>[\s\S]*)\z')
+    if (-not $header.Success) { return $null }
+    $headerFields = $header.Groups['header'].Value
+    $source = [regex]::Matches($headerFields, '(?m)^source:[ \t]*([^\n]+?)[ \t]*$')
+    $marker = [regex]::Matches($headerFields, '(?m)^thin-index:[ \t]*true[ \t]*$')
+    $fieldPattern = '(?m)^(?:' + ($Fields -join '|') + '):[^\n]*(?:\n[ \t]+[^\n]*)*\n?'
+    $unknown = [regex]::Replace($headerFields + "`n", $fieldPattern, '')
+    if ($source.Count -ne 1 -or $marker.Count -ne 1 -or $unknown.Trim().Length -ne 0) { return $null }
+    return [pscustomobject]@{ source = $source[0].Groups[1].Value.Trim().Replace('\', '/'); body = $header.Groups['body'].Value.Trim() }
 }
 
 $projectRootFull = Resolve-FullPath $ProjectRoot
@@ -288,6 +292,7 @@ $pluginsRoot = Join-Path $capabilityRootFull "plugins"
 
 # The updater calls this canonical entry directly; owner policy must not depend on a wrapper.
 $pluginManifestPath = Join-Path $pluginRootFull ".agents-plugin/plugin.json"
+$pluginManifest = $null
 if (Test-Path -LiteralPath $pluginManifestPath -PathType Leaf) {
     $pluginManifest = [System.IO.File]::ReadAllText($pluginManifestPath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
     if ($null -ne $pluginManifest.thinIndex -and $null -ne $pluginManifest.thinIndex.excludeSkills) {
@@ -297,65 +302,61 @@ if (Test-Path -LiteralPath $pluginManifestPath -PathType Leaf) {
 
 $results = New-Object System.Collections.Generic.List[object]
 
-# Owner migrations, including disabled owners, must not lose user content during global stale cleanup.
-$migratedSkillNames = @("iris-demand-commit", "iris-demand-entry") # Removed demand entries are retired only by the updater migration.
-if (Test-Path -LiteralPath $pluginsRoot -PathType Container) {
-    Get-ChildItem -LiteralPath $pluginsRoot -Directory | ForEach-Object {
-        $ownerManifestPath = Join-Path $_.FullName ".agents-plugin/plugin.json"
-        if (Test-Path -LiteralPath $ownerManifestPath -PathType Leaf) {
-            $ownerManifest = [System.IO.File]::ReadAllText($ownerManifestPath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
-            if ($null -ne $ownerManifest.legacyRootSkillHashes) { $migratedSkillNames += @($ownerManifest.legacyRootSkillHashes.PSObject.Properties.Name) }
-        }
+# Only explicit names retired by this owner are eligible for compatibility cleanup.
+# A source missing from the current checkout does not prove that it was deleted.
+$legacyOwnerNames = @()
+foreach ($field in @('legacyNames', 'legacy_names', 'aliases')) {
+    if ($null -ne $pluginManifest -and $pluginManifest.PSObject.Properties.Name -contains $field) {
+        $legacyOwnerNames += @($pluginManifest.$field | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
     }
 }
-
-if (-not $Remove -and (Test-Path -LiteralPath $rulesTarget -PathType Container) -and (Test-Path -LiteralPath $pluginsRoot -PathType Container)) {
-    Get-ChildItem -LiteralPath $rulesTarget -File -Filter "*.md" | Sort-Object Name | ForEach-Object {
-        $sourcePath = Get-ThinIndexSourcePath -TargetFile $_.FullName -ProjectRoot $projectRootFull -Kind "rule"
-        if ($null -eq $sourcePath) {
-            return
-        }
-        if ((Test-IsUnderPath -Path $sourcePath -ParentPath $pluginsRoot) -and (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf))) {
-            $targetRel = Get-RelativePathPortable -From $projectRootFull -To $_.FullName
-            $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourcePath
-            if ($Mode -eq "Write") {
-                Remove-Item -LiteralPath $_.FullName
-                $results.Add((Write-Result -Status "removed" -Target $targetRel -Source $sourceRel -Reason "stale plugin rule thin-index"))
-            }
-            else {
-                $results.Add((Write-Result -Status "stale" -Target $targetRel -Source $sourceRel -Reason "stale plugin rule thin-index"))
-            }
-        }
+$legacyOwnerNames = @($legacyOwnerNames | Where-Object { $_ -ne (Split-Path -Leaf $pluginRootFull) -and $_ -ne $pluginManifest.name } | Select-Object -Unique)
+if (-not $Remove -and $legacyOwnerNames.Count -gt 0) {
+    $legacyTargets = @()
+    if (Test-Path -LiteralPath $rulesTarget -PathType Container) { $legacyTargets += @(Get-ChildItem -LiteralPath $rulesTarget -File -Filter '*.md') }
+    if (Test-Path -LiteralPath $skillsTarget -PathType Container) {
+        $legacyTargets += @(Get-ChildItem -LiteralPath $skillsTarget -Directory | ForEach-Object {
+            Get-Item -LiteralPath (Join-Path $_.FullName 'SKILL.md') -Force -ErrorAction SilentlyContinue
+        })
     }
-}
-
-if (-not $Remove -and (Test-Path -LiteralPath $skillsTarget -PathType Container) -and (Test-Path -LiteralPath $pluginsRoot -PathType Container)) {
-    Get-ChildItem -LiteralPath $skillsTarget -Directory | Sort-Object Name | ForEach-Object {
-        if (($migratedSkillNames -contains $_.Name) -or ($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -or ((Get-Item -LiteralPath $skillsTarget -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { return }
-        $targetFile = Join-Path $_.FullName "SKILL.md"
-        $targetEntry = Get-Item -LiteralPath $targetFile -Force -ErrorAction SilentlyContinue
-        if ($null -ne $targetEntry -and ($targetEntry.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { return }
-        if (-not (Test-Path -LiteralPath $targetFile -PathType Leaf)) {
-            return
+    foreach ($target in $legacyTargets) {
+        $linked = $false
+        $cursor = $target.FullName
+        while ($cursor -and (($cursor -eq $contextRootFull) -or (Test-IsUnderPath $cursor $contextRootFull))) {
+            $entry = Get-Item -LiteralPath $cursor -Force -ErrorAction SilentlyContinue
+            if ($null -ne $entry -and ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint)) { $linked = $true; break }
+            if ($cursor -eq $contextRootFull) { break }
+            $cursor = Split-Path -Parent $cursor
         }
-        $sourcePath = Get-ThinIndexSourcePath -TargetFile $targetFile -ProjectRoot $projectRootFull -Kind "skill"
-        if ($null -eq $sourcePath) {
-            return
+        if ($linked -or $target.PSIsContainer) { continue }
+        $before = [IO.File]::ReadAllText($target.FullName, [Text.Encoding]::UTF8)
+        $kind = if ($target.Name -eq 'SKILL.md') { 'skill' } else { 'rule' }
+        $fields = @('name', 'description', 'thin-index', 'source')
+        if ($kind -eq 'rule') { $fields += @('task-affinity', 'related') }
+        $metadata = Get-ManagedThinIndexMetadata -Content $before -Fields $fields
+        if ($null -eq $metadata) { continue }
+        $belongsToRetiredOwner = $false
+        $sourcePattern = if ($kind -eq 'skill') { '^skills/[^/]+/SKILL\.md$' } else { '^rules/[^/]+\.md$' }
+        foreach ($legacyName in $legacyOwnerNames) {
+            $prefix = '.agents/plugins/' + $legacyName + '/'
+            if ($metadata.source.StartsWith($prefix, [StringComparison]::Ordinal) -and
+                $metadata.source.Substring($prefix.Length) -match $sourcePattern) { $belongsToRetiredOwner = $true; break }
         }
-        if ((Test-IsUnderPath -Path $sourcePath -ParentPath $pluginsRoot) -and (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf))) {
-            $targetRel = Get-RelativePathPortable -From $projectRootFull -To $targetFile
-            $sourceRel = Get-RelativePathPortable -From $projectRootFull -To $sourcePath
-            if ($Mode -eq "Write") {
-                Remove-Item -LiteralPath $targetFile
-                if (@(Get-ChildItem -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue).Count -eq 0) {
-                    Remove-Item -LiteralPath $_.FullName
-                }
-                $results.Add((Write-Result -Status "removed" -Target $targetRel -Source $sourceRel -Reason "stale plugin skill thin-index"))
+        if (-not $belongsToRetiredOwner) { continue }
+        $entryName = if ($kind -eq 'skill') { Split-Path -Leaf $target.DirectoryName } else { $target.BaseName }
+        $knownBody = if ($kind -eq 'skill') { Get-SkillThinIndexBody $entryName $metadata.source } else { Get-RuleThinIndexBody $entryName $metadata.source }
+        if ($metadata.body.Length -ne 0 -and $metadata.body -cne $knownBody.Replace("`r`n", "`n").Trim()) { continue }
+        $targetRel = Get-RelativePathPortable -From $projectRootFull -To $target.FullName
+        $status = if ($Mode -eq 'Write') { 'removed' } else { 'stale' }
+        if ($Mode -eq 'Write') {
+            if ([IO.File]::ReadAllText($target.FullName, [Text.Encoding]::UTF8) -cne $before) {
+                $results.Add((Write-Result 'thin-index-conflict' $targetRel $metadata.source 'target changed before owner migration'))
+                continue
             }
-            else {
-                $results.Add((Write-Result -Status "stale" -Target $targetRel -Source $sourceRel -Reason "stale plugin skill thin-index"))
-            }
+            Remove-Item -LiteralPath $target.FullName
+            if ($target.Name -eq 'SKILL.md' -and @(Get-ChildItem -LiteralPath $target.DirectoryName -Force).Count -eq 0) { [IO.Directory]::Delete($target.DirectoryName, $false) }
         }
+        $results.Add((Write-Result $status $targetRel $metadata.source ('stale plugin ' + $kind + ' thin-index; explicit owner migration')))
     }
 }
 
@@ -392,22 +393,7 @@ if (Test-Path -LiteralPath $rulesSource -PathType Container) {
             $contentLines.Add("")
         }
 
-        @(
-            "$(Convert-FromUtf8Base64 'IyDoloTntKLlvJXvvJo=')$($_.BaseName)",
-            "",
-            "$(Convert-FromUtf8Base64 '5pys5paH5Lu25pivIHRoaW4taW5kZXggLyDoloTntKLlvJXvvIzkuI3ljIXlkKvlrozmlbTop4TliJnjgII=')",
-            "",
-            "$(Convert-FromUtf8Base64 'QWdlbnQg5oyH5Luk77ya6K+75Y+W5pys5paH5Lu25ZCO77yM5b+F6aG757un57ut6K+75Y+W5bm26YG15b6q5o+S5Lu25YaF55yf5a6e6KeE5YiZ5paH5Lu277ya')",
-            "",
-            "- ``$sourceRel``",
-            "",
-            "$(Convert-FromUtf8Base64 '5aaC5Lu75Yqh5raJ5Y+K6aG555uu5beu5byC5oiW5pyN5Yqh5Zmo6IO95Yqb77yM6L+Y6ZyA6KaB6K+75Y+W77ya')",
-            "",
-            "- ``.agents/config/``",
-            "- ``.mcp.json``",
-            "",
-            "$(Convert-FromUtf8Base64 '5LiN6KaB5oqKIE1DUCDov57mjqXkv6Hmga/lpI3liLbliLDmnKzmlofku7bjgII=')"
-        ) | ForEach-Object { $contentLines.Add($_) }
+        $contentLines.Add((Get-RuleThinIndexBody -RuleName $_.BaseName -SourceRel $sourceRel))
         $content = @($contentLines) -join [Environment]::NewLine
 
         $results.Add((Update-ManagedThinIndex $targetFile $targetRel $sourceRel $content @('name', 'description', 'task-affinity', 'related')))
@@ -430,7 +416,7 @@ if (Test-Path -LiteralPath $skillsSource -PathType Container) {
                 $targetItem = Get-Item -LiteralPath $excludedTarget -Force
                 $isLink = ($targetItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
                 $parentPath = Split-Path -Parent $excludedTarget
-                while ($parentPath -and (Test-IsUnderPath -Path $parentPath -ParentPath $contextRootFull)) {
+                while ($parentPath -and (($parentPath -eq $contextRootFull) -or (Test-IsUnderPath -Path $parentPath -ParentPath $contextRootFull))) {
                     $parentItem = Get-Item -LiteralPath $parentPath -Force
                     if (($parentItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { $isLink = $true; break }
                     if ($parentPath -eq $contextRootFull) { break }
@@ -438,11 +424,16 @@ if (Test-Path -LiteralPath $skillsSource -PathType Container) {
                 }
                 if (-not $isLink) {
                     $excludedContent = [System.IO.File]::ReadAllText($excludedTarget, [System.Text.Encoding]::UTF8)
-                    $headerMatch = [regex]::Match($excludedContent, '\A\uFEFF?---\r?\n(?<header>[\s\S]*?)\r?\n---(?:\r?\n|$)')
-                    $sourceMatch = [regex]::Match($headerMatch.Groups['header'].Value, '(?m)^source:\s*([^\r\n]+)\s*$')
-                    if ($headerMatch.Success -and ($headerMatch.Groups['header'].Value -match '(?m)^thin-index:\s*true\s*$') -and $sourceMatch.Success -and ($sourceMatch.Groups[1].Value.Trim().Replace('\', '/') -ceq $sourceRel.Replace('\', '/'))) {
+                    $metadata = Get-ManagedThinIndexMetadata $excludedContent
+                    $expectedBody = (Get-SkillThinIndexBody -SkillName $skillName -SourceRel $sourceRel).Replace("`r`n", "`n").Trim()
+                    if ($null -ne $metadata -and $metadata.source -ceq $sourceRel.Replace('\', '/') -and
+                        ($metadata.body.Length -eq 0 -or $metadata.body -ceq $expectedBody)) {
                         $removeManagedIndex = $true
                         if ($Mode -eq "Write") {
+                            if ([IO.File]::ReadAllText($excludedTarget, [Text.Encoding]::UTF8) -cne $excludedContent) {
+                                $results.Add((Write-Result 'thin-index-conflict' $targetRel $sourceRel 'target changed before excluded init removal'))
+                                return
+                            }
                             Remove-Item -LiteralPath $excludedTarget
                             $results.Add((Write-Result -Status "removed" -Target $targetRel -Source $sourceRel -Reason "excluded managed plugin skill thin-index"))
                         } else {
@@ -553,22 +544,7 @@ if (Test-Path -LiteralPath $skillsSource -PathType Container) {
         $contentLines.Add("---")
         $contentLines.Add("")
 
-        @(
-            "$(Convert-FromUtf8Base64 'IyDoloTntKLlvJXvvJo=')$skillName",
-            "",
-            "$(Convert-FromUtf8Base64 '5pys5paH5Lu25pivIHRoaW4taW5kZXggLyDoloTntKLlvJXvvIzkuI3ljIXlkKvlrozmlbQgc2tpbGzjgII=')",
-            "",
-            "$(Convert-FromUtf8Base64 'QWdlbnQg5oyH5Luk77ya6K+75Y+W5pys5paH5Lu25ZCO77yM5b+F6aG757un57ut6K+75Y+W5bm26YG15b6q5o+S5Lu25YaF55yf5a6eIHNraWxs77ya')",
-            "",
-            "- ``$sourceRel``",
-            "",
-            "$(Convert-FromUtf8Base64 '5aaC5Lu75Yqh5raJ5Y+K6aG555uu5beu5byC5oiW5pyN5Yqh5Zmo6IO95Yqb77yM6L+Y6ZyA6KaB6K+75Y+W77ya')",
-            "",
-            "- ``.agents/config/``",
-            "- ``.mcp.json``",
-            "",
-            "$(Convert-FromUtf8Base64 '5LiN6KaB5oqKIE1DUCDov57mjqXkv6Hmga/lpI3liLbliLDmnKzmlofku7bjgII=')"
-        ) | ForEach-Object { $contentLines.Add($_) }
+        $contentLines.Add((Get-SkillThinIndexBody -SkillName $skillName -SourceRel $sourceRel))
         $content = @($contentLines) -join [Environment]::NewLine
 
         $results.Add((Update-ManagedThinIndex $targetFile $targetRel $sourceRel $content @('name', 'description') $legacyHashes))

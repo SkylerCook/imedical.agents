@@ -112,4 +112,58 @@ for (const shell of shells) {
         assert.match(unverified.stderr, /discovery verification incomplete/);
         assert.deepEqual(fs.readFileSync(f.profileFile), before);
     });
+
+    test(shell + ': file and directory conflicts preserve the profile before any discovery write', t => {
+        for (const shape of ['rule-directory', 'skill-directory-file', 'skill-entry-directory']) {
+            const f = fixture(t, shape === 'rule-directory' ? 'imedical-ui' : 'bos-plugin');
+            const before = fs.readFileSync(f.profileFile);
+            const target = shape === 'rule-directory' ? path.join(f.root, 'rules/imedical_ui.md') :
+                path.join(f.root, 'skills/bos-demand-query', ...(shape === 'skill-entry-directory' ? ['SKILL.md'] : []));
+            fs.mkdirSync(path.dirname(target), { recursive: true });
+            if (shape === 'skill-directory-file') fs.writeFileSync(target, 'project-owned file\n');
+            else fs.mkdirSync(target);
+            const result = run(shell, f, 'enabled');
+            assert.notEqual(result.status, 0, shape);
+            assert.match(result.stderr, /Custom discovery entries require review/);
+            assert.deepEqual(fs.readFileSync(f.profileFile), before);
+            assert.ok(!fs.existsSync(path.join(f.root, 'skills', shape === 'rule-directory' ? 'imedical-ui' : 'bos-demand-entry', 'SKILL.md')));
+            if (shape === 'skill-directory-file') assert.equal(fs.readFileSync(target, 'utf8'), 'project-owned file\n');
+            else assert.ok(fs.statSync(target).isDirectory());
+        }
+    });
+
+    test(shell + ': unknown generator results and write exceptions cannot update the profile', t => {
+        const f = fixture(t), runtime = path.join(f.project, 'runtime');
+        fs.mkdirSync(runtime);
+        const entry = path.join(runtime, 'update-plugin-profile.ps1');
+        fs.copyFileSync(path.join(repo, 'scripts/update-plugin-profile.ps1'), entry);
+        const before = fs.readFileSync(f.profileFile);
+        for (const body of [
+            'Write-Output "unrecognized output"',
+            '[pscustomobject]@{status="unexpected"} | Format-List',
+            '[pscustomobject]@{status="missing";reason="skill directory has no SKILL.md"} | Format-List',
+            'if ($Mode -eq "Write") { throw "synthetic generation failure" }; [pscustomobject]@{status="unchanged"} | Format-List'
+        ]) {
+            fs.writeFileSync(path.join(runtime, 'generate-plugin-thin-index.ps1'),
+                'param($PluginPath,$ProjectRoot,$ContextRoot,$CapabilityRoot,$Mode)\n' + body + '\n');
+            const result = run(shell, f, 'enabled', { entry });
+            assert.notEqual(result.status, 0, body);
+            assert.deepEqual(fs.readFileSync(f.profileFile), before);
+        }
+    });
+
+    test(shell + ': quoted plugin names preserve explicit states and notes during enablement', t => {
+        const f = fixture(t);
+        for (const name of ['feature-disabled', 'feature-available']) {
+            const directory = path.join(f.root, 'plugins', name, '.agents-plugin');
+            fs.mkdirSync(directory, { recursive: true });
+            fs.writeFileSync(path.join(directory, 'plugin.json'), JSON.stringify({ name, version: '1.0.0' }));
+        }
+        fs.appendFileSync(f.profileFile, '| `FEATURE-DISABLED` | disabled | - | - | keep disabled note |\n| `feature-available` | available | - | - | keep available note |\n');
+        success(run(shell, f, 'enabled'));
+        assert.equal(profile(f.root).get('feature-disabled'), 'disabled');
+        assert.equal(profile(f.root).get('feature-available'), 'available');
+        assert.match(fs.readFileSync(f.profileFile, 'utf8'), /keep disabled note/);
+        assert.match(fs.readFileSync(f.profileFile, 'utf8'), /keep available note/);
+    });
 }

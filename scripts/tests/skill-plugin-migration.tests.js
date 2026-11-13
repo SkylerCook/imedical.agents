@@ -9,6 +9,7 @@ const repo = path.resolve(__dirname, '../..');
 const shell = process.env.TEST_POWERSHELL || (process.platform === 'win32' ? 'powershell.exe' : 'pwsh');
 const base = path.join(fs.realpathSync.native(os.tmpdir()), 'codex'); fs.mkdirSync(base, { recursive: true });
 const temp = fs.mkdtempSync(path.join(base, 'skill-owner-migration-'));
+const projectEntry = '# Custom project entry\nDo not rewrite.\n\n[Capability docs](.agents/docs/README.md)\n';
 const owners = { 'coding-agent-adaptation': 'agent-context-kit', 'agent-framework-feedback': 'agent-framework-evolution', 'reusable-content-packaging': 'agent-framework-evolution' };
 const old = Object.fromEntries(Object.keys(owners).map(name => [name, command('git', ['-C', repo, 'show', `f01bf0e:skills/${name}/SKILL.md`])]));
 function command(exe, args, expected = 0) {
@@ -24,7 +25,7 @@ function write(file, value) { fs.mkdirSync(path.dirname(file), { recursive: true
 function copyRuntime(capability) {
   fs.mkdirSync(path.join(capability, 'scripts'), { recursive: true });
   for (const f of fs.readdirSync(path.join(repo, 'scripts'))) if (/\.(ps1|js)$/.test(f)) fs.copyFileSync(path.join(repo, 'scripts', f), path.join(capability, 'scripts', f));
-  for (const f of ['scripts/lib', 'agents', 'workflows', 'hooks', 'plugins/agent-context-kit', 'plugins/agent-framework-evolution']) fs.cpSync(path.join(repo, f), path.join(capability, f), { recursive: true });
+  for (const f of ['scripts/lib', 'agents', 'workflows', 'hooks', 'docs', 'plugins/agent-context-kit', 'plugins/agent-framework-evolution']) fs.cpSync(path.join(repo, f), path.join(capability, f), { recursive: true });
 }
 function init(root) {
   fs.mkdirSync(root, { recursive: true }); git(root, 'init', '-q'); git(root, 'config', 'user.name', 'Migration Test'); git(root, 'config', 'user.email', 'migration@example.invalid');
@@ -34,7 +35,7 @@ function fixture(name) {
   git(path.join(root, '.agents'), 'config', 'core.autocrlf', 'false');
   git(path.join(root, '.agents'), 'add', '.');
   git(path.join(root, '.agents'), '-c', 'core.hooksPath=', 'commit', '-qm', 'test runtime baseline');
-  write(path.join(root, 'AGENTS.md'), '# Custom project entry\nDo not rewrite.'); return root;
+  write(path.join(root, 'AGENTS.md'), projectEntry); return root;
 }
 function ps(script, args, expected = 0) { return command(shell, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, ...args], expected); }
 function update(root, mode = 'Write', noPull = true, expected = 0) {
@@ -73,7 +74,7 @@ test('fresh and legacy projects retain stable names, read-only preview, idempote
   update(root); assert.deepEqual(fs.readFileSync(skill(root, 'agent-framework-feedback')), snapshot);
   const profile = fs.readFileSync(path.join(root, '.agents/config/plugin_profile.md'), 'utf8');
   assert.match(profile, /agent-framework-evolution \| enabled/);
-  assert.equal(fs.readFileSync(path.join(root, 'AGENTS.md'), 'utf8'), '# Custom project entry\nDo not rewrite.');
+  assert.equal(fs.readFileSync(path.join(root, 'AGENTS.md'), 'utf8'), projectEntry);
   const fresh = fixture('fresh'); update(fresh); assertRoutes(fresh);
 });
 test('custom content and linked skill directories are preserved even with Force', () => {
@@ -150,7 +151,7 @@ test('Overlay generates module-local owner indexes without modifying shared capa
 
 
 test('pure init policy is explicit while daily initSkill entries remain discoverable', () => {
-  const pure = ['agent-framework-evolution', 'bos-plugin', 'coding-iris-plugin', 'i18n-iris-plugin', 'imedicalxc-doctor-perf-analysis-engineer', 'iris-cure-form-dev', 'iris-imedical-doctor-ai', 'iris-interface-dev'];
+  const pure = ['agent-framework-evolution', 'bos-plugin', 'coding-iris-plugin', 'i18n-iris-plugin', 'imedical-ui', 'iris-ui', 'mobile-dev', 'imedicalxc-doctor-perf-analysis-engineer', 'iris-cure-form-dev', 'iris-imedical-doctor-ai', 'iris-interface-dev'];
   for (const owner of fs.readdirSync(path.join(repo, 'plugins'))) {
     const manifest = path.join(repo, 'plugins', owner, '.agents-plugin/plugin.json');
     if (!fs.existsSync(manifest)) continue;

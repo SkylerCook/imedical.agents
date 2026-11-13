@@ -65,6 +65,9 @@ function New-TestProject {
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/generate-plugin-thin-index.ps1") -Destination (Join-Path $root ".agents/scripts/generate-plugin-thin-index.ps1")
   Copy-Item -LiteralPath $agentThinIndexScriptUnderTest -Destination (Join-Path $root ".agents/scripts/generate-agent-thin-index.ps1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/refresh-agents-sparse.js") -Destination (Join-Path $root ".agents/scripts/refresh-agents-sparse.js")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/plugin-deploy.js") -Destination (Join-Path $root ".agents/scripts/plugin-deploy.js")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/check-plugin-deactivation.js") -Destination (Join-Path $root ".agents/scripts/check-plugin-deactivation.js")
+  Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/plugin-deployment.js") -Destination (Join-Path $root ".agents/scripts/lib/plugin-deployment.js")
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-agents.ps1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-documentation-entry.js") -Destination (Join-Path $root ".agents/scripts/sync-documentation-entry.js")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/project-docs.js") -Destination (Join-Path $root ".agents/scripts/project-docs.js")
@@ -1516,18 +1519,14 @@ try {
   Assert-Contains $afterWrite "oldField: legacy-value" "Write must not delete deprecated candidate fields"
   Assert-Contains $afterWrite "newField: TODO" "Write should append missing config keys"
 
+  $retainedRulePath = Join-Path $projectRoot ".agents/rules/sample_rule.md"
+  $retainedRuleBefore = [IO.File]::ReadAllText($retainedRulePath, [Text.Encoding]::UTF8)
   Remove-Item -LiteralPath (Join-Path $projectRoot ".agents/plugins/sample-plugin/rules/sample_rule.md")
   git -C (Join-Path $projectRoot ".agents") add -A -- plugins/sample-plugin/rules/sample_rule.md | Out-Null
   git -C (Join-Path $projectRoot ".agents") commit -qm "test: upstream removes rule" | Out-Null
   $staleOutput = & (Join-Path $projectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $projectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin | Out-String
-  if (-not $staleOutput.Contains("removed")) {
-    Write-Host $staleOutput
-    if (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sample_rule.md")) {
-      Write-Host (Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/rules/sample_rule.md"))
-    }
-  }
-  Assert-Contains $staleOutput "removed" "Write should remove stale plugin thin-index files"
-  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sample_rule.md"))) "Stale thin-index should be removed"
+  Assert-True (Test-Path -LiteralPath $retainedRulePath -PathType Leaf) "Source absence alone must not remove a plugin thin-index"
+  Assert-True ([IO.File]::ReadAllText($retainedRulePath, [Text.Encoding]::UTF8) -ceq $retainedRuleBefore) "An unidentified retired rule must remain unchanged"
 
   Remove-Item -LiteralPath (Join-Path $projectRoot ".agents/vendor/test-vendor/skills/vendor-test-skill/SKILL.md")
   git -C (Join-Path $projectRoot ".agents") add -A -- vendor/test-vendor/skills/vendor-test-skill/SKILL.md | Out-Null
@@ -1572,17 +1571,17 @@ try {
     "This is a project rule and mentions thin-index as plain prose only."
   )
   $allPluginCleanupDryRun = & (Join-Path $projectRoot ".agents/scripts/generate-plugin-thin-index.ps1") -PluginPath ".agents/plugins/agent-context-kit" -ProjectRoot $projectRoot -Mode DryRun | Out-String
-  Assert-Contains $allPluginCleanupDryRun "sftp-server.md" "DryRun from a plugin without rules should still report stale indexes from other plugins"
-  Assert-Contains $allPluginCleanupDryRun "iris-agentic-dev.md" "All-plugin cleanup should not depend on current PluginPath rules"
+  Assert-True (-not $allPluginCleanupDryRun.Contains("sftp-server.md")) "Single-owner preview must not inspect another owner legacy rule"
+  Assert-True (-not $allPluginCleanupDryRun.Contains("iris-agentic-dev.md")) "Single-owner preview must not infer another owner retirement from missing sources"
   $legacyCodingDryRun = & (Join-Path $projectRoot ".agents/scripts/generate-plugin-thin-index.ps1") -PluginPath ".agents/plugins/coding-iris-plugin" -ProjectRoot $projectRoot -Mode DryRun | Out-String
-  Assert-Contains $legacyCodingDryRun "sftp-server.md" "DryRun should report stale legacy sftp-server thin-index"
-  Assert-Contains $legacyCodingDryRun "iris-agentic-dev.md" "DryRun should report stale legacy iris-agentic-dev thin-index"
+  Assert-True (-not $legacyCodingDryRun.Contains("sftp-server.md")) "A missing same-owner source is not proof of retirement"
+  Assert-True (-not $legacyCodingDryRun.Contains("iris-agentic-dev.md")) "Same-owner legacy spelling remains until an explicit migration identifies it"
   Assert-Contains $legacyCodingDryRun "sftp_server.md" "DryRun should generate current sftp_server thin-index"
   Assert-Contains $legacyCodingDryRun "iris_agentic_dev.md" "DryRun should generate current iris_agentic_dev thin-index"
   $legacyCodingWrite = & (Join-Path $projectRoot ".agents/scripts/generate-plugin-thin-index.ps1") -PluginPath ".agents/plugins/coding-iris-plugin" -ProjectRoot $projectRoot -Mode Write | Out-String
-  Assert-Contains $legacyCodingWrite "removed" "Write should remove stale legacy coding thin-index files"
-  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sftp-server.md"))) "Legacy sftp-server thin-index should be removed"
-  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/iris-agentic-dev.md"))) "Legacy iris-agentic-dev thin-index should be removed"
+  Assert-True (-not $legacyCodingWrite.Contains("stale plugin rule thin-index")) "Write must not infer rule deletion from source absence"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sftp-server.md")) "Legacy sftp-server thin-index must be preserved without explicit retirement"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/iris-agentic-dev.md")) "Legacy iris-agentic-dev thin-index must be preserved without explicit retirement"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/project_custom.md")) "Project custom rules must not be removed"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/sftp_server.md")) "Current sftp_server thin-index should be generated"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/iris_agentic_dev.md")) "Current iris_agentic_dev thin-index should be generated"
@@ -1638,8 +1637,8 @@ try {
     '- `.agents/plugins/i18n-iris-plugin/rules/i18n-hisui-widget-index.md`'
   )
   $allPluginCleanupWrite = & (Join-Path $projectRoot ".agents/scripts/generate-plugin-thin-index.ps1") -PluginPath ".agents/plugins/agent-context-kit" -ProjectRoot $projectRoot -Mode Write | Out-String
-  Assert-Contains $allPluginCleanupWrite "removed" "Write from a plugin without rules should remove stale indexes from other plugins"
-  Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/i18n-hisui-widget-index.md"))) "Legacy i18n HISUI thin-index should be removed"
+  Assert-True (-not $allPluginCleanupWrite.Contains("i18n-hisui-widget-index.md")) "Write must stay within the selected owner"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/i18n-hisui-widget-index.md")) "Another owner legacy thin-index must remain untouched"
   $legacyI18nWrite = & (Join-Path $projectRoot ".agents/scripts/generate-plugin-thin-index.ps1") -PluginPath ".agents/plugins/i18n-iris-plugin" -ProjectRoot $projectRoot -Mode Write | Out-String
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/rules/i18n_hisui_widget_index.md")) "Current i18n_hisui_widget_index thin-index should be generated"
 }

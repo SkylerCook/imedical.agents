@@ -28,9 +28,11 @@ node <CapabilityRoot>/scripts/plugin-deploy.js ensure --project-root . --group i
 
 用户尚未授予自动补装权限时，明确要求的本次安装使用 --explicit。取消后续自动补装使用 configure --auto-install false。偏好保存在 ContextRoot/config/plugin-deployment.json，与部署方式共同管理，插件状态仍以原 profile 为准。
 
-ensure 解析必需依赖、下载插件及资源、校验 manifest 与能力目录的一致性，然后返回 dependency order 下的初始化技能。Agent 依次读取并执行这些技能，集中处理必要配置。已安装能力可直接读取源技能，宿主发现机制需要重新加载时告知用户。
+ensure 解析必需依赖、下载插件及资源、校验 manifest 与能力目录的一致性，然后按依赖顺序返回初始化 source。source 相对 CapabilityRoot：有 initSkill 时指向插件内的 SKILL.md，无 initSkill 时指向 plugins/<插件目录>/<entry>。Agent 依次读取这些接入契约，集中处理必要配置。已安装能力可直接读取源文件，宿主发现机制需要重新加载时告知用户。
 
-新插件保持 available，先由领域初始化技能验收必要配置，再使用既有 update-plugin-profile.ps1 标记 enabled。按需模式下，该工具先核对插件正文、已启用的必需依赖和自定义入口冲突，再复用根 thin-index 生成器写入并读回验证发现入口，成功后记录 enabled；无需另行手动生成入口。全量模式保留原有注册、更新流程。显式 disabled 的插件阻止任务自动补装和启用，恢复须由用户明确要求。
+新插件保持 available，先由领域接入契约验收必要配置，再使用既有 update-plugin-profile.ps1 标记 enabled。按需模式下，该工具先核对插件正文、已启用的必需依赖和自定义入口冲突，再复用根 thin-index 生成器写入并读回验证发现入口，成功后记录 enabled；失败回执不能作为启用成功。全量模式保留原有注册、更新流程。显式 disabled 的插件阻止任务自动补装和启用，恢复须由用户明确要求。
+
+单插件生成只维护当前 owner 及其声明的兼容入口。其它 owner 的入口保持原状，source 未落盘本身不是删除依据。当前 owner 的 legacyNames 旧入口及排除的纯 init 旧入口，仅在可证明是未定制的受管内容时兼容清理；自定义正文、未知字段和链接保留。
 
 自动补装仅覆盖当前仓库能力包和必需资源。外部账号配置、数据传输、服务器写入、发布等操作沿对应技能和项目的授权范围。
 
@@ -55,7 +57,9 @@ node <CapabilityRoot>/scripts/plugin-deploy.js prune --project-root . --execute
 
 迁移及清理先预览，再在用户明确的范围内执行。已有启用能力及必需依赖保留，available/disabled 且无人使用的物理包可清理。工程配置、任务资料和私有凭据保留。受影响能力包工作区有修改时报告冲突，用户处理后重试。
 
-Overlay 的 CapabilityRoot 保留各 ContextRoot 需求的并集。旧共享目录首次迁移时，使用重复的 --member-project <workspace> 列齐关联工程，再以 --members-complete 表达已核对成员范围。项目暂时不可访问或已登记成员的 profile 丢失时，保留该成员上次已知需求并暂停会移除资源的操作；当前执行命令的成员也适用。ensure 可继续补装，保留缺失的 profile，待恢复其真实启用记录后再清理。Overlay 初始化和 Write 更新自动登记当前成员，各项目的 thin-index 仍独立生成。
+Overlay 的 CapabilityRoot 保留各 ContextRoot 需求的并集。旧共享目录首次迁移时，使用重复的 --member-project <workspace> 列齐关联工程，再以 --members-complete 表达已核对成员范围。项目暂时不可访问时保留上次已知资源，暂停会移除资源的操作。Overlay 初始化和 Write 更新自动登记当前成员，各项目的 thin-index 仍独立生成。
+
+成员 profile 丢失或部分行缺失时，工具复用安装状态中的 lastRequired 保留已知资源需求，历史需求本身不证明插件已启用。整份 profile 缺失时，ensure 可继续补装，prune/migrate 保持保护；随后明确的 profile 操作或普通 Write 更新自动形成只含已知状态的部分 profile，无需手工重建全表。setter、更新器、补装和停用检查共用历史读取逻辑，不将缺行历史补成默认 available；已有或本次明确设置的状态行优先。部分 profile 形成后可裁剪无关资源，缺行历史对应的资源仍保留，后续明确的状态记录继续按正常规则收敛。
 
 安装状态与阶段记录放在 CapabilityRoot 的 Git 本地目录，记录物理安装范围、关联项目、revision 和恢复进度。安装、更新、profile 写入和 sparse 刷新共用部署锁。中断后重复原命令复用已下载文件；确认锁持有进程退出时可运行 recover，活跃或未知持有者保持保护。
 

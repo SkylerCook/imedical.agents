@@ -128,7 +128,7 @@ for (const mode of ['standard', 'workspace-overlay']) {
 
     test(mode + ': restored readable profile replaces historical needs and permits normal pruning', t => {
         const f = fixture(t, mode);
-        fs.writeFileSync(f.profileFile, '| feature-extra | enabled | - | - | current project choice |\n');
+        fs.writeFileSync(f.profileFile, '| feature-extra | enabled | - | - | current project choice |\n| feature-ui | available | - | - | explicit restored choice |\n| feature-core | available | - | - | explicit restored choice |\n');
         const plan = f.deployment.plan(f.context, [], 'prune');
         assert.deepEqual(plan.offlineMembers, []);
         assert.ok(plan.remove.includes('feature-ui'));
@@ -154,6 +154,20 @@ test('a genuinely new member without a profile still receives available entries 
     assert.deepEqual(JSON.parse(fs.readFileSync(f.stateFile, 'utf8')).members[0].lastRequired, f.base);
 });
 
+test('BOM and indented explicit profile rows take precedence over retained historical requirements', t => {
+    const f = fixture(t);
+    fs.writeFileSync(f.profileFile, '\uFEFF  | `feature-ui` | disabled | - | - | explicit project choice |\n\t| feature-core | enabled | - | - | retained note |\n');
+    const current = f.deployment.profileContext(f.root, f.context.contextRoot);
+    assert.equal(current.statuses.get('feature-ui'), 'disabled');
+    assert.equal(current.statuses.get('feature-core'), 'enabled');
+    assert.ok(!current.retained.includes('feature-ui'));
+    assert.ok(!current.retained.includes('feature-core'));
+    const plan = f.deployment.plan(f.context, [], 'prune');
+    assert.ok(!plan.keep.includes('feature-ui'));
+    assert.ok(plan.keep.includes('feature-core'));
+    assert.throws(() => f.deployment.plan(f.context, ['feature-ui']), /explicitly disabled/);
+});
+
 test('an equivalent recorded context path keeps the same offline-member protection', t => {
     const f = fixture(t);
     const member = { ...f.originalMember, contextRoot: f.context.contextRoot + path.sep + '.' };
@@ -166,7 +180,7 @@ test('an equivalent recorded context path keeps the same offline-member protecti
 
 test('another offline member does not prevent available entries for the readable current project', t => {
     const f = fixture(t);
-    fs.writeFileSync(f.profileFile, '| feature-core | enabled | - | - | current project choice |\n');
+    fs.writeFileSync(f.profileFile, '| feature-core | enabled | - | - | current project choice |\n| feature-ui | available | - | - | explicit project choice |\n');
     const other = { contextRoot: path.join(f.context.workspaceRoot, 'offline-context'), lastRequired: f.required };
     fs.writeFileSync(f.stateFile, JSON.stringify({ ...f.originalState, members: [f.originalMember, other] }));
     const result = f.apply('ensure');
@@ -177,6 +191,31 @@ test('another offline member does not prevent available entries for the readable
     assert.deepEqual(saved.members[0].lastRequired, [...f.base, 'feature-core']);
     assert.deepEqual(saved.members[1], other);
 });
+
+for (const mode of ['standard', 'workspace-overlay']) {
+    test(mode + ': a partial profile retains missing historical resources without claiming enablement', t => {
+        const f = fixture(t, mode);
+        fs.writeFileSync(f.profileFile, '| feature-extra | enabled | - | - | current project choice |\n| feature-core | disabled | - | - | explicit project choice |\n');
+        const plan = f.deployment.plan(f.context, [], 'prune');
+        assert.deepEqual(plan.offlineMembers, []);
+        assert.ok(plan.keep.includes('feature-ui'));
+        assert.ok(plan.keep.includes('feature-core'));
+        assert.ok(plan.resources.includes('vendor/ui-runtime'));
+        assert.equal(f.deployment.profile(f.context.contextRoot).has('feature-ui'), false);
+        assert.equal(f.deployment.profile(f.context.contextRoot).get('feature-core'), 'disabled');
+        f.apply('ensure');
+        assert.equal(f.deployment.profile(f.context.contextRoot).has('feature-ui'), false);
+        assert.equal(f.deployment.profile(f.context.contextRoot).get('feature-core'), 'disabled');
+        fs.writeFileSync(f.profileFile, '| feature-extra | enabled | - | - | current project choice |\n');
+        f.cli.apply(f.context, { action: 'ensure', plugins: ['feature-ui'], members: [], explicit: true });
+        assert.equal(f.deployment.profile(f.context.contextRoot).has('feature-ui'), false);
+        const after = f.deployment.plan(f.context, [], 'prune');
+        assert.ok(!after.remove.includes('feature-ui'));
+        // Actual enabled dependencies remain strict even though history is resource-only.
+        fs.writeFileSync(f.profileFile, '| feature-ui | enabled | - | - | explicit project choice |\n| feature-core | disabled | - | - | explicit project choice |\n');
+        assert.throws(() => f.deployment.plan(f.context, [], 'prune'), /Plugin explicitly disabled/);
+    });
+}
 
 test('context identity normalizes path segments and folds casing only on Windows', () => {
     const { sameContextRoot } = require('../lib/plugin-deployment');

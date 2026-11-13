@@ -22,7 +22,7 @@ function checkDeactivation(capabilityRoot, contextRoot, targetName) {
         if (matches.length !== 1) throw new Error('Unknown or ambiguous plugin: ' + name);
         return matches[0];
     };
-    const statuses = deployment.profile(contextRoot);
+    const { statuses } = deployment.profileContext(capabilityRoot, contextRoot);
     const active = new Set(['agent-context-kit', 'agent-framework-evolution'].filter(name => items.has(name)));
     const canonicalStatuses = new Map();
     for (const [name, status] of statuses) {

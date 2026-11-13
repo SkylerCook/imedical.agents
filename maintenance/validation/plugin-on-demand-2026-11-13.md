@@ -34,3 +34,14 @@ Windows/macOS/Linux × Node22/24 已接入现有 CI，远端矩阵结果仍待�
 - 最终部署 19 项、成员历史 14 项与双宿主启用 8 项共 41 项在沙箱外通过；另有 sparse 20 项通过。实际 Git/partial clone 路径覆盖 PS5.1/PS7 安装、按需自动生成入口、停用冲突、Overlay 并集和更新。沙箱内 Git `sh.exe` 访问限制沿原证据区分，不计为功能失败。
 - 两份新增专项已纳入现有 Windows/macOS/Linux × Node22/24 CI。能力目录检查、项目链接及差异检查通过。工作树组件校验识别 agent-context-kit 0.11.0→0.11.1，未发现本轮新增问题；整体仍受已登记 xc 历史问题影响。
 - 本机验证与真实业务副本、宿主发现及远端矩阵分别验收；业务升级同时取得插件与根 scripts，无配置迁移或旧文件清理。本任务夹具及版本检查临时证据随测试清理。
+
+## 0.11.2 首要原则复审修复
+
+- 复审确认 0.11.1 未覆盖单插件启用的全局清理副作用、ensure 后 setter 重建 profile、普通 conflict 回执及无 initSkill 入口。保留当时测试记录，修复以跨入口实际行为验收。
+- 根生成器不再凭 source 未落盘跨 owner 清理。仅当前 owner 声明的 legacyNames 迁移及 pure-init 兼容入口，在可证明未定制时清理；未知正文、字段、文件/目录冲突和链接保留，删除前重读。规则、技能及 ContextRoot 根链接均覆盖。
+- 安装状态中的 lastRequired 是资源闭包，不是历史启用状态。共用读取逻辑识别缺行历史，所有 profile 写入入口省略这批默认 available 行，明确操作仅更新指定状态。部分 profile 可正常更新和裁剪无关资源，未知资源继续保留；明确 enabled 的依赖校验与历史资源闭包分别计算。旧 profile 的 BOM、缩进、反引号键与 notes 保留语义对齐。
+- setter 检查生成、冲突、未知/异常输出及读回结果；updater 同样识别普通 conflict，最终成功前不写 profile。合法无 rules/skills 的 owner 保持可用。初始化 source 始终相对 owner：无 initSkill 时解析插件 entry；真实 general 组合逐一校验源文件可读。
+- PS5.1/PS7 完整 `update-agents.tests.ps1` 均通过。修正旧 fixture 漏复制的既有部署运行文件及不符合新保护边界的清理断言；未通过放宽生产门禁让旧断言成功。PS5.1 子进程沿既有惯例去除继承的 PS7 模块路径，不修改全局环境。
+- 单 owner 专项双宿主 12 项、根链接补测 2 项、thin-index refresh 双宿主及 owner 迁移定向 5 项通过。最终部署、成员历史、启用、真实恢复、初始化 source 和单 owner 共 69 项：合并运行通过 68 项，余下 Overlay 旧夹具以空 profile 表示释放的断言修正后定向通过；同一用例实际验证空 profile 保留、明确 available 后可裁剪、其它成员继续保留及重新注册补装。生产实现保持不变。
+- 真实 Git 恢复专项覆盖 PS5.1/PS7 × standard/Overlay 的 ensure → setter → 普通 Write updater → 实际 prune/sparse，并验证明确状态及失败时 profile 字节保护。能力目录、项目链接和差异检查通过。组件工作树校验识别 0.11.1 → 0.11.2，无本轮新增问题；整体仍报告已登记的 xc 内部独立版本及三份历史 release commit 缺失/无效共 7 项。
+- 新专项沿既有 Windows/macOS/Linux × Node22/24 CI 接入；真实 CI 与业务宿主发现仍待取得证据。更新同时取得 agent-context-kit 0.11.2 与根 scripts，无新增用户参数、配置或状态字段，无业务资料清理。

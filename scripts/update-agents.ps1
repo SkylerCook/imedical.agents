@@ -611,7 +611,7 @@ function Read-PluginProfile {
     if ($cells[0] -eq "plugin") {
       continue
     }
-    $pluginName = $cells[0]
+    $pluginName = $cells[0] -replace '^`([\w-]+)`$', '$1'
     $status = $cells[1].ToLowerInvariant()
     if ([string]::IsNullOrWhiteSpace($pluginName) -or -not ($validStatuses -contains $status)) {
       continue
@@ -690,7 +690,8 @@ function Write-PluginProfile {
     [string]$AgentsRoot,
     [object[]]$Plugins,
     [hashtable]$ExistingProfile,
-    [string[]]$ExplicitPluginNames
+    [string[]]$ExplicitPluginNames,
+    [string[]]$RetainedRequirements = @()
   )
 
   $profilePath = Get-PluginProfilePath -AgentsRoot $AgentsRoot
@@ -707,6 +708,7 @@ function Write-PluginProfile {
   )
 
   foreach ($plugin in ($Plugins | Sort-Object name)) {
+    if (($RetainedRequirements -contains $plugin.name) -and -not $ExistingProfile.ContainsKey($plugin.name) -and [string]::IsNullOrWhiteSpace((Get-PluginProfileLegacyName -Plugin $plugin -Profile $ExistingProfile))) { continue }
     $explicit = @($ExplicitPluginNames | Where-Object { Test-PluginNameMatches -Plugin $plugin -Name $_ }).Count -gt 0
     $entry = Get-PluginProfileEntry -Plugin $plugin -Profile $ExistingProfile -ExplicitlySelected $explicit
     $initSkill = $entry.initSkill
@@ -774,6 +776,7 @@ function Convert-ThinIndexTextOutput {
 
   $items = New-Object System.Collections.Generic.List[object]
   if ([string]::IsNullOrWhiteSpace($Text)) {
+    if ($Phase -eq "thin-index") { $items.Add((Write-UpdateResult -Status "conflict" -Reason "plugin discovery output is empty" -PluginName $PluginName -Phase $Phase)) }
     return $items
   }
 
@@ -792,17 +795,27 @@ function Convert-ThinIndexTextOutput {
     $targetMatch = [System.Text.RegularExpressions.Regex]::Match($block, '(?m)^\s*target\s*:\s*(?<value>.*)$')
     $sourceMatch = [System.Text.RegularExpressions.Regex]::Match($block, '(?m)^\s*source\s*:\s*(?<value>.*)$')
     $reasonMatch = [System.Text.RegularExpressions.Regex]::Match($block, '(?m)^\s*reason\s*:\s*(?<value>.*)$')
+    $status = $statusMatch.Groups["value"].Value.Trim()
+    $reason = $reasonMatch.Groups["value"].Value.Trim()
+    if ($Phase -eq "thin-index") {
+      $known = @("generated", "updated", "unchanged", "removed", "skipped", "stale", "thin-index-stale", "skill-owner-migrated", "missing", "conflict", "thin-index-conflict", "skill-owner-migration-conflict")
+      if ($status -notin $known -or ($status -eq "missing" -and $reason -notmatch '^plugin has no (rules|skills) directory$')) {
+        $reason = "plugin discovery failed or returned an unrecognized result: " + $status + "; " + $reason
+        $status = "conflict"
+      }
+    }
     $items.Add((Write-UpdateResult `
-      -Status $statusMatch.Groups["value"].Value.Trim() `
+      -Status $status `
       -Target $targetMatch.Groups["value"].Value.Trim() `
       -Source $sourceMatch.Groups["value"].Value.Trim() `
-      -Reason $reasonMatch.Groups["value"].Value.Trim() `
+      -Reason $reason `
       -PluginName $PluginName `
       -Phase $Phase))
   }
 
   if ($items.Count -eq 0) {
-    $items.Add((Write-UpdateResult -Status "thin-index-output" -Reason $Text.Trim() -PluginName $PluginName -Phase $Phase))
+    $outputStatus = if ($Phase -eq "thin-index") { "conflict" } else { "thin-index-output" }
+    $items.Add((Write-UpdateResult -Status $outputStatus -Reason $Text.Trim() -PluginName $PluginName -Phase $Phase))
   }
 
   return $items
@@ -1396,6 +1409,13 @@ if (($Mode -eq "Write") -and $usesOnDemand -and ($Plugin.Count -gt 0) -and (Test
 
 $allPlugins = Get-InstalledPlugins -AgentsRoot $capabilityRoot -IncludeNames @() -ExcludeNames $ExcludePlugin
 $pluginProfile = Read-PluginProfile -AgentsRoot $agentsRoot
+$retainedRequirements = @()
+$profileHistoryEntry = Join-Path $capabilityRoot "scripts/plugin-deploy.js"
+if (Test-Path -LiteralPath $profileHistoryEntry -PathType Leaf) {
+  $historyText = & node $profileHistoryEntry profile-history --capability-root $capabilityRoot --context-root $contextRoot | Out-String
+  if ($LASTEXITCODE -ne 0) { throw "Cannot read retained plugin requirements; profile preserved" }
+  $retainedRequirements = @(($historyText | ConvertFrom-Json).retained)
+}
 $plugins = New-Object System.Collections.Generic.List[object]
 $matchedPluginCount = 0
 
@@ -1461,11 +1481,6 @@ foreach ($installedPlugin in $allPlugins) {
   $plugins.Add($installedPlugin)
   $status = if ($explicitlySelected) { "plugin-selected" } else { "plugin-found" }
   $results.Add((Write-UpdateResult -Status $status -Target $pluginTarget -Reason $profileEntry.status -PluginName $installedPlugin.name -Phase "plugin"))
-}
-
-if ($Mode -eq "Write") {
-  Write-PluginProfile -AgentsRoot $agentsRoot -Plugins $allPlugins -ExistingProfile $pluginProfile -ExplicitPluginNames $Plugin
-  $results.Add((Write-UpdateResult -Status "plugin-profile-written" -Target (Get-RelativePathPortable -From $projectRootFull -To (Get-PluginProfilePath -AgentsRoot $agentsRoot)) -Reason "plugin states recorded" -Phase "plugin"))
 }
 
 foreach ($installedPlugin in $plugins) {
@@ -1667,21 +1682,29 @@ else {
   }
 }
 
+$completionFailure = $null
+if ($runtimeAdapterFailed) { $completionFailure = "Runtime skill adaptation incomplete; resolve the reported status before retrying." }
+elseif (@($results | Where-Object { $_.status -in @("config-migration-failed", "config-migration-conflict") }).Count -gt 0) {
+  $completionFailure = "Required plugin configuration migration incomplete; completed steps are retained. Resolve the reported plugin conflict or failure and rerun the update."
+}
+elseif (@($results | Where-Object { $_.status -in @("conflict", "thin-index-conflict") -or ($Mode -eq "Check" -and $_.status -eq "thin-index-stale") }).Count -gt 0) {
+  $completionFailure = "Plugin thin-index verification incomplete; refresh stale indexes with Write and resolve preserved conflicts."
+}
+elseif (@($results | Where-Object { $_.status -eq "skill-owner-migration-conflict" }).Count -gt 0) {
+  $completionFailure = "Skill owner migration blocked; custom or linked targets were preserved."
+}
+if ($Mode -eq "Write" -and -not $completionFailure) {
+  Write-PluginProfile -AgentsRoot $agentsRoot -Plugins $allPlugins -ExistingProfile $pluginProfile -ExplicitPluginNames $Plugin -RetainedRequirements $retainedRequirements
+  $results.Add((Write-UpdateResult -Status "plugin-profile-written" -Target (Get-RelativePathPortable -From $projectRootFull -To (Get-PluginProfilePath -AgentsRoot $agentsRoot)) -Reason "plugin states recorded" -Phase "plugin"))
+}
+
 if ($Detailed) {
   $results | Format-List status, plugin, phase, target, source, reason, oldHash, newHash, upstreamHash
 }
 else {
   Write-UpdateSummary -Results $results -Mode $Mode
 }
-if ($runtimeAdapterFailed) { throw "Runtime skill adaptation incomplete; resolve the reported status before retrying." }
-if (@($results | Where-Object { $_.status -in @("config-migration-failed", "config-migration-conflict") }).Count -gt 0) {
-  throw "Required plugin configuration migration incomplete; completed steps are retained. Resolve the reported plugin conflict or failure and rerun the update."
-}
-if (@($results | Where-Object { $_.status -eq "thin-index-conflict" -or ($Mode -eq "Check" -and $_.status -eq "thin-index-stale") }).Count -gt 0) {
-  throw "Plugin thin-index verification incomplete; refresh stale indexes with Write and resolve preserved conflicts."
-}
-
-if (@($results | Where-Object { $_.status -eq "skill-owner-migration-conflict" }).Count -gt 0) { throw "Skill owner migration blocked; custom or linked targets were preserved." }
+if ($completionFailure) { throw $completionFailure }
 
 } finally {
   if ($deploymentLockToken) {

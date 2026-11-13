@@ -34,8 +34,8 @@ function atomicJson(file, value) {
     } finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); }
 }
 function statePath(root) { return path.resolve(root, git(root, ['rev-parse', '--git-path', 'plugin-deployment.json'])); }
-function loadState(root) {
-    const state = readJson(statePath(root), { schema: 'plugin-installation/v1', mode: 'full', members: [], installed: [], phase: 'ready' });
+function loadState(root, file = statePath(root)) {
+    const state = readJson(file, { schema: 'plugin-installation/v1', mode: 'full', members: [], installed: [], phase: 'ready' });
     if (state.schema !== 'plugin-installation/v1' || !['full', 'on-demand'].includes(state.mode) || !Array.isArray(state.members) || !Array.isArray(state.installed)) throw new Error('Invalid plugin installation state');
     if (state.installed.some(name => !namePattern.test(name)) || state.members.some(member => !member || typeof member.contextRoot !== 'string' || !path.isAbsolute(member.contextRoot) ||
         !Array.isArray(member.lastRequired) || member.lastRequired.some(name => !namePattern.test(name)))) throw new Error('Invalid deployment member record');
@@ -58,7 +58,7 @@ function profile(contextRoot) {
     const file = path.join(contextRoot, 'config/plugin_profile.md');
     if (!fs.existsSync(file)) return new Map();
     const statuses = new Map();
-    for (const match of fs.readFileSync(file, 'utf8').matchAll(/^\|\s*`?([\w-]+)`?\s*\|\s*(enabled|disabled|available|initialized|indexed)\s*\|/gim)) {
+    for (const match of fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '').matchAll(/^[ \t]*\|[ \t]*`?([\w-]+)`?[ \t]*\|[ \t]*(enabled|disabled|available|initialized|indexed)[ \t]*\|/gim)) {
         const name = match[1].toLowerCase(), raw = match[2].toLowerCase();
         const status = { initialized: 'enabled', indexed: 'available' }[raw] || raw;
         if (statuses.has(name) && statuses.get(name) !== status) throw new Error('Conflicting plugin profile: ' + name);
@@ -80,6 +80,22 @@ function statusOf(item, statuses) {
     const values = [item.manifest.name, item.directory, ...(item.manifest.legacyNames || [])].filter(name => statuses.has(name)).map(name => statuses.get(name));
     if (new Set(values).size > 1) throw new Error('Conflicting plugin aliases: ' + item.manifest.name);
     return values[0] || 'available';
+}
+function missingHistoricalRequirements(catalogValue, member, statuses) {
+    return (member?.lastRequired || []).filter(name => {
+        const item = catalogValue.plugins.find(item => item.manifest.name === name || item.directory === name || (item.manifest.legacyNames || []).includes(name));
+        const aliases = item ? [item.manifest.name, item.directory, ...(item.manifest.legacyNames || [])] : [name];
+        return !aliases.some(alias => statuses.has(alias.toLowerCase()));
+    });
+}
+function profileContext(root, contextRoot) {
+    const statuses = profile(contextRoot), gitEntry = path.join(root, '.git');
+    if (!fs.existsSync(gitEntry)) return { statuses, retained: [] };
+    const file = fs.statSync(gitEntry).isDirectory() ? path.join(gitEntry, 'plugin-deployment.json') : statePath(root);
+    if (!fs.existsSync(file)) return { statuses, retained: [] };
+    const member = loadState(root, file).members.find(member => sameContextRoot(member.contextRoot, contextRoot));
+    const value = readJson(path.join(root, 'scripts/lib/plugin-catalog.json'), { plugins: [] });
+    return { statuses, retained: missingHistoricalRequirements(value, member, statuses) };
 }
 function versionMatches(version, range) {
     if (!range) return true;
@@ -168,7 +184,10 @@ function memberSelection(catalogValue, member) {
     const statuses = profile(member.contextRoot);
     for (const [name,status] of statuses) if (status === 'enabled') find(catalogValue,name);
     const names = catalogValue.plugins.filter(item => statusOf(item, statuses) === 'enabled').map(item => item.manifest.name);
-    return { names: closure(catalogValue, [...catalogValue.basePlugins, ...names], statuses).map(item => item.manifest.name), offline: false };
+    const enabled = closure(catalogValue, [...catalogValue.basePlugins, ...names], statuses);
+    // History proves resource needs, not enablement. Explicit choices still govern execution.
+    const retained = closure(catalogValue, missingHistoricalRequirements(catalogValue, member, statuses));
+    return { names: [...new Set([...enabled, ...retained].map(item => item.manifest.name))], offline: false };
 }
 function requiredSelection(root, state, catalogValue) {
     const names = new Set(catalogValue.basePlugins), offline = [];
@@ -291,10 +310,10 @@ function plan(context, requested = [], operation = 'ensure', memberRoots = [], o
         added: selected.filter(item => !installed.includes(item.manifest.name)).map(item => item.manifest.name),
         ready: selected.filter(item => statusOf(item, statuses) === 'enabled' && installed.includes(item.manifest.name)).map(item => item.manifest.name),
         initialization: selected.filter(item => statusOf(item, statuses) !== 'enabled').map(item => ({ plugin: item.manifest.name, skill: item.manifest.initSkill || null,
-            source: item.manifest.initSkill ? 'plugins/' + item.directory + '/skills/' + item.manifest.initSkill + '/SKILL.md' : item.manifest.entry })),
+            source: 'plugins/' + item.directory + '/' + (item.manifest.initSkill ? 'skills/' + item.manifest.initSkill + '/SKILL.md' : item.manifest.entry || 'AGENTS.md') })),
         keep, remove, optionalSkills, requiresMigration: state.mode === 'full' && operation === 'prune',
         resources: [...new Set([...requiredResources(closure(value,keep)), ...optionalSkills.map(skill => 'vendor/'+skill.provider)])],
         missingConfiguration, offlineMembers: required.offline, policy: policy(context.contextRoot), members };
 }
 
-module.exports = { git, readJson, atomicJson, statePath, loadState, catalog, profile, policy, find, statusOf, closure, expandSelection, versionMatches, memberSelection, requiredSelection, sparsePatterns, withLock, acquireLock, releaseLock, recoverLock, plan, sameContextRoot };
+module.exports = { git, readJson, atomicJson, statePath, loadState, catalog, profile, policy, find, statusOf, closure, expandSelection, versionMatches, memberSelection, requiredSelection, sparsePatterns, withLock, acquireLock, releaseLock, recoverLock, plan, sameContextRoot, missingHistoricalRequirements, profileContext };

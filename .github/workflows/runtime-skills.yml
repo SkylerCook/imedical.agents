@@ -19,6 +19,7 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: node --test scripts/tests/runtime-agents.tests.js scripts/tests/runtime-skills.tests.js scripts/tests/skill-plugin-migration.tests.js scripts/tests/workspace-source-directory.tests.js
       - run: node --test scripts/tests/iris-development-config.tests.js
+      - run: node --test scripts/tests/plugin-thin-index-scope.tests.js
       - name: Plugin thin-index refresh
         shell: pwsh
         run: ./scripts/tests/plugin-thin-index-refresh.tests.ps1

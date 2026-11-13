@@ -1018,6 +1018,8 @@ coding-iris-plugin 0.30.0 与 imedical-ui 0.2.0 使用根 `scripts/knowledge-que
 
 agent-context-kit 0.11.0 新增 plugin-management。已有 enabled 项目更新能力包并刷新该插件 thin-index 后获得入口；available/disabled 项目保留原状态。无额外配置迁移。
 
-启用流程修复需同时取得 agent-context-kit 0.11.1 与根 scripts。领域配置验收后，按需模式的 update-plugin-profile.ps1 自动生成并验证发现入口，再记录 enabled；全量模式保留既有接入顺序。成员历史保留修复由 plugin-deploy.js 和 scripts/lib/plugin-deployment.js 提供：包括当前成员在内，已登记 profile 丢失时继续保留上次需求，ensure 保持 profile 缺失状态，恢复真实记录后再执行清理。无新增配置或旧文件清理。
+接入与入口隔离修复需同时取得 agent-context-kit 0.11.2 与根 scripts。领域配置验收后，按需模式的 update-plugin-profile.ps1 生成并读回验证发现入口，核对完整失败回执后才记录 enabled；全量模式保留既有接入顺序。单插件生成只维护当前 owner 的受管及已声明兼容入口，其它插件、未落盘来源、自定义内容和链接保留。无 initSkill 的初始化 source 指向插件目录内的 entry。
+
+profile 缺失时，普通 Write 更新或明确的 profile 操作复用安装状态自动形成只含已知状态的部分 profile；缺行历史只保留资源需求，不补成默认 available 或推断 enabled。补装、setter、更新器与停用检查共用读取逻辑，明确状态行优先；整份 profile 缺失时 ensure 可补装，prune/migrate 仍保持保护，形成部分 profile 后可清理无关资源。无需新增配置、手工重建全表或清理业务资料。
 
 profile 工具在撤下入口和写入状态前硬校验当前项目已启用插件的传递强依赖。将依赖目标改为 disabled 或 available 时返回完整依赖链并停止。先停用依赖方，再停用目标。

@@ -251,6 +251,10 @@ test('Overlay migration registers associated workspaces and preserves their unio
     assert.equal(deployment.policy(second.context.contextRoot).mode,'on-demand');
     enabled(first.context.contextRoot,[]);
     cli.apply(first.context,{action:'prune',plugins:[],members:[]});
+    assert.ok(fs.existsSync(path.join(f.root,'plugins/feature-ui')));
+    fs.writeFileSync(path.join(first.context.contextRoot,'config/plugin_profile.md'),
+        '| feature-ui | available | - | - | explicit release |\n| feature-core | available | - | - | explicit release |\n');
+    cli.apply(first.context,{action:'prune',plugins:[],members:[]});
     assert.ok(!fs.existsSync(path.join(f.root,'plugins/feature-ui')));
     assert.ok(fs.existsSync(path.join(f.root,'plugins/feature-xc')));
     const third=overlay('overlay-c',['feature-ui']);

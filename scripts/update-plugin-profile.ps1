@@ -160,8 +160,9 @@ function Read-PluginProfile {
     if ($cells.Count -gt 4) {
       $notes = $cells[4]
     }
-    $profile[$cells[0]] = [PSCustomObject]@{
-      plugin = $cells[0]
+    $pluginName = $cells[0] -replace '^`([\w-]+)`$', '$1'
+    $profile[$pluginName] = [PSCustomObject]@{
+      plugin = $pluginName
       status = Normalize-PluginStatus -Value $cells[1]
       initSkill = $initSkill
       dependsOn = $dependsOn
@@ -184,7 +185,8 @@ function Write-PluginProfile {
   param(
     [string]$ProfilePath,
     [object[]]$Plugins,
-    [hashtable]$Profile
+    [hashtable]$Profile,
+    [string[]]$RetainedRequirements = @()
   )
 
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $ProfilePath) | Out-Null
@@ -217,6 +219,7 @@ function Write-PluginProfile {
         $notesValue = "migrated from " + $legacyProfileName
       }
       else {
+        if ($RetainedRequirements -contains $pluginItem.name) { continue }
         $statusValue = Get-DefaultStatus -PluginName $pluginItem.name
         $initSkillValue = Get-PluginInitSkill -Plugin $pluginItem
         $deps = Get-PluginDependencies -Plugin $pluginItem
@@ -238,6 +241,27 @@ function Write-PluginProfile {
   }
 
   [System.IO.File]::WriteAllLines($ProfilePath, $lines, [System.Text.UTF8Encoding]::new($false))
+}
+
+function Assert-DiscoveryOutput {
+  param([string]$Text, [switch]$Verified)
+  $Text = $Text.Replace("`r`n", "`n").Replace("`r", "`n")
+  $matches = [regex]::Matches($Text, '(?m)^[ \t]*status[ \t]*:[ \t]*(?<value>[^\r\n]+)')
+  if ($matches.Count -eq 0) { throw "Plugin discovery output invalid; profile preserved" }
+  $allowed = @("generated", "updated", "unchanged", "removed", "skipped", "stale", "thin-index-stale", "skill-owner-migrated", "missing")
+  foreach ($match in $matches) {
+    $value = $match.Groups["value"].Value.Trim()
+    if ($value -match 'conflict') { throw "Custom discovery entries require review before changing plugin status; profile preserved" }
+    if ($value -notin $allowed) { throw "Plugin discovery output invalid; profile preserved" }
+  }
+  foreach ($block in [regex]::Split($Text.Trim(), '(?:\r?\n)[ \t]*(?:\r?\n)')) {
+    if ($block -match '(?m)^[ \t]*status[ \t]*:[ \t]*missing[ \t]*$' -and $block -notmatch '(?m)^[ \t]*reason[ \t]*:[ \t]*plugin has no (rules|skills) directory[ \t]*$') {
+      throw "Plugin discovery source missing; profile preserved"
+    }
+  }
+  if ($Verified -and $Text -match '(?m)^[ \t]*status[ \t]*:[ \t]*(generated|updated|stale|thin-index-stale|skill-owner-migrated)[ \t]*$') {
+    throw "Plugin discovery verification incomplete; profile preserved"
+  }
 }
 
 $projectRootFull = Resolve-FullPath $ProjectRoot
@@ -275,6 +299,12 @@ if (($Status -eq "enabled") -and -not (Test-Path -LiteralPath (Join-Path $capabi
 
 $profilePath = Join-Path (Join-Path $contextRootFull "config") "plugin_profile.md"
 $profile = Read-PluginProfile -ProfilePath $profilePath
+$retainedRequirements = @()
+if (Test-Path -LiteralPath $profileDeploymentEntry -PathType Leaf) {
+  $historyText = & node $profileDeploymentEntry profile-history --capability-root $capabilityRootFull --context-root $contextRootFull | Out-String
+  if ($LASTEXITCODE -ne 0) { throw "Cannot read retained plugin requirements; profile preserved" }
+  $retainedRequirements = @(($historyText | ConvertFrom-Json).retained)
+}
 
 if ($Status -in @("disabled", "available")) {
   & node (Join-Path $PSScriptRoot "check-plugin-deactivation.js") $capabilityRootFull $contextRootFull $targetPlugin.name
@@ -301,17 +331,15 @@ if (($Status -in @("enabled", "disabled")) -and (Test-Path -LiteralPath $thinScr
   $thinArgs = @{ PluginPath=$ownerPath; ProjectRoot=$projectRootFull; ContextRoot=$contextRootFull; CapabilityRoot=$capabilityRootFull; Mode="DryRun" }
   if ($Status -eq "disabled") { $thinArgs.Remove = $true }
   $thinPreview = & $thinScript @thinArgs | Out-String
-  if ($thinPreview -match '(?m)^\s*status\s*:\s*(thin-index-conflict|skill-owner-migration-conflict)') { throw "Custom discovery entries require review before changing plugin status" }
+  Assert-DiscoveryOutput -Text $thinPreview
   if ($Status -eq "disabled" -or ($enforceDiscovery -and $Status -eq "enabled")) {
     $thinArgs.Mode = "Write"
     $thinResult = & $thinScript @thinArgs | Out-String
-    if ($thinResult -match '(?m)^\s*status\s*:\s*(thin-index-conflict|skill-owner-migration-conflict)') { throw "Discovery entry update conflicted; profile preserved" }
+    Assert-DiscoveryOutput -Text $thinResult
     if ($Status -eq "enabled") {
       $thinArgs.Mode = "DryRun"
       $thinVerified = & $thinScript @thinArgs | Out-String
-      if ($thinVerified -match '(?m)^\s*status\s*:\s*(generated|updated|thin-index-stale|thin-index-conflict|skill-owner-migrat(?:ed|ion-conflict))') {
-        throw "Plugin discovery verification incomplete; profile preserved"
-      }
+      Assert-DiscoveryOutput -Text $thinVerified -Verified
     }
   }
 }
@@ -346,7 +374,7 @@ $profile[$targetPlugin.name] = [PSCustomObject]@{
   notes = $notesText
 }
 
-Write-PluginProfile -ProfilePath $profilePath -Plugins $plugins -Profile $profile
+Write-PluginProfile -ProfilePath $profilePath -Plugins $plugins -Profile $profile -RetainedRequirements $retainedRequirements
 
 [PSCustomObject]@{
   status = "plugin-profile-updated"
