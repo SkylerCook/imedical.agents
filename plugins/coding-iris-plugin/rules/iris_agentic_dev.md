@@ -23,11 +23,11 @@ IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY
 
 ## MCP 能力矩阵
 
-本矩阵基于 `tools/list`、2026-06-01 的目标项目冒烟测试和 2026-10-16 对仓库内置 `iris-agentic-dev 1.5.0` 的断连本地 schema 复核整理。完整合并 toolset 返回 81 个工具；本仓库 helper 与新生成的 `.mcp.json` 默认使用 `--no-skills`，返回 70 个工具。本文只记录通用能力，不得从 `.mcp.json` 复制 host、用户名、密码、namespace、token 或私有路径。
+本矩阵基于 `tools/list`、2026-06-01 的目标项目冒烟测试和 2026-11-13 对仓库内置 `iris-agentic-dev 1.7.1` 的断连本地 schema 复核整理。完整合并 toolset 返回 81 个工具；本仓库 helper 与新生成的 `.mcp.json` 默认使用 `--no-skills`，返回 70 个工具。本文只记录通用能力，不得从 `.mcp.json` 复制 host、用户名、密码、namespace、token 或私有路径。
 
 ### 配置与会话
 
-- `check_config`：返回当前连接和配置状态，不发起 IRIS 网络调用。v1.2.6 的 `capabilities` 包含 `private_web_server`、`atelier_rest`、`compile_path` 和 `webgateway_url`，并返回 `server_version`、`iris_version`、`connection_source` 等诊断字段；排查 MCP 问题时优先使用，并以 `compile_path` 判断编译应走 Atelier REST 还是 `docker_exec`。
+- `check_config`：返回当前连接和配置状态；配置服务账户时还会执行无代码的 Atelier 登录探针。`capabilities` 包含 `private_web_server`、`atelier_rest`、`compile_path` 和 `webgateway_url`，并返回版本、`connection_source`、`effective_policy`、`set_aside` 和身份等诊断字段；排查 MCP 问题时优先使用，并以 `compile_path` 判断编译应走 Atelier REST 还是 `docker_exec`。
 - `agent_stats`、`agent_history`、`telemetry_query`：查看学习 Agent 状态、当前会话和持久化工具调用记录。
 
 ### 多实例、持久会话与跨环境比较
@@ -40,7 +40,7 @@ IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY
 ### 安全发现与读取
 
 - `iris_info`：发现 namespace 元数据、文档列表、最近修改、作业、CSP app、CSP debug、XData namespace 的 Studio Assist grammar（`what=sa_schema`）。
-- `iris_query`：执行 SQL SELECT；破坏性 SQL 默认拦截，除非显式 force 且环境允许。
+- `iris_query`：read 模式只接受 SELECT、WITH、EXPLAIN；write 模式按目标服务器策略和影响行数门禁执行，`force` 不绕过策略或提高行数上限。
 - `iris_symbols`、`iris_symbols_local`：搜索已编译 IRIS 类或本地 `.cls/.mac/.inc` 文件。
 - `iris_search`：跨 IRIS 文档全文搜索。
 - `iris_doc`：`mode=get` / `mode=head` 用于读取或检查文档存在性。
@@ -60,7 +60,7 @@ IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY
 ### 写入、编译与执行
 
 - `iris_doc mode=put/delete/insert/delete_lines`：写入、删除或按行修改 IRIS 文档。仅在用户明确要求时使用；`insert` 和 `delete_lines` 必须遵守 `expected` stale-edit guard，`put` 适用于 `.cls/.mac/.inc` 等 IRIS 文档，不用于 CSP 上传。
-- `iris_compile`：编译类、例程或包。部署冒烟检查优先使用 `flags="cuk /checkuptodate=expandedonly"`。
+- `iris_compile`：编译类、例程或包。部署冒烟检查优先使用 `flags="cuk/checkuptodate=expandedonly"`；v1.7.1 不接受 flags 中的空格。
 - `iris_execute`：执行 ObjectScript。即使代码看似只读，工具内部也可能创建临时生成类；必须检查返回 status 和 stdout，不能只看传输成功。已授权的只读核验或翻译操作可将这种自清理临时载体记录为 `tool-internal-execution`，它不等同于 `business-code-deploy`，也不得用于上传命名业务类。
 - `iris_execute_method`：直接调用 ClassMethod；仍属于远端执行，不能因省略 ObjectScript 包装代码而视为只读查询。
 - `iris_global`：get/list 属于读取，set/kill 属于高风险写入；知识查询默认不读取业务或患者 Global。
@@ -84,9 +84,9 @@ IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY
 - `kb`、`kb_index`、`kb_recall`：索引或召回知识库内容。
 - `skill*` 工具：学习 Agent 技能注册表操作；正常业务部署中不要使用写入、分享或社区安装能力。
 
-## 当前内置版本工具名复核：2026-10-16
+## 当前内置版本工具名复核：2026-11-13
 
-仓库内置 `iris-agentic-dev 1.5.0` 已通过本地 JSON-RPC `initialize` + `tools/list` 复核。完整合并 toolset 为 81 个工具；默认 `--no-skills` 为 70 个。除原有知识查询和编码工具外，以下沿用 v1.2.6 分类基线，不代表新版真实服务器行为已验证；`iris_mirror_status`、`iris_reload_pool`、`iris_system_performance` 尚未完成本仓语义审计，helper 均要求 `--allow-write`：
+仓库内置 `iris-agentic-dev 1.7.1` 已通过本地 JSON-RPC `initialize` + `tools/list` 复核。完整合并 toolset 为 81 个工具；默认 `--no-skills` 为 70 个。除原有知识查询和编码工具外，以下沿用 v1.2.6 分类基线，不代表新版真实服务器行为已验证；`iris_mirror_status`、`iris_reload_pool`、`iris_system_performance` 尚未完成本仓语义审计，helper 均要求 `--allow-write`：
 
 - `docs_introspect`
 - `iris_symbols`
@@ -122,6 +122,13 @@ IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY
 - 原生 CLI 的单次 `tool` 拒绝 `iris_ws_open`、`iris_ws_exec`、`iris_ws_close`；持久会话须在同一 MCP 进程或原生 `batch` 中完成。管理进程持有后端，但 WS token 仍绑定原客户端租约；不能从另一个 CLI 进程借用。
 - 正常退出新增 CSP 会话注销和临时类清理等待；强制终止不等于已清理。CLI 可能增加约 3 秒退出耗时，真实资源释放需目标侧验证。
 - vendor skill 的 `iris_doc put`、编译与测试示例必须服从项目部署入口、Storage 保护和既有远程动作授权；上游原文不覆盖项目契约。
+
+## v1.7.1 配置与编译兼容
+
+- 全局 operator 文件与项目 TOML 共同形成有效策略。项目中放宽权限的设置只有经可信流程才生效；发现拒绝先读取 `check_config.effective_policy` 与 `set_aside`，不自动改全局策略或执行 `trust`。策略收紧立即生效，放宽通常需重启。连接字段和用户已有值不随升级重写。
+- 编译期门禁检查 `#execute`、`##expression`、generator、include 和过期父类等，编译 flags/qualifier 也受约束。保留服务器原始错误，按依赖顺序处理；不得为了通过编译自动关闭门禁、改源码语义或删 Storage。
+- `read_only="strict"` 会拒绝内部需要临时编译的调用；普通只读查询仍不能代替 IRIS 账户权限。消息正文在 `dataPolicy="allow"` 下还需要 `acknowledgePhi=true`，知识查询不因此获得业务数据授权。
+- 受管构建继续提供零自动重试、禁用持久遥测、会话失效停止发送、注销回执和 HTTP 发送计数。来源与二进制验收见 vendor 的 `UPSTREAM.md` / `managed-build.json`；工具目录只证明接口存在，真实业务行为需目标工程验收。
 
 ## 冒烟测试结果：2026-06-01
 
@@ -167,7 +174,7 @@ IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY
 
 - 远端调用优先使用已部署且接入公共准入的入口；根 `scripts/iris-mcp.js` 的 tools/call 使用前核实本页首段要求。原生工具可用不代表准入合格；helper 缺失或资格不明时停止，不自行编写替代连接脚本。
 - helper 的 `tools` / `call` 已内置 `check_config`，正常调用直接使用这两个入口，独立 `check` 留给配置诊断。参数已知时直接 `call`；需要核实参数时使用 `tools --names iris_global,iris_execute_method,iris_doc --schema --json`，将名单换成本次实际需要的工具。`--json` 的 stdout 为单个 JSON 对象，含 `CHECK` 与 `TOOLS` / `TOOL_SCHEMAS` 或 `RESULT`，无需落盘截取；失败检查退出码和 stderr。工具名不可用时明确报错，不回退到猜参数。目录仅在本次进程内复用，无跨会话缓存。
-- `check_config` 只说明配置解析结果，不发起 IRIS 网络调用。先确认目标 host、namespace、`connection_source`、`fallback_warning`、`objectscript_workspace` 和 `capabilities` 是否合理，再立即执行 `iris_query("SELECT 1 AS Probe")` 作为最小无副作用网络探针。
+- `check_config` 说明配置、有效策略和连接状态；服务账户登录探针不证明业务读取可用。先确认目标 host、namespace、`connection_source`、`fallback_warning`、`objectscript_workspace` 和 `capabilities` 是否合理，再立即执行 `iris_query("SELECT 1 AS Probe")` 作为最小无副作用业务探针。
 - `capabilities.compile_path=docker_exec` 时，允许 `iris_compile` 使用上游自动路由，不要先把 Atelier REST 不可用扩大为整个 MCP 不可用；`capabilities` 仍是连接状态推导，不替代真实工具调用验证。
 - 当 `connection_source=auto_discovered` 或环境变量发现已生效，且 `SELECT 1 AS Probe` 成功时，`config_file=null` 不构成配置失败，也不要求为了形式补 TOML 或强制热加载。
 - 查询成功即继续任务。只有真实探针失败时，才保留完整错误、重启一次 MCP 会话并复测；单次 HTTP 404/405 或单个工具失败不得扩大为“整个 MCP 不可用”。

@@ -1,6 +1,6 @@
 {
   "schema": "iris-tool-catalog/v1",
-  "vendorVersion": "1.5.0",
+  "vendorVersion": "1.7.1",
   "tools": [
     {
       "name": "capability_matrix",
@@ -40,7 +40,7 @@
     },
     {
       "name": "check_config",
-      "description": "Return the active IRIS connection state without making any IRIS network calls. Always succeeds — never returns IRIS_UNREACHABLE. Use to: (1) diagnose connection issues, (2) verify hot-reload completed, (3) confirm which container/host is active, (4) confirm which build of this MCP server is actually running (server_version) when multiple installs/forks may be registered. To switch connection mid-session without restart: call check_config first to get config_watch_path, then write a .iris-agentic-dev.toml to that exact path, then call any tool — the reload fires automatically. Fields: server_version, connected, connection_source (http|docker|disconnected), host, port, namespace, container, config_file, config_watch_path, config_loaded_at, iris_version, write_tools_enabled, write_tools_source, destructive_tools_enabled, destructive_tools_source, tls_verify, capabilities. The two *_source fields say what decided each gate (operator_env|config_file|legacy_allow_prod|inferred_system_mode|inferred_namespace|inferred_default|fail_closed), so a gate you did not ask for is one field lookup rather than a guess. Skill: iris-agentic-dev.",
+      "description": "Return the active IRIS connection state without making any IRIS network calls. Always succeeds — never returns IRIS_UNREACHABLE. Use to: (1) diagnose connection issues, (2) verify hot-reload completed, (3) confirm which container/host is active, (4) confirm which build of this MCP server is actually running (server_version) when multiple installs/forks may be registered. To switch connection mid-session without restart, use iris_select_container or iris_add_server; config_watch_path is the project directory iad watches for a project file (null when there is none), and a change there reloads on the next tool call. A project file cannot raise the write or destructive gate, turn on data reads or loosen a policy until the operator has trusted it and restarted iad; a change to the operator's own configuration that loosens a setting waits for the next start, and one that tightens applies at once; check_config lists what it set aside or held (set_aside), where each policy part came from (effective_policy, config_sources) and the compile-time gate (compile_time_gate). Fields: server_version, connected, connection_source (config_file|env_vars|iris_select_container|auto_discovered), host, port, namespace, container, config_file, config_watch_path, config_loaded_at, iris_version, write_tools_enabled, write_tools_source, destructive_tools_enabled, destructive_tools_source, tls_verify, capabilities. The two *_source fields say what decided each gate (read_only_strict|operator_env|config_file|legacy_allow_prod|inferred_system_mode|inferred_namespace|inferred_default|fail_closed), so a gate you did not ask for is one field lookup rather than a guess. Skill: iris-agentic-dev.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -318,6 +318,11 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
+          },
           "confirm_token": {
             "anyOf": [
               {
@@ -508,6 +513,18 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "container": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The Docker container of this server: the only one a docker exec fallback may use for it."
+          },
           "description": {
             "anyOf": [
               {
@@ -532,7 +549,7 @@
             "type": "string"
           },
           "password": {
-            "description": "IRIS password — stored in OS keychain, never written to disk.",
+            "description": "IRIS password — stored in the OS keychain under iad's own service, bound to this endpoint.\nOn a host with no keychain it is saved in servers.json (owner-only) for this endpoint.",
             "type": "string"
           },
           "port": {
@@ -556,6 +573,30 @@
               }
             ],
             "description": "URL scheme: `\"http\"` (default) or `\"https\"`."
+          },
+          "service_password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The service account's password — stored in the OS keychain, never written to disk unless\nthere is no keychain."
+          },
+          "service_username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The restricted account the agent's code runs as on this server (`iris_execute`,\n`iris_query` writes, `iris_global` set/kill, `iris_execute_method`, `global_kill`,\n`iris_test`, `iris_coverage` run/start and the WebSocket terminal). A server without one is\nrefused those tools while `IRIS_SERVICE_USERNAME` is set. The account needs\n`%Development:USE`; see docs/connecting.md."
           },
           "username": {
             "description": "IRIS username.",
@@ -592,6 +633,17 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "acknowledgePhi": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`journal_search`: return the values of PHI-named globals. The values of system-blocklisted\nglobals stay withheld either way."
+          },
           "action": {
             "description": "Which administration action to run. The enum is the dispatch table itself — any value\noutside it reaches the catch-all arm and comes back as `INVALID_ACTION`.",
             "enum": [
@@ -945,7 +997,7 @@
     },
     {
       "name": "iris_business_rule_info",
-      "description": "List or inspect Ensemble business rules (Ens.Rule.RuleSet). action=list returns all rule sets with name/description/modified. action=get with rule_name returns conditions/actions counts for that rule set. Returns INTEROP_NOT_AVAILABLE if Ensemble is not installed. Skill: ensemble-production (merged toolset only). `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "description": "List or inspect interoperability business rules. Reads rule classes (subclasses of Ens.Rule.Definition with XData RuleDefinition, the kind the Rule Editor opens) and legacy Ens.Rule.RuleSet rows; each result has kind=class or kind=legacy. action=list returns {name, class_name, kind, rule_type, description, modified}. action=get with rule_name (the rule class name) returns the rule sets, each rule's when conditions and actions, its rule_type and context; for a legacy rule set only condition/action counts. Returns INTEROP_NOT_AVAILABLE if Ensemble is not installed. Skill: ensemble-production (merged toolset only). `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -1104,7 +1156,7 @@
     },
     {
       "name": "iris_coverage",
-      "description": "Measure ObjectScript line coverage using %Monitor.System.LineByLine. mode=run: start monitoring + run compiled test suite + stop + return per-class and total coverage in one call (use this for most tasks). mode=check: verify the monitor is available by doing a dry Start() — if BBSIZ_NOT_CONFIGURED is returned, increase gmheap to 256+ in Management Portal > System Administration > Configuration > Additional Settings > Advanced Memory, then restart IRIS. mode=start/stop/report: manual multi-step control. Provide either classes=['MyApp.MyClass',...] or package='MyApp' (auto-discovers concrete classes). test_path must be a compiled class pattern (e.g. 'MyApp.Tests') — /noload always used. Returns {total_pct, hits, total, classes:[{class,routine,hit,total,pct}], meets_target, target_pct}. Error codes: BBSIZ_NOT_CONFIGURED (gmheap too small), MONITOR_IN_USE, MISSING_PARAM. Skill: objectscript-coverage (merged toolset only). `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "description": "Measure ObjectScript line coverage using %Monitor.System.LineByLine. mode=run: start monitoring + run compiled test suite + stop + return per-class and total coverage in one call (use this for most tasks). mode=check: verify the monitor is available by doing a dry Start() — if BBSIZ_NOT_CONFIGURED is returned, increase gmheap to 256+ in Management Portal > System Administration > Configuration > Additional Settings > Advanced Memory, then restart IRIS. mode=start/stop/report: manual multi-step control. Every mode except report is a write (check starts and stops the monitor), so the write gate applies. Provide either classes=['MyApp.MyClass',...] or package='MyApp' (auto-discovers concrete classes). test_path must be a compiled class pattern (e.g. 'MyApp.Tests') — /noload always used. Returns {total_pct, hits, total, classes:[{class,routine,routines,hit,total,pct}], meets_target, target_pct}; every routine a class compiled to is counted, and a class with 0 of 0 lines has pct null (and null total_pct, meets_target), which is not 0%. If a line of the run throws, the monitor is still stopped and the result is partial with run_error. A line monitor that is already running (another session's) is refused with MONITOR_IN_USE and left alone; mode=stop stops it. Error codes: BBSIZ_NOT_CONFIGURED (gmheap too small), MONITOR_IN_USE, COVERAGE_ROUTINE_UNKNOWN (a class with no compiled routine), MONITOR_NOT_RUNNING (report), MISSING_PARAM. Skill: objectscript-coverage (merged toolset only). `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -1133,6 +1185,11 @@
               }
             ],
             "description": "Write Cobertura XML to this path (requires TestCoverage IPM package)"
+          },
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
           },
           "mode": {
             "description": "Mode: \"start\" | \"stop\" | \"report\" | \"run\" | \"check\"",
@@ -1200,7 +1257,7 @@
                 "type": "null"
               }
             ],
-            "description": "Compiled class pattern for mode=run (e.g. \"MyApp.Tests\"); /noload always used"
+            "description": "Test pattern for mode=run, run the way `iris_test` runs it: a compiled class pattern (e.g.\n\"MyApp.Tests\") is looked up in the database, a directory is scanned, and a\n`%UnitTest.TestProduction` subclass runs through `.Run()`."
           }
         },
         "required": [
@@ -1256,6 +1313,11 @@
               }
             ],
             "description": "`create`, `update`, or `delete`."
+          },
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
           },
           "id": {
             "anyOf": [
@@ -1371,7 +1433,7 @@
     },
     {
       "name": "iris_debug",
-      "description": "IRIS debug tools. action=map_int maps a runtime error offset to source line, action=error_logs fetches recent error log entries, action=capture captures current error state, action=source_map builds .INT to .CLS mapping. Skill: objectscript-debugging. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "description": "IRIS debug tools. action=map_int maps a runtime error offset to source line, action=error_logs fetches recent error log entries, action=capture captures current error state, action=source_map (class_name) lists, for each method a class declares, the .INT line of each body line. Skill: objectscript-debugging. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -1493,6 +1555,11 @@
               }
             ],
             "description": "Compiled form type. Only \"INT\" (the default) is implemented; \"OBJ\" is rejected with\nINVALID_PARAMS, so the enum offers the one value that works."
+          },
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
           },
           "content": {
             "anyOf": [
@@ -1735,13 +1802,18 @@
     },
     {
       "name": "iris_execute",
-      "description": "Execute arbitrary ObjectScript code on IRIS and return stdout. Two execution paths: (1) HTTP primary — wraps code in a temporary class method body (CodeMode=objectgenerator), compiles it via Atelier REST, runs it, deletes the class. Block syntax (`{}`) works here because class method bodies support it. (2) docker exec fallback — used when IRIS_CONTAINER env var is set and HTTP fails, or when the connection sets `docker_only = true` in `.iris-agentic-dev.toml` (a config-file key, not a parameter of this tool — passing docker_only in the tool arguments does nothing). This path pipes code into `iris session` stdin, which is a line-by-line terminal interpreter. Block syntax (`{}`) is NOT supported in terminal mode — `If cond { ... }` causes a `<SYNTAX>` error. Use classic terminal-compatible form instead: `If cond Write x`. For complex multi-line scripts that require `{}` on a docker exec path, write a .mac routine with `iris_doc` (mode=put) and compile it with `iris_compile`, then call `iris_execute Do entry^RoutineName`. That needs Atelier REST for `iris_doc`; under `docker_only` the routine must already be on the server. The destructive gate covers tool calls, not the code this tool runs: only a literal `Kill ^global` is checked, so for a hard limit connect as an IRIS user without delete privileges. &sql(...) embedded SQL runs natively on the HTTP path. The docker exec path has no &sql, so there it is translated to %SQL.Statement calls (set translate_sql: false to disable), and the response includes sql_translated: true and translated_code. Example: code='write $ZVERSION,!' returns the IRIS version string. Classes in Security.*, Config.* and SYS.* (web applications, users, roles, namespaces, databases) exist only in %SYS: pass namespace: \"%SYS\" for them. Skill: objectscript-tdd for the compile-execute-fix loop. Session state: set use_session: true to enable the %ctx carrier (%DynamicObject). Store values in %ctx.key between calls — scalars, %DynamicObject, and %Persistent objects (stored as OID stubs and re-opened on restore). The response includes session_state (opaque Base64 token); pass it back as session_state on the next call to restore %ctx. Nothing is written to IRIS — the token is held by the client. Error codes: SESSION_INVALID (bad token), SESSION_RESTORE_FAILED (missing class or bad OID), SESSION_SERIALIZE_FAILED (serialization error), TERMINAL_SYNTAX_UNSUPPORTED (block syntax on docker exec path). `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "description": "Execute arbitrary ObjectScript code on IRIS and return stdout. Two execution paths: (1) HTTP primary — wraps code in a temporary class method body (CodeMode=objectgenerator), compiles it via Atelier REST, runs it, deletes the class. Block syntax (`{}`) works here because class method bodies support it. (2) docker exec fallback — used when IRIS_CONTAINER env var is set and HTTP fails, or when the connection is configured `docker_only` (a connection setting, not a parameter of this tool — passing docker_only in the tool arguments does nothing). This path pipes code into `iris session` stdin, which is a line-by-line terminal interpreter. Block syntax (`{}`) is NOT supported in terminal mode — `If cond { ... }` causes a `<SYNTAX>` error. Use classic terminal-compatible form instead: `If cond Write x`. For complex multi-line scripts that require `{}` on a docker exec path, write a .mac routine with `iris_doc` (mode=put) and compile it with `iris_compile`, then call `iris_execute Do entry^RoutineName`. That needs Atelier REST for `iris_doc`; under `docker_only` the routine must already be on the server. The destructive gate covers tool calls, not the code this tool runs: only a literal `Kill ^global` is checked, so for a hard limit connect as an IRIS user without delete privileges. &sql(...) embedded SQL runs natively on the HTTP path. The docker exec path has no &sql, so there it is translated to %SQL.Statement calls (set translate_sql: false to disable), and the response includes sql_translated: true and translated_code. Example: code='write $ZVERSION,!' returns the IRIS version string. Classes in Security.*, Config.* and SYS.* (web applications, users, roles, namespaces, databases) exist only in %SYS: pass namespace: \"%SYS\" for them. Skill: objectscript-tdd for the compile-execute-fix loop. Session state: set use_session: true to enable the %ctx carrier (%DynamicObject). Store values in %ctx.key between calls — scalars, %DynamicObject, and %Persistent objects (stored as OID stubs and re-opened on restore). The response includes session_state (opaque Base64 token); pass it back as session_state on the next call to restore %ctx. Nothing is written to IRIS — the token is held by the client. Error codes: SESSION_INVALID (bad token), SESSION_RESTORE_FAILED (missing class or bad OID), SESSION_SERIALIZE_FAILED (serialization error), TERMINAL_SYNTAX_UNSUPPORTED (block syntax on docker exec path). `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
           "code": {
             "type": "string"
+          },
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
           },
           "confirmed": {
             "default": false,
@@ -1825,6 +1897,11 @@
             "description": "Class name e.g. \"%Library.Integer\" or \"MyApp.Utils\"",
             "type": "string"
           },
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
+          },
           "method": {
             "description": "Method name e.g. \"IsValid\" or \"FormatDate\"",
             "type": "string"
@@ -1879,6 +1956,11 @@
             ],
             "description": "Existing class name to generate tests for (gen_type=test only)"
           },
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
+          },
           "description": {
             "description": "What to generate — natural language description, e.g. \"a Patient class with Name and DOB properties\"",
             "type": "string"
@@ -1925,11 +2007,16 @@
     },
     {
       "name": "iris_generate_class",
-      "description": "Generate an ObjectScript class from a natural language description. Requires IRIS_GENERATE_CLASS_MODEL + OPENAI_API_KEY env vars. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "description": "Generate an ObjectScript class from a natural language description, store it and compile it (the compile-time gate, stored-include and superclass checks of iris_doc put with compile apply; a refusal is an error result). Requires IRIS_GENERATE_CLASS_MODEL + OPENAI_API_KEY env vars. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
+          },
           "description": {
             "type": "string"
           },
@@ -1977,6 +2064,11 @@
         "properties": {
           "class_name": {
             "type": "string"
+          },
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
           },
           "namespace": {
             "anyOf": [
@@ -2093,6 +2185,11 @@
               "list"
             ],
             "type": "string"
+          },
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
           },
           "global_name": {
             "description": "Global name (with or without leading ^)",
@@ -2288,11 +2385,22 @@
     },
     {
       "name": "iris_interop_query",
-      "description": "Interoperability query dispatcher (merged). what (REQUIRED): logs=Event Log entries, queues=message queue depths, messages=message archive (Ens.MessageHeader). Anything else returns INVALID_ACTION. To trace one session, use what=messages with session_id=<n>. Filters: component=<config item> narrows logs and messages; session_id=<n> and since_id=<n> (tails after a watermark) narrow messages. what=messages can also search message CONTENT: (a) body_class=<msg class> + body_where=<SQL fragment on body table> + body_select=[cols] joins the body table server-side (SQL name resolved for you); (b) search_table={prop, value|value_like, class?, extent?} searches an indexed Search Table field (extent default EnsLib.HL7.SearchTable; errors list searchable props). Pass namespace=<ns> for a non-default interop namespace. Skill: ensemble-production. `server` (optional): name of a registered IRIS instance.",
+      "description": "Interoperability query dispatcher (merged). what (REQUIRED): logs=Event Log entries, queues=message queue depths, messages=message archive (Ens.MessageHeader). Anything else returns INVALID_ACTION. To trace one session, use what=messages with session_id=<n>. Filters: component=<config item> narrows logs and messages; session_id=<n> and since_id=<n> (tails after a watermark) narrow messages. what=messages can also search message CONTENT: (a) body_class=<msg class> + body_where=<SQL fragment on body table> + body_select=[cols] joins the body table server-side (SQL name resolved for you); (b) search_table={prop, value|value_like, class?, extent?} searches an indexed Search Table field (extent default EnsLib.HL7.SearchTable; errors list searchable props). Both (a) and (b) read message content, so they need dataPolicy = allow on the server and acknowledgePhi=true, as iris_message_body does. Pass namespace=<ns> for a non-default interop namespace. Skill: ensemble-production. `server` (optional): name of a registered IRIS instance.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "acknowledgePhi": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required with `search_table` when the server's `dataPolicy` is `allow`: acknowledges that the\nindexed values returned may contain PHI."
+          },
           "body_class": {
             "anyOf": [
               {
@@ -2580,6 +2688,11 @@
             ],
             "description": "`get`, `set`, `delete`, `list_keys`, or `list_tables`. The first, fourth and fifth are\nread-only; `set` and `delete` need the destructive tier, and so does any value this list does\nnot contain."
           },
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
+          },
           "key": {
             "anyOf": [
               {
@@ -2633,7 +2746,7 @@
     },
     {
       "name": "iris_lookup_transfer",
-      "description": "Export or import an Ensemble lookup table as XML. action: export|import. table: table name. xml: XML string (required for import). namespace: optional. export always available; import write-gated. Skill: ensemble-production.",
+      "description": "Export or import an Ensemble lookup table as XML. action: export|import. table: table name. xml: XML string (required for import). namespace: optional. export always available; import replaces the whole table, so import is destructive-tier. Skill: ensemble-production.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -2652,6 +2765,11 @@
               }
             ],
             "description": "`export` (read-only) or `import` (write-gated)."
+          },
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
           },
           "namespace": {
             "anyOf": [
@@ -2776,7 +2894,7 @@
     },
     {
       "name": "iris_message_body",
-      "description": "Read an Ensemble/Interoperability message body by message ID. Handles plain-text and stream-backed bodies (Ens.StreamContainer, %Stream.Object). PHI-gated: dataPolicy=block returns PHI_POLICY_BLOCKED; dataPolicy=allow requires acknowledgePhi=true; dataPolicy=redact scrubs HL7 v2 PID/MSH fields. max_bytes default 65536, clamped to 1048576. Skill: ensemble-production (merged toolset only). `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "description": "Read an Ensemble/Interoperability message body by message ID. Handles plain-text and stream-backed bodies (Ens.StreamContainer, %Stream.Object). PHI-gated by the stricter of the server's dataPolicy and the dataPolicy argument (block|redact|allow; an omitted argument means the server's own policy; any other value is INVALID_PARAMS): block returns PHI_POLICY_BLOCKED; allow requires acknowledgePhi=true; redact returns HL7 v2 with the identifying fields of PID, NK1, GT1, IN1, IN2 and MSH-3 (names, ids, birth dates, addresses, phones, SSNs) replaced by [REDACTED], which is a field mask and not de-identification: other segments and free text (PV1, OBX, NTE) come back as stored. It refuses other content with BODY_NOT_REDACTABLE. max_bytes default 65536, clamped to 1048576. Skill: ensemble-production (merged toolset only). `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -2795,13 +2913,18 @@
           "dataPolicy": {
             "anyOf": [
               {
+                "enum": [
+                  "block",
+                  "redact",
+                  "allow"
+                ],
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "`block` (default), `allow`, or `redact`. The server's own policy is applied first, so this\ncannot widen what a `.iris-agentic-dev.toml` has restricted."
+            "description": "`block`, `redact`, or `allow`; any other value is `INVALID_PARAMS`. Omitted means the server's\nown policy. The stricter of this and the server's policy applies, so it cannot widen what a\nconfiguration file has restricted."
           },
           "max_bytes": {
             "anyOf": [
@@ -2888,6 +3011,11 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
+          },
           "db_path": {
             "anyOf": [
               {
@@ -2974,6 +3102,11 @@
               "set_autostart"
             ],
             "type": "string"
+          },
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
           },
           "enabled": {
             "anyOf": [
@@ -3127,6 +3260,11 @@
             ],
             "description": "`enable`, `disable`, `get_settings`, or `set_settings`."
           },
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
+          },
           "item": {
             "anyOf": [
               {
@@ -3180,7 +3318,7 @@
     },
     {
       "name": "iris_query",
-      "description": "Execute SQL against IRIS via Atelier REST. mode=\"read\" (default): SELECT only, destructive SQL blocked unless force=true. mode=\"explain\": returns the IRIS query plan for a SELECT (plan_text, query_hash), no rows. mode=\"count\": returns a row count for `table` or `query` without transferring rows. mode=\"write\": executes INSERT/UPDATE/DELETE/CALL/TRUNCATE (Execute-gated, blocked on mcpTemplate=live/test); UPDATE/DELETE are pre-checked against max_rows_affected (default 1000, max 10000) before executing. Skill: objectscript-sql-patterns for IRIS SQL quirks. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "description": "Execute SQL against IRIS via Atelier REST. mode=\"read\" (default): one SELECT, WITH or EXPLAIN statement; everything else (CALL, TUNE TABLE, BUILD INDEX, DML, DDL, GRANT, REVOKE) and a second statement after `;` are refused (force=true skips this when write tools are enabled, and then counts as a write). Read mode does not stop a stored procedure that has side effects when it is called inside a SELECT: only the IRIS user's privileges do. mode=\"explain\": returns the IRIS query plan for a SELECT (plan_text, query_hash), no rows. mode=\"count\": returns a row count for `table` or `query` without transferring rows. mode=\"write\": executes INSERT/UPDATE/DELETE/CALL/TRUNCATE (Execute-gated, blocked on mcpTemplate=live/test); UPDATE/DELETE are pre-checked against max_rows_affected (default 1000, max 10000) before executing. Skill: objectscript-sql-patterns for IRIS SQL quirks. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -3279,20 +3417,17 @@
     },
     {
       "name": "iris_reload_pool",
-      "description": "Hot-reload the IRIS connection pool from disk without restarting iad. Re-reads the workspace TOML config and the iad-native servers list, then atomically replaces the in-memory pool. Servers added or removed in the config file are available immediately. Returns {success, servers_loaded, servers, note} on success, or {success: false, error_code, error, note} if the config file cannot be parsed (the existing pool is preserved on parse errors). Error codes: TOML_PARSE_ERROR.",
+      "description": "Hot-reload the IRIS connection pool from disk without restarting iad. Re-reads the workspace TOML config and the iad-native servers list, then atomically replaces the in-memory pool. Servers added or removed in the config file are available immediately. Returns {success, servers_loaded, servers, note} on success, or {success: false, error_code, error, note} if the config file cannot be parsed (the existing pool is preserved on parse errors). Error codes: TOML_PARSE_ERROR. A write: it makes every server declared since startup routable, so it needs the write gate open.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {},
         "type": "object"
-      },
-      "annotations": {
-        "readOnlyHint": true
       }
     },
     {
       "name": "iris_remove_server",
-      "description": "Remove a server from the iad-native configuration. Destructive tier: requires IRIS_DESTRUCTIVE_TOOLS_ENABLED=1. Only servers with source=iad-native can be removed (vscode, fleet, and env sources are read-only). Also removes the OS keychain entry. Call `iris_reload_pool` afterwards to drop it from the running pool. Returns {removed: true, name, note}. Error codes: REMOVE_NOT_ALLOWED (source is not iad-native), SERVER_NOT_FOUND (not in pool).",
+      "description": "Remove a server from the iad-native configuration. Destructive tier: requires IRIS_DESTRUCTIVE_TOOLS_ENABLED=1. Only servers with source=iad-native can be removed (vscode, fleet, and env sources are read-only). Also removes iad's own OS keychain item for the entry (never the Server Manager's). Call `iris_reload_pool` afterwards to drop it from the running pool. Returns {removed: true, name, note}. Error codes: REMOVE_NOT_ALLOWED (source is not iad-native), SERVER_NOT_FOUND (not in pool).",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -3313,7 +3448,7 @@
     },
     {
       "name": "iris_search",
-      "description": "Full-text search across IRIS documents via Atelier REST v2. Auto-upgrades to async polling for large namespaces. Supports regex, case sensitivity, category filter (CLS/MAC/INT/INC/ALL), and wildcard document scopes. Skill: objectscript-navigation. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "description": "Full-text search across IRIS documents via Atelier REST v2. Auto-upgrades to async polling for large namespaces. Supports regex (matches anywhere in a line), case sensitivity, category filter (CLS/MAC/INT/INC/ALL), and wildcard document scopes. Returns at most `limit` matches (default 200, up to 10000); `limit_reached: true` means there may be more, so narrow `documents` or raise `limit`. Skill: objectscript-navigation. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -3345,6 +3480,20 @@
             "default": false,
             "description": "If true, bypass the log store and return all results inline regardless of count.",
             "type": "boolean"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Most matches to return, 1 to 10000. Defaults to 200, Atelier's own default. A response\nthat reached it has `limit_reached: true`."
           },
           "namespace": {
             "anyOf": [
@@ -3627,6 +3776,11 @@
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
+          },
           "description": {
             "anyOf": [
               {
@@ -3772,11 +3926,16 @@
     },
     {
       "name": "iris_test",
-      "description": "Run %UnitTest.Manager or %UnitTest.TestProduction tests on IRIS and return structured pass/fail results. Uses pure-HTTP execution via Atelier REST — works with or without IRIS_CONTAINER. Pass a class name pattern like 'MyApp.Tests' or 'ISC.sql.TestFoo' to run already-compiled test classes (uses /noload automatically). Pass a directory path like 'MyApp/Tests' to load from disk. Returns suite-level summary inline plus log_id for per-test-case detail via iris_get_log. `test_type` (optional): 'auto' (default) auto-detects %UnitTest.TestProduction subclasses and calls .Run(); 'testcase' forces RunTest(); 'testproduction' forces .Run(). Skill: objectscript-unit-test for test scaffolding; objectscript-tdd for the full loop. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
+      "description": "Run %UnitTest.Manager or %UnitTest.TestProduction tests on IRIS and return structured pass/fail results. Uses pure-HTTP execution via Atelier REST — works with or without IRIS_CONTAINER. Pass a class name pattern like 'MyApp.Tests' or 'ISC.sql.TestFoo' to run already-compiled test classes (uses /noload automatically). A pattern with a path separator or '..' is refused. Returns suite-level summary inline plus log_id for per-test-case detail via iris_get_log. `test_type` (optional): 'auto' (default) auto-detects %UnitTest.TestProduction subclasses and calls .Run(); 'testcase' forces RunTest(); 'testproduction' forces .Run(). Skill: objectscript-unit-test for test scaffolding; objectscript-tdd for the full loop. `server` (optional): name of a registered IRIS instance. If omitted, uses the default connection. Use `iris_servers` to list available instances.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
+          },
           "coverage": {
             "anyOf": [
               {
@@ -3975,6 +4134,11 @@
             "description": "ObjectScript code to execute in the terminal session.",
             "type": "string"
           },
+          "confirm": {
+            "default": false,
+            "description": "Confirms the call on a `subject` server, where a write is refused until it is set. No\neffect on other servers.",
+            "type": "boolean"
+          },
           "confirmed": {
             "default": false,
             "description": "Set to true to confirm execution on a subject-role instance (role-gate bypass).",
@@ -4029,7 +4193,7 @@
     },
     {
       "name": "journal_search",
-      "description": "Search the IRIS journal for SetKill records. start/end: optional ISO timestamp filters. global_pattern: optional substring filter on GlobalReference. max_entries: default 100, max 500. server: optional registered instance name. Returns {entries: [{timestamp, type, job_id, global}]}. Skill: iris-agentic-dev.",
+      "description": "Search the IRIS journal for SetKill records. start/end: optional ISO timestamp filters. global_pattern: optional substring filter on GlobalReference. max_entries: default 100, max 500. server: optional registered instance name. Reads at most 200,000 records or 20 s from the start of the current journal file, then returns truncated:true with truncated_reason and scanned. Returns {entries: [{timestamp, type, job_id, global}], returned, truncated, truncated_reason, scanned}. Skill: iris-agentic-dev.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -4479,11 +4643,35 @@
     },
     {
       "name": "stream_inspect",
-      "description": "Inspect the content of an IRIS stream object by OID. oid: the stream OID (integer string). namespace: optional namespace (defaults to the connection namespace, IRIS_NAMESPACE). server: optional registered instance name. Returns {content, type: 'text'|'binary', size, oid}. Skill: iris-agentic-dev.",
+      "description": "Inspect the content of an IRIS stream object by OID. oid: the stream OID (integer string). namespace: optional namespace (defaults to the connection namespace, IRIS_NAMESPACE). server: optional registered instance name. max_chars: most characters to return from the start (default 20000, at most 1000000). Returns {content, class, size, truncated, max_chars, line_count, oid}: size is the whole stream, truncated says content is a prefix, class is the class the read went through and says nothing about what the stream holds. An id that holds no stream is STREAM_NOT_FOUND. The server's dataPolicy decides what comes back: allow returns the content, redact returns HL7 v2 with the identifying fields of PID, NK1, GT1, IN1, IN2 and MSH-3 replaced by [REDACTED] (redacted: true means that mask ran, not that the content is de-identified: other segments and free text come back as stored) and refuses other content (BODY_NOT_REDACTABLE), block refuses the content (DATA_POLICY_BLOCKED). A refused stream still answers with class, size and line_count. allow also requires acknowledgePhi=true (without it the call is refused with PHI_ACK_REQUIRED). Skill: iris-agentic-dev.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
+          "acknowledgePhi": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required when the server's `dataPolicy` is `allow`: acknowledges that the stream's content\nmay contain PHI."
+          },
+          "max_chars": {
+            "anyOf": [
+              {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Most characters of the stream to return, counted from the start. Default 20000, at most\n1000000. The answer carries the stream's whole `size`, `truncated`, and the cap it used."
+          },
           "namespace": {
             "anyOf": [
               {
@@ -4504,7 +4692,7 @@
                 "type": "null"
               }
             ],
-            "description": "Stream OID — an integer as a string. Tried against `%Stream.GlobalCharacter` first, then\n`%Stream.GlobalBinary`."
+            "description": "Stream OID — an integer as a string. An id that holds no stream is `STREAM_NOT_FOUND`."
           },
           "server": {
             "anyOf": [
@@ -4562,7 +4750,7 @@
     },
     {
       "name": "telemetry_query",
-      "description": "Query the durable telemetry record (beyond the current process's in-memory agent_history) by tool name, session id, and/or time range. Reads from the IRIS-global durable sink when connected, or the local JSONL file sink when not.",
+      "description": "Query the durable telemetry record (beyond the current process's in-memory agent_history) by tool name, session id, and/or time range. Reads the local JSONL file, which holds this machine's records. When the operator turned on the IRIS sink (`telemetry_sink = \"iris\"` or IAD_TELEMETRY_SINK=iris) it reads the IRIS global too, on the server the call targets where that server's writes are on, read-only mode is not strict and its role is not `subject`, and returns a call both hold once. `check_config.telemetry_sink` says which is set.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,

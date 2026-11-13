@@ -1,9 +1,9 @@
 # iris-agentic-dev skills vendor snapshot
 
 - Upstream: `https://github.com/intersystems-community/iris-agentic-dev`
-- Commit: `2b3e017b7fc73d6370fc1e89e7fa03f3de49a1a1`
-- Upstream version at commit: `1.5.0`
-- Imported: `2026-10-16`
+- Commit: `4e0b2d8a86f9e5ffa9e077f7a524b58cd219988a`
+- Upstream version at commit: `1.7.1`
+- Imported: `2026-11-13`
 - License: MIT，见同目录 `LICENSE`
 
 ## 选择范围
@@ -29,10 +29,10 @@
 - 这些 skill 在 `coding-iris-plugin` manifest 中声明为 optional capability，不随普通更新自动生成浅层入口。
 - 任务命中后可直接读取 `.agents/vendor/iris-agentic-dev-skills/skills/<name>/SKILL.md`；需要运行时用户级副本时，按更新 runbook 显式同步指定 skill。
 
-## v1.5.0 同步说明
+## v1.7.1 同步说明
 
 - 原有 8 项与 LICENSE 均按固定提交逐个验证 Git blob SHA，保留上游原文；7 项为 core，objectscript-navigation 为 extra。上游 tier 不改变本仓 optional capability 的加载方式。
-- 主要更新为 SQLCODE 与取数错误处理、列表追加复杂度、事务层级与命名空间恢复、测试类选择和零测试失败判定；未额外引入 iris-query-plans 等技能。
+- 相比原 v1.5.0 快照，3 项正文有变化：guardrails 补充删除回调的 OID 参数和真实回调名称；navigation 更正类成员与继承接口的查询方式；unit-test 要求通过 iris_test 运行，避免 messages.log 增长影响直接执行的输出。其余 5 项内容未变，未新增领域 skill。
 - 上游编译、上传和测试示例是参考能力，执行时优先采用目标项目既有部署入口、Storage 保护和远程动作授权；不因示例使用 iris_doc put 而绕过项目部署契约。
 - 上游 frontmatter 中保留的 benchmark/pass_rate 是历史元数据；v1.5.0 发布说明已撤回旧评测收益，不作为当前有效性证据。真实 IRIS 版本适用性按目标工程验证。
 - 业务工程正常更新能力包即可取得 vendor 快照；用户级目录已有同名 SKILL.md 时，同步器报告 vendor-skill-reused 并保留原内容，不比较版本或覆盖旧副本。需要新版时优先直接读取项目 vendor；确需替换用户级副本，应先核对来源和用户修改，再单独执行明确授权的更新。

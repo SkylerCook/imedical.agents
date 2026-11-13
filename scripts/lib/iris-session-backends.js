@@ -11,7 +11,7 @@ function verifyVendor(executable) {
   const stat=fs.statSync(executable),metadata=path.join(path.dirname(executable),'..','managed-build.json');
   if(!fs.existsSync(metadata))throw failure('session-patched-vendor-required');
   const build=JSON.parse(fs.readFileSync(metadata,'utf8').replace(/^\uFEFF/,''));
-  if(build.schema!=='iris-managed-vendor/v1' || build.patch!=='managed-sessions-v5')throw failure('session-patched-vendor-mismatch');
+  if(build.schema!=='iris-managed-vendor/v1' || !['managed-sessions-v5','managed-sessions-v6'].includes(build.patch))throw failure('session-patched-vendor-mismatch');
   const fingerprint=hash([executable,stat.size,stat.mtimeMs,build.sha256]);
   if(!verifiedBinaries.has(fingerprint)) {
     const actual=require('node:crypto').createHash('sha256').update(fs.readFileSync(executable)).digest('hex');

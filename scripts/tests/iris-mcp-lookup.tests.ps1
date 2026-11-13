@@ -76,11 +76,11 @@ $expectedVendorSkills = @(
 
 $expectedVendorBlobs = @{
   "objectscript-review" = "5845666a87a4fd8b74ef21356c0b73238b765548"
-  "objectscript-guardrails" = "4ab1f08bbe8161737341eca77ce62a94930a3a58"
+  "objectscript-guardrails" = "5838587ed0a497a4dc6c6b3a456de1b3533d1679"
   "objectscript-sql-patterns" = "55cb6895dbac93d185af468efa1506c65e2efca8"
   "objectscript-list-patterns" = "59cd1dcf567dd25e2a8899dfaf4e3ebdf7202cb1"
-  "objectscript-navigation" = "0ab1bae2dfa627cac162b442c4434aaaaa04c843"
-  "objectscript-unit-test" = "cbc1f786328eed4e45b3781972725b0341a86d45"
+  "objectscript-navigation" = "e6471ffbb64c10514e56b9c9c9c86adddf48fb30"
+  "objectscript-unit-test" = "f9d1a6e58f86871c9c8fc04436592b8a628025a4"
   "objectscript-debugging" = "7b011ce58cae72eae9f41f80c7090b40332cb2b2"
   "objectscript-tdd" = "d0fdd4e4cad3f0227c009fbf23513457781b2451"
 }
@@ -104,8 +104,8 @@ $upstreamPath = Join-Path $vendorRoot "UPSTREAM.md"
 $licensePath = Join-Path $vendorRoot "LICENSE"
 Assert-True (Test-Path -LiteralPath $licensePath -PathType Leaf) "Vendor MIT license is missing"
 $upstream = Get-Content -Raw -Encoding UTF8 -LiteralPath $upstreamPath
-Assert-Contains $upstream "2b3e017b7fc73d6370fc1e89e7fa03f3de49a1a1" "Vendor snapshot commit is missing"
-Assert-Contains $upstream "1.5.0" "Vendor upstream version is missing"
+Assert-Contains $upstream "4e0b2d8a86f9e5ffa9e077f7a524b58cd219988a" "Vendor snapshot commit is missing"
+Assert-Contains $upstream "1.7.1" "Vendor upstream version is missing"
 Assert-Contains $upstream "objectscript-tdd" "Vendor TDD authorization boundary is missing"
 
 $resolverPath = Join-Path $repoRoot "scripts/resolve-plugin-skill-dependencies.ps1"
@@ -133,7 +133,7 @@ foreach ($skillName in $expectedVendorSkills) {
 
 $agenticRulePath = Join-Path $pluginRoot "rules/iris_agentic_dev.md"
 $agenticRule = Get-Content -Raw -Encoding UTF8 -LiteralPath $agenticRulePath
-Assert-Contains $agenticRule "iris-agentic-dev 1.5.0" "Current bundled MCP version should be documented"
+Assert-Contains $agenticRule "iris-agentic-dev 1.7.1" "Current bundled MCP version should be documented"
 Assert-Contains $agenticRule "iris_debug" "Current merged debug tool should be documented"
 Assert-Contains $agenticRule "iris_containers" "Current container tool should be documented"
 Assert-Contains $agenticRule "iris_doc_search" "Doc search availability gate should be documented"
@@ -143,6 +143,6 @@ Assert-Contains $agenticRule "disabled_tools" "MCP tool suppression should be do
 Assert-Contains $agenticRule "destructive_tools_enabled" "Destructive tool policy should be documented"
 Assert-Contains $agenticRule "write_allowed_servers" "Per-server write policy should be documented"
 Assert-Contains $agenticRule "--no-skills" "Built-in skill suppression should be documented"
-Assert-Contains $agenticRule "81" "Live v1.5.0 tool count should be documented"
+Assert-Contains $agenticRule "81" "Live v1.7.1 tool count should be documented"
 
 Write-Host "iris-mcp-lookup tests passed"

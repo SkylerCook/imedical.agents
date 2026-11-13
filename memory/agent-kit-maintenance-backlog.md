@@ -41,7 +41,7 @@
 
 - P2 标版拆分审查：补取主子需求v4/验收v2的真实Agent拆分、无代码跳过、全部子项通过后的统一提交轨迹，以及同一主提交在真实BOS按各需求号登记/恢复的独立证据；源仓12项合成专项与本地bare流程不替代服务端或跨平台验收。补取 0.18.0 [名称标签规则](../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md#需求名称与标版标签各类来源共用)在真实宿主的逐条判断及正常更新后读取证据，覆盖标版开发、尚无代码的主题提需、临时脚本/演示配置和混合材料；取得既有 Windows/macOS/Linux × Node 22/24 CI 实跑结果，规则试读和本机专项不替代这些证据。按 bos-plugin/references/scenarios.md 验证真实宿主 --work 来源选择、计划与成果区分、可选成果不强填、口述/文件来源回填边界及 BOS 实际导入；短参数归一化、单目的不强拆、公共能力依赖与 Excel 同源输出；独立需求无法隔离共享文件时只交候选材料，具有共同目标的主子组按[代码归属协议](../docs/demand-code-ownership.md)复用主提交；薄索引和脚本回归不替代 Agent 行为证据。沿既有兼容/宿主验证队列，不新增审批。
 
-- P2 MCP helper：新增 CLI 专项已加入 Windows/macOS/Linux × Node 22.5/22/24 既有矩阵，待取得 CI 结果；已部署业务副本正常更新后验证规则实际加载与调用轮次。Windows bundled schema 实测不替代业务连接验证。
+- P2 MCP helper：新增 CLI 专项已加入 Windows/macOS/Linux × Node 22.5/22/24 既有矩阵，待取得 CI 结果；本轮在当前树及独立 HEAD 复现错误 stdout 旧断言与结构化 ERROR 契约不一致，后续定向对齐该断言。已部署业务副本正常更新后验证规则实际加载与调用轮次。Windows bundled schema 实测不替代业务连接验证。
 
 - P2 需求迁移扫描边界：嵌套 Git/worktree/Agent 上下文与符号链接的非 Windows CI 及部署更新后复验沿现有跨平台/业务副本队列推进；源仓只读检查不代替完整更新验收。
 
@@ -113,7 +113,7 @@
 | 1 | P0 | 信创历史发布记录纠错 | 信创维护人及版本治理负责人确定纠错方式 | 不篡改历史、不绕过门禁，当前清单与版本比较均通过 |
 | 2 | P0 | 多人提交准入与仓库一致性 | 框架维护者；可在第 1 项等待期间独立推进 | 短检查清单、责任边界和低误伤结构检查落地，正反例通过 |
 | 2a | P1 | 新增 xc 目录接入与发布前审查 | 两个新增 owner 与框架维护者 | 补 manifest、README、版本/依赖与发布记录；核对私有配置及 Git 历史、外部发送授权、宿主绑定与第三方依赖，离线专项通过后再声明可接入 |
-| 3 | P1 | MCP v1.5.0 工具与权限语义审计 | coding-iris owner；依据当前 schema 与调用语义，保留 v1.4.2 未分类工具的历史线索 | 新工具分类、响应及会话/资源退出有证据，授权拒绝与允许路径回归通过 |
+| 3 | P1 | MCP v1.7.1 工具与权限语义审计 | coding-iris owner；依据当前 schema 与调用语义，保留 v1.4.2 未分类工具的历史线索 | 新工具分类、响应及会话/资源退出有证据，授权拒绝与允许路径回归通过 |
 | 4 | P1 | 治疗表单事务链、统一前端部署、增量并行保护、XML／代码基线及真实宿主验收 | 指定目标工程、独立测试文件和明确远程授权；项目按需分支已在源仓实现，真实链路与普通 direct 增量缺口由 coding-iris owner 分别推进，不重复部署既有业务文件 | 写入、回读、引用切换及回滚恢复有真实证据；增量、远端独有修改、无基线/冲突/未知写停止与全部相同跳过策略有正反例；SFTP 同环境同文件集重复测量全部变化/部分变化/全部未变，记录端到端耗时、连接/读写/字节数，并验证中断、rename 响应丢失与 worker 强杀；HIS/WebView/设备结果分别记录 |
 | 5 | P1 | 跨模型、跨宿主的前后真实对照 | 可用前沿/较弱模型及两种宿主 | 固定样本、真实轨迹和同模型对照齐全；包含上下文初始化/维护/优化后的编程定位与验证路径、重复搜索及澄清往返；安全通过且无新增必需步骤遗漏 |
 | 6 | P1 | 通用调度框架 beta 稳定化 | 复杂 i18n、非 i18n 和 multi-session 任务样本；夜跑试点须明确目标项目及授权；Playwright 验收方法梳理与实践回归由用户本人负责 | 三类样本完成；异常恢复、所有权和验证失效闭环；完成上文 P1 可重复验收真实接入与夜跑新候选对照，失败样本补测 |
@@ -163,7 +163,7 @@
 
 - **P3 · 上游 MCP 原生 write 参数支持跟踪**：固定 SQL 兼容层的授权样本已通过，不再列为本轮实写阻断。后续上游补齐参数绑定后须重新验证，不能静默切换；新增实例和正常 deploy 改内容全链路另按具体任务验收。服务器 operation 审计仍由完整事务通道提供。
 
-- **P1 · `iris-agentic-dev` v1.5.0 工具体系审计**：v1.5.0 本地断连工具数仍为 70/81；既有 8 项 vendor skills 已同步并验证来源，SQL/事务/测试等新指导在目标 IRIS 版本的适用性仍待验证；响应兼容说明已由 coding 0.19.4 对齐；待在真实服务器核验 `iris_macro`、`iris_info`、`iris_execute_method`、HTTP `iris_execute` 行为，以及 helper 退出时 CSP 会话/临时类是否实际释放。此前 v1.4.2 exe 更新后 `--no-skills` 从 67 增至 70 个工具，新增 `iris_mirror_status`、`iris_reload_pool`、`iris_system_performance`。helper 对未分类工具保持 fail-closed，三者当前均需 `--allow-write`；后续单独审计 schema、读写语义、`web_prefix` 与 v1.4.2 之前 `iris_ws_exec` 门禁缺口的体系影响，再按组件版本治理更新 coding-iris-plugin。
+- **P1 · `iris-agentic-dev` v1.7.1 工具体系审计**：源仓受管 v6、70/81 接口快照、8 项官方 skill 来源及 localhost 上传编译/拒绝链已验证，见[升级记录](../maintenance/validation/iris-mcp-171-upgrade-2026-11-13.md)。仍需在获授权目标工程核验配置可信、类/include/父类编译、`iris_macro`、`iris_info`、`iris_execute_method`、HTTP `iris_execute` 和源码钩子行为，以及服务器会话/临时类实际释放。`iris_mirror_status`、`iris_reload_pool`、`iris_system_performance` 沿既有未分类审计线索，helper 继续 fail-closed；不能以本地接口数或退出回执代替真实权限与资源证据。
 
 ### 治疗表单后续验证与协议演进
 

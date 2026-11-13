@@ -103,6 +103,8 @@ test('identical verified vendor copies share identity across projects and env ke
   assert.equal(describe(a.root).identity,describe(b.root).identity);
   b.config.mcpServers['iris-agentic-dev'].env.IRIS_PASSWORD='another-identity';fs.writeFileSync(b.file,JSON.stringify(b.config));
   assert.notEqual(describe(a.root).identity,describe(b.root).identity);
+  fs.writeFileSync(path.join(a.root,'.agents/vendor/iris-agentic-dev/managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v6',sha256}));
+  assert.doesNotThrow(()=>describe(a.root),'The upgraded vendor contract must work alongside existing v5 installations');
   fs.writeFileSync(path.join(a.root,'.agents/vendor/iris-agentic-dev/managed-build.json'),JSON.stringify({schema:'iris-managed-vendor/v1',patch:'managed-sessions-v1',sha256}));
   assert.throws(()=>describe(a.root),/session-patched-vendor-mismatch/,'Cached binary hash must not bypass the required patch version');
 });

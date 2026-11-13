@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: intersystems-community/iris-agentic-dev
-          ref: 2b3e017b7fc73d6370fc1e89e7fa03f3de49a1a1
+          ref: 4e0b2d8a86f9e5ffa9e077f7a524b58cd219988a
           path: upstream
       - uses: actions/setup-node@v4
         with:
@@ -31,7 +31,7 @@ jobs:
             $file = Join-Path 'upstream' $relative
             [IO.File]::WriteAllText($file, [IO.File]::ReadAllText($file).Replace("`r`n", "`n"), [Text.UTF8Encoding]::new($false))
           }
-          foreach ($name in @('managed-sessions-v1.patch', 'session-identity-v2.patch', 'cookie-renewal-v3.patch', 'startup-readiness-v4.patch', 'request-dispatch-v5.patch')) {
+          foreach ($name in @('managed-sessions-v6.patch')) {
             Write-Host "Applying $name"
             $source = Join-Path $env:GITHUB_WORKSPACE "framework/vendor/iris-agentic-dev/patches/$name"
             $target = Join-Path $env:RUNNER_TEMP $name
@@ -65,7 +65,7 @@ jobs:
         shell: pwsh
         run: |
           $env:IRIS_TEST_VENDOR_BINARY = Join-Path $env:GITHUB_WORKSPACE 'upstream/target/release/iris-agentic-dev.exe'
-          node --test scripts/tests/iris-session-vendor.tests.js
+          node --test scripts/tests/iris-session-vendor.tests.js scripts/tests/iris-vendor-upgrade.tests.js
           exit $LASTEXITCODE
       - name: Record binary digest
         shell: pwsh

@@ -34,7 +34,7 @@ related:
 
 ## 当前内置版本兼容映射
 
-仓库内置 `iris-agentic-dev 1.5.0`。2026-10-16 的断连本地 JSON-RPC 复核中，完整合并 toolset 返回 81 个工具；helper 和新生成的 `.mcp.json` 默认加 `--no-skills` 后返回 70 个。响应兼容变化见 `iris_agentic_dev.md` 的“v1.5.0 响应与执行契约”。实际任务始终以目标运行时 `tools/list` 为准。
+仓库内置 `iris-agentic-dev 1.7.1`。2026-11-13 的断连本地 JSON-RPC 复核中，完整合并 toolset 返回 81 个工具；helper 和新生成的 `.mcp.json` 默认加 `--no-skills` 后返回 70 个。升级约束见 `iris_agentic_dev.md` 的“v1.7.1 配置与编译兼容”，既有响应变化沿“v1.5.0 响应与执行契约”。实际任务始终以目标运行时 `tools/list` 为准。
 
 | 上游 skill 中的逻辑/旧工具名 | 当前工具 |
 |---|---|

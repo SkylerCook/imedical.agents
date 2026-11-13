@@ -1,48 +1,21 @@
 # iris-agentic-dev
 
-当前版本：**1.5.0 + managed-sessions-v1**。
+当前版本：**1.7.1 + managed-sessions-v6**。
 
-固定上游、许可证、补丁、构建方法及验证边界见 [UPSTREAM.md](UPSTREAM.md)，当前二进制摘要见 [managed-build.json](managed-build.json)。受管模式关闭自动重试及隐式遥测写入，并提供独立注销回执。不得用官方未打补丁的同版本 exe 覆盖；管理入口会检查二进制摘要。
-升级兼容性：`iris_macro`、`iris_info`、`iris_execute_method` 和 HTTP `iris_execute` 的部分响应契约发生变化，详见[上游发布说明](https://github.com/intersystems-community/iris-agentic-dev/blob/v1.5.0/docs/release-notes/v1.5.0.md#breaking-changes)。本仓 helper 保留 MCP 转发和未分类工具 fail-closed 门禁；本地断连目录验证为默认 70 个工具、显式开启内置 skill 后 81 个。真实服务器行为需在目标工程验证。
+这是 IRIS/ObjectScript 工作流的 Windows x64 受管 MCP 后端。固定上游、许可证、补丁与构建方法见 [UPSTREAM.md](UPSTREAM.md)，exe 及补丁摘要见 [managed-build.json](managed-build.json)。维护升级先读 [AGENTS.md](AGENTS.md)。
 
-已部署工程通过既有能力包更新流程取得新版，并重启持有旧 exe 的 MCP 进程；受管入口需要配置迁移，见[统一会话手册](../../docs/guides/iris-managed-sessions.md)。独立的 `iris-agentic-dev-skills` 固定快照亦已同步至 v1.5.0 的既有 8 项，来源与边界见其 `UPSTREAM.md`；不执行 `skill install` 或同步业务副本。
+受管模式保留零自动重试、禁用持久遥测、Cookie 连续性保护、注销回执和 HTTP 发送计数。不得用官方未打补丁 exe 覆盖；统一会话入口会核对文件摘要。
 
-This directory vendors the Windows x64 `iris-agentic-dev` MCP server used by IRIS/ObjectScript workflows.
+## 升级与使用
 
-## 更新可执行文件
+上游 v1.7.1 包含参数注入、安全策略、账户会话隔离和输出捕获修复，同时改变配置可信、编译期检查和部分调用契约。详细变化见 [v1.7.0](https://github.com/intersystems-community/iris-agentic-dev/blob/v1.7.0/docs/release-notes/v1.7.0.md) 与 [v1.7.1](https://github.com/intersystems-community/iris-agentic-dev/blob/v1.7.1/docs/release-notes/v1.7.1.md) 发布说明。
 
-Agent 自动更新请读取同级 `AGENTS.md`，按 runbook 执行版本检测 → 下载 → 验证 → 文档同步。
+业务项目沿[更新说明](../../docs/update-agents.md#iris-mcp-171)同时取得共享 scripts、coding 插件、exe 和清单，结束旧会话后重启宿主 MCP。MCP 启动命令使用 Node 会话 adapter；mcp.serverPath 仅作为内部 vendor 来源，连接与有效策略保留在目标工程私有配置中。
 
-### 官方原件下载（仅供上游比对，不可覆盖受管构建）
+接口快照为 tools-no-skills.json（默认 70 项）和 tools-full.json（81 项）。它们来自断连 tools/list，不证明真实服务器行为。独立官方 skill vendor 同步 v1.7.1 的既有 8 项，继续按 optional capability 加载；不自动覆盖用户级 skill。
 
-在项目根目录执行以下命令下载最新版本：
+## 文件位置
 
-```powershell
-Invoke-WebRequest -Uri "https://github.com/intersystems-community/iris-agentic-dev/releases/download/v1.5.0/iris-agentic-dev-windows-x86_64.exe" -OutFile "vendor\iris-agentic-dev\windows-x64\iris-agentic-dev.exe"
-```
+源仓可执行文件位于 windows-x64/iris-agentic-dev.exe；业务副本位于 .agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe。运行 --version 只核实上游版本，补丁和构建身份须同时核对 managed-build.json。
 
-更新后校验版本：
-
-```powershell
-vendor\iris-agentic-dev\windows-x64\iris-agentic-dev.exe --version
-```
-
-## Layout
-
-```text
-vendor/iris-agentic-dev/
-`-- windows-x64/
-    `-- iris-agentic-dev.exe
-```
-
-In deployed business projects the executable is available at:
-
-```text
-.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe
-```
-
-Use this executable only as the managed backend. The project MCP command is the Node session adapter; retain `mcp.serverPath` as the internal vendor source for the configuration generator.
-
-Do not store IRIS hosts, namespaces, usernames, passwords, tokens, TLS settings, or remote paths in this directory. Those connection facts belong only in the target project's local `.mcp.json` or equivalent private environment variables.
-
-当前固定运行时为 managed-sessions-v5，增加无敏感信息的 HTTP 发送计数，供托管入口识别发送前拒绝。构建来源及摘要见 managed-build.json。
+本目录不保存服务器地址、namespace、账号、密码、token、TLS 实例配置或远程路径。

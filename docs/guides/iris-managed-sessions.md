@@ -100,7 +100,7 @@ warning 保留发生时间、通道和 generation，回执 historical 为 true �
 
 远端策略 maxFrameworkSessions 默认 12，可按项目调整正整数。托管同实例请求串行复用，受管读取批次按该上限缩减 worker。服务端其他用户会话数只用于观测。
 
-已有项目执行正常框架更新，同步共享 scripts、coding 插件和 managed-sessions-v5 vendor 后重启 MCP。缺省配置自动使用 12，已有显式配置保留。运行中的旧 MCP 需结束后加载新运行时。
+已有项目执行正常框架更新，同步共享 scripts、coding 插件和 managed-sessions-v6 vendor 后重启 MCP。v6 固定上游 v1.7.1，仍兼容既有 v5 受管副本的核验；升级的配置可信与编译约束见[更新说明](../update-agents.md#iris-mcp-171)。缺省配置自动使用 12，已有显式配置保留。运行中的旧 MCP 需结束后加载新运行时。
 
 ## 诊断与自动恢复证据（0.29.0）
 

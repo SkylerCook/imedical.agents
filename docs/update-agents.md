@@ -1,5 +1,13 @@
 # .agents 安装与更新 Runbook
 
+## IRIS MCP 1.7.1
+
+coding-iris-plugin 0.31.0 同步内置 MCP 至 v1.7.1 受管构建与官方 8 项 skill 固定快照。沿本页正常更新入口同时取得共享 scripts、coding 插件、vendor exe 和 managed-build.json；待当前任务结束、释放占用后重启宿主 MCP。旧 v5 与新 v6 受管构建均可由新版入口识别，实际 exe 必须与各自清单摘要一致；回退时沿 Git 已有版本恢复匹配的整套文件，不只替换 exe。
+
+连接、凭据、TLS 与已确认策略保持。新版项目 TOML 的放宽项需要可信来源，全局 operator 配置始终参与有效策略；升级后先查看 check_config 的 effective_policy、set_aside 和编译期检查结果，按具体拒绝处理，不自动执行 trust、放宽权限或关闭编译门禁。ObjectScript generator、include、过期父类、编译 flags 及消息正文确认需在目标工程按已有授权复验；源仓 localhost 验证不等于真实 IRIS 业务验收。
+
+官方 skill 保持 optional，普通更新不生成其浅层入口、不替换用户级同名副本。任务优先读取项目 vendor 的最新固定原文；用户级副本确需替换时先核对来源和用户修改，再按明确目标执行同步。
+
 coding 0.29.0 增加会话诊断和自动恢复证据。沿本页现有安装/更新路径同时同步共享 scripts 与 coding 插件，待受管任务结束后关闭旧会话并重启宿主 MCP，核对真实调用的 runtime 回执。旧配置无需补 generation，已有风险与恢复历史保留。更新后通过 status 查看 blockingReasons/nextAction，可靠同代本地退出回执由 reconcile-session/reconcile 自动采用，未知写仍明确提供已核实结果。说明见[统一会话指南](guides/iris-managed-sessions.md)。
 
 

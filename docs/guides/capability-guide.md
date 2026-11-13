@@ -172,6 +172,8 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 ## coding-iris-plugin
 
+MCP v1.7.1 的配置可信、编译约束与副本升级见[更新说明](../update-agents.md#iris-mcp-171)；遇到拒绝先按 owner 规则读取实际回执，不自动放宽策略。
+
 [查看该插件清单](capability-catalog.md#coding-iris-plugin)。下面的示例发给 Agent，不在终端执行；路径、对象和范围替换为当前工程实际值。
 
 帮助请求先展示用法并结束；实际开发先按 developmentMode 分流。offline 示例：“按这批带回源码完成本地修改、Review 和增量/回退交付，列出现场待验项。”沿[离线协议](../../plugins/coding-iris-plugin/references/iris-offline-development.md)核对批次、范围与真实源码 Git，无需医院连接；打包目前要求 Windows PowerShell 5.1 或 Windows 上的 PowerShell 7。
