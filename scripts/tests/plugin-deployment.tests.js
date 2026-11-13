@@ -149,9 +149,8 @@ for (const shell of process.platform === 'win32' ? ['powershell.exe','pwsh.exe']
         const args=['-ProjectRoot',f.project,'-Plugin','feature-ui','-Status','enabled'];
         const missing=run('update-plugin-profile.ps1',args);
         assert.notEqual(missing.status,0);
-        assert.match(missing.stderr,/discovery entries/);
-        const generated=run('generate-plugin-thin-index.ps1',['-PluginPath',path.join(f.root,'plugins/feature-ui'),'-ProjectRoot',f.project,'-Mode','Write']);
-        assert.equal(generated.status,0,generated.stdout+generated.stderr);
+        assert.match(missing.stderr,/Initialize required dependency/);
+        assert.ok(!fs.existsSync(path.join(f.root,'skills/setup-ui/SKILL.md')));
         const dependency=run('update-plugin-profile.ps1',['-ProjectRoot',f.project,'-Plugin','feature-core','-Status','enabled']);
         assert.equal(dependency.status,0,dependency.stdout+dependency.stderr);
         const active=run('update-plugin-profile.ps1',args);

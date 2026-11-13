@@ -7,6 +7,11 @@ const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const namePattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+function sameContextRoot(first, second, platform = process.platform) {
+    const firstRoot = path.resolve(first), secondRoot = path.resolve(second);
+    return platform === 'win32' ? firstRoot.toLowerCase() === secondRoot.toLowerCase() : firstRoot === secondRoot;
+}
+
 function git(root, args, options = {}) {
     const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', windowsHide: true, maxBuffer: 32 * 1024 * 1024, ...options });
     if (result.error || result.status !== 0) throw new Error('Git ' + args[0] + ' failed: ' + (result.stderr || result.error?.message));
@@ -268,9 +273,12 @@ function plan(context, requested = [], operation = 'ensure', memberRoots = [], o
         if (matches.length !== 1 || !namePattern.test(matches[0].provider) || !namePattern.test(matches[0].name)) throw new Error('Unknown or ambiguous optional skill: ' + capability);
         return matches[0];
     });
-    const members = state.members.filter(member => path.resolve(member.contextRoot) !== path.resolve(context.contextRoot));
-    members.push({ contextRoot: context.contextRoot, lastRequired: [] });
-    for (const contextRoot of memberRoots) if (!members.some(member => path.resolve(member.contextRoot) === path.resolve(contextRoot))) members.push({contextRoot,lastRequired:[]});
+    // A missing profile keeps its recorded requirements until the member is readable again.
+    const members = [...state.members];
+    if (!members.some(member => sameContextRoot(member.contextRoot, context.contextRoot))) {
+        members.push({ contextRoot: context.contextRoot, lastRequired: [] });
+    }
+    for (const contextRoot of memberRoots) if (!members.some(member => sameContextRoot(member.contextRoot, contextRoot))) members.push({contextRoot,lastRequired:[]});
     const required = requiredSelection(root, { ...state, members }, value);
     const keep = closure(value, [...required.names, ...selected.map(item => item.manifest.name)]).map(item => item.manifest.name);
     const installed = value.plugins.filter(item => fs.existsSync(path.join(root, 'plugins', item.directory, '.agents-plugin/plugin.json'))).map(item => item.manifest.name);
@@ -289,4 +297,4 @@ function plan(context, requested = [], operation = 'ensure', memberRoots = [], o
         missingConfiguration, offlineMembers: required.offline, policy: policy(context.contextRoot), members };
 }
 
-module.exports = { git, readJson, atomicJson, statePath, loadState, catalog, profile, policy, find, statusOf, closure, expandSelection, versionMatches, memberSelection, requiredSelection, sparsePatterns, withLock, acquireLock, releaseLock, recoverLock, plan };
+module.exports = { git, readJson, atomicJson, statePath, loadState, catalog, profile, policy, find, statusOf, closure, expandSelection, versionMatches, memberSelection, requiredSelection, sparsePatterns, withLock, acquireLock, releaseLock, recoverLock, plan, sameContextRoot };

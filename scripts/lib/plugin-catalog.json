@@ -61,7 +61,7 @@
       "directory": "agent-context-kit",
       "manifest": {
         "name": "agent-context-kit",
-        "version": "0.11.0",
+        "version": "0.11.1",
         "displayName": "Agent Context Kit",
         "description": "Reusable project context, on-demand capability group selection, local task handoff and cross-session continuation, plus schema 2.0 agent run templates and separate demand and framework-maintenance lifecycles.",
         "entry": "AGENTS.md",
@@ -187,7 +187,7 @@
           }
         ]
       },
-      "manifestHash": "b5d71e41fb2bc73f33a5ad1fbb7481d93083ed443868ec92a45d20ca1269c4ac"
+      "manifestHash": "6bfaae63fa499283dd7eaa8328650d7a096f49e69aa9c67e80daa604a5cf75db"
     },
     {
       "directory": "agent-framework-evolution",

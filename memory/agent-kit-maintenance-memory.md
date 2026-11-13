@@ -4,7 +4,7 @@
 
 ## 当前重点
 
-- 插件按需部署、体系组合与反选、vendor 选择及显式迁移见[指南](../docs/guides/plugin-deployment.md)，验证与待验范围见[实施记录](../maintenance/validation/plugin-on-demand-2026-11-13.md)。
+- 插件按需部署见[指南](../docs/guides/plugin-deployment.md)；0.11.1 接入流程由工具生成并验证发现入口，成员 profile 丢失时保留历史需求。验证与待验范围见[实施记录](../maintenance/validation/plugin-on-demand-2026-11-13.md)。
 
 - coding 0.29.0 的诊断、自动本地退出证据及调度测量见[实施记录](../maintenance/validation/iris-session-governance-2026-11-13.md)。源码运行时已完成授权只读试点，业务副本升级与平台矩阵按记录分别验收。
 

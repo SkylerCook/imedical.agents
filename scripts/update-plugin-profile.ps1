@@ -283,27 +283,36 @@ if ($Status -in @("disabled", "available")) {
 
 $deploymentPolicyPath = Join-Path $contextRootFull "config/plugin-deployment.json"
 $enforceDiscovery = (Test-Path -LiteralPath $deploymentPolicyPath) -and ((Get-Content -LiteralPath $deploymentPolicyPath -Raw -Encoding UTF8 | ConvertFrom-Json).mode -eq "on-demand")
-$thinScript = Join-Path $PSScriptRoot "generate-plugin-thin-index.ps1"
-$ownerPath = Join-Path $capabilityRootFull ("plugins/" + $targetPlugin.directoryName)
-if (($Status -in @("enabled", "disabled")) -and (Test-Path -LiteralPath $thinScript) -and (Test-Path -LiteralPath $ownerPath)) {
-  $thinArgs = @{ PluginPath=$ownerPath; ProjectRoot=$projectRootFull; ContextRoot=$contextRootFull; CapabilityRoot=$capabilityRootFull; Mode="DryRun" }
-  if ($Status -eq "disabled") { $thinArgs.Remove = $true }
-  $thinPreview = & $thinScript @thinArgs | Out-String
-  if ($thinPreview -match '(?m)^\s*status\s*:\s*(thin-index-conflict|skill-owner-migration-conflict)') { throw "Custom discovery entries require review before changing plugin status" }
-  if ($enforceDiscovery -and $Status -eq "enabled" -and $thinPreview -match '(?m)^\s*status\s*:\s*(generated|updated|thin-index-stale)') { throw "Generate and verify plugin discovery entries before marking enabled" }
-  if ($Status -eq "disabled") {
-    $thinArgs.Mode = "Write"
-    $thinResult = & $thinScript @thinArgs | Out-String
-    if ($thinResult -match '(?m)^\s*status\s*:\s*(thin-index-conflict|skill-owner-migration-conflict)') { throw "Discovery entry removal conflicted; profile preserved" }
-  }
-}
-
 if ($enforceDiscovery -and $Status -eq "enabled") {
   foreach ($dependency in @(Get-PluginDependencies -Plugin $targetPlugin)) {
     $dependencyPlugin = $plugins | Where-Object { Test-PluginNameMatches -Plugin $_ -Name $dependency } | Select-Object -First 1
     if (-not $dependencyPlugin) { throw ("Missing required dependency: " + $dependency) }
     $dependencyStatus = if ($profile.ContainsKey($dependencyPlugin.name)) { $profile[$dependencyPlugin.name].status } else { Get-DefaultStatus -PluginName $dependencyPlugin.name }
     if ($dependencyStatus -ne "enabled") { throw ("Initialize required dependency before enabling: " + $dependencyPlugin.name) }
+  }
+}
+
+$thinScript = Join-Path $PSScriptRoot "generate-plugin-thin-index.ps1"
+$ownerPath = Join-Path $capabilityRootFull ("plugins/" + $targetPlugin.directoryName)
+if ($enforceDiscovery -and $Status -eq "enabled" -and -not (Test-Path -LiteralPath $thinScript -PathType Leaf)) {
+  throw "Plugin discovery generator is missing; profile preserved"
+}
+if (($Status -in @("enabled", "disabled")) -and (Test-Path -LiteralPath $thinScript) -and (Test-Path -LiteralPath $ownerPath)) {
+  $thinArgs = @{ PluginPath=$ownerPath; ProjectRoot=$projectRootFull; ContextRoot=$contextRootFull; CapabilityRoot=$capabilityRootFull; Mode="DryRun" }
+  if ($Status -eq "disabled") { $thinArgs.Remove = $true }
+  $thinPreview = & $thinScript @thinArgs | Out-String
+  if ($thinPreview -match '(?m)^\s*status\s*:\s*(thin-index-conflict|skill-owner-migration-conflict)') { throw "Custom discovery entries require review before changing plugin status" }
+  if ($Status -eq "disabled" -or ($enforceDiscovery -and $Status -eq "enabled")) {
+    $thinArgs.Mode = "Write"
+    $thinResult = & $thinScript @thinArgs | Out-String
+    if ($thinResult -match '(?m)^\s*status\s*:\s*(thin-index-conflict|skill-owner-migration-conflict)') { throw "Discovery entry update conflicted; profile preserved" }
+    if ($Status -eq "enabled") {
+      $thinArgs.Mode = "DryRun"
+      $thinVerified = & $thinScript @thinArgs | Out-String
+      if ($thinVerified -match '(?m)^\s*status\s*:\s*(generated|updated|thin-index-stale|thin-index-conflict|skill-owner-migrat(?:ed|ion-conflict))') {
+        throw "Plugin discovery verification incomplete; profile preserved"
+      }
+    }
   }
 }
 

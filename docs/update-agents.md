@@ -1010,4 +1010,6 @@ coding-iris-plugin 0.30.0 与 imedical-ui 0.2.0 使用根 `scripts/knowledge-que
 
 agent-context-kit 0.11.0 新增 plugin-management。已有 enabled 项目更新能力包并刷新该插件 thin-index 后获得入口；available/disabled 项目保留原状态。无额外配置迁移。
 
+启用流程修复需同时取得 agent-context-kit 0.11.1 与根 scripts。领域配置验收后，按需模式的 update-plugin-profile.ps1 自动生成并验证发现入口，再记录 enabled；全量模式保留既有接入顺序。成员历史保留修复由 plugin-deploy.js 和 scripts/lib/plugin-deployment.js 提供：包括当前成员在内，已登记 profile 丢失时继续保留上次需求，ensure 保持 profile 缺失状态，恢复真实记录后再执行清理。无新增配置或旧文件清理。
+
 profile 工具在撤下入口和写入状态前硬校验当前项目已启用插件的传递强依赖。将依赖目标改为 disabled 或 available 时返回完整依赖链并停止。先停用依赖方，再停用目标。

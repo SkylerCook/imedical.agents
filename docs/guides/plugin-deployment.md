@@ -30,7 +30,7 @@ node <CapabilityRoot>/scripts/plugin-deploy.js ensure --project-root . --group i
 
 ensure 解析必需依赖、下载插件及资源、校验 manifest 与能力目录的一致性，然后返回 dependency order 下的初始化技能。Agent 依次读取并执行这些技能，集中处理必要配置。已安装能力可直接读取源技能，宿主发现机制需要重新加载时告知用户。
 
-新插件保持 available，直到其初始化闭环、配置和 thin-index 验证完成。再使用既有 update-plugin-profile.ps1 标记 enabled。按需模式会检查发现入口已生成，缺失的插件正文无法标记 enabled。显式 disabled 的插件阻止任务自动补装和启用，恢复须由用户明确要求。
+新插件保持 available，先由领域初始化技能验收必要配置，再使用既有 update-plugin-profile.ps1 标记 enabled。按需模式下，该工具先核对插件正文、已启用的必需依赖和自定义入口冲突，再复用根 thin-index 生成器写入并读回验证发现入口，成功后记录 enabled；无需另行手动生成入口。全量模式保留原有注册、更新流程。显式 disabled 的插件阻止任务自动补装和启用，恢复须由用户明确要求。
 
 自动补装仅覆盖当前仓库能力包和必需资源。外部账号配置、数据传输、服务器写入、发布等操作沿对应技能和项目的授权范围。
 
@@ -55,7 +55,7 @@ node <CapabilityRoot>/scripts/plugin-deploy.js prune --project-root . --execute
 
 迁移及清理先预览，再在用户明确的范围内执行。已有启用能力及必需依赖保留，available/disabled 且无人使用的物理包可清理。工程配置、任务资料和私有凭据保留。受影响能力包工作区有修改时报告冲突，用户处理后重试。
 
-Overlay 的 CapabilityRoot 保留各 ContextRoot 需求的并集。旧共享目录首次迁移时，使用重复的 --member-project <workspace> 列齐关联工程，再以 --members-complete 表达已核对成员范围。项目暂时不可访问时保留上次已知资源，暂停会移除资源的操作。Overlay 初始化和 Write 更新自动登记当前成员，各项目的 thin-index 仍独立生成。
+Overlay 的 CapabilityRoot 保留各 ContextRoot 需求的并集。旧共享目录首次迁移时，使用重复的 --member-project <workspace> 列齐关联工程，再以 --members-complete 表达已核对成员范围。项目暂时不可访问或已登记成员的 profile 丢失时，保留该成员上次已知需求并暂停会移除资源的操作；当前执行命令的成员也适用。ensure 可继续补装，保留缺失的 profile，待恢复其真实启用记录后再清理。Overlay 初始化和 Write 更新自动登记当前成员，各项目的 thin-index 仍独立生成。
 
 安装状态与阶段记录放在 CapabilityRoot 的 Git 本地目录，记录物理安装范围、关联项目、revision 和恢复进度。安装、更新、profile 写入和 sparse 刷新共用部署锁。中断后重复原命令复用已下载文件；确认锁持有进程退出时可运行 recover，活跃或未知持有者保持保护。
 

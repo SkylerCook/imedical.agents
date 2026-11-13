@@ -85,7 +85,8 @@ function apply(context, options) {
                 const actual = JSON.parse(bytes.toString('utf8').replace(/^\uFEFF/,''));
                 if (require('node:crypto').createHash('sha256').update(JSON.stringify(actual)).digest('hex') !== item.manifestHash) throw new Error('Catalog and plugin revision differ: ' + name);
             }
-            preserveAvailable(context, result.selected);
+            const currentMemberOffline = result.offlineMembers.some(member => deployment.sameContextRoot(member, context.contextRoot));
+            if (!currentMemberOffline) preserveAvailable(context, result.selected);
             if (options.action === 'migrate') {
                 for (const member of state.members) deployment.atomicJson(path.join(member.contextRoot, 'config/plugin-deployment.json'), {
                     ...deployment.policy(member.contextRoot), mode: 'on-demand'
@@ -116,7 +117,7 @@ function registerMember(context) {
     return deployment.withLock(root, () => {
         const state = deployment.loadState(root);
         if (state.mode === 'full') return {registered:false,mode:'full'};
-        let member = state.members.find(item => path.resolve(item.contextRoot) === path.resolve(context.contextRoot));
+        let member = state.members.find(item => deployment.sameContextRoot(item.contextRoot, context.contextRoot));
         if (!member) { member = {contextRoot:context.contextRoot,lastRequired:[]}; state.members.push(member); }
         if (fs.existsSync(path.join(context.contextRoot,'config/plugin_profile.md'))) {
             member.lastRequired = deployment.memberSelection(deployment.catalog(root),member).names;

@@ -15,7 +15,7 @@ description: 管理当前工程的能力包插件。用于查看与推荐体系�
 
 ## 补装、启用与恢复
 
-- ensure 返回后，按依赖顺序读取实际 initSkill，执行初始化并验证配置与发现入口，然后调用根 update-plugin-profile.ps1 标记 enabled。缺配置时集中报告，保留 available，交付可独立使用部分。
+- ensure 返回后，按依赖顺序读取实际 initSkill，完成领域配置验收，再调用根 update-plugin-profile.ps1 标记 enabled；按需模式由该工具生成并验证发现入口。缺配置时集中报告，保留 available，交付可独立使用部分。
 - 用户明确恢复 disabled 插件时，先使用 profile 工具将该插件改为 available，再 ensure、初始化及验证；仅恢复用户指定的插件及已获同意恢复的依赖。失败时保留实际状态并报告续接步骤。
 - 新宿主入口需要重新加载时说明具体动作；当前 Agent 可读取已安装源 skill 继续任务。生成文件与宿主实际发现分别核实。
 
