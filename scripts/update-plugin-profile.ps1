@@ -276,6 +276,11 @@ if (($Status -eq "enabled") -and -not (Test-Path -LiteralPath (Join-Path $capabi
 $profilePath = Join-Path (Join-Path $contextRootFull "config") "plugin_profile.md"
 $profile = Read-PluginProfile -ProfilePath $profilePath
 
+if ($Status -in @("disabled", "available")) {
+  & node (Join-Path $PSScriptRoot "check-plugin-deactivation.js") $capabilityRootFull $contextRootFull $targetPlugin.name
+  if ($LASTEXITCODE -ne 0) { throw "Plugin deactivation blocked by enabled dependencies; profile and discovery entries preserved" }
+}
+
 $deploymentPolicyPath = Join-Path $contextRootFull "config/plugin-deployment.json"
 $enforceDiscovery = (Test-Path -LiteralPath $deploymentPolicyPath) -and ((Get-Content -LiteralPath $deploymentPolicyPath -Raw -Encoding UTF8 | ConvertFrom-Json).mode -eq "on-demand")
 $thinScript = Join-Path $PSScriptRoot "generate-plugin-thin-index.ps1"

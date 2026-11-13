@@ -156,6 +156,13 @@ for (const shell of process.platform === 'win32' ? ['powershell.exe','pwsh.exe']
         assert.equal(dependency.status,0,dependency.stdout+dependency.stderr);
         const active=run('update-plugin-profile.ps1',args);
         assert.equal(active.status,0,active.stdout+active.stderr);
+        const profileBefore=fs.readFileSync(path.join(f.root,'config/plugin_profile.md'));
+        for (const status of ['disabled','available']) {
+            const blocked=run('update-plugin-profile.ps1',['-ProjectRoot',f.project,'-Plugin','feature-core','-Status',status]);
+            assert.notEqual(blocked.status,0);
+            assert.match(blocked.stderr,/feature-ui -> feature-core/);
+            assert.deepEqual(fs.readFileSync(path.join(f.root,'config/plugin_profile.md')),profileBefore);
+        }
         const entry=path.join(f.root,'skills/setup-ui/SKILL.md');
         const bytes=fs.readFileSync(entry);
         fs.appendFileSync(entry,'\nUser customization\n');
@@ -288,4 +295,18 @@ test('optional vendor skills require task selection and follow acquisition polic
     const result=cli.apply(f.context,{...options,explicit:true});
     assert.ok(result.resources.includes('vendor/optional-runtime'));
     assert.ok(fs.existsSync(file));
+});
+
+ test('deactivation checks transitive catalog dependencies and ignores optional edges', t => {
+    const f = fixture(t);
+    const { checkDeactivation } = require('../check-plugin-deactivation');
+    const catalogFile = path.join(f.root, 'scripts/lib/plugin-catalog.json');
+    const catalog = JSON.parse(fs.readFileSync(catalogFile, 'utf8'));
+    catalog.plugins.push({ directory: 'top', manifest: { name: 'top', dependencies: ['feature-ui'] } });
+    catalog.plugins.push({ directory: 'optional', manifest: { name: 'optional', availableDependencies: ['feature-core'] } });
+    fs.writeFileSync(catalogFile, JSON.stringify(catalog));
+    fs.writeFileSync(path.join(f.root, 'config/plugin_profile.md'), '| top | enabled | - | - | test |\n');
+    assert.throws(() => checkDeactivation(f.root, f.root, 'feature-core'), /top -> feature-ui -> feature-core/);
+    fs.writeFileSync(path.join(f.root, 'config/plugin_profile.md'), '| top | disabled | - | - | test |\n| optional | enabled | - | - | test |\n');
+    assert.doesNotThrow(() => checkDeactivation(f.root, f.root, 'feature-core'));
 });

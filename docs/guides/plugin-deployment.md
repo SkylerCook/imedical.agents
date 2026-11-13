@@ -68,3 +68,5 @@ Overlay 的 CapabilityRoot 保留各 ContextRoot 需求的并集。旧共享目�
 专项回归使用 node --test scripts/tests/plugin-deployment.tests.js，配合 sparse、更新器、thin-index 及 workspace-overlay 的既有测试。跨平台结果以实际矩阵执行为准。
 
 项目插件管理入口：[plugin-management](../../plugins/agent-context-kit/skills/plugin-management/SKILL.md)，支持体系选择、补装、启用、禁用和恢复；停用前展示受影响依赖。
+
+profile 工具在撤下入口和写入状态前硬校验当前项目已启用插件的传递强依赖。将依赖目标改为 disabled 或 available 时返回完整依赖链并停止。先停用依赖方，再停用目标。
