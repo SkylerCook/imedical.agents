@@ -393,3 +393,5 @@ IRIS CSP＋HISUI 对公司UI规范的落地适配，正式依赖 imedical-ui；�
 前端导出在服务器编码已确认时从原字节解码并保留末尾换行，confirm 可附带本地文件校验目标可表示性。恢复状态使用工具返回的 poolId、blockingReasons 和 nextAction，核实写结果后由现有恢复入口自动采用可靠本地退出回执。具体入口见[编码契约](../../plugins/coding-iris-plugin/references/frontend-encoding.md)和[统一会话](iris-managed-sessions.md)。
 
 业务知识和 UI 自然语言查询、索引及外发范围配置见[轻量混合检索](knowledge-retrieval.md)，日常由已有 knowledge/UI skill 路由。
+
+插件支持通用、IRIS、XC、UI 组合及反选，按任务补装前复用项目授权，必需依赖被排除时展示完整链路。入口与迁移见[按需部署](plugin-deployment.md)。

@@ -69,3 +69,5 @@ IRIS 项目启用 coding owner 时，开发方式由当前 `ContextRoot/config/i
 项目资料归属、用途说明、README 受管区更新、首次接入及授权迁移见[项目知识库目录治理](../../docs/guides/project-knowledge-layout.md)。`project-context-maintenance` 负责接入与维护，根 `scripts/project-docs.js` 复用目录声明与本地扩展。无标记旧说明用 navigation-plan 精确评审后追加受管区；普通 Write 保留人工正文并更新已受管说明。目录检查不代表逐文件归类；未接入项目保持旧默认，已有交接路径按其工具契约发现。
 
 WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codebuddy/agents 薄入口；PowerShell 显式 -RuntimeAdapter WorkBuddy（或 CodeBuddy）-Agent，默认仍为 Skill。源定义只维护 AGENT.md，客户端实际调用待验。
+
+项目按通用、IRIS、XC、UI 体系推荐、组合与反选能力，通过[按需部署](../../docs/guides/plugin-deployment.md)执行，初始化流程承接一次自动补装授权、依赖冲突说明和实际接入验证。

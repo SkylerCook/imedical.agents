@@ -7,7 +7,8 @@
     [string]$Mode = "DryRun",
     [string[]]$ExcludeSkill = @(),
     [string[]]$ExcludeRule = @(),
-    [switch]$Force
+    [switch]$Force,
+    [switch]$Remove
 )
 
 $ErrorActionPreference = "Stop"
@@ -91,6 +92,13 @@ function Update-ManagedThinIndex {
         $existing = $original.Replace("`r`n", "`n").TrimStart([char]0xFEFF)
         $expected = $Content.Replace("`r`n", "`n")
         if ($existing -ceq $expected) {
+            if ($script:Remove) {
+                if ($Mode -eq 'Write') {
+                    if ([IO.File]::ReadAllText($TargetFile, [Text.Encoding]::UTF8) -cne $original) { return Write-Result 'thin-index-conflict' $TargetRel $SourceRel 'target changed before removal' }
+                    Remove-Item -LiteralPath $TargetFile
+                }
+                return Write-Result 'removed' $TargetRel $SourceRel 'disabled managed entry'
+            }
             return Write-Result 'unchanged' $TargetRel $SourceRel 'managed thin-index is current'
         }
         # Only generated metadata may vary. Source, marker, unknown fields and body
@@ -124,6 +132,10 @@ function Update-ManagedThinIndex {
         if ([IO.File]::ReadAllText($TargetFile, [Text.Encoding]::UTF8) -cne $original) {
             return Write-Result 'thin-index-conflict' $TargetRel $SourceRel 'target changed during generation'
         }
+    }
+    if ($script:Remove) {
+        if ((Test-Path -LiteralPath $TargetFile -PathType Leaf) -and $Mode -eq 'Write') { Remove-Item -LiteralPath $TargetFile }
+        return Write-Result 'removed' $TargetRel $SourceRel 'disabled managed entry'
     }
     if ($Mode -eq 'Write') {
         New-Item -ItemType Directory -Force -Path (Split-Path -Parent $TargetFile) | Out-Null
@@ -297,7 +309,7 @@ if (Test-Path -LiteralPath $pluginsRoot -PathType Container) {
     }
 }
 
-if ((Test-Path -LiteralPath $rulesTarget -PathType Container) -and (Test-Path -LiteralPath $pluginsRoot -PathType Container)) {
+if (-not $Remove -and (Test-Path -LiteralPath $rulesTarget -PathType Container) -and (Test-Path -LiteralPath $pluginsRoot -PathType Container)) {
     Get-ChildItem -LiteralPath $rulesTarget -File -Filter "*.md" | Sort-Object Name | ForEach-Object {
         $sourcePath = Get-ThinIndexSourcePath -TargetFile $_.FullName -ProjectRoot $projectRootFull -Kind "rule"
         if ($null -eq $sourcePath) {
@@ -317,7 +329,7 @@ if ((Test-Path -LiteralPath $rulesTarget -PathType Container) -and (Test-Path -L
     }
 }
 
-if ((Test-Path -LiteralPath $skillsTarget -PathType Container) -and (Test-Path -LiteralPath $pluginsRoot -PathType Container)) {
+if (-not $Remove -and (Test-Path -LiteralPath $skillsTarget -PathType Container) -and (Test-Path -LiteralPath $pluginsRoot -PathType Container)) {
     Get-ChildItem -LiteralPath $skillsTarget -Directory | Sort-Object Name | ForEach-Object {
         if (($migratedSkillNames -contains $_.Name) -or ($_.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -or ((Get-Item -LiteralPath $skillsTarget -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { return }
         $targetFile = Join-Path $_.FullName "SKILL.md"

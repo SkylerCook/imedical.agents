@@ -14,6 +14,15 @@ function git(root, args, options = {}) {
   return result.stdout;
 }
 
+function deploymentRuntime(root) {
+  // Use the same revision as the catalog even when a bootstrap runs before checkout.
+  const probe = spawnSync('git', ['-C', root, 'show', 'HEAD:scripts/lib/plugin-deployment.js'], {encoding:'utf8', maxBuffer:4*1024*1024});
+  if (probe.status !== 0) return null;
+  const loaded = {exports:{}};
+  new Function('require', 'module', probe.stdout)(require, loaded);
+  return loaded.exports;
+}
+
 function assertRegularRuntimeFile(root, file) {
   const parts = file.split('/');
   let current = root;
@@ -48,6 +57,12 @@ function indexIncluded(file, selected) {
 }
 
 function selectKnowledgeIndex(root, provider, enabled) {
+  const deployment = deploymentRuntime(root);
+  if (deployment) return deployment.withLock(root, () => selectKnowledgeIndexUnlocked(root, provider, enabled));
+  return selectKnowledgeIndexUnlocked(root, provider, enabled);
+}
+
+function selectKnowledgeIndexUnlocked(root, provider, enabled) {
   if (!/^[a-z][a-z0-9-]{0,47}$/.test(provider)) throw new Error('Invalid knowledge provider');
   const top = fs.realpathSync(git(root, ['rev-parse', '--show-toplevel']).trim());
   const actual = fs.realpathSync(root);
@@ -142,8 +157,11 @@ function rawBytes(root, entries, repair) {
 }
 
 function verify(root, patterns, options = {}) {
+  const deployment = deploymentRuntime(root);
+  if (deployment) patterns = deployment.sparsePatterns(root, patterns);
   validatePatterns(patterns);
   const selected = new Set(selectedKnowledgeIndexes(root).map(knowledgeIndexFile));
+  patterns = [...new Set([...patterns, ...[...selected].map(file => '/' + file)])];
   const specs = patterns.map(pattern => `:(glob)${pattern.replace(/^\//, '')}`);
   const entries = git(root, ['ls-files', '-t', '-z', '--', ...specs]).split('\0').filter(Boolean).filter(entry => indexIncluded(entry.slice(2), selected));
   const missing = entries.filter(entry => entry.startsWith('S ') || !fs.existsSync(path.join(root, entry.slice(2))));
@@ -164,6 +182,24 @@ function verify(root, patterns, options = {}) {
 }
 
 function refresh(root, patterns, initial = false) {
+  const deployment = deploymentRuntime(root);
+  if (deployment) return deployment.withLock(root, () => refreshSelected(root, deployment.sparsePatterns(root, patterns), initial));
+  return refreshSelected(root, patterns, initial);
+}
+
+function initializeOnDemand(root) {
+  const deployment = deploymentRuntime(root);
+  if (!deployment) throw new Error('On-demand deployment runtime is missing from this revision');
+  deployment.withLock(root, () => {
+    const state = deployment.loadState(root);
+    if (state.members.length) throw new Error('Existing deployment must use explicit migration');
+    state.mode = 'on-demand';
+    state.members = [{contextRoot:path.resolve(root),lastRequired:[]}];
+    deployment.atomicJson(deployment.statePath(root),state);
+  });
+}
+
+function refreshSelected(root, patterns, initial = false) {
   validatePatterns(patterns);
   if (!initial && git(root, ['status', '--porcelain']).trim()) throw new Error('Cannot refresh a dirty capability checkout');
   // Argument input is independent of PowerShell $OutputEncoding and its UTF-8 BOM.
@@ -178,7 +214,8 @@ module.exports = { refresh, verify, selectKnowledgeIndex };
 if (require.main === module || process.argv[1] === '--sparse-bootstrap') {
   try {
     const args = process.argv.slice(3);
-    const patterns = args.filter(arg => !['--initial', '--verify', '--repair-raw'].includes(arg));
+    const patterns = args.filter(arg => !['--initial', '--verify', '--repair-raw', '--on-demand'].includes(arg));
+    if (args.includes('--on-demand')) initializeOnDemand(process.argv[2]);
     if (args.includes('--verify') || args.includes('--repair-raw')) verify(process.argv[2], patterns, { repairRawBytes: args.includes('--repair-raw') });
     else refresh(process.argv[2], patterns, args.includes('--initial'));
   } catch (error) {

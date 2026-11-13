@@ -137,3 +137,5 @@ schema 2.0 的运行时命令由 `.agents/scripts/agent-orchestrator.js` 提供�
 0.8.0 补齐 owner/扩展驱动的目录用途、典型产物、边界与生命周期说明。总导航、主要用途入口、扩展和本地 work 入口使用同一受管区，普通更新可检测缺失/过期并刷新，保留人工正文。旧 README 用 navigation-plan 沿既有精确批准与备份流程接管；首次接入和存量迁移仍独立授权。升级命令及检查范围见[项目知识库目录治理](../../docs/guides/project-knowledge-layout.md)，现有任务与业务恢复资料不移动或清理。
 
 WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codebuddy/agents 薄入口；PowerShell 显式 -RuntimeAdapter WorkBuddy（或 CodeBuddy）-Agent，默认仍为 Skill。源定义只维护 AGENT.md，客户端实际调用待验。
+
+项目按通用、IRIS、XC、UI 体系推荐、组合与反选能力，通过[按需部署](../../docs/guides/plugin-deployment.md)执行，初始化流程承接一次自动补装授权、依赖冲突说明和实际接入验证。

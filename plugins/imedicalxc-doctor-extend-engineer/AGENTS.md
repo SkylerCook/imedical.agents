@@ -59,3 +59,5 @@
 - `vendor/word-reader/`：optional；仅收到 `.doc` / `.docx` 且当前工具没有原生 Word 读取能力时使用。
 
 安装和更新流程不再全量写入用户级 skill 目录。所有工具优先使用 `.agents/skills` 项目发现层；需要 Claude Code 或 Codex 用户级副本时，必须按 `.agents/docs/update-agents.md` 显式指定 runtime 和 skill。OpenCode、CodeBuddy 等无已验证 adapter 的工具直接读取项目 thin-index 或 vendor 源，并在无子代理能力时串行降级。
+
+按需部署时，由 manifest 的 runtimeResources 与 required skill 依赖取得必需 vendor 资源；可选资料随任务触发补装，流程见[插件按需部署](../../docs/guides/plugin-deployment.md)。

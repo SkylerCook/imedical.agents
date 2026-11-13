@@ -21,6 +21,17 @@
 )
 
 $ErrorActionPreference = "Stop"
+$deploymentLockToken = $null
+$deploymentEntry = Join-Path $PSScriptRoot "plugin-deploy.js"
+if ((Test-Path -LiteralPath $deploymentEntry) -and -not $env:IMEDICAL_DEPLOYMENT_LOCK) {
+  if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw "Install Node.js >=22.5.0 for the Agent toolchain" }
+  $deploymentLockText = & node $deploymentEntry acquire-lock --project-root $ProjectRoot --pid $PID
+  if ($LASTEXITCODE -ne 0) { throw "Cannot acquire capability deployment lock" }
+  $deploymentLockToken = ($deploymentLockText | ConvertFrom-Json).token
+  $env:IMEDICAL_DEPLOYMENT_LOCK = $deploymentLockToken
+}
+try {
+
 if ($Agent -and (($RuntimeAdapter.Count -ne 1) -or ($RuntimeAdapter[0] -notin @("Codex", "CodeBuddy", "WorkBuddy")))) { throw "-Agent requires one RuntimeAdapter: Codex, CodeBuddy or WorkBuddy" }
 $minimumGitSparseCheckoutVersion = [version]"2.25.0"
 
@@ -435,6 +446,16 @@ function Get-InstalledPlugins {
     })
   }
 
+  $catalogPath = Join-Path $AgentsRoot "scripts/lib/plugin-catalog.json"
+  if (Test-Path -LiteralPath $catalogPath) {
+    $catalog = Get-Content -LiteralPath $catalogPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    foreach ($item in @($catalog.plugins)) {
+      if (@($plugins | Where-Object { $_.name -eq $item.manifest.name }).Count -gt 0) { continue }
+      if (($IncludeNames.Count -gt 0) -and ($item.manifest.name -notin $IncludeNames) -and ($item.directory -notin $IncludeNames)) { continue }
+      if (($item.manifest.name -in $ExcludeNames) -or ($item.directory -in $ExcludeNames)) { continue }
+      $plugins.Add([PSCustomObject]@{ name=[string]$item.manifest.name; directoryName=[string]$item.directory; manifest=$item.manifest; path=(Join-Path $pluginsRoot $item.directory); manifestPath=(Join-Path $pluginsRoot ($item.directory + "/.agents-plugin/plugin.json")); legacyNames=@($item.manifest.legacyNames) })
+    }
+  }
   return $plugins
 }
 
@@ -835,6 +856,7 @@ function Write-UpdateSummary {
     "mcp-vendor-command-ambiguous",
     "mcp-vendor-command-write-failed",
    "plugin-init-required",
+   "plugin-materialization-required",
    "plugin-dependency-missing"
   )
 
@@ -1184,6 +1206,11 @@ if (-not (Test-Path -LiteralPath $contextRoot -PathType Container)) {
   exit 1
 }
 
+if (($Mode -eq "Write") -and (Test-Path -LiteralPath (Join-Path $capabilityRoot "scripts/plugin-deploy.js")) -and (Test-Path -LiteralPath (Join-Path $capabilityRoot ".git"))) {
+  & node (Join-Path $capabilityRoot "scripts/plugin-deploy.js") register --project-root $projectRootFull | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Cannot reconcile project membership and required plugins" }
+}
+
 if ($context.mode -eq "workspace-overlay") {
   if (Test-Path -LiteralPath (Join-Path $capabilityRoot ".git")) {
     $runtimeResult = Invoke-AgentsRuntimeValidation -Root $capabilityRoot -ProjectRootFull $projectRootFull -Mode $Mode -NoPull:$NoPull -Overlay
@@ -1357,6 +1384,16 @@ if ($Mode -eq "Write" -and @($demandMigration.owners).Count -gt 0) {
   $results.Add((Write-UpdateResult -Status "demand-migration-applied" -Reason "successor entries verified; project references migrated; old managed entries removed" -Phase "demand-migration"))
 }
 
+$deploymentPolicyFile = Join-Path $contextRoot "config/plugin-deployment.json"
+$usesOnDemand = (Test-Path -LiteralPath $deploymentPolicyFile) -and ((Get-Content -LiteralPath $deploymentPolicyFile -Raw -Encoding UTF8 | ConvertFrom-Json).mode -eq "on-demand")
+if (($Mode -eq "Write") -and $usesOnDemand -and ($Plugin.Count -gt 0) -and (Test-Path -LiteralPath (Join-Path $capabilityRoot "scripts/lib/plugin-catalog.json"))) {
+  $ensureArguments = @((Join-Path $capabilityRoot "scripts/plugin-deploy.js"), "ensure", "--project-root", $projectRootFull, "--explicit")
+  foreach ($selectedPlugin in $Plugin) { $ensureArguments += @("--plugin", $selectedPlugin) }
+  $ensureText = & node @ensureArguments | Out-String
+  if ($LASTEXITCODE -ne 0) { throw "Requested plugin materialization failed" }
+  $results.Add((Write-UpdateResult -Status "plugin-materialized" -Reason "Selected plugins and required resources are available; initialization follows profile state" -Phase "plugin"))
+}
+
 $allPlugins = Get-InstalledPlugins -AgentsRoot $capabilityRoot -IncludeNames @() -ExcludeNames $ExcludePlugin
 $pluginProfile = Read-PluginProfile -AgentsRoot $agentsRoot
 $plugins = New-Object System.Collections.Generic.List[object]
@@ -1380,6 +1417,12 @@ foreach ($installedPlugin in $allPlugins) {
   if ($profileEntry.status -eq "disabled") {
     $disabledStatus = if ($explicitlySelected) { "plugin-explicit-selection-disabled" } else { "plugin-disabled" }
     $results.Add((Write-UpdateResult -Status $disabledStatus -Target $pluginTarget -Reason "plugin is disabled in plugin_profile.md" -PluginName $installedPlugin.name -Phase "plugin"))
+    $disabledThinScript = Join-Path $capabilityRoot "scripts/generate-plugin-thin-index.ps1"
+    if ((Test-Path -LiteralPath $installedPlugin.path) -and (Test-Path -LiteralPath $disabledThinScript)) {
+      $disabledThinMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
+      $disabledThinText = & $disabledThinScript -PluginPath $installedPlugin.path -ProjectRoot $projectRootFull -ContextRoot $contextRoot -CapabilityRoot $capabilityRoot -Mode $disabledThinMode -Remove | Out-String
+      foreach ($item in (Convert-ThinIndexTextOutput -Text $disabledThinText -PluginName $installedPlugin.name)) { $results.Add($item) }
+    }
     continue
   }
 
@@ -1391,6 +1434,11 @@ foreach ($installedPlugin in $allPlugins) {
     else {
       $results.Add((Write-UpdateResult -Status "plugin-available" -Target $pluginTarget -Reason ("initSkill=" + $initSkill) -PluginName $installedPlugin.name -Phase "plugin"))
     }
+    continue
+  }
+
+  if (-not (Test-Path -LiteralPath $installedPlugin.manifestPath)) {
+    $results.Add((Write-UpdateResult -Status "plugin-materialization-required" -Target $pluginTarget -Reason "Run plugin-deploy.js ensure for this selected capability" -PluginName $installedPlugin.name -Phase "plugin"))
     continue
   }
 
@@ -1634,3 +1682,10 @@ if (@($results | Where-Object { $_.status -eq "thin-index-conflict" -or ($Mode -
 }
 
 if (@($results | Where-Object { $_.status -eq "skill-owner-migration-conflict" }).Count -gt 0) { throw "Skill owner migration blocked; custom or linked targets were preserved." }
+
+} finally {
+  if ($deploymentLockToken) {
+    & node $deploymentEntry release-lock --project-root $ProjectRoot --token $deploymentLockToken | Out-Null
+    Remove-Item Env:IMEDICAL_DEPLOYMENT_LOCK -ErrorAction SilentlyContinue
+  }
+}

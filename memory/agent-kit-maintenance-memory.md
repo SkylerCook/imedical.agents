@@ -4,6 +4,8 @@
 
 ## 当前重点
 
+- 插件按需部署、体系组合与反选、vendor 选择及显式迁移见[指南](../docs/guides/plugin-deployment.md)，验证与待验范围见[实施记录](../maintenance/validation/plugin-on-demand-2026-11-13.md)。
+
 - coding 0.29.0 的诊断、自动本地退出证据及调度测量见[实施记录](../maintenance/validation/iris-session-governance-2026-11-13.md)。源码运行时已完成授权只读试点，业务副本升级与平台矩阵按记录分别验收。
 
 - 需求经验审计回归见维护日志，XML 长流与空输出已补离线验证；旧 IRIS 与候选规则取证沿 backlog。
@@ -15,7 +17,7 @@
 - 初始化与更新结果优化见[审计及实施记录](../maintenance/validation/framework-user-burden-audit-2026-11-12.md)。配置缺失集中诊断，必要迁移失败返回非成功，已有配置及自定义 MCP 字段保留。
 - 前端源码与服务器编码分开配置，首次确认后复用，具体条件及旧配置兼容归[编码契约](../plugins/coding-iris-plugin/references/frontend-encoding.md)。
 - 会话发送阶段恢复、v5 vendor、资源预算和部署方式归[统一会话指南](../docs/guides/iris-managed-sessions.md)。真实故障恢复沿既有 P1 队列，普通工作按当前配置与回执执行。
-- xc 能力本轮全部暂缓，只保留原治理记录。人工工具、宿主适配和跨平台验证按 backlog 的启动条件推进。
+- xc 领域能力治理沿既有暂缓队列；按需部署本轮补充其必需资源声明。人工工具、宿主适配和跨平台验证按 backlog 的启动条件推进。
 
 ## 按任务读取
 

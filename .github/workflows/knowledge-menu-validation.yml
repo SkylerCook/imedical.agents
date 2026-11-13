@@ -22,3 +22,5 @@ jobs:
       - run: node --test scripts/tests/knowledge-retrieval.tests.js
       - run: node --test scripts/tests/knowledge-deployment.tests.js
       - run: node --test scripts/tests/knowledge-embedding.tests.js scripts/tests/refresh-agents-sparse.tests.js
+      - run: node scripts/generate-plugin-catalog.js --check
+      - run: node --test scripts/tests/plugin-deployment.tests.js

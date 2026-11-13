@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$WorkspaceRoot = ".",
   [ValidateSet("Check", "DryRun", "Write")][string]$Mode = "DryRun",
   [switch]$Repair
@@ -374,6 +374,12 @@ foreach ($adapterName in $nodeAdapterNames) {
   else {
     $results.Add((New-OverlayResult -Status "runtime-adapter-missing" -Path $adapterPath -Expected $canonicalScript -Reason "runtime adapter is missing or stale"))
   }
+}
+
+$deploymentEntry = Join-Path $context.capabilityRoot "scripts/plugin-deploy.js"
+if (($Mode -eq "Write") -and (Test-Path -LiteralPath $deploymentEntry) -and (Test-Path -LiteralPath (Join-Path $context.capabilityRoot ".git"))) {
+  & node $deploymentEntry register --project-root $context.workspaceRoot | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Cannot register Overlay project for plugin deployment" }
 }
 
 $results.ToArray()

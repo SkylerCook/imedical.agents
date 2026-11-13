@@ -1,6 +1,6 @@
 {
   "name": "imedicalxc-doctor-extend-engineer",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "displayName": "iMedicalXC Doctor Extend Engineer",
   "description": "HIS doctor workstation third-party system integration workflow orchestrator, covering brainstorming, design, implementation, testing, HIS validation, and CI/CD delivery.",
   "entry": "AGENTS.md",
@@ -42,5 +42,6 @@
     "做 HIS 外部接口/厂商对接",
     "集成电子病历/电子医嘱/电子处方等第三方服务",
     "开发医生站插件或中间件"
-  ]
+  ],
+  "runtimeResources": ["vendor/superpowers", "vendor/word-reader"]
 }

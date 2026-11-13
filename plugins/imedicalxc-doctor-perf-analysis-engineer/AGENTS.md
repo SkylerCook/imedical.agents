@@ -43,3 +43,5 @@
 ## 依赖
 
 本插件依赖 `imedicalxc-doctor-extend-engineer` 提供的 `vendor/superpowers/`（`using-superpowers`、`brainstorming` 等流程 skill）。若 `imedicalxc-doctor-extend-engineer` 未启用，必须停止并提示先初始化该依赖插件。
+
+按需部署时，由 manifest 的 runtimeResources 与 required skill 依赖取得必需 vendor 资源；可选资料随任务触发补装，流程见[插件按需部署](../../docs/guides/plugin-deployment.md)。

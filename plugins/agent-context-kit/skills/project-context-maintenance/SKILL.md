@@ -1,6 +1,6 @@
 ---
 name: project-context-maintenance
-description: Initialize, maintain, or optimize project context and local docs knowledge layout including AGENTS.md, rules, memory, profiles and skill routes. Use for context setup, missing or broken rule routes, factual updates, duplicate or stale guidance, and reading-cost reviews; ordinary coding does not trigger routine context maintenance. 用于初始化、维护及日常优化项目上下文。
+description: Initialize, maintain, or optimize project context and local docs knowledge layout including AGENTS.md, rules, memory, profiles and skill routes. Use for context setup, capability group selection and missing-plugin installation, missing or broken rule routes, factual updates, duplicate or stale guidance, and reading-cost reviews; ordinary coding does not trigger routine context maintenance. 用于初始化、维护及日常优化项目上下文。
 ---
 
 # 项目上下文维护

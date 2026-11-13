@@ -72,13 +72,14 @@ function Assert-AgentsNodeRuntime {
 }
 
 function Invoke-AgentsSparseRefresh {
-  param([string]$Root, [string[]]$Patterns, [switch]$Initial)
+  param([string]$Root, [string[]]$Patterns, [switch]$Initial, [switch]$OnDemand)
   # Read from HEAD: the helper itself may be excluded by legacy sparse rules.
   $source = git -C $Root show HEAD:scripts/refresh-agents-sparse.js
   if ($LASTEXITCODE -ne 0) { throw "Sparse refresh runtime missing from HEAD" }
   Assert-AgentsNodeRuntime
   $extra = @()
   if ($Initial) { $extra += "--initial" }
+  if ($OnDemand) { $extra += "--on-demand" }
   & node -e ($source -join "`n") -- --sparse-bootstrap $Root @Patterns @extra
   if ($LASTEXITCODE -ne 0) { throw "Sparse refresh or runtime materialization validation failed" }
 }
@@ -102,7 +103,7 @@ function Assert-GitSparseCheckoutSubcommandAvailable {
 
 function Set-AgentsSparseCheckout {
   param([switch]$Initial)
-  Invoke-AgentsSparseRefresh -Root $target -Patterns $sparsePaths -Initial:$Initial
+  Invoke-AgentsSparseRefresh -Root $target -Patterns $sparsePaths -Initial:$Initial -OnDemand:$Initial
 }
 
 function Remove-MaintenanceOnlyRuntimeSkill {
@@ -126,6 +127,15 @@ function Write-PostInstallGuidance {
 Assert-AgentsNodeRuntime
 Assert-GitSparseCheckoutSubcommandAvailable
 
+$installDeploymentToken = $null
+$installDeploymentEntry = Join-Path $target "scripts/plugin-deploy.js"
+if ((Test-Path -LiteralPath $installDeploymentEntry) -and -not $env:IMEDICAL_DEPLOYMENT_LOCK) {
+  $lockText = & node $installDeploymentEntry acquire-lock --project-root (Get-Location).Path --pid $PID
+  if ($LASTEXITCODE -ne 0) { throw "Cannot acquire capability deployment lock" }
+  $installDeploymentToken = ($lockText | ConvertFrom-Json).token
+  if ($installDeploymentToken) { $env:IMEDICAL_DEPLOYMENT_LOCK = $installDeploymentToken }
+}
+try {
 if (Test-Path "$target\.git") {
   $dirty = git -C $target status --porcelain
   if (($LASTEXITCODE -ne 0) -or $dirty) { throw "Cannot update a dirty or unreadable capability checkout" }
@@ -138,6 +148,8 @@ if (Test-Path "$target\.git") {
   git clone --filter=blob:none --no-checkout $repo $target
   if ($LASTEXITCODE -ne 0) { throw "Capability clone failed" }
   Set-AgentsSparseCheckout -Initial
+  & node (Join-Path $target "scripts/plugin-deploy.js") configure --project-root (Get-Location).Path --auto-install false
+  if ($LASTEXITCODE -ne 0) { throw "Plugin deployment configuration failed" }
 }
 
 if (Test-Path "$target\.git") {
@@ -150,7 +162,7 @@ if (Test-Path "$target\.git") {
 Remove-MaintenanceOnlyRuntimeSkill
 
 $preferVendorIrisMcpScript = Join-Path $target "scripts/prefer-vendor-iris-mcp.ps1"
-if (Test-Path -LiteralPath $preferVendorIrisMcpScript -PathType Leaf) {
+if ((Test-Path -LiteralPath (Join-Path $target "plugins/coding-iris-plugin/.agents-plugin/plugin.json")) -and (Test-Path -LiteralPath $preferVendorIrisMcpScript -PathType Leaf)) {
   $preferenceResults = @(& $preferVendorIrisMcpScript -ProjectRoot (Get-Location).Path -ContextRoot $target -Mode Write)
   $preferenceResults | ForEach-Object {
     Write-Host ("{0}: {1} ({2})" -f $_.status, $_.target, $_.reason)
@@ -165,9 +177,7 @@ if (Test-Path -LiteralPath $preferVendorIrisMcpScript -PathType Leaf) {
     throw "Bundled iris-agentic-dev preference could not be applied safely. Existing MCP configuration was preserved; resolve the reported status before retrying."
   }
 }
-else {
-  throw "Bundled iris-agentic-dev preference script is missing; existing MCP configuration was preserved."
-}
+
 
 if (Test-Path "AGENTS.md") {
   Write-Host "AGENTS.md found. CLAUDE.md and CODEBUDDY.md are optional compatibility symlinks; install-agents.ps1 does not create, copy, or repair them automatically."
@@ -193,4 +203,11 @@ Write-PostInstallGuidance
 
 if ($RuntimeAdapter.Count -gt 0) {
   & (Join-Path $target "scripts/update-agents.ps1") -ProjectRoot (Get-Location).Path -Mode Write -NoPull -RuntimeAdapter $RuntimeAdapter -Agent:$Agent
+}
+
+} finally {
+  if ($installDeploymentToken) {
+    & node $installDeploymentEntry release-lock --project-root (Get-Location).Path --token $installDeploymentToken | Out-Null
+    Remove-Item Env:IMEDICAL_DEPLOYMENT_LOCK -ErrorAction SilentlyContinue
+  }
 }

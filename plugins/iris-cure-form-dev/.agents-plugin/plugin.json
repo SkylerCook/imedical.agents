@@ -1,6 +1,6 @@
 {
   "name": "iris-cure-form-dev",
-  "version": "0.8.11",
+  "version": "0.8.12",
   "displayName": "IRIS Cure Form Dev Plugin",
   "description": "CA/CR treatment form ingestion, multi-template generation, responsive migration, review, deployment planning, verification, and rollback orchestration.",
   "entry": "AGENTS.md",
@@ -82,5 +82,6 @@
       "boundary": "保存经审核的正式交付；整个任务工作目录与 private 保留在 form-work",
       "lifecycle": "正式交付；必要业务恢复附件按 owner 保留，不等同迁移临时备份"
     }
-  ]
+  ],
+  "runtimeResources": ["vendor/hisui"]
 }

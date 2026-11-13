@@ -1,0 +1,9 @@
+{
+  "schema": "plugin-groups/v1",
+  "groups": [
+    {"id":"general","name":"通用","description":"项目上下文、需求交付、BOS、文档、代码图与移动端通用能力","plugins":["agent-context-kit","agent-framework-evolution","bos-plugin","codegraph-query","demand-delivery-plugin","extract-doc","mobile-dev"]},
+    {"id":"iris","name":"IRIS","description":"IRIS 开发、接口、表单、国际化及医生站集成","plugins":["coding-iris-plugin","i18n-iris-plugin","iris-codegraph","iris-cure-form-dev","iris-external-reg","iris-imedical-doctor-ai","iris-interface-dev"]},
+    {"id":"xc","name":"XC（信创）","description":"信创医生站业务、开发、分析与外围集成","plugins":["imedicalxc-doctor-card-reader","imedicalxc-doctor-codegraph","imedicalxc-doctor-data-extraction","imedicalxc-doctor-extend-engineer","imedicalxc-doctor-perf-analysis-engineer","imedicalxc-doctor-print-template-design"]},
+    {"id":"ui","name":"UI","description":"公司 UI 规范及 IRIS/HISUI 适配","plugins":["imedical-ui","iris-ui"]}
+  ]
+}

@@ -2,6 +2,14 @@
 
 仅在初始化、接入插件或更新能力包时读取。先执行主 skill 的 Workspace Context 与授权检查；以下 `.agents/` 路径相对目标工程，`templates/` 和 `scripts/` 指插件根。普通维护和日常优化不要求完成本文件所有步骤。
 
+## 体系推荐与按需补装
+
+接入新项目、选择体系或任务需要尚未安装的能力时，读取 CapabilityRoot/docs/guides/plugin-deployment.md。先运行 plugin-deploy.js recommend 与 groups，结合源码证据展示通用、IRIS、XC（信创）、UI 组合及实际插件。用户可表达“除了 XC 都要”，转换为 --all --exclude-group xc，并运行 plan 展示必需依赖。
+
+首次集中确认是否允许明确任务触发本仓库能力自动补装，以 configure --auto-install true/false 保存决定。用户明确指定本次安装时使用 ensure --explicit。反选遇到必需依赖冲突时，展示完整依赖链、版本要求和声明位置，由用户选择补回依赖或取消上游能力；确认前保持原选择。
+
+ensure 成功后按返回顺序执行初始化技能。配置缺失集中处理，发现入口验证完成后再更新 enabled。自动补装权限沿当前项目复用，外部服务与真实业务操作继续核对各自授权。已有全量项目使用显式 migrate，Overlay 先列全关联工程并保留所有成员的需求。
+
 ## 插件更新流程
 
 IRIS 项目接入 coding owner 时，开发方式独立于 contextMode，以当前 `ContextRoot/config/iris-development.json` 的 `developmentMode` 为唯一配置，profile 只引用。初始化按用户已明确的现场约束选择 connected/offline，无法判断时只询问一次；offline 创建最小模式配置，不要求环境资格、不生成医院连接，既有连接只报告给授权维护。已有文字离线约定需授权维护补齐，普通能力更新不自动切换或清理旧任务。编码/Review/交付继续复用 coding owner；其它技术栈不新增此配置。
@@ -35,7 +43,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 初始化项目上下文时，先按主 skill 的“面向项目编程”确认实际入口和验证方式；只生成有内容的章节，不保留无信息 TODO：
 
 1. 先判断 `contextMode`，相关证据核对后落盘；缺少 `.agents/config/project_context_profile.md` 时，参考 `templates/project_context_profile.template.md` 创建。
-2. 创建或维护 `.agents/config/plugin_profile.md`；默认 `agent-context-kit` 和 `agent-framework-evolution` 为 `enabled`，其它已拉取插件为 `available`。
+2. 创建或维护 `.agents/config/plugin_profile.md`；默认 `agent-context-kit` 和 `agent-framework-evolution` 为 `enabled`，能力目录中的其它插件为 `available`，正文可以尚未落盘。
 3. 运行 `.agents/scripts/check-agent-entrypoints.ps1`，只检查 `CLAUDE.md`、`CODEBUDDY.md` 可选兼容入口；不自动创建、复制或修复。
 4. **代码探索（仅 `codebase-complete`）**：在写入任何 config/rules 之前，先探索本地代码，提取可验证的事实填入配置文件。探索范围：
    - 目录结构：实际源码、测试、构建或部署入口。

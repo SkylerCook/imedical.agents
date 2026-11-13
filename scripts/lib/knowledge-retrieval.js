@@ -330,6 +330,7 @@ async function search(context, query, options = {}) {
     if (options.theme && !['pure', 'ihos', 'common'].includes(options.theme)) throw new Error('Invalid theme');
     let items = prepare(context, options.domain || 'all');
     items.push(...(options.projectDocuments || []).flatMap(chunks));
+    const hasSources = items.length > 0;
     if (options.theme) items = items.filter(item => item.themes.includes(options.theme) || item.themes.includes('common'));
     const policy = readPolicy(context);
     let profile;
@@ -342,6 +343,7 @@ async function search(context, query, options = {}) {
     let embeddingTokens = 0;
     const warnings = [];
     if (configurationError) warnings.push(configurationError);
+    if (!hasSources) warnings.push('knowledge-sources-not-installed');
     const vectorSources = new Set();
     if (profile && options.queryPublic && policy.allowQuery && !options.sourceId && !options.localOnly) {
         let database;

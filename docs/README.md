@@ -61,3 +61,5 @@
 需求交付拆分与兼容更新见 [需求交付迁移](demand-delivery-migration.md)：新入口 demand-commit / bos-demand-entry，旧 IRIS 入口已删除，更新器定向迁移项目引用并接入缺失 owner；显式状态冲突阻断，旧数据格式保留。
 
 业务知识、公司 UI 与 HISUI 的检索、建库和本机授权见[轻量混合检索](guides/knowledge-retrieval.md)。
+
+项目按体系选择插件、自动补装偏好、已有项目迁移与 Overlay 共享资源见[插件按需部署](guides/plugin-deployment.md)。

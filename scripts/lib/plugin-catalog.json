@@ -1,0 +1,1407 @@
+{
+  "schema": "plugin-catalog/v1",
+  "basePlugins": [
+    "agent-context-kit",
+    "agent-framework-evolution"
+  ],
+  "groups": [
+    {
+      "id": "general",
+      "name": "通用",
+      "description": "项目上下文、需求交付、BOS、文档、代码图与移动端通用能力",
+      "plugins": [
+        "agent-context-kit",
+        "agent-framework-evolution",
+        "bos-plugin",
+        "codegraph-query",
+        "demand-delivery-plugin",
+        "extract-doc",
+        "mobile-dev"
+      ]
+    },
+    {
+      "id": "iris",
+      "name": "IRIS",
+      "description": "IRIS 开发、接口、表单、国际化及医生站集成",
+      "plugins": [
+        "coding-iris-plugin",
+        "i18n-iris-plugin",
+        "iris-codegraph",
+        "iris-cure-form-dev",
+        "iris-external-reg",
+        "iris-imedical-doctor-ai",
+        "iris-interface-dev"
+      ]
+    },
+    {
+      "id": "xc",
+      "name": "XC（信创）",
+      "description": "信创医生站业务、开发、分析与外围集成",
+      "plugins": [
+        "imedicalxc-doctor-card-reader",
+        "imedicalxc-doctor-codegraph",
+        "imedicalxc-doctor-data-extraction",
+        "imedicalxc-doctor-extend-engineer",
+        "imedicalxc-doctor-perf-analysis-engineer",
+        "imedicalxc-doctor-print-template-design"
+      ]
+    },
+    {
+      "id": "ui",
+      "name": "UI",
+      "description": "公司 UI 规范及 IRIS/HISUI 适配",
+      "plugins": [
+        "imedical-ui",
+        "iris-ui"
+      ]
+    }
+  ],
+  "plugins": [
+    {
+      "directory": "agent-context-kit",
+      "manifest": {
+        "name": "agent-context-kit",
+        "version": "0.10.0",
+        "displayName": "Agent Context Kit",
+        "description": "Reusable project context, on-demand capability group selection, local task handoff and cross-session continuation, plus schema 2.0 agent run templates and separate demand and framework-maintenance lifecycles.",
+        "entry": "AGENTS.md",
+        "skills": "skills/",
+        "scripts": "scripts/",
+        "templates": "templates/",
+        "initSkill": "project-context-maintenance",
+        "requiresProjectFiles": [
+          "AGENTS.md",
+          ".agents/rules/",
+          ".agents/memory/"
+        ],
+        "defaultPrompt": [
+          "初始化项目规则和项目记忆",
+          "按通用、IRIS、XC、UI 体系推荐、组合或反选插件，补装当前任务需要的能力",
+          "维护项目上下文",
+          "优化已有上下文中的重复、过时和宽泛约束",
+          "判断这条经验应该写到 rules 还是 memory",
+          "把项目约定整理成 agent 可复用上下文",
+          "初始化或验证 schema 2.0 AGENT 协作 run",
+          "为需求启用交接、生成交接快照或继续已有需求"
+        ],
+        "legacyRootSkillHashes": {
+          "coding-agent-adaptation": [
+            "c74b680eb4b4f556226a4a252b3d038f326c57c6b5e853d053c736274ad23489"
+          ]
+        },
+        "projectDirectories": [
+          {
+            "id": "guides",
+            "base": "workspace",
+            "path": "docs/guides",
+            "role": "knowledge",
+            "create": "setup",
+            "purpose": "开发、操作和排障指南",
+            "examples": [
+              "开发接入.md",
+              "操作手册.md",
+              "故障排查.md"
+            ],
+            "boundary": "操作步骤归本目录；业务对象与接口契约归 modules",
+            "lifecycle": "现行指南；替代后保留引用并归 archive"
+          },
+          {
+            "id": "modules",
+            "base": "workspace",
+            "path": "docs/modules",
+            "role": "knowledge",
+            "create": "setup",
+            "purpose": "业务专题、接口和设计说明",
+            "examples": [
+              "专题设计.md",
+              "接口字段.md",
+              "流程说明.md"
+            ],
+            "boundary": "长期专题知识归本目录；执行步骤归 guides，验收材料归 delivery",
+            "lifecycle": "现行专题；注明适用版本，过期材料归 archive"
+          },
+          {
+            "id": "delivery",
+            "base": "workspace",
+            "path": "docs/delivery",
+            "role": "delivery",
+            "create": "setup",
+            "purpose": "正式交付、验收、演示和配套附件",
+            "examples": [
+              "需求说明.md",
+              "验收报告.md",
+              "演示附件"
+            ],
+            "boundary": "保存对外交付的定稿与附件；私有草稿和运行断点归 ContextRoot/work",
+            "lifecycle": "按需求或批次保留；正式交付与业务恢复资料分别核对保留策略"
+          },
+          {
+            "id": "archive",
+            "base": "workspace",
+            "path": "docs/archive",
+            "role": "knowledge",
+            "create": "setup",
+            "purpose": "已被替代的历史资料",
+            "examples": [
+              "旧版设计.md",
+              "已替代操作说明.md"
+            ],
+            "boundary": "只放已替代历史；保留原日期与当前替代入口",
+            "lifecycle": "历史资料；归档不表示可自动删除或继续作为现行规范"
+          },
+          {
+            "id": "handoff",
+            "base": "context",
+            "path": "work/handoff",
+            "role": "runtime",
+            "create": "setup",
+            "legacyPaths": [
+              "docs/handoff"
+            ],
+            "purpose": "本工作区交接与恢复状态",
+            "examples": [
+              "handoff.md",
+              "交接快照"
+            ],
+            "boundary": "记录本工作区接续范围与恢复线索；正式交付摘要归 docs/delivery",
+            "lifecycle": "本机任务状态；旧交接沿原根发现，任务结束不自动删除恢复资料"
+          },
+          {
+            "id": "runs",
+            "base": "context",
+            "path": "work/agent-reports",
+            "role": "runtime",
+            "create": "setup",
+            "legacyPaths": [
+              "docs/agent-reports"
+            ],
+            "purpose": "新任务运行与证据；旧run保留其显式目录",
+            "examples": [
+              "plan.json",
+              "manifest.json",
+              "运行证据"
+            ],
+            "boundary": "供编排和阶段恢复；不把运行通过等同业务验收",
+            "lifecycle": "本机运行状态；旧 run 保留显式目录，恢复与清理由运行 owner 决定"
+          }
+        ]
+      },
+      "manifestHash": "273259c05b2d4d481be9962c1f41400aa02efd3fca8258656f3e722c447e97fa"
+    },
+    {
+      "directory": "agent-framework-evolution",
+      "manifest": {
+        "name": "agent-framework-evolution",
+        "version": "0.2.0",
+        "displayName": "Agent Framework Evolution",
+        "description": "Preserve bundled feedback review and reusable capability packaging through plugin-owned skills.",
+        "entry": "AGENTS.md",
+        "skills": "skills/",
+        "initSkill": "agent-framework-evolution-init",
+        "thinIndex": {
+          "excludeSkills": [
+            "agent-framework-evolution-init"
+          ]
+        },
+        "defaultPrompt": [
+          "审查已验收需求的反馈候选",
+          "把已验证经验整理成可复用能力"
+        ],
+        "legacyRootSkillHashes": {
+          "reusable-content-packaging": [
+            "9862e2aa419030915e3008c6b142e5282f9e4f4fc3dea3a9aacb214e90a9d5a0",
+            "2704b53b42d151e0e4ecff107bdf006cea4ba9bc7d560c8bf057c95471d5fb3b",
+            "941cda7b35903dd03f29d88fcf2806ea4157c3b04befc7a2a180621360cf7cc2",
+            "0b1525292676774a4d587aaa92f4eed686c74ff0492613de2c6bf82cd5441c82",
+            "41bced59a50d3aba11a03f331d835db502cbfd771851ff1b8387bf1acdbcffd3",
+            "e0c01bca693fbf6c14721dae2cc13597d1b1a3a79abeb99f887f622a467d255c",
+            "bee12970573dd663a9e27d8e9cf2946ba1242baa3f243d030ecb8ac27cb2027b",
+            "d8c484910d22ea301c4827672d5217e68577d4556f333d80f4596b795b3c1f25"
+          ],
+          "agent-framework-feedback": [
+            "513ad28e53173dffa7e734561227eb2372de75bec5dabc6d2325ee77cc7ee545",
+            "a2df3f16154999409daf24824006d7e8d9534cd98c3d179e86169b9a90cd1f7e",
+            "70e556415be0d594e7cae0e3466a7ee78ad54a8a1992b8c55911f8d953ac6454",
+            "dc4633f8cc000f2888572d845ef1d9b2cad7e3c4d5dd2e4a75d308abc37c4476",
+            "0d5b7d2812de645bd3c10b0013c8f861ff81d60e2661a4514e7c04e2303be4d9",
+            "753514bea88f9a0f034d62ed65e6d84a3babda383720347c495d881534688ade",
+            "d1b99686df9147ccf615573e17f8c95e2431b30110ced40c78a9d2e5c392f1d7",
+            "0941cb857b0301a7ae314998beed17af6d3748f3c3bebb34325ce078ddb4c503"
+          ]
+        }
+      },
+      "manifestHash": "1363f39bf26cbf9cb3f39d9c59267fd9902bf091bc0484e59144db5659ea0fd0"
+    },
+    {
+      "directory": "bos-plugin",
+      "manifest": {
+        "name": "bos-plugin",
+        "version": "0.18.3",
+        "displayName": "BOS Demand Plugin",
+        "description": "跨技术栈的 BOS 只读查询、需求处理、标版补录、代码更新日志与通用提交衔接。",
+        "entry": "AGENTS.md",
+        "skills": "skills/",
+        "scripts": "scripts/",
+        "references": "references/",
+        "initSkill": "bos-init",
+        "dependencies": [],
+        "thinIndex": {
+          "excludeSkills": [
+            "bos-init"
+          ]
+        },
+        "defaultPrompt": [
+          "使用 bos-demand-query --proj 查询项目待办，--dev 查询产品（非项目）待办；可组合 --workload 日期范围",
+          "使用 bos-demand-query --todo 查询全部开发待办，或提供日期按预计完成时间查询",
+          "使用 bos-demand-query --workload 日期或日期范围查询我的工作量",
+          "处理 BOS 需求，使用当前项目开发规范",
+          "$bos-demand-handle --night，按当前项目和已确认范围处理夜跑需求",
+          "处理这个标版需求，验收通过后提交并准备 BOS 代码日志补录计划",
+          "处理这个标版 BOS 需求，验收后提交并将本次提交补录到 BOS 代码更新日志",
+          "为当前项目接入 BOS 查询与需求处理",
+          "把标版需求已有 Git 提交补录到 BOS 代码更新日志",
+          "使用 bos-demand-entry 从 Git 改动生成标版需求文本并回填编号",
+          "提需求给支持组，根据主题和资料生成需求文本"
+        ],
+        "availableDependencies": [
+          {
+            "plugin": "demand-delivery-plugin",
+            "stage": "demand-commit",
+            "trigger": "BOS 需求生成提交计划或执行本地提交",
+            "entries": [
+              "skills/demand-commit/SKILL.md",
+              "scripts/commit-demand.js"
+            ]
+          },
+          {
+            "plugin": "demand-delivery-plugin",
+            "stage": "standard-demand-entry",
+            "trigger": "代码来源标版补录 prepare、message 或 plan 复用提交能力；主题和工作来源不需要该依赖",
+            "entries": [
+              "scripts/commit-demand.js"
+            ]
+          },
+          {
+            "plugin": "demand-delivery-plugin",
+            "stage": "demand-acceptance",
+            "trigger": "BOS 需求进入连续人工验收与逐号交付",
+            "entries": [
+              "skills/demand-acceptance/SKILL.md"
+            ]
+          }
+        ],
+        "projectDirectories": [
+          {
+            "id": "demand-delivery",
+            "base": "workspace",
+            "path": "docs/delivery/demands",
+            "role": "delivery",
+            "create": "setup",
+            "purpose": "BOS 需求正式文本和 Excel 交付",
+            "examples": [
+              "需求文本.md",
+              "需求导入.xlsx"
+            ],
+            "boundary": "保存评审或录入使用的正式材料；私有待办草稿归本地 work/standard-demand",
+            "lifecycle": "正式交付；按需求保留，不因提交 BOS 自动清理"
+          },
+          {
+            "id": "demand-drafts",
+            "base": "context",
+            "path": "work/standard-demand",
+            "role": "runtime",
+            "create": "setup",
+            "purpose": "BOS 私有需求草稿与恢复状态",
+            "examples": [
+              "需求草稿.json",
+              "恢复状态.json"
+            ],
+            "boundary": "保留私有编写与恢复状态；选定正式文本和 Excel 归 docs/delivery/demands",
+            "lifecycle": "本机运行资料；旧草稿与显式输出位置保持，不自动外传或删除"
+          }
+        ]
+      },
+      "manifestHash": "1e651af67c395b8387c030ac955ac072a72065b90cfaa351fbab93974feff475"
+    },
+    {
+      "directory": "codegraph-query",
+      "manifest": {
+        "name": "codegraph-query",
+        "version": "0.1.1",
+        "displayName": "CodeGraph Query Plugin",
+        "description": "Read-only query workflow for CodeGraph SQLite indexes under .codegraph/codegraph.db, used for code location, caller/callee checks, route lookup, and first-pass impact analysis.",
+        "entry": "AGENTS.md",
+        "rules": "rules/",
+        "skills": "skills/",
+        "scripts": "scripts/",
+        "initSkill": "codegraph-query",
+        "dependencies": [
+          "iris-codegraph"
+        ],
+        "dependencyVersions": {
+          "iris-codegraph": {
+            "minVersion": "0.1.0",
+            "maxVersionExclusive": "0.2.0"
+          }
+        },
+        "requiresProjectFiles": [
+          "AGENTS.md",
+          ".codegraph/codegraph.db"
+        ],
+        "defaultPrompt": [
+          "Query CodeGraph to locate a frontend function",
+          "Analyze the impact of changing an indexed frontend file",
+          "Find the indexed route or entry related to an API path",
+          "Show callers and callees for an indexed function"
+        ]
+      },
+      "manifestHash": "b9aa9caf992c921a84797991a7f13e06f56c13394caaad2c29a906725920ce52"
+    },
+    {
+      "directory": "coding-iris-plugin",
+      "manifest": {
+        "name": "coding-iris-plugin",
+        "version": "0.30.1",
+        "displayName": "IRIS Coding Plugin",
+        "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
+        "entry": "AGENTS.md",
+        "rules": "rules/",
+        "references": "references/",
+        "skills": "skills/",
+        "templates": "templates/",
+        "scripts": "scripts/",
+        "configMigrations": [
+          {
+            "id": "iris-managed-session-v1",
+            "checkMode": "Check",
+            "script": "scripts/migrate-session-config.ps1"
+          },
+          {
+            "id": "sftp-vendor-v1",
+            "script": "scripts/migrate-sftp-vendor.ps1"
+          },
+          {
+            "id": "frontend-encoding-v3",
+            "script": "scripts/migrate-frontend-encoding-profile.ps1"
+          },
+          {
+            "id": "demand-delivery-type-v1",
+            "script": "scripts/migrate-demand-delivery-profile.ps1"
+          },
+          {
+            "id": "iris-development-config-v1",
+            "script": "scripts/migrate-development-config.ps1"
+          }
+        ],
+        "skillDependencies": {
+          "required": [],
+          "optional": [
+            {
+              "capability": "iris.objectscript.review",
+              "provider": "iris-agentic-dev-skills",
+              "name": "objectscript-review",
+              "trigger": "after-writing-objectscript"
+            },
+            {
+              "capability": "iris.objectscript.guardrails",
+              "provider": "iris-agentic-dev-skills",
+              "name": "objectscript-guardrails",
+              "trigger": "writing-or-reviewing-objectscript"
+            },
+            {
+              "capability": "iris.objectscript.sql-patterns",
+              "provider": "iris-agentic-dev-skills",
+              "name": "objectscript-sql-patterns",
+              "trigger": "objectscript-sql"
+            },
+            {
+              "capability": "iris.objectscript.list-patterns",
+              "provider": "iris-agentic-dev-skills",
+              "name": "objectscript-list-patterns",
+              "trigger": "objectscript-list"
+            },
+            {
+              "capability": "iris.objectscript.navigation",
+              "provider": "iris-agentic-dev-skills",
+              "name": "objectscript-navigation",
+              "trigger": "iris-code-navigation"
+            },
+            {
+              "capability": "iris.objectscript.unit-test",
+              "provider": "iris-agentic-dev-skills",
+              "name": "objectscript-unit-test",
+              "trigger": "iris-unit-test"
+            },
+            {
+              "capability": "iris.objectscript.debugging",
+              "provider": "iris-agentic-dev-skills",
+              "name": "objectscript-debugging",
+              "trigger": "iris-runtime-or-compile-error"
+            },
+            {
+              "capability": "iris.objectscript.tdd",
+              "provider": "iris-agentic-dev-skills",
+              "name": "objectscript-tdd",
+              "trigger": "authorized-objectscript-compile-test-loop"
+            }
+          ]
+        },
+        "initSkill": "coding-iris-init",
+        "thinIndex": {
+          "excludeSkills": [
+            "coding-iris-init"
+          ]
+        },
+        "requiresProjectFiles": [
+          "AGENTS.md",
+          ".mcp.json",
+          ".agents/config/iris_project_profile.md"
+        ],
+        "projectDirectories": [
+          {
+            "id": "iris-xml-export",
+            "base": "workspace",
+            "path": "docs/delivery/iris-xml",
+            "role": "delivery",
+            "create": "task",
+            "purpose": "已确认对象范围的 IRIS XML 部署包、离线增量/回退 XML 与逐项校验回执",
+            "examples": [
+              "对象清单",
+              "XML 合包或分文件",
+              "changes.xml / rollback.xml / 变更说明",
+              "完整性校验回执"
+            ],
+            "boundary": "只保存当前工程正式交付；服务器任务身份、私有计划与恢复状态归 ContextRoot/work/iris-xml-export",
+            "lifecycle": "按任务创建并保留正式交付；不自动导入业务环境或清理历史附件"
+          },
+          {
+            "id": "iris-xml-export-state",
+            "base": "context",
+            "path": "work/iris-xml-export",
+            "role": "recovery",
+            "create": "task",
+            "purpose": "XML 导出计划、离线编辑原包/对象与回执、服务器产物归属及恢复断点",
+            "examples": [
+              "导出计划",
+              "offline-edit/<task> 原包与对象 XML",
+              "任务产物清单",
+              "恢复与清理回执"
+            ],
+            "boundary": "私有状态受 Git 忽略；正式 XML 归 docs/delivery/iris-xml，不能写共享 CapabilityRoot",
+            "lifecycle": "按任务创建；未知结果核实前保留，不作为普通临时文件清理"
+          },
+          {
+            "id": "source-sync",
+            "base": "context",
+            "path": "work/source-sync",
+            "role": "recovery",
+            "create": "task",
+            "purpose": "项目按需导出的私有基线、现场保护与恢复断点",
+            "examples": [
+              "同步基线",
+              "冻结计划",
+              "恢复断点"
+            ],
+            "boundary": "仅保存按需同步的私有现场与基线；业务源码归 SourceRoot，正式交付归 docs/delivery",
+            "lifecycle": "按任务创建；按 source-sync 恢复与发布契约保留，不作为普通临时文件清理"
+          },
+          {
+            "id": "iris-deploy-state",
+            "base": "context",
+            "path": "work/iris-deploy",
+            "role": "recovery",
+            "create": "task",
+            "purpose": "普通前端部署的私有编码产物及失败恢复材料",
+            "examples": [
+              "upload/<task> 转码产物"
+            ],
+            "boundary": "实际任务创建，成功清理，失败保留并在回执返回目录；受管发布产物复用 source-sync 任务目录",
+            "lifecycle": "保持 Git 忽略，原字节回读完成后清理本任务产物"
+          }
+        ],
+        "defaultPrompt": [
+          "从已确认的 IRIS 环境导出准确对象范围的 XML 部署包",
+          "按版本 XML 范围采集指定实例当前代码基线并报告缺失",
+          "Initialize IRIS coding support in this project",
+          "Handle an IRIS coding request with the unified coding workflow",
+          "Modify this ObjectScript class using IRIS backend rules",
+          "Modify this CSP/HISUI page using IRIS frontend rules",
+          "Look up an IRIS class, method signature, or official documentation page",
+          "Promote a committed demand from a DEV on-demand-export repository into a PRD repository after refreshing the PRD server baseline",
+          "Handle an explicitly identified legacy GB2312 frontend project after confirmation",
+          "Prepare an IRIS deployment manifest and deploy after confirmation",
+          "Check this change against IRIS coding and deployment rules",
+          "查询 imedical wiki 或菜单资料；菜单变更后同步项目菜单快照"
+        ],
+        "runtimeResources": [
+          "vendor/frontend-encoding",
+          "vendor/hisui",
+          "vendor/imedical-knowledge",
+          "vendor/iris-agentic-dev",
+          "vendor/sftp-server",
+          "vendor/xml-parser"
+        ]
+      },
+      "manifestHash": "cf1f03dc831e2d7d2dc4d8389207d4d742c5e9ddd9e9977b4b7cd5ba4c903b44"
+    },
+    {
+      "directory": "demand-delivery-plugin",
+      "manifest": {
+        "name": "demand-delivery-plugin",
+        "version": "0.9.2",
+        "displayName": "Demand Delivery Plugin",
+        "description": "跨技术栈的需求提交，支持 project 显式无编号提交，以及连续人工验收、逐号交付恢复。",
+        "entry": "AGENTS.md",
+        "skills": "skills/",
+        "scripts": "scripts/",
+        "references": "references/",
+        "dependencies": [],
+        "defaultPrompt": [
+          "使用 demand-commit --plan 生成需求提交信息",
+          "使用 demand-commit --commit 执行已授权的本地需求提交",
+          "使用 demand-commit --commit --no-id 提交暂时没有需求号的 project 改动",
+          "使用 demand-acceptance 连续接收人工验收，通过后逐号提交推送，按适用范围再补标版 BOS 日志"
+        ],
+        "availableDependencies": [
+          {
+            "plugin": "bos-plugin",
+            "stage": "bos-demand-entry",
+            "trigger": "标版需求缺少编号，需要生成 BOS 补录材料",
+            "entries": [
+              "skills/bos-demand-entry/SKILL.md",
+              "scripts/demand-entry.js"
+            ]
+          },
+          {
+            "plugin": "bos-plugin",
+            "stage": "bos-code-update-log",
+            "trigger": "标版需求交付选择 BOS 代码更新日志补录",
+            "entries": [
+              "skills/bos-code-update-log/SKILL.md",
+              "scripts/bos-code-update-log.js"
+            ]
+          }
+        ]
+      },
+      "manifestHash": "a328ecda91f47262299398c9ac04b08b35ce01fd6a85bb818518aae2db4abcdf"
+    },
+    {
+      "directory": "extract-doc",
+      "manifest": {
+        "name": "extract-doc",
+        "version": "0.3.1",
+        "displayName": "Extract Doc Plugin",
+        "description": "Reusable document ingestion workflow for converting PDF, DOC, DOCX, XLS, and XLSX files into Markdown, interface-oriented fields, and optional domain-neutral document structure artifacts.",
+        "entry": "AGENTS.md",
+        "rules": "rules/",
+        "skills": "skills/",
+        "scripts": "scripts/",
+        "initSkill": "extract-doc-ingest",
+        "requiresProjectFiles": [
+          "AGENTS.md"
+        ],
+        "defaultPrompt": [
+          "Check parser availability for this document",
+          "Extract this document into Markdown and structured JSON artifacts"
+        ],
+        "projectDirectories": [
+          {
+            "id": "document-ingest",
+            "base": "workspace",
+            "path": "docs/modules/interfaces",
+            "role": "knowledge",
+            "create": "setup",
+            "purpose": "文档解析、接口字段与实施说明",
+            "legacyPaths": [
+              "docs/interface"
+            ],
+            "examples": [
+              "接口字段.md",
+              "解析结果.json",
+              "实施说明.md"
+            ],
+            "boundary": "保存可复用接口与解析知识；原件按项目归属引用，临时转换物归任务临时目录",
+            "lifecycle": "项目专题知识；原件、附件与说明保持关联，不自动迁移旧 docs/interface"
+          }
+        ]
+      },
+      "manifestHash": "1adee6a8e448038d7affa127e05a753b5482f36ad88bbfcf1ccb6ea117afb6ba"
+    },
+    {
+      "directory": "i18n-iris-plugin",
+      "manifest": {
+        "name": "i18n-iris-plugin",
+        "version": "0.3.13",
+        "displayName": "IRIS I18N Plugin",
+        "description": "Reusable i18n agent workflows for IRIS/ObjectScript/CSP/HISUI projects.",
+        "entry": "AGENTS.md",
+        "rules": "rules/",
+        "skills": "skills/",
+        "templates": "templates/",
+        "scripts": "scripts/",
+        "initSkill": "i18n-project-init",
+        "thinIndex": {
+          "excludeSkills": [
+            "i18n-project-init"
+          ]
+        },
+        "dependencies": [
+          "coding-iris-plugin"
+        ],
+        "dependencyVersions": {
+          "coding-iris-plugin": {
+            "minVersion": "0.11.0",
+            "maxVersionExclusive": "0.31.0"
+          }
+        },
+        "requiresProjectFiles": [
+          "AGENTS.md",
+          ".mcp.json",
+          ".agents/config/i18n_project_profile.md"
+        ],
+        "defaultPrompt": [
+          "Initialize i18n support for this project",
+          "Extract i18n text for this page",
+          "Generate page translation seed data",
+          "Verify server and local page translation differences",
+          "Verify XML print template EN records",
+          "Create EN XML print templates for PrintTemp values"
+        ],
+        "projectDirectories": [
+          {
+            "id": "print-templates",
+            "base": "workspace",
+            "path": "docs/delivery/print-templates",
+            "role": "delivery",
+            "create": "setup",
+            "legacyPaths": [
+              "docs/xmlPrintTemp"
+            ],
+            "purpose": "XML 打印模板译文、manifest 和版面报告",
+            "examples": [
+              "译文.xml",
+              "manifest.json",
+              "版面报告.md"
+            ],
+            "boundary": "XML 原文单列 source；覆盖前恢复副本仍在本次 outputDir/backups",
+            "lifecycle": "业务交付与恢复链按 owner 保留；旧任务沿原 manifest，不自动覆盖或清理"
+          },
+          {
+            "id": "print-template-sources",
+            "base": "workspace",
+            "path": "docs/delivery/print-templates/source",
+            "role": "delivery",
+            "create": "setup",
+            "legacyPaths": [
+              "references/xmlPrintTemp"
+            ],
+            "purpose": "XML 打印模板原文与翻译输入",
+            "examples": [
+              "原文.xml"
+            ],
+            "boundary": "保留翻译输入与来源；译文、manifest 和报告归父级输出目录",
+            "lifecycle": "业务原始材料；与译文保持同次解析关联，不作为临时副本删除"
+          },
+          {
+            "id": "terms",
+            "base": "workspace",
+            "path": "docs/delivery/i18n/terms",
+            "role": "delivery",
+            "create": "setup",
+            "purpose": "多语言术语表与字典 SQL 交付",
+            "examples": [
+              "i18n_terms_LANG_YYYYMMDD_HHMM.md",
+              "字典交付.sql"
+            ],
+            "boundary": "保存术语及字典交付；页面翻译 seed 继续归 backend SourceRoot",
+            "lifecycle": "按语言与批次保留正式交付；执行 SQL 仍需独立授权"
+          },
+          {
+            "id": "csp-backups",
+            "base": "workspace",
+            "path": "docs/delivery/i18n/csp-trans-sync/backups",
+            "role": "recovery",
+            "create": "setup",
+            "legacyPaths": [
+              "docs/i18n-csp-trans-sync/backups"
+            ],
+            "purpose": "CSP 翻译同步前的业务方法体恢复副本",
+            "examples": [
+              "同步前方法体",
+              "恢复副本"
+            ],
+            "boundary": "业务对象恢复资料；与目录迁移批次备份和任务临时日志分别管理",
+            "lifecycle": "恢复资料；按 CSP 同步契约保留，不能在目录验收后自动删除"
+          }
+        ],
+        "references": "references/",
+        "runtimeResources": [
+          "vendor/hisui"
+        ]
+      },
+      "manifestHash": "00b46a0e6eb3978d977f5644afb63b076513f2a89788837755f1115101032d91"
+    },
+    {
+      "directory": "imedical-ui",
+      "manifest": {
+        "name": "imedical-ui",
+        "version": "0.2.1",
+        "displayName": "iMedical UI 规范与评审",
+        "description": "公司 BS 端 IHOS 海蓝与 PURE 天蓝的共性规范、差异参考、截图/浏览器评审与可追溯标注，不绑定技术栈。",
+        "entry": "AGENTS.md",
+        "rules": "rules/",
+        "references": "references/",
+        "skills": "skills/",
+        "scripts": "scripts/",
+        "initSkill": "imedical-ui-init",
+        "thinIndex": {
+          "excludeSkills": [
+            "imedical-ui-init"
+          ]
+        },
+        "dependencies": [],
+        "dependencyVersions": {},
+        "requiresProjectFiles": [
+          "AGENTS.md"
+        ],
+        "defaultPrompt": [
+          "按 IHOS 海蓝和 PURE 天蓝规范核对这个业务页面，共性一次适配，差异按需补齐",
+          "查询表单、表格或弹窗的 UI 标注要求，并给出适用条件和出处",
+          "检查这次 UI 修改是否同时覆盖两个评审基准",
+          "通过截图或浏览器评审 UI，给出有规范出处的问题和未覆盖项"
+        ],
+        "runtimeResources": [
+          "vendor/imedical-ui-standards"
+        ]
+      },
+      "manifestHash": "f97c7c40efc9f91e9e15d14d667d66a2b0397193512900d0a76959e59feb929c"
+    },
+    {
+      "directory": "imedicalxc-doctor-card-reader",
+      "manifest": {
+        "name": "imedicalxc-doctor-card-reader",
+        "version": "1.0.0",
+        "displayName": "iMedicalXC Doctor Card Reader",
+        "description": "HIS 医生站读卡设备接入配置插件。根据设备厂商、型号动态解析通用字典目录，生成厂商/型号通用字典与设备接口参数配置 SQL，并完成结果校验。当前仅支持 SQL 操作，后续读卡相关操作按新 skill 扩展。",
+        "entry": "AGENTS.md",
+        "skills": "skills/",
+        "scripts": "scripts/",
+        "initSkill": "imedicalxc-doctor-card-reader",
+        "requiresProjectFiles": [
+          "AGENTS.md"
+        ],
+        "defaultPrompt": [
+          "读卡设备接入",
+          "新增读卡厂商",
+          "新增读卡型号",
+          "设备接口参数配置",
+          "读卡器配置SQL",
+          "厂商型号字典",
+          "ct_pa_card_hard_manager"
+        ]
+      },
+      "manifestHash": "761bb494ac2f4a5f4d6b4546e9704f1897cc8f6c8049da0986efb2716c112593"
+    },
+    {
+      "directory": "imedicalxc-doctor-codegraph",
+      "manifest": {
+        "name": "imedicalxc-doctor-codegraph",
+        "version": "0.1.0",
+        "displayName": "iMedicalXC Doctor CodeGraph",
+        "description": "HIS 医生站代码调用图索引与检索插件。构建工作区方法级调用图、扫描 Maven biz jar 并生成影响分析与两部分穿透索引（impact_db.json / penetration_db.json），提供变更影响分析、调用者与被调用者、Feign 使用方、跨服务依赖与提交级批量取证查询；同时构建前端「界面→操作→JS 方法→HTTP 请求」链路索引。",
+        "entry": "AGENTS.md",
+        "skills": "skills/",
+        "scripts": "scripts/",
+        "initSkill": "imedicalxc-doctor-codegraph-gen",
+        "requiresProjectFiles": [
+          "AGENTS.md"
+        ],
+        "defaultPrompt": [
+          "初始化或增量更新医生站调用图索引",
+          "分析某个改动的影响范围",
+          "查询某方法被谁调用",
+          "查询 Feign 接口被哪些服务或模块调用",
+          "按提交批量取证调用链证据",
+          "初始化或增量更新前端界面操作链路索引"
+        ],
+        "projectDirectories": [
+          {
+            "id": "codegraph-index",
+            "base": "workspace",
+            "path": "docs/agents/imedicalxc-doctor-codegraph",
+            "role": "knowledge",
+            "create": "setup",
+            "purpose": "调用图索引产物：影响分析库、两部分穿透库、方法级调用图与 Feign 接口清单",
+            "examples": [
+              "impact_db.json",
+              "penetration_db.json",
+              "method_call_graph.jsonl",
+              "feign_interfaces.json"
+            ],
+            "boundary": "确定性生成的派生产物，随源码版本提交；节点 file_path 为工作区相对路径，不随克隆位置变化",
+            "lifecycle": "随索引重建整体覆盖，可随时全量重生成；不手工编辑，中间产物只在构建期存在于本目录"
+          },
+          {
+            "id": "front-codegraph-index",
+            "base": "workspace",
+            "path": "docs/agents/imedicalxc-doctor-front-codegraph",
+            "role": "knowledge",
+            "create": "setup",
+            "purpose": "前端链路索引产物：页面、操作元素、JS 方法、HTTP 请求及其触发/调用关系；可选菜单快照",
+            "examples": [
+              "front_chain_db.json",
+              "front_chains.jsonl",
+              "front_pages.jsonl",
+              "front_elements.jsonl",
+              "menu_snapshot.json"
+            ],
+            "boundary": "确定性生成的派生产物，随源码版本提交；节点路径为 src/frontend/hisfront/static 相对路径，不随克隆位置变化",
+            "lifecycle": "随索引重建整体覆盖，可随时全量重生成；不手工编辑，中间产物只在构建期存在于本目录"
+          }
+        ]
+      },
+      "manifestHash": "30d473f382b02dfe90cf81c8dfb6d23e1599bee7d4099035b5688a66261a1cbd"
+    },
+    {
+      "directory": "imedicalxc-doctor-data-extraction",
+      "manifest": {
+        "name": "imedicalxc-doctor-data-extraction",
+        "version": "1.1.1",
+        "displayName": "HIS Data Extraction & API Mapping Plugin",
+        "description": "数据抽取与第三方接口对照文档生成插件。从@OpenApi Controller抽取接口数据，扫描分类现有接口并生成第三方接口与Feign标准接口的字段级对照文档（核心功能）。也可按需生成Feign标准接口代码和API文档，并核对修正已有API文档的服务地址、入参/出参类型与字段（辅助功能）。",
+        "entry": "AGENTS.md",
+        "skills": "skills/",
+        "scripts": "scripts/",
+        "initSkill": "imedicalxc-doctor-data-extraction",
+        "requiresProjectFiles": [
+          "AGENTS.md"
+        ],
+        "defaultPrompt": [
+          "数据抽取",
+          "接口对照",
+          "字段映射",
+          "对比文档",
+          "Feign接口对照",
+          "第三方接口映射",
+          "生成Feign接口",
+          "OpenApi接口改造",
+          "Feign化",
+          "API文档",
+          "Feign文档核对",
+          "服务地址校验",
+          "出入参校验"
+        ]
+      },
+      "manifestHash": "d03245101a18745d452e1733481025741d79e5da106a77aad3a4a677d4bd18ed"
+    },
+    {
+      "directory": "imedicalxc-doctor-extend-engineer",
+      "manifest": {
+        "name": "imedicalxc-doctor-extend-engineer",
+        "version": "1.0.6",
+        "displayName": "iMedicalXC Doctor Extend Engineer",
+        "description": "HIS doctor workstation third-party system integration workflow orchestrator, covering brainstorming, design, implementation, testing, HIS validation, and CI/CD delivery.",
+        "entry": "AGENTS.md",
+        "skills": "skills/",
+        "scripts": "scripts/",
+        "thinIndex": {
+          "excludeSkills": [
+            "imedical-bsp-websysaddins",
+            "imedicalxc-bsp-jenkins",
+            "imedicalxc-doctor-blh",
+            "imedicalxc-doctor-dbdata",
+            "imedicalxc-doctor-elechealthcard-vendor",
+            "imedicalxc-doctor-extend-architecture",
+            "imedicalxc-doctor-extend-dataformat",
+            "imedicalxc-doctor-extend-scope",
+            "imedicalxc-doctor-invoke"
+          ]
+        },
+        "initSkill": "imedicalxc-doctor-extend-engineer",
+        "skillDependencies": {
+          "required": [
+            {
+              "capability": "workflow.brainstorming",
+              "provider": "superpowers",
+              "name": "brainstorming"
+            },
+            {
+              "capability": "workflow.plan-writing",
+              "provider": "superpowers",
+              "name": "writing-plans"
+            },
+            {
+              "capability": "workflow.subagent-development",
+              "provider": "superpowers",
+              "name": "subagent-driven-development"
+            },
+            {
+              "capability": "workflow.branch-finishing",
+              "provider": "superpowers",
+              "name": "finishing-a-development-branch"
+            }
+          ],
+          "optional": [
+            {
+              "capability": "document.word.read",
+              "provider": "word-reader",
+              "name": "word-reader",
+              "trigger": "input-extension:.doc,.docx"
+            }
+          ]
+        },
+        "requiresProjectFiles": [
+          "AGENTS.md"
+        ],
+        "defaultPrompt": [
+          "接入第三方 CDSS/SPD/医保系统",
+          "医生站需要对接外部检验/检查/处方系统",
+          "开发 DLL/OCX/ActiveX 中间件",
+          "通过 WebSocket 对接第三方服务",
+          "做 HIS 外部接口/厂商对接",
+          "集成电子病历/电子医嘱/电子处方等第三方服务",
+          "开发医生站插件或中间件"
+        ],
+        "runtimeResources": [
+          "vendor/superpowers",
+          "vendor/word-reader"
+        ]
+      },
+      "manifestHash": "e2c26cca34f7871597d29c212111dcb135a08cb90e9f80b733deb401d4059305"
+    },
+    {
+      "directory": "imedicalxc-doctor-perf-analysis-engineer",
+      "manifest": {
+        "name": "imedicalxc-doctor-perf-analysis-engineer",
+        "version": "1.0.3",
+        "displayName": "iMedicalXC Doctor Performance Analysis Engineer",
+        "description": "HIS 医生站接口性能分析与优化，覆盖前后端全链路追踪、N+1 优化、Graylog 日志分析。",
+        "entry": "AGENTS.md",
+        "skills": "skills/",
+        "scripts": "scripts/",
+        "initSkill": "imedicalxc-doctor-perf-analysis-engineer-init",
+        "thinIndex": {
+          "excludeSkills": [
+            "imedicalxc-doctor-perf-analysis-engineer-init"
+          ]
+        },
+        "dependencies": [
+          "imedicalxc-doctor-extend-engineer"
+        ],
+        "dependencyVersions": {
+          "imedicalxc-doctor-extend-engineer": {
+            "minVersion": "1.0.0",
+            "maxVersionExclusive": "2.0.0"
+          }
+        },
+        "requiresProjectFiles": [
+          "AGENTS.md"
+        ],
+        "defaultPrompt": [
+          "分析接口性能/耗时",
+          "排查慢接口/traceId",
+          "优化 N+1 查询/批量调用",
+          "前端页面加载慢/卡顿",
+          "查 Graylog 日志",
+          "接口性能优化"
+        ],
+        "runtimeResources": [
+          "vendor/superpowers"
+        ]
+      },
+      "manifestHash": "77d3a8a59beb1a6d46ec2ea9a6664977dc851ad0d65f5441b455e8856a914842"
+    },
+    {
+      "directory": "imedicalxc-doctor-print-template-design",
+      "manifest": {
+        "name": "imedicalxc-doctor-print-template-design",
+        "version": "1.0.1",
+        "displayName": "HIS Print Template Design Plugin",
+        "description": "HIS打印模板设计和生成技能。覆盖从Word/docx参考文档到可导入.xlsx模板文件的完整流程，包括主模板+扩展模板双生成、UUID全量重生成、Sheet4返回参数字段修正。",
+        "entry": "AGENTS.md",
+        "skills": "skills/",
+        "scripts": "scripts/",
+        "initSkill": "imedicalxc-doctor-print-template-design",
+        "requiresProjectFiles": [
+          "AGENTS.md"
+        ],
+        "defaultPrompt": [
+          "设计打印模板",
+          "生成打印模板",
+          "新建打印模板",
+          "住院证打印",
+          "修改打印模板",
+          "打印模板适配",
+          "生成.xlsx模板",
+          "导出模板"
+        ]
+      },
+      "manifestHash": "2e4b9f164f4c816900a0ee9be59e5fb04cd673b191cc398d902395a72c1dc8e7"
+    },
+    {
+      "directory": "iris-codegraph",
+      "manifest": {
+        "name": "iris-codegraph",
+        "version": "0.1.28",
+        "displayName": "IRIS CodeGraph Plugin",
+        "description": "Build and query a local SQLite graph for IRIS/ObjectScript classes, methods, properties, parameters, inheritance, and static ##class calls.",
+        "entry": "AGENTS.md",
+        "rules": "rules/",
+        "skills": "skills/",
+        "scripts": "scripts/",
+        "references": "schema.md",
+        "initSkill": "iris-codegraph",
+        "dependencies": [
+          "coding-iris-plugin"
+        ],
+        "dependencyVersions": {
+          "coding-iris-plugin": {
+            "minVersion": "0.3.0",
+            "maxVersionExclusive": "0.31.0"
+          }
+        },
+        "requiresProjectFiles": [
+          "AGENTS.md",
+          ".mcp.json"
+        ],
+        "defaultPrompt": [
+          "Build an IRIS ObjectScript graph from exported class cache",
+          "Query IRISGraph for a class or method",
+          "Find ObjectScript callers and callees in the IRIS graph",
+          "Estimate impact for changing an ObjectScript class"
+        ]
+      },
+      "manifestHash": "3bcaf7f3979425698b8a82c1723b7f4e97eb86afe28bf9e3c8ace9afa797f8d4"
+    },
+    {
+      "directory": "iris-cure-form-dev",
+      "manifest": {
+        "name": "iris-cure-form-dev",
+        "version": "0.8.12",
+        "displayName": "IRIS Cure Form Dev Plugin",
+        "description": "CA/CR treatment form ingestion, multi-template generation, responsive migration, review, deployment planning, verification, and rollback orchestration.",
+        "entry": "AGENTS.md",
+        "rules": "rules/",
+        "references": "references/",
+        "skills": "skills/",
+        "templates": "templates/",
+        "scripts": "scripts/",
+        "initSkill": "cure-form-init",
+        "thinIndex": {
+          "excludeSkills": [
+            "cure-form-init"
+          ]
+        },
+        "dependencies": [
+          "extract-doc",
+          "coding-iris-plugin"
+        ],
+        "dependencyVersions": {
+          "extract-doc": {
+            "minVersion": "0.2.0",
+            "maxVersionExclusive": "0.4.0"
+          },
+          "coding-iris-plugin": {
+            "minVersion": "0.3.1",
+            "maxVersionExclusive": "0.31.0"
+          }
+        },
+        "requiresProjectFiles": [
+          "AGENTS.md",
+          ".mcp.json",
+          ".iris-agentic-dev.toml",
+          ".agents/config/cure_form_profile.md"
+        ],
+        "defaultPrompt": [
+          "Initialize CA/CR cure form development support",
+          "Ingest this hospital Word, PDF, or Excel form requirement",
+          "Split this Excel requirement into approved template boundaries and generate a read-only intake report",
+          "Create a CA treatment assessment form from the approved cure form specification",
+          "Create a CR treatment record form from the approved cure form specification",
+          "Make this existing CA/CR server form responsive without breaking its runtime contract",
+          "Generate and verify a complete HISUI browser preview for these cure form changes",
+          "Prepare and validate the required manual interaction test evidence for a new cure form",
+          "Prepare a dry-run cure form deployment package and review its impact",
+          "Consolidate an accepted existing-form grey template back to its formal RowID and verify zero grey references",
+          "Verify or roll back a cure form deployment operation"
+        ],
+        "projectDirectories": [
+          {
+            "id": "form-work",
+            "base": "context",
+            "path": "work/cure-form",
+            "role": "runtime",
+            "create": "setup",
+            "legacyPaths": [
+              "docs/work/cure-form"
+            ],
+            "purpose": "表单任务工作资料与私有恢复快照",
+            "examples": [
+              "任务源码",
+              "预览",
+              "private/snapshots/"
+            ],
+            "boundary": "保存表单任务工作与私有恢复资料；只选审核后的正式材料进入 form-delivery",
+            "lifecycle": "本机任务状态；已有 task/profile 保留原位置，private 不进入公开预览或 Git"
+          },
+          {
+            "id": "form-delivery",
+            "base": "workspace",
+            "path": "docs/delivery/cure-forms",
+            "role": "delivery",
+            "create": "setup",
+            "purpose": "经审核选择保留的表单交付与报告",
+            "examples": [
+              "表单交付说明.md",
+              "人工交互报告.md",
+              "选定附件"
+            ],
+            "boundary": "保存经审核的正式交付；整个任务工作目录与 private 保留在 form-work",
+            "lifecycle": "正式交付；必要业务恢复附件按 owner 保留，不等同迁移临时备份"
+          }
+        ],
+        "runtimeResources": [
+          "vendor/hisui"
+        ]
+      },
+      "manifestHash": "7538b0e848a71ea62960e34b75716bb7d163c88cea02fc3bd29a18c1b7f60476"
+    },
+    {
+      "directory": "iris-external-reg",
+      "manifest": {
+        "name": "iris-external-reg",
+        "version": "0.1.29",
+        "displayName": "IRIS External Registration",
+        "description": "Workflow and reference pack for developing third-party appointment registration integrations on IRIS, including document handoff through extract-doc, implementation planning, ObjectScript development guidance, RegInterface mapping, and verification.",
+        "entry": "AGENTS.md",
+        "rules": "rules/",
+        "references": "references/",
+        "skills": "skills/",
+        "scripts": "scripts/",
+        "initSkill": "iris-external-reg",
+        "dependencies": [
+          "extract-doc",
+          "coding-iris-plugin"
+        ],
+        "dependencyVersions": {
+          "extract-doc": {
+            "minVersion": "0.2.0",
+            "maxVersionExclusive": "0.4.0"
+          },
+          "coding-iris-plugin": {
+            "minVersion": "0.3.0",
+            "maxVersionExclusive": "0.31.0"
+          }
+        },
+        "requiresProjectFiles": [
+          "AGENTS.md",
+          ".agents/config/iris_project_profile.md"
+        ],
+        "defaultPrompt": [
+          "Use iris-external-reg to prepare a third-party appointment registration integration plan",
+          "Ingest this appointment registration interface document with extract-doc, then generate the execution plan",
+          "Implement RegInterface methods according to the confirmed execution plan",
+          "Review this external registration implementation against RegInterface rules"
+        ]
+      },
+      "manifestHash": "9229505a4fa26b86f73cd0a1f93d65f99303e96039101a470d936aa855429a14"
+    },
+    {
+      "directory": "iris-imedical-doctor-ai",
+      "manifest": {
+        "name": "iris-imedical-doctor-ai",
+        "version": "0.4.11",
+        "displayName": "IRIS iMedical Doctor AI",
+        "description": "面向 IRIS imedical 医生站的 AI 集成开发。用于嵌入式助手、外挂或旁路 AI 接入，以及诊断推荐与采纳、交互卡片、流式对话、病历联动和诊疗数据衔接；复用既有业务服务并验证集成链路。",
+        "entry": "AGENTS.md",
+        "skills": "skills/",
+        "references": "references/",
+        "templates": "templates/",
+        "scripts": "scripts/",
+        "initSkill": "iris-imedical-doctor-ai-init",
+        "thinIndex": {
+          "excludeSkills": [
+            "iris-imedical-doctor-ai-init"
+          ]
+        },
+        "dependencies": [
+          "coding-iris-plugin"
+        ],
+        "dependencyVersions": {
+          "coding-iris-plugin": {
+            "minVersion": "0.13.0",
+            "maxVersionExclusive": "0.31.0"
+          }
+        },
+        "requiresProjectFiles": [
+          "AGENTS.md",
+          ".agents/config/iris_project_profile.md"
+        ],
+        "defaultPrompt": [
+          "开发医生站 AI 诊断卡，复用现有诊断录入服务",
+          "分析 AI 诊断采纳、保存与历史恢复链路",
+          "扩展 imedical AI 工作站卡片及流式交互"
+        ],
+        "projectDirectories": [
+          {
+            "id": "ai-delivery",
+            "base": "workspace",
+            "path": "docs/delivery/ai-integration",
+            "role": "delivery",
+            "create": "setup",
+            "legacyPaths": [
+              "docs/work/ai-integration"
+            ],
+            "purpose": "AI 集成方案与正式交付说明",
+            "examples": [
+              "AI集成方案.md",
+              "集成验收说明.md"
+            ],
+            "boundary": "仅保存正式集成说明；业务源码、原型数据和患者资料按项目原归属管理",
+            "lifecycle": "正式交付；显式项目路径优先，旧 docs/work/ai-integration 保留不迁移"
+          }
+        ]
+      },
+      "manifestHash": "a04c0e6a4c10e1ad756b530aad7854057f97bda3ee6c8efde7bbdb6bc203281f"
+    },
+    {
+      "directory": "iris-interface-dev",
+      "manifest": {
+        "name": "iris-interface-dev",
+        "version": "0.3.10",
+        "displayName": "IRIS Interface Dev Plugin",
+        "description": "Document-first IRIS interface workflow covering parsed document handoff, field matching, implementation planning, local ObjectScript/JavaScript implementation, offline review.",
+        "entry": "AGENTS.md",
+        "rules": "rules/",
+        "references": "references/",
+        "skills": "skills/",
+        "templates": "templates/",
+        "scripts": "scripts/",
+        "configMigrations": [
+          {
+            "id": "interface-output-root-v1",
+            "script": "scripts/migrate-interface-profile.ps1"
+          }
+        ],
+        "initSkill": "iris-interface-init",
+        "thinIndex": {
+          "excludeSkills": [
+            "iris-interface-init"
+          ]
+        },
+        "dependencies": [
+          "extract-doc",
+          "coding-iris-plugin"
+        ],
+        "dependencyVersions": {
+          "extract-doc": {
+            "minVersion": "0.3.0",
+            "maxVersionExclusive": "0.4.0"
+          },
+          "coding-iris-plugin": {
+            "minVersion": "0.3.0",
+            "maxVersionExclusive": "0.31.0"
+          }
+        },
+        "requiresProjectFiles": [
+          "AGENTS.md",
+          ".agents/config/iris_interface_profile.md",
+          ".agents/config/iris_project_profile.md"
+        ],
+        "defaultPrompt": [
+          "Initialize IRIS interface document development support",
+          "Ingest this interface document with extract-doc and write Markdown plus parsed JSON outputs",
+          "Diagnose field matching coverage for this parsed interface document",
+          "Implement this IRIS interface end-to-end: backend ObjectScript class/method plus frontend middleware JS, registered via accessmanage.csp and dhcdocinterfaceregister",
+          "Review generated interface artifacts for field coverage and dot-loop risks"
+        ]
+      },
+      "manifestHash": "aa9152b8fde7924b8f649c3d866657eafe18a6f067956c4db6ebc0933aed64fa"
+    },
+    {
+      "directory": "iris-ui",
+      "manifest": {
+        "name": "iris-ui",
+        "version": "0.3.11",
+        "displayName": "IRIS CSP＋HISUI 适配",
+        "description": "将 imedical-ui 公司规范落实到 IRIS CSP＋HISUI，核对公共接入、布局与初始化、多主题及技术证据；复用既有编码和部署能力。",
+        "entry": "AGENTS.md",
+        "rules": "rules/",
+        "references": "references/",
+        "skills": "skills/",
+        "templates": "templates/",
+        "scripts": "scripts/",
+        "initSkill": "iris-ui-init",
+        "thinIndex": {
+          "excludeSkills": [
+            "iris-ui-init"
+          ]
+        },
+        "dependencies": [
+          "coding-iris-plugin",
+          "imedical-ui"
+        ],
+        "dependencyVersions": {
+          "coding-iris-plugin": {
+            "minVersion": "0.20.7",
+            "maxVersionExclusive": "0.31.0"
+          },
+          "imedical-ui": {
+            "minVersion": "0.1.3",
+            "maxVersionExclusive": "0.3.0"
+          }
+        },
+        "availableDependencies": [
+          {
+            "plugin": "agent-framework-evolution",
+            "stage": "ui-self-regression",
+            "trigger": "UI业务需求已由用户验收且发现合格经验或框架缺口；写入须有对应授权",
+            "entries": [
+              "skills/agent-framework-feedback/SKILL.md"
+            ]
+          }
+        ],
+        "requiresProjectFiles": [
+          "AGENTS.md",
+          ".agents/config/iris_project_profile.md"
+        ],
+        "defaultPrompt": [
+          "按 UI 标注改造这个 HISUI 页面，保留业务契约",
+          "排查首屏、滚动或窗口切换后的布局问题",
+          "核对多主题适配并记录技术验证与人工验收缺口"
+        ]
+      },
+      "manifestHash": "9596ea5fb9b5098eba1816e33373098fe77a187e4215b069c5c1ef9f1d92abbf"
+    },
+    {
+      "directory": "mobile-dev",
+      "manifest": {
+        "name": "mobile-dev",
+        "version": "0.1.0",
+        "displayName": "移动端开发",
+        "description": "Android 项目开发与日志优先排障，复用项目工具链和设备证据。",
+        "entry": "AGENTS.md",
+        "rules": "rules/",
+        "references": "references/",
+        "skills": "skills/",
+        "initSkill": "mobile-dev-init",
+        "thinIndex": {
+          "excludeSkills": [
+            "mobile-dev-init"
+          ]
+        },
+        "dependencies": [],
+        "dependencyVersions": {},
+        "requiresProjectFiles": [
+          "AGENTS.md"
+        ],
+        "defaultPrompt": [
+          "排查移动端闪退，先主动读取日志",
+          "按当前 Android 工程实现并验证需求",
+          "为现场旧版移动端建私有仓，并给现场 AI 源码纳管提交提示词"
+        ]
+      },
+      "manifestHash": "936b900720fc640433569c96117a12e5bd63575720926cbd3301f740594f059d"
+    }
+  ]
+}

@@ -1000,3 +1000,10 @@ coding-iris-plugin 0.30.0 与 imedical-ui 0.2.0 使用根 `scripts/knowledge-que
 本机 `.knowledge-cache/` 保存索引及授权策略，缓存自带忽略规则。Overlay 共享索引归 CapabilityRoot，外发策略归各 ContextRoot，项目菜单沿原目录隔离。首次云端建库按[检索指南](guides/knowledge-retrieval.md)确认范围；旧业务资料保持原路径，过期片段按摘要退出候选。
 
 知识检索默认分发资料与根脚本。共享 sparse helper 默认排除 `vendor/knowledge-index/*.sqlite`，具备公司服务时通过 `knowledge-query.js --action install-index --provider company` 选装当前公司索引。选择保存在 CapabilityRoot 的本地 Git 配置，升级与 Overlay 刷新复用。旧版已检出的数据库在干净 checkout 更新后按新选择收敛，历史 Git 对象仍按 Git 管理。安装器的 blob:none 仅在远端支持 partial clone 时避免未选数据库下载。连接统一读取 KNOWLEDGE_RAG_CONFIG 私有 JSON，具体操作见[检索指南](guides/knowledge-retrieval.md)。
+
+
+## 插件与 vendor 按需部署
+
+新安装默认基础插件，已有部署没有策略文件时保留全量模式。显式 migrate 后按 profile 中启用能力及依赖保留资源。安装、更新、补装和 profile 写入共用 CapabilityRoot 本地部署锁，目录与源码使用同一 revision。source manifest 新增 runtimeResources，required vendor skill 依赖共同参与 sparse 计算，公司向量库沿独立选装。
+
+使用 plugin-deploy.js 的 groups/recommend/plan/ensure 完成体系选择与补装，支持 --all --exclude-group xc。自动补装偏好在首次初始化时集中确认；依赖冲突结果携带完整链路与声明位置。Overlay 迁移前登记关联工程，暂时离线成员的资源继续保留。清理只在明确 migrate/prune execute 时执行。完整命令和旧项目兼容策略见[插件按需部署](guides/plugin-deployment.md)。

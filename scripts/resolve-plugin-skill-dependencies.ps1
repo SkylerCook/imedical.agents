@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$AgentsRoot = ".agents",
   [string]$ProjectRoot = ".",
   [string]$ContextRoot = "",
@@ -62,6 +62,17 @@ if (Test-Path -LiteralPath $pluginsRoot -PathType Container) {
       $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
       $name = if ([string]::IsNullOrWhiteSpace([string]$manifest.name)) { $_.Name } else { [string]$manifest.name }
       $installed[$name] = [PSCustomObject]@{ name=$name; directoryName=$_.Name; path=$_.FullName; manifest=$manifest }
+    }
+  }
+}
+
+$catalogPath = Join-Path $capabilityRootFull "scripts/lib/plugin-catalog.json"
+if (Test-Path -LiteralPath $catalogPath) {
+  $catalog = Get-Content -LiteralPath $catalogPath -Raw -Encoding UTF8 | ConvertFrom-Json
+  foreach ($item in @($catalog.plugins)) {
+    $name = [string]$item.manifest.name
+    if (-not $installed.ContainsKey($name)) {
+      $installed[$name] = [PSCustomObject]@{ name=$name; directoryName=[string]$item.directory; path=(Join-Path $pluginsRoot $item.directory); manifest=$item.manifest }
     }
   }
 }

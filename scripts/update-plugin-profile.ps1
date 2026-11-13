@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$ProjectRoot = ".",
   [string]$ContextRoot = "",
   [string]$CapabilityRoot = "",
@@ -65,6 +65,14 @@ function Get-InstalledPlugins {
     })
   }
 
+  $catalogPath = Join-Path $AgentsRoot "scripts/lib/plugin-catalog.json"
+  if (Test-Path -LiteralPath $catalogPath) {
+    $catalog = Get-Content -LiteralPath $catalogPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    foreach ($item in @($catalog.plugins)) {
+      if (@($plugins | Where-Object { $_.name -eq $item.manifest.name }).Count -gt 0) { continue }
+      $plugins.Add([PSCustomObject]@{ name=[string]$item.manifest.name; directoryName=[string]$item.directory; manifest=$item.manifest; path=(Join-Path $pluginsRoot $item.directory); manifestPath=(Join-Path $pluginsRoot ($item.directory + "/.agents-plugin/plugin.json")); legacyNames=@($item.manifest.legacyNames | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }) })
+    }
+  }
   return $plugins
 }
 
@@ -246,14 +254,53 @@ if (-not (Test-Path -LiteralPath $contextRootFull -PathType Container)) {
   throw ".agents directory does not exist under ProjectRoot"
 }
 
+$profileDeploymentToken = $null
+$profileDeploymentEntry = Join-Path $PSScriptRoot "plugin-deploy.js"
+if ((Test-Path -LiteralPath $profileDeploymentEntry) -and -not $env:IMEDICAL_DEPLOYMENT_LOCK) {
+  $lockText = & node $profileDeploymentEntry acquire-lock --capability-root $capabilityRootFull --pid $PID
+  if ($LASTEXITCODE -ne 0) { throw "Cannot acquire capability deployment lock" }
+  $profileDeploymentToken = ($lockText | ConvertFrom-Json).token
+  if ($profileDeploymentToken) { $env:IMEDICAL_DEPLOYMENT_LOCK = $profileDeploymentToken }
+}
+try {
 $plugins = Get-InstalledPlugins -AgentsRoot $capabilityRootFull
 $targetPlugin = $plugins | Where-Object { Test-PluginNameMatches -Plugin $_ -Name $Plugin } | Select-Object -First 1
 if (-not $targetPlugin) {
   throw "Plugin not found: $Plugin"
 }
 
+if (($Status -eq "enabled") -and -not (Test-Path -LiteralPath (Join-Path $capabilityRootFull ("plugins/" + $targetPlugin.directoryName + "/.agents-plugin/plugin.json")))) {
+  throw "Plugin is not materialized; run plugin-deploy.js ensure before initialization and enablement"
+}
+
 $profilePath = Join-Path (Join-Path $contextRootFull "config") "plugin_profile.md"
 $profile = Read-PluginProfile -ProfilePath $profilePath
+
+$deploymentPolicyPath = Join-Path $contextRootFull "config/plugin-deployment.json"
+$enforceDiscovery = (Test-Path -LiteralPath $deploymentPolicyPath) -and ((Get-Content -LiteralPath $deploymentPolicyPath -Raw -Encoding UTF8 | ConvertFrom-Json).mode -eq "on-demand")
+$thinScript = Join-Path $PSScriptRoot "generate-plugin-thin-index.ps1"
+$ownerPath = Join-Path $capabilityRootFull ("plugins/" + $targetPlugin.directoryName)
+if (($Status -in @("enabled", "disabled")) -and (Test-Path -LiteralPath $thinScript) -and (Test-Path -LiteralPath $ownerPath)) {
+  $thinArgs = @{ PluginPath=$ownerPath; ProjectRoot=$projectRootFull; ContextRoot=$contextRootFull; CapabilityRoot=$capabilityRootFull; Mode="DryRun" }
+  if ($Status -eq "disabled") { $thinArgs.Remove = $true }
+  $thinPreview = & $thinScript @thinArgs | Out-String
+  if ($thinPreview -match '(?m)^\s*status\s*:\s*(thin-index-conflict|skill-owner-migration-conflict)') { throw "Custom discovery entries require review before changing plugin status" }
+  if ($enforceDiscovery -and $Status -eq "enabled" -and $thinPreview -match '(?m)^\s*status\s*:\s*(generated|updated|thin-index-stale)') { throw "Generate and verify plugin discovery entries before marking enabled" }
+  if ($Status -eq "disabled") {
+    $thinArgs.Mode = "Write"
+    $thinResult = & $thinScript @thinArgs | Out-String
+    if ($thinResult -match '(?m)^\s*status\s*:\s*(thin-index-conflict|skill-owner-migration-conflict)') { throw "Discovery entry removal conflicted; profile preserved" }
+  }
+}
+
+if ($enforceDiscovery -and $Status -eq "enabled") {
+  foreach ($dependency in @(Get-PluginDependencies -Plugin $targetPlugin)) {
+    $dependencyPlugin = $plugins | Where-Object { Test-PluginNameMatches -Plugin $_ -Name $dependency } | Select-Object -First 1
+    if (-not $dependencyPlugin) { throw ("Missing required dependency: " + $dependency) }
+    $dependencyStatus = if ($profile.ContainsKey($dependencyPlugin.name)) { $profile[$dependencyPlugin.name].status } else { Get-DefaultStatus -PluginName $dependencyPlugin.name }
+    if ($dependencyStatus -ne "enabled") { throw ("Initialize required dependency before enabling: " + $dependencyPlugin.name) }
+  }
+}
 
 $targetInitSkill = $InitSkill
 if ([string]::IsNullOrWhiteSpace($targetInitSkill)) {
@@ -293,3 +340,10 @@ Write-PluginProfile -ProfilePath $profilePath -Plugins $plugins -Profile $profil
   target = $profilePath
   value = $Status
 } | Format-List status, plugin, target, value
+
+} finally {
+  if ($profileDeploymentToken) {
+    & node $profileDeploymentEntry release-lock --capability-root $capabilityRootFull --token $profileDeploymentToken | Out-Null
+    Remove-Item Env:IMEDICAL_DEPLOYMENT_LOCK -ErrorAction SilentlyContinue
+  }
+}

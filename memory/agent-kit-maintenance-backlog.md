@@ -1,5 +1,7 @@
 # imedical.agents 后续治理队列
 
+- P2 按需插件部署验收，补三平台 Node22/24 CI 和指定业务工程的正常更新、显式迁移及宿主发现证据，详见文末同名条目。
+
 - P2 会话 0.29.0 发布验收，补 macOS/Linux 与 Node 22 矩阵、业务副本整包升级及获授权的现场写结果恢复。源仓诊断、自动本地退出证据、Windows 更新回归和真实只读试点已完成，见[实施记录](../maintenance/validation/iris-session-governance-2026-11-13.md)。
 - P2 调度后续设计，优先核实业务依赖允许的同通道合批，再验证普通小批读取复用 daemon 队列。保留协议、身份、预算、租约及 compile 副作用范围，候选收益和恢复成本见同一实施记录。
 
@@ -264,3 +266,8 @@ coding 0.28.0 的 GB2312、GBK、GB18030 转换及 Atelier binary/enc 本地协�
 ## P2 轻量 RAG 实际接入验收
 
 公司默认提供方、JSON 配置、向量按需选装、真实语义建库与固定题集的关键词/混合对照已完成。继续用独立业务问题比较完整任务 token、补查轮数和答案条件完整性；补 Windows/macOS/Linux Node22/24 CI 结果和业务副本升级。按[实施记录](../maintenance/validation/knowledge-rag-2026-11-13.md)续验，当前未声称节省 80%。
+
+
+## P2 按需插件部署实际接入验收
+
+本地部署、反选依赖、vendor、Overlay 及 PS5.1/PS7 回归已完成。后续取得 Windows/macOS/Linux × Node22/24 的真实 CI 结果，并在用户指定的业务工程验证正常更新、显式迁移和 Agent 宿主技能实际发现。沿[实施记录](../maintenance/validation/plugin-on-demand-2026-11-13.md)补验，宿主实际加载仍待取得独立证据。

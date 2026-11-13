@@ -350,3 +350,5 @@ IRIS 远端连接统一入口：[会话管理、既有项目更新与回退](iri
 会话失败时读取 status 的 blockingReasons/nextAction，收集明确缺口，在原授权内核实并恢复。可靠本地退出证据由工具自动整理，未知写保留明确结果与指定 ID 的要求。编码 confirm 可附带 --files 提前验证目标可表示性。具体入口见[编码契约](../../plugins/coding-iris-plugin/references/frontend-encoding.md)和[统一会话](iris-managed-sessions.md)。
 
 业务知识和 UI 自然语言查询、索引及外发范围配置见[轻量混合检索](knowledge-retrieval.md)，日常由已有 knowledge/UI skill 路由。
+
+插件支持通用、IRIS、XC、UI 组合及反选，按任务补装前复用项目授权，必需依赖被排除时展示完整链路。入口与迁移见[按需部署](plugin-deployment.md)。

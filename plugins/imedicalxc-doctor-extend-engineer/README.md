@@ -94,3 +94,5 @@ python .agents/plugins/imedicalxc-doctor-extend-engineer/scripts/install-deps.py
 # 只看依赖顺序
 python .agents/plugins/imedicalxc-doctor-extend-engineer/scripts/install-deps.py <target-artifact-id> --dry-run
 ```
+
+按需部署时，由 manifest 的 runtimeResources 与 required skill 依赖取得必需 vendor 资源；可选资料随任务触发补装，流程见[插件按需部署](../../docs/guides/plugin-deployment.md)。

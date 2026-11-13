@@ -1,6 +1,6 @@
 {
   "name": "imedicalxc-doctor-perf-analysis-engineer",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "displayName": "iMedicalXC Doctor Performance Analysis Engineer",
   "description": "HIS 医生站接口性能分析与优化，覆盖前后端全链路追踪、N+1 优化、Graylog 日志分析。",
   "entry": "AGENTS.md",
@@ -29,5 +29,6 @@
     "前端页面加载慢/卡顿",
     "查 Graylog 日志",
     "接口性能优化"
-  ]
+  ],
+  "runtimeResources": ["vendor/superpowers"]
 }

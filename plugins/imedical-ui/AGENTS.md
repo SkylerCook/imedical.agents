@@ -14,3 +14,5 @@
 维护时核对来源摘要、规则适用条件、两基准差异、全部画板覆盖、skill 条件路由及插件版本。适用范围与证据类型分别标注，再判断业务共用归属和实现所有者，归类方法集中于[风格差异](references/style-differences.md#按对象语义判断共性)。明确文字、构件参数和页面示例分别记录；设计器操作不提升为产品要求。
 
 业务知识、UI 规范与 HISUI 自然语言查找可使用[轻量混合检索](../../docs/guides/knowledge-retrieval.md)，复用根 scripts、本机授权策略和离线降级。
+
+按需部署时，由 manifest 的 runtimeResources 与 required skill 依赖取得必需 vendor 资源；可选资料随任务触发补装，流程见[插件按需部署](../../docs/guides/plugin-deployment.md)。

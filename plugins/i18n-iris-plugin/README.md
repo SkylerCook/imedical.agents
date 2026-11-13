@@ -136,3 +136,5 @@ node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
 纯初始化入口 `i18n-project-init` 直接读取插件内真实 SKILL.md，manifest 的 `thinIndex.excludeSkills` 将其排除出浅层技能列表。已启用项目常规更新时，Check/DryRun 只报告旧受管索引，Write 精准删除；自定义文件和链接保留。迁移边界见能力包 [更新说明](../../docs/update-agents.md#纯初始化-skill-薄索引迁移)。
 
 XML 同步对空 JSON 自动切换兼容流导出，无法确认时报告存在性未知。长载荷回退逐块解码写流并精确比较回读内容，真实旧实例仍需验收。已有项目正常更新插件即可取得，配置沿用。
+
+按需部署时，由 manifest 的 runtimeResources 与 required skill 依赖取得必需 vendor 资源；可选资料随任务触发补装，流程见[插件按需部署](../../docs/guides/plugin-deployment.md)。
