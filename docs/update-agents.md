@@ -1007,3 +1007,5 @@ coding-iris-plugin 0.30.0 与 imedical-ui 0.2.0 使用根 `scripts/knowledge-que
 新安装默认基础插件，已有部署没有策略文件时保留全量模式。显式 migrate 后按 profile 中启用能力及依赖保留资源。安装、更新、补装和 profile 写入共用 CapabilityRoot 本地部署锁，目录与源码使用同一 revision。source manifest 新增 runtimeResources，required vendor skill 依赖共同参与 sparse 计算，公司向量库沿独立选装。
 
 使用 plugin-deploy.js 的 groups/recommend/plan/ensure 完成体系选择与补装，支持 --all --exclude-group xc。自动补装偏好在首次初始化时集中确认；依赖冲突结果携带完整链路与声明位置。Overlay 迁移前登记关联工程，暂时离线成员的资源继续保留。清理只在明确 migrate/prune execute 时执行。完整命令和旧项目兼容策略见[插件按需部署](guides/plugin-deployment.md)。
+
+agent-context-kit 0.11.0 新增 plugin-management。已有 enabled 项目更新能力包并刷新该插件 thin-index 后获得入口；available/disabled 项目保留原状态。无额外配置迁移。

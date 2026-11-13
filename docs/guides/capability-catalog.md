@@ -395,3 +395,5 @@ IRIS CSP＋HISUI 对公司UI规范的落地适配，正式依赖 imedical-ui；�
 业务知识和 UI 自然语言查询、索引及外发范围配置见[轻量混合检索](knowledge-retrieval.md)，日常由已有 knowledge/UI skill 路由。
 
 插件支持通用、IRIS、XC、UI 组合及反选，按任务补装前复用项目授权，必需依赖被排除时展示完整链路。入口与迁移见[按需部署](plugin-deployment.md)。
+
+项目插件管理入口：[plugin-management](../../plugins/agent-context-kit/skills/plugin-management/SKILL.md)，支持体系选择、补装、启用、禁用和恢复；停用前展示受影响依赖。

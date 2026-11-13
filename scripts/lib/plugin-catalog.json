@@ -61,7 +61,7 @@
       "directory": "agent-context-kit",
       "manifest": {
         "name": "agent-context-kit",
-        "version": "0.10.0",
+        "version": "0.11.0",
         "displayName": "Agent Context Kit",
         "description": "Reusable project context, on-demand capability group selection, local task handoff and cross-session continuation, plus schema 2.0 agent run templates and separate demand and framework-maintenance lifecycles.",
         "entry": "AGENTS.md",
@@ -77,6 +77,7 @@
         "defaultPrompt": [
           "初始化项目规则和项目记忆",
           "按通用、IRIS、XC、UI 体系推荐、组合或反选插件，补装当前任务需要的能力",
+          "查看、启用、禁用或恢复当前工程插件",
           "维护项目上下文",
           "优化已有上下文中的重复、过时和宽泛约束",
           "判断这条经验应该写到 rules 还是 memory",
@@ -186,7 +187,7 @@
           }
         ]
       },
-      "manifestHash": "273259c05b2d4d481be9962c1f41400aa02efd3fca8258656f3e722c447e97fa"
+      "manifestHash": "b5d71e41fb2bc73f33a5ad1fbb7481d93083ed443868ec92a45d20ca1269c4ac"
     },
     {
       "directory": "agent-framework-evolution",

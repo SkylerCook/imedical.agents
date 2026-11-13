@@ -66,3 +66,5 @@ Overlay 的 CapabilityRoot 保留各 ContextRoot 需求的并集。旧共享目�
 插件 manifest 或体系分组变化后运行 node scripts/generate-plugin-catalog.js。CI 使用 --check 对比源清单，防止目录过期。新插件须归入一个体系，必需资源须声明并核对实际运行引用。
 
 专项回归使用 node --test scripts/tests/plugin-deployment.tests.js，配合 sparse、更新器、thin-index 及 workspace-overlay 的既有测试。跨平台结果以实际矩阵执行为准。
+
+项目插件管理入口：[plugin-management](../../plugins/agent-context-kit/skills/plugin-management/SKILL.md)，支持体系选择、补装、启用、禁用和恢复；停用前展示受影响依赖。

@@ -4,7 +4,7 @@
 
 ## 体系推荐与按需补装
 
-接入新项目、选择体系或任务需要尚未安装的能力时，读取 CapabilityRoot/docs/guides/plugin-deployment.md。先运行 plugin-deploy.js recommend 与 groups，结合源码证据展示通用、IRIS、XC（信创）、UI 组合及实际插件。用户可表达“除了 XC 都要”，转换为 --all --exclude-group xc，并运行 plan 展示必需依赖。
+选择体系、补装、启用、禁用和恢复插件时，读取 [plugin-management](../../plugin-management/SKILL.md)；首次项目初始化仍由本流程承接。部署命令归 CapabilityRoot/docs/guides/plugin-deployment.md。先运行 plugin-deploy.js recommend 与 groups，结合源码证据展示通用、IRIS、XC（信创）、UI 组合及实际插件。用户可表达“除了 XC 都要”，转换为 --all --exclude-group xc，并运行 plan 展示必需依赖。
 
 首次集中确认是否允许明确任务触发本仓库能力自动补装，以 configure --auto-install true/false 保存决定。用户明确指定本次安装时使用 ensure --explicit。反选遇到必需依赖冲突时，展示完整依赖链、版本要求和声明位置，由用户选择补回依赖或取消上游能力；确认前保持原选择。
 
@@ -24,9 +24,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 插件状态规则：
 
-- `available`：插件代码已拉取，只用于能力发现；不合并配置、不生成 thin-index、不写 AGENTS 路由。
+- `available`：插件可选择，正文可尚未落盘，只用于能力发现；不合并配置、不生成 thin-index、不写 AGENTS 路由。
 - `enabled`：项目已接入，初始化闭环已完成，参与常规更新。
-- `disabled`：显式禁用，默认跳过；旧入口只报告，不自动删除。
+- `disabled`：显式禁用，默认跳过；撤下可识别的受管发现入口，自定义或链接冲突保留并报告。
 
 若 `.agents/config/plugin_profile.md` 不存在，默认把 `agent-context-kit` 和 `agent-framework-evolution` 视为基础 `enabled` 插件，其它插件视为 `available`。
 

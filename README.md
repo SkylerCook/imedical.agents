@@ -701,3 +701,5 @@ WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codeb
 业务知识、UI 规范与 HISUI 参考支持[轻量混合检索](docs/guides/knowledge-retrieval.md)，默认提供无需 API 或数据库的 BM25 与来源引用；公司向量库按需选装，连接通过 KNOWLEDGE_RAG_CONFIG 私有 JSON 管理，OpenAI 保留按需接入。
 
 新项目默认基础安装，插件与必需 vendor 资源按需落盘。支持通用／IRIS／XC／UI 组合和“全选排除 XC”，依赖冲突展示完整链路。已有项目通过显式迁移接入，见[插件按需部署](docs/guides/plugin-deployment.md)。
+
+项目插件管理入口：[plugin-management](plugins/agent-context-kit/skills/plugin-management/SKILL.md)，支持体系选择、补装、启用、禁用和恢复；停用前展示受影响依赖。

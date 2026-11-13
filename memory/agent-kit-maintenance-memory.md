@@ -50,3 +50,5 @@
 源仓目录与部署白名单按根 AGENTS.md。Overlay 先更新共享 CapabilityRoot，再刷新各 ContextRoot；配置、生成物、宿主加载和业务验收分别核实。框架维护沿 [maintenance lifecycle](../agents/_shared/maintenance-lifecycle.md)，真实服务操作按目标项目授权执行。
 
 - 轻量 RAG 默认本地检索、公司向量选装、JSON 配置及验证缺口见[实施记录](../maintenance/validation/knowledge-rag-2026-11-13.md)，使用归[检索指南](../docs/guides/knowledge-retrieval.md)。
+
+- 2026-11-13：插件生命周期操作统一从 agent-context-kit 的 plugin-management 进入。

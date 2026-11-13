@@ -139,3 +139,5 @@ schema 2.0 的运行时命令由 `.agents/scripts/agent-orchestrator.js` 提供�
 WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codebuddy/agents 薄入口；PowerShell 显式 -RuntimeAdapter WorkBuddy（或 CodeBuddy）-Agent，默认仍为 Skill。源定义只维护 AGENT.md，客户端实际调用待验。
 
 项目按通用、IRIS、XC、UI 体系推荐、组合与反选能力，通过[按需部署](../../docs/guides/plugin-deployment.md)执行，初始化流程承接一次自动补装授权、依赖冲突说明和实际接入验证。
+
+插件查看、体系选择、补装、启用、禁用、恢复和清理使用 [plugin-management](skills/plugin-management/SKILL.md)。禁用前核对当前项目的反向依赖，执行后验证 profile 与受管入口。
