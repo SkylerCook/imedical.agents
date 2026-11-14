@@ -115,7 +115,73 @@ public static class BaselineSelfTest {
             Check(baseline.Index.runs[baseline.Index.runs.Count-1].accepted==2,"reopening-a-completed-publication-is-idempotent");
         }
     }
+    static void ScopedProtection(string directory) {
+        using (var baseline = new ProjectBaseline(Path.Combine(directory,"scoped"), "Scoped", "synthetic-origin")) {
+            var initial=baseline.NewRun("append"); var items=new[]{Item("Demo.A.cls","original","fetched"),Item("Demo.B.cls","original","fetched")};
+            baseline.Plan(initial,items,"initial");Contents["Demo.A.cls"]=Contents["Demo.B.cls"]="original";Stage(baseline,initial,items);baseline.Ingest(initial,Receipt(items));
+            var check=baseline.NewRun("check");var changed=Item("Demo.A.cls","candidate","fetched");baseline.Plan(check,new[]{changed},"check");Contents["Demo.A.cls"]="candidate";Stage(baseline,check,new[]{changed});baseline.Ingest(check,Receipt(changed));
+            var append=baseline.NewRun("append");var extra=Item("Demo.C.cls","unrelated","fetched");var queue=baseline.Plan(append,new[]{changed,extra},"append");
+            Check(queue.Count==1&&queue[0]=="Demo.C.cls"&&append.protectedCount==1,"candidate-protects-only-its-own-object");
+            Contents["Demo.C.cls"]="unrelated";Stage(baseline,append,new[]{extra});baseline.Ingest(append,Receipt(extra));
+            Check(baseline.Find("Demo.A.cls").candidateRun==check.id&&File.ReadAllText(Path.Combine(baseline.Root,"src/Demo/A.cls"))=="original","unrelated-append-preserves-original-candidate-and-current-source");
+            Check(baseline.AcceptChanges()==1&&check.accepted==1&&append.accepted==1,"candidates-from-different-runs-keep-their-own-accounting");
+            File.WriteAllText(Path.Combine(baseline.Root,"src/Demo/B.cls"),"local edit");
+            var local=baseline.NewRun("append");var next=Item("Demo.D.cls","new","fetched");queue=baseline.Plan(local,new[]{items[1],next},"local");
+            Check(queue.Count==1&&queue[0]=="Demo.D.cls"&&local.protectedCount==1&&baseline.Find("Demo.B.cls").outcome=="local-conflict","local-edit-does-not-block-unrelated-object");
+            Contents["Demo.D.cls"]="new";Stage(baseline,local,new[]{next});baseline.Ingest(local,Receipt(next));
+            Check(File.ReadAllText(Path.Combine(baseline.Root,"src/Demo/B.cls"))=="local edit","scoped-protection-does-not-overwrite-local-edit");
+            var retry=baseline.NewRun("retry");Check(baseline.Plan(retry,new[]{changed},"explicit-retry").Count==1,"explicit-retry-rereads-known-source-instead-of-skipping-it");baseline.EndRun(retry);
+            var allProtected=baseline.NewRun("append");Check(baseline.Plan(allProtected,new[]{items[1]},"all-protected").Count==0&&allProtected.protectedCount==1&&baseline.Index.activeRun==null,"all-protected-range-completes-without-request-or-lingering-task");
+        }
+    }
+    static void SharedVersions(string directory) {
+        string source=Path.Combine(directory,"shared-origin"),library=Path.Combine(directory,"library"),snapshot=ProjectBaseline.VersionDirectory(library,"Demo project","R9.0.1");
+        string origin=ProjectBaseline.Origin("http://127.0.0.1:1/api/atelier/","TEST");
+        using(var baseline=new ProjectBaseline(source,"Demo project",origin)) {
+            baseline.Index.fullName="Demo project full name";baseline.Index.owner="Delivery team";baseline.Index.product="Demo product";baseline.Index.projectVersion="R9.0.1";baseline.Index.catalogVersions.Add("v8.5");
+            var items=new[]{Item("Demo.Shared.cls","class source","fetched"),
+                new Dictionary<string,object>{{"document","app/shared.js"},{"path","src/app/shared.js"},{"sha256",ProjectBaseline.Hash(Encoding.UTF8.GetBytes("web source"))},{"status","fetched"},{"bytes",10}},
+                new Dictionary<string,object>{{"document","Demo.Shared.mac"},{"path","src/routines/Demo.Shared.mac"},{"sha256",ProjectBaseline.Hash(Encoding.UTF8.GetBytes("routine source"))},{"status","fetched"},{"bytes",14}},
+                new Dictionary<string,object>{{"document","Demo.Absent.inc"},{"path","src/routines/Demo.Absent.inc"},{"sha256",null},{"status","missing"},{"bytes",0}}};
+            Contents["Demo.Shared.cls"]="class source";Contents["app/shared.js"]="web source";Contents["Demo.Shared.mac"]="routine source";
+            var run=baseline.NewRun("append");baseline.Plan(run,items,"synthetic");Stage(baseline,run,items);baseline.Ingest(run,Receipt(items));baseline.Freeze(snapshot);
+            string manifest=File.ReadAllText(Path.Combine(snapshot,"交付清单.json"));
+            Check(manifest.Contains("\"projectVersion\":\"R9.0.1\"")&&manifest.Contains("\"catalogVersions\":[\"v8.5\"]"),"project-version-is-distinct-from-catalog-version");
+            Check(manifest.Contains("Demo project full name")&&manifest.Contains("Delivery team")&&manifest.Contains("Demo product"),"short-name-keeps-optional-full-metadata");
+            Check(!manifest.Contains("127.0.0.1")&&!manifest.Contains("TEST")&&!Directory.Exists(Path.Combine(snapshot,".export")),"shared-snapshot-excludes-private-connection-and-runtime-state");
+            Check(manifest.Contains("\"complete\":false"),"incomplete-version-snapshot-does-not-claim-complete");
+            string before=ProjectBaseline.FileHash(Path.Combine(snapshot,"src/Demo/Shared.cls"));Reject(()=>baseline.Freeze(snapshot),"same-project-version-never-overwrites-existing-snapshot");Check(ProjectBaseline.FileHash(Path.Combine(snapshot,"src/Demo/Shared.cls"))==before,"existing-version-bytes-survive-save-rejection");
+            Reject(()=>ProjectBaseline.VersionDirectory(library,"../escape","R1"),"invalid-project-name-cannot-escape-library");Reject(()=>ProjectBaseline.VersionDirectory(library,"Demo","CON"),"reserved-version-name-rejected");
+        }
+        string target=Path.Combine(directory,"colleague");
+        Reject(()=>{using(var bad=ProjectBaseline.ImportShared(snapshot,"relative-target")){}},"shared-import-rejects-relative-target");
+        Reject(()=>{using(var stopped=ProjectBaseline.ImportShared(snapshot,target,(count,total)=>{if(count==1)throw new IOException("synthetic interruption");})){}},"interrupted-import-persists-recovery-state");
+        string staged;DateTime stagedTime;
+        using(var paused=new ProjectBaseline(target,"ignored",null)) {var run=paused.FindRun(paused.Index.activeRun);Check(run!=null&&run.mode=="import"&&run.manifestHash!=null,"import-recovery-is-independent-of-gui-session");staged=Path.Combine(paused.RunDirectory(run.id),"export/src/Demo/Shared.cls");stagedTime=File.GetLastWriteTimeUtc(staged);}
+        using(var imported=ProjectBaseline.ImportShared(snapshot,target)) {
+            Check(File.GetLastWriteTimeUtc(staged)==stagedTime,"import-resume-reuses-verified-staged-file");
+            Check(imported.Index.name=="Demo project"&&imported.Index.projectVersion=="R9.0.1"&&imported.Index.catalogVersions[0]=="v8.5"&&imported.Index.owner=="Delivery team","import-preserves-project-version-scope-and-optional-details");
+            Check(imported.Index.items.Count==4&&imported.Find("Demo.Absent.inc").sha256==null&&imported.Index.activeRun==null,"import-keeps-missing-scope-and-finishes-without-network");
+            Check(String.IsNullOrEmpty(imported.Index.origin)&&String.IsNullOrEmpty(imported.Find("Demo.Shared.cls").checkedAt)&&imported.Find("Demo.Shared.cls").source.StartsWith("shared:"),"shared-source-is-not-a-current-server-read");
+            Check(File.ReadAllText(Path.Combine(target,"src/app/shared.js"))=="web source"&&File.ReadAllText(Path.Combine(target,"src/routines/Demo.Shared.mac"))=="routine source","import-preserves-web-and-routine-paths");
+            imported.BindOrigin(ProjectBaseline.Origin("http://127.0.0.1:2/api/atelier/","OTHER"));imported.Save();
+            var append=imported.NewRun("append");var extra=Item("Demo.Colleague.cls","extra","fetched");var queue=imported.Plan(append,new[]{Item("Demo.Shared.cls","class source","pending"),extra},"colleague");Check(queue.Count==1&&queue[0]=="Demo.Colleague.cls","reused-baseline-skips-known-files-while-appending-new-scope");Contents["Demo.Colleague.cls"]="extra";Stage(imported,append,new[]{extra});imported.Ingest(append,Receipt(extra));
+            var check=imported.NewRun("check");var changed=Item("Demo.Shared.cls","server change","fetched");imported.Plan(check,new[]{changed},"new server");Contents["Demo.Shared.cls"]="server change";Stage(imported,check,new[]{changed});imported.Ingest(check,Receipt(changed));
+            Check(imported.Find("Demo.Shared.cls").candidateRun==check.id&&File.ReadAllText(Path.Combine(target,"src/Demo/Shared.cls"))=="class source","colleague-server-check-stages-changes-without-overwriting-imported-source");
+            Check(File.ReadAllText(Path.Combine(snapshot,"src/Demo/Shared.cls"))=="class source","colleague-work-never-mutates-shared-original");
+        }
+        string indexBefore=File.ReadAllText(Path.Combine(target,".export/project.json"));Reject(()=>{using(var overwrite=ProjectBaseline.ImportShared(snapshot,target)){}},"import-cannot-overwrite-existing-workspace");Check(File.ReadAllText(Path.Combine(target,".export/project.json"))==indexBefore,"rejected-import-does-not-rewrite-existing-index");
+        string manifestFile=Path.Combine(snapshot,"交付清单.json"),original=File.ReadAllText(manifestFile),sourceFile=Path.Combine(snapshot,"src/app/shared.js");File.WriteAllText(sourceFile,"tampered");string rejected=Path.Combine(directory,"bad-import");Reject(()=>{using(var bad=ProjectBaseline.ImportShared(snapshot,rejected)){}},"tampered-shared-file-is-rejected-before-import");Check(!Directory.Exists(rejected),"invalid-package-creates-no-target-state");File.WriteAllText(sourceFile,"web source");
+        var malicious=Json.Deserialize<Dictionary<string,object>>(original);var nodes=(IList)malicious["items"];((Dictionary<string,object>)nodes[0])["path"]="src/../outside.cls";File.WriteAllText(manifestFile,Json.Serialize(malicious));Reject(()=>{using(var bad=ProjectBaseline.ImportShared(snapshot,rejected)){}},"shared-path-traversal-is-rejected");File.WriteAllText(manifestFile,original);
+        var legacy=Json.Deserialize<Dictionary<string,object>>(original);legacy["schema"]="iris-baseline-handoff/v1";legacy.Remove("items");legacy.Remove("projectVersion");legacy.Remove("catalogVersions");File.WriteAllText(manifestFile,Json.Serialize(legacy));
+        using(var old=ProjectBaseline.ImportShared(snapshot,Path.Combine(directory,"legacy-import"))) {Check(old.Index.items.Count==4&&old.Find("Demo.Absent.inc").path=="routines/Demo.Absent.inc","legacy-handoff-import-retains-original-missing-scope");Check(String.IsNullOrEmpty(old.Index.projectVersion),"legacy-import-does-not-invent-project-version");}
+        File.WriteAllText(manifestFile,original);
+        string emptyTarget=Path.Combine(directory,"empty-configured");using(var configured=new ProjectBaseline(emptyTarget,"Local project",null)){}
+        File.WriteAllText(Path.Combine(emptyTarget,"project-notes.txt"),"user notes");using(var imported=ProjectBaseline.ImportShared(snapshot,emptyTarget)){Check(imported.Index.items.Count==4&&File.ReadAllText(Path.Combine(emptyTarget,"project-notes.txt"))=="user notes","configured-empty-project-can-import-without-discarding-local-notes");}
+        string untracked=Path.Combine(directory,"untracked-source");using(var configured=new ProjectBaseline(untracked,"Local project",null)){}Directory.CreateDirectory(Path.Combine(untracked,"src"));File.WriteAllText(Path.Combine(untracked,"src/user-file.txt"),"user source");
+        Reject(()=>{using(var bad=ProjectBaseline.ImportShared(snapshot,untracked)){}},"untracked-source-is-not-an-empty-import-target");Check(File.ReadAllText(Path.Combine(untracked,"src/user-file.txt"))=="user source","rejected-import-keeps-untracked-source");
+    }
     public static int Main(string[] args) {
-        try {Run(args[0]); Console.WriteLine("passed " + assertions + " baseline assertions"); return 0;} catch (Exception ex) {Console.Error.WriteLine(ex); return 1;}
+        try {Run(args[0]);ScopedProtection(args[0]);SharedVersions(args[0]); Console.WriteLine("passed " + assertions + " baseline assertions"); return 0;} catch (Exception ex) {Console.Error.WriteLine(ex); return 1;}
     }
 }

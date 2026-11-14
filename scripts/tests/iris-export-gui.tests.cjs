@@ -16,7 +16,7 @@ for(const invalid of [false,true])test('encoded Web chunks preserve bytes and re
   f.send({op:'run',job,user:'test',password:'not-a-secret',resume:true});await f.wait('result');assert.equal(f.stats().reads,1);
  }
 });
-async function fixture(t,{idle=120,failLogout=false,failAt=0,rotateAt=0,refreshAt=0,rejectAt=0,rejectionCookie=false,delay=40,documentResult=null,documentStatus=null}={}){
+async function fixture(t,{idle=120,failLogout=false,failAt=0,dropAt=0,rotateAt=0,refreshAt=0,rejectAt=0,rejectionCookie=false,delay=40,documentResult=null,documentStatus=null}={}){
  const parent=path.join(os.tmpdir(),'Codex');fs.mkdirSync(parent,{recursive:true});
  const dir=fs.mkdtempSync(path.join(parent,'iris-gui-test-'));let auth=0,reads=0,active=0,peak=0,exits=0;const cookies=new Set(),starts=[];
  const server=http.createServer((req,res)=>{
@@ -24,6 +24,7 @@ async function fixture(t,{idle=120,failLogout=false,failAt=0,rotateAt=0,refreshA
   starts.push(Date.now());reads++;const requestNumber=reads;active++;peak=Math.max(active,peak);let cookie=req.headers.cookie;
   if(req.headers.authorization){auth++;if(requestNumber===rejectAt&&!rejectionCookie){res.writeHead(401);res.end();active--;return;}cookie='CSPSESSIONID='+(refreshAt?'00000000ABCD'+String(auth).padStart(10,'0')+'M'.repeat(28):auth);cookies.add(cookie);res.setHeader('Set-Cookie',cookie+'; Path=/api/atelier/');if(requestNumber===rejectAt){res.writeHead(401);res.end();active--;return;}}
   if(!cookies.has(cookie)){res.writeHead(401);res.end();active--;return;}
+  if(dropAt&&requestNumber>=dropAt){res.destroy();active--;return;}
   if(requestNumber===refreshAt){cookies.delete(cookie);cookie=cookie.replace('=00000000','=00000001').replace(/M{28}$/,'N'.repeat(28));cookies.add(cookie);res.setHeader('Set-Cookie',cookie+'; Path=/api/atelier/');}
   if(requestNumber===rotateAt){cookies.delete(cookie);cookie=refreshAt?cookie.replace('ABCD','WXYZ'):'CSPSESSIONID=rotated';cookies.add(cookie);res.setHeader('Set-Cookie',cookie+'; Path=/api/atelier/');}
   const name=decodeURIComponent(req.url.split('/doc/')[1]);
@@ -41,7 +42,7 @@ async function fixture(t,{idle=120,failLogout=false,failAt=0,rotateAt=0,refreshA
  function send(data){child.stdin.write(JSON.stringify(data)+'\n');}
  function job(name,sessions=1,count=2){const batch=path.join(dir,name);fs.mkdirSync(batch);fs.writeFileSync(path.join(batch,'files.txt'),Array.from({length:count},(_,i)=>'Demo.C'+i+'.cls').join('\n'));return {batch,url:'http://127.0.0.1:'+server.address().port+'/api/atelier/',ns:'TEST',sessions,interval:50};}
  t.after(async()=>{for(const w of waiting)clearTimeout(w.timer);if(child.exitCode===null){send({op:'quit'});await new Promise(resolve=>{const timer=setTimeout(()=>{child.kill();resolve()},3000);child.once('exit',()=>{clearTimeout(timer);resolve()});});}await new Promise(r=>server.close(r));fs.rmSync(dir,{recursive:true,force:true});});
- await wait('ready');return {send,wait,job,dir,restart,starts,stats:()=>({auth,reads,active,peak,exits}),errors:()=>errors};
+ await wait('ready');return {send,wait,job,dir,restart,starts,recoverTransport:()=>{dropAt=0;},stats:()=>({auth,reads,active,peak,exits}),errors:()=>errors};
 }
 test('interval bounds request starts without adding a second delay after a slow response',{skip:process.platform!=='win32'},async t=>{
  const f=await fixture(t,{delay:600}),job=f.job('slow-response',1,3);job.interval=500;
@@ -89,8 +90,15 @@ test('ten is a hard ceiling, successful ten-session batches reuse ten identities
  assert.equal(f.stats().auth,10);assert.ok(f.stats().peak<=10);f.send({op:'close'});assert.equal((await f.wait('closed')).data.cleanupVerified,true);assert.equal(f.stats().exits,10);
  assert.equal(fs.readFileSync(path.join(f.dir,'state/session-state.json'),'utf8').includes('not-a-secret'),false);
 });
-test('503 stops dispatch, drains in-flight work and blocks further batches',{skip:process.platform!=='win32'},async t=>{
- const f=await fixture(t,{failAt:1,delay:100});f.send({op:'run',job:f.job('failure',4,30),user:'test',password:'not-a-secret',confirmed:true});const r=await f.wait('result');assert.equal(r.data.blocked,true);assert.ok(f.stats().reads<=4);assert.equal(f.stats().active,0);assert.equal(f.stats().exits,f.stats().auth);
+for(const failLogout of [false,true])test('503 drains in-flight work; only unresolved cleanup blocks explicit retry: '+failLogout,{skip:process.platform!=='win32'},async t=>{
+ const f=await fixture(t,{failAt:1,failLogout,delay:100}),job=f.job('failure',4,30);f.send({op:'run',job,user:'test',password:'not-a-secret',confirmed:true});const r=await f.wait('result');assert.equal(r.data.blocked,failLogout);assert.ok(f.stats().reads<=4);assert.equal(f.stats().active,0);assert.equal(f.stats().exits,f.stats().auth);
+ const receipt=JSON.parse(fs.readFileSync(path.join(job.batch,'export/baseline-state.json'),'utf8'));assert.equal(receipt.logoutVerified,!failLogout);
+ if(!failLogout){f.send({op:'run',job,user:'test',password:'not-a-secret',confirmed:true,resume:true});assert.equal((await f.wait('result')).data.blocked,false);assert.equal(JSON.parse(fs.readFileSync(path.join(job.batch,'export/baseline-state.json'),'utf8')).items.every(i=>i.status==='fetched'),true);}
+ else {const auth=f.stats().auth;f.send({op:'run',job,user:'test',password:'not-a-secret',confirmed:true,resume:true});assert.match((await f.wait('error')).data.reason,/previous-session-unresolved/);assert.equal(f.stats().auth,auth);}
+});
+test('transport loss after a known session can resume after verified cleanup without manual evidence',{skip:process.platform!=='win32'},async t=>{
+ const f=await fixture(t,{dropAt:2}),job=f.job('transport',1,3);f.send({op:'run',job,user:'test',password:'not-a-secret'});const r=await f.wait('result');assert.equal(r.data.blocked,false);const saved=JSON.parse(fs.readFileSync(path.join(job.batch,'export/baseline-state.json'),'utf8'));assert.equal(saved.reason,'atelier-transport-or-timeout');assert.equal(saved.logoutVerified,true);
+ const before=f.stats().reads;f.recoverTransport();f.send({op:'run',job,user:'test',password:'not-a-secret',resume:true});assert.equal((await f.wait('result')).data.blocked,false);assert.equal(f.stats().reads,before+2);assert.equal(f.stats().auth,2);
 });
 test('safe stop finishes in-flight reads, closes cookies and leaves pending items resumable',{skip:process.platform!=='win32'},async t=>{
  const f=await fixture(t,{delay:200}),job=f.job('cancel',4,30);f.send({op:'run',job,user:'test',password:'not-a-secret',confirmed:true});

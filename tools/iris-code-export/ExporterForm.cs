@@ -43,9 +43,10 @@ public sealed partial class ExporterForm : Form {
         Text = "医院源码导出 · 会话复用版"; Size = new Size(1040,860); MinimumSize = new Size(900,760);
         Font = new Font("Microsoft YaHei",9); StartPosition = FormStartPosition.CenterScreen;
         BuildWindow();
-        timer.Interval=500;timer.Tick+=(s,e)=>{RefreshReceipt();UpdateElapsed();};timer.Start();profiles.SelectedIndexChanged+=(s,e)=>Guard(LoadProfile);
-        foreach(Control c in new Control[]{url,ns,user,password,speed})c.TextChanged+=(s,e)=>{if(!displayingJob){budget.Checked=false;trialIdentity=null;}UpdateScopeControls();};
-        LoadSettings();TryOpenSavedProject();Shown+=(s,e)=>{if(stateDirectory==null||startIsolatedWorker)Guard(()=>{var problem=RuntimeProblem();if(problem!=null){ShowWorkbenchError(problem);return;}StartWorker();});};FormClosing+=(s,e)=>{if(worker!=null&&!worker.HasExited){e.Cancel=true;Guard(RequestClose);}};
+        timer.Interval=500;timer.Tick+=(s,e)=>{RefreshReceipt();UpdateElapsed();};timer.Start();profiles.SelectedIndexChanged+=(s,e)=>{if(!displayingJob)Guard(LoadProfile);};
+        foreach(Control c in new Control[]{url,ns,user,password,speed})c.TextChanged+=(s,e)=>{if(!displayingJob){trialIdentity=null;RestoreBudget();}UpdateScopeControls();};
+        budget.CheckedChanged+=(s,e)=>RememberBudget();
+        LoadSettings();TryOpenSavedProject();Shown+=(s,e)=>{if(stateDirectory==null||startIsolatedWorker)Guard(()=>{var problem=RuntimeProblem();if(problem!=null){ShowWorkbenchError(problem);return;}StartWorker();});};FormClosing+=(s,e)=>{if(projectImporting||worker!=null&&!worker.HasExited){e.Cancel=true;Guard(RequestClose);}};
         UpdateButtons();
     }
     protected override bool ShowWithoutActivation {get{return quietValidation;}}
@@ -61,9 +62,34 @@ public sealed partial class ExporterForm : Form {
         destination.Text=Directory.GetParent(batch).FullName;version.SelectedIndex=0;speed.SelectedIndex=0;
         trial.Checked=false;budget.Checked=false;web.Checked=false;documents.Text=text;
     }
-    void LoadSettings(){Directory.CreateDirectory(data);var file=Path.Combine(data,"profiles.dpapi");if(!File.Exists(file))return;try{var text=Encoding.UTF8.GetString(ProtectedData.Unprotect(File.ReadAllBytes(file),null,DataProtectionScope.CurrentUser));saved=json.Deserialize<Dictionary<string,Dictionary<string,string>>>(text);foreach(var key in saved.Keys)profiles.Items.Add(key);if(profiles.Items.Count>0)profiles.SelectedIndex=0;}catch{Append("保存的配置无法解密，请重新填写；原文件未覆盖。");}}
-    void SaveProfile(){if(String.IsNullOrWhiteSpace(profiles.Text))throw new Exception("请填写医院配置名称。");saved[profiles.Text]=new Dictionary<string,string>{{"url",url.Text.Trim()},{"ns",ns.Text.Trim()},{"user",user.Text},{"password",remember.Checked?password.Text:""},{"destination",destination.Text}};var bytes=ProtectedData.Protect(Encoding.UTF8.GetBytes(json.Serialize(saved)),null,DataProtectionScope.CurrentUser);var file=Path.Combine(data,"profiles.dpapi");var temp=file+".tmp";File.WriteAllBytes(temp,bytes);if(File.Exists(file))File.Replace(temp,file,null);else File.Move(temp,file);if(!profiles.Items.Contains(profiles.Text))profiles.Items.Add(profiles.Text);Append("连接配置已保存。");}
-    void LoadProfile(){Dictionary<string,string> p;if(!saved.TryGetValue(profiles.Text,out p))return;if(project!=null){project.Dispose();project=null;}url.Text=p["url"];ns.Text=p["ns"];user.Text=p["user"];password.Text=p["password"];remember.Checked=password.Text.Length>0;destination.Text=p["destination"];TryOpenSavedProject();}
+    void LoadSettings(){
+        Directory.CreateDirectory(data);var file=Path.Combine(data,"profiles.dpapi");if(!File.Exists(file))return;
+        try {
+            var text=Encoding.UTF8.GetString(ProtectedData.Unprotect(File.ReadAllBytes(file),null,DataProtectionScope.CurrentUser));saved=json.Deserialize<Dictionary<string,Dictionary<string,string>>>(text);
+            foreach(var profile in saved.Values) foreach(int count in new[]{4,10}) {try {string identity;if(profile.TryGetValue("budget"+count,out identity)&&identity==BudgetIdentity(profile["url"],profile["ns"],profile["user"],count))approvedBudgets.Add(identity);} catch {/* Ignore an invalid approval; retain the profile for correction. */}}
+            foreach(var key in saved.Keys)profiles.Items.Add(key);if(profiles.Items.Count>0)profiles.SelectedIndex=0;
+        }catch{Append("保存的配置无法解密，请重新填写；原文件未覆盖。");}
+    }
+    void SaveSettings(){
+        var bytes=ProtectedData.Protect(Encoding.UTF8.GetBytes(json.Serialize(saved)),null,DataProtectionScope.CurrentUser);var file=Path.Combine(data,"profiles.dpapi");var temp=file+".tmp";
+        try {File.WriteAllBytes(temp,bytes);if(File.Exists(file))File.Replace(temp,file,null);else File.Move(temp,file);}finally{if(File.Exists(temp))File.Delete(temp);}
+    }
+    void SaveProfile(){
+        if(String.IsNullOrWhiteSpace(profiles.Text))throw new Exception("请填写医院配置名称。");
+        var profile=new Dictionary<string,string>{{"url",url.Text.Trim()},{"ns",ns.Text.Trim()},{"user",user.Text},{"password",remember.Checked?password.Text:""},{"destination",destination.Text},{"sessions",new[]{1,4,10}[speed.SelectedIndex].ToString()},{"projectVersion",projectVersionInput.Text.Trim()}};
+        foreach(int count in new[]{4,10}) {string identity=CurrentBudgetIdentity(count);if(approvedBudgets.Contains(identity))profile["budget"+count]=identity;}
+        saved[profiles.Text]=profile;SaveSettings();if(!profiles.Items.Contains(profiles.Text))profiles.Items.Add(profiles.Text);Append("连接配置已保存。");
+    }
+    void LoadProfile(){
+        Dictionary<string,string> p;if(!saved.TryGetValue(profiles.Text,out p))return;if(project!=null){project.Dispose();project=null;}
+        displayingJob=true;
+        try {
+            url.Text=p["url"];ns.Text=p["ns"];user.Text=p["user"];password.Text=p["password"];remember.Checked=password.Text.Length>0;destination.Text=p["destination"];
+            string versionValue;projectVersionInput.Text=p.TryGetValue("projectVersion",out versionValue)?versionValue:"";
+            string setting;int count;speed.SelectedIndex=p.TryGetValue("sessions",out setting)&&Int32.TryParse(setting,out count)?Math.Max(0,Array.IndexOf(new[]{1,4,10},count)):0;
+        } finally {displayingJob=false;}
+        RestoreBudget();TryOpenSavedProject();
+    }
     void StartWorker(){var info=new ProcessStartInfo(Path.Combine(Environment.SystemDirectory,"WindowsPowerShell/v1.0/powershell.exe"),"-NoProfile -ExecutionPolicy Bypass -File \""+Path.Combine(home,"gui-worker.ps1")+"\" -StateDirectory \""+data+"\""){UseShellExecute=false,CreateNoWindow=true,RedirectStandardInput=true,RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8};worker=new Process{StartInfo=info,EnableRaisingEvents=true};worker.OutputDataReceived+=(s,e)=>{if(e.Data!=null&&!IsDisposed)BeginInvoke(new Action(()=>Receive(e.Data)));};worker.ErrorDataReceived+=(s,e)=>{if(e.Data!=null&&!IsDisposed)BeginInvoke(new Action(()=>Append(e.Data)));};worker.Exited+=(s,e)=>{if(!IsDisposed)BeginInvoke(new Action(()=>{busy=false;reading=false;runClock.Stop();UpdateElapsed();UpdateButtons();if(shuttingDown)Close();else Append("后台进程已退出；如有未核对会话，下次启动将阻断导出。");}));};worker.Start();workerInput=new StreamWriter(worker.StandardInput.BaseStream,new UTF8Encoding(false));workerInput.AutoFlush=true;worker.BeginOutputReadLine();worker.BeginErrorReadLine();}
     void Send(object value){if(worker==null||worker.HasExited)throw new Exception("后台进程未运行。");workerInput.WriteLine(json.Serialize(value));workerInput.Flush();}
     void Begin(bool continuing){BeginTask(continuing);}
@@ -136,7 +162,7 @@ public sealed partial class ExporterForm : Form {
         }catch{/* Atomic replacement may coincide with the timer; retry next tick. */}
     }
     void RenderPage(bool changed){
-        visibleRows.Clear();foreach(var row in resultRows){var raw=RawStatus(row);int filter=resultFilter.SelectedIndex;bool selected=filter<=0||(filter==1&&raw=="missing")||(filter==2&&(legacyMode?(raw=="failed"||raw=="empty"):raw!="fetched"))||(filter==3&&(raw=="fetched"||project!=null&&project.Find(RawName(row))!=null&&!String.IsNullOrEmpty(project.Find(RawName(row)).sha256)))||(filter==4&&(raw=="pending"||raw=="writing"))||(filter==5&&(raw=="candidate-new"||raw=="candidate-change"||raw=="local-conflict"));if(selected&&MatchWorkbenchRow(row))visibleRows.Add(row);}
+        visibleRows.Clear();foreach(var row in resultRows){var raw=RawStatus(row);int filter=resultFilter.SelectedIndex;bool selected=filter<=0||(filter==1&&raw=="missing")||(filter==2&&(legacyMode?(raw=="failed"||raw=="empty"):NeedsAttention(raw)))||(filter==3&&(projectUI&&!legacyMode&&project!=null?Flag(row.Tag as Dictionary<string,object>,"currentFile"):raw=="fetched"))||(filter==4&&(raw=="pending"||raw=="writing"))||(filter==5&&(raw=="candidate-new"||raw=="candidate-change"||raw=="local-conflict"));if(selected&&MatchWorkbenchRow(row))visibleRows.Add(row);}
         int pages=Math.Max(1,(visibleRows.Count+PageSize-1)/PageSize);resultPage=Math.Max(0,Math.Min(resultPage,pages-1));
         int count=Math.Min(PageSize,Math.Max(0,visibleRows.Count-resultPage*PageSize));
         if(changed)results.VirtualListSize=0;
@@ -158,7 +184,8 @@ public sealed partial class ExporterForm : Form {
             if(f.speed.SelectedIndex!=0||f.trial.Checked||f.budget.Checked)throw new Exception("default-single-session-must-not-require-a-separate-trial");
             f.profiles.Text="Local test";f.url.Text="http://127.0.0.1:1/api/atelier/";f.ns.Text="TEST";f.user.Text="test";f.password.Text="synthetic-password";f.remember.Checked=true;f.SaveProfile();
             var bytes=File.ReadAllBytes(Path.Combine(directory,"profiles.dpapi"));if(Encoding.UTF8.GetString(bytes).Contains("synthetic-password"))throw new Exception("plaintext-password-written");
-            using(var loaded=new ExporterForm(directory)){if(loaded.password.Text!="synthetic-password"||loaded.url.Text!=f.url.Text)throw new Exception("profile-roundtrip-failed");}
+            f.saved[f.profiles.Text].Remove("sessions");f.SaveSettings();
+            using(var loaded=new ExporterForm(directory)){if(loaded.password.Text!="synthetic-password"||loaded.url.Text!=f.url.Text||loaded.speed.SelectedIndex!=0||loaded.budget.Checked)throw new Exception("legacy-profile-roundtrip-failed");}
             f.remember.Checked=false;f.SaveProfile();using(var loaded=new ExporterForm(directory)){if(loaded.password.Text!="")throw new Exception("password-not-cleared");}
             f.batch=Path.Combine(directory,"receipt");Directory.CreateDirectory(Path.Combine(f.batch,"export"));
             f.job=new Dictionary<string,object>{{"version","v9.2"},{"sessions",4},{"interval",100},{"confirmWeb",false}};

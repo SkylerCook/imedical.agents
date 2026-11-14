@@ -116,10 +116,8 @@ try {
             $receipt=$null
             if(-not $plan -and (Test-Path -LiteralPath $receiptFile)){$receipt=[IO.File]::ReadAllText($receiptFile,$utf8)|ConvertFrom-Json}
             if(-not $plan -and ($code -eq 1 -or $receipt.reason -or $message.trial)){
-                  # Lost/changed session identity stops this batch; verified cleanup
-                # permits an explicit resume. Unknown cleanup still blocks below.
-                $recoverableSessionEnd=$receipt.reason -in @('atelier-http-401','atelier-session-lost','atelier-session-changed','atelier-text-document-invalid','atelier-base64-invalid','atelier-document-error','class-identity-mismatch')
-                if($receipt.reason -and $receipt.reason -ne 'cancelled-by-user' -and $receipt.reason -ne 'local-state-write-failed' -and -not $recoverableSessionEnd){$blocked=$true}
+                # Stop this operation on error. Only unresolved session cleanup blocks the next
+                # explicit attempt; a service/transport failure is not evidence of a leaked session.
                 Close-Pool
             }
             if(-not $plan -and -not $pool.workers){Journal $false $(if($blocked){'blocked'}else{'idle'})}

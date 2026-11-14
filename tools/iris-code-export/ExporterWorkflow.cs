@@ -22,6 +22,28 @@ public sealed partial class ExporterForm {
     TableLayoutPanel windowLayout;
     string inputSource = "手工清单", lastReason, trialIdentity;
     bool closeRequested, closingPool, runningTrial;
+    readonly HashSet<string> approvedBudgets = new HashSet<string>(StringComparer.Ordinal);
+    bool syncingBudget;
+    static string BudgetIdentity(string address, string ns, string account, int sessions) {
+        return ProjectBaseline.Hash(Encoding.UTF8.GetBytes(ProjectBaseline.Origin(address, ns) + "|" + account.Trim() + "|" + sessions));
+    }
+    string CurrentBudgetIdentity(int sessions) {try {return BudgetIdentity(url.Text, ns.Text, user.Text, sessions);} catch {return "";}}
+    bool IsBudgetApproved(int sessions) {return sessions <= 1 || approvedBudgets.Contains(CurrentBudgetIdentity(sessions)) || legacyMode && budget.Checked && speed.SelectedIndex >= 0 && new[] {1,4,10}[speed.SelectedIndex] == sessions;}
+    void RestoreBudget() {
+        if (speed.SelectedIndex < 0) return;
+        syncingBudget = true;
+        try {budget.Checked = approvedBudgets.Contains(CurrentBudgetIdentity(new[] {1,4,10}[speed.SelectedIndex]));}
+        finally {syncingBudget = false;}
+    }
+    void RememberBudget() {
+        if (syncingBudget || speed.SelectedIndex <= 0) return;
+        int sessions = new[] {1,4,10}[speed.SelectedIndex]; string identity = CurrentBudgetIdentity(sessions); if (identity.Length == 0) return;
+        if (budget.Checked) approvedBudgets.Add(identity); else approvedBudgets.Remove(identity);
+        Dictionary<string,string> profile;
+        if (saved.TryGetValue(profiles.Text, out profile) && profile["url"] == url.Text.Trim() && profile["ns"] == ns.Text.Trim() && profile["user"] == user.Text) {
+            profile["budget" + sessions] = budget.Checked ? identity : ""; profile["sessions"] = sessions.ToString(); SaveSettings();
+        }
+    }
 
     static Label TextLabel() { return new Label { AutoSize = true, Margin = new Padding(3, 5, 3, 5) }; }
     void BuildWindow() { BuildWorkbench(); }
@@ -64,7 +86,7 @@ public sealed partial class ExporterForm {
         workflowHint.Text = trial.Checked ? "下一步：预览后实际试读，每会话最多请求 1 项；预览本身不验证连接。" : speed.SelectedIndex > 0 && !budget.Checked ? "正式导出还缺：人工核实所选会话预算与资源回落，并勾选上方确认项。" : "下一步：新清单点“新建导出”；旧任务点“恢复已有批次”，使用旧范围与旧档位。";
     }
     void UpdateButtons() {
-        bool idle = !busy && !closingPool && !closeRequested;
+        bool idle = !busy && !closingPool && !closeRequested && !projectImporting;
         foreach (Control c in new Control[] {profiles, url, ns, user, password, destination, version, speed, trial, budget, web, importList}) c.Enabled = idle;
         documents.Enabled = true; documents.ReadOnly = !idle;
         bool ready = idle && !blocked && worker != null && !worker.HasExited;
@@ -97,7 +119,7 @@ public sealed partial class ExporterForm {
     }
 
     void ValidateBudget(int sessions) {
-        if (sessions > 1 && !trial.Checked && !budget.Checked) {
+        if (sessions > 1 && !(legacyMode && trial.Checked) && !IsBudgetApproved(sessions)) {
             budget.Visible = true; budget.Focus();
             if(projectUI && !legacyMode) throw new InvalidOperationException("当前选择了 " + sessions + " 个并发会话。请在连接设置确认可用资源预算，或切回“安全 · 1 会话”后继续。试采成功不代表已确认服务器资源预算。");
             throw new InvalidOperationException((trialIdentity == CurrentTrialIdentity(sessions) ? "本次已完成小批试读。" : "预览只解析本地清单；如未实际试读，请先勾选“小批试读”。") + "\n正式导出还缺：人工核实 " + sessions + " 会话的预算与资源回落，然后勾选对应确认项。");
@@ -256,7 +278,7 @@ public sealed partial class ExporterForm {
         } catch (Exception ex) { Append("后台消息处理失败：" + ex.Message); }
     }
     void RequestStop() { if (batch != null) File.WriteAllText(Path.Combine(batch, "stop.request"), "stop"); status.Text = "正在安全停止 · 等待在途请求和文件保存完成…"; }
-    void RequestClose() { if (shuttingDown) return; closeRequested = true; UpdateButtons(); if (busy) RequestStop(); else StartClosing(); }
+    void RequestClose() { if (shuttingDown) return; closeRequested = true; UpdateButtons(); if(projectImporting){status.Text="正在完成本地保存和核验，请稍候…";return;} if (busy) RequestStop(); else StartClosing(); }
     void StartClosing() { closingPool = true; sessionStatus.Text = "正在退出 · 注销服务器会话，请稍候…"; UpdateButtons(); Send(new {op = "close"}); }
     protected override void Dispose(bool disposing) { if (disposing) { timer.Stop(); timer.Dispose(); if(project!=null){project.Dispose();project=null;} connectionFields.Dispose(); } base.Dispose(disposing); }
     void Reconcile() {
@@ -321,7 +343,11 @@ public sealed partial class ExporterForm {
                     capture.Tick += (sender, args) => {
                         capture.Stop();
                         foreach(Form dialog in Application.OpenForms) if(dialog.Text == "增补到当前基线") {
+                            var sample=dialog.Controls.Find("sampleOnly",true);if(sample.Length!=1||((CheckBox)sample[0]).Checked)throw new Exception("default-append-must-not-stop-at-a-sample");
                             using(var bitmap=new Bitmap(dialog.Width,dialog.Height)) {dialog.DrawToBitmap(bitmap,new Rectangle(Point.Empty,dialog.Size));bitmap.Save(Path.Combine(directory,"add-"+scale.ToString(System.Globalization.CultureInfo.InvariantCulture)+".png"));}
+                            var advanced=dialog.Controls.Find("concurrencySettings",true);if(advanced.Length!=1)throw new Exception("concurrency-settings-missing");advanced[0].Visible=true;dialog.PerformLayout();
+                            foreach(Control control in advanced[0].Controls) {var bounds=dialog.RectangleToClient(control.RectangleToScreen(control.ClientRectangle));if(control.Visible&&!dialog.ClientRectangle.Contains(bounds))throw new Exception("advanced-concurrency-clipped: "+control.Text+" @ "+scale);}
+                            using(var bitmap=new Bitmap(dialog.Width,dialog.Height)) {dialog.DrawToBitmap(bitmap,new Rectangle(Point.Empty,dialog.Size));bitmap.Save(Path.Combine(directory,"add-advanced-"+scale.ToString(System.Globalization.CultureInfo.InvariantCulture)+".png"));}
                             dialog.Close();break;
                         }
                     };
@@ -336,6 +362,18 @@ public sealed partial class ExporterForm {
                         }
                     };
                     capture.Start();view.ShowConnectionSettings();
+                }
+                view.destination.Text=Path.Combine(state,"snapshot-project");view.profiles.Text="Demo project";view.EnsureProject();view.projectVersionInput.Text="R9.0.1";
+                using(var capture=new Timer {Interval=100}) {
+                    capture.Tick+=(sender,args)=>{
+                        capture.Stop();foreach(Form dialog in Application.OpenForms)if(dialog.Text=="保存项目版本基线") {
+                            foreach(string name in new[]{"baselineShortName","baselineProjectVersion","saveVersionBaseline"}){var found=dialog.Controls.Find(name,true);if(found.Length!=1||!found[0].Visible||!dialog.ClientRectangle.Contains(dialog.RectangleToClient(found[0].RectangleToScreen(found[0].ClientRectangle))))throw new Exception("version-save-control-clipped: "+name+" @ "+scale);}
+                            using(var bitmap=new Bitmap(dialog.Width,dialog.Height)){dialog.DrawToBitmap(bitmap,new Rectangle(Point.Empty,dialog.Size));bitmap.Save(Path.Combine(directory,"version-save-"+scale.ToString(System.Globalization.CultureInfo.InvariantCulture)+".png"));}
+                            ((CheckBox)dialog.Controls.Find("baselineDetails",true)[0]).Checked=true;dialog.PerformLayout();var save=dialog.Controls.Find("saveVersionBaseline",true)[0];if(!dialog.ClientRectangle.Contains(dialog.RectangleToClient(save.RectangleToScreen(save.ClientRectangle))))throw new Exception("version-save-footer-clipped");
+                            using(var bitmap=new Bitmap(dialog.Width,dialog.Height)){dialog.DrawToBitmap(bitmap,new Rectangle(Point.Empty,dialog.Size));bitmap.Save(Path.Combine(directory,"version-save-details-"+scale.ToString(System.Globalization.CultureInfo.InvariantCulture)+".png"));}
+                            dialog.Close();break;
+                        }
+                    };capture.Start();view.FreezeProject();
                 }
                 view.Close();
             }

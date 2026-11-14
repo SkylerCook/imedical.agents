@@ -5,7 +5,7 @@
 | 工具 | 使用说明 | 交付包（本机生成） |
 |---|---|---|
 | IRIS 内网源码导出与离线交付 | [iris-code-export](iris-code-export/README.md) | `dist/iris-code-export.zip` |
-| IRIS Windows 项目源码基线（增补、检查更新与交付副本） | [GUI 操作说明](iris-code-export/GUI.md) | `dist/iris-code-export-gui.zip` |
+| IRIS Windows 项目源码基线（增补、检查、按项目版本保存及导入复用） | [GUI 操作说明](iris-code-export/GUI.md) | `dist/iris-code-export-gui.zip` |
 | AI 开发工具安装与 IRIS/Caché 项目配置 GUI（Windows 10/11 x64） | [GUI 操作说明](ai-dev-offline/GUI.md) | 工具能力 `dist/ai-dev-offline-tools.zip`；安装原包 `dist/ai-dev-offline-packages.zip`；ObjectScript 扩展 `dist/ai-dev-offline-extensions.zip` |
 | AI 开发基础工具离线物料与命令入口（Windows x64） | [ai-dev-offline](ai-dev-offline/README.md) | `dist/ai-dev-base-windows-x64.zip` |
 

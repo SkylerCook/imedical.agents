@@ -7,6 +7,22 @@ const {spawnSync} = require('node:child_process');
 const {spawn} = require('node:child_process');
 const http = require('node:http');
 const repo = path.resolve(__dirname, '../..');
+test('live project receipt expands the sample, filters all missing rows and opens modeless diagnostics', {skip:process.platform !== 'win32'}, t => {
+  const parent = fs.existsSync('D:/tmp') ? 'D:/tmp/Codex' : path.join(os.tmpdir(), 'Codex');
+  fs.mkdirSync(parent, {recursive:true});
+  const dir = fs.mkdtempSync(path.join(parent, 'iris-project-live-view-'));
+  t.after(() => fs.rmSync(dir, {recursive:true, force:true}));
+  const exe = path.join(dir, 'live-view.exe');
+  const compiler = path.join(process.env.WINDIR, 'Microsoft.NET/Framework64/v4.0.30319/csc.exe');
+  const sources = ['ExporterForm.cs','ExporterWorkflow.cs','ExporterWorkbench.cs','ProjectBaseline.cs'].map(n => path.join(repo,'tools/iris-code-export',n));
+  const build = spawnSync(compiler, ['/nologo','/codepage:65001','/target:exe','/main:BaselineLiveViewTest','/out:'+exe,
+    '/r:System.Windows.Forms.dll','/r:System.Drawing.dll','/r:System.Web.Extensions.dll','/r:System.Security.dll','/r:System.Xml.dll',
+    ...sources, path.join(__dirname,'fixtures/iris-project-live-view-selftest.cs')], {encoding:'utf8',windowsHide:true});
+  assert.equal(build.status, 0, build.stdout + build.stderr);
+  const run = spawnSync(exe, [dir], {encoding:'utf8',windowsHide:true,timeout:30000});
+  assert.equal(run.status, 0, run.stdout + run.stderr);
+  assert.match(run.stdout, /live-view-passed/);
+});
 test('project baseline persists append/check/accept/recovery and protects local source', {skip:process.platform !== 'win32'}, t => {
   const parent = fs.existsSync('D:/tmp') ? 'D:/tmp/Codex' : path.join(os.tmpdir(), 'Codex');
   fs.mkdirSync(parent, {recursive:true});
@@ -46,7 +62,9 @@ test('native workbench runs append/check/accept with one persistent worker and s
     '/r:System.Windows.Forms.dll','/r:System.Drawing.dll','/r:System.Web.Extensions.dll','/r:System.Security.dll','/r:System.Xml.dll',
     ...sources,path.join(__dirname,'fixtures/iris-project-gui-flow-selftest.cs')],{encoding:'utf8',windowsHide:true});
   assert.equal(built.status,0,built.stdout+built.stderr);
-  for(const name of ['gui-worker.ps1','export-iris-code.ps1'])fs.copyFileSync(path.join(repo,'tools/iris-code-export',name),path.join(dir,name));
+  for(const name of ['gui-worker.ps1','export-iris-code.ps1','export-version-baseline.ps1'])fs.copyFileSync(path.join(repo,'tools/iris-code-export',name),path.join(dir,name));
+  const catalog=path.join(dir,'catalogs');fs.mkdirSync(catalog);const list=Buffer.from('Version.First.cls\nVersion.Second.cls\n'),digest=require('node:crypto').createHash('sha256').update(list).digest('hex');
+  fs.writeFileSync(path.join(catalog,'v8.5.txt'),list);fs.writeFileSync(path.join(catalog,'index.json'),JSON.stringify({schema:'iris-version-catalogs/v1',entries:[{version:'v8.5',scope:'doctor',scopeLabel:'Synthetic scope',listFile:'v8.5.txt',listSha256:digest,sourceSha256:digest,sourcePath:'synthetic.txt',codeCount:2,rawItemCount:2,duplicateCount:0,excludedImages:[],webPathsNeedConfirmation:false}]}));
   const child=spawn(exe,[dir,'http://127.0.0.1:'+server.address().port+'/api/atelier/'],{windowsHide:true});
   let output='';child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b);
   const code=await new Promise((resolve,reject)=>{
@@ -54,8 +72,11 @@ test('native workbench runs append/check/accept with one persistent worker and s
     child.once('error',e=>{clearTimeout(timeout);reject(e);});child.once('exit',c=>{clearTimeout(timeout);resolve(c);});
   });
   assert.equal(code,0,output);assert.match(output,/gui-flow-passed/);
-  assert.equal(auth,5,'single-session plus four reused concurrent cookies');
-  for(let i=0;i<11;i++)assert.equal(counts.get('Trial.Item'+i+'.cls'),1,'trial and continuation must not reread verified files');
-  assert.equal(counts.get('Demo.A.cls'),2,'existing A is skipped during append and re-read during check');
-  assert.equal(reads,17);assert.equal(exits,5);
+  assert.equal(auth,7,'six original cookies plus one colleague connection after offline import');
+  for(let i=0;i<11;i++)assert.equal(counts.get('Trial.Item'+i+'.cls'),2,'trial/continuation/import skip verified files; each is reread only by explicit checks');
+  assert.equal(counts.get('Demo.A.cls'),3,'existing A is skipped during append/import and reread only by checks');
+  assert.equal(counts.get('Demo.C.cls'),3,'selected retry excludes C; only explicit colleague check rereads it');
+  assert.equal(counts.get('Version.First.cls'),2,'shared version source is reused, then explicitly checked');
+  assert.equal(counts.get('Version.Second.cls'),1,'trial remainder survives sharing and can be checked by colleague');
+  assert.equal(reads,43);assert.equal(exits,7);
 });

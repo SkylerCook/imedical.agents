@@ -14,13 +14,16 @@ public sealed partial class ExporterForm {
     ProjectBaseline project;
     BaselineRun projectRun;
     readonly TextBox searchNames = new SearchBox();
+    readonly TextBox projectVersionInput = new TextBox();
     readonly ComboBox fileKind = new ComboBox();
     readonly Label projectHeading = new Label(), projectOverview = new Label(), projectPath = new Label(), errorBanner = new Label();
     readonly Button checkUpdates = new Button(), acceptUpdates = new Button(), keepCurrent = new Button(), openProject = new Button(), freezeProject = new Button(), historyProject = new Button();
     readonly FlowLayoutPanel workbenchActions = new FlowLayoutPanel();
     readonly List<Button> workbenchInputs = new List<Button>();
     readonly Panel projectBody = new Panel();
-    Button remaining;
+    int projectRemainingCount;
+    Form diagnosticWindow;
+    Button importShared;
     readonly TextBox connectionHost = new TextBox(), connectionPort = new TextBox();
     readonly ComboBox connectionScheme = new ComboBox();
     string connectionPath = "/api/atelier/";
@@ -86,6 +89,7 @@ public sealed partial class ExporterForm {
             string selected = label; var button = ActionButton(label, () => {resultFilter.SelectedIndex = selected == "全部范围" ? 0 : selected == "当前文件" ? 3 : selected == "需处理" ? 2 : 5;}, false); button.Width = 182; browse.Controls.Add(button);
         }
         resume.Text = "打开项目目录…"; resume.AutoSize = true; resume.Width = 182; resume.Click += (s, e) => Guard(ChooseProject); browse.Controls.Add(resume);
+        importShared=ActionButton("导入共享基线…",ImportSharedProject,false);importShared.Width=182;browse.Controls.Add(importShared);
         historyProject.Text = "更新记录"; historyProject.AutoSize = true; historyProject.Click += (s, e) => Guard(ShowProjectHistory); browse.Controls.Add(historyProject); side.Controls.Add(browse);
         var sideNote = Note("同一来源、同一目录持续增补。\r\n检查时间与内容更新时间分别记录。"); sideNote.MaximumSize = new Size(210, 0); side.Controls.Add(sideNote);
         body.Controls.Add(side, 0, 0);
@@ -93,46 +97,40 @@ public sealed partial class ExporterForm {
         Application.AddMessageFilter(wheelRouter);
         Disposed += (s, e) => Application.RemoveMessageFilter(wheelRouter);
         projectBody.Dock = DockStyle.Fill; projectBody.AutoScroll = true; body.Controls.Add(projectBody, 1, 0);
-        var main = new TableLayoutPanel {Dock = DockStyle.Top, AutoSize = true, ColumnCount = 1, RowCount = 6};
+        var main = new TableLayoutPanel {Dock = DockStyle.Top, AutoSize = true, ColumnCount = 1, RowCount = 5};
         main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
-        foreach (var size in new[] {SizeType.AutoSize, SizeType.Absolute, SizeType.Absolute, SizeType.Absolute, SizeType.Absolute, SizeType.AutoSize}) main.RowStyles.Add(new RowStyle(size, size == SizeType.Absolute ? 100 : 0));
-        main.RowStyles[1].Height=120;main.RowStyles[2].Height = 168; main.RowStyles[3].Height = 48; main.RowStyles[4].Height = 260;
+        foreach (var size in new[] {SizeType.AutoSize, SizeType.Absolute, SizeType.Absolute, SizeType.Absolute, SizeType.Absolute}) main.RowStyles.Add(new RowStyle(size, size == SizeType.Absolute ? 100 : 0));
+        main.RowStyles[1].Height=138;main.RowStyles[2].Height = 190; main.RowStyles[3].Height = 48; main.RowStyles[4].Height = 260;
         projectBody.Controls.Add(main);
         errorBanner.AutoSize = true; errorBanner.BackColor = Color.FromArgb(255, 240, 241); errorBanner.ForeColor = Color.FromArgb(168, 39, 50); errorBanner.Padding = new Padding(14); errorBanner.Visible = false; errorBanner.Margin = new Padding(0, 0, 0, 12); main.Controls.Add(errorBanner, 0, 0);
         var overview = Card();var overviewLayout=new TableLayoutPanel {Dock=DockStyle.Fill,ColumnCount=2,RowCount=2,Margin=Padding.Empty};
-        overviewLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));overviewLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,220));
+        overviewLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));overviewLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,244));
         overviewLayout.RowStyles.Add(new RowStyle(SizeType.Percent,100));overviewLayout.RowStyles.Add(new RowStyle(SizeType.Absolute,22));
         projectOverview.AutoSize=false;projectOverview.AutoEllipsis=true;projectOverview.Font=new Font(Font.FontFamily,10,FontStyle.Bold);projectOverview.Dock=DockStyle.Fill;projectOverview.Margin=Padding.Empty;overviewLayout.Controls.Add(projectOverview,0,0);
         projectPath.AutoSize=false;projectPath.AutoEllipsis=true;projectPath.Dock=DockStyle.Fill;projectPath.ForeColor=WorkMuted;projectPath.Margin=Padding.Empty;overviewLayout.Controls.Add(projectPath,0,1);overviewLayout.SetColumnSpan(projectPath,2);
         var overviewButtons = new FlowLayoutPanel {Dock=DockStyle.Fill,WrapContents=false,Margin=Padding.Empty};
-        openProject.Text = "打开目录"; freezeProject.Text = "交付副本"; foreach (var b in new[] {openProject, freezeProject}) {b.AutoSize = true; overviewButtons.Controls.Add(b);}
+        openProject.Text = "打开目录"; freezeProject.Text = "保存版本基线"; foreach (var b in new[] {openProject, freezeProject}) {b.AutoSize = true; overviewButtons.Controls.Add(b);}
         openProject.Click += (s, e) => Guard(() => {EnsureProject(); Process.Start("explorer.exe", "\"" + project.Root + "\"");});
         freezeProject.Click += (s, e) => Guard(FreezeProject); overviewLayout.Controls.Add(overviewButtons,1,0);overview.Controls.Add(overviewLayout);main.Controls.Add(overview,0,1);
-        var activity = Card(); var activityLayout = new TableLayoutPanel {Dock = DockStyle.Fill, RowCount = 4, ColumnCount = 2};
+        var activity = Card(); var activityLayout = new TableLayoutPanel {Dock = DockStyle.Fill, RowCount = 5, ColumnCount = 2};
         activityLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); activityLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         activityLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));activityLayout.RowStyles.Add(new RowStyle(SizeType.Absolute,15));activityLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));activityLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        activityLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         summary.AutoSize = true; summary.Text = "尚未采集 · 已保存的结果和用时会保留"; activityLayout.Controls.Add(summary, 0, 0);
         elapsedLabel.AutoSize = true; elapsedLabel.Dock = DockStyle.None; elapsedLabel.Font = new Font(Font.FontFamily,10,FontStyle.Bold); activityLayout.Controls.Add(elapsedLabel, 1, 0);
         progress.Dock = DockStyle.Fill; progress.Height = 8; activityLayout.Controls.Add(progress, 0, 1); activityLayout.SetColumnSpan(progress, 2);
         status.AutoSize = true; status.Text = "请选择连接和项目目录"; activityLayout.Controls.Add(status, 0, 2);
         workbenchActions.AutoSize = true; workbenchActions.Dock = DockStyle.Fill; workbenchActions.WrapContents = true;
         continueCurrent.Text = "继续上次采集"; stop.Text = "暂停"; closePool.Text = "断开连接"; diagnosticToggle.Text = "诊断详情"; retryMissing.Text = "补取未取得项";
-        foreach (var b in new[] {continueCurrent, stop, closePool, retryMissing, diagnosticToggle}) {b.AutoSize = true; workbenchActions.Controls.Add(b);} activityLayout.Controls.Add(workbenchActions, 0, 3); activityLayout.SetColumnSpan(workbenchActions, 2);
-        continueCurrent.Click += (s, e) => Guard(() => {if (legacyMode) ContinueCurrent(); else ResumeProjectRun();}); stop.Click += (s, e) => Guard(RequestStop);
+        sessionStatus.AutoSize = true; sessionStatus.ForeColor = WorkMuted; sessionStatus.Text = "连接尚未使用"; activityLayout.Controls.Add(sessionStatus, 0, 3); activityLayout.SetColumnSpan(sessionStatus, 2);
+        foreach (var b in new[] {continueCurrent, stop, closePool, retryMissing, diagnosticToggle}) {b.AutoSize = true; workbenchActions.Controls.Add(b);} activityLayout.Controls.Add(workbenchActions, 0, 4); activityLayout.SetColumnSpan(workbenchActions, 2);
+        continueCurrent.Click += (s, e) => Guard(() => {if (legacyMode) ContinueCurrent(); else ContinueProject();}); stop.Click += (s, e) => Guard(RequestStop);
         closePool.Click += (s, e) => Guard(() => {closingPool = true; UpdateButtons(); Send(new {op = "close"});}); retryMissing.Click += (s, e) => Guard(() => {if (legacyMode) {PrepareMissingRetry(); Begin(false);} else BeginProject("retry");});
-        diagnosticToggle.Click += (s, e) => {diagnostics.Visible = !diagnostics.Visible;};
-        remaining = ActionButton("继续增补剩余项", () => {
-            if(busy) throw new IOException("请先等待采集结束或暂停。");
-            string full = batch == null ? "" : Path.Combine(batch, "sample-full-scope.txt");
-            if(!File.Exists(full)) throw new IOException("当前记录不是试采，请先在增补源码中选择试采。");
-            documents.Text = File.ReadAllText(full, Encoding.UTF8); version.SelectedIndex=0;
-            BeginProject("append");
-        }, false);
-        workbenchActions.Controls.Add(remaining);
+        diagnosticToggle.Click += (s, e) => ShowDiagnostics();
         activity.Controls.Add(activityLayout); main.Controls.Add(activity, 0, 2);
         var filters = new TableLayoutPanel {Dock = DockStyle.Fill, ColumnCount = 4}; filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 114)); filters.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112)); filters.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); filters.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         resultFilter.DropDownStyle = fileKind.DropDownStyle = ComboBoxStyle.DropDownList;
-        resultFilter.Items.AddRange(new object[] {"全部范围", "未找到", "需处理", "当前文件", "待处理", "本次变化"});
+        resultFilter.Items.AddRange(new object[] {"全部范围", "未找到", "需处理", "当前文件", "等待采集", "本次变化"});
         fileKind.Items.AddRange(new object[] {"全部类型", "类定义", "例程 / 头文件", "Web 文件"}); resultFilter.SelectedIndex = fileKind.SelectedIndex = 0;
         searchNames.Dock = DockStyle.Fill; searchNames.AccessibleName = "查找对象名称"; searchNames.Margin = new Padding(6, 3, 6, 3);
         filters.Controls.Add(resultFilter, 0, 0); filters.Controls.Add(fileKind, 1, 0); filters.Controls.Add(searchNames, 2, 0); filters.Controls.Add(ActionButton("复制所选", () => CopyRows(false, false), false), 3, 0);
@@ -141,6 +139,7 @@ public sealed partial class ExporterForm {
         results.VirtualMode = true; results.RetrieveVirtualItem += (s, e) => e.Item = visibleRows[resultPage * PageSize + e.ItemIndex]; results.View = View.Details; results.FullRowSelect = true; results.HideSelection = false; results.MultiSelect = true; results.Dock = DockStyle.Fill;
         results.Columns.Add("完整对象名（选中 Ctrl+C）", 325); results.Columns.Add("状态", 135); results.Columns.Add("字节", 72); results.Columns.Add("最近检查", 122); results.Columns.Add("内容更新", 122); ConfigureCopyMenu();
         results.DoubleClick += (s, e) => Guard(ShowProjectDiff);
+        results.SelectedIndexChanged += (s, e) => UpdateWorkbench();
         var pages = new FlowLayoutPanel {AutoSize = true, Dock = DockStyle.Bottom}; pages.Controls.Add(pageLabel); pages.Controls.Add(previousPage); pages.Controls.Add(nextPage);
         previousPage.Click += (s, e) => {resultPage--; RenderPage(true);}; nextPage.Click += (s, e) => {resultPage++; RenderPage(true);};
         acceptUpdates.Text = "接纳可更新项"; keepCurrent.Text = "保留当前版本";
@@ -148,9 +147,10 @@ public sealed partial class ExporterForm {
         acceptUpdates.Click += (s, e) => Guard(() => {EnsureProject(); int count = project.AcceptChanges(); status.Text = "已更新 " + count + " 项；旧版与采集记录已保留。"; RenderProject();});
         keepCurrent.Click += (s, e) => Guard(() => {EnsureProject(); project.KeepCurrentCandidates(); status.Text = "已保留当前版本；服务器候选仍可从更新记录查看。"; RenderProject();});
         listCard.Controls.Add(results); listCard.Controls.Add(pages); main.Controls.Add(listCard, 0, 4);
-        diagnostics.Dock = DockStyle.Top; diagnostics.Height = 155; diagnostics.Visible = false; log.Multiline = true; log.ReadOnly = true; log.ScrollBars = ScrollBars.Both; log.WordWrap = false; log.Dock = DockStyle.Fill; diagnostics.Controls.Add(log); main.Controls.Add(diagnostics, 0, 5);
+        diagnostics.Dock = DockStyle.Fill; diagnostics.Visible = false; log.Multiline = true; log.ReadOnly = true; log.ScrollBars = ScrollBars.Both; log.WordWrap = false; log.Dock = DockStyle.Fill; diagnostics.Controls.Add(log);
+        Disposed += (s, e) => {if (diagnosticWindow != null) diagnosticWindow.Dispose(); else diagnostics.Dispose();};
         main.SizeChanged += (s, e) => {errorBanner.MaximumSize = new Size(Math.Max(200, main.Width - 5), 0);};
-        projectBody.SizeChanged += (s, e) => {main.Width = Math.Max(500, projectBody.ClientSize.Width - SystemInformation.VerticalScrollBarWidth); main.RowStyles[4].Height = Math.Max(260, projectBody.ClientSize.Height - 367);};
+        projectBody.SizeChanged += (s, e) => {main.Width = Math.Max(500, projectBody.ClientSize.Width - SystemInformation.VerticalScrollBarWidth); main.RowStyles[4].Height = Math.Max(260, projectBody.ClientSize.Height - 407);};
         connectionFields = new TableLayoutPanel {Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 9, Padding = new Padding(16)};
         connectionFields.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize)); connectionFields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         var addressFields = new FlowLayoutPanel {AutoSize=true, Dock=DockStyle.Fill, WrapContents=true};
@@ -166,8 +166,8 @@ public sealed partial class ExporterForm {
         advancedAddress.Controls.Add(showAddress);advancedAddress.Controls.Add(url);connectionFields.Controls.Add(advancedAddress,1,8);
          Add(connectionFields, "命名空间", ns, 0, 1); Add(connectionFields, "用户名", user, 0, 2); Add(connectionFields, "密码", password, 0, 3); Add(connectionFields, "源码保存目录", destination, 0, 4);
         password.UseSystemPasswordChar = true; remember.Text = "本机加密记住密码"; remember.AutoSize = true; connectionFields.Controls.Add(remember, 1, 5);
-        Add(connectionFields, "采集速度", speed, 0, 6); speed.DropDownStyle = ComboBoxStyle.DropDownList; speed.Items.AddRange(new object[] {"安全 · 1 会话 / 200ms", "均衡 · 4 会话 / 100ms", "快速 · 10 会话 / 50ms"}); speed.SelectedIndex = 0;
-        trial.Text = "多会话先做小批验证"; trial.AutoSize = true; budget.Text = "已核实多会话预算与资源回落"; budget.AutoSize = true; var advanced = new FlowLayoutPanel {AutoSize = true, Dock = DockStyle.Top}; advanced.Controls.Add(budget); connectionFields.Controls.Add(advanced, 1, 7);
+        Add(connectionFields, "高级 · 并发采集", speed, 0, 6); speed.DropDownStyle = ComboBoxStyle.DropDownList; speed.Items.AddRange(new object[] {"默认 · 1 会话 / 200ms", "并发 · 4 会话 / 100ms", "并发 · 10 会话 / 50ms"}); speed.SelectedIndex = 0;
+        trial.Text = "多会话先做小批验证"; trial.AutoSize = true; budget.Text = "已核实资源，允许当前并发档位（同一连接与账号自动复用）"; budget.AutoSize = true; var advanced = new FlowLayoutPanel {AutoSize = true, Dock = DockStyle.Top}; advanced.Controls.Add(budget); connectionFields.Controls.Add(advanced, 1, 7);
         web.Text = "已核对版本 Web 路径"; web.AutoSize = true; version.DropDownStyle = ComboBoxStyle.DropDownList; version.Items.AddRange(new object[] {"自定义清单", "v8.3 医生站（重建）", "v8.4 医生站", "v8.5 医生站", "v9.0 医生站", "v9.0.2 医生站", "v9.1 医生站", "v9.2 全产品"}); version.SelectedIndex = 0;
         documents.Multiline = true; documents.ScrollBars = ScrollBars.Both; documents.WordWrap = false;
         version.SelectedIndexChanged += (s, e) => UpdateInputSummary(); documents.TextChanged += (s, e) => UpdateInputSummary();
@@ -175,6 +175,21 @@ public sealed partial class ExporterForm {
         DragDrop += (s, e) => Guard(() => {var files = (string[])e.Data.GetData(DataFormats.FileDrop); if (files.Length != 1) throw new IOException("请一次导入一个 TXT 或源码 XML。"); LoadProjectList(files[0]); ShowAddDialog(false);});
         ApplyVisualStyle(windowLayout); start.BackColor = WorkBlue; start.ForeColor = Color.White; start.FlatAppearance.BorderSize = 0;
         UpdateWorkbench(); RenderPage(false);
+    }
+    void ShowDiagnostics() {
+        if (diagnosticWindow == null || diagnosticWindow.IsDisposed) {
+            var area = Screen.FromControl(this).WorkingArea;
+            diagnosticWindow = new Form {Text = "诊断详情", AutoScaleMode = AutoScaleMode.Font, Size = new Size(Math.Min(1080, area.Width - 40), Math.Min(680, area.Height - 40)), MinimumSize = new Size(560, 360), StartPosition = FormStartPosition.Manual, Font = Font, ShowInTaskbar = false};
+            diagnosticWindow.Location = new Point(Math.Max(area.Left, Math.Min(Left + (Width - diagnosticWindow.Width) / 2, area.Right - diagnosticWindow.Width)), Math.Max(area.Top, Math.Min(Top + (Height - diagnosticWindow.Height) / 2, area.Bottom - diagnosticWindow.Height)));
+            var footer = new FlowLayoutPanel {Dock = DockStyle.Bottom, AutoSize = true, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(8)};
+            var close = ActionButton("关闭", () => diagnosticWindow.Close(), false);
+            footer.Controls.Add(close); diagnosticWindow.Controls.Add(diagnostics); diagnosticWindow.Controls.Add(footer); diagnosticWindow.CancelButton = close;
+            diagnosticWindow.FormClosing += (s, e) => {if (e.CloseReason == CloseReason.UserClosing) {e.Cancel = true; diagnosticWindow.Hide(); diagnostics.Visible = false;}};
+        }
+        diagnostics.Visible = true;
+        if (!diagnosticWindow.Visible) diagnosticWindow.Show(this);
+        if (diagnosticWindow.WindowState == FormWindowState.Minimized) diagnosticWindow.WindowState = FormWindowState.Normal;
+        diagnosticWindow.Activate();
     }
     void ShowConnectionSettings() {
         if (busy) throw new InvalidOperationException("请先暂停当前采集。");
@@ -206,13 +221,12 @@ public sealed partial class ExporterForm {
         }
     }
     void EnsureProject() {
-        if (String.IsNullOrWhiteSpace(url.Text) || String.IsNullOrWhiteSpace(ns.Text)) throw new InvalidOperationException("请先打开“连接设置”，填写目标和 Namespace。");
-        string origin = ProjectBaseline.Origin(url.Text, ns.Text);
-        if (project != null && (project.Index.origin != origin || !String.Equals(project.Root, destination.Text.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))) {project.Dispose(); project = null;}
+        if (project != null && !String.Equals(project.Root, destination.Text.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase)) {project.Dispose(); project = null;}
         if (project == null) {
             if (!Path.IsPathRooted(destination.Text)) throw new InvalidOperationException("请在连接设置中选择项目基线目录。");
             projectRun=null;job=null;batch=null;lastProjectReceipt=null;runClock.Reset();elapsedBeforeResume=0;
-            project = new ProjectBaseline(destination.Text, profiles.Text.Length == 0 ? "项目基线" : profiles.Text, origin);
+            project = new ProjectBaseline(destination.Text, profiles.Text.Length == 0 ? "项目基线" : profiles.Text, null);
+            projectVersionInput.Text=project.Index.projectVersion??"";
             legacyMode = false; var active = project.FindRun(project.Index.activeRun);
             if(active==null&&project.Index.runs.Count>0)active=project.Index.runs[project.Index.runs.Count-1];
             if(active!=null){
@@ -238,20 +252,34 @@ public sealed partial class ExporterForm {
             var layout = new TableLayoutPanel {Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(18)};
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             var line = new FlowLayoutPanel {AutoSize = true, Dock = DockStyle.Top}; version.Width = 235; line.Controls.Add(version);
-            line.Controls.Add(ActionButton("选择 TXT / XML", () => {using (var file = new OpenFileDialog {Filter = "对象清单或源码 XML|*.txt;*.xml"}) if (file.ShowDialog(dialog) == DialogResult.OK) LoadProjectList(file.FileName);}, false)); line.Controls.Add(web); layout.Controls.Add(line, 0, 0);
+            line.Controls.Add(ActionButton("选择 TXT / XML", () => {using (var file = new OpenFileDialog {Filter = "对象清单或源码 XML|*.txt;*.xml"}) if (file.ShowDialog(dialog) == DialogResult.OK) LoadProjectList(file.FileName);}, false));
+            line.Controls.Add(Note("项目版本"));projectVersionInput.Width=130;projectVersionInput.AccessibleName="项目版本（填写，独立于清单版本）";line.Controls.Add(projectVersionInput);line.Controls.Add(web); layout.Controls.Add(line, 0, 0);
             inputTitle.AutoSize = true; layout.Controls.Add(inputTitle, 0, 1);
             documents.Dock = DockStyle.Fill; documents.MinimumSize = new Size(0, 220); layout.Controls.Add(documents, 0, 2);
             var hint = Note("每行一个完整对象名，自动合并重复项；已取得文件跳过。\r\n继续写入当前项目目录，连接检查包含在本次采集中。"); layout.Controls.Add(hint, 0, 3);
             var buttons = new FlowLayoutPanel {Dock = DockStyle.Top, AutoSize = true};
-            var sample = new CheckBox {Text="先试采前", AutoSize=true, Checked=project == null || project.Index.items.Count == 0};
+            var sample = new CheckBox {Name="sampleOnly", Text="仅试采前", AutoSize=true, Checked=false};
             var count = new NumericUpDown {Minimum=1, Maximum=100, Value=10, Width=65};
             buttons.Controls.Add(sample); buttons.Controls.Add(count); buttons.Controls.Add(Note("项"));
             buttons.Controls.Add(ActionButton("取消", () => dialog.Close(), false));
             var submit = ActionButton(sample.Checked ? "开始试采" : "增补到当前基线", () => {BeginProjectSample("append", sample.Checked ? (int)count.Value : 0); dialog.Close();}, true);
             count.Enabled=sample.Checked; sample.CheckedChanged += (s,e) => {count.Enabled=sample.Checked;submit.Text=sample.Checked ? "开始试采" : "增补到当前基线";};
             buttons.Controls.Add(submit); layout.Controls.Add(buttons, 0, 4); dialog.Controls.Add(layout);
+            // These controls edit the existing connection settings; they are not a second configuration.
+            var concurrency = new FlowLayoutPanel {Name="concurrencySettings", AutoSize=true, Dock=DockStyle.Top, WrapContents=true, Visible=false};
+            var advancedLink = new LinkLabel {Text="高级采集设置 · 当前 " + speed.Text, AutoSize=true, Margin=new Padding(3,6,3,3)};
+            var advancedHost = new FlowLayoutPanel {AutoSize=true, Dock=DockStyle.Top, FlowDirection=FlowDirection.TopDown, WrapContents=false};
+            layout.Controls.Remove(hint); advancedHost.Controls.Add(hint); advancedHost.Controls.Add(advancedLink); advancedHost.Controls.Add(concurrency); layout.Controls.Add(advancedHost,0,3);
+            var choice = new ComboBox {DropDownStyle=ComboBoxStyle.DropDownList, Width=230}; choice.Items.AddRange(new object[]{speed.Items[0],speed.Items[1],speed.Items[2]}); choice.SelectedIndex=speed.SelectedIndex;
+            var approval = new CheckBox {Text=budget.Text, AutoSize=true, Checked=budget.Checked, Visible=choice.SelectedIndex>0};
+            concurrency.Controls.Add(choice); concurrency.Controls.Add(approval);
+            Action fitAdvanced = () => {int width = Math.Max(250,dialog.ClientSize.Width-56); advancedHost.MaximumSize = concurrency.MaximumSize = hint.MaximumSize = advancedLink.MaximumSize = approval.MaximumSize = new Size(width,0);};
+            dialog.ClientSizeChanged += (s,e)=>fitAdvanced(); fitAdvanced();
+            choice.SelectedIndexChanged += (s,e)=>{speed.SelectedIndex=choice.SelectedIndex;approval.Checked=budget.Checked;approval.Visible=choice.SelectedIndex>0;advancedLink.Text="高级采集设置 · 当前 "+speed.Text;};
+            approval.CheckedChanged += (s,e)=>{if(budget.Checked!=approval.Checked)budget.Checked=approval.Checked;};
+            advancedLink.LinkClicked += (s,e)=>{concurrency.Visible=!concurrency.Visible;};
             if (pickFile) dialog.Shown += (s, e) => Guard(() => {using (var file = new OpenFileDialog {Filter = "对象清单或源码 XML|*.txt;*.xml"}) if (file.ShowDialog(dialog) == DialogResult.OK) LoadProjectList(file.FileName);});
-            try {dialog.ShowDialog(this);} finally {layout.Controls.Remove(documents); line.Controls.Remove(version); line.Controls.Remove(web); layout.Controls.Remove(inputTitle);}
+            try {dialog.ShowDialog(this);} finally {layout.Controls.Remove(documents); line.Controls.Remove(version); line.Controls.Remove(projectVersionInput); line.Controls.Remove(web); layout.Controls.Remove(inputTitle);}
         }
     }
     void LoadProjectList(string file) {
@@ -278,6 +306,7 @@ public sealed partial class ExporterForm {
             if(e.Error!=null){ShowWorkbenchError(e.Error.Message);inputTitle.Text="清单读取失败，原输入保留";}
             else {var value=(object[])e.Result;inputSource=Path.GetFileName(file);version.SelectedIndex=0;documents.Text=(string)value[0];inputTitle.Text=inputSource+" · 已读取 100% · 去重 "+value[1]+" · 忽略其它 XML 对象 "+value[2]+" · 用时 "+clock.Elapsed.TotalSeconds.ToString("0.00")+" 秒";}
             UpdateButtons();
+            if(closeRequested){if(worker!=null&&!worker.HasExited)StartClosing();else Close();}
         };
         reader.RunWorkerAsync();
     }
@@ -296,13 +325,17 @@ public sealed partial class ExporterForm {
         if (String.IsNullOrWhiteSpace(user.Text) || String.IsNullOrWhiteSpace(password.Text)) throw new IOException("请在连接设置中填写用户名和密码。");
         if (!Uri.TryCreate(url.Text.Trim(), UriKind.Absolute, out uri) || (uri.Scheme != "http" && uri.Scheme != "https") || !uri.AbsolutePath.TrimEnd('/').EndsWith("/api/atelier", StringComparison.Ordinal) || uri.UserInfo != "" || uri.Query != "" || uri.Fragment != "") throw new IOException("请填写有效的 Atelier 根 URL，以 /api/atelier/ 结尾。");
     }
-    void BeginProject(string mode) {BeginProjectSample(mode, 0);}
-    void BeginProjectSample(string mode, int sampleLimit) {
+    void BeginProject(string mode) {BeginProjectRun(mode, 0, mode == "retry" ? ProjectRetryNames() : null);}
+    void BeginProjectSample(string mode, int sampleLimit) {BeginProjectRun(mode, sampleLimit, null);}
+    void BeginProjectRun(string mode, int sampleLimit, List<string> selectedNames) {
         if(projectImporting)throw new IOException("清单仍在读取或解析，请等待完成后增补。");
-        ValidateConnection(); EnsureProject(); legacyMode = false;
+        string requestedVersion=projectVersionInput.Text.Trim();
+        ValidateConnection(); EnsureProject();project.BindOrigin(ProjectBaseline.Origin(url.Text,ns.Text));project.Save(); legacyMode = false;
+        if(requestedVersion.Length>0)projectVersionInput.Text=requestedVersion;
         int sessions = new[] {1, 4, 10}[speed.SelectedIndex]; if(sampleLimit == 0) ValidateBudget(sessions);
         string list = documents.Text;
-        if (mode != "append") {
+        if (selectedNames != null) list = String.Join("\r\n", selectedNames);
+        else if (mode != "append") {
             var names = new List<string>(); foreach (var entry in project.Index.items) if (mode == "check" || String.IsNullOrEmpty(entry.sha256)) names.Add(ImportableName(entry.document));
             list = String.Join("\r\n", names);
         }
@@ -311,6 +344,9 @@ public sealed partial class ExporterForm {
         var previousRun = project.FindRun(project.Index.activeRun);
         if(previousRun != null && previousRun.documents.Count == 0 && previousRun.state != "running") project.EndRun(previousRun);
         projectRun = project.NewRun(mode); batch = project.RunDirectory(projectRun.id);
+        projectRun.projectVersion=projectVersionInput.Text.Trim();if(projectRun.projectVersion.Length>0)project.Index.projectVersion=projectRun.projectVersion;
+        projectRun.catalogVersion=mode=="append"&&version.SelectedIndex>0?version.Text.Split(' ')[0]:"";
+        project.Save();
         job = new Dictionary<string, object> {{"batch", batch}, {"url", url.Text.Trim()}, {"ns", ns.Text.Trim()}, {"sessions", sessions}, {"interval", new[] {200, 100, 50}[speed.SelectedIndex]}, {"version", mode == "append" && version.SelectedIndex > 0 ? version.Text.Split(' ')[0] : ""}, {"scope", version.Text.StartsWith("v9.2 ") ? "all-products" : "doctor"}, {"confirmWeb", web.Checked}, {"inputSource", inputSource}, {"projectRun", projectRun.id}};
         if (!String.IsNullOrWhiteSpace(list)) File.WriteAllText(Path.Combine(batch, "files.txt"), list, new UTF8Encoding(false));
         job["sampleLimit"] = sampleLimit;
@@ -333,7 +369,10 @@ public sealed partial class ExporterForm {
                 }
                 if(limit > 0) ProjectBaseline.Atomic(Path.Combine(batch, "sample-full-scope.txt"), new UTF8Encoding(false).GetBytes(String.Join("\r\n", fullNames)));
                 var queue = project.Plan(projectRun, items, inputSource);
-                if (queue.Count == 0) {busy = false; status.Text = "已有文件均已取得，本次没有新增请求；检查更新可核实服务器变化。"; RenderProject(); return;}
+                if(projectRun.catalogVersion!=null&&projectRun.catalogVersion.Length>0&&!project.Index.catalogVersions.Contains(projectRun.catalogVersion)){project.Index.catalogVersions.Add(projectRun.catalogVersion);project.Save();}
+                projectRemainingCount = queue.Count;
+                RenderProject();
+                if (queue.Count == 0) {busy = false; status.Text = projectRun.protectedCount > 0 ? "已保护 " + projectRun.protectedCount + " 项候选或本地变动，其余已取得；本次无需读取。" : "已有文件均已取得，本次没有新增请求；检查更新可核实服务器变化。"; RenderProject(); return;}
                 var names = new List<string>(); foreach (var name in queue) names.Add(ImportableName(name));
                 File.WriteAllText(Path.Combine(batch, "files.txt"), String.Join("\r\n", names), new UTF8Encoding(false)); job["version"] = ""; SaveJob(); StartProjectReading(false);
             } else {
@@ -354,6 +393,7 @@ public sealed partial class ExporterForm {
                 }
                 if (!String.IsNullOrEmpty(lastReason) && lastReason != "cancelled-by-user") ShowWorkbenchError(ExplainReason(lastReason));
                 else status.Text += projectRun.state=="paused"?" · 已暂停，可继续":projectRun.mode=="check"?(projectRun.changed==0?" · 内容未变化":" · 变化待接纳"):" · 已保存到当前基线";
+                if (projectRun.protectedCount > 0) status.Text += " · 已保护 " + projectRun.protectedCount + " 项候选或本地变动";
                 sessionStatus.Text = Flag(result, "sessionRetained") ? "连接复用中，空闲后自动断开" : Flag(result, "logoutVerified") ? "连接已断开，退出响应已核实" : "退出状态待核实";
                 RenderProject(); if (closeRequested && !shuttingDown) StartClosing();
             }
@@ -370,14 +410,16 @@ public sealed partial class ExporterForm {
         projectRun.state = "running"; project.Save(); job["resume"] = resuming; SaveJob();
         string cancel = Path.Combine(batch, "stop.request"); if (File.Exists(cancel)) File.Delete(cancel);
         runningTrial = false;
-        summary.Text = projectRun.mode == "check" ? "检查更新 · 正在读取并对比" : "增补源码 · 正在读取、保存和核对";status.Text = "正在读取 · 0 / " + projectRun.documents.Count;
-        lastProjectReceipt=null;PaintProjectProgress();
-        Send(new {op = "run", job, user = user.Text, password = password.Text, resume = resuming, trial = false, sampleLimit = Number(job,"sampleLimit"), confirmed = budget.Checked, maxFiles = Number(job,"sessions")==1&&!Flag(job,"firstVerified")?1:0}); UpdateButtons();
+        summary.Text = projectRun.mode == "check" ? "检查更新 · 正在读取并对比" : (projectRun.mode == "retry" ? "补取源码" : "增补源码") + " · 正在读取、保存和核对";status.Text = "正在读取 · 0 / " + projectRun.documents.Count;
+        lastProjectReceipt=null;RenderProject();PaintProjectProgress();
+        Send(new {op = "run", job, user = user.Text, password = password.Text, resume = resuming, trial = false, sampleLimit = Number(job,"sampleLimit"), confirmed = IsBudgetApproved(Number(job,"sessions")), maxFiles = Number(job,"sessions")==1&&!Flag(job,"firstVerified")?1:0}); UpdateButtons();
     }
     void ResumeProjectRun() {
-        ValidateConnection(); EnsureProject();
+        EnsureProject();
         projectRun = project.FindRun(project.Index.activeRun);
         if (projectRun == null) throw new IOException("没有未完成采集。补充范围请点“增补源码”，重新核实服务器请点“检查更新”。");
+        if(projectRun.mode=="import"){ResumeSharedImport();return;}
+        ValidateConnection();project.BindOrigin(ProjectBaseline.Origin(url.Text,ns.Text));project.Save();
         batch = project.RunDirectory(projectRun.id); string file = Path.Combine(batch, "job.json");
         if (!File.Exists(file)) throw new IOException("上次任务尚未完成范围解析，请从更新记录结束该次采集后重新增补。");
         job = json.Deserialize<Dictionary<string, object>>(File.ReadAllText(file, Encoding.UTF8));
@@ -385,6 +427,30 @@ public sealed partial class ExporterForm {
         if (TextValue(job, "url") != url.Text.Trim() || TextValue(job, "ns") != ns.Text.Trim()) throw new IOException("请切回该项目的原始连接再继续。");
         if(Number(job, "sampleLimit") == 0) ValidateBudget(Number(job, "sessions")); legacyMode = false;
         if (projectRun.documents.Count == 0) {busy = true; Send(new {op = "run", job, plan = true});} else StartProjectReading(File.Exists(Path.Combine(batch, "export/baseline-state.json")));
+    }
+    static bool NeedsAttention(string outcome) {
+        return outcome == "missing" || outcome == "failed" || outcome == "empty" || outcome == "local-conflict" || outcome == "candidate-new" || outcome == "candidate-change" || outcome == "not-accepted";
+    }
+    List<string> ProjectRetryNames() {
+        var names = new List<string>(); if (project == null) return names;
+        var selected = SelectedRows();
+        if (selected.Count > 0) {
+            foreach (var row in selected) {var entry = project.Find(RawName(row)); if (entry != null && RetryableEntry(entry)) names.Add(ImportableName(entry.document));}
+        } else foreach (var entry in project.Index.items) if (RetryableEntry(entry)) names.Add(ImportableName(entry.document));
+        return names;
+    }
+    static bool RetryableEntry(BaselineEntry entry) {
+        return String.IsNullOrEmpty(entry.candidateRun) && (entry.outcome == "missing" || entry.outcome == "failed" || entry.outcome == "empty" || String.IsNullOrEmpty(entry.sha256) && (entry.outcome == "pending" || entry.outcome == "writing" || entry.outcome == "not-accepted"));
+    }
+    string SampleScopeFile() {return batch == null ? "" : Path.Combine(batch, "sample-full-scope.txt");}
+    int SampleRemainingCount() {
+        if (project == null || projectRun == null || projectRun.state != "complete" || !File.Exists(SampleScopeFile())) return 0;
+        int count = 0; foreach (var name in File.ReadAllLines(SampleScopeFile(), Encoding.UTF8)) {var entry = project.Find(name.TrimStart('/')); if (entry == null) entry = project.Find(name); if (entry == null || RetryableEntry(entry)) count++;} return count;
+    }
+    void ContinueProject() {
+        if (project != null && !String.IsNullOrEmpty(project.Index.activeRun)) {ResumeProjectRun(); return;}
+        if (SampleRemainingCount() == 0) throw new IOException("没有待继续的采集，可增补源码或补取未取得项。");
+        documents.Text = File.ReadAllText(SampleScopeFile(), Encoding.UTF8); version.SelectedIndex = 0; BeginProject("append");
     }
     void SaveProjectElapsed() {
         if (!IsProjectJob) return;
@@ -401,27 +467,58 @@ public sealed partial class ExporterForm {
         try {
             string text; using (var stream = new FileStream(receiptFile, FileMode.Open, FileAccess.Read, ReceiptSharing)) using (var reader = new StreamReader(stream, Encoding.UTF8)) text = reader.ReadToEnd();
             if (text == lastProjectReceipt) return;
-            var receipt = json.Deserialize<Dictionary<string, object>>(text); int total = 0, success = 0, missing = 0, failed = 0, pending = 0;
-            foreach (Dictionary<string, object> item in (IEnumerable)receipt["items"]) {total++; string value = TextValue(item, "status"); if (value == "fetched") success++; else if (value == "missing") missing++; else if (value == "pending" || value == "writing") pending++; else failed++;}
-            summary.Text = (projectRun.mode == "check" ? "检查更新" : Number(job,"sampleLimit") > 0 ? "试采" : "增补源码") + (reading ? " · 进行中" : projectRun.state == "paused" ? " · 已暂停" : " · 已结束");
-            status.Text = "已处理 " + (total - pending) + " / " + total + "   成功 " + success + "   未找到 " + missing + "   失败 " + failed;
+            var receipt = json.Deserialize<Dictionary<string, object>>(text); int total = 0, success = 0, missing = 0, failed = 0, pending = 0, skippedMissing = 0; var confirmedMissing = ConfirmedNames();
+            foreach (Dictionary<string, object> item in (IEnumerable)receipt["items"]) {total++; string value = TextValue(item, "status"); if (value == "fetched") success++; else if (value == "missing") {missing++; if(confirmedMissing.Contains(TextValue(item,"document")))skippedMissing++;} else if (value == "pending" || value == "writing") pending++; else failed++;}
+            summary.Text = (projectRun.mode == "check" ? "检查更新" : Number(job,"sampleLimit") > 0 ? "试采" : projectRun.mode == "retry" ? "补取源码" : "增补源码") + (reading ? " · 进行中" : projectRun.state == "paused" ? " · 已暂停" : " · 已结束");
+            status.Text = "本轮已处理 " + (total - pending) + " / " + total + "   已取得 " + success + "   未找到 " + missing + "   失败 " + failed;
+            projectRemainingCount = total - success - skippedMissing;
             progress.Value = total == 0 ? 0 : (total - pending) * 100 / total; lastProjectReceipt = text;
+            RenderProject();
         } catch (IOException) {/* Atomic receipt replacement: retain visible progress and read on the next timer tick. */}
     }
     void RenderProject() {
         if (project == null) {UpdateWorkbench(); return;}
-        results.VirtualListSize = 0; resultRows.Clear();
-        int files = 0, issues = 0, changes = 0;
-        foreach (var entry in project.Index.items) {
-            if (!String.IsNullOrEmpty(entry.sha256)) files++; if (entry.outcome != "fetched") issues++; if (!String.IsNullOrEmpty(entry.candidateRun)) changes++;
-            var item = new Dictionary<string, object> {{"document", entry.document}, {"status", entry.outcome}, {"bytes", entry.bytes}};
-            string label = ProjectOutcome(entry.outcome);
-            var row = new ListViewItem(ImportableName(entry.document)); row.SubItems.Add(label); row.SubItems.Add(entry.bytes.ToString()); row.SubItems.Add(DisplayDate(entry.checkedAt)); row.SubItems.Add(String.IsNullOrEmpty(entry.contentAt)?"尚未取得":DisplayDate(entry.contentAt)); row.Tag = item; resultRows.Add(row);
+        // During collection the receipt is newer than the published project index. Display it
+        // without ingesting/publishing candidates or hashing all source files on every timer tick.
+        var live = new Dictionary<string, Dictionary<string, object>>(StringComparer.Ordinal);
+        if (IsProjectJob && project.Index.activeRun == projectRun.id && lastProjectReceipt != null) {
+            var receipt = json.Deserialize<Dictionary<string, object>>(lastProjectReceipt);
+            foreach (Dictionary<string, object> item in (IEnumerable)receipt["items"]) live[TextValue(item, "document")] = item;
         }
-        projectHeading.Text = project.Index.name + "的源码基线";
-        projectOverview.Text = files + " 个当前文件   /   登记 " + project.Index.items.Count + "   /   需处理 " + issues + "\r\n最近全范围检查：" + DisplayDate(project.Index.lastFullCheck);
+        int index = 0, dirtyFirst = Int32.MaxValue, dirtyLast = -1;
+        int files = 0, issues = 0, changes = 0, waiting = 0, staged = 0;
+        foreach (var entry in project.Index.items) {
+            Dictionary<string, object> current;
+            bool collecting = live.TryGetValue(entry.document, out current);
+            string outcome = collecting ? TextValue(current, "status") : entry.outcome;
+            string bytes = collecting ? TextValue(current, "bytes") : entry.bytes.ToString();
+            string checkedAt = collecting && outcome != "pending" && outcome != "writing" ? TextValue(current, "observedAt") : entry.checkedAt;
+            if (!String.IsNullOrEmpty(entry.sha256)) files++; if (NeedsAttention(outcome)) issues++; if (!String.IsNullOrEmpty(entry.candidateRun)) changes++;
+            if (outcome == "pending" || outcome == "writing") waiting++; if (collecting && outcome == "fetched") staged++;
+            var item = new Dictionary<string, object> {{"document", entry.document}, {"status", outcome}, {"bytes", bytes}, {"currentFile", !String.IsNullOrEmpty(entry.sha256)}};
+            bool shared=entry.source!=null&&entry.source.StartsWith("shared:",StringComparison.Ordinal)&&String.IsNullOrEmpty(entry.checkedAt);
+            string label = collecting && outcome == "fetched" ? "已取得 · 待核对" : shared?(String.IsNullOrEmpty(entry.sha256)?"共享基线未取得":"共享基线 · 尚未检查服务器"):ProjectOutcome(outcome);
+            var columns = new[] {ImportableName(entry.document), label, bytes, DisplayDate(checkedAt), String.IsNullOrEmpty(entry.contentAt)?"尚未取得":DisplayDate(entry.contentAt)};
+            ListViewItem row;
+            if (index >= resultRows.Count) {row = new ListViewItem(columns); resultRows.Add(row);}
+            else {
+                row = resultRows[index];
+                if (row.SubItems.Count != columns.Length) {row = new ListViewItem(columns); resultRows[index] = row; dirtyFirst = 0; dirtyLast = PageSize - 1;}
+                for (int column = 0; column < columns.Length; column++) if (row.SubItems[column].Text != columns[column]) {
+                    row.SubItems[column].Text = columns[column];
+                    if (index >= resultPage * PageSize && index < (resultPage + 1) * PageSize) {dirtyFirst = Math.Min(dirtyFirst, index - resultPage * PageSize); dirtyLast = index - resultPage * PageSize;}
+                }
+            }
+            row.Tag = item; index++;
+        }
+        while (resultRows.Count > index) resultRows.RemoveAt(resultRows.Count - 1);
+        projectHeading.Text = project.Index.name + (String.IsNullOrEmpty(project.Index.projectVersion)?"":" / "+project.Index.projectVersion) + "的源码基线";
+        projectOverview.Text = "当前基线 " + files + " 项 / 登记 " + project.Index.items.Count + "\r\n已取得待核对 " + staged + " / 等待采集 " + waiting + " / 需处理 " + issues + "\r\n最近全范围检查：" + DisplayDate(project.Index.lastFullCheck);
         projectPath.Text = project.Root; acceptUpdates.Text = "接纳可更新项"; acceptUpdates.Visible = keepCurrent.Visible = changes > 0;
-        RenderPage(true); UpdateWorkbench();
+        RenderPage(false);
+        if (resultFilter.SelectedIndex > 0 || searchNames.Text.Length > 0 || fileKind.SelectedIndex > 0) results.Invalidate();
+        else if (dirtyLast >= dirtyFirst && dirtyFirst < results.VirtualListSize && results.IsHandleCreated) results.RedrawItems(dirtyFirst, Math.Min(dirtyLast, results.VirtualListSize - 1), true);
+        UpdateWorkbench();
     }
     static string DisplayDate(string text) {DateTime value; return DateTime.TryParse(text, out value) ? value.ToLocalTime().ToString("MM-dd HH:mm:ss") : "尚未检查";}
     static string ProjectOutcome(string outcome) {
@@ -431,21 +528,30 @@ public sealed partial class ExporterForm {
     void UpdateWorkbench() {
         if (!projectUI) return;
         bool idle = !busy && !closingPool && !closeRequested && !projectImporting, ready = idle && !blocked && worker != null && !worker.HasExited;
-        if (!legacyMode) {start.Text = "增补源码"; continueCurrent.Text = "继续上次采集"; resume.Text = "打开项目目录…";}
-        start.Enabled=ready;
-        if(remaining != null) {
-            remaining.Visible = project != null && projectRun != null && projectRun.state == "complete" && batch != null && File.Exists(Path.Combine(batch, "sample-full-scope.txt"));
-            remaining.Enabled = ready && remaining.Visible;
-        }
-        checkUpdates.Enabled = ready && project != null && project.Index.items.Count > 0; resume.Enabled = idle;
-        foreach (var input in workbenchInputs) input.Enabled = ready;
+        if (!legacyMode) {start.Text = "增补源码"; continueCurrent.Text = "继续采集"; resume.Text = "打开项目目录…";}
+        bool hasActiveRun = project != null && !String.IsNullOrEmpty(project.Index.activeRun);
+        start.Enabled=ready && !hasActiveRun;
+        checkUpdates.Enabled = ready && !hasActiveRun && project != null && project.Index.items.Count > 0; resume.Enabled = idle;
+        importList.Enabled = ready && !hasActiveRun;
+        foreach (var input in workbenchInputs) input.Enabled = ready && !hasActiveRun;
         freezeProject.Enabled = idle && project != null; historyProject.Enabled = idle && project != null;
+        if(importShared!=null)importShared.Enabled=idle;
         int safeChanges=0;bool conflicts=false;
         if(project!=null)foreach(var entry in project.Index.items){if(entry.outcome=="local-conflict")conflicts=true;else if(!String.IsNullOrEmpty(entry.candidateRun))safeChanges++;}
         acceptUpdates.Text="接纳可更新的 "+safeChanges+" 项";acceptUpdates.Enabled=idle&&safeChanges>0;keepCurrent.Enabled=idle&&project!=null;
         if(conflicts&&!busy&&status.Text.Contains("内容未变化"))status.Text=status.Text.Replace("内容未变化","本地变动已保护");
-        if (!legacyMode) {continueCurrent.Enabled = ready && project != null && !String.IsNullOrEmpty(project.Index.activeRun); retryMissing.Enabled = ready && project != null;}
-        if (blocked) {errorBanner.Text = "服务器会话状态尚未核实。请在连接设置中打开“核查会话”，登记实际核查结果后再继续。"; errorBanner.Visible = true; diagnostics.Visible = true;}
+        if (!legacyMode) {
+            bool active = project != null && !String.IsNullOrEmpty(project.Index.activeRun);
+            int remainder = active ? projectRemainingCount : SampleRemainingCount();
+            continueCurrent.Text = active&&projectRun!=null&&projectRun.mode=="import"?"继续导入共享基线":(active && projectRun != null && !String.IsNullOrEmpty(projectRun.reason) && projectRun.reason != "cancelled-by-user" ? "重试剩余 " : active ? "继续采集 " : "继续剩余 ") + remainder + " 项";
+            continueCurrent.Enabled = (ready || idle&&active&&projectRun!=null&&projectRun.mode=="import") && (active || remainder > 0);
+            int retry = ProjectRetryNames().Count;
+            retryMissing.Text = (SelectedRows().Count > 0 ? "补取所选 " : "补取未取得 ") + retry + " 项";
+            retryMissing.Enabled = ready && !active && retry > 0;
+            continueCurrent.BackColor = continueCurrent.Enabled ? WorkBlue : Color.White; continueCurrent.ForeColor = continueCurrent.Enabled ? Color.White : ForeColor;
+            if (closingPool) sessionStatus.Text = "正在断开连接，已保存的文件会保留…";
+        }
+        if (blocked) {errorBanner.Text = "服务器会话状态尚未核实。请在连接设置中打开“核查会话”，登记实际核查结果后再继续。"; errorBanner.Visible = true;}
     }
     bool MatchWorkbenchRow(ListViewItem row) {
         if (!projectUI) return true;
@@ -476,11 +582,83 @@ public sealed partial class ExporterForm {
         if(new FileInfo(path).Length>2*1024*1024)return"文件超过 2MB，请从项目目录或更新记录打开完整内容。";
         return File.ReadAllText(path,Encoding.UTF8);
     }
+    void RunLocalProjectWork(string title, Func<BackgroundWorker,object> work, Action<object> completed, Action<Exception> failed = null) {
+        projectImporting=true;UpdateButtons();status.Text=title;
+        var task=new BackgroundWorker {WorkerReportsProgress=true};
+        task.DoWork+=(s,e)=>{e.Result=work(task);};
+        task.ProgressChanged+=(s,e)=>{if(IsDisposed)return;Action update=()=>{if(!IsDisposed&&projectImporting)status.Text=title+" · "+e.ProgressPercentage+"%";};if(InvokeRequired)BeginInvoke(update);else update();};
+        Action<RunWorkerCompletedEventArgs> finish=e=>{
+            try {
+                if(IsDisposed){var abandoned=e.Error==null?e.Result as IDisposable:null;if(abandoned!=null)abandoned.Dispose();return;}
+                if(e.Error!=null){ShowWorkbenchError(e.Error.Message);if(failed!=null)failed(e.Error);}else completed(e.Result);
+            }catch(Exception ex){if(!IsDisposed)ShowWorkbenchError(ex.Message);}
+            finally{projectImporting=false;task.Dispose();}
+            if(!IsDisposed){UpdateButtons();if(closeRequested){if(worker!=null&&!worker.HasExited)StartClosing();else Close();}}
+        };
+        task.RunWorkerCompleted+=(s,e)=>{if(!IsDisposed&&InvokeRequired)BeginInvoke(new Action(()=>finish(e)));else finish(e);};task.RunWorkerAsync();
+    }
+    void ImportSharedProject() {
+        if(busy||projectImporting)throw new IOException("请先等待当前操作收束。");
+        string source,target;
+        using(var picker=new FolderBrowserDialog {Description="选择共享基线目录（包含 交付清单.json 和 src）"}){if(picker.ShowDialog(this)!=DialogResult.OK)return;source=picker.SelectedPath;}
+        ProjectBaseline.SharedManifest(source);
+        using(var picker=new FolderBrowserDialog {Description="选择新的空工作目录；保留共享原件不变"}){if(picker.ShowDialog(this)!=DialogResult.OK)return;target=picker.SelectedPath;}
+        BeginSharedImport(source,target);
+    }
+    void BeginSharedImport(string source,string target) {
+        if(project!=null){project.Dispose();project=null;}
+        int percent=-1;
+        RunLocalProjectWork("正在校验并导入共享基线",task=>ProjectBaseline.ImportShared(source,target,(count,total)=>{int value=count*100/Math.Max(1,total);if(value!=percent){percent=value;task.ReportProgress(value);}}),result=>{
+            AttachSharedProject((ProjectBaseline)result,target);
+            status.Text="共享基线已导入，可离线使用源码；配置自己的连接后可增补或检查更新。";sessionStatus.Text="未连接服务器；共享源码尚未与当前服务器核对";
+        },error=>{
+            if(File.Exists(Path.Combine(target,".export/project.json"))){var pending=new ProjectBaseline(target,"共享基线",null);var active=pending.FindRun(pending.Index.activeRun);if(active!=null&&active.mode=="import"){AttachSharedProject(pending,target);status.Text="导入尚未完成，已保存进度；可点“继续导入共享基线”。";}else pending.Dispose();}
+        });
+    }
+    void AttachSharedProject(ProjectBaseline imported,string target) {
+            project=imported;projectRun=project.Index.runs[project.Index.runs.Count-1];batch=project.RunDirectory(projectRun.id);job=null;lastProjectReceipt=null;runClock.Reset();elapsedBeforeResume=0;
+            displayingJob=true;
+            try {
+                string name=project.Index.name+" / "+(project.Index.projectVersion??"共享基线");string unique=name;bool existing=false;
+                foreach(var profile in saved)if(String.Equals(profile.Value["destination"],target,StringComparison.OrdinalIgnoreCase)){unique=profile.Key;existing=true;break;}
+                int count=2;if(!existing)while(saved.ContainsKey(unique))unique=name+" ("+(count++)+")";
+                profiles.Text=unique;destination.Text=target;
+                version.SelectedIndex=0;documents.Clear();inputSource="共享基线导入";
+                if(existing){var profile=saved[unique];url.Text=profile["url"];ns.Text=profile["ns"];user.Text=profile["user"];password.Text=profile["password"];remember.Checked=password.Text.Length>0;}
+                else {url.Clear();ns.Clear();user.Clear();password.Clear();remember.Checked=false;}
+                speed.SelectedIndex=0;projectVersionInput.Text=project.Index.projectVersion??"";
+            }finally{displayingJob=false;}
+            RestoreBudget();SaveProfile();RenderProject();
+    }
+    void ResumeSharedImport() {
+        string file=Path.Combine(project.RunDirectory(projectRun.id),"import-source.json");
+        if(!File.Exists(file))throw new IOException("导入尚未保存来源，请重新选择共享基线并导入到此工作目录。");
+        var source=json.Deserialize<Dictionary<string,object>>(File.ReadAllText(file,Encoding.UTF8));BeginSharedImport(TextValue(source,"sourceRoot"),project.Root);
+    }
     void FreezeProject() {
         EnsureProject();
-        using (var dialog = new FolderBrowserDialog {Description = "为完整交付副本选择基线之外的空目录"}) if (dialog.ShowDialog(this) == DialogResult.OK) {
-            project.Freeze(dialog.SelectedPath); status.Text = "交付副本已生成并逐文件核验：" + dialog.SelectedPath; Process.Start("explorer.exe", "\"" + dialog.SelectedPath + "\"");
+        using(var dialog=new Form {Text="保存项目版本基线",Size=new Size(760,500),MinimumSize=new Size(650,440),StartPosition=FormStartPosition.CenterParent,Font=Font}) {
+            var layout=new FlowLayoutPanel {Dock=DockStyle.Fill,FlowDirection=FlowDirection.TopDown,WrapContents=false,AutoScroll=true,Padding=new Padding(18)};dialog.Controls.Add(layout);
+            var nameField=new TextBox {Text=project.Index.name,Width=450,Name="baselineShortName"};layout.Controls.Add(Note("项目简称（用于列表和目录）"));layout.Controls.Add(nameField);
+            var versionField=new TextBox {Text=projectVersionInput.Text,Width=450,Name="baselineProjectVersion"};layout.Controls.Add(Note("项目版本（填写，独立于采集清单版本）"));layout.Controls.Add(versionField);
+            var details=new FlowLayoutPanel {AutoSize=true,FlowDirection=FlowDirection.TopDown,WrapContents=false,Visible=false};
+            var fullName=new TextBox {Text=String.IsNullOrEmpty(project.Index.fullName)?project.Index.name:project.Index.fullName,Width=540};var owner=new TextBox {Text=project.Index.owner??"",Width=540};var product=new TextBox {Text=project.Index.product??"",Width=540};
+            details.Controls.Add(Note("完整名称（可选）"));details.Controls.Add(fullName);details.Controls.Add(Note("归属 / 交付中心（可选）"));details.Controls.Add(owner);details.Controls.Add(Note("产品（可选）"));details.Controls.Add(product);
+            var showDetails=new CheckBox {Name="baselineDetails",Text="补充说明 · 完整名称、归属、产品",AutoSize=true};showDetails.CheckedChanged+=(s,e)=>{details.Visible=showDetails.Checked;};layout.Controls.Add(showDetails);layout.Controls.Add(details);
+            var path=new Label {AutoSize=true,MaximumSize=new Size(680,0)};string parent="";
+            Action preview=()=>{try {path.Text=parent.Length==0?"选择保存位置后，自动建立：项目简称 / 项目版本":ProjectBaseline.VersionDirectory(parent,nameField.Text.Trim(),versionField.Text.Trim());}catch(IOException ex){path.Text=ex.Message;}};
+            nameField.TextChanged+=(s,e)=>preview();versionField.TextChanged+=(s,e)=>preview();layout.Controls.Add(ActionButton("选择基线保存位置…",()=>{using(var picker=new FolderBrowserDialog {Description="选择基线库父目录，将自动建立 项目 / 版本"})if(picker.ShowDialog(dialog)==DialogResult.OK){parent=picker.SelectedPath;preview();}},false));layout.Controls.Add(path);preview();
+            layout.Controls.Add(Note("同事可导入后继续维护；缺失项如实保留，不共享连接凭据。"));
+            var footer=new FlowLayoutPanel {Dock=DockStyle.Bottom,AutoSize=true,FlowDirection=FlowDirection.RightToLeft,Padding=new Padding(10)};dialog.Controls.Add(footer);
+            var save=ActionButton("保存版本基线",()=>{
+                ProjectBaseline.VersionDirectory(parent,nameField.Text.Trim(),versionField.Text.Trim());dialog.Close();SaveVersionProject(parent,nameField.Text.Trim(),versionField.Text.Trim(),fullName.Text.Trim(),owner.Text.Trim(),product.Text.Trim());
+            },true);save.Name="saveVersionBaseline";footer.Controls.Add(save);var cancel=ActionButton("取消",()=>dialog.Close(),false);footer.Controls.Add(cancel);dialog.CancelButton=cancel;
+            Action fit=()=>{int width=Math.Max(200,layout.ClientSize.Width-54);nameField.Width=versionField.Width=Math.Min(450,width);fullName.Width=owner.Width=product.Width=Math.Min(540,width);details.MaximumSize=new Size(width,0);foreach(Control control in layout.Controls)if(control is Label||control is CheckBox)control.MaximumSize=new Size(width,0);};dialog.SizeChanged+=(s,e)=>fit();fit();dialog.ShowDialog(this);
         }
+    }
+    void SaveVersionProject(string parent,string shortName,string projectVersion,string fullName,string owner,string product) {
+        string target=ProjectBaseline.VersionDirectory(parent,shortName,projectVersion);projectVersionInput.Text=projectVersion;project.Index.name=shortName;project.Index.fullName=fullName;project.Index.owner=owner;project.Index.product=product;project.Index.projectVersion=projectVersion;project.Save();SaveProfile();
+        int percent=-1;RunLocalProjectWork("正在保存并核验项目版本基线",task=>{project.Freeze(target,(count,total)=>{int value=count*100/Math.Max(1,total);if(value!=percent){percent=value;task.ReportProgress(value);}});return target;},result=>{RenderProject();status.Text="版本基线已保存："+result;if(!quietValidation)Process.Start("explorer.exe","\""+result+"\"");});
     }
     void ShowProjectHistory() {
         EnsureProject();
