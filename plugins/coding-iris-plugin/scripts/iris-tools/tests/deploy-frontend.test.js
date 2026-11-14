@@ -38,6 +38,18 @@ test('local plan maps explicit files and rejects escapes, duplicate and invalid 
   const args={sourceRoot:root,files:['csp/page.csp']};const config={web:{cspBasePath:'web/csp',frontendTransport:'sftp'}};
   const context={workspaceRoot:root,sourceRoots:[{target:root}]};const env={REMOTE_PATH:'/web'};
   const p=buildPlan(args,config,env,context);assert.equal(p.files[0].remotePath,'/web/csp/page.csp');assert.deepEqual(p.documents,['web/csp/page.csp']);
+  for (const asset of ['scripts_lib/widget/widget.js', 'scripts_lib/widget/widget.css']) {
+   fs.mkdirSync(path.dirname(path.join(root, asset)), {recursive:true});
+   fs.writeFileSync(path.join(root, asset), '/* asset */');
+   const assetPlan=buildPlan({...args,files:[asset]},config,env,context);
+   assert.equal(assetPlan.files[0].remotePath, '/web/'+asset);
+   assert.deepEqual(assetPlan.documents, []);
+  }
+  for (const asset of ['scripts_lib/widget/private.json', 'scripts_library/widget.js']) {
+   fs.mkdirSync(path.dirname(path.join(root, asset)), {recursive:true});
+   fs.writeFileSync(path.join(root, asset), '{}');
+   assert.throws(()=>buildPlan({...args,files:[asset]},config,env,context), /Unsupported frontend path/);
+  }
   assert.throws(()=>buildPlan({...args,files:[...args.files,...args.files]},config,env,context));
   assert.throws(()=>buildPlan(args,config,{REMOTE_PATH:'/web/../other'},context));
   fs.writeFileSync(path.join(root,'csp/page.csp'),Buffer.from([0xff]));assert.throws(()=>buildPlan(args,config,env,context));

@@ -41,7 +41,7 @@ function buildPlan(args, config, env, context) {
     const local=immutable?.sourcePath||(immutable?requested:fs.realpathSync(requested));
     if(!inside(local,root) || !fs.statSync(immutable?.immutablePath||local).isFile())throw new Error('Source outside upload root or not a file');
     const relative=path.relative(root,local).split(path.sep).join('/');
-    if(!/^(csp|scripts|css)\//.test(relative) || !/\.(csp|js|css|html|htm)$/i.test(relative))throw new Error('Unsupported frontend path');
+    if(!/^(csp|scripts|scripts_lib|css)\//.test(relative) || !/\.(csp|js|css|html|htm)$/i.test(relative))throw new Error('Unsupported frontend path');
     const bytes=immutable?require('./deploy-guard').readSource({localPath:local,...immutable}):fs.readFileSync(local);
     const encoding = require('./frontend-encoding');
     const encodingPolicy = encoding.resolve(context, local, {projectTask:args.demandKind==='project'||!!args.sourcePlan});

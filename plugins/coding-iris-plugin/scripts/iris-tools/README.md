@@ -439,3 +439,7 @@ Python 默认使用 `.mcp.json` 对应 SFTP 的 `command`，可用 `--python <in
 ## 前端编码
 
 `frontend-encoding-cli.js check` 是修改前检查，`confirm` 在开发人员首次确认后保存源码编码、服务器编码及目标指纹，`inspect` 只报告原始字节候选。普通部署、source-sync 和移植发布共用同一转换器，Atelier 前端使用 binary 读取与 enc 写入。完整参数、配置及兼容约定见[编码契约](../../references/frontend-encoding.md)。
+
+### SFTP 前端资源目录
+
+deploy-frontend 的 SourceRoot 可包含 `csp/`、`scripts/`、`scripts_lib/` 和 `css/`。资源按相对路径映射到配置的远端 Web 根，支持 `.csp`、`.js`、`.css`、`.html`、`.htm`；CSP 必须位于 `csp/`，静态资源不触发编译。
