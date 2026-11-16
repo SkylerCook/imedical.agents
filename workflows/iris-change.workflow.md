@@ -20,3 +20,7 @@
 4. Review / Testing 检查编码、稳定翻译 key、diff、目标测试及最终修改后的验证新鲜度。
 
 明确 i18n 需求可由 `i18n-agent` 复用同一 `scripts/agent-orchestrator.js` 和通用角色，但继续使用 `i18n-change.workflow.md` 的分类、模板与翻译阶段。不支持正式 adapter 时退化到 `serial`；需要用户操作或验收时使用 `human`。不允许因能力缺失跳过适用 IRIS rules/skills。
+
+## 开发复用交接
+
+领域阶段沿[开发复用](../agents/_shared/execution-guidance.md#开发复用)及 coding owner 的[通用编码规则](../plugins/coding-iris-plugin/rules/iris_coding_general.md#开发复用)执行。候选类方法、服务、Query、HISUI 控件和项目公共能力随原 handoff 进入设计、实现及冻结 diff 审查，offline 同样核对本地材料中的候选和覆盖限制。

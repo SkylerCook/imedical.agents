@@ -172,6 +172,8 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 ## coding-iris-plugin
 
+直接描述开发需求即可，例如“给列表增加批量禁用”。Agent 按[开发复用流程](../../agents/_shared/execution-guidance.md#开发复用)查找既有控件、服务和公共实现，核对后实施，必要取舍随原交付说明。图谱不可用时继续源码检索，源码覆盖限制如实说明。
+
 MCP v1.7.1 的配置可信、编译约束与副本升级见[更新说明](../update-agents.md#iris-mcp-171)；遇到拒绝先按 owner 规则读取实际回执，不自动放宽策略。
 
 [查看该插件清单](capability-catalog.md#coding-iris-plugin)。下面的示例发给 Agent，不在终端执行；路径、对象和范围替换为当前工程实际值。

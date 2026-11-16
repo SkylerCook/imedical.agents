@@ -105,6 +105,8 @@ BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调
 
 ## coding-iris-plugin
 
+三个编码入口共用[开发复用](../../plugins/coding-iris-plugin/rules/iris_coding_general.md#开发复用)，新增实现前定位已有能力并核对消费者契约，最终 Review 检查重复逻辑与公共化风险。
+
 IRIS 远端连接统一入口：[会话管理、既有项目更新与回退](iris-managed-sessions.md)。普通查询正常连接，由管理进程复用和回收；真实宿主回执与服务端资源证据分别验收。
 
 开发方式由当前 ContextRoot 的 `config/iris-development.json` 独立选择，profile 只引用。offline 路由[统一离线协议](../../plugins/coding-iris-plugin/references/iris-offline-development.md)：支持回执源码、人工目录和完整 XML，经冻结基线、本地修改/检查、Review、Pack 与独立 Verify 后交用户现场验证。connected 保留既有服务器同步与发布保护；普通更新不切换方式。源码/XML 薄入口与 PowerShell 核心随插件分发，人工导出仍单独取得 ZIP。

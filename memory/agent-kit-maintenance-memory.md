@@ -4,6 +4,8 @@
 
 ## 当前重点
 
+- 开发复用已接入通用角色和 IRIS 三个编码入口，事实源为[共享流程](../agents/_shared/execution-guidance.md#开发复用)，验收范围与局限见[本轮记录](../maintenance/validation/development-reuse-2026-11-16.md)。
+
 - 插件按需部署见[指南](../docs/guides/plugin-deployment.md)；0.11.2 限定单 owner 入口维护、完整检查失败回执，缺行历史仅保资源、不推断启用，初始化 source 锚定插件。验证与待验范围见[实施记录](../maintenance/validation/plugin-on-demand-2026-11-13.md)。
 
 - coding 0.29.0 的诊断、自动本地退出证据及调度测量见[实施记录](../maintenance/validation/iris-session-governance-2026-11-13.md)。源码运行时已完成授权只读试点，业务副本升级与平台矩阵按记录分别验收。

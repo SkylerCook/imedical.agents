@@ -62,3 +62,9 @@ task-affinity: [iris, coding, safety, editing]
 - 前端 CSP/JS/CSS 修改前执行[编码契约](../references/frontend-encoding.md)的配置检查，按需项目首次确认服务器编码后复用。授权部署时强制按目标编码生成并验证产物。
 - 无法运行必要验证时，在回复中说明原因和剩余风险。
 - 本地验证通过后状态只能进入 `acceptance-pending`；只有用户明确确认验收，才能进入 `accepted`，并且验收不隐含 feedback 写入授权。
+
+## 开发复用
+
+新增、替换或复制实现前，以及最终 diff 后，读取并执行[共享开发复用流程](../../../agents/_shared/execution-guidance.md#开发复用)。iris-coding、iris-backend-coding、iris-frontend-coding 的 fast/full/guarded 与 offline 分支均适用。Overlay 相对引用不可达时通过 ContextRoot 的 capability.json 定位 CapabilityRoot。
+
+后端核对已有类方法、业务服务、Query 和公共处理的消费者契约，并继续完成专项基类核对。前端沿专项规则的 HISUI 优先顺序检查控件、交互、状态和主题能力。候选与取舍随现有交付传递，最终自审或 review-agent 复核重复实现和兼容风险。

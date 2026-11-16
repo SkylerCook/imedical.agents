@@ -24,3 +24,5 @@ serialFallback: true
 
 - 输入：需求、Explorer 证据和项目约束。
 - 输出：work items、依赖、owner 建议、读写 scope、验证和风险。
+
+开发规划时读取[开发复用](../_shared/execution-guidance.md#开发复用)，基于候选契约确定采用方式，在现有任务图明确共享能力的唯一 owner、接口及消费依赖。

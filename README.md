@@ -1,5 +1,7 @@
 # imedical.agents
 
+开发新增实现前自动查找并核对已有能力，最终 Review 复核重复实现与兼容风险。通用角色及 IRIS 三个编码入口共用[开发复用流程](agents/_shared/execution-guidance.md#开发复用)。
+
 会话状态可直接查看当前阻断与下一步，恢复自动复用可靠本地退出回执，说明见[统一会话指南](docs/guides/iris-managed-sessions.md)。
 
 配置更新复用受管 Pending 区块并保留人工内容；编码确认支持混合换行，升级步骤见[更新说明](docs/update-agents.md)。

@@ -26,6 +26,8 @@ description: Route IRIS coding requests with unclear frontend/backend boundaries
 
 ## 修改前
 
+新增、替换或复制实现前，以及最终 diff 后，执行[通用规则的开发复用](../../rules/iris_coding_general.md#开发复用)，将候选依据和采用方式随现有交付或 Review 输入传递，完成重复实现与消费者兼容性复核。
+
 先读取当前 ContextRoot 的 `config/iris-development.json`：`developmentMode: offline` 直接按[离线开发协议](../../references/iris-offline-development.md)处理人工源码或完整 XML，本地修改/检查/Review/交付后等待用户现场验证；禁止医院远端读取、执行与部署，也不调用原生 IRIS MCP。缺省或 `connected` 才执行下面的在线条件；未知值停止核对，普通更新不自动切换模式。
 
 当前需求类型为 `project` 且 `contextMode: intent-first-on-demand-export` 时，先读[项目开发协议](../../references/project-demand-development.md#修改前与部署前同步)，待修改文件无论本地是否存在，都先完成 before-edit 同步，有变化先提交 export 基线，再开始需求修改；该分支优先于下列默认 direct。类型由用户本次指定或合法项目默认值确定，不能由 contextMode 推导；标版沿既有分支，后续均读取命中的专项规则。

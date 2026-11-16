@@ -31,3 +31,7 @@
 无 subagent、无多会话 API、无 skill 或无法解析 YAML 时，单 Agent 直接读取本 Markdown，按相同阶段和门禁串行执行。任务图终态、最终验证新鲜、无未决 action，且业务需求已验收或框架维护已进入 `maintenance-complete` 后才可完成。commit、merge、push、部署和 feedback 写入仍需各自授权。
 
 阶段顺序是默认方法，可按 execution-guidance.md 合并或重排；普通 skill 不因本 workflow 存在而创建 run。安全、授权、领域规则和最终验证不变。反馈按 delivery-lifecycle.md 的 on-signal/always 策略执行。
+
+## 开发复用交接
+
+各阶段执行[开发复用](../agents/_shared/execution-guidance.md#开发复用)。Explorer 将候选源码与调用证据交 Planner，Planner 在现有任务图确定采用方式、共享 owner 和消费依赖，Coding 复核后实现，Coordinator 随冻结 diff 传递候选及取舍，Review 独立对照源码。单 Agent 沿相同阶段串行完成并标明自审，普通 skill 沿原入口执行。

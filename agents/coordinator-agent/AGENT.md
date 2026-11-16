@@ -45,3 +45,5 @@ orchestrationProtocol: agents/_shared/orchestration-protocol.md
 - 输出：`00-run-manifest.json`、`events.jsonl`、actions、messages、handoffs、集成计划和验收步骤。
 
 无调度器或 adapter 时，按 workflow 使用 `serial`；需要人工反馈时使用 `human` 并阻塞。
+
+开发任务按[开发复用](../_shared/execution-guidance.md#开发复用)将候选依据随任务和冻结 diff 传递，共享能力由唯一 owner 实现，消费者按任务依赖接入。

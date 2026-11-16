@@ -1,5 +1,7 @@
 # imedical.agents 后续治理队列
 
+- P2 开发复用后续覆盖，通用角色及 IRIS 三入口接入后，移动端、xc 等领域直接入口按后续授权逐一适配；xc 沿既有暂缓条件。真实业务长期效果随实际需求观察，首轮夹具证据见[验证记录](../maintenance/validation/development-reuse-2026-11-16.md)。
+
 - P2 按需插件部署验收，补三平台 Node22/24 CI 和指定业务工程的正常更新、显式迁移及宿主发现证据，详见文末同名条目。
 
 - P2 会话 0.29.0 发布验收，补 macOS/Linux 与 Node 22 矩阵、业务副本整包升级及获授权的现场写结果恢复。源仓诊断、自动本地退出证据、Windows 更新回归和真实只读试点已完成，见[实施记录](../maintenance/validation/iris-session-governance-2026-11-13.md)。

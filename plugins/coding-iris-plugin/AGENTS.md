@@ -160,6 +160,8 @@ SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项�
 
 ## 按需辅助与收尾
 
+新增、替换或复制实现前，以及最终 diff 后，执行[开发复用](rules/iris_coding_general.md#开发复用)，由三个编码入口与 Review 共同承担。
+
 遵循 agents/_shared/execution-guidance.md（源仓根；部署态为 .agents/agents/_shared/）。guidanceMode 默认 auto，可选 concise/assisted；辅助程度不改变授权、编码及领域契约。方法允许合并或重排，IRIS 编码共用 iris_coding_general 的风险分流。业务验收后按信号加载 feedback，无信号不例行报告。现有工程按 docs/update-agents.md 定点合并项目入口，普通能力包更新不重写用户 AGENTS/profile。
 
 - 提交与全局 upstream 检查去重：见 [协议](../demand-delivery-plugin/references/commit-upstream-check.md)，复用进程级 hooks.requireUpToDate 配置，手动提交保持原检查。

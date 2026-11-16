@@ -17,6 +17,8 @@ description: Use when working on IRIS ObjectScript backend code with coding-iris
 
 ## 路由与默认方法
 
+新增、替换或复制实现前，以及最终 diff 后，执行[通用规则的开发复用](../../rules/iris_coding_general.md#开发复用)，将候选依据和采用方式随现有交付或 Review 输入传递，完成重复实现与消费者兼容性复核。
+
 执行路径统一由 rules/iris_coding_general.md 判定；guidanceMode 按共享 execution-guidance 协议解析。步骤可合并、重排，硬约束不变；不因文件数自动升级、不因 full/guarded 自动建 run。
 
 ## 部署方式

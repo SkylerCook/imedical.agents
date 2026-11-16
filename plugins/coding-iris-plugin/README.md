@@ -1,5 +1,7 @@
 # coding-iris-plugin
 
+开发复用覆盖 iris-coding、前端与后端直接入口，按[通用规则](rules/iris_coding_general.md#开发复用)自动查找候选、核对契约并复核最终 diff。已有项目使用正常能力包更新同时取得插件、agents/ 与 workflows/；Overlay 更新共享 CapabilityRoot 后按现有流程刷新 ContextRoot。规则随下一次任务读取生效，配置迁移和旧文件清理均无需执行。
+
 0.29.0 增加状态下一步指引、失败发送阶段和自动本地退出证据，旧配置可直接读取，实际更新步骤见[统一会话指南](../../docs/guides/iris-managed-sessions.md#诊断与自动恢复证据0290)。编码 confirm 可附带 --files 在写配置前校验目标可表示性。
 
 0.28.3 同时兼容需求类型和导出覆盖表的单 CR，已确认服务器编码的前端导出通过原字节保持末尾换行，具体边界见[编码契约](references/frontend-encoding.md)。

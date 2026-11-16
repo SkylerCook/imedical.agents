@@ -1,4 +1,6 @@
-﻿$ErrorActionPreference = "Stop"
+﻿param([switch]$ReuseOnly)
+
+$ErrorActionPreference = "Stop"
 & (Join-Path $PSScriptRoot "profile-merge.tests.ps1")
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
@@ -398,6 +400,81 @@ function Assert-TestDocsDescriptionRefresh {
   Assert-True ([IO.File]::ReadAllText($readme) -eq ($original + $tail)) "Managed refresh must preserve project prose exactly"
   $again = & $Updater -ProjectRoot $Root -Mode Write -NoPull -Detailed | Out-String
   Assert-Contains $again "docs-layout-ok" "Repeated ordinary Write should be idempotent"
+}
+
+
+if ($ReuseOnly) {
+  $reuseRoot = New-TestProject
+  $reuseOverlay = $null
+  try {
+    $capability = Join-Path $reuseRoot '.agents'
+    $paths = @('agents/_shared/execution-guidance.md', 'plugins/coding-iris-plugin/rules/iris_coding_general.md')
+    foreach ($skill in @('iris-coding', 'iris-backend-coding', 'iris-frontend-coding')) {
+      $paths += "plugins/coding-iris-plugin/skills/$skill/SKILL.md"
+    }
+    foreach ($role in @('explorer', 'planner', 'coding', 'review', 'coordinator')) {
+      $paths += "agents/$role-agent/AGENT.md"
+    }
+    $paths += @('workflows/standard-change.workflow.md', 'workflows/iris-change.workflow.md')
+    foreach ($relative in $paths) {
+      $target = Join-Path $capability $relative
+      New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null
+      Copy-Item -LiteralPath (Join-Path $repoRoot $relative) -Destination $target
+    }
+    # The test keeps the existing lightweight plugin manifest and migrations.
+    $write = & (Join-Path $capability 'scripts/update-agents.ps1') -ProjectRoot $reuseRoot -Mode Write -NoPull -Detailed | Out-String
+    Assert-Contains $write 'agent-thin-index' 'Standard update should complete'
+    foreach ($relative in $paths) {
+      Assert-True ([IO.File]::ReadAllText((Join-Path $capability $relative)) -eq [IO.File]::ReadAllText((Join-Path $repoRoot $relative))) "Updated reuse entry must retain canonical content: $relative"
+    }
+    $reuseOverlay = New-OverlayTestProject -CapabilityProjectRoot $reuseRoot
+    $overlayWrite = & (Join-Path $reuseOverlay.ContextRoot 'scripts/update-agents.ps1') -ProjectRoot $reuseOverlay.WorkspaceRoot -Mode Write -NoPull -Detailed | Out-String
+    Assert-Contains $overlayWrite 'capability-pull-skipped-overlay' 'Overlay update should complete'
+    $manifest = Get-Content -Raw -Encoding UTF8 (Join-Path $reuseOverlay.ContextRoot 'capability.json') | ConvertFrom-Json
+    $shared = Join-Path $manifest.capabilityRoot 'agents/_shared/execution-guidance.md'
+    Assert-True (Test-Path -LiteralPath $shared -PathType Leaf) 'CapabilityRoot fallback must resolve shared protocol'
+    foreach ($root in @($capability, $reuseOverlay.ContextRoot)) {
+      foreach ($relative in $paths | Where-Object { $_ -ne 'agents/_shared/execution-guidance.md' }) {
+        $entry = Join-Path $root $relative
+        $content = [IO.File]::ReadAllText($entry)
+        Assert-True ($content -eq [IO.File]::ReadAllText((Join-Path $repoRoot $relative))) "Deployed entry must retain canonical content: $entry"
+        $reuseLinks = [regex]::Matches($content, '\]\(([^)]+)#开发复用\)')
+        Assert-True ($reuseLinks.Count -gt 0) "Entry must route to development reuse: $entry"
+        foreach ($match in $reuseLinks) {
+          $resolved = [IO.Path]::GetFullPath((Join-Path (Split-Path $entry) $match.Groups[1].Value))
+          Assert-True (Test-Path -LiteralPath $resolved -PathType Leaf) "Reuse pointer must resolve: $entry"
+        }
+      }
+    }
+    Write-Output 'Reuse standard/Overlay update tests passed'
+  } finally {
+    # Delete only returned fixture identities; unlink reparse points without following targets.
+    function Remove-ReuseFixtureTree {
+      param([string]$Path)
+      $item = Get-Item -LiteralPath $Path -Force
+      if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+        $item.Delete()
+      } elseif ($item.PSIsContainer) {
+        foreach ($child in Get-ChildItem -LiteralPath $Path -Force) {
+          Remove-ReuseFixtureTree -Path $child.FullName
+        }
+        Remove-Item -LiteralPath $Path -Force
+      } else {
+        Remove-Item -LiteralPath $Path -Force
+      }
+    }
+    $ownedRoots = @($reuseRoot)
+    if ($reuseOverlay) { $ownedRoots += @($reuseOverlay.WorkspaceRoot, $reuseOverlay.SourceTarget, $reuseOverlay.GitRoot) }
+    $tempRoot = [IO.Path]::GetFullPath((Get-AgentsTestTemp)).TrimEnd('\')
+    foreach ($target in $ownedRoots) {
+      $absolute = [IO.Path]::GetFullPath($target)
+      Assert-True ((Split-Path $absolute) -eq $tempRoot) "Cleanup must stay in fixture temp root: $absolute"
+      Assert-True ((Split-Path $absolute -Leaf) -match '^agents-(update-test|overlay-update-test|overlay-source|overlay-git)-[a-f0-9]{32}$') "Cleanup requires a returned fixture identity: $absolute"
+      if (Test-Path -LiteralPath $absolute) { Remove-ReuseFixtureTree -Path $absolute }
+      Assert-True (-not (Test-Path -LiteralPath $absolute)) "Fixture cleanup must complete: $absolute"
+    }
+  }
+  return
 }
 
 Assert-True (Test-Path -LiteralPath $scriptUnderTest -PathType Leaf) "scripts/update-agents.ps1 should exist"

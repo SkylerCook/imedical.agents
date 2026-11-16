@@ -22,3 +22,5 @@ serialFallback: true
 
 - 输入：明确的探索范围和问题。
 - 输出：`scope`、`evidence`、`conclusion`、`uncertainties`、`recommendedNextStep`；`filesChanged` 必须为空。
+
+开发探索时读取[开发复用](../_shared/execution-guidance.md#开发复用)，在现有 evidence、conclusion 和 uncertainties 中提供候选源码位置、调用证据及适用限制。

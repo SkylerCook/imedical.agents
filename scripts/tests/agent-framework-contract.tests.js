@@ -68,3 +68,30 @@ for (const relative of ["agents/i18n-agent/AGENT.md", "workflows/i18n-change.wor
 }
 
 console.log("agent framework contract tests passed");
+
+// Reuse routing is a structural contract. Agent behavior is exercised separately.
+const reuseProtocol = "agents/_shared/execution-guidance.md";
+const reuseRule = "plugins/coding-iris-plugin/rules/iris_coding_general.md";
+function assertReuseLink(source, target) {
+  const links = [...read(source).matchAll(/\[[^\]]+\]\(([^)]+)#开发复用\)/g)];
+  assert(links.some(match => path.resolve(root, path.dirname(source), match[1]) === path.resolve(root, target)),
+    `${source} must route reuse checks to ${target}`);
+  assert(read(target).includes("## 开发复用"), `${target} must provide the linked section`);
+}
+for (const role of ["explorer", "planner", "coding", "review", "coordinator"]) {
+  assertReuseLink(`agents/${role}-agent/AGENT.md`, reuseProtocol);
+}
+for (const workflow of ["standard-change", "iris-change"]) {
+  assertReuseLink(`workflows/${workflow}.workflow.md`, reuseProtocol);
+}
+assertReuseLink(reuseRule, reuseProtocol);
+for (const skill of ["iris-coding", "iris-backend-coding", "iris-frontend-coding"]) {
+  const entry = `plugins/coding-iris-plugin/skills/${skill}/SKILL.md`;
+  assertReuseLink(entry, reuseRule);
+  assert(read(entry).includes("最终 diff 后"), `${skill} must cover final review`);
+}
+const reuse = read(reuseProtocol).split("## 开发复用")[1];
+for (const behavior of ["消费者兼容性", "源码不完整", "图谱缺失", "单 Agent", "唯一 owner", "两处源码位置", "CapabilityRoot", "现有 I/O"]) {
+  assert(reuse.includes(behavior), `reuse guidance must cover ${behavior}`);
+}
+console.log("development reuse routing contract tests passed");
