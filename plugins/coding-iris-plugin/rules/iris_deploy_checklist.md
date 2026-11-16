@@ -8,6 +8,8 @@ related:
 
 # IRIS 部署执行清单
 
+JavaScript 校验器启动失败、超时或被信号终止时返回 javascript-check-failed，并保留 code、status、signal；按进程诊断处理。实际语法检查非零退出继续返回 javascript-syntax-failed。校验未完成时停止相关部署。
+
 部署 IRIS 文件时优先按本清单执行。标题和字段名尽量稳定，便于低能力模型逐项检查。
 
 先解析当前 `ContextRoot/config/iris-development.json` 的 `developmentMode`。offline 按[离线协议](../references/iris-offline-development.md)生成交付并独立 Verify，交给用户现场验证，不读取医院连接、不运行下文部署或编译。connected（含旧配置缺省）继续本清单；非法值停止。切换模式不释放锁、不清除未知结果，也不替代原发布许可。

@@ -137,6 +137,9 @@ function validate(file,content,base,remote) {
  if(/^(<<<<<<< |=======\s*$|>>>>>>> )/m.test(content))stop('conflict-markers',{file});
  if(/\.(js|cjs|mjs)$/i.test(file)) {
   const r=spawnSync(process.execPath,['--check'],{input:content,encoding:'utf8',windowsHide:true,timeout:30000});
+  if(r.error || r.status === null) {
+   stop('javascript-check-failed', {file, code:r.error?.code || null, status:r.status, signal:r.signal || null});
+  }
   if(r.status!==0)stop('javascript-syntax-failed',{file});
  }
 }
