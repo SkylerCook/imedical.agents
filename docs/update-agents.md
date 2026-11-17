@@ -28,6 +28,8 @@ coding 0.28.3 与根更新器共同修复 profile 混合换行和重复 Pending 
 
 现有两步更新按[更新流程](#更新已安装-agents)执行，同一授权范围内摘要无阻塞即可继续。Overlay 使用[两阶段更新](#workspace-overlay-两阶段更新)，共享能力包只更新一次。版本专项说明仅在命中对应迁移时读取。
 
+新项目默认按需落地业务插件与必需资源；普通更新保留当前部署方式和已安装范围，并补齐新增必需依赖，不会将旧全量项目自动迁移。新增能力通过 [plugin-management](../plugins/agent-context-kit/skills/plugin-management/SKILL.md) 补装、初始化并启用；迁移与清理见[插件与 vendor 按需部署](#插件与-vendor-按需部署)。
+
 必要插件迁移的 `config-migration-failed` 或 `config-migration-conflict` 会返回非成功，摘要保留插件、阶段及已完成结果。解决具体原因后重跑原入口。可选 docs 维护警告沿原兼容行为报告。
 
 coding 0.28.2 初始化复用已知事实并集中报告缺项，受管薄索引在初始化授权内直接生成。配置生成保留其它 MCP、同名服务扩展字段和显式禁用，旧项目普通更新取得代码即可，无新增配置迁移。
@@ -306,7 +308,7 @@ iwr -UseBasicParsing https://gitee.com/skyler-cook/imedical.agents/raw/master/sc
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun
 ```
 
-首次安装后的更新默认处理两个基础插件 `agent-context-kit` 和 `agent-framework-evolution`；后者承接原默认根级反馈与打包技能，不自动执行反馈。`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg` 等插件代码会随 `.agents/plugins/` 拉取，但状态为 `available` 时不会合并配置或生成 thin-index。
+新安装默认采用按需部署，取得基础入口、能力目录和共享脚本。首次安装后的更新默认处理两个基础插件 `agent-context-kit` 和 `agent-framework-evolution`；后者承接原默认根级反馈与打包技能，不自动执行反馈。`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc` 等业务插件及必需资源按项目选择补装，不默认全部落盘。新补装插件保持 `available`，初始化验收前不会按 `enabled` 合并配置或生成日常发现入口。后续接入按[安装后的上下文维护](#安装后的上下文维护)执行，完整选择与补装流程见[插件按需部署](guides/plugin-deployment.md)。
 
 如果摘要没有停止条件，继续执行：
 
@@ -328,18 +330,22 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 .agents/plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md
 ```
 
-该步骤负责维护 `AGENTS.md`、`.agents/config/project_context_profile.md`、`.agents/config/plugin_profile.md`、`.agents/rules/` 和 `.agents/memory/project-memory.md`。上下文维护完成后，再根据项目需要选择插件。选择插件时必须先读取 `.agents/plugins/<plugin>/.agents-plugin/plugin.json`：
+该步骤负责维护 `AGENTS.md`、`.agents/config/project_context_profile.md`、`.agents/config/plugin_profile.md`、`.agents/rules/` 和 `.agents/memory/project-memory.md`。首次初始化结合本地工程证据推荐体系组合，并集中确认后续明确任务触发自动补装的偏好；决定沿既有部署策略保存。
+
+插件选择与接入使用 [plugin-management](../plugins/agent-context-kit/skills/plugin-management/SKILL.md)。先核对当前安装与启用状态，尚未落盘时用 `plugin-deploy.js` 的 `plan/ensure` 补齐目标插件和必需依赖，再按返回的初始化 source 依次读取接入契约。已有自动补装授权按保存偏好执行；用户只明确要求本次安装时使用 `ensure --explicit`，不扩大为后续授权。依赖排除冲突或显式禁用的恢复先沿[部署指南](guides/plugin-deployment.md)处理，不直接读取不存在的目标路径。
+
+插件落盘后，读取 `.agents/plugins/<plugin>/.agents-plugin/plugin.json` 核对：
 
 - `initSkill` 指向该插件首次接入必须读取的真实初始化 skill。
 - `dependencies`、`dependsOn` 或 `depends_on` 是依赖插件列表。
 - 若依赖插件尚未在 `plugin_profile.md` 中标记为 `enabled`，先初始化依赖插件；依赖插件验收并写入 `enabled` 后，再初始化目标插件。
-- 插件初始化闭环验收通过后，使用 `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin <plugin-name> -Status enabled` 机械维护状态。
+- 领域配置验收后，使用 `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin <plugin-name> -Status enabled` 维护状态；按需模式由工具生成并读回验证发现入口，成功后才记录 `enabled`。全量模式沿原有注册、更新流程。
 
 脚本不会自动把依赖插件标记为 `enabled`。`enabled` 表示该插件已经完成项目上下文、配置、thin-index、脚本和入口路由的初始化闭环，不只是插件目录已存在。
 
 医生站 AI 集成插件 `iris-imedical-doctor-ai` 复用已启用的 `coding-iris-plugin`；同步代码后仍须执行初始化，不会因更新自动启用。接入、兼容边界与专项验证见 [AI 工作站插件接入](guides/iris-imedical-doctor-ai.md)。
 
-常见插件初始化入口：
+以下是插件已落盘后的常见初始化入口；尚未安装时先走上述补装流程。宿主需要重载才能发现新技能时说明具体操作，源文件可读与宿主实际发现分别验证：
 
 ```text
 .agents/plugins/codegraph-query/skills/codegraph-query/SKILL.md
@@ -422,6 +428,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 ```
 
 ## 更新已安装 .agents
+
+普通更新沿当前部署方式执行，保留已安装能力及项目启用状态，并补齐新增必需依赖；不会自动补装所有业务插件、启用 `available/disabled` 插件或将旧全量部署迁移为按需部署。新增插件走 [plugin-management](../plugins/agent-context-kit/skills/plugin-management/SKILL.md)；显式迁移与物理资源清理走[插件按需部署](guides/plugin-deployment.md#更新迁移与清理)，先预览再执行明确范围。禁用只撤下可识别的受管入口并保留物理包、配置和项目资料。
 
 先运行 dry-run：
 
