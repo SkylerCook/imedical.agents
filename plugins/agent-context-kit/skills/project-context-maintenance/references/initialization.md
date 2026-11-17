@@ -84,19 +84,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 仅当初始化范围包含插件选择，或当前任务明确需要新增能力时，引导用户选择；普通维护和日常优化不执行本节。不要因为 `.agents/plugins/<plugin>/` 目录存在就自动启用。插件目录存在只表示 `available`。
 
-执行顺序：
-
-1. 读取 `.agents/config/plugin_profile.md`，确认当前插件状态。
-2. 扫描候选插件的 `.agents/plugins/<plugin>/.agents-plugin/plugin.json`，读取 `name`、`displayName`、`initSkill`、`dependencies`、`dependsOn` 或 `depends_on`。
-3. 根据项目上下文向用户说明可选插件能力和适用场景；只在用户明确选择或项目任务明确需要时继续。
-4. 对用户选择的目标插件，先处理 manifest 中声明的依赖插件：
-   - 若依赖插件状态不是 `enabled`，先读取依赖插件真实 init skill 并完成初始化闭环。
-   - 依赖插件验收通过后，运行 `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin <dependency-plugin> -Status enabled` 机械写入状态。
-   - 所有依赖插件均为 `enabled` 后，再读取目标插件真实 init skill。
-5. 目标插件初始化闭环验收通过后，运行 `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin <plugin-name> -Status enabled`。
-6. 最后运行 `.agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun`；无停止条件时再按 runbook 执行 `-Mode Write`。
-
-不得把依赖插件“自动安装”等同于直接改 `plugin_profile.md`。这里的自动安装含义是：自动按依赖顺序引导并执行依赖插件的真实 init skill、完成验收，然后再机械写入 `enabled`。如果依赖插件 init skill 需要用户确认项目事实或配置，必须停下来让用户确认。
+插件选择、补装、依赖初始化、启用与恢复统一执行 [plugin-management](../../plugin-management/SKILL.md)，复用其中的状态工具与发现入口验证顺序。返回后续接主 skill 的[项目上下文收尾](../SKILL.md#插件变更后的项目上下文收尾)，不再次进入推荐、选择或补装。缺少必要项目事实或配置时集中澄清，已有事实和授权继续沿用。
 
 ## 插件初始化闭环
 
@@ -112,13 +100,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 1. 读取目标工程 `AGENTS.md` 和对应插件真实 init skill。
 2. 生成或更新 `.agents/config/*_profile.md`；profile 只保存非敏感项目差异，不保存 host、账号、密码、token、namespace 或远程路径；已有 profile 必须合并，不得覆盖。
-3. 生成 `.agents/rules/` 和 `.agents/skills/` thin-index；thin-index 必须指向 `.agents/plugins/<plugin>/` 内真实文件。
+3. 核对插件规则和 skill 来源可读，thin-index 必须指向 `.agents/plugins/<plugin>/` 内真实文件；发现入口生成与验证沿第 5 步的当前部署模式完成。
 4. 如插件需要本地脚本，复制到 `.agents/scripts/`；目标存在且内容不同时，默认报告 conflict，不覆盖。
-5. 更新 `AGENTS.md` 的插件能力路由；入口只写启动顺序、profile/rules/skills 路由和硬约束，不复制完整规则。
+5. 领域配置与必要脚本验收后，通过 `plugin-management` 调用 profile 工具标记 `enabled` 并验证发现入口；按需与全量模式各沿现有工具顺序执行。
 6. 确认 `.agents/.git/info/exclude` 忽略生成层：`/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`、`/work/`。
 7. 扫描长期上下文，确认没有具体服务器地址、账号、密码、token、namespace 或远程路径。
 8. 验证 `.agents` Git 状态；生成层应被忽略，能力包源码改动必须明确区分。
-9. 初始化闭环验收通过后，运行 `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin <plugin-name> -Status enabled`，机械反写插件状态。
+9. 执行主 skill 的[项目上下文收尾](../SKILL.md#插件变更后的项目上下文收尾)，核对 `AGENTS.md` 中已启用能力的条件路由及受影响读取链，再报告完整接入结果。
 10. 提交前如项目已启用 `.agents/hooks`，Agent 应主动运行 `.agents/scripts/check-functional-diff.ps1 -ProjectRoot . -Staged`；未启用时只提示用户可选安装，不擅自执行 `git config core.hooksPath`。
 
 验收时至少检查：

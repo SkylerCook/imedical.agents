@@ -26,8 +26,8 @@ description: Initialize, maintain, or optimize project context and local docs kn
 
 | 场景 | 触发与处理 | 条件资料 |
 |---|---|---|
-| 初始化 | 新建上下文或明确接入插件；判断 contextMode，按证据填充最小入口，保留已有值，完成对应初始化闭环 | [初始化与插件接入](references/initialization.md)；仅选用相关模板 |
-| 维护 | 已有事实、配置、入口或约定变化；定点更新 owner 及引用，缺什么补什么 | 下文内容归属和维护流程；仅插件接入/更新时读初始化资料 |
+| 初始化 | 新建上下文；按证据判断 contextMode、填充最小入口。明确接入插件时执行对应领域初始化，已有工程的上下文只定点维护 | [初始化与插件接入](references/initialization.md)；仅选用相关模板 |
+| 维护 | 已有事实、配置、入口、插件状态或约定变化；定点更新 owner 及引用，插件操作返回后完成下文项目上下文收尾 | 下文内容归属和维护流程；仅插件接入/更新时读初始化资料 |
 | 日常优化 | 用户要求精简、审查效率，或当前授权维护中已发现重复、过时、歧义；按语义去重、分层和澄清 | [上下文优化](references/context-optimization.md) |
 
 只读审计只交付问题与建议；明确要求优化时可直接在授权范围内重组已有上下文。普通业务修改不例行触发本 skill。维护后无新问题就结束，不自动再次初始化、扫描候选插件、生成报告或创建周期任务。
@@ -152,6 +152,15 @@ description: Initialize, maintain, or optimize project context and local docs kn
 | `.agents/skills/<skill>/SKILL.md` | 仅放 thin-index，用于让只发现浅层 skill 目录的 Agent 找到插件真实 skill。 |
 
 插件启用状态以 `.agents/config/plugin_profile.md` 为事实来源。插件目录存在只表示 `available`，不表示当前业务项目已启用该插件。
+
+## 插件变更后的项目上下文收尾
+
+由 [plugin-management](../plugin-management/SKILL.md) 完成启用、禁用、恢复或迁移后进入，包括状态已满足但需核对入口的幂等重跑；沿用本次目标工程、Workspace Context、授权范围与已验证结果。已经在本流程内时直接续接此步骤，保留已有 contextMode，不重新扫描候选插件或执行领域初始化。
+
+1. 读回 `ContextRoot/config/plugin_profile.md`，核对本次目标和实际变化的依赖状态，以及发现入口是否已验证。状态由 profile 工具维护，不手写第二份状态清单；补装为 available 或初始化失败的能力不增加可执行路由。
+2. 定点检查 `AGENTS.md` 与已有规则入口。已 enabled 且入口可用的能力按任务条件补齐或复用路由；已 disabled/available 的能力撤下其可执行路由或改为明确的恢复说明，保留无关业务约束和自定义内容。无需为已有等价路由再建索引。
+3. 项目事实或长期有效决定确有变化时，才更新 `project_context_profile.md`、相关规则或 `memory/project-memory.md`；内容未变化则保持原文，不为收尾创建一次性日志或占位记录。
+4. 按下文[规则路由维护](#规则路由维护)从受影响任务走查到真实 source，核对状态、触发条件与路径一致。分别报告脚本状态、项目路由和宿主实际加载证据；存在未完成项时保留实际状态并说明缺口，不以脚本成功代替完整接入。
 
 ## AGENTS.md 初始化/维护
 

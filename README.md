@@ -16,11 +16,13 @@
 | IRIS 部署与故障恢复 | [部署入口](plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md)、[统一会话](docs/guides/iris-managed-sessions.md) |
 | 离线源码与 XML 交付 | [离线协议](plugins/coding-iris-plugin/references/iris-offline-development.md)、[人工工具](tools/README.md) |
 | 连接与用法查询 | [连接配置](docs/guides/connection-configuration.md)、[统一帮助](docs/guides/capability-help.md) |
-| 框架维护、变更历史与待办 | [维护入口](memory/agent-kit-maintenance-memory.md)、[维护资料](maintenance/README.md) |
+| 框架维护、变更历史与待办 | [维护入口](memory/agent-kit-maintenance-memory.md)、[维护资料](maintenance/README.md)；manifest 变更须完整重生成并校验 [plugin catalog](docs/guides/plugin-deployment.md#维护者校验) |
 
 项目文档统一由 [docs](docs/README.md) 导航。版本更新细节和验收证据归维护日志与 owner 协议，当前版本查 manifest。xc 手册及待接入能力沿既有治理队列。
 
 ## 快速理解
+
+插件启用、禁用或恢复由 [plugin-management](plugins/agent-context-kit/skills/plugin-management/SKILL.md) 完成操作，再交给项目上下文维护核对当前工程路由；实际状态、项目入口与宿主加载分别确认。
 
 治疗表单部署支持自动/手动方式，并显式提供完整事务包与 [轻量 SQL 覆盖通道](plugins/iris-cure-form-dev/references/cure-form-sql-cover.md)；后者仅覆盖已有单模板 content，保留备份、并发检查和回读门禁。
 

@@ -72,4 +72,4 @@ WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codeb
 
 项目按通用、IRIS、XC、UI 体系推荐、组合与反选能力，通过[按需部署](../../docs/guides/plugin-deployment.md)执行，初始化流程承接一次自动补装授权、依赖冲突说明和实际接入验证。
 
-插件查看、体系选择、补装、启用、禁用、恢复和清理使用 [plugin-management](skills/plugin-management/SKILL.md)。禁用前核对当前项目的反向依赖，执行后验证 profile 与受管入口。
+插件查看、体系选择、补装、启用、禁用、恢复和清理使用 [plugin-management](skills/plugin-management/SKILL.md)。禁用前核对当前项目的反向依赖，状态变化后验证 profile 与受管入口，再按 [项目上下文收尾](skills/project-context-maintenance/SKILL.md#插件变更后的项目上下文收尾)定点核对项目路由；已在上下文维护流程内时直接续接。

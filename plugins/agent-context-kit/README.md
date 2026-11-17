@@ -1,5 +1,7 @@
 # Agent Context Kit
 
+0.11.3：插件操作统一从 [plugin-management](skills/plugin-management/SKILL.md) 进入，状态与发现入口验证后交接到[项目上下文收尾](skills/project-context-maintenance/SKILL.md#插件变更后的项目上下文收尾)，核对当前工程的条件路由。已有流程直接续接，保留 contextMode 与自定义内容；项目配置和长期记忆只在事实变化时更新。正常能力包更新取得指导，既有入口在明确插件操作或授权维护时定点合并，无新增配置或业务资料清理。
+
 Codex 原生 Agent 适配复用 `coding-agent-adaptation`，生成器为根 `scripts/sync-runtime-agents.js`；技能目录与原生 Agent 分开执行和验收，规则见能力包 `docs/coding-agent-adaptation.md`。
 
 0.8.4：依据用户项目级 skills 实测，`WorkBuddyDonghua` 与 `WorkBuddy` 命名 adapter 共用 `.workbuddy/skills`。仅修正项目 skills，规则、记忆和用户级目录仍按各宿主机制核对。更新后显式重跑适配；旧配置及 `.workbuddydonghua/skills` 不自动迁移或清理，步骤见[更新说明](../../docs/update-agents.md#workbuddydonghua-项目-skills-目录纠正)。

@@ -1028,6 +1028,10 @@ coding-iris-plugin 0.30.0 与 imedical-ui 0.2.0 使用根 `scripts/knowledge-que
 
 agent-context-kit 0.11.0 新增 plugin-management。已有 enabled 项目更新能力包并刷新该插件 thin-index 后获得入口；available/disabled 项目保留原状态。无额外配置迁移。
 
+agent-context-kit 0.11.3 补齐插件操作到项目上下文维护的交接。状态与发现入口验证后，由 project-context-maintenance 定点核对 AGENTS 和既有规则中的条件路由；已在该流程内时直接续接，不重新初始化工程。项目事实与长期决定未变化时不改 project_context_profile.md 或项目记忆。普通更新只取得指导，已有项目入口在明确插件操作或授权上下文维护中合并，具体边界见[项目上下文收尾](../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md#插件变更后的项目上下文收尾)。
+
+本轮同时完整同步 plugin-catalog.json 与实际 manifest，修复治疗表单等插件因旧版本/hash 导致的补装失败。正常更新取得根 scripts 与插件即可。若业务副本此前手工修补 catalog，先查看该文件差异；确认上游已包含相应修复、差异仅为这次临时补丁后，才还原该文件并运行正常更新。保留其它本地修改，不在业务副本重生成或提交能力目录，也不放宽 pull-blocked-dirty 保护。
+
 接入与入口隔离修复需同时取得 agent-context-kit 0.11.2 与根 scripts。领域配置验收后，按需模式的 update-plugin-profile.ps1 生成并读回验证发现入口，核对完整失败回执后才记录 enabled；全量模式保留既有接入顺序。单插件生成只维护当前 owner 的受管及已声明兼容入口，其它插件、未落盘来源、自定义内容和链接保留。无 initSkill 的初始化 source 指向插件目录内的 entry。
 
 profile 缺失时，普通 Write 更新或明确的 profile 操作复用安装状态自动形成只含已知状态的部分 profile；缺行历史只保留资源需求，不补成默认 available 或推断 enabled。补装、setter、更新器与停用检查共用读取逻辑，明确状态行优先；整份 profile 缺失时 ensure 可补装，prune/migrate 仍保持保护，形成部分 profile 后可清理无关资源。无需新增配置、手工重建全表或清理业务资料。

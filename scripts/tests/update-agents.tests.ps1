@@ -633,9 +633,11 @@ $contextSkillContent = Get-Content -Raw -Encoding UTF8 -Path $contextSkillPath
 Assert-Contains $contextSkillContent "docs/update-agents.md" "project-context-maintenance should route updates to docs/update-agents.md"
 Assert-Contains $contextSkillContent "references/initialization.md" "project-context-maintenance should route initialization to its reference"
 $contextInitContent = Get-Content -Raw -Encoding UTF8 -Path (Join-Path (Split-Path -Parent $contextSkillPath) "references/initialization.md")
-Assert-Contains $contextInitContent "depends_on" "Initialization should guide plugin enablement"
-Assert-Contains $contextInitContent "dependencies" "Initialization should read plugin manifest dependencies before enabling plugins"
-Assert-Contains $contextInitContent "update-plugin-profile.ps1" "Initialization should use update-plugin-profile.ps1 after init validation"
+Assert-Contains $contextInitContent "../../plugin-management/SKILL.md" "Initialization should delegate plugin operations to their canonical skill"
+$pluginManagementContent = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $repoRoot "plugins/agent-context-kit/skills/plugin-management/SKILL.md")
+Assert-Contains $pluginManagementContent "update-plugin-profile.ps1" "Plugin management should use the profile tool after domain validation"
+Assert-Contains $pluginManagementContent "../project-context-maintenance/SKILL.md#插件变更后的项目上下文收尾" "Plugin management should hand changed state back to the project context owner"
+Assert-Contains $contextInitContent "../SKILL.md#插件变更后的项目上下文收尾" "Initialization should resume context completion without repeating plugin operations"
 $irisBackendRuleContent = Get-Content -Raw -Encoding UTF8 -Path $irisBackendRulePath
 $irisBackendSkillContent = Get-Content -Raw -Encoding UTF8 -Path $irisBackendSkillPath
 Assert-Contains $irisBackendRuleContent 'references/cls-coding-format.md' "Backend rule should route to the canonical CLS format"

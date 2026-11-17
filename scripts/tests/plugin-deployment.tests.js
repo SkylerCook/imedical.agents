@@ -69,6 +69,74 @@ test('catalog matches all manifests and group inverse selection expands dependen
         assert.equal(error.conflicts[0].code,'excluded-base-capability');return true;
     });
 });
+test('catalog CLI accepts CRLF checkouts, detects stale metadata and regenerates the full catalog',t=>{
+    const parent=path.join(os.tmpdir(),'Codex');fs.mkdirSync(parent,{recursive:true});
+    const temporary=fs.mkdtempSync(path.join(parent,'plugin-catalog-'));
+    t.after(()=>fs.rmSync(temporary,{recursive:true,force:true}));
+    const sourceRoot=path.resolve(__dirname,'../..');
+    const value=generate(sourceRoot);
+    const relatives=['scripts/generate-plugin-catalog.js','scripts/lib/plugin-groups.json','scripts/lib/plugin-catalog.json',
+        ...value.plugins.map(item=>'plugins/'+item.directory+'/.agents-plugin/plugin.json')];
+    for(const relative of relatives){
+        const target=path.join(temporary,relative);fs.mkdirSync(path.dirname(target),{recursive:true});
+        fs.copyFileSync(path.join(sourceRoot,relative),target);
+    }
+    const file=path.join(temporary,'scripts/lib/plugin-catalog.json');
+    const run=(...args)=>spawnSync(process.execPath,[path.join(temporary,'scripts/generate-plugin-catalog.js'),...args],{encoding:'utf8',windowsHide:true});
+    assert.equal(run('--check').status,0);
+    fs.writeFileSync(file,fs.readFileSync(file,'utf8').replace(/\r?\n/g,'\r\n'));
+    assert.equal(run('--check').status,0,'Git CRLF conversion must not report a stale catalog');
+    const stale=JSON.parse(fs.readFileSync(file,'utf8'));
+    stale.plugins.find(item=>item.manifest.name==='iris-cure-form-dev').manifest.dependencyVersions['coding-iris-plugin'].maxVersionExclusive='0.1.0';
+    fs.writeFileSync(file,JSON.stringify(stale,null,2)+'\n');
+    assert.equal(run('--check').status,1);
+    assert.equal(run().status,0);
+    assert.deepEqual(JSON.parse(fs.readFileSync(file,'utf8')),value);
+    assert.equal(run('--check').status,0);
+    assert.equal(fs.readFileSync(file,'utf8').includes('\r'),false);
+});
+test('current cure form catalog materializes real manifests and leaves repeated ensure and fast-forward update clean',t=>{
+    const f=fixture(t), sourceRoot=path.resolve(__dirname,'../..');
+    const catalogFile=path.join(sourceRoot,'scripts/lib/plugin-catalog.json');
+    const value=JSON.parse(fs.readFileSync(catalogFile,'utf8'));
+    const selected=deployment.closure(value,[...value.basePlugins,'iris-cure-form-dev']);
+    for(const item of selected){
+        const relatives=['.agents-plugin/plugin.json',item.manifest.entry];
+        if(item.manifest.initSkill)relatives.push('skills/'+item.manifest.initSkill+'/SKILL.md');
+        for(const relative of relatives){
+            const target=path.join(f.origin,'plugins',item.directory,relative);
+            fs.mkdirSync(path.dirname(target),{recursive:true});
+            fs.copyFileSync(path.join(sourceRoot,'plugins',item.directory,relative),target);
+        }
+    }
+    // Exercise the real metadata and sparse selection without copying vendor binaries.
+    const resources=new Set(selected.flatMap(item=>[
+        ...(item.manifest.runtimeResources||[]),
+        ...(item.manifest.skillDependencies?.required||[]).map(skill=>'vendor/'+skill.provider)
+    ]));
+    for(const resource of resources){
+        fs.mkdirSync(path.join(f.origin,resource),{recursive:true});
+        fs.writeFileSync(path.join(f.origin,resource,'fixture-resource.txt'),'fixture resource');
+    }
+    fs.copyFileSync(catalogFile,path.join(f.origin,'scripts/lib/plugin-catalog.json'));
+    f.git(f.origin,['add','.']);f.git(f.origin,['commit','-qm','current cure form metadata']);
+    f.git(f.root,['pull','--ff-only']);
+    for(let attempt=0;attempt<2;attempt++){
+        const result=ensure(f.context,['iris-cure-form-dev']);
+        for(const item of selected)assert.ok(result.installed.includes(item.manifest.name));
+        assert.deepEqual(result.selected,['extract-doc','coding-iris-plugin','iris-cure-form-dev']);
+        for(const item of result.initialization)assert.ok(fs.statSync(path.join(f.root,item.source)).isFile(),item.source);
+        for(const resource of resources)assert.ok(fs.existsSync(path.join(f.root,resource,'fixture-resource.txt')),resource);
+        assert.equal(deployment.profile(f.root).get('iris-cure-form-dev'),'available');
+        assert.equal(deployment.loadState(f.root).phase,'ready');
+        assert.equal(f.git(f.root,['status','--porcelain']),'');
+    }
+    fs.writeFileSync(path.join(f.origin,'scripts/catalog-update-probe.js'),"'use strict';\n");
+    f.git(f.origin,['add','.']);f.git(f.origin,['commit','-qm','next framework update']);
+    f.git(f.root,['pull','--ff-only']);
+    assert.equal(f.git(f.root,['rev-parse','HEAD']),f.git(f.origin,['rev-parse','HEAD']));
+    assert.equal(f.git(f.root,['status','--porcelain']),'');
+});
 test('excluded transitive dependencies report chain, version contract and declaration',()=>{
     const value={groups:[{id:'xc',plugins:['c']}],plugins:[
         {directory:'a',manifest:{name:'a',version:'1.0.0',dependencies:['b']}},

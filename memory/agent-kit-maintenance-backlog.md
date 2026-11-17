@@ -272,4 +272,4 @@ coding 0.28.0 的 GB2312、GBK、GB18030 转换及 Atelier binary/enc 本地协�
 
 ## P2 按需插件部署实际接入验收
 
-本地部署、反选依赖、vendor、Overlay、单 owner 入口保护、完整失败回执及缺行历史资源保留的 PS5.1/PS7 回归已完成，真实 Git 恢复链覆盖补装、启用、普通更新与实际裁剪。后续取得 Windows/macOS/Linux × Node22/24 的真实 CI 结果，并在用户指定的业务工程验证正常更新、显式迁移和 Agent 宿主技能实际发现。沿[实施记录](../maintenance/validation/plugin-on-demand-2026-11-13.md)补验，宿主实际加载仍待取得独立证据。
+本地部署、反选依赖、vendor、Overlay、单 owner 入口保护、完整失败回执及缺行历史资源保留的 PS5.1/PS7 回归已完成，真实 Git 恢复链覆盖补装、启用、普通更新与实际裁剪。目录与真实 manifest 同步、CRLF 检出兼容和治疗表单重复补装后快进更新已有本地证据。后续取得 Windows/macOS/Linux × Node22/24 的真实 CI 结果，并在用户指定的业务工程验证正常更新、显式迁移、Agent 宿主技能实际发现及 0.11.3 操作后的项目路由交接；同时观察幂等重跑、停用/恢复与已有上下文流程续接，不以文档走查替代宿主行为。沿[实施记录](../maintenance/validation/plugin-on-demand-2026-11-13.md)补验，宿主实际加载仍待取得独立证据。

@@ -40,6 +40,7 @@ description: Use when maintaining the imedical.agents repository itself, especia
 - 插件 `AGENTS.md`
 - 插件 README
 - `.agents-plugin/plugin.json`
+- manifest 或体系分组变化时，用 `node scripts/generate-plugin-catalog.js` 完整重生成 `scripts/lib/plugin-catalog.json`，再运行 `node scripts/generate-plugin-catalog.js --check`；将生成结果与对应 manifest 一起交付，覆盖所有过期条目。
 - `releases/plugin/<name>/<version>.md`
 - 相关 `SKILL.md`、rule、reference、template、script
 - 仓库 README

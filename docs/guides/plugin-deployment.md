@@ -32,6 +32,8 @@ ensure 解析必需依赖、下载插件及资源、校验 manifest 与能力目
 
 新插件保持 available，先由领域接入契约验收必要配置，再使用既有 update-plugin-profile.ps1 标记 enabled。按需模式下，该工具先核对插件正文、已启用的必需依赖和自定义入口冲突，再复用根 thin-index 生成器写入并读回验证发现入口，成功后记录 enabled；失败回执不能作为启用成功。全量模式保留原有注册、更新流程。显式 disabled 的插件阻止任务自动补装和启用，恢复须由用户明确要求。
 
+启用、禁用、恢复或迁移完成后，plugin-management 交给 [project-context-maintenance](../../plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md#插件变更后的项目上下文收尾)定点维护当前项目入口与条件路由，状态已满足的幂等重跑也核对入口；已在该流程中时直接续接。仅查看、预演和补装为 available 不新增可执行路由。脚本状态、项目路由和宿主加载分别验收，普通能力包更新不自动覆盖项目上下文。
+
 单插件生成只维护当前 owner 及其声明的兼容入口。其它 owner 的入口保持原状，source 未落盘本身不是删除依据。当前 owner 的 legacyNames 旧入口及排除的纯 init 旧入口，仅在可证明是未定制的受管内容时兼容清理；自定义正文、未知字段和链接保留。
 
 自动补装仅覆盖当前仓库能力包和必需资源。外部账号配置、数据传输、服务器写入、发布等操作沿对应技能和项目的授权范围。
@@ -67,7 +69,9 @@ Overlay 的 CapabilityRoot 保留各 ContextRoot 需求的并集。旧共享目�
 
 ## 维护者校验
 
-插件 manifest 或体系分组变化后运行 node scripts/generate-plugin-catalog.js。CI 使用 --check 对比源清单，防止目录过期。新插件须归入一个体系，必需资源须声明并核对实际运行引用。
+插件 manifest 或体系分组变化后运行 node scripts/generate-plugin-catalog.js，完整重生成 scripts/lib/plugin-catalog.json，并与对应 manifest 一起交付。随后运行 node scripts/generate-plugin-catalog.js --check；CI 在其它专项前执行同一检查，防止目录过期。新插件须归入一个体系，必需资源须声明并核对实际运行引用。
+
+生成文件使用 UTF-8 无 BOM、LF；只读 --check 兼容 Git 检出的 CRLF，版本、依赖、hash 和其它实际内容差异仍会失败。
 
 专项回归使用 node --test scripts/tests/plugin-deployment.tests.js，配合 sparse、更新器、thin-index 及 workspace-overlay 的既有测试。跨平台结果以实际矩阵执行为准。
 

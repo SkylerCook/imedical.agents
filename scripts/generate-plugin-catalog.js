@@ -27,7 +27,7 @@ if (require.main === module) {
     const file = path.join(root, 'scripts/lib/plugin-catalog.json');
     const content = JSON.stringify(generate(root), null, 2) + '\n';
     if (process.argv.includes('--check')) {
-        if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== content) {
+        if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n') !== content) {
             console.error('Plugin catalog is stale; run node scripts/generate-plugin-catalog.js');
             process.exitCode = 1;
         }

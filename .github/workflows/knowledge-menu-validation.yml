@@ -17,10 +17,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
+      - run: node scripts/generate-plugin-catalog.js --check
+      - run: node --test scripts/tests/plugin-deployment.tests.js scripts/tests/plugin-deployment-member-history.tests.js scripts/tests/plugin-profile-enablement.tests.js scripts/tests/plugin-profile-history.tests.js scripts/tests/plugin-initialization-entry.tests.js
       - run: node --test scripts/tests/iris-knowledge-menu.tests.js
       - run: node --test scripts/tests/iris-menu-refresh.tests.js
       - run: node --test scripts/tests/knowledge-retrieval.tests.js
       - run: node --test scripts/tests/knowledge-deployment.tests.js
       - run: node --test scripts/tests/knowledge-embedding.tests.js scripts/tests/refresh-agents-sparse.tests.js
-      - run: node scripts/generate-plugin-catalog.js --check
-      - run: node --test scripts/tests/plugin-deployment.tests.js scripts/tests/plugin-deployment-member-history.tests.js scripts/tests/plugin-profile-enablement.tests.js scripts/tests/plugin-profile-history.tests.js scripts/tests/plugin-initialization-entry.tests.js
