@@ -224,3 +224,103 @@ test('worker checkpoints local transport exit separately and keeps its lease whe
     assert.equal(saved.observation.endpoints[0].stoppedVerified, true); assert.equal(saved.observation.transport.processCleanupVerified, false); assert.equal(saved.observation.transport.endpointStopped, false);
     assert.equal(fs.existsSync(path.join(f.root, 'night-client-worker.lock')), true);
 });
+
+function pendingUsageFixture(t) {
+    const f = fixture(t, { nativeGoal: false }), action = f.manifest.actions[0];
+    f.state.total = null;
+    const watcher = { schema: 'night-client-watcher/v1', pid: process.pid, heartbeatAt: new Date(f.now).toISOString(), actionId: action.id, runDirectory: f.root, deadlineAt: action.result.host.deadlineAt };
+    action.result.host.watcherReference = path.join(f.root, 'watcher.json');
+    fs.writeFileSync(action.result.host.watcherReference, JSON.stringify(watcher));
+    const launchReceiptFile = path.join(f.root, 'evidence/night-operations/launch.json');
+    fs.mkdirSync(path.dirname(launchReceiptFile), { recursive: true }); fs.writeFileSync(launchReceiptFile, JSON.stringify(action.result));
+    delete action.result.host.watcherReference; // Same shape as the real normalized ACK.
+    f.manifest.night.clientReservations = [{ actionId: action.id, tokens: 100, deadlineAt: watcher.deadlineAt, launchReceiptFile, status: 'reserved' }];
+    f.options.adapter.usage = async () => ({ snapshot: f.snapshot(), threadTokens: f.state.total === null ? null : { total: { totalTokens: f.state.total } }, goal: null });
+    f.options.probeWatcher = async ({ challenge }) => ({ ...watcher, challenge, alive: true });
+    return { ...f, supervisor: createNightSupervisor(f.options), action };
+}
+
+test('first usage can remain pending under a live watcher and reserved budget without recording zero', async t => {
+    const f = pendingUsageFixture(t), result = await f.supervisor.tick();
+    assert.equal(result.mode, 'normal'); assert.equal(result.observationUnknown, false);
+    assert.equal(result.unobservedReservedTokens, 100); assert.equal(result.remainingTokens, 900);
+    assert.equal(result.totalCostKnown, false); assert.equal(result.endpoints[0].usagePending, true);
+    assert.equal(f.calls.some(c => c[0] === 'stop' || c[0] === 'record' && c[1] === 'usage'), false);
+    assert.deepEqual(f.manifest.night.usage.endpoints, []);
+    f.state.total = 10;
+    const observed = await f.supervisor.tick();
+    assert.equal(observed.mode, 'normal'); assert.equal(observed.unobservedReservedTokens, 0);
+    assert.equal(f.manifest.night.usage.totalTokens, 10);
+    f.options.adapter.probe = async () => ({ available: true, nativeGoal: true, status: true, usage: true, stop: true });
+    assert.equal((await f.supervisor.beforeLaunch(f.launch())).availableTokens, 900);
+});
+
+test('pending usage still stops when watcher control, reservation or hard deadline is invalid', async t => {
+    for (const failure of ['watcher', 'reservation', 'deadline']) {
+        const f = pendingUsageFixture(t);
+        if (failure === 'watcher') f.options.probeWatcher = async () => ({ alive: false });
+        if (failure === 'reservation') f.manifest.night.clientReservations = [];
+        if (failure === 'deadline') f.action.result.host.deadlineAt = new Date(f.now).toISOString();
+        const result = await createNightSupervisor(f.options).tick();
+        assert.equal(result.mode, 'closeout', failure); assert.equal(result.endpoints[0].stopRequested, true, failure);
+    }
+});
+
+test('a terminal endpoint with missing usage retains its full reservation across recovery', async t => {
+    const f = pendingUsageFixture(t); f.state.turnStatus = 'interrupted'; delete f.action.result.host.watcherReference;
+    const result = await f.supervisor.tick();
+    assert.equal(result.mode, 'normal'); assert.equal(result.endpoints[0].stoppedVerified, true);
+    assert.equal(result.unobservedReservedTokens, 100); assert.equal(result.totalCostKnown, false);
+    assert.equal(f.manifest.night.usage.endpoints.length, 0);
+    // Starting unrelated work cannot spend this terminal endpoint's unknown allocation again.
+    f.options.adapter.probe = async () => ({ available: true, nativeGoal: true, status: true, usage: true, stop: true });
+    const request = f.launch();
+    assert.equal((await f.supervisor.beforeLaunch(request)).availableTokens, 900);
+});
+
+test('non-Goal tasks stop at their actual reserved token ceiling after usage arrives', async t => {
+    const f = pendingUsageFixture(t); f.state.total = 100;
+    const result = await f.supervisor.tick();
+    assert.equal(result.endpoints[0].stopRequested, true);
+    assert.equal(f.manifest.night.usage.totalTokens, 100);
+});
+
+test('an observed token ceiling keeps requesting stop when usage disappears before terminal confirmation', async t => {
+    const f = pendingUsageFixture(t); f.state.total = 100;
+    assert.equal((await f.supervisor.tick()).endpoints[0].stopRequested, true);
+    f.state.total = null;
+    const recovered = await createNightSupervisor(f.options).tick();
+    assert.equal(recovered.endpoints[0].usagePending, true);
+    assert.equal(recovered.endpoints[0].stopRequested, true);
+    assert.equal(recovered.endpoints[0].stoppedVerified, false);
+    assert.equal(f.manifest.night.usage.totalTokens, 100);
+    assert.equal(f.calls.filter(c => c[0] === 'record' && c[1] === 'usage').length, 1);
+    f.state.turnStatus = 'interrupted';
+    const stopped = await f.supervisor.tick();
+    assert.equal(stopped.endpoints[0].stoppedVerified, true);
+    assert.equal(stopped.endpoints[0].stopRequested, false);
+});
+
+test('an allocation that fills the batch drains new claims without stopping a pending task', async t => {
+    const f = pendingUsageFixture(t); f.manifest.executionPlan.budget.tokens = 100;
+    const result = await f.supervisor.tick();
+    assert.equal(result.mode, 'drain'); assert.equal(result.remainingTokens, 0); assert.equal(result.stopClaiming, true);
+    assert.equal(result.endpoints[0].stopRequested, false); assert.equal(result.endpoints[0].usagePending, true);
+});
+
+test('settled terminal usage survives a fresh adapter without charging the same reservation again', async t => {
+    const f = pendingUsageFixture(t); f.state.total = 10; f.state.turnStatus = 'completed';
+    await f.supervisor.tick(); f.manifest.night.clientReservations[0].status = 'settled'; f.state.total = null;
+    const usageEvents = () => f.calls.filter(c => c[0] === 'record' && c[1] === 'usage').length;
+    const count = usageEvents(), recovered = await f.supervisor.tick();
+    assert.equal(recovered.mode, 'normal'); assert.equal(recovered.remainingTokens, 990);
+    assert.equal(recovered.unobservedReservedTokens, 0); assert.equal(usageEvents(), count);
+    f.options.adapter.probe = async () => ({ available: true, nativeGoal: true, status: true, usage: true, stop: true });
+    assert.equal((await f.supervisor.beforeLaunch(f.launch())).availableTokens, recovered.remainingTokens);
+});
+
+test('pending usage rejects a durable watcher from another launch identity', async t => {
+    const f = pendingUsageFixture(t), file = f.manifest.night.clientReservations[0].launchReceiptFile;
+    const receipt = JSON.parse(fs.readFileSync(file)); receipt.host.turnId = 'foreign-turn'; fs.writeFileSync(file, JSON.stringify(receipt));
+    const result = await f.supervisor.tick(); assert.equal(result.mode, 'closeout'); assert.equal(result.endpoints[0].stopRequested, true);
+});

@@ -65,6 +65,41 @@ function createNightSupervisor({ runDirectory, adapter, recordNight = orchestrat
         const budget = action.result.host.budget;
         return budget?.configured !== true || usage?.goal?.threadId === action.result.endpointId && usage.goal.tokenBudget === budget.tokenBudget && Number.isSafeInteger(usage.goal.tokensUsed) && usage.goal.tokensUsed >= budget.tokensUsed && usage.goal.tokensUsed <= budget.tokenBudget;
     }
+    function reservationFor(manifest, action) {
+        return manifest.night.clientReservations?.find(r => r.actionId === action.id && positive(r.tokens) && r.deadlineAt === action.result.host.deadlineAt);
+    }
+    function watcherReference(action, reservation) {
+        // The normalized ACK intentionally drops host-specific fields. Use the original
+        // durable launch receipt, bound to the same action and endpoint, for its watcher.
+        try {
+            if (!path.isAbsolute(reservation.launchReceiptFile || '') || !path.relative(directory, reservation.launchReceiptFile).replace(/\\/g, '/').startsWith('evidence/night-operations/')) return null;
+            const saved = JSON.parse(fs.readFileSync(reservation.launchReceiptFile, 'utf8')), host = action.result.host;
+            if (saved.actionId !== action.id || saved.endpointId !== action.result.endpointId || saved.contextHash !== action.result.contextHash || saved.host?.threadId !== host.threadId || saved.host.turnId !== host.turnId || saved.host.deadlineAt !== host.deadlineAt) return null;
+            return saved.host.watcherReference;
+        } catch { return null; }
+    }
+    function settledUsage(manifest, action, state) {
+        const reservation = reservationFor(manifest, action), saved = manifest.night.usage?.endpoints?.find(e => e.endpointId === action.result.endpointId);
+        return terminal(state) && reservation?.status === 'settled' && terminal(saved) && saved.actionId === action.id && Number.isSafeInteger(saved.totalTokens) && saved.totalTokens >= 0 ? saved : null;
+    }
+    async function assertWatcher(request, fresh = true) {
+        if (typeof probeWatcher !== 'function') fail('persistent-watcher-control-capability-missing');
+        if (!path.isAbsolute(request.watcherReference || '')) fail('persistent-watcher-reference-required');
+        let receipt; try { receipt = JSON.parse(fs.readFileSync(request.watcherReference, 'utf8')); } catch { fail('persistent-watcher-receipt-unavailable'); }
+        const age = now() - Date.parse(receipt.heartbeatAt);
+        if (receipt.schema !== 'night-client-watcher/v1' || receipt.actionId !== request.actionId || !same(receipt.runDirectory, directory) || receipt.deadlineAt !== request.deadlineAt || !positive(receipt.pid) || !Number.isFinite(age) || age < 0 || fresh && age > 30000) fail('persistent-watcher-receipt-stale');
+        try { process.kill(receipt.pid, 0); } catch { fail('persistent-watcher-process-unavailable'); }
+        const challenge = crypto.randomUUID(), live = await bounded(() => probeWatcher({ receipt: structuredClone(receipt), challenge, actionId: request.actionId, runDirectory: directory }));
+        if (live?.challenge !== challenge || live.alive !== true || live.pid !== receipt.pid || live.actionId !== request.actionId || live.deadlineAt !== request.deadlineAt || !same(live.runDirectory, directory)) fail('persistent-watcher-challenge-failed');
+    }
+    async function pendingUsage(manifest, action, state, usage) {
+        if (!state || action.result.host.budget?.configured === true || usage?.threadTokens !== null || usage.goal != null || !usage.snapshot || !reservationFor(manifest, action)) return false;
+        // A stopped task cannot spend more, but its unknown cost still holds its allocation.
+        if (terminal(state)) return true;
+        if (state.turnStatus !== 'inProgress' || now() >= Date.parse(action.result.host.deadlineAt)) return false;
+        try { await assertWatcher({ actionId: action.id, deadlineAt: action.result.host.deadlineAt, watcherReference: watcherReference(action, reservationFor(manifest, action)) }, false); return true; }
+        catch { return false; }
+    }
     async function tick() {
         if (busy) fail('supervisor-operation-in-flight'); busy = true;
         try {
@@ -75,10 +110,12 @@ function createNightSupervisor({ runDirectory, adapter, recordNight = orchestrat
                 try { state = await bounded(() => adapter.status({ actionId: action.id })); } catch (error) { observationUnknown = true; appendDiagnostics(diagnostics, error, 'status'); }
                 try { usage = await bounded(() => adapter.usage({ actionId: action.id })); } catch (error) { observationUnknown = true; appendDiagnostics(diagnostics, error, 'usage'); }
                 if (!validStatus(action, state)) { state = null; observationUnknown = true; }
-                const totalTokens = tokens(usage), goalReadbackVerified = goalValid(action, usage);
-                if (totalTokens === null || !goalReadbackVerified) observationUnknown = true;
+                const actualTokens = tokens(usage), recoveredUsage = actualTokens === null && usage?.threadTokens === null && settledUsage(manifest, action, state);
+                const totalTokens = recoveredUsage ? recoveredUsage.totalTokens : actualTokens, goalReadbackVerified = goalValid(action, usage);
+                const usagePending = totalTokens === null && await pendingUsage(manifest, action, state, usage);
+                if (totalTokens === null && !usagePending || !goalReadbackVerified) observationUnknown = true;
                 if (usage?.snapshot) quotaSamples.push(sanitizeQuotaSnapshot(usage.snapshot));
-                observations.push({ action, state, usage, totalTokens, goalReadbackVerified, diagnostics });
+                observations.push({ action, state, usage, totalTokens, usagePending, recoveredUsage: !!recoveredUsage, goalReadbackVerified, diagnostics });
             }
             if (!active.length) {
                 try { const usage = await bounded(() => adapter.usage()); if (usage?.snapshot) quotaSamples.push(sanitizeQuotaSnapshot(usage.snapshot)); else observationUnknown = true; } catch (error) { observationUnknown = true; appendDiagnostics(diagnostics, error, 'usage'); }
@@ -88,7 +125,7 @@ function createNightSupervisor({ runDirectory, adapter, recordNight = orchestrat
                 const file = save({ schema: 'night-client-quota-observation/v1', observedAt: new Date(now()).toISOString(), snapshot });
                 try { if (manifest.night.quotaPolicy?.enabled) await record(manifest, { kind: 'quota', snapshot }, file); else observationUnknown = true; } catch { observationUnknown = true; }
             }
-            for (const observation of observations) if (observation.totalTokens !== null) {
+            for (const observation of observations) if (observation.totalTokens !== null && !observation.recoveredUsage) {
                 const data = { actionId: observation.action.id, endpointId: observation.action.result.endpointId, totalTokens: observation.totalTokens, observedAt: new Date(now()).toISOString(),
                     ...(observation.state ? { turnStatus: observation.state.turnStatus } : {}),
                     ...(observation.usage?.goal && observation.goalReadbackVerified ? { goalTokensUsed: observation.usage.goal.tokensUsed, goalTokenBudget: observation.usage.goal.tokenBudget, goalStatus: observation.usage.goal.status } : {}) };
@@ -97,8 +134,12 @@ function createNightSupervisor({ runDirectory, adapter, recordNight = orchestrat
             }
             manifest = read();
             const quota = assessQuota(manifest.night.quotaSnapshot, manifest.night.quotaPolicy, now(), manifest.night.weeklyQuota);
-            const used = manifest.night.usage?.totalTokens, governance = governanceReserve(manifest), remainingTokens = Number.isSafeInteger(used) && used >= 0 && Number.isSafeInteger(governance) && governance >= 0 ? Math.max(0, manifest.executionPlan.budget.tokens - used - governance) : null;
-            const deadline = Date.parse(manifest.night.limits.stopAt), stopBatch = observationUnknown || ['unknown', 'closeout'].includes(quota.mode) || !Number.isFinite(deadline) || now() >= deadline || remainingTokens === null || remainingTokens === 0;
+            const unobservedReservedTokens = observations.filter(o => o.usagePending).reduce((sum, o) => {
+                const previous = manifest.night.usage?.endpoints?.find(e => e.endpointId === o.action.result.endpointId)?.totalTokens || 0;
+                return sum + Math.max(0, reservationFor(manifest, o.action).tokens - previous);
+            }, 0);
+            const used = manifest.night.usage?.totalTokens, governance = governanceReserve(manifest), remainingTokens = Number.isSafeInteger(used) && used >= 0 && Number.isSafeInteger(governance) && governance >= 0 ? Math.max(0, manifest.executionPlan.budget.tokens - used - governance - unobservedReservedTokens) : null;
+            const deadline = Date.parse(manifest.night.limits.stopAt), stopBatch = observationUnknown || ['unknown', 'closeout'].includes(quota.mode) || !Number.isFinite(deadline) || now() >= deadline || remainingTokens === null || used + governance >= manifest.executionPlan.budget.tokens;
             const outputs = [];
             for (const observation of observations) {
                 const { action, state, diagnostics } = observation, item = manifest.workItems.find(work => work.id === action.workItemId);
@@ -107,19 +148,22 @@ function createNightSupervisor({ runDirectory, adapter, recordNight = orchestrat
                 const reasons = [...(decision.reasons || [])], ownDeadline = Date.parse(action.result.host.deadlineAt);
                 const drainOnly = !stopBatch && quota.mode === 'drain' && reasons.every(reason => /quota.*(?:stop-claiming|weekly-stop-claiming)/.test(reason));
                 const goalExhausted = action.result.host.budget?.configured === true && observation.usage?.goal?.tokensUsed >= action.result.host.budget.tokenBudget;
+                const savedUsage = manifest.night.usage?.endpoints?.find(e => e.endpointId === action.result.endpointId && e.actionId === action.id);
+                const knownTaskTokens = Math.max(observation.totalTokens ?? 0, Number.isSafeInteger(savedUsage?.totalTokens) && savedUsage.totalTokens >= 0 ? savedUsage.totalTokens : 0);
+                const taskExhausted = action.result.host.budget?.configured !== true && reservationFor(manifest, action) && knownTaskTokens >= reservationFor(manifest, action).tokens;
                 const goalActiveOrUnknown = action.result.host.budget?.configured === true && !['paused', 'complete', 'budgetLimited', 'usageLimited', 'blocked'].includes(observation.usage?.goal?.status);
-                const mustStop = (!terminal(state) || goalActiveOrUnknown) && (stopBatch || action.status === 'cancelled' || action.completionResult?.status === 'succeeded' || goalExhausted || !Number.isFinite(ownDeadline) || now() >= ownDeadline || !decision.allowed && !drainOnly);
+                const mustStop = (!terminal(state) || goalActiveOrUnknown) && (stopBatch || action.status === 'cancelled' || action.completionResult?.status === 'succeeded' || goalExhausted || taskExhausted || !Number.isFinite(ownDeadline) || now() >= ownDeadline || !decision.allowed && !drainOnly);
                 let stop, after = state;
                 if (mustStop) {
                     try { stop = await bounded(() => adapter.stop({ actionId: action.id, reason: stopBatch ? 'batch-closeout-or-unknown' : 'work-gate-or-deadline' })); appendDiagnostics(diagnostics, stop, 'stop'); } catch (error) { stop = null; appendDiagnostics(diagnostics, error, 'stop'); }
                     try { const actual = await bounded(() => adapter.status({ actionId: action.id })); after = validStatus(action, actual) ? actual : null; } catch (error) { after = null; appendDiagnostics(diagnostics, error, 'status'); }
                 }
                 const stoppedVerified = terminal(after) && (action.result.host.budget?.configured !== true || stop?.goalPaused === true || observation.goalReadbackVerified && ['paused', 'complete', 'budgetLimited', 'usageLimited', 'blocked'].includes(observation.usage?.goal?.status));
-                const output = { actionId: action.id, endpointId: action.result.endpointId, observedAt: new Date(now()).toISOString(), turnStatus: after?.turnStatus || 'unknown', stopRequested: mustStop, interruptAcknowledged: stop?.interruptAcknowledged === true, stoppedVerified,
+                const output = { actionId: action.id, endpointId: action.result.endpointId, observedAt: new Date(now()).toISOString(), turnStatus: after?.turnStatus || 'unknown', usagePending: observation.usagePending, stopRequested: mustStop, interruptAcknowledged: stop?.interruptAcknowledged === true, stoppedVerified,
                     processCleanupVerified: stoppedVerified && stop?.processCleanupVerified === true, resourceCleanupVerified: stoppedVerified && stop?.resourceCleanupVerified === true, ...(diagnostics.length ? { diagnostics } : {}) };
                 const evidenceRef = save({ schema: 'night-client-status-observation/v1', ...output }); outputs.push({ ...output, evidenceRef });
             }
-            return { schema: 'night-client-supervision/v1', mode: stopBatch ? 'closeout' : quota.mode, quota, observationUnknown, remainingTokens, observedManagedTokens: used ?? null, governanceReserve: governance, totalCostKnown: manifest.night.usage?.unobservedGovernance !== true, stopClaiming: stopBatch || quota.mode === 'drain', endpoints: outputs, unresolvedEndpoints: restoration.errors, ...(diagnostics.length ? { diagnostics } : {}) };
+            return { schema: 'night-client-supervision/v1', mode: stopBatch ? 'closeout' : remainingTokens === 0 ? 'drain' : quota.mode, quota, observationUnknown, remainingTokens, observedManagedTokens: used ?? null, unobservedReservedTokens, governanceReserve: governance, totalCostKnown: manifest.night.usage?.unobservedGovernance !== true && !observations.some(o => o.totalTokens === null), stopClaiming: stopBatch || quota.mode === 'drain' || remainingTokens === 0, endpoints: outputs, unresolvedEndpoints: restoration.errors, ...(diagnostics.length ? { diagnostics } : {}) };
         } finally { busy = false; }
     }
     async function beforeLaunch(request) {
@@ -142,6 +186,10 @@ function createNightSupervisor({ runDirectory, adapter, recordNight = orchestrat
                 if (!Number.isSafeInteger(actual) || actual < budget.tokensUsed || !positive(budget.tokenBudget) || !Number.isFinite(Date.parse(observation.observedAt)) || now() - Date.parse(observation.observedAt) < 0 || now() - Date.parse(observation.observedAt) > 30000) fail('active-goal-allocation-unknown');
                 const released = terminal(observation) && ['paused', 'complete', 'budgetLimited', 'usageLimited', 'blocked'].includes(observation.goalStatus) && observation.goalTokenBudget === budget.tokenBudget;
                 if (!released) reserved += Math.max(0, budget.tokenBudget - actual);
+            } else {
+                const reservation = reservationFor(manifest, active), observation = manifest.night.usage.endpoints?.find(endpoint => endpoint.endpointId === active.result.endpointId);
+                if (!reservation) fail('active-task-allocation-unknown');
+                if (reservation.status !== 'settled' || !terminal(observation)) reserved += Math.max(0, reservation.tokens - (observation?.totalTokens || 0));
             }
         }
         const governance = governanceReserve(manifest);
@@ -155,13 +203,7 @@ function createNightSupervisor({ runDirectory, adapter, recordNight = orchestrat
         const capability = await bounded(() => adapter.probe()); if (!capability?.available || capability.status !== true || capability.stop !== true || capability.usage !== true) fail('client-supervision-capability-missing');
         if (request.nativeGoal) { if (capability.nativeGoal !== true) fail('native-goal-capability-missing'); }
         else {
-            if (typeof probeWatcher !== 'function') fail('persistent-watcher-control-capability-missing');
-            if (!path.isAbsolute(request.watcherReference || '')) fail('persistent-watcher-reference-required');
-            let receipt; try { receipt = JSON.parse(fs.readFileSync(request.watcherReference, 'utf8')); } catch { fail('persistent-watcher-receipt-unavailable'); }
-            if (receipt.schema !== 'night-client-watcher/v1' || receipt.actionId !== action.id || !same(receipt.runDirectory, directory) || receipt.deadlineAt !== request.deadlineAt || !positive(receipt.pid) || !Number.isFinite(Date.parse(receipt.heartbeatAt)) || now() - Date.parse(receipt.heartbeatAt) < 0 || now() - Date.parse(receipt.heartbeatAt) > 30000) fail('persistent-watcher-receipt-stale');
-            try { process.kill(receipt.pid, 0); } catch { fail('persistent-watcher-process-unavailable'); }
-            const challenge = crypto.randomUUID(), live = await bounded(() => probeWatcher({ receipt: structuredClone(receipt), challenge, actionId: action.id, runDirectory: directory }));
-            if (live?.challenge !== challenge || live.alive !== true || live.pid !== receipt.pid || live.actionId !== action.id || live.deadlineAt !== request.deadlineAt || !same(live.runDirectory, directory)) fail('persistent-watcher-challenge-failed');
+            await assertWatcher(request);
         }
         return { allowed: true, actionId: action.id, availableTokens, governanceReserve: governance, deadlineAt: request.deadlineAt, contextHash: action.context.sha256, nativeGoal: !!request.nativeGoal };
     }
@@ -214,6 +256,7 @@ function createManagedNightClient(options) {
         try {
             const actual = await adapter.startOrResume(request);
             receipt = clientReceipt(actual, request.actionId, request.context.sha256);
+            if (request.watcherReference && receipt.host) receipt.host.watcherReference = request.watcherReference;
             if (actual?.actionId !== request.actionId) { receipt = { ...receipt, endpointId: null, host: { executionUnknown: true } }; fail('managed-launch-identity-mismatch'); }
             if (receipt.contextHash !== request.context.sha256) fail('managed-launch-identity-mismatch');
             if (receipt.status === 'succeeded') {
