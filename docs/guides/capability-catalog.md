@@ -386,6 +386,8 @@ IRIS CSP＋HISUI 对公司UI规范的落地适配，正式依赖 imedical-ui；�
 
 ## mobile-dev
 
+Kotlin 业务需求由日常工作流自动加载 [Kotlin 开发规范](../../plugins/mobile-dev/references/kotlin-development.md)，开发前核对统一控件与配置，实施时处理协程、视图生命周期和存量数据，交付前核对跨端资源。
+
 无插件依赖。初始化：[mobile-dev-init](../../plugins/mobile-dev/skills/mobile-dev-init/SKILL.md)；日常：[mobile-dev](../../plugins/mobile-dev/skills/mobile-dev/SKILL.md)；规则：[mobile_dev](../../plugins/mobile-dev/rules/mobile_dev.md)。覆盖 Android 开发、构建和日志优先排障。
 
 建仓与现场交接：[mobile-project-repo](../../plugins/mobile-dev/skills/mobile-project-repo/SKILL.md)。

@@ -549,7 +549,7 @@
       "directory": "demand-delivery-plugin",
       "manifest": {
         "name": "demand-delivery-plugin",
-        "version": "0.9.2",
+        "version": "0.9.3",
         "displayName": "Demand Delivery Plugin",
         "description": "跨技术栈的需求提交，支持 project 显式无编号提交，以及连续人工验收、逐号交付恢复。",
         "entry": "AGENTS.md",
@@ -584,7 +584,7 @@
           }
         ]
       },
-      "manifestHash": "a328ecda91f47262299398c9ac04b08b35ce01fd6a85bb818518aae2db4abcdf"
+      "manifestHash": "544bad0d900ed081059ae25af9de55c5b1d5e2ec4c8668acccd243500d94b485"
     },
     {
       "directory": "extract-doc",
@@ -1078,7 +1078,7 @@
       "directory": "iris-cure-form-dev",
       "manifest": {
         "name": "iris-cure-form-dev",
-        "version": "0.8.14",
+        "version": "0.8.15",
         "displayName": "IRIS Cure Form Dev Plugin",
         "description": "CA/CR treatment form ingestion, multi-template generation, responsive migration, review, deployment planning, verification, and rollback orchestration.",
         "entry": "AGENTS.md",
@@ -1165,7 +1165,7 @@
           "vendor/hisui"
         ]
       },
-      "manifestHash": "b82a8ed9e0d8c46322d09291f31e50bd3f56873afe9b71155ea010601ed865c0"
+      "manifestHash": "a8f04b0c8c4f3522d810e2ca73fb5cbea2a04a4baa12f6a65c93f6c61de5bcda"
     },
     {
       "directory": "iris-external-reg",
@@ -1378,7 +1378,7 @@
       "directory": "mobile-dev",
       "manifest": {
         "name": "mobile-dev",
-        "version": "0.1.0",
+        "version": "0.1.1",
         "displayName": "移动端开发",
         "description": "Android 项目开发与日志优先排障，复用项目工具链和设备证据。",
         "entry": "AGENTS.md",
@@ -1402,7 +1402,7 @@
           "为现场旧版移动端建私有仓，并给现场 AI 源码纳管提交提示词"
         ]
       },
-      "manifestHash": "936b900720fc640433569c96117a12e5bd63575720926cbd3301f740594f059d"
+      "manifestHash": "c93d41a9f02654c4ed5d6f1b0959a3b8a4d21ef776cd1e96078b51eddeca23e5"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "name": "mobile-dev",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "displayName": "移动端开发",
   "description": "Android 项目开发与日志优先排障，复用项目工具链和设备证据。",
   "entry": "AGENTS.md",

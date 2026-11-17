@@ -38,3 +38,5 @@
 插件体系组合、反选依赖、按需 vendor 与显式迁移的实现及验证见[按需部署记录](validation/plugin-on-demand-2026-11-13.md)。
 
 IRIS MCP v1.7.1 受管构建、官方 skill 快照及验收边界见[升级记录](validation/iris-mcp-171-upgrade-2026-11-13.md)。
+
+Kotlin 移动端默认开发规范的去重、验证与同步边界见 [维护记录](validation/mobile-development-2026-11-17.md)。

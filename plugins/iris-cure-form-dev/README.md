@@ -235,3 +235,5 @@ node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js common-migrate `
 新任务和已有任务的目录选择、正式交付及 private 恢复边界统一见[目录与恢复契约](references/project-directories.md)。下文 `docs/work/cure-form` 示例表示未接入或已有任务的兼容路径；接入后使用实际解析结果，不据示例重建旧根。
 
 按需部署时，由 manifest 的 runtimeResources 与 required skill 依赖取得必需 vendor 资源；可选资料随任务触发补装，流程见[插件按需部署](../../docs/guides/plugin-deployment.md)。
+
+移动端改造沿 cure-form-responsive 的宿主与交付章节核对完整容器交互、共用模板影响及源码/表数据依赖。

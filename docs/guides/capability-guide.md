@@ -341,6 +341,8 @@ BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调
 
 ## mobile-dev
 
+Kotlin 业务需求由日常工作流自动加载 [Kotlin 开发规范](../../plugins/mobile-dev/references/kotlin-development.md)，开发前核对统一控件与配置，实施时处理协程、视图生命周期和存量数据，交付前核对跨端资源。
+
 [查看插件清单](capability-catalog.md#mobile-dev)。先通过 [mobile-dev-init](../../plugins/mobile-dev/skills/mobile-dev-init/SKILL.md) 接入 Android 工程，日常使用 [mobile-dev](../../plugins/mobile-dev/skills/mobile-dev/SKILL.md)，再请求“排查应用闪退，先自行看 logcat”或“按现有变体实现并验证需求”。Agent 主动定位 adb、确认设备并读取有限日志；无设备仍可静态调查。预期交付证据、原因和验证缺口，安装、真实业务复现与发布按各自授权执行。
 
 mobile-dev 还可处理“检查当前构建环境与变体”“按同类页面实现需求”“核对接口响应到界面状态”“将指定标准功能移入定制仓”。同一日常 skill 按需读取专项流程；WebView/PDA 真机行为单独验收。当前复用已有工具，没有专用环境检查脚本。
