@@ -36,19 +36,22 @@ Windows 可直接执行以下只读命令查看路径，不读取凭据：
 | 填写标记 | 私有文件字段 | 应填内容与注意事项 |
 |---|---|---|
 | 【保留／按需】查询连接 | `bos-demand-query.connection`；自定义连接使用该段 `url` | 公司连接保留 `company`；自定义连接填写实际服务 URL，与公司连接二选一 |
-| 【必填】公司查询访问密钥 | `bos-demand-query.access_key` | 通过安全渠道取得的访问密钥；替换 `TODO`，不是 BOS 查询 Token |
-| 【必填】BOS 查询 Token | `bos-demand-query.headers.X-Gateway-Upstream-BOS-MCP-TOKEN` | 本人的 BOS 查询 Token；替换 `TODO`，不能用代码日志 Token 代替 |
+| 【必填】公司查询访问密钥 | `bos-demand-query.access_key` | 公司接入当前使用统一值，无需个人申请；向框架维护者通过内部安全渠道获取并替换 `TODO`，与个人查询 Token 分开填写 |
+| 【必填】BOS 查询 Token | `bos-demand-query.headers.X-Gateway-Upstream-BOS-MCP-TOKEN` | 在 BOS「接口访问凭证申请」申请个人需求查询凭证；替换 `TODO`，不能用代码日志 Token 代替 |
 | 【个人待办必填】默认当前人 | `bos-demand-query.cuser` | **填写 BOS 账号／工号，不填中文显示姓名**；以 BOS 实际识别的完整账号为准，不自行拼接或删掉账号中的数字 |
 | 【个人待办必填】默认当前组 | `bos-demand-query.cgroup` | 本人在 BOS 中所属的当前组名称，按系统实际值填写；明确跨组查询时在调用参数中传 `cgroup: ""` |
 | 【保留／按需】日志连接 | `bos-code-update-log.connection`；自定义连接使用该段 `url` | 公司连接保留 `company`；自定义连接按日志接口配置，不直接复用查询 URL |
-| 【写日志必填】日志 Token | `bos-code-update-log.token` | 代码日志接口使用的 Token；与查询 Token 独立 |
+| 【写日志必填】日志 Token | `bos-code-update-log.token` | 在 BOS「代码更新日志接口」获取日志 Key；页面有「我的 Key」按钮，具体对应关系尚待核实，以页面说明或管理员确认为准；与查询凭证独立 |
 | 【写日志必填】关联项目 | `bos-code-update-log.linkProject` | 实际关联的研发项目，按日志接口约定填写 |
+| 【保留】日志超时 | `bos-code-update-log.timeout` | 可选，默认 `30000` 毫秒，通常无需修改 |
+
+凭证获取与字段处理的 owner 说明见[凭证来源与填写](../../plugins/bos-plugin/references/usage.md#凭证来源与填写)。只使用日志时也可暂不填写查询段。初始化返回实际配置路径、待填字段和取值指引，已有配置无需为取得新提示而迁移；真实凭据仍只填写到仓外私有文件。
 
 **容易填错：`cuser` 的“当前人”是账号身份，不是页面上显示的姓名。** 使用人员反馈过将显示姓名改为完整账号后查询恢复的情况；此反馈不代表其它人员字段也已验证使用相同格式。若连接成功却查不到自己的需求，优先核对实际采用的 `cuser` 和 `cgroup`，不要只检查 Token。
 
 按编号查详情不要求默认人员与组；按其它人员或组查列表时，按[查询参数契约](../../plugins/bos-plugin/references/usage.md#查询参数契约)明确筛选条件，不需要补填不使用的默认身份。填写完成后先运行对应的 `defaults` 离线核对；**离线校验通过不代表账号正确或远端查询成功**，仍须在授权范围内验证实际查询。
 
-`connection: company` 从[公司默认值](../../plugins/bos-plugin/references/company-defaults.json)取地址：查询使用 `url`，日志使用 `codeUpdateLogUrl`。查询运行时再将个人 `access_key` 加入 URL，所以私有文件中未必有完整 URL。自定义 `url` 与 `connection: company` 按[配置契约](../../plugins/bos-plugin/references/usage.md)二选一。
+`connection: company` 从[公司默认值](../../plugins/bos-plugin/references/company-defaults.json)取地址：查询使用 `url`，日志使用 `codeUpdateLogUrl`。查询运行时再将私有配置中的 `access_key` 加入 URL，所以私有文件中未必有完整 URL。自定义 `url` 与 `connection: company` 按[配置契约](../../plugins/bos-plugin/references/usage.md)二选一。
 
 初始化选路径与日常读取不同：
 

@@ -318,7 +318,7 @@ connected 项目按需导出示例：“处理这份 project 需求，准备修�
 
 BOS 与需求交付按 manifest 的阶段声明复用能力；缺失提示与调用检查见[可用性依赖](../plugin-availability.md)。
 
-前提：Node.js >=22.5.0；项目内使用时明确启用插件，个人查询可使用已接入的用户级入口。在线查询与日志补录使用 BOS_MCP_CONFIG 指向的共享私有文件，各自读取按 skill 命名的段，已有充分需求正文的本地处理不依赖在线查询。
+前提：Node.js >=22.5.0；项目内使用时明确启用插件，个人查询可使用已接入的用户级入口。在线查询与日志补录使用 BOS_MCP_CONFIG 指向的共享私有文件，各自读取按 skill 命名的段，已有充分需求正文的本地处理不依赖在线查询。初始化按待填字段展示[凭证获取入口](../../plugins/bos-plugin/references/usage.md#凭证来源与填写)，区分统一 access_key、个人查询凭证与日志 Key；只用一项可暂不填写另一段。
 
 - [bos-init](../../plugins/bos-plugin/skills/bos-init/SKILL.md)：请求“初始化 BOS 个人配置”，Windows 创建或复用分段私有配置，仅绑定 BOS_MCP_CONFIG；旧平铺文件须明确 migrate-config 原地迁移，用户补全 TODO 后离线核对；这不启用项目。请求“为当前项目接入 BOS 查询与需求处理”才更新 profile 并生成四个日常发现入口。详见[配置说明](../../plugins/bos-plugin/references/usage.md)；非 Windows 使用显式配置，不自动注册客户端 MCP。
 - [bos-demand-entry](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md)：请求“根据当前标版改动补需求”“整理这份工作记录”或“提需求给支持组，解决演示系统登录问题”，可补资料。仅 standard，名称按[标版标签规则](../../plugins/bos-plugin/skills/bos-demand-entry/SKILL.md#需求名称与标版标签各类来源共用)逐条判断；扁平Git代码用v2，主子代码用v4，`--work` 工作和自然语言主题提需用 v3；主题不要求 Git，接收组与产品标识分开核实。默认文本，`--split` 审查拆合、`--excel` 导出同源草稿、`--bind` 回填编号，仅代码按授权衔接提交。已完成条目追加备注，文本写完不代表问题已解决。本地生成无需 BOS 凭据，不自动发送或录入；产物归目标工程需求目录或任务临时目录。旧 `iris-demand-entry` / `iris-demand-commit` 已删除，改用当前 owner，数据兼容与项目引用迁移见[迁移说明](../demand-delivery-migration.md)。

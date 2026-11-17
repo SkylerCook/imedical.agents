@@ -237,7 +237,7 @@
       "directory": "bos-plugin",
       "manifest": {
         "name": "bos-plugin",
-        "version": "0.18.3",
+        "version": "0.18.4",
         "displayName": "BOS Demand Plugin",
         "description": "跨技术栈的 BOS 只读查询、需求处理、标版补录、代码更新日志与通用提交衔接。",
         "entry": "AGENTS.md",
@@ -322,7 +322,7 @@
           }
         ]
       },
-      "manifestHash": "1e651af67c395b8387c030ac955ac072a72065b90cfaa351fbab93974feff475"
+      "manifestHash": "d7ab3c36d2819e29b3321d84daed7c472f38f8d383fc3a42219926a154349723"
     },
     {
       "directory": "codegraph-query",

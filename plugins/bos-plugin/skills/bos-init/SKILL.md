@@ -11,6 +11,8 @@ description: 初始化或迁移按 skill 分段的 BOS 共享私有配置，或�
 
 先区分个人配置和项目接入。个人配置按 [配置说明](../../references/usage.md)执行 init-config，在同一仓外文件生成 bos-demand-query 与 bos-code-update-log 两段，只绑定 BOS_MCP_CONFIG。向用户展示或打开返回的 configPath，分别填写 TODO；凭据不互相替代。旧平铺文件只在明确迁移请求时执行 migrate-config 原地转换，不在普通初始化或项目更新时改写。写入、绑定回读、当前命令注入路径和重启客户端分别确认；填写后按技能 defaults 离线核对，真实网络验证仍沿用独立授权。这些操作不启用项目。
 
+个人配置生成后，展示 `configPath`，按返回的 `fill` / `guidance` 和[凭证来源](../../references/usage.md#凭证来源与填写)说明所需技能的待填字段及获取入口；旧配置迁移补入的日志段沿同一说明。统一 access_key 通过内部安全渠道向框架维护者获取，个人查询凭证与日志 Key 分开填写；只使用一项时可暂不填写另一段。说明 timeout 通常无需修改，填写后只对所需技能运行 defaults，并区分离线校验与真实连接结果；真实凭据仅在私有文件填写。
+
 项目接入按以下步骤执行。
 
 1. 读取目标 AGENTS、plugin profile 和本插件 AGENTS/README。使用 CapabilityRoot 的 scripts/lib/workspace-context.js 解析 WorkspaceRoot、ContextRoot、CapabilityRoot；不猜父目录。已有有效配置及未知同名入口保留。

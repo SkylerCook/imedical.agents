@@ -32,7 +32,7 @@ node <脚本绝对路径> submit '{"select":[{"repo":"<实仓路径>","ref":"ref
 
 `defaults` 离线校验本技能配置，只输出来源标记、token 是否已配、关联项目和超时，不返回 token。`repos` 有深度限制，识别 `.git` 目录与 submodule/worktree 的 gitdir 文件，跳过隐藏目录和 node_modules，不跟随目录链接枚举。枚举结果不代表日志资格。`commits` 经实仓与目标 ref 核对后列出该分支最近提交；`plan` 返回 payload 与摘要，不联网。未确认的 `submit` 返回摘要、退出码 1，不发请求。正常结果为 stdout JSON，错误为 stderr 和退出码 1。
 
-配置文件与需求查询共用 `BOS_MCP_CONFIG`，路径和初始化约定见 [共享配置](usage.md)。本技能只读顶层 `bos-code-update-log` 段：
+配置文件与需求查询共用 `BOS_MCP_CONFIG`，路径和初始化约定见 [共享配置](usage.md)，Key 获取路径与三种凭证的区别见[凭证来源与填写](usage.md#凭证来源与填写)。本技能只读顶层 `bos-code-update-log` 段：
 
 | 字段 | 要求 | 用途 |
 |---|---|---|

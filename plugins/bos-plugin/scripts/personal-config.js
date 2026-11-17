@@ -3,6 +3,22 @@ const fs = require('node:fs'), path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { randomBytes } = require('node:crypto');
 const QUERY_SKILL = 'bos-demand-query', LOG_SKILL = 'bos-code-update-log';
+const FIELD_HELP = {
+  'bos-demand-query.access_key': '公司接入当前使用统一 access_key，无需个人申请；请向框架维护者通过内部安全渠道获取，填入仓外私有配置。自定义连接按服务提供方说明获取凭证。',
+  'bos-demand-query.headers.X-Gateway-Upstream-BOS-MCP-TOKEN': '在 BOS「接口访问凭证申请」申请个人需求查询凭证，填入仓外私有配置；与统一 access_key、代码日志 Key 分开填写。',
+  'bos-demand-query.cuser': '填写 BOS 实际识别的完整账号／工号，不直接填写中文显示姓名；保留已验证可用的个人配置。',
+  'bos-demand-query.cgroup': '填写本人在 BOS 中的所在组名称。',
+  'bos-code-update-log.token': '在 BOS「代码更新日志接口」获取日志接口 Key；可查看「我的 Key」，该按钮与日志凭证的具体对应关系尚待核实。不使用需求查询凭证代替。',
+  'bos-code-update-log.linkProject': '填写实际关联的研发项目名称，不直接套用其他人的项目。'
+};
+function fieldHelp(field) { return FIELD_HELP[field] || ''; }
+function setupGuidance(fill) {
+  return {
+    fields: fill.map(field => ({ field, source: fieldHelp(field) })),
+    notes: ['只使用需求查询时，代码日志段可暂不填写；只使用代码日志时，查询段可暂不填写。', 'timeout 默认 30000ms，通常无需修改。', '凭据仅填写到返回的仓外 configPath，不发送到聊天或写入仓库。', '填写后分别运行所需技能的 defaults 做离线校验；这不代表真实连接或 BOS 写入成功。客户端重启后继承路径绑定。'],
+    reference: 'references/usage.md#凭证来源与填写'
+  };
+}
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 function readPrivate(file) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')); }
@@ -119,7 +135,7 @@ function initialize(filePath, { env = process.env, platform = process.platform, 
     if (skill === QUERY_SKILL && section.headers?.['X-Gateway-Upstream-BOS-MCP-TOKEN'] === 'TODO') fill.push(`${skill}.headers.X-Gateway-Upstream-BOS-MCP-TOKEN`);
     if (skill === LOG_SKILL) for (const field of ['token', 'linkProject']) if (section[field] === 'TODO') fill.push(`${skill}.${field}`);
   }
-  return { created: !existed, updated: changed && existed, configPath: target, bindingVerified: true, fill, restartClient: true };
+  return { created: !existed, updated: changed && existed, configPath: target, bindingVerified: true, fill, guidance: setupGuidance(fill), restartClient: true };
 }
 function migrate(filePath, { platform = process.platform } = {}) {
   if (platform !== 'win32') throw new Error('自动迁移仅支持 Windows；其它平台请显式整理按 skill 分段的私有配置，未写入');
@@ -138,4 +154,4 @@ function migrate(filePath, { platform = process.platform } = {}) {
   if (changed) writePrivate(filePath, next, expected);
   return { migrated: changed, configPath: filePath, queryPreserved: true, logConfigured: !/^TODO$/i.test(String(next[LOG_SKILL].token || 'TODO')) && !/^TODO$/i.test(String(next[LOG_SKILL].linkProject || 'TODO')) };
 }
-module.exports = { initialize, migrate, readSkillConfig, standardPath, companyUrl, windowsBinding };
+module.exports = { initialize, migrate, readSkillConfig, standardPath, companyUrl, windowsBinding, fieldHelp };

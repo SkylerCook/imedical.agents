@@ -287,7 +287,7 @@ function loadConfig(env = process.env) {
   let config = personal.readSkillConfig(env, 'bos-demand-query');
   if (config.connection === 'company') {
     if (Object.hasOwn(config, 'url')) throw new Error('公司连接配置不能同时设置 url');
-    if (typeof config.access_key !== 'string' || !config.access_key.trim() || /^TODO$/i.test(config.access_key.trim())) throw new Error('请在 BOS_MCP_CONFIG 指向的文件补全 access_key TODO');
+    if (typeof config.access_key !== 'string' || !config.access_key.trim() || /^TODO$/i.test(config.access_key.trim())) throw new Error('请在 BOS_MCP_CONFIG 指向的文件补全 access_key（不能为 TODO）。' + personal.fieldHelp('bos-demand-query.access_key'));
     const base = personal.companyUrl();
     let endpoint;
     try { endpoint = new URL(base); } catch { throw new Error('BOS URL 无效'); }
@@ -299,7 +299,7 @@ function loadConfig(env = process.env) {
   try { url = new URL(config.url); } catch { throw new Error('BOS URL 无效'); }
   if (url.protocol !== 'https:' || url.username || url.password) throw new Error('BOS URL 必须使用 HTTPS 且不含用户信息');
   const headers = config.headers || {};
-  if (!headers['X-Gateway-Upstream-BOS-MCP-TOKEN'] || headers['X-Gateway-Upstream-BOS-MCP-TOKEN'] === 'xxxxx' || /^TODO$/i.test(String(headers['X-Gateway-Upstream-BOS-MCP-TOKEN']).trim())) throw new Error('缺少 BOS 个人 Token');
+  if (!headers['X-Gateway-Upstream-BOS-MCP-TOKEN'] || headers['X-Gateway-Upstream-BOS-MCP-TOKEN'] === 'xxxxx' || /^TODO$/i.test(String(headers['X-Gateway-Upstream-BOS-MCP-TOKEN']).trim())) throw new Error('缺少 BOS 个人 Token。' + personal.fieldHelp('bos-demand-query.headers.X-Gateway-Upstream-BOS-MCP-TOKEN'));
   if (config.cuser !== undefined && typeof config.cuser !== 'string') throw new Error('本机 cuser 必须为字符串');
   if (config.cgroup !== undefined && typeof config.cgroup !== 'string') throw new Error('本机 cgroup 必须为字符串');
   return { url: url.href, headers, ...(config.cuser ? { cuser: config.cuser } : {}), ...(config.cgroup ? { cgroup: config.cgroup } : {}) };

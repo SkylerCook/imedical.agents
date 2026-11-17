@@ -961,6 +961,8 @@ bos-plugin 随既有 /plugins/** 与 workflow 分发，默认 available；仅明
 
 查询与日志共用 BOS_MCP_CONFIG 指向的仓外 JSON，顶层按 bos-demand-query 与 bos-code-update-log 分段，凭据分别填写。新版本不再读取旧平铺/mcpServers/仅身份配置、连接环境变量回退或编辑器设置；查询参数与人员/组显式覆盖不变，客户端 stdio 注册仍只需传共享文件路径。
 
+BOS 0.18.4 的初始化和报错增加[逐字段凭证指引](../plugins/bos-plugin/references/usage.md#凭证来源与填写)，正常更新能力包取得；既有配置结构和值保留，无新增迁移或旧文件清理，不自动读取、填写或更新个人凭据。只使用查询或日志时可暂不填写另一段。原生 MCP 仍是可选入口，无需为使用 skill 另配每项目 MCP。
+
 已有有效平铺文件由使用者明确执行新版查询脚本 migrate-config <原文件绝对路径>，原地保留查询对象并增加日志 TODO 段；包装结构或未知额外字段停止并提示人工核对。运行时不自动迁移，普通 Write 不修改私有文件。新初始化创建两段，Windows 默认位置为 LOCALAPPDATA/imedical-agents/bos/config.json，仅绑定 BOS_MCP_CONFIG。非 Windows 显式配置新结构，自动初始化/迁移明确停止。
 
 更新后以新进程分别调用需要使用的技能 defaults 离线核对。日志 token/linkProject 未填写只阻塞日志，不影响查询；真实查询、BOS 写入及宿主发现分别取证。历史业务副本在主动更新前仍使用旧实现，不能宣称源仓修改已生效。完整操作与失败恢复见 [配置说明](../plugins/bos-plugin/references/usage.md)与[日志协议](../plugins/bos-plugin/references/code-update-log.md)。

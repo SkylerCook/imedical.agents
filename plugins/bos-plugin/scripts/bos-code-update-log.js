@@ -142,7 +142,7 @@ function loadConfig(env = process.env) {
   if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.search || parsed.hash) throw new Error('代码更新日志接口地址必须为不含鉴权参数的 HTTPS 地址');
   const required = (key) => {
     const value = selected[key];
-    if (typeof value !== 'string' || !value.trim() || /^(TODO|xxxxx)$/i.test(value.trim())) throw new Error('请补全 bos-code-update-log.' + key + '，凭据和关联项目不能为 TODO');
+    if (typeof value !== 'string' || !value.trim() || /^(TODO|xxxxx)$/i.test(value.trim())) throw new Error('请补全 bos-code-update-log.' + key + '，凭据和关联项目不能为 TODO。' + personal.fieldHelp('bos-code-update-log.' + key));
     return value.trim();
   };
   const token = required('token'), linkProject = required('linkProject');
