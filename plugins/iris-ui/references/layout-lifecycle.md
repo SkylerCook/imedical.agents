@@ -6,14 +6,18 @@
 
 从实际入口追踪 head 展开后的资源顺序、主题选择、body 输出和公共适配。采用 `DOC:HEAD` / `docBodyAttr` 的工程同时核对两者；其它加载机制按当前源码调查，不硬套路径。读取实际加载资源与计算样式，区别未加载、选择器未命中、优先级被覆盖及重复适配。主题 CSS 与 JS 选项须一致：HISUI 的 `HISUIStyleCode`、`HISUITheme` 及最终 body `data-theme` 在组件初始化前核对；iHOS 海蓝在当前 vendor 中使用 vben＋bgseablue，不能仅替换 CSS 文件名便声称已覆盖其原生默认。工程实际版本另行核实。
 
+样式已写但未生效时，将目标属性的最终计算值与实际胜出规则对上，检查资源顺序、选择器、简写/长属性和 `!important`；选择器命中不证明声明生效。先消除页面冲突或复用已有主题语义；确需匹配公共 utility 的优先级时，只在已确认实例范围调整对应长属性，不全局增加 `!important`。
+
 先识别哪些尺寸来自控件原生 options、生成包裹层、公共 layout 接管标记和页面业务容器。公共已经接管的面板继续由公共负责；缺口才通过原生 API 补齐，保留原回调。主题专属视觉与通用尺寸分开验证，并按工程支持范围检查普通、焦点、禁用和等待状态。
 
 ## 对齐、换行和多余滚动
 
 1. 先量目标 frame，再量宿主、区域、实际滚动容器和内容的 `clientWidth/scrollWidth`；核对 border、padding、split、滚动条及 `box-sizing`。宽度相等只证明该时点无横向溢出。
-2. 留白重复时核对父子各自所有权；选择器失效时读最终匹配与层叠来源。根据实际宿主限定适配，独立页及弹窗保留其自身边界。
+2. 留白重复时核对父子各自所有权；子 frame 内 `left=0` 不能证明宿主无留白。分别量可见的原生 wrapper、iframe 边界和子页局部坐标，核对透明 split 边框等占位来源；隐藏的原始节点或接管标记不能充当可见边界。根据实际宿主限定适配，独立页及弹窗保留其自身边界。
 3. 控件同格还有链接、图标或按钮时，给这些元素明确剩余空间关系，再调用控件 resize；整格宽度不等于控件可用宽度。
 4. 表格提前换行但右侧空白时，核对每行真实列数、colspan/rowspan 与嵌套表格，再判断 `table-layout` 的影响。动态字典保留业务内容，用长短项作对照。
+
+标注横向间距或框体上下对齐时，先区分容器边界、字段组盒、标签盒/文字及初始化后的控件 wrapper。把 label 原生 padding、容器 gap 和控件边框分别计入两端距离；检查实际框体的左右边缘与外宽，不只比较声明的 width。只修已证实的重复部分，不统一清空 label 内距。
 
 圆角看似消失时，分别读外层 wrapper、面板 body、滚动容器及其父背景。父层同色背景、子层满铺背景或滚动槽承载可能填平圆角之外的区域；先对照实际裁剪和滚动前后状态，不能只量到 `border-radius:6px` 就认定视觉已符合，也不因白卡在 PURE 可见便向其它 family 强加白底。
 
@@ -86,5 +90,8 @@
 | `await fixtureUI.reopen()` 重复打开原生 dialog | 等 `opened:N` 递增完成，再核对每次仍可访问内容，关闭与重开不影响其它容器状态 |
 | `await fixtureUI.matchParent(true)`，再 `matchParent(false)` | 对照父背景与原生卡片边界；棋盘背景只是人工对照底，不是公司配色 |
 | `fixtureUI.observe()` | 匿名 geometry、父/子/wrapper 计算样式、两个 tree 配置与图标、panel/datagrid border 对照；不修改公开 `collectUiMetrics` API |
+| 展开 Review scope，读取 `reviewObservation` | 分别对照 label 文字／盒边界与输入外框，不能把 nominal gap 当成实际文字间距 |
+| 点击 Native split／Join split edge | 对照可见父面板到 iframe 的间距及子页局部 grid 坐标；子页起点相同不能排除父级占位 |
+| 卡片与 priority 样本 | 比较仅边框透明与错误清空背景／阴影的区别，以及普通覆盖与匹配重要性的长属性最终值；卡片为合成对照，不是公司组件外观规范 |
 
 两个树分别配置 `lines:true`＋`autoNodeHeight:true/false`；边框样本分别使用原生 `border:true/false`。夹具观测只能证明当前 vendor 和当前状态，不把内置对照当成所有工程的规范，也不预填用户视觉验收。结束服务沿终端输入 `stop`，业务已有服务和页面保持原状。

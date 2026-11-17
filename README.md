@@ -20,6 +20,8 @@
 
 项目文档统一由 [docs](docs/README.md) 导航。版本更新细节和验收证据归维护日志与 owner 协议，当前版本查 manifest。xc 手册及待接入能力沿既有治理队列。
 
+UI 标注落地按[对象与主题边界](plugins/imedical-ui/references/style-differences.md#按对象语义判断共性)拆分属性；IRIS 页面结合[实际布局与层叠](plugins/iris-ui/references/layout-lifecycle.md)核对可见结果。
+
 ## 快速理解
 
 插件启用、禁用或恢复由 [plugin-management](plugins/agent-context-kit/skills/plugin-management/SKILL.md) 完成操作，再交给项目上下文维护核对当前工程路由；实际状态、项目入口与宿主加载分别确认。

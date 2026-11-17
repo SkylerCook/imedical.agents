@@ -164,7 +164,7 @@ test("UI implementation routes final theme review to one owner and reuses the ta
     assert.match(skill, /rules\/iris_ui\.md#最终差异核对/);
     assert.match(rule, /README\.md#只读主题范围扫描/);
     assert.match(rule, /零候选不代表/);
-    assert.match(rule, /优先级/);
+    assert.match(rule, /references\/layout-lifecycle\.md#公共接入与主题/);
     const task = read("templates/ui-task.md");
     for (const field of ["共性落点", "差异依据", "兼容基准"]) assert.ok(task.includes(field), field);
     assert.ok(fs.existsSync(path.join(plugin, "scripts/check-theme-scope.js")));
@@ -217,3 +217,77 @@ for (const shell of (process.platform === "win32" ? ["pwsh.exe", "powershell.exe
         }
     });
 }
+
+
+test("review diagnostics keep nested-frame resources local and reject unsupported themes", { timeout: 30000 }, async () => {
+    const { spawn } = require("node:child_process");
+    const http = require("node:http");
+    const child = spawn(process.execPath, [path.join(__dirname, "fixtures/iris-ui-server.cjs")], {
+        cwd: repo, windowsHide: true, stdio: ["pipe", "pipe", "pipe"]
+    });
+    const closed = new Promise(resolve => child.once("close", resolve));
+    let stderr = "";
+    child.stderr.on("data", value => { stderr += value; });
+    try {
+        const address = await new Promise((resolve, reject) => {
+            let output = "";
+            child.once("error", reject);
+            child.once("exit", code => reject(new Error("Fixture server exited " + code + ": " + stderr)));
+            child.stdout.on("data", value => {
+                output += value;
+                const newline = output.indexOf("\n");
+                if (newline >= 0) {
+                    try { resolve(new URL(JSON.parse(output.slice(0, newline)).url)); } catch (error) { reject(error); }
+                }
+            });
+        });
+        assert.equal(address.hostname, "127.0.0.1");
+        const get = route => new Promise((resolve, reject) => {
+            const request = http.get({ hostname: address.hostname, port: address.port, path: route }, response => {
+                let body = "";
+                response.setEncoding("utf8");
+                response.on("data", value => { body += value; });
+                response.on("end", () => resolve({ status: response.statusCode, headers: response.headers, body }));
+            });
+            request.on("error", reject);
+        });
+        const parent = await get("/");
+        assert.equal(parent.status, 200);
+        // DOM handles are the fixture contract; this does not emulate CSS or prove rendering.
+        for (const id of ["reviewDiagnostics", "reviewStatus", "reviewObservation", "reviewLabelRaw", "reviewLabelEffective",
+            "reviewInputRaw", "reviewInputEffective", "reviewSplitLayout", "reviewWest", "reviewCenter", "reviewFrame",
+            "reviewCardBaseline", "reviewCardBorderOnly", "reviewCardWholeSurface",
+            "reviewCascadeBaseline", "reviewCascadeOrdinary", "reviewCascadeMatched"]) {
+            assert.equal((parent.body.match(new RegExp('\\bid="' + id + '"', "g")) || []).length, 1, id);
+        }
+        assert.match(parent.body, /<iframe\s+id="reviewFrame"/);
+        const surfaceSource = parent.body.match(/class="review-cards"\s+data-surface-source="([^"]+)"/);
+        assert.ok(surfaceSource, "Synthetic cards declare their native surface source");
+        const sourceHost = surfaceSource[1].match(/^#([\w-]+)\s*>\s*\.combo$/);
+        assert.ok(sourceHost, "The source is a native initialized combobox wrapper");
+        assert.equal((parent.body.match(new RegExp('\\bid="' + sourceHost[1] + '"', "g")) || []).length, 1);
+        for (const theme of ["pure", "vben", "lite"]) {
+            const parent = await get("/?theme=" + theme);
+            const frame = await get("/review-frame?theme=" + theme);
+            assert.equal(parent.status, 200);
+            assert.equal(frame.status, 200);
+            assert.match(frame.headers["content-type"], /^text\/html/);
+            assert.equal(frame.headers["cache-control"], "no-store");
+            assert.match(frame.body, new RegExp("/hisui/css/hisui\\." + theme + "\\.css"));
+            assert.match(frame.body, /<table\s+id="frameGrid"/);
+            assert.equal(/<iframe\b|https?:\/\//i.test(frame.body), false, "The child stays local and does not recurse");
+            const inlineScripts = [...frame.body.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
+                .map(match => match[1]).filter(body => body.trim());
+            assert.ok(inlineScripts.length > 0);
+            for (const script of inlineScripts) assert.doesNotThrow(() => new vm.Script(script));
+        }
+        assert.equal((await get("/review-frame?theme=unknown")).status, 404);
+        assert.equal((await get("/hisui/%2e%2e/%2e%2e/AGENTS.md")).status, 404);
+        assert.equal((await get("/unrelated-project-file")).status, 404);
+    } finally {
+        if (child.exitCode === null && child.signalCode === null) child.stdin.end("stop\n");
+        const stopped = await Promise.race([closed.then(() => true),
+            new Promise(resolve => { const timeout = setTimeout(() => resolve(false), 3000); timeout.unref(); })]);
+        if (!stopped) { child.kill(); await closed; }
+    }
+});

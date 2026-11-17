@@ -546,14 +546,20 @@ test("company standards stay stack independent and the IRIS adapter declares its
     for (const entry of [company.entry, "skills/imedical-ui/SKILL.md", "skills/imedical-ui-review/SKILL.md",
         "skills/imedical-ui-init/SKILL.md", "rules/imedical_ui.md"]) assert.ok(fs.existsSync(path.join(plugin, entry)), entry);
     const adapter = jsonFile(path.join(repo, "plugins/iris-ui/.agents-plugin/plugin.json"));
-    assert.match(adapter.version, /^0\.3\.\d+$/);
+    const { parseSemver, inRange } = require("../../.agents/skills/agent-kit-maintenance/scripts/validate-component-versions");
+    assert.ok(parseSemver(adapter.version), "adapter version uses strict semver");
     assert.ok(adapter.dependencies.includes("imedical-ui"));
     assert.ok(adapter.dependencies.includes("coding-iris-plugin"));
-    assert.deepEqual(adapter.dependencyVersions["imedical-ui"], { minVersion: "0.1.3", maxVersionExclusive: "0.2.0" });
     const manifests = new Map(fs.readdirSync(path.join(repo, "plugins")).map(name => {
         const file = path.join(repo, "plugins", name, ".agents-plugin/plugin.json");
         return fs.existsSync(file) ? jsonFile(file) : null;
     }).filter(Boolean).map(item => [item.name, item]));
+    for (const dependency of adapter.dependencies) {
+        const range = adapter.dependencyVersions[dependency];
+        assert.ok(range, dependency + " declares a compatible range");
+        assert.ok(inRange(manifests.get(dependency).version, range.minVersion, range.maxVersionExclusive),
+            dependency + " current owner version remains consumable by the IRIS adapter");
+    }
     const active = new Set(), complete = new Set();
     function visit(name) {
         assert.equal(active.has(name), false, `Strong dependency cycle through ${name}`);

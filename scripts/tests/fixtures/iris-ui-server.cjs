@@ -11,6 +11,24 @@ const server = http.createServer((req, res) => {
     let file;
     try {
         const url = new URL(req.url, "http://127.0.0.1");
+
+        if (url.pathname === "/review-frame") {
+            const theme = url.searchParams.get("theme") || "pure";
+            if (!["pure", "vben", "lite"].includes(theme)) throw new Error("unknown fixture theme");
+            const bodyTheme = theme === "vben" ? "bgseablue" : "";
+            const child = '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Anonymous child frame</title>' +
+                '<script>window.HISUIStyleCode="' + theme + '";window.HISUITheme="' + bodyTheme + '";</script>' +
+                '<link rel="stylesheet" href="/hisui/css/hisui.' + theme + '.css">' +
+                '<style>body{margin:0;padding:0;font-size:14px}#frameOrigin{height:20px}</style>' +
+                '<script src="/hisui/js/jquery-1.11.3.min.js"></script><script src="/hisui/js/jquery.hisui.js"></script></head>' +
+                '<body hisui-version="' + theme + '" data-theme="' + bodyTheme + '"><div id="frameOrigin">Child origin</div><table id="frameGrid"></table>' +
+                '<script>$(function(){$("#frameGrid").datagrid({width:Math.max(100,document.body.clientWidth),height:110,border:false,toolbar:null,' +
+                'columns:[[{field:"label",title:"Item",width:140}]],data:[{label:"Anonymous item"}]});document.body.setAttribute("data-frame-state","ready");});</script></body></html>';
+            res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" });
+            res.end(child);
+            return;
+        }
+
         if (url.pathname === "/") file = path.join(__dirname, "iris-ui.html");
         else if (url.pathname === "/collect-ui-metrics.js") file = path.join(repo, "plugins/iris-ui/scripts/collect-ui-metrics.js");
         else if (url.pathname.startsWith("/hisui/")) {

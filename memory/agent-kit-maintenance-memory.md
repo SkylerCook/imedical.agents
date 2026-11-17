@@ -4,6 +4,8 @@
 
 ## 当前重点
 
+- UI 评审经验已补属性范围、两主题边界、原生间距和父子布局对照；单批证据及匿名夹具结果见[验证记录](../maintenance/validation/ui-review-feedback-2026-11-18.md)，业务副本按正常更新取得。
+
 - 工作台可交互 UI 原型已落在 tools/agents-workbench/prototype；模拟数据、工程级身份与 Root/模块导航，浏览器验收范围见维护日志。正式后端与宿主集成仍沿 docs/agents-workbench-plan.md。
 
 - 新离线部署默认 Node 24.22.3，工作台复用 ai-dev-offline 环境；框架最低兼容要求保留，验证范围见维护日志与工具准备回执。

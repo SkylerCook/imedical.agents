@@ -39,6 +39,27 @@ h1 { font-size: 20px; }
 #hiddenTarget { display: none; }
 #fixtureStatus { font-family: monospace; margin: 10px 0; }
 #resourceStatus { white-space: pre-wrap; }
+
+/* Synthetic review samples are diagnostic controls, not company card/spacing requirements. */
+#reviewDiagnostics > summary { font-size: 18px; cursor: pointer; }
+.review-label-row { display: flex; align-items: center; gap: 20px; margin: 10px 0; }
+.review-label-row > label { flex: none; }
+.review-label-row > input { width: 150px; }
+#reviewSplitLayout { height: 170px; }
+#reviewSplitLayout.fixture-joined > .layout-split-west { border-right-width: 0; }
+#reviewFrame { display: block; width: 100%; height: 100%; border: 0; }
+.review-cards { display: flex; flex-wrap: wrap; gap: 15px; padding: 12px;
+    background: repeating-conic-gradient(#d8d8d8 0 25%, #f0f0f0 0 50%) 0 / 12px 12px; }
+.review-card { width: 180px; min-height: 100px; padding: 12px; box-sizing: border-box;
+    border: 1px solid currentColor; border-radius: 6px; background-color: var(--review-card-surface);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); }
+#reviewCardBorderOnly { border-color: transparent; }
+#reviewCardWholeSurface { border-color: transparent; background-color: transparent; box-shadow: none; }
+.review-separator { padding: 8px; margin: 8px 0; border-bottom: 1px dashed var(--review-rule-color) !important; }
+#reviewCascadeOrdinary { border-bottom-color: transparent; }
+#reviewCascadeMatched { border-bottom-color: transparent !important; }
+#reviewObservation { max-height: 220px; overflow: auto; white-space: pre-wrap; }
+
 </style>
 <script src="/hisui/js/jquery-1.11.3.min.js"></script>
 <script src="/hisui/js/jquery.hisui.js"></script>
@@ -89,6 +110,24 @@ h1 { font-size: 20px; }
   <div class="fixture-column"><div id="panelBorderOff">Panel border=false</div><table id="gridBorderOff"></table></div>
 </div>
 </section>
+
+<details id="reviewDiagnostics" class="fixture-section" open>
+<summary>Review scope and computed-style comparisons</summary>
+<p>Anonymous counterexamples: inspect text, box and parent/frame boundaries separately. These sample values and corrections are not production defaults.</p>
+<h3>Native label padding and nominal gap</h3>
+<div id="reviewLabelRawRow" class="review-label-row"><label id="reviewLabelRaw" class="hisui-label">Field</label><input id="reviewInputRaw" class="textbox" aria-label="Raw-gap input"></div>
+<div id="reviewLabelEffectiveRow" class="review-label-row"><label id="reviewLabelEffective" class="hisui-label">Field</label><input id="reviewInputEffective" class="textbox" aria-label="Text-gap input"></div>
+<h3>Native parent split and separate child frame</h3>
+<div class="fixture-actions"><button id="reviewSplitNative">Native split</button><button id="reviewSplitJoined">Join split edge</button><button id="reviewMeasure">Measure review samples</button></div>
+<div id="reviewSplitLayout"><div id="reviewWest" data-options="region:'west',width:180,split:true,border:false">Native west content</div><div id="reviewCenter" data-options="region:'center',border:false"><iframe id="reviewFrame" title="Separate anonymous grid frame"></iframe></div></div>
+<h3>Border-only scope versus whole-surface removal</h3>
+<p>The synthetic card background is sampled from the initialized native combobox wrapper so it remains visible against the checkerboard. Its color and the shared synthetic shadow are diagnostic baselines, not an attachment component or company card specifications.</p>
+<div class="review-cards" data-surface-source="#comboSlot > .combo"><div id="reviewCardBaseline" class="review-card">Synthetic baseline</div><div id="reviewCardBorderOnly" class="review-card">Only the border becomes transparent</div><div id="reviewCardWholeSurface" class="review-card">Counterexample: background and shadow also cleared</div></div>
+<h3>Final winning property and important priority</h3>
+<div id="reviewCascadeBaseline" class="review-separator">Important baseline divider</div><div id="reviewCascadeOrdinary" class="review-separator">Ordinary transparent override loses</div><div id="reviewCascadeMatched" class="review-separator">Narrow same-property override wins</div>
+<div id="reviewStatus" role="status">initializing</div><pre id="reviewObservation"></pre>
+</details>
+
 <div id="repeatDialog"><div id="dialogRows"></div></div>
 <div id="hiddenTarget">Hidden sample</div>
 <script>
@@ -125,6 +164,7 @@ h1 { font-size: 20px; }
         });
         $("#repeatDialog").dialog("resize", { width: Math.min(474, Math.floor($("body").width())) });
         if (!$("#repeatDialog").dialog("options").closed) { $("#repeatDialog").dialog("center"); }
+        fitReviewWidth();
     }
     function afterContent() {
         fitCombo();
@@ -212,6 +252,9 @@ h1 { font-size: 20px; }
             background: css.backgroundColor, backgroundImage: css.backgroundImage,
             border: [css.borderTopWidth, css.borderRightWidth, css.borderBottomWidth, css.borderLeftWidth],
             borderColor: css.borderTopColor,
+            borderColors: [css.borderTopColor, css.borderRightColor, css.borderBottomColor, css.borderLeftColor],
+            borderStyles: [css.borderTopStyle, css.borderRightStyle, css.borderBottomStyle, css.borderLeftStyle],
+            shadow: css.boxShadow,
             radius: [css.borderTopLeftRadius, css.borderTopRightRadius, css.borderBottomRightRadius, css.borderBottomLeftRadius],
             padding: [css.paddingTop, css.paddingRight, css.paddingBottom, css.paddingLeft],
             overflow: [css.overflowX, css.overflowY] };
@@ -226,6 +269,83 @@ h1 { font-size: 20px; }
                     background: css.backgroundImage, before: window.getComputedStyle(this, "::before").content };
             }).get() };
     }
+
+    function rectOf(element) {
+        var rect = element.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, width: rect.width, height: rect.height };
+    }
+    function labelSpacing(labelId, inputId, rowId) {
+        var label = document.getElementById(labelId);
+        var input = document.getElementById(inputId);
+        var row = document.getElementById(rowId);
+        var range = document.createRange();
+        range.selectNodeContents(label);
+        var text = range.getBoundingClientRect();
+        var labelBox = rectOf(label);
+        var inputBox = rectOf(input);
+        return { declaredGap: window.getComputedStyle(row).columnGap, labelBox: labelBox,
+            textBox: { left: text.left, right: text.right, width: text.width }, inputBox: inputBox,
+            boxToInputGap: inputBox.left - labelBox.right, textToInputGap: inputBox.left - text.right,
+            labelPadding: styleOf(label).padding };
+    }
+    function fitReviewWidth() {
+        if (!document.getElementById("reviewDiagnostics").open) { return; }
+        $("#reviewSplitLayout").width(Math.min(config.width + 220, Math.floor($("#reviewSplitLayout").parent().width()))).layout("resize");
+    }
+    function reviewObservation() {
+        var frame = document.getElementById("reviewFrame");
+        var west = document.getElementById("reviewWest");
+        var wrapper = $(west).panel("panel")[0];
+        var child = frame.contentDocument;
+        var grid = child && child.querySelector(".datagrid");
+        return { visible: document.getElementById("reviewDiagnostics").open,
+            labels: { nominal: labelSpacing("reviewLabelRaw", "reviewInputRaw", "reviewLabelRawRow"),
+                adjusted: labelSpacing("reviewLabelEffective", "reviewInputEffective", "reviewLabelEffectiveRow") },
+            parentSplit: { joined: $("#reviewSplitLayout").hasClass("fixture-joined"), outerWest: rectOf(wrapper),
+                visibleWest: rectOf(west), frame: rectOf(frame), border: styleOf(wrapper).border,
+                visibleGap: frame.getBoundingClientRect().left - west.getBoundingClientRect().right },
+            childFrame: { ready: !!child && !!child.body && child.body.getAttribute("data-frame-state") === "ready",
+                origin: child && child.getElementById("frameOrigin") ? rectOf(child.getElementById("frameOrigin")) : null,
+                grid: grid ? rectOf(grid) : null },
+            cards: { source: styleOf(document.querySelector($(".review-cards").attr("data-surface-source"))),
+                baseline: styleOf(document.getElementById("reviewCardBaseline")),
+                borderOnly: styleOf(document.getElementById("reviewCardBorderOnly")),
+                wholeSurface: styleOf(document.getElementById("reviewCardWholeSurface")) },
+            cascade: { baseline: styleOf(document.getElementById("reviewCascadeBaseline")),
+                ordinary: styleOf(document.getElementById("reviewCascadeOrdinary")),
+                matched: styleOf(document.getElementById("reviewCascadeMatched")) } };
+    }
+    function showReviewObservation() {
+        var result = reviewObservation();
+        $("#reviewObservation").text(JSON.stringify(result, null, 2));
+        $("#reviewStatus").text(result.visible ? (result.childFrame.ready ? "ready" : "loading-frame") : "collapsed");
+        return result;
+    }
+    function reviewSplit(joined) {
+        $("#reviewStatus").text("changing-split");
+        $("#reviewSplitLayout").toggleClass("fixture-joined", joined);
+        fitReviewWidth();
+        return settle().then(showReviewObservation);
+    }
+    function initReviewDiagnostics() {
+        $("#reviewLabelRaw, #reviewLabelEffective").label();
+        var nativePadding = parseFloat(window.getComputedStyle(document.getElementById("reviewLabelEffective")).paddingRight) || 0;
+        // This row has intrinsic label width and no margins; measure before deriving its demonstration gap.
+        $("#reviewLabelEffectiveRow").css("column-gap", Math.max(0, 20 - nativePadding) + "px");
+        $("#reviewSplitLayout").layout();
+        var region = document.getElementById("reviewDiagnostics");
+        var surfaceSource = document.querySelector($(".review-cards").attr("data-surface-source"));
+        region.style.setProperty("--review-card-surface", window.getComputedStyle(surfaceSource).backgroundColor);
+        region.style.setProperty("--review-rule-color", window.getComputedStyle($("#gridBorderOn").datagrid("getPanel").find(".datagrid-header")[0]).borderBottomColor);
+        var frame = document.getElementById("reviewFrame");
+        frame.addEventListener("load", function () { settle().then(showReviewObservation); });
+        frame.src = "/review-frame?theme=" + encodeURIComponent(config.style);
+        region.addEventListener("toggle", function () { fitReviewWidth(); settle().then(showReviewObservation); });
+        $("#reviewSplitNative").on("click", function () { reviewSplit(false); });
+        $("#reviewSplitJoined").on("click", function () { reviewSplit(true); });
+        $("#reviewMeasure").on("click", showReviewObservation);
+    }
+
     function resources() {
         var link = document.getElementById("themeCss");
         var expected = "/hisui/css/hisui." + config.style + ".css";
@@ -246,7 +366,8 @@ h1 { font-size: 20px; }
                 wrapper: styleOf($("#surfacePanel").panel("panel")[0]) },
             borders: { panelOn: styleOf(document.getElementById("panelBorderOn")), panelOff: styleOf(document.getElementById("panelBorderOff")),
                 gridOn: styleOf($("#gridBorderOn").datagrid("getPanel")[0]), gridOff: styleOf($("#gridBorderOff").datagrid("getPanel")[0]) },
-            trees: { auto: treeObservation("#treeAuto"), fixed: treeObservation("#treeFixed") } };
+            trees: { auto: treeObservation("#treeAuto"), fixed: treeObservation("#treeFixed") },
+            review: reviewObservation() };
     }
     $(function () {
         $("#sampleLayout").width(Math.min(config.width + 220, Math.floor($("#sampleLayout").parent().width()))).layout({ onCollapse: fitCombo, onExpand: fitCombo });
@@ -265,6 +386,7 @@ h1 { font-size: 20px; }
                 columns: [[{ field: "label", title: "Item", width: 180 }, { field: "quantity", title: "Quantity", width: 100, align: "right" }]],
                 data: [{ label: "Anonymous item", quantity: 1 }, { label: "Another item", quantity: 12 }] });
         });
+        initReviewDiagnostics();
         fitHostWidth();
         $(window).on("resize.irisFixture", function () {
             window.clearTimeout(hostResizeTimer);
@@ -288,7 +410,7 @@ h1 { font-size: 20px; }
         $("#reopen").on("click", reopen);
         $("#parentContrast").on("click", function () { matchParent(false); });
         $("#parentMatch").on("click", function () { matchParent(true); });
-        window.fixtureUI = { observe: observe, setCount: setCount, cycle: cycle, toggle: toggleQuery, reopen: reopen, matchParent: matchParent };
+        window.fixtureUI = { observe: observe, setCount: setCount, cycle: cycle, toggle: toggleQuery, reopen: reopen, matchParent: matchParent, review: showReviewObservation, reviewSplit: reviewSplit };
         setCount(1).then(function () {
             var context = resources();
             var valid = context.cssMatches && context.cssLoaded && context.jsStyle === config.style && context.bodyTheme === config.theme;
