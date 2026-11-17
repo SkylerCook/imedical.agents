@@ -63,3 +63,7 @@
 业务知识、公司 UI 与 HISUI 的检索、建库和本机授权见[轻量混合检索](guides/knowledge-retrieval.md)。
 
 项目按体系选择插件、自动补装偏好、已有项目迁移与 Overlay 共享资源见[插件按需部署](guides/plugin-deployment.md)。
+
+## 工作台规划
+
+[.agents 工作台减负方案](agents-workbench-plan.md)：待实施方案，涵盖首次部署、已有工程、Overlay 和 Agent 客户端接续。本方案按用户指定保存在 docs，不代表工作台已发布；文中源码路径相对能力源仓根目录。

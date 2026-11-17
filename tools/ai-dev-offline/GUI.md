@@ -51,6 +51,10 @@ ObjectScript 窗口会检查当前版本，替换前自动将本机已安装版�
 
 更新前关闭旧版助手，再覆盖 tools。原包版本未变时继续复用已有 ZIP。
 
+## Node 24 部署基线（2026-11-17）
+
+默认 Node 原包升级为 24.22.3。本次需同时更新 tools 与 packages ZIP；旧 Node 原包无法满足新版 manifest。已有程序仍可显式选择复用，旧安装目录不删除。安装后重开终端；工作台复用安装助手部署的 Node，框架最低兼容要求仍为 >=22.5.0。
+
 ## 现场快速部署
 
 首次到现场，请携带 `ai-dev-offline-tools.zip` 与 `ai-dev-offline-packages.zip`。在现场允许的位置建立独立工具目录，将两份 ZIP 解压到同一目录，确认 `tools` 和 `packages` 直接并排，避免解压软件多套一层 ZIP 同名文件夹。

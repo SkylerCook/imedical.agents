@@ -248,6 +248,39 @@ function plan(request) {
     for (const [key, value] of Object.entries(environment)) updates.push({path: [...m, 'env', key], value});
     add(mcpFile, jsonChanges(before, updates), ['mcpServers / iris-agentic-dev（保留其他 MCP）']);
     add(configFile, editToml(snapshot(configFile), values), Object.keys(values).map(k => /username|password/.test(k) ? '凭据字段（隐藏）' : k));
+    // Workbench opts into the canonical source, in the same recoverable transaction.
+    if (request.syncProjectEnv) {
+      const envFile = path.join(root, '.agents', 'config', 'project-env.json');
+      const envBefore = snapshot(envFile);
+      if (!envBefore.exists) failure('集中工程配置不存在，请先完成框架初始化。');
+      const envData = object(envBefore.text);
+      if (!envData.iris || typeof envData.iris !== 'object' || Array.isArray(envData.iris)) failure('集中 IRIS 配置结构无法识别。');
+      if (!c.writeCredentials && ['username','password'].some(key => envData.iris[key] && envData.iris[key] !== values[key])) failure('集中配置与 MCP/TOML 凭据不一致，请明确替换凭据后再预览。');
+      const central = {host: c.host, port: c.port, scheme: c.scheme, namespace: c.namespace,
+        tlsVerify: !!c.tlsVerify, username: values.username, password: values.password};
+      const centralChanges = Object.entries(central).map(([key,value]) => ({path:['iris',key],value}));
+      const sftpFields = {host:'TARGET_HOST',port:'TARGET_PORT',username:'TARGET_USERNAME',password:'TARGET_PASSWORD',localPath:'LOCAL_PATH',remotePath:'REMOTE_PATH'};
+      const sftpUpdates = [];
+      for (const [field,value] of Object.entries(request.sourceChanges || {})) {
+        const [section,key,...rest] = field.split('.');
+        if (rest.length || !(section === 'web' && ['basePath','cspBasePath','brokerPath','cookie'].includes(key) || section === 'sftp' && own(sftpFields,key))) failure('集中配置字段不在支持范围。');
+        if (!envData[section] || !own(envData[section],key)) failure('集中配置字段不存在，请先通过初始化入口补齐。');
+        if (key === 'port' ? !Number.isInteger(value) || value < 1 || value > 65535 : typeof value !== 'string' || value.length > 8192 || /[\x00\r\n]/.test(value)) failure('Web/SFTP 字段格式无效。');
+        centralChanges.push({path:[section,key],value});
+        if (section === 'sftp') sftpUpdates.push({key:sftpFields[key],value:key==='port'?String(value):value});
+      }
+      if (sftpUpdates.length) {
+        const existing = changes.find(change => change.file === mcpFile);
+        const latest = existing ? {...before,text:existing.bytes.toString('utf8').replace(/^\uFEFF/,'')} : before;
+        const current = object(latest.text), name = envData.sftp.serverName || 'sftp-server';
+        const target = current.mcpServers?.[name];
+        if (['__proto__','prototype','constructor','iris-agentic-dev'].includes(name) || !target?.env || !own(target.env,'TARGET_HOST')) failure('没有可识别的 SFTP MCP 入口；请先初始化，工作台不会替换自定义启动器。');
+        const bytes = jsonChanges(latest,sftpUpdates.map(({key,value})=>({path:['mcpServers',name,'env',key],value})));
+        if (existing) { existing.bytes=bytes; existing.keys.push('SFTP / 连接字段（隐藏）'); }
+        else add(mcpFile,bytes,['SFTP / 连接字段（隐藏）']);
+      }
+      add(envFile, jsonChanges(envBefore,centralChanges), ['iris / 连接与凭据（隐藏）', ...(request.sourceChanges ? ['Web/SFTP / 选定字段（隐藏）'] : [])]);
+    }
   }
   if (request.commonSettings || request.pwshExe) {
     const file = userSettings(request);
@@ -271,6 +304,7 @@ function plan(request) {
   const ignore = snapshot(path.join(root, '.gitignore'));
   const patterns = ['/.vscode/settings.json', '/.vscode/.ai-dev-config-*.tmp', '/.ai-dev-config-*.tmp', '/' + BACKUPS + '/', '/' + LOCK];
   if (request.configureMcp) patterns.push('/.mcp.json', '/.iris-agentic-dev.toml', '/.agents/config/iris-session-backend.json');
+  if (request.syncProjectEnv) patterns.push('/.agents/config/project-env.json');
   const existing = ignore.text.split(/\r?\n/), missing = patterns.filter(p => !existing.includes(p));
   if (missing.length) {
     const eol = ignore.text.includes('\r\n') ? '\r\n' : '\n';
@@ -320,7 +354,7 @@ function restoreEntries(entries) {
 }
 function validateReceipt(request, root, receipt) {
     if (receipt.schema !== 1 || receipt.tool !== 'ai-dev-project' || receipt.projectRoot !== root || !['applied', 'prepared'].includes(receipt.state) || !Array.isArray(receipt.entries)) failure('回执无效或已经恢复。');
-    const allowed = [path.join(root, '.vscode', 'settings.json'), path.join(root, '.mcp.json'), path.join(root, '.iris-agentic-dev.toml'), path.join(root, '.agents', 'config', 'iris-session-backend.json')];
+    const allowed = [path.join(root, '.vscode', 'settings.json'), path.join(root, '.mcp.json'), path.join(root, '.iris-agentic-dev.toml'), path.join(root, '.agents', 'config', 'iris-session-backend.json'), path.join(root, '.agents', 'config', 'project-env.json')];
     if (request.codeExe) allowed.push(userSettings(request));
     const used = new Set();
     for (const entry of receipt.entries) {

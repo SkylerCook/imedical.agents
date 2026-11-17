@@ -4,6 +4,10 @@
 
 ## 当前重点
 
+- 工作台可交互 UI 原型已落在 tools/agents-workbench/prototype；模拟数据、工程级身份与 Root/模块导航，浏览器验收范围见维护日志。正式后端与宿主集成仍沿 docs/agents-workbench-plan.md。
+
+- 新离线部署默认 Node 24.22.3，工作台复用 ai-dev-offline 环境；框架最低兼容要求保留，验证范围见维护日志与工具准备回执。
+
 - BOS 初始化与配置报错已补逐字段凭证获取指引，统一 access_key 与两项个人凭证分开，使用归[配置说明](../plugins/bos-plugin/references/usage.md#凭证来源与填写)；不内置真实凭据，无私有配置迁移。
 
 - 开发复用已接入通用角色和 IRIS 三个编码入口，事实源为[共享流程](../agents/_shared/execution-guidance.md#开发复用)，验收范围与局限见[本轮记录](../maintenance/validation/development-reuse-2026-11-16.md)。

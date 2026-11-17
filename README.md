@@ -49,7 +49,7 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
 
 如果你是正在业务项目中执行安装或更新的 Agent，先判断 `.agents/` 状态，不要假设本地 runbook 已经存在：
 
-能力包工具链需要 Node.js `>=22.5.0` 和 Git `>=2.25.0`；Node.js 不属于 HIS 等业务系统的生产运行依赖。Git 基线来自 `sparse-checkout`，受支持的 Node 版本范围与平台验证按项目 runbook 和维护队列核实。
+能力包工具链需要 Node.js `>=22.5.0` 和 Git `>=2.25.0`；新离线部署默认使用 Node.js `24.22.3`（由 `tools/ai-dev-offline` 提供），最低兼容要求保持不变；Node.js 不属于 HIS 等业务系统的生产运行依赖。Git 基线来自 `sparse-checkout`，受支持的 Node 版本范围与平台验证按项目 runbook 和维护队列核实。
 
 | 状态 | 下一步 |
 |---|---|
@@ -707,3 +707,7 @@ WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codeb
 新项目默认基础安装，插件与必需 vendor 资源按需落盘。支持通用／IRIS／XC／UI 组合和“全选排除 XC”，依赖冲突展示完整链路。已有项目通过显式迁移接入，见[插件按需部署](docs/guides/plugin-deployment.md)。
 
 项目插件管理入口：[plugin-management](plugins/agent-context-kit/skills/plugin-management/SKILL.md)，支持体系选择、补装、启用、禁用和恢复；按需启用自动生成并验证发现入口，入口更新保护其它插件与自定义内容，停用前展示受影响依赖。
+
+### 工程工作台 UI 原型
+
+可交互原型见 [启动与演示](tools/agents-workbench/prototype/README.md)，覆盖独立工程、首次接入、Overlay 和 Agent 任务接续。提供独立交互演示与实际工程入口，支持 IRIS/Web/现有 SFTP 配置及 BOS/知识个人配置的预览、保存和读回。部署、插件执行、宿主自动调用与向量构建仍待接入，完整范围见工具 README。工作台不随业务能力包分发。

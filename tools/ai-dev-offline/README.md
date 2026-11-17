@@ -17,12 +17,12 @@ r7 增加 ObjectScript 扩展安装入口，支持已有与便携 VS Code，固�
 | VS Code | 1.144.0 | 官方 ZIP；解压后创建 `data/` 启用 portable | `Code.exe` / `bin/code.cmd` |
 | Git | 2.56.0.windows.4 | 官方 PortableGit 自解压原包 | `cmd/git.exe` |
 | PowerShell | 7.6.9 | 自包含 x64 ZIP，与 Windows PowerShell 并存 | `pwsh.exe` |
-| Node.js | 22.23.4 | 官方 Windows ZIP，附带 npm | `node-v22.23.4-win-x64/node.exe` |
+| Node.js | 24.22.3 | 官方 Windows ZIP，附带 npm | `node-v24.22.3-win-x64/node.exe` |
 | Python | 3.14.10 | 官方完整 x64 安装器，含 pip；非 embeddable | 自选安装目录下 `python.exe` |
 | Java 8 | Temurin JDK 8u504-b01 | 官方 ZIP；JDK 内含 Java 运行环境 | `jdk8u504-b01/bin/java.exe` / `javac.exe` |
 | CodeBuddy | 4.12.39997873 | 官方 Marketplace VSIX，与用户当前插件版本一致 | `Tencent-Cloud.coding-copilot` |
 
-版本由准备日官方发布源固定，不表示各项目依赖已兼容。Node 22 的选择满足框架最低 `22.5.0` 要求；Python 项目第三方包支持范围仍须按锁文件验证。不另带独立 JRE；没有 Java 开发需求时可以跳过 JDK。本期不含 Maven、Gradle、其它 VSIX／AI 客户端、额外 npm/pip 包、Playwright、数据库、Docker 或本地模型。CodeBuddy 包未声明 extensionDependencies/extensionPack；这只说明扩展安装依赖，不保证首次激活的附加下载或在线 AI 服务可离线运行。
+版本由准备日官方发布源固定，不表示各项目依赖已兼容。Node 24 的选择满足框架最低 `22.5.0` 要求；Python 项目第三方包支持范围仍须按锁文件验证。不另带独立 JRE；没有 Java 开发需求时可以跳过 JDK。本期不含 Maven、Gradle、其它 VSIX／AI 客户端、额外 npm/pip 包、Playwright、数据库、Docker 或本地模型。CodeBuddy 包未声明 extensionDependencies/extensionPack；这只说明扩展安装依赖，不保证首次激活的附加下载或在线 AI 服务可离线运行。
 
 ## 先校验，只核对本包
 
@@ -51,7 +51,7 @@ r7 增加 ObjectScript 扩展安装入口，支持已有与便携 VS Code，固�
 | VS Code | 将 ZIP 解压到 `VSCode/1.144.0/`，确认包含 `Code.exe`；在其旁创建空的 `data/` 目录；用该路径启动，勿导入其它机器的用户数据。 |
 | Git | 双击 PortableGit 自解压文件，仅解压到 `Git/2.56.0.windows.4/`，保留原有 Git；不运行全机升级。 |
 | PowerShell | 解压到 `PowerShell/7.6.9/`，直接使用其中 `pwsh.exe`，保留 Windows PowerShell 5.1。 |
-| Node | 解压到 `Node/22.23.4/`，保留 ZIP 内 `node-v22.23.4-win-x64/` 层级。 |
+| Node | 解压到 `Node/24.22.3/`，保留 ZIP 内 `node-v24.22.3-win-x64/` 层级。 |
 | Python | 打开完整安装器，选择自定义安装、用户级、目标 `Python/3.14.10/`，保留 pip/venv；不添加调试符号、调试二进制、自由线程或其它需下载的可选项。默认不让安装器抢改全局 PATH/文件关联/launcher。如果界面显示既有安装的 Modify/Repair/Upgrade，停止并报告，不把升级当成独立新装。 |
 | Java 8 | 解压到 `Java/8u504-b01/`，保留 `jdk8u504-b01/` 层级；不升级医院现有 Java。 |
 | CodeBuddy | 在本次选择的 VS Code 中用 Extensions → Install from VSIX，选择包内 `Tencent-Cloud.coding-copilot-4.12.39997873.vsix`。适用 VS Code `^1.70.2`，本包固定 VS Code 满足声明范围。登录、服务连接与实际 AI 功能另行处理，不复制旧电脑账号数据。 |
@@ -168,3 +168,8 @@ Rollback 必须仍与本次写入结果一致才恢复；出现后来 PATH 修�
 - [PowerShell Windows ZIP](https://learn.microsoft.com/en-us/powershell/scripting/install/install-powershell-on-windows)
 - [Python 完整安装器及离线安装](https://docs.python.org/3.14/using/windows.html#the-full-installer-deprecated)
 - [Temurin 固定发布](https://github.com/adoptium/temurin8-binaries/releases/tag/jdk8u504-b01)
+
+
+### 工作台工程配置复用
+
+`configure-project.js` 的可选 `syncProjectEnv` 允许工作台把已存在的集中 `project-env.json` 纳入同一预览、指纹检查、读回与恢复事务。`sourceChanges` 仅允许 Web 路径/会话与现有 SFTP 连接字段；SFTP 保留启动器和参数，不创建服务。默认安装助手未传此选项时行为不变。集中凭据与 MCP/TOML 不一致时要求显式替换，不静默选择一个来源。专项合成验证位于 `../agents-workbench/prototype/project-settings.test.js`。

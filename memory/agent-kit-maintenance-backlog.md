@@ -9,6 +9,10 @@
 
 - P2 编码与更新兼容验证并入上述 0.29.0 平台队列。0.28.3 的 profile 换行、Pending 合并和原字节导出已获项目侧反馈确认，本轮 confirm 文件范围校验已有本机回归，后续补跨平台结果。
 
+- **P2 · MCP CLI 错误输出断言对齐**：`scripts/tests/iris-mcp-cli.tests.js:41` 期望 stderr 为空，实际得到结构化 iris-operation-failed；2026-11-17 在 Node 22.23.4 / 24.22.3 同样复现。后续核对 CLI 错误通道契约后修正实现或断言，本次 Node 升级不扩大修复范围。
+
+- **P2 · 工作台原型评审与后端分批接入**：评审首次部署、已有工程、Root/模块以及Agent接续是否减负；按 docs/agents-workbench-plan.md 接入原owner能力、SQLite及经验证的宿主接口。模拟界面通过不替代真实工程验收；不扩展当前部署白名单。
+
 ## 本轮安排（2026-11-12）
 
 - xc 能力全部暂缓，以下 xc 既有事项仅保留记录，启动须用户重新明确。本轮未调整 xc 插件及历史发布文件。
@@ -23,7 +27,7 @@
 - **P2 同步子进程宿主兼容**（归既有跨平台/宿主验证）：源仓五文件六调用点关闭 stdin，专项及直接回归已取得 bos-demand 三平台 Node22/24 六组通过证据（5010fdc，run 41826611235）。剩余为原 WorkBuddy 宿主不预加载 shim 的计划/失败分支证据；完整工作流的 Unix NTFS Junction 限制及其他 BOS/acceptance 测试临时路径别名问题沿既有兼容队列处理，不将直接步骤通过写成全仓 CI 通过。业务副本更新和本机 shim 退役分别授权；本地合成测试不证明原宿主底层根因或所有 Git hook 均兼容无交互输入。
 
 
-- **P2 AI 开发离线物料干净环境验收**（归治理表第 7 项兼容验证，tools/ai-dev-offline）：原包、CodeBuddy、安全模板、PATH与用户终端自动配置已准备，JSONC增量写入及无Node PATH双宿主入口已有本地证据；后续在获授权干净Windows 10/11 x64断网验证完整安装、Python pip/venv、Machine PATH／通知、便携及普通VS Code新终端、CodeBuddy激活资源与AI shell实际加载。AI登录、MCP宿主和医院运行时另验；文件写入／Process子CMD不能替代现场。GUI r3 已通过五项便携工具 Process 隔离验证及日志导出，一个 Win10 现场样本通过 VS Code、PowerShell 7、Node.js 的 User PATH 配置与 Java 8 完整路径运行；后续验证 Python 安装注册、Machine 持久环境、持久变量恢复、业务兼容及干净 Win10/11 完整流程。Win7 独立包按下述 P3 暂缓事项处理。r6 已提供 VS Code 用户偏好与项目连接、MCP/TOML 合并、自动回填、私有备份恢复及脱敏日志，允许未部署 MCP 时先保存，tools 与 packages 分目录独立交付并兼容旧 payload；沿本项补充所选 VS Code 的 IRIS 扩展实际登录、MCP 宿主加载及 Caché 2016.2+ 的真实功能验收。r7 已覆盖指定 ObjectScript 快照的普通／便携版离线安装与单扩展更新固定，现场继续验证其业务缺陷修复效果。源码配置和本机模拟通过不替代远端连接验证。
+- **P2 AI 开发离线物料干净环境验收**（新默认 Node 24.22.3 的干净环境与持久 PATH 验收沿本项执行）（归治理表第 7 项兼容验证，tools/ai-dev-offline）：原包、CodeBuddy、安全模板、PATH与用户终端自动配置已准备，JSONC增量写入及无Node PATH双宿主入口已有本地证据；后续在获授权干净Windows 10/11 x64断网验证完整安装、Python pip/venv、Machine PATH／通知、便携及普通VS Code新终端、CodeBuddy激活资源与AI shell实际加载。AI登录、MCP宿主和医院运行时另验；文件写入／Process子CMD不能替代现场。GUI r3 已通过五项便携工具 Process 隔离验证及日志导出，一个 Win10 现场样本通过 VS Code、PowerShell 7、Node.js 的 User PATH 配置与 Java 8 完整路径运行；后续验证 Python 安装注册、Machine 持久环境、持久变量恢复、业务兼容及干净 Win10/11 完整流程。Win7 独立包按下述 P3 暂缓事项处理。r6 已提供 VS Code 用户偏好与项目连接、MCP/TOML 合并、自动回填、私有备份恢复及脱敏日志，允许未部署 MCP 时先保存，tools 与 packages 分目录独立交付并兼容旧 payload；沿本项补充所选 VS Code 的 IRIS 扩展实际登录、MCP 宿主加载及 Caché 2016.2+ 的真实功能验收。r7 已覆盖指定 ObjectScript 快照的普通／便携版离线安装与单扩展更新固定，现场继续验证其业务缺陷修复效果。源码配置和本机模拟通过不替代远端连接验证。
 
 - P2 项目知识库目录治理：受管用途说明、旧导航精确评审接管、普通 Write 更新与 Check 缺失/过期检查已在源仓实现；沿既有 CI 取得 Node22/24 × Windows/macOS/Linux矩阵实跑，并在获授权项目分别核实旧 README 接管、扩展说明及真实宿主查找/落盘行为。目录与说明通过不代表逐文件分类或业务内容现行；首次部署、具体资料迁移仍按各批授权取证。源仓实现不代表业务副本已升级。
 

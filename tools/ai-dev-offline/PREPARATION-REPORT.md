@@ -1,5 +1,13 @@
 # 基础工具离线物料准备回执
 
+## 2026-11-17 Node 24 默认部署版本更新
+
+- Node 原包更新为 24.22.3，37762649 bytes，官方 SHA256 为 `e612af99f626ab415ea225af6bce5c971feb448cb5cae250bb1c3fa50c5f7d9f`；其余组件沿用原物料。下文 Node 22 记录属于历史验证，不代表本次版本。
+- 新 runtime 实跑 Node v24.22.3、npm 11.19.1；SQLite WAL、backup、重开读回及 integrity_check 通过，Process PATH 配置、新子 CMD 解析和回滚通过。未更改 User/Machine PATH。
+- Windows PowerShell 5.1 离线包专项 26 项、GUI 逻辑专项 32 项通过；Node 24 配置、操作恢复、IRIS 开发配置及知识检索专项 59 项通过。
+- 基础物料包与 GUI 工具/原包 ZIP 重建并逐项摘要读回。干净 Windows 10/11、持久 PATH 与真实业务兼容仍按既有待验事项执行；不将本机结果推广为所有现场通过。
+
+
 日期：2026-10-29（Asia/Shanghai）。组合：`ai-dev-base-windows-x64-2026-10-29`。
 
 更新：2026-10-30 补充 PowerShell 7 用户终端自动配置，七项原包版本和摘要保持原组合。
