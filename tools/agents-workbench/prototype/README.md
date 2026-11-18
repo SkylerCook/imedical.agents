@@ -16,17 +16,19 @@ node tools/agents-workbench/prototype/serve.js --project <业务工程根目录>
 - BOS 与知识个人配置沿当前进程 `BOS_MCP_CONFIG` / `KNOWLEDGE_RAG_CONFIG` 绑定。支持字段级编辑、5 分钟变更预览、由用户保存、原文件读回。密码、Key、Token、可能含认证参数的地址不回显，用保留/替换/清除；候选值仅保留服务内存，不写浏览器存储。
 - 保存仅支持既有 JSON 中的固定字段，保留未知字段、BOM、缩进与换行。临时文件继承原文件 ACL，原子替换前重查指纹；来源冲突停止。私有文件位于 Git 工作区、符号链接或来源缺失时不开放保存。
 - HTTP 写接口校验本机 Host、Origin、专用请求头、JSON 类型与长度；没有任意路径、shell 或 SQL 接口。不防御同账号恶意本机进程。
-- 仅原有个人实例保存凭据；尚未实现计划中的 DPAPI/SQLite 配置中心、持久审计、备份与崩溃恢复。外部非协作编辑器在最终检查与替换的极小时间窗仍可能竞争，因此不能宣称生产级并发事务。
+- 凭据由既有私有配置管理，操作回执沿各入口保存。外部非协作编辑器仍可能在最终检查与替换之间产生竞争。
 
 ## 未接通的能力
 
-Web basePath/cspBasePath/brokerPath/cookie 与已存在的 SFTP host/port/username/password/localPath/remotePath 可编辑；SFTP 只更新已有可识别 MCP 的环境字段。创建新 SFTP、切换 runtime、keyFile/knownHosts、远程命令权限不在保存范围。部署更新、插件安装启停、宿主自动派发、MCP 启动/认证、业务向量检索/构建/续建/导出、数据库备份、EXE 均未实现真实执行。界面明确显示限制并提供 Agent 接续，不伪造成功。
+Web basePath/cspBasePath/brokerPath/cookie 与已存在的 SFTP host/port/username/password/localPath/remotePath 可编辑；SFTP 只更新已有可识别 MCP 的环境字段。实际工程入口编辑当前连接。真实多库切换、部署更新、插件安装启停、宿主自动派发、MCP 启动与认证、业务向量操作及 EXE 按工作台方案推进。
 
 知识页目前检索随工具的手册标题，并识别 .agents/.knowledge-cache 中已知索引文件的大小/时间，不将文件存在视为索引有效。手册默认打开使用手册，支持表格/代码、同目录手册跳转及显式 HTTPS 链接；跨目录链接和段落锚点尚未完整实现。客户端读取项目级入口存在性，不声称宿主已加载。插件管理提供依赖计划预览和 Agent 接续，不自动安装启停。源仓 manifest 版本不代表已部署版本。
 
 ## 保留的交互演示
 
 `/index.html#/clinic/home` 打开原演示，使用虚构工程和独立 localStorage。左下角演示控制覆盖首次接入、独立工程、Overlay Root/模块、旧接口、冲突与失败恢复。不得输入真实凭据；演示不会写工程。真实工作台入口与演示相互链接，但不共享配置状态。
+
+切库演示从源仓根运行 `node tools/agents-workbench/prototype/serve.js`，打开 `http://127.0.0.1:4179/index.html#/clinic/config`。在「开发库档案」选择 B，点击「预览切换」核对 VS Code ObjectScript、IRIS MCP 和框架脚本，再模拟应用。页面先显示 B 为当前库与客户端待重连，点击「模拟重连并核验」后显示模拟连接结果。选 A 可用同一流程切回。模拟保存失败会保留原库和待应用草稿。
 
 ## 验证
 
