@@ -4,6 +4,8 @@
 
 ## 命令入口
 
+在 Agent 中调用 `iris-code-baseline --` 查看 [Skill 命令](../skills/iris-code-baseline/SKILL.md#命令)。下面是工具脚本的 CLI。
+
 范围清单只接受 UTF-8 TXT，一行一个带扩展名的后端对象或以 `/` 开头的 Web 路径；允许 BOM、LF/CRLF、空行和 `#` 整行注释，重复项和非法路径停止。`build` 只生成 `.txt`，`compare`、`plan`、`project-plan` 与 source-sync `--map` 直接读取同一 TXT；不再接受 ProjectItem XML。来源、版本与范围说明放版本 README 或项目说明，实际执行仍绑定清单字节摘要。源码 XML 导出与交付协议不变。
 
 先解析当前 `ContextRoot/config/iris-development.json` 的 developmentMode：offline 只做本地清单、状态和[离线交付](iris-offline-development.md)，不进入医院采集或资格检查；connected（含旧配置缺省）才继续远端分支，非法值停止。
