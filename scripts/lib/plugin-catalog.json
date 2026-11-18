@@ -1378,7 +1378,7 @@
       "directory": "mobile-dev",
       "manifest": {
         "name": "mobile-dev",
-        "version": "0.1.1",
+        "version": "0.1.2",
         "displayName": "移动端开发",
         "description": "Android 项目开发与日志优先排障，复用项目工具链和设备证据。",
         "entry": "AGENTS.md",
@@ -1402,7 +1402,7 @@
           "为现场旧版移动端建私有仓，并给现场 AI 源码纳管提交提示词"
         ]
       },
-      "manifestHash": "c93d41a9f02654c4ed5d6f1b0959a3b8a4d21ef776cd1e96078b51eddeca23e5"
+      "manifestHash": "c5c73203db5a9eda1faf73d6e8de702260a46a4a65b02ffa682a7b35fc417344"
     }
   ]
 }
