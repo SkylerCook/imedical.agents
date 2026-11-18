@@ -1,4 +1,4 @@
-﻿#requires -Version 5.1
+#requires -Version 5.1
 [CmdletBinding()]
 param([Parameter(Mandatory=$true)][string]$StateDirectory,[ValidateRange(1,600)][int]$IdleSeconds=120)
 $ErrorActionPreference='Stop'
@@ -82,20 +82,23 @@ try {
                 Save-Json (Join-Path $StateDirectory ('reconciliation-'+[guid]::NewGuid().ToString('N')+'.json')) @{at=[DateTime]::UtcNow.ToString('o');evidence=$message.evidence;licenseReleaseVerified=$false}
                 $blocked=$false;$lastCleanupVerified=$false;Journal $false 'operator-reconciled';Emit 'reconciled' @{blocked=$false};continue
             }
-            if($message.op -ne 'run'){throw 'unknown-operation'}
+            $browse=$message.op -eq 'browse'
+            if($message.op -ne 'run' -and -not $browse){throw 'unknown-operation'}
             $job=$message.job
-            $plan=[bool]$message.plan
-            if(-not $plan -and $blocked){throw 'previous-session-unresolved-inspect-before-reconcile'}
+            $plan=$browse -or [bool]$message.plan
+            $expand=$plan -and [bool]$job.expandScope
+            $online=-not $plan -or $expand -or $browse
+            if($online -and $blocked){throw 'previous-session-unresolved-inspect-before-reconcile'}
             $sessions=[int]$job.sessions
             if($sessions -lt 1 -or $sessions -gt 10){throw 'sessions-must-be-1-through-10'}
-            if(-not $plan -and (-not $message.user -or -not $message.password)){throw 'username-and-password-required'}
+            if($online -and (-not $message.user -or -not $message.password)){throw 'username-and-password-required'}
             $identity=(@($job.url,$job.ns,$message.user,$message.password,$sessions)|ConvertTo-Json -Compress)
-            if(-not $plan -and $pool.workers -and $pool.requestIdentity -cne $identity){Close-Pool;if($blocked){throw 'previous-session-unresolved'}}
+            if($online -and $pool.workers -and $pool.requestIdentity -cne $identity){Close-Pool;if($blocked){throw 'previous-session-unresolved'}}
             $arguments=@{OutputDirectory=(Join-Path $job.batch 'export');AtelierUrl=$job.url;Namespace=$job.ns;IntervalMs=[int]$job.interval;Sessions=$sessions;CancelFile=(Join-Path $job.batch 'stop.request');PlanOnly=$plan;Resume=[bool]$message.resume;SessionTrial=[bool]$message.trial;ConfirmedSessionBudget=[bool]$message.confirmed}
             if ([int]$message.maxFiles -gt 0) { $arguments.MaxFilesPerRun = [int]$message.maxFiles }
             if (-not $plan -and [int]$message.sampleLimit -gt 0) { $arguments.SampleLimit = [int]$message.sampleLimit }
             if ($message.resume -and $job.confirmedMissing) { $arguments.ConfirmedMissing = [string[]]@($job.confirmedMissing) }
-            if(-not $plan){
+            if($online){
                 $secret=ConvertTo-SecureString $message.password -AsPlainText -Force
                 $arguments.Credential=New-Object Management.Automation.PSCredential($message.user,$secret)
                 $arguments.SessionContext=$pool;Journal $true 'active';$pool.requestIdentity=$identity
@@ -107,6 +110,9 @@ try {
                 if(Test-Path -LiteralPath (Join-Path $job.batch 'files.txt')){$arguments.SupplementListFile=Join-Path $job.batch 'files.txt'}
             }else{
                 $scriptFile=Join-Path $PSScriptRoot 'export-iris-code.ps1';$arguments.ListFile=Join-Path $job.batch 'files.txt'
+                if($expand){$arguments.ListFile=Join-Path $job.batch 'scope.txt';$arguments.ExpandScope=$true}
+                if($browse){$arguments.BrowseScope=$true;$arguments.BrowsePath=[string]$job.browsePath}
+                if($job.includeWebAssets){$arguments.IncludeWebAssets=$true}
             }
             $pool.lastError=$null
             $output=@(& $scriptFile @arguments 6>&1)|Out-String
@@ -115,12 +121,12 @@ try {
             $receiptFile=Join-Path $job.batch 'export/baseline-state.json'
             $receipt=$null
             if(-not $plan -and (Test-Path -LiteralPath $receiptFile)){$receipt=[IO.File]::ReadAllText($receiptFile,$utf8)|ConvertFrom-Json}
-            if(-not $plan -and ($code -eq 1 -or $receipt.reason -or $message.trial)){
+            if($online -and ($code -eq 1 -or $receipt.reason -or $message.trial)){
                 # Stop this operation on error. Only unresolved session cleanup blocks the next
                 # explicit attempt; a service/transport failure is not evidence of a leaked session.
                 Close-Pool
             }
-            if(-not $plan -and -not $pool.workers){Journal $false $(if($blocked){'blocked'}else{'idle'})}
+            if($online -and -not $pool.workers){Journal $false $(if($blocked){'blocked'}else{'idle'})}
             if(-not $plan -and (Test-Path -LiteralPath $receiptFile)){
                 # Report the finalized receipt after cleanup, not the core's earlier snapshot.
                 $receipt=[IO.File]::ReadAllText($receiptFile,$utf8)|ConvertFrom-Json
@@ -129,8 +135,11 @@ try {
                 try {$summary.missingListFile=Save-MissingList $receipt $receiptFile} catch {$summary.missingListError=$_.Exception.Message}
                 $output=$summary|ConvertTo-Json -Depth 6
             }
-            Emit 'result' @{exitCode=$code;plan=$plan;output=$output;batch=$job.batch;retained=[bool]$pool.workers;blocked=$blocked}
-        } catch {Emit 'error' @{reason=$_.Exception.Message;blocked=$blocked}}
+            Emit $(if($browse){'browse'}else{'result'}) @{exitCode=$code;plan=$plan;output=$output;batch=$job.batch;retained=[bool]$pool.workers;blocked=$blocked}
+        } catch {
+            if($message.op -eq 'browse'){Emit 'browse' @{exitCode=1;output=$_.Exception.Message;blocked=$blocked}}
+            else{Emit 'error' @{reason=$_.Exception.Message;blocked=$blocked}}
+        }
         finally {$pending=$reader.ReadLineAsync()}
     }
 } catch {Emit 'fatal' @{reason=$_.Exception.Message}}

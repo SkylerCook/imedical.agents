@@ -81,7 +81,7 @@ public sealed partial class ExporterForm {
         add.Controls.Add(new Label {Text = "拖入清单，直接增补", AutoSize = true, Font = new Font(Font, FontStyle.Bold), Margin = new Padding(4, 12, 4, 8)});
         add.Controls.Add(Note("TXT / 源码 XML · 自动去重"));
         importList.Text = "选择 TXT / XML"; importList.AutoSize = true; importList.Width = 182; importList.Click += (s, e) => Guard(() => ShowAddDialog(true)); add.Controls.Add(importList);
-        var paste = ActionButton("粘贴对象名", () => ShowAddDialog(false), false); paste.Width = 182; workbenchInputs.Add(paste); add.Controls.Add(paste);
+        var paste = ActionButton("按路径 / 包导出", () => ShowAddDialog(false, true), false); paste.Width = 182; workbenchInputs.Add(paste); add.Controls.Add(paste);
         var byVersion = ActionButton("按版本补充", () => {version.SelectedIndex = Math.Max(1, version.SelectedIndex); ShowAddDialog(false);}, false); byVersion.Width = 182; workbenchInputs.Add(byVersion); add.Controls.Add(byVersion); side.Controls.Add(add);
         var browse = new FlowLayoutPanel {BackColor = Color.White, Width = 212, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(12), Margin = new Padding(0, 0, 0, 14)};
         browse.Controls.Add(new Label {Text = "浏览基线", AutoSize = true, Font = new Font(Font, FontStyle.Bold), Margin = new Padding(4, 8, 4, 10)});
@@ -246,8 +246,10 @@ public sealed partial class ExporterForm {
             try {EnsureProject(); RenderProject();} catch (Exception ex) {ShowWorkbenchError(ex.Message);}
         } else {projectOverview.Text=Path.IsPathRooted(destination.Text)?"还没有源码 · 点增补源码开始建立基线":"先在连接设置选择项目和保存目录";projectPath.Text=destination.Text;UpdateWorkbench();}
     }
-    void ShowAddDialog(bool pickFile) {
+    Action<Dictionary<string, object>> scopeBrowse;
+    void ShowAddDialog(bool pickFile, bool selectScope = false) {
         if (busy) throw new InvalidOperationException("当前任务正在采集，请先暂停。");
+        if (selectScope) version.SelectedIndex = 0;
         using (var dialog = new Form {Text = "增补到当前基线", Size = new Size(820, 600), MinimumSize = new Size(700, 550), StartPosition = FormStartPosition.CenterParent, Font = Font, BackColor = BackColor}) {
             var layout = new TableLayoutPanel {Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(18)};
             layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); layout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -258,12 +260,30 @@ public sealed partial class ExporterForm {
             documents.Dock = DockStyle.Fill; documents.MinimumSize = new Size(0, 220); layout.Controls.Add(documents, 0, 2);
             var hint = Note("每行一个完整对象名，自动合并重复项；已取得文件跳过。\r\n继续写入当前项目目录，连接检查包含在本次采集中。"); layout.Controls.Add(hint, 0, 3);
             var buttons = new FlowLayoutPanel {Dock = DockStyle.Top, AutoSize = true};
+            var scope = new CheckBox {Text="按路径 / 包", AutoSize=true, Checked=selectScope};
+            Button browse = null;
+            browse = ActionButton("浏览服务器…", () => BrowseProjectScope(dialog, browse), false);
+            line.Controls.Add(browse);
             var sample = new CheckBox {Name="sampleOnly", Text="仅试采前", AutoSize=true, Checked=false};
             var count = new NumericUpDown {Minimum=1, Maximum=100, Value=10, Width=65};
-            buttons.Controls.Add(sample); buttons.Controls.Add(count); buttons.Controls.Add(Note("项"));
+            buttons.Controls.Add(scope); buttons.Controls.Add(sample); buttons.Controls.Add(count); buttons.Controls.Add(Note("项"));
             buttons.Controls.Add(ActionButton("取消", () => dialog.Close(), false));
-            var submit = ActionButton(sample.Checked ? "开始试采" : "增补到当前基线", () => {BeginProjectSample("append", sample.Checked ? (int)count.Value : 0); dialog.Close();}, true);
-            count.Enabled=sample.Checked; sample.CheckedChanged += (s,e) => {count.Enabled=sample.Checked;submit.Text=sample.Checked ? "开始试采" : "增补到当前基线";};
+            var submit = ActionButton("增补到当前基线", () => {
+                int limit = sample.Checked ? (int)count.Value : 0;
+                if (scope.Checked) BeginProjectRun("append", limit, null, true);
+                else BeginProjectSample("append", limit);
+                dialog.Close();
+            }, true);
+            EventHandler updateScope = (s,e) => {
+                count.Enabled = sample.Checked;
+                version.Enabled = !scope.Checked;
+                web.Enabled = !scope.Checked;
+                browse.Visible = scope.Checked;
+                submit.Text = scope.Checked ? "预览匹配文件" : sample.Checked ? "开始试采" : "增补到当前基线";
+                hint.Text = scope.Checked ? "每行一个 Web 路径、IRIS 包名或规则。目录以 / 或 /* 结尾，* 匹配任意字符。\r\n连接服务器查找匹配项，预览后开始导出。" : "每行一个完整对象名，自动合并重复项；已取得文件跳过。";
+            };
+            scope.CheckedChanged += (s,e) => {if (scope.Checked) version.SelectedIndex = 0; updateScope(s,e);};
+            sample.CheckedChanged += updateScope; updateScope(null, EventArgs.Empty);
             buttons.Controls.Add(submit); layout.Controls.Add(buttons, 0, 4); dialog.Controls.Add(layout);
             // These controls edit the existing connection settings; they are not a second configuration.
             var concurrency = new FlowLayoutPanel {Name="concurrencySettings", AutoSize=true, Dock=DockStyle.Top, WrapContents=true, Visible=false};
@@ -279,8 +299,86 @@ public sealed partial class ExporterForm {
             approval.CheckedChanged += (s,e)=>{if(budget.Checked!=approval.Checked)budget.Checked=approval.Checked;};
             advancedLink.LinkClicked += (s,e)=>{concurrency.Visible=!concurrency.Visible;};
             if (pickFile) dialog.Shown += (s, e) => Guard(() => {using (var file = new OpenFileDialog {Filter = "对象清单或源码 XML|*.txt;*.xml"}) if (file.ShowDialog(dialog) == DialogResult.OK) LoadProjectList(file.FileName);});
-            try {dialog.ShowDialog(this);} finally {layout.Controls.Remove(documents); line.Controls.Remove(version); line.Controls.Remove(projectVersionInput); line.Controls.Remove(web); layout.Controls.Remove(inputTitle);}
+            try {dialog.ShowDialog(this);} finally {version.Enabled = web.Enabled = true; layout.Controls.Remove(documents); line.Controls.Remove(version); line.Controls.Remove(projectVersionInput); line.Controls.Remove(web); layout.Controls.Remove(inputTitle);}
         }
+    }
+    void BrowseProjectScope(Form owner, Button browse, string path = "", Stack<string> parents = null) {
+        if (busy || scopeBrowse != null) return;
+        ValidateConnection();
+        int sessions = new[] {1, 4, 10}[speed.SelectedIndex];
+        var browseJob = new {batch=data, url=url.Text.Trim(), ns=ns.Text.Trim(), sessions, interval=200, browsePath=path};
+        var history = parents ?? new Stack<string>();
+        scopeBrowse = result => {
+            if (owner.IsDisposed || closeRequested) return;
+            browse.Enabled = true; browse.Text = "浏览服务器…";
+            if (Number(result, "exitCode") != 0) {
+                MessageBox.Show(owner, ExplainReason(TextValue(result, "output").Trim()), "查询服务器范围", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            var catalog = json.Deserialize<Dictionary<string, object>>(TextValue(result, "output"));
+            string next = null;
+            bool openingChild = false;
+            using (var picker = new Form {Text=path.Length==0?"选择 Web 目录或 IRIS 类包":path, Size=new Size(740, 550), MinimumSize=new Size(580, 420), StartPosition=FormStartPosition.CenterParent, Font=Font}) {
+                var layout = new TableLayoutPanel {Dock=DockStyle.Fill, ColumnCount=1, RowCount=4, Padding=new Padding(16)};
+                layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+                layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                var type = new ComboBox {DropDownStyle=ComboBoxStyle.DropDownList, Dock=DockStyle.Top};
+                type.Items.AddRange(new object[]{"Web 目录", "IRIS 类包"});
+                type.Enabled = path.Length==0;
+                var filter = new TextBox {Dock=DockStyle.Top, AccessibleName="按名称筛选目录或类包"};
+                var options = new ListBox {Dock=DockStyle.Fill, HorizontalScrollbar=true, SelectionMode=SelectionMode.MultiExtended};
+                var confirm = new Button {DialogResult=DialogResult.OK, AutoSize=true};
+                var open = new Button {Text="打开下级", AutoSize=true, Enabled=false};
+                var up = new Button {Text="返回上级", AutoSize=true, Visible=path.Length>0};
+                Action openSelected = () => {
+                    if (type.SelectedIndex!=0 || options.SelectedItems.Count!=1) return;
+                    next=Convert.ToString(options.SelectedItem); openingChild=true; picker.Close();
+                };
+                open.Click += (s,e)=>openSelected();
+                options.DoubleClick += (s,e)=>openSelected();
+                up.Click += (s,e)=>{next=history.Pop(); picker.Close();};
+                EventHandler updateSelection = (s,e)=> {
+                    int count=options.SelectedItems.Count;
+                    confirm.Enabled=count>0 || path.Length>0;
+                    confirm.Text=count==0 && path.Length>0?"添加当前目录":"添加所选范围";
+                    open.Enabled=type.SelectedIndex==0 && count==1;
+                };
+                options.SelectedIndexChanged += updateSelection;
+                EventHandler refresh = (s,e) => {
+                    options.BeginUpdate();
+                    try {
+                        options.Items.Clear();
+                        var entries = (IEnumerable)catalog[type.SelectedIndex==0?"folders":"packages"];
+                        foreach (object entry in entries) {
+                            string name = Convert.ToString(entry);
+                            if (name.IndexOf(filter.Text.Trim(), StringComparison.OrdinalIgnoreCase)>=0) options.Items.Add(name);
+                        }
+                    } finally {options.EndUpdate();}
+                    updateSelection(null, EventArgs.Empty);
+                };
+                type.SelectedIndexChanged += refresh; filter.TextChanged += refresh; type.SelectedIndex=0;
+                layout.Controls.Add(type,0,0); layout.Controls.Add(filter,0,1); layout.Controls.Add(options,0,2);
+                var actions = new FlowLayoutPanel {Dock=DockStyle.Fill, AutoSize=true, FlowDirection=FlowDirection.RightToLeft};
+                var cancel = new Button {Text="取消", DialogResult=DialogResult.Cancel, AutoSize=true};
+                actions.Controls.Add(confirm); actions.Controls.Add(open); actions.Controls.Add(up); actions.Controls.Add(cancel); layout.Controls.Add(actions,0,3);
+                picker.Controls.Add(layout); picker.AcceptButton=confirm; picker.CancelButton=cancel;
+                if (picker.ShowDialog(owner) == DialogResult.OK) {
+                    var rules = new List<string>();
+                    foreach (object entry in options.SelectedItems) rules.Add(Convert.ToString(entry) + (type.SelectedIndex==1?".*.cls":""));
+                    if (rules.Count==0 && path.Length>0) rules.Add(path);
+                    documents.AppendText((documents.TextLength==0?"":"\r\n")+String.Join("\r\n",rules));
+                }
+            }
+            if (next!=null) {
+                if (openingChild) history.Push(path);
+                BrowseProjectScope(owner, browse, next, history);
+            }
+        };
+        busy=true; browse.Enabled=false; browse.Text="正在查询…"; status.Text="正在读取服务器目录和类包…"; UpdateButtons();
+        try {Send(new {op="browse", job=browseJob, user=user.Text, password=password.Text});}
+        catch {scopeBrowse=null; busy=false; browse.Enabled=true; browse.Text="浏览服务器…"; UpdateButtons(); throw;}
     }
     void LoadProjectList(string file) {
         if(projectImporting)throw new IOException("正在读取清单，请稍候。");
@@ -327,7 +425,8 @@ public sealed partial class ExporterForm {
     }
     void BeginProject(string mode) {BeginProjectRun(mode, 0, mode == "retry" ? ProjectRetryNames() : null);}
     void BeginProjectSample(string mode, int sampleLimit) {BeginProjectRun(mode, sampleLimit, null);}
-    void BeginProjectRun(string mode, int sampleLimit, List<string> selectedNames) {
+    void BeginProjectRun(string mode, int sampleLimit, List<string> selectedNames, bool expandScope = false) {
+        if (busy) throw new IOException("当前任务正在查询或采集，请等待完成。");
         if(projectImporting)throw new IOException("清单仍在读取或解析，请等待完成后增补。");
         string requestedVersion=projectVersionInput.Text.Trim();
         ValidateConnection(); EnsureProject();project.BindOrigin(ProjectBaseline.Origin(url.Text,ns.Text));project.Save(); legacyMode = false;
@@ -340,24 +439,64 @@ public sealed partial class ExporterForm {
             list = String.Join("\r\n", names);
         }
         int duplicateCount; list = Deduplicate(list, out duplicateCount);
-        if (mode != "append" && String.IsNullOrWhiteSpace(list) || mode == "append" && version.SelectedIndex == 0 && String.IsNullOrWhiteSpace(list)) throw new IOException("没有需要采集的对象。请先粘贴或导入清单。");
+        if (String.IsNullOrWhiteSpace(list) && (mode != "append" || expandScope || version.SelectedIndex == 0)) throw new IOException("请填写路径、包名或完整对象名，也可导入清单。");
         var previousRun = project.FindRun(project.Index.activeRun);
         if(previousRun != null && previousRun.documents.Count == 0 && previousRun.state != "running") project.EndRun(previousRun);
         projectRun = project.NewRun(mode); batch = project.RunDirectory(projectRun.id);
         projectRun.projectVersion=projectVersionInput.Text.Trim();if(projectRun.projectVersion.Length>0)project.Index.projectVersion=projectRun.projectVersion;
-        projectRun.catalogVersion=mode=="append"&&version.SelectedIndex>0?version.Text.Split(' ')[0]:"";
+        projectRun.catalogVersion=!expandScope&&mode=="append"&&version.SelectedIndex>0?version.Text.Split(' ')[0]:"";
         project.Save();
-        job = new Dictionary<string, object> {{"batch", batch}, {"url", url.Text.Trim()}, {"ns", ns.Text.Trim()}, {"sessions", sessions}, {"interval", new[] {200, 100, 50}[speed.SelectedIndex]}, {"version", mode == "append" && version.SelectedIndex > 0 ? version.Text.Split(' ')[0] : ""}, {"scope", version.Text.StartsWith("v9.2 ") ? "all-products" : "doctor"}, {"confirmWeb", web.Checked}, {"inputSource", inputSource}, {"projectRun", projectRun.id}};
-        if (!String.IsNullOrWhiteSpace(list)) File.WriteAllText(Path.Combine(batch, "files.txt"), list, new UTF8Encoding(false));
+        job = new Dictionary<string, object> {{"batch", batch}, {"url", url.Text.Trim()}, {"ns", ns.Text.Trim()}, {"sessions", sessions}, {"interval", new[] {200, 100, 50}[speed.SelectedIndex]}, {"version", projectRun.catalogVersion}, {"scope", version.Text.StartsWith("v9.2 ") ? "all-products" : "doctor"}, {"confirmWeb", web.Checked}, {"inputSource", expandScope ? "路径 / 包" : inputSource}, {"projectRun", projectRun.id}, {"expandScope", expandScope}, {"includeWebAssets", true}};
+        if (!String.IsNullOrWhiteSpace(list)) ProjectBaseline.Atomic(Path.Combine(batch, expandScope ? "scope.txt" : "files.txt"), Encoding.UTF8.GetBytes(list));
         job["sampleLimit"] = sampleLimit;
-        SaveJob(); busy = true;runClock.Reset();elapsedBeforeResume=0;elapsedLabel.Text="本次用时：00分00秒";progress.Value=0;errorBanner.Visible = false; lastProjectReceipt = null; status.Text = "正在解析范围 · 不连接服务器"; summary.Text = mode == "check" ? "检查更新 · 准备中" : "增补源码 · 准备中"; UpdateButtons(); Send(new {op = "run", job, plan = true});
+        SaveJob(); busy = true;runClock.Reset();elapsedBeforeResume=0;elapsedLabel.Text="本次用时：00分00秒";progress.Value=0;errorBanner.Visible = false; lastProjectReceipt = null; summary.Text = mode == "check" ? "检查更新 · 准备中" : "增补源码 · 准备中"; SendProjectPlan();
+    }
+    void SendProjectPlan() {
+        busy = true;
+        if (Flag(job, "expandScope")) {
+            string stopFile = Path.Combine(batch, "stop.request");
+            if (File.Exists(stopFile)) File.Delete(stopFile);
+            status.Text = "正在查找服务器上的匹配文件…";
+            Send(new {op = "run", job, plan = true, user = user.Text, password = password.Text});
+        } else {
+            status.Text = "正在解析范围 · 不连接服务器";
+            Send(new {op = "run", job, plan = true});
+        }
+        UpdateButtons();
+    }
+    bool ConfirmScope(List<string> files, List<string> unmatched, int limit) {
+        using (var dialog = new Form {Text="匹配文件", Size=new Size(790, 560), MinimumSize=new Size(600, 420), StartPosition=FormStartPosition.CenterParent, Font=Font}) {
+            var panel = new TableLayoutPanel {Dock=DockStyle.Fill, ColumnCount=1, RowCount=3, Padding=new Padding(16)};
+            panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            var title = Note("共匹配 " + files.Count + " 项。" + (unmatched.Count > 0 ? "  有 " + unmatched.Count + " 条规则未匹配。" : ""));
+            panel.Controls.Add(title, 0, 0);
+            var list = new TextBox {ReadOnly=true, Multiline=true, ScrollBars=ScrollBars.Both, WordWrap=false, Dock=DockStyle.Fill,
+                Text=(unmatched.Count > 0 ? "未匹配的规则\r\n" + String.Join("\r\n", unmatched) + "\r\n\r\n匹配文件\r\n" : "") + String.Join("\r\n", files)};
+            panel.Controls.Add(list, 0, 1);
+            var actions = new FlowLayoutPanel {Dock=DockStyle.Fill, FlowDirection=FlowDirection.RightToLeft, AutoSize=true};
+            var back = new Button {Text=unmatched.Count > 0 ? "返回修改" : "取消", DialogResult=DialogResult.Cancel, AutoSize=true};
+            var ok = new Button {Text=limit > 0 ? "开始试采" : "导出到当前基线", DialogResult=DialogResult.OK, AutoSize=true, Enabled=files.Count>0 && unmatched.Count==0};
+            actions.Controls.Add(ok); actions.Controls.Add(back); panel.Controls.Add(actions, 0, 2);
+            dialog.Controls.Add(panel); dialog.AcceptButton=ok; dialog.CancelButton=back;
+            return dialog.ShowDialog(this) == DialogResult.OK;
+        }
     }
     bool IsProjectJob {get {return !legacyMode && project != null && projectRun != null && job != null && TextValue(job, "projectRun") == projectRun.id;}}
     void ReceiveProjectResult(Dictionary<string, object> envelope) {
-        string output = TextValue(envelope, "output"); Append(output);
+        string output = TextValue(envelope, "output");
+        bool scopedPreview = Flag(envelope, "plan") && Flag(job, "expandScope");
+        if (!scopedPreview || Number(envelope, "exitCode") != 0) Append(output);
         try {
             if (Flag(envelope, "plan")) {
-                if (Number(envelope, "exitCode") != 0) throw new IOException(output.Trim());
+                if (Number(envelope, "exitCode") != 0 && !(scopedPreview && (closeRequested || File.Exists(Path.Combine(batch, "stop.request"))))) throw new IOException(ExplainReason(output.Trim()));
+                if (scopedPreview && (closeRequested || File.Exists(Path.Combine(batch, "stop.request")))) {
+                    busy = false; runClock.Stop(); project.EndRun(projectRun);
+                    status.Text = "已停止范围查找"; RenderProject();
+                    if (closeRequested && !shuttingDown) StartClosing();
+                    return;
+                }
                 var plan = json.Deserialize<Dictionary<string, object>>(output);
                 if(!plan.ContainsKey("items") || !(plan["items"] is IEnumerable)) throw new IOException("范围解析结果缺少对象清单，请使用完整解压的新版工具重试。");
                 var items = new List<object>();
@@ -367,14 +506,25 @@ public sealed partial class ExporterForm {
                     fullNames.Add(ImportableName(Convert.ToString(item["document"])));
                     if(limit <= 0 || items.Count < limit) items.Add(item);
                 }
+                if (scopedPreview) {
+                    var unmatched = new List<string>();
+                    if (Value(plan, "unmatched") is IEnumerable) foreach (object rule in (IEnumerable)plan["unmatched"]) unmatched.Add(Convert.ToString(rule));
+                    if (!ConfirmScope(fullNames, unmatched, limit)) {
+                        busy = false; runClock.Stop(); project.EndRun(projectRun);
+                        status.Text = unmatched.Count > 0 ? "按路径 / 包导出 · 请修改未匹配的规则" : "已取消本次导出";
+                        RenderProject();
+                        if (unmatched.Count > 0) ShowAddDialog(false, true);
+                        return;
+                    }
+                }
                 if(limit > 0) ProjectBaseline.Atomic(Path.Combine(batch, "sample-full-scope.txt"), new UTF8Encoding(false).GetBytes(String.Join("\r\n", fullNames)));
-                var queue = project.Plan(projectRun, items, inputSource);
+                var queue = project.Plan(projectRun, items, TextValue(job, "inputSource"));
                 if(projectRun.catalogVersion!=null&&projectRun.catalogVersion.Length>0&&!project.Index.catalogVersions.Contains(projectRun.catalogVersion)){project.Index.catalogVersions.Add(projectRun.catalogVersion);project.Save();}
                 projectRemainingCount = queue.Count;
                 RenderProject();
                 if (queue.Count == 0) {busy = false; status.Text = projectRun.protectedCount > 0 ? "已保护 " + projectRun.protectedCount + " 项候选或本地变动，其余已取得；本次无需读取。" : "已有文件均已取得，本次没有新增请求；检查更新可核实服务器变化。"; RenderProject(); return;}
                 var names = new List<string>(); foreach (var name in queue) names.Add(ImportableName(name));
-                File.WriteAllText(Path.Combine(batch, "files.txt"), String.Join("\r\n", names), new UTF8Encoding(false)); job["version"] = ""; SaveJob(); StartProjectReading(false);
+                ProjectBaseline.Atomic(Path.Combine(batch, "files.txt"), Encoding.UTF8.GetBytes(String.Join("\r\n", names))); job["version"] = ""; SaveJob(); StartProjectReading(false);
             } else {
                 busy = reading = false; runClock.Stop(); SaveProjectElapsed(); lastProjectReceipt = null;
                 var result = json.Deserialize<Dictionary<string, object>>(output); lastReason = TextValue(result, "operationError"); if (String.IsNullOrEmpty(lastReason)) lastReason = TextValue(result, "reason");
@@ -426,7 +576,13 @@ public sealed partial class ExporterForm {
         if(!String.Equals(TextValue(job,"batch"),batch,StringComparison.OrdinalIgnoreCase))throw new IOException("项目目录已移动，不能用新路径续传原采集。请保留原路径和原工具，或结束该记录后重新检查更新。");
         if (TextValue(job, "url") != url.Text.Trim() || TextValue(job, "ns") != ns.Text.Trim()) throw new IOException("请切回该项目的原始连接再继续。");
         if(Number(job, "sampleLimit") == 0) ValidateBudget(Number(job, "sessions")); legacyMode = false;
-        if (projectRun.documents.Count == 0) {busy = true; Send(new {op = "run", job, plan = true});} else StartProjectReading(File.Exists(Path.Combine(batch, "export/baseline-state.json")));
+        if (projectRun.documents.Count == 0) SendProjectPlan();
+        else {
+            bool hasReceipt = File.Exists(Path.Combine(batch, "export/baseline-state.json"));
+            if (Flag(job, "expandScope") && !hasReceipt)
+                ProjectBaseline.Atomic(Path.Combine(batch, "files.txt"), Encoding.UTF8.GetBytes(String.Join("\r\n", projectRun.documents.ConvertAll(ImportableName))));
+            StartProjectReading(hasReceipt);
+        }
     }
     static bool NeedsAttention(string outcome) {
         return outcome == "missing" || outcome == "failed" || outcome == "empty" || outcome == "local-conflict" || outcome == "candidate-new" || outcome == "candidate-change" || outcome == "not-accepted";

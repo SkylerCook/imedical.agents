@@ -233,6 +233,12 @@ public sealed partial class ExporterForm {
     static string ExplainReason(string reason) {
         switch (reason) {
             case "atelier-http-401": return "认证失败（401）：请核对用户名、密码及接口认证配置。退出状态另见会话栏。";
+            case "atelier-scope-http-401": return "查询范围时认证失败（401），请核对连接账号和密码。";
+            case "atelier-scope-http-403": return "当前账号无权查询服务器文件清单（403），请核对 Atelier 查询权限。";
+            case "atelier-scope-http-404": return "找不到 Atelier 文件清单接口（404），请核对服务器地址和命名空间。";
+            case "atelier-scope-transport-or-timeout": return "查询服务器文件清单时连接失败或超时，可重试当前范围。";
+            case "scope-web-path-invalid-use-application-path": return "请填写 Web 应用下的路径，例如 /app/scripts/*。";
+            case "scope-backend-name-invalid": return "后端范围格式有误。请每行填写一个包名、通配规则或完整对象名，例如 Demo.Patient 或 Demo.Patient*。";
             case "atelier-http-503": return "服务器返回 503：请先核实服务与容量状态。";
             case "atelier-transport-or-timeout": return "连接失败或超时：请展开诊断详情查看网络、TLS 或超时分类。";
             case "cancelled-by-user": return "读取已安全停止 · 已保存文件保留，可恢复同一批次。";
@@ -246,6 +252,13 @@ public sealed partial class ExporterForm {
         try {
             var envelope = json.Deserialize<Dictionary<string, object>>(line); string kind = TextValue(envelope, "kind"); var d = Value(envelope, "data") as Dictionary<string, object>;
             if (d.ContainsKey("blocked")) blocked = Flag(d, "blocked");
+            if (kind == "browse") {
+                var show=scopeBrowse; scopeBrowse=null; busy=false; UpdateButtons();
+                status.Text=Number(d,"exitCode")==0?"已读取服务器目录和类包":ExplainReason(TextValue(d,"output").Trim());
+                if (show!=null) show(d);
+                if (closeRequested && !shuttingDown) StartClosing();
+                return;
+            }
             if(kind=="result"&&IsProjectJob){ReceiveProjectResult(d);return;}
             if (kind == "ready") { status.Text = blocked ? "上次会话待核查 · 在连接设置中打开“核查会话”" : "就绪 · 点增补源码补充范围，或检查更新"; sessionStatus.Text = blocked ? "服务器会话 · 上次状态未核实" : "服务器会话 · 当前无连接"; Append(status.Text);if(IsProjectJob&&!blocked){lastProjectReceipt=null;PaintProjectProgress();} }
             else if (kind == "result") {
@@ -277,7 +290,7 @@ public sealed partial class ExporterForm {
             UpdateButtons();
         } catch (Exception ex) { Append("后台消息处理失败：" + ex.Message); }
     }
-    void RequestStop() { if (batch != null) File.WriteAllText(Path.Combine(batch, "stop.request"), "stop"); status.Text = "正在安全停止 · 等待在途请求和文件保存完成…"; }
+    void RequestStop() { if (scopeBrowse == null && batch != null) File.WriteAllText(Path.Combine(batch, "stop.request"), "stop"); status.Text = "正在安全停止 · 等待在途请求和文件保存完成…"; }
     void RequestClose() { if (shuttingDown) return; closeRequested = true; UpdateButtons(); if(projectImporting){status.Text="正在完成本地保存和核验，请稍候…";return;} if (busy) RequestStop(); else StartClosing(); }
     void StartClosing() { closingPool = true; sessionStatus.Text = "正在退出 · 注销服务器会话，请稍候…"; UpdateButtons(); Send(new {op = "close"}); }
     protected override void Dispose(bool disposing) { if (disposing) { timer.Stop(); timer.Dispose(); if(project!=null){project.Dispose();project=null;} connectionFields.Dispose(); } base.Dispose(disposing); }

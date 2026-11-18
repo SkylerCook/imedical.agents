@@ -1,4 +1,4 @@
-﻿#requires -Version 5.1
+#requires -Version 5.1
 <#
 .SYNOPSIS
 按 UTF-8 TXT 清单从内网 IRIS 读取当前源码，保存到指定本地目录。
@@ -36,6 +36,10 @@ param(
     [hashtable]$SessionContext,
     [string[]]$ConfirmedMissing = @(),
     [switch]$DisableTiming,
+    [switch]$ExpandScope,
+    [switch]$BrowseScope,
+    [string]$BrowsePath,
+    [switch]$IncludeWebAssets,
     [switch]$PlanOnly,
     [switch]$Resume
 )
@@ -152,26 +156,278 @@ function Close-SessionSnapshot($Snapshot) {
     return [pscustomobject]$result
 }
 
+function New-AtelierWorker([int]$Number) {
+    $handler = New-Object Net.Http.HttpClientHandler
+    $handler.AllowAutoRedirect = $false; $handler.UseProxy = $false; $handler.UseCookies = $true
+    $handler.CookieContainer = New-Object Net.CookieContainer
+    $client = New-Object Net.Http.HttpClient($handler)
+    $client.Timeout = [TimeSpan]::FromSeconds($TimeoutSec); $client.MaxResponseContentBufferSize = 16777216
+    [pscustomobject]@{number=$Number;handler=$handler;client=$client;identity=$null;task=$null;request=$null;item=$null;ready=[DateTime]::MinValue;started=$null;clock=$null;requests=0}
+}
+
+function Get-TargetUri {
+    $address = [uri]($AtelierUrl.TrimEnd('/') + '/')
+    if (-not $address.IsAbsoluteUri -or $address.Scheme -notin @('http', 'https') -or $address.UserInfo -or $address.Query -or $address.Fragment -or
+        $address.AbsolutePath -notmatch '/api/atelier/$' -or -not $Namespace -or $Namespace -match '[\x00-\x20/\\?#]') { throw 'invalid-atelier-target' }
+    $address
+}
+
+function Get-SessionIdentity {
+    Hash-Bytes ($utf8.GetBytes($uri.AbsoluteUri + '|' + $Namespace + '|' + $Credential.UserName + '|' + $Credential.GetNetworkCredential().Password + '|' + $Sessions + '|' + $scriptHash))
+}
+
+function New-TargetMutex {
+    New-Object Threading.Mutex($false, ('Local\IrisCodeExport-' + (Hash-Bytes ($utf8.GetBytes($uri.AbsoluteUri)))))
+}
+
+function Get-ScopeRules([string[]]$Lines) {
+    foreach ($line in $Lines) {
+        $entry = $line.Trim()
+        if (-not $entry -or $entry.StartsWith('#')) { continue }
+        if ($entry.Contains('/') -or $entry.Contains('\')) {
+            $entry = $entry.Replace('\', '/')
+            if (-not $entry.StartsWith('/')) { $entry = '/' + $entry }
+            if ($entry.EndsWith('/')) { $entry += '*' }
+            if ($entry -match '//|(^|/)\.{1,2}(/|$)|[:%#;,<>"|\x00-\x1f\x7f]|^/[^/]*[*?][^/]*(/|$)') { throw 'scope-web-path-invalid-use-application-path' }
+            $folder = $entry.Substring(0, $entry.LastIndexOf('/') + 1)
+            if ($folder -match '[*?]') { throw 'scope-web-path-invalid-use-application-path' }
+            $categories = @('CSP')
+            $pattern = $entry
+        } else {
+            if ($entry -notmatch '^[%A-Za-z][%A-Za-z0-9*?]*(\.[%A-Za-z0-9*?]+)*$') { throw 'scope-backend-name-invalid' }
+            $categories = @('CLS', 'RTN')
+            $pattern = $entry
+            if ($entry -notmatch '[*?]|\.(cls|mac|inc|int)$') {
+                $categories = @('CLS')
+                $pattern += '.*.cls'
+            } elseif ($entry -match '\.cls$') { $categories = @('CLS') }
+            elseif ($entry -match '\.(mac|inc|int)$') { $categories = @('RTN') }
+        }
+        $directory = $pattern.EndsWith('/*') -and $pattern.Substring(0, $pattern.Length - 1) -notmatch '[*?]'
+        $expression = [regex]::Escape($pattern).Replace('\*', '.*').Replace('\?', '.')
+        if ($categories[0] -eq 'CSP' -and -not $directory) {
+            $expression = [regex]::Escape($pattern).Replace('\*', '[^/]*').Replace('\?', '[^/]')
+        }
+        [pscustomobject]@{
+            entry=$entry; categories=$categories; expression=('\A' + $expression + '\z'); wildcard=($pattern -match '[*?]')
+            directory=$directory; folder=if($categories[0] -eq 'CSP'){$folder}else{$null}
+            prefix=($pattern -split '[*?]',2)[0]
+        }
+    }
+}
+
+function Invoke-ScopeListing([string]$Path,[string]$Query,[string[]]$Parameters) {
+    if ($CancelFile -and (Test-Path -LiteralPath $CancelFile)) { throw 'cancelled-by-user' }
+    $method = if ($Query) { [Net.Http.HttpMethod]::Post } else { [Net.Http.HttpMethod]::Get }
+    $request = New-Object Net.Http.HttpRequestMessage($method, ($uri.AbsoluteUri + 'v1/' + $Path))
+    $response = $null
+    try {
+        $request.Headers.Accept.ParseAdd('application/json')
+        if ($Query) {
+            $jsonBody = @{query=$Query;parameters=@($Parameters | Where-Object { $null -ne $_ })} | ConvertTo-Json -Compress
+            $request.Content = New-Object Net.Http.StringContent($jsonBody, $utf8, 'application/json')
+        }
+        if ($worker.identity) {
+            $snapshot = Get-SessionSnapshot $worker.handler.CookieContainer $uri
+            if (-not $snapshot -or $snapshot.count -ne 1 -or $snapshot.identity -cne $worker.identity) { throw 'atelier-session-changed' }
+        } else {
+            $basic = [Convert]::ToBase64String($utf8.GetBytes($Credential.UserName + ':' + $Credential.GetNetworkCredential().Password))
+            $request.Headers.Authorization = New-Object Net.Http.Headers.AuthenticationHeaderValue('Basic', $basic)
+        }
+        $worker.requests++
+        try { $response = $worker.client.SendAsync($request).GetAwaiter().GetResult() }
+        catch { throw 'atelier-scope-transport-or-timeout' }
+        $snapshot = Get-SessionSnapshot $worker.handler.CookieContainer $uri
+        if (-not $response.IsSuccessStatusCode) { throw ('atelier-scope-http-' + [int]$response.StatusCode) }
+        if (-not $snapshot -or $snapshot.count -ne 1) { throw 'atelier-session-cookie-missing' }
+        $known[$snapshot.identity] = $snapshot
+        if ($worker.identity -and $snapshot.identity -cne $worker.identity) { throw 'atelier-session-changed' }
+        $worker.identity = $snapshot.identity
+        $payload = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult() | ConvertFrom-Json
+        if ($payload.status.errors.Count -or $payload.status.summary -or $payload.result.content -isnot [array]) { throw 'atelier-scope-response-invalid' }
+        $payload.result.content
+    } finally {
+        if ($response) { $response.Dispose() }
+        $request.Dispose()
+    }
+}
+
+function Get-WebFolderEntries([string]$Folder) {
+    # The Studio file picker accepts an application-relative pattern and returns direct children.
+    $query = 'SELECT Name, Type FROM %Library.RoutineMgr_StudioOpenDialog(?,1,1,0,0,0,0,,0,1)'
+    foreach ($row in (Invoke-ScopeListing ($nsPath + '/action/query') $query @($Folder + '*'))) {
+        if ($row.name -isnot [string] -or -not $row.name) { throw 'atelier-scope-response-invalid' }
+        $name = $row.name.Replace('\', '/').TrimEnd('/')
+        if ($name.StartsWith($Folder, [StringComparison]::OrdinalIgnoreCase)) { $name = $name.Substring($Folder.Length) }
+        if ($name -in @('.', '..')) { continue }
+        if (-not $name -or $name.Contains('/')) { throw 'atelier-scope-response-invalid' }
+        [pscustomobject]@{name=($Folder + $name);directory=([int]$row.Type -eq 10)}
+    }
+}
+
+function Get-AtelierScope($Rules) {
+    Add-Type -AssemblyName System.Net.Http
+    $identity = Get-SessionIdentity
+    $mutex = New-TargetMutex
+    $acquired = $false
+    $worker = $null
+    $known = @{}
+    try {
+        try { $acquired = $mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $acquired = $true }
+        if (-not $acquired) { throw 'another-export-is-running-for-target' }
+        if ($SessionContext -and $SessionContext.workers) {
+            if ($SessionContext.identity -cne $identity) { throw 'retained-session-identity-changed-close-first' }
+            $worker = $SessionContext.workers[0]
+            $known = $SessionContext.knownSessions
+        } else {
+            $worker = New-AtelierWorker 0
+            if ($null -ne $SessionContext) {
+                $SessionContext.identity = $identity; $SessionContext.workers = @($worker); $SessionContext.knownSessions = $known
+                $SessionContext.close = ${function:Close-SessionSnapshot}.GetNewClosure()
+                $SessionContext.mutex = $mutex; $acquired = $false
+            }
+        }
+        $nsPath = [uri]::EscapeDataString($Namespace)
+        $catalog = @{}
+        if ($BrowseScope) {
+            $packages = New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+            if ($BrowsePath) {
+                $rule = Get-ScopeRules @($BrowsePath)
+                if (-not $rule.directory -or $rule.folder -cne $BrowsePath) { throw 'scope-web-path-invalid-use-application-path' }
+                $folders = @(Get-WebFolderEntries $BrowsePath | Where-Object directory | ForEach-Object { $_.name + '/' })
+                return [pscustomobject]@{folders=@($folders | Sort-Object);packages=@()}
+            }
+            $folders = @(Invoke-ScopeListing ('%25SYS/cspapps/' + $nsPath) | ForEach-Object {
+                $name = if ($_ -is [string]) { $_ } else { $_.name }
+                if ($name -and $name.StartsWith('/') -and $name -ne '/') { $name.TrimEnd('/') + '/' }
+            })
+            foreach ($row in (Invoke-ScopeListing ($nsPath + '/action/query') 'SELECT Name FROM %Dictionary.ClassDefinition')) {
+                $parent = [string]$row.Name
+                while ($parent.Contains('.')) {
+                    $parent = $parent.Substring(0, $parent.LastIndexOf('.'))
+                    if (-not $packages.Add($parent)) { break }
+                }
+            }
+            return [pscustomobject]@{folders=@($folders | Sort-Object);packages=@($packages | Sort-Object)}
+        }
+        $resolved = New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+        $unmatched = @()
+        foreach ($rule in $Rules) {
+            if (-not $rule.wildcard) { [void]$resolved.Add($rule.entry); continue }
+            $found = $false
+            foreach ($category in $rule.categories) {
+                if ($category -eq 'CSP') {
+                    $pendingFolders = New-Object 'Collections.Generic.Queue[string]'
+                    $seenFolders = New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+                    $pendingFolders.Enqueue($rule.folder)
+                    $candidates = @(
+                        while ($pendingFolders.Count) {
+                            $folder = $pendingFolders.Dequeue()
+                            if (-not $seenFolders.Add($folder)) { continue }
+                            if (-not $catalog.ContainsKey($folder)) { $catalog[$folder] = @(Get-WebFolderEntries $folder) }
+                            foreach ($entry in $catalog[$folder]) {
+                                if (-not $entry.directory) { $entry.name }
+                                elseif ($rule.directory) { $pendingFolders.Enqueue($entry.name + '/') }
+                            }
+                        }
+                    )
+                } else {
+                    $type = if ($category -eq 'CLS') { '*' } else { 'mac,inc,int' }
+                    $path = $nsPath + '/docnames/' + $category + '/' + $type + '?filter=' + [uri]::EscapeDataString($rule.prefix + '%')
+                    if (-not $catalog.ContainsKey($path)) { $catalog[$path] = @(Invoke-ScopeListing $path | ForEach-Object { $_.name }) }
+                    $candidates = @($catalog[$path] | Where-Object { $_ -match '\.(cls|mac|inc|int)$' })
+                }
+                foreach ($name in $candidates) {
+                    if ($name -match $rule.expression) { $found = $true; [void]$resolved.Add($name) }
+                }
+            }
+            if (-not $found) { $unmatched += $rule.entry }
+        }
+        if ($CancelFile -and (Test-Path -LiteralPath $CancelFile)) { throw 'cancelled-by-user' }
+        [pscustomobject]@{names=@($resolved | Sort-Object);unmatched=$unmatched}
+    } finally {
+        try {
+            if ($worker) {
+                $snapshot = Get-SessionSnapshot $worker.handler.CookieContainer $uri
+                if ($snapshot -and $snapshot.count -eq 1) { $known[$snapshot.identity] = $snapshot }
+                if ($null -ne $SessionContext) { $SessionContext.lastUsed = [DateTime]::UtcNow }
+                else {
+                    $worker.client.Dispose(); $worker.handler.Dispose()
+                    foreach ($session in $known.Values) {
+                        $closed = Close-SessionSnapshot $session
+                        if (-not $closed.accepted) { Write-Warning 'atelier-scope-logout-unverified' }
+                    }
+                }
+            }
+        } finally {
+            if ($acquired) { $mutex.ReleaseMutex() }
+            if ($null -eq $SessionContext -or $SessionContext.mutex -ne $mutex) { $mutex.Dispose() }
+        }
+    }
+}
+
 $diagnosticCallback = ${function:Get-TransportDiagnostic}
 try {
     if ($env:OS -ne 'Windows_NT') { throw 'windows-powershell-required' }
+    if ($BrowseScope) {
+        if (-not $PlanOnly -or $Resume -or $ExpandScope) { throw 'scope-browse-requires-preview' }
+        $uri = Get-TargetUri
+        if (-not $Credential) { throw 'credential-required' }
+        $scriptHash = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash
+        Get-AtelierScope | ConvertTo-Json -Depth 4
+        exit 0
+    }
     $inputFile = $ListFile
     $baselinePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($inputFile)
     $root = [IO.Path]::GetFullPath($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($OutputDirectory)).TrimEnd('\', '/')
     if ($root -eq [IO.Path]::GetPathRoot($root).TrimEnd('\', '/')) { throw 'output-must-not-be-volume-root' }
     Assert-PlainPath $baselinePath
     Assert-PlainPath $root
+    $statePath = Join-Path $root 'baseline-state.json'
+    $scriptHash = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash
+    $baselineBytes = [IO.File]::ReadAllBytes($baselinePath)
+    $baselineHash = Hash-Bytes $baselineBytes
+    $lines = $utf8.GetString($baselineBytes).TrimStart([char]0xFEFF).Split("`n")
+    $scope = $null
+    if ($ExpandScope) {
+        if ($VersionSelectionFile) { throw 'scope-rules-cannot-use-version-catalog' }
+        if ($Resume -and $PlanOnly) { throw 'scope-preview-cannot-resume' }
+        $IncludeWebAssets = $true
+        if ($Resume) {
+            Assert-PlainPath $statePath
+            $frozen = [IO.File]::ReadAllText($statePath, $utf8) | ConvertFrom-Json
+            if ($frozen.schema -ne 'iris-standalone-baseline/v1' -or $frozen.baselineHash -ne $baselineHash -or
+                $frozen.scriptHash -ne $scriptHash -or $frozen.outputRoot -ne $root -or -not $frozen.scopeSelection) { throw 'resume-source-or-scope-mismatch' }
+            $scope = $frozen.scopeSelection
+            if ($frozen.scopeSelectionHash -ne (Hash-Bytes ($utf8.GetBytes(($scope | ConvertTo-Json -Depth 6 -Compress))))) { throw 'resume-source-or-scope-mismatch' }
+        } else {
+            if (-not $PlanOnly -and (Test-Path -LiteralPath $root)) { throw 'output-directory-must-be-new-or-use-Resume' }
+            $rules = @(Get-ScopeRules $lines)
+            if (-not $rules.Count) { throw 'empty-catalog' }
+            if (@($rules | Where-Object wildcard).Count) {
+                if (-not $PlanOnly -and $Sessions -gt 1 -and $SampleLimit -eq 0 -and -not $SessionTrial -and -not $ConfirmedSessionBudget) { throw 'multi-session-budget-confirmation-required' }
+                if (-not $AtelierUrl) { $AtelierUrl = Read-Host 'Atelier root URL (ending /api/atelier/)' }
+                if (-not $Namespace) { $Namespace = Read-Host 'Namespace' }
+                $uri = Get-TargetUri
+                if (-not $Credential) { $Credential = Get-Credential -Message 'IRIS read access (kept in memory only)' }
+                if (-not $Credential) { throw 'credential-required' }
+                $scope = Get-AtelierScope $rules
+            } else { $scope = [pscustomobject]@{names=@($rules.entry | Sort-Object -Unique -CaseSensitive);unmatched=@()} }
+            if (-not $PlanOnly -and $scope.unmatched.Count) { throw ('scope-no-matches: ' + ($scope.unmatched -join ', ')) }
+        }
+        $lines = @($scope.names)
+    }
     $nodes = New-Object 'Collections.Generic.List[object]'
     $lineNumber = 0
-    foreach ($line in $utf8.GetString([IO.File]::ReadAllBytes($baselinePath)).TrimStart([char]0xFEFF).Split("`n")) {
+    foreach ($line in $lines) {
         $lineNumber++; $entry = $line.Trim()
         if (-not $entry -or $entry.StartsWith('#')) { continue }
         if ($entry -match '\.(cls|mac|inc|int)$' -and -not $entry.Contains('/')) { $kind = $Matches[1].ToUpperInvariant() }
-        elseif ($entry.StartsWith('/') -and $entry -match '\.(csp|csr|js|css|html|htm|png|jpg|jpeg|gif|ico|bmp|svg|webp|avif)$') { $kind = 'CSP' }
+        elseif ($entry.StartsWith('/') -and ($IncludeWebAssets -or $entry -match '\.(csp|csr|js|css|html|htm|png|jpg|jpeg|gif|ico|bmp|svg|webp|avif)$')) { $kind = 'CSP' }
         else { throw ('list-format-invalid-line-' + $lineNumber) }
         $nodes.Add([pscustomobject]@{name=$entry;type=$kind})
     }
-    if (-not $nodes.Count) { throw 'empty-catalog' }
+    if (-not $nodes.Count -and -not ($PlanOnly -and $ExpandScope)) { throw 'empty-catalog' }
     $items = New-Object 'Collections.Generic.List[object]'; $excluded = @(); $seen = @{}; $paths = @{}
     foreach ($node in $nodes) {
         $name = $node.name; $kind = $node.type
@@ -194,12 +450,13 @@ try {
         }
         $key = $kind + ':' + $document
         if ($seen.ContainsKey($key)) { throw 'duplicate-scope-item' }; $seen[$key] = $true
-        if ($ext -in @('.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.svg', '.webp', '.avif')) { $excluded += $document; continue }
-        if ($ext -notin @('.cls', '.mac', '.inc', '.int', '.csp', '.csr', '.js', '.css', '.html', '.htm')) { throw 'unsupported-code-type' }
+        if (-not $IncludeWebAssets -and $ext -in @('.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.svg', '.webp', '.avif')) { $excluded += $document; continue }
         if ($kind -notin $Type -or -not $name.StartsWith($Prefix, [StringComparison]::OrdinalIgnoreCase)) { continue }
         if ($paths.ContainsKey($relative)) { throw 'output-path-collision' }; $paths[$relative] = $true
         [void](Get-Destination $relative)
-        $items.Add([pscustomobject]@{document = $document; path = $relative; status = 'pending'; sha256 = $null; bytes = 0; observedAt = $null; reason = $null})
+        $item = [pscustomobject]@{document = $document; path = $relative; status = 'pending'; sha256 = $null; bytes = 0; observedAt = $null; reason = $null}
+        if ($IncludeWebAssets -and $kind -eq 'CSP') { $item | Add-Member NoteProperty webAsset $true }
+        $items.Add($item)
     }
     $items = $items.ToArray()
     foreach ($relative in $paths.Keys) {
@@ -207,7 +464,7 @@ try {
         while ($parent.Contains('/')) { $parent = $parent.Substring(0, $parent.LastIndexOf('/')); if ($paths.ContainsKey($parent)) { throw 'output-path-collision' } }
     }
     if ($PlanOnly) {
-        [pscustomobject]@{total = $items.Count; excludedImageCount = $excluded.Count; excludedImages = $excluded; items = $items} | ConvertTo-Json -Depth 8
+        [pscustomobject]@{total = $items.Count; excludedImageCount = $excluded.Count; excludedImages = $excluded; unmatched = @($scope.unmatched | Where-Object { $_ }); items = $items} | ConvertTo-Json -Depth 8
         exit 0
     }
     if ($Resume -and (Test-Path -LiteralPath (Join-Path $root '.baseline'))) { throw 'development-baseline-exists-do-not-resume' }
@@ -218,11 +475,8 @@ try {
     if ($CancelFile) { $CancelFile = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($CancelFile); Assert-PlainPath $CancelFile }
     if (-not $AtelierUrl) { $AtelierUrl = Read-Host 'Atelier root URL (ending /api/atelier/)' }
     if (-not $Namespace) { $Namespace = Read-Host 'Namespace' }
-    $uri = [uri]($AtelierUrl.TrimEnd('/') + '/')
-    if (-not $uri.IsAbsoluteUri -or $uri.Scheme -notin @('http', 'https') -or $uri.UserInfo -or $uri.Query -or $uri.Fragment -or
-        $uri.AbsolutePath -notmatch '/api/atelier/$' -or -not $Namespace -or $Namespace -match '[\x00-\x20/\\?#]') { throw 'invalid-atelier-target' }
+    $uri = Get-TargetUri
     $target = Hash-Bytes ($utf8.GetBytes($uri.AbsoluteUri + '|' + $Namespace))
-    $baselineHash = (Get-FileHash -LiteralPath $baselinePath -Algorithm SHA256).Hash
     $versionSelection = $null; $versionSelectionHash = $null
     if ($VersionSelectionFile) {
         $selectionPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($VersionSelectionFile)
@@ -234,10 +488,9 @@ try {
             $versionSelection.selectedFileCount -ne $items.Count) { throw 'version-selection-does-not-match-list' }
         $versionSelectionHash = Hash-Bytes $selectionBytes
     }
+    $selectionHash = if ($ExpandScope) { Hash-Bytes ($utf8.GetBytes(($scope | ConvertTo-Json -Depth 6 -Compress))) }
     $scopeHash = Hash-Bytes ($utf8.GetBytes(($items.document -join "`n")))
-    $scriptHash = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash
-    $statePath = Join-Path $root 'baseline-state.json'
-    $mutex = New-Object Threading.Mutex($false, ('Local\IrisCodeExport-' + (Hash-Bytes ($utf8.GetBytes($uri.AbsoluteUri)))))
+    $mutex = New-TargetMutex
     $outputMutex = New-Object Threading.Mutex($false, ('Local\IrisCodeOutput-' + (Hash-Bytes ($utf8.GetBytes($root.ToLowerInvariant())))))
     $acquired = $false; $outputAcquired = $false
     try {
@@ -251,6 +504,7 @@ try {
             if ($state.schema -ne 'iris-standalone-baseline/v1' -or $state.target -ne $target -or $state.baselineHash -ne $baselineHash -or
                 $state.scopeHash -ne $scopeHash -or $state.scriptHash -ne $scriptHash -or $state.outputRoot -ne $root -or @($state.items).Count -ne $items.Count) { throw 'resume-source-or-scope-mismatch' }
             if ($state.versionSelectionHash -cne $versionSelectionHash) { throw 'resume-version-selection-mismatch-use-the-original-version-entry' }
+            if ($state.scopeSelectionHash -cne $selectionHash -or [bool]$state.includeWebAssets -ne [bool]$IncludeWebAssets) { throw 'resume-source-or-scope-mismatch' }
             $skipMissing = New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
             foreach ($name in $ConfirmedMissing) {
                 if (-not @($state.items | Where-Object { $_.document -ceq $name -and $_.status -eq 'missing' }).Count) { throw 'confirmed-missing-must-match-previous-404' }
@@ -284,6 +538,11 @@ try {
                 $state | Add-Member -MemberType NoteProperty -Name versionSelection -Value $versionSelection
                 $state | Add-Member -MemberType NoteProperty -Name versionSelectionHash -Value $versionSelectionHash
             }
+            if ($ExpandScope) {
+                $state | Add-Member NoteProperty scopeSelection $scope
+                $state | Add-Member NoteProperty scopeSelectionHash $selectionHash
+            }
+            if ($IncludeWebAssets) { $state | Add-Member NoteProperty includeWebAssets $true }
         }
         foreach ($entry in @{
             session = [pscustomobject]@{cookieVerified = $false; requestCount = 0; authenticationCount = 0}
@@ -295,18 +554,11 @@ try {
         if (-not $Credential) { $Credential = Get-Credential -Message 'IRIS read access (kept in memory only)' }
         if (-not $Credential) { throw 'credential-required' }
         Add-Type -AssemblyName System.Net.Http
-        $identity = Hash-Bytes ($utf8.GetBytes($uri.AbsoluteUri + '|' + $Namespace + '|' + $Credential.UserName + '|' + $Credential.GetNetworkCredential().Password + '|' + $Sessions + '|' + $scriptHash))
+        $identity = Get-SessionIdentity
         if ($SessionContext -and $SessionContext.workers -and $SessionContext.identity -cne $identity) { throw 'retained-session-identity-changed-close-first' }
         $workers = @()
         if ($SessionContext -and $SessionContext.workers) { $workers = $SessionContext.workers }
-        for ($w = $workers.Count; $w -lt $Sessions; $w++) {
-            $handler = New-Object Net.Http.HttpClientHandler
-            $handler.AllowAutoRedirect = $false; $handler.UseProxy = $false; $handler.UseCookies = $true
-            $handler.CookieContainer = New-Object Net.CookieContainer
-            $client = New-Object Net.Http.HttpClient($handler)
-            $client.Timeout = [TimeSpan]::FromSeconds($TimeoutSec); $client.MaxResponseContentBufferSize = 16777216
-            $workers += [pscustomobject]@{number=$w;handler=$handler;client=$client;identity=$null;task=$null;request=$null;item=$null;ready=[DateTime]::MinValue;started=$null;clock=$null;requests=0}
-        }
+        for ($w = $workers.Count; $w -lt $Sessions; $w++) { $workers += New-AtelierWorker $w }
         $authorization = [Convert]::ToBase64String($utf8.GetBytes($Credential.UserName + ':' + $Credential.GetNetworkCredential().Password))
         $processed = 0; $state.reason = $null; $state.logoutVerified = $false
         $state.session | Add-Member NoteProperty requestedSessions $Sessions -Force
@@ -334,6 +586,7 @@ try {
                         $item = $queue.Dequeue(); $worker.item = $item
                         $encodedDocument = ($item.document.Split('/') | ForEach-Object { [uri]::EscapeDataString($_) }) -join '/'
                         $url = $uri.AbsoluteUri + 'v1/' + [uri]::EscapeDataString($Namespace) + '/doc/' + $encodedDocument
+                        if ($item.webAsset) { $url += '?binary=1' }
                         $request = New-Object Net.Http.HttpRequestMessage([Net.Http.HttpMethod]::Get, $url)
                         $request.Headers.Accept.ParseAdd('application/json'); $worker.request = $request
                         try {
@@ -400,8 +653,8 @@ try {
                         $item | Add-Member NoteProperty contentEncoding 'base64' -Force
                     } else { $content = $utf8.GetBytes(($value.content -join "`n")) }
                     $item.observedAt = [DateTime]::UtcNow.ToString('o')
-                    if (-not $content.Length) { $item.status = 'empty'; $item.reason = $null; $stateChanged = $true; continue }
-                    if ($item.document.EndsWith('.cls') -and $utf8.GetString($content) -notmatch ('(?m)^\s*Class\s+' + [regex]::Escape($item.document.Substring(0, $item.document.Length - 4)) + '(?=\s|\(|$)')) { throw 'class-identity-mismatch' }
+                    if (-not $content.Length -and -not $item.webAsset) { $item.status = 'empty'; $item.reason = $null; $stateChanged = $true; continue }
+                    if (-not $item.webAsset -and $item.document.EndsWith('.cls') -and $utf8.GetString($content) -notmatch ('(?m)^\s*Class\s+' + [regex]::Escape($item.document.Substring(0, $item.document.Length - 4)) + '(?=\s|\(|$)')) { throw 'class-identity-mismatch' }
                     $file = Get-Destination $item.path
                     if (Test-Path -LiteralPath $file) { throw 'existing-file-conflict' }
                     [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($file))

@@ -6,7 +6,7 @@ for(const invalid of [false,true])test('encoded Web chunks preserve bytes and re
  const chunks=[Buffer.from('<html>\r\n'),Buffer.from([0xd6,0xd0,0xce,0xc4]),Buffer.from('\r\n</html>')];
  const f=await fixture(t,{documentResult:name=>({name,enc:true,content:invalid?['!not-base64!']:chunks.map(x=>x.toString('base64'))})});
  const job=f.job('encoded',1,1);fs.writeFileSync(path.join(job.batch,'files.txt'),'/app/demo.html');
- f.send({op:'run',job,user:'test',password:'not-a-secret'});const result=await f.wait('result');assert.equal(result.data.blocked,false);
+ f.send({op:'run',job,user:'test',password:'not-a-secret'});const result=await f.wait('result');assert.equal(result.data.blocked,false,result.data.output+f.errors());
  let receipt=JSON.parse(fs.readFileSync(path.join(job.batch,'export/baseline-state.json'),'utf8'));
  if(invalid){assert.equal(receipt.reason,'atelier-base64-invalid');assert.equal(receipt.items[0].status,'failed');assert.equal(receipt.logoutVerified,true);}
  else{
@@ -16,18 +16,46 @@ for(const invalid of [false,true])test('encoded Web chunks preserve bytes and re
   f.send({op:'run',job,user:'test',password:'not-a-secret',resume:true});await f.wait('result');assert.equal(f.stats().reads,1);
  }
 });
-async function fixture(t,{idle=120,failLogout=false,failAt=0,dropAt=0,rotateAt=0,refreshAt=0,rejectAt=0,rejectionCookie=false,delay=40,documentResult=null,documentStatus=null}={}){
+async function fixture(t,{idle=120,failLogout=false,failAt=0,dropAt=0,rotateAt=0,refreshAt=0,rejectAt=0,rejectionCookie=false,delay=40,documentResult=null,documentStatus=null,catalog=null}={}){
  const parent=path.join(os.tmpdir(),'Codex');fs.mkdirSync(parent,{recursive:true});
- const dir=fs.mkdtempSync(path.join(parent,'iris-gui-test-'));let auth=0,reads=0,active=0,peak=0,exits=0;const cookies=new Set(),starts=[];
- const server=http.createServer((req,res)=>{
+ const dir=fs.mkdtempSync(path.join(parent,'iris-gui-test-'));let auth=0,reads=0,active=0,peak=0,exits=0;const cookies=new Set(),starts=[],requests=[];
+ const server=http.createServer(async (req,res)=>{
   if(req.method==='HEAD'){exits++; if(!failLogout)cookies.delete(req.headers.cookie);res.writeHead(failLogout?500:401);res.end();return;}
-  starts.push(Date.now());reads++;const requestNumber=reads;active++;peak=Math.max(active,peak);let cookie=req.headers.cookie;
+  requests.push(req.url);starts.push(Date.now());reads++;const requestNumber=reads;active++;peak=Math.max(active,peak);let cookie=req.headers.cookie;
   if(req.headers.authorization){auth++;if(requestNumber===rejectAt&&!rejectionCookie){res.writeHead(401);res.end();active--;return;}cookie='CSPSESSIONID='+(refreshAt?'00000000ABCD'+String(auth).padStart(10,'0')+'M'.repeat(28):auth);cookies.add(cookie);res.setHeader('Set-Cookie',cookie+'; Path=/api/atelier/');if(requestNumber===rejectAt){res.writeHead(401);res.end();active--;return;}}
   if(!cookies.has(cookie)){res.writeHead(401);res.end();active--;return;}
   if(dropAt&&requestNumber>=dropAt){res.destroy();active--;return;}
   if(requestNumber===refreshAt){cookies.delete(cookie);cookie=cookie.replace('=00000000','=00000001').replace(/M{28}$/,'N'.repeat(28));cookies.add(cookie);res.setHeader('Set-Cookie',cookie+'; Path=/api/atelier/');}
   if(requestNumber===rotateAt){cookies.delete(cookie);cookie=refreshAt?cookie.replace('ABCD','WXYZ'):'CSPSESSIONID=rotated';cookies.add(cookie);res.setHeader('Set-Cookie',cookie+'; Path=/api/atelier/');}
-  const name=decodeURIComponent(req.url.split('/doc/')[1]);
+  const requestUrl=new URL(req.url,'http://127.0.0.1');
+  const category=requestUrl.pathname.split('/docnames/')[1]?.split('/')[0];
+  if(catalog&&(category||requestUrl.pathname.includes('/cspapps/')||req.method==='POST')){
+   let rows;
+   if(category) {
+    const filter=requestUrl.searchParams.get('filter');
+    rows=catalog(category).filter(name=>!filter||name.toLowerCase().startsWith(filter.slice(0,-1).toLowerCase())).map(name=>({name,cat:category}));
+   } else if(req.method==='POST') {
+    let input='';for await(const data of req)input+=data;
+    const request=JSON.parse(input);
+    if(request.query.includes('RoutineMgr_StudioOpenDialog')) {
+     const directory=request.parameters[0].slice(0,-1);
+     const children=new Map();
+     for(const stored of catalog('CSP')){
+      const name='/'+stored.replaceAll('\\','/').replace(/^\/+/, '');
+      if(!name.startsWith(directory))continue;
+      const rest=name.slice(directory.length).split('/');
+      children.set(rest[0],{Name:rest[0],Type:rest.length>1?10:5});
+     }
+     rows=[...children.values()];
+    } else {
+     rows=catalog('CLS').map(name=>({Name:name.slice(0,-4)}));
+    }
+   } else {rows=['/imedical'];}
+   res.setHeader('Content-Type','application/json');
+   res.end(JSON.stringify({status:{errors:[]},result:{content:rows}}));
+   active--;return;
+  }
+  const name=decodeURIComponent(requestUrl.pathname.split('/doc/')[1]);
   setTimeout(()=>{if(documentStatus&&documentStatus(name)===404){res.writeHead(404);res.end();active--;return;}if(requestNumber===failAt){res.writeHead(503);res.end();active--;return;}res.setHeader('Content-Type','application/json');res.end(JSON.stringify({status:{errors:[]},result:documentResult?documentResult(name):{name,content:['Class '+name.slice(0,-4)+' Extends %RegisteredObject','{','}']}}));active--;},delay);
  });await new Promise(r=>server.listen(0,'127.0.0.1',r));
  let child,buffer='',errors='',events=[],waiting=[];
@@ -42,8 +70,102 @@ async function fixture(t,{idle=120,failLogout=false,failAt=0,dropAt=0,rotateAt=0
  function send(data){child.stdin.write(JSON.stringify(data)+'\n');}
  function job(name,sessions=1,count=2){const batch=path.join(dir,name);fs.mkdirSync(batch);fs.writeFileSync(path.join(batch,'files.txt'),Array.from({length:count},(_,i)=>'Demo.C'+i+'.cls').join('\n'));return {batch,url:'http://127.0.0.1:'+server.address().port+'/api/atelier/',ns:'TEST',sessions,interval:50};}
  t.after(async()=>{for(const w of waiting)clearTimeout(w.timer);if(child.exitCode===null){send({op:'quit'});await new Promise(resolve=>{const timer=setTimeout(()=>{child.kill();resolve()},3000);child.once('exit',()=>{clearTimeout(timer);resolve()});});}await new Promise(r=>server.close(r));fs.rmSync(dir,{recursive:true,force:true});});
- await wait('ready');return {send,wait,job,dir,restart,starts,recoverTransport:()=>{dropAt=0;},stats:()=>({auth,reads,active,peak,exits}),errors:()=>errors};
+ await wait('ready');return {send,wait,job,dir,restart,starts,requests,recoverTransport:()=>{dropAt=0;},stats:()=>({auth,reads,active,peak,exits}),errors:()=>errors};
 }
+test('scope preview expands mixed rules, then exact-file GUI reads retain the session and preserve assets',{skip:process.platform!=='win32'},async t=>{
+ const documents={
+  CLS:['Demo.Care.A.cls','Demo.Care.Inner.B.cls','Demo.CareOther.C.cls','User.CareNew.cls'],
+  RTN:['User.CareUtils.mac','User.Other.inc'],
+  CSP:['imedical/web/scripts/care/main.js','\\imedical\\web\\scripts\\care\\nested\\logo.png','imedical/web/scripts/care/empty','imedical/web/scripts/care2/no.js','imedical/web/csp/care.main.csp','imedical/web/csp/care.nested/no.js']
+ };
+ const png=Buffer.from([137,80,78,71,13,10,26,10]);
+ const f=await fixture(t,{catalog:category=>documents[category],documentResult:name=>{
+  if(name.endsWith('.cls'))return {name,content:['Class '+name.slice(0,-4),'{}']};
+  if(name.includes('/'))return {name,enc:true,content:name.endsWith('/empty')?[]:[(name.endsWith('.png')?png:Buffer.from('original\r\n')).toString('base64')]};
+  return {name,content:['ROUTINE '+name.slice(0,-4)]};
+ }});
+ const job={...f.job('scope'),expandScope:true,includeWebAssets:true};
+ const rules='imedical/web/scripts/care/*\nimedical/web/csp/care.*\nDemo.Care\nUser.Care*\n/imedical/web/scripts/care/main.js';
+ const scopePath=path.join(job.batch,'scope.txt'),send=extra=>f.send({op:'run',job,user:'test',password:'not-a-secret',...extra});
+ send({op:'browse',job:{...job,expandScope:false}});
+ const browse=(await f.wait('browse')).data;
+ assert.equal(browse.exitCode,0,browse.output+f.errors());
+ const choices=JSON.parse(browse.output);
+ assert.deepEqual(choices.folders,['/imedical/']);
+ assert.ok(choices.packages.includes('Demo.Care.Inner'));
+ assert.ok(choices.packages.includes('Demo.Care'));
+ assert.equal(f.requests.length,2);
+ send({op:'browse',job:{...job,expandScope:false,browsePath:'/imedical/web/scripts/care/'}});
+ const childBrowse=(await f.wait('browse')).data;
+ assert.equal(childBrowse.exitCode,0,childBrowse.output);
+ assert.deepEqual(JSON.parse(childBrowse.output).folders,['/imedical/web/scripts/care/nested/']);
+ fs.writeFileSync(scopePath,rules+'\nDemo.NoSuchPackage');
+ send({plan:true});
+ let result=(await f.wait('result')).data;
+ assert.equal(result.exitCode,0,result.output+f.errors());
+ let plan=JSON.parse(result.output);
+ assert.deepEqual(plan.unmatched,['Demo.NoSuchPackage']);
+ assert.equal(plan.total,8);
+ assert.equal(f.requests.length,10);
+ assert.ok(f.requests.every(url=>!url.includes('/doc/')));
+ assert.ok(f.requests.filter(url=>url.includes('/docnames/')).every(url=>url.includes('?filter=')));
+ assert.equal(fs.existsSync(path.join(job.batch,'export')),false);
+
+ fs.writeFileSync(scopePath,rules);
+ send({plan:true});
+ result=(await f.wait('result')).data;
+ assert.equal(result.exitCode,0,result.output+f.errors());
+ plan=JSON.parse(result.output);
+ assert.deepEqual(plan.unmatched,[]);
+ assert.deepEqual(plan.items.map(x=>x.document).sort(),[
+  'Demo.Care.A.cls','Demo.Care.Inner.B.cls','User.CareNew.cls','User.CareUtils.mac',
+  'imedical/web/csp/care.main.csp','imedical/web/scripts/care/empty','imedical/web/scripts/care/main.js','imedical/web/scripts/care/nested/logo.png'
+ ].sort());
+ const previewRequests=f.requests.length;
+ fs.writeFileSync(path.join(job.batch,'files.txt'),plan.items.map(x=>(x.webAsset?'/':'')+x.document).join('\n'));
+ send({maxFiles:1}); await f.wait('result');
+ documents.CSP.push('imedical/web/scripts/care/new.js');
+ send({resume:true}); result=(await f.wait('result')).data;
+ assert.equal(JSON.parse(result.output).fetched,8,result.output+f.errors());
+ assert.equal(f.stats().auth,1);
+ assert.equal(f.requests.filter(url=>!url.includes('/doc/')).length,previewRequests);
+ assert.ok(f.requests.filter(url=>url.includes('/doc/imedical/')).every(url=>url.endsWith('?binary=1')));
+ const local=path.join(job.batch,'export/src/imedical/web/scripts/care');
+ assert.deepEqual(fs.readFileSync(path.join(local,'nested/logo.png')),png);
+ assert.deepEqual(fs.readFileSync(path.join(local,'main.js')),Buffer.from('original\r\n'));
+ assert.equal(fs.statSync(path.join(local,'empty')).size,0);
+ assert.equal(fs.existsSync(path.join(local,'new.js')),false);
+ f.send({op:'close'});assert.equal((await f.wait('closed')).data.cleanupVerified,true);
+});
+test('CLI scope resume uses the saved expansion and rejects changed rules before reconnecting',{skip:process.platform!=='win32'},async t=>{
+ const names=['Demo.Pkg.One.cls','Demo.Pkg.Two.cls'];
+ const f=await fixture(t,{catalog:()=>names});
+ const job=f.job('cli-scope'),rules=path.join(job.batch,'rules.txt'),out=path.join(job.batch,'export');
+ fs.writeFileSync(rules,'Demo.Pkg');
+ async function run(resume){
+  const command="$env:PSModulePath=Join-Path $PSHOME Modules; $cred=[pscredential]::new('test',(ConvertTo-SecureString 'synthetic' -AsPlainText -Force)); & $env:IRIS_SCOPE_SCRIPT -ListFile $env:IRIS_SCOPE_RULES -OutputDirectory $env:IRIS_SCOPE_OUT -AtelierUrl $env:IRIS_SCOPE_URL -Namespace TEST -ExpandScope -Credential $cred -MaxFilesPerRun 1 -Resume:($env:IRIS_SCOPE_RESUME -eq '1') 6>$null; exit $LASTEXITCODE";
+  const child=spawn('powershell.exe',['-NoProfile','-Command',command],{windowsHide:true,env:{...process.env,
+   IRIS_SCOPE_SCRIPT:path.join(root,'export-iris-code.ps1'),IRIS_SCOPE_RULES:rules,IRIS_SCOPE_OUT:out,IRIS_SCOPE_URL:job.url,IRIS_SCOPE_RESUME:resume?'1':'0'}});
+  let output='';child.stdout.on('data',data=>output+=data);child.stderr.on('data',data=>output+=data);
+  const code=await new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',resolve);});
+  return {code,output};
+ }
+ let result=await run(false);
+ assert.equal(result.code,2,result.output);
+ assert.equal(JSON.parse(result.output).fetched,1);
+ names.push('Demo.Pkg.New.cls');
+ result=await run(true);
+ assert.equal(result.code,0,result.output);
+ assert.equal(JSON.parse(result.output).fetched,2);
+ assert.equal(f.requests.filter(url=>url.includes('/docnames/')).length,1);
+ assert.equal(fs.existsSync(path.join(out,'src/Demo/Pkg/New.cls')),false);
+ fs.appendFileSync(rules,'\nDemo.Other');
+ const before=f.requests.length;
+ result=await run(true);
+ assert.match(result.output,/resume-source-or-scope-mismatch/);
+ assert.equal(result.code,1);
+ assert.equal(f.requests.length,before);
+});
 test('interval bounds request starts without adding a second delay after a slow response',{skip:process.platform!=='win32'},async t=>{
  const f=await fixture(t,{delay:600}),job=f.job('slow-response',1,3);job.interval=500;
  f.send({op:'run',job,user:'test',password:'not-a-secret'});await f.wait('result');

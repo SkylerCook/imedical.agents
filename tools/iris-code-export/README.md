@@ -63,7 +63,36 @@ DHCDoc.Util.RegisteredObject.cls
 - 后端支持 `.cls/.mac/.inc/.int`；不写磁盘目录，必须带扩展名。
 - 前端支持 `.csp/.csr/.js/.css/.html/.htm`；必须以 `/` 开头。
 - 允许空行、整行 `#` 注释和 UTF-8 BOM；不支持行尾注释。
-- 不接受通配符、整个目录、缺扩展名、相对前端路径或图片。重复对象、目录穿越、Windows 保留文件名和落盘冲突会停止。
+- 逐项清单使用完整对象名，图片会跳过并统计。若要按目录、包名、通配符或导出 Web 资源，使用下面的范围方式。逐项清单里的重复对象、目录穿越、Windows 保留文件名和落盘冲突会停止。
+
+### 按目录、包或通配符导出
+
+将范围写入 UTF-8 的 `scope.txt`，每行一条，允许混合使用。
+
+```text
+/app/scripts/care/*
+/app/csp/care.*
+User.Care*
+Demo.Care
+```
+
+| 规则 | 匹配范围 |
+|---|---|
+| Web 路径以 `/` 或 `/*` 结尾 | 该目录和子目录下的文件，可省略开头的 `/` |
+| Web 文件名含 `*` 或 `?` | 在同一层匹配，`*` 匹配任意数量字符，`?` 匹配一个字符 |
+| 后端名字含 `*` 或 `?` | 按完整对象名匹配类和 `.mac/.inc/.int` 例程 |
+| 后端包名 | 该包和子包的类，按点分隔的包边界匹配 |
+
+连接当前服务器预览命中对象和数量。确认后执行第二条命令，正式采集会按当时的服务器清单展开范围。若任一规则没有匹配项，正式操作会提示具体规则。
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\iris-code-export\export-iris-code.ps1 -ListFile .\scope.txt -OutputDirectory .\exported-care -ExpandScope -PlanOnly
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\iris-code-export\export-iris-code.ps1 -ListFile .\scope.txt -OutputDirectory .\exported-care -ExpandScope
+```
+
+首次正式采集把展开后的文件清单写入回执。中断后在第二条命令末尾加 `-Resume`，续采沿用该快照。需要读取之后新增的匹配文件时开启新一轮采集。
+
+Web 范围以当前命名空间和账号能通过 Atelier 枚举及读取的 Web 文件为准。工具按原字节请求内容，包含图片、无扩展名和零字节文件，保留目录层级。逐项清单若也要包含这些 Web 文件，可指定 `-IncludeWebAssets`。带资源的导出可作为源码基线保存，文本变更交付另按第七节使用。
 
 ## 三、先检查清单，再导出
 
@@ -73,7 +102,7 @@ DHCDoc.Util.RegisteredObject.cls
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\iris-code-export\export-iris-code.ps1 -ListFile .\files.txt -OutputDirectory .\exported-code -PlanOnly
 ```
 
-看到 `total` 和逐项清单，表示本地检查通过。此时 `status: pending`、`sha256: null`、`bytes: 0` 都正常：**PlanOnly 没有连接服务器，也没有导出文件或创建输出目录。** total 应与你清单里实际对象数量一致。
+看到 `total` 和逐项清单，表示本地检查通过。逐项清单的 `-PlanOnly` 在本地运行，未导出时显示 `status: pending`、`sha256: null`、`bytes: 0`。同时指定 `-ExpandScope` 时，预览会连接服务器查询匹配项。两种预览都不会创建导出目录。
 
 确认后执行正式导出，只去掉末尾的 `-PlanOnly`：
 
