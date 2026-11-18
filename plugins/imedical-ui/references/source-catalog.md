@@ -1,6 +1,8 @@
 # 来源、证据类型与画板覆盖
 
-本期基准为 IHOS／海蓝与 PURE／天蓝，资料版本固定于 [source-manifest.json](<../../../vendor/imedical-ui-standards/source-manifest.json>)。公司授权接收的底稿见 [vendor 说明](<../../../vendor/imedical-ui-standards/README.md>)；它是证据子集，不是运行时样式或完整原型查看器。
+本文汇总 BS 端 IHOS／海蓝与 PURE／天蓝的画板及 PDF 证据，资料版本由清单固定。[BS 来源清单](../../../vendor/imedical-ui-standards/source-manifest.json) · [vendor 说明](../../../vendor/imedical-ui-standards/README.md)
+
+手机端原型批次、画板、节点及 PDF 页码沿手机端参考定位。[活力蓝原型与 PDF 定位](vital-blue-mobile.md#原型与-pdf-定位)
 
 ## 如何使用证据
 

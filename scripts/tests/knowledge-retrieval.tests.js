@@ -43,6 +43,25 @@ test('Chinese terms and exact identifiers remain searchable', () => {
     assert.ok(rag.terms('输入框 combobox.getValue').includes('入框'));
     assert.ok(rag.terms('combobox.getValue').includes('combobox.getvalue'));
 });
+test('Vital Blue and BS theme queries return guidance for the requested baseline', async t => {
+    const context = fixture(t);
+    const mobile = 'plugins/imedical-ui/references/vital-blue-mobile.md';
+    fs.writeFileSync(path.join(context.capabilityRoot, mobile),
+        '# 活力蓝手机端\n\n## 通用标签对齐\n\n标签对齐需按手机端控件核对，PURE 是 BS 基准。');
+    fs.appendFileSync(path.join(context.capabilityRoot, 'plugins/imedical-ui/references/forms.md'),
+        '\n## 标签对齐共性\n\n标签对齐以当前视口为准。\n');
+    const query = theme => rag.search(context, '标签对齐', { domain: 'ui', theme, localOnly: true });
+    const [phone, ...bs] = await Promise.all(['vital-blue', 'pure', 'ihos', 'common'].map(query));
+    assert.ok(phone.matches.length);
+    for (const item of phone.matches) {
+        assert.equal(item.path, mobile);
+        assert.deepEqual(item.themes, ['vital-blue']);
+    }
+    for (const result of bs) {
+        assert.ok(result.matches.length);
+        assert.ok(result.matches.every(item => item.path.endsWith('/forms.md')));
+    }
+});
 test('no policy means local-only preview and no outbound query',async t=>{
     const context=fixture(t), calls=[];
     assert.equal(rag.preview(context,undefined,{provider:'openai',settings:{}}).eligibleChunks,0);

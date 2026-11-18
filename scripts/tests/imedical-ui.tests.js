@@ -11,8 +11,10 @@ const { spawnSync } = require("node:child_process");
 const repo = path.resolve(__dirname, "../..");
 const plugin = path.join(repo, "plugins/imedical-ui");
 const vendor = path.join(repo, "vendor/imedical-ui-standards");
+const mobileReference = path.join(plugin, "references/vital-blue-mobile.md");
 const jsonFile = file => JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/, ""));
 const sources = jsonFile(path.join(vendor, "source-manifest.json"));
+const guidPattern = /\b[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\b/gi;
 
 function inside(root, relative) {
     assert.equal(path.isAbsolute(relative), false, relative);
@@ -516,11 +518,11 @@ test("source semantics record applicability and evidence type independently with
 test("plugin Markdown links resolve and GUID citations belong to their linked design sources", () => {
     const records = guidsBySource();
     let citations = 0;
-    const guidPattern = /\b[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\b/gi;
     for (const file of filesBelow(plugin).filter(file => file.endsWith(".md"))) {
         const text = fs.readFileSync(file, "utf8");
         const targets = localTargets(file, text);
         for (const target of targets) assert.ok(fs.existsSync(target), `${path.relative(repo, file)} -> ${target}`);
+        if (file === mobileReference) continue; // Its sources are checked via the local-originals catalog.
         const linkedSources = targets.filter(target => records.has(target));
         for (const line of text.split(/\r?\n/)) {
             const guids = [...line.matchAll(guidPattern)].map(match => match[0].toLowerCase());
@@ -535,6 +537,36 @@ test("plugin Markdown links resolve and GUID citations belong to their linked de
         }
     }
     assert.ok(citations >= 40, "Check the actual standards references, not only plugin navigation links");
+});
+
+test("both daily skills reach the Vital Blue reference and its local prototype citations", t => {
+    for (const name of ["imedical-ui", "imedical-ui-review"]) {
+        const text = fs.readFileSync(path.join(plugin, "skills", name, "SKILL.md"), "utf8");
+        assert.match(text, /明确采用公司手机端活力蓝时.*\.\.\/\.\.\/references\/vital-blue-mobile\.md/);
+    }
+    const reference = fs.readFileSync(mobileReference, "utf8");
+    const catalog = path.join(vendor, "originals-catalog.json");
+    assert.ok(localTargets(mobileReference, reference).includes(catalog));
+    const snapshot = jsonFile(catalog).snapshots.find(item => item.snapshot === "2026-10-21");
+    const mobile = snapshot.groups.find(group => group.name === "手机端活力蓝");
+    const prototype = mobile.entries.find(entry => entry.includes("控件+布局标注"));
+    for (const locator of [snapshot.snapshot, mobile.name, ...mobile.entries]) {
+        assert.ok(reference.includes(locator), locator);
+    }
+    const original = inside(vendor, path.join(snapshot.root, mobile.name, prototype));
+    if (!fs.existsSync(original)) {
+        t.diagnostic("Local originals are absent. Verified the shipped reference and catalog locators.");
+        return;
+    }
+    const bundle = parsePackage(fs.readFileSync(path.join(original, "res/data.js"), "utf8"));
+    assert.equal(bundle.artboards.length, 1);
+    const input = fs.readFileSync(path.join(original, "res", bundle.artboards[0].artboardPath, "data.js"));
+    const { board } = parseBoard(input.toString("utf8"));
+    assert.ok(reference.includes(crypto.createHash("sha256").update(input).digest("hex")));
+    const sourceGuids = collectGuids(board, collectGuids(bundle));
+    const citedGuids = [...reference.matchAll(guidPattern)].map(match => match[0].toLowerCase());
+    assert.ok(citedGuids.length > 2);
+    for (const guid of citedGuids) assert.ok(sourceGuids.has(guid), guid);
 });
 
 test("company standards stay stack independent and the IRIS adapter declares its strong dependency", () => {

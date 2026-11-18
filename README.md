@@ -457,10 +457,10 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 
 ### imedical-ui
 
-公司 BS 端 UI 规范与评审，提炼 IHOS 海蓝、PURE 天蓝的业务共性和少量风格差异，提供有出处的布局、表单、表格及反馈参考。按对象语义及有效图层判断共性，以适用范围和证据类型两维保留来源；表格、面板和按钮变体不互相套用，面性标题图标复用唯一正文。技术栈无关，不提供生产 CSS 或组件库。
+公司 UI 规范与评审，覆盖 BS 端 IHOS 海蓝、PURE 天蓝，以及项目明确采用的手机端活力蓝。BS 业务共性和风格差异按适用范围及有效图层取证。活力蓝按手机端原型核对构件状态、查询布局和宿主模板。[活力蓝手机端参考](plugins/imedical-ui/references/vital-blue-mobile.md)
 
 - 规范与开发核对：[imedical-ui](plugins/imedical-ui/skills/imedical-ui/SKILL.md)；截图或浏览器评审：[imedical-ui-review](plugins/imedical-ui/skills/imedical-ui-review/SKILL.md)；接入直接读 [imedical-ui-init](plugins/imedical-ui/skills/imedical-ui-init/SKILL.md)。
-- [插件说明](plugins/imedical-ui/README.md)包含按需读取路由，30画板及PDF底稿用于追溯，截图/浏览器证据与正式UI验收分别记录。完整公司原件仅存源仓被忽略的本地批次；已提交证据子集随 vendor 分发，来源和资料更新见 [vendor 说明](vendor/imedical-ui-standards/README.md)。
+- 插件说明提供按需读取路径。BS 沿 30 画板及 PDF 底稿追溯，活力蓝沿本地原型及 PDF 定位。完整公司原件保留于源仓本地批次，已提炼参考随常规更新分发。[插件说明](plugins/imedical-ui/README.md) · [vendor 说明](vendor/imedical-ui-standards/README.md)
 - `iris-ui` 正式依赖本插件；未来 Java/HTML 适配直接依赖通用层，各自处理其框架接入。本期不创建未来适配插件，不修改业务或公共 CSS。
 
 ### iris-ui

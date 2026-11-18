@@ -1,6 +1,6 @@
 ---
 name: imedical-ui
-description: 按公司 BS 端 IHOS 海蓝和 PURE 天蓝规范开发或核对 UI，提取布局控件共性、风格差异与标注出处；不绑定技术栈。纯后端或仅业务规则修改不触发。
+description: 按公司 UI 规范开发、适配或查询标注，覆盖 BS 端 IHOS 海蓝、PURE 天蓝与明确采用活力蓝的手机端页面。用于布局、控件、视觉状态和规范出处。
 ---
 
 # 公司 UI 规范适配
@@ -11,8 +11,8 @@ description: 按公司 BS 端 IHOS 海蓝和 PURE 天蓝规范开发或核对 UI
 
 ## 确定当前目标
 
-1. 读取项目入口、启用状态和 [共性规则](../../rules/imedical_ui.md)，确认本次页面、实现技术栈及修改范围。识别实际风格族与配色；默认核对 IHOS 海蓝、PURE 天蓝，项目明确不同目标时保留差异和评审缺口。
-2. 对照本次目标选择以下参考，只读取涉及的章节：
+1. 读取项目入口、启用状态和 [共性规则](../../rules/imedical_ui.md)，确认页面、技术栈、修改范围和适用基准。BS 适配需兼容两套风格时，分别核对 IHOS 海蓝和 PURE 天蓝。
+2. 明确采用公司手机端活力蓝时，读[活力蓝手机端参考](../../references/vital-blue-mobile.md)中对应的控件、布局或宿主章节。BS 页面按下表读取当前对象：
 
 | 触发场景 | 参考 |
 |---|---|
@@ -27,14 +27,14 @@ description: 按公司 BS 端 IHOS 海蓝和 PURE 天蓝规范开发或核对 UI
 
 ## 完成适配与核对
 
-3. 按[对象语义](../../references/style-differences.md#按对象语义判断共性)分别标注适用范围与证据类型，再判断业务共用归属，将适配点分为业务共性、确证差异和业务待核对项，在现有任务表中记录共性落点、差异依据及兼容基准。复用当前技术栈能力完成授权范围内的实现；IRIS CSP＋HISUI 使用 `iris-ui`，其它技术栈沿项目已有入口，不调用 IRIS 配置或部署。
-4. 核对同一份业务实现的两个评审基准，按涉及的布局、控件状态及动态阶段取得匹配证据。确认结果可观察，再记录技术验证、未测项及人工评审状态；技术结果不替代用户结论。
+3. 标明采用条款的适用范围与证据类型。BS 双风格共用归属按[对象语义](../../references/style-differences.md#按对象语义判断共性)确定。活力蓝按具体宿主和构件变体适配。沿目标工程的技术栈和组件完成授权范围内的实现，IRIS CSP＋HISUI 使用 `iris-ui`。在现有记录中补充共性落点、差异出处和业务待核对项。
+4. 按本次适用基准逐一核对布局、控件状态及动态阶段。活力蓝按[开发与评审核查](../../references/vital-blue-mobile.md#开发与评审核查)在实际设备及容器核对相关交互。记录可观察结果、未测项和人工评审状态。
 
 完成条件：采用的规则均已落到实际对象并有对应核查，缺口注明原因和下一步；共性保留一份，差异限定适用范围。若任务仅要求规则查询或只读审查，交付对应出处和差异，不执行页面修改。
 
 ## 自然语言查找规范
 
-专题不明确时使用 CapabilityRoot 下 `scripts/knowledge-query.js --project-root <workspace> --query <问题> --domain ui`，按需要加 `--theme pure|ihos|common`。读取结果的正文与 documentContext，结合 evidence 和引用核实规范、案例及图稿的适用范围。已获外发授权的通用问题可加 `--query-public`；工程私有问题保持本地。
+专题不明确时使用 CapabilityRoot 下 `scripts/knowledge-query.js --project-root <workspace> --query <问题> --domain ui`。BS 查询按需加 `--theme pure|ihos|common`，活力蓝加 `--theme vital-blue`。读取结果的正文与 documentContext，结合 evidence 和引用核实规范、案例及图稿的适用范围。已获外发授权的通用问题可加 `--query-public`；工程私有问题保持本地。
 
 索引与授权见[检索指南](../../../../docs/guides/knowledge-retrieval.md)。已有明确参考时直接读对应章节。
 

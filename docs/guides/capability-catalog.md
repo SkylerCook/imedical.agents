@@ -288,7 +288,7 @@ CA/CR 治疗表单开发、响应式改造与部署。详见[插件说明](../..
 
 ## imedical-ui
 
-公司 BS 端 UI 规范与评审，技术栈无关；IHOS 海蓝/PURE 天蓝共性只维护一次，少量差异按来源处理。详见[插件说明](../../plugins/imedical-ui/README.md)、[manifest](../../plugins/imedical-ui/.agents-plugin/plugin.json)和[使用示例](capability-guide.md#imedical-ui)。
+公司 UI 规范与评审，覆盖 BS 端 IHOS 海蓝、PURE 天蓝及明确采用活力蓝的手机端页面。开发与评审按适用基准读取同源标注。[插件说明](../../plugins/imedical-ui/README.md) · [manifest](../../plugins/imedical-ui/.agents-plugin/plugin.json) · [使用示例](capability-guide.md#imedical-ui)
 
 ### Skills
 
@@ -302,9 +302,9 @@ CA/CR 治疗表单开发、响应式改造与部署。详见[插件说明](../..
 
 | 规则 | 何时读取、约束什么 |
 |---|---|
-| [imedical_ui](../../plugins/imedical-ui/rules/imedical_ui.md) | 公司UI的共性适配、规范推广证据与业务范围、责任层及双基准核对 |
+| [imedical_ui](../../plugins/imedical-ui/rules/imedical_ui.md) | 基准选择、共性适配、规范证据、业务范围与责任层 |
 
-辅助资料：[references](../../plugins/imedical-ui/references) · [证据底稿](../../vendor/imedical-ui-standards/README.md)。规范按有效图层、适用范围和证据类型分类；具体数值保留变体及反例，按需读取，不加载查看器CSS或创建第二组件库。
+规范按对象、变体和证据强度查阅。[BS 来源目录](../../plugins/imedical-ui/references/source-catalog.md) · [活力蓝手机端参考](../../plugins/imedical-ui/references/vital-blue-mobile.md) · [证据底稿](../../vendor/imedical-ui-standards/README.md)
 
 ## iris-ui
 

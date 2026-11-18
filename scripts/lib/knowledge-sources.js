@@ -45,6 +45,7 @@ function loadDocuments(context, domain = 'all') {
             if (!fs.existsSync(path.join(root, directory))) continue;
             for (const name of fs.readdirSync(path.join(root, directory)).sort()) {
                 if (name.endsWith('.md')) add(directory + '/' + name, { domain: 'ui', kind: 'ui-reference',
+                    themes: name === 'vital-blue-mobile.md' ? ['vital-blue'] : undefined,
                     evidence: name === 'verified-cases.md' ? 'verified-case' : name === 'source-catalog.md' ? 'source-catalog' : 'curated-guidance' });
             }
         }
@@ -76,10 +77,12 @@ function chunks(document) {
         if (!block.some(line => line.trim())) { block = []; return; }
         const text = [...continuationHeader, ...block].join('\n').trim();
         const heading = headings.filter(Boolean).join(' > ');
-        const themes = [];
-        if (/pure|纯净|天蓝/i.test(heading + '\n' + text)) themes.push('pure');
-        if (/ihos|海蓝/i.test(heading + '\n' + text)) themes.push('ihos');
-        if (!themes.length || /共性|通用|两套|两风格/.test(heading)) themes.push('common');
+        const themes = document.themes ?? [];
+        if (!document.themes) {
+            if (/pure|纯净|天蓝/i.test(heading + '\n' + text)) themes.push('pure');
+            if (/ihos|海蓝/i.test(heading + '\n' + text)) themes.push('ihos');
+            if (!themes.length || /共性|通用|两套|两风格/.test(heading)) themes.push('common');
+        }
         const references = [...text.matchAll(/\[[^\]]*\]\(<?([^\s>]+)>?\)/g)].map(match => match[1]);
         const { content, ...meta } = document;
         result.push({ ...meta, id: digest(document.path + '\0' + start + '\0' + text),

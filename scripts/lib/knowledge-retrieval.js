@@ -327,11 +327,14 @@ async function search(context, query, options = {}) {
     const limit = options.limit ?? 6;
     const maxChars = options.maxChars ?? 12000;
     if (!Number.isInteger(limit) || limit < 1 || limit > 100 || !Number.isInteger(maxChars) || maxChars < 1000) throw new Error('Invalid result budget');
-    if (options.theme && !['pure', 'ihos', 'common'].includes(options.theme)) throw new Error('Invalid theme');
+    if (options.theme && !['pure', 'ihos', 'common', 'vital-blue'].includes(options.theme)) throw new Error('Invalid theme');
     let items = prepare(context, options.domain || 'all');
     items.push(...(options.projectDocuments || []).flatMap(chunks));
     const hasSources = items.length > 0;
-    if (options.theme) items = items.filter(item => item.themes.includes(options.theme) || item.themes.includes('common'));
+    if (options.theme) {
+        items = items.filter(item => item.themes.includes(options.theme)
+            || (options.theme !== 'vital-blue' && item.themes.includes('common')));
+    }
     const policy = readPolicy(context);
     let profile;
     let configurationError;

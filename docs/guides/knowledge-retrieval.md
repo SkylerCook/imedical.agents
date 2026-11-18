@@ -8,8 +8,11 @@
 
 ```powershell
 node <CapabilityRoot>/scripts/knowledge-query.js --project-root <workspace> --query "PURE 查询区标签对齐" --domain ui --theme pure
+node <CapabilityRoot>/scripts/knowledge-query.js --project-root <workspace> --query "活力蓝多条件底部选择器" --domain ui --theme vital-blue
 node <CapabilityRoot>/scripts/knowledge-query.js --project-root <workspace> --query "多院区配置读取" --domain business
 ```
+
+明确采用活力蓝时，`--theme vital-blue` 只查询对应手机端参考。BS 主题筛选继续查各自主题及共性章节。
 
 默认最多 6 条、序列化 JSON 最多 12,000 字符，使用 `--limit` 和 `--max-chars` 调整。结果包含正文、标题链、documentContext、路径、行号、来源版本、证据类型、主题、图稿或源码引用。引用相对结果 path 所在目录解析。原 `query-knowledge.js` 保留默认 literal 行为，通过 `--mode hybrid` 使用共用核心。
 

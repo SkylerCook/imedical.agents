@@ -2,7 +2,7 @@
 
 本插件所有自有 skill 的帮助请求（`--help`、查看用法）先按[统一帮助协议](../../docs/guides/capability-help.md)展示帮助并结束，优先于插件启用、连接检查和业务前置。源定义随正常能力包更新分发，已有 thin-index 继续读取 source；帮助不自动启用插件。
 
-把公司 UI 原型和规范提炼为 AI 可直接使用的规则与按需参考。本期覆盖 **IHOS／海蓝**和 **PURE／天蓝**，业务共性一次适配，确认存在的风格差异按需补齐。
+把公司 UI 原型和规范提炼为 AI 可直接使用的规则与按需参考。BS 端覆盖 **IHOS／海蓝**和 **PURE／天蓝**。项目明确采用 **手机端活力蓝** 时，开发和评审共用对应的控件、布局及平台模板参考。
 
 ## 使用
 
@@ -10,10 +10,13 @@
 
 例如：“按两套评审规范核对这个查询页，先列共性和差异，保留业务逻辑。”AI 先读共性规则，再按场景选参考，输出有出处的适配点与核查结果。材料只提供一种主题时，仍按[对象语义](references/style-differences.md#按对象语义判断共性)设计业务共性，分别记录实际验证覆盖。已有需求台账/任务记录直接补充，不另建验收状态。
 
+移动端示例可以说“按活力蓝原型核对这个底部筛选弹窗，重点看布局和键盘遮挡”。截图可检查可见布局，键盘行为用对应设备与宿主取证。手机、PDA、PAD 上的 BS 页面按实际采用的 BS 基准核对。[活力蓝手机端参考](references/vital-blue-mobile.md)
+
 只做评审时使用 [imedical-ui-review](skills/imedical-ui-review/SKILL.md)：可提供截图或指定已打开的浏览器页面，输出定位、观察事实、规范出处、适用风格、建议及证据限制。截图无法证明的交互与未提供风格保持未覆盖；浏览器使用宿主已有能力，不安装第二套运行器。AI 评审与正式 UI 组/用户验收分别记录。
 
 | 需要解决的问题 | 按需参考 |
 |---|---|
+| 活力蓝的配色、按钮与状态、手机布局、H5 或小程序模板 | [活力蓝手机端参考](references/vital-blue-mobile.md) |
 | 页面外框、查询组合、分栏、导航、页签与滚动 | [布局与导航](references/layout-and-navigation.md) |
 | 标签、必填表现、输入选择、按钮主次与工具栏 | [表单与操作](references/forms-and-actions.md) |
 | 表格、分页、状态、弹窗、提示与渐变 | [表格与反馈](references/tables-and-feedback.md) |
@@ -23,8 +26,6 @@
 | 截图或浏览器评审、问题归因与报告 | [评审方法](references/review-method.md) |
 
 `rules` 只保留每次任务都需要的判断；详细参数及例外在 references。vendor 是可追溯底稿，日常开发不需要反复读取巨型 data.js，也不从查看器 CSS 推导业务样式。需要提炼新参数或依据冲突时，按[有效图层判断](references/source-catalog.md#有效图层与参数提炼)回查；来源允许推广的范围和本次业务共用归属分别记录。
-
-0.2.2 区分共用分组语义与各 family 的颜色/透明度，明确仅改描边不清除背景、阴影或状态反馈；共用组件自身外观交公共 owner，实例布局仍由业务页承担。现有资料与入口不变，沿正常更新取得。
 
 ## 技术栈适配
 
@@ -39,7 +40,7 @@
 
 按 [框架更新流程](../../docs/update-agents.md)接入；Overlay 先更新共享 capability 一次，再通过项目模块管理入口 `-NoPull` 刷新并验证。`iris-ui` 0.2.0 起要求本插件已 enabled；已有工程必须同时核对注册表和 profile 的依赖启用集合，显式 disabled 或身份冲突不绕过。
 
-源仓测试：`node --test scripts/tests/imedical-ui.tests.js scripts/tests/iris-ui.tests.js`。检查覆盖来源字节、30 画板、引用图层、文档路径、依赖拓扑和隔离 Context 的发现行为，并将真实源节点的有效 paint、祖先透明度、标签/选择项间距及标题/树/表格/按钮变体与 MD 结论对照。文档或薄索引检查不能替代真实模型读取、业务页面运行或 UI 评审。
+源仓测试使用 `node --test scripts/tests/imedical-ui.tests.js scripts/tests/iris-ui.tests.js`，覆盖来源字节、引用图层、文档路径、依赖拓扑及隔离 Context 的发现行为。活力蓝提炼参考随常规更新取得，完整原型留在源仓本地。实际移动端交互按对应设备和平台容器验收。
 
 原始证据见 [vendor 说明](../../vendor/imedical-ui-standards/README.md)。本期没有新增查询 CLI、自动 CSS 生成、完整查看器、业务页面补丁或自动部署。
 

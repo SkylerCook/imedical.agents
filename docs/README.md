@@ -30,7 +30,7 @@
 | Android 开发、日志排障与现场建仓交接 | [mobile-dev](../plugins/mobile-dev/README.md) |
 | 接入医生站 AI 插件 | [医生站 AI](guides/iris-imedical-doctor-ai.md) |
 | 按 UI 标注改造 HISUI 页面、排查布局与主题兼容 | [IRIS UI](../plugins/iris-ui/README.md) |
-| 公司 UI 共性规范、IHOS 海蓝/PURE 天蓝、截图或浏览器评审 | [iMedical UI](../plugins/imedical-ui/README.md) |
+| 公司 UI 规范、IHOS 海蓝、PURE 天蓝、手机端活力蓝、截图或浏览器评审 | [iMedical UI](../plugins/imedical-ui/README.md) |
 | 选择医生站版本清单或 v9.2 全仓对象清单 | [导出参考](reference/project-export-map/doctor/README.md) |
 | 按独立开发方式处理带回的源码/完整 XML，保存基线并生成增量/回退交付 | [IRIS 离线开发与交付](../plugins/coding-iris-plugin/references/iris-offline-development.md) |
 | 验收 connected XML 双通道导出、代码基线及资源资格 | [IRIS 导出与基线验收](guides/iris-xml-baseline-acceptance.md) |

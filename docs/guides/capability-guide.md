@@ -262,12 +262,12 @@ connected 项目按需导出示例：“处理这份 project 需求，准备修�
 
 ## imedical-ui
 
-[查看插件清单](capability-catalog.md#imedical-ui)。技术栈无关，只需项目入口和既有插件配置；来源固定为IHOS海蓝与PURE天蓝，详细规范按场景读取。
+使用既有项目入口和插件配置。BS 页面按实际需要核对 IHOS 海蓝、PURE 天蓝。项目明确采用手机端活力蓝时，加载同一份控件与布局参考。[查看插件清单](capability-catalog.md#imedical-ui)
 
 | Skill | 请求示例 | 前提与预期结果 |
 |---|---|---|
-| [imedical-ui](../../plugins/imedical-ui/skills/imedical-ui/SKILL.md) | 按两套规范核对这个查询页，共性一次适配，差异按需补；目前只有 PURE 截图。 | 使用现有组件/技术栈，按对象语义和责任层归类；截图风格不自动限定业务共性的实现范围，规范推广仍须对应来源证据，业务行为变化另列。 |
-| [imedical-ui-review](../../plugins/imedical-ui/skills/imedical-ui-review/SKILL.md) | 用这些截图评审UI，或核对指定浏览器标签里的实际页面。 | 只审查提供的证据，报告位置、事实、来源和建议；截图看不到的交互、比例未知和缺失风格保持未覆盖，AI结论不等同正式UI验收。 |
+| [imedical-ui](../../plugins/imedical-ui/skills/imedical-ui/SKILL.md) | 按 BS 两套规范核对查询页，或按活力蓝原型适配手机端筛选。 | 复用工程组件，交付有出处的适配点。BS 双基准分别核对，活力蓝按控件变体与宿主取证。 |
+| [imedical-ui-review](../../plugins/imedical-ui/skills/imedical-ui-review/SKILL.md) | 按活力蓝评审这张底部筛选弹窗截图。 | 报告位置、事实、标注出处和建议。截图先查排布，触控或软键盘遮挡用对应设备与宿主实测。 |
 | [imedical-ui-init](../../plugins/imedical-ui/skills/imedical-ui-init/SKILL.md) | 按框架更新流程接入公司UI规范与评审能力。 | 保留现有配置，核对注册/profile，生成日常入口；不隐含业务修改、公共CSS修改或远端操作授权。 |
 
 业务实现通过目标适配能力完成；IRIS CSP＋HISUI 使用 iris-ui。未来 Java/HTML 适配直接依赖通用层，不需要 IRIS 配置。本期规范底稿不含完整查看器或其它主题导出。

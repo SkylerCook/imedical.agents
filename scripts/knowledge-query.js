@@ -21,7 +21,7 @@ function resolveContext(root) {
 
 async function main(argv) {
     if (argv.includes('--help')) {
-        console.log('knowledge-query.js --project-root <workspace> [--action query|preview|build|export|install-index|remove-index|init-config] [--provider company|openai] [--config-file <private JSON path>] [--query <text>] [--domain business|ui|all] [--theme pure|ihos|common] [--limit 6] [--max-chars 12000] [--query-public] [--local-only] [--approve <preview snapshot>]');
+        console.log('knowledge-query.js --project-root <workspace> [--action query|preview|build|export|install-index|remove-index|init-config] [--provider company|openai] [--config-file <private JSON path>] [--query <text>] [--domain business|ui|all] [--theme pure|ihos|common|vital-blue] [--limit 6] [--max-chars 12000] [--query-public] [--local-only] [--approve <preview snapshot>]');
         return;
     }
     const options = {};

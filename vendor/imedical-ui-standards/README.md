@@ -16,6 +16,8 @@
 
 日常先读 [规则与参考](../../plugins/imedical-ui/README.md)，再沿 [来源目录](../../plugins/imedical-ui/references/source-catalog.md)进入相应画板。定位键使用“资料包/批次＋画板＋节点 GUID”；不同风格可能复用 GUID，不能仅按 GUID 全局定位。
 
+活力蓝的业务参考由 2026.08.20 原型及补充 PDF 提炼，使用者可沿参考记录的本地批次、画板和节点查证。[活力蓝原型与 PDF 定位](../../plugins/imedical-ui/references/vital-blue-mobile.md#原型与-pdf-定位)
+
 `data.js` 是原始数据包装，不能通过执行脚本读取：包清单是 `var __marklionData={...}`；画板是 `marklion_artboard(aliasMap或null, document.currentScript, artboardObject)`，第三参数才是画板。画板坐标先减去画板 globalBounds 原点；预览图倍数根据 manifest 的原图尺寸核对，不能将倍图像素作为 CSS 尺寸。
 
 更新资料时在源仓按明确的新批次接收，核对保留文件摘要、全部画板及受影响规则，再更新来源目录和 owner 版本。来源变化只提示重核，不自动生成 CSS、提升样本为规范或改业务默认。正式分发沿框架更新流程；资料存在不代表 UI 已通过评审。
