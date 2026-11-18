@@ -41,6 +41,81 @@ function reader(records, {cleanupVerified = true, interrupt = false, calls = []}
 }
 const cls = suffix => `Class Demo.${suffix}\n{\nParameter Value = "BASE";\n}\n`;
 
+test('a scoped plan freezes mixed paths and packages for the regular capture and resume', async t => {
+    const f = fixture(t), calls = [];
+    let closed = false, expanded;
+    const sessionFactory = async options => {
+        assert.equal(options.expectedNamespace, 'FIXTURE');
+        return {
+            async call(tool, {query, parameters}) {
+                assert.equal(tool, 'iris_query');
+                assert.match(query, /^SELECT /);
+                calls.push(parameters);
+                const rows = ({
+                    '/app/scripts/*': [{Name:'nested', Type:10}, {Name:'main.js', Type:5}, {Name:'pic.png', Type:5}, {Name:'LICENSE', Type:5}],
+                    '/app/scripts/nested/*': [{Name:'child.js', Type:5}],
+                    '/app/csp/care.*': [{Name:'care.first.csp', Type:5}, {Name:'care', Type:10}, {Name:'other.csp', Type:5}],
+                    'Demo.Care.': [{Name:'Demo.Care.One.cls'}, {Name:'Demo.Care.Sub.Two.cls'}, {Name:'Demo.CareOther.No.cls'}],
+                    'User.Care': [{Name:'User.CareApp.cls'}, {Name:'User.CareRoutine.mac'}]
+                })[parameters.at(-1)];
+                return {count: rows.length, rows};
+            },
+            async close() { closed = true; return {cleanupVerified: true}; }
+        };
+    };
+    const options = {projectRoot:f.root, out:f.out, sessionFactory,
+        scope:['app/scripts/*', '/app/scripts/main.js', '/app/csp/care.*', 'Demo.Care', 'User.Care*']};
+    const p = await core.createScopedPlan(options);
+    assert.ok(closed);
+    assert.deepEqual(calls.map(x=>x.at(-1)), ['/app/scripts/*','/app/scripts/nested/*','/app/csp/care.*','Demo.Care.','User.Care']);
+    assert.equal(p.total, 7);
+    assert.equal(p.excludedImageCount, 1);
+    assert.equal(p.excludedNonCodeCount, 1);
+    assert.equal(p.inputTotal, 9);
+    assert.equal(p.scopeCleanupVerified, true);
+    assert.match(fs.readFileSync(p.scopeFile,'utf8'), /\/app\/scripts\/nested\/child\.js/);
+    assert.doesNotMatch(fs.readFileSync(p.scopeFile,'utf8'), /LICENSE|CareOther|other\.csp/);
+    const reply = name => ({status:'fetched', value:value(name, name.endsWith('.cls') ? 'Class '+name.slice(0,-4)+'\n{\n}\n' : 'source\n')});
+    const first = await core.capture(p.planPath, {readerFactory:reader(reply, {interrupt:true})});
+    assert.equal(first.fetched, 1);
+    expanded = calls.length;
+    const pending = [];
+    const final = await core.capture(p.planPath, {resume:true, readerFactory:reader(reply, {calls:pending})});
+    assert.equal(final.state, 'complete');
+    assert.equal(pending.length, 6);
+    assert.equal(calls.length, expanded);
+    fs.appendFileSync(p.scopeFile, '\n');
+    await assert.rejects(core.capture(p.planPath, {resume:true}), /baseline-catalog-changed/);
+});
+
+test('scope listing paginates and refuses partial or unmatched results before saving a plan', async t => {
+    const f = fixture(t), parameters = [];
+    const page = Array.from({length:256}, (_, index)=>({Name:'Demo.Pkg.C'+String(index).padStart(3,'0')+'.cls'}));
+    let state = 'success';
+    const sessionFactory = async () => ({
+        async call(_tool, body) {
+            parameters.push(body.parameters);
+            if (state === 'truncated') return {rows:page, count:256, has_more:true};
+            if (state === 'empty') return {rows:[], count:0};
+            const rows = body.parameters.length === 2 ? page : [{Name:'Demo.Pkg.Last.cls'}];
+            return {rows, count:rows.length};
+        },
+        async close() { return {cleanupVerified:true}; }
+    });
+    const options = {projectRoot:f.root, out:f.out, sessionFactory, scope:['Demo.Pkg']};
+    const p = await core.createScopedPlan(options);
+    assert.equal(p.total,257);
+    assert.equal(parameters[1].at(-1),'Demo.Pkg.C255.cls');
+    const planRoot = path.dirname(path.dirname(p.planPath));
+    state = 'truncated';
+    await assert.rejects(core.createScopedPlan(options), /baseline-scope-listing-incomplete/);
+    state = 'empty';
+    await assert.rejects(core.createScopedPlan(options), /baseline-scope-unmatched/);
+    assert.equal(fs.readdirSync(planRoot).length,1);
+    f.put('.agents/config/iris-development.json', JSON.stringify({developmentMode:'offline'}));
+    await assert.rejects(core.createScopedPlan({...options, sessionFactory:async()=>assert.fail('offline cannot connect')}), /offline/);
+});
+
 test('standalone capture needs neither project demand nor Git and excludes images before remote reads', async t => {
     const f = fixture(t, [{name: 'Demo.A', type: 'CLS'}, {name: 'fixture/web/images/a.png', type: 'CSP'}]);
     const p = f.plan(), calls = [];
@@ -242,5 +317,7 @@ test('images-only capture reports exclusions and never opens a connection', asyn
 test('help exits before configuration resolution even when paired with execution arguments', () => {
     const cli = path.resolve(__dirname, '../code-baseline.js');
     const result = spawnSync(process.execPath, [cli, 'capture', '--plan', 'missing.json', '--help'], {encoding: 'utf8', windowsHide: true});
-    assert.equal(result.status, 0); assert.match(result.stdout, /never commits/); assert.equal(result.stderr, '');
+    assert.equal(result.status, 0); assert.match(result.stdout, /Capture uses the managed read pool/); assert.equal(result.stderr, '');
+    const scope = spawnSync(process.execPath, [cli, 'plan', '--scope', 'Demo.Care', '--project-root', 'missing-project', '--help'], {encoding:'utf8', windowsHide:true});
+    assert.equal(scope.status, 0); assert.match(scope.stdout, /--scope/); assert.equal(scope.stderr, '');
 });

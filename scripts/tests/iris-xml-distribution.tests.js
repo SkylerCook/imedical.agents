@@ -76,6 +76,7 @@ test('new and upgraded sparse projects receive XML runtime, canonical class and 
       const result = spawnSync(process.execPath, [path.join(target, 'plugins/coding-iris-plugin/scripts/iris-tools', cli), '--help'], {encoding: 'utf8', windowsHide: true});
       assert.equal(result.status, 0, cli + ': ' + result.stderr); assert.ok(result.stdout.length > 40);
     }
+    assert.equal(typeof require(path.join(target, 'plugins/coding-iris-plugin/scripts/iris-tools/code-baseline-scope')).parseRules, 'function');
     const skill = fs.readFileSync(path.join(target, 'plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md'), 'utf8');
     assert.match(skill, /^description: .*--xtoc/m);
     assert.match(skill, /帮助请求[\s\S]+“把这批 XML 转成可入 Git 的源码”或显式 .*--xtoc[\s\S]+xml-to-source\.js[\s\S]+先读取当前 ContextRoot/);

@@ -19,7 +19,26 @@ node <CapabilityRoot>/plugins/coding-iris-plugin/scripts/iris-tools/code-baselin
 node <CapabilityRoot>/plugins/coding-iris-plugin/scripts/iris-tools/code-baseline.js resume --plan <plan.json>
 ```
 
-build 的 DryRun 核对范围后去掉 `--dry-run` 才写清单；可用 `--source-root`、`--web-base`、`--type`、`--prefix` 明确范围。plan、status 与 help 不联网；capture／resume 使用受管读取。plan 的 `--previous-plan` 绑定已有采集来源，`--sessions` 和 `--interval-ms` 必须满足目标资格限制，不能先提高参数再补 verified。
+build 的 DryRun 核对范围后去掉 `--dry-run` 才写清单；可用 `--source-root`、`--web-base`、`--type`、`--prefix` 明确范围。精确 TXT 的 plan、status 和 help 在本地运行，capture／resume 使用受管读取。plan 的 `--previous-plan` 绑定已有采集来源，`--sessions` 和 `--interval-ms` 受现有采集策略约束。
+
+### 按路径、通配符和类包
+
+connected 工程可重复指定 `--scope`，与逐项清单参数 `--baseline` 二选一。
+
+```text
+node <iris-tools>/code-baseline.js plan --project-root <WorkspaceRoot> --scope "app/scripts/care/*" --scope "/app/csp/care.*" --scope "User.Care*" --scope "Demo.Care" --out <source-snapshot-root>
+```
+
+| 规则 | 匹配范围 |
+|---|---|
+| Web 目录以 `/` 或 `/*` 结尾 | 递归匹配目录及子目录，可省略开头的 `/` |
+| Web 文件名使用 `*` 或 `?` | 匹配同层文件名 |
+| 后端名称使用 `*` 或 `?` | 匹配类和 `.mac/.inc/.int` 例程 |
+| IRIS 类包名 | 按点分隔的包边界匹配本包及子包内的类 |
+
+`*` 匹配任意长度，`?` 匹配单个字符。也可以混入完整对象名。工具通过已有受管 MCP 会话查询指定范围，去重后返回对象及排除项。无法完整枚举或某条规则无命中时，返回原因和适用规则。命中范围里的图片和其他非代码文件分别计数，下载前排除。
+
+计划在私有任务目录保存生成的精确 `scopeFile`。核对 `total` 和 `items` 后，用 `capture --plan <planPath>` 开始采集，续采用 `resume --plan <planPath>`。需要纳入之后新增的匹配文件时，创建新计划。精确 `scopeFile` 也可交给已有的 `project-plan --baseline` 入口。
 
 显式资格试验使用 `qualify --plan <plan.json> --confirm --budget-ms <milliseconds>`：先获得试验范围和固定预算授权，再对该计划准确对象进行受限读取；基础策略仍须 enabled。它会实际采集并在任务目录写 `qualification.pending.json`，其中 `resourceReturnVerified` 保持 false，不能自动登记 verified。先用最小范围核对退出、真实资源占用及回落，再审查资格证据；普通 capture 不使用资格试验豁免。
 

@@ -71,6 +71,8 @@ offline 初始化不生成医院连接；既有连接只报告给授权维护。
 
 ## IRIS XML 导出与代码基线（coding 0.22）
 
+`coding-iris-plugin 0.34.0` 增加受管 [路径与类包导出](../plugins/coding-iris-plugin/references/iris-code-baseline.md#按路径通配符和类包)。已有项目正常更新并刷新 Skill 入口，沿用已有连接和采集配置。直接消费者随正常更新取得兼容版本。
+
 `coding-iris-plugin 0.33.0` 增加本地 [XML 转源码](../plugins/coding-iris-plugin/references/iris-offline-development.md#xml-转独立源码目录)。正常更新取得脚本，刷新 `iris-code-baseline` 的发现入口后可用 `--xtoc`。Overlay 先更新共享 CapabilityRoot，再刷新对应 ContextRoot。
 
 `coding-iris-plugin 0.23.0` 增加[现场完整 XML 带回后的本地 AI 修改流程](../plugins/coding-iris-plugin/references/iris-offline-development.md)，正常更新取得 `scripts/iris-tools/edit-export-xml.ps1` 与路由说明：Unpack 支持混合 Project/源码，Pack 用 NotesFile 生成增量 XML、对应回退包、说明及 manifest，Verify 独立回读。人工源码导出工具已独立至源仓 tools/iris-code-export/，交付 ZIP，不依赖框架或 skill，不随 .agents 的 sparse checkout 分发。未改安装/更新算法；无配置迁移或旧文件清理。

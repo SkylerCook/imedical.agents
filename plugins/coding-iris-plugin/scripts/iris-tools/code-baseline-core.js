@@ -104,15 +104,12 @@ function assertPrivate(context, directory) {
         if (ignored.status !== 0) stop('baseline-private-state-not-ignored');
     }
 }
-function createPlan(options = {}) {
-    if (!options.baseline || !options.out) stop('baseline-input-and-out-required');
+function planInputs(options) {
+    if (!options.out) stop('baseline-input-and-out-required');
     const context = options.context || contextFor(options.projectRoot);
     const source = sourceIdentity(context, options);
-    const baseline = path.resolve(options.baseline), outputRoot = catalog.checkPath(path.resolve(options.out));
+    const outputRoot = catalog.checkPath(path.resolve(options.out));
     if (inside(context.capabilityRoot, outputRoot)) stop('baseline-output-in-capability');
-    const baselineBytes = fs.readFileSync(catalog.checkPath(baseline));
-    const parsed = require('./scope-list').parseScopeList(baselineBytes);
-    const {selected, excludedImages} = selectItems(parsed, options);
     const sourceFingerprint = hash(canonical(source.identity));
     let previous;
     if (options.previousPlan) {
@@ -121,21 +118,61 @@ function createPlan(options = {}) {
     }
     const id = crypto.randomUUID(), stateRoot = path.join(context.contextRoot, 'work', 'source-sync', 'baselines');
     catalog.checkPath(stateRoot); assertPrivate(context, stateRoot);
+    return {context, source, sourceFingerprint, previous, id, stateRoot, outputRoot, acquisition: acquisition(options)};
+}
+function writePlan(options, inputs, baseline, baselineBytes, discovery) {
+    const {context, source, sourceFingerprint, previous, id, stateRoot, outputRoot, acquisition} = inputs;
+    const parsed = require('./scope-list').parseScopeList(baselineBytes);
+    const {selected, excludedImages} = selectItems(parsed, options);
+    if (discovery && !selected.length) stop('baseline-scope-no-code');
     const plan = {schema: SCHEMA, id, state: 'planned', createdAt: new Date().toISOString(),
         workspaceRoot: context.workspaceRoot, contextRoot: context.contextRoot, outputRoot,
         planPath: path.join(stateRoot, id, 'plan.json'), baseline, baselineSha256: hash(baselineBytes),
         sourceIdentity: source.identity, sourceFingerprint, filters: {type: options.type || '', prefix: options.prefix || ''},
-        acquisition: acquisition(options),
+        acquisition,
         items: selected.map(item => {
             const destination = path.join(outputRoot, item.relativePath); catalog.checkPath(destination);
             const expectedSha256 = digestFile(destination), prior = previous?.items.find(value => value.document === item.document && ['fetched', 'reused'].includes(value.status));
             if (prior && expectedSha256 !== prior.sha256) stop('baseline-local-drift', {document: item.document});
             return {...item, destination, expectedSha256, owned: !!prior, status: 'pending'};
-        }), excludedImages, inputTotal: parsed.length, cleanup: null, acceptance: null};
+        }), excludedImages, inputTotal: parsed.length + (discovery?.excludedNonCode.length || 0), cleanup: null, acceptance: null,
+        ...(discovery ? {discovery} : {})};
     plan.binding = hash(canonical({sourceFingerprint, outputRoot, baselineSha256: plan.baselineSha256, filters: plan.filters,
         documents: plan.items.map(item => ({document: item.document, relativePath: item.relativePath})), acquisition: plan.acquisition}));
-    save(plan);
+    if (discovery) catalog.writeAtomic(baseline, baselineBytes);
+    try { save(plan); }
+    catch (error) { if (discovery) fs.unlinkSync(baseline); throw error; }
     return summary(plan);
+}
+function createPlan(options = {}) {
+    if (!options.baseline) stop('baseline-input-and-out-required');
+    const inputs = planInputs(options);
+    const baseline = catalog.checkPath(path.resolve(options.baseline));
+    return writePlan(options, inputs, baseline, fs.readFileSync(baseline));
+}
+async function createScopedPlan(options = {}) {
+    if (options.baseline || !Array.isArray(options.scope) || !options.scope.length) stop('baseline-scope-input-invalid');
+    const resolver = require('./code-baseline-scope');
+    const rules = resolver.parseRules(options.scope);
+    const inputs = planInputs(options);
+    const {context, source, sourceFingerprint, id, stateRoot} = inputs;
+    require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(context);
+    const needsLookup = rules.some(rule => !rule.exact);
+    const session = needsLookup ? await (options.sessionFactory || require('../../../../scripts/iris-mcp').createManagedMcpSession)({
+        projectRoot: context.workspaceRoot, context, serverName: source.config.mcp?.serverName,
+        expectedNamespace: source.identity.namespace
+    }) : null;
+    let expanded, exit, failure;
+    try { expanded = await resolver.expand(rules, session); }
+    catch (error) { failure = error; throw error; }
+    finally {
+        try { exit = await session?.close(); } catch (error) { if (!failure) throw error; }
+    }
+    if (hash(canonical(sourceIdentity(context, options).identity)) !== sourceFingerprint) stop('baseline-source-changed');
+    return writePlan(options, inputs, path.join(stateRoot, id, 'scope.txt'), Buffer.from(expanded.text), {
+        rules: rules.map(rule => rule.rule), excludedNonCode: expanded.excludedNonCode,
+        ...(session ? {cleanupVerified: exit?.cleanupVerified === true} : {})
+    });
 }
 function acquisition(options) {
     const profiles = {safe: {sessions: 1, intervalMs: 200}, balanced: {sessions: 4, intervalMs: 100}, fast: {sessions: 10, intervalMs: 50}};
@@ -157,6 +194,8 @@ function summary(plan) {
     const counts = Object.fromEntries(['fetched', 'reused', 'missing', 'empty', 'failed', 'cancelled', 'pending'].map(status => [status, plan.items.filter(item => item.status === status).length]));
     return {schema: SCHEMA, id: plan.id, state: plan.state, planPath: plan.planPath, out: plan.outputRoot, inputTotal: plan.inputTotal,
         total: plan.items.length, excludedImageCount: plan.excludedImages.length, excludedImages: plan.excludedImages, ...counts,
+        ...(plan.discovery ? {scopeFile: plan.baseline, scope: plan.discovery.rules, excludedNonCodeCount: plan.discovery.excludedNonCode.length,
+            excludedNonCode: plan.discovery.excludedNonCode, scopeCleanupVerified: plan.discovery.cleanupVerified} : {}),
         complete: plan.state === 'complete', acquisition: plan.acquisition, effectiveSessions: plan.effectiveSessions ?? null, cleanup: plan.cleanup, accepted: plan.state === 'accepted-partial',
         items: plan.items.map(({name, type, document, relativePath, status, sha256, reason, observedAt}) => ({name, type, document, relativePath, status, sha256, reason, observedAt}))};
 }
@@ -319,4 +358,4 @@ function projectPlan(options) {
     const sync = require('./source-sync-core');
     return sync.createPlan({...options, kind: 'project', map: options.baseline});
 }
-module.exports = {SCHEMA, hash, createPlan, capture, qualify, status, load, save, selectItems, sourceIdentity, validateContent, saveContent, acceptanceToken, acceptPartial, successfulScope, projectPlan};
+module.exports = {SCHEMA, hash, createPlan, createScopedPlan, capture, qualify, status, load, save, selectItems, sourceIdentity, validateContent, saveContent, acceptanceToken, acceptPartial, successfulScope, projectPlan};

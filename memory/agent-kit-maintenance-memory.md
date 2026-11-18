@@ -4,6 +4,8 @@
 
 ## 当前重点
 
+- coding 0.34.0 的 [代码基线路径与类包导出](../plugins/coding-iris-plugin/references/iris-code-baseline.md#按路径通配符和类包)通过受管查询生成精确 TXT，复用采集和续采。已有项目按常规更新取得入口。
+
 - coding 0.33.0 提供本地 [XML 转源码](../plugins/coding-iris-plugin/references/iris-offline-development.md#xml-转独立源码目录)，从基线 Skill 的 `--xtoc` 进入。已有项目正常更新并刷新 Skill 入口，验收范围见维护日志。
 
 - UI 评审经验已补属性范围、两主题边界、原生间距和父子布局对照；单批证据及匿名夹具结果见[验证记录](../maintenance/validation/ui-review-feedback-2026-11-18.md)，业务副本按正常更新取得。
