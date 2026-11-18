@@ -36,6 +36,7 @@
 
 ## 📁 脚本列表
 
+- `xml-to-source.js`：从本地 IRIS / Caché 源码 XML 批量生成独立源码目录。Agent 从 `iris-code-baseline --xtoc` 进入。输入与产物见[转换说明](../../references/iris-offline-development.md#xml-转独立源码目录)。
 - `edit-export-xml.ps1`：辅助 AI 在本地拆分现场聚合 XML（可含 Project 元数据），直接编辑源码节点；Pack 按 NotesFile 生成 changes.xml、rollback.xml、变更说明和 manifest，Verify 独立核对。仅输出修改对象，原包和未修改对象受保护，不自动转换 UDL、导入或编译。流程见[现场源码带回与 XML 离线修改](../../references/iris-offline-development.md)。人工导出脚本独立归源仓 `tools/iris-code-export/`，不在本插件分发。
 
 - `query-knowledge.js`：从 CapabilityRoot 的共享参考库与指定 sourceId 的当前项目菜单中按字面量检索，返回来源、行号和有界片段。

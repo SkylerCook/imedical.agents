@@ -35,6 +35,18 @@ Prepare 冻结输入范围、原始摘要与工作区/GitRoot 绑定；恢复原
 
 修改后必须核对最终 Git 差异、调用影响和适用的编码规则，写真实 notes（实际 Review、已执行的本地检查和医院待验证项），再 Pack 和独立 Verify。框架将实际 Git HEAD、范围内 status/diff 摘要和逐文件字节摘要绑定到 manifest 的 localEvidence，说明文件另有摘要；这只证明材料对应关系，不自动判定 Review 或测试通过。无变化不创建空包；缺说明、原件/范围/身份/绑定漂移、删除或改名均停止。输出保留相对路径的 `changes/`、对应 `rollback/`、`files.txt`、变更说明和 manifest；人工目录的 `files.txt` 是相对文件清单，不冒充服务器对象清单。Verify 的 `-CurrentSourceDirectory` 或旧 `-CurrentExportDirectory` 只比较用户提供的新快照，不代表实时锁定现场。
 
+## XML 转独立源码目录
+
+收到 IRIS / Caché 原生 `Export` 源码包并准备建立源码仓时，用 `iris-code-baseline --xtoc <文件或目录> [--out <新目录>]`，或直接说“把这批 XML 转成源码”。转换只用本地 Node.js，无需 IRIS、连接配置或 PowerShell。
+
+```powershell
+node <iris-tools>/xml-to-source.js --input pc/incoming --out pc/source-from-xml
+```
+
+输入接受 UTF-8 XML，目录模式只读直属 XML 文件。显式输出的父目录须已存在。成功产物为 `src/` 与 `manifest.json`，清单关联原包摘要、元数据、对象路径与生成文件摘要。类以 UDL 保存，例程按 MAC/INC/INT 保存，Web 路径由应用与文件名组成。`CSPBase64` 解码后保留原字节。原生 IRIS / Caché 的 CSP 文本移除 CDATA 封装首行，保留源码自身的空行，换行按 XML 解析规则输出。`Package` 和 `Project` 计为元数据，保留原包用于追溯。
+
+整个批次校验成功才发布。类型或语义字段超出转换范围时，按报错定位原包和对象。产物用于 IDE 浏览、Git 基线和差异比较。现场编译及导入须另行核对，离线回包沿下节以对象 XML 为编辑源。
+
 ## 完整源码 XML
 
 ## 固定处理路径

@@ -362,7 +362,7 @@
       "directory": "coding-iris-plugin",
       "manifest": {
         "name": "coding-iris-plugin",
-        "version": "0.32.0",
+        "version": "0.33.0",
         "displayName": "IRIS Coding Plugin",
         "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
         "entry": "AGENTS.md",
@@ -543,7 +543,7 @@
           "vendor/xml-parser"
         ]
       },
-      "manifestHash": "691688c32178811eb2991abc91dbc54b9b6436d7d9912f4b6c371cc683445f27"
+      "manifestHash": "e3df0d0b0f090f6f1236e70e74af263ae1cfa824f007760604ac1bab2bb70ea5"
     },
     {
       "directory": "demand-delivery-plugin",
@@ -632,7 +632,7 @@
       "directory": "i18n-iris-plugin",
       "manifest": {
         "name": "i18n-iris-plugin",
-        "version": "0.3.15",
+        "version": "0.3.16",
         "displayName": "IRIS I18N Plugin",
         "description": "Reusable i18n agent workflows for IRIS/ObjectScript/CSP/HISUI projects.",
         "entry": "AGENTS.md",
@@ -652,7 +652,7 @@
         "dependencyVersions": {
           "coding-iris-plugin": {
             "minVersion": "0.11.0",
-            "maxVersionExclusive": "0.33.0"
+            "maxVersionExclusive": "0.34.0"
           }
         },
         "requiresProjectFiles": [
@@ -740,7 +740,7 @@
           "vendor/hisui"
         ]
       },
-      "manifestHash": "e4631bc278b5ac25a6896f024eb0167a902a853ba5de9cfd79cc141210b97a55"
+      "manifestHash": "79ed284cc6c55ab5e15fd796f04b50643e6576009b5b94afac9dd25e3bc4443a"
     },
     {
       "directory": "imedical-ui",
@@ -1043,7 +1043,7 @@
       "directory": "iris-codegraph",
       "manifest": {
         "name": "iris-codegraph",
-        "version": "0.1.30",
+        "version": "0.1.31",
         "displayName": "IRIS CodeGraph Plugin",
         "description": "Build and query a local SQLite graph for IRIS/ObjectScript classes, methods, properties, parameters, inheritance, and static ##class calls.",
         "entry": "AGENTS.md",
@@ -1058,7 +1058,7 @@
         "dependencyVersions": {
           "coding-iris-plugin": {
             "minVersion": "0.3.0",
-            "maxVersionExclusive": "0.33.0"
+            "maxVersionExclusive": "0.34.0"
           }
         },
         "requiresProjectFiles": [
@@ -1072,13 +1072,13 @@
           "Estimate impact for changing an ObjectScript class"
         ]
       },
-      "manifestHash": "3cf9f1abe2aa87df97d1265dc2be342d477a9140c18d942437e1b7d3ac9935f5"
+      "manifestHash": "27db68468355d3f86f9f7c1c603822c93626824930b1b81dedb0b356f4d88e09"
     },
     {
       "directory": "iris-cure-form-dev",
       "manifest": {
         "name": "iris-cure-form-dev",
-        "version": "0.8.15",
+        "version": "0.8.16",
         "displayName": "IRIS Cure Form Dev Plugin",
         "description": "CA/CR treatment form ingestion, multi-template generation, responsive migration, review, deployment planning, verification, and rollback orchestration.",
         "entry": "AGENTS.md",
@@ -1104,7 +1104,7 @@
           },
           "coding-iris-plugin": {
             "minVersion": "0.3.1",
-            "maxVersionExclusive": "0.33.0"
+            "maxVersionExclusive": "0.34.0"
           }
         },
         "requiresProjectFiles": [
@@ -1165,13 +1165,13 @@
           "vendor/hisui"
         ]
       },
-      "manifestHash": "a8f04b0c8c4f3522d810e2ca73fb5cbea2a04a4baa12f6a65c93f6c61de5bcda"
+      "manifestHash": "ad450bb3d1e23fc4159a0bb0b5c887c9563333228af50ff0074e5230bae2fc34"
     },
     {
       "directory": "iris-external-reg",
       "manifest": {
         "name": "iris-external-reg",
-        "version": "0.1.31",
+        "version": "0.1.32",
         "displayName": "IRIS External Registration",
         "description": "Workflow and reference pack for developing third-party appointment registration integrations on IRIS, including document handoff through extract-doc, implementation planning, ObjectScript development guidance, RegInterface mapping, and verification.",
         "entry": "AGENTS.md",
@@ -1191,7 +1191,7 @@
           },
           "coding-iris-plugin": {
             "minVersion": "0.3.0",
-            "maxVersionExclusive": "0.33.0"
+            "maxVersionExclusive": "0.34.0"
           }
         },
         "requiresProjectFiles": [
@@ -1205,13 +1205,13 @@
           "Review this external registration implementation against RegInterface rules"
         ]
       },
-      "manifestHash": "78bfc991fd441b2de9a52b771dd1e241c4a4577e73566f3be1e7b26b5a813618"
+      "manifestHash": "340cea809ee6b7feeb569ab53efade698e97f9863490268cc6997b3088218adb"
     },
     {
       "directory": "iris-imedical-doctor-ai",
       "manifest": {
         "name": "iris-imedical-doctor-ai",
-        "version": "0.4.13",
+        "version": "0.4.14",
         "displayName": "IRIS iMedical Doctor AI",
         "description": "面向 IRIS imedical 医生站的 AI 集成开发。用于嵌入式助手、外挂或旁路 AI 接入，以及诊断推荐与采纳、交互卡片、流式对话、病历联动和诊疗数据衔接；复用既有业务服务并验证集成链路。",
         "entry": "AGENTS.md",
@@ -1231,7 +1231,7 @@
         "dependencyVersions": {
           "coding-iris-plugin": {
             "minVersion": "0.13.0",
-            "maxVersionExclusive": "0.33.0"
+            "maxVersionExclusive": "0.34.0"
           }
         },
         "requiresProjectFiles": [
@@ -1263,13 +1263,13 @@
           }
         ]
       },
-      "manifestHash": "12f0279d221faceec040d17174a8f4900f95e58dcefab0f1939ca9c5297c4612"
+      "manifestHash": "c0abadfbb91f52d9ecde91357c6cb7cf3d4ea8ddadded60c8decb20e4c35aa66"
     },
     {
       "directory": "iris-interface-dev",
       "manifest": {
         "name": "iris-interface-dev",
-        "version": "0.3.12",
+        "version": "0.3.13",
         "displayName": "IRIS Interface Dev Plugin",
         "description": "Document-first IRIS interface workflow covering parsed document handoff, field matching, implementation planning, local ObjectScript/JavaScript implementation, offline review.",
         "entry": "AGENTS.md",
@@ -1301,7 +1301,7 @@
           },
           "coding-iris-plugin": {
             "minVersion": "0.3.0",
-            "maxVersionExclusive": "0.33.0"
+            "maxVersionExclusive": "0.34.0"
           }
         },
         "requiresProjectFiles": [
@@ -1317,13 +1317,13 @@
           "Review generated interface artifacts for field coverage and dot-loop risks"
         ]
       },
-      "manifestHash": "7acf343625a8eb3cf4a7144f0f47df5563513a6db5f308cf3b5cfa625b7e9f0f"
+      "manifestHash": "dbcf65b89379b226474801948824231b8bd33f3ddc6137450ca7665712952a7a"
     },
     {
       "directory": "iris-ui",
       "manifest": {
         "name": "iris-ui",
-        "version": "0.3.15",
+        "version": "0.3.16",
         "displayName": "IRIS CSP＋HISUI 适配",
         "description": "将 imedical-ui 公司规范落实到 IRIS CSP＋HISUI，核对公共接入、布局与初始化、多主题及技术证据；复用既有编码和部署能力。",
         "entry": "AGENTS.md",
@@ -1345,7 +1345,7 @@
         "dependencyVersions": {
           "coding-iris-plugin": {
             "minVersion": "0.20.7",
-            "maxVersionExclusive": "0.33.0"
+            "maxVersionExclusive": "0.34.0"
           },
           "imedical-ui": {
             "minVersion": "0.2.2",
@@ -1372,7 +1372,7 @@
           "核对多主题适配并记录技术验证与人工验收缺口"
         ]
       },
-      "manifestHash": "a35410f97827dd8146cd4ab888cdeae68a38a923c5b09cb0d71a3a43439a541e"
+      "manifestHash": "65b913758528036a45349cf5b517a7ad62e05f21578fcecc28859055eddaa2b3"
     },
     {
       "directory": "mobile-dev",

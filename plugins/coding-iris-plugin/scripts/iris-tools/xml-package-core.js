@@ -30,7 +30,11 @@ function parseXml(input, options = {}) {
   });
   const append = value => { if (stack.length) stack[stack.length - 1].content.push(value); else if (value.trim()) fail('xml-outside-root'); };
   parser.on('text', append);
-  parser.on('cdata', append);
+  parser.on('cdata', value => {
+    const node = stack.at(-1);
+    if (options.cspFraming && node?.tag === 'CSP' && node.content.length === 0) node.startsWithCdata = true;
+    append(value);
+  });
   parser.on('closetag', () => stack.pop());
   try { parser.write(text).close(); }
   catch (error) { if (error.code) throw error; fail('invalid-xml'); }
@@ -74,30 +78,34 @@ function canonicalNode(node) {
   return [node.tag, Object.entries(node.attributes).sort(([a], [b]) => a.localeCompare(b, 'en')),
     node.content.map(value => typeof value === 'string' ? value : canonicalNode(value))];
 }
+function exportItem(node) {
+  const {name, application} = node.attributes;
+  let type, descriptor, payloadBytes;
+  if (node.tag === 'Class') {
+    type = 'CLS'; descriptor = normalizeDocument({name, type});
+    payloadBytes = Buffer.from(JSON.stringify(canonicalNode(node)), 'utf8');
+  } else if (node.tag === 'Routine') {
+    type = String(node.attributes.type || name?.match(/\.(mac|inc|int)$/i)?.[1] || '').toUpperCase();
+    descriptor = normalizeDocument({name, type}); payloadBytes = Buffer.from(textContent(node), 'utf8');
+  } else if (node.tag === 'CSP' || node.tag === 'CSPBase64') {
+    if (node.children.length || typeof name !== 'string' || name.startsWith('/') || typeof application !== 'string' || !application.startsWith('/')) fail('invalid-csp-entry');
+    const prefix = application.replace(/^\//, '').replace(/\/$/, '');
+    if (prefix && prefix.split('/').some(part => !part || part === '.' || part === '..')) fail('invalid-csp-entry');
+    const document = prefix ? prefix + '/' + name : name;
+    type = 'CSP'; descriptor = normalizeDocument({name: document, type});
+    payloadBytes = node.tag === 'CSPBase64' ? strictBase64(textContent(node)) : Buffer.from(textContent(node), 'utf8');
+  } else fail('unsupported-export-item', {tag: node.tag});
+  return {...descriptor, tag: node.tag, name, ...(application ? {application} : {}), payloadBytes, sha256: hash(payloadBytes)};
+}
 function parseExportXml(input, options = {}) {
   const root = parseXml(input, options);
   if (root.tag !== 'Export' || root.content.some(value => typeof value === 'string' && value.trim())) fail('unsupported-export-xml');
   const seen = new Set();
   const items = root.children.map(node => {
-    const {name, application} = node.attributes;
-    let type, descriptor, payloadBytes;
-    if (node.tag === 'Class') {
-      type = 'CLS'; descriptor = normalizeDocument({name, type});
-      payloadBytes = Buffer.from(JSON.stringify(canonicalNode(node)), 'utf8');
-    } else if (node.tag === 'Routine') {
-      type = String(node.attributes.type || name?.match(/\.(mac|inc|int)$/i)?.[1] || '').toUpperCase();
-      descriptor = normalizeDocument({name, type}); payloadBytes = Buffer.from(textContent(node), 'utf8');
-    } else if (node.tag === 'CSP' || node.tag === 'CSPBase64') {
-      if (node.children.length || typeof name !== 'string' || name.startsWith('/') || typeof application !== 'string' || !application.startsWith('/')) fail('invalid-csp-entry');
-      const prefix = application.replace(/^\//, '').replace(/\/$/, '');
-      if (prefix && prefix.split('/').some(part => !part || part === '.' || part === '..')) fail('invalid-csp-entry');
-      const document = prefix ? prefix + '/' + name : name;
-      type = 'CSP'; descriptor = normalizeDocument({name: document, type});
-      payloadBytes = node.tag === 'CSPBase64' ? strictBase64(textContent(node)) : Buffer.from(textContent(node), 'utf8');
-    } else fail('unsupported-export-item', {tag: node.tag});
-    if (seen.has(descriptor.identity)) fail('duplicate-export-item');
-    seen.add(descriptor.identity);
-    return {...descriptor, tag: node.tag, name, ...(application ? {application} : {}), payloadBytes, sha256: hash(payloadBytes)};
+    const item = exportItem(node);
+    if (seen.has(item.identity)) fail('duplicate-export-item');
+    seen.add(item.identity);
+    return item;
   });
   if (!items.length) fail('empty-export');
   return {generator: root.attributes.generator || '', version: root.attributes.version || '', items};
@@ -111,4 +119,4 @@ function validatePackage(input, expected) {
   if (missing.length || extra.length) fail('export-scope-mismatch', {missing, extra});
   return {...packageData, sha256: hash(Buffer.isBuffer(input) ? input : Buffer.from(input)), status: 'verified'};
 }
-module.exports = {parseXml, normalizeDocument, parseExportXml, validatePackage, strictBase64, hash};
+module.exports = {parseXml, normalizeDocument, parseExportXml, validatePackage, exportItem, strictBase64, hash};

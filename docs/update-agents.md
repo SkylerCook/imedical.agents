@@ -71,6 +71,8 @@ offline 初始化不生成医院连接；既有连接只报告给授权维护。
 
 ## IRIS XML 导出与代码基线（coding 0.22）
 
+`coding-iris-plugin 0.33.0` 增加本地 [XML 转源码](../plugins/coding-iris-plugin/references/iris-offline-development.md#xml-转独立源码目录)。正常更新取得脚本，刷新 `iris-code-baseline` 的发现入口后可用 `--xtoc`。Overlay 先更新共享 CapabilityRoot，再刷新对应 ContextRoot。
+
 `coding-iris-plugin 0.23.0` 增加[现场完整 XML 带回后的本地 AI 修改流程](../plugins/coding-iris-plugin/references/iris-offline-development.md)，正常更新取得 `scripts/iris-tools/edit-export-xml.ps1` 与路由说明：Unpack 支持混合 Project/源码，Pack 用 NotesFile 生成增量 XML、对应回退包、说明及 manifest，Verify 独立回读。人工源码导出工具已独立至源仓 tools/iris-code-export/，交付 ZIP，不依赖框架或 skill，不随 .agents 的 sparse checkout 分发。未改安装/更新算法；无配置迁移或旧文件清理。
 
 **0.27.0 范围清单迁移**：正常更新取得 TXT 清单及新 reader，受 Git 管理的旧 doctor ProjectItem XML 随更新删除；项目私有 XML 清单须先导出对象列为 UTF-8 TXT，再供 build/compare/plan/source-sync 使用，不能只改扩展名。更新器不扫描或删除私有文件。人工工具重新解压新版 ZIP，使用 `-ListFile`，旧 `-Baseline` 已移除。已有批次/资格绑定旧范围或运行时摘要，不修改回执绕过校验；先用旧工具完成旧任务，或保留成果并新建任务、按原协议重新核验资格。源码 XML 包不迁移。

@@ -73,7 +73,7 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 - 历史前端 GB2312 转换后替换源文件：`skills/iris-frontend-gb2312-promote/SKILL.md`
 - IRIS 远端部署编排：`skills/iris-deploy/SKILL.md`
 - 已确认范围的 XML 部署包导出：`skills/iris-xml-export/SKILL.md`；两条自有通道、任务文件与完整性契约归 `references/iris-xml-export.md`。
-- 版本清单维护、初始当前源码采集及基线恢复：`skills/iris-code-baseline/SKILL.md`；代码与图片筛选、partial 和目标多会话资格归 `references/iris-code-baseline.md`，项目开发同步继续沿原协议。
+- 本地 XML 转源码（`--xtoc`）、版本清单维护、当前源码采集及基线恢复：`skills/iris-code-baseline/SKILL.md`。本地转换见[离线协议](references/iris-offline-development.md#xml-转独立源码目录)，采集见[基线协议](references/iris-code-baseline.md)。
 - 带回实际源码或完整 XML 后由本地 AI 修改：同一离线协议复用编码、Review 和交付。源码助手唯一实现为 `scripts/iris-tools/source-delivery.ps1`，框架薄入口校验 SourceRoot/GitRoot、批次与冻结范围；人工 ZIP 从同一脚本构建，无需 Node 或框架。XML 保留对象结构，不手工降级 UDL；可编辑对象进入源码 Git，冻结原件在私有任务区。Pack 只含本需求实际修改，独立 Verify 后停在 acceptance-pending；不宣称医院导入、编译或业务验收完成。
 - DEV→PRD 需求移植：`skills/iris-demand-promote/SKILL.md`
 - 标版/项目需求提交：`../demand-delivery-plugin/skills/demand-commit/SKILL.md`

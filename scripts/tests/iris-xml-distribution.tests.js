@@ -58,7 +58,10 @@ test('new and upgraded sparse projects receive XML runtime, canonical class and 
   for (const target of [fresh, upgraded]) {
     assert.equal(fs.existsSync(path.join(target, retiredCatalog)), false);
     const scope = require(path.join(target, 'plugins/coding-iris-plugin/scripts/iris-tools/scope-list'));
-    assert.equal(scope.parseScopeList(fs.readFileSync(path.join(target, 'docs/reference/project-export-map/doctor/v8.4.txt'))).length, 2850);
+    const catalog = 'docs/reference/project-export-map/doctor/v8.4.txt';
+    const sourceCount = scope.parseScopeList(fs.readFileSync(path.join(repository, catalog))).length;
+    assert.ok(sourceCount > 0);
+    assert.equal(scope.parseScopeList(fs.readFileSync(path.join(target, catalog))).length, sourceCount);
     assert.throws(() => scope.parseScopeList('<Export/>'), /scope-list-format-invalid/);
     assert.equal(fs.existsSync(path.join(target, 'tools')), false, 'the entire source-only tools tree must stay out of projects');
     for (const name of ['edit-export-xml.ps1', 'source-delivery.ps1']) {
@@ -69,9 +72,19 @@ test('new and upgraded sparse projects receive XML runtime, canonical class and 
     for (const relative of ['maintenance/should-not-deploy.md', 'scripts/tests/should-not-deploy.js', '.agents/local-only.md', ...sourceOnlyTools, 'plugins/coding-iris-plugin/scripts/iris-tools/export-iris-code.ps1']) assert.equal(fs.existsSync(path.join(target, relative)), false, relative);
     const core = require(path.join(target, 'plugins/coding-iris-plugin/scripts/iris-tools/xml-package-core'));
     assert.equal(core.parseExportXml('<Export><CSPBase64 application="/web/" name="a.png">AAECAw==</CSPBase64></Export>').items[0].payloadBytes.length, 4);
-    for (const cli of ['xml-export.js', 'xml-scope.js', 'code-baseline.js', 'baseline-catalog.js', 'source-delivery.js']) {
+    for (const cli of ['xml-export.js', 'xml-scope.js', 'code-baseline.js', 'baseline-catalog.js', 'source-delivery.js', 'xml-to-source.js']) {
       const result = spawnSync(process.execPath, [path.join(target, 'plugins/coding-iris-plugin/scripts/iris-tools', cli), '--help'], {encoding: 'utf8', windowsHide: true});
       assert.equal(result.status, 0, cli + ': ' + result.stderr); assert.ok(result.stdout.length > 40);
     }
+    const skill = fs.readFileSync(path.join(target, 'plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md'), 'utf8');
+    assert.match(skill, /^description: .*--xtoc/m);
+    assert.match(skill, /帮助请求[\s\S]+“把这批 XML 转成可入 Git 的源码”或显式 .*--xtoc[\s\S]+xml-to-source\.js[\s\S]+先读取当前 ContextRoot/);
+    const input = path.join(target, 'fixture.xml');
+    const out = path.join(target, 'source-from-xml');
+    fs.writeFileSync(input, '<Export><Class name="Demo.Baseline"/></Export>');
+    const result = spawnSync(process.execPath, [path.join(target, 'plugins/coding-iris-plugin/scripts/iris-tools/xml-to-source.js'),
+      '--input', input, '--out', out], {cwd: target, encoding: 'utf8', windowsHide: true});
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(fs.readFileSync(path.join(out, 'src/Demo/Baseline.cls'), 'utf8'), /^Class Demo\.Baseline/);
   }
 });

@@ -1,11 +1,23 @@
 ---
 name: iris-code-baseline
-description: 按版本 TXT 清单 采集 IRIS 当前源码、维护版本清单；支持将现场完整源码 XML 带回后由本地 AI 修改并回包。
+description: 将本地 IRIS / Caché 源码 XML 离线转换为 Git 可用的源码树（--xtoc）；按版本 TXT 清单采集当前源码或维护版本清单；处理带回的完整源码 XML 修改与回包。
 ---
 
 # IRIS 代码基线
 
-帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，展示范围清单、当前源码、输出和恢复语义后结束；不检查业务配置、连接或创建任务。
+帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，展示 XML 转源码、范围清单、输出和恢复语义后结束；不检查业务配置、连接或创建任务。Overlay 按 CapabilityRoot 定位协议。
+
+## 本地 XML 转源码
+
+“把这批 XML 转成可入 Git 的源码”或显式 `--xtoc` 进入本节，完成即结束。优先于检查 `developmentMode`、profile 和连接。需要把修改带回现场的 XML 交付任务走下方离线协议。
+
+```text
+iris-code-baseline --xtoc pc/incoming --out pc/source-from-xml
+```
+
+1. 按[转换说明](../../references/iris-offline-development.md#xml-转独立源码目录)定位输入与 CapabilityRoot。`--xtoc` 接收单个 XML 文件或目录。目录模式只读直属 XML 文件。用户未指定 `--out` 时，在目标工作区选用可用的 `source-from-xml` 子目录名，可顺延数字后缀。有同名目录的显式输出由脚本报错。
+2. 从当前项目调用 `node <iris-tools>/xml-to-source.js --input <输入> --out <新目录>`。本分支只写本地转换产物，无需 IRIS、MCP、Git 初始化或项目开发方式配置。
+3. 读取 `manifest.json` 并报告实际输出路径、包数、文件数及失败定位（如有）。转换产物用于本地源码基线，现场导入、编译和提交另按授权处理。
 
 ## 输入与完成标准
 

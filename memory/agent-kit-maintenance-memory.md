@@ -4,6 +4,8 @@
 
 ## 当前重点
 
+- coding 0.33.0 提供本地 [XML 转源码](../plugins/coding-iris-plugin/references/iris-offline-development.md#xml-转独立源码目录)，从基线 Skill 的 `--xtoc` 进入。已有项目正常更新并刷新 Skill 入口，验收范围见维护日志。
+
 - UI 评审经验已补属性范围、两主题边界、原生间距和父子布局对照；单批证据及匿名夹具结果见[验证记录](../maintenance/validation/ui-review-feedback-2026-11-18.md)，业务副本按正常更新取得。
 
 - 工作台可交互 UI 原型已落在 tools/agents-workbench/prototype；模拟数据、工程级身份与 Root/模块导航，浏览器验收范围见维护日志。正式后端与宿主集成仍沿 docs/agents-workbench-plan.md。
