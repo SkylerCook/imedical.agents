@@ -1,7 +1,7 @@
 # .agents 本地工作台：可行方案与实施计划
 
 > 状态：2026-11-17 修订，待评审；UI 交互原型已实现（源仓 tools/agents-workbench/prototype，模拟数据）；正式工作台后端尚未实施。Node 24 离线环境包已完成独立升级，不等于工作台已实现。
-> 本计划承接用户确认的方向：离线 Web UI／EXE、本地 SQLite、结构化配置与 UI 编辑、复用本工程能力、兼容已经部署的项目。
+> 本计划承接用户确认的方向：离线 Web UI／EXE、框架自有运行配置以 JSONC 为统一目标、UI 与 Agent 共用配置接口、复用本工程能力、兼容已经部署的项目。工作台首版不新增 SQLite；已有知识／向量组件的内部存储继续沿 owner 实现。
 > 本轮仅生成此计划，不修改框架、不接入业务项目、不提交或推送。
 
 ## 1. Goal：以工程为单位降低框架上手与日常维护成本
@@ -26,17 +26,17 @@
 
 ## 2. 推荐结论
 
-采用 **本地 Web UI + Node.js 本地服务 + SQLite 配置中心 + 框架能力适配层**，Windows 交付双击启动的 EXE，第一版 EXE 打开系统浏览器中的本地工作台。UI、配置模型和业务适配只维护一套；后续确有独立窗口需求时，再添加 WebView2 薄壳，不为外壳引入第二套业务逻辑。
+采用 **本地 Web UI + Node.js 本地服务 + 统一配置服务（JSONC／既有原生格式）+ 框架能力适配层**，Windows 交付双击启动的 EXE，第一版 EXE 打开系统浏览器中的本地工作台。UI、配置模型和业务适配只维护一套；后续确有独立窗口需求时，再添加 WebView2 薄壳，不为外壳引入第二套业务逻辑。
 
-SQLite 保存工作台管理的当前工程配置与操作关系，密码／Token 等字段加密后入库；框架现有 JSON、Markdown、TOML 文件作为兼容运行接口，由适配器读写。旧项目先只读识别，再按具体配置域显式接管，CLI／Agent 仍可工作，工作台必须识别外部修改而不是覆盖它们。
+运行配置由 owner 文件和既有来源负责，工作台不建立另一份生效配置。框架可控的运行配置按配置域迁移到 JSONC；读取、写入、初始化、更新、Agent 指令和测试必须同时跟进，消费者未完整支持时保留旧格式。Markdown 承载规则与说明，外部客户端规定的 JSON／TOML 沿其原生契约。工作台偏好和非敏感草稿按需用 JSON／JSONC，操作记录复用 owner 回执。凭据沿既有安全来源，不新建工作台密码库。
 
-**推荐做配置中心，不做“几十个脚本按钮的合集”，也不做替换现有 Agent／MCP 的新平台。**
+**统一用户交互、配置语义与读写入口，让 UI 和 Agent 走同一条经过校验的执行链。减负不依赖把配置迁入数据库，也不要求使用者理解底层文件。**
 
 ### 2.1 界面形态选择
 
 | 方案 | 能否管理本机工程 | 成本与限制 | 决定 |
 |---|---|---|---|
-| 双击纯 HTML（file://） | 可以展示资料；普通浏览器网页不能直接启动 Git、PowerShell 或任意本机程序 | 文件选择授权不能补齐进程执行能力，SQLite WASM 也不能解决这一点 | 只适合只读手册／演示，不作为管理器 |
+| 双击纯 HTML（file://） | 可以展示资料；普通浏览器网页不能直接启动 Git、PowerShell 或任意本机程序 | 文件选择授权不能补齐进程执行能力 | 只适合只读手册／演示，不作为管理器 |
 | 本地 HTML + 127.0.0.1 服务 | 能，所有本机动作由受限本地服务完成 | 需要启动器、进程收尾和本地接口保护 | **第一版采用** |
 | EXE + WebView2 + 同一本地服务 | 能，窗口与目录选择体验更统一 | 增加 WebView2 Runtime 分发、SDK及Windows验收 | 第二阶段可选，不阻塞首版 |
 | Electron | 能，成熟的独立桌面方案 | 自带 Chromium 带来包体和安全更新负担，与现有 Windows 工具形成新的外壳技术栈 | 暂不采用 |
@@ -79,7 +79,7 @@ SQLite 保存工作台管理的当前工程配置与操作关系，密码／Toke
 - manifest 不能完整描述配置类型、敏感性、字段来源和 UI 分组；不能仅凭模板自动生成一个可靠表单。
 - 已有 `configure-project.js` 面向 VS Code 与固定 IRIS 服务，不能直接当通用配置后端；其 `main(projectInspect/projectPlan)` 会调用 `recoverPrepared()`，可能恢复文件。**工作台“只读接入”不得调用这个带恢复副作用的入口**；直接复用经过验证的纯读取函数，恢复另设显式动作。
 - `update-agents.ps1 -Mode DryRun` 可更新 capability Git。工作台的“本地检查／预览”必须使用 Check 或 DryRun -NoPull；“联网获取新版并预演”另列为会修改本地 capability 的动作。
-- 本轮此前实际运行 `node scripts/generate-plugin-catalog.js --check` 失败；程序比较确认 8 个 owner 的版本／依赖信息未同步进 catalog。按需安装会校验 manifestHash，必须在接入写路径前修正源仓 catalog，而非在 UI 忽略错误。
+- 原调查曾发现 catalog 过期；2026-11-17 本次修订在 `313e549f` 基线上运行 `node scripts/generate-plugin-catalog.js --check` 已通过。后续实施重新核对实际状态，过期才完整重生成，不重复修复历史问题或在 UI 忽略 manifestHash。
 - 当前有 22 个插件 manifest；两个 XC 源目录没有 manifest。目录存在不代表正式可用。XC 治理仍按原决定暂缓，本项目不借工作台重写 XC 能力。
 - 文档与 README 存在旧描述，版本判断以当前 owner manifest 和实际代码为准，历史维护记录不是当前验收结果。
 
@@ -110,7 +110,7 @@ SQLite 保存工作台管理的当前工程配置与操作关系，密码／Toke
 
 Root 视图增加“模块”导航与共享更新总览；模块视图固定显示模块名及共享能力来源。共享知识与模块资料分别标识，连接和草稿不会因界面导航混用。
 
-桌面布局采用工程身份顶栏、左侧导航、主要任务区与按需展开的进度/帮助区。每页设计空白、加载、正常、缺项、执行中、部分完成、冲突、失败、待人工/Agent 接续状态。高级字段、脚本和诊断详情按需展开；常规路径不要求理解 revision、adapter、SQLite 或文件格式。
+桌面布局采用工程身份顶栏、左侧导航、主要任务区与按需展开的进度/帮助区。每页设计空白、加载、正常、缺项、执行中、部分完成、冲突、失败、待人工/Agent 接续状态。高级字段、脚本和诊断详情按需展开；常规路径不要求理解 revision、adapter 或文件格式。
 
 ### 4.2 两条完整接入路径
 
@@ -127,7 +127,7 @@ Root 视图增加“模块”导航与共享更新总览；模块视图固定显
 
 1. 工程入口绑定当前根，只读识别 standard、旧全量/按需、Overlay、不完整部署或自定义目录；不自动更新、迁移、恢复或接管配置。
 2. 首页展示当前可用能力及具体缺项。已有合法值和显式禁用优先保留，不重新要求填写连接或选择工程类型。
-3. 按用户当前目标进入“直接使用、补装能力、编辑配置、升级框架、修复缺项”之一；普通查看和使用不以升级为前置。
+3. 按用户当前目标进入“直接使用、补装能力、编辑配置、升级框架、修复缺项”之一；普通查看和使用不以升级为前置，也无需先导入或接管配置。
 4. 仅支持的配置域进入表单。旧版本缺少新接口时按 8.4 降级或升级；未知自定义内容保持只读并生成针对性 Agent 请求。
 5. 应用后原 CLI/Agent 读回一致，重开工作台状态一致；未完成宿主或业务验证显式保留。
 
@@ -144,185 +144,85 @@ Root 视图增加“模块”导航与共享更新总览；模块视图固定显
 - 默认值仅用于表单提示，不因打开页面就写回所有文件。
 - 未支持的自定义配置显示原来源与限制，不能假装已有可安全编辑表单。
 
-## 5. 统一配置模型与 SQLite 职责
+## 5. 配置事实源、JSONC 与工作台状态
 
-### 5.1 结构化是核心，文件格式不是用户概念
+### 5.1 按内容选择格式，按 owner 确定唯一事实源
 
-将每个配置域定义为：
+| 内容 | 形式与责任 |
+|---|---|
+| 框架自有运行配置 | 以 JSONC 为统一目标；每个配置域只有一套生效来源，沿 6.5 完成全部消费者后启用 |
+| 规则、技能、项目说明和使用手册 | Markdown；精确配置字段逐域结构化，说明与判断要求保留在正文 |
+| 外部客户端／工具配置 | 严格遵循其原生 JSON／JSONC／TOML 契约；由 owner 适配，不擅改扩展名或添加注释 |
+| 插件 manifest、JSON Schema、lockfile、工具通信结果 | 保持协议要求的标准 JSON；它们不属于本次运行配置格式统一范围 |
+| 工作台偏好与非敏感草稿 | 按需保存 JSON／JSONC 文件，不影响框架运行事实 |
+| 操作与恢复记录 | 复用 owner 回执、备份及现有事件；缺少的 UI 摘要用最小 JSON，确需连续事件时才用 JSONL |
+| 知识正文、向量与索引 | 复用现有 owner 的资料文件和存储，包括原有 SQLite／缓存；工作台只读取状态和调用能力 |
+| 凭据 | 环境变量、系统凭据机制或 owner 已支持的本机私有实例；工作台不复制成另一套凭据库 |
 
-- `id`：稳定域标识，例如 `iris.connection`、`bos.query`、`knowledge.provider`。
-- `owner`：实际负责语义的插件或共享模块。
-- `scope`：user／project／plugin／host，不能靠目录名字推断。
-- `schemaVersion`：模型版本，不是插件版本。
-- `schema`：JSON Schema，描述类型、枚举、必填项、边界。
-- `ui`：中文标签、分组、helpRef、条件展示、敏感标识；不放任意可执行表达式。
-- `adapterId`：固定注册的读写适配器，禁止 schema 提供 shell／JS 代码。
-- `sourceBindings`：原始文件及字段映射，由后端解析，不接受浏览器传入任意路径。
-- `revision`：乐观并发版本。
-- `status`：unmanaged／managed／drift／conflict／pending，不另造插件启用状态。
+JSONC 比 JSON 多出注释能力，并不自动解决配置分散、校验与调用顺序。统一配置服务聚合来源、有效值和影响范围；底层沿 owner 写入，CLI、Agent 和 UI 看到同一事实。现有来源有明确优先级时复用；无法判定的冲突需说明，不由工作台自行指定覆盖顺序。
 
-JSON Schema 验证数据形状；依赖、开发方式、启用前置、未知写和连接权限继续由 owner 的现有校验判定，不能把所有业务逻辑塞进 schema 或 UI。
+### 5.2 JSONC 的解析与保留注释编辑
 
-### 5.2 SQLite 可以存配置和敏感字段，但不得明文存密码
+新增框架自有配置默认使用 `.jsonc`，以双引号键名和标准 JSON 值为基础，支持 `//` 和 `/* … */` 注释；不引入 JSON5 或可执行表达式。新模板默认不生成尾逗号；读取既有宿主 JSONC 时按其已支持的语法配置解析器。
 
-SQLite 是本地数据库，适合作为配置中心；“本地”不代表防止文件复制、备份泄漏或误提交。
-
-| 数据 | SQLite保存内容 | 运行事实来源 |
-|---|---|---|
-| 工程目录、别名、界面偏好 | 本机元数据 | 工作台数据库 |
-| 已接管配置 | 结构化有效值、版本、来源绑定；凭据仅引用密文记录 | 工作台已应用配置；文件是兼容投影 |
-| 未接管旧配置 | 来源位置、检查摘要、字节指纹；不自动成为数据库有效值 | 原文件 |
-| 密码／Token／密钥 | DPAPI密文、保护方式和记录ID，不存明文 | 解密后仅在内存及必要私有实例中使用 |
-| 草稿／待应用计划 | 非敏感字段与凭据引用；候选密文使用同一保护机制 | 不作为生效配置 |
-| 插件启用／安装状态 | 展示缓存与观察时间，可丢弃 | plugin profile、部署状态及实际入口 |
-| 知识正文 | 默认不复制 | 原有 Markdown／资料文件 |
-| 业务向量 | 不复制进工作台数据库 | 原有 knowledge-index及构建缓存数据库 |
-| 操作记录 | 类型、状态、错误码、脱敏摘要及owner回执引用 | 原操作回执及实际读回结果 |
-
-**数据库不是任意 SQL 控制台。** 不给浏览器暴露 SQL、shell、文件路径读写等通用能力。
-
-### 5.3 谁是事实源：按配置域显式接管，不全项目强制搬家
-
-A. **未接管模式**：数据库只记工程和来源。读原文件生成模型，不写任何工程文件，不自动初始化或恢复。
-
-B. **接管模式**：用户确认某个配置域的当前值和来源后，导入 SQLite。以后工作台通过统一写路径提交变更，并同步兼容文件；不是自动接管工程里全部文件。
-
-C. **外部修改模式**：每份草稿持久保存创建时的基线 B（base_json、base_sources_json、expected_revision）、候选 D 和配置域身份；文件当前值为 F。基线中的敏感值仅为不可变 secretRef，替换凭据创建新引用。吸收新文件值不能覆盖仍在编辑草稿的 B；刷新或重启后仍按 B/D/F 三方比较：
-
-- 只有F变化：校验后吸收为新的已应用revision，并刷新UI；不得把B写回文件。
-- D与F修改不同字段：合并到候选计划，重新校验，按已有确认范围决定是否重新确认。
-- D与F修改同一字段且值不同：返回 `CONFIG_CONFLICT`，只暂停该配置域。
-- 敏感字段冲突仅显示来源与是否变化，不回传明文进行差异展示。
-- 未知字段原位保留；不能由数据库投影重建整个文件丢失自定义内容。
-
-数据库损坏、工作台卸载或缺失时，原有框架和 Agent 必须仍能读取最后一次成功生成的配置继续运行。不要使现有 `.agents` 执行依赖工作台常驻。
-
-### 5.4 敏感信息保护
-
-Windows首版使用 `.NET ProtectedData` 的 CurrentUser DPAPI：
-
-- 加密再INSERT，禁止先落明文再加密；WAL、日志、草稿和异常消息不能有明文。
-- 密钥不与数据库同存；不使用固定密码、Base64或机器名冒充加密。
-- 普通GET只返回 `secretRef` 与 `isSet`，不把已有密码解密回填到浏览器。
-- 新凭据从UI到本地服务只留内存，通过固定stdin协议交给DPAPI helper；不经命令行参数或普通请求文件。
-- 如现有 MCP 必须读取明文 env／JSON／TOML，继续生成被忽略的私有实例，先检查未跟踪、忽略生效和权限，再写入并读回。明确披露“数据库加密，运行实例按上游契约保存”。
-- 跨账号／换机不能保证DPAPI解密；首版导出配置默认不带凭据，到新机重新填写。带口令加密的跨机凭据迁移留后续独立需求，不临时自创加密协议。
-- 数据库自动放入已确定的本机私有数据根，按当前工程身份隔离；不放业务`.agents`、源码仓、网络共享、OneDrive等同步目录。发现处于Git树内时拒绝保存数据库。
-- 默认复用启动器安装位置旁的独立可写数据根，首次显示实际位置；不可写或处于Git/同步目录时才让用户选择替代位置。各工程数据库分别保存，不静默放临时目录。
-- 仅防误泄漏和离线文件窃取，不宣称能防同账号恶意进程或管理员读取内存。
-
-### 5.5 SQLite初版schema（实现前按下述身份与草稿约束验证）
-
-新文件：`tools/agents-workbench/src/db/schema.sql`。字段不接受任意原始日志／配置JSON；写入前按模型剥离凭据并转secretRef。
-
-```sql
-PRAGMA foreign_keys = ON;
-PRAGMA journal_mode = WAL;
-PRAGMA busy_timeout = 5000;
-
-CREATE TABLE IF NOT EXISTS meta (
-  key TEXT PRIMARY KEY,
-  value TEXT NOT NULL
-) STRICT;
-
-CREATE TABLE IF NOT EXISTS projects (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  root_path TEXT NOT NULL UNIQUE,
-  context_root TEXT,
-  capability_root TEXT,
-  mode TEXT NOT NULL CHECK (mode IN ('uninstalled','standard','workspace-overlay','nonstandard')),
-  trusted INTEGER NOT NULL DEFAULT 0 CHECK (trusted IN (0,1)),
-  created_at TEXT NOT NULL,
-  last_opened_at TEXT
-) STRICT;
-
-CREATE TABLE IF NOT EXISTS secrets (
-  id TEXT PRIMARY KEY,
-  provider TEXT NOT NULL CHECK (provider = 'windows-dpapi-current-user'),
-  ciphertext BLOB NOT NULL,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-) STRICT;
-
-CREATE TABLE IF NOT EXISTS config_documents (
-  id TEXT PRIMARY KEY,
-  project_id TEXT REFERENCES projects(id),
-  owner TEXT NOT NULL,
-  domain TEXT NOT NULL,
-  scope TEXT NOT NULL CHECK (scope IN ('user','project','plugin','host')),
-  schema_version INTEGER NOT NULL CHECK (schema_version > 0),
-  revision INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0),
-  state TEXT NOT NULL CHECK (state IN ('unmanaged','managed','drift','conflict','pending')),
-  applied_json TEXT NOT NULL CHECK (json_valid(applied_json)),
-  updated_at TEXT NOT NULL
-) STRICT;
-
-CREATE TABLE IF NOT EXISTS source_bindings (
-  id TEXT PRIMARY KEY,
-  document_id TEXT NOT NULL REFERENCES config_documents(id) ON DELETE CASCADE,
-  adapter_id TEXT NOT NULL,
-  source_path TEXT NOT NULL,
-  source_locator TEXT NOT NULL,
-  observed_hash TEXT NOT NULL,
-  applied_hash TEXT,
-  UNIQUE(document_id, source_path, source_locator)
-) STRICT;
-
-CREATE TABLE IF NOT EXISTS operations (
-  id TEXT PRIMARY KEY,
-  project_id TEXT REFERENCES projects(id),
-  kind TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('planned','running','succeeded','failed','interrupted','conflict','cancelled')),
-  document_id TEXT REFERENCES config_documents(id),
-  expected_revision INTEGER,
-  base_json TEXT CHECK (base_json IS NULL OR json_valid(base_json)),
-  base_sources_json TEXT CHECK (base_sources_json IS NULL OR json_valid(base_sources_json)),
-  desired_json TEXT CHECK (desired_json IS NULL OR json_valid(desired_json)),
-  redacted_summary TEXT NOT NULL,
-  owner_receipt TEXT,
-  created_at TEXT NOT NULL,
-  finished_at TEXT
-) STRICT;
-
-CREATE TABLE IF NOT EXISTS operation_steps (
-  operation_id TEXT NOT NULL REFERENCES operations(id) ON DELETE CASCADE,
-  ordinal INTEGER NOT NULL,
-  adapter_id TEXT NOT NULL,
-  target_ref TEXT NOT NULL,
-  before_hash TEXT,
-  after_hash TEXT,
-  status TEXT NOT NULL CHECK (status IN ('planned','applied','verified','reverted','conflict','unknown')),
-  recovery_ref TEXT,
-  PRIMARY KEY(operation_id, ordinal)
-) STRICT;
-
-CREATE TABLE IF NOT EXISTS preferences (
-  key TEXT PRIMARY KEY,
-  value_json TEXT NOT NULL CHECK (json_valid(value_json))
-) STRICT;
-
-INSERT INTO meta(key, value) VALUES ('schemaVersion','1')
-ON CONFLICT(key) DO NOTHING;
+```jsonc
+{
+  // 当前工程开发方式：connected 或 offline
+  "developmentMode": "offline"
+}
 ```
 
-配置域多环境／多服务实例的唯一身份由document ID加owner/domain/scope/绑定定义，不能把同一工程所有MCP服务折叠成一条连接。建库后的版本检查必须显式拒绝未知较高版本；DDL幂等不等于schema自动迁移。
+上例仅示意配置字段；有效路径和字段契约归实际 owner。注释用于简明解释与帮助引用，类型、必填项、默认值和作用域由 schema／owner 定义，UI 不解析注释作为规则。
 
-不要以SQL约束替代secret拆分校验。测试必须用合成哨兵检查主库、WAL、操作记录及导出中均不存在明文。
+- 复用仓库已使用的 `jsonc-parser 3.3.1`：纯 JavaScript、无第三方运行时依赖、MIT 许可。现有副本只随 ai-dev-offline 分发；共享化时以根 `vendor/jsonc-parser/` 为 canonical，保留来源、固定版本、摘要与许可证。独立工具打包继续使用原有相对布局，由 canonical 生成并校验，避免两份手工维护源。
+- 框架统一读写能力放在 `scripts/lib/configuration-file-io.js`，复用已有 JSONC 编辑实现中的可分离函数；不调用带自动恢复副作用的 GUI main。业务项目部署 vendor 及完整依赖闭包，运行不要求 `npm install`，也不依赖源仓 `tools/`。
+- 检查解析错误列表、重复键、根类型及 schema；解析器容错返回结果不代表配置有效。严格 JSON 的协议输入继续严格解析，不统一放宽全部 `JSON.parse`。
+- 字段级编辑使用语法树及局部 edits，保留无关字段、注释、缩进、UTF-8 BOM 和 CRLF／LF／CR。新增文件默认 UTF-8 无 BOM；已有文件沿其有效编码与换行，无法安全编辑时报告限制。
+- 含注释文件不能直接交给 `JSON.parse`、不支持注释的 `ConvertFrom-Json` 或其他严格消费者。支持情况按 6.5 清单验证；不通过正则删除注释，避免误伤字符串和 URL。
+- UI、Agent 通过接口收到标准 JSON 数据与来源摘要；按需读取原文排障。说明性注释不会作为新的有效配置存入另一份文件。
+
+### 5.3 统一配置模型与 UI／Agent 调用
+
+每个配置域描述 `id`、`owner`、`scope`、`schemaVersion`、`schema`、`ui`、`adapterId`、`sourceBindings`。多环境／多服务实例具有独立身份，不能折叠成单条连接。来源绑定由后端解析，前端不提供任意路径；版本信息继承 owner，schemaVersion 只表示数据契约。
+
+- `revision` 是本次观察的源文件指纹令牌，包含文件不存在状态，不是新增数据库计数器；每次 apply 前重新计算。
+- 支持编辑、仅可读取、冲突、待应用等状态由当前文件与草稿推导，不形成第二套插件状态机。
+- `describe/read/plan/apply/verify` 的配置语义由共享服务与 owner 实现。UI 后端和 Agent CLI 调用同一能力；CLI 不要求 HTTP 服务或工作台正在运行。
+- `read` 可按域／字段返回有效值、来源、缺项、影响范围及凭据是否已设置，减少 Agent 搜索与读取无关文件；敏感值不返回模型。
+- `plan` 基于实际源产生修改摘要；`apply` 使用同一校验与 owner 写入口，写后读回。AI 友好性来自这套接口，不来自文件扩展名。
+
+### 5.4 草稿、外部修改与最小持久状态
+
+首次打开只读取实际配置，不初始化、搬迁、接管或自动写回默认值。未编辑时文件变化后直接重新读取；没有数据库副本需要同步。
+
+编辑中的草稿保存必要的非敏感基线 B、字段变更 D、源指纹及配置域／工程身份。当前文件为 F：无交集的外部改动可重新校验并生成合并计划；同字段不同值返回 `CONFIG_CONFLICT`，仅暂停该配置域。保留来源中的未知字段与人工说明，不能用模型整体重建文件。
+
+只有用户需要跨刷新／重启继续编辑时才持久化草稿。敏感输入留在内存，重开后提示重新填写；草稿只保存保留／待替换／清除的意图与来源标识，不保存明文、密文副本或可离线猜测的凭据摘要。原字节快照若含凭据，仅沿 owner 的私有恢复材料管理，不混入工作台草稿。
+
+工作台本机状态复用现有私有数据位置，按解析后的工程身份隔离；无约定时从本机可写私有数据根自动分配。状态文件未被 Git 跟踪且忽略生效；只在保存偏好、草稿或真实任务时按需创建。损坏或未知高版本只影响相应偏好／草稿，保留原件并给出重置或导出说明，不阻断读取运行配置。移除工作台状态后原 CLI／Agent 仍可工作。
+
+### 5.5 凭据继续由 owner 管理
+
+- 优先复用环境变量或既有凭据机制；必须落文件时，仅写 owner 支持的被忽略私有实例，写前核对未跟踪、忽略生效和访问权限，写后读回。配置改为 JSONC 不改变凭据边界。
+- 普通读取仅返回 `isSet` 与已有来源的脱敏标识，不解密回填；敏感字段采用保留／替换／清除三态，空输入默认保留。
+- 新凭据仅在受信 UI、本地后端及 owner 接收流程中短暂使用；子进程通过固定 stdin 或已有安全通道接收，不经 argv、URL、普通请求文件、草稿、日志或提示词。
+- 若复用的 owner 需要 DPAPI 临时传输，复用其已验证实现和生命周期；不新增工作台通用 secret store、固定密钥或跨机加密协议。非支持平台明确降级相应凭据动作，不降级成临时明文文件。
+- 默认导出不含凭据；备份与跨账号／换机恢复遵循原来源能力，必要时重新填写。用合成哨兵检查日志、草稿、任务摘要和普通导出不包含明文。
 
 ## 6. 配置Schema、UI与执行契约
 
 ### 6.1 新增文件落点（均为计划，当前尚不存在）
 
 - `scripts/configure-agents.js`：统一配置CLI入口，支持describe/read/plan/apply；UI与Agent均可复用。
-- `scripts/lib/configuration-service.js`：域路由、数据读取、校验与计划，不保存工作台数据库。
+- `scripts/lib/configuration-service.js`：域路由、来源聚合、校验与计划；UI／CLI 共用，不另存生效值。
 - `scripts/lib/configuration-adapters.js`：固定adapter registry；不是可执行插件加载器。
-- `scripts/lib/configuration-file-io.js`：原字节快照、条件写入、读回、回执；只填补现有入口确实缺失的共享能力。
+- `scripts/lib/configuration-file-io.js`：JSONC／JSON 解析、保留注释编辑、原字节快照、条件写入与读回；复用 owner 回执，只补实际缺口。
+- `vendor/jsonc-parser/`：共享 canonical，固定 3.3.1 的无外部运行时依赖代码、来源摘要及许可证；沿部署与独立工具打包验证闭包。
 - `plugins/agent-context-kit/schemas/configuration.schema.json`、`configuration.ui.json`。
 - `plugins/coding-iris-plugin/schemas/configuration.schema.json`、`configuration.ui.json`。
 - `plugins/bos-plugin/schemas/configuration.schema.json`、`configuration.ui.json`。
 - `scripts/lib/knowledge-configuration.schema.json`、`knowledge-configuration.ui.json`：知识连接目前为共享运行时，暂不另建插件。
-- `tools/agents-workbench/`：应用、SQLite、HTTP、UI、Windows启动器、打包和专属测试；不加入业务项目sparse。
+- `tools/agents-workbench/`：HTTP／UI、最小本机状态、Windows启动器、打包和专属测试；不加入业务项目sparse。
 
 Schema声明归owner，不由UI维护第二套字段默认值。manifest新增可选 `configuration` 元数据指向schema/ui，旧更新器忽略该字段即可；不得要求未接入工作台的插件立即补全此字段。
 
@@ -349,9 +249,9 @@ Schema声明归owner，不由UI维护第二套字段默认值。manifest新增�
     "password": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["secretRef", "isSet"],
+      "required": ["isSet"],
       "properties": {
-        "secretRef": {"type": "string", "minLength": 1},
+        "sourceId": {"type": "string", "minLength": 1},
         "isSet": {"type": "boolean"}
       }
     }
@@ -379,6 +279,8 @@ Schema声明归owner，不由UI维护第二套字段默认值。manifest新增�
 }
 ```
 
+上例 password 是读取时的脱敏状态；sourceId 仅为既有来源的不透明标识，不是新增密码库引用。替换凭据通过独立瞬时输入传给 owner，不进入模型快照、计划或草稿。
+
 端口／TLS历史默认由原owner解析，不在schema再写第二份default。host的协议、空白、分隔符等语义继续复用实际连接校验。`additionalProperties:false`限制提交的统一模型，不授权删除原文件中的未知字段。
 
 ### 6.3 每个adapter必须实现的契约
@@ -395,22 +297,48 @@ recover(context, receiptRef, decision) -> { state, findings[] }
 这些是拟新增接口；现有脚本未全部具备，按下面任务补最小薄适配，不能在计划评审后假定接口已存在。
 
 - read/validate/plan不写工程文件、不联网、不自动恢复。
-- apply之前重新读取输入文件、检查revision和源指纹；变化返回409 `CONFIG_CONFLICT`。
+- apply之前重新读取输入文件、检查revision和源指纹；变化先重新计划，无法合并时由HTTP返回409／CLI返回 `CONFIG_CONFLICT`。只验证计划成功不等于实际写入成功。
 - 优先调用已有owner写入口。没有字段级编辑能力时，在owner增加小函数，旧CLI与新adapter共同调用，不绕过原门禁。
 - plan只包含允许字段及实际影响，不带明文凭据。
 - 禁止 `eval`／任意命令模板／schema中的动态JS条件；条件仅支持固定数据比较。
 
-### 6.4 数据库与文件的跨资源提交
+### 6.4 文件写入与中断恢复
 
-SQLite事务无法让多个配置文件和子进程操作原子提交，不伪装成“全部天然事务”。采用现有回执加最小工作台操作记录：
+文件是运行事实源；跨文件／子进程动作不具备天然事务，采用现有 owner 锁、回执、原字节恢复及最小任务摘要，不新增数据库提交层。
 
-1. 读取并校验候选；将不含明文的候选存入operations，原applied_json保持。
-2. 列明每个 owner 的实际锁覆盖范围；UI 与 CLI 的受控写入口复用同一互斥，锁内重读指纹、写入及验证。共享操作按真实 CapabilityRoot 串行，模块配置按 ContextRoot 隔离。编辑器不遵守锁时仍有检查到写入的竞争窗口：最小化窗口并读回检测，不承诺对任意外部进程绝对无覆盖；冲突保留前像和候选，不盲目恢复。
-3. 执行owner写入并逐文件回读，step记录实际结果。
-4. 全部验证通过后，在一个SQLite事务中更新applied_json、revision、source_bindings，operation置succeeded。
-5. 文件已写而DB尚未提交时崩溃：恢复时按候选及文件指纹判断，全部匹配则完成DB提交；否则调用owner恢复或报告冲突，不盲目重跑。
-6. DB中的planned/running状态不代表原生框架已经采用该候选；UI明确显示待应用／待恢复。
-7. 已有后续外部修改时不自动回滚。不能以删除数据库记录撤销已发生的外部效果。
+1. 读取来源、校验候选，生成不含明文凭据的计划，绑定工程、域、源指纹与影响范围。
+2. UI／CLI 的受控写入口复用 owner 互斥，在锁内重读、写入并验证；共享操作按真实 CapabilityRoot 协调，模块配置按 ContextRoot 隔离。非协作编辑器仍有检查到写入的竞争窗口：最小化窗口并读回检测，冲突保留恢复材料，不承诺对任意进程绝对无覆盖。
+3. 优先调用 owner 写能力，逐目标记录写前／写后指纹及实际回执。成功依据是消费者有效值与计划一致，不是“工作台记录已保存”。
+4. 草稿已保存但尚未写配置：重开后重新读源、生成计划，绝不自动执行旧草稿。部分文件写入后崩溃：按 owner 回执与当前文件判断完成、待恢复或冲突，不盲目重跑。
+5. 文件已全部写入但工作台摘要未更新：重新核对 owner 回执和实际来源，补充观察结果；日志不完整不自动触发回滚，缺少关键证据时只限制不能安全确定的恢复动作。
+6. 有后续外部修改时不自动回滚；删除草稿／摘要不撤销实际效果。既有敏感备份继续按原私有边界保存，不被普通工作台导出带出。
+
+### 6.5 框架消费者迁移：一个配置域一次交付完整链路
+
+JSONC 统一范围是本框架拥有并能控制所有消费者的运行配置；manifest、JSON Schema、通信 JSON 和宿主规定格式按 5.1 保留。迁移以域为单位闭合，既有配置可正常使用，不能只改 UI、扩展名或某一个 parser。
+
+| 首批配置域 | 必须追踪的现有入口（不是完整清单，实施时补齐真实调用链） |
+|---|---|
+| 工作区声明／根解析 | workspace-context.js、WorkspaceContext.psm1、Overlay 初始化、使用 capability 路径识别工程的启动器与薄入口 |
+| IRIS 开发方式／策略 | development-config.js、iris-remote-operations.js、初始化 skill、安装／更新迁移及其调用者 |
+| IRIS 工程连接／受管后端 | sync-env-config.js、iris-session-backends.js、iris-session-client.js、iris-mcp.js、iris-remote.js、相关 PowerShell 与客户端适配 |
+| BOS 个人配置 | personal-config.js、各 skill 消费者、环境变量路径绑定与独立工具 |
+| 知识提供方 | knowledge-embedding.js、初始化／构建／查询入口、环境变量路径绑定 |
+| 工程 profile／插件配置 | 项目上下文、插件启停与初始化、索引生成、Agent 指令及实际读取受管字段的脚本 |
+
+每个域沿以下顺序执行，受影响测试夹具清单兼作覆盖记录，不另建全仓配置注册数据库：
+
+1. **查全读写者**：以实际路径解析、读取函数和调用链定位 JS、PowerShell、Agent skill、模板、迁移与恢复入口，区分运行配置、状态记录与宿主协议。字符串搜索只是线索；拼接路径、生成字段和子进程读取需用行为测试补齐。
+2. **先统一能力，再放开注释**：所有受控消费者使用共同解析／校验逻辑；PowerShell 5.1 薄入口调用 Node 读取并接收标准 JSON，再用其原有对象处理，不依赖 PS7 对注释的容忍。JSON Schema 验证解析后的值，写入口用局部 edits 保留注释。普通配置读取不触发初始化或恢复。
+3. **声明路径与兼容**：owner 声明 canonical `.jsonc` 路径及确有必要的 legacy `.json`／MD 入口。仅旧来源存在时继续读取；两者同时存在时报告具体来源冲突，不静默选一个或合并。环境变量显式绑定的私有文件沿绑定读取，不能擅改文件名或注册表。
+4. **同域整套发布**：读取者、写入者、模板、schema、初始化、更新与 Agent 指令随同一交付更新；先部署兼容 reader 和完整依赖，再由新版更新流程迁移，不能让旧更新进程继续用严格 parser 处理新文件。独立工具的兼容版本与交付包同步说明。新建工程生成 JSONC；已有工程先预览、核对原值与未知字段，优先在同目录保留字节改名；需结构转换时沿 owner 回执保护，不同时保留两份常规有效来源。写后用实际消费者读回，手工注释和 Markdown 说明保留。
+5. **迁移与回退成对验证**：目标框架版本不支持 JSONC 时不写注释；不能用“工作台能读”替代框架支持。回退旧消费者前由 owner 先恢复兼容配置，禁止把含注释的文件直接交给旧 parser。未知或手改格式保持只读，提供 Agent 接续。
+6. **真实调用闭环**：对每个已登记读写者使用含两种注释、注释样式字符串、BOM／换行及未知字段的夹具，完成初始化→配置→CLI/脚本读取→更新→再编辑→恢复；覆盖 standard／Overlay、离线和重开，不仅测试公共 helper。双格式冲突、重复键、非法语法、错误类型及新文件并发创建应有确定结果。
+7. **完整部署闭包**：独立工具、源仓与真实 sparse 安装后的读取结果一致；vendor、公共模块和版本匹配，在无 node_modules、无源仓 tools 的环境可运行。JSONC 读写层仍兼容框架最低 Node 22.5.0；Node 24 是新环境包默认部署版本，不借此提高所有脚本最低版本。修改安装／更新行为时按仓库约束同步文档与专项回归。
+
+共享框架需同时读取已迁移和未迁移模块各自的合法配置；不要求所有模块同时改名。仍持有旧配置路径的活动进程由 owner 在安全点刷新／重启，无法安全处理时只暂停相应格式迁移，不阻断原配置使用。发布兼容矩阵标明受支持的宿主、独立工具及消费者版本，不把源仓代码更新当成现场旧进程已升级。
+
+完成一个域后，才在 UI 标记“JSONC 已支持”，提供实际消费者检查结果；未迁移域标明原格式及可用动作，不统一套用已支持状态。
 
 ## 7. 运行架构与安全
 
@@ -419,8 +347,8 @@ EXE启动器／本地启动命令
   └─ 同一 Node 服务（仅 127.0.0.1，随机可用端口）
       ├─ HTML/CSS/ES modules：本地静态资产，无CDN
       ├─ API：工程注册、配置模型、计划与操作记录
-      ├─ SQLite：配置中心、来源绑定、密文、恢复索引
-      ├─ 凭据桥：Windows DPAPI，stdin/stdout，不写普通临时明文
+      ├─ 文件状态：界面偏好／非敏感草稿，任务沿 owner 回执
+      ├─ 凭据通道：复用 owner 来源及安全传输，不新增密码库
       └─ 固定能力适配器
           ├─ 当前工程的既有安装／更新／插件工具
           ├─ 统一配置服务与owner能力
@@ -442,10 +370,9 @@ tools/agents-workbench/
     project-context.js
     engine-adapter.js
     operation-runner.js
-    config-store.js
-    secret-store.js
+    local-state.js
+    credential-bridge.js
     document-service.js
-    db/schema.sql
     web/index.html
     web/app.js
     web/styles.css
@@ -454,17 +381,16 @@ tools/agents-workbench/
     web/vendor/                 # 构建生成固定依赖，不手工维护副本
   windows/
     WorkbenchLauncher.cs
-    ProtectSecret.ps1
   build/
     compile-schemas.js
     build-assets.js
     build-offline-package.js
   tests/
-    db.test.js
+    configuration-files.test.js
     project-context.test.js
-    config-store.test.js
+    local-state.test.js
     configuration.test.js
-    secrets.test.js
+    credentials.test.js
     api-security.test.js
     operations.test.js
     deployment.test.js
@@ -490,9 +416,9 @@ tools/agents-workbench/
 - 拒绝路径穿越、编码后的`..`、UNC目标（首版）、未声明链接和重解析点逃逸；Overlay合法链接只按现有resolver处理。
 - `spawn`固定程序及参数数组，`shell:false`；不得提供“运行命令”HTTP接口。
 - UI不展示原始stdout／stderr；先按错误码和结构化结果转换，再脱敏。已知敏感值和headers、URL参数同时处理，不只匹配password字段名。
-- 已导入项目的自定义MCP command也是本机程序执行。保存配置不自动启动，tools/list单独确认来源；HTTP MCP可能联网，同样属于单独连接测试。
+- 已接入项目的自定义MCP command也是本机程序执行。保存配置不自动启动，tools/list单独确认来源；HTTP MCP可能联网，同样属于单独连接测试。
 - 首版工作台不执行任意MCP工具，不提供SQL执行器，也不把原生MCP的allowWrite:true当用户授权。
-- 所有长动作在受控子进程执行，不能堵塞HTTP事件循环；使用现有进度／回执，SQLite只记索引。取消为请求安全停止，不立即杀死关键配置写入。
+- 所有长动作在受控子进程执行，不能堵塞HTTP事件循环；使用现有进度／回执，工作台只汇总必要状态。取消为请求安全停止，不立即杀死关键配置写入。
 - 关闭浏览器不立即终止正在写入的任务；启动器显示后台任务，允许返回窗口。退出时停止接收新任务，等待安全点；不可恢复阶段不承诺强杀后自动恢复。
 
 ### 7.3 文档安全
@@ -507,7 +433,7 @@ tools/agents-workbench/
 
 ### 8.1 接入不等于迁移
 
-“添加已有工程”只在工作台数据库登记选择，扫描明确的配置入口，不写工程、不fetch、不补索引、不整理目录、不修复历史锁。
+“添加已有工程”只绑定本机工程身份并读取明确的配置入口，不写工程、不fetch、不补索引、不整理目录、不修复历史锁。不会把现有配置导入另一套生效存储。
 
 接入报告必须区分：
 
@@ -520,19 +446,19 @@ tools/agents-workbench/
 
 最后一种只能进入“维护者视图”，不能在源仓再次安装嵌套`.agents`。
 
-### 8.2 分域接管
+### 8.2 分域编辑与 JSONC 迁移
 
-优先接管工程元数据、已识别的IRIS连接、BOS个人配置、知识提供方配置。先做read→规范化模型→无修改回写计划，要求初次导入不产生无意义差异。
+优先支持工程事实、IRIS 连接、BOS 个人配置、知识提供方配置；先做 read→规范化模型→无修改回写计划，要求首次打开不产生无意义差异。统一模型用于操作，不代替来源文件。
 
-旧Markdown配置只编辑可唯一识别的字段／受管块，人工说明保留；重复键、冲突来源、无法确定作用域时返回具体问题，不整体重写。JSONC保留注释与BOM／换行；TOML只在原解析器支持范围内编辑，超范围保留原件。
+旧 Markdown 配置仅编辑可唯一识别的字段／受管块，人工说明保留；需转 JSONC 的字段沿 6.5 将所有消费者一并迁移，正文继续承担说明职责。重复键、冲突来源或作用域不明时返回具体问题。JSONC 保留注释、未知字段、BOM／换行；TOML 按原解析器支持范围处理。
 
-对于只想继续旧CLI的人，不需要安装工作台或迁移到SQLite。工作台接管不改变现有命令名称。
+普通 UI 编辑不自动改变格式或路径。只有当前域全链路支持后，迁移才能作为显式可预览动作或已获授权更新中的 owner 步骤执行。原 CLI／Agent 无需工作台即可读取，命令名称保持兼容。
 
 ### 8.3 Overlay更新
 
 按真实CapabilityRoot归组：共享框架更新一次，再逐个已登记ContextRoot以NoPull刷新。离线成员沿既有lastRequired保留资源；未登记成员范围不完整时不能裁剪共享资源。UI显示受影响工程，不让使用者手工推导共享关系。
 
-SQLite不保存另一套SourceRoot映射，读取现有capability.json。Root 到模块的导航使用独立实例；不同实例的配置、凭据、草稿与测试结果隔离。
+工作台不保存另一套SourceRoot映射，读取现有capability.json。Root 到模块的导航使用独立实例；不同实例的配置、凭据、草稿与测试结果隔离。
 
 ### 8.4 旧框架兼容与执行来源
 
@@ -546,8 +472,8 @@ SQLite不保存另一套SourceRoot映射，读取现有capability.json。Root �
 - Overlay Root：管理共享能力包版本、插件物料、共享知识/向量及模块接入总览。模块列表从现有注册/manifest读取，不另建人工名单。
 - 模块：管理本模块启用集合、配置、连接、MCP、客户端入口、私有资料和任务。Root 内可进入模块，模块目录也可独立打开；无需先运行 Root 窗口。
 - 模块申请补装共享插件时由统一后端按 CapabilityRoot 协调；共享安装不等于所有模块启用。更新共享一次，再刷新各 ContextRoot，逐模块呈现部分失败；裁剪必须核对所有声明成员，未登记/离线范围不明时不推断可删。
-- SQLite 按工程身份隔离，Root 库仅保存共享任务及成员观察信息，模块库保存模块草稿/记录；个人级配置保持原 owner 来源与引用，Root 不复制模块凭据。沿 5.4 放仓外私有数据目录，按规范根身份自动分配子目录；用户通常无需选择数据库位置。每库 projects 表只允许当前绑定工程，Root 成员列表不成为多工程配置库。
-- 工程移动后重新验证根与绑定，再迁移工作台数据；复制工程不得自动继承原数据库身份。移除工作台只解除自身入口，保留原框架与配置。
+- 工作台偏好、非敏感草稿和任务摘要按工程身份隔离；Root 只汇总共享回执与成员观察，模块配置仍归各自 ContextRoot。个人级配置沿原 owner 来源与引用，Root 不复制模块凭据，成员列表不成为第二套配置存储。状态位置沿 5.4 自动解析，通常无需用户准备目录。
+- 工程移动后重新验证根与绑定，再迁移工作台数据；复制工程不得自动继承原工作台身份。移除工作台只解除自身入口，保留原框架与配置。
 
 ### 8.6 Agent 客户端适配与任务接续
 
@@ -566,23 +492,23 @@ SQLite不保存另一套SourceRoot映射，读取现有capability.json。Root �
 
 | 功能 | 首轮可用版 | 后续完整覆盖／限制 |
 |---|---|---|
-| 工程管理 | 选择、只读接入、状态、分域接管 | 无全盘扫描；自定义布局先保持只读 |
+| 工程管理 | 选择、只读接入、状态、分域编辑 | 无全盘扫描；自定义布局先保持只读 |
 | 部署更新 | 已有标准安装／更新入口、Overlay分组、实际读回 | 离线bundle导入单独完成后才声明断网部署 |
 | 插件管理 | 全部有manifest插件可浏览、依赖预览、补装、启停 | 不自动启用未完成初始化的领域插件 |
-| 配置UI | 基础工程、IRIS、BOS、知识提供方有完整schema与保存 | 其余owner逐个补schema；无schema显示原来源，不宣称全部可编辑 |
+| 配置UI | 基础工程、IRIS、BOS、知识提供方有schema与保存；JSONC域全消费者闭环 | 其余owner逐个补schema；无schema显示原来源，不宣称全部可编辑 |
 | Agent客户端 | 入口适配、能力分级、提示词交接与结果重查；可用接口逐宿主接通 | 不保证操控任意宿主聊天窗口或取得其会话结果 |
 | MCP管理 | 工程级配置、受管IRIS检查／迁移、程序与工具发现 | 宿主用户级配置仅对已核实adapter开放；不猜全部宿主路径 |
-| 连接管理 | 个人／工程作用域、密文存储、原文件兼容、显式测试 | 不自动探测医院服务器，不管理业务SQL |
+| 连接管理 | 个人／工程作用域、复用凭据来源、原生格式兼容、显式测试 | 不自动探测医院服务器，不管理业务SQL |
 | 知识库 | 已有资料浏览、本地搜索、来源与版本 | 任意资料上传／分类需要现有来源协议支持，不能直接扫描所有docs |
 | 向量库 | 已有索引状态、选装／移除、preview/build/续建/export | 外发授权、模型／维度一致性仍由owner校验 |
 | 手册 | 全部`docs/guides/`导航、搜索、锚点和安全链接 | 不复制成独立手册维护；不自动运行代码块 |
-| 备份恢复 | DB一致性备份、owner配置回执、条件恢复 | DPAPI跨机凭据不自动迁移；未知外部写不重放 |
+| 备份恢复 | owner配置回执／私有备份、非敏感状态导出、条件恢复 | 凭据按原来源迁移；未知外部写不重放 |
 
 不能把首轮只读面板交付为完整工作台。最终验收至少打通“已有工程接入→配置修改→插件可用→退出重开后原CLI读取一致”的真实路径。
 
 ## 10. 技术选型与上游调查
 
-已只读核对候选仓库说明／关键源码／许可信息，未下载依赖或制作原型。
+下列外壳与UI库为原调查候选，版本与说明需在实施时复核；UI交互原型已存在，不代表正式后端已集成。JSONC采用本仓已使用的固定3.3.1副本，不追随上游主分支或顺带升级。
 
 | 候选 | 已核对内容 | 采用方式／理由 |
 |---|---|---|
@@ -592,10 +518,11 @@ SQLite不保存另一套SourceRoot映射，读取现有capability.json。Root �
 | https://github.com/markedjs/marked | README明确不做HTML净化，MIT许可 | 直接使用固定版本18.2.1，配DOMPurify，构建后本地分发 |
 | https://github.com/cure53/DOMPurify | README安全边界、MPL-2.0 OR Apache-2.0许可 | 直接使用固定版本3.4.18；不得净化后再拼接未净化HTML |
 | https://github.com/ajv-validator/ajv | standalone生成说明及MIT许可 | 构建期使用8.20.0，输出standalone校验器；检查生成代码无未携带的运行时require |
+| https://github.com/microsoft/node-jsonc-parser | 本仓3.3.1的来源清单、MIT许可、UMD代码及内部依赖 | 复用固定3.3.1、无第三方运行时依赖；提升为共享vendor后验证各消费者与离线部署，不自行写注释剥离器 |
 
-上述版本是本次registry读取结果，不代表已完成供应链审计或集成验证。实施时固定lockfile、记录实际包integrity和许可；更新版本需重跑安全及兼容测试，不自动追latest。
+Marked、DOMPurify与Ajv版本沿原调查记录，尚不代表本项目集成验证；jsonc-parser 3.3.1沿本仓已固定来源与摘要复用。实施时固定lockfile、记录实际包integrity和许可；更新版本需重跑安全及兼容测试，不自动追latest。
 
-Node 默认部署基线统一为 24.22.3，由 ai-dev-offline 安装助手部署并校验官方摘要，工作台复用该环境，不默认另带私有 Node。启动时检查实际版本与路径，缺失时指向安装助手；SQLite、备份恢复和框架调用链仍须实测。本工程原有 Node >=22.5.0 最低兼容要求保留，不把工作台新 API 引入所有业务脚本。
+Node 默认部署基线统一为 24.22.3，由 ai-dev-offline 安装助手部署并校验官方摘要，工作台复用该环境，不默认另带私有 Node。启动时检查实际版本与路径，缺失时指向安装助手；JSONC读写、文件恢复和框架调用链仍须实测。本工程原有 Node >=22.5.0 最低兼容要求保留，不把工作台新 API 引入所有业务脚本。
 
 第一版不引入React/Vue、ORM、微服务或通用表单设计器；原生ES modules和语义化HTML足够。配置schema、业务校验、源文件适配分开，但不建设任意插件执行DSL。
 
@@ -615,45 +542,27 @@ Node 默认部署基线统一为 24.22.3，由 ai-dev-offline 安装助手部署
 
 下列命令均从仓库根执行。tests路径是拟新增文件，不是当前已存在／已通过的测试。
 
-### 任务01：修复已知catalog前置问题
+### 任务01：核对catalog及当前实施基线
 
 文件：`scripts/lib/plugin-catalog.json`、`scripts/tests/plugin-deployment.tests.js`、相关README的过期总览。
 
-- 01a：在现有专项中加“catalog matches all current manifests”断言，调用现有generate比较当前catalog；运行`node scripts/generate-plugin-catalog.js --check`确认当前失败。
-- 01b：执行既有生成器更新catalog；不手改版本或忽略manifestHash。
-- 01c：运行`node scripts/generate-plugin-catalog.js --check`，预期退出0；定向专项通过。
-- 01d：只修本次已核实的README数量、按需安装和已实现adapter说明；不扩成全仓文档重写。
+- 01a：先运行`node scripts/generate-plugin-catalog.js --check`；当前已通过，不强行制造失败或重复修复历史问题。
+- 01b：仅在后续owner变更导致过期时，用既有生成器完整重生成，不手改版本或忽略manifestHash。
+- 01c：复用既有专项及已有效证据；实际影响catalog时再补受影响验证，交付前check通过。
+- 01d：只修实施时实际过期的README数量、按需安装和adapter说明；不扩成全仓文档重写。
 
-提交检查点：`fix(catalog): 同步插件版本与按需部署目录`。
+发生实际catalog修复时的提交检查点：`fix(catalog): 同步插件版本与按需部署目录`；仅检查通过不产生空提交。
 
-### 任务02：SQLite最小纵向切片
+### 任务02：JSONC 共享读写与部署闭包
 
-文件：`tools/agents-workbench/src/db/schema.sql`、`src/config-store.js`、`tests/db.test.js`。
+文件：`scripts/lib/configuration-file-io.js`、共享 `vendor/jsonc-parser/`、独立工具打包入口、`tests/configuration-files.test.js` 与相关现有专项。
 
-- 02a：复制本计划DDL为schema.sql；测试约定`openStore(':memory:')`返回具有`db`和`close()`的对象。
-- 02b：使用下面完整测试，先让version断言失败，再实现建库与version检查。
-- 02c：新增未知高版本、foreign_keys生效、数据库目录位于Git树／网络路径被拒绝的测试，再实现路径检查。
-- 02d：新增关库重开后值保持及崩溃恢复测试，验证写入不是只存在内存。
+- 02a：复用固定3.3.1代码及许可证，统一解析／定位／局部编辑接口，兼容严格JSON；语法错误、重复键与根类型异常必须拒绝。
+- 02b：测试单行／块注释、字符串中的 `https://` 与注释样式文本、未知字段、BOM／换行、无变更保存不写文件；复用现有语法树编辑，不用正则剥离或整体重写。
+- 02c：从业务项目实际 sparse 安装后加载公共模块，在没有源仓tools／node_modules的隔离环境执行；独立工具取同一canonical物料打包并核对逐文件摘要与许可证。
+- 02d：列首批配置域的所有读写者；在含注释夹具上跑原入口，暴露严格parser和硬编码旧路径的缺口，不以公共helper通过冒充消费者完成。
 
-```js
-'use strict';
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { openStore } = require('../src/config-store');
-
-test('WB-02 creates schema version 1 and enables foreign keys', () => {
-  const store = openStore(':memory:');
-  try {
-    const row = store.db.prepare("SELECT value FROM meta WHERE key = ?").get('schemaVersion');
-    assert.equal(row?.value, '1');
-    assert.equal(store.db.prepare('PRAGMA foreign_keys').get().foreign_keys, 1);
-  } finally {
-    store.close();
-  }
-});
-```
-
-验证：`node --test tools/agents-workbench/tests/db.test.js`。预期全部通过，真实文件测试使用本任务独立临时目录并在finally清理，不在源码目录生成db/WAL。
+验证：`node --test tools/agents-workbench/tests/configuration-files.test.js`，并按缺口执行现有 JSONC 编辑及 sparse／独立打包专项；新运行配置须在任务10/11及6.5全链路验证后才宣布支持。测试产物用独立任务临时目录并清理。
 
 ### 任务03：工程绑定与两类接入识别
 
@@ -663,6 +572,7 @@ test('WB-02 creates schema version 1 and enables foreign keys', () => {
 - 03b：实现只读注册与去重；Windows物理路径大小写和别名按既有resolver归一。
 - 03c：覆盖无框架但已有AGENTS/MCP、旧全量、旧按需、Overlay Root/模块、部分安装、自定义目录和源仓；缺少新配置接口的历史revision必须进入测试。
 - 03d：自定义MCP脚本夹具含“执行即产生标记”代码，断言注册时从未启动／require该脚本；不获取真实凭据。
+- 03e：工作区声明迁移到JSONC时，按6.5覆盖JS／PowerShell根解析和所有启动薄入口；未迁移模块仍可解析，不能只给UI解析器加扩展名支持。
 
 验证：`node --test tools/agents-workbench/tests/project-context.test.js`。预期读回的roots来自声明，接入零工程写入，无网络调用。
 
@@ -696,45 +606,44 @@ test('WB-02 creates schema version 1 and enables foreign keys', () => {
 - 06b：增加read返回sources和未知原字段保留测试；实现映射，禁止用JSON.stringify重建整个原文件。
 - 06c：加入schema/ui路径、版本、adapterId及helpRef校验；引用不合法时只禁用该配置域的写入。
 - 06d：构建Ajv standalone；在无node_modules的隔离副本加载校验器，并在浏览器CSP禁止eval时验证相同行为。
+- 06e：工程profile／插件配置按域补齐字段消费者、初始化、更新与Agent指令；迁移后原有任务读取同一来源，未迁移的说明正文与自定义内容保留。
 
 验证：`node --test tools/agents-workbench/tests/configuration.test.js`；`node tools/agents-workbench/build/compile-schemas.js --check`。预期类型校验一致，schema变更但生成器未刷新时check退出1。
 
 不要用一个测试同时覆盖所有owner。后续每个owner以同样契约补独立test。
 
-### 任务07：DPAPI密文入库
+### 任务07：凭据来源复用与安全传输
 
-文件：`src/secret-store.js`、`windows/ProtectSecret.ps1`、`tests/secrets.test.js`。
+文件：`src/credential-bridge.js`、owner已支持的私有配置／凭据入口、`tests/credentials.test.js`。
 
-- 07a：Windows用合成字符串测试protect/unprotect往返；实现固定stdin JSON协议，非Windows返回`SECRET_PROVIDER_UNSUPPORTED`。
-- 07b：测试同明文多次加密不要求密文相等；使用secretRef引用，不把密文摘要当密码是否相同的通用判据。
-- 07c：测试保留／替换／清除三态，GET从不返回明文；实现字段拆分和写入顺序。
-- 07d：写入合成凭据后扫描数据库、WAL、普通日志与脱敏导出，确认无明文；DPAPI失败不得降级明文。
+- 07a：测试环境变量和既有私有实例的来源识别，GET只返回是否设置及脱敏来源；不增加工作台凭据存储。
+- 07b：测试保留／替换／清除，空输入保留；固定stdin或owner现有安全通道传输，既有DPAPI流程仅在需要的owner上复用，不在argv或临时明文请求落盘。
+- 07c：检查新建私有配置、备份与忽略规则；跟踪文件拒绝敏感写入，损坏配置不自动覆盖，不把凭据同步进草稿／普通导出。
+- 07d：用合成哨兵检查日志、UI状态、提示词、非敏感草稿及导出无明文；窗口关闭／重开不恢复敏感输入，平台不支持时只限制对应传输动作。
 
-验证：`node --test tools/agents-workbench/tests/secrets.test.js`。Windows必须实跑DPAPI，Linux/macOS只验证明确拒绝，不标跨平台密钥存储通过。
+验证：`node --test tools/agents-workbench/tests/credentials.test.js`，需要DPAPI的路径在Windows实跑；其它平台只验实际提供的安全传输能力，不声称已具备跨平台密码库。
 
-`ProtectSecret.ps1`兼容Windows PowerShell5.1，含中文时UTF-8 BOM；使用系统ProtectedData，不自行实现AES算法。私有数据不经argv。
+### 任务08：文件事实源、偏好与非敏感草稿
 
-### 任务08：配置接管与外部修改三方合并
+文件：`src/local-state.js`、`tests/local-state.test.js`。
 
-文件：`src/config-store.js`、`tests/config-store.test.js`。
+- 08a：测试打开即读文件、无默认写回／导入步骤；保存偏好及草稿只影响本机状态，丢失状态仍可通过原CLI／Agent运行。
+- 08b：测试未编辑时外部变化直接重读、草稿与外部无交集变化重新计划、同字段冲突；不维护生效配置副本。
+- 08c：覆盖空字符串／false／0／未设置，未知字段与人工说明保留；本机状态损坏、未知高版本不阻断有效运行配置读取。
+- 08d：测试Root／模块隔离；非敏感草稿→外部修改→刷新／重启后仍按原基线正确比较，敏感输入不持久化。
 
-- 08a：测试未接管配置仍以文件为准，点击接管只导入、不重写等价文件；实现状态转换。
-- 08b：测试外部单方修改吸收、无交集修改可合并、同字段冲突409；一次实现一个分支。
-- 08c：测试空字符串／false／未设置不混淆，未知字段和人工正文保留。
-- 08d：测试 Root/模块独立实例及 scope 隔离；草稿创建→外部修改→刷新→重启后仍用原基线正确合并。
-
-验证：`node --test tools/agents-workbench/tests/config-store.test.js`。预期冲突场景工程字节不变，无“数据库覆盖一切”的后台同步。
+验证：`node --test tools/agents-workbench/tests/local-state.test.js`。冲突时来源文件保持，工作台退出后原生消费者仍读取同一值。
 
 ### 任务09：配置应用、回读与中断恢复
 
-文件：`scripts/lib/configuration-file-io.js`、`tests/configuration.test.js`、`src/config-store.js`。
+文件：`scripts/lib/configuration-file-io.js`、`tests/configuration.test.js`、`src/local-state.js`。
 
 - 09a：测试plan后变化、新文件抢先创建、锁内检查到写入窗口的并发注入；分别验证受控CLI互斥与非协作编辑器的检测边界。
 - 09b：测试每个写入点故障注入，只有未被再次修改的文件允许恢复；优先复用owner回执。
-- 09c：测试“文件写完DB未提交”与“DB候选保存但未写文件”两类重启恢复；实现6.4所述跨资源提交逻辑。
+- 09c：测试“草稿保存尚未写配置”“部分文件已写”“全部文件已写但UI摘要未更新”三类中断；以owner回执及实际文件判断，缺少摘要不导致重放或回滚。
 - 09d：测试无变更保存幂等、BOM/CRLF/LF/CR兼容以及最终读回值一致；不以退出0代替matched。
 
-验证：`node --test tools/agents-workbench/tests/configuration.test.js tools/agents-workbench/tests/config-store.test.js`。预期全部失败注入有确定状态，无静默覆盖／自动重放。
+验证：`node --test tools/agents-workbench/tests/configuration.test.js tools/agents-workbench/tests/local-state.test.js`。预期全部失败注入有确定状态，无静默覆盖／自动重放。
 
 ### 任务10：IRIS工程配置适配
 
@@ -744,6 +653,7 @@ test('WB-02 creates schema version 1 and enables foreign keys', () => {
 - 10b：将`sync-env-config.js`中可复用转换和校验抽成函数，旧CLI仍调用同函数；只处理本次字段。
 - 10c：分别测试直连／受管MCP、其它服务保留、显式disabled、TLS false、端口字符串归一；保存必须覆盖实际消费者来源，不只改一个无效副本。
 - 10d：分别测试connected/offline、环境别名、contextMode、需求类型；切换开发方式有活动任务时沿owner停止，不由普通配置UI强制切换。
+- 10e：按6.5迁移IRIS自有配置域的Node/PowerShell/Agent消费者、初始化和更新；覆盖JSONC新建、legacy读取、双格式冲突、迁移与回退。原生MCP JSON/TOML保持宿主契约，不能通过更名冒充支持。
 
 验证：`node --test tools/agents-workbench/tests/configuration.test.js scripts/tests/iris-development-config.tests.js`。旧配置保值与新建配置均通过；远端连通不在该测试内。
 
@@ -755,6 +665,7 @@ test('WB-02 creates schema version 1 and enables foreign keys', () => {
 - 11b：测试个人配置不随工程切换被复制；更新环境变量绑定必须显式显示影响宿主重启，不假装现有进程已继承。
 - 11c：复用知识provider解析及默认值，测试模型／维度／提供方变化使相关索引标记不匹配，不删除旧库。
 - 11d：用户级配置只在明确选择时绑定环境变量；读取／预览不创建TODO文件或自动改注册表。
+- 11e：沿6.5覆盖BOS／知识各入口的JSONC读写与兼容；既有私有路径绑定保持，敏感字段不写公共模板。原知识／向量存储不因工作台去SQLite而迁移。
 
 验证：`node --test tools/agents-workbench/tests/configuration.test.js tools/agents-workbench/tests/knowledge.test.js`，再运行`node --test plugins/bos-plugin/tests/*.tests.js`的受影响组。使用合成配置，禁止真实BOS连接。
 
@@ -786,7 +697,7 @@ test('WB-02 creates schema version 1 and enables foreign keys', () => {
 文件：`src/engine-adapter.js`、`tests/knowledge.test.js`。
 
 - 14a：本地检索用既有knowledge-query加local-only，断网夹具必须返回来源、行号和本地模式。
-- 14b：测试install-index/remove-index与物理索引状态分开，原工作台db不复制业务vectors。
+- 14b：测试install-index/remove-index与物理索引状态分开，工作台不复制业务vectors，保留已有索引／缓存数据库。
 - 14c：测试preview返回外发目录、provider、模型和费用未知值；只有范围授权后才能build，新增目录必须重新预览。
 - 14d：故障注入中断后按原构建缓存续建；只在complete与remainingVectors满足owner判据后显示完整，export沿原校验。
 
@@ -804,14 +715,14 @@ test('WB-02 creates schema version 1 and enables foreign keys', () => {
 
 验证：`node --test tools/agents-workbench/tests/documents.test.js tools/agents-workbench/tests/ui.test.js`。UI测试使用维护者Playwright依赖与本地浏览器，不向业务项目分发浏览器包。再用Agent浏览器人工核对1280与1920宽度、键盘导航、Console/Network无异常、刷新持久化和Root/模块多窗口不串数据。
 
-### 任务16：EXE启动、离线分发和数据库备份
+### 任务16：EXE启动、离线分发和文件恢复
 
 文件：`windows/WorkbenchLauncher.cs`、`launch.ps1`、`build-package.ps1`、`build/build-assets.js`、`tests/packaging.test.js`。
 
 - 16a：启动器先在无Node环境展示缺项并引导ai-dev-offline；返回后校验24.22.3并启动。最小EXE及可信安装依赖闭包前移到第一里程碑，正式包完善仍归本任务。
 - 16b：打包UI依赖、schema校验器、可信resolver和guides快照，所有输入记录revision／hash／许可；在无node_modules目录运行。
 - 16c：测试启动器重复打开复用原实例、退出不遗留自有进程、活动任务关闭有明确信息；不杀用户其它Node／MCP。
-- 16d：数据库备份使用SQLite一致性backup而非仅复制主db；备份读回integrity_check，恢复先关闭连接并校验schema，DPAPI跨用户失败明确提示。
+- 16d：复用owner文件备份／回执与条件恢复，验证格式迁移前后及中断后的原字节保护；普通工作台导出只含非敏感状态及回执引用，跨机凭据按原来源重配，不新增数据库备份流程。
 - 16e：断网、无开发工具路径、中文空格路径下实际解压运行，复用 ai-dev-offline 部署的 Node 24.22.3，验证工作台及其框架子进程解析到同一运行时；不静默安装或改全局PATH。
 
 验证：`node --test tools/agents-workbench/tests/packaging.test.js`；`powershell.exe -NoProfile -File tools/agents-workbench/build-package.ps1`。预期固定ZIP、摘要核对通过，断网仍可接入已有工程和读手册。签名／组织应用控制在发布验收中单列，不宣称普通exe构建成功即所有现场可运行。
@@ -832,9 +743,9 @@ test('WB-02 creates schema version 1 and enables foreign keys', () => {
 
 文件：`tools/agents-workbench/README.md`、`tools/README.md`、根`README.md`、`docs/guides/agents-workbench.md`、`docs/README.md`、`docs/update-agents.md`、受影响owner manifest及`releases/plugin/<owner>/<version>.md`、维护记忆／日志／backlog。
 
-- 18a：记录工作台与框架版本兼容矩阵、源仓／业务项目边界、数据目录、恢复与卸载保留策略。
+- 18a：记录工作台与框架版本兼容矩阵、源仓／业务项目边界、配置来源、本机状态位置、JSONC迁移回退、恢复与卸载保留策略。
 - 18b：受影响插件严格递增版本；一个完整交付目的一个发布记录，不为每个微步骤发一个版本。schema生成物、catalog和直接依赖范围一并核对。
-- 18c：新增`.github/workflows/workbench.yml`，Node核心三平台矩阵，DPAPI／启动器Windows专项；发布只依据实际运行结果。
+- 18c：新增`.github/workflows/workbench.yml`，Node核心及JSONC消费者三平台矩阵，原生凭据传输／启动器Windows专项；发布只依据实际运行结果。
 - 18d：在授权的新工程、旧全量工程、旧按需工程、Overlay各完成真实路径；人工只判断业务事实与可用性，不要求手改JSON救流程。
 - 18e：记录学习与操作成本：用户需要理解的概念、必填字段、手工文件编辑次数、确认次数、故障恢复动作。目标是常规接入无需手工编辑配置；不预先编造节约比例或完成时间。
 
@@ -862,17 +773,19 @@ git diff --cached --check
 ### 12.1 必过路径
 
 1. 首次部署：无Node时启动器引导既有安装助手→选无框架的非空工程→安装→补装→配置/Agent补全→启用→客户端入口读回；已有文件保留，不要求先打开配置文件。
-2. 已有工程：只读添加无改动→导入一个配置域→改值→原CLI读取一致→退出重开一致。
-3. 外部修改：Agent改文件→UI刷新识别→无冲突吸收／有冲突停在该字段，绝不静默覆盖。
+2. 已有工程：只读接入无改动→直接读取一个配置域→改值→原CLI读取一致→退出重开一致。
+3. 外部修改：Agent经同一接口或编辑器改文件→UI重读／草稿重新计划→有冲突停在该字段；受控写入互斥与外部编辑窗口按6.4分别验收。
 4. 共享Overlay：两个工程共享能力，配置隔离；更新共享一次，刷新各自上下文，不误裁剪离线成员资源。
-5. 凭据：数据库／WAL／日志／普通导出无明文；必要运行实例私有且未跟踪；错误账号不冒充连接成功。
-6. 中断恢复：每个跨文件写入点、DB提交前后、子进程取消均可准确展示状态，不自动重放未知外部动作。
+5. 凭据：工作台草稿／日志／提示词／普通导出无明文；必要运行实例私有且未跟踪；错误账号不冒充连接成功。
+6. 中断恢复：每个文件写入点、回执／UI摘要更新前后、子进程取消均可准确展示状态，不自动重放未知外部动作。
 7. 手册：断网可读，可正确打开相关配置页面，恶意内容不能执行代码或访问私有文件。
 8. 知识：无向量／无服务可本地查询；外发与建库显式授权，断点续建不丢已保存数据。
 9. 脱离工作台：关闭／卸载UI后原框架继续工作，配置和恢复资料不被删除。
 10. 离线包：只有任务17实跑通过才验收完整断网安装／更新。
 11. 宿主接续：已验证接口实际派发/返回；无接口时复制带工程上下文的提示词→用户执行→返回重查。两者均不能把发起当完成。
 12. Root/模块：从Root进入模块和模块独立启动取得同一模块身份；并行窗口不串配置，共享操作协调且不改变其它模块启用状态。
+13. JSONC消费者：每个迁移域均有实际入口清单与含注释夹具，从新建／旧项目迁移到安装更新、CLI／Agent／PowerShell读取及回退闭合；无源仓、无node_modules可用，JSON与JSONC同时存在不静默选值。
+14. 脱离UI：直接用配置CLI读取／修改后原消费者生效，重新打开UI读取同一值；清除非敏感本机状态不影响框架和已有知识／向量库。
 
 ### 12.2 不得替代的证据
 
@@ -880,7 +793,8 @@ git diff --cached --check
 - 文件保存不等于MCP宿主已加载。
 - 工具发现不等于连接认证或业务调用成功。
 - UI表单提交不等于所有消费者读到了同一值。
-- DB备份成功不等于异机凭据可解密。
+- 公共JSONC parser通过不等于所有消费者、模板和已部署项目已支持；原生格式与回退也需实测。
+- 非敏感状态导出不等于跨机凭据可恢复。
 - Windows通过不等于macOS/Linux完整可用。
 - 新版源仓发布不等于已部署副本已升级。
 
@@ -888,19 +802,19 @@ git diff --cached --check
 
 ### 已作出的推荐取舍
 
-- 统一配置模型与SQLite中心值得建设，但只接管明确支持的配置域，避免一次性改写全部运行时。
+- 首版工作台不新增SQLite；统一配置语义、JSONC读写和owner入口。运行文件为事实源，无数据库投影或接管步骤；既有知识／向量组件内部存储沿用。
 - 初版EXE是可靠启动入口，界面仍由浏览器承载；不把WebView2作为所有人上手前置条件。
-- 凭据使用DPAPI加密入库；不为首版自建密码库或跨机密钥同步。
-- 业务执行状态继续由原框架负责，SQLite不另造第二个调度器、插件状态机、远端锁或向量引擎。
+- 凭据复用原owner与安全传输；JSONC的注释能力不授权把凭据写入模板、普通草稿或共享文件。
+- 业务执行状态继续由原框架负责，工作台复用回执并汇总观察，不另造调度器、插件状态机、远端锁或向量引擎。
 - 配置schema与UI元数据是必要新增：现有字段散落且不能可靠自动推导。其成本由维护者承担，不让使用者填写schema。
 - 新的配置服务必须同时可供CLI／Agent使用，不能只为UI专门再造一条语义不一致的写入链。
 
 ### 实施前的关键验证，不留给使用者猜
 
-- DPAPI往返、stdin保密、WAL无明文及备份恢复：任务07/16实测。
+- 原凭据来源、stdin／owner安全通道、草稿与导出脱敏及文件恢复：任务07/16实测。
 - 原配置工具的读写与恢复副作用：任务03/09对照，特别是configure-project.main。
 - 老版本／Overlay的配置归属与未知字段保存：任务08/10/12实测。
-- Node:sqlite实际运行版本与打包：任务02/16实测，不能仅凭文档支持宣称兼容。
+- JSONC所有消费者、编辑保留注释、迁移回退、Node22兼容及离线依赖闭包：任务02/10/11/12/16实测，不能仅凭helper通过宣称支持。
 - 公司应用控制／杀软与EXE签名：在指定试点机器验收；不能靠另取文件名绕过组织策略。
 - Markdown净化与API隔离：任务04/15实测。
 
@@ -912,7 +826,7 @@ git diff --cached --check
 
 ## 14. 建议推进顺序与减负验收
 
-1. **第一里程碑：首次与已有工程双路径最小闭环**。任务01–06及10/12/15/16必要切片：最小EXE、环境复用、工程识别、可信安装、一个配置域、客户端入口/提示词交接、读回。交付可操作界面，不先完成全部基础设施再做UI。
+1. **第一里程碑：首次与已有工程双路径最小闭环**。任务01–06及10/12/15/16必要切片：最小EXE、环境复用、工程识别、可信安装、一个全消费者兼容的配置域、客户端入口/提示词交接、原CLI与UI双向读回。交付可操作界面，不先完成全部基础设施再做UI。
 2. **第二里程碑：配置与Agent协同**。完成07–11、13及15相关部分：凭据、草稿、并发与恢复、工程探索交接、多宿主适配；验证旧版本与未知自定义分支。
 3. **第三里程碑：完整管理范围**。完成Root/模块视图、插件生命周期、更新、MCP/连接、知识/向量、手册和任务恢复；所有目标均有确定性执行或明确Agent/人工接续路径，不留假按钮。
 4. **第四里程碑：离线分发与推广验收**。完成16–18：环境包、工作台包和框架离线包分别校验，干净机断网、历史工程、Overlay及多客户端实测；未验证范围如实列出。
