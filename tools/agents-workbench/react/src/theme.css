@@ -1,0 +1,171 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@font-face {
+  font-family: "Workbench Maple Mono";
+  src: url("./fonts/MapleMono-NF-CN-Regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Workbench Maple Mono";
+  src: url("./fonts/MapleMono-NF-CN-Medium.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Workbench Maple Mono";
+  src: url("./fonts/MapleMono-NF-CN-SemiBold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Workbench Maple Mono";
+  src: url("./fonts/MapleMono-NF-CN-Bold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+  --background: #0f0f0f;
+  --foreground: #f5f5f5;
+  --popover: #1c1c1c;
+  --popover-foreground: var(--foreground);
+  --primary: #f4f4f4;
+  --primary-foreground: #171717;
+  --secondary: #262626;
+  --secondary-foreground: var(--foreground);
+  --muted: #171717;
+  --muted-foreground: #a3a3a3;
+  --accent: #2b2b2b;
+  --accent-foreground: var(--foreground);
+  --border: #2f2f2f;
+  --input: #454545;
+  --ring: #919191;
+  --destructive: #f08e8e;
+  --sidebar: #171717;
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: #f4f4f4;
+  --sidebar-primary-foreground: #171717;
+  --sidebar-accent: #313131;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+  --radius: 0.375rem;
+  --selection: #484848;
+  --selection-foreground: #fafafa;
+}
+
+:root:not(.dark) {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #171717;
+  --popover: #ffffff;
+  --primary: #262626;
+  --primary-foreground: #fafafa;
+  --secondary: #eeeeee;
+  --muted: #f6f6f6;
+  --muted-foreground: #555555;
+  --accent: #eaeaea;
+  --border: #dedede;
+  --input: #bdbdbd;
+  --ring: #666666;
+  --destructive: #a52e32;
+  --sidebar: #f5f5f5;
+  --sidebar-primary: #262626;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #e7e7e7;
+  --sidebar-accent-foreground: #171717;
+  --selection: #d8d8d8;
+  --selection-foreground: #171717;
+}
+
+@theme inline {
+  --font-sans: "Workbench Maple Mono", "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono: "Workbench Maple Mono", "Cascadia Mono", Consolas, "Microsoft YaHei UI", monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  body { @apply bg-sidebar font-sans text-foreground antialiased; }
+  input { caret-color: var(--foreground); }
+  ::selection { background: var(--selection); color: var(--selection-foreground); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.overview-hero {
+  min-height: 9.5rem;
+}
+.overview-art {
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: min(65%, 52rem);
+  height: 100%;
+  object-fit: cover;
+  object-position: 76% center;
+  mask-image: linear-gradient(to right, transparent, black 42%);
+  pointer-events: none;
+}
+.overview-copy {
+  max-width: 59%;
+}
+
+@media (max-width: 640px) {
+  .overview-copy { max-width: 100%; }
+  .overview-art {
+    position: relative;
+    float: right;
+    width: 48%;
+    height: 5rem;
+    margin: 0.75rem 0 0 0.5rem;
+    mask-image: linear-gradient(to right, transparent, black 32%);
+  }
+}
+
+.guide-content > :where(p, ul, ol) {
+  max-inline-size: 68em;
+  overflow-wrap: anywhere;
+}

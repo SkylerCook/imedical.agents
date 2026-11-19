@@ -4,7 +4,7 @@
 
 | 工具 | 使用说明 | 交付包（本机生成） |
 |---|---|---|
-| .agents 工程工作台 UI 原型 | [启动与演示](agents-workbench/prototype/README.md) | 本地 Node 预览；模拟交互，无正式 ZIP |
+| .agents 工程工作台 | [离线运行与交互演示](agents-workbench/react/README.md) | `dist/agents-workbench-react.zip`，内含便携 Node 24 和界面字体 |
 | IRIS 内网源码导出与离线交付 | [iris-code-export](iris-code-export/README.md) | `dist/iris-code-export.zip` |
 | IRIS Windows 项目源码基线（增补、检查、按项目版本保存及导入复用） | [GUI 操作说明](iris-code-export/GUI.md) | `dist/iris-code-export-gui.zip` |
 | AI 开发工具安装与 IRIS/Caché 项目配置 GUI（Windows 10/11 x64） | [GUI 操作说明](ai-dev-offline/GUI.md) | 工具能力 `dist/ai-dev-offline-tools.zip`；安装原包 `dist/ai-dev-offline-packages.zip`；ObjectScript 扩展 `dist/ai-dev-offline-extensions.zip` |

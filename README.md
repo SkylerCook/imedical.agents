@@ -714,4 +714,4 @@ WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codeb
 
 ### 工程工作台 UI 原型
 
-可交互原型见 [启动与演示](tools/agents-workbench/prototype/README.md)，覆盖独立工程、首次接入、Overlay 和 Agent 任务接续。提供独立交互演示与实际工程入口，支持 IRIS/Web/现有 SFTP 配置及 BOS/知识个人配置的预览、保存和读回。部署、插件执行、宿主自动调用与向量构建仍待接入，完整范围见工具 README。工作台不随业务能力包分发。
+工作台提供实际工程入口和独立交互演示，支持 IRIS／Web／现有 SFTP 配置及 BOS／知识个人配置的预览、保存和读回。交互演示覆盖首次接入、独立工程、Overlay 和 Agent 任务接续。Windows x64 离线 ZIP 随带便携 Node 24 和界面字体，解压后可双击启动。[运行与能力范围](tools/agents-workbench/react/README.md)
