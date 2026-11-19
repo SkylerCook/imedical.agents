@@ -1,6 +1,6 @@
 # 开发工具离线安装助手
 
-Windows 10/11 x64，使用系统 Windows PowerShell 5.1 和 .NET Framework。当前为 r8，工具能力和离线安装原包分别交付。
+Windows 10/11 x64，使用系统 Windows PowerShell 5.1 和 .NET Framework。当前为 r9，工具能力和离线安装原包分别交付。
 
 正式工具包为仓库根目录下 `tools/dist/ai-dev-offline-tools.zip`，安装原包为 `tools/dist/ai-dev-offline-packages.zip`。首次使用时将两份 ZIP 解压到同一个目录，得到以下结构，双击 `tools/开发工具安装助手.exe`。
 
@@ -61,15 +61,23 @@ ObjectScript 窗口会检查当前版本，替换前自动将本机已安装版�
 
 1. 进入 `tools`，双击 `开发工具安装助手.exe`。保留同目录的脚本和 vendor 文件夹一起使用。
 2. 选择软件安装目录，按需选择“安装并配置”“已有工具，仅配置”或“仅安装，保留环境”。环境变量默认选“当前用户”，然后点击“开始安装与配置”。现场业务使用的旧 Java/Python，可先选择“仅安装，保留环境”验证新程序。
-3. 点击“项目配置…”，选择实际项目根目录，核对自动填入的程序路径，填写现场服务器、HTTP/HTTPS、Web 端口和命名空间。
+3. 如果医院的 IRIS/Caché 使用自签名证书或内部 CA，先完成[医院 HTTPS 证书](#医院-https-证书)信任设置。点击“项目配置…”，选择实际项目根目录，核对自动填入的程序路径，填写现场服务器、HTTP/HTTPS、Web 端口和命名空间。
 4. 按需配置 MCP/TOML 和账号密码，点击“预览配置”，核对后点击“应用配置”。尚未部署 MCP 时允许先保存，结果会显示待安装。
-5. 用所选 VS Code 打开项目，重新加载窗口并验证连接。每个项目分别执行第 3～5 步。
+5. 用所选 VS Code 打开项目，重新加载窗口并验证连接。后续工程沿用已信任的医院证书，只需配置各自的连接信息。
 
 实际连接使用 InterSystems 扩展。ObjectScript 与 Server Manager 可通过下文的扩展补充包安装，Language Server 按现场需要提前准备 VSIX，通过 VS Code 扩展菜单的“从 VSIX 安装”安装。MCP 功能还需要把 `iris-agentic-dev.exe` 部署到配置中的路径，再重启 MCP 客户端。这些扩展和 MCP 程序由现场环境或项目能力包提供。
 
 项目配置会按勾选项更新项目 `.vscode/settings.json`、`.mcp.json`、`.iris-agentic-dev.toml` 以及所选 VS Code 用户设置。连接凭据与配置备份留在本机，详细落点和恢复方法见下文。
 
 以后更新时关闭助手，将新的 `ai-dev-offline-tools.zip` 解压到相同工具根目录并覆盖 `tools`。安装原包版本匹配时继续复用 `packages`。遇到错误点击主窗口“导出日志…”，将日志和错误截图反馈。
+
+## 医院 HTTPS 证书
+
+1. 从医院管理员取得单张公开证书（`.cer`、`.crt` 或 `.pem`）及其 SHA-256 指纹。内部 CA 签发的服务器证书使用医院根 CA，自签名服务器使用它自己的公开证书。
+2. 在主窗口点击“医院 HTTPS 证书…”，选择证书。核对显示的主题、颁发者、有效期和 SHA-256 指纹，确认后导入当前 Windows 用户的受信任根证书库。相同证书若已在信任库中，助手会显示已信任。
+3. 导入后重启 VS Code，使用 ObjectScript 或 InterSystems Server Manager 验证实际连接。同一电脑和 Windows 用户可让该医院的多个工程共用这份信任。服务器更换证书后，按新证书链确认是否需要更新信任。
+
+助手只处理单张自签名公开证书。证书信任使用 Windows 证书库，连接参数仍由“项目配置…”填写。“MCP 校验 HTTPS 证书”控制 MCP 连接，VS Code 的证书校验沿用原设置。[InterSystems 自签名证书说明](https://docs.intersystems.com/components/csp/docbook/DocBook.UI.Page.cls?KEY=GVSCO_serverprofile)
 
 ## 安装固定版本 ObjectScript 扩展
 

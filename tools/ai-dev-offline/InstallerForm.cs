@@ -194,12 +194,12 @@ namespace AiDevOffline {
             progress.SetBounds(32,646,916,5);progress.Anchor=AnchorStyles.Left|AnchorStyles.Right|AnchorStyles.Top;Controls.Add(progress);
             log.SetBounds(32,664,916,34);log.Multiline=true;log.ReadOnly=true;log.ScrollBars=ScrollBars.Vertical;
             log.BackColor=Color.White;log.BorderStyle=BorderStyle.FixedSingle;log.Anchor=AnchorStyles.Left|AnchorStyles.Right|AnchorStyles.Top|AnchorStyles.Bottom;Controls.Add(log);
-            restore=ButtonAt("恢复环境变量…",32,712,155);restore.Anchor=AnchorStyles.Bottom|AnchorStyles.Left;
+            restore=ButtonAt("恢复环境变量…",32,712,135);restore.Anchor=AnchorStyles.Bottom|AnchorStyles.Left;
             restore.Click+=Restore;Controls.Add(restore);
-            exportLog.Text="导出日志…";exportLog.SetBounds(200,712,120,34);
+            exportLog.Text="导出日志…";exportLog.SetBounds(177,712,94,34);
             exportLog.Anchor=AnchorStyles.Bottom|AnchorStyles.Left;exportLog.Enabled=false;
             exportLog.Click+=ExportLog;Controls.Add(exportLog);
-            project.Text="项目配置…";project.SetBounds(334,712,130,34);
+            project.Text="项目配置…";project.SetBounds(281,712,96,34);
             project.Anchor=AnchorStyles.Bottom|AnchorStyles.Left;
             project.Click+=delegate {
                 if(running || confirming)return;
@@ -208,7 +208,7 @@ namespace AiDevOffline {
                 using(ProjectConfigurationForm dialog=new ProjectConfigurationForm(root.Text,components,selected,Execute)) dialog.ShowDialog(this);
             };
             Controls.Add(project);
-            extension.Text="ObjectScript 扩展…";extension.SetBounds(478,712,165,34);
+            extension.Text="ObjectScript 扩展…";extension.SetBounds(387,712,134,34);
             extension.Anchor=AnchorStyles.Bottom|AnchorStyles.Left;
             extension.Click+=delegate {
                 if(running || confirming)return;
@@ -218,7 +218,11 @@ namespace AiDevOffline {
                 using(ObjectScriptInstallForm dialog=new ObjectScriptInstallForm(root.Text,version,selected,Execute))dialog.ShowDialog(this);
             };
             Controls.Add(extension);
-            materials.Text="离线包…";materials.SetBounds(650,712,80,34);materials.Anchor=AnchorStyles.Bottom|AnchorStyles.Left;
+            Button certificate=ButtonAt("医院 HTTPS 证书…",528,712,130);
+            certificate.Anchor=AnchorStyles.Bottom|AnchorStyles.Left;
+            certificate.Click+=delegate {if(!running && !confirming)HospitalCertificate.Show(this);};
+            Controls.Add(certificate);
+            materials.Text="离线包…";materials.SetBounds(665,712,65,34);materials.Anchor=AnchorStyles.Bottom|AnchorStyles.Left;
             materials.Click+=delegate {using(MaterialLocationForm dialog=new MaterialLocationForm(materialsPath)){
                 if(dialog.ShowDialog(this)==DialogResult.OK){materialsPath=dialog.SelectedPath;
                     try {ToolLocations.Save(ToolLocations.PreferenceFile(),new Dictionary<string,object>{{"materialsPath",materialsPath}});}

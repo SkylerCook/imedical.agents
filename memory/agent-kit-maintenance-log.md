@@ -1,5 +1,10 @@
 # imedical.agents 维护日志
 
+## 2026-11-19 离线助手医院 HTTPS 证书
+
+- ai-dev-offline r9 在主窗口提供医院证书入口。预览 SHA-256 指纹后可导入当前 Windows 用户受信任根证书库，已信任证书直接复用。仅需更新工具 ZIP，操作见[现场说明](../tools/ai-dev-offline/GUI.md#医院-https-证书)。
+- Windows PowerShell 5.1 GUI 专项 42/42，隔离证书库覆盖首次导入和重复选择，拒绝证书包、私钥容器、失效和签名不符的证书。一个授权现场实例通过 Windows TLS 验证，新版助手读回现有信任，无凭据的 Atelier 探测到达认证环节。现场首次写入和 VS Code 扩展登录仍需实机验证。
+
 ## 2026-11-19 HISUI 更新源迁移
 
 - 更新脚本、CI 固定提交拉取和只读月检改用 Gitee 的 `wanghc123/hisui`。当日 `master` 为 `c004889`，比本地固定提交 `4c09319` 多 10 个提交。业务副本沿既有能力包更新取得快照。

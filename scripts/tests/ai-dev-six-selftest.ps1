@@ -7,7 +7,7 @@ try {
     [void][IO.Directory]::CreateDirectory((Join-Path $root 'fake'))
     Copy-Item -LiteralPath "$source/manifest.json","$source/gui-worker.ps1" -Destination $root
     $compiler=Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
-    $files=@((Join-Path $source 'InstallerForm.cs'),(Join-Path $source 'ProjectConfigurationForm.cs'),(Join-Path $PSScriptRoot 'fixtures/ai-dev-six-selftest.cs'))
+    $files=@((Join-Path $source 'InstallerForm.cs'),(Join-Path $source 'ProjectConfigurationForm.cs'),(Join-Path $source 'HospitalCertificate.cs'),(Join-Path $PSScriptRoot 'fixtures/ai-dev-six-selftest.cs'))
     & $compiler /nologo /codepage:65001 /target:exe /platform:x64 /main:AiDevOffline.SleepCode "/out:$root/fake/Code.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.Security.dll @files
     if($LASTEXITCODE -ne 0){throw 'fixture compile failed'}
     & $compiler /nologo /codepage:65001 /target:winexe /platform:x64 /main:AiDevOffline.SixSelfTest "/out:$root/selftest.exe" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.Security.dll @files

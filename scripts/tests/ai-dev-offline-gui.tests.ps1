@@ -44,11 +44,84 @@ try {
     Assert ($form.Contains('if(running || confirming)return;')) 'reentrant confirmation protection missing'
     $compiler=Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
     $formAssembly=Join-Path $testRoot 'InstallerForm.dll'
-    & $compiler /nologo /codepage:65001 /target:library /platform:x64 "/out:$formAssembly" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.Security.dll (Join-Path $source 'InstallerForm.cs') (Join-Path $source 'ProjectConfigurationForm.cs')
+    & $compiler /nologo /codepage:65001 /target:library /platform:x64 "/out:$formAssembly" /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll /r:System.Security.dll (Join-Path $source 'InstallerForm.cs') (Join-Path $source 'ProjectConfigurationForm.cs') (Join-Path $source 'HospitalCertificate.cs')
     Assert ($LASTEXITCODE -eq 0) 'GUI compilation failed'
     $assembly=[Reflection.Assembly]::Load([IO.File]::ReadAllBytes($formAssembly))
     $formType=$assembly.GetType('AiDevOffline.InstallerForm')
     $staticMethods=[Reflection.BindingFlags]'Static,NonPublic'
+    $certificates=$assembly.GetType('AiDevOffline.HospitalCertificate')
+    $readCertificate=$certificates.GetMethod('ReadPublicCertificate',$staticMethods)
+    $containsCertificate=$certificates.GetMethod('Contains',$staticMethods)
+    $importCertificate=$certificates.GetMethod('Import',$staticMethods)
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
+public static class TestCertificateStore {
+    [DllImport("crypt32.dll")]
+    static extern IntPtr CertOpenStore(IntPtr provider, uint encoding, IntPtr crypto, uint flags, IntPtr parameter);
+    [DllImport("crypt32.dll")]
+    static extern bool CertCloseStore(IntPtr store, uint flags);
+    public static X509Store Open() {
+        IntPtr handle = CertOpenStore(new IntPtr(2), 0, IntPtr.Zero, 0, IntPtr.Zero);
+        if (handle == IntPtr.Zero) throw new InvalidOperationException("Could not open a memory certificate store.");
+        try { return new X509Store(handle); }
+        finally { CertCloseStore(handle, 0); }
+    }
+}
+'@
+    $key=[Security.Cryptography.RSA]::Create(2048)
+    $fixtureCertificate=$null
+    $selectedCertificate=$null
+    $pemCertificate=$null
+    $store=$null
+    try {
+        $certRequest=[Security.Cryptography.X509Certificates.CertificateRequest]::new(
+            'CN=Offline HTTPS Fixture',$key,[Security.Cryptography.HashAlgorithmName]::SHA256,
+            [Security.Cryptography.RSASignaturePadding]::Pkcs1)
+        $now=[DateTimeOffset]::UtcNow
+        $fixtureCertificate=$certRequest.CreateSelfSigned($now.AddDays(-1),$now.AddDays(1))
+        $der=$fixtureCertificate.RawData
+        $cer=Join-Path $testRoot 'hospital.cer'
+        [IO.File]::WriteAllBytes($cer,$der)
+        $pem=Join-Path $testRoot 'hospital.pem'
+        $pemBlock="-----BEGIN CERTIFICATE-----`n"+[Convert]::ToBase64String($der)+"`n-----END CERTIFICATE-----`n"
+        [IO.File]::WriteAllText($pem,$pemBlock)
+        $selectedCertificate=$readCertificate.Invoke($null,@($cer.PSObject.BaseObject))
+        $pemCertificate=$readCertificate.Invoke($null,@($pem.PSObject.BaseObject))
+        $fingerprint=$certificates.GetMethod('Fingerprint',$staticMethods)
+        $expected=(Get-FileHash -LiteralPath $cer -Algorithm SHA256).Hash
+        Assert (($fingerprint.Invoke($null,@($selectedCertificate.PSObject.BaseObject)) -ceq $expected) -and
+            ($fingerprint.Invoke($null,@($pemCertificate.PSObject.BaseObject)) -ceq $expected)) 'certificate formats produced different fingerprints'
+        $store=[TestCertificateStore]::Open()
+        $storeArgs=@($store.PSObject.BaseObject,$selectedCertificate.PSObject.BaseObject)
+        Assert (-not $containsCertificate.Invoke($null,$storeArgs)) 'certificate appeared before import'
+        Assert ($importCertificate.Invoke($null,$storeArgs)) 'public certificate import failed'
+        Assert ($containsCertificate.Invoke($null,$storeArgs)) 'certificate missing after import'
+        Assert (-not $importCertificate.Invoke($null,@($store.PSObject.BaseObject,$pemCertificate.PSObject.BaseObject))) 'duplicate certificate was reimported'
+        Assert ($store.Certificates.Count -eq 1) 'duplicate certificate was stored'
+
+        [IO.File]::WriteAllText($pem,($pemBlock+$pemBlock))
+        $pfx=Join-Path $testRoot 'private.pfx'
+        [IO.File]::WriteAllBytes($pfx,$fixtureCertificate.Export([Security.Cryptography.X509Certificates.X509ContentType]::Pfx))
+        $der[-1]=$der[-1] -bxor 1
+        [IO.File]::WriteAllBytes($cer,$der)
+        foreach($invalid in @($pem,$pfx,$cer)){
+            $rejected=$false
+            try {$readCertificate.Invoke($null,@($invalid.PSObject.BaseObject)).Dispose()} catch {$rejected=$true}
+            Assert $rejected 'bundle, private key or invalid signature accepted'
+        }
+        $expired=$certRequest.CreateSelfSigned($now.AddDays(-2),$now.AddDays(-1))
+        try {
+            $rejected=$false
+            try {$importCertificate.Invoke($null,@($store.PSObject.BaseObject,$expired.PSObject.BaseObject)) | Out-Null} catch {$rejected=$true}
+            Assert ($rejected -and $store.Certificates.Count -eq 1) 'expired certificate changed the store'
+        } finally {$expired.Dispose()}
+    } finally {
+        foreach($disposable in @($store,$pemCertificate,$selectedCertificate,$fixtureCertificate,$key)){
+            if($null -ne $disposable){$disposable.Dispose()}
+        }
+    }
     $locations=$assembly.GetType('AiDevOffline.ToolLocations')
     $preferenceFile=Join-Path $testRoot 'preferences/last-project.json'
     $preferences=New-Object 'Collections.Generic.Dictionary[string,object]'
