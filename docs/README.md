@@ -8,7 +8,7 @@
 
 | 目的 | 文档 |
 |---|---|
-| **第一次使用：让 Agent 部署 / 更新 `.agents`、提请求、宿主适配** | **[团队使用手册](guides/usage-manual.md)** |
+| **第一次使用：从工作台安装或更新 `.agents`，把任务接续给 Agent** | **[团队使用手册](guides/usage-manual.md)** |
 | 查看任意自有 skill / Agent 的用法 | [统一帮助](guides/capability-help.md) |
 | 查插件、skill、rule | [能力目录](guides/capability-catalog.md) |
 | 选择场景、查看请求示例 | [使用指南](guides/capability-guide.md) |
@@ -64,6 +64,6 @@
 
 项目按体系选择插件、自动补装偏好、已有项目迁移与 Overlay 共享资源见[插件按需部署](guides/plugin-deployment.md)。
 
-## 工作台规划
+## 工程工作台
 
-[.agents 工作台减负方案](agents-workbench-plan.md)：待实施方案，涵盖首次部署、已有工程、Overlay 和 Agent 客户端接续。本方案按用户指定保存在 docs，不代表工作台已发布；文中源码路径相对能力源仓根目录。
+Windows x64 标准工程试点支持首装、检查、预演、更新和复查，工程分析与插件初始化可通过复制请求交给现有 Agent 客户端。日常操作见[团队使用手册](guides/usage-manual.md)，执行影响与恢复见[安装更新 Runbook](update-agents.md#使用工作台安装与更新)。Overlay 写入继续走原流程，后续扩展见[工作台计划](agents-workbench-plan.md)。

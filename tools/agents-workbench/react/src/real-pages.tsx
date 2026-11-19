@@ -3,6 +3,7 @@ import { ArrowRight, Box, CircleCheck, CircleHelp, ClipboardCopy, FolderCog, Lin
 import { Button } from "@/components/ui/button";
 import { readGuides, readProject, useResource, type Domain, type ProjectSummary, type SettingsId } from "./api";
 import { GuideList, GuideReader, searchGuides } from "./manual";
+import { FrameworkPanel } from "./framework-panel";
 import { OverviewHero } from "./overview-hero";
 import { PluginsPage } from "./plugins-page";
 import { href, type Navigation, type Page } from "./routes";
@@ -61,6 +62,7 @@ function Home({ project, refresh }: { project: ProjectSummary; refresh: () => vo
   return <>
     <OverviewHero title="工程总览" description="查看当前工程读取结果，核对现有连接与配置来源。"
       actions={<><Button asChild><a href={href("config")}>核对工程配置</a></Button><Button variant="outline" onClick={refresh}>重新读取</Button></>} />
+    <FrameworkPanel onChanged={refresh} />
     <div className="mb-6 grid gap-4 sm:grid-cols-3">
       {stats.map(({ title, primary, detail, icon: Icon }) => <section key={title} className="min-w-0 rounded-lg border bg-muted p-4">
         <h3 className="flex items-center gap-2 text-sm text-muted-foreground"><Icon aria-hidden="true" className="size-4 shrink-0" />{title}</h3>

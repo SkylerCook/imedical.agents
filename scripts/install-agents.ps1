@@ -1,7 +1,9 @@
 ﻿param(
   [ValidateSet("ClaudeCode", "Codex", "CodeBuddy", "WorkBuddy", "WorkBuddyDonghua", "OpenCode", "Cursor", "GeminiCLI", "GitHubCopilot", "Qoder")]
   [string[]]$RuntimeAdapter = @(),
-  [switch]$Agent
+  [switch]$Agent,
+  [ValidatePattern("^[a-f0-9]{64}(,[a-f0-9]{64})*$")]
+  [string]$TrustedRuntimeTree
 )
 
 $ErrorActionPreference = "Stop"
@@ -127,16 +129,19 @@ function Write-PostInstallGuidance {
 Assert-AgentsNodeRuntime
 Assert-GitSparseCheckoutSubcommandAvailable
 
+if ($TrustedRuntimeTree -and (Test-Path -LiteralPath $target)) {
+  throw "Trusted first installation requires a project without .agents."
+}
 $installDeploymentToken = $null
 $installDeploymentEntry = Join-Path $target "scripts/plugin-deploy.js"
-if ((Test-Path -LiteralPath $installDeploymentEntry) -and -not $env:IMEDICAL_DEPLOYMENT_LOCK) {
+if ((-not $TrustedRuntimeTree) -and (Test-Path -LiteralPath $installDeploymentEntry) -and -not $env:IMEDICAL_DEPLOYMENT_LOCK) {
   $lockText = & node $installDeploymentEntry acquire-lock --project-root (Get-Location).Path --pid $PID
   if ($LASTEXITCODE -ne 0) { throw "Cannot acquire capability deployment lock" }
   $installDeploymentToken = ($lockText | ConvertFrom-Json).token
   if ($installDeploymentToken) { $env:IMEDICAL_DEPLOYMENT_LOCK = $installDeploymentToken }
 }
 try {
-if (Test-Path "$target\.git") {
+if ((-not $TrustedRuntimeTree) -and (Test-Path "$target\.git")) {
   $dirty = git -C $target status --porcelain
   if (($LASTEXITCODE -ne 0) -or $dirty) { throw "Cannot update a dirty or unreadable capability checkout" }
   git -C $target fetch --prune
@@ -145,8 +150,34 @@ if (Test-Path "$target\.git") {
   if ($LASTEXITCODE -ne 0) { throw "Capability pull failed" }
   Set-AgentsSparseCheckout
 } else {
-  git clone --filter=blob:none --no-checkout $repo $target
-  if ($LASTEXITCODE -ne 0) { throw "Capability clone failed" }
+  # Verify the tree before executing sparse bootstrap code. The guarded installation
+  # publishes the verified clone on the same volume and never overwrites an existing target.
+  $cloneTarget = $target
+  if ($TrustedRuntimeTree) {
+    $cloneTarget = Join-Path (Get-Location).Path (".agents-install-" + [Guid]::NewGuid().ToString("N"))
+    $null = New-Item -ItemType Directory -Path $cloneTarget -ErrorAction Stop
+  }
+  try {
+    git clone --filter=blob:none --no-checkout $repo $cloneTarget
+    if ($LASTEXITCODE -ne 0) { throw "Capability clone failed" }
+    if ($TrustedRuntimeTree) {
+      $verifyTree = @'
+const { execFileSync } = require('node:child_process');
+const { createHash } = require('node:crypto');
+const [root, approved] = process.argv.slice(1);
+const tree = execFileSync('git', ['--no-replace-objects', '-C', root, 'ls-tree', '-r', '-z', 'HEAD', '--', 'scripts', 'plugins', 'vendor', 'hooks'], { maxBuffer: 4194304 });
+const deployed = tree.toString('latin1').split('\0').filter(row => row.slice(row.indexOf('\t') + 1) !== 'scripts/install-agents.ps1');
+if (!approved.split(',').includes(createHash('sha256').update(deployed.join('\0'), 'latin1').digest('hex'))) process.exit(20);
+'@
+      & node -e $verifyTree -- $cloneTarget $TrustedRuntimeTree
+      if ($LASTEXITCODE -ne 0) { throw "Unrecognized framework execution tree. The project was not installed." }
+      [System.IO.Directory]::Move($cloneTarget, (Join-Path (Get-Location).Path $target))
+    }
+  } finally {
+    if ($TrustedRuntimeTree -and (Test-Path -LiteralPath $cloneTarget)) {
+      Remove-Item -LiteralPath $cloneTarget -Recurse -Force
+    }
+  }
   Set-AgentsSparseCheckout -Initial
   & node (Join-Path $target "scripts/plugin-deploy.js") configure --project-root (Get-Location).Path --auto-install false
   if ($LASTEXITCODE -ne 0) { throw "Plugin deployment configuration failed" }

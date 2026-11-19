@@ -11,6 +11,7 @@ function createFrameworkService(root) {
   let cookie, csrf;
   let busy = false;
   let initialBinding;
+  let preview;
   let observation = {status:root ? 'observing' : 'unbound',observedAt:null};
   function worker(action,expectedRevision) {
     return new Promise((resolve,reject) => {
@@ -23,13 +24,16 @@ function createFrameworkService(root) {
   async function observe() {
     try {
       observation = await worker('observe');
-      if (initialBinding === undefined && observation.status === 'standard') initialBinding = observation.binding;
+      if (initialBinding === undefined && observation.binding) initialBinding = observation.binding;
       if (observation.status === 'standard' && initialBinding !== observation.binding) observation.status = 'binding-changed';
     }
     catch { observation = {status:'unavailable',observedAt:null}; }
   }
   const ready = root ? observe() : Promise.resolve();
-  const snapshot = () => ({...observation, projectId:id, busy});
+  function canApply() {
+    return Boolean(preview && preview.revision === observation.revision && preview.binding === observation.binding);
+  }
+  const snapshot = () => ({...observation, projectId:id, busy, canApply:canApply()});
   async function handle(req,res,route,origin) {
     const reply = (code,data) => {
       res.writeHead(code,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
@@ -62,7 +66,7 @@ function createFrameworkService(root) {
     }
     if (route !== 'framework/action') return reply(404,{error:'unknown-route'});
     if (Object.keys(data).sort().join(',') !== 'action,projectId,revision' ||
-      !['refresh','check','preview'].includes(data.action)) return reply(400,{error:'invalid-action'});
+      !['refresh','check','preview','install','fetch-preview','apply'].includes(data.action)) return reply(400,{error:'invalid-action'});
     if (!root || data.projectId !== id) return reply(409,{error:'binding-mismatch'});
     await ready;
     if (busy) return reply(409,{error:'busy'});
@@ -73,8 +77,14 @@ function createFrameworkService(root) {
         return reply(200,{...snapshot(),busy:false});
       }
       if (data.revision !== observation.revision) return reply(409,{error:'stale-observation'});
+      if (data.action === 'apply' && !canApply()) return reply(409,{error:'preview-required'});
+      if (['fetch-preview','install'].includes(data.action)) preview = undefined;
       const result = await worker(data.action,data.revision);
       observation = result.after || result.before || {...observation,status:'needs-refresh'};
+      if (data.action === 'install' && result.after?.status === 'standard') initialBinding = result.after.binding;
+      if (data.action === 'fetch-preview' && !result.error && result.exitCode === 0) preview = result.after;
+      if (data.action === 'apply' && !result.error && result.exitCode === 0) preview = undefined;
+      result.canApply = canApply();
       return reply(result.error ? 409 : 200,result);
     } catch { return reply(503,{error:'worker-failed'}); }
     finally { busy = false; }

@@ -1,5 +1,46 @@
 # .agents 安装与更新 Runbook
 
+Windows standard 工程可从工作台首页运行原检查、取版预演及写入复查。工作台首装复用安装器的部分克隆；可选 `TrustedRuntimeTree` 由随包入口提供，只在首次安装时校验下载版本，确认通过再放入工程的 `.agents`。日常 CLI 安装参数沿用原方式。
+
+## 使用工作台安装与更新
+
+工作台 0.2.0 试点支持 Windows x64 上的 standard 工程。按发行记录校验并解压 `agents-workbench-react.zip`，双击 `start-workbench.cmd` 并选择工程根目录，也可从解压目录启动并明确指定工程。工作台自带 Node 24，框架操作使用本机 Git 和 Windows PowerShell 5.1。首装与取版需要访问框架源。
+
+```powershell
+& ./start-workbench.cmd --project "<工程根目录>"
+```
+
+在工程首页的“框架安装与更新”按目的操作。
+
+| 按钮 | 作用与范围 |
+|---|---|
+| **安装基础框架** | 在尚无 `.agents` 的工程调用原安装器，下载受验证的基础框架，再生成基础工程入口并复查。业务插件选配和上下文维护见[安装后的上下文维护](#安装后的上下文维护)。 |
+| **检查工程** | 调用 `Check -NoPull` 检查当前落盘框架和受管入口。 |
+| **本地预演** | 调用 `DryRun -NoPull`，基于落盘版本预演项目配置、thin-index 等生成层。 |
+| **获取新版并预演** | 查询框架源。目标版本变化时使用原更新器的取版流程，可能 fetch、快进 `.agents` 并刷新 sparse checkout。项目生成层在这一步只预演。 |
+| **应用更新并复查** | 取版预演通过后，基于同一工程和落盘 revision 执行 `Write -NoPull`，刷新受管配置和入口，再在同一部署锁内 `Check -NoPull`。 |
+| **重新读取** | 重新读取工程和当前 `.agents` revision，供原 CLI 或 Agent 执行后核对。 |
+
+### 更新中断与续接
+
+- 查看页面上已执行的步骤、退出码和实际 revision，以此区分框架已取版、项目生成层已更新和复查结果。插件初始化、宿主实际加载与业务调用仍分别验收。
+- 部署锁被占用时，等持有者结束，再应用同一工程和版本上仍有效的预演。中断后如需恢复锁，沿[插件按需部署](guides/plugin-deployment.md)的部署锁处理，只对确认已退出的持有进程使用 `recover`。
+- 关闭本地服务后，重新使用启动器绑定工程并确认当前 revision。在页面继续应用时，先重新执行“获取新版并预演”。若目标版本已经落盘、只需继续生成层，或工作台提示需从原 CLI 接续，先按[输出判读](#输出判读)核对并解决阻塞，再从已验证工程的根目录用下列命令续接。第一步无停止条件后执行后两步，完成后回工作台“重新读取”。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun -NoPull -Detailed
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Write -NoPull
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Check -NoPull
+```
+
+Overlay 工程沿[两阶段 CLI 流程](#workspace-overlay-两阶段更新)写入。先更新共享 CapabilityRoot 一次，再分别刷新选定模块的 ContextRoot。试点工作台对 Overlay 提供只读查看。
+
+### 接续到 Agent
+
+工程上下文、业务插件初始化、客户端适配或其他需要判断的任务，可在工作台选择相应能力并“复制请求”，粘贴到同一工程已使用的 Agent 客户端。由该客户端按项目授权调用原 owner 入口，完成后回工作台重新读取和复查已知状态。执行和结果以原 owner 记录为准。自动派发属于后续计划。操作示例见[团队使用手册](guides/usage-manual.md)。
+
+日常 `.agents` 安装和更新沿运行时白名单分发框架。工作台本体通过独立 ZIP 发放，更新工作台时另行取得并解压新版，从同一工程启动。包内手册是构建时快照，工程随 `.agents` 更新取得的说明见 `.agents/docs/`。
+
 ## IRIS MCP 1.7.1
 
 coding-iris-plugin 0.31.0 同步内置 MCP 至 v1.7.1 受管构建与官方 8 项 skill 固定快照。沿本页正常更新入口同时取得共享 scripts、coding 插件、vendor exe 和 managed-build.json；待当前任务结束、释放占用后重启宿主 MCP。旧 v5 与新 v6 受管构建均可由新版入口识别，实际 exe 必须与各自清单摘要一致；回退时沿 Git 已有版本恢复匹配的整套文件，不只替换 exe。

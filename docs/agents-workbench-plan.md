@@ -1,8 +1,7 @@
 # .agents 本地工作台：可行方案与实施计划
 
-> 状态：2026-11-18 修订，待评审。源仓交互原型提供开发库切换演示及既有工程配置入口，真实多库切换按 6.6 实施。Node 24 离线环境包已独立升级。
+> 状态：2026-11-19 修订，Windows standard 工程试点 0.2.0 已交付。工作台运行包、框架首次安装和框架更新的试点与分发见 8.7。Overlay 写入和真实多库切换继续沿各自方案实施。
 > 本计划承接用户确认的方向：离线 Web UI／EXE、框架自有运行配置以 JSONC 为统一目标、UI 与 Agent 共用配置接口、复用本工程能力、兼容已经部署的项目。工作台首版不新增 SQLite；已有知识／向量组件的内部存储继续沿 owner 实现。
-> 本轮仅生成此计划，不修改框架、不接入业务项目、不提交或推送。
 
 ## 1. Goal：以工程为单位降低框架上手与日常维护成本
 
@@ -26,7 +25,7 @@
 
 ## 2. 推荐结论
 
-采用 **本地 Web UI + Node.js 本地服务 + 统一配置服务（JSONC／既有原生格式）+ 框架能力适配层**，Windows 交付双击启动的 EXE，第一版 EXE 打开系统浏览器中的本地工作台。UI、配置模型和业务适配只维护一套；后续确有独立窗口需求时，再添加 WebView2 薄壳，不为外壳引入第二套业务逻辑。
+采用 **现有 React UI + Node.js 本地服务 + 原框架命令**。Windows x64 首个试点交付解压可用的 ZIP，双击 `start-workbench.cmd` 打开系统浏览器。配置仍沿 owner 服务。EXE 或 WebView2 作为后续入口优化，沿用同一本地服务。
 
 运行配置由 owner 文件和既有来源负责，工作台不建立另一份生效配置。框架可控的运行配置按配置域迁移到 JSONC；读取、写入、初始化、更新、Agent 指令和测试必须同时跟进，消费者未完整支持时保留旧格式。Markdown 承载规则与说明，外部客户端规定的 JSON／TOML 沿其原生契约。工作台偏好和非敏感草稿按需用 JSON／JSONC，操作记录复用 owner 回执。凭据沿既有安全来源，不新建工作台密码库。
 
@@ -49,7 +48,7 @@
 
 ## 3. 当前工程事实与复用边界
 
-实施前先阅读根 `AGENTS.md`、`memory/agent-kit-maintenance-memory.md`、`.agents/skills/agent-kit-maintenance/SKILL.md`；原调查提交基线为 `26135aa3`，本次修订同时沿用已确认的 Node 24 环境包工作区改动；实施时重新检查 Git 状态，不覆盖并行工作。
+实施前先阅读根 `AGENTS.md`、`memory/agent-kit-maintenance-memory.md`、`.agents/skills/agent-kit-maintenance/SKILL.md`。2026-11-19 的工作台交付基线为 React 原型提交 `3246ca4e`，原型包实测见 8.7。实际发布绑定通过验收的提交，明确记录构建来源。
 
 ### 3.1 已有能力，不重新实现
 
@@ -58,7 +57,8 @@
 | standard／Overlay 根解析 | `scripts/lib/workspace-context.js` | 复用 resolver，明确 WorkspaceRoot、ContextRoot、CapabilityRoot、SourceRoot、GitRoot |
 | 首次安装 | `scripts/install-agents.ps1` | 从可信随包入口启动，工作目录为用户选择的业务工程 |
 | Overlay 初始化 | `scripts/initialize-workspace-overlay.ps1` | 复用既有声明与 Check/DryRun/Write，缺失拓扑通过表单或Agent接续，不猜 sibling |
-| 基础环境 | `tools/ai-dev-offline/` | 部署 Node 24.22.3/Git 等；工作台启动器检测并引导复用 |
+| 基础环境 | `tools/ai-dev-offline/` | 复用其 Node 24.22.3 来源及校验，工作台自带便携 Node。框架动作需要的 Git 等环境按缺项提示 |
+| 工作台运行包 | `tools/agents-workbench/react/package-runtime.mjs`、`start-workbench.cmd` | 复用原型打包方式和浏览器入口，另验证生产安装入口闭包与版本兼容性 |
 | 更新／检查 | `scripts/update-agents.ps1` | 复用 Check、DryRun、Write、NoPull；不另造更新器 |
 | 插件目录与依赖 | `scripts/lib/plugin-catalog.json`、`scripts/lib/plugin-deployment.js` | 提供分组、依赖图、当前安装／启用状态 |
 | 补装、迁移、裁剪 | `scripts/plugin-deploy.js` | 调用 list、plan、ensure、migrate、prune；保留原锁和恢复状态 |
@@ -116,7 +116,7 @@ Root 视图增加“模块”导航与共享更新总览；模块视图固定显
 
 **首次部署（工程尚无 `.agents`）**：
 
-1. 从随包 EXE 启动入口选择目标工程；启动器自身不依赖 Node。缺少 Node/Git 时指向已有 ai-dev-offline 安装助手，安装返回后重新检查；不重复开发环境安装器。
+1. 解压自带便携 Node 的工作台 ZIP。双击启动后选择工程，或用 `start-workbench.cmd --project <工程根目录>` 显式绑定。缺少框架操作所需的 Git 时引导准备工具，返回后重新检查。
 2. 识别目录、现有 AGENTS/MCP/编辑器配置及业务 Git；“没有框架”不等于“空目录”。仅选择目录不写工程。
 3. 选择使用目标及 Agent 客户端，自动推导最小能力组合；默认 standard。只有已声明共享结构或明确选择时才进入 Overlay 初始化，不要求普通用户理解根目录术语。
 4. 展示安装来源、影响范围及必要字段；复用包内可信安装入口，不能依赖尚未安装的项目脚本。在线安装与本地能力包分别标识，环境原包不等于框架离线包。
@@ -355,9 +355,9 @@ JSONC 统一范围是本框架拥有并能控制所有消费者的运行配置�
 ## 7. 运行架构与安全
 
 ```text
-EXE启动器／本地启动命令
+start-workbench.cmd／本地启动命令
   └─ 同一 Node 服务（仅 127.0.0.1，随机可用端口）
-      ├─ HTML/CSS/ES modules：本地静态资产，无CDN
+      ├─ React／Vite 编译后页面与本地静态资源
       ├─ API：工程注册、配置模型、计划与操作记录
       ├─ 文件状态：界面偏好／非敏感草稿，任务沿 owner 回执
       ├─ 凭据通道：复用 owner 来源及安全传输，不新增密码库
@@ -371,50 +371,12 @@ EXE启动器／本地启动命令
 
 ```text
 tools/agents-workbench/
-  README.md
-  package.json                  # 仅维护者构建／测试依赖
-  package-lock.json
-  launch.ps1                    # Windows PowerShell 5.1兼容入口
-  build-package.ps1
-  src/
-    server.js
-    api.js
-    project-context.js
-    engine-adapter.js
-    operation-runner.js
-    local-state.js
-    credential-bridge.js
-    document-service.js
-    web/index.html
-    web/app.js
-    web/styles.css
-    web/config-form.js
-    web/manual.js
-    web/vendor/                 # 构建生成固定依赖，不手工维护副本
-  windows/
-    WorkbenchLauncher.cs
-  build/
-    compile-schemas.js
-    build-assets.js
-    build-offline-package.js
-  tests/
-    configuration-files.test.js
-    project-context.test.js
-    local-state.test.js
-    configuration.test.js
-    credentials.test.js
-    api-security.test.js
-    operations.test.js
-    deployment.test.js
-    plugins.test.js
-    mcp.test.js
-    knowledge.test.js
-    documents.test.js
-    ui.test.js
-    packaging.test.js
+  react/                        # 当前界面源码及构建、暂存、启动入口
+  prototype/                    # 当前本机服务、配置适配和演示数据
+  tests/                        # 计划补充跨前后端的部署和打包验收
 ```
 
-打包产物固定为 `tools/dist/agents-workbench.zip`；不把整个tools加入`.agents`安装。打包时从canonical取入所需通用模块与docs快照，保留revision、源相对路径及摘要；不手工复制形成独立维护源。
+保留现有构建入口 `react/package-runtime.mjs` 和本机服务 `prototype/serve.js`。第11章的 `src/`、`build/` 文件名描述待实现职责，实施时优先落到现有入口，职责可直接复用时合并。正式运行包固定为 `tools/dist/agents-workbench-react.zip`，随包依赖由暂存流程从源仓收集。工程 `.agents` 沿原规则部署。
 
 工作台可在未安装框架时启动并提供说明、环境检查和安装入口；不能从被管理项目require任意模块来完成“只读识别”。识别使用工作台打包的可信resolver，执行项目脚本前显示来源与revision并核对框架信任和兼容性。
 
@@ -500,12 +462,46 @@ tools/agents-workbench/
 - 用户级客户端设置显示跨工程影响；工程级优先。一个工程可适配多个宿主，canonical只维护一份。已生成、宿主发现、实际调用分别显示。
 - 交接带任务标识、当前工程/模块、目标、已完成步骤、未完成项和允许范围；对话输出不自动成为成功回执。Agent 修改后的文件仍走相同漂移/冲突检查，授权不因宿主切换扩大。
 
+### 8.7 工作台交付与框架部署、更新
+
+工作台与业务工程 `.agents` 分别安装和更新。界面同时显示工作台包版本、来源 revision，以及当前工程实际读到的框架 revision。随包插件目录和手册属于构建快照。工程的已装版本和启用状态以实际 CapabilityRoot 与 ContextRoot 为准。
+
+| 用户操作 | 首个试点的执行路径 | 完成依据 |
+|---|---|---|
+| 安装工作台 | 解压可信 ZIP 到独立工具目录，用随包 `start-workbench.cmd` 启动后选工程，也可显式传 `--project` | 无系统 Node、无源码 checkout、无 `node_modules` 的隔离环境能解压、启动、读手册并识别工程 |
+| 更新工作台 | 按 8.7.1 从发行渠道取新版，验证 ZIP 后并排解压，用原工程启动。旧版可作为启动失败时的恢复入口 | 新版可查看同一工程，原框架 revision、配置及恢复材料可读取。旧版恢复启动后重新检测工程兼容性 |
+| 首次安装框架 | 识别无 `.agents` 的 standard 工程，预览目标、来源和受影响入口。获授权后，以工程为 cwd 调用随包可信 `install-agents.ps1` 及其依赖。首个试点沿现有 Git 下载方式，随后由原入口补装所需能力和生成配置 | `.agents` Git、sparse 范围、基础插件和生成入口实际读回。既有 AGENTS 正文、自定义 MCP 与私有配置按原安装契约保护。需 Agent 初始化或宿主验证的步骤分别显示 |
+| 更新已有框架 | 读取实际工程入口，按下述标准或 Overlay 流程执行。接入、查看状态和本地预演可独立使用 | 读回实际 Git revision、sparse 和启用状态，再执行 owner `Check`。框架已取版、生成层已刷新、宿主已加载分别显示 |
+
+**Windows standard 试点 0.2.0。** 固定交付包为 `tools/dist/agents-workbench-react.zip`，版本、SHA-256、兼容范围和旧包位置见同目录 `agents-workbench-react.release.json`。包内含便携 Node 24.22.3、预编译界面、字体与许可、手册和可信首装脚本。双击 `start-workbench.cmd` 选中工程，首页提供首装、检查、本地预演、取版预演和应用后复查。已有工程继续调用自己的更新器。Git 取版沿框架来源，工作台启动可离线。
+
+**试点证据。** 同一 ZIP 从中文空格路径解压，在不依赖系统 Node 的 Windows 环境中用真实浏览器完成非空工程首装、部分克隆工程从 `b65675b6` 取版到 `5520bdf7`、写入与读回。独立核验真实 `imedical` 的 `b65675b6` 执行树和落盘运行文件符合试点校验。写入验证在隔离工程完成，模块及医院 Overlay 的共享更新沿单独验收路径推进。原型 `0.1.0` 已归档至 `tools/dist/history/agents-workbench-react/0.1.0/`。
+
+**standard 更新顺序。** 「检查当前框架」使用 `Check`，「本地预演」使用 `DryRun -NoPull`，两者不更新 capability。显式选择「获取新版并预演」才运行普通 `DryRun`。该动作可能 fetch、快进和刷新 sparse，页面应提前说明。预演完成后以落盘的实际 revision 和工程身份作为应用依据，从新版入口运行 `Write -NoPull`，再运行 `Check`。已有更新器若支持自重启，沿其现有续接逻辑。历史更新器未能完成续接时，从已落盘入口补生成层步骤。取版成功但生成失败时保留真实进度和回执，修复后继续 `Write -NoPull`，避免重新下载或重置整个工程。
+
+**Overlay 更新顺序。** 先解析声明的共享 CapabilityRoot 和实际标准更新入口，展示受影响成员。共享仓取版并收敛一次，选定成员按各自 ContextRoot 执行 `DryRun -NoPull`、`Write -NoPull` 和 `Check`。成员失败单独记录并重试，离线或未选成员沿现有依赖保留策略。首个 standard 试点通过后再开放共享更新操作。
+
+**工作台调用边界。** 界面通过后端映射到固定命令和参数，复用 owner 的锁、恢复与插件依赖流程。执行前重核工程、能力根、版本与预览范围。同一工程的重复点击返回原任务状态。旧入口的终端摘要用于辅助诊断，完成状态以退出结果、Git 与文件读回和 owner 检查为准。只有确需稳定机器结果时才为 owner 补最小结构化出口，沿用原命令语义。工作台后端暴露部署和更新动作前，先按 7.2 验证本机写接口授权与工程绑定。浏览器关闭或工作台升级时，已有写任务先到安全点。
+
+**断网边界。** 工作台 ZIP 可以断网启动。工程 `.agents` 的首次下载或更新取版仍走现有 Git 来源，另有明确授权的本地能力包时才走任务17。首轮用测试范围内的本地 bare Git 源验收真实安装和快进更新，该夹具不算已交付完整离线包。
+
+#### 8.7.1 工作台新版如何分发
+
+工作台沿 React `package.json` 的版本独立发布。维护者从经确认的源码提交构建完整 ZIP，暂存并实际解压验收后，再发布 `agents-workbench-react.zip`。包内记录工作台版本、源码 revision、所带 Node 及首次安装入口的版本。发行渠道同时提供包外发布记录，包含版本、平台、ZIP 大小与 SHA-256、变更说明和已验证的框架兼容范围。旧版本留在各自版本目录，保持同一 ZIP 文件名。测试、发布和现场安装使用同一个 ZIP。
+
+首轮试点推荐走**组织批准的只读内网发放点**，维护者在新版通过校验后才更新推荐版本入口。隔离环境沿现场既有物料导入流程领取同一 ZIP 和可信渠道提供的发布记录。环境管理员可以批量发放一个版本。同一工作台版本可管理多个工程，各工程仍各自读取实际绑定和配置。仓库 `tools/dist/` 是构建交付落点，正式发放位置由试点方确定。
+
+- **首轮用户怎么更新。** 下载或导入完整新版 ZIP，按发行渠道的记录校验，解压至新版本目录。等待旧工作台写任务到安全点，从同一工程启动新版并验证。新版无法启动或无法识别工程时，直接启回旧版。失败的校验、下载或解压发生在切换之前。恢复工作台只切换运行目录，工程文件的恢复沿对应 owner 回执。
+- **何时接到 UI。** 试点先提供固定的获取新版入口和版本信息。渠道稳定后，在工作台设置中增加「检查更新」与「导入更新包」，共用同一份发行记录和校验流程。用户明确选择更新后才切换，写任务期间可提示有新版，到安全点再完成。应用内切换沿用同一并排安装方式，首版使用完整包。
+- **跨版本如何工作。** 工程页显示实际框架 revision，更新页显示工作台当前版、可获取版及兼容说明。兼容性按目标工程实际入口及能力判断。超出已验证范围时，继续提供已支持的查看与诊断，对无法可靠执行的动作说明原因和可用的原框架入口。更新一种组件时，只有用户另行选中另一种操作才执行。
+
 ## 9. 功能交付范围
 
 | 功能 | 首轮可用版 | 后续完整覆盖／限制 |
 |---|---|---|
 | 工程管理 | 选择、只读接入、状态、分域编辑 | 无全盘扫描；自定义布局先保持只读 |
-| 部署更新 | 已有标准安装／更新入口、Overlay分组、实际读回 | 离线bundle导入单独完成后才声明断网部署 |
+| 工作台交付与更新 | 完整 ZIP、可信发行记录、并排解包升级、原工程绑定恢复 | 渠道稳定后接检查与导入更新包 |
+| 框架部署更新 | standard 首装与已有工程更新，实际读回 | Overlay 共享更新及真实离线能力包分别验收 |
 | 插件管理 | 全部有manifest插件可浏览、依赖预览、补装、启停 | 不自动启用未完成初始化的领域插件 |
 | 配置UI | 基础工程、IRIS、BOS、知识提供方有schema与保存；JSONC域全消费者闭环 | 其余owner逐个补schema；无schema显示原来源，不宣称全部可编辑 |
 | Agent客户端 | 入口适配、能力分级、提示词交接与结果重查；可用接口逐宿主接通 | 不保证操控任意宿主聊天窗口或取得其会话结果 |
@@ -534,9 +530,9 @@ tools/agents-workbench/
 
 Marked、DOMPurify与Ajv版本沿原调查记录，尚不代表本项目集成验证；jsonc-parser 3.3.1沿本仓已固定来源与摘要复用。实施时固定lockfile、记录实际包integrity和许可；更新版本需重跑安全及兼容测试，不自动追latest。
 
-Node 默认部署基线统一为 24.22.3，由 ai-dev-offline 安装助手部署并校验官方摘要，工作台复用该环境，不默认另带私有 Node。启动时检查实际版本与路径，缺失时指向安装助手；JSONC读写、文件恢复和框架调用链仍须实测。本工程原有 Node >=22.5.0 最低兼容要求保留，不把工作台新 API 引入所有业务脚本。
+工作台交付包复用 `ai-dev-offline` 清单中已固定并核验的 Node 24.22.3 原包，随包暂存便携 `node.exe`。源码预览也可使用既有 Node 24。工作台及其框架子进程的有效路径需实测。原框架 Node >=22.5.0 的最低兼容要求保留。
 
-第一版不引入React/Vue、ORM、微服务或通用表单设计器；原生ES modules和语义化HTML足够。配置schema、业务校验、源文件适配分开，但不建设任意插件执行DSL。
+沿用现有 React/Vite 构建、锁文件及本机服务。现场运行使用预编译资源。配置 schema、业务校验、源文件适配继续分别由相应入口处理。
 
 ## 11. 实施任务与验证切片
 
@@ -684,12 +680,12 @@ Node 默认部署基线统一为 24.22.3，由 ai-dev-offline 安装助手部署
 
 ### 任务12：安装更新与插件管理
 
-文件：`src/engine-adapter.js`、`tests/deployment.test.js`、`tests/plugins.test.js`。
+入口：`prototype/serve.js` 的工作台后端、`scripts/install-agents.ps1`、`scripts/update-agents.ps1`。验证新增行为使用 `tests/deployment.test.js`、`tests/plugins.test.js`。
 
-- 12a：测试“本地检查”只调用Check／DryRun -NoPull；安装命令必须在选定工程cwd运行。
-- 12b：从无 `.agents` 的非空工程，以随包安装入口对本地bare远端完成真实安装/补装/配置/适配/读回；保留既有AGENTS/MCP。再用历史revision验证升级与失败后保留现状；不以mock替代。
+- 12a：选定工程后验证 `Check` 与 `DryRun -NoPull`，显式取版使用普通 `DryRun`。完成新版预演后，调用落盘入口的 `Write -NoPull` 并复查。安装命令须在选定工程 cwd 运行。
+- 12b：从 ZIP 解包后，以随包安装入口在无 `.agents` 的非空工程完成真实安装与读回。保留既有 AGENTS 正文、自定义 MCP 和业务文件。沿用 `scripts/tests/update-agents.tests.ps1` 的本地 bare Git 模式，用历史 revision 验证真实更新和部分失败后续接。安装器固定来源只在测试子进程中映射到夹具，保持用户的 Git 配置和框架生产来源。
 - 12c：测试插件补装→配置未完成仍available→配置完成后setter启用→索引读回；反向依赖阻止停用。
-- 12d：测试同CapabilityRoot多个ContextRoot只更新共享能力一次，离线成员不被prune；用户定制入口冲突保留。
+- 12d：standard 通过后验收 Overlay。多个 ContextRoot 只更新共享能力一次，各选定成员独立读回，部分失败可以单独续接。保留离线成员依赖与用户定制入口。
 
 验证：`node --test tools/agents-workbench/tests/deployment.test.js tools/agents-workbench/tests/plugins.test.js`；Windows下补`powershell.exe -NoProfile -File scripts/tests/update-agents.tests.ps1`与`pwsh.exe -NoProfile -File scripts/tests/update-agents.tests.ps1`。预期真实临时Git夹具通过，无业务仓写入。
 
@@ -728,17 +724,17 @@ Node 默认部署基线统一为 24.22.3，由 ai-dev-offline 安装助手部署
 
 验证：`node --test tools/agents-workbench/tests/documents.test.js tools/agents-workbench/tests/ui.test.js`。UI测试使用维护者Playwright依赖与本地浏览器，不向业务项目分发浏览器包。再用Agent浏览器人工核对1280与1920宽度、键盘导航、Console/Network无异常、刷新持久化和Root/模块多窗口不串数据。
 
-### 任务16：EXE启动、离线分发和文件恢复
+### 任务16：工作台打包、发行更新和文件恢复
 
-文件：`windows/WorkbenchLauncher.cs`、`launch.ps1`、`build-package.ps1`、`build/build-assets.js`、`tests/packaging.test.js`。
+入口：`tools/agents-workbench/react/package-runtime.mjs`、`start-workbench.cmd`、`tools/agents-workbench/prototype/serve.js`。验证新增行为使用 `tools/agents-workbench/tests/packaging.test.js`。
 
-- 16a：启动器先在无Node环境展示缺项并引导ai-dev-offline；返回后校验24.22.3并启动。最小EXE及可信安装依赖闭包前移到第一里程碑，正式包完善仍归本任务。
-- 16b：打包UI依赖、schema校验器、可信resolver和guides快照，所有输入记录revision／hash／许可；在无node_modules目录运行。
-- 16c：测试启动器重复打开复用原实例、退出不遗留自有进程、活动任务关闭有明确信息；不杀用户其它Node／MCP。
-- 16d：复用owner文件备份／回执与条件恢复，验证格式迁移前后及中断后的原字节保护；普通工作台导出只含非敏感状态及回执引用，跨机凭据按原来源重配，不新增数据库备份流程。
-- 16e：断网、无开发工具路径、中文空格路径下实际解压运行，复用 ai-dev-offline 部署的 Node 24.22.3，验证工作台及其框架子进程解析到同一运行时；不静默安装或改全局PATH。
+- 16a：以 React 构建和便携 Node 生成最小 Windows x64 ZIP。发布清单包含编译资源、随包字体和许可、手册、可信 resolver 与首次安装入口依赖。在断网、无系统 Node、无源码和 `node_modules`、中文空格路径下实际运行。
+- 16b：工作台与框架子进程使用同一包内 Node。验证框架动作使用的 Git 和 PowerShell，缺项时按现有离线助手提示。用户环境保持原状。
+- 16c：支持独立绑定工程并检查端口冲突。验证重复开启同一工程、并行打开两个工程、退出及活动任务收尾，保留其他工程与用户进程。
+- 16d：按 8.7.1 校验包内容和包外发行记录，演练同名 ZIP 的版本归档、隔离环境导入、并排更新及失败启回。新版启动和识别工程通过后才替换默认启动位置。损坏 ZIP、兼容范围不符、切换中断以及进行中的写任务各有可验证的处理结果。
+- 16e：配置文件恢复复用 owner 备份与回执，核对格式迁移前后和中断后的原字节。普通导出只含非敏感状态及回执引用，跨机凭据按原来源重配。
 
-验证：`node --test tools/agents-workbench/tests/packaging.test.js`；`powershell.exe -NoProfile -File tools/agents-workbench/build-package.ps1`。预期固定ZIP、摘要核对通过，断网仍可接入已有工程和读手册。签名／组织应用控制在发布验收中单列，不宣称普通exe构建成功即所有现场可运行。
+验证：从 React 目录按 README 执行 `npm run build` 和 `npm run stage -- <发布暂存目录> --node-runtime <已校验的 Node 目录>`，生成 `tools/dist/agents-workbench-react.zip` 后从独立目录解包测试。配套运行 `node --test tools/agents-workbench/tests/packaging.test.js`，再在试点目标机验收启动、框架动作和新版切换。发行前核对组织应用控制要求。
 
 ### 任务17：真正的离线能力包安装更新（独立可验收切片）
 
@@ -785,7 +781,7 @@ git diff --cached --check
 
 ### 12.1 必过路径
 
-1. 首次部署：无Node时启动器引导既有安装助手→选无框架的非空工程→安装→补装→配置/Agent补全→启用→客户端入口读回；已有文件保留，不要求先打开配置文件。
+1. 首次部署：在无系统 Node 的 Windows x64 解压启动→选无框架的非空工程→安装→补装→配置或 Agent 补全→启用→客户端入口读回。框架动作所需的 Git 和 PowerShell 在操作前检查，已有业务文件保留。
 2. 已有工程：只读接入无改动→直接读取一个配置域→改值→原CLI读取一致→退出重开一致。
 3. 外部修改：Agent经同一接口或编辑器改文件→UI重读／草稿重新计划→有冲突停在该字段；受控写入互斥与外部编辑窗口按6.4分别验收。
 4. 共享Overlay：两个工程共享能力，配置隔离；更新共享一次，刷新各自上下文，不误裁剪离线成员资源。
@@ -800,6 +796,7 @@ git diff --cached --check
 13. JSONC消费者：每个迁移域均有实际入口清单与含注释夹具，从新建／旧项目迁移到安装更新、CLI／Agent／PowerShell读取及回退闭合；无源仓、无node_modules可用，JSON与JSONC同时存在不静默选值。
 14. 脱离UI：直接用配置CLI读取／修改后原消费者生效，重新打开UI读取同一值；清除非敏感本机状态不影响框架和已有知识／向量库。
 15. 同工程切库：A → B → A。预览只列出明确绑定的入口，取消或写入失败后原库保持有效。保存后逐入口读回，重连后验证目标身份。独立工程、模块及原库发布任务按原绑定处理。
+16. 两条更新路径：用可信发行记录完成工作台升级与坏包拒绝，故意让新版启动失败并启回旧版，原工程仍可接入。再独立从历史框架 revision 取版、续接写入与复查，验证工作台版本保持原值。发布、已下载、已切换和已验证分别有证据。
 
 ### 12.2 不得替代的证据
 
@@ -817,7 +814,7 @@ git diff --cached --check
 ### 已作出的推荐取舍
 
 - 首版工作台不新增SQLite；统一配置语义、JSONC读写和owner入口。运行文件为事实源，无数据库投影或接管步骤；既有知识／向量组件内部存储沿用。
-- 初版EXE是可靠启动入口，界面仍由浏览器承载；不把WebView2作为所有人上手前置条件。
+- 初版复用原型的自包含 ZIP 与启动命令，系统浏览器承载界面。需要独立窗口时再评估 EXE 与 WebView2。
 - 凭据复用原owner与安全传输；JSONC的注释能力不授权把凭据写入模板、普通草稿或共享文件。
 - 业务执行状态继续由原框架负责，工作台复用回执并汇总观察，不另造调度器、插件状态机、远端锁或向量引擎。
 - 配置schema与UI元数据是必要新增：现有字段散落且不能可靠自动推导。其成本由维护者承担，不让使用者填写schema。
@@ -829,25 +826,25 @@ git diff --cached --check
 - 原配置工具的读写与恢复副作用：任务03/09对照，特别是configure-project.main。
 - 老版本／Overlay的配置归属与未知字段保存：任务08/10/12实测。
 - JSONC所有消费者、编辑保留注释、迁移回退、Node22兼容及离线依赖闭包：任务02/10/11/12/16实测，不能仅凭helper通过宣称支持。
-- 公司应用控制／杀软与EXE签名：在指定试点机器验收；不能靠另取文件名绕过组织策略。
+- 组织应用控制与包发放方式：在指定试点机器验证启动；采用 EXE 时另行验证签名与组织准入。
 - Markdown净化与API隔离：任务04/15实测。
 
 ### 仅需产品选择，不阻塞当前方案
 
 1. 若必须是独立桌面窗口而非浏览器，采用WebView2薄壳作为首版发布要求；核心模型与服务不变，但必须增加离线Runtime物料和实机验证。
 2. 若要求换电脑连同凭据一并迁移，需单独批准带口令加密的导出／导入方案；当前默认仅迁移非凭据配置。
-3. 是否首版就交付完整断网部署包：推荐先完成已有工程管理闭环，再完成任务17；两者均在本计划，但不混称完成。
+3. 试点的正式发放点及维护者由试点方指定，优先复用已有批准渠道。完整断网框架部署独立验证任务17。
 
 ## 14. 建议推进顺序与减负验收
 
-1. **第一里程碑：首次与已有工程双路径最小闭环**。任务01–06及10/12/15/16必要切片：最小EXE、环境复用、工程识别、可信安装、一个全消费者兼容的配置域、客户端入口/提示词交接、原CLI与UI双向读回。交付可操作界面，不先完成全部基础设施再做UI。
+1. **第一里程碑：从真实 ZIP 跑通 standard 首装与更新**。从任务03–05、12、15、16取必要切片，复用 React 原型和便携启动方式，先验证解包→绑定工程→原安装器首装→历史版本更新→UI 与原 CLI 读回。同批验证工作台换版和启回。实际工程选择、写接口授权及安装依赖闭包是开放真实部署前的条件。
 2. **第二里程碑：配置与Agent协同**。完成07–11、13及15相关部分：凭据、草稿、并发与恢复、工程探索交接、多宿主适配；验证旧版本与未知自定义分支。
 3. **第三里程碑：完整管理范围**。完成Root/模块视图、插件生命周期、更新、MCP/连接、知识/向量、手册和任务恢复；所有目标均有确定性执行或明确Agent/人工接续路径，不留假按钮。
-4. **第四里程碑：离线分发与推广验收**。完成16–18：环境包、工作台包和框架离线包分别校验，干净机断网、历史工程、Overlay及多客户端实测；未验证范围如实列出。
+4. **第四里程碑：推广与完整离线部署**。完成16–18的剩余部分。沿已验证渠道分发工作台新版本，分别验收环境包与框架离线包，在干净机、断网、历史工程、Overlay 和多客户端场景实际运行。
 
 ### 14.1 UI 与任务覆盖验收
 
-实施前为第4章每页给出线框和状态设计，并按“用户目标→入口→自动步骤→Agent/人工步骤→结果检查”核对所有功能。首批原型同时演示新工程向导、已有工程首页、Root/模块导航、配置页和Agent交接卡；不以单张首页代替完整交互设计。
+沿现有 React 原型继续核对各页的用户目标、入口、运行步骤、Agent 或人工接续与结果检查。生产接入优先替换 standard 首装、已有项目更新的模拟执行，并接入可读回的版本和任务状态。
 
 关键场景：首次接入、已有项目直接使用/补装/升级、连接修改、不同客户端接入、共享更新部分失败、知识检索与向量续建、通过手册发起任务、无宿主API时复制提示词后返回验证。覆盖空态、错误、刷新持久化、键盘操作及1280/1920宽度，检查Console/Network。
 

@@ -10,6 +10,7 @@
 
 | 要完成的工作 | 入口 |
 |---|---|
+| 从工作台安装或更新 `.agents`、准备 Agent 接续请求 | [工程工作台](tools/agents-workbench/react/README.md) |
 | 安装、更新、排查部署 | [更新 runbook](docs/update-agents.md) |
 | 按业务任务选择能力 | [团队使用手册](docs/guides/usage-manual.md)、[能力目录](docs/guides/capability-catalog.md)、[使用指南](docs/guides/capability-guide.md) |
 | 初始化 IRIS 项目 | [coding-iris-init](plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md)，复用已知配置，必要缺项集中确认，授权内生成索引 |
@@ -79,6 +80,8 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
 不要把本仓库根 `AGENTS.md`、根 `memory/` 或展示页文件复制到业务项目。可选的 `CLAUDE.md`、`CODEBUDDY.md` 兼容入口只需链接到项目自己的 `AGENTS.md`；检查器按解析后的目标判断，现有等价链接不应被重建，操作边界见[更新说明](docs/update-agents.md#windows-可选兼容入口)。
 
 ## 给人的手工操作
+
+Windows x64 标准工程可以从[工作台安装和更新](docs/update-agents.md#使用工作台安装与更新)。下面是直接使用 PowerShell 的操作。
 
 ### 首次安装到业务项目
 
@@ -712,6 +715,6 @@ WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codeb
 
 项目插件管理入口：[plugin-management](plugins/agent-context-kit/skills/plugin-management/SKILL.md)，支持体系选择、补装、启用、禁用和恢复；按需启用自动生成并验证发现入口，入口更新保护其它插件与自定义内容，停用前展示受影响依赖。
 
-### 工程工作台 UI 原型
+### 工程工作台（Windows standard 试点）
 
-工作台提供实际工程入口和独立交互演示，支持 IRIS／Web／现有 SFTP 配置及 BOS／知识个人配置的预览、保存和读回。交互演示覆盖首次接入、独立工程、Overlay 和 Agent 任务接续。Windows x64 离线 ZIP 随带便携 Node 24 和界面字体，解压后可双击启动。[运行与能力范围](tools/agents-workbench/react/README.md)
+工作台提供 standard 工程首装、检查、取版预演与锁内写入复查，支持 IRIS／Web／现有 SFTP 配置及 BOS／知识个人配置的预览、保存和读回。需要 Agent 处理的任务可复制请求，在同一工程的客户端执行后返回复查。Windows x64 离线 ZIP 随带便携 Node 24 和界面字体，解压后可双击启动。运行与独立演示入口见[工作台说明](tools/agents-workbench/react/README.md)，实际操作见[团队使用手册](docs/guides/usage-manual.md)。

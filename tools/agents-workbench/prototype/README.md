@@ -48,9 +48,9 @@ const { projectId, revision } = await response.json();
 const result = await frameworkAction("check", projectId, revision);
 ```
 
-三个动作共用 `POST /framework/action`，JSON 正文只接受 `action`、`projectId` 和 `revision`。`check` 和 `preview` 分别执行已安装更新器的 Check 和 DryRun，均带 `-NoPull`。返回原进程 `exitCode` 和执行前后的工程身份及 revision。退出码只描述更新器进程，业务就绪状态仍需对应验证。
+工程动作共用 `POST /framework/action`，JSON 正文只接受 `action`、`projectId` 和 `revision`。`check` 和 `preview` 分别执行已安装更新器的 Check 和 DryRun，均带 `-NoPull`。返回原进程 `exitCode` 和执行前后的工程身份及 revision。退出码只描述更新器进程，业务就绪状态仍需对应验证。
 
-Windows 首批验证的执行树来自 `3246ca4e`。相同执行树可跨 revision 复用。来源、落盘运行文件或执行树无法确认时，服务返回拒绝原因。旧版接续时由维护者先检查该工程的更新器和插件来源，确认可信后，在工程根目录运行原 `.agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Check -NoPull`。锁冲突沿原更新器处理。
+Windows 试点支持 `3246ca4e`、`b65675b6` 对应的执行树。`install` 使用随包安装器校验克隆后再生成入口；`fetch-preview` 预演成功后可用 `apply` 运行 Write 和 Check。相同执行树可跨 revision 复用。来源、落盘运行文件或执行树无法确认时，服务返回拒绝原因。旧版接续时由维护者先检查该工程的更新器和插件来源，确认可信后，在工程根目录运行原 `.agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Check -NoPull`。锁冲突沿原更新器处理。
 
 从仓库根运行真实安装、Git、PowerShell 5.1 和回环 HTTP 夹具：
 

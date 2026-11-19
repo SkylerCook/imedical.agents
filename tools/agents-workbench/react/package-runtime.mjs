@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -56,8 +57,10 @@ for (const file of [
   "tools/ai-dev-offline/operation-runtime.js",
   "tools/ai-dev-offline/vendor/jsonc-parser",
   "tools/ai-dev-offline/vendor/iarna-toml",
+  "scripts/install-agents.ps1",
   "scripts/generate-plugin-catalog.js",
   "scripts/lib/workspace-context.js",
+  "scripts/lib/plugin-deployment.js",
   "tools/agents-workbench/src/project-context.js",
   "tools/agents-workbench/src/framework-service.js",
   "tools/agents-workbench/src/framework-worker.js",
@@ -85,7 +88,15 @@ for (const entry of readdirSync(join(repo, "plugins"), { withFileTypes: true }))
   else mkdirSync(join(destination, "plugins", entry.name), { recursive: true });
 }
 
-const startup = runtime ? `将 ZIP 完整解压，在 Windows x64 上双击 \`start-workbench.cmd\`，浏览器会打开演示首页。包内提供便携 Node.js ${nodeVersion}。
+const { version } = JSON.parse(readFileSync(join(repo, react, "package.json"), "utf8"));
+const sourceBaseRevision = execFileSync("git", ["-C", repo, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+const changes = execFileSync("git", ["-C", repo, "status", "--porcelain", "--", "scripts/install-agents.ps1", "tools/agents-workbench"], { encoding:"utf8" });
+const installerSha256 = createHash("sha256").update(readFileSync(join(destination,"scripts/install-agents.ps1"))).digest("hex");
+writeFileSync(join(destination,"workbench-release.json"), JSON.stringify({
+  version, platform:runtime ? "windows-x64" : "external-node", sourceBaseRevision,
+  localBuildChanges:Boolean(changes.trim()), node:nodeVersion, installerSha256,
+}, null, 2) + "\n");
+const startup = runtime ? `将 ZIP 完整解压，在 Windows x64 上双击 \`start-workbench.cmd\`，选择工程后，浏览器会打开实际工作台。包内提供便携 Node.js ${nodeVersion}。
 
 \`\`\`powershell
 & ./start-workbench.cmd --project "<工程根目录>"
@@ -103,9 +114,11 @@ ${startup}
 
 页面、手册、Maple Mono NF CN 7.9 中文字体和本地依赖已随包交付。启动无需联网、安装系统字体、npm 安装或构建。字体来源和许可在 licenses/。
 
+首次安装和取版需 Git 及框架源访问权限。工程首页提供安装、检查、本地预演、取版预演及写入复查；运行回执会显示各阶段退出码和实际 HEAD。Windows standard 试点版本 ${version}。
+
 打开 [实际工作台](http://127.0.0.1:4179/#home)，配置从启动时绑定的工程和已有个人配置来源读取。对 Git 工程保存私有配置时，现有配置工具会调用 Git 检查跟踪状态。插件目录和手册使用本包的快照。
 
-省略 --project 时使用虚构工程。[演示首页](http://127.0.0.1:4179/#/clinic/home)
+使用 --demo 可查看虚构工程。[演示首页](http://127.0.0.1:4179/#/clinic/home)
 
 服务仅监听 127.0.0.1。按 Ctrl+C 停止，端口冲突时可在启动前设置 PORT。
 `, "utf8");

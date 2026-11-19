@@ -1,5 +1,10 @@
 # imedical.agents 维护日志
 
+## 2026-11-19 工作台 0.2.0 standard 试点
+
+- Windows x64 运行包可选择工程，在首页首装、检查、预演、取版及写入复查。获取新版后以实际绑定与 HEAD 续接，写入和复查共用原部署锁。安装器可在部分克隆后、执行下载的代码前验证运行树。模块和医院 Overlay 保持只读。
+- [真实 ZIP 验收](../tools/agents-workbench/tests/standard-pilot.py)用隔离 bare 源从 b65675b6 快进至 5520bdf7，覆盖自定义 MCP 与工程正文保留、其它远端引用、锁冲突后续接、无系统 Node、未知执行树拒绝及仅 installer 变化的兼容性。六项工作台既有回归通过。ZIP 及恢复包的摘要见工具交付目录中的包外发行记录。
+
 ## 2026-11-19 离线助手医院 HTTPS 证书
 
 - ai-dev-offline r9 在主窗口提供医院证书入口。预览 SHA-256 指纹后可导入当前 Windows 用户受信任根证书库，已信任证书直接复用。仅需更新工具 ZIP，操作见[现场说明](../tools/ai-dev-offline/GUI.md#医院-https-证书)。

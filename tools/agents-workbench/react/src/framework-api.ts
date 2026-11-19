@@ -13,7 +13,7 @@ async function exchange(bootstrap?: string): Promise<string> {
 
 // Start the one-time exchange before route rendering. Reloads can resume via the session cookie.
 let session = token ? exchange(token).catch(() => undefined) : undefined;
-export async function frameworkAction(action: "refresh" | "check" | "preview", projectId: string, revision: string | null) {
+export async function frameworkAction(action: "refresh" | "check" | "preview" | "install" | "fetch-preview" | "apply", projectId: string, revision: string | null) {
   const csrf = await session ?? await exchange();
   session = Promise.resolve(csrf);
   const response = await fetch("/framework/action", {
@@ -21,6 +21,6 @@ export async function frameworkAction(action: "refresh" | "check" | "preview", p
     body: JSON.stringify({ action, projectId, revision }),
   });
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error);
+  if (!response.ok && !result.before) throw new Error(result.error);
   return result;
 }

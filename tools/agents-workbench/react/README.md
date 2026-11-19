@@ -2,7 +2,7 @@
 
 ## 解压运行
 
-将 `tools/dist/agents-workbench-react.zip` 完整解压。在 Windows x64 双击 `start-workbench.cmd`，默认浏览器打开[演示首页](http://127.0.0.1:4179/#/clinic/home)。包内包含便携 Node.js 24.22.3、编译后的页面、Maple Mono NF CN 中文字体、手册和本地依赖，现场仅需已有浏览器。
+将 `tools/dist/agents-workbench-react.zip` 完整解压。在 Windows x64 双击 `start-workbench.cmd`，选择工程目录后，默认浏览器打开工程首页。包内包含便携 Node.js 24.22.3、编译后的页面、Maple Mono NF CN 中文字体、手册和本地依赖，首装和更新另需本机 Git、Windows PowerShell 5.1 及可访问的框架源。
 
 ```powershell
 & ./start-workbench.cmd --project "<工程根目录>"
@@ -16,10 +16,22 @@
 
 - 实际工程提供总览、工程配置、插件、Agent 客户端、MCP 与连接、知识与向量、使用手册、能力目录和任务与恢复。页面标题来自绑定工程。
 - 工程配置可预览和保存 IRIS、Web 与已有 SFTP 的选定字段。BOS 与知识 Key 复用个人配置，保存前展示共享影响和凭据操作，读取与预览仅显示凭据状态。[配置来源与写入边界](../prototype/README.md)
-- 能力目录和任务页提供当前执行边界与 Agent 接续。插件依赖可预览，真实部署更新、插件执行、宿主自动派发、MCP 认证和向量构建沿 [工作台计划](../../../docs/agents-workbench-plan.md)推进。
+- 能力目录和任务页提供当前执行边界与 Agent 接续。standard 工程可在首页首装、检查、本地预演、获取新版、应用和复查。插件执行、Overlay 写入、宿主自动派发、MCP 认证和向量构建沿 [工作台计划](../../../docs/agents-workbench-plan.md)推进。
 - 虚构工程用 `/#/项目标识/页面` 直接打开。可从 `/#/clinic/config` 体验开发库切换，从 `/#/root/modules` 进入 Overlay 模块，从 `/#/fresh/home` 体验首次部署及 Agent 接续。演示状态按工程保存，可由左下角演示控制重置。
 - 原有 `/actual.html#config`、`/index.html#/clinic/scope` 和 `/react/#plugins` 收藏地址进入同一界面。插件搜索、状态与依赖预览可直接通过页面地址恢复。
 - 公共顶栏可选深色、浅色或跟随系统，默认深色并保存在浏览器。页面直接加载随包交付的 Maple Mono NF CN 7.9 WOFF2，无需安装系统字体。[字体来源与许可](src/fonts/UPSTREAM.md)
+
+## standard 试点验收
+
+0.2.0 包内 `workbench-release.json` 记录构建基线、是否包含本地改动和原安装器摘要。包外发行记录提供 ZIP 大小和 SHA-256。更新工作台时解压到新目录，旧版可并排启动。使用 `start-workbench.cmd --demo` 打开演示。
+
+新工程在首页点击“安装基础框架”。已有工程可先“检查工程”或“本地预演”。“获取新版并预演”允许原更新器快进共享框架目录；随后“应用更新并复查”使用落盘版本，并在同一部署锁内完成 Write 和 Check。浏览器刷新或锁冲突后可继续已经通过的预演，关闭服务后需重新观测和预演。模块、医院 Overlay 保持只读。
+
+维护者可从仓库根运行真实 ZIP 的隔离页验收（Windows、Python Playwright、Edge、Git）。命令会在临时目录创建 bare 源和非空工程，验证无系统 Node 的安装、取版及本地写入。
+
+```powershell
+python tools/agents-workbench/tests/standard-pilot.py tools/dist/agents-workbench-react.zip
+```
 
 ## 源码构建
 
