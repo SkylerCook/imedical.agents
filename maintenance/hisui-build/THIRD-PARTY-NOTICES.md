@@ -1,6 +1,6 @@
 # HISUI 第三方声明
 
-HISUI 来源为 https://github.com/wanghc/hisui，固定提交见 `upstream.json`，上游根 LICENSE 原文随快照保留。HISUI 内含其它组件，根 MIT LICENSE 不替代这些组件各自的条款。
+HISUI 上游仓库和固定提交见 `upstream.json`，上游根 LICENSE 原文随快照保留。HISUI 内含其它组件，根 MIT LICENSE 不替代这些组件各自的条款。
 
 - EasyUI 派生组件：上游源码头部保留 jeasyui.com 的版权及 GPL / 其它授权说明，生成的主 JS 保留这些声明；实际工程沿用其适用授权。
 - Bootstrap Switch 1.8.0：https://github.com/Bttstrp/bootstrap-switch/tree/b85606b3e4389276ab7818184a22ff3dd87a3892 ，Apache-2.0。上游 HISUI 的构建脚本引用此版本，但没有跟踪该输入。本仓保存固定版本原文和 LICENSE，生成 JS 保留声明。

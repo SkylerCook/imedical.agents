@@ -2,7 +2,7 @@
 
 此目录仅维护能力包快照，不随业务项目 sparse checkout 部署。安装器/更新器继续分发完整 `vendor/`，不安装 npm 依赖，也不在业务项目构建 HISUI。
 
-上游生成文件不进 Git，直接同步 dist 会缺少主 JS/CSS。采用 [HISUI gulpfile](https://github.com/wanghc/hisui/blob/4c09319c2daa09a25813c6e6af349e2791d79944/gulpfile.js) 的组件顺序、Less 列表、`compress:false` / `ie8:true` 选项；用固定版本 [Less](https://github.com/less/less.js)、[UglifyJS](https://github.com/mishoo/UglifyJS) 和 [CleanCSS](https://github.com/clean-css/clean-css) 直接生成，不引入完整旧 Gulp 链。依赖及传递依赖的完整性摘要由 package-lock.json 锁定，安装禁用生命周期脚本。jsdom 仅服务合成 DOM 回归。
+上游生成文件不进 Git，直接同步 dist 会缺少主 JS/CSS。采用 [HISUI gulpfile](https://gitee.com/wanghc123/hisui/blob/4c09319c2daa09a25813c6e6af349e2791d79944/gulpfile.js) 的组件顺序、Less 列表、`compress:false` / `ie8:true` 选项；用固定版本 [Less](https://github.com/less/less.js)、[UglifyJS](https://github.com/mishoo/UglifyJS) 和 [CleanCSS](https://github.com/clean-css/clean-css) 直接生成，不引入完整旧 Gulp 链。依赖及传递依赖的完整性摘要由 package-lock.json 锁定，安装禁用生命周期脚本。jsdom 仅服务合成 DOM 回归。
 
 缺失的 `lib/json2.js` 使用同一 HISUI commit 根目录 json2.js；缺失的 Bootstrap Switch 输入采用 [上游 v1.8.0](https://github.com/Bttstrp/bootstrap-switch/tree/b85606b3e4389276ab7818184a22ff3dd87a3892) 原文，许可证原样保留。其它库仍取 HISUI 固定提交。构建源码不改控件行为，不从旧 vendor 拼接新旧 HISUI 实现。
 
@@ -12,7 +12,7 @@
 
 ## 本次或后续升级
 
-先执行只读 `check` 并阅读差异，选定完整 SHA。Node.js 使用仓库基线 `>=22.5.0`；Node 是能力包维护工具依赖，不是 HIS 生产依赖。
+先执行只读 `check`，查看 Gitee `wanghc123/hisui` 的 `master` 和本地固定提交之间的差异，再选定完整 SHA。Node.js 使用仓库基线 `>=22.5.0`；Node 是能力包维护工具依赖，不是 HIS 生产依赖。
 
 以下 PowerShell 在仓根执行；`$taskDir` 每次换成独立任务目录。临时目录不可用时按根 AGENTS.md 记录权限允许的 fallback，不能使用共享 node_modules。
 

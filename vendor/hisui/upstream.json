@@ -1,6 +1,6 @@
 {
   "schema": "imedical-hisui-vendor/v1",
-  "repository": "https://github.com/wanghc/hisui.git",
+  "repository": "https://gitee.com/wanghc123/hisui.git",
   "branch": "master",
   "commit": "4c09319c2daa09a25813c6e6af349e2791d79944",
   "commitDate": "2026-10-12T17:47:00+08:00",
@@ -192,8 +192,8 @@
     },
     {
       "path": "THIRD-PARTY-NOTICES.md",
-      "bytes": 1587,
-      "sha256": "ef77e1ecdb00644e026e8a034ab98b5fb5ced745776851a41bc33d57017aa4fc"
+      "bytes": 1558,
+      "sha256": "24ac3e312a3a24afe2852b11241e0b0bc425387e548f937ca186680513fad1a0"
     },
     {
       "path": "dist/css/font-awesome.all.min.css",
@@ -1427,8 +1427,8 @@
     },
     {
       "path": "dist/css/icons/blue/sysst/nodata_region.svg",
-      "bytes": 4727,
-      "sha256": "20345538dcbfd1baffc1b57810b66036b79a08845c1067ba07c867b089f299dd"
+      "bytes": 4702,
+      "sha256": "b675fbd733ee90f3c847b4e9c080ea37380cb6a8a31145d4ae2cbfbfb73bdea3"
     },
     {
       "path": "dist/css/icons/blue/sysst/timeout_relogon.gif",
@@ -2682,8 +2682,8 @@
     },
     {
       "path": "dist/css/icons/lite/sysst/nodata.svg",
-      "bytes": 46268,
-      "sha256": "f3796ea8014742ec0aadb289d1f4fa67786cf132466db3b87fe0c65b85cc625f"
+      "bytes": 46265,
+      "sha256": "1c32b0418e377707bfc0bdb04d5229696db36431afacbe65a81ded6bccb1d878"
     },
     {
       "path": "dist/css/icons/lite/sysst/nodata_msg.gif",
@@ -3487,83 +3487,83 @@
     },
     {
       "path": "dist/css/icons/pure/about/dhcc_digitalmed.svg",
-      "bytes": 294,
-      "sha256": "dff337947828ae2b4a4e2c4114f3b0bbc451eab10a9d9960b97e63c546698f00"
+      "bytes": 291,
+      "sha256": "61f3f8a8a33909fc286992333bbd0f64ac94a665fc43e4be0201c9e819f185ea"
     },
     {
       "path": "dist/css/icons/pure/about/doc.svg",
-      "bytes": 50938,
-      "sha256": "232d70367d1e9e456520b3af48cda2bdeac91cefed3e0884be56b839f032d23d"
+      "bytes": 50494,
+      "sha256": "67927a3c2d09ecfc8e7cf6cd1b88f311fbfe75c53f5ef8c5c19207d6c378e341"
     },
     {
       "path": "dist/css/icons/pure/about/imedical_logo.svg",
-      "bytes": 3850,
-      "sha256": "c4842d38078dd4e09ebf2c1008d4f066b106216617d6804df7af6a78c1d8e8c7"
+      "bytes": 3828,
+      "sha256": "8c82bb07832f73cee8b9621611b249c990155358af36b0be38e4b2b448f9ba0d"
     },
     {
       "path": "dist/css/icons/pure/about/vi.svg",
-      "bytes": 457,
-      "sha256": "a5a900fb77fcb79b54a675d6b55d96fe456f74ceb477653c7be75247b0c5e73d"
+      "bytes": 452,
+      "sha256": "8bf51aa3274c941564ace5876b95bb6cf3303a0490451192d23cac3bd028df5a"
     },
     {
       "path": "dist/css/icons/pure/adm/em.svg",
-      "bytes": 2392,
-      "sha256": "f4256c849baff5129e6c970c02ad48de2764a93e5eb7b149332d1f0e00a84d29"
+      "bytes": 2362,
+      "sha256": "ef8e33f8fae0c373be9cb90b3eb0bad0a6bef3fea58ce43f9b65b7606fee5d86"
     },
     {
       "path": "dist/css/icons/pure/adm/in.svg",
-      "bytes": 4593,
-      "sha256": "794adfb51fbd304802ae7ebf6ef5204d5bafdcbaef7c455f66929702c4bb64de"
+      "bytes": 4532,
+      "sha256": "c7724a23a73c8876c741330d4ac342ef41bb0ef30280dfffa41e51a5a03f5110"
     },
     {
       "path": "dist/css/icons/pure/adm/out.svg",
-      "bytes": 2235,
-      "sha256": "441802c7a06707584d3c06f3461da4fc500791e2bc4118d866a1cecb89ebbbdf"
+      "bytes": 2216,
+      "sha256": "94431604d99213fef20392826d82e4274cd8c0d637bbdc37e694979abe70b2f6"
     },
     {
       "path": "dist/css/icons/pure/logon/cert.svg",
-      "bytes": 30512,
-      "sha256": "7722dabbc6cfcc727517e61c4fde6f355c294ab90ae32bd0c5347ecc07d3076d"
+      "bytes": 30315,
+      "sha256": "c65392adb2f911681b859fc5922a768c17667c33c13b51cd59cb9e9e4dc93fdc"
     },
     {
       "path": "dist/css/icons/pure/logon/default.svg",
-      "bytes": 30389,
-      "sha256": "f8a723ae108658a8454641d01350c18e50e95a5446e2e49a27227277f9e94d49"
+      "bytes": 30175,
+      "sha256": "b9c4873d727c4355ee1a90fc3ddd65fc3e6ee2cc76d151496e1fd467cb3a1d43"
     },
     {
       "path": "dist/css/icons/pure/logon/face.svg",
-      "bytes": 36369,
-      "sha256": "3ebc259304ce1518696ebbf4c4a2c334859a4bf1a45f075d03dd045517e85c14"
+      "bytes": 36103,
+      "sha256": "ffe016f49f0a9ec0ed84bffa6f3acb4ca5f043e2dee2a107dad78ebd9d614686"
     },
     {
       "path": "dist/css/icons/pure/logon/phone.svg",
-      "bytes": 37160,
-      "sha256": "040bc5f676eed988887ab9912fc634230395edd316426b0cf40ad534bdcde231"
+      "bytes": 36930,
+      "sha256": "b668bff61082cecc0db5723bcd9851ce015ec03e1198e03e765f703e02cec4ac"
     },
     {
       "path": "dist/css/icons/pure/logon/pin.svg",
-      "bytes": 20552,
-      "sha256": "1ed580b8730c760664191d41df8a9389494ec821f29451670dfb06aafa587f75"
+      "bytes": 20345,
+      "sha256": "bc3655f7147a0a3e0e3669cbc5545774bd2dadf5939f328877d6feef11c9c162"
     },
     {
       "path": "dist/css/icons/pure/logon/sound.svg",
-      "bytes": 35074,
-      "sha256": "76f40f4da8dab9707c8df36a2c85dd9d80ea911fd3fc6f78cec73183d2831fd5"
+      "bytes": 34825,
+      "sha256": "8558d77f2c7eb7564375a7840e20b1e28a699eefead52be70a070d51710593ad"
     },
     {
       "path": "dist/css/icons/pure/logon/ukey.svg",
-      "bytes": 29461,
-      "sha256": "6071b185846f8d9d79dcc83e10b50915393f3e516b2bae282964cb6f56f572f8"
+      "bytes": 29275,
+      "sha256": "e74b9486950d7efad69cb34c5f3c6677ec06092818555e55ae96813a37c29c41"
     },
     {
       "path": "dist/css/icons/pure/pat/babyboy.svg",
-      "bytes": 5131,
-      "sha256": "4fc5e8a8d024e7bd22943a8c1778d78aac5f28e419e1441605a1e66f31c64270"
+      "bytes": 5088,
+      "sha256": "72cdee8c1bdf391964b2ebe431bdb554beeca57acef93ba43fa2a20fa8b9bf6e"
     },
     {
       "path": "dist/css/icons/pure/pat/babygirl.svg",
-      "bytes": 6657,
-      "sha256": "4211a8e1e4c5a925eff0dcfd18560b7c5abfc089bbefb3dbd14336ae37b4bfed"
+      "bytes": 6607,
+      "sha256": "19ee6e1659356b7fdb275ab6c109ef2e7bb66c5bf6d9f30652c9067363d4331f"
     },
     {
       "path": "dist/css/icons/pure/pat/man-no-bg.svg",
@@ -3572,8 +3572,8 @@
     },
     {
       "path": "dist/css/icons/pure/pat/man.svg",
-      "bytes": 7126,
-      "sha256": "78108c38fe9a3868b632129efb23171001968229bc3ec1d9cb91bde2c50278a5"
+      "bytes": 7078,
+      "sha256": "31c4b84dd308acd886976e86647c7d934eecc5a4db6d7a80151f3dcaa363bb13"
     },
     {
       "path": "dist/css/icons/pure/pat/man_no_bg.svg",
@@ -3582,23 +3582,23 @@
     },
     {
       "path": "dist/css/icons/pure/pat/oldman.svg",
-      "bytes": 10032,
-      "sha256": "53d1d650dec29565e9c48dd23720c65c7514357c95c88fa309aaf2d4a3b87d02"
+      "bytes": 9968,
+      "sha256": "8b3f290f7410df7c29fbf3efe086700b75618bdbdbb08c18290385dcb6023cb6"
     },
     {
       "path": "dist/css/icons/pure/pat/oldwoman.svg",
-      "bytes": 9937,
-      "sha256": "9270577f540adb34968620c630382b84f32426ea6ef60892e5d2b029c50e54c6"
+      "bytes": 9872,
+      "sha256": "e7d8bf367383c506b7921247f6cc29d401cdcf18e0da2e59f3b3862cb56d8431"
     },
     {
       "path": "dist/css/icons/pure/pat/schoolboy.svg",
-      "bytes": 9039,
-      "sha256": "2898cd5720b3c519ea48f6b420ed5bee6e2b0238725e6eb673733cde88d0c374"
+      "bytes": 8985,
+      "sha256": "780b0113e1d1584d6107a8e164ba66c62bc05866a4fd03246faeef246eac1609"
     },
     {
       "path": "dist/css/icons/pure/pat/schoolgirl.svg",
-      "bytes": 9290,
-      "sha256": "9c55b4af86f92bff5a85d4a69b511fa599c57b484b72719e68be48d426f519b6"
+      "bytes": 9236,
+      "sha256": "e3d144d4e431ee47417bd042fc4402f194df80360c243ecc96378c3744144e5f"
     },
     {
       "path": "dist/css/icons/pure/pat/unknown-gender-no-bg.svg",
@@ -3607,8 +3607,8 @@
     },
     {
       "path": "dist/css/icons/pure/pat/unknown_gender.svg",
-      "bytes": 5404,
-      "sha256": "ebe1e4bf3826aabf2b9149675ff02ac4b6814b0303eb6c0101606c7a841df254"
+      "bytes": 5362,
+      "sha256": "8fa365329074c9986041bb8a12055c87917f8107dba8c062b5bf4e2905d96646"
     },
     {
       "path": "dist/css/icons/pure/pat/unknown_gender_no_bg.svg",
@@ -3622,8 +3622,8 @@
     },
     {
       "path": "dist/css/icons/pure/pat/woman.svg",
-      "bytes": 8473,
-      "sha256": "74d3048ce46355d0a3ed9bdf7c27bc0fa710fdd5998bbf2200979bce21574b52"
+      "bytes": 8415,
+      "sha256": "c6aa336c1c6629f3dc6000db21d3c5930ab0763a35c0e55d45b55bb416b34737"
     },
     {
       "path": "dist/css/icons/pure/pat/woman_no_bg.svg",
@@ -3647,8 +3647,8 @@
     },
     {
       "path": "dist/css/icons/pure/sysst/nodata.svg",
-      "bytes": 27958,
-      "sha256": "671776618ccadc7898b5eba8fc45158b694d97d937af609d219b30b9ecf9948e"
+      "bytes": 27787,
+      "sha256": "0c5cec8b39b15451236839683b33c98e8381833ec5e655791888b7bfb79454b6"
     },
     {
       "path": "dist/css/icons/pure/sysst/nodata_msg.gif",
@@ -3657,8 +3657,8 @@
     },
     {
       "path": "dist/css/icons/pure/sysst/nodata_region.svg",
-      "bytes": 3753,
-      "sha256": "0a16d2187cb23b23552dacbd7c1592944f10a322b63f3cb7b1e1b9f823df07ec"
+      "bytes": 3715,
+      "sha256": "92497f514b2a78355eb303b10957e9b043835e7c4b721500ee3d9701758e1699"
     },
     {
       "path": "dist/css/icons/pure/sysst/nodata_region2.svg",
@@ -3667,8 +3667,8 @@
     },
     {
       "path": "dist/css/icons/pure/sysst/nodata_region75.svg",
-      "bytes": 3346,
-      "sha256": "91ddb130ab2a7403fb206a1dd78e736b8592ca9e82c1d991c467e025503c264f"
+      "bytes": 3312,
+      "sha256": "6a5d6829068cabcd06393d463aedfea56ddd5a5b32ca14439eab1ae4f5f42254"
     },
     {
       "path": "dist/css/icons/pure/sysst/nodata_region_grid-vben.svg",
@@ -3677,8 +3677,8 @@
     },
     {
       "path": "dist/css/icons/pure/sysst/nodata_region_grid.svg",
-      "bytes": 3847,
-      "sha256": "276c212b544baa1a06c566df5266e21160437cc898a00905dcdcf3f8db649fa2"
+      "bytes": 3806,
+      "sha256": "346773f259cca354b7a607752fc6f3b4dad5acdd60f3d52c7131e328b94f8d1c"
     },
     {
       "path": "dist/css/icons/pure/sysst/timeout_relogon.gif",
@@ -3692,43 +3692,43 @@
     },
     {
       "path": "dist/css/icons/pure/usr/clothing_worker.svg",
-      "bytes": 11131,
-      "sha256": "9b979cb6f65637b304ec84d7a2319efdee3d3ce34f8b9c67741d6231923da7dd"
+      "bytes": 11068,
+      "sha256": "df2f716b4312bc7a2ef1f1488659ed493f4ce1166bdb9f159a7f1c4501215fa8"
     },
     {
       "path": "dist/css/icons/pure/usr/dep_director.svg",
-      "bytes": 9118,
-      "sha256": "d6f7fff1189ff7ee2bb882c1511f87dadf7cbc6f1143a579fdbfa5e6c2e1370f"
+      "bytes": 9058,
+      "sha256": "fd50ac235afdf637a1b13d96e69be733708aeaa23e7e17d4c7b6990c8d7f87fe"
     },
     {
       "path": "dist/css/icons/pure/usr/doctor.svg",
-      "bytes": 16414,
-      "sha256": "148fd5ed4d0bc563cd1ec7e0ffb321760557ee0d9c368da6853dbab3f52acd12"
+      "bytes": 16305,
+      "sha256": "d836be43b42ddc1bcc6037f6b19c43328fbcf2e7dc1b2b6a5fe7798375b33c32"
     },
     {
       "path": "dist/css/icons/pure/usr/doctor_woman.svg",
-      "bytes": 8093,
-      "sha256": "e3389e1bc611ecf728727a24e5be634cf40ad906c111c30ffe24a70a21c34bc3"
+      "bytes": 8040,
+      "sha256": "563a6132cc0a016f636b24911f1dce8306162a6c5930948209ccf9fd30ba804e"
     },
     {
       "path": "dist/css/icons/pure/usr/hosp_director.svg",
-      "bytes": 11556,
-      "sha256": "5a57d87702b3014cf67e1df5b08f0f7581e37a2edcf5e29ef85f2ede15542236"
+      "bytes": 11489,
+      "sha256": "09f594631ec73167c3230dc33c277e469780552183510dc22e0e0a4c8edc8495"
     },
     {
       "path": "dist/css/icons/pure/usr/medi_worker.svg",
-      "bytes": 7145,
-      "sha256": "68d9b1b8b1732a9d42c63e89d9bef5d7cc4605134f7336a8e4cecce8212bf635"
+      "bytes": 7094,
+      "sha256": "d5c13660475a77083418646dffbf3afa764496e145583d89dcc11b9d6a6ec0ab"
     },
     {
       "path": "dist/css/icons/pure/usr/nurse.svg",
-      "bytes": 6744,
-      "sha256": "5f12d6c7d68dcf40a12063d37de2b2109e8e8ec0c250c9aa5384c6b39eeff7f3"
+      "bytes": 6696,
+      "sha256": "9b0031748d73fde7207c6fe1cf884cff3a486f800853dcee2cc499a3bfd82eb5"
     },
     {
       "path": "dist/css/icons/pure/usr/surgeon.svg",
-      "bytes": 9904,
-      "sha256": "81b1e2bb175968615d9f7953470ec73a6bb771f35b6f837832b0556c1b13966c"
+      "bytes": 9848,
+      "sha256": "5c1c08c0c149e9c974547aadfe7542d1da4e30a57827224462d7756454b84037"
     },
     {
       "path": "dist/css/icons/qrcode_blue.png",
@@ -4472,13 +4472,13 @@
     },
     {
       "path": "dist/css/icons/vben/about/imedical_logo.svg",
-      "bytes": 3850,
-      "sha256": "608195ff8bdf9aa2b07e4dc4387e70f61fbbac93cbaede3a2899e3b1675fbaf1"
+      "bytes": 3828,
+      "sha256": "dbe41643c59b9718d6bd6d8eea3eda3dd5488048e246264d9e3ffbb99568fabc"
     },
     {
       "path": "dist/css/icons/vben/about/imedical_logo_dark.svg",
-      "bytes": 3850,
-      "sha256": "c812734edf03a8755df79ceb122a0a0d0f7f6cc2c562903c7422ae0efcf32445"
+      "bytes": 3828,
+      "sha256": "23c2a98aead44b2e05f091b1c06d6b300caa081abc00656fb0496b5d0a980f14"
     },
     {
       "path": "dist/css/icons/vben/sysst/e403.png",
@@ -4502,8 +4502,8 @@
     },
     {
       "path": "dist/css/icons/vben/sysst/nodata_region_dark.svg",
-      "bytes": 3055,
-      "sha256": "d8a9110afdd325ad0e7e70971673b5f368a932e3c4cad6e56acda735f83abd97"
+      "bytes": 3029,
+      "sha256": "2942399ca6082101583b40fc4bf3d5d7099695fe1a4858763c432261ec9634d2"
     },
     {
       "path": "dist/css/icons/vben/sysst/nodata_region_grid.svg",
@@ -4952,8 +4952,8 @@
     },
     {
       "path": "dist/css/icons_en/blue/sysst/nodata_region.svg",
-      "bytes": 4727,
-      "sha256": "20345538dcbfd1baffc1b57810b66036b79a08845c1067ba07c867b089f299dd"
+      "bytes": 4702,
+      "sha256": "b675fbd733ee90f3c847b4e9c080ea37380cb6a8a31145d4ae2cbfbfb73bdea3"
     },
     {
       "path": "dist/css/icons_en/blue/sysst/timeout_relogon.gif",
@@ -4987,8 +4987,8 @@
     },
     {
       "path": "dist/css/icons_en/lite/sysst/nodata.svg",
-      "bytes": 46268,
-      "sha256": "f3796ea8014742ec0aadb289d1f4fa67786cf132466db3b87fe0c65b85cc625f"
+      "bytes": 46265,
+      "sha256": "1c32b0418e377707bfc0bdb04d5229696db36431afacbe65a81ded6bccb1d878"
     },
     {
       "path": "dist/css/icons_en/lite/sysst/nodata_msg.gif",
@@ -5017,8 +5017,8 @@
     },
     {
       "path": "dist/css/icons_en/pure/about/dhcc_digitalmed.svg",
-      "bytes": 6411,
-      "sha256": "cf4e9b24d9313baa98a10ac42634259d3fe01c2d0d2e24d6d5924616ff3de3a0"
+      "bytes": 6405,
+      "sha256": "e833196f41ebed32f913a8de7d418f65c338903320021280ec91ac225c13369f"
     },
     {
       "path": "dist/css/icons_en/pure/sysst/e403.gif",
@@ -5042,8 +5042,8 @@
     },
     {
       "path": "dist/css/icons_en/pure/sysst/nodata.svg",
-      "bytes": 27958,
-      "sha256": "671776618ccadc7898b5eba8fc45158b694d97d937af609d219b30b9ecf9948e"
+      "bytes": 27787,
+      "sha256": "0c5cec8b39b15451236839683b33c98e8381833ec5e655791888b7bfb79454b6"
     },
     {
       "path": "dist/css/icons_en/pure/sysst/nodata_msg.gif",
@@ -5052,13 +5052,13 @@
     },
     {
       "path": "dist/css/icons_en/pure/sysst/nodata_region.svg",
-      "bytes": 3753,
-      "sha256": "0a16d2187cb23b23552dacbd7c1592944f10a322b63f3cb7b1e1b9f823df07ec"
+      "bytes": 3715,
+      "sha256": "92497f514b2a78355eb303b10957e9b043835e7c4b721500ee3d9701758e1699"
     },
     {
       "path": "dist/css/icons_en/pure/sysst/nodata_region75.svg",
-      "bytes": 3346,
-      "sha256": "91ddb130ab2a7403fb206a1dd78e736b8592ca9e82c1d991c467e025503c264f"
+      "bytes": 3312,
+      "sha256": "6a5d6829068cabcd06393d463aedfea56ddd5a5b32ca14439eab1ae4f5f42254"
     },
     {
       "path": "dist/css/icons_en/pure/sysst/nodata_region_grid.svg",
@@ -5147,8 +5147,8 @@
     },
     {
       "path": "dist/css/icons_fr/blue/sysst/nodata_region.svg",
-      "bytes": 4727,
-      "sha256": "20345538dcbfd1baffc1b57810b66036b79a08845c1067ba07c867b089f299dd"
+      "bytes": 4702,
+      "sha256": "b675fbd733ee90f3c847b4e9c080ea37380cb6a8a31145d4ae2cbfbfb73bdea3"
     },
     {
       "path": "dist/css/icons_fr/blue/sysst/timeout_relogon.gif",
@@ -5182,8 +5182,8 @@
     },
     {
       "path": "dist/css/icons_fr/lite/sysst/nodata.svg",
-      "bytes": 46268,
-      "sha256": "f3796ea8014742ec0aadb289d1f4fa67786cf132466db3b87fe0c65b85cc625f"
+      "bytes": 46265,
+      "sha256": "1c32b0418e377707bfc0bdb04d5229696db36431afacbe65a81ded6bccb1d878"
     },
     {
       "path": "dist/css/icons_fr/lite/sysst/nodata_msg.gif",
@@ -5212,8 +5212,8 @@
     },
     {
       "path": "dist/css/icons_fr/pure/about/dhcc_digitalmed.svg",
-      "bytes": 6411,
-      "sha256": "cf4e9b24d9313baa98a10ac42634259d3fe01c2d0d2e24d6d5924616ff3de3a0"
+      "bytes": 6405,
+      "sha256": "e833196f41ebed32f913a8de7d418f65c338903320021280ec91ac225c13369f"
     },
     {
       "path": "dist/css/icons_fr/pure/sysst/e403.gif",
@@ -5237,8 +5237,8 @@
     },
     {
       "path": "dist/css/icons_fr/pure/sysst/nodata.svg",
-      "bytes": 27958,
-      "sha256": "671776618ccadc7898b5eba8fc45158b694d97d937af609d219b30b9ecf9948e"
+      "bytes": 27787,
+      "sha256": "0c5cec8b39b15451236839683b33c98e8381833ec5e655791888b7bfb79454b6"
     },
     {
       "path": "dist/css/icons_fr/pure/sysst/nodata_msg.gif",
@@ -5247,13 +5247,13 @@
     },
     {
       "path": "dist/css/icons_fr/pure/sysst/nodata_region.svg",
-      "bytes": 3753,
-      "sha256": "0a16d2187cb23b23552dacbd7c1592944f10a322b63f3cb7b1e1b9f823df07ec"
+      "bytes": 3715,
+      "sha256": "92497f514b2a78355eb303b10957e9b043835e7c4b721500ee3d9701758e1699"
     },
     {
       "path": "dist/css/icons_fr/pure/sysst/nodata_region75.svg",
-      "bytes": 3346,
-      "sha256": "91ddb130ab2a7403fb206a1dd78e736b8592ca9e82c1d991c467e025503c264f"
+      "bytes": 3312,
+      "sha256": "6a5d6829068cabcd06393d463aedfea56ddd5a5b32ca14439eab1ae4f5f42254"
     },
     {
       "path": "dist/css/icons_fr/pure/sysst/nodata_region_grid.svg",
@@ -5312,8 +5312,8 @@
     },
     {
       "path": "dist/css/icons_pt/blue/sysst/nodata_region.svg",
-      "bytes": 4727,
-      "sha256": "20345538dcbfd1baffc1b57810b66036b79a08845c1067ba07c867b089f299dd"
+      "bytes": 4702,
+      "sha256": "b675fbd733ee90f3c847b4e9c080ea37380cb6a8a31145d4ae2cbfbfb73bdea3"
     },
     {
       "path": "dist/css/icons_pt/blue/sysst/timeout_relogon.gif",
@@ -5347,8 +5347,8 @@
     },
     {
       "path": "dist/css/icons_pt/lite/sysst/nodata.svg",
-      "bytes": 46268,
-      "sha256": "f3796ea8014742ec0aadb289d1f4fa67786cf132466db3b87fe0c65b85cc625f"
+      "bytes": 46265,
+      "sha256": "1c32b0418e377707bfc0bdb04d5229696db36431afacbe65a81ded6bccb1d878"
     },
     {
       "path": "dist/css/icons_pt/lite/sysst/nodata_msg.gif",
@@ -5377,8 +5377,8 @@
     },
     {
       "path": "dist/css/icons_pt/pure/about/dhcc_digitalmed.svg",
-      "bytes": 6411,
-      "sha256": "cf4e9b24d9313baa98a10ac42634259d3fe01c2d0d2e24d6d5924616ff3de3a0"
+      "bytes": 6405,
+      "sha256": "e833196f41ebed32f913a8de7d418f65c338903320021280ec91ac225c13369f"
     },
     {
       "path": "dist/css/icons_pt/pure/sysst/e403.gif",
@@ -5402,8 +5402,8 @@
     },
     {
       "path": "dist/css/icons_pt/pure/sysst/nodata.svg",
-      "bytes": 27958,
-      "sha256": "671776618ccadc7898b5eba8fc45158b694d97d937af609d219b30b9ecf9948e"
+      "bytes": 27787,
+      "sha256": "0c5cec8b39b15451236839683b33c98e8381833ec5e655791888b7bfb79454b6"
     },
     {
       "path": "dist/css/icons_pt/pure/sysst/nodata_msg.gif",
@@ -5412,13 +5412,13 @@
     },
     {
       "path": "dist/css/icons_pt/pure/sysst/nodata_region.svg",
-      "bytes": 3753,
-      "sha256": "0a16d2187cb23b23552dacbd7c1592944f10a322b63f3cb7b1e1b9f823df07ec"
+      "bytes": 3715,
+      "sha256": "92497f514b2a78355eb303b10957e9b043835e7c4b721500ee3d9701758e1699"
     },
     {
       "path": "dist/css/icons_pt/pure/sysst/nodata_region75.svg",
-      "bytes": 3346,
-      "sha256": "91ddb130ab2a7403fb206a1dd78e736b8592ca9e82c1d991c467e025503c264f"
+      "bytes": 3312,
+      "sha256": "6a5d6829068cabcd06393d463aedfea56ddd5a5b32ca14439eab1ae4f5f42254"
     },
     {
       "path": "dist/css/icons_pt/pure/sysst/nodata_region_grid.svg",

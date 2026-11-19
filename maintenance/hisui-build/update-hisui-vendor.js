@@ -9,7 +9,9 @@ const crypto = require('node:crypto');
 const vm = require('node:vm');
 const { spawnSync } = require('node:child_process');
 const { createRequire } = require('node:module');
-const REPOSITORY = 'https://github.com/wanghc/hisui.git';
+const UPSTREAM = 'https://gitee.com/wanghc123/hisui';
+const REPOSITORY = UPSTREAM + '.git';
+const HISTORICAL_REPOSITORY = 'https://github.com/wanghc/hisui.git';
 const REPO = path.resolve(__dirname, '../..');
 const SCHEMA = 'imedical-hisui-vendor/v1';
 const REQUIRED = ['js/jquery.hisui.js', 'js/jquery.hisui.min.js', 'js/jquery-1.11.3.min.js',
@@ -60,7 +62,8 @@ function inspect(root) {
 }
 function verify(root) {
   const metadata = JSON.parse(fs.readFileSync(path.join(root, 'upstream.json'), 'utf8'));
-  if (metadata.schema !== SCHEMA || metadata.repository !== REPOSITORY || !/^[a-f0-9]{40}$/.test(metadata.commit)) {
+  if (metadata.schema !== SCHEMA || ![REPOSITORY, HISTORICAL_REPOSITORY].includes(metadata.repository) ||
+      !/^[a-f0-9]{40}$/.test(metadata.commit)) {
     throw new Error('Invalid upstream identity');
   }
   if (JSON.stringify(inventory(root)) !== JSON.stringify(metadata.files)) throw new Error('Vendor inventory/hash mismatch');
@@ -278,7 +281,7 @@ function check(repo = REPO) {
   const remote = git(repo, ['ls-remote', REPOSITORY, 'refs/heads/master']).split(/\s/)[0];
   if (!/^[a-f0-9]{40}$/.test(remote)) throw new Error('Cannot resolve upstream master');
   return { status: local.commit === remote ? 'up-to-date' : 'update-available', localCommit: local.commit, remoteCommit: remote,
-    compareUrl: `https://github.com/wanghc/hisui/compare/${local.commit}...${remote}` };
+    compareUrl: `${UPSTREAM}/compare/${local.commit}...${remote}` };
 }
 function argumentsOf(argv) {
   const command = argv[0] || 'check', options = {};

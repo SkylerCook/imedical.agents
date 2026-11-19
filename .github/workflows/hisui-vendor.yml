@@ -35,9 +35,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Tool installation failed' }
           $sourceDir = Join-Path $taskDir 'upstream'
           New-Item -ItemType Directory -Path $sourceDir | Out-Null
-          $sha = (Get-Content vendor/hisui/upstream.json -Raw | ConvertFrom-Json).commit
+          $upstream = Get-Content vendor/hisui/upstream.json -Raw | ConvertFrom-Json
           git -C $sourceDir init --quiet
-          git -C $sourceDir -c core.autocrlf=false fetch --depth=1 https://github.com/wanghc/hisui.git $sha
+          git -C $sourceDir -c core.autocrlf=false fetch --depth=1 -- $upstream.repository $upstream.commit
           if ($LASTEXITCODE -ne 0) { throw 'Pinned source fetch failed' }
           git -C $sourceDir -c core.autocrlf=false checkout --quiet --detach FETCH_HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Pinned source checkout failed' }

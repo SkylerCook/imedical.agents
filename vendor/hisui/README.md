@@ -1,6 +1,6 @@
 # HISUI vendor 快照
 
-来源：[wanghc/hisui](https://github.com/wanghc/hisui)。版本身份以 [upstream.json](upstream.json) 的完整 commit 为准；上游 package.json 的 `1.0.0` 和组件注释的 `0.1.0` 均不表示当前资产修订。
+更新源为 Gitee 的 [wanghc123/hisui](https://gitee.com/wanghc123/hisui) 仓库 `master` 分支。版本身份以 [upstream.json](upstream.json) 的完整 commit 为准；上游 package.json 的 `1.0.0` 和组件注释的 `0.1.0` 均不表示当前资产修订。
 
 此目录随能力包更新部署到业务项目 `.agents/vendor/hisui/`，用于源码参考和本地预览。`dist/js/jquery.hisui.js`、当前主题 CSS、locale 和上游已跟踪资源来自同一上游提交；Git 未提供的分发补充资源另行固定摘要，见 upstream.json 的 build.distributionAssets。构建工具版本、完整文件清单及 SHA-256 一并记录。源码跳转见 [source-index.json](source-index.json)，行号只适用于该快照。版权见 [LICENSE](LICENSE) 和 [第三方声明](THIRD-PARTY-NOTICES.md)。
 
@@ -17,7 +17,7 @@ node maintenance/hisui-build/update-hisui-vendor.js verify
 
 `check` 只读查询上游 master 并返回差异链接；`verify` 离线检查完整清单、哈希、JS 语法和源码索引。资产升级按同级 [AGENTS.md](AGENTS.md) 执行。完整构建方法在源仓 `maintenance/hisui-build/README.md`，构建脚本与 npm 依赖不部署到业务工程。
 
-2026-10-14 首次补齐来源追踪，固定上游 `4c09319c2daa09a25813c6e6af349e2791d79944`（2026-10-12）。后续当前版本只查询 upstream.json，保留此条作为首次迁移记录。
+2026-10-14 首次从 GitHub 的 `wanghc/hisui` 固定提交 `4c09319c2daa09a25813c6e6af349e2791d79944`（2026-10-12）。2026-11-19 切到 Gitee，现有快照继续使用同一个提交。
 
 本轮对照 HISUI 0.1.0 打包目录，主 JS 文件时间为 2026-09-22，核心仍采用较新的上述 Git 提交；补充其 26 个 Git 未跟踪分发资源（包括 Font Awesome 5.15.1/webfonts、历史 pure CSS 与图片），按文件摘要复用，不将打包目录认定为该 Git 提交的构建。后续优先采用 Git 新增的同路径资产；仍缺失时仅继承已记录且哈希一致的分发输入，不从已有 vendor 任意保留文件。
 
