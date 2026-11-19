@@ -4,6 +4,11 @@
 
 - 正式 0.3.0 ZIP 用约 213 MB 的完整 `08fe2e90` 物料断网首装，实际落盘后插件配置、技能和文档入口缺失。修复复用在线首装的加锁初始化与复查。隔离解包对照和 Windows 部署回归已通过。已首装的 0.3.0 工程可重新应用同一份物料补齐入口，现有业务内容和版本保留。
 
+## 2026-11-20 治疗表单体验评审
+
+- `iris-cure-form-dev` 0.9.0 新增 `cure-form-review`。规格确认前检查视觉层级和填写动线，CA/CR 新建与界面改造在完整预览后复验。支持单张截图独立评审，项目按常规更新取得入口。
+- Windows PowerShell 5.1 和 PowerShell 7 均通过隔离 standard、Overlay 的更新与 thin-index 源回读。Windows Chrome 九档验证 CA 反例、修正版和 CR 重复录入，并查看 390px 截图。真实宿主行为沿现有业务验收，复验方法见[匿名样例](../maintenance/validation/cure-form-review.md)。
+
 ## 2026-11-19 工作台部署策略首批源码验收
 
 - coding、治疗表单、i18n 和接口文档的运行字段接入当前 ContextRoot 的 `project.jsonc`。Windows 隔离工程经 `e943fc29` 原更新器迁移、新装及重复更新，Edge 保存的 i18n 路径由原 CLI 读回。成员隔离、Markdown 保留、编码子路径优先级及回退另有专项回归。字段与保留来源见 `docs/guides/plugin-runtime-settings.md`。

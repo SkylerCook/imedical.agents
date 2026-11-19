@@ -10,6 +10,8 @@
 
 - UI 评审经验已补属性范围、两主题边界、原生间距和父子布局对照；单批证据及匿名夹具结果见[验证记录](../maintenance/validation/ui-review-feedback-2026-11-18.md)，业务副本按正常更新取得。
 
+- 治疗表单的视觉层级、填写动线与回显走 [cure-form-review](../plugins/iris-cure-form-dev/skills/cure-form-review/SKILL.md)。新建与界面改造沿现有流程接入，也可直接审截图。
+
 - imedical-ui 0.3.0 增加[手机端活力蓝参考](../plugins/imedical-ui/references/vital-blue-mobile.md)，开发和评审按项目基准读取。完整原型留源仓本地，真实设备与宿主验证沿现有 UI 队列。
 
 - 工作台 0.2.0 可在 Windows standard 工程首装、检查、取版预演并写入复查。运行、隔离验收及回退见[工作台说明](../tools/agents-workbench/react/README.md)和维护日志；Overlay 写入仍沿工作台计划。

@@ -255,6 +255,7 @@ CA/CR 治疗表单开发、响应式改造与部署。详见[插件说明](../..
 | [cure-form-lookup](../../plugins/iris-cure-form-dev/skills/cure-form-lookup/SKILL.md) | 开发治疗表单 Lookup | 日常入口 |
 | [cure-form-requirement-adapter](../../plugins/iris-cure-form-dev/skills/cure-form-requirement-adapter/SKILL.md) | 将文档或模板快照转为表单规格 | 日常入口 |
 | [cure-form-responsive](../../plugins/iris-cure-form-dev/skills/cure-form-responsive/SKILL.md) | 改造已有 CA/CR 表单响应式布局 | 日常入口 |
+| [cure-form-review](../../plugins/iris-cure-form-dev/skills/cure-form-review/SKILL.md) | 评审 CA/CR 表单的视觉层级、填写动线和回显 | 开发流程与独立评审 |
 | [cure-record-form-dev](../../plugins/iris-cure-form-dev/skills/cure-record-form-dev/SKILL.md) | 按已批准规格开发 CR 记录表单 | 日常入口 |
 | [make-assess-form-responsive](../../plugins/iris-cure-form-dev/skills/make-assess-form-responsive/SKILL.md) | 兼容旧名称并转交响应式入口 | 旧名称兼容 |
 

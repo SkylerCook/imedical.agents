@@ -6,7 +6,7 @@
       "script": "scripts/migrate-runtime-settings.ps1"
     }
   ],
-  "version": "0.8.18",
+  "version": "0.9.0",
   "displayName": "IRIS Cure Form Dev Plugin",
   "description": "CA/CR treatment form ingestion, multi-template generation, responsive migration, review, deployment planning, verification, and rollback orchestration.",
   "entry": "AGENTS.md",
@@ -48,6 +48,7 @@
     "Create a CA treatment assessment form from the approved cure form specification",
     "Create a CR treatment record form from the approved cure form specification",
     "Make this existing CA/CR server form responsive without breaking its runtime contract",
+    "Review the visual hierarchy, fill-in flow, and restored state of this CA/CR form",
     "Generate and verify a complete HISUI browser preview for these cure form changes",
     "Prepare and validate the required manual interaction test evidence for a new cure form",
     "Prepare a dry-run cure form deployment package and review its impact",

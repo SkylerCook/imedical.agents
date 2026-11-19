@@ -12,7 +12,7 @@
 
 - 医院 Word、PDF、Excel 解析委托 `extract-doc`，不得复制解析器。
 - ObjectScript、HISUI、MCP 和静态资源上传编译委托 `coding-iris-plugin`。
-- 本插件负责治疗语义适配、CA/CR 生成、响应式契约、部署包、业务事务、回读与回滚编排。
+- 本插件负责治疗语义适配、CA/CR 生成、体验评审、响应式契约、部署包、业务事务、回读与回滚编排。评审入口和触发条件见[治疗表单工作流](rules/cure_form_workflow.md#体验评审)。
 - 服务端治疗表单事务类固定为 `DHCDoc.Cure.AI.CureFormDeploy`；canonical 不允许从 target profile 注入类名，也不保留旧部署类 fallback。
 - 流程入口为 `node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js <command>`；Node.js 最低版本为 `22.5.0`。
 - Excel 多模板新建通过 `cure-form-template-boundaries/v1` 显式声明 Sheet、模板顺序和 A1 范围；范围重叠或合并单元格被边界截断必须进入 `unresolved[]`，不得静默拆分。

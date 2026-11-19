@@ -427,6 +427,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - 获批规格可携带复杂模板 `fragmentHtml`/`javascript`，生成器验证根容器、响应式 class、字段 ID/缓存标签与模块接口；模板逻辑和表单入口分别以外部运行时路径写入模板/Map“引用JS”，独立预览只初始化实际存在的子模板脚本。
 - 新建 CA/CR 表单直接创建正式模板；现有模板改造默认 versioned-clone，也支持明确授权的 in-place-overwrite，后者只覆盖原 content/Map showJS，保留组成和其它配置。共享模板默认版本化克隆，按引用拓扑验收合并。
 - 响应式改造保留 HISUI `label.radio` 与 `i-label-box` / `m-label-box` 配对，并验证普通布局、表格布局和旧 WebView fallback；业务公共 CSS 不复制进插件。
+- [cure-form-review](plugins/iris-cure-form-dev/skills/cure-form-review/SKILL.md) 接入 CA/CR 新建与界面改造，检查视觉层级、填写动线及回显。也可从单张治疗表单截图独立评审。
 - canonical `preview` 从目标 profile 或现有页面解析六类 HISUI/公共资源并生成带 CSS 依赖哈希的完整页面；`preview-run` 通过本地 Chromium CDP 自动采集九档 Network、Console 与 HISUI 初始化结果，`preview-check` 只接受当前 gate/runner 并固化与 snapshot、changes、资源及依赖哈希绑定的部署前置凭证。
 - 新建表单以 `expectedVersion=NEW` 判定，使用 `interaction-prepare`/`interaction-check` 生成部署前、部署后人工交互清单与哈希凭证；用户明确反馈整体通过即可确认，Agent 自测必须逐项记录，批量自动交互执行前必须另行获得用户明确确认。
 - `common-migrate` 的优先 MapCode 与公共模板 RowID 由目标工程 `cure-form-common-migration-config/v1` 提供，插件 canonical 不保存业务种子。

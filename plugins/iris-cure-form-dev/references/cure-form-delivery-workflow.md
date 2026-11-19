@@ -8,6 +8,7 @@
 |---|---|
 | 创建或修改任务产物 | 工作目录 |
 | 生成或验证预览、调整布局 | 只读 vendor 挂载、视觉质量 |
+| 评审治疗表单的规格、草稿、截图或预览 | [cure-form-review](../skills/cure-form-review/SKILL.md) |
 | 准备部署包、手动交付或远程写入 | 自动部署 / 手动部署；并加载 cure-form-deploy skill 的部署规则 |
 | 多 Map、并行写入或复用验证凭证 | 并行质量与效率 |
 | 用户明确要求清空/恢复演练 | 显式恢复演练 |
@@ -52,7 +53,7 @@ HISUI 默认从 CapabilityRoot/vendor/hisui 挂载到 `/__cure_vendor/hisui/`，
 
 `preview --layout-config <json>` 可声明：`widths`、`breakpoints`、`resourceOrder=business-first`、`resources`、`cases`。业务资源放在唯一 `business/*.css|*.js` 路径；CSS 顺序按实际宿主，而不是按方便通过的顺序。
 
-每个 case 声明 `name`、可选 `click`、`visible[]`（selector/minWidth/minHeight）和 `alignment[]`（selector/count/edges）。次数切换至少验证 1→2→3→1；日期应验证 HISUI 生成的可见 wrapper，而不是隐藏的原 input；同阶段标题和输入的 top/bottom 都要对齐。布局自动交互只允许在已授权的本地预览执行，不使用患者数据，不替代人工交互凭证。
+每个 case 声明 `name`，按需提供 `click`、`text[]`（selector/values，按元素匹配顺序核对状态文案）、`visible[]`（selector/minWidth/minHeight）和 `alignment[]`（selector/count/edges）。次数切换至少验证 1→2→3→1。日期以 HISUI 生成的可见 wrapper 为测量对象。同阶段标题和输入的 top/bottom 都要对齐。布局自动交互使用获得授权的本地预览和匿名样本。人工交互凭证仍按交互验收生成。
 
 runner 输出几何数据和截图，preview-check 强制案例完整且通过。Agent 必须实际查看关键截图；无横向溢出不等于没有错列、标签/控件分离或零宽日期。用户真实 HIS/手机/PDA/PAD 验收保留独立边界。
 

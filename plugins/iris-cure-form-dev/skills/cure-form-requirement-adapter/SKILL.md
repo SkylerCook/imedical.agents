@@ -13,6 +13,6 @@ description: 将 extract-doc/structure-v1 或服务器模板快照转换为 cure
 3. 将标题、章节、字段、字典、计算、显隐、布局、公共模板和运行时契约写入 `cure-form-spec/v1`。
 4. 每个推断项保留 `sourceRef` 和 `confidence`。无法确定的表格含义、选项值、保存语义、扫描图像内容全部进入 `unresolved[]`。
 5. 扫描 PDF 先进行页面视觉提取并人工确认；不得以零字段成功结束。
-6. `review` 仅在人完成确认且 `unresolved[]` 为空时写入批准哈希。
+6. 形成新表单规格或填写流程重排草稿后，按[体验评审](../../rules/cure_form_workflow.md#体验评审)检查视觉层级和填写动线，合入现有规格确认。`review` 仅在人完成确认且 `unresolved[]` 为空时写入批准哈希。
 7. 多模板范围重叠、合并单元格被边界截断、模板计数口径、`rootId`、`moduleName` 或字段控件类型未确认时不得审批。
 8. 规格与摄取报告写入 `docs/work/cure-form/<task>/<moduleId>/source/`；快照和运行态放同任务 private，排除 Git 和 HTTP。

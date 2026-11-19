@@ -143,6 +143,12 @@ node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js plan `
   --public-responsive-css <开发源> --public-responsive-css-copy <部署副本>
 ```
 
+## 治疗表单体验评审
+
+[cure-form-review](skills/cure-form-review/SKILL.md) 检查视觉层级、填写动线和回显反馈。新建或重排填写流程时，可把规格或草稿的评审合入原确认环节。完整预览后，按实际容器和受影响状态复验。单张截图也可独立评审，例如「看这张治疗评估表单截图，指出题组层级、选项与进度显示的问题」。
+
+已启用工程经常规更新刷新 thin-index 后即可调用。Overlay 由共享能力提供源文件，各 ContextRoot 刷新本地入口。规格批准、预览与交互验收使用各自的现有入口。
+
 ## Canonical 完整预览与浏览器门禁
 
 `preview` 从 `changes.templates[]` 生成统一完整页面，并从目标 `cure_form_profile.md` 或 `--page-html` 指定的现有完整页面解析六类必需资源：`hisui.pure.min.css`、`jquery-1.11.3.min.js`、`jquery.hisui.min.js`、`hisui-lang-zh_CN.js`、`asscom.css`、`adaptation.css`。新建 profile 默认把前四项指向随能力包部署的 `.agents/vendor/hisui/`；现有项目配置不被更新器覆盖，仍以 target profile 为准。profile 配置优先于页面引用；路径始终由目标工程提供，插件脚本不写死业务工程路径。本地资源及 CSS `url(...)` 依赖复制到预览目录并写入 SHA-256 清单；远程资源、依赖目标冲突、越界路径、任一六类资源缺失或内容哈希变化都会停止。CSS 源中不存在的相对依赖会显式进入 manifest，随后由真实浏览器 Network 门禁判断是否被请求失败。纯 fragment 转换不要求携带这些资源，但部署前仍必须生成完整预览。

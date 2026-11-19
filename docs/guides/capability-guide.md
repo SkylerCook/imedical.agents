@@ -125,8 +125,8 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 | 场景 | 顺序与关键交接 |
 |---|---|
 | 通用接口 | `iris-interface-doc-ingest` → `iris-interface-field-match` → 确认字段歧义 → `iris-interface-dev-plan` → 计划确认后 `iris-interface-build` → 需要远端操作时交给 `iris-deploy` |
-| 文档新建治疗表单 | `extract-doc-ingest` 提取结构 → `cure-form-requirement-adapter` 生成规格 → 人工确认且 unresolved 清零 → CA 用 `cure-assess-form-dev`，CR 用 `cure-record-form-dev` → 预览与交互验证 → 按范围进入 `cure-form-deploy` |
-| 现有表单响应式 | `cure-form-responsive` 检查模板并保留契约 → 完整预览与验证 → 需要发布时进入部署流程；新任务不必使用旧名称 |
+| 文档新建治疗表单 | `extract-doc-ingest` 提取结构 → `cure-form-requirement-adapter` 生成规格并接入体验评审 → 人工确认且 unresolved 清零 → CA 用 `cure-assess-form-dev`，CR 用 `cure-record-form-dev` → 完整预览、体验复验与交互验证 → 按范围进入 `cure-form-deploy` |
+| 现有表单响应式 | `cure-form-responsive` 检查模板并保留契约 → 完整预览、体验评审与验证 → 需要发布时进入部署流程。旧技能名称兼容已有调用 |
 | 页面国际化 | 定位链路和分类 → `i18n-coding` / `i18n-text-extract` → 页面非字典文案用 `i18n-page-trans-seed`，字典项用 `i18n-bdp-trans-seed` → 核验；已有服务器翻译迁移用 `i18n-csp-trans-sync` |
 | 标版需求录入 | `bos-demand-entry --text`（代码补录，或自然语言指定“提需求给某组”及主题/资料；`--work` 工作记录；可叠加 `--split`、`--excel`）→ 用户录入 BOSS → `--bind` 回填编号与标题；仅代码来源再按需 `--plan` / 明确 `--commit`，完整参数见[需求录入协议](../../plugins/bos-plugin/references/standard-demand-entry.md) |
 | 已有 BOS 需求处理 | `bos-demand-handle` → 获取并复用需求与相关媒体 → 按技术栈实施、自查和验证 → 用户验收 → 按授权合入实仓并校验全部目标 commit → 仅标版自动准备实仓提交的日志计划 → 复用 BOS 补录预授权或请求授权 → 提交 BOS 日志；需求状态更新独立授权 |
@@ -249,6 +249,7 @@ connected 项目按需导出示例：“处理这份 project 需求，准备修�
 | [cure-form-lookup](../../plugins/iris-cure-form-dev/skills/cure-form-lookup/SKILL.md) | 为指定治疗表单增加这份字段定义对应的 Lookup。 | 明确 CA/CR 宿主、字段和数据来源；产出 Lookup HTML、JS 和只读查询 SQL。 |
 | [cure-form-requirement-adapter](../../plugins/iris-cure-form-dev/skills/cure-form-requirement-adapter/SKILL.md) | 把指定 Word 评估单转成 CA 规格，列出待确认字段。 | 文档先做结构提取，或提供模板快照；产出 cure-form-spec/v1，未确认项清零且人工确认后才批准。 |
 | [cure-form-responsive](../../plugins/iris-cure-form-dev/skills/cure-form-responsive/SKILL.md) | 把指定已有表单适配手机和 PAD，保留保存、回显与打印契约。 | 提供本地模板或允许读取的服务器对象；产出改造模板、完整预览及契约验证，真机结果单列。 |
+| [cure-form-review](../../plugins/iris-cure-form-dev/skills/cure-form-review/SKILL.md) | 评审这张治疗评估表单截图，看看选项排布、视觉层级和作答进度。 | 单张截图可起步。也可给规格、草稿或完整预览，获得有位置、证据和复验建议的只读发现。 |
 | [cure-record-form-dev](../../plugins/iris-cure-form-dev/skills/cure-record-form-dev/SKILL.md) | 按这份已批准的 CR 规格生成记录表单并提供预览。 | formType=CR、unresolved 为空且规格已批准；产出 HTML、JS、根片段及 CR 保存回显打印验证材料。 |
 | [make-assess-form-responsive](../../plugins/iris-cure-form-dev/skills/make-assess-form-responsive/SKILL.md) | 使用 make-assess-form-responsive 改造这份已有表单。 | 仅旧入口兼容，实际执行 cure-form-responsive；新任务优先使用新名称。 |
 

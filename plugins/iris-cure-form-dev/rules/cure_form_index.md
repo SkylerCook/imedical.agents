@@ -4,6 +4,7 @@
 - 新建 CR：`cure-record-form-dev`
 - 医院文档适配：`cure-form-requirement-adapter`
 - 现有模板响应式改造：`cure-form-responsive`
+- 治疗表单体验评审：[cure-form-review](../skills/cure-form-review/SKILL.md)，可从单张截图开始
 - 旧入口兼容：`make-assess-form-responsive`
 - Lookup：`cure-form-lookup`
 - HIS 根片段：`cure-form-fragment`

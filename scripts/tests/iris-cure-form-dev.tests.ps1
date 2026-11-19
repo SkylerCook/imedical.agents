@@ -122,7 +122,7 @@ try {
     Assert-True ($manifest.version -eq '0.7.0') 'Unexpected plugin version.'
     Assert-True (($manifest.dependencies -contains 'extract-doc') -and ($manifest.dependencies -contains 'coding-iris-plugin')) 'Plugin dependencies are incomplete.'
 
-    foreach ($skill in @('cure-form-init','cure-form-requirement-adapter','cure-assess-form-dev','cure-record-form-dev','cure-form-responsive','make-assess-form-responsive','cure-form-deploy','cure-form-lookup','cure-form-fragment')) {
+    foreach ($skill in @('cure-form-init','cure-form-requirement-adapter','cure-assess-form-dev','cure-record-form-dev','cure-form-responsive','cure-form-review','make-assess-form-responsive','cure-form-deploy','cure-form-lookup','cure-form-fragment')) {
         Assert-True (Test-Path -LiteralPath (Join-Path $pluginRoot "skills\$skill\SKILL.md")) "Missing skill: $skill"
     }
 
