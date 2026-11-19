@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,9 +27,17 @@ if (runtime) {
 mkdirSync(destination);
 
 function copy(relative, target = relative) {
+  const source = resolve(repo, relative);
   const file = join(destination, target);
+  const stat = lstatSync(source);
+  if (stat.isDirectory()) {
+    mkdirSync(file, { recursive: true });
+    for (const entry of readdirSync(source)) copy(join(source, entry), join(target, entry));
+    return;
+  }
+  if (!stat.isFile()) throw new Error(`运行包来源不是普通文件或目录：${relative}`);
   mkdirSync(dirname(file), { recursive: true });
-  cpSync(resolve(repo, relative), file, { recursive: true });
+  copyFileSync(source, file);
 }
 
 if (runtime) {
@@ -49,6 +57,10 @@ for (const file of [
   "tools/ai-dev-offline/vendor/jsonc-parser",
   "tools/ai-dev-offline/vendor/iarna-toml",
   "scripts/generate-plugin-catalog.js",
+  "scripts/lib/workspace-context.js",
+  "tools/agents-workbench/src/project-context.js",
+  "tools/agents-workbench/src/framework-service.js",
+  "tools/agents-workbench/src/framework-worker.js",
   "scripts/lib/plugin-groups.json",
   `${dist}/index.html`,
   `${dist}/workbench-mark.svg`,

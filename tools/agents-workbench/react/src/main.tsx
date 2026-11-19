@@ -18,6 +18,7 @@ import { RealPages } from "./real-pages";
 import { href, readRoute, type DemoId, type Navigation, type Page, type Params } from "./routes";
 import { Status } from "./ui";
 import "./theme.css";
+import "./framework-api";
 
 const navigation = [
   { title: "工程", items: [

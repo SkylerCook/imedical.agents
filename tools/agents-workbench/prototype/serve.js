@@ -18,11 +18,13 @@ const {generate}=require(path.join(repo,'scripts/generate-plugin-catalog.js'));
 const projectArg=process.argv.indexOf('--project');
 const projectRoot=projectArg>=0?path.resolve(process.argv[projectArg+1]):null;
 const inspect=require('./inspect-project.js');
+const framework = require('../src/framework-service.js').createFrameworkService(projectRoot);
 const settings=require('./personal-settings.js').createSettings();
 const projectSettings=require('./project-settings.js').createProjectSettings(projectRoot);
 const projectPlans=new Set();
-const port=Number(process.env.PORT||4179);
-http.createServer(async(req,res)=>{const u=new URL(req.url,'http://127.0.0.1');const name=u.pathname.slice(1);let file;
+let port=Number(process.env.PORT||4179);
+const server = http.createServer(async(req,res)=>{const u=new URL(req.url,'http://127.0.0.1');const name=u.pathname.slice(1);let file;
+if (name === 'framework.json' || name.startsWith('framework/')) return framework.handle(req,res,name,'http://127.0.0.1:' + port).catch(() => res.destroy());
 if(u.pathname.startsWith('/settings/')){
  const reply=(code,value)=>{res.writeHead(code,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value))};
  if(req.headers.host!==`127.0.0.1:${port}`||req.headers['x-workbench-request']!=='1'||(req.headers.origin&&req.headers.origin!==`http://127.0.0.1:${port}`)||['cross-site','none'].includes(req.headers['sec-fetch-site']))return reply(403,{error:'请求来源不受信任'});
@@ -61,12 +63,14 @@ fs.readFile(file,(err,data)=>{
  res.end(req.method==='HEAD'?undefined:payload);
 });
 }).listen(port, '127.0.0.1', () => {
+ port = server.address().port;
  const address = `http://127.0.0.1:${port}/${projectRoot ? '#home' : '#/clinic/home'}`;
+ if (process.send) process.send({address,bootstrap:framework.bootstrap});
  console.log(`Workbench: ${address}`);
  if (process.platform !== 'win32' || !process.argv.includes('--open')) return;
  const { spawn } = require('node:child_process');
  const command = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'cmd.exe');
- const browser = spawn(command, ['/d', '/c', 'start', '""', address], {
+ const browser = spawn(command, ['/d', '/c', 'start', '""', projectRoot ? address.split('#')[0] + '#bootstrap=' + framework.bootstrap : address], {
   windowsHide: true, windowsVerbatimArguments: true, stdio: 'ignore',
  });
  const report = () => console.error('Could not open the browser. Open the address above.');
