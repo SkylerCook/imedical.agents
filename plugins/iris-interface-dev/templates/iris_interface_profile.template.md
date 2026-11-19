@@ -1,8 +1,10 @@
 # IRIS Interface Profile
 
+运行参数保存在当前 ContextRoot 的 `config/project.jsonc` 的 `pluginSettings.iris-interface-dev` 节。
+
+
 ## Output
 
-- outputRoot: auto
 - keepMarkdownOutOfContext: true
 
 `auto` 使用 extract-doc 的目录解析结果；显式路径仍通过 `--output-root` 原样传递。已有 profile 的自定义目录或 `docs/interface` 保持有效，不自动重写。

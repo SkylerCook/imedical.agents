@@ -34,6 +34,6 @@ node scripts/feign-doc-audit.js all \
 
 ## 启用与更新
 
-插件目录存在只表示能力 `available`。完成项目上下文维护和本插件实际验收后，再将目标项目 `.agents/config/plugin_profile.md` 中的插件状态更新为 `enabled`。已部署项目通过 `.agents/scripts/update-agents.ps1` 获取插件更新，并按 profile 重建 thin-index。
+插件目录存在只表示能力 `available`。完成项目上下文维护和本插件实际验收后，再将目标项目 `.agents/config/project.jsonc` 的 `plugins` 节 中的插件状态更新为 `enabled`。已部署项目通过 `.agents/scripts/update-agents.ps1` 获取插件更新，并按 profile 重建 thin-index。
 
 本插件不保存业务项目的接口地址、账号、token、私有字段样例或其它连接事实；这些信息只留在目标项目本地上下文中。

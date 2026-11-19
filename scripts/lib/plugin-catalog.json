@@ -61,7 +61,7 @@
       "directory": "agent-context-kit",
       "manifest": {
         "name": "agent-context-kit",
-        "version": "0.11.3",
+        "version": "0.11.4",
         "displayName": "Agent Context Kit",
         "description": "Reusable project context, on-demand capability group selection, local task handoff and cross-session continuation, plus schema 2.0 agent run templates and separate demand and framework-maintenance lifecycles.",
         "entry": "AGENTS.md",
@@ -187,13 +187,13 @@
           }
         ]
       },
-      "manifestHash": "7ac13498cf9872ea370477550fd539f1f42fd67bcb33a5094766d7bf7b107a1c"
+      "manifestHash": "7be89542398f36d1af4ccc612e1daf3f9e35b1fb8c4eb3ed7efb51a967b1f7e5"
     },
     {
       "directory": "agent-framework-evolution",
       "manifest": {
         "name": "agent-framework-evolution",
-        "version": "0.2.0",
+        "version": "0.2.1",
         "displayName": "Agent Framework Evolution",
         "description": "Preserve bundled feedback review and reusable capability packaging through plugin-owned skills.",
         "entry": "AGENTS.md",
@@ -231,7 +231,7 @@
           ]
         }
       },
-      "manifestHash": "1363f39bf26cbf9cb3f39d9c59267fd9902bf091bc0484e59144db5659ea0fd0"
+      "manifestHash": "1799fb6fba7ab74599bcffa3e9464370ad1b4d0dccfa3782d1c7a788c114322b"
     },
     {
       "directory": "bos-plugin",
@@ -328,7 +328,7 @@
       "directory": "codegraph-query",
       "manifest": {
         "name": "codegraph-query",
-        "version": "0.1.1",
+        "version": "0.1.2",
         "displayName": "CodeGraph Query Plugin",
         "description": "Read-only query workflow for CodeGraph SQLite indexes under .codegraph/codegraph.db, used for code location, caller/callee checks, route lookup, and first-pass impact analysis.",
         "entry": "AGENTS.md",
@@ -356,13 +356,13 @@
           "Show callers and callees for an indexed function"
         ]
       },
-      "manifestHash": "b9aa9caf992c921a84797991a7f13e06f56c13394caaad2c29a906725920ce52"
+      "manifestHash": "f8d071f2831ee3cd1a46d60e5da589111d4fdc2904fcac44b27452e0d66b9ddf"
     },
     {
       "directory": "coding-iris-plugin",
       "manifest": {
         "name": "coding-iris-plugin",
-        "version": "0.34.2",
+        "version": "0.34.3",
         "displayName": "IRIS Coding Plugin",
         "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
         "entry": "AGENTS.md",
@@ -392,6 +392,10 @@
           {
             "id": "iris-development-config-v1",
             "script": "scripts/migrate-development-config.ps1"
+          },
+          {
+            "id": "plugin-runtime-settings-v1",
+            "script": "scripts/migrate-runtime-settings.ps1"
           }
         ],
         "skillDependencies": {
@@ -543,7 +547,7 @@
           "vendor/xml-parser"
         ]
       },
-      "manifestHash": "e7cdfcb66fb7195285904c8236158cfd97490db16a25b63ab1b321eec3b6325e"
+      "manifestHash": "7a93bfff4b3fc6a1926b0493676614fad6a21e08e619351b06c780d8065dc064"
     },
     {
       "directory": "demand-delivery-plugin",
@@ -632,7 +636,13 @@
       "directory": "i18n-iris-plugin",
       "manifest": {
         "name": "i18n-iris-plugin",
-        "version": "0.3.17",
+        "configMigrations": [
+          {
+            "id": "plugin-runtime-settings-v1",
+            "script": "scripts/migrate-runtime-settings.ps1"
+          }
+        ],
+        "version": "0.3.18",
         "displayName": "IRIS I18N Plugin",
         "description": "Reusable i18n agent workflows for IRIS/ObjectScript/CSP/HISUI projects.",
         "entry": "AGENTS.md",
@@ -740,7 +750,7 @@
           "vendor/hisui"
         ]
       },
-      "manifestHash": "58e044bc4c3855851af4a304a91a26ad1ee5b55bc712df14fa0f3f0d08e9b0dd"
+      "manifestHash": "99e37f598f1496c45989b20593de1c8e2cb767168009800de62743def4b54815"
     },
     {
       "directory": "imedical-ui",
@@ -782,7 +792,7 @@
       "directory": "imedicalxc-doctor-card-reader",
       "manifest": {
         "name": "imedicalxc-doctor-card-reader",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "displayName": "iMedicalXC Doctor Card Reader",
         "description": "HIS 医生站读卡设备接入配置插件。根据设备厂商、型号动态解析通用字典目录，生成厂商/型号通用字典与设备接口参数配置 SQL，并完成结果校验。当前仅支持 SQL 操作，后续读卡相关操作按新 skill 扩展。",
         "entry": "AGENTS.md",
@@ -802,15 +812,15 @@
           "ct_pa_card_hard_manager"
         ]
       },
-      "manifestHash": "761bb494ac2f4a5f4d6b4546e9704f1897cc8f6c8049da0986efb2716c112593"
+      "manifestHash": "19e0382543deb75c8a5d27e7d57552d70315f9c117791d6e5c06d2986863503e"
     },
     {
       "directory": "imedicalxc-doctor-codegraph",
       "manifest": {
         "name": "imedicalxc-doctor-codegraph",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "displayName": "iMedicalXC Doctor CodeGraph",
-        "description": "HIS 医生站代码调用图索引与检索插件。构建工作区方法级调用图、扫描 Maven biz jar 并生成影响分析与两部分穿透索引（impact_db.json / penetration_db.json），提供变更影响分析、调用者与被调用者、Feign 使用方、跨服务依赖与提交级批量取证查询；同时构建前端「界面→操作→JS 方法→HTTP 请求」链路索引。",
+        "description": "HIS 医生站代码调用图索引与检索插件。构建工作区方法级调用图、扫描 Maven biz jar 并生成影响分析与两部分穿透索引（impact_db.json / penetration_db.json），提供变更影响分析、调用者与被调用者、Feign 使用方、跨服务依赖与提交级批量取证查询；同时构建前端「界面→操作→JS 方法→HTTP 请求」链路索引，以及服务总线「HIS↔外部系统」生产者/消费者绑定索引。",
         "entry": "AGENTS.md",
         "skills": "skills/",
         "scripts": "scripts/",
@@ -824,7 +834,8 @@
           "查询某方法被谁调用",
           "查询 Feign 接口被哪些服务或模块调用",
           "按提交批量取证调用链证据",
-          "初始化或增量更新前端界面操作链路索引"
+          "初始化或增量更新前端界面操作链路索引",
+          "构建或查询 HIS 与外部系统的服务总线绑定关系"
         ],
         "projectDirectories": [
           {
@@ -859,16 +870,35 @@
             ],
             "boundary": "确定性生成的派生产物，随源码版本提交；节点路径为 src/frontend/hisfront/static 相对路径，不随克隆位置变化",
             "lifecycle": "随索引重建整体覆盖，可随时全量重生成；不手工编辑，中间产物只在构建期存在于本目录"
+          },
+          {
+            "id": "aggregation-index",
+            "base": "workspace",
+            "path": "docs/agents/imedicalxc-doctor-aggregation",
+            "role": "knowledge",
+            "create": "setup",
+            "purpose": "服务总线绑定索引产物：接入系统、注册/发布服务、消息订阅与路由证据，归一化后的 HIS↔外部系统生产者/消费者绑定（HIS 侧已挂接 Controller 方法），系统级绑定图（HTML / GraphML）、Controller 影响矩阵与请求码对照清单（Markdown）",
+            "examples": [
+              "aggregation_db.json",
+              "aggregation_raw.json",
+              "aggregation_stats.json",
+              "aggregation_graph.html",
+              "aggregation_graph.graphml",
+              "aggregation_request_checklist.md",
+              "aggregation_controller_impact.md"
+            ],
+            "boundary": "从只读总线库 db_hsb.sm_hsb 导出的派生产物，随项目版本提交；不包含任何密钥/凭据列，系统名与 ID 原样保留",
+            "lifecycle": "随总线登记变化重建覆盖；不手工编辑，中间回填文件只存在于 MCP 会话临时目录"
           }
         ]
       },
-      "manifestHash": "30d473f382b02dfe90cf81c8dfb6d23e1599bee7d4099035b5688a66261a1cbd"
+      "manifestHash": "53011ed4425838bbccb7eea4eafbd403570502cd96fd17cf8ab700bacfa968ad"
     },
     {
       "directory": "imedicalxc-doctor-data-extraction",
       "manifest": {
         "name": "imedicalxc-doctor-data-extraction",
-        "version": "1.1.1",
+        "version": "1.1.2",
         "displayName": "HIS Data Extraction & API Mapping Plugin",
         "description": "数据抽取与第三方接口对照文档生成插件。从@OpenApi Controller抽取接口数据，扫描分类现有接口并生成第三方接口与Feign标准接口的字段级对照文档（核心功能）。也可按需生成Feign标准接口代码和API文档，并核对修正已有API文档的服务地址、入参/出参类型与字段（辅助功能）。",
         "entry": "AGENTS.md",
@@ -894,7 +924,7 @@
           "出入参校验"
         ]
       },
-      "manifestHash": "d03245101a18745d452e1733481025741d79e5da106a77aad3a4a677d4bd18ed"
+      "manifestHash": "093610165c85f1b09c3a32d68b274e47cca2c70684cac29bec61a4c5a08ff50a"
     },
     {
       "directory": "imedicalxc-doctor-extend-engineer",
@@ -975,7 +1005,7 @@
       "directory": "imedicalxc-doctor-perf-analysis-engineer",
       "manifest": {
         "name": "imedicalxc-doctor-perf-analysis-engineer",
-        "version": "1.0.3",
+        "version": "1.0.4",
         "displayName": "iMedicalXC Doctor Performance Analysis Engineer",
         "description": "HIS 医生站接口性能分析与优化，覆盖前后端全链路追踪、N+1 优化、Graylog 日志分析。",
         "entry": "AGENTS.md",
@@ -1011,13 +1041,13 @@
           "vendor/superpowers"
         ]
       },
-      "manifestHash": "77d3a8a59beb1a6d46ec2ea9a6664977dc851ad0d65f5441b455e8856a914842"
+      "manifestHash": "97f6b29e58a11da69a477285d66ba3d1fe6aacd4b60ca9c542a76fd4fb6d44a2"
     },
     {
       "directory": "imedicalxc-doctor-print-template-design",
       "manifest": {
         "name": "imedicalxc-doctor-print-template-design",
-        "version": "1.0.1",
+        "version": "1.0.2",
         "displayName": "HIS Print Template Design Plugin",
         "description": "HIS打印模板设计和生成技能。覆盖从Word/docx参考文档到可导入.xlsx模板文件的完整流程，包括主模板+扩展模板双生成、UUID全量重生成、Sheet4返回参数字段修正。",
         "entry": "AGENTS.md",
@@ -1038,13 +1068,13 @@
           "导出模板"
         ]
       },
-      "manifestHash": "2e4b9f164f4c816900a0ee9be59e5fb04cd673b191cc398d902395a72c1dc8e7"
+      "manifestHash": "9b5f4cca21a971aaa2fa719565e62f36ac9e64845bfef2f2bbb82511735beac6"
     },
     {
       "directory": "iris-codegraph",
       "manifest": {
         "name": "iris-codegraph",
-        "version": "0.1.32",
+        "version": "0.1.33",
         "displayName": "IRIS CodeGraph Plugin",
         "description": "Build and query a local SQLite graph for IRIS/ObjectScript classes, methods, properties, parameters, inheritance, and static ##class calls.",
         "entry": "AGENTS.md",
@@ -1073,13 +1103,19 @@
           "Estimate impact for changing an ObjectScript class"
         ]
       },
-      "manifestHash": "9c5072eb8b6c15b5f5e68468854af003f125312daa86c07625f3cbc816b0dc70"
+      "manifestHash": "b83ca6fd378e65dc0534e32896d1ebc339b1324d04a0fa2ab92c23a34248de77"
     },
     {
       "directory": "iris-cure-form-dev",
       "manifest": {
         "name": "iris-cure-form-dev",
-        "version": "0.8.17",
+        "configMigrations": [
+          {
+            "id": "plugin-runtime-settings-v1",
+            "script": "scripts/migrate-runtime-settings.ps1"
+          }
+        ],
+        "version": "0.8.18",
         "displayName": "IRIS Cure Form Dev Plugin",
         "description": "CA/CR treatment form ingestion, multi-template generation, responsive migration, review, deployment planning, verification, and rollback orchestration.",
         "entry": "AGENTS.md",
@@ -1166,7 +1202,7 @@
           "vendor/hisui"
         ]
       },
-      "manifestHash": "d8acbffc9381732efd156fcf510effe5fa118455616a1c03225274068a2d95a7"
+      "manifestHash": "8b7aaf8cb7bd2214f4a82b7f5e92232e598dd9c24af6ef4cd15ce058ff8fa65e"
     },
     {
       "directory": "iris-external-reg",
@@ -1270,7 +1306,7 @@
       "directory": "iris-interface-dev",
       "manifest": {
         "name": "iris-interface-dev",
-        "version": "0.3.14",
+        "version": "0.3.15",
         "displayName": "IRIS Interface Dev Plugin",
         "description": "Document-first IRIS interface workflow covering parsed document handoff, field matching, implementation planning, local ObjectScript/JavaScript implementation, offline review.",
         "entry": "AGENTS.md",
@@ -1283,6 +1319,10 @@
           {
             "id": "interface-output-root-v1",
             "script": "scripts/migrate-interface-profile.ps1"
+          },
+          {
+            "id": "plugin-runtime-settings-v1",
+            "script": "scripts/migrate-runtime-settings.ps1"
           }
         ],
         "initSkill": "iris-interface-init",
@@ -1318,7 +1358,7 @@
           "Review generated interface artifacts for field coverage and dot-loop risks"
         ]
       },
-      "manifestHash": "38600d877d125f894f49ea706b3e0448e873f0adb95e4cbd454d9027807a8c19"
+      "manifestHash": "2acff8c1a851cc60ac68e0900a844937bf03bb38f083d7bf600a2ba59d58ee1a"
     },
     {
       "directory": "iris-ui",

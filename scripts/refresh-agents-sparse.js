@@ -16,10 +16,24 @@ function git(root, args, options = {}) {
 
 function deploymentRuntime(root) {
   // Use the same revision as the catalog even when a bootstrap runs before checkout.
-  const probe = spawnSync('git', ['-C', root, 'show', 'HEAD:scripts/lib/plugin-deployment.js'], {encoding:'utf8', maxBuffer:4*1024*1024});
+  const revision = git(root,['rev-parse','HEAD']).trim();
+  const probe = spawnSync('git', ['-C', root, 'show', revision+':scripts/lib/plugin-deployment.js'], {encoding:'utf8', maxBuffer:4*1024*1024});
   if (probe.status !== 0) return null;
   const loaded = {exports:{}};
-  new Function('require', 'module', probe.stdout)(require, loaded);
+  const modules = new Map();
+  function load(parent, name) {
+    if (name.startsWith('node:')) return require(name);
+    const file = path.posix.normalize(path.posix.join(path.posix.dirname(parent),name)) + '.js';
+    if (!/^(scripts\/lib|vendor\/jsonc-parser)\/[\w/-]+\.js$/.test(file)) throw Error('Unexpected sparse bootstrap dependency: '+file);
+    if (!modules.has(file)) {
+      const child = {exports:{}};
+      modules.set(file,child);
+      const source = git(root,['show',revision+':'+file]);
+      new Function('require','module','exports',source)(dependency=>load(file,dependency),child,child.exports);
+    }
+    return modules.get(file).exports;
+  }
+  new Function('require', 'module', probe.stdout)(name=>load('scripts/lib/plugin-deployment.js',name), loaded);
   return loaded.exports;
 }
 

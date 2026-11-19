@@ -41,7 +41,7 @@ function fixture(t, {onDemand = true, kind = 'project', ignored = true, overlay 
     if (overlay) write(path.join(root, '.agents/capability.json'), {schemaVersion: 1, mode: 'workspace-overlay', workspace: 'fixture',
         contextRoot: 'context', capabilityRoot, sharedDirectories: [], localDirectories: ['config'],
         sourceRoots: [{name: 'backend', path: 'code', target: 'code', gitRoot: 'code'}]});
-    const developmentFile = path.join(contextRoot, 'config/iris-development.json');
+    const developmentFile = path.join(contextRoot, 'config/project.jsonc');
     const policyFile = path.join(contextRoot, 'config/iris-remote-policy.json');
     return {root, parent, contextRoot, capabilityRoot, developmentFile, policyFile,
         run: options => configure({projectRoot: root, mode: 'Write', developmentMode: 'connected',
@@ -58,7 +58,7 @@ test('initialization creates required local configuration without reading connec
     try { result = f.run(); } finally { fs.readFileSync = originalRead; }
     assert.equal(result.configurationReady, true);
     assert.deepEqual(result.files.map(entry => entry.status), ['created', 'created']);
-    assert.deepEqual(JSON.parse(fs.readFileSync(f.developmentFile)), {developmentMode: 'connected', environmentAlias: 'confirmed-test', environmentType: 'test'});
+    assert.deepEqual(JSON.parse(fs.readFileSync(f.developmentFile)).irisDevelopment, {developmentMode: 'connected', environmentAlias: 'confirmed-test', environmentType: 'test'});
     const policy = JSON.parse(fs.readFileSync(f.policyFile));
     assert.equal(policy.enabled, false);
     assert.equal(policy.qualification, undefined);
@@ -82,7 +82,7 @@ test('DryRun, Check and the default mode never create configuration or directori
     for (const mode of ['DryRun', 'Check', undefined]) {
         const result = f.run({mode});
         assert.equal(result.configurationReady, false);
-        assert.ok(result.configurationGaps.includes('iris-development.json-missing'));
+        assert.ok(result.configurationGaps.includes('project.jsonc-missing'));
         assert.equal(fs.existsSync(f.developmentFile), false);
         assert.equal(fs.existsSync(f.policyFile), false);
     }
@@ -91,7 +91,7 @@ test('DryRun, Check and the default mode never create configuration or directori
 test('configure preserves existing JSON bytes, unknown fields and recovery state', t => {
     const f = fixture(t);
     f.run();
-    const development = '\ufeff{ "developmentMode": "connected", "environmentAlias": "confirmed-test", "environmentType": "test", "custom": 42 }\r\n';
+    const development = '\ufeff{ "irisDevelopment":{ "developmentMode": "connected", "environmentAlias": "confirmed-test", "environmentType": "test", "custom": 42 }}\r\n';
     const policy = fs.readFileSync(f.policyFile);
     write(f.developmentFile, development);
     write(path.join(f.contextRoot, 'work/source-sync/tasks/existing/plan.json'), 'original recovery bytes');
@@ -105,13 +105,24 @@ test('configure preserves existing JSON bytes, unknown fields and recovery state
     assert.equal(fs.readFileSync(path.join(f.contextRoot, 'work/source-sync/tasks/existing/plan.json'), 'utf8'), 'original recovery bytes');
 });
 
+test('legacy declaration with private extensions stays in place for manual review', t => {
+    const f = fixture(t);
+    const legacy = path.join(f.contextRoot,'config/iris-development.json');
+    const original = JSON.stringify({developmentMode:'connected', credentials:{password:'fixture-only'}});
+    write(legacy,original);
+    assert.throws(() => f.run(), /unknown-development-field/);
+    assert.equal(fs.readFileSync(legacy,'utf8'),original);
+    assert.equal(fs.existsSync(f.developmentFile),false);
+    assert.equal(fs.existsSync(f.policyFile),false);
+});
+
 test('offline initialization needs only its mode and leaves even invalid unused remote configuration alone', t => {
     const f = fixture(t);
     write(path.join(f.contextRoot, 'config/project-env.json'), 'invalid connection');
     const result = f.run({developmentMode: 'offline', environmentAlias: undefined, environmentType: undefined});
     assert.equal(result.configurationReady, true);
     assert.equal(result.remoteAdmission, 'offline');
-    assert.deepEqual(JSON.parse(fs.readFileSync(f.developmentFile)), {developmentMode: 'offline'});
+    assert.deepEqual(JSON.parse(fs.readFileSync(f.developmentFile)).irisDevelopment, {developmentMode: 'offline'});
     assert.equal(fs.existsSync(f.policyFile), false);
     write(f.policyFile, 'invalid unused policy');
     assert.equal(f.run({developmentMode: undefined}).remoteAdmission, 'offline');
@@ -137,20 +148,20 @@ test('unknown environment or demand kind is reported without inventing defaults 
     const f = fixture(t, {kind: null});
     let result = f.run({environmentAlias: undefined, environmentType: undefined});
     assert.ok(result.configurationGaps.includes('explicit-demand-kind-required'));
-    assert.deepEqual(JSON.parse(fs.readFileSync(f.developmentFile)), {developmentMode: 'connected'});
+    assert.deepEqual(JSON.parse(fs.readFileSync(f.developmentFile)).irisDevelopment, {developmentMode: 'connected'});
     result = f.run({kind: 'project'});
     assert.ok(result.configurationGaps.includes('explicit-environment-required'));
     // Supplied options do not overwrite or silently patch an existing declaration.
-    assert.deepEqual(JSON.parse(fs.readFileSync(f.developmentFile)), {developmentMode: 'connected'});
+    assert.deepEqual(JSON.parse(fs.readFileSync(f.developmentFile)).irisDevelopment, {developmentMode: 'connected'});
 });
 
 test('explicit facts must agree with existing declarations before any missing policy is written', t => {
     const f = fixture(t);
-    write(f.developmentFile, {developmentMode: 'offline', environmentAlias: 'original'});
+    write(f.developmentFile, {irisDevelopment:{developmentMode: 'offline', environmentAlias: 'original'}});
     assert.throws(() => f.run(), /development-mode-conflict/);
     assert.throws(() => f.run({developmentMode: 'offline'}), /environment-declaration-mismatch/);
     assert.equal(fs.existsSync(f.policyFile), false);
-    assert.equal(JSON.parse(fs.readFileSync(f.developmentFile)).environmentAlias, 'original');
+    assert.equal(JSON.parse(fs.readFileSync(f.developmentFile)).irisDevelopment.environmentAlias, 'original');
 });
 
 test('invalid existing JSON and invalid option values fail before writing anything', t => {
@@ -163,7 +174,7 @@ test('invalid existing JSON and invalid option values fail before writing anythi
     assert.throws(() => f.run(), /invalid-development-config/);
     assert.equal(fs.existsSync(f.developmentFile), false);
     fs.unlinkSync(f.policyFile);
-    write(f.developmentFile, '[]');
+    write(f.developmentFile, '{"irisDevelopment": []}');
     assert.throws(() => f.run(), /invalid-development-config/);
     assert.equal(fs.existsSync(f.policyFile), false);
 });
@@ -174,7 +185,7 @@ test('new private files must be ignored before creation and tracked files cannot
     assert.equal(fs.existsSync(f.developmentFile), false);
     write(path.join(f.root, '.gitignore'), '.agents/\n');
     write(f.developmentFile, {developmentMode: 'connected'});
-    git(f.capabilityRoot, 'add', '-f', 'config/iris-development.json');
+    git(f.capabilityRoot, 'add', '-f', 'config/project.jsonc');
     assert.throws(() => f.run({mode: 'Check'}), /private-config-is-tracked/);
     assert.equal(fs.existsSync(f.policyFile), false);
 });
@@ -221,7 +232,7 @@ test('CLI exposes configuration status and help without accessing the target wor
     const checked = spawnSync(process.execPath, [cli, 'configure', '--project-root', f.root, '--mode', 'Check', '--kind', 'project'], {encoding: 'utf8', windowsHide: true});
     assert.equal(checked.status, 0, checked.stderr);
     assert.equal(JSON.parse(checked.stdout).configurationReady, true);
-    assert.equal(JSON.parse(fs.readFileSync(f.developmentFile)).environmentType, 'production');
+    assert.equal(JSON.parse(fs.readFileSync(f.developmentFile)).irisDevelopment.environmentType, 'production');
     const missing = path.join(f.parent, 'not-created');
     const help = spawnSync(process.execPath, [cli, 'configure', '--project-root', missing, '--mode', 'Write', '--help'], {encoding: 'utf8', windowsHide: true});
     assert.equal(help.status, 0, help.stderr);
@@ -243,7 +254,7 @@ test('automatic updates create missing configuration while preserving implicit l
     write(recovery, 'original recovery');
     const result = migrate({projectRoot: f.root, mode: 'Write', contextRoot: f.contextRoot});
     assert.equal(result.filter(entry => entry.status === 'config-migration-applied').length, 2);
-    assert.deepEqual(JSON.parse(fs.readFileSync(f.developmentFile)), {});
+    assert.deepEqual(JSON.parse(fs.readFileSync(f.developmentFile)).irisDevelopment, {});
     assert.deepEqual(remote.bindDevelopmentMode(context, {synthetic: true}), before);
     assert.equal(fs.readFileSync(recovery, 'utf8'), 'original recovery');
     assert.equal(JSON.parse(fs.readFileSync(f.policyFile)).enabled, false);
@@ -267,7 +278,7 @@ test('automatic completion respects read-only modes, offline configuration, Over
     const mismatched = migrate({projectRoot: f.root, contextRoot: f.capabilityRoot, mode: 'Write'});
     assert.equal(mismatched[0].reason, 'migration-context-root-mismatch');
     assert.equal(fs.existsSync(path.join(f.capabilityRoot, 'config')), false);
-    write(f.developmentFile, '\ufeff{ "developmentMode": "offline", "custom": 17 }\r\n');
+    write(f.developmentFile, '\ufeff{ "irisDevelopment":{"developmentMode": "offline", "custom": 17 }}\r\n');
     const before = fs.readFileSync(f.developmentFile);
     const result = migrate({projectRoot: f.root, contextRoot: f.contextRoot, mode: 'Write'});
     assert.equal(result.length, 1);
@@ -280,7 +291,7 @@ test('automatic completion reports invalid or unignored configuration and perfor
     const f = fixture(t, {ignored: false});
     assert.equal(migrate({projectRoot: f.root, mode: 'Write'})[0].reason, 'private-config-not-ignored');
     assert.equal(fs.existsSync(f.developmentFile), false);
-    write(f.developmentFile, 'invalid JSON');
+    write(path.join(f.contextRoot,'config/iris-development.json'), 'invalid JSON');
     assert.equal(migrate({projectRoot: f.root, mode: 'Write'})[0].reason, 'invalid-development-config');
     assert.equal(fs.existsSync(f.policyFile), false);
 });
@@ -333,7 +344,7 @@ test('complete-code and offline deployed policies are cleaned without enabling r
         const result=migrate({projectRoot:f.root,mode:'Write'});
         assert.ok(result.some(item=>item.status==='config-migration-applied'));
         assert.deepEqual(JSON.parse(fs.readFileSync(f.policyFile)),{schema:'iris-remote-policy/v1',enabled:false});
-        assert.equal(JSON.parse(fs.readFileSync(f.developmentFile)).developmentMode,developmentMode);
+        assert.equal(JSON.parse(fs.readFileSync(f.developmentFile)).irisDevelopment.developmentMode,developmentMode);
     }
 });
 

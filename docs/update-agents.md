@@ -1,10 +1,12 @@
 # .agents 安装与更新 Runbook
 
-Windows standard 工程可从工作台首页运行原检查、取版预演及写入复查。工作台首装复用安装器的部分克隆；可选 `TrustedRuntimeTree` 由随包入口提供，只在首次安装时校验下载版本，确认通过再放入工程的 `.agents`。日常 CLI 安装参数沿用原方式。
+Windows standard 工程可从工作台首页运行原检查、取版预演及写入复查。工作台首装复用安装器的部分克隆；可选 `TrustedRuntimeTree` 由随包入口提供，以完整提交号和运行树摘要配对校验首装来源，确认通过再放入工程的 `.agents`。日常 CLI 安装参数沿用原方式。
+
+部署策略位于当前 ContextRoot 的 `config/project.jsonc` 的 `deployment` 节。既有工程由原更新器 Write 迁移 `config/plugin-deployment.json`。Check 可读取旧来源，新旧策略同时存在时会报告冲突。需要恢复旧版 CLI 时，先按插件部署手册恢复兼容策略。 同一主文件的 `plugins.<插件 ID>.status` 保存插件启停；涉及独立说明、冲突来源或不可识别表格时保留原文件并报告。切回旧运行时前执行新版 `plugin-deploy.js rollback-project --project-root <工程目录>`，确认两份旧配置能按原入口读取。
 
 ## 使用工作台安装与更新
 
-工作台 0.2.0 试点支持 Windows x64 上的 standard 工程。按发行记录校验并解压 `agents-workbench-react.zip`，双击 `start-workbench.cmd` 并选择工程根目录，也可从解压目录启动并明确指定工程。工作台自带 Node 24，框架操作使用本机 Git 和 Windows PowerShell 5.1。首装与取版需要访问框架源。
+在 Windows x64 上按发行记录校验并解压 `agents-workbench-react.zip`，双击 `start-workbench.cmd` 并选择工程根目录，也可从解压目录启动并明确指定工程。工作台自带 Node 24，框架操作使用本机 Git 和 Windows PowerShell 5.1。在线首装和取版访问框架源，具备离线操作入口的版本可使用团队批准的完整能力包。
 
 ```powershell
 & ./start-workbench.cmd --project "<工程根目录>"
@@ -19,6 +21,7 @@ Windows standard 工程可从工作台首页运行原检查、取版预演及写
 | **本地预演** | 调用 `DryRun -NoPull`，基于落盘版本预演项目配置、thin-index 等生成层。 |
 | **获取新版并预演** | 查询框架源。目标版本变化时使用原更新器的取版流程，可能 fetch、快进 `.agents` 并刷新 sparse checkout。项目生成层在这一步只预演。 |
 | **应用更新并复查** | 取版预演通过后，基于同一工程和落盘 revision 执行 `Write -NoPull`，刷新受管配置和入口，再在同一部署锁内 `Check -NoPull`。 |
+| **选择并预演离线能力包** | 选择 `capability.bundle` 和批准的包外发行记录，预演目标版本，确认后首装或快进更新。 |
 | **重新读取** | 重新读取工程和当前 `.agents` revision，供原 CLI 或 Agent 执行后核对。 |
 
 ### 更新中断与续接
@@ -33,13 +36,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Check -NoPull
 ```
 
-Overlay 工程沿[两阶段 CLI 流程](#workspace-overlay-两阶段更新)写入。先更新共享 CapabilityRoot 一次，再分别刷新选定模块的 ContextRoot。试点工作台对 Overlay 提供只读查看。
+支持 Overlay 更新的工作台在标准根预演时显示登记成员。选择成员后应用更新，先更新共享 CapabilityRoot 一次，再分别刷新各成员的 ContextRoot。可在标准根续接失败成员，也可按[两阶段 CLI 流程](#workspace-overlay-两阶段更新)核对或接续。
+
+离线能力包继续走安装器的 `-RepositorySource` 或更新器的 `-UpdateSource`，二者使用已核验的本地 Git 裸仓和目标 revision。Windows PowerShell 5.1 隔离验收覆盖首装、预演、快进和落盘更新器重启，核对了业务文件、自定义 MCP、`origin` 和上游。
 
 ### 接续到 Agent
 
 工程上下文、业务插件初始化、客户端适配或其他需要判断的任务，可在工作台选择相应能力并“复制请求”，粘贴到同一工程已使用的 Agent 客户端。由该客户端按项目授权调用原 owner 入口，完成后回工作台重新读取和复查已知状态。执行和结果以原 owner 记录为准。自动派发属于后续计划。操作示例见[团队使用手册](guides/usage-manual.md)。
 
-日常 `.agents` 安装和更新沿运行时白名单分发框架。工作台本体通过独立 ZIP 发放，更新工作台时另行取得并解压新版，从同一工程启动。包内手册是构建时快照，工程随 `.agents` 更新取得的说明见 `.agents/docs/`。
+日常 `.agents` 安装和更新会分发框架及 `.agents/docs/`。工作台本体及其离线手册通过团队发行的独立 ZIP 分发。工作台有「导入工作台新版」入口时，可选择 ZIP 和包外发行记录，探活通过后打开原工程。早期版本可手动将新版解压到独立目录再绑定原工程。
 
 ## IRIS MCP 1.7.1
 
@@ -86,7 +91,11 @@ coding 0.27.3 删除普通查询、上传和编译的 License 登记门槛：公
 
 源仓根 `tools/` 整体不部署到业务项目 `.agents`，包括源码、README、ZIP 及以后新增的人工工具。安装/更新继续按运行时白名单检出；人工需要时单独取得 ZIP，不将 tools 加入 sparse checkout。
 
+已启用插件的工程参数随原更新器迁移。迁移范围、原命令及回退步骤见[插件工程运行参数](guides/plugin-runtime-settings.md)。
+
 ## IRIS 统一会话（coding 0.25）
+
+已使用开发库档案的工程按原更新入口同步根脚本、coding 插件和随包 TOML 解析器。更新后可在工程根运行 `node .agents/plugins/coding-iris-plugin/scripts/iris-tools/sync-env-config.js --check-profile` 核对连接绑定。配置冲突按提示检查对应文件和字段，切换目标沿工程档案入口。无档案工程保留原初始化流程。
 
 coding 0.27.2 收缩阻断：受管新增未知写仅由 SessionManager 记录，公共准入继续串行并检查历史风险；临时执行载体 PUT 的明确 405 不产生未知写。本地退出和写结果已核实时，注销未确认保留为警告；License 观测不作为普通业务门禁。完整更新根 scripts 和 coding owner，再按下述流程结束旧管理会话、重启宿主 MCP 并核对实际回执；不改私有配置。旧两层风险不自动消除，按[状态与恢复](guides/iris-managed-sessions.md#状态与恢复)分别核实。根运行时不支持混装或在活动会话中降级。
 
@@ -301,7 +310,7 @@ coding-iris-plugin 0.10.0 的部署保护随既有 plugins 与 vendor 分发。�
 - `AGENTS.md` 是工程级唯一主入口，但缺失时不阻塞 `.agents` 首次安装；安装后通过 `project-context-maintenance` 补齐或维护。`CLAUDE.md`、`CODEBUDDY.md` 只是可选兼容 symlink。
 - 所有命令示例默认从 PowerShell 执行；Windows PowerShell 5.1 创建 symlink 失败时，可在 PowerShell 中通过 `cmd.exe /c mklink` 使用 Windows 原生命令作为兼容路径。
 - `.agents/config/` 默认只允许合并，不覆盖已有值；唯一的运行时路径例外是 Windows x64 上将既有 `project-env.json` 的 `mcp.serverPath` 收敛到随能力包部署的 `iris-agentic-dev.exe`，其它字段保持不变。
-- `.agents/config/plugin_profile.md` 是插件启用状态事实来源；插件目录存在只表示 `available`，不表示已启用。
+- `.agents/config/project.jsonc` 的 `plugins` 节 是插件启用状态事实来源；插件目录存在只表示 `available`，不表示已启用。
 - `.mcp.json` 是连接事实来源。不要把 host、账号、密码、token、namespace 或远程路径写入 `AGENTS.md`、rules、memory、config 或插件。
 - 安装/更新会部署 `.agents/scripts/iris-mcp.js`。standard 项目直接使用 sparse checkout 中的 canonical helper；workspace overlay 会在 `ContextRoot/scripts/` 生成 manifest-aware JS adapter，并转发到 `CapabilityRoot/scripts/iris-mcp.js`。非受管按需模式原生 MCP 工具优先；运行器未暴露原生工具时使用 helper。按需模式遵守本页项目开发协议的准入边界，不以原生工具绕过，也不得把 helper 当成 canonical 规则源。更新后的 helper 会消费 `check_config` 版本和 capabilities，显式分类 v1.2.6 基线工具，尚未分类的后续版本工具默认进入 `--allow-write` 授权门禁，并按已知工具的 `mode` / `action` 拦截远端状态变化；默认通过 `--no-skills` 避免与能力包 vendor skills 重复。Windows x64 安装/更新在确认 vendor exe 已存在后，只收敛 `.mcp.json` 的 IRIS MCP `command` 和既有 `project-env.json` 的 `mcp.serverPath`；不创建连接配置，不修改 `.iris-agentic-dev.toml`，也不改 host、账号、密码、namespace、args、env 或其它 MCP server。
 - 如果输出中出现停止条件，先停止并向用户汇报，不要继续执行破坏性操作。
@@ -377,7 +386,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 .agents/plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md
 ```
 
-该步骤负责维护 `AGENTS.md`、`.agents/config/project_context_profile.md`、`.agents/config/plugin_profile.md`、`.agents/rules/` 和 `.agents/memory/project-memory.md`。首次初始化结合本地工程证据推荐体系组合，并集中确认后续明确任务触发自动补装的偏好；决定沿既有部署策略保存。
+该步骤负责维护 `AGENTS.md`、`.agents/config/project_context_profile.md`、`.agents/config/project.jsonc` 的 `plugins` 节、`.agents/rules/` 和 `.agents/memory/project-memory.md`。首次初始化结合本地工程证据推荐体系组合，并集中确认后续明确任务触发自动补装的偏好；决定沿既有部署策略保存。
 
 插件选择与接入使用 [plugin-management](../plugins/agent-context-kit/skills/plugin-management/SKILL.md)。先核对当前安装与启用状态，尚未落盘时用 `plugin-deploy.js` 的 `plan/ensure` 补齐目标插件和必需依赖，再按返回的初始化 source 依次读取接入契约。已有自动补装授权按保存偏好执行；用户只明确要求本次安装时使用 `ensure --explicit`，不扩大为后续授权。依赖排除冲突或显式禁用的恢复先沿[部署指南](guides/plugin-deployment.md)处理，不直接读取不存在的目标路径。
 
@@ -385,7 +394,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 - `initSkill` 指向该插件首次接入必须读取的真实初始化 skill。
 - `dependencies`、`dependsOn` 或 `depends_on` 是依赖插件列表。
-- 若依赖插件尚未在 `plugin_profile.md` 中标记为 `enabled`，先初始化依赖插件；依赖插件验收并写入 `enabled` 后，再初始化目标插件。
+- 若依赖插件尚未在 `project.jsonc` 的 `plugins` 节 中标记为 `enabled`，先初始化依赖插件；依赖插件验收并写入 `enabled` 后，再初始化目标插件。
 - 领域配置验收后，使用 `.agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin <plugin-name> -Status enabled` 维护状态；按需模式由工具生成并读回验证发现入口，成功后才记录 `enabled`。全量模式沿原有注册、更新流程。
 
 脚本不会自动把依赖插件标记为 `enabled`。`enabled` 表示该插件已经完成项目上下文、配置、thin-index、脚本和入口路由的初始化闭环，不只是插件目录已存在。
@@ -527,7 +536,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 | `plugin-init-required` | 用户显式选择了未启用插件；停止并读取真实 init skill。 |
 | `plugin-selected` | 本次通过 `-Plugin` 显式选择处理的插件。 |
 | `plugin-disabled` | 插件被项目显式禁用；默认跳过。 |
-| `plugin-profile-written` | 已写入或刷新 `.agents/config/plugin_profile.md`。 |
+| `plugin-profile-written` | 已写入或刷新 `.agents/config/project.jsonc` 的 `plugins` 节。 |
 | `plugin-profile-name-migration-planned` | DryRun/Check 发现 manifest 声明的旧插件名；将保留原状态并写回 canonical 名称。 |
 | `plugin-profile-name-migrated` | Write 已把旧插件名的状态迁移到 canonical 名称。 |
 | `generated` | dry-run 发现将生成 thin-index，或 write 已生成。 |
@@ -734,7 +743,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 
 旧工程无需重装。更新器拉取到自身新版本时会带防循环标记自动重启新版脚本，再执行后续阶段，避免旧进程继续执行全量 vendor 同步。
 
-1. 先运行常规 DryRun；无 `plugin_profile.md` 且存在历史 vendor thin-index 时会报告 `legacy-vendor-profile-review-required`，历史入口保持不变。
+1. 先运行常规 DryRun；无 `project.jsonc` 的 `plugins` 节 且存在历史 vendor thin-index 时会报告 `legacy-vendor-profile-review-required`，历史入口保持不变。
 2. 使用 `update-plugin-profile.ps1` 确认实际使用插件为 `enabled`；自动发现的新插件仍保持 `available`。
 3. 普通 Write 停止继续全量扩散并补齐 required 入口，不清理历史入口或用户级副本。
 4. 验证 required skill 可加载后，单独运行带 `-CleanupLegacyVendorSkills` 的 DryRun；确认清单后再执行对应 Write。
@@ -845,7 +854,7 @@ source: .agents/plugins/<plugin>/skills/<skill>/SKILL.md
 
 ## 插件状态分流
 
-`.agents/plugins/**` 全量拉取用于能力发现，但更新脚本按 `.agents/config/plugin_profile.md` 分流：
+`.agents/plugins/**` 全量拉取用于能力发现，但更新脚本按 `.agents/config/project.jsonc` 的 `plugins` 节 分流：
 
 | 状态 | 更新行为 |
 |---|---|
@@ -853,7 +862,7 @@ source: .agents/plugins/<plugin>/skills/<skill>/SKILL.md
 | `enabled` | 项目已接入且初始化闭环已完成，参与常规更新：合并缺失 config key，校验或重建 thin-index。 |
 | `disabled` | 默认跳过；旧 thin-index 只报告，不自动删除。 |
 
-无 `plugin_profile.md` 时，默认把 `agent-context-kit` 和 `agent-framework-evolution` 视为基础 `enabled` 插件，其它插件视为 `available`。
+无 `project.jsonc` 的 `plugins` 节 时，默认把 `agent-context-kit` 和 `agent-framework-evolution` 视为基础 `enabled` 插件，其它插件视为 `available`。
 
 启用领域插件时，不要直接运行全量 update。先读取插件真实 init skill：
 
@@ -932,7 +941,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - 普通更新没有写用户级 skill 目录；历史副本只报告 `legacy-runtime-skill-detected`。
 - 未指定工具 adapter 时报告 `runtime-adapter-skipped`；显式选择目录链接 adapter 时，目录链接结果为 `runtime-adapter-planned` / `runtime-adapter-linked` / `runtime-adapter-unchanged`；冲突保留并停止。
 - `.agents/.git/info/exclude` 包含 `/config/`、`/memory/`、`/rules/`、`/skills/`、`/scripts/`、`/work/`。
-- `.agents/config/plugin_profile.md` 存在或 dry-run 明确报告默认插件状态。
+- `.agents/config/project.jsonc` 的 `plugins` 节 存在或 dry-run 明确报告默认插件状态。
 - 如果业务项目有 `AGENTS.md`，兼容入口可以是 `entrypoint-ok`，也可以缺失；缺失或异常只作为可选提示，不应在 write 中自动修复。
 - 插件能被扫描到；未启用插件只应显示为 `available`，不应生成 thin-index。
 - 没有停止条件。

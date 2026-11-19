@@ -4,6 +4,29 @@ const {createTempDirectory,ownsTempDirectory}=require('./fixtures/temp-directory
 const {serve}=require('../iris-session-host');
 const {connect}=require('../lib/iris-session-ipc');
 
+test('after switching to B, marking an uncertain A and closing its client leaves B active',async t=>{
+  const root=createTempDirectory('iris-session-bound-close-');
+  const {hash}=require('../lib/iris-session-manager');
+  let target='A';
+  const host=await serve({root,describe:p=>({...p,identity:target,pool:target,effects:'read-only',
+    scope:{instance:hash(target),namespace:hash('TEST'),targets:null}}),
+    open:async()=>({call:async()=>({}),close:async()=>({cleanupVerified:true})})});
+  const a=await connect({root,start:false}),b=await connect({root,start:false});
+  t.after(async()=>{a.close();b.close();await host.stop();if(ownsTempDirectory(root))fs.rmSync(root,{recursive:true});});
+  const params={projectRoot:'fixture',serverName:'custom'};
+  await a.request('call',params);
+  target='B';
+  await b.request('call',params);
+  const unknown=await a.request('markBoundUnknown',params);
+  assert.equal(unknown.pool,hash('A'));
+  assert.equal(unknown.unresolvedWrites.length,1);
+  const closed=await a.request('closeBound',params);
+  assert.equal(closed.pool,hash('A'));
+  const active=(await b.request('status')).pools.find(p=>p.pool===hash('B'));
+  assert.equal(active.active,true);
+  assert.equal(active.unresolvedWrites.length,0);
+});
+
 test('safe TLS diagnosis crosses host IPC without exposing raw error details',async t=>{
   const root=createTempDirectory('iris-session-tls-');let transportCode='DEPTH_ZERO_SELF_SIGNED_CERT';
   const host=await serve({root,describe:p=>({...p,pool:'tls',identity:'user',effects:'read-only'}),

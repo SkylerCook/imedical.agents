@@ -68,9 +68,12 @@ test('stage preserves directory contents under a Unicode path and serves its bou
       assert.ok(fs.readFileSync(source).equals(fs.readFileSync(staged)), relative);
     }
   }
-  for (const dir of ['tools/ai-dev-offline/vendor/jsonc-parser', 'tools/ai-dev-offline/vendor/iarna-toml', react + '/dist/assets']) compare(dir);
+  for (const dir of ['vendor/jsonc-parser','tools/ai-dev-offline/vendor/jsonc-parser','vendor/iarna-toml','tools/ai-dev-offline/vendor/iarna-toml', react + '/dist/assets']) compare(dir);
   const metadata = JSON.parse(fs.readFileSync(path.join(stage, 'workbench-release.json'), 'utf8'));
   assert.equal(metadata.formal, false);
+  assert.deepEqual(fs.readFileSync(path.join(stage, 'import-workbench-release.ps1')),
+    fs.readFileSync(path.join(repo, react, 'import-workbench-release.ps1')));
+  compare('tools/agents-workbench/src/release-launcher.js');
   const manuals = ['docs/update-agents.md', 'docs/workspace-overlay.md', 'docs/guides/usage-manual.md'];
   for (const manual of manuals) {
     compare(manual);
@@ -104,5 +107,22 @@ test('stage preserves directory contents under a Unicode path and serves its bou
     assert.equal(state.status, 'no-framework');
     assert.ok(Date.parse(state.observedAt));
     t.diagnostic(version + ' GET /framework.json 200; ' + state.name + ' ' + state.status);
+
+    const source = 'plugins/imedical-ui/references/layout-fixture.md';
+    const document = path.join(project, '.agents', source);
+    fs.mkdirSync(path.dirname(document), { recursive: true });
+    fs.writeFileSync(document, '# 表单布局\n\n工单检索验收关键词用于验证标签对齐。\n', 'utf8');
+    const queryUrl = new URL('/knowledge/query', hello.address);
+    const searchBody = JSON.stringify({ query: '工单检索验收关键词', domain: 'ui' });
+    const headers = { 'X-Workbench-Request': '1', 'Content-Type': 'application/json', Origin: queryUrl.origin };
+    const blocked = await fetch(queryUrl, { method: 'POST', headers: { ...headers, Origin: 'http://untrusted.invalid' }, body: searchBody });
+    assert.equal(blocked.status, 403);
+    const response = await fetch(queryUrl, { method: 'POST', headers, body: searchBody, signal: AbortSignal.timeout(5000) });
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.equal(result.mode, 'lexical');
+    assert.equal(result.matches[0].path, source);
+    assert.equal(result.matches[0].line, 1);
+    assert.match(result.matches[0].text, /标签对齐/);
   } finally { server.kill(); await stopped; }
 });

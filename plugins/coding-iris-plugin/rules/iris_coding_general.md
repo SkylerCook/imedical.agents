@@ -8,7 +8,7 @@ task-affinity: [iris, coding, safety, editing]
 
 本文保存跨语言、跨模块通用的编辑约束。前端、后端和部署任务还必须读取各自专项规则。
 
-先读取当前 `ContextRoot/config/iris-development.json` 的 `developmentMode`。`offline` 统一执行[离线开发与交付协议](../references/iris-offline-development.md)，只用已接收材料和本地验证，禁止医院读取、原生 MCP 与远端操作；`connected` 或旧配置缺省时继续既有分支，非法值停止 IRIS 流程。开发方式不改变 `contextMode`、需求类型或授权。
+先读取当前 `ContextRoot/config/project.jsonc` 的 `irisDevelopment` 节 的 `developmentMode`。`offline` 统一执行[离线开发与交付协议](../references/iris-offline-development.md)，只用已接收材料和本地验证，禁止医院读取、原生 MCP 与远端操作；`connected` 或旧配置缺省时继续既有分支，非法值停止 IRIS 流程。开发方式不改变 `contextMode`、需求类型或授权。
 
 ## 统一任务分流
 

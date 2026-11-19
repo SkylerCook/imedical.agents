@@ -97,7 +97,7 @@ r7 增加 ObjectScript 扩展安装入口，支持已有与便携 VS Code，固�
 
 Rollback 保留后来添加的无关设置；本次终端键已被他人修改时停止，不覆盖后续决定。未发生后续变化时可恢复原文件字节，包括 UTF-8 BOM、换行和注释；原来没有文件则恢复为不存在。重复 Apply 不生成多余备份。验证完成后，在所选 VS Code **新建终端**查看 PowerShell 7；已开的终端不会自动变换 shell，其它作用域的覆盖仍需按目标配置核对。
 
-实现复用微软 `jsonc-parser 3.3.1` 的最小 UMD 子集，来源、SHA512 与 MIT 许可证在 `vendor/jsonc-parser/UPSTREAM.json`／`LICENSE.md`。它只随独立工具 ZIP 携带，不进入框架运行分发；无需 npm install。入口采用所选 VS Code 的 `Code.exe` 加仅限子进程的 `ELECTRON_RUN_AS_NODE=1`，与官方 code.cmd 的运行机制一致，因此不要求现场额外安装 Node.js。源码和备份操作不访问医院服务。
+实现复用微软 `jsonc-parser 3.3.1` 的最小 UMD 子集，来源、SHA512 与 MIT 许可证在 `vendor/jsonc-parser/UPSTREAM.json`／`LICENSE.md`。框架的共享来源为仓库根 vendor/jsonc-parser；独立工具 ZIP 从该来源复制到自身 vendor 目录；无需 npm install。入口采用所选 VS Code 的 `Code.exe` 加仅限子进程的 `ELECTRON_RUN_AS_NODE=1`，与官方 code.cmd 的运行机制一致，因此不要求现场额外安装 Node.js。源码和备份操作不访问医院服务。
 
 ## 项目 MCP 与 IRIS TOML 模板
 
@@ -173,3 +173,7 @@ Rollback 必须仍与本次写入结果一致才恢复；出现后来 PATH 修�
 ### 工作台工程配置复用
 
 `configure-project.js` 的可选 `syncProjectEnv` 允许工作台把已存在的集中 `project-env.json` 纳入同一预览、指纹检查、读回与恢复事务。`sourceChanges` 仅允许 Web 路径/会话与现有 SFTP 连接字段；SFTP 保留启动器和参数，不创建服务。默认安装助手未传此选项时行为不变。集中凭据与 MCP/TOML 不一致时要求显式替换，不静默选择一个来源。专项合成验证位于 `../agents-workbench/prototype/project-settings.test.js`。
+
+在 Windows standard 工程中，Agent 或 CLI 可向 `node configure-project.js` 的 stdin 传入 JSON。所有请求包含绝对路径 `projectRoot`。以 `action: "projectProfiles"` 读取当前目标、已保存的档案和已绑定入口；首次沿用已有连接，保存为 `current`。切换已有档案时传 `action: "projectPlan"` 和 `profile: {"id":"current"}`，确认返回的目标和文件后，用同样的请求加上返回的 `fingerprint`，把 action 改为 `projectApply`。CLI 和界面使用同一个配置事务。恢复使用原 `projectRollback` 和本次应用回执。
+
+新增档案时在 `profile` 传 `id`、`connection`（host、port、scheme、namespace、alias、tlsVerify），并通过私有 stdin 传入该档案的凭据，或显式选择 `useCurrentCredentials: true`。优先复用既有私有工程配置保存凭据；主配置仅保存档案字段和来源引用。切换后重连实际客户端，在工程目录运行 `node .agents/scripts/iris-mcp.js check --verify-profile --json` 得到只读核验回执。工作台在配置变化后自动舍弃过期的显示结果。

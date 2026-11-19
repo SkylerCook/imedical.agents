@@ -96,9 +96,8 @@ function assertReady({plan, context, configurationFingerprint, files, environmen
   kind ||= kinds.length === 1 ? kinds[0] : null;
   if (!kinds.includes(kind)) guard.stop('publication-kind-required');
   if (plan.deploymentGroups?.[kind]?.status === 'verified') guard.stop('publication-group-already-verified', {kind});
-  const declarationFile = path.join(context.contextRoot, 'config', 'iris-development.json');
-  if (fs.existsSync(declarationFile)) {
-    const declared = guard.read(declarationFile);
+  const declared = require('../../../../scripts/lib/iris-development-settings').inspect(context.contextRoot).value;
+  if (declared) {
     if (declared.environmentAlias !== publication.environmentAlias || declared.environmentType !== publication.environmentType) guard.stop('publication-environment-changed');
   }
   if (publication.configurationFingerprint !== configurationFingerprint || (environmentAlias && publication.environmentAlias !== environmentAlias)) guard.stop('publication-environment-changed');

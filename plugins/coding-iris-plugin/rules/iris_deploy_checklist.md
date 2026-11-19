@@ -12,7 +12,7 @@ JavaScript 校验器启动失败、超时或被信号终止时返回 javascript-
 
 部署 IRIS 文件时优先按本清单执行。标题和字段名尽量稳定，便于低能力模型逐项检查。
 
-先解析当前 `ContextRoot/config/iris-development.json` 的 `developmentMode`。offline 按[离线协议](../references/iris-offline-development.md)生成交付并独立 Verify，交给用户现场验证，不读取医院连接、不运行下文部署或编译。connected（含旧配置缺省）继续本清单；非法值停止。切换模式不释放锁、不清除未知结果，也不替代原发布许可。
+先解析当前 `ContextRoot/config/project.jsonc` 的 `irisDevelopment` 节 的 `developmentMode`。offline 按[离线协议](../references/iris-offline-development.md)生成交付并独立 Verify，交给用户现场验证，不读取医院连接、不运行下文部署或编译。connected（含旧配置缺省）继续本清单；非法值停止。切换模式不释放锁、不清除未知结果，也不替代原发布许可。
 
 已确认 `project` 需求且 `contextMode: intent-first-on-demand-export` 时先读[项目开发协议](../references/project-demand-development.md)，部署前同步与 source plan 发布门禁为前置；标版沿既有分支，contextMode 不决定需求类型。
 
@@ -36,7 +36,7 @@ JavaScript 校验器启动失败、超时或被信号终止时返回 javascript-
 ## 能力编排与优先级
 
 1. 本地代码与本地脚本优先。先读本地源码、配置和项目规则；需要导出、编译、Broker 调试、环境同步时，优先使用 `scripts/iris-tools/`。
-2. `sync-env-config.js` 用于从 `.agents/config/project-env.json` 生成 `.mcp.json`。
+2. `sync-env-config.js` 用于按活动档案核对已绑定目标；无档案时从 `.agents/config/project-env.json` 生成 `.mcp.json`。
 3. `export.js` 用于从 IRIS 导出类、CSP、JS 等文件；路径前缀从 `project-env.json` 的 `web.*` 字段获取。
 4. `compile.js` 用于 `.cls` 类文件上传与编译；它不作为 CSP 编译入口。
 5. `debugger.js` 用于 Broker/API 调试；Token、Cookie、Broker 路径从运行参数或 `project-env.json` 获取。

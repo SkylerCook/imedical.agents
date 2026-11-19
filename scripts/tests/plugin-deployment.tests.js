@@ -19,7 +19,8 @@ function fixture(t, onDemand = true) {
     const origin = path.join(temporary,'origin'), project = path.join(temporary,'project'), root = path.join(project,'.agents');
     fs.mkdirSync(origin,{recursive:true}); fs.mkdirSync(project);
     const repo = path.resolve(__dirname,'../..');
-    for(const relative of ['scripts/plugin-deploy.js','scripts/refresh-agents-sparse.js','scripts/lib/plugin-deployment.js','scripts/lib/workspace-context.js']) {
+    fs.cpSync(path.join(repo,'vendor/jsonc-parser'),path.join(origin,'vendor/jsonc-parser'),{recursive:true});
+    for(const relative of ['scripts/lib/project-plugin-profile.js','scripts/lib/configuration-file-io.js','scripts/lib/project-deployment-policy.js','scripts/plugin-deploy.js','scripts/refresh-agents-sparse.js','scripts/lib/plugin-deployment.js','scripts/lib/workspace-context.js']) {
         fs.mkdirSync(path.dirname(path.join(origin,relative)),{recursive:true});
         fs.copyFileSync(path.join(repo,relative),path.join(origin,relative));
     }
@@ -53,6 +54,7 @@ function fixture(t, onDemand = true) {
     return {root,origin,project,context:cli.resolveContext(project),git};
 }
 function enabled(root,names){
+    require('../lib/project-plugin-profile').rollback(root);
     fs.mkdirSync(path.join(root,'config'),{recursive:true});
     fs.writeFileSync(path.join(root,'config/plugin_profile.md'),names.map(name=>`| ${name} | enabled | - | - | fixture |`).join('\n')+'\n');
 }
@@ -162,13 +164,13 @@ test('fresh base install discovers absent plugins without downloading their blob
     assert.deepEqual(result.selected,['feature-core','feature-ui']);
     assert.ok(fs.existsSync(path.join(f.root,'vendor/ui-runtime/asset.txt')));
     assert.equal(deployment.profile(f.root).get('feature-ui'),'available');
-    const bytes=fs.readFileSync(path.join(f.root,'config/plugin_profile.md'));
+    const bytes=fs.readFileSync(path.join(f.root,'config/project.jsonc'));
     ensure(f.context,['feature-ui']);
-    assert.deepEqual(fs.readFileSync(path.join(f.root,'config/plugin_profile.md')),bytes);
+    assert.deepEqual(fs.readFileSync(path.join(f.root,'config/project.jsonc')),bytes);
 });
 test('explicit disabled, dirty checkout and active lock preserve deployment',t=>{
     const f=fixture(t);ensure(f.context,['feature-ui']);
-    fs.writeFileSync(path.join(f.root,'config/plugin_profile.md'),'| feature-ui | disabled | - | - | user |\n');
+    require('../lib/project-plugin-profile').save(f.root,{'feature-ui':{status:'disabled',notes:'user'}});
     assert.throws(()=>ensure(f.context,['feature-ui']),/disabled/);
     fs.writeFileSync(path.join(f.root,'plugins/feature-core/AGENTS.md'),'user change');
     assert.throws(()=>ensure(f.context,['feature-xc']),/local changes/);
@@ -223,12 +225,12 @@ for (const shell of process.platform === 'win32' ? ['powershell.exe','pwsh.exe']
         assert.equal(dependency.status,0,dependency.stdout+dependency.stderr);
         const active=run('update-plugin-profile.ps1',args);
         assert.equal(active.status,0,active.stdout+active.stderr);
-        const profileBefore=fs.readFileSync(path.join(f.root,'config/plugin_profile.md'));
+        const profileBefore=fs.readFileSync(path.join(f.root,'config/project.jsonc'));
         for (const status of ['disabled','available']) {
             const blocked=run('update-plugin-profile.ps1',['-ProjectRoot',f.project,'-Plugin','feature-core','-Status',status]);
             assert.notEqual(blocked.status,0);
             assert.match(blocked.stderr,/feature-ui -> feature-core/);
-            assert.deepEqual(fs.readFileSync(path.join(f.root,'config/plugin_profile.md')),profileBefore);
+            assert.deepEqual(fs.readFileSync(path.join(f.root,'config/project.jsonc')),profileBefore);
         }
         const entry=path.join(f.root,'skills/setup-ui/SKILL.md');
         const bytes=fs.readFileSync(entry);
@@ -302,6 +304,42 @@ test('offline missing blobs preserve base capability and resume after connection
     assert.equal(deployment.loadState(f.root).phase,'ready');
 });
 
+test('an already deployed full Overlay registers on refresh and keeps its full capability checkout',t=>{
+    const f=fixture(t,false);
+    const workspace=path.join(path.dirname(f.project),'共享 模块'),contextRoot=path.join(workspace,'.agents');
+    fs.mkdirSync(contextRoot,{recursive:true});
+    enabled(contextRoot,['feature-ui']);
+    fs.symlinkSync(f.origin,path.join(workspace,'backend'),process.platform==='win32'?'junction':'dir');
+    const manifest=path.join(contextRoot,'capability.json');
+    fs.writeFileSync(manifest,JSON.stringify({schemaVersion:1,mode:'workspace-overlay',workspace:'full-member',
+        contextRoot:'.agents',capabilityRoot:f.root,sharedDirectories:[],localDirectories:['config'],
+        sourceRoots:[{name:'backend',path:'backend',target:f.origin,gitRoot:f.origin}]}));
+    const configuration=path.join(contextRoot,'config/plugin_profile.md');
+    const sparse=path.join(f.root,'.git/info/sparse-checkout');
+    const registry=deployment.statePath(f.root);
+    const before=[manifest,configuration,sparse].map(file=>fs.readFileSync(file));
+    assert.equal(fs.existsSync(registry),false);
+    assert.equal(cli.main(['register','--project-root',f.project]).registered,false);
+    assert.equal(fs.existsSync(registry),false);
+    assert.equal(cli.main(['register','--project-root',workspace]).registered,true);
+    const state=deployment.loadState(f.root);
+    assert.equal(state.mode,'full');
+    assert.equal(state.members.length,1);
+    assert.equal(state.members[0].workspaceRoot,workspace);
+    assert.equal(state.members[0].contextRoot,contextRoot);
+    assert.ok(state.members[0].lastRequired.includes('feature-ui'));
+    assert.ok(state.members[0].lastRequired.includes('feature-core'));
+    assert.deepEqual([manifest,configuration,sparse].map(file=>fs.readFileSync(file)),before);
+    assert.ok(fs.existsSync(path.join(f.root,'plugins/feature-xc')));
+    assert.equal(deployment.policy(contextRoot).mode,'full');
+    const stored=fs.readFileSync(registry);
+    cli.main(['register','--project-root',workspace]);
+    assert.deepEqual(fs.readFileSync(registry),stored);
+    fs.writeFileSync(configuration,'| removed-plugin | enabled | - | - | unavailable historical entry |\n');
+    cli.main(['register','--project-root',workspace]);
+    assert.deepEqual(fs.readFileSync(registry),stored);
+});
+
 test('Overlay migration registers associated workspaces and preserves their union',t=>{
     const f=fixture(t,false);
     function overlay(name,selected){
@@ -320,6 +358,7 @@ test('Overlay migration registers associated workspaces and preserves their unio
     enabled(first.context.contextRoot,[]);
     cli.apply(first.context,{action:'prune',plugins:[],members:[]});
     assert.ok(fs.existsSync(path.join(f.root,'plugins/feature-ui')));
+    require('../lib/project-plugin-profile').rollback(first.context.contextRoot);
     fs.writeFileSync(path.join(first.context.contextRoot,'config/plugin_profile.md'),
         '| feature-ui | available | - | - | explicit release |\n| feature-core | available | - | - | explicit release |\n');
     cli.apply(first.context,{action:'prune',plugins:[],members:[]});

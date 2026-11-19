@@ -1,6 +1,12 @@
 {
   "name": "iris-cure-form-dev",
-  "version": "0.8.17",
+  "configMigrations": [
+    {
+      "id": "plugin-runtime-settings-v1",
+      "script": "scripts/migrate-runtime-settings.ps1"
+    }
+  ],
+  "version": "0.8.18",
   "displayName": "IRIS Cure Form Dev Plugin",
   "description": "CA/CR treatment form ingestion, multi-template generation, responsive migration, review, deployment planning, verification, and rollback orchestration.",
   "entry": "AGENTS.md",

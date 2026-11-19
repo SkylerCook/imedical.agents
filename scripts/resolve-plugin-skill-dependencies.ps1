@@ -18,16 +18,11 @@ function Resolve-FullPath {
 
 function Read-PluginProfile {
   param([string]$Path)
+  $encoded = & node (Join-Path $PSScriptRoot "lib/project-plugin-profile.js") read $contextRootFull
+  if ($LASTEXITCODE -ne 0) { throw "Cannot read project plugin profile" }
+  $state = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded)) | ConvertFrom-Json
   $profile = @{}
-  if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $profile }
-  foreach ($line in [System.IO.File]::ReadAllLines($Path, [System.Text.Encoding]::UTF8)) {
-    if ($line -match '^\|\s*`?(?<name>[^|`]+)`?\s*\|\s*(?<status>available|enabled|disabled|initialized|indexed)\s*\|') {
-      $status = $matches.status.ToLowerInvariant()
-      if ($status -eq "initialized") { $status = "enabled" }
-      if ($status -eq "indexed") { $status = "available" }
-      $profile[$matches.name.Trim()] = $status
-    }
-  }
+  foreach ($row in @($state.rows)) { $profile[$row.plugin] = $row.status }
   return $profile
 }
 
@@ -51,7 +46,7 @@ $contextRootFull = Resolve-FullPath -BasePath $projectRootFull -Path $ContextRoo
 $capabilityRootFull = Resolve-FullPath -BasePath $projectRootFull -Path $CapabilityRoot
 $pluginsRoot = Join-Path $capabilityRootFull "plugins"
 $vendorRoot = Join-Path $capabilityRootFull "vendor"
-$profilePath = Join-Path $contextRootFull "config/plugin_profile.md"
+$profilePath = Join-Path $contextRootFull "config/project.jsonc"
 $profile = Read-PluginProfile -Path $profilePath
 $installed = @{}
 

@@ -174,10 +174,11 @@ type PluginPreviewProps = {
   configHref: string;
   onClose: () => void;
   onRestoreFocus: (event: Event) => void;
+  actions?: React.ReactNode;
   onHandoff?: () => void;
 };
 
-export function PluginPreview({ plugin, project, catalog, configHref, onClose, onRestoreFocus, onHandoff }: PluginPreviewProps) {
+export function PluginPreview({ plugin, project, catalog, configHref, onClose, onRestoreFocus, onHandoff, actions }: PluginPreviewProps) {
   const affected = plugin ? previewPluginDependencies(catalog.plugins, project.plugins, plugin.name) : [];
   return (
     <Dialog open={Boolean(plugin)} onOpenChange={open => { if (!open) onClose(); }}>
@@ -185,7 +186,7 @@ export function PluginPreview({ plugin, project, catalog, configHref, onClose, o
         className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden bg-popover p-0 sm:max-w-[42rem]">
         <DialogHeader className="border-b px-5 py-4 sm:px-6">
           <DialogTitle className="leading-7">管理预览 · {plugin && pluginName(plugin)}</DialogTitle>
-          <DialogDescription>根据源仓依赖和当前工程状态计算。本次仅预览。</DialogDescription>
+          <DialogDescription>根据源仓依赖和当前工程状态计算。操作前可核对依赖和工程状态。</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 overflow-y-auto px-5 py-4 sm:px-6">
           <h3 className="mb-2 text-sm font-semibold">影响范围</h3>
@@ -209,7 +210,7 @@ export function PluginPreview({ plugin, project, catalog, configHref, onClose, o
               </TableBody>
             </Table>
           </div>
-          {plugin && <div className="mt-4"><PluginDetails plugin={plugin} /></div>}
+          {plugin && <div className="mt-4"><PluginDetails plugin={plugin} /></div>}{actions}
         </div>
         <DialogFooter className="flex-row flex-wrap justify-between gap-2 border-t px-5 py-3 sm:justify-between sm:px-6">
           <DialogClose asChild><Button variant="outline" autoFocus>关闭预览</Button></DialogClose>

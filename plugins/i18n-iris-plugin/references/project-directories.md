@@ -25,13 +25,15 @@ XML 原文、译文使用同一次 xml 解析结果；同步脚本生成的 mani
 
 ## 项目覆盖
 
-现有有效 profile 保留。仅在项目确有路径差异时，在 .agents/config/i18n_project_profile.md 正文逐行设置下列可选键；不要把示例复制为默认配置：
+现有有效 profile 保留。仅在项目确有路径差异时，在当前 ContextRoot/config/project.jsonc 的 pluginSettings.i18n-iris-plugin 节设置下列可选键；不要把示例复制为默认配置：
 
-~~~text
-- xmlPrintReferencesDir: docs/delivery/print-templates/<对象>/source
-- xmlPrintOutputDir: docs/delivery/print-templates/<对象>
-- i18nTermsDir: docs/delivery/i18n/terms
-- cspTransBackupsDir: docs/delivery/i18n/csp-trans-sync/backups
+~~~jsonc
+{
+  "xmlPrintReferencesDir": "docs/delivery/print-templates/<对象>/source",
+  "xmlPrintOutputDir": "docs/delivery/print-templates/<对象>",
+  "i18nTermsDir": "docs/delivery/i18n/terms",
+  "cspTransBackupsDir": "docs/delivery/i18n/csp-trans-sync/backups"
+}
 ~~~
 
 路径相对当前 WorkspaceRoot，也可使用明确的绝对路径。解析器接受 XML 的 ReferencesDir/OutputDir 旧键，以及“CSP 翻译同步配置”章节原有“备份目录”值；同键冲突停止。命令行 xml 支持 --references-dir/--output-dir；terms 和 csp-backups 支持 --output-dir；--profile 可指定其它 profile。已有自定义路径优先，不自动改写配置。

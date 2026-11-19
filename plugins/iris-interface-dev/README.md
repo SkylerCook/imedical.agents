@@ -111,3 +111,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/plugins/iris-interfa
 ```
 
 纯初始化入口 `iris-interface-init` 直接读取插件内真实 SKILL.md，manifest 的 `thinIndex.excludeSkills` 将其排除出浅层技能列表。已启用项目常规更新时，Check/DryRun 只报告旧受管索引，Write 精准删除；自定义文件和链接保留。迁移边界见能力包 [更新说明](../../docs/update-agents.md#纯初始化-skill-薄索引迁移)。
+
+运行参数保存在当前 ContextRoot 的 `config/project.jsonc` 的 `pluginSettings.iris-interface-dev` 节。 现有工程沿原更新器 Write 迁移已识别字段。

@@ -455,16 +455,6 @@ function resourceBasename(reference) {
   return path.posix.basename(String(reference || '').replace(/\\/g, '/').split(/[?#]/, 1)[0]);
 }
 
-function parseMarkdownProfile(file) {
-  const result = {};
-  if (!file || !fs.existsSync(file)) return result;
-  for (const line of fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/)) {
-    const match = /^\s*-\s*([^:]+):\s*(.*?)\s*$/.exec(line);
-    if (match) result[match[1].trim()] = match[2].trim();
-  }
-  return result;
-}
-
 function htmlAttribute(tag, name) {
   const match = new RegExp(`\\b${name}\\s*=\\s*(["'])(.*?)\\1`, 'i').exec(tag);
   return match ? match[2] : '';
@@ -581,7 +571,7 @@ function cssDependencyManifest(state) {
 
 function previewProfilePath(args) {
   if (args.targetProfile) return projectPath(args, args.targetProfile);
-  return path.join(projectRoot(args), '.agents', 'config', 'cure_form_profile.md');
+  return path.join(require('../../../scripts/lib/workspace-context').resolveWorkspaceContext(projectRoot(args)).contextRoot,'config','project.jsonc');
 }
 
 function resolvePreviewResource(reference, spec, baseDir, outputDir, args, copyLocal) {
@@ -645,7 +635,7 @@ function resolvePreviewResource(reference, spec, baseDir, outputDir, args, copyL
 
 function resolvePreviewResources(args, outputDir, options = {}) {
   const profileFile = previewProfilePath(args);
-  const profile = parseMarkdownProfile(profileFile);
+  const profile = require('./cure-form-workspace').readSettings(projectRoot(args),args.targetProfile);
   const pageFile = args.pageHtml ? projectPath(args, args.pageHtml) : null;
   if (pageFile && (!fs.existsSync(pageFile) || !fs.statSync(pageFile).isFile())) {
     fail(`Existing page for preview resource discovery does not exist: ${pageFile}`);
@@ -2086,7 +2076,7 @@ function prepareCommonResponsive(args) {
   ensureDir(outputRoot);
   const versionLabel = cleanText(args.versionLabel || `v${new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)}`);
   const converted = [];
-  const profile = parseMarkdownProfile(previewProfilePath(args));
+  const profile = require('./cure-form-workspace').readSettings(projectRoot(args),args.targetProfile);
   const strategy = args.strategy || profile.ResponsiveDeploymentStrategy || 'versioned-clone';
   selectDeployment({ strategy });
   const targetIds = args.templateIds ? String(args.templateIds).split(',') : null;
@@ -2186,7 +2176,7 @@ function commandPreview(args) {
   const snapshot = args.snapshot ? readJson(projectPath(args, args.snapshot)) : null;
   if (snapshot) assertFormType(snapshot.formType || snapshot.MapType);
   const outputRoot = args.outputRoot ? projectPath(args, args.outputRoot) : path.join(formRoot(args, changes.mapCode), 'preview');
-  const configuredVendor = args.vendorRoot || parseMarkdownProfile(previewProfilePath(args)).PreviewVendorRoot || path.join(capabilityRoot(args), 'vendor', 'hisui');
+  const configuredVendor = args.vendorRoot || require('./cure-form-workspace').readSettings(projectRoot(args),args.targetProfile).PreviewVendorRoot || path.join(capabilityRoot(args), 'vendor', 'hisui');
   if (fs.existsSync(projectPath(args, configuredVendor))) args.vendorMount = createMount(projectPath(args, configuredVendor));
   ensureDir(outputRoot);
   const cssState = createCssDependencyState();
@@ -2255,7 +2245,7 @@ function commandPreviewRun(args) {
   if (args.browserCommand) runnerArgs.push('--browser-command', String(args.browserCommand));
   if (args.targetProfile) runnerArgs.push('--target-profile', projectPath(args, args.targetProfile));
   if (args.timeoutMs) runnerArgs.push('--timeout-ms', String(args.timeoutMs));
-  runnerArgs.push('--vendor-root', projectPath(args, args.vendorRoot || parseMarkdownProfile(previewProfilePath(args)).PreviewVendorRoot || path.join(capabilityRoot(args), 'vendor', 'hisui')));
+  runnerArgs.push('--vendor-root', projectPath(args, args.vendorRoot || require('./cure-form-workspace').readSettings(projectRoot(args),args.targetProfile).PreviewVendorRoot || path.join(capabilityRoot(args), 'vendor', 'hisui')));
   const result = spawnSync(process.execPath, runnerArgs, { cwd: projectRoot(args), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
   if (result.stdout) process.stdout.write(result.stdout);
   if (result.stderr) process.stderr.write(result.stderr);
@@ -2325,7 +2315,7 @@ function commandPreviewCheck(args) {
   if (!validWidths(manifest.widths)) fail('Preview manifest does not contain the canonical nine-width matrix.');
   const manifestHash = sha256(manifest);
   const previewHtmlPath = path.resolve(path.dirname(manifestPath), manifest.previewHtml || 'preview.html');
-  if (manifest.vendorMount) validateMount(manifest.vendorMount, projectPath(args, args.vendorRoot || parseMarkdownProfile(previewProfilePath(args)).PreviewVendorRoot || path.join(capabilityRoot(args), 'vendor', 'hisui')));
+  if (manifest.vendorMount) validateMount(manifest.vendorMount, projectPath(args, args.vendorRoot || require('./cure-form-workspace').readSettings(projectRoot(args),args.targetProfile).PreviewVendorRoot || path.join(capabilityRoot(args), 'vendor', 'hisui')));
   if (!pathIsWithin(previewHtmlPath, path.dirname(manifestPath)) || !fs.existsSync(previewHtmlPath) || !fs.statSync(previewHtmlPath).isFile()) fail('Preview HTML is missing or outside the manifest directory.');
   const previewHtml = fs.readFileSync(previewHtmlPath, 'utf8');
   if (previewHtml.split(manifestHash).length - 1 !== 1 || sha256(previewHtml.replace(manifestHash, PREVIEW_MANIFEST_PLACEHOLDER)) !== manifest.previewHtmlTemplateHash) {
@@ -2928,7 +2918,7 @@ function commandRollback(args) {
 }
 
 function readCommonMigrationConfig(args) {
-  const profile = parseMarkdownProfile(previewProfilePath(args));
+  const profile = require('./cure-form-workspace').readSettings(projectRoot(args),args.targetProfile);
   const configured = args.migrationConfig || profile.CommonMigrationConfig;
   if (!configured || /^<?(?:required|unset|todo)>?$/i.test(String(configured).trim())) {
     fail('common-migrate requires --migration-config or CommonMigrationConfig in the target profile.');

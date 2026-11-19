@@ -78,7 +78,8 @@ $packageFiles += @('configure-vscode.js','configure-vscode.ps1','configure-vscod
 foreach ($name in $packageFiles) {
     $destination = Join-Path $work $name
     [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($destination))
-    Copy-Item -LiteralPath (Join-Path $sourceRoot $name) -Destination $destination -Force
+    $assetRoot = if ($name.StartsWith('vendor/jsonc-parser/')) { Join-Path $sourceRoot '../..' } else { $sourceRoot }
+    Copy-Item -LiteralPath (Join-Path $assetRoot $name) -Destination $destination -Force
 }
 & (Join-Path $work 'verify-packages.ps1')
 if (-not $?) { throw 'staged-verification-failed' }

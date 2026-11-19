@@ -71,16 +71,6 @@ function sha256(value) {
   return crypto.createHash('sha256').update(text, 'utf8').digest('hex');
 }
 
-function parseMarkdownProfile(file) {
-  const result = {};
-  if (!file || !fs.existsSync(file)) return result;
-  for (const line of fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/)) {
-    const match = /^\s*-\s*([^:]+):\s*(.*?)\s*$/.exec(line);
-    if (match) result[match[1].trim()] = match[2].trim();
-  }
-  return result;
-}
-
 function executableExists(command) {
   if (!command) return false;
   if (path.isAbsolute(command)) return fs.existsSync(command) && fs.statSync(command).isFile();
@@ -116,10 +106,7 @@ function browserCandidates() {
 
 function resolveBrowser(args) {
   const projectRoot = path.resolve(args.projectRoot || process.cwd());
-  const profilePath = args.targetProfile
-    ? path.resolve(projectRoot, args.targetProfile)
-    : path.join(projectRoot, '.agents', 'config', 'cure_form_profile.md');
-  const profile = parseMarkdownProfile(profilePath);
+  const profile = require('./cure-form-workspace').readSettings(projectRoot,args.targetProfile);
   const explicit = String(args.browserCommand || profile.PreviewBrowserCommand || '').trim();
   if (explicit) {
     const projectCandidate = path.resolve(projectRoot, explicit);
@@ -130,7 +117,7 @@ function resolveBrowser(args) {
   for (const candidate of browserCandidates()) {
     if (executableExists(candidate)) return candidate;
   }
-  fail('No Chromium browser was found. Configure PreviewBrowserCommand in cure_form_profile.md or pass --browser-command.');
+  fail('No Chromium browser was found. Configure PreviewBrowserCommand in project.jsonc or pass --browser-command.');
 }
 
 function pathIsWithin(candidate, root) {

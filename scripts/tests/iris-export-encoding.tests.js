@@ -35,6 +35,7 @@ function run(args) {
     fs.copyFileSync(path.join(path.dirname(sourceScript), name), path.join(path.dirname(scriptPath), name));
   }
   fs.cpSync(path.join(repoRoot,'vendor/frontend-encoding'),path.join(testRoot,'.agents/vendor/frontend-encoding'),{recursive:true});
+  fs.cpSync(path.join(repoRoot,'vendor/jsonc-parser'),path.join(testRoot,'.agents/vendor/jsonc-parser'),{recursive:true});
   fs.copyFileSync(sourceWorkspaceContext, workspaceContextPath);
   for (const name of ['atelier-client.js', 'iris-remote-operations.js']) {
     fs.copyFileSync(path.join(repoRoot, 'scripts', 'lib', name), path.join(path.dirname(workspaceContextPath), name));
@@ -72,6 +73,9 @@ function run(args) {
       '| `src/imedical/web` | utf8 |',
       ''
     ].join('\r'), 'utf8');
+    const context={workspaceRoot:testRoot,contextRoot:path.dirname(configRoot),capabilityRoot:path.dirname(configRoot)};
+    const pluginSettings=require('../lib/project-plugin-settings');
+    pluginSettings.apply(context,'coding-iris-plugin','Write');
     const projectResult = await run(['project.csp']);
     assert.strictEqual(projectResult.code, 0, projectResult.stderr || projectResult.stdout);
     const projectPath = path.join(testRoot, 'src', 'imedical', 'web', 'csp', 'project.csp');
@@ -80,6 +84,7 @@ function run(args) {
 
     assert.ok(projectResult.stdout.includes('"preset":"utf8"'));
 
+    pluginSettings.apply(context,'coding-iris-plugin','Rollback');
     const overwriteResult = await run(['project.csp']);
     assert.notStrictEqual(overwriteResult.code, 0, 'existing source should require --overwrite');
     assert.ok(overwriteResult.stderr.includes('--overwrite'), 'overwrite refusal should explain the required flag');

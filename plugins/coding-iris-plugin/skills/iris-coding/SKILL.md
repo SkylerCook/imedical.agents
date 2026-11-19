@@ -28,11 +28,11 @@ description: Route IRIS coding requests with unclear frontend/backend boundaries
 
 新增、替换或复制实现前，以及最终 diff 后，执行[通用规则的开发复用](../../rules/iris_coding_general.md#开发复用)，将候选依据和采用方式随现有交付或 Review 输入传递，完成重复实现与消费者兼容性复核。
 
-先读取当前 ContextRoot 的 `config/iris-development.json`：`developmentMode: offline` 直接按[离线开发协议](../../references/iris-offline-development.md)处理人工源码或完整 XML，本地修改/检查/Review/交付后等待用户现场验证；禁止医院远端读取、执行与部署，也不调用原生 IRIS MCP。缺省或 `connected` 才执行下面的在线条件；未知值停止核对，普通更新不自动切换模式。
+先读取当前 ContextRoot 的 `config/project.jsonc` 的 `irisDevelopment` 节：`developmentMode: offline` 直接按[离线开发协议](../../references/iris-offline-development.md)处理人工源码或完整 XML，本地修改/检查/Review/交付后等待用户现场验证；禁止医院远端读取、执行与部署，也不调用原生 IRIS MCP。缺省或 `connected` 才执行下面的在线条件；未知值停止核对，普通更新不自动切换模式。
 
 当前需求类型为 `project` 且 `contextMode: intent-first-on-demand-export` 时，先读[项目开发协议](../../references/project-demand-development.md#修改前与部署前同步)，待修改文件无论本地是否存在，都先完成 before-edit 同步，有变化先提交 export 基线，再开始需求修改；该分支优先于下列默认 direct。类型由用户本次指定或合法项目默认值确定，不能由 contextMode 推导；标版沿既有分支，后续均读取命中的专项规则。
 
-1. 读取目标工程 `.agents/config/iris_project_profile.md`、`.agents/config/plugin_profile.md`、[规则索引](../../rules/iris_coding_index.md)和[通用规则](../../rules/iris_coding_general.md)。复用仍持有且未变化的内容。
+1. 读取目标工程 `.agents/config/iris_project_profile.md`、`.agents/config/project.jsonc` 的 `plugins` 节、[规则索引](../../rules/iris_coding_index.md)和[通用规则](../../rules/iris_coding_general.md)。复用仍持有且未变化的内容。
 2. 按通用规则判定 executionPath、parallelAssessment 和正式 run；guidanceMode 使用共享辅助协议。风险分流不减少命中的硬约束。
 3. 非按需导出工程日常开发部署默认 direct，不要求需求号或 Git 基线会话；已有修改不触发基线确认。仅在用户或项目要求 guarded 时，在第一次修改前读取[建立会话要求](../../references/deployment-protection.md#建立会话)。上传、编译仍需明确授权。
 4. 定位页面、按钮、JS 调用和后端方法，确认调用链及文件边界；按上表读取命中的专项 skill 和规则。前端修改前执行[UI 条件门禁](../../rules/iris_coding_frontend.md#ui-条件门禁)及[条件 i18n 门禁](../../rules/iris_coding_frontend.md#条件-i18n-门禁)，启用状态、信号、规则加载和失败处理均以各 owner 节为准。

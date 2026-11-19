@@ -264,6 +264,23 @@ function Set-ProfileEncodingConfig {
   return $Text.TrimEnd() + ($lines -join $newline) + $newline
 }
 
+$settingsCli = Join-Path $PSScriptRoot '../../../scripts/plugin-settings.js'
+$canonical = 'false'
+if (Test-Path -LiteralPath $settingsCli) {
+  $canonical = & node $settingsCli Canonical coding-iris-plugin $projectRootFull
+  if ($LASTEXITCODE -ne 0) {
+    Add-Result -Status "config-migration-conflict" -Target "config/project.jsonc" -Reason "encoding settings could not be read consistently"
+    Write-Output (ConvertTo-Json @($results | ForEach-Object { $_ }) -Depth 6 -Compress)
+    exit 0
+  }
+}
+if ($canonical -eq 'true') {
+  Sync-EncodingWrapper -Name "check-frontend-encoding.ps1" -LegacyHashes @('ec06244786350d3bab90e579eb305517eb93b7516192f22b3ed319fd605c3ed3')
+  Sync-EncodingWrapper -Name "convert-gb2312-upload.ps1" -LegacyHashes @('7f7a07ca0b599f382f890f14ee0c0bbfbb591dab5530b78da3112d6b408fd56b')
+  Add-Result -Status "config-migration-unchanged" -Target "config/project.jsonc" -Reason "encoding settings are managed by the plugin owner"
+  Write-Output (ConvertTo-Json @($results | ForEach-Object { $_ }) -Depth 6 -Compress)
+  exit 0
+}
 if (-not (Test-Path -LiteralPath $profilePath -PathType Leaf)) {
   Add-Result -Status "config-migration-review-required" -Target ".agents/config/iris_project_profile.md" -Reason "profile is missing"
   Sync-EncodingWrapper -Name "check-frontend-encoding.ps1" -LegacyHashes @('ec06244786350d3bab90e579eb305517eb93b7516192f22b3ed319fd605c3ed3')

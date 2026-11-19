@@ -5,6 +5,9 @@ description: Use when initializing or checking the reusable IRIS i18n agent kit 
 
 # I18N Project Init
 
+运行参数保存在当前 ContextRoot 的 `config/project.jsonc` 的 `pluginSettings.i18n-iris-plugin` 节。 首次初始化在项目说明就位后运行 `node <CapabilityRoot>/scripts/plugin-settings.js Init i18n-iris-plugin .`，用同一脚本的 Read 命令读回。Markdown 保留说明、表格与尚未迁移的约定。
+
+
 帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
 
 ## 职责边界
@@ -52,8 +55,8 @@ description: Use when initializing or checking the reusable IRIS i18n agent kit 
 1. 检查目标工程：
    - 是否存在 `AGENTS.md`。
    - 是否存在 `.mcp.json`。
-   - 是否存在 `.agents/config/plugin_profile.md`。
-   - `coding-iris-plugin` 是否已在 `plugin_profile.md` 中标记为 `enabled`。
+   - 是否存在 `.agents/config/project.jsonc` 的 `plugins` 节。
+   - `coding-iris-plugin` 是否已在 `project.jsonc` 的 `plugins` 节 中标记为 `enabled`。
    - 是否已有 `.agents/config/i18n_project_profile.md`。
    - 是否已有同名 rules/skills，避免覆盖用户定制。
 
@@ -104,7 +107,7 @@ description: Use when initializing or checking the reusable IRIS i18n agent kit 
    - 输出仍需人工确认的 profile 项。
 
 7. 更新插件状态：
-   - 初始化闭环验收通过后，运行脚本机械维护 `.agents/config/plugin_profile.md`：
+   - 初始化闭环验收通过后，运行脚本机械维护 `.agents/config/project.jsonc` 的 `plugins` 节：
      ```powershell
      powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin i18n-iris-plugin -Status enabled
      ```
@@ -126,7 +129,7 @@ description: Use when initializing or checking the reusable IRIS i18n agent kit 
 - thin-index 脚本 `DryRun` 和 `Write` 的结果。
 - 哪些文件因已存在而跳过或需要人工合并。
 - `.agents/config/i18n_project_profile.md` 中仍需确认的项目。
-- `plugin_profile.md` 中 `coding-iris-plugin` 与 `i18n-iris-plugin` 的最终状态。
+- `project.jsonc` 的 `plugins` 节 中 `coding-iris-plugin` 与 `i18n-iris-plugin` 的最终状态。
 - `.agents/.git/info/exclude` 生成层忽略规则检查结果。
 - `.mcp.json` 能力检查结果。
 - 下一步建议：先执行文本提取只读验证，再生成小批量页面翻译种子，最后进行服务器 report-only 校验。

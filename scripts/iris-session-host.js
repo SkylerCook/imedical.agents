@@ -15,31 +15,43 @@ async function serve({root, open = backends.open, describe = backends.operation,
     fs.unlinkSync(lock);
     if (process.platform !== 'win32' && fs.existsSync(loc.endpoint)) fs.unlinkSync(loc.endpoint);
   }
-  fs.writeFileSync(lock, JSON.stringify({pid: process.pid}), {flag: 'wx', mode: 0o600});
+  fs.writeFileSync(lock, JSON.stringify({pid: process.pid, boundTargets:1}), {flag: 'wx', mode: 0o600});
   const manager = new SessionManager({directory: path.join(loc.root, 'pools'), open, idleMs});
   let lastActive = Date.now(), emptySince = null, closing = false, ticking = false;
   const clients = new Set();
   const server = net.createServer(socket => {
     clients.add(socket); const client = crypto.randomUUID(), requests = new Map();
+    const routes = new Map();
     socket.on('error', () => {});
     socket.on('close', () => {clients.delete(socket); for (const ctrl of requests.values()) ctrl.abort(); manager.disconnect(client);});
     ipc.frame(socket, value => {
       if (value.version !== ipc.VERSION || typeof value.auth !== 'string' || value.auth.length !== secret.length || !crypto.timingSafeEqual(Buffer.from(value.auth), Buffer.from(secret))) {socket.destroy(); return;}
-      if(value.runtime!==ipc.RUNTIME && !['status','close'].includes(value.method)) {
+      if(value.runtime!==ipc.RUNTIME && value.method!=='status' && !(value.method==='close' && value.params?.token)) {
         socket.write(JSON.stringify({id:value.id,error:{code:'session-host-version-mismatch',beforeSend:true}})+'\n');return;
       }
       if (value.method === 'cancel') {requests.get(value.params?.id)?.abort(); return;}
       const ctrl = new AbortController(); requests.set(value.id, ctrl); lastActive = Date.now();
       (async () => {
         if (value.method === 'status') return {protocolVersion: ipc.VERSION, pools: manager.status()};
-        if (value.method === 'close') {const d = backends.describe(value.params.projectRoot, value.params.serverName,{localOnly:true}); return manager.close(d.pool, client, value.params.token);}
-        if (value.method === 'markUnknown') {const d=backends.describe(value.params.projectRoot,value.params.serverName,{localOnly:true});return manager.markUnknown(d.pool);}
+        const routeKey=JSON.stringify([value.params?.projectRoot,value.params?.serverName]);
+        if (['close','closeBound','markUnknown','markBoundUnknown'].includes(value.method)) {
+          const bound=['closeBound','markBoundUnknown'].includes(value.method);
+          const route=bound ? routes.get(routeKey) : null;
+          if (!route && bound) throw failure('session-original-route-unavailable');
+          const d=route || backends.describe(value.params.projectRoot,value.params.serverName,{localOnly:true});
+          if (['markUnknown','markBoundUnknown'].includes(value.method)) return manager.markUnknown(d.pool,route?.scope);
+          const pool=manager.pool(d.pool);
+          if (route && pool.identity && pool.identity!==route.identity)
+            return {...manager.summary(pool),active:false,exit:null,originalSessionRetired:true};
+          return manager.close(d.pool,client,value.params.token);
+        }
         if (value.method === 'reconcile') {
           const d = backends.describe(value.params.projectRoot, value.params.serverName,{localOnly:true});
           return manager.reconcile(d.pool, value.params);
         }
         if (value.method !== 'call') throw failure('session-ipc-method-invalid');
         const op = describe(value.params);
+        routes.set(routeKey,{pool:op.pool,identity:require('./lib/iris-session-manager').hash(op.identity),scope:op.scope});
         op.notify=notification=>{if(!socket.destroyed)socket.write(JSON.stringify({notification})+'\n');};
         op.runtime=ipc.RUNTIME;
         return manager.submit({pool: op.pool, identity: op.identity, client, operation: op, signal: ctrl.signal,

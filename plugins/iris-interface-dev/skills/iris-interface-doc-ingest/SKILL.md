@@ -19,7 +19,7 @@ description: 当需要把接口 PDF、DOC、DOCX、XLS 或 XLSX 文档转换为 
 
 ## 职责
 
-- 复用 `extract-doc` 的[输出契约](../../../extract-doc/skills/extract-doc-ingest/SKILL.md#输出契约)。profile 的 outputRoot 未配置或为 auto 时省略 `--output-root`；存在显式目录时原样传入，例如保留 `--output-root docs/interface`。
+- 复用 `extract-doc` 的[输出契约](../../../extract-doc/skills/extract-doc-ingest/SKILL.md#输出契约)。用 `node <CapabilityRoot>/scripts/plugin-settings.js Read iris-interface-dev .` 读取 outputRoot；该值 未配置或为 auto 时省略 `--output-root`；存在显式目录时原样传入，例如保留 `--output-root docs/interface`。
 - 调用 `extract-doc` 的解析脚本生成 Markdown、结构化 JSON、字段摘要和诊断文件。
 - 保证产物可被 `iris-interface-field-match` 和 `iris-interface-dev-plan` 继续读取。
 - 对话里只汇报文件路径、视图数量、字段数量、转换器和错误摘要，不粘贴完整文档或完整字段明细。

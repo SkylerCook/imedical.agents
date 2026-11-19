@@ -21,6 +21,24 @@ function fixture(t) {
   function apply() {const planned = config.plan(request);return config.apply({...request, fingerprint: planned.fingerprint});}
   return {root, request, write, apply, read: name => fs.readFileSync(path.join(root, name), 'utf8')};
 }
+test('switching a VS Code-only project preserves connection options and creates no unbound consumer',async t=>{
+  const f=fixture(t);
+  fs.mkdirSync(path.join(f.root,'.agents/config'),{recursive:true});
+  assert.equal(spawnSync('git',['-C',path.join(f.root,'.agents'),'init','-q']).status,0);
+  f.write('.agents/.git/info/exclude','/config/\n');
+  f.write('.vscode/settings.json',JSON.stringify({'objectscript.conn':{server:'original',ns:'A',active:false},
+    'intersystems.servers':{original:{webServer:{host:'a.invalid',port:443,scheme:'https'}}}}));
+  const req={projectRoot:f.root,profile:{id:'B',connection:{host:'b.invalid',namespace:'B'}}};
+  const plan=config.plan(req);
+  await config.apply({...req,fingerprint:plan.fingerprint});
+  const state=config.inspectProfiles(req);
+  assert.equal(state.consistent,true);
+  assert.equal(state.target.alias,'B');
+  assert.equal(config.object(f.read('.vscode/settings.json'))['objectscript.conn'].active,false);
+  for(const file of ['.mcp.json','.iris-agentic-dev.toml','.agents/config/project-env.json','.agents/config/iris-profile-credentials.json'])
+    assert.equal(fs.existsSync(path.join(f.root,file)),false);
+});
+
 test('HTTP Caché and HTTPS IRIS configurations use selected endpoint without persisting VS Code passwords', async t => {
   const f = fixture(t);
   const result = await f.apply();
@@ -164,7 +182,7 @@ test('invalid input, malformed TOML and linked targets fail before any configura
   try {assert.throws(()=>config.plan(f.request),/linked-settings-path/);} finally {fs.unlinkSync(linked);}
 });
 test('vendor TOML parser files match fixed source digests', () => {
-  const directory=path.resolve(__dirname,'../../tools/ai-dev-offline/vendor/iarna-toml');
+  const directory=path.resolve(__dirname,'../../vendor/iarna-toml');
   const upstream=JSON.parse(fs.readFileSync(path.join(directory,'UPSTREAM.json'),'utf8').replace(/^\uFEFF/,''));
   assert.equal(upstream.version,'2.2.5');assert.equal(upstream.license,'ISC');
   for(const [file,digest] of Object.entries(upstream.files))assert.equal(hash(fs.readFileSync(path.join(directory,file))),digest,file);

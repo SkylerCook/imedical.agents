@@ -6,17 +6,47 @@ const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { parentPort, workerData } = require('node:worker_threads');
 const deployment = require('../../../scripts/lib/plugin-deployment');
+const { inspectBundle } = require('../../../scripts/lib/knowledge-retrieval');
+const { resolveWorkspaceContext, workspaceContextBlockers } = require('../../../scripts/lib/workspace-context');
 const { inspectFramework } = require('./project-context');
+const projectActions = require('./project-owner-actions');
+const { planOverlayUpdate, inspectOverlayLink, inspectRegisteredMember } = require('./overlay-members');
+const { applyOverlayUpdate, refreshBoundOverlay, runCanonicalMember } = require('./overlay-update');
+const { runOwnerPowerShell } = require('./owner-powershell');
 
-// Pilot execution tree verified at 3246ca4e7442c9e81977626c438922b757efbddb.
 const runtimeTrees = ['scripts','plugins','vendor','hooks'];
-// SHA-256 of git ls-tree -r -z <revision> -- scripts plugins vendor hooks.
-const trustedTrees = new Set([
-  'f0a05c1ee334f4f37fadaaeb313f9f9c67b93ee0f25938fd9b982a0ce155620c', // 3246ca4e
-  '30b13b1d4a6e499cbc56e7da2355ff345ac269f74d8222a07b8d523e03ce9427', // b65675b6
+// Each pilot commit is approved with the digest of its deployed runtime entries.
+const trustedRuntime = new Map([
+  ['3246ca4e7442c9e81977626c438922b757efbddb', 'f0a05c1ee334f4f37fadaaeb313f9f9c67b93ee0f25938fd9b982a0ce155620c'],
+  ['b65675b656519b2a2bda02fd2b26e1a19fdbdd62', '30b13b1d4a6e499cbc56e7da2355ff345ac269f74d8222a07b8d523e03ce9427'],
+  ['5520bdf7854561bd80e04fcc9330b6bb921bfe80', '30b13b1d4a6e499cbc56e7da2355ff345ac269f74d8222a07b8d523e03ce9427'],
+  ['e943fc299efe658e1a2da90602a50d85cf2a3c7b', '30b13b1d4a6e499cbc56e7da2355ff345ac269f74d8222a07b8d523e03ce9427'],
+  ['1a8a257cffa676a486a126ceab48b234babdd398', 'e43844b42644d604220126adebf35b8799f76521cb7d603280bd2631adafeb4e'],
+  ['536d12b49bea961295162030e0926ebf65562330', '46c8d133986c4f4aaf2480d71e6ec611ca2938f0e77411d6670cc19d7d98a753'],
 ]);
-const sourceUrl = 'https://gitee.com/skyler-cook/imedical.agents.git';
 
+function packagedRuntimePin() {
+  const root = path.resolve(__dirname, '../../..');
+  const record = path.join(root, 'workbench-release.json');
+  try {
+    if (fs.lstatSync(path.join(root, '.git'), { throwIfNoEntry: false }) ||
+        !fs.lstatSync(path.join(root, 'runtime/node.exe'), { throwIfNoEntry: false })?.isFile() ||
+        !fs.lstatSync(record, { throwIfNoEntry: false })?.isFile()) return null;
+    // This is the local envelope from the publisher-verified full ZIP, never a project's record.
+    const release = JSON.parse(fs.readFileSync(record, 'utf8'));
+    const pin = release.runtimePin;
+    if (release.formal !== true || release.localBuildChanges !== false || release.platform !== 'windows-x64' ||
+        typeof pin?.revision !== 'string' || pin.revision !== release.sourceBaseRevision ||
+        !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/u.test(pin.revision) ||
+        typeof pin.treeDigest !== 'string' || !/^[a-f0-9]{64}$/u.test(pin.treeDigest)) return null;
+    return pin;
+  } catch { return null; }
+}
+
+const ownPin = packagedRuntimePin();
+if (ownPin && !trustedRuntime.has(ownPin.revision)) trustedRuntime.set(ownPin.revision, ownPin.treeDigest);
+const sourceUrl = 'https://gitee.com/skyler-cook/imedical.agents.git';
+const companyIndexFile = 'vendor/knowledge-index/company.sqlite';
 function git(cap, args, input) {
   const result = spawnSync('git', ['--no-replace-objects','--no-optional-locks','-C',cap,...args], {
     input,env:{...process.env,GIT_ALLOW_PROTOCOL:'',GIT_NO_LAZY_FETCH:'1'},windowsHide:true, timeout:10000, maxBuffer:4*1024*1024
@@ -32,7 +62,7 @@ function blob(bytes) {
 function verifyRuntime(cap, revision, checkWorkingFiles = true) {
   const output = git(cap,['ls-tree','-r','-z',revision,'--',...runtimeTrees]);
   const deployed = output.toString('latin1').split('\0').filter(row => row.slice(row.indexOf('\t') + 1) !== 'scripts/install-agents.ps1');
-  if (!trustedTrees.has(crypto.createHash('sha256').update(deployed.join('\0'),'latin1').digest('hex'))) throw Error('unknown-tree');
+  if (trustedRuntime.get(revision) !== crypto.createHash('sha256').update(deployed.join('\0'),'latin1').digest('hex')) throw Error('unknown-tree');
   const files = new Map();
   for (const item of output.toString().split('\0').filter(Boolean)) {
     const [header, name] = item.split('\t');
@@ -62,24 +92,71 @@ function verifyRuntime(cap, revision, checkWorkingFiles = true) {
     if (bytes.includes(0) || !Buffer.from(bytes.toString('utf8')).equals(bytes) ||
         blob(Buffer.from(bytes.toString('latin1').replace(/\r\n/g,'\n'),'latin1')) !== expected) throw Error('runtime-modified');
   }
-  if (checkWorkingFiles) for (const dir of runtimeTrees) if (fs.existsSync(path.join(cap,dir))) visit(dir);
+  if (checkWorkingFiles) {
+    for (const dir of runtimeTrees) if (fs.existsSync(path.join(cap,dir))) visit(dir);
+    for (const name of files.keys()) {
+      if (!/^plugins\/[^/]+\/\.agents-plugin\/plugin\.json$/.test(name)) continue;
+      const manifest = path.join(cap,name);
+      if (!fs.existsSync(manifest)) continue; // An uninstalled optional plugin is absent from sparse checkout.
+      const pluginDir = path.posix.dirname(path.posix.dirname(name));
+      const metadata = JSON.parse(fs.readFileSync(manifest,'utf8').replace(/^\uFEFF/,''));
+      for (const migration of metadata.configMigrations ?? []) {
+        const script = path.posix.join(pluginDir,migration.script);
+        if (!script.startsWith(pluginDir + '/') || !files.has(script) || !fs.existsSync(path.join(cap,script)))
+          throw Error('runtime-modified');
+      }
+    }
+  }
   for (const bootstrap of ['scripts/refresh-agents-sparse.js','scripts/lib/plugin-deployment.js']) {
     if (blob(git(cap,['cat-file','blob',revision + ':' + bootstrap])) !== files.get(bootstrap)) throw Error('unknown-bootstrap');
   }
 }
 
-function observe(root) {
+function companyIndexObject(cap, revision) {
+  return git(cap, ['ls-tree', revision, '--', companyIndexFile]).toString()
+    .match(/^100644 blob ([a-f0-9]{40})\t/)?.[1];
+}
+
+function hasIndexObject(cap, oid) {
+  return !!oid && git(cap, ['cat-file', '--batch-check=%(objecttype)'], oid + '\n').toString().trim() === 'blob';
+}
+
+function observeCompanyIndex(root, state) {
+  if (!['standard', 'overlay-declared'].includes(state.status)) return;
+  try {
+    const context = resolveWorkspaceContext(root);
+    const shared = state.status === 'overlay-declared';
+    if (shared && workspaceContextBlockers(context).length) return;
+    const cap = context.capabilityRoot;
+    const revision = shared ? 'HEAD' : state.revision;
+    const oid = companyIndexObject(cap, revision);
+    const selection = git(cap, ['config', '--local', '--no-includes', '--default', '', '--get', 'imedical.knowledgeVectors'])
+      .toString().trim().split(',');
+    const sparse = git(cap, ['config', '--no-includes', '--bool', '--default', 'false', '--get', 'core.sparseCheckout'])
+      .toString().trim() === 'true';
+    return {
+      available: !!oid, localObject: hasIndexObject(cap, oid), selected: selection.includes('company'), shared,
+      writable: !shared && process.platform === 'win32' && sparse && trustedRuntime.has(revision),
+      ...inspectBundle(context, 'company'),
+    };
+  } catch { return undefined; }
+}
+
+function observe(root, includeIndex = false) {
   const state = inspectFramework(root);
+  if (includeIndex) state.companyIndex = observeCompanyIndex(root, state);
   if (!['standard','no-framework'].includes(state.status)) return {...state,observedAt:new Date().toISOString()};
   const identity = [root];
   if (state.status === 'standard') identity.push(path.join(root,'.agents'),path.join(root,'.agents/.git'));
   if (state.status === 'standard') {
     const cap = path.join(root,'.agents');
-    const profile = path.join(cap,'config/plugin_profile.md');
+    let profileExists = false;
+    try { profileExists = require('../../../scripts/lib/project-plugin-profile').read(cap).exists; }
+    catch { profileExists = null; }
     const skills = path.join(cap,'skills');
     state.installed = {
       sparseRules: fs.existsSync(path.join(cap,'.git/info/sparse-checkout')),
-      profile: fs.lstatSync(profile,{throwIfNoEntry:false})?.isFile() ?? false,
+      profile: profileExists,
       skillEntries: fs.lstatSync(skills,{throwIfNoEntry:false})?.isDirectory() ? fs.readdirSync(skills).length : 0,
     };
   }
@@ -99,7 +176,7 @@ function toolEnvironment() {
   if (!gitDir) throw Error('git-unavailable');
   const env = {...process.env};
   for (const key of Object.keys(env)) {
-    if (/^(path|psmodulepath|node_options|node_path|imedical_deployment_lock|git_.*)$/i.test(key)) delete env[key];
+    if (/^(path|psmodulepath|node_options|node_path|imedical_deployment_lock|imedical_workbench_owner|git_.*)$/i.test(key)) delete env[key];
   }
   Object.assign(env,{
     Path:[path.dirname(process.execPath),gitDir,psDir,path.join(systemRoot,'System32')].join(path.delimiter),
@@ -110,36 +187,107 @@ function toolEnvironment() {
   return {env, ps:path.join(psDir,'powershell.exe'),gitExe:path.join(gitDir,'git.exe')};
 }
 
-function run({root,action,expectedRevision,expectedBinding}) {
-  const before = observe(root);
+function hasCustomGitConfig(directory) {
+  if (!fs.existsSync(path.join(directory,'.git'))) return false;
+  const keys = git(directory,['config','--local','--no-includes','--name-only','--null','--list']).toString().split('\0');
+  return keys.some(k => /^(include(if)?\.|filter\.|url\.|remote\..*\.(uploadpack|vcs|proxy)$|diff\..*\.(command|textconv)$|core\.(worktree|attributesfile|alternateRefsCommand)$)/i.test(k));
+}
+
+function withVerifiedDeploymentLock(root,expected,operation,blocked) {
+  const cap = path.join(root,'.agents');
+  let lock;
+  try { lock = deployment.acquireLock(cap,process.pid); }
+  catch (error) {
+    if (error.message.includes('Plugin deployment is busy')) return blocked('deployment-busy');
+    throw error;
+  }
+  try {
+    const actual = observe(root);
+    if (actual.status !== 'standard' || actual.binding !== expected.binding || actual.revision !== expected.revision)
+      return blocked('binding-changed');
+    verifyRuntime(cap,expected.revision);
+    return operation(lock.token);
+  } finally { deployment.releaseLock(cap,lock.token); }
+}
+
+function checkedMemberOwner(tools) {
+  return (target,member,mode,lease) => {
+    if (hasCustomGitConfig(member.workspaceRoot)) throw Error('custom-git-config');
+    return runCanonicalMember(target,member,mode,lease,tools);
+  };
+}
+
+function confirmMemberRegistration(link,tools,token) {
+  const {root,member} = link;
+  const registered = () => inspectRegisteredMember(root,member.id)?.identity === member.identity;
+  if (registered()) return true;
+  const registry = path.join(root.gitRoot,'plugin-deployment.json');
+  const state = deployment.loadState(root.capabilityRoot,registry);
+  // Earlier full checkouts skipped Overlay registration. Reuse the packaged owner
+  // after a successful refresh. That owner only records the member in full mode.
+  if (state.mode !== 'full' || state.members.some(entry=>deployment.sameContextRoot(entry.contextRoot,member.contextRoot))) return false;
+  const owner = path.resolve(__dirname,'../../../scripts/plugin-deploy.js');
+  if (!fs.lstatSync(owner,{throwIfNoEntry:false})?.isFile()) return false;
+  const run = spawnSync(process.execPath,[owner,'register','--project-root',member.workspaceRoot],{
+    cwd:member.workspaceRoot,env:{...tools.env,IMEDICAL_DEPLOYMENT_LOCK:token},windowsHide:true,timeout:30000,
+    stdio:'ignore',
+  });
+  return run.status === 0 && registered();
+}
+
+function memberRefresh({root,expectedRevision,expectedBinding,overlaySelection}, before) {
+  const done = (error,memberUpdate,registered=false) => ({before,after:observe(root,true),
+    exitCode:error ? 1 : 0,...(error ? {error} : {}),...(memberUpdate ? {memberUpdate,registered} : {})});
+  if (process.platform !== 'win32') return done('unsupported-platform');
+  if (before.status !== 'overlay-declared' || before.revision !== expectedRevision) return done('overlay-target-changed');
+  let link;
+  try { link = inspectOverlayLink(root); } catch { return done('overlay-target-changed'); }
+  if (!link || link.id !== overlaySelection?.linkId || link.member.identity !== expectedBinding)
+    return done('overlay-target-changed');
+  if (link.member.status !== 'ready') return done('overlay-member-unready');
+  if ([root,link.root.workspaceRoot,link.root.capabilityRoot].some(hasCustomGitConfig)) return done('custom-git-config');
+  const tools = toolEnvironment();
+  return withVerifiedDeploymentLock(link.root.workspaceRoot,link.root,token => {
+    const result = refreshBoundOverlay(link,checkedMemberOwner(tools),token);
+    if (result.status !== 'complete') return done(result.error,result);
+    try {
+      if (inspectOverlayLink(root)?.id === link.id && confirmMemberRegistration(link,tools,token)) return done(undefined,result,true);
+    } catch { /* The refresh receipt is retained if membership cannot be read back. */ }
+    return done('overlay-registration-unconfirmed',result);
+  },done);
+}
+
+function run({root,action,expectedRevision,expectedBinding,offlineSelection,overlaySelection}) {
+  const before = observe(root,true);
   if (action === 'observe') return before;
-  const install = action === 'install';
+  if (action === 'overlay-member-refresh') return memberRefresh({root,expectedRevision,expectedBinding,overlaySelection},before);
+  const offlineAction = /^offline-(preview|install|apply)$/.exec(action)?.[1];
+  const install = action === 'install' || offlineAction === 'install' || (offlineAction === 'preview' && expectedRevision === null);
   if (before.status !== (install ? 'no-framework' : 'standard') || before.revision !== expectedRevision)
     return {error:'unsupported-project',before};
   if (before.binding !== expectedBinding) return {error:'binding-changed',before};
   if (process.platform !== 'win32') return {error:'unsupported-platform',before};
   const cap = path.join(root,'.agents');
-  for (const dir of [cap,root]) {
-    if (!fs.existsSync(path.join(dir,'.git'))) continue;
-    const keys = git(dir,['config','--local','--no-includes','--name-only','--null','--list']).toString().split('\0');
-    if (keys.some(k => /^(include(if)?\.|filter\.|url\.|remote\..*\.(uploadpack|vcs|proxy)$|diff\..*\.(command|textconv)$|core\.(worktree|attributesfile|alternateRefsCommand)$)/i.test(k)))
-      return {error:'custom-git-config',before};
-  }
-  if (!install) verifyRuntime(cap,before.revision);
+  if ([cap,root].some(hasCustomGitConfig)) return {error:'custom-git-config',before};
+  if (!install && !offlineAction) verifyRuntime(cap,before.revision);
   if (action === 'verify') return {before};
   const tools = toolEnvironment();
+  if (offlineAction) {
+    return require('./offline-framework-actions').execute({action:offlineAction,root,expectedRevision,expectedBinding,
+      bundleDirectory:offlineSelection.bundleDirectory,release:offlineSelection.release},
+    {trustedRuntime,observe:value=>observe(value,true),verifyRuntime,tools});
+  }
   const steps = [];
-  const receipt = (error) => ({action,steps,before,after:observe(root),exitCode:steps.at(-1)?.exitCode ?? null,...(error ? {error} : {})});
-  function owner(step,entry,args,env) {
-    const proc = spawnSync(tools.ps,['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',entry,...args],
-      {cwd:root,env,windowsHide:true,encoding:'utf8',maxBuffer:8*1024*1024});
+  const receipt = (error) => ({action,steps,before,after:observe(root,true),exitCode:steps.at(-1)?.exitCode ?? null,...(error ? {error} : {})});
+  function owner(step,entry,parameters,env) {
+    const proc = runOwnerPowerShell(tools.ps,entry,parameters,{cwd:root,env});
     const codes = ['pull-blocked-dirty','pull-blocked-diverged','pull-failed','fetch-failed','sparse-refresh-failed','runtime-assets-invalid','unresolved deltas','missing blob','did not send all necessary objects','unrecognized framework execution tree'];
     const diagnostic = proc.status === 0 ? undefined : codes.find(code => (proc.stdout + proc.stderr).toLowerCase().includes(code));
     steps.push({step,exitCode:proc.status,revision:observe(root).revision,diagnostic});
     return proc.status === 0;
   }
   const entry = path.join(cap,'scripts/update-agents.ps1');
-  const update = (step,mode,env=tools.env,noPull=true) => owner(step,entry,['-ProjectRoot',root,'-Mode',mode,...(noPull?['-NoPull']:[])],env);
+  const update = (step,mode,env=tools.env,noPull=true) => owner(step,entry,{ProjectRoot:root,Mode:mode,NoPull:noPull},env);
   const sameProject = () => {
     const now = observe(root);
     return now.status === before.status && now.binding === before.binding && now.revision === before.revision;
@@ -150,33 +298,121 @@ function run({root,action,expectedRevision,expectedBinding}) {
     return receipt();
   }
   function withDeploymentLock(expected, operation) {
-    let lock;
-    try { lock = deployment.acquireLock(cap,process.pid); }
-    catch (error) {
-      if (error.message.includes('Plugin deployment is busy')) return receipt('deployment-busy');
-      throw error;
-    }
-    try {
-      const actual = observe(root);
-      if (actual.status !== 'standard' || actual.binding !== expected.binding || actual.revision !== expected.revision)
-        return receipt('binding-changed');
-      verifyRuntime(cap,expected.revision);
-      return operation(lock.token);
-    } finally { deployment.releaseLock(cap,lock.token); }
+    return withVerifiedDeploymentLock(root,expected,operation,receipt);
   }
-  function writeAndCheck(expected,step) {
-    return withDeploymentLock(expected, token => {
-      const env = {...tools.env,IMEDICAL_DEPLOYMENT_LOCK:token};
-      if (update(step,'Write',env)) update('check','Check',env);
-      return receipt();
+  function writeAndCheck(token,step) {
+    const env = {...tools.env,IMEDICAL_DEPLOYMENT_LOCK:token};
+    if (update(step,'Write',env)) update('check','Check',env);
+    return receipt();
+  }
+  if (action === 'apply' || action === 'refresh-overlay') {
+    return withDeploymentLock(before,token => {
+      if (!overlaySelection)
+        return action === 'apply' ? writeAndCheck(token,'apply') : receipt('overlay-selection-unverified');
+      const {plan,memberIds} = overlaySelection;
+      if (plan.root.binding !== before.binding || plan.root.revision !== before.revision)
+        return receipt('overlay-plan-changed');
+      const overlayUpdate = applyOverlayUpdate(plan,memberIds,{
+        updateRoot: action === 'apply' ? () => writeAndCheck(token,'apply') : undefined,
+        withMemberLease: (target,operation) => {
+          const actual = observe(root);
+          if (actual.status !== 'standard' || actual.binding !== target.binding || actual.revision !== target.revision)
+            throw Error('binding-changed');
+          verifyRuntime(cap,target.revision);
+          return operation(token);
+        },
+        runMember: checkedMemberOwner(tools)
+      });
+      const result = {...receipt(overlayUpdate.status === 'blocked' ? overlayUpdate.error : undefined),overlayUpdate};
+      if (action === 'refresh-overlay') result.exitCode = overlayUpdate.status === 'complete' ? 0 : 1;
+      return result;
     });
   }
-  if (action === 'apply') return writeAndCheck(before,'apply');
+  if (projectActions.accepts(action)) {
+    const runProjectAction=token=>{
+      const autocrlf=git(cap,['config','--type=bool-or-str','--default','false','--get','core.autocrlf']).toString().trim();
+      if (!['true','false','input'].includes(autocrlf)) return receipt('custom-git-config');
+      const env={...tools.env,...(token?{IMEDICAL_DEPLOYMENT_LOCK:token}:{}),GIT_CONFIG_COUNT:'3',
+        GIT_CONFIG_KEY_1:'core.hooksPath',GIT_CONFIG_VALUE_1:'NUL',
+        GIT_CONFIG_KEY_2:'core.autocrlf',GIT_CONFIG_VALUE_2:autocrlf};
+      if (action.startsWith('plugin-install:') && !['','file'].includes(process.env.GIT_ALLOW_PROTOCOL) &&
+          git(cap,['remote']).toString().trim()==='origin') {
+        env.GIT_ALLOW_PROTOCOL='https';
+        env.GIT_NO_LAZY_FETCH='0';
+      }
+      const result=projectActions.execute(action,{root,cap,node:process.execPath,ps:tools.ps,env,verify:()=>verifyRuntime(cap,before.revision)});
+      const finish=value=>({...receipt(value.error),...value,exitCode:value.error?1:0});
+      if (action==='discover-iris-mcp') return result.then(value=>{
+        if (!sameProject()) return receipt('binding-changed');
+        verifyRuntime(cap,before.revision);
+        return finish(value);
+      });
+      return finish(result);
+    };
+    return action.startsWith('plugin-inspect:') || action==='discover-iris-mcp' ? runProjectAction() : withDeploymentLock(before,runProjectAction);
+  }
+  if (action === 'install-index' || action === 'remove-index') {
+    const enable = action === 'install-index';
+    const query = path.join(cap,'scripts/knowledge-query.js');
+    if (!before.companyIndex?.writable || !fs.lstatSync(query,{throwIfNoEntry:false})?.isFile() ||
+        fs.existsSync(path.join(root,'plugins/coding-iris-plugin/.agents-plugin/plugin.json')))
+      return receipt('index-selection-unavailable');
+    return withDeploymentLock(before, token => {
+      const original = observeCompanyIndex(root,before);
+      if (!original) return receipt('index-selection-unavailable');
+      const autocrlf = git(cap,['config','--type=bool-or-str','--default','false','--get','core.autocrlf']).toString().trim();
+      if (!['true','false','input'].includes(autocrlf)) return receipt('index-selection-unavailable');
+      const env = {...tools.env, IMEDICAL_DEPLOYMENT_LOCK:token, GIT_CONFIG_COUNT:'3',
+        GIT_CONFIG_KEY_1:'core.hooksPath', GIT_CONFIG_VALUE_1:'NUL',
+        GIT_CONFIG_KEY_2:'core.autocrlf', GIT_CONFIG_VALUE_2:autocrlf};
+      if (enable) {
+        const oid = companyIndexObject(cap,before.revision);
+        if (!oid) return receipt('index-not-in-release');
+        if (!hasIndexObject(cap,oid)) {
+          const offline = process.env.GIT_ALLOW_PROTOCOL === '';
+          const fixture = process.env.GIT_ALLOW_PROTOCOL === 'file';
+          const mapped = fixture && spawnSync(tools.gitExe,['ls-remote','--get-url',sourceUrl],
+            {cwd:__dirname,env:process.env,encoding:'utf8',windowsHide:true,timeout:10000});
+          const source = fixture ? mapped.stdout?.trim() : sourceUrl;
+          if (offline || !source || (fixture && mapped.status !== 0)) return receipt('index-fetch-failed');
+          const fetched = spawnSync(tools.gitExe,['-C',cap,'-c','fetch.negotiationAlgorithm=noop',
+            'fetch','--no-tags','--no-write-fetch-head','--no-recurse-submodules','--no-auto-maintenance',
+            '--filter=blob:none','--stdin',source],{input:oid+'\n',env:{...env,GIT_ALLOW_PROTOCOL:fixture?'file':'https'},
+            windowsHide:true,timeout:120000,stdio:['pipe','ignore','ignore']});
+          if (fetched.status !== 0 || !hasIndexObject(cap,oid)) return receipt('index-fetch-failed');
+        }
+      }
+      function select(operation, step = operation) {
+        const result = spawnSync(process.execPath,[query,'--project-root',root,'--action',operation,'--provider','company'],
+          {cwd:root,env,windowsHide:true,encoding:'utf8',timeout:120000,maxBuffer:1024*1024});
+        const dirty = result.status !== 0 && /dirty capability checkout/.test(result.stderr ?? '');
+        steps.push({step,exitCode:result.status,revision:before.revision,...(dirty ? {diagnostic:'index-worktree-dirty'} : {})});
+        return result.status === 0;
+      }
+      if (!select(action)) return receipt(steps.at(-1).diagnostic || 'index-selection-failed');
+      const response = receipt();
+      const actual = response.after.companyIndex;
+      if (actual?.selected === enable && actual.format === (enable?'readable':'missing')) return response;
+      if (enable && !original.selected && original.format === 'missing' && actual?.selected && sameProject()) {
+        // Only revert the selection introduced by this request, under the same deployment lock.
+        try { verifyRuntime(cap,before.revision); }
+        catch { return receipt('index-readback-recovery-failed'); }
+        const reverted = select('remove-index','restore-index-selection');
+        const restored = receipt('index-readback-recovery-failed');
+        const observed = restored.after.companyIndex;
+        if (reverted && observed?.selected === false && observed.format === 'missing') restored.error = 'index-readback-restored';
+        return restored;
+      }
+      return {...response,error:'index-readback-mismatch'};
+    });
+  }
   if (!install && action !== 'fetch-preview') return receipt('unsupported-action');
   if (!install && (git(cap,['symbolic-ref','--short','HEAD']).toString().trim() !== 'master' ||
       git(cap,['rev-parse','--abbrev-ref','@{upstream}']).toString().trim() !== 'origin/master'))
     return receipt('custom-upstream');
   const networkEnv = {...process.env,GIT_TERMINAL_PROMPT:'0',GIT_ALLOW_PROTOCOL:process.env.GIT_ALLOW_PROTOCOL==='file'?'file':'https'};
+  const compatibility = (result,published,selected) => published === selected ? result :
+    {...result,compatibility:{publishedRevision:published,selectedRevision:selected}};
   if (install) {
     const installer = path.resolve(__dirname,'../../../scripts/install-agents.ps1');
     const env = {...tools.env,GIT_ALLOW_PROTOCOL:networkEnv.GIT_ALLOW_PROTOCOL};
@@ -188,10 +424,15 @@ function run({root,action,expectedRevision,expectedBinding}) {
       if (mapped.status !== 0 || !url || url === sourceUrl) return receipt('fetch-failed');
       Object.assign(env,{GIT_CONFIG_COUNT:'2',GIT_CONFIG_KEY_1:'url.'+url+'.insteadOf',GIT_CONFIG_VALUE_1:sourceUrl});
     }
-    if (!owner('install',installer,['-TrustedRuntimeTree',[...trustedTrees].join(',')],env)) return receipt('install-failed');
+    const params = {TrustedRuntimeTree:[...trustedRuntime].map(pair => pair.join(':')).join(',')};
+    if (ownPin) params.PublishedRevision = ownPin.revision;
+    if (!owner('install',installer,params,env)) return receipt('install-failed');
     const installed = observe(root);
     if (installed.status !== 'standard') return receipt('revision-mismatch');
-    return writeAndCheck(installed,'initialize');
+    const result = writeAndCheck(installed,'initialize');
+    if (!ownPin) return result;
+    const published = git(cap,['rev-parse','refs/remotes/origin/master']).toString().trim();
+    return compatibility(result,published,installed.revision);
   }
   // The installed historical updater performs both fetch and pull. Give it one frozen source.
   const tempParent = path.join(require('node:os').tmpdir(),'Codex');
@@ -227,7 +468,24 @@ function run({root,action,expectedRevision,expectedBinding}) {
         !transfer(['-C',mirror,'config','uploadpack.allowAnySHA1InWant','true']) ||
         !transfer(['-C',mirror,'fetch','--prune','--filter=blob:none','origin','+refs/heads/*:refs/heads/*']))
       return receipt('fetch-failed');
-    const target = git(mirror,['rev-parse','HEAD']).toString().trim();
+    const published = git(mirror,['rev-parse','HEAD']).toString().trim();
+    const isAncestor = (ancestor,tip) => spawnSync(tools.gitExe,
+      ['--no-replace-objects','-C',mirror,'merge-base','--is-ancestor',ancestor,tip],
+      {cwd:temp,env:tools.env,windowsHide:true,stdio:'ignore',timeout:10000}).status === 0;
+    let target = published;
+    if (!trustedRuntime.has(published)) {
+      if (!ownPin || !isAncestor(ownPin.revision,published)) return receipt('unknown-tree');
+      if (isAncestor(before.revision,ownPin.revision)) target = ownPin.revision;
+      else if (isAncestor(before.revision,published)) target = before.revision;
+      else return receipt('published-history-mismatch');
+    }
+    if (target === before.revision) {
+      return withDeploymentLock(before, token => {
+        update('fetch-preview','DryRun',{...tools.env,IMEDICAL_DEPLOYMENT_LOCK:token});
+        return compatibility(receipt(),published,target);
+      });
+    }
+    if (!isAncestor(before.revision,target)) return receipt('published-history-mismatch');
     const missing = git(mirror,['rev-list','--objects','--no-object-names','--missing=print',before.revision+'..'+target])
       .toString().split(/\r?\n/).filter(row => /^\?[a-f0-9]{40}$/.test(row)).map(row => row.slice(1));
     // Fast-forward checkout may request the old as well as new blob for changed sparse-excluded paths.
@@ -249,6 +507,7 @@ function run({root,action,expectedRevision,expectedBinding}) {
     if (missing.length && !transfer(['-C',mirror,'-c','fetch.negotiationAlgorithm=noop','fetch','--no-tags',
       '--no-write-fetch-head','--filter=blob:none','--stdin','origin'],[...new Set(missing)].join('\n')+'\n')) return receipt('fetch-failed');
     verifyRuntime(mirror,target,false);
+    if (target !== published && !transfer(['-C',mirror,'update-ref','refs/heads/master',target,published])) return receipt('fetch-failed');
     if (!sameProject()) return receipt('binding-changed');
     verifyRuntime(cap,before.revision);
     const env = {...tools.env,GIT_ALLOW_PROTOCOL:'file',GIT_CONFIG_COUNT:'3',
@@ -270,13 +529,40 @@ function run({root,action,expectedRevision,expectedBinding}) {
       const after = observe(root);
       if (after.status !== 'standard' || after.revision !== target) return receipt('revision-mismatch');
       verifyRuntime(cap,target);
-      return receipt();
+      return compatibility(receipt(),published,target);
     });
   } finally { fs.rmSync(temp,{recursive:true,force:true,maxRetries:3}); }
 }
 
-try { parentPort.postMessage(run(workerData)); }
-catch (error) {
-  const known = ['unknown-tree','runtime-modified','unknown-bootstrap','git-unavailable'];
-  parentPort.postMessage({error:known.includes(error.message) ? error.message : 'inspection-failed'});
+function overlayDetails(result, {root,action}) {
+  const state = action === 'observe' ? result : result.after;
+  if (state?.status === 'overlay-declared') {
+    let link;
+    try { link = inspectOverlayLink(root); } catch { /* Standard root identity could not be verified. */ }
+    const bound = {...state,...(link ? {binding:link.member.identity} : {})};
+    const canRefresh = link?.member.status === 'ready' && process.platform === 'win32' && trustedRuntime.has(link.root.revision);
+    return {...(action === 'observe' ? bound : {...result,after:bound}),overlayLink:link,
+      overlay:{scope:'member',standardRoot:link?.root.workspaceRoot ?? null,planId:link?.id,issue:link?.member.issue,canRefresh}};
+  }
+  if (state?.status !== 'standard') return result;
+  try {
+    const plan = planOverlayUpdate(root);
+    if (plan.root.revision !== state.revision || plan.root.binding !== state.binding) throw Error('overlay-plan-changed');
+    const planId = crypto.createHash('sha256').update(JSON.stringify(plan)).digest('hex');
+    return {...result,overlayPlan:{...plan,id:planId},overlay:{scope:'standard',planId,
+      members:plan.members.map(({id,label,status,issue})=>({id,label,status,issue}))}};
+  } catch {
+    return {...result,overlay:{scope:'standard',error:'overlay-registry-unavailable'}};
+  }
 }
+
+Promise.resolve().then(() => run(workerData)).then(result => {
+  const actions = ['observe','fetch-preview','preview','install','apply','refresh-overlay','overlay-member-refresh','offline-apply','offline-install'];
+  parentPort.postMessage(actions.includes(workerData.action) ? overlayDetails(result,workerData) : result);
+}).catch(error => {
+  const known = ['unknown-tree','runtime-modified','unknown-bootstrap','git-unavailable','binding-changed'];
+  const message = typeof error?.message === 'string' ? error.message : '';
+  const code = message.includes('Plugin deployment is busy') ? 'deployment-busy' :
+    known.includes(message) || /^offline-[a-z-]+$/.test(message) ? message : 'inspection-failed';
+  parentPort.postMessage({error:code});
+});

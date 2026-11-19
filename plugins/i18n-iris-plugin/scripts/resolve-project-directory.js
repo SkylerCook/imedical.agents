@@ -29,7 +29,9 @@ function readProfile(file) {
 function resolveI18nDirectories(projectRoot, options = {}) {
   const context = resolveWorkspaceContext(path.resolve(projectRoot));
   if (context.mode === 'invalid') throw Error('Invalid workspace context');
-  const profile = readProfile(path.resolve(context.workspaceRoot, options.profile || path.join(context.contextRoot, 'config/i18n_project_profile.md')));
+  const standard=path.join(context.contextRoot,'config/i18n_project_profile.md');
+  const file=path.resolve(context.workspaceRoot,options.profile || standard);
+  const profile=file===standard ? require('../../../scripts/lib/project-plugin-settings').apply(context,owner) : readProfile(file);
   const choose = (explicit, key, id, fallback) => explicit !== undefined
     ? path.resolve(context.workspaceRoot, explicit)
     : profile[key] ? path.resolve(context.workspaceRoot, profile[key])

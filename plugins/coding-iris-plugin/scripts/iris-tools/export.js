@@ -123,11 +123,12 @@ const webBasePath = normalizePrefix(configValue(webConfig.basePath) || configVal
 const cspBasePath = normalizePrefix(configValue(webConfig.cspBasePath) || (webBasePath ? `${webBasePath}/csp` : ''));
 
 function readFrontendEncodingProfile() {
+    const settings=require('../../../../scripts/lib/project-plugin-settings').apply(workspaceContext,'coding-iris-plugin');
     let text = '';
     try {
         text = fs.readFileSync(profilePath, 'utf8');
     } catch (_) {
-        return { mode: null, overrides: [] };
+        return { mode: normalizeFrontendMode(settings.frontendMode), overrides: [] };
     }
     const modeMatch = text.match(/^\s*-\s*前端编码模式\s*[：:]\s*([^\r\n]+?)\s*$/m);
     const overrides = [];
@@ -137,7 +138,7 @@ function readFrontendEncodingProfile() {
             overrides.push({ root: match[1].trim().replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, ''), mode: normalizeFrontendMode(match[2]) });
         }
     }
-    return { mode: modeMatch ? normalizeFrontendMode(modeMatch[1]) : null, overrides };
+    return { mode: normalizeFrontendMode(settings.frontendMode || modeMatch?.[1]), overrides };
 }
 
 function normalizeFrontendMode(mode) {

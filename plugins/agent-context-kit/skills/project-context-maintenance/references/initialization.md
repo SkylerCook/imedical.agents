@@ -20,7 +20,7 @@ IRIS 项目接入 coding owner 时，开发方式独立于 contextMode，以当�
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agents.ps1 -ProjectRoot . -Mode DryRun
 ```
 
-确认 dry-run 输出后，才使用 `-Mode Write`。更新脚本只负责拉取能力包、检查入口、维护生成层 ignore、按 `plugin_profile.md` 分流插件、重建已启用插件 thin-index 和合并明确缺失的 config 项；文档导航为限定例外：缺少 `.agents/docs/README.md` 路由时，Write 仅追加入口，DryRun 预览、Check 检出缺失；保留现有内容，冲突停止。除此之外不得自动重写 `AGENTS.md`、`.agents/memory/`、`.agents/rules/project.md` 或项目已有 config 值。
+确认 dry-run 输出后，才使用 `-Mode Write`。更新脚本只负责拉取能力包、检查入口、维护生成层 ignore、按 `project.jsonc` 的 `plugins` 节 分流插件、重建已启用插件 thin-index 和合并明确缺失的 config 项；文档导航为限定例外：缺少 `.agents/docs/README.md` 路由时，Write 仅追加入口，DryRun 预览、Check 检出缺失；保留现有内容，冲突停止。除此之外不得自动重写 `AGENTS.md`、`.agents/memory/`、`.agents/rules/project.md` 或项目已有 config 值。
 
 插件状态规则：
 
@@ -28,7 +28,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 - `enabled`：项目已接入，初始化闭环已完成，参与常规更新。
 - `disabled`：显式禁用，默认跳过；撤下可识别的受管发现入口，自定义或链接冲突保留并报告。
 
-若 `.agents/config/plugin_profile.md` 不存在，默认把 `agent-context-kit` 和 `agent-framework-evolution` 视为基础 `enabled` 插件，其它插件视为 `available`。
+若 `.agents/config/project.jsonc` 的 `plugins` 节 不存在，默认把 `agent-context-kit` 和 `agent-framework-evolution` 视为基础 `enabled` 插件，其它插件视为 `available`。
 
 配置合并规则：
 
@@ -43,7 +43,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-agent
 初始化项目上下文时，先按主 skill 的“面向项目编程”确认实际入口和验证方式；只生成有内容的章节，不保留无信息 TODO：
 
 1. 先判断 `contextMode`，相关证据核对后落盘；缺少 `.agents/config/project_context_profile.md` 时，参考 `templates/project_context_profile.template.md` 创建。
-2. 创建或维护 `.agents/config/plugin_profile.md`；默认 `agent-context-kit` 和 `agent-framework-evolution` 为 `enabled`，能力目录中的其它插件为 `available`，正文可以尚未落盘。
+2. 通过原更新器 Write 初始化 `.agents/config/project.jsonc` 的 `plugins` 节；启停用 `update-plugin-profile.ps1`；默认 `agent-context-kit` 和 `agent-framework-evolution` 为 `enabled`，能力目录中的其它插件为 `available`，正文可以尚未落盘。
 3. 运行 `.agents/scripts/check-agent-entrypoints.ps1`，只检查 `CLAUDE.md`、`CODEBUDDY.md` 可选兼容入口；不自动创建、复制或修复。
 4. **代码探索（仅 `codebase-complete`）**：在写入任何 config/rules 之前，先探索本地代码，提取可验证的事实填入配置文件。探索范围：
    - 目录结构：实际源码、测试、构建或部署入口。

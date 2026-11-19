@@ -7,6 +7,7 @@ export type Catalog = Omit<import("../../prototype/plugin-directory.mjs").Catalo
 export type Guide = { file: string; source: string; title: string };
 export type Domain = {
   name: string; status: string; scope: string; source: string;
+  issue?: string;
   fields: { key: string; status: string; sensitive: boolean }[];
 };
 export type ProjectSummary = {
@@ -15,8 +16,10 @@ export type ProjectSummary = {
   hasFramework: boolean;
   domains: Domain[];
   plugins: import("../../prototype/plugin-directory.mjs").PluginState[];
+  configIssue?: string;
+  pluginIssue?: string;
   profiles: { name: string; exists: boolean }[];
-  clients: { name: string; entries: string[]; status: string }[];
+  clients: { id: string; name: string; entries: string[]; status: string }[];
   indexes: { name: string; exists: boolean; bytes?: number; updated?: string }[];
   receipts: { id: string; state: string; files: number; updated: string }[];
 };
@@ -59,7 +62,7 @@ export function useResource<T>(load: (signal: AbortSignal) => Promise<T>, enable
 
 export type SettingsId = "project" | "bos" | "knowledge";
 export type SettingsField = {
-  id: string; label: string; type: string; secret?: boolean; configured?: boolean;
+  id: string; label: string; type: string; secret?: boolean; configured?: boolean; options?: string[]; readOnly?: boolean; source?: string;
   value?: string | number | boolean | null;
 };
 export type SettingsModel = { id: SettingsId; revision: string; scope: string; fields: SettingsField[] };

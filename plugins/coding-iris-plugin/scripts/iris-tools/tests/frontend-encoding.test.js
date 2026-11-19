@@ -63,7 +63,7 @@ test('UTF-8 BOM is an encoding marker when producing GBK, while source stays int
 test('CLI records confirmation once and rejects edits before confirmation or after target drift',t=>{
     const root=createTempDirectory('frontend-encoding-cli-');
     t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
-    fs.mkdirSync(path.join(root,'.agents/config'),{recursive:true});fs.mkdirSync(path.join(root,'.agents/.git'));
+    fs.mkdirSync(path.join(root,'.agents/config'),{recursive:true});require('node:child_process').execFileSync('git',['init','-q',path.join(root,'.agents')]);
     fs.writeFileSync(path.join(root,'.agents/config/project_context_profile.md'),'- contextMode: intent-first-on-demand-export\n');
     fs.writeFileSync(path.join(root,'.agents/config/iris_project_profile.md'),'- 前端源码编码：utf8\n- 前端服务器编码：pending\n');
     const run=(...args)=>require('node:child_process').spawnSync(process.execPath,[path.resolve(__dirname,'../frontend-encoding-cli.js'),...args,'--project-root',root],{encoding:'utf8'});
@@ -82,14 +82,15 @@ test('CLI records confirmation once and rejects edits before confirmation or aft
     assert.deepEqual(fs.readFileSync(profile),originalProfile);
     assert.equal(run('confirm','--source','utf8','--target','gb18030','--files','target-check.js','--confirm').status,0);
     for (const separator of ['\r\n', '\n', '\r']) {
+        const main=path.join(root,'.agents/config/project.jsonc');
+        fs.unlinkSync(main);
         fs.writeFileSync(profile, '\ufeff' + ['- 前端源码编码：utf8','- 前端服务器编码：gbk','- 前端服务器编码确认：confirmed','- 前端服务器编码确认环境：old'].join(separator));
         const changed = run('confirm','--source','utf8','--target','gb18030','--confirm');
         assert.equal(changed.status,0,changed.stderr);
         const bytes = fs.readFileSync(profile,'utf8');
         assert.equal(bytes.charCodeAt(0),0xfeff);
-        assert.doesNotMatch(bytes,/\r(?!\n)/);
-        assert.match(bytes,/- 前端服务器编码：gb18030/);
-        assert.equal((bytes.match(/前端源码编码/g) || []).length,1);
+        assert.equal(bytes,'\ufeff');
+        assert.equal(JSON.parse(fs.readFileSync(main,'utf8')).pluginSettings['coding-iris-plugin'].serverEncoding,'gb18030');
         assert.equal(run('check','--files','new.js').status,0);
         assert.equal(run('confirm','--source','utf8','--target','gb18030','--confirm').status,0);
         assert.equal(fs.readFileSync(profile,'utf8'),bytes);

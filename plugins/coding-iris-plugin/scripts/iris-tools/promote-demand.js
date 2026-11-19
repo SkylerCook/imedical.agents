@@ -279,7 +279,10 @@ function classifyFile(filePath, frontendRoot) {
 }
 
 function readFrontendRoot(root) {
-    const profilePath = path.join(resolveWorkspaceContext(root).contextRoot, 'config', 'iris_project_profile.md');
+    const context=resolveWorkspaceContext(root);
+    const settings=require('../../../../scripts/lib/project-plugin-settings').apply(context,'coding-iris-plugin');
+    if (settings.frontendRoot) return normalizeRepoPath(settings.frontendRoot).replace(/\/$/, '');
+    const profilePath = path.join(context.contextRoot, 'config', 'iris_project_profile.md');
     const profile = fs.readFileSync(profilePath, 'utf8').replace(/\\/g, '/');
     const explicit = profile.match(/前端源码根目录\s*[：:]\s*`?([^`\r\n]+)`?/i);
     if (explicit) return normalizeRepoPath(explicit[1].trim()).replace(/\/$/, '');

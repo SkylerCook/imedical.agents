@@ -2,6 +2,22 @@
 const fs = require('fs');
 const path = require('path');
 
+function readSettings(project,explicit) {
+  const ctx=require('../../../scripts/lib/workspace-context').resolveWorkspaceContext(project);
+  const file=explicit && path.resolve(project,explicit);
+  const isBound=name=>file && path.relative(path.join(ctx.contextRoot,'config',name),file)==='';
+  if (!explicit || isBound('cure_form_profile.md') || isBound('project.jsonc')) {
+    if (!fs.existsSync(ctx.contextRoot)) return {};
+    return require('../../../scripts/lib/project-plugin-settings').apply(ctx,'iris-cure-form-dev');
+  }
+  if (!fs.existsSync(file)) return {};
+  const values={};
+  for (const line of fs.readFileSync(file,'utf8').split(/\r?\n/)) {
+    const match=/^\s*-\s*([^:]+):\s*(.*?)\s*$/.exec(line);
+    if (match) values[match[1].trim()]=match[2].trim();
+  }
+  return values;
+}
 function segment(value) {
   const name = String(value || 'default');
   if (!/^[\p{L}\p{N}_-]+$/u.test(name)) throw new Error('Task and form names must be safe single directory names.');
@@ -12,12 +28,8 @@ function taskRoot(args = {}) {
   if (args.workRoot) return path.resolve(project, args.workRoot);
   const task = segment(args.taskId || args.moduleId || args.mapCode);
   const legacy = path.join(project, 'docs', 'work', 'cure-form', task);
-  const profile = path.resolve(project, args.targetProfile || '.agents/config/cure_form_profile.md');
-  if (fs.existsSync(profile)) {
-    const content = new TextDecoder('utf-8', {fatal:true}).decode(fs.readFileSync(profile));
-    const match = content.match(/^\s*-\s*WorkRoot:\s*(.*?)\s*$/m);
-    if (match && match[1] && !/^(?:auto|<required>|<unset>|TODO)$/i.test(match[1])) return path.resolve(project, match[1].replace(/^`|`$/g,''), task);
-  }
+  const override = readSettings(project,args.targetProfile).WorkRoot;
+  if (override && !/^(?:auto|<required>|<unset>|TODO)$/i.test(override)) return path.resolve(project,override,task);
   // Existing tasks keep their recovery location until an explicitly approved migration.
   if (fs.existsSync(legacy)) return legacy;
   const { resolveDirectory } = require('../../../scripts/lib/project-directories');
@@ -51,4 +63,4 @@ function registerPreview(args, mapCode, html) {
   fs.writeFileSync(readme, start < 0 ? `${old.trimEnd()}\n\n${section}\n` : old.slice(0, start) + section + old.slice(end + endMarker.length));
   return readme;
 }
-module.exports = { taskRoot, formRoot, privateRoot, registerPreview };
+module.exports = { readSettings, taskRoot, formRoot, privateRoot, registerPreview };

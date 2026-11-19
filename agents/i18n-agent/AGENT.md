@@ -123,7 +123,7 @@ sensitiveDataPolicy:
 ## 必读顺序
 
 1. 目标项目 `AGENTS.md`。
-2. 目标项目 `.agents/config/plugin_profile.md`，确认 `coding-iris-plugin` 和 `i18n-iris-plugin` 状态均为 `enabled`。
+2. 目标项目 `.agents/config/project.jsonc` 的 `plugins` 节，确认 `coding-iris-plugin` 和 `i18n-iris-plugin` 状态均为 `enabled`。
 3. 目标项目 `.agents/config/i18n_project_profile.md`。
 4. 目标项目 `.mcp.json`，仅在用户明确要求服务器验证、上传、编译或同步时读取。
 5. `.agents/agents/_shared/handoff-protocol.md`。
@@ -137,14 +137,14 @@ sensitiveDataPolicy:
 
 插件目录存在只表示能力包已拉取，不表示当前业务项目已启用该插件。
 
-执行 `i18n-change` 前必须检查 `.agents/config/plugin_profile.md`：
+执行 `i18n-change` 前必须检查 `.agents/config/project.jsonc` 的 `plugins` 节：
 
 - `coding-iris-plugin` 不是 `enabled`：停止，提示先读取 `.agents/plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md`。
 - `i18n-iris-plugin` 不是 `enabled`：停止，提示读取 `.agents/plugins/i18n-iris-plugin/skills/i18n-project-init/SKILL.md`。
 - 任一依赖为 `available`：只说明能力存在但未接入，不进入 workflow。
 - 任一依赖为 `disabled`：停止并要求用户确认是否重新启用。
 
-如果缺少 `plugin_profile.md`，按未启用处理；不要因为 `.agents/plugins/i18n-iris-plugin/` 目录存在就执行 i18n 任务。
+如果缺少 `project.jsonc` 的 `plugins` 节，按未启用处理；不要因为 `.agents/plugins/i18n-iris-plugin/` 目录存在就执行 i18n 任务。
 
 ## 执行模式
 

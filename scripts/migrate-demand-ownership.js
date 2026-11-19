@@ -49,7 +49,14 @@ function plan(context, selected = [], excluded = [], expectedEnabled) {
   const { workspaceRoot: root, contextRoot: local, capabilityRoot: capability } = context;
   const changes = [], removals = [], owners = new Set(), conflicts = [], inspected = new Set();
   const skippedWorkspaces = new Map();
-  const profile = path.join(local, 'config/plugin_profile.md');
+  const profiles = require('./lib/project-plugin-profile');
+  let state;
+  try { state = profiles.read(local); }
+  catch (error) {
+    return {owners:[],changes,removals,conflicts:[error.message],stateChanges:[],enabledBefore:[],enabledAfter:[],skippedWorkspaces:[]};
+  }
+  const profile = profiles.locations(local).legacy;
+  const currentProfile = () => state.canonical ? profiles.table(state.entries) : exists(profile) ? read(profile) : '';
   const addOwner = old => owners.add(names[old][1]);
   const oldFiles = new Set(Object.keys(names).map(n => path.join(local, 'skills', n, 'SKILL.md')));
   function transform(text, file) {
@@ -154,7 +161,7 @@ function plan(context, selected = [], excluded = [], expectedEnabled) {
   }
   if (!owners.size && !removals.length && !changes.length) {
     let current = '';
-    try { safe(profile, local); if (exists(profile)) current = read(profile); } catch (e) { conflicts.push(e.message); }
+    try { safe(profile, local); current = currentProfile(); } catch (e) { conflicts.push(e.message); }
     return finish(current, current);
   }
   // Preserve the old entry's confirmed project facts outside its removed adapter.
@@ -170,7 +177,7 @@ function plan(context, selected = [], excluded = [], expectedEnabled) {
     }
   } catch (e) { conflicts.push(e.message); }
   let beforeProfile = '';
-  try { safe(profile, local); if (exists(profile)) beforeProfile = read(profile); } catch (e) { conflicts.push(e.message); }
+  try { safe(profile, local); beforeProfile = currentProfile(); } catch (e) { conflicts.push(e.message); }
   const profileChange = changes.findIndex(c => c.file === profile);
   let afterProfile = (profileChange >= 0 ? changes.splice(profileChange, 1)[0].after : beforeProfile) || '# Plugin Profile\n\n| plugin | status | initSkill | dependsOn | notes |\n|---|---|---|---|---|\n';
   const oldState = beforeProfile.match(/^\|\s*coding-iris-plugin\s*\|\s*(available|disabled|indexed)\s*\|/im)?.[1];
@@ -198,7 +205,13 @@ function plan(context, selected = [], excluded = [], expectedEnabled) {
       }
     } catch (e) { conflicts.push(e.message); }
   }
-  if (afterProfile !== beforeProfile) changes.push({ file: profile, before: beforeProfile, after: afterProfile });
+  if (afterProfile !== beforeProfile) {
+    if (state.canonical) {
+      const edits = stateChanges.map(({plugin})=>({path:['plugins',plugin],value:profiles.parseTable(afterProfile)[plugin]}));
+      const after = require('./lib/configuration-file-io').edit(state.text,edits);
+      changes.push({file:profiles.locations(local).main,before:state.text,after});
+    } else changes.push({file:profile,before:beforeProfile,after:afterProfile});
+  }
   return finish(beforeProfile, afterProfile);
 }
 // A post-migration Check must verify discovery even when no legacy names remain.
@@ -206,7 +219,7 @@ function check(context, requiredOwners) {
   const conflicts = [], profile = path.join(context.contextRoot, 'config/plugin_profile.md');
   try {
     safe(profile, context.contextRoot);
-    const enabled = requiredOwners || enabledPlugins(exists(profile) ? read(profile) : '');
+    const enabled = requiredOwners || Object.entries(require('./lib/project-plugin-profile').read(context.contextRoot).entries).filter(([,row])=>row.status==='enabled').map(([id])=>id);
     for (const owner of new Set(Object.values(names).map(n => n[1]))) {
       if (!enabled.includes(owner)) continue;
       const ownerRoot = path.join(context.capabilityRoot, 'plugins', owner);

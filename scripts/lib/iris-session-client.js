@@ -4,8 +4,15 @@ const ipc = require('./iris-session-ipc');
 const {failure} = require('./iris-session-manager');
 function catalog(full=false) {return JSON.parse(fs.readFileSync(path.join(__dirname, '../../vendor/iris-agentic-dev',full?'tools-full.json':'tools-no-skills.json'), 'utf8')).tools;}
 function managed(server) {return Array.isArray(server?.args) && server.args.some(arg => typeof arg === 'string' && /(?:^|[\\/])iris-session-mcp\.js$/.test(arg));}
-function createClient({projectRoot, serverName = 'iris-agentic-dev', root, allowWrite = false, onNotification} = {}) {
+function createClient({projectRoot, serverName, root, allowWrite = false, onNotification} = {}) {
+  serverName ||= require('./iris-session-backends').configuredServerName(require('./workspace-context').resolveWorkspaceContext(projectRoot));
   let connection, connecting, closed = false, lastRoute = null;
+  function readTarget() {
+    const config=JSON.parse(fs.readFileSync(path.join(projectRoot,'.mcp.json'),'utf8').replace(/^\uFEFF/,''));
+    return require('./iris-session-backends').targetBinding(config.mcpServers?.[serverName]?.env || {});
+  }
+  let expectedTarget;
+  try { expectedTarget=readTarget(); } catch { /* Discovery can run before configuration. */ }
   const get = async () => {
     if (closed) throw failure('session-client-closed');
     if (!connection || connection.socket.destroyed) {
@@ -30,15 +37,19 @@ function createClient({projectRoot, serverName = 'iris-agentic-dev', root, allow
         return {result: {tools: catalog(!noSkills)}};
       }
       if (method !== 'tools/call') throw failure('session-mcp-method-unsupported');
-      const response=await (await get()).request('call', {projectRoot, serverName, method, params, allowWrite, timeoutMs}, timeoutMs + 65000, signal);
+      if (!expectedTarget || expectedTarget!==readTarget()) throw failure('session-target-changed-reconnect');
+      const response=await (await get()).request('call', {projectRoot, serverName, method, params, allowWrite, timeoutMs,expectedTarget}, timeoutMs + 65000, signal);
       lastRoute=response.result?._meta?.['imedical/session'] || null;
       return response;
     },
     notify() {},
     snapshot(){return lastRoute;},
     async close() {closed = true; connection?.close(); connection = null; return {processExited: false, sessionRetained: true, clientReleased:true, cleanupVerified: true};},
-    async endSession() {return (await get()).request('close', {projectRoot, serverName});}
-    ,async markUnknown() {return (await get()).request('markUnknown',{projectRoot,serverName});}
+    async endSession() {
+      if (!connection) return {active:false,exit:null};
+      return (await get()).request('closeBound', {projectRoot,serverName});
+    },
+    async markUnknown() {return (await get()).request('markBoundUnknown',{projectRoot,serverName});}
   };
 }
 function createAtelierTransport({context, connection, root}) {
@@ -53,7 +64,7 @@ function createAtelierTransport({context, connection, root}) {
     },
     async close() {
       if (!client) return {cleanupVerified:true,noRemoteRequests:true,licenseReleaseVerified:false};
-      try {const result = await client.request('close',{projectRoot:context.workspaceRoot});return {...result.exit,sessionRetained:result.active,unresolvedWrites:result.unresolvedWrites,warning:result.warning};}
+      try {const result = await client.request('closeBound',{projectRoot:context.workspaceRoot});return {...result.exit,sessionRetained:result.active,unresolvedWrites:result.unresolvedWrites,warning:result.warning};}
       finally {client.close();client=null;}
     }
   };

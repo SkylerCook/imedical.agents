@@ -53,7 +53,12 @@ function targetIdentity(context) {
 }
 function resolve(context, filename, {requireConfirmed = true, projectTask = false} = {}) {
     const text = profile(context);
+    const settings=require('../../../../scripts/lib/project-plugin-settings');
+    const aliases=settings.domains['coding-iris-plugin'].aliases;
+    const ctx=context.contextRoot ? context : {...context,contextRoot:path.join(context.workspaceRoot,'.agents')};
+    const configured=settings.apply(ctx,'coding-iris-plugin');
     const field = name => {
+        if (Object.hasOwn(aliases,name) && Object.hasOwn(configured,aliases[name])) return configured[aliases[name]].toLowerCase();
         const pattern = new RegExp('^[ \\t]*-[ \\t]*' + name + '[ \\t]*[：:][ \\t]*`?([^`\\r\\n]+)`?[ \\t]*$', 'gm');
         const values = [...text.matchAll(pattern)].map(match=>match[1].trim().toLowerCase());
         if (new Set(values).size > 1) fail('frontend-encoding-config-conflict',{field:name});

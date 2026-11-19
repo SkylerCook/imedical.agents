@@ -22,6 +22,11 @@ $irisAgenticRuleUnderTest = Join-Path $repoRoot "plugins/coding-iris-plugin/rule
 $repositoryMaintenanceSkillUnderTest = Join-Path $repoRoot ".agents/skills/agent-kit-maintenance/SKILL.md"
 $legacyRepositoryMaintenanceSkillUnderTest = Join-Path $repoRoot "skills/agent-kit-maintenance/SKILL.md"
 
+function Get-ProfileTable([string]$ContextRoot) {
+  $text = & node -e "const p=require(process.argv[1]);process.stdout.write(p.table(p.read(process.argv[2]).entries))" (Join-Path $repoRoot "scripts/lib/project-plugin-profile.js") $ContextRoot
+  if ($LASTEXITCODE -ne 0) { throw "Cannot read plugin profile" }
+  return ($text -join "`n")
+}
 function Assert-True {
   param(
     [bool]$Condition,
@@ -69,6 +74,11 @@ function New-TestProject {
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/refresh-agents-sparse.js") -Destination (Join-Path $root ".agents/scripts/refresh-agents-sparse.js")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/plugin-deploy.js") -Destination (Join-Path $root ".agents/scripts/plugin-deploy.js")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/check-plugin-deactivation.js") -Destination (Join-Path $root ".agents/scripts/check-plugin-deactivation.js")
+  foreach ($name in @("project-plugin-profile.js","project-deployment-policy.js","configuration-file-io.js","iris-development-settings.js")) {
+    Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/$name") -Destination (Join-Path $root ".agents/scripts/lib/$name")
+  }
+  New-Item -ItemType Directory -Force -Path (Join-Path $root ".agents/vendor") | Out-Null
+  Copy-Item -LiteralPath (Join-Path $repoRoot "vendor/jsonc-parser") -Destination (Join-Path $root ".agents/vendor/jsonc-parser") -Recurse
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/plugin-deployment.js") -Destination (Join-Path $root ".agents/scripts/lib/plugin-deployment.js")
   Copy-Item -LiteralPath $scriptUnderTest -Destination (Join-Path $root ".agents/scripts/update-agents.ps1")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-documentation-entry.js") -Destination (Join-Path $root ".agents/scripts/sync-documentation-entry.js")
@@ -1044,6 +1054,12 @@ try {
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/migrate-demand-ownership.js") -Destination (Join-Path $legacySparseAgentsRoot "scripts/migrate-demand-ownership.js")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/workspace-context.js") -Destination (Join-Path $legacySparseAgentsRoot "scripts/lib/workspace-context.js")
   Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/sync-documentation-entry.js") -Destination (Join-Path $legacySparseAgentsRoot "scripts/sync-documentation-entry.js")
+  foreach ($name in @("project-plugin-profile.js","configuration-file-io.js")) {
+    Copy-Item -LiteralPath (Join-Path $repoRoot "scripts/lib/$name") -Destination (Join-Path $legacySparseAgentsRoot "scripts/lib/$name")
+  }
+  New-Item -ItemType Directory -Force -Path (Join-Path $legacySparseAgentsRoot "vendor") | Out-Null
+  Copy-Item -LiteralPath (Join-Path $repoRoot "vendor/jsonc-parser") -Destination (Join-Path $legacySparseAgentsRoot "vendor/jsonc-parser") -Recurse
+  git -C $legacySparseAgentsRoot add scripts/lib/project-plugin-profile.js scripts/lib/configuration-file-io.js vendor/jsonc-parser
   git -C $legacySparseAgentsRoot add scripts/update-agents.ps1 scripts/sync-documentation-entry.js scripts/lib/WorkspaceContext.psm1 scripts/refresh-agents-sparse.js scripts/migrate-demand-ownership.js scripts/lib/workspace-context.js
   git -C $legacySparseAgentsRoot commit -m "test: seed legacy sparse checkout" | Out-Null
   git -C $legacySparseAgentsRoot sparse-checkout init --no-cone
@@ -1146,13 +1162,13 @@ try {
   $legacyWriteOutput = & (Join-Path $legacyProfileProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $legacyProfileProjectRoot -Mode Write -NoPull -Detailed -Plugin sample-plugin-legacy | Out-String
   Assert-Contains $legacyWriteOutput "plugin-profile-name-migrated" "Write should migrate a manifest legacy name"
   Assert-Contains $legacyWriteOutput "stale plugin skill thin-index" "Write should report stale legacy skill cleanup"
-  $migratedPluginProfile = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $legacyConfigRoot "plugin_profile.md")
+  $migratedPluginProfile = Get-ProfileTable (Split-Path -Parent $legacyConfigRoot)
   Assert-Contains $migratedPluginProfile "sample-plugin | enabled" "Legacy enabled status should be preserved under the current plugin name"
   Assert-True (-not $migratedPluginProfile.Contains("| sample-plugin-legacy |")) "Write should remove the legacy plugin profile key"
   Assert-True (-not (Test-Path -LiteralPath $legacySkillRoot)) "Write should remove an empty stale legacy skill directory"
   $legacyAliasProfileUpdate = & (Join-Path $legacyProfileProjectRoot ".agents/scripts/update-plugin-profile.ps1") -ProjectRoot $legacyProfileProjectRoot -Plugin sample-plugin-legacy -Status disabled | Out-String
   Assert-Contains $legacyAliasProfileUpdate "plugin-profile-updated" "Profile updater should accept a manifest legacy name"
-  $profileAfterLegacyAliasUpdate = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $legacyConfigRoot "plugin_profile.md")
+  $profileAfterLegacyAliasUpdate = Get-ProfileTable (Split-Path -Parent $legacyConfigRoot)
   Assert-Contains $profileAfterLegacyAliasUpdate "sample-plugin | disabled" "Profile updater should write the current plugin name for a legacy alias"
 }
 finally {
@@ -1381,7 +1397,7 @@ try {
 
   $enableSampleOutput = & (Join-Path $projectRoot ".agents/scripts/update-plugin-profile.ps1") -ProjectRoot $projectRoot -Plugin sample-plugin -Status enabled | Out-String
   Assert-Contains $enableSampleOutput "plugin-profile-updated" "Profile updater should report updated status"
-  $pluginProfileAfterEnable = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/plugin_profile.md")
+  $pluginProfileAfterEnable = Get-ProfileTable (Join-Path $projectRoot ".agents")
   Assert-Contains $pluginProfileAfterEnable "sample-plugin" "Profile updater should write selected plugin"
   Assert-Contains $pluginProfileAfterEnable "enabled" "Profile updater should mark selected plugin enabled"
 
@@ -1411,7 +1427,7 @@ try {
   Assert-Contains $writeOutput "mcp-vendor-command-applied" "Write update should apply bundled MCP command convergence"
   Assert-Contains $writeOutput "maintenance-only-skill-removed" "Write should report removal of deployed maintenance-only skill"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/agent-kit-maintenance"))) "Write should remove deployed maintenance-only skill"
-  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/config/plugin_profile.md")) "Write should create plugin profile"
+  Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/config/project.jsonc")) "Write should create plugin profile"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/i18n-agent/SKILL.md")) "Write should generate i18n-agent skill thin-index"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/coordinator-agent/SKILL.md")) "Write should generate coordinator-agent skill thin-index"
   Assert-True (Test-Path -LiteralPath (Join-Path $projectRoot ".agents/skills/iris-change-agent/SKILL.md")) "Write should generate iris-change-agent skill thin-index"
@@ -1476,7 +1492,7 @@ try {
   Assert-Contains $coordinatorThinIndex ".agents/workflows/standard-change.workflow.md" "Coordinator thin-index should point to standard-change"
   $irisChangeThinIndex = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/skills/iris-change-agent/SKILL.md")
   Assert-Contains $irisChangeThinIndex ".agents/workflows/iris-change.workflow.md" "IRIS change thin-index should point to iris-change"
-  $profileAfterWrite = Get-Content -Raw -Encoding UTF8 -Path (Join-Path $projectRoot ".agents/config/plugin_profile.md")
+  $profileAfterWrite = Get-ProfileTable (Join-Path $projectRoot ".agents")
   Assert-Contains $profileAfterWrite "agent-context-kit | enabled" "Default context plugin should be enabled"
   Assert-Contains $profileAfterWrite "sample-plugin | enabled" "Write must preserve enabled plugin state"
   Assert-True (-not $profileAfterWrite.Contains("initialized")) "Stable plugin profile must not write initialized"
@@ -1840,27 +1856,39 @@ try {
   [System.IO.File]::WriteAllText((Join-Path $autoConfigRoot "iris_project_profile.md"), "- 默认需求交付类型：project`n", (New-Object System.Text.UTF8Encoding($false)))
   # The fixture's business Git also owns the nested capability directory.
   Add-Content -LiteralPath (Join-Path $autoConfigProjectRoot ".git/info/exclude") -Encoding UTF8 -Value "/.agents/"
-  $autoDevelopment = Join-Path $autoConfigRoot "iris-development.json"
+  $autoDevelopment = Join-Path $autoConfigRoot "project.jsonc"
+  $autoLegacyDevelopment = Join-Path $autoConfigRoot "iris-development.json"
+  $autoContextRoot = Join-Path $autoConfigProjectRoot ".agents"
+  $autoDevelopmentReader = Join-Path $autoContextRoot "scripts/lib/iris-development-settings.js"
+  function Read-AutoDevelopment {
+    $declaration = & node -e "const state=require(process.argv[1]).inspect(process.argv[2]);process.stdout.write(JSON.stringify(state.value))" $autoDevelopmentReader $autoContextRoot
+    if ($LASTEXITCODE -ne 0) { throw "Cannot read project development declaration" }
+    return ($declaration | ConvertFrom-Json)
+  }
   $autoPolicy = Join-Path $autoConfigRoot "iris-remote-policy.json"
   foreach ($state in @("available", "disabled")) {
     & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-plugin-profile.ps1") -ProjectRoot $autoConfigProjectRoot -Plugin sample-plugin -Status $state | Out-Null
     $inactiveOutput = & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $autoConfigProjectRoot -Mode Write -NoPull -Detailed | Out-String
-    Assert-True (-not (Test-Path -LiteralPath $autoDevelopment)) "Inactive plugins must not create development configuration"
+    Assert-True ($null -eq (Read-AutoDevelopment)) "Inactive plugins must not create development configuration"
     Assert-True (-not (Test-Path -LiteralPath $autoPolicy)) "Inactive plugins must not create remote policies"
   }
   & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-plugin-profile.ps1") -ProjectRoot $autoConfigProjectRoot -Plugin sample-plugin -Status enabled | Out-Null
+  $beforeAutoPreview = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoDevelopment))
   foreach ($readMode in @("DryRun", "Check")) {
     $autoPreview = & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $autoConfigProjectRoot -Mode $readMode -NoPull -Detailed | Out-String
     Assert-Contains $autoPreview "config-migration-planned" "Read-only update modes must report missing private configuration"
-    Assert-True (-not (Test-Path -LiteralPath $autoDevelopment)) "Read-only updates must not create development configuration"
+    Assert-True ($beforeAutoPreview -eq [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($autoDevelopment))) "Read-only updates must preserve project.jsonc bytes"
+    Assert-True (-not (Test-Path -LiteralPath $autoLegacyDevelopment)) "Read-only updates must not create a legacy declaration"
   }
   $autoWritten = & (Join-Path $autoConfigProjectRoot ".agents/scripts/update-agents.ps1") -ProjectRoot $autoConfigProjectRoot -Mode Write -NoPull -Detailed | Out-String
   Assert-Contains $autoWritten "iris-development-config-v1" "Ordinary updates must execute the registered development migration"
   Assert-Contains $autoWritten "config-migration-applied" "Write must automatically create missing private configuration"
-  Assert-True (Test-Path -LiteralPath $autoDevelopment) "Ordinary enabled-plugin update must create the development declaration"
+  $developmentDeclaration = Read-AutoDevelopment
+  Assert-True ($null -ne $developmentDeclaration) "Ordinary enabled-plugin update must create the development declaration in project.jsonc"
+  Assert-True (-not (Test-Path -LiteralPath $autoLegacyDevelopment)) "Ordinary updates must not regenerate the legacy declaration"
   Assert-True (Test-Path -LiteralPath $autoPolicy) "Ordinary enabled-plugin update must create the minimal remote policy"
   Assert-True (-not ((Get-Content -LiteralPath $autoPolicy -Raw -Encoding UTF8 | ConvertFrom-Json).PSObject.Properties.Name -contains "qualification")) "Fresh configuration must not manufacture license registration"
-  Assert-True (-not ((Get-Content -LiteralPath $autoDevelopment -Raw -Encoding UTF8 | ConvertFrom-Json).PSObject.Properties.Name -contains "developmentMode")) "Automatic completion must preserve legacy implicit mode bindings"
+  Assert-True (-not ($developmentDeclaration.PSObject.Properties.Name -contains "developmentMode")) "Automatic completion must preserve legacy implicit mode bindings"
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $autoConfigProjectRoot ".agents/work/source-sync"))) "Updating configuration must not manufacture a source baseline"
   $autoDevelopmentBefore = [System.IO.File]::ReadAllBytes($autoDevelopment)
   $autoPolicyBefore = [System.IO.File]::ReadAllBytes($autoPolicy)

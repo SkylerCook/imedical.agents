@@ -100,6 +100,12 @@ for (const shell of shells) {
         fs.mkdirSync(runtime);
         const entry = path.join(runtime, 'update-plugin-profile.ps1');
         fs.copyFileSync(path.join(repo, 'scripts/update-plugin-profile.ps1'), entry);
+        fs.mkdirSync(path.join(runtime,'lib'));
+        const reader = path.join(repo,'scripts/lib/project-plugin-profile.js');
+        fs.writeFileSync(path.join(runtime,'lib/project-plugin-profile.js'), 'process.argv[1]='+JSON.stringify(reader)+';require("node:module").runMain()');
+        const cli = JSON.stringify(path.join(repo,'scripts/plugin-deploy.js'));
+        fs.writeFileSync(path.join(runtime,'plugin-deploy.js'), `console.log(JSON.stringify(require(${cli}).main(process.argv.slice(2))));`);
+
         const before = fs.readFileSync(f.profileFile);
         const missing = run(shell, f, 'enabled', { entry });
         assert.notEqual(missing.status, 0);
@@ -163,7 +169,7 @@ for (const shell of shells) {
         success(run(shell, f, 'enabled'));
         assert.equal(profile(f.root).get('feature-disabled'), 'disabled');
         assert.equal(profile(f.root).get('feature-available'), 'available');
-        assert.match(fs.readFileSync(f.profileFile, 'utf8'), /keep disabled note/);
-        assert.match(fs.readFileSync(f.profileFile, 'utf8'), /keep available note/);
+        assert.match(fs.readFileSync(path.join(f.root,'config/project.jsonc'), 'utf8'), /keep disabled note/);
+        assert.match(fs.readFileSync(path.join(f.root,'config/project.jsonc'), 'utf8'), /keep available note/);
     });
 }

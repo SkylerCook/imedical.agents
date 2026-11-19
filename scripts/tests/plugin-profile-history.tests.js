@@ -33,6 +33,7 @@ function fixture(t, mode, { generatorBody } = {}) {
     git(root, ['config', 'user.name', 'Fixture']);
     git(root, ['config', 'user.email', 'fixture@example.invalid']);
     fs.appendFileSync(path.join(root, '.git/info/exclude'), '\n/config/\n/skills/\n/rules/\n/memory/\n');
+    fs.cpSync(path.join(repo,'vendor/jsonc-parser'),path.join(root,'vendor/jsonc-parser'),{recursive:true});
     fs.cpSync(path.join(repo, 'scripts'), path.join(root, 'scripts'), {
         recursive: true, filter: source => !source.replaceAll('\\', '/').includes('/scripts/tests')
     });
@@ -120,12 +121,12 @@ for (const shell of shells) for (const mode of ['standard', 'workspace-overlay']
         assert.equal(statuses.has('feature-ui'), false);
         assert.equal(statuses.has('feature-core'), false);
         assert.ok(fs.existsSync(path.join(f.contextRoot, 'skills/feature-extra/SKILL.md')));
-        fs.appendFileSync(f.profileFile, '| `FEATURE-CORE` | disabled | - | - | quoted explicit choice |\n');
+        require('../lib/project-plugin-profile').save(f.contextRoot,{'feature-core':{status:'disabled',notes:'quoted explicit choice'}});
         success(run(shell, f, 'update-agents.ps1', ['-Mode', 'Write', '-NoPull', '-Detailed']));
         statuses = deployment.profile(f.contextRoot);
         assert.equal(statuses.has('feature-ui'), false);
         assert.equal(statuses.get('feature-core'), 'disabled');
-        assert.match(fs.readFileSync(f.profileFile, 'utf8'), /quoted explicit choice/);
+        assert.match(fs.readFileSync(path.join(f.contextRoot,'config/project.jsonc'), 'utf8'), /quoted explicit choice/);
         assert.equal(statuses.get('feature-extra'), 'enabled');
         const plan = deployment.plan(f.context, [], 'prune');
         assert.deepEqual(plan.offlineMembers, []);

@@ -2,8 +2,9 @@ import { useRef } from "react";
 import { ChevronDown, ListFilter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { filterPlugins, pluginName, pluginStatus } from "../../prototype/plugin-directory.mjs";
+import { filterPlugins, pluginStatus } from "../../prototype/plugin-directory.mjs";
 import { readCatalog, useResource, type ProjectSummary } from "./api";
+import { PluginActions } from "./project-owner-actions";
 import { PluginPreview, PluginTable } from "./plugins";
 import { href, type Navigation } from "./routes";
 import { Details, Notice, PageHeading, ReadState, SearchField } from "./ui";
@@ -11,8 +12,8 @@ import { Details, Notice, PageHeading, ReadState, SearchField } from "./ui";
 const states = ["all", "enabled", "available", "disabled", "pending", "unknown"];
 const stateLabel = (state: string) => state === "all" ? "全部状态" : pluginStatus(state);
 
-export function PluginsPage({ project, nav, onHandoff }: {
-  project: ProjectSummary; nav: Navigation; onHandoff: (title: string) => void;
+export function PluginsPage({ project, nav, onHandoff, refresh }: {
+  project: ProjectSummary; nav: Navigation; refresh:()=>void; onHandoff: (title: string) => void;
 }) {
   const search = useRef<HTMLInputElement>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
@@ -35,6 +36,7 @@ export function PluginsPage({ project, nav, onHandoff }: {
   const configHref = href("config");
   return <>
     {heading}
+    {project.pluginIssue && <div className="mb-4"><Notice error>{project.pluginIssue}</Notice></div>}
     <div className="mb-4 flex flex-wrap items-center gap-2">
       <div className="min-w-0 flex-1 sm:w-64 sm:flex-none"><SearchField inputRef={search} label="搜索插件" placeholder="搜索名称、标识或用途"
         value={query} onChange={q => nav.replace({ q, preview: undefined })} /></div>
@@ -61,7 +63,8 @@ export function PluginsPage({ project, nav, onHandoff }: {
       <ul className="list-disc pl-5 text-sm text-muted-foreground">{data.unavailable.map(name => <li key={name}>{name}</li>)}</ul>
     </Details></div>}
     <PluginPreview plugin={target} project={project} catalog={data} configHref={configHref}
-      onHandoff={target && (() => { nav.replace({ preview: undefined }); onHandoff(`安装或启用 ${pluginName(target)}（${target.name}），沿 plugin-management 核对依赖与初始化入口`); })}
+      actions={target && (project.pluginIssue ? <div className="mt-4"><Notice error>{project.pluginIssue}</Notice></div>
+        : <PluginActions key={target.name} name={target.name} onChange={refresh} onInit={source=>{nav.replace({preview:undefined});onHandoff(`初始化 ${target.name}，核对依赖、配置和入口 ${source}，完成后读回插件状态与宿主发现结果`);}} />)}
       onClose={() => nav.replace({ preview: undefined })}
       onRestoreFocus={event => {
         event.preventDefault();

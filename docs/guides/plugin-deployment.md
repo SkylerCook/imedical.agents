@@ -2,9 +2,11 @@
 
 新项目默认取得基础入口、能力目录和共享脚本。业务插件与必需 vendor 资源通过项目选择落盘。已有全量项目沿原部署方式更新，显式迁移后采用按需方式。所有命令从当前业务工作区执行，CapabilityRoot 沿现有 workspace resolver 解析。
 
+工程运行参数的归属、读取、迁移及回退见[插件工程运行参数](plugin-runtime-settings.md)。
+
 ## 按体系选择
 
-支持 general（通用）、iris、xc（信创）、ui 四组。组由源仓维护，用作选择入口；实际插件状态继续保存到 ContextRoot/config/plugin_profile.md。组的成员变化在后续用户再次选组时展开，普通更新保留已经安装的能力。
+支持 general（通用）、iris、xc（信创）、ui 四组。组由源仓维护，用作选择入口；实际插件状态继续保存到 ContextRoot/config/project.jsonc 的 plugins 节。组的成员变化在后续用户再次选组时展开，普通更新保留已经安装的能力。
 
 ```powershell
 node <CapabilityRoot>/scripts/plugin-deploy.js groups --project-root .
@@ -26,7 +28,7 @@ node <CapabilityRoot>/scripts/plugin-deploy.js configure --project-root . --auto
 node <CapabilityRoot>/scripts/plugin-deploy.js ensure --project-root . --group iris
 ```
 
-用户尚未授予自动补装权限时，明确要求的本次安装使用 --explicit。取消后续自动补装使用 configure --auto-install false。偏好保存在 ContextRoot/config/plugin-deployment.json，与部署方式共同管理，插件状态仍以原 profile 为准。
+用户尚未授予自动补装权限时，明确要求的本次安装使用 --explicit。取消后续自动补装使用 configure --auto-install false。偏好保存在 `ContextRoot/config/project.jsonc` 的 `deployment` 节，与部署方式共同管理，插件启停由同一文件的 `plugins.<插件 ID>.status` 决定。旧工程在原更新器 Write 时迁移部署策略；Check 仅读取。回到旧版消费者前，先用新版 `plugin-deploy.js rollback-project --project-root <工程目录>` 恢复旧策略及插件状态表。
 
 ensure 解析必需依赖、下载插件及资源、校验 manifest 与能力目录的一致性，然后按依赖顺序返回初始化 source。source 相对 CapabilityRoot：有 initSkill 时指向插件内的 SKILL.md，无 initSkill 时指向 plugins/<插件目录>/<entry>。Agent 依次读取这些接入契约，集中处理必要配置。已安装能力可直接读取源文件，宿主发现机制需要重新加载时告知用户。
 

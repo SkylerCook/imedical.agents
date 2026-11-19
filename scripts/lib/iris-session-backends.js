@@ -21,13 +21,21 @@ function verifyVendor(executable) {
   return build;
 }
 
+function configuredServerName(context) {
+  const profile=require('./iris-selected-target').selection(context);
+  if (profile) return profile.serverName;
+  const localEnv=path.join(context.contextRoot,'config','project-env.json');
+  return (fs.existsSync(localEnv)?JSON.parse(fs.readFileSync(localEnv,'utf8').replace(/^\uFEFF/,'')).mcp?.serverName:null) || 'iris-agentic-dev';
+}
 function describe(projectRoot, serverName, {localOnly=false} = {}) {
   const context = require('./workspace-context').resolveWorkspaceContext(path.resolve(projectRoot));
-  const localEnv=path.join(context.contextRoot,'config','project-env.json');
-  serverName ||= (fs.existsSync(localEnv)?JSON.parse(fs.readFileSync(localEnv,'utf8').replace(/^\uFEFF/,'')).mcp?.serverName:null) || 'iris-agentic-dev';
+  const selected = require('./iris-selected-target').selected(context);
+  serverName ||= selected?.serverName || configuredServerName(context);
+  selected?.checkName(serverName,'.mcp.json');
   if(!localOnly)remote.assertRemoteAllowed(context);
   const config = JSON.parse(fs.readFileSync(path.join(context.workspaceRoot, '.mcp.json'), 'utf8').replace(/^\uFEFF/, ''));
   const server = config.mcpServers?.[serverName];
+  selected?.checkServer(server,'.mcp.json',true);
   if (!server || !localOnly && server.disabled === true) throw failure('session-server-disabled-or-missing');
   const env = {IRIS_TLS_VERIFY:'false', ...(server.env || {})};
   if(env.IRIS_TOOLSET && env.IRIS_TOOLSET!=='merged')throw failure('session-toolset-review-required');
@@ -99,7 +107,7 @@ async function open(operation) {
     const client = require('./atelier-client').createAtelierClient({connection: operation.connection, context: d.context, managedHost:true,owner:owner || undefined});
     return {call: op => {if(describe(op.projectRoot,op.serverName).identity!==d.identity)throw failure('session-configuration-changed');return client.request(...op.args);}, close: async () => {const exit=await client.close();return owner?owner.close(exit):exit;}};
   }
-  const inherited=Object.fromEntries(Object.keys(process.env).filter(key=>key.startsWith('IRIS_')).map(key=>[key,undefined]));
+  const inherited=Object.fromEntries(Object.keys(process.env).filter(key=>/^IRIS_/i.test(key)).map(key=>[key,undefined]));
   const client = new mcp.JsonLineMcpClient(d.backend.command, d.backend.args, {...inherited,...d.env, IRIS_MANAGED_NO_RETRIES:'1'}, {cwd: d.context.workspaceRoot});
   const assertSession = (beforeSend = true) => {
     const stopped=client.stderr.match(/IMEDICAL_HTTP_STOP=(401|403|503)/);
@@ -194,8 +202,13 @@ async function open(operation) {
     }
   };
 }
+function targetBinding(env) {
+  return hash([env.IRIS_HOST,Number(env.IRIS_WEB_PORT),env.IRIS_NAMESPACE,env.IRIS_SCHEME || 'https',
+    String(env.IRIS_TLS_VERIFY ?? 'false').toLowerCase(),env.IRIS_USERNAME]);
+}
 function operation(params) {
   const d = describe(params.projectRoot, params.serverName);
+  if (params.expectedTarget && params.expectedTarget!==targetBinding(d.env)) throw failure('session-target-changed-reconnect');
   if (params.channel === 'atelier') {
     const c=params.connection, a=params.args;
     if (!c || c.hostname!==d.connection.hostname || c.port!==d.connection.port || c.protocol!==d.connection.protocol || c.rejectUnauthorized!==d.connection.rejectUnauthorized ||
@@ -214,4 +227,4 @@ function operation(params) {
   if (write && params.allowWrite !== true) throw failure('session-write-authorization-required');
   return {...params, scope, channel: 'mcp', effects: write ? 'write' : 'read-only', identity: d.identity, pool: d.pool};
 }
-module.exports = {describe, open, operation, verifyVendor, verifyBackendConfiguration};
+module.exports = {describe, open, operation, verifyVendor, verifyBackendConfiguration,targetBinding,configuredServerName};

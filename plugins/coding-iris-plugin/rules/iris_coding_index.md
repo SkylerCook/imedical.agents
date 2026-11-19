@@ -14,7 +14,7 @@ related:
 
 本索引只负责按任务找到规则；完整门禁由对应 owner 维护。仍持有且未变化的资料可复用。
 
-先读取 `ContextRoot/config/iris-development.json`：`developmentMode: offline` 进入[离线开发与交付协议](../references/iris-offline-development.md)，不读取医院连接或调用原生 MCP。仅 connected（含旧配置缺省）继续判断 `contextMode`：`intent-first-on-demand-export` 的 project 需求先读[项目开发协议](../references/project-demand-development.md)，同步、准入与冻结发布优先于默认 direct；非法开发方式停止。
+先读取 `ContextRoot/config/project.jsonc` 的 `irisDevelopment` 节：`developmentMode: offline` 进入[离线开发与交付协议](../references/iris-offline-development.md)，不读取医院连接或调用原生 MCP。仅 connected（含旧配置缺省）继续判断 `contextMode`：`intent-first-on-demand-export` 的 project 需求先读[项目开发协议](../references/project-demand-development.md)，同步、准入与冻结发布优先于默认 direct；非法开发方式停止。
 
 ## 必读顺序
 

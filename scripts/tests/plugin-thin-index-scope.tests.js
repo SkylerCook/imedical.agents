@@ -169,7 +169,7 @@ for (const shell of shells) {
         write(path.join(f.root, 'config/plugin-deployment.json'), JSON.stringify({ schema: 'plugin-deployment/v1', mode: 'on-demand', autoInstall: false }));
         write(path.join(f.root, 'config/plugin_profile.md'), '| selected | available | - | - | fixture |\n| other | available | - | - | fixture |\n');
         ps(shell, 'update-plugin-profile.ps1', ['-ProjectRoot', f.project, '-ContextRoot', f.root, '-CapabilityRoot', f.root, '-Plugin', 'selected', '-Status', 'enabled']);
-        assert.match(fs.readFileSync(path.join(f.root, 'config/plugin_profile.md'), 'utf8'), /selected \| enabled/);
+        assert.equal(require('../lib/project-plugin-profile').read(f.root).entries.selected.status,'enabled');
         assert.ok(fs.existsSync(f.target('skill', 'selected-skill')));
         assert.ok(fs.existsSync(f.target('rule', 'selected-rule')));
         for (const [file, before] of saved) assert.deepEqual(fs.readFileSync(file), before);

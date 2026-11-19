@@ -2,19 +2,24 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Box, CircleCheck, CircleHelp, ClipboardCopy, FolderCog, Link2, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { readGuides, readProject, useResource, type Domain, type ProjectSummary, type SettingsId } from "./api";
+import { prepareAgentHandoff, type AgentHandoffSelection } from "./framework-api";
 import { GuideList, GuideReader, searchGuides } from "./manual";
 import { FrameworkPanel } from "./framework-panel";
+import { KnowledgeBuildControls } from "./knowledge-build";
+import { KnowledgeSearch } from "./knowledge-search";
 import { OverviewHero } from "./overview-hero";
+import { DiscoverIrisTools, VerifyConnection } from "./project-owner-actions";
 import { PluginsPage } from "./plugins-page";
 import { href, type Navigation, type Page } from "./routes";
 import { SettingsDialog } from "./settings";
+import { VectorIndexControls } from "./vector-index";
 import { Details, Empty, GridTable, Notice, PageHeading, Panel, ReadState, SearchField, Status, textareaClass, WorkbenchDialog } from "./ui";
 
 const capabilityGroups = [
   { title: "配置与连接", items: [
     ["工程信息与 IRIS", "预览并保存 IRIS、Web 与既有 SFTP 的跨文件变更。", "config"],
     ["BOS / 知识 Key", "查看共享范围、预览变更、保存并读回。", "connections"],
-    ["MCP 服务", "查看注册字段；进程与认证测试待接通。", "connections"],
+    ["MCP 服务", "查看注册字段、发现受管工具和核验连接。", "connections"],
   ] },
   { title: "能力与协作", items: [
     ["插件", "源仓目录、工程启用状态、依赖影响和安装接续。", "plugins"],
@@ -23,7 +28,7 @@ const capabilityGroups = [
   ] },
   { title: "维护与资料", items: [
     ["部署 / 更新 / 恢复", "查看执行与恢复边界，沿框架入口接续。", "tasks"],
-    ["知识与向量", "查看本地手册和索引状态；构建待接入。", "knowledge"],
+    ["知识与向量", "检索本地业务资料和界面参考，查看向量索引。", "knowledge"],
     ["使用手册", "本机运行包内的框架手册原文。", "manual"],
   ] },
   { title: "工程生命周期", items: [
@@ -45,14 +50,14 @@ function DomainRows({ domains }: { domains: Domain[] }) {
     </span>}>
     {domain.fields.length ? <GridTable label={domain.name} headers={["字段", "状态", "说明"]}
       rows={domain.fields.map(field => [<code>{field.key}</code>, field.status, field.sensitive ? "凭据仅显示设置状态" : "只读识别"])} />
-      : <p className="text-sm text-muted-foreground">{domain.status}</p>}
+      : <p className="text-sm text-muted-foreground">{domain.issue ?? domain.status}</p>}
   </Details>)}</div>;
 }
 
 function Home({ project, refresh }: { project: ProjectSummary; refresh: () => void }) {
   const stats = [
     { title: "框架", primary: project.hasFramework ? "已发现 .agents" : "未发现 .agents", detail: "本地工程检查", icon: FolderCog },
-    { title: "明确启用的插件", primary: project.plugins.filter(plugin => plugin.status === "enabled").length, detail: "来自当前工程 profile", icon: Box },
+    { title: "明确启用的插件", primary: project.pluginIssue ? "待核对" : project.plugins.filter(plugin => plugin.status === "enabled").length, detail: "来自当前工程 profile", icon: Box },
     { title: "配置来源", primary: project.domains.length, detail: "工程与共享个人来源", icon: Link2 },
   ];
   const entries = [
@@ -86,7 +91,8 @@ function Home({ project, refresh }: { project: ProjectSummary; refresh: () => vo
         <dl className="grid grid-cols-[auto_1fr] gap-3 text-sm">
           <dt className="text-muted-foreground">读取</dt><dd>配置字段、插件 profile、入口和回执</dd>
           <dt className="text-muted-foreground">保存</dt><dd>IRIS 工程连接、BOS 和知识个人配置</dd>
-          <dt className="text-muted-foreground">待接入</dt><dd>部署、MCP 认证测试、向量构建</dd>
+          <dt className="text-muted-foreground">离线框架</dt><dd>Windows standard 工程可在「框架安装与更新」窗口选择并预演离线能力包</dd>
+          <dt className="text-muted-foreground">待接入</dt><dd>Overlay 共享更新</dd>
           <dt className="text-muted-foreground">Agent 接续</dt><dd>工程探索与自定义语义判断</dd>
         </dl>
         <Button asChild variant="outline" size="sm" className="mt-4"><a href={href("scope")}>查看完整目录</a></Button>
@@ -98,11 +104,13 @@ function Home({ project, refresh }: { project: ProjectSummary; refresh: () => vo
 function Configuration({ project, edit, handoff }: {
   project: ProjectSummary; edit: (id: SettingsId) => void; handoff: (name: string) => void;
 }) {
+  const issue = project.configIssue ?? project.domains.find(domain => domain.name === "开发方式")?.issue;
   return <>
     <PageHeading title="工程配置" description="先核对已有来源，再预览需要同步的工程修改。"
-      actions={<Button onClick={() => edit("project")}>编辑工程连接</Button>} />
+      actions={<Button onClick={() => edit("project")}>{issue ? "核对工程配置" : "编辑工程连接"}</Button>} />
     <div className="space-y-4">
-      <Panel title="工程来源" hint="IRIS 同步集中配置、VS Code、MCP、TOML 和受管后端。Web 路径可编辑，SFTP 支持既有入口。">
+      {issue && <Notice error>{issue}</Notice>}
+      <Panel title="工程来源" hint={issue ? "可查看已读取的连接和各配置来源。" : "IRIS 同步集中配置、VS Code、MCP、TOML 和受管后端。Web 路径可编辑，SFTP 支持既有入口。"}>
         <DomainRows domains={project.domains.filter(domain => domain.scope === "当前工程")} />
       </Panel>
       <Panel title="领域配置">
@@ -120,16 +128,37 @@ function Configuration({ project, edit, handoff }: {
   </>;
 }
 
-function Clients({ project, handoff }: { project: ProjectSummary; handoff: (name: string) => void }) {
+function useAgentHandoff() {
+  const [request, setRequest] = useState<{ name: string; prompt: string }>();
+  const [pending, setPending] = useState<AgentHandoffSelection>();
+  const [error, setError] = useState("");
+  async function prepare(selection: AgentHandoffSelection) {
+    setPending(selection); setError("");
+    try { setRequest(await prepareAgentHandoff(selection)); }
+    catch (failure) {
+      const code = failure instanceof Error ? failure.message : "";
+      setError(code === "binding-changed" ? "工程目录身份已改变，请从启动器重新绑定。" :
+        code === "handoff-context-invalid" ? "工程上下文需要核对，请先检查工作区声明。" : "无法准备 Agent 请求，请重新检查工程入口后重试。");
+    } finally { setPending(undefined); }
+  }
+  return { request, pending, error, prepare, close: () => setRequest(undefined) };
+}
+
+function Clients({ project, refresh }: { project: ProjectSummary; refresh: () => void }) {
+  const { request, pending, error, prepare, close } = useAgentHandoff();
   return <>
-    <PageHeading title="Agent 客户端" description="核对已生成的入口，按客户端准备接入请求。" />
+    <PageHeading title="Agent 客户端" description="检查项目入口，并将当前工程的接入请求复制到对应客户端。"
+      actions={<Button variant="outline" onClick={refresh}>重新检查</Button>} />
+    {error && <Notice>{error}</Notice>}
     <GridTable label="Agent 客户端" headers={["客户端", "已发现的工程入口", "状态", "操作"]}
       rows={project.clients.map(client => [
         <strong className="font-medium">{client.name}</strong>,
         client.entries.length ? <ul>{client.entries.map(entry => <li key={entry}><code>{entry}</code></li>)}</ul> : "未发现项目级入口",
         <div className="grid justify-items-start gap-1"><Status emphasis={!!client.entries.length}>{client.entries.length ? "入口已发现" : "未发现入口"}</Status>
           <small className="text-muted-foreground">{client.status}</small></div>,
-        <Button variant="outline" size="sm" onClick={() => handoff(`接入 ${client.name}`)}>准备接入请求</Button>,
+        <Button variant="outline" size="sm" disabled={!!pending} onClick={() => prepare({ host: client.id })}>
+          {pending && "host" in pending && pending.host === client.id ? "正在准备…" : "准备接入请求"}
+        </Button>,
       ])} />
     <Panel title="接入检查顺序" className="mt-4">
       <ol className="grid list-decimal gap-3 pl-5 text-sm text-muted-foreground md:grid-cols-2">
@@ -137,10 +166,12 @@ function Clients({ project, handoff }: { project: ProjectSummary; handoff: (name
         <li>重载宿主并检查发现</li><li>完成真实往返后确认调用可用</li>
       </ol>
     </Panel>
+    {request && <HandoffDialog title={`核对 ${request.name} 接入`} prompt={request.prompt} onClose={close} />}
   </>;
 }
 
-function Connections({ project, edit }: { project: ProjectSummary; edit: (id: SettingsId) => void }) {
+function Connections({ project, edit, handoff }: { project: ProjectSummary; handoff:(name:string)=>void; edit: (id: SettingsId) => void }) {
+  const issue = project.configIssue ?? project.domains.find(domain => domain.name === "开发方式")?.issue;
   const sources = [
     { id: "bos", env: "BOS_MCP_CONFIG", title: "BOS", hint: "需求查询和开发日志", action: "编辑连接与凭据" },
     { id: "knowledge", env: "KNOWLEDGE_RAG_CONFIG", title: "知识提供方", hint: "公司网关和 OpenAI", action: "编辑提供方与 Key" },
@@ -159,8 +190,12 @@ function Connections({ project, edit }: { project: ProjectSummary; edit: (id: Se
           </section>)}
         </div>
       </Panel>
-      <Panel title="工程连接与 MCP" hint="IRIS / SFTP 引用工程连接字段。此列表展示注册来源与字段状态。"
+      <Panel title="工程连接与 MCP" hint="分别核对注册字段、本机受管工具和所选开发库的连接。"
         actions={<Button asChild variant="outline" size="sm"><a href={href("config")}>查看工程配置</a></Button>}>
+        {issue ? <Notice error>{issue}</Notice> : <div className="space-y-3">
+          <VerifyConnection handoff={()=>handoff("在当前工程核验所选 IRIS 开发库，读取实际连接及命名空间并回查核验回执")} />
+          {project.hasFramework && <DiscoverIrisTools handoff={()=>handoff("在当前工程核对 MCP 注册、启动程序和宿主实际发现的工具，保留自定义入口与禁用状态")} />}
+        </div>}
         <DomainRows domains={project.domains.filter(domain => /MCP|IRIS/.test(domain.name) && domain.scope === "当前工程")} />
       </Panel>
     </div>
@@ -171,18 +206,24 @@ function Knowledge({ project, nav, handoff }: { project: ProjectSummary; nav: Na
   const guides = useResource(readGuides);
   const query = nav.route.params.get("q") ?? "";
   return <>
-    <PageHeading title="知识与向量" description="搜索本地手册，查看已发现的向量索引。"
+    <PageHeading title="知识与向量" description="搜索本地知识和手册，查看已发现的向量索引。"
       actions={<Button asChild variant="outline"><a href={href("connections", null, { edit: "knowledge" })}>模型与 Key</a></Button>} />
+    <div className="mb-4"><KnowledgeSearch /></div>
     <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[1.1fr_1fr]">
       <Panel title="本地资料目录">
         <SearchField label="搜索资料标题" placeholder="搜索手册标题" value={query} onChange={q => nav.replace({ q })} />
         <div className="mt-3">{guides.data ? <GuideList guides={searchGuides(guides.data, query)} nav={nav} />
           : <ReadState label={guides.error ? "手册目录加载失败" : "正在读取资料…"} error={guides.error} retry={guides.retry} />}</div>
       </Panel>
-      <Panel title="向量索引" hint="来源为当前 .agents/.knowledge-cache。文件存在性与索引完整性需分别核对。">
-        <GridTable label="向量索引" headers={["文件", "识别结果"]} rows={project.indexes.map(index =>
-          [<code>{index.name}</code>, index.exists ? `已发现 · ${Math.round((index.bytes ?? 0) / 1024)} KB` : "未发现索引文件"])} />
-        <Button className="mt-4" variant="outline" onClick={() => handoff("向量构建与完整性核对")}>准备构建核对请求</Button>
+      <Panel title="向量索引">
+        <VectorIndexControls />
+        <div className="mt-5 space-y-2">
+          <h4 className="text-sm font-medium">本地构建缓存</h4>
+          <GridTable label="本地构建缓存" headers={["文件", "识别结果"]} rows={project.indexes.map(index =>
+            [<code>{index.name}</code>, index.exists ? `已发现 · ${Math.round((index.bytes ?? 0) / 1024)} KB` : "未发现索引文件"])} />
+        </div>
+        <div className="mt-5"><KnowledgeBuildControls /></div>
+        <Button className="mt-4" variant="outline" onClick={() => handoff("知识索引核验与维护者导出")}>准备索引维护请求</Button>
       </Panel>
     </div>
   </>;
@@ -212,10 +253,17 @@ const receiptStatus: Record<string, string> = {
 };
 const localTime = (iso: string) => new Date(iso).toLocaleString("zh-CN", { hour12: false });
 
-function Tasks({ project, activity, handoff }: { project: ProjectSummary; activity: string[]; handoff: (title: string) => void }) {
+function Tasks({ project, activity, handoff, refresh }: {
+  project: ProjectSummary; activity: string[]; handoff: (title: string) => void; refresh: () => void;
+}) {
+  const { request, pending, error, prepare, close } = useAgentHandoff();
   const receipts = project.receipts.slice().sort((a, b) => b.updated.localeCompare(a.updated));
   return <>
-    <PageHeading title="任务与恢复" description="核对工程保存回执，或准备诊断与恢复请求。" />
+    <PageHeading title="任务与恢复" description="核对工程保存回执，或准备诊断与恢复请求。"
+      actions={<><Button disabled={!!pending} onClick={() => prepare({ purpose: "project-check" })}>
+        {pending ? "正在准备…" : "准备工程检查请求"}
+      </Button><Button variant="outline" onClick={refresh}>重新读取</Button></>} />
+    {error && <Notice error>{error}</Notice>}
     <div className="space-y-4">
       <Panel title="工程保存回执">
         {receipts.length ? <GridTable label="工程保存回执" headers={["回执", "状态", "涉及文件", "更新时间"]}
@@ -230,11 +278,11 @@ function Tasks({ project, activity, handoff }: { project: ProjectSummary; activi
         </li>)}</ul>
       </Panel> : <Empty title="本次打开后暂无新操作">
         <Button asChild variant="outline"><a href={href("connections")}>管理连接</a></Button>
-        <Button variant="ghost" onClick={() => handoff("工程检查")}>准备工程检查请求</Button>
       </Empty>}
       <Panel title="恢复边界" hint="来源变化时重新读取后编辑。数据库备份和跨机恢复待接入。"
         actions={<Button variant="outline" onClick={() => handoff("恢复诊断")}>恢复诊断请求</Button>} />
     </div>
+    {request && <HandoffDialog title={request.name} prompt={request.prompt} onClose={close} />}
   </>;
 }
 
@@ -281,17 +329,17 @@ function RealContent({ project, nav, refresh, onProject }: {
   let content;
   switch (nav.route.page) {
     case "config": content = <Configuration project={project} edit={edit} handoff={setHandoff} />; break;
-    case "clients": content = <Clients project={project} handoff={setHandoff} />; break;
-    case "connections": content = <Connections project={project} edit={edit} />; break;
+    case "clients": content = <Clients project={project} refresh={refresh} />; break;
+    case "connections": content = <Connections project={project} edit={edit} handoff={setHandoff} />; break;
     case "knowledge": content = <Knowledge project={project} nav={nav} handoff={setHandoff} />; break;
     case "manual": content = <ManualPage nav={nav} handoff={setHandoff} />; break;
     case "scope": content = <CapabilityDirectory />; break;
-    case "tasks": content = <Tasks project={project} activity={activity} handoff={setHandoff} />; break;
-    case "plugins": content = <PluginsPage project={project} nav={nav} onHandoff={setHandoff} />; break;
+    case "tasks": content = <Tasks project={project} activity={activity} handoff={setHandoff} refresh={refresh} />; break;
+    case "plugins": content = <PluginsPage project={project} nav={nav} onHandoff={setHandoff} refresh={refresh} />; break;
     default: content = <Home project={project} refresh={refresh} />;
   }
   return <>{content}
-    {validEditor && <SettingsDialog key={editId} id={editId as SettingsId} onClose={() => nav.replace({ edit: undefined })}
+    {validEditor && <SettingsDialog key={editId} id={editId as SettingsId} handoff={()=>{nav.replace({edit:undefined});setHandoff("核验当前工程所选 IRIS 开发库及命名空间，读回实际核验结果");}} onClose={() => nav.replace({ edit: undefined })}
       onSaved={id => { setActivity(lines => [id === "project" ? "工程配置已保存并读回" : "个人配置已保存并读回", ...lines]); refresh(); }} />}
     {editId && !validEditor && <p role="status" className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
       <CircleHelp aria-hidden="true" className="size-4" />此页面没有对应配置编辑入口。

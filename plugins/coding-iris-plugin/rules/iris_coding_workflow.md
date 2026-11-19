@@ -14,7 +14,7 @@ related:
 
 本文只保留 IRIS 开发脚本、MCP 使用边界和部署主流程。部署逐项检查和 legacy GB2312 提升细节已拆到独立规则，按任务需要读取，避免非部署任务加载过多上下文。
 
-先解析 `ContextRoot/config/iris-development.json` 的 `developmentMode`。offline 进入[离线开发与交付协议](../references/iris-offline-development.md)，不执行下文远端流程或生成医院连接；缺材料由用户现场补充。connected（含旧配置缺省）才继续本页：已确认 `project` 且 `contextMode: intent-first-on-demand-export` 时先读取[项目开发协议](../references/project-demand-development.md)，同步复审优先于默认 direct。`standard` 沿既有分支；非法开发方式停止，contextMode 不决定需求类型或授权。
+先解析 `ContextRoot/config/project.jsonc` 的 `irisDevelopment` 节 的 `developmentMode`。offline 进入[离线开发与交付协议](../references/iris-offline-development.md)，不执行下文远端流程或生成医院连接；缺材料由用户现场补充。connected（含旧配置缺省）才继续本页：已确认 `project` 且 `contextMode: intent-first-on-demand-export` 时先读取[项目开发协议](../references/project-demand-development.md)，同步复审优先于默认 direct。`standard` 沿既有分支；非法开发方式停止，contextMode 不决定需求类型或授权。
 
 ## 相关规则
 
@@ -37,6 +37,7 @@ related:
 
 目标工程应先确认本地私密配置事实来源：
 
+- 有活动开发库档案时，按 coding-iris-init 的 `--check-profile` 核对并沿档案入口维护目标。以下两条适用于无档案工程。
 - 已有 `.mcp.json`：从 `.mcp.json` 反向生成或补齐 `.agents/config/project-env.json`，不得运行 `sync-env-config.js` 覆盖现有 `.mcp.json`。
 - 没有 `.mcp.json`：复制模板并填写 `.agents/config/project-env.json`，默认 `mcp.serverPath` 指向内置 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe`，再运行 `sync-env-config.js` 生成 `.mcp.json`。
 

@@ -9,7 +9,7 @@
 
 这些 Node.js 脚本用于生成部署清单、从 IRIS 服务器导出文件、编译类文件、调试方法调用以及同步环境配置。
 
-开发方式由当前 ContextRoot 的 `config/iris-development.json` 独立声明。offline 的受管远端入口在连接配置与客户端启动前停止；本地帮助、状态、分析、Review、源码/XML 打包保持可用。connected（含旧配置缺省）保留原同步、准入与发布保护；非法值停止。原生 MCP/外部 IDE 不在脚本机器拦截范围，Agent 仍禁止离线调用。详见[离线协议](../../references/iris-offline-development.md)。
+开发方式由当前 ContextRoot 的 `config/project.jsonc` 的 `irisDevelopment` 节 独立声明。offline 的受管远端入口在连接配置与客户端启动前停止；本地帮助、状态、分析、Review、源码/XML 打包保持可用。connected（含旧配置缺省）保留原同步、准入与发布保护；非法值停止。原生 MCP/外部 IDE 不在脚本机器拦截范围，Agent 仍禁止离线调用。详见[离线协议](../../references/iris-offline-development.md)。
 
 初始化或已有项目补齐使用 `source-sync.js configure`：Write 创建缺失的开发声明及按条件需要的远端策略，Check/DryRun 只读；参数见 `--help`，流程见 [coding-iris-init](../../skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)。已有文件按字节保留，真实环境未知时报告缺项，不套用模板中的示例值。`configurationReady` 只表示本地配置齐全，`remoteAdmission` 单列本地策略状态；生成的策略禁用且资格 pending，不产生远端调用或服务器基线。缺声明却已有恢复材料时停止自动生成，避免改变旧任务指纹。
 
@@ -25,7 +25,7 @@
 
 ## 配置说明
 
-项目连接来自现有 `.mcp.json` 与 `.agents/config/project-env.json`，各入口按其契约核对目标；首次使用前先确认配置事实来源：已有 `.mcp.json` 时，从 `.mcp.json` 反向生成或补齐 `project-env.json`；没有 `.mcp.json` 时，才从 `.agents/plugins/coding-iris-plugin/templates/project-env.template.json` 复制并填写真实环境，再运行 `sync-env-config.js` 生成 `.mcp.json`。模板默认使用内置 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe` 作为后端 MCP server 路径。这些文件包含敏感信息，不应提交到版本控制系统。
+项目连接来自现有 `.mcp.json` 与 `.agents/config/project-env.json`，各入口按其契约核对目标；已有开发库档案时先运行 `sync-env-config.js --check-profile`，按档案核对目标。无档案时沿用既有顺序：已有 `.mcp.json` 时，从 `.mcp.json` 反向生成或补齐 `project-env.json`；没有 `.mcp.json` 时，才从 `.agents/plugins/coding-iris-plugin/templates/project-env.template.json` 复制并填写真实环境，再运行 `sync-env-config.js` 生成 `.mcp.json`。模板默认使用内置 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe` 作为后端 MCP server 路径。这些文件包含敏感信息，不应提交到版本控制系统。
 
 工具优先级：
 

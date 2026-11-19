@@ -11,7 +11,7 @@ Help requests (`--help`, show usage): first read the [shared help protocol](../.
 
 1. Read `.agents/plugins/iris-codegraph/rules/iris_codegraph_usage.md`.
 2. Read `.agents/plugins/iris-codegraph/schema.md` when schema fields or edge meanings matter.
-3. Confirm `coding-iris-plugin` is enabled in `.agents/config/plugin_profile.md`.
+3. Confirm `coding-iris-plugin` is enabled in the `plugins` section of `.agents/config/project.jsonc`.
 4. Confirm `.mcp.json` exists before building. If it is missing, stop at local plugin/query validation and report that graph build needs MCP connection facts.
 
 ## Build Flow

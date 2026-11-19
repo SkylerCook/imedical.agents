@@ -1,5 +1,8 @@
 # i18n 项目适配配置
 
+运行参数保存在当前 ContextRoot 的 `config/project.jsonc` 的 `pluginSettings.i18n-iris-plugin` 节。
+
+
 本文件记录目标工程的 i18n 语义配置。MCP 连接信息以工程根目录 `.mcp.json` 为唯一事实来源，本文件不保存 host、端口、账号、密码等敏感连接配置。
 
 ## 基本策略

@@ -8,7 +8,7 @@ CSP 的 HTTP `charset` 描述响应编码，输出可由 `%response.CharSet` 转
 
 确认时可附带 `--files <本地源码文件...>`，按 `--source` 解码并试转 `--target`，全部成功后才写 profile。GBK 无法表示的 `©`、`ȥ` 会提前返回行列与码点，profile 保持原字节。省略文件列表时返回未验证文件范围的选择指引。probe 的候选描述服务器原字节，目标是否可表示应结合解码后的实际文本核实。
 
-profile 读取兼容 CRLF、LF 和单 CR。confirm 按主要 CRLF/LF 风格写入并修复单 CR，字段匹配仅消费行内空白；已确认配置的迁移检查保持原文件字节。普通更新复用并合并受管 Pending 区块，保留人工说明及已有值。
+编码确认结果写入当前 ContextRoot/config/project.jsonc 的 pluginSettings.coding-iris-plugin 节。旧 profile 读取兼容 CRLF、LF 和单 CR。迁移保留余下说明原有的换行，字段匹配仅消费行内空白；已确认配置的迁移检查保持原文件字节。普通更新复用并合并受管 Pending 区块，保留人工说明及已有值。
 
 ## 首次确认与修改前检查
 

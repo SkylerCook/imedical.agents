@@ -60,15 +60,9 @@ function configFor(context) {
   return config;
 }
 function enabledPlugins(context) {
-  const file = safePath(context.contextRoot, 'config/plugin_profile.md');
-  if (!fs.existsSync(file)) throw Error('plugin_profile.md missing; enable plugins before directory setup');
-  const text = new TextDecoder('utf-8', { fatal: true }).decode(fs.readFileSync(file));
-  const enabled = new Set();
-  for (const line of text.split(/\r?\n/)) {
-    const m = line.match(/^\s*\|\s*([a-z0-9-]+)\s*\|\s*(enabled|available|disabled)\s*\|/);
-    if (m && m[2] === 'enabled') enabled.add(m[1]);
-  }
-  return enabled;
+  const state = require('./project-plugin-profile').read(context.contextRoot);
+  if (!state.exists) throw Error('Plugin profile missing; enable plugins before directory setup');
+  return new Set(Object.keys(state.entries).filter(id=>state.entries[id].status==='enabled'));
 }
 function inventory(context, all = false) {
   const enabled = enabledPlugins(context);
@@ -107,7 +101,7 @@ function resolveDirectory(projectRoot, owner, id, fallback) {
   return entry.target;
 }
 function fingerprint(context) {
-  const files = [path.join(context.contextRoot,'config/plugin_profile.md'),path.join(context.contextRoot,'config/documentation-layout.json'), context.manifestPath].filter(Boolean);
+  const files = [path.join(context.contextRoot,'config/project.jsonc'),path.join(context.contextRoot,'config/plugin_profile.md'),path.join(context.contextRoot,'config/documentation-layout.json'), context.manifestPath].filter(Boolean);
   const plugins = path.join(context.capabilityRoot, 'plugins');
   for (const name of fs.readdirSync(plugins).sort()) if (/^[a-z0-9-]+$/.test(name)) {
     const file = path.join(plugins,name,'.agents-plugin/plugin.json'); if (fs.existsSync(file)) files.push(file);

@@ -250,7 +250,7 @@ Get-ChildItem -LiteralPath $agentsSource -Directory | Sort-Object Name | ForEach
     $contentLines.Add("Preflight checks:")
     $contentLines.Add("")
     $contentLines.Add("- Read target project root ``AGENTS.md``.")
-    $contentLines.Add("- Read ``.agents/config/plugin_profile.md`` and confirm required plugin states.")
+    $contentLines.Add("- Read ``.agents/config/project.jsonc`` and confirm required plugin states.")
     if ($requiredPlugins.Count -gt 0) {
         foreach ($plugin in $requiredPlugins) {
             $contentLines.Add("- Required plugin ``$plugin`` must satisfy the enablement preconditions declared by the canonical agent.")

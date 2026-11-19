@@ -16,7 +16,7 @@
 | 初始化 IRIS 项目 | [coding-iris-init](plugins/coding-iris-plugin/skills/coding-iris-init/SKILL.md)，复用已知配置，必要缺项集中确认，授权内生成索引 |
 | IRIS 部署与故障恢复 | [部署入口](plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md)、[统一会话](docs/guides/iris-managed-sessions.md) |
 | 离线源码与 XML 交付 | [离线协议](plugins/coding-iris-plugin/references/iris-offline-development.md)、[人工工具](tools/README.md) |
-| 连接与用法查询 | [连接配置](docs/guides/connection-configuration.md)、[统一帮助](docs/guides/capability-help.md) |
+| 连接与用法查询 | [连接配置](docs/guides/connection-configuration.md)、[插件工程参数](docs/guides/plugin-runtime-settings.md)、[统一帮助](docs/guides/capability-help.md) |
 | 框架维护、变更历史与待办 | [维护入口](memory/agent-kit-maintenance-memory.md)、[维护资料](maintenance/README.md)；manifest 变更须完整重生成并校验 [plugin catalog](docs/guides/plugin-deployment.md#维护者校验) |
 
 项目文档统一由 [docs](docs/README.md) 导航。版本更新细节和验收证据归维护日志与 owner 协议，当前版本查 manifest。xc 手册及待接入能力沿既有治理队列。
@@ -65,7 +65,7 @@ plugins/     # 可复用能力实现：rules、skills、templates、scripts、re
 
 1. 读取业务项目根 `AGENTS.md`；若缺失，记录为项目上下文待补项，不要把本仓库根 `AGENTS.md` 复制过去。
 2. 读取 `.agents/plugins/agent-context-kit/skills/project-context-maintenance/SKILL.md`，初始化或维护项目上下文。
-3. 读取 `.agents/config/plugin_profile.md`，确认插件是 `available`、`enabled` 还是 `disabled`。
+3. 读取 `.agents/config/project.jsonc` 的 `plugins` 节，确认插件是 `available`、`enabled` 还是 `disabled`。
 4. 读取 `.agents/agents/agent-registry.md` 和 `.agents/workflows/workflow-registry.md`，确认可用智能体和 workflow。
 5. 按项目需要读取插件初始化 skill：
    - `.agents/plugins/bos-plugin/skills/bos-init/SKILL.md`
@@ -105,7 +105,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install-agents.ps1
 
 脚本会把本仓库作为独立 Git 仓库克隆到业务项目 `.agents/`，并拉取 `plugins/`、`agents/`、`workflows/` 等能力包内容，让用户和 Agent 能看到可用能力。
 
-插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认把 `agent-context-kit` 和承接原根级技能的 `agent-framework-evolution` 作为基础能力处理（显式 available/disabled 保留）；`bos-plugin`、`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`、`iris-imedical-doctor-ai`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`、`imedicalxc-doctor-card-reader` 等领域插件必须按 `plugin_profile.md` 状态和真实 init skill 显式接入。
+插件目录存在只表示能力 `available`，不表示当前业务项目已启用该插件。默认把 `agent-context-kit` 和承接原根级技能的 `agent-framework-evolution` 作为基础能力处理（显式 available/disabled 保留）；`bos-plugin`、`coding-iris-plugin`、`codegraph-query`、`iris-codegraph`、`extract-doc`、`i18n-iris-plugin`、`iris-interface-dev`、`iris-cure-form-dev`、`iris-external-reg`、`iris-imedical-doctor-ai`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`、`imedicalxc-doctor-card-reader` 等领域插件必须按 `project.jsonc` 的 `plugins` 节 状态和真实 init skill 显式接入。
 
 ### 更新已部署 `.agents`
 
@@ -316,7 +316,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
 - 受管 [按范围采集源码](plugins/coding-iris-plugin/references/iris-code-baseline.md#按路径通配符和类包)支持 Web 目录、通配规则和 IRIS 类包，并固定匹配结果供采集和续采。
 - 准确对象范围的 [XML 双通道导出](plugins/coding-iris-plugin/references/iris-xml-export.md)与[代码基线采集](plugins/coding-iris-plugin/references/iris-code-baseline.md)：版本清单限定对象集合，内容取确认实例当前状态；XML 包可含图片，代码基线在请求前排除图片并统计，初始缺失明确 partial。纯采集不强制 project 或初始化 Git，项目开发仍按条件进入源同步与冻结发布；跨进程操作排他与单批内部已获资格的只读会话池分别管理，不能把 worker 数视为实际 License 用量。类源、安装 XML、服务器能力和资源资格分别验收，见[本地与真实验收步骤](docs/guides/iris-xml-baseline-acceptance.md)。
 - CSP、JavaScript、CSS、HISUI 前端统一使用 canonical `utf8`：标版、医院项目的源码、上传内容和服务器运行编码均为 UTF-8，实际文件字节检测是最终门禁；旧 GB2312 仅保留显式历史工程兼容，明确的 backend-only Overlay 则记录 `N/A (backend-only)`。
-- 前端任务按目标工程 `plugin_profile.md` 执行条件 i18n 门禁：只有 i18n 已启用且任务或 diff 命中翻译 helper、翻译 key 或用户可见文案时，才追加 i18n 规则与稳定 key 检查；普通前端需求不进入完整 i18n workflow。
+- 前端任务按目标工程 `project.jsonc` 的 `plugins` 节 执行条件 i18n 门禁：只有 i18n 已启用且任务或 diff 命中翻译 helper、翻译 key 或用户可见文案时，才追加 i18n 规则与稳定 key 检查；普通前端需求不进入完整 i18n workflow。
 - 本地优先、按需上传/编译的工作流约束。后端编译后回读并仅回填 Storage，覆盖新增表和字段演进；失败区分远端已编译与本地未同步，受管夜跑保留源码冻结版本复审门禁，见 [部署契约](plugins/coding-iris-plugin/references/deployment-protection.md#编译后-storage-同步)。
 - 当前前端 UTF-8 原样编辑、导出和上传流程，以及仅供显式历史工程使用的 legacy GB2312 promote 兼容流程。
 - HISUI 控件/API 按需读取 `references/hisui-widget-index.md`，主题 CSS、locale CSS、语义 class、图标和插图按需读取 `references/hisui-style-index.md`；弹窗内面板留白、裁切与滚动异常见[宽度排查指导](plugins/coding-iris-plugin/references/hisui-style-index.md#弹窗内面板的宽度留白与滚动)。
@@ -576,7 +576,7 @@ Explorer -> Classifier -> Coder -> Template/Seed -> Verifier
    - `.agents/rules/project.md`
    - `.agents/memory/project-memory.md`
 6. 先 dry-run，再 write 生成 `agent-context-kit` thin-index。
-7. 查看 `.agents/config/plugin_profile.md`；未启用插件保持 `available`，不要自动生成它们的 thin-index。
+7. 查看 `.agents/config/project.jsonc` 的 `plugins` 节；未启用插件保持 `available`，不要自动生成它们的 thin-index。
 8. 按依赖顺序初始化需要的领域插件，例如先启用 `coding-iris-plugin`、`extract-doc`，再接入相应领域插件；`iris-ui` 还需先接入 `imedical-ui`。依赖以各 manifest 为准，未启用插件不自动启用，显式禁用冲突保留。其它可选插件包括 `codegraph-query`、`imedicalxc-doctor-extend-engineer`、`imedicalxc-doctor-perf-analysis-engineer`、`imedicalxc-doctor-data-extraction`、`imedicalxc-doctor-print-template-design`、`imedicalxc-doctor-card-reader`。
 9. 如需启用提交前差异降噪 hook，由用户在业务项目根目录显式运行 `.agents/scripts/install-git-hooks.ps1 -ProjectRoot .`；安装/更新 `.agents` 只分发 hook 模板和脚本，不自动修改 `core.hooksPath`。
 10. 按需要读取 `agents/agent-registry.md` 和 `workflows/workflow-registry.md` 使用顶层智能体。
@@ -715,6 +715,6 @@ WorkBuddy / CodeBuddy 原生适配已加入既有 --agent 入口，共用 .codeb
 
 项目插件管理入口：[plugin-management](plugins/agent-context-kit/skills/plugin-management/SKILL.md)，支持体系选择、补装、启用、禁用和恢复；按需启用自动生成并验证发现入口，入口更新保护其它插件与自定义内容，停用前展示受影响依赖。
 
-### 工程工作台（Windows standard 试点）
+### 工程工作台
 
-工作台提供 standard 工程首装、检查、取版预演与锁内写入复查，支持 IRIS／Web／现有 SFTP 配置及 BOS／知识个人配置的预览、保存和读回。需要 Agent 处理的任务可复制请求，在同一工程的客户端执行后返回复查。Windows x64 离线 ZIP 随带便携 Node 24 和界面字体，解压后可双击启动。运行与独立演示入口见[工作台说明](tools/agents-workbench/react/README.md)，实际操作见[团队使用手册](docs/guides/usage-manual.md)。
+Windows x64 工作台 ZIP 随带便携 Node 24、界面字体和离线手册，解压后可双击启动并选择工程。标准工程支持首装、检查、取版预演和写入复查。工作台提供工程连接、个人连接、插件和知识索引的管理入口。需要 Agent 处理的任务可准备带工程上下文的请求，在既有客户端执行后返回复查。各发行版本支持的离线能力包、Overlay 更新和工作台版本恢复以发放记录与[工作台说明](tools/agents-workbench/react/README.md)为准，使用步骤见[团队使用手册](docs/guides/usage-manual.md)。

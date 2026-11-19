@@ -42,7 +42,7 @@ Agent 编写或 Review `.cls` 时遵循 [CLS 命名与格式规范](references/c
 
 ## 使用约束
 
-- 先解析当前 `ContextRoot/config/iris-development.json` 的 `developmentMode`，profile 只引用该配置。offline 统一进入[离线开发与交付](references/iris-offline-development.md)，禁止医院远端读取、原生 MCP 和部署；下文所有连接、同步、准入及默认 direct 仅适用于 connected。缺省保持旧行为，非法值停止。普通更新不切换开发方式，不清旧任务、锁或未知结果。
+- 先解析当前 `ContextRoot/config/project.jsonc` 的 `irisDevelopment` 节 的 `developmentMode`，profile 只引用该配置。offline 统一进入[离线开发与交付](references/iris-offline-development.md)，禁止医院远端读取、原生 MCP 和部署；下文所有连接、同步、准入及默认 direct 仅适用于 connected。缺省保持旧行为，非法值停止。普通更新不切换开发方式，不清旧任务、锁或未知结果。
 - 初始化、重新部署或补齐配置时，执行 [coding-iris-init 的本地配置步骤](skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)，默认生成缺失配置并 Check；已启用项目普通更新沿 configMigrations 自动补缺文件。已有有效值与旧模式缺省保留；普通 Write 更新沿同一迁移清理废弃 License 字段及空模板登记，真实导出资格和恢复资料保留，未确认模式/环境与服务器基线分别报告，普通操作不生成 License 资格待办。不能只完成薄索引就声称初始化完成。
 
 - 当前需求已明确为 `project` 且 `contextMode: intent-first-on-demand-export` 时，编码、需求上下文获取及发布先读取[项目按需导出开发协议](references/project-demand-development.md#修改前与部署前同步)；待修改文件无论本地是否存在，先完成 before-edit 同步，有变化先提交 export 基线，再开始需求修改。该分支的同步与冻结发布门禁优先于下文默认 direct。`standard` 沿既有标版分支；类型缺失先查合法默认值，不能从 contextMode 推导。公共远端准入仍按通道约束执行。
@@ -134,7 +134,7 @@ SFTP vendor 运行时位于 `vendor/sftp-server/`，由本插件维护。新项�
 
 初始化/迁移在目标工程 `.agents/scripts/` 生成薄 wrapper，转发到插件内编码脚本。已知历史复制版本可自动迁移；用户定制版本只报告冲突，不得静默覆盖。
 
-`scripts/iris-tools/` 是 IRIS 开发主力脚本集合，包含部署清单生成、导出、编译、Broker 调试和环境配置同步。真实连接信息由目标工程本地私有配置承载：已有 `.mcp.json` 时反向补齐 `.agents/config/project-env.json`，没有 `.mcp.json` 时才从 `templates/project-env.template.json` 创建并用 `sync-env-config.js` 生成 `.mcp.json`。这些文件不得提交到版本库。
+`scripts/iris-tools/` 是 IRIS 开发主力脚本集合，包含部署清单生成、导出、编译、Broker 调试和环境配置同步。已有活动开发库档案时，沿 coding-iris-init 核对所选目标。无档案工程的真实连接信息由本地私有配置承载：已有 `.mcp.json` 时反向补齐 `.agents/config/project-env.json`，没有 `.mcp.json` 时才从 `templates/project-env.template.json` 创建并用 `sync-env-config.js` 生成 `.mcp.json`。这些文件不得提交到版本库。
 
 `scripts/iris-tools/source-sync.js` 管理项目按需导出、现场保护、服务器层与需求层的独立提交及复审冻结；操作参数以 `--help` 为准。共享远端准入与 Atelier client 位于能力包根 `scripts/lib/`，本地状态检查/显式恢复使用根 `scripts/iris-remote.js`，具体边界归上述项目协议。
 

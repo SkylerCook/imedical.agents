@@ -14,9 +14,9 @@
 
 ## 未接通的能力
 
-Web basePath/cspBasePath/brokerPath/cookie 与已存在的 SFTP host/port/username/password/localPath/remotePath 可编辑；SFTP 只更新已有可识别 MCP 的环境字段。实际工程入口编辑当前连接。真实多库切换、部署更新、插件安装启停、宿主自动派发、MCP 启动与认证、业务向量操作及 EXE 按工作台方案推进。
+Web basePath/cspBasePath/brokerPath/cookie 与已存在的 SFTP host/port/username/password/localPath/remotePath 可编辑；SFTP 只更新已有可识别 MCP 的环境字段。Windows standard 工程可在连接表单添加或切换开发库档案，已登记的 VS Code、IRIS MCP、TOML 和框架配置随选择同步。正式 ZIP 中的可用范围见对应发行记录。源码试点支持显式核验当前 IRIS MCP 连接，在插件详情补装、启停并核对发现入口，初始化可接续给 Agent。宿主自动派发、MCP 启动与认证、业务向量操作及 EXE 按工作台方案推进。
 
-知识页检索随工具的手册标题，并识别 `.agents/.knowledge-cache` 中已知索引文件的大小和时间。手册支持表格、代码、同目录指南和已知小节的跳转。客户端读取项目级入口存在性。插件管理提供依赖计划预览和 Agent 接续，目录显示源仓版本。
+知识页可检索已绑定工程的业务知识和界面参考正文，显示来源与行号。工作台还能搜索随包手册标题并识别 `.agents/.knowledge-cache` 中已知索引。手册支持表格、代码、同目录指南和已知小节的跳转。客户端读取项目级入口存在性。插件管理提供依赖计划预览和 Agent 接续，目录显示源仓版本。
 
 ## 保留的交互演示
 
@@ -31,6 +31,8 @@ node --test tools/agents-workbench/prototype/personal-settings.test.js tools/age
 ```
 
 测试使用独立临时合成文件，覆盖预览零写入、秘密不回传、替换读回、外部修改冲突、未知字段保留、BOM/CRLF、一次性计划、临时文件清理。Windows ACL 使用 .NET 文件接口，通过 Windows PowerShell 5.1 保留。
+
+源码的[工作台验证流程](../../../.github/workflows/workbench.yml) 在 Windows、macOS、Linux 上构建界面并验证工程绑定、配置及暂存包。Windows 专项使用隔离工程验证并行启动及原安装器、更新器。
 
 实际工程用于界面读取验收。预览、保存、冲突和恢复使用合成工程与虚构凭据验收。实际保存由用户在 UI 核对来源与影响后确认。
 
@@ -50,7 +52,7 @@ const result = await frameworkAction("check", projectId, revision);
 
 工程动作共用 `POST /framework/action`，JSON 正文只接受 `action`、`projectId` 和 `revision`。`check` 和 `preview` 分别执行已安装更新器的 Check 和 DryRun，均带 `-NoPull`。返回原进程 `exitCode` 和执行前后的工程身份及 revision。退出码只描述更新器进程，业务就绪状态仍需对应验证。
 
-Windows 试点支持 `3246ca4e`、`b65675b6` 对应的执行树。`install` 使用随包安装器校验克隆后再生成入口；`fetch-preview` 预演成功后可用 `apply` 运行 Write 和 Check。相同执行树可跨 revision 复用。来源、落盘运行文件或执行树无法确认时，服务返回拒绝原因。旧版接续时由维护者先检查该工程的更新器和插件来源，确认可信后，在工程根目录运行原 `.agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Check -NoPull`。锁冲突沿原更新器处理。
+Windows 试点支持 `3246ca4e`、`b65675b6` 和 `5520bdf7` 三个已验收提交。`install` 使用随包安装器校验克隆后再生成入口；`fetch-preview` 预演成功后可用 `apply` 运行 Write 和 Check。其他 revision 可刷新工程身份，执行动作需要该提交与已验证运行文件同时匹配。来源、落盘运行文件或执行树无法确认时，服务返回拒绝原因。旧版接续时由维护者先检查该工程的更新器和插件来源，确认可信后，在工程根目录运行原 `.agents/scripts/update-agents.ps1 -ProjectRoot . -Mode Check -NoPull`。锁冲突沿原更新器处理。
 
 从仓库根运行真实安装、Git、PowerShell 5.1 和回环 HTTP 夹具：
 

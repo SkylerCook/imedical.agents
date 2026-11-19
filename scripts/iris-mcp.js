@@ -29,7 +29,7 @@ let namespace;
 function usage(exitCode = 1) {
   const out = exitCode === 0 ? console.log : console.error;
   out(`Usage:
-  node .agents/scripts/iris-mcp.js check [--json]
+  node .agents/scripts/iris-mcp.js check [--json] [--verify-profile]
   node .agents/scripts/iris-mcp.js tools [--names <name1,name2>] [--schema] [--json]
   node .agents/scripts/iris-mcp.js call <toolName> <jsonArgs> [--allow-write] [--json]
   node .agents/scripts/iris-mcp.js call <toolName> --json-file <path> [--allow-write] [--json]
@@ -54,7 +54,7 @@ function optionValue(name) {
 function findWorkspaceRoot() {
   let dir = process.cwd();
   while (true) {
-    if (fs.existsSync(path.join(dir, '.agents', 'capability.json')) || fs.existsSync(path.join(dir, '.agents', 'config', 'iris-development.json'))) return dir;
+    if (fs.existsSync(path.join(dir,'.agents','config','project.jsonc')) || fs.existsSync(path.join(dir, '.agents', 'capability.json')) || fs.existsSync(path.join(dir, '.agents', 'config', 'iris-development.json'))) return dir;
     if (fs.existsSync(path.join(dir, '.mcp.json'))) {
       return dir;
     }
@@ -66,18 +66,26 @@ function findWorkspaceRoot() {
   }
 }
 
+function profileEnvironment(settings, selected) {
+  if (!selected) return settings;
+  const inherited=Object.keys(process.env).filter(key=>/^IRIS_/i.test(key));
+  return {...Object.fromEntries(inherited.map(key=>[key,undefined])),...settings};
+}
 function loadWorkspaceContext() {
   workspaceRoot = findWorkspaceRoot();
-  const mcpConfig = JSON.parse(fs.readFileSync(path.join(workspaceRoot, '.mcp.json'), 'utf8'));
+  const mcpConfig = JSON.parse(fs.readFileSync(path.join(workspaceRoot, '.mcp.json'), 'utf8').replace(/^\uFEFF/,''));
   const context=require('./lib/workspace-context').resolveWorkspaceContext(workspaceRoot);
   const localEnv=path.join(context.contextRoot,'config','project-env.json');
   if(fs.existsSync(localEnv))selectedServerName=JSON.parse(fs.readFileSync(localEnv,'utf8').replace(/^\uFEFF/,'')).mcp?.serverName || selectedServerName;
+  const selected=require('./lib/iris-selected-target').selected(context);
+  selectedServerName=selected?.serverName || selectedServerName;
   server = mcpConfig.mcpServers && mcpConfig.mcpServers[selectedServerName];
+  selected?.checkServer(server,'.mcp.json',true);
   if (!server) {
     throw new Error('MCP server iris-agentic-dev not found in .mcp.json');
   }
 
-  env = {IRIS_TLS_VERIFY:'false', ...(server.env || {})};
+  env = profileEnvironment({IRIS_TLS_VERIFY:'false', ...(server.env || {})},selected);
   namespace = env.IRIS_NAMESPACE;
   if (!namespace) {
     throw new Error('IRIS_NAMESPACE is missing from .mcp.json env');
@@ -138,7 +146,7 @@ function printJson(prefix, value) {
   console.log(`${prefix}=${JSON.stringify(value)}`);
 }
 
-function summarizeCheck(data) {
+function summarizeCheck(data,profile) {
   data = data || {};
   const capabilities = data.capabilities && typeof data.capabilities === 'object'
     ? data.capabilities
@@ -154,6 +162,9 @@ function summarizeCheck(data) {
   }
 
   return {
+    ...(profile ? {profileTargetVerified:data.connected===true && (!data.managedSession || data.remoteConnectionVerified===true) &&
+      typeof data.host==='string' && data.host.toLowerCase()===String(profile.host).toLowerCase() &&
+      Number(data.port)===profile.port && data.namespace===profile.namespace} : {}),
     configFileLoaded: Boolean(data.config_file),
     hostLoaded: Boolean(data.host),
     namespaceIsDefaultUser: data.namespace === 'USER',
@@ -516,12 +527,16 @@ async function callTool(client, toolName, toolArgs, options = {}) {
 
 // One command may make many bounded calls, but owns just one MCP process and
 // the participating pool lock until graceful shutdown has completed.
-async function createManagedMcpSession({projectRoot, context, serverName = 'iris-agentic-dev', expectedNamespace, timeoutMs = 60000} = {}) {
+async function createManagedMcpSession({projectRoot, context, serverName, expectedNamespace, timeoutMs = 60000} = {}) {
   const root = path.resolve(projectRoot || process.cwd());
   const selectedContext = context || require('./lib/workspace-context').resolveWorkspaceContext(root);
+  const selected=require('./lib/iris-selected-target').selected(selectedContext);
+  serverName ||= selected?.serverName || 'iris-agentic-dev';
+  selected?.checkName(serverName,'.mcp.json');
   remoteOperations.assertRemoteAllowed(selectedContext);
   const configuration = JSON.parse(fs.readFileSync(path.join(root, '.mcp.json'), 'utf8').replace(/^\uFEFF/, ''));
   const selectedServer = configuration.mcpServers?.[serverName], settings = {IRIS_TLS_VERIFY:'false', ...(selectedServer?.env || {})};
+  selected?.checkServer(selectedServer,'.mcp.json',true);
   if (!selectedServer?.command || !settings.IRIS_NAMESPACE || expectedNamespace && settings.IRIS_NAMESPACE !== expectedNamespace) throw new Error('remote-mcp-target-unverified');
   const sessions = require('./lib/iris-session-client');
   if(sessions.managed(selectedServer) || /(?:^|[\\/])iris-agentic-dev(?:\.exe)?$/i.test(selectedServer.command)) {
@@ -560,7 +575,7 @@ async function createManagedMcpSession({projectRoot, context, serverName = 'iris
     return closing;
   };
   try {
-    client = new JsonLineMcpClient(selectedServer.command, buildMcpArgs(root, settings), settings, {remoteOwner: owner, cwd: root});
+    client = new JsonLineMcpClient(selectedServer.command, buildMcpArgs(root, settings), profileEnvironment(settings,selected), {remoteOwner: owner, cwd: root});
     await client.request('initialize', {protocolVersion: '2024-11-05', capabilities: {}, clientInfo: {name: 'iris-managed-session', version: '1.0.0'}}, timeoutMs);
     client.notify('notifications/initialized', {});
     const check = await callTool(client, 'check_config', {}, {allowWrite: true, timeoutMs, defaultNamespace: settings.IRIS_NAMESPACE});
@@ -599,10 +614,23 @@ async function main() {
   loadWorkspaceContext();
   const context = require('./lib/workspace-context').resolveWorkspaceContext(workspaceRoot);
   const sessionClient = require('./lib/iris-session-client');
+  const profileFile=path.join(context.contextRoot,'config/project.jsonc');
+  const bindings=command==='check' && fs.existsSync(profileFile)
+    ? require('./lib/configuration-file-io').parse(fs.readFileSync(profileFile,'utf8')).irisConnections : null;
+  const targetProfile=bindings?.profiles?.[bindings.active];
+  const verifyProfile=hasFlag('--verify-profile');
+  if (verifyProfile && (command!=='check' || !targetProfile)) throw Error('selected-connection-profile-required');
+  const verification=verifyProfile && require('./lib/iris-profile-verification');
+  const startingTarget=verification && verification.snapshot(context);
+  function checkSummary(data) {
+    const summary=summarizeCheck(data,targetProfile);
+    if (verification) verification.record(context,startingTarget,summary.profileTargetVerified);
+    return summary;
+  }
   if (sessionClient.managed(server) || /(?:^|[\\/])iris-agentic-dev(?:\.exe)?$/i.test(server.command || '')) {
     const managed = sessionClient.createClient({projectRoot: workspaceRoot, serverName:selectedServerName, allowWrite: hasFlag('--allow-write')});
     try {
-      if (command !== 'tools') emit('CHECK', summarizeCheck(await callTool(managed, 'check_config', {}, {allowWrite: true})));
+      if (command !== 'tools') emit('CHECK', checkSummary(await callTool(managed, 'check_config', {}, {allowWrite: true})));
       if (command === 'tools') {
         const catalog = await listTools(managed);
         const selected = names ? names.map(name => {const item = catalog.find(t => t.name === name); if (!item) throw new Error('Unknown MCP tool'); return item;}) : catalog;
@@ -636,8 +664,8 @@ async function main() {
     const check = await callTool(client, 'check_config', {}, { allowWrite: true });
     if (policy.enabled && (check.connected !== true || String(check.host || '').toLowerCase() !== String(env.IRIS_HOST).toLowerCase() ||
         Number(check.port) !== Number(env.IRIS_WEB_PORT) || check.namespace !== env.IRIS_NAMESPACE)) throw new Error('remote-mcp-target-unverified');
-    const checkSummary = summarizeCheck(check);
-    emit('CHECK', checkSummary);
+    const checked = checkSummary(check);
+    emit('CHECK', checked);
 
     if (command === 'check') {
       finish();

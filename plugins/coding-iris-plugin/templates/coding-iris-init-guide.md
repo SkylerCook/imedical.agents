@@ -33,7 +33,7 @@
 
 内容从 `templates/iris_project_profile.template.md` 填写。
 
-随后按 bootstrap skill 的[本地配置步骤](../skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)运行 `source-sync.js configure` 的 Write/Check，创建缺失的 `iris-development.json`；connected＋按需上下文同时生成禁用、资格 pending 的 `iris-remote-policy.json`。已有项目可以只执行此步骤补齐，已有文件保留；环境使用已确认事实，缺字段定点补齐。先确认文件受 Git 忽略，再生成。配置初始化不连接医院、不创建 Git、不建立基线；`work/source-sync/` 留给首次同步任务创建。
+随后按 bootstrap skill 的[本地配置步骤](../skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)运行 `source-sync.js configure` 的 Write/Check，创建缺失的 `project.jsonc` 的 `irisDevelopment` 节；connected＋按需上下文同时生成禁用、资格 pending 的 `iris-remote-policy.json`。已有项目可以只执行此步骤补齐，已有文件保留；环境使用已确认事实，缺字段定点补齐。先确认文件受 Git 忽略，再生成。配置初始化不连接医院、不创建 Git、不建立基线；`work/source-sync/` 留给首次同步任务创建。
 
 已启用项目也可直接走正常 Write 更新，现有配置迁移会自动补缺文件；旧模式缺省与已有字节保持，无法确认的模式/环境及资格集中报告，由 Agent 根据事实补齐。available/disabled、DryRun/Check 不写入；不要求使用者手改 JSON 或每次重跑初始化。
 

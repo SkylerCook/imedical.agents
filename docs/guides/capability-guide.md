@@ -31,7 +31,7 @@ IRIS 部署配置缺失时：Overlay 仅使用项目 manifest 明确声明的 pr
 
 1. 在目标业务工程中工作，先让 Agent 读取该工程的 `AGENTS.md`。本仓库是能力源，业务需求不在本仓执行。
 2. 尚未安装 `.agents` 时，按[安装与更新手册](../update-agents.md)接入；已有能力包也从该手册检查。Node.js 是能力包工具链依赖，不是业务系统生产依赖；文档转换、浏览器预览等专项依赖由对应技能检查。
-3. 查看目标工程 `.agents/config/plugin_profile.md`：`available` 表示可发现但尚未接入，`enabled` 表示参与常规更新和使用，`disabled` 表示禁用。目录存在或手册列出该插件不代表已启用。基础插件缺省策略也不能覆盖已有显式状态。
+3. 查看目标工程 `.agents/config/project.jsonc` 的 `plugins` 节：`available` 表示可发现但尚未接入，`enabled` 表示参与常规更新和使用，`disabled` 表示禁用。目录存在或手册列出该插件不代表已启用。基础插件缺省策略也不能覆盖已有显式状态。
 4. 明确要求接入所需插件时，使用[目录中的接入入口](capability-catalog.md#插件一览)，由 Agent 核对依赖、项目配置和 thin-index。纯初始化 skill 不出现在日常薄索引中时，直接读取插件内的真实 `SKILL.md`；无需为每次任务重新初始化。
 5. 选择下表中的场景，提供对象、目标和操作范围。既有授权继续有效；仅讨论或要求计划时，保持对应范围。
 

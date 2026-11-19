@@ -34,7 +34,10 @@ function loadSettings(env = process.env) {
     if (!file) return {};
     if (!path.isAbsolute(file)) throw new Error('embedding-config-path-invalid');
     let settings;
-    try { settings = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '')); }
+    try {
+        const io = require('./configuration-file-io');
+        settings = io.parse(io.readText(file));
+    }
     catch { throw new Error('embedding-config-unreadable'); }
     if (settings?.schema !== 'knowledge-rag-config/v1' || !settings.providers ||
         typeof settings.providers !== 'object' || Array.isArray(settings.providers)) {

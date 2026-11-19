@@ -9,7 +9,7 @@ description: 导出指定 IRIS 环境当前对象的 XML 部署包；将已确�
 
 ## 输入与完成标准
 
-先解析当前 `ContextRoot/config/iris-development.json`。offline 不执行医院导出，带回的实际源码或完整源码 XML 进入[离线开发与交付](../../references/iris-offline-development.md)；范围清单不当源码。connected（含旧配置缺省）继续本页，非法开发方式停止。
+先解析当前 `ContextRoot/config/project.jsonc` 的 `irisDevelopment` 节。offline 不执行医院导出，带回的实际源码或完整源码 XML 进入[离线开发与交付](../../references/iris-offline-development.md)；范围清单不当源码。connected（含旧配置缺省）继续本页，非法开发方式停止。
 
 - 输入：目标工程、明确的来源环境、对象清单，以及合包／分文件和格式选择。页面、Git 差异、关键字只用于发现候选。
 - 输出：目标工程正式交付目录中的 XML、准确对象清单、逐项结果和校验回执；恢复资料归当前 ContextRoot 的私有任务目录。

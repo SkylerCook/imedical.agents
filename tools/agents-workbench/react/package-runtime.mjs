@@ -91,24 +91,56 @@ if (runtime) {
   copy(join(runtime, "LICENSE"), "runtime/LICENSE");
   copy(`${react}/start-workbench.cmd`, "start-workbench.cmd");
 }
+copy(`${react}/import-workbench-release.ps1`, "import-workbench-release.ps1");
 
 for (const asset of ["serve.js", "inspect-project.js", "personal-settings.js", "project-settings.js"]) {
   copy(`${prototype}/${asset}`);
 }
 for (const file of [
   "LICENSE",
-  "tools/ai-dev-offline/configure-project.js",
+  "tools/ai-dev-offline/configure-project.js", "tools/ai-dev-offline/iris-connection-profiles.js",
   "tools/ai-dev-offline/configure-vscode.js",
   "tools/ai-dev-offline/operation-runtime.js",
   "tools/ai-dev-offline/vendor/jsonc-parser",
+  "vendor/jsonc-parser",
+  "vendor/iarna-toml",
+  "scripts/lib/configuration-file-io.js",
+  "scripts/lib/iris-development-settings.js",
+  "scripts/lib/iris-profile-verification.js",
+  "scripts/lib/project-deployment-policy.js",
+  "scripts/lib/project-directories.js",
+  "scripts/lib/project-plugin-profile.js",
+  "scripts/lib/project-plugin-settings.js",
   "tools/ai-dev-offline/vendor/iarna-toml",
   "scripts/install-agents.ps1",
+  "scripts/update-agents.ps1",
+  "scripts/plugin-deploy.js",
+  "scripts/refresh-agents-sparse.js",
+  "scripts/lib/WorkspaceContext.psm1",
+  "scripts/lib/offline-capability-update.js",
   "scripts/generate-plugin-catalog.js",
   "scripts/lib/workspace-context.js",
   "scripts/lib/plugin-deployment.js",
+  "scripts/lib/knowledge-embedding.js",
+  "scripts/lib/knowledge-retrieval.js",
+  "scripts/lib/knowledge-sources.js",
   "tools/agents-workbench/src/project-context.js",
+  "tools/agents-workbench/src/knowledge-search.js",
+  "tools/agents-workbench/src/knowledge-build.js",
+  "tools/agents-workbench/src/release-launcher.js",
+  "tools/agents-workbench/src/release-selection.js",
+  "tools/agents-workbench/src/start-release.js",
+  "tools/agents-workbench/src/release-update.js",
   "tools/agents-workbench/src/framework-service.js",
   "tools/agents-workbench/src/framework-worker.js",
+  "tools/agents-workbench/src/owner-powershell.js",
+  "tools/agents-workbench/src/overlay-members.js",
+  "tools/agents-workbench/src/overlay-open.js",
+  "tools/agents-workbench/src/overlay-update.js",
+  "tools/agents-workbench/src/offline-framework-actions.js",
+  "tools/agents-workbench/src/agent-handoff.js",
+  "tools/agents-workbench/build/build-offline-package.js",
+  "tools/agents-workbench/src/project-owner-actions.js",
   "scripts/lib/plugin-groups.json",
   `${dist}/index.html`,
   `${dist}/workbench-mark.svg`,
@@ -156,11 +188,12 @@ ${startup}
 
 首次安装和取版需 Git 及框架源访问权限。工程首页提供安装、检查、本地预演、取版预演及写入复查；运行回执会显示各阶段退出码和实际 HEAD。Windows standard 试点版本 ${version}。
 
-打开 [实际工作台](http://127.0.0.1:4179/#home)，配置从启动时绑定的工程和已有个人配置来源读取。对 Git 工程保存私有配置时，现有配置工具会调用 Git 检查跟踪状态。插件目录和手册使用本包的快照。
+通过浏览器或启动终端显示的地址打开工作台。配置从启动时绑定的工程和已有个人配置来源读取。对 Git 工程保存私有配置时，现有配置工具会调用 Git 检查跟踪状态。插件目录和手册使用本包的快照。
 
-使用 --demo 可查看虚构工程。[演示首页](http://127.0.0.1:4179/#/clinic/home)
+使用 --demo 可查看虚构工程。
 
-服务仅监听 127.0.0.1。按 Ctrl+C 停止，端口冲突时可在启动前设置 PORT。
+打包启动器为每次启动自动分配端口，可并行打开多个工程。服务仅监听 127.0.0.1，在对应终端按 Ctrl+C 停止。直接运行 serve.js 默认使用 4179，可用 PORT 指定端口。
+${formal ? "\n在工程首页导入团队发放的新版 ZIP 和包外发行记录后，原启动器会为该工程优先打开已核验的版本。新版启动失败时自动使用旧版，也可在新版首页点击「恢复旧版工作台」。\n" : ""}
 `, "utf8");
 
 const sha256 = relative => createHash("sha256").update(readFileSync(join(destination, relative))).digest("hex");
@@ -170,6 +203,16 @@ const metadata = {
   installerSha256: sha256("scripts/install-agents.ps1"),
   documentationSha256: Object.fromEntries(documents.map(document => [document, sha256(document)])),
 };
-if (formal) assertReleaseSource();
+if (formal) {
+  assertReleaseSource();
+  const tree = git("ls-tree", "-r", "-z", sourceBaseRevision, "--", "scripts", "plugins", "vendor", "hooks");
+  // Match the runtime worker and shipping installer's verified Git tree bytes.
+  const deployed = tree.toString("latin1").split("\0")
+    .filter(row => row.slice(row.indexOf("\t") + 1) !== "scripts/install-agents.ps1");
+  metadata.runtimePin = {
+    revision: sourceBaseRevision,
+    treeDigest: createHash("sha256").update(deployed.join("\0"), "latin1").digest("hex"),
+  };
+}
 writeFileSync(join(destination, "workbench-release.json"), JSON.stringify(metadata, null, 2) + "\n");
 console.log(`运行包已就绪：${destination}`);

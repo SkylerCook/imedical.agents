@@ -98,7 +98,7 @@ function planWorkspace(request, { allowProgress = false } = {}) {
     if (!Array.isArray(requiredScripts) || !requiredScripts.length) throw new Error('Required scripts must be a nonempty array');
     requiredScripts.forEach(relative);
     const contextReferences = (request.contextReferences || []).map(ref => ({ path: relative(ref.path), source: absolute(ref.source, 'context reference source') }));
-    if (!contextReferences.some(ref => ref.path === 'config/plugin_profile.md')) throw new Error('Original plugin_profile context reference required');
+    if (!contextReferences.some(ref => ['config/project.jsonc','config/plugin_profile.md'].includes(ref.path))) throw new Error('Original plugin_profile context reference required');
     const entrypointReference = absolute(request.entrypointReference || path.join(businessWorkspace, 'AGENTS.md'), 'entrypointReference');
     const requiredRules = request.requiredRules || [];
     if (!Array.isArray(requiredRules)) throw new Error('requiredRules must be an array');

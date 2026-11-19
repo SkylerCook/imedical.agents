@@ -1,6 +1,6 @@
 # .agents 本地工作台：可行方案与实施计划
 
-> 状态：2026-11-19 修订，Windows standard 工程试点 0.2.0 已交付。工作台 0.2.1 补齐离线手册导航，并建立源码、手册和 ZIP 一致性发布门槛，见 8.7。Overlay 写入和真实多库切换继续沿各自方案实施。
+> 状态：2026-11-19 修订，Windows standard 工程试点 0.2.0 已交付。工作台 0.2.1 补齐离线手册导航，并建立源码、手册和 ZIP 一致性发布门槛，见 8.7。Windows standard 多库切换的源码试点见 6.6。Overlay 双向导航和标准根批量刷新已完成 Windows 隔离暂存验收，正式发行及业务试点待验。
 > 本计划承接用户确认的方向：离线 Web UI／EXE、框架自有运行配置以 JSONC 为统一目标、UI 与 Agent 共用配置接口、复用本工程能力、兼容已经部署的项目。工作台首版不新增 SQLite；已有知识／向量组件的内部存储继续沿 owner 实现。
 
 ## 1. Goal：以工程为单位降低框架上手与日常维护成本
@@ -150,7 +150,7 @@ Root 视图增加“模块”导航与共享更新总览；模块视图固定显
 
 | 内容 | 形式与责任 |
 |---|---|
-| 框架自有运行配置 | 以 JSONC 为统一目标；每个配置域只有一套生效来源，沿 6.5 完成全部消费者后启用 |
+| 框架自有运行配置 | 以 JSONC 为统一目标；每个工程默认共用 ContextRoot/config/project.jsonc，各域只维护自己的分节，沿 6.5 完成全部消费者后启用 |
 | 规则、技能、项目说明和使用手册 | Markdown；精确配置字段逐域结构化，说明与判断要求保留在正文 |
 | 外部客户端／工具配置 | 严格遵循其原生 JSON／JSONC／TOML 契约；由 owner 适配，不擅改扩展名或添加注释 |
 | 插件 manifest、JSON Schema、lockfile、工具通信结果 | 保持协议要求的标准 JSON；它们不属于本次运行配置格式统一范围 |
@@ -174,7 +174,7 @@ JSONC 比 JSON 多出注释能力，并不自动解决配置分散、校验与�
 
 上例仅示意配置字段；有效路径和字段契约归实际 owner。注释用于简明解释与帮助引用，类型、必填项、默认值和作用域由 schema／owner 定义，UI 不解析注释作为规则。
 
-- 复用仓库已使用的 `jsonc-parser 3.3.1`：纯 JavaScript、无第三方运行时依赖、MIT 许可。现有副本只随 ai-dev-offline 分发；共享化时以根 `vendor/jsonc-parser/` 为 canonical，保留来源、固定版本、摘要与许可证。独立工具打包继续使用原有相对布局，由 canonical 生成并校验，避免两份手工维护源。
+- 复用仓库已使用的 `jsonc-parser 3.3.1`：纯 JavaScript、无第三方运行时依赖、MIT 许可。当前源码以根 `vendor/jsonc-parser/` 为 canonical，保留来源、固定版本、摘要与许可证。独立工具打包继续使用原有相对布局，由 canonical 生成并校验，避免两份手工维护源。
 - 框架统一读写能力放在 `scripts/lib/configuration-file-io.js`，复用已有 JSONC 编辑实现中的可分离函数；不调用带自动恢复副作用的 GUI main。业务项目部署 vendor 及完整依赖闭包，运行不要求 `npm install`，也不依赖源仓 `tools/`。
 - 检查解析错误列表、重复键、根类型及 schema；解析器容错返回结果不代表配置有效。严格 JSON 的协议输入继续严格解析，不统一放宽全部 `JSON.parse`。
 - 字段级编辑使用语法树及局部 edits，保留无关字段、注释、缩进、UTF-8 BOM 和 CRLF／LF／CR。新增文件默认 UTF-8 无 BOM；已有文件沿其有效编码与换行，无法安全编辑时报告限制。
@@ -315,6 +315,12 @@ recover(context, receiptRef, decision) -> { state, findings[] }
 
 ### 6.5 框架消费者迁移：一个配置域一次交付完整链路
 
+当前源码已接入部署策略与插件启停。standard 工程的“工程配置 → 编辑工程连接 → 插件部署策略”和 `plugin-deploy.js configure` 共用 `deployment.autoInstall`。Check 兼容旧策略，Write 迁移后退出旧路径，切回旧版前运行 `rollback-project`。插件状态取自同一文件的 `plugins.<插件 ID>.status`；实际启停执行原 `update-plugin-profile.ps1`，工作台插件页读取同一节。IRIS 开发模式、环境别名与环境类型进入主配置的 `irisDevelopment` 节。工程连接与受管 backend 仍沿原 owner；这些域还需协调 CLI、PowerShell、宿主同步和凭据引用后迁移。个人知识提供方继续使用显式绑定的私有文件，支持注释。Windows 隔离安装、原更新和打包界面验收入口为 `tools/agents-workbench/tests/project-policy-pilot.py`。
+
+主配置位于 `ContextRoot/config/project.jsonc`（standard 工程为 `.agents/config/project.jsonc`）。插件按稳定 ID 分节，工程设置与连接档案可共用，凭据只引用个人来源。模块、医院和根工程各自沿现有 resolver 解析 ContextRoot。宿主协议文件、定位 ContextRoot 的启动声明及私有凭据来源沿各自契约。
+
+各写入口在同一主文件互斥范围内重读并只修改所属字段，保留其他分节、未知字段和注释。迁移完成后通过原消费者读回，才将被替代的旧文件移出原路径。验收覆盖新装、冲突、回退、重复更新与跨分节并发编辑。
+
 JSONC 统一范围是本框架拥有并能控制所有消费者的运行配置；manifest、JSON Schema、通信 JSON 和宿主规定格式按 5.1 保留。迁移以域为单位闭合，既有配置可正常使用，不能只改 UI、扩展名或某一个 parser。
 
 | 首批配置域 | 必须追踪的现有入口（不是完整清单，实施时补齐真实调用链） |
@@ -326,11 +332,13 @@ JSONC 统一范围是本框架拥有并能控制所有消费者的运行配置�
 | 知识提供方 | knowledge-embedding.js、初始化／构建／查询入口、环境变量路径绑定 |
 | 工程 profile／插件配置 | 项目上下文、插件启停与初始化、索引生成、Agent 指令及实际读取受管字段的脚本 |
 
+coding、表单、i18n 与接口的首批参数及尚保留的来源见[插件工程运行参数](guides/plugin-runtime-settings.md)。
+
 每个域沿以下顺序执行，受影响测试夹具清单兼作覆盖记录，不另建全仓配置注册数据库：
 
 1. **查全读写者**：以实际路径解析、读取函数和调用链定位 JS、PowerShell、Agent skill、模板、迁移与恢复入口，区分运行配置、状态记录与宿主协议。字符串搜索只是线索；拼接路径、生成字段和子进程读取需用行为测试补齐。
 2. **先统一能力，再放开注释**：所有受控消费者使用共同解析／校验逻辑；PowerShell 5.1 薄入口调用 Node 读取并接收标准 JSON，再用其原有对象处理，不依赖 PS7 对注释的容忍。JSON Schema 验证解析后的值，写入口用局部 edits 保留注释。普通配置读取不触发初始化或恢复。
-3. **声明路径与兼容**：owner 声明 canonical `.jsonc` 路径及确有必要的 legacy `.json`／MD 入口。仅旧来源存在时继续读取；两者同时存在时报告具体来源冲突，不静默选一个或合并。环境变量显式绑定的私有文件沿绑定读取，不能擅改文件名或注册表。
+3. **声明路径与兼容**：owner 声明主配置中的分节及确有必要的 legacy `.json`／MD 入口。仅旧来源存在时继续读取；两者同时存在时报告具体来源冲突，不静默选一个或合并。环境变量显式绑定的私有文件沿绑定读取，不能擅改文件名或注册表。
 4. **同域整套发布**：读取者、写入者、模板、schema、初始化、更新与 Agent 指令随同一交付更新；先部署兼容 reader 和完整依赖，再由新版更新流程迁移，不能让旧更新进程继续用严格 parser 处理新文件。独立工具的兼容版本与交付包同步说明。新建工程生成 JSONC；已有工程先预览、核对原值与未知字段，优先在同目录保留字节改名；需结构转换时沿 owner 回执保护，不同时保留两份常规有效来源。写后用实际消费者读回，手工注释和 Markdown 说明保留。
 5. **迁移与回退成对验证**：目标框架版本不支持 JSONC 时不写注释；不能用“工作台能读”替代框架支持。回退旧消费者前由 owner 先恢复兼容配置，禁止把含注释的文件直接交给旧 parser。未知或手改格式保持只读，提供 Agent 接续。
 6. **真实调用闭环**：对每个已登记读写者使用含两种注释、注释样式字符串、BOM／换行及未知字段的夹具，完成初始化→配置→CLI/脚本读取→更新→再编辑→恢复；覆盖 standard／Overlay、离线和重开，不仅测试公共 helper。双格式冲突、重复键、非法语法、错误类型及新文件并发创建应有确定结果。
@@ -350,7 +358,9 @@ JSONC 统一范围是本框架拥有并能控制所有消费者的运行配置�
 
 周期同步为两套库提供同步完成时的共同代码起点。切换沿用同一本地工作区和本地改动。编译或部署按现有流程核对目标库中本次涉及的对象，并为该目标生成计划。旧计划、会话、基线和结果未知的写操作仍归其原目标。网络故障时由用户显式选择另一库，原库已发出的操作按原目标核实。
 
-原型以开发库 A／B 和模拟重连演示该流程，真实配置同步仍以各入口的读回和连接核验为准。
+Windows standard 的源码试点已接入此流程。打开“工程配置 → 编辑工程连接 → 开发库档案”。首次新增目标时，工作台从实际配置承接当前库，保存为 `current`。以后从列表选择已有档案即可切回。预览展示两个目标和涉及的文件。客户端重连后，在工程配置或“MCP 与连接”点击“核验当前连接”。工作台调用原 `iris-mcp.js check --verify-profile --json`，比对本次返回值与档案回执，显示 IRIS MCP 命中的档案及时间。自定义启动器、未验证版本可生成 Agent 接续请求。切库或手改绑定文件后旧核验失效。
+
+验收入口为 `tools/agents-workbench/tests/project-policy-pilot.py`。它使用历史 revision 的原更新器、隔离 Git 源、自定义 MCP 名称和打包 React，覆盖 A→B→A、条件写入冲突、原文件恢复和已有宿主的退出。目标地址和凭据均为合成数据；实际开发服务器及各客户端的重连需在目标环境核验。正式 ZIP 沿独立发行流程更新。
 
 ## 7. 运行架构与安全
 
@@ -428,11 +438,15 @@ tools/agents-workbench/
 
 普通 UI 编辑不自动改变格式或路径。只有当前域全链路支持后，迁移才能作为显式可预览动作或已获授权更新中的 owner 步骤执行。原 CLI／Agent 无需工作台即可读取，命令名称保持兼容。
 
+Windows standard 源码试点的插件管理预览按实际安装情况提供补装、启用或停用。补装沿原安装 owner 处理依赖；启停后重新读取工程状态和宿主发现入口。需要初始化时，接续请求带上该插件实际的初始化 skill、依赖和缺失配置。试点验收入口为 `tools/agents-workbench/tests/owner-actions-pilot.py`。
+
 ### 8.3 Overlay更新
 
 按真实CapabilityRoot归组：共享框架更新一次，再逐个已登记ContextRoot以NoPull刷新。离线成员沿既有lastRequired保留资源；未登记成员范围不完整时不能裁剪共享资源。UI显示受影响工程，不让使用者手工推导共享关系。
 
-工作台不保存另一套SourceRoot映射，读取现有capability.json。Root 到模块的导航使用独立实例；不同实例的配置、凭据、草稿与测试结果隔离。
+工作台复用已有 `capability.json` 与成员登记。标准根成员列表可以打开成员工作台，模块首页可以打开所属标准根。每个工程使用独立实例、回环端口和会话。工程身份已核验时，源码目录未就绪只影响对应成员的刷新，可以进入工作台核对；缺席或无法核验身份的成员显示原因。
+
+已有模块首次接入从模块工作台点击“刷新本工程”，沿共享版本完成 `DryRun → Write → Check -NoPull` 后读回登记。历史 full 部署保留自身模式、物料与稀疏检出规则。
 
 ### 8.4 旧框架兼容与执行来源
 
@@ -462,6 +476,8 @@ tools/agents-workbench/
 - 用户级客户端设置显示跨工程影响；工程级优先。一个工程可适配多个宿主，canonical只维护一份。已生成、宿主发现、实际调用分别显示。
 - 交接带任务标识、当前工程/模块、目标、已完成步骤、未完成项和允许范围；对话输出不自动成为成功回执。Agent 修改后的文件仍走相同漂移/冲突检查，授权不因宿主切换扩大。
 
+源码暂存版的「Agent 客户端」已支持复制项目级接入请求。请求带当前工作目录、ContextRoot 和 CapabilityRoot。有实际适配脚本时附 `DryRun` 和 `Check` 命令。Overlay 使用共享脚本，核查当前模块的技能和入口。未知宿主及未安装工程按实际入口提示人工核对。返回同页点击「重新检查」可读取最新文件状态，实际加载由宿主确认。Windows 隔离验收见 `tools/agents-workbench/tests/agent-handoff-pilot.py`。
+
 ### 8.7 工作台交付与框架部署、更新
 
 工作台与业务工程 `.agents` 分别安装和更新。界面同时显示工作台包版本、来源 revision，以及当前工程实际读到的框架 revision。随包插件目录和手册属于构建快照。工程的已装版本和启用状态以实际 CapabilityRoot 与 ContextRoot 为准。
@@ -470,8 +486,10 @@ tools/agents-workbench/
 |---|---|---|
 | 安装工作台 | 解压可信 ZIP 到独立工具目录，用随包 `start-workbench.cmd` 启动后选工程，也可显式传 `--project` | 无系统 Node、无源码 checkout、无 `node_modules` 的隔离环境能解压、启动、读手册并识别工程 |
 | 更新工作台 | 按 8.7.1 从发行渠道取新版，验证 ZIP 后并排解压，用原工程启动。旧版可作为启动失败时的恢复入口 | 新版可查看同一工程，原框架 revision、配置及恢复材料可读取。旧版恢复启动后重新检测工程兼容性 |
-| 首次安装框架 | 识别无 `.agents` 的 standard 工程，预览目标、来源和受影响入口。获授权后，以工程为 cwd 调用随包可信 `install-agents.ps1` 及其依赖。首个试点沿现有 Git 下载方式，随后由原入口补装所需能力和生成配置 | `.agents` Git、sparse 范围、基础插件和生成入口实际读回。既有 AGENTS 正文、自定义 MCP 与私有配置按原安装契约保护。需 Agent 初始化或宿主验证的步骤分别显示 |
-| 更新已有框架 | 读取实际工程入口，按下述标准或 Overlay 流程执行。接入、查看状态和本地预演可独立使用 | 读回实际 Git revision、sparse 和启用状态，再执行 owner `Check`。框架已取版、生成层已刷新、宿主已加载分别显示 |
+| 首次安装框架 | 识别无 `.agents` 的 standard 工程。可沿现有 Git 来源首装，也可选择完整离线能力包并核对目标，再确认调用随包可信 `install-agents.ps1` | `.agents` Git、sparse 范围、基础插件和生成入口实际读回。既有 AGENTS 正文、自定义 MCP 与私有配置按原安装契约保护。需 Agent 初始化或宿主验证的步骤分别显示 |
+| 更新已有框架 | 读取实际工程入口，按下述标准或 Overlay 流程执行。Windows standard 工程可使用已批准的离线能力包预演并应用快进更新 | 读回实际 Git revision、sparse 和启用状态，再执行 owner `Check`。框架已取版、生成层已刷新、宿主已加载分别显示 |
+
+原更新器在 `Check` 阶段也会加载已装插件声明的迁移脚本。工作台执行前同时核对已验证的完整提交号及其运行文件，检查已装插件声明的脚本是否在场。即使文件树相同，新提交仍需单独验证。其它提交可以查看工程身份和实际版本。
 
 **Windows standard 试点。** 固定交付包为 `tools/dist/agents-workbench-react.zip`，版本、SHA-256、兼容范围和旧包位置见同目录 `agents-workbench-react.release.json`。包内含便携 Node 24.22.3、预编译界面、字体与许可、手册和可信首装脚本。双击 `start-workbench.cmd` 选中工程，首页提供首装、检查、本地预演、取版预演和应用后复查。已有工程继续调用自己的更新器。Git 取版沿框架来源，工作台启动可离线。
 
@@ -483,20 +501,22 @@ tools/agents-workbench/
 
 **工作台调用边界。** 界面通过后端映射到固定命令和参数，复用 owner 的锁、恢复与插件依赖流程。执行前重核工程、能力根、版本与预览范围。同一工程的重复点击返回原任务状态。旧入口的终端摘要用于辅助诊断，完成状态以退出结果、Git 与文件读回和 owner 检查为准。只有确需稳定机器结果时才为 owner 补最小结构化出口，沿用原命令语义。工作台后端暴露部署和更新动作前，先按 7.2 验证本机写接口授权与工程绑定。浏览器关闭或工作台升级时，已有写任务先到安全点。
 
-**断网边界。** 工作台 ZIP 可以断网启动。工程 `.agents` 的首次下载或更新取版仍走现有 Git 来源，另有明确授权的本地能力包时才走任务17。首轮用测试范围内的本地 bare Git 源验收真实安装和快进更新，该夹具不算已交付完整离线包。
+**断网安装和更新。** 工作台 ZIP 可以断网启动。Windows standard 源码暂存版已接入首页「选择并预演离线能力包」。从批准渠道另行取得离线发行记录，按文件选择窗口依次选中发行记录与 `capability.bundle`。正式物料默认由 `refs/heads/master` 构建，离线首装沿用该发布分支，工程之后可在线或离线更新。预演核对工程、获准的目标提交、SHA-256 和完整 Git 对象，保持工程原样。核对界面目标后点击「确认离线首装」或「应用离线更新」。写入前再次校验包与工程，复用原安装、更新和 sparse 入口，保留已有远端和上游。Windows PowerShell 5.1 隔离验收已完成。后续正式候选 ZIP 及 Overlay 离线写入继续独立验收，现有正式 ZIP 仍为 0.2.1。
 
 #### 8.7.1 工作台新版如何分发
 
 工作台沿 React `package.json` 独立发布。从 0.2.1 起，正式 ZIP 的源码、安装器、手册和界面构建必须绑定同一个 Git 提交。维护者按以下顺序发布，用户沿下方既有更新路径领取完整包。
 
 1. 在干净的目标提交上执行 `npm run stage:release -- <新暂存目录> --node-runtime <已校验 Node 目录>`。正式入口从该提交重建界面，再暂存发布内容。开发预览继续使用 `stage`。命令和验收步骤见能力源仓 `tools/agents-workbench/react/README.md` 的「维护者发布」。
-2. 核对暂存清单中的完整提交 SHA、版本、Node 及安装器和手册 SHA-256。包内手册从源仓原路径复制，包括团队使用手册、`docs/update-agents.md` 和 `docs/workspace-overlay.md`。运行包继续在离线手册中提供对应的更新续接和 Overlay 跳转。
+2. 核对暂存清单中的完整提交 SHA、版本、Node 及安装器和手册 SHA-256。正式暂存从同一提交生成 `runtimePin`，包外发行记录沿用该提交号和运行树摘要。包内手册从源仓原路径复制，包括团队使用手册、`docs/update-agents.md` 和 `docs/workspace-overlay.md`。运行包继续在离线手册中提供对应的更新续接和 Overlay 跳转。
 3. 记录待发 ZIP 的字节数和 SHA-256，从独立位置解包复验同一份产物。启动、手册导航及标准安装更新通过后，才用新版替换固定交付文件。发布 0.2.1 时把旧 0.2.0 和对应发行记录移入 `tools/dist/history/agents-workbench-react/0.2.0/`。包外发行记录保留版本、平台、提交 SHA、ZIP 字节数与 SHA-256、变更和实际验证范围。留存、分发和试点现场使用已核验的同一 ZIP。
+
+正式验收应使用候选 ZIP 本身和实际分发的框架版本。检查包内登记的精确框架提交和运行树，再从界面验证默认首装、已有工程取版预演、写入复查和 owner 操作。前序已发版本及试点当前已装的批准版本用完整提交与运行树保留兼容，并按实际升级起点复测。候选包还需独立验证远端前进后的选择和回退入口。
 
 首轮试点推荐走**组织批准的只读内网发放点**，维护者在新版通过校验后才更新推荐版本入口。隔离环境沿现场既有物料导入流程领取同一 ZIP 和可信渠道提供的发布记录。环境管理员可以批量发放一个版本。同一工作台版本可管理多个工程，各工程仍各自读取实际绑定和配置。仓库 `tools/dist/` 是构建交付落点，正式发放位置由试点方确定。
 
 - **首轮用户怎么更新。** 下载或导入完整新版 ZIP，按发行渠道的记录校验，解压至新版本目录。等待旧工作台写任务到安全点，从同一工程启动新版并验证。新版无法启动或无法识别工程时，直接启回旧版。失败的校验、下载或解压发生在切换之前。恢复工作台只切换运行目录，工程文件的恢复沿对应 owner 回执。
-- **何时接到 UI。** 试点先提供固定的获取新版入口和版本信息。渠道稳定后，在工作台设置中增加「检查更新」与「导入更新包」，共用同一份发行记录和校验流程。用户明确选择更新后才切换，写任务期间可提示有新版，到安全点再完成。应用内切换沿用同一并排安装方式，首版使用完整包。
+- **在页面导入新版。** 支持导入的 Windows 正式工作台在工程首页提供「导入工作台新版」。选择完整 ZIP 和可信渠道的包外发行记录后，工作台并排导入，启动候选并核对原工程绑定和页面资源。通过后可打开新版，原启动器会为该工程使用已核验的版本。候选启动失败时会尝试旧版。新版也可用「恢复旧版工作台」启回原工程，运行中的实例继续完成各自任务。渠道稳定后可复用同一份发行记录接入检查更新和推荐版本入口。
 - **跨版本如何工作。** 工程页显示实际框架 revision，更新页显示工作台当前版、可获取版及兼容说明。兼容性按目标工程实际入口及能力判断。超出已验证范围时，继续提供已支持的查看与诊断，对无法可靠执行的动作说明原因和可用的原框架入口。更新一种组件时，只有用户另行选中另一种操作才执行。
 
 ## 9. 功能交付范围
@@ -505,7 +525,7 @@ tools/agents-workbench/
 |---|---|---|
 | 工程管理 | 选择、只读接入、状态、分域编辑 | 无全盘扫描；自定义布局先保持只读 |
 | 工作台交付与更新 | 完整 ZIP、可信发行记录、并排解包升级、原工程绑定恢复 | 渠道稳定后接检查与导入更新包 |
-| 框架部署更新 | standard 首装与已有工程更新，实际读回 | Overlay 共享更新及真实离线能力包分别验收 |
+| 框架部署更新 | Windows standard 首装、已有工程更新及本地完整能力包，实际读回 | 正式候选 ZIP 复验、Overlay 共享及离线更新 |
 | 插件管理 | 全部有manifest插件可浏览、依赖预览、补装、启停 | 不自动启用未完成初始化的领域插件 |
 | 配置UI | 基础工程、IRIS、BOS、知识提供方有schema与保存；JSONC域全消费者闭环 | 其余owner逐个补schema；无schema显示原来源，不宣称全部可编辑 |
 | Agent客户端 | 入口适配、能力分级、提示词交接与结果重查；可用接口逐宿主接通 | 不保证操控任意宿主聊天窗口或取得其会话结果 |
@@ -515,6 +535,10 @@ tools/agents-workbench/
 | 向量库 | 已有索引状态、选装／移除、preview/build/续建/export | 外发授权、模型／维度一致性仍由owner校验 |
 | 手册 | 全部`docs/guides/`导航、搜索、锚点和安全链接 | 不复制成独立手册维护；不自动运行代码块 |
 | 备份恢复 | owner配置回执／私有备份、非敏感状态导出、条件恢复 | 凭据按原来源迁移；未知外部写不重放 |
+
+知识正文检索已接入实际工程的「知识与向量」页面。Windows 源码暂存包已在无向量索引的隔离工程中验证命中、来源行号及无匹配状态，配套测试覆盖包内运行依赖和跨来源请求拒绝。正式 ZIP 仍沿既有发行流程交付。
+
+同页可按原框架入口选装和移除公司分发索引，并读回发布供应、选装、落盘和格式状态。暂存包已在内置浏览器验证选装与移除，Windows 隔离测试另核对了本地缓存保留。Overlay 读取共享状态，选装从所属标准工程执行。
 
 不能把首轮只读面板交付为完整工作台。最终验收至少打通“已有工程接入→配置修改→插件可用→退出重开后原CLI读取一致”的真实路径。
 
@@ -689,30 +713,29 @@ Marked、DOMPurify与Ajv版本沿原调查记录，尚不代表本项目集成�
 - 12a：选定工程后验证 `Check` 与 `DryRun -NoPull`，显式取版使用普通 `DryRun`。完成新版预演后，调用落盘入口的 `Write -NoPull` 并复查。安装命令须在选定工程 cwd 运行。
 - 12b：从 ZIP 解包后，以随包安装入口在无 `.agents` 的非空工程完成真实安装与读回。保留既有 AGENTS 正文、自定义 MCP 和业务文件。沿用 `scripts/tests/update-agents.tests.ps1` 的本地 bare Git 模式，用历史 revision 验证真实更新和部分失败后续接。安装器固定来源只在测试子进程中映射到夹具，保持用户的 Git 配置和框架生产来源。
 - 12c：测试插件补装→配置未完成仍available→配置完成后setter启用→索引读回；反向依赖阻止停用。
-- 12d：standard 通过后验收 Overlay。多个 ContextRoot 只更新共享能力一次，各选定成员独立读回，部分失败可以单独续接。保留离线成员依赖与用户定制入口。
+- 12d：Windows 隔离暂存已验证两个 Overlay 成员共享一次根更新，各成员独立复查，部分失败可单独续接，缺席成员依赖与用户定制入口保留。同一 Edge 浏览器实测根与模块双向打开、独立会话、目标启动失败后原窗口可继续使用。历史 full 工程初始无登记时，单独刷新模块可完成登记，标准根重新读取即可管理，部署模式和 sparse 规则保留。正式候选 ZIP 和真实模块、医院项目待试点验收。
 
-验证：`node --test tools/agents-workbench/tests/deployment.test.js tools/agents-workbench/tests/plugins.test.js`；Windows下补`powershell.exe -NoProfile -File scripts/tests/update-agents.tests.ps1`与`pwsh.exe -NoProfile -File scripts/tests/update-agents.tests.ps1`。预期真实临时Git夹具通过，无业务仓写入。
+验证：`node --test tools/agents-workbench/tests/deployment.test.js tools/agents-workbench/tests/plugins.test.js`；Windows 下补 `powershell.exe -NoProfile -File scripts/tests/update-agents.tests.ps1` 与 `pwsh.exe -NoProfile -File scripts/tests/update-agents.tests.ps1`。Overlay 使用 `node --test tools/agents-workbench/tests/overlay-stock-pilot.test.js tools/agents-workbench/tests/overlay-update.test.js`。将 `WORKBENCH_OVERLAY_PILOT_APP` 指向专用临时暂存目录，可在同一夹具中复验 Edge 导航；浏览器测试会短暂禁用该临时目录的启动入口以验证恢复。
 
 ### 任务13：MCP与宿主管理
 
-文件：`src/engine-adapter.js`、`tests/mcp.test.js`、`scripts/lib/iris-session-migration.js`仅按实际缺口局部调整。
+工作台入口为 `tools/agents-workbench/src/project-owner-actions.js` 与 `agent-handoff.js`。配置读取、程序可运行、工具发现、宿主加载和远端连接各自保留证据。
 
-- 13a：测试配置存在／程序存在／受管Check／宿主发现／远端连接为独立状态；读取不启动服务器。
-- 13b：测试已知受管迁移复用owner，保留其它服务、自定义args/env和disabled；未知启动器只读展示。
-- 13c：用假stdio服务做initialize/tools-list/正常关闭，证明确认后只做发现而不调用写工具；记录真实退出而非仅发close。
-- 13d：宿主适配复用sync-runtime-skills/agents；测试生成与实际发现分离、用户级影响预览。
+- 13a：打开「MCP 与连接」只读取工程注册来源和字段状态。「核验当前连接」调用原 `iris-mcp.js check --verify-profile --json`，为已选档案记录实际命中的远端目标。
+- 13b：已知 IRIS 直连入口沿原框架更新的 `DryRun → Write → Check` 迁移，复用 `scripts/lib/iris-session-migration.js`。保留其它服务、原始参数、环境值和禁用状态。自定义启动器可读取注册并由宿主或 Agent 核对。
+- 13c：Windows standard 工程选择并绑档后，可显式点击「发现受管 IRIS 工具」。工作台用包内 Node 对已核验工程的固定 `iris-session-mcp.js` 依次执行 `initialize`、`tools/list` 与退出检查。回执显示受管适配器返回的工具、退出状态和后端程序是否存在。后端待部署时仍可读取本地工具目录。远端认证沿 13a，宿主实载沿 13d。直连、自定义或禁用入口转人工核对。
+- 13d：客户端页面读取项目入口，并复制 `sync-runtime-skills.js` 的只读预演与检查命令。生成的 Skills、原生 Agents 文件和实际加载分开核对。支持的项目级入口与用户级适配范围沿既有宿主脚本及手册确认。
 - 13e：逐宿主核实官方调用接口并做最小往返；测试直接派发、仅打开、提示词复制三种能力级别，以及失败/提问/取消不支持时的真实反馈。复制请求不标完成，返回后重查 owner 状态。
 
-验证：`node --test tools/agents-workbench/tests/mcp.test.js scripts/tests/runtime-agents.tests.js scripts/tests/runtime-skills.tests.js`。真实宿主加载单独在授权工程验收。
+先在 `tools/agents-workbench/react` 执行 `npm run build`，再运行 `tools/agents-workbench/tests/owner-actions-pilot.py` 验收 Windows 暂存件与本机回环。现有 owner 回归使用 `node --test scripts/tests/iris-mcp-schema.tests.js scripts/tests/iris-session-migration.tests.js scripts/tests/runtime-agents.tests.js scripts/tests/runtime-skills.tests.js`。真实宿主加载单独在授权工程验收。
 
 ### 任务14：知识与向量面板
 
 文件：`src/engine-adapter.js`、`tests/knowledge.test.js`。
 
-- 14a：本地检索用既有knowledge-query加local-only，断网夹具必须返回来源、行号和本地模式。
-- 14b：测试install-index/remove-index与物理索引状态分开，工作台不复制业务vectors，保留已有索引／缓存数据库。
-- 14c：测试preview返回外发目录、provider、模型和费用未知值；只有范围授权后才能build，新增目录必须重新预览。
-- 14d：故障注入中断后按原构建缓存续建；只在complete与remainingVectors满足owner判据后显示完整，export沿原校验。
+Windows 源码暂存包已用内置浏览器完成本地构建和零外发读回。模拟提供方回归验证预览零请求、范围外资料不发送、变更后重新确认及缓存续建。实际提供方和组织允许外发的资料范围需在授权环境复查。
+
+- 14d：分发索引导出继续沿源仓维护者的原校验路径，补齐工作台接续与对应结果读回。
 
 验证：`node --test tools/agents-workbench/tests/knowledge.test.js scripts/tests/knowledge-retrieval.tests.js scripts/tests/knowledge-deployment.tests.js`。不调用真实Embedding服务；现场真实服务另行授权。
 
@@ -734,23 +757,23 @@ Marked、DOMPurify与Ajv版本沿原调查记录，尚不代表本项目集成�
 
 - 16a：以 React 构建和便携 Node 生成最小 Windows x64 ZIP。发布清单包含编译资源、随包字体和许可、手册、可信 resolver 与首次安装入口依赖。在断网、无系统 Node、无源码和 `node_modules`、中文空格路径下实际运行。
 - 16b：工作台与框架子进程使用同一包内 Node。验证框架动作使用的 Git 和 PowerShell，缺项时按现有离线助手提示。用户环境保持原状。
-- 16c：支持独立绑定工程并检查端口冲突。验证重复开启同一工程、并行打开两个工程、退出及活动任务收尾，保留其他工程与用户进程。
-- 16d：按 8.7.1 校验包内容和包外发行记录，演练同名 ZIP 的版本归档、隔离环境导入、并排更新及失败启回。新版启动和识别工程通过后才替换默认启动位置。损坏 ZIP、兼容范围不符、切换中断以及进行中的写任务各有可验证的处理结果。
+- 16c：补验重复开启同一工程及写任务运行期间的退出与收尾。源码暂存包的独立端口和独立会话已通过 Windows 双工程启动、共享浏览器 Cookie 及关闭单实例回归。
+- 16d：Windows 暂存包已在内置浏览器验证导入、打开新版与保留旧实例，选择文件由隔离夹具提供。Windows 启动回归覆盖同一工程默认进入核验版、多个工程独立选择、自动回退、一键启回和并发保存。实际知识构建期间，导入与恢复在打开文件选择前暂停，构建落盘后同一旧会话可继续导入，新版保持独立会话。正式候选 ZIP 仍须复验原生文件选择和最终发行版本之间的升级。
 - 16e：配置文件恢复复用 owner 备份与回执，核对格式迁移前后和中断后的原字节。普通导出只含非敏感状态及回执引用，跨机凭据按原来源重配。
 
 验证：从干净的目标提交按 README 执行 `npm run stage:release -- <新暂存目录> --node-runtime <已校验 Node 目录>`。核对清单、ZIP 摘要和解包复验结果后替换正式文件。配套运行 `node --test tools/agents-workbench/tests/package-runtime.test.js`，再在试点目标机验收启动、手册导航、框架动作和新版切换。发行前核对组织应用控制要求。
 
 ### 任务17：真正的离线能力包安装更新（独立可验收切片）
 
-文件：`build/build-offline-package.js`、`scripts/install-agents.ps1`、`scripts/update-agents.ps1`、`tests/deployment.test.js`、`scripts/tests/update-agents.tests.ps1`、`docs/update-agents.md`。
+文件见[本地能力包构建和校验](../tools/agents-workbench/build/build-offline-package.js)、[工作台离线操作](../tools/agents-workbench/src/offline-framework-actions.js)、[原安装器](../scripts/install-agents.ps1)、[原更新器](../scripts/update-agents.ps1)和[隔离验收](../tools/agents-workbench/tests/deployment.test.js)。
 
-- 17a：先测试原安装器只能使用固定远端，证明本地包输入缺口；设计新增显式`-RepositorySource`安装输入和`-UpdateSource`更新输入，默认路径保持不变。
-- 17b：能力包使用可信完整Git bundle与清单，包含指定revision所需对象；构建时补齐partial clone缺失blob，禁网解包验证，不能只打当前sparse工作树。
-- 17c：安装／更新仍走原sparse、依赖与生成层；source指向明确本地包，不执行来自包内的任意安装扩展。包校验失败原工程不变。
-- 17d：现有远端与upstream保持；本地包更新只允许可证明的安全快进。dirty、领先、分叉或对象不全停止，不reset、不强推。
-- 17e：验证全量／按需／Overlay及可选向量资源均能在禁网夹具完成，记录实际包体再决定按体系拆分；首版不为降低包体先造复杂增量格式。
+Windows PowerShell 5.1 暂存包已通过任务17a–17d。通过实际本机接口从完整包首装 `3246ca4e`，预演不修改工程，再由原更新器快进到 `b65675b6` 并自重启完成本地生成层。核对远端、跟踪引用、`FETCH_HEAD`、私有配置、业务文件和自定义 MCP 均保留，临时来源删除后仍可读取对象。相同工程随后通过在线入口在本地镜像完成取版预演。非发布分支在首装预演时提示换用批准物料。浏览器已验证实际页面的预演和确认交互，隔离测试以受控回执代替本机文件选择。
 
-验证：`node --test tools/agents-workbench/tests/deployment.test.js`及双PowerShell更新回归。预期禁止任何网络请求仍完成本地包接入，私有配置和已有远端不变。此切片未完成前产品只能宣称“界面离线”，不能宣称“完整断网部署”。
+- 17a–17b 已验收。构建入口从干净完整的 Git 源仓生成 `capability.bundle` 和 `manifest.json`。验证使用批准渠道独立提供的发行记录。缺对象、增量前置对象、过滤包、引用不符及摘要篡改均会拒绝。源仓缺对象时先从授权来源补齐或使用完整镜像。
+- 17c–17d 已验收。Windows standard 工作台复用 `-RepositorySource` 首装和 `-UpdateSource` 更新。选择、预演与确认绑定实际工程，写入前重校验，更新只接受可证明的快进。工程有未提交改动、分支领先或分叉时停止并保留原状态。
+- 17e 待验收。用正式候选 ZIP 验证实际分发版本，并扩展到全量／按需组合、Overlay 及可选向量资源。记录真实包体后再决定是否按体系拆分。
+
+定向复验运行 `node --test tools/agents-workbench/tests/deployment.test.js`。它在 Windows PowerShell 5.1 中禁用 Git 网络传输，验证包构建、校验、隔离首装与快进更新。正式候选及尚未覆盖场景按 17e 验收后再扩大分发范围。
 
 ### 任务18：维护同步与正式验收
 
@@ -758,7 +781,7 @@ Marked、DOMPurify与Ajv版本沿原调查记录，尚不代表本项目集成�
 
 - 18a：记录工作台与框架版本兼容矩阵、源仓／业务项目边界、配置来源、本机状态位置、JSONC迁移回退、恢复与卸载保留策略。
 - 18b：受影响插件严格递增版本；一个完整交付目的一个发布记录，不为每个微步骤发一个版本。schema生成物、catalog和直接依赖范围一并核对。
-- 18c：新增`.github/workflows/workbench.yml`，Node核心及JSONC消费者三平台矩阵，原生凭据传输／启动器Windows专项；发布只依据实际运行结果。
+- 18c：实跑 `.github/workflows/workbench.yml` 的 Windows、macOS、Linux 矩阵，并补齐原生凭据传输和启动器 Windows 专项。发布范围按实际运行结果确认。
 - 18d：在授权的新工程、旧全量工程、旧按需工程、Overlay各完成真实路径；人工只判断业务事实与可用性，不要求手改JSON救流程。
 - 18e：记录学习与操作成本：用户需要理解的概念、必填字段、手工文件编辑次数、确认次数、故障恢复动作。目标是常规接入无需手工编辑配置；不预先编造节约比例或完成时间。
 

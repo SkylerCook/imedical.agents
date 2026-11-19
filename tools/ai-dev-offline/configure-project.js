@@ -7,6 +7,7 @@ const {spawnSync} = require('node:child_process');
 const {isDeepStrictEqual} = require('node:util');
 const editor = require('./configure-vscode');
 const runtime = require('./operation-runtime');
+const profiles = require('./iris-connection-profiles');
 const jsonc = require('./vendor/jsonc-parser/main');
 const parseToml = require('./vendor/iarna-toml/parse-string');
 const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
@@ -100,6 +101,12 @@ function userSettings(request) {
   if (request.userDataMode !== 'Installed' || !process.env.APPDATA) failure('请选择 VS Code 用户设置模式。');
   return path.join(process.env.APPDATA, 'Code', 'User', 'settings.json');
 }
+function serverName(root,read=snapshot) {
+  const data=object(read(path.join(root,'.agents/config/project-env.json')).text);
+  const name=data.mcp?.serverName ?? object(read(path.join(root,profiles.mainPath)).text).irisConnections?.serverName ?? 'iris-agentic-dev';
+  if (typeof name!=='string' || !name || Object.hasOwn(Object.prototype,name)) failure('工程 MCP 名称无效。');
+  return name;
+}
 function inspect(request) {
   const root = projectRoot(request);
   const settings = object(snapshot(path.join(root, '.vscode', 'settings.json')).text);
@@ -108,8 +115,16 @@ function inspect(request) {
   const conn = settings['objectscript.conn'] || {};
   const alias = conn.server || 'project';
   const server = settings['intersystems.servers']?.[alias] || {};
-  const env = mcp.mcpServers?.['iris-agentic-dev']?.env || {};
-  const entry = mcp.mcpServers?.['iris-agentic-dev'];
+  let selection,state;
+  try {
+    selection=object(snapshot(path.join(root,profiles.mainPath)).text).irisConnections;
+    if (selection) state=profiles.describe(root,{snapshot,object,toml});
+  } catch {
+    state={consistent:false,conflicts:['project.jsonc / irisConnections']};
+  }
+  const name=selection?.serverName || object(snapshot(path.join(root,'.agents/config/project-env.json')).text).mcp?.serverName || 'iris-agentic-dev';
+  const env = mcp.mcpServers?.[name]?.env || {};
+  const entry = mcp.mcpServers?.[name];
   let executable = '';
   if (entry?.args?.some(a => /(?:^|[\\/])iris-session-mcp\.js$/.test(a))) {
     const backend = object(snapshot(path.join(root, '.agents', 'config', 'iris-session-backend.json')).text);
@@ -119,8 +134,9 @@ function inspect(request) {
     port: server.webServer?.port || Number(env.IRIS_WEB_PORT) || config.web_port || 0,
     scheme: server.webServer?.scheme || env.IRIS_SCHEME || config.scheme || 'http',
     namespace: conn.ns || env.IRIS_NAMESPACE || config.namespace || '', description: server.description || '',
-    hasCredentials: !!((env.IRIS_PASSWORD || config.password) && (env.IRIS_USERNAME || config.username)), hasMcp: !!mcp.mcpServers?.['iris-agentic-dev'], mcpExe: executable,
-    tlsVerify: String(env.IRIS_TLS_VERIFY ?? config.tls_verify ?? false).toLowerCase() === 'true'};
+    hasCredentials: !!((env.IRIS_PASSWORD || config.password) && (env.IRIS_USERNAME || config.username)), hasMcp: !!entry, mcpExe: executable,
+    tlsVerify: String(env.IRIS_TLS_VERIFY ?? config.tls_verify ?? false).toLowerCase() === 'true',
+    ...(state ? {...state.target,active:state.active,consistent:state.consistent,conflicts:state.conflicts} : {})};
 }
 function connection(request) {
   const c = request.connection;
@@ -147,7 +163,7 @@ function updateArgs(args, c, configFile) {
       next[++i] = fields[flag];
     }
   }
-  if (!next.some(arg => arg === '--config' || arg.startsWith('--config='))) next.push('--config', configFile);
+  if (configFile && !next.some(arg => arg === '--config' || arg.startsWith('--config='))) next.push('--config', configFile);
   return next;
 }
 function ensurePrivate(root, files, gitExe, requireIgnored = false) {
@@ -173,10 +189,28 @@ function ensurePrivate(root, files, gitExe, requireIgnored = false) {
   }
 }
 function plan(request) {
-  const root = projectRoot(request), c = connection(request), changes = [];
+  const root = projectRoot(request), changes = [];
+  const observed=new Map();
+  function read(file) {
+    if (!observed.has(file)) observed.set(file,snapshot(file));
+    return observed.get(file);
+  }
+  const profile = request.profile ? profiles.prepare(root,request.profile,{snapshot:read,object,toml}) : null;
+  if (profile) request = {projectRoot:root,connection:profile.connection,configureMcp:profile.bindings.mcp,
+    syncProjectEnv:profile.bindings.central,gitExe:request.gitExe,nodeExe:process.execPath};
+  const c = connection(request);
+  let bindings = profile?.bindings;
+  if (!profile && object(read(path.join(root,profiles.mainPath)).text).irisConnections) {
+    const state = profiles.describe(root,{snapshot:read,object,toml});
+    bindings=state.bindings;
+    if ((request.configureMcp && !bindings.mcp) || (request.syncProjectEnv && !bindings.central)) failure('请求的连接来源未绑定到已选档案。');
+    if (state.conflicts.length) failure('与已选开发库档案冲突，请核对 '+state.conflicts.join('、')+'。');
+    if (!state.consistent || c.writeCredentials || ['host','port','namespace','scheme','alias','tlsVerify'].some(k=>state.target[k]!==c[k]))
+      failure('该工程已启用开发库档案，请从档案切换入口变更目标或凭据。');
+  }
   let mcpProgram = '';
   const add = (file, bytes, keys) => {
-    const before = snapshot(file);
+    const before = read(file);
     if (before.exists && before.bytes.equals(bytes)) return;
     changes.push({file, before, bytes, keys});
   };
@@ -184,17 +218,20 @@ function plan(request) {
   const s = ['intersystems.servers', c.alias];
   const selected = [
     {path: [...s, 'webServer', 'host'], value: c.host}, {path: [...s, 'webServer', 'port'], value: c.port},
-    {path: [...s, 'webServer', 'scheme'], value: c.scheme},
-    {path: ['objectscript.conn'], value: {server: c.alias, ns: c.namespace, active: true}}
+    {path: [...s, 'webServer', 'scheme'], value: c.scheme}
   ];
+  if (bindings) {
+    selected.push({path:['objectscript.conn','server'],value:c.alias},{path:['objectscript.conn','ns'],value:c.namespace});
+  } else selected.push({path:['objectscript.conn'],value:{server:c.alias,ns:c.namespace,active:true}});
   if (c.description) selected.push({path: [...s, 'description'], value: c.description});
   if (c.writeCredentials) selected.push({path: [...s, 'username'], value: c.username}, {path: [...s, 'password'], value: undefined});
-  add(settingsFile, jsonChanges(snapshot(settingsFile), selected), ['intersystems.servers / 所选服务器', 'objectscript.conn']);
+  if (!bindings || bindings.vscode) add(settingsFile, jsonChanges(read(settingsFile), selected), ['intersystems.servers / 所选服务器', 'objectscript.conn']);
   if (request.configureMcp) {
     const mcpFile = path.join(root, '.mcp.json'), configFile = path.join(root, '.iris-agentic-dev.toml');
-    const before = snapshot(mcpFile), mcp = object(before.text);
-    let server = mcp.mcpServers?.['iris-agentic-dev'];
-    const m = ['mcpServers', 'iris-agentic-dev'];
+    const before = read(mcpFile), mcp = object(before.text);
+    const name=serverName(root,read);
+    let server = mcp.mcpServers?.[name];
+    const m = ['mcpServers', name];
     const updates = [];
     if (!server) {
       mcpProgram = request.mcpExe || path.join(root, '.agents', 'vendor', 'iris-agentic-dev', 'windows-x64', 'iris-agentic-dev.exe');
@@ -205,29 +242,29 @@ function plan(request) {
         const version = spawnSync(request.nodeExe, ['--version'], {windowsHide: true, encoding: 'utf8', timeout: 10000});
         const match = /^v(\d+)\.(\d+)\./.exec((version.stdout || '').trim());
         if (version.status !== 0 || !match || +match[1] < 22 || +match[1] === 22 && +match[2] < 5) failure('受管 MCP 需要 Node.js 22.5.0 或以上。');
-        server = {command: request.nodeExe, args: [adapter, '--project-root', root, '--server-name', 'iris-agentic-dev']};
+        server = {command: request.nodeExe, args: [adapter, '--project-root', root, '--server-name', name]};
         const backendFile = path.join(root, '.agents', 'config', 'iris-session-backend.json');
         if (fs.existsSync(backendFile)) failure('项目已有受管后端记录但缺少 MCP 入口，请先核对该记录。');
-        const backend = {schema: 'iris-session-backend/v1', serverName: 'iris-agentic-dev', command: mcpProgram,
+        const backend = {schema: 'iris-session-backend/v1', serverName: name, command: mcpProgram,
           args: ['mcp', '--config', configFile], originalArgsPresent: true, managedHash: sha(Buffer.from(JSON.stringify(server)))};
         add(backendFile, Buffer.from(JSON.stringify(backend, null, 2) + '\n'), ['command', 'args', 'managedHash']);
       } else server = {command: mcpProgram, args: ['mcp', '--config', configFile]};
       updates.push({path: m, value: server});
     } else if (Array.isArray(server.args) && server.args.some(a => /(?:^|[\\/])iris-session-mcp\.js$/.test(a))) {
       const backendFile = path.join(root, '.agents', 'config', 'iris-session-backend.json');
-      const backendBefore = snapshot(backendFile), backend = object(backendBefore.text);
-      if (backend.schema !== 'iris-session-backend/v1' || backend.serverName !== 'iris-agentic-dev') failure('未找到所选项目的受管 MCP 后端记录。');
+      const backendBefore = read(backendFile), backend = object(backendBefore.text);
+      if (backend.schema !== 'iris-session-backend/v1' || backend.serverName !== name) failure('未找到所选项目的受管 MCP 后端记录。');
       if (typeof backend.command !== 'string' || !backend.command.trim()) failure('受管 MCP 后端记录缺少程序路径，请先核对。');
       mcpProgram = path.resolve(root, backend.command);
       const identity = sha(Buffer.from(JSON.stringify({command: server.command, args: server.args})));
       if (backend.managedHash !== identity) failure('受管 MCP 入口与后端记录不一致，请先核对。');
       const rootIndex = server.args.indexOf('--project-root');
       if (rootIndex < 0 || path.resolve(server.args[rootIndex + 1]) !== root) failure('受管 MCP 指向其他项目，请先使用项目迁移入口处理。');
-      add(backendFile, jsonChanges(backendBefore, [{path: ['args'], value: updateArgs(backend.args, c, configFile)}]), ['args']);
+      add(backendFile, jsonChanges(backendBefore, [{path: ['args'], value: updateArgs(backend.args, c, bindings && !bindings.toml ? null : configFile)}]), ['args']);
     } else {
       if (!/(?:^|[\\/])iris-agentic-dev(?:\.exe)?$/i.test(server.command || '')) failure('现有 MCP 启动方式尚未识别，请保留该入口并单独配置 VS Code。');
       mcpProgram = path.resolve(root, server.command);
-      updates.push({path: [...m, 'args'], value: updateArgs(server.args || ['mcp'], c, configFile)});
+      updates.push({path: [...m, 'args'], value: updateArgs(server.args || ['mcp'], c, bindings && !bindings.toml ? null : configFile)});
     }
     const environment = {IRIS_HOST: c.host, IRIS_WEB_PORT: String(c.port), IRIS_SCHEME: c.scheme,
       IRIS_NAMESPACE: c.namespace, IRIS_TLS_VERIFY: String(!!c.tlsVerify)};
@@ -236,7 +273,7 @@ function plan(request) {
       environment.IRIS_USERNAME = c.username; environment.IRIS_PASSWORD = c.password;
       values.username = c.username; values.password = c.password;
     } else {
-      const original = toml(snapshot(configFile).text), env = server.env || {};
+      const original = toml(read(configFile).text), env = server.env || {};
       for (const key of ['username', 'password']) {
         const envKey = 'IRIS_' + key.toUpperCase();
         if (env[envKey] && original[key] && env[envKey] !== original[key]) failure('MCP 与 TOML 的已有凭据不一致，请勾选更新账号密码。');
@@ -246,18 +283,19 @@ function plan(request) {
       }
     }
     for (const [key, value] of Object.entries(environment)) updates.push({path: [...m, 'env', key], value});
-    add(mcpFile, jsonChanges(before, updates), ['mcpServers / iris-agentic-dev（保留其他 MCP）']);
-    add(configFile, editToml(snapshot(configFile), values), Object.keys(values).map(k => /username|password/.test(k) ? '凭据字段（隐藏）' : k));
+    add(mcpFile, jsonChanges(before, updates), ['mcpServers / '+name+'（保留其他 MCP）']);
+    if (!bindings || bindings.toml) add(configFile, editToml(read(configFile), values), Object.keys(values).map(k => /username|password/.test(k) ? '凭据字段（隐藏）' : k));
     // Workbench opts into the canonical source, in the same recoverable transaction.
     if (request.syncProjectEnv) {
       const envFile = path.join(root, '.agents', 'config', 'project-env.json');
-      const envBefore = snapshot(envFile);
+      const envBefore = read(envFile);
       if (!envBefore.exists) failure('集中工程配置不存在，请先完成框架初始化。');
       const envData = object(envBefore.text);
       if (!envData.iris || typeof envData.iris !== 'object' || Array.isArray(envData.iris)) failure('集中 IRIS 配置结构无法识别。');
       if (!c.writeCredentials && ['username','password'].some(key => envData.iris[key] && envData.iris[key] !== values[key])) failure('集中配置与 MCP/TOML 凭据不一致，请明确替换凭据后再预览。');
       const central = {host: c.host, port: c.port, scheme: c.scheme, namespace: c.namespace,
         tlsVerify: !!c.tlsVerify, username: values.username, password: values.password};
+      if (profile && own(envData.iris,'alias')) central.alias=c.alias;
       const centralChanges = Object.entries(central).map(([key,value]) => ({path:['iris',key],value}));
       const sftpFields = {host:'TARGET_HOST',port:'TARGET_PORT',username:'TARGET_USERNAME',password:'TARGET_PASSWORD',localPath:'LOCAL_PATH',remotePath:'REMOTE_PATH'};
       const sftpUpdates = [];
@@ -274,7 +312,7 @@ function plan(request) {
         const latest = existing ? {...before,text:existing.bytes.toString('utf8').replace(/^\uFEFF/,'')} : before;
         const current = object(latest.text), name = envData.sftp.serverName || 'sftp-server';
         const target = current.mcpServers?.[name];
-        if (['__proto__','prototype','constructor','iris-agentic-dev'].includes(name) || !target?.env || !own(target.env,'TARGET_HOST')) failure('没有可识别的 SFTP MCP 入口；请先初始化，工作台不会替换自定义启动器。');
+        if (['__proto__','prototype','constructor',serverName(root,read)].includes(name) || !target?.env || !own(target.env,'TARGET_HOST')) failure('没有可识别的 SFTP MCP 入口；请先初始化，工作台不会替换自定义启动器。');
         const bytes = jsonChanges(latest,sftpUpdates.map(({key,value})=>({path:['mcpServers',name,'env',key],value})));
         if (existing) { existing.bytes=bytes; existing.keys.push('SFTP / 连接字段（隐藏）'); }
         else add(mcpFile,bytes,['SFTP / 连接字段（隐藏）']);
@@ -294,17 +332,48 @@ function plan(request) {
       if (!path.isAbsolute(request.pwshExe) || path.basename(request.pwshExe).toLowerCase() !== 'pwsh.exe') failure('请选择 PowerShell 7 的 pwsh.exe。');
       common.push(...editor.spec(request.pwshExe));
     }
-    add(file, jsonChanges(snapshot(file), common), common.map(change => change.path.join(' / ')));
+    add(file, jsonChanges(read(file), common), common.map(change => change.path.join(' / ')));
   }
-  const privateFiles = [settingsFile];
-  if (request.configureMcp) privateFiles.push(path.join(root, '.mcp.json'), path.join(root, '.iris-agentic-dev.toml'));
+  if (profile) {
+    if (!request.configureMcp) {
+      const values={host:c.host,scheme:c.scheme,namespace:c.namespace,username:c.username,password:c.password};
+      if (profile.bindings.toml) {
+        const file=path.join(root,'.iris-agentic-dev.toml');
+        add(file,editToml(read(file),{...values,web_port:c.port,tls_verify:c.tlsVerify}),['IRIS TOML']);
+      }
+      if (profile.bindings.central) {
+        const file=path.join(root,'.agents/config/project-env.json');
+        const fields={...values,port:c.port,tlsVerify:c.tlsVerify};
+        if (own(object(read(file).text).iris,'alias')) fields.alias=c.alias;
+        const edits=Object.entries(fields).map(([key,value])=>({path:['iris',key],value}));
+        add(file,jsonChanges(read(file),edits),['iris']);
+      }
+    }
+    if (profile.edits.length) {
+      const existing=changes.find(change=>change.file===profile.privateFile.file);
+      if (existing) {
+        existing.bytes=jsonChanges({...existing.before,text:new TextDecoder().decode(existing.bytes)},profile.edits);
+        existing.keys.push('档案凭据（隐藏）');
+      } else add(profile.privateFile.file,jsonChanges(profile.privateFile,profile.edits),['档案凭据（隐藏）']);
+    }
+    add(profile.main.file,jsonChanges(profile.main,profile.mainEdits),['当前开发库档案']);
+  }
+  const privateFiles = !bindings || bindings.vscode ? [settingsFile] : [];
+  if (request.configureMcp) privateFiles.push(path.join(root, '.mcp.json'));
+  if (bindings ? bindings.toml && request.configureMcp : request.configureMcp) privateFiles.push(path.join(root,'.iris-agentic-dev.toml'));
   privateFiles.push(...changes.filter(c => c.file.includes(path.join('.agents', 'config'))).map(c => c.file));
   ensurePrivate(root, privateFiles, request.gitExe);
   // Local backup content may contain the original user's credentials.
-  const ignore = snapshot(path.join(root, '.gitignore'));
-  const patterns = ['/.vscode/settings.json', '/.vscode/.ai-dev-config-*.tmp', '/.ai-dev-config-*.tmp', '/' + BACKUPS + '/', '/' + LOCK];
-  if (request.configureMcp) patterns.push('/.mcp.json', '/.iris-agentic-dev.toml', '/.agents/config/iris-session-backend.json');
+  const ignore = read(path.join(root, '.gitignore'));
+  const patterns = ['/.ai-dev-config-*.tmp', '/' + BACKUPS + '/', '/' + LOCK];
+  if (!bindings || bindings.vscode) patterns.push('/.vscode/settings.json','/.vscode/.ai-dev-config-*.tmp');
+  if (request.configureMcp) patterns.push('/.mcp.json','/.agents/config/iris-session-backend.json');
+  if (bindings ? bindings.toml && request.configureMcp : request.configureMcp) patterns.push('/.iris-agentic-dev.toml');
   if (request.syncProjectEnv) patterns.push('/.agents/config/project-env.json');
+  if (profile) {
+    patterns.push('/'+profiles.mainPath);
+    if (profile.edits.length && !profile.bindings.central) patterns.push('/'+profiles.privatePath);
+  }
   const existing = ignore.text.split(/\r?\n/), missing = patterns.filter(p => !existing.includes(p));
   if (missing.length) {
     const eol = ignore.text.includes('\r\n') ? '\r\n' : '\n';
@@ -315,10 +384,12 @@ function plan(request) {
   const fingerprint = sha(Buffer.from(JSON.stringify(changes.map(c => [c.file, c.before.hash, sha(c.bytes)]))));
   const mcpProgramPresent = mcpProgram ? fs.existsSync(mcpProgram) && fs.statSync(mcpProgram).isFile() : null;
   const warnings = mcpProgramPresent === false ? ['MCP 程序待安装，当前可先保存配置。部署到所选路径后，重新启动 MCP 客户端并验证连接。'] : [];
-  return {root, changes, fingerprint, privateFiles, mcpProgramPresent, warnings};
+  return {root, changes, fingerprint, privateFiles, mcpProgramPresent, warnings,profile};
 }
 function summary(planned, state = 'planned') {
   return {state: planned.changes.length ? state : 'unchanged', fingerprint: planned.fingerprint,
+    ...(planned.profile ? {selected:planned.profile.id,from:planned.profile.from,to:planned.profile.to,
+      verification:'configuration-only',...(state==='applied'?{clientReconnect:'required'}:{})}:{}),
     mcpProgramPresent: planned.mcpProgramPresent, warnings: planned.warnings,
     files: planned.changes.map(c => ({file: c.file, operation: c.before.exists ? '更新' : '新增', keys: c.keys}))};
 }
@@ -355,6 +426,7 @@ function restoreEntries(entries) {
 function validateReceipt(request, root, receipt) {
     if (receipt.schema !== 1 || receipt.tool !== 'ai-dev-project' || receipt.projectRoot !== root || !['applied', 'prepared'].includes(receipt.state) || !Array.isArray(receipt.entries)) failure('回执无效或已经恢复。');
     const allowed = [path.join(root, '.vscode', 'settings.json'), path.join(root, '.mcp.json'), path.join(root, '.iris-agentic-dev.toml'), path.join(root, '.agents', 'config', 'iris-session-backend.json'), path.join(root, '.agents', 'config', 'project-env.json')];
+    allowed.push(path.join(root,profiles.mainPath),path.join(root,profiles.privatePath));
     if (request.codeExe) allowed.push(userSettings(request));
     const used = new Set();
     for (const entry of receipt.entries) {
@@ -382,10 +454,15 @@ function recoverPrepared(request, root) {
 }
 function apply(request, dependencies = {}) {
   const root = projectRoot(request);
-  return runtime.withLock(root, request, () => {
+  return runtime.withLock(root, request, async () => {
     runtime.progress(request, '正在核对并应用项目配置…', false);
     recoverPrepared(request, root);
-    const planned = plan(request);
+    let planned = plan(request);
+    if (planned.profile?.legacyHost) {
+      await profiles.awaitLegacyExit({snapshot,object});
+      planned=plan(request);
+      if (planned.profile?.legacyHost) failure('旧版宿主正在使用连接，稍后重新预览。');
+    }
     if (!request.fingerprint || request.fingerprint !== planned.fingerprint) failure('配置或输入已变化，请重新预览。');
     if (!planned.changes.length) return summary(planned);
     if (request.pwshExe) editor.checkPwsh(request.pwshExe);
@@ -406,6 +483,10 @@ function apply(request, dependencies = {}) {
       for (const change of planned.changes.filter(c => c !== ignore)) {
         if (dependencies.beforeWrite) dependencies.beforeWrite(change.file);
         writeFile(change.file, change.bytes, change.before.hash);
+      }
+      if (planned.profile) {
+        const readback=profiles.describe(root,{snapshot,object,toml});
+        if (!readback.consistent || readback.active!==planned.profile.id) failure('开发库配置读回不一致。');
       }
       receipt.state = 'applied'; saveReceipt(receiptFile, receipt);
     } catch (error) {
@@ -429,6 +510,7 @@ function rollback(request) {
   }, path.join(root, LOCK));
 }
 function main(request) {
+  if (request.action==='projectProfiles') return inspectProfiles(request);
   if (request.action === 'projectInspect' || request.action === 'projectPlan') {
     const root = projectRoot(request);
     return runtime.withLock(root, request, () => {
@@ -440,7 +522,8 @@ function main(request) {
   if (request.action === 'projectRollback') return rollback(request);
   failure('无效的项目配置操作。');
 }
-module.exports = {snapshot, object, editToml, plan, inspect, apply, rollback, main};
+function inspectProfiles(request) { return profiles.describe(projectRoot(request),{snapshot,object,toml}); }
+module.exports = {snapshot, object, editToml, plan, inspect, inspectProfiles, apply, rollback, main};
 if (require.main === module) {
   let input = '';
   process.stdin.setEncoding('utf8');

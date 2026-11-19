@@ -134,7 +134,7 @@ test('directory junctions and broken links are rejected before writing', t => {
   finally { fs.unlinkSync(alias); }
 });
 test('vendor runtime is the fixed minimal MIT package with no external runtime dependencies', () => {
-  const dir = path.resolve(__dirname, '../../tools/ai-dev-offline/vendor/jsonc-parser');
+  const dir = path.resolve(__dirname, '../../vendor/jsonc-parser');
   const upstream = JSON.parse(fs.readFileSync(path.join(dir, 'UPSTREAM.json'), 'utf8').replace(/^\uFEFF/,''));
   assert.equal(upstream.version, '3.3.1'); assert.equal(upstream.license, 'MIT');
   assert.ok(fs.readFileSync(path.join(dir, 'LICENSE.md'), 'utf8').includes('Copyright (c) Microsoft'));

@@ -64,7 +64,7 @@ iris-code-baseline --xtoc "incoming/care module" --out "work/care source"
 
 ## 执行
 
-先读取当前 ContextRoot 的 `config/iris-development.json`。`developmentMode: offline` 时优先按[离线开发协议](../../references/iris-offline-development.md)接收已带回的源码或完整 XML；本地清单 build/compare、既有任务状态检查可用，不请求医院连接或准入，不进入服务器采集、source-sync 或资格执行。缺省沿旧 `connected` 行为，未知值停止核对。
+先读取当前 ContextRoot 的 `config/project.jsonc` 的 `irisDevelopment` 节。`developmentMode: offline` 时优先按[离线开发协议](../../references/iris-offline-development.md)接收已带回的源码或完整 XML；本地清单 build/compare、既有任务状态检查可用，不请求医院连接或准入，不进入服务器采集、source-sync 或资格执行。缺省沿旧 `connected` 行为，未知值停止核对。
 
 1. 读取目标 AGENTS、上下文及 IRIS profile，解析 WorkspaceRoot、ContextRoot、CapabilityRoot、SourceRoot、GitRoot；读取[代码基线协议](../../references/iris-code-baseline.md)。先区分离线清单维护、纯源码采集与项目按需开发分支。
 2. 离线 build／compare 使用 `baseline-catalog.js`，记录来源 ref、版本标签和范围差异。共享版本参考位于能力包 `docs/reference/project-export-map/`；项目增补清单留目标项目，不自动发布到框架。

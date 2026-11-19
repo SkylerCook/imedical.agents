@@ -51,7 +51,8 @@ test('only selected stage blocks; manifest identity and file type are checked', 
 });
 test('BOS-independent exports load without Delivery; dependent stage gives explicit error', t => {
   const f = fixture(t);
-  for (const file of ['plugins/bos-plugin/scripts/demand-entry.js', 'plugins/bos-plugin/scripts/demand-entry-xlsx.js',
+  fs.cpSync(path.join(repo,'vendor/jsonc-parser'),path.join(f.options.capabilityRoot,'vendor/jsonc-parser'),{recursive:true});
+  for (const file of ['scripts/lib/plugin-deployment.js','scripts/lib/project-plugin-profile.js','scripts/lib/configuration-file-io.js','plugins/bos-plugin/scripts/demand-entry.js', 'plugins/bos-plugin/scripts/demand-entry-xlsx.js',
     'plugins/bos-plugin/.agents-plugin/plugin.json', 'scripts/check-plugin-availability.js', 'scripts/lib/workspace-context.js', 'scripts/lib/project-directories.js', 'scripts/lib/demand-code-binding.js']) {
     f.write(path.join(f.options.capabilityRoot, file), fs.readFileSync(path.join(repo, file)));
   }

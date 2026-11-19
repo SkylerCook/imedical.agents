@@ -68,10 +68,12 @@ function configure(options = {}) {
     if (invalid || !['standard', 'workspace-overlay'].includes(context.mode)) fail('invalid-workspace-context');
     if (context.mode === 'workspace-overlay' && within(context.capabilityRoot, context.contextRoot)) fail('private-config-in-shared-capability');
     const directory = path.join(context.contextRoot, 'config');
-    const developmentFile = path.join(directory, 'iris-development.json');
+    assertPhysical(context,path.join(directory,'project.jsonc'));
+    const development = require('../../../../scripts/lib/iris-development-settings').inspect(context.contextRoot);
+    const developmentFile = development.main;
     const policyFile = path.join(directory, 'iris-remote-policy.json');
     assertPhysical(context, developmentFile);
-    const existing = readObject(developmentFile);
+    const existing = development.value;
     const developmentMode = remote.developmentMode(context);
     if (existing && options.developmentMode && developmentMode !== options.developmentMode) fail('development-mode-conflict');
     for (const key of ['environmentAlias', 'environmentType']) {
@@ -95,16 +97,18 @@ function configure(options = {}) {
         entries.push({path: policyFile, exists: policy !== null, value: initialPolicy});
     }
     const missing = entries.filter(entry => !entry.exists);
-    assertIgnored(context, entries.map(entry => entry.path));
+    assertIgnored(context, entries.map(entry => entry.path).concat(development.old === null ? [] : [development.legacy]));
     if (!existing && Object.hasOwn(declaration, 'developmentMode')) {
         const state = path.join(context.contextRoot, 'work/source-sync');
         assertPhysical(context, state);
         if (fs.existsSync(state) && fs.readdirSync(state).length) fail('existing-source-sync-state-requires-review');
     }
     // All local checks precede writes; existing JSON is never rewritten or merged.
-    if (mode === 'Write' && missing.length) {
+    if (mode === 'Write' && (missing.length || !development.canonical)) {
+        if (development.old !== null) require('../../../../scripts/lib/iris-development-settings').validate(existing);
         fs.mkdirSync(directory, {recursive: true});
-        for (const entry of missing) createFile(entry.path, entry.value);
+        for (const entry of missing) if (entry.path !== developmentFile) createFile(entry.path, entry.value);
+        require('../../../../scripts/lib/iris-development-settings').save(context,existing ? {} : declaration);
     }
     const configurationGaps = [];
     if (!Object.hasOwn(declaration, 'developmentMode')) configurationGaps.push('development-mode-confirmation-required');
@@ -129,7 +133,7 @@ function configure(options = {}) {
     }
     return {mode, contextRoot: context.contextRoot, developmentMode: selectedMode,
         files: entries.map(entry => ({path: path.relative(context.workspaceRoot, entry.path).replace(/\\/g, '/'),
-            status: entry.exists ? 'preserved' : mode === 'Write' ? 'created' : 'missing'})),
+            status: entry.path === developmentFile && development.old !== null ? (mode === 'Write' ? 'created' : 'missing') : entry.exists ? 'preserved' : mode === 'Write' ? 'created' : 'missing'})),
         configurationReady: configurationGaps.length === 0, configurationGaps,
         remoteAdmission, remoteReason, baseline: 'not-established-by-configure'};
 }
@@ -199,7 +203,7 @@ function cleanupRemotePolicy(context, mode) {
         reason:'Remove obsolete configuration: ' + compacted.removed.join(', ')};
 }
 function migrate(options = {}) {
-    const target = 'config/iris-development.json';
+    const target = 'config/project.jsonc';
     const entry = (status, reason, file = target) => ({status, target: file, reason});
     try {
         const context = resolveWorkspaceContext(path.resolve(options.projectRoot || '.'));

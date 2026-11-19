@@ -45,7 +45,7 @@
 - 已验证存在其它兼容种子类的项目继续保留原 profile 覆盖；不得仅为命名统一迁移业务类。
 - 能力包更新、profile 调整均不授权上传、编译或加载翻译；这些远程动作仍按当前任务单独确认。
 - 已部署项目若目标类缺失，先在本地页面翻译种子任务中从 canonical 模板创建并完成 diff/依赖检查；不得把“插件已有模板”解释为已部署、已编译或已加载。
-- 更新后，只有 `plugin_profile.md` 中 `i18n-iris-plugin` 为 `enabled` 且任务或 diff 命中 i18n 信号时，coding-iris 前端路由才追加 i18n 规则；普通前端需求不会自动进入完整 i18n workflow。
+- 更新后，只有 `project.jsonc` 的 `plugins` 节 中 `i18n-iris-plugin` 为 `enabled` 且任务或 diff 命中 i18n 信号时，coding-iris 前端路由才追加 i18n 规则；普通前端需求不会自动进入完整 i18n workflow。
 
 ## 标准目录
 
@@ -138,3 +138,5 @@ node .agents/plugins/i18n-iris-plugin/scripts/check-i18n-helper-usage.js `
 XML 同步对空 JSON 自动切换兼容流导出，无法确认时报告存在性未知。长载荷回退逐块解码写流并精确比较回读内容，真实旧实例仍需验收。已有项目正常更新插件即可取得，配置沿用。
 
 按需部署时，由 manifest 的 runtimeResources 与 required skill 依赖取得必需 vendor 资源；可选资料随任务触发补装，流程见[插件按需部署](../../docs/guides/plugin-deployment.md)。
+
+运行参数保存在当前 ContextRoot 的 `config/project.jsonc` 的 `pluginSettings.i18n-iris-plugin` 节。 现有工程沿原更新器 Write 迁移已识别字段。

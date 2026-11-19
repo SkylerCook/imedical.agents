@@ -78,7 +78,7 @@ function indexName(profile) { return profile.provider === 'openai' ? 'index.sqli
 function databasePath(context, profile = resolveEmbedding()) { return path.join(context.capabilityRoot, '.knowledge-cache', indexName(profile)); }
 function bundlePath(context, profile = resolveEmbedding()) { return path.join(context.capabilityRoot, 'vendor', 'knowledge-index', indexName(profile)); }
 
-function openBundle(context, profile) {
+function openBundle(context, profile, matchProfile = true) {
     const file = bundlePath(context, profile);
     if (!fs.existsSync(file)) return null;
     const { safeFile } = require('./knowledge-sources');
@@ -86,15 +86,36 @@ function openBundle(context, profile) {
     const { DatabaseSync } = require('node:sqlite');
     const database = new DatabaseSync(file, {readOnly:true});
     try {
-        const format = database.prepare('SELECT value FROM state WHERE key=?').get('bundle-format')?.value;
-        if (format !== 'knowledge-bundle/v1' || database.prepare('SELECT value FROM state WHERE key=?').get('model')?.value !== profile.model ||
-            database.prepare('SELECT value FROM state WHERE key=?').get('dimensions')?.value !== String(profile.dimensions) ||
-            (database.prepare('SELECT value FROM state WHERE key=?').get('identity')?.value || '') !== profile.identity ||
-            database.prepare('SELECT value FROM state WHERE key=?').get('chunk-version')?.value !== VERSION) {
+        const state = database.prepare('SELECT value FROM state WHERE key=?');
+        const model = state.get('model')?.value;
+        const dimensions = state.get('dimensions')?.value;
+        if (state.get('bundle-format')?.value !== 'knowledge-bundle/v1' || state.get('chunk-version')?.value !== VERSION ||
+            (matchProfile && (model !== profile.model || dimensions !== String(profile.dimensions) ||
+                (state.get('identity')?.value || '') !== profile.identity)) ||
+            (!matchProfile && (state.get('provider')?.value !== profile.provider || !model || !/^[1-9]\d*$/.test(dimensions)))) {
             throw new Error('embedding-bundle-incompatible');
         }
         return database;
     } catch (error) { database.close(); throw error; }
+}
+
+function inspectBundle(context, provider) {
+    const profile = {provider};
+    const { safeFile } = require('./knowledge-sources');
+    let bytes = null;
+    let database;
+    try {
+        const stats = fs.lstatSync(safeFile(context.capabilityRoot, 'vendor/knowledge-index/' + indexName(profile)));
+        if (!stats.isFile()) return {bytes, format:'invalid'};
+        bytes = stats.size;
+        database = openBundle(context, profile, false);
+        if (!database) return {bytes:null, format:'missing'};
+        database.prepare('SELECT id, data, terms FROM chunks LIMIT 1').get();
+        database.prepare('SELECT key, data, dimensions FROM vectors LIMIT 1').get();
+        return {bytes, format:'readable'};
+    } catch (error) {
+        return {bytes, format:error.code === 'ENOENT' ? 'missing' : 'invalid'};
+    } finally { database?.close(); }
 }
 
 function decodeVector(row, profile) {
@@ -199,28 +220,75 @@ function readCachedTerms(context, items, profile) {
 
 function preview(context, items = prepare(context), options = {}) {
     const profile = resolveEmbedding(options);
-    const policy = readPolicy(context);
-    const eligible = items.filter(item => embeddingEligible(item, policy));
+    return describeBuild(context, items, readPolicy(context), profile);
+}
+
+function transferCost(items, profile) {
     // UTF-8 byte count is a conservative token bound, not a tokenizer measurement.
-    const tokenUpperBound = eligible.reduce((sum, item) => sum + Buffer.byteLength(item.heading + '\n' + item.text, 'utf8'), 0);
+    const tokenUpperBound = items.reduce((sum, item) => sum + Buffer.byteLength(item.heading + '\n' + item.text, 'utf8'), 0);
+    return {tokenUpperBound,
+        estimatedMaximumUsd: profile.type === 'openai' && profile.model === 'text-embedding-3-small' ? tokenUpperBound * 0.02 / 1000000 : null,
+        priceDate: profile.type === 'openai' ? '2026-11-13' : null};
+}
+
+function describeBuild(context, items, policy, profile) {
+    const eligible = items.filter(item => embeddingEligible(item, policy));
     const snapshot = digest(JSON.stringify(items.map(item => [item.id, item.hash, item.heading])) + JSON.stringify(policy) + VERSION + profile.identity + profile.model + profile.dimensions);
     return { snapshot, chunks: items.length, eligibleChunks: eligible.length, localOnlyChunks: items.length - eligible.length,
         oversizedChunks: items.filter(item => allowed(item, policy) && !embeddingEligible(item, policy)).length,
         directories: [...new Set(items.map(item => path.posix.dirname(item.path)))], provider: profile.provider, model: profile.model, dimensions: profile.dimensions,
-        tokenUpperBound, estimatedMaximumUsd: profile.type === 'openai' && profile.model === 'text-embedding-3-small' ? tokenUpperBound * 0.02 / 1000000 : null, priceDate: profile.type === 'openai' ? '2026-11-13' : null,
+        ...transferCost(eligible, profile),
         policyFile: policyPath(context), queryEnabled: policy.allowQuery };
+}
+
+function buildInputs(context, profile) {
+    const items = prepare(context);
+    const policy = readPolicy(context);
+    return {items, policy, plan:describeBuild(context, items, policy, profile)};
+}
+
+function eligibleVectors(items, policy, profile) {
+    return [...new Map(items.filter(item => embeddingEligible(item, policy)).map(item => [vectorKey(item, profile), item])).values()];
+}
+
+function missingVectors(eligible, profile, database) {
+    const exists = database?.prepare('SELECT key FROM vectors WHERE key=?');
+    return exists ? eligible.filter(item => !exists.get(vectorKey(item, profile))) : eligible;
+}
+
+function describeTransfer(plan, pending, profile) {
+    const transferSnapshot = digest(JSON.stringify([plan.snapshot, pending.map(item => item.id)]));
+    return {transferSnapshot, pendingVectors:pending.length,
+        transferDirectories:[...new Set(pending.map(item => path.posix.dirname(item.path)))], ...transferCost(pending,profile)};
+}
+
+function readMissingVectors(file, eligible, profile) {
+    let database;
+    try {
+        if (eligible.length && fs.existsSync(file)) {
+            const { DatabaseSync } = require('node:sqlite');
+            database = new DatabaseSync(file,{readOnly:true});
+        }
+        return missingVectors(eligible,profile,database);
+    } finally { database?.close(); }
+}
+
+function previewTransfer(context, options = {}) {
+    const profile = resolveEmbedding(options);
+    const {items,policy,plan} = buildInputs(context,profile);
+    assertCachePath(context.capabilityRoot);
+    const pending = readMissingVectors(databasePath(context,profile),eligibleVectors(items,policy,profile),profile);
+    return {...plan,...describeTransfer(plan,pending,profile)};
 }
 
 async function build(context, options = {}) {
     const profile = resolveEmbedding(options);
     options = { ...options, embedding: profile };
-    const items = prepare(context);
-    const plan = preview(context, items, options);
-    const policy = readPolicy(context);
+    const strict = options.approveTransfer !== undefined;
+    const prepared = strict ? null : buildInputs(context,profile);
     assertCachePath(context.capabilityRoot);
     const file = databasePath(context, profile);
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(path.join(path.dirname(file), '.gitignore'), '*\n');
     const lock = file + '.lock';
     let handle;
     try { handle = fs.openSync(lock, 'wx'); }
@@ -248,12 +316,21 @@ async function build(context, options = {}) {
     let tokens = 0;
     const warnings = [];
     try {
+        const {items, policy, plan} = prepared ?? buildInputs(context,profile);
+        const eligible = eligibleVectors(items,policy,profile);
+        const approvedPending = strict ? readMissingVectors(file,eligible,profile) : null;
+        if (strict && (options.approveTransfer !== describeTransfer(plan,approvedPending,profile).transferSnapshot ||
+            options.confirmProfile?.() === false)) {
+            throw new Error('knowledge-preview-stale');
+        }
+        fs.writeFileSync(path.join(path.dirname(file), '.gitignore'), '*\n');
         database = openDatabase(file);
         const policyHash = digest(JSON.stringify(policy));
         const approved = database.prepare('SELECT value FROM state WHERE key=?').get('approved-policy-' + digest(context.contextRoot));
-        if (plan.eligibleChunks && options.approve !== plan.snapshot && approved?.value !== policyHash) {
+        if (!strict && plan.eligibleChunks && options.approve !== plan.snapshot && approved?.value !== policyHash) {
             throw new Error('Review preview and pass --approve <snapshot>');
         }
+        const pending = approvedPending ?? missingVectors(eligible,profile,database);
         const insert = database.prepare('INSERT OR REPLACE INTO chunks VALUES (?,?,?,?)');
         for (let offset = 0; offset < items.length; offset += 32) {
             database.exec('BEGIN IMMEDIATE');
@@ -264,8 +341,6 @@ async function build(context, options = {}) {
         }
         const count = database.prepare('SELECT COUNT(*) AS count FROM chunks WHERE generation=?').get(plan.snapshot).count;
         if (count !== items.length) throw new Error('knowledge-readback-failed');
-        const eligible = [...new Map(items.filter(item => embeddingEligible(item, policy)).map(item => [vectorKey(item, profile), item])).values()];
-        const pending = eligible.filter(item => !database.prepare('SELECT key FROM vectors WHERE key=?').get(vectorKey(item, profile)));
         for (let offset = 0; offset < pending.length && offset / 16 < (options.maxBatches ?? Infinity); offset += 16) {
             const batch = pending.slice(offset, offset + 16);
             try {
@@ -409,4 +484,4 @@ async function search(context, query, options = {}) {
     return result;
 }
 
-module.exports = { terms, lexicalSearch, readPolicy, allowed, prepare, preview, build, search, embed, databasePath, policyPath, bundlePath, exportBundle };
+module.exports = { terms, lexicalSearch, readPolicy, allowed, prepare, preview, previewTransfer, build, search, embed, databasePath, policyPath, bundlePath, inspectBundle, exportBundle };

@@ -15,3 +15,4 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: node --test scripts/tests/refresh-agents-sparse.tests.js scripts/tests/documentation-layout.tests.js scripts/tests/documentation-entry.tests.js scripts/tests/capability-help.tests.js
+      - run: node --test tools/agents-workbench/tests/configuration-files.test.js

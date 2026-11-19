@@ -4,6 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const deploymentPolicy = require('./lib/project-deployment-policy');
 const deployment = require('./lib/plugin-deployment');
 const { resolveWorkspaceContext, workspaceContextBlockers } = require('./lib/workspace-context');
 const { refresh } = require('./refresh-agents-sparse');
@@ -16,24 +17,16 @@ function resolveContext(root) {
     return context;
 }
 function preserveAvailable(context, names) {
-    const file = path.join(context.contextRoot, 'config/plugin_profile.md');
-    for (const target of [path.dirname(file),file]) if (fs.existsSync(target) && fs.lstatSync(target).isSymbolicLink()) throw new Error('Linked project profile preserved');
-    fs.mkdirSync(path.dirname(file), { recursive: true });
-    const before = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '# Plugin Profile\n\n| plugin | status | initSkill | dependsOn | notes |\n|---|---|---|---|---|\n';
-    const newline = before.includes('\r\n') ? '\r\n' : '\n';
-    const value = deployment.catalog(context.capabilityRoot), { statuses, retained } = deployment.profileContext(context.capabilityRoot, context.contextRoot);
-    let next = before;
+    const profile = require('./lib/project-plugin-profile');
+    const value = deployment.catalog(context.capabilityRoot);
+    const {statuses,retained} = deployment.profileContext(context.capabilityRoot,context.contextRoot);
+    const added = Object.create(null);
     for (const name of names) {
-        const item = deployment.find(value, name);
-        if (retained.includes(item.manifest.name)) continue;
-        if ([name, item.directory, ...(item.manifest.legacyNames || [])].some(alias => statuses.has(alias))) continue;
-        if (!next.endsWith('\n')) next += newline;
-        next += `| ${name} | available | ${item.manifest.initSkill || '-'} | ${(item.manifest.dependencies || []).join(', ') || '-'} | awaiting initialization |` + newline;
+        const item = deployment.find(value,name);
+        if (retained.includes(item.manifest.name) || [name,item.directory,...(item.manifest.legacyNames||[])].some(alias=>statuses.has(alias))) continue;
+        added[name] = {status:'available',initSkill:item.manifest.initSkill||'-',dependsOn:(item.manifest.dependencies||[]).join(', ')||'-',notes:'awaiting initialization'};
     }
-    if (next !== before || !fs.existsSync(file)) {
-        if (fs.existsSync(file) && fs.readFileSync(file, 'utf8') !== before) throw new Error('Plugin profile changed concurrently');
-        fs.writeFileSync(file, next);
-    }
+    if (Object.keys(added).length) profile.save(context.contextRoot,added);
 }
 function ignoreLocalConfig(root) {
     const file = path.resolve(root, deployment.git(root, ['rev-parse', '--git-path', 'info/exclude']));
@@ -46,7 +39,7 @@ function initialize(root, contextRoot, autoInstall = false) {
         if (existing.members.length || existing.mode !== 'full') throw new Error('Installation already initialized; use configure or migrate');
         ignoreLocalConfig(root);
         deployment.atomicJson(deployment.statePath(root), { ...existing, mode: 'on-demand', members: [{ contextRoot: path.resolve(contextRoot), lastRequired: [] }] });
-        deployment.atomicJson(path.join(contextRoot, 'config/plugin-deployment.json'), { schema: 'plugin-deployment/v1', mode: 'on-demand', autoInstall });
+        deploymentPolicy.save(contextRoot, { schema: 'plugin-deployment/v1', mode: 'on-demand', autoInstall });
         return { mode: 'on-demand', autoInstall };
     });
 }
@@ -89,11 +82,11 @@ function apply(context, options) {
             const currentMemberOffline = result.offlineMembers.some(member => deployment.sameContextRoot(member, context.contextRoot));
             if (!currentMemberOffline) preserveAvailable(context, result.selected);
             if (options.action === 'migrate') {
-                for (const member of state.members) deployment.atomicJson(path.join(member.contextRoot, 'config/plugin-deployment.json'), {
+                for (const member of state.members) deploymentPolicy.save(member.contextRoot, {
                     ...deployment.policy(member.contextRoot), mode: 'on-demand'
                 });
             } else if (state.mode === 'on-demand') {
-                deployment.atomicJson(path.join(context.contextRoot,'config/plugin-deployment.json'),{...result.policy,mode:state.mode});
+                deploymentPolicy.save(context.contextRoot,{...result.policy,mode:state.mode});
             }
             state.phase = 'ready';
             deployment.atomicJson(deployment.statePath(root), state);
@@ -117,16 +110,34 @@ function registerMember(context) {
     const root = context.capabilityRoot;
     return deployment.withLock(root, () => {
         const state = deployment.loadState(root);
-        if (state.mode === 'full') return {registered:false,mode:'full'};
+        const full = state.mode === 'full';
+        const overlay = context.mode === 'workspace-overlay';
+        if (full && !overlay) return {registered:false,mode:state.mode};
         let member = state.members.find(item => deployment.sameContextRoot(item.contextRoot, context.contextRoot));
+        const previous = JSON.stringify(member);
         if (!member) { member = {contextRoot:context.contextRoot,lastRequired:[]}; state.members.push(member); }
-        if (fs.existsSync(path.join(context.contextRoot,'config/plugin_profile.md'))) {
-            member.lastRequired = deployment.memberSelection(deployment.catalog(root),member).names;
+        if (overlay) {
+            if (member.workspaceRoot && !deployment.sameContextRoot(member.workspaceRoot, context.workspaceRoot)) {
+                throw new Error('ContextRoot is already registered for another workspace');
+            }
+            member.workspaceRoot = context.workspaceRoot;
+        }
+        try {
+            if (require('./lib/project-plugin-profile').read(context.contextRoot).exists) {
+                member.lastRequired = deployment.memberSelection(deployment.catalog(root),member).names;
+            }
+        } catch (error) {
+            // Full deployments retain all resources. Leave existing history available when the profile cannot be read.
+            if (!full) throw error;
+        }
+        if (full) {
+            if (previous !== JSON.stringify(member)) deployment.atomicJson(deployment.statePath(root),state);
+            return {registered:true,contextRoot:context.contextRoot,mode:state.mode};
         }
         ignoreLocalConfig(root);
         deployment.atomicJson(deployment.statePath(root),state);
         const configuration = deployment.policy(context.contextRoot);
-        deployment.atomicJson(path.join(context.contextRoot,'config/plugin-deployment.json'),{...configuration,mode:'on-demand'});
+        deploymentPolicy.save(context.contextRoot,{...configuration,mode:'on-demand'});
         refresh(root,runtimePatterns);
         return {registered:true,contextRoot:context.contextRoot,mode:state.mode};
     });
@@ -180,6 +191,17 @@ function main(argv) {
             else options[key.slice(2)] = value;
         } else throw new Error('Invalid deployment argument: ' + key);
     }
+    if (['read-policy','migrate-policy','rollback-policy'].includes(action)) {
+        if (!options['context-root'] || !options['capability-root']) throw Error('Explicit context and capability roots required');
+        const root = path.resolve(options['context-root']);
+        if (action === 'read-policy') return deploymentPolicy.read(root).value;
+        return deployment.withLock(path.resolve(options['capability-root']), () => {
+            if (action === 'rollback-policy') return deploymentPolicy.rollback(root);
+            const current = deploymentPolicy.read(root);
+            if (current.hasOld) deploymentPolicy.save(root, current.value);
+            return deploymentPolicy.read(root).value;
+        });
+    }
     if (action === 'initialize') return initialize(path.resolve(options['capability-root']), path.resolve(options['context-root']), options['auto-install'] === 'true');
     if (action === 'profile-history' && options['capability-root'] && options['context-root']) {
         const current = deployment.profileContext(path.resolve(options['capability-root']), path.resolve(options['context-root']));
@@ -198,6 +220,20 @@ function main(argv) {
         return deployment.acquireLock(lockContext.capabilityRoot, Number(options.pid));
     }
     const context = resolveContext(options['project-root']);
+    if (action === 'rollback-project') return deployment.withLock(context.capabilityRoot, () => {
+        const root = context.contextRoot;
+        const profiles = require('./lib/project-plugin-profile');
+        const current = profiles.read(root);
+        deploymentPolicy.read(root);
+        const dev = require('./lib/iris-development-settings');
+        const rolledBackDevelopment = dev.rollback(root);
+        try { profiles.rollback(root); return deploymentPolicy.rollback(root); }
+        catch (error) {
+            if (rolledBackDevelopment) dev.save(context,{});
+            if (current.canonical && !profiles.read(root).canonical) profiles.save(root,current.entries);
+            throw error;
+        }
+    });
     if (action === 'release-lock') { deployment.releaseLock(context.capabilityRoot, options.token); return {released:true}; }
     if (action === 'recover') return deployment.recoverLock(context.capabilityRoot);
     if (action === 'register') return registerMember(context);
@@ -210,7 +246,7 @@ function main(argv) {
         return deployment.withLock(context.capabilityRoot, () => {
             const value = { ...deployment.policy(context.contextRoot), mode: deployment.loadState(context.capabilityRoot).mode, autoInstall: options['auto-install'] === 'true' };
             ignoreLocalConfig(context.capabilityRoot);
-            deployment.atomicJson(path.join(context.contextRoot, 'config/plugin-deployment.json'), value);
+            deploymentPolicy.save(context.contextRoot, value);
             return value;
         });
     }

@@ -129,47 +129,11 @@ function Normalize-PluginStatus {
 
 function Read-PluginProfile {
   param([string]$ProfilePath)
-
+  $encoded = & node (Join-Path $PSScriptRoot "lib/project-plugin-profile.js") read $contextRootFull
+  if ($LASTEXITCODE -ne 0) { throw "Cannot read project plugin profile" }
+  $state = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded)) | ConvertFrom-Json
   $profile = @{}
-  if (-not (Test-Path -LiteralPath $ProfilePath -PathType Leaf)) {
-    return $profile
-  }
-
-  $lines = [System.IO.File]::ReadAllLines($ProfilePath, [System.Text.Encoding]::UTF8)
-  foreach ($line in $lines) {
-    $trimmed = $line.Trim()
-    if (-not $trimmed.StartsWith("|")) {
-      continue
-    }
-    if ($trimmed -match "^\|\s*-+\s*\|") {
-      continue
-    }
-    $cells = @($trimmed.Trim("|").Split("|") | ForEach-Object { $_.Trim() })
-    if ($cells.Count -lt 2 -or $cells[0] -eq "plugin") {
-      continue
-    }
-    $initSkill = ""
-    if ($cells.Count -gt 2) {
-      $initSkill = $cells[2]
-    }
-    $dependsOn = ""
-    if ($cells.Count -gt 3) {
-      $dependsOn = $cells[3]
-    }
-    $notes = ""
-    if ($cells.Count -gt 4) {
-      $notes = $cells[4]
-    }
-    $pluginName = $cells[0] -replace '^`([\w-]+)`$', '$1'
-    $profile[$pluginName] = [PSCustomObject]@{
-      plugin = $pluginName
-      status = Normalize-PluginStatus -Value $cells[1]
-      initSkill = $initSkill
-      dependsOn = $dependsOn
-      notes = $notes
-    }
-  }
-
+  foreach ($row in @($state.rows)) { $profile[$row.plugin] = $row }
   return $profile
 }
 
@@ -190,16 +154,8 @@ function Write-PluginProfile {
   )
 
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $ProfilePath) | Out-Null
-  $pipe = [char]124
-  $lines = @(
-    "# Plugin Profile",
-    "",
-    "This file records plugin enablement for the target project. A plugin directory means available only, not enabled.",
-    "",
-    ($pipe + " plugin " + $pipe + " status " + $pipe + " initSkill " + $pipe + " dependsOn " + $pipe + " notes " + $pipe),
-    ($pipe + "---" + $pipe + "---" + $pipe + "---" + $pipe + "---" + $pipe + "---" + $pipe)
-  )
-
+  $rows = @{}
+  $aliases = @{}
   foreach ($pluginItem in ($Plugins | Sort-Object name)) {
     if ($Profile.ContainsKey($pluginItem.name)) {
       $entry = $Profile[$pluginItem.name]
@@ -237,10 +193,13 @@ function Write-PluginProfile {
     if ([string]::IsNullOrWhiteSpace($notesValue)) {
       $notesValue = "-"
     }
-    $lines += ('{0} {1} {0} {2} {0} {3} {0} {4} {0} {5} {0}' -f $pipe, $pluginItem.name, $statusValue, $initSkillValue, $dependsOnValue, $notesValue)
+    $rows[$pluginItem.name] = @{ status=$statusValue; initSkill=$initSkillValue; dependsOn=$dependsOnValue; notes=$notesValue }
+    foreach ($alias in @($pluginItem.legacyNames)) { if ($alias) { $aliases[$alias] = $pluginItem.name } }
   }
 
-  [System.IO.File]::WriteAllLines($ProfilePath, $lines, [System.Text.UTF8Encoding]::new($false))
+  $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -Compress -Depth 6 -InputObject @{rows=$rows; aliases=$aliases})))
+  $encoded | & node (Join-Path $PSScriptRoot "lib/project-plugin-profile.js") save $contextRootFull
+  if ($LASTEXITCODE -ne 0) { throw "Cannot write project plugin profile" }
 }
 
 function Assert-DiscoveryOutput {
@@ -297,7 +256,7 @@ if (($Status -eq "enabled") -and -not (Test-Path -LiteralPath (Join-Path $capabi
   throw "Plugin is not materialized; run plugin-deploy.js ensure before initialization and enablement"
 }
 
-$profilePath = Join-Path (Join-Path $contextRootFull "config") "plugin_profile.md"
+$profilePath = Join-Path (Join-Path $contextRootFull "config") "project.jsonc"
 $profile = Read-PluginProfile -ProfilePath $profilePath
 $retainedRequirements = @()
 if (Test-Path -LiteralPath $profileDeploymentEntry -PathType Leaf) {
@@ -311,8 +270,13 @@ if ($Status -in @("disabled", "available")) {
   if ($LASTEXITCODE -ne 0) { throw "Plugin deactivation blocked by enabled dependencies; profile and discovery entries preserved" }
 }
 
-$deploymentPolicyPath = Join-Path $contextRootFull "config/plugin-deployment.json"
-$enforceDiscovery = (Test-Path -LiteralPath $deploymentPolicyPath) -and ((Get-Content -LiteralPath $deploymentPolicyPath -Raw -Encoding UTF8 | ConvertFrom-Json).mode -eq "on-demand")
+$enforceDiscovery = $false
+if ((Test-Path -LiteralPath (Join-Path $contextRootFull "config/project.jsonc")) -or (Test-Path -LiteralPath (Join-Path $contextRootFull "config/plugin-deployment.json"))) {
+  $policyAction = "read-policy"
+  $policyResult = & node (Join-Path $PSScriptRoot "plugin-deploy.js") $policyAction --context-root $contextRootFull --capability-root $capabilityRootFull | Out-String
+  if ($LASTEXITCODE -ne 0) { throw ("Cannot read project deployment policy: " + $policyResult) }
+  $enforceDiscovery = (($policyResult | ConvertFrom-Json).mode -eq "on-demand")
+}
 if ($enforceDiscovery -and $Status -eq "enabled") {
   foreach ($dependency in @(Get-PluginDependencies -Plugin $targetPlugin)) {
     $dependencyPlugin = $plugins | Where-Object { Test-PluginNameMatches -Plugin $_ -Name $dependency } | Select-Object -First 1

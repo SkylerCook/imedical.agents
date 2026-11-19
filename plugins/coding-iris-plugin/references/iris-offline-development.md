@@ -4,7 +4,7 @@
 
 ## 开发方式与完成边界
 
-- 唯一机器事实源是当前 ContextRoot 的 `config/iris-development.json`：`developmentMode` 取 `connected` 或 `offline`。缺少文件或字段保持旧 `connected` 行为；非法值停止 IRIS 流程，不能降级为 direct。profile 只引用该配置，不维护另一份值。
+- 唯一机器事实源是当前 ContextRoot 的 `config/project.jsonc` 的 `irisDevelopment` 节：`developmentMode` 取 `connected` 或 `offline`。缺少文件或字段保持旧 `connected` 行为；非法值停止 IRIS 流程，不能降级为 direct。profile 只引用该配置，不维护另一份值。
 - `contextMode` 继续表达上下文及按需补齐策略，`standard/project` 继续表达需求类型；完整代码和少量代码都可离线开发。离线初始化可只声明 `{"developmentMode":"offline"}`，不猜环境别名或类型，不要求连接、资格或服务器类。
 - `offline` 禁止医院远端读取、导出、上传、编译、导入、调试、测试及菜单采集。受管入口在连接配置/客户端之前阻断；Agent 同样不得调用原生 IRIS MCP。原生 MCP、外部 IDE 不在脚本拦截边界，不能宣称全系统断网。Git 联网和公共资料查询仍按原授权处理。
 - 本地编辑、静态/本地测试、知识查询、清单比较、Review、打包及本地状态检查可用。医院验收 runner 不作为离线检查工具；本地状态与恢复材料检查不清除旧锁或未知结果。模式切换不释放旧任务，也不使旧发布批准重新有效；既有连接只报告，不自动改写或生成。

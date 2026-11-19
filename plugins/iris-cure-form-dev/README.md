@@ -237,3 +237,5 @@ node .agents/plugins/iris-cure-form-dev/scripts/cure-form.js common-migrate `
 按需部署时，由 manifest 的 runtimeResources 与 required skill 依赖取得必需 vendor 资源；可选资料随任务触发补装，流程见[插件按需部署](../../docs/guides/plugin-deployment.md)。
 
 移动端改造沿 cure-form-responsive 的宿主与交付章节核对完整容器交互、共用模板影响及源码/表数据依赖。
+
+运行参数保存在当前 ContextRoot 的 `config/project.jsonc` 的 `pluginSettings.iris-cure-form-dev` 节。 现有工程沿原更新器 Write 迁移已识别字段。

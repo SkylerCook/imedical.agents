@@ -194,7 +194,7 @@ class SessionManager {
     lastFailedOperation:p.lastFailedOperation, ...risk.statusDetails({...p, queued:p.queue.length, leased:!!p.lease}, this.now()),
     reconciliationToken: fs.existsSync(p.file) ? hash(fs.readFileSync(p.file, 'utf8')) : null}; }
   status() { return [...this.pools.values()].map(p => this.summary(p)); }
-  markUnknown(pool) {const p=this.pool(pool);risk.addUnresolved(p,p.pendingScope,'session-outcome-unverified',this.now());this.persist(p);return this.summary(p);}
+  markUnknown(pool,scope) {const p=this.pool(pool);risk.addUnresolved(p,scope ?? p.pendingScope,'session-outcome-unverified',this.now());this.persist(p);return this.summary(p);}
   reconcile(pool, {token, confirm, evidence, writeOutcome, writeIds} = {}) {
     if (!confirm) throw failure('session-reconciliation-confirmation-required');
     const id = hash(pool);

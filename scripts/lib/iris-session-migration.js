@@ -20,6 +20,7 @@ function privateFile(root, file) {
 }
 function write(file, value, before) {
   if (before !== undefined && fs.readFileSync(file,'utf8') !== before) throw failure('session-migration-concurrent-change');
+  if (before !== undefined && require('node:util').isDeepStrictEqual(JSON.parse(before.replace(/^\uFEFF/,'')),value)) return;
   const bytes = JSON.stringify(value,null,2)+'\n';
   if (before === undefined) fs.writeFileSync(file,bytes,{flag:'wx',mode:0o600});
   else {
@@ -46,8 +47,11 @@ function assertInactive(context,server) {
 function migrate({projectRoot, mode='DryRun', serverName}={}) {
   if(!['DryRun','Write','Check','Rollback'].includes(mode))throw failure('session-migration-mode-invalid');
   const context=require('./workspace-context').resolveWorkspaceContext(path.resolve(projectRoot));
+  const selected=require('./iris-selected-target').selected(context);
   const environmentFile=path.join(context.contextRoot,'config','project-env.json');
-  serverName ||= (fs.existsSync(environmentFile)?read(environmentFile).mcp?.serverName:null) || 'iris-agentic-dev';
+  serverName ||= selected?.serverName || (fs.existsSync(environmentFile)?read(environmentFile).mcp?.serverName:null) || 'iris-agentic-dev';
+  selected?.checkName(serverName,'session migration');
+  if (selected && !selected.bindings.mcp) return {status:'not-applicable',reason:'profile-mcp-unbound'};
   const configFile=path.join(context.workspaceRoot,'.mcp.json'), backendFile=path.join(context.contextRoot,'config','iris-session-backend.json');
   if(!fs.existsSync(configFile))return {status:'not-applicable',reason:'configuration-missing'};
   const configText=fs.readFileSync(configFile,'utf8'), config=JSON.parse(configText.replace(/^\uFEFF/,'')), server=config.mcpServers?.[serverName];
@@ -113,7 +117,7 @@ function migrate({projectRoot, mode='DryRun', serverName}={}) {
   }
   return {status:mode==='Write'?'applied':'planned',managed:mode==='Write',restartRequired:true};
 }
-function preserveManaged({context,config}) {
+function preserveManaged({context,config,selectedName}) {
   const file=path.join(context.workspaceRoot,'.mcp.json');
   const undo=[];
   if(!fs.existsSync(file))return undo;
@@ -133,6 +137,7 @@ function preserveManaged({context,config}) {
       }
       continue;
     }
+    if (!replacement && selectedName && name!==selectedName) continue;
     if(!replacement)throw failure('session-generator-server-rename-review-required');
     const backendFile=path.join(context.contextRoot,'config','iris-session-backend.json');
     privateFile(context.workspaceRoot,backendFile);
@@ -151,11 +156,30 @@ function preserveManaged({context,config}) {
   return undo;
 }
 function writeGenerated({context,config}) {
+  const selected=require('./iris-selected-target').selected(context);
+  if (selected) {
+    const generated=config.mcpServers?.[selected.serverName];
+    if (!selected.bindings.mcp || !generated) throw failure('iris-profile-conflict: generated MCP / serverName');
+    selected.checkServer(generated,'generated MCP');
+  }
   const file=path.join(context.workspaceRoot,'.mcp.json');
   privateFile(context.workspaceRoot, file);
   const before=fs.existsSync(file)?fs.readFileSync(file,'utf8'):undefined;
-  const undo=preserveManaged({context,config});
+  const undo=preserveManaged({context,config,selectedName:selected?.serverName});
   try {write(file,config,before);}
   catch(error) {for(const restore of undo.reverse())restore();throw error;}
 }
-module.exports={migrate,preserveManaged,writeGenerated};
+function writeIndependentSftp(context,name,server) {
+  const state=require('./iris-selected-target').selection(context);
+  if (!state || name===state.serverName) throw failure('iris-profile-conflict: SFTP / serverName');
+  const file=path.join(context.workspaceRoot,'.mcp.json');
+  privateFile(context.workspaceRoot,file);
+  const before=fs.existsSync(file)?fs.readFileSync(file,'utf8'):undefined;
+  const config=before===undefined?{}:JSON.parse(before.replace(/^\uFEFF/,''));
+  const current=config.mcpServers?.[name];
+  if (managed(current)) throw failure('session-generator-server-rename-review-required');
+  config.mcpServers={...config.mcpServers,[name]:{...current,...server,env:{...current?.env,...server.env},
+    ...(current && Object.hasOwn(current,'disabled')?{disabled:current.disabled}:{})}};
+  write(file,config,before);
+}
+module.exports={migrate,preserveManaged,writeGenerated,writeIndependentSftp};

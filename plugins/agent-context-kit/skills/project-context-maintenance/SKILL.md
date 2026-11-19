@@ -74,7 +74,7 @@ description: Initialize, maintain, or optimize project context and local docs kn
 
 ## 渐进式读取
 
-- 先读取 `AGENTS.md` 和项目记忆入口，确定维护范围；插件状态影响本次操作时读取 `plugin_profile.md`。已持有且未变化的资料复用，不反复打开。
+- 先读取 `AGENTS.md` 和项目记忆入口，确定维护范围；插件状态影响本次操作时读取 `project.jsonc` 的 `plugins` 节。已持有且未变化的资料复用，不反复打开。
 - 仅当任务涉及安装或更新 `.agents` 时，读取 `.agents/docs/update-agents.md`，不要在本 skill 中重写 runbook。
 - 仅当需要维护某个已启用插件时，继续读取该插件真实 init skill、README、templates 或 thin-index 脚本。
 - 仅当要编辑项目规则、记忆或配置时，读取对应 `.agents/rules/`、`.agents/memory/` 或 `.agents/config/` 文件；不要为了上下文完整性一次性加载所有插件规则。
@@ -151,13 +151,13 @@ description: Initialize, maintain, or optimize project context and local docs kn
 | `.agents/plugins/<plugin>/` | 可跨项目复用的流程、模板、脚本或规则，不包含源项目事实。 |
 | `.agents/skills/<skill>/SKILL.md` | 仅放 thin-index，用于让只发现浅层 skill 目录的 Agent 找到插件真实 skill。 |
 
-插件启用状态以 `.agents/config/plugin_profile.md` 为事实来源。插件目录存在只表示 `available`，不表示当前业务项目已启用该插件。
+插件启用状态以 `.agents/config/project.jsonc` 的 `plugins` 节 为事实来源。插件目录存在只表示 `available`，不表示当前业务项目已启用该插件。
 
 ## 插件变更后的项目上下文收尾
 
 由 [plugin-management](../plugin-management/SKILL.md) 完成启用、禁用、恢复或迁移后进入，包括状态已满足但需核对入口的幂等重跑；沿用本次目标工程、Workspace Context、授权范围与已验证结果。已经在本流程内时直接续接此步骤，保留已有 contextMode，不重新扫描候选插件或执行领域初始化。
 
-1. 读回 `ContextRoot/config/plugin_profile.md`，核对本次目标和实际变化的依赖状态，以及发现入口是否已验证。状态由 profile 工具维护，不手写第二份状态清单；补装为 available 或初始化失败的能力不增加可执行路由。
+1. 读回 `ContextRoot/config/project.jsonc 的 plugins 节`，核对本次目标和实际变化的依赖状态，以及发现入口是否已验证。状态由 profile 工具维护，不手写第二份状态清单；补装为 available 或初始化失败的能力不增加可执行路由。
 2. 定点检查 `AGENTS.md` 与已有规则入口。已 enabled 且入口可用的能力按任务条件补齐或复用路由；已 disabled/available 的能力撤下其可执行路由或改为明确的恢复说明，保留无关业务约束和自定义内容。无需为已有等价路由再建索引。
 3. 项目事实或长期有效决定确有变化时，才更新 `project_context_profile.md`、相关规则或 `memory/project-memory.md`；内容未变化则保持原文，不为收尾创建一次性日志或占位记录。
 4. 按下文[规则路由维护](#规则路由维护)从受影响任务走查到真实 source，核对状态、触发条件与路径一致。分别报告脚本状态、项目路由和宿主实际加载证据；存在未完成项时保留实际状态并说明缺口，不以脚本成功代替完整接入。
@@ -174,7 +174,7 @@ description: Initialize, maintain, or optimize project context and local docs kn
 - 高频硬约束：跨任务必须遵守、遗漏会造成明显风险的规则。
 - 规则路由：不同任务类型应读取哪些 rules 或 skills，按下文[规则路由维护](#规则路由维护)落地。
 - 插件路由：项目已接入的插件、首次初始化入口、thin-index 入口。
-- 插件状态引用 `plugin_profile.md`，不维护第二份状态清单。
+- 插件状态引用 `project.jsonc` 的 `plugins` 节，不维护第二份状态清单。
 - 外部工具边界：MCP/SFTP/编译/上传等能力的使用原则和安全边界。
 
 ### 不应写入 AGENTS.md
@@ -294,7 +294,7 @@ description: Initialize, maintain, or optimize project context and local docs kn
 
 - `.agents/capability.json` 可解析，WorkspaceRoot、CapabilityRoot、ContextRoot、SourceRoot、GitRoot 均与实际路径一致。
 - 所有 shared Junction 目标精确匹配 CapabilityRoot，所有 local context 目录均为普通目录，ContextRoot 无 `.git`。
-- ContextRoot 的 `config/plugin_profile.md` 保留已有值；只有 `enabled` 插件生成 enabled thin-index，`available`/`disabled` 不生成新入口。
+- ContextRoot 的 `config/project.jsonc` 的 `plugins` 节 保留已有值；只有 `enabled` 插件生成 enabled thin-index，`available`/`disabled` 不生成新入口。
 - `rules/project.md`、`memory/project-memory.md` 和项目已有 config 未被 updater 覆盖。
 - 源码只读调查使用已声明或注册表明确映射的仓库；模块外写入已取得明确授权，ContextRoot 中没有混入其他模块的规则、记忆、profile 或 thin-index。
 - 所有 Git 证据来自声明的 GitRoot；CapabilityRoot Git 状态未被模块上下文刷新改变。

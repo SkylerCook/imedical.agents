@@ -35,7 +35,7 @@ description: Use when initializing imedicalxc-doctor-perf-analysis-engineer in a
 1. **检查目标工程状态**：
    - 确认 `.agents/` 目录存在。
    - 确认 `AGENTS.md` 存在。
-   - 确认 `.agents/config/plugin_profile.md` 中 `imedicalxc-doctor-extend-engineer` 状态为 `enabled`。
+   - 确认 `.agents/config/project.jsonc` 的 `plugins` 节 中 `imedicalxc-doctor-extend-engineer` 状态为 `enabled`。
    - 若依赖未满足，停止并报告 `plugin-dependency-missing`。
 
 2. **检查存量 thin-index**：
@@ -53,7 +53,7 @@ description: Use when initializing imedicalxc-doctor-perf-analysis-engineer in a
      ```
 
 4. **更新插件状态**：
-   - 初始化闭环验收通过后，运行脚本机械维护 `.agents/config/plugin_profile.md`：
+   - 初始化闭环验收通过后，运行脚本机械维护 `.agents/config/project.jsonc` 的 `plugins` 节：
      ```powershell
      powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin imedicalxc-doctor-perf-analysis-engineer -Status enabled
      ```
@@ -71,6 +71,6 @@ description: Use when initializing imedicalxc-doctor-perf-analysis-engineer in a
 
 - 依赖检查结果。
 - thin-index DryRun/Write 结果。
-- `plugin_profile.md` 中 `imedicalxc-doctor-perf-analysis-engineer` 的最终状态。
+- `project.jsonc` 的 `plugins` 节 中 `imedicalxc-doctor-perf-analysis-engineer` 的最终状态。
 - 被跳过或冲突的文件。
 - project-memory.md 更新结果。

@@ -1,5 +1,8 @@
 # IRIS 项目适配配置
 
+运行参数保存在当前 ContextRoot 的 `config/project.jsonc` 的 `pluginSettings.coding-iris-plugin` 节。
+
+
 本文档记录目标工程的 IRIS 编码差异项。MCP 连接凭据以工程根目录 `.mcp.json` 为准，本文件不保存账号、密码、token。
 
 > **项目类型默认值**：若目标工程属于已知类型（如 `doctor-dev`），优先从 `templates/profile-defaults/<type>.md` 加载默认值填充，减少 TODO。可用类型见 `templates/profile-defaults/` 目录。
@@ -22,18 +25,14 @@
 ### 编码策略
 
 - 后端源文件编码：UTF-8
-- 前端编码模式：utf8
 - 前端编码冲突处理：stop-and-report
 
-- 前端源码编码：utf8
-- 前端服务器编码：pending
-- 前端服务器编码确认：pending
 
 标版初始化按 UTF-8 配置。按需项目先调查并取得开发人员一次确认，再运行 `frontend-encoding-cli.js confirm` 写入服务器编码及目标指纹。已有 UTF-8 源码保持原样，部署按目标编码转换，详见[编码契约](../references/frontend-encoding.md)。backend-only 工程继续沿 N/A 约定。
 
 ### 部署能力
 
-开发方式的唯一机器事实源为当前 ContextRoot 的 `config/iris-development.json`，字段 `developmentMode` 取 `connected` 或 `offline`；缺省保持旧行为。这里引用配置，不另存一份值。离线时只做本地分析、修改、检查、Review 与交付，医院服务器操作不可用；源码上下文完整性仍由 `contextMode` 表达，规则见[离线开发协议](../references/iris-offline-development.md)。
+开发方式的唯一机器事实源为当前 ContextRoot 的 `config/project.jsonc` 的 `irisDevelopment` 节，字段 `developmentMode` 取 `connected` 或 `offline`；缺省保持旧行为。这里引用配置，不另存一份值。离线时只做本地分析、修改、检查、Review 与交付，医院服务器操作不可用；源码上下文完整性仍由 `contextMode` 表达，规则见[离线开发协议](../references/iris-offline-development.md)。
 
 - 编码时从 `.mcp.json` 确认可用的 MCP 工具（iris_doc、iris_compile、sftp-server 等）
 - CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。

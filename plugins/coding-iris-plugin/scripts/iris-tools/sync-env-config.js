@@ -20,6 +20,16 @@ if (require('../../../../scripts/lib/iris-remote-operations').developmentMode(wo
   process.exit(0);
 }
 const workspaceRoot = workspaceContext.workspaceRoot;
+if (process.argv.includes('--check-profile')) {
+  try {
+    const selected = require('../../../../scripts/lib/iris-selected-target').selected(workspaceContext,{requireBindings:true});
+    console.log(JSON.stringify({status:selected?'selected-profile':'no-profile'}));
+  } catch (error) {
+    console.error(error.code || 'profile-configuration-invalid');
+    process.exitCode=1;
+  }
+  return;
+}
 const configPath = path.join(workspaceContext.contextRoot, 'config', 'project-env.json');
 const templatePath = path.join(workspaceContext.capabilityRoot, 'plugins', 'coding-iris-plugin', 'templates', 'project-env.template.json');
 
@@ -52,10 +62,17 @@ for (const section of ['iris', 'mcp', 'sftp']) {
     errors.push(`${section}: expected object`);
   }
 }
-const iris = isObject(config.iris) ? config.iris : {};
+const targets = require('../../../../scripts/lib/iris-selected-target');
+let selected, profileProblem;
+try { selected=targets.selected(workspaceContext); }
+catch (error) {
+  if (!error.code?.startsWith('iris-profile-conflict:')) throw error;
+  profileProblem=error;
+}
+const iris = {...config.iris, ...(selected?.profile || {})};
 const mcp = isObject(config.mcp) ? { ...config.mcp } : {};
 const sftp = isObject(config.sftp) ? config.sftp : {};
-if (mcp.serverName === undefined) mcp.serverName = 'iris-agentic-dev';
+if (mcp.serverName === undefined) mcp.serverName = selected?.serverName || 'iris-agentic-dev';
 if (mcp.serverPath === undefined && process.platform === 'win32' && process.arch === 'x64') {
   const vendorPath = path.join(workspaceContext.capabilityRoot, 'vendor', 'iris-agentic-dev', 'windows-x64', 'iris-agentic-dev.exe');
   if (fs.existsSync(vendorPath)) mcp.serverPath = vendorPath;
@@ -91,6 +108,16 @@ if (sftpEnabled) {
   }
   if (isMissing(sftp.keyFile)) requireValue('sftp', 'password', sftp.password);
   if (sftp.serverName === mcp.serverName) errors.push('sftp.serverName: must differ from mcp.serverName');
+}
+if (profileProblem) {
+  console.error('[ERROR] '+profileProblem.code);
+  process.exitCode=1;
+  const state=targets.selection(workspaceContext);
+  if (state && sftpEnabled && sftp.serverName!==state.serverName && !errors.some(e=>e.startsWith('sftp'))) {
+    require('../../../../scripts/lib/iris-session-migration').writeIndependentSftp(workspaceContext,sftp.serverName,buildSftp(sftp,workspaceContext.capabilityRoot));
+    console.log('[OK] SFTP configuration synced');
+  }
+  return;
 }
 if (errors.length) {
   console.error('[ERROR] Invalid configuration fields:\n' + errors.map(error => `- ${error}`).join('\n'));

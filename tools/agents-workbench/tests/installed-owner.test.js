@@ -38,7 +38,19 @@ test('installed standard owner Check and local DryRun preserve the project', {sk
   fs.writeFileSync(path.join(root,'AGENTS.md'),'Existing project instructions');
   fs.writeFileSync(path.join(root,'.mcp.json'),JSON.stringify({mcpServers:{custom:{command:'fixture-never-run'}}}));
   fs.writeFileSync(path.join(root,'business.txt'),'fixture business content');
-  const installed = ps(path.join(repo,'scripts/install-agents.ps1'),'-RuntimeAdapter','Codex');
+  const installer = path.join(repo,'scripts/install-agents.ps1');
+  const approval = pin + ':f0a05c1ee334f4f37fadaaeb313f9f9c67b93ee0f25938fd9b982a0ce155620c';
+  const extra = run('git',['--git-dir',mirror,'-c','user.name=Fixture','-c','user.email=fixture@example.invalid',
+    'commit-tree',pin+'^{tree}','-p',pin,'-m','Unverified first-install revision']);
+  assert.equal(extra.status,0,extra.stderr);
+  const unknownRevision = extra.stdout.trim();
+  assert.equal(run('git',['--git-dir',mirror,'update-ref','HEAD',unknownRevision,pin]).status,0);
+  const refused = ps(installer,'-RuntimeAdapter','Codex','-TrustedRuntimeTree',approval);
+  assert.notEqual(refused.status,0);
+  assert.match(refused.stderr,/Unrecognized framework/);
+  assert.ok(!fs.readdirSync(root).some(name=>name.startsWith('.agents')));
+  assert.equal(run('git',['--git-dir',mirror,'update-ref','HEAD',pin,unknownRevision]).status,0);
+  const installed = ps(installer,'-RuntimeAdapter','Codex','-TrustedRuntimeTree',approval);
   assert.equal(installed.status,0,installed.stderr);
   const owner = path.join(root,'.agents/scripts/update-agents.ps1');
   function snapshot() {
@@ -124,20 +136,38 @@ test('installed standard owner Check and local DryRun preserve the project', {sk
       assert.equal((await drift.json()).before.revision,newHead);
       const refreshed = await post('action',{...request,action:'refresh'},auth);
       assert.equal((await refreshed.json()).revision,newHead);
-      const compatible = await post('action',{...request,revision:newHead},auth);
-      assert.equal((await compatible.json()).exitCode,0);
+      const unverified = await post('action',{...request,revision:newHead},auth);
+      assert.equal(unverified.status,409);
+      assert.equal((await unverified.json()).error,'unknown-tree');
     } finally {
       assert.equal(run('git',['-C','.agents','update-ref','HEAD',pin,newHead]).status,0);
       await post('action',{...request,action:'refresh'},auth);
     }
-    const bytes = fs.readFileSync(owner);
+    const manifest = path.join(root,'.agents/plugins/agent-context-kit/.agents-plugin/plugin.json');
+    for (const file of [owner,manifest]) {
+      const bytes = fs.readFileSync(file);
+      try {
+        fs.appendFileSync(file,'\n ');
+        const rejected = await post('action',request,auth);
+        assert.equal(rejected.status,409);
+        assert.equal((await rejected.json()).error,'runtime-modified');
+        assert.deepEqual(snapshot(),before);
+      } finally { fs.writeFileSync(file,bytes); }
+    }
+    // Materialize an optional plugin's genuine manifest without its migration script.
+    const relative = 'plugins/iris-interface-dev/.agents-plugin/plugin.json';
+    const optional = path.join(root,'.agents',relative);
+    assert.equal(fs.existsSync(optional),false);
+    const metadata = run('git',['-C','.agents','show',pin+':'+relative]);
+    assert.equal(metadata.status,0);
+    fs.mkdirSync(path.dirname(optional),{recursive:true});
+    fs.writeFileSync(optional,metadata.stdout);
     try {
-      fs.appendFileSync(owner,'\nthrow "modified fixture"');
       const rejected = await post('action',request,auth);
       assert.equal(rejected.status,409);
       assert.equal((await rejected.json()).error,'runtime-modified');
       assert.deepEqual(snapshot(),before);
-    } finally { fs.writeFileSync(owner,bytes); }
+    } finally { fs.unlinkSync(optional); }
     run('git',['-C','.agents','remote','set-url','origin','fixture-unknown']);
     try {
       const unknown = await post('action',request,auth);

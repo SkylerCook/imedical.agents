@@ -5,6 +5,19 @@ const {describe}=require('../lib/iris-session-backends');
 const {serve}=require('../iris-session-host');
 const {createClient}=require('../lib/iris-session-client');
 
+test('a client opened on A refuses dispatch after the project selects B',async t=>{
+  const project=createTempDirectory('iris-profile-session-');
+  t.after(()=>{assert.ok(ownsTempDirectory(project));fs.rmSync(project,{recursive:true,force:true});});
+  const select=host=>fs.writeFileSync(path.join(project,'.mcp.json'),JSON.stringify({mcpServers:{
+    'iris-agentic-dev':{env:{IRIS_HOST:host,IRIS_WEB_PORT:'443',IRIS_NAMESPACE:'TEST'}}
+  }}));
+  select('a.invalid');
+  const client=createClient({projectRoot:project,allowWrite:true});
+  select('b.invalid');
+  await assert.rejects(client.request('tools/call',{name:'iris_doc',arguments:{mode:'put'}}),/session-target-changed-reconnect/);
+  await client.close();
+});
+
 test('read transport failure retains its cause through IPC without inventing HTTP status or write risk',async t=>{
   const root=createTempDirectory('iris-session-transport-'),project=path.join(root,'project');
   fs.mkdirSync(path.join(project,'.agents/config'),{recursive:true});
@@ -78,6 +91,17 @@ test('normal recovery entry loads durable pools after host restart and distingui
   assert.equal(outputs.at(-1).poolId, expectedId);
   assert.equal(outputs.at(-1).session.pool, expectedId);
   assert.equal(outputs.at(-1).status, 'reconciliation-required');
+  assert.equal(outputs.at(-1).recoveryCommand, 'reconcile-session');
+  const remote = require('../lib/iris-remote-operations');
+  const owner = {status:'ready',ownerPresent:true,ownerAlive:false};
+  const admission = t.mock.method(remote,'localPoolStatus',()=>owner);
+  await main(['status','--project-root',project]);
+  assert.equal(outputs.at(-1).recoveryCommand,'reconcile');
+  owner.ownerAlive=true;
+  await main(['status','--project-root',project]);
+  assert.equal(outputs.at(-1).recoveryCommand,undefined);
+  assert.ok(outputs.at(-1).recoveryHint);
+  admission.mock.restore();
   await assert.rejects(main(['reconcile-session','--project-root',project,'--confirm']), {code:'session-reconciliation-evidence-required'});
   const evidence = path.join(root,'evidence.json');
   fs.writeFileSync(evidence, JSON.stringify({processExited:true}));
@@ -91,17 +115,6 @@ test('normal recovery entry loads durable pools after host restart and distingui
   assert.equal(host.manager.status()[0].active,true);
   await main(['reconcile-session','--project-root',project,'--confirm','--token',before,'--write-outcome','verified-not-applied']);
   assert.equal(outputs.at(-1).unresolvedWrites.length,0);
-  assert.equal(outputs.at(-1).recoveryCommand, 'reconcile-session');
-  const remote = require('../lib/iris-remote-operations');
-  const owner = {status:'ready',ownerPresent:true,ownerAlive:false};
-  const admission = t.mock.method(remote,'localPoolStatus',()=>owner);
-  await main(['status','--project-root',project]);
-  assert.equal(outputs.at(-1).recoveryCommand,'reconcile');
-  owner.ownerAlive=true;
-  await main(['status','--project-root',project]);
-  assert.equal(outputs.at(-1).recoveryCommand,undefined);
-  assert.ok(outputs.at(-1).recoveryHint);
-  admission.mock.restore();
   assert.equal(outputs.at(-1).active,false);
   await main(['reconcile-session','--project-root',project,'--confirm']);
   assert.equal(outputs.at(-1).status,'not-required');
@@ -162,6 +175,10 @@ test('managed MCP clients reach one real subprocess and local tools/list never s
     assert.equal(JSON.parse(carrier.result.content[0].text).error_code,name==='iris_execute'?'HTTP_EXECUTION_FAILED':'IRIS_EXECUTE_ERROR');
     assert.equal(host.manager.status()[0].unresolvedWrites.length,0);
   }
+  const disabled=await a.request('tools/call',{name:'iris_execute',arguments:{code:'disabled'}});
+  assert.equal(JSON.parse(disabled.result.content[0].text).error_code,'DESTRUCTIVE_TOOLS_DISABLED');
+  assert.equal(host.manager.status()[0].unresolvedWrites.length,0);
+  await b.request('tools/call',{name:'iris_query',arguments:{sql:'SELECT after_disabled'}});
   const failed=await a.request('tools/call',{name:'iris_test',arguments:{pattern:'assertion'}});
   assert.equal(JSON.parse(failed.result.content[0].text).failed,1);
   await b.request('tools/call',{name:'iris_query',arguments:{sql:'SELECT after_assertion'}});
@@ -175,10 +192,6 @@ test('managed MCP clients reach one real subprocess and local tools/list never s
   });
   assert.equal(host.manager.status()[0].blocked,null);
   assert.equal(host.manager.status()[0].unresolvedWrites.length,1);
-  const disabled=await a.request('tools/call',{name:'iris_execute',arguments:{code:'disabled'}});
-  assert.equal(JSON.parse(disabled.result.content[0].text).error_code,'DESTRUCTIVE_TOOLS_DISABLED');
-  assert.equal(host.manager.status()[0].unresolvedWrites.length,0);
-  await b.request('tools/call',{name:'iris_query',arguments:{sql:'SELECT after_disabled'}});
   const afterUnknown=await b.request('tools/call',{name:'iris_query',arguments:{sql:'SELECT after_unknown'}});
   assert.equal(JSON.parse(afterUnknown.result.content[0].text).name,'iris_query');
   for(const name of fs.readdirSync(path.join(root,'ipc/pools')))assert.equal(fs.readFileSync(path.join(root,'ipc/pools',name),'utf8').includes('synthetic diagnosis'),false);

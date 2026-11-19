@@ -20,7 +20,7 @@ related:
 
 ## UI 条件门禁
 
-本节是前端 UI 条件读取的唯一入口。编码与 Review（包括只从本 rule 进入的审查）均读取当前 Context 的 `.agents/config/plugin_profile.md`，在修改前与最终 diff 后各判断一次；纯 Review 按任务与待审 diff 判断。目录存在只表示 `available`，不等于已启用。
+本节是前端 UI 条件读取的唯一入口。编码与 Review（包括只从本 rule 进入的审查）均读取当前 Context 的 `.agents/config/project.jsonc` 的 `plugins` 节，在修改前与最终 diff 后各判断一次；纯 Review 按任务与待审 diff 判断。目录存在只表示 `available`，不等于已启用。
 
 UI 信号包括标注/原型还原、布局/滚动/尺寸、字体/颜色/边框/圆角、控件视觉与状态、标题图标、操作图标及树节点图标、按主题切换控件、弹窗适配、主题条件变更、主题兼容及首屏闪烁。
 
@@ -35,7 +35,7 @@ UI 信号包括标注/原型还原、布局/滚动/尺寸、字体/颜色/边框
 
 ## 条件 i18n 门禁
 
-前端任务必须读取目标工程 `.agents/config/plugin_profile.md`，并在修改前与最终 diff 后各判断一次。插件目录存在只表示 `available`，只有 `i18n-iris-plugin` 状态为 `enabled` 才能自动追加 i18n 能力。
+前端任务必须读取目标工程 `.agents/config/project.jsonc` 的 `plugins` 节，并在修改前与最终 diff 后各判断一次。插件目录存在只表示 `available`，只有 `i18n-iris-plugin` 状态为 `enabled` 才能自动追加 i18n 能力。
 
 以下任一情况属于 i18n 信号：
 

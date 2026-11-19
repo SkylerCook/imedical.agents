@@ -33,7 +33,7 @@ IRIS 初始化与部署连接缺省 `tlsVerify=false`（MCP 为 `IRIS_TLS_VERIFY
 
 0.24.1：前后端专项入口恢复帮助优先于开发方式与业务前置的顺序；帮助只展示协议后结束，正常执行仍先分流 developmentMode。同步回归夹具复用物理临时目录，兼容 macOS 系统临时路径别名，运行时的链接保护保持。普通更新取得 source 修正，已有 thin-index 继续指向同一 owner；无配置迁移或旧文件清理。
 
-0.24.0：[开发方式与离线交付](references/iris-offline-development.md)独立使用 `ContextRoot/config/iris-development.json` 的 developmentMode，不新增 contextMode。offline 提前阻断受管医院连接，connected 保留原同步、准入和发布；缺省旧行为不变，非法值停止。源码助手迁入插件唯一实现，支持回执/人工目录、真实 Git 归属与范围冻结；XML 编辑对象在源码 Git、冻结原包在私有任务区，均经 Review、Pack 和独立 Verify 后待现场验收。人工 ZIP 从同一助手构建，无 Node/框架运行依赖。完整更新能力包并刷新 ContextRoot，再由授权维护补齐开发方式；普通更新不改配置、连接、锁或旧任务，不自动迁移旧基线。
+0.24.0：[开发方式与离线交付](references/iris-offline-development.md)独立使用 `ContextRoot/config/project.jsonc` 的 `irisDevelopment` 节 的 developmentMode，不新增 contextMode。offline 提前阻断受管医院连接，connected 保留原同步、准入和发布；缺省旧行为不变，非法值停止。源码助手迁入插件唯一实现，支持回执/人工目录、真实 Git 归属与范围冻结；XML 编辑对象在源码 Git、冻结原包在私有任务区，均经 Review、Pack 和独立 Verify 后待现场验收。人工 ZIP 从同一助手构建，无 Node/框架运行依赖。完整更新能力包并刷新 ContextRoot，再由授权维护补齐开发方式；普通更新不改配置、连接、锁或旧任务，不自动迁移旧基线。
 
 0.23.2：菜单同步复用共享 workspace 校验，兼容 Overlay 的实体源码目录；源码文件映射、部署预检与 XML 工具沿同一根解析器。先完整更新共享 CapabilityRoot，再刷新 ContextRoot；旧 Junction 无需迁移。实体入口另按 [Overlay 契约](../../docs/workspace-overlay.md#sourceroot引用已有源码或持有本地源码)接入，不改变离线协议、服务器能力或部署授权。
 
@@ -106,7 +106,7 @@ CSP、HTML、JS、CSS 编码与 Review 共用[前端规范](references/frontend-
 
 - 前端源码与服务器目标编码分别配置，标版采用 UTF-8，按需项目首次确认后复用。
 - 前端编码保护：实际文件字节检测是最终门禁；正常任务静默处理，完成时只报告一行摘要。
-- 前端 i18n 条件门禁：以目标工程 `plugin_profile.md` 为事实来源，只有 i18n 已启用且任务或 diff 命中翻译 helper、翻译 key 或用户可见文案时才追加 i18n 规则和稳定 key 检查；普通前端需求不加载完整 i18n workflow。
+- 前端 i18n 条件门禁：以目标工程 `project.jsonc` 的 `plugins` 节 为事实来源，只有 i18n 已启用且任务或 diff 命中翻译 helper、翻译 key 或用户可见文案时才追加 i18n 规则和稳定 key 检查；普通前端需求不加载完整 i18n workflow。
 - 兼容读取：旧 `project-utf8` 规范化为 `utf8`；旧 `standard-gb2312` 只服务用户明确指定的历史工程，不能再由目录或仓库角色推断。
 - Backend-only：Overlay manifest 明确只声明 `backend`、未声明 `frontend` 时，profile 规范化为 `N/A (backend-only)`，不扫描父目录或 sibling 猜测前端源码。
 - Legacy GB2312 提升：仅在明确的历史工程中，确认后删除源文件并将 `{name}.gb2312.{ext}` 更名回原文件名，可选 MCP/SFTP 上传。
@@ -248,6 +248,7 @@ workspace-overlay 模式不在每个模块中重复拉取插件：先更新共�
 
 首次使用前先确认配置事实来源：
 
+- 已有活动档案时，以 `project.jsonc#irisConnections.active` 为准，运行 `sync-env-config.js --check-profile` 核对绑定。以下两种初始化路径适用于无档案工程。
 - 已有 `.mcp.json`：从 `.mcp.json` 反向生成或补齐 `.agents/config/project-env.json`，不要运行 `sync-env-config.js` 覆盖现有 `.mcp.json`。
 - 没有 `.mcp.json`：复制模板并填写真实环境；模板默认使用内置 `.agents/vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe` 作为 `mcp.serverPath`，再运行 `sync-env-config.js` 生成 `.mcp.json`。
 
@@ -294,7 +295,7 @@ MCP helper 的 `tools` / `call` 已包含配置检查，已知参数可直接调
 
 前端编码配置、首次确认、修改前检查与上传转换统一按[编码契约](references/frontend-encoding.md)执行。
 
-前端流程同时读取 `.agents/config/plugin_profile.md`：只有 `i18n-iris-plugin` 状态为 `enabled` 且修改前或最终 diff 命中 `$g`、`$trans`、翻译 key、用户可见文案或 `placeholder` / `title` / `tooltip` / `alt` 时，才追加 i18n profile、规则与 helper 静态检查。明确 i18n 需求切换到 `i18n-coding`；普通业务需求只应用轻量门禁，不自动进入完整 workflow。未启用 i18n 时不猜测 helper 语义，也不因插件目录存在而加载能力。
+前端流程同时读取 `.agents/config/project.jsonc` 的 `plugins` 节：只有 `i18n-iris-plugin` 状态为 `enabled` 且修改前或最终 diff 命中 `$g`、`$trans`、翻译 key、用户可见文案或 `placeholder` / `title` / `tooltip` / `alt` 时，才追加 i18n profile、规则与 helper 静态检查。明确 i18n 需求切换到 `i18n-coding`；普通业务需求只应用轻量门禁，不自动进入完整 workflow。未启用 i18n 时不猜测 helper 语义，也不因插件目录存在而加载能力。
 
 明确的 backend-only Overlay 不适用前端字节门禁，profile 固定使用 `N/A (backend-only)`，前端导出入口会明确停止且不写 source/staging。若 manifest 后续新增 `frontend` SourceRoot，须按编码契约确认目标并验证实际源码。
 
@@ -381,3 +382,5 @@ MCP helper 的 `tools` / `call` 已包含配置检查，已知参数可直接调
 业务知识、UI 规范与 HISUI 自然语言查找可使用[轻量混合检索](../../docs/guides/knowledge-retrieval.md)，复用根 scripts、本机授权策略和离线降级。
 
 按需部署时，由 manifest 的 runtimeResources 与 required skill 依赖取得必需 vendor 资源；可选资料随任务触发补装，流程见[插件按需部署](../../docs/guides/plugin-deployment.md)。
+
+运行参数保存在当前 ContextRoot 的 `config/project.jsonc` 的 `pluginSettings.coding-iris-plugin` 节。 现有工程沿原更新器 Write 迁移已识别字段。

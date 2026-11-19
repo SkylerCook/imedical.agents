@@ -17,10 +17,24 @@
   [string]$ResumedGitStatus = "",
   [string]$ResumedOldHash = "",
   [string]$ResumedNewHash = "",
-  [string]$ResumedUpstreamHash = ""
+  [string]$ResumedUpstreamHash = "",
+  [ValidateNotNullOrEmpty()]
+  [string]$UpdateSource,
+  [ValidatePattern("^[a-f0-9]{40}$")]
+  [string]$ExpectedRevision,
+  [ValidatePattern("^[a-f0-9]{40}:[a-f0-9]{64}(,[a-f0-9]{40}:[a-f0-9]{64})*$")]
+  [string]$TrustedRuntimeTree
 )
 
 $ErrorActionPreference = "Stop"
+if ($UpdateSource -and ((-not $ExpectedRevision) -or (-not $TrustedRuntimeTree) -or $NoPull -or ($Mode -eq "Check") -or $ResumedAfterSelfUpdate)) {
+  throw "Offline update requires -UpdateSource, -ExpectedRevision, and -TrustedRuntimeTree with DryRun or Write."
+}
+if ((-not $UpdateSource) -and ($ExpectedRevision -or $TrustedRuntimeTree)) {
+  throw "-ExpectedRevision and -TrustedRuntimeTree are only used with -UpdateSource."
+}
+$previousGitAllowProtocol = $env:GIT_ALLOW_PROTOCOL
+$previousGitNoLazyFetch = $env:GIT_NO_LAZY_FETCH
 $deploymentLockToken = $null
 $deploymentEntry = Join-Path $PSScriptRoot "plugin-deploy.js"
 if ((Test-Path -LiteralPath $deploymentEntry) -and -not $env:IMEDICAL_DEPLOYMENT_LOCK) {
@@ -30,7 +44,14 @@ if ((Test-Path -LiteralPath $deploymentEntry) -and -not $env:IMEDICAL_DEPLOYMENT
   $deploymentLockToken = ($deploymentLockText | ConvertFrom-Json).token
   $env:IMEDICAL_DEPLOYMENT_LOCK = $deploymentLockToken
 }
+$previousNativeOutputEncoding = [Console]::OutputEncoding
 try {
+  [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+if ($UpdateSource) {
+  if (-not $env:IMEDICAL_DEPLOYMENT_LOCK) { throw "Offline update requires the capability deployment lock." }
+  $env:GIT_ALLOW_PROTOCOL = "file"
+  $env:GIT_NO_LAZY_FETCH = "1"
+}
 
 if ($Agent -and (($RuntimeAdapter.Count -ne 1) -or ($RuntimeAdapter[0] -notin @("Codex", "CodeBuddy", "WorkBuddy")))) { throw "-Agent requires one RuntimeAdapter: Codex, CodeBuddy or WorkBuddy" }
 $minimumGitSparseCheckoutVersion = [version]"2.25.0"
@@ -582,61 +603,16 @@ function Normalize-PluginStatus {
 
 function Get-PluginProfilePath {
   param([string]$AgentsRoot)
-  return (Join-Path (Join-Path $AgentsRoot "config") "plugin_profile.md")
+  return (Join-Path (Join-Path $AgentsRoot "config") "project.jsonc")
 }
 
 function Read-PluginProfile {
   param([string]$AgentsRoot)
-
+  $encoded = & node (Join-Path $PSScriptRoot "lib/project-plugin-profile.js") read $AgentsRoot
+  if ($LASTEXITCODE -ne 0) { throw "Cannot read project plugin profile" }
+  $state = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded)) | ConvertFrom-Json
   $profile = @{}
-  $profilePath = Get-PluginProfilePath -AgentsRoot $AgentsRoot
-  if (-not (Test-Path -LiteralPath $profilePath -PathType Leaf)) {
-    return $profile
-  }
-
-  $validStatuses = @("available", "enabled", "indexed", "initialized", "disabled")
-  $lines = [System.IO.File]::ReadAllLines($profilePath, [System.Text.Encoding]::UTF8)
-  foreach ($line in $lines) {
-    $trimmed = $line.Trim()
-    if (-not $trimmed.StartsWith("|")) {
-      continue
-    }
-    if ($trimmed -match "^\|\s*-+\s*\|") {
-      continue
-    }
-    $cells = @($trimmed.Trim("|").Split("|") | ForEach-Object { $_.Trim() })
-    if ($cells.Count -lt 2) {
-      continue
-    }
-    if ($cells[0] -eq "plugin") {
-      continue
-    }
-    $pluginName = $cells[0] -replace '^`([\w-]+)`$', '$1'
-    $status = $cells[1].ToLowerInvariant()
-    if ([string]::IsNullOrWhiteSpace($pluginName) -or -not ($validStatuses -contains $status)) {
-      continue
-    }
-    $initSkill = ""
-    if ($cells.Count -gt 2) {
-      $initSkill = $cells[2]
-    }
-    $dependsOn = ""
-    if ($cells.Count -gt 3) {
-      $dependsOn = $cells[3]
-    }
-    $notes = ""
-    if ($cells.Count -gt 4) {
-      $notes = $cells[4]
-    }
-    $profile[$pluginName] = [PSCustomObject]@{
-      plugin = $pluginName
-      status = Normalize-PluginStatus -Status $status
-      initSkill = $initSkill
-      dependsOn = $dependsOn
-      notes = $notes
-    }
-  }
-
+  foreach ($row in @($state.rows)) { $profile[$row.plugin] = $row }
   return $profile
 }
 
@@ -697,16 +673,8 @@ function Write-PluginProfile {
   $profilePath = Get-PluginProfilePath -AgentsRoot $AgentsRoot
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $profilePath) | Out-Null
 
-  $pipe = [char]124
-  $lines = @(
-    "# Plugin Profile",
-    "",
-    "This file records plugin enablement for the target project. A plugin directory means available only, not enabled.",
-    "",
-    ($pipe + " plugin " + $pipe + " status " + $pipe + " initSkill " + $pipe + " dependsOn " + $pipe + " notes " + $pipe),
-    ($pipe + "---" + $pipe + "---" + $pipe + "---" + $pipe + "---" + $pipe + "---" + $pipe)
-  )
-
+  $rows = @{}
+  $aliases = @{}
   foreach ($plugin in ($Plugins | Sort-Object name)) {
     if (($RetainedRequirements -contains $plugin.name) -and -not $ExistingProfile.ContainsKey($plugin.name) -and [string]::IsNullOrWhiteSpace((Get-PluginProfileLegacyName -Plugin $plugin -Profile $ExistingProfile))) { continue }
     $explicit = @($ExplicitPluginNames | Where-Object { Test-PluginNameMatches -Plugin $plugin -Name $_ }).Count -gt 0
@@ -723,10 +691,13 @@ function Write-PluginProfile {
     if ([string]::IsNullOrWhiteSpace($notes)) {
       $notes = "-"
     }
-    $lines += ('{0} {1} {0} {2} {0} {3} {0} {4} {0} {5} {0}' -f $pipe, $plugin.name, $entry.status, $initSkill, $dependsOn, $notes)
+    $rows[$plugin.name] = @{ status=$entry.status; initSkill=$initSkill; dependsOn=$dependsOn; notes=$notes }
+    foreach ($alias in (Get-PluginLegacyNames -Plugin $plugin)) { if ($alias) { $aliases[$alias] = $plugin.name } }
   }
 
-  [System.IO.File]::WriteAllLines($profilePath, $lines, [System.Text.UTF8Encoding]::new($false))
+  $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -Compress -Depth 6 -InputObject @{rows=$rows; aliases=$aliases})))
+  $encoded | & node (Join-Path $PSScriptRoot "lib/project-plugin-profile.js") save $AgentsRoot
+  if ($LASTEXITCODE -ne 0) { throw "Cannot write project plugin profile" }
 }
 
 function Test-PluginShouldProcess {
@@ -1018,6 +989,22 @@ function Invoke-AgentGitUpdate {
     return $results
   }
 
+  if ($UpdateSource) {
+    $sourcePath = Resolve-FullPath $UpdateSource
+    $offlineMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
+    $offlineOutput = & node (Join-Path $PSScriptRoot "lib/offline-capability-update.js") $AgentsRoot $sourcePath $offlineMode ($ExpectedRevision.ToLowerInvariant()) ($TrustedRuntimeTree.ToLowerInvariant())
+    if ($LASTEXITCODE -ne 0) { throw "Offline capability update was rejected. See the preceding diagnostic." }
+    $offlineResult = $offlineOutput | ConvertFrom-Json
+    if ($Mode -eq "Write") {
+      try { Invoke-AgentsSparseRefresh -Root $AgentsRoot -Patterns $runtimeSparsePaths } catch {
+        $results.Add((Write-UpdateResult -Status "sparse-refresh-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason $_.Exception.Message -Phase "git" -OldHash $offlineResult.oldHash -NewHash $offlineResult.newHash -UpstreamHash $offlineResult.upstreamHash))
+        return $results
+      }
+    }
+    $results.Add((Write-UpdateResult -Status $offlineResult.status -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason $offlineResult.reason -Phase "git" -OldHash $offlineResult.oldHash -NewHash $offlineResult.newHash -UpstreamHash $offlineResult.upstreamHash))
+    return $results
+  }
+
   $dirty = git -C $AgentsRoot status --porcelain
   if ($LASTEXITCODE -ne 0) {
     $results.Add((Write-UpdateResult -Status "git-status-failed" -Target (Get-RelativePathPortable -From $ProjectRootFull -To $AgentsRoot) -Reason "git status failed" -Phase "git"))
@@ -1182,6 +1169,7 @@ function Get-GitHooksStatus {
 $workspaceContextModule = Join-Path $PSScriptRoot "lib/WorkspaceContext.psm1"
 $workspaceContextBootstrapResult = $null
 if (-not (Test-Path -LiteralPath $workspaceContextModule -PathType Leaf)) {
+  if ($UpdateSource) { throw "Use an offline-capable updater with its workspace resolver to preview or apply a local package." }
   $canRestoreLegacySparseRuntime = $ResumedAfterSelfUpdate -or ($Mode -eq "Write") -or (($Mode -eq "DryRun") -and (-not $NoPull))
   if ($canRestoreLegacySparseRuntime) {
     $bootstrapAgentsRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
@@ -1204,6 +1192,7 @@ $projectRootFull = $context.workspaceRoot
 $contextRoot = $context.contextRoot
 $capabilityRoot = $context.capabilityRoot
 $agentsRoot = $contextRoot
+if ($UpdateSource -and ($context.mode -ne "standard")) { throw "Offline capability updates currently require a standard project." }
 $results = New-Object System.Collections.Generic.List[object]
 if ($null -ne $workspaceContextBootstrapResult) {
   $results.Add($workspaceContextBootstrapResult)
@@ -1219,7 +1208,7 @@ if (-not (Test-Path -LiteralPath $contextRoot -PathType Container)) {
   exit 1
 }
 
-if (($Mode -eq "Write") -and (Test-Path -LiteralPath (Join-Path $capabilityRoot "scripts/plugin-deploy.js")) -and (Test-Path -LiteralPath (Join-Path $capabilityRoot ".git"))) {
+if (($Mode -eq "Write") -and (-not $UpdateSource) -and (Test-Path -LiteralPath (Join-Path $capabilityRoot "scripts/plugin-deploy.js")) -and (Test-Path -LiteralPath (Join-Path $capabilityRoot ".git"))) {
   & node (Join-Path $capabilityRoot "scripts/plugin-deploy.js") register --project-root $projectRootFull | Out-Null
   if ($LASTEXITCODE -ne 0) { throw "Cannot reconcile project membership and required plugins" }
 }
@@ -1259,8 +1248,13 @@ elseif ((-not $NoPull) -and ($Mode -ne "Check")) {
     $results | Format-List status, plugin, phase, target, source, reason, oldHash, newHash, upstreamHash
     exit 1
   }
+  if ($UpdateSource -and ($Mode -eq "DryRun")) {
+    $gitResults | Format-List status, target, reason, oldHash, newHash, upstreamHash
+    return
+  }
   $updatedScriptHash = if (Test-Path -LiteralPath $runningScriptPath -PathType Leaf) { (Get-FileHash -LiteralPath $runningScriptPath -Algorithm SHA256).Hash } else { $runningScriptHash }
-  if ((-not $ResumedAfterSelfUpdate) -and ($updatedScriptHash -ne $runningScriptHash)) {
+  if ((-not $ResumedAfterSelfUpdate) -and ($UpdateSource -or ($updatedScriptHash -ne $runningScriptHash))) {
+    $restartPath = if ($UpdateSource) { Join-Path $capabilityRoot "scripts/update-agents.ps1" } else { $runningScriptPath }
     $resumeParams = @{
       ProjectRoot = $projectRootFull
       Mode = $Mode
@@ -1279,7 +1273,7 @@ elseif ((-not $NoPull) -and ($Mode -ne "Check")) {
     if ($CleanupLegacyVendorSkills) { $resumeParams.CleanupLegacyVendorSkills = $true }
     if ($Detailed) { $resumeParams.Detailed = $true }
     if ($PSBoundParameters.ContainsKey("ExpectedEnabledPlugin")) { $resumeParams.ExpectedEnabledPlugin = $ExpectedEnabledPlugin }
-    & $runningScriptPath @resumeParams
+    & $restartPath @resumeParams
     exit $LASTEXITCODE
   }
 }
@@ -1397,8 +1391,14 @@ if ($Mode -eq "Write" -and @($demandMigration.owners).Count -gt 0) {
   $results.Add((Write-UpdateResult -Status "demand-migration-applied" -Reason "successor entries verified; project references migrated; old managed entries removed" -Phase "demand-migration"))
 }
 
-$deploymentPolicyFile = Join-Path $contextRoot "config/plugin-deployment.json"
-$usesOnDemand = (Test-Path -LiteralPath $deploymentPolicyFile) -and ((Get-Content -LiteralPath $deploymentPolicyFile -Raw -Encoding UTF8 | ConvertFrom-Json).mode -eq "on-demand")
+$usesOnDemand = $false
+if ((Test-Path -LiteralPath (Join-Path $contextRoot "config/project.jsonc")) -or (Test-Path -LiteralPath (Join-Path $contextRoot "config/plugin-deployment.json"))) {
+  $policyAction = "read-policy"
+  if (($Mode -eq "Write") -and (Test-Path -LiteralPath (Join-Path $contextRoot "config/plugin-deployment.json"))) { $policyAction = "migrate-policy" }
+  $policyResult = & node (Join-Path $PSScriptRoot "plugin-deploy.js") $policyAction --context-root $contextRoot --capability-root $capabilityRoot | Out-String
+  if ($LASTEXITCODE -ne 0) { throw ("Cannot read project deployment policy: " + $policyResult) }
+  $usesOnDemand = (($policyResult | ConvertFrom-Json).mode -eq "on-demand")
+}
 if (($Mode -eq "Write") -and $usesOnDemand -and ($Plugin.Count -gt 0) -and (Test-Path -LiteralPath (Join-Path $capabilityRoot "scripts/lib/plugin-catalog.json"))) {
   $ensureArguments = @((Join-Path $capabilityRoot "scripts/plugin-deploy.js"), "ensure", "--project-root", $projectRootFull, "--explicit")
   foreach ($selectedPlugin in $Plugin) { $ensureArguments += @("--plugin", $selectedPlugin) }
@@ -1429,14 +1429,14 @@ foreach ($installedPlugin in $allPlugins) {
   $legacyProfileName = Get-PluginProfileLegacyName -Plugin $installedPlugin -Profile $pluginProfile
   if (-not [string]::IsNullOrWhiteSpace($legacyProfileName)) {
     $migrationStatus = if ($Mode -eq "Write") { "plugin-profile-name-migrated" } else { "plugin-profile-name-migration-planned" }
-    $results.Add((Write-UpdateResult -Status $migrationStatus -Target ".agents/config/plugin_profile.md" -Source $legacyProfileName -Reason ("preserve status under " + $installedPlugin.name) -PluginName $installedPlugin.name -Phase "plugin"))
+    $results.Add((Write-UpdateResult -Status $migrationStatus -Target ".agents/config/project.jsonc" -Source $legacyProfileName -Reason ("preserve status under " + $installedPlugin.name) -PluginName $installedPlugin.name -Phase "plugin"))
   }
 
   $profileEntry = Get-PluginProfileEntry -Plugin $installedPlugin -Profile $pluginProfile -ExplicitlySelected $explicitlySelected
   $pluginTarget = Get-RelativePathPortable -From $projectRootFull -To $installedPlugin.path
   if ($profileEntry.status -eq "disabled") {
     $disabledStatus = if ($explicitlySelected) { "plugin-explicit-selection-disabled" } else { "plugin-disabled" }
-    $results.Add((Write-UpdateResult -Status $disabledStatus -Target $pluginTarget -Reason "plugin is disabled in plugin_profile.md" -PluginName $installedPlugin.name -Phase "plugin"))
+    $results.Add((Write-UpdateResult -Status $disabledStatus -Target $pluginTarget -Reason "plugin is disabled in project configuration" -PluginName $installedPlugin.name -Phase "plugin"))
     $disabledThinScript = Join-Path $capabilityRoot "scripts/generate-plugin-thin-index.ps1"
     if ((Test-Path -LiteralPath $installedPlugin.path) -and (Test-Path -LiteralPath $disabledThinScript)) {
       $disabledThinMode = if ($Mode -eq "Write") { "Write" } else { "DryRun" }
@@ -1566,13 +1566,12 @@ else {
   $results.Add((Write-UpdateResult -Status "skill-dependency-resolver-missing" -Target (Get-RelativePathPortable -From $projectRootFull -To $resolverScript) -Reason "dependency resolver missing" -Phase "skill-dependency"))
 }
 
-$profilePathBeforeWrite = Get-PluginProfilePath -AgentsRoot $agentsRoot
-if ((-not (Test-Path -LiteralPath $profilePathBeforeWrite -PathType Leaf)) -and (Test-Path -LiteralPath (Join-Path $agentsRoot "skills") -PathType Container)) {
+if (($pluginProfile.Count -eq 0) -and (Test-Path -LiteralPath (Join-Path $agentsRoot "skills") -PathType Container)) {
   $legacyVendorIndexes = @(Get-ChildItem -LiteralPath (Join-Path $agentsRoot "skills") -Recurse -Filter "SKILL.md" -ErrorAction SilentlyContinue | Where-Object {
     (Get-Content -LiteralPath $_.FullName -Raw -Encoding UTF8) -match 'source:\s+\.agents/vendor/'
   })
   if ($legacyVendorIndexes.Count -gt 0) {
-    $results.Add((Write-UpdateResult -Status "legacy-vendor-profile-review-required" -Target ".agents/config/plugin_profile.md" -Reason ("profile was missing; preserving {0} legacy vendor thin-indexes until plugin states are confirmed" -f $legacyVendorIndexes.Count) -Phase "compat-migration"))
+    $results.Add((Write-UpdateResult -Status "legacy-vendor-profile-review-required" -Target ".agents/config/project.jsonc" -Reason ("profile was missing; preserving {0} legacy vendor thin-indexes until plugin states are confirmed" -f $legacyVendorIndexes.Count) -Phase "compat-migration"))
   }
 }
 
@@ -1707,6 +1706,11 @@ else {
 if ($completionFailure) { throw $completionFailure }
 
 } finally {
+  [Console]::OutputEncoding = $previousNativeOutputEncoding
+  if ($UpdateSource) {
+    $env:GIT_ALLOW_PROTOCOL = $previousGitAllowProtocol
+    $env:GIT_NO_LAZY_FETCH = $previousGitNoLazyFetch
+  }
   if ($deploymentLockToken) {
     & node $deploymentEntry release-lock --project-root $ProjectRoot --token $deploymentLockToken | Out-Null
     Remove-Item Env:IMEDICAL_DEPLOYMENT_LOCK -ErrorAction SilentlyContinue

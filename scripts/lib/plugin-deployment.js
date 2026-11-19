@@ -55,21 +55,11 @@ function catalog(root, revision = 'HEAD') {
     return value;
 }
 function profile(contextRoot) {
-    const file = path.join(contextRoot, 'config/plugin_profile.md');
-    if (!fs.existsSync(file)) return new Map();
-    const statuses = new Map();
-    for (const match of fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, '').matchAll(/^[ \t]*\|[ \t]*`?([\w-]+)`?[ \t]*\|[ \t]*(enabled|disabled|available|initialized|indexed)[ \t]*\|/gim)) {
-        const name = match[1].toLowerCase(), raw = match[2].toLowerCase();
-        const status = { initialized: 'enabled', indexed: 'available' }[raw] || raw;
-        if (statuses.has(name) && statuses.get(name) !== status) throw new Error('Conflicting plugin profile: ' + name);
-        statuses.set(name, status);
-    }
-    return statuses;
+    const {entries} = require('./project-plugin-profile').read(contextRoot);
+    return new Map(Object.entries(entries).map(([id,row])=>[id,row.status]));
 }
 function policy(contextRoot) {
-    const value = readJson(path.join(contextRoot, 'config/plugin-deployment.json'), { schema: 'plugin-deployment/v1', mode: 'full', autoInstall: false });
-    if (value.schema !== 'plugin-deployment/v1' || !['full', 'on-demand'].includes(value.mode) || typeof value.autoInstall !== 'boolean') throw new Error('Invalid project deployment policy');
-    return value;
+    return require('./project-deployment-policy').read(contextRoot).value;
 }
 function find(catalogValue, name) {
     const matches = catalogValue.plugins.filter(item => item.manifest.name === name || item.directory === name || (item.manifest.legacyNames || []).includes(name));
@@ -178,7 +168,7 @@ function expandSelection(value, options) {
 }
 function memberSelection(catalogValue, member) {
     if (!fs.existsSync(member.contextRoot)) return { names: member.lastRequired || [], offline: true };
-    if (member.lastRequired?.length && !fs.existsSync(path.join(member.contextRoot,'config/plugin_profile.md'))) {
+    if (member.lastRequired?.length && !require('./project-plugin-profile').read(member.contextRoot).exists) {
         return {names:member.lastRequired,offline:true};
     }
     const statuses = profile(member.contextRoot);
@@ -228,7 +218,7 @@ function sparsePatterns(root, original) {
         resources.add('vendor/' + provider);
     }
     resources.forEach(resource => patterns.push('/' + resource + '/**'));
-    patterns.push('/vendor/knowledge-index/README.md', '/vendor/knowledge-index/.gitattributes');
+    patterns.push('/vendor/jsonc-parser/**', '/vendor/iarna-toml/**', '/vendor/knowledge-index/README.md', '/vendor/knowledge-index/.gitattributes');
     return [...new Set(patterns)];
 }
 function withLock(root, callback) {

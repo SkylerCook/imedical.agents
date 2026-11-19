@@ -5,6 +5,9 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
 
 # Coding IRIS Init
 
+运行参数保存在当前 ContextRoot 的 `config/project.jsonc` 的 `pluginSettings.coding-iris-plugin` 节。 首次初始化在项目说明就位后运行 `node <CapabilityRoot>/scripts/plugin-settings.js Init coding-iris-plugin .`，用同一脚本的 Read 命令读回。Markdown 保留说明、表格与尚未迁移的约定。
+
+
 帮助请求（`--help`、查看用法）：先读取[统一帮助协议](../../../../docs/guides/capability-help.md)，按当前定义展示帮助后结束；Overlay 未映射 `docs/` 时先按 `.agents/capability.json` 的 `CapabilityRoot` 定位协议；附带执行参数也不进入业务流程。
 
 涉及前端初始化、修改或部署时，先读取[编码契约](../../references/frontend-encoding.md)。按需项目首次确认后保存并复用配置，未确认时仅调查和暂存导出。
@@ -22,7 +25,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
 
 ## 开发方式
 
-先确定开发方式，唯一机器配置是当前 ContextRoot 的 `config/iris-development.json` 的 `developmentMode: connected | offline`。已有合法配置沿用；已有文件中的其它字段保留。用户明确人工交接、医院远端不可用时采用 `offline`；无法判断时集中询问一次。旧配置缺省不由普通更新补值，非法值或与当前明确约束冲突时停止相关初始化。离线初始化仅写明确的开发方式，不猜环境别名/类型，不要求连接或资格；跳过下面第 5 步的连接反填、MCP/SFTP 生成与在线检测，既有连接只报告给授权维护，不自动更改。profile 引用该文件，不另存模式副本；详细处理见[离线开发协议](../../references/iris-offline-development.md)。
+先确定开发方式，唯一机器配置是当前 ContextRoot 的 `config/project.jsonc` 的 `irisDevelopment` 节 的 `developmentMode: connected | offline`。已有合法配置沿用；已有文件中的其它字段保留。用户明确人工交接、医院远端不可用时采用 `offline`；无法判断时集中询问一次。旧配置缺省不由普通更新补值，非法值或与当前明确约束冲突时停止相关初始化。离线初始化仅写明确的开发方式，不猜环境别名/类型，不要求连接或资格；跳过下面第 5 步的连接反填、MCP/SFTP 生成与在线检测，既有连接只报告给授权维护，不自动更改。profile 引用该文件，不另存模式副本；详细处理见[离线开发协议](../../references/iris-offline-development.md)。
 
 ## 必读
 
@@ -68,7 +71,8 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
    - 执行下文“本地配置初始化与已有项目补齐”，生成必要的开发方式和准入配置并 Check；配置缺失不能留到日常开发才反复提示。
    - **多仓库工作区**：若目标工程是平铺多仓库架构（如 `corePro-flat`），工作区级别 profile 只填通用项（Web 技术、编码策略、HISUI 基础路径）；仓库特有项（namespace、包前缀、目录路径、命名模板）标注"按仓库填写"，不要填入单一仓库的值当作全局事实。
 5. 初始化 IRIS 开发主力脚本配置：
-   - `.agents/config/project-env.json` 是人类可读的配置副本，`.mcp.json` 是 MCP 运行时事实来源；两者共存但 `.mcp.json` 优先。
+   - 已有 `project.jsonc#irisConnections.active` 时，运行 `sync-env-config.js --check-profile` 核对绑定来源。按所选档案同步，切换目标沿档案入口。冲突时保留报出的来源与字段，继续其它独立初始化。以下连接反填及模板生成只适用于无档案工程。
+   - 无档案时，`.agents/config/project-env.json` 是人类可读的配置副本，`.mcp.json` 是 MCP 运行时事实来源；两者共存但 `.mcp.json` 优先。
    - **若 `.mcp.json` 已存在**：从 `.mcp.json` 反向填充 `project-env.json`（Agent 直接读取 `.mcp.json` 提取 iris/sftp/mcp 字段），web.* 部分无法从 `.mcp.json` 推导的标注 TODO。无需运行 `sync-env-config.js`。
    - SFTP 默认禁用。新建配置可选择 `sftp.runtime: vendor`，使用 CapabilityRoot 内置运行时；先按 `vendor/sftp-server/README.md` 准备 Python 依赖及可信主机密钥。已有可识别的 legacy 启动路径在更新时自动迁移 vendor；显式 custom 保持不变。`knownHosts`、`keyFile`、`allowRemoteCommands` 分别映射对应私有环境字段，不写入可复用文档。
    - **若 `.mcp.json` 不存在**：在本次初始化授权内，基于模板创建被忽略的 `project-env.json`，复用当前工程已确认的连接事实。必需且无法确定的字段集中询问，齐备后运行：
@@ -102,7 +106,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
    - 插件中没有源工程服务器、namespace、远程路径、业务类名前缀。
 9. 更新插件状态：
    - 本地配置不完整时先补齐或集中确认必要事实，不能只因 thin-index 成功就完成接入。只有所选批量导出路径需要的资格与首次同步分别列为待办，不由生成配置代替，也不阻塞已经验收的本地能力接入。
-   - 初始化闭环验收通过后，运行脚本机械维护 `.agents/config/plugin_profile.md`：
+   - 初始化闭环验收通过后，运行脚本机械维护 `.agents/config/project.jsonc` 的 `plugins` 节：
      ```powershell
      powershell -NoProfile -ExecutionPolicy Bypass -File .agents/scripts/update-plugin-profile.ps1 -ProjectRoot . -Plugin coding-iris-plugin -Status enabled
      ```
@@ -126,7 +130,7 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
    ```
 
    offline 使用 `--development-mode offline`，省略环境参数；不创建或检查医院连接和远端策略。Overlay 从已解析 CapabilityRoot 定位同一脚本，它只写当前 ContextRoot。
-3. `iris-development.json` 按明确事实创建。connected＋按需上下文同时创建 `iris-remote-policy.json`，公共准入同样覆盖该上下文中的 standard 需求。未取得连接事实的模板保持 `enabled: false`，不创建资格登记；受管会话迁移根据现有连接自动生成必要协调设置。按[首次接入协议](../../references/project-demand-development.md#首次接入)核对实际连接，不要求普通操作先验证 License。
+3. `project.jsonc` 的 `irisDevelopment` 节 按明确事实创建。connected＋按需上下文同时创建 `iris-remote-policy.json`，公共准入同样覆盖该上下文中的 standard 需求。未取得连接事实的模板保持 `enabled: false`，不创建资格登记；受管会话迁移根据现有连接自动生成必要协调设置。按[首次接入协议](../../references/project-demand-development.md#首次接入)核对实际连接，不要求普通操作先验证 License。
 4. configure 保留已有文件；更新器仅清理上述已废弃字段，未命中时保持原字节。Check 报缺字段时，由 Agent 在已有配置维护授权内依据明确事实局部补齐，再 Check。模式或环境冲突、非法 JSON、未忽略/已跟踪的私有配置、链接重定向均先解决具体原因。缺少显式 developmentMode（含自动补齐的 `{}`）却已有 source-sync 恢复材料时，补显式声明前先按原任务核实配置指纹与恢复条件；普通更新的兼容空声明不改变旧绑定，不清理或改写旧计划。
 5. 完成后报告本地配置、实际连接及服务器基线；只有所选批量导出路径需要时报告其资格。配置 Check 不建立服务器基线；`work/source-sync/` 由首次同步任务创建，初始化不创建空目录或假回执。connected 分支的待修改文件仍须先完成 before-edit，有变化先提交 export，再开始需求修改；普通任务不因缺少 License 资格登记而停止。
 
@@ -141,11 +145,11 @@ description: Use when initializing coding-iris-plugin in a target IRIS project, 
 - profile 创建或缺失项。
 - 本地配置 Write/Check 结果、实际连接与首次同步状态；所选批量导出资格另按原协议报告。
 - thin-index DryRun/Write 结果。
-- `plugin_profile.md` 中 `coding-iris-plugin` 的最终状态。
+- `project.jsonc` 的 `plugins` 节 中 `coding-iris-plugin` 的最终状态。
 - 被跳过或冲突的文件。
 - `.agents/.git/info/exclude` 生成层忽略规则检查结果。
 - 仍需目标工程填写的配置项。
-- `.mcp.json` 已存在时，`project-env.json` 反向填充结果。
+- 有档案时记录所选档案的配置核对结果；无档案且已有 `.mcp.json` 时记录反向填充结果。
 - project-memory.md 更新结果。
 
 TLS 初始化：缺省使用 false，已有显式值原样保留；部署沿用连接配置，不另设相反默认值。系统 CA 与升级方式见统一会话手册。

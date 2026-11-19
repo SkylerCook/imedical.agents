@@ -8,9 +8,10 @@ const crypto = require('node:crypto');
 const { createTempDirectory, ownsTempDirectory } = require('./fixtures/temp-directory');
 
 function loadRuntime(file, overrides) {
+    const runtimeRequire = require('node:module').createRequire(path.resolve(__dirname, '..', file));
     const loaded = { exports: {} };
     const source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8').replace(/^#![^\n]*\n/, '');
-    new Function('require', 'module', source)(name => overrides[name] || require(name), loaded);
+    new Function('require', 'module', source)(name => overrides[name] || runtimeRequire(name), loaded);
     return loaded.exports;
 }
 

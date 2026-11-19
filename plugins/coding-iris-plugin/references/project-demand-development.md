@@ -2,7 +2,7 @@
 
 ## 触发与入口
 
-先从当前 ContextRoot 的 `config/iris-development.json` 读取 `developmentMode`，缺省沿旧 `connected` 行为。`offline` 优先进入[离线开发协议](iris-offline-development.md)，不执行本文的服务器同步、资格、冻结发布或远端验收，也不读取医院连接。只有 `connected` 才继续下表；它不产生任何远端授权。开发方式、需求类型和上下文完整性分别判断，不能由缺少连接自动降级为离线。
+先从当前 ContextRoot 的 `config/project.jsonc` 的 `irisDevelopment` 节 读取 `developmentMode`，缺省沿旧 `connected` 行为。`offline` 优先进入[离线开发协议](iris-offline-development.md)，不执行本文的服务器同步、资格、冻结发布或远端验收，也不读取医院连接。只有 `connected` 才继续下表；它不产生任何远端授权。开发方式、需求类型和上下文完整性分别判断，不能由缺少连接自动降级为离线。
 
 先按当前用户指定的需求类型，其次按项目已确认的“默认需求交付类型”选择分支。`standard`／`project` 是需求类型，`contextMode` 是源码上下文模式，`taskKind` 是业务／框架任务分类，执行路径与操作授权另行判断，彼此不能推导。
 
@@ -27,7 +27,7 @@
 已启用项目普通 Write 更新会通过既有配置迁移自动补缺文件，保留有效设置及旧模式缺省，清理废弃 License 字段和空模板登记；必要模式/环境事实由 Agent 集中处理，普通任务不新增资格待办。自动补文件不建立基线，已有项目无需为补文件重跑全部初始化，下面继续完成真实环境接入；批量导出沿已有专项协议。
 
 1. 核对测试/正式各自的本地 Git。无仓库时先获得初始化授权，再使用 `source-sync.js init`；不把初始化或阶段提交权限推导为任意后续提交权限。
-2. 按 [coding-iris-init 的本地配置步骤](../skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)执行 `source-sync.js configure`，默认创建被忽略的 `ContextRoot/config/iris-development.json`，声明已确认的开发方式、`environmentAlias` 与 `environmentType`（`test`、`development` 或 `production`）并 Check。已有文件保留，缺字段由 Agent 按明确事实局部补齐；不能套用示例环境代替真实声明。连接事实继续由项目已有 `.mcp.json` 与 `project-env.json` 承载，冲突停止，不在新配置复制连接或凭据。
+2. 按 [coding-iris-init 的本地配置步骤](../skills/coding-iris-init/SKILL.md#本地配置初始化与已有项目补齐)执行 `source-sync.js configure`，默认创建被忽略的 `ContextRoot/config/project.jsonc` 的 `irisDevelopment` 节，声明已确认的开发方式、`environmentAlias` 与 `environmentType`（`test`、`development` 或 `production`）并 Check。已有文件保留，缺字段由 Agent 按明确事实局部补齐；不能套用示例环境代替真实声明。连接事实继续由项目已有 `.mcp.json` 与 `project-env.json` 承载，冲突停止，不在新配置复制连接或凭据。
 3. 同一步骤从 `templates/iris-remote-policy.template.json` 创建缺失的私有远端准入配置，模板在缺少连接事实时保持禁用，不创建资格登记；受管会话迁移根据现有连接自动生成必要协调配置。配置生成与实际连接结果分开报告，Agent 按已授权连接事实完成接入；缺失或显式禁用的有效配置仍需处理，但普通操作不要求 License 资格证据。
 4. 将 `ContextRoot/work/source-sync/`、准入协调目录、私有配置及资格证据保持 Git 忽略。`work/source-sync/` 由实际同步任务创建，初始化无此目录不代表漏配，建空目录也不能证明基线成立。它保存计划、内容快照、索引/HEAD 归属与恢复断点，不作为业务交付目录。首次按 TXT 清单采集批量基线须先验证持久落盘、读回与中断恢复，确认 License 增量与结束回落后才扩大批次。
 

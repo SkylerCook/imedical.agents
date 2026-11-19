@@ -25,7 +25,9 @@ function contextMode(context = {}) {
 function developmentSettings(context = {}) {
   const root = context.contextRoot || path.join(context.workspaceRoot || process.cwd(), '.agents');
   let declaration;
-  try { declaration = readJson(path.join(root, 'config', 'iris-development.json')); }
+  try { declaration = require('./iris-development-settings').inspect(root).value;
+    if (declaration === null) return {mode:'connected',explicit:false};
+  }
   catch (error) {
     if (error.code === 'ENOENT') return {mode: 'connected', explicit: false};
     stop('development-mode-invalid');

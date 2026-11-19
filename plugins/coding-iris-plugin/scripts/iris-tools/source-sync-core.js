@@ -85,8 +85,7 @@ function privateRoot(context, roots = context.gitRoots) {
     return root;
 }
 function environment(context, options = {}) {
-    const file = path.join(context.contextRoot, 'config', 'iris-development.json');
-    const declared = fs.existsSync(file) ? json(file) : {};
+    const declared = require('../../../../scripts/lib/iris-development-settings').inspect(context.contextRoot).value || {};
     const alias = options.environmentAlias || declared.environmentAlias;
     const type = options.environmentType || declared.environmentType;
     if (!alias || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(alias) || !['test', 'development', 'production'].includes(type)) stop('explicit-environment-required');
@@ -110,6 +109,8 @@ function demandKind(context, options = {}) {
 function projectConfiguration(context) {
     require('../../../../scripts/lib/iris-remote-operations').assertRemoteAllowed(context);
     const {config} = readProjectEnv(context);
+    // Saved credentials of inactive profiles are unrelated to this target's source plan.
+    delete config.irisProfileCredentials;
     const mcpFile = path.join(context.workspaceRoot, '.mcp.json');
     const mcp = fs.existsSync(mcpFile) ? json(mcpFile) : {};
     return {config, mcp};
@@ -833,7 +834,7 @@ function initialize(options) {
         if (!existing) git(root, ['init']);
         const exclude = path.resolve(root, textGit(root, ['rev-parse', '--git-path', 'info/exclude']));
         const relative = slash(path.relative(root, context.contextRoot));
-        const rules = [`/${relative}/work/source-sync/`, `/${relative}/config/iris-development.json`, `/${relative}/config/iris-remote-policy.json`, '/.mcp.json'];
+        const rules = [`/${relative}/work/source-sync/`, `/${relative}/config/project.jsonc`, `/${relative}/config/iris-development.json`, `/${relative}/config/iris-remote-policy.json`, '/.mcp.json'];
         const content = fs.existsSync(exclude) ? fs.readFileSync(exclude, 'utf8') : '';
         const missing = rules.filter(rule => !content.split(/\r?\n/).includes(rule));
         if (missing.length) fs.appendFileSync(exclude, '\n' + missing.join('\n') + '\n');
@@ -843,7 +844,7 @@ function initialize(options) {
     if (within(capability, context.contextRoot) && path.resolve(textGit(capability, ['rev-parse', '--show-toplevel'], {optional: true}) || '.') === path.resolve(capability)) {
         const exclude = path.resolve(capability, textGit(capability, ['rev-parse', '--git-path', 'info/exclude']));
         const prefix = slash(path.relative(capability, context.contextRoot));
-        const rules = ['work/source-sync/', 'config/iris-development.json', 'config/iris-remote-policy.json'].map(value => '/' + (prefix ? prefix + '/' : '') + value);
+        const rules = ['work/source-sync/', 'config/project.jsonc', 'config/iris-development.json', 'config/iris-remote-policy.json'].map(value => '/' + (prefix ? prefix + '/' : '') + value);
         const previous = fs.existsSync(exclude) ? fs.readFileSync(exclude, 'utf8') : '';
         const missing = rules.filter(rule => !previous.split(/\r?\n/).includes(rule));
         if (missing.length) fs.appendFileSync(exclude, '\n' + missing.join('\n') + '\n');

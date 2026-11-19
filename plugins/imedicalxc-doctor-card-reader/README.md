@@ -40,4 +40,4 @@ HIS 医生站读卡设备接入配置插件。核心能力是根据设备厂商�
 
 ## 启用与更新
 
-插件目录存在只表示能力 `available`。完成项目上下文维护和实际验收后，再将目标项目 `.agents/config/plugin_profile.md` 中的插件状态更新为 `enabled`。已部署项目通过 `.agents/scripts/update-agents.ps1` 获取插件更新，并按 profile 重建 thin-index。
+插件目录存在只表示能力 `available`。完成项目上下文维护和实际验收后，再将目标项目 `.agents/config/project.jsonc` 的 `plugins` 节 中的插件状态更新为 `enabled`。已部署项目通过 `.agents/scripts/update-agents.ps1` 获取插件更新，并按 profile 重建 thin-index。

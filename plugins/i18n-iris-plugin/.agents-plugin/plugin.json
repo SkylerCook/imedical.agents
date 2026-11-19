@@ -1,6 +1,12 @@
 {
   "name": "i18n-iris-plugin",
-  "version": "0.3.17",
+  "configMigrations": [
+    {
+      "id": "plugin-runtime-settings-v1",
+      "script": "scripts/migrate-runtime-settings.ps1"
+    }
+  ],
+  "version": "0.3.18",
   "displayName": "IRIS I18N Plugin",
   "description": "Reusable i18n agent workflows for IRIS/ObjectScript/CSP/HISUI projects.",
   "entry": "AGENTS.md",

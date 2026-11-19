@@ -2,7 +2,7 @@
 
 本工程已接入 `coding-iris-plugin`。后续任务如涉及 IRIS ObjectScript、CSP、JavaScript、HISUI、MCP 上传编译或前端编码转换，先读取：
 
-- 开发方式：当前 ContextRoot 的 `config/iris-development.json` 中 `developmentMode`；offline 先读 coding owner 的 `references/iris-offline-development.md`，不调用医院远端或原生 MCP。connected（含旧配置缺省）才继续在线分支，非法值停止；contextMode 不代替开发方式。
+- 开发方式：当前 ContextRoot 的 `config/project.jsonc` 的 `irisDevelopment` 节 中 `developmentMode`；offline 先读 coding owner 的 `references/iris-offline-development.md`，不调用医院远端或原生 MCP。connected（含旧配置缺省）才继续在线分支，非法值停止；contextMode 不代替开发方式。
 - 项目适配配置：`.agents/config/iris_project_profile.md`，开发方式只引用同一 JSON
 - MCP 连接事实来源：`.mcp.json`，仅 connected 且任务确需远端能力时读取
 - 编码规则索引：`.agents/rules/iris_coding_index.md`

@@ -38,15 +38,7 @@ function checkAvailability({ capabilityRoot, contextRoot, plugin, stage }) {
     keys.add(key);
   }
   if (stage && !entries.some(e => e.stage === stage)) throw Error('Undeclared dependency stage: ' + stage);
-  const profileFile = path.join(contextRoot, 'config/plugin_profile.md');
-  const profile = new Map();
-  if (fs.existsSync(profileFile)) {
-    for (const match of fs.readFileSync(profileFile, 'utf8').matchAll(/^\|\s*`?([\w-]+)`?\s*\|\s*(available|enabled|disabled|initialized|indexed)\s*\|/gim)) {
-      const key = match[1].toLowerCase(), status = match[2].toLowerCase();
-      if (profile.has(key) && profile.get(key) !== status) throw Error('Conflicting plugin profile: ' + key);
-      profile.set(key, status);
-    }
-  }
+  const profile = require('./lib/plugin-deployment').profile(contextRoot);
   const checks = entries.filter(e => !stage || e.stage === stage).map(entry => {
     const root = path.join(capabilityRoot, 'plugins', entry.plugin);
     const problems = [];
