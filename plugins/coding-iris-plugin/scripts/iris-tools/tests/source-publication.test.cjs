@@ -9,6 +9,7 @@ const publication = require('../source-publication');
 const guard = require('../deploy-guard');
 const direct = require('../deploy-direct');
 const {createTempDirectory} = require('../../../../../scripts/tests/fixtures/temp-directory');
+const {sqlStorageFixture} = require('./fixtures/sql-storage.cjs');
 
 function fixture(t, {environmentType = 'production', content = 'Class Demo\n{\n}\n', kind = 'backend'} = {}) {
   const root = createTempDirectory('iris-publication-test-');
@@ -61,6 +62,25 @@ test('remote drift stops before upload; approved artifacts cannot be replaced by
   await bound.read(f.file);
   await assert.rejects(() => bound.put({...f.file, bytes: Buffer.from('unreviewed')}), /publication-artifact-changed/);
   assert.equal(writes, 0);
+});
+test('reviewed SQLStorage extension preserves the approved artifacts and server baseline', async t => {
+  const {baseline, candidate, mapping} = sqlStorageFixture();
+  const f = fixture(t, {environmentType: 'test', content: candidate});
+  const approved = publication.freeze({...f.input, files: [{...f.input.files[0], remoteSha256: guard.hash(Buffer.from(baseline))}]});
+  f.plan.publication = approved;
+  let remote = Buffer.from(baseline), uploads = 0;
+  const formatted = candidate.replace(mapping,'').replace('<Data name="Current_Value">',mapping+'<Data name="Current_Value">');
+  const adapter = publication.bindAdapter({
+    read: async () => remote,
+    put: async file => {assert.equal(file.bytes.toString(), candidate); uploads++; remote = Buffer.from(formatted);},
+    compile: async () => ({status: 'compiled'})
+  }, approved);
+  const result = await direct.run({files: f.ready().files, adapter, kind: 'backend'});
+  assert.equal(result.status, 'verified', JSON.stringify(result));
+  assert.equal(uploads, 1);
+  assert.equal(result.files[0].uploadSha256, approved.files[0].artifactSha256);
+  assert.notEqual(result.files[0].postCompileSha256, approved.files[0].artifactSha256);
+  assert.equal(remote.toString(), formatted);
 });
 test('foreign staging and configuration changes stop the next write without restoring other work', async t => {
   const f = fixture(t, {environmentType: 'test'});

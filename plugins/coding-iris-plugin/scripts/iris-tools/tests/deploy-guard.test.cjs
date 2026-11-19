@@ -1,6 +1,7 @@
 const {createTempDirectory,ownsTempDirectory}=require('../../../../../scripts/tests/fixtures/temp-directory');
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),{spawnSync}=require('node:child_process');
 const g=require('../deploy-guard');
+const {sqlStorageFixture}=require('./fixtures/sql-storage.cjs');
 test('direct deployment and identical server need no merge',()=>{
  assert.deepEqual(g.choose('a','b','a'),{content:'b',merged:false});
  assert.equal(g.choose('a','b','b').content,'b');
@@ -25,6 +26,28 @@ test('invalid bytes and storage differences stop',()=>{
  assert.throws(()=>g.text(Buffer.from('a\0b')),/binary/);
  assert.throws(()=>g.validate('A.cls','Storage Default\n{\nx\n}', '', ''),/storage/);
  assert.throws(()=>g.validate('A.cls','Storage Default { x }', '', ''),/storage/);
+});
+test('guarded deploys an additive SQL map against its saved baseline and refuses server Storage drift',async t=>{
+ const dir=createTempDirectory('guard-sql-storage-'),repo=path.join(dir,'repo');fs.mkdirSync(repo);
+ const home=os.homedir;os.homedir=()=>dir;t.after(()=>{os.homedir=home;fs.rmSync(dir,{recursive:true,force:true});});
+ const git=(...args)=>{const r=spawnSync('git',['-C',repo,...args],{encoding:'utf8',windowsHide:true});assert.equal(r.status,0,r.stderr);};
+ const {baseline,candidate,mapping}=sqlStorageFixture(),localPath=path.join(repo,'Demo.cls');
+ const formatted=candidate.replace(mapping,'').replace('<Data name="Current_Value">',mapping+'<Data name="Current_Value">');
+ git('init');git('config','user.name','Test');git('config','user.email','test@example.invalid');
+ fs.writeFileSync(localPath,baseline);git('add','.');git('commit','-m','base');g.initialize(repo,'901','HEAD',true);
+ fs.writeFileSync(localPath,candidate);
+ let remote=Buffer.from(baseline),puts=0,compiles=0;
+ const adapter={read:async()=>remote,put:async f=>{assert.equal(f.bytes.toString(),candidate);remote=Buffer.from(formatted);puts++;},
+  compile:async()=>({status:++compiles===1?'compile-failed':'compiled'})};
+ const opts={repo,demand:'901',files:[{localPath,remotePath:'Demo.cls'}],target:'backend:mock',adapter,checkUpdates:()=>{}};
+ assert.equal((await g.run(opts)).status,'compile-failed');
+ assert.equal((await g.run(opts)).status,'verified');
+ assert.equal(remote.toString(),formatted);
+ remote=Buffer.from(formatted.replace('<Piece>5</Piece>','<Piece>4</Piece>'));
+ const blocked=await g.run(opts);
+ assert.equal(blocked.reason,'storage-review-required');
+ assert.equal(puts,1);
+ assert.equal(compiles,2);
 });
 test('source syntax is checked',()=>assert.throws(()=>g.validate('a.js','const =;', '', ''),/syntax/));
 test('persisted state survives reload; second overwrite and stale decision stop',async()=>{

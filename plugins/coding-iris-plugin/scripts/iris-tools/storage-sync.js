@@ -40,9 +40,10 @@ function xmlEnd(source, start) {
   stop('storage-format-unknown');
 }
 
-function inspect(source) {
-  const blocks = [], separators = [];
-  let depth = 0, blockComment = false, quote = false, close = -1, methodBody = false;
+function inspect(source, collectDeclarations = false) {
+  const blocks = [], separators = [], declarations = [];
+  let depth = 0, blockComment = false, quote = false, open = -1, close = -1, methodBody = false;
+  let declarationStart = -1;
   const fragment = /^\s*Storage\b/i.test(source);
   for (let i = 0; i < source.length; i++) {
     const c = source[i], next = source[i + 1];
@@ -52,6 +53,7 @@ function inspect(source) {
       const blank = /^[ \t]*\n/.exec(source.slice(i));
       if (blank) { separators.push({start: i, end: i + blank[0].length}); i += blank[0].length - 1; continue; }
       if (/^[ \t]*(?:ClassMethod|Method|Trigger)\s/i.test(source.slice(i))) methodBody = true;
+      if (collectDeclarations && declarationStart < 0 && /^[ \t]*(?:Property|Relationship)\s/i.test(source.slice(i))) declarationStart = i;
     }
     if (c === '}' && depth === 2 && methodBody) {
       const lineStart = source.lastIndexOf('\n', i - 1) + 1;
@@ -64,27 +66,41 @@ function inspect(source) {
     if (c === '"') { quote = true; continue; }
     if ((c === '/' && next === '/') || c === ';' && depth > 1) { const end = source.indexOf('\n', i); if (end < 0) break; i = end; continue; }
     if (c === '/' && next === '*') { blockComment = true; i++; continue; }
+    if (c === ';' && depth === 1 && declarationStart >= 0) {
+      declarations.push(source.slice(declarationStart, i));
+      declarationStart = -1;
+    }
     if ((depth === 1 || fragment && depth === 0) && /[SX]/i.test(c) &&
         /^[ \t\uFEFF]*$/.test(source.slice(source.lastIndexOf('\n', i - 1) + 1, i))) {
       const member = /^(Storage|XData)\s+([%\w.]+)\s*(?:\[[^\]\r\n]*\]\s*)?\{/i.exec(source.slice(i));
       if (member) {
-        const end = xmlEnd(source, i + member[0].length);
-        if (member[1].toLowerCase() === 'storage') blocks.push({name: member[2], start: i, end, content: source.slice(i, end)});
+        const xmlStart = i + member[0].length;
+        const end = xmlEnd(source, xmlStart);
+        if (member[1].toLowerCase() === 'storage') {
+          blocks.push({name: member[2], start: i, end, content: source.slice(i, end), header: source.slice(i, xmlStart), xml: source.slice(xmlStart, end - 1)});
+        }
         i = end - 1;
         continue;
       }
       if (/^Storage\b/i.test(source.slice(i))) stop('storage-format-unknown');
     }
-    if (c === '{') depth++;
+    if (c === '{' && depth++ === 0) open = i;
     if (c === '}') { depth--; if (depth === 0) close = i; if (depth < 0) stop('storage-format-unknown'); }
   }
   if (depth || quote || blockComment || new Set(blocks.map(b => b.name)).size !== blocks.length) stop('storage-format-unknown');
-  return {blocks, close, separators};
+  return {blocks, close, separators, header: source.slice(0, open), declarations};
 }
 
 function storage(source) {
   if (!/^[ \t]*Storage\b/im.test(source || '')) return '';
   return inspect(source || '').blocks.map(b => b.content).join('\n');
+}
+
+function sqlStorageExtension(baseline, candidate, remote) {
+  if (!baseline || !candidate || !remote) return null;
+  return require('./sql-storage-extension').compare(
+    inspect(baseline, true), inspect(candidate, true), remote === baseline ? null : inspect(remote, true)
+  );
 }
 
 // Only class-member separators and trailing empty ObjectScript method lines
@@ -102,10 +118,18 @@ function body(source, parsed) {
   return normalize(source);
 }
 
-function uploadMatches(file, expected, actual) {
+function uploadMatches(file, expected, actual, sqlStorage) {
   if (expected === actual) return true;
   if (!/\.cls$/i.test(file) || actual === null) return false;
-  try { return normalize(expected) === normalize(actual); }
+  try {
+    const uploaded = inspect(expected), readback = inspect(actual);
+    if (normalize(expected, uploaded) === normalize(actual, readback)) return true;
+    return !!sqlStorage && body(expected, uploaded) === body(actual, readback) &&
+      uploaded.blocks.length === readback.blocks.length &&
+      uploaded.blocks.every((block, i) => block.name === sqlStorage.name ?
+        block.header === readback.blocks[i].header : block.content === readback.blocks[i].content) &&
+      require('./sql-storage-extension').matchesReadback(sqlStorage, readback.blocks);
+  }
   catch { return false; }
 }
 
@@ -143,6 +167,12 @@ async function reconcile(files, adapter, {onFile = () => {}, beforeWrite = () =>
       if (uploaded.blocks.some(b => !remote.blocks.some(r => r.name === b.name))) stop('post-compile-storage-removed', {file: file.remotePath});
       const knownNames = new Set(uploaded.blocks.map(b => b.name));
       if (JSON.stringify(remote.blocks.filter(b => knownNames.has(b.name)).map(b => b.name)) !== JSON.stringify(uploaded.blocks.map(b => b.name))) stop('post-compile-storage-reordered', {file: file.remotePath});
+      // A retry after a known compile failure can already have the uploaded layout.
+      if (file.sqlStorage || file.remoteBytes !== null && file.expected !== null) {
+        const sql = require('./sql-storage-extension');
+        const expected = file.sqlStorage || sql.existingLayout(uploaded);
+        if (expected && !sql.matchesReadback(expected, remote.blocks)) stop('post-compile-sql-storage-changed', {file: file.remotePath});
+      }
       const original = file.source.toString('utf8');
       const newline = original.includes('\r\n') ? '\r\n' : '\n';
       const bom = original.startsWith('\uFEFF') ? '\uFEFF' : '';
@@ -186,4 +216,4 @@ async function reconcile(files, adapter, {onFile = () => {}, beforeWrite = () =>
   return plans;
 }
 
-module.exports = {uploadMatches, storage, inspect, body, backfill, reconcile};
+module.exports = {uploadMatches, storage, sqlStorageExtension, inspect, body, backfill, reconcile};

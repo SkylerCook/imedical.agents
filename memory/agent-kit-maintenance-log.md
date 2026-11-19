@@ -9,6 +9,11 @@
 - `iris-cure-form-dev` 0.9.0 新增 `cure-form-review`。规格确认前检查视觉层级和填写动线，CA/CR 新建与界面改造在完整预览后复验。支持单张截图独立评审，项目按常规更新取得入口。
 - Windows PowerShell 5.1 和 PowerShell 7 均通过隔离 standard、Overlay 的更新与 thin-index 源回读。Windows Chrome 九档验证 CA 反例、修正版和 CR 重复录入，并查看 390px 截图。真实宿主行为沿现有业务验收，复验方法见[匿名样例](../maintenance/validation/cure-form-review.md)。
 
+## 2026-11-20 SQL Storage 新增字段部署
+
+- coding-iris-plugin 0.34.4 支持在已有 `^` 分段数据映射中追加持久化字段的尾段。复用 direct、guarded 和按需发布，核对 SQL 字段名、既有布局、远端版本和实际回读。IRIS 对简单 `Data` 映射的序列化排序按字段和段号比较。已有副本按[部署契约](../plugins/coding-iris-plugin/references/deployment-protection.md#显式-sql-storage-新增字段)正常更新，无配置迁移。
+- Windows 部署专项 100 项通过。授权开发环境 IRIS 2025.1.4 用隔离测试类验证重复段号拒绝、尾段追加上传和编译、旧记录缺段读取、新旧记录读写、重复部署及清理。真实按需项目发布、更多版本和平台沿既有治理队列验证。
+
 ## 2026-11-19 工作台部署策略首批源码验收
 
 - coding、治疗表单、i18n 和接口文档的运行字段接入当前 ContextRoot 的 `project.jsonc`。Windows 隔离工程经 `e943fc29` 原更新器迁移、新装及重复更新，Edge 保存的 i18n 路径由原 CLI 读回。成员隔离、Markdown 保留、编码子路径优先级及回退另有专项回归。字段与保留来源见 `docs/guides/plugin-runtime-settings.md`。

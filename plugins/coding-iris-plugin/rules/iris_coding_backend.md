@@ -61,7 +61,7 @@ related:
 
 - 新增持久化表类、属性或索引时，按 [CLS 表类注释约定](../references/cls-coding-format.md#持久化表类注释) 核对业务名称和 SQL 投影，属性的补充说明及索引注释按实际需要填写；非表类不套用 Table 标签，历史代码范围和编译授权沿用原边界。
 - `%Persistent` 类新增 `Property` 时必须追加到已有属性末尾，不得插入历史字段中间。
-- 保留既有 Storage 映射；默认存储的新增属性由编译器扩展。自定义 Storage 按目标类契约处理，禁止无依据删除后重建或重排历史节点。
+- 默认存储的新增属性由编译器扩展。新增持久化属性使用显式 SQL Storage 时，按目标类契约同步写入 `SQLMap`，以有效 SQL 字段名建立映射并保留历史段号。受管部署条件见[显式 SQL Storage 新增字段](../references/deployment-protection.md#显式-sql-storage-新增字段)。
 - 历史数据按位置存储时，重排实际存储位置会使旧数据错位；核对 Storage 和已有数据形态，不能仅凭属性声明位置判断映射已经变化。
 - `SqlColumnNumber` 控制 SQL 投影列顺序，影响 `SELECT *` 以及省略列清单的写入。新增属性时核对既有列号、Storage 映射与调用方契约，保留历史映射；属性声明顺序、Storage 位置和 SQL 列序分别检查。[官方定义](https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=ROBJ_property_sqlcolumnnumber)
 

@@ -306,7 +306,7 @@ MCP helper 的 `tools` / `call` 已包含配置检查，已知参数可直接调
 本插件不保存服务器地址、namespace、账号、密码、token、远程路径、业务页面清单、业务类名前缀或项目专属基类。这些内容只能存在于目标工程 `.agents/config/iris_project_profile.md` 或 `.mcp.json`。
 ## 部署可靠性要点
 
-- 共享部署保护保留 Storage 原文；B/L/R 的 Storage 有差异或无法可靠解析时停止并 Question。不得为通过上传而自动删除或重新生成 Storage，不能回退直接 iris_doc put 绕过保护。
+- 已有显式 SQL Storage 类新增持久化字段时，受管部署可上传追加的 `^` 分段映射，并在编译后核对既有和新增的字段位置。已有工程按正常能力包更新取得，无需迁移配置。适用布局与阻断条件见[显式 SQL Storage 新增字段](references/deployment-protection.md#显式-sql-storage-新增字段)。
 - 类文件部署先整组上传依赖切片，再按依赖顺序编译；不要边上传边逐个编译。
 - 前端部署自动按服务器目标编码转换，严格回读上传字节，源码保持原样。
 - Legacy GB2312 转换只用于用户明确指定的历史工程；临时件远端文件名仍映射回原始目标文件名，不能据此推断当前标版仍使用 GB2312。

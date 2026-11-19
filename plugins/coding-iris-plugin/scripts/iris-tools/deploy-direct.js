@@ -3,22 +3,24 @@
 const fs = require('node:fs');
 const guard = require('./deploy-guard');
 
-function prepare(file, local, remote) {
+function prepareUpload(file, local, remote) {
   if (!/\.cls$/i.test(file)) {
     guard.validate(file, local, local, local);
-    return local;
+    return {content: local};
   }
   const ownStorage = guard.storage(local), serverStorage = guard.storage(remote);
-  if (remote !== null && ownStorage && ownStorage !== serverStorage) {
-    guard.stop('storage-review-required', {file});
-  }
   let content = local;
   if (!ownStorage && serverStorage) {
     if (!/\}\s*$/.test(local)) guard.stop('storage-format-unknown', {file});
     content = local.replace(/\}\s*$/, serverStorage + '\n\n}\n');
   }
-  guard.validate(file, content, content, content);
-  return content;
+  const baseline = remote ?? content;
+  const sqlStorage = guard.validate(file, content, baseline, baseline);
+  return {content, sqlStorage};
+}
+
+function prepare(file, local, remote) {
+  return prepareUpload(file, local, remote).content;
 }
 
 async function run({files, adapter, kind}) {
@@ -37,11 +39,11 @@ async function run({files, adapter, kind}) {
       const local = file.encodingPolicy ? encoding.decode(source, file.encodingPolicy.sourceEncoding, file.localPath) : guard.text(source);
       const remoteBytes = await adapter.read(file);
       const remote = file.encodingPolicy ? encoding.decode(remoteBytes, file.encodingPolicy.serverEncoding, file.remotePath) : guard.text(remoteBytes);
-      const content = prepare(file.remotePath, local, remote);
+      const {content, sqlStorage} = prepareUpload(file.remotePath, local, remote);
       // Frontend files keep original UTF-8 bytes, BOM and newlines.
       const bytes = file.encodingPolicy ? encoding.artifact(source, file.encodingPolicy, file.localPath) : kind === 'backend' ? Buffer.from(content) : source;
       if (file.publicationArtifactSha256 && guard.hash(bytes) !== file.publicationArtifactSha256) guard.stop('publication-artifact-changed', {file: file.remotePath});
-      prepared.push({...file, source, content, bytes, remoteBytes});
+      prepared.push({...file, source, content, sqlStorage, bytes, remoteBytes});
     }
     // Finish every preflight before the first write. Later failures are partial.
     for (const file of prepared) {
@@ -51,14 +53,14 @@ async function run({files, adapter, kind}) {
       const latest = await adapter.read(file);
       if (guard.hash(latest) !== guard.hash(file.remoteBytes)) guard.stop('remote-changed-during-deploy', {file: file.remotePath});
       if (!guard.readSource(file).equals(file.source)) guard.stop('local-changed-during-deploy', {file: file.remotePath});
-      const unchanged = kind === 'backend' ? require('./storage-sync').uploadMatches(file.remotePath, file.content, guard.text(latest)) : guard.hash(latest) === guard.hash(file.bytes);
+      const unchanged = kind === 'backend' ? require('./storage-sync').uploadMatches(file.remotePath, file.content, guard.text(latest), file.sqlStorage) : guard.hash(latest) === guard.hash(file.bytes);
       if (!unchanged) {
         const earlierWriting = writing;
         writing = true;
         try { await adapter.put({...file, expected: guard.hash(latest)}); }
         catch (error) { if (error.beforeSend === true) writing = earlierWriting; throw error; }
         const back = await adapter.read(file);
-        const matches = kind === 'backend' ? require('./storage-sync').uploadMatches(file.remotePath, file.content, guard.text(back)) : guard.hash(back) === guard.hash(file.bytes);
+        const matches = kind === 'backend' ? require('./storage-sync').uploadMatches(file.remotePath, file.content, guard.text(back), file.sqlStorage) : guard.hash(back) === guard.hash(file.bytes);
         if (!matches) guard.stop('readback-mismatch', {file: file.remotePath});
       }
       result.files.push({file: file.remotePath, document: file.publicationDocument || file.document || file.remotePath,

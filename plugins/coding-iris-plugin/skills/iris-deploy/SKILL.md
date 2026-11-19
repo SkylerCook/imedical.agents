@@ -46,7 +46,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manife
 
 脚本只输出 JSON 清单，不执行远端写入。用清单确认：
 
-- `.cls/.mac/.inc` 对应 IRIS 文档名和是否需要 Storage Default 检查。
+- `.cls/.mac/.inc` 对应 IRIS 文档名和是否需要 Storage 检查。
 - `.csp` 对应 WebApp 虚拟编译路径。
 - `.js/.css/.html` 对应 Web 资源路径。
 - 是否存在无法分类或本地不存在的文件。
@@ -71,7 +71,7 @@ node .agents/plugins/coding-iris-plugin/scripts/iris-tools/compile-csp.js --docu
 1. 读取配置和项目规则，确认目标环境事实来源。
 2. 核实文件清单，拆分后端类、CSP、Web 资源和其它文件；不强制另建清单产物。
 3. 核对当前授权；仅当目标、范围或授权缺失时补充确认，已有授权直接沿用。
-4. 后端类按 `iris_deploy_checklist.md` 执行：实体类先处理 Storage Default 风险，完整依赖切片先上传，再按依赖顺序编译；编译后回读并核对 Storage 回填结果，失败时区分远端已编译与本地未同步，按 [部署保护](../../references/deployment-protection.md#编译后-storage-同步) 停止处理。
+4. 后端类按[部署清单](../../rules/iris_deploy_checklist.md)核对 Storage。已有实体类新增显式 SQL 映射时用[新增字段条件](../../references/deployment-protection.md#显式-sql-storage-新增字段)。上传完整依赖切片后按依赖顺序编译，按[编译后回读](../../references/deployment-protection.md#编译后-storage-同步)确认源码和 Storage 同步结果。
 5. Web 资源通过 UTF-8 字节门禁后，使用共享保护生成独立部署产物并上传；只有用户明确指定历史 `standard-gb2312` 工程时，GB2312 临时文件才可作为上传内容，远端目标名仍保持原始文件名。
 6. CSP 上传后使用 `scripts/iris-tools/compile-csp.js --documents <WebApp虚拟路径.csp> --execute`，通过 Atelier `action/compile` 编译明确目标；检查顶层及逐文档错误。默认直接编译指定 show.csp，不自动扩展父页面；生成类参数和页面功能另行验证。
 7. 按部署清单的验证章节消费已有回执，仅补缺失证据；分别报告文件部署与业务验收状态。

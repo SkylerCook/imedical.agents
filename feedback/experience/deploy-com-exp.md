@@ -4,6 +4,8 @@
 
 已提升通用入口：`plugins/coding-iris-plugin/skills/iris-deploy/SKILL.md`；已提升清单脚本：`plugins/coding-iris-plugin/scripts/iris-tools/prepare-deploy-manifest.js`。
 
+实体类部署执行现行[部署保护](../../plugins/coding-iris-plugin/references/deployment-protection.md#显式-sql-storage-新增字段)。下文剥离 `Storage Default` 的处置属于当次历史故障记录。
+
 ## 维护规则
 
 新增、命中计数与提升先遵循 [feedback skill 的共享准入](../../plugins/agent-framework-evolution/skills/agent-framework-feedback/SKILL.md#需求经验分支)，通过筛选并获授权后才按下列格式维护。历史条目不视为已通过新准入，不自动清理或重新计数。

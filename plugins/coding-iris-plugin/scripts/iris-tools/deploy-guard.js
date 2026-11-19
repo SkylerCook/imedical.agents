@@ -133,7 +133,15 @@ function storage(s) {
  return require('./storage-sync').storage(s);
 }
 function validate(file,content,base,remote) {
- if(/\.cls$/i.test(file) && (storage(base)!==storage(content)||storage(base)!==storage(remote)))stop('storage-review-required',{file});
+ let sqlStorage;
+ if(/\.cls$/i.test(file)) {
+  const previousStorage=storage(base);
+  if(previousStorage!==storage(remote))stop('storage-review-required',{file});
+  if(previousStorage!==storage(content)) {
+   sqlStorage=require('./storage-sync').sqlStorageExtension(base,content,remote);
+   if(!sqlStorage)stop('storage-review-required',{file});
+  }
+ }
  if(/^(<<<<<<< |=======\s*$|>>>>>>> )/m.test(content))stop('conflict-markers',{file});
  if(/\.(js|cjs|mjs)$/i.test(file)) {
   const r=spawnSync(process.execPath,['--check'],{input:content,encoding:'utf8',windowsHide:true,timeout:30000});
@@ -142,6 +150,7 @@ function validate(file,content,base,remote) {
   }
   if(r.status!==0)stop('javascript-syntax-failed',{file});
  }
+ return sqlStorage;
 }
 async function run({repo,demand,files,target,adapter,decision,checkUpdates=checkGit}) {
  const invalid=decisionError(decision);
@@ -205,8 +214,8 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
    targetState.pending={file:f.relative,token,base,local,remote};
    try {
     const selected=choose(base,local,remote,previous,allowed);
-    validate(f.relative,selected.content,previous?previous.deployed:base,remote);
-    prepared.push({...f,...selected,local,source,expected:hash(raw),skip:remote===selected.content,bytes:remote===selected.content?raw:f.encodingPolicy?encoding.uploadText(selected.content,f.encodingPolicy,f.relative):selected.content===local?source:Buffer.from(selected.content),token});
+    const sqlStorage=validate(f.relative,selected.content,previous?previous.deployed:base,remote);
+    prepared.push({...f,...selected,local,source,sqlStorage,expected:hash(raw),skip:remote===selected.content,bytes:remote===selected.content?raw:f.encodingPolicy?encoding.uploadText(selected.content,f.encodingPolicy,f.relative):selected.content===local?source:Buffer.from(selected.content),token});
    }catch(e){if(e instanceof Attention)e.details={...e.details,file:f.relative,token,localHash:hash(local),remoteHash:hash(raw),base:state.base};throw e;}
   }
   if(['merge','overwrite'].includes(decision?.action)&&!decisionApplied)stop('decision-expired');
@@ -220,10 +229,16 @@ async function run({repo,demand,files,target,adapter,decision,checkUpdates=check
    if(hash(await adapter.read(f))!==f.expected)stop('remote-changed-before-upload',{file:f.relative});
    if(!readSource(f).equals(f.source))stop('local-source-changed',{file:f.relative});
    const evidence=f.skip?undefined:await adapter.put(f);
-   if(!verifiedPut(evidence,f,hash) && !(f.encodingPolicy ? hash(await adapter.read(f))===hash(f.bytes) : require('./storage-sync').uploadMatches(f.remotePath,f.content,text(await adapter.read(f)))))stop('readback-mismatch',{file:f.relative});
+   let deployed=f.content;
+   if(!verifiedPut(evidence,f,hash)){
+    const bytes=await adapter.read(f),actual=f.encodingPolicy?undefined:text(bytes);
+    const matches=f.encodingPolicy?hash(bytes)===hash(f.bytes):require('./storage-sync').uploadMatches(f.remotePath,f.content,actual,f.sqlStorage);
+    if(!matches)stop('readback-mismatch',{file:f.relative});
+    if(f.sqlStorage)deployed=actual;
+   }
    adapter.record?.(f,f.skip?'unchanged':'uploaded');
    // Persist each successful write; failure cannot silently reset merge history.
-   targetState.files[f.remotePath]={local:f.local,deployed:f.content,merged:f.merged};
+   targetState.files[f.remotePath]={local:f.local,deployed,merged:f.merged};
    write(loc.file,state);
   }
   activeFile=undefined;

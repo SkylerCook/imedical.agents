@@ -4,6 +4,8 @@
 
 ## 当前重点
 
+- coding 0.34.4 支持[显式 SQL Storage 新增字段](../plugins/coding-iris-plugin/references/deployment-protection.md#显式-sql-storage-新增字段)，校验既有映射并回读新增段号。已部署工程正常更新即可取得。
+
 - coding 0.34.1 用 `iris-code-baseline --` 查看 [Skill 命令](../plugins/coding-iris-plugin/skills/iris-code-baseline/SKILL.md#命令)。按路径与类包导出继续通过受管查询生成精确 TXT，复用采集和续采。
 
 - coding 0.33.0 提供本地 [XML 转源码](../plugins/coding-iris-plugin/references/iris-offline-development.md#xml-转独立源码目录)，从基线 Skill 的 `--xtoc` 进入。已有项目正常更新并刷新 Skill 入口，验收范围见维护日志。

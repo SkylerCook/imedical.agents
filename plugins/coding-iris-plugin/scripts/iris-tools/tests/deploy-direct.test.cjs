@@ -4,6 +4,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {prepare,run}=require('../deploy-direct'),{parse,backendAdapter}=require('../deploy-protected');
 const {Attention}=require('../deploy-guard');
+const {data,sqlStorageFixture}=require('./fixtures/sql-storage.cjs');
 
 function fixture(t,contents=['Class Demo.A\n{\n}\n']) {
  const dir=createTempDirectory('iris-direct-test-');
@@ -60,6 +61,88 @@ test('preserves server Storage in upload and backfills it to source after compil
  assert.ok(f.remote.get(file.remotePath).toString().includes(storage));
  assert.ok(fs.readFileSync(file.localPath,'utf8').includes(storage));
  assert.throws(()=>prepare('A.cls','Class A\n{\n'+storage+'\n}', 'Class A\n{\n'+storage.replace('DemoD','OtherD')+'\n}'),/storage-review/);
+});
+
+test('deploys the full SQLStorage extension and verifies the compiled map by column and Piece', async t => {
+ const {baseline,candidate,mapping}=sqlStorageFixture();
+ const f=fixture(t,[candidate]),file=f.files[0];
+ f.remote.set(file.remotePath,Buffer.from(baseline));
+ const formatted=candidate.replace(mapping,'').replace('<Data name="Current_Value">',mapping+'<Data name="Current_Value">');
+ const put=f.adapter.put;
+ f.adapter.put=async upload=>{
+  assert.equal(upload.bytes.toString(),candidate);
+  await put({...upload,bytes:Buffer.from(formatted)});
+ };
+ f.adapter.compile=async()=>{
+  assert.equal(f.remote.get(file.remotePath).toString(),formatted);
+  return {status:'compiled'};
+ };
+ const result=await run({...f,kind:'backend'});
+ assert.equal(result.status,'verified',JSON.stringify(result));
+ assert.equal(result.files[0].storageSynced,true);
+ assert.equal(fs.readFileSync(file.localPath,'utf8'),formatted);
+});
+
+test('known SQLStorage compile failure can resume with normalized remote mappings without another PUT', async t => {
+ const {baseline,candidate,mapping}=sqlStorageFixture();
+ const f=fixture(t,[candidate]),file=f.files[0];
+ f.remote.set(file.remotePath,Buffer.from(baseline));
+ const formatted=candidate.replace(mapping,'').replace('<Data name="Current_Value">',mapping+'<Data name="Current_Value">');
+ const put=f.adapter.put;
+ f.adapter.put=upload=>put({...upload,bytes:Buffer.from(formatted)});
+ f.adapter.compile=async()=>({status:'compile-failed'});
+ assert.equal((await run({...f,kind:'backend'})).status,'compile-failed');
+ assert.equal(fs.readFileSync(file.localPath,'utf8'),candidate);
+ f.adapter.compile=async()=>({status:'compiled'});
+ const result=await run({...f,kind:'backend'});
+ assert.equal(result.status,'verified',JSON.stringify(result));
+ assert.equal(result.files[0].status,'unchanged');
+ assert.equal(f.events.filter(event=>event.startsWith('put:')).length,1);
+ assert.equal(fs.readFileSync(file.localPath,'utf8'),formatted);
+});
+
+test('SQLStorage preflight only permits a new persistent column in a free tail Piece of the existing data node', () => {
+ const {baseline,candidate,property,mapping}=sqlStorageFixture();
+ assert.equal(prepare('Demo.cls',candidate,baseline),candidate);
+ for(const type of ['%CacheSQLStorage','%Library.CacheSQLStorage']) {
+  const legacy=candidate.replace('%Storage.SQL',type);
+  assert.equal(prepare('Demo.cls',legacy,baseline.replace('%Storage.SQL',type)),legacy);
+ }
+ for(const variant of [
+  candidate.replace('<Piece>6</Piece>','<Piece>5</Piece>'),
+  candidate.replace('<Piece>6</Piece>','<Piece>4</Piece>'),
+  candidate.replace('<Piece>5</Piece>','<Piece>7</Piece>'),
+  candidate.replace(data('EarlierValue',1),''),
+  candidate.replace('^Demo','^Other'),
+  candidate.replace('<Piece>6</Piece>','<Node>"Other"</Node><Piece>6</Piece>'),
+  candidate.replace(mapping,mapping.replace('"^"','"|"')),
+  candidate.replace(property,'/*\n'+property+'*/\n'),
+  candidate.replace(property,'Property Fake As %String(DISPLAYLIST = "SqlFieldName = New_Value");\n'),
+  candidate.replace(property,property.replace('SqlFieldName','Transient, SqlFieldName')),
+  candidate.replace(mapping,data('NewValue',6)),
+  candidate.replace(mapping,mapping+data('More_Value',6)).replace(property,property+'Property MoreValue As %String [ SqlFieldName=More_Value ];\n'),
+  candidate.replace('<Type>data</Type>\n</SQLMap>','<Type>data</Type>\n</SQLMap><SQLMap name="Other"><Global>^Demo</Global><Type>data</Type></SQLMap>'),
+  candidate.replace(mapping,'').replace('<Type>index',mapping+'<Type>index')
+ ]) assert.throws(()=>prepare('Demo.cls',variant,baseline),{reason:'storage-review-required'},variant);
+ assert.throws(()=>prepare('Demo.cls',candidate,baseline.replace('StorageStrategy = SQLStorage','StorageStrategy = SomethingElse')),
+  {reason:'storage-review-required'});
+});
+
+test('compiled SQLStorage layout drift stops before writing back to the worktree',async t=>{
+ const {baseline,candidate}=sqlStorageFixture();
+ for(const remote of [baseline,candidate]){
+  const f=fixture(t,[candidate]),file=f.files[0];
+  f.remote.set(file.remotePath,Buffer.from(remote));
+  f.adapter.compile=async()=>{
+   f.remote.set(file.remotePath,Buffer.from(candidate.replace('<Piece>6</Piece>','<Piece>7</Piece>')));
+   return {status:'compiled'};
+  };
+  const result=await run({...f,kind:'backend'});
+  assert.equal(result.reason,'post-compile-sql-storage-changed');
+  assert.equal(result.remoteCompilation,'compiled');
+  assert.equal(result.status,'storage-sync-incomplete');
+  assert.equal(fs.readFileSync(file.localPath,'utf8'),candidate);
+ }
 });
 
 test('new persistent class round trip and property evolution preserve BOM, CRLF and local code',async t=>{

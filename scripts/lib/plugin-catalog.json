@@ -362,7 +362,7 @@
       "directory": "coding-iris-plugin",
       "manifest": {
         "name": "coding-iris-plugin",
-        "version": "0.34.3",
+        "version": "0.34.4",
         "displayName": "IRIS Coding Plugin",
         "description": "Reusable fast/full/guarded coding rules and workflows for IRIS ObjectScript, CSP, JavaScript, and HISUI projects.",
         "entry": "AGENTS.md",
@@ -547,7 +547,7 @@
           "vendor/xml-parser"
         ]
       },
-      "manifestHash": "7a93bfff4b3fc6a1926b0493676614fad6a21e08e619351b06c780d8065dc064"
+      "manifestHash": "4e90ff97abe0bf833eb97ab4494c39906070379ebfa5afe65be9388e0164ccbd"
     },
     {
       "directory": "demand-delivery-plugin",
