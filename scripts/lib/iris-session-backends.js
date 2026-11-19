@@ -139,6 +139,8 @@ async function open(operation) {
         payload.error === 'PUT doc failed: HTTP 405 Method Not Allowed' ||
         params.name === 'iris_execute' && payload?.error_code === 'HTTP_EXECUTION_FAILED' &&
         /^iris_execute: HTTP\/Atelier execution failed \(PUT doc failed: HTTP 405 Method Not Allowed\)\. No docker fallback available \(IRIS_CONTAINER not set\)\./.test(payload.error || '');
+      const executionDisabled = ['iris_execute','iris_execute_method'].includes(params.name) &&
+        result.result?.isError === true && payload?.error_code === 'DESTRUCTIVE_TOOLS_DISABLED';
       try { assertSession(false); }
       catch (error) {
         error.toolResponse = result;
@@ -150,7 +152,7 @@ async function open(operation) {
         }
         if (typeof payload?.error_code === 'string' && /^[A-Z][A-Z0-9_]{0,79}$/.test(payload.error_code)) error.toolErrorCode = payload.error_code;
         if (payload?.error_code === 'SERVER_ERROR' && /error sending request/i.test(payload.error || '')) error.transportError = 'request-failed';
-        if (carrierRejected) error.writeOutcome = 'rejected';
+        if (carrierRejected || executionDisabled) error.writeOutcome = 'rejected';
         if (!result.error && !result.result?.isError && payload?.success === true) error.writeOutcome = 'verified-applied';
         throw error;
       }
@@ -161,7 +163,7 @@ async function open(operation) {
         // A rejected temporary carrier upload has not reached compilation or
         // execution. Match the vendor's exact phase, not an arbitrary HTTP error
         // buried in user code or a multi-step tool's output.
-        const rejected = result.error && [-32601, -32602].includes(result.error.code) || carrierRejected ||
+        const rejected = result.error && [-32601, -32602].includes(result.error.code) || carrierRejected || executionDisabled ||
           params.name === 'iris_test' && payload?.error_code === 'NAMESPACE_NOT_FOUND';
         if (rejected) return result;
         if (op.effects === 'write') {

@@ -91,6 +91,17 @@ test('normal recovery entry loads durable pools after host restart and distingui
   assert.equal(host.manager.status()[0].active,true);
   await main(['reconcile-session','--project-root',project,'--confirm','--token',before,'--write-outcome','verified-not-applied']);
   assert.equal(outputs.at(-1).unresolvedWrites.length,0);
+  assert.equal(outputs.at(-1).recoveryCommand, 'reconcile-session');
+  const remote = require('../lib/iris-remote-operations');
+  const owner = {status:'ready',ownerPresent:true,ownerAlive:false};
+  const admission = t.mock.method(remote,'localPoolStatus',()=>owner);
+  await main(['status','--project-root',project]);
+  assert.equal(outputs.at(-1).recoveryCommand,'reconcile');
+  owner.ownerAlive=true;
+  await main(['status','--project-root',project]);
+  assert.equal(outputs.at(-1).recoveryCommand,undefined);
+  assert.ok(outputs.at(-1).recoveryHint);
+  admission.mock.restore();
   assert.equal(outputs.at(-1).active,false);
   await main(['reconcile-session','--project-root',project,'--confirm']);
   assert.equal(outputs.at(-1).status,'not-required');
@@ -118,7 +129,7 @@ test('managed MCP clients reach one real subprocess and local tools/list never s
       if(m.params?.name==='iris_query')process.stdout.write(JSON.stringify({jsonrpc:'2.0',method:'notifications/progress',params:{progressToken:m.params.arguments.sql,progress:1}})+'\\n');
       let result={};if(m.method==='tools/call')result={content:[{type:'text',text:JSON.stringify(m.params.name==='check_config'?{connected:true,host:'example.invalid',port:443,namespace:'TEST'}:{pid:process.pid,name:m.params.name})}]};
       if(m.params?.name==='iris_test')result=m.params.arguments.pattern==='assertion'?{content:[{type:'text',text:JSON.stringify({success:false,total:1,passed:0,failed:1})}]}:{isError:true,content:[{type:'text',text:JSON.stringify({success:false,error_code:m.params.arguments.pattern==='rejected'?'NAMESPACE_NOT_FOUND':'TEST_EXECUTION_ERROR',error:'synthetic diagnosis'})}]};
-      if(m.params?.name==='iris_execute' || m.params?.name==='iris_execute_method')result={isError:true,content:[{type:'text',text:JSON.stringify({success:false,error_code:m.params.name==='iris_execute'?'HTTP_EXECUTION_FAILED':'IRIS_EXECUTE_ERROR',error:m.params.name==='iris_execute'?'iris_execute: HTTP/Atelier execution failed (PUT doc failed: HTTP 405 Method Not Allowed). No docker fallback available (IRIS_CONTAINER not set). Verify the Atelier REST endpoint.':'PUT doc failed: HTTP 405 Method Not Allowed'})}]};
+      if(m.params?.name==='iris_execute' || m.params?.name==='iris_execute_method')result={isError:true,content:[{type:'text',text:JSON.stringify({success:false,error_code:m.params.arguments?.code==='disabled'?'DESTRUCTIVE_TOOLS_DISABLED':m.params.name==='iris_execute'?'HTTP_EXECUTION_FAILED':'IRIS_EXECUTE_ERROR',error:m.params.name==='iris_execute'?'iris_execute: HTTP/Atelier execution failed (PUT doc failed: HTTP 405 Method Not Allowed). No docker fallback available (IRIS_CONTAINER not set). Verify the Atelier REST endpoint.':'PUT doc failed: HTTP 405 Method Not Allowed'})}]};
       process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:m.id,result})+'\\n');});`);
   const config={mcpServers:{'iris-agentic-dev':{command:process.execPath,args:[path.resolve('scripts/iris-session-mcp.js')],env:{IRIS_HOST:'example.invalid',IRIS_WEB_PORT:'443',IRIS_SCHEME:'https',IRIS_NAMESPACE:'TEST'}}}};
   fs.writeFileSync(path.join(project,'.mcp.json'),JSON.stringify(config));
@@ -164,6 +175,10 @@ test('managed MCP clients reach one real subprocess and local tools/list never s
   });
   assert.equal(host.manager.status()[0].blocked,null);
   assert.equal(host.manager.status()[0].unresolvedWrites.length,1);
+  const disabled=await a.request('tools/call',{name:'iris_execute',arguments:{code:'disabled'}});
+  assert.equal(JSON.parse(disabled.result.content[0].text).error_code,'DESTRUCTIVE_TOOLS_DISABLED');
+  assert.equal(host.manager.status()[0].unresolvedWrites.length,0);
+  await b.request('tools/call',{name:'iris_query',arguments:{sql:'SELECT after_disabled'}});
   const afterUnknown=await b.request('tools/call',{name:'iris_query',arguments:{sql:'SELECT after_unknown'}});
   assert.equal(JSON.parse(afterUnknown.result.content[0].text).name,'iris_query');
   for(const name of fs.readdirSync(path.join(root,'ipc/pools')))assert.equal(fs.readFileSync(path.join(root,'ipc/pools',name),'utf8').includes('synthetic diagnosis'),false);

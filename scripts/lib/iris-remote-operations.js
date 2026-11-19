@@ -112,7 +112,9 @@ function managedPolicy(context, policy, force = false) {
 }
 function localPolicy(context = {}) {
   const root=context.contextRoot || path.join(context.workspaceRoot || process.cwd(),'.agents');
-  const policy=readJson(path.join(root,'config','iris-remote-policy.json'));
+  let policy;
+  try { policy=readJson(path.join(root,'config','iris-remote-policy.json')); }
+  catch (error) { if (error.code === 'ENOENT') stop('remote-policy-required'); throw error; }
   if(policy?.schema!=='iris-remote-policy/v1' || !path.isAbsolute(policy.coordinationRoot || '') ||
     !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(policy.poolKey || ''))stop('remote-policy-invalid');
   return managedPolicy(context,{...policy,enabled:true});

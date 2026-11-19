@@ -96,7 +96,9 @@ async function main(argv = process.argv.slice(2)) {
       unresolvedWrites:[...(admission.unresolvedWrites || []), ...(session?.unresolvedWrites || [])]});
     console.log(JSON.stringify({...admission, ...details, blockingReasons:[...(admission.blockingReasons || []), ...(session?.blockingReasons || [])], status:sessionBlocked?'reconciliation-required':admission.status,
       admission,session,poolId,maxFrameworkSessions:remote.frameworkSessionLimit(description.policy),
-      ...(sessionBlocked?{recoveryCommand:'reconcile-session'}:{})}));
+      ...(admission.status === 'unconfigured' ? {configurationHint:'Restore config/iris-remote-policy.json under the project context using the managed-session update flow.'} :
+        admission.ownerPresent ? (admission.ownerAlive === false ? {recoveryCommand:'reconcile'} : {recoveryHint:'Verify the current owner has exited before recovery.'}) :
+        sessionBlocked ? {recoveryCommand:'reconcile-session'} : {})}));
     return;
   }
   if(command==='reconcile') {

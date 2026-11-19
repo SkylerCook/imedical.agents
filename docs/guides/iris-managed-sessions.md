@@ -8,6 +8,7 @@
 ## 接入路径
 
 - CLI：在业务工程运行 `node .agents/scripts/iris-mcp.js check|tools|call ...`。`tools` 读取固定 vendor 的本地目录，不启动医院连接。`check` 和业务调用经过管理进程。
+- WorkBuddy 当前会话看不到 IRIS 工具时，先在工程运行上述 `check`。成功后检查宿主 MCP 配置是否指向本工程的 `iris-session-mcp.js`，在连接器管理中确认信任，再新开会话验证工具可见性。连接凭据继续由工程配置提供。若 `check` 失败，先处理其连接或策略错误。
 - 原生 MCP：保留原服务名，`.mcp.json` 的 command 改为 Node，args 指向 CapabilityRoot 的 `scripts/iris-session-mcp.js --project-root <WorkspaceRoot> --server-name <原服务名>`。原 executable/args 保存在私有 ContextRoot `config/iris-session-backend.json`；连接 env 留在原位置。
 - 业务脚本：复用 `createManagedMcpSession` 或 `createAtelierClient`。后者在项目已迁移时进入管理进程；显式资格试验、已有共享 owner 和借用 Broker 会话保留其原生命周期与准入约束。
 
