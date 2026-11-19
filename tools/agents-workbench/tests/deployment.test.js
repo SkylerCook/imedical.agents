@@ -284,6 +284,13 @@ test('staged Workbench uses Windows PowerShell 5.1 to install and update approve
     const installed = await bound.post('apply', null, { selectionId: selectedInstall.data.offline.selectionId });
     assert.equal(installed.status, 200, JSON.stringify(installed.data));
     assert.equal(installed.data.after.revision, approvedRevision);
+    assert.deepEqual(installed.data.steps.map(({step,exitCode}) => [step,exitCode]),
+        [['install',0],['initialize',0],['check',0]]);
+    assert.equal(installed.data.after.installed.profile, true);
+    assert.ok(installed.data.after.installed.skillEntries > 0);
+    const initializedGuidance = fs.readFileSync(path.join(project, 'AGENTS.md'), 'utf8');
+    assert.ok(initializedGuidance.startsWith(business['AGENTS.md']));
+    assert.match(initializedGuidance, /\(\.agents\/docs\/README\.md\)/);
     assert.equal((await bound.post('apply', null, { selectionId: selectedInstall.data.offline.selectionId })).data.error, 'stale-observation');
     assert.equal(git(target, ['rev-parse', 'HEAD']), approvedRevision);
     assert.equal(git(target, ['config', '--get', 'remote.origin.url']), 'https://gitee.com/skyler-cook/imedical.agents.git');
@@ -292,7 +299,9 @@ test('staged Workbench uses Windows PowerShell 5.1 to install and update approve
     assert.equal(fs.existsSync(path.join(target, 'scripts', 'update-agents.ps1')), true);
     assert.equal(fs.existsSync(path.join(target, 'tools')), false);
     assert.ok(Number(git(target, ['cat-file', '-s', 'HEAD:vendor/iris-agentic-dev/windows-x64/iris-agentic-dev.exe'])) > 1024 * 1024);
-    for (const [name, contents] of Object.entries(business)) assert.equal(fs.readFileSync(path.join(project, name), 'utf8'), contents);
+    for (const [name, contents] of Object.entries(business)) {
+        assert.equal(fs.readFileSync(path.join(project, name), 'utf8'), name === 'AGENTS.md' ? initializedGuidance : contents);
+    }
 
     const next = await makeBundle('new', nextRevision);
     const revision = () => git(target, ['rev-parse', 'HEAD']);
@@ -340,7 +349,7 @@ test('staged Workbench uses Windows PowerShell 5.1 to install and update approve
         assert.match(preview.stdout, new RegExp(nextRevision));
         assert.equal(revision(), approvedRevision);
         assertPreserved();
-        assert.equal(fs.readFileSync(path.join(project, 'AGENTS.md'), 'utf8'), business['AGENTS.md']);
+        assert.equal(fs.readFileSync(path.join(project, 'AGENTS.md'), 'utf8'), initializedGuidance);
 
         const denied = update('Write', `${nextRevision}:${'0'.repeat(64)}`);
         assert.notEqual(denied.status, 0);

@@ -23,6 +23,7 @@ const trustedRuntime = new Map([
   ['e943fc299efe658e1a2da90602a50d85cf2a3c7b', '30b13b1d4a6e499cbc56e7da2355ff345ac269f74d8222a07b8d523e03ce9427'],
   ['1a8a257cffa676a486a126ceab48b234babdd398', 'e43844b42644d604220126adebf35b8799f76521cb7d603280bd2631adafeb4e'],
   ['536d12b49bea961295162030e0926ebf65562330', '46c8d133986c4f4aaf2480d71e6ec611ca2938f0e77411d6670cc19d7d98a753'],
+  ['08fe2e9099dfe95db53118f42fc43d683009023f', '7465f52d4bb222fe3b07868c50bb8001d75c0d31086fbdf163a259ed52f83e8f'],
 ]);
 
 function packagedRuntimePin() {
@@ -272,11 +273,6 @@ function run({root,action,expectedRevision,expectedBinding,offlineSelection,over
   if (!install && !offlineAction) verifyRuntime(cap,before.revision);
   if (action === 'verify') return {before};
   const tools = toolEnvironment();
-  if (offlineAction) {
-    return require('./offline-framework-actions').execute({action:offlineAction,root,expectedRevision,expectedBinding,
-      bundleDirectory:offlineSelection.bundleDirectory,release:offlineSelection.release},
-    {trustedRuntime,observe:value=>observe(value,true),verifyRuntime,tools});
-  }
   const steps = [];
   const receipt = (error) => ({action,steps,before,after:observe(root,true),exitCode:steps.at(-1)?.exitCode ?? null,...(error ? {error} : {})});
   function owner(step,entry,parameters,env) {
@@ -288,6 +284,16 @@ function run({root,action,expectedRevision,expectedBinding,offlineSelection,over
   }
   const entry = path.join(cap,'scripts/update-agents.ps1');
   const update = (step,mode,env=tools.env,noPull=true) => owner(step,entry,{ProjectRoot:root,Mode:mode,NoPull:noPull},env);
+  if (offlineAction) return runOffline();
+  async function runOffline() {
+    const result = await require('./offline-framework-actions').execute({action:offlineAction,root,expectedRevision,expectedBinding,
+      bundleDirectory:offlineSelection.bundleDirectory,release:offlineSelection.release},
+    {trustedRuntime,observe:value=>observe(value,true),verifyRuntime,tools});
+    if (offlineAction !== 'install' || result.error || result.exitCode !== 0) return result;
+    steps.push({step:'install',exitCode:0,revision:result.after.revision});
+    const initialized = initializeInstalled(result.after);
+    return {...initialized,action:result.action,approvedRevision:result.approvedRevision};
+  }
   const sameProject = () => {
     const now = observe(root);
     return now.status === before.status && now.binding === before.binding && now.revision === before.revision;
@@ -304,6 +310,9 @@ function run({root,action,expectedRevision,expectedBinding,offlineSelection,over
     const env = {...tools.env,IMEDICAL_DEPLOYMENT_LOCK:token};
     if (update(step,'Write',env)) update('check','Check',env);
     return receipt();
+  }
+  function initializeInstalled(installed) {
+    return withDeploymentLock(installed, token => writeAndCheck(token,'initialize'));
   }
   if (action === 'apply' || action === 'refresh-overlay') {
     return withDeploymentLock(before,token => {
@@ -429,7 +438,7 @@ function run({root,action,expectedRevision,expectedBinding,offlineSelection,over
     if (!owner('install',installer,params,env)) return receipt('install-failed');
     const installed = observe(root);
     if (installed.status !== 'standard') return receipt('revision-mismatch');
-    const result = writeAndCheck(installed,'initialize');
+    const result = initializeInstalled(installed);
     if (!ownPin) return result;
     const published = git(cap,['rev-parse','refs/remotes/origin/master']).toString().trim();
     return compatibility(result,published,installed.revision);

@@ -771,13 +771,13 @@ Windows PowerShell 5.1 暂存包已通过任务17a–17d。通过实际本机接
 
 - 17a–17b 已验收。构建入口从干净完整的 Git 源仓生成 `capability.bundle` 和 `manifest.json`。验证使用批准渠道独立提供的发行记录。缺对象、增量前置对象、过滤包、引用不符及摘要篡改均会拒绝。源仓缺对象时先从授权来源补齐或使用完整镜像。
 - 17c–17d 已验收。Windows standard 工作台复用 `-RepositorySource` 首装和 `-UpdateSource` 更新。选择、预演与确认绑定实际工程，写入前重校验，更新只接受可证明的快进。工程有未提交改动、分支领先或分叉时停止并保留原状态。
-- 17e 待验收。用正式候选 ZIP 验证实际分发版本，并扩展到全量／按需组合、Overlay 及可选向量资源。记录真实包体后再决定是否按体系拆分。
+- 17e 已用正式 0.3.0 ZIP 和固定版本 `08fe2e90` 的完整 Git 物料验收断网首装。物料为 212,823,792 字节。正式包首装返回成功并落盘，复查发现工程插件配置、技能入口和文档链接缺失。源码修复复用了在线首装的初始化与复查。在解包副本中用原物料复验，三类生成层均已读回。剩余验证包括新版发行包复验，以及旧全量及按需工程、Overlay 和向量资源的组合。
 
 定向复验运行 `node --test tools/agents-workbench/tests/deployment.test.js`。它在 Windows PowerShell 5.1 中禁用 Git 网络传输，验证包构建、校验、隔离首装与快进更新。正式候选及尚未覆盖场景按 17e 验收后再扩大分发范围。
 
 ### 任务18：维护同步与正式验收
 
-文件：`tools/agents-workbench/README.md`、`tools/README.md`、根`README.md`、`docs/guides/agents-workbench.md`、`docs/README.md`、`docs/update-agents.md`、受影响owner manifest及`releases/plugin/<owner>/<version>.md`、维护记忆／日志／backlog。
+入口见[工作台说明](../tools/agents-workbench/react/README.md)、[团队使用手册](guides/usage-manual.md)、[安装更新手册](update-agents.md)和[维护记录](../memory/agent-kit-maintenance-log.md)。组件变化同时核对受影响 owner 的 manifest、发布记录和维护队列。
 
 - 18a：记录工作台与框架版本兼容矩阵、源仓／业务项目边界、配置来源、本机状态位置、JSONC迁移回退、恢复与卸载保留策略。
 - 18b：受影响插件严格递增版本；一个完整交付目的一个发布记录，不为每个微步骤发一个版本。schema生成物、catalog和直接依赖范围一并核对。
@@ -789,7 +789,7 @@ Windows PowerShell 5.1 暂存包已通过任务17a–17d。通过实际本机接
 
 ```powershell
 node scripts/generate-plugin-catalog.js --check
-node tools/agents-workbench/build/compile-schemas.js --check
+node --test scripts/tests/project-plugin-settings.tests.js tools/agents-workbench/tests/configuration-files.test.js
 node --test tools/agents-workbench/tests/*.test.js
 node --test --test-name-pattern="project links resolve" scripts/tests/documentation-layout.tests.js
 git diff --check

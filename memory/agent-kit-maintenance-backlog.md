@@ -11,7 +11,7 @@
 
 - **P2 · MCP CLI 错误输出断言对齐**：`scripts/tests/iris-mcp-cli.tests.js:41` 期望 stderr 为空，实际得到结构化 iris-operation-failed；2026-11-17 在 Node 22.23.4 / 24.22.3 同样复现。后续核对 CLI 错误通道契约后修正实现或断言，本次 Node 升级不扩大修复范围。
 
-- **P2 · 工作台原型评审与后端分批接入**：评审首次部署、已有工程、Root/模块以及Agent接续是否减负；按 docs/agents-workbench-plan.md 接入原owner能力、SQLite及经验证的宿主接口。模拟界面通过不替代真实工程验收；不扩展当前部署白名单。
+- **P2 · 工作台发行与真实工程验收**：0.3.0 已分发 Windows 工作台，复用原框架入口和项目 JSONC。继续按 [工作台计划](../docs/agents-workbench-plan.md) 验证离线首装修复、完整物料组合、真实工程和已验证宿主的使用轨迹，并取得三平台矩阵结果。
 
 ## 本轮安排（2026-11-12）
 
