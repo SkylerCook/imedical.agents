@@ -1,10 +1,11 @@
-"""Windows pilot acceptance: python standard-pilot.py <workbench.zip> (requires Playwright and Edge)."""
+"""Windows pilot acceptance for a workbench ZIP using Playwright and Edge."""
+import argparse
 import json
 import os
+from hashlib import sha256
 from pathlib import Path
 import shutil
 import subprocess
-import sys
 import tempfile
 from zipfile import ZipFile
 
@@ -20,9 +21,27 @@ def git(directory, *args):
     return subprocess.check_output(["git", "-C", directory, *args], text=True).strip()
 
 
-def exercise(archive, work):
+def exercise(archive, work, require_formal):
     package = work / "独立 解压"
     with ZipFile(archive) as zip_file:
+        release = json.loads(zip_file.read("workbench-release.json"))
+        if require_formal and release.get("formal") is not True:
+            raise ValueError("acceptance requires a formal release build")
+        if release.get("formal"):
+            revision = release["sourceBaseRevision"]
+            files = subprocess.check_output([
+                "git", "-C", REPO, "ls-tree", "-r", "-z", "--name-only", revision, "--",
+                "docs/guides", "docs/update-agents.md", "docs/workspace-overlay.md",
+            ]).decode("utf8").split("\0")
+            manuals = {file for file in files if file.endswith(".md") and file.count("/") <= 2}
+            assert set(release["documentationSha256"]) == manuals, "release manual list differs from Git"
+            assert not release["localBuildChanges"], "formal release contains local changes"
+            assets = {"scripts/install-agents.ps1": release["installerSha256"], **release["documentationSha256"]}
+            for file, digest in assets.items():
+                packaged = zip_file.read(file)
+                committed = subprocess.check_output(["git", "-C", REPO, "show", revision + ":" + file])
+                assert packaged == committed and sha256(packaged).hexdigest() == digest.lower(), file
+            print("verified", len(manuals), "manuals against", revision[:8], flush=True)
         zip_file.extractall(package)
     node = package / "runtime/node.exe"
     assert subprocess.check_output([node, "--version"], text=True).strip() == "v24.22.3"
@@ -63,6 +82,15 @@ def exercise(archive, work):
             errors = []
             page.on("pageerror", lambda e: errors.append(str(e)))
             page.goto(hello["address"].split("#")[0] + "#bootstrap=" + hello["bootstrap"])
+            page.get_by_role("link", name="使用手册", exact=True).click()
+            page.get_by_role("heading", name="把任务接续到 Agent", exact=True).wait_for()
+            page.get_by_role("link", name="更新中断与续接", exact=True).click()
+            page.get_by_role("heading", name="更新中断与续接", exact=True).wait_for()
+            page.get_by_role("link", name="团队使用手册", exact=True).last.click()
+            page.get_by_role("link", name="共享能力根更新、各工程刷新", exact=True).click()
+            page.get_by_role("heading", name="Workspace Overlay 部署与恢复 Runbook", exact=True).wait_for()
+            page.get_by_role("link", name="总览", exact=True).click()
+
             def click(label):
                 with page.expect_response(lambda r: r.url.endswith("/framework/action"), timeout=180000) as response:
                     page.get_by_role("button", name=label, exact=True).click()
@@ -174,7 +202,11 @@ def exercise(archive, work):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("archive", type=Path)
+    parser.add_argument("--require-formal", action="store_true")
+    args = parser.parse_args()
     parent = Path("D:/tmp/Codex") if Path("D:/tmp/Codex").is_dir() else Path(tempfile.gettempdir()) / "Codex"
     parent.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="workbench-pilot-", dir=parent) as temp:
-        exercise(Path(sys.argv[1]).resolve(), Path(temp))
+        exercise(args.archive.resolve(), Path(temp), args.require_formal)

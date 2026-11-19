@@ -16,7 +16,22 @@ const guideDestinations: Record<string, { page: Page; label: string }> = {
   "capability-catalog.md": { page: "scope", label: "打开能力目录" },
 };
 
-function inline(text: string, context: { file: string; guides: Guide[]; nav: Navigation }): ReactNode[] {
+type GuideContext = { guide: Guide; guides: Guide[]; nav: Navigation };
+
+function guideLink(target: string, { guide, guides, nav }: GuideContext) {
+  const base = new URL("/" + guide.source, location.origin);
+  let resolved: URL;
+  try {
+    resolved = new URL(target, base);
+  } catch {
+    return null;
+  }
+  if (resolved.origin !== base.origin || resolved.search) return null;
+  const linked = guides.find(item => "/" + item.source === decode(resolved.pathname));
+  return linked ? href("manual", nav.route.demo, { doc: linked.file, section: decode(resolved.hash.slice(1)) }) : null;
+}
+
+function inline(text: string, context: GuideContext): ReactNode[] {
   const tokens = /`([^`]+)`|\*\*([^*]+)\*\*|\[([^\]]+)]\(([^)]+)\)/g;
   const parts: ReactNode[] = [];
   let end = 0;
@@ -30,10 +45,7 @@ function inline(text: string, context: { file: string; guides: Guide[]; nav: Nav
       parts.push(<strong key={index} className="font-semibold text-foreground">{match[2]}</strong>);
     } else {
       const label = match[3], target = match[4].trim();
-      const [path, anchor] = target.split("#", 2);
-      const file = decode(path.replace(/^\.\//, "")) || context.file;
-      const link = context.guides.some(guide => guide.file === file)
-        ? href("manual", context.nav.route.demo, { doc: file, section: anchor && decode(anchor) }) : null;
+      const link = guideLink(target, context);
       if (link) {
         parts.push(<a key={index} href={link} className="text-foreground underline decoration-muted-foreground underline-offset-4 hover:decoration-foreground">{label}</a>);
       } else if (/^https:\/\/[^\s]+$/i.test(target)) {
@@ -49,9 +61,9 @@ function inline(text: string, context: { file: string; guides: Guide[]; nav: Nav
   return parts;
 }
 
-function guideMarkup(text: string, file: string, guides: Guide[], nav: Navigation) {
+function guideMarkup(text: string, guide: Guide, guides: Guide[], nav: Navigation) {
   const lines = text.split(/\r?\n/);
-  const ctx = { file, guides, nav };
+  const ctx = { guide, guides, nav };
   const render = (line: string) => inline(line, ctx);
   const output: ReactNode[] = [];
   const headings = new Map<string, number>();
@@ -130,7 +142,7 @@ function GuideArticle({ guide, guides, nav, query, onHandoff }: {
   return <article className="min-w-0 rounded-lg border bg-background">
     <header className="border-b px-4 py-4 sm:px-6">
       <h3 className="text-lg font-semibold">{guide.title}</h3>
-      <p className="mt-1 text-xs text-muted-foreground wrap-anywhere">docs/guides/{guide.file} · 本地只读</p>
+      <p className="mt-1 text-xs text-muted-foreground wrap-anywhere">{guide.source} · 本地只读</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {destination && <Button asChild variant="outline" size="sm"><a href={href(destination.page, nav.route.demo)}>{destination.label}</a></Button>}
         <Button variant="ghost" size="sm" onClick={() => onHandoff(`按《${guide.title}》核对当前工程`)}>生成相关请求</Button>
@@ -142,7 +154,7 @@ function GuideArticle({ guide, guides, nav, query, onHandoff }: {
           {query && nav.route.demo && <p role="status" className="font-medium text-foreground">
             {body.data.toLowerCase().includes(query.toLowerCase()) ? "当前正文中有匹配" : "当前正文无匹配"}
           </p>}
-          {guideMarkup(body.data, guide.file, guides, nav)}
+          {guideMarkup(body.data, guide, guides, nav)}
         </div>
         : <ReadState error={body.error} retry={body.retry} label={body.error ? "手册正文加载失败" : "正在读取本地手册…"} />}
     </div>

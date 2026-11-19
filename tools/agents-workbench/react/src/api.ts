@@ -4,7 +4,7 @@ export type Catalog = Omit<import("../../prototype/plugin-directory.mjs").Catalo
   groups: { id: string; name: string; plugins: string[] }[];
   plugins: (import("../../prototype/plugin-directory.mjs").Plugin & { directory: string })[];
 };
-export type Guide = { file: string; title: string };
+export type Guide = { file: string; source: string; title: string };
 export type Domain = {
   name: string; status: string; scope: string; source: string;
   fields: { key: string; status: string; sensitive: boolean }[];

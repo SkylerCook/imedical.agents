@@ -1,6 +1,6 @@
 # .agents 本地工作台：可行方案与实施计划
 
-> 状态：2026-11-19 修订，Windows standard 工程试点 0.2.0 已交付。工作台运行包、框架首次安装和框架更新的试点与分发见 8.7。Overlay 写入和真实多库切换继续沿各自方案实施。
+> 状态：2026-11-19 修订，Windows standard 工程试点 0.2.0 已交付。工作台 0.2.1 补齐离线手册导航，并建立源码、手册和 ZIP 一致性发布门槛，见 8.7。Overlay 写入和真实多库切换继续沿各自方案实施。
 > 本计划承接用户确认的方向：离线 Web UI／EXE、框架自有运行配置以 JSONC 为统一目标、UI 与 Agent 共用配置接口、复用本工程能力、兼容已经部署的项目。工作台首版不新增 SQLite；已有知识／向量组件的内部存储继续沿 owner 实现。
 
 ## 1. Goal：以工程为单位降低框架上手与日常维护成本
@@ -473,9 +473,9 @@ tools/agents-workbench/
 | 首次安装框架 | 识别无 `.agents` 的 standard 工程，预览目标、来源和受影响入口。获授权后，以工程为 cwd 调用随包可信 `install-agents.ps1` 及其依赖。首个试点沿现有 Git 下载方式，随后由原入口补装所需能力和生成配置 | `.agents` Git、sparse 范围、基础插件和生成入口实际读回。既有 AGENTS 正文、自定义 MCP 与私有配置按原安装契约保护。需 Agent 初始化或宿主验证的步骤分别显示 |
 | 更新已有框架 | 读取实际工程入口，按下述标准或 Overlay 流程执行。接入、查看状态和本地预演可独立使用 | 读回实际 Git revision、sparse 和启用状态，再执行 owner `Check`。框架已取版、生成层已刷新、宿主已加载分别显示 |
 
-**Windows standard 试点 0.2.0。** 固定交付包为 `tools/dist/agents-workbench-react.zip`，版本、SHA-256、兼容范围和旧包位置见同目录 `agents-workbench-react.release.json`。包内含便携 Node 24.22.3、预编译界面、字体与许可、手册和可信首装脚本。双击 `start-workbench.cmd` 选中工程，首页提供首装、检查、本地预演、取版预演和应用后复查。已有工程继续调用自己的更新器。Git 取版沿框架来源，工作台启动可离线。
+**Windows standard 试点。** 固定交付包为 `tools/dist/agents-workbench-react.zip`，版本、SHA-256、兼容范围和旧包位置见同目录 `agents-workbench-react.release.json`。包内含便携 Node 24.22.3、预编译界面、字体与许可、手册和可信首装脚本。双击 `start-workbench.cmd` 选中工程，首页提供首装、检查、本地预演、取版预演和应用后复查。已有工程继续调用自己的更新器。Git 取版沿框架来源，工作台启动可离线。
 
-**试点证据。** 同一 ZIP 从中文空格路径解压，在不依赖系统 Node 的 Windows 环境中用真实浏览器完成非空工程首装、部分克隆工程从 `b65675b6` 取版到 `5520bdf7`、写入与读回。独立核验真实 `imedical` 的 `b65675b6` 执行树和落盘运行文件符合试点校验。写入验证在隔离工程完成，模块及医院 Overlay 的共享更新沿单独验收路径推进。原型 `0.1.0` 已归档至 `tools/dist/history/agents-workbench-react/0.1.0/`。
+**0.2.0 试点证据。** 同一 ZIP 从中文空格路径解压，在不依赖系统 Node 的 Windows 环境中用真实浏览器完成非空工程首装、部分克隆工程从 `b65675b6` 取版到 `5520bdf7`、写入与读回。独立核验真实 `imedical` 的 `b65675b6` 执行树和落盘运行文件符合试点校验。写入验证在隔离工程完成，模块及医院 Overlay 的共享更新沿单独验收路径推进。原型 `0.1.0` 已归档至 `tools/dist/history/agents-workbench-react/0.1.0/`。
 
 **standard 更新顺序。** 「检查当前框架」使用 `Check`，「本地预演」使用 `DryRun -NoPull`，两者不更新 capability。显式选择「获取新版并预演」才运行普通 `DryRun`。该动作可能 fetch、快进和刷新 sparse，页面应提前说明。预演完成后以落盘的实际 revision 和工程身份作为应用依据，从新版入口运行 `Write -NoPull`，再运行 `Check`。已有更新器若支持自重启，沿其现有续接逻辑。历史更新器未能完成续接时，从已落盘入口补生成层步骤。取版成功但生成失败时保留真实进度和回执，修复后继续 `Write -NoPull`，避免重新下载或重置整个工程。
 
@@ -487,7 +487,11 @@ tools/agents-workbench/
 
 #### 8.7.1 工作台新版如何分发
 
-工作台沿 React `package.json` 的版本独立发布。维护者从经确认的源码提交构建完整 ZIP，暂存并实际解压验收后，再发布 `agents-workbench-react.zip`。包内记录工作台版本、源码 revision、所带 Node 及首次安装入口的版本。发行渠道同时提供包外发布记录，包含版本、平台、ZIP 大小与 SHA-256、变更说明和已验证的框架兼容范围。旧版本留在各自版本目录，保持同一 ZIP 文件名。测试、发布和现场安装使用同一个 ZIP。
+工作台沿 React `package.json` 独立发布。从 0.2.1 起，正式 ZIP 的源码、安装器、手册和界面构建必须绑定同一个 Git 提交。维护者按以下顺序发布，用户沿下方既有更新路径领取完整包。
+
+1. 在干净的目标提交上执行 `npm run stage:release -- <新暂存目录> --node-runtime <已校验 Node 目录>`。正式入口从该提交重建界面，再暂存发布内容。开发预览继续使用 `stage`。命令和验收步骤见能力源仓 `tools/agents-workbench/react/README.md` 的「维护者发布」。
+2. 核对暂存清单中的完整提交 SHA、版本、Node 及安装器和手册 SHA-256。包内手册从源仓原路径复制，包括团队使用手册、`docs/update-agents.md` 和 `docs/workspace-overlay.md`。运行包继续在离线手册中提供对应的更新续接和 Overlay 跳转。
+3. 记录待发 ZIP 的字节数和 SHA-256，从独立位置解包复验同一份产物。启动、手册导航及标准安装更新通过后，才用新版替换固定交付文件。发布 0.2.1 时把旧 0.2.0 和对应发行记录移入 `tools/dist/history/agents-workbench-react/0.2.0/`。包外发行记录保留版本、平台、提交 SHA、ZIP 字节数与 SHA-256、变更和实际验证范围。留存、分发和试点现场使用已核验的同一 ZIP。
 
 首轮试点推荐走**组织批准的只读内网发放点**，维护者在新版通过校验后才更新推荐版本入口。隔离环境沿现场既有物料导入流程领取同一 ZIP 和可信渠道提供的发布记录。环境管理员可以批量发放一个版本。同一工作台版本可管理多个工程，各工程仍各自读取实际绑定和配置。仓库 `tools/dist/` 是构建交付落点，正式发放位置由试点方确定。
 
@@ -726,7 +730,7 @@ Marked、DOMPurify与Ajv版本沿原调查记录，尚不代表本项目集成�
 
 ### 任务16：工作台打包、发行更新和文件恢复
 
-入口：`tools/agents-workbench/react/package-runtime.mjs`、`start-workbench.cmd`、`tools/agents-workbench/prototype/serve.js`。验证新增行为使用 `tools/agents-workbench/tests/packaging.test.js`。
+入口：`tools/agents-workbench/react/package-runtime.mjs`、`start-workbench.cmd`、`tools/agents-workbench/prototype/serve.js`。验证新增行为使用 `tools/agents-workbench/tests/package-runtime.test.js`。
 
 - 16a：以 React 构建和便携 Node 生成最小 Windows x64 ZIP。发布清单包含编译资源、随包字体和许可、手册、可信 resolver 与首次安装入口依赖。在断网、无系统 Node、无源码和 `node_modules`、中文空格路径下实际运行。
 - 16b：工作台与框架子进程使用同一包内 Node。验证框架动作使用的 Git 和 PowerShell，缺项时按现有离线助手提示。用户环境保持原状。
@@ -734,7 +738,7 @@ Marked、DOMPurify与Ajv版本沿原调查记录，尚不代表本项目集成�
 - 16d：按 8.7.1 校验包内容和包外发行记录，演练同名 ZIP 的版本归档、隔离环境导入、并排更新及失败启回。新版启动和识别工程通过后才替换默认启动位置。损坏 ZIP、兼容范围不符、切换中断以及进行中的写任务各有可验证的处理结果。
 - 16e：配置文件恢复复用 owner 备份与回执，核对格式迁移前后和中断后的原字节。普通导出只含非敏感状态及回执引用，跨机凭据按原来源重配。
 
-验证：从 React 目录按 README 执行 `npm run build` 和 `npm run stage -- <发布暂存目录> --node-runtime <已校验的 Node 目录>`，生成 `tools/dist/agents-workbench-react.zip` 后从独立目录解包测试。配套运行 `node --test tools/agents-workbench/tests/packaging.test.js`，再在试点目标机验收启动、框架动作和新版切换。发行前核对组织应用控制要求。
+验证：从干净的目标提交按 README 执行 `npm run stage:release -- <新暂存目录> --node-runtime <已校验 Node 目录>`。核对清单、ZIP 摘要和解包复验结果后替换正式文件。配套运行 `node --test tools/agents-workbench/tests/package-runtime.test.js`，再在试点目标机验收启动、手册导航、框架动作和新版切换。发行前核对组织应用控制要求。
 
 ### 任务17：真正的离线能力包安装更新（独立可验收切片）
 

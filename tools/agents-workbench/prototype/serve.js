@@ -1,7 +1,18 @@
 // Local workbench: fixed read sources and explicit personal-configuration writes.
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path');
-const manuals=path.resolve(__dirname,'../../../docs/guides');
-const allowed=new Set(fs.readdirSync(manuals,{withFileTypes:true}).filter(d=>d.isFile()&&d.name.endsWith('.md')).map(d=>d.name));
+const repo=path.resolve(__dirname,'../../..');
+const manuals = new Map(
+  fs.readdirSync(path.join(repo, 'docs/guides'), { withFileTypes: true })
+    .filter(entry => entry.isFile() && entry.name.endsWith('.md'))
+    .map(entry => [entry.name, 'docs/guides/' + entry.name]),
+);
+manuals.set('update-agents.md', 'docs/update-agents.md');
+manuals.set('workspace-overlay.md', 'docs/workspace-overlay.md');
+const manualIndex = JSON.stringify([...manuals].map(([file, source]) => ({
+  file,
+  source,
+  title: fs.readFileSync(path.join(repo, source), 'utf8').match(/^#\s+(.+)$/m)?.[1] || file,
+})));
 const reactDist = path.resolve(__dirname, '../react/dist');
 const reactEntry = path.join(reactDist, 'index.html');
 const entryPaths = new Set(['/', '/index.html', '/actual.html', '/react', '/react/']);
@@ -13,7 +24,6 @@ function reactAsset(pathname) {
  if (/^\/react\/assets\/[\w-]+\.(js|css|woff2)$/.test(pathname)) return path.join(reactDist, pathname.slice('/react/'.length));
  return null;
 }
-const repo=path.resolve(__dirname,'../../..');
 const {generate}=require(path.join(repo,'scripts/generate-plugin-catalog.js'));
 const projectArg=process.argv.indexOf('--project');
 const projectRoot=projectArg>=0?path.resolve(process.argv[projectArg+1]):null;
@@ -34,13 +44,14 @@ if(u.pathname.startsWith('/settings/')){
 if(req.method!=='GET'&&req.method!=='HEAD'){res.writeHead(405);return res.end()}
 if(req.headers.host!==`127.0.0.1:${port}`){res.writeHead(403);return res.end()}
 if(name==='project.json'){res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});return res.end(JSON.stringify(projectRoot?inspect(projectRoot):{error:'启动时尚未绑定工程'}))}
-if(name==='manuals.json'){res.writeHead(200,{'Content-Type':'application/json; charset=utf-8'});return res.end(JSON.stringify([...allowed].map(file=>({file,title:fs.readFileSync(path.join(manuals,file),'utf8').match(/^#\s+(.+)$/m)?.[1]||file}))))}
+if(name==='manuals.json'){res.writeHead(200,{'Content-Type':'application/json; charset=utf-8'});return res.end(req.method==='HEAD' ? undefined : manualIndex)}
 if(name==='catalog.json'){try{const c=generate(repo);const out={basePlugins:c.basePlugins,groups:c.groups,plugins:c.plugins.map(({directory,manifest:m})=>({directory,name:m.name,version:m.version,displayName:m.displayName,description:m.description,dependencies:m.dependencies||[],dependencyVersions:m.dependencyVersions||{},initSkill:m.initSkill||null})),unavailable:fs.readdirSync(path.join(repo,'plugins'),{withFileTypes:true}).filter(d=>d.isDirectory()&&!c.plugins.some(p=>p.directory===d.name)).map(d=>d.name)};res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});return res.end(JSON.stringify(out))}catch(e){res.writeHead(503);return res.end(JSON.stringify({error:'catalog-unavailable'}))}}
 file = reactAsset(u.pathname);
 if (!file && name.startsWith('manual/')) {
  let requested;
  try { requested = decodeURIComponent(name.slice(7)); } catch { requested = ''; }
- if (allowed.has(requested)) file = path.join(manuals, requested);
+ const source = manuals.get(requested);
+ if (source) file = path.join(repo, source);
 }
 if (!file) {res.writeHead(404);return res.end('Not found')}
 fs.readFile(file,(err,data)=>{
