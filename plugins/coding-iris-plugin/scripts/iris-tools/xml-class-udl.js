@@ -107,14 +107,17 @@ function flag(value, at) {
 function formalSpec(value, at) {
   if (!value.trim()) return '';
   return splitTopLevel(value, ',', at).map(argument => {
-    // The dictionary uses & for ByRef, * for Output, and : for the type.
-    const header = /^([&*]?)([%A-Za-z][%A-Za-z0-9]*)(\.\.\.)?\s*(.*)$/s.exec(argument);
+    // Native exports use & and *. Local packages may retain the UDL keywords.
+    const header = /^([&*]|(?:ByRef|Output)[ \t]+)?([%A-Za-z][%A-Za-z0-9]*)(\.\.\.)?\s*(.*)$/is.exec(argument);
     if (!header) unsupported(at);
     const [, mode, name, variadic, tail] = header;
+    const reference = mode?.trim().toLowerCase();
     const [type, defaultValue] = splitTopLevel(tail, '=', at, true);
     if (type && (type[0] !== ':' || !type.slice(1).trim())) unsupported(at);
     if (defaultValue === '') unsupported(at);
-    return (mode === '&' ? 'ByRef ' : mode === '*' ? 'Output ' : '') + name + (variadic || '') +
+    const prefix = reference === '&' || reference === 'byref' ? 'ByRef ' :
+      reference === '*' || reference === 'output' ? 'Output ' : '';
+    return prefix + name + (variadic || '') +
       (type ? ' As ' + type.slice(1).trim() : '') + (defaultValue === undefined ? '' : ' = ' + defaultValue);
   }).join(', ');
 }

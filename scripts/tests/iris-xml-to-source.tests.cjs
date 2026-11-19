@@ -98,6 +98,19 @@ test('converts a mixed local batch into deterministic independently verifiable s
   assert.match(udl, /\n}\n\n}\n$/);
 });
 
+test('preserves reference and output arguments in locally packaged FormalSpec', t => {
+  const {root, write} = fixture(t);
+  const input = write('module.xml', '<Export><Class name="Demo.Module">' +
+    '<Method name="Process"><ClassMethod>1</ClassMethod>' +
+    '<FormalSpec>value, Output reason, ByRef state:%String, *error:%Status, &amp;result:%String="a,b"</FormalSpec>' +
+    '</Method></Class></Export>');
+  const out = path.join(root, 'out');
+  converted(root, input, out);
+  const source = fs.readFileSync(path.join(out, 'src/Demo/Module.cls'), 'utf8');
+  assert.ok(source.includes('ClassMethod Process(value, Output reason, ByRef state As %String, ' +
+    'Output error As %Status, ByRef result As %String = "a,b")'));
+});
+
 test('help outranks conversion and validates no paths on help', t => {
   const {root} = fixture(t);
   const result = run(root, '--input', 'nonexistent.xml', '--out', 'created', '--help');
