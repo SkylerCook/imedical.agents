@@ -1,56 +1,76 @@
 {
-  "name": "imedicalxc-doctor-codegraph",
-  "version": "0.1.0",
-  "displayName": "iMedicalXC Doctor CodeGraph",
-  "description": "HIS 医生站代码调用图索引与检索插件。构建工作区方法级调用图、扫描 Maven biz jar 并生成影响分析与两部分穿透索引（impact_db.json / penetration_db.json），提供变更影响分析、调用者与被调用者、Feign 使用方、跨服务依赖与提交级批量取证查询；同时构建前端「界面→操作→JS 方法→HTTP 请求」链路索引。",
-  "entry": "AGENTS.md",
-  "skills": "skills/",
-  "scripts": "scripts/",
-  "initSkill": "imedicalxc-doctor-codegraph-gen",
-  "requiresProjectFiles": [
-    "AGENTS.md"
-  ],
-  "defaultPrompt": [
-    "初始化或增量更新医生站调用图索引",
-    "分析某个改动的影响范围",
-    "查询某方法被谁调用",
-    "查询 Feign 接口被哪些服务或模块调用",
-    "按提交批量取证调用链证据",
-    "初始化或增量更新前端界面操作链路索引"
-  ],
-  "projectDirectories": [
-    {
-      "id": "codegraph-index",
-      "base": "workspace",
-      "path": "docs/agents/imedicalxc-doctor-codegraph",
-      "role": "knowledge",
-      "create": "setup",
-      "purpose": "调用图索引产物：影响分析库、两部分穿透库、方法级调用图与 Feign 接口清单",
-      "examples": [
-        "impact_db.json",
-        "penetration_db.json",
-        "method_call_graph.jsonl",
-        "feign_interfaces.json"
-      ],
-      "boundary": "确定性生成的派生产物，随源码版本提交；节点 file_path 为工作区相对路径，不随克隆位置变化",
-      "lifecycle": "随索引重建整体覆盖，可随时全量重生成；不手工编辑，中间产物只在构建期存在于本目录"
-    },
-    {
-      "id": "front-codegraph-index",
-      "base": "workspace",
-      "path": "docs/agents/imedicalxc-doctor-front-codegraph",
-      "role": "knowledge",
-      "create": "setup",
-      "purpose": "前端链路索引产物：页面、操作元素、JS 方法、HTTP 请求及其触发/调用关系；可选菜单快照",
-      "examples": [
-        "front_chain_db.json",
-        "front_chains.jsonl",
-        "front_pages.jsonl",
-        "front_elements.jsonl",
-        "menu_snapshot.json"
-      ],
-      "boundary": "确定性生成的派生产物，随源码版本提交；节点路径为 src/frontend/hisfront/static 相对路径，不随克隆位置变化",
-      "lifecycle": "随索引重建整体覆盖，可随时全量重生成；不手工编辑，中间产物只在构建期存在于本目录"
-    }
-  ]
+ "name": "imedicalxc-doctor-codegraph",
+ "version": "0.2.0",
+ "displayName": "iMedicalXC Doctor CodeGraph",
+ "description": "HIS 医生站代码调用图索引与检索插件。构建工作区方法级调用图、扫描 Maven biz jar 并生成影响分析与两部分穿透索引（impact_db.json / penetration_db.json），提供变更影响分析、调用者与被调用者、Feign 使用方、跨服务依赖与提交级批量取证查询；同时构建前端「界面→操作→JS 方法→HTTP 请求」链路索引，以及服务总线「HIS↔外部系统」生产者/消费者绑定索引。",
+ "entry": "AGENTS.md",
+ "skills": "skills/",
+ "scripts": "scripts/",
+ "initSkill": "imedicalxc-doctor-codegraph-gen",
+ "requiresProjectFiles": [
+  "AGENTS.md"
+ ],
+ "defaultPrompt": [
+  "初始化或增量更新医生站调用图索引",
+  "分析某个改动的影响范围",
+  "查询某方法被谁调用",
+  "查询 Feign 接口被哪些服务或模块调用",
+  "按提交批量取证调用链证据",
+  "初始化或增量更新前端界面操作链路索引",
+  "构建或查询 HIS 与外部系统的服务总线绑定关系"
+ ],
+ "projectDirectories": [
+  {
+   "id": "codegraph-index",
+   "base": "workspace",
+   "path": "docs/agents/imedicalxc-doctor-codegraph",
+   "role": "knowledge",
+   "create": "setup",
+   "purpose": "调用图索引产物：影响分析库、两部分穿透库、方法级调用图与 Feign 接口清单",
+   "examples": [
+    "impact_db.json",
+    "penetration_db.json",
+    "method_call_graph.jsonl",
+    "feign_interfaces.json"
+   ],
+   "boundary": "确定性生成的派生产物，随源码版本提交；节点 file_path 为工作区相对路径，不随克隆位置变化",
+   "lifecycle": "随索引重建整体覆盖，可随时全量重生成；不手工编辑，中间产物只在构建期存在于本目录"
+  },
+  {
+   "id": "front-codegraph-index",
+   "base": "workspace",
+   "path": "docs/agents/imedicalxc-doctor-front-codegraph",
+   "role": "knowledge",
+   "create": "setup",
+   "purpose": "前端链路索引产物：页面、操作元素、JS 方法、HTTP 请求及其触发/调用关系；可选菜单快照",
+   "examples": [
+    "front_chain_db.json",
+    "front_chains.jsonl",
+    "front_pages.jsonl",
+    "front_elements.jsonl",
+    "menu_snapshot.json"
+   ],
+   "boundary": "确定性生成的派生产物，随源码版本提交；节点路径为 src/frontend/hisfront/static 相对路径，不随克隆位置变化",
+   "lifecycle": "随索引重建整体覆盖，可随时全量重生成；不手工编辑，中间产物只在构建期存在于本目录"
+  },
+  {
+   "id": "aggregation-index",
+   "base": "workspace",
+   "path": "docs/agents/imedicalxc-doctor-aggregation",
+   "role": "knowledge",
+   "create": "setup",
+   "purpose": "服务总线绑定索引产物：接入系统、注册/发布服务、消息订阅与路由证据，归一化后的 HIS↔外部系统生产者/消费者绑定（HIS 侧已挂接 Controller 方法），系统级绑定图（HTML / GraphML）、Controller 影响矩阵与请求码对照清单（Markdown）",
+   "examples": [
+    "aggregation_db.json",
+    "aggregation_raw.json",
+    "aggregation_stats.json",
+    "aggregation_graph.html",
+    "aggregation_graph.graphml",
+    "aggregation_request_checklist.md",
+    "aggregation_controller_impact.md"
+   ],
+   "boundary": "从只读总线库 db_hsb.sm_hsb 导出的派生产物，随项目版本提交；不包含任何密钥/凭据列，系统名与 ID 原样保留",
+   "lifecycle": "随总线登记变化重建覆盖；不手工编辑，中间回填文件只存在于 MCP 会话临时目录"
+  }
+ ]
 }

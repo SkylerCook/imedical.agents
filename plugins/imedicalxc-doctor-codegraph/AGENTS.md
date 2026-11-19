@@ -1,16 +1,17 @@
 # AGENTS.md - imedicalxc-doctor-codegraph
 
-本插件提供 HIS 医生站代码调用图分析能力，拆分为三个 skill：后端索引构建/增量更新（gen）、数据检索/影响分析（search）、前端界面操作链路构建（front-gen）。
+本插件提供 HIS 医生站代码调用图分析能力，拆分为四个 skill：后端索引构建/增量更新（gen）、数据检索/影响分析（search）、前端界面操作链路构建（front-gen）、服务总线生产者/消费者绑定构建（aggregation-gen）。
 
 ## 插件信息
 
 - **名称**: imedicalxc-doctor-codegraph
-- **版本**: 0.1.0（事实来源为 `.agents-plugin/plugin.json`）
+- **版本**: 0.2.0（事实来源为 `.agents-plugin/plugin.json`）
 - **类型**: skill plugin
 - **入口 skill**:
   - `imedicalxc-doctor-codegraph-gen` — 后端调用图初始化、增量更新
   - `imedicalxc-doctor-codegraph-search` — 后端检索、影响分析
   - `imedicalxc-doctor-codegraph-front-gen` — 前端「界面 → 操作 → JS 方法 → HTTP 请求」链路构建
+  - `imedicalxc-doctor-codegraph-aggregation-gen` — 服务总线 HIS↔外部系统生产者/消费者绑定构建与查询
 
 ## 目录结构
 
@@ -23,10 +24,13 @@
 │   │   └── SKILL.md             # 后端构建与增量更新
 │   ├── imedicalxc-doctor-codegraph-search/
 │   │   └── SKILL.md             # 检索与影响分析
-│   └── imedicalxc-doctor-codegraph-front-gen/
-│       └── SKILL.md             # 前端链路构建与增量更新
+│   ├── imedicalxc-doctor-codegraph-front-gen/
+│   │   └── SKILL.md             # 前端链路构建与增量更新
+│   └── imedicalxc-doctor-codegraph-aggregation-gen/
+│       └── SKILL.md             # 服务总线绑定构建与查询
 ├── rules/                       # 规则文件（可选）
 └── scripts/                     # 后端脚本
+    ├── agg/                     # 服务总线导出、回填、构建与查询
     └── front/                   # 前端扫描与查询脚本
 ```
 
@@ -73,6 +77,15 @@
    - 菜单快照可选：`hos_sys_resource` 路由匹配页面；配置注入快照可选：配置表 → handler / 跳转地址
    - 调用链按调用深度 BFS 展开（主操作请求优先），本期只输出 URL 路径，不关联后端 Controller / Feign
 
+### 服务总线绑定构建（aggregation-gen）
+
+6. **HIS ↔ 外部系统生产者/消费者绑定**
+   - 只读总线库 `db_hsb.sm_hsb`（Kingbase `kingbase-87-aggregation` MCP），不写库、不改配置
+   - 生产方：注册服务 `service_provider`、消息所属服务、发布描述中的系统声明；消费方：发布服务 `service_provider`、服务名“给X调用”、消费组所属服务、路由目标服务
+   - 生产方缺失时按「发布端点 ∩ 注册端点资源码」推断，置信标 `inferred`；其余标 `declared` / `consumer-only`
+   - 输出方向 `outbound` / `inbound` / `external` / `internal` / `unresolved-producer`，并保留缺口清单
+   - 消息订阅按 `REGxxxx` / `PUBxxxx` 消费组归集，路由动作按 `message_rule_action.service_id` 归集
+
 ## 流水线
 
 ### 后端七步
@@ -111,6 +124,18 @@
 
 **当前规模（2026-11-09 全量构建，含动态分派、片段合并与界面关系）**：6,243 页面 / 183,361 元素（27,535 可交互）/ handler 27,520（26,022 绑定函数 / 1,498 未解析）；193,188 函数（39,645 可达，其中工具类 822）；12,474 请求（7,318 个「方法+路径」）；30,120 链路；界面→界面 1,570 条（弹出 1,045 / 跳转 416 / 内嵌 81 / 包含 28，461 页有弹出关系；地址未落地 37 处 / 运行时变量 766 / 非静态页面 384）；配置注入 5 场景 / 99 组 / 366 项并入链路（跳转 15 / 页面跳转边 10）；`front_chain_db.json` 59.8 MiB。GraphML 导出剔除工具类方法（19,019 JS方法节点 / 7,318 HTTP请求节点 / 43,955 边）。
 
+### 服务总线五步
+
+| 步骤 | 脚本 | 耗时 | 输出 |
+|---|---|---|---|
+| Step 1 | `agg/collect_sm_hsb.py --emit-sql` | <1s | 17 个数据集的查询 SQL |
+| Step 2 | `kingbase-87-aggregation` MCP 逐条执行 | ~1-2min | 会话 `tool_result`（大结果落盘） |
+| Step 3 | `agg/capture_mcp_results.py --transcript <会话>.jsonl` | ~2s | `~/.qoder/tmp/aggregation_mcp_dump.json` |
+| Step 4 | `agg/collect_sm_hsb.py --from-json <dump>` + `agg/build_aggregation_db.py` | ~1s | `aggregation_raw.json`、`aggregation_db.json`（含 Controller 挂接）、`aggregation_stats.json`；build 自动同步刷新 HTML / GraphML / 请求码清单 / Controller 影响矩阵（`--no-export` 跳过） |
+| Step 5 | `agg/export_aggregation_graph.py` + `agg/export_controller_impact.py` | <1s | 仅在需要自定义输出路径时单独重跑：系统级绑定图（概览 + 请求级明细）、GraphML、请求码对照、Controller 影响矩阵 |
+
+**当前规模（2026-11-10）**：26 接入系统 / 33 注册服务 / 28 发布服务；672 注册端点 / 493 发布端点（227 条资源码命中）；566 消息 / 59 消费组 / 372 路由动作；228 条绑定（outbound 121、inbound 24、external 20、internal 5、unresolved-producer 58）；绑定图 27 节点（26 系统 + `(未登记)`）/ 81 条聚合边 / 228 条请求级明细。HIS 请求码 86 个已挂接 Controller 67 个（按绑定计 265/387），64 个唯一 Controller 方法；未解析 19 个集中在 `iMedwayService`/`cssd`/`mrm`。消息生产方仅 32/566 有登记，其余只能给消费侧证据。
+
 ## 脚本位置
 
 所有核心脚本位于 `.agents/plugins/imedicalxc-doctor-codegraph/scripts/` 目录。
@@ -145,9 +170,21 @@
 | `query_front_chain.py` | 查询页面、元素、函数、URL、界面关系（`links`）、菜单链路 |
 | `audit_front_coverage.py` | 构建后归属审计：已解析 URL 完整性、未解析 URL 分类、触发点覆盖率、配置注入绑定、界面关系 |
 
+服务总线脚本位于 `scripts/agg/`：
+
+| 脚本 | 功能 |
+|---|---|
+| `config.py` | schema/输出目录解析、系统别名、声明调用方解析、资源模块口径、敏感列清单 |
+| `collect_sm_hsb.py` | 导出 17 个数据集（`--emit-sql` / `--from-db` / `--from-json`） |
+| `capture_mcp_results.py` | 从会话 JSONL 回填 `kingbase-87-aggregation` 查询结果，处理分页与落盘 |
+| `build_aggregation_db.py` | 归一化绑定库：方向、置信、kind、证据与缺口；加载代码调用图端点索引把 HIS 生产绑定挂到 Controller（`controller_link.py`） |
+| `export_aggregation_graph.py` | 绑定图导出：系统级概览 + 请求级明细（自包含 HTML，含 HIS Controller 列与搜索）、GraphML（边含 controllers）与请求码对照清单（Markdown 三表，表 A/表 C 含 Controller 列）；按 (生产方, 消费方) 聚合；`(未登记)` 节点用虚线 |
+| `export_controller_impact.py` | Controller 影响矩阵（Markdown）：汇总矩阵 + 128 行厂家接口明细 + 未解析请求码 + 声明/消息绑定归类 |
+| `query_aggregation.py` | 查询系统/服务/消息/绑定（`--stats`、`--system`、`--message`、`--json`） |
+
 ## 输出位置
 
-后端输出位于 `docs/agents/imedicalxc-doctor-codegraph/`（`projectDirectories` 的 `codegraph-index`），前端输出位于 `docs/agents/imedicalxc-doctor-front-codegraph/`（`front-codegraph-index`）。目录均由 `.agents-plugin/plugin.json` 声明，脚本直接解析该声明，不另维护路径副本；索引数据跟随项目源码版本提交，不随能力包分发。
+后端输出位于 `docs/agents/imedicalxc-doctor-codegraph/`（`projectDirectories` 的 `codegraph-index`），前端输出位于 `docs/agents/imedicalxc-doctor-front-codegraph/`（`front-codegraph-index`），服务总线输出位于 `docs/agents/imedicalxc-doctor-aggregation/`（`aggregation-index`）。目录均由 `.agents-plugin/plugin.json` 声明，脚本直接解析该声明，不另维护路径副本；索引数据跟随项目源码版本提交，不随能力包分发。
 
 索引为确定性生成：同一源码与 Maven 仓库重复构建逐字节一致（文件遍历、并发扫描结果、序列化顺序均排序）；节点 `file_path` 为工作区相对路径，可直接进行版本比较。
 
@@ -158,6 +195,7 @@
 - `/imedicalxc-doctor-codegraph-gen` — 首次初始化或增量更新后端索引
 - `/imedicalxc-doctor-codegraph-search` — 查询调用关系与变更影响
 - `/imedicalxc-doctor-codegraph-front-gen` — 构建或更新前端「界面 → 操作 → JS 方法 → HTTP 请求」链路
+- `/imedicalxc-doctor-codegraph-aggregation-gen` — 构建或查询服务总线 HIS↔外部系统绑定
 
 全量刷新命令：
 ```bash
@@ -168,6 +206,10 @@ python feign_scanner.py && python build_method_graph.py && python build_maven_bi
 # 前端（菜单快照与配置注入可选，凭据只走环境变量或 Kingbase MCP）
 cd front
 python html_scan.py && python js_scan.py && python build_front_chain_db.py
+
+# 服务总线（只读；MCP 导出后回填，或直连环境变量）
+cd agg
+python collect_sm_hsb.py --emit-sql && python capture_mcp_results.py --transcript <会话>.jsonl && python collect_sm_hsb.py --from-json <dump> && python build_aggregation_db.py  # build 自动同步刷新 HTML/GraphML/清单/影响矩阵 && python export_controller_impact.py
 ```
 
 ## 关键踩坑记录
@@ -198,6 +240,9 @@ python html_scan.py && python js_scan.py && python build_front_chain_db.py
 24. **契约类型的字段嵌套要向上展开**: 变更的 DTO/VO 常以字段形式嵌在别的类型里（`FeignDiagnoseVO` → `FeignEncounterVO.diagnose` → `FeignOrderLisReturnVO` → `FeignIBUSLisBaseReturnVO`），只匹配方法签名会漏掉这些使用方。`build_type_nesting.py`（Step 5b）产出 `type_nesting.json`：字段类型 → 外层类型的反向边，只做字段组合、不展开 `extends`，字段类型必须命中已扫到的「显式 import / 同包 / 通配 import」类名集合（不做同名猜包，第一版因此产出 `pkg.List` 类假边）。`query_commit_impact.py` 先直接匹配签名，再按索引向外层展开最多 4 层，命中明细带 `matchFqn` / `nestedVia`，Controller 入口 `via` 追加 `nested:<变更类型>><…>><外层类型>`。展开只解决「谁用了这个类型」：综合诊疗那批 `Aggcare*InfoClientController` 是对 LIS/PIS/RIS、患者信息、医保的对外集成接口，命中它们仍可能没有医生站页面（2026-11 穿透复测：入口 +106、前端命中 +12、页面数不变），报告要按「外部集成接口受影响」表述，不能据此补页面。
 25. **参数里的类型不会产生调用边**: `new FeignPaPatMedicalInfoDTO().setId(..).setBirthTime(..)` 这类链式 builder 的接收者是 `new X()`，方法图接收者正则只认标识符，构造链一条边都没有，DTO 本身也不是图节点。`FeignPaPatMedicalInfoDTO` 之所以能落到 `PaPatIhdDataSaveClientController#save`，是因为它嵌在 `FeignPCAInfoDTO` 里、后者是 `SaveIhdPaPatDataAbstract#setPatientInfo` 的入参。Step 5c 的 `build_type_usage.py` 从方法图节点签名（`Class.method(SimpleType param)` 括号段）抽出「类型 → 用它的方法」索引 `type_usage.json`；查询侧取变更类型 + 字段嵌套 1 级外壳作 seed，反向 BFS ≤6 跳追 Controller（节点上限 500、每提交至多 40 个 Controller），入口 `heuristic+indirect`、`via` 带 `usedBy:<方法>`，与签名反查按 (kind, service, controller, http) 去重。seed 不能再加深：2 层以上会把患者域共享 DTO 全拉进来，入口数翻倍且大多无页面。这类入口与契约类型入口一样，只证明接口影响面，不当医生站页面证据。
 26. **MyBatis 改动要同时回映 Java 与 XML**: `build_method_graph.py` 从 `BaseServiceImpl<Mapper, PO>` 还原 Mapper 泛型，并把 `this.baseMapper.xxx()` / `baseMapper.xxx()` 连到 `Mapper.xxx`；接收者解析不能只认不带 `this.` 的字段。`query_commit_impact.py` 同时 diff Java 与 `*Mapper.xml`，按 namespace + statement id 回映接口方法，Java 参数中的 `@Param("...")` 含嵌套括号时也要能解析签名。Java 与 XML 同一方法合并 changedLines 并去重，优先保留 Java 位置；否则同一提交会重复取证或把 XML-only 变更误报为 `no_method_change`。
+27. **服务总线 MCP 单次 500 行、大结果落盘**: `messages` 必须分页（566 行 = 2 页）；超过 25k token 的结果只给 `Full output has been saved to:` 路径，回填脚本必须读落盘文件，不能解析预览片段。`truncated: true` 不能当成完整结果。
+28. **发布服务的 `service_provider` 是调用方**: 发布服务名是英文（`HISService`），消费方要从 `service_desc` 的“提供给 X 调用”解析；描述以 `发布REST服务` 开头时生产方未知，不能把 `REST` 当系统名。系统别名按最长词优先（`检验外送` 先于 `检验`）。
+29. **消息生产方覆盖率是数据事实**: `message_list.service_id` 只有 32/566 非空，`message_rule.service_id` 全空；消息订阅与路由只能提供消费侧证据，绑定置信降为 `consumer-only` / `unresolved-producer`，不能推断成 HIS 生产。`hos_sys_interface.system_id` 引用的是 `hos_system_app.id`，不要 join 接入系统表。
 
 ## 依赖
 
