@@ -48,7 +48,7 @@ function makeFixture(root) {
   for (const file of ['serve.js', 'inspect-project.js', 'personal-settings.js', 'project-settings.js']) {
     files.push(`tools/agents-workbench/prototype/${file}`);
   }
-  files.push(stageScript, `${react}/start-workbench.cmd`, `${react}/import-workbench-release.ps1`);
+  files.push(stageScript, `${react}/start-workbench.cmd`, `${react}/start-workbench.ps1`, `${react}/import-workbench-release.ps1`);
   for (const file of files) copyFixtureInput(source, file);
   write(source, '.gitignore', `${react}/dist/\n${react}/node_modules/\n`);
   write(source, `${react}/package.json`, JSON.stringify({ version: '0.2.2' }));
@@ -108,6 +108,8 @@ test('formal package trusts its own exact source commit and verified deployed fi
   const { source, staged, revision } = makeFixture(root);
   const envelope = path.join(staged, 'workbench-release.json');
   const release = JSON.parse(fs.readFileSync(envelope, 'utf8'));
+  assert.deepEqual(fs.readFileSync(path.join(staged, 'start-workbench.ps1')),
+    git(source, 'cat-file', 'blob', `${revision}:${react}/start-workbench.ps1`));
   const tree = git(source, 'ls-tree', '-r', '-z', revision, '--', 'scripts', 'plugins', 'vendor', 'hooks');
   const withoutInstaller = tree.toString('latin1').split('\0').filter(row => !row.endsWith('\tscripts/install-agents.ps1')).join('\0');
   const treeDigest = createHash('sha256').update(withoutInstaller, 'latin1').digest('hex');

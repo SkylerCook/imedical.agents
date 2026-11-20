@@ -2,7 +2,7 @@
 
 ## 解压运行
 
-将 `tools/dist/agents-workbench-react.zip` 完整解压。在 Windows x64 双击 `start-workbench.cmd`，选择工程目录后，默认浏览器打开工程首页。包内包含便携 Node.js 24.22.3、编译后的页面、Maple Mono NF CN 中文字体、手册和本地依赖。框架首装和更新需要本机 Git、Windows PowerShell 5.1，以及可访问的 Git 来源或已批准的完整离线能力包。
+将 `tools/dist/agents-workbench-react.zip` 完整解压。在 Windows x64 双击新版 `start-workbench.cmd`。系统文件夹选择器支持在地址栏粘贴工程路径，选定后由默认浏览器打开工程首页。包内包含便携 Node.js 24.22.3、编译后的页面、Maple Mono NF CN 中文字体、手册和本地依赖。框架首装和更新需要本机 Git、Windows PowerShell 5.1，以及可访问的 Git 来源或已批准的完整离线能力包。
 
 ```powershell
 & ./start-workbench.cmd --project "<工程根目录>"
@@ -20,7 +20,7 @@
 
 检查通过后，可点击「打开新版工作台」。下次从原 `start-workbench.cmd` 打开当前工程时，启动器会优先使用已核验的新版。新版启动失败时，启动器自动打开旧版。也可在新版工程首页点击「恢复旧版工作台」，打开旧版并恢复该工程的默认版本。两个版本都可从各自安装目录启动，旧版页面可以继续处理已开始的工作。
 
-通过工作台导入新版后，从新版自己的 `start-workbench.cmd` 打开同一工程，也可以恢复这次更新前的默认版本。其他工程各自保留原来的选择。
+通过工作台导入新版后，双击新版目录的 `start-workbench.cmd` 即可使用新版文件夹选择器。从该目录打开同一工程，也可以恢复这次更新前的默认版本。其他工程各自保留原来的选择。
 
 早期工作台可按发放记录核对 ZIP 版本、大小和 SHA-256，再完整解压到新目录，从新版 `start-workbench.cmd` 绑定原工程。
 

@@ -90,6 +90,7 @@ if (runtime) {
   copy(join(runtime, "node.exe"), "runtime/node.exe");
   copy(join(runtime, "LICENSE"), "runtime/LICENSE");
   copy(`${react}/start-workbench.cmd`, "start-workbench.cmd");
+  copy(`${react}/start-workbench.ps1`, "start-workbench.ps1");
 }
 copy(`${react}/import-workbench-release.ps1`, "import-workbench-release.ps1");
 
@@ -173,7 +174,7 @@ for (const directory of pluginDirectories.filter(Boolean)) {
 }
 
 const { version } = JSON.parse(readFileSync(join(repo, react, "package.json"), "utf8"));
-const startup = runtime ? `将 ZIP 完整解压，在 Windows x64 上双击 \`start-workbench.cmd\`，选择工程后，浏览器会打开实际工作台。包内提供便携 Node.js ${nodeVersion}。
+const startup = runtime ? `将 ZIP 完整解压，在 Windows x64 上双击新版 \`start-workbench.cmd\`。可在 Windows 文件夹对话框的地址栏粘贴工程路径并选择文件夹，浏览器随后打开工作台。包内提供便携 Node.js ${nodeVersion}。
 
 \`\`\`powershell
 & ./start-workbench.cmd --project "<工程根目录>"

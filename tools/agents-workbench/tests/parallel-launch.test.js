@@ -20,6 +20,7 @@ test('Windows default launcher keeps startup diagnostics and handles picker canc
     fs.rmSync(root, { recursive: true, force: true, maxRetries: 3 });
   });
   fs.copyFileSync(path.resolve(__dirname, '../react/start-workbench.cmd'), path.join(root, 'start-workbench.cmd'));
+  fs.copyFileSync(path.resolve(__dirname, '../react/start-workbench.ps1'), path.join(root, 'start-workbench.ps1'));
   const selector = path.join(root, 'powershell.exe');
   const powershell = path.join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe');
   const compile = `
@@ -28,7 +29,10 @@ $source = @'
 using System;
 public static class WorkbenchPickerFixture {
     public static int Main(string[] args) {
-        if (args.Length != 4 || args[2] != "-Command") return 99;
+        if (args.Length != 6 || args[0] != "-NoProfile" || args[1] != "-STA" || args[2] != "-ExecutionPolicy" ||
+            args[3] != "Bypass" || args[4] != "-File" ||
+            args[5] != System.IO.Path.Combine(Environment.CurrentDirectory, "start-workbench.ps1") ||
+            !System.IO.File.Exists(args[5])) return 99;
         switch (Environment.GetEnvironmentVariable("WORKBENCH_TEST_PICKER_RESULT")) {
             case "cancelled": return 0;
             case "failed": Console.Error.WriteLine("fixture startup failed"); return 37;
