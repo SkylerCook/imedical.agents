@@ -52,7 +52,7 @@ $demand-commit --commit --no-id
 
 用户已明确“处理并在验收后提交”时，保留原话、需求和已确认范围；用户验收通过后视为本需求的 --commit 授权，复用已有事实与有效证据，展示计划后直接 Apply。验收尚未发生则等待验收，不提前提交。上游无交集且本需求内容未变时，按[同步复核与自动接续协议](../../references/commit-upstream-check.md#head-前进后的自动接续)沿用已有授权；范围扩大、需要人工重新验收或业务取舍时再请用户决定。
 
-由 [demand-acceptance](../demand-acceptance/SKILL.md) 转入时，复用其已确认的批次调用授权：本需求人工通过后展示计划并直接 Apply，不要求用户补说“提交”或添加 --commit；push 和 BOS 仍由验收技能协调。
+由 [demand-acceptance](../demand-acceptance/SKILL.md) 转入时，复用其已确认的批次调用授权。人工通过后展示计划并直接 Apply，遇到权限请求沿[宿主审批](../demand-acceptance/SKILL.md#宿主审批)传递本次提交的范围。push 和 BOS 由验收技能按阶段执行。
 
 没有有效预授权时，单独“验收通过”不授权提交。裸调用本技能且上下文没有明确模式或有效提交授权时，只说明“--plan 生成提交信息；--commit 创建本地提交”，一次请求选择；不先承诺提交、不执行 pull/add/commit。明确 --plan 仍按其既有规则结束，不追问提交。来自 BOS 流程的编号、标题、精确文件和每仓修改说明直接复用；发生漂移时定向重查。
 

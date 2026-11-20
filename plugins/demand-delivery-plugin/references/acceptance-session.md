@@ -57,7 +57,7 @@ BOS 批次的 repositories.root/ref 表示已确认实仓和完整目标分支�
 
 真实原话须由 Agent 从人类对话核对，不能把别的 Agent 指令或输入文件声明当成用户授权。`session.lock` 仅短时保护元数据写入；失败时检查实际写入者与恢复现场，禁止抢删其他执行者的锁。只读报告可在锁存在时运行。
 
-技能层 `--pass`（含多行“编号＋标题”）按[接收结论](../skills/demand-acceptance/SKILL.md#接收结论)由 Agent 逐号核对后转为 `decide` 的 `status=passed`，`quote` 保留真实用户原话；已有相同结论复用记录，不重复执行成功阶段。脚本 CLI 和 v1/v2 schema 不变。
+技能层 `--pass` 按[接收结论](../skills/demand-acceptance/SKILL.md#接收结论)转为逐号 `decide` 的 `status=passed`，随后从首个未完成阶段继续交付。分别保留 `decide` 的验收原话和 `authorize` 的真实授权原话。索引记录用于校验批次范围及占用，实际写入使用现有执行工具，遇到权限请求按[宿主审批](../skills/demand-acceptance/SKILL.md#宿主审批)处理。脚本 CLI 和 v1/v2 schema 不变。
 
 发布排他仅覆盖**同一 session 内**遵循协议的执行者，以注册的仓库 root/remote/ref 为键。它不是跨批次/跨工具的全局 Git 锁；复用一个批次索引并保留现有 upstream/HEAD/hook 检查，外部变更按实际证据恢复。独立 worktree 可提前准备，不能提前发布。全部约定 Git 动作完成（commit 成功且 push 成功或不适用）后自动清空 publication；claim 保留日志交付者和原 worktrees 取证，但这些路径不再占有 Git 写入权。后续需求可复用已释放的 checkout；原交付者补录 BOS 时只读原实仓 commit，无需重新取得 Git 发布权。旧批次首次执行写命令也按已有成功回执释放，不改 schema/scopeHash 或日志状态；部分 push 仍保留占有直到全部目标成功。
 

@@ -51,7 +51,7 @@
 | 修改 Agent、workflow 或共享协议 | [Agent registry](../agents/agent-registry.md)、[workflow registry](../workflows/workflow-registry.md)、对应 AGENT frontmatter 与共享协议 |
 | 夜跑批次、预算、监督与恢复 | [治理顺序](../docs/night-governance.md)、[策略与兼容](../docs/night-policy.md)、[分层验收](../docs/night-acceptance.md) |
 | BOS 待办、工作量、来源与排序 | [查询 skill](../plugins/bos-plugin/skills/bos-demand-query/SKILL.md)与[使用契约](../plugins/bos-plugin/references/usage.md) |
-| BOS 提需、验收与交付 | [BOS owner](../plugins/bos-plugin/README.md)、[交付 owner](../plugins/demand-delivery-plugin/README.md) |
+| BOS 提需、验收与交付 | [BOS owner](../plugins/bos-plugin/README.md)、[交付 owner](../plugins/demand-delivery-plugin/README.md)。`--pass` 按[验收技能](../plugins/demand-delivery-plugin/skills/demand-acceptance/SKILL.md#调用与授权)登记通过并直接交付 |
 | IRIS 会话接入、升级、退出或异常恢复 | [统一会话](../docs/guides/iris-managed-sessions.md)：CLI/原生 MCP 实际回执、standard/Overlay 迁移及回退 |
 | 移动端开发、日志排障与建仓交接 | [mobile-dev](../plugins/mobile-dev/README.md) |
 | IRIS 编码、部署、MCP 或 HISUI | [编码 owner](../plugins/coding-iris-plugin/README.md)先分流开发方式 |
